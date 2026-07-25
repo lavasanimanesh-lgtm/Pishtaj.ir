@@ -546,7 +546,7 @@ function renderOffers() {
       (isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')" title="مشاهده پرونده فروش">📁</button> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="offerReviseClone(\''+o.no+'\')" title="ایجاد نگارش جدید (Revise)">📑</button> ') +
       '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerQuickPreview(\''+o.no+'\')" title="نمایش سریع اقلام">👁️</button> ' +
       '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerPrint(\''+o.no+'\')" title="قالب‌های چاپ و دانلود سند">🖨️</button> ' +
-      ((o.kind === 'CO' || o.kind === 'TC') ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#d97706;border-color:#f59e0b" onclick="unofficialInvoicePrint(\''+o.no+'\')" title="صدور صورتحساب پرداخت (غیررسمی)">🧾</button> ' : '') +
+      ((o.kind === 'CO' || o.kind === 'TC') && isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#d97706;border-color:#f59e0b" onclick="unofficialInvoicePrint(\''+o.no+'\')" title="صدور صورتحساب پرداخت (غیررسمی)">🧾</button> ' : '') +
       '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerCsv(\''+o.no+'\')" title="دانلود اکسل اقلام">⬇️</button>' +
       (o.kind === 'CO' ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:13px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')" title="ماتریس بهینه‌سازی سود">📊</button> ' : '') +
       toCoBtn + invBtn +
@@ -2213,6 +2213,20 @@ function offerSave() {
   o.updatedAtISO = new Date().toISOString();
   var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === o.buyerCd; })[0];
   if (c) o.buyerCo = c.coEn || c.co;
+
+  // Automatic winning of complementary/alternative offers (فاکتورهای متمم)
+  if (o.kind === 'CO' || o.kind === 'TC') {
+    var parentNo = o.altOf || o.srcToNo;
+    if (parentNo) {
+      var allOffers = getData('ptf_crm_offers');
+      var parentOffer = allOffers.filter(function(x) { return x.no === parentNo; })[0];
+      if (parentOffer && (parentOffer.st === 'won' || parentOffer.status === 'won')) {
+        o.st = 'won';
+        o.status = 'won';
+      }
+    }
+  }
+
   /* v14.6 (US-352): هشدار عبور از سقف اعتبار — مانده باز + مبلغ CO جدید */
   if ((o.kind === 'CO' || o.kind === 'TC') && c && +c.creditLimit > 0 && typeof ptfCustOpenBalance === 'function') {
     var _bal = ptfCustOpenBalance(o.buyerCd);
