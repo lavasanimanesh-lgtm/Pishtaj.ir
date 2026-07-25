@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — unofficial-invoice.js — v1.0.3
+   PTF CRM — unofficial-invoice.js — v1.0.4
    ماژول صدور فاکتور غیر رسمی برای پیش‌فاکتورهای شرکت (CO / TC)
    ===================================================================== */
 (function () {
@@ -67,7 +67,7 @@
   }
 
   // تولید سند HTML فاکتور غیر رسمی
-  function generateUnofficialInvoiceHtml(o, total, bankAccount, advPay) {
+  function generateUnofficialInvoiceHtml(o, total, bankAccount, advPay, discountVal, discountLabel) {
     var itemsHtml = '';
     (o.items || []).forEach(function (it, idx) {
       var rowNum = idx + 1;
@@ -101,14 +101,20 @@
     var formattedTotal = formatNumber(total, o.currency);
     var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(total) : total;
 
+    // متغیرهای تخفیف
+    var formattedDisc = formatNumber(discountVal, o.currency);
+    var discInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(discountVal) : discountVal;
+
+    // متغیرهای پیش‌پرداخت
     var formattedAdv = formatNumber(advPay, o.currency);
     var advInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(advPay) : advPay;
 
-    var netPayable = Math.max(0, total - advPay);
+    // محاسبه خالص نهایی قابل پرداخت
+    var netPayable = Math.max(0, total - discountVal - advPay);
     var formattedNet = formatNumber(netPayable, o.currency);
     var netInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(netPayable) : netPayable;
     
-    // تبدیل شناسه پیش‌فاکتور به شماره سند متمایز (با تغییر پیشوند CO/TC به INV)
+    // تبدیل شناسه پیش‌فاکتور به شماره سند متمایز (INV)
     var invoiceNo = String(o.no).replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
 
     // پیدا کردن نام فارسی خریدار از لیست مشتریان
@@ -414,6 +420,17 @@
       '            <span>' + formattedTotal + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' +
+      (discountVal > 0 ?
+      '        <tr class="totals-row" style="background-color: #fef2f2 !important;">' +
+      '          <td colspan="4" class="totals-label-words" style="color: #991b1b;">' +
+      '            کاهش بدهی بابت ' + escP(discountLabel) + ' (به حروف): ' +
+      '            <span class="totals-value-words" style="color: #991b1b;">' + discInWords + ' ' + currencyFa + '</span>' +
+      '          </td>' +
+      '          <td colspan="2" class="totals-label-num" style="color: #991b1b; border-top: 1px solid #fca5a5 !important;">' +
+      '            مبلغ تخفیف: ' +
+      '            <span>' + formattedDisc + '</span> ' + currencyFa +
+      '          </td>' +
+      '        </tr>' : '') +
       (advPay > 0 ?
       '        <tr class="totals-row" style="background-color: #fffbeb !important;">' +
       '          <td colspan="4" class="totals-label-words" style="color: #b45309;">' +
@@ -424,10 +441,11 @@
       '            مبلغ پیش‌پرداخت: ' +
       '            <span>' + formattedAdv + '</span> ' + currencyFa +
       '          </td>' +
-      '        </tr>' +
+      '        </tr>' : '') +
+      ((advPay > 0 || discountVal > 0) ?
       '        <tr class="totals-row" style="background-color: #f0fdf4 !important; font-size: 15px;">' +
       '          <td colspan="4" class="totals-label-words" style="color: #15803d; padding: 18px 12px !important;">' +
-      '            <strong>باقی‌مانده قابل پرداخت (به حروف):</strong> ' +
+      '            <strong>باقی‌مانده خالص قابل پرداخت (به حروف):</strong> ' +
       '            <span class="totals-value-words" style="color: #15803d; font-size: 15px;">' + netInWords + ' ' + currencyFa + '</span>' +
       '          </td>' +
       '          <td colspan="2" class="totals-label-num" style="color: #15803d; font-size: 16px; border-top: 2px solid #16a34a !important; padding: 18px 12px !important;">' +
@@ -505,21 +523,29 @@
     var existing = invs.filter(function (x) { return x.cd === invoiceCd || (x.offerNo === o.no && x.isUnofficial && x.status !== 'void'); })[0];
 
     var bankAccount = '';
+    var discountInput = '';
     var newInv = null;
 
     if (existing) {
-      var action = confirm('یک صورتحساب پرداخت برای این پیش‌فاکتور قبلاً در سیستم ثبت شده است.\n\nآیا مایل به نمایش و چاپ مجدد آن هستید؟\n(جهت تغییر شماره حساب یا صدور مجدد، گزینه Cancel را بزنید تا نسخه جدید بازنویسی شود)');
+      var action = confirm('یک صورتحساب پرداخت برای این پیش‌فاکتور قبلاً در سیستم ثبت شده است.\n\nآیا مایل به نمایش و چاپ مجدد آن هستید؟\n(جهت اعمال تخفیف، تغییر شماره حساب یا صدور مجدد، گزینه Cancel را بزنید تا نسخه جدید بازنویسی شود)');
       if (action) {
         bankAccount = existing.bankAccount || '';
         newInv = existing;
       } else {
         bankAccount = prompt('در صورت تمایل، شماره حساب / کارت / شبا جهت درج در صورتحساب را وارد کنید (اختیاری):', existing.bankAccount || '');
         if (bankAccount === null) return; // لغو عملیات
+        
+        discountInput = prompt('در صورت تمایل، مبلغ یا درصد تخفیف را وارد کنید (مثال: 5000000 یا 5%) (اختیاری):', existing.discountInput || '');
+        if (discountInput === null) return; // لغو عملیات
+        
         invs = invs.filter(function (x) { return x.cd !== existing.cd && !(x.offerNo === o.no && x.isUnofficial); });
       }
     } else {
       bankAccount = prompt('در صورت تمایل، شماره حساب / کارت / شبا جهت درج در صورتحساب را وارد کنید (اختیاری):', '');
       if (bankAccount === null) return; // لغو عملیات
+      
+      discountInput = prompt('در صورت تمایل، مبلغ یا درصد تخفیف را وارد کنید (مثال: 5000000 یا 5%) (اختیاری):', '');
+      if (discountInput === null) return; // لغو عملیات
     }
 
     // محاسبه جمع کل پیش‌فاکتور
@@ -527,13 +553,30 @@
       return sum + (+it.qty || 0) * (+it.price || 0);
     }, 0);
 
+    // پردازش تخفیف نقدی یا درصدی
+    var discountVal = 0;
+    var discountLabel = 'تخفیف توافقی';
+    if (discountInput && discountInput.trim()) {
+      var cleanInput = discountInput.trim().replace(/[٪%]/g, '');
+      if (discountInput.indexOf('%') > -1 || discountInput.indexOf('٪') > -1) {
+        var pct = parseFloat(cleanInput) || 0;
+        discountVal = Math.round(total * pct / 100);
+        discountLabel = 'تخفیف توافقی (' + toFaDigits(pct) + '٪)';
+      } else {
+        discountVal = parseFloat(cleanInput.replace(/,/g, '')) || 0;
+        discountLabel = 'تخفیف توافقی';
+      }
+    }
+
     // محاسبه زنده و رسمی پیش‌پرداخت وصول‌شده از بخش مطالبات
     var advPay = 0;
     try {
       var _a = (o && typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(o) : null;
       if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
         var received = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
-        advPay = _a.cashFull ? total : Math.min(total, Math.max(0, received));
+        // پیش‌پرداخت کسر شده نباید از کل مبلغ با احتساب تخفیف بیشتر شود
+        var totalWithDisc = Math.max(0, total - discountVal);
+        advPay = _a.cashFull ? totalWithDisc : Math.min(totalWithDisc, Math.max(0, received));
       }
     } catch (eAdv) {}
 
@@ -543,9 +586,12 @@
         cd: invoiceCd,
         no: invoiceNo,
         offerNo: o.no,
-        amount: total,
+        amount: Math.max(0, total - discountVal), // میزان مطالبه برابر است با مبلغ پس از کسر تخفیف
         base: total,
         vat: 0,
+        discount: discountVal,
+        discountLabel: discountLabel,
+        discountInput: discountInput,
         invDate: o.dateFa || faDate(),
         t: o.dateFa || faDate(),
         buyerCo: o.buyerCo || '',
@@ -584,7 +630,7 @@
           _d.timeline.push({
             t: faDateTime(),
             by: curSession().name,
-            tx: '🧾 صورتحساب پرداخت غیررسمی ' + invoiceNo + ' به مبلغ کل ' + total.toLocaleString('fa-IR') + ' ریال صادر شد.' + (advPay > 0 ? ' — کسر پیش‌پرداخت: ' + advPay.toLocaleString('fa-IR') + ' ریال' : '')
+            tx: '🧾 صورتحساب پرداخت ' + invoiceNo + ' به مبلغ کل ' + (total - discountVal).toLocaleString('fa-IR') + ' ریال صادر شد.' + (discountVal > 0 ? ' (تخفیف: ' + discountVal.toLocaleString('fa-IR') + ' ریال)' : '') + (advPay > 0 ? ' — کسر پیش‌پرداخت: ' + advPay.toLocaleString('fa-IR') + ' ریال' : '')
           });
           setData('ptf_crm_deals', _deals);
         }
@@ -595,7 +641,7 @@
       }
     }
 
-    var html = generateUnofficialInvoiceHtml(o, total, bankAccount, advPay);
+    var html = generateUnofficialInvoiceHtml(o, total, bankAccount, advPay, discountVal, discountLabel);
 
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
       window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceNo);
