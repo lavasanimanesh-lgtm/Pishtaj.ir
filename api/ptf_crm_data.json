@@ -1,0 +1,75 @@
+{
+    "rfqs": {
+        "PTF-RFQ-84920": {
+            "code": "PTF-RFQ-84920",
+            "company": "پتروشیمی جم",
+            "contact": "مهندس رضایی",
+            "phone": "09120000000",
+            "category": "ابزار دقیق (Rosemount)",
+            "status": "st4",
+            "statusText": "مرحله ۴: پیشنهاد فنی-مالی رسمی صادر شد",
+            "quotationFile": "PTF-Quotation-84920-Official.pdf",
+            "date": "۱۴۰۵\/۰۴\/۱۰"
+        },
+        "PTF-RFQ-71042": {
+            "code": "PTF-RFQ-71042",
+            "company": "پالایشگاه ستاره خلیج فارس",
+            "contact": "مهندس اکبری",
+            "phone": "09123333333",
+            "category": "پایپینگ و فلنج جوشی",
+            "status": "st3",
+            "statusText": "مرحله ۳: سورسینگ بازرگانی و استعلام قیمت",
+            "date": "۱۴۰۵\/۰۴\/۰۹"
+        },
+        "PTF-RFQ-72928": {
+            "code": "PTF-RFQ-72928",
+            "company": "پتروشیمی جم",
+            "contact": "مهندس کشمیری",
+            "phone": "",
+            "category": "پایپینگ و برق",
+            "status": "st4",
+            "statusText": "مرحله ۴: پیشنهاد فنی-مالی رسمی صادر شد (Quotation Issued)",
+            "date": "2026\/07\/02"
+        }
+    },
+    "suppliers": {
+        "PTF-VEN-59210": {
+            "code": "PTF-VEN-59210",
+            "company": "بازرگانی صنعتی پایپینگ استاک",
+            "name": "مهندس مرادی",
+            "phone": "09121111111",
+            "category": "لوله، فلنج و اتصالات پایپینگ",
+            "brands": "Tenaris, Sumitomo, KITZ",
+            "status": "تایید اولیه و استعلام قیمت",
+            "date": "۱۴۰۵\/۰۴\/۱۱"
+        },
+        "PTF-VEN-67673": {
+            "code": "PTF-VEN-67673",
+            "company": "بازار استیل ایران",
+            "name": "حامد لواسانی منش",
+            "phone": "09126473290",
+            "category": "تامین لوله، فلنج و اتصالات پایپینگ",
+            "brands": "",
+            "status": "تایید اولیه و استعلام قیمت",
+            "date": "2026\/07\/02"
+        }
+    },
+    "customers": {
+        "CUST-101": {
+            "id": "CUST-101",
+            "company": "پتروشیمی جم",
+            "industry": "پتروشیمی",
+            "contact": "مهندس رضایی",
+            "phone": "09120000000",
+            "casesCount": "۴ پرونده فعال"
+        },
+        "CUST-102": {
+            "id": "CUST-102",
+            "company": "پالایشگاه ستاره خلیج فارس",
+            "industry": "نفت و پالایشگاه",
+            "contact": "مهندس اکبری",
+            "phone": "09123333333",
+            "casesCount": "۷ پرونده تکمیل‌شده"
+        }
+    }
+}

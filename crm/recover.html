@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>🛠 عیب‌یابی و بازیابی CRM — پیشرو تجهیز فرتاک</title>
+<style>
+  body{font-family:Tahoma,Arial,sans-serif;background:#f1f5f9;margin:0;padding:20px;color:#1e293b;line-height:1.9}
+  .card{max-width:720px;margin:0 auto 14px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px 24px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+  h1{font-size:18px;margin:0 0 6px}h2{font-size:15px;margin:0 0 10px;color:#ef4b1a}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{border:1px solid #e2e8f0;padding:6px 10px;text-align:right}
+  th{background:#f8fafc}
+  .ok{color:#059669;font-weight:bold}.bad{color:#dc2626;font-weight:bold}
+  button{font-family:inherit;font-weight:800;font-size:13.5px;border:0;border-radius:12px;padding:11px 20px;cursor:pointer;margin:4px 4px 4px 0}
+  .b1{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}
+  .b2{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
+  .b3{background:#059669;color:#fff}
+  #log{background:#0f172a;color:#a7f3d0;border-radius:12px;padding:12px 16px;font-size:12px;direction:ltr;text-align:left;min-height:40px;white-space:pre-wrap;font-family:monospace}
+  .warn{background:#fef3c7;border:1px solid #fbbf24;border-radius:12px;padding:10px 14px;font-size:13px;color:#92400e;margin:10px 0}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🛠 عیب‌یابی و بازیابی CRM</h1>
+  <p style="font-size:13px;color:#64748b;margin:0">این صفحه هیچ داده‌ای را بدون تایید شما پاک نمی‌کند.</p>
+</div>
+
+<div class="card">
+  <h2>گام ۱ — آیا داده‌ها در این مرورگر هستند؟</h2>
+  <div id="dataBox">در حال بررسی...</div>
+</div>
+
+<div class="card">
+  <h2>گام ۲ — رفع مشکل نمایش (کش قدیمی PWA)</h2>
+  <p style="font-size:13px">شایع‌ترین علت بعد از آپدیت: نسخه قدیمی فایل‌ها در کش مرورگر مانده. این دکمه <b>فقط کش و Service Worker را پاک می‌کند — داده‌ها دست نمی‌خورند.</b></p>
+  <button class="b1" onclick="fixCache()">🔄 پاکسازی کش PWA و بارگذاری نسخه جدید</button>
+  <div id="log"></div>
+</div>
+
+<div class="card">
+  <h2>گام ۳ — بازیابی داده (فقط اگر گام ۱ نشان داد داده‌ها خالی‌اند)</h2>
+  <div class="warn">⚠️ اگر جدول گام ۱ رکورد نشان می‌دهد، به این بخش نیازی ندارید — فقط گام ۲ را بزنید.</div>
+  <div id="rescueBox">در حال بررسی نسخه‌های نجات...</div>
+  <button class="b2" onclick="checkServer()">📂 بررسی بک‌آپ‌های روی سرور</button>
+  <div id="srvBox"></div>
+</div>
+
+<div class="card">
+  <a href="./" style="color:#ef4b1a;font-weight:800">← بازگشت به CRM</a>
+</div>
+
+<script>
+var KEYS = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_users','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_inqitems','ptf_crm_smsbook','ptf_crm_audit'];
+var LB = {ptf_crm_rfqs:'استعلامات',ptf_crm_suppliers:'تامین‌کنندگان',ptf_crm_customers:'مشتریان',ptf_crm_users:'کاربران',ptf_crm_products:'کالاها',ptf_crm_offers:'پیشنهادها (TO/CO)',ptf_crm_leads:'لیدها',ptf_crm_reminders:'یادآورها',ptf_crm_invoices:'فاکتورها',ptf_crm_notifs:'اعلانات',ptf_crm_deals:'پرونده‌های فروش',ptf_crm_projects:'پرونده‌های پروژه',ptf_crm_packinglists:'پکینگ لیست',ptf_crm_letters:'مکاتبات',ptf_crm_contracts:'قراردادها',ptf_crm_inqitems:'اقلام درخواست',ptf_crm_smsbook:'دفترچه پیامک',ptf_crm_audit:'رد پا'};
+
+function scan() {
+  var h = '<table><tr><th>بخش</th><th>تعداد رکورد</th></tr>';
+  var total = 0;
+  KEYS.forEach(function(k){
+    var n = 0;
+    try { var v = JSON.parse(localStorage.getItem(k)||'[]'); n = Array.isArray(v)?v.length:(v?1:0); } catch(e){}
+    total += n;
+    h += '<tr><td>'+LB[k]+'</td><td class="'+(n?'ok':'')+'">'+n+'</td></tr>';
+  });
+  h += '</table>';
+  h += total
+    ? '<p class="ok" style="font-size:14px">✅ مجموع '+total+' رکورد در این مرورگر موجود است — داده‌ها از بین نرفته‌اند! فقط گام ۲ را بزنید.</p>'
+    : '<p class="bad" style="font-size:14px">❌ این مرورگر داده‌ای ندارد. توجه: داده‌ها به هر مرورگر/دستگاه جدا هستند — آیا قبلاً با مرورگر یا دستگاه دیگری کار می‌کردید؟ اگر همین مرورگر بود، از گام ۳ نسخه نجات را بررسی کنید.</p>';
+  document.getElementById('dataBox').innerHTML = h;
+}
+
+function log(m){ document.getElementById('log').textContent += m + '\n'; }
+
+function fixCache() {
+  document.getElementById('log').textContent = '';
+  log('> Unregistering old service workers...');
+  var p = [];
+  if ('serviceWorker' in navigator) {
+    p.push(navigator.serviceWorker.getRegistrations().then(function(rs){
+      return Promise.all(rs.map(function(r){ log('  removed: ' + (r.scope||'sw')); return r.unregister(); }));
+    }));
+  }
+  if (window.caches && caches.keys) {
+    p.push(caches.keys().then(function(ks){
+      return Promise.all(ks.map(function(k){ log('  cache deleted: ' + k); return caches.delete(k); }));
+    }));
+  }
+  Promise.all(p).then(function(){
+    log('> Done. Reloading fresh version in 2s...');
+    log('> (localStorage untouched — data safe)');
+    setTimeout(function(){ location.href = './?fresh=' + Date.now(); }, 2000);
+  }).catch(function(e){ log('! ' + e); });
+}
+
+function rescue() {
+  var box = document.getElementById('rescueBox');
+  var found = [];
+  ['ptf_backup_prerestore','ptf_backup_local'].forEach(function(k){
+    try {
+      var j = JSON.parse(localStorage.getItem(k)||'null');
+      if (j && j.app === 'PTF-CRM' && j.data) found.push({k:k, j:j});
+    } catch(e){}
+  });
+  if (!found.length) { box.innerHTML = '<p style="font-size:13px;color:#64748b">نسخه نجات محلی یافت نشد. از دکمه «بک‌آپ‌های سرور» استفاده کنید یا اگر فایل بک‌آپ دانلودی دارید، در CRM → تنظیمات → «بازگردانی از فایل» بارگذاری کنید.</p>'; return; }
+  var h = '';
+  found.forEach(function(f, i){
+    var c = 0; Object.keys(f.j.counts||{}).forEach(function(k){ c += f.j.counts[k]||0; });
+    h += '<p style="font-size:13px">💾 نسخه نجات: <b>'+(f.j.tFa||f.j.t)+'</b> ('+c+' رکورد) <button class="b3" onclick="doRescue('+i+')">بازگردانی این نسخه</button></p>';
+  });
+  window._rescues = found;
+  box.innerHTML = h;
+}
+function doRescue(i) {
+  var f = window._rescues[i];
+  if (!confirm('داده‌های فعلی (در صورت وجود) با نسخه '+(f.j.tFa||f.j.t)+' جایگزین شود؟')) return;
+  Object.keys(f.j.data).forEach(function(k){ localStorage.setItem(k, f.j.data[k]); });
+  alert('✅ بازگردانی شد — CRM باز می‌شود');
+  location.href = './';
+}
+
+function checkServer() {
+  var box = document.getElementById('srvBox');
+  box.innerHTML = '<p style="font-size:13px">در حال بررسی...</p>';
+  fetch('../api/crm.php?action=list_backups')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok || !(d.backups||[]).length) { box.innerHTML = '<p style="font-size:13px;color:#64748b">بک‌آپی روی سرور نیست (بک‌آپ ساعتی از اولین ورود به نسخه ۷۱+ شروع می‌شود).</p>'; return; }
+      box.innerHTML = d.backups.map(function(b){
+        return '<p style="font-size:13px">📄 '+b.name+' <small>('+Math.round(b.size/1024)+'KB — '+b.t+')</small> <button class="b3" onclick="srvRestore(\''+b.name+'\')">بازگردانی</button></p>';
+      }).join('');
+    })
+    .catch(function(){ box.innerHTML = '<p class="bad" style="font-size:13px">عدم دسترسی به سرور</p>'; });
+}
+function srvRestore(name) {
+  fetch('../api/crm.php?action=get_backup&name='+encodeURIComponent(name), {headers:{'X-CRM-Role':'admin'}})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (!j || j.app !== 'PTF-CRM') { alert('فایل معتبر نیست'); return; }
+      if (!confirm('بازگردانی بک‌آپ '+(j.tFa||j.t)+'؟ داده‌های فعلی جایگزین می‌شوند.')) return;
+      Object.keys(j.data).forEach(function(k){ localStorage.setItem(k, j.data[k]); });
+      alert('✅ انجام شد'); location.href = './';
+    })
+    .catch(function(){ alert('خطا در دریافت'); });
+}
+
+scan(); rescue();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+v32.0.6 — HOTFIX — User Sync Token Fix — Full ZIP 25M — 188 images
+
+CHANGED:
+crm/rbac.js — send X-CRM-Token in users_sync + usersPullFromServer
+crm/backup.js, bridge.js, cms.js, golive.js, sms.js, sync.js — add X-CRM-Token header to all Role-only calls
+crm/index.html — VER v32.0.5 → v32.0.6
+crm/sw.js, clear-cache.html — VER bump
+RELEASE-NOTES-v32.0.6.md
+REGRESSION-REPORT-v32.0.6.md
+FILES-CHANGED-v32.0.6.txt
+
+TOTAL: 1685 files — 25M

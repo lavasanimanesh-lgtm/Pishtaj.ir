@@ -1,0 +1,20 @@
+/* US-436 — lightweight surplus module activation and lifecycle */
+'use strict';
+require('./harness');
+var fs=require('fs'),path=require('path');
+var ROOT=path.resolve(__dirname,'../..'); var BASE=path.join(ROOT,'crm');
+var su=fs.readFileSync(path.join(BASE,'surplus.js'),'utf8');
+var idx=fs.readFileSync(path.join(BASE,'index.html'),'utf8');
+var sw=fs.readFileSync(path.join(BASE,'sw.js'),'utf8');
+var sy=fs.readFileSync(path.join(BASE,'sync.js'),'utf8');
+var bk=fs.readFileSync(path.join(BASE,'backup.js'),'utf8');
+var api=fs.readFileSync(path.join(ROOT,'api/crm.php'),'utf8');
+SECTION('ساختار');
+T('ماژول در runtime و SW load است', idx.indexOf('surplus.js?v=')>-1 && sw.indexOf("'./surplus.js'")>-1);
+T('route و label فعال', idx.indexOf("goPanel('surplus'")>-1 && idx.indexOf("case 'surplus'")>-1 && idx.indexOf('موجودی انبار')>-1);
+T('کلید مازاد در sync/backup/API', sy.indexOf("'ptf_crm_surplus'")>-1 && bk.indexOf("'ptf_crm_surplus'")>-1 && api.indexOf("'ptf_crm_surplus'")>-1);
+T('storage از getData/setData استفاده می‌کند', su.indexOf('getData(K)')>-1 && su.indexOf('setData(K,a||[])')>-1);
+T('فیلتر search واقعاً render می‌شود', su.indexOf('ptfSurplusRender(el,list)')>-1);
+T('lifecycle مقدار و provenance دارد', su.indexOf('reservedQty')>-1 && su.indexOf('soldQty')>-1 && su.indexOf('sourceSurplusCd')>-1);
+T('hook بدون setInterval است', su.indexOf('setInterval')===-1 && su.indexOf('function hookOfferNew')>-1);
+DONE('tester171-v3173-surplus-light');

@@ -1,0 +1,73 @@
+<!doctype html><html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" sizes="32x32" href="../../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../../assets/images/favicon/favicon-96.png"><link rel="shortcut icon" href="../../favicon.ico">
+<title>سایزینگ کنترل ولو | محاسبه Cv و Kv آنلاین | پیشرو تجهیز</title>
+<meta name="description" content="ابزار سایزینگ کنترل ولو PTF برای محاسبه Cv/Kv، بررسی Liquid/Gas/Steam، choked flow، کاویتاسیون، نویز، اکچویتور و گزارش انگلیسی HTML با final gate و vendor validation.">
+<link rel="canonical" href="https://pishtaj.ir/tools/control-valve-sizing/">
+<meta property="og:title" content="سایزینگ کنترل ولو | محاسبه Cv و Kv آنلاین | پیشرو تجهیز">
+<meta property="og:description" content="محاسبه Cv و Kv کنترل ولو، سایزینگ مایع، گاز و بخار، بررسی choked flow، کاویتاسیون، نویز، اکچویتور و نمونه گزارش نهایی انگلیسی.">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<style>
+.cv-page{background:#f8fafc;color:#172033}.cv-hero{background:radial-gradient(circle at 18% 16%,rgba(247,148,0,.20),transparent 28%),linear-gradient(135deg,#0f172a,#17233a 62%,#243858);color:#fff;padding:128px 0 58px}.cv-hero h1{font-size:clamp(28px,4vw,48px);line-height:1.35;margin:0 0 14px;color:#fff}.cv-hero p{color:#dbeafe;line-height:2.05;max-width:880px;margin:0}.cv-badges{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.cv-badge{border:1px solid rgba(255,255,255,.20);background:rgba(255,255,255,.08);border-radius:999px;padding:5px 11px;font-size:12px;font-weight:900;color:#e0f2fe}.cv-hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.cv-hero-actions a,.cv-hero-actions button{border:0;border-radius:13px;padding:10px 16px;font-weight:900;cursor:pointer;text-decoration:none}.cv-primary{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}.cv-light{background:#fff;color:#334155}.cv-section{padding:34px 0}.cv-card{background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:22px;box-shadow:0 14px 38px rgba(15,23,42,.06);margin-bottom:18px}.cv-card h2{margin:0 0 10px;color:#0f172a;font-size:24px}.cv-card h3{margin:16px 0 8px;color:#ef4b1a;font-size:17px}.cv-card p,.cv-card li{color:#475569;line-height:2;font-size:14px}.cv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.cv-mini{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:14px}.cv-mini b{display:block;color:#0f172a;margin-bottom:6px}.cv-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}.cv-table th,.cv-table td{border:1px solid #dbe3ef;padding:8px 10px;text-align:right;vertical-align:top}.cv-table th{background:#f1f5f9;color:#334155}.cv-ltr{direction:ltr;text-align:left;unicode-bidi:isolate}.cv-note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:12px 14px;line-height:2;margin-top:12px}.cv-faq details{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;margin:8px 0}.cv-faq summary{cursor:pointer;font-weight:900;color:#0f172a}.cv-kicker{display:inline-block;background:#fff7ed;color:#b45309;border:1px solid #fed7aa;border-radius:999px;padding:4px 11px;font-size:12px;font-weight:900;margin-bottom:10px}.cv-footer-cta{background:linear-gradient(135deg,#0f172a,#17233a);color:#fff;border-radius:24px;padding:22px;border:1px solid rgba(255,255,255,.12)}.cv-footer-cta p{color:#dbeafe}@media(max-width:760px){.cv-hero{padding-top:96px}.cv-card{padding:17px}.cv-table{font-size:12px}}
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"خانه","item":"https://pishtaj.ir/"},{"@type":"ListItem","position":2,"name":"ابزارهای مهندسی","item":"https://pishtaj.ir/tools/"},{"@type":"ListItem","position":3,"name":"سایزینگ کنترل ولو","item":"https://pishtaj.ir/tools/control-valve-sizing/"}]},{"@type":"SoftwareApplication","name":"ابزار سایزینگ کنترل ولو PTF","alternateName":"Advanced Control Valve Sizing","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://pishtaj.ir/tools/control-valve-sizing/","description":"ابزار پیشرفته سایزینگ کنترل ولو برای محاسبه Cv/Kv، بررسی Liquid/Gas/Steam، choked flow، کاویتاسیون، نویز، اکچویتور و گزارش انگلیسی HTML.","keywords":"سایزینگ کنترل ولو, محاسبه Cv کنترل ولو, control valve sizing, Cv calculation, Kv calculation, IEC 60534, ISA control valve","publisher":{"@type":"Organization","name":"Pishro Tajhiz Fartak","url":"https://pishtaj.ir/"},"offers":{"@type":"Offer","availability":"https://schema.org/InStock","price":"0","priceCurrency":"IRR","description":"پیش‌نمایش و نمونه گزارش رایگان؛ گزارش نهایی و ابزار پیشرفته با فعال‌سازی لایسنس."}},{"@type":"FAQPage","name":"سوالات رایج سایزینگ کنترل ولو","mainEntity":[{"@type":"Question","name":"Cv کنترل ولو چیست؟","acceptedAnswer":{"@type":"Answer","text":"Cv ضریب ظرفیت جریان کنترل ولو است و نشان می‌دهد ولو در شرایط مشخص چه دبی‌ای را عبور می‌دهد. ابزار PTF برای Liquid، Gas و Steam مقدار Cv و Kv را محاسبه و ریسک‌های مرتبط را بررسی می‌کند."}},{"@type":"Question","name":"آیا خروجی ابزار کنترل ولو vendor-certified است؟","acceptedAnswer":{"@type":"Answer","text":"خروجی فعلی گزارش مهندسی screening و validation است. برای انتخاب قراردادی نهایی باید vendor certified sizing sheet و تأیید مهندس مسئول دریافت شود."}},{"@type":"Question","name":"آیا دیتاشیت ولو قابل بارگذاری است؟","acceptedAnswer":{"@type":"Answer","text":"در فاز فعلی متن دیتاشیت، TXT، CSV و JSON قابل استخراج اولیه هستند. PDF و تصویر اسکن‌شده در فاز بعدی با PDF/OCR parser تکمیل می‌شود."}}]},{"@type":"TechArticle","headline":"راهنمای سایزینگ کنترل ولو و محاسبه Cv/Kv","inLanguage":"fa-IR","url":"https://pishtaj.ir/tools/control-valve-sizing/","about":["Control valve sizing","Cv calculation","Kv calculation","Choked flow","IEC 60534","ISA"]}],"_ptf":"ADV-CV-LANDING-SEO-v1"}</script>
+</head>
+<body class="cv-page">
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<nav class="main-nav" aria-label="منوی اصلی"><a href="../../">خانه</a><a href="../../services/">خدمات</a><a href="../../knowledge-center/">مرکز دانش</a><a href="../" class="active">ابزارها</a><a href="../../rfq/">استعلام</a><a href="../../#contact">تماس</a></nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+</div></header>
+<main>
+<section class="cv-hero"><div class="container">
+<div class="breadcrumb"><a href="../../" style="color:#bfdbfe">خانه</a> / <a href="../" style="color:#bfdbfe">ابزارها</a> / سایزینگ کنترل ولو</div>
+<h1>سایزینگ کنترل ولو و محاسبه Cv / Kv برای مایع، گاز و بخار</h1>
+<p>ابزار پیشرفته کنترل ولو PTF برای مهندسان ابزار دقیق، فرآیند و پایپینگ ساخته شده است تا محاسبه Cv و Kv، بررسی choked flow، کاویتاسیون، نویز، سرعت خط، اکچویتور و داده‌های vendor را در یک workflow قابل گزارش‌دهی انجام دهند.</p>
+<div class="cv-badges"><span class="cv-badge">Liquid / Gas / Steam</span><span class="cv-badge">Cv / Kv</span><span class="cv-badge">IEC 60534 / ISA screening</span><span class="cv-badge">Final HTML report</span></div>
+<div class="cv-hero-actions"><button type="button" class="cv-primary" onclick="if(window.ptfAdvCvOpenSampleFinalReport)ptfAdvCvOpenSampleFinalReport()">مشاهده نمونه گزارش نهایی</button><a class="cv-light" href="../">ورود به ابزارها</a><a class="cv-light" href="../../rfq/?activation=tools&tool=control_valve_advanced&item=Control%20Valve%20Sizing%20Feedback%20Access">درخواست تست و feedback</a></div>
+</div></section>
+<section class="cv-section"><div class="container">
+<article class="cv-card">
+<span class="cv-kicker">Control Valve Sizing</span>
+<h2>این ابزار چه مشکلی را حل می‌کند؟</h2>
+<p>در بسیاری از پروژه‌ها، انتخاب کنترل ولو فقط با یک Cv ساده انجام نمی‌شود. مهندس باید شرایط حداقل، نرمال و حداکثر را ببیند؛ چoked flow، کاویتاسیون، flashing، نویز، سرعت خط، reducer correction و اکچویتور را بررسی کند و در نهایت خروجی قابل ارائه داشته باشد. ابزار پیشرفته PTF این مسیر را ساختارمند می‌کند.</p>
+<div class="cv-grid">
+<div class="cv-mini"><b>محاسبه چندحالته</b><p>Min / Normal / Max برای دبی، P1، P2 و دما.</p></div>
+<div class="cv-mini"><b>ریسک‌های مهندسی</b><p>cavitation، noise، velocity، opening و rangeability.</p></div>
+<div class="cv-mini"><b>گزارش نهایی</b><p>گزارش HTML انگلیسی با شماره گزارش، checksum و validation matrix.</p></div>
+<div class="cv-mini"><b>داده vendor</b><p>بررسی FL، Xt، rated Cv، brand، series و نیاز به certified sheet.</p></div>
+</div>
+</article>
+<article class="cv-card">
+<h2>داده‌های موردنیاز برای سایزینگ کنترل ولو</h2>
+<table class="cv-table"><thead><tr><th>گروه داده</th><th>نمونه فیلدها</th><th>توضیح</th></tr></thead><tbody>
+<tr><td>Operating cases</td><td class="cv-ltr">Flow, P1, P2, Temperature</td><td>حالت‌های حداقل، نرمال و حداکثر برای envelope کامل‌تر.</td></tr>
+<tr><td>Fluid data</td><td class="cv-ltr">SG, viscosity, Pv, Pc, MW, Z, k</td><td>برای مایع، گاز و بخار به‌صورت phase-aware استفاده می‌شود.</td></tr>
+<tr><td>Valve / vendor data</td><td class="cv-ltr">FL, Fd, Xt, Rated Cv, Brand, Series</td><td>برای validation و نزدیک شدن به انتخاب واقعی vendor لازم است.</td></tr>
+<tr><td>Actuator data</td><td class="cv-ltr">Fail action, shutoff DP, seat diameter, supply pressure</td><td>برای actuator shell و هشدارهای انتخاب اکچویتور.</td></tr>
+</tbody></table>
+<div class="cv-note">در فاز فعلی می‌توانید متن دیتاشیت یا فایل TXT/CSV/JSON را به ابزار بدهید تا بخشی از فرم به‌صورت خودکار پر شود. PDF و OCR در roadmap بعدی قرار دارد.</div>
+</article>
+<article class="cv-card">
+<h2>نمونه گزارش و مسیر feedback</h2>
+<p>برای جلب اعتماد، قبل از فعال‌سازی می‌توانید نمونه ساختار گزارش نهایی را ببینید. این نمونه پروژه واقعی نیست و هیچ quota یا لایسنس مصرف نمی‌کند.</p>
+<div class="cv-hero-actions"><button type="button" class="cv-primary" onclick="if(window.ptfAdvCvOpenSampleFinalReport)ptfAdvCvOpenSampleFinalReport()">نمایش نمونه گزارش</button><button type="button" class="cv-light" onclick="if(window.ptfAdvCvOpenFeedbackForm)ptfAdvCvOpenFeedbackForm('landing_page')">ثبت feedback کوتاه</button><a class="cv-light" href="../../rfq/?activation=tools&tool=control_valve_advanced&feedback=1&item=Advanced%20Control%20Valve%20Feedback">درخواست دسترسی feedback</a></div>
+</article>
+<article class="cv-card cv-faq">
+<h2>سوالات رایج</h2>
+<details open><summary>آیا ابزار کنترل ولو PTF نهایی شده است؟</summary><p>از نظر مسیر محصولی قابل گزارش‌دهی بله: draft، CRM review، final gate، گزارش HTML انگلیسی، quota، Engineering Validation Matrix و Vendor Data Validation Matrix وجود دارد. اما vendor-certified final sizing، PDF باینری سرور و پرداخت آنلاین هنوز فاز بعدی هستند.</p></details>
+<details><summary>آیا می‌توانم دیتاشیت ولو را بارگذاری کنم؟</summary><p>در فاز فعلی متن دیتاشیت، TXT، CSV و JSON قابل استخراج اولیه است. PDFهای متنی، PDF اسکن‌شده و عکس‌ها در فاز بعدی با server-side PDF/OCR parser تکمیل می‌شوند.</p></details>
+<details><summary>آیا گزارش برای خرید قطعی ولو کافی است؟</summary><p>گزارش فعلی یک engineering screening report است. برای خرید قطعی باید vendor-certified sizing sheet، دیتاشیت سازنده و تأیید مهندس مسئول بررسی شود.</p></details>
+<details><summary>چگونه feedback بدهم؟</summary><p>از دکمه درخواست دسترسی feedback استفاده کنید یا از طریق RFQ اعلام کنید که می‌خواهید ابزار کنترل ولو را تست کنید. برای کاربران اولیه می‌توان دسترسی تخفیفی یا رایگان feedback تعریف کرد.</p></details>
+</article>
+<article class="cv-card"><h2>راهنمای آموزشی مرتبط</h2><p>اگر می‌خواهید قبل از استفاده از ابزار، مفهوم Cv و Kv و خطاهای رایج سایزینگ کنترل ولو را بهتر بشناسید، مقاله زیر را مطالعه کنید.</p><p><a class="cv-primary" style="display:inline-block;text-decoration:none;border-radius:12px;padding:10px 15px" href="../../knowledge-center/control-valve-cv-calculation-guide.html">محاسبه Cv کنترل ولو چیست؟</a> <a class="cv-light" style="display:inline-block;text-decoration:none;border-radius:12px;padding:10px 15px;margin-right:8px" href="../../knowledge-center/control-valve-cavitation-guide.html">کاویتاسیون در کنترل ولو</a> <a class="cv-light" style="display:inline-block;text-decoration:none;border-radius:12px;padding:10px 15px;margin-right:8px" href="../../knowledge-center/control-valve-cv-kv-difference.html">تفاوت Cv و Kv</a> <a class="cv-light" style="display:inline-block;text-decoration:none;border-radius:12px;padding:10px 15px;margin-right:8px" href="../../knowledge-center/steam-control-valve-sizing-guide.html">سایزینگ کنترل ولو بخار</a> <a class="cv-light" style="display:inline-block;text-decoration:none;border-radius:12px;padding:10px 15px;margin-right:8px" href="../../knowledge-center/gas-control-valve-sizing-guide.html">سایزینگ کنترل ولو گاز</a> <a class="cv-light" style="display:inline-block;text-decoration:none;border-radius:12px;padding:10px 15px;margin-right:8px" href="../../knowledge-center/control-valve-actuator-selection-guide.html">انتخاب اکچویتور کنترل ولو</a></p></article>
+<div class="cv-footer-cta"><h2 style="color:#fff;margin-top:0">برای تست ابزار کنترل ولو آماده‌اید؟</h2><p>اگر مهندس ابزار دقیق، فرآیند، پایپینگ یا تأمین تجهیزات هستید، می‌توانید برای تست کنترل‌شده و ارائه feedback درخواست فعال‌سازی بدهید.</p><div class="cv-hero-actions"><a class="cv-primary" href="../../rfq/?activation=tools&tool=control_valve_advanced&item=Control%20Valve%20Sizing%20Trial">درخواست تست ابزار</a><a class="cv-light" href="../">بازگشت به ابزارها</a></div></div>
+</div></section>
+</main>
+<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 1.5rem;border-top:4px solid var(--red)"><div class="container" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><span>© 2026 Pishro Tajhiz Fartak</span><a href="../../rfq/" style="color:#e2e8f0;font-weight:800;text-decoration:none">ثبت استعلام</a></div></footer>
+<script src="../../assets/js/ptf-metrics.js" defer></script>
+<script src="../advanced-tools-ui.js"></script>
+<script src="../advanced-feedback-ui.js"></script>
+<script>(function(){var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+</body></html>

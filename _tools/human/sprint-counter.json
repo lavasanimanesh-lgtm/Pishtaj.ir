@@ -1,0 +1,8 @@
+{
+  "last_gate_version": "v21.9",
+  "last_gate_date": "2026-07-11",
+  "sprints_since_gate": 0,
+  "note": "v21.0, v21.1, v21.2, v21.3 since last human gate v20.9; next release should run gate if this reaches 5",
+  "required_every_n_sprints": 5,
+  "last_gate_result": "PASS"
+}

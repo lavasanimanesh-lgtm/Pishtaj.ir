@@ -1,0 +1,40 @@
+/* PTF CRM — FIN-WF-015 / read-only financial data quality dashboard */
+(function () {
+  'use strict';
+  function arr(k) { var v = getData(k); return Array.isArray(v) ? v : []; }
+  function add(map, id, label, ref, amount) {
+    if (!map[id]) map[id] = { id: id, label: label, count: 0, amount: 0, refs: [] };
+    map[id].count++;
+    map[id].amount += +amount || 0;
+    if (ref && map[id].refs.length < 8) map[id].refs.push(String(ref));
+  }
+  function yearOf(v) { return typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(v) : ((String(v || '').match(/(13|14)\d{2}/) || [])[0] || ''); }
+  window.ptfDataQualityData = function () {
+    var q = {}, invoices = arr('ptf_crm_invoices'), payables = arr('ptf_crm_payables'), cheques = arr('ptf_crm_cheques');
+    invoices.forEach(function (i) {
+      if (!yearOf(i.invDate || i.dateISO || i.t)) add(q, 'invoice-undated', 'فاکتور بدون سال مالی معتبر', i.no || i.cd, i.amount);
+      var paid = (i.payments || []).concat(i.pays || []).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+      if (Math.max(0, (+i.amount || 0) - paid) > 0 && !i.offerNo) add(q, 'invoice-unlinked', 'فاکتور باز بدون پیشنهاد مرتبط', i.no || i.cd, i.amount);
+    });
+    payables.forEach(function (p) {
+      if (!yearOf(p.dateISO || p.date || p.t)) add(q, 'payable-undated', 'تعهد تأمین بدون سال مالی معتبر', p.cd || p.inqNo, p.amount);
+      if ((p.cur || 'IRR') !== 'IRR' && !(+p.rate > 0)) add(q, 'payable-fx-rate', 'تعهد ارزی بدون نرخ تسعیر', p.cd || p.inqNo, p.amount);
+    });
+    cheques.forEach(function (c) {
+      if (c.st === 'open' && !c.ownership) add(q, 'cheque-ownerless', 'چک باز با مالکیت نامشخص', c.sayad || c.no || c.cd, c.amt);
+      if (c.st === 'open' && !c.dueISO) add(q, 'cheque-undated', 'چک باز بدون تاریخ سررسید', c.sayad || c.no || c.cd, c.amt);
+    });
+    if (typeof ptfProcurementLinkAuditAll === 'function') {
+      try { ptfProcurementLinkAuditAll().forEach(function (x) { (x.issues || []).forEach(function (i) { add(q, 'procurement-ambiguous', 'قلم خرید/استعلام نیازمند تطبیق', (x.offer || {}).no || i.index, 0); }); }); } catch (e) {}
+    }
+    return Object.keys(q).map(function (k) { return q[k]; }).sort(function (a, b) { return b.count - a.count || a.id.localeCompare(b.id); });
+  };
+  window.ptfDataQualityHtml = function () {
+    if (typeof curRole === 'function' && ['admin', 'chairman'].indexOf(curRole()) < 0) return '';
+    var rows = window.ptfDataQualityData();
+    var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
+    var body = rows.map(function (r) { return '<tr><td>' + escP(r.label) + '</td><td>' + r.count + '</td><td>' + (r.amount ? (+r.amount).toLocaleString('fa-IR') + ' ریال' : '—') + '</td><td dir="ltr">' + escP(r.refs.join(', ')) + '</td></tr>'; }).join('');
+    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">فقط‌خواندنی؛ این داشبورد هیچ رکوردی را اصلاح یا حذف نمی‌کند.</small></div><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>نوع</th><th>تعداد</th><th>مبلغ</th><th>نمونه شناسه‌ها</th></tr></thead><tbody>' + (body || '<tr><td colspan="4">موردی نیست</td></tr>') + '</tbody></table></div></div>';
+  };
+  window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
+})();

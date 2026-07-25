@@ -1,0 +1,10 @@
+# robots.txt for pishtaj.ir
+User-agent: *
+Allow: /
+
+# Disallow admin/crm areas
+Disallow: /crm/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://pishtaj.ir/sitemap.xml

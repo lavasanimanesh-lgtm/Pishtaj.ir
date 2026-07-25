@@ -1,0 +1,2570 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<style id="ptfCriticalTheme">
+  :root { --bg: #f7f8fa; --brd: #e8ebf0; --pri: #ef4b1a; --org: #f79400; --crd: #fff; --tx: #1e293b; --sb: #fff; }
+  body { background: var(--bg); color: var(--tx); }
+  .sb { background: var(--sb); border-left: 1px solid var(--brd); }
+  /* ===== v31.7.17 BUG-FOUC-001: تم قدیمی قبل از تم اصلی فلش می‌زد =====
+     ریشه: theme.js و mobilenav.js انتهای body لود می‌شوند؛ CSS بحرانی پوسته باید در head باشد. */
+  @font-face{font-family:'Vazirmatn';src:url('../assets/fonts/Vazirmatn-Regular.woff2') format('woff2');font-weight:100 500;font-display:swap}
+  @font-face{font-family:'Vazirmatn';src:url('../assets/fonts/Vazirmatn-Bold.woff2') format('woff2');font-weight:600 900;font-display:swap}
+  *{font-family:'Vazirmatn','B Nazanin','BNazanin',Vazirmatn,Tahoma,sans-serif}
+  .sb{box-shadow:0 0 20px rgba(15,23,42,.05)}
+  .sb-n .sb-i{color:#475569}
+  .sb-i.act{background:linear-gradient(90deg,rgba(239,75,26,.10),rgba(247,148,0,.05));color:#c2410c;box-shadow:inset -3px 0 0 var(--pri)}
+  .pn{border:1px solid var(--brd);box-shadow:0 1px 3px rgba(15,23,42,.04)}
+  html{overflow-y:scroll;scrollbar-gutter:stable}
+  /* موبایل: سایدبار از همان فریم اول مخفی — دیگر فلشِ ستون ایموجی‌ها دیده نمی‌شود */
+  @media(max-width:768px){
+    .sb{display:none!important}
+    .mn{margin-right:0!important;width:100%!important;max-width:100%!important}
+    .ca{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important}
+  }
+
+/* ============ Sprint 108 / US-112: انقلابی در تجربه موبایل (Mobile Data Card View & Native PWA Feel) ============ */
+@media (max-width: 768px) {
+  body { font-size: 14px !important; background: var(--bg, #f1f5f9) !important; } /* US-285: رنگ متغیر — حالت شب موبایل */
+  .btn, .bt, .bt-o, .btn-l, button {
+    min-height: 46px !important;
+    font-size: 14px !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+  }
+  /* US-285: فیلدهای ورودی ۱۶px — جلوگیری از زوم خودکار iOS هنگام فوکوس */
+  select, textarea, input[type="text"], input[type="number"], input[type="password"], input[type="email"], input[type="date"], input[type="search"] {
+    min-height: 46px !important;
+    font-size: 16px !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+  }
+  
+  /* تبدیل ردیف‌های جدول به کارت‌های اطلاعاتی مستقل لمسی (Card Transformation) */
+  .tb2 table, .tb2 thead, .tb2 tbody, .tb2 th, .tb2 td, .tb2 tr {
+    display: block !important;
+    width: 100% !important;
+  }
+  .tb2 thead tr {
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+  }
+  .tb2 tr {
+    background: var(--crd, #fff) !important; /* US-285 */
+    border: 1px solid var(--brd) !important;
+    border-radius: 18px !important;
+    margin-bottom: 14px !important;
+    padding: 14px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,.06) !important;
+    position: relative !important;
+  }
+  .tb2 td {
+    border: none !important;
+    border-bottom: 1px dashed var(--brd, #e2e8f0) !important; /* US-285 */
+    position: relative !important;
+    padding: 10px 0 !important;
+    text-align: left !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 13px !important;
+  }
+  .tb2 td:last-child {
+    border-bottom: none !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    padding-top: 14px !important;
+    margin-top: 4px !important;
+    border-top: 1px solid var(--brd) !important;
+  }
+  
+  /* بهبود نمایش سایدبار و ناوبری در موبایل */
+  /* crm-l normal */
+  /* sb 56px kept */
+  .mn { padding: 10px !important; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important; }
+  .md, .ptfdlg-b .md {
+    width: 96% !important;
+    max-width: 96vw !important;
+    max-height: 88vh !important;
+    margin: 10px auto !important;
+    padding: 18px !important;
+    border-radius: 20px !important;
+  }
+  .ph { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+  /* v13.7 (US-337): یکسان‌سازی دکمه‌های مودال در موبایل — سهولت کاربری */
+  .md { padding-top: 44px !important; } /* جا برای دکمه‌های مک */
+  .mx-dots { top: 14px !important; left: 12px !important; }
+  /* v20.0 BUG-033: چیپ بیضی mx-ai حذف شد — دستیار = نقطه چهارم mx-dot.a (بدون تداخل) */
+  .md .fr { grid-template-columns: 1fr !important; } /* فرم‌های دوستونه → تک‌ستون در موبایل */
+  .md h3 { font-size: 15px !important; padding-left: 72px !important; } /* تیتر زیر دکمه‌ها نرود */
+  /* ردیف دکمه‌های پایین مودال: تمام‌عرض و زیر هم */
+  .md > div[style*="justify-content:flex-end"], .md > div[style*="justify-content: flex-end"] {
+    flex-direction: column-reverse !important; align-items: stretch !important; gap: 8px !important;
+  }
+  .md > div[style*="justify-content:flex-end"] .bt, .md > div[style*="justify-content: flex-end"] .bt {
+    width: 100% !important; justify-content: center !important; text-align: center !important;
+  }
+  .sb2 { width: 100% !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  .sb2 input, .sb2 select, .sb2 button { width: 100% !important; }
+}
+
+
+  /* ============ Sprint 111: مینیمالیسم مطلق سایدبار موبایل (بدون نوشته، بدون اسکرول افقی و متمایز از زیرمجموعه‌ها) ============ */
+  @media (max-width: 768px) {
+    /* ۱. تثبیت عرض سایدبار روی ۵۶ پیکسل؛ مهار اسکرول افقی و جابجایی محتوا */
+    .sb {
+      width: 56px !important; min-width: 56px !important; max-width: 56px !important;
+      overflow-x: hidden !important; overflow-y: auto !important;
+      touch-action: pan-y !important; border-left: 1px solid var(--brd) !important;
+    }
+    .sb * { max-width: 56px !important; overflow-x: hidden !important; white-space: nowrap !important; }
+    
+    /* ۲. مخفی‌سازی دائمی تمام نوشته‌ها، برچسب‌ها، متن تیترها و فلش‌های آکاردئون */
+    /* US-285: «>» تا SVGهای iconx (span[data-ix] داخل .ic) مخفی نشوند + gt جدا کنترل می‌شود */
+    .sb-l h3, .sb-l span, .sb-u span, .sb-i .lb, .sb-i > span:not(.ic), .nl, .sb-g .ar, .sb-g .gb {
+      display: none !important;
+    }
+    
+    /* ۳. تبدیل سرفصل‌ها: آیکون در بالا و متن کلمه با فونت ریز ۹ پیکسلی در زیر آیکون (طبق دستور کارفرما) */
+    .sb-g {
+      width: 50px !important; height: 46px !important;
+      display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important;
+      padding: 2px 0 !important; margin: 6px auto 2px auto !important;
+      background: var(--crd, #f1f5f9) !important; border-radius: 10px !important; /* US-285: حالت شب */
+      border: 1px solid var(--brd) !important;
+      line-height: 1.1 !important;
+    }
+    /* US-285: ساختار جدید سرگروه — .gi آیکون / .gt متن ریز (سرریز ناممکن: ellipsis داخل 48px) */
+    .sb-g .gi { display: grid !important; place-items: center !important; margin: 0 auto !important; font-size: 17px !important; }
+    .sb-g .gt { display: block !important; font-size: 9px !important; font-weight: 900 !important; color: var(--tx, #334155) !important; text-align: center !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 46px !important; }
+    .sb-g .ar, .sb-g .gb { display: none !important; }
+    
+    /* ۴. زیرمجموعه‌ها: آیکون‌های مینیمال زیر سرفصل */
+    .sb-gw { display: block !important; width: 100% !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+    .sb-gw .sb-i {
+      width: 100% !important; height: 38px !important;
+      display: flex !important; justify-content: center !important; align-items: center !important;
+      padding: 0 !important; margin: 3px 0 !important;
+    }
+    .sb-i .ic { font-size: 22px !important; width: 28px !important; height: 28px !important; display: grid !important; place-items: center !important; margin: 0 auto !important; }
+    
+    /* ۵. تنظیم عرض پنل محتوا در کنار سایدبار ۵۶ پیکسلی */
+    .mn { margin-right: 56px !important; width: calc(100% - 56px) !important; max-width: calc(100% - 56px) !important; padding: 10px !important; }
+  }
+
+
+/* ============ Sprint 118 / US-121: کنترل‌های مینیمال شناور (جای کلاسیک بالا-چپ) ============ */
+.md { position: relative !important; overflow-x: hidden !important; padding-top: 36px !important; }
+.md h3 {
+  position: relative !important; top: auto !important; background: none !important;
+  z-index: 1 !important; padding: 0 0 12px 0 !important; margin: 0 0 14px 0 !important;
+  border-bottom: 1.5px solid var(--brd) !important; box-shadow: none !important;
+}
+.mx-dots { top: 12px !important; left: 14px !important; right: auto !important; bottom: auto !important; }
+/* v122.2/v122.3 (US-280/281): دکمه‌های بستن قدیمی (دایره شناور + ✕ داخل h3 + نوار 🗖💾✕ storage.js) حذف شدند — دکمه‌های مک‌استایل modalx.js تنها کنترل پنجره‌ها هستند */
+.md .md-ctrls, .ptf-win-ctrls, .md h3 .close-btn, .md h3 button[onclick*="remove()"], .md h3 button[onclick*="hideModal()"], .md h3 button[onclick*="ptfCloseActiveModal"] {
+  display: none !important;
+}
+
+</style>
+<script>
+  // BUG-003 Fix: آنی‌سازی اعمال تم در هد قبل از رندر بدنه (FOUC Elimination)
+  (function(){
+    try {
+      var mode = localStorage.getItem('ptf_theme');
+      /* v14.1 (US-354): حالت خودکار — تم سیستم */
+      if (mode === 'auto') { try { mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch(e2){ mode = 'light'; } }
+      var r = document.documentElement;
+      if (mode === 'dark') {
+        r.style.setProperty('--bg', '#0f172a');
+        r.style.setProperty('--crd', '#1e293b');
+        r.style.setProperty('--tx', '#f8fafc');
+        r.style.setProperty('--brd', '#334155');
+        r.style.setProperty('--sb', '#0f172a');
+      }
+    } catch(e){}
+  })();
+</script>
+
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ef4b1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PTF CRM">
+<link rel="apple-touch-icon" href="../assets/images/favicon/apple-touch-icon.png">
+<script>
+(function(){
+  try {
+    var mode = localStorage.getItem('ptf_theme');
+    var r = document.documentElement;
+    if (mode === 'dark') {
+      r.style.setProperty('--bg', '#0f172a');
+      r.style.setProperty('--crd', '#1e293b');
+      r.style.setProperty('--tx', '#f8fafc');
+      r.style.setProperty('--brd', '#334155');
+      r.style.setProperty('--sb', '#0f172a');
+    } else {
+      var th = localStorage.getItem('ptf_crm_theme_vars');
+      if (th) {
+        var v = JSON.parse(th);
+        if (v.pri) r.style.setProperty('--pri', v.pri);
+        if (v.bg) r.style.setProperty('--bg', v.bg);
+        if (v.crd) r.style.setProperty('--crd', v.crd);
+        if (v.tx) r.style.setProperty('--tx', v.tx);
+        if (v.brd) r.style.setProperty('--brd', v.brd);
+        if (v.sb) r.style.setProperty('--sb', v.sb);
+      }
+    }
+  } catch(e){}
+})();
+</script>
+<style>
+*{box-sizing:border-box;font-family:'B Nazanin','BNazanin','B-Nazanin',Vazirmatn,Tahoma,sans-serif;margin:0}
+body{font-size:15.5px}
+:root{--pri:#ef4b1a;--org:#f79400;--bg:#eef1f5;--crd:#fff;--tx:#1e293b;--brd:#e2e8f0;--sb:#1c1c1e;--sw:250px}
+body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;overflow-x:hidden}
+.login-w{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#151517,#2d2d31);position:relative}
+.login-w:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 40%,rgba(239,75,26,.15),transparent 50%)}
+.login-c{background:var(--crd);width:400px;max-width:100%;padding:40px 30px;border-radius:28px;position:relative;z-index:1;box-shadow:0 30px 70px rgba(0,0,0,.25)}
+.login-c img{width:64px;margin:0 auto 16px;display:block}
+.login-c h2{font-size:20px;text-align:center;color:var(--tx);margin:0 0 6px}
+.login-c p{font-size:13px;color:#64748b;text-align:center;margin:0 0 24px}
+.fld{margin-bottom:16px;text-align:right}
+.fld label{display:block;font-size:12px;font-weight:900;margin-bottom:4px;color:#334155}
+.fld input,.fld select,.fld textarea{width:100%;padding:11px 14px;border:2px solid var(--brd);border-radius:12px;font-size:14px;background:#f8fafc;transition:.2s;font-family:inherit;color:#1e293b}
+.fld input:focus{outline:none;border-color:var(--pri)}
+.btn-l{width:100%;background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:13px;border-radius:14px;font-size:15px;font-weight:900;cursor:pointer}
+.btn-l:hover{transform:translateY(-2px)}
+.lerr{color:#dc2626;font-size:13px;font-weight:900;display:none;text-align:center;background:#fef2f2;padding:10px;border-radius:12px;margin-bottom:14px}
+.crm-l{display:none;min-height:100vh}
+.sb{position:fixed;top:0;right:0;bottom:0;width:var(--sw);background:#fff;border-left:1px solid var(--brd);color:#1e293b;box-shadow:0 0 20px rgba(15,23,42,.05);z-index:50;display:flex;flex-direction:column}
+.sb-l{padding:20px 16px 14px;border-bottom:1px solid #eef1f5;text-align:center}
+.sb-l img{width:40px;height:40px;object-fit:contain;margin-bottom:4px}
+.sb-l h3{font-size:13px;color:#0f172a;margin:0}
+.sb-l span{font-size:10px;color:#94a3b8}
+.sb-u{padding:12px 16px;border-bottom:1px solid #eef1f5;font-size:12px;color:#475569;display:flex;align-items:center;gap:8px}
+.sb-u .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--pri),var(--org));display:grid;place-items:center;font-size:13px;font-weight:900;color:#fff}
+.sb-n{flex:1;padding:10px 8px;overflow-y:auto}
+.sb-n .nl{font-size:10px;color:#94a3b8;padding:14px 10px 4px;font-weight:900}
+.sb-i{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;color:#475569;cursor:pointer;font-size:13px;font-weight:700;margin-bottom:2px;border:none;background:none;width:100%;text-align:right}
+.sb-i:hover{background:#f4f6f9;color:#0f172a}
+.sb-i.act{background:linear-gradient(135deg,rgba(239,75,26,.25),rgba(247,148,0,.15));color:var(--org)}
+.sb-i .ic{font-size:17px;width:22px;text-align:center}
+.sb-i .bc{background:var(--pri);color:#fff;font-size:9px;padding:1px 7px;border-radius:999px;margin-right:auto}
+.sb-f{padding:10px 8px;border-top:1px solid #eef1f5}
+.sb-f button{width:100%;padding:9px;border-radius:10px;border:1px solid var(--brd);background:#fff;color:#64748b;font-size:12px;font-weight:700;cursor:pointer}
+.sb-f button:hover{background:rgba(239,75,26,.2);color:#fff}
+.crm-l{width:100%}
+.mn{flex:1 1 auto;margin-right:var(--sw);width:calc(100% - var(--sw));max-width:calc(100% - var(--sw));min-width:0;min-height:100vh;padding-bottom:40px}
+.tb{background:var(--crd);padding:12px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--brd);position:sticky;top:0;z-index:40}
+.tb h2{font-size:16px;color:var(--tx);font-weight:900}
+.ca{padding:20px 24px}
+.sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.sc{background:var(--crd);padding:16px;border-radius:14px;border:1px solid var(--brd);min-width:0;overflow:hidden}
+.sc b{font-size:clamp(17px,1.8vw,24px);line-height:1.35;background:linear-gradient(135deg,var(--pri),var(--org));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;white-space:normal;overflow-wrap:anywhere;word-break:break-word;text-align:right;direction:rtl}
+.sc span{font-size:11px;color:#64748b;font-weight:900;line-height:1.8}
+.pn{background:var(--crd);border-radius:20px;border:1px solid var(--brd);padding:20px;display:none;animation:fi .2s ease}
+.pn.act{display:block}
+@keyframes fi{from{opacity:0}}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.ph h3{font-size:17px;color:var(--tx);font-weight:900}
+.sb2{display:flex;gap:6px}
+.sb2 input{padding:8px 12px;border:2px solid var(--brd);border-radius:10px;font-size:13px;background:#f8fafc}
+.bt{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:8px 16px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer}
+.bt-o{background:transparent;color:#475569;border:2px solid var(--brd)}
+.bt-s{background:#10b981}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:10px 8px;font-size:11px;color:#475569;border-bottom:2px solid var(--brd);font-weight:900}
+td{padding:10px 8px;border-bottom:1px solid var(--brd)}
+tr:hover td{background:#fffcfa}
+.bd{display:inline-block;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:900}
+.b-st1{background:#fee2e2;color:#dc2626}.b-st2{background:#e0e7ff;color:#3b82f6}.b-st3{background:#fef3c7;color:#d97706}.b-st4{background:#d1fae5;color:#059669}.b-st5{background:#dbeafe;color:#2563eb}.b-st6{background:#fef3c7;color:#d97706}.b-st7{background:#d1fae5;color:#065f46}.b-st8{background:#fde68a;color:#92400e}.b-st9{background:#bbf7d0;color:#166534}.b-stTO{background:#ede9fe;color:#6d28d9}.b-stCO{background:#cffafe;color:#0e7490}.b-stX{background:#f1f5f9;color:#64748b}
+.b-ad{background:#f3e8ff;color:#7c3aed}.b-op{background:#dbeafe;color:#2563eb}
+.ba{background:#f1f5f9;border:1px solid var(--brd);padding:4px 8px;border-radius:7px;font-size:11px;cursor:pointer;font-weight:900}
+.ba:hover{background:var(--pri);color:#fff}
+.md-b{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;place-items:center;z-index:1200;backdrop-filter:blur(4px)}
+.md{background:#fff;padding:24px;border-radius:20px;width:520px;max-width:92%;max-height:90vh;overflow-y:auto}
+.md h3{font-size:17px;margin:0 0 14px;padding-bottom:12px;border-bottom:2px solid #f1f5f9}
+.md .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(min-width:1400px){:root{--sw:290px}.ca{padding:26px 40px}body{font-size:16.5px}.sb-i{font-size:15px;padding:12px 16px}.tb2 table{font-size:14.5px}}
+@media(max-width:900px){
+  .sb{width:56px}
+  .sb-l h3,.sb-l span,.sb-u span,.sb-i .lb,.nl{display:none}
+  .sb-i{justify-content:center;padding:10px}.sb-i .ic{font-size:20px}.sb-i .bc{display:none}
+  .mn{margin-right:56px;width:calc(100% - 56px);max-width:calc(100% - 56px)}.ca{padding:14px}.tb{padding:10px 14px}
+}
+
+/* ============ Sprint 108 / US-112: انقلابی در تجربه موبایل (Mobile Data Card View & Native PWA Feel) ============ */
+@media (max-width: 768px) {
+  body { font-size: 14px !important; background: var(--bg, #f1f5f9) !important; } /* US-285: رنگ متغیر — حالت شب موبایل */
+  .btn, .bt, .bt-o, .btn-l, button {
+    min-height: 46px !important;
+    font-size: 14px !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+  }
+  /* US-285: فیلدهای ورودی ۱۶px — جلوگیری از زوم خودکار iOS هنگام فوکوس */
+  select, textarea, input[type="text"], input[type="number"], input[type="password"], input[type="email"], input[type="date"], input[type="search"] {
+    min-height: 46px !important;
+    font-size: 16px !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+  }
+  
+  /* تبدیل ردیف‌های جدول به کارت‌های اطلاعاتی مستقل لمسی (Card Transformation) */
+  .tb2 table, .tb2 thead, .tb2 tbody, .tb2 th, .tb2 td, .tb2 tr {
+    display: block !important;
+    width: 100% !important;
+  }
+  .tb2 thead tr {
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+  }
+  .tb2 tr {
+    background: var(--crd, #fff) !important; /* US-285 */
+    border: 1px solid var(--brd) !important;
+    border-radius: 18px !important;
+    margin-bottom: 14px !important;
+    padding: 14px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,.06) !important;
+    position: relative !important;
+  }
+  .tb2 td {
+    border: none !important;
+    border-bottom: 1px dashed var(--brd, #e2e8f0) !important; /* US-285 */
+    position: relative !important;
+    padding: 10px 0 !important;
+    text-align: left !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 13px !important;
+  }
+  .tb2 td:last-child {
+    border-bottom: none !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    padding-top: 14px !important;
+    margin-top: 4px !important;
+    border-top: 1px solid var(--brd) !important;
+  }
+  
+  /* بهبود نمایش سایدبار و ناوبری در موبایل */
+  /* crm-l normal */
+  /* sb 56px kept */
+  .mn { padding: 10px !important; }
+  .md, .ptfdlg-b .md {
+    width: 96% !important;
+    max-width: 96vw !important;
+    max-height: 88vh !important;
+    margin: 10px auto !important;
+    padding: 18px !important;
+    border-radius: 20px !important;
+  }
+  .ph { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+  .sb2 { width: 100% !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
+  .sb2 input, .sb2 select, .sb2 button { width: 100% !important; }
+}
+
+</style>
+</head>
+<body>
+<script>
+/* v16.9 (BUG-020): کلاس تم در همان اولین لحظه وجود body — صفر فریم تم غلط.
+   بلاک هد فقط متغیرهای ریشه را ست می‌کرد؛ کلاس ptf-dark تا DOMContentLoaded/setTimeout perms.js دیر می‌رسید. */
+try {
+  var _thm = localStorage.getItem('ptf_theme');
+  if (_thm === 'auto') { try { _thm = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; } catch (e2) { _thm = 'light'; } }
+  if (_thm === 'dark') document.body.classList.add('ptf-dark');
+} catch (e) {}
+</script>
+<div class="login-w" id="loginS">
+<div class="login-c"><img src="../assets/images/ptf-logo.png" alt="PTF">
+<h2>🔐 سامانه مدیریت CRM</h2><p>دسترسی محرمانه ویژه پرسنل مجاز سازمان</p>
+<div class="lerr" id="lerr">❌ نام کاربری یا رمز عبور اشتباه است</div>
+<div id="pwaInstallBox" style="display:none;margin-top:18px;padding:14px;border:1.5px dashed rgba(239,75,26,.4);border-radius:16px;text-align:center;background:#fff8f5">
+  <div style="font-size:13px;font-weight:800;color:#c2410c;margin-bottom:8px">📲 نصب وب‌اپلیکیشن CRM</div>
+  <div style="font-size:11.5px;color:#64748b;margin-bottom:10px">دسترسی سریع از صفحه اصلی گوشی — بدون مرورگر</div>
+  <button type="button" onclick="ptfInstallApp()" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;border:0;border-radius:12px;padding:9px 24px;font-family:inherit;font-weight:800;cursor:pointer;font-size:13px">نصب اپلیکیشن</button>
+</div>
+<div id="netBadge" style="display:none;margin-top:10px;background:#fef3c7;color:#b45309;border-radius:10px;padding:7px;font-size:11.5px;text-align:center"></div>
+<form onsubmit="doLogin();return false">
+<div class="fld"><label>👤 نام کاربری</label><input type="text" id="uName" placeholder="Username" required autocomplete="off"></div>
+<div class="fld"><label>🔑 رمز عبور</label><input type="password" id="uPass" placeholder="Password" required></div>
+<button type="submit" class="btn-l">ورود امن به سامانه</button>
+</form>
+<button onclick="ptfSafeReset()" style="margin-top:12px;background:none;border:none;color:#94a3b8;font-size:11px;cursor:pointer">🔄 رفع مشکل ورود (بدون حذف داده)</button>
+<script>
+// نسخه امن: فقط session و کش پاک می‌شود — داده‌های CRM هرگز حذف نمی‌شوند
+function ptfSafeReset() {
+  localStorage.removeItem('ptf_crm_session');
+  localStorage.removeItem('ptf_login_lock');
+  localStorage.removeItem('ptf_nav_open');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function(rs){ rs.forEach(function(r){ r.unregister(); }); });
+  if (window.caches && caches.keys) caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
+  setTimeout(function(){ location.href = '?fresh=' + Date.now(); }, 800);
+}
+</script>
+</div></div>
+
+<div class="crm-l" id="crmL">
+<aside class="sb">
+<div class="sb-l"><img src="../assets/images/ptf-logo.png" alt="PTF"><h3>پیشرو تجهیز فرتاک</h3><span id="sbVer">CRM</span></div>
+<div class="sb-u"><div class="av" id="navAv">A</div><span id="navU">کاربر</span></div>
+<nav class="sb-n">
+<div class="nl">منوی اصلی</div>
+<button class="sb-i act" onclick="goPanel('dash',this)"><span class="ic">📊</span><span class="lb">داشبورد</span></button>
+<button class="sb-i" onclick="goPanel('rfq',this)"><span class="ic">📋</span><span class="lb">درخواست‌ها</span><span class="bc" id="rBadge" style="display:none">0</span></button>
+<button class="sb-i" onclick="goPanel('sup',this)"><span class="ic">🏭</span><span class="lb">تامین‌کنندگان</span></button>
+<button class="sb-i" onclick="goPanel('rfqs',this)"><span class="ic">🤖</span><span class="lb">درخواست تامین</span></button>
+<button class="sb-i" onclick="goPanel('cust',this)"><span class="ic">🤝</span><span class="lb">مشتریان</span></button>
+<button class="sb-i" onclick="goPanel('leads',this)"><span class="ic">🎯</span><span class="lb">سرنخ‌ها</span><span class="bc" id="ldBadge" style="display:none">0</span></button>
+<button class="sb-i" onclick="goPanel('rem',this)"><span class="ic">⏰</span><span class="lb">یادآورها</span><span class="bc" id="rmBadge" style="display:none">0</span></button>
+<button class="sb-i" onclick="goPanel('prod',this)"><span class="ic">📦</span><span class="lb">کالاها</span></button>
+<button class="sb-i" onclick="goPanel('surplus',this)"><span class="ic">🏬</span><span class="lb">موجودی انبار</span></button>
+<button class="sb-i" onclick="goPanel('off',this)"><span class="ic">📄</span><span class="lb">پیشنهاد</span></button>
+<button class="sb-i" onclick="goPanel('ai',this)" style="background:linear-gradient(90deg,rgba(124,58,237,.15),transparent);border-right:3px solid #7c3aed"><span class="ic">🤖</span><span class="lb">دستیار</span><span class="bc" style="background:#7c3aed" id="aiBadge">AI</span></button>
+<!-- v13.9 (US-344): «سفارشات و سود» حذف شد — مصوبه تیم: عملکرد موازی با مالی/تحلیلگر (داده دستی قدیمی) -->
+<!-- v14.0 (BUG-014/US-272): «مالی» قدیمی حذف شد — کلید legacy ptf_crm_finance که هیچ ماژولی به آن نمی‌نویسد (پنل همیشه خالی)؛ فاکتورها/مطالبات/سود خالص جایگزین کامل‌اند -->
+<button class="sb-i" onclick="goPanel('deals',this)"><span class="ic">📁</span><span class="lb">پرونده‌های فروش</span></button>
+<button class="sb-i" onclick="goPanel('prj',this)"><span class="ic">🗄️</span><span class="lb">بایگانی</span></button>
+<button class="sb-i" onclick="goPanel('let',this)"><span class="ic">✉️</span><span class="lb">مکاتبات</span></button>
+<button class="sb-i" onclick="goPanel('anl',this)"><span class="ic">📊</span><span class="lb">تحلیلگر هوشمند</span></button>
+<button class="sb-i" onclick="goPanel('cnt',this)"><span class="ic">📜</span><span class="lb">قراردادها</span></button>
+<button class="sb-i" onclick="goPanel('cart',this)"><span class="ic">🗂</span><span class="lb">کارتابل من</span><span class="bc" id="ctBadge" style="display:none">0</span></button>
+<!-- v13.7 (US-336): «قیمت‌های خرید» از منو حذف شد — هم‌پوشان با «درخواست تامین» (مصوبه تیم چابکی)؛ داده‌ها محفوظ و از درخواست تامین در دسترس -->
+<button class="sb-i" onclick="goPanel('inv',this)"><span class="ic">🧾</span><span class="lb">فاکتورها</span></button>
+<button class="sb-i" onclick="goPanel('recv',this)"><span class="ic">💰</span><span class="lb">مطالبات</span></button>
+<button class="sb-i" onclick="goPanel('petty',this)"><span class="ic">💵</span><span class="lb">هاب مالی</span></button>
+<div class="nl">سیستم</div>
+<button class="sb-i" onclick="goPanel('sms',this)"><span class="ic">💬</span><span class="lb">سامانه پیامکی</span></button>
+<button class="sb-i" onclick="goPanel('cms',this)"><span class="ic">🎛</span><span class="lb">مدیریت سایت</span></button>
+<button class="sb-i" onclick="goPanel('rep',this)"><span class="ic">📈</span><span class="lb">گزارشات</span></button>
+<button class="sb-i" onclick="goPanel('users',this)"><span class="ic">👥</span><span class="lb">کاربران</span></button>
+<button class="sb-i" onclick="goPanel('set',this)"><span class="ic">⚙️</span><span class="lb">تنظیمات</span></button>
+</nav>
+<div class="sb-f"><button onclick="doLogout()">🚪 خروج</button></div>
+</aside>
+<main class="mn">
+<div class="tb" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <h2 id="pgTitle" style="margin:0">📊 داشبورد</h2>
+    <button type="button" class="bt bt-o" style="padding:5px 12px;font-size:12px;display:flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #cbd5e1;color:#334155;border-radius:10px;cursor:pointer" onclick="ptfOpenCommandPalette()">🔎 جستجوی سریع سرتاسری <span style="background:#e2e8f0;padding:1px 6px;border-radius:4px;font-size:10.5px;font-weight:bold">Ctrl+K</span></button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span id="topVerPill" style="font-size:11.5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:4px 10px;color:#1e40af;font-weight:700"></span>
+    <div id="liveHealthPill" style="display:flex;align-items:center;gap:6px;font-size:11.5px;background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:4px 10px;color:#047857"></div>
+    <span style="font-size:12px;color:#94a3b8" id="clockD"></span>
+  </div>
+</div>
+<div id="trialBarWrap"></div>
+<div class="ca" id="panels"></div>
+</main></div>
+
+<script>
+// ===== LOGIN - کاملاً مجزا و ساده =====
+const ADMIN_USER = 'admin';
+const ADMIN_HASH = 'f83b331362471ae55eeb42e54a2d46584dd9a1809dfc821fb2244c5b1b3ddabd'; // SHA-256
+const ADMIN_NAME = 'مدیر ارشد سیستم';
+const ADMIN_ROLE = 'مدیریت کل سیستم (Admin)';
+
+async function sha256Hex(str) {
+  // v78.1: در برخی مرورگرها روی HTTP غیرامن crypto.subtle وجود ندارد → پیاده‌سازی خالص JS
+  if (window.crypto && crypto.subtle && crypto.subtle.digest) {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) { /* fallback پایین */ }
+  }
+  return sha256Fallback(str);
+}
+// SHA-256 خالص JS (فقط وقتی crypto.subtle در دسترس نیست — مثلاً HTTP بدون SSL)
+function sha256Fallback(ascii) {
+  function rightRotate(v, a) { return (v >>> a) | (v << (32 - a)); }
+  var mathPow = Math.pow, maxWord = mathPow(2, 32), result = '';
+  var words = [], asciiBitLength = 0;
+  var hash = [], k = [], primeCounter = 0;
+  var isComposite = {};
+  for (var candidate = 2; primeCounter < 64; candidate++) {
+    if (!isComposite[candidate]) {
+      for (var i = 0; i < 313; i += candidate) isComposite[i] = candidate;
+      hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
+      k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+    }
+  }
+  // UTF-8 encode
+  ascii = unescape(encodeURIComponent(ascii));
+  ascii += '\x80';
+  asciiBitLength = (ascii.length - 1) * 8;
+  while (ascii.length % 64 - 56) ascii += '\x00';
+  for (i = 0; i < ascii.length; i++) {
+    var j = ascii.charCodeAt(i);
+    words[i >> 2] |= j << ((3 - i) % 4) * 8;
+  }
+  words[words.length] = ((asciiBitLength / maxWord) | 0);
+  words[words.length] = (asciiBitLength);
+  for (j = 0; j < words.length;) {
+    var w = words.slice(j, j += 16);
+    var oldHash = hash.slice(0);
+    for (i = 0; i < 64; i++) {
+      var w15 = w[i - 15], w2 = w[i - 2];
+      var a = hash[0], e = hash[4];
+      var temp1 = hash[7]
+        + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+        + ((e & hash[5]) ^ ((~e) & hash[6]))
+        + k[i]
+        + (w[i] = (i < 16) ? w[i] : (
+            w[i - 16]
+            + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+            + w[i - 7]
+            + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+          ) | 0);
+      var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+        + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+      hash = [(temp1 + temp2) | 0].concat(hash);
+      hash[4] = (hash[4] + temp1) | 0;
+    }
+    for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+  }
+  for (i = 0; i < 8; i++) {
+    for (j = 3; j + 1; j--) {
+      var b = (hash[i] >> (j * 8)) & 255;
+      result += ((b < 16) ? 0 : '') + b.toString(16);
+    }
+  }
+  return result;
+}
+
+// US-145 AC5: قفل ورود پس از ۵ تلاش ناموفق (۶۰ ثانیه)
+function loginLockState() {
+  try { return JSON.parse(localStorage.getItem('ptf_login_lock') || '{}'); } catch(e) { return {}; }
+}
+function loginFail() {
+  var s = loginLockState();
+  s.fails = (s.fails || 0) + 1;
+  if (s.fails >= 5) { s.until = Date.now() + 60000; s.fails = 0; }
+  localStorage.setItem('ptf_login_lock', JSON.stringify(s));
+  return s;
+}
+function ptfApiAuthHeaders(json) {
+  var h = json ? { 'Content-Type': 'application/json' } : {};
+  try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+  return h;
+}
+function ptfServerLogin(u, p) {
+  return fetch('../api/crm.php?action=auth_login&_t=' + Date.now(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'username=' + encodeURIComponent(u) + '&password=' + encodeURIComponent(p)
+  }).then(function (r) { return r.json(); }).catch(function () { return null; });
+}
+function ptfInvalidateSession(msg) {
+  try { localStorage.removeItem('ptf_crm_session'); localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
+  var le = document.getElementById('lerr');
+  if (le) { le.textContent = msg || 'نشست سرور معتبر نیست؛ لطفاً دوباره وارد شوید.'; le.style.display = 'block'; }
+  try { document.getElementById('crmL').style.display = 'none'; document.getElementById('loginS').style.display = 'grid'; } catch (e2) {}
+}
+async function doLogin() {
+  var lock = loginLockState();
+  if (lock.until && Date.now() < lock.until) {
+    var sec = Math.ceil((lock.until - Date.now()) / 1000);
+    var le = document.getElementById('lerr');
+    le.textContent = '🔒 به دلیل تلاش‌های ناموفق، ورود ' + sec + ' ثانیه قفل است';
+    le.style.display = 'block';
+    setTimeout(function(){ le.style.display = 'none'; }, 3000);
+    return;
+  }
+  var u = document.getElementById('uName').value.trim().toLowerCase();
+  var p = document.getElementById('uPass').value.trim();
+  var ph = await sha256Hex(p);
+
+  // v33.0.3: server-authoritative login first for every role, including admin.
+  var _login = await ptfServerLogin(u, p);
+  if (_login && _login.ok && _login.token) {
+    localStorage.removeItem('ptf_login_lock');
+    localStorage.removeItem('ptf_crm_offline_login');
+    localStorage.setItem('ptf_crm_session', JSON.stringify({
+      user: _login.user || u,
+      name: _login.name || u,
+      role: _login.role || 'sales',
+      roleId: _login.role || 'sales'
+    }));
+    localStorage.setItem('ptf_crm_token', _login.token);
+    localStorage.setItem('ptf_crm_token_role', _login.role || 'sales');
+    try {
+      var _cu = JSON.parse(localStorage.getItem('ptf_crm_users') || '[]');
+      var _ex = false;
+      for (var _i = 0; _i < _cu.length; _i++) if (_cu[_i].username === (_login.user || u)) { _cu[_i].passhash = ph; _cu[_i].name = _cu[_i].name || (_login.name || u); _cu[_i].roleId = _cu[_i].roleId || (_login.role || 'sales'); _ex = true; }
+      if (!_ex && u !== 'admin') _cu.push({ username: _login.user || u, name: _login.name || u, role: _login.role || 'sales', roleId: _login.role || 'sales', passhash: ph });
+      localStorage.setItem('ptf_crm_users', JSON.stringify(_cu));
+    } catch (eCacheUser) {}
+    showCrm();
+    return;
+  }
+  if (u === ADMIN_USER) {
+    var stAdmin = loginFail();
+    var leAdmin = document.getElementById('lerr');
+    leAdmin.textContent = stAdmin.until ? '🔒 ۵ تلاش ناموفق — ورود ۶۰ ثانیه قفل شد' : '❌ ورود admin باید از سرور توکن بگیرد. ptf-secrets.php/admin_sha256 و auth_key را بررسی کنید.';
+    leAdmin.style.display = 'block';
+    setTimeout(function(){ leAdmin.style.display = 'none'; }, 7000);
+    return;
+  }
+
+  // US-193: اگر ادمین رمزش را عوض کرده، هش جدید در settings است
+  var _adminHashEff = ADMIN_HASH;
+  try { var _stg = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}'); if (_stg.adminHash) _adminHashEff = _stg.adminHash; } catch(e) {}
+  if (false && u === ADMIN_USER && ph === _adminHashEff) {
+    localStorage.removeItem('ptf_login_lock');
+    localStorage.setItem('ptf_crm_session', JSON.stringify({user:u, name:ADMIN_NAME, role:ADMIN_ROLE, roleId:'admin'}));
+    showCrm();
+    return;
+  }
+  
+  // Check custom users (passwords stored as SHA-256; legacy plain supported once, then migrated)
+  var users = JSON.parse(localStorage.getItem('ptf_crm_users') || '[]');
+  var migrated = false;
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username === u && users[i].passhash && users[i].passhash === ph) {
+      localStorage.removeItem('ptf_login_lock');
+      localStorage.setItem('ptf_crm_session', JSON.stringify({user:u, name:users[i].name, role:users[i].role, roleId:users[i].roleId||'sales'}));
+      showCrm();
+      return;
+    }
+    // Legacy: migrate old plain-text password to hash on first successful login
+    if (users[i].username === u && users[i].password && users[i].password === p) {
+      users[i].passhash = ph;
+      delete users[i].password;
+      localStorage.setItem('ptf_crm_users', JSON.stringify(users));
+      localStorage.setItem('ptf_crm_session', JSON.stringify({user:u, name:users[i].name, role:users[i].role, roleId:users[i].roleId||'sales'}));
+      showCrm();
+      return;
+    }
+  }
+  
+  // ===== US-151 فاز ۱: کاربر محلی پیدا نشد → مستقیم از سرور بگیر و دوباره چک کن =====
+  // v78.1: بدون واسطه rbac.js + پیام‌های تشخیصی دقیق (سرور قطع؟ کاربر نیست؟ رمز غلط؟)
+  var le0 = document.getElementById('lerr');
+  le0.textContent = '⏳ در حال بررسی کاربران سرور...';
+  le0.style.display = 'block';
+  var srvResult = await fetch('../api/crm.php?action=users_get&t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .catch(function () { return null; });
+
+  var errMsg = '';
+  if (!srvResult) {
+    errMsg = '⚠️ اتصال به سرور برقرار نشد — اینترنت/آدرس سایت را چک کنید';
+  } else if (!srvResult.ok || !Array.isArray(srvResult.users) || !srvResult.users.length) {
+    errMsg = '⚠️ هنوز کاربری روی سرور ثبت نشده — ادمین باید یک بار از مرورگر اصلی وارد CRM شود تا کاربران همگام شوند';
+  } else {
+    // ادغام با محلی (کاربران فقط-محلی حفظ شوند)
+    var localU = JSON.parse(localStorage.getItem('ptf_crm_users') || '[]');
+    var seen = {};
+    srvResult.users.forEach(function (x) { seen[x.username] = true; });
+    var merged = srvResult.users.slice();
+    localU.forEach(function (x) { if (!seen[x.username]) merged.push(x); });
+    /* v31.7.14 BUG-USERS-VANISH-001: نسخه سروری users_get از v31.7.4 passhash ندارد؛
+       بدون این حفظ، رکورد محلیِ دارای هش با نسخه بی‌هش جایگزین و در seed بعدی
+       کاربر از سرور حذف می‌شد. هش محلی روی رکورد merged برگردانده می‌شود. */
+    var _localByName = {};
+    localU.forEach(function (x) { if (x && x.username) _localByName[x.username] = x; });
+    merged.forEach(function (x) {
+      if (x && x.username && !x.passhash && _localByName[x.username] && _localByName[x.username].passhash) {
+        x.passhash = _localByName[x.username].passhash;
+      }
+    });
+    localStorage.setItem('ptf_crm_users', JSON.stringify(merged));
+
+    var srvUser = null;
+    for (var j = 0; j < merged.length; j++) if (merged[j].username === u) { srvUser = merged[j]; break; }
+    if (srvUser) {
+      // v31.7.8 HOTFIX-AUTH: users_get no longer returns passhash (BUG-AUDIT-004).
+      // Instead of comparing locally, delegate to auth_login on the server which
+      // compares passhash server-side and returns a JWT token on success.
+      var _srvLogin = await fetch('../api/crm.php?action=auth_login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'username=' + encodeURIComponent(u) + '&password=' + encodeURIComponent(p)
+      }).then(function (r) { return r.json(); }).catch(function () { return null; });
+
+      if (_srvLogin && _srvLogin.ok && _srvLogin.token) {
+        localStorage.removeItem('ptf_login_lock');
+        localStorage.setItem('ptf_crm_session', JSON.stringify({
+          user: _srvLogin.user || u,
+          name: _srvLogin.name || srvUser.name || u,
+          role: _srvLogin.role || srvUser.roleId || 'sales',
+          roleId: _srvLogin.role || srvUser.roleId || 'sales'
+        }));
+        localStorage.setItem('ptf_crm_token', _srvLogin.token);
+        localStorage.setItem('ptf_crm_token_role', _srvLogin.role || srvUser.roleId || 'sales');
+        // Also store passhash locally for future offline login (from existing server data)
+        for (var j2 = 0; j2 < merged.length; j2++) {
+          if (merged[j2].username === u) { merged[j2].passhash = ph; break; }
+        }
+        localStorage.setItem('ptf_crm_users', JSON.stringify(merged));
+        showCrm();
+        return;
+      }
+      // auth_login failed — show specific error
+      if (_srvLogin && !_srvLogin.ok) {
+        errMsg = '❌ ' + (_srvLogin.error || 'نام کاربری یا رمز عبور اشتباه است');
+      } else {
+        errMsg = '⚠️ عدم اتصال به سرور برای احراز هویت — اینترنت را بررسی کنید';
+      }
+    } else {
+      // v31.9 BUG-AUTH-MOBILE-USER-001: users_get can be stale or role-filtered;
+      // try server-side auth_login directly before declaring user-not-found.
+      var _directLogin = await fetch('../api/crm.php?action=auth_login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'username=' + encodeURIComponent(u) + '&password=' + encodeURIComponent(p)
+      }).then(function (r) { return r.json(); }).catch(function () { return null; });
+      if (_directLogin && _directLogin.ok && _directLogin.token) {
+        localStorage.removeItem('ptf_login_lock');
+        var roleDirect = _directLogin.role || 'sales';
+        var nameDirect = _directLogin.name || u;
+        localStorage.setItem('ptf_crm_session', JSON.stringify({ user: _directLogin.user || u, name: nameDirect, role: roleDirect, roleId: roleDirect }));
+        localStorage.setItem('ptf_crm_token', _directLogin.token);
+        localStorage.setItem('ptf_crm_token_role', roleDirect);
+        try {
+          var curUsers = JSON.parse(localStorage.getItem('ptf_crm_users') || '[]');
+          var exists = false;
+          for (var du = 0; du < curUsers.length; du++) {
+            if (curUsers[du].username === u) { curUsers[du].passhash = ph; curUsers[du].name = curUsers[du].name || nameDirect; curUsers[du].roleId = curUsers[du].roleId || roleDirect; exists = true; break; }
+          }
+          if (!exists) curUsers.push({ username: u, name: nameDirect, role: roleDirect, roleId: roleDirect, passhash: ph });
+          localStorage.setItem('ptf_crm_users', JSON.stringify(curUsers));
+        } catch (eDU) {}
+        showCrm();
+        return;
+      }
+      errMsg = '❌ کاربری با نام «' + u + '» در فهرست کاربران این مرورگر یا users_get سرور دیده نشد و احراز هویت مستقیم سرور هم تایید نکرد. اگر این کاربر روی دسکتاپ وارد می‌شود، از حساب ادمین در دسکتاپ یک‌بار «همگام‌سازی کاربران» را اجرا کنید.';
+    }
+  }
+
+  var st = loginFail();
+  var le = document.getElementById('lerr');
+  le.textContent = st.until ? '🔒 ۵ تلاش ناموفق — ورود ۶۰ ثانیه قفل شد' : (errMsg || 'نام کاربری یا رمز عبور اشتباه است');
+  le.style.display = 'block';
+  setTimeout(function(){ le.style.display = 'none'; }, 6000);
+}
+
+function showCrm() {
+  var s = JSON.parse(localStorage.getItem('ptf_crm_session') || '{}');
+  if (!s.user || !localStorage.getItem('ptf_crm_token')) {
+    ptfInvalidateSession('نشست سرور یا توکن معتبر وجود ندارد؛ لطفاً با رمز واقعی دوباره وارد شوید.');
+    return;
+  }
+  document.getElementById('loginS').style.display = 'none';
+  document.getElementById('crmL').style.display = 'flex';
+  document.getElementById('navAv').textContent = s.name[0];
+  document.getElementById('navU').textContent = s.name;
+  // v33.0.3: token is obtained only during real server-side login. No silent passhash refresh here.
+  try { if (typeof window.ptfCodegenBoot === 'function') window.ptfCodegenBoot(); } catch(e) {}
+
+  if (typeof ptfRenderTrialBar === 'function') ptfRenderTrialBar();
+  if (typeof ptfRenderHealthPill === 'function') ptfRenderHealthPill();
+  try {
+    var prds = getData('ptf_crm_products');
+    var clean = prds.filter(function(p){
+      var n = (p.nm || '').trim();
+      return n.length >= 3 && !/صدور پیشنهاد|ابلاغ سفارش|بررسی فنی|دریافت اولیه|آماده‌سازی|تحویل شده|آقای\s|خانم\s|مهندس\s|^مرحله\s*\d/i.test(n);
+    });
+    /* v15.9 (US-389): مهاجرت نرم دسته‌های انگلیسی (Electrical و...) به فارسی استاندارد — tp خام حفظ می‌شود */
+    var caMig = false;
+    if (typeof ptfNormCat === 'function') {
+      clean.forEach(function(p){
+        var fa2 = ptfNormCat(p.ca);
+        if (fa2 !== p.ca) { if (!p.tp && p.ca) p.tp = p.ca; p.ca = fa2; caMig = true; }
+      });
+    }
+    if (clean.length !== prds.length || caMig) setData('ptf_crm_products', clean);
+  } catch(e){}
+  loadAll();
+}
+
+function doLogout() {
+  localStorage.removeItem('ptf_crm_session');
+  localStorage.removeItem('ptf_crm_token');
+  localStorage.removeItem('ptf_crm_token_role');
+  document.getElementById('crmL').style.display = 'none';
+  document.getElementById('loginS').style.display = 'grid';
+}
+
+// Auto-login check
+try {
+  var s = JSON.parse(localStorage.getItem('ptf_crm_session'));
+  if (s) { showCrm(); }
+} catch(e) {}
+
+// ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
+window.VER = 'v33.0.3'; var VER = 'v33.0.3'; // آیکون‌های خطی semantic + خوانایی قطعی سال مالی در حالت شب
+try { document.getElementById('sbVer').textContent = 'CRM ' + VER; } catch(e){} // US-297: ورژن واقعی در سایدبار
+try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' + VER; } catch(e){}
+(function () {
+  try {
+    if (localStorage.getItem('ptf_app_ver') !== VER) {
+      localStorage.setItem('ptf_app_ver', VER);
+      if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); });
+      if (window.caches && caches.keys) caches.keys().then(function (ks) {
+        var had = ks.length;
+        Promise.all(ks.map(function (k) { return caches.delete(k); })).then(function () {
+          if (had) setTimeout(function () { location.reload(); }, 600);
+        });
+      });
+    }
+  } catch (e) {}
+})();
+
+// ===== NAV =====
+function goPanel(id, btn) {
+  try { window.scrollTo(0, 0); } catch(e){}
+  var btns = document.querySelectorAll('.sb-i');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('act');
+  if (btn) btn.classList.add('act');
+  
+  var titles = {dash:'📊 داشبورد', rfq:'📋 درخواست‌ها', sup:'🏭 تامین‌کنندگان', cust:'🤝 مشتریان',
+    prod:'📦 کالاها', surplus:'🏬 موجودی انبار', off:'📄 پیشنهاد', leads:'🎯 سرنخ‌ها', rem:'⏰ یادآورها', orders:'💰 سفارشات و سود', fin:'💳 مالی', users:'👥 کاربران', set:'⚙️ تنظیمات', ai:'🤖 دستیار'};
+  document.getElementById('pgTitle').textContent = titles[id] || 'CRM';
+  
+  var html = '';
+  switch(id) {
+    case 'dash': html = buildDashboard(); break;
+    case 'rfq': html = buildRfq(); break;
+    case 'sup': html = buildSuppliers(); break;
+    case 'cust': html = buildCustomers(); break;
+    case 'prod': html = buildProducts(); break;
+    case 'surplus': html = (typeof buildSurplus === 'function' ? buildSurplus() : '<div>ماژول موجودی انبار بارگذاری نشده است</div>'); break;
+    case 'off': html = buildOffers(); break;
+    case 'leads': html = buildLeads(); break;
+    case 'rem': html = buildReminders(); break;
+    case 'orders': html = buildOrders(); break;
+    case 'fin': html = buildFinance(); break;
+    case 'users': html = buildUsers(); break;
+    case 'ai': html = (typeof buildAi==='function'?buildAi():'<div>AI Workbench loading…</div>'); break;
+    case 'set': html = buildSettings(); break;
+  }
+  document.getElementById('panels').innerHTML = html;
+  
+  if (id === 'rfq') renderRfq();
+  else if (id === 'sup') renderSuppliers();
+  else if (id === 'cust') renderCustomers();
+  else if (id === 'prod') renderProducts();
+  else if (id === 'surplus' && typeof renderSurplus === 'function') renderSurplus();
+  else if (id === 'off') renderOffers();
+  else if (id === 'leads') renderLeads();
+  else if (id === 'rem') renderReminders();
+  else if (id === 'orders') renderOrders();
+  else if (id === 'fin') renderFinance();
+  else if (id === 'ai') { if(typeof renderAi==='function') renderAi(); }
+  else if (id === 'users') renderUsers();
+  else if (id === 'dash') { updateStats(); renderDashRfq(); addLog('به سامانه خوش آمدید'); }
+}
+
+// ===== DATA HELPERS =====
+function getData(k) { return JSON.parse(localStorage.getItem(k) || '[]'); }
+function setData(k, d) { var s = JSON.stringify(d); if (typeof ptfStorageSafeSetItem === 'function') return ptfStorageSafeSetItem(k, s); localStorage.setItem(k, s); }
+
+// Sprint 110 / US-116 → v28.8 BUG-CODE-FIX: سیستم کدینگ یکپارچه برای کلیه موجودیت‌ها
+/* v28.8 (BUG-CODE-FIX): رفع ۶ نقص بحرانی سیستم کدینگ — ریشه باگ «کد تکراری/قدیمی»:
+   ۱. regex با Device Tag سازگار نبود (RFQ-1001-D10 دیده نمی‌شد)
+   ۲. ۳۸ prefix از ۴۳ prefix به صورت تصادفی (Math.random) کد می‌گرفتند → برخورد حتمی
+   ۳. شمارنده حافظه‌ای (_ptfCodeSeq) با رفرش صفحه reset می‌شد
+   ۴. دو سیستم موازی offerSerial و ptfUnifiedCode یکدیگر را نمی‌دیدند
+   ۵. در حلقه‌های batch، genCode قبل از setData فراخوانی → race condition
+   ۶. هیچ اعتبارسنجی یکتایی پس از تولید وجود نداشت
+   اصلاح: همه ۴۳ prefix sequential + regex سازگار با Device Tag + یکتایی تضمینی + fallback امن */
+window._ptfCodeSeq = window._ptfCodeSeq || {};
+window.ptfUnifiedCode = function (prefix) {
+  var p = String(prefix || 'ID').toUpperCase().trim();
+  // US-265 (v23.2): Device Tag — بدون تغيير
+  var devTag = (function () {
+    try {
+      if (localStorage.getItem('ptf_crm_sync_enabled') !== '1' && !window._ptfSyncBootstrapped) return '';
+      var t = localStorage.getItem('ptf_crm_device_tag');
+      if (!t) { t = 'D' + Math.floor(10 + Math.random() * 89); localStorage.setItem('ptf_crm_device_tag', t); }
+      return '-' + t;
+    } catch (e) { return ''; }
+  })();
+  /* v28.8 BUG-CODE-FIX: رفع ۶ نقص بحرانی سیستم کدینگ
+     ① regex سازگار با Device Tag ② همه prefixها sequential
+     ③ یکتایی تضمینی ④ اسکن عمیق ساختارهای تودرتو
+     ⑵ شمارنده نشست قوی‌تر ⑥ fallback امن برای prefix ناشناخته */
+  function extractNum(code, pattern) {
+    var s = String(code || '').replace(/-D\d+$/, '');
+    // FIX v28.8: سازگاری با فرمت PTF-KIND-YEAR-NUM (offerSerial) و KIND-NUM
+    var m = s.match(new RegExp('^' + pattern + '-(\\d+)$', 'i'))
+         || s.match(new RegExp('^PTF-' + pattern + '-\\d+-(\\d+)$', 'i'));
+    return m ? +m[1] : 0;
+  }
+  function deepScan(listKey, codeField, pattern, paths) {
+    var max = 0;
+    try {
+      var raw = localStorage.getItem(listKey);
+      if (!raw) return 0;
+      var data = JSON.parse(raw);
+      if (!Array.isArray(data) && typeof data === 'object') {
+        Object.keys(data).forEach(function(k) {
+          if (Array.isArray(data[k])) {
+            data[k].forEach(function(x) {
+              var n = extractNum(x[codeField], pattern);
+              if (n > max) max = n;
+            });
+          }
+        });
+        return max;
+      }
+      if (Array.isArray(data)) {
+        data.forEach(function(item) {
+          var n = extractNum(item[codeField], pattern);
+          if (n > max) max = n;
+          if (paths && paths.length) {
+            paths.forEach(function(path) {
+              var nested = item;
+              path.split('.').forEach(function(seg) { nested = nested ? nested[seg] : null; });
+              if (Array.isArray(nested)) {
+                nested.forEach(function(x) {
+                  var n2 = extractNum(x[codeField], pattern);
+                  if (n2 > max) max = n2;
+                });
+              }
+            });
+          }
+        });
+      }
+    } catch (e) {}
+    return max;
+  }
+  function genSeq(listKey, codeField, pattern, make, nestedPaths) {
+    var max = deepScan(listKey, codeField, pattern, nestedPaths);
+    var seqKey = pattern.toUpperCase();
+    var candidate = Math.max(max + 1, (window._ptfCodeSeq[seqKey] || 0) + 1);
+    window._ptfCodeSeq[seqKey] = candidate;
+    var code = make(candidate);
+    var attempts = 0;
+    while (attempts < 50) {
+      var exists = false;
+      try {
+        var raw = localStorage.getItem(listKey);
+        if (raw) {
+          var data = JSON.parse(raw);
+          var check = function(x) {
+            var cd = String(x[codeField] || '').replace(/-D\d+$/, '').toUpperCase();
+            return cd === code.toUpperCase();
+          };
+          if (Array.isArray(data)) {
+            exists = data.some(check);
+            if (!exists && nestedPaths) {
+              nestedPaths.forEach(function(path) {
+                data.forEach(function(item) {
+                  var nested = item;
+                  path.split('.').forEach(function(seg) { nested = nested ? nested[seg] : null; });
+                  if (Array.isArray(nested) && nested.some(check)) exists = true;
+                });
+              });
+            }
+          } else if (typeof data === 'object') {
+            Object.keys(data).forEach(function(k) {
+              if (Array.isArray(data[k]) && data[k].some(check)) exists = true;
+            });
+          }
+        }
+      } catch(e) {}
+      if (!exists) break;
+      candidate++;
+      window._ptfCodeSeq[seqKey] = candidate;
+      code = make(candidate);
+      attempts++;
+    }
+    return code + devTag;
+  }
+  var REG = {
+    'PROD':['ptf_crm_products','cd','P',function(n){return 'P-'+n}],
+    'P':['ptf_crm_products','cd','P',function(n){return 'P-'+n}],
+    'PRODUCT':['ptf_crm_products','cd','P',function(n){return 'P-'+n}],
+    'RFQ':['ptf_crm_rfqs','cd','RFQ',function(n){return 'RFQ-'+n}],
+    'TO':['ptf_crm_offers','no','TO',function(n){return typeof offerSerial==='function'?offerSerial('TO'):'PTF-TO-'+(typeof faYear==='function'?faYear():'1404')+'-'+String(n).padStart(4,'0')}],
+    'CO':['ptf_crm_offers','no','CO',function(n){return typeof offerSerial==='function'?offerSerial('CO'):'PTF-CO-'+(typeof faYear==='function'?faYear():'1404')+'-'+String(n).padStart(4,'0')}],
+    'TC':['ptf_crm_offers','no','TC',function(n){return typeof offerSerial==='function'?offerSerial('TC'):'PTF-TC-'+(typeof faYear==='function'?faYear():'1404')+'-'+String(n).padStart(4,'0')}],
+    'CUST':['ptf_crm_customers','cd','CUST',function(n){return 'CUST-'+n}],
+    'SUP':['ptf_crm_suppliers','cd','SUP',function(n){return 'SUP-'+n}],
+    'IQI':['ptf_crm_inqitems','cd','IQI',function(n){return 'IQI-'+n}],
+    'LEAD':['ptf_crm_leads','cd','LEAD',function(n){return 'LEAD-'+n}],
+    'CHQ':['ptf_crm_cheques','cd','CHQ',function(n){return 'CHQ-'+n}],
+    'REM':['ptf_crm_reminders','cd','REM',function(n){return 'REM-'+n}],
+    'NTF':['ptf_crm_notifs','cd','NTF',function(n){return 'NTF-'+n}],
+    'CMP':['ptf_crm_buycmp','id','CMP',function(n){return 'CMP-'+n}],
+    'BQ':['ptf_crm_buyquotes','cd','BQ',function(n){return 'BQ-'+n}],
+    'OPX':['ptf_crm_opex','cd','OPX',function(n){return 'OPX-'+n}],
+    'PTX':['ptf_crm_petty','cd','PTX',function(n){return 'PTX-'+n}],
+    'PTY':['ptf_crm_petty_tx','cd','PTY',function(n){return 'PTY-'+n}],
+    'PPR':['ptf_crm_petty_periods','cd','PPR',function(n){return 'PPR-'+n}],
+    'INV':['ptf_crm_invoices','cd','INV',function(n){return 'INV-'+n}],
+    'PAY':['ptf_crm_payables','cd','PAY',function(n){return 'PAY-'+n}],
+    'ADP':['ptf_crm_payables','cd','ADP',function(n){return 'ADP-'+n},['advance.payments']],
+    'FSY':['ptf_crm_fiscal_snapshots','cd','FSY',function(n){return 'FSY-'+n}],
+    'FAM':['ptf_crm_fiscal_snapshots','cd','FAM',function(n){return 'FAM-'+n}],
+    'LET':['ptf_crm_letters','cd','LET',function(n){return 'LET-'+n}],
+    'LTR':['ptf_crm_letters','cd','LTR',function(n){return 'LTR-'+n}],
+    'DEAL':['ptf_crm_deals','cd','DEAL',function(n){return 'DEAL-'+n},['lossEvents','docs']],
+    'FIN':['ptf_crm_finance','code','FIN',function(n){return 'FIN-'+n}],
+    'LOS':['ptf_crm_deals','cd','LOS',function(n){return 'LOS-'+n},['lossEvents']],
+    'DX':['ptf_crm_projects','cd','DX',function(n){return 'DX-'+n},['docs']],
+    'PAC':['ptf_crm_projects','cd','PAC',function(n){return 'PAC-'+n},['docs']],
+    'CST':['ptf_crm_buycmp','cd','CST',function(n){return 'CST-'+n},['events']],
+    'SHP':['ptf_crm_projects','cd','SHP',function(n){return 'SHP-'+n},['docs']],
+    'QC':['ptf_crm_projects','cd','QC',function(n){return 'QC-'+n},['docs']],
+    'SHR':['ptf_crm_shareholders','cd','SHR',function(n){return 'SHR-'+n}],
+    'SHT':['ptf_crm_sharetx','cd','SHT',function(n){return 'SHT-'+n}],
+    'SND':['ptf_crm_smsbook','cd','SND',function(n){return 'SND-'+n}],
+    'PB':['ptf_crm_smsbook','cd','PB',function(n){return 'PB-'+n}],
+    'SFINV':['ptf_crm_supplier_finance','cd','SFINV',function(n){return 'SFINV-'+n}],
+    'SFPAY':['ptf_crm_supplier_finance','cd','SFPAY',function(n){return 'SFPAY-'+n}],
+    'SFOPEN':['ptf_crm_supplier_finance','cd','SFOPEN',function(n){return 'SFOPEN-'+n}],
+    'SFADJ':['ptf_crm_supplier_finance','cd','SFADJ',function(n){return 'SFADJ-'+n}],
+    'FOB':['ptf_crm_finance','cd','FOB',function(n){return 'FOB-'+n}],
+    'FSCFG':['ptf_crm_finance','cd','FSCFG',function(n){return 'FSCFG-'+n}]
+  };
+  /* LOS/SHP/QC/PAC در دو منبع ذخیره می‌شوند — هر دو اسکن شود */
+  var REG2 = {
+    'LOS':['ptf_crm_projects','cd','LOS',function(n){return 'LOS-'+n},['lossEvents']],
+    'SHP':['ptf_crm_projects','cd','SHP',function(n){return 'SHP-'+n},['docs']],
+    'QC':['ptf_crm_projects','cd','QC',function(n){return 'QC-'+n},['docs']],
+    'PAC':['ptf_crm_projects','cd','PAC',function(n){return 'PAC-'+n},['docs']]
+  };
+  if (REG[p]) {
+    var r = REG[p];
+    var result = genSeq(r[0], r[1], r[2], r[3], r[4]);
+    if (REG2[p]) {
+      var r2 = REG2[p];
+      var max2 = deepScan(r2[0], r2[1], r2[2], r2[4]);
+      var currentNum = extractNum(result.replace(/-D\d+$/, ''), r2[2]);
+      if (max2 >= currentNum) {
+        var seqKey2 = r2[2].toUpperCase();
+        var newC = Math.max(max2 + 1, (window._ptfCodeSeq[seqKey2] || 0) + 1);
+        window._ptfCodeSeq[seqKey2] = newC;
+        result = r2[3](newC) + devTag;
+      }
+    }
+    return result;
+  }
+  /* FALLBACK امن: هر prefix ناشناخته هم sequential از اسکن سراسری */
+  var gMax = 0;
+  try {
+    var allKeys = ['ptf_crm_products','ptf_crm_rfqs','ptf_crm_offers','ptf_crm_customers',
+      'ptf_crm_suppliers','ptf_crm_inqitems','ptf_crm_leads','ptf_crm_cheques',
+      'ptf_crm_reminders','ptf_crm_notifs','ptf_crm_buycmp','ptf_crm_buyquotes',
+      'ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods',
+      'ptf_crm_invoices','ptf_crm_payables','ptf_crm_fiscal_snapshots','ptf_crm_letters',
+      'ptf_crm_deals','ptf_crm_finance','ptf_crm_projects','ptf_crm_shareholders',
+      'ptf_crm_sharetx','ptf_crm_smsbook','ptf_crm_supplier_finance'];
+    allKeys.forEach(function(k) {
+      gMax = Math.max(gMax, deepScan(k,'cd',p,null), deepScan(k,'code',p,null), deepScan(k,'no',p,null), deepScan(k,'id',p,null));
+    });
+  } catch(e) {}
+  var seqKey = p;
+  var candidate = Math.max(gMax + 1, (window._ptfCodeSeq[seqKey] || 0) + 1);
+  window._ptfCodeSeq[seqKey] = candidate;
+  return p + '-' + candidate + devTag;
+};
+
+
+// Sprint 115 / US-109: ماژول وندور لیست در مشتریان
+window.ptfVendorStatusBadge = function(c) {
+  var vs = c.venSt || 'unreg';
+  if (vs === 'approved') return ' <span class="bd" style="background:#d1fae5;color:#065f46" title="تایید در وندور لیست شماره ' + escP(c.venNo||'') + '">🏆 وندور تاییدشده</span>';
+  if (vs === 'pending') return ' <span class="bd" style="background:#fef3c7;color:#d97706">⏳ بررسی مدارک وندوری</span>';
+  return ' <span class="bd" style="background:#f1f5f9;color:#64748b">⚪ ثبت‌نشده در وندور</span>';
+};
+
+// Sprint 115 / US-110: زونکن دیجیتال پروژه
+window.ptfOpenProjectBinder = function(prjNo) {
+  // v121.1: اتصال زونکن به داده واقعی پرونده
+  // v21.1 BUG-037: مشاهده سند زونکن را نمی‌بندد؛ stopPropagation + پیش‌نمایش داخل همان زونکن
+  var p = getData('ptf_crm_projects').filter(function(x){return x.no===prjNo;})[0];
+  if (!p) return;
+  var docs = p.docs || [];
+  var SECT = [
+    { id:'insp', lb:'📑 اسناد بازرسی فنی (Inspection)' },
+    { id:'ship', lb:'🚚 اسناد حمل و پکینگ لیست (Shipping)' },
+    { id:'fin',  lb:'🧾 فاکتور رسمی و اسناد مالی (Invoice)' },
+    { id:'corr', lb:'✉️ مکاتبات پروژه' },
+    { id:'cat',  lb:'📚 کاتالوگ و دیتاشیت' },
+    { id:'dwg',  lb:'📐 نقشه‌ها' },
+    { id:'misc', lb:'📎 متفرقه' }
+  ];
+  function binderDocRow(d, idx) {
+    var act;
+    if (d.sysOffer) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();if(typeof offerPrint===\'function\')offerPrint(\'' + escP(d.sysOffer) + '\')" style="color:#7c3aed">🖨️ PDF</a>';
+    else if (d.purged) act = '<small style="color:#94a3b8">حذف‌شده از ابر</small>';
+    else if (d.archived) act = '<small style="color:#7c3aed">در zip بایگانی</small>';
+    else if (d.key) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(d.key) + '\')" style="color:#0e7490">👁 مشاهده</a>';
+    else act = '<small style="color:#d97706" title="کلید ابری ندارد">بدون فایل ابری</small>';
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border:1px solid var(--brd);border-radius:8px;margin:4px 0;font-size:12px" onclick="event.stopPropagation()">' +
+      '<span>📄 ' + escP(d.name || ('سند ' + (idx + 1))) + '</span><span>' + act + '</span></div>';
+  }
+  var rows = SECT.map(function(sc){
+    var list = docs.filter(function(d){ return d.folder === sc.id; });
+    var n = list.length;
+    var st = n ? '<span class="bd" style="background:#d1fae5;color:#065f46">' + n + ' سند</span>' : '<span class="bd" style="background:#f1f5f9;color:#64748b">خالی</span>';
+    var docsHtml = n ? list.map(binderDocRow).join('') :
+      '<div style="color:#94a3b8;font-size:11.5px;padding:4px 0">مدرکی در این بخش نیست</div>';
+    return '<tr><td style="vertical-align:top">' + sc.lb + '</td><td style="vertical-align:top">' + st + '</td><td style="vertical-align:top;min-width:160px">' +
+      docsHtml +
+      '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="event.stopPropagation();ptfBinderOpenFolder(\'' + escP(prjNo) + '\',\'' + sc.id + '\')">' + (n ? '📂 پوشه پرونده' : '+ افزودن در پرونده') + '</button>' +
+      '</td></tr>';
+  }).join('');
+  /* اسناد بدون folder */
+  var orphan = docs.filter(function(d){ return !d.folder || !SECT.some(function(s){ return s.id === d.folder; }); });
+  if (orphan.length) {
+    rows += '<tr><td>📦 سایر</td><td><span class="bd" style="background:#d1fae5;color:#065f46">' + orphan.length + ' سند</span></td><td onclick="event.stopPropagation()">' + orphan.map(binderDocRow).join('') + '</td></tr>';
+  }
+  var html = '<div class="md-b" id="ptfBinderModal" style="display:grid;z-index:1800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:92vh;overflow:auto" onclick="event.stopPropagation()">' +
+    '<h3>🗄️ زونکن دیجیتال یکپارچه پرونده — ' + escP(prjNo) + '</h3>' +
+    '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px;font-size:12.5px;margin-bottom:14px">' +
+    '<b>مشتری:</b> ' + escP(p.buyerCo||'-') + ' | <b>شماره پیش‌فاکتور:</b> ' + escP(p.offerNo||'-') + ' | <b>کل اسناد:</b> ' + docs.length +
+    (p.archiveMetaOnly ? ' | <span style="color:#7c3aed">بایگانی متادیتایی</span>' : '') + '</div>' +
+    '<div class="tb2"><table><thead><tr><th>بخش سند</th><th>وضعیت</th><th>اسناد / عملیات</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="bt" onclick="event.stopPropagation();var m=document.getElementById(\'ptfBinderModal\');if(m)m.remove()">بستن زونکن</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+};
+/* v21.1 BUG-037: رفتن به پوشه پرونده بدون بستن اجباری زونکن با remove+reopen ایمن */
+window.ptfBinderOpenFolder = function(prjNo, folderId) {
+  try {
+    var m = document.getElementById('ptfBinderModal');
+    if (m) m.remove();
+  } catch (e) {}
+  if (typeof openProject === 'function') openProject(prjNo);
+  setTimeout(function(){
+    if (typeof prjShowFolder === 'function') prjShowFolder(folderId);
+  }, 300);
+};
+
+// Sprint 115 / US-111: محاسبه‌گر سود خالص پروژه توسط مدیر
+window.ptfCalculateNetProfit = function(prjNo) {
+  var p = getData('ptf_crm_projects').filter(function(x){return x.no===prjNo;})[0];
+  if (!p) return;
+  /* ===== v16.0 (US-390 — طرح مصوب تیم متخصص): موتور واحد سود ریالی (ptfProjectProfitIRR در fx.js) =====
+     پوشش کامل: فروش ریالی/ارزی (تسعیر سنا از دریافت‌ها) + خرید ریالی/ارز آزاد (نرخ پرداخت) +
+     چند فاکتور/چند خرید + رکوردهای قدیمی. هر جزء نامشخص = هشدار صریح، هرگز عدد غلط. */
+  if (typeof ptfProjectProfitIRR !== 'function') { alert('ماژول ارزی بارگذاری نشده — صفحه را رفرش کنید'); return; }
+  var r = ptfProjectProfitIRR(p);
+  if (!r.ok) { alert(r.warnings.join('\n') || '⚠️ داده کافی برای محاسبه سود نیست.'); return; }
+  if (!r.buyIrr && !r.buyPendingFx.length && !confirm('⚠️ قیمت خرید نهایی ثبت نشده — سود بدون هزینه خرید محاسبه شود؟')) return;
+  var recordedCosts = (typeof prjCostTotal === 'function') ? prjCostTotal(p) : 0;
+  var extra = prompt('اگر هزینه ثبت‌نشده‌ی دیگری خارج از سیستم دارید وارد کنید؛ در غیر این صورت 0 بزنید.\n(هزینه‌های ثبت‌شده پرونده به‌صورت خودکار لحاظ می‌شوند)', '0');
+  var extraCost = +String(extra||'0').replace(/[^\d۰-۹]/g,'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}) || 0;
+  var shipCost = recordedCosts + extraCost;
+  var netProfit = r.profit - extraCost;
+  var pct = r.sellIrr > 0 ? Math.round(netProfit * 100 / r.sellIrr) : 0;
+  var fxNote = '';
+  if (r.sellCur !== 'IRR') {
+    fxNote = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">💱 سند ' + r.sellCur + ' — فروش = <b>دریافت‌های ریالی واقعی</b> (' + r.sellFxPaid.toLocaleString('en-US') + ' ' + r.sellCur + ' وصول‌شده' + (r.sellAvgRate ? ' با میانگین نرخ ' + r.sellAvgRate.toLocaleString('fa-IR') + ' ریال' : '') + ')' + (r.sellFxRemain > 0 ? ' | مانده وصول‌نشده: <b>' + r.sellFxRemain.toLocaleString('en-US') + ' ' + r.sellCur + '</b>' : '') + '</div>';
+  }
+  var warnHtml = r.warnings.length
+    ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:#b91c1c;margin-bottom:10px;line-height:1.9">' + r.warnings.map(function(w){return escP(w);}).join('<br>') + '</div>'
+    : '';
+  var reliableTag = (r.complete && !r.buyPendingFx.length)
+    ? '<span class="bd" style="background:#d1fae5;color:#065f46">✅ همه اجزا قطعی — قابل اتکا</span>'
+    : '<span class="bd" style="background:#fef3c7;color:#b45309">⚠️ ناقص — اجزای نامشخص در هشدارها</span>';
+  var html = '<div class="md-b" style="display:grid;z-index:1800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px">' +
+    '<h3>💰 محاسبه‌گر سود خالص پروژه (مدیریت) ' + reliableTag + '</h3>' +
+    fxNote + warnHtml +
+    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;font-size:13px;color:#166534;margin-bottom:14px;line-height:2">' +
+    '<b>فروش ریالی واقعی:</b> ' + r.sellIrr.toLocaleString('fa-IR') + ' ریال <small style="color:#4d7c0f">(' + escP(r.sellSrc) + ')</small><br>' +
+    '<b>هزینه تأمین و خرید (ریالی‌شده):</b> ' + r.buyIrr.toLocaleString('fa-IR') + ' ریال' + (r.buyItems ? ' <small style="color:#4d7c0f">(' + r.buyItems + ' قلم)</small>' : '') + '<br>' +
+    '<b>هزینه‌های ثبت‌شده پرونده:</b> ' + recordedCosts.toLocaleString('fa-IR') + ' ریال' + (extraCost ? ' <small style="color:#92400e">+ هزینه ثبت‌نشده اعلامی: ' + extraCost.toLocaleString('fa-IR') + ' ریال</small>' : '') + '<hr style="border:none;border-top:1px dashed #86efac;margin:8px 0">' +
+    '<b style="font-size:15px;color:' + (netProfit >= 0 ? '#15803d' : '#dc2626') + '">سود خالص (ریال واقعی): ' + netProfit.toLocaleString('fa-IR') + ' ریال (' + pct + '٪)</b></div>' +
+    '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+    '<button class="bt bt-o" onclick="this.closest(&quot;.md-b&quot;).remove()">بستن</button>' +
+    '<button class="bt" style="background:#059669" onclick="alert(&quot;✅ سود خالص ' + pct + '٪ تایید شد&quot;);this.closest(&quot;.md-b&quot;).remove();">🏆 تأیید سود</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+};
+
+
+/* ============ Sprint 116 / US-120: دستورالعمل‌های استاندارد ورود اکسل و پنجره راهنما ============ */
+/* v15.3 (BUG-016): دکمه «متوجه شدم» راهنمای اکسل — قبلا fileInputId (متغیر محلی) را در onclick سراسری
+   صدا می‌زد → ReferenceError → مودال بسته می‌شد ولی پنجره انتخاب فایل هرگز باز نمی‌شد (هر ۵ ماژول). */
+window.ptfXlsGuideGo = function (btn, fid) {
+  try { var mb = btn.closest('.md-b'); if (mb) mb.remove(); } catch (e) {}
+  var els = document.querySelectorAll('#' + fid);
+  var el = els.length ? els[els.length - 1] : null; /* آخرین نمونه = مودال/پنل فعال (هم‌راستا offEl US-364) */
+  if (el) el.click();
+  else alert('⚠️ فیلد انتخاب فایل یافت نشد — پنل را دوباره باز کنید و مجدد تلاش کنید.');
+};
+window.ptfShowExcelGuidelineModal = function (moduleType, fileInputId) {
+  var cfg = {
+    PROD: {
+      title: '📦 دستورالعمل ورود اکسل به ماژول کالاها (کاتالوگ)',
+      sheet: 'فقط شیت اول (Sheet 1) فایل اکسل خوانده می‌شود.',
+      header: 'ردیف اول (Row 1) حتماً باید سرستون باشد و توسط سیستم رد می‌شود.',
+      cols: [
+        { c: 'ستون A (اولین ستون سمت چپ)', n: 'شرح کامل کالا', r: 'الزامی — متن کامل مشخصات کالا' },
+        { c: 'ستون B', n: 'واحد شمارش', r: 'اختیاری — پیش‌فرض: عدد (یا PCS، متر، ست)' },
+        { c: 'ستون C', n: 'قیمت مرجع واحد', r: 'اختیاری — به ریال؛ ارز دیگر را بعدا در ویرایش کالا انتخاب کنید (پیش‌فرض: ۰)' },
+        { c: 'ستون D', n: 'دسته‌بندی کالا', r: 'اختیاری — پیش‌فرض: پایپینگ و شیرآلات' },
+        { c: 'ستون E', n: 'استاندارد / گرید', r: 'اختیاری — مشخصه فنی تکمیلی' },
+        { c: 'ستون F', n: 'برند', r: 'اختیاری — مثال: Rosemount، WIKA (v15.9)' },
+        { c: 'ستون G', n: 'مدل / پارت‌نامبر', r: 'اختیاری — مثال: 3051CD2A (v15.9)' }
+      ],
+      note: '⚠️ توجه: نیازی به ستون کد کالا در فایل اکسل نیست! سیستم طبق الگو واحد مینیمال (P-1001) برای تمام ردیف‌ها کد یکتا می‌سازد.'
+    },
+    OFFER: {
+      title: '📋 دستورالعمل ورود اکسل اقلام پیشنهاد فنی/مالی (TO/CO)',
+      sheet: 'فقط شیت اول (Sheet 1) خوانده می‌شود.',
+      header: 'ردیف اول حتماً باید سرستون باشد.',
+      cols: [
+        { c: 'ستون A', n: 'شرح کامل کالا / تجهیز', r: 'الزامی' },
+        { c: 'ستون B', n: 'مقدار / تعداد (Qty)', r: 'الزامی — عدد صحیح یا اعشاری (پیش‌فرض: ۱)' },
+        { c: 'ستون C', n: 'واحد شمارش', r: 'اختیاری — پیش‌فرض: عدد' },
+        { c: 'ستون D', n: 'قیمت واحد (در پیشنهاد مالی)', r: 'اختیاری — پیش‌فرض: ۰' }
+      ],
+      note: '💡 ردیف‌های خالی یا فاقد شرح کالا به طور خودکار نادیده گرفته می‌شوند.'
+    },
+    INQ: {
+      title: 'دستورالعمل ورود اکسل اقلام درخواست / استعلام (INQ)',
+      sheet: 'فقط شیت اول (Sheet 1) خوانده می‌شود.',
+      header: 'ردیف اول باید سرستون باشد و توسط سیستم رد می‌شود.',
+      cols: [
+        { c: 'ستون A', n: 'شرح کالا / تجهیز', r: 'الزامی — نام یا شرح اصلی قلم درخواست' },
+        { c: 'ستون B', n: 'مشخصات فنی / استاندارد', r: 'اختیاری — متریال، کلاس، استاندارد، سایز، توضیح فنی' },
+        { c: 'ستون C', n: 'تعداد (Qty)', r: 'اختیاری — عدد؛ اگر خالی باشد ۱ ثبت می‌شود' },
+        { c: 'ستون D', n: 'واحد', r: 'اختیاری — عدد، PCS، Set، Meter، KG و...' },
+        { c: 'ستون E', n: 'نوع / خانواده تجهیز', r: 'اختیاری — Valve, Pipe, Flange, Instrument, Pump, Electrical و...' },
+        { c: 'ستون F', n: 'برند', r: 'اختیاری — برند/وندور ترجیحی' },
+        { c: 'ستون G', n: 'مدل / پارت‌نامبر', r: 'اختیاری' }
+      ],
+      note: 'اگر AI نتوانست فایل پیوست را بخواند، همین قالب را تکمیل و از داخل «ویرایش اقلام درخواست» وارد کنید. کد قلم درخواست به‌صورت خودکار ساخته می‌شود.'
+    },
+    CUST: {
+      title: '🤝 دستورالعمل ورود اکسل مشتریان و کارفرمایان (CUST)',
+      sheet: 'فقط شیت اول (Sheet 1) خوانده می‌شود.',
+      header: 'ردیف اول حتماً باید سرستون باشد.',
+      cols: [
+        { c: 'ستون A', n: 'نام شرکت / سازمان کارفرما', r: 'الزامی — تنها ستون الزامی. ردیف‌های تکراری با همین نام = رابط‌های بیشتر همان مشتری' },
+        { c: 'ستون B', n: 'صنعت / حوزه کاری', r: 'اختیاری — نفت و گاز، پتروشیمی، نیروگاه، فولاد، سیمان، آب، سایر' },
+        { c: 'ستون C', n: 'نام شخص رابط', r: 'اختیاری — برای رابط دوم، یک ردیف جدید با همان نام شرکت بسازید' },
+        { c: 'ستون D', n: 'موبایل رابط', r: 'اختیاری — چند شماره با / جدا شود (مثال: 0912xxxxxxx/0935xxxxxxx)' },
+        { c: 'ستون E', n: 'وضعیت وندور لیست', r: 'اختیاری — approved یا تاییدشده / pending یا بررسی / خالی=ثبت‌نشده' },
+        { c: 'ستون F', n: 'تلفن ثابت رابط', r: 'اختیاری — جدا از موبایل؛ چند شماره با / ؛ داخلی بعد از خط تیره (02188xxxxxx-124)' },
+        { c: 'ستون G', n: 'سمت رابط', r: 'اختیاری — مدیر خرید، کارشناس خرید، مدیر فنی و…' },
+        { c: 'ستون H', n: 'تلفنخانه شرکت', r: 'اختیاری' },
+        { c: 'ستون I', n: 'آدرس', r: 'اختیاری' },
+        { c: 'ستون J', n: 'شناسه ملی (حقوقی)', r: 'اختیاری — ۱۱ رقم' },
+        { c: 'ستون K', n: 'وب‌سایت یا ایمیل', r: 'اختیاری' },
+        { c: 'ستون L', n: 'شماره وندور', r: 'اختیاری — در صورت تایید وندور' },
+        { c: 'ستون M', n: 'نام انگلیسی شرکت', r: 'اختیاری — روی اسناد TO/CO چاپ می‌شود' }
+      ],
+      note: '🏆 هیچ ستونی جز نام شرکت الزامی نیست؛ فایل‌های قدیمی ۵ ستونه هم بدون تغییر کار می‌کنند. اگر نام شرکت قبلاً ثبت شده باشد، رابط‌های جدید به همان مشتری اضافه می‌شوند (رکورد تکراری ساخته نمی‌شود). شناسه یکتای CUST-XXXX خودکار تخصیص می‌یابد.'
+    },
+        SUP: {
+      title: '🏭 دستورالعمل ورود اکسل تأمین‌کنندگان و وندورها (SUP)',
+      sheet: 'فقط شیت اول (Sheet 1) خوانده می‌شود.',
+      header: 'ردیف اول حتماً باید سرستون باشد.',
+      cols: [
+        { c: 'ستون A (اولین ستون سمت چپ)', n: 'نام شرکت تأمین‌کننده / وندور', r: 'الزامی — ردیف‌های تکراری با همین نام = رابط‌های بیشتر همان تأمین‌کننده' },
+        { c: 'ستون B', n: 'حوزه کاری / دسته', r: 'اختیاری — پیش‌فرض: ابزار دقیق و پمپ' },
+        { c: 'ستون C', n: 'نام شخص رابط', r: 'اختیاری — رابط دوم = ردیف جدید با همان نام شرکت' },
+        { c: 'ستون D', n: 'موبایل رابط', r: 'اختیاری — چند شماره با / جدا شود' },
+        { c: 'ستون E', n: 'وب‌سایت یا ایمیل', r: 'اختیاری' },
+        { c: 'ستون F', n: 'تلفن ثابت رابط', r: 'اختیاری — جدا از موبایل؛ داخلی بعد از خط تیره' },
+        { c: 'ستون G', n: 'سمت رابط', r: 'اختیاری — مدیر فروش، کارشناس فنی و…' },
+        { c: 'ستون H', n: 'تلفنخانه شرکت', r: 'اختیاری' },
+        { c: 'ستون I', n: 'آدرس', r: 'اختیاری' },
+        { c: 'ستون J', n: 'شناسه ملی (حقوقی)', r: 'اختیاری — ۱۱ رقم' }
+      ],
+      note: '🏭 هیچ ستونی جز نام شرکت الزامی نیست؛ فایل‌های قدیمی ۵ ستونه بدون تغییر کار می‌کنند. نام شرکت تکراری = ادغام رابط‌ها در همان رکورد. شناسه یکتای SUP-XXXX خودکار تخصیص می‌یابد.'
+    },
+    LEADS: {
+      title: '🎯 دستورالعمل ورود اکسل سرنخ‌ها (LEADS)',
+      sheet: 'فقط شیت اول (Sheet 1) خوانده می‌شود.',
+      header: 'ردیف اول حتماً باید سرستون باشد.',
+      cols: [
+        { c: 'ستون A', n: 'نام پروژه / شرکت بالقوه', r: 'الزامی — تنها ستون الزامی' },
+        { c: 'ستون B', n: 'نام مسئول / رابط', r: 'اختیاری' },
+        { c: 'ستون C', n: 'موبایل رابط', r: 'اختیاری — چند شماره با / جدا شود' },
+        { c: 'ستون D', n: 'منبع سرنخ', r: 'اختیاری — مثلاً: وب‌سایت، نمایشگاه، معرفی' },
+        { c: 'ستون E', n: 'نیاز اولیه / شرح درخواست', r: 'اختیاری' },
+        { c: 'ستون F', n: 'تلفن ثابت رابط', r: 'اختیاری — جدا از موبایل' },
+        { c: 'ستون G', n: 'سمت رابط', r: 'اختیاری' },
+        { c: 'ستون H', n: 'ایمیل', r: 'اختیاری' },
+        { c: 'ستون I', n: 'صنعت', r: 'اختیاری — نفت و گاز، پتروشیمی و…' },
+        { c: 'ستون J', n: 'برآورد ارزش (ریال)', r: 'اختیاری — فقط عدد' }
+      ],
+      note: '🎯 هیچ ستونی جز نام شرکت الزامی نیست؛ فایل‌های قدیمی ۵ ستونه بدون تغییر کار می‌کنند. سرنخ‌های واردشده در مرحله «تماس اولیه» قرار می‌گیرند تا توسط تیم پیگیری شوند.'
+    }
+  };
+
+  var c = cfg[moduleType] || cfg.PROD;
+  var rowsHtml = '';
+  c.cols.forEach(function(item) {
+    rowsHtml += '<tr><td><b style="color:#0e7490">' + escP(item.c) + '</b></td><td><b>' + escP(item.n) + '</b></td><td style="font-size:12px;color:#475569">' + escP(item.r) + '</td></tr>';
+  });
+
+  /* v122.2 (US-280): پرامپت آماده هوش مصنوعی — برای تبدیل PDF/فایل به‌هم‌ریخته به اکسل استاندارد همین ماژول */
+  var aiPrompt = 'فایل پیوست را بخوان و داده‌های آن را به یک جدول اکسل (xlsx) با ساختار دقیق زیر تبدیل کن.\n' +
+    'قواعد کلی:\n' +
+    '- فقط یک شیت بساز؛ ردیف اول سرستون باشد و داده‌ها از ردیف دوم شروع شوند.\n' +
+    '- ترتیب ستون‌ها را دقیقاً رعایت کن و ستون اضافه نساز. اگر داده‌ای برای یک ستون اختیاری نبود، سلول را خالی بگذار.\n' +
+    '- شماره موبایل و تلفن ثابت را از هم جدا کن (موبایل با 09 شروع می‌شود). چند شماره در یک سلول را با / جدا کن. داخلی تلفن ثابت را بعد از خط تیره بنویس (مثال: 02188000000-124).\n' +
+    '- اگر یک شرکت چند شخص رابط دارد، برای هر رابط یک ردیف جداگانه با همان نام شرکت بساز.\n' +
+    '- اعداد را با رقم انگلیسی بنویس و هیچ توضیح اضافه‌ای خارج از جدول نده.\n' +
+    'ساختار ستون‌ها (' + (c.title||'').replace(/[📦📋🤝🏭🎯]/g,'').trim() + '):\n';
+  c.cols.forEach(function(item) {
+    aiPrompt += '- ' + item.c + ': ' + item.n + ' — ' + item.r + '\n';
+  });
+  aiPrompt += 'خروجی نهایی: فایل اکسل استاندارد قابل بارگذاری مستقیم در سامانه.';
+  window._ptfAiPromptCache = aiPrompt;
+
+  var html = '<div class="md-b" style="display:grid;z-index:1900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:680px">' +
+    '<h3>' + escP(c.title) + '</h3>' +
+    '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:12px;font-size:12.5px;color:#0369a1;margin-bottom:14px">' +
+    '<b>قانون شیت:</b> ' + escP(c.sheet) + '<br><b>قانون سرستون:</b> ' + escP(c.header) + '</div>' +
+    '<div class="tb2" style="margin-bottom:14px"><table><thead><tr><th>موقعیت در اکسل (از چپ A B C D)</th><th>عنوان اطلاعات</th><th>قاعده و پیش‌فرض</th></tr></thead>' +
+    '<tbody>' + rowsHtml + '</tbody></table></div>' +
+    '<div style="background:#fff8f5;border:1px solid #fed7aa;border-radius:10px;padding:10px;font-size:12px;color:#9a3412;margin-bottom:16px">' + escP(c.note) + '</div>' +
+    /* v122.2 (US-280): جعبه پرامپت AI برای فایل‌های PDF/به‌هم‌ریخته */
+    '<details style="margin-bottom:16px;border:1px solid #ddd6fe;border-radius:12px;background:#faf5ff;overflow:hidden">' +
+    '<summary style="cursor:pointer;padding:11px 14px;font-size:12.5px;font-weight:bold;color:#6d28d9">🤖 فایل PDF یا به‌هم‌ریخته دارید؟ پرامپت آماده هوش مصنوعی (کلیک کنید)</summary>' +
+    '<div style="padding:0 14px 12px">' +
+    '<div style="font-size:12px;color:#5b21b6;margin-bottom:8px">این متن را کپی کنید و همراه فایل خود به هوش مصنوعی (دستیار هوشمند همین سامانه، ChatGPT، Gemini و…) بدهید تا فایل اکسل استاندارد همین ماژول را تحویل بگیرید:</div>' +
+    '<textarea id="ptfAiPromptTa" readonly onclick="this.select()" style="width:100%;height:130px;font-size:11px;padding:9px;border:1px solid #ddd6fe;border-radius:10px;background:#fff;color:#374151;resize:vertical;direction:rtl">' + escP(aiPrompt) + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">' +
+    '<button class="bt bt-o" style="font-size:12px;color:#6d28d9;border-color:#ddd6fe" onclick="var t=document.getElementById(\'ptfAiPromptTa\');t.select();try{document.execCommand(\'copy\')}catch(e){}if(navigator.clipboard)navigator.clipboard.writeText(t.value);this.textContent=\'✅ کپی شد\'">📋 کپی پرامپت</button>' +
+    '<button class="bt bt-o" style="font-size:12px" onclick="this.closest(&quot;.md-b&quot;).remove();if(typeof goPanel===\'function\')goPanel(\'ai\')">🤖 باز کردن دستیار هوشمند سامانه</button>' +
+    '</div></div></details>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+    '<button class="bt bt-o" onclick="this.closest(&quot;.md-b&quot;).remove()">انصراف</button>' +
+    '<button class="bt" style="background:#059669;color:#fff;padding:10px 20px;font-size:13px" onclick="ptfXlsGuideGo(this, &quot;' + fileInputId + '&quot;)">✅ متوجه شدم، انتخاب و بارگذاری فایل اکسل</button>' +
+    '</div></div></div>';
+
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+};
+
+// استانداردسازی ایمپورت اکسل کالاها طبق دستورالعمل US-120 (ستون A=شرح، B=واحد، C=قیمت، D=دسته، E=مدل)
+window.ptfStandardImportProdXls = function(inp) {
+  var f = inp.files[0]; if (!f) return;
+  if (typeof XLSX === 'undefined') { alert('کتابخانه SheetJS بارگذاری نشده است'); return; }
+  
+  var rd = new FileReader();
+  rd.onload = function(e) {
+    try {
+      var wb = XLSX.read(new Uint8Array(rd.result), {type:'array'});
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:''});
+      if (!rows || rows.length < 2) { alert('فایل اکسل خالی یا فاقد اطلاعات کالا است'); return; }
+      
+      var prods = getData('ptf_crm_products');
+      var added = 0;
+      
+      for (var r=1; r<rows.length; r++) {
+        var row = rows[r];
+        var desc = String(row[0] || '').trim(); // ستون A = شرح کالا
+        if (!desc || desc === '-' || /^\d+$/.test(desc)) continue; // نادیده گرفتن ردیف خالی یا شماره ردیف
+        
+        var un = String(row[1] || 'عدد').trim() || 'عدد'; // ستون B = واحد
+        var pr = +String(row[2] || '0').replace(/[^\d.]/g,'') || 0; // ستون C = قیمت
+        var ca = String(row[3] || 'سایر').trim() || 'سایر'; // ستون D = دسته
+        var st = String(row[4] || '-').trim() || '-'; // ستون E = مشخصه
+        /* v15.9 (US-389): ستون‌های اختیاری جدید — F=برند، G=مدل + دسته همیشه فارسی استاندارد */
+        var br = String(row[5] || '').trim();
+        var md = String(row[6] || '').trim();
+        if (typeof ptfNormCat === 'function') ca = ptfNormCat(ca);
+        var cd = window.ptfUnifiedCode ? window.ptfUnifiedCode('PROD') : 'P-' + (1001 + prods.length);
+        prods.push({ cd: cd, nm: desc, en: '', ca: ca, st: st, br: br, md: md, un: un, pr: pr, ds: 'ورود اکسل استاندارد US-120', ts: new Date().toISOString() });
+        added++;
+      }
+      
+      setData('ptf_crm_products', prods);
+      renderProducts();
+      alert('✅ تعداد ' + added + ' کالا طبق دستورالعمل استاندارد US-120 با کدهای مینیمال وارد سیستم شد.');
+      if (typeof audit === 'function') audit('کالاها', 'ورود اکسل استاندارد ' + added + ' کالا', '');
+    } catch(err) {
+      alert('❌ خطا در خواندن فایل اکسل: ' + err.message);
+    }
+  };
+  rd.readAsArrayBuffer(f);
+};
+
+// ورود اکسل استاندارد مشتریان (CUST) طبق US-120
+window.ptfStandardImportCustXls = function(inp) {
+  /* v122.2 (US-280): ورود اکسل کامل مشتریان — تفکیک موبایل/ثابت، چند رابط (ردیف تکراری)، چند شماره با /، فیلدهای اختیاری آدرس/شناسه ملی/وب/وندور */
+  var f = inp.files[0]; if (!f) return;
+  if (typeof XLSX === 'undefined') { alert('کتابخانه SheetJS بارگذاری نشده است'); return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    try {
+      var wb = XLSX.read(new Uint8Array(rd.result), {type:'array'});
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:''});
+      if (!rows || rows.length < 2) { alert('فایل خالی است یا فقط سرستون دارد'); return; }
+      var custs = getData('ptf_crm_customers');
+      var added = 0, merged = 0;
+      var byName = {};
+      custs.forEach(function(c){ byName[String(c.co||'').trim()] = c; });
+      for (var r = 1; r < rows.length; r++) {
+        var R = rows[r] || [];
+        var co = String(R[0]||'').trim();
+        if (!co) continue;
+        var person = ptfXlsPerson(R[2], R[3], R[5], R[6]); // C=رابط D=موبایل F=ثابت G=سمت
+        var rec = byName[co];
+        if (rec) {
+          // مشتری موجود → فقط رابط جدید اضافه شود
+          if (person) {
+            rec.people = rec.people || [];
+            var dupP = rec.people.some(function(p){ return p.nm === person.nm; });
+            if (!dupP) { rec.people.push(person); merged++; }
+          }
+          // فیلدهای خالی رکورد موجود از اکسل پر شوند (بدون بازنویسی داده موجود)
+          if (!rec.ind && R[1]) rec.ind = String(R[1]).trim();
+          if (!rec.coAddr && R[8]) rec.coAddr = String(R[8]).trim();
+          if (!rec.natId && R[9]) rec.natId = String(R[9]).trim();
+          if (!rec.coWeb && R[10]) rec.coWeb = String(R[10]).trim();
+          if (!rec.venNo && R[11]) rec.venNo = String(R[11]).trim();
+          if (!rec.coEn && R[12]) rec.coEn = String(R[12]).trim();
+          if ((!rec.coTels || !rec.coTels.length) && R[7]) rec.coTels = [{ n: String(R[7]).trim(), ext: '', lb: 'تلفنخانه' }];
+          if ((rec.venSt||'unreg') === 'unreg' && R[4]) rec.venSt = ptfXlsVenSt(R[4]);
+          if (!rec.con && person) rec.con = person.nm;
+          if (!rec.ph && person) rec.ph = (person.mobs[0]||person.tels[0]||{}).n || '';
+        } else {
+          rec = {
+            cd: (typeof genCode === 'function' ? genCode('CUST') : 'CUST-' + (1001 + custs.length)),
+            co: co, kind: 'حقوقی',
+            ind: String(R[1]||'نفت و گاز').trim(),
+            venSt: ptfXlsVenSt(R[4]),
+            venNo: String(R[11]||'').trim(),
+            coTels: R[7] ? [{ n: String(R[7]).trim(), ext: '', lb: 'تلفنخانه' }] : [],
+            coAddr: String(R[8]||'').trim(),
+            natId: String(R[9]||'').trim(),
+            coWeb: String(R[10]||'').trim(),
+            coEn: String(R[12]||'').trim(),
+            people: person ? [person] : [],
+            phones: [],
+            ts: new Date().toISOString()
+          };
+          if (person) { rec.con = person.nm; rec.ph = (person.mobs[0]||person.tels[0]||{}).n || ''; person.primary = true; }
+          if (typeof dedupStamp === 'function') dedupStamp(rec);
+          custs.unshift(rec);
+          byName[co] = rec;
+          added++;
+        }
+      }
+      setData('ptf_crm_customers', custs);
+      if (typeof renderCustomers === 'function') renderCustomers();
+      alert('✅ ' + added + ' مشتری جدید وارد شد' + (merged ? ' و ' + merged + ' رابط به مشتریان موجود اضافه شد' : '') + ' (دستورالعمل US-280).');
+    } catch(e) { alert('❌ خطا در خواندن فایل اکسل: ' + e.message); }
+  };
+  rd.readAsArrayBuffer(f);
+};
+
+/* v122.2: ابزارهای مشترک ورود اکسل — تفکیک موبایل/ثابت و چند شماره با / و داخلی بعد از خط تیره */
+window.ptfXlsPhones = function(cell, isMob) {
+  return String(cell||'').split(/[\/,،;؛|]+/).map(function(x){ return x.trim(); }).filter(Boolean).map(function(x){
+    if (isMob) return { n: x, lb: '' };
+    var m = x.match(/^(.*?)[\s]*-[\s]*(\d{1,5})$/); // 02188xxxxxx-124 → شماره + داخلی
+    return m && m[1].replace(/\D/g,'').length >= 5 ? { n: m[1].trim(), ext: m[2], lb: '' } : { n: x, ext: '', lb: '' };
+  });
+};
+window.ptfXlsPerson = function(nm, mobCell, telCell, role) {
+  var name = String(nm||'').trim();
+  var mobs = ptfXlsPhones(mobCell, true);
+  var tels = ptfXlsPhones(telCell, false);
+  if (!name && !mobs.length && !tels.length) return null;
+  return { nm: name || 'رابط', nmEn: '', role: String(role||'رابط اصلی').trim() || 'رابط اصلی', dept: '', tels: tels, mobs: mobs, primary: false };
+};
+window.ptfXlsVenSt = function(cell) {
+  var v = String(cell||'').trim().toLowerCase();
+  if (!v) return 'unreg';
+  if (v === 'approved' || v.indexOf('تایید') > -1 || v.indexOf('تأیید') > -1) return 'approved';
+  if (v === 'pending' || v.indexOf('بررسی') > -1) return 'pending';
+  return 'unreg';
+};
+
+// ورود اکسل سرنخ‌ها (LEADS) طبق US-120
+window.ptfStandardImportLeadsXls = function(inp) {
+  /* v122.2 (US-280): ورود اکسل کامل سرنخ‌ها — تفکیک موبایل/ثابت + ایمیل/صنعت/ارزش */
+  var f = inp.files[0]; if (!f) return;
+  if (typeof XLSX === 'undefined') { alert('کتابخانه SheetJS بارگذاری نشده است'); return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    try {
+      var wb = XLSX.read(new Uint8Array(rd.result), {type:'array'});
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:''});
+      if (!rows || rows.length < 2) { alert('فایل خالی است یا فقط سرستون دارد'); return; }
+      var leads = getData('ptf_crm_leads');
+      var added = 0;
+      for (var r = 1; r < rows.length; r++) {
+        var R = rows[r] || [];
+        var co = String(R[0]||'').trim();
+        if (!co) continue;
+        var mobs = ptfXlsPhones(R[2], true);   // C = موبایل
+        var tels = ptfXlsPhones(R[5], false);  // F = ثابت
+        var val = parseFloat(String(R[9]||'').replace(/[^\d.]/g,'')) || 0; // J = برآورد ارزش
+        leads.push({
+          cd: (typeof genCode === 'function' ? genCode('LEAD') : 'LEAD-' + (1001 + leads.length)),
+          co: co,
+          person: String(R[1]||'').trim(),
+          mob: mobs.length ? mobs.map(function(m){return m.n;}).join(' / ') : '',
+          tel: tels.length ? tels.map(function(t){return t.n + (t.ext ? ' داخلی ' + t.ext : '');}).join(' / ') : '',
+          ph: (mobs[0]||tels[0]||{}).n || '',
+          src: String(R[3]||'اکسل وارداتی').trim(),
+          need: String(R[4]||'').trim(),
+          role: String(R[6]||'').trim(),
+          email: String(R[7]||'').trim(),
+          ind: String(R[8]||'').trim(),
+          val: val,
+          stage: 'new', hist: [],
+          createdISO: new Date().toISOString().slice(0,10),
+          createdFa: new Date().toLocaleDateString('fa-IR')
+        });
+        added++;
+      }
+      setData('ptf_crm_leads', leads);
+      if (typeof renderLeads === 'function') renderLeads();
+      alert('✅ ' + added + ' سرنخ فروش وارد شد (دستورالعمل US-280).');
+    } catch(e) { alert('❌ خطا در خواندن فایل اکسل: ' + e.message); }
+  };
+  rd.readAsArrayBuffer(f);
+};
+
+
+// ورود اکسل استاندارد تأمین‌کنندگان (SUP) طبق US-120
+window.ptfStandardImportSupXls = function(inp) {
+  /* v122.2 (US-280): ورود اکسل کامل تأمین‌کنندگان — تفکیک موبایل/ثابت، چند رابط، فیلدهای اختیاری */
+  var f = inp.files[0]; if (!f) return;
+  if (typeof XLSX === 'undefined') { alert('کتابخانه SheetJS بارگذاری نشده است'); return; }
+  var rd = new FileReader();
+  rd.onload = function() {
+    try {
+      var wb = XLSX.read(new Uint8Array(rd.result), {type:'array'});
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false, defval:''});
+      if (!rows || rows.length < 2) { alert('فایل خالی است یا فقط سرستون دارد'); return; }
+      var sups = getData('ptf_crm_suppliers');
+      var added = 0, merged = 0;
+      var byName = {};
+      sups.forEach(function(c){ byName[String(c.co||'').trim()] = c; });
+      for (var r = 1; r < rows.length; r++) {
+        var R = rows[r] || [];
+        var co = String(R[0]||'').trim();
+        if (!co) continue;
+        var person = ptfXlsPerson(R[2], R[3], R[5], R[6]); // C=رابط D=موبایل F=ثابت G=سمت
+        var rec = byName[co];
+        if (rec) {
+          if (person) {
+            rec.people = rec.people || [];
+            if (!rec.people.some(function(p){ return p.nm === person.nm; })) { rec.people.push(person); merged++; }
+          }
+          if (!rec.ca && R[1]) rec.ca = String(R[1]).trim();
+          if (!rec.coWeb && R[4]) rec.coWeb = String(R[4]).trim();
+          if ((!rec.coTels || !rec.coTels.length) && R[7]) rec.coTels = [{ n: String(R[7]).trim(), ext: '', lb: 'تلفنخانه' }];
+          if (!rec.coAddr && R[8]) rec.coAddr = String(R[8]).trim();
+          if (!rec.natId && R[9]) rec.natId = String(R[9]).trim();
+          if (!rec.nm && person) rec.nm = person.nm;
+          if (!rec.ph && person) rec.ph = (person.mobs[0]||person.tels[0]||{}).n || '';
+        } else {
+          rec = {
+            cd: (typeof genCode === 'function' ? genCode('SUP') : 'SUP-' + (1001 + sups.length)),
+            co: co, kind: 'حقوقی',
+            ca: String(R[1]||'ابزار دقیق و پمپ').trim(),
+            coWeb: String(R[4]||'').trim(),
+            coTels: R[7] ? [{ n: String(R[7]).trim(), ext: '', lb: 'تلفنخانه' }] : [],
+            coAddr: String(R[8]||'').trim(),
+            natId: String(R[9]||'').trim(),
+            people: person ? [person] : [],
+            phones: [],
+            ts: new Date().toISOString()
+          };
+          if (person) { rec.nm = person.nm; rec.ph = (person.mobs[0]||person.tels[0]||{}).n || ''; person.primary = true; }
+          if (typeof dedupStamp === 'function') dedupStamp(rec);
+          sups.unshift(rec);
+          byName[co] = rec;
+          added++;
+        }
+      }
+      setData('ptf_crm_suppliers', sups);
+      if (typeof renderSuppliers === 'function') renderSuppliers();
+      alert('✅ ' + added + ' تأمین‌کننده جدید وارد شد' + (merged ? ' و ' + merged + ' رابط به موجودی‌ها اضافه شد' : '') + ' (دستورالعمل US-280).');
+    } catch(e) { alert('❌ خطا در خواندن فایل اکسل: ' + e.message); }
+  };
+  rd.readAsArrayBuffer(f);
+};
+
+function genCode(p) { return window.ptfUnifiedCode(p); }
+function addLog(m) {
+  var t = new Date().toLocaleTimeString('fa-IR');
+  var el = document.getElementById('actLog');
+  if (!el) return;
+  if (el.innerHTML.includes('هنوز')) el.innerHTML = '';
+  el.innerHTML = '<div>◉ ' + t + ' — ' + m + '</div>' + el.innerHTML;
+}
+
+// ===== DASHBOARD =====
+function buildDashboard() {
+  return '<div class="sr"><div class="sc"><b id="dRfq">0</b><span>کل درخواست‌ها</span></div>' +
+    '<div class="sc"><b id="dAct">0</b><span>در حال بررسی</span></div>' +
+    '<div class="sc"><b id="dSup">0</b><span>تامین‌کنندگان</span></div>' +
+    '<div class="sc"><b id="dCust">0</b><span>مشتریان</span></div>' +
+    '<div class="sc"><b id="dUser">0</b><span>کاربران</span></div></div>' +
+    '<div style="background:#f8fafc;border-radius:16px;padding:20px;border:1px solid var(--brd)">' +
+    '<h4 style="margin:0 0 12px;font-size:14px">📈 آخرین فعالیت‌ها</h4>' +
+    '<div id="actLog" style="font-size:13px;line-height:2;color:#475569"><span style="color:#94a3b8">هنوز فعالیتی ثبت نشده</span></div></div>';
+}
+
+function updateStats() {
+  var rfqs = getData('ptf_crm_rfqs');
+  var sups = getData('ptf_crm_suppliers');
+  var custs = getData('ptf_crm_customers');
+  var users = getData('ptf_crm_users');
+  var act = rfqs.filter(function(i){return i.st==='st1'||i.st==='st2';}).length;
+  document.getElementById('dRfq').textContent = rfqs.length;
+  document.getElementById('dAct').textContent = act;
+  document.getElementById('dSup').textContent = sups.length;
+  document.getElementById('dCust').textContent = custs.length;
+  document.getElementById('dUser').textContent = users.length + 1;
+  /* v12.8 (US-317): بج قرمز = فقط نیازمند اقدام — درخواست‌های «دریافت اولیه» که هنوز کاری رویشان نشده */
+  var rNeedAct = rfqs.filter(function(i){ return (i.st||'st1') === 'st1'; }).length;
+  var rB = document.getElementById('rBadge');
+  if (rB) { rB.textContent = rNeedAct; rB.style.display = rNeedAct ? '' : 'none'; }
+}
+
+function renderDashRfq() {
+  var tbody = document.getElementById('dashRfqTable');
+  if (!tbody) return;
+  var rfqs = getData('ptf_crm_rfqs').slice(0, 5);
+  tbody.innerHTML = '';
+  for (var i = 0; i < rfqs.length; i++) {
+    tbody.innerHTML += '<tr><td><strong>' + escP(rfqs[i].cd) + '</strong></td><td>' + escP(rfqs[i].co) + '</td>' +
+      '<td><span class="bd b-' + (rfqs[i].st||'st1') + '">' + escP(rfqs[i].stxt||'دریافت') + '</span></td></tr>';
+  }
+}
+
+// ===== RFQ =====
+function buildRfq() {
+  return '<div class="ph"><h3>📋 درخواست‌ها</h3>' +
+    '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
+    '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' +
+    '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>حوزه</th><th>تاریخ</th><th>وضعیت</th><th>عملیات</th></tr></thead>' +
+    '<tbody id="rTb"></tbody></table></div>';
+}
+
+function renderRfq() {
+  var rfqs = getData('ptf_crm_rfqs');
+  var tb = document.getElementById('rTb');
+  if (!tb) return;
+  tb.innerHTML = '';
+  for (var i = 0; i < rfqs.length; i++) {
+    var cdSafe = escP(rfqs[i].cd);
+    tb.innerHTML += '<tr><td><strong>' + cdSafe + '</strong></td><td>' + escP(rfqs[i].co) + '</td>' +
+      '<td>' + (rfqs[i].ca||'-') + '</td><td>' + (rfqs[i].dt||'—') + '</td>' +
+      '<td><span class="bd b-' + (rfqs[i].st||'st1') + '">' + (rfqs[i].stxt||'دریافت اولیه') + '</span></td>' +
+      '<td><button class="ba" style="color:#0f172a;font-weight:bold" onclick="ptfViewRfq(\'' + cdSafe + '\')">👁 مشاهده</button> <button class="ba" onclick="editRfq(\'' + cdSafe + '\')">✎ ویرایش/حذف</button></td></tr>';
+  }
+  updateStats();
+}
+
+function filterRfq() {
+  var q = document.getElementById('rSrch').value.toLowerCase();
+  var rows = document.querySelectorAll('#rTb tr');
+  for (var i = 0; i < rows.length; i++) {
+    rows[i].style.display = rows[i].innerText.toLowerCase().includes(q) ? '' : 'none';
+  }
+}
+
+// ===== SUPPLIERS =====
+function buildSuppliers() {
+  return '<div class="ph"><h3>🏭 تامین‌کنندگان</h3>' +
+    '<div class="sb2"><input type="text" id="sSrch" placeholder="جستجو..." oninput="renderSuppliers()">' +
+    '<button class="bt" onclick="showSupModal2()">+ ثبت</button>' +
+    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;SUP&quot;, &quot;supXlsInp&quot;)">📥 ورود اکسل با راهنما</button>' +
+    '<input type="file" id="supXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportSupXls(this)"></div></div>' +
+    '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>رابط اصلی</th><th>تماس</th><th>دسته</th><th>عملیات</th></tr></thead>' +
+    '<tbody id="sTb"></tbody></table></div>';
+}
+
+function renderSuppliers() {
+  var items = getData('ptf_crm_suppliers');
+  var tb = document.getElementById('sTb');
+  if (!tb) return;
+  tb.innerHTML = '';
+  for (var i = 0; i < items.length; i++) {
+    tb.innerHTML += '<tr><td><strong>' + items[i].cd + '</strong></td><td>' + items[i].co + '</td>' +
+      '<td>' + (items[i].nm||'-') + '</td><td>' + (items[i].ph||'-') + '</td><td>' + (items[i].ca||'-') + '</td></tr>';
+  }
+  if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
+}
+
+// ===== PRODUCTS (US-109) =====
+var PROD_CATS = ['پایپینگ','فلنج و اتصالات','شیرآلات','برق صنعتی','ابزار دقیق','پمپ و کمپرسور','سایر'];
+// US-143 AC2: واحد باید هم‌زبان شرح باشد
+var PROD_UNITS = ['عدد','شاخه','متر','کیلوگرم','ست','بسته'];
+var PROD_UNITS_EN = ['No','PCS','Set','Meter','Branch','KG','Pack','EA'];
+// US-143 AC1: کد کالای خودکار P-XXXX
+function prodAutoCode() {
+  var items = getData('ptf_crm_products');
+  var max = 0;
+  items.forEach(function(p){ var m = (p.cd||'').match(/^(?:P-|P-)(\d+)$/i); if (m && +m[1] > max) max = +m[1]; });
+  return (window.ptfUnifiedCode ? window.ptfUnifiedCode('PROD') : 'P-' + (1000 + items.length + 1));
+}
+function prodIsEnglish(s) { return /^[\x00-\x7F\u00C0-\u024F]*$/.test(s) && /[A-Za-z]/.test(s); }
+
+function buildProducts() {
+  var catOpts='<option value="">همه</option>';
+  for (var i=0;i<PROD_CATS.length;i++) catOpts += '<option>'+PROD_CATS[i]+'</option>';
+  return '<div class="ph"><h3>📦 مدیریت کالاها</h3>' +
+    '<div class="sb2" style="flex-wrap:wrap;gap:6px">' +
+    '<button class="bt" onclick="showProdModal()">+ کالای جدید</button>' +
+    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="exportProdCsv()">📤 خروجی اکسل</button>' +
+    '<button class="bt bt-o" onclick="ptfShowExcelGuidelineModal(&quot;PROD&quot;, &quot;pCsvIn&quot;)">📥 ورود اکسل</button>' +
+    '' +
+    '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfBatchDeleteProducts()">🗑 حذف دسته‌جمعی انتخاب‌شده‌ها</button>' +
+    '<input type="file" id="pCsvIn" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportProdXls(this)">' +
+    '</div></div>' +
+    '<div class="sb2" style="margin-bottom:10px;display:flex;gap:8px">' +
+    '<input type="text" id="pSrch" placeholder="جستجو: کد، نام، برند، استاندارد..." oninput="renderProducts()" style="flex:1;padding:8px 12px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px">' +
+    '<select id="pFcat" onchange="renderProducts()" style="padding:8px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px">' + catOpts + '</select>' +
+    '</div>' +
+    '<div style="font-size:12px;color:#94a3b8;margin-bottom:8px" id="pCount"></div>' +
+    '<div class="tb2"><table><thead><tr><th style="width:32px"><input type="checkbox" id="pChkAll" onclick="ptfToggleAllProdChk(this)" title="انتخاب همه"></th><th onclick="sortProd(&quot;cd&quot;)" style="cursor:pointer">کد ⇅</th><th onclick="sortProd(&quot;nm&quot;)" style="cursor:pointer">نام کالا ⇅</th><th>دسته</th><th>استاندارد/گرید</th><th>برند</th><th>واحد</th><th onclick="sortProd(&quot;pr&quot;)" style="cursor:pointer">قیمت مرجع ⇅</th><th>عملیات</th></tr></thead>' +
+    '<tbody id="pTb"></tbody></table></div>';
+}
+
+var prodSort = {key:'cd', dir:1};
+function sortProd(k){ if(prodSort.key===k){prodSort.dir*=-1}else{prodSort={key:k,dir:1}} renderProducts(); }
+
+function renderProducts() {
+  var items = getData('ptf_crm_products');
+  var tb = document.getElementById('pTb');
+  if (!tb) return;
+  var q = (document.getElementById('pSrch')||{}).value || '';
+  var fc = (document.getElementById('pFcat')||{}).value || '';
+  q = q.trim().toLowerCase();
+  var list = items.filter(function(p){
+    /* v15.9 (US-389): فیلتر دسته نرمال‌شده — «برق صنعتی» کالاهای Electrical قدیمی را هم می‌گیرد */
+    var pCa = (typeof ptfNormCat === 'function') ? ptfNormCat(p.ca) : p.ca;
+    if (fc && fc !== 'همه' && pCa !== fc) return false;
+    if (!q) return true;
+    /* v15.9: جستجوی دوزبانه + مدل + نرمال‌سازی ارقام/فاصله */
+    if (typeof ptfProdSearchMatch === 'function') return ptfProdSearchMatch(p, q);
+    return ((p.cd||'')+' '+(p.nm||'')+' '+(p.en||'')+' '+(p.br||'')+' '+(p.st||'')+' '+(p.md||'')).toLowerCase().indexOf(q) > -1;
+  });
+  list.sort(function(a,b){
+    var x=a[prodSort.key]||'', y=b[prodSort.key]||'';
+    if (prodSort.key==='pr'){x=+x||0;y=+y||0}
+    return (x>y?1:x<y?-1:0)*prodSort.dir;
+  });
+  var el = document.getElementById('pCount');
+  if (el) el.textContent = 'نمایش ' + list.length + ' از ' + items.length + ' کالا';
+  var h = '';
+  for (var i=0;i<list.length;i++){
+    var p = list[i];
+    var cd = p.cd || '';
+    var safeCd = cd.replace(/'/g, '');
+    h += '<tr><td><input type="checkbox" class="p-chk" value="' + escP(cd) + '"></td>' +
+      '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small style="color:#94a3b8">'+escP(p.en)+'</small>':'')+'</td>'+
+      '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small style="color:#7c3aed;direction:ltr;display:inline-block">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
+      '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small style="color:#0e7490" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+ /* v13.7 US-335 + v15.6 US-387: ارز واقعی به جای ریال */
+      '<td><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
+      '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="delProd(\''+safeCd+'\')">✕</button></td></tr>';
+  }
+  tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">کالایی یافت نشد</td></tr>';
+}
+
+// US-117: توابع انتخاب همه و حذف دسته‌جمعی کالاها
+window.ptfToggleAllProdChk = function(el) {
+  document.querySelectorAll('.p-chk').forEach(function(ch) { ch.checked = el.checked; });
+};
+
+window.ptfBatchDeleteProducts = function() {
+  var checked = [];
+  document.querySelectorAll('.p-chk:checked').forEach(function(ch) { if(ch.value) checked.push(ch.value); });
+  if (!checked.length) { alert('هیچ کالایی انتخاب نشده است. لطفاً کالاها را با تیک زدن انتخاب کنید.'); return; }
+  
+  if (typeof window.ptfReasonedDelete === 'function') {
+    window.ptfReasonedDelete('PRODUCT_BATCH', checked.length + ' کالا', 'حذف دسته‌جمعی ' + checked.length + ' کالا', function() {
+      var items = getData('ptf_crm_products').filter(function(p) { return checked.indexOf(p.cd) < 0; });
+      setData('ptf_crm_products', items);
+      if (typeof audit === 'function') audit('کالاها', 'حذف دسته‌جمعی ' + checked.length + ' کالا', '');
+      renderProducts();
+    });
+  } else {
+    if (!confirm('آیا از حذف دسته‌جمعی ' + checked.length + ' کالای انتخاب‌شده اطمینان دارید؟')) return;
+    var items = getData('ptf_crm_products').filter(function(p) { return checked.indexOf(p.cd) < 0; });
+    setData('ptf_crm_products', items);
+    renderProducts();
+  }
+};
+function escP(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function showProdModal(cd) {
+  var p = null;
+  if (cd) {
+    var items = getData('ptf_crm_products');
+    for (var i=0;i<items.length;i++) if (items[i].cd===cd) p = items[i];
+  }
+  var catOpts='';
+  for (var i=0;i<PROD_CATS.length;i++) catOpts += '<option'+(p&&p.ca===PROD_CATS[i]?' selected':'')+'>'+PROD_CATS[i]+'</option>';
+  // US-143 AC2: دو گروه واحد (فارسی/انگلیسی) — باید هم‌زبان شرح باشد
+  var unitOpts = '<optgroup label="واحد فارسی">';
+  for (var i=0;i<PROD_UNITS.length;i++) unitOpts += '<option'+(p&&p.un===PROD_UNITS[i]?' selected':'')+'>'+PROD_UNITS[i]+'</option>';
+  unitOpts += '</optgroup><optgroup label="English Units">';
+  for (var i=0;i<PROD_UNITS_EN.length;i++) unitOpts += '<option'+(p&&p.un===PROD_UNITS_EN[i]?' selected':'')+'>'+PROD_UNITS_EN[i]+'</option>';
+  unitOpts += '</optgroup>';
+  var autoCd = p ? p.cd : prodAutoCode();
+  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px">' +
+    '<h3>'+(p?'✎ ویرایش کالا':'📦 کالای جدید')+'</h3>' +
+    '<div class="fr"><div class="fld"><label>کد کالا (خودکار — قفل 🔒)</label><input type="text" id="nPCd" value="'+escP(autoCd)+'" readonly style="background:#f1f5f9;color:#475569;cursor:not-allowed;direction:ltr"></div>' +
+    '<div class="fld"><label>دسته</label><select id="nPCa">'+catOpts+'</select></div></div>' +
+    '<div class="fld"><label>شرح کالا * (فارسی یا انگلیسی)</label><input type="text" id="nPNm" value="'+(p?escP(p.nm):'')+'" placeholder="مثال: زانو ۹۰ درجه ... یا Elbow 90° LR ..."></div>' +
+    '<div class="fld"><label>نام معادل انگلیسی (اختیاری — اگر شرح فارسی است)</label><input type="text" id="nPEn" value="'+(p?escP(p.en||''):'')+'" style="direction:ltr"></div>' +
+    '<div class="fr"><div class="fld"><label>استاندارد / گرید</label><input type="text" id="nPSt" value="'+(p?escP(p.st||''):'')+'" placeholder="ASTM A106 Gr.B"></div>' +
+    '<div class="fld"><label>برند</label><input type="text" id="nPBr" value="'+(p?escP(p.br||''):'')+'"></div></div>' +
+    /* v15.9 (US-389 — گزارش کارفرما): فیلد مدل به فرم کالا اضافه شد */
+    '<div class="fr"><div class="fld"><label>مدل / پارت‌نامبر</label><input type="text" id="nPMd" value="'+(p?escP(p.md||''):'')+'" placeholder="3051CD2A / EJA110E" style="direction:ltr"></div><div class="fld"></div></div>' +
+    '<div class="fr"><div class="fld"><label>واحد * (هم‌زبان با شرح)</label><select id="nPUn">'+unitOpts+'</select></div>' +
+    '<div class="fld"><label>قیمت مرجع خرید</label><div style="display:flex;gap:6px"><input type="number" id="nPPr" value="'+(p&&p.pr?p.pr:'')+'" min="0" style="direction:ltr;flex:1">' +
+    /* v15.6 (US-387 ③ — دستور کارفرما): قیمت خرید به ریال یا ارز — نه ریال */
+    '<select id="nPPrCur" style="width:88px;direction:ltr;padding:8px;border:2px solid var(--brd);border-radius:12px;background:#f8fafc">' +
+    ['IRR','EUR','USD'].map(function(cc){ return '<option value="'+cc+'"'+((p&&p.prCur?p.prCur:'IRR')===cc?' selected':'')+'>'+cc+'</option>'; }).join('') + '</select></div></div></div>' +
+    '<div class="fld"><label>توضیحات</label><textarea id="nPDs" rows="2">'+(p?escP(p.ds||''):'')+'</textarea></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveProd('+(p?'true':'false')+')">'+(p?'ذخیره تغییرات':'ثبت کالا')+'</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+}
+
+function saveProd(isEdit) {
+  var cd = document.getElementById('nPCd').value.trim().toUpperCase();
+  var nm = document.getElementById('nPNm').value.trim();
+  var un = document.getElementById('nPUn').value;
+  // US-143 AC3: شرح و واحد اجباری
+  if (!nm) { alert('شرح کالا الزامی است'); return; }
+  if (!un) { alert('واحد کالا الزامی است'); return; }
+  // US-143 AC2: واحد باید هم‌زبان شرح باشد
+  var nmEn = prodIsEnglish(nm);
+  var unEn = PROD_UNITS_EN.indexOf(un) > -1;
+  if (nmEn && !unEn) { alert('⚠️ شرح کالا انگلیسی است — واحد هم باید انگلیسی باشد (No / PCS / Set / ...)'); return; }
+  if (!nmEn && unEn) { alert('⚠️ شرح کالا فارسی است — واحد هم باید فارسی باشد (عدد / شاخه / متر / ...)'); return; }
+  var items = getData('ptf_crm_products');
+  if (!isEdit) {
+    if (!cd) cd = prodAutoCode();
+    /* v31.7.20 BUG-CODE-DUP-002: تلاش محدود قبلی فقط ۱ بار regen می‌کرد و اگر باز تکراری بود بی‌صدا ادامه می‌داد */
+    var _pTry = 0;
+    while (items.some(function (x) { return x && x.cd === cd; }) && _pTry < 5) { cd = prodAutoCode(); _pTry++; }
+    if (items.some(function (x) { return x && x.cd === cd; })) {
+      alert('⛔ کد کالای تولیدی ' + cd + ' تکراری است — لطفاً صفحه را رفرش کنید و دوباره تلاش کنید.');
+      try { audit('سیستم', '⛔ جلوگیری از ثبت کالا با کد تکراری ' + cd + ' (BUG-CODE-DUP-002)', cd); } catch (eA2) {}
+      return;
+    }
+  }
+  var rec = {cd:cd, nm:nm,
+    en: document.getElementById('nPEn').value.trim(),
+    ca: document.getElementById('nPCa').value,
+    st: document.getElementById('nPSt').value.trim(),
+    br: document.getElementById('nPBr').value.trim(),
+    md: (document.getElementById('nPMd')||{value:''}).value.trim(), /* v15.9 US-389: مدل */
+    un: document.getElementById('nPUn').value,
+    pr: +document.getElementById('nPPr').value || 0,
+    prCur: (document.getElementById('nPPrCur')||{value:'IRR'}).value || 'IRR', /* v15.6 US-387 */
+    ds: document.getElementById('nPDs').value.trim(),
+    ts: new Date().toISOString()};
+  // US-174: جلوگیری از ثبت کالای تکراری (شرح / نام انگلیسی)
+  if (typeof ptfDupBlock === 'function' && ptfDupBlock('product', rec, isEdit ? cd : null)) return;
+  rec.ca = (typeof ptfNormCat === 'function') ? ptfNormCat(rec.ca) : rec.ca; /* v15.9: دسته همیشه فارسی استاندارد */
+  if (isEdit) {
+    for (var i=0;i<items.length;i++) if (items[i].cd===cd) { rec.ts0=items[i].ts0||items[i].ts; rec.crAt=items[i].crAt; rec.crBy=items[i].crBy; rec.tp=items[i].tp; rec.srcInq=items[i].srcInq; rec.hidden=items[i].hidden; rec.prCur=rec.prCur||items[i].prCur; rec.refPriceAt=items[i].refPriceAt; rec.refPriceSrc=items[i].refPriceSrc; items[i]=rec; }
+  } else { rec.ts0=rec.ts; if (typeof dedupStamp === 'function') dedupStamp(rec); items.push(rec); }
+  setData('ptf_crm_products', items);
+  hideModal(); renderProducts();
+  addLog('کالا '+cd+(isEdit?' ویرایش':' ثبت')+' شد');
+}
+
+function delProd(cd) {
+  if (!confirm('کالای '+cd+' حذف شود؟ این عمل قابل بازگشت نیست.')) return;
+  var items = getData('ptf_crm_products').filter(function(p){return p.cd!==cd});
+  setData('ptf_crm_products', items);
+  renderProducts(); addLog('کالا '+cd+' حذف شد');
+}
+
+function exportProdCsv() {
+  var items = getData('ptf_crm_products');
+  if (!items.length) { alert('کالایی برای خروجی وجود ندارد'); return; }
+  var rows = [['کد','نام فارسی','نام انگلیسی','دسته','استاندارد/گرید','برند','مدل','واحد','قیمت مرجع','توضیحات']];
+  for (var i=0;i<items.length;i++){ var p=items[i];
+    rows.push([p.cd,p.nm,p.en||'',p.ca||'',p.st||'',p.br||'',p.md||'',p.un||'',p.pr||'',(p.ds||'').replace(/\n/g,' ')]); } /* v15.9: مدل */
+  var csv = '\uFEFF' + rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = 'ptf-products-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+function importProdCsv(inp) {
+  var f = inp.files[0]; if (!f) return;
+  var isXlsx = /\.xlsx?$/i.test(f.name);
+  // US-124 AC1: برچسب شماره درخواست (اختیاری)
+  var inqNo = prompt('این کالاها مربوط به کدام درخواست است؟\n(شماره Inquiry را وارد کنید؛ اگر مربوط به درخواست خاصی نیست خالی بگذارید)', '');
+  inqNo = (inqNo || '').trim();
+  var done = function(rows) { // rows = آرایه آرایه‌ها شامل هدر
+    if (!rows || rows.length < 2) { alert('فایل خالی یا نامعتبر است'); return; }
+    var head = rows[0].map(function(h){ return String(h||'').toLowerCase(); });
+    var find = function(cands){ for (var i=0;i<head.length;i++) for (var j=0;j<cands.length;j++) if (head[i].indexOf(cands[j])>-1) return i; return -1; };
+    var m = { cd:find(['کد','code']), nm:find(['نام کالا','نام','name']), en:find(['انگلیسی','english','en']),
+      ca:find(['دسته','category','cat']), st:find(['استاندارد','گرید','standard','grade']), br:find(['برند','brand']),
+      un:find(['واحد','unit']), pr:find(['قیمت','price']), ds:find(['توضیح','desc']) };
+    if (m.cd < 0) m.cd = 0;
+    if (m.nm < 0) m.nm = 1;
+    var items = getData('ptf_crm_products');
+    var added=0, skipped=0;
+    for (var i=1;i<rows.length;i++){
+      var c = rows[i];
+      var g = function(k){ return m[k]>-1 && c[m[k]]!=null ? String(c[m[k]]).trim() : ''; };
+      var cdRaw = g('cd');
+      var nmRaw = g('nm') || cdRaw;
+      var cd = cdRaw.toUpperCase();
+      // Sprint 112 / US-116: اگر کد معتبر نبود یا عدد ساده اکسلی (۱، ۲، ۳) بود، کد مینیمال یکتا بساز
+      if (!cd || !/^[A-Z0-9_-]{3,30}$/.test(cd) || /^\d{1,3}$/.test(cd)) {
+        cd = window.ptfUnifiedCode ? window.ptfUnifiedCode('PROD') : 'P-' + (1000 + items.length + 1);
+      }
+      var dup=false; for (var j=0;j<items.length;j++) if (items[j].cd===cd) dup=true;
+      if (dup) { cd = (window.ptfUnifiedCode ? window.ptfUnifiedCode('PROD') : 'P-' + (1000 + items.length + Math.floor(Math.random()*900))); }
+      var qty = 1, un = g('un')||'عدد';
+      var qi = find(['تعداد','qty','quantity','مقدار']);
+      if (qi > -1 && c[qi] != null) qty = +String(c[qi]).replace(/[^\d.]/g,'') || 1;
+      items.push({cd:cd,nm:g('nm')||cd,en:g('en'),ca:g('ca')||'سایر',st:g('st'),br:g('br'),un:un,
+        pr:+String(g('pr')).replace(/[^\d.]/g,'')||0,ds:g('ds'),inqNo:inqNo||'',
+        ts:new Date().toISOString(),ts0:new Date().toISOString()});
+      if (inqNo) {
+        var iq = getData('ptf_crm_inqitems');
+        iq.push({inqNo:inqNo, cd:cd, nm:g('nm')||cd, en:g('en'), qty:qty, un:un, st:g('st'), t:new Date().toLocaleDateString('fa-IR')});
+        setData('ptf_crm_inqitems', iq);
+      }
+      added++;
+    }
+    setData('ptf_crm_products', items);
+    renderProducts();
+    alert('✅ '+added+' کالا اضافه شد'+(inqNo?' و به درخواست '+inqNo+' متصل شد':'')+(skipped?' | '+skipped+' ردیف رد شد':''));
+    addLog('ایمپورت '+(isXlsx?'Excel':'CSV')+' کالا: '+added+' ردیف'+(inqNo?' (درخواست '+inqNo+')':''));
+  };
+  var rd = new FileReader();
+  if (isXlsx && typeof XLSX !== 'undefined') {
+    rd.onload = function(){
+      try {
+        var wb = XLSX.read(new Uint8Array(rd.result), {type:'array'});
+        var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:''});
+        done(rows);
+      } catch(e) { alert('خطا در خواندن فایل اکسل: '+e.message); }
+    };
+    rd.readAsArrayBuffer(f);
+  } else {
+    rd.onload = function(){
+      var lines = rd.result.replace(/^\uFEFF/,'').split(/\r?\n/).filter(function(l){return l.trim()});
+      var rows = lines.map(function(l){ return (l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)||[]).map(function(x){return x.replace(/,$/,'').replace(/^"|"$/g,'').replace(/""/g,'"')}); });
+      done(rows);
+    };
+    rd.readAsText(f,'utf-8');
+  }
+  inp.value='';
+}
+
+// ===== CUSTOMERS =====
+function buildCustomers() {
+  return '<div class="ph"><h3>🤝 مشتریان</h3>' +
+    '<div class="sb2"><input type="text" id="cSrch" placeholder="جستجو (شرکت، صنعت، رابط، تلفن)..." oninput="renderCustomers()" style="flex:1">' +
+    '<select id="cVenFlt" onchange="renderCustomers()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:12px"><option value="">همه وضعیت‌های وندور</option><option value="approved">🏆 وندور تاییدشده</option><option value="pending">⏳ بررسی مدارک</option><option value="unreg">⚪ ثبت‌نشده</option></select>' +
+    '<button class="bt" onclick="showCustModal()">+ ثبت</button><button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;CUST&quot;, &quot;custXlsInp&quot;)">📥 ورود اکسل با راهنما</button><input type="file" id="custXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportCustXls(this)"></div></div>' +
+    '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>صنعت</th><th>رابط اصلی</th><th>تماس</th><th>عملیات</th></tr></thead>' +
+    '<tbody id="cTb"></tbody></table></div>';
+}
+
+function renderCustomers() {
+  var items = getData('ptf_crm_customers');
+  var tb = document.getElementById('cTb');
+  if (!tb) return;
+  var q = ((document.getElementById('cSrch')||{}).value || '').trim().toLowerCase();
+  var vf = (document.getElementById('cVenFlt')||{}).value || '';
+  var list = items.filter(function(c){
+    if (vf && (c.venSt||'unreg') !== vf) return false;
+    if (!q) return true;
+    return ((c.cd||'')+' '+(c.co||'')+' '+(c.ind||'')+' '+(c.con||'')+' '+(c.ph||'')+' '+(c.mob||'')).toLowerCase().indexOf(q) > -1;
+  });
+  tb.innerHTML = '';
+  for (var i = 0; i < list.length; i++) {
+    var c = list[i];
+    var badge = window.ptfVendorStatusBadge ? window.ptfVendorStatusBadge(c) : '';
+    var contact = c.ph || c.mob || c.tel || c.phone || '-';
+    tb.innerHTML += '<tr><td><strong>' + escP(c.cd) + '</strong>' + badge + '</td><td><b>' + escP(c.co) + '</b></td>' +
+      '<td>' + escP(c.ind||'-') + '</td><td>' + escP(c.con||'-') + '</td><td style="direction:ltr">' + escP(contact) + '</td></tr>';
+  }
+  if (document.getElementById('dCust')) document.getElementById('dCust').textContent = list.length;
+}
+
+// ===== ORDERS =====
+function buildOrders() {
+  return '<div class="ph"><h3>💰 سفارشات و سود</h3><button class="bt" onclick="showModal(\'oMd\')">✎ ثبت قیمت</button></div>' +
+    '<div class="sr"><div class="sc"><b id="oTotal">0</b><span>سفارشات</span></div>' +
+    '<div class="sc"><b id="oRev">0</b><span>فروش (ریال)</span></div>' +
+    '<div class="sc"><b id="oCost">0</b><span>خرید (ریال)</span></div>' +
+    '<div class="sc"><b id="oPro">0</b><span>سود (ریال)</span></div></div>' +
+    '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>خرید</th><th>فروش</th><th>سود</th></tr></thead>' +
+    '<tbody id="oTb"></tbody></table></div>';
+}
+
+function renderOrders() {
+  var rfqs = getData('ptf_crm_rfqs').filter(function(i){return i.st==='st5'||i.st==='st6'||i.st==='st7';});
+  var prices = JSON.parse(localStorage.getItem('ptf_crm_order_prices') || '{}');
+  var tb = document.getElementById('oTb');
+  if (!tb) return;
+  var tRev = 0, tCost = 0, tPro = 0;
+  tb.innerHTML = '';
+  for (var i = 0; i < rfqs.length; i++) {
+    var p = prices[rfqs[i].cd] || {buy:0, sell:0};
+    var profit = p.sell - p.buy;
+    tRev += p.sell; tCost += p.buy; tPro += profit;
+    tb.innerHTML += '<tr><td><strong>' + escP(rfqs[i].cd) + '</strong></td><td>' + escP(rfqs[i].co) + '</td>' +
+      '<td>' + (p.buy ? p.buy.toLocaleString() : '—') + '</td><td>' + (p.sell ? p.sell.toLocaleString() : '—') + '</td>' +
+      '<td style="color:' + (profit>=0?'#059669':'#dc2626') + ';font-weight:900">' + (profit ? profit.toLocaleString() : '—') + '</td></tr>';
+  }
+  document.getElementById('oTotal').textContent = rfqs.length;
+  document.getElementById('oRev').textContent = tRev.toLocaleString();
+  document.getElementById('oCost').textContent = tCost.toLocaleString();
+  document.getElementById('oPro').textContent = tPro.toLocaleString();
+}
+
+// ===== FINANCE =====
+function buildFinance() {
+  return '<div class="ph"><h3>💳 مالی</h3><button class="bt" onclick="showModal(\'fMd\')">+ فاکتور</button></div>' +
+    '<div class="sr"><div class="sc"><b id="fRev">0</b><span>فروش</span></div>' +
+    '<div class="sc"><b id="fCost">0</b><span>هزینه</span></div>' +
+    '<div class="sc"><b id="fPro">0</b><span>سود</span></div></div>' +
+    '<div class="tb2"><table><thead><tr><th>کد</th><th>سفارش</th><th>فروش</th><th>خرید</th><th>سود</th><th>وضعیت</th></tr></thead>' +
+    '<tbody id="fTb"></tbody></table></div>';
+}
+
+function renderFinance() {
+  var invs = JSON.parse(localStorage.getItem('ptf_crm_finance') || '[]');
+  var tb = document.getElementById('fTb');
+  if (!tb) return;
+  var tRev = 0, tCost = 0, tPro = 0;
+  tb.innerHTML = '';
+  for (var i = 0; i < invs.length; i++) {
+    var profit = invs[i].sell - invs[i].buy;
+    tRev += invs[i].sell; tCost += invs[i].buy; tPro += profit;
+    tb.innerHTML += '<tr><td><strong>' + (invs[i].ref||invs[i].code) + '</strong></td><td>' + invs[i].orderCode + '</td>' +
+      '<td>' + invs[i].sell.toLocaleString() + '</td><td>' + invs[i].buy.toLocaleString() + '</td>' +
+      '<td style="color:' + (profit>=0?'#059669':'#dc2626') + '">' + profit.toLocaleString() + '</td>' +
+      '<td><span class="bd ' + (invs[i].payStatus==='paid'?'b-st4':'b-st3') + '">' +
+      (invs[i].payStatus==='paid'?'✅ پرداخت شده':'⏳ پرداخت نشده') + '</span></td></tr>';
+  }
+  document.getElementById('fRev').textContent = tRev.toLocaleString();
+  document.getElementById('fCost').textContent = tCost.toLocaleString();
+  document.getElementById('fPro').textContent = tPro.toLocaleString();
+}
+
+// ===== USERS =====
+function buildUsers() {
+  return '<div class="ph"><h3>👥 کاربران</h3><button class="bt" onclick="showModal(\'uMd\')">+ کاربر جدید</button></div>' +
+    '<div class="tb2"><table><thead><tr><th>نام کاربری</th><th>نام</th><th>نقش</th><th>تماس</th><th>وضعیت</th><th></th></tr></thead>' +
+    '<tbody id="uTb"></tbody></table></div>';
+}
+
+function renderUsers() {
+  var users = getData('ptf_crm_users');
+  var tb = document.getElementById('uTb');
+  if (!tb) return;
+  tb.innerHTML = '<tr><td><strong>admin</strong></td><td>مدیر ارشد</td><td><span class="bd b-ad">مدیر کل</span></td><td><span class="bd b-st4">✔ فعال</span></td></tr>';
+  for (var i = 0; i < users.length; i++) {
+    var cls = users[i].role.includes('Admin') ? 'b-ad' : 'b-op';
+    tb.innerHTML += '<tr><td><strong>' + users[i].username + '</strong></td><td>' + users[i].name + '</td>' +
+      '<td><span class="bd ' + cls + '">' + users[i].role + '</span></td><td><span class="bd b-st4">✔ فعال</span></td></tr>';
+  }
+  if (document.getElementById('dUser')) document.getElementById('dUser').textContent = users.length + 1;
+}
+
+// ===== SETTINGS =====
+function buildSettings() {
+  setTimeout(function(){ if (typeof renderStorageStatusBox==='function') renderStorageStatusBox('arvanBox'); }, 100);
+  // v90.1: وضعیت LLM + نمایش یوزر استوری فعال و نسخه سرور
+  setTimeout(function(){
+    var el = document.getElementById('llmBox');
+    if (!el || typeof ptfLlmStatus !== 'function') return;
+    fetch('../api/llm.php?action=status&_t=' + Date.now(), { headers: ptfApiAuthHeaders(false) }).then(function(r){ return r.json(); }).then(function(d){
+      el.innerHTML = d.ok
+        ? '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:10px 12px;font-size:13px">' +
+          '✅ <b>پیکربندی هوش مصنوعی پیدا شد</b> <span style="background:#047857;color:#fff;border-radius:12px;padding:2px 8px;font-size:11px;margin-right:6px">نسخه سرور: ' + escP(d.ver||'v90.1') + '</span><br>' +
+          '<div style="background:#d1fae5;border-radius:6px;padding:6px 8px;margin-top:6px;color:#065f46;font-size:12px">📌 <b>آخرین آپدیت و یوزر استوری:</b> ' + escP(d.us||'US-207 (پایداری اتصال، اجبار به IPv4 و رفع پاسخ خالی)') + '</div>' +
+          '<small style="color:#047857;display:block;margin-top:6px">🔌 ارائه‌دهنده: <b>' + escP(d.provider||'') + '</b> — مدل: <b>' + escP(d.model||'') + '</b></small>' +
+          '<button class="bt" style="margin-top:8px;font-size:12px;background:#059669;color:#fff" onclick="ptfLlmRealTest()">🧪 تست واقعی بدون cache (تشخیص DNS/TLS/cURL)</button><div id="llmTestRes" style="margin-top:8px;font-size:12px"></div></div>'
+        : '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:10px 12px;font-size:13px">⚠️ <b>غیرفعال</b><br><small style="color:#b45309">' + escP(d.error||'') + ' — راهنما: DOCS-LLM-SETUP.md</small></div>';
+    }).catch(function(){ el.innerHTML = '<small style="color:#dc2626">عدم دسترسی به سرور api/llm.php</small>'; });
+  }, 200);
+  return '<div class="ph" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:12px"><h3 style="margin:0;display:inline-flex;align-items:center;gap:8px"><span class="ptf-settings-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.15-1.4l2.05-1.6-2-3.45-2.4 1a7 7 0 00-2.4-1.4L13.7 2.6h-3.4l-.4 2.55a7 7 0 00-2.4 1.4l-2.4-1-2 3.45 2.05 1.6A7 7 0 005 12c0 .5.05.95.15 1.4L3.1 15l2 3.45 2.4-1a7 7 0 002.4 1.4l.4 2.55h3.4l.4-2.55a7 7 0 002.4-1.4l2.4 1 2-3.45-2.05-1.6c.1-.45.15-.9.15-1.4z"/></svg></span>تنظیمات سیستم</h3>' +
+    '<span style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:16px;padding:4px 10px;font-size:12px;font-weight:bold">نسخه: ' + (window.VER || 'v22.4') + ' | فاز ثبات — بک‌لاگ و گردش‌کار</span></div>' +
+    '<div style="max-width:560px">' +
+    (typeof ptfAvatarSection === 'function' ? ptfAvatarSection() : '') +
+    '<h4 style="margin:0 0 8px">☁️ فضای ابری آروان (انبار فایل‌ها)</h4>' +
+    '<div id="arvanBox"></div>' +
+    '<h4 style="margin:16px 0 8px">🤖 هوش مصنوعی (ترجمه/OCR/تشخیص برند)</h4>' +
+    '<div id="llmBox"><small style="color:#94a3b8">در حال بررسی...</small></div>' +
+    '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
+    '<div class="fld"><label>ایمیل:</label><input type="email" id="sEmail"></div>' +
+    '<div class="fld"><label>پیامک:</label><input type="text" id="sSms"></div>' +
+    '<button class="bt" onclick="saveSet()">✔ ذخیره</button>' +
+    '<button class="bt bt-s" style="margin-right:8px" onclick="backup()">📤 پشتیبان</button></div>';
+}
+
+// v101.2: تست واقعی AI بدون cache + نمایش تشخیصی امن transport
+function ptfLlmTransportHtml(t) {
+  if (!t || typeof t !== 'object') return '';
+  var rows = [];
+  if (t.host) rows.push('میزبان: <b dir="ltr">' + escP(t.host) + '</b>');
+  if (t.curl_errno != null) rows.push('cURL errno: <b dir="ltr">' + escP(String(t.curl_errno)) + '</b>');
+  if (t.curl_error) rows.push('cURL error: <span dir="ltr">' + escP(t.curl_error) + '</span>');
+  if (t.ip_mode) rows.push('IP mode: <b dir="ltr">' + escP(t.ip_mode) + '</b>');
+  if (t.namelookup_ms != null || t.connect_ms != null || t.total_ms != null) rows.push('زمان‌ها: DNS ' + escP(String(t.namelookup_ms || 0)) + 'ms | Connect ' + escP(String(t.connect_ms || 0)) + 'ms | Total ' + escP(String(t.total_ms || 0)) + 'ms');
+  if (t.ssl_verify_result != null) rows.push('TLS verify result: <b dir="ltr">' + escP(String(t.ssl_verify_result)) + '</b>');
+  if (!rows.length) return '';
+  return '<div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:7px;padding:7px;margin-top:7px;font-size:10.5px;line-height:1.8;color:#475569"><b>جزئیات امن ارتباط هاست</b><br>' + rows.join('<br>') + '</div>';
+}
+function ptfLlmRealTest() {
+  var res = document.getElementById('llmTestRes');
+  if (!res) return;
+  res.innerHTML = '<span style="color:#0e7490">⏳ در حال فراخوانی واقعی سرویس AI بدون استفاده از cache... (حداکثر ۴۵ ثانیه)</span>';
+  fetch('../api/llm.php?action=test&_t=' + Date.now(), { method: 'POST', headers: ptfApiAuthHeaders(true), body: '{}' })
+    .then(function(r){ return r.text().then(function(t) { try { return JSON.parse(t); } catch (e) { return { ok:false, error:'پاسخ API ساختار JSON معتبر ندارد', raw:t.slice(0,500), diag:'خروجی debug یا خطای PHP پیش از JSON رخ داده است؛ متن خام پایین نمایش داده می‌شود.' }; } }); })
+    .then(function(d){
+      res.innerHTML = d.ok
+        ? '<div style="background:#ecfdf5;border-radius:8px;padding:8px;color:#047857">' + escP(d.msg||'✅ اتصال برقرار') + ptfLlmTransportHtml(d.transport) + '</div>'
+        : '<div style="background:#fef2f2;border-radius:8px;padding:8px;color:#b91c1c;line-height:1.6"><b>❌ اتصال واقعی شکست خورد:</b><br>' + escP(d.diag||d.error||'') + ptfLlmTransportHtml(d.transport) + (d.raw ? '<br><div style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:6px;margin-top:6px;max-height:130px;overflow-y:auto;direction:ltr;text-align:left;font-family:monospace;font-size:11px;color:#475569;word-break:break-all">' + escP(d.raw) + '</div>' : '') + '</div>';
+    })
+    .catch(function(){ res.innerHTML = '<span style="color:#dc2626">❌ عدم دسترسی به سرور CRM یا خطای شبکهٔ مرورگر</span>'; });
+}
+function saveSet() {
+  // v31.7.8 HOTFIX: Merge with existing settings to preserve adminHash and other keys.
+  // Previous code overwrote ALL settings, which could wipe adminHash and lock out admin.
+  var existing = {};
+  try { existing = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}'); } catch(e) {}
+  existing.email = document.getElementById('sEmail').value;
+  existing.sms = document.getElementById('sSms').value;
+  localStorage.setItem('ptf_crm_settings', JSON.stringify(existing));
+  addLog('تنظیمات ذخیره شد');
+  alert('✅ ذخیره شد');
+}
+
+function backup() {
+  var data = {
+    rfqs: getData('ptf_crm_rfqs'),
+    suppliers: getData('ptf_crm_suppliers'),
+    customers: getData('ptf_crm_customers'),
+    products: getData('ptf_crm_products'),
+    offers: getData('ptf_crm_offers'),
+    leads: getData('ptf_crm_leads'),
+    buyquotes: getData('ptf_crm_buyquotes'),
+    inqitems: getData('ptf_crm_inqitems'),
+    deals: getData('ptf_crm_deals'),
+    projects: getData('ptf_crm_projects'),
+    packinglists: getData('ptf_crm_packinglists'),
+    letters: getData('ptf_crm_letters'),
+    contracts: getData('ptf_crm_contracts'),
+    invoices: getData('ptf_crm_invoices'),
+    techCases: getData('ptf_crm_techcases'),
+    calcRuns: getData('ptf_crm_calc_runs'),
+    techProposals: getData('ptf_crm_techproposals'),
+    leadFinderJobs: getData('ptf_crm_leadfinder_jobs'),
+    leadFinderSources: getData('ptf_crm_leadfinder_sources'),
+    notifs: getData('ptf_crm_notifs'),
+    audit: getData('ptf_crm_audit'),
+    reminders: getData('ptf_crm_reminders'),
+    users: getData('ptf_crm_users'),
+    finance: JSON.parse(localStorage.getItem('ptf_crm_finance') || '[]'),
+    date: new Date().toISOString()
+  };
+  var blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ptf-crm-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  addLog('پشتیبان تهیه شد');
+}
+
+// ===== MODALS (تمام Modalها با innerHTML ساده) =====
+var modalStack = {};
+
+function showModal(id) {
+  var html = '';
+  if (id === 'rMd') {
+    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>➕ استعلام جدید</h3>' +
+      '<div class="fld"><label>شرکت</label><input type="text" id="nRComp"></div>' +
+      '<div class="fr"><div class="fld"><label>مسئول</label><input type="text" id="nRCon"></div>' +
+      '<div class="fld"><label>حوزه</label><select id="nRCat"><option>پایپینگ</option><option>شیرآلات</option><option>برق</option><option>ابزار دقیق</option></select></div></div>' +
+      /* US-303: اقلام درخواست از همان ابتدا وارد شود تا دکمه «از درخواست» در پیشنهادها کار کند */
+      '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:9px 12px;font-size:12px;color:#5b21b6;margin-bottom:10px">📋 پس از ثبت، پنجره <b>ورود اقلام درخواست</b> باز می‌شود (دستی / اکسل / دستیار) تا هنگام صدور پیشنهاد فنی و مالی، اقلام با یک کلیک «از درخواست» بارگذاری شوند.</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveRfq()">ثبت</button></div></div></div>';
+  }
+  else if (id === 'sMd') {
+    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>🏭 تامین‌کننده جدید</h3>' +
+      '<div class="fld"><label>شرکت</label><input type="text" id="nSComp"></div>' +
+      '<div class="fr"><div class="fld"><label>مسئول</label><input type="text" id="nSNm"></div><div class="fld"><label>تلفن</label><input type="text" id="nSPh"></div></div>' +
+      '<div class="fr"><div class="fld"><label>دسته</label><select id="nSCat"><option>پایپینگ</option><option>شیرآلات</option><option>برق</option><option>ابزار دقیق</option></select></div></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveSup()">ثبت</button></div></div></div>';
+  }
+  else if (id === 'cMd') {
+    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>🤝 کارفرما جدید</h3>' +
+      '<div class="fld"><label>شرکت</label><input type="text" id="nCComp"></div>' +
+      '<div class="fr"><div class="fld"><label>صنعت</label><select id="nCInd"><option>نفت و گاز</option><option>پتروشیمی</option><option>فولاد</option></select></div>' +
+      '<div class="fld"><label>مسئول</label><input type="text" id="nCCon"></div></div>' +
+      '<div class="fr"><div class="fld"><label>تلفن</label><input type="text" id="nCPh"></div></div>' +
+      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveCust()">ثبت</button></div></div></div>';
+  }
+  else if (id === 'oMd') {
+    var opts = '';
+    var rfqs = getData('ptf_crm_rfqs').filter(function(i){return i.st==='st5'||i.st==='st6'||i.st==='st7';});
+    for (var i = 0; i < rfqs.length; i++) {
+      opts += '<option value="' + escP(rfqs[i].cd) + '">' + escP(rfqs[i].cd) + ' - ' + escP(rfqs[i].co) + '</option>';
+    }
+    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>💰 قیمت سفارش</h3>' +
+      '<div class="fld"><label>سفارش</label><select id="oSel">' + opts + '</select></div>' +
+      '<div class="fr"><div class="fld"><label>خرید (ریال)</label><input type="number" id="oBuy"></div>' +
+      '<div class="fld"><label>فروش (ریال)</label><input type="number" id="oSell"></div></div>' +
+      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveOrder()">ذخیره</button></div></div></div>';
+  }
+  else if (id === 'fMd') {
+    opts = '';
+    rfqs = getData('ptf_crm_rfqs').filter(function(i){return i.st==='st5'||i.st==='st6'||i.st==='st7';});
+    for (i = 0; i < rfqs.length; i++) {
+      opts += '<option value="' + escP(rfqs[i].cd) + '">' + escP(rfqs[i].cd) + ' - ' + escP(rfqs[i].co) + '</option>';
+    }
+    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>💳 فاکتور جدید</h3>' +
+      '<div class="fld"><label>سفارش</label><select id="fSel">' + opts + '</select></div>' +
+      '<div class="fr"><div class="fld"><label>فروش (ریال)</label><input type="number" id="fSell"></div>' +
+      '<div class="fld"><label>خرید (ریال)</label><input type="number" id="fBuy"></div></div>' +
+      '<div class="fld"><label>وضعیت</label><select id="fPay"><option value="paid">✅ پرداخت شده</option><option value="pending">⏳ پرداخت نشده</option></select></div>' +
+      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveFin()">ثبت</button></div></div></div>';
+  }
+  else if (id === 'uMd') {
+    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>👤 کاربر جدید</h3>' +
+      '<div class="fld"><label>نام</label><input type="text" id="nUNm"></div>' +
+      '<div class="fr"><div class="fld"><label>نام کاربری</label><input type="text" id="nULg"></div>' +
+      '<div class="fld"><label>رمز عبور</label><input type="password" id="nUPw"></div></div>' +
+      '<div class="fld"><label>دسترسی</label><select id="nURl">' +
+      '<option value="مدیریت کل سیستم (Admin)">🔴 مدیر کل</option>' +
+      '<option value="کارشناس ارشد (Operator)">🟠 ارشد</option>' +
+      '<option value="کارشناس فروش (Editor)">🟡 فروش</option>' +
+      '</select></div>' +
+      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveUser()">تعریف</button></div></div></div>';
+  }
+  else if (id === 'eMd') {
+    html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md">' +
+      '<h3>📄 تغییر وضعیت: <span id="eCd" style="color:var(--pri)"></span></h3>' +
+      '<div class="fld"><label>وضعیت</label><select id="eSt">' +
+      '<option value="st1">🔴 دریافت اولیه</option><option value="st2">🔵 بررسی فنی</option>' +
+      '<option value="st3">🟡 تایید</option><option value="st4">🟢 پیش‌فاکتور</option>' +
+      '<option value="st5">🔵 ابلاغ سفارش</option><option value="st6">🟠 آماده‌سازی</option>' +
+      '<option value="st7">✅ تحویل شده</option></select></div>' +
+      '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveRfqStatus()">ذخیره</button></div></div></div>';
+  }
+  
+  if (html) {
+    modalStack._last = id;
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  }
+}
+
+function hideModal() {
+  /* v16.2 (BUG-017): فقط آخرین مودال «قابل‌مشاهده» بسته شود —
+     پنجره‌های مینیمایزشده (display:none در body — modalx) هرگز قربانی نشوند */
+  var modals = document.querySelectorAll('.md-b');
+  for (var i = modals.length - 1; i >= 0; i--) {
+    if ((modals[i].style || {}).display !== 'none') { modals[i].remove(); return; }
+  }
+}
+
+// ===== SAVE HANDLERS =====
+function saveRfq() {
+  var comp = document.getElementById('nRComp').value.trim();
+  if (!comp) { (window.ptfDlgAlert || alert)('نام شرکت را وارد کنید', { icon: '⚠️', title: 'اعتبارسنجی فرم' }); return; } /* v16.4 US-372 */
+  var cat = document.getElementById('nRCat').value;
+  var con = document.getElementById('nRCon').value.trim();
+  var rfqs = getData('ptf_crm_rfqs');
+  
+  var dup = rfqs.filter(function(r) {
+    return r.co && r.co.trim() === comp && (r.ca === cat || (r.con && r.con.trim() === con));
+  })[0];
+  if (dup) {
+    if (!confirm('⛔ هشدار ضدتکرار استعلام:\n\nاز شرکت «' + comp + '» در حوزه «' + (dup.ca||'-') + '» قبلاً استعلام شماره ' + dup.cd + ' در تاریخ ' + (dup.dt||'—') + ' ثبت شده است.\n\nآیا اطمینان دارید که این یک درخواست کاملاً جدید و مستقل است (نه تکراری)؟')) {
+      return;
+    }
+  }
+
+  var cd = genCode('RFQ');
+  if (/^TMP-RFQ-/.test(String(cd || ''))) { alert('⛔ شماره رسمی درخواست از سرور دریافت نشده است. اتصال/ورود را برقرار کنید و دوباره تلاش کنید.'); return; }
+  /* v31.7.20 BUG-CODE-DUP-002 (گزارش کارفرما): اگر کد تولیدی قبلاً وجود دارد (pool کهنه/counter عقب)،
+     تا ۵ بار کد بعدی گرفته می‌شود؛ در نهایت اگر باز تکراری بود ثبت مسدود می‌شود — نه ادغام بی‌صدا. */
+  var _dupTry = 0;
+  while (rfqs.some(function (r) { return r && r.cd === cd; }) && _dupTry < 5) { cd = genCode('RFQ'); _dupTry++; }
+  if (rfqs.some(function (r) { return r && r.cd === cd; })) {
+    alert('⛔ کد تولیدی ' + cd + ' تکراری است — شمارنده سرور نیاز به همگام‌سازی دارد. لطفاً یک‌بار صفحه را رفرش کنید و دوباره تلاش کنید.');
+    try { audit('سیستم', '⛔ جلوگیری از ثبت درخواست با کد تکراری ' + cd + ' (BUG-CODE-DUP-002)', cd); } catch (eA) {}
+    return;
+  }
+  var recSimple = {cd:cd, co:comp, con:con, ca:cat, st:'st1', stxt:'🔴 دریافت اولیه', dt:new Date().toLocaleDateString('fa-IR')};
+  if (typeof dedupStamp === 'function') dedupStamp(recSimple); /* v21.5 US-411ف1 */
+  rfqs.unshift(recSimple);
+  setData('ptf_crm_rfqs', rfqs);
+  hideModal();
+  renderRfq();
+  addLog('استعلام ' + cd + ' ثبت شد');
+  /* US-303 (مصوب تیم متخصصان): بلافاصله ویرایشگر اقلام باز شود — ورود دستی/اکسل/دستیار
+     تا «بارگذاری از درخواست» در TO/CO/TC واقعا کارا باشد */
+  if (typeof ptfOpenFullInqEditor === 'function') {
+    setTimeout(function () { ptfOpenFullInqEditor(cd); }, 250);
+  }
+}
+
+function saveRfqStatus() {
+  var cd = document.getElementById('eCd').textContent;
+  var sel = document.getElementById('eSt');
+  var rfqs = getData('ptf_crm_rfqs');
+  for (var i = 0; i < rfqs.length; i++) {
+    if (rfqs[i].cd === cd) {
+      rfqs[i].st = sel.value;
+      rfqs[i].stxt = sel.options[sel.selectedIndex].text;
+      break;
+    }
+  }
+  setData('ptf_crm_rfqs', rfqs);
+  hideModal();
+  renderRfq();
+  addLog('وضعیت ' + cd + ' تغییر کرد');
+}
+
+function saveSup() {
+  var comp = document.getElementById('nSComp').value.trim();
+  if (!comp) { (window.ptfDlgAlert || alert)('نام شرکت را وارد کنید', { icon: '⚠️', title: 'اعتبارسنجی فرم' }); return; } /* v16.4 US-372 */
+  var items = getData('ptf_crm_suppliers');
+  var recS = {cd:genCode('SUP'), co:comp, nm:document.getElementById('nSNm').value,
+    ph:document.getElementById('nSPh').value, ca:document.getElementById('nSCat').value};
+  if (typeof ptfDupBlock === 'function' && ptfDupBlock('supplier', recS, null)) return; // US-174
+  if (typeof dedupStamp === 'function') dedupStamp(recS);
+  items.unshift(recS);
+  setData('ptf_crm_suppliers', items);
+  hideModal();
+  renderSuppliers();
+  addLog('تامین‌کننده ' + comp + ' ثبت شد');
+}
+
+function saveCust() {
+  var comp = document.getElementById('nCComp').value.trim();
+  if (!comp) { (window.ptfDlgAlert || alert)('نام شرکت را وارد کنید', { icon: '⚠️', title: 'اعتبارسنجی فرم' }); return; } /* v16.4 US-372 */
+  var items = getData('ptf_crm_customers');
+  var recC = {cd:genCode('CUST'), co:comp, ind:document.getElementById('nCInd').value,
+    con:document.getElementById('nCCon').value, ph:document.getElementById('nCPh').value};
+  if (typeof ptfDupBlock === 'function' && ptfDupBlock('customer', recC, null)) return; // US-174
+  if (typeof dedupStamp === 'function') dedupStamp(recC);
+  items.unshift(recC);
+  setData('ptf_crm_customers', items);
+  hideModal();
+  renderCustomers();
+  addLog('کارفرما ' + comp + ' ثبت شد');
+}
+
+function saveOrder() {
+  var cd = document.getElementById('oSel').value;
+  var buy = parseInt(document.getElementById('oBuy').value) || 0;
+  var sell = parseInt(document.getElementById('oSell').value) || 0;
+  if (!cd || !buy || !sell) { alert('مقادیر را کامل کنید'); return; }
+  var prices = JSON.parse(localStorage.getItem('ptf_crm_order_prices') || '{}');
+  prices[cd] = {buy:buy, sell:sell};
+  localStorage.setItem('ptf_crm_order_prices', JSON.stringify(prices));
+  hideModal();
+  renderOrders();
+  addLog('قیمت ' + cd + ' ثبت شد. سود: ' + (sell-buy).toLocaleString());
+  alert('✅ سود ناخالص: ' + (sell-buy).toLocaleString() + ' ریال');
+}
+
+function saveFin() {
+  var orderCode = document.getElementById('fSel').value;
+  var sell = parseInt(document.getElementById('fSell').value) || 0;
+  var buy = parseInt(document.getElementById('fBuy').value) || 0;
+  var payStatus = document.getElementById('fPay').value;
+  if (!orderCode || !sell || !buy) { alert('مقادیر را کامل کنید'); return; }
+  var invs = JSON.parse(localStorage.getItem('ptf_crm_finance') || '[]');
+  invs.unshift({code:genCode('FIN'), orderCode:orderCode, ref:'FIN-'+Date.now(), sell: sell, buy:buy, payStatus:payStatus,
+    date:new Date().toLocaleDateString('fa-IR')});
+  localStorage.setItem('ptf_crm_finance', JSON.stringify(invs));
+  hideModal();
+  renderFinance();
+  addLog('فاکتور ثبت شد. سود: ' + (sell-buy).toLocaleString());
+}
+
+function saveUser() {
+  var nm = document.getElementById('nUNm').value.trim();
+  var u = document.getElementById('nULg').value.trim().toLowerCase();
+  var p = document.getElementById('nUPw').value.trim();
+  var rl = document.getElementById('nURl').value;
+  if (!nm || !u || !p) { alert('فیلدها را پر کنید'); return; }
+  if (u === 'admin') { alert('admin رزرو است'); return; }
+  if (p.length < 6) { alert('رمز حداقل ۶ کاراکتر'); return; }
+  var users = getData('ptf_crm_users');
+  for (var i = 0; i < users.length; i++) {
+    if (users[i].username === u) { alert('نام کاربری تکراری'); return; }
+  }
+  sha256Hex(p).then(function(ph) {
+  users.push({username:u, passhash:ph, name:nm, role:rl});
+  setData('ptf_crm_users', users);
+  hideModal();
+  renderUsers();
+  addLog('کاربر ' + nm + ' تعریف شد');
+  alert('✅ کاربر ' + nm + ' با دسترسی ' + rl + ' تعریف شد');
+  });
+}
+
+function editRfq(cd) {
+  document.getElementById('eCd').textContent = cd;
+  showModal('eMd');
+}
+
+// ===== FILTERS =====
+function filterSup() {
+  var q = document.getElementById('sSrch').value.toLowerCase();
+  var rows = document.querySelectorAll('#sTb tr');
+  for (var i = 0; i < rows.length; i++)
+    rows[i].style.display = rows[i].innerText.toLowerCase().includes(q) ? '' : 'none';
+}
+
+function filterCust() {
+  var q = document.getElementById('cSrch').value.toLowerCase();
+  var rows = document.querySelectorAll('#cTb tr');
+  for (var i = 0; i < rows.length; i++)
+    rows[i].style.display = rows[i].innerText.toLowerCase().includes(q) ? '' : 'none';
+}
+
+// ===== LOAD ALL =====
+/* v16.9 (BUG-021): رندر اول داشبورد قبل از اتصال hook های ویجت (نوار ارز/روز من/لانچر/قیف) خام می‌ماند.
+   ناظر سبک: تا اتصال کامل زنجیره، داشبورد را (فقط اگر پنل فعال dash است و کاربر تعامل نکرده) یک‌بار تازه می‌کند. */
+window._ptfDashUserTouched = false;
+document.addEventListener('pointerdown', function () { window._ptfDashUserTouched = true; }, { once: true, capture: true });
+function ptfDashHooksReady() {
+  return !!(window._lchHooked && window._insDashHooked && window._fxDashHooked && window._mydayHooked);
+}
+function ptfDashEnsureFull() {
+  var tries = 0;
+  var iv = setInterval(function () {
+    tries++;
+    var done = ptfDashHooksReady();
+    if (done || tries > 25) {
+      clearInterval(iv);
+      try {
+        /* فقط پنل فعال داشبورد + بدون تعامل کاربر + واقعا ویجتی کم است */
+        var actBtn = document.querySelector('.sb-i.act');
+        var onDash = actBtn && (actBtn.getAttribute('onclick') || '').indexOf("'dash'") > -1;
+        var missing = !document.getElementById('fxTicker') || !document.getElementById('mydayBox') || !document.getElementById('lchGrid');
+        if (onDash && missing && !window._ptfDashUserTouched) {
+          goPanel('dash', actBtn);
+        }
+      } catch (e) {}
+    }
+  }, 200);
+}
+function loadAll() {
+  goPanel('dash', document.querySelector('.sb-i'));
+  ptfDashEnsureFull();
+  // Load settings
+  var s = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}');
+  if (s.email) { var el = document.getElementById('sEmail'); if (el) el.value = s.email; }
+  if (s.sms) { var el2 = document.getElementById('sSms'); if (el2) el2.value = s.sms; }
+  addLog('به سامانه خوش آمدید');
+}
+
+// Clock
+setInterval(function(){
+  var n = new Date();
+  document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
+}, 1000);
+</script>
+<script src="ui-kit.js?v=33.0.3"></script>
+<script src="storage-quota.js?v=33.0.3"></script>
+<script src="moneyx.js?v=33.0.3"></script>
+<script src="datex.js?v=33.0.3"></script>
+<script src="dialogx.js?v=33.0.3"></script>
+<script src="dedup.js?v=33.0.3"></script>
+<script src="codegen.js?v=33.0.3"></script>
+<script src="xlsx.min.js?v=33.0.3"></script>
+<script src="offers.js?v=33.0.3"></script>
+<script src="surplus.js?v=33.0.3"></script>
+<script src="launcher.js?v=33.0.3"></script>
+<script src="leads.js?v=33.0.3"></script>
+<script src="storage.js?v=33.0.3"></script>
+<script src="rbac.js?v=33.0.3"></script>
+<script src="projects.js?v=33.0.3"></script>
+<script src="letters.js?v=33.0.3"></script>
+<script src="draftx.js?v=33.0.3"></script>
+<script src="analyzer.js?v=33.0.3"></script>
+<script src="contracts.js?v=33.0.3"></script>
+<script src="shell.js?v=33.0.3"></script>
+<script src="bridge.js?v=33.0.3"></script>
+<script src="kanban.js?v=33.0.3"></script>
+<script src="reports.js?v=33.0.3"></script>
+<script src="backup.js?v=33.0.3"></script>
+<script src="tool-licenses.js?v=33.0.3"></script>
+<script src="tool-report-drafts.js?v=33.0.3"></script>
+<script src="tool-feedback.js?v=33.0.3"></script>
+<script src="sms.js?v=33.0.3"></script>
+<script src="rfqsmart.js?v=33.0.3"></script>
+<script src="cms.js?v=33.0.3"></script>
+<script src="perms.js?v=33.0.3"></script>
+<script src="petty.js?v=33.0.3"></script>
+<script src="opex.js?v=33.0.3"></script>
+<script src="shareholders.js?v=33.0.3"></script>
+<script src="theme.js?v=33.0.3"></script>
+<script src="archive.js?v=33.0.3"></script>
+<script src="offers-pro.js?v=33.0.3"></script>
+<script src="buycompare.js?v=33.0.3"></script>
+<script src="procurement-link.js?v=33.0.3"></script>
+<script src="listtools.js?v=33.0.3"></script>
+<script src="icons.js?v=33.0.3"></script>
+<script src="guards.js?v=33.0.3"></script>
+<script src="tables.js?v=33.0.3"></script>
+<script src="inqreader.js?v=33.0.3"></script>
+<script src="offerlock.js?v=33.0.3"></script>
+<script src="workflow.js?v=33.0.3"></script>
+<script src="fx.js?v=33.0.3"></script>
+<script src="modalx.js?v=33.0.3"></script>
+<script src="iconx.js?v=33.0.3"></script>
+<script src="salesfiles.js?v=33.0.3"></script>
+<script src="docsx.js?v=33.0.3"></script>
+<script src="oppo.js?v=33.0.3"></script>
+<script src="cheques.js?v=33.0.3"></script>
+<script src="messengers.js?v=33.0.3"></script>
+<script src="phonefmt.js?v=33.0.3"></script>
+<script src="tour.js?v=33.0.3"></script>
+<script src="mobilenav.js?v=33.0.3"></script>
+<script src="ai-workbench.js?v=33.0.3"></script>
+<script src="golive.js?v=33.0.3"></script>
+<script src="custmerge.js?v=33.0.3"></script>
+<script src="listclean.js?v=33.0.3"></script>
+<script src="supspec.js?v=33.0.3"></script>
+<script src="scoring.js?v=33.0.3"></script>
+<script src="supplier-finance.js?v=33.0.3"></script>
+<script src="customer-finance.js?v=33.0.3"></script>
+<script src="working-capital.js?v=33.0.3"></script>
+<script src="data-quality.js?v=33.0.3"></script>
+<script src="commission.js?v=33.0.3"></script>
+
+<script src="my-customers-filter.js?v=33.0.3"></script>
+<script src="insights.js?v=33.0.3"></script>
+<script src="myday.js?v=33.0.3"></script>
+<script src="lossguard.js?v=33.0.3"></script>
+<script src="fiscal.js?v=33.0.3"></script>
+<script src="financehub.js?v=33.0.3"></script>
+<script src="theme-contrast.js?v=33.0.3"></script>
+<script src="sync.js?v=33.0.3"></script>
+<script src="settings-accordion.js?v=33.0.3"></script>
+</body>
+</html>

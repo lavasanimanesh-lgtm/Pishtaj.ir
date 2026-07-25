@@ -1,0 +1,31 @@
+v32 — KNOWLEDGE-CENTER-UNIQUE-ICONS-UX-001 — FILES CHANGED (Full Project Release)
+
+VERSION: v32 (Major bump from v31.9 — feature: knowledge-center + handover unified)
+
+PRODUCTION FILES (6 changed):
+knowledge-center/index.html — redesigned with 16 unique icons + search + filter chips + new hero
+PTF-MASTER-HANDOVER.md — unified, staging removed, 10 principles, versioning policy
+PTF-MASTER-HANDOVER-ARCHIVE-v31.9.md — archive of 3522 lines previous handover (NEW)
+crm/index.html — VER bump v31.9 → v32 + cache-bust ?v=32 + token guard preserved
+crm/sw.js — CACHE v32
+crm/clear-cache.html — v32
+
+DOCUMENTATION (2):
+RELEASE-NOTES-v32.md — this release notes
+REGRESSION-REPORT-v32.md — 260 testers / 5174 checks PASS
+
+TEST FILES (2 new):
+_tools/uat/tester277-knowledge-center-unique-icons.js — checks 16 unique icons
+_tools/uat/tester278-knowledge-center-ux-search-filter.js — checks search + chips
+
+TOTAL CHANGED: 10 files in this release (full project ZIP contains ~1600 files, not single file)
+PREVIOUS: v31.9 — 258 testers / 5114 checks
+CURRENT: v32 — 260 testers / 5174 checks
+
+HASHES (SHA256):
+21f685a6de7335d2744199e4e7e8b9c2de16904d47d69a6e5c3868b21a4a1f31  knowledge-center/index.html
+881409ae3b782c7f9c08da7b48b0c58f94cedc662cdcca2661d60a84aee3ef46  PTF-MASTER-HANDOVER.md
+2ca41b7f50943b7cca1550dc8cf7fa6a215b474b8b0d42e24dbdab840e876214  crm/index.html
+24450428c81326458becd95e91088c6031f314288dda45ef587825905737758c  crm/sw.js
+03329357f5f8df035b61ce12c6c8e022cadbfc1fbd3d8853ff8ac622cb2dc778  RELEASE-NOTES-v32.md
+9a7ca9765460d33399fcfeedc5fff3690c2e977fbd6ec6ab23aedd3576d04146  REGRESSION-REPORT-v32.md

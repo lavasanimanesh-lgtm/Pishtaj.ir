@@ -1,0 +1,83 @@
+{
+  "passed": [
+    {
+      "case": "1.1",
+      "desc": "ptfRfqCascadeScan با cd جدید اجرا می‌شود (out.archived=[])"
+    },
+    {
+      "case": "1.2",
+      "desc": "offerPostAwardLocked: draft=false, won=false"
+    },
+    {
+      "case": "1.3",
+      "desc": "ptfRealBuyStatus اجرا می‌شود: has=false"
+    },
+    {
+      "case": "2.2",
+      "desc": "سیستم هشدار ناقص بودن داد: 1 مورد"
+    },
+    {
+      "case": "2.3",
+      "desc": "هشدار خرید ارزی بی‌نرخ: ⛔ مبلغ فروش ثبت نشده (CO/فاکتور). | ⛔ 1 خرید ارزی «بدون نرخ پرداخت ریالی» است:  (1,000 EUR) — تا ثبت"
+    },
+    {
+      "case": "4.1",
+      "desc": "ptfFiscalData خروجی: 15 فیلد"
+    },
+    {
+      "case": "4.2",
+      "desc": "ptfFiscalLock تکراری مسدود (null برگشت)"
+    },
+    {
+      "case": "5.1",
+      "desc": "تبدیل: 1405/04/14 → 2026-07-05"
+    },
+    {
+      "case": "5.2",
+      "desc": "تاریخ‌های نامعتبر بدون crash"
+    },
+    {
+      "case": "7.1",
+      "desc": "سهمیه صحیح: admin/ceo/commercial=400، بقیه=50"
+    },
+    {
+      "case": "8.1",
+      "desc": "ptfMergeStart تعریف شده"
+    },
+    {
+      "case": "9.1",
+      "desc": "ptfOrphanScan اجرا شد"
+    },
+    {
+      "case": "10.1",
+      "desc": "ptfMoney ایمن در همه ورودی‌ها"
+    }
+  ],
+  "failed": [
+    {
+      "severity": "HIGH",
+      "case": "1.4",
+      "desc": "بدون delivered، blocker «تحویل» نیست"
+    },
+    {
+      "severity": "HIGH",
+      "case": "2.1",
+      "desc": "profit عدد نیست"
+    },
+    {
+      "severity": "CRITICAL",
+      "case": "3.1",
+      "desc": "rawAdj تعریف نشده"
+    },
+    {
+      "severity": "CRITICAL",
+      "case": "4.3",
+      "desc": "canFiscal تعریف نشده"
+    },
+    {
+      "severity": "CRITICAL",
+      "case": "6.1",
+      "desc": "GUARD_KEYS تعریف نشده"
+    }
+  ]
+}

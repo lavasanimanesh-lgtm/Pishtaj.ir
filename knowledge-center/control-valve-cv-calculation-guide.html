@@ -1,0 +1,82 @@
+<!doctype html><html lang="fa" dir="rtl"><head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>محاسبه Cv کنترل ولو چیست؟ راهنمای سایزینگ Control Valve | پیشرو تجهیز</title>
+<meta name="description" content="راهنمای مهندسی محاسبه Cv و Kv کنترل ولو، تفاوت Cv/Kv، سایزینگ مایع، گاز و بخار، choked flow، کاویتاسیون، نویز، اکچویتور و لینک ابزار آنلاین سایزینگ کنترل ولو PTF.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/control-valve-cv-calculation-guide.html">
+<meta property="og:title" content="محاسبه Cv کنترل ولو چیست؟ راهنمای سایزینگ Control Valve">
+<meta property="og:description" content="راهنمای تخصصی محاسبه Cv/Kv و انتخاب کنترل ولو با نکات مهندسی، خطاهای رایج و لینک ابزار آنلاین PTF.">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+.article-hero{background:radial-gradient(circle at 18% 20%,rgba(247,148,0,.22),transparent 30%),linear-gradient(135deg,#111827,#17233a 62%,#263858);color:#fff;padding:135px 0 55px}.article-hero h1{font-size:clamp(27px,4vw,45px);line-height:1.35;margin:8px 0 12px;color:#fff}.article-hero p{color:#dbeafe;line-height:2;max-width:900px}.article-wrap{max-width:980px;margin:34px auto;padding:0 20px}.article{background:#fff;border:1px solid #e2e8f0;border-radius:28px;padding:34px;line-height:2.15;color:#334155;box-shadow:0 16px 42px rgba(15,23,42,.06)}.article h2{font-size:24px;color:#0f172a;margin:26px 0 10px}.article h3{font-size:18px;color:#ef4b1a;margin:20px 0 8px}.article p,.article li{font-size:15px;color:#475569}.article a{color:#ef4b1a;font-weight:900}.article table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}.article th,.article td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top}.article th{background:#f1f5f9;color:#334155}.note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:13px 15px;margin:16px 0}.formula{direction:ltr;text-align:left;background:#0f172a;color:#e5e7eb;border-radius:16px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow:auto}.cta{background:linear-gradient(135deg,#0f172a,#17233a);color:#fff;border-radius:22px;padding:22px;margin:28px 0}.cta h2{color:#fff;margin-top:0}.cta p{color:#dbeafe}.cta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.cta-row a,.cta-row button{border:0;border-radius:12px;padding:10px 15px;font-weight:900;text-decoration:none;cursor:pointer}.primary{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}.light{background:#fff;color:#334155}.toc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:14px 18px;margin:16px 0}.toc a{display:block;margin:4px 0;color:#334155;text-decoration:none}.faq details{border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;margin:8px 0;background:#fff}.faq summary{cursor:pointer;color:#0f172a;font-weight:900}@media(max-width:760px){.article{padding:22px}.article table{font-size:12px}.article-hero{padding-top:100px}}
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"خانه","item":"https://pishtaj.ir/"},{"@type":"ListItem","position":2,"name":"مرکز دانش","item":"https://pishtaj.ir/knowledge-center/"},{"@type":"ListItem","position":3,"name":"محاسبه Cv کنترل ولو","item":"https://pishtaj.ir/knowledge-center/control-valve-cv-calculation-guide.html"}]},{"@type":"Article","headline":"محاسبه Cv کنترل ولو چیست؟ راهنمای مهندسی برای سایزینگ Control Valve","description":"راهنمای مهندسی محاسبه Cv و Kv کنترل ولو، تفاوت Cv/Kv، سایزینگ مایع، گاز و بخار، choked flow، کاویتاسیون، نویز و خطاهای رایج انتخاب کنترل ولو.","inLanguage":"fa-IR","author":{"@type":"Organization","name":"Pishro Tajhiz Fartak"},"publisher":{"@type":"Organization","name":"Pishro Tajhiz Fartak","url":"https://pishtaj.ir/"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://pishtaj.ir/knowledge-center/control-valve-cv-calculation-guide.html"},"about":["Control valve sizing","Cv calculation","Kv calculation","IEC 60534","Choked flow","Cavitation"],"dateModified":"2026-07-22"},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Cv کنترل ولو چیست؟","acceptedAnswer":{"@type":"Answer","text":"Cv ضریب ظرفیت جریان کنترل ولو است و برای تخمین دبی قابل عبور از ولو در شرایط مشخص استفاده می‌شود. در سیستم متریک معمولاً Kv نیز استفاده می‌شود و Cv تقریباً برابر 1.156 برابر Kv است."}},{"@type":"Question","name":"آیا محاسبه Cv برای انتخاب نهایی کنترل ولو کافی است؟","acceptedAnswer":{"@type":"Answer","text":"خیر. Cv فقط بخشی از سایزینگ است. باید choked flow، کاویتاسیون، نویز، سرعت خط، rangeability، اکچویتور و داده‌های vendor مانند FL و Xt هم بررسی شوند."}},{"@type":"Question","name":"از کجا می‌توان ابزار آنلاین سایزینگ کنترل ولو را دید؟","acceptedAnswer":{"@type":"Answer","text":"ابزار پیشرفته PTF در آدرس https://pishtaj.ir/tools/control-valve-sizing/ معرفی شده و نمونه گزارش نهایی آن قابل مشاهده است."}}]}],"_ptf":"ADV-CV-FIRST-SEO-ARTICLE-v1"}</script>
+</head><body>
+<header class="site-header scrolled"><div class="container nav-wrap"><a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a><nav class="main-nav" id="mainNav" aria-label="منوی اصلی"><a href="../">خانه</a><a href="../services/">خدمات</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a></nav><a class="header-call" href="tel:02146087679">021-46087679</a></div></header>
+<section class="article-hero"><div class="container"><div class="breadcrumb"><a href="../" style="color:#bfdbfe">خانه</a> / <a href="../knowledge-center/" style="color:#bfdbfe">مرکز دانش</a> / محاسبه Cv کنترل ولو</div><h1>محاسبه Cv کنترل ولو چیست؟ راهنمای مهندسی برای سایزینگ Control Valve</h1><p>اگر کنترل ولو فقط با یک عدد Cv انتخاب شود، احتمال خطا در کاویتاسیون، نویز، rangeability، اکچویتور و حتی سایز خط وجود دارد. این راهنما توضیح می‌دهد Cv و Kv چه هستند، چطور در سایزینگ استفاده می‌شوند و چرا برای گزارش نهایی باید validation مهندسی و داده vendor بررسی شود.</p></div></section>
+<main class="article-wrap"><article class="article">
+<div class="toc"><b>فهرست سریع</b><a href="#cv-kv">۱. Cv و Kv چیست؟</a><a href="#liquid">۲. محاسبه Cv برای مایع</a><a href="#gas-steam">۳. گاز و بخار</a><a href="#mistakes">۴. خطاهای رایج</a><a href="#workflow">۵. workflow پیشنهادی</a><a href="#faq">۶. سوالات رایج</a></div>
+<h2 id="cv-kv">Cv و Kv کنترل ولو چیست؟</h2>
+<p><span style="display:none">control valve sizing</span><b>Cv</b> و <b>Kv</b> ضرایب ظرفیت جریان کنترل ولو هستند. این ضرایب نشان می‌دهند یک ولو با یک opening مشخص، تحت اختلاف فشار مشخص، چه میزان جریان را عبور می‌دهد. در دیتاشیت‌های آمریکایی معمولاً Cv و در دیتاشیت‌های اروپایی/متریک معمولاً Kv دیده می‌شود.</p>
+<div class="formula">Cv ≈ 1.156 × Kv<br>Kv ≈ 0.865 × Cv</div>
+<p>در عمل، عدد Cv فقط یک عدد محاسباتی نیست؛ این عدد روی انتخاب سایز بدنه، trim، characteristic، rangeability و حتی اکچویتور اثر می‌گذارد. اگر Cv بیش از حد بزرگ انتخاب شود، ولو در opening بسیار پایین کار می‌کند و کنترل‌پذیری ضعیف می‌شود. اگر Cv کم انتخاب شود، ولو در حداکثر دبی به opening بالا می‌رسد و ممکن است ظرفیت کافی نداشته باشد.</p>
+
+<h2 id="liquid">محاسبه Cv/Kv برای مایع</h2>
+<p>برای سرویس مایع غیر choked، رابطه ساده متریک معمولاً به شکل زیر استفاده می‌شود:</p>
+<div class="formula">Kv = Q × sqrt(SG / ΔP)<br>Q: m³/h<br>ΔP: bar<br>SG: specific gravity</div>
+<p>اما در سرویس‌های واقعی، فقط همین رابطه کافی نیست. باید فشار بخار سیال، فشار بحرانی، ضریب بازیابی فشار <span class="cv-ltr">FL</span>، احتمال choked flow و کاویتاسیون بررسی شود.</p>
+<div class="formula">FF = 0.96 - 0.28 × sqrt(Pv / Pc)<br>ΔP_choked = FL² × (P1 - FF × Pv)</div>
+<p>اگر اختلاف فشار واقعی از حد choked بیشتر شود، محاسبه ساده non-choked دیگر معتبر نیست و باید trim، pressure recovery و داده vendor دقیق‌تر بررسی شود.</p>
+
+<h2 id="gas-steam">سایزینگ کنترل ولو برای گاز و بخار</h2>
+<p>در گاز و بخار، تراکم‌پذیری سیال باعث می‌شود فشار، دما، جرم مولکولی، ضریب Z، نسبت گرمای ویژه k و ضریب Xt اهمیت زیادی پیدا کنند. در این حالت معمولاً نسبت افت فشار بررسی می‌شود:</p>
+<div class="formula">x = ΔP / P1<br>x_choked ≈ Fγ × Xt</div>
+<p>اگر <span class="cv-ltr">x</span> به حد choked نزدیک شود یا از آن عبور کند، باید low-noise trim، outlet velocity، acoustic calculation و vendor sizing sheet بررسی شود. به همین دلیل در گزارش‌های مهندسی حرفه‌ای، Gas/Steam معمولاً بدون validation vendor قطعی نمی‌شود.</p>
+
+<h2>چه داده‌هایی برای سایزینگ لازم است؟</h2>
+<table><thead><tr><th>گروه داده</th><th>نمونه فیلدها</th><th>چرا مهم است؟</th></tr></thead><tbody>
+<tr><td>شرایط کاری</td><td>Min / Normal / Max Flow, P1, P2, Temperature</td><td>برای تعیین governing case و بررسی rangeability.</td></tr>
+<tr><td>سیال</td><td>SG, viscosity, Pv, Pc, MW, Z, k</td><td>برای تشخیص choked flow، کاویتاسیون و رفتار گاز/بخار.</td></tr>
+<tr><td>داده vendor</td><td>FL, Fd, Xt, Rated Cv, Brand, Series</td><td>برای نزدیک شدن به انتخاب واقعی ولو و trim.</td></tr>
+<tr><td>پایپینگ</td><td>Inlet/Outlet pipe ID, reducer</td><td>برای velocity، noise و correction factors مثل Fp/FLp.</td></tr>
+<tr><td>اکچویتور</td><td>Fail action, shutoff ΔP, seat diameter, air supply</td><td>برای preliminary actuator shell و بررسی thrust/torque.</td></tr>
+</tbody></table>
+
+<h2 id="mistakes">خطاهای رایج در محاسبه Cv کنترل ولو</h2>
+<h3>۱. انتخاب ولو فقط بر اساس یک نقطه کاری</h3>
+<p>اگر فقط Normal case بررسی شود، ممکن است در Min flow ولو کنترل‌پذیری ضعیفی داشته باشد یا در Max flow ظرفیت کافی نداشته باشد. بهتر است حداقل سه حالت Min / Normal / Max بررسی شود.</p>
+<h3>۲. نادیده گرفتن کاویتاسیون و flashing</h3>
+<p>در سرویس‌های مایع با افت فشار بالا، اگر فشار پایین‌دست به فشار بخار نزدیک شود، کاویتاسیون یا flashing ممکن است رخ دهد. این موضوع فقط روی عمر trim اثر ندارد؛ می‌تواند نویز، vibration و erosion ایجاد کند.</p>
+<h3>۳. استفاده از FL یا Xt حدسی</h3>
+<p>FL و Xt باید تا حد امکان از دیتاشیت یا نرم‌افزار سازنده گرفته شوند. مقدار حدسی برای screening اولیه قابل قبول است، اما برای خرید قطعی باید vendor confirmation وجود داشته باشد.</p>
+<h3>۴. بی‌توجهی به سرعت خط و reducer</h3>
+<p>حتی اگر Cv درست باشد، سرعت بالا در خروجی یا وجود reducer شدید می‌تواند نویز، erosion و correction factor مهم ایجاد کند. برای همین در گزارش نهایی باید velocity و reducer ratio دیده شود.</p>
+
+<div class="cta"><h2>ابزار آنلاین سایزینگ کنترل ولو PTF</h2><p>برای بررسی چندحالته Liquid/Gas/Steam، محاسبه Cv/Kv، ریسک noise/cavitation، actuator shell و مشاهده نمونه گزارش نهایی، صفحه ابزار کنترل ولو را ببینید.</p><div class="cta-row"><a class="primary" href="../tools/control-valve-sizing/">ورود به صفحه ابزار کنترل ولو</a><button class="light" type="button" onclick="if(window.ptfAdvCvOpenSampleFinalReport)ptfAdvCvOpenSampleFinalReport()">مشاهده نمونه گزارش نهایی</button><button class="light" type="button" onclick="if(window.ptfAdvCvOpenFeedbackForm)ptfAdvCvOpenFeedbackForm('article_cv_calculation')">ثبت feedback کوتاه</button></div></div>
+
+<h2 id="workflow">Workflow پیشنهادی برای انتخاب کنترل ولو</h2>
+<ol>
+<li>دریافت process datasheet و تعیین Min / Normal / Max.</li>
+<li>تشخیص phase سیال: مایع، گاز، بخار یا دو فازی.</li>
+<li>محاسبه preliminary Cv/Kv و governing case.</li>
+<li>بررسی choked flow، کاویتاسیون، flashing و نویز.</li>
+<li>بررسی سرعت خط، reducer و rangeability.</li>
+<li>کنترل داده vendor شامل FL، Xt، rated Cv، series و leakage class.</li>
+<li>بررسی اکچویتور، fail action و shutoff.</li>
+<li>دریافت vendor-certified sizing sheet برای خرید قطعی.</li>
+</ol>
+<div class="note"><b>نکته مهم:</b> هیچ ابزار آنلاین نباید بدون داده vendor و review مهندس مسئول، انتخاب قطعی کنترل ولو را تضمین کند. خروجی ابزار PTF یک گزارش مهندسی screening و validation است (engineering screening report) و برای خرید قراردادی باید با داده سازنده تکمیل شود.</div>
+
+<h2 id="faq">سوالات رایج</h2><div class="faq">
+<details open><summary>آیا Cv بالاتر همیشه بهتر است؟</summary><p>خیر. Cv خیلی بالا ممکن است باعث شود ولو در opening پایین کار کند و کنترل‌پذیری ضعیف شود. انتخاب صحیح باید rangeability و opening% را هم بررسی کند.</p></details>
+<details><summary>تفاوت Cv و Kv چیست؟</summary><p>Cv بیشتر در سیستم آمریکایی و Kv در سیستم متریک استفاده می‌شود. تبدیل تقریبی آن‌ها: Cv ≈ 1.156 × Kv است.</p></details>
+<details><summary>آیا ابزار PTF PDF می‌دهد؟</summary><p>خروجی فعلی گزارش نهایی HTML انگلیسی قابل Print / Save as PDF است. PDF باینری سمت سرور در فاز بعدی اضافه می‌شود.</p></details>
+<details><summary>آیا می‌توانم دیتاشیت را آپلود کنم؟</summary><p>در فاز فعلی متن دیتاشیت، TXT، CSV و JSON برای auto-fill اولیه پشتیبانی می‌شود. PDF/OCR در roadmap بعدی قرار دارد.</p></details>
+</div>
+
+<h2>مطالب مرتبط</h2><ul><li><a href="control-valve-complete-guide.html">راهنمای کامل کنترل ولو</a></li><li><a href="control-valve-iec-60534.html">استاندارد IEC 60534 در کنترل ولو</a></li><li><a href="control-valve-cavitation-guide.html">کاویتاسیون در کنترل ولو چیست؟</a></li><li><a href="valve-actuator-types-guide.html">راهنمای انتخاب اکچویتور شیرآلات</a></li><li><a href="control-valve-cv-kv-difference.html">تفاوت Cv و Kv در کنترل ولو چیست؟</a></li><li><a href="../tools/control-valve-sizing/">صفحه اختصاصی ابزار سایزینگ کنترل ولو</a></li></ul>
+</article></main>
+<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 1.5rem;border-top:4px solid var(--red)"><div class="container" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><span>© 2026 Pishro Tajhiz Fartak</span><a href="../rfq/" style="color:#e2e8f0;font-weight:800;text-decoration:none">ثبت استعلام</a></div></footer>
+<script src="../assets/js/ptf-metrics.js" defer></script><script src="../tools/advanced-tools-ui.js"></script><script src="../tools/advanced-feedback-ui.js"></script>
+</body></html>

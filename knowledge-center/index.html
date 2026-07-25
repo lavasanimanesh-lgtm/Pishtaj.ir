@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>مرکز دانش تجهیزات صنعتی و استانداردها | پیشرو تجهیز — v32.1.1</title>
+<meta name="description" content="مرکز دانش فنی تجهیزات صنعتی شامل راهنماهای پایپینگ، شیرآلات، ابزار دقیق، برق، پمپ، استانداردهای API/ASME/ASTM و نکات خرید پروژه‌ای — نسخه 32.1.1 با آیکون‌های پرکنتراست و رابط علمی و آیکون‌های معنایی یکدست." />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0f172a" />
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<style>
+:root{
+  --kc-bg:#f4f7fb; --kc-card:#ffffff; --kc-line:#dbe3ee; --kc-text:#0f172a;
+  --kc-muted:#64748b; --kc-accent:#0e7490; --kc-accent-soft:#ecfeff;
+  --kc-navy:#0f2744; --kc-warm:#c2410c;
+}
+body.kc-page{ background:var(--kc-bg); }
+.kc-hero-new{
+  background:
+    linear-gradient(180deg, rgba(15,39,68,.96), rgba(15,39,68,.92)),
+    linear-gradient(135deg,#0f2744 0%, #12324f 55%, #0b1c30 100%);
+  min-height:360px; display:flex; align-items:center;
+  padding:120px 0 72px; color:#fff; position:relative; overflow:hidden;
+}
+.kc-hero-new:before{
+  content:''; position:absolute; inset:0; opacity:.35;
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size:28px 28px;
+}
+.kc-hero-inner{
+  position:relative; z-index:1; max-width:1180px; margin:0 auto;
+  padding:0 22px; width:100%;
+  display:grid; grid-template-columns:1.2fr .8fr; gap:28px; align-items:center;
+}
+.kc-hero-badge{
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(14,116,144,.16); border:1px solid rgba(103,232,249,.28);
+  border-radius:999px; padding:6px 14px; font-size:12px; font-weight:700; color:#a5f3fc;
+}
+.kc-hero-new h1{
+  font-size:clamp(26px,3.6vw,40px); line-height:1.35; margin:14px 0 12px;
+  font-weight:800; letter-spacing:-.3px; color:#fff;
+}
+.kc-hero-new h1 span.grad{ color:#67e8f9; background:none; -webkit-text-fill-color:unset; }
+.kc-hero-new p.lead{ color:rgba(226,232,240,.86); font-size:15.5px; line-height:1.95; max-width:560px; margin:0 0 18px; }
+.kc-search-wrap{
+  background:#fff; border-radius:14px; padding:6px; display:flex; align-items:center; gap:8px;
+  box-shadow:0 12px 28px rgba(0,0,0,.18); border:1px solid rgba(255,255,255,.55); max-width:520px;
+}
+.kc-search-wrap input{ flex:1; border:0; outline:0; font-family:inherit; font-size:14.5px; padding:11px 12px; background:transparent; color:#0f172a; }
+.kc-search-wrap input::placeholder{ color:#94a3b8; }
+.kc-search-btn{
+  background:var(--kc-accent); color:#fff; border:0; border-radius:10px; padding:11px 18px;
+  font-family:inherit; font-weight:700; font-size:13px; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+}
+.kc-search-btn:hover{ filter:brightness(.96); }
+.kc-hero-visual{ position:relative; }
+.kc-hero-cards{ display:grid; grid-template-columns:1fr 1fr; gap:12px; transform:none; }
+.kc-mini-card{
+  background:rgba(255,255,255,.97); border-radius:14px; padding:14px 15px;
+  border:1px solid rgba(219,227,238,.9); box-shadow:0 10px 24px rgba(0,0,0,.12);
+}
+.kc-mini-card b{ display:block; font-size:22px; color:var(--kc-navy); font-weight:800; }
+.kc-mini-card span{ font-size:11.5px; color:#64748b; font-weight:600; }
+.kc-mini-card.v2{ background:#f0f9ff; border-color:#bae6fd; }
+.kc-stats-new{
+  display:grid; grid-template-columns:repeat(5,1fr); gap:12px;
+  margin:-36px auto 26px; max-width:1120px; padding:0 20px; position:relative; z-index:2;
+}
+.kc-stat-new{
+  background:var(--kc-card); border:1px solid var(--kc-line); border-radius:14px;
+  padding:16px 12px; text-align:center; box-shadow:0 8px 20px rgba(15,23,42,.05); transition:.2s;
+}
+.kc-stat-new:hover{ transform:translateY(-2px); box-shadow:0 12px 28px rgba(15,23,42,.08); border-color:#99f6e4; }
+.kc-stat-new b{
+  display:block; font-size:24px; font-weight:800; color:var(--kc-navy);
+  background:none; -webkit-text-fill-color:unset;
+}
+.kc-stat-new span{ color:var(--kc-muted); font-weight:600; font-size:11.5px; }
+.kc-controls{ max-width:1180px; margin:0 auto 16px; padding:0 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+.kc-filter-chips{ display:flex; gap:8px; flex-wrap:wrap; }
+.kc-chip{
+  background:#fff; border:1px solid var(--kc-line); color:#334155; padding:7px 13px;
+  border-radius:999px; font-size:12.5px; font-weight:600; cursor:pointer; transition:.18s;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.kc-chip.active, .kc-chip:hover{ background:var(--kc-navy); color:#fff; border-color:var(--kc-navy); }
+.kc-chip .dot{ width:7px; height:7px; border-radius:50%; display:inline-block; }
+.kc-wrap-new{ max-width:1180px; margin:0 auto 64px; padding:0 20px; }
+.cluster-grid-new{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.cluster-card-new{
+  background:var(--kc-card); border:1px solid var(--kc-line); border-radius:16px;
+  overflow:hidden; transition:.22s; position:relative; display:flex; flex-direction:column;
+}
+.cluster-card-new:hover{ transform:translateY(-3px); box-shadow:0 14px 32px rgba(15,23,42,.08); border-color:#99f6e4; }
+.cluster-head-new{ padding:18px 18px 12px; display:flex; gap:12px; align-items:flex-start; border-bottom:1px solid #eef2f7; position:relative; }
+.cluster-head-new:before{ content:''; position:absolute; top:0; right:0; width:100%; height:3px; background:var(--cat-color, var(--kc-accent)); }
+.kc-cluster-icon-new{
+  width:52px; height:52px; flex:0 0 52px; border-radius:14px; display:grid; place-items:center;
+  background:#ffffff; color:#0e7490; border:2px solid #0e7490;
+  box-shadow:0 2px 10px rgba(15,23,42,.07);
+}
+.kc-cluster-icon-new svg{
+  width:28px; height:28px; display:block;
+  stroke:currentColor; stroke-width:2.05; stroke-linecap:round; stroke-linejoin:round;
+  fill:none; opacity:1;
+}
+.cluster-head-new h3{ margin:0; font-size:15px; line-height:1.45; color:var(--kc-text); font-weight:800; }
+.cluster-head-new p{ margin:4px 0 0; font-size:12px; color:var(--kc-muted); line-height:1.65; }
+.cluster-meta{ margin-top:8px; display:flex; gap:8px; align-items:center; }
+.cluster-meta .count{ background:#f1f5f9; color:#475569; border-radius:999px; padding:3px 9px; font-size:11px; font-weight:700; }
+.cluster-body-new{ padding:12px 18px 8px; flex:1; }
+.cluster-body-new a{
+  display:flex; justify-content:space-between; align-items:center; padding:9px 0;
+  font-size:13px; color:#334155; font-weight:600; text-decoration:none;
+  border-bottom:1px dashed #eef2f7; transition:.15s; gap:8px;
+}
+.cluster-body-new a:last-child{ border-bottom:0; }
+.cluster-body-new a:hover{ color:var(--kc-accent); padding-right:4px; }
+.cluster-body-new a .arrow{ opacity:0; transition:.15s; color:var(--kc-accent); }
+.cluster-body-new a:hover .arrow{ opacity:1; }
+.cluster-foot{ padding:12px 18px; background:#f8fafc; border-top:1px solid #eef2f7; display:flex; justify-content:space-between; align-items:center; }
+.cluster-foot a{ font-size:12px; font-weight:700; color:var(--kc-navy); text-decoration:none; }
+.cluster-foot a:hover{ color:var(--kc-accent); }
+.no-result{ grid-column:1/-1; background:#fff; border:1px dashed #cbd5e1; border-radius:16px; padding:36px; text-align:center; color:#64748b; }
+@media(max-width:1100px){
+  .kc-hero-inner{ grid-template-columns:1fr; }
+  .kc-hero-visual{ display:none; }
+  .cluster-grid-new{ grid-template-columns:repeat(2,1fr); }
+  .kc-stats-new{ grid-template-columns:repeat(3,1fr); }
+}
+@media(max-width:640px){
+  .cluster-grid-new{ grid-template-columns:1fr; }
+  .kc-stats-new{ grid-template-columns:repeat(2,1fr); margin-top:-20px; gap:10px; }
+  .kc-hero-new{ min-height:auto; padding:104px 0 40px; }
+  .kc-search-wrap{ flex-direction:column; align-items:stretch; }
+  .kc-search-btn{ justify-content:center; }
+  .kc-cluster-icon-new{ width:48px; height:48px; flex-basis:48px; }
+  .kc-cluster-icon-new svg{ width:26px; height:26px; }
+}
+</style>
+</head>
+<body class="kc-page">
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav"><a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a></nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+</div></header>
+
+<section class="kc-hero-new">
+<div class="kc-hero-inner">
+<div>
+<div class="kc-hero-badge"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;box-shadow:0 0 0 4px rgba(34,197,94,.2)"></span> مرجع فنی مهندسی • ۱۶ خوشه تخصصی • ۱۵۰+ مقاله استاندارد و راهنما</div>
+<h1>مرکز دانش <span class="grad">فنی و مهندسی</span><br/>تجهیزات صنعتی</h1>
+<p class="lead">مرجع تخصصی استانداردهای API، ASME، ASTM، راهنماهای انتخاب و خرید PAIPING، شیرآلات، ابزار دقیق، برق و فرآیند — با جستجوی هوشمند و آیکون‌های معنایی یکتا در نسخه 32.</p>
+<div class="kc-search-wrap">
+<input id="kcSearch" type="search" placeholder="جستجوی مقاله، استاندارد یا تجهیزات... مثلاً API 6D یا Rosemount یا کابل قدرت" autocomplete="off"/>
+<button class="kc-search-btn" onclick="document.getElementById('kcSearch').focus()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="M21 21l-4-4"/></svg> جستجو</button>
+</div>
+<p style="margin-top:12px;color:rgba(255,255,255,.55);font-size:11.5px">میانبر: <kbd style="background:rgba(255,255,255,.12);padding:2px 6px;border-radius:6px;border:1px solid rgba(255,255,255,.15)">/</kbd> برای فوکوس جستجو • <kbd style="background:rgba(255,255,255,.12);padding:2px 6px;border-radius:6px">Esc</kbd> برای پاک کردن</p>
+</div>
+<div class="kc-hero-visual">
+<div class="kc-hero-cards">
+<div class="kc-mini-card"><b>📏 ابعاد لوله</b><span>NPS • DN • Schedule • WT</span><br/><small style="color:#94a3b8">جدول ASME B36.10</small></div>
+<div class="kc-mini-card v2"><b style="background:none;color:#9a3412;-webkit-text-fill-color:#9a3412">API 6D • Ball Valve</b><span>انتخاب بر اساس کلاس و سایز</span></div>
+<div class="kc-mini-card"><b>⚡ کابل قدرت</b><span>محاسبه سطح مقطع + افت ولتاژ</span></div>
+<div class="kc-mini-card"><b>🎛️ ترانسمیتر</b><span>Rosemount 3051 • Yokogawa</span></div>
+</div>
+</div>
+</div>
+</section>
+
+<div class="kc-stats-new">
+<div class="kc-stat-new"><b>۵۰+</b><span>مقاله پایپینگ و فلنج</span></div>
+<div class="kc-stat-new"><b>۴۰+</b><span>مقاله شیرآلات صنعتی</span></div>
+<div class="kc-stat-new"><b>۳۵+</b><span>مقاله ابزار دقیق</span></div>
+<div class="kc-stat-new"><b>۲۵+</b><span>مقاله برق صنعتی</span></div>
+<div class="kc-stat-new"><b>۲۰+</b><span>مقاله تامین و کیفیت</span></div>
+</div>
+
+<div class="kc-controls">
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<span style="font-weight:900;font-size:13px;color:#0f172a">فیلتر خوشه‌ها:</span>
+<div class="kc-filter-chips" id="kcChips"></div>
+</div>
+<div style="font-size:12px;color:#64748b;font-weight:700" id="kcResultCount">۱۶ خوشه • ۱۵۰+ مقاله</div>
+</div>
+
+<div class="kc-wrap-new">
+<div class="cluster-grid-new" id="kcGrid"></div>
+</div>
+
+<footer class="footer" style="background:#0f172a; color:#cbd5e1; padding:3rem 0 1.5rem; border-top:4px solid #ef4b1a;">
+<div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:28px; margin-bottom:2rem; text-align:right;">
+<div>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px"><img width="44" height="44" src="../assets/images/ptf-logo.png" alt="logo" style="object-fit:contain"><span style="color:#fff;font-weight:900">پیشرو تجهیز فرتاک</span></div>
+<p style="font-size:13px;color:#94a3b8;line-height:1.8">مرکز دانش v32.1.1 — رابط علمی/مهندسی، آیکون خطی معنایی، جستجوی زنده؛ فیچر = minor (32.0.6→32.1)، هات‌فیکس = patch</p>
+</div>
+<div>
+<b style="color:#fff;display:block;margin-bottom:10px">اصول اساسی برای ایجنت بعدی</b>
+<div style="font-size:12.5px;line-height:1.9;color:#cbd5e1">• سند هنداور یکدست و بدون staging<br/>• ورژن‌بندی: فیچر = Major (31.9→32)، هات‌فیکس = Patch (31.9→31.9.1)<br/>• هر ریلیز = فایل کامل پروژه<br/>• 48 کلید sync هماهنگ<br/>• آیکون‌ها یکتا و معنایی</div>
+</div>
+</div>
+<div class="container" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-top:1rem;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;color:#64748b"><span>© 2026 PTF — v32.1.1 — مرکز دانش علمی</span><span>۱۶ آیکون خطی معنایی • UI علمی</span></div>
+</footer>
+
+<script>
+function kcIconNew(kind){
+  var p={
+    pipe:'<path d="M4 8h5v8H4zM15 8h5v8h-5zM9 10h6v4H9z"/><path d="M6.5 5v3M17.5 5v3M6.5 16v3M17.5 16v3"/>',
+    pipe_special:'<path d="M3 8h7v4H3zM14 8h7v4H14zM10 11h4"/><path d="M4 5v2M4 16v2M17 5v2M17 16v2"/><path d="M2 3.5h3M2 19.5h3M19 3.5h3M19 19.5h3" stroke-dasharray="1.2 2"/>',
+    valve:'<path d="M4 12h5M15 12h5M9 9l6 6M15 9l-6 6M12 9V5M9 5h6"/>',
+    valve_special:'<rect x="7" y="3" width="10" height="6" rx="1.6"/><path d="M10 9v3M14 9v3M9 12l3 3 3-3M7 15h10v4H7zM4 17h5M15 17h5"/>',
+    instrument:'<circle cx="12" cy="12" r="8.5"/><path d="M12 12l4-3M7 16h10M12 3.5v2"/>',
+    instrument_precision:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="1"/><path d="M12 3.5v2M12 18.5v1.5M3.5 12h2M18.5 12h2"/>',
+    electrical:'<path d="M13 2L4.5 13.5H11l-1 8.5L18.5 10.5H12z"/>',
+    electrical_power:'<path d="M5 6h14v3.5H5zM7 9.5v5M17 9.5v5M5 14.5h14v3.5H5zM9 18v3M15 18v3"/><path d="M9 7.5h6"/>',
+    quality:'<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M8.5 12l2.2 2.2 4.8-5"/>',
+    industry:'<path d="M3 21V8l6 4V8l6 4V8l6 4v9z"/><path d="M7 21v-4h4v4M15 21v-3h3v3"/>',
+    rotating:'<circle cx="12" cy="12" r="3"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/>',
+    procurement:'<path d="M3 6h2.5l2.5 10h9.5l2.5-7H7"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/>',
+    flange:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2M7.2 7.2l1.4 1.4M15.4 15.4l1.4 1.4M16.8 7.2l-1.4 1.4M8.6 15.4l-1.4 1.4"/>',
+    seal:'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M8 8.5l2 2M16 15.5l2 2M16 8.5l-2 2M8 15.5l-2 2"/>',
+    process:'<path d="M4 5h6v6H4zM14 13h6v6h-6zM10 8h4M12 8v7M7 19h4M15 5v3"/>',
+    mechanical:'<path d="M20.3 6.3a5 5 0 01-6.6 6.6L7 19.6a2 2 0 01-2.8-2.8l6.7-6.7a5 5 0 016.6-6.6l-3.2 3.2 2.8 2.8z"/><circle cx="15" cy="8" r="1"/>'
+  };
+  var col = arguments[1] || '#0e7490';
+  // cat.c is a solid hex used ONLY for stroke/border — never as opaque fill (was washing out icons)
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(col))) col = '#0e7490';
+  function hexTint(h, a){
+    h = String(h).replace('#','');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+    return 'rgba('+r+','+g+','+b+','+a+')';
+  }
+  var bg = hexTint(col, 0.10);
+  var bd = hexTint(col, 0.55);
+  return '<span class="kc-cluster-icon-new" style="background:'+bg+';border-color:'+col+';color:'+col+'" aria-hidden="true">'
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.05" stroke-linecap="round" stroke-linejoin="round">'
+    + (p[kind]||p.quality) + '</svg></span>';
+}
+
+const cats=[
+{icon:"pipe",t:"لوله و اتصالات پایپینگ",d:"لوله مانیسمان، فلنج، فیتینگ",c:"#b91c1c",a:[["راهنمای جامع لوله مانیسمان","seamless-pipe-complete-guide.html"],["راهنمای جامع انواع فلنج صنعتی","flange-types-complete-guide.html"],["مقایسه A106 Gr.B و A333 Gr.6","../blog/a106-vs-a333-pipes.html"],["راهنمای اتصالات فیتینگ","pipe-fittings-guide.html"],["مشخصات فنی لوله API 5L","api-5l-pipe-guide.html"],["استاندارد ASME B36.10","asme-b36-10-pipe-dimensions.html"],["جنس فلنج بر اساس کلاس فشار","flange-material-selection-guide.html"],["مقایسه فلنج WN و SO","wn-vs-so-flange-comparison.html"],["خرید لوله A106 Gr.B","a106-pipe-procurement-guide.html"],["تفاوت لوله مانیسمان و ERW","seamless-vs-erw-pipe-difference.html"],["راهنمای گسکت در فلنجینگ","gasket-types-guide.html"],["تست هیدرواستاتیک لوله","hydrostatic-test-pipe-guide.html"],["بازرسی NDE لوله و فلنج","nde-inspection-pipe-flange.html"],["لوله A53 Gr.B","a53-pipe-specifications.html"],["پیچ و مهره اتصالات فلنجی","flange-bolting-guide.html"],["استانداردهای ASTM پایپینگ","astm-piping-standards-guide.html"],["مقایسه ASTM A105 و A234","astm-a105-vs-a234.html"],["راهنمای لوله استینلس استیل","stainless-steel-pipe-guide.html"]]},
+{icon:"valve",t:"شیرآلات صنعتی (Valves)",d:"Gate, Globe, Ball, Check, Butterfly",c:"#a16207",a:[["راهنمای کامل شیرآلات صنعتی","../blog/industrial-valves-complete-guide.html"],["راهنمای انتخاب Ball Valve","../blog/ball-valve-selection-guide.html"],["راهنمای Gate Valve","gate-valve-complete-guide.html"],["راهنمای Globe Valve","globe-valve-complete-guide.html"],["راهنمای Check Valve","check-valve-complete-guide.html"],["راهنمای Butterfly Valve","butterfly-valve-complete-guide.html"],["مقایسه Ball و Gate Valve","ball-vs-gate-valve-comparison.html"],["استاندارد API 600","api-600-gate-valve-standard.html"],["استاندارد API 6D","api-6d-ball-valve-standard.html"],["استاندارد API 602","api-602-small-gate-valve.html"],["محرک (Actuator) شیرآلات","valve-actuator-types-guide.html"],["متریال بدنه شیرآلات","valve-body-material-selection.html"],["نشیمنگاه Seat - PTFE/PEEK","valve-seat-material-guide.html"],["شیرهای کنترل (Control Valve)","control-valve-complete-guide.html"],["محاسبه Cv کنترل ولو و سایزینگ","control-valve-cv-calculation-guide.html"],["کاویتاسیون در کنترل ولو","control-valve-cavitation-guide.html"],["تفاوت Cv و Kv","control-valve-cv-kv-difference.html"],["سایزینگ کنترل ولو بخار","steam-control-valve-sizing-guide.html"],["سایزینگ کنترل ولو گاز","gas-control-valve-sizing-guide.html"],["انتخاب اکچویتور کنترل ولو","control-valve-actuator-selection-guide.html"],["شیر اطمینان (PSV/PRV)","safety-relief-valve-guide.html"],["مقایسه برندهای شیرآلات","valve-brands-comparison-guide.html"]]},
+{icon:"instrument",t:"ابزار دقیق و اندازه گیری",d:"ترانسمیتر، فلومتر، سطح، دما",c:"#0369a1",a:[["راهنمای جامع ترانسمیتر فشار","../blog/pressure-transmitter-guide.html"],["ترانسمیتر اختلاف فشار DPT","differential-pressure-transmitter-guide.html"],["ترانسمیتر دما RTD و TC","temperature-transmitter-guide.html"],["راهنمای فلومتر صنعتی","flowmeter-types-guide.html"],["راهنمای سطح سنج","level-measurement-guide.html"],["پروتکل HART","hart-protocol-complete-guide.html"],["کالیبراسیون ترانسمیتر فشار","pressure-transmitter-calibration-guide.html"],["گواهی SIL","sil-certification-instrument-guide.html"],["استاندارد ATEX و IECEx","atex-iecex-hazardous-area-guide.html"],["مقایسه Rosemount و Yokogawa","rosemount-vs-yokogawa-comparison.html"],["راهنمای گیج فشار","pressure-gauge-complete-guide.html"],["ترانسمیتر سطح راداری","radar-level-transmitter-guide.html"],["آنالایزر گاز صنعتی","gas-analyzer-industry-guide.html"],["سیستم SCADA و RTU","scada-rtu-system-guide.html"],["کالیبراسیون ابزار دقیق","instrument-calibration-standards.html"]]},
+{icon:"electrical",t:"برق صنعتی و اتوماسیون",d:"تابلو، کلید، PLC، ترانس",c:"#7c3aed",a:[["تجهیزات برق صنعتی و سوئیچگیر","../blog/electrical-switchgear-guide.html"],["کلید هوایی ACB","acb-circuit-breaker-guide.html"],["کلید کامپکت MCCB","mccb-circuit-breaker-guide.html"],["تابلو MCC","mcc-panel-guide.html"],["PLC انواع و کاربرد","plc-types-industrial-guide.html"],["ترانسفورماتور قدرت و توزیع","power-distribution-transformer-guide.html"],["کابل صنعتی Power Cable","industrial-cable-selection-guide.html"],["UPS و برق اضطراری","ups-industrial-guide.html"],["رله های حفاظتی","protective-relay-guide.html"],["سیستم اتصال زمین Grounding","industrial-grounding-guide.html"],["درایو VFD","vfd-variable-frequency-drive-guide.html"],["استاندارد IP برق صنعتی","ip-rating-industrial-equipment-guide.html"]]},
+{icon:"quality",t:"تامین، بازرسی و کیفیت",d:"RFQ، MTC، TPI، استانداردها",c:"#475569",a:[["راهنمای کامل RFQ صنعتی","../blog/rfq-procurement-guide.html"],["گواهی MTC و بازرسی TPI","../blog/mtc-tpi-inspection-guide.html"],["EN 10204 انواع گواهی","en-10204-certificate-guide.html"],["تست NDT در بازرسی صنعتی","ndt-inspection-industrial-guide.html"],["Incoterms 2024","incoterms-industrial-trade-guide.html"],["وندرلیست NIOC و NPC","nioc-npc-vendor-list-guide.html"],["بازرسی TPI","third-party-inspection-guide.html"],["زنجیره تامین پروژه EPC","epc-supply-chain-management-guide.html"],["ASME B31.3 خطوط فرایندی","asme-b31-3-process-piping-guide.html"],["NACE MR0175","nace-mr0175-sour-service-guide.html"],["ترخیص کالاهای صنعتی","industrial-customs-clearance-guide.html"]]},
+{icon:"industry",t:"کاربردهای صنعتی",d:"نفت، گاز، پتروشیمی، فولاد",c:"#0e7490",a:[["تامین تجهیزات نفت و گاز","oil-gas-industry-supply-guide.html"],["تامین تجهیزات پتروشیمی","petrochemical-industry-supply-guide.html"],["تامین تجهیزات فولاد","steel-industry-supply-guide.html"],["تامین تجهیزات نیروگاهی","power-plant-industry-supply-guide.html"],["تامین تجهیزات سیمان","cement-industry-supply-guide.html"],["تجهیزات Shutdown و اورهال","shutdown-turnaround-industrial-guide.html"],["تجهیزات مقاوم به خوردگی","corrosion-resistant-equipment-guide.html"],["تجهیزات فشار قوی","high-pressure-equipment-guide.html"],["تجهیزات گاز ترش","sour-service-equipment-guide.html"],["تجهیزات بخار Steam","steam-system-equipment-guide.html"]]},
+{icon:"electrical_power",t:"برق صنعتی — تکمیلی",d:"PLC، کابل قدرت، CT/PT، UPS",c:"#4338ca",a:[["مبدل‌های حرارتی هوایی (Air Cooled)","kc-air-cooled.html"],["تابلوهای PLC و اتوماسیون","kc-plc.html"],["کابل‌های قدرت — محاسبه سطح مقطع","c-4052bc8a.html"],["ترانسفورماتورهای جریان CT و ولتاژ PT","kc-ct-pt.html"],["مبدل‌های Shell & Tube","kc-shell-tube.html"],["کانال‌های کابل و سینی کابل","k-d3ca6244.html"],["سیستم روشنایی صنعتی LED","kc-led.html"],["سیستم BMS صنعتی","kc-bms.html"],["درایو VFD — نصب و عیب‌یابی","kc-vfd.html"],["تابلوهای فشار متوسط MV","kc-mv-switchgear.html"],["سیستم UPS و باتری","kc-ups.html"],["رله‌های حفاظتی ANSI 50,51,87","kc-ansi-50-51-87-21.html"]]},
+{icon:"rotating",t:"پمپ و کمپرسور",d:"API 610، 618، 617",c:"#065f46",a:[["کمپرسورهای رفت و برگشتی API 618","kc-api-618.html"],["پمپ‌های سانتریفیوژ API 610","kc-api-610.html"],["پمپ‌های رفت و برگشتی","kc-reciprocating-pump.html"],["کمپرسورهای سانتریفیوژ API 617","kc-api-617.html"]]},
+{icon:"procurement",t:"مدیریت تامین و بازرگانی",d:"Supplier Qualification، PO، HSE",c:"#be123c",a:[["ارزیابی تامین‌کنندگان","c-059ab953.html"],["مدیریت PO","kc-purchase-order-management.html"],["تجهیزات پایانه‌های صادراتی","k-6fbdeecf.html"],["بازاریابی بین‌المللی نفت و گاز","k-edd8b9af.html"],["مدیریت پروژه تامین","k-f157c607.html"],["صادرات تجهیزات","k-ffd298e6.html"],["حمل و نقل مواد صنعتی","z-16aeeb93.html"],["سیستم HSE","kc-hse.html"],["انبارداری و موجودی","z-81f77cc9.html"],["مدیریت انرژی","z-ef76567b.html"],["Incoterms 2024","kc-incoterms-2024.html"]]},
+{icon:"pipe_special",t:"راهنماهای تخصصی لوله",d:"ERW، SAWH، 304/316، ابعاد",c:"#7c2d12",a:[["لوله‌های ERW و HFW","kc-erw-hfw.html"],["لوله‌های اسپیرال SAWH","kc-sawh.html"],["لوله‌های استینلس 304 و 316","kc-304-316.html"],["لوله‌های آلیاژی A335","kc-a335.html"],["لوله‌های API 5L PSL1/PSL2","kc-api-5l-psl1-psl2.html"],["مشخصات ASTM A106 Gr.B","kc-astm-a106-gr.html"],["Heat Tracing لوله","kc-heat-tracing.html"],["عایق‌کاری حرارتی","k-cea4f68b.html"],["ساپورت لوله","k-eedd2e06.html"],["ابعاد لوله NPS/DN/Sch","kc-nps-dn-schedule-od-wt.html"],["جوشکاری خطوط لوله","کاربردهای صنعتی-bf3563bb.html"]]},
+{icon:"flange",t:"فلنج و اتصالات — تکمیلی",d:"کلاس 900-2500، واشر",c:"#9a3412",a:[["اتصالات فیتینگ","c-369fd340.html"],["فلنج‌های فشار قوی Class 900-2500","kc-class-900-class-2500.html"],["واشر Washer","kc-washer.html"]]},
+{icon:"instrument_precision",t:"ابزار دقیق — تکمیلی",d:"Load Cell، گیج، پروتکل‌ها",c:"#0369a1",a:[["لودسل و توزین صنعتی","kc-load-cell.html"],["ترانسمیتر فشار Gauge/Abs/Diff","kc-gauge-absolute-differential.html"],["پروتکل‌های ارتباطی","c-b15a36c7.html"],["گیج فشار","kc-pressure-gauge.html"],["کابل‌های ابزار دقیق","z-95579eef.html"],["فلومترها 10 روش","ابزار دقیق-a285accb.html"],["سنسورهای دما RTD/TC","kc-rtd-thermocouple-thermistor.html"],["آنالایزرهای فرآیندی GC/pH/O2","kc-gc-ph-o2-h2s.html"]]},
+{icon:"valve_special",t:"راهنماهای تخصصی شیرآلات",d:"کنترل ولو، محرک، PSV",c:"#a16207",a:[["شیرهای Globe انواع Z/Y","kc-globe-valve-type-type.html"],["شیرهای Butterfly Offset","kc-butterfly-valve-offset.html"],["شیرهای Ball ساقه و محرک","kc-ball-valve.html"],["شیرهای Gate Wedge/Parallel","kc-gate-valve-wedge-parallel-slide.html"],["تست نشتی API 598/ISO 5208","kc-api-598-iso-5208.html"],["انتخاب شیر بر اساس سیال","k-5b7b7133.html"],["شیرهای اضطراری","k-b8b2ade9.html"],["انتخاب محرک Actuator","kc-actuator.html"],["شیرهای کنترل هیدرولیک","z-0b758a57.html"],["شیرهای پنوماتیک","z-653c9058.html"],["شیرهای استینلس CF8M","kc-cf8-cf8m-cf3m.html"],["شیرهای کنترل Cv/Actuator","kc-cv-actuator.html"],["شیرهای اطمینان PSV","kc-psv.html"]]},
+{icon:"seal",t:"گسکت و آب‌بندی",d:"Spiral Wound، Kammprofile",c:"#7c2d12",a:[["گسکت Spiral Wound و Kammprofile","kc-spiral-wound-kammprofile.html"]]},
+{icon:"process",t:"سیستم‌های فرآیندی و جانبی",d:"32 مقاله تخصصی فرآیندی",c:"#0e7490",a:[["آتش‌نشان و اعلام حریق","k-114d49d9.html"],["تجهیزات Commissioning","kc-commissioning.html"],["CCTV صنعتی","kc-cctv.html"],["اطفاء حریق FM200/CO2/Foam","kc-fm200-co2-foam-water.html"],["اتاق کنترل","k-6e8b98ec.html"],["کنترل دسترسی","k-c3feece0.html"],["NGL Recovery","kc-ngl-recovery.html"],["گازرسانی صنعتی","kc-nitrogen-air-natural-gas.html"],["Desalter نفت خام","kc-desalter.html"],["Chemical Injection","kc-chemical-injection.html"],["SRU گوگردزدا","kc-sulfur-recovery-unit-sru.html"],["آزمایشگاه صنعتی","z-85401d51.html"],["Cooling Water","kc-cooling-water.html"],["Earthing","kc-earthing.html"],["PM نگهداری","kc-pm.html"],["FCC Unit","kc-fcc-unit.html"],["TEG آب‌گیری گاز","kc-gas-dehydration-teg.html"],["PPE حفاظت فردی","kc-ppe.html"],["فلر و مشعل","z-fe99473f.html"],["DCS","kc-dcs.html"],["ESD و Fire & Gas","kc-esd-fire-gas.html"],["NDT پایپینگ","kc-ndt.html"],["تصفیه آب و پساب","کاربردهای صنعتی-0ab63dcd.html"],["Offshore فراساحل","kc-offshore.html"],["NGL/LPG/LNG","kc-ngl-lpg-lng.html"]]},
+{icon:"mechanical",t:"تجهیزات مکانیکال و تاسیسات",d:"ذخیره‌سازی، HVAC، ورق",c:"#334155",a:[["ذخیره‌سازی نفت خام","k-43594446.html"],["صلاحیت تامین‌کنندگان","k-78c21e5e.html"],["هوای فشرده","z-0320bdc9.html"],["تهویه صنعتی HVAC","kc-hvac.html"],["روغن‌کاری Lubrication","kc-lubrication-system.html"],["توانمندسازی پرسنل","z-a0721288.html"],["ورق‌های فولادی","z-bdd0a52f.html"],["تیرآهن و میلگرد","z-d0063fcd.html"],["بخار و بویلر","کاربردهای صنعتی-b26c91da.html"]]}
+];
+
+const chipsData=[
+{key:"all",label:"همه خوشه‌ها",color:"#0f172a"},
+{key:"pipe",label:"پایپینگ",color:"#b91c1c"},
+{key:"valve",label:"شیرآلات",color:"#a16207"},
+{key:"instrument",label:"ابزار دقیق",color:"#0369a1"},
+{key:"electrical",label:"برق",color:"#7c3aed"},
+{key:"quality",label:"کیفیت",color:"#475569"},
+{key:"industry",label:"صنایع",color:"#0e7490"},
+{key:"rotating",label:"پمپ",color:"#065f46"},
+{key:"procurement",label:"تامین",color:"#be123c"},
+{key:"process",label:"فرآیندی",color:"#0e7490"},
+{key:"mechanical",label:"مکانیکال",color:"#334155"}
+];
+
+let activeChip="all";
+let searchQ="";
+
+function renderChips(){
+  var wrap=document.getElementById('kcChips');
+  wrap.innerHTML=chipsData.map(function(ch){
+    var active=ch.key===activeChip?" active":"";
+    return '<button class="kc-chip'+active+'" data-key="'+ch.key+'" onclick="setChip(\''+ch.key+'\')"><span class="dot" style="background:'+ch.color+'"></span>'+ch.label+'</button>';
+  }).join('');
+}
+function setChip(k){ activeChip=k; renderChips(); renderGrid(); }
+function renderGrid(){
+  var grid=document.getElementById('kcGrid');
+  var q=searchQ.trim().toLowerCase();
+  var filtered=cats.filter(function(cat){
+    var chipMatch = activeChip==="all" || cat.icon.indexOf(activeChip)===0 || cat.t.indexOf(chipsData.find(function(x){return x.key===activeChip;})?.label||"")>-1 || cat.icon===activeChip || (activeChip==="pipe"&&(cat.icon==="pipe"||cat.icon==="pipe_special")) || (activeChip==="valve"&&(cat.icon==="valve"||cat.icon==="valve_special")) || (activeChip==="instrument"&&(cat.icon==="instrument"||cat.icon==="instrument_precision")) || (activeChip==="electrical"&&(cat.icon==="electrical"||cat.icon==="electrical_power")) || (activeChip==="procurement"&&cat.icon==="procurement");
+    if(!chipMatch) return false;
+    if(!q) return true;
+    var hay=(cat.t+" "+cat.d+" "+cat.a.map(function(x){return x[0]}).join(" ")).toLowerCase();
+    return hay.indexOf(q)>-1;
+  });
+  document.getElementById('kcResultCount').textContent=filtered.length+" خوشه"+(q?" برای «"+searchQ+"»":"")+" • "+filtered.reduce(function(s,c){return s+c.a.length},0)+" مقاله";
+  if(!filtered.length){
+    grid.innerHTML='<div class="no-result"><div style="font-size:40px;margin-bottom:10px">🔍</div><b>نتیجه‌ای یافت نشد</b><br/><small>عبارت جستجو را تغییر دهید یا فیلتر را روی «همه» بگذارید</small><br/><button class="kc-chip" style="margin-top:12px" onclick="document.getElementById(\'kcSearch\').value=\'\';searchQ=\'\';activeChip=\'all\';renderChips();renderGrid()">پاک کردن فیلترها</button></div>';
+    return;
+  }
+  grid.innerHTML=filtered.map(function(cat){
+    var arts=cat.a.map(function(a){ return '<a href="'+a[1]+'"><span>'+a[0]+'</span><span class="arrow">←</span></a>'; }).join('');
+    return '<div class="cluster-card-new" data-icon="'+cat.icon+'" style="--cat-color:'+cat.c+'"><div class="cluster-head-new">'+kcIconNew(cat.icon, cat.c)+' <div><h3>'+cat.t+'</h3><p>'+cat.d+'</p><div class="cluster-meta"><span class="count">'+cat.a.length+' مقاله</span></div></div></div><div class="cluster-body-new">'+arts+'</div><div class="cluster-foot"><a href="#" onclick="event.preventDefault();this.closest(\'.cluster-card-new\').scrollIntoView({behavior:\'smooth\',block:\'center\'})">مشاهده خوشه</a><span style="font-size:11px;color:#94a3b8">آیکون یکتا ✓ '+cat.icon+'</span></div></div>';
+  }).join('');
+}
+
+document.getElementById('kcSearch').addEventListener('input',function(e){ searchQ=e.target.value; renderGrid(); });
+document.addEventListener('keydown',function(e){ if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){ e.preventDefault(); document.getElementById('kcSearch').focus(); } if(e.key==='Escape'){ searchQ=''; document.getElementById('kcSearch').value=''; renderGrid(); } });
+
+renderChips(); renderGrid();
+
+(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();
+</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+</body>
+</html>

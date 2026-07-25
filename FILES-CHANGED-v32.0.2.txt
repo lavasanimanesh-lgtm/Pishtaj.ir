@@ -1,0 +1,13 @@
+v32.0.2 — HOTFIX — Captcha Guard Fix — Full ZIP
+
+VERSION: v32.0.2 (Patch from v32.0.1)
+
+CHANGED:
+api/crm.php — moved captcha_key check from top-level to functions only (fixes sync failure)
+crm/index.html — VER v32.0.1 → v32.0.2
+crm/sw.js — CACHE v32.0.1 → v32.0.2
+RELEASE-NOTES-v32.0.2.md — NEW
+REGRESSION-REPORT-v32.0.2.md — NEW
+FILES-CHANGED-v32.0.2.txt — NEW
+
+FILES: 1680 — 25M — 188 images — Same as v32/v32.0.1, no deletion

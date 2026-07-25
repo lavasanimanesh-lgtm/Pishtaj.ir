@@ -1,0 +1,27 @@
+v33.0.1 — SECURE HOTFIX — Auth/Data Pull + Storage + LLM
+
+CHANGED:
+api/crm.php — server-side admin token login via ptf-secrets.php admin_sha256/default_admin_hash; save_backup no longer requires browser-impossible HMAC, still requires JWT via verify_request.
+api/auth.php — unchanged token engine; used by all protected APIs.
+api/storage.php — authenticated senior-role storage policy; destructive actions remain admin/chairman only.
+api/llm.php — enabled only behind X-CRM-Token and role guard.
+api/.htaccess — unblocks only llm.php; keeps unsafe/incomplete endpoints blocked.
+api/ptf-secrets.sample.php — v33.0.1 secret template, no real/demo password.
+crm/index.html — server-authoritative login first for every role including admin; no silent passhash auth; requires token before CRM boot; VER and script cache keys v33.0.1; LLM test/status send token.
+crm/sync.js — removed silent passhash refresh; expired/missing token forces explicit re-login and stops 401 loops.
+crm/bridge.js — server inbox/events polling starts only when ptf_crm_token exists.
+crm/storage.js — all api/storage.php calls send X-CRM-Token.
+crm/backup.js — backup/list/get/restore calls send X-CRM-Token.
+crm/rbac.js — users_sync/users_get calls send X-CRM-Token.
+crm/cms.js — CMS calls send X-CRM-Token.
+crm/golive.js — go-live backup/wipe calls send X-CRM-Token.
+crm/sms.js — SMS backup/bulk calls send X-CRM-Token.
+crm/ai-workbench.js, crm/inqreader.js, crm/contracts.js, crm/cheques.js, crm/lead-finder.js, crm/tech-proposals.js, crm/ai-tech-assistant.js — LLM calls send X-CRM-Token.
+crm/sw.js, crm/clear-cache.html — cache version v33.0.1.
+
+DOCS:
+RELEASE-NOTES-v33.0.1.md
+REGRESSION-REPORT-v33.0.1.md
+INSTALL-RELEASE-v33.0.1.md
+HANDOVER-v33.0.1.md
+FILES-CHANGED-v33.0.1.txt

@@ -1,0 +1,23 @@
+/* tester213 — v31.7.36 (ADV-TOOLS-FREE-GATE-001): free PDF paywall */
+require('./harness');
+const fs=require('fs'), path=require('path');
+const ROOT=path.resolve(__dirname,'../..');
+const tools=fs.readFileSync(path.join(ROOT,'tools/index.html'),'utf8');
+const ui=fs.readFileSync(path.join(ROOT,'tools/tools-ui.js'),'utf8');
+const spec=fs.readFileSync(path.join(ROOT,'ADVANCED-CONTROL-VALVE-TOOLS-SPEC-v1.md'),'utf8');
+SECTION('Free tools paywall');
+T('صفحه ابزارها دیگر ادعای PDF رایگان نمی‌کند',tools.indexOf('با خروجی PDF مهندسی')===-1&&tools.indexOf('محاسبه اولیه رایگان')>-1&&tools.indexOf('گزارش PDF')>-1);
+T('دکمه PDF رایگان به گزارش کامل قفل‌دار تغییر کرده',ui.indexOf('گزارش PDF کامل (فعال‌سازی)')>-1);
+T('تابع paywall ابزارها وجود دارد',ui.indexOf('function ptfToolsPaywall')>-1&&ui.indexOf('window.ptfToolsPaywall = ptfToolsPaywall')>-1);
+T('exportPdf بدون grant paywall باز می‌کند و با grant مسیر paid دارد',/function exportPdf\(\)[\s\S]{0,420}ptfToolsHasGrant\('control_valve_advanced'\)[\s\S]{0,120}exportPdfPaid\(\)[\s\S]{0,180}ptfToolsPaywall/.test(ui));
+T('paywall مسیر درخواست فعال‌سازی RFQ و واتساپ دارد',ui.indexOf('tools_activation_rfq')>-1&&ui.indexOf('tools_activation_whatsapp')>-1&&ui.indexOf('درخواست فعال‌سازی از طریق RFQ')>-1);
+T('event باز شدن paywall ثبت می‌شود',ui.indexOf('tools_pdf_paywall_open')>-1);
+SECTION('Advanced Control Valve card');
+T('کارت ابزار پیشرفته کنترل ولو وجود دارد',tools.indexOf('id="advanced-control-valve"')>-1&&tools.indexOf('Advanced Control Valve Sizing')>-1);
+T('کارت ابزار پیشرفته به Liquid/Gas/Steam و نمودار/PDF اشاره دارد',tools.indexOf('Liquid / Gas / Steam')>-1&&tools.indexOf('Charts')>-1&&tools.indexOf('Paid PDF report')>-1);
+T('کارت ابزار پیشرفته CTA فعال‌سازی دارد',tools.indexOf('advanced_cv_activation_request')>-1&&tools.indexOf('درخواست فعال‌سازی')>-1);
+T('Spec رسمی ابزار پیشرفته در پکیج وجود دارد',spec.indexOf('Advanced Control Valve Tools')>-1&&spec.indexOf('ADV-TOOLS-FREE-GATE-001')>-1);
+SECTION('Existing calculators remain present');
+T('فرم‌ها و محاسبات رایگان فعلی حفظ شده‌اند',['سایزینگ ولو کنترلی','سایزینگ PRV','وزن متریال','تحمل فشار لوله','ترک‌تیبل'].every(x=>ui.indexOf(x)>-1));
+T('محاسبه Cv همچنان از PTF_TOOLS.sizeCv استفاده می‌کند',ui.indexOf('T.sizeCv')>-1&&ui.indexOf('Cv = ')>-1);
+DONE('tester213-tools-free-pdf-paywall');

@@ -1,0 +1,50 @@
+{
+  "schema": "ptf-financial-fixture-v1",
+  "purpose": "Sanitized, repeatable data for Stage 0, Sprint 1 security PoC, and later financial workflow regression. Never use production users, invoices, cheque numbers, or cloud keys.",
+  "environment": {
+    "required": "isolated-staging",
+    "syncNamespace": "staging-only",
+    "cloudPrefix": "poc-finance-auth/",
+    "resetRequiredBeforeEachRun": true
+  },
+  "users": [
+    { "username": "chair_demo", "roleId": "chairman" },
+    { "username": "admin_demo", "roleId": "admin" },
+    { "username": "buyer_demo", "roleId": "buyer" },
+    { "username": "accountant_demo", "roleId": "accountant" },
+    { "username": "collector_demo", "roleId": "collector" },
+    { "username": "sales_demo", "roleId": "sales" }
+  ],
+  "financialRecords": {
+    "customers": ["CUST-DEMO-1"],
+    "suppliers": ["SUP-DEMO-1"],
+    "customerInvoice": "INV-DEMO-1",
+    "supplierInvoice": "SFINV-DEMO-1",
+    "supplierPayment": "SFPAY-DEMO-1",
+    "companyCheque": "CHQ-DEMO-COMPANY-1",
+    "personalCheque": "CHQ-DEMO-PERSONAL-1",
+    "thirdPartyCheque": "CHQ-DEMO-THIRD-1",
+    "fiscalSnapshot": "FSY-DEMO-1405",
+    "pettyRecord": "PTY-DEMO-1",
+    "opexRecord": "OPX-DEMO-1",
+    "shareholderTransaction": "SHTX-DEMO-1"
+  },
+  "securityPoc": {
+    "sacrificialSnapshot": "POC-FSY-001",
+    "allowedMutationEnvironment": "staging-only",
+    "productionMutationAllowed": false,
+    "requiredEvidence": [
+      "baseline-key-hash",
+      "request-redacted-log",
+      "response-status-and-body",
+      "post-request-key-hash",
+      "cleanup-or-fixture-reset-log"
+    ]
+  },
+  "expectedPolicies": {
+    "personalCheque": "not visible to another user and never affects company reporting",
+    "companyCheque": "final posting restricted to chairman after FIN-WF-003",
+    "financialOfflinePosting": "blocked until a separate approved offline-command design exists",
+    "lockedFiscalPeriod": "all financial mutations blocked or routed to amendment/reversal after FIN-WF-004"
+  }
+}

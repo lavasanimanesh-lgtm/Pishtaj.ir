@@ -1,0 +1,161 @@
+# بک‌لاگ اولویت‌بندی‌شدهٔ فعلی پروژه PTF
+
+**نسخهٔ مبنا:** `v31.7.2`  
+**تاریخ تهیه:** ۱۴۰۵/۰۴/۲۶ — 2026-07-17  
+**هدف:** یکپارچه‌کردن backlogهای قبلی، failureهای regression، بدهی‌های فنی، US-435/436/437 و گیت Stage 0 در یک فهرست اولویت‌بندی‌شده.
+
+> این فایل وضعیت جاری را برای برنامه‌ریزی تکمیل می‌کند. تاریخچهٔ release noteها حذف نشده است. هر موردی که قبلاً «حل‌شده» اعلام شده اما کد فعلی آن را تأیید نمی‌کند، با وضعیت `Partial / Needs verification` ثبت شده است.
+
+## قواعد اولویت
+
+- **P0 — بحرانی:** امنیت، تمامیت دادهٔ مالی، خرابی runtime، backup/recovery، یا خطایی که تصمیم خرید/سود را غیرقابل‌اعتماد می‌کند.
+- **P1 — زیاد:** workflow اصلی فروش/تأمین/مالی، چاپ رسمی، پیوست‌ها و کیفیت داده که بهره‌برداری روزمره را مختل می‌کند.
+- **P2 — متوسط:** UX، AI، parser، واژه‌نامه و بدهی‌های فنی با اثر محدودتر.
+- **P3 — نگهداری تست/بسته:** assertion قدیمی، fixture یا مستندات/پکیج ناقص؛ نباید با تغییر بی‌دلیل کد محصول حل شود.
+
+## Family 1 — امنیت و آمادگی مالی
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P0 | `BUG-SYNC-DIVERGENCE` | دو browser/device می‌توانستند با cached `ptf_sync_rev` یکسان اما localStorage متفاوت، startup را fresh تشخیص دهند؛ startup full pull در v31.7.2 اضافه شد و tester178 سبز است | UAT دو browser/device روی server واقعی؛ بدون reset یا migration داده |
+| P0 | `BUG-SYNC-AUTH-RACE` | browser با token stale/expired، data_pull را 401 می‌گرفت و ممکن بود bootstrapped با local stale شود؛ refresh auth و retry pull در v31.7.2 اضافه شد و tester179 سبز است | UAT با token expired/stale در Chrome/Firefox و بررسی network |
+| P0 | `BUG-SYNC-ADMIN-TOKEN` | admin می‌تواند بدون رکورد `ptf_crm_users` لاگین شود اما token bootstrap قبلی به همان رکورد وابسته بود؛ fallback `ADMIN_HASH/adminHash` در v31.7.2 اضافه شد و tester180 سبز است | UAT admin با Network: auth_login 200 سپس data_pull 200 |
+| P0 | `BUG-SYNC-ROLE-ACL` | `api/crm.php`، `data_pull` را به `finance_read` و `data_push` را به `finance_write` وصل کرده؛ ACL فعلی فقط admin/chairman/ceo را می‌پذیرد، پس sales/buyer/accountant احتمالاً 403 می‌گیرند و sync نمی‌شوند | طراحی و تست role-scoped sync؛ بدون افزودن کورکورانهٔ همه نقش‌ها به finance ACL |
+| P0 | `BUG-SYNC-ROLE-ACL-IMPLEMENTED` | transport sync از finance ACL جدا شد؛ server key allowlist برای senior/accountant/sales/buyer/collector و client forbidden feedback اضافه شد؛ tester181 سبز است | staging/role matrix ضروری پیش از Production |
+| P0 | `CODEGEN-OFFER-SERVER` | offerSerial قبلاً max localStorage را می‌خواند و server reserve فقط async pool بود؛ existing offer scan سرور، strict TMP و block ذخیرهٔ TMP اضافه شد؛ tester182 سبز است | UAT duplicate audit و repair references؛ بدون rename خودکار دادهٔ موجود |
+
+| P0 | `FIN-WF-001 / TECHDEBT-001` | ناقص؛ token برای data push/pull هست، اما session server-side، حذف اعتماد legacy و sanitization کامل نیست | تصمیم policy و staging، سپس PoC-A/B و evidence |
+| P0 | `STAGE0-POLICY-001` | تصمیم `local-only` توسط کارفرما ثبت و بسته شد؛ private sync و recovery چنددستگاهی خارج از scope است | نگه‌داشتن policy record و عدم migration شخصی |
+| P0 | `STAGE0-ENV-001` | staging جدا با دادهٔ fixture و backup فراهم نشده؛ blocker فعال Stage 0 | subdomain/webroot مستقل |
+| P0 | `FIN-WF-002` | policy `local-only` تأیید شده؛ جداسازی per-user و اعلان شخصی در source موجود است؛ recovery چنددستگاهی عمداً خارج از scope است | hardening مالکیت/اعلان و UAT بدون sync عمومی |
+| P0 | `FIN-WF-003` | چک شرکتی در `ptf_crm_cheques` و گزارش fiscal موجود است؛ company hub مستقل و server/API ownership کامل نیست | `US-FIN-CHQ-COMPANY-HUB` پس از Stage 0 |
+| P1 | `US-FIN-CHQ-LOCAL-ONLY` | چک شخصی در کلید per-user، خارج از sync عمومی و با اعلان فقط به مالک؛ recovery چنددستگاهی خارج از scope | hardening و UAT مالکیت/اعلان، بدون تغییر رقم شرکت |
+| P1 | `US-FIN-CHQ-COMPANY-HUB` | تب مستقل چک شرکتی در هاب مالی، روی کلید موجود `ptf_crm_cheques` و predicate `ownership=company` | طراحی/پیاده‌سازی پس از staging و role policy؛ بدون کلید جدید |
+| P0 | `FIN-WF-004` | guard سال مالی برای invoice، receipt، shareholder و salary در `v31.6.5` تکمیل شد؛ سایر mutationها guard قبلی دارند | UAT ماتریسی و بازبینی مسیرهای باقی‌مانده |
+| P1 | `FIN-WF-006` | در hotfix بعدی `v31.6.4` هستهٔ ابطال وصولی با reversal منفی، دلیل، audit و گارد سال مالی اضافه شد | UAT مالی و بررسی گزارش مانده پس از deploy |
+| P1 | `FIN-WF-007` | grouping سال مالی هنوز به parser محدود تاریخ وابسته است | canonical ISO/Jalali adapter |
+| P1 | `FIN-WF-009` | مسیر settled به void و transaction معکوس وجود دارد؛ regression کامل v31.7.2 سبز است | verification مالی تکمیلی در staging/Production |
+| P1 | `FIN-WF-010` | orphan purge در سال قفل‌شده را skip می‌کند، اما retention/preview کامل نیست | حذف امن، preview و retention |
+| P1 | `FIN-WF-011` | چند override در supplier finance باقی است | consolidation با regression |
+| P1 | `FIN-WF-012` | reconciliation افتتاحیهٔ تأمین با گزارش رسمی کامل نیست | گزارش مغایرت و منع دوباره‌شماری |
+| P1 | `FIN-WF-013` | `autoSettle` در مختومه‌سازی وجود دارد و reversal کامل ندارد | lifecycle قابل برگشت |
+| P2 | `FIN-WF-014` | policy واحد نقش‌های مالی پیدا نشد | matrix نقش × عملیات |
+| P2 | `FIN-WF-015` | quality dashboard و classification legacy کامل نیست | گزارش فقط‌خواندنی کیفیت داده |
+| P2 | `FIN-WF-016` | سند recognition و قالب reconciliation در source موجود است؛ تغییر خودکار داده انجام نمی‌شود | review کسب‌وکاری و UAT گزارش |
+| P2 | `FIN-WF-017` | Bank/Cash طبق گیت P0/P1 متوقف است | فقط پس از عبور از گیت‌ها |
+| P2 | `FIN-WF-018` | audit مالی هنوز local/sync-based است | append-only server audit |
+
+**آیتم‌های code-level که در source فعلی وجود دارند و فعلاً در فهرست باز اصلی نیستند:** `FIN-WF-005` merge نوع‌دار تأمین، `FIN-WF-008` جلوگیری دوباره‌شماری opex لینک‌دار، `FIN-WF-009` void تنخواه settled، `FIN-EX-01/02` کنترل تکراری فاکتور/صیادی. این‌ها همچنان نیازمند verification جاری‌اند.
+
+## Family 2 — فروش و فرصت‌ها
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P0 | `BUG-OPPO-SYNTAX` | در source رفع شد؛ `node --check`، `tester127` و regression کامل v31.7.2 سبز | نگه‌داشتن evidence و UAT مرورگر |
+| P1 | `US-435` | اتصال UI و predicate فعال مشتری در `v31.7.2` انجام شد؛ regression کامل ۱۴۹ فایل و ۳۷۱۹ چک سبز است | targeted UAT مرورگر و نگه‌داشتن evidence |
+| P1 | `SALESFILE-REG-107/108/109` | failureهای مربوط به پرونده/QC/پیش‌پرداخت نیازمند triage واقعی | تحلیل مسیر مشترک salesfiles/rbac |
+| P1 | `SALESFILE-POSTAWARD-001` | guard هسته برای جلوگیری از QC/ارسال/تحویل پیش از برد اضافه شد؛ tester175 سبز است | UAT مرورگر و بررسی role/path واقعی |
+| P2 | `TECHDEBT-002` | ماژول‌های AI/خواندن سند موازی هنوز هم‌خانواده نشده‌اند | تصمیم ادغام |
+| P2 | `TECHDEBT-006` | واژه‌های مشتری/کارفرما/خریدار/استعلام یکسان نشده‌اند | glossary و migration صرفاً UI |
+
+**محدودیت:** US-435 در source فعال است؛ این release فقط guardهای integrity پرونده فروش را harden می‌کند و UAT مرورگر/Stage 0 را bypass نمی‌کند.
+
+## Family 3 — تطبیق خرید، استعلام و پیشنهاد
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P0 | `BUG-PROC-LINK-287 / FIN-WF-019` | resolver و لایهٔ انتخاب خرید واقعی با provenance پایدار در `v31.7.2` تکمیل شد؛ دادهٔ legacy بدون provenance عمداً انتخاب نمی‌شود | UAT و بررسی موارد legacy مبهم، بدون migration خودکار |
+| P0 | `REG-103` | بخش index-based در Optimizer اصلاح شد؛ fixture provenanceدار، تست targeted و regression کامل v31.7.2 سبز هستند | بررسی browser واقعی و موارد legacy مبهم |
+| P1 | `REG-112` | mapping سود و نام قلم در مسیرهای FX/supplier-finance دیگر به index متکی نیست؛ tester176 سبز است؛ golden print/CO/TC هنوز نیازمند UAT است | تست golden و UAT باقی‌مانده |
+| P1 | `PROCUREMENT-PROFIT-001` | `fx.js` و مسیرهای ledger هنوز residual index mapping داشتند؛ resolver provenanceدار اضافه و legacy مبهم عمداً کنار گذاشته شد | UAT reorder/legacy و بررسی browser واقعی |
+| P1 | `REG-11` | جدول قیمت/تحویل RFQ failure دارد | browser/UAT و بررسی renderer |
+| P2 | `TECHDEBT-005` | مسیرهای AI Workbench و upload/storage از fallbackهای random عملیاتی پاک شدند؛ tester177 سبز است | نگه‌داشتن contract test و بررسی سایر fallbackهای legacy خارج از این ماژول |
+| P2 | `CODEGEN-FALLBACK-001` | تولید کد AI، پیش‌نویس پیشنهاد/نامه و شناسه upload به generator مرکزی متصل شدند | بررسی UAT ساخت رکورد از AI و نگه‌داشتن tester177 |
+| P2 | `TECHDEBT-004` | polling/setInterval در چند مسیر باقی است | مهاجرت event-hook، بدون تغییر هم‌زمان معماری اصلی |
+
+## Family 4 — موجودی مازاد پروژه
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P1 | `US-436` | light scope در source فعال؛ ثبت، جستجو، sync، backup، provenance، رزرو، commit فروش برنده و آزادسازی باخت پوشش داده شد | UAT واقعی مسیر فروش برنده و کنترل چنددستگاهی؛ انبار کامل خارج از scope |
+| P1 | `SURPLUS-DATA-001` | `ptf_crm_surplus` در sync/API/backup whitelist شده است | نگه‌داشتن regression و بررسی deploy staging/Production |
+| P1 | `SURPLUS-LIFECYCLE-001` | `available/reserved/sold` با qty، provenance، commit idempotent برد و release باخت فعال است | UAT واقعی و بررسی تعارض چندکاربره؛ انبار کامل خارج از scope |
+| P2 | `SURPLUS-UI-001` | search و badge per-item در source فعال است | UAT بصری مرورگر |
+
+**محدودیت:** US-436 فقط در دامنهٔ light «موجودی مازاد پروژه / انبار سبک» فعال است؛ انبار کامل، انتقال بین انبارها و شمارش دوره‌ای خارج از scope هستند. هر توسعهٔ انبار کامل نیازمند approval و roadmap مستقل است.
+
+## Family 5 — فاکتور سپیدار/مودیان
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P1 | `US-437` | در `v31.7.2` rollback شده؛ فقط مستندات/کیس‌استادی | parked تا approval مستقل و طراحی workflow |
+| P1 | `INVOICE-WF-001` | `invoiceType`, `sepidarStatus`, `modianStatus` در source جاری پیدا نشد | تصمیم مدل رکورد/دو فایل/transitionها |
+
+## Family 6 — گزارش، چاپ، پیوست و backup
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P0 | `BACKUP-REG-095` | پوشش کلیدهای sync/API و backup هم‌راستا شد؛ `ptf_crm_trash` به backup اضافه شد و tester173 سبز است | نگه‌داشتن contract test و verification restore روی staging |
+| P1 | `GOLIVE-RESET-001` | `ptf_crm_payables` و `ptf_crm_surplus` در reset تراکنشی نبودند؛ در v31.7.2 به `WIPE_KEYS` اضافه و tester174 سبز شد | verification غیرمخرب pre-golive روی staging |
+| P1 | `REG-121` | تاریخ/چک در سند و دادهٔ داخلی failure دارد | canonical date test |
+| P1 | `REG-128` | گیرندهٔ TO در چاپ fail است | targeted print test |
+| P1 | `REG-62` | بلوک To/legacy/terms در قالب‌ها fail است | print matrix |
+| P1 | `REG-67` | attachment display/path fail است | storage/attachment verification |
+| P1 | `REG-75` | TC/CO/FX print و persistence fail است | test golden قالب‌ها |
+| P1 | `BUG-PRINT-PAGING` | در اسناد باز و بدون closure معتبر | نمونه PDF واقعی و تأیید بصری |
+| P1 | `FX-CONFIG-001` | whitelist `fx-rates` در `api/.htaccess` نیست | اصلاح package/config با تست deploy |
+| P2 | `REG-87` | `ptfFxDiag` failure دارد | بررسی proxy diagnostic |
+| P2 | `REG-111` | functionality وجود دارد، label مورد انتظار tester drift دارد | update assertion یا تصمیم label |
+
+## Family 7 — AI، ورودی و UX
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P1 | `REG-41` | پاک‌سازی Markdown خام LLM fail است | parser hardening |
+| P1 | `REG-3` | malformed data rejection fail است | abuse/validation test |
+| P2 | `REG-35` | brand optional در TC fail است | تصمیم workflow TC |
+| P2 | `REG-57` | phone normalization و modal placement failure دارد | targeted browser test |
+| P2 | `REG-88` | brand و offerSave validation hook failure دارد | triage با regression v170 |
+| P2 | `BUG-033 / REG-117/118` | failure تکرارشوندهٔ modal/AI | owner و reproduction مستقل |
+| P3 | `REG-116`, `REG-43` | style نقطهٔ بنفش دستیار | UI cleanup |
+| P2 | `REG-60` | سقف‌های log/notif قدیمی fail است | retention policy |
+
+## Family 8 — کیفیت تست، پکیج و مستندات
+
+| اولویت | شناسه | وضعیت جاری | اقدام بعدی |
+|---|---|---|---|
+| P0 | `REG-RUNNER-149/150/151` | parser runner فعلی هر دو الگوی خروجی را می‌خواند؛ full regression v31.7.2 سبز است | نگه‌داشتن regression gate؛ تغییر محصول لازم نیست |
+| P0 | `REG-127` | syntax failure با fix فعلی رفع شد | تبدیل به regression syntax gate |
+| P2 | `TECHDEBT-003` | closure معتبر برای fallback دستیار پیدا نشد | design/host evidence |
+| P3 | `REG-136/137` | assertion دقیق v22.0 | version-free tester |
+| P3 | `REG-138/139/140/141/142/143/144/146/147/148` | assertion دقیق v26.7 یا نام/ترتیب قدیمی | version-free tester و assertion capability-based |
+| P3 | `REG-40` | مستند `ASSESSMENT-MOBILE-UX-v122.md` در بسته نیست | restore doc یا حذف assertion تاریخی |
+| P3 | `REG-44` | assertion برای note نسخهٔ قدیمی | update tester |
+| P3 | `REG-45` | تستر API قدیمی `uc()` در برابر `ptfUnifiedCode` | update harness |
+| P3 | `REG-53` | wording قدیمی با functionality موجود | update assertion |
+| P3 | `REG-54` | assessment messaging/APK در package نیست | package hygiene |
+| P3 | `REG-55` | bot guide/.well-known/package artifacts ناقص | package hygiene |
+| P3 | `REG-65` | artifact `BACKLOG-CORRECTIONS-R3.md` و assertion قدیمی | package/test cleanup |
+| P3 | `REG-7/63` | dependency در eval تستر فراهم نشده؛ تابع در offers.js وجود دارد | harness isolation fix |
+| P3 | `REG-124` | dependency داخلی cheques در eval تستر فراهم نشده | harness isolation fix |
+| P3 | `REG-126` | assertion source قدیمی؛ رفتار runtime PASS است | update assertion |
+| P3 | `REG-145` | یک assertion source شکننده + نسخهٔ قدیمی | update capability-based tester |
+| P3 | `REG-8` | `.htaccess` ریشه و artifactهای قدیمی package نیستند | release package hygiene |
+| P3 | `REG-99` | fixture قفل‌کردن سال جاری با policy جدید v29.4 ناسازگار است | update fixture/policy assertion |
+
+## اولویت اجرایی خانواده‌ها
+
+1. **P0 — Stage 0 / FIN-WF-001 / staging / regression gate (policy local-only بسته شد)**
+2. **P0 — procurement mapping و data integrity**
+3. **P0/P1 — salesfiles و پرونده‌های فروش**
+4. **P0/P1 — backup، FX config و چاپ مالی**
+5. **P1 — RFQ و گزارش‌های مالی**
+6. **P1 — US-435 پس از تثبیت runtime و approval scope**
+7. **P1 — US-436 light: UAT واقعی و کنترل چندکاربره؛ انبار کامل خارج از scope**
+8. **P1 — US-437 فقط بعد از approval مستقل؛ فعلاً parked**
+9. **P2 — AI/UX/terminology**
+10. **P3 — پاک‌سازی تسترها و artifactهای release**
+
+## وضعیت پذیرش
+
+تا زمانی که گیت `audit.py` و regression کامل با `checks_fail=0` و بدون failure معتبر سبز نشود، هیچ موردی صرفاً به‌دلیل وجود کد یا release note به `Done/Fixed` منتقل نمی‌شود.

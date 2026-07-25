@@ -1,0 +1,361 @@
+/* =====================================================================
+   PTF CRM — Sprint 65 — US-111
+   تحلیلگر هوشمند: قیف فروش، گلوگاه، پیش‌بینی درآمد، Lead Scoring،
+   پیشنهادات عملیاتی — موتور قواعد محلی (بدون وابستگی خارجی)
+   ===================================================================== */
+
+var ANL_STAGES = [
+  { id: 'st1', lb: 'دریافت اولیه' }, { id: 'st2', lb: 'بررسی فنی' }, { id: 'st3', lb: 'استعلام تامین' },
+  { id: 'st4', lb: 'ارسال پیشنهاد' }, { id: 'st5', lb: 'مذاکره' }, { id: 'st6', lb: 'سفارش' }, { id: 'st7', lb: 'تحویل' }
+];
+
+function _daysBetween(iso1, iso2) {
+  try { return Math.max(0, Math.round((new Date(iso2) - new Date(iso1)) / 864e5)); } catch (e) { return 0; }
+}
+
+/* ---------- ۱. تحلیل قیف پیشنهادها (TO/CO) ---------- */
+function anlOfferFunnel() {
+  var offers = getData('ptf_crm_offers');
+  var cos = offers.filter(function (o) { return o.kind === 'CO'; });
+  var draft = cos.filter(function (o) { return o.st === 'draft'; }).length;
+  var sent = cos.filter(function (o) { return o.st === 'sent'; }).length;
+  var won = cos.filter(function (o) { return o.st === 'won'; }).length;
+  var lost = cos.filter(function (o) { return o.st === 'lost'; }).length;
+  var closed = won + lost;
+  var winRate = closed ? Math.round(won * 100 / closed) : null;
+  var totalWonValue = 0;
+  cos.filter(function (o) { return o.st === 'won'; }).forEach(function (o) {
+    totalWonValue += (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+  });
+  return { total: cos.length, draft: draft, sent: sent, won: won, lost: lost, winRate: winRate, wonValue: totalWonValue,
+    tos: offers.filter(function (o) { return o.kind === 'TO'; }).length };
+}
+
+/* ---------- v31.7.13 US-OFF-MARGIN-ANL: احتمال برد بر حسب حاشیه سود کلی ----------
+   یادگیری تدریجی از سوابق: هر CO/TC بسته‌شده (برنده/بازنده) با حاشیه کل محاسبه‌پذیر
+   در بازه حاشیه خودش می‌نشیند؛ نرخ برد هر بازه = برآورد احتمال برد با آن حاشیه.
+   اعتماد (confidence) با حجم نمونه هر بازه گزارش می‌شود تا تصمیم کور گرفته نشود. */
+var ANL_MARGIN_BUCKETS = [
+  { lb: 'زیر ۰٪ (زیان)', min: -Infinity, max: 0 },
+  { lb: '۰ تا ۵٪', min: 0, max: 5 },
+  { lb: '۵ تا ۱۰٪', min: 5, max: 10 },
+  { lb: '۱۰ تا ۱۵٪', min: 10, max: 15 },
+  { lb: '۱۵ تا ۲۰٪', min: 15, max: 20 },
+  { lb: '۲۰ تا ۳۰٪', min: 20, max: 30 },
+  { lb: 'بالای ۳۰٪', min: 30, max: Infinity }
+];
+function anlMarginWinCurve() {
+  var offers = getData('ptf_crm_offers');
+  var closed = offers.filter(function (o) { return (o.kind === 'CO' || o.kind === 'TC') && (o.st === 'won' || o.st === 'lost'); });
+  var buckets = ANL_MARGIN_BUCKETS.map(function (b) { return { lb: b.lb, min: b.min, max: b.max, won: 0, lost: 0, n: 0 }; });
+  var usable = 0, skipped = 0;
+  closed.forEach(function (o) {
+    /* snapshot لحظه بسته‌شدن مقدم است؛ سوابق قدیمی بدون snapshot از محاسبه زنده استفاده می‌کنند */
+    var om = (o.marginAtClose && o.marginAtClose.marginPct != null) ? o.marginAtClose
+      : ((typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null);
+    var m = om && om.marginPct != null ? om.marginPct : null;
+    if (m == null) { skipped++; return; }
+    usable++;
+    for (var i = 0; i < buckets.length; i++) {
+      if (m > buckets[i].min - 1e-9 && m <= buckets[i].max) {
+        if (o.st === 'won') buckets[i].won++; else buckets[i].lost++;
+        buckets[i].n++;
+        break;
+      }
+    }
+  });
+  buckets.forEach(function (b) {
+    b.winPct = b.n ? Math.round(b.won * 100 / b.n) : null;
+    /* اعتماد ساده مبتنی بر حجم نمونه: <3 کم | 3-9 متوسط | >=10 بالا */
+    b.conf = b.n >= 10 ? 'بالا' : b.n >= 3 ? 'متوسط' : b.n >= 1 ? 'کم' : null;
+  });
+  /* بهترین بازه: بیشینه winPct در میان بازه‌های دارای حداقل ۳ نمونه */
+  var best = null;
+  buckets.forEach(function (b) { if (b.n >= 3 && b.winPct != null && (!best || b.winPct > best.winPct)) best = b; });
+  return { buckets: buckets, usable: usable, skipped: skipped, closedTotal: closed.length, best: best };
+}
+window.anlMarginWinCurve = anlMarginWinCurve;
+
+/* ---------- ۲. تحلیل لیدها ---------- */
+function anlLeads() {
+  var leads = getData('ptf_crm_leads');
+  var open_ = leads.filter(function (l) { return l.stage !== 'won' && l.stage !== 'lost'; });
+  var won = leads.filter(function (l) { return l.stage === 'won'; });
+  var lost = leads.filter(function (l) { return l.stage === 'lost'; });
+  var rate = leads.length ? Math.round(won.length * 100 / leads.length) : null;
+  var days = won.filter(function (l) { return l.firstISO && l.convISO; })
+    .map(function (l) { return _daysBetween(l.firstISO, l.convISO); });
+  var avgDays = days.length ? Math.round(days.reduce(function (a, b) { return a + b; }, 0) / days.length) : null;
+  // بهترین منبع
+  var bySrc = {};
+  leads.forEach(function (l) {
+    var s = l.src || '?';
+    bySrc[s] = bySrc[s] || { t: 0, w: 0 };
+    bySrc[s].t++;
+    if (l.stage === 'won') bySrc[s].w++;
+  });
+  var bestSrc = null, bestRate = -1;
+  Object.keys(bySrc).forEach(function (k) {
+    if (bySrc[k].t >= 2) {
+      var r = bySrc[k].w / bySrc[k].t;
+      if (r > bestRate) { bestRate = r; bestSrc = k; }
+    }
+  });
+  return { total: leads.length, open: open_.length, won: won.length, lost: lost.length,
+    rate: rate, avgDays: avgDays, bestSrc: bestSrc, bySrc: bySrc, openList: open_ };
+}
+
+/* ---------- ۳. Lead Scoring (AC4) ---------- */
+function anlScoreLead(l) {
+  var score = 0;
+  // ارزش برآوردی
+  var v = +l.val || 0;
+  if (v >= 5e9) score += 30; else if (v >= 1e9) score += 22; else if (v >= 2e8) score += 14; else if (v > 0) score += 7;
+  // صنعت هدف
+  if (['نفت و گاز', 'پتروشیمی', 'نیروگاه', 'فولاد'].indexOf(l.ind) > -1) score += 15;
+  // منبع (معرفی و نمایشگاه گرم‌ترند)
+  if (l.src === 'معرفی') score += 15; else if (l.src === 'نمایشگاه') score += 10; else if (l.src === 'وب‌سایت') score += 8; else score += 4;
+  // فعالیت: تعداد پیگیری‌ها
+  var fu = (l.hist || []).filter(function (h) { return h.k !== 'ثبت' && h.k !== 'وضعیت'; }).length;
+  score += Math.min(20, fu * 5);
+  // پیشرفت مرحله
+  var stagePts = { new: 0, call1: 5, nego: 12, offer: 20 };
+  score += stagePts[l.stage] || 0;
+  // تازگی: اگر آخرین رویداد قدیمی است، کسر
+  return Math.min(100, score);
+}
+
+/* ---------- ۴. پیش‌بینی درآمد (AC1 — میانگین متحرک ساده) ---------- */
+function anlForecast() {
+  // از فاکتورها (وصولی‌ها) و CO های برنده
+  var invs = getData('ptf_crm_invoices');
+  var totalInvoiced = invs.reduce(function (s, i) { return s + (+i.amount || 0); }, 0);
+  var totalPaid = 0;
+  invs.forEach(function (i) { ((i.payments || []).concat(i.pays || [])).forEach(function (p) { totalPaid += +p.amt || 0; }); });
+  var openRecv = Math.max(0, totalInvoiced - totalPaid);
+  var f = anlOfferFunnel();
+  // پایپ‌لاین وزنی: sent با احتمال winRate (یا ۳۰٪ پیش‌فرض)
+  var sentValue = 0;
+  getData('ptf_crm_offers').filter(function (o) { return o.kind === 'CO' && o.st === 'sent'; }).forEach(function (o) {
+    sentValue += (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+  });
+  var p = f.winRate != null ? f.winRate / 100 : 0.3;
+  return { invoiced: totalInvoiced, paid: totalPaid, openRecv: openRecv,
+    pipeline: sentValue, weighted: Math.round(sentValue * p), winP: Math.round(p * 100) };
+}
+
+/* ---------- ۵. پیشنهادات عملیاتی (AC2) ---------- */
+function anlSuggestions() {
+  var out = [];
+  var today = new Date().toISOString().slice(0, 10);
+
+  // لیدهای بدون پیگیری > ۷ روز
+  getData('ptf_crm_leads').forEach(function (l) {
+    if (l.stage === 'won' || l.stage === 'lost') return;
+    var last = l.firstISO;
+    (l.hist || []).forEach(function (h) { if (h.nextISO) last = h.nextISO; });
+    if (last && _daysBetween(last, today) > 7)
+      out.push({ p: 1, icon: '🔔', tx: 'لید «' + l.co + '» بیش از ۷ روز بدون پیگیری است', act: { panel: 'leads' } });
+  });
+
+  // CO های sent قدیمی
+  getData('ptf_crm_offers').forEach(function (o) {
+    if (o.kind === 'CO' && o.st === 'sent' && o.dateEn && _daysBetween(o.dateEn, today) > 10)
+      out.push({ p: 1, icon: '📄', tx: 'پیشنهاد ' + o.no + ' (' + (o.buyerCo || '') + ') ' + _daysBetween(o.dateEn, today) + ' روز بدون تعیین تکلیف — پیگیری کنید', act: { panel: 'off' } });
+  });
+
+  // فاکتورهای وصول‌نشده
+  getData('ptf_crm_invoices').forEach(function (i) {
+    var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    if (paid < i.amount)
+      out.push({ p: 2, icon: '💰', tx: 'فاکتور ' + i.no + ': ' + Math.round((i.amount - paid)).toLocaleString('fa-IR') + ' ریال وصول‌نشده', act: { panel: 'recv' } });
+  });
+
+  // درخواست‌های بدون پیشنهاد
+  var iq = {};
+  getData('ptf_crm_inqitems').forEach(function (r) { iq[r.inqNo] = 1; });
+  var offers = getData('ptf_crm_offers');
+  Object.keys(iq).forEach(function (k) {
+    if (!offers.filter(function (o) { return o.inqNo === k; }).length)
+      out.push({ p: 1, icon: '📋', tx: 'درخواست ' + k + ' اقلام دارد ولی هنوز پیشنهادی صادر نشده', act: { panel: 'inqs' } });
+  });
+
+  // یادآورهای عقب‌افتاده (فقط موارد مربوط به کاربر جاری)
+  var over = getData('ptf_crm_reminders').filter(function (r) {
+    if (!(r.st === 'open' && r.dueISO < today)) return false;
+    if (typeof remIsMine === 'function') return remIsMine(r);
+    return true;
+  }).length;
+  if (over) out.push({ p: 1, icon: '⏰', tx: over + ' یادآور عقب‌افتاده دارید', act: { panel: 'rem' } });
+
+  // پرونده‌های تحویل جزئی
+  getData('ptf_crm_projects').forEach(function (p) {
+    if (p.state === 'partial')
+      out.push({ p: 3, icon: '📦', tx: 'پرونده ' + p.no + ' در وضعیت تحویل جزئی — اقلام باقیمانده را برنامه‌ریزی کنید', act: { panel: 'prj' } });
+  });
+
+  // نامه‌های در انتظار امضا
+  var pend = getData('ptf_crm_letters').filter(function (l) { return l.st === 'pending'; }).length;
+  if (pend) out.push({ p: 2, icon: '✍️', tx: pend + ' نامه در انتظار امضاست', act: { panel: 'let' } });
+
+  out.sort(function (a, b) { return a.p - b.p; });
+  return out.slice(0, 12);
+}
+
+/* ---------- UI پنل تحلیلگر ---------- */
+function buildAnalyzer() {
+  return '<div class="ph"><h3>📊 تحلیلگر هوشمند</h3>' +
+    '<div class="sb2"><button class="bt bt-o" onclick="anlExportReport()">🖨️ گزارش PDF</button></div></div>' +
+    '<div id="anlWrap"></div>';
+}
+
+function _bar(pct, color) {
+  return '<div style="background:#f1f5f9;border-radius:7px;height:12px;position:relative;overflow:hidden;min-width:80px">' +
+    '<div style="position:absolute;right:0;top:0;bottom:0;width:' + Math.min(100, pct) + '%;background:' + color + '"></div></div>';
+}
+
+function renderAnalyzer() {
+  var el = document.getElementById('anlWrap');
+  if (!el) return;
+  var f = anlOfferFunnel();
+  var ld = anlLeads();
+  var fc = anlForecast();
+  var sugg = anlSuggestions();
+
+  // کارت‌های کلیدی
+  var h = '<div class="sr" style="grid-template-columns:repeat(4,1fr)">' +
+    '<div class="sc"><b>' + (f.winRate != null ? f.winRate + '٪' : '—') + '</b><span>نرخ برد پیشنهادها (CO)</span></div>' +
+    '<div class="sc"><b>' + (ld.rate != null ? ld.rate + '٪' : '—') + '</b><span>نرخ تبدیل لیدها</span></div>' +
+    '<div class="sc"><b>' + (ld.avgDays != null ? ld.avgDays + ' روز' : '—') + '</b><span>میانگین زمان تبدیل لید</span></div>' +
+    '<div class="sc"><b style="color:#dc2626">' + fc.openRecv.toLocaleString('fa-IR') + '</b><span>مطالبات باز (ریال)</span></div>' +
+    '</div>';
+
+  // قیف پیشنهادها
+  var maxF = Math.max(f.draft, f.sent, f.won, f.lost, 1);
+  h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px">' +
+    '<h4 style="margin:0 0 10px;font-size:13.5px">📄 قیف پیشنهادهای مالی (CO) — کل: ' + f.total + ' | TO: ' + f.tos + '</h4>' +
+    [['پیش‌نویس', f.draft, '#94a3b8'], ['ارسال‌شده', f.sent, '#0ea5e9'], ['برنده 🏆', f.won, '#10b981'], ['بازنده', f.lost, '#ef4444']].map(function (r) {
+      return '<div style="display:grid;grid-template-columns:80px 1fr 40px;gap:8px;align-items:center;margin-bottom:6px;font-size:12.5px">' +
+        '<span>' + r[0] + '</span>' + _bar(r[1] * 100 / maxF, r[2]) + '<b>' + r[1] + '</b></div>';
+    }).join('') +
+    (f.won ? '<div style="font-size:12px;color:#047857;margin-top:6px">ارزش کل بردها: ' + f.wonValue.toLocaleString('fa-IR') + ' ریال</div>' : '') +
+    '</div>';
+
+  /* v31.7.13 US-OFF-MARGIN-ANL: نمودار احتمال برد بر حسب حاشیه سود کلی */
+  try {
+    var mw = anlMarginWinCurve();
+    var mwRows = mw.buckets.map(function (b) {
+      if (!b.n) return '<div style="display:grid;grid-template-columns:110px 1fr 120px;gap:8px;align-items:center;margin-bottom:6px;font-size:12px;color:#cbd5e1"><span>' + b.lb + '</span>' + _bar(0, '#e2e8f0') + '<span>بدون سابقه</span></div>';
+      var col = b.winPct >= 60 ? '#10b981' : b.winPct >= 35 ? '#f59e0b' : '#ef4444';
+      return '<div style="display:grid;grid-template-columns:110px 1fr 120px;gap:8px;align-items:center;margin-bottom:6px;font-size:12px">' +
+        '<span>' + b.lb + '</span>' + _bar(b.winPct, col) +
+        '<span title="' + b.won + ' برد از ' + b.n + ' پیشنهاد بسته‌شده"><b>' + b.winPct + '٪</b> <small style="color:#64748b">(' + b.won + '/' + b.n + ' | اعتماد ' + b.conf + ')</small></span></div>';
+    }).join('');
+    h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px">' +
+      '<h4 style="margin:0 0 4px;font-size:13.5px">📈 احتمال برد بر حسب حاشیه سود کلی صورت</h4>' +
+      '<div style="font-size:11px;color:#64748b;margin-bottom:10px">مبنا: ' + mw.usable + ' پیشنهاد بسته‌شده دارای نرخ مرجع خرید' + (mw.skipped ? ' — ' + mw.skipped + ' پیشنهاد بدون نرخ مرجع از تحلیل خارج شد (برای دقت بیشتر، نرخ مرجع اقلام را کامل کنید)' : '') + '</div>' +
+      (mw.usable ? mwRows : '<div style="text-align:center;color:#94a3b8;padding:14px;font-size:12.5px">هنوز پیشنهاد بسته‌شده‌ای با نرخ مرجع ثبت نشده — با برنده/بازنده شدن پیشنهادها، این نمودار به‌مرور شکل می‌گیرد.</div>') +
+      (mw.best ? '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;margin-top:8px;font-size:12.5px;color:#047857">💡 <b>پیشنهاد سیستم:</b> بازه «' + mw.best.lb + '» تاکنون بالاترین نرخ برد را داشته (' + mw.best.winPct + '٪ از ' + mw.best.n + ' مورد — اعتماد ' + mw.best.conf + ').' + (mw.usable < 10 ? ' <span style="color:#b45309">حجم نمونه هنوز کم است؛ با بسته‌شدن پیشنهادهای بیشتر، اتکاپذیری بالا می‌رود.</span>' : '') + '</div>' : '') +
+      '</div>';
+  } catch (eMW) {}
+
+  // پیش‌بینی درآمد
+  h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px">' +
+    '<h4 style="margin:0 0 10px;font-size:13.5px">🔮 پیش‌بینی و جریان مالی</h4>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;font-size:12.5px">' +
+    '<div style="background:#f8fafc;border-radius:10px;padding:10px"><b style="display:block;font-size:15px">' + fc.invoiced.toLocaleString('fa-IR') + '</b>فاکتور شده</div>' +
+    '<div style="background:#ecfdf5;border-radius:10px;padding:10px"><b style="display:block;font-size:15px;color:#047857">' + fc.paid.toLocaleString('fa-IR') + '</b>وصول شده</div>' +
+    '<div style="background:#eff6ff;border-radius:10px;padding:10px"><b style="display:block;font-size:15px;color:#1d4ed8">' + fc.pipeline.toLocaleString('fa-IR') + '</b>پایپ‌لاین (COهای ارسالی)</div>' +
+    '<div style="background:#fdf4ff;border-radius:10px;padding:10px"><b style="display:block;font-size:15px;color:#a21caf">' + fc.weighted.toLocaleString('fa-IR') + '</b>پیش‌بینی وزنی (احتمال ' + fc.winP + '٪)</div>' +
+    '</div></div>';
+
+  // منابع لید
+  if (ld.total) {
+    h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px">' +
+      '<h4 style="margin:0 0 10px;font-size:13.5px">🎯 عملکرد منابع لید' + (ld.bestSrc ? ' — بهترین: <b style="color:#0e7490">' + escP(ld.bestSrc) + '</b>' : '') + '</h4>' +
+      Object.keys(ld.bySrc).map(function (k) {
+        var v = ld.bySrc[k];
+        var r = v.t ? Math.round(v.w * 100 / v.t) : 0;
+        return '<div style="display:grid;grid-template-columns:90px 1fr 90px;gap:8px;align-items:center;margin-bottom:6px;font-size:12.5px">' +
+          '<span>' + escP(k) + '</span>' + _bar(r, '#f79400') + '<span>' + v.w + '/' + v.t + ' (' + r + '٪)</span></div>';
+      }).join('') + '</div>';
+  }
+
+  // Lead Scoring
+  var scored = ld.openList.map(function (l) { return { l: l, s: anlScoreLead(l) }; })
+    .sort(function (a, b) { return b.s - a.s; }).slice(0, 8);
+  if (scored.length) {
+    h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px">' +
+      '<h4 style="margin:0 0 10px;font-size:13.5px">🏅 اولویت‌بندی لیدهای باز (Lead Scoring)</h4>' +
+      '<div class="tb2"><table><thead><tr><th>امتیاز</th><th>شرکت</th><th>مرحله</th><th>ارزش</th><th>منبع</th></tr></thead><tbody>' +
+      scored.map(function (x) {
+        var cl = x.s >= 60 ? '#10b981' : x.s >= 35 ? '#f59e0b' : '#94a3b8';
+        return '<tr style="cursor:pointer" onclick="goPanelByName(\'leads\')"><td><b style="color:' + cl + '">' + x.s + '</b></td>' +
+          '<td>' + escP(x.l.co) + '</td><td>' + escP((typeof stageOf === 'function' ? stageOf(x.l.stage).lb : x.l.stage)) + '</td>' +
+          '<td>' + (x.l.val ? (+x.l.val).toLocaleString('fa-IR') : '-') + '</td><td>' + escP(x.l.src || '-') + '</td></tr>';
+      }).join('') + '</tbody></table></div></div>';
+  }
+
+  // پیشنهادات عملیاتی
+  h += '<div style="background:#fff8f5;border:1px solid #fecaca;border-radius:14px;padding:14px">' +
+    '<h4 style="margin:0 0 10px;font-size:13.5px;color:#b91c1c">💡 پیشنهادات عملیاتی (' + sugg.length + ')</h4>' +
+    (sugg.length ? sugg.map(function (s) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #fecaca;font-size:12.5px">' +
+        '<span>' + s.icon + ' ' + escP(s.tx) + '</span>' +
+        '<button class="bt bt-o" style="padding:3px 10px;font-size:11px" onclick="goPanelByName(\'' + s.act.panel + '\')">برو ↗</button></div>';
+    }).join('') : '<div style="color:#94a3b8;font-size:12px">فعلاً موردی نیست — همه چیز به‌روز است 👌</div>') +
+    '</div>';
+
+  el.innerHTML = h;
+}
+
+/* ---------- گزارش PDF (AC6) ---------- */
+function anlExportReport() {
+  var f = anlOfferFunnel(), ld = anlLeads(), fc = anlForecast(), sugg = anlSuggestions();
+  var row = function (a, b) { return '<tr><td style="border:1px solid #999;padding:6px 10px">' + a + '</td><td style="border:1px solid #999;padding:6px 10px;text-align:center"><b>' + b + '</b></td></tr>'; };
+  var fullHtml = '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>ANL-' + (typeof faDate==='function'?faDate().replace(/\//g,'-'):'') + ' گزارش تحلیلی</title><style>' +
+    '@page{size:A4 portrait;margin:14mm}body{font-family:Vazirmatn,Tahoma,sans-serif;font-size:12px;color:#222}' +
+    'h1{font-size:17px;color:#ef4b1a;border-bottom:2px solid #f79400;padding-bottom:6px}h2{font-size:13.5px;margin:14px 0 6px}' +
+    'table{border-collapse:collapse;width:100%;font-size:11.5px}</style></head><body>' +
+    '<h1>گزارش تحلیلی CRM — پیشرو تجهیز فرتاک</h1>' +
+    '<div style="color:#666;font-size:11px">تاریخ گزارش: ' + faDateTime() + ' | تهیه: ' + escP(curSession().name || '') + '</div>' +
+    '<h2>قیف پیشنهادها</h2><table>' +
+    row('کل پیشنهادهای مالی (CO)', f.total) + row('برنده', f.won) + row('بازنده', f.lost) +
+    row('نرخ برد', f.winRate != null ? f.winRate + '٪' : '—') + row('ارزش بردها (ریال)', f.wonValue.toLocaleString('fa-IR')) + '</table>' +
+    '<h2>لیدها</h2><table>' +
+    row('کل لیدها', ld.total) + row('تبدیل‌شده', ld.won) + row('نرخ تبدیل', ld.rate != null ? ld.rate + '٪' : '—') +
+    row('میانگین زمان تبدیل', ld.avgDays != null ? ld.avgDays + ' روز' : '—') + row('بهترین منبع', ld.bestSrc || '—') + '</table>' +
+    '<h2>مالی</h2><table>' +
+    row('فاکتور شده', fc.invoiced.toLocaleString('fa-IR')) + row('وصول شده', fc.paid.toLocaleString('fa-IR')) +
+    row('مطالبات باز', fc.openRecv.toLocaleString('fa-IR')) + row('پایپ‌لاین', fc.pipeline.toLocaleString('fa-IR')) +
+    row('پیش‌بینی وزنی', fc.weighted.toLocaleString('fa-IR') + ' (احتمال ' + fc.winP + '٪)') + '</table>' +
+    '<h2>اقدامات پیشنهادی</h2><ol>' + sugg.map(function (s) { return '<li>' + escP(s.tx) + '</li>'; }).join('') + '</ol>' +
+    '</body></html>';
+  if (typeof ptfPreviewPrintableDoc === 'function') ptfPreviewPrintableDoc('گزارش تحلیلی CRM', fullHtml, 'analysis-report');
+  else {
+    var w = window.open('', '_blank');
+    w.document.write(fullHtml);
+    w.document.close();
+  }
+  audit('تحلیلگر', 'تولید گزارش تحلیلی PDF', '');
+}
+
+/* ---------- روتینگ ---------- */
+(function () {
+  var _go = window.goPanel;
+  window.goPanel = function (id, btn) {
+    if (id === 'anl') {
+      var r = roleDef();
+      // تحلیلگر شامل داده مالی است → فقط نقش‌های دارای finance یا مدیر بازرگانی (بدون بخش مالی؟ نه — طبق ماتریس فقط finance)
+      if (!r.finance) { alert('⛔ تحلیلگر شامل گزارش‌های مالی است — مخصوص نقش‌های ارشد دارای دسترسی مالی'); return; }
+      var btns = document.querySelectorAll('.sb-i');
+      for (var i = 0; i < btns.length; i++) btns[i].classList.remove('act');
+      if (btn) btn.classList.add('act');
+      document.getElementById('pgTitle').textContent = '📊 تحلیلگر هوشمند';
+      document.getElementById('panels').innerHTML = buildAnalyzer();
+      renderAnalyzer();
+      return;
+    }
+    _go(id, btn);
+  };
+})();

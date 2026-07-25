@@ -1,0 +1,17 @@
+# PTF public root — production safety baseline
+Options -Indexes
+
+# Sensitive json|log|txt files under application/data paths must not be exposed.
+<FilesMatch "^(?!manifest\.json$).*\.(json|log)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+</IfModule>
+
+# Keep public robots.txt and sitemap.xml accessible; protect data directories in their own .htaccess files.

@@ -1,0 +1,27 @@
+نصب v32.1.1 — مخصوص استخراج داخل پوشه pishtaj.ir
+================================================
+
+مسیر درست روی هاست (مثال):
+  public_html/pishtaj.ir/     ← همین‌جا Extract کنید
+
+محتوای این ZIP تخت است (بدون پوشه والد اضافه):
+  index.html
+  knowledge-center/index.html
+  tools/index.html
+  assets/css/style.css
+
+دستور کار cPanel:
+1) File Manager → وارد پوشه pishtaj.ir شوید
+   (همان پوشه‌ای که الان index.html سایت داخلش است)
+2) این ZIP را Upload کنید
+3) Extract Here + Overwrite
+4) نباید پوشه جدیدی به نام pishtaj.ir داخل pishtaj.ir ساخته شود
+5) Hard refresh / Incognito
+
+تست موفقیت:
+- knowledge-center → در title: v32.1.1 و «مرجع فنی مهندسی»
+- آیکون خوشه‌ها: خط رنگی روی پس‌زمینه خیلی روشن (نه تیره)
+- tools → «میزکار مهندسی»
+- صفحه اصلی → ptf-v321-icon-polish
+
+اگر Extract را یک سطح بالاتر انجام دهید، دوباره مسیر تو در تو می‌شود.

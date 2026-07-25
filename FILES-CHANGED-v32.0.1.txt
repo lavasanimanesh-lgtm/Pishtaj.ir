@@ -1,0 +1,1 @@
+v32.0.1 — 11 files changed: cms.php, auth.php, secrets.php, crm.php, tools.php, dompurify.min.js, xss-guard.js, index.html, sw.js, clear-cache.html, RELEASE-NOTES

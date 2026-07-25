@@ -1,0 +1,48 @@
+{
+  "version": "v31.6.24",
+  "environment": "isolated-staging",
+  "purpose": "FIN-WF-001 Stage 0 and Sprint 1 non-production evidence",
+  "prohibited": [
+    "production credentials",
+    "production customer data",
+    "production attachment keys",
+    "production mutation",
+    "real SMS or notification delivery"
+  ],
+  "users": [
+    {"username": "chair_demo", "roleId": "chairman", "purpose": "fiscal unlock and senior approval"},
+    {"username": "admin_demo", "roleId": "admin", "purpose": "administration and backup"},
+    {"username": "buyer_demo", "roleId": "buyer", "purpose": "supplier read and denied financial mutation"},
+    {"username": "accountant_demo", "roleId": "accountant", "purpose": "invoice and supplier finance workflow"},
+    {"username": "sales_demo", "roleId": "sales", "purpose": "non-financial CRM workflow and spoof attempt"}
+  ],
+  "data": {
+    "customers": ["CUST-STAGE-001"],
+    "suppliers": ["SUP-STAGE-001"],
+    "customerInvoices": ["INV-STAGE-001"],
+    "supplierInvoices": ["SFINV-STAGE-001"],
+    "supplierPayments": ["SFPAY-STAGE-001"],
+    "companyCheques": ["CHQ-COMP-STAGE-001"],
+    "personalCheques": ["CHQ-PERS-STAGE-001"],
+    "fiscalSnapshots": ["FSY-STAGE-1404"],
+    "petty": ["PTY-STAGE-001"],
+    "opex": ["OPX-STAGE-001"],
+    "offers": ["CO-STAGE-001"],
+    "deals": ["DEAL-STAGE-001"]
+  },
+  "policyDecisions": {
+    "personalCheque": "PENDING_EMPLOYER_DECISION",
+    "offlineFinancialMutation": "PENDING_EMPLOYER_DECISION",
+    "stagingUrl": "PENDING_HOST_PROVISION"
+  },
+  "requiredEvidence": [
+    "baseline backup and SHA-256 manifest",
+    "fixture reset proof",
+    "PoC-A authorized request response",
+    "PoC-B forged X-CRM-Role response",
+    "no-token response",
+    "before-after revision comparison",
+    "rollback/reset log",
+    "server config review without secret disclosure"
+  ]
+}

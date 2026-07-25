@@ -1,0 +1,20 @@
+{
+  "packageId": "ir.pishtaj.crm",
+  "host": "pishtaj.ir",
+  "name": "CRM پیشرو تجهیز فرتاک",
+  "launcherName": "PTF CRM",
+  "display": "standalone",
+  "themeColor": "#ef4b1a",
+  "navigationColor": "#ef4b1a",
+  "backgroundColor": "#151517",
+  "startUrl": "/crm/index.html",
+  "iconUrl": "https://pishtaj.ir/assets/images/favicon/favicon-512.png",
+  "maskableIconUrl": "https://pishtaj.ir/assets/images/favicon/favicon-512.png",
+  "appVersionName": "13.5",
+  "appVersionCode": 135,
+  "shortcuts": [],
+  "signingKey": { "path": "./ptf-keystore.jks", "alias": "ptfcrm" },
+  "enableNotifications": true,
+  "orientation": "default",
+  "fallbackType": "customtabs"
+}

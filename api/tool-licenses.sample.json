@@ -1,0 +1,32 @@
+{
+  "licenses": [
+    {
+      "licenseId": "LIC-CV-SAMPLE-0001",
+      "type": "single_report",
+      "status": "active",
+      "tool": "control_valve_advanced",
+      "maxReports": 1,
+      "usedReports": 0,
+      "expiresAt": "2099-12-31T23:59:59+03:30",
+      "issuedTo": {
+        "company": "نمونه - مقدار واقعی را در crm/data/tool_licenses.json نگه دارید",
+        "contact": "sample"
+      },
+      "tokenHash": "REPLACE_WITH_HMAC_SHA256_OF_LICENSE_CODE_USING_tools_license_key"
+    },
+    {
+      "licenseId": "LIC-PTF-STAFF-SAMPLE",
+      "type": "staff_internal",
+      "status": "active",
+      "tool": "all",
+      "maxReports": 9999,
+      "usedReports": 0,
+      "expiresAt": "2099-12-31T23:59:59+03:30",
+      "issuedTo": {
+        "company": "Pishro Tajhiz Fartak",
+        "contact": "internal-staff"
+      },
+      "tokenHash": "REPLACE_WITH_HMAC_SHA256_OF_INTERNAL_STAFF_CODE"
+    }
+  ]
+}

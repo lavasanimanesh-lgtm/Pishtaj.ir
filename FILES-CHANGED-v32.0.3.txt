@@ -1,0 +1,2 @@
+v32.0.3 — HOTFIX — captcha fallback — Full ZIP 25M — 188 images — 1683 files
+CHANGED: api/crm.php, crm/index.html, sw.js, RELEASE-NOTES, REGRESSION

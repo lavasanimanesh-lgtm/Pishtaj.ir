@@ -1,0 +1,38 @@
+[
+    {
+        "username": "lavasani",
+        "passhash": "20a417429a1878441b590671ab531df2e45e9282c790d7b68d0476029720bfef",
+        "name": "حامد لواسانی منش",
+        "nameEn": "Mr. Lavasani",
+        "role": "",
+        "roleId": "chairman",
+        "mobile": "09126473290",
+        "email": "lavasani.manesh@gmail.com",
+        "createdFa": "",
+        "createdBy": ""
+    },
+    {
+        "username": "yousefi",
+        "passhash": "20a417429a1878441b590671ab531df2e45e9282c790d7b68d0476029720bfef",
+        "name": "عباس یوسفی",
+        "nameEn": "Mr. Yousefi",
+        "role": "",
+        "roleId": "commercial",
+        "mobile": "09912949338",
+        "email": "yousefi.ptf@gmail.com",
+        "createdFa": "",
+        "createdBy": ""
+    },
+    {
+        "username": "karimi",
+        "passhash": "4d466193652c71618a69a5a7c8b6aae80547f4e88b972756b02c05dd155f9954",
+        "name": "شیوا کریمی",
+        "nameEn": "Ms. Karimi",
+        "role": "",
+        "roleId": "ceo",
+        "mobile": "09925868479",
+        "email": "shiva.pishrotajheez@gmail.com",
+        "createdFa": "",
+        "createdBy": ""
+    }
+]

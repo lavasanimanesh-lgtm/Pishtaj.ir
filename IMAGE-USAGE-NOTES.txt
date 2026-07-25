@@ -1,0 +1,17 @@
+یادداشت استفاده از تصاویر واقعی در سایت
+
+در Sprint 4.1 تصاویر AI قبلی با تصاویر واقعی صنعتی که توسط کارفرما ارسال شد جایگزین شدند.
+
+نگاشت موضوعی تصاویر:
+- صفحه اصلی و نمای انرژی/صنعت: real-hero-energy-plant.jpg
+- نفت، گاز و پتروشیمی: real-refinery-columns.jpg
+- پایپینگ و ساخت تجهیزات فلزی: real-piping-fabrication.jpg
+- برق صنعتی و پست برق: real-electrical-substation.jpg
+- فولاد و صنایع سنگین: real-steel-plant.jpg
+- سیمان و دودکش/صنایع حرارتی: real-cement-industrial-stack.jpg
+- نیروگاهی: real-power-cooling-towers.jpg
+- آب و تاسیسات: real-water-power-plant.jpg
+- چارت سازمانی/اعتمادسازی و صفحات شرکتی در صورت نیاز: real-corporate-building.jpg و real-industrial-team.jpg
+
+نکته حقوقی:
+نام فایل‌ها نشان می‌دهد تصاویر از Unsplash هستند. طبق روال عمومی Unsplash استفاده تجاری معمولاً مجاز است، اما بهتر است برای مستندسازی داخلی، لینک منبع یا نام عکاس‌ها نزد شرکت نگهداری شود. درج اعتبار اجباری نیست ولی می‌تواند در آینده در صفحه‌ای مثل Credits اضافه شود.

@@ -1,0 +1,518 @@
+/* =====================================================================
+   PTF CRM — Sprint 71 (backup.js)
+   US-146: بک‌آپ خودکار ساعتی (آروان + سرور) + بازگردانی از تنظیمات
+   US-147: اختیارات ادمین (بازگشت از برنده + حذف پرونده خودکار)
+   ===================================================================== */
+(function () {
+  'use strict';
+  var API = '../api/crm.php';
+  function ptfBackupAuthHeaders(json) {
+    var h = json ? { 'Content-Type': 'application/json' } : {};
+    try { h['X-CRM-Role'] = curRole(); var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+    return h;
+  }
+
+  /* ============ US-146: جمع‌آوری کل داده‌ها ============ */
+  var DATA_KEYS = [
+    'ptf_crm_rfqs', 'ptf_crm_suppliers', 'ptf_crm_customers', 'ptf_crm_users',
+    'ptf_crm_products', 'ptf_crm_offers', 'ptf_crm_leads', 'ptf_crm_reminders',
+    'ptf_crm_buyquotes', 'ptf_crm_invoices', 'ptf_crm_surplus', 'ptf_crm_notifs', 'ptf_crm_sendqueue',
+    'ptf_crm_audit', 'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects',
+    'ptf_crm_packinglists', 'ptf_crm_letters', 'ptf_crm_contracts',
+    'ptf_crm_sigprofiles', 'ptf_storage_queue', 'ptf_crm_settings', 'ptf_crm_finance',
+    'ptf_crm_order_prices', 'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_smsbook', 'ptf_crm_rfqsmart', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex'
+  ];
+
+  function collectBackup() {
+    var data = {};
+    DATA_KEYS.forEach(function (k) {
+      var v = localStorage.getItem(k);
+      if (v !== null) data[k] = v;
+    });
+    return {
+      app: 'PTF-CRM', ver: 71,
+      t: new Date().toISOString(),
+      tFa: faDateTime(),
+      by: curSession().name || '?',
+      counts: summarize(data),
+      data: data
+    };
+  }
+
+  function summarize(data) {
+    var c = {};
+    Object.keys(data).forEach(function (k) {
+      try {
+        var v = JSON.parse(data[k]);
+        c[k] = Array.isArray(v) ? v.length : 1;
+      } catch (e) { c[k] = 1; }
+    });
+    return c;
+  }
+
+  /* ============ ارسال بک‌آپ به سرور (→ آروان) ============ */
+  function pushBackup(manual, cb) {
+    var payload = collectBackup();
+    fetch(API + '?action=save_backup', {
+      method: 'POST',
+      headers: ptfBackupAuthHeaders(true),
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          localStorage.setItem('ptf_backup_last', JSON.stringify({ t: payload.tFa, iso: payload.t, mode: d.mode }));
+          if (manual) alert('✅ بک‌آپ ثبت شد (' + (d.mode === 'arvan' ? 'فضای ابری آروان + سرور' : 'سرور هاست') + ')');
+        } else if (manual) alert('⚠️ خطا در بک‌آپ سروری: ' + (d.error || ''));
+        cb && cb(d);
+      })
+      .catch(function () {
+        // v31.7.50: fallback حجیم را در IndexedDB نگه می‌داریم تا localStorage 5MB پرتر نشود.
+        try {
+          var raw = JSON.stringify(payload);
+          if (typeof ptfStorageIdbSet === 'function') {
+            ptfStorageIdbSet('ptf_backup_local', raw, function (ok, bytes) {
+              try {
+                var marker = { storedIn: ok ? 'indexedDB' : 'localStorage', key: 'ptf_backup_local', bytes: bytes || raw.length, updatedAt: new Date().toISOString() };
+                if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem('ptf_backup_local', JSON.stringify(marker), { noWarn: true });
+                else localStorage.setItem('ptf_backup_local', JSON.stringify(marker));
+              } catch (eM) {}
+            });
+          } else localStorage.setItem('ptf_backup_local', raw);
+        } catch (e) {}
+        if (manual) alert('سرور در دسترس نیست — نسخه اضطراری تا حد امکان در IndexedDB/مرورگر نگهداری شد.');
+        cb && cb({ ok: false });
+      });
+  }
+  window.ptfBackupNow = function () { pushBackup(true); };
+
+  // AC1: بک‌آپ خودکار هر ۱ ساعت (+ یک بک‌آپ ۲ دقیقه بعد از ورود)
+  /* v14.0 (US-263): هرس دوره‌ای صف‌ها — همراه چرخه بک‌آپ (بدون polling جدید) */
+  function pruneQueues() {
+    try {
+      var changed = false;
+      /* sendqueue: ارسال‌شده‌های قدیمی‌تر از ۳۰ روز حذف */
+      var cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
+      var q = getData('ptf_crm_sendqueue');
+      var q2 = q.filter(function (x) { return !(x.st === 'sent' && (x.iso || x.t || '') < cutoff); });
+      if (q2.length !== q.length) { setData('ptf_crm_sendqueue', q2); changed = true; }
+      /* wfLog: حداکثر ۵۰ رویداد per درخواست */
+      var rfqs = getData('ptf_crm_rfqs');
+      var wfCut = false;
+      rfqs.forEach(function (r) {
+        if (r.wfLog && r.wfLog.length > 50) { r.wfLog = r.wfLog.slice(-50); wfCut = true; }
+      });
+      if (wfCut) { setData('ptf_crm_rfqs', rfqs); changed = true; }
+      if (changed && typeof addLog === 'function') addLog('هرس دوره‌ای صف‌ها انجام شد (US-263)');
+    } catch (e) {}
+  }
+
+  function scheduleBackups() {
+    if (window._ptfBakT) return;
+    window._ptfBakT = setInterval(function () {
+      if (curSession().user) { pruneQueues(); pushBackup(false); }
+    }, 3600000);
+    setTimeout(function () { if (curSession().user) { pruneQueues(); pushBackup(false); } }, 120000);
+  }
+
+  /* ============ دانلود بک‌آپ (فایل محلی) ============ */
+  window.ptfBackupDownload = function () {
+    var payload = collectBackup();
+    var blob = new Blob([JSON.stringify(payload, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ptf-crm-backup-' + new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-') + '.json';
+    a.click();
+    addLog('فایل بک‌آپ دانلود شد');
+    markMonthlySaved('دانلود دستی فایل بک‌آپ');
+  };
+
+  /* ============ US-283 (v122.3): دانلود بک‌آپ ماهانه سروری ============ */
+  window.ptfDownloadMonthly = function () {
+    var tryNames = ['monthly-latest.json.gz', 'monthly-latest.json'];
+    (function attempt(i) {
+      if (i >= tryNames.length) { alert('⚠️ هنوز نسخه ماهانه روی سرور ساخته نشده — از «⬇️ دانلود فایل بک‌آپ» استفاده کنید'); return; }
+      fetch(API + '?action=get_backup&name=' + tryNames[i], { headers: ptfBackupAuthHeaders(false) })
+        .then(function (r) { return r.text(); })
+        .then(function (t) {
+          var j = null; try { j = JSON.parse(t); } catch (e) {}
+          if (!j || j.app !== 'PTF-CRM') { attempt(i + 1); return; }
+          var blob = new Blob([t], { type: 'application/json' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'ptf-crm-monthly-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+          a.click();
+          addLog('بک‌آپ ماهانه سرور دانلود شد');
+          markMonthlySaved('دانلود بک‌آپ ماهانه سرور');
+        })
+        .catch(function () { attempt(i + 1); });
+    })(0);
+  };
+
+  /* ============ US-283: یادآور ماهانه ذخیره فایل بک‌آپ — رییس هیات مدیره + ادمین ============ */
+  function bakMonthKey() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); }
+  function bakSettings() { try { return JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}'); } catch (e) { return {}; } }
+  function markMonthlySaved(how) {
+    try {
+      var st = bakSettings();
+      var mk = bakMonthKey();
+      if (st.bakMonthlySaved === mk) return;
+      st.bakMonthlySaved = mk;
+      setData('ptf_crm_settings', st);
+      if (typeof audit === 'function') audit('سیستم', 'ذخیره ماهانه فایل بک‌آپ انجام شد (' + how + ')', mk);
+    } catch (e) {}
+  }
+  function checkMonthlyBackupReminder() {
+    try {
+      var role = curRole();
+      if (['admin', 'chairman', 'ceo', 'commercial'].indexOf(role) < 0) return; // یادآور برای مدیران ارشد (v14.9 US-383)
+      var st = bakSettings();
+      var mk = bakMonthKey();
+      if (st.bakMonthlySaved === mk) return;      // این ماه ذخیره شده — یادآور لازم نیست
+      if (st.bakMonthlyNotified === mk) return;   // این ماه قبلاً اعلان رفته (سراسری — کلید settings سینک می‌شود)
+      st.bakMonthlyNotified = mk;
+      setData('ptf_crm_settings', st);
+      if (typeof notify === 'function') {
+        notify({
+          toRoles: ['admin', 'chairman'],
+          title: '📥 یادآور ماهانه بک‌آپ (' + mk + '): فایل بک‌آپ این ماه را دانلود و خارج از سامانه نگه دارید',
+          body: 'تنظیمات → «📥 دانلود بک‌آپ ماهانه سرور» (یا «⬇️ دانلود فایل بک‌آپ»). سرور و فضای ابری فقط آخرین نسخه‌ها را چرخشی نگه می‌دارند؛ نسخه خارج از سامانه، بیمه نهایی داده‌هاست.',
+          kind: 'system', channels: ['cart'], link: { panel: 'set' }, actionable: true
+        });
+      }
+    } catch (e) {}
+  }
+
+  /* ============ AC4: بازگردانی از فایل بک‌آپ (فقط ادمین) ============ */
+  window.ptfRestorePick = function () {
+    if (curRole() !== 'admin') { alert('⛔ بازگردانی اطلاعات فقط توسط ادمین ممکن است'); return; }
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.json,application/json';
+    inp.onchange = function () {
+      var f = inp.files[0];
+      if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var j = null;
+        try { j = JSON.parse(rd.result); } catch (e) {}
+        if (!j || j.app !== 'PTF-CRM' || !j.data) { alert('❌ فایل بک‌آپ معتبر PTF-CRM نیست'); return; }
+        showRestorePreview(j);
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  };
+
+  function showRestorePreview(j) {
+    var rows = Object.keys(j.counts || {}).map(function (k) {
+      var lb = k.replace('ptf_crm_', '').replace('ptf_storage_', 'storage-');
+      return '<tr><td style="font-size:11.5px;direction:ltr">' + escP(lb) + '</td><td>' + j.counts[k] + '</td></tr>';
+    }).join('');
+    var html = '<div class="md-b" style="display:grid;z-index:70" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px;max-height:90vh;overflow:auto">' +
+      '<h3>⏪ پیش‌نمایش بازگردانی</h3>' +
+      '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;font-size:12.5px;color:#b91c1c;margin-bottom:10px">' +
+      '⚠️ با بازگردانی، <b>تمام داده‌های فعلی جایگزین</b> می‌شوند و هر تغییری بعد از تاریخ این بک‌آپ از بین می‌رود.<br>' +
+      'قبل از جایگزینی، یک بک‌آپ اضطراری خودکار از وضعیت فعلی گرفته می‌شود.</div>' +
+      '<div style="font-size:13px;margin-bottom:8px">📅 تاریخ بک‌آپ: <b>' + escP(j.tFa || j.t) + '</b> | ثبت‌کننده: ' + escP(j.by || '?') + '</div>' +
+      '<div class="tb2" style="max-height:220px;overflow:auto"><table><thead><tr><th>بخش</th><th>تعداد رکورد</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+      '<button class="bt" style="background:#dc2626" id="restoreGo">⏪ تایید و بازگردانی</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    document.getElementById('restoreGo').onclick = function () {
+      // تایید دومرحله‌ای (AC4)
+      var word = prompt('برای تایید نهایی، کلمه «بازگردانی» را تایپ کنید:');
+      if (word !== 'بازگردانی') { alert('لغو شد'); return; }
+      doRestore(j);
+    };
+  }
+
+  function doRestore(j) {
+    // AC5: بک‌آپ اضطراری از وضعیت فعلی قبل از جایگزینی
+    try {
+      var cur = collectBackup();
+      var curRaw = JSON.stringify(cur);
+      if (typeof ptfStorageIdbSet === 'function') {
+        ptfStorageIdbSet('ptf_backup_prerestore', curRaw, function (ok, bytes) {
+          try {
+            var marker = { storedIn: ok ? 'indexedDB' : 'localStorage', key: 'ptf_backup_prerestore', bytes: bytes || curRaw.length, updatedAt: new Date().toISOString() };
+            if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem('ptf_backup_prerestore', JSON.stringify(marker), { noWarn: true });
+            else localStorage.setItem('ptf_backup_prerestore', JSON.stringify(marker));
+          } catch (eM) {}
+        });
+      } else localStorage.setItem('ptf_backup_prerestore', curRaw);
+    } catch (e) {}
+    pushBackup(false, function () {
+      // پاکسازی کلیدهای داده و جایگزینی
+      DATA_KEYS.forEach(function (k) { localStorage.removeItem(k); });
+      Object.keys(j.data).forEach(function (k) {
+        if (DATA_KEYS.indexOf(k) > -1) localStorage.setItem(k, j.data[k]);
+      });
+      if (typeof audit === 'function') audit('سیستم', 'بازگردانی کامل داده‌ها از بک‌آپ ' + (j.tFa || j.t), 'RESTORE');
+      /* ===== v15.0 (US-384 — ریشه «بازگردانی اثر نکرد»): =====
+         قبلا فقط localStorage برمی‌گشت ولی فایل‌های سینک سرور (crm/data/sync) دست‌نخورده می‌ماند؛
+         ۲۰ ثانیه بعد pull دوره‌ای، همان داده خراب سرور را روی داده بازگردانده می‌ریخت!
+         حالا: داده بازگردانده با فلگ restore مستقیم به سرور سینک push می‌شود (سپر داده‌صفر
+         آگاهانه برای این مسیر ادمین کنار می‌رود) و شمارنده‌های سینک محلی نو می‌شوند. */
+      var syncData = {};
+      Object.keys(j.data).forEach(function (k) {
+        if (DATA_KEYS.indexOf(k) > -1 && k !== 'ptf_crm_users' && k !== 'ptf_storage_queue') syncData[k] = j.data[k];
+      });
+      localStorage.removeItem('ptf_guard_counts'); /* baseline نو از داده سالم */
+      var finishReload = function () {
+        alert('✅ بازگردانی انجام شد (محلی + سرور سینک) — سیستم مجدداً بارگذاری می‌شود.\n(نسخه اضطراری وضعیت قبلی در ptf_backup_prerestore نگهداری شد)');
+        location.reload();
+      };
+      fetch(API + '?action=data_push', {
+        method: 'POST',
+        headers: ptfBackupAuthHeaders(true),
+        body: JSON.stringify({ by: curSession().name + ' (RESTORE)', restore: true, data: syncData })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          try {
+            if (d && d.rev) localStorage.setItem('ptf_sync_rev', String(d.rev));
+            if (d && d.krevs) localStorage.setItem('ptf_sync_krevs', JSON.stringify(d.krevs));
+          } catch (e2) {}
+          finishReload();
+        })
+        .catch(function () {
+          alert('⚠️ داده محلی بازگردانده شد ولی سرور سینک در دسترس نبود — بعد از اتصال، دوباره «بازگردانی» را اجرا کنید تا سرور هم هم‌راستا شود.');
+          finishReload();
+        });
+    });
+  }
+
+  /* ============ AC3: باکس بک‌آپ در تنظیمات ============ */
+  function backupBoxHtml() {
+    var last = null;
+    try { last = JSON.parse(localStorage.getItem('ptf_backup_last') || 'null'); } catch (e) {}
+    return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
+      '<h4 style="margin:0 0 8px">🗄 بک‌آپ و بازگردانی (US-146)</h4>' +
+      '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:10px">' +
+      '⏱ بک‌آپ خودکار: <b>هر ۱ ساعت</b> — چرخشی با حداقل فضا (US-282): فشرده gzip، نسخه جدید <b>جایگزین</b> قبلی می‌شود<br>' +
+      '🗂 نگهداری: ساعتی آخر + ۳ روز اخیر + هفتگی آخر + ماهانه آخر (سرور) | ابری آروان: فقط ۲ فایل ثابت (آخرین + ماهانه) — فایل‌های قدیمی انباشته خودکار هرس می‌شوند<br>' +
+      '📥 <b>وظیفه ماهانه:</b> رییس هیات مدیره / ادمین ابتدای هر ماه یک نسخه فایل بک‌آپ را دانلود و خارج از سامانه نگه می‌دارند (یادآور خودکار در کارتابل)<br>' +
+      '📌 آخرین بک‌آپ موفق: <b id="bakLast">' + (last ? escP(last.t) + ' (' + (last.mode === 'arvan' ? 'ابری' : 'سرور') + ')' : 'هنوز ثبت نشده') + '</b></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="bt" onclick="ptfBackupNow()">🗄 بک‌آپ فوری</button>' +
+      '<button class="bt bt-o" onclick="ptfBackupDownload()">⬇️ دانلود فایل بک‌آپ</button>' +
+      '<button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadMonthly()">📥 دانلود بک‌آپ ماهانه سرور</button>' +
+      '<button class="bt bt-o" style="color:#dc2626" onclick="ptfRestorePick()">⏪ بازگردانی از فایل</button>' +
+      '<button class="bt bt-o" onclick="ptfServerBackups()">📂 بک‌آپ‌های سرور</button>' +
+      ' <button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfPurgeCloudOrphans()">☁️ پاک‌سازی زباله‌های ابری</button>' +
+      ' <button class="bt bt-o" style="color:#b45309;border-color:#fed7aa" onclick="ptfDuplicateRepairOpen()">⚠️ بررسی کدهای تکراری</button>' +
+      '</div>';
+  }
+
+  window.ptfServerBackups = function () {
+    fetch(API + '?action=list_backups', { headers: ptfBackupAuthHeaders(false) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { alert('خطا در دریافت فهرست'); return; }
+        var list = (d.backups || []).map(function (b) {
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid var(--brd);border-radius:9px;margin-bottom:5px;font-size:12px">' +
+            '<span style="direction:ltr">' + escP(b.name) + ' <small style="color:#94a3b8">(' + Math.round(b.size / 1024) + 'KB — ' + escP(b.t) + ')</small></span>' +
+            (curRole() === 'admin' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="ptfRestoreServer(\'' + escP(b.name) + '\')">⏪ بازگردانی</button>' : '') + '</div>';
+        }).join('') || '<div style="color:#94a3b8;text-align:center;padding:14px;font-size:12.5px">بک‌آپی روی سرور نیست</div>';
+        var html = '<div class="md-b" style="display:grid;z-index:70" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
+          '<h3>📂 بک‌آپ‌های سرور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:8px">hourly-latest = آخرین ساعتی | daily-… = ۳ روز اخیر | weekly-latest = هفتگی | monthly-latest = ماهانه (چرخشی US-282 — پسوند .gz یعنی فشرده؛ بازگردانی/دانلود خودکار بازش می‌کند)</div>' + list +
+          '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+        document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+      })
+      .catch(function () { alert('سرور در دسترس نیست'); });
+  };
+
+  window.ptfRestoreServer = function (name) {
+    if (curRole() !== 'admin') { alert('⛔ فقط ادمین'); return; }
+    fetch(API + '?action=get_backup&name=' + encodeURIComponent(name), { headers: ptfBackupAuthHeaders(false) })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || j.app !== 'PTF-CRM') { alert('فایل بک‌آپ معتبر نیست'); return; }
+        var mds = document.querySelectorAll('.md-b');
+        for (var _mi = mds.length - 1; _mi >= 0; _mi--) { if ((mds[_mi].style || {}).display !== 'none') { mds[_mi].remove(); break; } } /* v16.2 BUG-017 */
+        showRestorePreview(j);
+      })
+      .catch(function () { alert('خطا در دریافت فایل'); });
+  };
+
+  /* ============ v31.7.50 STORAGE-QUOTA-FOUNDATION-001: سنجه/هشدار/پاک‌سازی امن ============ */
+  function storageUsage() {
+    try {
+      if (typeof ptfStorageLocalUsage === 'function') return ptfStorageLocalUsage().used;
+    } catch (e) {}
+    var total = 0;
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i), v = localStorage.getItem(k) || '';
+        total += (k.length + v.length) * 2;
+      }
+    } catch (e2) {}
+    return total;
+  }
+  var STORAGE_LIMIT = 5 * 1024 * 1024; // سقف محافظه‌کارانه localStorage؛ قابل افزایش مستقیم توسط سایت نیست
+  function storageHealth() {
+    try { if (typeof ptfStorageHealthSync === 'function') return ptfStorageHealthSync(); } catch (e) {}
+    var used = storageUsage();
+    var pct = Math.min(100, Math.round(used * 100 / STORAGE_LIMIT));
+    return { used: used, softLimit: STORAGE_LIMIT, percent: pct, level: pct >= 95 ? 'critical' : (pct >= 85 ? 'danger' : (pct >= 70 ? 'warning' : 'ok')), topKeys: [] };
+  }
+  function fmtBytes(n) {
+    try { if (typeof ptfStorageFormatBytes === 'function') return ptfStorageFormatBytes(n); } catch (e) {}
+    n = Number(n) || 0;
+    return n >= 1048576 ? (n / 1048576).toFixed(2) + ' MB' : Math.round(n / 1024) + ' KB';
+  }
+
+  window.ptfStorageMeterHtml = function () {
+    var h = storageHealth();
+    var pct = h.percent || 0;
+    var color = pct >= 85 ? '#dc2626' : pct >= 70 ? '#d97706' : '#059669';
+    var top = (h.topKeys || []).slice(0, 6).map(function (r) {
+      return '<div style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #eef2f7;padding:4px 0"><span style="direction:ltr;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:330px">' + escP(r.key) + '</span><b>' + fmtBytes(r.bytes) + '</b></div>';
+    }).join('') || '<div style="color:#64748b">اطلاعات کلیدها در دسترس نیست.</div>';
+    var estimate = h.estimate && h.estimate.quota ? '<div style="font-size:11px;color:#64748b;margin-top:6px">Browser storage estimate: ' + fmtBytes(h.estimate.usage || 0) + ' / ' + fmtBytes(h.estimate.quota || 0) + ' — این عدد با سقف localStorage یکی نیست.</div>' : '';
+    return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
+      '<h4 style="margin:0 0 8px">حافظه محلی CRM — Storage Health</h4>' +
+      '<div style="font-size:12px;color:#475569;line-height:1.9;margin-bottom:8px">localStorage فضای کوچک مرورگر برای همین دامنه است و سقف عملی آن معمولاً حدود ۵MB است. این سقف از طرف مرورگر تعیین می‌شود و با کد سایت مستقیماً بزرگ‌تر نمی‌شود؛ برای داده‌های حجیم باید از سرور و IndexedDB استفاده شود.</div>' +
+      '<div style="background:#f1f5f9;border-radius:10px;height:20px;position:relative;overflow:hidden;max-width:520px;border:1px solid #e2e8f0">' +
+      '<div style="position:absolute;right:0;top:0;bottom:0;width:' + pct + '%;background:' + color + '"></div>' +
+      '<span style="position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:800;color:#111827">' + pct + '٪ (' + fmtBytes(h.used) + ' از سقف محافظه‌کارانه ' + fmtBytes(h.softLimit || STORAGE_LIMIT) + ')</span></div>' +
+      (pct >= 85 ? '<div style="color:#b91c1c;font-size:12px;margin-top:6px;font-weight:800">هشدار سطح بالا: حافظه محلی به محدوده خطر رسیده است. قبل از ادامه کار سنگین، بک‌آپ و پاک‌سازی امن را اجرا کنید.</div>' : (pct >= 70 ? '<div style="color:#b45309;font-size:12px;margin-top:6px">هشدار: حافظه محلی رو به پرشدن است.</div>' : '')) +
+      estimate +
+      '<div style="margin-top:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.8"><b>بزرگ‌ترین کلیدها</b>' + top + '</div>' +
+      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfStorageCleanup()">پاک‌سازی امن فوری</button><button class="bt bt-o" onclick="ptfStorageMigrateToIdb()">مهاجرت cache/draft به IndexedDB</button><button class="bt bt-o" onclick="ptfBackupNow()">بک‌آپ سروری</button><button class="bt bt-o" onclick="if(window.ptfStorageShowLargeKeys)ptfStorageShowLargeKeys()">نمایش کلیدهای بزرگ</button><button class="bt bt-o" onclick="if(window.ptfStorageShowArchiveIndex)ptfStorageShowArchiveIndex()">آرشیوهای IndexedDB</button><button class="bt bt-o" onclick="if(window.ptfStorageRequestPersistent)ptfStorageRequestPersistent()">درخواست Persistent Storage</button></div>';
+  };
+
+  window.ptfStorageCleanup = function () {
+    // قبل از پاک‌سازی، بک‌آپ سروری؛ سپس اگر IndexedDB فعال باشد اول archive و بعد compact می‌کنیم.
+    pushBackup(false, function () {
+      function done(res, label) {
+        if (typeof audit === 'function') audit('سیستم', label + ' — آزادسازی حدود ' + fmtBytes((res && res.freed) || 0), '');
+        alert(label + ' انجام شد. حدود ' + fmtBytes((res && res.freed) || 0) + ' از localStorage آزاد شد. رکوردهای اصلی کسب‌وکاری حذف نشدند.');
+        if (typeof goPanelByName === 'function') goPanelByName('set');
+      }
+      if (typeof ptfStorageMigrateVolatileToIdb === 'function') {
+        ptfStorageMigrateVolatileToIdb({ source: 'manual-cleanup', toast: true, fallbackCompact: true }, function (res) { done(res, 'مهاجرت/پاک‌سازی امن'); });
+      } else if (typeof ptfStorageEmergencyCompact === 'function') done(ptfStorageEmergencyCompact({ source: 'manual', toast: true }), 'پاک‌سازی امن');
+      else {
+        var beforeAll = storageUsage();
+        var cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
+        var notifs = getData('ptf_crm_notifs');
+        notifs = notifs.filter(function (n, i) { if (i < 100) return true; var read = (n.readBy || []).length > 0; return !(read && (n.iso || '') < cutoff); });
+        setData('ptf_crm_notifs', notifs);
+        var logs = getData('ptf_crm_audit');
+        if (logs.length > 1000) setData('ptf_crm_audit', logs.slice(0, 1000));
+        setData('ptf_crm_sendqueue', getData('ptf_crm_sendqueue').filter(function (x) { return x.st !== 'sent'; }));
+        done({ freed: Math.max(0, beforeAll - storageUsage()) }, 'پاک‌سازی امن');
+      }
+    });
+  };
+
+  window.ptfStorageMigrateToIdb = function () {
+    pushBackup(false, function () {
+      if (typeof ptfStorageMigrateVolatileToIdb !== 'function') { alert('موتور مهاجرت IndexedDB در این مرورگر/نسخه در دسترس نیست.'); return; }
+      ptfStorageMigrateVolatileToIdb({ source: 'manual-idb', toast: true, fallbackCompact: false }, function (res) {
+        alert('مهاجرت امن به IndexedDB انجام شد. آرشیو: ' + fmtBytes((res && res.archivedBytes) || 0) + ' — آزادسازی localStorage: ' + fmtBytes((res && res.freed) || 0) + '. رکوردهای اصلی کسب‌وکاری حذف نشدند.');
+        if (typeof goPanelByName === 'function') goPanelByName('set');
+      });
+    });
+  };
+
+  // هشدار خودکار هنگام ورود اگر >85٪
+  function checkStorageWarn() {
+    try {
+      var h = storageHealth();
+      if (h.percent >= 85 && typeof notify === 'function') {
+        var last = localStorage.getItem('ptf_storage_warned') || '';
+        var today = new Date().toISOString().slice(0, 10);
+        if (last !== today) {
+          if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem('ptf_storage_warned', today, { noWarn: true });
+          else localStorage.setItem('ptf_storage_warned', today);
+          notify({ toRoles: ['admin', 'chairman'], title: 'حافظه محلی CRM بیش از ۸۵٪ پر است — از تنظیمات، بک‌آپ و پاک‌سازی امن را اجرا کنید', kind: 'system', channels: ['cart'], link: { panel: 'set' } });
+        }
+      }
+    } catch (e) {}
+  }
+
+  // تزریق باکس بک‌آپ و Storage Health در تنظیمات
+  var _buildSettings = window.buildSettings;
+  if (_buildSettings) {
+    window.buildSettings = function () {
+      return _buildSettings() + '<div style="max-width:620px">' + backupBoxHtml() + ptfStorageMeterHtml() + '</div>';
+    };
+  }
+
+  /* ============ US-147: اختیارات ادمین ============ */
+  // AC1/AC2: بازگشت CO برنده به وضعیت قبل + حذف پرونده خودکار
+  window.adminUnwin = function (no) {
+    if (curRole() !== 'admin') { alert('⛔ فقط ادمین می‌تواند وضعیت «برنده» را بازگرداند'); return; }
+    var offers = getData('ptf_crm_offers');
+    var o = offers.filter(function (x) { return x.no === no; })[0];
+    if (!o || o.st !== 'won') return;
+    var prj = getData('ptf_crm_projects').filter(function (p) { return p.offerNo === no; })[0];
+    var msg = '⚠️ بازگشت ' + no + ' از وضعیت «برنده»:\n' +
+      '• وضعیت به «ارسال‌شده» برمی‌گردد و قفل باز می‌شود\n' +
+      (prj ? '• پرونده خودکار ' + prj.no + (prj.auto ? '' : ' (دستی!)') + ' به همراه مدارک سیستمی آن حذف می‌شود\n' : '') +
+      (o.invRef ? '• ارجاع فاکتور این CO نیز لغو می‌شود\n' : '') +
+      '\nادامه می‌دهید؟';
+    if (!confirm(msg)) return;
+    o.st = 'sent';
+    delete o.wonAt; delete o.wonBy; delete o.invRef;
+    setData('ptf_crm_offers', offers);
+    if (prj) {
+      setData('ptf_crm_projects', getData('ptf_crm_projects').filter(function (p) { return p.no !== prj.no; }));
+      audit('پرونده پروژه', 'حذف پرونده ' + prj.no + ' در پی بازگشت از برنده (ادمین)', prj.no);
+    }
+    audit('پیشنهادها', 'بازگشت از وضعیت برنده توسط ادمین', no);
+    addLog('⏪ ' + no + ' از برنده بازگردانده شد (ادمین)');
+    if (typeof notify === 'function') notify({ toRoles: SENIOR_ROLES, title: '⏪ پیشنهاد ' + no + ' توسط ادمین از وضعیت برنده بازگردانده شد' + (prj ? ' و پرونده ' + prj.no + ' حذف شد' : ''), kind: 'admin', channels: ['cart'], link: { panel: 'off' } });
+    renderOffers();
+  };
+
+  // AC3: حذف ادمینی رکوردهای قفل‌شده — دکمه در رندر پیشنهادها اضافه می‌شود
+  var _renderOffers = window.renderOffers;
+  window.renderOffers = function () {
+    _renderOffers();
+    if (curRole() !== 'admin') return;
+    // افزودن دکمه بازگشت/حذف برای ردیف‌های برنده (بعد از رندر پایه)
+    var tb = document.getElementById('oTb');
+    if (!tb) return;
+    var offers = getData('ptf_crm_offers');
+    var rows = tb.querySelectorAll('tr');
+    rows.forEach(function (tr) {
+      var noCell = tr.querySelector('td strong');
+      if (!noCell) return;
+      var no = noCell.textContent.trim();
+      var o = offers.filter(function (x) { return x.no === no; })[0];
+      if (o && o.st === 'won' && !tr.querySelector('.adm-unwin')) {
+        var td = tr.querySelectorAll('td');
+        var last = td[td.length - 1];
+        last.insertAdjacentHTML('beforeend',
+          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" title="فقط ادمین: بازگشت از برنده + حذف پرونده خودکار" onclick="adminUnwin(\'' + escP(no) + '\')">⏪ بازگشت</button>' +
+          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="adminDelOffer(\'' + escP(no) + '\')">🗑️</button>');
+      }
+    });
+  };
+
+  window.adminDelOffer = function (no) {
+    if (curRole() !== 'admin') { alert('⛔ فقط ادمین'); return; }
+    if (!confirm('⚠️ حذف ادمینی پیشنهاد قفل‌شده ' + no + '؟\nپرونده خودکار مرتبط نیز حذف می‌شود.')) return;
+    var prj = getData('ptf_crm_projects').filter(function (p) { return p.offerNo === no; })[0];
+    if (prj) setData('ptf_crm_projects', getData('ptf_crm_projects').filter(function (p) { return p.no !== prj.no; }));
+    setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return o.no !== no; }));
+    audit('پیشنهادها', 'حذف ادمینی پیشنهاد برنده' + (prj ? ' + پرونده ' + prj.no : ''), no);
+    renderOffers();
+  };
+
+  /* ============ شروع ============ */
+  var tries = 0;
+  var t = setInterval(function () {
+    tries++;
+    var vis = document.getElementById('crmL') && document.getElementById('crmL').style.display !== 'none';
+    if (vis) { scheduleBackups(); checkStorageWarn(); checkMonthlyBackupReminder(); clearInterval(t); }
+    if (tries > 60) clearInterval(t);
+  }, 500);
+  var _showCrm = window.showCrm;
+  if (_showCrm) {
+    window.showCrm = function () { _showCrm(); setTimeout(function () { scheduleBackups(); checkStorageWarn(); checkMonthlyBackupReminder(); }, 1000); };
+  }
+})();

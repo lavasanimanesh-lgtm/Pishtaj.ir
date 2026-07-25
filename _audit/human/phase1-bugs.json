@@ -1,0 +1,3401 @@
+[
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "function",
+    "count": 1941,
+    "sample": {
+      "file": "ai-workbench.js",
+      "lineNo": 8,
+      "line": "(function(){"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "if",
+    "count": 1491,
+    "sample": {
+      "file": "ai-workbench.js",
+      "lineNo": 11,
+      "line": "if(!window.ptfAiWB) window.ptfAiWB = {};"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "catch",
+    "count": 198,
+    "sample": {
+      "file": "ai-workbench.js",
+      "lineNo": 30,
+      "line": "} catch (e) {}"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "for",
+    "count": 58,
+    "sample": {
+      "file": "ai-workbench.js",
+      "lineNo": 342,
+      "line": "if (inqSel) for (var oi=0; oi<inqSel.options.length; oi++) if (inqSel.options[oi].value === det.inqn"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "cb",
+    "count": 37,
+    "sample": {
+      "file": "ai-workbench.js",
+      "lineNo": 844,
+      "line": "if (cb) cb(extractedItems);"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "hideModal",
+    "count": 36,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 242,
+      "line": "hideModal(); openProject(no);"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "return",
+    "count": 25,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 250,
+      "line": "var r = rfqs.filter(function (x) { return (o.inqNo && (x.inqNo === o.inqNo || x.cd === o.inqNo)); })"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "div",
+    "count": 25,
+    "sample": {
+      "file": "datex.js",
+      "lineNo": 11,
+      "line": "function div(a,b){ return ~~(a / b); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "sfAll",
+    "count": 25,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 15,
+      "line": "function sfAll() { return getData(K); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "cmpAll",
+    "count": 14,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 51,
+      "line": "var list = cmpAll();"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "up",
+    "count": 13,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 244,
+      "line": "function up(ev) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "sfSave",
+    "count": 13,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 16,
+      "line": "function sfSave(list) { setData(K, list); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "_go",
+    "count": 11,
+    "sample": {
+      "file": "analyzer.js",
+      "lineNo": 288,
+      "line": "_go(id, btn);"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "done",
+    "count": 11,
+    "sample": {
+      "file": "dialogx.js",
+      "lineNo": 63,
+      "line": "function done(val) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "book",
+    "count": 11,
+    "sample": {
+      "file": "sms.js",
+      "lineNo": 36,
+      "line": "if (window._ptfSyncBootstrapped === false) return book().length; /* سینک فعال ولی pull اولیه ناتمام "
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "hook",
+    "count": 10,
+    "sample": {
+      "file": "financehub.js",
+      "lineNo": 33,
+      "line": "function hook() {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "oAll",
+    "count": 10,
+    "sample": {
+      "file": "opex.js",
+      "lineNo": 19,
+      "line": "function oAll() { return getData(K); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "pAll",
+    "count": 10,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 20,
+      "line": "function pAll() { return getData(PK); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "txAll",
+    "count": 9,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 20,
+      "line": "function txAll() { var a = getData(TX_KEY); return Array.isArray(a) ? a : []; }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "inPeriod",
+    "count": 9,
+    "sample": {
+      "file": "reports.js",
+      "lineNo": 35,
+      "line": "function inPeriod(faStr, periodId) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "_showCrm",
+    "count": 8,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 463,
+      "line": "window.showCrm = function () { _showCrm(); setTimeout(function () { scheduleBackups(); checkStorageW"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "boot",
+    "count": 8,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 1344,
+      "line": "function boot() {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "push",
+    "count": 8,
+    "sample": {
+      "file": "dedup.js",
+      "lineNo": 36,
+      "line": "function push(n) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "hookSettings",
+    "count": 8,
+    "sample": {
+      "file": "golive.js",
+      "lineNo": 131,
+      "line": "function hookSettings() {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "cleanup",
+    "count": 8,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 231,
+      "line": "if (!allowDrag) { if (moved > 12) cleanup(); return; } /* لمس: حرکت زودهنگام = اسکرول */"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "shAll",
+    "count": 8,
+    "sample": {
+      "file": "shareholders.js",
+      "lineNo": 14,
+      "line": "function shAll() { var a = getData(SH_KEY); return Array.isArray(a) ? a : []; }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "next",
+    "count": 7,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 40,
+      "line": "(function next() {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "tpls",
+    "count": 7,
+    "sample": {
+      "file": "opex.js",
+      "lineNo": 53,
+      "line": "function tpls() {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "normMob",
+    "count": 7,
+    "sample": {
+      "file": "sms.js",
+      "lineNo": 24,
+      "line": "function normMob(m) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "while",
+    "count": 6,
+    "sample": {
+      "file": "ai-workbench.js",
+      "lineNo": 43,
+      "line": "while(h.length>10) h.pop();"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "savePrjs",
+    "count": 6,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 47,
+      "line": "savePrjs(prjs);"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "pushBackup",
+    "count": 6,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 49,
+      "line": "function pushBackup(manual, cb) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "cmpSave",
+    "count": 6,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 98,
+      "line": "cmpSave(list);"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "typeOf",
+    "count": 6,
+    "sample": {
+      "file": "docsx.js",
+      "lineNo": 65,
+      "line": "function typeOf(t) { return PTF_DOCX_TYPES.filter(function (x) { return x.id === t; })[0]; }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "snaps",
+    "count": 6,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 10,
+      "line": "function snaps() { var a = getData(SNAP_KEY); return Array.isArray(a) ? a : []; }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "yearNow",
+    "count": 6,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 41,
+      "line": "year = String(year || yearNow());"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "CO",
+    "count": 6,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 660,
+      "line": "/* ---------- US-195: فراخوانی هوشمند اقلام درخواست در TO/CO (با تایپ) ---------- */"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "hookDash",
+    "count": 6,
+    "sample": {
+      "file": "insights.js",
+      "lineNo": 70,
+      "line": "function hookDash() {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "startDrag",
+    "count": 6,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 208,
+      "line": "startDrag(sx, sy);"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "docTableHtml",
+    "count": 6,
+    "sample": {
+      "file": "offers-pro.js",
+      "lineNo": 290,
+      "line": "function docTableHtml(o, opts) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "docSigHtml",
+    "count": 6,
+    "sample": {
+      "file": "offers-pro.js",
+      "lineNo": 331,
+      "line": "function docSigHtml(o) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "docTermsHtml",
+    "count": 6,
+    "sample": {
+      "file": "offers-pro.js",
+      "lineNo": 354,
+      "line": "function docTermsHtml(o) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "oSave",
+    "count": 6,
+    "sample": {
+      "file": "opex.js",
+      "lineNo": 20,
+      "line": "function oSave(l) { setData(K, l); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "commit",
+    "count": 6,
+    "sample": {
+      "file": "rbac.js",
+      "lineNo": 734,
+      "line": "function commit(ev) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "saveBook",
+    "count": 6,
+    "sample": {
+      "file": "sms.js",
+      "lineNo": 78,
+      "line": "saveBook(b);"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "schedulePush",
+    "count": 6,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 55,
+      "line": "schedulePush();"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "avatarsAll",
+    "count": 6,
+    "sample": {
+      "file": "theme.js",
+      "lineNo": 133,
+      "line": "window.ptfAvatarOf = function (username) { return avatarsAll()[username] || null; };"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "attempt",
+    "count": 5,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 116,
+      "line": "(function attempt(i) {"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "chAll",
+    "count": 5,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 13,
+      "line": "function chAll() { return getData(K); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "chSave",
+    "count": 5,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 14,
+      "line": "function chSave(l) { setData(K, l); }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "refreshBox",
+    "count": 5,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 76,
+      "line": "refreshBox();"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "dealsAll",
+    "count": 5,
+    "sample": {
+      "file": "docsx.js",
+      "lineNo": 70,
+      "line": "dealsAll().forEach(function (d) { (d.docsx || []).forEach(function (x) { if (x.type === tp.id) n++; "
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "irRerender",
+    "count": 5,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 153,
+      "line": "irRerender();"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "pct",
+    "count": 5,
+    "sample": {
+      "file": "insights.js",
+      "lineNo": 29,
+      "line": "function pct(a, b) { return b ? Math.round(a * 100 / b) : 0; }"
+    }
+  },
+  {
+    "severity": "HIGH",
+    "type": "broken-ref",
+    "target": "normPhoneObj",
+    "count": 5,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 51,
+      "line": "function normPhoneObj(o, mode) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "cloudDocs",
+    "count": 4,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 15,
+      "line": "function cloudDocs(p) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "getPrj",
+    "count": 4,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 32,
+      "line": "var p = getPrj(no);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "collectBackup",
+    "count": 4,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 21,
+      "line": "function collectBackup() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "checkDueReminders",
+    "count": 4,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 255,
+      "line": "function checkDueReminders() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_approve",
+    "count": 4,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 618,
+      "line": "if (!s) { _approve(code); return; }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookSupModal",
+    "count": 4,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 292,
+      "line": "function hookSupModal() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "flushPara",
+    "count": 4,
+    "sample": {
+      "file": "cms.js",
+      "lineNo": 190,
+      "line": "function flushPara() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "canMerge",
+    "count": 4,
+    "sample": {
+      "file": "custmerge.js",
+      "lineNo": 17,
+      "line": "function canMerge() { try { return MERGE_ROLES.indexOf(curRole()) > -1; } catch (e) { return false; "
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "lossTotal",
+    "count": 4,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 45,
+      "line": "var loss = lossTotal(p);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "nrm",
+    "count": 4,
+    "sample": {
+      "file": "guards.js",
+      "lineNo": 48,
+      "line": "if ((o.items || []).some(function (it) { return nrm(it.name) === nrm(p.nm) || (p.en && nrm(it.name) "
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "sweep",
+    "count": 4,
+    "sample": {
+      "file": "iconx.js",
+      "lineNo": 159,
+      "line": "function sweep(root) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "sha256Hex",
+    "count": 4,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 43,
+      "line": "sha256Hex(v.cur).then(function (curH) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "irPersist",
+    "count": 4,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 505,
+      "line": "irPersist();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "mv",
+    "count": 4,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 227,
+      "line": "function mv(ev) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "renderToolModal",
+    "count": 4,
+    "sample": {
+      "file": "listtools.js",
+      "lineNo": 168,
+      "line": "renderToolModal();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "ltApply",
+    "count": 4,
+    "sample": {
+      "file": "listtools.js",
+      "lineNo": 187,
+      "line": "var rows = ltApply();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "scan",
+    "count": 4,
+    "sample": {
+      "file": "modalx.js",
+      "lineNo": 98,
+      "line": "function scan(root) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "canFin",
+    "count": 4,
+    "sample": {
+      "file": "opex.js",
+      "lineNo": 21,
+      "line": "function canFin() { try { return !!(roleDef() || {}).finance; } catch (e) { return false; } }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "roleDefaultFor",
+    "count": 4,
+    "sample": {
+      "file": "perms.js",
+      "lineNo": 85,
+      "line": "function roleDefaultFor(role, panelId) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "txSave",
+    "count": 4,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 21,
+      "line": "function txSave(a) { setData(TX_KEY, a || []); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "prAll",
+    "count": 4,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 22,
+      "line": "function prAll() { var a = getData(PERIOD_KEY); return Array.isArray(a) ? a : []; }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "ensureBalance",
+    "count": 4,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 52,
+      "line": "function ensureBalance(amt) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "toNum",
+    "count": 4,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 183,
+      "line": "var amt = toNum(v.amt); if (!ensureBalance(amt)) return;"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "pSave",
+    "count": 4,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 21,
+      "line": "function pSave(l) { setData(PK, l); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "weights",
+    "count": 4,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 34,
+      "line": "function weights() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "activeShares",
+    "count": 4,
+    "sample": {
+      "file": "shareholders.js",
+      "lineNo": 25,
+      "line": "function activeShares() { return shAll().filter(function (s) { return s.active !== false; }); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "installBox",
+    "count": 4,
+    "sample": {
+      "file": "shell.js",
+      "lineNo": 17,
+      "line": "function installBox() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "smsQueueLocal",
+    "count": 4,
+    "sample": {
+      "file": "sms.js",
+      "lineNo": 324,
+      "line": "smsQueueLocal(recipients, txt);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "inject",
+    "count": 4,
+    "sample": {
+      "file": "storage.js",
+      "lineNo": 95,
+      "line": "function inject() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "krevs",
+    "count": 4,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 44,
+      "line": "var m = krevs();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "show",
+    "count": 4,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 97,
+      "line": "show(steps);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "mnvShow",
+    "count": 4,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 190,
+      "line": "mnvShow();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "PDF",
+    "count": 3,
+    "sample": {
+      "file": "analyzer.js",
+      "lineNo": 245,
+      "line": "/* ---------- گزارش PDF (AC6) ---------- */"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "delNext",
+    "count": 3,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 160,
+      "line": "(function delNext() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_setSt",
+    "count": 3,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 289,
+      "line": "_setSt(no, st, selEl);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "pruneQueues",
+    "count": 3,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 74,
+      "line": "function pruneQueues() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "scheduleBackups",
+    "count": 3,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 93,
+      "line": "function scheduleBackups() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "checkMonthlyBackupReminder",
+    "count": 3,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 148,
+      "line": "function checkMonthlyBackupReminder() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "showRestorePreview",
+    "count": 3,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 183,
+      "line": "showRestorePreview(j);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "checkStorageWarn",
+    "count": 3,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 370,
+      "line": "function checkStorageWarn() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "siteSuppliers",
+    "count": 3,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 402,
+      "line": "var s = siteSuppliers().filter(function (x) { return x.code === code; })[0];"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "UI",
+    "count": 3,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 563,
+      "line": "/* هسته حذف آبشاری (قابل تست) — خروجی {ok, why} ؛ سد برنامه‌ای نه فقط UI (درس US-371) */"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "inqChoices",
+    "count": 3,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 20,
+      "line": "function inqChoices() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "isWonInq",
+    "count": 3,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 34,
+      "line": "function isWonInq(inqNo) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "rbFindDeal",
+    "count": 3,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 211,
+      "line": "function rbFindDeal(inqNo) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookProjectCostsProfit",
+    "count": 3,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 693,
+      "line": "function hookProjectCostsProfit() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "chDaysTo",
+    "count": 3,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 15,
+      "line": "function chDaysTo(iso) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "cmsNewsForm",
+    "count": 3,
+    "sample": {
+      "file": "cms.js",
+      "lineNo": 97,
+      "line": "window.cmsNewsAdd = function () { cmsNewsForm(-1); };"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "g2d",
+    "count": 3,
+    "sample": {
+      "file": "datex.js",
+      "lineNo": 13,
+      "line": "function g2d(gy, gm, gd){"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "jalCal",
+    "count": 3,
+    "sample": {
+      "file": "datex.js",
+      "lineNo": 28,
+      "line": "function jalCal(jy){"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "bar",
+    "count": 3,
+    "sample": {
+      "file": "financehub.js",
+      "lineNo": 15,
+      "line": "function bar() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "yearOf",
+    "count": 3,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 25,
+      "line": "var ds = srcDate(p), y = yearOf(ds);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookFxDash",
+    "count": 3,
+    "sample": {
+      "file": "fx.js",
+      "lineNo": 326,
+      "line": "function hookFxDash() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_bd",
+    "count": 3,
+    "sample": {
+      "file": "fx.js",
+      "lineNo": 332,
+      "line": "var h = _bd();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "applyPanelIcons",
+    "count": 3,
+    "sample": {
+      "file": "icons.js",
+      "lineNo": 92,
+      "line": "function applyPanelIcons() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "inqReadRender",
+    "count": 3,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 417,
+      "line": "inqReadRender(r);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "irRowsOf",
+    "count": 3,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 533,
+      "line": "rows = rows || irRowsOf(inqNo);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookReports",
+    "count": 3,
+    "sample": {
+      "file": "insights.js",
+      "lineNo": 167,
+      "line": "function hookReports() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "getView",
+    "count": 3,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 21,
+      "line": "function getView(mod) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "activeCols",
+    "count": 3,
+    "sample": {
+      "file": "listtools.js",
+      "lineNo": 273,
+      "line": "function activeCols() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "findTarget",
+    "count": 3,
+    "sample": {
+      "file": "lossguard.js",
+      "lineNo": 28,
+      "line": "function findTarget(kind, id) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "saveTarget",
+    "count": 3,
+    "sample": {
+      "file": "lossguard.js",
+      "lineNo": 36,
+      "line": "function saveTarget(t) { setData(t.key, t.list); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookProfit",
+    "count": 3,
+    "sample": {
+      "file": "lossguard.js",
+      "lineNo": 109,
+      "line": "function hookProfit() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookMyDay",
+    "count": 3,
+    "sample": {
+      "file": "lossguard.js",
+      "lineNo": 128,
+      "line": "function hookMyDay() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "injectRowBtns",
+    "count": 3,
+    "sample": {
+      "file": "messengers.js",
+      "lineNo": 96,
+      "line": "function injectRowBtns() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "highlight",
+    "count": 3,
+    "sample": {
+      "file": "mobilenav.js",
+      "lineNo": 82,
+      "line": "highlight(id);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "updateHint",
+    "count": 3,
+    "sample": {
+      "file": "moneyx.js",
+      "lineNo": 67,
+      "line": "function updateHint(el) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "reformat",
+    "count": 3,
+    "sample": {
+      "file": "moneyx.js",
+      "lineNo": 79,
+      "line": "function reformat(el) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "plusDays",
+    "count": 3,
+    "sample": {
+      "file": "myday.js",
+      "lineNo": 17,
+      "line": "function plusDays(n) { var d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice("
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "prodSearch",
+    "count": 3,
+    "sample": {
+      "file": "offerlock.js",
+      "lineNo": 17,
+      "line": "function prodSearch(q) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "prodByCode",
+    "count": 3,
+    "sample": {
+      "file": "offerlock.js",
+      "lineNo": 27,
+      "line": "function prodByCode(cd) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "docCols",
+    "count": 3,
+    "sample": {
+      "file": "offers-pro.js",
+      "lineNo": 229,
+      "line": "function docCols(o) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "normMonth",
+    "count": 3,
+    "sample": {
+      "file": "opex.js",
+      "lineNo": 33,
+      "line": "function normMonth(m) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "saveTpls",
+    "count": 3,
+    "sample": {
+      "file": "opex.js",
+      "lineNo": 56,
+      "line": "function saveTpls(list) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "aliasesOf",
+    "count": 3,
+    "sample": {
+      "file": "oppo.js",
+      "lineNo": 17,
+      "line": "function aliasesOf(r) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "isMgr",
+    "count": 3,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 10,
+      "line": "function isMgr() { return MANAGERS.indexOf(curRole()) > -1; }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "isTreasurer",
+    "count": 3,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 16,
+      "line": "function canAll() { return isMgr() || isTreasurer(); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "afterAddUpload",
+    "count": 3,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 138,
+      "line": "function afterAddUpload(rec) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "faMonthNow",
+    "count": 3,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 235,
+      "line": "month = month || faMonthNow();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "offerTotal",
+    "count": 3,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 302,
+      "line": "function offerTotal(o) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "offerCur",
+    "count": 3,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 319,
+      "line": "var cur = offerCur(o), total = offerTotal(o), rate = +a.rate || 0;"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "toEnDigits",
+    "count": 3,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 14,
+      "line": "function toEnDigits(s) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "sfDeleteCloud",
+    "count": 3,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 706,
+      "line": "if (doc.key) sfDeleteCloud([doc.key]);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "canSeeCust",
+    "count": 3,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 27,
+      "line": "function canSeeCust() { try { return !!(roleDef() || {}).finance; } catch (e) { return false; } }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "remainIrr",
+    "count": 3,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 91,
+      "line": "function remainIrr(p) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "wonSum",
+    "count": 3,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 375,
+      "line": "function wonSum(custKeyCd, custKeyCo) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "decorateCust",
+    "count": 3,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 519,
+      "line": "function decorateCust() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "canShare",
+    "count": 3,
+    "sample": {
+      "file": "shareholders.js",
+      "lineNo": 98,
+      "line": "if (!canShare()) return;"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "applyRecover",
+    "count": 3,
+    "sample": {
+      "file": "sms.js",
+      "lineNo": 103,
+      "line": "applyRecover(best);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "selectedRecipients",
+    "count": 3,
+    "sample": {
+      "file": "sms.js",
+      "lineNo": 277,
+      "line": "function selectedRecipients() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "brandGroup",
+    "count": 3,
+    "sample": {
+      "file": "supspec.js",
+      "lineNo": 74,
+      "line": "function brandGroup(b) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "guardCounts",
+    "count": 3,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 71,
+      "line": "var c = guardCounts();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "pushDirty",
+    "count": 3,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 98,
+      "line": "function pushDirty() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "refreshCurrentPanel",
+    "count": 3,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 165,
+      "line": "refreshCurrentPanel();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "injectTopIcons",
+    "count": 3,
+    "sample": {
+      "file": "theme.js",
+      "lineNo": 88,
+      "line": "function injectTopIcons() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "btnOf",
+    "count": 3,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 53,
+      "line": "function btnOf(id) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "visSteps",
+    "count": 3,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 58,
+      "line": "function visSteps() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "normCards",
+    "count": 2,
+    "sample": {
+      "file": "ai-workbench.js",
+      "lineNo": 776,
+      "line": "function normCards(data){"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "doZip",
+    "count": 2,
+    "sample": {
+      "file": "archive.js",
+      "lineNo": 161,
+      "line": "if (di >= dels.length) { doZip(); return; }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "summarize",
+    "count": 2,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 32,
+      "line": "counts: summarize(data),"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "bakSettings",
+    "count": 2,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 140,
+      "line": "var st = bakSettings();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "bakMonthKey",
+    "count": 2,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 141,
+      "line": "var mk = bakMonthKey();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "doRestore",
+    "count": 2,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 210,
+      "line": "doRestore(j);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "storageUsage",
+    "count": 2,
+    "sample": {
+      "file": "backup.js",
+      "lineNo": 313,
+      "line": "function storageUsage() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "api",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 31,
+      "line": "function api(action, data, cb) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "isMine",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 80,
+      "line": "function isMine(n) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "isHighlighted",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 84,
+      "line": "function isHighlighted(n) { return n.actionable && isMine(n); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "checkOfferExpiry",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 170,
+      "line": "function checkOfferExpiry() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "processEvent",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 279,
+      "line": "function processEvent(ev) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "inAls",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 549,
+      "line": "function inAls(v) { return v && als.indexOf(v) > -1; }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_wl",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 733,
+      "line": "function _wl(r2) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "siteRfqs",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 791,
+      "line": "var r = siteRfqs().filter(function (x) { return x.code === code; })[0];"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "custOptions",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 914,
+      "line": "function custOptions(sel) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "rfqCollectModalItems",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 993,
+      "line": "function rfqCollectModalItems(cd) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "initRfqModal",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 1010,
+      "line": "function initRfqModal() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_showModal",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 1108,
+      "line": "_showModal(id);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "salesUsers",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 1199,
+      "line": "function salesUsers() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "injectInboxUI",
+    "count": 2,
+    "sample": {
+      "file": "bridge.js",
+      "lineNo": 1317,
+      "line": "function injectInboxUI() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchDealsRealBuy",
+    "count": 2,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 578,
+      "line": "function patchDealsRealBuy() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_rd",
+    "count": 2,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 583,
+      "line": "_rd();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchSupApprove",
+    "count": 2,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 613,
+      "line": "function patchSupApprove() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_orig",
+    "count": 2,
+    "sample": {
+      "file": "buycompare.js",
+      "lineNo": 698,
+      "line": "var r = _orig(prj);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "chBoxHtml",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 20,
+      "line": "function chBoxHtml() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookReminders",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 102,
+      "line": "function hookReminders() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "chDailyNotify",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 113,
+      "line": "function chDailyNotify() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookEntityCard",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 192,
+      "line": "function hookEntityCard() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookSupTabs",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 220,
+      "line": "function hookSupTabs() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_rs",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 269,
+      "line": "_rs();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_sm",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 297,
+      "line": "_sm(cd);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_ss",
+    "count": 2,
+    "sample": {
+      "file": "cheques.js",
+      "lineNo": 326,
+      "line": "_ss(cd);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "tb",
+    "count": 2,
+    "sample": {
+      "file": "cms.js",
+      "lineNo": 35,
+      "line": "function tb(id, lb) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "renderCmsSeo",
+    "count": 2,
+    "sample": {
+      "file": "cms.js",
+      "lineNo": 62,
+      "line": "else renderCmsSeo(el);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "loadNewsFromSite",
+    "count": 2,
+    "sample": {
+      "file": "cms.js",
+      "lineNo": 66,
+      "line": "function loadNewsFromSite(cb) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "flushList",
+    "count": 2,
+    "sample": {
+      "file": "cms.js",
+      "lineNo": 196,
+      "line": "if (!t) { flushPara(); flushList(); return; }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hideCmsBtn",
+    "count": 2,
+    "sample": {
+      "file": "cms.js",
+      "lineNo": 303,
+      "line": "function hideCmsBtn() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "render",
+    "count": 2,
+    "sample": {
+      "file": "contracts.js",
+      "lineNo": 220,
+      "line": "function render(langKey) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "smarter",
+    "count": 2,
+    "sample": {
+      "file": "custmerge.js",
+      "lineNo": 35,
+      "line": "function smarter(a, b) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "mergeRefCount",
+    "count": 2,
+    "sample": {
+      "file": "custmerge.js",
+      "lineNo": 82,
+      "line": "var refCount = mergeRefCount(dropCd);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "d2g",
+    "count": 2,
+    "sample": {
+      "file": "datex.js",
+      "lineNo": 18,
+      "line": "function d2g(jdn){"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "resolve",
+    "count": 2,
+    "sample": {
+      "file": "dialogx.js",
+      "lineNo": 6,
+      "line": "- ESC / کلیک بیرون = انصراف امن (resolve(false|null)) — هرگز reject نمی‌کند"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchDrawer",
+    "count": 2,
+    "sample": {
+      "file": "docsx.js",
+      "lineNo": 211,
+      "line": "function patchDrawer() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_bp",
+    "count": 2,
+    "sample": {
+      "file": "financehub.js",
+      "lineNo": 37,
+      "line": "window.buildPetty = function () { return bar() + _bp(); };"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "saveSnaps",
+    "count": 2,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 11,
+      "line": "function saveSnaps(a) { setData(SNAP_KEY, a || []); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hasHardWarning",
+    "count": 2,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 17,
+      "line": "function hasHardWarning(r) { return (r.warnings || []).some(function (w) { return /^[⛔⚠️]/.test(Stri"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "collectCandidates",
+    "count": 2,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 21,
+      "line": "function collectCandidates(year) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "srcDate",
+    "count": 2,
+    "sample": {
+      "file": "fiscal.js",
+      "lineNo": 25,
+      "line": "var ds = srcDate(p), y = yearOf(ds);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchInvPay",
+    "count": 2,
+    "sample": {
+      "file": "fx.js",
+      "lineNo": 104,
+      "line": "function patchInvPay() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "orig",
+    "count": 2,
+    "sample": {
+      "file": "fx.js",
+      "lineNo": 131,
+      "line": "return orig(a, b, c);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "fxTickerHtml",
+    "count": 2,
+    "sample": {
+      "file": "fx.js",
+      "lineNo": 250,
+      "line": "function fxTickerHtml() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchRecvRender",
+    "count": 2,
+    "sample": {
+      "file": "fx.js",
+      "lineNo": 361,
+      "line": "function patchRecvRender() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "golive",
+    "count": 2,
+    "sample": {
+      "file": "golive.js",
+      "lineNo": 4,
+      "line": "- فقط ادمین | تایید سه‌مرحله‌ای | بک‌آپ اجباری pre-golive (دانلود + سرور)"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "wipeCount",
+    "count": 2,
+    "sample": {
+      "file": "golive.js",
+      "lineNo": 29,
+      "line": "function wipeCount(k) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "svg",
+    "count": 2,
+    "sample": {
+      "file": "icons.js",
+      "lineNo": 10,
+      "line": "function svg(paths, vb) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "applyBtnIcons",
+    "count": 2,
+    "sample": {
+      "file": "icons.js",
+      "lineNo": 116,
+      "line": "function applyBtnIcons() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "processTextNode",
+    "count": 2,
+    "sample": {
+      "file": "iconx.js",
+      "lineNo": 130,
+      "line": "function processTextNode(tn) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "idleCheck",
+    "count": 2,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 13,
+      "line": "function idleCheck() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "rfqHasReadable",
+    "count": 2,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 163,
+      "line": "function rfqHasReadable(r) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchRenderRfq",
+    "count": 2,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 169,
+      "line": "function patchRenderRfq() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchRenderProducts",
+    "count": 2,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 632,
+      "line": "function patchRenderProducts() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "patchOffLoad",
+    "count": 2,
+    "sample": {
+      "file": "inqreader.js",
+      "lineNo": 662,
+      "line": "function patchOffLoad() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "classify",
+    "count": 2,
+    "sample": {
+      "file": "insights.js",
+      "lineNo": 100,
+      "line": "function classify(p) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_rr",
+    "count": 2,
+    "sample": {
+      "file": "insights.js",
+      "lineNo": 179,
+      "line": "_rr();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "ms",
+    "count": 2,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 13,
+      "line": "- موبایل: اسکرول افقی ستون‌ها + درگ لمسی با نگه‌داشتن ۳۰۰ms (الگوی موتور درگ لانچر v12.9)."
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "saveView",
+    "count": 2,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 27,
+      "line": "function saveView(mod, v) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "apply",
+    "count": 2,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 78,
+      "line": "apply(mod);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "stOf",
+    "count": 2,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 156,
+      "line": "function stOf(o) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "cancel",
+    "count": 2,
+    "sample": {
+      "file": "kanban.js",
+      "lineNo": 273,
+      "line": "function cancel(ev) { if (ev.pointerId === e.pointerId) cleanup(); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "getOrder",
+    "count": 2,
+    "sample": {
+      "file": "launcher.js",
+      "lineNo": 14,
+      "line": "function getOrder() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "saveOrder",
+    "count": 2,
+    "sample": {
+      "file": "launcher.js",
+      "lineNo": 20,
+      "line": "function saveOrder(ids) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "tiles",
+    "count": 2,
+    "sample": {
+      "file": "launcher.js",
+      "lineNo": 31,
+      "line": "function tiles() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "lchHtml",
+    "count": 2,
+    "sample": {
+      "file": "launcher.js",
+      "lineNo": 52,
+      "line": "function lchHtml() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "flip",
+    "count": 2,
+    "sample": {
+      "file": "launcher.js",
+      "lineNo": 91,
+      "line": "function flip(mutate) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "canClean",
+    "count": 2,
+    "sample": {
+      "file": "listclean.js",
+      "lineNo": 17,
+      "line": "function canClean() { try { return CLEAN_ROLES.indexOf(curRole()) > -1; } catch (e) { return false; "
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookRenders",
+    "count": 2,
+    "sample": {
+      "file": "listclean.js",
+      "lineNo": 271,
+      "line": "function hookRenders() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "Excel",
+    "count": 2,
+    "sample": {
+      "file": "listtools.js",
+      "lineNo": 3,
+      "line": "ابزار سراسری فهرست‌ها: فیلتر پیشرفته + خروجی Excel(CSV)/PDF(چاپ)"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "injectButtons",
+    "count": 2,
+    "sample": {
+      "file": "listtools.js",
+      "lineNo": 135,
+      "line": "function injectButtons() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "uniqVals",
+    "count": 2,
+    "sample": {
+      "file": "listtools.js",
+      "lineNo": 156,
+      "line": "function uniqVals(def, col) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "openLossUpload",
+    "count": 2,
+    "sample": {
+      "file": "lossguard.js",
+      "lineNo": 66,
+      "line": "openLossUpload(kind, id, ev.cd);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "profitTargetObjects",
+    "count": 2,
+    "sample": {
+      "file": "lossguard.js",
+      "lineNo": 85,
+      "line": "function profitTargetObjects() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "bootBtns",
+    "count": 2,
+    "sample": {
+      "file": "messengers.js",
+      "lineNo": 114,
+      "line": "function bootBtns() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookNotify",
+    "count": 2,
+    "sample": {
+      "file": "messengers.js",
+      "lineNo": 137,
+      "line": "function hookNotify() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookCartable",
+    "count": 2,
+    "sample": {
+      "file": "messengers.js",
+      "lineNo": 235,
+      "line": "function hookCartable() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "botPairsSave",
+    "count": 2,
+    "sample": {
+      "file": "messengers.js",
+      "lineNo": 268,
+      "line": "function botPairsSave(p2) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "buildMoreSheet",
+    "count": 2,
+    "sample": {
+      "file": "mobilenav.js",
+      "lineNo": 36,
+      "line": "function buildMoreSheet() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "buildBar",
+    "count": 2,
+    "sample": {
+      "file": "mobilenav.js",
+      "lineNo": 93,
+      "line": "function buildBar() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "syncBadge",
+    "count": 2,
+    "sample": {
+      "file": "mobilenav.js",
+      "lineNo": 114,
+      "line": "function syncBadge() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "watchBadge",
+    "count": 2,
+    "sample": {
+      "file": "mobilenav.js",
+      "lineNo": 122,
+      "line": "function watchBadge() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookGoPanel",
+    "count": 2,
+    "sample": {
+      "file": "mobilenav.js",
+      "lineNo": 193,
+      "line": "function hookGoPanel() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "mxMinimize",
+    "count": 2,
+    "sample": {
+      "file": "modalx.js",
+      "lineNo": 56,
+      "line": "function mxMinimize() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hintFor",
+    "count": 2,
+    "sample": {
+      "file": "moneyx.js",
+      "lineNo": 56,
+      "line": "function hintFor(el) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "todayISO2",
+    "count": 2,
+    "sample": {
+      "file": "myday.js",
+      "lineNo": 16,
+      "line": "function todayISO2() { return new Date().toISOString().slice(0, 10); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "colW",
+    "count": 2,
+    "sample": {
+      "file": "offerlock.js",
+      "lineNo": 118,
+      "line": "var m = colW(); m[key] = w; localStorage.setItem(COL_W_KEY, JSON.stringify(m));"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "viewportOut",
+    "count": 2,
+    "sample": {
+      "file": "offerlock.js",
+      "lineNo": 140,
+      "line": "function viewportOut(e4) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "injectCurrencyField",
+    "count": 2,
+    "sample": {
+      "file": "offers-pro.js",
+      "lineNo": 30,
+      "line": "function injectCurrencyField() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "colHasData",
+    "count": 2,
+    "sample": {
+      "file": "offers-pro.js",
+      "lineNo": 298,
+      "line": "function colHasData(k) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "lhBarsHtml",
+    "count": 2,
+    "sample": {
+      "file": "offers-pro.js",
+      "lineNo": 372,
+      "line": "function lhBarsHtml() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "toStMigrate",
+    "count": 2,
+    "sample": {
+      "file": "offers.js",
+      "lineNo": 337,
+      "line": "function toStMigrate(o) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookPetty",
+    "count": 2,
+    "sample": {
+      "file": "opex.js",
+      "lineNo": 184,
+      "line": "function hookPetty() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "permsAll",
+    "count": 2,
+    "sample": {
+      "file": "perms.js",
+      "lineNo": 24,
+      "line": "var p = permsAll()[username];"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "canAll",
+    "count": 2,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 16,
+      "line": "function canAll() { return isMgr() || isTreasurer(); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "prSave",
+    "count": 2,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 23,
+      "line": "function prSave(a) { setData(PERIOD_KEY, a || []); }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "addTx",
+    "count": 2,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 48,
+      "line": "function addTx(type, amt, desc, ref, extra) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "renderAccountBox",
+    "count": 2,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 68,
+      "line": "function renderAccountBox() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "renderPeriods",
+    "count": 2,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 82,
+      "line": "function renderPeriods() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "recMonth",
+    "count": 2,
+    "sample": {
+      "file": "petty.js",
+      "lineNo": 236,
+      "line": "var petty = (getData(PETTY_KEY) || []).filter(function (x) { return recMonth(x) === month; });"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "toFaDigits",
+    "count": 2,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 18,
+      "line": "function toFaDigits(s) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookCust",
+    "count": 2,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 69,
+      "line": "function hookCust() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_s",
+    "count": 2,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 74,
+      "line": "_s(cd);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookSup",
+    "count": 2,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 85,
+      "line": "function hookSup() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookSmsBook",
+    "count": 2,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 110,
+      "line": "function hookSmsBook() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "migrateOnce",
+    "count": 2,
+    "sample": {
+      "file": "phonefmt.js",
+      "lineNo": 126,
+      "line": "function migrateOnce() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "faToNum",
+    "count": 2,
+    "sample": {
+      "file": "reports.js",
+      "lineNo": 21,
+      "line": "function faToNum(faStr) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "faNumDaysAgo",
+    "count": 2,
+    "sample": {
+      "file": "reports.js",
+      "lineNo": 30,
+      "line": "function faNumDaysAgo(days) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "allUserNames",
+    "count": 2,
+    "sample": {
+      "file": "reports.js",
+      "lineNo": 46,
+      "line": "function allUserNames() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "userStats",
+    "count": 2,
+    "sample": {
+      "file": "reports.js",
+      "lineNo": 52,
+      "line": "function userStats(period) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hideRepBtn",
+    "count": 2,
+    "sample": {
+      "file": "reports.js",
+      "lineNo": 167,
+      "line": "function hideRepBtn() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "detectCat",
+    "count": 2,
+    "sample": {
+      "file": "rfqsmart.js",
+      "lineNo": 23,
+      "line": "function detectCat(text) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookOfferSave",
+    "count": 2,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 54,
+      "line": "function hookOfferSave() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "sfCloseModal",
+    "count": 2,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 800,
+      "line": "sfCloseModal(cd);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "sfLostModal",
+    "count": 2,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 805,
+      "line": "sfLostModal(cd);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "proceed",
+    "count": 2,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 875,
+      "line": "function proceed() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookLetterModal",
+    "count": 2,
+    "sample": {
+      "file": "salesfiles.js",
+      "lineNo": 942,
+      "line": "function hookLetterModal() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "canSeeSup",
+    "count": 2,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 26,
+      "line": "function canSeeSup() { try { return (roleDef() || {}).buyPrice || isSenior(); } catch (e) { return f"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "adjOf",
+    "count": 2,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 41,
+      "line": "function adjOf(kind, cd) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "payablesBoxHtml",
+    "count": 2,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 116,
+      "line": "function payablesBoxHtml() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "decorateSup",
+    "count": 2,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 502,
+      "line": "function decorateSup() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookCreditBox",
+    "count": 2,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 538,
+      "line": "function hookCreditBox() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookPanels",
+    "count": 2,
+    "sample": {
+      "file": "scoring.js",
+      "lineNo": 651,
+      "line": "function hookPanels() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "applyAccordion",
+    "count": 2,
+    "sample": {
+      "file": "shell.js",
+      "lineNo": 98,
+      "line": "function applyAccordion() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hideSmsBtn",
+    "count": 2,
+    "sample": {
+      "file": "sms.js",
+      "lineNo": 508,
+      "line": "function hideSmsBtn() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookSearch",
+    "count": 2,
+    "sample": {
+      "file": "supspec.js",
+      "lineNo": 98,
+      "line": "function hookSearch() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "add",
+    "count": 2,
+    "sample": {
+      "file": "supspec.js",
+      "lineNo": 156,
+      "line": "function add(b) { var n = norm(b); if (b && n && !seen[n]) { seen[n] = 1; out.push(b); } }"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "migrate",
+    "count": 2,
+    "sample": {
+      "file": "supspec.js",
+      "lineNo": 217,
+      "line": "function migrate() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "decorate",
+    "count": 2,
+    "sample": {
+      "file": "supspec.js",
+      "lineNo": 239,
+      "line": "function decorate() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "hookRender",
+    "count": 2,
+    "sample": {
+      "file": "supspec.js",
+      "lineNo": 264,
+      "line": "function hookRender() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "purchaseHistory",
+    "count": 2,
+    "sample": {
+      "file": "supspec.js",
+      "lineNo": 302,
+      "line": "function purchaseHistory(s) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "applyKrevs",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 42,
+      "line": "function applyKrevs(newOnes) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "saveKrevs",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 46,
+      "line": "saveKrevs(m);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "saveGuardCounts",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 75,
+      "line": "saveGuardCounts(c);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "massDropCheck",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 77,
+      "line": "function massDropCheck() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "setRev",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 150,
+      "line": "if (d.rev) setRev(d.rev);"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "pullCheck",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 183,
+      "line": "function pullCheck(done) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "injectBadge",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 266,
+      "line": "function injectBadge() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "initialSync",
+    "count": 2,
+    "sample": {
+      "file": "sync.js",
+      "lineNo": 278,
+      "line": "function initialSync() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "enhance",
+    "count": 2,
+    "sample": {
+      "file": "tables.js",
+      "lineNo": 31,
+      "line": "function enhance(tbl) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "avatarPlaceholder",
+    "count": 2,
+    "sample": {
+      "file": "theme.js",
+      "lineNo": 186,
+      "line": "if (pv) pv.innerHTML = avatarPlaceholder();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "navGroups",
+    "count": 2,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 49,
+      "line": "function navGroups() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "openOnlyGroup",
+    "count": 2,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 73,
+      "line": "function openOnlyGroup(gid) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "ensureUI",
+    "count": 2,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 96,
+      "line": "ensureUI();"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "spotlight",
+    "count": 2,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 112,
+      "line": "function spotlight(r, pad) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "autoOnce",
+    "count": 2,
+    "sample": {
+      "file": "tour.js",
+      "lineNo": 236,
+      "line": "function autoOnce() {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "offersOf",
+    "count": 2,
+    "sample": {
+      "file": "workflow.js",
+      "lineNo": 56,
+      "line": "function offersOf(r) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "vowelize",
+    "count": 2,
+    "sample": {
+      "file": "workflow.js",
+      "lineNo": 356,
+      "line": "function vowelize(out) {"
+    }
+  },
+  {
+    "severity": "MEDIUM",
+    "type": "broken-ref",
+    "target": "_printTpl",
+    "count": 2,
+    "sample": {
+      "file": "workflow.js",
+      "lineNo": 437,
+      "line": "_printTpl(o2, tpl, isPreview);"
+    }
+  }
+]

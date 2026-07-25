@@ -1,0 +1,25 @@
+/* tester126 — v21.0 (US-413: مشتریان بدون مالک فقط برای ارشد) */
+require('./harness');
+var fs = require('fs'), path = require('path');
+var BASE = path.resolve(__dirname, '../../crm');
+var mf = fs.readFileSync(path.join(BASE, 'my-customers-filter.js'), 'utf-8');
+var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
+var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
+SECTION('نسخه و ثبت');
+T('نسخه v21.0+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=21.0;})());
+T('SW v21.0+', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=21.0;})());
+T('cache-bust filter >=21.0', (function(){var m=idx.match(/my-customers-filter\.js\?v=([0-9.]+)/);return m&&parseFloat(m[1])>=21.0;})());
+SECTION('منطق سخت‌گیرانه');
+T('بدون مالک برای own مخفی می‌شود', mf.indexOf('function ownerOf(c)') > -1 && mf.indexOf('return !!own && own === myUser') > -1);
+T('ارشدها scope all دارند', mf.indexOf("SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial']")>-1);
+T('نوار فروشنده دیگر متن قدیمی بدون مالک ندارد', mf.indexOf('رکوردهای بدون مالک فقط برای مدیران ارشد')>-1);
+SECTION('رفتاری');
+global.window=global;
+global.renderCustomers = function(){};
+eval(mf);
+var data=[{cd:'C1',crBy:'ali'},{cd:'C2',crBy:'sara'},{cd:'C3'}];
+global.curRole=function(){return 'sales'}; global.curSession=function(){return {user:'ali'}};
+T('sales ali فقط C1 را می‌بیند؛ legacy مخفی', ptfMyCustFilter.applyFilter(data).map(function(x){return x.cd}).join(',')==='C1');
+global.curRole=function(){return 'chairman'};
+T('chairman همه را می‌بیند', ptfMyCustFilter.applyFilter(data).length===3);
+DONE('tester126-v210');

@@ -1,0 +1,35 @@
+/* TESTER-14 — اسپرینت ۷۷ */
+require('./harness');
+var fs = require('fs'), path = require('path');
+var BASE = path.resolve(__dirname, '../../crm');
+global.window = global;
+global.document = { getElementById: function(){return null;}, querySelectorAll: function(){return [];}, querySelector: function(){return null;}, createElement: function(){return {style:{},click:function(){}};}, addEventListener: function(){}, head:{appendChild:function(){}}, body:{appendChild:function(){}} };
+global.curSession = function(){return {user:'admin',name:'ادمین'};};
+global.curRole = function(){return 'admin';};
+global.SENIOR_ROLES = ['admin','chairman','ceo','commercial'];
+var offCode = fs.readFileSync(path.join(BASE,'offers.js'),'utf-8');
+var leadsCode = fs.readFileSync(path.join(BASE,'leads.js'),'utf-8');
+var bridgeCode = fs.readFileSync(path.join(BASE,'bridge.js'),'utf-8');
+var backupCode = fs.readFileSync(path.join(BASE,'backup.js'),'utf-8');
+var uiCode = fs.readFileSync(path.join(BASE,'ui-kit.js'),'utf-8');
+var rbacCode = fs.readFileSync(path.join(BASE,'rbac.js'),'utf-8');
+var idxCode = fs.readFileSync(path.join(BASE,'index.html'),'utf-8');
+function ext(code,name){var m=code.match(new RegExp('function '+name+'\\s*\\(([\\s\\S]*?)\\n\\}','m'));eval.call(global,m[0].replace('function '+name,'global.'+name+' = function'));}
+SECTION('US-152');
+ext(leadsCode,'faYear'); var y=global.faYear();
+T('faYear شمسی', /^14\d{2}$/.test(y));
+T('offers از generator مرکزی/سال پویا استفاده می‌کند', offCode.indexOf('window.ptfUnifiedCode(k)') > -1 && offCode.indexOf('function offerSerial(kind)') > -1);
+T('همه ماژول‌ها', ['contracts.js','letters.js','projects.js','rfqsmart.js'].every(function(f){return fs.readFileSync(path.join(BASE,f),'utf-8').indexOf('faYear()')>-1;}));
+T('سنجه حافظه + پاک‌سازی', backupCode.indexOf('ptfStorageMeterHtml')>-1 && backupCode.indexOf('ptfStorageCleanup')>-1);
+SECTION('US-153');
+T('ui-kit کامل', ['ptfDialog','ptfToast','ptfConfirm'].every(function(f){return uiCode.indexOf('window.'+f)>-1;}));
+T('مودال‌ها جایگزین شدند', rbacCode.indexOf('🚚 ثبت ارسال / تحویل')>-1 && bridgeCode.indexOf('remPostponeCommit')>-1 && leadsCode.indexOf('leadLoseCommit')>-1);
+SECTION('US-157');
+ext(offCode,'offerValidState');
+var past=new Date(Date.now()-2*86400000).toISOString().slice(0,10);
+var soon=new Date(Date.now()+2*86400000).toISOString().slice(0,10);
+var far=new Date(Date.now()+20*86400000).toISOString().slice(0,10);
+T('سه وضعیت بج', (offerValidState({kind:'CO',validUntil:past,st:'sent'})||{}).lb.indexOf('⛔')===0 && (offerValidState({kind:'CO',validUntil:soon,st:'sent'})||{}).lb.indexOf('⏳')===0 && (offerValidState({kind:'CO',validUntil:far,st:'sent'})||{}).lb.indexOf('✓')===0);
+T('فیلد + ذخیره + یادآور', offCode.indexOf('ofValid')>-1 && offCode.indexOf('o.validUntil =')>-1 && bridgeCode.indexOf('checkOfferExpiry')>-1);
+DONE('TESTER-14 (Sprint77)');
+process.exit(RESULTS.fail ? 1 : 0);

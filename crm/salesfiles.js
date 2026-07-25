@@ -1,0 +1,1226 @@
+/* =====================================================================
+   PTF CRM — salesfiles.js — v13.2 — US-322 (بازطراحی نقش پرونده‌های فروش — دستور کارفرما)
+   - با ثبت هر پیشنهاد (TO/CO/TC) رکوردی با همان شماره درخواست خودکار ساخته می‌شود
+   - کلیک روی رکورد = منوی کشویی همه اسناد منضم (پیشنهادها با آخرین رویژن،
+     نامه‌ها، فاکتورها، اسناد متفرقه) + افزودن سند از بیرون
+   - مختومه بدون فاکتور: تایید کاربر ← پیشنهاد دانلود اسناد ← حذف اسناد متفرقه
+     از فضای ابری ← انتقال رکورد آماری به «بایگانی» (نام جدید پرونده‌های پروژه)
+   - مختومه با فاکتور ثبت‌شده: پایان پروژه و تسویه کامل ← انتقال کل پرونده با ضمایم به بایگانی
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  var K = 'ptf_crm_deals';
+
+  function sfAll() { return getData(K); }
+  function sfSave(list) { setData(K, list); }
+
+  /* v14.8 (US-349): دلایل استاندارد باخت — به جای متن آزاد */
+  window.SF_LOST_REASONS = [
+    { id: 'price', lb: 'قیمت' },
+    { id: 'delivery', lb: 'زمان تحویل' },
+    { id: 'brand', lb: 'برند' },
+    { id: 'cancel', lb: 'انصراف مشتری' },
+    { id: 'other', lb: 'سایر' }
+  ];
+
+  /* v14.8 (US-351): وضعیت تاریخ تحویل تعهدی — قرمز=گذشته/امروز، نارنجی=تا ۳ روز آینده */
+  window.ptfSfDueState = function (r) {
+    if (!r || !r.dueISO || r.st === 'archived') return null;
+    var today = new Date().toISOString().slice(0, 10);
+    if (r.dueISO <= today) return 'red';
+    var diff = Math.round((new Date(r.dueISO) - new Date(today)) / 86400000);
+    return diff <= 3 ? 'orange' : null;
+  };
+
+  /* ---------- ساخت/به‌روزرسانی خودکار رکورد از پیشنهاد ---------- */
+  window.ptfSF_ensure = function (inqNo, buyerCo) {
+    if (!inqNo) return null;
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.inqNo === inqNo; })[0];
+    if (!r) {
+      r = { cd: genCode('DEAL'), inqNo: inqNo, buyerCo: buyerCo || '', docs: [], st: 'open', t: faDateTime(), by: curSession().name };
+      list.unshift(r);
+      sfSave(list);
+      try { audit('پرونده‌های فروش', 'ایجاد خودکار پرونده فروش برای درخواست ' + inqNo, r.cd); } catch (e) {}
+    } else if (buyerCo && !r.buyerCo) { r.buyerCo = buyerCo; sfSave(list); }
+    return r;
+  };
+
+  /* v16.8 (US-404 فاز ۱ — مصوب کارفرما): ثبت پیشنهاد دیگر پرونده نمی‌سازد.
+     «پرونده فروش = ابلاغ سفارش (CO برنده)» — تنها نقطه ساخت: autoCreateProjectFromCO (ptfSF_ensure).
+     قبل از برد، درخواست در تب «🎯 فرصت‌های فعال» (oppo.js) رهگیری می‌شود.
+     hook حفظ شد فقط برای به‌روزرسانی buyerCo رکورد موجود (بدون ساخت). */
+  function hookOfferSave() {
+    if (window._sfOfferHooked || typeof window.offerSave !== 'function') return false;
+    window._sfOfferHooked = true;
+    var _os = window.offerSave;
+    window.offerSave = function () {
+      _os.apply(this, arguments);
+      try {
+        var st = window._offState || {};
+        if (st.no && st.inqNo) {
+          var saved = getData('ptf_crm_offers').filter(function (o) { return o.no === st.no; })[0];
+          if (saved && saved.buyerCo) {
+            var list = sfAll();
+            var r = list.filter(function (x) { return x.inqNo === saved.inqNo; })[0];
+            if (r && !r.buyerCo) { r.buyerCo = saved.buyerCo; sfSave(list); }
+          }
+        }
+      } catch (e) {}
+    };
+    return true;
+  }
+  var htr = 0;
+  var ht = setInterval(function () { htr++; if (hookOfferSave() || htr > 50) clearInterval(ht); }, 400);
+
+  /* ---------- جمع‌آوری زنده اسناد منضم یک درخواست ---------- */
+  function sfDocsOf(r) {
+    var out = { offers: [], letters: [], invoices: [], misc: r.docs || [], supply: [] };
+    var offers = getData('ptf_crm_offers').filter(function (o) { return o.inqNo === r.inqNo; });
+    out.offers = offers; // نمایش زنده = همیشه آخرین رویژن (o.rev)
+    out.letters = getData('ptf_crm_letters').filter(function (l) {
+      return l.prjNo === 'SF:' + r.inqNo || l.inqNo === r.inqNo;
+    });
+    var offNos = offers.map(function (o) { return o.no; });
+    out.invoices = getData('ptf_crm_invoices').filter(function (i) { return offNos.indexOf(i.offerNo) > -1; });
+    /* v17.1 (US-404 فاز ۲ — تکمیل اسناد چهارگانه): استعلام‌های تامین مرتبط (rfqsmart)
+       با هر دو شناسه درخواست (کد سیستمی + شماره کارفرما — US-386) */
+    try {
+      var aliases = [r.inqNo];
+      var rfq = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === r.inqNo || x.inqNo === r.inqNo; })[0];
+      if (rfq) { if (aliases.indexOf(rfq.cd) < 0) aliases.push(rfq.cd); if (rfq.inqNo && aliases.indexOf(rfq.inqNo) < 0) aliases.push(rfq.inqNo); }
+      out.supply = getData('ptf_crm_rfqsmart').filter(function (q) { return q.srcRfq && aliases.indexOf(q.srcRfq) > -1; });
+    } catch (eS) { out.supply = []; }
+    return out;
+  }
+  function sfHasInvoice(r) { return sfDocsOf(r).invoices.length > 0; }
+
+  /* ===== v19.1 (US-432): اسناد قطعی برد — snapshot تغییرناپذیر پیشنهاد مالی برنده + آخرین فنی مرتبط.
+     ساخت اصلی: لحظه برد در autoCreateProjectFromCO (offers.js). این تابع مهاجرت نرم پرونده‌های
+     قدیمی برد‌شده (قبل از v19.1) است: یک‌بار از پیشنهاد زنده snapshot می‌سازد. ===== */
+  window.sfAwardEnsure = function (r) {
+    if (!r || !r.wonOffer) return (r && r.awardDocs) || [];
+    if (r.awardDocs && r.awardDocs.length) return r.awardDocs;
+    try {
+      var all = getData('ptf_crm_offers');
+      var o = all.filter(function (x) { return x.no === r.wonOffer; })[0];
+      if (!o) return [];
+      var docs = [{ kind: o.kind, no: o.no, rev: o.rev || 0, role: 'commercial', t: faDateTime(), by: curSession().name, migrated: true, snap: JSON.parse(JSON.stringify(o)) }];
+      var to = null;
+      if (o.srcToNo) to = all.filter(function (x) { return x.no === o.srcToNo; })[0];
+      if (!to) to = all.filter(function (x) { return x.kind === 'TO' && (x.coNo === o.no || (o.inqNo && x.inqNo === o.inqNo)); }).sort(function (a, b) { return (b.rev || 0) - (a.rev || 0); })[0];
+      if (to) docs.push({ kind: 'TO', no: to.no, rev: to.rev || 0, role: 'technical', t: faDateTime(), by: curSession().name, migrated: true, snap: JSON.parse(JSON.stringify(to)) });
+      var list = sfAll();
+      var rec = list.filter(function (x) { return x.cd === r.cd; })[0];
+      if (rec) {
+        rec.awardDocs = docs; sfSave(list); r.awardDocs = docs;
+        try { audit('پرونده‌های فروش', 'US-432 (مهاجرت نرم): snapshot اسناد قطعی برد پرونده ' + (r.inqNo || r.cd) + ' ساخته شد', r.cd); } catch (e2) {}
+      }
+      return docs;
+    } catch (e) { return r.awardDocs || []; }
+  };
+  /* AC4: چاپ/PDF سند برد از snapshot — حتی اگر پیشنهاد بعدا از ماژول پیشنهادها حذف شده باشد */
+  window.sfAwardPrint = function (cd, no) {
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var ad = (r.awardDocs || []).filter(function (d) { return d.no === no; })[0];
+    if (!ad || !ad.snap) { alert('سند قطعی برد یافت نشد'); return; }
+    var snap = JSON.parse(JSON.stringify(ad.snap)); /* کپی — snapshot اصلی هرگز mutate نمی‌شود */
+    if (typeof offerPrintObj === 'function') offerPrintObj(snap);
+    else if (typeof offerPrint === 'function') offerPrint(no);
+    try { audit('پرونده‌های فروش', 'چاپ/PDF سند قطعی برد ' + no + ' از پرونده ' + (r.inqNo || cd), cd); } catch (e) {}
+  };
+
+  /* ===== v20.7: QC داخل پرونده فقط برای نتایج/گزارش‌های صادره است.
+     نوت بازرسی رسمی از docsx (Inspection Notice) صادر می‌شود و در آن نتیجه درج نمی‌شود. */
+  window.SF_QC_TYPES = [
+    { id: 'test', lb: '🧪 نتیجه آزمایش' },
+    { id: 'report', lb: '📋 پیوست گزارش بازرسی صادره توسط بازرس' },
+    { id: 'cert', lb: '📜 MTC / TPI / Release Note' }
+  ];
+  window.SF_QC_CONF = [
+    { id: 'pending', lb: '⏳ در انتظار نتیجه' },
+    { id: 'conform', lb: '✅ انطباق' },
+    { id: 'nonconform', lb: '⛔ عدم انطباق' }
+  ];
+  /* هسته برنامه‌ای (قابل تست) — UI فقط wrapper است */
+  window.sfQcCommit = function (cd, typeId, confId, desc) {
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    /* US-434: QC فقط در پروندهٔ ابلاغ‌شده/برنده مجاز است؛ guard در هسته نه فقط UI */
+    if (!r || !r.wonOffer) return null;
+    var tp = SF_QC_TYPES.filter(function (x) { return x.id === typeId; })[0] || SF_QC_TYPES[0];
+    var cf = SF_QC_CONF.filter(function (x) { return x.id === confId; })[0] || SF_QC_CONF[0];
+    var ev = { cd: genCode('QC'), type: tp.id, conf: cf.id, desc: (desc || '').trim(), t: faDateTime(), by: curSession().name, files: [] };
+    r.qcEvents = r.qcEvents || []; r.qcEvents.unshift(ev);
+    r.timeline = r.timeline || []; r.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🔬 ' + tp.lb + ' — ' + cf.lb + (ev.desc ? ' — ' + ev.desc : '') });
+    sfSave(list);
+    try { audit('پرونده‌های فروش', 'ثبت ' + tp.lb + ' (' + cf.lb + ') برای پرونده ' + (r.inqNo || cd), cd); } catch (e) {}
+    if (cf.id === 'nonconform' && typeof notify === 'function') {
+      try { notify({ toRoles: SENIOR_ROLES, title: '⛔ عدم انطباق کالا در پرونده ' + (r.inqNo || cd) + ' — بررسی فوری (ریسک زیان)', kind: 'warn', channels: ['cart'], link: { panel: 'deals' } }); } catch (e3) {}
+    }
+    return ev;
+  };
+  window.sfQcOpen = function (cd) {
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    ptfDialog({
+      title: '🔬 کنترل کیفیت / بازرسی — ' + (r.inqNo || cd),
+      body: 'نوت بازرسی رسمی از بخش «اسناد رسمی قالب شرکت» و با قالب انگلیسی Inspection Notice صادر می‌شود و نتیجه ندارد. این بخش فقط برای ثبت/پیوست نتایج آزمایش، گزارش بازرسی صادره توسط بازرس و گواهی‌هاست. در صورت «عدم انطباق»، ثبت زیان پروژه پیشنهاد می‌شود.',
+      fields: [
+        { id: 'type', label: 'نوع رکورد', type: 'select', options: SF_QC_TYPES.map(function (x) { return { v: x.id, lb: x.lb }; }) },
+        { id: 'conf', label: 'وضعیت انطباق', type: 'select', options: SF_QC_CONF.map(function (x) { return { v: x.id, lb: x.lb }; }) },
+        { id: 'desc', label: 'شرح', type: 'textarea', rows: 3, required: true, placeholder: 'مثلا: گزارش بازرسی بازرس پیوست شد / نتیجه آزمایش ضمیمه شد' }
+      ],
+      okText: 'ثبت در پرونده',
+      onOk: function (v) {
+        var ev = sfQcCommit(cd, v.type, v.conf, v.desc);
+        if (!ev) return;
+        if (typeof ptfToast === 'function') ptfToast('رکورد QC در پرونده ثبت شد 🔬', 'ok');
+        if (v.conf === 'nonconform' && confirm('⛔ عدم انطباق ثبت شد.\n\nاگر این عدم انطباق هزینه ازدست‌رفته دارد (مثل کیس واردات کالای نامنطبق)، همین حالا «ثبت زیان پروژه» باز شود؟')) {
+          if (typeof ptfLossOpen === 'function') ptfLossOpen('deal', cd);
+        }
+        if (confirm('برای این رکورد QC مدرک/گزارش پیوست می‌کنید؟') && typeof attachUploadWidget === 'function') sfQcUpload(cd, ev.cd);
+        if (typeof renderDeals === 'function') renderDeals();
+      }
+    });
+  };
+  /* ===== v19.2 (US-433): وضعیت‌های مرحله‌ای ۱۲گانه پرونده فروش پس از برد =====
+     اصل معماری: وضعیت پرونده «مشتق» است نه فیلد آزاد — تابع واحد sfStageOf از روی
+     سیگنال‌های واقعی (وضعیت درخواست، رویدادهای ارسال، ارجاع/صدور فاکتور، وصول) محاسبه
+     می‌کند؛ لذا عقب‌گرد ساختاری ناممکن است (AC3) و پرونده/درخواست/کانبان همیشه از
+     یک منبع هم‌راستا هستند (AC1/AC4). گذارهای درخواست فقط از ptfRfqSetStatus (قاعده دائمی). */
+  window.PTF_SF_STAGES = [
+    { id: 1, lb: '📋 ابلاغ سفارش / پرونده فعال' },
+    { id: 2, lb: '🤖 استعلام تامین مرحله دوم' },
+    { id: 3, lb: '🏭 در حال تامین توسط تامین‌کننده' },
+    { id: 4, lb: '📦 تحویل تامین‌کننده' },
+    { id: 5, lb: '🧰 در حال آماده‌سازی ارسال' },
+    { id: 6, lb: '🚚 ارسال‌شده' },
+    { id: 7, lb: '🤝 تحویل‌شده به کارفرما' },
+    { id: 8, lb: '🧾 در حال صدور فاکتور' },
+    { id: 9, lb: '🧾 فاکتور صادر شد' },
+    { id: 10, lb: '💰 در حال تسویه' },
+    { id: 11, lb: '🏁 تسویه‌شده / مختومه' },
+    { id: 12, lb: '🗄 بایگانی‌شده' }
+  ];
+  window.sfStageOf = function (r) {
+    if (!r || !r.wonOffer) return 0; /* فقط پرونده ابلاغ‌شده مرحله دارد */
+    var st = 1;
+    function up(n) { if (n > st) st = n; }
+    try {
+      var d = sfDocsOf(r.inqNo ? r : { inqNo: '', docs: r.docs || [] });
+      if ((d.supply || []).length) up(2); /* استعلام تامین مرحله دوم ثبت شده */
+      /* هم‌راستایی با وضعیت درخواست (st8/st9 از v17.3 — گذار خودکار خرید واقعی/تحویل تامین) */
+      var rfq = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === r.inqNo || x.inqNo === r.inqNo; })[0];
+      if (rfq) {
+        if (rfq.st === 'st8') up(3);
+        else if (rfq.st === 'st9') up(4);
+        else if (rfq.st === 'st6') up(5);
+        else if (rfq.st === 'st7') up(7);
+      }
+      /* رویدادهای ارسال (US-434 فاز ۲) */
+      (r.shipEvents || []).forEach(function (ev) {
+        if (ev.type === 'packing') up(5);
+        else if (ev.type === 'shipdoc') up(6);
+        else if (ev.type === 'delivered') up(7);
+      });
+      /* فاکتور: ارجاع (پیشنهاد برنده) → ۸؛ فاکتور ثبت‌شده → ۹؛ مانده وصول → ۱۰؛ تسویه کامل → ۱۱ */
+      var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === r.wonOffer; })[0];
+      if (wo && wo.invRef) up(8);
+      if (d.invoices.length) {
+        up(9);
+        var remain = d.invoices.reduce(function (s2, i) {
+          var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s3, pp) { return s3 + (+pp.amt || 0); }, 0);
+          return s2 + Math.max(0, (+i.amount || 0) - paid);
+        }, 0);
+        up(remain > 0.5 ? 10 : 11);
+      }
+      if (r.st === 'archived') up(12);
+    } catch (e) {}
+    return st;
+  };
+  window.sfStageLabel = function (r) {
+    var n = sfStageOf(r);
+    if (!n) return '';
+    var stg = PTF_SF_STAGES.filter(function (x) { return x.id === n; })[0];
+    return stg ? stg.lb : '';
+  };
+
+  /* هم‌راستاسازی درخواست با مرحله پرونده — فقط رو به جلو (AC3/AC4).
+     ترتیب = ترتیب آرایه PTF_RFQ_STATUSES (st5→st8→st9→st6→st7) — منبع واحد v17.3. */
+  function sfRfqAlign(inqNo, targetSt, txt) {
+    try {
+      var order = (window.PTF_RFQ_STATUSES || []).map(function (x) { return x.v; });
+      var rfq = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === inqNo || x.inqNo === inqNo; })[0];
+      if (!rfq) return false;
+      var ci = order.indexOf(rfq.st), ti = order.indexOf(targetSt);
+      if (rfq.st === 'stX' || ti < 0 || ci >= ti) return false; /* عقب‌گرد/لغوشده = هرگز */
+      if (typeof ptfRfqSetStatus === 'function') return ptfRfqSetStatus(rfq.cd, targetSt, txt);
+      return false;
+    } catch (e) { return false; }
+  }
+  window.sfRfqAlign = sfRfqAlign;
+
+  /* ===== v19.2 (US-434 فاز ۲): پکینگ لیست / اسناد ارسال / تحویل کارفرما — داخل پرونده ===== */
+  window.SF_SHIP_TYPES = [
+    { id: 'packing', lb: '🧰 پکینگ لیست', rfq: 'st6', rfqTxt: '🟠 آماده‌سازی' },
+    { id: 'shipdoc', lb: '🚚 بارنامه / بیجک / سند ارسال', rfq: 'st6', rfqTxt: '🟠 آماده‌سازی' },
+    { id: 'delivered', lb: '🤝 تحویل به کارفرما', rfq: 'st7', rfqTxt: '✅ تحویل شده' }
+  ];
+  /* هسته برنامه‌ای (قابل تست) — UI فقط wrapper است (الگوی sfQcCommit) */
+  /* v19.7 (US-440 فاز ۱ — قاعده سراسری توالی رویدادها، ابلاغ کارفرما):
+     «تاریخ تحویل به کارفرما نمی‌تواند قبل از زمان ارسال باشد» — چک ترتیب زمانی زنجیره:
+     پکینگ ≤ بارنامه ≤ تحویل. خروجی: null یا {ok:false, why:'seq', ...} برای UI. */
+  window.sfShipSeqCheck = function (r, typeId, dateISO) {
+    if (!r || !dateISO) return null; /* بدون تاریخ صریح = چک زمانی ندارد (توالی مرحله‌ای سر جای خود) */
+    var evs = r.shipEvents || [];
+    function lastDate(t) {
+      var ds = evs.filter(function (e) { return e.type === t && e.dateISO; }).map(function (e) { return e.dateISO; }).sort();
+      return ds.length ? ds[ds.length - 1] : '';
+    }
+    if (typeId === 'delivered') {
+      var ship = lastDate('shipdoc');
+      if (ship && dateISO < ship) return { ok: false, why: 'seq', lb: 'تاریخ تحویل به کارفرما (' + dateISO + ') نمی‌تواند قبل از تاریخ ارسال/بارنامه (' + ship + ') باشد', prev: ship };
+    }
+    if (typeId === 'shipdoc') {
+      var pk = lastDate('packing');
+      if (pk && dateISO < pk) return { ok: false, why: 'seq', lb: 'تاریخ بارنامه (' + dateISO + ') نمی‌تواند قبل از تاریخ پکینگ لیست (' + pk + ') باشد', prev: pk };
+    }
+    return null;
+  };
+  window.sfShipCommit = function (cd, typeId, v) {
+    v = v || {};
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    /* US-434/440: ارسال و تحویل فقط در پروندهٔ ابلاغ‌شده/برنده مجاز است؛ guard در هسته */
+    if (!r || !r.wonOffer) return null;
+    var tp = SF_SHIP_TYPES.filter(function (x) { return x.id === typeId; })[0];
+    if (!tp) return null;
+    /* v19.7 (US-440ف۱): سد توالی زمانی — برنامه‌ای نه فقط UI */
+    var seq = sfShipSeqCheck(r, typeId, (v.dateISO || '').trim());
+    if (seq && !seq.ok) return seq;
+    if (typeId === 'delivered' && sfStageOf(r) < 5 && !(r.shipEvents || []).length) {
+      /* تحویل کارفرما بدون هیچ سابقه ارسال/آماده‌سازی — مجاز ولی در timeline شفاف می‌شود */
+      v.note = ((v.note || '') + ' (ثبت مستقیم — بدون پکینگ/بارنامه قبلی)').trim();
+    }
+    var ev = { cd: genCode('SHP'), type: tp.id, no: (v.no || '').trim(), carrier: (v.carrier || '').trim(), dateISO: (v.dateISO || '').trim(), receiver: (v.receiver || '').trim(), note: (v.note || '').trim(), t: faDateTime(), by: curSession().name, files: [] };
+    r.shipEvents = r.shipEvents || []; r.shipEvents.unshift(ev);
+    r.timeline = r.timeline || []; r.timeline.push({ t: faDateTime(), by: curSession().name, tx: tp.lb + (ev.no ? ' — ' + ev.no : '') + (ev.receiver ? ' — تحویل‌گیرنده: ' + ev.receiver : '') + (ev.note ? ' — ' + ev.note : '') });
+    sfSave(list);
+    try { audit('پرونده‌های فروش', 'ثبت ' + tp.lb + (ev.no ? ' (' + ev.no + ')' : '') + ' برای پرونده ' + (r.inqNo || cd), cd); } catch (e) {}
+    /* گذار خودکار وضعیت درخواست — فقط رو به جلو، از مسیر واحد (AC2/AC4) */
+    if (r.inqNo) sfRfqAlign(r.inqNo, tp.rfq, tp.rfqTxt);
+    if (typeId === 'delivered' && typeof notify === 'function') {
+      try { notify({ toRoles: SENIOR_ROLES, title: '🤝 کالای پرونده ' + (r.inqNo || cd) + ' به کارفرما تحویل شد — گام بعد: ارجاع فاکتور از پرونده', kind: 'info', channels: ['cart'], link: { panel: 'deals' } }); } catch (e2) {}
+    }
+    return ev;
+  };
+  window.sfShipOpen = function (cd, typeId) {
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var tp = SF_SHIP_TYPES.filter(function (x) { return x.id === typeId; })[0] || SF_SHIP_TYPES[0];
+    var flds = [];
+    if (typeId === 'packing') flds = [
+      { id: 'no', label: 'شماره پکینگ لیست', type: 'text', dir: 'ltr', placeholder: 'PL-1405-001' },
+      { id: 'dateISO', label: 'تاریخ پکینگ (میلادی)', type: 'date', dir: 'ltr' }, /* v19.7 US-440ف۱: مبنای چک توالی */
+      { id: 'note', label: 'شرح بسته‌بندی / تعداد نگله', type: 'textarea', rows: 2, required: true, placeholder: 'مثلا: ۳ پالت چوبی — ۴۵۰ کیلوگرم' }
+    ];
+    else if (typeId === 'shipdoc') flds = [
+      { id: 'no', label: 'شماره بارنامه / بیجک', type: 'text', dir: 'ltr', required: true },
+      { id: 'carrier', label: 'شرکت حمل / راننده', type: 'text', required: true },
+      { id: 'dateISO', label: 'تاریخ ارسال (میلادی)', type: 'date', dir: 'ltr' },
+      { id: 'note', label: 'توضیح (اختیاری)', type: 'textarea', rows: 2 }
+    ];
+    else flds = [
+      { id: 'receiver', label: 'نام تحویل‌گیرنده کارفرما', type: 'text', required: true },
+      { id: 'dateISO', label: 'تاریخ تحویل (میلادی)', type: 'date', dir: 'ltr' },
+      { id: 'note', label: 'توضیح / شماره رسید تحویل (اختیاری)', type: 'textarea', rows: 2 }
+    ];
+    ptfDialog({
+      title: tp.lb + ' — ' + (r.inqNo || cd),
+      body: typeId === 'delivered'
+        ? 'با ثبت تحویل، وضعیت درخواست به «✅ تحویل شده» می‌رود و مرحله پرونده «تحویل‌شده به کارفرما» می‌شود — پیش‌نیاز ارجاع فاکتور (US-435).'
+        : 'سند در پرونده ثبت و وضعیت درخواست (در صورت عقب‌تر بودن) به «🟠 آماده‌سازی» می‌رود — عقب‌گرد هرگز رخ نمی‌دهد (US-433).',
+      fields: flds,
+      okText: 'ثبت در پرونده',
+      onOk: function (v) {
+        var ev = sfShipCommit(cd, typeId, v);
+        if (ev && ev.ok === false && ev.why === 'seq') { alert('⛔ نقض توالی رویدادها (US-440):\n' + ev.lb); return; }
+        if (!ev) return;
+        if (typeof ptfToast === 'function') ptfToast(tp.lb + ' ثبت شد', 'ok');
+        if (confirm('برای این رکورد، سند/اسکن پیوست می‌کنید؟') && typeof attachUploadWidget === 'function') sfShipUpload(cd, ev.cd);
+        if (typeof renderDeals === 'function') renderDeals();
+      }
+    });
+  };
+  window.sfShipUpload = function (cd, shpCd) {
+    var html = '<div class="md-b" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 پیوست سند ارسال/تحویل</h3><div id="sfShipUp"></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove();if(typeof renderDeals===\'function\')renderDeals()">تمام</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    attachUploadWidget('sfShipUp', 'salesfiles-ship/' + cd, function (f) {
+      var list = sfAll();
+      var r = list.filter(function (x) { return x.cd === cd; })[0];
+      if (!r) return;
+      var ev = (r.shipEvents || []).filter(function (x) { return x.cd === shpCd; })[0];
+      if (!ev) return;
+      ev.files = ev.files || []; ev.files.push(f);
+      r.docs = r.docs || [];
+      if (f.key && !r.docs.some(function (d) { return d.key === f.key; })) r.docs.push({ name: 'ارسال — ' + f.name, key: f.key, size: f.size || 0, t: faDate(), by: curSession().name, note: 'سند ارسال/تحویل' });
+      sfSave(list);
+      if (typeof ptfToast === 'function') ptfToast('سند به پرونده پیوست شد', 'ok');
+    });
+  };
+
+  /* ===== v19.3 (US-435): ارجاع فاکتور رسمی — فقط از پرونده فروش و فقط پس از تحویل کارفرما =====
+     هسته برنامه‌ای قابل تست؛ خروجی {ok, why} — UI فقط wrapper.
+     قفل سه‌لایه: ① نقش ارشد ② پرونده برنده ③ مرحله >= ۷ (تحویل‌شده به کارفرما — sfStageOf مشتق v19.2).
+     پس از ارجاع، مرحله خودکار ۸ «در حال صدور فاکتور» می‌شود (invRef سیگنال sfStageOf است). */
+  window.sfInvoiceRefCommit = function (cd) {
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!r || !r.wonOffer) return { ok: false, why: 'nofile' };
+    if (typeof isSenior === 'function' && !isSenior()) return { ok: false, why: 'role' };
+    var stg = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
+    if (stg < 7) return { ok: false, why: 'stage', stage: stg };
+    var offers = getData('ptf_crm_offers');
+    var o = offers.filter(function (x) { return x.no === r.wonOffer; })[0];
+    if (!o) return { ok: false, why: 'nooffer' };
+    if (o.invRef) return { ok: false, why: 'already' };
+    /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد (US-432)، نه پیشنهاد زندهٔ قابل‌تغییر */
+    if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r);
+    o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer };
+    setData('ptf_crm_offers', offers);
+    var list = sfAll();
+    var rr = list.filter(function (x) { return x.cd === cd; })[0];
+    if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از تحویل کارفرما — US-435)' }); sfSave(list); }
+    try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار (مرحله: تحویل‌شده به کارفرما)', cd); } catch (e) {}
+    if (typeof notify === 'function') {
+      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — پیش‌فاکتور ' + r.wonOffer + ' برای صدور فاکتور رسمی ارجاع شد (کالا تحویل کارفرما شده)', body: 'خریدار: ' + (r.buyerCo || '-') + ' — سند قطعی برد در کارتابل ضمیمه است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
+    }
+    return { ok: true };
+  };
+  window.sfInvoiceRef = function (cd) {
+    var res = sfInvoiceRefCommit(cd);
+    if (!res.ok) {
+      var msgs = {
+        role: '⛔ فقط نقش‌های ارشد می‌توانند ارجاع فاکتور بدهند.',
+        stage: '🔒 ارجاع فاکتور قفل است — تا قبل از ثبت «🤝 تحویل کارفرما» در همین پرونده، ارجاع به حسابدار مجاز نیست (US-435).\n\nمرحله فعلی پرونده: ' + (typeof sfStageLabel === 'function' ? sfStageLabel(sfAll().filter(function (x) { return x.cd === cd; })[0]) : '') ,
+        already: 'ℹ️ این پرونده قبلا برای فاکتور ارجاع شده است.',
+        nofile: '⛔ پرونده برنده یافت نشد.', nooffer: '⛔ پیشنهاد برنده پرونده یافت نشد.'
+      };
+      alert(msgs[res.why] || '⛔ ارجاع ممکن نیست');
+      return;
+    }
+    if (typeof ptfToast === 'function') ptfToast('🧾 برای حسابدار ارجاع شد — مرحله پرونده: در حال صدور فاکتور', 'ok');
+    /* پیامک اختیاری به حسابدار (الگوی US-150) */
+    if (typeof smsSendSingle === 'function' && confirm('📱 پیامک اطلاع‌رسانی هم برای حسابدار ارسال شود؟')) {
+      var accs = getData('ptf_crm_users').filter(function (u) { return u.roleId === 'accountant' && u.mobile; });
+      if (!accs.length) alert('⚠️ کاربری با نقش حسابدار و شماره موبایل ثبت نشده');
+      accs.forEach(function (u) {
+        smsSendSingle(u.mobile, 'حسابدار محترم شرکت پیشرو تجهیز فرتاک،\nکالای پرونده ارجاعی به کارفرما تحویل شده و پیش‌فاکتور جهت صدور فاکتور رسمی به کارتابل شما ارجاع شد.\nhttps://pishtaj.ir/crm/', function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع فاکتور ارسال شد' : 'پیامک ارجاع فاکتور در صف قرار گرفت'); });
+      });
+    }
+    if (typeof renderDeals === 'function') renderDeals();
+  };
+
+  window.sfQcUpload = function (cd, qcCd) {
+    var html = '<div class="md-b" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 پیوست رکورد QC</h3><div id="sfQcUp"></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove();if(typeof renderDeals===\'function\')renderDeals()">تمام</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    attachUploadWidget('sfQcUp', 'salesfiles-qc/' + cd, function (f) {
+      var list = sfAll();
+      var r = list.filter(function (x) { return x.cd === cd; })[0];
+      if (!r) return;
+      var ev = (r.qcEvents || []).filter(function (x) { return x.cd === qcCd; })[0];
+      if (!ev) return;
+      ev.files = ev.files || []; ev.files.push(f);
+      r.docs = r.docs || [];
+      if (f.key && !r.docs.some(function (d) { return d.key === f.key; })) r.docs.push({ name: 'QC — ' + f.name, key: f.key, size: f.size || 0, t: faDate(), by: curSession().name, note: 'سند کنترل کیفیت/بازرسی' });
+      sfSave(list);
+      if (typeof ptfToast === 'function') ptfToast('سند QC به پرونده پیوست شد', 'ok');
+    });
+  };
+
+  /* ---------- پنل ---------- */
+  window.buildDeals = function () {
+    /* v16.8 (US-404 فاز ۱): دو تب — پرونده‌ها (فقط ابلاغ‌شده) + فرصت‌های فعال (قبل از برد) */
+    var tab = window._sfTab || 'files';
+    var nOppo = (typeof window.ptfOppoCount === 'function') ? window.ptfOppoCount() : 0;
+    var oppoView = window._sfOppoView || 'inq';
+    function tb(id, lb, cl) {
+      var on = tab === id;
+      return '<button type="button" onclick="sfSetTab(\'' + id + '\')" style="border:0;border-radius:10px;padding:8px 16px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' + (on ? 'background:' + cl + ';color:#fff' : 'background:#f1f5f9;color:#475569') + '">' + lb + '</button>';
+    }
+    function ov(id, lb) {
+      var on = oppoView === id;
+      return '<button type="button" onclick="sfSetOppoView(\'' + id + '\')" style="border:0;border-radius:9px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;' + (on ? 'background:#7c3aed;color:#fff' : 'background:#fff;color:#475569;border:1px solid #ddd6fe') + '">' + lb + '</button>';
+    }
+    return '<div class="ph"><h3>📁 پرونده‌های فروش</h3>' +
+      '<div class="sb2"><input type="text" id="sfSrch" placeholder="جستجو: شماره درخواست، کارفرما..." oninput="renderDeals()" style="flex:1"></div></div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:10px">' +
+      tb('files', '📁 پرونده‌ها (ابلاغ سفارش)', '#0e7490') +
+      tb('oppo', '🎯 فرصت‌های فعال' + (nOppo ? ' (' + nOppo + ')' : ''), '#7c3aed') +
+      '</div>' +
+      (tab === 'files'
+        ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12px;color:#0c4a6e">ℹ️ US-404: پرونده فروش فقط با ثبت «🏆 برنده» پیشنهاد مالی (ابلاغ سفارش) ساخته می‌شود — هر ابلاغ = یک پرونده با همه اسناد. پس از مختومه/تسویه به بایگانی می‌رود.</div>'
+        : '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 14px;margin-bottom:8px;font-size:12px;color:#5b21b6">🎯 درخواست‌های دارای پیشنهادِ هنوز برنده‌نشده — رهگیری مهلت‌ها و ثبت نتیجه. با برنده شدن CO، خودکار «پرونده» می‌شوند؛ باخت هم با دلیل استاندارد مستقیم به گزارش Win/Loss می‌رود.</div>' +
+          '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;color:#64748b">نمای فرصت‌ها:</span>' + ov('inq', 'بر اساس درخواست') + ov('customer', 'بر اساس مشتری (US-435)') + '</div>') +
+      '<div id="dealWrap"></div>';
+  };
+  window.sfSetTab = function (t) {
+    window._sfTab = t;
+    var p = document.getElementById('panels');
+    if (p) { p.innerHTML = buildDeals(); renderDeals(); }
+  };
+  window.sfSetOppoView = function (v) {
+    window._sfOppoView = v === 'customer' ? 'customer' : 'inq';
+    var p = document.getElementById('panels');
+    if (p) { p.innerHTML = buildDeals(); renderDeals(); }
+  };
+
+  window.renderDeals = function () {
+    var el = document.getElementById('dealWrap');
+    if (!el) return;
+    var q = ((document.getElementById('sfSrch') || {}).value || '').trim().toLowerCase();
+    /* v16.8 (US-404 فاز ۱) + US-435: تب فرصت‌ها با دو نمای درخواست/مشتری */
+    if ((window._sfTab || 'files') === 'oppo') {
+      if ((window._sfOppoView || 'inq') === 'customer' && typeof window.ptfOppoRenderByCustomer === 'function') { window.ptfOppoRenderByCustomer(el, q); return; }
+      if (typeof window.ptfOppoRender === 'function') { window.ptfOppoRender(el, q); return; }
+      el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:20px">ماژول فرصت‌ها بارگذاری نشده — یک بار رفرش کنید</div>';
+      return;
+    }
+    var list = sfAll().filter(function (r) {
+      if (r.st === 'archived') return false;
+      /* v16.8 (US-404): پرونده = فقط ابلاغ‌شده (wonOffer) — رکوردهای قدیمی دارای فاکتور هم از باب احتیاط پرونده می‌مانند.
+         رکوردهای قدیمی بدون برد حذف نمی‌شوند (مهاجرت نرم) — در تب فرصت‌ها نمایندگی می‌شوند و با برد، همین رکورد پرونده می‌شود. */
+      if (!r.wonOffer && !(r.inqNo && sfHasInvoice(r))) return false;
+      return !q || ((r.inqNo || '') + ' ' + (r.buyerCo || '') + ' ' + (r.offerNo || '')).toLowerCase().indexOf(q) > -1;
+    });
+    var h = '';
+    list.forEach(function (r) {
+      var inqKey = r.inqNo || r.offerNo || r.cd; // سازگاری با رکوردهای قدیمی (offerNo محور)
+      var d = sfDocsOf(r.inqNo ? r : { inqNo: '', docs: r.docs || [] });
+      var nDocs = d.offers.length + d.letters.length + d.invoices.length + d.misc.length + (d.supply || []).length; /* v17.1 US-404ف۲ */
+      var hasInv = r.inqNo ? sfHasInvoice(r) : false;
+      var lossBadge = (typeof ptfProjectLossBadge === 'function') ? ptfProjectLossBadge(r) : '';
+      var open = window._sfOpen === r.cd;
+      /* v14.8 (US-351): بج تاریخ تحویل تعهدی — قرمز=گذشته/امروز، نارنجی=نزدیک */
+      var dueSt = (typeof ptfSfDueState === 'function') ? ptfSfDueState(r) : null;
+      /* v19.2 (US-433): بج مرحله ۱۲گانه — مشتق از سیگنال‌های واقعی، منبع واحد sfStageOf */
+      var stgN = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
+      var stgBadge = stgN ? ' | <span style="color:#0e7490;font-weight:800">' + escP((typeof sfStageLabel === 'function' ? sfStageLabel(r) : '')) + ' <small style="color:#94a3b8">(' + stgN + '/12)</small></span>' : '';
+      var dueBadge = r.dueISO
+        ? ' | <span style="color:' + (dueSt === 'red' ? '#dc2626;font-weight:800' : dueSt === 'orange' ? '#d97706;font-weight:800' : '#64748b') + '">' +
+          (dueSt === 'red' ? '🚚⏰ تحویل تعهدی: ' + escP(r.dueISO) + ' — سررسید/تاخیر!' : dueSt === 'orange' ? '🚚⏳ تحویل تعهدی نزدیک: ' + escP(r.dueISO) : '🚚 تحویل تعهدی: ' + escP(r.dueISO)) + '</span>'
+        : '';
+      h += '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;overflow:hidden' + (dueSt === 'red' ? ';border-color:#fca5a5' : '') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;flex-wrap:wrap' + (dueSt === 'red' ? ';background:#fef2f2' : dueSt === 'orange' ? ';background:#fffbeb' : '') + '" onclick="sfToggle(\'' + escP(r.cd) + '\')">' +
+        '<div style="font-size:13px"><b dir="ltr">' + escP(inqKey) + '</b> — ' + escP(r.buyerCo || '-') +
+        '<div style="font-size:11px;color:#64748b;margin-top:2px">' + nDocs + ' سند منضم | ایجاد: ' + escP(r.t || '') + stgBadge + (hasInv ? ' | <span style="color:#059669">🧾 فاکتور ثبت شده</span>' : '') + dueBadge + (lossBadge ? ' | ' + lossBadge : '') + '</div></div>' +
+        '<span style="font-size:13px;color:#94a3b8">' + (open ? '▲' : '▼') + '</span></div>' +
+        (open ? sfDrawerHtml(r, d, hasInv) : '') +
+        '</div>';
+    });
+    el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پرونده‌ای نیست — با ثبت «🏆 برنده» روی پیشنهاد مالی (ابلاغ سفارش)، خودکار ساخته می‌شود. درخواست‌های در جریان را در تب «🎯 فرصت‌های فعال» ببینید.</div>';
+  };
+
+  window.sfToggle = function (cd) {
+    window._sfOpen = window._sfOpen === cd ? null : cd;
+    renderDeals();
+  };
+
+  /* ---------- کشوی اسناد ---------- */
+  function sfFinancialStrip(r, d) {
+    var advTxt = '—', advState = '#64748b';
+    try {
+      var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === r.wonOffer; })[0];
+      if (wo && typeof ptfAdvanceNormalize === 'function') {
+        var a = ptfAdvanceNormalize(wo);
+        if (a && a.mode && a.mode !== 'none') {
+          advTxt = (typeof ptfAdvanceLabel === 'function' ? ptfAdvanceLabel(wo) : 'ثبت‌شده');
+          advState = a.paid || a.cashFull ? '#059669' : '#b45309';
+        }
+      }
+    } catch (e) {}
+    var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
+    var costSum = (r.costEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    var invCount = (d.invoices || []).length;
+    var openAmt = (d.invoices || []).reduce(function (s, i) {
+      var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
+      return s + Math.max(0, (+i.amount || 0) - paid);
+    }, 0);
+    var au = (typeof sfCloseAudit === 'function') ? sfCloseAudit(r) : { blockers: [], warns: [] };
+    var ready = !au.blockers.length && openAmt <= 0.5;
+    return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin:8px 0 10px;font-size:12px">' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 پیش‌پرداخت: <b>' + escP(advTxt) + '</b></span>' +
+      '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? (rb.done + ' / ' + rb.total + ' قلم') : 'هنوز شروع نشده') + '</b></span>' +
+      '<span style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;color:#92400e">➕ هزینه‌های مستقیم: <b>' + costSum.toLocaleString('fa-IR') + ' ریال</b></span>' +
+      '<span style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:4px 8px;color:#6d28d9">🧾 فاکتورها: <b>' + invCount + '</b>' + (openAmt > 0 ? ' | باز: ' + openAmt.toLocaleString('fa-IR') + ' ریال' : ' | تسویه: کامل') + '</span>' +
+      '<span style="background:' + (ready ? '#ecfdf5;color:#166534;border:1px solid #86efac' : '#fff7ed;color:#9a3412;border:1px solid #fdba74') + ';border-radius:8px;padding:4px 8px">🏁 آمادگی بایگانی: <b>' + (ready ? 'آماده' : 'نیازمند بررسی') + '</b></span>' +
+      '</div></div>';
+  }
+  function sfDrawerHtml(r, d, hasInv) {
+    function row(ic, tx, actions) {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--brd);font-size:12.5px"><span>' + ic + ' ' + tx + '</span><span style="white-space:nowrap">' + (actions || '') + '</span></div>';
+    }
+    var h = '<div style="padding:4px 14px 12px;border-top:1px solid var(--brd)">' + sfFinancialStrip(r, d);
+    var KINDS = { TO: 'پیشنهاد فنی', CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی' };
+    d.offers.forEach(function (o) {
+      h += row('📄', '<b dir="ltr">' + escP(o.no) + '</b> — ' + (KINDS[o.kind] || o.kind) + (o.rev ? ' <span style="color:#7c3aed">(آخرین رویژن: Rev.' + o.rev + ')</span>' : '') + ' — ' + escP(o.dt || o.dateFa || ''),
+        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();offerQuickPreview(\'' + escP(o.no) + '\')">👁</button>');
+    });
+    /* v17.1 (US-404 فاز ۲): استعلام‌های تامین — رهگیری کشف قیمت داخل خود پرونده */
+    (d.supply || []).forEach(function (q2) {
+      var nT = (q2.targets || []).length;
+      var nR = (q2.targets || []).filter(function (t2) { return t2.st === 'replied'; }).length;
+      h += row('🤖', '<b dir="ltr">' + escP(q2.no) + '</b> — استعلام تامین (' + (q2.items || []).length + ' قلم | ' + nT + ' تامین‌کننده | ' + nR + ' پاسخ)',
+        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();if(typeof rfqsOpen===\'function\')rfqsOpen(\'' + escP(q2.no) + '\')">👁 کارت رهگیری</button>');
+    });
+    d.letters.forEach(function (l) {
+      h += row('✉️', escP(l.no || l.cd) + ' — ' + escP(l.subject || '-'),
+        (l.st === 'signed' || l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();letPrint(\'' + escP(l.cd) + '\',false)">👁</button>' : '<span style="color:#94a3b8;font-size:11px">' + escP(l.st || '') + '</span>'));
+    });
+    d.invoices.forEach(function (i) {
+      h += row('🧾', 'فاکتور ' + escP(i.no) + ' — ' + (+i.amount).toLocaleString('fa-IR') + ' ریال — ' + escP(i.t || ''),
+        (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' '));
+    });
+    d.misc.forEach(function (m, mi) {
+      h += row('📎', escP(m.name || '-') + ' <small style="color:#94a3b8">(' + escP(m.t || '') + ' — ' + escP(m.by || '') + ')</small>',
+        (m.key ? '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(m.key) + '\')" style="color:#0e7490;font-size:11.5px">مشاهده</a> ' : '') +
+        '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();sfDelMisc(\'' + escP(r.cd) + '\',' + mi + ')">✕</button>');
+    });
+    if (!d.offers.length && !d.letters.length && !d.invoices.length && !d.misc.length && !(d.supply || []).length)
+      h += '<div style="color:#94a3b8;font-size:12px;padding:8px 0">سندی منضم نشده</div>';
+    /* v19.2 (US-433): استپر مراحل ۱۲گانه پرونده — فقط نمایش؛ منبع واحد sfStageOf */
+    if (r.wonOffer && typeof sfStageOf === 'function') {
+      var _stg = sfStageOf(r);
+      h += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:8px 12px;margin-top:10px;font-size:11.5px" onclick="event.stopPropagation()"><b style="font-size:12.5px">🧭 مرحله پرونده: ' + escP(sfStageLabel(r)) + ' <small style="color:#64748b">(' + _stg + ' از 12 — US-433)</small></b>' +
+        '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:6px">' +
+        (window.PTF_SF_STAGES || []).map(function (stg) {
+          var on = stg.id <= _stg;
+          return '<span title="' + escP(stg.lb) + '" style="flex:1;min-width:26px;text-align:center;border-radius:6px;padding:3px 2px;font-size:10px;font-weight:800;' + (stg.id === _stg ? 'background:#0e7490;color:#fff' : on ? 'background:#cffafe;color:#155e75' : 'background:#f1f5f9;color:#94a3b8') + '">' + stg.id + '</span>';
+        }).join('') + '</div>' +
+        '<div style="color:#64748b;margin-top:5px">مرحله از روی رویدادهای واقعی (خرید، تحویل تامین، پکینگ/بارنامه، تحویل کارفرما، فاکتور، وصول) محاسبه می‌شود — دستی و قابل عقب‌گرد نیست.</div></div>';
+    }
+    /* v19.2 (US-434 فاز ۲): سوابق ارسال/تحویل */
+    if (r.shipEvents && r.shipEvents.length) {
+      h += '<div style="background:#fef9c3;border:1px solid #fde047;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>🚚 ارسال و تحویل</b>';
+      r.shipEvents.forEach(function (se) {
+        var tpS = (window.SF_SHIP_TYPES || []).filter(function (x) { return x.id === se.type; })[0] || {};
+        h += '<div style="padding:5px 0;border-top:1px dashed #fde047">' + (tpS.lb || se.type) + (se.no ? ' — <b dir="ltr">' + escP(se.no) + '</b>' : '') + (se.carrier ? ' — ' + escP(se.carrier) : '') + (se.receiver ? ' — تحویل‌گیرنده: <b>' + escP(se.receiver) + '</b>' : '') + (se.dateISO ? ' — <span dir="ltr">' + escP(se.dateISO) + '</span>' : '') + (se.note ? ' — ' + escP(se.note) : '') +
+          ' <small style="color:#94a3b8">(' + escP(se.t || '') + ' — ' + escP(se.by || '') + ')</small>' +
+          (se.files || []).map(function (f) { return f.key ? ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join('') + '</div>';
+      });
+      h += '</div>';
+    }
+    /* v19.1 (US-432): باکس اسناد قطعی برد — snapshot لحظه ابلاغ سفارش */
+    if (r.wonOffer) {
+      var awd = (typeof sfAwardEnsure === 'function') ? sfAwardEnsure(r) : (r.awardDocs || []);
+      if (awd && awd.length) {
+        h += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:8px 12px;margin-top:10px;font-size:12.5px" onclick="event.stopPropagation()">' +
+          '<b>🏆 اسناد قطعی برد</b> <small style="color:#92400e">— نسخه لحظه ابلاغ سفارش (تغییرناپذیر) — مبنای فاکتور و ارجاع حسابدار (US-432)</small>';
+        awd.forEach(function (adoc) {
+          h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed #fde68a;flex-wrap:wrap">' +
+            '<span>' + (adoc.role === 'technical' ? '🔧 پیشنهاد فنی مرتبط' : '💰 پیشنهاد مالی برنده') + ' — <b dir="ltr">' + escP(adoc.no) + '</b>' + (adoc.rev ? ' (Rev.' + adoc.rev + ')' : '') + ' <small style="color:#94a3b8">' + escP(adoc.t || '') + (adoc.migrated ? ' — مهاجرت نرم' : '') + '</small></span>' +
+            '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="sfAwardPrint(\'' + escP(r.cd) + '\',\'' + escP(adoc.no) + '\')">🖨 PDF / چاپ سند برد</button></div>';
+        });
+        h += '</div>';
+      }
+    }
+    /* v19.1 (US-434 فاز ۱): رکوردهای کنترل کیفیت/بازرسی داخل پرونده */
+    if (r.qcEvents && r.qcEvents.length) {
+      h += '<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>🔬 کنترل کیفیت / بازرسی</b>';
+      r.qcEvents.forEach(function (qe) {
+        var tpQ = (window.SF_QC_TYPES || []).filter(function (x) { return x.id === qe.type; })[0] || {};
+        var cfQ = (window.SF_QC_CONF || []).filter(function (x) { return x.id === qe.conf; })[0] || {};
+        h += '<div style="padding:5px 0;border-top:1px dashed #99f6e4' + (qe.conf === 'nonconform' ? ';color:#b91c1c' : '') + '">' + (tpQ.lb || qe.type) + ' — <b>' + (cfQ.lb || qe.conf) + '</b> — ' + escP(qe.desc || '') +
+          ' <small style="color:#94a3b8">(' + escP(qe.t || '') + ' — ' + escP(qe.by || '') + ')</small>' +
+          (qe.files || []).map(function (f) { return f.key ? ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join('') + '</div>';
+      });
+      h += '</div>';
+    }
+    h += '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>➕ هزینه‌های مستقیم پرونده</b>' +
+      ((r.costEvents && r.costEvents.length)
+        ? (r.costEvents.map(function (ce) {
+            var files = (ce.files || []).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join(' ');
+            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap"><span><b>' + (+ce.amt || 0).toLocaleString('fa-IR') + ' ریال</b> — ' + escP(ce.desc || '') + ' <small style="color:#94a3b8">(' + escP(ce.t || '') + ' — ' + escP(ce.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap"><button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfProjectCostOpen(\'' + escP(r.inqNo || '') + '\',\'' + escP(ce.cd) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="ptfProjectCostUpload(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\')">📎</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfProjectCostDel(\'' + escP(r.inqNo || '') + '\',\'' + escP(ce.cd) + '\')">🗑️</button></span></div>';
+          }).join(''))
+        : '<div style="padding:6px 0;color:#94a3b8">هنوز هزینه مستقیمی برای این پرونده ثبت نشده است.</div>') +
+      '</div>';
+    try {
+      if (r.wonOffer && typeof ptfDocxCoverage === 'function') {
+        var _plCov = ptfDocxCoverage(r, 'PL'), _inCov = ptfDocxCoverage(r, 'IN');
+        if (_plCov.total) h += '<div style="background:#fff8f1;border:1px solid #fed7aa;border-radius:10px;padding:7px 11px;margin-top:8px;font-size:11.5px;color:#9a3412" onclick="event.stopPropagation()">🧰 پوشش پکینگ رسمی: <b>' + _plCov.used + ' / ' + _plCov.total + '</b>' + (_plCov.remain ? ' — باقیمانده: ' + _plCov.remain + ' قلم' : ' — کامل ✅') + '</div>';
+        if (_inCov.total) h += '<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:7px 11px;margin-top:6px;font-size:11.5px;color:#0f766e" onclick="event.stopPropagation()">🔬 پوشش نوت بازرسی رسمی: <b>' + _inCov.used + ' / ' + _inCov.total + '</b>' + (_inCov.remain ? ' — باقیمانده: ' + _inCov.remain + ' قلم' : ' — کامل ✅') + '</div>';
+      }
+    } catch (eCov) {}
+    h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود (US-434)</div>' : '') +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:' + (r.wonOffer ? '6' : '10') + 'px" onclick="event.stopPropagation()">' +
+      '<span id="sfUp_' + escP(r.cd) + '" style="flex:1;min-width:180px"></span>' +
+      /* v14.8 (US-351): ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
+      '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + escP(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
+      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#0d9488;border-color:#99f6e4" onclick="sfQcOpen(\'' + escP(r.cd) + '\')">🔬 QC / نتیجه بازرسی</button>' : '') +
+      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#c4b5fd" onclick="ptfDocxOpen(\'' + escP(r.cd) + '\',\'IN\')">📄 نوت بازرسی رسمی</button>' : '') +
+      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="ptfDocxOpen(\'' + escP(r.cd) + '\',\'PL\')">🧰 پکینگ لیست رسمی</button>' +
+        '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="sfShipOpen(\'' + escP(r.cd) + '\',\'shipdoc\')">🚚 بارنامه/ارسال</button>' +
+        '<button class="bt bt-o" style="font-size:12px;color:#166534;border-color:#bbf7d0" onclick="sfShipOpen(\'' + escP(r.cd) + '\',\'delivered\')">🤝 تحویل کارفرما</button>' : '') +
+      /* v19.3 (US-435): ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
+      (function () {
+        if (!r.wonOffer) return '';
+        var _wo = getData('ptf_crm_offers').filter(function (x) { return x.no === r.wonOffer; })[0];
+        var _hasInvD = r.inqNo ? sfHasInvoice(r) : false;
+        if (_hasInvD) return '';
+        if (_wo && _wo.invRef) return '<span class="bd" style="background:#ede9fe;color:#6d28d9;align-self:center" title="ارجاع‌شده توسط ' + escP(_wo.invRef.by || '') + ' — ' + escP(_wo.invRef.t || '') + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
+        var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
+        return _stg7 >= 7
+          ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="sfInvoiceRef(\'' + escP(r.cd) + '\')">🧾 ارجاع فاکتور به حسابدار</button>'
+          : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما (US-435)" onclick="sfInvoiceRef(\'' + escP(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
+      })() +
+      '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'deal\',\'' + escP(r.cd) + '\')">💥 ثبت زیان پروژه</button>' +
+      '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="sfClose(\'' + escP(r.cd) + '\')">' + (hasInv ? '🏁 مختومه (پایان پروژه و تسویه کامل)' : '🚫 مختومه بدون فاکتور (عدم برنده شدن/سایر)') + '</button>' +
+      '</div></div>';
+    setTimeout(function () {
+      var w = document.getElementById('sfUp_' + r.cd);
+      if (w && typeof attachUploadWidget === 'function' && !w.getAttribute('data-up')) {
+        w.setAttribute('data-up', '1');
+        attachUploadWidget('sfUp_' + r.cd, 'salesfiles', function (f) { sfAddMisc(r.cd, f); });
+      }
+    }, 60);
+    return h;
+  }
+
+  /* ===== v14.8 (US-351): تاریخ تحویل تعهدی ساختاریافته روی پرونده فروش ===== */
+  window.sfSetDue = function (cd) {
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    /* v18.5 BUG-027: ریشه باگ حذف تاریخ — هندلر قبلی ابتدا modal را remove می‌کرد و بعد
+       document.getElementById('sfDueInp') را می‌خواند؛ بعد از remove مقدار null می‌شد و
+       sfSetDueCommit با رشته خالی اجرا می‌گردید، بنابراین پیام «حذف تعهد» می‌آمد.
+       راه‌حل ریشه‌ای: خواندن مقدار و بستن مودال در تابع مجزا؛ حذف هم مسیر جدا دارد. */
+    var html = '<div class="md-b" id="sfDueDlg" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:440px">' +
+      '<h3>🚚 تاریخ تحویل تعهدی — ' + escP(r.inqNo || cd) + '</h3>' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">تاریخی که به کارفرما «تعهد» داده‌اید. ۳ روز قبل یادآور خودکار می‌آید و از روز سررسید، پرونده قرمز و هشدار تاخیر صادر می‌شود (US-351).</div>' +
+      '<div class="fld"><label>تاریخ تحویل تعهدی (شمسی) *</label>' + (typeof ptfDateInput==="function" ? ptfDateInput("sfDueJ", r.dueISO || "") : '<input type="text" id="sfDueJ" value="' + escP(r.dueISO || '') + '" style="direction:ltr;color:#0e7490">') + '</div>' +
+      '<div class="fld"><label>یادداشت تعهد (اختیاری)</label><input type="text" id="sfDueNote" value="' + escP(r.dueNote || '') + '" placeholder="مثلا: طبق بند ۴ قرارداد / توافق تلفنی"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:6px">' +
+      (r.dueISO ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="sfClearDue(\'' + escP(cd) + '\')">🗑 حذف تعهد</button>' : '<span></span>') +
+      '<span style="display:flex;gap:8px">' +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+      '<button class="bt" onclick="sfDueSave(\'' + escP(cd) + '\')">💾 ذخیره</button>' +
+      '</span></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+
+  window.sfDueSave = function (cd) {
+    var iso = (typeof ptfJToISO === 'function') ? ptfJToISO(((document.getElementById('sfDueJ') || {}).value || '').trim()) : (((document.getElementById('sfDueInp') || {}).value || '').trim());
+    var note = ((document.getElementById('sfDueNote') || {}).value || '').trim();
+    if (!iso) { alert('⛔ تاریخ تحویل تعهدی را انتخاب کنید. برای حذف تعهد از دکمه «حذف تعهد» استفاده کنید.'); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) { alert('⛔ فرمت تاریخ نامعتبر است. تاریخ را شمسی مثل 1405/04/19 وارد کنید.'); return; }
+    sfSetDueCommit(cd, iso, note, false);
+    var dlg = document.getElementById('sfDueDlg');
+    if (dlg) dlg.remove();
+  };
+
+  window.sfClearDue = function (cd) {
+    if (!confirm('تاریخ تحویل تعهدی این پرونده حذف شود؟')) return;
+    sfSetDueCommit(cd, '', '', true);
+    var dlg = document.getElementById('sfDueDlg');
+    if (dlg) dlg.remove();
+  };
+
+  window.sfSetDueCommit = function (cd, iso, note, explicitClear) {
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    iso = (iso || '').trim();
+    note = (note || '').trim();
+    if (!iso && !explicitClear && arguments.length >= 4) { alert('⛔ تاریخ خالی است؛ حذف تعهد فقط از مسیر دکمه حذف مجاز است.'); return; } /* سازگاری عقب‌رو: sfSetDueCommit(cd,'','') همچنان حذف برنامه‌ای است؛ UI ذخیره خالی با false می‌آید و بلاک می‌شود */
+    var old = r.dueISO || '';
+    r.dueISO = iso;
+    r.dueNote = iso ? note : '';
+    if (r.dueISO !== old) r.dueNotified = ''; /* ریست ضدتکرار یادآور با تغییر تاریخ */
+    sfSave(list);
+    try { audit('پرونده‌های فروش', r.dueISO ? 'ثبت/اصلاح تاریخ تحویل تعهدی ' + (r.inqNo || cd) + ' → ' + r.dueISO : 'حذف تاریخ تحویل تعهدی ' + (r.inqNo || cd), cd); } catch (e) {}
+    if (typeof renderDeals === 'function') renderDeals();
+    if (typeof ptfToast === 'function') ptfToast(r.dueISO ? 'تاریخ تحویل تعهدی ثبت شد 🚚' : 'تعهد تحویل حذف شد', 'ok');
+  };
+
+  window.sfAddMisc = function (cd, f) {
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    r.docs = r.docs || [];
+    r.docs.push({ name: f.name, key: f.key || null, size: f.size || 0, t: faDate(), by: curSession().name });
+    sfSave(list);
+    try { audit('پرونده‌های فروش', 'افزودن سند به پرونده ' + (r.inqNo || cd) + ': ' + f.name, cd); } catch (e) {}
+    renderDeals();
+  };
+
+  window.sfDelMisc = function (cd, mi) {
+    if (!confirm('این سند از پرونده حذف شود؟')) return;
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    if (!r || !r.docs || !r.docs[mi]) return;
+    var doc = r.docs.splice(mi, 1)[0];
+    sfSave(list);
+    if (doc.key) sfDeleteCloud([doc.key]);
+    renderDeals();
+  };
+
+  function sfDeleteCloud(keys) {
+    keys = (keys || []).filter(Boolean);
+    if (!keys.length) return;
+    try {
+      fetch((typeof STORAGE_API !== 'undefined' ? STORAGE_API : '../api/storage.php') + '?action=delete_batch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keys: keys })
+      }).catch(function () {});
+    } catch (e) {}
+  }
+
+  /* ---------- مختومه‌سازی ---------- */
+  /* ===== v19.4 (US-437): کنترل پیش از مختومه — تحویل موفق + تسویه کامل + کنترل اسناد =====
+     هسته قابل تست: sfCloseAudit(r) → { blockers[], warns[], docs{} }
+     - blocker «تحویل»: مرحله < ۷ (بدون ثبت تحویل کارفرما) → مختومه با فاکتور ممنوع (AC1).
+     - مطالبات باز blocker نرم است: قابل رفع در همان مودال با تسویه خودکار (رفتار US-324 حفظ شد).
+     - بدهی باز تامین‌کننده و QC عدم انطباق بدون رفع = هشدار (مانع نیست ولی ثبت و audit می‌شود).
+     - کنترل اسناد (AC2): شمارش سند برد/فاکتور/ارسال/QC/متفرقه پیش از بایگانی نمایش داده می‌شود. */
+  window.sfCloseAudit = function (r) {
+    var out = { blockers: [], warns: [], docs: {}, openInvs: [], remainSum: 0, stage: 0 };
+    if (!r) return out;
+    var d = sfDocsOf(r.inqNo ? r : { inqNo: '', docs: r.docs || [] });
+    out.stage = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
+    /* ① تحویل موفق (AC1) — عمدا مستقل از مرحله: فاکتور تسویه‌شده مرحله را به ۱۱ می‌برد،
+       اما «مدرک تحویل» (رویداد تحویل کارفرما یا وضعیت st7 درخواست) جدا الزامی است تا
+       پرونده بدون تحویل واقعی با پرداخت نقدی دور زده نشود (US-437 AC1). */
+    var hasDelivery = (r.shipEvents || []).some(function (ev) { return ev.type === 'delivered'; });
+    if (!hasDelivery) {
+      try {
+        var rfqD = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === r.inqNo || x.inqNo === r.inqNo; })[0];
+        if (rfqD && rfqD.st === 'st7') hasDelivery = true;
+      } catch (eD) {}
+    }
+    if (!hasDelivery) out.blockers.push({ id: 'delivery', lb: '🤝 تحویل به کارفرما ثبت نشده است — ابتدا از دکمه «تحویل کارفرما» در همین پرونده ثبت کنید' });
+    /* ② تسویه کامل (AC1) — blocker نرم: در مودال قابل رفع با تسویه خودکار */
+    out.openInvs = d.invoices.filter(function (i) {
+      var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
+      return i.amount - paid > 0.5;
+    });
+    out.remainSum = out.openInvs.reduce(function (s2, i) { return s2 + (i.amount - ((i.payments || []).concat(i.pays || [])).reduce(function (s3, pp) { return s3 + (+pp.amt || 0); }, 0)); }, 0);
+    if (out.openInvs.length) out.warns.push({ id: 'recv', lb: '💰 ' + out.openInvs.length + ' فاکتور با مانده وصول‌نشده ' + out.remainSum.toLocaleString('fa-IR') + ' ریال — در گام بعد انتخاب می‌کنید: تسویه‌شده ثبت شود یا باز بماند' });
+    /* ③ پوشش خرید واقعی پرونده */
+    try {
+      if (typeof ptfRealBuyStatus === 'function' && r.inqNo) {
+        var rb = ptfRealBuyStatus(r.inqNo);
+        if (rb.total && rb.done < rb.total) out.warns.push({ id: 'realbuy', lb: '🛒 خرید واقعی فقط برای ' + rb.done + ' از ' + rb.total + ' قلم ثبت شده است — سود پرونده ممکن است ناقص/بیش‌برآورد باشد.' });
+        else if (!rb.has) out.warns.push({ id: 'realbuy-none', lb: '🛒 هنوز هیچ خرید واقعی برای این پرونده ثبت نشده است — سود واقعی قابل اتکا نیست.' });
+      }
+    } catch (eRB) {}
+    /* ④ بدهی باز شرکت به تامین‌کنندگان همین پرونده (R9 — scoring payables) */
+    try {
+      var payRem = getData('ptf_crm_payables').filter(function (p) {
+        if (!r.inqNo || p.inqNo !== r.inqNo || p.settled) return false;
+        return (typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : 0) > 0;
+      });
+      if (payRem.length) out.warns.push({ id: 'payable', lb: '🏭 ' + payRem.length + ' بستانکاری تسویه‌نشده تامین‌کننده روی این پرونده باز است (پنل بدهی تامین‌کنندگان)' });
+    } catch (eP) {}
+    /* ⑤ QC عدم انطباق بدون رویداد زیان/رفع بعدی */
+    try {
+      var ncs = (r.qcEvents || []).filter(function (q) { return q.conf === 'nonconform'; });
+      if (ncs.length && !(r.lossEvents || []).length) out.warns.push({ id: 'qc', lb: '⛔ ' + ncs.length + ' رکورد «عدم انطباق» QC بدون ثبت زیان/رفع — پیش از بایگانی بررسی شود (کیس R9)' });
+    } catch (eQ) {}
+    /* ⑤ کنترل اسناد (AC2) */
+    out.docs = { award: (r.awardDocs || []).length, offers: d.offers.length, invoices: d.invoices.length, ship: (r.shipEvents || []).length, qc: (r.qcEvents || []).length, costs: (r.costEvents || []).length, misc: (r.docs || []).length, letters: d.letters.length, supply: (d.supply || []).length };
+    if (!out.docs.award && r.wonOffer) out.warns.push({ id: 'award', lb: '🏆 سند قطعی برد ثبت نشده — یک بار کشوی پرونده را باز کنید تا مهاجرت نرم انجام شود (US-432)' });
+    try {
+      if (r.wonOffer && typeof ptfDocxCoverage === 'function') {
+        var covPL = ptfDocxCoverage(r, 'PL');
+        var covIN = ptfDocxCoverage(r, 'IN');
+        if (covPL.total && covPL.used > 0 && covPL.remain > 0) out.warns.push({ id: 'pl-partial', lb: '🧰 پکینگ لیست رسمی فقط برای ' + covPL.used + ' از ' + covPL.total + ' قلم صادر شده — ' + covPL.remain + ' قلم هنوز بدون پکینگ رسمی‌اند.' });
+        if (covIN.total && covIN.used > 0 && covIN.remain > 0) out.warns.push({ id: 'in-partial', lb: '🔬 نوت بازرسی رسمی فقط برای ' + covIN.used + ' از ' + covIN.total + ' قلم صادر شده — ' + covIN.remain + ' قلم هنوز بدون نوت رسمی‌اند.' });
+        if ((r.shipEvents || []).some(function (x) { return x.type === 'packing'; }) && covPL.total && covPL.used === 0) out.warns.push({ id: 'pl-missing', lb: '🧰 رویداد/وضعیت پکینگ ثبت شده ولی هنوز پکینگ لیست رسمی صادر نشده است.' });
+        if ((r.qcEvents || []).length && covIN.total && covIN.used === 0) out.warns.push({ id: 'in-missing', lb: '🔬 QC/بازرسی ثبت شده ولی هنوز نوت بازرسی رسمی صادر نشده است.' });
+      }
+    } catch (eC) {}
+    return out;
+  };
+  /* هسته اجرای مختومه با فاکتور — پس از عبور از کنترل (قابل تست) */
+  window.sfCloseSettledCommit = function (cd, settleOpen, settleReason) {
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return false;
+    var au = sfCloseAudit(r);
+    if (au.blockers.length) return false; /* سد برنامه‌ای — نه فقط UI (درس US-371) */
+    if (au.openInvs.length && settleOpen) {
+      var invsAll = getData('ptf_crm_invoices');
+      var autoSettleReceipts = []; // v31.7.4 BUG-AUDIT-008: Track auto-settle receipts for reversal
+      au.openInvs.forEach(function (i) {
+        var iv = invsAll.filter(function (x) { return x.cd === i.cd; })[0];
+        if (!iv) return;
+        var paid = ((iv.payments || []).concat(iv.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
+        var receiptCd = genCode('RPAY');
+        iv.payments = iv.payments || [];
+        iv.payments.push({ 
+          cd: receiptCd, 
+          t: faDate(), 
+          amt: iv.amount - paid, 
+          how: 'تسویه هنگام مختومه شدن پرونده', 
+          by: curSession().name, 
+          status: 'posted', 
+          autoSettle: true, 
+          autoSettleProjectCd: cd, // v31.7.4: Link to project for reversal
+          settleReason: settleReason || 'تسویه خودکار هنگام مختومه‌سازی' 
+        });
+        autoSettleReceipts.push({ invoiceCd: i.cd, receiptCd: receiptCd, amount: iv.amount - paid });
+      });
+      setData('ptf_crm_invoices', invsAll);
+      // v31.7.4 BUG-AUDIT-008: Store auto-settle info in project for reversal
+      r.autoSettleReceipts = autoSettleReceipts;
+      r.autoSettleDate = faDateTime();
+      r.autoSettleBy = curSession().name;
+      setData('ptf_crm_salesfiles', list);
+      try { audit('مطالبات', 'تسویه خودکار ' + au.openInvs.length + ' فاکتور هنگام مختومه شدن پرونده ' + (r.inqNo || cd) + ' — قابل برگشت', r.cd); } catch (e) {}
+    }
+    try { audit('پرونده‌های فروش', 'کنترل پیش از مختومه US-437 عبور کرد (' + au.warns.map(function (w) { return w.id; }).join('،') + (au.warns.length ? ' — با هشدار' : ' — بدون هشدار') + ') — ' + (r.inqNo || cd), cd); } catch (e2) {}
+    sfArchive(r, 'settled', true);
+    return true;
+  };
+  
+  // v31.7.4 BUG-AUDIT-008: Reversal function for auto-settle receipts
+  window.sfReverseAutoSettle = function (projectCd, reason) {
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === projectCd; })[0];
+    if (!r || !r.autoSettleReceipts || !r.autoSettleReceipts.length) {
+      alert('ℹ️ این پرونده تسویه خودکار ندارد یا قبلاً برگشت داده شده');
+      return false;
+    }
+    if (!reason || !reason.trim()) {
+      alert('⛔ دلیل برگشت الزامی است');
+      return false;
+    }
+    
+    var invsAll = getData('ptf_crm_invoices');
+    var reversedCount = 0;
+    var totalAmount = 0;
+    
+    r.autoSettleReceipts.forEach(function (receipt) {
+      var iv = invsAll.filter(function (x) { return x.cd === receipt.invoiceCd; })[0];
+      if (!iv || !iv.payments) return;
+      
+      // Find and mark the auto-settle receipt as reversed
+      var found = false;
+      iv.payments.forEach(function (p) {
+        if (p.cd === receipt.receiptCd && p.autoSettle) {
+          p.status = 'reversal';
+          p.reversedAt = faDateTime();
+          p.reversedBy = curSession().name;
+          p.reversalReason = reason;
+          found = true;
+          reversedCount++;
+          totalAmount += (+p.amt || 0);
+        }
+      });
+      
+      if (!found) {
+        // Receipt not found - add a reversal entry with negative amount
+        iv.payments.push({
+          cd: genCode('RPAY'),
+          t: faDate(),
+          amt: -receipt.amount,
+          how: 'برگشت تسویه خودکار',
+          by: curSession().name,
+          status: 'reversal',
+          autoSettleReversal: true,
+          originalReceiptCd: receipt.receiptCd,
+          reversalReason: reason
+        });
+        reversedCount++;
+        totalAmount += receipt.amount;
+      }
+    });
+    
+    setData('ptf_crm_invoices', invsAll);
+    
+    // Clear auto-settle info from project
+    r.autoSettleReceipts = [];
+    r.autoSettleReversedAt = faDateTime();
+    r.autoSettleReversedBy = curSession().name;
+    r.autoSettleReversalReason = reason;
+    setData('ptf_crm_salesfiles', list);
+    
+    try { 
+      audit('مطالبات', 'برگشت ' + reversedCount + ' تسویه خودکار به مبلغ ' + totalAmount.toLocaleString('fa-IR') + ' ریال — دلیل: ' + reason, projectCd); 
+    } catch (e) {}
+    
+    if (typeof ptfToast === 'function') {
+      ptfToast('✅ ' + reversedCount + ' تسویه خودکار برگشت داده شد', 'ok');
+    }
+    
+    return { count: reversedCount, amount: totalAmount };
+  };
+  window.sfClose = function (cd) {
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    /* v21.1 BUG-035 */
+    var already = sfFindArchivedProject(r);
+    if (already) {
+      alert('ℹ️ این پرونده قبلاً بایگانی شده است\n(' + (already.no || '') + ')');
+      try { renderDeals(); } catch (e) {}
+      return;
+    }
+    var hasInv = r.inqNo ? sfHasInvoice(r) : false;
+
+    if (hasInv) {
+      /* مسیر ۲ (v19.4 — US-437): مودال کنترل پیش از مختومه به جای confirm ساده */
+      sfCloseModal(cd);
+      return;
+    }
+
+    /* مسیر ۱: بدون فاکتور — v14.8 (US-349): دلیل باخت استاندارد به جای متن آزاد (AC4: محفوظ) */
+    sfLostModal(cd);
+  };
+  /* v19.4 (US-437): مودال کنترل نهایی — چک‌لیست تحویل/تسویه/اسناد */
+  function sfCloseModal(cd) {
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r); /* مهاجرت نرم سند برد قبل از کنترل */
+    var au = sfCloseAudit(r);
+    var dl = au.docs;
+    var docsHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;margin-top:6px">' +
+      [['🏆 سند برد', dl.award], ['📄 پیشنهاد', dl.offers], ['🧾 فاکتور', dl.invoices], ['🚚 ارسال', dl.ship], ['🔬 QC', dl.qc], ['➕ هزینه', dl.costs], ['📎 متفرقه', dl.misc], ['✉️ نامه', dl.letters], ['🤖 استعلام', dl.supply]].map(function (x) {
+        return '<span style="background:' + (x[1] ? '#ecfdf5;color:#065f46' : '#f1f5f9;color:#94a3b8') + ';border-radius:8px;padding:3px 8px">' + x[0] + ': ' + x[1] + '</span>';
+      }).join('') + '</div>';
+    var blocksHtml = au.blockers.map(function (b) { return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:7px 11px;font-size:12px;color:#b91c1c;margin-bottom:6px">⛔ ' + b.lb + '</div>'; }).join('');
+    var warnsHtml = au.warns.map(function (w) { return '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:7px 11px;font-size:12px;color:#92400e;margin-bottom:6px">' + w.lb + '</div>'; }).join('');
+    var canClose = !au.blockers.length;
+    var settleChk = au.openInvs.length
+      ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsSettle" checked> مانده ' + au.remainSum.toLocaleString('fa-IR') + ' ریال مطالبات «تسویه‌شده» ثبت شود (US-324/FIN-WF-013) — بدون تیک: مطالبات باز می‌ماند</label><textarea id="sfClsSettleReason" rows="2" style="width:100%;margin-top:7px" placeholder="دلیل تسویه خودکار را وارد کنید — اجباری"></textarea></div>'
+      : '';
+    var html = '<div class="md-b" id="sfClsDlg" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
+      '<h3>🏁 کنترل پیش از مختومه — ' + escP(r.inqNo || cd) + '</h3>' +
+      '<div style="font-size:12px;color:#475569;margin-bottom:8px">US-437: مختومه فقط پس از <b>تحویل موفق</b> و <b>تسویه کامل</b> — همه اسناد پیش از بایگانی کنترل می‌شوند و کل پرونده (سند برد، QC، ارسال، هزینه‌ها، زیان‌ها) به بایگانی منتقل می‌شود.</div>' +
+      '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;font-size:12.5px;margin-bottom:8px"><b>🧭 مرحله فعلی: ' + escP(typeof sfStageLabel === 'function' ? sfStageLabel(r) : '') + '</b> (' + au.stage + '/12)' + docsHtml + '</div>' +
+      blocksHtml + warnsHtml + settleChk +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+      (canClose
+        ? '<button class="bt" style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
+        : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>') +
+      '</div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  }
+  window.sfCloseGo = function (cd) {
+    var settle = !!((document.getElementById('sfClsSettle') || {}).checked);
+    var settleReason = ((document.getElementById('sfClsSettleReason') || {}).value || '').trim();
+    if (settle && !settleReason) { alert('⛔ برای تسویه خودکار، دلیل الزامی است.'); return; }
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var au = sfCloseAudit(r);
+    if (au.openInvs.length && !settle) { alert('⛔ با مطالبات باز نمی‌توان مختومه کرد (US-437) — یا تیک تسویه را بزنید یا ابتدا وصولی‌ها را ثبت کنید.'); return; }
+    if (!confirm('🏁 تایید نهایی مختومه پرونده «' + (r.inqNo || cd) + '»:\n\nپایان پروژه و تسویه کامل — کل پرونده با تمام اسناد به «بایگانی» منتقل می‌شود.\n\nادامه می‌دهید؟')) return;
+    var ok = sfCloseSettledCommit(cd, settle, settleReason);
+    var dlg = document.getElementById('sfClsDlg');
+    if (dlg) dlg.remove();
+    if (!ok) alert('⛔ کنترل مختومه رد شد — موارد قرمز را رفع کنید.');
+  };
+
+  /* v14.8 (US-349): مودال انتخاب دلیل استاندارد باخت + توضیح اختیاری */
+  function sfLostModal(cd) {
+    var opts = SF_LOST_REASONS.map(function (x) {
+      return '<option value="' + x.id + '">' + x.lb + '</option>';
+    }).join('');
+    var html = '<div class="md-b" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
+      '<h3>🚫 مختومه بدون فاکتور — دلیل باخت</h3>' +
+      '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:10px">دلیل استاندارد انتخاب کنید — این داده مبنای گزارش مدیریتی Win/Loss است (US-349).</div>' +
+      '<div class="fld"><label>دلیل باخت *</label><select id="sfLostReason">' + opts + '</select></div>' +
+      '<div class="fld"><label>توضیح تکمیلی (اختیاری)</label><textarea id="sfLostNote" rows="2" placeholder="مثلا: قیمت رقیب ۱۲٪ پایین‌تر بود"></textarea></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+      '<button class="bt" style="background:#b45309" onclick="this.closest(\'.md-b\').remove();sfCloseLost(\'' + escP(cd) + '\',(document.getElementById(\'sfLostReason\')||{}).value,((document.getElementById(\'sfLostNote\')||{}).value||\'\'))">🚫 مختومه شود</button>' +
+      '</div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  }
+
+  /* v14.8 (US-349): ادامه مختومه‌سازی باخت با دلیل استاندارد (قابل فراخوانی برنامه‌ای/تست) */
+
+  /* v21.1 BUG-035: یافتن بایگانی قبلی برای همین پرونده (دو-شناسه‌ای inqNo/cd) */
+  function sfArchiveAliases(r) {
+    var out = [];
+    if (!r) return out;
+    if (r.inqNo) out.push(String(r.inqNo));
+    if (r.cd && out.indexOf(String(r.cd)) < 0) out.push(String(r.cd));
+    try {
+      var rfqs = getData('ptf_crm_rfqs') || [];
+      rfqs.forEach(function (q) {
+        var hit = (r.inqNo && (q.inqNo === r.inqNo || q.cd === r.inqNo)) ||
+                  (r.cd && (q.cd === r.cd || q.inqNo === r.cd));
+        if (!hit) return;
+        if (q.cd && out.indexOf(String(q.cd)) < 0) out.push(String(q.cd));
+        if (q.inqNo && out.indexOf(String(q.inqNo)) < 0) out.push(String(q.inqNo));
+      });
+    } catch (e) {}
+    return out;
+  }
+  function sfFindArchivedProject(r) {
+    var aliases = sfArchiveAliases(r);
+    if (!aliases.length) return null;
+    var prjs = getData('ptf_crm_projects') || [];
+    for (var i = 0; i < prjs.length; i++) {
+      var p = prjs[i];
+      if (!p) continue;
+      if (p.state !== 'archived' && p.origin !== 'salesfile') continue;
+      var keys = [p.inqNo, p.cd, p.no ? String(p.no).replace(/^ARC-/, '') : ''];
+      for (var k = 0; k < keys.length; k++) {
+        if (keys[k] && aliases.indexOf(String(keys[k])) > -1) return p;
+      }
+    }
+    return null;
+  }
+  /* v21.1 BUG-035: علامت‌گذاری پیشنهادها/درخواست مرتبط پس از باخت */
+  function sfMarkLostRelated(r) {
+    try {
+      var aliases = sfArchiveAliases(r);
+      var offers = getData('ptf_crm_offers') || [];
+      var changed = false;
+      offers.forEach(function (o) {
+        if (!o || !o.inqNo) return;
+        if (aliases.indexOf(String(o.inqNo)) < 0) return;
+        if (o.st === 'won') return; /* برنده را دست نزن */
+        if (o.st !== 'lost') { o.st = 'lost'; changed = true; }
+        if (!o.lostAt) { o.lostAt = (typeof faDateTime === 'function' ? faDateTime() : ''); changed = true; }
+      });
+      if (changed) setData('ptf_crm_offers', offers);
+    } catch (e) {}
+    try {
+      var aliases2 = sfArchiveAliases(r);
+      var rfqs = getData('ptf_crm_rfqs') || [];
+      var ch2 = false;
+      rfqs.forEach(function (q) {
+        if (!q) return;
+        var hit = aliases2.indexOf(String(q.cd || '')) > -1 || aliases2.indexOf(String(q.inqNo || '')) > -1;
+        if (!hit) return;
+        if (q.st !== 'stX' && q.st !== 'st7') { q.st = 'stX'; ch2 = true; }
+      });
+      if (ch2) setData('ptf_crm_rfqs', rfqs);
+    } catch (e2) {}
+  }
+
+  window.sfCloseLost = function (cd, reasonId, note) {
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    /* v21.1 BUG-035: جلوگیری از بایگانی تکراری */
+    var alreadyLost = sfFindArchivedProject(r);
+    if (alreadyLost) {
+      alert('ℹ️ این پرونده قبلاً بایگانی شده است\n(' + (alreadyLost.no || '') + (alreadyLost.closeKind ? ' — ' + alreadyLost.closeKind : '') + ')');
+      try { renderDeals(); } catch (e) {}
+      return;
+    }
+    var rl = SF_LOST_REASONS.filter(function (x) { return x.id === reasonId; })[0] || SF_LOST_REASONS[SF_LOST_REASONS.length - 1];
+    var why = rl.lb + (note && String(note).trim() ? ' — ' + String(note).trim() : '');
+    var miscKeys = (r.docs || []).map(function (m) { return m.key; }).filter(Boolean);
+    function proceed() {
+      if (miscKeys.length && !confirm('⚠️ هشدار نهایی: ' + miscKeys.length + ' سند متفرقه این پرونده از فضای ابری «برای همیشه» پاک می‌شود.\nادامه می‌دهید؟')) return;
+      sfDeleteCloud(miscKeys);
+      r.docs = (r.docs || []).map(function (m) { return { name: m.name, t: m.t, by: m.by, purged: true }; }); // فقط متادیتا برای آمار
+      sfArchive(r, 'lost', false, why, rl.id);
+    }
+    if (miscKeys.length) {
+      /* پیشنهاد دانلود قبل از حذف */
+      var dl = confirm('این پرونده ' + miscKeys.length + ' سند متفرقه در فضای ابری دارد که هنگام مختومه شدن پاک می‌شوند.\n\nآیا می‌خواهید قبل از حذف، اسناد را دانلود کنید؟\n(OK = نمایش اسناد برای دانلود | Cancel = ادامه بدون دانلود)');
+      if (dl) {
+        var links = (r.docs || []).filter(function (m) { return m.key; }).map(function (m, i2) {
+          return '<div style="padding:6px 0;border-bottom:1px dashed var(--brd)"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(m.key) + '\')" style="color:#0e7490">⬇️ ' + escP(m.name) + '</a></div>';
+        }).join('');
+        var html = '<div class="md-b" style="display:grid;z-index:2500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
+          '<h3>⬇️ دانلود اسناد قبل از مختومه شدن</h3>' + links +
+          '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+          '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف از مختومه کردن</button>' +
+          '<button class="bt" style="background:#b45309" onclick="this.closest(\'.md-b\').remove();window._sfProceedClose()">دانلود کردم — ادامه مختومه‌سازی</button></div></div></div>';
+        document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+        window._sfProceedClose = proceed;
+        return;
+      }
+    }
+    proceed();
+  };
+
+  /* انتقال به بایگانی (ماژول projects با نام جدید) */
+  function sfArchive(r, closeKind, keepDocs, why, reasonId) {
+    /* v21.1 BUG-035: idempotent — اگر قبلاً بایگانی شده، رکورد تکراری نساز */
+    var existing = sfFindArchivedProject(r);
+    if (existing) {
+      try { sfSave(sfAll().filter(function (x) { return x.cd !== r.cd; })); } catch (e) {}
+      window._sfOpen = null;
+      try { renderDeals(); } catch (e2) {}
+      if (typeof ptfToast === 'function') ptfToast('این پرونده قبلاً بایگانی شده است', 'ok');
+      return existing;
+    }
+    var d = r.inqNo ? sfDocsOf(r) : { offers: [], letters: [], invoices: [], misc: r.docs || [], supply: [] };
+    var prjs = getData('ptf_crm_projects');
+    var rec = {
+      no: 'ARC-' + (r.inqNo || r.cd),
+      buyerCo: r.buyerCo || '',
+      offerNo: r.wonOffer || (d.offers[0] || {}).no || r.offerNo || '',
+      wonOffer: r.wonOffer || '',
+      inqNo: r.inqNo || '',
+      state: 'archived',
+      origin: 'salesfile',
+      closeKind: closeKind, /* lost | settled */
+      closeWhy: why || '',
+      closeReason: reasonId || (closeKind === 'settled' ? 'won' : ''), /* v14.8 (US-349): کد دلیل استاندارد برای گزارش Win/Loss */
+      lossEvents: (r.lossEvents || []).slice(), /* v18.0 US-421: زیان‌های ثبت‌شده همراه پرونده به بایگانی منتقل می‌شوند */
+      awardDocs: (r.awardDocs || []).slice(), /* v19.1 US-432: snapshot اسناد قطعی برد همراه پرونده بایگانی می‌شود */
+      qcEvents: (r.qcEvents || []).slice(), /* v19.1 US-434ف۱: سوابق QC/بازرسی حفظ می‌شود */
+      shipEvents: (r.shipEvents || []).slice(), /* v19.2 US-434ف۲: سوابق ارسال/تحویل حفظ می‌شود */
+      costEvents: (r.costEvents || []).slice(), /* v19.1: هزینه‌های مستقیم پرونده (v18.6) هم به بایگانی */
+      closedAt: faDateTime(),
+      closedBy: curSession().name,
+      stats: { offers: d.offers.length, letters: d.letters.length, invoices: d.invoices.length, misc: (r.docs || []).length, supply: (d.supply || []).length, /* v17.1 */
+               totalCO: d.offers.filter(function (o) { return o.kind !== 'TO'; }).reduce(function (s, o) { return s + (o.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0); }, 0),
+               totalCOCur: (d.offers.filter(function (o) { return o.kind !== 'TO' && o.currency && o.currency !== 'IRR'; })[0] || {}).currency || 'IRR', /* v17.4 US-416 */
+               lossIrr: (typeof ptfProjectLossTotal === 'function' ? ptfProjectLossTotal(r) : (r.lossEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0)) /* v18.0 US-421 */ },
+      docs: keepDocs ? (r.docs || []).map(function (m) { return { folder: 'misc', name: m.name, key: m.key || null, t: m.t, by: m.by }; }) : [],
+      t: faDateTime(),
+      timeline: [{ t: faDateTime(), by: curSession().name, tx: closeKind === 'settled' ? '🏁 مختومه — پایان پروژه و تسویه کامل (انتقال از پرونده‌های فروش)' : '🚫 مختومه بدون فاکتور — ' + (why || '') }]
+    };
+    prjs.unshift(rec);
+    setData('ptf_crm_projects', prjs);
+    /* v21.1 BUG-035: پیشنهادها/درخواست مرتبط را lost/stX کن تا فرصت دوباره نیاید */
+    if (closeKind === 'lost') sfMarkLostRelated(r);
+    /* حذف از پرونده‌های فروش */
+    sfSave(sfAll().filter(function (x) { return x.cd !== r.cd; }));
+    try { audit('پرونده‌های فروش', 'مختومه (' + (closeKind === 'settled' ? 'تسویه کامل' : 'بدون فاکتور') + ') و انتقال به بایگانی: ' + (r.inqNo || r.cd), r.cd); } catch (e) {}
+    if (typeof notify === 'function') notify({ toRoles: ['admin', 'chairman', 'ceo'], title: '📦 پرونده فروش ' + (r.inqNo || r.cd) + ' مختومه و به بایگانی منتقل شد (' + (closeKind === 'settled' ? 'تسویه کامل' : 'بدون فاکتور: ' + (why || '')) + ')', kind: 'system', channels: ['cart'] });
+    window._sfOpen = null;
+    renderDeals();
+    if (typeof ptfToast === 'function') ptfToast('پرونده مختومه و به بایگانی منتقل شد', 'ok');
+  }
+
+  /* ---------- اتصال نامه‌ها: گزینه پرونده‌های فروش در کشوی «لینک به پرونده» نامه ---------- */
+  function hookLetterModal() {
+    if (window._sfLetterHooked || typeof window.showLetterModal !== 'function') return false;
+    window._sfLetterHooked = true;
+    var _slm = window.showLetterModal;
+    window.showLetterModal = function (cd) {
+      _slm(cd);
+      try {
+        var sel = document.getElementById('ltPrj');
+        if (!sel) return;
+        sfAll().forEach(function (r) {
+          if (r.st === 'archived' || !r.inqNo) return;
+          var o = document.createElement('option');
+          o.value = 'SF:' + r.inqNo;
+          o.textContent = '📁 درخواست ' + r.inqNo + ' — ' + (r.buyerCo || '');
+          var l = cd ? getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0] : null;
+          if (l && l.prjNo === o.value) o.selected = true;
+          sel.appendChild(o);
+        });
+      } catch (e) {}
+    };
+    return true;
+  }
+  var htr2 = 0;
+  var ht2 = setInterval(function () { htr2++; if (hookLetterModal() || htr2 > 50) clearInterval(ht2); }, 400);
+})();

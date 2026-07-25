@@ -1,0 +1,1562 @@
+{
+  "passed": [
+    {
+      "category": "rbac",
+      "name": "curRole تعریف شده"
+    },
+    {
+      "category": "rbac",
+      "name": "roleDef تعریف شده"
+    },
+    {
+      "category": "rbac",
+      "name": "isSenior تعریف شده"
+    },
+    {
+      "category": "rbac",
+      "name": "ptfCanAccess تعریف شده (RBAC per-panel)"
+    },
+    {
+      "category": "rbac",
+      "name": "ptfRoleHolder تعریف شده (از US-368)"
+    },
+    {
+      "category": "rbac",
+      "name": "نقش admin به همه پنل‌ها دسترسی دارد"
+    },
+    {
+      "category": "bridge",
+      "name": "renderRfq تعریف شده"
+    },
+    {
+      "category": "bridge",
+      "name": "saveRfq2 تعریف شده"
+    },
+    {
+      "category": "bridge",
+      "name": "editRfq تعریف شده"
+    },
+    {
+      "category": "bridge",
+      "name": "PTF_RFQ_STATUSES تعریف شده"
+    },
+    {
+      "category": "bridge",
+      "name": "ptfRfqSetStatus تعریف شده (US-367)"
+    },
+    {
+      "category": "bridge",
+      "name": "ptfRfqWaitBadge تعریف شده"
+    },
+    {
+      "category": "bridge",
+      "name": "ptfInqAliases تعریف شده (US-386)"
+    },
+    {
+      "category": "bridge",
+      "name": "ptfRfqCascadeScan تعریف شده (US-444)"
+    },
+    {
+      "category": "bridge",
+      "name": "ptfRfqCascadeDelete تعریف شده (US-444)"
+    },
+    {
+      "category": "bridge",
+      "name": "ptfRfqDueState تعریف شده (US-348)"
+    },
+    {
+      "category": "bridge",
+      "name": "rfqSiteDetail تعریف شده (US-380)"
+    },
+    {
+      "category": "bridge",
+      "name": "rfqApprove تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "ptfSF_ensure تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfClose تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfCloseLost تعریف شده (US-349)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfCloseAudit تعریف شده (US-437)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfCloseSettledCommit تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfStageOf تعریف شده (US-433)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfRfqAlign تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfShipOpen تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfShipCommit تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfShipSeqCheck تعریف شده (US-440)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfInvoiceRefCommit تعریف شده (US-435)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfAwardEnsure تعریف شده (US-432)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfAwardPrint تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfQcOpen تعریف شده (US-434)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfQcCommit تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfSetDue تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfDueSave تعریف شده (BUG-027)"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfClearDue تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfSetDueCommit تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "sfToggle تعریف شده"
+    },
+    {
+      "category": "salesfiles",
+      "name": "SF_LOST_REASONS تعریف شده (US-349)"
+    },
+    {
+      "category": "offers",
+      "name": "offerFromRfq تعریف شده"
+    },
+    {
+      "category": "offers",
+      "name": "offerReviseClone تعریف شده"
+    },
+    {
+      "category": "offers",
+      "name": "offerPickInq تعریف شده"
+    },
+    {
+      "category": "offers",
+      "name": "ST_TO تعریف شده (6 وضعیتی US-367)"
+    },
+    {
+      "category": "offers",
+      "name": "ptfAdvanceOpen تعریف شده (US-424)"
+    },
+    {
+      "category": "offers",
+      "name": "ptfAdvanceNormalize تعریف شده (BUG-023)"
+    },
+    {
+      "category": "offers",
+      "name": "ptfAdvanceLabel تعریف شده"
+    },
+    {
+      "category": "offers",
+      "name": "ptfAdvanceLiveBind تعریف شده (US-428)"
+    },
+    {
+      "category": "buycompare",
+      "name": "cmpOpen تعریف شده"
+    },
+    {
+      "category": "buycompare",
+      "name": "cmpBuy تعریف شده"
+    },
+    {
+      "category": "buycompare",
+      "name": "cmpBulkBuy تعریف شده (US-441)"
+    },
+    {
+      "category": "buycompare",
+      "name": "cmpBulkBuyCommit تعریف شده"
+    },
+    {
+      "category": "buycompare",
+      "name": "cmpBulkApplySup تعریف شده"
+    },
+    {
+      "category": "buycompare",
+      "name": "cmpBulkTotal تعریف شده"
+    },
+    {
+      "category": "buycompare",
+      "name": "ptfRealBuyOpen تعریف شده (US-392)"
+    },
+    {
+      "category": "buycompare",
+      "name": "ptfRealBuyStatus تعریف شده"
+    },
+    {
+      "category": "buycompare",
+      "name": "ptfRealBuyNewInquiry تعریف شده"
+    },
+    {
+      "category": "buycompare",
+      "name": "ptfRealBuyEnsureStatus تعریف شده (BUG-029)"
+    },
+    {
+      "category": "buycompare",
+      "name": "ptfRealBuyReceiptUpload تعریف شده (v18.6)"
+    },
+    {
+      "category": "buycompare",
+      "name": "ptfProjectCostOpen تعریف شده (v18.6)"
+    },
+    {
+      "category": "buycompare",
+      "name": "ptfProjectCostUpload تعریف شده"
+    },
+    {
+      "category": "offerlock",
+      "name": "offValidateItems تعریف شده (BUG-019)"
+    },
+    {
+      "category": "offerlock",
+      "name": "offRowIsEmpty تعریف شده (US-310)"
+    },
+    {
+      "category": "offerlock",
+      "name": "offSmartInsert تعریف شده"
+    },
+    {
+      "category": "offerlock",
+      "name": "offRenderItems تعریف شده"
+    },
+    {
+      "category": "offerlock",
+      "name": "offSetRefPrice تعریف شده (US-439)"
+    },
+    {
+      "category": "offerlock",
+      "name": "offEl تعریف شده (US-364 fix)"
+    },
+    {
+      "category": "offerlock",
+      "name": "offPickProd تعریف شده"
+    },
+    {
+      "category": "offerlock",
+      "name": "offBaseCols تعریف شده"
+    },
+    {
+      "category": "offerlock",
+      "name": "offRowIsEmpty: ردیف خالی → true"
+    },
+    {
+      "category": "offerlock",
+      "name": "offRowIsEmpty: ردیف پر → false"
+    },
+    {
+      "category": "offers-pro",
+      "name": "ptfDocFsAdjust تعریف شده"
+    },
+    {
+      "category": "offers-pro",
+      "name": "ptfFa2EnWord تعریف شده (US-360)"
+    },
+    {
+      "category": "offers-pro",
+      "name": "ptfCoToEn تعریف شده"
+    },
+    {
+      "category": "offers-pro",
+      "name": "printOffer تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsOpen تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsNew تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsScoreSuppliers تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsFinalize تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsReplyCommit تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsUpdatePriceCompare تعریف شده (US-373)"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsPriceBlur تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsCommitPrices تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsSetQuoteCur تعریف شده (US-387)"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsToTargets تعریف شده (US-402)"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "rfqsPrint تعریف شده"
+    },
+    {
+      "category": "rfqsmart",
+      "name": "ptfUpdateRefPrices تعریف شده (US-335)"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfSupplierScore تعریف شده (US-400)"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfCustomerScore تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfScoreCard تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfScoreReport تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfPayableUpsert تعریف شده (US-400)"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfPayablePay تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfPayableDlv تعریف شده (US-430)"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfSupplierDebts تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfPayablesOpen تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfSupScoreBonus تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfScoreAdjust تعریف شده"
+    },
+    {
+      "category": "scoring",
+      "name": "ptfScoreWeightsSave تعریف شده"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalData تعریف شده (US-420)"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalDistribution تعریف شده"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalLock تعریف شده"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalPrint تعریف شده"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalRender تعریف شده"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalReportHtml تعریف شده (US-426)"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalCsv تعریف شده (US-426ف۲)"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalSnapPrint تعریف شده"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalAmendCommit تعریف شده (US-427)"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfFiscalAmendOpen تعریف شده"
+    },
+    {
+      "category": "fiscal",
+      "name": "ptfProjectProfitIRR تعریف شده (موتور سود)"
+    },
+    {
+      "category": "petty",
+      "name": "ptfPettyBalance تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "ptfPettyPendingByUser تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "ptfPettyPeriodData تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "pettyCharge تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "pettyDirectPay تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "pettySettle تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "pettyClosePeriod تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "pettyAttachBank تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "pettyPeriodRegistered تعریف شده"
+    },
+    {
+      "category": "petty",
+      "name": "pettySetTreasurerRole تعریف شده"
+    },
+    {
+      "category": "shareholders",
+      "name": "ptfShareApplySalary تعریف شده"
+    },
+    {
+      "category": "shareholders",
+      "name": "ptfShareholderBalance تعریف شده"
+    },
+    {
+      "category": "shareholders",
+      "name": "ptfShareDraw تعریف شده"
+    },
+    {
+      "category": "opex",
+      "name": "ptfOpexSum تعریف شده"
+    },
+    {
+      "category": "opex",
+      "name": "ptfOpexPendingTpls تعریف شده"
+    },
+    {
+      "category": "opex",
+      "name": "ptfOpexApplyTpl تعریف شده"
+    },
+    {
+      "category": "opex",
+      "name": "PTF_OPEX_CATS تعریف شده (۸ دسته)"
+    },
+    {
+      "category": "fx",
+      "name": "ptfMoney تعریف شده (US-416)"
+    },
+    {
+      "category": "fx",
+      "name": "ptfFxPayDialog تعریف شده (US-414)"
+    },
+    {
+      "category": "fx",
+      "name": "ptfFxTicker یا buildDashboard hook"
+    },
+    {
+      "category": "fx",
+      "name": "ptfFxDiag تعریف شده (v16.9)"
+    },
+    {
+      "category": "fx",
+      "name": "PTF_CURRENCIES تعریف شده"
+    },
+    {
+      "category": "fx",
+      "name": "ptfMoney(1000, EUR)"
+    },
+    {
+      "category": "lossguard",
+      "name": "ptfLossOpen تعریف شده"
+    },
+    {
+      "category": "lossguard",
+      "name": "ptfProfitIncompleteItems تعریف شده"
+    },
+    {
+      "category": "lossguard",
+      "name": "ptfProfitIncompleteNotify تعریف شده"
+    },
+    {
+      "category": "cheques",
+      "name": "chNew تعریف شده"
+    },
+    {
+      "category": "supspec",
+      "name": "ptfBrandCanon تعریف شده"
+    },
+    {
+      "category": "supspec",
+      "name": "ptfSupSpecBlob تعریف شده"
+    },
+    {
+      "category": "supspec",
+      "name": "ptfSupSpecScore تعریف شده"
+    },
+    {
+      "category": "supspec",
+      "name": "ptfSupSpecLearn تعریف شده"
+    },
+    {
+      "category": "supspec",
+      "name": "PTF_BRAND_ALIASES تعریف شده"
+    },
+    {
+      "category": "supspec",
+      "name": "ptfBrandCanon: زیمنس → Siemens"
+    },
+    {
+      "category": "listclean",
+      "name": "ptfCleanScan تعریف شده"
+    },
+    {
+      "category": "listclean",
+      "name": "ptfCleanUseless تعریف شده"
+    },
+    {
+      "category": "listclean",
+      "name": "ptfCleanOpen تعریف شده"
+    },
+    {
+      "category": "listclean",
+      "name": "ptfCleanMerge تعریف شده"
+    },
+    {
+      "category": "listclean",
+      "name": "ptfCleanNotDup تعریف شده"
+    },
+    {
+      "category": "listclean",
+      "name": "ptfCleanEdit تعریف شده"
+    },
+    {
+      "category": "listclean",
+      "name": "ptfCleanDrop تعریف شده"
+    },
+    {
+      "category": "custmerge",
+      "name": "ptfMergeStart تعریف شده"
+    },
+    {
+      "category": "custmerge",
+      "name": "ptfMergeWizard تعریف شده"
+    },
+    {
+      "category": "custmerge",
+      "name": "ptfMergeCommit تعریف شده"
+    },
+    {
+      "category": "docsx",
+      "name": "ptfDocxCommit تعریف شده"
+    },
+    {
+      "category": "docsx",
+      "name": "ptfDocxPrint تعریف شده"
+    },
+    {
+      "category": "contracts",
+      "name": "ctAiReview تعریف شده"
+    },
+    {
+      "category": "inqreader",
+      "name": "ptfOpenFullInqEditor تعریف شده"
+    },
+    {
+      "category": "inqreader",
+      "name": "ptfSaveFullInqEdit تعریف شده"
+    },
+    {
+      "category": "inqreader",
+      "name": "ptfAutoRegisterSummaryProducts تعریف شده"
+    },
+    {
+      "category": "inqreader",
+      "name": "ptfManageInqAttachments تعریف شده (US-325)"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_persist تعریف شده (US-378)"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_lastOf تعریف شده"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_restore تعریف شده"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_quotaLimit تعریف شده (US-320)"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_bizGo تعریف شده (US-445)"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_bizRender تعریف شده"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_bizSave تعریف شده"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_bizSaveAll تعریف شده (v20.6)"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_letterGo تعریف شده (US-379)"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "ptfAiClean تعریف شده"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_quotaLimit: admin → 400"
+    },
+    {
+      "category": "ai-workbench",
+      "name": "aiWB_quotaLimit: sales → 50"
+    },
+    {
+      "category": "reports",
+      "name": "renderReports تعریف شده"
+    },
+    {
+      "category": "reports",
+      "name": "ptfRenderWinLoss تعریف شده (US-349)"
+    },
+    {
+      "category": "reports",
+      "name": "ptfWinLossStats تعریف شده"
+    },
+    {
+      "category": "insights",
+      "name": "ptfFunnelData تعریف شده (US-350)"
+    },
+    {
+      "category": "insights",
+      "name": "ptfFunnelHtml تعریف شده"
+    },
+    {
+      "category": "insights",
+      "name": "ptfMyDayItems تعریف شده (US-393)"
+    },
+    {
+      "category": "insights",
+      "name": "ptfMyDayHtml تعریف شده"
+    },
+    {
+      "category": "mobilenav",
+      "name": "ptfMnvMore تعریف شده"
+    },
+    {
+      "category": "mobilenav",
+      "name": "ptfMnvGo تعریف شده"
+    },
+    {
+      "category": "tour",
+      "name": "ptfTourStart تعریف شده"
+    },
+    {
+      "category": "tour",
+      "name": "ptfTourMnvStart تعریف شده (US-375)"
+    },
+    {
+      "category": "storage",
+      "name": "ptfPurgeCloudOrphans تعریف شده (US-108)"
+    },
+    {
+      "category": "storage",
+      "name": "ptfDeleteGuard تعریف شده"
+    },
+    {
+      "category": "storage",
+      "name": "ptfReasonedDelete تعریف شده"
+    },
+    {
+      "category": "sync",
+      "name": "ptfSmartMerge تعریف شده (US-105)"
+    },
+    {
+      "category": "sync",
+      "name": "_ptfSyncBootstrapped تعریف شده (BUG-018)"
+    },
+    {
+      "category": "backup",
+      "name": "ptfBackupDownload تعریف شده"
+    },
+    {
+      "category": "guards",
+      "name": "ptfConfirmReasonedDelete تعریف شده (US-260)"
+    },
+    {
+      "category": "guards",
+      "name": "ptfReasonedDelete تعریف شده"
+    },
+    {
+      "category": "perms",
+      "name": "showPermModal تعریف شده"
+    },
+    {
+      "category": "golive",
+      "name": "ptfBackupDownload اجباری تعریف شده"
+    },
+    {
+      "category": "sms",
+      "name": "smsResendLogin تعریف شده (US-376)"
+    },
+    {
+      "category": "sms",
+      "name": "smsBookSyncAll تعریف شده"
+    },
+    {
+      "category": "sms",
+      "name": "smsBookRecover تعریف شده (BUG-018)"
+    },
+    {
+      "category": "messengers",
+      "name": "پیام‌رسان‌ها hook یا تابع"
+    },
+    {
+      "category": "workflow",
+      "name": "wfRefresh تعریف شده (US-260)"
+    },
+    {
+      "category": "workflow",
+      "name": "wfToResponse تعریف شده"
+    },
+    {
+      "category": "workflow",
+      "name": "wfCompute تعریف شده"
+    },
+    {
+      "category": "projects",
+      "name": "ptfArcDocAllowed تعریف شده (US-323)"
+    },
+    {
+      "category": "archive",
+      "name": "prjDocDel تعریف شده"
+    },
+    {
+      "category": "cms",
+      "name": "renderCMS تعریف شده"
+    },
+    {
+      "category": "oppo",
+      "name": "ptfOppoList تعریف شده (US-404)"
+    },
+    {
+      "category": "oppo",
+      "name": "ptfOppoCount تعریف شده"
+    },
+    {
+      "category": "oppo",
+      "name": "ptfOppoRender تعریف شده"
+    },
+    {
+      "category": "oppo",
+      "name": "ptfOppoLose تعریف شده"
+    },
+    {
+      "category": "phonefmt",
+      "name": "ptfPhoneNorm تعریف شده (US-338)"
+    },
+    {
+      "category": "phonefmt",
+      "name": "ptfNormalizeEntityPhones تعریف شده"
+    },
+    {
+      "category": "phonefmt",
+      "name": "ptfPhoneNorm: 0912... → +98..."
+    },
+    {
+      "category": "moneyx",
+      "name": "ptfNum تعریف شده"
+    },
+    {
+      "category": "moneyx",
+      "name": "ptfNumWordsFa تعریف شده"
+    },
+    {
+      "category": "moneyx",
+      "name": "ptfMoneyFmt تعریف شده"
+    },
+    {
+      "category": "moneyx",
+      "name": "ptfNum: \"1,000,000\" → 1000000"
+    },
+    {
+      "category": "moneyx",
+      "name": "ptfNum: \"۱٬۰۰۰٬۰۰۰\" → 1000000 (اعداد فارسی)"
+    },
+    {
+      "category": "datex",
+      "name": "ptfJToISO تعریف شده"
+    },
+    {
+      "category": "datex",
+      "name": "ptfISOToJ تعریف شده"
+    },
+    {
+      "category": "datex",
+      "name": "ptfTodayJ تعریف شده"
+    },
+    {
+      "category": "datex",
+      "name": "ptfJNormalize تعریف شده"
+    },
+    {
+      "category": "datex",
+      "name": "ptfDateInput تعریف شده"
+    },
+    {
+      "category": "datex",
+      "name": "ptfJToISO: 1405/04/01 → ISO"
+    },
+    {
+      "category": "dedup",
+      "name": "ptfNormCat تعریف شده"
+    },
+    {
+      "category": "dedup",
+      "name": "ptfProdSearchBlob تعریف شده"
+    },
+    {
+      "category": "dedup",
+      "name": "ptfProdSearchMatch تعریف شده"
+    },
+    {
+      "category": "iconx",
+      "name": "ptfIconxSweep تعریف شده (US-284)"
+    },
+    {
+      "category": "dialogx",
+      "name": "dialogx.alert تعریف شده"
+    },
+    {
+      "category": "dialogx",
+      "name": "dialogx.confirm تعریف شده"
+    },
+    {
+      "category": "dialogx",
+      "name": "dialogx.prompt تعریف شده"
+    },
+    {
+      "category": "dialogx",
+      "name": "ptfDlgAlert تعریف شده"
+    },
+    {
+      "category": "theme",
+      "name": "ptfThemeEffective تعریف شده (US-354)"
+    },
+    {
+      "category": "theme",
+      "name": "ptfApplyTheme تعریف شده"
+    },
+    {
+      "category": "shell",
+      "name": "تابع راه‌اندازی shell موجود"
+    },
+    {
+      "category": "tables",
+      "name": "تابع جداول"
+    },
+    {
+      "category": "ui-kit",
+      "name": "renderUI یا ui تعریف شده"
+    }
+  ],
+  "failed": [
+    {
+      "severity": "HIGH",
+      "category": "rbac",
+      "name": "renderUsers2 تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "rbac",
+      "name": "saveUser2 تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "rbac",
+      "name": "UNIQUE_ROLES شامل chairman/ceo/commercial",
+      "reason": "UNIQUE_ROLES تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "bridge",
+      "name": "saveRfq تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "bridge",
+      "name": "checkRfqDue تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "bridge",
+      "name": "checkDealDue تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "bridge",
+      "name": "rfqSiteEnsureCustomer تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "bridge",
+      "name": "rfqCollectModalItems تعریف شده (US-388)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "bridge",
+      "name": "saveRfq با اقلام خالی → باید رد شود",
+      "reason": "تابع تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "bridge",
+      "name": "ptfRfqDueState رفتار درست دارد",
+      "reason": "todayISO is not defined"
+    },
+    {
+      "severity": "HIGH",
+      "category": "salesfiles",
+      "name": "sfClsSettle تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "salesfiles",
+      "name": "sfHasInvoice تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "salesfiles",
+      "name": "sfDocsOf تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "salesfiles",
+      "name": "sfArchive تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "salesfiles",
+      "name": "sfStageOf: ۱۲ حالت درست برمی‌گرداند",
+      "reason": "شکست در 10 حالت: [{\"exp\":2,\"got\":1},{\"exp\":3,\"got\":1},{\"exp\":4,\"got\":1},{\"exp\":5,\"got\":1},{\"exp\":6,\"got\":1},{\"exp\":7,\"got\":1},{\"exp\":8,\"got\":1},{\"exp\":9,\"got\":1},{\"exp\":10,\"got\":1},{\"exp\":12,\"got\":1}]"
+    },
+    {
+      "severity": "HIGH",
+      "category": "salesfiles",
+      "name": "sfShipSeqCheck: delivery قبل از packing → رد",
+      "reason": "خروجی falsy"
+    },
+    {
+      "severity": "HIGH",
+      "category": "salesfiles",
+      "name": "sfCloseAudit: تشخیص blocker",
+      "reason": "getData is not defined"
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerSave تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerEdit تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerDel تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerSetSt تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerToCo تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerPickBuyer تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerForm تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerPostAwardLocked تعریف شده (US-431)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "autoCreateProjectFromCO تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerPostAwardLocked: won → true",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "offerPostAwardLocked: draft → false",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "ST_TO شامل 6 وضعیت",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers",
+      "name": "ptfAdvanceNormalize: 100000000% → capped",
+      "reason": "خروجی falsy"
+    },
+    {
+      "severity": "HIGH",
+      "category": "offerlock",
+      "name": "offUpdItem تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offerlock",
+      "name": "offRenderTotals تعریف شده (US-409)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offerlock",
+      "name": "offSyncTcLib تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offerlock",
+      "name": "offAddTermLib تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offerlock",
+      "name": "offRenderTerms تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offerlock",
+      "name": "offSmartInsert: درج در اولین ردیف خالی",
+      "reason": "درج نشد"
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers-pro",
+      "name": "docTableHtml تعریف شده (US-356)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers-pro",
+      "name": "docSigHtml تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers-pro",
+      "name": "docTermsHtml تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers-pro",
+      "name": "docColgroup تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "offers-pro",
+      "name": "injectCurrencyField تعریف شده (US-387)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "rfqsmart",
+      "name": "rqsNum تعریف شده (US-385)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "scoring",
+      "name": "rawAdj تعریف شده (BUG-034)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "scoring",
+      "name": "DEF_W تعریف شده (وزن‌های مصوب)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "scoring",
+      "name": "BUG-034: rawAdj(\"15\") = 15 (نه 51)",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "scoring",
+      "name": "rawAdj: clamp ±۱۵",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "scoring",
+      "name": "rawAdj: اعداد فارسی",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "fiscal",
+      "name": "canFiscal تعریف شده (BUG-024)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "fiscal",
+      "name": "BUG-024: canFiscal: admin → true",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "fiscal",
+      "name": "BUG-024: canFiscal: sales → false",
+      "reason": "تعریف نشده"
+    },
+    {
+      "severity": "HIGH",
+      "category": "petty",
+      "name": "faMonthNow تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "shareholders",
+      "name": "ptfShareholderBalance خروجی معتبر دارد",
+      "reason": "getData is not defined"
+    },
+    {
+      "severity": "HIGH",
+      "category": "fx",
+      "name": "ptfFxPaySummary تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "fx",
+      "name": "ptfMoney(1000000, IRR)",
+      "reason": "بدون کاما: ۱٬۰۰۰٬۰۰۰ ریال"
+    },
+    {
+      "severity": "HIGH",
+      "category": "lossguard",
+      "name": "ptfLossCommit تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "financehub",
+      "name": "fiscalTab یا show تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "cheques",
+      "name": "saveCheque یا saveChq تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "cheques",
+      "name": "hookSupModal تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "cheques",
+      "name": "chDaysTo تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "cheques",
+      "name": "chDailyNotify تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "docsx",
+      "name": "PTF_DOCX_TYPES شامل PL/IN/IB/MOM",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "contracts",
+      "name": "saveContract تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "contracts",
+      "name": "ctGenerateBuy تعریف شده (US-345)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "contracts",
+      "name": "ctRfqs تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "letters",
+      "name": "saveLetter تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "letters",
+      "name": "showLetterModal تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "letters",
+      "name": "editLetter تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "letters",
+      "name": "ltApply تعریف شده (US-345)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "kanban",
+      "name": "ptfKanbanRender تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "kanban",
+      "name": "ptfKanbanSetView تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "kanban",
+      "name": "ptfKanbanMoveCard تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "mobilenav",
+      "name": "ptfMnvRender تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "mobilenav",
+      "name": "ptfMnvSetActive تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "mobilenav",
+      "name": "isMob تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "launcher",
+      "name": "ptfLauncherRender تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "launcher",
+      "name": "ptfLauncherSetOrder تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "launcher",
+      "name": "ptfLauncherMove تعریف شده (v12.9)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "tour",
+      "name": "PTF_NAV_GROUPS تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "storage",
+      "name": "openStoredFile تعریف شده (US-403)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "storage",
+      "name": "attachUploadWidget تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "sync",
+      "name": "SYNC_KEYS تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "sync",
+      "name": "GUARD_KEYS تعریف شده (US-382)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "backup",
+      "name": "ptfBackupRestore تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "backup",
+      "name": "ptfBackupRun تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "backup",
+      "name": "doRestore تعریف شده (v15.0)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "backup",
+      "name": "collectBackup تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "guards",
+      "name": "nrm تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "perms",
+      "name": "ALL_PANELS تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "perms",
+      "name": "roleDefaultFor تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "golive",
+      "name": "WIPE_KEYS تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "sms",
+      "name": "checkMustChangePass تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "workflow",
+      "name": "wfLog تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "projects",
+      "name": "renderProjects تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "analyzer",
+      "name": "renderAnalyzer تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "listtools",
+      "name": "renderToolModal تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "listtools",
+      "name": "ltApply تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "dedup",
+      "name": "dedupNorm تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "dedup",
+      "name": "PTF_CAT_MAP تعریف شده (US-389)",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "dedup",
+      "name": "ptfCheckDup تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "dedup",
+      "name": "ptfDupBlock تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "icons",
+      "name": "svg تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "modalx",
+      "name": "mxMinimize/mxDot تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "leads",
+      "name": "renderLeads تعریف شده",
+      "reason": false
+    },
+    {
+      "severity": "HIGH",
+      "category": "leads",
+      "name": "saveLead تعریف شده",
+      "reason": false
+    }
+  ]
+}

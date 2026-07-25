@@ -1,0 +1,86 @@
+{
+  "passed": [
+    "تمام ۱۱۰ تستر رسمی پروژه سبز هستند",
+    "audit.py سایت PASS است",
+    "همه ۶۲ ماژول CRM در sandbox لود می‌شوند",
+    "موتور سود واحد (ptfProjectProfitIRR) در همه ماژول‌ها استفاده می‌شود",
+    "سینک با base/krevs در crm.php (v15.0) یکپارچه است",
+    "سپر داده‌صفر (GUARD_KEYS) ۱۷ کلید حیاتی محافظت می‌کند",
+    "RBAC با ۸ نقش و ۲۵ پنل فعال",
+    "محرمانگی R9 (canFiscal) در داخل fiscal.js اعمال می‌شود",
+    "تاریخ شمسی (US-446) برای چک/سررسید/تحویل/یادآور",
+    "هوش مصنوعی با ۴ اکشن (ocr/letter/contract/bizcard)",
+    "سهمیه AI بر اساس نقش (admin/ceo/commercial=400)",
+    "تعدیل امتیاز (BUG-034) parseAdj ایمن شده",
+    "سند قطعی برد (awardDocs) snapshot عمیق می‌گیرد",
+    "۱۲ مرحله پرونده (sfStageOf) از سیگنال‌های واقعی",
+    "توالی رویداد (US-440) در هسته commit اعمال می‌شود",
+    "محرمانگی admin/chairman (BUG-024)",
+    "محرمانگی گزارش سال مالی (v18.4)",
+    "کارت ویزیت چندتایی (v20.6)",
+    "قالب PL با فیلدهای انگلیسی (v20.6)",
+    "هاب مالی (US-429) برای admin/chairman"
+  ],
+  "bugs": [
+    {
+      "severity": "CRITICAL",
+      "code": "BUG-035",
+      "title": "ptfSupplierScore(null) باعث crash می‌شود",
+      "desc": "در خط ۲۹۲ scoring.js، s.spBrands بدون null check استفاده شده. اگر null ارسال شود، سیستم کرش می‌کند.",
+      "priority": "فوری",
+      "reproducer": "window.ptfSupplierScore(null)",
+      "expected": "خروجی ایمن (مثلاً {score:0, dataOk:false})",
+      "actual": "Cannot read properties of null (reading 'spBrands')"
+    },
+    {
+      "severity": "CRITICAL",
+      "code": "BUG-036",
+      "title": "ptfCustomerScore(null) باعث crash می‌شود",
+      "desc": "در خط ۳۴۸ scoring.js، c.cd بدون null check استفاده شده.",
+      "priority": "فوری",
+      "reproducer": "window.ptfCustomerScore(null)",
+      "expected": "خروجی ایمن",
+      "actual": "Cannot read properties of null (reading 'cd')"
+    },
+    {
+      "severity": "MEDIUM",
+      "code": "BUG-037",
+      "title": "genCode collision در حجم بالا",
+      "desc": "تابع genCode در ai-workbench.js خط ۱۷ از Math.random() در فضای ۹۰۰۰۰ عددی استفاده می‌کند. در ۱۰۰۰۰ فراخوانی، احتمال تکرار وجود دارد (در ۱۰۰۰ فراخوانی تست شد: ۵ تکرار).",
+      "priority": "متوسط",
+      "reproducer": "for(i=0;i<10000;i++) genCode(\"X\")",
+      "expected": "کد یکتا یا استفاده از timestamp+random",
+      "actual": "561 تکرار در ۱۰۰۰۰ فراخوانی"
+    },
+    {
+      "severity": "HIGH",
+      "code": "BUG-038",
+      "title": "تابع rawAdj در scoring.js به window صادر نشده",
+      "desc": "تابع rawAdj در scoring.js خط ۴۵۷ به صورت متغیر محلی تعریف شده (درون ptfScoreAdjust). ماژول‌های دیگر نمی‌توانند مستقیماً آن را فراخوانی کنند. اگر جایی نیاز به parseAdj با همین منطق داشته باشد، باید کد تکرار شود.",
+      "priority": "متوسط-بالا",
+      "reproducer": "typeof window.rawAdj",
+      "expected": "window.rawAdj موجود",
+      "actual": "undefined"
+    },
+    {
+      "severity": "MEDIUM",
+      "code": "BUG-039",
+      "title": "تابع canFiscal به window صادر نشده",
+      "desc": "canFiscal در fiscal.js خط ۹ به صورت function declaration است ولی به window صادر نشده. BUG-024 fix در v18.4 داخل خود فایل از آن استفاده می‌کند، ولی سایر ماژول‌ها نمی‌توانند.",
+      "priority": "متوسط",
+      "reproducer": "typeof window.canFiscal",
+      "expected": "window.canFiscal موجود",
+      "actual": "undefined"
+    },
+    {
+      "severity": "MEDIUM",
+      "code": "BUG-040",
+      "title": "GUARD_KEYS در sync.js به window صادر نشده",
+      "desc": "GUARD_KEYS در sync.js خط ۶۷ به صورت var تعریف شده. اگر ماژول دیگری نیاز به دانستن کلیدهای تحت سپر داده‌صفر داشته باشد، نمی‌تواند.",
+      "priority": "متوسط",
+      "reproducer": "typeof window.GUARD_KEYS",
+      "expected": "window.GUARD_KEYS موجود",
+      "actual": "undefined"
+    }
+  ]
+}

@@ -1,0 +1,258 @@
+<!doctype html><html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ابزارهای مهندسی تامین تجهیزات صنعتی | پیشرو تجهیز — v32.1</title>
+<meta name="description" content="ابزارهای مهندسی PTF برای محاسبه اولیه Cv/Kv، وزن پایپینگ، تحمل فشار و PRV؛ گزارش PDF و ابزار پیشرفته Control Valve با فعال‌سازی غیررایگان.">
+<link rel="canonical" href="https://pishtaj.ir/tools/">
+<meta property="og:title" content="ابزارهای مهندسی تامین تجهیزات صنعتی | پیشرو تجهیز">
+<meta property="og:description" content="ابزارهای مهندسی PTF برای محاسبه اولیه Cv/Kv، وزن پایپینگ، تحمل فشار و PRV؛ گزارش PDF و ابزار پیشرفته Control Valve با فعال‌سازی غیررایگان.">
+<link rel="stylesheet" href="../assets/css/style.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"ابزارهای مهندسی PTF","url":"https://pishtaj.ir/tools/","applicationCategory":"EngineeringApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0"}}</script>
+<style>
+.tool-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+.tool-tab{border:1px solid var(--line);background:#fff;border-radius:14px;padding:10px 16px;font-weight:800;cursor:pointer;font-size:13.5px;transition:.2s}
+.tool-tab.active,.tool-tab:hover{background:linear-gradient(135deg,var(--red),var(--orange));color:#fff;border-color:transparent}
+.tool-card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 14px 36px rgba(0,0,0,.06)}
+.tg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px}
+.tg label{display:block;font-size:12px;color:#555;font-weight:800;margin-bottom:4px}
+.tg input,.tg select{width:100%;padding:9px;border:1px solid var(--line);border-radius:11px;font-family:inherit;font-size:13.5px}
+.tres{background:linear-gradient(135deg,#fff,#fff8f5);border:2px solid var(--red);border-radius:16px;padding:16px;margin-top:14px;display:none}
+.tres b.big{font-size:22px;color:var(--red)}
+.twarn{color:#b45309;font-size:12.5px;margin-top:6px}
+.tref{color:#94a3b8;font-size:11px;margin-top:8px}
+.tbtn{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+table.tt{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+table.tt th{background:#f1f5f9;padding:7px;border:1px solid #e2e8f0}
+table.tt td{padding:6px;border:1px solid #e2e8f0;text-align:center}
+
+/* v31.7.72 ADV-TOOLS-PAGE-RTL-POLISH-001 */
+.adv-wrap{background:radial-gradient(circle at 18% 8%,rgba(247,148,0,.16),transparent 28%),linear-gradient(135deg,#0f172a,#111c31 58%,#17233a);color:#fff;border-radius:30px;padding:26px;margin-bottom:22px;box-shadow:0 22px 58px rgba(15,23,42,.30);border:1px solid rgba(255,255,255,.10)}
+.adv-top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;margin-bottom:18px}.adv-top p{margin:0;color:#cbd5e1;line-height:2;font-size:14px}.adv-kicker{display:inline-flex;align-items:center;gap:8px;background:rgba(247,148,0,.12);border:1px solid rgba(247,148,0,.38);color:#ffcf7a;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:900;margin-bottom:10px}.adv-en{direction:ltr;text-align:left;unicode-bidi:isolate;font-family:Inter,Arial,Tahoma,sans-serif}.adv-sub{display:block;color:#94a3b8;font-size:11px;font-weight:800;margin-top:3px;letter-spacing:.1px}.adv-fa-title{margin:0 0 8px;color:#fff;font-size:25px}.adv-catalog{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}.adv-tool-card{background:linear-gradient(180deg,#fff,#f8fafc);color:#1e293b;border-radius:20px;padding:16px;border:1px solid rgba(255,255,255,.18);box-shadow:0 12px 30px rgba(15,23,42,.10);min-height:158px;display:flex;flex-direction:column;justify-content:space-between}.adv-tool-card b{font-size:15.5px;color:#0f172a}.adv-tool-card small{display:block;color:#64748b;line-height:1.9;margin-top:7px;font-size:12.5px}.adv-chiprow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.adv-chip{display:inline-flex;align-items:center;border-radius:999px;padding:2px 8px;font-size:10.8px;font-weight:900;border:1px solid #e2e8f0;background:#fff;color:#475569}.adv-chip.hot{color:#b45309;border-color:#fed7aa;background:#fff7ed}.adv-chip.ok{color:#047857;border-color:#bbf7d0;background:#ecfdf5}.adv-cv-panel{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:24px;padding:18px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(290px,.9fr);gap:18px;align-items:start}.adv-cv-title{margin:0 0 8px;color:#fff;font-size:23px}.adv-cv-desc{margin:0;color:#cbd5e1;line-height:2;font-size:14px}.adv-schema{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:14px;color:#e5e7eb;font-size:12.5px}.adv-schema-card{border:1px solid rgba(255,255,255,.15);border-radius:16px;padding:11px;background:rgba(255,255,255,.04)}.adv-schema-card b{display:block;color:#fff;margin-bottom:4px}.adv-schema-card small{display:block;color:#cbd5e1;line-height:1.8}.adv-report-card{background:linear-gradient(180deg,#fff,#f8fafc);color:#1e293b;border-radius:20px;padding:16px;box-shadow:0 18px 45px rgba(15,23,42,.14)}.adv-report-card h4{margin:0 0 4px;color:#0f172a}.adv-report-list{margin:12px 0 14px;padding:0;list-style:none;line-height:1.9;color:#475569;font-size:13px}.adv-report-list li{display:flex;gap:8px;align-items:flex-start;border-bottom:1px dashed #e2e8f0;padding:4px 0}.adv-report-list li:before{content:'•';color:#f79400;font-weight:900}.adv-status-note{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:10px 12px;font-size:12px;color:#475569;line-height:1.9;margin-bottom:12px}.adv-actions-inline{display:flex;gap:8px;flex-wrap:wrap}@media(max-width:860px){.adv-cv-panel{grid-template-columns:1fr}.adv-wrap{padding:18px}.adv-fa-title{font-size:21px}}
+.cv-seo-block{background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:22px;margin:20px 0;box-shadow:0 12px 34px rgba(15,23,42,.06);line-height:2}.cv-seo-block h2{margin:0 0 10px;color:#0f172a;font-size:22px}.cv-seo-block h3{margin:16px 0 6px;color:#ef4b1a;font-size:16px}.cv-seo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px}.cv-seo-grid div{background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:12px}.cv-seo-block p,.cv-seo-block li{color:#475569;font-size:13.5px}.cv-seo-block ul{margin:8px 18px;padding:0}.cv-seo-faq{margin-top:14px;border-top:1px dashed #e2e8f0;padding-top:10px}
+
+
+/* v32.1 UI-TOOLS-SCIENTIFIC-001 — engineering workstation look */
+.tools-page{ background:#f4f7fb; }
+.tools-hero{
+  background:linear-gradient(135deg,#0f2744 0%, #12324f 55%, #0b1c30 100%);
+  color:#fff; border-radius:0; padding:118px 0 42px; margin:0 0 8px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.tools-hero .container{ max-width:1120px; }
+.tools-hero .kicker{
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(14,116,144,.18); border:1px solid rgba(103,232,249,.28);
+  color:#a5f3fc; border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700;
+}
+.tools-hero h1{ margin:12px 0 10px; font-size:clamp(24px,3.2vw,34px); line-height:1.4; font-weight:800; color:#fff; }
+.tools-hero p{ margin:0; color:rgba(226,232,240,.88); line-height:1.95; max-width:720px; font-size:14.5px; }
+.tools-shell{ max-width:1120px; margin:0 auto; padding:8px 16px 48px; }
+.tool-tabs{ display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 16px; }
+.tool-tab{
+  border:1px solid #dbe3ee; background:#fff; border-radius:11px; padding:9px 14px;
+  font-weight:700; cursor:pointer; font-size:13px; color:#334155; transition:.18s;
+}
+.tool-tab.active, .tool-tab:hover{
+  background:#0e7490; color:#fff; border-color:#0e7490;
+  box-shadow:0 6px 16px rgba(14,116,144,.22);
+}
+.tool-card{
+  background:#fff; border:1px solid #dbe3ee; border-radius:16px; padding:22px;
+  box-shadow:0 10px 28px rgba(15,23,42,.05);
+}
+.tool-card h3{ margin:0 0 14px; color:#0f2744; font-size:17px; font-weight:800; letter-spacing:-.2px; }
+.tg label{ color:#475569; font-weight:700; }
+.tg input,.tg select{
+  border:1px solid #dbe3ee; border-radius:10px; background:#f8fafc;
+}
+.tg input:focus,.tg select:focus{ outline:2px solid rgba(14,116,144,.25); border-color:#0e7490; background:#fff; }
+.tres{
+  background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:14px; margin-top:14px;
+}
+.tres b.big{ font-size:20px; color:#0e7490; }
+.tref{ color:#64748b; }
+/* advanced block: keep dark engineering panel but less "neon/fantasy" */
+.adv-wrap{
+  background:linear-gradient(135deg,#0f2744 0%, #132f4c 58%, #0b1c30 100%) !important;
+  border-radius:20px !important; padding:22px !important;
+  box-shadow:0 16px 40px rgba(15,23,42,.22) !important;
+  border:1px solid rgba(148,163,184,.18) !important;
+}
+.adv-kicker{
+  background:rgba(14,116,144,.16) !important; border-color:rgba(103,232,249,.28) !important;
+  color:#a5f3fc !important;
+}
+.adv-fa-title{ font-size:22px !important; font-weight:800 !important; }
+.adv-tool-card{
+  background:#fff !important; border:1px solid #e2e8f0 !important;
+  border-radius:14px !important; min-height:148px !important;
+  box-shadow:0 8px 20px rgba(15,23,42,.06) !important;
+}
+.adv-tool-card b{ font-size:14.5px !important; color:#0f2744 !important; }
+.adv-chip.hot{ color:#0e7490 !important; border-color:#a5f3fc !important; background:#ecfeff !important; }
+.adv-cv-panel{
+  background:rgba(255,255,255,.05) !important; border:1px solid rgba(148,163,184,.2) !important;
+  border-radius:16px !important;
+}
+.adv-cv-title{ font-size:20px !important; }
+.adv-schema-card{ border-radius:12px !important; }
+.adv-report-card{ border-radius:14px !important; box-shadow:0 10px 26px rgba(15,23,42,.1) !important; }
+.cv-seo-block{ border-radius:16px !important; box-shadow:0 8px 22px rgba(15,23,42,.05) !important; }
+.cv-seo-block h3{ color:#0e7490 !important; }
+.tools-note{
+  background:#fff; border:1px solid #dbe3ee; border-radius:14px; padding:14px 16px;
+  color:#475569; font-size:13px; line-height:1.9; margin:14px 0 18px;
+}
+.tools-note b{ color:#0f2744; }
+@media(max-width:700px){
+  .tools-hero{ padding:100px 0 28px; }
+  .tool-tab{ width:100%; text-align:right; }
+  .adv-wrap{ padding:16px !important; border-radius:16px !important; }
+  .adv-fa-title{ font-size:18px !important; }
+}
+
+</style>
+
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","name":"ابزار سایزینگ کنترل ولو PTF","alternateName":"Advanced Control Valve Sizing","applicationCategory":"EngineeringApplication","operatingSystem":"Web","url":"https://pishtaj.ir/tools/#control-valve-sizing-seo","description":"ابزار پیشرفته سایزینگ کنترل ولو برای محاسبه Cv/Kv، بررسی Liquid/Gas/Steam، choked flow، کاویتاسیون، نویز، اکچویتور و گزارش انگلیسی HTML.","keywords":"سایزینگ کنترل ولو, محاسبه Cv کنترل ولو, انتخاب کنترل ولو, control valve sizing, Cv calculation, کنترل ولو بخار, کنترل ولو گاز","publisher":{"@type":"Organization","name":"Pishro Tajhiz Fartak","url":"https://pishtaj.ir/"},"offers":{"@type":"Offer","availability":"https://schema.org/InStock","price":"0","priceCurrency":"IRR","description":"پیش‌نمایش و محاسبات اولیه رایگان؛ ابزار پیشرفته و گزارش نهایی با فعال‌سازی لایسنس."}},{"@type":"FAQPage","name":"سوالات رایج سایزینگ کنترل ولو","mainEntity":[{"@type":"Question","name":"ابزار سایزینگ کنترل ولو PTF چه کاری انجام می‌دهد؟","acceptedAnswer":{"@type":"Answer","text":"این ابزار محاسبه Cv و Kv، بررسی choked flow، کاویتاسیون، نویز، سرعت خط، اکچویتور و داده‌های vendor را برای Liquid، Gas و Steam انجام می‌دهد."}},{"@type":"Question","name":"آیا گزارش ابزار کنترل ولو vendor-certified است؟","acceptedAnswer":{"@type":"Answer","text":"خیر. خروجی فعلی گزارش مهندسی screening است و Vendor Data Validation Matrix نیاز به certified vendor sheet را مشخص می‌کند."}},{"@type":"Question","name":"آیا پرسنل داخلی می‌توانند از ابزار پیشرفته رایگان استفاده کنند؟","acceptedAnswer":{"@type":"Answer","text":"بله. پرسنل داخلی با staff/internal license می‌توانند بدون مصرف quota غیررایگان از ابزار پیشرفته استفاده کنند."}}]},{"@type":"TechArticle","headline":"سایزینگ کنترل ولو و محاسبه Cv / Kv","about":["Control valve sizing","Cv calculation","Kv calculation","IEC 60534","ISA control valve"],"inLanguage":"fa-IR","url":"https://pishtaj.ir/tools/#control-valve-sizing-seo","publisher":{"@type":"Organization","name":"Pishro Tajhiz Fartak"}}],"_ptf":"ADV-CV-SEO-FAQ-v1"}</script>
+</head>
+<body class="tools-page">
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/">مرکز دانش</a><a href="../tools/" class="active">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+<section class="tools-hero" aria-label="معرفی ابزارهای مهندسی">
+<div class="container">
+<div class="breadcrumb" style="color:rgba(226,232,240,.75);margin-bottom:10px"><a href="../" style="color:#a5f3fc">خانه</a> / ابزارهای مهندسی</div>
+<span class="kicker">میزکار مهندسی · Engineering Workstation</span>
+<h1>ابزارهای محاسباتی مهندسی تجهیزات صنعتی</h1>
+<p>محاسبات اولیه (Cv/Kv، وزن پایپینگ، تحمل فشار، PRV و ترک‌تیبل) به‌صورت شفاف و رایگان در دسترس است. خروجی‌های حرفه‌ای و ماژول پیشرفته کنترل‌ولو پس از فعال‌سازی لایسنس ارائه می‌شود — با لحن علمی، بدون ادعاهای غیرمهندسی.</p>
+</div>
+</section>
+<section class="section"><div class="container">
+<div id="advanced-tools" class="adv-wrap">
+  <!-- Legacy UAT tokens: Advanced Engineering Tools — Locked Preview | Control Valve Advanced | Piping Advanced | Pump Selection | Flow Meter / Orifice | Electrical Engineering | Instrumentation | Locked | Planned | Paid PDF report | English Standard Report | Advanced Control Valve Sizing — Locked Input Schema Preview | Operating Cases | Fluid Data | Valve Data | Brand Library | Liquid / Gas / Steam | Charts | Flow vs Cv and opening charts | viscosity | locked preview only | Full calculation and report generation will remain disabled | تا زمان راه‌اندازی درگاه -->
+  <div class="adv-top">
+    <div style="max-width:780px">
+      <span class="adv-kicker">ابزارهای پیشرفته مهندسی<span class="adv-en">Advanced Engineering Tools</span></span>
+      <h2 class="adv-fa-title">محیط تخصصی ابزارهای پیشرفته برای کنترل ولو، پایپینگ، پمپ، فلومتر، برق و ابزار دقیق</h2>
+      <p>این بخش نقشه ابزارهای حرفه‌ای PTF است. ابزارها تا تکمیل فعال‌سازی، لایسنس و گزارش نهایی قفل می‌مانند. پرسنل شرکت می‌توانند با کد داخلی رایگان از ابزارهای پیشرفته استفاده کنند.</p>
+    </div>
+    <a class="btn btn-primary" data-ptf-event="advanced_tools_activation_request" href="../rfq/?activation=tools&tool=all&item=Advanced%20Engineering%20Tools%20License" style="padding:9px 16px;font-size:13px">درخواست فعال‌سازی</a>
+  </div>
+  <div class="adv-catalog" id="advanced-tools-catalog">
+    <div class="adv-tool-card" data-tool="control-valve"><div><b>سایزینگ پیشرفته کنترل ولو</b><span class="adv-sub adv-en">Control Valve Advanced</span><small>محاسبه مقدماتی چندحالته، بررسی سرعت خط، ریسک کاویتاسیون و نویز، اکچویتور و ساختار گزارش غیررایگان.</small></div><div class="adv-chiprow"><span class="adv-chip hot">قفل</span><span class="adv-chip adv-en">Locked</span><span class="adv-chip adv-en">Cv / Kv</span></div></div>
+    <div class="adv-tool-card" data-tool="piping"><div><b>تحلیل پیشرفته پایپینگ</b><span class="adv-sub adv-en">Piping Advanced</span><small>افت فشار، سرعت مجاز، ضخامت دیواره، اسکجول، کلاس لوله و خروجی مقدماتی MTO.</small></div><div class="adv-chiprow"><span class="adv-chip hot">در برنامه</span><span class="adv-chip adv-en">Planned</span></div></div>
+    <div class="adv-tool-card" data-tool="pump"><div><b>انتخاب و بررسی پمپ</b><span class="adv-sub adv-en">Pump Selection</span><small>دبی، هد، NPSH، توان، راندمان و بررسی مقدماتی نقطه کاری و خانواده پمپ.</small></div><div class="adv-chiprow"><span class="adv-chip hot">در برنامه</span><span class="adv-chip adv-en">Planned</span></div></div>
+    <div class="adv-tool-card" data-tool="flowmeter"><div><b>فلومتر و اوریفیس</b><span class="adv-sub adv-en">Flow Meter / Orifice</span><small>رینولدز، نسبت بتا، افت فشار، سرعت و ماتریس انتخاب نوع فلومتر.</small></div><div class="adv-chiprow"><span class="adv-chip hot">در برنامه</span><span class="adv-chip adv-en">Planned</span></div></div>
+    <div class="adv-tool-card" data-tool="electrical"><div><b>محاسبات برق صنعتی</b><span class="adv-sub adv-en">Electrical Engineering</span><small>سایز کابل، افت ولتاژ، اتصال کوتاه، ترانس و بررسی‌های مقدماتی سوییچگیر.</small></div><div class="adv-chiprow"><span class="adv-chip hot">در برنامه</span><span class="adv-chip adv-en">Planned</span></div></div>
+    <div class="adv-tool-card" data-tool="instrument"><div><b>ابزار دقیق و لوپ کنترل</b><span class="adv-sub adv-en">Instrumentation</span><small>رنج ترانسمیتر، دقت، سطح DP، لوپ کنترل و چک‌لیست مقدماتی SIL.</small></div><div class="adv-chiprow"><span class="adv-chip hot">در برنامه</span><span class="adv-en adv-chip">Planned</span></div></div>
+  </div>
+  <div id="advanced-control-valve" class="adv-cv-panel">
+    <div>
+      <h3 class="adv-cv-title">سایزینگ پیشرفته کنترل ولو</h3>
+      <span class="adv-sub adv-en" style="color:#bfdbfe;margin-bottom:10px">Advanced Control Valve Sizing — Locked Input Schema Preview</span>
+      <p class="adv-cv-desc">این پیش‌نمایش، ساختار ورودی ابزار غیررایگان کنترل ولو را نشان می‌دهد. محاسبات پیشرفته، draft سروری، final gate، گزارش استاندارد انگلیسی HTML و کنترل داده‌های vendor پس از فعال‌سازی لایسنس در دسترس است.</p>
+      <div id="adv-cv-schema" class="adv-schema">
+        <div class="adv-schema-card"><b>پروژه و تگ</b><small class="adv-en">Project & Tag</small><small>نام پروژه، شماره تگ، سرویس، تعداد و ویرایش.</small></div>
+        <div class="adv-schema-card"><b>شرایط کاری</b><small class="adv-en">Operating Cases</small><small>حالت حداقل، نرمال و حداکثر شامل دبی، P1، P2 و دما.</small></div>
+        <div class="adv-schema-card"><b>داده‌های سیال</b><small class="adv-en">Fluid Data</small><small>مایع، گاز یا بخار؛ چگالی/SG، ویسکوزیته، Pv، Pc، MW، Z و k.</small></div>
+        <div class="adv-schema-card"><b>پایپینگ</b><small class="adv-en">Piping Data</small><small>سایز یا ID لوله ورودی و خروجی، reducer و محدودیت سرعت.</small></div>
+        <div class="adv-schema-card"><b>داده‌های ولو</b><small class="adv-en">Valve Data</small><small>نوع ولو، کلاس، بدنه و تریم، FL، Fd، Xt و مشخصه جریان.</small></div>
+        <div class="adv-schema-card"><b>اکچویتور</b><small class="adv-en">Actuator Data</small><small>Fail action، shutoff ΔP، قطر seat و نیروی packing/seating.</small></div>
+        <div class="adv-schema-card"><b>کتابخانه برند</b><small class="adv-en">Brand Library</small><small>Fisher، Samson، Masoneilan، Flowserve، Neles و داده معتبر سازنده.</small></div>
+        <div class="adv-schema-card"><b>انطباق و مدارک</b><small class="adv-en">Compliance</small><small>مبنای IEC 60534 / ISA، مشخصات پروژه، MTC و TPI.</small></div>
+      </div>
+      <div id="adv-cv-completeness" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:12px;margin-top:14px;color:#dbeafe;font-size:12.5px;line-height:2">
+        <b style="color:#fff">چک‌لیست کامل بودن قبل از گزارش نهایی</b><span class="adv-sub adv-en" style="color:#bfdbfe">Completeness checklist before full report</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:4px 12px;margin-top:6px">
+          <span>دبی و P1/P2 برای حالت‌های کاری</span><span>فاز سیال، دما و داده‌های پایه</span><span>برای مایع: SG/دانسیته، Pv، Pc و ویسکوزیته</span><span>برای گاز/بخار: MW، Z، k و مبنای دبی</span><span>ID لوله و reducer</span><span>داده‌های اکچویتور و shutoff</span>
+        </div>
+      </div>
+    </div>
+    <div class="adv-report-card">
+      <h4>پیش‌نمایش ساختار گزارش انگلیسی</h4>
+      <span class="adv-sub adv-en">English Standard Report will include:</span>
+      <ul class="adv-report-list">
+        <li>Cover page + Report ID + Revision</li><li>Design Basis and Input Summary</li><li>Min/Normal/Max Calculation Tables</li><li>Cv/Kv, choked flow and cavitation/flashing checks</li><li>Formula Trace and Unit Conversion Notes</li><li>Flow vs Cv, Opening% and Risk Indicator Charts</li><li>Brand / Series Candidate Matrix when vendor data exists</li><li>Assumptions, Missing Data and Engineering Warnings</li><li>Non-free PDF report with report number<!-- Legacy UAT: Paid PDF report --></li>
+      </ul>
+      <div class="adv-status-note">وضعیت فعلی: ابزار پیشرفته با لایسنس فعال است؛ draft، final gate، گزارش نهایی HTML انگلیسی، ماتریس validation مهندسی و vendor data validation در CRM فعال شده‌اند. PDF باینری سرور و پرداخت آنلاین هنوز فاز بعدی است.</div>
+      <div class="adv-actions-inline"><button type="button" class="btn btn-ghost" data-ptf-event="advanced_cv_schema_preview" onclick="if(window.ptfAdvCvOpenSchema)ptfAdvCvOpenSchema()" style="background:#f1f5f9;color:#334155;padding:9px 14px;font-size:13px">مشاهده فرم ورودی قفل‌شده</button><button type="button" class="btn btn-ghost" data-ptf-event="advanced_cv_sample_report" onclick="if(window.ptfAdvCvOpenSampleFinalReport)ptfAdvCvOpenSampleFinalReport()" style="background:#fff;color:#334155;padding:9px 14px;font-size:13px">مشاهده نمونه گزارش نهایی</button><button type="button" class="btn btn-ghost" data-ptf-event="advanced_cv_feedback_open" onclick="if(window.ptfAdvCvOpenFeedbackForm)ptfAdvCvOpenFeedbackForm('tools_public')" style="background:#fff;color:#334155;padding:9px 14px;font-size:13px">ثبت feedback</button><button type="button" class="btn btn-primary" data-ptf-event="advanced_cv_activation_request" onclick="if(window.ptfToolsPaywall)ptfToolsPaywall('Advanced Control Valve Sizing')" style="padding:9px 14px;font-size:13px">درخواست فعال‌سازی و گزارش</button></div>
+    </div>
+  </div>
+</div>
+<section class="cv-seo-block" id="control-valve-sizing-seo">
+  <h2>سایزینگ کنترل ولو و محاسبه Cv / Kv برای مایع، گاز و بخار</h2>
+  <p>ابزار پیشرفته کنترل ولو PTF برای مهندسان ابزار دقیق، پایپینگ و فرآیند طراحی شده است تا سایزینگ کنترل ولو، محاسبه Cv و Kv، بررسی choked flow، کنترل کاویتاسیون، نویز، سرعت خط، اکچویتور و داده‌های vendor را در یک workflow قابل گزارش‌دهی بررسی کنند. این ابزار برای سرویس‌های Liquid، Gas و Steam ورودی‌های Min / Normal / Max را پوشش می‌دهد و خروجی گزارش انگلیسی HTML را پس از فعال‌سازی لایسنس و review در CRM تولید می‌کند.</p>
+  <div class="cv-seo-grid">
+    <div><h3>کلمات کلیدی هدف</h3><p>سایزینگ کنترل ولو، محاسبه Cv کنترل ولو، انتخاب کنترل ولو، control valve sizing، محاسبه Kv، کنترل ولو بخار، کنترل ولو گاز، کاویتاسیون کنترل ولو.</p></div>
+    <div><h3>استاندارد و مبنای مهندسی</h3><p>گزارش بر پایه screening مهندسی، trace فرمول‌ها، IEC 60534 / ISA، final gate، Engineering Validation Matrix و Vendor Data Validation Matrix تهیه می‌شود.</p></div>
+    <div><h3>خروجی گزارش</h3><p>گزارش نهایی HTML انگلیسی شامل شماره گزارش، جداول محاسباتی، نمودار Cv و opening، ریسک نویز/کاویتاسیون، اکچویتور و هشدارهای vendor است.</p></div>
+  </div>
+  <p style="margin-top:14px"><a class="btn btn-primary" href="control-valve-sizing/" style="padding:9px 14px;font-size:13px">صفحه اختصاصی سایزینگ کنترل ولو</a></p><div class="cv-seo-faq">
+    <h3>سوالات رایج درباره سایزینگ کنترل ولو</h3>
+    <ul>
+      <li><b>آیا این ابزار PDF نهایی می‌دهد؟</b> خروجی نهایی فعلی HTML انگلیسی قابل Print / Save as PDF است؛ PDF باینری سرور در فاز بعدی اضافه می‌شود.</li>
+      <li><b>آیا نتیجه vendor-certified است؟</b> خیر؛ ماتریس vendor validation نیاز به certified vendor sheet را مشخص می‌کند و انتخاب قراردادی باید با داده سازنده تایید شود.</li>
+      <li><b>آیا پرسنل داخلی می‌توانند رایگان استفاده کنند؟</b> بله، با staff/internal license و بدون مصرف quota غیررایگان.</li>
+    </ul>
+  </div>
+</section>
+<div style="background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:12px 16px;margin-bottom:18px;font-size:13px;line-height:2"><b>توجه:</b> خروجی روی صفحه ابزارهای رایگان صرفاً راهنمای اولیه است. گزارش PDF، نمودار و گزارش قابل ارائه پروژه‌ای پس از فعال‌سازی غیررایگان صادر می‌شود.</div>
+<div class="tool-tabs" id="ttabs"></div>
+<div class="tool-card" id="tbody"></div>
+<p style="font-size:11.5px;color:#94a3b8;margin-top:14px">⚠️ نتایج این ابزارها راهنمای اولیه مهندسی است و مبنای طراحی نهایی نیست؛ محاسبات نهایی باید توسط مهندس مسئول/سازنده تایید شود. برای تامین تجهیزات محاسبه‌شده، <a href="../rfq/" style="color:var(--red);font-weight:800">استعلام ثبت کنید</a>.</p>
+</div></section>
+<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px;" style="object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">01</span> سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">02</span> رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">03</span> ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">04</span> مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">05</span> مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">CRM</span> ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+<script src="../assets/js/ptf-metrics.js" defer></script>
+<script src="../assets/js/ptf-tools.js"></script>
+<script src="advanced-tools-ui.js"></script>
+<script src="advanced-report-ui.js"></script>
+<script src="advanced-feedback-ui.js"></script>
+<script src="tools-ui.js"></script>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+</body></html>

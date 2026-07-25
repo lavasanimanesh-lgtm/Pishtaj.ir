@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="950" viewBox="0 0 1400 950" direction="rtl">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ef4b1a"/><stop offset="1" stop-color="#f79400"/></linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#202124"/><stop offset="1" stop-color="#55585f"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.18"/></filter>
+    <style>
+      .title{font-family:Tahoma,Arial,sans-serif;font-size:42px;font-weight:900;fill:#202228}.sub{font-family:Tahoma,Arial,sans-serif;font-size:22px;font-weight:700;fill:#666b74}.box-title{font-family:Tahoma,Arial,sans-serif;font-size:28px;font-weight:900;fill:#fff}.box-sub{font-family:Tahoma,Arial,sans-serif;font-size:17px;font-weight:700;fill:rgba(255,255,255,.82)}.node-title{font-family:Tahoma,Arial,sans-serif;font-size:24px;font-weight:900;fill:#252830}.node-sub{font-family:Tahoma,Arial,sans-serif;font-size:16px;font-weight:700;fill:#666b74}.line{stroke:#ef4b1a;stroke-width:5;stroke-linecap:round;opacity:.75}.small{font-family:Tahoma,Arial,sans-serif;font-size:18px;font-weight:800;fill:#ef4b1a}
+    </style>
+  </defs>
+  <rect width="1400" height="950" rx="34" fill="#f7f8fa"/>
+  <circle cx="130" cy="130" r="190" fill="#ef4b1a" opacity=".08"/>
+  <circle cx="1270" cy="810" r="220" fill="#f79400" opacity=".10"/>
+  <text x="700" y="75" text-anchor="middle" class="title">چارت سازمانی چابک شرکت پیشرو تجهیز فرتاک</text>
+  <text x="700" y="116" text-anchor="middle" class="sub">ساختار سبک، پروژه‌محور و هماهنگ با فرآیند تامین تجهیزات صنعتی</text>
+
+  <rect x="495" y="155" width="410" height="105" rx="26" fill="url(#g1)" filter="url(#shadow)"/>
+  <text x="700" y="198" text-anchor="middle" class="box-title">هیأت مدیره</text>
+  <text x="700" y="232" text-anchor="middle" class="box-sub">راهبری، سیاست‌گذاری و نظارت کلان</text>
+
+  <line x1="700" y1="260" x2="700" y2="320" class="line"/>
+  <rect x="455" y="320" width="490" height="105" rx="26" fill="url(#dark)" filter="url(#shadow)"/>
+  <text x="700" y="363" text-anchor="middle" class="box-title">مدیرعامل / مدیریت اجرایی</text>
+  <text x="700" y="397" text-anchor="middle" class="box-sub">هماهنگی زنجیره تامین، توسعه بازار و تصمیم‌گیری عملیاتی</text>
+
+  <line x1="700" y1="425" x2="700" y2="500" class="line"/>
+  <line x1="210" y1="500" x2="1190" y2="500" class="line"/>
+
+  <g filter="url(#shadow)">
+    <line x1="210" y1="500" x2="210" y2="545" class="line"/><rect x="70" y="545" width="280" height="130" rx="24" fill="#fff"/><rect x="70" y="545" width="10" height="130" rx="5" fill="url(#g1)"/><text x="210" y="590" text-anchor="middle" class="node-title">بازرگانی و سورسینگ</text><text x="210" y="623" text-anchor="middle" class="node-sub">استعلام، مذاکره، تامین‌کنندگان</text><text x="210" y="650" text-anchor="middle" class="small">Commercial</text>
+    <line x1="406" y1="500" x2="406" y2="545" class="line"/><rect x="266" y="545" width="280" height="130" rx="24" fill="#fff"/><rect x="266" y="545" width="10" height="130" rx="5" fill="url(#g1)"/><text x="406" y="590" text-anchor="middle" class="node-title">مهندسی و بررسی فنی</text><text x="406" y="623" text-anchor="middle" class="node-sub">دیتاشیت، استاندارد، MTO</text><text x="406" y="650" text-anchor="middle" class="small">Technical Review</text>
+    <line x1="602" y1="500" x2="602" y2="545" class="line"/><rect x="462" y="545" width="280" height="130" rx="24" fill="#fff"/><rect x="462" y="545" width="10" height="130" rx="5" fill="url(#g1)"/><text x="602" y="590" text-anchor="middle" class="node-title">عملیات و لجستیک</text><text x="602" y="623" text-anchor="middle" class="node-sub">پیگیری سفارش، حمل، تحویل</text><text x="602" y="650" text-anchor="middle" class="small">Operations</text>
+    <line x1="798" y1="500" x2="798" y2="545" class="line"/><rect x="658" y="545" width="280" height="130" rx="24" fill="#fff"/><rect x="658" y="545" width="10" height="130" rx="5" fill="url(#g1)"/><text x="798" y="590" text-anchor="middle" class="node-title">کیفیت و رضایت مشتری</text><text x="798" y="623" text-anchor="middle" class="node-sub">مدارک، شکایات، بهبود مستمر</text><text x="798" y="650" text-anchor="middle" class="small">Quality</text>
+    <line x1="994" y1="500" x2="994" y2="545" class="line"/><rect x="854" y="545" width="280" height="130" rx="24" fill="#fff"/><rect x="854" y="545" width="10" height="130" rx="5" fill="url(#g1)"/><text x="994" y="590" text-anchor="middle" class="node-title">مالی و قراردادها</text><text x="994" y="623" text-anchor="middle" class="node-sub">پرداخت، ریسک، مستندات</text><text x="994" y="650" text-anchor="middle" class="small">Finance</text>
+    <line x1="1190" y1="500" x2="1190" y2="545" class="line"/><rect x="1050" y="545" width="280" height="130" rx="24" fill="#fff"/><rect x="1050" y="545" width="10" height="130" rx="5" fill="url(#g1)"/><text x="1190" y="590" text-anchor="middle" class="node-title">توسعه بازار</text><text x="1190" y="623" text-anchor="middle" class="node-sub">EPC، کارفرما، صنایع هدف</text><text x="1190" y="650" text-anchor="middle" class="small">Market</text>
+  </g>
+
+  <rect x="150" y="755" width="1100" height="105" rx="28" fill="#fff" filter="url(#shadow)"/>
+  <text x="700" y="800" text-anchor="middle" class="node-title">مدل عملیاتی چابک RFQ</text>
+  <text x="700" y="835" text-anchor="middle" class="node-sub">تیم‌های کوچک چندتخصصی برای هر درخواست: بازرگانی + فنی + لجستیک + کیفیت</text>
+  <text x="700" y="900" text-anchor="middle" class="sub">هدف: پاسخ سریع‌تر، انطباق فنی بهتر، کاهش ریسک تامین و افزایش رضایت مشتری</text>
+</svg>

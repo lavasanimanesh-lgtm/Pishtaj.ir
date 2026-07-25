@@ -1,0 +1,30 @@
+راهنمای رفع خطای Verify در Google Search Console
+
+خطایی که مشاهده کردید مربوط به ایندکس سایت مپ نیست؛ مربوط به تایید مالکیت دامنه است.
+گوگل گفته فایل HTML تایید مالکیت را در مسیر مورد نیاز پیدا نکرده است.
+
+روش HTML file:
+1) در Search Console فایل HTML تایید مالکیت را دانلود کنید.
+   نام فایل معمولاً شبیه این است:
+   google1234567890abcdef.html
+2) فایل را دقیقاً در ریشه دامنه pishtaj.ir آپلود کنید؛ همان جایی که index.html قرار دارد.
+3) آدرس زیر را در مرورگر تست کنید:
+   https://pishtaj.ir/google1234567890abcdef.html
+   اگر محتوای فایل باز شد، به Search Console برگردید و Verify را بزنید.
+
+نکته مهم:
+فایل نباید داخل پوشه services یا assets یا public_html اشتباه قرار بگیرد. باید کنار index.html باشد.
+
+روش پیشنهادی بهتر برای Addon Domain:
+اگر به DNS دسترسی دارید، روش Domain Property و رکورد TXT بهتر است:
+1) در Search Console گزینه Domain را انتخاب کنید.
+2) رکورد TXT داده‌شده توسط گوگل را در DNS دامنه اضافه کنید.
+3) بعد از انتشار DNS گزینه Verify را بزنید. این روش ممکن است چند دقیقه تا چند ساعت زمان ببرد.
+
+بعد از تایید مالکیت:
+1) از منوی Sitemaps آدرس زیر را ثبت کنید:
+   https://pishtaj.ir/sitemap.xml
+2) برای Request Indexing:
+   در نوار بالای Search Console که نوشته Inspect any URL، آدرس https://pishtaj.ir/ را وارد کنید.
+   بعد از بررسی، اگر گزینه Request Indexing نمایش داده شد، آن را بزنید.
+   در موبایل ممکن است این گزینه پایین صفحه یا داخل نتیجه URL Inspection باشد.

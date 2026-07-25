@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ثبت استعلام تجهیزات صنعتی (RFQ) | پیشرو تجهیز</title>
+  <meta name="description" content="ثبت RFQ آنلاین تجهیزات پایپینگ، شیرآلات، برق صنعتی، ابزار دقیق، پمپ و کمپرسور با کد رهگیری واقعی و ورود مستقیم به CRM." />
+  <meta property="og:locale" content="fa_IR" />
+  <meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+  <meta property="og:title" content="ثبت استعلام تجهیزات صنعتی (RFQ) | پیشرو تجهیز" />
+  <meta property="og:description" content="ثبت RFQ آنلاین تجهیزات پایپینگ، شیرآلات، برق صنعتی، ابزار دقیق، پمپ و کمپرسور با کد رهگیری واقعی و ورود مستقیم به CRM." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://pishtaj.ir/rfq/" />
+  <meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+  <meta property="og:image:alt" content="لوگو پیشرو تجهیز فرتاک" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="ثبت استعلام تجهیزات صنعتی (RFQ) | پیشرو تجهیز" />
+  <meta name="twitter:description" content="ثبت RFQ آنلاین تجهیزات پایپینگ، شیرآلات، برق صنعتی، ابزار دقیق، پمپ و کمپرسور با کد رهگیری واقعی و ورود مستقیم به CRM." />
+  <meta name="twitter:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+  
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#ef4b1a" />
+  <link rel="canonical" href="https://pishtaj.ir/rfq/" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+  <style>
+    .rfq-wizard-wrap {
+      max-width: 880px;
+      margin: 130px auto 70px;
+      background: #fff;
+      border-radius: 32px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      position: relative;
+      z-index: 10;
+    }
+    .rfq-header {
+      background: linear-gradient(135deg, var(--red), var(--orange));
+      color: #fff;
+      padding: 35px 30px;
+      text-align: center;
+      border-radius: 32px 32px 0 0;
+    }
+    .rfq-header h1 {
+      font-size: 26px;
+      margin: 0 0 8px;
+      color: #fff;
+      font-weight: 900;
+    }
+    .rfq-header p {
+      color: rgba(255,255,255,.92);
+      margin: 0;
+      font-size: 15px;
+    }
+    .stepper {
+      display: flex;
+      justify-content: space-between;
+      padding: 25px 40px 15px;
+      border-bottom: 1px solid var(--line);
+      background: #fafbfc;
+    }
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 33.33%;
+    }
+    .step-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #fff;
+      border: 3px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: var(--gray);
+      transition: .3s;
+    }
+    .step.active .step-circle {
+      border-color: var(--red);
+      background: linear-gradient(135deg, var(--red), var(--orange));
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(239,75,26,.28);
+    }
+    .step.completed .step-circle {
+      border-color: #10b981;
+      background: #10b981;
+      color: #fff;
+    }
+    .step-label {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--gray);
+      font-weight: 800;
+    }
+    .step.active .step-label {
+      color: var(--red);
+    }
+    .step-content {
+      padding: 35px 40px;
+      display: none;
+      animation: fadeIn .3s ease;
+    }
+    .step-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .cat-item {
+      border: 2px solid var(--line);
+      border-radius: 20px;
+      padding: 20px 14px;
+      text-align: center;
+      cursor: pointer;
+      transition: .24s;
+      background: #fff;
+      position: relative;
+    }
+    .cat-item:hover:not(.locked-out) {
+      border-color: var(--orange);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(0,0,0,.06);
+    }
+    .cat-item.selected {
+      border-color: var(--red);
+      background: linear-gradient(135deg, rgba(239,75,26,.07), rgba(247,148,0,.07));
+      box-shadow: 0 0 0 2px var(--red);
+    }
+    .cat-item.locked-out {
+      opacity: 0.35;
+      pointer-events: none;
+      filter: grayscale(100%);
+      background: #f5f6f8;
+    }
+    .cat-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .cat-title {
+      font-weight: 900;
+      font-size: 15px;
+      color: #24262b;
+    }
+    .field {
+      margin-bottom: 22px;
+    }
+    .field label {
+      display: block;
+      font-weight: 900;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #202228;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid rgba(0,0,0,.15);
+      border-radius: 14px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #ffffff;
+      color: #1e293b;
+      transition: .2s;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      outline: none;
+      border-color: var(--red);
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(239,75,26,.15);
+    }
+    .wizard-actions {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+    .brand-lock-banner {
+      background: linear-gradient(135deg, #fffbeb, #fef3c7);
+      border: 2px solid #f59e0b;
+      color: #92400e;
+      padding: 15px 20px;
+      border-radius: 18px;
+      font-weight: 900;
+      margin-bottom: 24px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+    }
+    .avl-chip-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .avl-chip {
+      background: #ecfdf5;
+      border: 1px solid #10b981;
+      color: #065f46;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    @media (max-width: 680px) {
+      .rfq-wizard-wrap { margin: 110px 12px 40px; }
+      .step-content { padding: 25px 18px; }
+      .stepper { padding: 20px 10px; }
+    }
+  </style>
+
+  <script type="application/ld+json">
+  [
+    {
+        "@context": "https://schema.org",
+        "@type": [
+            "Organization",
+            "LocalBusiness"
+        ],
+        "@id": "https://pishtaj.ir/#organization",
+        "name": "شرکت پیشرو تجهیز فرتاک",
+        "alternateName": "Pishro Tajhiz Fartak (PTF)",
+        "url": "https://pishtaj.ir/",
+        "logo": "https://pishtaj.ir/assets/images/ptf-logo.png",
+        "description": "تامین و واردات تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های نفت، گاز، پتروشیمی، فولاد و نیروگاهی.",
+        "telephone": "+982146087679",
+        "email": "Info@pishrotajheez.ir",
+        "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "IR",
+            "addressRegion": "تهران",
+            "addressLocality": "تهران",
+            "streetAddress": "بلوار کوهک، مجتمع تجاری اداری طوبی، بلوک A اداری، طبقه ۱۶"
+        },
+        "areaServed": "IR",
+        "foundingDate": "2014",
+        "numberOfEmployees": {
+            "@type": "QuantitativeValue",
+            "minValue": 10,
+            "maxValue": 50
+        },
+        "knowsAbout": [
+            "تامین تجهیزات پایپینگ",
+            "تامین تجهیزات برق صنعتی",
+            "تامین تجهیزات ابزار دقیق",
+            "تامین ولو صنعتی",
+            "تامین فلنج و فیتینگ",
+            "تجهیزات نفت و گاز",
+            "تجهیزات پتروشیمی"
+        ],
+        "hasOfferCatalog": {
+            "@type": "OfferCatalog",
+            "name": "سبد خدمات و تجهیزات قابل تامین پیشرو تجهیز فرتاک",
+            "itemListElement": [
+                {
+                    "@type": "OfferCatalog",
+                    "name": "تجهیزات پایپینگ و شیرآلات صنعتی"
+                },
+                {
+                    "@type": "OfferCatalog",
+                    "name": "تجهیزات برق صنعتی و اتوماسیون"
+                },
+                {
+                    "@type": "OfferCatalog",
+                    "name": "تجهیزات ابزار دقیق و کالیبراسیون"
+                },
+                {
+                    "@type": "OfferCatalog",
+                    "name": "پمپ، کمپرسور و تجهیزات دوار"
+                }
+            ]
+        },
+        "sameAs": []
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "خانه",
+                "item": "https://pishtaj.ir/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "استعلام هوشمند",
+                "item": "https://pishtaj.ir/rfq/"
+            }
+        ]
+    }
+]
+  </script>
+</head>
+<body>
+
+  <header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/" class="active">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+
+  <main class="container">
+    <div class="rfq-wizard-wrap">
+      <div class="rfq-header">
+        <h1>سامانه استعلام پروژه‌ای پیشرو تجهیز فرتاک</h1>
+        <p>دریافت آنی پیشنهاد فنی و مالی جهت تجهیزات پایپینگ، برق صنعتی و ابزار دقیق</p>
+      </div>
+
+      <div class="stepper">
+        <div class="step active" id="st-1"><div class="step-circle">۱</div><div class="step-label">انتخاب تجهیزات</div></div>
+        <div class="step" id="st-2"><div class="step-circle">۲</div><div class="step-label">مشخصات فنی و MTO</div></div>
+        <div class="step" id="st-3"><div class="step-circle">۳</div><div class="step-label">اطلاعات کارفرما</div></div>
+      </div>
+
+      <form id="rfqWizardForm" action="../api/crm.php?action=add_rfq_site" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="category" id="hiddenCategory" value="پایپینگ، لوله، فلنج و فیتینگ">
+        
+        <!-- Step 1 -->
+        <div class="step-content active" id="s-1">
+          <div id="brandLockBanner" class="brand-lock-banner">
+            <span style="font-size:24px;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></span>
+            <div>
+              <div id="brandLockTitle" style="font-size:15px;">استعلام اختصاصی برند</div>
+              <small id="brandLockSub" style="font-weight:700; opacity:0.9;">سایر دسته‌بندی‌ها جهت جلوگیری از خطا قفل شده‌اند.</small>
+            </div>
+          </div>
+
+          <div class="cat-grid">
+            <div class="cat-item selected" id="cat-piping" onclick="pickCat(this, 'پایپینگ، لوله، فلنج و فیتینگ')">
+              <span class="cat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><path d="M14 4l6 6-8 8H6v-6l8-8z"/><path d="M12.5 5.5l6 6"/></svg></span><span class="cat-title">پایپینگ، فلنج و ولو</span>
+            </div>
+            <div class="cat-item" id="cat-electrical" onclick="pickCat(this, 'برق صنعتی و اتوماسیون')">
+              <span class="cat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg></span><span class="cat-title">برق صنعتی و اتوماسیون</span>
+            </div>
+            <div class="cat-item" id="cat-instrument" onclick="pickCat(this, 'ابزار دقیق و کنترل')">
+              <span class="cat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg></span><span class="cat-title">ابزار دقیق و سنسورها</span>
+            </div>
+            <div class="cat-item" id="cat-pumps" onclick="pickCat(this, 'ولو و تجهیزات مکانیکال')">
+              <span class="cat-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.6-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg></span><span class="cat-title">پمپ، کمپرسور و مکانیکال</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="subjectInput">نوع استعلام و فوریت تامین:</label>
+            <select name="subject" id="subjectInput">
+              <option value="استعلام پکیج کامل پروژه‌ای (Package Supply)">استعلام پکیج کامل پروژه‌ای (Package Supply)</option>
+              <option value="تامین فوری و اضطراری پروژه (Emergency Supply)">تامین فوری و اضطراری پروژه (Emergency Supply)</option>
+              <option value="تامین قطعات یدکی و اورهال (Spare Parts)">تامین قطعات یدکی و اورهال (Spare Parts)</option>
+            </select>
+          </div>
+
+          <div class="wizard-actions">
+            <div></div>
+            <button type="button" class="btn btn-primary" onclick="go(2)">مرحله بعد: مشخصات فنی ←</button>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-content" id="s-2">
+          <div class="field">
+            <label for="techStandard">استاندارد، کلاس فشاری و متریال (مثلاً ASTM A106 Gr.B, ASME B16.5, Class 600):</label>
+            <input type="text" id="techStandard" name="techStandard" placeholder="استانداردها و مشخصات درخواستی پروژه را تایپ کنید...">
+          </div>
+
+          <div class="field">
+            <label for="avlPreset">انتخاب سریع وندور لیست مورد تایید پروژه (Vendor List Approved):</label>
+            <select id="avlPreset" onchange="applyAvl(this)">
+              <option value="">-- جهت افزودن وندور لیست معتبر یک گزینه را انتخاب کنید --</option>
+              <option value="وندور لیست شرکت ملی نفت ایران (NIOC Approved)">وندور لیست شرکت ملی نفت ایران (NIOC Approved)</option>
+              <option value="وندور لیست شرکت ملی صنایع پتروشیمی (NPC AVL)">وندور لیست شرکت ملی صنایع پتروشیمی (NPC AVL)</option>
+              <option value="وندور لیست شرکت ملی گاز ایران (NIGC AVL)">وندور لیست شرکت ملی گاز ایران (NIGC AVL)</option>
+              <option value="برندهای تراز اول اروپایی و کره‌ای (Top Tier European/Korean)">برندهای تراز اول اروپایی و کره‌ای (Top Tier European/Korean)</option>
+            </select>
+            <div id="avlChipsBox" class="avl-chip-box"></div>
+          </div>
+
+          <div class="field">
+            <label for="vendorInput">برندهای ترجیحی یا نام وندورهای خاص پروژه:</label>
+            <input type="text" id="vendorInput" name="vendorInput" placeholder="مثلاً: Rosemount, WIKA, KITZ یا مطابق AVL انتخاب شده در بالا...">
+          </div>
+
+          <div class="field">
+            <label for="attachmentInput">آپلود فایل لیست اقلام (MTO / Datasheet / Bill of Materials):</label>
+            <input type="file" name="attachment" id="attachmentInput" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.zip,.rar" style="padding: 10px;">
+          </div>
+
+          <div class="field">
+            <label for="messageInput">شرح فنی و توضیحات تکمیلی پروژه:</label>
+            <textarea name="message" id="messageInput" rows="4" placeholder="توضیحات تکمیلی، شرایط بازرسی (TPI)، تست‌های NDT و مدارک مورد نیاز (MTC 3.1) را تایپ فرمایید..."></textarea>
+          </div>
+
+          <div class="wizard-actions">
+            <button type="button" class="btn btn-ghost" style="background:#f1f2f4;color:#333;" onclick="go(1)">→ مرحله قبل</button>
+            <button type="button" class="btn btn-primary" onclick="go(3)">مرحله بعد: اطلاعات کارفرما ←</button>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-content" id="s-3">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="field">
+              <label for="nameInput">نام و نام خانوادگی رابط فنی / خرید *:</label>
+              <input type="text" name="name" id="nameInput" required placeholder="مهندس...">
+            </div>
+            <div class="field">
+              <label for="companyInput">نام شرکت / سازمان کارفرما *:</label>
+              <input type="text" name="company" id="companyInput" required placeholder="پتروشیمی / پالایشگاه / EPC...">
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+            <div class="field">
+              <label for="phoneInput">شماره تماس مستقیم / واتساپ *:</label>
+              <input type="tel" name="phone" id="phoneInput" required placeholder="09120000000 یا 0210000">
+            </div>
+            <div class="field">
+              <label for="emailInput">ایمیل سازمانی (جهت ارسال پیشنهاد قیمت):</label>
+              <input type="email" name="email" id="emailInput" placeholder="info@company.com">
+            </div>
+          </div>
+
+          <div class="field full" id="rfqCaptcha" style="margin-top:8px;"></div>
+          <div class="form-status full" id="wizardStatus" role="status" style="margin-top:10px;"></div>
+
+          <div class="wizard-actions">
+            <button type="button" class="btn btn-ghost" style="background:#f1f2f4;color:#333;" onclick="go(2)">→ مرحله قبل</button>
+            <button type="submit" class="btn btn-primary" id="submitBtn">تایید نهایی و ارسال درخواست به بازرگانی <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><path d="M20 6L9 17l-5-5"/></svg></button>
+          </div>
+        </div>
+
+        <!-- Step 4 Success -->
+        <div class="step-content" id="s-4">
+          <div class="res-box">
+            <div style="width:70px;height:70px;border-radius:50%;background:#d1fae5;color:#10b981;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <h2 style="color:var(--red);margin:0 0 10px;">درخواست استعلام شما با موفقیت در سامانه CRM شرکت ثبت شد</h2>
+            <p style="color:var(--gray);">درخواست شما مستقیماً وارد کارتابل مدیران پیشرو تجهیز فرتاک شد؛ پس از تایید، کارشناسان مهندسی فروش مشخصات فنی را بررسی و پیشنهاد مالی را ارسال خواهند کرد.</p>
+            
+            <div class="track-badge" id="trackCode">PTF-RFQ-84920</div>
+            <p style="font-size:13px;color:#888;">کد رهگیری فوق را جهت پیگیری‌های تلفنی ذخیره نمایید.</p>
+
+            <div style="display:flex; justify-content:center; gap:12px; margin-top:25px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary" onclick="goToTracking()">مشاهده وضعیت در سامانه رهگیری ←</button>
+              <button type="button" class="btn btn-ghost" style="background:#f1f2f4;color:#333;" onclick="location.href='../'">بازگشت به صفحه اصلی</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px;" style="object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">01</span> سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">02</span> رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">03</span> ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">04</span> مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">05</span> مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">CRM</span> ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+
+  <script>
+    function pickCat(el, catName) {
+      if (el.classList.contains('locked-out')) return;
+      document.querySelectorAll('.cat-item').forEach(i => i.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('hiddenCategory').value = catName;
+    }
+
+    function applyAvl(selectEl) {
+      const val = selectEl.value;
+      if (!val) return;
+      const vInput = document.getElementById('vendorInput');
+      if (!vInput.value.includes(val)) {
+        vInput.value = val + (vInput.value ? " | " + vInput.value : "");
+      }
+      // Add visual chip
+      const box = document.getElementById('avlChipsBox');
+      const chip = document.createElement('span');
+      chip.className = 'avl-chip';
+      chip.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><path d="M20 6L9 17l-5-5"/></svg> ' + val;
+      box.appendChild(chip);
+      selectEl.value = ""; // reset dropdown after pick
+    }
+
+    // Smart URL locking & parsing on DOM load
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('cat') || params.get('category');
+      const vendor = params.get('vendor') || params.get('brand');
+      const item = params.get('item') || '';
+      const activation = params.get('activation') || params.get('mode') || '';
+      const tool = params.get('tool') || '';
+      const isToolActivation = /tools?|license|activation|advanced|report|control valve|فعال|لایسنس|گزارش/i.test([activation, tool, item].join(' '));
+
+      if (isToolActivation) {
+        /* v31.7.41 ADV-TOOLS-RFQ-ACTIVATION-001:
+           درخواست فعال‌سازی ابزار باید در خود RFQ هوشمند کاملاً قابل مشاهده باشد،
+           نه فقط یک متن پنهان در مرحله توضیحات. */
+        document.querySelectorAll('.cat-item').forEach(function(i){ i.classList.remove('selected'); i.classList.add('locked-out'); });
+        document.getElementById('hiddenCategory').value = 'فعال‌سازی ابزارهای پیشرفته مهندسی';
+        var subj = document.getElementById('subjectInput');
+        var actSubj = 'درخواست فعال‌سازی ابزارهای پیشرفته PTF';
+        if (subj && !Array.prototype.some.call(subj.options, function(o){ return o.value === actSubj; })) {
+          var op = document.createElement('option'); op.value = actSubj; op.textContent = actSubj; subj.insertBefore(op, subj.firstChild);
+        }
+        if (subj) subj.value = actSubj;
+        var banner = document.getElementById('brandLockBanner');
+        document.getElementById('brandLockTitle').textContent = 'درخواست فعال‌سازی ابزارهای پیشرفته';
+        document.getElementById('brandLockSub').textContent = 'این فرم برای صدور/فعال‌سازی کد لایسنس ابزارهای مهندسی PTF ثبت می‌شود.';
+        if (banner) banner.style.display = 'flex';
+        var tech = document.getElementById('techStandard');
+        if (tech && !tech.value) tech.value = 'ADV-TOOLS-LICENSE | Manual activation | ' + (tool || 'all');
+        var vend = document.getElementById('vendorInput');
+        if (vend && !vend.value) vend.value = item || 'Advanced Engineering Tools License';
+        var msgBox = document.getElementById('messageInput');
+        if (msgBox && !msgBox.value) {
+          msgBox.value = 'درخواست فعال‌سازی ابزارهای پیشرفته مهندسی PTF\n' +
+            'Tool: ' + (tool || 'all') + '\n' +
+            'Requested item: ' + (item || 'Advanced Engineering Tools License') + '\n\n' +
+            'لطفاً شرایط فعال‌سازی، صدور کد لایسنس و دسترسی گزارش‌های استاندارد انگلیسی را اعلام فرمایید.';
+        }
+        return;
+      }
+
+      let targetEl = null;
+      let targetName = "پایپینگ، لوله، فلنج و فیتینگ";
+
+      if (cat) {
+        if (cat.includes('elect') || cat.includes('برق')) {
+          targetEl = document.getElementById('cat-electrical');
+          targetName = 'برق صنعتی و اتوماسیون';
+        } else if (cat.includes('inst') || cat.includes('ابزار')) {
+          targetEl = document.getElementById('cat-instrument');
+          targetName = 'ابزار دقیق و کنترل';
+        } else if (cat.includes('pump') || cat.includes('پمپ') || cat.includes('mech') || cat.includes('valve')) {
+          targetEl = document.getElementById('cat-pumps');
+          targetName = 'ولو و تجهیزات مکانیکال';
+        } else {
+          targetEl = document.getElementById('cat-piping');
+          targetName = 'پایپینگ، لوله، فلنج و فیتینگ';
+        }
+      }
+
+      if (vendor && targetEl) {
+        // Lock out unrelated categories to prevent user error
+        document.querySelectorAll('.cat-item').forEach(i => {
+          if (i !== targetEl) i.classList.add('locked-out');
+        });
+        targetEl.classList.add('selected');
+        document.getElementById('hiddenCategory').value = targetName;
+
+        // Auto fill vendor field & show banner
+        document.getElementById('vendorInput').value = vendor;
+        const banner = document.getElementById('brandLockBanner');
+        document.getElementById('brandLockTitle').textContent = `استعلام مستقیم جهت محصولات برند: ${vendor}`;
+        document.getElementById('brandLockSub').textContent = `حوزه تامین روی «${targetName}» قفل شد (جهت تغییر، سایر دسته‌ها را باز کنید).`;
+        banner.style.display = 'flex';
+      } else if (targetEl) {
+        pickCat(targetEl, targetName);
+      }
+    });
+
+    function go(st) {
+      document.querySelectorAll('.step-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('s-' + st).classList.add('active');
+      for (let i = 1; i <= 3; i++) {
+        const s = document.getElementById('st-' + i);
+        s.classList.remove('active', 'completed');
+        if (i < st) s.classList.add('completed');
+        else if (i === st && st <= 3) s.classList.add('active');
+      }
+      window.scrollTo({top: 80, behavior: 'smooth'});
+    }
+
+    function goToTracking() {
+      const code = document.getElementById('trackCode').textContent;
+      window.location.href = `../tracking/?code=${code}`;
+    }
+
+    const form = document.getElementById('rfqWizardForm');
+    const statusBox = document.getElementById('wizardStatus');
+
+    if (typeof ptfCaptchaMount === 'function') ptfCaptchaMount('rfqCaptcha');
+    else window.addEventListener('DOMContentLoaded', function(){ ptfCaptchaMount('rfqCaptcha'); });
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = document.getElementById('nameInput').value;
+      const phone = document.getElementById('phoneInput').value;
+      if (!name || !phone) {
+        statusBox.textContent = 'لطفاً نام و شماره تماس خود را وارد فرمایید.';
+        statusBox.className = 'form-status full err';
+        return;
+      }
+      // US-149 AC1: بدون کپچا ثبت نمی‌شود
+      if (typeof ptfCaptchaValid === 'function' && !ptfCaptchaValid()) {
+        statusBox.textContent = window.ptfCaptchaMsg || 'کپچا را تکمیل کنید';
+        statusBox.className = 'form-status full err';
+        return;
+      }
+
+      const std = document.getElementById('techStandard').value;
+      const vend = document.getElementById('vendorInput').value;
+      const msg = document.getElementById('messageInput');
+      if (!msg.value || msg.value.trim() === '') {
+        msg.value = `استعلام هوشمند v4.0 - استاندارد: ${std} - وندور لیست: ${vend}`;
+      } else {
+        msg.value = `[استاندارد: ${std}] [وندور لیست: ${vend}] \n\nشرح: ${msg.value}`;
+      }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'در حال ارسال اطلاعات و ثبت در سرور...';
+
+      try {
+        const fdRfq = new FormData(form);
+        if (typeof ptfCaptchaAppend === 'function') ptfCaptchaAppend(fdRfq);
+        const res = await fetch(form.action, {
+          method: 'POST',
+          body: fdRfq,
+          headers: { 'Accept': 'application/json' }
+        });
+        let data = {};
+        try { data = await res.json(); } catch(_) {}
+
+        if (res.status === 403 && data.error === 'captcha') {
+          statusBox.textContent = 'کپچا منقضی شده — دوباره تیک «من ربات نیستم» را بزنید';
+          statusBox.className = 'form-status full err';
+          btn.disabled = false;
+          btn.textContent = 'تایید نهایی و ارسال درخواست به بازرگانی';
+          return;
+        }
+        if (res.ok && data.ok && data.code) {
+          // US-133: شماره یکتای سروری → مستقیماً در CRM ثبت شد (بدون ایمیل)
+          document.getElementById('trackCode').textContent = data.code;
+          go(4);
+        } else {
+          throw new Error(data.message || 'خطا در ارتباط با سرور.');
+        }
+      } catch (err) {
+        // v31.7.43 WEB-INT-OPS-001: هیچ کد رهگیری موقت/تصادفی صادر نمی‌شود.
+        // اگر ثبت سروری انجام نشود، کاربر باید بداند درخواست در CRM ثبت نشده است.
+        statusBox.textContent = 'ثبت آنلاین انجام نشد؛ هیچ کد رهگیری صادر نشده است. لطفاً دوباره تلاش کنید یا با ۰۲۱-۴۶۰۸۷۶۷۹ تماس بگیرید.';
+        statusBox.className = 'form-status full err';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'تایید نهایی و ارسال درخواست به بازرگانی';
+      }
+    });
+  </script>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+<script src="../assets/js/ptf-guard.js"></script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+<script>
+  // US-108 AC3: پیش‌پر کردن فرم از مشاور متریال (?item=...)
+  (function(){
+    try {
+      var item = new URLSearchParams(location.search).get('item');
+      if (item) {
+        var ta = document.getElementById('messageInput');
+        var isAct = /license|activation|advanced|report|فعال|لایسنس|گزارش/i.test(item);
+        if (ta && !ta.value) ta.value = isAct
+          ? ('درخواست فعال‌سازی ابزارهای پیشرفته مهندسی PTF\nRequested item: ' + item + '\n\nلطفاً شرایط فعال‌سازی و صدور کد لایسنس را اعلام فرمایید.')
+          : ('درخواست استعلام از مشاور متریال:\n' + item + '\n\nتعداد و سایز مورد نیاز: ');
+        if (ta) ta.focus();
+      }
+    } catch(e){}
+  })();
+  </script>
+</body>
+</html>

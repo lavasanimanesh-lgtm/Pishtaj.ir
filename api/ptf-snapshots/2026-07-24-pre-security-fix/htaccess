@@ -1,0 +1,24 @@
+# PTF API — Apache rewrite rules
+# All PHP endpoints are served directly; only specific whitelisted files are
+# accessible from the public web.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+</IfModule>
+
+# Protect sensitive files
+<FilesMatch "\.(php|json|log|txt)$">
+  # Only allow the whitelisted PHP endpoints
+  <If "%{REQUEST_URI} =~ m#/(storage|crm|auth|attachment-read|llm|chat-llm|contact|cms|codegen|notify-bot|fx-rates|tech-proposal-docx|tools|secrets)\.php#">
+    Require all granted
+  </If>
+  <Else>
+    Require all denied
+  </Else>
+</FilesMatch>
+
+# Ensure CORS is not exposed beyond same-origin
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+</IfModule>

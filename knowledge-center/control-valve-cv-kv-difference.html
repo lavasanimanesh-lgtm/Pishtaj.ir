@@ -1,0 +1,102 @@
+<!doctype html><html lang="fa" dir="rtl"><head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تفاوت Cv و Kv در کنترل ولو چیست؟ فرمول تبدیل و کاربرد | پیشرو تجهیز</title>
+<meta name="description" content="راهنمای کامل تفاوت Cv و Kv در کنترل ولو، فرمول تبدیل Cv به Kv، کاربرد در سایزینگ Control Valve، اشتباهات رایج، ارتباط با FL و Xt، و لینک ابزار آنلاین سایزینگ کنترل ولو PTF.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/control-valve-cv-kv-difference.html">
+<meta property="og:title" content="تفاوت Cv و Kv در کنترل ولو چیست؟ فرمول تبدیل و کاربرد در سایزینگ">
+<meta property="og:description" content="راهنمای تخصصی Cv و Kv، فرمول تبدیل، خطاهای رایج، کاربرد در Liquid/Gas/Steam و ارتباط با ابزار سایزینگ کنترل ولو PTF.">
+<link rel="stylesheet" href="../assets/css/style.css">
+<style>
+.article-hero{background:radial-gradient(circle at 18% 20%,rgba(247,148,0,.22),transparent 30%),linear-gradient(135deg,#111827,#17233a 62%,#263858);color:#fff;padding:135px 0 55px}.article-hero h1{font-size:clamp(27px,4vw,45px);line-height:1.35;margin:8px 0 12px;color:#fff}.article-hero p{color:#dbeafe;line-height:2;max-width:920px}.article-wrap{max-width:980px;margin:34px auto;padding:0 20px}.article{background:#fff;border:1px solid #e2e8f0;border-radius:28px;padding:34px;line-height:2.15;color:#334155;box-shadow:0 16px 42px rgba(15,23,42,.06)}.article h2{font-size:24px;color:#0f172a;margin:28px 0 10px}.article h3{font-size:18px;color:#ef4b1a;margin:20px 0 8px}.article p,.article li{font-size:15px;color:#475569}.article a{color:#ef4b1a;font-weight:900}.article table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px}.article th,.article td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top}.article th{background:#f1f5f9;color:#334155}.note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:13px 15px;margin:16px 0}.oknote{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:13px 15px;margin:16px 0}.formula{direction:ltr;text-align:left;background:#0f172a;color:#e5e7eb;border-radius:16px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;overflow:auto}.cta{background:linear-gradient(135deg,#0f172a,#17233a);color:#fff;border-radius:22px;padding:22px;margin:28px 0}.cta h2{color:#fff;margin-top:0}.cta p{color:#dbeafe}.cta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.cta-row a,.cta-row button{border:0;border-radius:12px;padding:10px 15px;font-weight:900;text-decoration:none;cursor:pointer}.primary{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}.light{background:#fff;color:#334155}.toc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:14px 18px;margin:16px 0}.toc a{display:block;margin:4px 0;color:#334155;text-decoration:none}.faq details{border:1px solid #e2e8f0;border-radius:16px;padding:12px 14px;margin:8px 0;background:#fff}.faq summary{cursor:pointer;color:#0f172a;font-weight:900}@media(max-width:760px){.article{padding:22px}.article table{font-size:12px}.article-hero{padding-top:100px}}
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"خانه","item":"https://pishtaj.ir/"},{"@type":"ListItem","position":2,"name":"مرکز دانش","item":"https://pishtaj.ir/knowledge-center/"},{"@type":"ListItem","position":3,"name":"تفاوت Cv و Kv کنترل ولو","item":"https://pishtaj.ir/knowledge-center/control-valve-cv-kv-difference.html"}]},{"@type":"Article","headline":"تفاوت Cv و Kv در کنترل ولو چیست؟ فرمول تبدیل و کاربرد در سایزینگ","description":"راهنمای کامل تفاوت Cv و Kv، فرمول تبدیل، کاربرد در سایزینگ Control Valve، خطاهای رایج و ارتباط با داده‌های vendor مانند FL و Xt.","inLanguage":"fa-IR","author":{"@type":"Organization","name":"Pishro Tajhiz Fartak"},"publisher":{"@type":"Organization","name":"Pishro Tajhiz Fartak","url":"https://pishtaj.ir/"},"mainEntityOfPage":{"@type":"WebPage","@id":"https://pishtaj.ir/knowledge-center/control-valve-cv-kv-difference.html"},"about":["Cv vs Kv","Control valve sizing","Cv calculation","Kv calculation","IEC 60534","ISA"],"dateModified":"2026-07-22"},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"تفاوت Cv و Kv چیست؟","acceptedAnswer":{"@type":"Answer","text":"Cv ضریب ظرفیت جریان در سیستم آمریکایی و Kv ضریب ظرفیت جریان در سیستم متریک است. تبدیل تقریبی آن‌ها Cv ≈ 1.156 × Kv و Kv ≈ 0.865 × Cv است."}},{"@type":"Question","name":"آیا فقط با Cv یا Kv می‌توان کنترل ولو را انتخاب کرد؟","acceptedAnswer":{"@type":"Answer","text":"خیر. Cv و Kv فقط بخشی از سایزینگ هستند. برای انتخاب درست باید choked flow، کاویتاسیون، نویز، سرعت خط، rangeability، اکچویتور و داده‌های vendor مانند FL و Xt هم بررسی شوند."}},{"@type":"Question","name":"کدام واحد برای پروژه‌های ایران بهتر است؟","acceptedAnswer":{"@type":"Answer","text":"در پروژه‌های ایران معمولاً هر دو واحد دیده می‌شود. بهتر است مقدار اصلی دیتاشیت vendor حفظ شود و تبدیل Cv/Kv به‌صورت traceable در گزارش محاسباتی ذکر شود."}}]}],"_ptf":"ADV-CV-CV-KV-DIFFERENCE-SEO-ARTICLE-v1"}</script>
+</head><body>
+<header class="site-header scrolled"><div class="container nav-wrap"><a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a><nav class="main-nav" id="mainNav" aria-label="منوی اصلی"><a href="../">خانه</a><a href="../services/">خدمات</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a></nav><a class="header-call" href="tel:02146087679">021-46087679</a></div></header>
+<section class="article-hero"><div class="container"><div class="breadcrumb"><a href="../" style="color:#bfdbfe">خانه</a> / <a href="../knowledge-center/" style="color:#bfdbfe">مرکز دانش</a> / تفاوت Cv و Kv</div><h1>تفاوت Cv و Kv در کنترل ولو چیست؟ فرمول تبدیل و کاربرد در سایزینگ</h1><p>در انتخاب کنترل ولو، دو اصطلاح Cv و Kv تقریباً همیشه دیده می‌شوند. اگر این دو ضریب با هم اشتباه گرفته شوند، ممکن است ولو کوچک‌تر یا بزرگ‌تر از نیاز انتخاب شود، opening واقعی مناسب نباشد، گزارش محاسباتی قابل ردیابی نباشد و vendor sizing sheet با محاسبات پروژه همخوانی نداشته باشد.</p></div></section>
+<main class="article-wrap"><article class="article">
+<div class="toc"><b>فهرست سریع</b><a href="#definition">۱. Cv و Kv چیست؟</a><a href="#conversion">۲. فرمول تبدیل Cv و Kv</a><a href="#application">۳. کاربرد در سایزینگ کنترل ولو</a><a href="#mistakes">۴. اشتباهات رایج</a><a href="#datasheet">۵. خواندن دیتاشیت vendor</a><a href="#workflow">۶. workflow پیشنهادی</a><a href="#faq">۷. سوالات رایج</a></div>
+<h2 id="definition">Cv و Kv چیست؟</h2>
+<p><b>Cv</b> و <b>Kv</b> هر دو ضریب ظرفیت جریان کنترل ولو هستند. این ضرایب به زبان ساده بیان می‌کنند که یک ولو با یک opening مشخص و تحت اختلاف فشار مشخص، چه میزان سیال را عبور می‌دهد. تفاوت اصلی در سیستم واحدهاست. Cv بیشتر در منابع آمریکایی، کاتالوگ‌های ISA و بسیاری از دیتاشیت‌های vendor آمریکایی دیده می‌شود. Kv بیشتر در سیستم متریک، استانداردهای اروپایی و بسیاری از کاتالوگ‌های IEC استفاده می‌شود.</p>
+<p>در عمل، وقتی مهندس ابزار دقیق یا فرآیند می‌گوید «Cv لازم برای این ولو چقدر است؟»، منظور او ظرفیت جریان موردنیاز ولو در شرایط فرآیندی مشخص است. وقتی vendor دیتاشیت را با Kv ارائه می‌کند، باید تبدیل واحد به‌صورت دقیق و traceable انجام شود تا محاسبه با کاتالوگ سازنده قابل مقایسه باشد. اشتباه در این تبدیل می‌تواند باعث اختلاف حدود ۱۵ درصدی شود؛ این مقدار در انتخاب سایز کنترل ولو، opening و حتی قیمت نهایی قابل توجه است.</p>
+<p><span style="display:none">Cv vs Kv, control valve sizing, Cv calculation, Kv calculation</span>نکته مهم این است که Cv یا Kv به‌تنهایی «سایز نهایی» نیست. این عدد فقط ظرفیت جریان را نشان می‌دهد. سایز بدنه، trim، characteristic، rangeability، pressure recovery، noise، cavitation و actuator هم باید بررسی شوند. بنابراین در گزارش حرفه‌ای، Cv/Kv باید در کنار validation مهندسی و داده vendor دیده شود.</p>
+
+<h2 id="conversion">فرمول تبدیل Cv و Kv</h2>
+<p>رابطه متداول و کاربردی بین Cv و Kv به شکل زیر است:</p>
+<div class="formula">Cv ≈ 1.156 × Kv<br>Kv ≈ 0.865 × Cv</div>
+<p>این رابطه برای تبدیل ضریب ظرفیت بین واحدهای رایج استفاده می‌شود. اگر یک vendor مقدار Kv را ارائه کرده و شما در محاسبات داخلی Cv نیاز دارید، Kv را در ۱.۱۵۶ ضرب می‌کنید. اگر محاسبه شما Cv داده و vendor فقط جدول Kv دارد، Cv را در ۰.۸۶۵ ضرب می‌کنید. این تبدیل ساده به نظر می‌رسد، اما در گزارش نهایی باید مشخص باشد که مقدار اصلی از کجا آمده و تبدیل چگونه انجام شده است.</p>
+<table><thead><tr><th>مقدار</th><th>تبدیل تقریبی</th><th>مثال</th></tr></thead><tbody>
+<tr><td>Kv به Cv</td><td class="formula">Cv = 1.156 × Kv</td><td>اگر Kv = 50 باشد، Cv ≈ 57.8</td></tr>
+<tr><td>Cv به Kv</td><td class="formula">Kv = 0.865 × Cv</td><td>اگر Cv = 100 باشد، Kv ≈ 86.5</td></tr>
+</tbody></table>
+<div class="note"><b>هشدار مهندسی:</b> اگر در یک دیتاشیت مقدار Cv و در دیتاشیت دیگر Kv آمده باشد، مقایسه مستقیم آن‌ها بدون تبدیل اشتباه است. همیشه واحد ضریب ظرفیت را قبل از انتخاب سایز یا مقایسه برندها کنترل کنید.</div>
+
+<h2 id="application">کاربرد Cv و Kv در سایزینگ کنترل ولو</h2>
+<p>در سرویس مایع non-choked، یکی از روابط پایه متریک برای محاسبه Kv چنین است:</p>
+<div class="formula">Kv = Q × sqrt(SG / ΔP)<br>Q: m³/h<br>ΔP: bar<br>SG: specific gravity</div>
+<p>بعد از محاسبه Kv می‌توان مقدار Cv معادل را به‌دست آورد. اما همین محاسبه فقط شروع کار است. اگر سیال آب سرد با فشار متوسط باشد، شاید همین محاسبه اولیه برای screening مناسب باشد. اما اگر سرویس دارای افت فشار بالا، فشار بخار قابل توجه، دمای بالا یا خطر flashing باشد، باید چک‌های بیشتری انجام شود. برای مثال در مایعات، فشار بخار Pv، فشار بحرانی Pc و ضریب بازیابی FL برای بررسی choked flow و کاویتاسیون اهمیت دارند.</p>
+<p>در گاز و بخار، موضوع پیچیده‌تر است. در این سرویس‌ها، دبی جرمی یا نرمال، دما، فشار مطلق، جرم مولکولی، ضریب تراکم‌پذیری Z، نسبت گرمای ویژه k و ضریب Xt وارد محاسبه می‌شوند. بنابراین تبدیل Cv/Kv فقط بخش کوچکی از سایزینگ است و نمی‌تواند جایگزین بررسی compressible flow شود.</p>
+<p>ابزار پیشرفته کنترل ولو PTF تلاش می‌کند این مسیر را به شکل ساختارمند انجام دهد: ابتدا داده‌های Min / Normal / Max گرفته می‌شود، سپس Cv/Kv و governing case محاسبه می‌شود، بعد ریسک‌هایی مانند choked flow، cavitation، noise، outlet velocity، reducer ratio، actuator shell و vendor data validation در گزارش دیده می‌شود.</p>
+
+<h2>چرا انتخاب فقط با یک Cv اشتباه است؟</h2>
+<p>در پروژه‌های واقعی، بارها دیده می‌شود که یک ولو فقط با یک عدد Cv انتخاب شده و بعداً در commissioning مشکل ایجاد کرده است. دلیل این است که رفتار ولو در محدوده کاری کامل باید بررسی شود. ممکن است Normal case مناسب باشد، اما در Min flow ولو در opening بسیار پایین کار کند و کنترل ناپایدار شود. یا ممکن است در Max flow ولو به opening بالاتر از ۹۰ درصد برسد و ظرفیت کافی نداشته باشد. گاهی نیز Cv درست است اما outlet velocity یا noise از limit پروژه عبور می‌کند.</p>
+<p>برای همین بهتر است مقدار required Cv با rated Cv کاندید مقایسه شود. اگر rated Cv بسیار بزرگ باشد، opening پایین می‌آید. اگر rated Cv کوچک باشد، ولو در حداکثر دبی ممکن است saturated شود. علاوه بر این، characteristic ولو یعنی Linear، Equal Percentage یا Quick Opening باید با نوع کنترل و process gain هماهنگ باشد.</p>
+
+<h2 id="mistakes">اشتباهات رایج در تبدیل و استفاده از Cv/Kv</h2>
+<h3>۱. مقایسه Cv با Kv بدون تبدیل</h3>
+<p>این ساده‌ترین و در عین حال پرتکرارترین خطاست. اگر دو vendor یکی Cv=100 و دیگری Kv=100 اعلام کند، این دو ظرفیت یکسان نیستند. Kv=100 تقریباً معادل Cv=115.6 است.</p>
+<h3>۲. استفاده از فشار gauge به جای absolute در گاز و بخار</h3>
+<p>در محاسبات compressible، فشار باید با دقت و معمولاً به‌صورت absolute بررسی شود. استفاده اشتباه از barg به جای bara می‌تواند نتیجه را به‌شدت تغییر دهد.</p>
+<h3>۳. نادیده گرفتن FL و Xt</h3>
+<p>FL برای مایع و Xt برای گاز/بخار فقط اعداد تزئینی دیتاشیت نیستند. این ضرایب در choked flow، cavitation، noise و ظرفیت واقعی اثر دارند. مقدار حدسی برای screening ممکن است قابل قبول باشد، اما برای خرید قطعی باید از vendor data استفاده شود.</p>
+<h3>۴. تبدیل واحد دبی بدون توجه به مبنا</h3>
+<p>دبی مایع معمولاً m³/h است، دبی گاز ممکن است Nm³/h، Sm³/h یا actual m³/h باشد و دبی بخار اغلب kg/h است. اگر مبنای دبی مشخص نباشد، عدد Cv/Kv قابل اتکا نیست.</p>
+<h3>۵. فرض اینکه Cv نامی همان Cv قابل استفاده در همه شرایط است</h3>
+<p>rated Cv معمولاً ظرفیت ولو در opening کامل و شرایط تست مشخص است. در سرویس واقعی، reducer، pipe fittings، trim selection، viscosity، choked condition و noise limit می‌توانند ظرفیت مؤثر یا انتخاب مناسب را تغییر دهند.</p>
+
+<h2 id="datasheet">چطور Cv/Kv را در دیتاشیت vendor بخوانیم؟</h2>
+<p>در دیتاشیت کنترل ولو، معمولاً بخشی برای rated Cv یا rated Kv وجود دارد. گاهی جدول capacity بر اساس سایز بدنه، trim size، characteristic و travel ارائه می‌شود. در بعضی برندها، مقدار Cv برای چند trim مختلف داخل یک سایز بدنه متفاوت است. بنابراین اگر فقط سایز بدنه را ببینیم و trim size را نادیده بگیریم، ممکن است نتیجه اشتباه شود.</p>
+<p>برای خواندن دیتاشیت vendor، این موارد را جدا بررسی کنید:</p>
+<ul>
+<li>واحد ضریب ظرفیت: Cv یا Kv؟</li>
+<li>rated capacity مربوط به چه trim size و characteristic است؟</li>
+<li>آیا FL، Fd و Xt برای همان trim ارائه شده‌اند؟</li>
+<li>آیا leakage class و shutoff pressure با نیاز پروژه هماهنگ است؟</li>
+<li>آیا vendor sizing sheet برای سرویس گاز، بخار، کاویتاسیون یا noise ارائه شده است؟</li>
+<li>آیا reducer یا pipe size در محاسبه vendor لحاظ شده است؟</li>
+</ul>
+<p>در ابزار PTF، بخش Datasheet Assist می‌تواند از متن دیتاشیت یا فایل TXT/CSV/JSON برخی فیلدها مانند rated Cv، FL، Xt، brand، series و leakage class را استخراج کند. با این حال، برای PDF اسکن‌شده یا جداول پیچیده vendor، فاز بعدی یعنی PDF/OCR parser لازم است.</p>
+
+<div class="cta"><h2>ابزار آنلاین سایزینگ کنترل ولو PTF</h2><p>اگر می‌خواهید Cv/Kv را برای چند حالت کاری بررسی کنید و در کنار آن کاویتاسیون، noise، actuator، Engineering Validation Matrix و Vendor Data Validation Matrix داشته باشید، ابزار پیشرفته PTF را ببینید.</p><div class="cta-row"><a class="primary" href="../tools/control-valve-sizing/">ورود به صفحه ابزار کنترل ولو</a><button class="light" type="button" onclick="if(window.ptfAdvCvOpenSampleFinalReport)ptfAdvCvOpenSampleFinalReport()">مشاهده نمونه گزارش نهایی</button><button class="light" type="button" onclick="if(window.ptfAdvCvOpenFeedbackForm)ptfAdvCvOpenFeedbackForm('article_cv_kv_difference')">ثبت feedback کوتاه</button></div></div>
+
+<h2 id="workflow">Workflow پیشنهادی برای استفاده درست از Cv و Kv</h2>
+<ol>
+<li>ابتدا واحدهای پروژه و دیتاشیت vendor را مشخص کنید.</li>
+<li>مبنای دبی را روشن کنید: m³/h، Nm³/h، Sm³/h یا kg/h.</li>
+<li>فشارها را برای محاسبات گاز/بخار به‌صورت absolute کنترل کنید.</li>
+<li>برای مایع، SG، viscosity، Pv و Pc را وارد کنید.</li>
+<li>مقدار required Cv/Kv را برای Min / Normal / Max محاسبه کنید.</li>
+<li>rated Cv/Kv کاندید را با required value مقایسه کنید و opening را بررسی کنید.</li>
+<li>FL، Fd، Xt و trim data را از vendor بگیرید.</li>
+<li>کاویتاسیون، flashing، choked flow و noise را بررسی کنید.</li>
+<li>برای خرید قطعی، vendor-certified sizing sheet و تأیید مهندس مسئول را دریافت کنید.</li>
+</ol>
+<div class="oknote"><b>پیشنهاد اجرایی:</b> در RFQ کنترل ولو، هم required Cv/Kv و هم شرایط محاسباتی را ارسال کنید. ارسال فقط یک عدد Cv بدون P1، P2، دبی، دما، سیال، pipe size و limitهای noise برای vendor کافی نیست.</div>
+
+<h2>نمونه تبدیل سریع</h2>
+<p>فرض کنید در محاسبه داخلی به Kv=62 رسیده‌اید و vendor جدول خود را با Cv ارائه می‌کند. تبدیل تقریبی چنین است:</p>
+<div class="formula">Cv = 1.156 × 62 = 71.672</div>
+<p>در این حالت اگر یک trim با rated Cv=70 معرفی شود، از نظر ظرفیت بسیار نزدیک است اما باید opening، margin، choked condition و noise بررسی شود. اگر trim بعدی rated Cv=110 باشد، ممکن است در normal case opening پایین‌تر شود و کنترل‌پذیری در حداقل دبی ضعیف شود. بنابراین تبدیل عددی فقط قدم اول تصمیم‌گیری است.</p>
+
+<h2 id="faq">سوالات رایج</h2><div class="faq">
+<details open><summary>آیا Cv و Kv همیشه با ضریب ثابت تبدیل می‌شوند؟</summary><p>برای کاربردهای رایج انتخاب کنترل ولو، تبدیل تقریبی Cv ≈ 1.156 × Kv استفاده می‌شود. اما باید مطمئن باشید که هر دو مقدار مربوط به یک condition و یک trim هستند.</p></details>
+<details><summary>اگر vendor فقط Kv بدهد و پروژه Cv بخواهد چه کنیم؟</summary><p>Kv را به Cv تبدیل کنید و در گزارش ذکر کنید مقدار اصلی vendor چه بوده و تبدیل چگونه انجام شده است. این trace برای review مهندسی مهم است.</p></details>
+<details><summary>آیا Cv بزرگ‌تر به معنی ولو بهتر است؟</summary><p>نه. Cv بزرگ‌تر ممکن است باعث opening پایین و کنترل ضعیف شود. انتخاب مناسب باید روی محدوده کاری کامل انجام شود.</p></details>
+<details><summary>آیا ابزار PTF تفاوت Cv و Kv را در گزارش نشان می‌دهد؟</summary><p>بله، ابزار پیشرفته PTF خروجی Cv و Kv را در محاسبات و گزارش انگلیسی نشان می‌دهد و در کنار آن ریسک‌های مهندسی را بررسی می‌کند.</p></details>
+</div>
+<h2>مطالب مرتبط</h2><ul><li><a href="control-valve-cv-calculation-guide.html">محاسبه Cv کنترل ولو چیست؟</a></li><li><a href="control-valve-cavitation-guide.html">کاویتاسیون در کنترل ولو چیست؟</a></li><li><a href="control-valve-iec-60534.html">استاندارد IEC 60534 در کنترل ولو</a></li><li><a href="../tools/control-valve-sizing/">ابزار سایزینگ کنترل ولو</a></li></ul>
+</article></main>
+<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 1.5rem;border-top:4px solid var(--red)"><div class="container" style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap"><span>© 2026 Pishro Tajhiz Fartak</span><a href="../rfq/" style="color:#e2e8f0;font-weight:800;text-decoration:none">ثبت استعلام</a></div></footer>
+<script src="../assets/js/ptf-metrics.js" defer></script><script src="../tools/advanced-tools-ui.js"></script><script src="../tools/advanced-feedback-ui.js"></script>
+</body></html>

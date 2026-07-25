@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Sync Diagnostics - PTF CRM</title>
+<style>
+  body{font-family:Tahoma,sans-serif;max-width:900px;margin:30px auto;padding:20px;line-height:1.8;background:#f8fafc;color:#1e293b}
+  h1{color:#0f766e}
+  .card{background:#fff;border:1px solid #cbd5e1;border-radius:14px;padding:18px;margin-top:18px}
+  .section-title{background:#0f766e;color:#fff;padding:8px 14px;border-radius:10px;margin-bottom:12px;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+  th,td{border:1px solid #e2e8f0;padding:8px;text-align:right}
+  th{background:#f1f5f9;font-weight:bold}
+  .ok{color:#059669;font-weight:bold}
+  .warn{color:#d97706;font-weight:bold}
+  .err{color:#dc2626;font-weight:bold}
+  .muted{color:#64748b;font-size:12px}
+  button{background:linear-gradient(90deg,#0f766e,#0d9488);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;cursor:pointer;font-family:inherit;margin:4px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:bold}
+  .badge-ok{background:#d1fae5;color:#065f46}
+  .badge-warn{background:#fef3c7;color:#92400e}
+  pre{background:#f1f5f9;padding:10px;border-radius:8px;overflow-x:auto;font-size:12px;direction:ltr}
+</style>
+</head>
+<body>
+
+<h1>🔍 Sync Diagnostics — PTF CRM</h1>
+<p class="muted">این صفحه برای تشخیص مشکل sync بین دستگاه‌ها طراحی شده است.</p>
+
+<div class="card">
+  <div class="section-title">📊 وضعیت کلی</div>
+  <div id="overallStatus"></div>
+</div>
+
+<div class="card">
+  <div class="section-title">🔑 وضعیت Sync Keys (کلیدهای مهم)</div>
+  <div id="keysStatus"></div>
+</div>
+
+<div class="card">
+  <div class="section-title">🛠️ Actions</div>
+  <button onclick="runTest()">🔬 تست Sync با سرور</button>
+  <button onclick="forcePush()">⬆️ Force Push</button>
+  <button onclick="forcePull()">⬇️ Force Pull</button>
+  <div id="actionResult" style="margin-top:12px"></div>
+</div>
+
+<script>
+var API = '../api/crm.php';
+
+var KEY_DISPLAY = [
+  { key: 'ptf_crm_rfqs', label: '📋 RFQها' },
+  { key: 'ptf_crm_offers', label: '💼 پیشنهادها' },
+  { key: 'ptf_crm_customers', label: '👥 مشتریان' },
+  { key: 'ptf_crm_suppliers', label: '🏭 تأمین‌کنندگان' },
+  { key: 'ptf_crm_products', label: '📦 کالاها' },
+  { key: 'ptf_crm_invoices', label: '🧾 فاکتورها' },
+  { key: 'ptf_crm_deals', label: '🤝 معاملات' },
+  { key: 'ptf_crm_projects', label: '📁 پرونده‌ها' },
+  { key: 'ptf_crm_cheques', label: '💳 چک‌ها' },
+  { key: 'ptf_crm_payables', label: '💰 پرداخت‌ها' }
+];
+
+function tryLoadContext() {
+  try {
+    return {
+      session: JSON.parse(localStorage.getItem('ptf_crm_session') || '{}'),
+      token: localStorage.getItem('ptf_crm_token'),
+      rev: parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10),
+      krevs: JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}'),
+      userAgent: navigator.userAgent
+    };
+  } catch (e) { return { session: {}, token: null, rev: 0, krevs: {}, userAgent: navigator.userAgent }; }
+}
+
+function getKeyData(k) {
+  try { return JSON.parse(localStorage.getItem(k) || '[]'); } catch (e) { return []; }
+}
+
+function renderOverall(ctx) {
+  var html = '<table>';
+  html += '<tr><th>User</th><td>' + (ctx.session.user || '<span class="err">❌ Not Logged In</span>') + '</td></tr>';
+  html += '<tr><th>Token</th><td>' + (ctx.token ? '<span class="ok">✅ موجود (' + ctx.token.substring(0, 20) + '...)</span>' : '<span class="err">❌ موجود نیست</span>') + '</td></tr>';
+  html += '<tr><th>Global Rev (Local)</th><td><b>' + ctx.rev + '</b></td></tr>';
+  html += '<tr><th>زمان بارگذاری</th><td>' + new Date().toLocaleString('fa-IR') + '</td></tr>';
+  html += '</table>';
+  document.getElementById('overallStatus').innerHTML = html;
+}
+
+function renderKeys() {
+  var html = '<table><tr><th>کلید</th><th>تعداد رکورد</th><th>حجم</th></tr>';
+  KEY_DISPLAY.forEach(function(item) {
+    var data = getKeyData(item.key);
+    var size = (localStorage.getItem(item.key) || '').length;
+    var hasData = data.length > 0;
+    var cls = hasData ? 'ok' : 'muted';
+    html += '<tr>';
+    html += '<td>' + item.label + '</td>';
+    html += '<td class="' + cls + '"><b>' + data.length + '</b></td>';
+    html += '<td>' + (size / 1024).toFixed(1) + ' KB</td>';
+    html += '</tr>';
+  });
+  html += '</table>';
+  document.getElementById('keysStatus').innerHTML = html;
+}
+
+function runTest() {
+  var ctx = tryLoadContext();
+  if (!ctx.token) {
+    document.getElementById('actionResult').innerHTML = '<p class="err">❌ Token موجود نیست - ابتدا Login کنید</p>';
+    return;
+  }
+  document.getElementById('actionResult').innerHTML = '<p>⏳ در حال مقایسه با سرور...</p>';
+
+  fetch(API + '?action=data_pull&since=0', {
+    headers: { 'X-CRM-Token': ctx.token }
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.ok) {
+      document.getElementById('actionResult').innerHTML = '<p class="err">❌ خطا: ' + (d.error || 'Unknown') + '</p>';
+      return;
+    }
+    var html = '<div class="section-title">📊 نتیجه تست Sync</div>';
+    html += '<table><tr><th>معیار</th><th>Local</th><th>Server</th><th>وضعیت</th></tr>';
+    html += '<tr><td>Global Rev</td><td>' + ctx.rev + '</td><td>' + d.rev + '</td>';
+    if (d.rev !== ctx.rev) {
+      html += '<td><span class="badge badge-warn">اختلاف!</span></td>';
+    } else {
+      html += '<td><span class="badge badge-ok">یکسان</span></td>';
+    }
+    html += '</tr></table>';
+
+    html += '<h3>📦 مقایسه رکوردها:</h3>';
+    html += '<table><tr><th>کلید</th><th>Local</th><th>Server</th><th>اختلاف</th></tr>';
+    var mismatches = 0;
+    Object.keys(d.data || {}).forEach(function(k) {
+      var serverData = [];
+      try { serverData = JSON.parse(d.data[k]); } catch (e) {}
+      var localData = getKeyData(k);
+      var diff = serverData.length - localData.length;
+      if (diff !== 0) mismatches++;
+      
+      var label = k;
+      KEY_DISPLAY.forEach(function(item) { if (item.key === k) label = item.label + ' (' + k + ')'; });
+      
+      var cls = diff === 0 ? 'ok' : (diff > 0 ? 'warn' : 'err');
+      
+      html += '<tr><td>' + label + '</td>';
+      html += '<td>' + localData.length + '</td>';
+      html += '<td>' + serverData.length + '</td>';
+      html += '<td class="' + cls + '"><b>' + diff + '</b></td></tr>';
+    });
+    html += '</table>';
+
+    if (mismatches === 0) {
+      html += '<p class="ok">✅ همه رکوردها sync هستند</p>';
+    } else {
+      html += '<p class="warn">⚠️ ' + mismatches + ' کلید اختلاف دارند</p>';
+    }
+
+    document.getElementById('actionResult').innerHTML = html;
+  }).catch(function(err) {
+    document.getElementById('actionResult').innerHTML = '<p class="err">❌ خطای شبکه: ' + err + '</p>';
+  });
+}
+
+function forcePush() {
+  document.getElementById('actionResult').innerHTML = '<p>⏳ Force Push...</p>';
+  var ctx = tryLoadContext();
+  if (!ctx.token) {
+    document.getElementById('actionResult').innerHTML = '<p class="err">❌ Token موجود نیست</p>';
+    return;
+  }
+  var data = {};
+  var base = {};
+  ['ptf_crm_rfqs', 'ptf_crm_offers', 'ptf_crm_customers', 'ptf_crm_suppliers', 'ptf_crm_products'].forEach(function(k) {
+    var v = localStorage.getItem(k);
+    if (v !== null) data[k] = v;
+    base[k] = ctx.krevs[k] || 0;
+  });
+  fetch(API + '?action=data_push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CRM-Token': ctx.token },
+    body: JSON.stringify({ by: ctx.session.user || 'diag', data: data, base: base })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    document.getElementById('actionResult').innerHTML = '<pre>Push Result: ' + JSON.stringify(d, null, 2) + '</pre>';
+  }).catch(function(e) {
+    document.getElementById('actionResult').innerHTML = '<p class="err">خطا: ' + e + '</p>';
+  });
+}
+
+function forcePull() {
+  runTest();
+}
+
+// Init
+var ctx = tryLoadContext();
+renderOverall(ctx);
+renderKeys();
+</script>
+
+</body>
+</html>

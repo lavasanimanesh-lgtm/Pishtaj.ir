@@ -1,0 +1,836 @@
+/* =====================================================================
+   PTF CRM — Sprint 79 (sync.js)
+   US-151 فاز ۲: همگام‌سازی کل داده CRM بین دستگاه‌ها/مرورگرها
+   مدل: server-authoritative با نسخه (rev) سراسری
+   - هر تغییر محلی → push بدهکار (debounced ۴ ثانیه)
+   - هر ۲۰ ثانیه چک rev سرور → در صورت جلوتر بودن، pull و ادغام
+   - تعارض: آخرین نویسنده می‌برد (LWW) + ثبت در لاگ
+   - آفلاین: تغییرات محلی می‌مانند و با اولین اتصال push می‌شوند
+   ===================================================================== */
+(function () {
+  'use strict';
+  var API = '../api/crm.php';
+  var SYNC_KEYS = [
+    'ptf_crm_rfqs', 'ptf_crm_suppliers', 'ptf_crm_customers', 'ptf_crm_products', 'ptf_crm_surplus',
+    'ptf_crm_offers', 'ptf_crm_leads', 'ptf_crm_reminders', 'ptf_crm_buyquotes',
+    'ptf_crm_invoices', 'ptf_crm_notifs', 'ptf_crm_sendqueue', 'ptf_crm_audit',
+    'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
+    'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
+    'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources',
+    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive'
+  ];
+  // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
+  var URGENT_SYNC_KEYS = [
+    'ptf_crm_cheques', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance',
+    'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_fiscal_snapshots',
+    'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_offers', 'ptf_crm_deals',
+    'ptf_crm_projects', 'ptf_crm_opex'
+  ];
+  var SYNC_FULL_ROLES = ['admin','chairman','ceo','commercial'];
+  var SYNC_ROLE_KEYS = {
+    sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
+    buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
+    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
+    collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques','ptf_crm_notifprefs','ptf_crm_avatars']
+  };
+  function syncAllowedKey(k) {
+    var role = typeof curRole === 'function' ? curRole() : 'sales';
+    return SYNC_FULL_ROLES.indexOf(role) > -1 || (SYNC_ROLE_KEYS[role] || SYNC_ROLE_KEYS.sales).indexOf(k) > -1;
+  }
+
+  window._ptfSyncBootstrapped = false; /* v16.7 BUG-018: فلگ عمومی برای ماژول‌هایی که rebuild خودکار دارند (sms) */
+  var state = {
+    dirty: {},          // کلیدهای تغییر یافته محلی که هنوز push نشده‌اند
+    pushTimer: null,
+    pulling: false,
+    pushing: false,
+    lastRev: parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10),
+    online: true,
+    bootstrapped: false, /* v15.0 (US-384): تا سینک اولیه کامل نشده، push ممنوع — جلوی ارسال داده کهنه هنگام رفرش */
+    initialReconcile: false /* v31.7.2: local records created before sync.js must be merged, not overwritten */
+  };
+
+  function setRev(r) { state.lastRev = r; localStorage.setItem('ptf_sync_rev', String(r)); }
+
+  /* ===== v15.0 (US-384 — رفع ریشه‌ای Lost Update) =====
+     نسخه per-key که این دستگاه از سرور می‌شناسد؛ با هر push به‌عنوان «مبنا» می‌رود.
+     اگر دستگاه دیگری بعد از ما نوشته باشد، سرور نوشتن کورکورانه را رد و نسخه خودش را
+     برمی‌گرداند تا اینجا با ptfSmartMerge ادغام و دوباره ارسال شود — رکورد هیچ‌کس گم نمی‌شود. */
+  function krevs() { try { return JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}'); } catch (e) { return {}; } }
+  function saveKrevs(m) { try { localStorage.setItem('ptf_sync_krevs', JSON.stringify(m)); } catch (e) {} }
+  function applyKrevs(newOnes) {
+    if (!newOnes) return;
+    var m = krevs();
+    Object.keys(newOnes).forEach(function (k) { m[k] = +newOnes[k] || 0; });
+    saveKrevs(m);
+  }
+
+  /* ---------- رهگیری تغییرات: wrap setData ---------- */
+  var _setData = window.setData;
+  window.setData = function (k, d) {
+    _setData(k, d);
+    if (SYNC_KEYS.indexOf(k) > -1 && !state.pulling) {
+      state.dirty[k] = true;
+      schedulePush();
+    }
+  };
+
+  function schedulePush() {
+    // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کاهش debounce برای کلیدهای بحرانی
+    // کاربر می‌خواهد تغییرات مالی بلافاصله sync شوند — نه پس از ۴ ثانیه.
+    // برای کلیدهای حیاتی: ۵۰۰ms debounce. برای بقیه: ۴s.
+    var hasUrgent = Object.keys(state.dirty).some(function(k) {
+      return URGENT_SYNC_KEYS.indexOf(k) > -1;
+    });
+    clearTimeout(state.pushTimer);
+    state.pushTimer = setTimeout(pushDirty, hasUrgent ? 500 : 4000);
+  }
+
+  /* ===== v14.7 (US-382 — سپر ضد داده‌صفر، ریشه حادثه پاک شدن مشتریان) =====
+     ① کلاینت: کلید اصلی که آخرین pull آن ناخالی بود، با فهرست خالی push نمی‌شود (هشدار یک‌باره).
+     ② آشکارساز افت انبوه: کاهش >۵۰٪ رکورد کلیدهای حیاتی → audit + اعلان فوری admin/chairman. */
+  var GUARD_KEYS = ['ptf_crm_customers', 'ptf_crm_rfqs', 'ptf_crm_offers', 'ptf_crm_suppliers', 'ptf_crm_products', 'ptf_crm_invoices', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_smsbook', 'ptf_crm_payables', 'ptf_crm_opex', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs']; /* v16.7 BUG-018 + v18.1 R9: کلیدهای مالی/تنخواه/سهامداران/سال مالی زیر سپر داده‌صفر */
+  function guardCounts() { try { return JSON.parse(localStorage.getItem('ptf_guard_counts') || '{}'); } catch (e) { return {}; } }
+  function saveGuardCounts(c) { try { localStorage.setItem('ptf_guard_counts', JSON.stringify(c)); } catch (e) {} }
+  window.ptfUpdateGuardCounts = function () {
+    var c = guardCounts();
+    GUARD_KEYS.forEach(function (k) {
+      try { var a = JSON.parse(localStorage.getItem(k) || '[]'); if (Array.isArray(a)) c[k] = a.length; } catch (e) {}
+    });
+    saveGuardCounts(c);
+  };
+  function massDropCheck() {
+    try {
+      var c = guardCounts();
+      GUARD_KEYS.forEach(function (k) {
+        var prev = +c[k] || 0;
+        if (prev < 4) return; /* داده کم — افت معنادار نیست */
+        var now = 0;
+        try { var a = JSON.parse(localStorage.getItem(k) || '[]'); now = Array.isArray(a) ? a.length : prev; } catch (e) { return; }
+        if (now < prev / 2) {
+          var lbl = k.replace('ptf_crm_', '');
+          try { audit('سیستم', '🚨 هشدار افت انبوه داده (US-382): ' + lbl + ' از ' + prev + ' به ' + now + ' رکورد کاهش یافت', k); } catch (eA) {}
+          if (typeof notify === 'function') {
+            try { notify({ toRoles: ['admin', 'chairman'], title: '🚨 هشدار: تعداد رکوردهای «' + lbl + '» از ' + prev + ' به ' + now + ' کاهش یافت — اگر عمدی نبوده فورا از تنظیمات → بک‌آپ‌های سرور بازگردانی کنید', kind: 'system', channels: ['cart'], link: { panel: 'set' } }); } catch (eN) {}
+          }
+        }
+        c[k] = now;
+      });
+      saveGuardCounts(c);
+    } catch (e) {}
+  }
+
+  function authHeaders(json) {
+    var h = json ? { 'Content-Type': 'application/json' } : {};
+    try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+    if (json) h['X-CRM-Role'] = curRole();
+    return h;
+  }
+  function hasSyncToken() { try { return !!localStorage.getItem('ptf_crm_token'); } catch (e) { return false; } }
+
+  /* v31.6.24 BUG-SYNC-AUTH-RACE: a stale/expired token used to make
+     data_pull return 401; pullCheck then called done(), bootstrapped the stale
+     local dataset, and never retried. Refresh the same server token used by
+     showCrm, then retry the pending full/incremental pull. */
+  /* v31.8 SEC-AUTH-SESSION-001: coalesce concurrent refresh requests in one
+     browser tab. A transient 401 must not result in many parallel auth_login calls. */
+  function refreshAuthToken(cb) {
+    /* v33.0.1 SEC-AUTH-REAUTH: no silent passhash login. The raw password is not
+       available here and the server intentionally accepts only real login/refresh.
+       Stop 401 loops and force an explicit server-side login. */
+    try { localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
+    setSyncBadge('warn');
+    try { if (typeof ptfToast === 'function') ptfToast('نشست سرور منقضی شده است؛ لطفاً دوباره وارد شوید.', 'warn'); } catch (eT) {}
+    setTimeout(function () {
+      try { localStorage.removeItem('ptf_crm_session'); location.href = 'index.html?reauth=' + Date.now(); } catch (eR) {}
+    }, 800);
+    if (cb) cb(false);
+  }
+  window.ptfSyncRefreshAuth = refreshAuthToken;
+  function retryPullAfterAuth(done, forceFull) {
+    state.authWait = (state.authWait || 0) + 1;
+    setSyncBadge('warn');
+    if (state.authWait > 3) { if (done) done(); return; }
+    try { localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
+    refreshAuthToken(function (ok) {
+      if (ok) setTimeout(function () { pullCheck(done, forceFull); }, 0);
+      else setTimeout(function () { pullCheck(done, forceFull); }, 1000);
+    });
+  }
+  function pushDirty() {
+    var keys = Object.keys(state.dirty);
+    var forbiddenLocal = keys.filter(function (k) { return !syncAllowedKey(k); });
+    forbiddenLocal.forEach(function (k) { delete state.dirty[k]; });
+    if (forbiddenLocal.length) { setSyncBadge('forbidden'); try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقش در sync ارسال نشد: ' + forbiddenLocal.join('، '), 'SYNC-RBAC'); } catch (eF) {} }
+    keys = keys.filter(function (k) { return forbiddenLocal.indexOf(k) < 0; });
+    if (!keys.length || state.pushing) return;
+    if (!curSession().user) return;
+    /* v15.0 (US-384): قبل از کامل شدن سینک اولیه، هیچ push‌ای نرود —
+       ریشه کیس استادی: رفرش کاربر دوم، حین رندر (مهاجرت وضعیت‌ها/فلگ‌های انقضا) setData روی
+       داده کهنه می‌زد و لیست قدیمی را قبل از pull به سرور می‌فرستاد → پیش‌نویس کاربر اول حذف می‌شد. */
+    if (!state.bootstrapped) { schedulePush(); return; }
+    if (!hasSyncToken()) { setSyncBadge('warn'); return; }
+    /* v14.7 (US-382 AC2): سد push خالی روی کلید حیاتی که قبلا ناخالی بوده */
+    if (!window._ptfGoLiveWipe) {
+      var gc = guardCounts();
+      keys = keys.filter(function (k) {
+        if (GUARD_KEYS.indexOf(k) < 0) return true;
+        if ((+gc[k] || 0) < 4) return true;
+        try {
+          var arr = JSON.parse(localStorage.getItem(k) || '[]');
+          if (Array.isArray(arr) && arr.length === 0) {
+            delete state.dirty[k];
+            if (!window._ptfZeroWarned) {
+              window._ptfZeroWarned = true;
+              alert('🛡 سپر داده (US-382): فهرست «' + k.replace('ptf_crm_', '') + '» در این دستگاه خالی است ولی سرور نسخه ناخالی دارد — ارسال متوقف شد تا داده سرور پاک نشود.\n(در صورت نیاز واقعی به پاک‌سازی، از «شروع بهره‌برداری واقعی» در تنظیمات استفاده کنید)');
+            }
+            try { audit('سیستم', '🛡 سپر داده‌صفر: push خالی ' + k + ' مسدود شد (US-382)', k); } catch (eG) {}
+            return false;
+          }
+        } catch (e2) {}
+        return true;
+      });
+      if (!keys.length) return;
+    }
+    massDropCheck(); /* v14.7 US-382 AC3 */
+    state.pushing = true;
+    var data = {};
+    keys.forEach(function (k) {
+      var v = localStorage.getItem(k);
+      if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v;
+    });
+    /* v15.0 (US-384): مبنای نسخه هر کلید همراه push — سرور نوشتن روی نسخه جدیدتر را رد می‌کند */
+    var base = {};
+    var km = krevs();
+    keys.forEach(function (k) { base[k] = +km[k] || 0; });
+    fetch(API + '?action=data_push', {
+      method: 'POST',
+      headers: authHeaders(true),
+      body: JSON.stringify({ by: curSession().name, data: data, base: base })
+    }).then(function (r) { return r.json(); })
+      .then(function (d) {
+        state.pushing = false;
+        if (d.ok) {
+          applyKrevs(d.krevs); /* v15.0 */
+          var confl = d.conflicts || [];
+          keys.forEach(function (k) { if (confl.indexOf(k) < 0) delete state.dirty[k]; });
+          if (d.rev) setRev(d.rev);
+          /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
+          if (confl.length) {
+            confl.forEach(function (k) {
+              try {
+                var srvStr = (d.serverData || {})[k];
+                if (typeof srvStr !== 'string') return;
+                var merged = (typeof window.ptfSmartMerge === 'function') ? window.ptfSmartMerge(k, localStorage.getItem(k), srvStr) : srvStr;
+                if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
+                state.pulling = true; /* جلوگیری از حلقه dirty هنگام اعمال */
+                localStorage.setItem(k, merged);
+                state.pulling = false;
+                state.dirty[k] = true; /* نتیجه ادغام دوباره push می‌شود (این‌بار با base جدید پذیرفته می‌شود) */
+              } catch (eM) {}
+            });
+            try { audit('سیستم', '🔀 تعارض همزمانی سینک روی ' + confl.join('، ') + ' — ادغام هوشمند انجام و مجدد ارسال شد (US-384)', 'SYNC'); } catch (eA) {}
+            refreshCurrentPanel();
+            schedulePush();
+          }
+          if (d.forbidden && d.forbidden.length) { setSyncBadge('forbidden'); try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + d.forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {} }
+          else setSyncBadge('ok');
+        } else {
+          setSyncBadge('warn');
+          schedulePush(); // دوباره تلاش
+        }
+      })
+      .catch(function () {
+        state.pushing = false;
+        state.online = false;
+        setSyncBadge('offline');
+        setTimeout(schedulePush, 15000); // آفلاین: تلاش مجدد
+      });
+  }
+
+  /* ---------- pull دوره‌ای ---------- */
+  function pullCheck(done, forceFull) {
+    if (!curSession().user || state.pushing) { if (done) done(); return; }
+    /* v15.0 (US-384): اگر تغییر محلی معلق داریم، اول push — سرور با base-rev محافظت می‌کند
+       (در فاز بوت این مسیر اجرا نمی‌شود چون pushDirty تا bootstrapped صبر می‌کند) */
+    if (!forceFull && state.bootstrapped && Object.keys(state.dirty).length) { pushDirty(); if (done) done(); return; }
+    if (!hasSyncToken()) { retryPullAfterAuth(done, forceFull); return; }
+    state.authWait = 0;
+    /* v31.6.23 BUG-SYNC-DIVERGENCE: startup reconciliation must not trust a
+       browser's cached global rev. Two browsers can have the same rev marker
+       but different localStorage contents; force=0 pulls the complete server
+       snapshot and makes the server authoritative before normal polling. */
+    var pullSince = forceFull ? 0 : state.lastRev;
+    fetch(API + '?action=data_pull&since=' + pullSince, { headers: authHeaders(false) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        state.online = true;
+        if (!d.ok) {
+          if (d.needLogin || /token|unauthorized|401/i.test(String(d.error || ''))) { retryPullAfterAuth(done, forceFull); return; }
+          if (done) done();
+          return;
+        }
+        if (d.fresh) { setSyncBadge('ok'); if (done) done(); return; }
+        // سرور جلوتر است → اعمال داده‌ها
+        state.pulling = true;
+        var applied = 0;
+        // Sprint 104: Smart Array Merging & Concurrency Control
+        Object.keys(d.data || {}).forEach(function (k) {
+          if (SYNC_KEYS.indexOf(k) < 0) return;
+          var curStr = localStorage.getItem(k);
+          var newStr = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, d.data[k], (d.data || {})['ptf_crm_deleted_archive']) : d.data[k];
+          if (curStr === newStr) return;
+          /* v31.7.2 BUG-SYNC-LOCAL-LOSS: records created before sync.js
+             loaded cannot be marked dirty by the wrapper. During the first
+             authoritative pull, merge the local/server arrays before any
+             overwrite, then push the union with per-record timestamps. */
+          if (forceFull && state.initialReconcile && curStr && typeof window.ptfSmartMerge === 'function') {
+            try {
+              var startupMerged = window.ptfSmartMerge(k, curStr, newStr);
+              if (typeof window.ptfApplyDeletionTombstones === 'function') startupMerged = window.ptfApplyDeletionTombstones(k, startupMerged, (d.data || {})['ptf_crm_deleted_archive']);
+              if (startupMerged && startupMerged !== curStr) {
+                localStorage.setItem(k, startupMerged);
+                state.dirty[k] = true;
+                applied++;
+              }
+            } catch (eStartupMerge) {}
+            return;
+          }
+          
+          // If dirty, try smart merge instead of dumb ignore!
+          if (state.dirty[k] && typeof window.ptfSmartMerge === 'function') {
+            try {
+              var merged = window.ptfSmartMerge(k, curStr, newStr);
+              if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged, (d.data || {})['ptf_crm_deleted_archive']);
+              if (merged && merged !== curStr) {
+                localStorage.setItem(k, merged);
+                applied++;
+              }
+            } catch(e) {}
+            return;
+          }
+          if (state.dirty[k]) return;
+          
+          localStorage.setItem(k, newStr);
+          applied++;
+        });
+        state.pulling = false;
+        setRev(d.rev);
+        if (forceFull && typeof window.ptfAutoRepairSafeDuplicates === 'function') { try { setTimeout(window.ptfAutoRepairSafeDuplicates, 0); } catch (eRepair) {} }
+        /* v15.0 (US-384): نسخه per-key سرور ثبت شود تا pushهای بعدی مبنای درست داشته باشند */
+        try {
+          var mm = d.meta || {};
+          var km2 = krevs();
+          Object.keys(mm).forEach(function (k) { if (k !== '_global' && mm[k] && mm[k].rev != null) km2[k] = +mm[k].rev || 0; });
+          saveKrevs(km2);
+        } catch (eK) {}
+        if (typeof ptfUpdateGuardCounts === 'function') ptfUpdateGuardCounts(); /* v14.7 US-382: پس از pull موفق، baseline شمار رکوردها به‌روز شود */
+        if (applied) {
+          setSyncBadge('ok');
+          refreshCurrentPanel();
+          if (typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
+          if (typeof updateInboxBadge === 'function') updateInboxBadge();
+        }
+        if (done) done(); /* v15.0 US-384 */
+      })
+      .catch(function () { state.online = false; setSyncBadge('offline'); if (done) done(); });
+  }
+
+  // رندر مجدد پنل فعلی پس از دریافت داده جدید (بدون پرش اگر مودال باز است)
+  function refreshCurrentPanel() {
+    if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return; // وسط کار کاربر نپر
+    var act = document.querySelector('.sb-i.act');
+    if (!act) return;
+    var m = (act.getAttribute('onclick') || '').match(/goPanel\('([a-z]+)'/);
+    if (m && typeof goPanelByName === 'function') {
+      try { goPanelByName(m[1]); } catch (e) {}
+    }
+  }
+
+  /* ---------- نشانگر وضعیت سینک ---------- */
+  function setSyncBadge(st) {
+    var el = document.getElementById('syncBadge');
+    if (!el) return;
+    var map = {
+      ok: ['🟢', 'همگام با سرور'],
+      warn: ['🟡', 'در حال تلاش مجدد...'],
+      offline: ['🔴', 'آفلاین — تغییرات محلی ذخیره و بعداً ارسال می‌شود'],
+      forbidden: ['🟠', 'برخی بخش‌ها برای نقش فعلی قابل sync نیستند']
+    };
+    var x = map[st] || map.ok;
+    el.textContent = x[0];
+    el.title = x[1];
+  }
+
+  function injectBadge() {
+    var tb = document.querySelector('.tb');
+    if (!tb || document.getElementById('syncBadge')) return;
+    var s = document.createElement('span');
+    s.id = 'syncBadge';
+    s.style.cssText = 'font-size:11px;cursor:default;margin-right:8px';
+    s.textContent = '🟢';
+    s.title = 'همگام با سرور';
+    tb.appendChild(s);
+  }
+
+  /* ---------- مهاجرت اولیه: seed یا دریافت ---------- */
+  function initialSync() {
+    fetch(API + '?action=data_rev')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { state.bootstrapped = true; window._ptfSyncBootstrapped = true; return; } /* v15.0: خطای سرور نباید کار آفلاین را قفل کند */
+        if (d.rev === 0) {
+          // سرور خالی است → این دستگاه seed می‌کند (اولین اجرا پس از آپدیت)
+          state.bootstrapped = true; window._ptfSyncBootstrapped = true; /* v15.0 */
+          var hasData = SYNC_KEYS.some(function (k) { return (localStorage.getItem(k) || '[]').length > 10; });
+          if (hasData) {
+            SYNC_KEYS.forEach(function (k) { if (localStorage.getItem(k) !== null) state.dirty[k] = true; });
+            pushDirty();
+            if (typeof addLog === 'function') addLog('داده‌های این دستگاه به سرور منتقل شد (seed اولیه)');
+          }
+        } else if (d.rev > 0) {
+          /* v31.6.23 BUG-SYNC-DIVERGENCE: always reconcile a complete server
+             snapshot at startup. Comparing only d.rev with localStorage's
+             ptf_sync_rev falsely declares stale/different browsers fresh. */
+          state.initialReconcile = true;
+          pullCheck(function () { state.initialReconcile = false; state.bootstrapped = true; window._ptfSyncBootstrapped = true; if (Object.keys(state.dirty).length) schedulePush(); }, true);
+        } else {
+          state.bootstrapped = true; window._ptfSyncBootstrapped = true; /* v15.0: به‌روزیم */
+        }
+      })
+      .catch(function () { state.bootstrapped = true; window._ptfSyncBootstrapped = true; setSyncBadge('offline'); }); /* آفلاین: کار محلی آزاد، push بعدا با base */
+  }
+
+  /* ---------- شروع ---------- */
+  function boot() {
+    if (!curSession().user) return;
+    injectBadge();
+    try { if (typeof ptfUpdateGuardCounts === 'function' && !localStorage.getItem('ptf_guard_counts')) ptfUpdateGuardCounts(); } catch (eB) {} /* v14.7 US-382: baseline اولیه */
+    initialSync();
+    if (!window._ptfSyncPullT) {
+      window._ptfSyncPullT = setInterval(pullCheck, 20000);
+    }
+    // هنگام بستن صفحه، push معلق را بفرست
+    window.addEventListener('beforeunload', function () {
+      var keys = Object.keys(state.dirty);
+      if (!keys.length) return;
+      var data = {};
+      keys.forEach(function (k) { var v = localStorage.getItem(k); if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v; });
+      try {
+        /* v15.0 (US-384): beacon هم با base — اگر دستگاه دیگری جلوتر نوشته باشد، سرور رد می‌کند */
+        var kb = krevs(); var bb = {};
+        keys.forEach(function (k) { bb[k] = +kb[k] || 0; });
+        navigator.sendBeacon(API + '?action=data_push', new Blob([JSON.stringify({ by: curSession().name, data: data, base: bb })], { type: 'application/json' }));
+      } catch (e) {}
+    });
+  }
+
+  var tries = 0;
+  var t = setInterval(function () {
+    tries++;
+    var vis = document.getElementById('crmL') && document.getElementById('crmL').style.display !== 'none';
+    if (vis) { boot(); clearInterval(t); }
+    if (tries > 60) clearInterval(t);
+  }, 400);
+  var _showCrm = window.showCrm;
+  if (_showCrm) {
+    window.showCrm = function () { _showCrm(); setTimeout(boot, 900); };
+  }
+})();
+
+  /* v31.7.2 BUG-SYNC-DUP-COLLAPSE: the old generic merge used cd/no as a
+     unique map key. That is unsafe precisely when two devices created the
+     same RFQ/offer code; one record was silently dropped. Preserve every
+     distinct payload until the duplicate-repair workflow resolves it. 
+     
+     v31.7.3 BUG-AUDIT-004-MERGE-ORDERING: JSON.stringify is order-dependent.
+     If two devices have the same object but with keys in different order,
+     they are incorrectly treated as duplicates. Normalize keys before stringify. */
+  function ptfMergeNoCollapse(key, localStr, remoteStr) {
+    try {
+      var loc=JSON.parse(localStr||'[]'), rem=JSON.parse(remoteStr||'[]');
+      if(!Array.isArray(loc)||!Array.isArray(rem)) return remoteStr;
+      
+      // Helper: normalize object keys for consistent stringify
+      function normalizeKeys(obj) {
+        if(!obj || typeof obj !== 'object') return obj;
+        if(Array.isArray(obj)) return obj.map(normalizeKeys);
+        var sorted = {};
+        Object.keys(obj).sort().forEach(function(k) {
+          sorted[k] = normalizeKeys(obj[k]);
+        });
+        return sorted;
+      }
+      
+      var out=[], exact={};
+      function add(r){
+        if(!r||typeof r!=='object') return;
+        var normalized = normalizeKeys(r);
+        var sig=JSON.stringify(normalized);
+        if(exact[sig]) return;
+        exact[sig]=1; out.push(r);
+      }
+      rem.forEach(add); loc.forEach(add);
+      return JSON.stringify(out);
+    } catch(e){ return remoteStr; }
+  }
+
+  /* v31.7.38 BUG-DUP-GROW-001:
+     RFQ/Offer codes are business identities. The previous ptfMergeNoCollapse
+     deliberately preserved distinct payloads with the same cd/no to avoid silent
+     loss during historical codegen incidents, but once those incidents were fixed
+     the same rule made legacy duplicate records reappear/grow through sync and
+     polluted «روز من». Canonical merge below collapses same-code business records
+     into one representative, preserves a lightweight merge history, and is used
+     both by sync and by an explicit cleanup action. */
+  function ptfObjClone(x) { try { return JSON.parse(JSON.stringify(x || {})); } catch (e) { return x || {}; } }
+  function ptfCodeIdentity(key, r) {
+    if (!r || typeof r !== 'object') return '';
+    return String(key === 'ptf_crm_offers' ? (r.no || r.cd || r.id || '') : (r.cd || r.no || r.id || r.code || '')).trim();
+  }
+  /* v31.7.97 BUG-SYNC-TOMBSTONE-001:
+     حذف در سیستم چندکاربره باید برنده باشد. اگر دستگاه B رکورد حذف‌شده را
+     هنوز در cache داشته باشد، merge نباید آن را از نو زنده کند. Tombstoneها
+     از ptf_crm_deleted_archive خوانده می‌شوند و روی keyهای کسب‌وکاری اعمال می‌گردند. */
+  function ptfArchiveKindsForKey(key) {
+    var map = {
+      ptf_crm_offers: ['offer','offers','to','co','tc'],
+      ptf_crm_rfqs: ['rfq','request','inq','inquiry'],
+      ptf_crm_customers: ['customer','customers','cust'],
+      ptf_crm_suppliers: ['supplier','suppliers','sup'],
+      ptf_crm_products: ['product','products','prod'],
+      ptf_crm_leads: ['lead','leads'],
+      ptf_crm_invoices: ['invoice','invoices','inv'],
+      ptf_crm_payables: ['payable','payables','pay'],
+      ptf_crm_cheques: ['cheque','check','chq'],
+      ptf_crm_deals: ['deal','deals','salesfile'],
+      ptf_crm_projects: ['project','projects','salesfile'],
+      ptf_crm_letters: ['letter','letters'],
+      ptf_crm_contracts: ['contract','contracts'],
+      ptf_crm_rfqsmart: ['rfqsmart','supplyrfq'],
+      ptf_crm_buycmp: ['buycmp','buycompare'],
+      ptf_crm_inqitems: ['inqitem','inqitems','iqi']
+    };
+    return map[key] || [];
+  }
+  function ptfRecordIdentityForKey(key, r) {
+    if (!r || typeof r !== 'object') return '';
+    if (key === 'ptf_crm_offers') return String(r.no || r.cd || r.id || '').trim();
+    return String(r.cd || r.no || r.id || r.code || r.invoiceCd || r.feedbackId || '').trim();
+  }
+  function ptfReadArchive(extraArchiveStr) {
+    var out = [];
+    function addFrom(str) {
+      try { var a = JSON.parse(str || '[]'); if (Array.isArray(a)) out = out.concat(a); } catch (e) {}
+    }
+    addFrom(localStorage.getItem('ptf_crm_deleted_archive') || '[]');
+    if (extraArchiveStr) addFrom(extraArchiveStr);
+    return out;
+  }
+  window.ptfApplyDeletionTombstones = function (key, jsonStr, extraArchiveStr) {
+    if (key === 'ptf_crm_deleted_archive') return jsonStr;
+    var kinds = ptfArchiveKindsForKey(key);
+    if (!kinds.length) return jsonStr;
+    var kindSet = {}; kinds.forEach(function (k) { kindSet[String(k).toLowerCase()] = true; });
+    var ids = {};
+    ptfReadArchive(extraArchiveStr).forEach(function (d) {
+      if (!d || typeof d !== 'object') return;
+      var kind = String(d.kind || '').toLowerCase();
+      if (!kindSet[kind]) return;
+      var id = String(d.id || d.no || d.cd || '').trim();
+      if (id) ids[id] = true;
+    });
+    if (!Object.keys(ids).length) return jsonStr;
+    try {
+      var arr = JSON.parse(jsonStr || '[]');
+      if (!Array.isArray(arr)) return jsonStr;
+      var filtered = arr.filter(function (r) { var id = ptfRecordIdentityForKey(key, r); return !id || !ids[id]; });
+      return JSON.stringify(filtered);
+    } catch (e) { return jsonStr; }
+  };
+  function ptfValScore(v) {
+    if (v == null) return 0;
+    if (Array.isArray(v)) return v.length ? 3 + v.length : 0;
+    if (typeof v === 'object') return Object.keys(v).length ? 3 + Object.keys(v).length : 0;
+    return String(v).trim() ? 1 : 0;
+  }
+  function ptfStateRank(r) {
+    var st = String((r && (r.st || r.tst || r.status)) || '');
+    var map = { won: 90, approved: 80, sent: 70, registered: 60, revise: 50, draft: 30, pending: 20, lost: 10, rejected: 5 };
+    return map[st] || 0;
+  }
+  function ptfRecTimestamp(r) { return String((r && (r.updatedAtISO || r.updatedAt || r.iso || r.ts || r.t || r.dateEn || r.dueISO || r.dt || r.dateFa)) || ''); }
+  function ptfRecCompleteness(r) {
+    var n = 0;
+    if (!r || typeof r !== 'object') return 0;
+    Object.keys(r).forEach(function (k) { n += ptfValScore(r[k]); });
+    return n;
+  }
+  function ptfPreferRecord(a, b) {
+    var sa = ptfStateRank(a), sb = ptfStateRank(b);
+    if (sa !== sb) return sb > sa ? b : a;
+    var ca = ptfRecCompleteness(a), cb = ptfRecCompleteness(b);
+    if (ca !== cb) return cb > ca ? b : a;
+    return ptfRecTimestamp(b) >= ptfRecTimestamp(a) ? b : a;
+  }
+  function ptfMergeArrayUnique(a, b) {
+    var out = [], seen = {};
+    function add(x) { var sig; try { sig = JSON.stringify(x); } catch (e) { sig = String(x); } if (!seen[sig]) { seen[sig] = 1; out.push(x); } }
+    (Array.isArray(a) ? a : []).forEach(add); (Array.isArray(b) ? b : []).forEach(add);
+    return out;
+  }
+  /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: an offer is a commercial document.
+     Its items are an atomic snapshot, not a generic array that can be unioned.
+     Exact duplicate legacy lines are safely collapsed; different snapshots are
+     resolved by the winning record and recorded in _itemSyncConflict. */
+  function ptfOfferExactItemSignature(item) {
+    try { return JSON.stringify(item || {}); } catch (e) { return String(item || ''); }
+  }
+  function ptfNormalizeOfferSnapshot(items) {
+    var out = [], seen = {}, removed = 0;
+    (Array.isArray(items) ? items : []).forEach(function (it) {
+      if (!it || typeof it !== 'object') return;
+      var key = String(it.lineId || '').trim();
+      key = key ? ('id:' + key) : ('exact:' + ptfOfferExactItemSignature(it));
+      if (seen[key]) { removed++; return; }
+      seen[key] = true; out.push(it);
+    });
+    return { items: out, removed: removed };
+  }
+  function ptfMergePlainObject(a, b) {
+    var out = ptfObjClone(a);
+    Object.keys(b || {}).forEach(function (k) {
+      if (out[k] == null || out[k] === '') out[k] = b[k];
+      else if (Array.isArray(out[k]) || Array.isArray(b[k])) out[k] = ptfMergeArrayUnique(out[k], b[k]);
+      else if (typeof out[k] === 'object' && typeof b[k] === 'object') out[k] = Object.assign({}, b[k], out[k]);
+    });
+    return out;
+  }
+  function ptfMergeBusinessRecord(key, a, b, code) {
+    var winner = ptfPreferRecord(a, b);
+    var loser = winner === a ? b : a;
+    var out = ptfMergePlainObject(winner, loser);
+    if (key === 'ptf_crm_offers') {
+      var clean = ptfNormalizeOfferSnapshot(winner.items || []);
+      out.items = clean.items; /* never union winner/loser offer lines */
+      if (clean.removed || JSON.stringify(winner.items || []) !== JSON.stringify(loser.items || [])) {
+        out._itemSyncConflict = { at: new Date().toISOString(), winnerTs: ptfRecTimestamp(winner), loserTs: ptfRecTimestamp(loser), duplicateLinesRemoved: clean.removed, policy: 'atomic-winner-snapshot-v31.8' };
+      }
+    }
+    var idField = key === 'ptf_crm_offers' ? 'no' : 'cd';
+    out[idField] = code;
+    out._dupMerged = ptfMergeArrayUnique(out._dupMerged || [], [{ at: new Date().toISOString(), key: key, code: code, loserTs: ptfRecTimestamp(loser), reason: 'same-code-canonical-merge' }]).slice(-10);
+    return out;
+  }
+  function ptfMergeByCodeCanonical(key, localStr, remoteStr) {
+    try {
+      var loc = JSON.parse(localStr || '[]'), rem = JSON.parse(remoteStr || '[]');
+      if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;
+      var by = {}, order = [], noId = [];
+      function add(r) {
+        if (!r || typeof r !== 'object') return;
+        var code = ptfCodeIdentity(key, r);
+        if (!code) { noId.push(r); return; }
+        if (!by[code]) { by[code] = r; order.push(code); }
+        else by[code] = ptfMergeBusinessRecord(key, by[code], r, code);
+      }
+      rem.forEach(add); loc.forEach(add);
+      var out = order.map(function (c) { return by[c]; }).concat(noId);
+      return window.ptfApplyDeletionTombstones ? window.ptfApplyDeletionTombstones(key, JSON.stringify(out)) : JSON.stringify(out);
+    } catch (e) { return remoteStr; }
+  }
+  window.ptfCollapseDuplicateBusinessRecords = function (opts) {
+    opts = opts || {};
+    if (opts.confirm !== 'PTF-COLLAPSE-DUP') return { ok: false, why: 'confirmation' };
+    var keys = opts.keys || ['ptf_crm_rfqs', 'ptf_crm_offers'];
+    var result = { ok: true, fixed: [], unchanged: [] };
+    keys.forEach(function (key) {
+      try {
+        var cur = localStorage.getItem(key) || '[]';
+        var merged = ptfMergeByCodeCanonical(key, cur, '[]');
+        var before = JSON.parse(cur || '[]'), after = JSON.parse(merged || '[]');
+        if (after.length < before.length) {
+          if (typeof setData === 'function') setData(key, after); else localStorage.setItem(key, JSON.stringify(after));
+          result.fixed.push({ key: key, before: before.length, after: after.length, removed: before.length - after.length });
+          try { if (typeof audit === 'function') audit('سیستم', 'پاکسازی رکوردهای تکراری هم‌کد ' + key + ': ' + before.length + ' → ' + after.length, key); } catch (eA) {}
+        } else result.unchanged.push({ key: key, count: after.length });
+      } catch (e) { result.unchanged.push({ key: key, error: String(e) }); }
+    });
+    return result;
+  };
+
+  // Sprint 104: Smart Array Merging for concurrent users (Manager & Sales Engineer)
+  window.ptfSmartMerge = function (key, localStr, remoteStr) {
+    try {
+      /* v31.7.11 BUG-AVATAR-001: عکس پروفایل حذف‌شده با رفرش برمی‌گشت.
+         علت: ptf_crm_avatars آبجکت map است نه آرایه؛ مسیر عمومی merge برای
+         غیرآرایه‌ها remoteStr (server-wins) برمی‌گرداند و حذف محلی گم می‌شد.
+         راه‌حل: merge per-user با timestamp — هر ورودی {v,ts} جدیدتر برنده است؛
+         tombstone {v:null} حذف را در تمام دستگاه‌ها ماندگار می‌کند. */
+      if (key === 'ptf_crm_avatars') {
+        try {
+          var locA = JSON.parse(localStr || '{}');
+          var remA = JSON.parse(remoteStr || '{}');
+          if (Array.isArray(locA) || Array.isArray(remA) || typeof locA !== 'object' || typeof remA !== 'object') return remoteStr;
+          function avTs(e) { return (e && typeof e === 'object' && e.ts) ? String(e.ts) : ''; }
+          var outA = {};
+          var allU = {};
+          Object.keys(locA).forEach(function (u) { allU[u] = 1; });
+          Object.keys(remA).forEach(function (u) { allU[u] = 1; });
+          Object.keys(allU).forEach(function (u) {
+            var lv = locA[u], rv = remA[u];
+            var winner;
+            if (lv === undefined) winner = rv;
+            else if (rv === undefined) winner = lv;
+            else winner = (avTs(lv) >= avTs(rv)) ? lv : rv; /* legacy رشته‌ای ts ندارد → نسخه‌دار برنده */
+            /* tombstone قدیمی‌تر از ۳۰ روز پاک می‌شود تا map بی‌نهایت بزرگ نشود */
+            if (winner && typeof winner === 'object' && winner.v == null) {
+              try { if (winner.ts && (Date.now() - new Date(winner.ts).getTime()) > 30 * 864e5) return; } catch (eTs) {}
+            }
+            if (winner !== undefined) outA[u] = winner;
+          });
+          return JSON.stringify(outA);
+        } catch (eAv) { return remoteStr; }
+      }
+
+      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+      var loc = JSON.parse(localStr || '[]');
+      var rem = JSON.parse(remoteStr || '[]');
+      if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;
+
+      /* Sprint 283: fiscal lock/unlock is a state transition on one snapshot,
+         not an ordinary display timestamp. A chairman unlock has lockStateAtISO;
+         keep that transition through a per-key sync conflict so an older locked
+         server copy cannot silently re-lock the year after a local unlock. */
+      if (key === 'ptf_crm_supplier_finance') {
+        try {
+          var locO = JSON.parse(localStr||'{}'); var remO = JSON.parse(remoteStr||'{}');
+          if(typeof locO!=='object' || typeof remO!=='object') return remoteStr;
+          var merged={};
+          var allKeys = {};
+          Object.keys(locO).forEach(function(k){ allKeys[k]=1; });
+          Object.keys(remO).forEach(function(k){ allKeys[k]=1; });
+          Object.keys(allKeys).forEach(function(k){
+            var lv=locO[k], rv=remO[k];
+            if(!Array.isArray(lv) && !Array.isArray(rv)){
+              merged[k]= rv!=null ? rv : lv;
+            } else if(Array.isArray(lv) && Array.isArray(rv)){
+              // merge by cd
+              var mm={};
+              rv.forEach(function(it){ if(it&&it.cd) mm[it.cd]=it; });
+              lv.forEach(function(it){
+                if(!it||!it.cd){ return; }
+                if(!mm[it.cd]){
+                  mm[it.cd]=it;
+                } else {
+                  // pick newer by t/iso/date
+                  var lt=it.iso||it.t||it.date||''; var rt=mm[it.cd].iso||mm[it.cd].t||mm[it.cd].date||'';
+                  if(lt>rt) mm[it.cd]=it;
+                }
+              });
+              merged[k]=Object.values(mm);
+            } else {
+              merged[k]= Array.isArray(rv) ? rv : (Array.isArray(lv)? lv : (rv!=null?rv:lv));
+            }
+          });
+          return JSON.stringify(merged);
+        } catch(e){ return remoteStr; }
+      }
+
+      /* v31.7.26 BUG-SYNC-OSC-001 (گزارش کارفرما: دفتر تلفن مدام زیاد/کم می‌شود):
+         smsBookSyncAll در هر rebuild برای رکوردهای auto با genCode('PB') کد «تصادفی جدید» می‌ساخت؛
+         دو دستگاه برای همان مخاطب دو cd متفاوت داشتند → merge با کلید cd هر دو را نگه می‌داشت
+         (تکراری/رشد) و rebuild بعدی dedup می‌کرد (کاهش) → نوسان دائمی.
+         رفع: هویت واقعی مخاطب شماره موبایل است — merge دفترچه با کلید mob. */
+      if (key === 'ptf_crm_smsbook') {
+        var bm = {};
+        function bAdd(r) {
+          if (!r || !r.mob) return;
+          var k2 = String(r.mob);
+          var ex = bm[k2];
+          if (!ex) { bm[k2] = r; return; }
+          /* دستی بر auto مقدم؛ سپس جدیدتر */
+          var exManual = ex.src !== 'auto', rManual = r.src !== 'auto';
+          if (rManual && !exManual) { bm[k2] = r; return; }
+          if (!rManual && exManual) return;
+          if (String(r.t || '') > String(ex.t || '')) bm[k2] = r;
+        }
+        rem.forEach(bAdd); loc.forEach(bAdd);
+        return JSON.stringify(Object.keys(bm).map(function (k3) { return bm[k3]; }));
+      }
+
+      /* v31.7.10 BUG-NTF-002: وضعیت «خوانده‌شده» اعلان‌ها پس از sync برمی‌گشت.
+         علت: ntfRead فقط readBy را تغییر می‌دهد و timestamp رکورد ثابت می‌ماند؛
+         قاعده عمومی «newer wins» نسخه سرور (خوانده‌نشده) را برنده می‌کرد.
+         راه‌حل: merge مخصوص اعلان‌ها — readBy اجتماع دو طرف، done/repeat حداکثری. */
+      if (key === 'ptf_crm_notifs') {
+        var nMap = {};
+        rem.forEach(function (item) { if (item && item.cd) nMap[item.cd] = item; });
+        loc.forEach(function (item) {
+          if (!item || !item.cd) return;
+          var ex = nMap[item.cd];
+          if (!ex) { nMap[item.cd] = item; return; }
+          var rb = {};
+          (ex.readBy || []).concat(item.readBy || []).forEach(function (u) { if (u) rb[u] = 1; });
+          ex.readBy = Object.keys(rb);
+          ex.done = !!(ex.done || item.done);
+          if ((item.repeat || 1) > (ex.repeat || 1)) { ex.repeat = item.repeat; ex.lastT = item.lastT || ex.lastT; ex.lastISO = item.lastISO || ex.lastISO; }
+        });
+        var nOut = Object.keys(nMap).map(function (k2) { return nMap[k2]; });
+        nOut.sort(function (a, b) { return String(b.iso || '').localeCompare(String(a.iso || '')); });
+        return JSON.stringify(nOut);
+      }
+
+      if (key === 'ptf_crm_fiscal_snapshots') {
+        var fiscalMap = {};
+        rem.forEach(function (item) { if (item && item.cd) fiscalMap[item.cd] = item; });
+        loc.forEach(function (item) {
+          if (!item || !item.cd) return;
+          var old = fiscalMap[item.cd];
+          if (!old) { fiscalMap[item.cd] = item; return; }
+          var lState = item.lockStateAtISO || item.unlockedAtISO || item.updatedAtISO || '';
+          var rState = old.lockStateAtISO || old.unlockedAtISO || old.updatedAtISO || '';
+          if ((lState && !rState) || (lState && rState && lState > rState)) fiscalMap[item.cd] = item;
+        });
+        return JSON.stringify(Object.keys(fiscalMap).map(function (k) { return fiscalMap[k]; }));
+      }
+      
+      var idFields = ['cd', 'no', 'id', 'code'];
+      var idF = null;
+      if (loc.length > 0) {
+        for (var i=0; i<idFields.length; i++) { if (loc[0][idFields[i]]) { idF = idFields[i]; break; } }
+      }
+      if (!idF && rem.length > 0) {
+        for (var j=0; j<idFields.length; j++) { if (rem[0][idFields[j]]) { idF = idFields[j]; break; } }
+      }
+      if (!idF) return remoteStr; // Fallback if not an array of objects with ID
+      
+      var map = {};
+      /* v31.7.26 BUG-SYNC-OSC-001: رکورد بدون فیلد شناسه (legacy/واردشده با فیلد متفاوت)
+         قبلاً در merge بی‌صدا حذف می‌شد → «کم شدن خودکار» تامین‌کنندگان/مشتریان؛ و چون
+         دستگاه دیگر هنوز داشت و push می‌کرد دوباره برمی‌گشت → نوسان. اکنون این رکوردها
+         با امضای JSON یکتا حفظ می‌شوند. */
+      var noId = [], noIdSig = {};
+      function keepNoId(item) {
+        try { var g = JSON.stringify(item); if (!noIdSig[g]) { noIdSig[g] = 1; noId.push(item); } } catch (eN) {}
+      }
+      rem.forEach(function (item) { if (item && !item[idF]) keepNoId(item); });
+      loc.forEach(function (item) { if (item && !item[idF]) keepNoId(item); });
+      rem.forEach(function (item) { if (item[idF]) map[item[idF]] = item; });
+      loc.forEach(function (item) {
+        if (!item[idF]) return;
+        if (!map[item[idF]]) {
+          // Added locally by this user, preserve it!
+          map[item[idF]] = item;
+        } else {
+          // Exists in both, pick the one with newer timestamp if available, else local
+          var lTs = item.iso || item.ts || item.t || item.date || '';
+          var rTs = map[item[idF]].iso || map[item[idF]].ts || map[item[idF]].t || map[item[idF]].date || '';
+          if (lTs > rTs) map[item[idF]] = item;
+        }
+      });
+      
+      var out = Object.values(map).concat(noId);
+      return window.ptfApplyDeletionTombstones ? window.ptfApplyDeletionTombstones(key, JSON.stringify(out)) : JSON.stringify(out);
+    } catch (e) { return remoteStr; }
+  };

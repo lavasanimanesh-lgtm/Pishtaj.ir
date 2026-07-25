@@ -1,0 +1,11 @@
+{
+  "passed": 60,
+  "failed": 1,
+  "bugs": [
+    {
+      "name": "ptfRfqCascadeDelete: مسدود برای بایگانی",
+      "severity": "HIGH",
+      "reason": "Cannot read properties of null (reading 'filter')"
+    }
+  ]
+}

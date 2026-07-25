@@ -1,0 +1,113 @@
+{
+  "passed": [
+    {
+      "case": "1.ptfProjectProfitIRR({})",
+      "desc": "اجرای موفق"
+    },
+    {
+      "case": "1.ptfProjectProfitIRR(null)",
+      "desc": "اجرای موفق"
+    },
+    {
+      "case": "1.ptfRfqCascadeScan(null)",
+      "desc": "اجرای موفق"
+    },
+    {
+      "case": "1.ptfFiscalData(null)",
+      "desc": "اجرای موفق"
+    },
+    {
+      "case": "1.ptfOppoList()",
+      "desc": "اجرای موفق"
+    },
+    {
+      "case": "1.sfStageOf(null)",
+      "desc": "اجرای موفق"
+    },
+    {
+      "case": "1.ptfPettyBalance()",
+      "desc": "اجرای موفق"
+    },
+    {
+      "case": "2.0",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.1",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.2",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.3",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.4",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.5",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.6",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.7",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "2.8",
+      "desc": "نوع صحیح"
+    },
+    {
+      "case": "3.1",
+      "desc": "۱۰۰۰ رکورد بدون crash (0 نتیجه)"
+    },
+    {
+      "case": "4.1",
+      "desc": "۵۰ فراخوانی همزمان بدون crash"
+    },
+    {
+      "case": "5.1",
+      "desc": "خروجی امن است"
+    },
+    {
+      "case": "6.1",
+      "desc": "۱۰۰۰ فراخوانی بدون crash"
+    },
+    {
+      "case": "8.1",
+      "desc": "13 ورودی امن"
+    },
+    {
+      "case": "9.1",
+      "desc": "ptfUnifiedCode تعریف نشده"
+    },
+    {
+      "case": "10.1",
+      "desc": "11 کلید سالم"
+    }
+  ],
+  "failed": [
+    {
+      "severity": "CRITICAL",
+      "case": "1.ptfSupplierScore(null)",
+      "desc": "خطا: Cannot read properties of null (reading 'spBrands')"
+    },
+    {
+      "severity": "CRITICAL",
+      "case": "1.ptfCustomerScore(null)",
+      "desc": "خطا: Cannot read properties of null (reading 'cd')"
+    },
+    {
+      "severity": "MEDIUM",
+      "case": "7.1",
+      "desc": "تکرار: 5 مورد"
+    }
+  ]
+}

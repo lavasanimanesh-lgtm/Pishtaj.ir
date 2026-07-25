@@ -1,0 +1,25 @@
+/* tester214 — v31.7.37 (ADV-TOOLS-LICENSE-001): manual license API/client */
+require('./harness');
+const fs=require('fs'), path=require('path');
+const ROOT=path.resolve(__dirname,'../..');
+const ui=fs.readFileSync(path.join(ROOT,'tools/tools-ui.js'),'utf8');
+const api=fs.readFileSync(path.join(ROOT,'api/tools.php'),'utf8');
+const ht=fs.readFileSync(path.join(ROOT,'api/.htaccess'),'utf8');
+const sample=fs.readFileSync(path.join(ROOT,'api/tool-licenses.sample.json'),'utf8');
+SECTION('Server manual license API');
+T('api/tools.php اضافه شده و status/license_check/grant_verify دارد',api.indexOf('PTF Public Tools API')>-1&&api.indexOf("$action === 'license_check'")>-1&&api.indexOf("$action === 'grant_verify'")>-1);
+T('api/tools.php در htaccess whitelist شده است',ht.indexOf('|tools|')>-1||ht.indexOf('|tools)')>-1||ht.indexOf('tech-proposal-docx|tools|secrets')>-1);
+T('لایسنس با HMAC و secret سمت سرور hash می‌شود',api.indexOf('tools_token_hash')>-1&&api.indexOf("hash_hmac('sha256'")>-1&&api.indexOf('tools_license_key')>-1);
+T('license_check بدون store config خطای کنترل‌شده می‌دهد',api.indexOf('license_store_not_configured')>-1);
+T('خروجی license_check grant کوتاه‌مدت می‌دهد و خروجی safe دارد',api.indexOf('tools_make_grant')>-1&&api.indexOf("'grant'")>-1&&api.indexOf('tools_safe_license')>-1);
+T('rate limit برای license_check وجود دارد',api.indexOf('tools_rate_limit')>-1&&api.indexOf('rate_limit')>-1);
+T('فایل نمونه لایسنس بدون کد خام واقعی وجود دارد',sample.indexOf('REPLACE_WITH_HMAC_SHA256')>-1&&sample.indexOf('LIC-CV-SAMPLE')>-1);
+SECTION('Client unlock path');
+T('tools-ui مسیر API و session grant دارد',ui.indexOf("LICENSE_API = '../api/tools.php'")>-1&&ui.indexOf("GRANT_KEY = 'ptf_tools_license_grant'")>-1);
+T('ptfToolsCheckLicense کد را به license_check می‌فرستد',ui.indexOf('function ptfToolsCheckLicense')>-1&&ui.indexOf('action=license_check')>-1&&ui.indexOf('license_code')>-1);
+T('paywall ورودی کد فعال‌سازی و دکمه بررسی دارد',ui.indexOf('ptfToolsLicenseCode')>-1&&ui.indexOf('ptfToolsLicenseBtn')>-1&&ui.indexOf('بررسی و فعال‌سازی')>-1);
+T('موفقیت/شکست فعال‌سازی event دارد',ui.indexOf('tools_license_check_success')>-1&&ui.indexOf('tools_license_check_fail')>-1);
+T('exportPdf فقط با grant معتبر exportPdfPaid را اجرا می‌کند',/function exportPdf\(\)[\s\S]{0,260}ptfToolsHasGrant\('control_valve_advanced'\)[\s\S]{0,100}exportPdfPaid\(\)/.test(ui));
+T('بدون grant همچنان paywall باز می‌شود',/function exportPdf\(\)[\s\S]{0,420}ptfToolsPaywall/.test(ui));
+T('گزارش PDF paid برچسب LICENSED REPORT دارد',ui.indexOf('LICENSED REPORT')>-1&&ui.indexOf('function exportPdfPaid')>-1);
+DONE('tester214-tools-manual-license');

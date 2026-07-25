@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Force Restore - PTF CRM</title>
+<style>
+  body{font-family:Tahoma,sans-serif;max-width:800px;margin:30px auto;padding:20px;line-height:1.8;background:#f8fafc;color:#1e293b}
+  h1{color:#dc2626}
+  .card{background:#fff;border:1px solid #cbd5e1;border-radius:14px;padding:18px;margin-top:18px}
+  .warn{background:#fef3c7;border:1px solid #fbbf24;padding:15px;border-radius:10px;margin-bottom:15px;color:#92400e}
+  .err{background:#fee2e2;border:1px solid #f87171;padding:15px;border-radius:10px;margin-bottom:15px;color:#991b1b}
+  .ok{background:#d1fae5;border:1px solid #34d399;padding:15px;border-radius:10px;margin-bottom:15px;color:#065f46}
+  button{background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px 24px;font-size:14px;cursor:pointer;font-family:inherit;margin:4px}
+  button.danger{background:#dc2626}
+  pre{background:#f1f5f9;padding:10px;border-radius:8px;overflow-x:auto;font-size:12px;direction:ltr;max-height:400px;overflow-y:auto}
+</style>
+</head>
+<body>
+
+<h1>🚨 Force Restore - حالت اضطراری</h1>
+
+<div class="warn">
+  <b>⚠️ هشدار:</b> این صفحه فقط برای مواقع اضطراری است. استفاده نادرست می‌تواند داده‌ها را از بین ببرد.
+</div>
+
+<div class="card">
+  <h2>مرحله ۱: بررسی وضعیت</h2>
+  <button onclick="checkStatus()">🔍 بررسی وضعیت Token و Server</button>
+  <div id="statusResult"></div>
+</div>
+
+<div class="card">
+  <h2>مرحله ۲: Force Pull از Server</h2>
+  <button onclick="forcePullAll()">⬇️ Force Pull - بازیابی تمام داده‌ها</button>
+  <button onclick="forcePullRfqs()">⬇️ فقط RFQها</button>
+  <button onclick="forcePullCustomers()">⬇️ فقط مشتریان</button>
+  <div id="pullResult"></div>
+</div>
+
+<div class="card">
+  <h2>مرحله ۳: بررسی Backupها</h2>
+  <button onclick="listBackups()">📦 لیست Backupها</button>
+  <div id="backupList"></div>
+</div>
+
+<div class="card">
+  <h2>مرحله ۴: Restore از Backup</h2>
+  <div class="warn">
+    <b>⚠️ هشدار:</b> این کار تمام داده‌های فعلی را با داده‌های Backup جایگزین می‌کند.
+  </div>
+  <button class="danger" onclick="restoreFromBackup()">🔄 Restore آخرین Backup</button>
+  <div id="restoreResult"></div>
+</div>
+
+<script>
+var API = '../api/crm.php';
+
+function getToken() {
+  return localStorage.getItem('ptf_crm_token');
+}
+
+function getRole() {
+  try {
+    var token = getToken();
+    if (!token) return null;
+    var parts = atob(token).split('|');
+    return parts[1] || null;
+  } catch(e) { return null; }
+}
+
+function checkStatus() {
+  var token = getToken();
+  var role = getRole();
+  var rev = localStorage.getItem('ptf_sync_rev') || '0';
+  
+  var html = '<h3>📊 وضعیت فعلی:</h3>';
+  html += '<table border="1" cellpadding="8" style="width:100%;border-collapse:collapse">';
+  html += '<tr><th>معیار</th><th>مقدار</th></tr>';
+  html += '<tr><td>Token</td><td>' + (token ? '<span style="color:green">✅ موجود</span>' : '<span style="color:red">❌ موجود نیست</span>') + '</td></tr>';
+  html += '<tr><td>Role</td><td>' + (role ? '<b>' + role + '</b>' : '<span style="color:red">❌ قابل استخراج نیست</span>') + '</td></tr>';
+  html += '<tr><td>Global Rev</td><td><b>' + rev + '</b></td></tr>';
+  html += '<tr><td>User</td><td>' + (JSON.parse(localStorage.getItem('ptf_crm_session') || '{}').user || '❌') + '</td></tr>';
+  html += '</table>';
+  
+  // بررسی تعداد رکوردها
+  var counts = {};
+  ['ptf_crm_rfqs', 'ptf_crm_customers', 'ptf_crm_offers'].forEach(function(k) {
+    try {
+      var data = JSON.parse(localStorage.getItem(k) || '[]');
+      counts[k] = data.length;
+    } catch(e) { counts[k] = 0; }
+  });
+  
+  html += '<h3>📦 تعداد رکوردها:</h3>';
+  html += '<table border="1" cellpadding="8" style="width:100%;border-collapse:collapse">';
+  html += '<tr><th>کلید</th><th>تعداد</th></tr>';
+  Object.keys(counts).forEach(function(k) {
+    html += '<tr><td>' + k + '</td><td>' + counts[k] + '</td></tr>';
+  });
+  html += '</table>';
+  
+  if (!token) {
+    html += '<div class="err"><b>❌ مشکل:</b> Token موجود نیست. ابتدا Login کنید.</div>';
+  }
+  
+  document.getElementById('statusResult').innerHTML = html;
+}
+
+function forcePullAll() {
+  forcePull(null, 'pullResult');
+}
+
+function forcePullRfqs() {
+  forcePull('ptf_crm_rfqs', 'pullResult');
+}
+
+function forcePullCustomers() {
+  forcePull('ptf_crm_customers', 'pullResult');
+}
+
+function forcePull(key, resultDiv) {
+  var token = getToken();
+  if (!token) {
+    document.getElementById(resultDiv).innerHTML = '<div class="err">❌ Token موجود نیست. ابتدا Login کنید.</div>';
+    return;
+  }
+  
+  document.getElementById(resultDiv).innerHTML = '<p>⏳ در حال Force Pull...</p>';
+  
+  fetch(API + '?action=data_pull&since=0', {
+    headers: { 'X-CRM-Token': token }
+  })
+  .then(function(r) {
+    if (!r.ok) {
+      return r.text().then(function(text) {
+        throw new Error('HTTP ' + r.status + ': ' + text.substring(0, 200));
+      });
+    }
+    return r.json();
+  })
+  .then(function(d) {
+    if (!d.ok) {
+      document.getElementById(resultDiv).innerHTML = '<div class="err">❌ خطا: ' + (d.error || 'Unknown') + '</div>';
+      return;
+    }
+    
+    if (key) {
+      if (d.data[key]) {
+        localStorage.setItem(key, d.data[key]);
+        var count = 0;
+        try { count = JSON.parse(d.data[key]).length; } catch(e) {}
+        document.getElementById(resultDiv).innerHTML = '<div class="ok">✅ ' + key + ' بازیابی شد (' + count + ' رکورد)</div>';
+      } else {
+        document.getElementById(resultDiv).innerHTML = '<div class="err">❌ ' + key + ' در Server نیست</div>';
+      }
+    } else {
+      var count = 0;
+      Object.keys(d.data || {}).forEach(function(k) {
+        localStorage.setItem(k, d.data[k]);
+        count++;
+      });
+      localStorage.setItem('ptf_sync_rev', d.rev);
+      document.getElementById(resultDiv).innerHTML = '<div class="ok">✅ ' + count + ' کلید بازیابی شدند</div>';
+    }
+  })
+  .catch(function(e) {
+    document.getElementById(resultDiv).innerHTML = '<div class="err">❌ خطا: ' + e.message + '</div>';
+  });
+}
+
+function listBackups() {
+  var token = getToken();
+  if (!token) {
+    document.getElementById('backupList').innerHTML = '<div class="err">❌ Token موجود نیست</div>';
+    return;
+  }
+  
+  document.getElementById('backupList').innerHTML = '<p>⏳ در حال لیست Backupها...</p>';
+  
+  fetch(API + '?action=list_backups', {
+    headers: { 'X-CRM-Token': token }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok) {
+      document.getElementById('backupList').innerHTML = '<div class="err">❌ خطا: ' + (d.error || 'Unknown') + '</div>';
+      return;
+    }
+    
+    var backups = d.backups || [];
+    if (backups.length === 0) {
+      document.getElementById('backupList').innerHTML = '<div class="warn">⚠️ هیچ Backupی یافت نشد</div>';
+      return;
+    }
+    
+    var html = '<h3>📦 Backupهای موجود:</h3>';
+    html += '<table border="1" cellpadding="8" style="width:100%;border-collapse:collapse">';
+    html += '<tr><th>نام</th><th>حجم</th><th>زمان</th></tr>';
+    backups.forEach(function(b) {
+      html += '<tr><td><b>' + b.name + '</b></td><td>' + (b.size / 1024).toFixed(1) + ' KB</td><td>' + b.t + '</td></tr>';
+    });
+    html += '</table>';
+    html += '<div class="ok">✅ ' + backups.length + ' Backup یافت شد</div>';
+    
+    document.getElementById('backupList').innerHTML = html;
+  })
+  .catch(function(e) {
+    document.getElementById('backupList').innerHTML = '<div class="err">❌ خطا: ' + e.message + '</div>';
+  });
+}
+
+function restoreFromBackup() {
+  if (!confirm('⚠️ آیا مطمئن هستید؟ این کار تمام داده‌های فعلی را با آخرین Backup جایگزین می‌کند.')) {
+    return;
+  }
+  
+  document.getElementById('restoreResult').innerHTML = '<div class="warn">⏳ در حال Restore...</div>';
+  
+  fetch(API + '?action=list_backups', {
+    headers: { 'X-CRM-Token': getToken() }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (!d.ok || !d.backups || d.backups.length === 0) {
+      document.getElementById('restoreResult').innerHTML = '<div class="err">❌ هیچ Backupی یافت نشد</div>';
+      return;
+    }
+    
+    var latest = d.backups[0];
+    document.getElementById('restoreResult').innerHTML = '<div class="warn">⏳ در حال دانلود ' + latest.name + '...</div>';
+    
+    return fetch(API + '?action=get_backup&name=' + latest.name, {
+      headers: { 'X-CRM-Token': getToken() }
+    }).then(function(r) { return r.text(); });
+  })
+  .then(function(text) {
+    if (!text) return;
+    
+    try {
+      var backup = JSON.parse(text);
+      if (!backup.data) {
+        document.getElementById('restoreResult').innerHTML = '<div class="err">❌ ساختار Backup نامعتبر است</div>';
+        return;
+      }
+      
+      Object.keys(backup.data).forEach(function(k) {
+        localStorage.setItem(k, JSON.stringify(backup.data[k]));
+      });
+      
+      document.getElementById('restoreResult').innerHTML = '<div class="ok">✅ Backup Restore شد. صفحه را refresh کنید.</div>';
+    } catch(e) {
+      document.getElementById('restoreResult').innerHTML = '<div class="err">❌ خطا در parse Backup: ' + e.message + '</div>';
+    }
+  })
+  .catch(function(e) {
+    document.getElementById('restoreResult').innerHTML = '<div class="err">❌ خطا: ' + e.message + '</div>';
+  });
+}
+
+// Auto check on load
+setTimeout(checkStatus, 500);
+</script>
+
+</body>
+</html>

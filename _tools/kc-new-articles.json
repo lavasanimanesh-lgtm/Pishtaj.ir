@@ -1,0 +1,890 @@
+[
+ {
+  "t": "راهنمای کامل مبدل‌های حرارتی هوایی (Air Cooled)",
+  "u": "kc-air-cooled.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "مبدل هوایی Air Cooled Fin Fan خنک‌کاری"
+ },
+ {
+  "t": "راهنمای کامل کمپرسورهای رفت و برگشتی API 618",
+  "u": "kc-api-618.html",
+  "c": "pump",
+  "cat": "پمپ و کمپرسور",
+  "img": "../assets/images/real/pumps-industrial.jpeg",
+  "desc": "کمپرسور رفت و برگشتی API 618 گاز"
+ },
+ {
+  "t": "راهنمای کامل ارزیابی و تایید صلاحیت تامین‌کنندگان",
+  "u": "c-059ab953.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "ارزیابی تامین‌کننده Vendor Audit AVL صلاحیت"
+ },
+ {
+  "t": "راهنمای کامل لوله‌های جوشی ERW و HFW",
+  "u": "kc-erw-hfw.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "ERW HFW لوله درزدار جوش طولی"
+ },
+ {
+  "t": "راهنمای کامل لوله‌های اسپیرال (SAWH)",
+  "u": "kc-sawh.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "لوله اسپیرال حلزونی جوش مارپیچ قطر بالا"
+ },
+ {
+  "t": "راهنمای کامل تابلوهای PLC و اتوماسیون صنعتی",
+  "u": "kc-plc.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "PLC اتوماسیون صنعتی تابلو کنترل Siemens Allen Bradley"
+ },
+ {
+  "t": "راهنمای کامل پمپ‌های سانتریفیوژ فرایندی API 610",
+  "u": "kc-api-610.html",
+  "c": "pump",
+  "cat": "پمپ و کمپرسور",
+  "img": "../assets/images/real/pumps-industrial.jpeg",
+  "desc": "پمپ سانتریفیوژ API 610 فرایندی OH2 BB2"
+ },
+ {
+  "t": "راهنمای کامل اتصالات جوشی فیتینگ — زانو، سه راهی، تبدیل",
+  "u": "c-369fd340.html",
+  "c": "fitting",
+  "cat": "فلنج و اتصالات",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "زانو Elbow سه راهی Tee تبدیل Reducer ASME B16.9"
+ },
+ {
+  "t": "راهنمای کامل کابل‌های قدرت صنعتی — انتخاب و محاسبه سطح مقطع",
+  "u": "c-4052bc8a.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "کابل قدرت صنعتی سطح مقطع جریان مجاز IEC"
+ },
+ {
+  "t": "راهنمای کامل لوله‌های استینلس استیل 304 و 316",
+  "u": "kc-304-316.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "لوله استینلس 304 316 A312 خوردگی"
+ },
+ {
+  "t": "راهنمای کامل پمپ‌های رفت و برگشتی (Reciprocating Pump)",
+  "u": "kc-reciprocating-pump.html",
+  "c": "pump",
+  "cat": "پمپ و کمپرسور",
+  "img": "../assets/images/real/pumps-industrial.jpeg",
+  "desc": "پمپ رفت و برگشتی پیستونی دیافراگمی API 674"
+ },
+ {
+  "t": "راهنمای کامل لوله‌های آلیاژی کروم-مولیبدن A335",
+  "u": "kc-a335.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "A335 P11 P22 P91 کروم مولیبدن لوله آلیاژی"
+ },
+ {
+  "t": "راهنمای کامل لودسل (Load Cell) و سیستم توزین صنعتی",
+  "u": "kc-load-cell.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "لودسل توزین صنعتی Weigh Bridge باسکول"
+ },
+ {
+  "t": "راهنمای کامل ترانسمیتر فشار — انواع Gauge, Absolute, Differential",
+  "u": "kc-gauge-absolute-differential.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "ترانسمیتر فشار Gauge Absolute Differential DPT"
+ },
+ {
+  "t": "راهنمای کامل ترانسفورماتورهای جریان (CT) و ولتاژ (PT)",
+  "u": "kc-ct-pt.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "CT PT ترانسفورماتور جریان ولتاژ اندازه‌گیری حفاظت"
+ },
+ {
+  "t": "راهنمای کامل پروتکل‌های ارتباطی ابزار دقیق",
+  "u": "c-b15a36c7.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "HART Fieldbus Profibus Foundation Fieldbus ابزار دقیق"
+ },
+ {
+  "t": "راهنمای کامل گیج فشار (Pressure Gauge) — انواع و کالیبراسیون",
+  "u": "kc-pressure-gauge.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "گیج فشار بورودون دیافراگمی کپسولی ASME B40.100"
+ },
+ {
+  "t": "راهنمای کامل مدیریت سفارشات خرید (Purchase Order Management)",
+  "u": "kc-purchase-order-management.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "مدیریت سفارش خرید PO ERP تامین کالا"
+ },
+ {
+  "t": "راهنمای کامل شیرهای Globe Valve — انواع Z-Type و Y-Type",
+  "u": "kc-globe-valve-type-type.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "Globe Valve Z-Type Y-Type API 623"
+ },
+ {
+  "t": "راهنمای کامل شیرهای Butterfly Valve — انواع Offset",
+  "u": "kc-butterfly-valve-offset.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "Butterfly Valve Concentric Double Offset Triple Offset"
+ },
+ {
+  "t": "راهنمای کامل لوله‌های بدون درز API 5L PSL1 و PSL2",
+  "u": "kc-api-5l-psl1-psl2.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "API 5L PSL1 PSL2 لوله خطوط انتقال نفت و گاز"
+ },
+ {
+  "t": "راهنمای کامل گسکت Spiral Wound و Kammprofile",
+  "u": "kc-spiral-wound-kammprofile.html",
+  "c": "gasket",
+  "cat": "گسکت و آب‌بندی",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "گسکت Spiral Wound Kammprofile فلنجینگ"
+ },
+ {
+  "t": "راهنمای کامل مبدل‌های حرارتی Shell & Tube",
+  "u": "kc-shell-tube.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "مبدل حرارتی Shell & Tube TEMA ASME VIII"
+ },
+ {
+  "t": "راهنمای کامل شیرهای Ball Valve — ساقه و محرک",
+  "u": "kc-ball-valve.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "Ball Valve Floating Trunnion API 6D Actuator"
+ },
+ {
+  "t": "راهنمای کامل شیرهای Gate Valve — انواع Wedge و Parallel Slide",
+  "u": "kc-gate-valve-wedge-parallel-slide.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "Gate Valve Wedge Parallel Slide API 600"
+ },
+ {
+  "t": "راهنمای کامل کمپرسورهای سانتریفیوژ API 617",
+  "u": "kc-api-617.html",
+  "c": "pump",
+  "cat": "پمپ و کمپرسور",
+  "img": "../assets/images/real/pumps-industrial.jpeg",
+  "desc": "کمپرسور سانتریفیوژ API 617 گاز فرایندی"
+ },
+ {
+  "t": "راهنمای کامل مشخصات فنی لوله ASTM A106 Gr.B",
+  "u": "kc-astm-a106-gr.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "مشخصات لوله A106 Gr.B کربن استیل بدون درز"
+ },
+ {
+  "t": "راهنمای کامل سیستم آتش‌نشان و اعلام حریق صنعتی",
+  "u": "k-114d49d9.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "اعلام حریق NFPA 72 دتکتور دود گاز شعله"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات تست و راه‌اندازی (Commissioning) پروژه‌های صنعتی",
+  "u": "kc-commissioning.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تست راه اندازی Commissioning Pre-Commissioning پروژه"
+ },
+ {
+  "t": "راهنمای کامل فلنج‌های فشار قوی Class 900 تا Class 2500",
+  "u": "kc-class-900-class-2500.html",
+  "c": "fitting",
+  "cat": "فلنج و اتصالات",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "فلنج فشار قوی Class 900 1500 2500 ASME B16.5"
+ },
+ {
+  "t": "راهنمای کامل سیستم گرمایش الکتریکی (Heat Tracing) لوله",
+  "u": "kc-heat-tracing.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "Heat Tracing گرمایش الکتریکی لوله بخار تریسینگ"
+ },
+ {
+  "t": "راهنمای کامل تست نشتی شیرآلات — API 598 و ISO 5208",
+  "u": "kc-api-598-iso-5208.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "تست نشتی شیر API 598 ISO 5208 نشیمنگاه"
+ },
+ {
+  "t": "راهنمای کامل سیستم ذخیره‌سازی نفت خام و فرآورده‌های نفتی",
+  "u": "k-43594446.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "مخازن ذخیره نفت API 650 Floating Roof Cone Roof"
+ },
+ {
+  "t": "راهنمای کامل سیستم دوربین مداربسته صنعتی (CCTV)",
+  "u": "kc-cctv.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "دوربین مداربسته صنعتی CCTV IP آنالوگ حفاظت"
+ },
+ {
+  "t": "راهنمای کامل انتخاب شیر بر اساس نوع سیال — آب، بخار، گاز، اسید، دوغاب",
+  "u": "k-5b7b7133.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "انتخاب شیر بر اساس سیال آب بخار گاز اسید دوغاب"
+ },
+ {
+  "t": "راهنمای کامل سیستم اطفاء حریق صنعتی — FM200, CO2, Foam, Water",
+  "u": "kc-fm200-co2-foam-water.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "اطفاء حریق FM200 CO2 فوم اسپرینکلر NFPA"
+ },
+ {
+  "t": "راهنمای کامل اتاق کنترل صنعتی — تجهیزات و استانداردها",
+  "u": "k-6e8b98ec.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "اتاق کنترل Control Room HMI اپراتور"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات پایانه‌های صادراتی نفت و گاز",
+  "u": "k-6fbdeecf.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "پایانه صادراتی نفت گاز اسکله بارگیری شناور"
+ },
+ {
+  "t": "راهنمای کامل گواهینامه‌های فنی و صلاحیت تامین‌کنندگان",
+  "u": "k-78c21e5e.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "گواهینامه ISO 9001 14001 45001 29001 تامین"
+ },
+ {
+  "t": "راهنمای کامل شیرهای برقگیر و شیرهای قطع اضطراری",
+  "u": "k-b8b2ade9.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "شیر قطع اضطراری ESD Valve Emergency Shut Down"
+ },
+ {
+  "t": "راهنمای کامل انتخاب محرک (Actuator) برای شیرآلات",
+  "u": "kc-actuator.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "محرک Actuator پنوماتیک الکتریکی هیدرولیک شیر"
+ },
+ {
+  "t": "راهنمای کامل سیستم اعلام سرقت و کنترل دسترسی صنعتی",
+  "u": "k-c3feece0.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "کنترل دسترسی Access Control RFID کارت"
+ },
+ {
+  "t": "راهنمای کامل عایق‌کاری حرارتی لوله‌های صنعتی",
+  "u": "k-cea4f68b.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "عایق حرارتی پشم سنگ الاستومری پلی اورتان لوله"
+ },
+ {
+  "t": "راهنمای کامل کانال‌های کابل و سینی کابل صنعتی",
+  "u": "k-d3ca6244.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "سینی کابل Cable Tray Ladder کانال کابل صنعتی"
+ },
+ {
+  "t": "راهنمای کامل واشر (Washer) در اتصالات صنعتی",
+  "u": "kc-washer.html",
+  "c": "fitting",
+  "cat": "فلنج و اتصالات",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "واشر Washer فنری تخت DIN ASME پیچ مهره"
+ },
+ {
+  "t": "راهنمای کامل بازاریابی بین‌المللی در صنایع نفت و گاز",
+  "u": "k-edd8b9af.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "بازاریابی صنعتی B2B بین المللی نفت گاز تامین"
+ },
+ {
+  "t": "راهنمای کامل سازه فلزی و ساپورت لوله در خطوط لوله کشی صنعتی",
+  "u": "k-eedd2e06.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "ساپورت لوله Pipe Support سازه فلزی پایپینگ"
+ },
+ {
+  "t": "راهنمای کامل مدیریت پروژه در تامین تجهیزات صنعتی",
+  "u": "k-f157c607.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "مدیریت پروژه تامین تجهیزات PMP EPC زنجیره تامین"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات خطوط انتقال گاز (NGL Recovery)",
+  "u": "kc-ngl-recovery.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "NGL بازیابی مایعات گازی کمپرسور برج جداسازی"
+ },
+ {
+  "t": "راهنمای کامل صادرات تجهیزات صنعتی به بازارهای بین‌المللی",
+  "u": "k-ffd298e6.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "صادرات تجهیزات صنعتی بین المللی ارزی گمرک"
+ },
+ {
+  "t": "راهنمای کامل سیستم هوای فشرده صنعتی",
+  "u": "z-0320bdc9.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "هوای فشرده کمپرسور Dryer فیلتر Instrument Air"
+ },
+ {
+  "t": "راهنمای کامل شیرهای کنترل هیدرولیک",
+  "u": "z-0b758a57.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "شیر کنترل هیدرولیک Actuator فشار بالا"
+ },
+ {
+  "t": "راهنمای کامل سیستم تهویه صنعتی (HVAC) و فن‌های صنعتی",
+  "u": "kc-hvac.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "HVAC تهویه صنعتی فن اگزاست هواساز صنعتی"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات حمل و نقل و جابجایی مواد صنعتی",
+  "u": "z-16aeeb93.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "جرثقیل بالابر لیفتراک نوار نقاله صنعتی"
+ },
+ {
+  "t": "راهنمای کامل سیستم روغن‌کاری صنعتی (Lubrication System)",
+  "u": "kc-lubrication-system.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "روغنکاری صنعتی Lubrication گریس پمپ روغن"
+ },
+ {
+  "t": "راهنمای کامل سیستم گازرسانی صنعتی (Nitrogen, Air, Natural Gas)",
+  "u": "kc-nitrogen-air-natural-gas.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "گازرسانی صنعتی نیتروژن هوای فشرده گاز طبیعی"
+ },
+ {
+  "t": "راهنمای کامل سیستم روشنایی صنعتی — LED صنعتی و ضد انفجار",
+  "u": "kc-led.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "روشنایی صنعتی LED ضد انفجار Ex-proof لوکس"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات نمک‌زدایی نفت خام (Desalter)",
+  "u": "kc-desalter.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "نمک زدایی Desalter نفت خام الکترواستاتیک شستشو"
+ },
+ {
+  "t": "راهنمای کامل سیستم مدیریت ایمنی (HSE) در صنایع فرایندی",
+  "u": "kc-hse.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "HSE ایمنی بهداشت محیط زیست صنعتی ISO 45001"
+ },
+ {
+  "t": "راهنمای کامل سیستم تزریق مواد شیمیایی (Chemical Injection)",
+  "u": "kc-chemical-injection.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تزریق مواد شیمیایی Chemical Injection پمپ Metering"
+ },
+ {
+  "t": "راهنمای کامل شیرهای کنترل پنوماتیک و الکتروپنوماتیک",
+  "u": "z-653c9058.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "شیر کنترل پنوماتیک الکتروپنوماتیک I/P Positioner"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات گوگردزدا (Sulfur Recovery Unit - SRU)",
+  "u": "kc-sulfur-recovery-unit-sru.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "گوگرد زدایی SRU Claus گوگرد فرآوری"
+ },
+ {
+  "t": "راهنمای کامل انبارداری و مدیریت موجودی قطعات یدکی صنعتی",
+  "u": "z-81f77cc9.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "انبارداری صنعتی موجودی قطعات یدکی انبار MRO"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات آزمایشگاهی صنعتی",
+  "u": "z-85401d51.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "آزمایشگاه صنعتی تجهیزات تست رطوبت دما کالیبراسیون"
+ },
+ {
+  "t": "راهنمای کامل کابل‌های ابزار دقیق و کنترل صنعتی",
+  "u": "z-95579eef.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "کابل ابزار دقیق Instrument Cable زره دار Screen"
+ },
+ {
+  "t": "راهنمای کامل آموزش و توانمندسازی پرسنل فنی صنعتی",
+  "u": "z-a0721288.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "آموزش پرسنل فنی صنعتی توانمندسازی استاندارد"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات واحد بازیافت گوگرد (Sulfur Recovery)",
+  "u": "kc-sulfur-recovery.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "گوگرد Claus SRU بازیافت کاتالیست پالایشگاه"
+ },
+ {
+  "t": "راهنمای کامل سیستم اتوماسیون ساختمان (BMS) صنعتی",
+  "u": "kc-bms.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "BMS اتوماسیون ساختمان HVAC روشنایی کنترل"
+ },
+ {
+  "t": "راهنمای کامل مشخصات فنی ورق‌های فولادی صنعتی",
+  "u": "z-bdd0a52f.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "ورق فولادی ST37 ST52 هاش نرمال"
+ },
+ {
+  "t": "راهنمای کامل سیستم آب خنک‌کننده صنعتی (Cooling Water)",
+  "u": "kc-cooling-water.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "آب خنک کن Cooling Tower برج خنک کننده پمپ"
+ },
+ {
+  "t": "راهنمای کامل مشخصات فنی تیرآهن و میلگرد صنعتی",
+  "u": "z-d0063fcd.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "تیرآهن IPE INP میلگرد فولاد"
+ },
+ {
+  "t": "راهنمای کامل سیستم اتصال به زمین (Earthing) پست‌های برق",
+  "u": "kc-earthing.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "ارتینگ Earthing پست برق مقاومت زمین IEEE 80"
+ },
+ {
+  "t": "راهنمای کامل نگهداری و تعمیرات (PM) تجهیزات صنعتی",
+  "u": "kc-pm.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "نگهداری و تعمیرات PM پیشگیرانه تجهیزات صنعتی"
+ },
+ {
+  "t": "راهنمای کامل مدیریت انرژی در صنایع نفت و گاز",
+  "u": "z-ef76567b.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "مدیریت انرژی بهینه سازی مصرف صنعتی ISO 50001"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات شیرین‌سازی گاز (Gas Sweetening - Amine)",
+  "u": "kc-gas-sweetening-amine.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "شیرین سازی گاز آمین Amine H2S CO2 حذف"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات کراکینگ کاتالیستی (FCC Unit)",
+  "u": "kc-fcc-unit.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "FCC کراکینگ کاتالیستی پالایشگاه راکتور ریجنراتور"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات آب‌گیری گاز (Gas Dehydration - TEG)",
+  "u": "kc-gas-dehydration-teg.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "آب زدایی گاز TEG گلیکول دی هیدراتاسیون"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات حفاظت فردی (PPE) صنعتی",
+  "u": "kc-ppe.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "PPE حفاظت فردی کلاه عینک دستکش کفش ایمنی"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات فلر و مشعل صنعتی",
+  "u": "z-fe99473f.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "فلر مشعل Flare Stack پالایشگاه گاز سوزی"
+ },
+ {
+  "t": "راهنمای کامل سیستم DCS در صنایع فرایندی",
+  "u": "kc-dcs.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "DCS, Distributed Control System, PLC, Emerson, Yokogawa"
+ },
+ {
+  "t": "راهنمای کامل سیستم ESD و Fire & Gas (F&G)",
+  "u": "kc-esd-fire-gas.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "ESD, Emergency Shutdown, Fire and Gas, SIL, NFPA 72"
+ },
+ {
+  "t": "راهنمای کامل فلومترهای صنعتی — ۱۰ روش اندازه‌گیری دبی",
+  "u": "ابزار دقیق-a285accb.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "فلومتر کوریولیس, مغناطیسی, اولتراسونیک, ورتکس, Orifice"
+ },
+ {
+  "t": "راهنمای کامل سنسورهای دما — RTD, Thermocouple, Thermistor",
+  "u": "kc-rtd-thermocouple-thermistor.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "اندازه‌گیری دما, Pt100, Type K, RTD, ترموکوپل, کالیبراسیون"
+ },
+ {
+  "t": "راهنمای کامل آنالایزرهای فرآیندی — GC, pH, O2, H2S",
+  "u": "kc-gc-ph-o2-h2s.html",
+  "c": "inst",
+  "cat": "ابزار دقیق",
+  "img": "../assets/images/real/instrumentation-equipment.jpeg",
+  "desc": "Gas Chromatograph, آنالایزر اکسیژن, H2S, pH متر"
+ },
+ {
+  "t": "راهنمای کامل برقگیر و سیستم حفاظت در برابر صاعقه صنعتی",
+  "u": "برق صنعتی-28ceb600.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "برقگیر, صاعقه گیر, ارتینگ, MOV, حفاظت کاتدی"
+ },
+ {
+  "t": "راهنمای کامل درایو VFD — نصب، پارامترگذاری و عیب‌یابی",
+  "u": "kc-vfd.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "VFD, اینورتر, درایو فرکانس متغیر, کنترل موتور, هارمونیک"
+ },
+ {
+  "t": "راهنمای کامل تابلوهای برق فشار متوسط (MV Switchgear)",
+  "u": "kc-mv-switchgear.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "تابلو MV, کلید SF6, VCB, رله حفاظتی, IEC 62271"
+ },
+ {
+  "t": "راهنمای کامل سیستم UPS و باتری صنعتی — انتخاب و نگهداری",
+  "u": "kc-ups.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "UPS آنلاین, آفلاین, باتری NiCd, Li-ion, نگهداری"
+ },
+ {
+  "t": "راهنمای کامل رله‌های حفاظتی در تابلو برق — ANSI 50, 51, 87, 21",
+  "u": "kc-ansi-50-51-87-21.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "رله حفاظتی جریان زیاد, دیفرانسیل, فاصله یاب, ANSI/IEEE C37"
+ },
+ {
+  "t": "راهنمای کامل ترخیص گمرکی کالاهای صنعتی",
+  "u": "تامین و کیفیت-59eb4259.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "ترخیص کالا, گمرک, HS Code, تعرفه, مجوز"
+ },
+ {
+  "t": "راهنمای کامل اینکوترمز (Incoterms) 2024 در تامین تجهیزات صنعتی",
+  "u": "kc-incoterms-2024.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "Incoterms 2024, EXW, FOB, CIF, DDP, تجارت صنعتی"
+ },
+ {
+  "t": "راهنمای کامل قراردادهای تامین بین‌المللی تجهیزات صنعتی",
+  "u": "تامین و کیفیت-df31366c.html",
+  "c": "proc",
+  "cat": "تامین و زنجیره خرید",
+  "img": "../assets/images/real/cement-plant.jpeg",
+  "desc": "قرارداد تامین, LC, ضمانتنامه, گارانتی, داوری"
+ },
+ {
+  "t": "راهنمای کامل شیرهای صنعتی استینلس استیل — CF8, CF8M, CF3M",
+  "u": "kc-cf8-cf8m-cf3m.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "شیر استینلس, CF8, CF8M, خوردگی, 316, 304"
+ },
+ {
+  "t": "راهنمای کامل شیرهای دوغاب (Slurry Valves)",
+  "u": "kc-slurry-valves.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "Knife Gate, Pinch Valve, دوغاب, پودر, ساینده"
+ },
+ {
+  "t": "راهنمای کامل شیرهای کنترل — انواع، Cv و انتخاب Actuator",
+  "u": "kc-cv-actuator.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "Control Valve, IEC 60534, Cv, Actuator, Positioner"
+ },
+ {
+  "t": "راهنمای کامل شیرهای اطمینان (PSV) — انواع، سایزینگ و نصب",
+  "u": "kc-psv.html",
+  "c": "valve",
+  "cat": "شیرآلات صنعتی",
+  "img": "../assets/images/real/compressors-industrial.jpeg",
+  "desc": "Safety Valve, Relief Valve, PSV, PRV, API 520, API 526"
+ },
+ {
+  "t": "راهنمای کامل ابعاد لوله‌های صنعتی — NPS, DN, Schedule, OD, WT",
+  "u": "kc-nps-dn-schedule-od-wt.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "ابعاد لوله NPS, DN, Schedule, ASME B36.10, قطر خارجی"
+ },
+ {
+  "t": "راهنمای کامل تست‌های غیرمخرب (NDT) در پایپینگ",
+  "u": "kc-ndt.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "NDT, UT, RT, MT, PT, بازرسی, استاندارد ASTM"
+ },
+ {
+  "t": "راهنمای کامل سیستم تصفیه آب و پساب صنعتی",
+  "u": "کاربردهای صنعتی-0ab63dcd.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تجهیزات تصفیه آب صنعتی, RO, دیونایزر, فیلتراسیون, پمپ"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات نیروگاه حرارتی — بویلر، توربین و تجهیزات جانبی",
+  "u": "کاربردهای صنعتی-0f3bd353.html",
+  "c": "elec",
+  "cat": "برق صنعتی",
+  "img": "../assets/images/real/electrical-switchgear.jpeg",
+  "desc": "تجهیزات نیروگاه بخار و سیکل ترکیبی شامل بویلر, توربین, پمپ و لوله"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات مجتمع پتروشیمی — واحدهای الفین و آروماتیک",
+  "u": "کاربردهای صنعتی-1b26d72b.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تجهیزات مجتمع پتروشیمی برای واحد الفین, آروماتیک, پلیمریزاسیون"
+ },
+ {
+  "t": "راهنمای کامل اندازه‌گیری سطح در صنایع نفت و گاز — ۶ روش برتر",
+  "u": "کاربردهای صنعتی-6009aa25.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "سطح سنج راداری, هیدرواستاتیک, التراسونیک, خازنی, سوئیچ سطح"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات صنایع سیمان — سنگ شکن تا بارگیری",
+  "u": "کاربردهای صنعتی-72ba5280.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تجهیزات کارخانه سیمان, آسیاب, کوره, خنک‌کننده, الکتروفیلتر"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات صنعت فولاد — از احیاء مستقیم تا نورد",
+  "u": "کاربردهای صنعتی-749fa682.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تجهیزات کارخانه فولاد شامل DRI, EAF, CCM و Rolling Mill"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات صنایع نفت و گاز فراساحل (Offshore)",
+  "u": "kc-offshore.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تجهیزات سکوهای نفتی, پلتفرم, خطوط زیردریایی, تجهیزات ضد انفجار"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات پالایشگاه نفت — از واحد تقطیر تا واحد گوگرد زدایی",
+  "u": "کاربردهای صنعتی-8941d618.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تجهیزات پالایشگاه نفت شامل برج تقطیر, کوره, مبدل حرارتی, پمپ API 610, کمپرسور و شیرآلات API"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات خطوط گاز طبیعی (NGL, LPG, LNG)",
+  "u": "kc-ngl-lpg-lng.html",
+  "c": "plant",
+  "cat": "سیستم‌های فرآیندی",
+  "img": "../assets/images/real/water-treatment.jpeg",
+  "desc": "تجهیزات خطوط گاز رسانی, NGL, LPG, LNG, کمپرسور, تله بخار"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات سیستم بخار و بویلر صنعتی",
+  "u": "کاربردهای صنعتی-b26c91da.html",
+  "c": "mech",
+  "cat": "تجهیزات مکانیکال",
+  "img": "../assets/images/real/boilers-steam.jpeg",
+  "desc": "تجهیزات بویلر, سوپرهیتر, تله بخار, لوله بخار, عایق"
+ },
+ {
+  "t": "راهنمای کامل جوشکاری خطوط لوله — روش‌ها و استانداردها",
+  "u": "کاربردهای صنعتی-bf3563bb.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "جوشکاری لوله, GTAW, SMAW, ASME Section IX, تست جوش"
+ },
+ {
+  "t": "راهنمای کامل تجهیزات خطوط لوله انتقال نفت و گاز",
+  "u": "کاربردهای صنعتی-ecd46214.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "تجهیزات Onshore Pipeline شامل کمپرسور, شیر, Pigging و SCADA"
+ },
+ {
+  "t": "راهنمای کامل خوردگی در خطوط لوله و روش‌های پیشگیری",
+  "u": "کاربردهای صنعتی-feb0ae89.html",
+  "c": "pipe",
+  "cat": "لوله و پایپینگ",
+  "img": "../assets/images/real/piping-flanges.jpeg",
+  "desc": "خوردگی, NACE, پوشش ضد خوردگی, حفاظت کاتدی, بازرسی"
+ }
+]

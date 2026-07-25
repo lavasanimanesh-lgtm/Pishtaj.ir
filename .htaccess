@@ -1,0 +1,25 @@
+# PTF v33.0.0 — production/staging public-root baseline
+Options -Indexes
+
+<FilesMatch "^(?!manifest\.json$).*\.(?:json|log|zip|gz|bak|sql|md)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "^(?:error_log|php_errorlog)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+</IfModule>
+
+# Canonical HTTPS redirect for the production hostname only.
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP:X-Forwarded-SSL} !on
+RewriteCond %{HTTP_HOST} ^(?:www\.)?pishtaj\.ir$ [NC]
+RewriteRule ^ https://pishtaj.ir%{REQUEST_URI} [R=301,L]

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>به‌روزرسانی امن مرورگر — PTF CRM</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,sans-serif;max-width:580px;margin:50px auto;padding:24px;line-height:2;background:#f8fafc;color:#1e293b}
+  h1{color:#0f766e;font-size:22px;display:flex;align-items:center;gap:8px}
+  .box{background:#fff;border:1px solid #cbd5e1;border-radius:16px;padding:22px;margin-top:18px;box-shadow:0 4px 14px rgba(0,0,0,.04)}
+  .db-status{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:14px;margin-top:14px;font-size:13.5px;color:#166534}
+  button{background:linear-gradient(90deg,#0f766e,#0d9488);color:#fff;border:none;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:bold;cursor:pointer;font-family:inherit;width:100%;box-shadow:0 4px 12px rgba(15,118,110,.25)}
+  button:hover{background:linear-gradient(90deg,#115e59,#0f766e)}
+  .ok{color:#059669;font-weight:bold}
+  .err{color:#dc2626;font-weight:bold}
+  code{background:#f1f5f9;padding:2px 6px;border-radius:6px;font-size:13px;color:#334155}
+</style>
+</head>
+<body>
+<h1>🛡️ به‌روزرسانی امن مرورگر — PTF CRM (v23.6)</h1>
+<p style="font-size:14px;color:#334155">سیستم CRM پیشرو تجهیز فرتاک مجهز به <b>ارتقای خودکار (Zero-Touch Auto-Update)</b> است و در حالت عادی نیازی به ورود به این صفحه نیست.</p>
+
+<div class="db-status" id="dbStatusWrap">
+  <b>🔒 تضمین ۱۰۰٪ امنیت دیتابیس شما:</b><br>
+  <span id="dbCounts">در حال بررسی رکوردهای دیتابیس محلی...</span>
+</div>
+
+<div class="box">
+  <p style="margin-top:0;font-size:13.5px;color:#475569">اگر پس از به‌روزرسانی سرور، مرورگر شما همچنان فایل‌های قدیمی (آیکون‌ها یا اسکریپت‌های کش‌شده مرورگر) را نشان می‌دهد، دکمه زیر را فشار دهید:</p>
+  <button onclick="safeBrowserRefresh()">🔄 به‌روزرسانی امن اسکریپت‌های مرورگر (بدون لمس دیتابیس)</button>
+  <p id="msg" style="margin-top:16px;text-align:center"></p>
+</div>
+
+<div class="box" style="font-size:12.5px;color:#64748b;line-height:2.1">
+  <b>اصول ایمنی این ابزار:</b><br>
+  ✅ <b>حفظ کامل دیتابیس CRM:</b> تمامی رکوردهای مشتریان (`ptf_crm_customers`)، استعلامات (`rfqs`)، پیشنهادها (`offers`)، فاکتورها، چک‌ها و تنظیمات ۱۰۰٪ محفوظ می‌مانند و حتی یک کاراکتر از دیتابیس محلی یا ابری شما پاک نمی‌شود.<br>
+  ✅ <b>فقط کش HTTP مرورگر:</b> تنها فایل‌های استاتیک اسکریپت (`*.js`) و استایل (`*.css`) قدیمی مرورگر تازه‌سازی می‌شوند تا کدهای جدید بارگذاری گردند.
+</div>
+
+<script>
+window.VER = 'v33.0.3';
+window.onload = function () {
+  try {
+    var getC = function (k) { try { return JSON.parse(localStorage.getItem(k) || '[]').length || 0; } catch (e) { return 0; } };
+    var nCust = getC('ptf_crm_customers');
+    var nRfq = getC('ptf_crm_rfqs');
+    var nOff = getC('ptf_crm_offers');
+    var nInv = getC('ptf_crm_invoices');
+    document.getElementById('dbCounts').innerHTML = 'هم‌اکنون <b>' + nCust + ' مشتری</b>، <b>' + nRfq + ' استعلام</b>، <b>' + nOff + ' پیشنهاد</b> و <b>' + nInv + ' فاکتور</b> در حافظه امن سیستم شما محفوظ است و هرگز دست‌کاری نخواهد شد.';
+  } catch (e) {
+    document.getElementById('dbCounts').innerHTML = 'دیتابیس محلی شما ۱۰۰٪ امن و حفاظت‌شده است.';
+  }
+};
+
+function safeBrowserRefresh() {
+  var msg = document.getElementById('msg');
+  msg.innerHTML = 'در حال به‌روزرسانی امن اسکریپت‌ها...';
+
+  var p1 = (navigator.serviceWorker && navigator.serviceWorker.getRegistrations
+    ? navigator.serviceWorker.getRegistrations().then(function (regs) {
+        return Promise.all(regs.map(function (r) { return r.update(); })); // update instead of unregister!
+      })
+    : Promise.resolve([])
+  ).catch(function () { return []; });
+
+  var p2 = (window.caches && caches.keys
+    ? caches.keys().then(function (keys) {
+        return Promise.all(keys.map(function (k) {
+          if (k.indexOf('ptf-crm-v') === 0 && k !== 'ptf-crm-' + window.VER) {
+            return caches.delete(k);
+          }
+        }));
+      })
+    : Promise.resolve([])
+  ).catch(function () { return []; });
+
+  Promise.all([p1, p2]).then(function () {
+    localStorage.setItem('ptf_app_ver', window.VER);
+    msg.innerHTML = '<span class="ok">✅ اسکریپت‌های مرورگر با موفقیت به‌روز شدند. در حال هدایت به سامانه...</span>';
+    setTimeout(function () {
+      window.location.href = './index.html?v=' + window.VER;
+    }, 1800);
+  }).catch(function (err) {
+    msg.innerHTML = '<span class="err">❌ خطا: ' + err + '</span>';
+  });
+}
+</script>
+</body>
+</html>

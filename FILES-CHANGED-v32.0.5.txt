@@ -1,0 +1,11 @@
+v32.0.5 — HOTFIX — Login Connection Fix — Full ZIP 25M
+
+CHANGED:
+api/auth.php — fallback dev key not empty
+crm/index.html — VER bump + improved error messages
+crm/sw.js, clear-cache.html — VER bump
+RELEASE-NOTES-v32.0.5.md
+REGRESSION-REPORT-v32.0.5.md
+FILES-CHANGED-v32.0.5.txt
+
+TOTAL: 1683 files — 25M — 188 images

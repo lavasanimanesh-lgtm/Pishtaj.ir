@@ -1,0 +1,24 @@
+v32.0.4 — STABILITY PATCH — Sprint 1 — Full ZIP 25M — 188 images — 1685 files
+
+CHANGED (10):
+api/storage-lib.php — US-444 mime validate + php content scan
+api/contact.php — US-444 mime + US-447 log rotate 5MB keep 10
+api/crm.php — US-445 flock SH/EX + temp atomic + US-448 calc_margin_server
+crm/sync.js — US-446 quota guard try/catch
+crm/ai-tech-assistant.js — US-446 quota
+crm/ai-workbench.js — US-446 quota
+crm/index.html — VER v32.0.3 → v32.0.4
+crm/sw.js — CACHE v32.0.3 → v32.0.4
+RELEASE-NOTES-v32.0.4.md
+REGRESSION-REPORT-v32.0.4.md
+FILES-CHANGED-v32.0.4.txt
+
+NEW TESTERS (5):
+_tools/uat/tester282-file-mime-validate.js
+_tools/uat/tester283-race-flock.js
+_tools/uat/tester284-quota-guard.js
+_tools/uat/tester285-contact-log-rotate.js
+_tools/uat/tester286-margin-server.js
+
+TOTAL: 268 testers / 5284 checks / 25M
+PREV: v32.0.3 — 263 testers / 5244 checks

@@ -1,0 +1,3034 @@
+/* =====================================================================
+   PTF CRM — Sprint 56
+   US-117: دفترچه تماس چندنفره (کارفرمایان + تامین‌کنندگان)
+   US-110v2: Technical / Commercial Offer (فاز ۱)
+   ===================================================================== */
+
+/* ---------- US-117: CONTACTS BOOK ---------- */
+
+// مهاجرت خودکار داده قدیمی (AC6): con/ph تکی → اولین شخص رابط
+function migrateContacts() {
+  ['ptf_crm_customers', 'ptf_crm_suppliers'].forEach(function(key) {
+    var items = getData(key), changed = false;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      if (!it.people) {
+        it.people = [];
+        var legacyName = it.con || it.nm || '';
+        var legacyPhone = it.ph || '';
+        if (legacyName || legacyPhone) {
+          it.people.push({ nm: legacyName || '—', role: 'رابط اصلی', dept: '',
+            tels: legacyPhone ? [{ n: legacyPhone, ext: '', lb: '' }] : [],
+            mobs: [], mails: [], note: '', primary: true });
+        }
+        it.coTels = it.coTels || [];
+        it.coMail = it.coMail || '';
+        it.coWeb = it.coWeb || '';
+        it.coAddr = it.coAddr || '';
+        changed = true;
+      }
+    }
+    if (changed) setData(key, items);
+  });
+}
+
+function primaryPerson(entity) {
+  if (!entity || !entity.people || !entity.people.length) return null;
+  for (var i = 0; i < entity.people.length; i++)
+    if (entity.people[i].primary) return entity.people[i];
+  return entity.people[0];
+}
+
+function fmtTel(t) { return t.n + (t.ext ? ' داخلی ' + t.ext : ''); }
+function telHref(t) { return 'tel:' + t.n.replace(/[^+\d]/g, '') + (t.ext ? ',' + t.ext : ''); }
+
+// ---- UI دفترچه اشخاص (داخل مودال کارفرما/تامین‌کننده) ----
+var _cbState = null; // {people:[...]} حالت موقت فرم
+
+function cbInit(people) {
+  _cbState = { people: JSON.parse(JSON.stringify(people || [])) };
+  if (!_cbState.people.length) cbAddPerson();
+}
+
+function cbAddPerson() {
+  _cbState.people.push({ nm: '', nmEn: '', role: '', dept: '', tels: [], mobs: [], mails: [], note: '', primary: _cbState.people.length === 0 });
+  cbRender();
+}
+
+function cbDelPerson(pi) {
+  _cbState.people.splice(pi, 1);
+  if (_cbState.people.length && !_cbState.people.some(function(p){return p.primary}))
+    _cbState.people[0].primary = true;
+  cbRender();
+}
+
+function cbSetPrimary(pi) {
+  _cbState.people.forEach(function(p, i) { p.primary = (i === pi); });
+  cbRender();
+}
+
+function cbAddCh(pi, kind) {
+  _cbState.people[pi][kind].push(kind === 'tels' ? { n: '', ext: '', lb: '' } : { n: '', lb: '' });
+  cbRender();
+}
+function cbDelCh(pi, kind, ci) { _cbState.people[pi][kind].splice(ci, 1); cbRender(); }
+function cbUpd(pi, field, val) { _cbState.people[pi][field] = val; }
+function cbUpdCh(pi, kind, ci, field, val) { _cbState.people[pi][kind][ci][field] = val; }
+
+function cbRender() {
+  var el = document.getElementById('cbWrap');
+  if (!el) return;
+  var h = '';
+  var ROLES = ['مدیر خرید','کارشناس خرید','مدیر فنی','کارشناس فنی','مدیر بازرگانی','مالی','مدیرعامل','رابط اصلی','سایر'];
+  _cbState.people.forEach(function(p, pi) {
+    var roleOpts = ROLES.map(function(r){ return '<option'+(p.role===r?' selected':'')+'>'+r+'</option>'; }).join('');
+    h += '<div style="border:1px solid var(--brd);border-radius:14px;padding:12px;margin-bottom:10px;background:'+(p.primary?'#fff8f5':'#fafbfc')+'">' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">' +
+      '<input type="text" placeholder="نام شخص *" value="'+escP(p.nm)+'" oninput="cbUpd('+pi+',\'nm\',this.value)" style="flex:1;min-width:110px;padding:7px;border:1px solid var(--brd);border-radius:8px">' +
+      '<input type="text" placeholder="Mr./Ms. English" value="'+escP(p.nmEn||'')+'" oninput="cbUpd('+pi+',\'nmEn\',this.value)" style="flex:1;min-width:100px;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+      '<select onchange="cbUpd('+pi+',\'role\',this.value)" style="padding:7px;border:1px solid var(--brd);border-radius:8px">'+roleOpts+'</select>' +
+      '<input type="text" placeholder="واحد" value="'+escP(p.dept)+'" oninput="cbUpd('+pi+',\'dept\',this.value)" style="width:90px;padding:7px;border:1px solid var(--brd);border-radius:8px">' +
+      '<label style="font-size:11px;white-space:nowrap;cursor:pointer"><input type="radio" name="cbPrim" '+(p.primary?'checked':'')+' onclick="cbSetPrimary('+pi+')"> اصلی</label>' +
+      (_cbState.people.length > 1 ? '<button type="button" onclick="cbDelPerson('+pi+')" style="border:0;background:none;color:#dc2626;cursor:pointer;font-size:15px">🗑️</button>' : '') +
+      '</div>';
+    // تلفن‌های ثابت با داخلی
+    p.tels.forEach(function(t, ci) {
+      h += '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center">' +
+        '<span style="font-size:13px">☎️</span>' +
+        '<input type="text" placeholder="تلفن ثابت" value="'+escP(t.n)+'" oninput="cbUpdCh('+pi+',\'tels\','+ci+',\'n\',this.value)" style="flex:1;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+        '<input type="text" placeholder="داخلی" value="'+escP(t.ext)+'" oninput="cbUpdCh('+pi+',\'tels\','+ci+',\'ext\',this.value)" style="width:64px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+        '<input type="text" placeholder="برچسب" value="'+escP(t.lb)+'" oninput="cbUpdCh('+pi+',\'tels\','+ci+',\'lb\',this.value)" style="width:84px;padding:6px;border:1px solid var(--brd);border-radius:8px">' +
+        '<button type="button" onclick="cbDelCh('+pi+',\'tels\','+ci+')" style="border:0;background:none;color:#94a3b8;cursor:pointer">✕</button></div>';
+    });
+    p.mobs.forEach(function(t, ci) {
+      h += '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center"><span style="font-size:13px">📱</span>' +
+        '<input type="text" placeholder="موبایل" value="'+escP(t.n)+'" oninput="cbUpdCh('+pi+',\'mobs\','+ci+',\'n\',this.value)" style="flex:1;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+        '<input type="text" placeholder="برچسب" value="'+escP(t.lb)+'" oninput="cbUpdCh('+pi+',\'mobs\','+ci+',\'lb\',this.value)" style="width:84px;padding:6px;border:1px solid var(--brd);border-radius:8px">' +
+        '<button type="button" onclick="cbDelCh('+pi+',\'mobs\','+ci+')" style="border:0;background:none;color:#94a3b8;cursor:pointer">✕</button></div>';
+    });
+    p.mails.forEach(function(t, ci) {
+      h += '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center"><span style="font-size:13px">📧</span>' +
+        '<input type="email" placeholder="ایمیل" value="'+escP(t.n)+'" oninput="cbUpdCh('+pi+',\'mails\','+ci+',\'n\',this.value)" style="flex:1;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+        '<input type="text" placeholder="برچسب" value="'+escP(t.lb)+'" oninput="cbUpdCh('+pi+',\'mails\','+ci+',\'lb\',this.value)" style="width:84px;padding:6px;border:1px solid var(--brd);border-radius:8px">' +
+        '<button type="button" onclick="cbDelCh('+pi+',\'mails\','+ci+')" style="border:0;background:none;color:#94a3b8;cursor:pointer">✕</button></div>';
+    });
+    h += '<div style="display:flex;gap:6px;margin-top:6px">' +
+      '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="cbAddCh('+pi+',\'tels\')">+ تلفن</button>' +
+      '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="cbAddCh('+pi+',\'mobs\')">+ موبایل</button>' +
+      '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="cbAddCh('+pi+',\'mails\')">+ ایمیل</button>' +
+      '</div></div>';
+  });
+  h += '<button type="button" class="bt bt-o" style="width:100%" onclick="cbAddPerson()">+ افزودن شخص رابط</button>';
+  el.innerHTML = h;
+}
+
+function cbCollect() {
+  return _cbState.people.filter(function(p){ return p.nm && p.nm.trim(); });
+}
+
+// نمای کارت اشخاص یک شرکت (AC5 — کلیک‌تو‌کال)
+function contactsCardHtml(entity) {
+  if (!entity.people || !entity.people.length) return '<em style="color:#94a3b8">شخصی ثبت نشده</em>';
+  var h = '';
+  entity.people.forEach(function(p) {
+    h += '<div style="padding:8px 10px;border:1px solid var(--brd);border-radius:10px;margin-bottom:6px' + (p.primary ? ';background:#fff8f5' : '') + '">' +
+      '<b>' + escP(p.nm) + '</b> <span style="color:#94a3b8;font-size:12px">' + escP(p.role || '') + (p.dept ? ' — ' + escP(p.dept) : '') + (p.primary ? ' ⭐' : '') + '</span><br>';
+    (p.tels||[]).forEach(function(t){ h += '<a href="'+telHref(t)+'" style="font-size:12.5px;margin-left:10px">☎️ '+escP(fmtTel(t))+(t.lb?' ('+escP(t.lb)+')':'')+'</a>'; });
+    (p.mobs||[]).forEach(function(t){ h += '<a href="tel:'+escP(t.n)+'" style="font-size:12.5px;margin-left:10px">📱 '+escP(t.n)+'</a>'; });
+    (p.mails||[]).forEach(function(t){ h += '<a href="mailto:'+escP(t.n)+'" style="font-size:12.5px;margin-left:10px;direction:ltr">📧 '+escP(t.n)+'</a>'; });
+    h += '</div>';
+  });
+  return h;
+}
+
+// جستجوی عمیق (AC7)
+function entityMatches(entity, q) {
+  var hay = (entity.cd||'')+' '+(entity.co||'')+' '+(entity.ind||'')+' '+(entity.ca||'');
+  (entity.people||[]).forEach(function(p) {
+    hay += ' ' + (p.nm||'') + ' ' + (p.role||'');
+    (p.tels||[]).forEach(function(t){ hay += ' ' + t.n; });
+    (p.mobs||[]).forEach(function(t){ hay += ' ' + t.n; });
+    (p.mails||[]).forEach(function(t){ hay += ' ' + t.n; });
+  });
+  return hay.toLowerCase().indexOf(q.toLowerCase()) > -1;
+}
+
+/* ---------- US-110v2: OFFERS (TO / CO) ---------- */
+
+// US-157: اعتبار پیش‌فرض CO = ۷ روز پس از تاریخ سند
+function defaultValidity(dateEn) {
+  try {
+    var d = dateEn ? new Date(dateEn) : new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().slice(0, 10);
+  } catch (e) { return ''; }
+}
+// US-157: وضعیت اعتبار CO → {cl, lb} یا null
+function offerValidState(o) {
+  if (o.kind !== 'CO' || !o.validUntil || o.st === 'won' || o.st === 'lost') return null;
+  var today = new Date().toISOString().slice(0, 10);
+  var warn = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  if (o.validUntil < today) return { cl: '#fee2e2;color:#b91c1c', lb: '⛔ منقضی ' + o.validUntil };
+  if (o.validUntil <= warn) return { cl: '#fef3c7;color:#b45309', lb: '⏳ تا ' + o.validUntil };
+  return { cl: '#ecfdf5;color:#047857', lb: '✓ تا ' + o.validUntil };
+}
+
+// US-148: آیا کاربر جاری پروفایل امضا دارد؟
+function mySigReady() {
+  try {
+    var p = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[curSession().user];
+    return !!(p && (p.sig || p.stamp));
+  } catch (e) { return false; }
+}
+/* v13.1 (US-321): امضای نیابتی — رییس هیات مدیره و ادمین
+   v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح رییس هیات مدیره (دسترسی کامل) */
+function ptfCanDelegateSig() {
+  try { var r = curRole(); return r === 'chairman' || r === 'admin' || r === 'ceo' || r === 'commercial'; } catch (e) { return false; }
+}
+function ptfSignAsOptions(cur) {
+  var me = curSession().user;
+  var opts = [{ u: me, lb: 'امضای خودم (' + (curSession().name || me) + ')' }];
+  /* گزینه‌های مجاز نیابت (دستور کارفرما): عباس یوسفی و شیوا کریمی */
+  var DELEGATES = [{ u: 'yousefi', lb: 'عباس یوسفی' }, { u: 'karimi', lb: 'شیوا کریمی' }];
+  var users = getData('ptf_crm_users');
+  DELEGATES.forEach(function (d) {
+    var real = users.filter(function (x) { return x.username === d.u; })[0];
+    if (d.u !== me) opts.push({ u: d.u, lb: 'به نیابت: ' + (real ? real.name : d.lb) });
+  });
+  return opts.map(function (o2) {
+    return '<option value="' + escP(o2.u) + '"' + (cur === o2.u ? ' selected' : '') + '>' + escP(o2.lb) + '</option>';
+  }).join('');
+}
+
+// US-142 AC3: اختصاری انگلیسی کاربر جاری (از پروفایل کاربران؛ برای admin از پروفایل امضا یا پیش‌فرض)
+function myEnName() {
+  var s = curSession();
+  var u = getData('ptf_crm_users').filter(function (x) { return x.username === s.user; })[0];
+  if (u && u.nameEn) return u.nameEn;
+  try {
+    var p = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[s.user];
+    if (p && p.nmEn) return p.nmEn;
+  } catch (e) {}
+  if (typeof ptfNameToEn === 'function' && s.name) {
+    try { return ptfNameToEn(s.name); } catch (e2) {}
+  }
+  return s.user === 'admin' ? 'Sales Department' : (s.name || 'Sales Department');
+}
+
+var SELLER_INFO = {
+  company: 'Pishro Tajhiz Fartak Co.',
+  nationalId: '14010077558',
+  contact: 'Sales Department',
+  tel: '+98 (21) 4608 7679',
+  email: 'info@pishtaj.ir',
+  address: 'Unit 1, 16th Floor, Administrative Block A, Tooba Commercial-Administrative Complex, Kouhak Blvd, Tehran, Iran',
+  logo: '../assets/images/ptf-logo.png'
+};
+
+var TC_LIBRARY = [
+  'Prices are in IRR (Iranian Rial). 10% VAT will be added to the prices.',
+  'Delivery Time: ____ working days after receipt of official purchase order.',
+  'Payment Terms: ____% advance payment, balance before delivery.',
+  'Place of Delivery: Seller\'s warehouse, Tehran.',
+  'Offer Validity: ____ days from the date of this offer.',
+  'Inspection: Material Test Certificates (MTC) will be provided upon request.',
+  'Warranty: 12 months after delivery against manufacturing defects.'
+];
+
+function offerSerial(kind) { // server-reserved offer code; no local max fallback
+  var k = String(kind || 'CO').toUpperCase();
+  if (typeof window.ptfUnifiedCode === 'function') return window.ptfUnifiedCode(k);
+  return 'TMP-' + k + '-' + Date.now();
+}
+
+// تبدیل عدد به حروف انگلیسی (AC5)
+function numToWords(n) {
+  if (n === 0) return 'Zero';
+  var ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  var tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function chunk(x) {
+    var s = '';
+    if (x >= 100) { s += ones[Math.floor(x/100)] + ' Hundred'; x %= 100; if (x) s += ' '; }
+    if (x >= 20) { s += tens[Math.floor(x/10)]; x %= 10; if (x) s += '-' + ones[x]; }
+    else if (x > 0) s += ones[x];
+    return s;
+  }
+  var scales = [[1e12,'Trillion'],[1e9,'Billion'],[1e6,'Million'],[1e3,'Thousand'],[1,'']];
+  var out = [];
+  n = Math.round(n);
+  scales.forEach(function(sc) {
+    if (n >= sc[0]) {
+      var q = Math.floor(n / sc[0]); n %= sc[0];
+      out.push(chunk(q) + (sc[1] ? ' ' + sc[1] : ''));
+    }
+  });
+  return out.join(' ');
+}
+
+var _offState = null; window._offState = _offState; /* OPS-SAVE: global sync */
+
+function ptfSetOffState(v) { _offState = v; window._offState = v; return v; }
+window.ptfSetOffState = ptfSetOffState;
+
+
+function buildOffers() {
+  // US-142 AC2: تب‌های جدا برای پیشنهاد فنی و مالی
+  var tab = window._offKindTab || 'TO';
+  function tbtn(id, lb, cl) {
+    var on = tab === id;
+    return '<button type="button" id="offTab' + id + '" onclick="offSetTab(\'' + id + '\')" style="border:0;border-radius:10px;padding:8px 16px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' +
+      (on ? 'background:' + cl + ';color:#fff' : 'background:#f1f5f9;color:#475569') + '">' + lb + '</button>';
+  }
+  /* v21.3 US-450: فیلتر پیشنهادات بر حسب مشتری — جدول و کانبان */
+  var custOpts = '<option value="">🏢 همه مشتریان</option>';
+  try {
+    var custs = getData('ptf_crm_customers').slice().sort(function (a, b) {
+      return String(a.co || '').localeCompare(String(b.co || ''), 'fa');
+    });
+    var curC = window._offCustFilter || '';
+    custs.forEach(function (c) {
+      custOpts += '<option value="' + escP(c.cd) + '"' + (curC === c.cd ? ' selected' : '') + '>' + escP(c.co || c.cd) + '</option>';
+    });
+  } catch (eC) {}
+  var procAuditBtn = '';
+  try { if ((roleDef() || {}).buyPrice) procAuditBtn = '<button class="bt bt-o" style="color:#b45309" onclick="ptfOpenProcurementGlobalAudit()">🔎 تطبیق سراسری خرید</button>'; } catch (ePA) {}
+  return '<div class="ph"><h3>📄 پیشنهاد</h3>' +
+    '<div class="sb2">' +
+    '<input type="text" id="oFsrch" placeholder="جستجو: شماره، خریدار، شماره درخواست کارفرما..." oninput="renderOffers()">' +
+    '<select id="oFcust" onchange="offSetCustFilter(this.value)" style="min-width:180px;max-width:260px;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px;background:var(--crd,#fff)" title="فیلتر بر حسب مشتری — رهگیری همه پیشنهادهای یک کارفرما">' +
+    custOpts + '</select>' +
+    '<button class="bt" onclick="offerNew(\'TO\')">+ پیشنهاد فنی</button>' +
+    '<button class="bt" style="background:#0e7490" onclick="offerNew(\'CO\')">+ پیشنهاد مالی</button>' + procAuditBtn +
+    /* v20.1 (US-442 — ابلاغ کارفرما): «فنی-مالی ماهیتا همان مالی است» — دکمه TC حذف شد؛
+       قالب چاپ فنی-مالی داخل فرم پیشنهاد مالی انتخاب می‌شود. اسناد TC قدیمی در تب مالی دیده می‌شوند. */
+    '</div></div>' +
+    '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;align-items:center">' +
+    tbtn('TO', '🔧 پیشنهادهای فنی (TO)', '#7c3aed') + tbtn('CO', '💰 پیشنهادهای مالی (CO)', '#0e7490') + tbtn('ALL', 'همه', '#334155') +
+    '<span id="oFcustHint" style="font-size:11.5px;color:#64748b;margin-right:auto"></span>' +
+    '</div>' +
+    '<div id="oCustTimeline" style="display:none;margin-bottom:12px"></div>' +
+    '<div class="tb2"><table><thead><tr><th>شماره</th><th>نوع</th><th>خریدار</th><th>شماره درخواست</th><th>تاریخ</th><th>اقلام</th><th>مبلغ کل</th><th>وضعیت</th><th>عملیات</th></tr></thead>' +
+    '<tbody id="oTb"></tbody></table></div>';
+}
+
+/* v21.5 US-HT-v214-3 / US-451: تایم‌لاین یک‌صفحه‌ای پیشنهادهای یک مشتری */
+window.ptfCustOfferTimelineHtml = function (custCd) {
+  if (!custCd) return '';
+  var cust = null;
+  try { cust = getData('ptf_crm_customers').filter(function (c) { return c.cd === custCd; })[0]; } catch (e) {}
+  var name = cust ? (cust.co || custCd) : custCd;
+  var offers = getData('ptf_crm_offers').filter(function (o) {
+    return typeof ptfOfferMatchCust === 'function' ? ptfOfferMatchCust(o, custCd) : (o.buyerCd === custCd);
+  });
+  offers.sort(function (a, b) {
+    var da = a.dateEn || a.t || a.dateFa || '';
+    var db = b.dateEn || b.t || b.dateFa || '';
+    return String(db).localeCompare(String(da));
+  });
+  var ST = { draft: 'پیش‌نویس', registered: 'ثبت‌شده', sent: 'ارسال', approved: 'تایید', rejected: 'عدم تایید', revise: 'اصلاح', won: 'برنده', lost: 'بازنده' };
+  var rows = offers.map(function (o, i) {
+    var total = (o.kind === 'CO' || o.kind === 'TC') ? (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : 0;
+    var kind = o.kind === 'TO' ? '🔧 TO' : o.kind === 'TC' ? '🤝 TC' : '💰 CO';
+    var st = o.kind === 'TO' && o.st === 'won' ? 'approved' : o.kind === 'TO' && o.st === 'lost' ? 'rejected' : (o.st || 'draft');
+    return '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--brd);font-size:12.5px;align-items:flex-start">' +
+      '<div style="min-width:22px;height:22px;border-radius:50%;background:#e0e7ff;color:#3730a3;display:grid;place-items:center;font-size:10px;font-weight:800">' + (i + 1) + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+      '<b dir="ltr">' + escP(o.no) + '</b> ' + kind +
+      ' <span class="bd" style="font-size:10.5px">' + escP(ST[st] || st) + '</span>' +
+      (o.inqNo ? ' <small style="color:#64748b" dir="ltr">inq: ' + escP(o.inqNo) + '</small>' : '') +
+      '<div style="color:#64748b;margin-top:2px">' + escP(o.dateFa || o.dateEn || '—') +
+      (total ? ' — ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') : '') +
+      '</div></div>' +
+      (o.st === 'won' && o.kind !== 'TO'
+        ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="if(typeof ptfGoSalesFileForOffer===\'function\')ptfGoSalesFileForOffer(\'' + escP(o.no) + '\')">📁 پرونده</button>'
+        : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerEdit(\'' + escP(o.no) + '\')">✏️</button>') +
+      '</div>';
+  }).join('');
+  return '<div style="background:linear-gradient(135deg,#f8fafc,#eff6ff);border:1px solid #bfdbfe;border-radius:14px;padding:12px 14px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+    '<div style="font-size:13px;font-weight:800;color:#1e40af">📅 تایم‌لاین پیشنهادهای «' + escP(name) + '» <small style="font-weight:600;color:#64748b">(' + offers.length + ')</small></div>' +
+    '<button type="button" class="bt bt-o" style="padding:3px 10px;font-size:11.5px" onclick="offSetCustFilter(\'\')">✕ برداشتن فیلتر</button></div>' +
+    (rows || '<div style="color:#94a3b8;text-align:center;padding:12px">پیشنهادی برای این مشتری نیست</div>') +
+    '</div>';
+};
+
+
+window.offSetCustFilter = function (cd) {
+  window._offCustFilter = cd || '';
+  try {
+    if (cd) localStorage.setItem('ptf_off_cust_filter', cd);
+    else localStorage.removeItem('ptf_off_cust_filter');
+  } catch (e) {}
+  if (typeof renderOffers === 'function') renderOffers();
+};
+window.ptfOfferMatchCust = function (o, custCd) {
+  if (!custCd) return true;
+  if (!o) return false;
+  if (o.buyerCd && o.buyerCd === custCd) return true;
+  /* fallback نام برای اسناد قدیمی بدون buyerCd */
+  try {
+    var c = getData('ptf_crm_customers').filter(function (x) { return x.cd === custCd; })[0];
+    if (!c) return false;
+    if (o.buyerCd) return false; /* buyerCd هست ولی match نیست */
+    var names = [c.co, c.coEn].filter(Boolean);
+    var bo = o.buyerCo || '';
+    if (!bo) return false;
+    if (names.indexOf(bo) > -1) return true;
+    if (typeof dedupNorm === 'function') {
+      var nb = dedupNorm(bo);
+      return names.some(function (n) { return dedupNorm(n) === nb; });
+    }
+    return false;
+  } catch (e) { return false; }
+};
+/* بازیابی فیلتر مشتری از localStorage یک‌بار */
+try {
+  if (window._offCustFilter == null) {
+    window._offCustFilter = localStorage.getItem('ptf_off_cust_filter') || '';
+  }
+} catch (e0) { window._offCustFilter = window._offCustFilter || ''; }
+
+
+function offSetTab(t) {
+  window._offKindTab = t;
+  var colors = { TO: '#7c3aed', CO: '#0e7490', ALL: '#334155' };
+  ['TO', 'CO', 'ALL'].forEach(function (k) {
+    var b = document.getElementById('offTab' + k);
+    if (!b) return;
+    var on = k === t;
+    b.style.background = on ? colors[k] : '#f1f5f9';
+    b.style.color = on ? '#fff' : '#475569';
+  });
+  renderOffers();
+}
+
+
+/* v14.3 / BUG-TO-SAVE-282: helper وضعیت TO باید global باشد.
+   renderOffers و offerSave هر دو از آن استفاده می‌کنند؛ تعریف درون renderOffers
+   باعث می‌شد ویرایش TO موجود، هنگام ساخت Revision با ReferenceError متوقف شود. */
+function toStMigrate(o) {
+  o = o || {};
+  if (o.kind !== 'TO') return o.st;
+  if (o.st === 'won') return 'approved';
+  if (o.st === 'lost') return 'rejected';
+  return o.st || 'draft';
+}
+window.ptfToStMigrate = toStMigrate;
+
+/* v18.9 (US-431 فاز۱): بعد از تشکیل پرونده فروش، پیشنهاد برنده فقط read-only است */
+function offerPostAwardLocked(o) {
+  if (!o || o.kind === 'TO' || o.st !== 'won') return false;
+  try { return getData('ptf_crm_deals').some(function (d) { return d.wonOffer === o.no || d.offerNo === o.no || (o.inqNo && d.inqNo === o.inqNo); }); } catch(e) { return true; }
+}
+window.ptfOfferPostAwardLocked = offerPostAwardLocked;
+window.ptfGoSalesFileForOffer = function (no) {
+  try { if (typeof goPanelByName === 'function') goPanelByName('deals'); else if (typeof goPanel === 'function') goPanel('deals'); } catch(e) {}
+  if (typeof ptfToast === 'function') ptfToast('ادامه فرایند پیشنهاد برنده فقط از پرونده فروش انجام می‌شود', 'info');
+};
+
+function renderOffers() {
+  var tb = document.getElementById('oTb');
+  if (!tb) return;
+  var q = ((document.getElementById('oFsrch')||{}).value || '').trim().toLowerCase();
+  var tab = window._offKindTab || 'TO';
+  var all = getData('ptf_crm_offers');
+  var custF = window._offCustFilter || ((document.getElementById('oFcust') || {}).value) || '';
+  window._offCustFilter = custF;
+  var offers = all.filter(function(o) {
+    if (tab !== 'ALL' && o.kind !== tab && !(tab === 'CO' && o.kind === 'TC')) return false; /* v20.1 US-442: TC قدیمی زیر تب مالی */
+    if (custF && typeof ptfOfferMatchCust === 'function' && !ptfOfferMatchCust(o, custF)) return false; /* v21.3 US-450 */
+    // US-142 AC1: جستجو شامل شماره درخواست کارفرما (inqNo)
+    return !q || ((o.no||'')+' '+(o.buyerCo||'')+' '+(o.inqNo||'')).toLowerCase().indexOf(q) > -1;
+  });
+  try {
+    var hint = document.getElementById('oFcustHint');
+    if (hint) {
+      if (custF) {
+        var cn = '';
+        try { var cc = getData('ptf_crm_customers').filter(function(x){return x.cd===custF;})[0]; cn = cc ? (cc.co || '') : custF; } catch(eH) {}
+        hint.innerHTML = '🎯 فیلتر مشتری: <b>' + escP(cn) + '</b> — ' + offers.length + ' پیشنهاد (جدول و کانبان)';
+        hint.style.color = '#0e7490';
+      } else { hint.textContent = ''; }
+    }
+    var tl = document.getElementById('oCustTimeline');
+    if (tl) {
+      if (custF && typeof ptfCustOfferTimelineHtml === 'function') {
+        tl.style.display = '';
+        tl.innerHTML = ptfCustOfferTimelineHtml(custF);
+      } else {
+        tl.style.display = 'none';
+        tl.innerHTML = '';
+      }
+    }
+  } catch (eH2) {}
+  var ST = { draft: '📝 پیش‌نویس', sent: '📤 ارسال‌شده', revise: '✏️ در حال اصلاح', won: '🏆 برنده', lost: '❌ بازنده' }; // v89: revise برای گردش کار
+  /* v14.3 (US-367 — دستور کارفرما): پیشنهاد فنی برنده/بازنده و قفل ندارد — ۶ وضعیت:
+     پیش‌نویس → ثبت‌شده → ارسال‌شده → تاییدشده | عدم تایید (بسته؛ به CO نمی‌رسد) | درخواست اصلاح */
+  var ST_TO = { draft: '📝 پیش‌نویس', registered: '📋 ثبت‌شده', sent: '📤 ارسال‌شده', approved: '✅ تاییدشده', rejected: '⛔ عدم تایید', revise: '✏️ درخواست اصلاح' };
+  window.PTF_ST_TO = ST_TO;
+  /* BUG-TO-SAVE-282: نگاشت نرم وضعیت TO در helper سراسری واحد انجام می‌شود؛
+     هم رندر و هم ذخیره/Revision دقیقاً از همان منطق استفاده می‌کنند. */
+  function offerPostAwardLocked(o) {
+    if (!o || o.kind === 'TO' || o.st !== 'won') return false;
+    try { return getData('ptf_crm_deals').some(function (d) { return d.wonOffer === o.no || d.offerNo === o.no || (o.inqNo && d.inqNo === o.inqNo); }); } catch(e) { return true; }
+  }
+  window.ptfOfferPostAwardLocked = offerPostAwardLocked;
+  window.ptfGoSalesFileForOffer = function (no) {
+    try { if (typeof goPanelByName === 'function') goPanelByName('deals'); else if (typeof goPanel === 'function') goPanel('deals'); } catch(e) {}
+    if (typeof ptfToast === 'function') ptfToast('ادامه فرایند پیشنهاد برنده فقط از پرونده فروش انجام می‌شود', 'info');
+  };
+  var h = '';
+  var _canSeeMargin = false; try { _canSeeMargin = !!(roleDef() || {}).buyPrice; } catch (eRM) {} /* v31.7.13: حاشیه کل فقط برای نقش دارای قیمت خرید */
+  offers.forEach(function(o) {
+    var total = (o.kind === 'CO' || o.kind === 'TC') ? o.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0) : 0; /* v17.4 US-416: TC هم مبلغ دارد */
+    /* v31.7.13 US-OFF-MARGIN: بج حاشیه سود کلی صورت در همان ردیف */
+    var marginBadge = '';
+    if (_canSeeMargin && (o.kind === 'CO' || o.kind === 'TC')) {
+      try {
+        var _om = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null;
+        if (_om && _om.marginPct != null) {
+          var _neg = _om.marginPct < 0;
+          marginBadge = '<div style="font-size:10.5px;margin-top:3px;color:' + (_neg ? '#dc2626' : '#047857') + '" title="حاشیه سود کلی صورت: جمع فروش نسبت به جمع خرید مرجع' + (_om.coverage < _om.totalItems ? ' — فقط ' + _om.coverage + ' از ' + _om.totalItems + ' قلم نرخ مرجع دارند' : '') + '">' +
+            (_neg ? '⚠️' : '📈') + ' حاشیه کل: <b>' + _om.marginPct + '٪</b>' + (_om.coverage < _om.totalItems ? ' <span style="color:#b45309">(' + _om.coverage + '/' + _om.totalItems + ')</span>' : '') + '</div>';
+        } else if (_om && _om.totalItems > 0) {
+          marginBadge = '<div style="font-size:10px;margin-top:3px;color:#94a3b8" title="هیچ قلمی نرخ مرجع خرید ندارد">حاشیه کل: —</div>';
+        }
+      } catch (eMB) {}
+    }
+    var isTO = o.kind === 'TO';
+    var isWon = !isTO && o.st === 'won'; /* v14.3 US-367: TO هرگز برنده/قفل ندارد */
+    var stCell;
+    if (isTO) {
+      /* v14.3 (US-367): ۶ وضعیت TO — بدون قفل؛ عدم تایید فقط مسیر CO را می‌بندد */
+      var tSt = toStMigrate(o);
+      stCell = '<select onchange="offerSetSt(\'' + o.no + '\',this.value,this)" style="padding:4px;border:1px solid var(--brd);border-radius:8px;font-size:12px' + (tSt === 'rejected' ? ';border-color:#fecaca;background:#fef2f2' : tSt === 'approved' ? ';border-color:#a7f3d0;background:#ecfdf5' : '') + '">' +
+        Object.keys(ST_TO).map(function(k){ return '<option value="'+k+'"'+(tSt===k?' selected':'')+'>'+ST_TO[k]+'</option>'; }).join('') + '</select>';
+    } else {
+      // US-141 AC2 (فقط CO/TC): برنده = قفل؛ کنترل وضعیت به بج تبدیل می‌شود
+      stCell = isWon
+        ? '<span class="bd" style="background:#d1fae5;color:#065f46" title="وضعیت برنده قفل است و قابل بازگشت نیست">🏆 برنده 🔒</span>'
+        : '<select onchange="offerSetSt(\'' + o.no + '\',this.value,this)" style="padding:4px;border:1px solid var(--brd);border-radius:8px;font-size:12px">' +
+          Object.keys(ST).map(function(k){ return '<option value="'+k+'"'+(o.st===k?' selected':'')+'>'+ST[k]+'</option>'; }).join('') + '</select>';
+    }
+    /* v14.3 (US-367): تبدیل TO→CO در هر وضعیتی آزاد است — تنها «عدم تایید» مسیر مالی را می‌بندد.
+       قید یک‌باره US-142 AC5 (CO زنده) پابرجا. */
+    var toCoBtn = '';
+    if (isTO) {
+      var coAlive = o.coNo && all.some(function(x){ return x.no === o.coNo; });
+      if (toStMigrate(o) === 'rejected') {
+        toCoBtn = ' <span class="bd" style="background:#fef2f2;color:#b91c1c" title="عدم تایید کارفرما — این درخواست همین‌جا بسته شده و به پیشنهاد مالی نمی‌رسد">→CO ⛔</span>';
+      } else if (coAlive) {
+        /* v31.7.21 US-OFF-ALT: قفل مرده حذف — پیشنهاد جایگزین (گزینه دوم برند/مبدأ دیگر) مجاز با تایید */
+        toCoBtn = ' <button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#7c3aed" title="قبلاً به ' + escP(o.coNo) + ' تبدیل شده — ساخت پیشنهاد مالی جایگزین (مثلاً برند دیگر) برای همین درخواست" onclick="offerToCo(\''+o.no+'\')">+CO گزینه ۲</button>';
+      } else {
+        toCoBtn = ' <button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#0e7490" title="تبدیل به پیشنهاد مالی — در هر مرحله‌ای مجاز (US-367)" onclick="offerToCo(\''+o.no+'\')">→CO</button>';
+      }
+    }
+    // US-141 AC5: ارجاع فاکتور فقط برای CO برنده
+    var invBtn = '';
+    if (o.kind === 'CO') {
+      if (o.invRef) invBtn = ' <span class="bd b-st4" style="font-size:10.5px" title="ارجاع‌شده برای فاکتور توسط '+escP(o.invRef.by)+'">🧾 ارجاع شد</span>';
+      else if (isWon) invBtn = ' <span class="bd" style="background:#f5f3ff;color:#6d28d9" title="پس از تشکیل پرونده فروش، ارجاع فاکتور فقط از داخل پرونده و پس از تحویل کارفرما مجاز است">🧾 فاکتور از پرونده 🔒</span>';
+      else invBtn = ' <span class="bd" style="background:#f1f5f9;color:#94a3b8" title="قفل — فقط پیش‌فاکتور «برنده» قابل ارجاع برای فاکتور است">🧾 فاکتور 🔒</span>';
+    }
+    // US-157 AC1: بج اعتبار
+    var vst = offerValidState(o);
+    h += '<tr><td><strong>' + escP(o.no) + '</strong>' + (o.rev ? ' <small>Rev.' + o.rev + '</small>' : '') +
+      (o.altOf ? '<br><span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px" title="پیشنهاد جایگزین برای همین درخواست — در کنار ' + escP(o.altOf) + '">⑂ گزینه جایگزین</span>' : '') +
+      (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + '</td>' +
+      '<td>' + (o.kind === 'TO' ? '🔧 فنی' : o.kind === 'TC' ? '🤝 فنی-مالی' : '💰 مالی') + '</td>' /* v12.8 */ +
+      '<td>' + escP(o.buyerCo || '-') + (o.buyerCd ? '<div style="font-size:10.5px;color:#64748b" dir="ltr">' + escP(o.buyerCd) + '</div>' : '') + '</td>' +
+      '<td style="direction:ltr;font-size:12px">' + escP(o.inqNo || '—') + '</td>' +
+      '<td>' + escP(o.dateFa || '') + '</td>' +
+      '<td>' + o.items.length + '</td>' +
+      '<td>' + ((o.kind === 'CO' || o.kind === 'TC') && total ? (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : (o.currency && o.currency !== 'IRR' ? total.toLocaleString('en-US') + ' ' + o.currency : total.toLocaleString('fa-IR') + ' ریال')) : '—') + (((o.currency && o.currency !== 'IRR') && (o.fxBasis || o.fxRateRef)) ? '<div style="font-size:10px;color:#64748b">مرجع: ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') + (o.fxRateRef ? ' | ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') + marginBadge + '</td>' + /* v17.4 US-416: ارز سند */
+      '<td>' + stCell + '</td>' +
+      '<td>' + (isWon ? '<span class="bd" style="background:#f5f3ff;color:#6d28d9" title="پیشنهاد برنده read-only است؛ ادامه از پرونده فروش">🔒 read-only</span> ' : '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerEdit(\''+o.no+'\')">✏️</button> ') +
+      (isWon ? '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#7c3aed" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')">📁 پرونده فروش</button> ' : '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="offerReviseClone(\''+o.no+'\')">📑 نگارش جدید</button> ') +
+      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerQuickPreview(\''+o.no+'\')">👁 نمایش</button> ' +
+      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerPrint(\''+o.no+'\')">🖨️ قالب/دانلود</button> ' +
+      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerCsv(\''+o.no+'\')">⬇️</button>' +
+      (o.kind === 'CO' ? '<button class="bt" style="padding:4px 9px;font-size:11px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')">📊 ماتریس سود</button> ' : '') +
+      toCoBtn + invBtn +
+      ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="padding:4px 9px;font-size:11px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎 بررسی اقلام</button>' : '') +
+      (isWon ? '' : ' <button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="offerDel(\''+o.no+'\')">🗑️</button>') + '</td></tr>';
+  });
+  tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">پیشنهادی در این تب ثبت نشده</td></tr>';
+}
+
+// US-223: ایجاد یک‌کلیکی نسخه جدید و اصلاحیه (Rev. +1)
+window.offerReviseClone = function(no) {
+  var offers = getData('ptf_crm_offers');
+  var o = offers.filter(function(x){ return x.no === no; })[0];
+  if (!o) return;
+  if (offerPostAwardLocked(o)) { alert('🔒 پیشنهاد برنده پس از تشکیل پرونده فروش read-only است. نگارش/اصلاح بعدی باید از داخل پرونده فروش ثبت شود.'); if (typeof ptfGoSalesFileForOffer === 'function') ptfGoSalesFileForOffer(no); return; }
+  if (!confirm('📑 آیا مایل به ایجاد نگارش جدید (Rev. ' + ((o.rev||0) + 1) + ') از پیشنهاد ' + no + ' هستید؟\n\nشماره پیشنهاد تغییر نمی‌کند؛ فقط Rev همان سند افزایش می‌یابد.')) return;
+  ptfSetOffState(ptfOfferPrepareEditState(JSON.parse(JSON.stringify(o)), 'revision', no));
+  _offState.rev = (_offState.rev || 0) + 1;
+  _offState.st = 'revise';
+  _offState.dateFa = faDate();
+  _offState.dateEn = new Date().toISOString().slice(0, 10);
+  offerForm();
+  if (typeof ptfToast === 'function') ptfToast('📑 نگارش Rev. ' + _offState.rev + ' آماده ویرایش و صدور شد', 'ok');
+};
+
+// US-220 / v18.6: ماتریس سود پس از برد — ارزآگاه و مبتنی بر خرید واقعی
+window.offOpenProfitOptimizer = function(no) {
+  var o = getData('ptf_crm_offers').filter(function(x){ return x.no === no; })[0];
+  if (!o) return;
+  var saleCur = o.currency || 'IRR';
+  function fm(v, cur) {
+    if (typeof ptfMoney === 'function') return ptfMoney(v, cur || 'IRR');
+    return cur && cur !== 'IRR' ? (+v || 0).toLocaleString('en-US') + ' ' + cur : (+v || 0).toLocaleString('fa-IR') + ' ریال';
+  }
+  /* BUG-PROC-LINK-287: CO item position is not an identity. Previous code used
+     positional purchase/RFQ access; reordering/deletion could therefore show
+     another item's purchase/reference. Use only an unambiguous identity
+     resolver; unknown mappings are deliberately excluded from profit totals. */
+  var aliases = [o.inqNo, o.no].filter(Boolean);
+  var cmps = getData('ptf_crm_buycmp').filter(function(c){ return aliases.indexOf(c.inqNo) > -1; });
+  var rfqs = getData('ptf_crm_rfqsmart').filter(function(x){ return aliases.indexOf(x.srcRfq) > -1 || aliases.indexOf(x.no) > -1; });
+  var resolverReady = typeof window.ptfResolveProcurementAcross === 'function';
+  var totalSelling = 0, totalBuyingIRR = 0, rowsHtml = '', mappingIssues = [];
+  (o.items || []).forEach(function(it, i) {
+    var qty = +it.qty || 1;
+    var sellP = +it.price || 0;
+    var sellTotal = sellP * qty;
+    totalSelling += sellTotal;
+    var cmpLink = resolverReady ? window.ptfResolveProcurementAcross(it, cmps, { offerNo: o.no }) : { ok:false, reason:'resolver' };
+    var purchaseLink = (cmpLink.ok && typeof window.ptfResolvePurchaseForLine === 'function') ? window.ptfResolvePurchaseForLine(cmpLink.record, cmpLink.line) : { ok:false, reason:'purchase-resolver' };
+    var pu = purchaseLink.ok ? purchaseLink.purchase : null;
+    var buyIRR = pu ? (+pu.price || 0) * qty : 0;
+    totalBuyingIRR += buyIRR;
+    var buyDisplay = '—', profitDisplay = '—', profitColor = '#64748b';
+    if (pu) {
+      buyDisplay = '<b>' + fm((+pu.price || 0) * qty, 'IRR') + '</b> <small>(' + escP(pu.sup || '-') + ')</small>' +
+        '<br><small style="color:#64748b">تطبیق: ' + escP(cmpLink.mode || cmpLink.line.mode || 'قطعی') + '</small>' +
+        (pu.srcCur ? '<br><small dir="ltr">' + (+pu.priceFx || 0).toLocaleString('en-US') + ' ' + escP(pu.srcCur) + ' × ' + (+pu.rate || 0).toLocaleString('fa-IR') + ' = IRR</small>' : '') +
+        ((pu.files || []).length ? '<br><small>📎 رسید پرداخت ثبت شده</small>' : '');
+      if (saleCur === 'IRR') {
+        var profit = sellTotal - buyIRR;
+        var margin = sellTotal > 0 ? ((profit / sellTotal) * 100).toFixed(1) + '٪' : '0٪';
+        profitDisplay = fm(profit, 'IRR') + ' (' + margin + ')';
+        profitColor = profit >= 0 ? '#059669' : '#dc2626';
+      } else {
+        profitDisplay = 'فروش ' + fm(sellTotal, saleCur) + '<br><small>سود ریالی پس از وصول/تسعیر فروش در موتور سود محاسبه می‌شود</small>';
+        profitColor = '#0e7490';
+      }
+    } else {
+      var rfqLink = resolverReady ? window.ptfResolveProcurementAcross(it, rfqs, { offerNo: o.no }) : { ok:false, reason:'resolver' };
+      var q = rfqLink.ok ? rfqLink.line.item : null;
+      if (q && +q.bestBuyPrice > 0) {
+        buyDisplay = '<span style="color:#b45309">استعلامی: ' + fm(q.bestBuyPrice, q.quoteCur || (rfqLink.record || {}).quoteCur || 'IRR') + '</span><br><small>خرید واقعی هنوز ثبت نشده — تطبیق: ' + escP(rfqLink.mode || rfqLink.line.mode || 'قطعی') + '</small>';
+      } else {
+        var why = (!resolverReady ? 'موتور تطبیق بارگذاری نشده' : (cmpLink.reason === 'ambiguous' || cmpLink.reason === 'ambiguous-record' || rfqLink.reason === 'ambiguous' || rfqLink.reason === 'ambiguous-record') ? 'تطبیق مبهم' : 'بدون تطبیق قطعی');
+        buyDisplay = '<span style="color:#b45309">⚠️ ' + why + '</span><br><small>برای جلوگیری از انتساب اشتباه، عدد خرید/استعلامی نمایش داده نشد.</small>';
+        mappingIssues.push({ index:i, why:why });
+      }
+    }
+    rowsHtml += '<tr><td>' + (i+1) + '</td><td><b>' + escP(it.name || it.desc || '') + '</b></td>' +
+      '<td>' + qty + ' ' + escP((typeof ptfOfferUnitEn==='function'?ptfOfferUnitEn(it.unit): (it.unit||'NO'))) + '</td>' +
+      '<td>' + fm(sellP, saleCur) + '</td>' +
+      '<td style="background:#ecfdf5;color:#047857;font-weight:bold">' + buyDisplay + '</td>' +
+      '<td style="color:' + profitColor + ';font-weight:bold">' + profitDisplay + '</td></tr>';
+  });
+  var netBox = saleCur === 'IRR'
+    ? '<div>سود ناخالص فقط از خریدهای واقعیِ دارای تطبیق قطعی: <b style="color:#059669;font-size:14px">' + fm(totalSelling - totalBuyingIRR, 'IRR') + '</b></div>'
+    : '<div style="color:#0e7490">سود ریالی نهایی: در گزارش سود پس از وصول/تسعیر فروش محاسبه می‌شود</div>';
+  var mapBox = mappingIssues.length
+    ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">⚠️ ' + mappingIssues.length + ' قلم تطبیق قطعی خرید/استعلام ندارد و عمداً از محاسبه خرید واقعی کنار گذاشته شد. <button class="bt bt-o" style="font-size:11px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(o.no) + '\')">🔎 گزارش تطبیق اقلام</button></div>'
+    : '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;margin-bottom:10px">✅ همه اقلام این ماتریس با شناسه/مشخصات قطعی تطبیق داده شدند. <button class="bt bt-o" style="font-size:11px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(o.no) + '\')">🔎 گزارش تطبیق اقلام</button></div>';
+  var adv = (typeof ptfAdvanceLabel === 'function') ? ptfAdvanceLabel(o) : '—';
+  var html = '<div class="md-b" id="ptfOptModal" style="display:grid;z-index:99999" onclick="if(event.target===this)this.remove()">' +
+    '<div class="md" style="max-width:980px;max-height:94vh;overflow:auto">' +
+    '<div style="border-bottom:2px solid #0e7490;padding-bottom:10px;margin-bottom:12px">' +
+    '<h3 style="margin:0;color:#0e7490">📊 ماتریس تخصیص خرید و حداکثرسازی سود (Post-Award Optimizer) — ' + escP(o.no) + '</h3></div>' +
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;padding:12px;margin-bottom:14px">' +
+    '<div>مجموع فروش کارفرما: <b style="color:#1d4ed8">' + fm(totalSelling, saleCur) + '</b></div>' +
+    '<div>مجموع خرید واقعیِ تطبیق‌شده: <b style="color:#047857">' + fm(totalBuyingIRR, 'IRR') + '</b></div>' +
+    '<div>پیش‌پرداخت: <b style="color:#b45309">' + escP(adv) + '</b></div>' + netBox + '</div>' +
+    mapBox +
+    '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">⚠️ این ماتریس ارزها را مخلوط نمی‌کند؛ استعلامی فقط برای اطلاع است و سود فقط با خرید واقعیِ تطبیق‌شده محاسبه می‌شود.</div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">' +
+    '<thead style="background:#f1f5f9"><tr><th>#</th><th>کالا</th><th>تعداد</th><th>قیمت فروش واحد (' + escP(saleCur) + ')</th><th>خرید واقعی / تامین‌کننده</th><th>سود/وضعیت</th></tr></thead>' +
+    '<tbody>' + rowsHtml + '</tbody></table></div>' +
+    '<div style="display:flex;justify-content:flex-end;margin-top:16px"><button class="bt" onclick="document.getElementById(\'ptfOptModal\').remove()">بستن</button></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+function offerSetSt(no, st, selEl) {
+  var offers = getData('ptf_crm_offers');
+  var o = offers.filter(function(x){ return x.no === no; })[0];
+  if (!o) return;
+  if (((typeof offerPostAwardLocked === 'function' ? offerPostAwardLocked(o) : (typeof window.ptfOfferPostAwardLocked === 'function' ? window.ptfOfferPostAwardLocked(o) : false))) && st !== 'won') { alert('🔒 وضعیت پیشنهاد برنده قفل است. ادامه فرایند از پرونده فروش انجام می‌شود.'); if (selEl) selEl.value = o.st; return; }
+  /* v14.3 (US-367): چرخه ۶وضعیتی TO — بدون برنده/قفل */
+  if (o.kind === 'TO') {
+    if (st === 'rejected' && !confirm('⛔ ثبت «عدم تایید» کارفرما برای ' + no + '\n\nبا این وضعیت، درخواست همین‌جا بسته می‌شود و به مرحله پیشنهاد مالی نمی‌رسد.\n(در صورت نیاز بعدا قابل تغییر است — قفل نمی‌شود)\n\nادامه می‌دهید؟')) {
+      if (selEl) selEl.value = o.st || 'draft';
+      return;
+    }
+    o.st = st;
+    o.tst = st === 'approved' ? 'approved' : st === 'rejected' ? 'rejected' : st === 'revise' ? 'revise' : (st === 'sent' ? 'sent' : o.tst); /* سازگاری گردش کار workflow.js */
+    o.stAt = faDateTime(); o.stBy = curSession().name;
+    setData('ptf_crm_offers', offers);
+    audit('پیشنهادها', 'وضعیت پیشنهاد فنی ' + no + ' → ' + ((window.PTF_ST_TO || {})[st] || st), no);
+    addLog('وضعیت ' + no + ' → ' + st);
+    if (typeof wfRefresh === 'function' && o.inqNo) { try { wfRefresh(o.inqNo, 'وضعیت TO: ' + st); } catch (eW) {} }
+    renderOffers();
+    return;
+  }
+  // US-141 AC1 (فقط CO/TC): برنده شدن نیازمند تایید صریح + هشدار غیرقابل بازگشت
+  if (st === 'won') {
+    var ok = confirm('⚠️ هشدار مهم\n\nبا تایید وضعیت «برنده» برای ' + no + ':\n' +
+      '• دیگر امکان بازگشت به مرحله قبل وجود ندارد و وضعیت قفل می‌شود\n' +
+      (o.kind === 'CO' ? '• مدارک معامله (درخواست، ضمائم، پیشنهادهای فنی/مالی) به «پرونده فروش» همین درخواست منضم می‌شود\n' : '') +
+      '\nآیا تایید می‌کنید؟');
+    if (!ok) { if (selEl) selEl.value = o.st || 'draft'; return; }
+    o.st = 'won';
+    o.wonAt = faDateTime();
+    o.wonBy = curSession().name;
+    /* v31.7.13 US-OFF-MARGIN-ANL: انجماد حاشیه لحظه بسته‌شدن — ویرایش بعدی آمار تحلیلگر را خراب نکند */
+    try { o.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null; } catch (eMC) {}
+    /* v31.7.21 US-OFF-ALT: گزینه‌های موازی همین درخواست (اروپایی/چینی و…) با برد یکی، با تایید کاربر بازنده می‌شوند */
+    try {
+      if (o.inqNo) {
+        var _sib = offers.filter(function (x) { return x !== o && x.kind !== 'TO' && x.inqNo === o.inqNo && ['won', 'lost'].indexOf(x.st) < 0; });
+        if (_sib.length && confirm('⑂ ' + _sib.length + ' پیشنهاد موازی دیگر برای همین درخواست باز است (' + _sib.map(function (x) { return x.no; }).join('، ') + ').\n\nآیا همه به وضعیت «بازنده» بروند؟ (آمار تحلیلگر دقیق می‌ماند)')) {
+          _sib.forEach(function (x) {
+            x.st = 'lost'; x.lostAt = faDateTime();
+            try { x.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(x) : null; } catch (eML2) {}
+          });
+          try { audit('پیشنهادها', 'بازنده‌شدن خودکار ' + _sib.length + ' گزینه موازی پس از برد ' + o.no, o.no); } catch (eAu) {}
+        }
+      }
+    } catch (eSib) {}
+    setData('ptf_crm_offers', offers);
+    audit('پیشنهادها', 'تایید وضعیت برنده (قفل شد)', no);
+    addLog('پیشنهاد ' + no + ' برنده شد 🏆 (قفل)');
+    if (o.kind === 'CO') autoCreateProjectFromCO(o);
+    renderOffers();
+    return;
+  }
+  o.st = st;
+  /* v31.7.13: باخت هم لحظه بسته‌شدن snapshot می‌گیرد */
+  if (st === 'lost') { try { o.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null; o.lostAt = faDateTime(); } catch (eML) {} }
+  setData('ptf_crm_offers', offers);
+  addLog('وضعیت ' + no + ' → ' + st);
+}
+
+/* ===== v13.6 (US-322 تکمیلی): CO برنده → دیگر پرونده در «بایگانی» نمی‌سازد.
+   مدارک سیستمی به «پرونده فروش» همان درخواست (salesfiles) منضم می‌شود؛
+   بایگانی فقط مقصد مختومه‌سازی است. ===== */
+function autoCreateProjectFromCO(o) {
+  try {
+    var r = (typeof ptfSF_ensure === 'function') ? ptfSF_ensure(o.inqNo || o.no, o.buyerCo) : null;
+    if (!r) return;
+    var deals = getData('ptf_crm_deals');
+    var rec = deals.filter(function (x) { return x.cd === r.cd; })[0];
+    if (!rec) return;
+    rec.docs = rec.docs || [];
+    rec.wonOffer = o.no;
+    rec.wonAt = faDateTime();
+    /* ضمائم درخواست مرتبط (فایل‌های آپلودی RFQ) به اسناد پرونده فروش */
+    var rfq = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === o.inqNo || x.inqNo === o.inqNo; })[0];
+    var added = 0;
+    if (rfq && rfq.files) {
+      Object.keys(rfq.files).forEach(function (k) {
+        (rfq.files[k] || []).forEach(function (f) {
+          if (f.key && !rec.docs.some(function (d) { return d.key === f.key; })) {
+            rec.docs.push({ name: f.name, key: f.key, size: f.size || 0, t: faDate(), by: curSession().name, note: 'ضمیمه درخواست (' + k + ')' });
+            added++;
+          }
+        });
+      });
+    }
+    /* v17.1 (US-404 فاز ۲ — مصوب کارفرما): خلاصه انضمام خودکار «اسناد چهارگانه» لحظه تشکیل پرونده:
+       ① ضمایم درخواست (بالا — added) ② TO/CO با آخرین رویژن (نمایش زنده sfDocsOf) ③ استعلام‌های تامین
+       (sfDocsOf.supply — با هر دو شناسه US-386) ④ جدول خرید واقعی (hook v16.3). شمارش برای audit/notify: */
+    var nOff = 0, nSup = 0;
+    try {
+      var _als = [o.inqNo];
+      if (rfq) { if (_als.indexOf(rfq.cd) < 0) _als.push(rfq.cd); if (rfq.inqNo && _als.indexOf(rfq.inqNo) < 0) _als.push(rfq.inqNo); }
+      nOff = getData('ptf_crm_offers').filter(function (x) { return x.inqNo === o.inqNo; }).length;
+      nSup = getData('ptf_crm_rfqsmart').filter(function (q) { return q.srcRfq && _als.indexOf(q.srcRfq) > -1; }).length;
+    } catch (e4) {}
+    rec.docsSummary = { attachments: added, offers: nOff, supply: nSup, t: faDateTime() };
+    /* v19.1 (US-432): «سند قطعی برد» — snapshot تغییرناپذیر پیشنهاد مالی برنده + آخرین پیشنهاد فنی مرتبط،
+       لحظه ابلاغ سفارش داخل خود پرونده فروش ذخیره می‌شود (پوشه اسناد برد). چاپ/PDF از پرونده: sfAwardPrint.
+       اگر بعدها پیشنهاد از سیستم حذف شود، snapshot همچنان سند برد را بازتولید می‌کند (AC4). */
+    try {
+      rec.awardDocs = [{ kind: o.kind, no: o.no, rev: o.rev || 0, role: 'commercial', t: faDateTime(), by: curSession().name, snap: JSON.parse(JSON.stringify(o)) }];
+      var _allOff = getData('ptf_crm_offers');
+      var _toRel = null;
+      if (o.srcToNo) _toRel = _allOff.filter(function (x) { return x.no === o.srcToNo; })[0];
+      if (!_toRel) _toRel = _allOff.filter(function (x) { return x.kind === 'TO' && (x.coNo === o.no || (o.inqNo && x.inqNo === o.inqNo)); }).sort(function (a, b) { return (b.rev || 0) - (a.rev || 0); })[0];
+      if (_toRel) rec.awardDocs.push({ kind: 'TO', no: _toRel.no, rev: _toRel.rev || 0, role: 'technical', t: faDateTime(), by: curSession().name, snap: JSON.parse(JSON.stringify(_toRel)) });
+    } catch (eAw) {}
+    setData('ptf_crm_deals', deals);
+    audit('پرونده‌های فروش', 'CO برنده ' + o.no + ' — پرونده ' + (r.inqNo || r.cd) + ' تشکیل و اسناد منضم شد (' + added + ' ضمیمه، ' + nOff + ' پیشنهاد، ' + nSup + ' استعلام تامین)', r.cd);
+    if (typeof notify === 'function') notify({ toRoles: SENIOR_ROLES, title: '🏆 ' + o.no + ' برنده شد — پرونده فروش ' + (r.inqNo || '') + ' با اسناد کامل تشکیل شد', kind: 'info', channels: ['cart'], link: { panel: 'deals' } });
+    /* v16.3 (US-392 AC1): هدایت به ثبت خرید واقعی — سود واقعی فقط با قیمت خرید قطعی */
+    if (confirm('🏆 وضعیت برنده ثبت شد — پرونده فروش با اسناد کامل تشکیل شد:\n• ' + added + ' ضمیمه درخواست\n• ' + nOff + ' پیشنهاد (آخرین رویژن)\n• ' + nSup + ' استعلام تامین\n\n🛒 گام بعدی فرآیند: ثبت «قیمت خرید واقعی» اقلام این پروژه (تامین‌کننده نهایی + قیمت + ارز) تا سود واقعی از داده قطعی محاسبه شود.\n\nهمین حالا جدول خرید واقعی باز شود؟')) {
+      if (typeof ptfRealBuyOpen === 'function') ptfRealBuyOpen(o.inqNo || o.no);
+    }
+  } catch (e) {}
+}
+
+function offerNew(kind) {
+  try {
+    var draft = JSON.parse(localStorage.getItem('ptf_autodraft_offer_' + kind));
+    if (draft && draft.items && draft.items.length > 0) {
+      if (confirm('⚡ یک فرم پیش‌نویس ذخیره‌شده از قبل (حاوی ' + draft.items.length + ' قلم کالا) موجود است.\nآیا مایل به بازیابی آن هستید؟')) {
+        ptfSetOffState(draft);
+        offerForm();
+        if (typeof ptfToast === 'function') ptfToast('⚡ فرم پیش‌نویس با موفقیت بازیابی شد', 'ok');
+        return;
+      } else {
+        localStorage.removeItem('ptf_autodraft_offer_' + kind);
+      }
+    }
+  } catch(e) {}
+  ptfSetOffState({
+    no: offerSerial(kind), kind: kind, rev: 0, editMode: 'new',
+    dateFa: new Date().toLocaleDateString('fa-IR'),
+    dateEn: new Date().toISOString().slice(0, 10),
+    buyerCd: '', buyerCo: '', buyerContact: '', buyerTel: '', inqNo: '',
+    items: [{ name: '', desc: '', model: '', qty: 1, unit: 'NO', brand: '', dlv: '', price: 0 }], /* v122 US-278: ردیف پیش‌فرض */ terms: [], st: 'draft', vatNote: true
+  });
+  offerForm();
+}
+
+function ptfTriggerAutoDraftSave() {
+  if (_offState && _offState.kind) {
+    try { localStorage.setItem('ptf_autodraft_offer_' + _offState.kind, JSON.stringify(_offState)); } catch(e){}
+  }
+}
+
+/* v31.7.31 BUG-OFF-REV-001:
+   هویت پیشنهاد هنگام save باید از مسیر ورود فرم بیاید، نه از حدس وضعیت سند.
+   - ویرایش مستقیم (editMode=direct) هرگز Rev جدید یا شماره جدید نمی‌سازد.
+   - نگارش جدید (editMode=revision) فقط Rev را روی همان شماره افزایش می‌دهد.
+   - اگر فرم stale/autodraft باشد و رکورد اصلی پیدا نشود، ذخیره مسدود می‌شود تا
+     پیشنهاد جدید با شماره اشتباه ساخته نشود. */
+function ptfOfferPrepareEditState(o, mode, baseNo) {
+  if (!o) return o;
+  o.editMode = mode || 'direct';
+  o._baseNo = baseNo || o.no || '';
+  o._origNo = o._baseNo;
+  return o;
+}
+window.ptfOfferPrepareEditState = ptfOfferPrepareEditState;
+
+function ptfOfferResolveSaveIdentity(o, offers) {
+  offers = Array.isArray(offers) ? offers : [];
+  if (!o) return { ok: false, reason: 'no-state', idx: -1, originalNo: '' };
+  var mode = o.editMode || 'new';
+  var isEditLike = mode === 'direct' || mode === 'revision';
+  var originalNo = isEditLike ? (o._baseNo || o._origNo || o.baseNo || o.no || '') : (o.no || '');
+  var idx = -1;
+  offers.forEach(function (x, i) { if (x && x.no === originalNo) idx = i; });
+  if (isEditLike) {
+    if (!originalNo || idx < 0) return { ok: false, reason: 'missing-edit-target', idx: -1, originalNo: originalNo, mode: mode };
+    if (o.no !== originalNo) o.no = originalNo; /* شماره سند در ویرایش/نگارش immutable است */
+  } else {
+    offers.forEach(function (x, i) { if (x && x.no === o.no) idx = i; });
+  }
+  return { ok: true, idx: idx, originalNo: originalNo, mode: mode, explicitRevision: mode === 'revision' };
+}
+window.ptfOfferResolveSaveIdentity = ptfOfferResolveSaveIdentity;
+
+function offerEdit(no) {
+  var offers = getData('ptf_crm_offers');
+  var o = offers.filter(function(x){ return x.no === no; })[0];
+  if (!o) return;
+  if (offerPostAwardLocked(o)) { alert('🔒 پیشنهاد برنده پس از تشکیل پرونده فروش قابل ویرایش نیست. ادامه فرایند از پرونده فروش انجام می‌شود.'); if (typeof ptfGoSalesFileForOffer === 'function') ptfGoSalesFileForOffer(no); return; }
+  ptfSetOffState(ptfOfferPrepareEditState(JSON.parse(JSON.stringify(o)), 'direct', no));
+  offerForm();
+}
+
+function offerToCo(no) { // AC12 + US-142 AC5: فقط یک بار | v14.3 US-367: در هر وضعیت مجاز جز «عدم تایید»
+  var offers = getData('ptf_crm_offers');
+  var o = offers.filter(function(x){ return x.no === no; })[0];
+  if (!o) return;
+  if (o.kind === 'TO' && (o.st === 'rejected' || (o.st === 'lost'))) {
+    alert('⛔ این پیشنهاد فنی «عدم تایید» خورده و درخواست همین‌جا بسته شده است.\nطبق فرآیند مصوب، به مرحله پیشنهاد مالی نمی‌رسد.\n(اگر کارفرما نظرش برگشت، ابتدا وضعیت TO را تغییر دهید)');
+    return;
+  }
+  /* v31.7.21 US-OFF-ALT (گزارش کارفرما): مشتری برای یک درخواست چند پیشنهاد موازی می‌خواهد
+     (مثلاً گزینه کالای اروپایی و گزینه چینی). قفل یک‌باره US-142 AC5 مانع می‌شد.
+     اکنون: تبدیل دوم به بعد با تایید صریح، به‌عنوان «پیشنهاد جایگزین» مجاز است؛
+     لینک coNo اول برای ردیابی حفظ می‌شود و پیشنهاد جدید مارک altOf می‌گیرد. */
+  var _isAlt = false;
+  if (o.coNo && offers.some(function(x){ return x.no === o.coNo; })) {
+    var _altCount = offers.filter(function(x){ return x.kind !== 'TO' && x.srcToNo === no; }).length;
+    if (!confirm('ℹ️ برای این پیشنهاد فنی قبلاً «' + o.coNo + '» صادر شده است.\n\nآیا می‌خواهید یک «پیشنهاد مالی جایگزین» (گزینه ' + (_altCount + 1) + ' — مثلاً برند/مبدأ دیگر) برای همین درخواست بسازید؟\n\n• هر پیشنهاد شماره مستقل خودش را می‌گیرد\n• هر دو در فهرست با برچسب «گزینه» دیده می‌شوند\n• با برنده شدن یکی، بقیه را بازنده کنید')) {
+      return;
+    }
+    _isAlt = true;
+  }
+  ptfSetOffState(JSON.parse(JSON.stringify(o)));
+  _offState.no = offerSerial('CO');
+  _offState.kind = 'CO';
+  _offState.st = 'draft';
+  _offState.rev = 0;
+  _offState.srcToNo = no; // برای قفل کردن دکمه تبدیل پس از ذخیره
+  if (_isAlt) { _offState.altOf = o.coNo; _offState.altLabel = 'گزینه جایگزین'; } /* v31.7.21 US-OFF-ALT */
+  delete _offState.coNo;
+  /* v15.4 (US-386): TOهای قدیمی/وارداتی که buyerCd ندارند → حل از روی نام تا کارفرما در فرم CO عینا بنشیند */
+  if (!_offState.buyerCd && _offState.buyerCo) {
+    try {
+      var _mc2 = getData('ptf_crm_customers').filter(function (c2) {
+        return c2.co === _offState.buyerCo || (c2.coEn && c2.coEn === _offState.buyerCo) ||
+          (typeof dedupNorm === 'function' && (dedupNorm(c2.co) === dedupNorm(_offState.buyerCo) || (c2.coEn && dedupNorm(c2.coEn) === dedupNorm(_offState.buyerCo))));
+      })[0];
+      if (_mc2) _offState.buyerCd = _mc2.cd;
+    } catch (eM2) {}
+  }
+  _offState.items.forEach(function(it){ it.price = it.price || 0; });
+  offerForm();
+}
+
+function offerDel(no) {
+  var _targetDel = getData('ptf_crm_offers').filter(function(o){ return o.no === no; })[0];
+  if (offerPostAwardLocked(_targetDel)) { alert('🔒 پیشنهاد برنده و پرونده فروش آن قابل حذف از ماژول پیشنهادها نیست. ادامه فرایند از پرونده فروش انجام می‌شود.'); if (typeof ptfGoSalesFileForOffer === 'function') ptfGoSalesFileForOffer(no); return; }
+  /* v16.4 (US-372 AC3): confirm حیاتی حذف — هم‌تم dialogx با fallback بومی؛ رفتار عینا حفظ شده */
+  if (window.dialogx) {
+    dialogx.confirm('پیشنهاد ' + no + ' حذف شود؟', { icon: '🗑', title: 'حذف پیشنهاد', danger: true, okLabel: 'حذف شود' }).then(function (ok) { if (ok) ptfOfferDelDo(no); });
+    return;
+  }
+  if (!confirm('پیشنهاد ' + no + ' حذف شود؟')) return;
+  ptfOfferDelDo(no);
+}
+function ptfOfferDelDo(no) {
+  var offers = getData('ptf_crm_offers');
+  var target = offers.filter(function(o){ return o.no === no; })[0];
+  var rem = offers.filter(function(o){ return o.no !== no; });
+  setData('ptf_crm_offers', rem);
+  try {
+    if (target) {
+      var arc = getData('ptf_crm_deleted_archive');
+      arc.unshift({ id: no, kind: 'OFFER', label: target.kind + ' — ' + (target.buyerCo || '?'), reason: 'حذف دستی پیشنهاد (US-260)', by: (typeof curSession === 'function' && curSession().name) ? curSession().name : 'کاربر', t: (typeof faDateTime === 'function') ? faDateTime() : '', iso: new Date().toISOString() });
+      if (arc.length > 500) arc = arc.slice(0, 500);
+      setData('ptf_crm_deleted_archive', arc);
+    }
+  } catch (eArc) {}
+  if (target && target.inqNo) {
+    var inqNo = target.inqNo;
+    var otherOffs = rem.filter(function(o){ return o.inqNo === inqNo; });
+    if (!otherOffs.length) {
+      var rfqs = getData('ptf_crm_rfqs');
+      var r = rfqs.filter(function(x){ return x.cd === inqNo || x.inqNo === inqNo; })[0];
+      if (r) { r.st = 'st1'; r.stxt = '🔴 دریافت اولیه'; setData('ptf_crm_rfqs', rfqs); }
+    }
+  }
+  renderOffers();
+  if (typeof renderRfq === 'function') renderRfq();
+  addLog('پیشنهاد ' + no + ' حذف شد');
+  if (typeof wfRefresh === 'function') try { wfRefresh(); } catch (eWf) {}
+}
+
+
+/* v21.8 US-453 / US-HT-v214-1: برچسب خوانای کارفرما (نام + کد) در فرم پیشنهاد */
+window.ptfOfferBuyerLabel = function (c, fallbackCo) {
+  if (!c) {
+    var fb = fallbackCo || '';
+    return { title: fb || '— انتخاب کارفرما —', code: '', fa: fb, en: '', html: escP(fb || '—') };
+  }
+  var fa = c.co || '';
+  var en = c.coEn || '';
+  var code = c.cd || '';
+  var title = fa || en || code || '—';
+  if (fa && en && fa !== en) title = fa + ' / ' + en;
+  var html = '<span style="font-weight:800;color:#0f172a">' + escP(title) + '</span>';
+  if (code) html += ' <span dir="ltr" style="display:inline-block;background:#eef2ff;color:#3730a3;border:1px solid #c7d2fe;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:800;margin-right:4px">' + escP(code) + '</span>';
+  if (fa && en && fa !== en) {
+    html += '<div style="font-size:11px;color:#64748b;margin-top:2px">FA: ' + escP(fa) + ' <span style="color:#cbd5e1">|</span> EN: <span dir="ltr">' + escP(en) + '</span></div>';
+  } else if (en && !fa) {
+    html += '<div style="font-size:11px;color:#64748b;margin-top:2px" dir="ltr">EN: ' + escP(en) + '</div>';
+  }
+  return { title: title, code: code, fa: fa, en: en, html: html };
+};
+window.ptfOfferRefreshBuyerChip = function (cd) {
+  try {
+    var box = (typeof offEl === 'function') ? offEl('ofBuyerChip') : document.getElementById('ofBuyerChip');
+    if (!box) return;
+    cd = cd || ((typeof offEl === 'function' ? offEl('ofBuyer') : document.getElementById('ofBuyer')) || {}).value || (_offState && _offState.buyerCd) || '';
+    var c = null;
+    if (cd) c = getData('ptf_crm_customers').filter(function (x) { return x.cd === cd; })[0];
+    if (!c && _offState && (_offState.buyerCo || _offState.buyerCd)) {
+      c = { cd: _offState.buyerCd || cd, co: _offState.buyerCo || '', coEn: '' };
+    }
+    if (!cd) {
+      box.innerHTML = '<span style="color:#94a3b8">هنوز کارفرما انتخاب نشده</span>';
+      box.style.display = '';
+      return;
+    }
+    var lb = ptfOfferBuyerLabel(c, _offState && _offState.buyerCo);
+    box.innerHTML = '🏢 کارفرما انتخاب‌شده: ' + lb.html;
+    box.style.display = '';
+  } catch (e) {}
+};
+
+// ---- فرم صدور/ویرایش ----
+function offerForm() {
+  /* v14.2 (US-364): فقط یک فرم پیشنهادِ قابل‌مشاهده — فرم‌های باز قبلی بسته می‌شوند
+     (مینیمایزشده‌های modalx با display:none دست نمی‌خورند) */
+  try {
+    document.querySelectorAll('.md-b').forEach(function (mb) {
+      if (mb.style.display !== 'none' && mb.querySelector('[id="offItemsWrap"]')) mb.remove();
+    });
+  } catch (eF) {}
+  var o = _offState;
+  /* v15.5 (US-386 تکمیلی — گزارش کارفرما: «ویرایش» و «نگارش جدید» هم کارفرما را خالی می‌آوردند):
+     حل مرکزی buyerCd از نام کارفرما — یک‌جا برای همه مسیرهای ورود به فرم
+     (ویرایش/نگارش جدید/→CO/صف انتظار/پیش‌نویس دستیار/بازیابی autodraft) */
+  if (o && !o.buyerCd && o.buyerCo) {
+    try {
+      var _bMc = getData('ptf_crm_customers').filter(function (c2) {
+        return c2.co === o.buyerCo || (c2.coEn && c2.coEn === o.buyerCo) ||
+          (typeof dedupNorm === 'function' && (dedupNorm(c2.co) === dedupNorm(o.buyerCo) || (c2.coEn && dedupNorm(c2.coEn) === dedupNorm(o.buyerCo))));
+      })[0];
+      if (_bMc) o.buyerCd = _bMc.cd;
+    } catch (eBc) {}
+  }
+  var custs = getData('ptf_crm_customers');
+  /* v21.4 BUG-039: اگر buyerCd روی سند هست ولی در لیست نیست (ادغام/حذف نرم)، گزینه موقت بساز تا انتخاب خالی نشود */
+  if (o.buyerCd && !custs.some(function (c) { return c.cd === o.buyerCd; })) {
+    custs = custs.slice();
+    custs.unshift({ cd: o.buyerCd, co: o.buyerCo || o.buyerCd, coEn: o.buyerCo || '' });
+  }
+  var custOpts = '<option value="">— انتخاب کارفرما —</option>';
+  custs.forEach(function(c) {
+    /* v21.8 US-453: نام خوانا + کد در لیست کشویی */
+    var label = c.co || c.coEn || c.cd || '';
+    if (c.coEn && c.co && c.coEn !== c.co) label = c.co + ' / ' + c.coEn;
+    if (c.cd) label = label + '  ·  ' + c.cd;
+    custOpts += '<option value="' + escP(c.cd) + '"' + (o.buyerCd === c.cd ? ' selected' : '') + '>' + escP(label) + '</option>';
+  });
+  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:min(96vw,1700px);max-height:92vh;overflow:auto">' +
+    '<h3>' + (o.kind === 'TO' ? '🔧 پیشنهاد فنی' : o.kind === 'TC' ? '🤝 پیشنهاد فنی-مالی' : '💰 پیشنهاد مالی') +
+    ' — <span style="direction:ltr;display:inline-block">' + escP(o.no) + '</span>' +
+    (o.buyerCo || o.buyerCd ? ' <small style="font-weight:700;color:#0e7490;font-size:12px">| 🏢 ' + escP(o.buyerCo || o.buyerCd) + (o.buyerCd ? ' <span dir="ltr" style="opacity:.75">(' + escP(o.buyerCd) + ')</span>' : '') + '</small>' : '') +
+    '</h3>' +
+    /* v20.1 (US-442): TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ */
+    (o.kind !== 'TO' ? '<div class="fld" style="max-width:340px"><label>🖨 قالب چاپ سند (US-442)</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
+    '<div class="fr">' +
+    '<div class="fld"><label>کارفرما (خریدار) *</label><select id="ofBuyer" onchange="offerPickBuyer(this.value)">' + custOpts + '</select>' +
+    '<div id="ofBuyerChip" style="margin-top:8px;padding:8px 10px;border-radius:12px;background:#f8fafc;border:1px solid var(--brd);font-size:12.5px;line-height:1.6">' +
+    (o.buyerCd || o.buyerCo
+      ? ('🏢 کارفرما انتخاب‌شده: ' + (typeof ptfOfferBuyerLabel === 'function'
+          ? ptfOfferBuyerLabel(
+              (function(){ try { return getData('ptf_crm_customers').filter(function(x){return x.cd===o.buyerCd;})[0]; } catch(e){ return null; } })(),
+              o.buyerCo
+            ).html
+          : escP(o.buyerCo || o.buyerCd)))
+      : '<span style="color:#94a3b8">هنوز کارفرما انتخاب نشده</span>') +
+    '</div></div>' +
+    '<div class="fld"><label>شخص رابط خریدار</label><select id="ofContact" onchange="offerPickContact(this.value)"><option>—</option></select></div>' +
+    '</div>' +
+    '<div id="ofCreditBox"></div>' + /* v14.6 US-352: مانده باز + سقف اعتبار مشتری */
+    '<div class="fr">' +
+    // US-175 AC1: فقط انتخاب از شماره‌های ثبت‌شده در «استعلامات» / اقلام درخواست
+    '<div class="fld"><label>شماره درخواست کارفرما * — فقط از استعلام‌های ثبت‌شده</label><select id="ofInq" style="direction:ltr" onchange="offerPickInq(this.value)"' + (typeof ptfInqNoOptions === 'function' ? '>' + ptfInqNoOptions(o.inqNo) : '>') + '</select>' +
+    '<small style="color:#94a3b8;font-size:11px">شماره‌ای در فهرست نیست؟ ابتدا در بخش «استعلامات» ثبتش کنید.</small></div>' +
+    '<div class="fld"><label>تاریخ سند (شمسی) — ذخیره سیستمی به میلادی</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofDateJ', (o.dateEn || new Date().toISOString().slice(0, 10))) : '<input type="text" id="ofDateJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.dateEn || new Date().toISOString().slice(0, 10)) : (o.dateEn || ''))) + '">') + '</div>' +
+    '</div>' +
+    // US-157 AC1: اعتبار پیشنهاد (برای مالی و فنی-مالی)
+    (o.kind !== 'TO' ? '<div class="fr"><div class="fld"><label>اعتبار پیشنهاد تا (شمسی) — یادآور خودکار ۳ روز قبل</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofValidJ', (o.validUntil || defaultValidity(o.dateEn))) : '<input type="text" id="ofValidJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.validUntil || defaultValidity(o.dateEn)) : (o.validUntil || ''))) + '">') + '</div><div class="fld"></div></div>' : '') +
+    '<div class="fr">' +
+    // US-142 AC3: Contact Person = اختصاری انگلیسی کاربر جاری — غیرقابل تغییر
+    '<div class="fld"><label>رابط فروشنده — روی سند: Contact Person (کاربر جاری — قفل 🔒)</label><input type="text" id="ofSeller" value="' + escP(myEnName()) + '" readonly style="direction:ltr;background:#f1f5f9;color:#475569;cursor:not-allowed"></div>' +
+    // US-148 AC2: درج مهر و امضای کاربر جاری (با پیش‌نمایش قبل از ثبت)
+    '<div class="fld"><label>مهر و امضا</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:9px 0;cursor:pointer">' +
+    '<input type="checkbox" id="ofUseSig"' + (o.useSig ? ' checked' : '') + (mySigReady() || ptfCanDelegateSig() ? '' : ' disabled') + '> درج مهر و امضا روی سند' +
+    (mySigReady() || ptfCanDelegateSig() ? '' : ' <small style="color:#d97706">(ابتدا در مکاتبات → «✍️ امضای من» ثبت کنید)</small>') + '</label>' +
+    /* v13.1 (US-321 — دستور کارفرما): رییس هیات مدیره می‌تواند با امضای یوسفی/کریمی هم امضا کند */
+    (ptfCanDelegateSig() ? '<select id="ofSignAs" style="width:100%;padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:12.5px">' + ptfSignAsOptions(o.signAs) + '</select>' : '') +
+    '</div>' +
+    '</div>' +
+    '<h4 style="margin:14px 0 8px">اقلام</h4>' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+    '<button type="button" id="offInqBtn" class="bt" style="font-size:12px;background:#7c3aed" onclick="offLoadInqItems()">🗂 بارگذاری از درخواست</button>' +
+    
+    '<button type="button" class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="offOpenProductMultiPicker()">+ از ماژول کالا (انتخاب چندگانه)</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل با راهنما</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:11.5px;color:#475569" onclick="offShowAdvCols()">⛭ ستون‌های تکمیلی ستون‌ها</button>' +
+    '<input type="file" id="offXls" accept=".csv,.xlsx,.xls" style="display:none" onchange="offImportFile(this)">' +
+    '</div>' +
+    '<div id="offItemsWrap" style="overflow-x:auto"></div>' +
+    '<h4 style="margin:14px 0 8px">شرایط و ضوابط (Terms &amp; Conditions)</h4>' +
+    '<div id="offTermsWrap"></div>' +
+    '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
+    '<select id="offTcLib" style="flex:1;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr;font-size:12px">' +
+    TC_LIBRARY.map(function(t, i){ return '<option value="' + i + '">' + escP(t.slice(0, 80)) + '</option>'; }).join('') +
+    '</select>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="offAddTermLib()">+ از کتابخانه</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="offAddTerm(\'\')">+ بند دلخواه</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:18px;flex-wrap:wrap">' +
+    '<div></div>' +
+    '<div style="display:flex;gap:8px">' +
+    '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
+    '<button class="bt bt-o" onclick="offerPreview()">👁️ پیش‌نمایش</button>' +
+    '<button type="button" class="bt" id="offSaveBtn" onclick="window.offerSave()">💾 ذخیره</button>' +
+    '</div></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  offRenderItems(); offRenderTerms(); offSyncTcLib();
+  /* v21.4 BUG-039: ست صریح .value بعد از insert (selected attribute در برخی مرورگرها/مودال‌های مک‌استایل کافی نیست)
+     + پر کردن رابط/تلفن و حفظ inqNo بدون اجبار انتخاب مجدد */
+  try {
+    var buyerEl = (typeof offEl === 'function') ? offEl('ofBuyer') : document.getElementById('ofBuyer');
+    var inqEl = (typeof offEl === 'function') ? offEl('ofInq') : document.getElementById('ofInq');
+    if (buyerEl && o.buyerCd) {
+      buyerEl.value = o.buyerCd;
+      if (buyerEl.value !== o.buyerCd) {
+        /* option نبود — اضافه کن */
+        var opt = document.createElement('option');
+        opt.value = o.buyerCd;
+        opt.textContent = o.buyerCo || o.buyerCd;
+        opt.selected = true;
+        buyerEl.appendChild(opt);
+        buyerEl.value = o.buyerCd;
+      }
+    }
+    if (inqEl && o.inqNo) {
+      inqEl.value = o.inqNo;
+      if (inqEl.value !== o.inqNo) {
+        var opt2 = document.createElement('option');
+        opt2.value = o.inqNo;
+        opt2.textContent = o.inqNo + ' (سند)';
+        opt2.selected = true;
+        inqEl.appendChild(opt2);
+        inqEl.value = o.inqNo;
+      }
+    }
+  } catch (eSet) {}
+  if (o.buyerCd) {
+    try { offerPickBuyer(o.buyerCd, true); } catch (ePB) {}
+    try { if (typeof ptfOfferRefreshBuyerChip === 'function') ptfOfferRefreshBuyerChip(o.buyerCd); } catch (eCh2) {}
+    /* keep=true گاهی رابط را خالی می‌گذارد اگر نام match نشود — بازیابی صریح */
+    try {
+      if (o.buyerContact) {
+        var cEl = (typeof offEl === 'function') ? offEl('ofContact') : document.getElementById('ofContact');
+        var cRec = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0];
+        if (cEl && cRec && cRec.people && cRec.people.length) {
+          var pi = -1;
+          cRec.people.forEach(function (p, i) {
+            if (p.nm === o.buyerContact || p.nmEn === o.buyerContact) pi = i;
+          });
+          if (pi < 0) pi = 0;
+          cEl.value = String(pi);
+        }
+      }
+    } catch (eCt) {}
+  } else {
+    try { if (typeof ptfOfferRefreshBuyerChip === 'function') ptfOfferRefreshBuyerChip(''); } catch (eCh3) {}
+  }
+}
+
+/* ===== v14.6 (US-352 — نقشه راه مصوب): مانده مطالبات باز مشتری =====
+   مانده = مجموع (مبلغ فاکتور − وصولی‌ها) روی فاکتورهای CO های همین مشتری */
+window.ptfCustOpenBalance = function (custCd) {
+  var offers = getData('ptf_crm_offers');
+  var invs = getData('ptf_crm_invoices');
+  var myCOs = {};
+  offers.forEach(function (o) { if (o.buyerCd === custCd && (o.kind === 'CO' || o.kind === 'TC')) myCOs[o.no] = 1; });
+  var open = 0, cnt = 0;
+  invs.forEach(function (inv) {
+    if (!myCOs[inv.offerNo]) return;
+    var payRows = (inv.payments || []).concat(inv.pays || []);
+    var paid = payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    var remain = Math.max(0, (+inv.amount || 0) - paid);
+    if (remain > 0) { open += remain; cnt++; }
+  });
+  return { open: open, cnt: cnt };
+};
+/* نمایش باکس مانده/سقف زیر انتخاب کارفرما در فرم CO/TC */
+window.ptfRenderCreditBox = function (custCd) {
+  var box = (typeof offEl === 'function') ? offEl('ofCreditBox') : document.getElementById('ofCreditBox');
+  if (!box) return;
+  if (!custCd || !window._offState || (_offState.kind !== 'CO' && _offState.kind !== 'TC')) { box.innerHTML = ''; return; }
+  if (typeof roleDef === 'function' && !(roleDef() || {}).sellPrice) { box.innerHTML = ''; return; }
+  var c = getData('ptf_crm_customers').filter(function (x) { return x.cd === custCd; })[0];
+  if (!c) { box.innerHTML = ''; return; }
+  var bal = ptfCustOpenBalance(custCd);
+  var limit = +c.creditLimit || 0;
+  var overNow = limit > 0 && bal.open > limit;
+  box.innerHTML = '<div data-noix style="font-size:12px;border-radius:10px;padding:8px 12px;margin:4px 0 8px;line-height:1.9;background:' + (overNow ? '#fef2f2;border:1px solid #fecaca' : bal.open > 0 ? '#fffbeb;border:1px solid #fcd34d' : '#f0fdf4;border:1px solid #bbf7d0') + '">' +
+    '💰 مانده مطالبات باز این مشتری: <b style="color:' + (bal.open > 0 ? '#b45309' : '#047857') + '">' + bal.open.toLocaleString('fa-IR') + ' ریال</b>' + (bal.cnt ? ' <small>(' + bal.cnt + ' فاکتور باز)</small>' : '') +
+    (limit > 0 ? ' | سقف اعتبار: <b>' + limit.toLocaleString('fa-IR') + '</b>' + (overNow ? ' — <b style="color:#dc2626">⛔ از سقف عبور کرده!</b>' : '') : ' | <small style="color:#94a3b8">سقف اعتبار تعیین نشده (فرم مشتری)</small>') + '</div>';
+};
+
+// v121: بازگردانی offerPickBuyer — در ریفکتور v90..v120 حذف شده بود ولی ۳ نقطه
+// (onchange کشویی کارفرما، offerForm، offerPickInq) هنوز آن را صدا می‌زنند → ReferenceError
+function offerPickBuyer(cd, keep) {
+  var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === cd; })[0];
+  _offState.buyerCd = cd;
+  try { ptfRenderCreditBox(cd); } catch (eCB) {} /* v14.6 US-352 */
+  var sel = document.getElementById('ofContact');
+  if (!c) { if (sel) sel.innerHTML = '<option>—</option>'; return; }
+  _offState.buyerCo = c.coEn || c.co;
+  var people = c.people || [];
+  var pp = primaryPerson(c);
+  if (sel) {
+    sel.innerHTML = people.map(function(p, i) {
+      return '<option value="' + i + '"' + ((keep && (_offState.buyerContact === p.nm || _offState.buyerContact === p.nmEn)) || (!keep && p === pp) ? ' selected' : '') + '>' + escP(p.nm) + (p.nmEn ? ' / ' + escP(p.nmEn) : '') + ' (' + escP(p.role || '') + ')</option>';
+    }).join('') || '<option>—</option>';
+  }
+  if (!keep && pp) {
+    _offState.buyerContact = pp.nmEn || pp.nm;
+    _offState.buyerTel = pp.tels && pp.tels.length ? fmtTel(pp.tels[0]) : (pp.mobs && pp.mobs.length ? pp.mobs[0].n : '');
+  } else if (keep && pp && !_offState.buyerContact) {
+    /* v21.4 BUG-039: ویرایش بدون buyerContact ذخیره‌شده → حداقل رابط اصلی */
+    _offState.buyerContact = pp.nmEn || pp.nm;
+    if (!_offState.buyerTel) {
+      _offState.buyerTel = pp.tels && pp.tels.length ? fmtTel(pp.tels[0]) : (pp.mobs && pp.mobs.length ? pp.mobs[0].n : '');
+    }
+  }
+  /* اطمینان: select کارفرما مقدار buyerCd را دارد */
+  try {
+    var bSel = document.getElementById('ofBuyer');
+    if (bSel && cd && bSel.value !== cd) bSel.value = cd;
+  } catch (eBS) {}
+  try { if (typeof ptfOfferRefreshBuyerChip === 'function') ptfOfferRefreshBuyerChip(cd); } catch (eChip) {}
+}
+
+/* v15.4 (US-386 — کیس استادی کارفرما): هر درخواست دو شناسه دارد (کد سیستمی r.cd + شماره کارفرما r.inqNo).
+   TO ممکن است با یکی ثبت شده باشد و کاربر در فرم CO دیگری را انتخاب کند → مقایسه exact شکست می‌خورد
+   و پیغام غلط «پیشنهاد فنی ثبت نشده» می‌آمد. این تابع همه نام‌های مستعار یک شماره را برمی‌گرداند. */
+window.ptfInqAliases = function (v) {
+  var out = [];
+  if (v) out.push(v);
+  try {
+    getData('ptf_crm_rfqs').forEach(function (r) {
+      if (r.cd === v || (r.inqNo && r.inqNo === v)) {
+        if (r.cd && out.indexOf(r.cd) < 0) out.push(r.cd);
+        if (r.inqNo && out.indexOf(r.inqNo) < 0) out.push(r.inqNo);
+      }
+    });
+  } catch (e) {}
+  return out;
+};
+
+// US-209 & US-235: قفل دوطرفه + پیشنهاد جامع فنی-مالی (TC)
+window.offerPickInq = function(inqNo) {
+  _offState.inqNo = inqNo;
+  var buyerSel = document.getElementById('ofBuyer');
+  if (!buyerSel) return;
+  if (!inqNo) {
+    buyerSel.disabled = false;
+    buyerSel.style.background = '#fff';
+    return;
+  }
+  var rfqs = getData('ptf_crm_rfqs');
+  var r = rfqs.filter(function(x){ return x.cd === inqNo || x.inqNo === inqNo; })[0];
+  if (r && r.co) {
+    var custs = getData('ptf_crm_customers');
+    var matchedCust = custs.filter(function(c){
+      return c.co === r.co || (c.coEn && c.coEn === r.co) || r.co.indexOf(c.co) > -1 || c.co.indexOf(r.co) > -1;
+    })[0];
+    if (matchedCust) {
+      buyerSel.value = matchedCust.cd;
+      offerPickBuyer(matchedCust.cd, true);
+      buyerSel.disabled = false; // اسپرینت ۱۰۲: قفل مشتری برداشته شد
+      buyerSel.style.background = '#f1f5f9';
+    }
+  }
+  
+  // US-235: بررسی وجود پیشنهاد فنی قبل از مالی — پیشنهاد جامع TC
+  /* v15.4 (US-386): ① مقایسه با همه نام‌های مستعار شماره درخواست (رفع پیغام غلط «TO ثبت نشده»)
+     ② اگر TO موجود بود و فرم CO خالی است → انتقال عینی کارفرما/رابط/اقلام/بندها از TO با تایید کاربر */
+  if (_offState.kind === 'CO') {
+    var offers = getData('ptf_crm_offers');
+    var aliases = (typeof ptfInqAliases === 'function') ? ptfInqAliases(inqNo) : [inqNo];
+    var tos = offers.filter(function(o){ return o.kind === 'TO' && aliases.indexOf(o.inqNo) > -1; });
+    if (!tos.length) {
+      /* v20.1 (US-442): سند همان CO می‌ماند — فقط قالب چاپ فنی-مالی پیشنهاد می‌شود */
+      if (confirm('ℹ️ برای این استعلام قبلاً پیشنهاد فنی (TO) صادر نشده است.\nآیا مایلید این پیشنهاد مالی با «قالب چاپ فنی-مالی (Techno-Commercial)» صادر شود؟')) {
+        _offState.printAs = 'TC';
+        var pSel = document.getElementById('ofPrintAs');
+        if (pSel) pSel.value = 'TC';
+        if (typeof ptfToast === 'function') ptfToast('🤝 قالب چاپ سند: فنی-مالی (Techno-Commercial) — ماهیت سند همان پیشنهاد مالی است (US-442)', 'ok');
+      }
+    } else if (!_offState.srcToNo) {
+      var to = tos[tos.length - 1]; /* آخرین TO این درخواست */
+      var blank = !(_offState.items || []).some(function(it){ return (it.name || it.desc || it.pcode); });
+      if (blank && confirm('📋 پیشنهاد فنی «' + to.no + '» برای همین درخواست ثبت شده است.\n\nمشخصات کارفرما و اقلام آن عینا در این پیشنهاد مالی بنشیند؟ (توصیه می‌شود — فقط قیمت‌ها را وارد می‌کنید)')) {
+        _offState.srcToNo = to.no; /* پس از ذخیره، دکمه →CO روی TO قفل می‌شود (US-142 AC5) */
+        _offState.buyerCd = to.buyerCd || _offState.buyerCd;
+        _offState.buyerCo = to.buyerCo || _offState.buyerCo;
+        _offState.buyerContact = to.buyerContact || _offState.buyerContact;
+        _offState.buyerTel = to.buyerTel || _offState.buyerTel;
+        if (to.subject && !_offState.subject) _offState.subject = to.subject;
+        try {
+          if (to.extraCols && to.extraCols.length) _offState.extraCols = JSON.parse(JSON.stringify(to.extraCols));
+          if (to.terms && to.terms.length && !(_offState.terms || []).length) _offState.terms = JSON.parse(JSON.stringify(to.terms));
+          _offState.items = JSON.parse(JSON.stringify(to.items || []));
+        } catch (eCp) {}
+        _offState.items.forEach(function(it){ it.price = it.price || 0; });
+        if (buyerSel && _offState.buyerCd) { buyerSel.value = _offState.buyerCd; }
+        if (_offState.buyerCd) { try { offerPickBuyer(_offState.buyerCd, true); } catch (ePB) {} }
+        if (typeof offRenderItems === 'function') try { offRenderItems(); } catch (eRI) {}
+        if (typeof offRenderTerms === 'function') try { offRenderTerms(); } catch (eRT) {}
+        if (typeof ptfToast === 'function') ptfToast('📋 مشخصات و اقلام از ' + to.no + ' عینا منتقل شد — فقط قیمت‌ها را وارد کنید', 'ok');
+      }
+    }
+  }
+};
+
+function offerPickContact(idx) {
+  var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === _offState.buyerCd; })[0];
+  if (!c || !c.people || !c.people[idx]) return;
+  var p = c.people[idx];
+  _offState.buyerContact = p.nmEn || p.nm;
+  _offState.buyerTel = p.tels && p.tels.length ? fmtTel(p.tels[0]) : (p.mobs && p.mobs.length ? p.mobs[0].n : '');
+}
+
+// ---- فاز ۲ AC7: ستون‌های داینامیک با عرض هوشمند ----
+var MAX_EXTRA_COLS = 99; // US-183: بدون محدودیت (فونت پلکانی کوچک می‌شود)
+window.offShowAdvCols = function() {
+  var html = '<div class="md-b" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
+    '<h3>⛭ ستون‌های تکمیلی ستون‌ها</h3>' +
+    '<p style="font-size:12.5px;color:#475569">شما می‌توانید ستون‌های دلخواه (مانند Country of Origin، Warranty و غیره) به جدول اقلام اضافه کنید. توجه: افزودن ستون‌های متعدد باعث کوچک شدن پلکانی فونت چاپ سند می‌شود.</p>' +
+    '<div style="display:flex;gap:8px;margin-top:14px">' +
+    '<button type="button" class="bt" onclick="offAddColumn();this.closest(\'.md-b\').remove()">＋ افزودن ستون جدید</button>' +
+    '<button type="button" class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>' +
+    '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+function offAddColumn() {
+  _offState.extraCols = _offState.extraCols || [];
+  if (_offState.extraCols.length >= MAX_EXTRA_COLS) {
+    alert('حداکثر ' + MAX_EXTRA_COLS + ' ستون اضافه مجاز است تا خروجی از عرض A4 لنداسکیپ خارج نشود.\nپیشنهاد: ستون‌های کم‌اهمیت را حذف یا در Description ادغام کنید.');
+    return;
+  }
+  var name = prompt('نام ستون جدید (انگلیسی — روی سند چاپ می‌شود):', '');
+  if (!name || !name.trim()) return;
+  _offState.extraCols.push(name.trim());
+  _offState.items.forEach(function (it) { it.extra = it.extra || {}; });
+  offRenderItems();
+}
+function offDelColumn(ci) {
+  if (!confirm('ستون «' + _offState.extraCols[ci] + '» حذف شود؟')) return;
+  var name = _offState.extraCols[ci];
+  _offState.extraCols.splice(ci, 1);
+  _offState.items.forEach(function (it) { if (it.extra) delete it.extra[name]; });
+  offRenderItems();
+}
+// عرض هوشمند: با افزایش ستون‌ها فونت سند پلکانی کوچک می‌شود (در offerPrintObj اعمال می‌شود)
+function offSmartFont() {
+  var n = (_offState && _offState.extraCols ? _offState.extraCols.length : 0);
+  return n === 0 ? 10 : n === 1 ? 9.5 : n === 2 ? 9 : n <= 4 ? 8.5 : n <= 6 ? 8 : 7.5; // px پایه جدول چاپ
+}
+
+// US-208: ثبت خلاصه اقلام در کالا و تفکیک هوشمند برند و مدل
+window.ptfAutoRegisterSummaryProducts = function(inqNo, rows) {
+  if (!rows || !rows.length) return 0;
+  var prods = getData('ptf_crm_products');
+  var added = 0;
+  rows.forEach(function(r) {
+    var desc = (r.nm || r.name || '').trim();
+    if (!desc) return;
+    var dup = prods.some(function(p) { return p.nm === desc || (p.st && p.st === (r.spec||r.desc||'')); });
+    if (dup) return;
+    var cd = (typeof prodAutoCode === 'function') ? prodAutoCode() : 'P-' + (1000 + prods.length + 1);
+    var concise = desc;
+    if (concise.length > 68) concise = concise.slice(0, 66) + '..';
+    prods.push({
+      cd: cd, nm: concise, en: '', ca: (typeof ptfNormCat === 'function' ? ptfNormCat(r.tp) : (r.tp || 'سایر')), /* v15.9 US-389: دسته فارسی استاندارد */
+      st: r.spec || r.desc || desc, br: r.brand || '', md: r.model || r.md || '', /* v15.9: مدل حفظ می‌شود */
+      un: r.un || r.unit || 'عدد', pr: 0,
+      ds: 'خلاصه اتوماتیک از استعلام ' + inqNo, srcInq: inqNo, tp: r.tp || 'Other', ts: new Date().toISOString()
+    });
+    added++;
+  });
+  if (added > 0) {
+    setData('ptf_crm_products', prods);
+    if (typeof addLog === 'function') addLog('ثبت اتوماتیک ' + added + ' کالای خلاصه در ماژول کالا');
+  }
+  return added;
+};
+
+window.ptfIntelligentParseItem = function(it) {
+  var desc = ((it.desc || '') + ' ' + (it.name || '')).trim();
+  var brand = (it.brand || '').trim();
+  var model = (it.model || '').trim();
+  if (!brand) {
+    var brands = ['Rosemount','WIKA','Yokogawa','Endress+Hauser','Siemens','ABB','Honeywell','Samson','Fisher','Swagelok','Flowserve','KROHNE','FOXBORO','Masoneilan','Ashcroft','Vega','Danfoss','Spirax Sarco','Rotork','Cameron'];
+    for (var bi=0; bi<brands.length; bi++) {
+      if (new RegExp('\\b' + brands[bi] + '\\b', 'i').test(desc)) { brand = brands[bi]; break; }
+    }
+  }
+  if (!model) {
+    var mMatch = desc.match(/\b(3051[A-Z0-9]+|232\.[0-9]+[A-Z0-9]*|EJA[A-Z0-9]+|PMP[0-9]+[A-Z0-9]*|SITRANS\s+[A-Z0-9]+|[A-Z0-9]{5,}-[A-Z0-9-]+)\b/i);
+    if (mMatch) {
+      model = mMatch[1];
+      if (!brand) {
+        if (/^3051/i.test(model)) brand = 'Rosemount';
+        else if (/^232\./i.test(model)) brand = 'WIKA';
+        else if (/^EJA/i.test(model)) brand = 'Yokogawa';
+        else if (/^PMP/i.test(model)) brand = 'Endress+Hauser';
+      }
+    }
+  }
+  it.brand = brand;
+  it.model = model;
+  if (!it.name || it.name === it.desc) {
+    var concise = it.name || it.desc;
+    if (concise.length > 60) concise = concise.slice(0, 58) + '..';
+    it.name = concise;
+  }
+  return it;
+};
+
+// ---- v31.7.97 BUG-OFFER-DUP-ITEMS-001: ریشه‌کنی تکرار اقلام پیشنهاد ----
+function offNormLine(v) {
+  v = String(v == null ? '' : v);
+  try { if (typeof dedupNorm === 'function') return dedupNorm(v); } catch (e) {}
+  return v.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+function offItemKey(it) {
+  it = it || {};
+  return [
+    offNormLine(it.pcode || it.prodCd || ''),
+    offNormLine(it.name || it.nm || it.en || ''),
+    offNormLine(it.desc || it.st || it.spec || ''),
+    offNormLine(it.model || it.md || ''),
+    offNormLine(it.brand || it.br || ''),
+    String(+it.qty || 1),
+    offNormLine(it.unit || it.un || 'NO')
+  ].join('|');
+}
+function offItemHasCommercialValue(it) {
+  return !!(it && (+it.price > 0 || +it.refBuyPrice > 0 || it.refPriceEdited || it.pcode || it.prodCd));
+}
+function offDedupeOfferItems(items) {
+  items = Array.isArray(items) ? items : [];
+  var out = [], seen = {}, removed = 0;
+  items.forEach(function (it) {
+    if (!it) return;
+    var key = offItemKey(it);
+    var empty = !it.pcode && !String(it.name || '').trim() && !String(it.desc || '').trim() && !String(it.model || '').trim();
+    if (!key || empty) { out.push(it); return; }
+    var prevIdx = seen[key];
+    if (prevIdx == null) { seen[key] = out.length; out.push(it); return; }
+    var prev = out[prevIdx];
+    /* اگر یکی از دو ردیف قیمت/کد/داده تجاری دارد، همان نگه داشته شود و صفر/تکراری حذف شود. */
+    if (!offItemHasCommercialValue(prev) && offItemHasCommercialValue(it)) out[prevIdx] = it;
+    removed++;
+  });
+  return { items: out, removed: removed };
+}
+window.offItemKey = offItemKey;
+window.offDedupeOfferItems = offDedupeOfferItems;
+
+/* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: offer line identity must survive a
+   price/quantity edit and cross-device sync. A price change is an update to
+   the same business line, never a new line. Legacy lines receive an ID only
+   at a normal, explicit offer save (not while merely rendering a document). */
+function offEnsureOfferLineIds(items, offerNo) {
+  var used = {};
+  (Array.isArray(items) ? items : []).forEach(function (it, index) {
+    if (!it || offRowIsEmpty(it)) return;
+    var id = String(it.lineId || '').trim();
+    if (!id || used[id]) {
+      var rnd = (typeof crypto !== 'undefined' && crypto.getRandomValues)
+        ? Array.prototype.map.call(crypto.getRandomValues(new Uint32Array(2)), function (n) { return n.toString(36); }).join('')
+        : (Date.now().toString(36) + '-' + index + '-' + Math.random().toString(36).slice(2, 8));
+      id = 'OL-' + String(offerNo || 'NEW').replace(/[^A-Za-z0-9-]/g, '') + '-' + rnd;
+      it.lineId = id;
+    }
+    used[id] = true;
+  });
+  return items;
+}
+window.offEnsureOfferLineIds = offEnsureOfferLineIds;
+
+/* v31.8: explicit, exact-only repair preview. It never runs during sync and
+   never removes semantically similar but non-identical commercial lines. */
+function offExactDuplicatePreview(items) {
+  var seen = {}, kept = [], duplicates = [], before = 0, after = 0;
+  (Array.isArray(items) ? items : []).forEach(function (it, index) {
+    before += (+((it || {}).qty) || 0) * (+((it || {}).price) || 0);
+    var sig; try { sig = JSON.stringify(it || {}); } catch (e) { sig = String(it || ''); }
+    if (seen[sig] != null) { duplicates.push({ index: index, originalIndex: seen[sig], item: it }); return; }
+    seen[sig] = index; kept.push(it); after += (+((it || {}).qty) || 0) * (+((it || {}).price) || 0);
+  });
+  return { items: kept, duplicates: duplicates, beforeCount: (items || []).length, afterCount: kept.length, beforeTotal: before, afterTotal: after, delta: before - after };
+}
+window.ptfOfferIntegrityPreview = function (no) {
+  var offer = (getData('ptf_crm_offers') || []).filter(function (x) { return x.no === no; })[0];
+  if (!offer) return { ok:false, error:'offer-not-found' };
+  var p = offExactDuplicatePreview(offer.items || []); p.ok = true; p.no = no; return p;
+};
+window.ptfOfferIntegrityDialog = function (no) {
+  var p = window.ptfOfferIntegrityPreview(no);
+  if (!p.ok) return;
+  var money = function (n) { return (+n || 0).toLocaleString('fa-IR') + ' ریال'; };
+  var body = '<div style="line-height:2;font-size:13px"><b dir="ltr">'+escP(no)+'</b><br>'+
+    '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:10px;margin-top:8px">وضعیت فعلی: <b>'+p.beforeCount+' آیتم</b> — <b>'+money(p.beforeTotal)+'</b><br>پس از تعمیر: <b>'+p.afterCount+' آیتم</b> — <b>'+money(p.afterTotal)+'</b><br>ردیف تکراری کاملاً یکسان: <b>'+p.duplicates.length+'</b></div>'+
+    (p.duplicates.length ? '<p style="color:#9a3412">این پیش‌نمایش هیچ داده‌ای را تغییر نمی‌دهد. فقط ردیف‌های JSON کاملاً یکسان در صورت تأیید حذف می‌شوند.</p>' : '<p style="color:#047857">✅ ردیف تکراری کاملاً یکسان پیدا نشد.</p>')+'</div>';
+  if (typeof ptfDialog === 'function') ptfDialog({ title:'🔎 بررسی سلامت اقلام پیشنهاد', body:body, okText:p.duplicates.length?'اعمال تعمیر کنترل‌شده':'بستن', cancelText:'انصراف', onOk:function(){ if(p.duplicates.length) window.ptfOfferIntegrityApply(no); } });
+  else alert('بررسی سلامت '+no+'\n'+p.beforeCount+' → '+p.afterCount+' آیتم\n'+money(p.beforeTotal)+' → '+money(p.afterTotal));
+};
+window.ptfOfferIntegrityApply = function (no) {
+  var p = window.ptfOfferIntegrityPreview(no);
+  if (!p.ok || !p.duplicates.length) return p;
+  if (!confirm('⚠️ تعمیر پیشنهاد '+no+'\n\nتعداد: '+p.beforeCount+' → '+p.afterCount+'\nمبلغ: '+p.beforeTotal.toLocaleString('fa-IR')+' → '+p.afterTotal.toLocaleString('fa-IR')+' ریال\n\nفقط '+p.duplicates.length+' ردیف کاملاً یکسان حذف می‌شود. ادامه می‌دهید؟')) return { ok:false, cancelled:true };
+  var offers = getData('ptf_crm_offers') || [], target = offers.filter(function (x) { return x.no === no; })[0];
+  if (!target) return { ok:false, error:'offer-not-found' };
+  target.items = p.items; offEnsureOfferLineIds(target.items, target.no); target.updatedAtISO = new Date().toISOString();
+  target._integrityRepair = { at: target.updatedAtISO, exactDuplicatesRemoved: p.duplicates.length, beforeCount:p.beforeCount, afterCount:p.afterCount, beforeTotal:p.beforeTotal, afterTotal:p.afterTotal, policy:'exact-only-v31.8' };
+  setData('ptf_crm_offers', offers);
+  try { audit('پیشنهادها', 'تعمیر کنترل‌شده پیشنهاد '+no+': '+p.beforeCount+' → '+p.afterCount+' ردیف؛ حذف '+p.duplicates.length+' duplicate دقیق', no); } catch(e) {}
+  if (typeof renderOffers === 'function') renderOffers();
+  return Object.assign({ ok:true }, p);
+};
+
+// ---- US-124 AC2: بارگذاری اقلام درخواست از ایمپورت‌های قبلی ----
+function offLoadInqItems(pickedInq) {
+  /* US-303: pickedInq از دیالوگ انتخاب می‌آید؛ وگرنه شماره انتخاب‌شده فرم */
+  var inq = pickedInq || (document.getElementById('ofInq') || {}).value || _offState.inqNo || '';
+  inq = String(inq).trim();
+  if (!inq) {
+    var iq = getData('ptf_crm_inqitems');
+    var groups = {};
+    iq.forEach(function (r) { groups[r.inqNo] = (groups[r.inqNo] || 0) + 1; });
+    getData('ptf_crm_inqreads').forEach(function(r){ if (r.rows && r.rows.length) groups[r.inqNo || r.cd] = (groups[r.inqNo || r.cd] || 0) + r.rows.length; });
+    getData('ptf_crm_rfqs').forEach(function(r){ if (r.items && r.items.length) groups[r.inqNo || r.cd] = (groups[r.inqNo || r.cd] || 0) + r.items.length; });
+    var keys = Object.keys(groups);
+    if (!keys.length) {
+      /* US-303: راهنمای شفاف — اقلام درخواست باید هنگام ثبت استعلام وارد شده باشد */
+      alert('هیچ درخواستی با اقلام ثبت‌شده وجود ندارد.\n\nاقلام درخواست را از یکی از این مسیرها وارد کنید:\n• استعلامات → دکمه «اقلام» روی ردیف درخواست (دستی یا اکسل)\n• هنگام ثبت استعلام جدید (پنجره اقلام خودکار باز می\u200cشود)\n• دستیار → خواندن فایل استعلام');
+      return;
+    }
+    /* US-303: انتخاب از فهرست به\u200cجای prompt متنی */
+    var pick = '<div class="md-b" id="offInqPick" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
+      '<h3>🗂 انتخاب درخواست</h3>' +
+      keys.map(function (k) {
+        return '<button type="button" class="bt bt-o" style="width:100%;justify-content:space-between;display:flex;margin-bottom:6px" ' +
+          'onclick="document.getElementById(\'offInqPick\').remove();offLoadInqItems(\'' + escP(k) + '\')">' +
+          '<span style="direction:ltr">' + escP(k) + '</span><span style="color:#7c3aed;font-weight:800">' + groups[k] + ' قلم</span></button>';
+      }).join('') +
+      '<div style="text-align:left;margin-top:6px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', pick);
+    return;
+  }
+  var rows = getData('ptf_crm_inqitems').filter(function (r) { return r.inqNo === inq || r.cd === inq; });
+  if (!rows.length) {
+    var reads = getData('ptf_crm_inqreads').filter(function (r) { return r.inqNo === inq || r.cd === inq; })[0];
+    if (reads && reads.rows && reads.rows.length) rows = reads.rows;
+  }
+  if (!rows.length) {
+    var rfq = getData('ptf_crm_rfqs').filter(function (r) { return r.inqNo === inq || r.cd === inq; })[0];
+    if (rfq && rfq.items && rfq.items.length) rows = rfq.items;
+  }
+  if (!rows.length) { alert('اقلامی برای درخواست «' + inq + '» یافت نشد.'); return; }
+  window.ptfAutoRegisterSummaryProducts(inq, rows);
+  var existing = {};
+  (_offState.items || []).forEach(function (it) { if (!offRowIsEmpty(it)) existing[offItemKey(it)] = true; });
+  var added = 0, skipped = 0;
+  rows.forEach(function (r) {
+    var item = {
+      name: r.nm || r.name || r.en || '',
+      desc: r.st || r.spec || r.desc || r.nm || '',
+      model: r.model || '',
+      qty: r.qty || 1,
+      unit: r.un || r.unit || 'NO',
+      brand: r.brand || '',
+      dlv: '', price: 0,
+      sourceInq: inq
+    };
+    window.ptfIntelligentParseItem(item);
+    var key = offItemKey(item);
+    if (existing[key]) { skipped++; return; }
+    existing[key] = true;
+    offSmartInsert(item); /* v12.6 US-310 */
+    added++;
+  });
+  _offState.inqNo = inq;
+  var inqEl = document.getElementById('ofInq');
+  if (inqEl && !inqEl.value) {
+    // US-175: فیلد حالا کشویی است — اگر گزینه موجود نبود (اقلام ایمپورت‌شده)، اضافه شود
+    var hasOpt = false;
+    for (var oi = 0; oi < (inqEl.options || []).length; oi++) if (inqEl.options[oi].value === inq) hasOpt = true;
+    if (!hasOpt && inqEl.tagName === 'SELECT') {
+      var op = document.createElement('option'); op.value = inq; op.textContent = inq + ' (اقلام ایمپورت‌شده)';
+      inqEl.appendChild(op);
+    }
+    inqEl.value = inq;
+  }
+  offRenderItems();
+  alert('✅ ' + added + ' قلم از درخواست ' + inq + ' بارگذاری شد' + (skipped ? ' — ' + skipped + ' قلم تکراری رد شد' : '') + '\nبرند و قیمت را در همین جدول تکمیل کنید.');
+}
+
+// ---- اقلام ----
+/* v12.6 (US-310): درج هوشمند — کالای جدید در اولین ردیف خالی می‌نشیند، نه انتهای لیست.
+   ردیف خالی = بدون کد قفل و بدون شرح (ردیف پیش‌فرض US-278 که کاربر پرش نکرده). */
+window.offRowIsEmpty = function (it) {
+  return !it.pcode && !String(it.name || '').trim() && !String(it.desc || '').trim() && !String(it.model || '').trim();
+};
+window.offSmartInsert = function (item) {
+  if (!window._offState) return;
+  if (!_offState.items) _offState.items = [];
+  function _fallbackKey(x) { return [String((x&&x.pcode)||''), String((x&&x.name)||''), String((x&&x.desc)||''), String((x&&x.model)||''), String((x&&x.brand)||''), String(+(x&&x.qty)||1), String((x&&x.unit)||'NO')].join('|').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  var _keyFn = (typeof window.offItemKey === 'function') ? window.offItemKey : _fallbackKey;
+  var key = _keyFn(item);
+  for (var e = 0; e < _offState.items.length; e++) {
+    if (!offRowIsEmpty(_offState.items[e]) && _keyFn(_offState.items[e]) === key) return e;
+  }
+  for (var i = 0; i < _offState.items.length; i++) {
+    if (offRowIsEmpty(_offState.items[i])) { _offState.items[i] = item; return i; }
+  }
+  _offState.items.push(item);
+  return _offState.items.length - 1;
+};
+function offAddItem(pre) {
+  var item = pre || { name: '', desc: '', model: '', qty: 1, unit: 'NO', brand: '', dlv: '', price: 0 };
+  if (typeof window !== 'undefined' && typeof window.offSmartInsert === 'function') window.offSmartInsert(item);
+  else _offState.items.push(item);
+  offRenderItems();
+}
+
+function prodSrchRender() {
+  var el = document.getElementById('prodSrchList');
+  if (!el) return;
+  var q = ((document.getElementById('prodSrchInp')||{}).value || '').trim().toLowerCase();
+  var prods = getData('ptf_crm_products').filter(function(p) {
+    return !q || ((p.nm||'')+' '+(p.en||'')+' '+(p.cd||'')+' '+(p.st||'')+' '+(p.br||'')).toLowerCase().indexOf(q) > -1;
+  }).slice(0, 40);
+  el.innerHTML = prods.map(function(p) {
+    return '<div onclick="prodSrchPick(\'' + escP(p.cd) + '\')" style="padding:9px 12px;border:1px solid var(--brd);border-radius:10px;margin-bottom:5px;cursor:pointer;font-size:12.5px" onmouseover="this.style.background=\'#fff8f5\'" onmouseout="this.style.background=\'#fff\'">' +
+      '<b>' + escP(p.nm) + '</b>' + (p.en ? ' <span style="color:#64748b;direction:ltr;display:inline-block">/ ' + escP(p.en) + '</span>' : '') +
+      '<div style="font-size:11px;color:#94a3b8;margin-top:2px">' + escP(p.cd) + (p.st ? ' | ' + escP(p.st) : '') + (p.br ? ' | ' + escP(p.br) : '') + ' | واحد: ' + escP(p.un||'-') + '</div></div>';
+  }).join('') || '<div style="text-align:center;color:#94a3b8;padding:16px;font-size:12.5px">کالایی با این جستجو یافت نشد</div>';
+}
+
+function prodSrchPick(cd) {
+  var p = getData('ptf_crm_products').filter(function(x){ return x.cd === cd; })[0];
+  if (!p) return;
+  offAddItem({ name: p.en || p.nm, desc: p.ds || p.st || '', model: p.st || '', qty: 1, unit: p.un && PRODUCT_EN_UNITS.indexOf(p.un) > -1 ? p.un : 'NO', brand: p.br || '', dlv: '', price: p.pr || 0 });
+  var mds = document.querySelectorAll('.md-b');
+  if (mds.length) mds[mds.length-1].remove();
+}
+var PRODUCT_EN_UNITS = ['No','PCS','Set','Meter','Branch','KG','Pack','EA','NO'];
+
+/* v25.5: واحد انگلیسی یکسان برای اسناد چاپی (جلوگیری از «عدد» فارسی روی CO/TO) */
+window.ptfOfferUnitEn = function (u) {
+  u = String(u == null ? '' : u).trim();
+  if (!u) return 'NO';
+  var map = {
+    'عدد': 'NO', 'عددی': 'NO', 'عدد.': 'NO', 'no': 'NO', 'No': 'NO', 'NO': 'NO', 'pcs': 'PCS', 'PCS': 'PCS',
+    'دستگاه': 'Set', 'ست': 'Set', 'set': 'Set', 'Set': 'Set',
+    'متر': 'Meter', 'm': 'Meter', 'Meter': 'Meter', 'meter': 'Meter',
+    'کیلوگرم': 'KG', 'kg': 'KG', 'KG': 'KG',
+    'بسته': 'Pack', 'pack': 'Pack', 'Pack': 'Pack',
+    'شاخه': 'Branch', 'branch': 'Branch', 'Branch': 'Branch',
+    'ea': 'EA', 'EA': 'EA'
+  };
+  if (map[u]) return map[u];
+  // اگر از قبل انگلیسی/لاتین است نگه دار
+  if (/^[A-Za-z]{1,12}$/.test(u)) return u.toUpperCase() === 'NO' ? 'NO' : (u.length <= 3 ? u.toUpperCase() : u);
+  return 'NO';
+};
+
+
+function offUpdExtra(i, col, v) { _offState.items[i].extra = _offState.items[i].extra || {}; _offState.items[i].extra[col] = v; ptfTriggerAutoDraftSave(); }
+function offDelItem(i) { _offState.items.splice(i, 1); offRenderItems(); ptfTriggerAutoDraftSave(); }
+function ptfOfferBestBuyRef(it) {
+  var best = +((it || {}).bestBuyPrice || 0);
+  try {
+    var st = window._offState || {};
+    if (!best && st.inqNo && typeof window.ptfResolveProcurementAcross === 'function') {
+      var rfqs = getData('ptf_crm_rfqsmart').filter(function (r) { return r && (r.srcRfq === st.inqNo || r.no === st.inqNo); });
+      var link = window.ptfResolveProcurementAcross(it, rfqs, { offerNo: st.no });
+      if (link.ok && link.line && link.line.item) best = +link.line.item.bestBuyPrice || 0;
+    }
+  } catch (e) {}
+  return best;
+}
+window.ptfOfferBestBuyRef = ptfOfferBestBuyRef;
+
+/* ===== v31.7.13 US-OFF-MARGIN: حاشیه سود کلی پیشنهاد (جمع خرید نسبت به جمع فروش) =====
+   هر قلم درصد سود خودش را دارد؛ این helper حاشیه «کل صورت» را برمی‌گرداند.
+   فقط اقلامی که نرخ مرجع خرید دارند در محاسبه می‌آیند (coverage گزارش می‌شود). */
+function ptfOfferOverallMargin(o) {
+  if (!o || !(o.kind === 'CO' || o.kind === 'TC') || !Array.isArray(o.items)) return null;
+  var buy = 0, sell = 0, covered = 0, totalItems = 0;
+  o.items.forEach(function (it) {
+    if (!it) return;
+    var qty = +it.qty || 0, price = +it.price || 0;
+    if (!qty || !price) return;
+    totalItems++;
+    var refP = +it.refPrice || +it.refBuyPrice || 0;
+    if (refP > 0) { buy += qty * refP; sell += qty * price; covered++; }
+  });
+  if (!covered || buy <= 0) return { marginPct: null, coverage: covered, totalItems: totalItems, buyTotal: 0, sellTotal: 0 };
+  return {
+    marginPct: Math.round(((sell - buy) / buy) * 1000) / 10,
+    coverage: covered, totalItems: totalItems,
+    buyTotal: buy, sellTotal: sell
+  };
+}
+window.ptfOfferOverallMargin = ptfOfferOverallMargin;
+function offUpdItem(i, f, v) {
+  _offState.items[i][f] = (f === 'qty' || f === 'price') ? ((typeof ptfNum === 'function') ? ptfNum(v) : +String(v).replace(/[^\d.-]/g, '') || 0) : v; /* v19.6 US-438: پشتیبانی کاما */
+  /* v17.0 (US-409 — گزارش کارفرما): TC هم مالی است؛ جمع ردیف + جمع کل هر دو لحظه‌ای — بدون رندر کامل (فوکوس نمی‌پرد) */
+  if ((_offState.kind === 'CO' || _offState.kind === 'TC') && (f === 'qty' || f === 'price')) offRenderTotals(i);
+  ptfTriggerAutoDraftSave();
+}
+
+
+/* ============ US-289 (Sprint 236): حاشیه سود پیش‌فرض و نرخ مرجع کالا برای تک‌تک اقلام پیشنهاد مالی ============ */
+window.offApplyGlobalMargin = function () {
+  var o = window._offState;
+  if (!o || !o.items) return;
+  var gmEl = document.getElementById('ofGlobalMargin');
+  var margin = gmEl ? (+gmEl.value || 0) : 30;
+  var prods = getData('ptf_crm_products');
+  var updatedCount = 0;
+  o.items.forEach(function (it, i) {
+    var bPrice = typeof ptfOfferBestBuyRef === 'function' ? ptfOfferBestBuyRef(it) : 0;
+    var refP = bPrice || +it.refBuyPrice || +it.refPrice || 0;
+    if (!refP) {
+      var pMatch = typeof window.ptfResolveProcurementLine === 'function' ? window.ptfResolveProcurementLine(it, prods) : { ok:false };
+      var p = pMatch.ok ? pMatch.item : null;
+      if (p && +p.pr > 0) refP = +p.pr;
+    }
+    if (refP > 0) {
+      it.refPrice = refP;
+      it.marginPct = margin;
+      it.price = Math.round(refP * (1 + margin / 100));
+      updatedCount++;
+    } else if (!it.marginPct) {
+      it.marginPct = margin;
+    }
+  });
+  offRenderItems();
+  if (typeof ptfToast === 'function') ptfToast('⚡ حاشیه سود ' + margin + '٪ برای ' + updatedCount + ' قلم دارای نرخ مرجع محاسبه و اعمال شد', 'ok');
+};
+
+window.offUpdRefPrice = function (i, val) {
+  var o = window._offState;
+  if (!o || !o.items || !o.items[i]) return;
+  var it = o.items[i];
+  it.refPrice = +val || 0;
+  it.refPriceEdited = true; /* v31.7.12: با ذخیره، روی نرخ مرجع کالا در ماژول کالا هم می‌نشیند */
+  if (it.refPrice > 0 && typeof it.marginPct === 'number') {
+    it.price = Math.round(it.refPrice * (1 + it.marginPct / 100));
+  } else if (it.refPrice > 0 && +it.price > 0) {
+    it.marginPct = Math.round(((+it.price / it.refPrice) - 1) * 1000) / 10;
+  }
+  offSyncRowInputs(i, 'ref'); /* v31.7.12 BUG-OFF-FOCUS-001: به‌جای رندر کامل — فوکوس نمی‌پرد */
+};
+
+window.offUpdMarginPct = function (i, val) {
+  var o = window._offState;
+  if (!o || !o.items || !o.items[i]) return;
+  var it = o.items[i];
+  it.marginPct = +val || 0;
+  var bPrice = typeof ptfOfferBestBuyRef === 'function' ? ptfOfferBestBuyRef(it) : 0;
+  var refP = bPrice || +it.refBuyPrice || +it.refPrice || 0;
+  if (!refP) {
+    var prods = getData('ptf_crm_products');
+    var pMatch = typeof window.ptfResolveProcurementLine === 'function' ? window.ptfResolveProcurementLine(it, prods) : { ok:false };
+    var p = pMatch.ok ? pMatch.item : null;
+    if (p && +p.pr > 0) refP = +p.pr;
+    if (refP > 0) it.refPrice = refP;
+  }
+  if (refP > 0) {
+    it.price = Math.round(refP * (1 + it.marginPct / 100));
+  }
+  offSyncRowInputs(i, 'margin'); /* v31.7.12 BUG-OFF-FOCUS-001: به‌جای رندر کامل — فوکوس نمی‌پرد */
+};
+
+/* ============ US-289 (Sprint 236): حاشیه سود پیش‌فرض و نرخ مرجع کالا برای تک‌تک اقلام پیشنهاد مالی ============ */
+window.offApplyGlobalMargin = function () {
+  var o = window._offState;
+  if (!o || !o.items) return;
+  var gmEl = document.getElementById('ofGlobalMargin');
+  var margin = gmEl ? (+gmEl.value || 0) : 30;
+  var prods = getData('ptf_crm_products');
+  var updatedCount = 0;
+  o.items.forEach(function (it, i) {
+    var bPrice = typeof ptfOfferBestBuyRef === 'function' ? ptfOfferBestBuyRef(it) : 0;
+  var refP = bPrice || +it.refBuyPrice || +it.refPrice || 0;
+    if (!refP) {
+      var pMatch = typeof window.ptfResolveProcurementLine === 'function' ? window.ptfResolveProcurementLine(it, prods) : { ok:false };
+      var p = pMatch.ok ? pMatch.item : null;
+      if (p && +p.pr > 0) refP = +p.pr;
+    }
+    if (refP > 0) {
+      it.refPrice = refP;
+      it.marginPct = margin;
+      it.price = Math.round(refP * (1 + margin / 100));
+      updatedCount++;
+    } else if (!it.marginPct) {
+      it.marginPct = margin;
+    }
+  });
+  offRenderItems();
+  if (typeof ptfToast === 'function') ptfToast('⚡ حاشیه سود ' + margin + '٪ برای ' + updatedCount + ' قلم دارای نرخ مرجع محاسبه و اعمال شد', 'ok');
+};
+
+window.offUpdRefPrice = function (i, val) {
+  var o = window._offState;
+  if (!o || !o.items || !o.items[i]) return;
+  var it = o.items[i];
+  it.refPrice = +val || 0;
+  it.refPriceEdited = true; /* v31.7.12: با ذخیره، روی نرخ مرجع کالا در ماژول کالا هم می‌نشیند */
+  if (it.refPrice > 0 && typeof it.marginPct === 'number') {
+    it.price = Math.round(it.refPrice * (1 + it.marginPct / 100));
+  } else if (it.refPrice > 0 && +it.price > 0) {
+    it.marginPct = Math.round(((+it.price / it.refPrice) - 1) * 1000) / 10;
+  }
+  offSyncRowInputs(i, 'ref'); /* v31.7.12 BUG-OFF-FOCUS-001: به‌جای رندر کامل — فوکوس نمی‌پرد */
+};
+
+window.offUpdMarginPct = function (i, val) {
+  var o = window._offState;
+  if (!o || !o.items || !o.items[i]) return;
+  var it = o.items[i];
+  it.marginPct = +val || 0;
+  var bPrice = typeof ptfOfferBestBuyRef === 'function' ? ptfOfferBestBuyRef(it) : 0;
+  var refP = bPrice || +it.refBuyPrice || +it.refPrice || 0;
+  if (!refP) {
+    var prods = getData('ptf_crm_products');
+    var pMatch = typeof window.ptfResolveProcurementLine === 'function' ? window.ptfResolveProcurementLine(it, prods) : { ok:false };
+    var p = pMatch.ok ? pMatch.item : null;
+    if (p && +p.pr > 0) refP = +p.pr;
+    if (refP > 0) it.refPrice = refP;
+  }
+  if (refP > 0) {
+    it.price = Math.round(refP * (1 + it.marginPct / 100));
+  }
+  offSyncRowInputs(i, 'margin'); /* v31.7.12 BUG-OFF-FOCUS-001: به‌جای رندر کامل — فوکوس نمی‌پرد */
+};
+function offRenderItems() {
+  var el = (typeof offEl === 'function') ? offEl('offItemsWrap') : document.getElementById('offItemsWrap');
+  if (!el || !_offState) return;
+  var isCO = _offState.kind === 'CO' || _offState.kind === 'TC';
+  var ec = _offState.extraCols || [];
+  var ecHead = ec.map(function(c, ci){ return '<th>' + escP(c) + ' <a href="javascript:void(0)" onclick="offDelColumn(' + ci + ')" style="color:#dc2626;font-size:10px">✕</a></th>'; }).join('');
+  var head = isCO
+    ? '<tr><th>#</th><th>نام کالا (English Item Name)</th><th>شرح تکمیلی</th><th>مدل</th><th>تعداد</th><th>واحد</th><th>برند</th>' + ecHead + '<th style="background:#f5f3ff;color:#5b21b6" title="نرخ مرجع خرید از بانک کالا">نرخ مرجع خرید</th><th style="background:#fef3c7;color:#92400e" title="درصد حاشیه سود">(٪) سود</th><th>قیمت واحد (IRR)</th><th>جمع</th><th>✕</th></tr>'
+    : '<tr><th>#</th><th>نام کالا (English Item Name)</th><th>شرح تکمیلی</th><th>تعداد</th><th>واحد</th><th>برند</th>' + ecHead + '<th>✕</th></tr>';
+
+  var rows = '';
+  _offState.items.forEach(function(it, i) {
+    var inp = function(f, w, type) {
+      var moneyAttr = f === 'price' ? ' data-money="1" data-nohint="1" inputmode="numeric" autocomplete="off"' : '';
+      var inputType = f === 'price' ? 'text' : (type || 'text');
+      return '<input type="' + inputType + '" value="' + escP(it[f]||'') + '"' + moneyAttr + ' oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:' + w + ';padding:5px;border:1px solid var(--brd);border-radius:6px;direction:' + ((type==='number' || f==='price')?'ltr':'') + ';font-size:12px">';
+    };
+    var ecCells = ec.map(function(c){
+      return '<td><input type="text" value="' + escP((it.extra||{})[c]||'') + '" oninput="offUpdExtra(' + i + ',\'' + escP(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+    }).join('');
+    
+    var bestBuyHtml = '';
+    if (isCO && it.inqNo && it.itemIdx != null) {
+      try {
+        var buys = getData('ptf_crm_order_prices').filter(function (bp) { return bp.inqNo === it.inqNo && bp.itemIdx === it.itemIdx; });
+        if (buys.length) {
+          var minB = buys.reduce(function (min, b) { return (min === null || +b.irr < +min.irr) ? b : min; }, null);
+          if (minB) bestBuyHtml = '<div style="font-size:10px;color:#059669;margin-top:2px">کمترین خرید: ' + (+minB.irr).toLocaleString('fa-IR') + ' ریال (' + escP(minB.sup) + ')</div>';
+        }
+      } catch (eB) {}
+    }
+
+    if (isCO) {
+      var _bestBuy = typeof ptfOfferBestBuyRef === 'function' ? ptfOfferBestBuyRef(it) : 0;
+      var _refP = _bestBuy || +it.refBuyPrice || +it.refPrice || 0;
+      if (!_refP) {
+        try {
+          var prods = getData('ptf_crm_products');
+          var refMatch = typeof window.ptfResolveProcurementLine === 'function' ? window.ptfResolveProcurementLine(it, prods) : { ok:false };
+          var pMatch = refMatch.ok ? refMatch.item : null;
+          if (pMatch && +pMatch.pr > 0) _refP = +pMatch.pr;
+        } catch(ePr) {}
+      }
+      var _mPct = (typeof it.marginPct === 'number') ? it.marginPct : (_refP > 0 && +it.price > 0 ? Math.round(((+it.price / _refP) - 1) * 1000) / 10 : '');
+      rows += '<tr><td>' + (i + 1) + '</td><td>' + inp('name', '100%') + '</td><td>' + inp('desc', '100%') + '</td>' +
+        '<td>' + inp('model', '86px') + '</td>' +
+        '<td>' + inp('qty', '54px', 'number') + '</td><td>' + inp('unit', '50px') + '</td><td>' + inp('brand', '86px') + '</td>' + ecCells +
+        '<td style="background:#fcfaff"><input type="number" id="offRef' + i + '" value="' + (_refP || '') + '" oninput="offUpdRefPrice(' + i + ',this.value)" placeholder="نرخ مرجع" style="width:100px;direction:ltr;background:#f5f3ff;border:1px solid #ddd6fe;font-weight:bold;color:#5b21b6;padding:5px;border-radius:6px"></td>' +
+        '<td style="background:#fffef0"><input type="number" id="offMg' + i + '" value="' + (_mPct) + '" oninput="offUpdMarginPct(' + i + ',this.value)" placeholder="30%" style="width:55px;direction:ltr;background:#fefce8;border:1px solid #fde047;font-weight:bold;color:#b45309;padding:5px;border-radius:6px"></td>' +
+        '<td>' + inp('price', '92px', 'number') + bestBuyHtml + (_refP > 0 ? '<small style="display:block;color:#b45309;margin-top:2px">📈 حاشیه فعلی: ' + escP(_mPct === '' ? '—' : _mPct) + '٪</small>' : '') + '</td><td id="offRT' + i + '" style="white-space:nowrap;font-size:12px;font-weight:bold">' + ((+it.qty||0)*(+it.price||0)).toLocaleString('en-US') + '</td>' +
+        '<td><button type="button" onclick="offDelItem(' + i + ')" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></td></tr>';
+    } else {
+      rows += '<tr><td>' + (i + 1) + '</td><td>' + inp('name', '100%') + '</td><td>' + inp('desc', '100%') + '</td>' +
+        '<td>' + inp('qty', '54px', 'number') + '</td><td>' + inp('unit', '50px') + '</td><td>' + inp('brand', '86px') + '</td>' + ecCells +
+        '<td><button type="button" onclick="offDelItem(' + i + ')" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></td></tr>';
+    }
+  });
+
+  var totalRow = '';
+  if (isCO) {
+    var total = _offState.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0);
+    totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (8 + ec.length) + '" style="direction:ltr">GRAND TOTAL</td><td id="offGT" style="white-space:nowrap">' + total.toLocaleString('en-US') + '</td><td></td></tr>';
+  }
+
+  var globalMarginBar = isCO ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:10px 14px;margin-bottom:10px;flex-wrap:wrap;gap:10px">' +
+    '<span style="font-size:12.5px;color:#5b21b6">📈 <b>حاشیه سود پیش‌فرض و نرخ مرجع کالا (US-289):</b><br><small style="color:#64748b">درصد سود دلخواه را وارد کرده و دکمه محاسبه را بزنید؛ سیستم قیمت واحد فروش را برای تمام اقلام دارای نرخ مرجع محاسبه می‌کند.</small></span>' +
+    '<span style="display:flex;align-items:center;gap:6px"><input type="number" id="ofGlobalMargin" value="30" placeholder="30" style="width:65px;padding:6px;border:1.5px solid #8b5cf6;border-radius:8px;direction:ltr;font-weight:bold;text-align:center"> <b>٪</b> ' +
+    '<button type="button" class="bt" style="background:#7c3aed;padding:6px 14px;font-size:12px" onclick="offApplyGlobalMargin()">⚡ محاسبه خودکار قیمت فروش تمام اقلام</button></span></div>' : '';
+
+  el.innerHTML = globalMarginBar + '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead style="background:#f1f5f9">' + head + '</thead><tbody>' + rows + totalRow + '</tbody></table>' +
+    (_offState.items.length ? '' : '<div style="color:#94a3b8;text-align:center;padding:14px;font-size:12px">ردیفی ثبت نشده</div>');
+}
+
+window.offSetRefPrice = function(i, v) {
+  if (!_offState || !_offState.items[i]) return;
+  _offState.items[i].refBuyPrice = (typeof ptfNum === 'function') ? ptfNum(v) : (+String(v).replace(/[^\d.-]/g, '') || 0);
+  ptfTriggerAutoDraftSave();
+};
+window.offStepProfitMargin = function(i, basePrice) {
+  if (!_offState || !_offState.items[i]) return;
+  var it = _offState.items[i];
+  if (typeof it.profitMarginPct === 'undefined') {
+    it.profitMarginPct = 15;
+  } else {
+    it.profitMarginPct += 5; // افزایش ۵ درصدی با هر کلیک
+  }
+  offApplyProfitMarginToRow(i, basePrice, it.profitMarginPct);
+};
+
+window.offCustomProfitMargin = function(i, basePrice) {
+  if (!_offState || !_offState.items[i]) return;
+  var it = _offState.items[i];
+  var cur = typeof it.profitMarginPct !== 'undefined' ? it.profitMarginPct : 15;
+  var ans = prompt('درصد ضریب سود مورد نظر را وارد کنید (مثلاً 15 یا 22.5):', cur);
+  if (ans === null || ans.trim() === '') return;
+  var val = parseFloat(ans);
+  if (isNaN(val) || val < 0) { alert('درصد نامعتبر است'); return; }
+  it.profitMarginPct = val;
+  offApplyProfitMarginToRow(i, basePrice, it.profitMarginPct);
+};
+
+window.offApplyProfitMarginToRow = function(i, basePrice, pct) {
+  var it = _offState.items[i];
+  it.profitMarginPct = pct;
+  it.price = Math.round(basePrice * (1 + pct / 100));
+  
+  var cascadedCount = 0;
+  if (i === 0 && _offState.items.length > 1) {
+    var rfqsList = getData('ptf_crm_rfqsmart');
+    var aliases = [_offState.inqNo, _offState.no].filter(Boolean);
+    var matchedRfqs = rfqsList.filter(function(x){ return aliases.indexOf(x.srcRfq) > -1 || aliases.indexOf(x.no) > -1; });
+    
+    for (var j = 1; j < _offState.items.length; j++) {
+      var row = _offState.items[j];
+      var bP = row.bestBuyPrice || 0;
+      /* BUG-PROC-LINK-287: do not inherit RFQ price by the same array index. */
+      if (!bP && typeof window.ptfResolveProcurementAcross === 'function') {
+        var link = window.ptfResolveProcurementAcross(row, matchedRfqs, { offerNo: _offState.no });
+        if (link.ok && link.line && +link.line.item.bestBuyPrice > 0) bP = +link.line.item.bestBuyPrice;
+      }
+      if (!bP) bP = +row.refBuyPrice || 0; /* v19.6 US-439: مرجع دستی هم در اعمال گروهی */
+      if (bP > 0) {
+        row.profitMarginPct = pct;
+        row.price = Math.round(bP * (1 + pct / 100));
+        cascadedCount++;
+      }
+    }
+  }
+  
+  offRenderItems();
+  if (i === 0 && cascadedCount > 0) {
+    if (typeof ptfToast === 'function') ptfToast('⚡ ضریب سود +' + pct + '٪ به ردیف ۱ و به‌طور خودکار به ' + cascadedCount + ' قلم دیگر اعمال شد', 'ok');
+  } else {
+    if (typeof ptfToast === 'function') ptfToast('📈 ضریب سود +' + pct + '٪ روی این ردیف اعمال شد', 'ok');
+  }
+};
+
+/* v31.7.12 BUG-OFF-FOCUS-001: به‌روزرسانی input های همان ردیف بدون رندر کامل جدول.
+   ریشه باگ: oninput → offRenderItems() کل جدول را innerHTML می‌کرد و فیلد در حال تایپ
+   (نرخ مرجع/درصد سود) نابود می‌شد → «با تایپ هر عدد به بیرون می‌پرد».
+   الگو همان v17.0 US-409 است که برای qty/price حل شده بود؛ حالا ref/margin هم. */
+function offSyncRowInputs(i, src) {
+  var it = (_offState.items || [])[i]; if (!it) return;
+  function setV(id, v) {
+    var el = document.getElementById(id);
+    if (el && el !== document.activeElement) el.value = (v == null ? '' : v);
+  }
+  if (src !== 'ref') setV('offRef' + i, it.refPrice || '');
+  if (src !== 'margin') setV('offMg' + i, (typeof it.marginPct === 'number' ? it.marginPct : ''));
+  setV('off_price_' + i, it.price || '');
+  /* فرم offerlock (فرم فعال) input قیمت با data-money دارد — با کلاس ردیف id ندارد؛ از offRenderTotals برای جمع‌ها استفاده می‌شود */
+  if (typeof offRenderTotals === 'function') offRenderTotals(i);
+  if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave();
+}
+window.offSyncRowInputs = offSyncRowInputs;
+
+function offRenderTotals(rowIdx) {
+  /* v17.0 (US-409): فرمت ارز-آگاه (US-366) — قبلا toLocaleString ساده بود و با GT فرم فعال ناهماهنگ می‌شد */
+  var cur = (typeof offerCurrency === 'function') ? offerCurrency(_offState) : null;
+  var fmt = function (v) { return (typeof offerFmtMoney === 'function') ? offerFmtMoney(v, cur) : (+v || 0).toLocaleString('en-US'); };
+  /* جمع ردیف تغییرکرده — سلول id ردیفی (offerlock v17.0)؛ اگر نبود (فرم قدیمی) فقط GT */
+  if (rowIdx != null) {
+    var rt = document.getElementById('offRT' + rowIdx);
+    if (rt) {
+      var it = _offState.items[rowIdx] || {};
+      rt.textContent = fmt((+it.qty || 0) * (+it.price || 0));
+    }
+  }
+  var el = document.getElementById('offGT');
+  if (el) {
+    var total = _offState.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0);
+    el.textContent = fmt(total);
+  }
+}
+
+// ---- ایمپورت Excel/CSV (AC6) ----
+function offImportFile(inp) {
+  var f = inp.files[0]; if (!f) return;
+  var isXlsx = /\.xlsx?$/i.test(f.name);
+  if (isXlsx && typeof XLSX !== 'undefined') {
+    var rdx = new FileReader();
+    rdx.onload = function() {
+      try {
+        var wb = XLSX.read(new Uint8Array(rdx.result), { type: 'array' });
+        var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+        offImportRows(rows.map(function(r){ return r.map(function(c){ return String(c==null?'':c).trim(); }); }));
+      } catch (e) { alert('خطا در خواندن اکسل: ' + e.message); }
+    };
+    rdx.readAsArrayBuffer(f);
+    inp.value = ''; return;
+  }
+  var rd = new FileReader();
+  rd.onload = function() {
+    var lines = rd.result.replace(/^\uFEFF/, '').split(/\r?\n/).filter(function(l){ return l.trim(); });
+    if (lines.length < 2) { alert('فایل خالی است'); return; }
+    var parseRow = function(l) {
+      return (l.match(/("([^"]|"")*"|[^,]*)(,|$)/g) || []).map(function(x){ return x.replace(/,$/, '').replace(/^"|"$/g, '').replace(/""/g, '"').trim(); });
+    };
+    offImportRows(lines.map(parseRow));
+  };
+  rd.readAsText(f, 'utf-8');
+  inp.value = '';
+}
+
+function offImportRows(allRows) {
+  if (!allRows || allRows.length < 2) { alert('فایل خالی است'); return; }
+  var head = allRows[0].map(function(h){ return String(h).toLowerCase(); });
+    // تشخیص خودکار ستون‌ها
+    var find = function(cands) {
+      for (var i = 0; i < head.length; i++)
+        for (var j = 0; j < cands.length; j++)
+          if (head[i].indexOf(cands[j]) > -1) return i;
+      return -1;
+    };
+    var map = {
+      name: find(['item name', 'item', 'نام کالا', 'نام', 'کالا']),
+      desc: find(['desc', 'شرح', 'توضیح', 'specification', 'spec']),
+      model: find(['model', 'مدل', 'type', 'تیپ']),
+      qty: find(['qty', 'تعداد', 'quantity', 'مقدار']),
+      unit: find(['unit', 'واحد', 'uom']),
+      brand: find(['brand', 'برند', 'سازنده', 'maker']),
+      price: find(['price', 'قیمت', 'فی'])
+    };
+    if (map.name < 0 && map.desc < 0) map.name = 0;
+    var msg = 'نگاشت ستون‌های تشخیص داده شده:\n' +
+      (map.name > -1 ? 'Item Name ← ستون ' + (map.name + 1) + '\n' : '') +
+      (map.desc > -1 ? 'Description ← ستون ' + (map.desc + 1) : '') + (map.qty > -1 ? '\nQty ← ستون ' + (map.qty + 1) : '') +
+      (map.unit > -1 ? '\nUnit ← ستون ' + (map.unit + 1) : '') + (map.brand > -1 ? '\nBrand ← ستون ' + (map.brand + 1) : '') +
+      (map.price > -1 ? '\nPrice ← ستون ' + (map.price + 1) : '') + '\n\nادامه می‌دهید؟';
+    if (!confirm(msg)) { return; }
+    var added = 0;
+    for (var i = 1; i < allRows.length; i++) {
+      var c = allRows[i];
+      if (!(c[map.name] || c[map.desc])) continue;
+      offSmartInsert({ /* v12.6 US-310 */
+        name: map.name > -1 ? c[map.name] || '' : (c[map.desc] || ''),
+        desc: map.desc > -1 && map.name > -1 ? c[map.desc] || '' : '',
+        model: map.model > -1 ? c[map.model] || '' : '',
+        qty: map.qty > -1 ? +String(c[map.qty]).replace(/[^\d.]/g, '') || 1 : 1,
+        unit: map.unit > -1 ? c[map.unit] || 'EA' : 'EA',
+        brand: map.brand > -1 ? c[map.brand] || '' : '', dlv: '',
+        price: map.price > -1 ? +String(c[map.price]).replace(/[^\d.]/g, '') || 0 : 0
+      });
+      added++;
+    }
+    offRenderItems();
+    alert('✅ ' + added + ' ردیف از فایل اضافه شد');
+}
+
+// ---- Terms ----
+// US-142 AC6: بند انتخاب‌شده از کتابخانه قفل می‌شود (انتخاب تکراری ممنوع؛ با حذف بند آزاد می‌شود)
+function offTcUsed() { return _offState.tcUsed = _offState.tcUsed || []; }
+function offSyncTcLib() {
+  var sel = (typeof offEl === 'function') ? offEl('offTcLib') : document.getElementById('offTcLib');
+  if (!sel) return;
+  var used = offTcUsed();
+  for (var i = 0; i < sel.options.length; i++) {
+    var idx = +sel.options[i].value;
+    var lock = used.indexOf(idx) > -1;
+    sel.options[i].disabled = lock;
+    sel.options[i].text = (lock ? '🔒 ' : '') + TC_LIBRARY[idx].slice(0, 80);
+  }
+  // اگر گزینه انتخابی قفل شد، برو روی اولین آزاد
+  if (sel.selectedIndex > -1 && sel.options[sel.selectedIndex].disabled) {
+    for (var j = 0; j < sel.options.length; j++) if (!sel.options[j].disabled) { sel.selectedIndex = j; break; }
+  }
+}
+function offAddTermLib() {
+  var i = +((typeof offEl === 'function') ? offEl('offTcLib') : document.getElementById('offTcLib')).value;
+  if (offTcUsed().indexOf(i) > -1) { alert('🔒 این بند قبلاً انتخاب شده است'); return; }
+  offTcUsed().push(i);
+  _offState.terms.push(TC_LIBRARY[i]);
+  _offState.termLib = _offState.termLib || {};
+  _offState.termLib[_offState.terms.length - 1] = i;
+  offRenderTerms();
+  offSyncTcLib();
+}
+function offAddTerm(txt) { _offState.terms.push(txt || ''); offRenderTerms(); }
+function offDelTerm(i) {
+  // آزادسازی بند کتابخانه‌ای متناظر
+  var lib = _offState.termLib || {};
+  if (lib[i] != null) {
+    var u = offTcUsed();
+    var pos = u.indexOf(lib[i]);
+    if (pos > -1) u.splice(pos, 1);
+  }
+  // بازچینی نگاشت اندیس‌ها پس از حذف
+  var newLib = {};
+  Object.keys(lib).forEach(function (k) {
+    k = +k;
+    if (k < i) newLib[k] = lib[k];
+    else if (k > i) newLib[k - 1] = lib[k];
+  });
+  _offState.termLib = newLib;
+  _offState.terms.splice(i, 1);
+  offRenderTerms();
+  offSyncTcLib();
+}
+function offUpdTerm(i, v) { _offState.terms[i] = v; }
+
+/* v14.2 (US-364): چند مودال هم‌شناسه (مینیمایز modalx / فرم روی فرم) — همیشه آخرین نمونه قابل‌مشاهده هدف رندر است */
+window.offEl = function (id) {
+  var list = document.querySelectorAll('[id="' + id + '"]');
+  if (!list.length) return null;
+  var vis = [];
+  for (var i = 0; i < list.length; i++) {
+    var mb = list[i].closest ? list[i].closest('.md-b') : null;
+    if (!mb || mb.style.display !== 'none') vis.push(list[i]);
+  }
+  var arr = vis.length ? vis : list;
+  return arr[arr.length - 1];
+};
+
+function offRenderTerms() {
+  var el = (typeof offEl === 'function') ? offEl('offTermsWrap') : document.getElementById('offTermsWrap');
+  if (!el) return;
+  el.innerHTML = _offState.terms.map(function(t, i) {
+    return '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center"><span style="font-size:12px;color:#94a3b8;min-width:18px">' + (i + 1) + '.</span>' +
+      '<input type="text" value="' + escP(t) + '" oninput="offUpdTerm(' + i + ',this.value)" style="flex:1;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr;font-size:12px">' +
+      '<button type="button" onclick="offDelTerm(' + i + ')" style="border:0;background:none;color:#94a3b8;cursor:pointer">✕</button></div>';
+  }).join('') || '<div style="color:#94a3b8;font-size:12px">بندی ثبت نشده — از کتابخانه اضافه کنید</div>';
+}
+
+// ---- پیش‌نمایش (بدون ذخیره) ----
+function offerPreview() {
+  var o = _offState;
+  o.buyerCd = (document.getElementById('ofBuyer')||{}).value || o.buyerCd;
+  o.inqNo = (document.getElementById('ofInq')||{}).value || '';
+  o.dateEn = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofDateJ')||{}).value || '')) : '') || o.dateEn || new Date().toISOString().slice(0, 10); /* v22 audited: انتخاب شمسی، ذخیره ISO */
+  o.sellerContact = ((document.getElementById('ofSeller')||{}).value || '').trim();
+  // US-148 AC3: پیش‌نمایش با مهر و امضا قبل از ثبت نهایی
+  o.useSig = !!(document.getElementById('ofUseSig') || {}).checked;
+  var _sa = document.getElementById('ofSignAs'); if (_sa && _sa.value) o.signAs = _sa.value; /* v13.1 US-321 */
+  if (!o.issuedBy) o.issuedBy = curSession().user;
+  var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === o.buyerCd; })[0];
+  if (c) o.buyerCo = c.coEn || c.co;
+  // ذخیره موقت در حافظه و چاپ همان
+  var offers = getData('ptf_crm_offers');
+  var saved = offers.filter(function(x){ return x.no === o.no; })[0];
+  var tmpKey = '_preview_' + o.no;
+  localStorage.setItem(tmpKey, JSON.stringify(o));
+  offerPrintObj(o);
+  localStorage.removeItem(tmpKey);
+}
+
+// ---- ذخیره ----
+function offerSave() {
+  try {
+  var o = window._offState || _offState;
+  if (!o) { alert('⛔ اطلاعات پیشنهاد در حافظه یافت نشد — فرم را ببندید و دوباره باز کنید'); return; }
+  /* v31.6.27 CODEGEN-OFFER-SERVER: official TO/CO/TC numbers must come
+     from server reservation; a TMP offer cannot be saved as an official offer. */
+  if ((o.kind === 'TO' || o.kind === 'CO' || o.kind === 'TC') && /^TMP-(TO|CO|TC)-/.test(String(o.no || ''))) {
+    alert('⛔ شماره رسمی پیشنهاد از سرور دریافت نشده است. اتصال/ورود را برقرار کنید و فرم را دوباره باز کنید.');
+    return;
+  }
+  try {
+    if (o.items && o.items.length) {
+      o.items.forEach(function (it) {
+        if (!it) return;
+        if (!String(it.unit || '').trim()) it.unit = 'NO';
+        if (typeof ptfOfferUnitEn === 'function') it.unit = ptfOfferUnitEn(it.unit);
+        if (it.name == null) it.name = '';
+        if (it.qty == null || it.qty === '') it.qty = 1;
+      });
+    }
+    if (typeof ptfSetOffState === 'function') ptfSetOffState(o);
+    else { _offState = o; window._offState = o; }
+  } catch (eSync) {}
+  var _savedLock = getData('ptf_crm_offers').filter(function (x) { return x.no === o.no; })[0];
+  if (offerPostAwardLocked(_savedLock)) { alert('🔒 پیشنهاد برنده پس از تشکیل پرونده فروش قابل ذخیره/ویرایش نیست. ادامه فرایند از پرونده فروش انجام می‌شود.'); if (typeof ptfGoSalesFileForOffer === 'function') ptfGoSalesFileForOffer(o.no); return; }
+  
+  var buyerEl = document.getElementById('ofBuyer');
+  o.buyerCd = buyerEl ? buyerEl.value : (o.buyerCd || '');
+  var _legacyInq = (getData('ptf_crm_offers').filter(function (x) { return x.no === o.no; })[0] || {}).inqNo || '';
+  var inqEl = document.getElementById('ofInq');
+  o.inqNo = inqEl ? inqEl.value.trim() : (o.inqNo || '');
+  
+  // US-175 / US-289: ثبت خودکار شماره استعلام در صورت وارد شدن دستی تا دکمه ذخیره هرگز متوقف نشود
+  if (o.inqNo && typeof ptfInqNoValid === 'function' && !ptfInqNoValid(o.inqNo, _legacyInq)) {
+    try {
+      var rfqs = getData('ptf_crm_rfqs');
+      if (!rfqs.some(function(x){ return x.cd === o.inqNo || x.inqNo === o.inqNo; })) {
+        rfqs.unshift({ cd: o.inqNo, inqNo: o.inqNo, co: o.buyerCo || 'مشتری استعلام', st: 'st1', stxt: '🔴 دریافت اولیه', dt: (typeof faDate === 'function' ? faDate() : '') });
+        setData('ptf_crm_rfqs', rfqs);
+      }
+    } catch(eInqAuto) {}
+  }
+  o.dateEn = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofDateJ')||{}).value || '')) : '') || new Date().toISOString().slice(0, 10); /* v22 audited: انتخاب شمسی، ذخیره ISO */
+  // US-157: اعتبار پیشنهاد
+  if (o.kind === 'CO' || o.kind === 'TC') o.validUntil = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofValidJ') || {}).value || '')) : '') || defaultValidity(o.dateEn);
+  o.sellerContact = (document.getElementById('ofSeller')||{value:''}).value.trim();
+  if (o.kind !== 'TO') o.printAs = ((document.getElementById('ofPrintAs') || {}).value) || o.printAs || (o.kind === 'TC' ? 'TC' : 'CO'); /* v20.1 US-442 */
+  if (!o.buyerCd) { alert('کارفرما را انتخاب کنید'); return; }
+  var _c = getData('ptf_crm_customers').filter(function(x){ return x.cd === o.buyerCd; })[0];
+  if (_c && !_c.coEn) {
+    if (!confirm('⚠️ نام انگلیسی این کارفرما ثبت نشده و نام فارسی روی سند انگلیسی درج می‌شود.\nادامه می‌دهید؟ (توصیه: ابتدا در ماژول کارفرمایان، نام انگلیسی را ثبت کنید)')) return;
+  }
+  var _ded = offDedupeOfferItems(o.items || []);
+  if (_ded.removed) {
+    o.items = _ded.items;
+    try { audit('پیشنهادها', 'حذف خودکار ' + _ded.removed + ' ردیف تکراری از پیشنهاد ' + (o.no || '') + ' هنگام ذخیره (BUG-OFFER-DUP-ITEMS-001)', o.no || ''); } catch (eDed) {}
+    if (typeof ptfToast === 'function') ptfToast('🧹 ' + _ded.removed + ' ردیف تکراری پیشنهاد حذف شد', 'warn');
+  }
+  if (!o.items.length) { alert('حداقل یک ردیف کالا لازم است'); return; }
+  offEnsureOfferLineIds(o.items, o.no);
+  o.updatedAtISO = new Date().toISOString();
+  var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === o.buyerCd; })[0];
+  if (c) o.buyerCo = c.coEn || c.co;
+  /* v14.6 (US-352): هشدار عبور از سقف اعتبار — مانده باز + مبلغ CO جدید */
+  if ((o.kind === 'CO' || o.kind === 'TC') && c && +c.creditLimit > 0 && typeof ptfCustOpenBalance === 'function') {
+    var _bal = ptfCustOpenBalance(o.buyerCd);
+    var _newTotal = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+    if (_bal.open + _newTotal > +c.creditLimit) {
+      if (!confirm('⛔ هشدار سقف اعتبار مشتری (US-352)\n\nمانده مطالبات باز: ' + _bal.open.toLocaleString('fa-IR') + ' ریال\nمبلغ این پیشنهاد: ' + _newTotal.toLocaleString('fa-IR') + ' ریال\nجمع: ' + (_bal.open + _newTotal).toLocaleString('fa-IR') + ' ریال\nسقف اعتبار: ' + (+c.creditLimit).toLocaleString('fa-IR') + ' ریال\n\nجمع از سقف اعتبار تعیین‌شده عبور می‌کند. با مسئولیت خود ادامه می‌دهید؟')) return;
+      try { audit('پیشنهادها', 'صدور ' + o.no + ' با عبور از سقف اعتبار مشتری ' + (c.co || '') + ' (مانده ' + _bal.open + ' + جدید ' + _newTotal + ' > سقف ' + c.creditLimit + ')', o.no); } catch (eCL) {}
+    }
+  }
+  o.extraCols = _offState.extraCols || [];
+  // US-142 AC3/AC7: صادرکننده = کاربر جاری (برای امضا و Contact Person)
+  if (!o.issuedBy) o.issuedBy = curSession().user;
+  o.sellerContact = myEnName();
+  // US-148 AC2: وضعیت چک‌باکس مهر و امضا
+  o.useSig = !!(document.getElementById('ofUseSig') || {}).checked;
+  var _sa = document.getElementById('ofSignAs'); if (_sa && _sa.value) o.signAs = _sa.value; /* v13.1 US-321 */
+  var offers = getData('ptf_crm_offers');
+  var saveIdentity = ptfOfferResolveSaveIdentity(o, offers);
+  if (!saveIdentity.ok) {
+    alert('⛔ رکورد اصلی پیشنهاد برای ویرایش پیدا نشد (' + (saveIdentity.originalNo || o.no || '—') + ').\n\nبرای جلوگیری از ایجاد پیشنهاد جدید/شماره جدید از مسیر ویرایش، ذخیره متوقف شد. لطفاً فهرست پیشنهادها را به‌روزرسانی و دوباره ویرایش را باز کنید.');
+    try { audit('پیشنهادها', '⛔ توقف ذخیره ویرایش stale برای جلوگیری از شماره/Rev اشتباه: ' + (saveIdentity.originalNo || o.no || ''), o.no || ''); } catch (eStale) {}
+    return;
+  }
+  var idx = saveIdentity.idx, madeRevision = false;
+  /* v31.7.24 BUG-CODE-DUP-003 (شکایت کاربر): پیشنهاد «جدید» با شماره‌ای که قبلاً وجود دارد
+     (counter عقب سرور) بی‌صدا آفر قدیمی را overwrite می‌کرد → کاربر «ذخیره» می‌زد ولی
+     رکورد جدیدی در فهرست ظاهر نمی‌شد. اکنون: شماره جدید از سرور گرفته می‌شود؛ اگر نشد، ثبت مسدود. */
+  if (idx > -1 && o.editMode === 'new') {
+    var _regenTry = 0, _newNo = o.no;
+    while (_regenTry < 5 && offers.some(function (x) { return x.no === _newNo; })) {
+      _newNo = offerSerial(o.kind); _regenTry++;
+    }
+    if (offers.some(function (x) { return x.no === _newNo; }) || /^TMP-/.test(String(_newNo || ''))) {
+      alert('⛔ شماره پیشنهاد تولیدی (' + o.no + ') قبلاً برای پیشنهاد دیگری استفاده شده و شماره جدید از سرور در دسترس نیست.\n\nبرای جلوگیری از بازنویسی پیشنهاد قبلی، ذخیره متوقف شد — اتصال را بررسی و دوباره تلاش کنید. (متن فرم به‌صورت پیش‌نویس محفوظ است)');
+      try { audit('پیشنهادها', '⛔ جلوگیری از overwrite پیشنهاد موجود با شماره تکراری ' + o.no + ' (BUG-CODE-DUP-003)', o.no); } catch (eA3) {}
+      return;
+    }
+    try { audit('پیشنهادها', 'شماره تکراری ' + o.no + ' → شماره جدید ' + _newNo + ' (BUG-CODE-DUP-003)', _newNo); } catch (eA4) {}
+    o.no = _newNo;
+    if (typeof ptfToast === 'function') ptfToast('ℹ️ شماره پیشنهاد به ' + _newNo + ' اصلاح شد (شماره قبلی متعلق به پیشنهاد دیگری بود)', 'info');
+    idx = -1; /* رکورد جدید — نه ویرایش */
+  }
+  /* v14.3 (US-367): TO پس از ذخیره از «پیش‌نویس» به «ثبت‌شده» می‌رود (تغییرات نسخه پیش‌نویس هم ثبت‌شده می‌ماند) */
+  if (o.kind === 'TO' && (!o.st || o.st === 'draft')) o.st = 'registered';
+  if (idx > -1) {
+    var prev = offers[idx] || {};
+    var forceRev = !!(saveIdentity && saveIdentity.explicitRevision);
+    madeRevision = !!forceRev;
+    o.rev = madeRevision ? ((prev.rev || 0) + 1) : (prev.rev || 0);
+    delete o._baseNo; delete o._origNo; delete o.baseNo;
+    /* direct edit intentionally keeps the previous status and revision number;
+       only the explicit «نگارش جدید» button is allowed to increase Rev. */
+    offers[idx] = o;
+  } else {
+    delete o._baseNo; delete o._origNo; delete o.baseNo;
+    offers.unshift(o);
+  }
+  // US-142 AC5 + v31.7.21 US-OFF-ALT: لینک TO→CO اول حفظ می‌شود؛ پیشنهادهای جایگزین آن را بازنویسی نمی‌کنند
+  if (o.kind === 'CO' && o.srcToNo) {
+    offers.forEach(function (x) { if (x.no === o.srcToNo && (!x.coNo || !offers.some(function(y){ return y.no === x.coNo; }))) x.coNo = o.no; });
+  }
+  // US-214: همگام‌سازی مستقیم و آنی مشخصات با دایرکتوری کالا در هنگام صدور پیش‌فاکتور (CO)
+  if (o.kind === 'CO') {
+    var prods = getData('ptf_crm_products');
+    var prodsChanged = false;
+    o.items.forEach(function(it) {
+      var desc = (it.name || '').trim();
+      if (!desc) return;
+      var p = prods.filter(function(x){ return (it.prodCd && x.cd === it.prodCd) || x.nm === desc; })[0];
+      if (p) {
+        if (it.desc && p.st !== it.desc) {
+          p.history = p.history || [];
+          p.history.push({ t: faDate(), note: 'به‌روزرسانی مشخصات از پیش‌فاکتور ' + o.no });
+          p.st = it.desc;
+          prodsChanged = true;
+        }
+        if (it.model && p.model !== it.model) { p.model = it.model; prodsChanged = true; }
+        if (it.brand && p.br !== it.brand) { p.br = it.brand; prodsChanged = true; }
+      }
+    });
+    if (prodsChanged) {
+      setData('ptf_crm_products', prods);
+      if (typeof addLog === 'function') addLog('📦 مشخصات دایرکتوری کالا بر اساس پیش‌فاکتور ' + o.no + ' همگام‌سازی شد');
+    }
+  }
+  /* ===== v31.7.12 US-OFF-REF: همگام‌سازی نرخ مرجع و ثبت خودکار کالاهای دستی/اکسلی ===== */
+  try {
+    var _prods2 = getData('ptf_crm_products');
+    var _pChanged = false, _pAdded = 0, _refSynced = 0;
+    (o.items || []).forEach(function (it) {
+      if (!it) return;
+      var nm = String(it.name || '').trim();
+      if (!nm) return;
+      /* یافتن کالای متناظر: اول pcode/prodCd قفل‌شده، بعد resolver امن، بعد تطبیق نام نرمال */
+      var p = null;
+      var pcd = it.pcode || it.prodCd || '';
+      if (pcd) p = _prods2.filter(function (x) { return x.cd === pcd; })[0];
+      if (!p && typeof window.ptfResolveProcurementLine === 'function') {
+        var rm = window.ptfResolveProcurementLine(it, _prods2);
+        if (rm.ok) p = rm.item;
+      }
+      if (!p && typeof dedupNorm === 'function') p = _prods2.filter(function (x) { return dedupNorm(x.nm) === dedupNorm(nm); })[0];
+      if (p) {
+        /* write-back نرخ مرجع ویرایش‌شده در فرم → ماژول کالا (فقط تغییر واقعی + history) */
+        if (it.refPriceEdited && +it.refPrice > 0 && +p.pr !== +it.refPrice) {
+          p.history = p.history || [];
+          p.history.push({ t: (typeof faDate === 'function' ? faDate() : ''), note: 'به‌روزرسانی نرخ مرجع از پیشنهاد ' + o.no + ': ' + (+p.pr || 0).toLocaleString('en-US') + ' → ' + (+it.refPrice).toLocaleString('en-US') });
+          p.pr = +it.refPrice;
+          p.refPriceAt = (typeof faDate === 'function' ? faDate() : '');
+          p.refPriceSrc = 'پیشنهاد ' + o.no;
+          _pChanged = true; _refSynced++;
+        }
+      } else {
+        /* کالای دستی/اکسلی که در ماژول کالا نیست → ثبت خودکار با مارک مخفی منبع (در صورت نبود تکراری) */
+        var dup = (typeof ptfCheckDup === 'function') ? ptfCheckDup('product', { nm: nm }, null) : [];
+        if (!dup.length) {
+          var _cd2 = (typeof prodAutoCode === 'function') ? prodAutoCode() : 'P-' + (1000 + _prods2.length + 1);
+          if (_cd2 && !/^TMP-/.test(String(_cd2))) {
+            _prods2.push({ cd: _cd2, nm: nm, en: '', ca: 'سایر', st: it.desc || '', br: it.brand || '', md: it.model || '',
+              un: it.unit || 'NO', pr: (it.refPriceEdited && +it.refPrice > 0) ? +it.refPrice : 0,
+              refPriceAt: (it.refPriceEdited && +it.refPrice > 0) ? (typeof faDate === 'function' ? faDate() : '') : '',
+              refPriceSrc: (it.refPriceEdited && +it.refPrice > 0) ? ('پیشنهاد ' + o.no) : '',
+              srcRef: { kind: 'offer', no: o.no || '', inqNo: o.inqNo || '', at: new Date().toISOString(), by: (typeof curSession === 'function' ? (curSession().user || '') : '') },
+              ds: 'ثبت خودکار از پیشنهاد ' + o.no, ts: new Date().toISOString(), ts0: new Date().toISOString() });
+            it.pcode = _cd2; /* قفل ردیف به کالای جدید */
+            _pChanged = true; _pAdded++;
+          }
+        }
+      }
+    });
+    if (_pChanged) {
+      setData('ptf_crm_products', _prods2);
+      var _msg = [];
+      if (_refSynced) _msg.push(_refSynced + ' نرخ مرجع در ماژول کالا به‌روز شد');
+      if (_pAdded) _msg.push(_pAdded + ' کالای جدید با مارک منبع ' + o.no + ' ثبت شد');
+      if (typeof ptfToast === 'function') ptfToast('📦 ' + _msg.join(' | '), 'ok');
+      try { audit('کالاها', 'همگام‌سازی از پیشنهاد ' + o.no + ': ' + _msg.join('، '), o.no); } catch (eAu) {}
+    }
+  } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
+  setData('ptf_crm_offers', offers);
+  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
+  hideModal(); renderOffers();
+  var _editLbl = idx > -1 ? (madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';
+  addLog('پیشنهاد ' + o.no + _editLbl + ' شد');
+  if (typeof ptfToast === 'function') ptfToast('💾 پیشنهاد ' + o.no + ' ذخیره شد', 'ok');
+  } catch (eSave) {
+    try { console.error('offerSave error', eSave); } catch (e0) {}
+    alert('⛔ خطا در ذخیره پیشنهاد: ' + (eSave && eSave.message ? eSave.message : eSave));
+  }
+}
+window.offerSave = offerSave;
+window.offerEdit = offerEdit;
+window.offerNew = offerNew;
+window.offerForm = offerForm;
+window.offerPreview = offerPreview;
+
+
+// ---- خروجی CSV ----
+function offerCsv(no) {
+  var o = getData('ptf_crm_offers').filter(function(x){ return x.no === no; })[0];
+  if (!o) return;
+  var isCO = o.kind === 'CO';
+  var rows = [[o.kind === 'TO' ? 'TECHNICAL OFFER' : 'COMMERCIAL OFFER'], ['No: ' + o.no, 'Date: ' + o.dateEn], []];
+  rows.push(isCO ? ['No', 'Description', 'Qty', 'Unit', 'Unit Price', 'Total'] : ['No', 'Description', 'Qty', 'Unit', 'Brand', 'Delivery']);
+  o.items.forEach(function(it, i) {
+    rows.push(isCO ? [i + 1, it.desc, it.qty, it.unit, it.price, (+it.qty||0)*(+it.price||0)]
+                   : [i + 1, it.desc, it.qty, it.unit, it.brand, it.dlv]);
+  });
+  if (isCO) {
+    var total = o.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0);
+    rows.push(['', 'GRAND TOTAL', '', '', '', total]);
+    rows.push(['', 'In Words: ' + numToWords(total) + ' Rials']);
+  }
+  var csv = '\uFEFF' + rows.map(function(r){ return r.map(function(c){ return '"' + String(c).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = o.no + '.csv';
+  a.click();
+}
+
+// ---- خروجی PDF: صفحه چاپ A4 لنداسکیپ (AC1, AC10) ----
+function offerPrint(no) {
+  var o = getData('ptf_crm_offers').filter(function(x){ return x.no === no; })[0];
+  if (!o) return;
+  offerPrintObj(o);
+}
+
+function offerPrintObj(o) {
+  var isCO = o.kind === 'CO' || o.kind === 'TC';
+  var ec = o.extraCols || [];
+  var baseFont = ec.length === 0 ? 10 : ec.length === 1 ? 9.5 : ec.length === 2 ? 9 : 8.5;
+  var _pAs = (o.kind !== 'TO') ? (o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) : ''; /* v20.1 US-442 */
+  var title = _pAs === 'TC' ? 'Techno-Commercial Offer' : (o.kind === 'TO' ? 'Technical Offer' : 'Commercial Offer');
+  var total = o.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0);
+  var pageCount = Math.max(1, Math.ceil(o.items.length / (isCO ? 8 : 5)));
+
+  // ---- جدول اقلام: ستون‌ها مطابق فرمت رسمی شرکت ----
+  var ecTh = ec.map(function(c){ return '<th>' + escP(c) + '</th>'; }).join('');
+  // US-208: نمایش ستون Model در خروجی چاپی و PDF هر دو پیشنهاد فنی و مالی
+  var thead = isCO
+    ? '<tr><th style="width:5%">Sr. No.</th><th>Item Name</th><th style="width:6%">Unit</th><th style="width:6%">QTY</th><th style="width:9%">Brand</th><th style="width:9%">Model</th>' + ecTh + '<th style="width:14%">Unit Price (IRR)</th><th style="width:15%">Total Price (IRR)</th></tr>'
+    : '<tr><th style="width:5%">Sr. No.</th><th style="width:14%">Item Name</th><th style="width:5%">Unit</th><th style="width:5%">QTY</th><th style="width:9%">Brand</th><th style="width:11%">Model</th>' + ecTh + '<th>Description</th></tr>';
+
+  var tbody = '';
+  o.items.forEach(function(it, i) {
+    var nm = escP(it.name || it.desc || '');
+    var ecTd = ec.map(function(c){ return '<td>' + escP((it.extra||{})[c] || '—') + '</td>'; }).join('');
+    if (isCO) {
+      var full = nm + (it.desc && it.name ? '<div class="idesc">' + escP(it.desc) + '</div>' : '');
+      tbody += '<tr><td>' + (i+1) + '</td><td class="lft"><b>' + full + '</b></td><td>' + escP((typeof ptfOfferUnitEn==='function'?ptfOfferUnitEn(it.unit): (it.unit||'NO'))) + '</td><td>' + (it.qty||0) + '</td><td>' + escP(it.brand||'—') + '</td><td>' + escP(it.model||'—') + '</td>' + ecTd +
+        '<td class="num">' + (+it.price).toLocaleString('en-US') + '</td><td class="num">' + ((+it.qty||0)*(+it.price||0)).toLocaleString('en-US') + '</td></tr>';
+    } else {
+      tbody += '<tr><td>' + (i+1) + '</td><td class="lft"><b>' + nm + '</b></td><td>' + escP((typeof ptfOfferUnitEn==='function'?ptfOfferUnitEn(it.unit): (it.unit||'NO'))) + '</td><td>' + (it.qty||0) + '</td><td>' + escP(it.brand||'—') + '</td><td>' + escP(it.model||'—') + '</td>' + ecTd +
+        '<td class="lft desc">' + escP(it.desc||'').replace(/;\s*/g, '<br>') + (it.dlv ? '<br><i>Delivery: ' + escP(it.dlv) + '</i>' : '') + '</td></tr>';
+    }
+  });
+  if (isCO) {
+    tbody += '<tr class="total"><td colspan="' + (8 + ec.length) + '" class="lft"><b>Total</b> &nbsp;<span class="words">' + numToWords(total) + ' Iranian Rials</span></td>' +
+      '<td colspan="2" class="num big">' + total.toLocaleString('en-US') + ' IRR</td></tr>';
+  }
+
+  var _termsArr = (o.terms || []).slice();
+  if (typeof ptfAdvanceLabel === 'function' && o.advance && o.advance.mode && o.advance.mode !== 'none') {
+    _termsArr.unshift('Payment / Advance Payment: ' + ptfAdvanceLabel(o, { en: true }));
+  }
+  var terms = _termsArr.length
+    ? '<div class="terms"><b>Terms &amp; Conditions:</b><ol>' + _termsArr.map(function(t){ return '<li>' + escP(t) + '</li>'; }).join('') + '</ol></div>' : '';
+
+  // US-142 AC7 + US-148: مهر و امضای صادرکننده — روی CO همیشه (در صورت وجود پروفایل)، روی TO فقط با تیک useSig
+  var sigImgs = '';
+  if (isCO || o.useSig) {
+    try {
+      var profs = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}');
+      var sp = profs[o.signAs || o.issuedBy || (typeof curSession === 'function' ? curSession().user : '')] || {}; /* v13.1: امضای نیابتی */
+      if (isCO && o.useSig === false) sp = {}; // CO با تیک برداشته → بدون امضا
+      if (sp.sig) sigImgs += '<img src="' + sp.sig + '" style="max-height:52px;max-width:150px;margin:0 4px">';
+      if (sp.stamp) sigImgs += '<img src="' + sp.stamp + '" style="max-height:64px;max-width:110px;margin:0 4px;opacity:.9">';
+    } catch (e) {}
+  }
+  var sigBlock = '<div class="sig"><div class="box">' +
+    (sigImgs ? '<div style="display:flex;justify-content:center;align-items:flex-end;min-height:42px">' + sigImgs + '</div>' : '') +
+    '<div class="line"' + (sigImgs ? ' style="margin-top:3px"' : '') + '>Authorized Signature &amp; Stamp<br>' + SELLER_INFO.company + '</div></div></div>';
+    var tailBlock = '<div class="tail">' + terms + sigBlock + '</div>';
+
+  var fullDocHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + o.no + '</title><style>' +
+    '@page{size:A4 landscape;margin:10mm 12mm 16mm 12mm}' +
+    ':root{--brand:#ef4b1a;--gold:#f79400;--ink:#1f2328}' +
+    '*{box-sizing:border-box}' +
+    'body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;font-size:10.5px;color:var(--ink);margin:0;padding-bottom:40px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.hdr{display:grid;grid-template-columns:120px 1fr 190px;align-items:start;gap:10px;padding-bottom:6px;border-bottom:2.5px solid var(--brand);margin-bottom:10px}' +
+    '.hdr img{height:64px}' +
+    '.hdr .mid{text-align:center;padding-top:2px}' +
+    '.hdr .co{font-size:21px;font-weight:700;color:var(--brand);letter-spacing:.3px;font-family:Georgia,"Times New Roman",serif}' +
+    '.hdr .sub{font-size:13px;color:var(--gold);font-weight:600;margin-top:6px;letter-spacing:1.2px;text-transform:uppercase}' +
+    '.hdr .meta{text-align:right;font-size:10px;line-height:1.9;color:#333;padding-top:4px}' +
+    '.hdr .meta b{color:#c0392b}' +
+    '.hdr .meta .no{font-size:11px;font-weight:700;color:#c0392b}' +
+    '.parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px}' +
+    '.party{border:1px solid #e3e5e8;border-radius:6px;padding:8px 12px;font-size:10px;line-height:1.9;background:#fcfcfc}' +
+    '.party .pt{font-size:12.5px;font-weight:700;color:var(--gold);margin-bottom:3px;font-family:Georgia,serif}' +
+    '.party b{color:var(--gold);font-weight:600}' +
+    'table{width:100%;border-collapse:collapse;font-size:' + baseFont + 'px;page-break-inside:auto}' +
+    'tr{page-break-inside:avoid}' +
+    'th{background:var(--gold);color:#fff;border:1px solid #d98700;padding:5px 6px;font-size:10px;letter-spacing:.2px}' +
+    'td{border:1px solid #9aa0a6;padding:5px 6px;text-align:center;vertical-align:middle}' +
+    'td.lft{text-align:left}td.num{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}' +
+    'td.desc{font-size:9.5px;line-height:1.55;color:#2c3136}' +
+    '.idesc{font-weight:400;font-size:9px;color:#555;margin-top:2px}' +
+    'tr.total td{background:#fdf1e7;border-top:2px solid var(--gold)}' +
+    'tr.total .words{font-weight:400;font-style:italic;font-size:9.5px;color:#444}' +
+    'tr.total .big{font-size:11.5px;font-weight:700}' +
+    'thead{display:table-header-group}' +
+    '.tail{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:8px;page-break-inside:auto;break-inside:auto}' +
+    '.terms{flex:1;min-width:320px;font-size:10px;page-break-inside:auto}' +
+    '.terms b{color:#c0392b;font-family:Georgia,serif;font-size:11.5px;display:block;page-break-after:avoid}' +
+    '.terms ol{margin:4px 0 0 18px;padding:0}.terms li{margin-bottom:2px;line-height:1.5;page-break-inside:avoid;page-break-after:auto}' +
+    '.sig{flex:0 0 220px;margin-top:0;margin-bottom:18px;display:flex;justify-content:flex-end;page-break-inside:avoid}' +
+    '.sig .box{width:220px;text-align:center;font-size:9.5px;color:#555}' +
+    '.sig .line{border-top:1px solid #999;margin-top:36px;padding-top:3px}' +
+    '.ftr{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:9px;color:var(--gold);line-height:1.7;border-top:1px solid #f0d9b8;padding-top:3px;background:#fff}' +
+    '</style></head><body>' +
+    '<div class="ftr">Address: ' + SELLER_INFO.address + '<br>Tel: ' + SELLER_INFO.tel + ' &nbsp;|&nbsp; ' + SELLER_INFO.email + ' &nbsp;|&nbsp; www.pishtaj.ir</div>' +
+    '<div class="hdr">' +
+    '<img src="' + SELLER_INFO.logo + '" alt="PTF">' +
+    '<div class="mid"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="sub">' + title + '</div></div>' +
+    '<div class="meta"><span class="no">' + (isCO ? 'CO' : 'TO') + ' No.: ' + escP(o.no) + (o.rev ? ' (Rev.' + String(o.rev).padStart(2, '0') + ')' : '') + '</span><br>' +
+    '<b>Date:</b> ' + escP(o.dateEn) + '<br><span style="color:#888">Page 1 of ' + pageCount + '</span></div>' +
+    '</div>' +
+    '<div class="parties">' +
+    '<div class="party"><div class="pt">Vendor</div>' +
+    '<b>Name:</b> ' + SELLER_INFO.company + '<br>' +
+    '<b>National ID:</b> ' + SELLER_INFO.nationalId + '<br>' +
+    '<b>Contact Person:</b> ' + escP(o.sellerContact || SELLER_INFO.contact) + '<br>' +
+    '<b>Tel:</b> ' + SELLER_INFO.tel + '</div>' +
+    '<div class="party"><div class="pt">Client</div>' +
+    '<b>Name:</b> ' + escP(o.buyerCo || '—') + '<br>' +
+    '<b>Request No:</b> ' + escP((typeof ptfInqClientNo === 'function' ? ptfInqClientNo(o.inqNo) : o.inqNo) || '—') + '<br>' +
+    '<b>Attention:</b> ' + escP(o.buyerContact || '—') + '<br>' +
+    '<b>Tel:</b> ' + escP((o.buyerTel && typeof ptfPhoneNorm === 'function') ? (ptfPhoneNorm(o.buyerTel, 'print') || o.buyerTel) : (o.buyerTel || '—')) + '</div>' +
+    '</div>' +
+    '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>' +
+    tailBlock +
+    '<script>window.onload=function(){setTimeout(function(){window.print()},450)}<\/script>' +
+    '</body></html>';
+
+  if (typeof ptfPreviewPrintableDoc === 'function' && !window._inUatTestMock) {
+    ptfPreviewPrintableDoc(title + ' — ' + escP(o.no), fullDocHtml, o.no);
+    return;
+  }
+
+  var w = window.open('', '_blank');
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + o.no + '</title><style>' +
+    '@page{size:A4 landscape;margin:10mm 12mm 16mm 12mm}' +
+    ':root{--brand:#ef4b1a;--gold:#f79400;--ink:#1f2328}' +
+    '*{box-sizing:border-box}' +
+    'body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;font-size:10.5px;color:var(--ink);margin:0;padding-bottom:40px;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    /* ---- هدر: لوگو چپ، عنوان وسط، متادیتا راست ---- */
+    '.hdr{display:grid;grid-template-columns:120px 1fr 190px;align-items:start;gap:10px;padding-bottom:6px;border-bottom:2.5px solid var(--brand);margin-bottom:10px}' +
+    '.hdr img{height:64px}' +
+    '.hdr .mid{text-align:center;padding-top:2px}' +
+    '.hdr .co{font-size:21px;font-weight:700;color:var(--brand);letter-spacing:.3px;font-family:Georgia,"Times New Roman",serif}' +
+    '.hdr .sub{font-size:13px;color:var(--gold);font-weight:600;margin-top:6px;letter-spacing:1.2px;text-transform:uppercase}' +
+    '.hdr .meta{text-align:right;font-size:10px;line-height:1.9;color:#333;padding-top:4px}' +
+    '.hdr .meta b{color:#c0392b}' +
+    '.hdr .meta .no{font-size:11px;font-weight:700;color:#c0392b}' +
+    /* ---- طرفین ---- */
+    '.parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px}' +
+    '.party{border:1px solid #e3e5e8;border-radius:6px;padding:8px 12px;font-size:10px;line-height:1.9;background:#fcfcfc}' +
+    '.party .pt{font-size:12.5px;font-weight:700;color:var(--gold);margin-bottom:3px;font-family:Georgia,serif}' +
+    '.party b{color:var(--gold);font-weight:600}' +
+    /* ---- جدول ---- */
+    'table{width:100%;border-collapse:collapse;font-size:' + baseFont + 'px;page-break-inside:auto}' +
+    'tr{page-break-inside:avoid}' +
+    'th{background:var(--gold);color:#fff;border:1px solid #d98700;padding:5px 6px;font-size:10px;letter-spacing:.2px}' +
+    'td{border:1px solid #9aa0a6;padding:5px 6px;text-align:center;vertical-align:middle}' +
+    'td.lft{text-align:left}td.num{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}' + /* v17.0 US-409 */
+    'td.desc{font-size:9.5px;line-height:1.55;color:#2c3136}' +
+    '.idesc{font-weight:400;font-size:9px;color:#555;margin-top:2px}' +
+    'tr.total td{background:#fdf1e7;border-top:2px solid var(--gold)}' +
+    'tr.total .words{font-weight:400;font-style:italic;font-size:9.5px;color:#444}' +
+    'tr.total .big{font-size:11.5px;font-weight:700}' +
+    'thead{display:table-header-group}' +
+    /* ---- شرایط + امضا ---- */
+    '.tail{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:8px;page-break-inside:auto;break-inside:auto}' +
+    '.terms{flex:1;min-width:320px;font-size:10px;page-break-inside:auto}' +
+    '.terms b{color:#c0392b;font-family:Georgia,serif;font-size:11.5px;display:block;page-break-after:avoid}' +
+    '.terms ol{margin:4px 0 0 18px;padding:0}.terms li{margin-bottom:2px;line-height:1.5;page-break-inside:avoid;page-break-after:auto}' +
+    '.sig{flex:0 0 220px;margin-top:0;margin-bottom:18px;display:flex;justify-content:flex-end;page-break-inside:avoid}' +
+    '.sig .box{width:220px;text-align:center;font-size:9.5px;color:#555}' +
+    '.sig .line{border-top:1px solid #999;margin-top:36px;padding-top:3px}' +
+    /* ---- فوتر ثابت هر صفحه ---- */
+    '.ftr{position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:9px;color:var(--gold);line-height:1.7;border-top:1px solid #f0d9b8;padding-top:3px;background:#fff}' +
+    '</style></head><body>' +
+    '<div class="ftr">Address: ' + SELLER_INFO.address + '<br>Tel: ' + SELLER_INFO.tel + ' &nbsp;|&nbsp; ' + SELLER_INFO.email + ' &nbsp;|&nbsp; www.pishtaj.ir</div>' +
+    '<div class="hdr">' +
+    '<img src="' + SELLER_INFO.logo + '" alt="PTF">' +
+    '<div class="mid"><div class="co">Pishro Tajhiz Fartak Co.</div><div class="sub">' + title + '</div></div>' +
+    '<div class="meta"><span class="no">' + (isCO ? 'CO' : 'TO') + ' No.: ' + escP(o.no) + (o.rev ? ' (Rev.' + String(o.rev).padStart(2, '0') + ')' : '') + '</span><br>' +
+    '<b>Date:</b> ' + escP(o.dateEn) + '<br><span style="color:#888">Page 1 of ' + pageCount + '</span></div>' +
+    '</div>' +
+    '<div class="parties">' +
+    '<div class="party"><div class="pt">Vendor</div>' +
+    '<b>Name:</b> ' + SELLER_INFO.company + '<br>' +
+    '<b>National ID:</b> ' + SELLER_INFO.nationalId + '<br>' +
+    '<b>Contact Person:</b> ' + escP(o.sellerContact || SELLER_INFO.contact) + '<br>' +
+    '<b>Tel:</b> ' + SELLER_INFO.tel + '</div>' +
+    '<div class="party"><div class="pt">Client</div>' +
+    '<b>Name:</b> ' + escP(o.buyerCo || '—') + '<br>' +
+    '<b>Request No:</b> ' + escP((typeof ptfInqClientNo === 'function' ? ptfInqClientNo(o.inqNo) : o.inqNo) || '—') + '<br>' +
+    '<b>Attention:</b> ' + escP(o.buyerContact || '—') + '<br>' +
+    '<b>Tel:</b> ' + escP((o.buyerTel && typeof ptfPhoneNorm === 'function') ? (ptfPhoneNorm(o.buyerTel, 'print') || o.buyerTel) : (o.buyerTel || '—')) + '</div>' /* v14.2 US-357 */ +
+    '</div>' +
+    '<table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table>' +
+    tailBlock +
+    '<script>window.onload=function(){setTimeout(function(){window.print()},450)}<\/script>' +
+    '</body></html>');
+  w.document.close();
+}
+
+/* ---------- بازنویسی مودال‌ها و رندر کارفرما/تامین‌کننده با دفترچه تماس ---------- */
+
+function showCustModal(cd) {
+  var c = null;
+  if (cd) c = getData('ptf_crm_customers').filter(function(x){ return x.cd === cd; })[0];
+  cbInit(c ? c.people : []);
+  indivPhonesInit(c ? c.phones : []);
+  var INDS = ['نفت و گاز','پتروشیمی','نیروگاه','فولاد','سیمان','آب','سایر'];
+  var indOpts = INDS.map(function(x){ return '<option' + (c && c.ind === x ? ' selected' : '') + '>' + x + '</option>'; }).join('');
+  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:640px;max-height:92vh;overflow:auto">' +
+    '<h3>' + (c ? '✏️ ویرایش مشتری' : '🤝 مشتری جدید') + '</h3>' +
+    '<div class="fr"><div class="fld"><label>نام شرکت / شخص (فارسی) *</label><input type="text" id="nC2Comp" value="' + (c ? escP(c.co) : '') + '"></div>' +
+    '<div class="fld"><label>نام انگلیسی شرکت (روی اسناد TO/CO)</label><input type="text" id="nC2CoEn" value="' + (c ? escP(c.coEn||'') : '') + '" placeholder="e.g. Sadaf Petrochemical Co." style="direction:ltr">' +
+    '<a href="javascript:void(0)" onclick="ptfGenCoEn()" style="font-size:11px;color:#7c3aed">🤖 تولید نام انگلیسی با AI (US-362)</a></div></div>' +
+    /* v14.6 (US-352 — نقشه راه مصوب): سقف اعتبار مشتری — هنگام صدور CO با مانده باز مقایسه می‌شود */
+    ((typeof roleDef === 'function' && (roleDef() || {}).sellPrice) ? '<div class="fr"><div class="fld"><label>💳 سقف اعتبار مشتری (ریال — خالی = بدون سقف)</label><input type="text" inputmode="numeric" data-money="1" id="nC2Credit" value="' + (c && c.creditLimit ? (+c.creditLimit).toLocaleString('en-US') : '') + '" style="direction:ltr" placeholder="مثال: 5,000,000,000" autocomplete="off"></div><div class="fld"><small style="color:#94a3b8;font-size:11px;display:block;padding-top:26px">هنگام صدور پیشنهاد مالی، اگر مانده مطالبات باز + مبلغ جدید از سقف عبور کند هشدار داده می‌شود.</small></div></div>' : '') +
+    '<div class="fr"><div class="fld"><label>نوع مشتری *</label><select id="nC2Kind" onchange="custKindToggle()">' +
+      '<option value="حقوقی"' + (!c || c.kind !== 'حقیقی' ? ' selected' : '') + '>🏢 حقوقی (شرکت / سازمان)</option>' +
+      '<option value="حقیقی"' + (c && c.kind === 'حقیقی' ? ' selected' : '') + '>👤 حقیقی (شخص)</option></select></div>' +
+    '<div class="fld"><label>صنعت</label><select id="nC2Ind">' + indOpts + '</select></div></div>' +
+    /* v21.5 US-411ف1: کارشناس فروش مسئول (owner) — تغییر فقط ارشد */
+    (function () {
+      var isSen = false;
+      try { isSen = ['admin','chairman','ceo','commercial'].indexOf(typeof curRole==='function'?curRole():'') > -1; } catch (e) {}
+      var owner = (c && (c.owner || c.crBy)) || '';
+      var opts = '<option value="">— تعیین‌نشده —</option>';
+      try {
+        (getData('ptf_crm_users') || []).forEach(function (u) {
+          var un = u.username || u.user || '';
+          if (!un) return;
+          var rl = u.roleId || u.role || '';
+          if (['sales','commercial','ceo','chairman','admin'].indexOf(rl) < 0 && rl) return;
+          opts += '<option value="' + escP(un) + '"' + (owner === un ? ' selected' : '') + '>' + escP(u.name || u.nm || un) + (rl ? ' (' + rl + ')' : '') + '</option>';
+        });
+      } catch (eO) {}
+      if (!isSen) {
+        var label = owner || '—';
+        try {
+          var uo = (getData('ptf_crm_users')||[]).filter(function(x){return (x.username||x.user)===owner;})[0];
+          if (uo) label = uo.name || uo.nm || owner;
+        } catch (eL) {}
+        return '<div class="fld"><label>👤 کارشناس فروش مسئول</label><input type="text" value="' + escP(label) + '" readonly style="background:#f1f5f9;color:#475569" title="تغییر مالک فقط توسط مدیران ارشد">' +
+          (c && c.crBy ? '<small style="color:#94a3b8;font-size:11px">ثبت‌کننده اولیه: ' + escP(c.crBy) + (c.crAt ? ' — ' + escP(c.crAt) : '') + '</small>' : '') + '</div>';
+      }
+      return '<div class="fr"><div class="fld"><label>👤 کارشناس فروش مسئول</label><select id="nC2Owner">' + opts + '</select>' +
+        (c && c.crBy ? '<small style="color:#94a3b8;font-size:11px">ثبت‌کننده: ' + escP(c.crBy) + (c.crAt ? ' — ' + escP(c.crAt) : '') + '</small>' : '') +
+        '</div><div class="fld"><small style="color:#94a3b8;font-size:11px;display:block;padding-top:26px">تغییر مالک فقط برای admin/chairman/ceo/commercial — با audit</small></div></div>';
+    })() +
+    /* US-267 (v23.0 مصوب کارفرما): تایم‌لاین ۶مرحله‌ای عضویت PTF در وندور لیست کارفرما (AVL) */
+    '<div class="fr"><div class="fld"><label>وضعیت عضویت PTF در وندور لیست کارفرما (AVL)</label><select id="nC2VenSt">' +
+      '<option value="unreg"' + (!c || (c.venSt||'unreg') === 'unreg' ? ' selected' : '') + '>⚪ ۱. ثبت‌نشده / بدون اقدام</option>' +
+      '<option value="prep"' + (c && c.venSt === 'prep' ? ' selected' : '') + '>🟠 ۲. در حال تکمیل اسناد ارزیابی و رزومه</option>' +
+      '<option value="sent"' + (c && c.venSt === 'sent' ? ' selected' : '') + '>📤 ۳. مدارک ارزیابی ارسال شد (در انتظار بررسی)</option>' +
+      '<option value="eval"' + (c && (c.venSt === 'eval' || c.venSt === 'pending') ? ' selected' : '') + '>⏳ ۴. در حال ارزیابی در کمیته فنی کارفرما</option>' +
+      '<option value="approved"' + (c && c.venSt === 'approved' ? ' selected' : '') + '>🏆 ۵. تاییدشده / عضو رسمی وندور لیست (AVL)</option>' +
+      '<option value="rejected"' + (c && c.venSt === 'rejected' ? ' selected' : '') + '>🔴 ۶. ردشده توسط کارفرما / نیازمند رفع نقص</option></select></div>' +
+    '<div class="fld"><label>شماره وندور (در صورت تایید)</label><input type="text" id="nC2VenNo" value="' + (c ? escP(c.venNo||'') : '') + '" style="direction:ltr" placeholder="مثلا: AVL-9088"></div></div>' +
+    '<div class="fr"><div class="fld"><label>تاریخ سررسید پیگیری بعدی وندور (میلادی/شمسی)</label><input type="text" id="nC2VenDue" value="' + (c ? escP(c.venDueFa || c.venDueISO || '') : '') + '" placeholder="مثلا: 1405/05/10" style="direction:ltr"></div>' +
+    '<div class="fld"><label>یادداشت آخرین اقدام / پرونده وندور</label><input type="text" id="nC2VenNote" value="' + (c ? escP(c.venNote||'') : '') + '" placeholder="مثلا: رزومه به ایمیل کمیته فنی نفت ارسال شد"></div></div>' +
+    '<div class="fr"><div class="fld"><label>تلفنخانه شرکت</label><input type="text" id="nC2Tel" value="' + (c && (c.coTels||[])[0] ? escP(c.coTels[0].n) : '') + '" placeholder="مثال: 021-88000000" style="direction:ltr"></div>' +
+    '<div class="fld"><label>وب‌سایت / ایمیل عمومی</label><input type="text" id="nC2Web" value="' + (c ? escP(c.coWeb || c.coMail || '') : '') + '" style="direction:ltr"></div></div>' +
+    '<div class="fr"><div class="fld" id="natIdFld"><label>شناسه ملی (حقوقی)</label><input type="text" id="nC2NatId" value="' + (c ? escP(c.natId || '') : '') + '" placeholder="14010077558" style="direction:ltr" maxlength="11"></div>' +
+    '<div class="fld" id="melliFld" style="display:none"><label>کد ملی (حقیقی)</label><input type="text" id="nC2Melli" value="' + (c ? escP(c.melli || '') : '') + '" placeholder="0012345678" style="direction:ltr" maxlength="10"></div></div>' + indivPhonesHtml('indivPhBox') +
+    '<div class="fld"><label>آدرس</label><input type="text" id="nC2Addr" value="' + (c ? escP(c.coAddr || '') : '') + '"></div>' +
+    '<div id="corpOnlyWrap"><h4 style="margin:12px 0 8px">👥 اشخاص رابط</h4><div id="cbWrap"></div></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
+    '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
+    '<button class="bt" onclick="saveCust2(' + (c ? "'" + escP(c.cd) + "'" : 'null') + ')">' + (c ? 'ذخیره' : 'ثبت') + '</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  cbRender();
+  custKindToggle();
+}
+
+// US-168: نمایش داینامیک فیلدها بر اساس حقیقی/حقوقی
+
+// v80.2: تلفن/موبایل‌های شخص حقیقی — افزودن نامحدود (مشترک مشتری/تامین‌کننده)
+var _indivPhones = [];
+function indivPhonesInit(list) { _indivPhones = (list || []).slice(); }
+function indivPhonesHtml(boxId) {
+  return '<div class="fld" id="' + boxId + '" style="display:none"><label>📞 تلفن‌ها و موبایل‌های شخص</label>' +
+    '<div id="' + boxId + '_rows"></div>' +
+    '<div style="display:flex;gap:6px;margin-top:4px">' +
+    '<button type="button" class="bt bt-o" style="padding:4px 11px;font-size:12px" onclick="indivPhoneAdd(\'mob\')">+ موبایل</button>' +
+    '<button type="button" class="bt bt-o" style="padding:4px 11px;font-size:12px" onclick="indivPhoneAdd(\'tel\')">+ تلفن ثابت</button></div></div>';
+}
+function indivPhonesRender() {
+  var rows = document.querySelector('[id$="_rows"]');
+  // پیدا کردن باکس فعال (مشتری یا تامین‌کننده)
+  var box = document.getElementById('indivPhBox') || document.getElementById('supIndivPhBox');
+  if (!box) return;
+  var el = box.querySelector('[id$="_rows"]');
+  if (!el) return;
+  el.innerHTML = _indivPhones.map(function (p, i) {
+    return '<div style="display:flex;gap:6px;margin-bottom:5px;align-items:center">' +
+      '<span style="font-size:12px;color:#94a3b8;min-width:52px">' + (p.k === 'mob' ? '📱 موبایل' : '☎️ ثابت') + '</span>' +
+      '<input type="text" value="' + escP(p.n) + '" oninput="_indivPhones[' + i + '].n=this.value" placeholder="' + (p.k === 'mob' ? '0912xxxxxxx' : '021xxxxxxxx') + '" style="flex:1;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+      '<input type="text" value="' + escP(p.lb || '') + '" oninput="_indivPhones[' + i + '].lb=this.value" placeholder="برچسب (کاری/شخصی)" style="width:110px;padding:7px;border:1px solid var(--brd);border-radius:8px">' +
+      '<button type="button" onclick="_indivPhones.splice(' + i + ',1);indivPhonesRender()" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></div>';
+  }).join('') || '<div style="color:#94a3b8;font-size:12px">شماره‌ای ثبت نشده — با دکمه‌های زیر اضافه کنید</div>';
+}
+function indivPhoneAdd(k) { _indivPhones.push({ k: k, n: '', lb: '' }); indivPhonesRender(); }
+function indivPhonesCollect() { return _indivPhones.filter(function (p) { return p.n && p.n.trim(); }); }
+
+function custKindToggle() {
+  var kind = (document.getElementById('nC2Kind') || { value: 'حقوقی' }).value;
+  var isCorp = kind === 'حقوقی';
+  var natF = document.getElementById('natIdFld');
+  var melF = document.getElementById('melliFld');
+  var corpWrap = document.getElementById('corpOnlyWrap');
+  if (natF) natF.style.display = isCorp ? '' : 'none';
+  if (melF) melF.style.display = isCorp ? 'none' : '';
+  if (corpWrap) corpWrap.style.display = isCorp ? '' : 'none';
+  var phBox = document.getElementById('indivPhBox');
+  if (phBox) { phBox.style.display = isCorp ? 'none' : ''; if (!isCorp) indivPhonesRender(); }
+  var telInp = document.getElementById('nC2Tel');
+  if (telInp && telInp.closest) {
+    var telFld = telInp.closest('.fld');
+    if (telFld) telFld.style.display = isCorp ? '' : 'none';
+  }
+}
+
+function saveCust2(cd) {
+  var comp = document.getElementById('nC2Comp').value.trim();
+  if (!comp) { (window.ptfDlgAlert || alert)('نام شرکت را وارد کنید', { icon: '⚠️', title: 'اعتبارسنجی فرم' }); return; } /* v16.4 US-372 */
+  var people = cbCollect();
+  var items = getData('ptf_crm_customers');
+  var tel = document.getElementById('nC2Tel').value.trim();
+  var rec = {
+    cd: cd || genCode('CUST'), co: comp,
+    coEn: (document.getElementById('nC2CoEn')||{value:''}).value.trim(),
+    creditLimit: (typeof ptfNum === 'function' ? ptfNum((document.getElementById('nC2Credit')||{value:''}).value) : +((document.getElementById('nC2Credit')||{value:''}).value)) || 0, /* v14.6 US-352 + v19.6 کامادار */
+    kind: (document.getElementById('nC2Kind')||{value:'حقوقی'}).value,
+    venSt: (document.getElementById('nC2VenSt')||{value:'unreg'}).value, // v121.1: US-109
+    venNo: ((document.getElementById('nC2VenNo')||{value:''}).value || '').trim(),
+    natId: (document.getElementById('nC2NatId')||{value:''}).value.trim(),
+    melli: (document.getElementById('nC2Melli')||{value:''}).value.trim(),
+    ind: document.getElementById('nC2Ind').value,
+    people: people,
+    coTels: tel ? [{ n: tel, ext: '', lb: 'تلفنخانه' }] : [],
+    coWeb: document.getElementById('nC2Web').value.trim(),
+    coAddr: document.getElementById('nC2Addr').value.trim()
+  };
+  /* v21.5 US-411ف1: owner — پیش‌فرض سازنده؛ تغییر فقط اگر فیلد nC2Owner هست (ارشد) */
+  try {
+    var ownEl = document.getElementById('nC2Owner');
+    var prev = null;
+    if (cd) {
+      var oldC = items.filter(function (x) { return x.cd === cd; })[0];
+      if (oldC) prev = oldC.owner || oldC.crBy || '';
+    }
+    if (ownEl) {
+      rec.owner = (ownEl.value || '').trim();
+      if (prev && rec.owner && prev !== rec.owner && typeof audit === 'function') {
+        audit('مشتریان', 'تغییر مالک مشتری ' + comp + ': ' + prev + ' → ' + rec.owner, rec.cd);
+      }
+    } else if (cd) {
+      rec.owner = prev || '';
+    } else {
+      rec.owner = (typeof curSession === 'function' && curSession()) ? (curSession().user || '') : '';
+    }
+    if (!rec.owner && !cd) {
+      rec.owner = (typeof curSession === 'function' && curSession()) ? (curSession().user || '') : '';
+    }
+  } catch (eOwn) {}
+  // v80.2: حقیقی → تلفن‌های خود شخص
+  if (rec.kind === 'حقیقی') {
+    rec.phones = indivPhonesCollect();
+    rec.people = [];
+    rec.coTels = [];
+    rec.con = rec.co;
+    var mob0 = rec.phones.filter(function (p) { return p.k === 'mob'; })[0];
+    rec.ph = mob0 ? mob0.n : (rec.phones[0] ? rec.phones[0].n : '');
+  } else {
+    rec.phones = [];
+    var pp = primaryPerson(rec);
+    rec.con = pp ? pp.nm : '';
+    rec.ph = pp && pp.tels && pp.tels.length ? pp.tels[0].n : (pp && pp.mobs && pp.mobs.length ? pp.mobs[0].n : tel);
+  }
+  // US-174: جلوگیری از ثبت تکراری (نام/شناسه ملی/کد ملی/هر شماره تماس)
+  if (typeof ptfDupBlock === 'function' && ptfDupBlock('customer', rec, cd)) return;
+  if (cd) {
+    for (var i = 0; i < items.length; i++) if (items[i].cd === cd) {
+      rec.crAt = items[i].crAt; rec.crBy = items[i].crBy;
+      if (!document.getElementById('nC2Owner')) rec.owner = items[i].owner || items[i].crBy || rec.owner || '';
+      /* v14.6 (US-352): اگر فیلد سقف اعتبار برای این نقش نمایش داده نشده، مقدار قبلی حفظ شود */
+      if (!document.getElementById('nC2Credit')) rec.creditLimit = items[i].creditLimit || 0;
+      items[i] = rec;
+    }
+  } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
+  setData('ptf_crm_customers', items);
+  hideModal(); renderCustomers();
+  addLog('کارفرما ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
+}
+
+function showSupModal2(cd) {
+  var c = null;
+  if (cd) c = getData('ptf_crm_suppliers').filter(function(x){ return x.cd === cd; })[0];
+  cbInit(c ? c.people : []);
+  indivPhonesInit(c ? c.phones : []);
+  var CATS = ['پایپینگ','شیرآلات','برق','ابزار دقیق','پمپ','سایر'];
+  var catOpts = CATS.map(function(x){ return '<option' + (c && c.ca === x ? ' selected' : '') + '>' + x + '</option>'; }).join('');
+  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:640px;max-height:92vh;overflow:auto">' +
+    '<h3>' + (c ? '✏️ ویرایش تامین‌کننده' : '🏭 تامین‌کننده جدید') + '</h3>' +
+    '<div class="fr"><div class="fld"><label>نام شرکت / شخص (فارسی) *</label><input type="text" id="nS2Comp" value="' + (c ? escP(c.co) : '') + '"></div>' +
+    '<div class="fld"><label>نام انگلیسی</label><input type="text" id="nS2CoEn" value="' + (c ? escP(c.coEn||'') : '') + '" style="direction:ltr"></div></div>' +
+    '<div class="fr"><div class="fld"><label>نوع تامین‌کننده *</label><select id="nS2Kind" onchange="supKindToggle()">' +
+      '<option value="حقوقی"' + (!c || c.kind !== 'حقیقی' ? ' selected' : '') + '>🏢 حقوقی (شرکت / فروشگاه)</option>' +
+      '<option value="حقیقی"' + (c && c.kind === 'حقیقی' ? ' selected' : '') + '>👤 حقیقی (شخص)</option></select></div>' +
+    '<div class="fld"><label>دسته</label><select id="nS2Cat">' + catOpts + '</select></div></div>' +
+    '<div class="fr"><div class="fld" id="supNatIdFld"><label>شناسه ملی (حقوقی)</label><input type="text" id="nS2NatId" value="' + (c ? escP(c.natId || '') : '') + '" placeholder="14010077558" style="direction:ltr" maxlength="11"></div>' +
+    '<div class="fld" id="supMelliFld" style="display:none"><label>کد ملی (حقیقی)</label><input type="text" id="nS2Melli" value="' + (c ? escP(c.melli || '') : '') + '" placeholder="0012345678" style="direction:ltr" maxlength="10"></div></div>' + indivPhonesHtml('supIndivPhBox') +
+    '<div class="fr"><div class="fld" id="supTelFld"><label>تلفنخانه شرکت</label><input type="text" id="nS2Tel" value="' + (c && (c.coTels||[])[0] ? escP(c.coTels[0].n) : '') + '" style="direction:ltr"></div>' +
+    '<div class="fld"><label>وب‌سایت / ایمیل عمومی</label><input type="text" id="nS2Web" value="' + (c ? escP(c.coWeb || '') : '') + '" style="direction:ltr"></div></div>' +
+    '<div id="supCorpWrap"><h4 style="margin:12px 0 8px">👥 اشخاص رابط</h4><div id="cbWrap"></div></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
+    '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
+    '<button class="bt" onclick="saveSup2(' + (c ? "'" + escP(c.cd) + "'" : 'null') + ')">' + (c ? 'ذخیره' : 'ثبت') + '</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  cbRender();
+  supKindToggle();
+}
+
+// US-168 توسعه: نمایش داینامیک فیلدهای تامین‌کننده بر اساس حقیقی/حقوقی
+function supKindToggle() {
+  var kind = (document.getElementById('nS2Kind') || { value: 'حقوقی' }).value;
+  var isCorp = kind === 'حقوقی';
+  var natF = document.getElementById('supNatIdFld');
+  var melF = document.getElementById('supMelliFld');
+  var corpWrap = document.getElementById('supCorpWrap');
+  var telF = document.getElementById('supTelFld');
+  if (natF) natF.style.display = isCorp ? '' : 'none';
+  if (melF) melF.style.display = isCorp ? 'none' : '';
+  if (corpWrap) corpWrap.style.display = isCorp ? '' : 'none';
+  if (telF) telF.style.display = isCorp ? '' : 'none';
+  var phBoxS = document.getElementById('supIndivPhBox');
+  if (phBoxS) { phBoxS.style.display = isCorp ? 'none' : ''; if (!isCorp) indivPhonesRender(); }
+}
+
+function saveSup2(cd) {
+  var comp = document.getElementById('nS2Comp').value.trim();
+  var compEn = (document.getElementById('nS2CoEn')||{value:''}).value.trim();
+  /* v17.5 (US-415 — گزارش کارفرما): تامین‌کننده خارجی نام فارسی ندارد —
+     خارجی: نام انگلیسی اجباری، فارسی اختیاری؛ co = EN تا نمایش/جستجو/dedup سالم بماند. داخلی مثل قبل. */
+  var isForeign = ((document.getElementById('nS2Origin') || {}).value || 'داخلی') === 'خارجی';
+  if (isForeign) {
+    if (!compEn) { (window.ptfDlgAlert || alert)('برای تامین‌کننده خارجی، نام انگلیسی (English Name) الزامی است', { icon: '🌍', title: 'اعتبارسنجی فرم' }); return; }
+    if (!comp) comp = compEn; /* co = نام EN — فارسی اختیاری */
+  } else if (!comp) { (window.ptfDlgAlert || alert)('نام شرکت را وارد کنید', { icon: '⚠️', title: 'اعتبارسنجی فرم' }); return; } /* v16.4 US-372 */
+  var people = cbCollect();
+  var items = getData('ptf_crm_suppliers');
+  var tel = document.getElementById('nS2Tel').value.trim();
+  var rec = {
+    cd: cd || genCode('SUP'), co: comp,
+    coEn: compEn,
+    kind: (document.getElementById('nS2Kind')||{value:'حقوقی'}).value,
+    natId: (document.getElementById('nS2NatId')||{value:''}).value.trim(),
+    melli: (document.getElementById('nS2Melli')||{value:''}).value.trim(),
+    ca: document.getElementById('nS2Cat').value,
+    people: people,
+    coTels: tel ? [{ n: tel, ext: '', lb: 'تلفنخانه' }] : [],
+    coWeb: document.getElementById('nS2Web').value.trim()
+  };
+  // v80.2: حقیقی → تلفن‌های خود شخص
+  if (rec.kind === 'حقیقی') {
+    rec.phones = indivPhonesCollect();
+    rec.people = [];
+    rec.coTels = [];
+    rec.nm = rec.co;
+    var mob0s = rec.phones.filter(function (p) { return p.k === 'mob'; })[0];
+    rec.ph = mob0s ? mob0s.n : (rec.phones[0] ? rec.phones[0].n : '');
+  } else {
+    rec.phones = [];
+    var pp = primaryPerson(rec);
+    rec.nm = pp ? pp.nm : '';
+    rec.ph = pp && pp.tels && pp.tels.length ? pp.tels[0].n : (pp && pp.mobs && pp.mobs.length ? pp.mobs[0].n : tel);
+  }
+  // US-174: جلوگیری از ثبت تکراری (نام/شناسه ملی/کد ملی/هر شماره تماس)
+  if (typeof ptfDupBlock === 'function' && ptfDupBlock('supplier', rec, cd)) return;
+  if (cd) {
+    for (var i = 0; i < items.length; i++) if (items[i].cd === cd) { rec.crAt = items[i].crAt; rec.crBy = items[i].crBy; items[i] = rec; }
+  } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
+  setData('ptf_crm_suppliers', items);
+  window._supLastSaved = rec.cd; /* v19.0 (پورت BUG-022 از v17.8): فلگ موفقیت — wrapper ها فقط روی همین رکورد */
+  hideModal(); renderSuppliers();
+  addLog('تامین‌کننده ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
+}
+
+// رندر جدید جدول‌ها با ستون اشخاص + دکمه ویرایش/نمایش
+function renderCustomers2() {
+  migrateContacts();
+  var items = getData('ptf_crm_customers');
+  var tb = document.getElementById('cTb');
+  if (!tb) return;
+  var q = ((document.getElementById('cSrch')||{}).value || '').trim();
+  var list = q ? items.filter(function(e){ return entityMatches(e, q); }) : items;
+  var h = '';
+  list.forEach(function(c) {
+    var pp = primaryPerson(c);
+    // v121.1: بج وندور (US-109 v120) — در override گم شده بود
+    var venBadge = (typeof ptfVendorStatusBadge === 'function') ? ptfVendorStatusBadge(c) : '';
+    var own = c.owner || c.crBy || '';
+    var ownLb = own;
+    try {
+      if (own) {
+        var uo = (getData('ptf_crm_users')||[]).filter(function(x){return (x.username||x.user)===own;})[0];
+        if (uo) ownLb = uo.name || uo.nm || own;
+      }
+    } catch (eOw) {}
+    h += '<tr><td><strong>' + escP(c.cd) + '</strong>' + venBadge +
+      (own ? '<div style="font-size:10.5px;color:#64748b;margin-top:2px">👤 ' + escP(ownLb) + '</div>' : '') +
+      '</td><td>' + escP(c.co) +
+      ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span></td><td>' + escP(c.ind||'-') + '</td>' +
+      '<td>' + (pp ? escP(pp.nm) + ' <small style="color:#94a3b8">(' + escP(pp.role||'') + ')</small>' : '-') +
+      ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
+      '<td>' + ((c.phones||[]).length ? '<a href="tel:' + escP(c.phones[0].n) + '" style="direction:ltr">' + escP(c.phones[0].n) + '</a>' + (c.phones.length > 1 ? ' <small style="color:#94a3b8">+' + (c.phones.length - 1) + '</small>' : '') : (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-'))) + '</td>' +
+      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_customers\',\'' + escP(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showCustModal(\'' + escP(c.cd) + '\')">✏️</button></td></tr>';
+  });
+  tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</td></tr>';
+  if (document.getElementById('dCust')) document.getElementById('dCust').textContent = items.length;
+}
+
+function renderSuppliers2() {
+  migrateContacts();
+  var items = getData('ptf_crm_suppliers');
+  var tb = document.getElementById('sTb');
+  if (!tb) return;
+  var q = ((document.getElementById('sSrch')||{}).value || '').trim();
+  var list = q ? items.filter(function(e){ return entityMatches(e, q); }) : items;
+  var h = '';
+  list.forEach(function(c) {
+    var pp = primaryPerson(c);
+    h += '<tr><td><strong>' + escP(c.cd) + '</strong></td><td>' + escP(c.co) +
+      ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span></td>' +
+      '<td>' + (pp ? escP(pp.nm) : '-') + ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
+      '<td>' + (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-')) + '</td>' +
+      '<td>' + escP(c.ca||'-') + '</td>' +
+      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + escP(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showSupModal2(\'' + escP(c.cd) + '\')">✏️</button></td></tr>';
+  });
+  tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</td></tr>';
+  if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
+}
+
+function showEntityCard(key, cd) {
+  var c = getData(key).filter(function(x){ return x.cd === cd; })[0];
+  if (!c) return;
+  var venBox = '';
+  if (key === 'ptf_crm_customers') {
+    var stMap = { unreg: '⚪ ثبت‌نشده / بدون اقدام', prep: '🟠 در حال تکمیل مدارک ارزیابی', sent: '📤 مدارک ارزیابی ارسال شد', eval: '⏳ در حال بررسی در کمیته فنی', pending: '⏳ در حال بررسی در کمیته فنی', approved: '🏆 عضو رسمی وندور لیست (AVL)', rejected: '🔴 ردشده / نیازمند رفع نقص' };
+    var stLb = stMap[c.venSt || 'unreg'] || '⚪ ثبت‌نشده';
+    var isOv = c.venDueISO && c.venDueISO < new Date().toISOString().slice(0, 10);
+    venBox = '<div style="background:#f8fafc;border:1px solid #cbd5e1;border-right:4px solid #7c3aed;border-radius:12px;padding:10px 14px;margin:10px 0;font-size:12.5px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+      '<span><b style="color:#5b21b6">🏆 وضعیت عضویت PTF در وندور لیست (AVL):</b><br><span style="font-size:13px;font-weight:bold">' + stLb + '</span>' + (c.venNo ? ' | شماره وندور: <b dir="ltr" style="color:#059669">' + escP(c.venNo) + '</b>' : '') + '</span>' +
+      '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfCustVendorFollowup(\'' + escP(c.cd) + '\')">📅 ثبت پیگیری و یادآور وندور</button></div>' +
+      (c.venNote ? '<div style="margin-top:6px;font-size:11.5px;color:#475569">📝 آخرین اقدام: ' + escP(c.venNote) + '</div>' : '') +
+      (c.venDueFa || c.venDueISO ? '<div style="margin-top:4px;font-size:11.5px;color:' + (isOv ? '#dc2626;font-weight:bold' : '#0e7490') + '">📅 سررسید پیگیری بعدی وندور: ' + escP(c.venDueFa || c.venDueISO) + (isOv ? ' (🔴 تاخیر در پیگیری — US-267)' : '') + '</div>' : '') +
+      '</div>';
+  }
+  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px;max-height:90vh;overflow:auto">' +
+    '<h3>' + escP(c.co) + ' <small style="color:#94a3b8;font-size:12px">' + escP(c.cd) + '</small></h3>' + venBox +
+    ((c.coTels||[]).length ? '<div style="font-size:13px;margin-bottom:4px">☎️ تلفنخانه: <a href="tel:' + escP(c.coTels[0].n) + '">' + escP(c.coTels[0].n) + '</a></div>' : '') +
+    (c.coWeb ? '<div style="font-size:13px;margin-bottom:4px;direction:ltr;text-align:right">🌐 ' + escP(c.coWeb) + '</div>' : '') +
+    (c.coAddr ? '<div style="font-size:13px;margin-bottom:10px">📍 ' + escP(c.coAddr) + '</div>' : '') +
+    ((c.phones||[]).length ? '<h4 style="margin:10px 0 8px">📞 تلفن‌های شخص</h4>' + c.phones.map(function(p){ return '<div style="font-size:13px;margin-bottom:4px">' + (p.k === 'mob' ? '📱' : '☎️') + ' <a href="tel:' + escP(p.n) + '" style="direction:ltr">' + escP(p.n) + '</a>' + (p.lb ? ' <small style="color:#94a3b8">(' + escP(p.lb) + ')</small>' : '') + '</div>'; }).join('') : '<h4 style="margin:10px 0 8px">👥 اشخاص رابط</h4>' + contactsCardHtml(c)) +
+    '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="hideModal()">بستن</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+}
+
+// override رندرهای قدیمی + مهاجرت در لود
+renderCustomers = renderCustomers2;
+renderSuppliers = renderSuppliers2;
+try { migrateContacts(); } catch (e) {}
+
+
+/* ===== v14.4 (US-362 AC4): تولید نام انگلیسی شرکت با AI در فرم مشتری =====
+   AI فعال → ترجمه دقیق llm؛ در غیر این صورت ترانویسی اصلاح‌شده US-360. */
+window.ptfGenCoEn = function () {
+  var fa = ((document.getElementById('nC2Comp') || {}).value || '').trim();
+  var out = document.getElementById('nC2CoEn');
+  if (!fa || !out) { alert('ابتدا نام فارسی شرکت را وارد کنید'); return; }
+  var fallback = (typeof ptfCoToEn === 'function') ? ptfCoToEn(fa) : fa;
+  out.value = fallback;
+  if (typeof ptfLlmTranslate === 'function') {
+    out.style.opacity = '.5';
+    ptfLlmTranslate(fa, 'fa2en', function (d) {
+      out.style.opacity = '1';
+      if (d && d.ok && d.data && d.data.t) { out.value = d.data.t; if (typeof ptfToast === 'function') ptfToast('نام انگلیسی با AI تولید شد ✅', 'ok'); }
+      else if (typeof ptfToast === 'function') ptfToast('AI در دسترس نبود — ترانویسی هوشمند درج شد', 'warn');
+    });
+  } else if (typeof ptfToast === 'function') ptfToast('ترانویسی هوشمند درج شد (AI فعال نیست)', 'ok');
+};
+
+
+window.ptfCustVendorFollowup = function (cd) {
+  var custs = getData('ptf_crm_customers');
+  var c = custs.filter(function (x) { return x.cd === cd; })[0];
+  if (!c) return;
+  ptfDialog({
+    title: '🏆 پیگیری وضعیت عضویت در وندور لیست کارفرما (' + escP(c.co) + ')',
+    body: 'وضعیت کنونی و اقدام انجام‌شده جهت حضور PTF در وندور لیست (AVL) این کارفرما را ثبت کنید. در صورت تعیین تاریخ سررسید، یادآور خودکار در کارتابل مسئول فروش ساخته می‌شود.',
+    fields: [
+      { id: 'venSt', label: 'مرحله وندور لیست *', type: 'select', value: c.venSt || 'unreg', options: [
+        { v: 'unreg', lb: '⚪ ۱. ثبت‌نشده / بدون اقدام' }, { v: 'prep', lb: '🟠 ۲. در حال تکمیل اسناد ارزیابی و رزومه' },
+        { v: 'sent', lb: '📤 ۳. رزومه و مدارک ارزیابی ارسال شد' }, { v: 'eval', lb: '⏳ ۴. در حال بررسی در کمیته فنی کارفرما' },
+        { v: 'approved', lb: '🏆 ۵. تاییدشده / عضو رسمی وندور لیست (AVL)' }, { v: 'rejected', lb: '🔴 ۶. ردشده توسط کارفرما / نیازمند رفع نقص' }
+      ]},
+      { id: 'venNo', label: 'شماره وندور (در صورت تایید)', type: 'text', value: c.venNo || '', dir: 'ltr' },
+      { id: 'venDue', label: 'تاریخ سررسید پیگیری بعدی (شمسی/میلادی)', type: 'text', value: c.venDueFa || c.venDueISO || '', placeholder: '1405/05/15', dir: 'ltr' },
+      { id: 'venNote', label: 'شرح آخرین اقدام انجام‌شده *', type: 'text', value: c.venNote || '', placeholder: 'مثلا: اسناد ارزیابی مالی و فنی به کارشناس کمیته تحویل داده شد', required: true }
+    ],
+    okText: 'ثبت اقدام و یادآور',
+    onOk: function (v) {
+      c.venSt = v.venSt || 'unreg';
+      c.venNo = (v.venNo || '').trim();
+      c.venNote = (v.venNote || '').trim();
+      var due = (v.venDue || '').trim();
+      c.venDueFa = due;
+      c.venDueISO = due ? (typeof ptfJToISO === 'function' ? ptfJToISO(due) : due) : '';
+      
+      // Auto-upsert into reminders (`ptf_crm_reminders`) for the customer's owner
+      if (due && typeof chUpsertReminder === 'function') {
+        try {
+          var rems = getData('ptf_crm_reminders');
+          var rem = { cd: genCode('REM'), title: '🏆 پیگیری وندور لیست کارفرما: ' + c.co, note: c.venNote, dueFa: due, dueISO: c.venDueISO, st: 'open', owner: c.owner || curSession().user || 'admin', t: faDateTime(), by: curSession().name };
+          rems.unshift(rem);
+          setData('ptf_crm_reminders', rems);
+        } catch (eRem) {}
+      }
+      setData('ptf_crm_customers', custs);
+      audit('مشتریان', 'ثبت پیگیری وندور لیست کارفرما ' + c.co + ' — مرحله: ' + c.venSt + ' (' + c.venNote + ')', cd);
+      if (typeof ptfToast === 'function') ptfToast('🏆 وضعیت وندور لیست و یادآور کارتابل ثبت شد', 'ok');
+      var md = document.querySelector('#panels .md-b:last-child');
+      if (md && (md.style || {}).display !== 'none') md.remove();
+      showEntityCard('ptf_crm_customers', cd);
+      renderCustomers();
+    }
+  });
+};

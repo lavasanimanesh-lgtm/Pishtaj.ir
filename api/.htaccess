@@ -1,0 +1,22 @@
+# PTF v33.0.0 API baseline — deny by default
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # These services remain disabled until their record-level authorization work is complete.
+  # storage / cms / auth / llm are exposed only through real per-request auth guards.
+  RewriteRule ^(?:attachment-read|notify-bot|chat-llm|tech-proposal-docx|tools)\.php$ - [F,L,NC]
+</IfModule>
+
+<FilesMatch "\.(?:php|json|log|txt)$">
+  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm)\.php$#">
+    Require all granted
+  </If>
+  <Else>
+    Require all denied
+  </Else>
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+</IfModule>
