@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — unofficial-invoice.js — v1.0.4
+   PTF CRM — unofficial-invoice.js — v1.0.5
    ماژول صدور فاکتور غیر رسمی برای پیش‌فاکتورهای شرکت (CO / TC)
    ===================================================================== */
 (function () {
@@ -524,14 +524,26 @@
 
     var bankAccount = '';
     var discountInput = '';
+    var discountVal = 0;
+    var discountLabel = 'تخفیف توافقی';
     var newInv = null;
 
+    // محاسبه جمع کل پیش‌فاکتور
+    var total = o.items.reduce(function (sum, it) {
+      return sum + (+it.qty || 0) * (+it.price || 0);
+    }, 0);
+
     if (existing) {
-      var action = confirm('یک صورتحساب پرداخت برای این پیش‌فاکتور قبلاً در سیستم ثبت شده است.\n\nآیا مایل به نمایش و چاپ مجدد آن هستید؟\n(جهت اعمال تخفیف، تغییر شماره حساب یا صدور مجدد، گزینه Cancel را بزنید تا نسخه جدید بازنویسی شود)');
+      var action = confirm('یک صورتحساب پرداخت برای این پیش‌فاکتور قبلاً در سیستم ثبت شده است.\n\nآیا مایل به نمایش و چاپ مجدد همان سند قبلی (با حفظ تخفیف و مشخصات قبلی) هستید؟\n\n(جهت تغییر مشخصات حساب، تغییر تخفیف یا صدور مجدد، گزینه Cancel را بزنید)');
       if (action) {
+        // بازخوانی عینی مقادیر ذخیره شده‌ی قبلی
         bankAccount = existing.bankAccount || '';
+        discountVal = existing.discount || 0;
+        discountLabel = existing.discountLabel || 'تخفیف توافقی';
+        discountInput = existing.discountInput || '';
         newInv = existing;
       } else {
+        // پیشنهاد مقادیر فعلی به عنوان مقدار پیش‌فرض برای بازنویسی راحت‌تر کاربر
         bankAccount = prompt('در صورت تمایل، شماره حساب / کارت / شبا جهت درج در صورتحساب را وارد کنید (اختیاری):', existing.bankAccount || '');
         if (bankAccount === null) return; // لغو عملیات
         
@@ -548,23 +560,18 @@
       if (discountInput === null) return; // لغو عملیات
     }
 
-    // محاسبه جمع کل پیش‌فاکتور
-    var total = o.items.reduce(function (sum, it) {
-      return sum + (+it.qty || 0) * (+it.price || 0);
-    }, 0);
-
-    // پردازش تخفیف نقدی یا درصدی
-    var discountVal = 0;
-    var discountLabel = 'تخفیف توافقی';
-    if (discountInput && discountInput.trim()) {
-      var cleanInput = discountInput.trim().replace(/[٪%]/g, '');
-      if (discountInput.indexOf('%') > -1 || discountInput.indexOf('٪') > -1) {
-        var pct = parseFloat(cleanInput) || 0;
-        discountVal = Math.round(total * pct / 100);
-        discountLabel = 'تخفیف توافقی (' + toFaDigits(pct) + '٪)';
-      } else {
-        discountVal = parseFloat(cleanInput.replace(/,/g, '')) || 0;
-        discountLabel = 'تخفیف توافقی';
+    // پردازش تخفیف نقدی یا درصدی (فقط در صورت ایجاد نسخه جدید یا اوررایت)
+    if (!newInv) {
+      if (discountInput && discountInput.trim()) {
+        var cleanInput = discountInput.trim().replace(/[٪%]/g, '');
+        if (discountInput.indexOf('%') > -1 || discountInput.indexOf('٪') > -1) {
+          var pct = parseFloat(cleanInput) || 0;
+          discountVal = Math.round(total * pct / 100);
+          discountLabel = 'تخفیف توافقی (' + toFaDigits(pct) + '٪)';
+        } else {
+          discountVal = parseFloat(cleanInput.replace(/,/g, '')) || 0;
+          discountLabel = 'تخفیف توافقی';
+        }
       }
     }
 
