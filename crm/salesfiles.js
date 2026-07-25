@@ -581,8 +581,13 @@
         (l.st === 'signed' || l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();letPrint(\'' + escP(l.cd) + '\',false)">👁</button>' : '<span style="color:#94a3b8;font-size:11px">' + escP(l.st || '') + '</span>'));
     });
     d.invoices.forEach(function (i) {
-      h += row('🧾', 'فاکتور ' + escP(i.no) + ' — ' + (+i.amount).toLocaleString('fa-IR') + ' ریال — ' + escP(i.t || ''),
-        (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' '));
+      var act = '';
+      if (i.isUnofficial) {
+        act = '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#d97706;border-color:#f59e0b" onclick="event.stopPropagation();unofficialInvoicePrint(\'' + escP(i.offerNo) + '\')">👁 نمایش/چاپ</button>';
+      } else {
+        act = (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' ');
+      }
+      h += row('🧾', (i.isUnofficial ? 'فاکتور غیررسمی ' : 'فاکتور ') + escP(i.no) + ' — ' + (+i.amount).toLocaleString('fa-IR') + ' ریال — ' + escP(i.t || ''), act);
     });
     d.misc.forEach(function (m, mi) {
       h += row('📎', escP(m.name || '-') + ' <small style="color:#94a3b8">(' + escP(m.t || '') + ' — ' + escP(m.by || '') + ')</small>',
