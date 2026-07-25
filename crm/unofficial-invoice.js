@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — unofficial-invoice.js — v1.0.0
+   PTF CRM — unofficial-invoice.js — v1.0.1
    ماژول صدور فاکتور غیر رسمی برای پیش‌فاکتورهای شرکت (CO / TC)
    ===================================================================== */
 (function () {
@@ -67,7 +67,7 @@
   }
 
   // تولید سند HTML فاکتور غیر رسمی
-  function generateUnofficialInvoiceHtml(o, total) {
+  function generateUnofficialInvoiceHtml(o, total, bankAccount) {
     var itemsHtml = '';
     (o.items || []).forEach(function (it, idx) {
       var rowNum = idx + 1;
@@ -100,6 +100,26 @@
     var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(total) : total;
     var currencyFa = getCurrencyFa(o.currency);
     var formattedTotal = formatNumber(total, o.currency);
+    
+    // تبدیل شناسه پیش‌فاکتور به شماره سند متمایز (با تغییر پیشوند CO/TC به INV)
+    var invoiceNo = String(o.no).replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
+
+    // پیدا کردن نام فارسی خریدار از لیست مشتریان
+    var buyerCoFa = o.buyerCo || '—';
+    try {
+      var customers = getData('ptf_crm_customers');
+      var cust = customers.filter(function (x) { return x.cd === o.buyerCd; })[0];
+      if (cust && cust.co) {
+        buyerCoFa = cust.co;
+      }
+    } catch (e) {}
+
+    var bankHtml = '';
+    if (bankAccount && bankAccount.trim()) {
+      bankHtml = '<div class="bank-box">' +
+        '<strong>💡 مشخصات حساب جهت پرداخت:</strong> ' + escP(bankAccount) +
+        '</div>';
+    }
 
     return '<!DOCTYPE html>' +
       '<html lang="fa" dir="rtl">' +
@@ -109,7 +129,7 @@
       '  <style>' +
       '    body {' +
       '      direction: rtl;' +
-      '      font-family: "Vazirmatn", "Tahoma", sans-serif;' +
+      '      font-family: "Yaghut", "B Nazanin", "BNazanin", "Vazirmatn", "Tahoma", sans-serif;' +
       '      color: #0f172a;' +
       '      background-color: #fff;' +
       '      margin: 0;' +
@@ -135,25 +155,26 @@
       '      flex-direction: column;' +
       '    }' +
       '    .bill-title {' +
-      '      font-size: 24px;' +
+      '      font-family: "Yaghut", "Vazirmatn", sans-serif;' +
+      '      font-size: 26px;' +
       '      font-weight: 800;' +
       '      color: #1e293b;' +
       '      margin: 0 0 5px 0;' +
       '      letter-spacing: -0.5px;' +
       '    }' +
       '    .bill-subtitle {' +
-      '      font-size: 12px;' +
+      '      font-size: 13px;' +
       '      color: #64748b;' +
       '      margin: 0;' +
       '    }' +
       '    .bill-meta-box {' +
       '      display: grid;' +
       '      grid-template-columns: auto auto;' +
-      '      gap: 6px 15px;' +
-      '      font-size: 13px;' +
+      '      gap: 8px 15px;' +
+      '      font-size: 14px;' +
       '      color: #334155;' +
       '      background: #f8fafc;' +
-      '      padding: 12px 16px;' +
+      '      padding: 12px 18px;' +
       '      border: 1px solid #e2e8f0;' +
       '      border-radius: 8px;' +
       '    }' +
@@ -167,8 +188,8 @@
       '    .party-info {' +
       '      display: flex;' +
       '      flex-direction: column;' +
-      '      gap: 4px;' +
-      '      font-size: 13px;' +
+      '      gap: 5px;' +
+      '      font-size: 14px;' +
       '      color: #334155;' +
       '      padding: 10px 0;' +
       '    }' +
@@ -193,7 +214,7 @@
       '      background-color: #334155;' +
       '      color: #ffffff;' +
       '      font-weight: 700;' +
-      '      font-size: 13px;' +
+      '      font-size: 14px;' +
       '      padding: 12px 10px;' +
       '      border: 1px solid #475569;' +
       '      text-align: center;' +
@@ -201,7 +222,7 @@
       '    .bill-table td {' +
       '      padding: 12px 10px;' +
       '      border: 1px solid #cbd5e1;' +
-      '      font-size: 13px;' +
+      '      font-size: 14px;' +
       '      color: #1e293b;' +
       '      text-align: center;' +
       '    }' +
@@ -218,7 +239,7 @@
       '      margin-bottom: 4px;' +
       '    }' +
       '    .item-desc {' +
-      '      font-size: 11px;' +
+      '      font-size: 12px;' +
       '      color: #64748b;' +
       '      line-height: 1.5;' +
       '    }' +
@@ -228,7 +249,7 @@
       '    }' +
       '    .totals-label-words {' +
       '      text-align: right !important;' +
-      '      font-size: 13px;' +
+      '      font-size: 14px;' +
       '      color: #334155;' +
       '      padding: 15px 12px !important;' +
       '    }' +
@@ -238,10 +259,20 @@
       '    }' +
       '    .totals-label-num {' +
       '      text-align: left !important;' +
-      '      font-size: 14px;' +
+      '      font-size: 15px;' +
       '      color: #0f172a;' +
       '      padding: 15px 12px !important;' +
       '      border-top: 2px solid #334155 !important;' +
+      '    }' +
+      '    .bank-box {' +
+      '      background-color: #f0fdf4;' +
+      '      border: 1px dashed #16a34a;' +
+      '      color: #14532d;' +
+      '      padding: 12px 18px;' +
+      '      border-radius: 8px;' +
+      '      margin-top: 20px;' +
+      '      font-size: 13.5px;' +
+      '      font-weight: bold;' +
       '    }' +
       '    .bill-footer {' +
       '      margin-top: 60px;' +
@@ -256,7 +287,7 @@
       '    }' +
       '    .signature-title {' +
       '      font-weight: 700;' +
-      '      font-size: 13px;' +
+      '      font-size: 14px;' +
       '      color: #475569;' +
       '      margin-bottom: 50px;' +
       '    }' +
@@ -292,6 +323,11 @@
       '        -webkit-print-color-adjust: exact;' +
       '        print-color-adjust: exact;' +
       '      }' +
+      '      .bank-box {' +
+      '        background-color: #f0fdf4 !important;' +
+      '        -webkit-print-color-adjust: exact;' +
+      '        print-color-adjust: exact;' +
+      '      }' +
       '    }' +
       '  </style>' +
       '</head>' +
@@ -300,11 +336,11 @@
       '    <div class="bill-header">' +
       '      <div class="bill-title-container">' +
       '        <h1 class="bill-title">صورتحساب پرداخت</h1>' +
-      '        <p class="bill-subtitle">صورتحساب غیررسمی اقلام و خدمات موضوع پیش‌فاکتور</p>' +
+      '        <p class="bill-subtitle">صورتحساب اقلام و خدمات موضوع پیش‌فاکتور</p>' +
       '        <div class="party-info">' +
       '          <div class="party-row">' +
       '            <span class="party-label">خریدار / کارفرما:</span>' +
-      '            <span class="party-value">' + escP(o.buyerCo || '—') + '</span>' +
+      '            <span class="party-value">' + escP(buyerCoFa) + '</span>' +
       '          </div>' +
       (o.buyerContact ?
       '          <div class="party-row">' +
@@ -315,12 +351,9 @@
       '      </div>' +
       '      <div class="bill-meta-box">' +
       '        <span class="bill-meta-label">شماره سند:</span>' +
-      '        <span class="bill-meta-value" dir="ltr">' + escP(o.no) + '</span>' +
+      '        <span class="bill-meta-value" dir="ltr">' + escP(invoiceNo) + '</span>' +
       '        <span class="bill-meta-label">تاریخ صدور:</span>' +
       '        <span class="bill-meta-value">' + escP(o.dateFa || '—') + '</span>' +
-      (o.inqNo ?
-      '        <span class="bill-meta-label">شماره استعلام:</span>' +
-      '        <span class="bill-meta-value" dir="ltr">' + escP(o.inqNo) + '</span>' : '') +
       '      </div>' +
       '    </div>' +
       '    <table class="bill-table">' +
@@ -348,6 +381,7 @@
       '        </tr>' +
       '      </tbody>' +
       '    </table>' +
+      bankHtml +
       '    <div class="bill-footer">' +
       '      <div class="signature-block">' +
       '        <p class="signature-title">مهر و امضای صادرکننده</p>' +
@@ -376,15 +410,22 @@
       return;
     }
     
+    // دریافت شماره حساب انتخابی به صورت کاملا ساده و کاربردی
+    var bankAccount = prompt('در صورت تمایل، شماره حساب / کارت / شبا جهت درج در صورتحساب را وارد کنید (اختیاری):', '');
+    if (bankAccount === null) return; // لغو عملیات در صورت زدن کنسل
+
     // محاسبه جمع کل
     var total = o.items.reduce(function (sum, it) {
       return sum + (+it.qty || 0) * (+it.price || 0);
     }, 0);
     
-    var html = generateUnofficialInvoiceHtml(o, total);
+    var html = generateUnofficialInvoiceHtml(o, total, bankAccount);
     
+    // تبدیل شناسه پیش‌فاکتور به شماره سند متمایز (INV)
+    var invoiceNo = String(o.no).replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
+
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
-      window.ptfPreviewPrintableDoc('صورتحساب پرداخت غیر رسمی — ' + o.no, html, 'unofficial-invoice-' + o.no);
+      window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceNo);
     } else {
       var w = window.open('', '_blank');
       w.document.write(html);
