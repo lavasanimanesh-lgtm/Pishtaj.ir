@@ -516,20 +516,19 @@ function renderOffers() {
     if (isTO) {
       var coAlive = o.coNo && all.some(function(x){ return x.no === o.coNo; });
       if (toStMigrate(o) === 'rejected') {
-        toCoBtn = ' <span class="bd" style="background:#fef2f2;color:#b91c1c" title="عدم تایید کارفرما — این درخواست همین‌جا بسته شده و به پیشنهاد مالی نمی‌رسد">→CO ⛔</span>';
+        toCoBtn = ' <span class="bd" style="background:#fef2f2;color:#b91c1c;font-size:11px" title="عدم تایید کارفرما — این درخواست همین‌جا بسته شده و به پیشنهاد مالی نمی‌رسد">→CO ⛔</span>';
       } else if (coAlive) {
-        /* v31.7.21 US-OFF-ALT: قفل مرده حذف — پیشنهاد جایگزین (گزینه دوم برند/مبدأ دیگر) مجاز با تایید */
-        toCoBtn = ' <button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#7c3aed" title="قبلاً به ' + escP(o.coNo) + ' تبدیل شده — ساخت پیشنهاد مالی جایگزین (مثلاً برند دیگر) برای همین درخواست" onclick="offerToCo(\''+o.no+'\')">+CO گزینه ۲</button>';
+        toCoBtn = ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#7c3aed;border-color:#ddd6fe" title="قبلاً به ' + escP(o.coNo) + ' تبدیل شده — ساخت پیشنهاد مالی جایگزین (گزینه ۲)" onclick="offerToCo(\''+o.no+'\')">⑂</button>';
       } else {
-        toCoBtn = ' <button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#0e7490" title="تبدیل به پیشنهاد مالی — در هر مرحله‌ای مجاز (US-367)" onclick="offerToCo(\''+o.no+'\')">→CO</button>';
+        toCoBtn = ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" title="تبدیل به پیشنهاد مالی (→CO)" onclick="offerToCo(\''+o.no+'\')">💸</button>';
       }
     }
     // US-141 AC5: ارجاع فاکتور فقط برای CO برنده
     var invBtn = '';
     if (o.kind === 'CO') {
-      if (o.invRef) invBtn = ' <span class="bd b-st4" style="font-size:10.5px" title="ارجاع‌شده برای فاکتور توسط '+escP(o.invRef.by)+'">🧾 ارجاع شد</span>';
-      else if (isWon) invBtn = ' <span class="bd" style="background:#f5f3ff;color:#6d28d9" title="پس از تشکیل پرونده فروش، ارجاع فاکتور فقط از داخل پرونده و پس از تحویل کارفرما مجاز است">🧾 فاکتور از پرونده 🔒</span>';
-      else invBtn = ' <span class="bd" style="background:#f1f5f9;color:#94a3b8" title="قفل — فقط پیش‌فاکتور «برنده» قابل ارجاع برای فاکتور است">🧾 فاکتور 🔒</span>';
+      if (o.invRef) invBtn = ' <span class="bd b-st4" style="font-size:11px" title="ارجاع‌شده برای فاکتور رسمی">🧾 ✔</span>';
+      else if (isWon) invBtn = ' <span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:11px" title="پس از تشکیل پرونده فروش، ارجاع فاکتور فقط از داخل پرونده مجاز است">🧾 🔒</span>';
+      else invBtn = ' <span class="bd" style="background:#f1f5f9;color:#94a3b8;font-size:11px" title="فقط پیش‌فاکتور برنده قابل ارجاع برای فاکتور است">🧾 🔒</span>';
     }
     // US-157 AC1: بج اعتبار
     var vst = offerValidState(o);
@@ -543,16 +542,16 @@ function renderOffers() {
       '<td>' + o.items.length + '</td>' +
       '<td>' + ((o.kind === 'CO' || o.kind === 'TC') && total ? (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : (o.currency && o.currency !== 'IRR' ? total.toLocaleString('en-US') + ' ' + o.currency : total.toLocaleString('fa-IR') + ' ریال')) : '—') + (((o.currency && o.currency !== 'IRR') && (o.fxBasis || o.fxRateRef)) ? '<div style="font-size:10px;color:#64748b">مرجع: ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') + (o.fxRateRef ? ' | ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') + marginBadge + '</td>' + /* v17.4 US-416: ارز سند */
       '<td>' + stCell + '</td>' +
-      '<td>' + (isWon ? '<span class="bd" style="background:#f5f3ff;color:#6d28d9" title="پیشنهاد برنده read-only است؛ ادامه از پرونده فروش">🔒 read-only</span> ' : '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerEdit(\''+o.no+'\')">✏️</button> ') +
-      (isWon ? '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#7c3aed" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')">📁 پرونده فروش</button> ' : '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="offerReviseClone(\''+o.no+'\')">📑 نگارش جدید</button> ') +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerQuickPreview(\''+o.no+'\')">👁 نمایش</button> ' +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerPrint(\''+o.no+'\')">🖨️ قالب/دانلود</button> ' +
-      ((o.kind === 'CO' || o.kind === 'TC') ? '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#d97706;border-color:#f59e0b" onclick="unofficialInvoicePrint(\''+o.no+'\')" title="صدور فاکتور غیر رسمی">🧾 غیررسمی</button> ' : '') +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerCsv(\''+o.no+'\')">⬇️</button>' +
-      (o.kind === 'CO' ? '<button class="bt" style="padding:4px 9px;font-size:11px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')">📊 ماتریس سود</button> ' : '') +
+      '<td>' + (isWon ? '<span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:11px" title="پیشنهاد برنده قفل است؛ ادامه از پرونده فروش">🔒 برنده</span> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerEdit(\''+o.no+'\')" title="ویرایش پیش‌فاکتور">✏️</button> ') +
+      (isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')" title="مشاهده پرونده فروش">📁</button> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="offerReviseClone(\''+o.no+'\')" title="ایجاد نگارش جدید (Revise)">📑</button> ') +
+      '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerQuickPreview(\''+o.no+'\')" title="نمایش سریع اقلام">👁️</button> ' +
+      '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerPrint(\''+o.no+'\')" title="قالب‌های چاپ و دانلود سند">🖨️</button> ' +
+      ((o.kind === 'CO' || o.kind === 'TC') ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#d97706;border-color:#f59e0b" onclick="unofficialInvoicePrint(\''+o.no+'\')" title="صدور صورتحساب پرداخت (غیررسمی)">🧾</button> ' : '') +
+      '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerCsv(\''+o.no+'\')" title="دانلود اکسل اقلام">⬇️</button>' +
+      (o.kind === 'CO' ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:13px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')" title="ماتریس بهینه‌سازی سود">📊</button> ' : '') +
       toCoBtn + invBtn +
-      ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="padding:4px 9px;font-size:11px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎 بررسی اقلام</button>' : '') +
-      (isWon ? '' : ' <button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="offerDel(\''+o.no+'\')">🗑️</button>') + '</td></tr>';
+      ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎</button>' : '') +
+      (isWon ? '' : ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#dc2626" onclick="offerDel(\''+o.no+'\')" title="حذف">🗑️</button>') + '</td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">پیشنهادی در این تب ثبت نشده</td></tr>';
 }
