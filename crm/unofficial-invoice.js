@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — unofficial-invoice.js — v1.0.1
+   PTF CRM — unofficial-invoice.js — v1.0.2
    ماژول صدور فاکتور غیر رسمی برای پیش‌فاکتورهای شرکت (CO / TC)
    ===================================================================== */
 (function () {
@@ -127,9 +127,37 @@
       '  <meta charset="UTF-8">' +
       '  <title>صورتحساب پرداخت</title>' +
       '  <style>' +
+      '    @font-face {' +
+      '      font-family: "Vazirmatn";' +
+      '      src: url("../assets/fonts/Vazirmatn-Regular.woff2") format("woff2");' +
+      '      font-weight: 400;' +
+      '      font-style: normal;' +
+      '      font-display: swap;' +
+      '    }' +
+      '    @font-face {' +
+      '      font-family: "Vazirmatn";' +
+      '      src: url("../assets/fonts/Vazirmatn-Medium.woff2") format("woff2");' +
+      '      font-weight: 500;' +
+      '      font-style: normal;' +
+      '      font-display: swap;' +
+      '    }' +
+      '    @font-face {' +
+      '      font-family: "Vazirmatn";' +
+      '      src: url("../assets/fonts/Vazirmatn-Bold.woff2") format("woff2");' +
+      '      font-weight: 700;' +
+      '      font-style: normal;' +
+      '      font-display: swap;' +
+      '    }' +
+      '    @font-face {' +
+      '      font-family: "Vazirmatn";' +
+      '      src: url("../assets/fonts/Vazirmatn-Black.woff2") format("woff2");' +
+      '      font-weight: 900;' +
+      '      font-style: normal;' +
+      '      font-display: swap;' +
+      '    }' +
       '    body {' +
       '      direction: rtl;' +
-      '      font-family: "Yaghut", "B Nazanin", "BNazanin", "Vazirmatn", "Tahoma", sans-serif;' +
+      '      font-family: "Vazirmatn", "Tahoma", sans-serif;' +
       '      color: #0f172a;' +
       '      background-color: #fff;' +
       '      margin: 0;' +
@@ -155,9 +183,9 @@
       '      flex-direction: column;' +
       '    }' +
       '    .bill-title {' +
-      '      font-family: "Yaghut", "Vazirmatn", sans-serif;' +
+      '      font-family: "Vazirmatn", sans-serif;' +
       '      font-size: 26px;' +
-      '      font-weight: 800;' +
+      '      font-weight: 900;' +
       '      color: #1e293b;' +
       '      margin: 0 0 5px 0;' +
       '      letter-spacing: -0.5px;' +
@@ -183,7 +211,7 @@
       '      color: #64748b;' +
       '    }' +
       '    .bill-meta-value {' +
-      '      font-weight: 600;' +
+      '      font-weight: 700;' +
       '    }' +
       '    .party-info {' +
       '      display: flex;' +
@@ -202,7 +230,7 @@
       '      color: #64748b;' +
       '    }' +
       '    .party-value {' +
-      '      font-weight: 600;' +
+      '      font-weight: 700;' +
       '    }' +
       '    .bill-table {' +
       '      width: 100%;' +
