@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — unofficial-invoice.js — v1.0.2
+   PTF CRM — unofficial-invoice.js — v1.0.3
    ماژول صدور فاکتور غیر رسمی برای پیش‌فاکتورهای شرکت (CO / TC)
    ===================================================================== */
 (function () {
@@ -67,7 +67,7 @@
   }
 
   // تولید سند HTML فاکتور غیر رسمی
-  function generateUnofficialInvoiceHtml(o, total, bankAccount) {
+  function generateUnofficialInvoiceHtml(o, total, bankAccount, advPay) {
     var itemsHtml = '';
     (o.items || []).forEach(function (it, idx) {
       var rowNum = idx + 1;
@@ -97,9 +97,16 @@
         '</tr>';
     });
 
-    var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(total) : total;
     var currencyFa = getCurrencyFa(o.currency);
     var formattedTotal = formatNumber(total, o.currency);
+    var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(total) : total;
+
+    var formattedAdv = formatNumber(advPay, o.currency);
+    var advInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(advPay) : advPay;
+
+    var netPayable = Math.max(0, total - advPay);
+    var formattedNet = formatNumber(netPayable, o.currency);
+    var netInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(netPayable) : netPayable;
     
     // تبدیل شناسه پیش‌فاکتور به شماره سند متمایز (با تغییر پیشوند CO/TC به INV)
     var invoiceNo = String(o.no).replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
@@ -407,6 +414,27 @@
       '            <span>' + formattedTotal + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' +
+      (advPay > 0 ?
+      '        <tr class="totals-row" style="background-color: #fffbeb !important;">' +
+      '          <td colspan="4" class="totals-label-words" style="color: #b45309;">' +
+      '            کسر پیش‌پرداخت وصول‌شده (به حروف): ' +
+      '            <span class="totals-value-words" style="color: #b45309;">' + advInWords + ' ' + currencyFa + '</span>' +
+      '          </td>' +
+      '          <td colspan="2" class="totals-label-num" style="color: #b45309; border-top: 1px solid #fde68a !important;">' +
+      '            مبلغ پیش‌پرداخت: ' +
+      '            <span>' + formattedAdv + '</span> ' + currencyFa +
+      '          </td>' +
+      '        </tr>' +
+      '        <tr class="totals-row" style="background-color: #f0fdf4 !important; font-size: 15px;">' +
+      '          <td colspan="4" class="totals-label-words" style="color: #15803d; padding: 18px 12px !important;">' +
+      '            <strong>باقی‌مانده قابل پرداخت (به حروف):</strong> ' +
+      '            <span class="totals-value-words" style="color: #15803d; font-size: 15px;">' + netInWords + ' ' + currencyFa + '</span>' +
+      '          </td>' +
+      '          <td colspan="2" class="totals-label-num" style="color: #15803d; font-size: 16px; border-top: 2px solid #16a34a !important; padding: 18px 12px !important;">' +
+      '            <strong>خالص قابل پرداخت:</strong> ' +
+      '            <span>' + formattedNet + '</span> ' + currencyFa +
+      '          </td>' +
+      '        </tr>' : '') +
       '      </tbody>' +
       '    </table>' +
       bankHtml +
@@ -425,8 +453,40 @@
       '</html>';
   }
 
+  // فرآیند خودکار پاک‌سازی دوبارشماری (Void خودکار فاکتورهای غیررسمی با ورود فاکتور رسمی)
+  function cleanUpDoubleInvoices() {
+    try {
+      var invs = getData('ptf_crm_invoices');
+      var changed = false;
+      var officialOfferNos = {};
+      
+      invs.forEach(function (inv) {
+        if (inv && !inv.isUnofficial && inv.status !== 'void' && inv.st !== 'void') {
+          officialOfferNos[inv.offerNo] = true;
+        }
+      });
+      
+      invs.forEach(function (inv) {
+        if (inv && inv.isUnofficial && officialOfferNos[inv.offerNo] && inv.status !== 'void' && inv.st !== 'void') {
+          inv.status = 'void';
+          inv.st = 'void';
+          inv.voidAt = faDateTime();
+          inv.voidBy = 'سیستم (صدور فاکتور رسمی حسابدار)';
+          changed = true;
+        }
+      });
+      
+      if (changed) {
+        setData('ptf_crm_invoices', invs);
+      }
+    } catch (e) {}
+  }
+
   // اکشن اصلی صدور فاکتور غیررسمی
   window.unofficialInvoicePrint = function (no) {
+    // پاکسازی اتوماتیک دوبارشماری‌ها در شروع کار
+    cleanUpDoubleInvoices();
+
     var offers = getData('ptf_crm_offers');
     var o = offers.filter(function (x) { return x.no === no; })[0];
     if (!o) {
@@ -437,20 +497,105 @@
       alert('این پیش‌فاکتور فاقد اقلام کالا می‌باشد.');
       return;
     }
-    
-    // دریافت شماره حساب انتخابی به صورت کاملا ساده و کاربردی
-    var bankAccount = prompt('در صورت تمایل، شماره حساب / کارت / شبا جهت درج در صورتحساب را وارد کنید (اختیاری):', '');
-    if (bankAccount === null) return; // لغو عملیات در صورت زدن کنسل
 
-    // محاسبه جمع کل
+    var invoiceNo = String(o.no).replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
+    var invoiceCd = 'UN-INV-' + o.no; // تولید شناسه متمایز جهت جلوگیری از تعارض کدهای سروری
+
+    var invs = getData('ptf_crm_invoices');
+    var existing = invs.filter(function (x) { return x.cd === invoiceCd || (x.offerNo === o.no && x.isUnofficial && x.status !== 'void'); })[0];
+
+    var bankAccount = '';
+    var newInv = null;
+
+    if (existing) {
+      var action = confirm('یک صورتحساب پرداخت برای این پیش‌فاکتور قبلاً در سیستم ثبت شده است.\n\nآیا مایل به نمایش و چاپ مجدد آن هستید؟\n(جهت تغییر شماره حساب یا صدور مجدد، گزینه Cancel را بزنید تا نسخه جدید بازنویسی شود)');
+      if (action) {
+        bankAccount = existing.bankAccount || '';
+        newInv = existing;
+      } else {
+        bankAccount = prompt('در صورت تمایل، شماره حساب / کارت / شبا جهت درج در صورتحساب را وارد کنید (اختیاری):', existing.bankAccount || '');
+        if (bankAccount === null) return; // لغو عملیات
+        invs = invs.filter(function (x) { return x.cd !== existing.cd && !(x.offerNo === o.no && x.isUnofficial); });
+      }
+    } else {
+      bankAccount = prompt('در صورت تمایل، شماره حساب / کارت / شبا جهت درج در صورتحساب را وارد کنید (اختیاری):', '');
+      if (bankAccount === null) return; // لغو عملیات
+    }
+
+    // محاسبه جمع کل پیش‌فاکتور
     var total = o.items.reduce(function (sum, it) {
       return sum + (+it.qty || 0) * (+it.price || 0);
     }, 0);
-    
-    var html = generateUnofficialInvoiceHtml(o, total, bankAccount);
-    
-    // تبدیل شناسه پیش‌فاکتور به شماره سند متمایز (INV)
-    var invoiceNo = String(o.no).replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
+
+    // محاسبه زنده و رسمی پیش‌پرداخت وصول‌شده از بخش مطالبات
+    var advPay = 0;
+    try {
+      var _a = (o && typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(o) : null;
+      if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
+        var received = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
+        advPay = _a.cashFull ? total : Math.min(total, Math.max(0, received));
+      }
+    } catch (eAdv) {}
+
+    // ذخیره فاکتور در مطالبات کلاینت در صورتی که ثبت نشده باشد
+    if (!newInv) {
+      newInv = {
+        cd: invoiceCd,
+        no: invoiceNo,
+        offerNo: o.no,
+        amount: total,
+        base: total,
+        vat: 0,
+        invDate: o.dateFa || faDate(),
+        t: o.dateFa || faDate(),
+        buyerCo: o.buyerCo || '',
+        offerCurrency: o.currency || 'IRR',
+        offerFxBasis: o.fxBasis || '',
+        offerFxRateRef: +o.fxRateRef || 0,
+        payments: [],
+        isUnofficial: true,
+        bankAccount: bankAccount,
+        by: curSession().name,
+        status: 'active'
+      };
+
+      // اتصال خودکار پیش‌پرداخت به عنوان وصولی فاکتور غیررسمی
+      if (advPay > 0) {
+        newInv.payments.push({
+          cd: 'RP-ADV-' + o.no,
+          amt: advPay,
+          how: 'کسر مبالغ وصول‌شده پیش‌پرداخت (غیررسمی)',
+          t: faDate(),
+          by: curSession().name,
+          fromAdvance: true
+        });
+        newInv.advApplied = advPay;
+      }
+
+      invs.unshift(newInv);
+      setData('ptf_crm_invoices', invs);
+
+      // ثبت رویداد در تایم‌لاین پرونده فروش جهت هماهنگی با تیم کارشناسان
+      try {
+        var _deals = getData('ptf_crm_deals');
+        var _d = _deals.filter(function (x) { return x.wonOffer === o.no || x.offerNo === o.no; })[0];
+        if (_d) {
+          _d.timeline = _d.timeline || [];
+          _d.timeline.push({
+            t: faDateTime(),
+            by: curSession().name,
+            tx: '🧾 صورتحساب پرداخت غیررسمی ' + invoiceNo + ' به مبلغ کل ' + total.toLocaleString('fa-IR') + ' ریال صادر شد.' + (advPay > 0 ? ' — کسر پیش‌پرداخت: ' + advPay.toLocaleString('fa-IR') + ' ریال' : '')
+          });
+          setData('ptf_crm_deals', _deals);
+        }
+      } catch (eD) {}
+
+      if (typeof ptfToast === 'function') {
+        ptfToast('صورتحساب با موفقیت صادر و در مطالبات هاب مالی ثبت گردید.', 'ok');
+      }
+    }
+
+    var html = generateUnofficialInvoiceHtml(o, total, bankAccount, advPay);
 
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
       window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceNo);
@@ -460,4 +605,9 @@
       w.document.close();
     }
   };
+
+  // اجرای پاک‌سازی خودکار در لود اسکریپت
+  try {
+    cleanUpDoubleInvoices();
+  } catch (eInit) {}
 })();
