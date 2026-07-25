@@ -547,6 +547,7 @@ function renderOffers() {
       (isWon ? '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#7c3aed" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')">📁 پرونده فروش</button> ' : '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="offerReviseClone(\''+o.no+'\')">📑 نگارش جدید</button> ') +
       '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerQuickPreview(\''+o.no+'\')">👁 نمایش</button> ' +
       '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerPrint(\''+o.no+'\')">🖨️ قالب/دانلود</button> ' +
+      ((o.kind === 'CO' || o.kind === 'TC') ? '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#d97706;border-color:#f59e0b" onclick="unofficialInvoicePrint(\''+o.no+'\')" title="صدور فاکتور غیر رسمی">🧾 غیررسمی</button> ' : '') +
       '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="offerCsv(\''+o.no+'\')">⬇️</button>' +
       (o.kind === 'CO' ? '<button class="bt" style="padding:4px 9px;font-size:11px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')">📊 ماتریس سود</button> ' : '') +
       toCoBtn + invBtn +
