@@ -1640,11 +1640,19 @@ function updateStats() {
   var custs = getData('ptf_crm_customers');
   var users = getData('ptf_crm_users');
   var act = rfqs.filter(function(i){return i.st==='st1'||i.st==='st2';}).length;
-  document.getElementById('dRfq').textContent = rfqs.length;
-  document.getElementById('dAct').textContent = act;
-  document.getElementById('dSup').textContent = sups.length;
-  document.getElementById('dCust').textContent = custs.length;
-  document.getElementById('dUser').textContent = users.length + 1;
+  
+  var dRfq = document.getElementById('dRfq');
+  var dAct = document.getElementById('dAct');
+  var dSup = document.getElementById('dSup');
+  var dCust = document.getElementById('dCust');
+  var dUser = document.getElementById('dUser');
+  
+  if (dRfq) dRfq.textContent = rfqs.length;
+  if (dAct) dAct.textContent = act;
+  if (dSup) dSup.textContent = sups.length;
+  if (dCust) dCust.textContent = custs.length;
+  if (dUser) dUser.textContent = users.length + 1;
+  
   /* v12.8 (US-317): بج قرمز = فقط نیازمند اقدام — درخواست‌های «دریافت اولیه» که هنوز کاری رویشان نشده */
   var rNeedAct = rfqs.filter(function(i){ return (i.st||'st1') === 'st1'; }).length;
   var rB = document.getElementById('rBadge');
