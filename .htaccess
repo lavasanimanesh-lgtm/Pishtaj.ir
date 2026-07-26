@@ -64,3 +64,10 @@ RewriteRule ^blog/rfq-industrial-equipment\.html$ /blog/rfq-industrial-equipment
 # این ۶ صفحه نسخهٔ پوشه‌ای معادل ندارند؛ خودشان تنها نسخهٔ معتبرند — تغییری لازم نیست:
 # services/electrical-supply.html, inspection-quality.html, instrumentation-supply.html,
 # piping-supply.html, procurement-logistics.html, valves-supply.html
+
+# ------------------------------------------------------------------
+# PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
+# ------------------------------------------------------------------
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json application/xml image/svg+xml
+</IfModule>
