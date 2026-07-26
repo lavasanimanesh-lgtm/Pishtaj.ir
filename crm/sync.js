@@ -66,13 +66,17 @@
   }
 
   /* ---------- رهگیری تغییرات: wrap setData ---------- */
-  var _setData = window.setData;
-  window.setData = function (k, d) {
-    _setData(k, d);
+  window.ptfSyncNotifyDirty = function (k) {
     if (SYNC_KEYS.indexOf(k) > -1 && !state.pulling) {
       state.dirty[k] = true;
       schedulePush();
     }
+  };
+
+  var _setData = window.setData;
+  window.setData = function (k, d) {
+    _setData(k, d);
+    window.ptfSyncNotifyDirty(k);
   };
 
   function schedulePush() {

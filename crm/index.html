@@ -877,15 +877,19 @@ function getData(k) {
     return [];
   }
 }
-function setData(k, d) {
+window.setData = function (k, d) {
   try {
     var s = JSON.stringify(d);
-    if (typeof ptfStorageSafeSetItem === 'function') return ptfStorageSafeSetItem(k, s);
-    localStorage.setItem(k, s);
+    if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem(k, s);
+    else localStorage.setItem(k, s);
+    if (window.ptfSyncNotifyDirty) {
+      window.ptfSyncNotifyDirty(k);
+    }
   } catch (e) {
     console.error('ptf_crm_localStorage_write_error:', k, e);
   }
-}
+};
+var setData = window.setData;
 
 // Sprint 110 / US-116 → v28.8 BUG-CODE-FIX: سیستم کدینگ یکپارچه برای کلیه موجودیت‌ها
 /* v28.8 (BUG-CODE-FIX): رفع ۶ نقص بحرانی سیستم کدینگ — ریشه باگ «کد تکراری/قدیمی»:
