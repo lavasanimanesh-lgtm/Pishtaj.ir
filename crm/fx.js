@@ -102,7 +102,7 @@
 
   /* hook روی ثبت پرداخت فاکتور: اگر سند ارزی است، نرخ تسعیر بگیر */
   function patchInvPay() {
-    var fns = ['invAddPay', 'addInvoicePay', 'invPay'];
+    var fns = ['invAddPay', 'addInvoicePay', 'invPay', 'savePay'];
     for (var i = 0; i < fns.length; i++) {
       var nm = fns[i];
       if (typeof window[nm] === 'function' && !window['_fx_' + nm]) {
@@ -160,7 +160,9 @@
     };
     if (!prj) { res.ok = false; return res; }
     var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === prj.offerNo; })[0];
-    var invs = getData('ptf_crm_invoices').filter(function (v) { return v.offerNo === prj.offerNo; });
+    var invs = getData('ptf_crm_invoices').filter(function (v) { 
+      return v.offerNo === prj.offerNo && v.status !== 'void' && v.st !== 'void' && v.void !== true; 
+    });
     var cur = (offer && offer.currency && offer.currency !== 'IRR') ? offer.currency : null;
     res.sellCur = cur || 'IRR';
 

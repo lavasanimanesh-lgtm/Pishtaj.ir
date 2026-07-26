@@ -7,7 +7,7 @@
    ===================================================================== */
 (function () {
   'use strict';
-  function canHub() { try { return ['admin', 'chairman'].indexOf(curRole()) > -1; } catch (e) { return false; } }
+  function canHub() { try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; } }
   function tab() { return window._finHubTab || 'petty'; }
   function finIcon(kind) {
     var p = {

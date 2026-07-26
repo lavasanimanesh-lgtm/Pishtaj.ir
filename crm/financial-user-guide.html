@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>دفترچه راهنمای جامع ماژول‌های مالی و دسترسی‌های CRM</title>
+  <style>
+    @font-face {
+      font-family: 'Vazirmatn';
+      src: url('../assets/fonts/Vazirmatn-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Vazirmatn';
+      src: url('../assets/fonts/Vazirmatn-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    body {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      font-family: 'Vazirmatn', Tahoma, sans-serif;
+      margin: 0;
+      padding: 40px 20px;
+      direction: rtl;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+    .guide-container {
+      max-width: 840px;
+      margin: 0 auto;
+      background-color: #fff;
+      border-radius: 16px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      padding: 40px 50px;
+      box-sizing: border-box;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 3px double #cbd5e1;
+      padding-bottom: 25px;
+      margin-bottom: 30px;
+    }
+    .logo-placeholder {
+      font-size: 38px;
+      margin-bottom: 10px;
+    }
+    .title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 0 0 8px 0;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #64748b;
+      margin: 0;
+      font-weight: bold;
+    }
+    h2 {
+      color: #1e3a8a;
+      font-size: 18px;
+      border-right: 4px solid #1e3a8a;
+      padding-right: 12px;
+      margin-top: 35px;
+      margin-bottom: 15px;
+    }
+    h3 {
+      color: #0e7490;
+      font-size: 15px;
+      margin-top: 25px;
+      margin-bottom: 10px;
+    }
+    p {
+      text-align: justify;
+      margin: 0 0 15px 0;
+      color: #334155;
+    }
+    ul, ol {
+      margin: 0 0 20px 0;
+      padding-right: 25px;
+      color: #334155;
+    }
+    li {
+      margin-bottom: 8px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+      background-color: #1e3a8a;
+    }
+    .badge-un {
+      background-color: #d97706;
+    }
+    .badge-off {
+      background-color: #16a34a;
+    }
+    .info-box {
+      background-color: #f8fafc;
+      border-right: 4px solid #0e7490;
+      padding: 15px 20px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 22px;
+    }
+    .info-box-title {
+      font-weight: bold;
+      color: #0e7490;
+      margin-bottom: 5px;
+    }
+    .warn-box {
+      background-color: #fffbeb;
+      border-right: 4px solid #d97706;
+      padding: 15px 20px;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 22px;
+    }
+    .warn-box-title {
+      font-weight: bold;
+      color: #b45309;
+      margin-bottom: 5px;
+    }
+    .table-container {
+      margin-bottom: 25px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    th {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-weight: bold;
+    }
+    .text-right {
+      text-align: right;
+    }
+    .footer {
+      margin-top: 50px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 15px;
+      text-align: center;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    
+    @media print {
+      body {
+        background-color: #fff;
+        padding: 0;
+      }
+      .guide-container {
+        box-shadow: none;
+        padding: 0;
+        max-width: 100%;
+      }
+      @page {
+        size: A4 portrait;
+        margin: 15mm;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="guide-container">
+    <div class="header">
+      <div class="logo-placeholder">📁</div>
+      <h1 class="title">راهنمای جامع ماژول‌های نهایی مالی و امنیتی CRM</h1>
+      <p class="subtitle">نسخه رسمی پایدار v33.1.0 — ویژه پرسنل، حسابدار و مدیران ارشد شرکت</p>
+    </div>
+
+    <p>
+      این دفترچه راهنما به منظور آموزش و تشریح امکانات جدید، سیاست‌های امنیتی دسترسی به داده‌ها و فرآیند موازنه و ممیزی مالی پیاده‌سازی شده در نرم‌افزار صادر گردیده است. شما می‌توانید با استفاده از کلیدهای میانبر مرورگر (Ctrl + P) این راهنما را به صورت مستقیم چاپ کرده یا به صورت فایل PDF دانلود نمایید.
+    </p>
+
+    <h2>۱. راهنمای کارشناسان و پرسنل (ثبت هزینه تنخواه شخصی)</h2>
+    <p>
+      به منظور حفظ محرمانگی کامل اطلاعات مالی شرکت، دسترسی کارشناسان فروش، لجستیک و پرسنل متفرقه به کل سیستم مالی مسدود است. تنها ابزار مالی در دسترس کارشناسان، **سیستم ثبت هزینه‌های شخصی تنخواه** می‌باشد.
+    </p>
+    <ul>
+      <li><strong>ثبت هزینه شخصی:</strong> به منوی تنخواه رفته و هزینه شخصی را با تاریخ، مبلغ به ریال، رده، سرفصل و پیوست عکس یا PDF فیش واریز ثبت کنید.</li>
+      <li><strong>ایزوله‌سازی حساب‌ها:</strong> بر اساس سیاست‌های جدید امنیتی، هر کارشناس پس از لود صفحه **فقط و فقط مطالبات تنخواه و هزینه‌های ثبت‌شده‌ی خودش** را مشاهده می‌کند و کل مبالغ سایر همکاران برای او ۱۰۰٪ مخفی است.</li>
+      <li>کارشناسان به هیچ عنوان به فاکتورها، مبالغ خرید و تامین، یا گزارش سال مالی دسترسی ندارند.</li>
+    </ul>
+
+    <div class="info-box">
+      <div class="info-box-title">💡 نکته مهم برای پرسنل:</div>
+      تمام فایل‌های ضمیمه‌شده به فیش‌های تنخواه شما مستقیماً در بایگانی اسناد ممیزی حسابداری متمرکز می‌شود. لذا از خوانا بودن عکس فیش‌ها و بارگذاری فرمت‌های استاندارد اطمینان حاصل فرمایید.
+    </div>
+
+    <h2>۲. راهنمای حسابدار شرکت (ثبت اسناد رسمی و بایگانی اظهارنامه‌ها)</h2>
+    <p>
+      نقش حسابدار در سیستم صرفاً محدود به **«اسناد رسمی، مطالبات رسمی، ثبت وصولی‌های رسمی و موازنه مالیاتی»** است. حسابدار به فرآیندهای داخلی، سود واقعی شرکت، سود غیررسمی، اعلانات و یا کارتابل مدیران هیچ‌گونه دسترسی ندارد.
+    </p>
+    
+    <h3>عملیات مجاز حسابدار:</h3>
+    <ol>
+      <li><strong>ثبت فاکتور رسمی صادره:</strong> در منوی فاکتورها، پیش‌فاکتورهای ارجاع‌شده توسط مدیران را مشاهده کرده و بر اساس اطلاعات سپیدار، فاکتور رسمی (مبلغ، ارزش افزوده، شماره سند و فایل PDF فاکتور ممهور) را ثبت کنید.</li>
+      <li><strong>بایگانی الکترونیکی اظهارنامه‌های مالیاتی فصلی:</strong> در منوی فاکتورها، به پایین صفحه مراجعه کنید. در بخش اختصاصی جدید **«📁 بایگانی اظهارنامه‌های مالیاتی و ارزش افزوده فصلی»** روی دکمه‌ی بارگذاری کلیک کرده و فایل PDF اظهارنامه‌ها یا فیش‌های پرداختی ارزش افزوده دوره را آرشیو نمایید.</li>
+      <li><strong>ثبت وصولی‌های رسمی:</strong> در منوی مطالبات، وصولی‌های نقدی یا بانکی خریداران را به فاکتورهای رسمی مربوطه تخصیص داده و تراز نمایید.</li>
+    </ol>
+
+    <div class="warn-box">
+      <div class="warn-box-title">⚠️ حریم خصوصی داده‌های غیررسمی:</div>
+      بر اساس کدهای امنیتی، حسابدار هیچ اثری از فاکتورهای غیررسمی (`isUnofficial`) صادر شده توسط مدیران را در بخش مطالبات یا گزارش‌های خود نخواهد دید. این اسناد کاملاً از دید حسابدار مخفی و غیب شده‌اند.
+    </div>
+
+    <h2>۳. راهنمای مدیران ارشد (رئیس هیات مدیره، مدیرعامل و مدیر بازرگانی)</h2>
+    <p>
+      تنها این سه نقش به همراه ادمین کل سیستم، به عنوان **«سهامداران کامل مالی»** شناخته می‌شوند و دسترسی ۱۰۰٪ به گزارشات واقعی سودآوری، فاکتورهای غیررسمی و تسعیر ارزها دارند.
+    </p>
+
+    <h3>الف) صدور صورتحساب پرداخت غیررسمی با تخفیف و کسر پیش‌پرداخت:</h3>
+    <ul>
+      <li><strong>دکمه صدور غیررسمی (🧾):</strong> این دکمه جهت امنیت بیشتر، فقط روی پیش‌فاکتورهایی فعال است که به وضعیت 🏆 **برنده (Won)** رفته باشند.</li>
+      <li><strong>اعمال تخفیف پویا:</strong> با کلیک روی دکمه، سیستم ابتدا شماره حساب و سپس مبلغ تخفیف را می‌پرسد. شما می‌توانید تخفیف را به صورت مبلغ ثابت (مثلاً ۵ میلیون تومان) یا به صورت درصد (مثلاً ۵٪) وارد کنید.</li>
+      <li><strong>کسر خودکار پیش‌پرداخت:</strong> سیستم تمام مبالغ پیش‌پرداخت واریز شده توسط مشتری در پرونده فروش را عینا فراخوانی کرده و در تراز چاپی کسر می‌کند و خالص بدهی نهایی را به صورت خودکار رندر می‌کند.</li>
+      <li><strong>تراز دفتری مطالبات:</strong> با صدور این سند، مبلغ نهایی فاکتور با بج مشخص <span class="badge badge-un">غیررسمی</span> در تراز مالی خریدار می‌نشیند و تمام وصولی‌های دفتری و تسعیر روز و مطالبات باز را تراز می‌کند.</li>
+    </ul>
+
+    <h3>ب) ممیزی و نظارت بر تنخواه و ترازنامه فصلی:</h3>
+    <ul>
+      <li>مدیران می‌توانند ریز تراز تمام پرسنل را در بخش تنخواه دیده، شارژ حساب‌ها را تایید کرده و دوره‌های غلتان تنخواه را با یک دکمه ببندند و موجودی نهایی را منتقل کنند.</li>
+      <li>در منوی فاکتورها، مدیران می‌توانند در هر زمان اظهارنامه‌ها و فیش‌های ارزش افزوده آرشیو شده توسط حسابدار را دانلود، مشاهده و بررسی کنند.</li>
+    </ul>
+
+    <h2>۴. جدول خلاصه سطوح دسترسی مالی در نسخه v33.1.0</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>عنوان دسترسی مالی</th>
+            <th>سهامداران ارشد</th>
+            <th>حسابدار شرکت</th>
+            <th>سایر پرسنل / کارشناسان</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="text-right">مشاهده سود واقعی پروژه‌ها و شرکت</td>
+            <td>✅ کامل</td>
+            <td>❌ مسدود</td>
+            <td>❌ مسدود</td>
+          </tr>
+          <tr>
+            <td class="text-right">صدور و مدیریت فاکتورهای غیررسمی</td>
+            <td>✅ کامل</td>
+            <td>❌ مسدود</td>
+            <td>❌ مسدود</td>
+          </tr>
+          <tr>
+            <td class="text-right">مشاهده فاکتورها و مطالبات غیررسمی</td>
+            <td>✅ کامل</td>
+            <td>❌ مسدود</td>
+            <td>❌ مسدود</td>
+          </tr>
+          <tr>
+            <td class="text-right">مدیریت فاکتورهای رسمی و مودیان</td>
+            <td>✅ کامل</td>
+            <td>✅ مجاز (ثبت و ویرایش)</td>
+            <td>❌ مسدود</td>
+          </tr>
+          <tr>
+            <td class="text-right">بایگانی و دانلود اظهارنامه‌های فصلی</td>
+            <td>✅ کامل (مشاهده و دانلود)</td>
+            <td>✅ مجاز (بارگذاری و حذف)</td>
+            <td>❌ مسدود</td>
+          </tr>
+          <tr>
+            <td class="text-right">مشاهده تنخواه تمام پرسنل و تسویه</td>
+            <td>✅ کامل</td>
+            <td>❌ مسدود</td>
+            <td>❌ مسدود (فقط تنخواه خود)</td>
+          </tr>
+          <tr>
+            <td class="text-right">ورود به کارتابل اعلانات و فرآیندها</td>
+            <td>✅ کامل</td>
+            <td>❌ مسدود</td>
+            <td>✅ مجاز (اعلانات خود)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="warn-box">
+      <div class="warn-box-title">🔒 مکانیزم هوشمند رفع تداخل همزمانی:</div>
+      به منظور حفظ پایداری محاسبات، سیستم اجازه ویرایش یا حذف هیچ فاکتور غیررسمی یا متممی که دارای وصولی واقعی ثبت‌شده توسط حسابدار باشد را به کاربران نمی‌دهد. ابتدا باید وصولی‌های تداخل‌دار ابطال شوند.
+    </div>
+
+    <div class="footer">
+      تنظیم‌شده توسط تیم توسعه و حسابرسی سیستم مالی CRM شرکت پیشرو تجهیز فرتاک<br>
+      جهت هرگونه پشتیبانی فنی با ادمین سیستم در ارتباط باشید.
+    </div>
+  </div>
+
+</body>
+</html>

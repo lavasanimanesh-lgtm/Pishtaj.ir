@@ -1,0 +1,8 @@
+{
+  "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
+  "site_public_version": "1.0.0",
+  "crm_version": "v33.2.0",
+  "last_stable_tag": null,
+  "last_updated": "2026-07-25",
+  "updated_by": "Arena Agent"
+}

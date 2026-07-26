@@ -29,3 +29,44 @@
   /* journey cards: keep icons compact on mobile */
   #journey .ptf-line-icon{ width:28px !important; height:28px !important; margin-left:6px !important; }
 }
+
+/* ==========================================================================
+   CENTERING PAGES IMAGES — SPRINT 33.2.1
+   centers all corporate & document photos in content panels
+   ========================================================================== */
+.content-main img, 
+.page-content img, 
+.about-page img, 
+.service-page img, 
+.industry-page img, 
+.about-text img, 
+.intro img, 
+.message-box img,
+.about-img-box img,
+.ceo-img img {
+  margin-left: auto !important;
+  margin-right: auto !important;
+  display: block !important;
+}
+
+/* Also ensure that image blocks or card wrappers themselves center their images */
+.about-img-box, 
+.ceo-img, 
+.message-box, 
+.intro {
+  text-align: center !important;
+}
+
+/* Prevent main-img and float-img from shrinking to 140px on mobile screen sizes < 700px */
+@media(max-width:700px) {
+  section.about .reveal .about-images img.main-img,
+  section.about .reveal .about-images img.float-img,
+  .main-img,
+  .float-img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 0 auto 14px !important;
+  }
+}
+

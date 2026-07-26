@@ -21,10 +21,20 @@ var POOL_KEY = 'ptf_code_pool';
 var POOL_META = 'ptf_code_pool_meta';
 
 function getPool(){
-  try { return JSON.parse(localStorage.getItem(POOL_KEY)||'{}'); } catch(e){ return {}; }
+  try {
+    var raw = localStorage.getItem(POOL_KEY);
+    if (!raw || raw === 'undefined') return {};
+    return JSON.parse(raw);
+  } catch(e){ return {}; }
 }
 function setPool(p){ try { localStorage.setItem(POOL_KEY, JSON.stringify(p)); } catch(e){} }
-function getMeta(){ try { return JSON.parse(localStorage.getItem(POOL_META)||'{}'); } catch(e){ return {}; } }
+function getMeta(){
+  try {
+    var raw = localStorage.getItem(POOL_META);
+    if (!raw || raw === 'undefined') return {};
+    return JSON.parse(raw);
+  } catch(e){ return {}; }
+}
 function setMeta(m){ try { localStorage.setItem(POOL_META, JSON.stringify(m)); } catch(e){} }
 
 function faYear(){
@@ -109,7 +119,7 @@ window._ptfRefillPoolBackground = function(pref){
 /* v31.7.3 BUG-AUDIT-002-FINANCIAL-CODEGEN: entityهای مالی فقط از server pool
    کد می‌گیرند — بدون fallback به legacyMaxNext. اگر pool خالی باشد، TMP می‌دهد
    و entity بدون کد رسمی save نمی‌شود. جلوگیری از duplicate CHQ/INV/PAY بین دستگاه‌ها. */
-var SERVER_ONLY_PREFIXES = ['RFQ','TO','CO','TC','CHQ','INV','PAY','CMP'];
+var SERVER_ONLY_PREFIXES = ['TO','CO','TC','CHQ','INV','PAY','CMP'];
 function isServerOnlyPrefix(prefix) {
   return SERVER_ONLY_PREFIXES.indexOf(String(prefix||'').toUpperCase().trim()) > -1;
 }
