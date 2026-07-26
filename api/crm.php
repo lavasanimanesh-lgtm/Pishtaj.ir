@@ -1,4 +1,12 @@
 <?php
+// Clean up any remaining numerical kc files on the server (v33.2.0)
+$kc_dir = __DIR__ . '/../knowledge-center';
+if (is_dir($kc_dir)) {
+    foreach (glob($kc_dir . '/kc-[0-9]*.html') as $f) {
+        @unlink($f);
+    }
+}
+
 // API سامانه مدیریت یکپارچه استعلامات (CRM API) — نسخه اسپرینت ۶۹
 // پل ارتباطی سایت ↔ CRM: ثبت تامین‌کننده/استعلام از سایت + رهگیری + رویدادهای لحظه‌ای
 header('Content-Type: application/json; charset=utf-8');
