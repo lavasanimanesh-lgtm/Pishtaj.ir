@@ -14,7 +14,7 @@ var ROLES = {
   commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
   sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false },
   buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false },
-  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','cart','ai'],                                       buyPrice: false, sellPrice: false, finance: false },
+  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty'],                                 buyPrice: false, sellPrice: false, finance: false },
   collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false }
 };
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
@@ -492,13 +492,17 @@ function refToInvoice(offerNo) {
 }
 
 function buildInvoices() {
-  return '<div class="ph"><h3>🧾 فاکتورها (پیش‌فاکتورهای ارجاع‌شده)</h3></div><div id="invWrap"></div>';
+  var taxHtml = (typeof window.ptfTaxReturnsHtml === 'function') ? window.ptfTaxReturnsHtml() : '';
+  return '<div class="ph"><h3>🧾 فاکتورها (پیش‌فاکتورهای ارجاع‌شده)</h3></div><div id="invWrap"></div>' + taxHtml;
 }
 function renderInvoices() {
   var el = document.getElementById('invWrap');
   if (!el) return;
   var refd = getData('ptf_crm_offers').filter(function (o) { return o.invRef; });
   var invs = getData('ptf_crm_invoices');
+  if (curRole() === 'accountant') {
+    invs = invs.filter(function (i) { return !i.isUnofficial; });
+  }
   var h = '';
   refd.forEach(function (o) {
     var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
@@ -521,6 +525,9 @@ function renderInvoices() {
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';
+  if (typeof window.ptfTaxReturnsRender === 'function') {
+    window.ptfTaxReturnsRender();
+  }
 }
 function showInvModal(offerNo) {
   /* v19.3 (US-436 AC2): پنجره کامل حسابدار — مبلغ، ارزش افزوده، شماره، تاریخ، PDF */
@@ -642,6 +649,9 @@ function renderReceivables() {
   var el = document.getElementById('rcWrap');
   if (!el) return;
   var invs = getData('ptf_crm_invoices');
+  if (curRole() === 'accountant') {
+    invs = invs.filter(function (i) { return !i.isUnofficial; });
+  }
   var offers = getData('ptf_crm_offers');
   var h = '';
   var totalOpen = 0;

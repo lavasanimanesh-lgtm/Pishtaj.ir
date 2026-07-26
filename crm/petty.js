@@ -6,7 +6,7 @@
    ===================================================================== */
 (function () {
   'use strict';
-  var MANAGERS = ['admin', 'chairman']; /* v20.6: هاب مالی کامل فقط admin/chairman؛ سایر کاربران فقط ثبت هزینه خود */
+  var MANAGERS = ['admin', 'chairman', 'ceo', 'commercial']; /* v33.1.0: سهامداران کامل (رییس هیات مدیره، مدیرعامل، مدیر بازرگانی)؛ سایر کاربران فقط ثبت هزینه خود */
   function isMgr() { return MANAGERS.indexOf(curRole()) > -1; }
   function isAccountant() { return curRole() === 'accountant'; }
   function stObj() { var s = getData('ptf_crm_settings'); return (s && !Array.isArray(s) && typeof s === 'object') ? s : {}; }

@@ -23,3 +23,44 @@ RewriteCond %{HTTPS} off
 RewriteCond %{HTTP:X-Forwarded-SSL} !on
 RewriteCond %{HTTP_HOST} ^(?:www\.)?pishtaj\.ir$ [NC]
 RewriteRule ^ https://pishtaj.ir%{REQUEST_URI} [R=301,L]
+
+# ------------------------------------------------------------------
+# SEO-CLEANUP-2026-07: قدیمی‌ترین نسخهٔ «تخت» این صفحات با نسخهٔ
+# «پوشه‌ای» جدیدتر جایگزین شده بود ولی فایل قدیمی حذف نشده بود.
+# این ریدایرکت ۳۰۱ تضمین می‌کند هر بک‌لینک/بوکمارک/نتیجهٔ قدیمی گوگل
+# به آدرس درست هدایت شود (بدون از دست دادن اعتبار سئوی احتمالی).
+# ------------------------------------------------------------------
+RewriteRule ^about/certificates\.html$ /about/certificates/ [R=301,L]
+RewriteRule ^about/logo-philosophy\.html$ /about/logo-philosophy/ [R=301,L]
+RewriteRule ^about/management-message\.html$ /about/management-message/ [R=301,L]
+RewriteRule ^about/organizational-chart\.html$ /about/organizational-chart/ [R=301,L]
+
+RewriteRule ^services/boilers\.html$ /services/boilers/ [R=301,L]
+RewriteRule ^services/compressors\.html$ /services/compressors/ [R=301,L]
+RewriteRule ^services/electrical-equipment\.html$ /services/electrical-equipment/ [R=301,L]
+RewriteRule ^services/industrial-equipment\.html$ /services/industrial-equipment/ [R=301,L]
+RewriteRule ^services/instrumentation-equipment\.html$ /services/instrumentation-equipment/ [R=301,L]
+RewriteRule ^services/piping-equipment\.html$ /services/piping-equipment/ [R=301,L]
+RewriteRule ^services/pumps\.html$ /services/pumps/ [R=301,L]
+
+RewriteRule ^industries/cement\.html$ /industries/cement/ [R=301,L]
+RewriteRule ^industries/oil-gas\.html$ /industries/oil-gas/ [R=301,L]
+RewriteRule ^industries/petrochemical\.html$ /industries/petrochemical/ [R=301,L]
+RewriteRule ^industries/power-plant\.html$ /industries/power-plant/ [R=301,L]
+RewriteRule ^industries/steel\.html$ /industries/steel/ [R=301,L]
+RewriteRule ^industries/water\.html$ /industries/water/ [R=301,L]
+
+RewriteRule ^blog/boiler-steam-equipment\.html$ /blog/boiler-steam-equipment/ [R=301,L]
+RewriteRule ^blog/compressors-air-systems\.html$ /blog/compressors-air-systems/ [R=301,L]
+RewriteRule ^blog/electrical-equipment-epc\.html$ /blog/electrical-equipment-epc/ [R=301,L]
+RewriteRule ^blog/flanges-fittings-gaskets\.html$ /blog/flanges-fittings-gaskets/ [R=301,L]
+RewriteRule ^blog/industrial-valves-selection\.html$ /blog/industrial-valves-selection/ [R=301,L]
+RewriteRule ^blog/instrumentation-checklist\.html$ /blog/instrumentation-checklist/ [R=301,L]
+RewriteRule ^blog/petrochemical-supply-chain\.html$ /blog/petrochemical-supply-chain/ [R=301,L]
+RewriteRule ^blog/piping-equipment-procurement\.html$ /blog/piping-equipment-procurement/ [R=301,L]
+RewriteRule ^blog/pumps-procurement-guide\.html$ /blog/pumps-procurement-guide/ [R=301,L]
+RewriteRule ^blog/rfq-industrial-equipment\.html$ /blog/rfq-industrial-equipment/ [R=301,L]
+
+# این ۶ صفحه نسخهٔ پوشه‌ای معادل ندارند؛ خودشان تنها نسخهٔ معتبرند — تغییری لازم نیست:
+# services/electrical-supply.html, inspection-quality.html, instrumentation-supply.html,
+# piping-supply.html, procurement-logistics.html, valves-supply.html

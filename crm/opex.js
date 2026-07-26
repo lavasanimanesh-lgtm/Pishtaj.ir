@@ -93,6 +93,7 @@
       body: 'همه مبالغ به ریال — مبنای محاسبه سود خالص سال مالی (کیس R9). در صورت انتخاب پرونده فروش، هزینه به همان پرونده هم متصل می‌شود.',
       fields: [
         { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
+        { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value="no" selected>غیررسمی (بدون فاکتور ممیزپسند)</option><option value="yes">رسمی (فاکتور رسمی/قابل قبول ممیز)</option>' },
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: pre.amt || '', dir: 'ltr', required: true },
         { id: 'month', label: 'ماه شمسی (مثلا 1405/04) *', type: 'text', value: pre.month || ptfFaMonthNow(), required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: pre.desc || '' },
@@ -105,7 +106,8 @@
         var month = normMonth(v.month);
         if (amt <= 0) { alert('⛔ مبلغ نامعتبر'); return; }
         if (!month) { alert('⛔ ماه شمسی مثل 1405/04 وارد کنید'); return; }
-        var rec = { cd: genCode('OPX'), cat: v.cat, amt: amt, month: month, desc: v.desc || '', dealRef: v.dealRef || '', t: faDate(), by: curSession().name };
+        var isOfficial = v.isOfficial === 'yes';
+        var rec = { cd: genCode('OPX'), cat: v.cat, amt: amt, month: month, desc: v.desc || '', dealRef: v.dealRef || '', t: faDate(), by: curSession().name, isOfficial: isOfficial };
         if (pre.tplId) rec.tplId = pre.tplId;
         if (v.rec === 'yes' && !pre.tplId) {
           var list = tpls();
@@ -153,7 +155,7 @@
         }
       }
     } catch(e){}
-    if (!confirm('🗑 حذف هزینه «' + rec.cat + ' — ' + fmtT(rec.amt) + ' ت» (' + rec.month + ')؟')) return;
+    if (!confirm('🗑 حذف هزینه «' + rec.cat + ' — ' + fmtT(rec.amt) + ' ریال» (' + rec.month + ')؟')) return;
     oSave(oAll().filter(function (x) { return x.cd !== cd; }));
     if (rec.dealRef) {
       try {
@@ -268,7 +270,7 @@
   window.ptfOpexDelTpl = function (tid) {
     var t = tpls().filter(function (x) { return x.id === tid; })[0];
     if (!t) return;
-    if (!confirm('حذف قالب تکرارشونده «' + t.cat + ' — ' + fmtT(t.amt) + ' ت»؟ (هزینه‌های ثبت‌شده قبلی دست نمی‌خورند)')) return;
+    if (!confirm('حذف قالب تکرارشونده «' + t.cat + ' — ' + fmtT(t.amt) + ' ریال»؟ (هزینه‌های ثبت‌شده قبلی دست نمی‌خورند)')) return;
     saveTpls(tpls().filter(function (x) { return x.id !== tid; }));
     try { audit('هزینه جاری', 'حذف قالب تکرارشونده ' + t.cat, tid); } catch (eA) {}
     ptfOpexRender();
@@ -286,7 +288,7 @@
     var pendHtml = pend.length
       ? '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px">' +
         '🔁 <b>هزینه‌های تکرارشونده ماه جاری که هنوز ثبت نشده‌اند:</b> ' +
-        pend.map(function (t) { return '<button class="bt bt-o" style="padding:3px 10px;font-size:11.5px;margin:2px" onclick="ptfOpexApplyTpl(\'' + escP(t.id) + '\')">' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ت ➕</button>'; }).join(' ') + '</div>'
+        pend.map(function (t) { return '<button class="bt bt-o" style="padding:3px 10px;font-size:11.5px;margin:2px" onclick="ptfOpexApplyTpl(\'' + escP(t.id) + '\')">' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال ➕</button>'; }).join(' ') + '</div>'
       : '';
     var chips = Object.keys(sm.byCat).map(function (c) {
       return '<span style="background:#f1f5f9;border-radius:999px;padding:4px 11px;font-size:11.5px">' + escP(c) + ': <b>' + fmtT(sm.byCat[c]) + '</b> ریال</span>';
@@ -301,7 +303,7 @@
         '<span style="display:flex;gap:4px"><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="ptfOpexEdit(\'' + escP(x.cd) + '\')">✏️</button><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#dc2626" onclick="ptfOpexDel(\'' + escP(x.cd) + '\')">✕</button></span></div>';
     }).join('');
     var tplRows = tpls().map(function (t) {
-      return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ت <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + escP(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
+      return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + escP(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
     }).join(' ');
     el.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +

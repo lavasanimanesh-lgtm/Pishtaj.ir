@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — moneyx.js — v19.6 (BUG-030 + US-438 — ابلاغ کارفرما / تیم سهولت و چابکی)
+   PTF CRM — moneyx.js — v19.7 (BUG-030 + US-438 — ابلاغ کارفرما / تیم سهولت و چابکی)
    ① واحد پایه سراسری = ریال (IRR — مطابق سند رسمی CO) — مصوبه: داده قدیمی بدون ×۱۰، فقط برچسب.
    ② ورودی مبلغ مشترک: جداکننده هزارگان زنده + «مبلغ به حروف با واحد اصلی» زیر فیلد
       (تصمیم کارفرما: فقط حروف با واحد اصلی — بدون نمایش واحد دوم).
@@ -80,9 +80,15 @@
     var raw = String(el.value || '');
     if (raw.indexOf('.') > -1) return; /* ورود اعشاری (نرخ/درصد) — فرمت کاما فقط برای عدد صحیح */
     var caret = el.selectionStart == null ? raw.length : el.selectionStart;
-    var digitsBefore = raw.slice(0, caret).replace(/[^\d]/g, '').length;
-    var n = ptfNum(raw);
-    var out = n ? n.toLocaleString('en-US') : (raw.replace(/[^\d]/g, '') ? '0' : '');
+    
+    // یکسان‌سازی ارقام فارسی و عربی به انگلیسی قبل از محاسبه تعداد ارقام
+    var normRaw = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+                     .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    
+    var digitsBefore = normRaw.slice(0, caret).replace(/[^\d]/g, '').length;
+    var n = ptfNum(normRaw);
+    var out = n ? n.toLocaleString('en-US') : (normRaw.replace(/[^\d]/g, '') ? '0' : '');
+    
     if (out !== raw) {
       el.value = out;
       /* مکان‌نما: بعد از همان تعداد رقم قبلی */
@@ -95,10 +101,40 @@
   /* delegation سراسری — capture تا قبل از هندلرهای inline اجرا شود (آن‌ها مقدار کامادار را با ptfNum می‌خوانند) */
   document.addEventListener('input', function (e) {
     var el = e.target;
-    if (!el || !el.getAttribute || el.getAttribute('data-money') == null) return;
-    reformat(el);
-    updateHint(el);
+    if (!el || !el.getAttribute) return;
+    
+    // تبدیل کیبورد فارسی به انگلیسی برای تمام ورودی‌های عددی/تاریخی/پولی سیستم
+    var id = String(el.id || '').toLowerCase();
+    var cls = String(el.className || '').toLowerCase();
+    var type = String(el.type || '').toLowerCase();
+    var inputmode = String(el.getAttribute('inputmode') || '').toLowerCase();
+    var datamoney = el.getAttribute('data-money');
+    
+    var isNumericField = (
+      type === 'number' ||
+      inputmode === 'numeric' ||
+      datamoney != null ||
+      id.indexOf('amt') > -1 || id.indexOf('price') > -1 || id.indexOf('qty') > -1 ||
+      id.indexOf('amount') > -1 || id.indexOf('rate') > -1 || id.indexOf('pct') > -1 ||
+      id.indexOf('date') > -1 || id.indexOf('month') > -1 ||
+      cls.indexOf('numeric') > -1 || cls.indexOf('money') > -1
+    );
+    
+    if (isNumericField && el.value) {
+      var raw = el.value;
+      var converted = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+                         .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+      if (converted !== raw) {
+        el.value = converted;
+      }
+    }
+
+    if (datamoney != null) {
+      reformat(el);
+      updateHint(el);
+    }
   }, true);
+
   document.addEventListener('focusin', function (e) {
     var el = e.target;
     if (!el || !el.getAttribute || el.getAttribute('data-money') == null) return;

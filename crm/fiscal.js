@@ -118,6 +118,7 @@
     var ox = (typeof ptfOpexSumFiscal === 'function') ? ptfOpexSumFiscal(year) : (typeof ptfOpexSum === 'function' ? (function(){ var s=ptfOpexSum(year); return {total: s.totalUnlinked!=null ? s.totalUnlinked : s.total, byCat: s.byCat}; })() : { total: 0, byCat: {} });
     var openTotal = 0, openYear = 0, invUndated = [];
     getData('ptf_crm_invoices').forEach(function (inv) {
+      if (inv.status === 'void' || inv.st === 'void' || inv.void === true) return;
       var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
       var rem = Math.max(0, (+inv.amount || 0) - paid);
       if (!rem) return;

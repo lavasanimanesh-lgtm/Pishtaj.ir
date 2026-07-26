@@ -13,6 +13,7 @@
     var offers = getData('ptf_crm_offers');
     return getData('ptf_crm_invoices').filter(function (i) {
       if (!active(i)) return false;
+      if (typeof curRole === 'function' && curRole() === 'accountant' && i.isUnofficial) return false;
       var o = offers.filter(function (x) { return x.no === i.offerNo; })[0] || {};
       return o.buyerCd === cd;
     });
@@ -42,7 +43,8 @@
     var c = cust(cd); if (!c) return;
     var rows = invs(cd).map(function (i) {
       var ps = (i.payments || []).concat(i.pays || []).filter(active), r = Math.max(0, (+i.amount || 0) - paid(i));
-      return '<tr><td>' + escP(i.invDate || i.t || '') + '</td><td>' + escP(i.no || i.cd) + '</td><td>' + m(i.amount) + ' ریال</td><td>' + m(paid(i)) + ' ریال</td><td>' + m(r) + ' ریال</td></tr>' +
+      var typeBadge = i.isUnofficial ? '<span style="background:#fffbeb;color:#b45309;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;border:1px solid #fde68a;margin-left:4px">غیررسمی</span> ' : '<span style="background:#f0fdf4;color:#166534;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;border:1px solid #bbf7d0;margin-left:4px">رسمی</span> ';
+      return '<tr><td>' + escP(i.invDate || i.t || '') + '</td><td>' + typeBadge + escP(i.no || i.cd) + '</td><td>' + m(i.amount) + ' ریال</td><td>' + m(paid(i)) + ' ریال</td><td>' + m(r) + ' ریال</td></tr>' +
         ps.map(function (p) { return '<tr style="background:#f0fdf4"><td>' + escP(p.t || p.date || '') + '</td><td>وصولی</td><td>—</td><td>' + m(p.amt || p.amount) + ' ریال</td><td>—</td></tr>'; }).join('');
     }).join('');
     var h = '<div class="md-b" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto"><h3>📘 حساب مشتری — ' + escP(nameOf(c)) + '</h3><div style="background:#fefce8;padding:10px;border-radius:10px">مطالبات باز: <b>' + m(bal(cd)) + ' ریال</b></div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>سند</th><th>فاکتور</th><th>وصولی</th><th>مانده</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></div><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
