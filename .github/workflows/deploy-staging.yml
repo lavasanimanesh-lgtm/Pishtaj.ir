@@ -1,30 +1,27 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Deploy to Staging — استقرار خودکار روی staging.pishtaj.ir
 #
-# مسیر این فایل روی گیت‌هاب: .github/workflows/deploy-staging.yml   (روی برنچ main)
+# مسیر روی گیت‌هاب: .github/workflows/deploy-staging.yml   (روی برنچ main)
 #
-# پیش‌نیاز — ۴ سکرت در Settings → Secrets and variables → Actions:
-#     FTP_SERVER        مثلا: ftp.pishtaj.ir
-#     FTP_USERNAME      نام کاربری FTP استیجینگ
-#     FTP_PASSWORD      رمز FTP استیجینگ
-#     FTP_SERVER_DIR    مسیر پوشه استیجینگ، مثلا: /pishtaj-stage/
-#                       ⚠️ مراقب باشید پوشه پروداکشن (pishtaj.ir) نباشد
+# دو مسیر توسعه، یک استیجینگ مشترک:
+#   برنچ‌های  site/**  → کار روی وب‌سایت
+#   برنچ‌های  crm/**   → کار روی CRM
+#   چون CRM در پوشه /crm/ است و سایت در ریشه، روی هم نمی‌نویسند.
+#
+# سکرت‌های لازم (همان‌های قبلی، تغییری نکرده‌اند):
+#   FTP_SERVER / FTP_USERNAME / FTP_PASSWORD / FTP_SERVER_DIR
 # ─────────────────────────────────────────────────────────────────────────────
 name: Deploy to Staging
 
 on:
-  # اجرای دستی از تب Actions روی هر برنچی که بخواهید
   workflow_dispatch:
-
-  # اجرای خودکار: هر پوش به هر برنچی که با staging/ شروع شود
-  # هر ایجنت روی برنچ خودش کار می‌کند و با پوش، استیجینگ به‌روز می‌شود
   push:
     branches:
       - development
-      - 'staging/**'
+      - 'site/**'      # مسیر توسعه وب‌سایت
+      - 'crm/**'       # مسیر توسعه CRM
+      - 'staging/**'   # سازگاری با نام‌گذاری قبلی
 
-# جلوگیری از تداخل: اگر دو ایجنت هم‌زمان پوش کنند، دیپلوی‌ها صف می‌شوند
-# و روی همدیگر نمی‌نویسند. آخرین پوش برنده است.
 concurrency:
   group: deploy-staging
   cancel-in-progress: false
@@ -36,21 +33,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # جلوگیری از ایندکس شدن استیجینگ توسط گوگل (محتوای تکراری با پروداکشن)
+      # جلوگیری از ایندکس شدن استیجینگ توسط گوگل
       - name: Block search engines on staging
         run: |
           printf 'User-agent: *\nDisallow: /\n' > robots.txt
           echo "robots.txt replaced with a staging (noindex) version"
 
-      # نشانگر بصری تا استیجینگ با پروداکشن اشتباه گرفته نشود
+      # نشانگر بصری + نمایش برنچ، تا بدانی کار کدام ایجنت را می‌بینی
       - name: Add staging banner
         run: |
-          cat > _staging-banner.html <<'BANNER'
+          cat > _staging-banner.html <<BANNER
           <div id="ptf-staging-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#b45309;color:#fff;font:700 12px Tahoma,sans-serif;text-align:center;padding:5px 8px;direction:rtl">
-            محیط تست (Staging) — این نسخه نهایی نیست
+            محیط تست (Staging) — برنچ: ${{ github.ref_name }} — این نسخه نهایی نیست
           </div>
           BANNER
-          # تزریق بنر به انتهای body همه صفحات HTML
           find . -name '*.html' \
             -not -path './.git/*' \
             -not -path './node_modules/*' \
@@ -72,7 +68,6 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
-          # نام فایل حالت (state) مخصوص استیجینگ تا با پروداکشن قاطی نشود
           state-name: .ftp-deploy-sync-state-staging.json
           exclude: |
             **/.git*
@@ -101,4 +96,4 @@ jobs:
           echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| آدرس | https://staging.pishtaj.ir |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "برای دیدن تغییرات: \`Ctrl+Shift+R\` (پاک کردن کش)" >> $GITHUB_STEP_SUMMARY
+          echo "برای دیدن تغییرات: \`Ctrl+Shift+R\`" >> $GITHUB_STEP_SUMMARY
