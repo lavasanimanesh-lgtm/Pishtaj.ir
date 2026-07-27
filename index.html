@@ -300,7 +300,7 @@
 
   <link rel="preload" href="assets/images/real/webp/boilers-generic.webp" as="image" type="image/webp" media="(min-width: 768px)">
   <link rel="preload" href="assets/images/real/webp/piping-flanges.webp" as="image" type="image/webp" media="(min-width: 768px)">
-  <link rel="preload" href="assets/images/real/webp/compressors-generic.webp" as="image" type="image/webp" media="(min-width: 768px)">
+  <link rel="preload" href="assets/images/real/webp/closeup-pump.webp" as="image" type="image/webp" media="(min-width: 768px)">
 
   <script type="application/ld+json">
   [
@@ -405,7 +405,7 @@
       </a>
       <button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
       <nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
-        <a href="#home">خانه</a><a href="#about">درباره ما</a><a href="services/">خدمات</a><a href="industries/">صنایع</a><a href="projects/">پروژه‌ها</a><a href="knowledge-center/">مرکز دانش</a><a href="tools/">ابزارها</a><a href="blog/">وبلاگ</a><a href="news/">اخبار</a><a href="rfq/">استعلام</a><a href="#contact">تماس</a><a href="en/" class="lang-switch-mobile">🇬🇧 English</a>
+        <a href="#home">خانه</a><a href="about/">درباره ما</a><a href="services/">خدمات</a><a href="industries/">صنایع</a><a href="projects/">پروژه‌ها</a><a href="knowledge-center/">مرکز دانش</a><a href="tools/">ابزارها</a><a href="blog/">وبلاگ</a><a href="news/">اخبار</a><a href="rfq/">استعلام</a><a href="#contact">تماس</a><a href="en/" class="lang-switch-mobile">🇬🇧 English</a>
       </nav>
       <a class="header-call" href="tel:02146087679">021-46087679</a>
 <a href="en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
@@ -418,8 +418,8 @@
       
       <div class="slider" id="heroSlider">
         <div class="slide active" style="background-size:cover;background-image:url('assets/images/real/real-hero-energy-plant.jpg')"></div>
+        <div class="slide" data-bg="assets/images/real/pipe-yard-team.jpg"></div>
         <div class="slide" data-bg="assets/images/real/piping-flanges.jpeg"></div>
-        <div class="slide" data-bg="assets/images/real/electrical-switchgear.jpeg"></div>
         <div class="slide" data-bg="assets/images/real/boilers-steam.jpeg"></div>
       </div>
       <div class="hero-overlay"></div>
@@ -541,8 +541,8 @@
       <div class="container about-grid">
         <div class="about-images reveal">
           
-          <img class="main-img" src="assets/images/real/compressors-generic.jpeg" alt="لوله، فلنج، فیتینگ و ولو صنعتی" loading="lazy" decoding="async">
-          <img class="float-img" src="assets/images/real/water-treatment.jpeg" alt="تجهیزات برق و ابزار دقیق صنعتی" loading="lazy" decoding="async">
+          <img class="main-img" src="assets/images/real/closeup-pump.jpg" alt="پمپ سانتریفیوژ فرایندی روی شاسی همراه الکتروموتور" loading="lazy" decoding="async">
+          <img class="float-img" src="assets/images/real/closeup-instrumentation.jpg" alt="ترانسمیتر فشار و گیج‌های ابزار دقیق روی خط فرایندی" loading="lazy" decoding="async">
         </div>
         <div class="section-copy reveal">
           <span class="kicker">درباره پیشرو تجهیز فرتاک</span>
@@ -556,7 +556,7 @@
           </ul>
         </div>
         
-        <div class="about-links reveal" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-top:35px; width:100%;">
+        <div class="about-links reveal" style="grid-column:1 / -1; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:18px; margin-top:35px; width:100%;">
           <a href="about/logo-philosophy/" style="background:#fff; border:2px solid var(--line); border-radius:24px; padding:22px 18px; text-align:center; transition:.28s; box-shadow:0 10px 25px rgba(0,0,0,.04); display:flex; flex-direction:column; align-items:center; text-decoration:none;">
             <div style="width:52px; height:52px; border-radius:16px; background:linear-gradient(135deg, rgba(239,75,26,.12), rgba(247,148,0,.12)); color:var(--red); display:flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:12px;"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.12em"><path d="M12 22c4 0 7-2.7 7-7 0-3-2-5.5-3.5-7C15 10 13 10 13 7c0-2 .5-3.5 1-5-4 1.5-9 6-9 13 0 4.3 3 7 7 7z"/></svg></div>
             <b style="font-size:17px; color:#1e293b; margin-bottom:6px; display:block;">فلسفه لوگو PTF</b>
@@ -711,6 +711,7 @@
           <span class="kicker" style="background:rgba(239,75,26,.1); color:var(--red); padding:6px 16px; border-radius:999px; font-weight:900;">امور قراردادها و بازرگانی</span>
           <h2 style="font-size:32px; margin:15px 0; color:#1e293b; letter-spacing:-.8px;">ارتباط با واحد بازرگانی و ارسال استعلام (RFQ)</h2>
           <p style="color:#64748b; font-size:15px; line-height:1.9;">برای دریافت پیشنهاد فنی-مالی رسمی، دیتاشیت یا لیست اقلام (MTO) خود را ارسال فرمایید. کارشناسان مهندسی فروش پیشرو تجهیز فرتاک در کوتاه‌ترین زمان جهت اعلام شرایط تامین با شما تماس خواهند گرفت.</p>
+          <img src="assets/images/real/office-commercial-engineer.jpg" alt="کارشناس بازرگانی پیشرو تجهیز فرتاک در حال پیگیری استعلام مشتری" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.1);margin:20px 0 5px" loading="lazy" decoding="async">
           
           <div style="margin:25px 0; display:flex; gap:12px; flex-wrap:wrap;">
             <a href="rfq/" class="btn btn-primary" style="padding:14px 28px; font-size:15px; border-radius:16px;">ورود به سامانه استعلام چندمرحله‌ای ←</a>

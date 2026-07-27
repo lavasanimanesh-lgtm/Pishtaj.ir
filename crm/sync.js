@@ -34,8 +34,10 @@
     collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques','ptf_crm_notifprefs','ptf_crm_avatars']
   };
   function syncAllowedKey(k) {
-    var role = typeof curRole === 'function' ? curRole() : 'sales';
-    return SYNC_FULL_ROLES.indexOf(role) > -1 || (SYNC_ROLE_KEYS[role] || SYNC_ROLE_KEYS.sales).indexOf(k) > -1;
+    var role = typeof curRole === 'function' ? String(curRole()).toLowerCase().trim() : 'sales';
+    role = role.replace(/[^a-z0-9]/g, '');
+    var isFullRole = SYNC_FULL_ROLES.indexOf(role) > -1 || role.indexOf('commercial') > -1 || role.indexOf('manager') > -1;
+    return isFullRole || (SYNC_ROLE_KEYS[role] || SYNC_ROLE_KEYS.sales).indexOf(k) > -1;
   }
 
   window._ptfSyncBootstrapped = false; /* v16.7 BUG-018: فلگ عمومی برای ماژول‌هایی که rebuild خودکار دارند (sms) */
@@ -66,13 +68,17 @@
   }
 
   /* ---------- رهگیری تغییرات: wrap setData ---------- */
-  var _setData = window.setData;
-  window.setData = function (k, d) {
-    _setData(k, d);
+  window.ptfSyncNotifyDirty = function (k) {
     if (SYNC_KEYS.indexOf(k) > -1 && !state.pulling) {
       state.dirty[k] = true;
       schedulePush();
     }
+  };
+
+  var _setData = window.setData;
+  window.setData = function (k, d) {
+    _setData(k, d);
+    window.ptfSyncNotifyDirty(k);
   };
 
   function schedulePush() {

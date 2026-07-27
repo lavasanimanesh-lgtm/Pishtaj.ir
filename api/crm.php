@@ -1,4 +1,12 @@
 <?php
+// Clean up any remaining numerical kc files on the server (v33.2.0)
+$kc_dir = __DIR__ . '/../knowledge-center';
+if (is_dir($kc_dir)) {
+    foreach (glob($kc_dir . '/kc-[0-9]*.html') as $f) {
+        @unlink($f);
+    }
+}
+
 // API سامانه مدیریت یکپارچه استعلامات (CRM API) — نسخه اسپرینت ۶۹
 // پل ارتباطی سایت ↔ CRM: ثبت تامین‌کننده/استعلام از سایت + رهگیری + رویدادهای لحظه‌ای
 header('Content-Type: application/json; charset=utf-8');
@@ -292,8 +300,9 @@ function sync_all_keys() {
     return ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources'];
 }
 function sync_allowed_keys_for_role($role) {
+    $role = preg_replace('/[^a-z0-9]/', '', strtolower(trim((string)$role)));
     $all = sync_all_keys();
-    if (in_array($role, ['admin','chairman','ceo','commercial'], true)) return $all;
+    if (in_array($role, ['admin','chairman','ceo','commercial','commercialmanager','commercial_manager'], true) || strpos($role, 'commercial') !== false || strpos($role, 'manager') !== false) return $all;
     $crm = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'];
     $accountant = ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive'];
     $collector = ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques','ptf_crm_notifprefs','ptf_crm_avatars'];

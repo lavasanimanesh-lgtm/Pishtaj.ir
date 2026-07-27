@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>درباره ما و ساختار سازمانی | پیشرو تجهیز فرتاک</title>
+  <meta name="description" content="معرفی شرکت پیشرو تجهیز فرتاک؛ تامین‌کننده تخصصی تجهیزات پایپینگ، شیرآلات، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز و پتروشیمی." />
+  <meta property="og:locale" content="fa_IR" />
+  <meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+  <meta property="og:title" content="درباره ما و ساختار سازمانی | پیشرو تجهیز فرتاک" />
+  <meta property="og:description" content="معرفی شرکت پیشرو تجهیز فرتاک؛ تامین‌کننده تخصصی تجهیزات پایپینگ، شیرآلات، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز و پتروشیمی." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://pishtaj.ir/about/" />
+  <meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href="https://pishtaj.ir/about/" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <style>
+    .about-hero {
+      background: linear-gradient(135deg, rgba(16, 16, 18, 0.9), rgba(43, 43, 47, 0.75)), url('../assets/images/real/office-open-space.jpg');
+      background-size: cover;
+      background-position: center;
+      min-height: 380px;
+      display: flex;
+      align-items: center;
+      padding: 130px 0 60px;
+      color: #fff;
+      position: relative;
+    }
+    .about-hero .container { position: relative; z-index: 2; }
+    .about-hero h1 { font-size: clamp(28px, 3.5vw, 44px); margin: 0 0 12px; font-weight: 900; }
+    .about-hero p { color: rgba(255,255,255,0.85); font-size: 16px; max-width: 800px; line-height: 1.8; }
+    
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 50px;
+      margin: 60px auto;
+      align-items: center;
+    }
+    .about-img-box { margin-inline: auto;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.08);
+      border: 1px solid var(--line);
+    }
+    .about-img-box img {
+      width: 100%;
+      height: auto;
+      display: block;
+      transition: 0.4s;
+    }
+    .about-img-box:hover img { transform: scale(1.03); }
+    .about-text { line-height: 2.1; font-size: 15.5px; color: #334155; text-align: justify !important; }
+    .about-text h2 { font-size: 24px; margin-bottom: 16px; color: #0f172a; font-weight: 900; }
+    .about-text p { margin-bottom: 18px; }
+    
+    .values-section {
+      background: #f8fafc;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 60px 0;
+    }
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+    }
+    .value-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(15,23,42,0.02);
+      transition: 0.3s;
+      text-align: center !important;
+    }
+    .value-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(15,23,42,0.06); }
+    .value-icon { font-size: 32px; margin-bottom: 12px; display: block; }
+    /* ptf minimal icon system — synced with homepage (v32.1) */
+    .ptf-ico{
+      display:inline-grid; place-items:center;
+      width:var(--ico,40px); height:var(--ico,40px);
+      border-radius:12px; flex:0 0 auto;
+      background:linear-gradient(135deg,rgba(14,116,144,.10),rgba(15,39,68,.06));
+      color:#0e7490; border:1px solid rgba(14,116,144,.14);
+    }
+    .ptf-ico svg{ width:calc(var(--ico,40px) * .52); height:calc(var(--ico,40px) * .52); display:block; }
+    .ptf-ico.lg{ --ico:44px; border-radius:13px; }
+    .ptf-ico.warn{ color:#c2410c; background:linear-gradient(135deg,rgba(239,75,26,.10),rgba(247,148,0,.08)); border-color:rgba(239,75,26,.16); }
+    .value-card h3 { font-size: 16.5px; font-weight: 900; margin-bottom: 10px; color: #0f172a; }
+    .value-card p { font-size: 13.5px; color: #475569; line-height: 1.8; }
+    
+    .team-showcase {
+      margin: 60px auto;
+    }
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 30px;
+    }
+    .team-card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+    }
+    .team-img { height: 220px; overflow: hidden; background: #f1f2f4; }
+    .team-img img { width: 100%; height: 100%; object-fit: cover; transition: 0.4s; }
+    .team-card:hover .team-img img { transform: scale(1.04); }
+    .team-body { padding: 18px; text-align: center; }
+    .team-body h4 { font-size: 15.5px; font-weight: 900; margin-bottom: 4px; color: #0f172a; }
+    .team-body span { font-size: 12.5px; color: #64748b; }
+
+    .ceo-message {
+      background: linear-gradient(135deg, #fffbeb, #fef3c7);
+      border: 1px solid #fde68a;
+      border-radius: 28px;
+      padding: 40px;
+      margin: 60px auto;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 30px;
+      align-items: center;
+    }
+    .ceo-text blockquote {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.9;
+      color: #78350f;
+      border-right: 4px solid #f59e0b;
+      padding-right: 18px;
+      margin-bottom: 16px;
+    }
+    .ceo-text p { font-size: 14px; color: #92400e; line-height: 1.8; }
+    .ceo-img { border-radius: 20px; overflow: hidden; box-shadow: 0 12px 34px rgba(245,158,11,0.18); }
+    
+    @media (max-width: 900px) {
+      .about-grid { grid-template-columns: 1fr; gap: 30px; }
+      .team-grid { grid-template-columns: 1fr; }
+      .ceo-message { grid-template-columns: 1fr; gap: 20px; padding: 24px; }
+      .ceo-img { display: none; }
+    }
+  </style>
+</head>
+<body class="about-page">
+
+  <!-- Header -->
+  <header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../about/" class="active">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+
+  <!-- Hero -->
+  <section class="about-hero">
+    <div class="container">
+      <nav class="breadcrumb" style="margin-bottom:12px; font-size:14px;"><a href="../" style="color:rgba(255,255,255,0.7);text-decoration:none">خانه</a> <span style="opacity:0.5">/</span> <b>درباره ما</b></nav>
+      <h1>درباره پیشرو تجهیز فرتاک</h1>
+      <p>شریک راهبردی و تامین‌کننده امین پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و صنایع نیروگاهی کشور بر پایه تخصص مهندسی، انطباق کامل با AVL و زنجیره تامین چابک بین‌المللی</p>
+    </div>
+  </section>
+
+  <!-- Section 1 -->
+  <main class="container">
+    <div class="about-grid">
+      <div class="about-text">
+        <h2>مهندسی خرید و مدیریت یکپارچه تامین</h2>
+        <p>شرکت <b>پیشرو تجهیز فرتاک (Pishro Tajhiz Fartak)</b> با تکیه بر بیش از یک دهه تجربه تخصصی و تیمی متشکل از مهندسان و متخصصان ارشد بازرگانی بین‌المللی، به عنوان یک بازوی تامین چابک و پروژه‌محور در خدمت صنایع مادر ایران فعالیت می‌نماید.</p>
+        <p>مأموریت محوری ما، ارائه راهکارهای نوین مهندسی خرید، موازنه ریسک ارز، انطباق ۱۰۰٪ مشخصات کالا با <b>Approved Vendor List (AVL) وزارت نفت، شرکت ملی صنایع پتروشیمی (NPC) و گاز (NIGC)</b> و تضمین کیفیت از طریق ارائه گواهی‌های تست معتبر (MTC 3.1 & 3.2) و بازرسی‌های شخص ثالث (TPI) می‌باشد.</p>
+        <p>ما اعتقاد داریم خرید کالای صنعتی در شرایط امروز بازار، فراتر از یک معامله مادی، یک فرآیند پیچیده مهندسی و ریسک‌سنجی مالی است. به همین جهت، از بدو دریافت استعلام تا زمان ترخیص و تحویل کالا در محل پروژه، همراه و امین کارفرمایان خود هستیم.</p>
+      </div>
+      <div class="about-img-box">
+        <img src="../assets/images/real/office-receptionist.jpg" alt="دفتر پذیرش و منشی شرکت پیشرو تجهیز فرتاک" loading="lazy" decoding="async">
+      </div>
+    </div>
+  </main>
+
+  <!-- Section 2: Values -->
+  <section class="values-section">
+    <div class="container">
+      <div class="section-head text-center" style="margin-bottom:40px; text-align:center;">
+        <h2 style="font-size:24px; font-weight:900; margin-bottom:12px; color:#0f172a;">مزیت‌های رقابتی و توانمندی‌های محوری</h2>
+        <p style="color:#64748b; font-size:14.5px;">اصول عملیاتی که اعتبار و پایداری تعهدات ما را در پروژه‌های بزرگ صنعتی تضمین می‌کنند</p>
+      </div>
+      
+      <div class="values-grid">
+        <div class="value-card">
+          <div class="ptf-ico warn lg" style="margin-bottom: 14px; margin-inline: auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <h3>انطباق کامل با وندورلیست (AVL)</h3>
+          <p>تضمین ۱۰۰٪ انطباق اقلام تامین‌شده با لیست‌های مورد تایید وزارت نفت (MOP)، نفت و گاز پارس (POGC)، پتروشیمی‌ها و فولاد مپنا جهت حذف ریسک مغایرت فنی.</p>
+        </div>
+        <div class="value-card">
+          <div class="ptf-ico warn lg" style="margin-bottom: 14px; margin-inline: auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg></div>
+          <h3>تضمین کیفیت و اصالت کالا</h3>
+          <p>ارائه پرونده کامل کیفیت همراه با محموله شامل گواهی MTC EN 10204 3.1/3.2، گزارش بازرسی کارخانه‌ای (FAT) و بازرسی‌های دوره‌ای شخص ثالث (TPI) معتبر.</p>
+        </div>
+        <div class="value-card">
+          <div class="ptf-ico warn lg" style="margin-bottom: 14px; margin-inline: auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/></svg></div>
+          <h3>زنجیره تامین بین‌المللی چابک</h3>
+          <p>امکان تامین و واردات سفارشی اقلام خاص از سازندگان تراز اول جهانی (اروپایی، کره‌ای و ژاپنی) از مبادی حمل مطمئن و با زمان تحویل بهینه و گمرک سریع.</p>
+        </div>
+        <div class="value-card">
+          <div class="ptf-ico warn lg" style="margin-bottom: 14px; margin-inline: auto;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><path d="M12 11h3m-3-3h3m-6 6h6M12 18V6"/></svg></div>
+          <h3>مهندسی مالی و بازرگانی انعطاف‌پذیر</h3>
+          <p>ارائه راهکارهای موازنه نوسانات نرخ ارز، شرایط پرداخت متنوع متناسب با صورت‌وضیعت پروژه‌ها و تسهیلات در پروژه‌های بزرگ تامین کالا.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 3: Team & Warehouse -->
+  <section class="container team-showcase">
+    <div class="section-head text-center" style="margin-bottom:40px; text-align:center;">
+      <h2 style="font-size:24px; font-weight:900; margin-bottom:12px; color:#0f172a;">تیم عملیاتی و امکانات لجستیک</h2>
+      <p style="color:#64748b; font-size:14.5px;">سرمایه انسانی کارآزموده، انبارداری هوشمند و ناوگان ارسال کالا در خدمت پروژه‌های کشور</p>
+    </div>
+    
+    <div class="team-grid">
+      <div class="team-card">
+        <div class="team-img">
+          <img src="../assets/images/real/pipe-yard-team.jpg" alt="تیم انبار لوله‌های مانیسمان و پایپینگ" loading="lazy" decoding="async">
+        </div>
+        <div class="team-body">
+          <h4>تیم تخصصی لجستیک و انبار پایپینگ</h4>
+          <span>پایش اصالت، مارکینگ کالا و مدیریت محموله‌های سنگین</span>
+        </div>
+      </div>
+      
+      <div class="team-card">
+        <div class="team-img">
+          <img src="../assets/images/real/team-electrical-warehouse.jpg" alt="تیم انبار برق صنعتی و تجهیزات اتوماسیون" loading="lazy" decoding="async">
+        </div>
+        <div class="team-body">
+          <h4>تیم انبار برق صنعتی و اتوماسیون</h4>
+          <span>کنترل سلامت فیزیکی، بسته‌بندی ضد رطوبت و تست عایقی</span>
+        </div>
+      </div>
+      
+      <div class="team-card">
+        <div class="team-img">
+          <img src="../assets/images/real/valve-inspection-qc.jpg" alt="تست بازرسی فنی و QC شیرآلات" loading="lazy" decoding="async">
+        </div>
+        <div class="team-body">
+          <h4>تیم کنترل کیفیت (QC) و تست‌های بازرسی</h4>
+          <span>تست‌های PMI، ابعاد‌سنجی و تطابق دقیق با MTC صادرکننده</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 4: CEO Message -->
+  <section class="container">
+    <div class="ceo-message">
+      <div class="ceo-text">
+        <blockquote>صداقت فنی، دقت مهندسی و انطباق بی‌قید و شرط با الزامات پروژه، سه اصل پایه‌ای در هویت پیشرو تجهیز فرتاک است. ما ارزش اعتماد پیمانکاران در شرایط سخت صنایع مادر را می‌دانیم.</blockquote>
+        <p style="font-weight:900; margin-bottom:4px; color:#0f172a; font-size:15px;">مدیریت عامل شرکت پیشرو تجهیز فرتاک</p>
+        <p style="margin:0;">تامین یکپارچه و بهینه پروژه‌های ملی بر مبنای شفافیت کامل بازرگانی</p>
+      </div>
+      <div class="ceo-img">
+        <img src="../assets/images/real/office-ceo.jpg" alt="دفتر مدیریت عامل پیشرو تجهیز فرتاک" style="width:100%; height:auto; display:block;">
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px;" style="object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">01</span> سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">02</span> رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">03</span> ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">04</span> مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">05</span> مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.85-.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;"><span style="display:inline-grid;place-items:center;width:22px;height:22px;border:1px solid rgba(148,163,184,.45);border-radius:8px;font-size:10px;font-weight:900;color:inherit;margin-left:6px;vertical-align:middle">CRM</span> ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+
+  <script>
+    const menuToggle = document.getElementById('menuToggle');
+    const mainNav = document.getElementById('mainNav');
+    if (menuToggle && mainNav) {
+      menuToggle.addEventListener('click', () => {
+        mainNav.classList.toggle('open');
+      });
+    }
+  </script>
+</body>
+</html>
