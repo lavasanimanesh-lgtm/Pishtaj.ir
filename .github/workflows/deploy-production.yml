@@ -1,14 +1,73 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploy to Production — استقرار روی pishtaj.ir
+#
+# مسیر این فایل روی گیت‌هاب: .github/workflows/deploy-production.yml   (روی برنچ main)
+#
+# پیش‌نیاز — ۴ سکرت جداگانه (با سکرت‌های استیجینگ فرق دارند):
+#     FTP_PROD_SERVER
+#     FTP_PROD_USERNAME
+#     FTP_PROD_PASSWORD
+#     FTP_PROD_SERVER_DIR    مسیر پوشه پروداکشن، مثلا: /pishtaj.ir/
+#
+# 🔒 اصل ایمنی: پروداکشن هرگز خودکار اجرا نمی‌شود.
+#    فقط دستی، فقط از برنچ main، و فقط بعد از تایید روی استیجینگ.
+# ─────────────────────────────────────────────────────────────────────────────
 name: Deploy to Production
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'برای تایید، عبارت DEPLOY را دقیقا تایپ کنید'
+        required: true
+        default: ''
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # جلوگیری از استقرار تصادفی
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
+            echo "::error::تایید نشد. باید عبارت DEPLOY وارد شود."
+            exit 1
+          fi
+          echo "confirmation OK"
+
+      # پروداکشن فقط از main — جلوگیری از انتشار کار نیمه‌تمام یک ایجنت
+      - name: Verify branch is main
+        run: |
+          if [ "${{ github.ref_name }}" != "main" ]; then
+            echo "::error::استقرار پروداکشن فقط از برنچ main مجاز است (برنچ فعلی: ${{ github.ref_name }})"
+            exit 1
+          fi
+          echo "branch OK"
+
       - name: Checkout
         uses: actions/checkout@v4
+
+      # اطمینان از اینکه robots.txt نسخه پروداکشن است (نه نسخه noindex استیجینگ)
+      - name: Sanity check robots.txt
+        run: |
+          if grep -qi '^\s*Disallow:\s*/\s*$' robots.txt; then
+            echo "::error::robots.txt حالت noindex دارد؛ نسخه استیجینگ وارد main شده است."
+            exit 1
+          fi
+          echo "robots.txt OK"
+
+      # اطمینان از اینکه بنر استیجینگ داخل کد نمانده باشد
+      - name: Ensure no staging banner
+        run: |
+          if grep -rql 'ptf-staging-banner' --include='*.html' .; then
+            echo "::error::بنر استیجینگ در فایل‌ها پیدا شد؛ استقرار متوقف شد."
+            exit 1
+          fi
+          echo "no staging banner"
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -17,6 +76,7 @@ jobs:
           username: ${{ secrets.FTP_PROD_USERNAME }}
           password: ${{ secrets.FTP_PROD_PASSWORD }}
           server-dir: ${{ secrets.FTP_PROD_SERVER_DIR }}
+          state-name: .ftp-deploy-sync-state-production.json
           exclude: |
             **/.git*
             **/.git*/**
@@ -30,5 +90,15 @@ jobs:
             ptf-all-photos/**
             service-photos/**
             ptf-snapshots/**
+            docs-deploy/**
             tester*.js
             FILES-CHANGED-*.txt
+
+      - name: Summary
+        run: |
+          echo "### 🚀 استقرار پروداکشن انجام شد" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| مورد | مقدار |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| آدرس | https://pishtaj.ir |" >> $GITHUB_STEP_SUMMARY
