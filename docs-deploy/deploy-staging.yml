@@ -1,0 +1,47 @@
+# قالب گردش‌کار GitHub Actions برای استقرار خودکار روی استیجینگ
+# ⚠️ این فایل را باید «خودتان» در مسیر .github/workflows/deploy-staging.yml قرار دهید
+# (ایجنت اجازه ساخت فایل workflow را در گیت‌هاب ندارد — محدودیت امنیتی گیت‌هاب)
+#
+# پیش‌نیاز: تعریف ۴ Secret در گیت‌هاب:
+# Settings → Secrets and variables → Actions → New repository secret
+#   FTP_SERVER      مثلا: ftp.pishtaj.ir
+#   FTP_USERNAME    نام کاربری FTP هاست
+#   FTP_PASSWORD    رمز FTP
+#   FTP_SERVER_DIR  مسیر ریشه سایت، مثلا: /public_html/ یا /staging/
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:        # اجرای دستی از تب Actions
+  push:
+    branches:
+      - arena/019f9ef2-pishtaj-ir   # اجرای خودکار با هر push
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            *.md
+            *.zip
+            _audit/**
+            _human_test/**
+            _personas/**
+            _tools/**
+            ptf-all-photos/**
+            service-photos/**
+            ptf-snapshots/**
+            tester*.js
+            FILES-CHANGED-*.txt
