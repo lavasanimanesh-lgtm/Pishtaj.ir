@@ -39,7 +39,7 @@
       margin: 60px 0;
       align-items: center;
     }
-    .about-img-box {
+    .about-img-box { margin-inline: auto;
       border-radius: 28px;
       overflow: hidden;
       box-shadow: 0 20px 50px rgba(0,0,0,0.08);
@@ -78,6 +78,17 @@
     }
     .value-card:hover { transform: translateY(-4px); box-shadow: 0 12px 30px rgba(15,23,42,0.06); }
     .value-icon { font-size: 32px; margin-bottom: 12px; display: block; }
+    /* ptf minimal icon system — synced with homepage (v32.1) */
+    .ptf-ico{
+      display:inline-grid; place-items:center;
+      width:var(--ico,40px); height:var(--ico,40px);
+      border-radius:12px; flex:0 0 auto;
+      background:linear-gradient(135deg,rgba(14,116,144,.10),rgba(15,39,68,.06));
+      color:#0e7490; border:1px solid rgba(14,116,144,.14);
+    }
+    .ptf-ico svg{ width:calc(var(--ico,40px) * .52); height:calc(var(--ico,40px) * .52); display:block; }
+    .ptf-ico.lg{ --ico:44px; border-radius:13px; }
+    .ptf-ico.warn{ color:#c2410c; background:linear-gradient(135deg,rgba(239,75,26,.10),rgba(247,148,0,.08)); border-color:rgba(239,75,26,.16); }
     .value-card h3 { font-size: 16.5px; font-weight: 900; margin-bottom: 10px; color: #0f172a; }
     .value-card p { font-size: 13.5px; color: #475569; line-height: 1.8; }
     
@@ -167,7 +178,7 @@
         <p>ما اعتقاد داریم خرید کالای صنعتی در شرایط امروز بازار، فراتر از یک معامله مادی، یک فرآیند پیچیده مهندسی و ریسک‌سنجی مالی است. به همین جهت، از بدو دریافت استعلام تا زمان ترخیص و تحویل کالا در محل پروژه، همراه و امین کارفرمایان خود هستیم.</p>
       </div>
       <div class="about-img-box">
-        <img src="../assets/images/real/receptionist.jpg" alt="دفتر پذیرش و منشی شرکت پیشرو تجهیز فرتاک">
+        <img src="../assets/images/real/office-receptionist.jpg" alt="دفتر پذیرش و منشی شرکت پیشرو تجهیز فرتاک" loading="lazy" decoding="async">
       </div>
     </div>
   </main>
@@ -215,7 +226,7 @@
     <div class="team-grid">
       <div class="team-card">
         <div class="team-img">
-          <img src="../assets/images/real/pipe-yard-team.jpg" alt="تیم انبار لوله‌های مانیسمان و پایپینگ">
+          <img src="../assets/images/real/pipe-yard-team.jpg" alt="تیم انبار لوله‌های مانیسمان و پایپینگ" loading="lazy" decoding="async">
         </div>
         <div class="team-body">
           <h4>تیم تخصصی لجستیک و انبار پایپینگ</h4>
@@ -225,7 +236,7 @@
       
       <div class="team-card">
         <div class="team-img">
-          <img src="../assets/images/real/team-electrical-warehouse.jpg" alt="تیم انبار برق صنعتی و تجهیزات اتوماسیون">
+          <img src="../assets/images/real/team-electrical-warehouse.jpg" alt="تیم انبار برق صنعتی و تجهیزات اتوماسیون" loading="lazy" decoding="async">
         </div>
         <div class="team-body">
           <h4>تیم انبار برق صنعتی و اتوماسیون</h4>
@@ -235,7 +246,7 @@
       
       <div class="team-card">
         <div class="team-img">
-          <img src="../assets/images/real/valve-inspection-qc.jpg" alt="تست بازرسی فنی و QC شیرآلات">
+          <img src="../assets/images/real/valve-inspection-qc.jpg" alt="تست بازرسی فنی و QC شیرآلات" loading="lazy" decoding="async">
         </div>
         <div class="team-body">
           <h4>تیم کنترل کیفیت (QC) و تست‌های بازرسی</h4>
