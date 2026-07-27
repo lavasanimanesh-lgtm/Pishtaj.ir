@@ -1,0 +1,104 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploy to Staging — استقرار خودکار روی staging.pishtaj.ir
+#
+# مسیر این فایل روی گیت‌هاب: .github/workflows/deploy-staging.yml   (روی برنچ main)
+#
+# پیش‌نیاز — ۴ سکرت در Settings → Secrets and variables → Actions:
+#     FTP_SERVER        مثلا: ftp.pishtaj.ir
+#     FTP_USERNAME      نام کاربری FTP استیجینگ
+#     FTP_PASSWORD      رمز FTP استیجینگ
+#     FTP_SERVER_DIR    مسیر پوشه استیجینگ، مثلا: /pishtaj-stage/
+#                       ⚠️ مراقب باشید پوشه پروداکشن (pishtaj.ir) نباشد
+# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy to Staging
+
+on:
+  # اجرای دستی از تب Actions روی هر برنچی که بخواهید
+  workflow_dispatch:
+
+  # اجرای خودکار: هر پوش به هر برنچی که با staging/ شروع شود
+  # هر ایجنت روی برنچ خودش کار می‌کند و با پوش، استیجینگ به‌روز می‌شود
+  push:
+    branches:
+      - development
+      - 'staging/**'
+
+# جلوگیری از تداخل: اگر دو ایجنت هم‌زمان پوش کنند، دیپلوی‌ها صف می‌شوند
+# و روی همدیگر نمی‌نویسند. آخرین پوش برنده است.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # جلوگیری از ایندکس شدن استیجینگ توسط گوگل (محتوای تکراری با پروداکشن)
+      - name: Block search engines on staging
+        run: |
+          printf 'User-agent: *\nDisallow: /\n' > robots.txt
+          echo "robots.txt replaced with a staging (noindex) version"
+
+      # نشانگر بصری تا استیجینگ با پروداکشن اشتباه گرفته نشود
+      - name: Add staging banner
+        run: |
+          cat > _staging-banner.html <<'BANNER'
+          <div id="ptf-staging-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#b45309;color:#fff;font:700 12px Tahoma,sans-serif;text-align:center;padding:5px 8px;direction:rtl">
+            محیط تست (Staging) — این نسخه نهایی نیست
+          </div>
+          BANNER
+          # تزریق بنر به انتهای body همه صفحات HTML
+          find . -name '*.html' \
+            -not -path './.git/*' \
+            -not -path './node_modules/*' \
+            -not -path './_audit/*' \
+            -not -path './ptf-snapshots/*' \
+            -print0 |
+          while IFS= read -r -d '' f; do
+            if grep -qi '</body>' "$f"; then
+              perl -0pi -e 'BEGIN{local $/; open my $b,"<","_staging-banner.html"; $ban=<$b>} s{</body>}{$ban</body>}i' "$f"
+            fi
+          done
+          rm -f _staging-banner.html
+          echo "staging banner injected"
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          # نام فایل حالت (state) مخصوص استیجینگ تا با پروداکشن قاطی نشود
+          state-name: .ftp-deploy-sync-state-staging.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            *.md
+            *.zip
+            _audit/**
+            _human_test/**
+            _personas/**
+            _tools/**
+            ptf-all-photos/**
+            service-photos/**
+            ptf-snapshots/**
+            docs-deploy/**
+            tester*.js
+            FILES-CHANGED-*.txt
+
+      - name: Summary
+        run: |
+          echo "### ✅ استقرار استیجینگ انجام شد" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| مورد | مقدار |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| برنچ | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| آدرس | https://staging.pishtaj.ir |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "برای دیدن تغییرات: \`Ctrl+Shift+R\` (پاک کردن کش)" >> $GITHUB_STEP_SUMMARY
