@@ -54,6 +54,16 @@
         if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') add(q, 'supplier-invoice-unclassified', 'فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی', inv.no || inv.cd, inv.amountIrr || inv.amount);
       });
     } catch (eSf) {}
+    /* فاز ۲ / گام ۵: فاکتور پوششی/صوری با سود خالص منفی — یعنی کارمزد فاکتورساز
+       از اعتبار ارزش‌افزوده بیشتر انتخاب شده (به‌احتمال زیاد ورودی اشتباه). */
+    try {
+      var sfData2 = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+      (sfData2.invoices || []).forEach(function (inv) {
+        if (inv.status === 'void' || inv.isCover !== true) return;
+        var net = inv.coverNetBenefit != null ? +inv.coverNetBenefit : ((+inv.coverVatAmount || 0) - (+inv.coverCommissionAmount || 0));
+        if (net < 0) add(q, 'cover-invoice-negative-benefit', 'فاکتور پوششی/صوری با سود خالص منفی (کارمزد بیش از ارزش‌افزوده)', inv.no || inv.cd, Math.abs(net));
+      });
+    } catch (eCover) {}
     if (typeof ptfProcurementLinkAuditAll === 'function') {
       try { ptfProcurementLinkAuditAll().forEach(function (x) { (x.issues || []).forEach(function (i) { add(q, 'procurement-ambiguous', 'قلم خرید/استعلام نیازمند تطبیق', (x.offer || {}).no || i.index, 0); }); }); } catch (e) {}
     }
