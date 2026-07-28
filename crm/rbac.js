@@ -7,15 +7,23 @@
 /* ============ تعریف نقش‌ها و ماتریس دسترسی ============ */
 var ROLES = {
   /* v14.9 (US-383 — دستور کارفرما): ① دستیار (ai) برای همه نقش‌ها باز شد
-     ② مدیرعامل و مدیر بازرگانی دسترسی کامل هم‌سطح رییس هیات مدیره گرفتند (panels:*، users، finance) */
-  admin:      { lb: 'ادمین (مدیر کل سیستم)',  users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  chairman:   { lb: 'رییس هیات مدیره',         users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  ceo:        { lb: 'مدیرعامل',                users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false },
-  buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false },
-  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty'],                                 buyPrice: false, sellPrice: false, finance: false },
-  collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false }
+     ② مدیرعامل و مدیر بازرگانی دسترسی کامل هم‌سطح رییس هیات مدیره گرفتند (panels:*، users، finance)
+     Phase 2 / Step 4 (ر.ک: crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+     ledgerScope مشخص می‌کند این نقش کدام دفتر را می‌بیند:
+       'all'      → هر دو دفتر رسمی و غیررسمی (نقش‌های ارشد؛ collector هم چون به
+                    پنل recv دسترسی دارد و رفتار قبلی‌اش دیدن همه‌ی فاکتورها بود)
+       'official' → فقط دفتر رسمی (حسابدار — دقیقاً همان رفتار قبلی، فقط اکنون صریح است)
+       'none'     → این نقش اصلاً به پنل‌های دارای فاکتور (inv/recv/petty) دسترسی
+                    ندارد (sales/buyer) — مقدار فقط برای مستندسازی صریح است، رفتار
+                    واقعی هرگز از این طریق بررسی نمی‌شود چون پنل‌شان اصلاً باز نیست */
+  admin:      { lb: 'ادمین (مدیر کل سیستم)',  users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  chairman:   { lb: 'رییس هیات مدیره',         users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  ceo:        { lb: 'مدیرعامل',                users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false, ledgerScope: 'none'     },
+  buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false, ledgerScope: 'none'     },
+  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty'],                                 buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
+  collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'all'      }
 };
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
 var SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
@@ -30,6 +38,18 @@ function curRole() {
 }
 function roleDef() { return ROLES[curRole()] || ROLES.sales; }
 function isSenior() { return SENIOR_ROLES.indexOf(curRole()) > -1; }
+/* Phase 2 / Step 4: تابع عمومی جایگزین شرط‌های هاردکد پراکنده در
+   renderInvoices/renderReceivables (rbac.js) و customer-finance.js.
+   ledgerKind: 'official' | 'unofficial' — آیا نقش فعلی اجازه‌ی دیدن این دفتر را دارد؟
+   رفتار قبلی (فقط accountant از unofficial محروم بود) کاملاً حفظ می‌شود؛
+   نقش‌های 'none' هم به‌طور طبیعی هر دو نوع را نمی‌بینند چون پنل مالی/فاکتور ندارند. */
+function ptfCanSeeLedger(ledgerKind) {
+  var scope = (roleDef() || {}).ledgerScope || 'all';
+  if (scope === 'all') return true;
+  if (scope === 'none') return false;
+  /* scope === 'official' */
+  return ledgerKind !== 'unofficial';
+}
 function canPanel(id) {
   var r = roleDef();
   if (r.panels === '*') return true;
@@ -500,7 +520,7 @@ function renderInvoices() {
   if (!el) return;
   var refd = getData('ptf_crm_offers').filter(function (o) { return o.invRef; });
   var invs = getData('ptf_crm_invoices');
-  if (curRole() === 'accountant') {
+  if (!ptfCanSeeLedger('unofficial')) {
     invs = invs.filter(function (i) { return !i.isUnofficial; });
   }
   var h = '';
@@ -649,7 +669,7 @@ function renderReceivables() {
   var el = document.getElementById('rcWrap');
   if (!el) return;
   var invs = getData('ptf_crm_invoices');
-  if (curRole() === 'accountant') {
+  if (!ptfCanSeeLedger('unofficial')) {
     invs = invs.filter(function (i) { return !i.isUnofficial; });
   }
   var offers = getData('ptf_crm_offers');
