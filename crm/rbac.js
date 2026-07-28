@@ -519,7 +519,7 @@ function renderInvoices() {
   var el = document.getElementById('invWrap');
   if (!el) return;
   var refd = getData('ptf_crm_offers').filter(function (o) { return o.invRef; });
-  var invs = getData('ptf_crm_invoices');
+  var invs = getData('ptf_crm_invoices').filter(function (i) { return i.status !== 'void' && i.st !== 'void' && i.void !== true; });
   if (!ptfCanSeeLedger('unofficial')) {
     invs = invs.filter(function (i) { return !i.isUnofficial; });
   }
@@ -527,6 +527,7 @@ function renderInvoices() {
   refd.forEach(function (o) {
     var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
     var total = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+    var invPaidSum = inv ? ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0) : 0;
     h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
       '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + escP(o.buyerCo || '-') +
@@ -534,6 +535,7 @@ function renderInvoices() {
       (inv ? '<div style="font-size:12px;color:#10b981;margin-top:3px">🧾 فاکتور ' + escP(inv.no) + ' — ' + escP(inv.t) + ' — ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال' +
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +
         ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +
+        (inv.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(inv.editedAt) + ' — ' + escP(inv.editedBy || '') + '</small>' : '') +
         (Math.abs(inv.amount - total) > 0.5 && total ? ' <span style="color:#dc2626">⚠️ مغایرت با CO: ' + Math.round(Math.abs(inv.amount - total) * 100 / total) + '٪</span>' : '') + '</div>' : '') +
       '</div>' +
       '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
@@ -542,6 +544,9 @@ function renderInvoices() {
         ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای فاکتور رسمی" onclick="sfAwardPrint(\'' + escP(o.invRef.fromFile) + '\',\'' + o.no + '\')">🏆 سند قطعی برد (PDF)</button>'
         : '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="offerPrint(\'' + o.no + '\')">⬇️ دانلود CO</button>') +
       (!inv ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\')">+ ثبت فاکتور صادره</button>' : '') +
+      /* فاز ۲ / گام ۷: ویرایش/ابطال فاکتور فروش رسمی — فقط پیش از اولین وصولی، فقط نقش‌های ارشد */
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';
@@ -549,8 +554,19 @@ function renderInvoices() {
     window.ptfTaxReturnsRender();
   }
 }
-function showInvModal(offerNo) {
-  /* v19.3 (US-436 AC2): پنجره کامل حسابدار — مبلغ، ارزش افزوده، شماره، تاریخ، PDF */
+function showInvModal(offerNo, editCd) {
+  /* v19.3 (US-436 AC2): پنجره کامل حسابدار — مبلغ، ارزش افزوده، شماره، تاریخ، PDF
+     فاز ۲ / گام ۷: اگر editCd داده شود، همین دیالوگ در حالت ویرایش باز می‌شود
+     (فیلدها پیش‌پر با رکورد فعلی؛ فقط برای فاکتورهایی که هنوز وصولی ندارند). */
+  window._invEditCd = '';
+  var editRec = null;
+  if (editCd) {
+    editRec = getData('ptf_crm_invoices').filter(function (x) { return x.cd === editCd; })[0];
+    if (!editRec) { alert('⛔ فاکتور یافت نشد'); return; }
+    var paidCheck = ((editRec.payments || []).concat(editRec.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    if (paidCheck > 0) { alert('⛔ این فاکتور دارای وصولی است؛ ویرایش مستقیم مجاز نیست. ابتدا وصولی را ابطال کنید یا از سند اصلاحی سال مالی استفاده کنید.'); return; }
+    window._invEditCd = editCd;
+  }
   var _advTxt = '';
   try {
     var _o = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
@@ -560,20 +576,21 @@ function showInvModal(offerNo) {
     }
   } catch (eAdv) {}
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:520px">' +
-    '<h3>🧾 ثبت فاکتور رسمی صادره — ' + escP(offerNo) + '</h3>' +
-    '<p style="font-size:12px;color:#64748b">فاکتور در سیستم حسابداری صادر شده؛ مشخصات و PDF آن اینجا ثبت و مستقیم در پرونده فروش می‌نشیند (US-436).</p>' + _advTxt +
-    '<div class="fr"><div class="fld"><label>شماره فاکتور حسابداری *</label><input type="text" id="nInvNo" style="direction:ltr"></div>' +
-    '<div class="fld"><label>تاریخ فاکتور *</label><input type="text" id="nInvDate" value="' + escP(faDate()) + '" placeholder="1405/04/21"></div></div>' +
-    '<div class="fr"><div class="fld"><label>مبلغ فاکتور بدون ارزش افزوده (ریال) *</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvAmt" style="direction:ltr" oninput="invVatCalc()"></div>' +
-    '<div class="fld"><label>ارزش افزوده (ریال)</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvVat" style="direction:ltr" oninput="invVatCalc(true)"></div></div>' +
+    '<h3>🧾 ' + (editRec ? 'ویرایش فاکتور رسمی — ' + escP(editRec.no) : 'ثبت فاکتور رسمی صادره') + ' — ' + escP(offerNo) + '</h3>' +
+    '<p style="font-size:12px;color:#64748b">' + (editRec ? 'فقط تا قبل از ثبت اولین وصولی قابل‌ویرایش است؛ پس از آن از سند اصلاحی سال مالی استفاده کنید.' : 'فاکتور در سیستم حسابداری صادر شده؛ مشخصات و PDF آن اینجا ثبت و مستقیم در پرونده فروش می‌نشیند (US-436).') + '</p>' + _advTxt +
+    '<div class="fr"><div class="fld"><label>شماره فاکتور حسابداری *</label><input type="text" id="nInvNo" value="' + escP(editRec ? editRec.no : '') + '" style="direction:ltr"></div>' +
+    '<div class="fld"><label>تاریخ فاکتور *</label><input type="text" id="nInvDate" value="' + escP(editRec ? (editRec.invDate || faDate()) : faDate()) + '" placeholder="1405/04/21"></div></div>' +
+    '<div class="fr"><div class="fld"><label>مبلغ فاکتور بدون ارزش افزوده (ریال) *</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvAmt" value="' + (editRec ? (+editRec.base || 0) : '') + '" style="direction:ltr" oninput="invVatCalc()"></div>' +
+    '<div class="fld"><label>ارزش افزوده (ریال)</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvVat" value="' + (editRec ? (+editRec.vat || 0) : '') + '" style="direction:ltr" oninput="invVatCalc(true)"></div></div>' +
     '<div id="nInvSum" style="font-size:12px;color:#0e7490;font-weight:800;margin-bottom:8px"></div>' +
-    '<div class="fld"><label>فایل فاکتور (PDF/عکس)</label><div id="invUpWrap"></div></div>' +
+    '<div class="fld"><label>' + (editRec ? 'افزودن فایل جدید (اختیاری — فایل‌های قبلی حفظ می‌شوند)' : 'فایل فاکتور (PDF/عکس)') + '</label><div id="invUpWrap"></div></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
-    '<button class="bt" onclick="saveInv(\'' + escP(offerNo) + '\')">ثبت فاکتور</button></div></div></div>';
+    '<button class="bt" onclick="saveInv(\'' + escP(offerNo) + '\')">' + (editRec ? '💾 ذخیره تغییرات' : 'ثبت فاکتور') + '</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   window._invFiles = [];
   if (typeof attachUploadWidget === 'function')
     attachUploadWidget('invUpWrap', 'invoices', function (f) { window._invFiles.push(f); });
+  if (editRec) invVatCalc();
 }
 /* v19.3 (US-436): محاسبه زنده جمع فاکتور — پیشنهاد ۱۰٪ ارزش افزوده با اولین ورود مبلغ */
 function invVatCalc(fromVat) {
@@ -594,7 +611,31 @@ function saveInv(offerNo) {
   if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ثبت فاکتور در آن سال مجاز نیست. از سند اصلاحی استفاده کنید.'); return; }
   var grand = amt + vat;
   var files = window._invFiles || [];
+
+  /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
+     حالت ویرایش — اگر window._invEditCd ست شده باشد، رکورد موجود اصلاح می‌شود
+     (بدون تغییر offerNo/cd/payments و بدون امکان ویرایش پس از وصولی). */
+  var editCd = window._invEditCd || '';
   var invs = getData('ptf_crm_invoices');
+  if (editCd) {
+    var existing = invs.filter(function (x) { return x.cd === editCd; })[0];
+    if (!existing) { alert('⛔ فاکتور برای ویرایش یافت نشد'); return; }
+    var paidSoFar = ((existing.payments || []).concat(existing.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    if (paidSoFar > 0) { alert('⛔ این فاکتور دارای وصولی است؛ برای اصلاح مبلغ ابتدا وصولی‌ها را ابطال کنید یا از سند اصلاحی سال مالی استفاده کنید.'); return; }
+    var oldExistYear = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(existing.invDate || '') : '';
+    if (oldExistYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(oldExistYear)) { alert('🔒 سال مالی ' + oldExistYear + ' قفل است؛ ویرایش فاکتور در آن سال مجاز نیست.'); return; }
+    var oldNo = existing.no, oldAmt = existing.amount;
+    existing.no = no; existing.amount = grand; existing.base = amt; existing.vat = vat; existing.invDate = invDate;
+    if (files.length) { existing.files = (existing.files || []).concat(files); existing.file = existing.files[0] ? existing.files[0].name : existing.file; }
+    existing.editedAt = faDateTime(); existing.editedBy = curSession().name;
+    setData('ptf_crm_invoices', invs);
+    hideModal(); renderInvoices();
+    audit('فاکتور', 'ویرایش فاکتور ' + oldNo + ' → ' + no + ' (' + oldAmt.toLocaleString('fa-IR') + ' → ' + grand.toLocaleString('fa-IR') + ' ریال) برای ' + offerNo, no);
+    if (typeof ptfToast === 'function') ptfToast('✅ فاکتور ویرایش شد', 'ok');
+    window._invEditCd = '';
+    return;
+  }
+
   var _offerMeta = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0] || {};
   /* v31.7.3 BUG-AUDIT-002-FINANCIAL-CODEGEN: فاکتور با کد TMP ذخیره نمی‌شود —
      شماره رسمی فقط از سرور. اگر pool خالی باشد، کاربر باید refresh/ورود مجدد کند. */
@@ -800,6 +841,31 @@ window.ptfInvoicePayVoidPrompt = function (invCd, payRef) {
   if (!res.ok) { alert(msg[res.why] || '⛔ ابطال انجام نشد'); return; }
   renderReceivables();
   if (typeof ptfToast === 'function') ptfToast('ابطال وصولی ثبت شد و ماندهٔ فاکتور بازسازی شد', 'ok');
+};
+
+/* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
+   ابطال فاکتور فروش رسمی — نرم (status:'void')، نه حذف فیزیکی؛ رکورد برای
+   ردپای audit حفظ می‌شود اما در همه‌ی گزارش‌ها/لیست‌ها (renderInvoices،
+   renderReceivables، customer-finance.js، fiscal.js، working-capital.js،
+   commission.js، ...) فیلتر می‌شود چون همگی status!=='void' را چک می‌کنند. */
+window.ptfInvoiceVoid = function (invCd) {
+  if (!isSenior()) { alert('⛔ ابطال فاکتور فروش رسمی فقط برای مدیران ارشد مجاز است'); return; }
+  var invs = getData('ptf_crm_invoices');
+  var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
+  if (!inv) { alert('⛔ فاکتور یافت نشد'); return; }
+  if (inv.status === 'void') { alert('این فاکتور قبلاً ابطال شده است'); return; }
+  var paidSum = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+  if (paidSum > 0) { alert('⛔ این فاکتور دارای وصولی است؛ ابتدا وصولی‌ها را ابطال کنید یا از سند اصلاحی سال مالی استفاده کنید.'); return; }
+  var invYear = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(inv.invDate || inv.t || '') : ((String(inv.invDate || inv.t || '').match(/(13|14)\d{2}/) || [])[0] || '');
+  if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ابطال فاکتور در آن سال مجاز نیست. از سند اصلاحی استفاده کنید.'); return; }
+  var reason = prompt('دلیل ابطال فاکتور «' + inv.no + '» را وارد کنید:', 'اشتباه ثبت');
+  if (reason === null) return;
+  if (!reason.trim()) { alert('⛔ دلیل ابطال الزامی است'); return; }
+  inv.status = 'void'; inv.voidAt = faDateTime(); inv.voidBy = curSession().name; inv.voidReason = reason.trim();
+  setData('ptf_crm_invoices', invs);
+  try { audit('فاکتور', 'ابطال فاکتور ' + inv.no + ' — ' + (inv.amount || 0).toLocaleString('fa-IR') + ' ریال — دلیل: ' + reason.trim(), inv.cd); } catch (e) {}
+  renderInvoices();
+  if (typeof ptfToast === 'function') ptfToast('فاکتور ابطال شد', 'ok');
 };
 
 // درخواست/تایید دسترسی تماس (AC4)

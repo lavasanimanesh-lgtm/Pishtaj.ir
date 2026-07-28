@@ -393,8 +393,13 @@
       var status = invRemain(i, d) > 0 ? 'open' : 'settled', refs = (i.legacyPayableCds || []).map(function (cd) { var p = getData('ptf_crm_payables').filter(function (x) { return x.cd === cd; })[0] || {}; return p.inqNo || cd; }).join('، ');
       if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, link: { kind: 'invoice', cd: i.cd } });
     });
-    (d.payments || []).filter(function (p) { return p.supplierCd === supCd; }).forEach(function (p) {
-      var cheque = p.chequeCd ? getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0] : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، '), isVoid = p.status === 'void';
+    /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
+       طبق تصمیم کارفرما، پرداخت ابطال‌شده باید مثل فاکتور ابطال‌شده کاملاً از
+       گردش حساب محو شود؛ برخلاف رفتار قبلی که با برچسب «پرداخت/چک ابطال‌شده»
+       باقی می‌ماند. رکورد در ptf_crm_supplier_finance حفظ می‌شود (برای
+       audit/رفع‌ابهام آینده)، فقط از این نمای گردش حساب حذف می‌شود. */
+    (d.payments || []).filter(function (p) { return p.supplierCd === supCd && p.status !== 'void'; }).forEach(function (p) {
+      var cheque = p.chequeCd ? getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0] : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، ');
       // v30.6.2: نمایش نام قلم برای پرداخت‌ها اگر item دارد
       var itemNm = p.item || (p.note||'').split(' - ')[0] || '';
       if(!itemNm){
@@ -412,7 +417,7 @@
           }
         }catch(e){}
       }
-      if (keep(p.dateISO || '', p.cur || 'IRR', isVoid ? 'void' : 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: isVoid ? 'پرداخت/چک ابطال‌شده' : (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: isVoid ? 0 : (+p.amount || 0), status: isVoid ? 'void' : 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, link: { kind: 'payment', cd: p.cd } });
+      if (keep(p.dateISO || '', p.cur || 'IRR', 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: (+p.amount || 0), status: 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, link: { kind: 'payment', cd: p.cd } });
     });
     legacyOpen(sup || {}).filter(function (p) { return !linked[p.cd]; }).forEach(function (p) {
       var rem = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : (+p.amount || 0);
