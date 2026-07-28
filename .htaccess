@@ -99,6 +99,13 @@ RewriteRule ^knowledge-center/c-c8ba8a9c\.html$ /knowledge-center/kc-butterfly-v
 RewriteRule ^knowledge-center/c-cf98916b\.html$ /knowledge-center/kc-api-5l-psl-charpy-impact-test.html [R=301,L]
 RewriteRule ^knowledge-center/c-deecb59d\.html$ /knowledge-center/kc-gasket-selection-by-fluid-temperature.html [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۵ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/c-ee885712\.html$ /knowledge-center/kc-ball-valve-seat-material-selection.html [R=301,L]
+RewriteRule ^knowledge-center/c-f1191a37\.html$ /knowledge-center/kc-gate-valve-wedge-sticking-troubleshooting.html [R=301,L]
+RewriteRule ^knowledge-center/c-f1c0b0cf\.html$ /knowledge-center/kc-api-617-surge-control-antisurge.html [R=301,L]
+RewriteRule ^knowledge-center/c-fe118620\.html$ /knowledge-center/kc-astm-a106-heat-treatment-requirements.html [R=301,L]
+RewriteRule ^knowledge-center/k-16db10c6\.html$ /knowledge-center/kc-commissioning-punch-list-management.html [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
