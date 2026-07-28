@@ -23,6 +23,12 @@
   }
 
   var CATS = ['حمل و نقل', 'پیک', 'تست و بازرسی', 'خرید اداری', 'پذیرایی', 'ماموریت', 'سایر'];
+  /* فاز ۲ / گام ۶ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+     طبق تایید کارفرما، تمام دسته‌های تنخواه (شامل «سایر») قابل‌قبول مالیاتی
+     محسوب می‌شوند. این ثابت صرفاً برای مستندسازی صریح این قاعده است — همان
+     CATS بالا را منعکس می‌کند تا اگر در آینده یک دسته‌ی غیرقابل‌قبول اضافه
+     شد، محل تغییرش مشخص باشد. هیچ فیلتری بر اساس این ثابت اعمال نمی‌شود. */
+  window.PTF_PETTY_TAX_DEDUCTIBLE_CATS = CATS.slice();
   var PETTY_KEY = 'ptf_crm_petty', TX_KEY = 'ptf_crm_petty_tx', PERIOD_KEY = 'ptf_crm_petty_periods';
 
   function txAll() { var a = getData(TX_KEY); return Array.isArray(a) ? a : []; }

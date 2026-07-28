@@ -895,11 +895,11 @@
       '  <div class="fr" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
       '    <div class="fld" style="flex:1;min-width:120px">' +
       '      <label>سال مالی</label>' +
-      '      <input id="tpYear" type="number" value="1405" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+      '      <input id="tpYear" type="number" value="1405" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="ptfTaxPlannerLive()">' +
       '    </div>' +
       '    <div class="fld" style="flex:1;min-width:120px">' +
       '      <label>فصل موازنه</label>' +
-      '      <select id="tpSeason" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px">' +
+      '      <select id="tpSeason" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px" onchange="ptfTaxPlannerLive()">' +
       '        <option value="1">🌸 بهار (سه ماهه اول)</option>' +
       '        <option value="2" selected>☀️ تابستان (سه ماهه دوم)</option>' +
       '        <option value="3">🍁 پاییز (سه ماهه سوم)</option>' +
@@ -908,7 +908,7 @@
       '    </div>' +
       '    <div class="fld" style="flex:1;min-width:120px">' +
       '      <label>سود رسمی هدف (٪)</label>' +
-      '      <input id="tpMargin" type="number" value="10" min="1" max="100" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr">' +
+      '      <input id="tpMargin" type="number" value="10" min="1" max="100" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="ptfTaxPlannerLive()">' +
       '    </div>' +
       '    <div style="display:flex;align-items:flex-end">' +
       '      <button class="bt" onclick="ptfTaxPlannerCalculate()">📊 محاسبه و تحلیل موازنه</button>' +
@@ -916,6 +916,13 @@
       '  </div>' +
       '  <div id="tpResultsWrap" style="margin-top:15px"></div>' +
       '</div>';
+  };
+
+  /* فاز ۲ / گام ۶: محاسبه‌ی زنده با debounce کوتاه — دکمه‌ی «محاسبه» همچنان کار می‌کند */
+  var _tpLiveTimer = null;
+  window.ptfTaxPlannerLive = function () {
+    clearTimeout(_tpLiveTimer);
+    _tpLiveTimer = setTimeout(function () { try { window.ptfTaxPlannerCalculate(); } catch (e) {} }, 300);
   };
 
   window.ptfTaxPlannerCalculate = function () {
@@ -937,6 +944,24 @@
       var m = parseInt(parts[1]) || 0;
       return { y: y, m: m };
     }
+    function inSeason(m) {
+      if (season === '1') return m >= 1 && m <= 3;
+      if (season === '2') return m >= 4 && m <= 6;
+      if (season === '3') return m >= 7 && m <= 9;
+      if (season === '4') return m >= 10 && m <= 12;
+      return false;
+    }
+    /* فاز ۲ / گام ۶: طبقه‌بندی از ماژول مشترک official-ledger.js (گام ۱)
+       به‌جای شرط پراکنده — رکوردهای «نامشخص» صریحاً افشا می‌شوند، نه اینکه
+       پنهان به‌عنوان غیررسمی حذف شوند (رفع باگ کشف‌شده در فاز ۱). */
+    function ledgerOfOpexSafe(o) {
+      try { return typeof window.ptfLedgerOfOpex === 'function' ? window.ptfLedgerOfOpex(o) : (o && o.isOfficial === true ? 'official' : (o && o.isOfficial === false ? 'unofficial' : 'unclassified')); }
+      catch (e) { return 'unclassified'; }
+    }
+    function ledgerOfSupplierInvoiceSafe(inv) {
+      try { return typeof window.ptfLedgerOfSupplierInvoice === 'function' ? window.ptfLedgerOfSupplierInvoice(inv) : (inv && inv.isOfficial === true ? 'official' : (inv && inv.isOfficial === false ? 'unofficial' : 'unclassified')); }
+      catch (e) { return 'unclassified'; }
+    }
     
     // ۱. استخراج فروش‌های رسمی مودیان در این فصل
     var invs = getData('ptf_crm_invoices').filter(function (i) {
@@ -945,128 +970,168 @@
       
       var parsed = parseYearMonth(i.invDate || i.t || '');
       if (String(parsed.y) !== String(year)) return false;
-      
-      var m = parsed.m;
-      if (season === '1' && (m >= 1 && m <= 3)) return true;
-      if (season === '2' && (m >= 4 && m <= 6)) return true;
-      if (season === '3' && (m >= 7 && m <= 9)) return true;
-      if (season === '4' && (m >= 10 && m <= 12)) return true;
-      
-      return false;
+      return inSeason(parsed.m);
     });
     
     var salesTotal = invs.reduce(function (sum, i) { return sum + (+i.amount || 0); }, 0);
     
-    // ۲. استخراج خریدهای رسمی ثبت شده در این فصل (که دارای فاکتور رسمی تاییدشده هستند)
+    // ۲. استخراج خریدهای رسمی ثبت شده در این فصل — طبق طبقه‌بندی official-ledger.js
+    //    (فاکتور پوششی/صوری هم اینجا «رسمی» شمرده می‌شود؛ دقیقاً طبق تعریف فاز ۲)
     var supplierData = (function () { try { return JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); } catch (e) { return {}; } })();
-    var sfInvs = (supplierData.invoices || []).filter(function (i) {
+    var allSfInvsInSeason = (supplierData.invoices || []).filter(function (i) {
       if (i.status === 'void') return false;
-      if (i.isOfficial !== true) return false; // فقط خریدهای رسمی با فاکتور رسمی محاسبه شوند!
-      
       var parsed = parseYearMonth(i.dateFa || i.dateISO || '');
       if (String(parsed.y) !== String(year)) return false;
-      
-      var m = parsed.m;
-      if (season === '1' && (m >= 1 && m <= 3)) return true;
-      if (season === '2' && (m >= 4 && m <= 6)) return true;
-      if (season === '3' && (m >= 7 && m <= 9)) return true;
-      if (season === '4' && (m >= 10 && m <= 12)) return true;
-      
-      return false;
+      return inSeason(parsed.m);
     });
+    var sfInvs = allSfInvsInSeason.filter(function (i) { var cls = ledgerOfSupplierInvoiceSafe(i); return cls === 'official' || cls === 'official-cover'; });
+    var sfInvsUnclassified = allSfInvsInSeason.filter(function (i) { return ledgerOfSupplierInvoiceSafe(i) === 'unclassified'; });
     
     var purchaseTotal = sfInvs.reduce(function (sum, i) { return sum + (+i.amountIrr || +i.amount || 0); }, 0);
     
-    // ۳. استخراج هزینه‌های جاری رسمی در این فصل (که دارای فاکتور رسمی ممیزپسند هستند)
-    var opexList = getData('ptf_crm_opex').filter(function (o) {
+    // ۳. استخراج هزینه‌های جاری رسمی در این فصل — طبق طبقه‌بندی official-ledger.js
+    var allOpexInSeason = getData('ptf_crm_opex').filter(function (o) {
       if (o.status === 'void' || o.st === 'void') return false;
-      if (o.isOfficial !== true) return false; // فقط هزینه‌های رسمی OPEX!
-      
       var parsed = parseYearMonth(o.month || o.dateFa || o.t || '');
       if (String(parsed.y) !== String(year)) return false;
-      
-      var m = parsed.m;
-      if (season === '1' && (m >= 1 && m <= 3)) return true;
-      if (season === '2' && (m >= 4 && m <= 6)) return true;
-      if (season === '3' && (m >= 7 && m <= 9)) return true;
-      if (season === '4' && (m >= 10 && m <= 12)) return true;
-      
-      return false;
+      return inSeason(parsed.m);
     });
+    var opexList = allOpexInSeason.filter(function (o) { return ledgerOfOpexSafe(o) === 'official'; });
+    var opexUnclassified = allOpexInSeason.filter(function (o) { return ledgerOfOpexSafe(o) === 'unclassified'; });
     
     var opexTotal = opexList.reduce(function (sum, o) { return sum + (+o.amt || 0); }, 0);
     
-    // ۴. استخراج هزینه‌های تنخواه رسمی در این فصل
+    // ۴. استخراج هزینه‌های تنخواه در این فصل — طبق تصمیم کارفرما، همه‌ی دسته‌ها
+    //    (از جمله «سایر») قابل‌قبول مالیاتی محسوب می‌شوند؛ بدون فیلتر دسته
+    //    (ر.ک: window.PTF_PETTY_TAX_DEDUCTIBLE_CATS در petty.js — گام ۶).
     var pettyList = getData('ptf_crm_petty').filter(function (p) {
       if (p.st === 'void' || p.status === 'void') return false;
-      
       var parsed = parseYearMonth(p.month || p.iso || p.t || '');
       if (String(parsed.y) !== String(year)) return false;
-      
-      var m = parsed.m;
-      if (season === '1' && (m >= 1 && m <= 3)) return true;
-      if (season === '2' && (m >= 4 && m <= 6)) return true;
-      if (season === '3' && (m >= 7 && m <= 9)) return true;
-      if (season === '4' && (m >= 10 && m <= 12)) return true;
-      
-      return false;
+      return inSeason(parsed.m);
     });
     
     var pettyTotal = pettyList.reduce(function (sum, p) { return sum + (+p.amt || 0); }, 0);
     
     // ۵. محاسبات موازنه فصلی به طور کامل
-    var totalExpenses = opexTotal + pettyTotal; // مجموع تنخواه و opex رسمی فاقد مغایرت
+    var totalExpenses = opexTotal + pettyTotal;
     var requiredPurchaseTotal = Math.round(salesTotal * (1 - margin / 100));
     var gap = Math.max(0, requiredPurchaseTotal - purchaseTotal - totalExpenses);
     
-    // ۶. استخراج اقلام فروش رسمی فاقد خرید رسمی و توزیع تناسبی گپ فاکتور خرید
+    // ۶. فاز ۲ / گام ۶: تشخیص کالاهای «بدون خرید مستند» با ماژول تطبیق موجود
+    //    (procurement-link.js) — به‌جای فرض قبلی که همه‌ی اقلام فروش رسمی را
+    //    بدون بررسی «آیا خرید واقعی دارند یا نه» در تخصیص گپ شرکت می‌داد.
     var offers = getData('ptf_crm_offers');
-    var rfqItems = [];
+    var cmps = getData('ptf_crm_buycmp');
+    var canResolve = typeof window.ptfResolveProcurementAcross === 'function' && typeof window.ptfResolvePurchaseForLine === 'function';
+    var noInvoiceItems = []; // اقلام بدون خرید مستند → کاندید تخصیص گپ
+    var ambiguousItems = []; // تطبیق مبهم → نیازمند بررسی دستی، وارد تخصیص نمی‌شود
     
     invs.forEach(function (inv) {
       var o = offers.filter(function (x) { return x.no === inv.offerNo; })[0];
-      if (o && o.items) {
-        o.items.forEach(function (it) {
-          rfqItems.push({
-            name: it.name || it.desc || '',
-            sellPrice: (+it.qty || 1) * (+it.price || 0) * (inv.offerFxRateRef || 1)
-          });
-        });
-      }
+      if (!o || !o.items) return;
+      var relatedCmps = cmps.filter(function (c) { return c.inqNo === o.inqNo || c.inqNo === o.no; });
+      o.items.forEach(function (it) {
+        var sellPrice = (+it.qty || 1) * (+it.price || 0) * (inv.offerFxRateRef || 1);
+        var row = { name: it.name || it.desc || '', offerNo: o.no, sellPrice: sellPrice };
+        if (!canResolve || !relatedCmps.length) {
+          // منبع خرید/استعلام برای این پیشنهاد اصلاً ثبت نشده — طبق رفتار محافظه‌کارانه،
+          // مثل قبل، بدون خرید مستند فرض می‌شود (چون امکان بررسی وجود ندارد).
+          noInvoiceItems.push(row);
+          return;
+        }
+        var linkResult = window.ptfResolveProcurementAcross(it, relatedCmps, { offerNo: o.no });
+        if (!linkResult.ok) {
+          if (linkResult.reason === 'ambiguous-record' || linkResult.reason === 'ambiguous') { ambiguousItems.push(row); return; }
+          noInvoiceItems.push(row); // 'unmatched' یا سایر حالات → بدون خرید مستند
+          return;
+        }
+        var purchaseResult = window.ptfResolvePurchaseForLine(linkResult.record, linkResult.line);
+        if (purchaseResult.ok) return; // خرید واقعی مستند دارد → از تخصیص گپ کنار گذاشته می‌شود
+        if (purchaseResult.reason === 'ambiguous-purchase') { ambiguousItems.push(row); return; }
+        noInvoiceItems.push(row); // 'unmatched' یا 'no-provenance' → بدون خرید مستند
+      });
     });
     
-    var totalWeight = rfqItems.reduce(function (sum, x) { return sum + x.sellPrice; }, 0);
+    var totalWeight = noInvoiceItems.reduce(function (sum, x) { return sum + x.sellPrice; }, 0);
     var allocatedRows = '';
     
     if (gap > 0 && totalWeight > 0) {
-      rfqItems.forEach(function (it, idx) {
+      noInvoiceItems.forEach(function (it, idx) {
         var allocatedShare = Math.round(gap * (it.sellPrice / totalWeight));
+        it._allocated = allocatedShare; // برای دکمه‌ی ثبت مستقیم (گام ۶)
         allocatedRows += '<tr>' +
           '<td>' + toFaDigits(idx + 1) + '</td>' +
           '<td class="text-right">' + escP(it.name) + '</td>' +
           '<td>' + toFaDigits(Math.round(it.sellPrice).toLocaleString('fa-IR')) + ' ریال</td>' +
           '<td style="color:#b45309;font-weight:bold">' + toFaDigits(allocatedShare.toLocaleString('fa-IR')) + ' ریال</td>' +
+          '<td><button class="bt bt-o" style="padding:3px 9px;font-size:11px;color:#7c2d12;border-color:#f59e0b" onclick="ptfTaxPlannerRegisterCover(' + idx + ')">📝 ثبت به‌عنوان فاکتور پوششی</button></td>' +
           '</tr>';
       });
+      window._tpNoInvoiceItems = noInvoiceItems; // نگهداری موقت برای دکمه‌ی ثبت (فقط در حافظه، ذخیره نمی‌شود)
+      window._tpCoverContext = { year: year, season: season };
     } else {
-      allocatedRows = '<tr><td colspan="4" style="color:#94a3b8;text-align:center">هیچ کالا یا گپی در این بازه جهت تخصیص وجود ندارد.</td></tr>';
+      allocatedRows = '<tr><td colspan="5" style="color:#94a3b8;text-align:center">هیچ کالا یا گپی در این بازه جهت تخصیص وجود ندارد.</td></tr>';
     }
+    
+    // هشدار رکوردهای «نامشخص» — طبق طراحی فاز ۲ / گام ۶
+    var unclassifiedWarning = '';
+    var unclassifiedCount = opexUnclassified.length + sfInvsUnclassified.length;
+    if (unclassifiedCount) {
+      var unclassifiedAmt = opexUnclassified.reduce(function (s, o) { return s + (+o.amt || 0); }, 0) + sfInvsUnclassified.reduce(function (s, i) { return s + (+i.amountIrr || +i.amount || 0); }, 0);
+      unclassifiedWarning = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px 12px;margin-top:10px;font-size:12px;color:#9a3412">⚠️ <b>' + unclassifiedCount + ' مورد</b> (' + unclassifiedAmt.toLocaleString('fa-IR') + ' ریال) نوع رسمی/غیررسمی‌شان مشخص نیست و در این محاسبه لحاظ نشده‌اند — لطفاً قبل از اتکا به این گزارش، این رکوردها را در تب «کیفیت داده» تعیین‌تکلیف کنید.</div>';
+    }
+    var ambiguousWarning = ambiguousItems.length
+      ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 12px;margin-top:10px;font-size:12px;color:#1e40af">ℹ️ ' + ambiguousItems.length + ' قلم دارای تطبیق خرید/استعلام مبهم است و در تخصیص گپ لحاظ نشد — برای بررسی به گزارش «تطبیق سراسری خرید/استعلام» (procurement-link.js) مراجعه کنید.</div>'
+      : '';
     
     var seasonNames = { '1': 'بهار', '2': 'تابستان', '3': 'پاییز', '4': 'زمستان' };
     el.innerHTML = '<div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:15px;line-height:1.8;font-size:13px">' +
       '📋 <b>گزارش تراز و برنامه‌ریزی فام (فصل ' + seasonNames[season] + ' ' + year + '):</b><br>' +
       '• مجموع فروش رسمی ثبت شده در مودیان: <b style="color:#0f172a">' + salesTotal.toLocaleString('fa-IR') + ' ریال</b><br>' +
-      '• مجموع خرید رسمی ثبت شده: <b style="color:#0f172a">' + purchaseTotal.toLocaleString('fa-IR') + ' ریال</b><br>' +
+      '• مجموع خرید رسمی ثبت شده (شامل فاکتور پوششی/صوری در صورت وجود): <b style="color:#0f172a">' + purchaseTotal.toLocaleString('fa-IR') + ' ریال</b><br>' +
       '• مجموع هزینه‌های جاری رسمی (OPEX): <b style="color:#0f172a">' + opexTotal.toLocaleString('fa-IR') + ' ریال</b><br>' +
-      '• مجموع هزینه‌های تنخواه رسمی این فصل: <b style="color:#0f172a">' + pettyTotal.toLocaleString('fa-IR') + ' ریال</b><br>' +
+      '• مجموع هزینه‌های تنخواه این فصل <small style="color:#64748b">(همه‌ی دسته‌ها قابل‌قبول مالیاتی فرض می‌شوند)</small>: <b style="color:#0f172a">' + pettyTotal.toLocaleString('fa-IR') + ' ریال</b><br>' +
       '• سقف خرید رسمی مورد نیاز (بر مبنای ' + margin + '٪ سود رسمی): <b style="color:#0e7490">' + requiredPurchaseTotal.toLocaleString('fa-IR') + ' ریال</b><br>' +
       '• <b>میزان کسری فاکتور خرید رسمی هدف که باید بخرید: <span style="color:#dc2626;font-size:15px">' + gap.toLocaleString('fa-IR') + ' ریال</span></b>' +
       '</div>' +
-      (gap > 0 ? 
-      '<h5 style="margin:15px 0 8px 0;font-size:13px;color:#b45309">🎯 جدول پیشنهاد خرید فاکتورهای رسمی (به نسبت سهم فروش اقلام جهت پوشش ممیزی):</h5>' +
+      unclassifiedWarning + ambiguousWarning +
+      (gap > 0 ?
+      '<h5 style="margin:15px 0 8px 0;font-size:13px;color:#b45309">🎯 کالاهای بدون خرید مستند در این فصل (پیشنهاد خرید فاکتور رسمی به نسبت سهم فروش جهت پوشش ممیزی):</h5>' +
       '<div class="tb2"><table><thead><tr>' +
-      '<th>ردیف</th><th>نام کالا</th><th>ارزش فروش رسمی</th><th>مبلغ فاکتور خرید رسمی پیشنهادی جهت خرید</th>' +
+      '<th>ردیف</th><th>نام کالا</th><th>ارزش فروش رسمی</th><th>مبلغ فاکتور خرید رسمی پیشنهادی</th><th></th>' +
       '</tr></thead><tbody>' + allocatedRows + '</tbody></table></div>' : '');
+  };
+
+  /* فاز ۲ / گام ۶: ثبت مستقیم مبلغ تخصیص‌یافته به‌عنوان فاکتور پوششی —
+     فرم supplier-finance.js (گام ۵) را با مقادیر پیش‌پرشده باز می‌کند.
+     خودِ این تابع هیچ رکوردی ذخیره نمی‌کند؛ فقط پل بین دو ابزار موجود است. */
+  window.ptfTaxPlannerRegisterCover = function (idx) {
+    var items = window._tpNoInvoiceItems || [];
+    var it = items[idx];
+    if (!it) { alert('این ردیف دیگر معتبر نیست — لطفاً دوباره محاسبه کنید.'); return; }
+    if (typeof isSenior === 'function' && !isSenior()) { alert('⛔ ثبت فاکتور پوششی/صوری فقط برای مدیران ارشد مجاز است'); return; }
+    if (typeof window.slNewInvoice !== 'function' && typeof window.slInvoiceForm !== 'function') {
+      alert('⛔ ماژول حساب تأمین‌کنندگان بارگذاری نشده است.');
+      return;
+    }
+    var ctx = window._tpCoverContext || {};
+    var prefill = {
+      amount: Math.round(it._allocated || 0),
+      note: 'تخصیص‌شده توسط داشبورد موازنه فصلی برای پوشش کالای «' + (it.name || '') + '» (پیشنهاد ' + (it.offerNo || '') + ')',
+      cover: true,
+      coverPeriod: { year: ctx.year || '', season: ctx.season || '' }
+    };
+    ptfDialog({
+      title: '🧾 انتخاب تأمین‌کننده برای فاکتور پوششی',
+      body: 'مبلغ (' + prefill.amount.toLocaleString('fa-IR') + ' ریال) از داشبورد موازنه فصلی پیش‌پر می‌شود؛ درصد کارمزد و تاییدیه را در فرم بعدی تکمیل کنید.',
+      fields: [{ id: 'sup', label: 'تأمین‌کننده *', type: 'select', optionsHtml: '<option value="">— انتخاب کنید —</option>' + (getData('ptf_crm_suppliers') || []).map(function (s) { return '<option value="' + escP(s.cd) + '">' + escP(s.co || s.cd) + '</option>'; }).join(''), required: true }],
+      okText: 'ادامه',
+      onOk: function (v) {
+        if (!v.sup) { alert('تأمین‌کننده را انتخاب کنید'); return; }
+        window.slInvoiceForm(v.sup, prefill);
+      }
+    });
   };
 
   // تزریق به انتهای هاب مالی پروداکشن
