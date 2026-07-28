@@ -9,6 +9,21 @@
     if (ref && map[id].refs.length < 8) map[id].refs.push(String(ref));
   }
   function yearOf(v) { return typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(v) : ((String(v || '').match(/(13|14)\d{2}/) || [])[0] || ''); }
+  /* فاز ۲ / گام ۲ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+     تشخیص رکوردهای هزینه جاری (OPEX) و فاکتور خرید تأمین‌کننده که هیچ‌گاه
+     نوع رسمی/غیررسمی‌شان تعیین نشده (مثلاً رکوردهای ساخته‌شده توسط
+     ptfOpexApplyTpl یا همگام‌سازی حقوق سهامداران در shareholders.js —
+     ر.ک: فاز ۱ ANALYSIS-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE1.md).
+     این تابع فقط از official-ledger.js می‌خواند؛ هیچ پیش‌فرضی حدس نمی‌زند
+     و هیچ رکوردی را تغییر نمی‌دهد — صرفاً فهرست برای بررسی دستی کارفرما/حسابدار. */
+  function ledgerOfOpexSafe(o) {
+    try { return typeof window.ptfLedgerOfOpex === 'function' ? window.ptfLedgerOfOpex(o) : (o && o.isOfficial === true ? 'official' : (o && o.isOfficial === false ? 'unofficial' : 'unclassified')); }
+    catch (e) { return 'unclassified'; }
+  }
+  function ledgerOfSupplierInvoiceSafe(inv) {
+    try { return typeof window.ptfLedgerOfSupplierInvoice === 'function' ? window.ptfLedgerOfSupplierInvoice(inv) : (inv && inv.isOfficial === true ? 'official' : (inv && inv.isOfficial === false ? 'unofficial' : 'unclassified')); }
+    catch (e) { return 'unclassified'; }
+  }
   window.ptfDataQualityData = function () {
     var q = {}, invoices = arr('ptf_crm_invoices'), payables = arr('ptf_crm_payables'), cheques = arr('ptf_crm_cheques');
     invoices.forEach(function (i) {
@@ -24,11 +39,27 @@
       if (c.st === 'open' && !c.ownership) add(q, 'cheque-ownerless', 'چک باز با مالکیت نامشخص', c.sayad || c.no || c.cd, c.amt);
       if (c.st === 'open' && !c.dueISO) add(q, 'cheque-undated', 'چک باز بدون تاریخ سررسید', c.sayad || c.no || c.cd, c.amt);
     });
+    /* فاز ۲ / گام ۲: هزینه‌های جاری (OPEX) بدون تعیین نوع رسمی/غیررسمی —
+       این‌ها در گزارش‌های تراز فصلی/سال مالی عمداً به‌عنوان «نامشخص» کنار
+       گذاشته می‌شوند تا پنهان و به‌اشتباه غیررسمی حساب نشوند. */
+    arr('ptf_crm_opex').forEach(function (o) {
+      if (o.st === 'void') return;
+      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt);
+    });
+    /* فاز ۲ / گام ۲: فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی */
+    try {
+      var sfData = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+      (sfData.invoices || []).forEach(function (inv) {
+        if (inv.status === 'void') return;
+        if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') add(q, 'supplier-invoice-unclassified', 'فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی', inv.no || inv.cd, inv.amountIrr || inv.amount);
+      });
+    } catch (eSf) {}
     if (typeof ptfProcurementLinkAuditAll === 'function') {
       try { ptfProcurementLinkAuditAll().forEach(function (x) { (x.issues || []).forEach(function (i) { add(q, 'procurement-ambiguous', 'قلم خرید/استعلام نیازمند تطبیق', (x.offer || {}).no || i.index, 0); }); }); } catch (e) {}
     }
     return Object.keys(q).map(function (k) { return q[k]; }).sort(function (a, b) { return b.count - a.count || a.id.localeCompare(b.id); });
   };
+
   window.ptfDataQualityHtml = function () {
     if (typeof curRole === 'function' && ['admin', 'chairman'].indexOf(curRole()) < 0) return '';
     var rows = window.ptfDataQualityData();
