@@ -85,6 +85,13 @@ RewriteRule ^knowledge-center/c-30a5b25f\.html$ /knowledge-center/kc-api-610-pum
 RewriteRule ^knowledge-center/c-5194b1ee\.html$ /knowledge-center/kc-304-vs-316-corrosion-resistance.html [R=301,L]
 RewriteRule ^knowledge-center/c-731e2fea\.html$ /knowledge-center/kc-reciprocating-pump-packing-seal-guide.html [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۳ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/c-8db77720\.html$ /knowledge-center/kc-a335-p11-p22-p91-welding-procedure.html [R=301,L]
+RewriteRule ^knowledge-center/c-92763130\.html$ /knowledge-center/kc-load-cell-calibration-procedure.html [R=301,L]
+RewriteRule ^knowledge-center/c-99c5d14b\.html$ /knowledge-center/kc-pressure-transmitter-range-selection.html [R=301,L]
+RewriteRule ^knowledge-center/c-ac49330b\.html$ /knowledge-center/kc-ct-pt-accuracy-class-burden.html [R=301,L]
+RewriteRule ^knowledge-center/c-b415b972\.html$ /knowledge-center/kc-pressure-gauge-glycerin-fill-guide.html [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------

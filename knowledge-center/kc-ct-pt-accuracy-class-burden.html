@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>کلاس دقت و بار مجاز CT/PT — انتخاب صحیح برای اندازه‌گیری و حفاظت | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="راهنمای فنی کلاس دقت ترانسفورماتور جریان CT برای اندازه‌گیری و حفاظت (5P10, 5P20)، محاسبه Burden مدار ثانویه، و اثر طول سیم‌کشی بر دقت CT و PT." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="کلاس دقت و بار مجاز CT/PT — انتخاب صحیح برای اندازه‌گیری و حفاظت" />
+<meta property="og:description" content="راهنمای فنی کلاس دقت ترانسفورماتور جریان CT برای اندازه‌گیری و حفاظت (5P10, 5P20)، محاسبه Burden مدار ثانویه، و اثر طول سیم‌کشی بر دقت CT و PT." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "کلاس دقت و Burden CT/PT", "item": "https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html"}]}, {"@type": ["TechArticle", "Article"], "headline": "کلاس دقت و بار مجاز CT/PT — انتخاب صحیح برای اندازه‌گیری و حفاظت", "description": "راهنمای فنی کلاس دقت ترانسفورماتور جریان CT برای اندازه‌گیری و حفاظت (5P10, 5P20)، محاسبه Burden مدار ثانویه، و اثر طول سیم‌کشی بر دقت CT و PT.", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "dateModified": "2026-07-28", "datePublished": "2026-07-01", "articleSection": "برق صنعتی و اتوماسیون"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "چرا نمی‌توان یک CT را هم برای اندازه‌گیری هم برای حفاظت استفاده کرد؟", "acceptedAnswer": {"@type": "Answer", "text": "چون این دو کاربرد الزامات کاملاً متفاوتی دارند؛ هستهٔ اندازه‌گیری در جریان خطای بالا اشباع می‌شود و نمی‌تواند سیگنال قابل‌اعتماد برای رله حفاظتی تولید کند. به همین دلیل معمولاً از CT چندهسته‌ای با هستهٔ جداگانه برای هر کاربرد استفاده می‌شود."}}, {"@type": "Question", "name": "5P10 در کلاس دقت CT حفاظتی به چه معناست؟", "acceptedAnswer": {"@type": "Answer", "text": "عدد ۵ درصد حداکثر خطای مرکب مجاز و عدد ۱۰ ضریب حد دقت (چند برابر جریان نامی که CT باید بدون اشباع بیش‌ازحد کار کند) را نشان می‌دهد."}}, {"@type": "Question", "name": "چرا طول سیم‌کشی بین CT و تابلوی کنترل روی دقت اثر می‌گذارد؟", "acceptedAnswer": {"@type": "Answer", "text": "چون مقاومت سیم‌کشی بخشی از بار کل (Burden) مدار ثانویه محسوب می‌شود؛ سیم‌کشی طولانی با مقطع ناکافی می‌تواند بار واقعی را از بار نامی CT فراتر ببرد و دقت را کاهش دهد."}}, {"@type": "Question", "name": "آیا بار خیلی کمتر از نامی همیشه بی‌ضرر است؟", "acceptedAnswer": {"@type": "Answer", "text": "معمولاً حساسیت کمتری نسبت به بار بالا دارد، اما برخی CTها برای محدودهٔ مشخصی از بار بهینه طراحی شده‌اند و انحراف زیاد از آن محدوده می‌تواند دقت را جزئی کاهش دهد."}}]}]}</script>
+<style>
+.article-hero{background:linear-gradient(135deg,#151517,#2d2d31);min-height:220px;display:flex;align-items:center;padding:130px 0 50px;color:#fff;position:relative}
+.article-hero .container{position:relative;z-index:1}
+.article-hero h1{font-size:clamp(24px,3.2vw,38px);margin:0 0 10px;line-height:1.3}
+.article-wrap{max-width:900px;margin:40px auto;padding:0 20px}
+.article-content{background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;font-size:16px;color:#334155;box-shadow:0 16px 42px rgba(0,0,0,.07)}
+.article-content h2{font-size:clamp(22px,2.8vw,32px);margin:40px 0 16px;color:#1e293b;font-weight:900;padding-bottom:8px;border-bottom:2px solid #f1f5f9}
+.article-content h3{font-size:19px;margin:30px 0 12px;color:#1e293b}
+.article-content p{margin:0 0 18px}
+.article-content ul,.article-content ol{margin:0 0 18px;padding-right:22px}
+.article-content li{margin-bottom:8px}
+.article-content a{color:var(--red);font-weight:900}
+.article-content table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.article-content th,.article-content td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top;text-align:right}
+.article-content th{background:#f1f5f9;color:#334155}
+.article-cta{background:linear-gradient(135deg,#f8fafc,#fff);border:2px solid var(--line);border-radius:24px;padding:30px;text-align:center;margin:40px 0 0}
+.related-articles{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:30px 0}
+.rel-item{padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fafc;text-decoration:none;transition:.2s}
+.rel-item:hover{border-color:var(--red)}
+.rel-item b{display:block;color:#1e293b;font-size:14px}
+.rel-item span{font-size:12px;color:#64748b}
+@media(max-width:700px){.article-content{padding:24px}.related-articles{grid-template-columns:1fr}}
+.faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}
+.note-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:14px 16px;margin:16px 0}
+.ok-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:14px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+<section class="article-hero">
+<div class="container">
+<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">برق صنعتی — تکمیلی</span>
+<h1>کلاس دقت و بار مجاز ترانسفورماتورهای CT/PT</h1>
+<p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
+</div>
+</section>
+<div class="article-wrap">
+<div class="article-content">
+
+<p style="font-size:17px"><b>کلاس دقت و بار مجاز ترانسفورماتورهای CT/PT</b> — این مقاله برخلاف معرفی کلی کاربرد CT و PT، مستقیماً به دو پارامتر فنی حیاتی می‌پردازد که در انتخاب نادرست آن‌ها می‌تواند سیستم حفاظت یا اندازه‌گیری فشار قوی را از کار بیندازد: کلاس دقت (Accuracy Class) و بار مجاز (Burden).</p>
+
+<h2>چرا یک CT برای اندازه‌گیری و حفاظت نیاز به هستهٔ متفاوت دارد؟</h2>
+<p>ترانسفورماتور جریان (CT) برای دو کاربرد اصلی استفاده می‌شود که الزامات کاملاً متفاوتی دارند: <b>اندازه‌گیری</b> (Metering) که نیاز به دقت بالا در جریان‌های نرمال عملیاتی دارد، و <b>حفاظت</b> (Protection) که نیاز به عملکرد قابل‌اعتماد در جریان‌های خطای بسیار بالا (چندین برابر جریان نامی) دارد. یک هستهٔ CT طراحی‌شده برای دقت بالا در جریان نرمال (کلاس اندازه‌گیری)، در جریان خطای بسیار بالا اشباع می‌شود و دیگر سیگنال قابل‌اعتمادی برای عملکرد صحیح رله‌های حفاظتی تولید نمی‌کند. به همین دلیل، در تابلوهای برق فشار متوسط و بالا، معمولاً از CT با چند هستهٔ مجزا (یکی برای اندازه‌گیری، یکی یا چند مورد برای حفاظت) استفاده می‌شود.</p>
+
+<h2>کلاس دقت CT برای اندازه‌گیری</h2>
+<table>
+<thead><tr><th>کلاس دقت</th><th>حداکثر خطا در جریان نامی</th><th>کاربرد معمول</th></tr></thead>
+<tbody>
+<tr><td>۰.۱</td><td>۰.۱٪</td><td>اندازه‌گیری آزمایشگاهی و کالیبراسیون دقیق</td></tr>
+<tr><td>۰.۲S / ۰.۵S</td><td>۰.۲٪ / ۰.۵٪ (با دقت بهبودیافته در بار سبک)</td><td>اندازه‌گیری تجاری/معاملاتی (Revenue Metering) که دقت در بار کم هم مهم است</td></tr>
+<tr><td>۰.۵ / ۱</td><td>۰.۵٪ / ۱٪</td><td>اندازه‌گیری صنعتی عمومی، پایش مصرف داخلی</td></tr>
+<tr><td>۳ / ۵</td><td>۳٪ / ۵٪</td><td>نشان‌دهنده‌های آنالوگ ساده که دقت بالا لازم نیست</td></tr>
+</tbody>
+</table>
+
+<h2>کلاس دقت CT برای حفاظت — منطق کاملاً متفاوت</h2>
+<p>کلاس‌های حفاظتی (مانند 5P10، 5P20، 10P10) با نمادی متفاوت بیان می‌شوند: عدد اول (مثلاً ۵ یا ۱۰) درصد خطای مرکب مجاز در جریان محدودکنندهٔ دقت (Accuracy Limit Current) را نشان می‌دهد، و عدد دوم (مثلاً ۱۰ یا ۲۰) ضریب حد دقت (Accuracy Limit Factor یا ALF) است — یعنی چند برابر جریان نامی، CT باید بدون اشباع بیش‌ازحد کار کند. برای مثال، CT با کلاس 5P10 باید تا ۱۰ برابر جریان نامی، خطای مرکب کمتر از ۵٪ داشته باشد؛ این ویژگی برای تشخیص صحیح رله در شرایط خطای واقعی (که جریان می‌تواند به چندین برابر مقدار نرمال برسد) حیاتی است.</p>
+<div class="note-box"><b>هشدار مهندسی:</b> استفاده از CT با کلاس اندازه‌گیری (مانند 0.5) برای کاربرد حفاظتی، یک اشتباه خطرناک است؛ در جریان خطای بالا، این هستهٔ اندازه‌گیری اشباع می‌شود و رله‌های حفاظتی متصل به آن ممکن است سیگنال کافی برای تشخیص و قطع سریع خطا دریافت نکنند — تاخیر در عملکرد حفاظتی می‌تواند خسارت تجهیزات و خطر ایمنی جدی ایجاد کند.</div>
+
+<h2>Burden یا بار مجاز — چرا انتخاب اشتباه دقت را نابود می‌کند؟</h2>
+<p>Burden به بار الکتریکی (امپدانس) متصل به ثانویهٔ CT یا PT گفته می‌شود — شامل مقاومت سیم‌کشی، رله‌ها، کنتورها و سایر تجهیزات متصل. کلاس دقت اعلام‌شدهٔ CT/PT فقط در محدودهٔ بار مشخص‌شده (Rated Burden) معتبر است. اگر بار واقعی متصل‌شده (مثلاً به دلیل سیم‌کشی طولانی با مقاومت بالا، یا اتصال چند دستگاه هم‌زمان به یک CT) از بار نامی فراتر رود، دقت واقعی CT به‌طور قابل‌توجهی افت می‌کند، حتی اگر خود CT کاملاً سالم و با کیفیت باشد.</p>
+<p>نکتهٔ مهم دیگر این است که بار خیلی کمتر از نامی هم همیشه بی‌ضرر نیست؛ برخی CTها برای دقت بهینه در محدودهٔ مشخصی از بار طراحی شده‌اند و انحراف زیاد از آن محدوده (چه بیشتر و چه کمتر) می‌تواند دقت را کاهش دهد، هرچند حساسیت به بار پایین معمولاً کمتر از حساسیت به بار بالا است.</p>
+
+<h2>محاسبهٔ عملی Burden در طراحی تابلو برق</h2>
+<p>هنگام طراحی مدار ثانویهٔ CT، باید مجموع امپدانس تمام تجهیزات متصل (رله، کنتور، آمپرمتر) به‌علاوهٔ مقاومت سیم‌کشی محاسبه و با بار نامی CT مقایسه شود. طول سیم‌کشی بین CT و تابلوی کنترل، به‌ویژه در تاسیسات بزرگ با فاصلهٔ زیاد، می‌تواند سهم قابل‌توجهی از بار کل را تشکیل دهد و در محاسبات اولیه گاهی دست‌کم گرفته می‌شود.</p>
+
+<h2>ولتاژ نامی و کلاس دقت PT — اصول مشابه با تفاوت‌های خاص</h2>
+<p>ترانسفورماتور ولتاژ (PT یا VT) اصول مشابهی با CT دارد اما به دلیل ماهیت مدار ولتاژی (نه جریانی)، برخی ملاحظات متفاوت است: بار PT به‌صورت توان ظاهری (VA) در ولتاژ نامی ثانویه بیان می‌شود، و کلاس دقت آن (مانند 0.2، 0.5، 1، 3) مشابه CT برای اندازه‌گیری تعریف شده است. برای کاربرد حفاظتی، PT هم می‌تواند کلاس‌های اختصاصی (مانند 3P یا 6P) داشته باشد که رفتار در شرایط افت ولتاژ ناشی از خطا (نه اضافه‌جریان مانند CT) را تضمین می‌کند.</p>
+
+<h2>چک‌لیست انتخاب برای مهندس طراحی تابلو برق</h2>
+<ul>
+<li>کاربرد نهایی (اندازه‌گیری تجاری، اندازه‌گیری صنعتی، یا حفاظت) را برای هر هستهٔ CT به‌طور جداگانه مشخص کنید.</li>
+<li>برای کاربرد حفاظتی، کلاس مناسب (مانند 5P10 یا 5P20) بر اساس نیاز رلهٔ حفاظتی خاص را با مهندس حفاظت هماهنگ کنید.</li>
+<li>مجموع بار واقعی مدار ثانویه (شامل طول سیم‌کشی) را محاسبه و با بار نامی CT/PT مقایسه کنید.</li>
+<li>در صورت فاصلهٔ زیاد بین CT و تابلوی کنترل، از سیم با مقطع کافی برای کاهش سهم مقاومت سیم در بار کل استفاده کنید.</li>
+</ul>
+
+
+<h2>پدیدهٔ اشباع CT و اثر آن بر عملکرد رله دیفرانسیل</h2>
+<p>یکی از حساس‌ترین کاربردهای CT، تغذیهٔ رله‌های حفاظت دیفرانسیل (Differential Protection) ترانسفورماتور یا ژنراتور است، که در آن جریان دو یا چند CT با یکدیگر مقایسه می‌شود تا هرگونه عدم‌تطابق (نشانهٔ خطای داخلی) تشخیص داده شود. اگر یکی از این CTها زودتر از دیگری اشباع شود (مثلاً به دلیل تفاوت جزئی در مشخصات فنی دو CT با وجود کلاس دقت اسمی یکسان)، رله ممکن است یک خطای خارجی (که واقعاً وجود ندارد) را به اشتباه به‌عنوان خطای داخلی تشخیص دهد و باعث قطع نادرست (False Trip) شود. به همین دلیل، در طراحی حفاظت دیفرانسیل، انتخاب CTهای کاملاً مشابه (از نظر کلاس دقت، ضریب حد دقت و در صورت امکان از یک سازنده و باچ تولید) برای تمام نقاط اندازه‌گیری توصیه می‌شود.</p>
+
+<h2>تست‌های میدانی برای تایید عملکرد صحیح CT/PT پس از نصب</h2>
+<p>پس از نصب، توصیه می‌شود تست‌های زیر برای اطمینان از عملکرد صحیح انجام شود: تست نسبت تبدیل (Ratio Test) برای تایید نسبت واقعی جریان/ولتاژ اولیه به ثانویه، تست پلاریته (Polarity Test) برای اطمینان از جهت صحیح اتصال (اتصال با پلاریتهٔ اشتباه می‌تواند باعث خواندن معکوس یا عملکرد نادرست رله‌های جهت‌دار شود)، و در موارد حساس، تست اشباع (Saturation Test) برای تایید عملکرد در جریان‌های بالا مطابق کلاس دقت اعلام‌شده. این تست‌ها، به‌ویژه برای CTهای حفاظتی در پروژه‌های بحرانی، باید بخشی از فرآیند Commissioning باشند، نه صرفاً اتکا به گواهی کارخانه‌ای.</p>
+<p>یک نکتهٔ ایمنی حیاتی که باید همیشه رعایت شود: مدار ثانویهٔ CT هرگز نباید در حالت باز (Open Circuit) رها شود در حالی که جریان اولیه برقرار است؛ برخلاف PT که می‌تواند ثانویهٔ باز داشته باشد، مدار باز CT با جریان اولیه در جریان می‌تواند ولتاژ بسیار بالا و خطرناک در ثانویه القا کند که هم برای تجهیزات و هم برای پرسنل خطرناک است. به همین دلیل، قبل از هرگونه کار روی مدار ثانویهٔ CT (مانند تعویض رله یا کنتور)، باید ابتدا ثانویه با یک شورتینگ سوئیچ (Shorting Switch) اتصال کوتاه شود.</p><p>این نکته باید در دستورالعمل‌های ایمنی کار (Permit to Work) و آموزش پرسنل تعمیرات برق فشار متوسط و بالا به‌صراحت درج شود، چون بی‌توجهی به آن یکی از علل شناخته‌شدهٔ حوادث جدی برق در تاسیسات صنعتی است.</p><p>تیم مهندسی پیشرو تجهیز فرتاک می‌تواند در هماهنگی مشخصات فنی CT/PT با نیاز واقعی طراحی حفاظت و اندازه‌گیری تابلوهای برق پروژهٔ شما، مشاورهٔ فنی رایگان ارائه دهد.</p><h2>جمع‌بندی</h2>
+<p>انتخاب صحیح کلاس دقت و محاسبهٔ دقیق بار مجاز، پایهٔ عملکرد قابل‌اعتماد سیستم‌های اندازه‌گیری و حفاظت فشار متوسط و بالا است. تیم مهندسی پیشرو تجهیز فرتاک با شناخت این الزامات فنی، در انتخاب و هماهنگی مشخصات CT/PT متناسب با نیاز اندازه‌گیری یا حفاظت پروژهٔ شما همراه است.</p>
+
+<h2>سوالات پرتکرار</h2>
+<div class="faq-list">
+<details><summary>چرا نمی‌توان یک CT را هم برای اندازه‌گیری هم برای حفاظت استفاده کرد؟</summary><p>چون این دو کاربرد الزامات کاملاً متفاوتی دارند؛ هستهٔ اندازه‌گیری در جریان خطای بالا اشباع می‌شود و نمی‌تواند سیگنال قابل‌اعتماد برای رله حفاظتی تولید کند. به همین دلیل معمولاً از CT چندهسته‌ای با هستهٔ جداگانه برای هر کاربرد استفاده می‌شود.</p></details><details><summary>5P10 در کلاس دقت CT حفاظتی به چه معناست؟</summary><p>عدد ۵ درصد حداکثر خطای مرکب مجاز و عدد ۱۰ ضریب حد دقت (چند برابر جریان نامی که CT باید بدون اشباع بیش‌ازحد کار کند) را نشان می‌دهد.</p></details><details><summary>چرا طول سیم‌کشی بین CT و تابلوی کنترل روی دقت اثر می‌گذارد؟</summary><p>چون مقاومت سیم‌کشی بخشی از بار کل (Burden) مدار ثانویه محسوب می‌شود؛ سیم‌کشی طولانی با مقطع ناکافی می‌تواند بار واقعی را از بار نامی CT فراتر ببرد و دقت را کاهش دهد.</p></details><details><summary>آیا بار خیلی کمتر از نامی همیشه بی‌ضرر است؟</summary><p>معمولاً حساسیت کمتری نسبت به بار بالا دارد، اما برخی CTها برای محدودهٔ مشخصی از بار بهینه طراحی شده‌اند و انحراف زیاد از آن محدوده می‌تواند دقت را جزئی کاهش دهد.</p></details>
+</div>
+<h2>مطالب مرتبط</h2>
+<div class="related-articles">
+<a class="rel-item" href="kc-ct-pt.html"><b>راهنمای کامل ترانسفورماتورهای جریان (CT) و ولتاژ (PT)</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="kc-ansi-50-51-87-21.html"><b>راهنمای کامل رله‌های حفاظتی در تابلو برق</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="kc-mv-switchgear.html"><b>راهنمای کامل تابلوهای برق فشار متوسط</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="../services/electrical-equipment/"><b>خدمات تجهیزات برق صنعتی</b><span>مرکز دانش فنی</span></a>
+</div>
+</div>
+<div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:32px">📋</span>
+    <div>
+      <b style="font-size:16px;color:#1e293b;display:block;margin-bottom:4px">درخواست استعلام فنی و استعلام قیمت تخصصی: کلاس دقت و بار مجاز CT/PT — انتخاب صحیح برای اندازه‌گیری و حفاظت</b>
+      <span style="font-size:13px;color:#475569">کارشناسان فنی پیشرو تجهیز فرتاک آماده بررسی MTO و مشخصات فنی پروژه شما هستند.</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a href="../rfq/?item=%D8%AA%D8%B1%D8%A7%D9%86%D8%B3%D9%81%D9%88%D8%B1%D9%85%D8%A7%D8%AA%D9%88%D8%B1%20CT%20%D9%88%20PT%20%D8%A8%D8%A7%20%DA%A9%D9%84%D8%A7%D8%B3%20%D8%AF%D9%82%D8%AA%20%D9%85%D8%B4%D8%AE%D8%B5" class="cro-btn" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:14px;box-shadow:0 6px 20px rgba(239,75,26,0.25);transition:.2s">ثبت استعلام هوشمند قیمت ←</a>
+    <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
+  </div>
+</div>
+</div>
+<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px; object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;">• سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;">• رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;">• ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;">• مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;">• مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;">🔐 ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+</body>
+</html>
