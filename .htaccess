@@ -78,6 +78,13 @@ RewriteRule ^knowledge-center/c-0f2066e2\.html$ /knowledge-center/kc-erw-hfw-wel
 RewriteRule ^knowledge-center/c-e344ab2a\.html$ /knowledge-center/kc-shell-tube-heat-exchanger-tema-guide.html [R=301,L]
 RewriteRule "^knowledge-center/ابزار دقیق-68bf20a7\.html$" "/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/c-1b253b88\.html$ /knowledge-center/kc-sawh-vs-lsaw-comparison.html [R=301,L]
+RewriteRule ^knowledge-center/c-2de72186\.html$ /knowledge-center/kc-plc-programming-languages-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-30a5b25f\.html$ /knowledge-center/kc-api-610-pump-curve-reading-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-5194b1ee\.html$ /knowledge-center/kc-304-vs-316-corrosion-resistance.html [R=301,L]
+RewriteRule ^knowledge-center/c-731e2fea\.html$ /knowledge-center/kc-reciprocating-pump-packing-seal-guide.html [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
