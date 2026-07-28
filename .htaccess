@@ -66,6 +66,19 @@ RewriteRule ^blog/rfq-industrial-equipment\.html$ /blog/rfq-industrial-equipment
 # piping-supply.html, procurement-logistics.html, valves-supply.html
 
 # ------------------------------------------------------------------
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱ (۵ مقالهٔ اول از ۹۹ مقالهٔ برنامه‌ریزی‌شده):
+# این ۵ صفحه با نام قدیمی (استاب کم‌محتوا یا نام غیرقابل‌کرال) حذف و با محتوای
+# عمیق ۱۵۰۰+ کلمه‌ای در URL جدید و خواناتر بازنویسی شدند. ریدایرکت ۳۰۱ تضمین
+# می‌کند بک‌لینک/بوکمارک قدیمی به نسخهٔ جدید هدایت شود. قبل از اعمال روی
+# production حتماً روی staging تست شود (طبق درخواست صریح کاربر).
+# ------------------------------------------------------------------
+RewriteRule ^knowledge-center/c-00c8eb70\.html$ /knowledge-center/kc-air-cooled-fin-fan-selection-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-04108b23\.html$ /knowledge-center/kc-api-618-vibration-pulsation-analysis.html [R=301,L]
+RewriteRule ^knowledge-center/c-0f2066e2\.html$ /knowledge-center/kc-erw-hfw-weld-seam-inspection.html [R=301,L]
+RewriteRule ^knowledge-center/c-e344ab2a\.html$ /knowledge-center/kc-shell-tube-heat-exchanger-tema-guide.html [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-68bf20a7\.html$" "/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" [R=301,L]
+
+# ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
 <IfModule mod_deflate.c>
