@@ -21,7 +21,8 @@ on:
       - 'site/**'      # مسیر توسعه وب‌سایت
       - 'crm/**'       # مسیر توسعه CRM
       - 'staging/**'   # سازگاری با نام‌گذاری قبلی
-
+      - 'arena/**'     # نشست‌های Arena — پوش خودکار روی استیجینگ
+      
 concurrency:
   group: deploy-staging
   cancel-in-progress: false
