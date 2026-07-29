@@ -177,6 +177,26 @@
     }
   }
 
+  /* AUD-09 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     هنگام ثبت (pettyAdd)، اگر هزینه به یک پرونده‌ی فروش لینک شود، یک
+     costEvent متناظر در deal.costEvents ساخته می‌شود (برای این‌که در سود
+     پروژه لحاظ شود بدون دوباره‌شماری با OPEX). این تابع، عکس همان عملیات
+     را انجام می‌دهد — دقیقاً مطابق الگوی درست موجود در opex.js#ptfOpexDel —
+     تا وقتی رکورد تنخواه حذف/ابطال می‌شود، اثر یتیم آن هم از پرونده پاک شود. */
+  function ptfPettyRemoveDealCostEvent(r) {
+    if (!r || !r.dealRef) return;
+    try {
+      var ds = getData('ptf_crm_deals');
+      var d = ds.filter(function (x) { return x.cd === r.dealRef; })[0];
+      if (d) {
+        d.costEvents = (d.costEvents || []).filter(function (x) { return x.cd !== r.cd; });
+        d.timeline = d.timeline || [];
+        d.timeline.push({ t: faDateTime(), by: userName(), tx: '🗑 حذف/ابطال هزینه تنخواه لینک‌شده از پرونده: ' + money(r.amt) + ' — ' + (r.desc || r.cat) });
+        setData('ptf_crm_deals', ds);
+      }
+    } catch (e) {}
+  }
+
   window.pettyAdd = function () {
     try{ var curM = (typeof faMonthNow==='function'?faMonthNow():'').split('/')[0]; if(curM && isFiscalLocked(curM)){ alert('🔒 سال مالی '+curM+' قفل است - ثبت هزینه در سال قفل‌شده مجاز نیست.'); return; } }catch(e){}
     var dealOpts = '<option value="">— مستقل از پرونده فروش —</option>' + (getData('ptf_crm_deals') || []).filter(function (d) { return d.wonOffer && d.st !== 'archived'; }).map(function (d) { return '<option value="' + escP(d.cd) + '">' + escP(d.inqNo || d.cd) + ' — ' + escP(d.buyerCo || '') + '</option>'; }).join('');
@@ -372,6 +392,10 @@
       }catch(e){}
       r.st='void'; r.voidAt=faDateTime(); r.voidBy=userName(); r.voidReason=reason.trim();
       setData(PETTY_KEY, all);
+      /* AUD-09 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         هزینه‌ی تنخواهِ ابطال‌شده دیگر نباید در سود پروژه‌ی لینک‌شده اثر
+         بگذارد؛ الگو دقیقاً مثل opex.js#ptfOpexDel. */
+      ptfPettyRemoveDealCostEvent(r);
       audit('تنخواه', 'ابطال هزینه تسویه‌شده '+cd+' — دلیل: '+reason.trim(), cd);
       renderPetty();
       if(typeof ptfToast==='function') ptfToast('هزینه ابطال شد - تراکنش معکوس ثبت شد', 'ok');
@@ -379,6 +403,10 @@
     }
     if (!confirm('هزینه ' + money(r.amt) + ' (' + r.cat + ') حذف شود؟\nاین عمل قابل بازگشت نیست.')) return;
     setData(PETTY_KEY, all.filter(function (x) { return x.cd !== cd; }));
+    /* AUD-09: همان دلیل بالا — رکورد از تنخواه حذف شد، پس costEvent متناظر در
+       پرونده‌ی فروش لینک‌شده هم باید حذف شود، وگرنه هزینه‌ی «شبح» در سود
+       پروژه باقی می‌ماند. */
+    ptfPettyRemoveDealCostEvent(r);
     audit('تنخواه', 'حذف هزینه تنخواه ' + cd + ' — ' + money(r.amt), cd);
     renderPetty();
     if (typeof ptfToast === 'function') ptfToast('هزینه حذف شد', 'warn');
