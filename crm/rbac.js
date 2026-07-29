@@ -566,7 +566,26 @@ function renderInvoices() {
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +
         ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +
         (inv.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(inv.editedAt) + ' — ' + escP(inv.editedBy || '') + '</small>' : '') +
-        (Math.abs(inv.amount - total) > 0.5 && total ? ' <span style="color:#dc2626">⚠️ مغایرت با CO: ' + Math.round(Math.abs(inv.amount - total) * 100 / total) + '٪</span>' : '') + '</div>' : '') +
+        /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+           این هشدار قدیمی «مغایرت با CO» مقدار inv.amount (همیشه ریالی) را
+           مستقیم با total (جمع اقلام CO به ارز خام، بدون ×نرخ تسعیر) مقایسه
+           می‌کرد. برای سند ارزی، این دو عدد به‌طور طبیعی واحد متفاوت دارند؛
+           یعنی وقتی حسابدار عدد ارزی خام را در فیلد ریالی وارد می‌کرد (باگ
+           واقعی کشف‌شده)، این دو مقدار برابر می‌شدند و هیچ هشداری نشان داده
+           نمی‌شد — دقیقاً برعکسِ هدف این سد ایمنی. اکنون برای سند ارزی از
+           همان تابع خالص ptfLedgerOfficialFxSanity استفاده می‌شود که total
+           را در نرخ تسعیر مرجع ضرب می‌کند. */
+        (function () {
+          var curOfInv = o.currency || inv.offerCurrency;
+          if (curOfInv && curOfInv !== 'IRR') {
+            var fxSanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(o, inv.amount) : { applicable: false, ok: true };
+            if (fxSanity.applicable && !fxSanity.ok) {
+              return ' <span style="color:#dc2626;font-weight:900">⚠️ مغایرت شدید با پیش‌فاکتور ارزی — انتظار ~' + fxSanity.expectedIrr.toLocaleString('fa-IR') + ' ریال بود</span>';
+            }
+            return '';
+          }
+          return (Math.abs(inv.amount - total) > 0.5 && total ? ' <span style="color:#dc2626">⚠️ مغایرت با CO: ' + Math.round(Math.abs(inv.amount - total) * 100 / total) + '٪</span>' : '');
+        })() + '</div>' : '') +
       '</div>' +
       '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
       /* v19.3 (US-436 AC3/US-435 AC3): اگر ارجاع از پرونده فروش آمده، سند ضمیمه = snapshot قطعی برد (US-432) */
@@ -654,6 +673,27 @@ function saveInv(offerNo) {
   if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ثبت فاکتور در آن سال مجاز نیست. از سند اصلاحی استفاده کنید.'); return; }
   var grand = amt + vat;
   var files = window._invFiles || [];
+
+  /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     فرم فاکتور رسمی صادره عمداً فقط ریالی است (طبق تصمیم کارفرما: فاکتور
+     رسمی همیشه از سیستم حسابداری/سپیدار به ریال صادر می‌شود، هیچ فاکتور
+     رسمی مبلغ ارزی ندارد) — اما وقتی پیش‌فاکتور مبنا ارزی است، مبلغ ریالی
+     واردشده باید معادل واقعی همان مبلغ ارزی (× نرخ تسعیر مرجع پیش‌فاکتور)
+     باشد. سناریوی واقعی کشف‌شده: پیش‌فاکتور ۱۵۰۰ دلاری، حسابدار عدد خام
+     «۱۵۰۰» را در فیلد ریالی وارد کرده (باید ~۳ میلیارد ریال می‌بود) — این
+     اشتباه بدون هیچ هشداری ثبت و بعداً وارد داشبورد موازنه فصلی هم شده و
+     محاسبات مالیاتی را کاملاً منحرف کرده بود. */
+  try {
+    var _fxOfferForSanity = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
+    var _fxSanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(_fxOfferForSanity, grand) : { applicable: false, ok: true };
+    if (_fxSanity.applicable && !_fxSanity.ok) {
+      var _fxWarnMsg = '⚠️ هشدار مغایرت شدید با پیش‌فاکتور ارزی!\n\n' +
+        'پیش‌فاکتور مبنای ' + (_fxOfferForSanity.currency || '') + ' ' + _fxSanity.rawForeignTotal.toLocaleString('en-US') + ' است (نرخ مرجع ' + _fxSanity.fxRateRef.toLocaleString('fa-IR') + ' ریال) — یعنی معادل ریالی مورد انتظار حدود ' + _fxSanity.expectedIrr.toLocaleString('fa-IR') + ' ریال است.\n\n' +
+        'مبلغ واردشده (' + grand.toLocaleString('fa-IR') + ' ریال) خیلی کمتر از این مقدار است — احتمالاً رقم ارزی خام به‌جای معادل ریالی وارد شده.\n\n' +
+        'اگر این تخفیف واقعی و آگاهانه است، OK را بزنید. اگر اشتباه است، Cancel را بزنید و مبلغ صحیح ریالی را وارد کنید.';
+      if (!confirm(_fxWarnMsg)) return;
+    }
+  } catch (eFxSanity) {}
 
   /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
      حالت ویرایش — اگر window._invEditCd ست شده باشد، رکورد موجود اصلاح می‌شود

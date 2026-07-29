@@ -75,7 +75,40 @@
     return Math.round(base * vatPct / 100) - Math.round(base * commissionPct / 100);
   };
 
+  /* ---------- بررسی سلامت مبلغ فاکتور فروش رسمی در برابر ارز پیش‌فاکتور ----------
+     (کشف تکمیلی ۱۴۰۵/۰۵/۰۷ — گزارش کارفرما: فاکتور رسمی ۱۵۰۰ دلاری با مبلغ
+     غلط «۱۵۰۰ ریال» ثبت شده بود). اگر پیش‌فاکتور ارزی (غیر IRR) باشد و نرخ
+     تسعیر مرجع (fxRateRef) مثبت باشد، مبلغ فاکتور رسمی (که همیشه فقط ریالی
+     است — طبق تصمیم کارفرما، بدون فیلد ارز/نرخ تسعیر در فرم) باید در همان
+     مرتبه‌ی بزرگی «مبلغ ارزی خام پیش‌فاکتور × نرخ تسعیر مرجع» باشد. اگر
+     حسابدار به‌اشتباه رقم ارزی خام (مثلاً ۱۵۰۰ برای سند ۱۵۰۰ دلاری) را
+     مستقیم در فیلد ریالی وارد کند، مبلغ ثبت‌شده چند مرتبه‌ی بزرگی کوچک‌تر از
+     حد انتظار می‌شود — این تابع دقیقاً همین حالت را تشخیص می‌دهد.
+     تابع خالص است: فقط عدد می‌گیرد/برمی‌گرداند، هیچ localStorage/DOM لمس
+     نمی‌کند. تا ۹۰٪ تخفیف روی مبلغ پیش‌فاکتور به‌عنوان حالت مجاز (نه مشکوک)
+     پذیرفته می‌شود — فراتر از آن به‌عنوان اشتباه احتمالی گزارش می‌شود. */
+  window.ptfLedgerOfficialFxSanity = function (offer, invAmountIrr) {
+    var out = { ok: true, applicable: false, rawForeignTotal: 0, fxRateRef: 0, expectedIrr: 0, expectedMinIrr: 0, ratio: null };
+    if (!offer || !offer.currency || offer.currency === 'IRR') return out;
+    var rate = +offer.fxRateRef || 0;
+    if (!(rate > 0)) return out; /* بدون نرخ مرجع، قضاوت ممکن نیست */
+    var rawTotal = (offer.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+    if (!(rawTotal > 0)) return out;
+    out.applicable = true;
+    out.rawForeignTotal = rawTotal;
+    out.fxRateRef = rate;
+    var expectedIrr = rawTotal * rate;
+    out.expectedIrr = Math.round(expectedIrr);
+    out.expectedMinIrr = Math.round(expectedIrr * 0.1);
+    var amt = +invAmountIrr || 0;
+    out.ratio = expectedIrr > 0 ? (amt / expectedIrr) : null;
+    if (amt < out.expectedMinIrr) out.ok = false;
+    return out;
+  };
+
   /* ---------- تجمیع عمومی سه‌سطلی (official / unofficial / unclassified) ----------
+
+
      list: آرایه‌ی رکوردها
      classifierFn: تابعی که برای هر رکورد یکی از خروجی‌های بالا را برمی‌گرداند
      amountFn: تابعی که مبلغ ریالی هر رکورد را برمی‌گرداند (پیش‌فرض: amountIrr||amount)

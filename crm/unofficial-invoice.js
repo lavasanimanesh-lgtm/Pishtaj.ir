@@ -1031,8 +1031,21 @@
       var o = offers.filter(function (x) { return x.no === inv.offerNo; })[0];
       if (!o || !o.items) return;
       var relatedCmps = cmps.filter(function (c) { return c.inqNo === o.inqNo || c.inqNo === o.no; });
+      /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md،
+         تصمیم صریح کارفرما: «بر مبنای مبلغ واقعی ثبت‌شده در فاکتور رسمی»):
+         قبلاً sellPrice هر قلم مستقل و بدون ارتباط با inv.amount، مستقیماً
+         از روی خود پیش‌فاکتور (qty×price×fxRateRef) از نو محاسبه می‌شد؛ یعنی
+         حتی وقتی «جمع فروش فصل» بالای گزارش از inv.amount واقعی می‌آمد،
+         جدول تخصیص گپ می‌توانست عدد کاملاً متفاوتی (حتی نجومی، اگر فاکتور
+         رسمی اشتباه ثبت شده بود) برای همان آیتم نشان دهد — دقیقاً همان چیزی
+         که کارفرما گزارش داد. راه‌حل: سهم هر قلم از inv.amount واقعی به
+         نسبت وزن خام آن قلم در کل پیش‌فاکتور محاسبه می‌شود؛ یعنی جمع sellPrice
+         تمام اقلام یک فاکتور همیشه دقیقاً برابر inv.amount همان فاکتور
+         می‌ماند — با تخفیف/چندقلمی‌بودن/ویرایش دستی هم سازگار می‌ماند. */
+      var offerRawTotal = o.items.reduce(function (s, x) { return s + (+x.qty || 0) * (+x.price || 0); }, 0);
       o.items.forEach(function (it) {
-        var sellPrice = (+it.qty || 1) * (+it.price || 0) * (inv.offerFxRateRef || 1);
+        var rawWeight = (+it.qty || 1) * (+it.price || 0);
+        var sellPrice = offerRawTotal > 0 ? (+inv.amount || 0) * (rawWeight / offerRawTotal) : 0;
         var row = { name: it.name || it.desc || '', offerNo: o.no, sellPrice: sellPrice };
         if (!canResolve || !relatedCmps.length) {
           // منبع خرید/استعلام برای این پیشنهاد اصلاً ثبت نشده — طبق رفتار محافظه‌کارانه،
