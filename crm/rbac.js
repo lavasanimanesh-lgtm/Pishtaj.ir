@@ -296,7 +296,12 @@ function saveUser2() {
   sha256Hex(p).then(function (ph) {
     users.push({ username: u, passhash: ph, name: nm, nameEn: nmEn, role: ROLES[rl].lb, roleId: rl, mobile: mob, email: ml, createdFa: faDate(), createdBy: curSession().name });
     setData('ptf_crm_users', users);
-    usersSyncToServer(); // US-151: کاربر در همه مرورگرها/دستگاه‌ها قابل ورود شود
+    usersSyncToServer(function (d) {
+      // v33.2.1 HOTFIX: همگام‌سازی کاربر جدید با سرور — اگر ناموفق باشد، هشدار داده شود
+      if (!d || !d.ok) {
+        alert('⚠️ کاربر در این مرورگر تعریف شد اما همگام‌سازی با سرور ناموفق بود.\nاین کاربر فقط از همین مرورگر قابل ورود است.\n\nخطا: ' + ((d && d.error) || 'سرور در دسترس نیست'));
+      }
+    });
     hideModal(); renderUsers();
     audit('کاربران', 'تعریف کاربر ' + nm + ' با نقش ' + ROLES[rl].lb, u);
     // US-150 AC7: پیامک خودکار اطلاعات ورود به کاربر جدید
@@ -386,6 +391,31 @@ function usersPullFromServer(cb) {
     .catch(function () { cb && cb({ ok: false }); });
 }
 
+/* v33.2.1: تطبیق نقش محلی با سرور — جلوگیری از ویرایش با نقش منقضی/اشتباه
+   اگر نقش سرور با محلی متفاوت باشد، session آپدیت و UI رفرش می‌شود. */
+function verifyRoleFromServer(cb) {
+  var t = localStorage.getItem('ptf_crm_token');
+  if (!t) { cb && cb(); return; }
+  fetch('../api/crm.php?action=role_verify', { headers: { 'X-CRM-Token': t }, cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.ok && d.role) {
+        var cur = curRole();
+        if (d.role !== cur) {
+          var s = JSON.parse(localStorage.getItem('ptf_crm_session') || '{}');
+          s.roleId = d.role;
+          s.role = d.role;
+          localStorage.setItem('ptf_crm_session', JSON.stringify(s));
+          localStorage.setItem('ptf_crm_token_role', d.role);
+          if (typeof ptfToast === 'function') ptfToast('🔄 نقش شما از سرور به‌روز شد: ' + (ROLES[d.role] ? ROLES[d.role].lb : d.role), 'info');
+          if (typeof renderUsers2 === 'function') renderUsers2();
+        }
+      }
+      cb && cb(d);
+    })
+    .catch(function () { cb && cb(); });
+}
+
 // بازنویسی renderUsers با نقش‌ها و عملیات
 function renderUsers2() {
   var users = getData('ptf_crm_users');
@@ -395,7 +425,7 @@ function renderUsers2() {
   var h = '<tr><td><strong>admin</strong></td><td>مدیر ارشد</td><td><span class="bd b-ad">ادمین</span></td><td>—</td><td><span class="bd b-st4">✔ فعال</span></td><td></td></tr>';
   users.forEach(function (us) {
     h += '<tr><td><strong>' + escP(us.username) + '</strong></td><td>' + escP(us.name) + '</td>' +
-      '<td><span class="bd ' + (us.roleId === 'chairman' ? 'b-ad' : 'b-op') + '">' + escP(us.role) + '</span></td>' +
+      '<td><span class="bd ' + (us.roleId === 'chairman' ? 'b-ad' : 'b-op') + '">' + escP(ROLES[us.roleId] ? ROLES[us.roleId].lb : (us.role || us.roleId)) + '</span></td>' +
       '<td style="direction:ltr;font-size:11.5px">' + escP(us.mobile || '-') + '<br>' + escP(us.email || '-') + '</td>' +
       '<td><span class="bd b-st4">✔ فعال</span></td>' +
       '<td>' + (canManage

@@ -29,7 +29,7 @@ function verify_request() {
     // Public actions that don't need verification
     // v31.7.7 HOTFIX: Added 'users_get' — needed during login before token exists.
     // users_get only returns safe fields (no passhash) since BUG-AUDIT-004.
-    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'sms_status'];
+    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'sms_status', 'users_get'];
     if (in_array($action, $public_actions)) {
         return true;
     }
@@ -268,18 +268,60 @@ if (!is_dir($data_dir_early)) { mkdir($data_dir_early, 0755, true); file_put_con
 
 // ===== RBAC (US-122 / AC6): گارد نقش سمت سرور =====
 $ROLE_ACL = [
-    'finance_read'  => ['admin','chairman','ceo'],
-    'finance_write' => ['admin','chairman','ceo'],
+    'finance_read'  => ['admin','chairman','ceo','commercial'],
+    'finance_write' => ['admin','chairman','ceo','commercial'],
     /* Sync transport is role-scoped by key in sync_allowed_keys_for_role().
        These gates only permit authenticated CRM roles to reach the transport. */
     'sync_read'    => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
     'sync_write'   => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
-    'users_write'   => ['admin','chairman'],
+    'users_write'   => ['admin','chairman','ceo','commercial'],
     'buyprice_read' => ['admin','chairman','ceo','commercial','buyer'],
     'sellprice_read'=> ['admin','chairman','ceo','commercial','sales','accountant'],
     'approve_write' => ['admin','chairman','ceo','commercial'],
 ];
 $client_role = 'anonymous';
+/* v33.2.1: نگاشت نقش فارسی → لاتین — ریشه باگ «دستگاه مشکل‌دار»
+   اگر roleId خالی یا فارسی باشد، preg_replace('/[^a-z]/') همه را حذف
+   و نقش به 'sales' تقلیل می‌یافت. این تابع ابتدا نگاشت فارسی را بررسی
+   می‌کند و فقط در صورت عدم تطابق به fallback متوسل می‌شود. */
+$ROLE_PERSIAN_MAP = [
+    'مدیر کل سیستم' => 'admin', 'مدیرکل سیستم' => 'admin',
+    'رییس هیات مدیره' => 'chairman', 'رئیس هیات مدیره' => 'chairman', 'رییس هیأت مدیره' => 'chairman', 'رئیس هیأت مدیره' => 'chairman',
+    'مدیرعامل' => 'ceo', 'مدیر عامل' => 'ceo',
+    'مدیر بازرگانی' => 'commercial', 'مدیربازرگانی' => 'commercial',
+    'کارشناس فروش' => 'sales', 'فروش' => 'sales',
+    'کارشناس خرید' => 'buyer', 'خرید' => 'buyer',
+    'حسابدار' => 'accountant',
+    'تحصیلدار' => 'collector',
+];
+function normalize_role($roleId, $role) {
+    global $ROLE_PERSIAN_MAP;
+    $valid = ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'];
+    // ۱) اگر roleId لاتین معتبر است
+    $clean = preg_replace('/[^a-z]/', '', (string)$roleId);
+    if (in_array($clean, $valid, true)) return $clean;
+    // ۲) نگاشت نقش فارسی
+    $roleTrimmed = trim((string)$role);
+    if (isset($ROLE_PERSIAN_MAP[$roleTrimmed])) return $ROLE_PERSIAN_MAP[$roleTrimmed];
+    // ۳) fallback: latin roleId بدون حروف فارسی
+    if ($clean !== '') return $clean;
+    return 'sales';
+}
+/* v33.2.1: نگاشت معکوس — roleId لاتین → نام فارسی نقش */
+$ROLE_LATIN_TO_PERSIAN = [
+    'admin' => 'مدیر کل سیستم',
+    'chairman' => 'رییس هیات مدیره',
+    'ceo' => 'مدیرعامل',
+    'commercial' => 'مدیر بازرگانی',
+    'sales' => 'کارشناس فروش',
+    'buyer' => 'کارشناس خرید',
+    'accountant' => 'حسابدار',
+    'collector' => 'تحصیلدار',
+];
+function role_persian_label($roleId) {
+    global $ROLE_LATIN_TO_PERSIAN;
+    return $ROLE_LATIN_TO_PERSIAN[$roleId] ?? $roleId;
+}
 function role_guard($action_key) {
     global $ROLE_ACL, $client_role;
     if (!isset($ROLE_ACL[$action_key])) return true;
@@ -290,7 +332,7 @@ function role_guard($action_key) {
     }
     return true;
 }
-$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','auth_login'=>'none'];
+$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','users_sync'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','auth_login'=>'none'];
 
 /* v31.6.26 BUG-SYNC-ROLE-ACL: CRM synchronization is not the same as
    finance_read/finance_write. Filter keys server-side so ordinary CRM roles
@@ -484,8 +526,10 @@ function load_all_crm_users_sources() {
             $next = array_merge($prev, $u);
             $next['username'] = $key;
             if (empty($next['passhash']) && !empty($prev['passhash'])) $next['passhash'] = $prev['passhash'];
-            if (empty($next['roleId']) && !empty($next['role'])) $next['roleId'] = preg_replace('/[^a-z]/', '', strtolower((string)$next['role'])) ?: 'sales';
-            if (empty($next['role']) && !empty($next['roleId'])) $next['role'] = $next['roleId'];
+            if (empty($next['roleId']) && !empty($next['role'])) $next['roleId'] = normalize_role('', $next['role']);
+            // v33.2.1: اگر role فارسی نیست (یا خالی)، از roleId نگاشت فارسی بگیر
+            $isPersian = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', (string)($next['role'] ?? ''));
+            if (!$isPersian && !empty($next['roleId'])) $next['role'] = role_persian_label($next['roleId']);
             $by[$key] = $next;
         }
     }
@@ -560,7 +604,7 @@ function migrate_legacy_password_hash($user, $plainPassword) {
             'name' => clean($user['name'] ?? $username, 80),
             'nameEn' => clean($user['nameEn'] ?? '', 80),
             'role' => clean($user['role'] ?? ($user['roleId'] ?? 'sales'), 80),
-            'roleId' => preg_replace('/[^a-z]/', '', (string)($user['roleId'] ?? $user['role'] ?? 'sales')) ?: 'sales',
+            'roleId' => normalize_role($user['roleId'] ?? '', $user['role'] ?? ''),
             'mobile' => preg_replace('/\D/', '', (string)($user['mobile'] ?? '')),
             'email' => clean($user['email'] ?? '', 80),
             'migratedAt' => date('c')
@@ -1213,7 +1257,7 @@ switch($action) {
                 'name'     => clean($u['name'] ?? '', 80),
                 'nameEn'   => clean($u['nameEn'] ?? '', 80),
                 'role'     => clean($u['role'] ?? '', 80),
-                'roleId'   => preg_replace('/[^a-z]/', '', $u['roleId'] ?? 'sales'),
+                'roleId'   => normalize_role($u['roleId'] ?? '', $u['role'] ?? ''),
                 'mobile'   => preg_replace('/\D/', '', $u['mobile'] ?? ''),
                 'email'    => clean($u['email'] ?? '', 80),
                 'createdFa'=> clean($u['createdFa'] ?? '', 20),
@@ -1289,7 +1333,7 @@ switch($action) {
             break;
         }
         if ($legacy) migrate_legacy_password_hash($found, $password);
-        $role = preg_replace('/[^a-z]/', '', (string)($found['roleId'] ?? $found['role'] ?? 'sales')) ?: 'sales';
+        $role = normalize_role($found['roleId'] ?? '', $found['role'] ?? '');
         $token = auth_generate_token($found['username'], $role);
         if (!$token) {
             http_response_code(503);
@@ -1310,9 +1354,18 @@ switch($action) {
                 'name'     => $u['name'] ?? '',
                 'nameEn'   => $u['nameEn'] ?? '',
                 'roleId'   => $u['roleId'] ?? 'sales',
+                'role'     => $u['role'] ?? '',
+                'mobile'   => $u['mobile'] ?? '',
+                'email'    => $u['email'] ?? '',
             ];
         }, $all_users);
         echo json_encode(['ok' => true, 'users' => $safe_users], JSON_UNESCAPED_UNICODE);
+        break;
+
+    // v33.2.1: کلاینت نقش معتبر سرور را بپرسد — جلوگیری از ورود با نقش منقضی/اشتباه
+    case 'role_verify':
+        verify_request();
+        echo json_encode(['ok' => true, 'role' => $client_role], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'add_customer':
@@ -1341,7 +1394,7 @@ switch($action) {
         $username = clean($_POST['username'] ?? '', 40);
         $passhash = preg_replace('/[^a-f0-9]/', '', $_POST['passhash'] ?? '');
         $name = clean($_POST['name'] ?? '', 80);
-        $roleId = preg_replace('/[^a-z]/', '', $_POST['roleId'] ?? 'sales');
+        $roleId = normalize_role($_POST['roleId'] ?? '', $_POST['role'] ?? '');
         
         if (empty($username) || empty($passhash)) {
             echo json_encode(['ok' => false, 'error' => 'username and passhash required'], JSON_UNESCAPED_UNICODE);
