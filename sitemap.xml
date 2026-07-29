@@ -210,6 +210,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-actuator.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-air-cooled-fin-fan-selection-guide.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-air-cooled.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-amine-unit-foaming-corrosion-problems.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ansi-50-51-87-21.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-api-598-iso-5208.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-api-5l-psl-charpy-impact-test.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
@@ -253,6 +254,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-esd-fire-gas.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-explosion-proof-lighting-zone-classification.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-fcc-catalyst-regeneration-process.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-fcc-unit.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-fire-suppression-agent-selection-guide.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-flange-class-900-2500-bolt-torque-table.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
@@ -298,7 +300,9 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-pipeline-welding-standards.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-plc.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-pm-predictive-vs-preventive-strategy.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-pm.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-ppe-selection-by-hazard-category.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ppe.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-pressure-gauge-glycerin-fill-guide.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-pressure-gauge.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
@@ -321,6 +325,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-sulfur-recovery-tail-gas-treatment.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-sulfur-recovery-unit-sru.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-sulfur-recovery.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-teg-dehydration-glycol-loss-control.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-thermal-powerplant-equipment.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ups.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-valve-leak-test-acceptance-criteria.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
@@ -435,12 +440,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/z-a0721288.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-bdd0a52f.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-d0063fcd.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-e9ed0823.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-ef76567b.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-ef8f5f59.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-f0c07ffb.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-f3d4fbf4.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-fddb4921.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-fe99473f.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/%D8%A7%D8%A8%D8%B2%D8%A7%D8%B1%20%D8%AF%D9%82%DB%8C%D9%82-00540f77.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/%D8%A7%D8%A8%D8%B2%D8%A7%D8%B1%20%D8%AF%D9%82%DB%8C%D9%82-a285accb.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
