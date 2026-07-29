@@ -801,7 +801,18 @@
         } catch(e){ return remoteStr; }
       }
 
-      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+      /* AUD-02 / AUD-03 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         ptf_crm_invoices و ptf_crm_deals هرکدام یک رکورد با شناسه (cd) هستند که
+         آرایه‌های تودرتوی حیاتی درون خودشان دارند (payments[]/pays[] برای فاکتور،
+         costEvents[]/timeline[]/lossEvents[] برای پرونده‌ی فروش). merge عمومی زیر این
+         خط، برای رکوردهای هم‌شناسه فقط «رکورد کامل جدیدتر» را نگه می‌دارد، نه این‌که
+         دو آرایه‌ی تودرتو را ادغام کند — یعنی اگر دو کاربر هم‌زمان (مثلاً دو تحصیلدار)
+         روی همان فاکتور دو وصولی مستقل ثبت کنند، یکی از دو وصولی در merge کاملاً و
+         بی‌صدا گم می‌شود. راه‌حل: از همان مسیر canonical-merge موجود برای offers/rfqs
+         استفاده شود که به‌ازای هر کد، رکورد برنده را انتخاب می‌کند اما فیلدهای آرایه‌ای
+         (payments/pays/costEvents/timeline/lossEvents) را با ptfMergeArrayUnique واقعاً
+         union می‌کند — نه جایگزین. */
+      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
       var loc = JSON.parse(localStr || '[]');
       var rem = JSON.parse(remoteStr || '[]');
       if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;
