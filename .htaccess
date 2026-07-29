@@ -148,6 +148,13 @@ RewriteRule "^knowledge-center/ابزار دقیق-bdf04659\.html$" "/knowledge-
 RewriteRule "^knowledge-center/ابزار دقیق-c371b874\.html$" "/knowledge-center/kc-gas-analyzer-calibration-zero-span.html" [R=301,L]
 RewriteRule "^knowledge-center/اندازه‌گیری-دبی-با-orifice-plate-راهنمای-کامل\.html$" "/knowledge-center/kc-orifice-plate-beta-ratio-sizing.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۲ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/برق صنعتی-28ceb600\.html$" "/knowledge-center/kc-lightning-arrester-coordination-study.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-a4c1a926\.html$" "/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-b112a7f7\.html$" "/knowledge-center/kc-mv-switchgear-arc-flash-study.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-bf8dc10d\.html$" "/knowledge-center/kc-ups-battery-sizing-autonomy-calculation.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-c431aa57\.html$" "/knowledge-center/kc-protective-relay-coordination-curve.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------

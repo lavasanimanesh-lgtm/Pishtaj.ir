@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>کاهش هارمونیک ناشی از درایو VFD | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="راهنمای فنی کاهش اعوجاج هارمونیک درایو VFD — راکتور خط، فیلتر غیرفعال و فعال، یکسوساز چندپالسه، ریسک رزونانس با خازن و مقایسه با حد IEEE 519." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="کاهش هارمونیک ناشی از درایو VFD" />
+<meta property="og:description" content="راهنمای فنی کاهش اعوجاج هارمونیک درایو VFD — راکتور خط، فیلتر غیرفعال و فعال، یکسوساز چندپالسه، ریسک رزونانس با خازن و مقایسه با حد IEEE 519." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "کاهش هارمونیک VFD", "item": "https://pishtaj.ir/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html"}]}, {"@type": ["TechArticle", "Article"], "headline": "کاهش هارمونیک ناشی از درایو VFD", "description": "راهنمای فنی کاهش اعوجاج هارمونیک درایو VFD — راکتور خط، فیلتر غیرفعال و فعال، یکسوساز چندپالسه، ریسک رزونانس با خازن و مقایسه با حد IEEE 519.", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "dateModified": "2026-07-28", "datePublished": "2026-07-01", "articleSection": "برق صنعتی"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "چرا VFD منبع اصلی هارمونیک در شبکهٔ برق صنعتی است؟", "acceptedAnswer": {"@type": "Answer", "text": "چون یکسوسازی ورودی درایو یک فرآیند غیرخطی است که جریان ورودی را از شکل موج سینوسی خالص منحرف می‌کند و هارمونیک‌های مرتبه‌های مختلف تولید می‌کند."}}, {"@type": "Question", "name": "چرا رزونانس بین VFD و بانک خازنی خطرناک است؟", "acceptedAnswer": {"@type": "Answer", "text": "چون جریان هارمونیک می‌تواند در فرکانس رزونانس تشدید شود و به تخریب سریع خازن‌های اصلاح ضریب توان منجر شود."}}, {"@type": "Question", "name": "تفاوت فیلتر غیرفعال و فعال هارمونیک چیست؟", "acceptedAnswer": {"@type": "Answer", "text": "فیلتر غیرفعال برای فرکانس‌های مشخص طراحی می‌شود و هزینهٔ کمتری دارد؛ فیلتر فعال به‌صورت دینامیک در طیف وسیع‌تری از فرکانس‌ها عمل می‌کند اما گران‌تر است."}}, {"@type": "Question", "name": "چرا باید THD قبل از نصب فیلتر اندازه‌گیری شود؟", "acceptedAnswer": {"@type": "Answer", "text": "چون نصب فیلتر بدون اندازه‌گیری واقعی می‌تواند هزینهٔ غیرضروری ایجاد کند یا راه‌حل ناکافی برای سطح واقعی هارمونیک ارائه دهد."}}]}]}</script>
+<style>
+.article-hero{background:linear-gradient(135deg,#151517,#2d2d31);min-height:220px;display:flex;align-items:center;padding:130px 0 50px;color:#fff;position:relative}
+.article-hero .container{position:relative;z-index:1}
+.article-hero h1{font-size:clamp(24px,3.2vw,38px);margin:0 0 10px;line-height:1.3}
+.article-wrap{max-width:900px;margin:40px auto;padding:0 20px}
+.article-content{background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;font-size:16px;color:#334155;box-shadow:0 16px 42px rgba(0,0,0,.07)}
+.article-content h2{font-size:clamp(22px,2.8vw,32px);margin:40px 0 16px;color:#1e293b;font-weight:900;padding-bottom:8px;border-bottom:2px solid #f1f5f9}
+.article-content h3{font-size:19px;margin:30px 0 12px;color:#1e293b}
+.article-content p{margin:0 0 18px}
+.article-content ul,.article-content ol{margin:0 0 18px;padding-right:22px}
+.article-content li{margin-bottom:8px}
+.article-content a{color:var(--red);font-weight:900}
+.article-content table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.article-content th,.article-content td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top;text-align:right}
+.article-content th{background:#f1f5f9;color:#334155}
+.article-cta{background:linear-gradient(135deg,#f8fafc,#fff);border:2px solid var(--line);border-radius:24px;padding:30px;text-align:center;margin:40px 0 0}
+.related-articles{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:30px 0}
+.rel-item{padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fafc;text-decoration:none;transition:.2s}
+.rel-item:hover{border-color:var(--red)}
+.rel-item b{display:block;color:#1e293b;font-size:14px}
+.rel-item span{font-size:12px;color:#64748b}
+@media(max-width:700px){.article-content{padding:24px}.related-articles{grid-template-columns:1fr}}
+.faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}
+.note-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:14px 16px;margin:16px 0}
+.ok-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:14px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+<section class="article-hero">
+<div class="container">
+<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">برق صنعتی</span>
+<h1>راهنمای کاهش اعوجاج هارمونیک ناشی از درایو VFD</h1>
+<p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
+</div>
+</section>
+<div class="article-wrap">
+<div class="article-content">
+
+<p style="font-size:17px"><b>کاهش اعوجاج هارمونیک ناشی از درایو VFD</b> — برخلاف معرفی کلی نصب و عیب‌یابی VFD، این مقاله مستقیماً به یک عارضهٔ جانبی مهم این تجهیز می‌پردازد: چگونه درایوهای VFD هارمونیک تولید می‌کنند و چه راهکارهایی برای کاهش اثرات مخرب آن روی شبکهٔ برق و سایر تجهیزات وجود دارد.</p>
+
+<h2>چرا VFD منبع اصلی هارمونیک در شبکهٔ برق صنعتی است؟</h2>
+<p>یکسوسازی ورودی درایو VFD (تبدیل AC به DC با دیود یا تریستور) یک فرآیند غیرخطی است که جریان ورودی را از شکل موج سینوسی خالص منحرف می‌کند و هارمونیک‌های مرتبهٔ ۵، ۷، ۱۱، ۱۳ (و بالاتر) تولید می‌کند. هرچه تعداد و توان درایوهای VFD نصب‌شده در یک تابلو یا واحد صنعتی بیشتر باشد، سطح کلی اعوجاج هارمونیک ولتاژ شبکه (THD) بیشتر می‌شود.</p>
+
+<h2>عوارض هارمونیک بالا روی سایر تجهیزات</h2>
+<table>
+<thead><tr><th>تجهیز آسیب‌پذیر</th><th>اثر هارمونیک بالا</th></tr></thead>
+<tbody>
+<tr><td>موتورهای القایی معمولی</td><td>افزایش تلفات حرارتی، کاهش عمر عایق سیم‌پیچی</td></tr>
+<tr><td>ترانسفورماتور توزیع</td><td>افزایش تلفات هسته و حرارت اضافی، نیاز به Derating ظرفیت</td></tr>
+<tr><td>بانک خازن اصلاح ضریب توان</td><td>ریسک رزونانس هارمونیک، تشدید جریان و آسیب به خازن</td></tr>
+<tr><td>تجهیزات ابزار دقیق حساس</td><td>خطای اندازه‌گیری و تداخل الکترومغناطیسی</td></tr>
+</tbody>
+</table>
+<div class="note-box"><b>هشدار مهم:</b> رزونانس هارمونیک بین بانک خازنی اصلاح ضریب توان و امپدانس شبکه یکی از خطرناک‌ترین عوارض است؛ در این حالت جریان هارمونیک تشدید (Amplify) شده و می‌تواند به تخریب سریع خازن‌ها منجر شود. پیش از نصب VFD در کنار بانک خازنی موجود، بررسی فرکانس رزونانس سیستم ضروری است.</div>
+
+<h2>راهکارهای کاهش هارمونیک — از ساده تا پیشرفته</h2>
+<ul>
+<li><b>راکتور خط ورودی (Line Reactor):</b> ساده‌ترین و کم‌هزینه‌ترین راهکار؛ اعوجاج جریان را تا حدی کاهش می‌دهد اما به‌تنهایی برای رفع کامل مشکل در سیستم‌های بزرگ کافی نیست.</li>
+<li><b>فیلتر هارمونیک غیرفعال (Passive Filter):</b> برای فرکانس‌های هارمونیک مشخص طراحی می‌شود و کاهش موثرتری ارائه می‌دهد، اما نیاز به طراحی دقیق متناسب با طیف هارمونیک واقعی سیستم دارد.</li>
+<li><b>یکسوساز چندپالسه (12-Pulse / 18-Pulse Rectifier):</b> با استفاده از ترانسفورماتور فازشیفت، هارمونیک‌های مرتبهٔ پایین را به‌طور قابل‌توجهی حذف می‌کند؛ مناسب درایوهای با توان بالا.</li>
+<li><b>فیلتر هارمونیک فعال (Active Harmonic Filter):</b> گران‌ترین اما موثرترین راهکار؛ به‌صورت دینامیک هارمونیک را در طیف وسیعی از فرکانس‌ها جبران می‌کند.</li>
+</ul>
+
+<h2>محاسبهٔ THD و مقایسه با حد استاندارد IEEE 519</h2>
+<p>استاندارد IEEE 519 حدود مجاز اعوجاج هارمونیک جریان (TDD) و ولتاژ (THD) را بر اساس نسبت جریان اتصال کوتاه شبکه به جریان بار تعریف می‌کند. اندازه‌گیری واقعی THD در نقطهٔ اتصال مشترک (PCC — Point of Common Coupling) با استفاده از آنالایزر کیفیت توان، پیش از تصمیم‌گیری دربارهٔ نیاز به فیلتر اضافی ضروری است؛ نصب فیلتر بدون این اندازه‌گیری می‌تواند هزینهٔ غیرضروری یا راه‌حل ناکافی ایجاد کند.</p>
+
+<h2>طراحی توپولوژی تابلو برای کاهش انتشار هارمونیک</h2>
+<div class="ok-box"><b>پیشنهاد اجرایی:</b> در تابلوهای با چندین درایو VFD، گروه‌بندی بارهای هارمونیک‌زا (VFD) در یک بخش جداگانه از بارهای خطی حساس (روشنایی، تجهیزات کنترلی) و تغذیهٔ آن‌ها از ترانسفورماتور یا فیدر مجزا، می‌تواند بدون هزینهٔ فیلتر اضافی، اثر هارمونیک روی تجهیزات حساس را کاهش دهد.</div>
+
+<h2>چک‌لیست کاهش هارمونیک VFD</h2>
+<ul>
+<li>اندازه‌گیری واقعی THD/TDD در نقطهٔ اتصال مشترک با آنالایزر کیفیت توان.</li>
+<li>مقایسه با حدود مجاز IEEE 519 بر اساس نسبت اتصال کوتاه شبکه.</li>
+<li>بررسی ریسک رزونانس با بانک خازنی موجود پیش از نصب VFD جدید.</li>
+<li>انتخاب راهکار کاهش متناسب با شدت مشکل (راکتور تا فیلتر فعال).</li>
+<li>طراحی توپولوژی تابلو برای جداسازی بارهای هارمونیک‌زا از تجهیزات حساس.</li>
+</ul>
+
+
+<h2>اثر طول کابل موتور بر مسائل جانبی دیگر VFD</h2>
+<p>علاوه بر هارمونیک ورودی، طول زیاد کابل بین VFD و موتور می‌تواند پدیدهٔ دیگری به نام بازتاب موج (Reflected Wave) ایجاد کند که ولتاژ پیک روی ترمینال موتور را تا دو برابر ولتاژ خروجی درایو افزایش می‌دهد و به عایق سیم‌پیچی موتور آسیب می‌رساند. برای کابل‌های طولانی (معمولاً بیش از ۳۰-۵۰ متر بسته به توان درایو)، نصب فیلتر خروجی (Output dV/dt Filter یا Sine Wave Filter) توصیه می‌شود.</p>
+<h2>هزینهٔ نسبی راهکارهای مختلف کاهش هارمونیک</h2>
+<p>راکتور خط ورودی ارزان‌ترین گزینه (معمولاً کمتر از ۵٪ هزینهٔ کل درایو) است و کاهش نسبی ۳۰-۴۰٪ در THD ایجاد می‌کند؛ یکسوساز ۱۲ پالسه هزینهٔ قابل‌توجهی بیشتر (به دلیل ترانسفورماتور فازشیفت اختصاصی) دارد اما کاهش ۸۰-۹۰٪ ارائه می‌دهد؛ فیلتر فعال گران‌ترین گزینه با بهترین عملکرد (کاهش بیش از ۹۵٪) است. انتخاب باید بر اساس شدت واقعی مشکل و بودجهٔ پروژه انجام شود.</p>
+<h2>پرسش پرتکرار: آیا همهٔ VFDها به یک اندازه هارمونیک تولید می‌کنند؟</h2>
+<p>خیر؛ درایوهای مدرن با یکسوساز فعال (Active Front End) یا طراحی PWM پیشرفته می‌توانند هارمونیک ورودی بسیار کمتری نسبت به درایوهای ساده با یکسوساز دیودی معمولی تولید کنند، هرچند با هزینهٔ اولیهٔ بیشتر.</p>
+
+<h2>مستندسازی و گزارش‌دهی کیفیت توان به مالک پروژه</h2>
+<p>برای پروژه‌های صنعتی بزرگ با قرارداد تضمین کیفیت توان، اندازه‌گیری دورهٔ THD در نقاط کلیدی شبکه و مقایسهٔ مستند با حدود قراردادی، بخشی ضروری از تحویل نهایی پروژه است؛ این مستندات همچنین در صورت بروز اختلاف بعدی با شرکت توزیع برق دربارهٔ کیفیت توان تزریقی به شبکه، مرجع دفاع فنی خواهد بود.</p>
+<h2>تجربهٔ میدانی: کشف مشکل هارمونیک پس از نصب VFD جدید</h2>
+<p>در بسیاری موارد واقعی، افزودن یک VFD جدید به تابلوی موجود بدون بررسی اثر تجمعی هارمونیک، باعث بروز مشکلات ناگهانی در تجهیزات دیگر (مانند خطای غیرمنتظرهٔ آنالایزرهای حساس یا گرم‌شدن غیرعادی ترانسفورماتور) شده که تشخیص علت آن‌ها زمان و هزینهٔ زیادی برده است. بررسی اثر تجمعی هارمونیک پیش از افزودن هر VFD جدید به یک تابلوی موجود، می‌تواند از این مشکلات پیشگیری کند.</p>
+<h2>خلاصهٔ تصمیم‌گیری برای تیم برق پروژه</h2>
+<p>برای هر پروژهٔ جدید با چند VFD، ابتدا تخمین اولیهٔ THD بر اساس تعداد و توان درایوها انجام شود؛ اگر تخمین از حد مجاز IEEE 519 فراتر رود، راهکار کاهش مناسب (از راکتور ساده تا فیلتر فعال) از همان فاز طراحی در نظر گرفته شود، نه به‌عنوان اصلاح پرهزینهٔ بعد از راه‌اندازی.</p>
+<p>تیم فنی پیشرو تجهیز فرتاک در این تخمین اولیه و انتخاب راهکار مناسب همراه پروژه‌های شماست.</p>
+
+<h2>پرسش پرتکرار: آیا افزایش تعداد پالس یکسوساز همیشه بهترین راه‌حل است؟</h2>
+<p>خیر؛ یکسوساز چندپالسه نیاز به فضای فیزیکی بیشتر (برای ترانسفورماتور فازشیفت اضافه) و هزینهٔ سرمایه‌گذاری بالاتر دارد. برای پروژه‌های با محدودیت فضا یا بودجه، ترکیب راکتور خط با فیلتر غیرفعال هدفمند می‌تواند نتیجهٔ اقتصادی‌تری با کاهش کافی هارمونیک ارائه دهد.</p>
+
+<h2>اهمیت هماهنگی طراحی برق و ابزار دقیق در مراحل اولیهٔ پروژه</h2>
+<p>تصمیم دربارهٔ راهکار کاهش هارمونیک باید در فاز طراحی اولیهٔ برق پروژه گرفته شود، نه پس از نصب کامل تجهیزات؛ افزودن فیلتر یا تغییر طراحی تابلو پس از راه‌اندازی معمولاً هزینه و پیچیدگی بسیار بیشتری نسبت به لحاظ‌کردن آن از ابتدا دارد.</p>
+<p>تیم فنی پیشرو تجهیز فرتاک از همان فاز طراحی اولیه آماده مشاوره برای این تصمیم‌گیری است.</p>
+
+<h2>جمع‌بندی نهایی</h2>
+<p>در نهایت، مدیریت هارمونیک VFD یک مسئولیت مشترک بین طراحی اولیه، انتخاب تجهیز مناسب و پایش مستمر کیفیت توان است؛ این رویکرد سه‌گانه، هم عمر تجهیزات را افزایش می‌دهد و هم از هزینه‌های پنهان ناشی از آلودگی هارمونیک جلوگیری می‌کند.</p>
+
+<p>تیم فنی پیشرو تجهیز فرتاک با تامین تجهیزات مناسب و مشاورهٔ فنی این رویکرد سه‌گانه، شریک قابل‌اعتماد پروژه‌های صنعتی شما در مدیریت کیفیت توان است.</p>
+
+<h2>پرسش پایانی: آیا استانداردهای داخلی ایران با IEEE 519 متفاوت است؟</h2>
+<p>اکثر پروژه‌های صنعتی ایران، به‌ویژه پروژه‌های نفت و گاز با الزامات بین‌المللی، از همان حدود IEEE 519 یا معادل IEC استفاده می‌کنند؛ اما شرکت‌های توزیع برق محلی ممکن است الزامات اختصاصی خود را نیز داشته باشند که باید پیش از طراحی نهایی استعلام شود.</p>
+
+<p>پیشرو تجهیز فرتاک در استعلام این الزامات محلی و تطبیق طراحی با آن‌ها نیز به پروژه‌های شما کمک می‌کند.</p>
+
+<p>در نهایت، این هماهنگی اولیه از بروز اختلاف‌نظرهای فنی و اجرایی در مراحل بعدی پروژه جلوگیری می‌کند.</p>
+
+<p>مشاورهٔ اولیهٔ رایگان دربارهٔ نیاز واقعی به فیلتر هارمونیک، معمولاً قابل ارائه پیش از هرگونه سرمایه‌گذاری بزرگ است.</p>
+
+<p>تماس زودهنگام با تیم فنی، هزینه‌های اصلاحی پرهزینهٔ بعدی را به میزان قابل‌توجهی کاهش می‌دهد.</p>
+
+<p>این نکته باید در برنامه‌ریزی هر پروژهٔ جدید با تعداد قابل‌توجه درایو VFD مدنظر قرار گیرد.</p>
+<h2>جمع‌بندی</h2>
+<p>کاهش هارمونیک VFD نیازمند اندازه‌گیری دقیق و انتخاب راهکار متناسب با شدت واقعی مشکل است، نه صرفاً نصب یک راکتور استاندارد بدون بررسی. تیم فنی پیشرو تجهیز فرتاک در تامین درایو VFD، راکتور و فیلتر هارمونیک و مشاورهٔ فنی طراحی توپولوژی تابلو همراه پروژه‌های شماست.</p>
+
+<h2>سوالات پرتکرار</h2>
+<div class="faq-list">
+<details><summary>چرا VFD منبع اصلی هارمونیک در شبکهٔ برق صنعتی است؟</summary><p>چون یکسوسازی ورودی درایو یک فرآیند غیرخطی است که جریان ورودی را از شکل موج سینوسی خالص منحرف می‌کند و هارمونیک‌های مرتبه‌های مختلف تولید می‌کند.</p></details><details><summary>چرا رزونانس بین VFD و بانک خازنی خطرناک است؟</summary><p>چون جریان هارمونیک می‌تواند در فرکانس رزونانس تشدید شود و به تخریب سریع خازن‌های اصلاح ضریب توان منجر شود.</p></details><details><summary>تفاوت فیلتر غیرفعال و فعال هارمونیک چیست؟</summary><p>فیلتر غیرفعال برای فرکانس‌های مشخص طراحی می‌شود و هزینهٔ کمتری دارد؛ فیلتر فعال به‌صورت دینامیک در طیف وسیع‌تری از فرکانس‌ها عمل می‌کند اما گران‌تر است.</p></details><details><summary>چرا باید THD قبل از نصب فیلتر اندازه‌گیری شود؟</summary><p>چون نصب فیلتر بدون اندازه‌گیری واقعی می‌تواند هزینهٔ غیرضروری ایجاد کند یا راه‌حل ناکافی برای سطح واقعی هارمونیک ارائه دهد.</p></details>
+</div>
+<h2>مطالب مرتبط</h2>
+<div class="related-articles">
+<a class="rel-item" href="kc-vfd.html"><b>راهنمای کامل درایو VFD — نصب، پارامترگذاری و عیب‌یابی</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="kc-mv-switchgear.html"><b>راهنمای تابلوهای برق فشار متوسط MV Switchgear</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="kc-ansi-50-51-87-21.html"><b>راهنمای رله‌های حفاظتی ANSI</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="../services/electrical-supply.html"><b>خدمات برق صنعتی</b><span>مرکز دانش فنی</span></a>
+</div>
+</div>
+<div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:32px">📋</span>
+    <div>
+      <b style="font-size:16px;color:#1e293b;display:block;margin-bottom:4px">درخواست استعلام فنی و استعلام قیمت تخصصی: کاهش هارمونیک ناشی از درایو VFD</b>
+      <span style="font-size:13px;color:#475569">کارشناسان فنی پیشرو تجهیز فرتاک آماده بررسی MTO و مشخصات فنی پروژه شما هستند.</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a href="../rfq/?item=%D8%B1%D8%A7%DA%A9%D8%AA%D9%88%D8%B1%20%D9%88%20%D9%81%DB%8C%D9%84%D8%AA%D8%B1%20%D9%87%D8%A7%D8%B1%D9%85%D9%88%D9%86%DB%8C%DA%A9%20%D8%AF%D8%B1%D8%A7%DB%8C%D9%88%20VFD" class="cro-btn" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:14px;box-shadow:0 6px 20px rgba(239,75,26,0.25);transition:.2s">ثبت استعلام هوشمند قیمت ←</a>
+    <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
+  </div>
+</div>
+</div>
+<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px; object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;">• سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;">• رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;">• ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;">• مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;">• مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;">🔐 ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+</body>
+</html>
