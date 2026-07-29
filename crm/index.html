@@ -765,6 +765,8 @@ function showCrm() {
   document.getElementById('navAv').textContent = s.name[0];
   document.getElementById('navU').textContent = s.name;
   // v33.0.3: token is obtained only during real server-side login. No silent passhash refresh here.
+  // v33.2.1: تطبیق نقش با سرور — جلوگیری از ویرایش با نقش منقضی/اشتباه
+  if (typeof verifyRoleFromServer === 'function') verifyRoleFromServer();
   try { if (typeof window.ptfCodegenBoot === 'function') window.ptfCodegenBoot(); } catch(e) {}
 
   if (typeof ptfRenderTrialBar === 'function') ptfRenderTrialBar();

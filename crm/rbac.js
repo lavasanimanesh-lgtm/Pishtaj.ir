@@ -391,6 +391,31 @@ function usersPullFromServer(cb) {
     .catch(function () { cb && cb({ ok: false }); });
 }
 
+/* v33.2.1: تطبیق نقش محلی با سرور — جلوگیری از ویرایش با نقش منقضی/اشتباه
+   اگر نقش سرور با محلی متفاوت باشد، session آپدیت و UI رفرش می‌شود. */
+function verifyRoleFromServer(cb) {
+  var t = localStorage.getItem('ptf_crm_token');
+  if (!t) { cb && cb(); return; }
+  fetch('../api/crm.php?action=role_verify', { headers: { 'X-CRM-Token': t }, cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.ok && d.role) {
+        var cur = curRole();
+        if (d.role !== cur) {
+          var s = JSON.parse(localStorage.getItem('ptf_crm_session') || '{}');
+          s.roleId = d.role;
+          s.role = d.role;
+          localStorage.setItem('ptf_crm_session', JSON.stringify(s));
+          localStorage.setItem('ptf_crm_token_role', d.role);
+          if (typeof ptfToast === 'function') ptfToast('🔄 نقش شما از سرور به‌روز شد: ' + (ROLES[d.role] ? ROLES[d.role].lb : d.role), 'info');
+          if (typeof renderUsers2 === 'function') renderUsers2();
+        }
+      }
+      cb && cb(d);
+    })
+    .catch(function () { cb && cb(); });
+}
+
 // بازنویسی renderUsers با نقش‌ها و عملیات
 function renderUsers2() {
   var users = getData('ptf_crm_users');
