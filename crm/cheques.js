@@ -625,7 +625,16 @@
         byNm: (curSession() || {}).name,
         t: faDateTime(),
         notified: {},
-        src: 'batch-fill'
+        src: 'batch-fill',
+        /* AUD-06 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+           رکورد batch قبلاً هیچ ownership صریحی نداشت؛ چون chAll()/chSave()
+           هر رکورد بدون ownership==='personal' را «شرکتی» تلقی می‌کنند
+           (فیلتر روی !== 'personal' است، نه === 'company')، این رکورد بدون
+           هیچ enforce نقشی وارد گزارش نقدینگی شرکت/یادآورها/My Day می‌شد،
+           حتی اگر سازنده‌اش کارشناس فروش (غیرمجاز به صدور چک شرکتی) باشد.
+           اکنون مالکیت صریح تعیین می‌شود؛ chSave() هم به‌عنوان خط دفاع دوم
+           همچنان این را برای نقش‌های غیرمجاز به 'personal' برمی‌گرداند. */
+        ownership: canCreateCompanyCheque() ? 'company' : 'personal'
       });
     }
     return { list: out, errs: errs };
