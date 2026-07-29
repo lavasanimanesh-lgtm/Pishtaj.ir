@@ -290,7 +290,7 @@ function role_guard($action_key) {
     }
     return true;
 }
-$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','auth_login'=>'none'];
+$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','users_sync'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','auth_login'=>'none'];
 
 /* v31.6.26 BUG-SYNC-ROLE-ACL: CRM synchronization is not the same as
    finance_read/finance_write. Filter keys server-side so ordinary CRM roles
