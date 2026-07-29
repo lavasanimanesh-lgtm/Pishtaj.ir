@@ -29,3 +29,31 @@
   /* journey cards: keep icons compact on mobile */
   #journey .ptf-line-icon{ width:28px !important; height:28px !important; margin-left:6px !important; }
 }
+
+/* ---------------------------------------------------------------
+   RTL centering fix — بازبینی هم‌ترازی صفحات (پیرو اصلاح صفحه درباره ما)
+   مشکل: در گریدهای با تعداد ستون ثابت، وقتی تعداد آیتم‌ها مضربِ تعداد
+   ستون‌ها نیست، آیتم‌های ردیف آخر در RTL به لبه راست می‌چسبند.
+   راه‌حل: auto-fit + justify-content:center تا ردیف آخر وسط‌چین شود
+   و ردیف‌های کامل بدون تغییر باقی بمانند.
+   --------------------------------------------------------------- */
+.brand-panel.active{
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  justify-content:center;
+}
+.page-brands.active{
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr))!important;
+  justify-content:center;
+}
+.kc-stats-new{ justify-content:center; }
+@media(max-width:1080px){
+  .brand-panel.active{ grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); }
+}
+@media(max-width:790px){
+  .brand-panel.active{ grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); }
+  .page-brands.active{ grid-template-columns:repeat(auto-fit,minmax(140px,1fr))!important; }
+}
+@media(max-width:440px){
+  .brand-panel.active{ grid-template-columns:1fr; }
+  .page-brands.active{ grid-template-columns:1fr!important; }
+}

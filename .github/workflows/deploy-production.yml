@@ -1,0 +1,164 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploy to Production — استقرار روی pishtaj.ir
+#
+# مسیر روی گیت‌هاب: .github/workflows/deploy-production.yml   (روی برنچ main)
+#
+# دو کاربرد:
+#   ۱) انتشار عادی: ref را main بگذار
+#   ۲) رول‌بک: ref را روی یک تگ قبلی بگذار (مثلا v2026.07.27-1430)
+#
+# بعد از هر انتشار موفق:
+#   • یک تگ نسخه ساخته می‌شود (برای رول‌بک بعدی)
+#   • یک Release با فایل zip کامل سایت ساخته می‌شود (بک‌آپ)
+#
+# سکرت‌ها: FTP_PROD_SERVER / FTP_PROD_USERNAME / FTP_PROD_PASSWORD / FTP_PROD_SERVER_DIR
+# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'برای تایید، عبارت DEPLOY را دقیقا تایپ کنید'
+        required: true
+        default: ''
+      ref:
+        description: 'چه چیزی منتشر شود؟ main برای انتشار عادی، یا نام یک تگ برای رول‌بک'
+        required: true
+        default: 'main'
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # لازم برای ساخت تگ و Release
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DEPLOY" ]; then
+            echo "::error::تایید نشد. باید عبارت DEPLOY وارد شود."
+            exit 1
+          fi
+          echo "confirmation OK"
+
+      - name: Checkout target ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+
+      # اجازه فقط به main یا تگ‌های نسخه — جلوگیری از انتشار کار نیمه‌تمام یک ایجنت
+      - name: Validate ref is main or a version tag
+        run: |
+          REF="${{ github.event.inputs.ref }}"
+          if [ "$REF" = "main" ]; then
+            echo "deploying from main"
+          elif git tag --list | grep -Fxq "$REF"; then
+            echo "rollback to tag: $REF"
+          else
+            echo "::error::فقط main یا یک تگ معتبر مجاز است. مقدار داده‌شده: $REF"
+            exit 1
+          fi
+
+      - name: Sanity check robots.txt
+        run: |
+          if grep -qi '^\s*Disallow:\s*/\s*$' robots.txt; then
+            echo "::error::robots.txt حالت noindex دارد؛ نسخه استیجینگ وارد شده است."
+            exit 1
+          fi
+          echo "robots.txt OK"
+
+      - name: Ensure no staging banner
+        run: |
+          if grep -rql 'ptf-staging-banner' --include='*.html' .; then
+            echo "::error::بنر استیجینگ در فایل‌ها پیدا شد؛ استقرار متوقف شد."
+            exit 1
+          fi
+          echo "no staging banner"
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_PROD_SERVER }}
+          username: ${{ secrets.FTP_PROD_USERNAME }}
+          password: ${{ secrets.FTP_PROD_PASSWORD }}
+          server-dir: ${{ secrets.FTP_PROD_SERVER_DIR }}
+          state-name: .ftp-deploy-sync-state-production.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            *.md
+            *.zip
+            _audit/**
+            _human_test/**
+            _personas/**
+            _tools/**
+            ptf-all-photos/**
+            service-photos/**
+            ptf-snapshots/**
+            docs-deploy/**
+            tester*.js
+            FILES-CHANGED-*.txt
+
+      # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+      # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
+      - name: Create version tag
+        if: ${{ github.event.inputs.ref == 'main' }}
+        id: tag
+        run: |
+          TAG="v$(date -u +'%Y.%m.%d-%H%M')"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Production deploy $TAG"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "created tag $TAG"
+
+      - name: Build backup archive
+        if: ${{ github.event.inputs.ref == 'main' }}
+        run: |
+          zip -r "site-backup.zip" . \
+            -x '.git/*' 'node_modules/*' '_audit/*' '_human_test/*' \
+               '_personas/*' '_tools/*' 'ptf-all-photos/*' \
+               'service-photos/*' 'ptf-snapshots/*' '*.zip' > /dev/null
+          ls -lh site-backup.zip
+
+      - name: Publish Release (backup)
+        if: ${{ github.event.inputs.ref == 'main' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: نسخه پایدار ${{ steps.tag.outputs.tag }}
+          body: |
+            انتشار موفق روی https://pishtaj.ir
+
+            **کامیت:** `${{ github.sha }}`
+
+            برای بازگشت به این نسخه:
+            تب Actions ← Deploy to Production ← Run workflow
+            و در فیلد `ref` مقدار `${{ steps.tag.outputs.tag }}` را وارد کنید.
+
+            فایل `site-backup.zip` نسخه کامل سایت در این لحظه است.
+          files: site-backup.zip
+
+      - name: Summary
+        run: |
+          echo "### 🚀 استقرار پروداکشن انجام شد" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| مورد | مقدار |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| منبع | \`${{ github.event.inputs.ref }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.ref }}" = "main" ]; then
+            echo "| تگ نسخه | \`${{ steps.tag.outputs.tag }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| بک‌آپ | در بخش Releases ذخیره شد |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| نوع | رول‌بک |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "| آدرس | https://pishtaj.ir |" >> $GITHUB_STEP_SUMMARY

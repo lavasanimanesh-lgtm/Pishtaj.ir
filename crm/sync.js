@@ -42,7 +42,7 @@
 
   window._ptfSyncBootstrapped = false; /* v16.7 BUG-018: فلگ عمومی برای ماژول‌هایی که rebuild خودکار دارند (sms) */
   var state = {
-    dirty: {},          // کلیدهای تغییر یافته محلی که هنوز push نشده‌اند
+    dirty: (function () { try { var s = localStorage.getItem('ptf_sync_dirty'); return s ? JSON.parse(s) : {}; } catch (e) { return {}; } })(),  // کلیدهای تغییر یافته محلی که هنوز push نشده‌اند — v33.2.1: persisted
     pushTimer: null,
     pulling: false,
     pushing: false,
@@ -67,10 +67,13 @@
     saveKrevs(m);
   }
 
+  function saveDirty() { try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(state.dirty)); } catch (e) {} }
+
   /* ---------- رهگیری تغییرات: wrap setData ---------- */
   window.ptfSyncNotifyDirty = function (k) {
     if (SYNC_KEYS.indexOf(k) > -1 && !state.pulling) {
       state.dirty[k] = true;
+      saveDirty(); // v33.2.1: persist dirty keys
       schedulePush();
     }
   };
@@ -167,7 +170,7 @@
     var keys = Object.keys(state.dirty);
     var forbiddenLocal = keys.filter(function (k) { return !syncAllowedKey(k); });
     forbiddenLocal.forEach(function (k) { delete state.dirty[k]; });
-    if (forbiddenLocal.length) { setSyncBadge('forbidden'); try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقش در sync ارسال نشد: ' + forbiddenLocal.join('، '), 'SYNC-RBAC'); } catch (eF) {} }
+    if (forbiddenLocal.length) { saveDirty(); setSyncBadge('forbidden'); try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقش در sync ارسال نشد: ' + forbiddenLocal.join('، '), 'SYNC-RBAC'); } catch (eF) {} }
     keys = keys.filter(function (k) { return forbiddenLocal.indexOf(k) < 0; });
     if (!keys.length || state.pushing) return;
     if (!curSession().user) return;
@@ -186,6 +189,7 @@
           var arr = JSON.parse(localStorage.getItem(k) || '[]');
           if (Array.isArray(arr) && arr.length === 0) {
             delete state.dirty[k];
+            saveDirty();
             if (!window._ptfZeroWarned) {
               window._ptfZeroWarned = true;
               alert('🛡 سپر داده (US-382): فهرست «' + k.replace('ptf_crm_', '') + '» در این دستگاه خالی است ولی سرور نسخه ناخالی دارد — ارسال متوقف شد تا داده سرور پاک نشود.\n(در صورت نیاز واقعی به پاک‌سازی، از «شروع بهره‌برداری واقعی» در تنظیمات استفاده کنید)');
@@ -219,7 +223,7 @@
         if (d.ok) {
           applyKrevs(d.krevs); /* v15.0 */
           var confl = d.conflicts || [];
-          keys.forEach(function (k) { if (confl.indexOf(k) < 0) delete state.dirty[k]; });
+          keys.forEach(function (k) { if (confl.indexOf(k) < 0) delete state.dirty[k]; }); saveDirty();
           if (d.rev) setRev(d.rev);
           /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
           if (confl.length) {
@@ -243,6 +247,16 @@
           else setSyncBadge('ok');
         } else {
           setSyncBadge('warn');
+          /* v33.2.1 HOTFIX: اگر push ناموفق بود، هشدار واضح بده — تغییرات محلی حفظ می‌شوند */
+          if (d.needLogin) {
+            refreshAuthToken();
+          } else if (d.error === 'Forbidden: role not allowed') {
+            setSyncBadge('forbidden');
+            try { if (typeof ptfToast === 'function') ptfToast('⛔ تغییرات شما ذخیره نشد — نقش فعلی اجازه ویرایش این بخش را ندارد. تغییرات محلی حفظ شده‌اند.', 'warn'); } catch (eT) {}
+          } else {
+            try { if (typeof ptfToast === 'function') ptfToast('⚠️ ذخیره در سرور ناموفق — تغییرات محلی حفظ شده‌اند و بعداً تلاش مجدد می‌شود. خطا: ' + (d.error || ''), 'warn'); } catch (eT) {}
+          }
+          saveDirty(); // v33.2.1: dirty keys persisted for recovery after refresh
           schedulePush(); // دوباره تلاش
         }
       })
@@ -279,6 +293,22 @@
         if (d.fresh) { setSyncBadge('ok'); if (done) done(); return; }
         // سرور جلوتر است → اعمال داده‌ها
         state.pulling = true;
+        /* v33.2.1: snapshot خودکار قبل از pull — اگر dirty keys هست و merge اشتباهی انجام شود،
+           کاربر از audit log می‌تواند داده‌های قبلی را بازیابی کند */
+        var dirtyKeys = Object.keys(state.dirty);
+        if (dirtyKeys.length > 0) {
+          try {
+            var snap = {};
+            dirtyKeys.forEach(function (k) { var v = localStorage.getItem(k); if (v) snap[k] = v; });
+            if (Object.keys(snap).length > 0) {
+              var snapKey = 'ptf_pre_pull_snap_' + Date.now();
+              localStorage.setItem(snapKey, JSON.stringify(snap));
+              // فقط ۳ snapshot آخر حفظ شود
+              var allSnaps = Object.keys(localStorage).filter(function (x) { return x.indexOf('ptf_pre_pull_snap_') === 0; }).sort();
+              while (allSnaps.length > 3) { localStorage.removeItem(allSnaps.shift()); }
+            }
+          } catch (eSnap) {}
+        }
         var applied = 0;
         // Sprint 104: Smart Array Merging & Concurrency Control
         Object.keys(d.data || {}).forEach(function (k) {
@@ -354,7 +384,9 @@
   }
 
   /* ---------- نشانگر وضعیت سینک ---------- */
+  var _lastSyncBadge = 'ok';
   function setSyncBadge(st) {
+    _lastSyncBadge = st;
     var el = document.getElementById('syncBadge');
     if (!el) return;
     var map = {
@@ -366,6 +398,20 @@
     var x = map[st] || map.ok;
     el.textContent = x[0];
     el.title = x[1];
+    /* v33.2.1: بنر هشدار تغییرات ذخیره‌نشده */
+    var banner = document.getElementById('ptfUnsavedBanner');
+    if (banner) {
+      var dirtyCount = Object.keys(state.dirty).length;
+      if (dirtyCount > 0 && (st === 'forbidden' || st === 'warn')) {
+        banner.style.display = 'flex';
+        banner.innerHTML = '<span style="flex:1">⚠️ ' + dirtyCount + ' تغییر ذخیره‌نشده — ' + (st === 'forbidden' ? 'نقش فعلی اجازه همگام‌سازی ندارد' : 'در حال تلاش مجدد...') + '</span>';
+      } else if (dirtyCount > 0 && st === 'offline') {
+        banner.style.display = 'flex';
+        banner.innerHTML = '<span style="flex:1">🔴 ' + dirtyCount + ' تغییر آفلاین — با اتصال مجدد ارسال می‌شود</span>';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
   }
 
   function injectBadge() {
@@ -377,6 +423,11 @@
     s.textContent = '🟢';
     s.title = 'همگام با سرور';
     tb.appendChild(s);
+    /* v33.2.1: بنر هشدار تغییرات ذخیره‌نشده */
+    var banner = document.createElement('div');
+    banner.id = 'ptfUnsavedBanner';
+    banner.style.cssText = 'display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#1e293b;padding:8px 16px;font-size:13px;font-weight:600;align-items:center;gap:8px;box-shadow:0 -2px 8px rgba(0,0,0,0.15)';
+    document.body.appendChild(banner);
   }
 
   /* ---------- مهاجرت اولیه: seed یا دریافت ---------- */
@@ -411,6 +462,12 @@
   function boot() {
     if (!curSession().user) return;
     injectBadge();
+    /* v33.2.1: خودبازیابی — اگر dirty keys از session قبل هست، هشدار بده */
+    var dirtyKeys = Object.keys(state.dirty);
+    if (dirtyKeys.length > 0) {
+      try { if (typeof ptfToast === 'function') ptfToast('🔄 ' + dirtyKeys.length + ' تغییر ذخیره‌نشده از جلسه قبل یافت شد — در حال تلاش برای همگام‌سازی...', 'info'); } catch (eDR) {}
+      setSyncBadge('warn');
+    }
     try { if (typeof ptfUpdateGuardCounts === 'function' && !localStorage.getItem('ptf_guard_counts')) ptfUpdateGuardCounts(); } catch (eB) {} /* v14.7 US-382: baseline اولیه */
     initialSync();
     if (!window._ptfSyncPullT) {
