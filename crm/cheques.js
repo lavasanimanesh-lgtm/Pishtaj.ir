@@ -862,6 +862,12 @@
       kind: kind, guarType: kind === 'guarantee' ? (((document.getElementById('chAiGuarType') || {}).value) || 'advance') : '',
       dealCd: kind === 'guarantee' ? (((document.getElementById('chAiDealCd') || {}).value) || '') : '',
       dealLabel: '',
+      /* AUD-06-b (کشف تکمیلی ۱۴۰۵/۰۵/۰۷ — همان الگوی AUD-06 که برای فرم دسته‌ای رفع شد،
+         در مسیر «دستیار هوشمند ثبت چک» هم فراموش شده بود): بدون ownership صریح،
+         chSave/chAll این رکورد را پیش‌فرض «شرکتی» می‌دیدند و کاربر غیرمجاز
+         (مثل کارشناس فروش) می‌توانست از این مسیر هم بی‌صدا وارد استخر چک
+         شرکتی شود. */
+      ownership: (typeof window.ptfCanCreateCompanyCheque === 'function' && window.ptfCanCreateCompanyCheque()) ? 'company' : 'personal',
       st: 'open', by: curSession().user, byNm: curSession().name, t: faDateTime(), notified: {}, src: 'ai-cheque'
     };
     if (rec.dealCd) {
