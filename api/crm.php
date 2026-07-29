@@ -1337,6 +1337,9 @@ switch($action) {
                 'name'     => $u['name'] ?? '',
                 'nameEn'   => $u['nameEn'] ?? '',
                 'roleId'   => $u['roleId'] ?? 'sales',
+                'role'     => $u['role'] ?? '',
+                'mobile'   => $u['mobile'] ?? '',
+                'email'    => $u['email'] ?? '',
             ];
         }, $all_users);
         echo json_encode(['ok' => true, 'users' => $safe_users], JSON_UNESCAPED_UNICODE);
