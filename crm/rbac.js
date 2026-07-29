@@ -634,6 +634,19 @@ function saveInv(offerNo) {
   var no = document.getElementById('nInvNo').value.trim();
   var amt = ptfNum(document.getElementById('nInvAmt').value);
   if (!no || !amt) { alert('شماره و مبلغ فاکتور الزامی است'); return; }
+  /* AUD-10 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     فاکتور خرید تأمین‌کننده (supplier-finance.js#slInvoiceSave) گارد صریح
+     یکتایی شماره‌ی سند دارد (FIN-EX-01)؛ فاکتور فروش رسمی هرگز نداشت —
+     یعنی می‌شد دو پیش‌فاکتور متفاوت را با یک شماره‌ی فاکتور یکسان (اما
+     مبلغ متفاوت) ثبت کرد، که برای شماره‌ی فاکتور رسمی/مالیاتی مسئله‌ساز
+     است. بررسی روی همه‌ی فاکتورهای غیرباطل انجام می‌شود (نه فقط همین
+     offerNo) چون شماره‌ی فاکتور حسابداری باید در کل شرکت یکتا باشد؛ رکورد
+     خودِ در-حال-ویرایش (editCd) از این بررسی مستثنی می‌شود. */
+  var editCdCheck = window._invEditCd || '';
+  var dupInv = getData('ptf_crm_invoices').filter(function (x) {
+    return x.cd !== editCdCheck && x.status !== 'void' && x.st !== 'void' && x.void !== true && String(x.no || '').trim().toLowerCase() === no.toLowerCase();
+  })[0];
+  if (dupInv) { alert('⛔ فاکتور با شماره «' + no + '» قبلاً برای پیش‌فاکتور ' + (dupInv.offerNo || '-') + ' ثبت شده — شماره تکراری مجاز نیست'); return; }
   /* v19.3 (US-436 AC2): ارزش افزوده + تاریخ فاکتور — مبلغ ثبتی = جمع کل با ارزش افزوده */
   var vat = ptfNum((document.getElementById('nInvVat') || {}).value);
   var invDate = ((document.getElementById('nInvDate') || {}).value || '').trim() || faDate();
