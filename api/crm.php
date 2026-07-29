@@ -307,6 +307,21 @@ function normalize_role($roleId, $role) {
     if ($clean !== '') return $clean;
     return 'sales';
 }
+/* v33.2.1: نگاشت معکوس — roleId لاتین → نام فارسی نقش */
+$ROLE_LATIN_TO_PERSIAN = [
+    'admin' => 'مدیر کل سیستم',
+    'chairman' => 'رییس هیات مدیره',
+    'ceo' => 'مدیرعامل',
+    'commercial' => 'مدیر بازرگانی',
+    'sales' => 'کارشناس فروش',
+    'buyer' => 'کارشناس خرید',
+    'accountant' => 'حسابدار',
+    'collector' => 'تحصیلدار',
+];
+function role_persian_label($roleId) {
+    global $ROLE_LATIN_TO_PERSIAN;
+    return $ROLE_LATIN_TO_PERSIAN[$roleId] ?? $roleId;
+}
 function role_guard($action_key) {
     global $ROLE_ACL, $client_role;
     if (!isset($ROLE_ACL[$action_key])) return true;
@@ -512,7 +527,9 @@ function load_all_crm_users_sources() {
             $next['username'] = $key;
             if (empty($next['passhash']) && !empty($prev['passhash'])) $next['passhash'] = $prev['passhash'];
             if (empty($next['roleId']) && !empty($next['role'])) $next['roleId'] = normalize_role('', $next['role']);
-            if (empty($next['role']) && !empty($next['roleId'])) $next['role'] = $next['roleId'];
+            // v33.2.1: اگر role فارسی نیست (یا خالی)، از roleId نگاشت فارسی بگیر
+            $isPersian = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', (string)($next['role'] ?? ''));
+            if (!$isPersian && !empty($next['roleId'])) $next['role'] = role_persian_label($next['roleId']);
             $by[$key] = $next;
         }
     }

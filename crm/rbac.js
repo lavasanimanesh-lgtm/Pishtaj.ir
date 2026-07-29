@@ -425,7 +425,7 @@ function renderUsers2() {
   var h = '<tr><td><strong>admin</strong></td><td>مدیر ارشد</td><td><span class="bd b-ad">ادمین</span></td><td>—</td><td><span class="bd b-st4">✔ فعال</span></td><td></td></tr>';
   users.forEach(function (us) {
     h += '<tr><td><strong>' + escP(us.username) + '</strong></td><td>' + escP(us.name) + '</td>' +
-      '<td><span class="bd ' + (us.roleId === 'chairman' ? 'b-ad' : 'b-op') + '">' + escP(us.role) + '</span></td>' +
+      '<td><span class="bd ' + (us.roleId === 'chairman' ? 'b-ad' : 'b-op') + '">' + escP(ROLES[us.roleId] ? ROLES[us.roleId].lb : (us.role || us.roleId)) + '</span></td>' +
       '<td style="direction:ltr;font-size:11.5px">' + escP(us.mobile || '-') + '<br>' + escP(us.email || '-') + '</td>' +
       '<td><span class="bd b-st4">✔ فعال</span></td>' +
       '<td>' + (canManage
