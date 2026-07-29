@@ -106,6 +106,13 @@ RewriteRule ^knowledge-center/c-f1c0b0cf\.html$ /knowledge-center/kc-api-617-sur
 RewriteRule ^knowledge-center/c-fe118620\.html$ /knowledge-center/kc-astm-a106-heat-treatment-requirements.html [R=301,L]
 RewriteRule ^knowledge-center/k-16db10c6\.html$ /knowledge-center/kc-commissioning-punch-list-management.html [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۶ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/k-2c6acc01\.html$ /knowledge-center/kc-flange-class-900-2500-bolt-torque-table.html [R=301,L]
+RewriteRule ^knowledge-center/k-2d1f8f12\.html$ /knowledge-center/kc-heat-tracing-power-calculation-guide.html [R=301,L]
+RewriteRule ^knowledge-center/k-3dc7129c\.html$ /knowledge-center/kc-valve-leak-test-acceptance-criteria.html [R=301,L]
+RewriteRule ^knowledge-center/k-51e85ef8\.html$ /knowledge-center/kc-cctv-camera-selection-hazardous-area.html [R=301,L]
+RewriteRule ^knowledge-center/k-6448a244\.html$ /knowledge-center/kc-fire-suppression-agent-selection-guide.html [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
