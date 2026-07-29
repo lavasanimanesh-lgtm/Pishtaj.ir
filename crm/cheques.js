@@ -257,6 +257,13 @@
 
   window.chCollectForm = function(ex){ return chCollectForm(ex); };
   function canCreateCompanyCheque(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} }
+  /* AUD-05 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     supplier-finance.js مسیر مستقل دیگری برای ساخت چک شرکتی دارد
+     (slChequeCreate، از فرم پرداخت تأمین‌کننده) که همین گیت نقش را نیاز
+     دارد اما به این تابع private دسترسی نداشت. به‌جای تکرار لیست نقش‌ها
+     در فایل دیگر (که بعداً می‌تواند از هم واگرا شود)، همین تابع را روی
+     window قرار می‌دهیم تا مرجع واحد بماند. */
+  window.ptfCanCreateCompanyCheque = canCreateCompanyCheque;
   function chCollectForm(existingCd) {
     var sayad = ((document.getElementById('chSayad') || {}).value || '').trim();
     // v30.8 FIN-EX-02: یکتایی شماره صیادی
