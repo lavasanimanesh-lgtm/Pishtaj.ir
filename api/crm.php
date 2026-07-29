@@ -29,7 +29,7 @@ function verify_request() {
     // Public actions that don't need verification
     // v31.7.7 HOTFIX: Added 'users_get' — needed during login before token exists.
     // users_get only returns safe fields (no passhash) since BUG-AUDIT-004.
-    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'sms_status'];
+    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'sms_status', 'users_get'];
     if (in_array($action, $public_actions)) {
         return true;
     }
