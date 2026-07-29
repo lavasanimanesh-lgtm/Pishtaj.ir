@@ -274,7 +274,7 @@ $ROLE_ACL = [
        These gates only permit authenticated CRM roles to reach the transport. */
     'sync_read'    => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
     'sync_write'   => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
-    'users_write'   => ['admin','chairman'],
+    'users_write'   => ['admin','chairman','ceo','commercial'],
     'buyprice_read' => ['admin','chairman','ceo','commercial','buyer'],
     'sellprice_read'=> ['admin','chairman','ceo','commercial','sales','accountant'],
     'approve_write' => ['admin','chairman','ceo','commercial'],
