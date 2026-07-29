@@ -113,6 +113,13 @@ RewriteRule ^knowledge-center/k-3dc7129c\.html$ /knowledge-center/kc-valve-leak-
 RewriteRule ^knowledge-center/k-51e85ef8\.html$ /knowledge-center/kc-cctv-camera-selection-hazardous-area.html [R=301,L]
 RewriteRule ^knowledge-center/k-6448a244\.html$ /knowledge-center/kc-fire-suppression-agent-selection-guide.html [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۷ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/k-bf5f9c12\.html$ /knowledge-center/kc-actuator-fail-safe-position-guide.html [R=301,L]
+RewriteRule ^knowledge-center/k-e84d3254\.html$ /knowledge-center/kc-washer-material-torque-relaxation.html [R=301,L]
+RewriteRule ^knowledge-center/k-fad15053\.html$ /knowledge-center/kc-ngl-recovery-turboexpander-process.html [R=301,L]
+RewriteRule ^knowledge-center/z-13cc2194\.html$ /knowledge-center/kc-hvac-pressurization-control-room.html [R=301,L]
+RewriteRule ^knowledge-center/z-19c52fd0\.html$ /knowledge-center/kc-lubrication-oil-analysis-condition-monitoring.html [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
