@@ -648,4 +648,20 @@
       return _editPay(cd);
     };
   }
+  /* AUD-04 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     دکمه‌ی «🗑 حذف فاکتور» در بخش «مدیریت فاکتور و پرداخت» (Sprint 270) از
+     slInvoiceDelete استفاده می‌کند که همان اثر void را دارد اما تا این‌جا
+     گارد قفل سال مالی نداشت — بر خلاف slInvoiceVoid که چند خط بالاتر
+     به‌درستی پوشانده شده. slPaymentDelete نیازی به گارد جداگانه ندارد چون
+     مستقیماً به slPaymentVoid (که همین‌جا/بالاتر پوشانده شده) delegate
+     می‌کند. */
+  var _delInv = window.slInvoiceDelete;
+  if(_delInv){
+    window.slInvoiceDelete = function(cd){
+      var d=(function(){ try{return JSON.parse(localStorage.getItem('ptf_crm_supplier_finance')||'{}')}catch(e){return {}}; })();
+      var i=(d.invoices||[]).filter(function(x){ return x.cd===cd; })[0];
+      if(i && slLockedYear(i.dateISO)){ alert('🔒 فاکتور مربوط به سال مالی '+slLockedYear(i.dateISO)+' قفل است - حذف مجاز نیست. سند اصلاحی بزنید.'); return; }
+      return _delInv(cd);
+    };
+  }
 })();
