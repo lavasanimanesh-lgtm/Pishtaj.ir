@@ -656,7 +656,16 @@ function saveInv(offerNo) {
       /* v24.5 BUG-126-02: کسر از فاکتور = مبلغ وصول‌شده (نه کل پیش‌پرداخت تعریف‌شده) */
       var advPay = _a.cashFull ? grand : Math.min(grand, Math.max(0, received));
       if (advPay > 0) {
-        newInv.payments.push({ amt: advPay, how: _a.cashFull ? 'پرداخت کامل/نقدی هنگام سفارش (US-436)' : 'کسر مبالغ وصول‌شده پیش‌پرداخت (US-436)', t: faDate(), by: curSession().name, fromAdvance: true });
+        var advPayRec = { amt: advPay, how: _a.cashFull ? 'پرداخت کامل/نقدی هنگام سفارش (US-436)' : 'کسر مبالغ وصول‌شده پیش‌پرداخت (US-436)', t: faDate(), by: curSession().name, fromAdvance: true };
+        /* فاز ۲ / گام ۹ (رفع باگ ریشه‌یابی‌شده — کارفرما): برای اسناد ارزی، معادل
+           ارزی وصولی باید ثبت شود وگرنه ptfFxInvoiceSummary (fx.js) آن را «صفر»
+           می‌بیند و مانده ارزی را برابر کل فاکتور نشان می‌دهد؛ الگو دقیقاً از
+           همان روش unofficial-invoice.js (پیش‌پرداخت فاکتور غیررسمی) گرفته شده:
+           نرخ = همان نرخی که هنگام ثبت پیش‌پرداخت وارد شده (_a.rate از petty.js). */
+        if (_oAdv.currency && _oAdv.currency !== 'IRR' && +_a.rate > 0) {
+          advPayRec.fx = { fxAmt: +(advPay / (+_a.rate)).toFixed(2), rate: +_a.rate, cur: _oAdv.currency };
+        }
+        newInv.payments.push(advPayRec);
         newInv.advApplied = advPay;
       }
     }
