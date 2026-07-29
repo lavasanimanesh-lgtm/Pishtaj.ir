@@ -756,19 +756,20 @@
         } catch (eAv) { return remoteStr; }
       }
 
-      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
-      var loc = JSON.parse(localStr || '[]');
-      var rem = JSON.parse(remoteStr || '[]');
-      if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;
-
-      /* Sprint 283: fiscal lock/unlock is a state transition on one snapshot,
-         not an ordinary display timestamp. A chairman unlock has lockStateAtISO;
-         keep that transition through a per-key sync conflict so an older locked
-         server copy cannot silently re-lock the year after a local unlock. */
+      /* Sprint 283 + AUD-01 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         fiscal lock/unlock is a state transition on one snapshot, not an ordinary
+         display timestamp. A chairman unlock has lockStateAtISO; keep that transition
+         through a per-key sync conflict so an older locked server copy cannot silently
+         re-lock the year after a local unlock.
+         نکته‌ی حیاتی: این بلوک باید پیش از چک عمومی «if (!Array.isArray(loc) ...)»
+         بیاید، چون ptf_crm_supplier_finance یک OBJECT است نه آرایه — قبلاً این بلوک
+         بعد از آن چک بود و همیشه Array.isArray(loc)===false باعث می‌شد بدون رسیدن به
+         اینجا، remoteStr برگردانده شود (کد مرده — AUD-01: هر فاکتور/پرداخت/تعدیل محلی
+         که هنوز sync نشده، در هر تعارضی به‌طور کامل و بی‌صدا از بین می‌رفت). */
       if (key === 'ptf_crm_supplier_finance') {
         try {
           var locO = JSON.parse(localStr||'{}'); var remO = JSON.parse(remoteStr||'{}');
-          if(typeof locO!=='object' || typeof remO!=='object') return remoteStr;
+          if(typeof locO!=='object' || typeof remO!=='object' || Array.isArray(locO) || Array.isArray(remO)) return remoteStr;
           var merged={};
           var allKeys = {};
           Object.keys(locO).forEach(function(k){ allKeys[k]=1; });
@@ -799,6 +800,11 @@
           return JSON.stringify(merged);
         } catch(e){ return remoteStr; }
       }
+
+      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+      var loc = JSON.parse(localStr || '[]');
+      var rem = JSON.parse(remoteStr || '[]');
+      if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;
 
       /* v31.7.26 BUG-SYNC-OSC-001 (گزارش کارفرما: دفتر تلفن مدام زیاد/کم می‌شود):
          smsBookSyncAll در هر rebuild برای رکوردهای auto با genCode('PB') کد «تصادفی جدید» می‌ساخت؛
