@@ -268,8 +268,8 @@ if (!is_dir($data_dir_early)) { mkdir($data_dir_early, 0755, true); file_put_con
 
 // ===== RBAC (US-122 / AC6): گارد نقش سمت سرور =====
 $ROLE_ACL = [
-    'finance_read'  => ['admin','chairman','ceo'],
-    'finance_write' => ['admin','chairman','ceo'],
+    'finance_read'  => ['admin','chairman','ceo','commercial'],
+    'finance_write' => ['admin','chairman','ceo','commercial'],
     /* Sync transport is role-scoped by key in sync_allowed_keys_for_role().
        These gates only permit authenticated CRM roles to reach the transport. */
     'sync_read'    => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
