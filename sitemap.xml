@@ -244,6 +244,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ct-pt.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-customs-clearance.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-cv-actuator.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-dcs-redundancy-architecture-guide.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-dcs.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-desalter-electrostatic-grid-troubleshooting.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-desalter.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
@@ -258,8 +259,10 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-fcc-unit.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-fire-suppression-agent-selection-guide.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-flange-class-900-2500-bolt-torque-table.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-flowmeter-selection-by-fluid-application.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-flowmeters-10-methods.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-fm200-co2-foam-water.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-gas-analyzer-calibration-zero-span.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-gas-dehydration-teg.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-gas-sweetening-amine.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-gasket-selection-by-fluid-temperature.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
@@ -295,6 +298,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-offshore.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-oil-gas-pipeline-equipment.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-oil-refinery-equipment.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-orifice-plate-beta-ratio-sizing.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-petrochemical-complex-equipment.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-pipeline-corrosion-prevention.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-pipeline-welding-standards.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
@@ -327,6 +331,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-sulfur-recovery.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-teg-dehydration-glycol-loss-control.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-thermal-powerplant-equipment.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-thermocouple-cold-junction-compensation.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ups.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-valve-leak-test-acceptance-criteria.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-vfd.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
@@ -442,11 +447,6 @@
   <url><loc>https://pishtaj.ir/knowledge-center/z-d0063fcd.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-ef76567b.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-fe99473f.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/%D8%A7%D8%A8%D8%B2%D8%A7%D8%B1%20%D8%AF%D9%82%DB%8C%D9%82-00540f77.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/%D8%A7%D8%A8%D8%B2%D8%A7%D8%B1%20%D8%AF%D9%82%DB%8C%D9%82-a285accb.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/%D8%A7%D8%A8%D8%B2%D8%A7%D8%B1%20%D8%AF%D9%82%DB%8C%D9%82-bdf04659.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/%D8%A7%D8%A8%D8%B2%D8%A7%D8%B1%20%D8%AF%D9%82%DB%8C%D9%82-c371b874.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/%D8%A7%D9%86%D8%AF%D8%A7%D8%B2%D9%87%E2%80%8C%DA%AF%DB%8C%D8%B1%DB%8C-%D8%AF%D8%A8%DB%8C-%D8%A8%D8%A7-orifice-plate-%D8%B1%D8%A7%D9%87%D9%86%D9%85%D8%A7%DB%8C-%DA%A9%D8%A7%D9%85%D9%84.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/%D8%A8%D8%B1%D9%82%20%D8%B5%D9%86%D8%B9%D8%AA%DB%8C-28ceb600.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/%D8%A8%D8%B1%D9%82%20%D8%B5%D9%86%D8%B9%D8%AA%DB%8C-a4c1a926.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/%D8%A8%D8%B1%D9%82%20%D8%B5%D9%86%D8%B9%D8%AA%DB%8C-b112a7f7.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>

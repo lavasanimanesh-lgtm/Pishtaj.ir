@@ -141,6 +141,13 @@ RewriteRule ^knowledge-center/z-f0c07ffb\.html$ /knowledge-center/kc-fcc-catalys
 RewriteRule ^knowledge-center/z-f3d4fbf4\.html$ /knowledge-center/kc-teg-dehydration-glycol-loss-control.html [R=301,L]
 RewriteRule ^knowledge-center/z-fddb4921\.html$ /knowledge-center/kc-ppe-selection-by-hazard-category.html [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۱ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/ابزار دقیق-00540f77\.html$" "/knowledge-center/kc-dcs-redundancy-architecture-guide.html" [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-a285accb\.html$" "/knowledge-center/kc-flowmeter-selection-by-fluid-application.html" [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-bdf04659\.html$" "/knowledge-center/kc-thermocouple-cold-junction-compensation.html" [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-c371b874\.html$" "/knowledge-center/kc-gas-analyzer-calibration-zero-span.html" [R=301,L]
+RewriteRule "^knowledge-center/اندازه‌گیری-دبی-با-orifice-plate-راهنمای-کامل\.html$" "/knowledge-center/kc-orifice-plate-beta-ratio-sizing.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
