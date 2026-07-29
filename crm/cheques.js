@@ -27,6 +27,35 @@
     return chAll().filter(function (c) { return !me || c.by === me; });
   }
   function chSave(l) {
+    /* FW-C01 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md، تصمیم صریح کارفرما:
+       «الان به آن رسیدگی کن»):
+       chAll() یک رکورد چک شخصی legacy که هنوز در کلید global (K) مانده
+       باشد را کاملاً از دید مخفی می‌کند — حتی اگر صاحب آن خودِ کاربر فعلی
+       باشد (فیلتر ownership!=='personal' برای بخش global بدون قید مالک).
+       یعنی چنین رکوردی هرگز در آرایه‌ی ورودی این تابع (l، که از chAll()
+       گرفته شده) دیده نمی‌شود؛ و چون chSave همیشه کل کلید شخصیِ کاربر
+       فعلی را با «mine» (برگرفته از l) جایگزین می‌کند، آن رکورد legacy
+       برای همیشه از بین می‌رفت.
+       راه‌حل idempotent و خودترمیم‌شونده، بدون خطر «زنده‌کردن» رکورد
+       حذف‌شده‌ی عمدی کاربر: پیش از هر overwrite، وضعیت کلید شخصیِ کاربر
+       فعلی را قبل و بعد از اجرای migration مقایسه می‌کنیم. هر رکوردی که
+       فقط بعد از migration ظاهر شده (delta) — یعنی legacy‌ای که همین الان
+       اولین‌بار منتقل شد و در l هرگز دیده نشده بود — به «mine» اضافه
+       می‌شود. رکوردهایی که از قبل هم در کلید شخصی بودند و کاربر آگاهانه
+       از لیست خود حذف کرده (در l نیستند)، دوباره زنده نمی‌شوند؛ چون تنها
+       delta جدید merge می‌شود، نه کل محتوای قبلی کلید. */
+    var mePreMig = (curSession()||{}).user||'';
+    var personalKeyPreMig = 'ptf_personal_cheques_' + (mePreMig || '_');
+    var beforeMigJson = '[]';
+    try { beforeMigJson = localStorage.getItem(personalKeyPreMig) || '[]'; } catch (eB) {}
+    try { if (typeof window.chMigratePersonal === 'function') window.chMigratePersonal(); } catch (eMig) {}
+    var newlyMigrated = [];
+    try {
+      var beforeArr = JSON.parse(beforeMigJson || '[]');
+      var afterArr = JSON.parse(localStorage.getItem(personalKeyPreMig) || '[]');
+      var beforeIds = {}; (Array.isArray(beforeArr) ? beforeArr : []).forEach(function (c) { if (c && c.cd) beforeIds[c.cd] = 1; });
+      newlyMigrated = (Array.isArray(afterArr) ? afterArr : []).filter(function (c) { return c && c.cd && !beforeIds[c.cd]; });
+    } catch (eDelta) {}
     // v30.0.1 server guard: company cheque only chairman/ceo/commercial
     try {
       var canCompany = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
@@ -36,7 +65,16 @@
         if(hasCompany){ alert('⛔ فقط رییس هیات مدیره و مدیرعامل می‌توانند چک شرکتی ثبت کنند'); }
       }
     } catch(e){}
-    var me=(curSession()||{}).user||''; var company=l.filter(function(c){return c.ownership!=='personal';}); var mine=l.filter(function(c){return c.ownership==='personal' && c.by===me;}); setData(K, company); try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }
+    var me=(curSession()||{}).user||''; var company=l.filter(function(c){return c.ownership!=='personal';}); var mine=l.filter(function(c){return c.ownership==='personal' && c.by===me;});
+    /* FW-C01: اضافه‌کردن رکوردهای همین‌الان‌مهاجرت‌شده (که در l نبودند چون l از
+       chAll() پیش از migration ساخته شده) — بدون این خط، خط بعدی که کلید
+       شخصی را با mine جایگزین می‌کند، همان چیزی را که چند خط بالاتر
+       migration کرده بود از بین می‌برد. */
+    if (newlyMigrated.length) {
+      var mineIds = {}; mine.forEach(function (c) { if (c && c.cd) mineIds[c.cd] = 1; });
+      newlyMigrated.forEach(function (c) { if (c && c.cd && !mineIds[c.cd]) { mine.push(c); mineIds[c.cd] = 1; } });
+    }
+    setData(K, company); try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }
 
   // v29.7 FIN-WF-002: migration legacy personal cheques from global to personal keys
   window.chMigratePersonal = function(){
