@@ -181,24 +181,16 @@
       // اعتبار نزد تأمین‌کننده (مانده منفی)
       var supCredit = 0;
       try {
-        var sups = getData('ptf_crm_suppliers')||[];
-        var sd = (typeof data==='function' ? data() : (function(){ try{return JSON.parse(localStorage.getItem('ptf_crm_supplier_finance')||'{}')}catch(e){return {}} })());
-        // از balance() اگر موجود
-        if(typeof balance==='function'){
-          sups.forEach(function(s){
-            var b=balance(s.cd);
-            b.forEach(function(bb){ if(bb.amount<0) supCredit+=Math.abs(bb.amount); });
-          });
-        } else {
-          // fallback ساده: جمع credit از supplier_finance
-          var allPay = (sd.payments||[]).concat(sd.adjustments||[]);
-          // اعتبار = جمع پرداخت‌های بدون تخصیص با cur IRR و منفی
-          // برای سادگی از balanceHtml قدیمی استفاده نمی‌کنیم، فقط جمع بستانکاری
-          sups.forEach(function(s){
-            // اگر تابع balance نیست، از localStorage مستقیم
-            var b = (function(){ try{ return JSON.parse(localStorage.getItem('ptf_crm_supplier_finance')||'{}'); }catch(e){return {}}; })();
-            // ساده: اگر ب نیست، 0
-          });
+        /* AUD-08 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+           balance() تابعی private داخل IIFE فایل supplier-finance.js است و
+           هرگز روی window قرار نمی‌گیرد؛ بنابراین typeof balance==='function'
+           همیشه false بود و شاخه‌ی else (کد مرده، بدون هیچ محاسبه‌ای) همیشه
+           اجرا می‌شد — این کارت همیشه صفر نمایش می‌داد صرف‌نظر از داده‌ی
+           واقعی. راه‌حل: از تابع عمومی از پیش‌موجود slSupplierOpenTotalsIRR
+           (که دقیقاً همین محاسبه را با balance() واقعی انجام می‌دهد و در
+           supplier-finance.js پیش از fiscal.js لود می‌شود) استفاده می‌شود. */
+        if (typeof window.slSupplierOpenTotalsIRR === 'function') {
+          supCredit = window.slSupplierOpenTotalsIRR().credit || 0;
         }
       } catch(e2){ supCredit=0; }
       // مانده تنخواه تسویه‌نشده
