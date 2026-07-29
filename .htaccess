@@ -127,6 +127,13 @@ RewriteRule ^knowledge-center/z-3c852165\.html$ /knowledge-center/kc-desalter-el
 RewriteRule ^knowledge-center/z-552871f7\.html$ /knowledge-center/kc-hse-permit-to-work-system-guide.html [R=301,L]
 RewriteRule ^knowledge-center/z-60e9da08\.html$ /knowledge-center/kc-chemical-injection-pump-metering-accuracy.html [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۹ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/z-7b1d8a53\.html$ /knowledge-center/kc-sru-claus-process-efficiency.html [R=301,L]
+RewriteRule ^knowledge-center/z-ac73a21e\.html$ /knowledge-center/kc-sulfur-recovery-tail-gas-treatment.html [R=301,L]
+RewriteRule ^knowledge-center/z-bd7d2483\.html$ /knowledge-center/kc-bms-integration-fire-alarm-hvac.html [R=301,L]
+RewriteRule ^knowledge-center/z-ce94a0a2\.html$ /knowledge-center/kc-cooling-water-legionella-control.html [R=301,L]
+RewriteRule ^knowledge-center/z-df70037f\.html$ /knowledge-center/kc-earthing-grid-resistance-testing.html [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------

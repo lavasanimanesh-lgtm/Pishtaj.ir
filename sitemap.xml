@@ -224,6 +224,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-astm-a106-heat-treatment-requirements.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ball-valve-seat-material-selection.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ball-valve.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-bms-integration-fire-alarm-hvac.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-bms.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-butterfly-valve-offset.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-butterfly-valve-torque-actuator-sizing.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
@@ -236,6 +237,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-class-900-class-2500.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-commissioning-punch-list-management.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-commissioning.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-cooling-water-legionella-control.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-cooling-water.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ct-pt-accuracy-class-burden.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-ct-pt.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
@@ -244,6 +246,7 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-dcs.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-desalter-electrostatic-grid-troubleshooting.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-desalter.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-earthing-grid-resistance-testing.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-earthing.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-erw-hfw-weld-seam-inspection.html</loc><lastmod>2026-07-28</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-erw-hfw.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
@@ -312,8 +315,10 @@
   <url><loc>https://pishtaj.ir/knowledge-center/kc-shell-tube.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-slurry-valves.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-spiral-wound-kammprofile.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-sru-claus-process-efficiency.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-steam-boiler-system.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-steel-industry-equipment.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
+  <url><loc>https://pishtaj.ir/knowledge-center/kc-sulfur-recovery-tail-gas-treatment.html</loc><lastmod>2026-07-29</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-sulfur-recovery-unit-sru.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-sulfur-recovery.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/kc-thermal-powerplant-equipment.html</loc><lastmod>2026-07-25</lastmod><priority>0.9</priority></url>
@@ -424,17 +429,12 @@
   <url><loc>https://pishtaj.ir/knowledge-center/z-0b758a57.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-16aeeb93.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-653c9058.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-7b1d8a53.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-81f77cc9.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-85401d51.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-95579eef.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-a0721288.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-ac73a21e.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-bd7d2483.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-bdd0a52f.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-ce94a0a2.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-d0063fcd.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
-  <url><loc>https://pishtaj.ir/knowledge-center/z-df70037f.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-e9ed0823.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-ef76567b.html</loc><lastmod>2026-07-21</lastmod><priority>0.9</priority></url>
   <url><loc>https://pishtaj.ir/knowledge-center/z-ef8f5f59.html</loc><lastmod>2026-07-27</lastmod><priority>0.9</priority></url>
