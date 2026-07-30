@@ -183,6 +183,13 @@ RewriteRule "^knowledge-center/راهنمای-کمپرسور-صنعتی-industri
 RewriteRule "^knowledge-center/شیرآلات صنعتی-4509205a\.html$" "/knowledge-center/kc-cf8-cf8m-casting-defects-inspection.html" [R=301,L]
 RewriteRule "^knowledge-center/شیرآلات صنعتی-811c56cb\.html$" "/knowledge-center/kc-slurry-valve-abrasion-wear-life-estimation.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۶ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/شیرآلات صنعتی-a94aaa4d\.html$" "/knowledge-center/kc-control-valve-rangeability-turndown.html" [R=301,L]
+RewriteRule "^knowledge-center/شیرآلات صنعتی-ac069b45\.html$" "/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html" [R=301,L]
+RewriteRule "^knowledge-center/لوله و پایپینگ-256725e2\.html$" "/knowledge-center/kc-pipe-wall-thickness-corrosion-allowance.html" [R=301,L]
+RewriteRule "^knowledge-center/لوله و پایپینگ-2b8bf259\.html$" "/knowledge-center/kc-ndt-method-selection-by-defect-type.html" [R=301,L]
+RewriteRule "^knowledge-center/مقایسه-astm-a106-gr.b-و-api-5l-gr.b-تفاوت‌ها-و-کاربرده\.html$" "/knowledge-center/kc-a106-api-5l-standard-selection-by-project.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
