@@ -486,7 +486,7 @@
     var fxHint = '';
     try {
       var L = window._ptfFxLive && window._ptfFxLive.rates;
-      if (L) fxHint = ' | نرخ زنده: دلار آزاد ' + (L.usd_free || 0).toLocaleString('fa-IR') + (L.usd_sana_sell ? ' / سنا ' + (+L.usd_sana_sell).toLocaleString('fa-IR') : '') + ' — یورو آزاد ' + (L.eur_free || 0).toLocaleString('fa-IR');
+      if (L) fxHint = ' | نرخ زنده: دلار آزاد ' + (L.usd_free || 0).toLocaleString('fa-IR') + ' — یورو آزاد ' + (L.eur_free || 0).toLocaleString('fa-IR');
     } catch (eH) {}
     ptfDialog({
       title: '🛍 ثبت خرید واقعی: ' + (it ? it.nm : ''),

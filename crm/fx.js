@@ -30,7 +30,10 @@
   };
 
   /* دیالوگ ثبت تراکنش ریالی با نرخ تسعیر (برای فاکتور ارزی)
-     v17.4 (US-414 — کیس R8): نوع نرخ (آزاد/سنا/توافقی) با نرخ زنده + ورود درصدی از مبلغ سند.
+     v17.4 (US-414 — کیس R8): نوع نرخ (آزاد/توافقی) با نرخ زنده + ورود درصدی از مبلغ سند.
+     v33.4.2 (دستور کارفرما): گزینه‌ی «نرخ سنا» کاملاً حذف شد — منبع سنا/ICE از ۲۲ دی ۱۴۰۴
+     دیگر به‌روزرسانی نمی‌شود (نرخ منسوخ/منجمد) و نمی‌توانست به‌عنوان مرجع معتبر استفاده شود؛
+     طبق تصمیم صریح کارفرما فقط نرخ آزاد (زنده و پایدار) نگه داشته شد.
      مثال کارفرما: سند 1500$ و مشتری ۳۰٪ می‌پردازد → ۴۵۰$ × نرخ انتخابی = مبلغ ریالی؛ ۷۰٪ باقی در مطالبات. */
   window.ptfFxPayDialog = function (kind, refNo, cur, cb) {
     /* مبلغ ارزی کل سند (برای ورود درصدی) */
@@ -39,13 +42,11 @@
       var oRef = getData('ptf_crm_offers').filter(function (x) { return x.no === refNo; })[0];
       if (oRef) totalFx = (oRef.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0);
     } catch (eT) {}
-    /* نرخ‌های زنده آزاد/سنا از ویجت fx (اطلاعی — تصمیم با کاربر) */
+    /* نرخ زنده‌ی آزاد از ویجت fx (اطلاعی — تصمیم با کاربر) */
     var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
     var freeRate = cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : 0;
-    var sanaRate = cur === 'USD' ? (+L.usd_sana_sell || +L.usd_sana_buy || 0) : cur === 'EUR' ? (+L.eur_sana_sell || +L.eur_sana_buy || 0) : 0;
     var rateOpts =
       '<option value="free">🇺🇳 نرخ آزاد' + (freeRate ? ' — زنده: ' + freeRate.toLocaleString('fa-IR') + ' ریال' : '') + '</option>' +
-      '<option value="sana">🏦 نرخ سنا' + (sanaRate ? ' — زنده: ' + sanaRate.toLocaleString('fa-IR') + ' ریال' : '') + '</option>' +
       '<option value="agreed">🤝 توافقی / سایر</option>';
     ptfDialog({
       title: '💱 ثبت ' + (kind === 'in' ? 'دریافت' : 'پرداخت') + ' ریالی — سند ارزی (' + cur + ')',
@@ -53,7 +54,7 @@
       fields: [
         { id: 'pct', label: '٪ درصد از مبلغ سند (اختیاری — مثلا 30)', type: 'number', dir: 'ltr' },
         { id: 'rtype', label: 'مبنای نرخ تسعیر', type: 'select', optionsHtml: rateOpts },
-        { id: 'rate', label: 'نرخ تسعیر (ریال per ' + cur + ') * — با انتخاب آزاد/سنا نرخ زنده پیشنهاد می‌شود، قابل اصلاح', type: 'number', value: freeRate || '', dir: 'ltr', required: true },
+        { id: 'rate', label: 'نرخ تسعیر (ریال per ' + cur + ') * — با انتخاب آزاد نرخ زنده پیشنهاد می‌شود، قابل اصلاح', type: 'number', value: freeRate || '', dir: 'ltr', required: true },
         { id: 'amt', label: 'مبلغ ریالی (ریال) — خالی بگذارید تا از درصد×نرخ محاسبه شود', type: 'number', dir: 'ltr' },
         { id: 'note', label: 'یادداشت (شماره فیش/تاریخ ارزش)' }
       ],
@@ -62,8 +63,6 @@
         var rate = +v.rate || 0;
         if (!rate) { alert('⛔ نرخ تسعیر الزامی است'); return; }
         var rtype = v.rtype || 'agreed';
-        /* اگر آزاد/سنا انتخاب شده و کاربر نرخ را دست نزده، نرخ زنده همان انتخاب مبنا شود */
-        if (rtype === 'sana' && sanaRate && rate === freeRate) rate = sanaRate;
         var amt = +v.amt || 0;
         var pct = +v.pct || 0;
         var fxShare = 0;
@@ -75,9 +74,10 @@
         if (!amt) { alert('⛔ یا مبلغ ریالی بدهید یا درصد از مبلغ سند (سند باید مبلغ ارزی داشته باشد)'); return; }
         var fxAmt = fxShare || +(amt / rate).toFixed(2);
         cb({ amt: amt, rate: rate, rateType: rtype, pct: pct || 0, fxAmt: fxAmt, cur: cur, note: v.note || '', t: faDate(), by: curSession().name });
-        if (typeof ptfToast === 'function') ptfToast('✅ ' + (pct ? pct + '٪ سند = ' : 'معادل ارزی: ') + fxAmt.toLocaleString('en-US') + ' ' + cur + ' × ' + rate.toLocaleString('fa-IR') + ' (' + (rtype === 'free' ? 'آزاد' : rtype === 'sana' ? 'سنا' : 'توافقی') + ') = ' + amt.toLocaleString('fa-IR') + ' ریال', 'ok');
+        if (typeof ptfToast === 'function') ptfToast('✅ ' + (pct ? pct + '٪ سند = ' : 'معادل ارزی: ') + fxAmt.toLocaleString('en-US') + ' ' + cur + ' × ' + rate.toLocaleString('fa-IR') + ' (' + (rtype === 'free' ? 'آزاد' : 'توافقی') + ') = ' + amt.toLocaleString('fa-IR') + ' ریال', 'ok');
       }
     });
+
   };
 
   /* جمع‌بندی تسویه ارزی یک فاکتور: {paidIrr, paidFx, remainFx, avgRate} */
@@ -252,10 +252,17 @@
   };
 
   /* ===================================================================
-     v16.1 (US-391): ویجت نرخ لحظه‌ای ارز روی داشبورد (دلار/یورو — آزاد + سنا)
+     v16.1 (US-391): ویجت نرخ لحظه‌ای ارز روی داشبورد (دلار/یورو آزاد)
      - منبع: پروکسی سروری خودی api/fx-rates.php (کش ۱۰دقیقه‌ای + stale-if-error)
      - فقط اطلاع‌رسانی؛ مبنای اسناد همچنان نرخی است که کاربر در تراکنش تایید می‌کند
      - آفلاین/قطعی منبع → آخرین نرخ با برچسب «قدیمی»؛ ویجت هرگز داشبورد را نمی‌شکند
+     v33.4.2 (دستور صریح کارفرما): «نرخ سنا کلا اشتباه است — اگر عدد درست از منابع
+     معتبر قابل دسترسی نیست کلا کنار گذاشته شود». بررسی زنده‌ی منابع نشان داد از
+     ۲۲ دی ۱۴۰۴ نرخ «اسکناس سنا» توسط بانک مرکزی رسماً حذف شده و صفحه‌ی TGJU که
+     fx-rates.php به‌عنوان fallback به آن متکی بود، از همان تاریخ منجمد مانده (هرگز
+     به‌روزرسانی نمی‌شود) — دقیقاً همان چیزی که کارفرما مشاهده کرده بود. بنابراین
+     نمایش/تلاش برای دریافت سنا کاملاً حذف شد؛ فقط نرخ آزاد (که زنده و صحیح است)
+     نمایش داده می‌شود.
      =================================================================== */
   window._ptfFxLive = null; /* آخرین نرخ‌ها برای پیشنهاد در دیالوگ تسعیر */
   function fxTickerHtml() {
@@ -281,20 +288,9 @@
         window._ptfFxLive = d;
         var R = d.rates;
         var stale = d.cache === 'stale' ? '<span class="bd" style="background:#fef3c7;color:#b45309" title="منبع فعلا قطع است — آخرین نرخ دریافتی">⏳ قدیمی (' + (d.staleMin || '?') + ' دقیقه پیش)</span>' : '';
-        /* v16.7 (ابلاغ کارفرما): سنا قابل مشاهده + یوان آزاد + حواله یوان + تبدیل دلار→یوآن و طلا→یوآن.
-           سلول‌های بدون داده (مثلا حواله یوان اگر منبع نداد) خودکار حذف می‌شوند — نوار نمی‌شکند. */
-        /* v16.9 (پیگیری کارفرما): تشخیص شفاف — اگر آزاد آمد ولی سنا صفر بود، حذف بی‌صدا نه؛ برچسب + تست منبع ادمین */
-        var sanaMissing = (R.usd_free > 0) && !R.usd_sana_buy && !R.usd_sana_sell && !R.eur_sana_buy && !R.eur_sana_sell;
-        var sanaDiag = sanaMissing
-          ? '<span class="bd" style="background:#fef3c7;color:#b45309" title="سلسله‌مراتب: sanarate → ice.ir → کلیدهای سنا/ICE در TGJU. اگر خالی است، هاست احتمالاً outbound به این دامنه‌ها ندارد یا IP خارج ایران برای ice بلاک است.">سنا: منبع پاسخ نداد' +
-            ((typeof curRole === 'function' && ['admin', 'chairman'].indexOf(curRole()) > -1) ? ' <a href="javascript:void(0)" onclick="ptfFxDiag()" style="color:#b45309;text-decoration:underline">🔬 تست منبع</a>' : '') + '</span>'
-          : '';
-        var sanaUsd = (R.usd_sana_buy || R.usd_sana_sell)
-          ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">دلار سنا 🏦</small><b style="direction:ltr;color:#7c3aed">' +
-            (R.usd_sana_buy ? (+R.usd_sana_buy).toLocaleString('fa-IR') : '—') + ' / ' + (R.usd_sana_sell ? (+R.usd_sana_sell).toLocaleString('fa-IR') : '—') + ' <small>ریال</small></b><small style="color:#94a3b8;font-size:9.5px">خرید / فروش</small></span>' : '';
-        var sanaEur = (R.eur_sana_buy || R.eur_sana_sell)
-          ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">یورو سنا 🏦</small><b style="direction:ltr;color:#7c3aed">' +
-            (R.eur_sana_buy ? (+R.eur_sana_buy).toLocaleString('fa-IR') : '—') + ' / ' + (R.eur_sana_sell ? (+R.eur_sana_sell).toLocaleString('fa-IR') : '—') + ' <small>ریال</small></b><small style="color:#94a3b8;font-size:9.5px">خرید / فروش</small></span>' : '';
+        /* v16.7 (ابلاغ کارفرما، v33.4.2 محدودشده به آزاد): یوان آزاد + حواله یوان +
+           تبدیل دلار→یوآن و طلا→یوآن. سلول‌های بدون داده (مثلا حواله یوان اگر منبع
+           نداد) خودکار حذف می‌شوند — نوار نمی‌شکند. */
         var usdCny = R.usd_cny
           ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">دلار→یوآن 🔁</small><b style="direction:ltr;color:#b45309">' + (+R.usd_cny).toLocaleString('fa-IR', { maximumFractionDigits: 2 }) + ' <small>¥</small></b></span>' : '';
         var goldRial = R.gold18_rial
@@ -305,13 +301,11 @@
           '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b>' +
           fxCell('دلار آزاد 🇺🇸', R.usd_free, '#059669') +
           fxCell('یورو آزاد 🇪🇺', R.eur_free, '#0e7490') +
-          sanaUsd + sanaEur + sanaDiag +
           fxCell('یوان آزاد 🇨🇳', R.cny_free, '#dc2626') +
           fxCell('حواله یوان 🧾', R.cny_hav, '#dc2626') +
           usdCny + goldRial + eurUsd +
           stale +
           '<span style="margin-right:auto;color:#94a3b8;font-size:10.5px">' + (d.t || '') +
-          (d.src_sana ? ' | سنا: ' + d.src_sana : '') +
           (d.src_market ? ' | بازار: ' + d.src_market : '') +
           ' | صرفا اطلاع‌رسانی؛ مبنای اسناد: نرخ تاییدی شما</span>';
       })
@@ -331,7 +325,7 @@
         var _dz = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(4000) : 4000;
         var html = '<div class="md-b" id="ptfFxDiagDlg" style="display:grid;z-index:' + _dz + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:640px;max-height:90vh;overflow:auto">' +
           '<h3>🔬 تست منبع نرخ ارز (fx-rates.php)</h3>' +
-          '<div style="font-size:12px;color:#64748b;margin-bottom:8px">پاسخ خام سرور (force=1 — بدون کش). سلسله‌مراتب v24.9: sanarate/cbi → ice.ir (چند مسیر) → TGJU (آزاد + sana/ice) → isat. اگر usd_sana_* صفر است: ۱) هاست outbound به ice.ir/tgju.org/sanarate.ir داشته باشد ۲) ice گاهی فقط از IP ایران جواب می‌دهد ۳) دکمه force=1 را بزنید و JSON را بفرستید.</div>' +
+          '<div style="font-size:12px;color:#64748b;margin-bottom:8px">پاسخ خام سرور (force=1 — بدون کش). v33.4.2: فقط منبع نرخ آزاد (TGJU) — نرخ سنا/ICE به دستور کارفرما کاملاً حذف شد (منبع منسوخ/منجمد از ۲۲ دی ۱۴۰۴).</div>' +
           '<pre style="direction:ltr;text-align:left;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:10px;font-size:11px;max-height:50vh;overflow:auto">' + esc2(pretty) + '</pre>' +
           '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
         (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
@@ -366,14 +360,13 @@
       var d = window._ptfFxLive;
       if (d && d.rates) {
         var R = d.rates;
-        var hint = cur === 'USD'
-          ? 'سنا خرید ' + (R.usd_sana_buy || 0).toLocaleString('fa-IR') + ' | سنا فروش ' + (R.usd_sana_sell || 0).toLocaleString('fa-IR') + ' | آزاد ' + (R.usd_free || 0).toLocaleString('fa-IR')
-          : 'سنا خرید ' + (R.eur_sana_buy || 0).toLocaleString('fa-IR') + ' | سنا فروش ' + (R.eur_sana_sell || 0).toLocaleString('fa-IR') + ' | آزاد ' + (R.eur_free || 0).toLocaleString('fa-IR');
-        if (typeof ptfToast === 'function') ptfToast('💱 نرخ‌های لحظه‌ای ' + cur + ' (ریال): ' + hint + (d.cache === 'stale' ? ' (قدیمی)' : ''), 'info');
+        var hint = 'آزاد ' + ((cur === 'USD' ? R.usd_free : R.eur_free) || 0).toLocaleString('fa-IR');
+        if (typeof ptfToast === 'function') ptfToast('💱 نرخ زنده ' + cur + ' (ریال): ' + hint + (d.cache === 'stale' ? ' (قدیمی)' : ''), 'info');
       }
     } catch (e) {}
     return _fxDlgOrig(kind, refNo, cur, cb);
   };
+
 
   /* نمایش خلاصه ارزی در کارت مطالبات (تزریق پس از رندر — hook) */
   function patchRecvRender() {

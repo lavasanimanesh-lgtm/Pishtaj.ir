@@ -485,9 +485,10 @@
   }
   function offerCur(o) { return (o && o.currency) || 'IRR'; }
   function liveRate(cur) {
+    /* v33.4.2 (دستور کارفرما): سنا کنار گذاشته شد — فقط نرخ آزاد (زنده و صحیح) به‌عنوان پیشنهاد اولیه استفاده می‌شود */
     var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    if (cur === 'USD') return +L.usd_sana_sell || +L.usd_sana_buy || +L.usd_free || 0;
-    if (cur === 'EUR') return +L.eur_sana_sell || +L.eur_sana_buy || +L.eur_free || 0;
+    if (cur === 'USD') return +L.usd_free || 0;
+    if (cur === 'EUR') return +L.eur_free || 0;
     return 0;
   }
   function advMoney(v, cur) {
@@ -698,7 +699,7 @@
     if (cur !== 'IRR') {
       ptfDialog({ title: '✔ ثبت وصول پیش‌پرداخت ارزی ' + no, body: 'سند ارزی است. یا «درصد از مانده پیش‌پرداخت» را وارد کنید یا مبلغ ریالی وصولی را. نرخ تسعیر روز الزامی است.', fields: [
         { id: 'pct', label: '٪ درصد از مانده پیش‌پرداخت (اختیاری)', type: 'number', money: false, dir: 'ltr' },
-        { id: 'rtype', label: 'مبنای نرخ تسعیر', type: 'select', options: [{v:'free',lb:'آزاد'},{v:'sana',lb:'سنا'},{v:'agreed',lb:'توافقی'}] },
+        { id: 'rtype', label: 'مبنای نرخ تسعیر', type: 'select', options: [{v:'free',lb:'آزاد'},{v:'agreed',lb:'توافقی'}] },
         { id: 'rate', label: 'نرخ تسعیر روز (ریال per ' + cur + ') *', type: 'number', money: false, value: liveRate(cur) || '', dir: 'ltr', required: true },
         { id: 'amt', label: 'مبلغ ریالی وصولی — خالی بگذارید تا از درصد محاسبه شود', type: 'number', money: false, dir: 'ltr' },
         { id: 'how', label: 'نحوه دریافت (حواله/چک/...)', value: 'حواله' },
