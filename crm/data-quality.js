@@ -66,7 +66,26 @@
       });
     } catch (eCover) {}
     if (typeof ptfProcurementLinkAuditAll === 'function') {
-      try { ptfProcurementLinkAuditAll().forEach(function (x) { (x.issues || []).forEach(function (i) { add(q, 'procurement-ambiguous', 'قلم خرید/استعلام نیازمند تطبیق', (x.offer || {}).no || i.index, 0); }); }); } catch (e) {}
+      try {
+        var supplierDataForProc = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+        var allPayablesForProc = arr('ptf_crm_payables');
+        ptfProcurementLinkAuditAll().forEach(function (x) {
+          if (!(x.issues || []).length) return;
+          var offer = x.offer || {};
+          var aliases = [offer.inqNo, offer.no].filter(Boolean);
+          var payableIds = {};
+          allPayablesForProc.forEach(function (p) { if (aliases.indexOf(p.inqNo) > -1 && p.cd) payableIds[p.cd] = true; });
+          var relatedInvoices = (supplierDataForProc.invoices || []).filter(function (inv) {
+            return (inv.legacyPayableCds || []).some(function (cd) { return payableIds[cd]; });
+          }).map(function (inv) { return { cd: inv.cd, label: 'فاکتور ' + (inv.no || inv.cd) + (inv.supName ? ' — ' + inv.supName : '') }; });
+          add(q, 'procurement-ambiguous', 'پیشنهاد دارای اقلام نیازمند تطبیق', offer.no || offer.inqNo, 0, {
+            type: 'procurement',
+            offerNo: offer.no || '',
+            label: 'پیش‌فاکتور ' + (offer.no || offer.inqNo || '—') + (offer.buyerCo ? ' — ' + offer.buyerCo : '') + ' — ' + x.issues.length + ' قلم',
+            relatedInvoices: relatedInvoices
+          });
+        });
+      } catch (e) {}
     }
     /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
        فاکتور فروش رسمی مبنی بر پیش‌فاکتور ارزی که مبلغ ریالی‌اش با معادل
@@ -100,7 +119,11 @@
       if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="ptfOpexEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح</button>';
       else if (d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="slInvoiceEdit(\'' + escP(d.cd) + '\')">✏️ فاکتور</button>';
       else if (d.type === 'cheque' && typeof chEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="chEdit(\'' + escP(d.cd) + '\')">✏️ چک</button>';
-      return '<div style="margin:2px 0;white-space:nowrap">' + escP(d.label || d.cd || '') + ' ' + action + '</div>';
+      else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور</button>';
+      var invoiceActions = d.type === 'procurement' && (d.relatedInvoices || []).length
+        ? '<div style="margin-top:3px;color:#64748b;font-size:11px">فاکتورهای مرتبط: ' + d.relatedInvoices.map(function (inv) { return '<button type="button" class="bt bt-o" style="padding:2px 6px;font-size:10.5px;margin:1px" onclick="slInvoiceEdit(\'' + escP(inv.cd) + '\')">✏️ ' + escP(inv.label) + '</button>'; }).join('') + '</div>'
+        : '';
+      return '<div style="margin:2px 0;white-space:normal">' + escP(d.label || d.cd || '') + ' ' + action + invoiceActions + '</div>';
     }).join('');
   }
   window.ptfDataQualityHtml = function () {

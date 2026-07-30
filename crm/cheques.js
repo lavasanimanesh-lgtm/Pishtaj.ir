@@ -58,11 +58,11 @@
     } catch (eDelta) {}
     // v30.0.1 server guard: company cheque only chairman/ceo/commercial
     try {
-      var canCompany = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
+      var canCompany = (function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
       if(!canCompany){
         var hasCompany=false;
         l.forEach(function(c){ if(c.ownership==='company'){ hasCompany=true; c.ownership='personal'; } });
-        if(hasCompany){ alert('⛔ فقط رییس هیات مدیره و مدیرعامل می‌توانند چک شرکتی ثبت کنند'); }
+        if(hasCompany){ alert('⛔ فقط ادمین، رییس هیات مدیره، مدیرعامل و مدیر بازرگانی می‌توانند چک شرکتی ثبت کنند'); }
       }
     } catch(e){}
     var me=(curSession()||{}).user||''; var company=l.filter(function(c){return c.ownership!=='personal';}); var mine=l.filter(function(c){return c.ownership==='personal' && c.by===me;});
@@ -255,14 +255,14 @@
     var dueISO = rec.dueISO || '';
     var isG = rec.kind === 'guarantee';
     var gt = rec.guarType || 'advance';
-    var canCompany = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
+    var canCompany = (function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
     var own = rec.ownership || (canCompany ? 'company' : 'personal');
     return '<div class="md-b" id="chFormDlg" style="display:grid;z-index:1600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto">' +
       '<h3>' + (rec.cd ? '✏️ اصلاح' : '🏦 ثبت') + ' چک صیادی</h3>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;font-size:12px;color:#475569;margin-bottom:10px">چک <b>مالی</b>: یادآور سررسید ساخته می‌شود. چک <b>ضمانت/سپرده</b>: بدون یادآور؛ فقط برای پیگیری استرداد و لینک به پرونده فروش.</div>' +
       '<div class="fr"><div class="fld"><label>نوع چک *</label><select id="chKind" onchange="chKindUi()">' +
         '<option value="finance"' + (!isG ? ' selected' : '') + '>💰 چک مالی / پرداخت</option>' +
-        '<option value="guarantee"' + (isG ? ' selected' : '') + '>🛡️ چک ضمانت / سپرده</option></select></div><div class="fld"><label>مالکیت چک</label><select id="chOwnership">' + (function(){ var can=(function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })(); var opts=''; if(can) opts+='<option value="company"' + (own==='company'?' selected':'') + '>🏢 چک شرکت</option>'; opts+='<option value="personal"' + (own==='personal'?' selected':'') + '>👤 چک شخصی من</option>'; return opts; })() + '</select></div>' +
+        '<option value="guarantee"' + (isG ? ' selected' : '') + '>🛡️ چک ضمانت / سپرده</option></select></div><div class="fld"><label>مالکیت چک</label><select id="chOwnership">' + (function(){ var can=(function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })(); var opts=''; if(can) opts+='<option value="company"' + (own==='company'?' selected':'') + '>🏢 چک شرکت</option>'; opts+='<option value="personal"' + (own==='personal'?' selected':'') + '>👤 چک شخصی من</option>'; return opts; })() + '</select></div>' +
       '<div class="fld" id="chGuarTypeWrap" style="' + (isG ? '' : 'display:none') + '"><label>نوع ضمانت</label><select id="chGuarType">' +
         '<option value="advance"' + (gt==='advance'?' selected':'') + '>ضمانت پیش‌پرداخت</option>' +
         '<option value="performance"' + (gt==='performance'?' selected':'') + '>حسن انجام کار</option>' +
@@ -294,7 +294,7 @@
   window.chEdit = function (cd) { var rec = chFind(cd); if (!rec) return; (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', chFormHtml(rec)); setTimeout(function(){ try{ chKindUi(); }catch(e){} }, 0); };
 
   window.chCollectForm = function(ex){ return chCollectForm(ex); };
-  function canCreateCompanyCheque(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} }
+  function canCreateCompanyCheque(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} }
   /* AUD-05 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
      supplier-finance.js مسیر مستقل دیگری برای ساخت چک شرکتی دارد
      (slChequeCreate، از فرم پرداخت تأمین‌کننده) که همین گیت نقش را نیاز
@@ -327,10 +327,10 @@
     var kindEl = document.getElementById('chKind');
     if (kindEl) obj.kind = (kindEl.value === 'guarantee') ? 'guarantee' : 'finance';
     else if (!obj.kind) obj.kind = 'finance';
-    var canCompany2 = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
+    var canCompany2 = (function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
     obj.ownership = ((document.getElementById('chOwnership')||{}).value || (canCompany2 ? 'company' : 'personal'));
     if(obj.ownership==='company' && !canCreateCompanyCheque()){
-      alert('⛔ فقط رییس هیات مدیره و مدیرعامل (و در آینده مدیر بازرگانی) می‌توانند چک شرکتی ثبت کنند - زیرساخت برای نقش commercial فراهم است');
+      alert('⛔ فقط ادمین، رییس هیات مدیره، مدیرعامل و مدیر بازرگانی می‌توانند چک شرکتی ثبت کنند');
       obj.ownership='personal';
     }
     obj.guarType = obj.kind === 'guarantee' ? (((document.getElementById('chGuarType') || {}).value) || 'advance') : '';
