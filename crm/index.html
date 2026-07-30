@@ -895,6 +895,11 @@ window.setData = function (k, d) {
     return saveResult;
   } catch (e) {
     console.error('ptf_crm_localStorage_write_error:', k, e);
+    var msg = '⚠️ ذخیره تغییرات انجام نشد؛ ظرفیت حافظه محلی را بررسی کنید.';
+    try {
+      if (typeof ptfToast === 'function') ptfToast(msg, 'warn');
+      else alert(msg);
+    } catch (e2) {}
     return false;
   }
 };
