@@ -36,9 +36,6 @@
   function syncAllowedKey(k) {
     var role = typeof curRole === 'function' ? String(curRole()).toLowerCase().trim() : 'sales';
     role = role.replace(/[^a-z0-9]/g, '');
-    if (k === 'ptf_crm_tax_returns') {
-      return ['admin', 'chairman', 'ceo', 'accountant'].indexOf(role) > -1;
-    }
     var isFullRole = SYNC_FULL_ROLES.indexOf(role) > -1 || role.indexOf('commercial') > -1 || role.indexOf('manager') > -1;
     return isFullRole || (SYNC_ROLE_KEYS[role] || SYNC_ROLE_KEYS.sales).indexOf(k) > -1;
   }
