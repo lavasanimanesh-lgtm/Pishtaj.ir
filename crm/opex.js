@@ -265,16 +265,13 @@
     if (Object.prototype.hasOwnProperty.call(t, 'isOfficial')) {
       isOfficial = t.isOfficial === true;
     } else {
-      var choice = typeof prompt === 'function'
-        ? prompt('نوع سند هزینه را انتخاب کنید:\n1 = رسمی (فاکتور رسمی/قابل قبول ممیز)\n2 = غیررسمی\n\nبرای انصراف، Cancel را بزنید.')
-        : '2';
-      if (choice === null) return;
-      choice = String(choice).trim();
-      if (choice !== '1' && choice !== '2') {
-        alert('⛔ انتخاب نامعتبر است؛ هزینه ثبت نشد.');
-        return;
+      isOfficial = confirm('نوع سند هزینه برای «' + t.cat + '» رسمی است؟\n\nOK = رسمی / قابل قبول ممیز\nCancel = غیررسمی');
+      var templateList = tpls();
+      var template = templateList.filter(function (x) { return x.id === t.id; })[0];
+      if (template) {
+        template.isOfficial = isOfficial;
+        saveTpls(templateList);
       }
-      isOfficial = choice === '1';
     }
     var all = oAll();
     all.unshift({ cd: genCode('OPX'), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDate(), by: curSession().name, isOfficial: isOfficial });
