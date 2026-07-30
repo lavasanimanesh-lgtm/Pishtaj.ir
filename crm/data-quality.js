@@ -82,6 +82,7 @@
             type: 'procurement',
             offerNo: offer.no || '',
             label: 'پیش‌فاکتور ' + (offer.no || offer.inqNo || '—') + (offer.buyerCo ? ' — ' + offer.buyerCo : '') + ' — ' + x.issues.length + ' قلم',
+            issueCount: x.issues.length,
             relatedInvoices: relatedInvoices
           });
         });
@@ -116,22 +117,28 @@
     if (!details.length) return r.refs && r.refs.length ? escP(r.refs.join(', ')) : '—';
     return details.map(function (d) {
       var action = '';
-      if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="ptfOpexEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح</button>';
-      else if (d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="slInvoiceEdit(\'' + escP(d.cd) + '\')">✏️ فاکتور</button>';
-      else if (d.type === 'cheque' && typeof chEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="chEdit(\'' + escP(d.cd) + '\')">✏️ چک</button>';
-      else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور</button>';
+      if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح هزینه</button>';
+      else if (d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>';
+      else if (d.type === 'cheque' && typeof chEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="chEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح چک</button>';
+      else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
       var invoiceActions = d.type === 'procurement' && (d.relatedInvoices || []).length
-        ? '<div style="margin-top:3px;color:#64748b;font-size:11px">فاکتورهای مرتبط: ' + d.relatedInvoices.map(function (inv) { return '<button type="button" class="bt bt-o" style="padding:2px 6px;font-size:10.5px;margin:1px" onclick="slInvoiceEdit(\'' + escP(inv.cd) + '\')">✏️ ' + escP(inv.label) + '</button>'; }).join('') + '</div>'
+        ? '<div style="margin-top:9px;padding-top:7px;border-top:1px solid #e2e8f0"><b style="display:block;color:#475569;font-size:11px">فاکتورهای خرید مرتبط</b>' + d.relatedInvoices.map(function (inv) { return '<div style="margin-top:4px"><span>' + escP(inv.label) + '</span><br><button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:3px" onclick="slInvoiceEdit(\'' + escP(inv.cd) + '\')">✏️ اصلاح همین فاکتور</button></div>'; }).join('') + '</div>'
         : '';
-      return '<div style="margin:2px 0;white-space:normal">' + escP(d.label || d.cd || '') + ' ' + action + invoiceActions + '</div>';
+      var explanation = d.type === 'procurement'
+        ? 'این پیش‌فاکتور ' + (d.issueCount || 0) + ' قلم نیازمند تطبیق دارد؛ تطبیق باید در سطح فاکتور خرید انجام شود، نه تک‌تک اقلام.'
+        : d.type === 'opex' ? 'نوع سند این هزینه مشخص نشده است.'
+        : d.type === 'supplier-invoice' ? 'نوع این فاکتور خرید مشخص نشده است.'
+        : d.type === 'cheque' ? 'مالکیت یا تاریخ سررسید این چک نیازمند تکمیل است.'
+        : 'این مورد نیازمند بررسی است.';
+      return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');
   }
   window.ptfDataQualityHtml = function () {
     if (typeof curRole === 'function' && ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) < 0) return '';
     var rows = window.ptfDataQualityData();
     var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
-    var body = rows.map(function (r) { return '<tr><td>' + escP(r.label) + '</td><td>' + r.count + '</td><td>' + (r.amount ? (+r.amount).toLocaleString('fa-IR') + ' ریال' : '—') + '</td><td dir="ltr">' + qualityRefsHtml(r) + '</td></tr>'; }).join('');
-    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">فقط‌خواندنی؛ این داشبورد هیچ رکوردی را اصلاح یا حذف نمی‌کند.</small></div><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>نوع</th><th>تعداد</th><th>مبلغ</th><th>نمونه شناسه‌ها</th></tr></thead><tbody>' + (body || '<tr><td colspan="4">موردی نیست</td></tr>') + '</tbody></table></div></div>';
+    var body = rows.map(function (r) { return '<tr><td><details style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px"><summary style="cursor:pointer;font-weight:800;color:#334155">' + escP(r.label) + ' — ' + r.count + ' مورد' + (r.amount ? ' — ' + (+r.amount).toLocaleString('fa-IR') + ' ریال' : '') + '</summary><div style="padding-top:7px">' + qualityRefsHtml(r) + '</div></details></td></tr>'; }).join('');
+    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
   };
   window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
 })();
