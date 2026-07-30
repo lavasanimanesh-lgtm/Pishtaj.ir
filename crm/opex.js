@@ -112,7 +112,7 @@
         if (v.rec === 'yes' && !pre.tplId) {
           var list = tpls();
           var tid = 'TPL-' + Date.now();
-          list.push({ id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate() });
+          list.push({ id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate(), isOfficial: isOfficial });
           saveTpls(list);
           rec.tplId = tid;
         }
@@ -261,8 +261,23 @@
     if (!t) return;
     var m = ptfFaMonthNow();
     if (!confirm('🔁 ثبت هزینه تکرارشونده «' + t.cat + '» ماه ' + m + '؟\n\nمبلغ: ' + fmtT(t.amt) + ' ریال' + (t.desc ? '\nشرح: ' + t.desc : ''))) return;
+    var isOfficial;
+    if (Object.prototype.hasOwnProperty.call(t, 'isOfficial')) {
+      isOfficial = t.isOfficial === true;
+    } else {
+      var choice = typeof prompt === 'function'
+        ? prompt('نوع سند هزینه را انتخاب کنید:\n1 = رسمی (فاکتور رسمی/قابل قبول ممیز)\n2 = غیررسمی\n\nبرای انصراف، Cancel را بزنید.')
+        : '2';
+      if (choice === null) return;
+      choice = String(choice).trim();
+      if (choice !== '1' && choice !== '2') {
+        alert('⛔ انتخاب نامعتبر است؛ هزینه ثبت نشد.');
+        return;
+      }
+      isOfficial = choice === '1';
+    }
     var all = oAll();
-    all.unshift({ cd: genCode('OPX'), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDate(), by: curSession().name });
+    all.unshift({ cd: genCode('OPX'), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDate(), by: curSession().name, isOfficial: isOfficial });
     oSave(all);
     try { audit('هزینه جاری', 'ثبت تکرارشونده ' + t.cat + ' — ' + fmtT(t.amt) + ' ریال (' + m + ')', t.id); } catch (eA) {}
     ptfOpexRender();

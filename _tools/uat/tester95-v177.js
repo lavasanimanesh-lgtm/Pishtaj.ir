@@ -79,6 +79,7 @@ global.ptfToast = function () {};
   T('قالب بدون ثبت ماه جاری → pending', pend.length === 1 && pend[0].id === 'TPL-1');
   /* اعمال قالب با confirm=true */
   global.confirm = function () { return true; };
+  global.prompt = function () { return '2'; };
   global.ptfOpexRender = function () {};
   ptfOpexApplyTpl('TPL-1');
   var all = getData('ptf_crm_opex');
