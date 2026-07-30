@@ -27,6 +27,35 @@
     return chAll().filter(function (c) { return !me || c.by === me; });
   }
   function chSave(l) {
+    /* FW-C01 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md، تصمیم صریح کارفرما:
+       «الان به آن رسیدگی کن»):
+       chAll() یک رکورد چک شخصی legacy که هنوز در کلید global (K) مانده
+       باشد را کاملاً از دید مخفی می‌کند — حتی اگر صاحب آن خودِ کاربر فعلی
+       باشد (فیلتر ownership!=='personal' برای بخش global بدون قید مالک).
+       یعنی چنین رکوردی هرگز در آرایه‌ی ورودی این تابع (l، که از chAll()
+       گرفته شده) دیده نمی‌شود؛ و چون chSave همیشه کل کلید شخصیِ کاربر
+       فعلی را با «mine» (برگرفته از l) جایگزین می‌کند، آن رکورد legacy
+       برای همیشه از بین می‌رفت.
+       راه‌حل idempotent و خودترمیم‌شونده، بدون خطر «زنده‌کردن» رکورد
+       حذف‌شده‌ی عمدی کاربر: پیش از هر overwrite، وضعیت کلید شخصیِ کاربر
+       فعلی را قبل و بعد از اجرای migration مقایسه می‌کنیم. هر رکوردی که
+       فقط بعد از migration ظاهر شده (delta) — یعنی legacy‌ای که همین الان
+       اولین‌بار منتقل شد و در l هرگز دیده نشده بود — به «mine» اضافه
+       می‌شود. رکوردهایی که از قبل هم در کلید شخصی بودند و کاربر آگاهانه
+       از لیست خود حذف کرده (در l نیستند)، دوباره زنده نمی‌شوند؛ چون تنها
+       delta جدید merge می‌شود، نه کل محتوای قبلی کلید. */
+    var mePreMig = (curSession()||{}).user||'';
+    var personalKeyPreMig = 'ptf_personal_cheques_' + (mePreMig || '_');
+    var beforeMigJson = '[]';
+    try { beforeMigJson = localStorage.getItem(personalKeyPreMig) || '[]'; } catch (eB) {}
+    try { if (typeof window.chMigratePersonal === 'function') window.chMigratePersonal(); } catch (eMig) {}
+    var newlyMigrated = [];
+    try {
+      var beforeArr = JSON.parse(beforeMigJson || '[]');
+      var afterArr = JSON.parse(localStorage.getItem(personalKeyPreMig) || '[]');
+      var beforeIds = {}; (Array.isArray(beforeArr) ? beforeArr : []).forEach(function (c) { if (c && c.cd) beforeIds[c.cd] = 1; });
+      newlyMigrated = (Array.isArray(afterArr) ? afterArr : []).filter(function (c) { return c && c.cd && !beforeIds[c.cd]; });
+    } catch (eDelta) {}
     // v30.0.1 server guard: company cheque only chairman/ceo/commercial
     try {
       var canCompany = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
@@ -36,7 +65,16 @@
         if(hasCompany){ alert('⛔ فقط رییس هیات مدیره و مدیرعامل می‌توانند چک شرکتی ثبت کنند'); }
       }
     } catch(e){}
-    var me=(curSession()||{}).user||''; var company=l.filter(function(c){return c.ownership!=='personal';}); var mine=l.filter(function(c){return c.ownership==='personal' && c.by===me;}); setData(K, company); try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }
+    var me=(curSession()||{}).user||''; var company=l.filter(function(c){return c.ownership!=='personal';}); var mine=l.filter(function(c){return c.ownership==='personal' && c.by===me;});
+    /* FW-C01: اضافه‌کردن رکوردهای همین‌الان‌مهاجرت‌شده (که در l نبودند چون l از
+       chAll() پیش از migration ساخته شده) — بدون این خط، خط بعدی که کلید
+       شخصی را با mine جایگزین می‌کند، همان چیزی را که چند خط بالاتر
+       migration کرده بود از بین می‌برد. */
+    if (newlyMigrated.length) {
+      var mineIds = {}; mine.forEach(function (c) { if (c && c.cd) mineIds[c.cd] = 1; });
+      newlyMigrated.forEach(function (c) { if (c && c.cd && !mineIds[c.cd]) { mine.push(c); mineIds[c.cd] = 1; } });
+    }
+    setData(K, company); try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }
 
   // v29.7 FIN-WF-002: migration legacy personal cheques from global to personal keys
   window.chMigratePersonal = function(){
@@ -257,6 +295,13 @@
 
   window.chCollectForm = function(ex){ return chCollectForm(ex); };
   function canCreateCompanyCheque(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} }
+  /* AUD-05 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     supplier-finance.js مسیر مستقل دیگری برای ساخت چک شرکتی دارد
+     (slChequeCreate، از فرم پرداخت تأمین‌کننده) که همین گیت نقش را نیاز
+     دارد اما به این تابع private دسترسی نداشت. به‌جای تکرار لیست نقش‌ها
+     در فایل دیگر (که بعداً می‌تواند از هم واگرا شود)، همین تابع را روی
+     window قرار می‌دهیم تا مرجع واحد بماند. */
+  window.ptfCanCreateCompanyCheque = canCreateCompanyCheque;
   function chCollectForm(existingCd) {
     var sayad = ((document.getElementById('chSayad') || {}).value || '').trim();
     // v30.8 FIN-EX-02: یکتایی شماره صیادی
@@ -618,7 +663,16 @@
         byNm: (curSession() || {}).name,
         t: faDateTime(),
         notified: {},
-        src: 'batch-fill'
+        src: 'batch-fill',
+        /* AUD-06 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+           رکورد batch قبلاً هیچ ownership صریحی نداشت؛ چون chAll()/chSave()
+           هر رکورد بدون ownership==='personal' را «شرکتی» تلقی می‌کنند
+           (فیلتر روی !== 'personal' است، نه === 'company')، این رکورد بدون
+           هیچ enforce نقشی وارد گزارش نقدینگی شرکت/یادآورها/My Day می‌شد،
+           حتی اگر سازنده‌اش کارشناس فروش (غیرمجاز به صدور چک شرکتی) باشد.
+           اکنون مالکیت صریح تعیین می‌شود؛ chSave() هم به‌عنوان خط دفاع دوم
+           همچنان این را برای نقش‌های غیرمجاز به 'personal' برمی‌گرداند. */
+        ownership: canCreateCompanyCheque() ? 'company' : 'personal'
       });
     }
     return { list: out, errs: errs };
@@ -690,6 +744,7 @@
     c.st = 'cleared'; c.clearedAt = faDateTime(); c.clearedBy = curSession().name;
     chFinishReminder(c, false);
     chSave(list);
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: چک پاس شد — اعلان سررسید مرتبط برای همه حذف شود */
     try { audit('چک‌ها', 'چک ' + (c ? (c.sayad || c.no) : cd) + ' پاس شد', cd); } catch (e) {}
     if (typeof renderReminders === 'function') try { renderReminders(); } catch (e2) {}
     refreshBox();
@@ -702,6 +757,7 @@
     if (!c) return;
     if (c.by !== (curSession() || {}).user) { alert('⛔ فقط ثبت‌کننده چک می‌تواند آن را حذف کند'); return; }
     chFinishReminder(c, true);
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: چک حذف/باطل شد — اعلان سررسید مرتبط برای همه حذف شود */
     /* Sprint 273: ابطال چک شرکتی متصل، پرداخت تامین‌کننده را هم void می‌کند. */
     if (c.supplierPaymentCd && c.ownership === 'company' && typeof window.slPaymentVoid === 'function') {
       c.st = 'void'; c.reminderDisabled = true;
@@ -716,6 +772,7 @@
     if (typeof renderReminders === 'function') try { renderReminders(); } catch (e2) {}
     refreshBox();
   };
+
 
   function refreshBox() {
     var host = document.getElementById('chqBox');
@@ -762,7 +819,8 @@
             toUsers: [c.by || s.user], toRoles: [],
             title: msg + ' — ' + (+c.amt).toLocaleString('fa-IR') + ' ریال در وجه ' + (c.toWhom || ''),
             body: 'بانک: ' + (c.bank || '-') + ' | سررسید: ' + (c.dueFa || c.dueISO),
-            kind: 'cheque', channels: ['cart'], link: { panel: 'rem' }, actionable: true
+            kind: 'cheque', channels: ['cart'], link: { panel: 'rem' }, actionable: true, refCd: c.cd,
+            dkey: 'chq-due-' + c.cd /* v33.4.1: dkey ثابت per چک — با تغییر شمارش روز، کارت موجود به‌روز می‌شود نه اینکه کارت جدید بسازد */
           });
         }
       });
@@ -808,6 +866,12 @@
       kind: kind, guarType: kind === 'guarantee' ? (((document.getElementById('chAiGuarType') || {}).value) || 'advance') : '',
       dealCd: kind === 'guarantee' ? (((document.getElementById('chAiDealCd') || {}).value) || '') : '',
       dealLabel: '',
+      /* AUD-06-b (کشف تکمیلی ۱۴۰۵/۰۵/۰۷ — همان الگوی AUD-06 که برای فرم دسته‌ای رفع شد،
+         در مسیر «دستیار هوشمند ثبت چک» هم فراموش شده بود): بدون ownership صریح،
+         chSave/chAll این رکورد را پیش‌فرض «شرکتی» می‌دیدند و کاربر غیرمجاز
+         (مثل کارشناس فروش) می‌توانست از این مسیر هم بی‌صدا وارد استخر چک
+         شرکتی شود. */
+      ownership: (typeof window.ptfCanCreateCompanyCheque === 'function' && window.ptfCanCreateCompanyCheque()) ? 'company' : 'personal',
       st: 'open', by: curSession().user, byNm: curSession().name, t: faDateTime(), notified: {}, src: 'ai-cheque'
     };
     if (rec.dealCd) {

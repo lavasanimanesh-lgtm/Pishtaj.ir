@@ -190,7 +190,10 @@
     if (typeof audit === 'function') audit('یادآورها', 'موکول کردن یادآور' + (reason ? ' — دلیل: ' + reason : ''), remCd);
   };
 
-  // US-157 AC2: پیام خودکار CO های در حال انقضا (روزی یک بار per سند)
+  // US-157 AC2: پیام خودکار CO های در حال انقضا — فقط در لحظه‌ی گذار (ورود به بازه‌ی
+  // هشدار / گذشتن سررسید)، نه هر روز — طبق بازنگری استاندارد اعلانات (دستور کارفرما v33.4.1):
+  // اعلانات اطلاعی نباید هر روز تکرار شوند؛ یک‌بار در هر گذار کافی است و بعداً به‌صورت
+  // خودکار از کارتابل محو می‌شود (ptfPruneStaleNotifs در rbac.js).
   function checkOfferExpiry() {
     var s = curSession();
     if (!s.user) return false;
@@ -202,16 +205,16 @@
       if (o.kind !== 'CO' || !o.validUntil || o.st === 'won' || o.st === 'lost') return;
       var due = o.validUntil <= warn;
       if (!due) return;
-      var flagKey = o.validUntil < today ? 'expiredMsg' : 'expiryMsg';
-      if (o[flagKey] === today) return; // امروز پیام داده شده
-      o[flagKey] = today;
-      changed = true; added = true;
       var expired = o.validUntil < today;
+      var stage = expired ? 'expired' : 'warn';
+      if (o.expiryNotifyStage === stage) return; /* v33.4.1: فقط در لحظه‌ی گذار، نه هر روز */
+      o.expiryNotifyStage = stage;
+      changed = true; added = true;
       addMsg({
         title: (expired ? '⛔ پیشنهاد ' + o.no + ' منقضی شد' : '⏳ اعتبار پیشنهاد ' + o.no + ' تا ' + o.validUntil + ' — با مشتری پیگیری کنید') + (o.buyerCo ? ' (' + o.buyerCo + ')' : ''),
         toUsers: o.issuedBy ? [o.issuedBy] : [],
         toRoles: o.issuedBy ? [] : SENIOR_ROLES,
-        kind: 'co_expiry', actionable: !expired,
+        kind: 'co_expiry',
         link: { panel: 'off' }
       });
     });
@@ -219,26 +222,30 @@
     return added;
   }
 
-  /* v14.6 (US-348): یادآور خودکار مهلت پاسخ درخواست — ۲ روز قبل + روز مهلت (روزی یک‌بار per درخواست) */
+
+  /* v14.6 (US-348) → v33.4.1 (بازنگری استاندارد اعلانات): یادآور خودکار مهلت پاسخ
+     درخواست — فقط یک‌بار در لحظه‌ی گذار به بازه‌ی هشدار/گذشتن مهلت، نه هر روز.
+     پیگیری مستمر (تا رفع) به «☀️ روز من» سپرده می‌شود؛ خودِ اعلان بعد از مدتی
+     خودکار از کارتابل محو می‌شود (ptfPruneStaleNotifs). */
   function checkRfqDue() {
     var s = curSession();
     if (!s.user) return false;
     var rfqs = getData('ptf_crm_rfqs');
-    var today = new Date().toISOString().slice(0, 10);
     var changed = false, added = false;
     rfqs.forEach(function (r) {
       if (!r.dueISO) return;
       var due = (typeof ptfRfqDueState === 'function') ? ptfRfqDueState(r) : null;
-      if (!due || !due.bg) return; /* فقط پنجره هشدار (۲ روز مانده تا گذشته) */
-      if (r.dueNotified === today) return; /* ضدتکرار روزانه */
-      r.dueNotified = today;
+      if (!due || !due.bg) { if (r.dueNotified) { r.dueNotified = ''; changed = true; } return; } /* فقط پنجره هشدار (۲ روز مانده تا گذشته) */
+      var stage = due.over ? 'over' : 'warn';
+      if (r.dueNotified === stage) return; /* v33.4.1: فقط در لحظه‌ی گذار، نه هر روز */
+      r.dueNotified = stage;
       changed = true; added = true;
       var assignee = r.assignee && r.assignee.user ? [r.assignee.user] : [];
       addMsg({
         title: (due.over ? '🔴 مهلت پاسخ درخواست ' + r.cd + ' گذشته است!' : '⏳ مهلت پاسخ درخواست ' + r.cd + ' نزدیک است (' + r.dueISO + ')') + (r.co ? ' — ' + r.co : ''),
         toUsers: assignee,
         toRoles: assignee.length ? [] : SALES_ROLES,
-        kind: 'reminder', actionable: true,
+        kind: 'reminder',
         link: { panel: 'rfq' }
       });
     });
@@ -246,7 +253,8 @@
     return added;
   }
 
-  /* v14.8 (US-351): یادآور/هشدار تاریخ تحویل تعهدی پرونده فروش — ۳ روز قبل + از روز سررسید (روزی یک‌بار per پرونده) */
+  /* v14.8 (US-351) → v33.4.1: یادآور/هشدار تاریخ تحویل تعهدی پرونده فروش — فقط
+     یک‌بار در لحظه‌ی گذار به بازه‌ی هشدار/گذشتن سررسید، نه هر روز (همان اصل بالا). */
   function checkDealDue() {
     var s = curSession();
     if (!s.user) return false;
@@ -256,24 +264,26 @@
     deals.forEach(function (r) {
       if (!r.dueISO || r.st === 'archived') return;
       var st = (typeof ptfSfDueState === 'function') ? ptfSfDueState(r) : null;
-      if (!st) return; /* فقط پنجره هشدار: ≤۳ روز مانده یا گذشته */
-      if (r.dueNotified === today) return; /* ضدتکرار روزانه */
-      r.dueNotified = today;
-      changed = true; added = true;
+      if (!st) { if (r.dueNotified) { r.dueNotified = ''; changed = true; } return; } /* فقط پنجره هشدار: ≤۳ روز مانده یا گذشته */
       var over = st === 'red' && r.dueISO < today;
+      var stage = over ? 'over' : st === 'red' ? 'today' : 'warn';
+      if (r.dueNotified === stage) return; /* v33.4.1: فقط در لحظه‌ی گذار، نه هر روز */
+      r.dueNotified = stage;
+      changed = true; added = true;
       addMsg({
         title: (over ? '🚨 تاخیر در تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + '! (تعهد: ' + r.dueISO + ')'
           : st === 'red' ? '🚚⏰ امروز سررسید تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + ' است'
           : '🚚⏳ تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + ' نزدیک است (' + r.dueISO + ')') +
           (r.buyerCo ? ' — ' + r.buyerCo : '') + (r.dueNote ? ' | ' + r.dueNote : ''),
         toRoles: over ? ['admin', 'chairman', 'ceo', 'commercial'] : SALES_ROLES,
-        kind: 'reminder', actionable: true,
+        kind: 'reminder',
         link: { panel: 'deals' }
       });
     });
     if (changed) setData('ptf_crm_deals', deals);
     return added;
   }
+
 
   // یادآورهای سررسیدشده → پیام صندوق (US-138 AC6)
   function checkDueReminders() {

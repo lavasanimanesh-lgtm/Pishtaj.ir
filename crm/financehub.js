@@ -1,9 +1,15 @@
 /* =====================================================================
-   PTF CRM — v31.9
+   PTF CRM — v31.9 + Phase 2 / Step 3 (جداسازی گزارشی رسمی/غیررسمی)
    Legacy UAT token: btn('quality', '🧪 کیفیت داده')
    US-429: هاب مالی مدیریتی R9 — تب‌بندی تنخواه/هزینه/سهامداران/سال مالی
    - بدون کلید داده جدید؛ فقط لایه نمایش و محرمانگی UX
    - برای admin/chairman؛ کاربران عادی همان تنخواه ساده را می‌بینند
+   - Phase 2 / Step 3 (ر.ک: crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+     ① تب موجود «گزارش رسمی مالی» به «گزارش تجمیعی مالی» تغییر نام داد
+        (فقط برچسب — منطق working-capital.js#ptfFinanceOfficialData دست‌نخورده
+        است؛ این عدد از قبل هم تجمیعی محاسبه می‌شد، فقط نامش گمراه‌کننده بود).
+     ② تب جدید «تراز رسمی/غیررسمی» اضافه شد (ر.ک: crm/ledger-report.js) —
+        فقط‌خواندنی، همان ۴ نقش ارشد، هیچ فرمول موجودی را صدا نمی‌زند.
    ===================================================================== */
 (function () {
   'use strict';
@@ -19,6 +25,7 @@
       supplier: '<path d="M3 21V8l6 4V8l6 4V8l6 4v9z"/><path d="M7 21v-4h4v4"/>',
       customer: '<circle cx="12" cy="8.5" r="3.5"/><path d="M6.5 21v-2a5 5 0 015-5h1a5 5 0 015 5v2"/>',
       report: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
+      ledger: '<path d="M4 4h16v16H4z"/><path d="M9 4v16M4 9h5M4 15h5M14 9h6M14 15h6"/>',
       quality: '<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M8.5 12l2.2 2.2 4.8-5"/>'
     };
     return '<span class="fin-hub-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' + (p[kind] || p.report) + '</svg></span>';
@@ -30,8 +37,8 @@
   function bar() {
     if (!canHub()) return '';
     return '<div id="finHubBar" class="fin-hub-bar">' +
-      '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی و گزارش رسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
-      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش رسمی مالی', 'report') + btn('quality', 'کیفیت داده', 'quality') + '</div></div></div>';
+      '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی، گزارش تجمیعی و تراز رسمی/غیررسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
+      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('quality', 'کیفیت داده', 'quality') + '</div></div></div>';
   }
   window.finHubSet = function (id) { window._finHubTab = id || 'petty'; finHubApply(); };
   window.finHubApply = function () {
@@ -45,6 +52,7 @@
     show('slFinanceHubBox', t === 'supacc');
     show('cfFinanceHubBox', t === 'custacc');
     show('wcFinanceHubBox', t === 'workcap');
+    show('ledgerReportBox', t === 'ledger');
     show('qualityBox', t === 'quality');
     var old = document.getElementById('finHubBar');
     if (old) old.outerHTML = bar();
@@ -53,7 +61,7 @@
     if (window._finHubHooked || typeof window.buildPetty !== 'function') return false;
     window._finHubHooked = true;
     var _bp = window.buildPetty;
-    window.buildPetty = function () { return bar() + _bp() + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : ''); };
+    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : ''); };
     var _rp = window.renderPetty;
     if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); } catch (e) {} };
     return true;

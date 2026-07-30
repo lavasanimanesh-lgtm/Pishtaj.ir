@@ -9,6 +9,21 @@
     if (ref && map[id].refs.length < 8) map[id].refs.push(String(ref));
   }
   function yearOf(v) { return typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(v) : ((String(v || '').match(/(13|14)\d{2}/) || [])[0] || ''); }
+  /* فاز ۲ / گام ۲ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+     تشخیص رکوردهای هزینه جاری (OPEX) و فاکتور خرید تأمین‌کننده که هیچ‌گاه
+     نوع رسمی/غیررسمی‌شان تعیین نشده (مثلاً رکوردهای ساخته‌شده توسط
+     ptfOpexApplyTpl یا همگام‌سازی حقوق سهامداران در shareholders.js —
+     ر.ک: فاز ۱ ANALYSIS-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE1.md).
+     این تابع فقط از official-ledger.js می‌خواند؛ هیچ پیش‌فرضی حدس نمی‌زند
+     و هیچ رکوردی را تغییر نمی‌دهد — صرفاً فهرست برای بررسی دستی کارفرما/حسابدار. */
+  function ledgerOfOpexSafe(o) {
+    try { return typeof window.ptfLedgerOfOpex === 'function' ? window.ptfLedgerOfOpex(o) : (o && o.isOfficial === true ? 'official' : (o && o.isOfficial === false ? 'unofficial' : 'unclassified')); }
+    catch (e) { return 'unclassified'; }
+  }
+  function ledgerOfSupplierInvoiceSafe(inv) {
+    try { return typeof window.ptfLedgerOfSupplierInvoice === 'function' ? window.ptfLedgerOfSupplierInvoice(inv) : (inv && inv.isOfficial === true ? 'official' : (inv && inv.isOfficial === false ? 'unofficial' : 'unclassified')); }
+    catch (e) { return 'unclassified'; }
+  }
   window.ptfDataQualityData = function () {
     var q = {}, invoices = arr('ptf_crm_invoices'), payables = arr('ptf_crm_payables'), cheques = arr('ptf_crm_cheques');
     invoices.forEach(function (i) {
@@ -24,11 +39,58 @@
       if (c.st === 'open' && !c.ownership) add(q, 'cheque-ownerless', 'چک باز با مالکیت نامشخص', c.sayad || c.no || c.cd, c.amt);
       if (c.st === 'open' && !c.dueISO) add(q, 'cheque-undated', 'چک باز بدون تاریخ سررسید', c.sayad || c.no || c.cd, c.amt);
     });
+    /* فاز ۲ / گام ۲: هزینه‌های جاری (OPEX) بدون تعیین نوع رسمی/غیررسمی —
+       این‌ها در گزارش‌های تراز فصلی/سال مالی عمداً به‌عنوان «نامشخص» کنار
+       گذاشته می‌شوند تا پنهان و به‌اشتباه غیررسمی حساب نشوند. */
+    arr('ptf_crm_opex').forEach(function (o) {
+      if (o.st === 'void') return;
+      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt);
+    });
+    /* فاز ۲ / گام ۲: فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی */
+    try {
+      var sfData = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+      (sfData.invoices || []).forEach(function (inv) {
+        if (inv.status === 'void') return;
+        if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') add(q, 'supplier-invoice-unclassified', 'فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی', inv.no || inv.cd, inv.amountIrr || inv.amount);
+      });
+    } catch (eSf) {}
+    /* فاز ۲ / گام ۵: فاکتور پوششی/صوری با سود خالص منفی — یعنی کارمزد فاکتورساز
+       از اعتبار ارزش‌افزوده بیشتر انتخاب شده (به‌احتمال زیاد ورودی اشتباه). */
+    try {
+      var sfData2 = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+      (sfData2.invoices || []).forEach(function (inv) {
+        if (inv.status === 'void' || inv.isCover !== true) return;
+        var net = inv.coverNetBenefit != null ? +inv.coverNetBenefit : ((+inv.coverVatAmount || 0) - (+inv.coverCommissionAmount || 0));
+        if (net < 0) add(q, 'cover-invoice-negative-benefit', 'فاکتور پوششی/صوری با سود خالص منفی (کارمزد بیش از ارزش‌افزوده)', inv.no || inv.cd, Math.abs(net));
+      });
+    } catch (eCover) {}
     if (typeof ptfProcurementLinkAuditAll === 'function') {
       try { ptfProcurementLinkAuditAll().forEach(function (x) { (x.issues || []).forEach(function (i) { add(q, 'procurement-ambiguous', 'قلم خرید/استعلام نیازمند تطبیق', (x.offer || {}).no || i.index, 0); }); }); } catch (e) {}
     }
+    /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+       فاکتور فروش رسمی مبنی بر پیش‌فاکتور ارزی که مبلغ ریالی‌اش با معادل
+       واقعی (ارز خام × نرخ تسعیر مرجع) به‌شدت مغایرت دارد — نشانه‌ی
+       احتمالی ورود رقم ارزی خام به‌جای معادل ریالی (نمونه‌ی واقعی: سند
+       ۱۵۰۰ دلاری با مبلغ فاکتور «۱۵۰۰ ریال»). این بررسی صرفاً افشا می‌کند؛
+       هیچ رکوردی را اصلاح نمی‌کند — اصلاح باید دستی توسط حسابدار/مدیر
+       ارشد در همان فرم ویرایش فاکتور رسمی انجام شود. */
+    try {
+      var offersForFxCheck = arr('ptf_crm_offers');
+      var offerByNoForFxCheck = {};
+      offersForFxCheck.forEach(function (o) { if (o && o.no) offerByNoForFxCheck[o.no] = o; });
+      invoices.forEach(function (i) {
+        if (i.status === 'void' || i.st === 'void' || i.void === true || i.isUnofficial) return;
+        var o = offerByNoForFxCheck[i.offerNo];
+        if (!o) return;
+        var sanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(o, i.amount) : { applicable: false, ok: true };
+        if (sanity.applicable && !sanity.ok) {
+          add(q, 'invoice-fx-mismatch', 'فاکتور رسمی با مبلغ مغایر شدید نسبت به پیش‌فاکتور ارزی (احتمال ورود رقم ارزی خام)', i.no || i.cd, i.amount);
+        }
+      });
+    } catch (eFxCheck) {}
     return Object.keys(q).map(function (k) { return q[k]; }).sort(function (a, b) { return b.count - a.count || a.id.localeCompare(b.id); });
   };
+
   window.ptfDataQualityHtml = function () {
     if (typeof curRole === 'function' && ['admin', 'chairman'].indexOf(curRole()) < 0) return '';
     var rows = window.ptfDataQualityData();
