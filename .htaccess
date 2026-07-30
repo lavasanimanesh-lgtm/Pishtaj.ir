@@ -190,6 +190,13 @@ RewriteRule "^knowledge-center/لوله و پایپینگ-256725e2\.html$" "/kno
 RewriteRule "^knowledge-center/لوله و پایپینگ-2b8bf259\.html$" "/knowledge-center/kc-ndt-method-selection-by-defect-type.html" [R=301,L]
 RewriteRule "^knowledge-center/مقایسه-astm-a106-gr.b-و-api-5l-gr.b-تفاوت‌ها-و-کاربرده\.html$" "/knowledge-center/kc-a106-api-5l-standard-selection-by-project.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۷ (۵ مقالهٔ نهایی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/مقایسه-لوله-کشش-سرد-cold-drawn-و-نورد-گرم-hot-rolled\.html$" "/knowledge-center/kc-cold-drawn-hot-rolled-dimensional-tolerance.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-0ab63dcd\.html$" "/knowledge-center/kc-wastewater-sludge-treatment-methods.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-0f3bd353\.html$" "/knowledge-center/kc-steam-turbine-blade-erosion-prevention.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-1b26d72b\.html$" "/knowledge-center/kc-olefin-cracking-furnace-coil-design.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-6009aa25\.html$" "/knowledge-center/kc-radar-level-transmitter-tank-installation.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
