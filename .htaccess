@@ -169,6 +169,13 @@ RewriteRule "^knowledge-center/راهنمای-شیر-توپی-ball-valve-api-6d-
 RewriteRule "^knowledge-center/راهنمای-شیر-کنترل-control-valve-انواع-انتخاب-و-استاندا\.html$" "/knowledge-center/kc-control-valve-noise-prediction-iec-60534.html" [R=301,L]
 RewriteRule "^knowledge-center/راهنمای-فلنج-نوع-lap-joint-lj-و-stub-end-کاربرد-و-نصب\.html$" "/knowledge-center/kc-lap-joint-stub-end-rotation-installation.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۵ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/راهنمای-فولاد-api-5l-x60-مشخصات-و-کاربرد-در-خطوط-لوله\.html$" "/knowledge-center/kc-api-5l-x60-pipeline-design-factor.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-api-5l-psl2-الزامات-فنی-اضافی\.html$" "/knowledge-center/kc-api-5l-psl2-sour-service-nace-requirements.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-astm-a179-لوله-مبدل-حرارتی-و-کندانسور\.html$" "/knowledge-center/kc-a179-tube-expansion-rolling-procedure.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-astm-a53-gr.b-مشخصات-و-کاربردها\.html$" "/knowledge-center/kc-a53-vs-a106-selection-criteria.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-استینلس-استیل-stainless-steel-pipe-انواع-\.html$" "/knowledge-center/kc-stainless-steel-pipe-passivation-procedure.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
