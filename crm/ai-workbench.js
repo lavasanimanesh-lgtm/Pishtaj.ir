@@ -13,7 +13,7 @@ if(!window.ptfAiWB) window.ptfAiWB = {};
 // ---------- helpers ----------
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
 function getData(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}}
-function setData(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function setData(k,v){return localStorage.setItem(k,JSON.stringify(v))}
 var LLM_API = '../api/llm.php';
 
 function llmPost(action, body, cb){

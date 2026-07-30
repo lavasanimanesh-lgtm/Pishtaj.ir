@@ -13,7 +13,7 @@ var ATTACH_READ_API = '../api/attachment-read.php';
 
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function getData(k){try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}}
-function setData(k,v){localStorage.setItem(k, JSON.stringify(v));}
+function setData(k,v){return localStorage.setItem(k, JSON.stringify(v));}
 function curUser(){ try{return (curSession().user||'system');}catch(e){return 'system';} }
 function curName(){ try{return (curSession().name||'سیستم');}catch(e){return 'سیستم';} }
 function nowIso(){ return new Date().toISOString(); }

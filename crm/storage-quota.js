@@ -408,7 +408,7 @@
     try {
       var proto = Object.getPrototypeOf(localStorage);
       if (!proto || proto.__ptfSafeSetItemInstalled) return false;
-      var wrapped = function (k, v) { safeSetItem(k, v); };
+      var wrapped = function (k, v) { return safeSetItem(k, v); };
       Object.defineProperty(proto, 'setItem', { value: wrapped, configurable: true, writable: true });
       proto.__ptfSafeSetItemInstalled = true;
       return true;
