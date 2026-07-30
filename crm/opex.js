@@ -196,6 +196,7 @@
       body: 'مبلغ به ریال است - در صورت اصلاح واحد مبلغ قدیمی، دلیل را در شرح بنویسید. ویرایش audit می‌شود.',
       fields: [
         { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
+        { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value=""' + (!Object.prototype.hasOwnProperty.call(rec, 'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (rec.isOfficial === true ? ' selected' : '') + '>رسمی / قابل قبول ممیز</option><option value="no"' + (rec.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>' },
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: rec.amt, dir: 'ltr', required: true },
         { id: 'month', label: 'ماه شمسی', type: 'text', value: rec.month, required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: rec.desc || '' },
@@ -204,6 +205,7 @@
       okText: 'ذخیره ویرایش',
       onOk: function(v){
         var oldAmt = rec.amt;
+        var oldOfficial = Object.prototype.hasOwnProperty.call(rec, 'isOfficial') ? rec.isOfficial : null;
         var newAmt = +v.amt || 0;
         var newMonth = (function(m){ m=String(m||'').trim(); var mt=m.match(/^(\d{4})[\/\-](\d{1,2})$/); if(!mt) return ''; return mt[1]+'/'+('0'+mt[2]).slice(-2); })(v.month);
         if(newAmt<=0){ alert('⛔ مبلغ نامعتبر'); return; }
@@ -217,7 +219,10 @@
             return;
           }
         } catch(e){}
-        rec.cat = v.cat; rec.amt = newAmt; rec.month = newMonth; rec.desc = v.desc||''; 
+        rec.cat = v.cat; rec.amt = newAmt; rec.month = newMonth; rec.desc = v.desc||'';
+        if (v.isOfficial === 'yes') rec.isOfficial = true;
+        else if (v.isOfficial === 'no') rec.isOfficial = false;
+        else delete rec.isOfficial;
         var oldDeal = rec.dealRef; rec.dealRef = v.dealRef||'';
         rec.editedAt = faDateTime(); rec.editedBy = (typeof curSession==='function'?curSession().name:'');
         // به‌روزرسانی costEvents پرونده ها
@@ -247,7 +252,7 @@
         // ذخیره opex
         var all=oAll(); for(var i=0;i<all.length;i++){ if(all[i].cd===cd){ all[i]=rec; break; } }
         oSave(all);
-        try { audit('هزینه جاری', 'ویرایش هزینه '+rec.cat+' '+oldAmt+' → '+newAmt+' ریال ('+newMonth+')', cd); } catch(e){}
+        try { audit('هزینه جاری', 'ویرایش هزینه '+rec.cat+' '+oldAmt+' → '+newAmt+' ریال ('+newMonth+')' + (oldOfficial !== rec.isOfficial ? ' — تغییر نوع سند به ' + (rec.isOfficial === true ? 'رسمی' : rec.isOfficial === false ? 'غیررسمی' : 'نامشخص') : ''), cd); } catch(e){}
         if(typeof ptfToast==='function') ptfToast('✅ هزینه ویرایش شد', 'ok');
         if(typeof renderDeals==='function'){ try{ renderDeals(); }catch(e){} }
         ptfOpexRender();

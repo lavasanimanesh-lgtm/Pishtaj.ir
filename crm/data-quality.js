@@ -6,7 +6,7 @@
     if (!map[id]) map[id] = { id: id, label: label, count: 0, amount: 0, refs: [] };
     map[id].count++;
     map[id].amount += +amount || 0;
-    if (ref && map[id].refs.length < 8) map[id].refs.push(String(ref));
+    if (ref && map[id].refs.length < 50) map[id].refs.push(String(ref));
   }
   function yearOf(v) { return typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(v) : ((String(v || '').match(/(13|14)\d{2}/) || [])[0] || ''); }
   /* فاز ۲ / گام ۲ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
@@ -91,11 +91,18 @@
     return Object.keys(q).map(function (k) { return q[k]; }).sort(function (a, b) { return b.count - a.count || a.id.localeCompare(b.id); });
   };
 
+  function qualityRefsHtml(r) {
+    if (!r.refs || !r.refs.length) return '—';
+    if (r.id !== 'opex-unclassified' || typeof ptfOpexEdit !== 'function') return escP(r.refs.join(', '));
+    return r.refs.map(function (ref) {
+      return '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="ptfOpexEdit(\'' + escP(ref) + '\')">✏️ ' + escP(ref) + '</button>';
+    }).join('');
+  }
   window.ptfDataQualityHtml = function () {
-    if (typeof curRole === 'function' && ['admin', 'chairman'].indexOf(curRole()) < 0) return '';
+    if (typeof curRole === 'function' && ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) < 0) return '';
     var rows = window.ptfDataQualityData();
     var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
-    var body = rows.map(function (r) { return '<tr><td>' + escP(r.label) + '</td><td>' + r.count + '</td><td>' + (r.amount ? (+r.amount).toLocaleString('fa-IR') + ' ریال' : '—') + '</td><td dir="ltr">' + escP(r.refs.join(', ')) + '</td></tr>'; }).join('');
+    var body = rows.map(function (r) { return '<tr><td>' + escP(r.label) + '</td><td>' + r.count + '</td><td>' + (r.amount ? (+r.amount).toLocaleString('fa-IR') + ' ریال' : '—') + '</td><td dir="ltr">' + qualityRefsHtml(r) + '</td></tr>'; }).join('');
     return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">فقط‌خواندنی؛ این داشبورد هیچ رکوردی را اصلاح یا حذف نمی‌کند.</small></div><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>نوع</th><th>تعداد</th><th>مبلغ</th><th>نمونه شناسه‌ها</th></tr></thead><tbody>' + (body || '<tr><td colspan="4">موردی نیست</td></tr>') + '</tbody></table></div></div>';
   };
   window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
