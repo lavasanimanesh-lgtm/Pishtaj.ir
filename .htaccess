@@ -176,6 +176,13 @@ RewriteRule "^knowledge-center/راهنمای-لوله-astm-a179-لوله-مبد
 RewriteRule "^knowledge-center/راهنمای-لوله-astm-a53-gr.b-مشخصات-و-کاربردها\.html$" "/knowledge-center/kc-a53-vs-a106-selection-criteria.html" [R=301,L]
 RewriteRule "^knowledge-center/راهنمای-لوله-استینلس-استیل-stainless-steel-pipe-انواع-\.html$" "/knowledge-center/kc-stainless-steel-pipe-passivation-procedure.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۶ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/راهنمای-کامل-لوله-فولادی-آلیاژی-astm-a335-p5,-p9,-p11,\.html$" "/knowledge-center/kc-a335-pwht-post-weld-heat-treatment.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-کامل-مبدل-حرارتی-heat-exchanger-انواع-و-استاند\.html$" "/knowledge-center/kc-heat-exchanger-tema-class-selection.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-کمپرسور-صنعتی-industrial-compressor-انواع-و-کا\.html$" "/knowledge-center/kc-compressor-selection-screw-vs-reciprocating.html" [R=301,L]
+RewriteRule "^knowledge-center/شیرآلات صنعتی-4509205a\.html$" "/knowledge-center/kc-cf8-cf8m-casting-defects-inspection.html" [R=301,L]
+RewriteRule "^knowledge-center/شیرآلات صنعتی-811c56cb\.html$" "/knowledge-center/kc-slurry-valve-abrasion-wear-life-estimation.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
