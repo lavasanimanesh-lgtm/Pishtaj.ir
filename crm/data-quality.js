@@ -2,11 +2,12 @@
 (function () {
   'use strict';
   function arr(k) { var v = getData(k); return Array.isArray(v) ? v : []; }
-  function add(map, id, label, ref, amount) {
-    if (!map[id]) map[id] = { id: id, label: label, count: 0, amount: 0, refs: [] };
+  function add(map, id, label, ref, amount, detail) {
+    if (!map[id]) map[id] = { id: id, label: label, count: 0, amount: 0, refs: [], details: [] };
     map[id].count++;
     map[id].amount += +amount || 0;
     if (ref && map[id].refs.length < 50) map[id].refs.push(String(ref));
+    if (detail && map[id].details.length < 50) map[id].details.push(detail);
   }
   function yearOf(v) { return typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(v) : ((String(v || '').match(/(13|14)\d{2}/) || [])[0] || ''); }
   /* فاز ۲ / گام ۲ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
@@ -36,7 +37,7 @@
       if ((p.cur || 'IRR') !== 'IRR' && !(+p.rate > 0)) add(q, 'payable-fx-rate', 'تعهد ارزی بدون نرخ تسعیر', p.cd || p.inqNo, p.amount);
     });
     cheques.forEach(function (c) {
-      if (c.st === 'open' && !c.ownership) add(q, 'cheque-ownerless', 'چک باز با مالکیت نامشخص', c.sayad || c.no || c.cd, c.amt);
+      if (c.st === 'open' && !c.ownership) add(q, 'cheque-ownerless', 'چک باز با مالکیت نامشخص', c.sayad || c.no || c.cd, c.amt, { type: 'cheque', cd: c.cd, label: 'چک ' + (c.sayad || c.no || c.cd) + (c.toWhom ? ' — ' + c.toWhom : c.bank ? ' — ' + c.bank : '') });
       if (c.st === 'open' && !c.dueISO) add(q, 'cheque-undated', 'چک باز بدون تاریخ سررسید', c.sayad || c.no || c.cd, c.amt);
     });
     /* فاز ۲ / گام ۲: هزینه‌های جاری (OPEX) بدون تعیین نوع رسمی/غیررسمی —
@@ -92,10 +93,14 @@
   };
 
   function qualityRefsHtml(r) {
-    if (!r.refs || !r.refs.length) return '—';
-    if (r.id !== 'opex-unclassified' || typeof ptfOpexEdit !== 'function') return escP(r.refs.join(', '));
-    return r.refs.map(function (ref) {
-      return '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="ptfOpexEdit(\'' + escP(ref) + '\')">✏️ ' + escP(ref) + '</button>';
+    var details = r.details || [];
+    if (!details.length) return r.refs && r.refs.length ? escP(r.refs.join(', ')) : '—';
+    return details.map(function (d) {
+      var action = '';
+      if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="ptfOpexEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح</button>';
+      else if (d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="slInvoiceEdit(\'' + escP(d.cd) + '\')">✏️ فاکتور</button>';
+      else if (d.type === 'cheque' && typeof chEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;margin:2px" onclick="chEdit(\'' + escP(d.cd) + '\')">✏️ چک</button>';
+      return '<div style="margin:2px 0;white-space:nowrap">' + escP(d.label || d.cd || '') + ' ' + action + '</div>';
     }).join('');
   }
   window.ptfDataQualityHtml = function () {

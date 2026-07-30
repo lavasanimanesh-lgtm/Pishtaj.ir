@@ -219,9 +219,15 @@
             return;
           }
         } catch(e){}
+        var newOfficial = v.isOfficial === 'yes' ? true : v.isOfficial === 'no' ? false : null;
+        var officialChanged = oldOfficial !== newOfficial;
+        var applyToTemplate = false;
+        if (officialChanged && rec.tplId) {
+          applyToTemplate = confirm('رکوردهای دیگری از همین قالب وجود دارد.\n\nOK = اعمال نوع سند روی همه ماه‌های همین قالب\nCancel = فقط همین رکورد');
+        }
         rec.cat = v.cat; rec.amt = newAmt; rec.month = newMonth; rec.desc = v.desc||'';
-        if (v.isOfficial === 'yes') rec.isOfficial = true;
-        else if (v.isOfficial === 'no') rec.isOfficial = false;
+        if (newOfficial === true) rec.isOfficial = true;
+        else if (newOfficial === false) rec.isOfficial = false;
         else delete rec.isOfficial;
         var oldDeal = rec.dealRef; rec.dealRef = v.dealRef||'';
         rec.editedAt = faDateTime(); rec.editedBy = (typeof curSession==='function'?curSession().name:'');
@@ -249,10 +255,20 @@
           }
           setData('ptf_crm_deals', ds);
         } catch(e){}
-        // ذخیره opex
-        var all=oAll(); for(var i=0;i<all.length;i++){ if(all[i].cd===cd){ all[i]=rec; break; } }
+        // ذخیره opex — انتخاب گروهی فقط با تایید صریح کاربر
+        var all=oAll();
+        var groupedCount = 0;
+        for(var i=0;i<all.length;i++){
+          if(all[i].cd===cd){ all[i]=rec; continue; }
+          if(applyToTemplate && rec.tplId && all[i].tplId === rec.tplId){
+            if (newOfficial === true) all[i].isOfficial = true;
+            else if (newOfficial === false) all[i].isOfficial = false;
+            else delete all[i].isOfficial;
+            groupedCount++;
+          }
+        }
         oSave(all);
-        try { audit('هزینه جاری', 'ویرایش هزینه '+rec.cat+' '+oldAmt+' → '+newAmt+' ریال ('+newMonth+')' + (oldOfficial !== rec.isOfficial ? ' — تغییر نوع سند به ' + (rec.isOfficial === true ? 'رسمی' : rec.isOfficial === false ? 'غیررسمی' : 'نامشخص') : ''), cd); } catch(e){}
+        try { audit('هزینه جاری', 'ویرایش هزینه '+rec.cat+' '+oldAmt+' → '+newAmt+' ریال ('+newMonth+')' + (officialChanged ? ' — تغییر نوع سند به ' + (rec.isOfficial === true ? 'رسمی' : rec.isOfficial === false ? 'غیررسمی' : 'نامشخص') : '') + (groupedCount ? ' — اعمال روی ' + groupedCount + ' رکورد دیگر از همین قالب' : ''), cd); } catch(e){}
         if(typeof ptfToast==='function') ptfToast('✅ هزینه ویرایش شد', 'ok');
         if(typeof renderDeals==='function'){ try{ renderDeals(); }catch(e){} }
         ptfOpexRender();
