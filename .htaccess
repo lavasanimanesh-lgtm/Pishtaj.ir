@@ -162,6 +162,13 @@ RewriteRule "^knowledge-center/تامین و کیفیت-df31366c\.html$" "/knowl
 RewriteRule "^knowledge-center/راهنمای-تست-هیدرواستاتیک-خطوط-لوله-استانداردها-و-روش‌ه\.html$" "/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html" [R=301,L]
 RewriteRule "^knowledge-center/راهنمای-جامع-شیر-دروازه‌ای-gate-valve-api-600-طراحی-تس\.html$" "/knowledge-center/kc-gate-valve-api-600-flexible-wedge-design.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۴ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/راهنمای-جامع-لوله-a106-gr.b-مشخصات-فنی-تست-و-خرید\.html$" "/knowledge-center/kc-a106-mill-test-certificate-verification.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-جامع-لوله-a333-gr.6-لوله-کربن-استیل-دمای-پایین\.html$" "/knowledge-center/kc-a333-low-temperature-impact-testing.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-شیر-توپی-ball-valve-api-6d-طراحی-انواع-و-انتخا\.html$" "/knowledge-center/kc-ball-valve-api-6d-fire-safe-design.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-شیر-کنترل-control-valve-انواع-انتخاب-و-استاندا\.html$" "/knowledge-center/kc-control-valve-noise-prediction-iec-60534.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-فلنج-نوع-lap-joint-lj-و-stub-end-کاربرد-و-نصب\.html$" "/knowledge-center/kc-lap-joint-stub-end-rotation-installation.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
