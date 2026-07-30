@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>محاسبهٔ فشار تست و زمان نگه‌داشت هیدرواستاتیک | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="راهنمای محاسباتی فشار تست هیدرواستاتیک و مدت‌زمان نگه‌داشت طبق ASME B31.3 — فرمول تصحیح دمایی St/Sd، سقف فشار مجاز و تفکیک نوسان دما از نشتی واقعی." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="محاسبهٔ فشار تست و زمان نگه‌داشت هیدرواستاتیک" />
+<meta property="og:description" content="راهنمای محاسباتی فشار تست هیدرواستاتیک و مدت‌زمان نگه‌داشت طبق ASME B31.3 — فرمول تصحیح دمایی St/Sd، سقف فشار مجاز و تفکیک نوسان دما از نشتی واقعی." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "محاسبهٔ فشار تست هیدرواستاتیک", "item": "https://pishtaj.ir/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html"}]}, {"@type": ["TechArticle", "Article"], "headline": "محاسبهٔ فشار تست و زمان نگه‌داشت هیدرواستاتیک", "description": "راهنمای محاسباتی فشار تست هیدرواستاتیک و مدت‌زمان نگه‌داشت طبق ASME B31.3 — فرمول تصحیح دمایی St/Sd، سقف فشار مجاز و تفکیک نوسان دما از نشتی واقعی.", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "dateModified": "2026-07-28", "datePublished": "2026-07-01", "articleSection": "لوله و پایپینگ"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "چرا فشار تست هیدرواستاتیک فقط ۱.۵ برابر فشار طراحی نیست؟", "acceptedAnswer": {"@type": "Answer", "text": "چون فرمول کامل شامل تصحیح نسبت تنش مجاز متریال در دمای تست به دمای طراحی است؛ این نسبت می‌تواند فشار نهایی را به‌طور محسوس بالاتر یا پایین‌تر از ۱.۵ برابر ساده ببرد."}}, {"@type": "Question", "name": "چرا سقف فشار تست تعیین می‌شود؟", "acceptedAnswer": {"@type": "Answer", "text": "برای جلوگیری از آسیب به اجزای ضعیف‌تر سیستم مانند گسکت‌های خاص یا شیرهای با کلاس فشار پایین‌تر در همان خط."}}, {"@type": "Question", "name": "چرا مدت‌زمان نگه‌داشت باید متناسب با حجم خط تنظیم شود؟", "acceptedAnswer": {"@type": "Answer", "text": "چون خطوط با حجم بیشتر نیاز به زمان بیشتری برای پایدارشدن دما و فشار و مشاهدهٔ دقیق نشتی احتمالی دارند."}}, {"@type": "Question", "name": "چرا افزایش دمای آب تست می‌تواند نتیجه را گمراه کند؟", "acceptedAnswer": {"@type": "Answer", "text": "چون افزایش دما طبق قانون ترمودینامیک باعث افزایش طبیعی فشار می‌شود که ممکن است با تغییر فشار ناشی از نشتی اشتباه گرفته شود؛ ثبت هم‌زمان دما و فشار این مشکل را رفع می‌کند."}}]}]}</script>
+<style>
+.article-hero{background:linear-gradient(135deg,#151517,#2d2d31);min-height:220px;display:flex;align-items:center;padding:130px 0 50px;color:#fff;position:relative}
+.article-hero .container{position:relative;z-index:1}
+.article-hero h1{font-size:clamp(24px,3.2vw,38px);margin:0 0 10px;line-height:1.3}
+.article-wrap{max-width:900px;margin:40px auto;padding:0 20px}
+.article-content{background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;font-size:16px;color:#334155;box-shadow:0 16px 42px rgba(0,0,0,.07)}
+.article-content h2{font-size:clamp(22px,2.8vw,32px);margin:40px 0 16px;color:#1e293b;font-weight:900;padding-bottom:8px;border-bottom:2px solid #f1f5f9}
+.article-content h3{font-size:19px;margin:30px 0 12px;color:#1e293b}
+.article-content p{margin:0 0 18px}
+.article-content ul,.article-content ol{margin:0 0 18px;padding-right:22px}
+.article-content li{margin-bottom:8px}
+.article-content a{color:var(--red);font-weight:900}
+.article-content table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.article-content th,.article-content td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top;text-align:right}
+.article-content th{background:#f1f5f9;color:#334155}
+.article-cta{background:linear-gradient(135deg,#f8fafc,#fff);border:2px solid var(--line);border-radius:24px;padding:30px;text-align:center;margin:40px 0 0}
+.related-articles{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:30px 0}
+.rel-item{padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fafc;text-decoration:none;transition:.2s}
+.rel-item:hover{border-color:var(--red)}
+.rel-item b{display:block;color:#1e293b;font-size:14px}
+.rel-item span{font-size:12px;color:#64748b}
+@media(max-width:700px){.article-content{padding:24px}.related-articles{grid-template-columns:1fr}}
+.faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}
+.note-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:14px 16px;margin:16px 0}
+.ok-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:14px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+<section class="article-hero">
+<div class="container">
+<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">لوله و پایپینگ</span>
+<h1>راهنمای محاسبهٔ فشار تست و زمان نگه‌داشت تست هیدرواستاتیک</h1>
+<p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
+</div>
+</section>
+<div class="article-wrap">
+<div class="article-content">
+
+<p style="font-size:17px"><b>محاسبهٔ فشار تست و زمان نگهداری تست هیدرواستاتیک</b> — این مقالهٔ مستقل با تمرکز محاسباتی، مستقیماً به دو پارامتر کلیدی طراحی تست هیدرواستاتیک خطوط لوله می‌پردازد که اغلب به‌اشتباه از روی «عادت پروژه‌ای» تعیین می‌شوند، نه محاسبهٔ صحیح طبق ASME B31.3: فشار تست دقیق و مدت‌زمان نگه‌داشت (Holding Time).</p>
+
+<h2>فرمول پایهٔ محاسبهٔ فشار تست هیدرواستاتیک</h2>
+<p>طبق ASME B31.3، فشار تست هیدرواستاتیک حداقل باید ۱.۵ برابر فشار طراحی (Design Pressure) خط لوله باشد، با تصحیح نسبت تنش مجاز در دمای تست به دمای طراحی:</p>
+<p><b>Pt = 1.5 × Pd × (St / Sd)</b></p>
+<ul>
+<li><b>Pt:</b> فشار تست هیدرواستاتیک</li>
+<li><b>Pd:</b> فشار طراحی خط لوله</li>
+<li><b>St:</b> تنش مجاز متریال در دمای تست (معمولاً دمای محیط)</li>
+<li><b>Sd:</b> تنش مجاز متریال در دمای طراحی (دمای عملیاتی بالا)</li>
+</ul>
+<div class="note-box"><b>هشدار محاسباتی:</b> چون تنش مجاز متریال در دمای محیط (St) معمولاً بیشتر از تنش مجاز در دمای طراحی بالا (Sd) است، نسبت St/Sd می‌تواند فشار تست نهایی را به میزان قابل‌توجهی بالاتر از ۱.۵ برابر سادهٔ فشار طراحی ببرد؛ نادیده‌گرفتن این تصحیح دمایی، یکی از رایج‌ترین خطاهای محاسباتی در تعیین فشار تست است.</div>
+
+<h2>سقف فشار تست — چرا نمی‌توان بی‌نهایت فشار را افزایش داد؟</h2>
+<p>استاندارد همچنین سقفی برای فشار تست تعیین می‌کند تا از آسیب به اجزای ضعیف‌تر سیستم (مانند گسکت‌های خاص یا شیرهای با کلاس فشار پایین‌تر در همان خط) جلوگیری شود. در صورتی که فرمول محاسباتی فشاری بالاتر از این سقف مجاز بدهد، باید بخش‌های حساس‌تر سیستم جداگانه (Isolated) و با فشار متفاوت تست شوند.</p>
+
+<h2>محاسبهٔ مدت‌زمان نگه‌داشت (Holding Time) — چرا زمان ثابت برای همه کافی نیست؟</h2>
+<table>
+<thead><tr><th>عامل موثر بر Holding Time</th><th>تاثیر</th></tr></thead>
+<tbody>
+<tr><td>حجم کل خط تحت تست</td><td>خطوط با حجم بیشتر نیاز به زمان بیشتری برای پایدارشدن دما و فشار و مشاهدهٔ نشتی احتمالی دارند</td></tr>
+<tr><td>دقت تجهیز اندازه‌گیری فشار</td><td>گیج با دقت پایین‌تر نیاز به زمان مشاهدهٔ طولانی‌تر برای تشخیص افت فشار جزئی دارد</td></tr>
+<tr><td>نوسان دمای محیط حین تست</td><td>تغییر دمای آب تست (که فشار را طبق قانون ترمودینامیک تغییر می‌دهد) می‌تواند نتیجه را گمراه‌کننده کند</td></tr>
+</tbody>
+</table>
+<p>استاندارد پروژه معمولاً حداقل زمان نگه‌داشت (اغلب ۱۰ دقیقه برای بازرسی اولیه و حداقل ۱ ساعت برای تست کامل، بسته به الزامات مشخص پروژه) تعیین می‌کند؛ اما این حداقل باید با در نظرگرفتن عوامل بالا، به‌ویژه برای خطوط بزرگ‌قطر و طولانی، افزایش یابد.</p>
+
+<h2>جبران‌سازی دمایی حین تست — یک نکتهٔ محاسباتی ظریف</h2>
+<div class="ok-box"><b>پیشنهاد اجرایی:</b> برای خطوط طولانی در معرض تابش مستقیم آفتاب، دمای آب تست می‌تواند طی چند ساعت به‌طور محسوس افزایش یابد که باعث افزایش طبیعی فشار (نه ناشی از نشتی) می‌شود. ثبت هم‌زمان دما و فشار در طول تست، و استفاده از فرمول تصحیح دمایی برای تفکیک افزایش فشار طبیعی از افت فشار واقعی ناشی از نشتی، دقت تفسیر نتیجهٔ تست را افزایش می‌دهد.</div>
+
+<h2>معیار پذیرش نهایی — فراتر از «عدم افت فشار»</h2>
+<p>معیار پذیرش استاندارد معمولاً «عدم افت فشار قابل‌مشاهده» در طول مدت نگه‌داشت است، اما این معیار باید به همراه بازرسی بصری کامل تمام اتصالات، جوش‌ها و فلنج‌ها برای نشتی قابل‌مشاهده انجام شود؛ برخی نشتی‌های بسیار کوچک ممکن است افت فشار قابل‌اندازه‌گیری با گیج معمولی ایجاد نکنند اما در بازرسی بصری (به‌ویژه در نقاط اتصال) قابل‌کشف باشند.</p>
+
+<h2>چک‌لیست محاسبهٔ صحیح تست هیدرواستاتیک</h2>
+<ul>
+<li>محاسبهٔ فشار تست با فرمول کامل شامل تصحیح نسبت تنش دمایی St/Sd.</li>
+<li>بررسی سقف فشار مجاز و نیاز به ایزوله‌کردن بخش‌های حساس در صورت لزوم.</li>
+<li>تعیین مدت‌زمان نگه‌داشت متناسب با حجم خط و دقت تجهیز اندازه‌گیری.</li>
+<li>ثبت هم‌زمان دما و فشار برای تفکیک نوسان طبیعی از نشتی واقعی.</li>
+<li>ترکیب معیار عدم افت فشار با بازرسی بصری کامل اتصالات.</li>
+</ul>
+
+
+<h2>ملاحظات ایمنی خاص تست هیدرواستاتیک با آب سرد در مناطق سردسیر</h2>
+<p>در مناطق سردسیر ایران، استفاده از آب معمولی برای تست در دمای زیر صفر ریسک یخ‌زدگی داخل خط لوله و آسیب مکانیکی احتمالی را ایجاد می‌کند؛ برای این شرایط باید یا از افزودنی ضدیخ سازگار با متریال خط استفاده شود یا تست به فصل گرم‌تر موکول شود، مگر آنکه امکان گرمایش موقت محیط تست وجود داشته باشد.</p>
+<h2>مستندسازی نتیجهٔ تست برای تحویل نهایی پروژه</h2>
+<p>گزارش تست هیدرواستاتیک باید شامل فشار تست واقعی اعمال‌شده، مدت‌زمان نگه‌داشت، دمای آب و محیط در طول تست، و نتیجهٔ بازرسی بصری باشد؛ این مستندات بخشی ضروری از بستهٔ تحویل مکانیکی (Mechanical Completion Package) پروژه به کارفرما محسوب می‌شود.</p>
+<h2>پرسش پرتکرار: آیا تست پنوماتیک می‌تواند جایگزین هیدرواستاتیک شود؟</h2>
+<p>در برخی شرایط خاص (مانند خطوطی که نمی‌توانند وزن آب تست را تحمل کنند یا دسترسی به آب کافی ندارند)، تست پنوماتیک با گاز خنثی جایگزین می‌شود؛ اما به دلیل ریسک ایمنی بالاتر انرژی ذخیره‌شدهٔ گاز فشرده، این روش نیازمند رویهٔ ایمنی سخت‌گیرانه‌تر و تاییدیهٔ ویژهٔ مهندسی است.</p>
+
+<h2>هماهنگی زمان‌بندی تست با برنامهٔ کلی راه‌اندازی پروژه</h2>
+<p>تست هیدرواستاتیک معمولاً آخرین مرحلهٔ تایید مکانیکی پیش از عایق‌کاری یا رنگ‌آمیزی نهایی خط لوله است؛ تاخیر در برنامه‌ریزی این تست یا کشف نشتی در مرحلهٔ دیرهنگام می‌تواند تاخیرهای زنجیره‌ای در برنامهٔ کلی راه‌اندازی پروژه ایجاد کند، بنابراین محاسبهٔ دقیق و برنامه‌ریزی زودهنگام این مرحله اهمیت مدیریتی نیز دارد.</p>
+<h2>تخلیهٔ کامل آب پس از تست — مرحلهٔ اغلب فراموش‌شده</h2>
+<p>پس از تایید موفق تست، تخلیهٔ کامل و خشک‌کردن داخل خط (به‌ویژه برای خطوط سرویس گاز یا نفت خام که حضور آب باقی‌مانده می‌تواند مشکلات خوردگی یا هیدرات ایجاد کند) باید طبق رویهٔ مستند انجام و در گزارش نهایی ثبت شود؛ فراموشی این مرحله یکی از علل رایج مشکلات اولیهٔ راه‌اندازی است.</p>
+
+<h2>پرسش پرتکرار: چرا برخی پروژه‌ها از تست تلفیقی (Combined) استفاده می‌کنند؟</h2>
+<p>برای صرفه‌جویی در زمان، برخی پروژه‌ها چند بخش از سیستم لوله‌کشی را هم‌زمان و به‌صورت یک تست واحد بررسی می‌کنند؛ این روش نیازمند برنامه‌ریزی دقیق‌تر برای ایزوله‌کردن بخش‌های با کلاس فشار متفاوت و مدیریت حجم بسیار بیشتر آب تست است.</p>
+<h2>جمع‌بندی نهایی</h2>
+<p>محاسبهٔ دقیق فشار تست و مدت‌زمان نگه‌داشت، فراتر از رعایت حداقل استاندارد است و باید متناسب با ویژگی‌های خاص هر پروژه تنظیم شود. تیم فنی پیشرو تجهیز فرتاک در این محاسبات همراه پروژه‌های شماست.</p>
+
+<h2>اهمیت کالیبراسیون معتبر تجهیز اندازه‌گیری فشار پیش از تست</h2>
+<p>گیج فشار یا ترانسمیتر مورد استفاده برای پایش تست هیدرواستاتیک باید دارای گواهی کالیبراسیون معتبر و به‌روز باشد؛ استفاده از تجهیز بدون کالیبراسیون دقیق می‌تواند نتیجهٔ تست را بی‌اعتبار کند، حتی اگر فرآیند فیزیکی تست کاملاً صحیح انجام شده باشد.</p>
+
+<p>پیشرو تجهیز فرتاک با تامین تجهیزات کالیبره‌شدهٔ معتبر، دقت نتایج تست هیدرواستاتیک پروژه‌های شما را تضمین می‌کند.</p>
+
+<h2>نکتهٔ پایانی دربارهٔ آموزش تیم اجرایی سایت</h2>
+<p>آموزش تیم اجرایی دربارهٔ اهمیت هر پارامتر محاسباتی (نه فقط پیروی مکانیکی از یک عدد نهایی)، به آن‌ها کمک می‌کند در شرایط غیرمنتظرهٔ میدانی (مانند نوسان دمای غیرعادی) تصمیم صحیح و به‌موقع بگیرند.</p>
+
+<p>این سطح از آگاهی فنی، تفاوت بین یک تست صرفاً تشریفاتی و یک تست واقعاً معتبر و قابل‌اتکا را رقم می‌زند.</p>
+
+<h2>پرسش پایانی: آیا نتیجهٔ تست باید توسط شخص ثالث تایید شود؟</h2>
+<p>برای خطوط بحرانی یا پروژه‌های بزرگ، حضور یا تایید بازرس شخص ثالث (TPI) مستقل حین تست هیدرواستاتیک، اعتبار مستندات نهایی را برای کارفرما و مراجع نظارتی افزایش می‌دهد و توصیه می‌شود.</p>
+
+<p>این تایید مستقل به‌ویژه در پروژه‌های با الزامات قراردادی سخت‌گیرانه اهمیت حیاتی دارد.</p>
+
+<p>پیشرو تجهیز فرتاک با هماهنگی بازرسان معتبر، این سطح از اعتبار را برای پروژه‌های شما تضمین می‌کند.</p>
+
+<h2>پرسش پایانی: چرا مستندسازی دقیق شرایط محیطی حین تست اهمیت دارد؟</h2>
+<p>ثبت دقیق دما و رطوبت محیط در زمان تست، در صورت بروز اختلاف‌نظر بعدی دربارهٔ اعتبار نتیجه، امکان بازبینی و توجیه فنی دقیق نتایج ثبت‌شده را برای تیم بازرسی و کارفرما فراهم می‌کند.</p>
+
+<p>تیم فنی پیشرو تجهیز فرتاک این سطح از دقت مستندسازی را برای تمام پروژه‌های تست هیدرواستاتیک رعایت می‌کند.</p>
+
+<p>این تعهد به کیفیت، بخشی جدایی‌ناپذیر از تضمین ایمنی و قابلیت اطمینان بلندمدت خطوط لولهٔ پروژه‌های صنعتی است.</p>
+<h2>جمع‌بندی</h2>
+<p>محاسبهٔ دقیق فشار تست و مدت‌زمان نگه‌داشت، فراتر از یک قاعدهٔ سرانگشتی ساده است و نیازمند توجه به تصحیح دمایی و ویژگی‌های خاص هر خط لوله است. تیم فنی پیشرو تجهیز فرتاک در محاسبات دقیق تست هیدرواستاتیک و تامین تجهیزات موردنیاز این آزمایش برای پروژه‌های شما همراه است.</p>
+
+<h2>سوالات پرتکرار</h2>
+<div class="faq-list">
+<details><summary>چرا فشار تست هیدرواستاتیک فقط ۱.۵ برابر فشار طراحی نیست؟</summary><p>چون فرمول کامل شامل تصحیح نسبت تنش مجاز متریال در دمای تست به دمای طراحی است؛ این نسبت می‌تواند فشار نهایی را به‌طور محسوس بالاتر یا پایین‌تر از ۱.۵ برابر ساده ببرد.</p></details><details><summary>چرا سقف فشار تست تعیین می‌شود؟</summary><p>برای جلوگیری از آسیب به اجزای ضعیف‌تر سیستم مانند گسکت‌های خاص یا شیرهای با کلاس فشار پایین‌تر در همان خط.</p></details><details><summary>چرا مدت‌زمان نگه‌داشت باید متناسب با حجم خط تنظیم شود؟</summary><p>چون خطوط با حجم بیشتر نیاز به زمان بیشتری برای پایدارشدن دما و فشار و مشاهدهٔ دقیق نشتی احتمالی دارند.</p></details><details><summary>چرا افزایش دمای آب تست می‌تواند نتیجه را گمراه کند؟</summary><p>چون افزایش دما طبق قانون ترمودینامیک باعث افزایش طبیعی فشار می‌شود که ممکن است با تغییر فشار ناشی از نشتی اشتباه گرفته شود؛ ثبت هم‌زمان دما و فشار این مشکل را رفع می‌کند.</p></details>
+</div>
+<h2>مطالب مرتبط</h2>
+<div class="related-articles">
+<a class="rel-item" href="hydrostatic-test-pipe-guide.html"><b>راهنمای تست هیدرواستاتیک لوله — استانداردها</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="asme-b31-3-process-piping-guide.html"><b>راهنمای استاندارد ASME B31.3 برای پایپینگ فرایندی</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="third-party-inspection-guide.html"><b>راهنمای بازرسی شخص ثالث (TPI)</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="../services/piping-supply.html"><b>خدمات تجهیزات پایپینگ صنعتی</b><span>مرکز دانش فنی</span></a>
+</div>
+</div>
+<div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:32px">📋</span>
+    <div>
+      <b style="font-size:16px;color:#1e293b;display:block;margin-bottom:4px">درخواست استعلام فنی و استعلام قیمت تخصصی: محاسبهٔ فشار تست و زمان نگه‌داشت هیدرواستاتیک</b>
+      <span style="font-size:13px;color:#475569">کارشناسان فنی پیشرو تجهیز فرتاک آماده بررسی MTO و مشخصات فنی پروژه شما هستند.</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a href="../rfq/?item=%D8%AA%D8%AC%D9%87%DB%8C%D8%B2%D8%A7%D8%AA%20%D8%AA%D8%B3%D8%AA%20%D9%87%DB%8C%D8%AF%D8%B1%D9%88%D8%A7%D8%B3%D8%AA%D8%A7%D8%AA%DB%8C%DA%A9%20%D8%AE%D8%B7%20%D9%84%D9%88%D9%84%D9%87" class="cro-btn" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:14px;box-shadow:0 6px 20px rgba(239,75,26,0.25);transition:.2s">ثبت استعلام هوشمند قیمت ←</a>
+    <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
+  </div>
+</div>
+</div>
+<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px; object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;">• سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;">• رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;">• ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;">• مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;">• مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;">🔐 ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+</body>
+</html>

@@ -155,6 +155,13 @@ RewriteRule "^knowledge-center/برق صنعتی-b112a7f7\.html$" "/knowledge-ce
 RewriteRule "^knowledge-center/برق صنعتی-bf8dc10d\.html$" "/knowledge-center/kc-ups-battery-sizing-autonomy-calculation.html" [R=301,L]
 RewriteRule "^knowledge-center/برق صنعتی-c431aa57\.html$" "/knowledge-center/kc-protective-relay-coordination-curve.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۳ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/تامین و کیفیت-59eb4259\.html$" "/knowledge-center/kc-customs-clearance-hs-code-tariff-guide.html" [R=301,L]
+RewriteRule "^knowledge-center/تامین و کیفیت-8d2706c8\.html$" "/knowledge-center/kc-incoterms-fob-cif-risk-transfer-comparison.html" [R=301,L]
+RewriteRule "^knowledge-center/تامین و کیفیت-df31366c\.html$" "/knowledge-center/kc-international-lc-payment-terms-guide.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-تست-هیدرواستاتیک-خطوط-لوله-استانداردها-و-روش‌ه\.html$" "/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-جامع-شیر-دروازه‌ای-gate-valve-api-600-طراحی-تس\.html$" "/knowledge-center/kc-gate-valve-api-600-flexible-wedge-design.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
