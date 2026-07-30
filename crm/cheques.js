@@ -744,6 +744,7 @@
     c.st = 'cleared'; c.clearedAt = faDateTime(); c.clearedBy = curSession().name;
     chFinishReminder(c, false);
     chSave(list);
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: چک پاس شد — اعلان سررسید مرتبط برای همه حذف شود */
     try { audit('چک‌ها', 'چک ' + (c ? (c.sayad || c.no) : cd) + ' پاس شد', cd); } catch (e) {}
     if (typeof renderReminders === 'function') try { renderReminders(); } catch (e2) {}
     refreshBox();
@@ -756,6 +757,7 @@
     if (!c) return;
     if (c.by !== (curSession() || {}).user) { alert('⛔ فقط ثبت‌کننده چک می‌تواند آن را حذف کند'); return; }
     chFinishReminder(c, true);
+    try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: چک حذف/باطل شد — اعلان سررسید مرتبط برای همه حذف شود */
     /* Sprint 273: ابطال چک شرکتی متصل، پرداخت تامین‌کننده را هم void می‌کند. */
     if (c.supplierPaymentCd && c.ownership === 'company' && typeof window.slPaymentVoid === 'function') {
       c.st = 'void'; c.reminderDisabled = true;
@@ -770,6 +772,7 @@
     if (typeof renderReminders === 'function') try { renderReminders(); } catch (e2) {}
     refreshBox();
   };
+
 
   function refreshBox() {
     var host = document.getElementById('chqBox');
@@ -816,7 +819,8 @@
             toUsers: [c.by || s.user], toRoles: [],
             title: msg + ' — ' + (+c.amt).toLocaleString('fa-IR') + ' ریال در وجه ' + (c.toWhom || ''),
             body: 'بانک: ' + (c.bank || '-') + ' | سررسید: ' + (c.dueFa || c.dueISO),
-            kind: 'cheque', channels: ['cart'], link: { panel: 'rem' }, actionable: true
+            kind: 'cheque', channels: ['cart'], link: { panel: 'rem' }, actionable: true, refCd: c.cd,
+            dkey: 'chq-due-' + c.cd /* v33.4.1: dkey ثابت per چک — با تغییر شمارش روز، کارت موجود به‌روز می‌شود نه اینکه کارت جدید بسازد */
           });
         }
       });

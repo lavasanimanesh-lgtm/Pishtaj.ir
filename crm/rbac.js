@@ -69,6 +69,33 @@ window.ptfPruneSystemLogs = function () {
   } catch (ePrune) {}
 };
 
+/* v33.4.1 (بازنگری استاندارد اعلانات — دستور کارفرما): اعلانات «اطلاعی» (غیرمهم —
+   ر.ک ntfIsImportant) با استانداردهای CRM معروف باید خودمحوشونده باشند: حتی اگر
+   دیده/خوانده نشوند، بعد از یک بازه‌ی کوتاه کلاً حذف می‌شوند تا کارتابل/روزمن شلوغ نشود.
+   اعلانات «مهم» (ارجاع، سررسید چک، یادآور واقعی — ر.ک ntfIsImportant) هرگز با گذر زمان
+   خودکار حذف نمی‌شوند؛ فقط با «خواندم» یا با تکمیل رویداد پشتیبان (چک/یادآور) از دید
+   کاربر مخفی می‌شوند (رفتار موجود renderCartable). این تابع صرفاً رکوردهای «اطلاعی»
+   قدیمی‌تر از NTF_INFO_TTL_DAYS روز را از داده حذف می‌کند — بدون اثر روی اعلانات مهم. */
+var NTF_INFO_TTL_DAYS = 2;
+window.ptfPruneStaleNotifs = function () {
+  try {
+    var notifs = getData('ptf_crm_notifs');
+    if (!notifs.length) return 0;
+    var cutoff = Date.now() - NTF_INFO_TTL_DAYS * 86400000;
+    var kept = notifs.filter(function (n) {
+      if (!n) return false;
+      if (typeof ntfIsImportant === 'function' && ntfIsImportant(n)) return true; /* مهم‌ها هرگز با گذر زمان حذف نمی‌شوند */
+      if ((n.readBy || []).length > 0) return true; /* خوانده‌شده — از قبل در کارتابل/صندوق پیام پیش‌فرض مخفی است؛ نیازی به حذف اجباری نیست */
+      var t = 0;
+      try { t = n.iso ? new Date(n.iso).getTime() : 0; } catch (eT) { t = 0; }
+      if (!t) return true; /* بدون timestamp قابل‌فهم — برای ایمنی نگه داشته می‌شود */
+      return t >= cutoff;
+    });
+    if (kept.length !== notifs.length) setData('ptf_crm_notifs', kept);
+    return notifs.length - kept.length;
+  } catch (ePruneN) { return 0; }
+};
+
 function audit(module, action, ref) {
   if (Math.random() < 0.1) ptfPruneSystemLogs();
   var logs = getData('ptf_crm_audit');
@@ -78,9 +105,10 @@ function audit(module, action, ref) {
 }
 
 /* ============ US-123: اعلانات ============ */
-// notify({toRoles:['accountant'], toUsers:[], title, body, kind, channels:['cart','sms','email'], link})
+// notify({toRoles:['accountant'], toUsers:[], title, body, kind, channels:['cart','sms','email'], link, refCd, tier})
 function notify(opt) {
   window._ptfNotifySuppressed = false; /* v31.7.15 BUG-BOT-SPAM-001: مصرف‌کننده‌های پایین‌دستی (بات تلگرام) باید از dedup باخبر شوند */
+  try { ptfPruneStaleNotifs(); } catch (ePr0) {} /* v33.4.1: قبل از افزودن رکورد جدید، اعلانات اطلاعیِ منقضی‌شده حذف شوند */
   var notifs = getData('ptf_crm_notifs');
   /* v31.7.10 BUG-NTF-001: ضدتکرار اعلان — اگر همین اعلان (عنوان+متن+گیرندگان) هنوز
      توسط هیچ‌کس خوانده نشده، رکورد جدید ساخته نمی‌شود؛ فقط شمارنده تکرار و زمان
@@ -95,6 +123,14 @@ function notify(opt) {
     if (dnk === dkey && (dn.readBy || []).length === 0) {
       dn.repeat = (dn.repeat || 1) + 1;
       dn.lastT = faDateTime(); dn.lastISO = new Date().toISOString();
+      /* v33.4.1: اگر dkey صریح داده شده (مثلاً یادآور روزانه چک با شمارش روز تغییرپذیر)،
+         عنوان/متن/لینک/refCd کارت موجود هم به‌روز می‌شود تا کاربر آخرین وضعیت را ببیند
+         نه یک کارت بایگانی‌شده با متن قدیمی؛ برای dkey خودکار (بر پایه‌ی عنوان) تغییری
+         لازم نیست چون عنوان از قبل یکسان است. */
+      if (opt.dkey) {
+        dn.title = opt.title; dn.body = opt.body || ''; dn.link = opt.link || dn.link;
+        if (opt.refCd) dn.refCd = opt.refCd;
+      }
       setData('ptf_crm_notifs', notifs);
       updateCartBadge();
       window._ptfNotifySuppressed = true; /* v31.7.15: تکرار — کانال‌های خارجی نفرستند */
@@ -107,7 +143,10 @@ function notify(opt) {
     toRoles: opt.toRoles || [], toUsers: opt.toUsers || [],
     title: opt.title, body: opt.body || '', kind: opt.kind || 'info',
     channels: opt.channels || ['cart'], link: opt.link || null,
-    readBy: [], actionable: !!opt.actionable, done: false, dkey: dkey, repeat: 1
+    readBy: [], actionable: !!opt.actionable, done: false, dkey: dkey, repeat: 1,
+    tier: opt.tier || null, /* v33.4.1: override صریح دسته‌بندی مهم/اطلاعی (ر.ک ntfIsImportant) */
+    refCd: opt.refCd || null, /* v33.4.1: کد رکورد منبع (مثلاً چک/نامه) — با حل‌شدن آن رویداد، اعلان کاملاً حذف می‌شود (ر.ک ntfResolveByRef) */
+    remCd: opt.remCd || null /* v33.4.1: کد یادآور منبع (سازگار با addMsg در bridge.js) — همان مکانیزم resolve */
   };
   notifs.unshift(rec);
   if (notifs.length > 1000) notifs = notifs.slice(0, 1000);
@@ -151,11 +190,22 @@ function buildCartable() {
     '<div id="ctWrap"></div>';
 }
 
-/* v31.7.10 BUG-NTF-003: تفکیک اعلان مهم از عادی — اعلان‌های actionable یا kind بحرانی
-   در بخش جدا و بالای کارتابل می‌آیند تا در انبوه اعلان‌های عادی گم نشوند. */
-var NTF_IMPORTANT_KINDS = ['system', 'warn', 'error', 'finance'];
+/* v31.7.10 BUG-NTF-003 / v33.4.1 (بازنگری استاندارد اعلانات — دستور کارفرما):
+   تفکیک اعلان «مهم» (پایدار تا اقدام کاربر یا تکمیل رویداد پشتیبان — هرگز با گذر
+   زمان محو نمی‌شود) از «اطلاعی» (خودمحوشونده — ر.ک ptfPruneStaleNotifs).
+   مهم = ارجاعات به شخص معین، سررسید چک، یادآورهای دستی واقعی کاربر (remCd)،
+   و رویدادهای مالی/سیستمی حیاتی. بقیه (هشدارهای خودکار تکرارشونده مثل انقضای
+   پیش‌فاکتور/مهلت درخواست/تحویل تعهدی، وضعیت‌های عمومی و...) اطلاعی‌اند —
+   این‌ها از قبل به‌صورت زنده در «☀️ روز من» (myday.js) هم دیده می‌شوند. */
+var NTF_IMPORTANT_KINDS = ['system', 'warn', 'error', 'finance', 'cheque', 'inv_ref', 'contact_req', 'sign_req'];
 function ntfIsImportant(n) {
-  return !!(n && (n.actionable || NTF_IMPORTANT_KINDS.indexOf(n.kind || '') > -1));
+  if (!n) return false;
+  if (n.tier === 'important') return true;
+  if (n.tier === 'info') return false;
+  if (NTF_IMPORTANT_KINDS.indexOf(n.kind || '') > -1) return true;
+  if (n.kind === 'referral') return true; /* ارجاع به شخص معین */
+  if (n.kind === 'reminder' && n.remCd) return true; /* یادآور دستی واقعی کاربر (نه هشدار خودکار CO/RFQ/Deal) */
+  return false;
 }
 
 function ntfCard(n, me) {
@@ -216,6 +266,21 @@ function ntfRead(cd) {
   setData('ptf_crm_notifs', notifs);
   renderCartable();
 }
+
+/* v33.4.1 (بازنگری استاندارد اعلانات — دستور کارفرما): وقتی رویداد پشتیبان یک اعلان
+   «مهم» به‌طور کامل حل شد (مثلاً چک پاس/باطل شد، یادآور انجام شد)، اعلان مرتبط برای
+   همه‌ی گیرندگان (نه فقط کاربر جاری) کاملاً حذف می‌شود — چون دیگر برای هیچ‌کس موضوعیت
+   ندارد. این با «خواندم» (per-user) متفاوت است. صدا زده می‌شود از: chClear/chDel/void
+   (cheques.js با refCd=چک.cd) و remDone/remDel (leads.js، bridge.js با refCd=یادآور.cd). */
+window.ntfResolveByRef = function (refCd) {
+  if (!refCd) return 0;
+  var notifs = getData('ptf_crm_notifs');
+  var kept = notifs.filter(function (n) { return !(n && (n.refCd === refCd || n.remCd === refCd)); });
+  var removed = notifs.length - kept.length;
+  if (removed) { setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (eB) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eB2) {} }
+  return removed;
+};
+
 
 function ntfGo(cd) {
   var n = getData('ptf_crm_notifs').filter(function (x) { return x.cd === cd; })[0];

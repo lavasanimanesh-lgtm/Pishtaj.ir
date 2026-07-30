@@ -368,7 +368,7 @@ function letSubmit(cd) {
     l.st = 'pending';
     var u = getData('ptf_crm_users').filter(function (x) { return x.username === l.signer; })[0];
     l.signerNm = u ? u.name : l.signer;
-    notify({ toUsers: [l.signer], title: '✍️ درخواست امضای نامه: ' + l.subject, body: 'نویسنده: ' + l.authorNm, kind: 'sign_req', channels: ['cart'], link: { panel: 'let' }, actionable: true });
+    notify({ toUsers: [l.signer], title: '✍️ درخواست امضای نامه: ' + l.subject, body: 'نویسنده: ' + l.authorNm, kind: 'sign_req', channels: ['cart'], link: { panel: 'let' }, actionable: true, refCd: l.cd });
   }
   if (idx > -1) ls[idx] = l; else ls.unshift(l);
   setData('ptf_crm_letters', ls);
@@ -406,6 +406,7 @@ function letSign(cd) {
   l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
   setData('ptf_crm_letters', ls);
   if (l.prjNo) _letAttachToPrj(l);
+  try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(l.cd); } catch (eNR) {} /* v33.4.1: امضا شد — درخواست امضای مرتبط برای همه حذف شود */
   notify({ toUsers: [l.author], title: '✅ نامه «' + l.subject + '» امضا شد — ' + l.no, kind: 'sign_ok', channels: ['cart'], link: { panel: 'let' } });
   audit('مکاتبات', 'امضای نامه ' + l.no, l.no);
   renderLetters();
@@ -421,6 +422,7 @@ function letReject(cd) {
   l.st = 'rejected';
   l.rejectWhy = why.trim();
   setData('ptf_crm_letters', ls);
+  try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(l.cd); } catch (eNR) {} /* v33.4.1: رد شد — درخواست امضای مرتبط برای همه حذف شود */
   notify({ toUsers: [l.author], title: '❌ نامه «' + l.subject + '» رد شد', body: 'دلیل: ' + why, kind: 'sign_no', channels: ['cart'], link: { panel: 'let' } });
   audit('مکاتبات', 'رد امضای نامه: ' + why, l.cd);
   renderLetters();

@@ -589,6 +589,7 @@ function remDone(cd) {
   var rems = getData('ptf_crm_reminders');
   rems.forEach(function(r){ if (r.cd === cd) { r.st = 'done'; r.doneFa = faDate(); r.doneBy = currentUserName(); } });
   setData('ptf_crm_reminders', rems);
+  try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور انجام شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }
 
@@ -614,6 +615,7 @@ function remSnooze(cd) {
 function remDel(cd) {
   if (!confirm('یادآور حذف شود؟')) return;
   setData('ptf_crm_reminders', getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; }));
+  try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور حذف شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }
 
