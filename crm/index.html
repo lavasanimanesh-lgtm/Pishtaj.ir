@@ -886,13 +886,16 @@ function getData(k) {
 window.setData = function (k, d) {
   try {
     var s = JSON.stringify(d);
-    if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem(k, s);
-    else localStorage.setItem(k, s);
+    var saveResult;
+    if (typeof ptfStorageSafeSetItem === 'function') saveResult = ptfStorageSafeSetItem(k, s);
+    else saveResult = localStorage.setItem(k, s);
     if (window.ptfSyncNotifyDirty) {
       window.ptfSyncNotifyDirty(k);
     }
+    return saveResult;
   } catch (e) {
     console.error('ptf_crm_localStorage_write_error:', k, e);
+    return false;
   }
 };
 var setData = window.setData;

@@ -80,8 +80,9 @@
 
   var _setData = window.setData;
   window.setData = function (k, d) {
-    _setData(k, d);
+    var saveResult = _setData(k, d);
     window.ptfSyncNotifyDirty(k);
+    return saveResult;
   };
 
   function schedulePush() {
