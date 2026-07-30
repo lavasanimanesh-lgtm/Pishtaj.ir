@@ -1,7 +1,7 @@
 /* =====================================================================
    PTF CRM — v17.9
    US-419: سهامداران، حقوق موظف و علی‌الحساب
-   - محرمانه: فقط admin/chairman
+   - محرمانه: مدیران ارشد (admin/chairman/ceo/commercial — AUD-11، تصمیم کارفرما ۱۴۰۵/۰۵/۰۷)
    - حقوق موظف ماهانه → مطالبه سهامدار + هزینه حقوق US-418 با فلگ جلوگیری از دوباره‌شماری
    - برداشت/علی‌الحساب → کاهش مطالبه / ایجاد بدهی سهامدار
    - کارت مانده لحظه‌ای: بستانکار/بدهکار + مطالبات تنخواه مرتبط با نام شخص
@@ -10,7 +10,12 @@
   'use strict';
   var SH_KEY = 'ptf_crm_shareholders', TX_KEY = 'ptf_crm_sharetx', OPEX_KEY = 'ptf_crm_opex';
 
-  function canShare() { return ['admin', 'chairman'].indexOf(curRole()) > -1; }
+  function canShare() { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; }
+  /* AUD-11 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md، تصمیم صریح کارفرما):
+     قبلاً فقط admin/chairman بود؛ هاب مالی تب «سهامداران» را برای
+     ceo/commercial هم قابل‌کلیک نشان می‌داد بدون محتوا. کارفرما تصریح
+     کرد این دو نقش باید دسترسی کامل داشته باشند، هم‌راستا با
+     ROLES.finance در rbac.js. */
   function shAll() { var a = getData(SH_KEY); return Array.isArray(a) ? a : []; }
   function shSave(a) { setData(SH_KEY, a || []); }
   function txAll() { var a = getData(TX_KEY); return Array.isArray(a) ? a : []; }
@@ -99,7 +104,7 @@
   };
 
   window.ptfShareEdit = function (cd) {
-    if (!canShare()) { alert('⛔ فقط ادمین/رییس هیات مدیره'); return; }
+    if (!canShare()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }
     var old = cd ? shAll().filter(function (x) { return x.cd === cd; })[0] : null;
     ptfDialog({
       title: old ? 'ویرایش سهامدار' : 'ثبت سهامدار',

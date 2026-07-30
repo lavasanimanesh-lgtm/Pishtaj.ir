@@ -756,19 +756,20 @@
         } catch (eAv) { return remoteStr; }
       }
 
-      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
-      var loc = JSON.parse(localStr || '[]');
-      var rem = JSON.parse(remoteStr || '[]');
-      if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;
-
-      /* Sprint 283: fiscal lock/unlock is a state transition on one snapshot,
-         not an ordinary display timestamp. A chairman unlock has lockStateAtISO;
-         keep that transition through a per-key sync conflict so an older locked
-         server copy cannot silently re-lock the year after a local unlock. */
+      /* Sprint 283 + AUD-01 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         fiscal lock/unlock is a state transition on one snapshot, not an ordinary
+         display timestamp. A chairman unlock has lockStateAtISO; keep that transition
+         through a per-key sync conflict so an older locked server copy cannot silently
+         re-lock the year after a local unlock.
+         نکته‌ی حیاتی: این بلوک باید پیش از چک عمومی «if (!Array.isArray(loc) ...)»
+         بیاید، چون ptf_crm_supplier_finance یک OBJECT است نه آرایه — قبلاً این بلوک
+         بعد از آن چک بود و همیشه Array.isArray(loc)===false باعث می‌شد بدون رسیدن به
+         اینجا، remoteStr برگردانده شود (کد مرده — AUD-01: هر فاکتور/پرداخت/تعدیل محلی
+         که هنوز sync نشده، در هر تعارضی به‌طور کامل و بی‌صدا از بین می‌رفت). */
       if (key === 'ptf_crm_supplier_finance') {
         try {
           var locO = JSON.parse(localStr||'{}'); var remO = JSON.parse(remoteStr||'{}');
-          if(typeof locO!=='object' || typeof remO!=='object') return remoteStr;
+          if(typeof locO!=='object' || typeof remO!=='object' || Array.isArray(locO) || Array.isArray(remO)) return remoteStr;
           var merged={};
           var allKeys = {};
           Object.keys(locO).forEach(function(k){ allKeys[k]=1; });
@@ -799,6 +800,22 @@
           return JSON.stringify(merged);
         } catch(e){ return remoteStr; }
       }
+
+      /* AUD-02 / AUD-03 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         ptf_crm_invoices و ptf_crm_deals هرکدام یک رکورد با شناسه (cd) هستند که
+         آرایه‌های تودرتوی حیاتی درون خودشان دارند (payments[]/pays[] برای فاکتور،
+         costEvents[]/timeline[]/lossEvents[] برای پرونده‌ی فروش). merge عمومی زیر این
+         خط، برای رکوردهای هم‌شناسه فقط «رکورد کامل جدیدتر» را نگه می‌دارد، نه این‌که
+         دو آرایه‌ی تودرتو را ادغام کند — یعنی اگر دو کاربر هم‌زمان (مثلاً دو تحصیلدار)
+         روی همان فاکتور دو وصولی مستقل ثبت کنند، یکی از دو وصولی در merge کاملاً و
+         بی‌صدا گم می‌شود. راه‌حل: از همان مسیر canonical-merge موجود برای offers/rfqs
+         استفاده شود که به‌ازای هر کد، رکورد برنده را انتخاب می‌کند اما فیلدهای آرایه‌ای
+         (payments/pays/costEvents/timeline/lossEvents) را با ptfMergeArrayUnique واقعاً
+         union می‌کند — نه جایگزین. */
+      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+      var loc = JSON.parse(localStr || '[]');
+      var rem = JSON.parse(remoteStr || '[]');
+      if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;
 
       /* v31.7.26 BUG-SYNC-OSC-001 (گزارش کارفرما: دفتر تلفن مدام زیاد/کم می‌شود):
          smsBookSyncAll در هر rebuild برای رکوردهای auto با genCode('PB') کد «تصادفی جدید» می‌ساخت؛

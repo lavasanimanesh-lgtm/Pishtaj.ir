@@ -7,15 +7,23 @@
 /* ============ تعریف نقش‌ها و ماتریس دسترسی ============ */
 var ROLES = {
   /* v14.9 (US-383 — دستور کارفرما): ① دستیار (ai) برای همه نقش‌ها باز شد
-     ② مدیرعامل و مدیر بازرگانی دسترسی کامل هم‌سطح رییس هیات مدیره گرفتند (panels:*، users، finance) */
-  admin:      { lb: 'ادمین (مدیر کل سیستم)',  users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  chairman:   { lb: 'رییس هیات مدیره',         users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  ceo:        { lb: 'مدیرعامل',                users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true  },
-  sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false },
-  buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false },
-  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty'],                                 buyPrice: false, sellPrice: false, finance: false },
-  collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false }
+     ② مدیرعامل و مدیر بازرگانی دسترسی کامل هم‌سطح رییس هیات مدیره گرفتند (panels:*، users، finance)
+     Phase 2 / Step 4 (ر.ک: crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+     ledgerScope مشخص می‌کند این نقش کدام دفتر را می‌بیند:
+       'all'      → هر دو دفتر رسمی و غیررسمی (نقش‌های ارشد؛ collector هم چون به
+                    پنل recv دسترسی دارد و رفتار قبلی‌اش دیدن همه‌ی فاکتورها بود)
+       'official' → فقط دفتر رسمی (حسابدار — دقیقاً همان رفتار قبلی، فقط اکنون صریح است)
+       'none'     → این نقش اصلاً به پنل‌های دارای فاکتور (inv/recv/petty) دسترسی
+                    ندارد (sales/buyer) — مقدار فقط برای مستندسازی صریح است، رفتار
+                    واقعی هرگز از این طریق بررسی نمی‌شود چون پنل‌شان اصلاً باز نیست */
+  admin:      { lb: 'ادمین (مدیر کل سیستم)',  users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  chairman:   { lb: 'رییس هیات مدیره',         users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  ceo:        { lb: 'مدیرعامل',                users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
+  sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false, ledgerScope: 'none'     },
+  buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false, ledgerScope: 'none'     },
+  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty'],                                 buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
+  collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'all'      }
 };
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
 var SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
@@ -30,6 +38,18 @@ function curRole() {
 }
 function roleDef() { return ROLES[curRole()] || ROLES.sales; }
 function isSenior() { return SENIOR_ROLES.indexOf(curRole()) > -1; }
+/* Phase 2 / Step 4: تابع عمومی جایگزین شرط‌های هاردکد پراکنده در
+   renderInvoices/renderReceivables (rbac.js) و customer-finance.js.
+   ledgerKind: 'official' | 'unofficial' — آیا نقش فعلی اجازه‌ی دیدن این دفتر را دارد؟
+   رفتار قبلی (فقط accountant از unofficial محروم بود) کاملاً حفظ می‌شود؛
+   نقش‌های 'none' هم به‌طور طبیعی هر دو نوع را نمی‌بینند چون پنل مالی/فاکتور ندارند. */
+function ptfCanSeeLedger(ledgerKind) {
+  var scope = (roleDef() || {}).ledgerScope || 'all';
+  if (scope === 'all') return true;
+  if (scope === 'none') return false;
+  /* scope === 'official' */
+  return ledgerKind !== 'unofficial';
+}
 function canPanel(id) {
   var r = roleDef();
   if (r.panels === '*') return true;
@@ -49,6 +69,33 @@ window.ptfPruneSystemLogs = function () {
   } catch (ePrune) {}
 };
 
+/* v33.4.1 (بازنگری استاندارد اعلانات — دستور کارفرما): اعلانات «اطلاعی» (غیرمهم —
+   ر.ک ntfIsImportant) با استانداردهای CRM معروف باید خودمحوشونده باشند: حتی اگر
+   دیده/خوانده نشوند، بعد از یک بازه‌ی کوتاه کلاً حذف می‌شوند تا کارتابل/روزمن شلوغ نشود.
+   اعلانات «مهم» (ارجاع، سررسید چک، یادآور واقعی — ر.ک ntfIsImportant) هرگز با گذر زمان
+   خودکار حذف نمی‌شوند؛ فقط با «خواندم» یا با تکمیل رویداد پشتیبان (چک/یادآور) از دید
+   کاربر مخفی می‌شوند (رفتار موجود renderCartable). این تابع صرفاً رکوردهای «اطلاعی»
+   قدیمی‌تر از NTF_INFO_TTL_DAYS روز را از داده حذف می‌کند — بدون اثر روی اعلانات مهم. */
+var NTF_INFO_TTL_DAYS = 2;
+window.ptfPruneStaleNotifs = function () {
+  try {
+    var notifs = getData('ptf_crm_notifs');
+    if (!notifs.length) return 0;
+    var cutoff = Date.now() - NTF_INFO_TTL_DAYS * 86400000;
+    var kept = notifs.filter(function (n) {
+      if (!n) return false;
+      if (typeof ntfIsImportant === 'function' && ntfIsImportant(n)) return true; /* مهم‌ها هرگز با گذر زمان حذف نمی‌شوند */
+      if ((n.readBy || []).length > 0) return true; /* خوانده‌شده — از قبل در کارتابل/صندوق پیام پیش‌فرض مخفی است؛ نیازی به حذف اجباری نیست */
+      var t = 0;
+      try { t = n.iso ? new Date(n.iso).getTime() : 0; } catch (eT) { t = 0; }
+      if (!t) return true; /* بدون timestamp قابل‌فهم — برای ایمنی نگه داشته می‌شود */
+      return t >= cutoff;
+    });
+    if (kept.length !== notifs.length) setData('ptf_crm_notifs', kept);
+    return notifs.length - kept.length;
+  } catch (ePruneN) { return 0; }
+};
+
 function audit(module, action, ref) {
   if (Math.random() < 0.1) ptfPruneSystemLogs();
   var logs = getData('ptf_crm_audit');
@@ -58,9 +105,10 @@ function audit(module, action, ref) {
 }
 
 /* ============ US-123: اعلانات ============ */
-// notify({toRoles:['accountant'], toUsers:[], title, body, kind, channels:['cart','sms','email'], link})
+// notify({toRoles:['accountant'], toUsers:[], title, body, kind, channels:['cart','sms','email'], link, refCd, tier})
 function notify(opt) {
   window._ptfNotifySuppressed = false; /* v31.7.15 BUG-BOT-SPAM-001: مصرف‌کننده‌های پایین‌دستی (بات تلگرام) باید از dedup باخبر شوند */
+  try { ptfPruneStaleNotifs(); } catch (ePr0) {} /* v33.4.1: قبل از افزودن رکورد جدید، اعلانات اطلاعیِ منقضی‌شده حذف شوند */
   var notifs = getData('ptf_crm_notifs');
   /* v31.7.10 BUG-NTF-001: ضدتکرار اعلان — اگر همین اعلان (عنوان+متن+گیرندگان) هنوز
      توسط هیچ‌کس خوانده نشده، رکورد جدید ساخته نمی‌شود؛ فقط شمارنده تکرار و زمان
@@ -75,6 +123,14 @@ function notify(opt) {
     if (dnk === dkey && (dn.readBy || []).length === 0) {
       dn.repeat = (dn.repeat || 1) + 1;
       dn.lastT = faDateTime(); dn.lastISO = new Date().toISOString();
+      /* v33.4.1: اگر dkey صریح داده شده (مثلاً یادآور روزانه چک با شمارش روز تغییرپذیر)،
+         عنوان/متن/لینک/refCd کارت موجود هم به‌روز می‌شود تا کاربر آخرین وضعیت را ببیند
+         نه یک کارت بایگانی‌شده با متن قدیمی؛ برای dkey خودکار (بر پایه‌ی عنوان) تغییری
+         لازم نیست چون عنوان از قبل یکسان است. */
+      if (opt.dkey) {
+        dn.title = opt.title; dn.body = opt.body || ''; dn.link = opt.link || dn.link;
+        if (opt.refCd) dn.refCd = opt.refCd;
+      }
       setData('ptf_crm_notifs', notifs);
       updateCartBadge();
       window._ptfNotifySuppressed = true; /* v31.7.15: تکرار — کانال‌های خارجی نفرستند */
@@ -87,7 +143,10 @@ function notify(opt) {
     toRoles: opt.toRoles || [], toUsers: opt.toUsers || [],
     title: opt.title, body: opt.body || '', kind: opt.kind || 'info',
     channels: opt.channels || ['cart'], link: opt.link || null,
-    readBy: [], actionable: !!opt.actionable, done: false, dkey: dkey, repeat: 1
+    readBy: [], actionable: !!opt.actionable, done: false, dkey: dkey, repeat: 1,
+    tier: opt.tier || null, /* v33.4.1: override صریح دسته‌بندی مهم/اطلاعی (ر.ک ntfIsImportant) */
+    refCd: opt.refCd || null, /* v33.4.1: کد رکورد منبع (مثلاً چک/نامه) — با حل‌شدن آن رویداد، اعلان کاملاً حذف می‌شود (ر.ک ntfResolveByRef) */
+    remCd: opt.remCd || null /* v33.4.1: کد یادآور منبع (سازگار با addMsg در bridge.js) — همان مکانیزم resolve */
   };
   notifs.unshift(rec);
   if (notifs.length > 1000) notifs = notifs.slice(0, 1000);
@@ -131,11 +190,22 @@ function buildCartable() {
     '<div id="ctWrap"></div>';
 }
 
-/* v31.7.10 BUG-NTF-003: تفکیک اعلان مهم از عادی — اعلان‌های actionable یا kind بحرانی
-   در بخش جدا و بالای کارتابل می‌آیند تا در انبوه اعلان‌های عادی گم نشوند. */
-var NTF_IMPORTANT_KINDS = ['system', 'warn', 'error', 'finance'];
+/* v31.7.10 BUG-NTF-003 / v33.4.1 (بازنگری استاندارد اعلانات — دستور کارفرما):
+   تفکیک اعلان «مهم» (پایدار تا اقدام کاربر یا تکمیل رویداد پشتیبان — هرگز با گذر
+   زمان محو نمی‌شود) از «اطلاعی» (خودمحوشونده — ر.ک ptfPruneStaleNotifs).
+   مهم = ارجاعات به شخص معین، سررسید چک، یادآورهای دستی واقعی کاربر (remCd)،
+   و رویدادهای مالی/سیستمی حیاتی. بقیه (هشدارهای خودکار تکرارشونده مثل انقضای
+   پیش‌فاکتور/مهلت درخواست/تحویل تعهدی، وضعیت‌های عمومی و...) اطلاعی‌اند —
+   این‌ها از قبل به‌صورت زنده در «☀️ روز من» (myday.js) هم دیده می‌شوند. */
+var NTF_IMPORTANT_KINDS = ['system', 'warn', 'error', 'finance', 'cheque', 'inv_ref', 'contact_req', 'sign_req'];
 function ntfIsImportant(n) {
-  return !!(n && (n.actionable || NTF_IMPORTANT_KINDS.indexOf(n.kind || '') > -1));
+  if (!n) return false;
+  if (n.tier === 'important') return true;
+  if (n.tier === 'info') return false;
+  if (NTF_IMPORTANT_KINDS.indexOf(n.kind || '') > -1) return true;
+  if (n.kind === 'referral') return true; /* ارجاع به شخص معین */
+  if (n.kind === 'reminder' && n.remCd) return true; /* یادآور دستی واقعی کاربر (نه هشدار خودکار CO/RFQ/Deal) */
+  return false;
 }
 
 function ntfCard(n, me) {
@@ -196,6 +266,21 @@ function ntfRead(cd) {
   setData('ptf_crm_notifs', notifs);
   renderCartable();
 }
+
+/* v33.4.1 (بازنگری استاندارد اعلانات — دستور کارفرما): وقتی رویداد پشتیبان یک اعلان
+   «مهم» به‌طور کامل حل شد (مثلاً چک پاس/باطل شد، یادآور انجام شد)، اعلان مرتبط برای
+   همه‌ی گیرندگان (نه فقط کاربر جاری) کاملاً حذف می‌شود — چون دیگر برای هیچ‌کس موضوعیت
+   ندارد. این با «خواندم» (per-user) متفاوت است. صدا زده می‌شود از: chClear/chDel/void
+   (cheques.js با refCd=چک.cd) و remDone/remDel (leads.js، bridge.js با refCd=یادآور.cd). */
+window.ntfResolveByRef = function (refCd) {
+  if (!refCd) return 0;
+  var notifs = getData('ptf_crm_notifs');
+  var kept = notifs.filter(function (n) { return !(n && (n.refCd === refCd || n.remCd === refCd)); });
+  var removed = notifs.length - kept.length;
+  if (removed) { setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (eB) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eB2) {} }
+  return removed;
+};
+
 
 function ntfGo(cd) {
   var n = getData('ptf_crm_notifs').filter(function (x) { return x.cd === cd; })[0];
@@ -529,14 +614,15 @@ function renderInvoices() {
   var el = document.getElementById('invWrap');
   if (!el) return;
   var refd = getData('ptf_crm_offers').filter(function (o) { return o.invRef; });
-  var invs = getData('ptf_crm_invoices');
-  if (curRole() === 'accountant') {
+  var invs = getData('ptf_crm_invoices').filter(function (i) { return i.status !== 'void' && i.st !== 'void' && i.void !== true; });
+  if (!ptfCanSeeLedger('unofficial')) {
     invs = invs.filter(function (i) { return !i.isUnofficial; });
   }
   var h = '';
   refd.forEach(function (o) {
     var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
     var total = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+    var invPaidSum = inv ? ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0) : 0;
     h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
       '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + escP(o.buyerCo || '-') +
@@ -544,7 +630,27 @@ function renderInvoices() {
       (inv ? '<div style="font-size:12px;color:#10b981;margin-top:3px">🧾 فاکتور ' + escP(inv.no) + ' — ' + escP(inv.t) + ' — ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال' +
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +
         ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +
-        (Math.abs(inv.amount - total) > 0.5 && total ? ' <span style="color:#dc2626">⚠️ مغایرت با CO: ' + Math.round(Math.abs(inv.amount - total) * 100 / total) + '٪</span>' : '') + '</div>' : '') +
+        (inv.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(inv.editedAt) + ' — ' + escP(inv.editedBy || '') + '</small>' : '') +
+        /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+           این هشدار قدیمی «مغایرت با CO» مقدار inv.amount (همیشه ریالی) را
+           مستقیم با total (جمع اقلام CO به ارز خام، بدون ×نرخ تسعیر) مقایسه
+           می‌کرد. برای سند ارزی، این دو عدد به‌طور طبیعی واحد متفاوت دارند؛
+           یعنی وقتی حسابدار عدد ارزی خام را در فیلد ریالی وارد می‌کرد (باگ
+           واقعی کشف‌شده)، این دو مقدار برابر می‌شدند و هیچ هشداری نشان داده
+           نمی‌شد — دقیقاً برعکسِ هدف این سد ایمنی. اکنون برای سند ارزی از
+           همان تابع خالص ptfLedgerOfficialFxSanity استفاده می‌شود که total
+           را در نرخ تسعیر مرجع ضرب می‌کند. */
+        (function () {
+          var curOfInv = o.currency || inv.offerCurrency;
+          if (curOfInv && curOfInv !== 'IRR') {
+            var fxSanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(o, inv.amount) : { applicable: false, ok: true };
+            if (fxSanity.applicable && !fxSanity.ok) {
+              return ' <span style="color:#dc2626;font-weight:900">⚠️ مغایرت شدید با پیش‌فاکتور ارزی — انتظار ~' + fxSanity.expectedIrr.toLocaleString('fa-IR') + ' ریال بود</span>';
+            }
+            return '';
+          }
+          return (Math.abs(inv.amount - total) > 0.5 && total ? ' <span style="color:#dc2626">⚠️ مغایرت با CO: ' + Math.round(Math.abs(inv.amount - total) * 100 / total) + '٪</span>' : '');
+        })() + '</div>' : '') +
       '</div>' +
       '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
       /* v19.3 (US-436 AC3/US-435 AC3): اگر ارجاع از پرونده فروش آمده، سند ضمیمه = snapshot قطعی برد (US-432) */
@@ -552,6 +658,9 @@ function renderInvoices() {
         ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای فاکتور رسمی" onclick="sfAwardPrint(\'' + escP(o.invRef.fromFile) + '\',\'' + o.no + '\')">🏆 سند قطعی برد (PDF)</button>'
         : '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="offerPrint(\'' + o.no + '\')">⬇️ دانلود CO</button>') +
       (!inv ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\')">+ ثبت فاکتور صادره</button>' : '') +
+      /* فاز ۲ / گام ۷: ویرایش/ابطال فاکتور فروش رسمی — فقط پیش از اولین وصولی، فقط نقش‌های ارشد */
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';
@@ -559,8 +668,19 @@ function renderInvoices() {
     window.ptfTaxReturnsRender();
   }
 }
-function showInvModal(offerNo) {
-  /* v19.3 (US-436 AC2): پنجره کامل حسابدار — مبلغ، ارزش افزوده، شماره، تاریخ، PDF */
+function showInvModal(offerNo, editCd) {
+  /* v19.3 (US-436 AC2): پنجره کامل حسابدار — مبلغ، ارزش افزوده، شماره، تاریخ، PDF
+     فاز ۲ / گام ۷: اگر editCd داده شود، همین دیالوگ در حالت ویرایش باز می‌شود
+     (فیلدها پیش‌پر با رکورد فعلی؛ فقط برای فاکتورهایی که هنوز وصولی ندارند). */
+  window._invEditCd = '';
+  var editRec = null;
+  if (editCd) {
+    editRec = getData('ptf_crm_invoices').filter(function (x) { return x.cd === editCd; })[0];
+    if (!editRec) { alert('⛔ فاکتور یافت نشد'); return; }
+    var paidCheck = ((editRec.payments || []).concat(editRec.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    if (paidCheck > 0) { alert('⛔ این فاکتور دارای وصولی است؛ ویرایش مستقیم مجاز نیست. ابتدا وصولی را ابطال کنید یا از سند اصلاحی سال مالی استفاده کنید.'); return; }
+    window._invEditCd = editCd;
+  }
   var _advTxt = '';
   try {
     var _o = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
@@ -570,20 +690,21 @@ function showInvModal(offerNo) {
     }
   } catch (eAdv) {}
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:520px">' +
-    '<h3>🧾 ثبت فاکتور رسمی صادره — ' + escP(offerNo) + '</h3>' +
-    '<p style="font-size:12px;color:#64748b">فاکتور در سیستم حسابداری صادر شده؛ مشخصات و PDF آن اینجا ثبت و مستقیم در پرونده فروش می‌نشیند (US-436).</p>' + _advTxt +
-    '<div class="fr"><div class="fld"><label>شماره فاکتور حسابداری *</label><input type="text" id="nInvNo" style="direction:ltr"></div>' +
-    '<div class="fld"><label>تاریخ فاکتور *</label><input type="text" id="nInvDate" value="' + escP(faDate()) + '" placeholder="1405/04/21"></div></div>' +
-    '<div class="fr"><div class="fld"><label>مبلغ فاکتور بدون ارزش افزوده (ریال) *</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvAmt" style="direction:ltr" oninput="invVatCalc()"></div>' +
-    '<div class="fld"><label>ارزش افزوده (ریال)</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvVat" style="direction:ltr" oninput="invVatCalc(true)"></div></div>' +
+    '<h3>🧾 ' + (editRec ? 'ویرایش فاکتور رسمی — ' + escP(editRec.no) : 'ثبت فاکتور رسمی صادره') + ' — ' + escP(offerNo) + '</h3>' +
+    '<p style="font-size:12px;color:#64748b">' + (editRec ? 'فقط تا قبل از ثبت اولین وصولی قابل‌ویرایش است؛ پس از آن از سند اصلاحی سال مالی استفاده کنید.' : 'فاکتور در سیستم حسابداری صادر شده؛ مشخصات و PDF آن اینجا ثبت و مستقیم در پرونده فروش می‌نشیند (US-436).') + '</p>' + _advTxt +
+    '<div class="fr"><div class="fld"><label>شماره فاکتور حسابداری *</label><input type="text" id="nInvNo" value="' + escP(editRec ? editRec.no : '') + '" style="direction:ltr"></div>' +
+    '<div class="fld"><label>تاریخ فاکتور *</label><input type="text" id="nInvDate" value="' + escP(editRec ? (editRec.invDate || faDate()) : faDate()) + '" placeholder="1405/04/21"></div></div>' +
+    '<div class="fr"><div class="fld"><label>مبلغ فاکتور بدون ارزش افزوده (ریال) *</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvAmt" value="' + (editRec ? (+editRec.base || 0) : '') + '" style="direction:ltr" oninput="invVatCalc()"></div>' +
+    '<div class="fld"><label>ارزش افزوده (ریال)</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvVat" value="' + (editRec ? (+editRec.vat || 0) : '') + '" style="direction:ltr" oninput="invVatCalc(true)"></div></div>' +
     '<div id="nInvSum" style="font-size:12px;color:#0e7490;font-weight:800;margin-bottom:8px"></div>' +
-    '<div class="fld"><label>فایل فاکتور (PDF/عکس)</label><div id="invUpWrap"></div></div>' +
+    '<div class="fld"><label>' + (editRec ? 'افزودن فایل جدید (اختیاری — فایل‌های قبلی حفظ می‌شوند)' : 'فایل فاکتور (PDF/عکس)') + '</label><div id="invUpWrap"></div></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
-    '<button class="bt" onclick="saveInv(\'' + escP(offerNo) + '\')">ثبت فاکتور</button></div></div></div>';
+    '<button class="bt" onclick="saveInv(\'' + escP(offerNo) + '\')">' + (editRec ? '💾 ذخیره تغییرات' : 'ثبت فاکتور') + '</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   window._invFiles = [];
   if (typeof attachUploadWidget === 'function')
     attachUploadWidget('invUpWrap', 'invoices', function (f) { window._invFiles.push(f); });
+  if (editRec) invVatCalc();
 }
 /* v19.3 (US-436): محاسبه زنده جمع فاکتور — پیشنهاد ۱۰٪ ارزش افزوده با اولین ورود مبلغ */
 function invVatCalc(fromVat) {
@@ -597,6 +718,19 @@ function saveInv(offerNo) {
   var no = document.getElementById('nInvNo').value.trim();
   var amt = ptfNum(document.getElementById('nInvAmt').value);
   if (!no || !amt) { alert('شماره و مبلغ فاکتور الزامی است'); return; }
+  /* AUD-10 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     فاکتور خرید تأمین‌کننده (supplier-finance.js#slInvoiceSave) گارد صریح
+     یکتایی شماره‌ی سند دارد (FIN-EX-01)؛ فاکتور فروش رسمی هرگز نداشت —
+     یعنی می‌شد دو پیش‌فاکتور متفاوت را با یک شماره‌ی فاکتور یکسان (اما
+     مبلغ متفاوت) ثبت کرد، که برای شماره‌ی فاکتور رسمی/مالیاتی مسئله‌ساز
+     است. بررسی روی همه‌ی فاکتورهای غیرباطل انجام می‌شود (نه فقط همین
+     offerNo) چون شماره‌ی فاکتور حسابداری باید در کل شرکت یکتا باشد؛ رکورد
+     خودِ در-حال-ویرایش (editCd) از این بررسی مستثنی می‌شود. */
+  var editCdCheck = window._invEditCd || '';
+  var dupInv = getData('ptf_crm_invoices').filter(function (x) {
+    return x.cd !== editCdCheck && x.status !== 'void' && x.st !== 'void' && x.void !== true && String(x.no || '').trim().toLowerCase() === no.toLowerCase();
+  })[0];
+  if (dupInv) { alert('⛔ فاکتور با شماره «' + no + '» قبلاً برای پیش‌فاکتور ' + (dupInv.offerNo || '-') + ' ثبت شده — شماره تکراری مجاز نیست'); return; }
   /* v19.3 (US-436 AC2): ارزش افزوده + تاریخ فاکتور — مبلغ ثبتی = جمع کل با ارزش افزوده */
   var vat = ptfNum((document.getElementById('nInvVat') || {}).value);
   var invDate = ((document.getElementById('nInvDate') || {}).value || '').trim() || faDate();
@@ -604,7 +738,52 @@ function saveInv(offerNo) {
   if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ثبت فاکتور در آن سال مجاز نیست. از سند اصلاحی استفاده کنید.'); return; }
   var grand = amt + vat;
   var files = window._invFiles || [];
+
+  /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     فرم فاکتور رسمی صادره عمداً فقط ریالی است (طبق تصمیم کارفرما: فاکتور
+     رسمی همیشه از سیستم حسابداری/سپیدار به ریال صادر می‌شود، هیچ فاکتور
+     رسمی مبلغ ارزی ندارد) — اما وقتی پیش‌فاکتور مبنا ارزی است، مبلغ ریالی
+     واردشده باید معادل واقعی همان مبلغ ارزی (× نرخ تسعیر مرجع پیش‌فاکتور)
+     باشد. سناریوی واقعی کشف‌شده: پیش‌فاکتور ۱۵۰۰ دلاری، حسابدار عدد خام
+     «۱۵۰۰» را در فیلد ریالی وارد کرده (باید ~۳ میلیارد ریال می‌بود) — این
+     اشتباه بدون هیچ هشداری ثبت و بعداً وارد داشبورد موازنه فصلی هم شده و
+     محاسبات مالیاتی را کاملاً منحرف کرده بود. */
+  try {
+    var _fxOfferForSanity = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
+    var _fxSanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(_fxOfferForSanity, grand) : { applicable: false, ok: true };
+    if (_fxSanity.applicable && !_fxSanity.ok) {
+      var _fxWarnMsg = '⚠️ هشدار مغایرت شدید با پیش‌فاکتور ارزی!\n\n' +
+        'پیش‌فاکتور مبنای ' + (_fxOfferForSanity.currency || '') + ' ' + _fxSanity.rawForeignTotal.toLocaleString('en-US') + ' است (نرخ مرجع ' + _fxSanity.fxRateRef.toLocaleString('fa-IR') + ' ریال) — یعنی معادل ریالی مورد انتظار حدود ' + _fxSanity.expectedIrr.toLocaleString('fa-IR') + ' ریال است.\n\n' +
+        'مبلغ واردشده (' + grand.toLocaleString('fa-IR') + ' ریال) خیلی کمتر از این مقدار است — احتمالاً رقم ارزی خام به‌جای معادل ریالی وارد شده.\n\n' +
+        'اگر این تخفیف واقعی و آگاهانه است، OK را بزنید. اگر اشتباه است، Cancel را بزنید و مبلغ صحیح ریالی را وارد کنید.';
+      if (!confirm(_fxWarnMsg)) return;
+    }
+  } catch (eFxSanity) {}
+
+  /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
+     حالت ویرایش — اگر window._invEditCd ست شده باشد، رکورد موجود اصلاح می‌شود
+     (بدون تغییر offerNo/cd/payments و بدون امکان ویرایش پس از وصولی). */
+  var editCd = window._invEditCd || '';
   var invs = getData('ptf_crm_invoices');
+  if (editCd) {
+    var existing = invs.filter(function (x) { return x.cd === editCd; })[0];
+    if (!existing) { alert('⛔ فاکتور برای ویرایش یافت نشد'); return; }
+    var paidSoFar = ((existing.payments || []).concat(existing.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    if (paidSoFar > 0) { alert('⛔ این فاکتور دارای وصولی است؛ برای اصلاح مبلغ ابتدا وصولی‌ها را ابطال کنید یا از سند اصلاحی سال مالی استفاده کنید.'); return; }
+    var oldExistYear = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(existing.invDate || '') : '';
+    if (oldExistYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(oldExistYear)) { alert('🔒 سال مالی ' + oldExistYear + ' قفل است؛ ویرایش فاکتور در آن سال مجاز نیست.'); return; }
+    var oldNo = existing.no, oldAmt = existing.amount;
+    existing.no = no; existing.amount = grand; existing.base = amt; existing.vat = vat; existing.invDate = invDate;
+    if (files.length) { existing.files = (existing.files || []).concat(files); existing.file = existing.files[0] ? existing.files[0].name : existing.file; }
+    existing.editedAt = faDateTime(); existing.editedBy = curSession().name;
+    setData('ptf_crm_invoices', invs);
+    hideModal(); renderInvoices();
+    audit('فاکتور', 'ویرایش فاکتور ' + oldNo + ' → ' + no + ' (' + oldAmt.toLocaleString('fa-IR') + ' → ' + grand.toLocaleString('fa-IR') + ' ریال) برای ' + offerNo, no);
+    if (typeof ptfToast === 'function') ptfToast('✅ فاکتور ویرایش شد', 'ok');
+    window._invEditCd = '';
+    return;
+  }
+
   var _offerMeta = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0] || {};
   /* v31.7.3 BUG-AUDIT-002-FINANCIAL-CODEGEN: فاکتور با کد TMP ذخیره نمی‌شود —
      شماره رسمی فقط از سرور. اگر pool خالی باشد، کاربر باید refresh/ورود مجدد کند. */
@@ -625,7 +804,16 @@ function saveInv(offerNo) {
       /* v24.5 BUG-126-02: کسر از فاکتور = مبلغ وصول‌شده (نه کل پیش‌پرداخت تعریف‌شده) */
       var advPay = _a.cashFull ? grand : Math.min(grand, Math.max(0, received));
       if (advPay > 0) {
-        newInv.payments.push({ amt: advPay, how: _a.cashFull ? 'پرداخت کامل/نقدی هنگام سفارش (US-436)' : 'کسر مبالغ وصول‌شده پیش‌پرداخت (US-436)', t: faDate(), by: curSession().name, fromAdvance: true });
+        var advPayRec = { amt: advPay, how: _a.cashFull ? 'پرداخت کامل/نقدی هنگام سفارش (US-436)' : 'کسر مبالغ وصول‌شده پیش‌پرداخت (US-436)', t: faDate(), by: curSession().name, fromAdvance: true };
+        /* فاز ۲ / گام ۹ (رفع باگ ریشه‌یابی‌شده — کارفرما): برای اسناد ارزی، معادل
+           ارزی وصولی باید ثبت شود وگرنه ptfFxInvoiceSummary (fx.js) آن را «صفر»
+           می‌بیند و مانده ارزی را برابر کل فاکتور نشان می‌دهد؛ الگو دقیقاً از
+           همان روش unofficial-invoice.js (پیش‌پرداخت فاکتور غیررسمی) گرفته شده:
+           نرخ = همان نرخی که هنگام ثبت پیش‌پرداخت وارد شده (_a.rate از petty.js). */
+        if (_oAdv.currency && _oAdv.currency !== 'IRR' && +_a.rate > 0) {
+          advPayRec.fx = { fxAmt: +(advPay / (+_a.rate)).toFixed(2), rate: +_a.rate, cur: _oAdv.currency };
+        }
+        newInv.payments.push(advPayRec);
         newInv.advApplied = advPay;
       }
     }
@@ -679,7 +867,7 @@ function renderReceivables() {
   var el = document.getElementById('rcWrap');
   if (!el) return;
   var invs = getData('ptf_crm_invoices');
-  if (curRole() === 'accountant') {
+  if (!ptfCanSeeLedger('unofficial')) {
     invs = invs.filter(function (i) { return !i.isUnofficial; });
   }
   var offers = getData('ptf_crm_offers');
@@ -810,6 +998,31 @@ window.ptfInvoicePayVoidPrompt = function (invCd, payRef) {
   if (!res.ok) { alert(msg[res.why] || '⛔ ابطال انجام نشد'); return; }
   renderReceivables();
   if (typeof ptfToast === 'function') ptfToast('ابطال وصولی ثبت شد و ماندهٔ فاکتور بازسازی شد', 'ok');
+};
+
+/* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
+   ابطال فاکتور فروش رسمی — نرم (status:'void')، نه حذف فیزیکی؛ رکورد برای
+   ردپای audit حفظ می‌شود اما در همه‌ی گزارش‌ها/لیست‌ها (renderInvoices،
+   renderReceivables، customer-finance.js، fiscal.js، working-capital.js،
+   commission.js، ...) فیلتر می‌شود چون همگی status!=='void' را چک می‌کنند. */
+window.ptfInvoiceVoid = function (invCd) {
+  if (!isSenior()) { alert('⛔ ابطال فاکتور فروش رسمی فقط برای مدیران ارشد مجاز است'); return; }
+  var invs = getData('ptf_crm_invoices');
+  var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
+  if (!inv) { alert('⛔ فاکتور یافت نشد'); return; }
+  if (inv.status === 'void') { alert('این فاکتور قبلاً ابطال شده است'); return; }
+  var paidSum = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+  if (paidSum > 0) { alert('⛔ این فاکتور دارای وصولی است؛ ابتدا وصولی‌ها را ابطال کنید یا از سند اصلاحی سال مالی استفاده کنید.'); return; }
+  var invYear = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(inv.invDate || inv.t || '') : ((String(inv.invDate || inv.t || '').match(/(13|14)\d{2}/) || [])[0] || '');
+  if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ابطال فاکتور در آن سال مجاز نیست. از سند اصلاحی استفاده کنید.'); return; }
+  var reason = prompt('دلیل ابطال فاکتور «' + inv.no + '» را وارد کنید:', 'اشتباه ثبت');
+  if (reason === null) return;
+  if (!reason.trim()) { alert('⛔ دلیل ابطال الزامی است'); return; }
+  inv.status = 'void'; inv.voidAt = faDateTime(); inv.voidBy = curSession().name; inv.voidReason = reason.trim();
+  setData('ptf_crm_invoices', invs);
+  try { audit('فاکتور', 'ابطال فاکتور ' + inv.no + ' — ' + (inv.amount || 0).toLocaleString('fa-IR') + ' ریال — دلیل: ' + reason.trim(), inv.cd); } catch (e) {}
+  renderInvoices();
+  if (typeof ptfToast === 'function') ptfToast('فاکتور ابطال شد', 'ok');
 };
 
 // درخواست/تایید دسترسی تماس (AC4)

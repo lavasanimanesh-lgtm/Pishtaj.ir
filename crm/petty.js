@@ -23,6 +23,12 @@
   }
 
   var CATS = ['حمل و نقل', 'پیک', 'تست و بازرسی', 'خرید اداری', 'پذیرایی', 'ماموریت', 'سایر'];
+  /* فاز ۲ / گام ۶ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+     طبق تایید کارفرما، تمام دسته‌های تنخواه (شامل «سایر») قابل‌قبول مالیاتی
+     محسوب می‌شوند. این ثابت صرفاً برای مستندسازی صریح این قاعده است — همان
+     CATS بالا را منعکس می‌کند تا اگر در آینده یک دسته‌ی غیرقابل‌قبول اضافه
+     شد، محل تغییرش مشخص باشد. هیچ فیلتری بر اساس این ثابت اعمال نمی‌شود. */
+  window.PTF_PETTY_TAX_DEDUCTIBLE_CATS = CATS.slice();
   var PETTY_KEY = 'ptf_crm_petty', TX_KEY = 'ptf_crm_petty_tx', PERIOD_KEY = 'ptf_crm_petty_periods';
 
   function txAll() { var a = getData(TX_KEY); return Array.isArray(a) ? a : []; }
@@ -49,7 +55,10 @@
   window.ptfPettyPendingByUser = function () {
     var per = {};
     (getData(PETTY_KEY) || []).forEach(function (x) {
-      if (x.st !== 'settled') per[x.by] = (per[x.by] || 0) + (+x.amt || 0);
+      /* فاز ۲ / گام ۸: رکورد ابطال‌شده (st==='void') نباید به‌عنوان مطالبه‌ی
+         معلق حساب شود — قبلاً فقط st!=='settled' چک می‌شد که 'void' را هم
+         اشتباهاً «معلق» می‌شمرد. */
+      if (x.st !== 'settled' && x.st !== 'void') per[x.by] = (per[x.by] || 0) + (+x.amt || 0);
     });
     return per;
   };
@@ -127,25 +136,30 @@
         var tot = Object.keys(per).reduce(function (s, n) { return s + per[n]; }, 0);
         sm.innerHTML = '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 14px"><b style="font-size:13px">مطالبات تنخواه تسویه‌نشده: ' + money(tot) + '</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' + (chips || '<span style="color:#94a3b8;font-size:12px">موردی نیست</span>') + '</div></div>';
       } else {
-        var mine = all.filter(function (x) { return x.by === me.name && x.st !== 'settled'; }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+        var mine = all.filter(function (x) { return x.by === me.name && x.st !== 'settled' && x.st !== 'void'; }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
         sm.innerHTML = '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px 14px;font-size:13px">💰 مطالبات تنخواه شما (در انتظار تسویه): <b>' + money(mine) + '</b></div>';
       }
     }
     el.innerHTML = list.map(function (x) {
       var files = (x.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ');
-      var canEdit = (x.by === me.name) || canAll();
+      var isVoid = x.st === 'void';
+      var canEdit = !isVoid && ((x.by === me.name) || canAll());
       var acts = '';
       if (canEdit) {
         acts = '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="pettyEdit(\'' + x.cd + '\')">✏️</button>' +
                '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="pettyDel(\'' + x.cd + '\')">🗑️</button>';
       }
-      return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:11px 13px;margin-bottom:7px">' +
+      /* فاز ۲ / گام ۸: رفع باگ نمایشی — رکورد ابطال‌شده باید صریحاً با برچسب
+         «ابطال شد» دیده شود و دکمه‌های ویرایش/حذف/تسویه رویش ظاهر نشوند. */
+      return '<div style="background:' + (isVoid ? '#fef2f2' : '#fff') + ';border:1px solid ' + (isVoid ? '#fecaca' : 'var(--brd)') + ';border-radius:12px;padding:11px 13px;margin-bottom:7px' + (isVoid ? ';opacity:0.75' : '') + '">' +
         '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
-        '<span style="font-size:13px"><b>' + money(x.amt) + '</b> — ' + escP(x.cat) + (x.payMode === 'direct' ? ' <span class="bd b-st4">پرداخت مستقیم</span>' : '') + (x.rfq ? ' <small style="color:#0e7490">(' + escP(x.rfq) + ')</small>' : '') +
+        '<span style="font-size:13px"><b' + (isVoid ? ' style="text-decoration:line-through;color:#94a3b8"' : '') + '>' + money(x.amt) + '</b> — ' + escP(x.cat) + (x.payMode === 'direct' ? ' <span class="bd b-st4">پرداخت مستقیم</span>' : '') + (x.rfq ? ' <small style="color:#0e7490">(' + escP(x.rfq) + ')</small>' : '') +
         '<br><small style="color:#64748b">' + escP(x.t) + ' | ' + escP(x.by) + (x.desc ? ' — ' + escP(x.desc) : '') + '</small>' + (files ? '<br><small>' + files + '</small>' : '') +
-        (x.st === 'settled' ? '<br><small style="color:#059669">✔ تسویه: ' + escP(x.settledT || '') + ' — سند: ' + escP(x.settleDoc || '-') + ' (' + escP(x.settledBy || '') + ')</small>' : '') + '</span>' +
+        (x.st === 'settled' ? '<br><small style="color:#059669">✔ تسویه: ' + escP(x.settledT || '') + ' — سند: ' + escP(x.settleDoc || '-') + ' (' + escP(x.settledBy || '') + ')</small>' : '') +
+        (isVoid ? '<br><small style="color:#dc2626">⛔ ابطال شد: ' + escP(x.voidAt || '') + ' — دلیل: ' + escP(x.voidReason || '-') + ' (' + escP(x.voidBy || '') + ')</small>' : '') +
+        ((x.amountCorrections || []).length ? '<br><small style="color:#7c3aed">✏️ اصلاح مبلغ: ' + x.amountCorrections.map(function (c) { return money(c.from) + ' → ' + money(c.to) + ' (' + escP(c.reason) + ')'; }).join('، ') + '</small>' : '') + '</span>' +
         '<span style="display:flex;gap:5px;align-items:center">' + acts +
-        (x.st === 'settled' ? '<span class="bd b-st4">تسویه شد</span>' : (isTreasurer() ? '<button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="pettySettle(\'' + x.cd + '\')">✔ تسویه از حساب</button>' : '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار تسویه</span>')) + '</span>' +
+        (isVoid ? '<span class="bd" style="background:#fee2e2;color:#b91c1c">ابطال شد</span>' : (x.st === 'settled' ? '<span class="bd b-st4">تسویه شد</span>' : (isTreasurer() ? '<button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="pettySettle(\'' + x.cd + '\')">✔ تسویه از حساب</button>' : '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار تسویه</span>'))) + '</span>' +
         '</div></div>';
     }).join('') || '<div style="text-align:center;color:#94a3b8;padding:22px">هزینه‌ای ثبت نشده</div>';
   };
@@ -161,6 +175,26 @@
         if (r) { r.files = r.files || []; r.files.push(f); setData(PETTY_KEY, a); }
       });
     }
+  }
+
+  /* AUD-09 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     هنگام ثبت (pettyAdd)، اگر هزینه به یک پرونده‌ی فروش لینک شود، یک
+     costEvent متناظر در deal.costEvents ساخته می‌شود (برای این‌که در سود
+     پروژه لحاظ شود بدون دوباره‌شماری با OPEX). این تابع، عکس همان عملیات
+     را انجام می‌دهد — دقیقاً مطابق الگوی درست موجود در opex.js#ptfOpexDel —
+     تا وقتی رکورد تنخواه حذف/ابطال می‌شود، اثر یتیم آن هم از پرونده پاک شود. */
+  function ptfPettyRemoveDealCostEvent(r) {
+    if (!r || !r.dealRef) return;
+    try {
+      var ds = getData('ptf_crm_deals');
+      var d = ds.filter(function (x) { return x.cd === r.dealRef; })[0];
+      if (d) {
+        d.costEvents = (d.costEvents || []).filter(function (x) { return x.cd !== r.cd; });
+        d.timeline = d.timeline || [];
+        d.timeline.push({ t: faDateTime(), by: userName(), tx: '🗑 حذف/ابطال هزینه تنخواه لینک‌شده از پرونده: ' + money(r.amt) + ' — ' + (r.desc || r.cat) });
+        setData('ptf_crm_deals', ds);
+      }
+    } catch (e) {}
   }
 
   window.pettyAdd = function () {
@@ -269,20 +303,56 @@
     var all = getData(PETTY_KEY);
     var r = all.filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
+    if (r.st === 'void') { alert('⛔ این رکورد ابطال شده است و قابل ویرایش نیست.'); return; }
     var me = curSession();
     if ((r.by !== me.name) && !canAll()) { alert('⛔ فقط ثبت‌کننده یا مدیر می‌تواند ویرایش کند'); return; }
+    /* فاز ۲ / گام ۸ (رفع درخواست کارفرما — اصلاح مبلغ اشتباه هزینه‌ی تسویه‌شده):
+       اصلاح مبلغ رکورد تسویه‌شده/پرداخت‌مستقیم فقط برای مدیر/تنخواه‌گردان
+       مجاز است، چون باید هم‌زمان تراکنش حساب تنخواه (ptf_crm_petty_tx)
+       اصلاح شود تا موجودی حساب با رکورد هزینه ناهماهنگ نماند. */
+    var isSettledAmountChange = r.st === 'settled';
     ptfDialog({
       title: '✏️ ویرایش هزینه تنخواه — ' + cd,
+      body: isSettledAmountChange ? '⚠️ این هزینه تسویه شده است. اصلاح مبلغ فقط برای مدیر/تنخواه‌گردان مجاز است و تراکنش حساب تنخواه هم به‌طور هم‌زمان اصلاح می‌شود.' : '',
       fields: [
         { id: 'amt', label: 'مبلغ (ریال)', type: 'number', value: r.amt, required: true, dir: 'ltr' },
         { id: 'cat', label: 'نوع هزینه', type: 'select', value: r.cat, options: CATS.map(function (c) { return { v: c, lb: c }; }) },
         { id: 'rfq', label: 'مربوط به درخواست/پرونده (اختیاری)', value: r.rfq || '', placeholder: 'مثال: PTF-RFQ-1405-0012', dir: 'ltr' },
         { id: 'desc', label: 'توضیح', type: 'textarea', rows: 2, value: r.desc || '', required: true }
-      ],
+      ].concat(isSettledAmountChange ? [{ id: 'reason', label: 'دلیل اصلاح مبلغ تسویه‌شده *', type: 'textarea', rows: 2, required: true, placeholder: 'مثال: مبلغ اشتباه وارد شده بود' }] : []),
       okText: 'ذخیره تغییرات',
       onOk: function (v) {
         var amt = toNum(v.amt);
-        if (r.st === 'settled' && amt !== r.amt) { alert('⛔ هزینه تسویه‌شده را نمی‌توان تغییر مبلغ داد'); return; }
+        var amtChanged = amt !== r.amt;
+        if (isSettledAmountChange && amtChanged) {
+          if (!canAll()) { alert('⛔ اصلاح مبلغ هزینه‌ی تسویه‌شده فقط برای مدیر/تنخواه‌گردان مجاز است'); return; }
+          if (!v.reason || !v.reason.trim()) { alert('⛔ دلیل اصلاح مبلغ الزامی است'); return; }
+          try {
+            var y = String((r.month || '').split('/')[0] || '').trim();
+            if (y && isFiscalLocked(y)) { alert('🔒 سال مالی ' + y + ' قفل است - اصلاح مبلغ در سال قفل‌شده مجاز نیست. سند اصلاحی ثبت کنید.'); return; }
+          } catch (e) {}
+          var oldAmt = r.amt;
+          /* هماهنگ‌سازی تراکنش حساب تنخواه (direct/settle) با مبلغ جدید تا موجودی حساب درست بماند */
+          try {
+            var txs = txAll();
+            var tx = r.acctTx ? txs.filter(function (x) { return x.cd === r.acctTx; })[0] : null;
+            if (!tx) tx = txs.filter(function (x) { return x.ref === r.cd && (x.type === 'direct' || x.type === 'settle'); })[0];
+            if (tx) {
+              tx.amt = amt;
+              tx.desc = (tx.desc || '') + ' [اصلاح مبلغ: ' + money(oldAmt) + ' → ' + money(amt) + ' — ' + v.reason.trim() + ']';
+              tx.correctedAt = faDateTime(); tx.correctedBy = userName();
+              txSave(txs);
+            }
+          } catch (eTx) {}
+          r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
+          r.amountCorrections = r.amountCorrections || [];
+          r.amountCorrections.push({ from: oldAmt, to: amt, reason: v.reason.trim(), t: faDateTime(), by: userName() });
+          setData(PETTY_KEY, all);
+          audit('تنخواه', 'اصلاح مبلغ هزینه تسویه‌شده ' + cd + ' — ' + money(oldAmt) + ' → ' + money(amt) + ' — دلیل: ' + v.reason.trim(), cd);
+          renderPetty();
+          if (typeof ptfToast === 'function') ptfToast('مبلغ اصلاح شد و حساب تنخواه هم‌زمان به‌روزرسانی شد', 'ok');
+          return;
+        }
         r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
         setData(PETTY_KEY, all);
         audit('تنخواه', 'ویرایش هزینه تنخواه ' + cd + ' — ' + money(amt), cd);
@@ -322,6 +392,10 @@
       }catch(e){}
       r.st='void'; r.voidAt=faDateTime(); r.voidBy=userName(); r.voidReason=reason.trim();
       setData(PETTY_KEY, all);
+      /* AUD-09 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         هزینه‌ی تنخواهِ ابطال‌شده دیگر نباید در سود پروژه‌ی لینک‌شده اثر
+         بگذارد؛ الگو دقیقاً مثل opex.js#ptfOpexDel. */
+      ptfPettyRemoveDealCostEvent(r);
       audit('تنخواه', 'ابطال هزینه تسویه‌شده '+cd+' — دلیل: '+reason.trim(), cd);
       renderPetty();
       if(typeof ptfToast==='function') ptfToast('هزینه ابطال شد - تراکنش معکوس ثبت شد', 'ok');
@@ -329,6 +403,10 @@
     }
     if (!confirm('هزینه ' + money(r.amt) + ' (' + r.cat + ') حذف شود؟\nاین عمل قابل بازگشت نیست.')) return;
     setData(PETTY_KEY, all.filter(function (x) { return x.cd !== cd; }));
+    /* AUD-09: همان دلیل بالا — رکورد از تنخواه حذف شد، پس costEvent متناظر در
+       پرونده‌ی فروش لینک‌شده هم باید حذف شود، وگرنه هزینه‌ی «شبح» در سود
+       پروژه باقی می‌ماند. */
+    ptfPettyRemoveDealCostEvent(r);
     audit('تنخواه', 'حذف هزینه تنخواه ' + cd + ' — ' + money(r.amt), cd);
     renderPetty();
     if (typeof ptfToast === 'function') ptfToast('هزینه حذف شد', 'warn');
@@ -407,9 +485,10 @@
   }
   function offerCur(o) { return (o && o.currency) || 'IRR'; }
   function liveRate(cur) {
+    /* v33.4.2 (دستور کارفرما): سنا کنار گذاشته شد — فقط نرخ آزاد (زنده و صحیح) به‌عنوان پیشنهاد اولیه استفاده می‌شود */
     var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
-    if (cur === 'USD') return +L.usd_sana_sell || +L.usd_sana_buy || +L.usd_free || 0;
-    if (cur === 'EUR') return +L.eur_sana_sell || +L.eur_sana_buy || +L.eur_free || 0;
+    if (cur === 'USD') return +L.usd_free || 0;
+    if (cur === 'EUR') return +L.eur_free || 0;
     return 0;
   }
   function advMoney(v, cur) {
@@ -620,7 +699,7 @@
     if (cur !== 'IRR') {
       ptfDialog({ title: '✔ ثبت وصول پیش‌پرداخت ارزی ' + no, body: 'سند ارزی است. یا «درصد از مانده پیش‌پرداخت» را وارد کنید یا مبلغ ریالی وصولی را. نرخ تسعیر روز الزامی است.', fields: [
         { id: 'pct', label: '٪ درصد از مانده پیش‌پرداخت (اختیاری)', type: 'number', money: false, dir: 'ltr' },
-        { id: 'rtype', label: 'مبنای نرخ تسعیر', type: 'select', options: [{v:'free',lb:'آزاد'},{v:'sana',lb:'سنا'},{v:'agreed',lb:'توافقی'}] },
+        { id: 'rtype', label: 'مبنای نرخ تسعیر', type: 'select', options: [{v:'free',lb:'آزاد'},{v:'agreed',lb:'توافقی'}] },
         { id: 'rate', label: 'نرخ تسعیر روز (ریال per ' + cur + ') *', type: 'number', money: false, value: liveRate(cur) || '', dir: 'ltr', required: true },
         { id: 'amt', label: 'مبلغ ریالی وصولی — خالی بگذارید تا از درصد محاسبه شود', type: 'number', money: false, dir: 'ltr' },
         { id: 'how', label: 'نحوه دریافت (حواله/چک/...)', value: 'حواله' },

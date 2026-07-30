@@ -883,7 +883,12 @@
       r.autoSettleReceipts = autoSettleReceipts;
       r.autoSettleDate = faDateTime();
       r.autoSettleBy = curSession().name;
-      setData('ptf_crm_salesfiles', list);
+      /* AUD-07 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         کلید ذخیره‌سازی این ماژول همه‌جا 'ptf_crm_deals' است (var K، در ابتدای
+         فایل)؛ اینجا به‌اشتباه به یک کلید دیگر ('ptf_crm_salesfiles') که هیچ‌جای
+         دیگر این پروژه خوانده نمی‌شود نوشته می‌شد. اصلاح شد تا با sfSave/sfAll
+         هم‌راستا باشد. */
+      setData('ptf_crm_deals', list);
       try { audit('مطالبات', 'تسویه خودکار ' + au.openInvs.length + ' فاکتور هنگام مختومه شدن پرونده ' + (r.inqNo || cd) + ' — قابل برگشت', r.cd); } catch (e) {}
     }
     try { audit('پرونده‌های فروش', 'کنترل پیش از مختومه US-437 عبور کرد (' + au.warns.map(function (w) { return w.id; }).join('،') + (au.warns.length ? ' — با هشدار' : ' — بدون هشدار') + ') — ' + (r.inqNo || cd), cd); } catch (e2) {}
@@ -893,8 +898,21 @@
   
   // v31.7.4 BUG-AUDIT-008: Reversal function for auto-settle receipts
   window.sfReverseAutoSettle = function (projectCd, reason) {
+    /* AUD-07 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+       تسویه‌ی خودکار همیشه بلافاصله پیش از بایگانی‌شدن پرونده اتفاق می‌افتد
+       (sfCloseSettledCommit -> sfArchive در همان تابع)؛ یعنی وقتی کاربر
+       متوجه اشتباه می‌شود، پرونده دیگر در ptf_crm_deals نیست، بلکه به‌صورت
+       رکورد بایگانی‌شده در ptf_crm_projects است. قبلاً این تابع فقط
+       ptf_crm_deals را می‌گشت و همیشه با «این پرونده تسویه خودکار ندارد»
+       مواجه می‌شد (قابلیت برگشت هرگز در عمل در دسترس نبود). */
     var list = sfAll();
     var r = list.filter(function (x) { return x.cd === projectCd; })[0];
+    var inArchive = false, archiveList = null;
+    if (!r) {
+      archiveList = getData('ptf_crm_projects');
+      r = archiveList.filter(function (x) { return x.dealCd === projectCd || x.cd === projectCd; })[0];
+      inArchive = !!r;
+    }
     if (!r || !r.autoSettleReceipts || !r.autoSettleReceipts.length) {
       alert('ℹ️ این پرونده تسویه خودکار ندارد یا قبلاً برگشت داده شده');
       return false;
@@ -921,27 +939,32 @@
           p.reversedBy = curSession().name;
           p.reversalReason = reason;
           found = true;
-          reversedCount++;
-          totalAmount += (+p.amt || 0);
         }
       });
-      
-      if (!found) {
-        // Receipt not found - add a reversal entry with negative amount
-        iv.payments.push({
-          cd: genCode('RPAY'),
-          t: faDate(),
-          amt: -receipt.amount,
-          how: 'برگشت تسویه خودکار',
-          by: curSession().name,
-          status: 'reversal',
-          autoSettleReversal: true,
-          originalReceiptCd: receipt.receiptCd,
-          reversalReason: reason
-        });
-        reversedCount++;
-        totalAmount += receipt.amount;
-      }
+      /* AUD-07 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         در مسیر found=true، فقط status رکورد اصلی به 'reversal' تغییر
+         می‌کرد اما p.amt دست‌نخورده می‌ماند و هیچ رکورد جبرانی منفی اضافه
+         نمی‌شد. چون تمام محاسبات مانده در کل سیستم (savePay، renderReceivables،
+         fiscal.js، working-capital.js، customer-finance.js، commission.js)
+         بدون فیلتر p.status جمع می‌زنند، این «برگشت» هیچ اثری روی مانده‌ی
+         واقعی فاکتور نداشت. راه‌حل: دقیقاً مثل مسیر !found (که از قبل درست
+         بود) و مثل الگوی rbac.js#ptfInvoicePayVoid، همیشه یک رکورد پرداخت
+         جدید با مبلغ منفی اضافه می‌شود؛ رکورد اصلی فقط برای شفافیت نمایشی
+         علامت‌گذاری می‌ماند. */
+      iv.payments.push({
+        cd: genCode('RPAY'),
+        t: faDate(),
+        amt: -receipt.amount,
+        how: 'برگشت تسویه خودکار',
+        by: curSession().name,
+        status: 'reversal',
+        autoSettleReversal: true,
+        originalReceiptCd: receipt.receiptCd,
+        originalReceiptFound: found,
+        reversalReason: reason
+      });
+      reversedCount++;
+      totalAmount += receipt.amount;
     });
     
     setData('ptf_crm_invoices', invsAll);
@@ -951,7 +974,12 @@
     r.autoSettleReversedAt = faDateTime();
     r.autoSettleReversedBy = curSession().name;
     r.autoSettleReversalReason = reason;
-    setData('ptf_crm_salesfiles', list);
+    /* AUD-07: رکورد باید در همان کلیدی ذخیره شود که از آن خوانده شده —
+       اگر پرونده هنوز باز است در ptf_crm_deals، اگر بایگانی شده در
+       ptf_crm_projects. نوشتن روی کلید اشتباه (که پیش‌تر 'ptf_crm_salesfiles'
+       بود) باعث می‌شد این علامت‌گذاری هرگز پایدار نماند. */
+    if (inArchive) setData('ptf_crm_projects', archiveList);
+    else setData('ptf_crm_deals', list);
     
     try { 
       audit('مطالبات', 'برگشت ' + reversedCount + ' تسویه خودکار به مبلغ ' + totalAmount.toLocaleString('fa-IR') + ' ریال — دلیل: ' + reason, projectCd); 
@@ -1166,6 +1194,7 @@
     var prjs = getData('ptf_crm_projects');
     var rec = {
       no: 'ARC-' + (r.inqNo || r.cd),
+      dealCd: r.cd || '', /* AUD-07: مرجع پرونده‌ی اصلی برای یافتن بایگانی از روی cd سابق (sfReverseAutoSettle) */
       buyerCo: r.buyerCo || '',
       offerNo: r.wonOffer || (d.offers[0] || {}).no || r.offerNo || '',
       wonOffer: r.wonOffer || '',
@@ -1182,6 +1211,17 @@
       costEvents: (r.costEvents || []).slice(), /* v19.1: هزینه‌های مستقیم پرونده (v18.6) هم به بایگانی */
       closedAt: faDateTime(),
       closedBy: curSession().name,
+      /* AUD-07 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+         sfCloseSettledCommit درست همین قبل، r.autoSettleReceipts را برای
+         تسویه‌ی خودکار فاکتور باز ست می‌کند و بلافاصله sfArchive را صدا
+         می‌زند که r را برای همیشه از ptf_crm_deals حذف و به این رکورد
+         بایگانی تبدیل می‌کند. بدون این سه خط، autoSettleReceipts هرگز به
+         بایگانی منتقل نمی‌شد و sfReverseAutoSettle (که روی همین کلید
+         cd جست‌وجو می‌کند) همیشه با «این پرونده تسویه خودکار ندارد» مواجه
+         می‌شد — یعنی قابلیت برگشت عملاً هرگز در دسترس نبود. */
+      autoSettleReceipts: (r.autoSettleReceipts || []).slice(),
+      autoSettleDate: r.autoSettleDate || '',
+      autoSettleBy: r.autoSettleBy || '',
       stats: { offers: d.offers.length, letters: d.letters.length, invoices: d.invoices.length, misc: (r.docs || []).length, supply: (d.supply || []).length, /* v17.1 */
                totalCO: d.offers.filter(function (o) { return o.kind !== 'TO'; }).reduce(function (s, o) { return s + (o.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0); }, 0),
                totalCOCur: (d.offers.filter(function (o) { return o.kind !== 'TO' && o.currency && o.currency !== 'IRR'; })[0] || {}).currency || 'IRR', /* v17.4 US-416 */

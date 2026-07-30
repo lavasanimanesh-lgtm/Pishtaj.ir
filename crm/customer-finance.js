@@ -13,7 +13,7 @@
     var offers = getData('ptf_crm_offers');
     return getData('ptf_crm_invoices').filter(function (i) {
       if (!active(i)) return false;
-      if (typeof curRole === 'function' && curRole() === 'accountant' && i.isUnofficial) return false;
+      if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) { if (i.isUnofficial) return false; }
       var o = offers.filter(function (x) { return x.no === i.offerNo; })[0] || {};
       return o.buyerCd === cd;
     });

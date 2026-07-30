@@ -27,23 +27,27 @@
   // تزریق فیلد ارز به فرم‌های مالی: بعد از باز شدن فرم صدا زده می‌شود
   /* v15.6 (US-387 ① — گزارش کارفرما): قبلا فقط kind==='CO' و لنگر ofValid — فرم TC (پیشنهاد فنی-مالی)
      نه شرط را رد می‌کرد نه لنگر داشت → انتخاب ارز در TC ناممکن بود. حالا CO و TC هر دو + لنگر جایگزین. */
+  /* v33.4.2 (دستور صریح کارفرما — «سنا کلا اشتباه است، کنار گذاشته شود»): گزینه‌ی
+     نرخ سنا از انتخاب مرجع قیمت‌گذاری حذف شد؛ فقط «آزاد» و «توافقی» باقی ماندند.
+     اسناد قدیمی که قبلاً fxBasis='sana' ثبت کرده‌اند دست‌نخورده می‌مانند (نمایش
+     تاریخی در offers.js/rbac.js حفظ شده) — این تغییر فقط مسیر ثبت جدید را می‌بندد. */
   function fxRefRowHtml() {
     var cur = (_offState && _offState.currency) || 'IRR';
     var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
     var freeRate = cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : 0;
-    var sanaRate = cur === 'USD' ? (+L.usd_sana_sell || +L.usd_sana_buy || 0) : cur === 'EUR' ? (+L.eur_sana_sell || +L.eur_sana_buy || 0) : 0;
     var basis = (_offState && _offState.fxBasis) || 'free';
-    var rate = (_offState && +_offState.fxRateRef) || (basis === 'sana' ? sanaRate : freeRate) || '';
+    if (basis === 'sana') basis = 'free'; /* رکورد قدیمی با مبنای منسوخ — به آزاد سوییچ شود */
+    var rate = (_offState && +_offState.fxRateRef) || freeRate || '';
     var hide = cur === 'IRR' ? 'display:none;' : '';
     return '<div id="ofFxWrap" class="fr" style="' + hide + '">' +
       '<div class="fld"><label>مبنای نرخ مرجع ارزی</label><select id="ofFxBasis" onchange="offerFxBasisChanged(this.value)" style="direction:ltr">' +
         '<option value="free"' + (basis === 'free' ? ' selected' : '') + '>نرخ آزاد</option>' +
-        '<option value="sana"' + (basis === 'sana' ? ' selected' : '') + '>نرخ سنا</option>' +
         '<option value="agreed"' + (basis === 'agreed' ? ' selected' : '') + '>توافقی / سفارشی</option>' +
       '</select><small style="color:#64748b">برای سند ارزی، مرجع قیمت‌گذاری را ثبت کنید تا در فرایند مالی شفاف بماند.</small></div>' +
-      '<div class="fld"><label>نرخ مرجع (' + cur + ' → ریال)</label><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="ofFxRate" value="' + (rate ? (+rate).toLocaleString('en-US') : '') + '" style="direction:ltr"><small style="color:#64748b">آزاد: ' + (freeRate ? freeRate.toLocaleString('fa-IR') : '—') + ' | سنا: ' + (sanaRate ? sanaRate.toLocaleString('fa-IR') : '—') + '</small></div>' +
+      '<div class="fld"><label>نرخ مرجع (' + cur + ' → ریال)</label><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="ofFxRate" value="' + (rate ? (+rate).toLocaleString('en-US') : '') + '" style="direction:ltr"><small style="color:#64748b">آزاد: ' + (freeRate ? freeRate.toLocaleString('fa-IR') : '—') + '</small></div>' +
     '</div>';
   }
+
   function injectCurrencyField() {
     if (!window._offState || (_offState.kind !== 'CO' && _offState.kind !== 'TC')) return;
     if (document.getElementById('ofCurrency')) return;
@@ -86,10 +90,10 @@
     var cur = _offState.currency || 'IRR';
     var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
     var freeRate = cur === 'USD' ? (+L.usd_free || 0) : cur === 'EUR' ? (+L.eur_free || 0) : 0;
-    var sanaRate = cur === 'USD' ? (+L.usd_sana_sell || +L.usd_sana_buy || 0) : cur === 'EUR' ? (+L.eur_sana_sell || +L.eur_sana_buy || 0) : 0;
     var rateEl = document.getElementById('ofFxRate');
-    if (rateEl && v !== 'agreed') rateEl.value = ((v === 'sana' ? sanaRate : freeRate) || '').toLocaleString ? ((v === 'sana' ? sanaRate : freeRate) || '').toLocaleString('en-US') : '';
+    if (rateEl && v !== 'agreed') rateEl.value = (freeRate || '').toLocaleString ? (freeRate || '').toLocaleString('en-US') : '';
   };
+
 
   // hook روی offerForm تا فیلد ارز و درگ ستون‌ها همیشه فعال شوند
   var _offerForm = window.offerForm;

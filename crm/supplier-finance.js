@@ -88,24 +88,108 @@
     if (supCd) { window.slInvoiceForm(supCd); return; }
     ptfDialog({ title: '🧾 انتخاب تأمین‌کننده برای فاکتور خرید', fields: [{ id: 'sup', label: 'تأمین‌کننده *', type: 'select', optionsHtml: '<option value="">— انتخاب کنید —</option>' + supplierOptions(''), required: true }], okText: 'ادامه', onOk: function (v) { if (!v.sup) { alert('تأمین‌کننده را انتخاب کنید'); return; } window.slInvoiceForm(v.sup); } });
   };
-  window.slInvoiceForm = function (supCd) {
+  window.slInvoiceForm = function (supCd, prefill) {
     var sup = supplier(supCd); if (!sup) { alert('تأمین‌کننده یافت نشد'); return; }
+    prefill = prefill || {};
     var legacy = legacyOpen(sup), d = data(); window._slInvFiles = [];
     var legacyHtml = legacy.length ? legacy.map(function (p) {
       var rem = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : (+p.amount || 0);
       return '<label style="display:flex;gap:7px;padding:6px 0;border-bottom:1px dashed var(--brd);font-size:12px"><input class="slLegacy" type="checkbox" value="' + escP(p.cd) + '"><span><b>' + escP(p.item || '-') + '</b> — ' + money(rem) + ' ' + escP(p.cur || 'IRR') + ' <small style="color:#94a3b8">(' + escP(p.inqNo || '') + ')</small></span></label>';
     }).join('') : '<small style="color:#94a3b8">تعهد خرید اعتباری legacy بازی برای این تأمین‌کننده نیست.</small>';
+    /* فاز ۲ / گام ۵ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md):
+       ارزش‌افزوده برای فاکتور خرید رسمی واقعی + بخش فاکتور پوششی/صوری (فقط نقش‌های ارشد). */
+    var _canCover = (function () { try { return isSenior(); } catch (e) { return false; } })();
+    var coverHtml = _canCover ? (
+      '<div class="fld" style="border:1px dashed #f59e0b;border-radius:10px;padding:9px 11px;background:#fffbeb;margin-top:6px">' +
+      '<label style="display:flex;gap:7px;align-items:center;cursor:pointer;font-size:12.5px"><input type="checkbox" id="slInvCover" onchange="slInvCoverToggle()"> <b>🔖 این فاکتور، فاکتور پوششی/صوری برای پر کردن گپ ممیزی فصلی است</b></label>' +
+      '<div id="slInvCoverBox" style="display:none;margin-top:9px">' +
+      '<div style="font-size:11.5px;color:#92400e;margin-bottom:8px">مبلغ اسمی فاکتور در دفتر رسمی به‌عنوان خرید لحاظ می‌شود؛ فقط کارمزد فاکتورساز نقداً پرداخت می‌شود و در «دفتر واقعی» به‌جای مبلغ کامل، فقط سود/زیان خالص (اعتبار ارزش‌افزوده منهای کارمزد) اثر می‌گذارد.</div>' +
+      '<div class="fr"><div class="fld"><label>درصد کارمزد فاکتورساز (٪) *</label><input id="slInvCommissionPct" type="number" min="0" max="100" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()"></div><div class="fld"><label>فصل مرتبط</label><select id="slInvCoverSeason"><option value="1">🌸 بهار</option><option value="2" selected>☀️ تابستان</option><option value="3">🍁 پاییز</option><option value="4">❄️ زمستان</option></select></div></div>' +
+      '<div id="slInvCoverNet" style="font-size:12.5px;font-weight:800;margin:8px 0;padding:7px 10px;border-radius:8px;background:#fff"></div>' +
+      '<label style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:#92400e;cursor:pointer"><input type="checkbox" id="slInvCoverConfirm" style="margin-top:2px"> <span>تایید می‌کنم این یک فاکتور پوششی/صوری داخلی است و صرفاً برای گزارش‌گیری مدیریتی دقیق و تعیین‌تکلیف ممیزی فصلی استفاده می‌شود.</span></label>' +
+      '</div></div>'
+    ) : '';
     var html = '<div class="md-b" id="slInvDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:92vh;overflow:auto"><h3>🧾 ثبت فاکتور خرید — ' + escP(sup.co || '') + '</h3>' +
       '<div style="font-size:12px;line-height:1.8;color:#64748b;margin-bottom:10px">فاکتور مستقل ثبت می‌شود. اتصال به تعهدهای خرید واقعی اختیاری است و فقط برای جلوگیری از دوباره‌شماری در زیر‌دفتر استفاده می‌شود.</div>' +
       '<div class="fr"><div class="fld"><label>شماره فاکتور *</label><input id="slInvNo" style="direction:ltr"></div><div class="fld"><label>تاریخ فاکتور *</label><input id="slInvDate" value="' + (typeof ptfTodayJ === 'function' ? ptfTodayJ() : '') + '" placeholder="1405/04/22" style="direction:ltr"></div></div>' +
-      '<div class="fr"><div class="fld"><label>ارز *</label><select id="slInvCur" onchange="document.getElementById(\'slInvRateWrap\').style.display=this.value===\'IRR\'?\'none\':\'\'"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option><option value="AED">درهم (AED)</option><option value="GBP">پوند (GBP)</option></select></div><div class="fld"><label>مبلغ فاکتور *</label><input id="slInvAmt" data-money="1" inputmode="numeric" style="direction:ltr"></div></div>' +
-      '<div class="fld" id="slInvRateWrap" style="display:none"><label>نرخ تسعیر (ریال به‌ازای هر واحد ارز) *</label><input id="slInvRate" data-money="1" inputmode="numeric" style="direction:ltr"></div>' +
-      '<div class="fr"><div class="fld"><label>نوع فاکتور *</label><select id="slInvType"><option value="unofficial">غیررسمی (بدون کد اقتصادی)</option><option value="official">رسمی (ارزش افزوده/کد اقتصادی)</option></select></div><div class="fld"><label>یادداشت / شرح</label><input id="slInvNote"></div></div>' +
+      '<div class="fr"><div class="fld"><label>ارز *</label><select id="slInvCur" onchange="document.getElementById(\'slInvRateWrap\').style.display=this.value===\'IRR\'?\'none\':\'\'"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option><option value="AED">درهم (AED)</option><option value="GBP">پوند (GBP)</option></select></div><div class="fld"><label>مبلغ فاکتور *</label><input id="slInvAmt" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div></div>' +
+      '<div class="fld" id="slInvRateWrap" style="display:none"><label>نرخ تسعیر (ریال به‌ازای هر واحد ارز) *</label><input id="slInvRate" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div>' +
+      '<div class="fr"><div class="fld"><label>نوع فاکتور *</label><select id="slInvType" onchange="slInvTypeChanged()"><option value="unofficial">غیررسمی (بدون کد اقتصادی)</option><option value="official">رسمی (ارزش افزوده/کد اقتصادی)</option></select></div><div class="fld"><label>یادداشت / شرح</label><input id="slInvNote"></div></div>' +
+      '<div class="fld" id="slInvVatWrap" style="display:none"><label>ارزش‌افزوده (٪)</label><input id="slInvVatPct" type="number" value="10" min="0" max="100" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()"><small id="slInvVatSum" style="color:#0e7490;display:block;margin-top:4px"></small></div>' +
+      coverHtml +
       '<div class="fld"><label>اتصال اختیاری به تعهدهای خرید واقعی</label><div style="border:1px solid var(--brd);border-radius:10px;padding:7px 10px;max-height:150px;overflow:auto">' + legacyHtml + '</div></div>' +
       '<div class="fld"><label>تصویر/فایل فاکتور (اختیاری)</label><div id="slInvFileWrap"></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="document.getElementById(\'slInvDlg\').remove()">انصراف</button><button class="bt" onclick="slInvoiceSave(\'' + escP(supCd) + '\')">💾 ثبت فاکتور</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     if (typeof attachUploadWidget === 'function') attachUploadWidget('slInvFileWrap', 'supplier-invoices/' + supCd, function (f) { window._slInvFiles.push(f); });
+    /* پیش‌پرکردن (برای استفاده‌ی آینده‌ی گام ۶ — دکمه‌ی ثبت مستقیم از داشبورد موازنه فصلی) */
+    try {
+      if (prefill.amount) document.getElementById('slInvAmt').value = prefill.amount;
+      if (prefill.note) document.getElementById('slInvNote').value = prefill.note;
+      if (prefill.cover) {
+        document.getElementById('slInvType').value = 'official';
+        var _cb = document.getElementById('slInvCover');
+        if (_cb) { _cb.checked = true; }
+        if (prefill.coverPeriod && prefill.coverPeriod.season) {
+          var _seasonEl = document.getElementById('slInvCoverSeason');
+          if (_seasonEl) _seasonEl.value = String(prefill.coverPeriod.season);
+        }
+      }
+      if (typeof window.slInvTypeChanged === 'function') window.slInvTypeChanged();
+      if (prefill.cover && typeof window.slInvCoverToggle === 'function') window.slInvCoverToggle();
+      if (typeof window.slInvCalcLive === 'function') window.slInvCalcLive();
+    } catch (ePrefill) {}
+  };
+  /* فاز ۲ / گام ۵: تغییر نمایش فیلد ارزش‌افزوده بر اساس نوع فاکتور */
+  window.slInvTypeChanged = function () {
+    var t = (document.getElementById('slInvType') || {}).value;
+    var vatWrap = document.getElementById('slInvVatWrap');
+    if (vatWrap) vatWrap.style.display = t === 'official' ? '' : 'none';
+    if (t !== 'official') {
+      var cb = document.getElementById('slInvCover');
+      if (cb && cb.checked) { cb.checked = false; if (typeof window.slInvCoverToggle === 'function') window.slInvCoverToggle(); }
+    }
+    if (typeof window.slInvCalcLive === 'function') window.slInvCalcLive();
+  };
+  /* فاز ۲ / گام ۵: نمایش/مخفی‌سازی بخش فاکتور پوششی/صوری — فاکتور پوششی همیشه رسمی است */
+  window.slInvCoverToggle = function () {
+    var cb = document.getElementById('slInvCover'), box = document.getElementById('slInvCoverBox');
+    var on = !!(cb && cb.checked);
+    if (box) box.style.display = on ? '' : 'none';
+    if (on) {
+      var typeSel = document.getElementById('slInvType');
+      if (typeSel) { typeSel.value = 'official'; typeSel.disabled = true; }
+      var vatWrap = document.getElementById('slInvVatWrap');
+      if (vatWrap) vatWrap.style.display = '';
+    } else {
+      var typeSel2 = document.getElementById('slInvType');
+      if (typeSel2) typeSel2.disabled = false;
+    }
+    if (typeof window.slInvCalcLive === 'function') window.slInvCalcLive();
+  };
+  /* فاز ۲ / گام ۵: محاسبه‌ی زنده‌ی ارزش‌افزوده و سود/زیان خالص فاکتور پوششی (فقط نمایشی — چیزی ذخیره نمی‌کند) */
+  window.slInvCalcLive = function () {
+    var num = function (id) { var el = document.getElementById(id); if (!el) return 0; return typeof ptfNum === 'function' ? ptfNum(el.value) : (+el.value || 0); };
+    var cur = (document.getElementById('slInvCur') || {}).value || 'IRR';
+    var amount = num('slInvAmt');
+    var rate = cur === 'IRR' ? 1 : num('slInvRate');
+    var amountIrr = cur === 'IRR' ? amount : Math.round(amount * rate);
+    var vatWrap = document.getElementById('slInvVatWrap');
+    var vatSumEl = document.getElementById('slInvVatSum');
+    var vatAmountIrr = 0;
+    if (vatWrap && vatWrap.style.display !== 'none' && vatSumEl) {
+      var vatPct = num('slInvVatPct');
+      vatAmountIrr = Math.round(amountIrr * vatPct / 100);
+      vatSumEl.textContent = amountIrr ? ('ارزش‌افزوده: ' + vatAmountIrr.toLocaleString('fa-IR') + ' ریال — جمع با ارزش‌افزوده: ' + (amountIrr + vatAmountIrr).toLocaleString('fa-IR') + ' ریال') : '';
+    }
+    var coverCb = document.getElementById('slInvCover'), netEl = document.getElementById('slInvCoverNet');
+    if (coverCb && coverCb.checked && netEl) {
+      var commissionPct = num('slInvCommissionPct');
+      var commissionAmountIrr = Math.round(amountIrr * commissionPct / 100);
+      var net = vatAmountIrr - commissionAmountIrr;
+      netEl.style.color = net >= 0 ? '#059669' : '#dc2626';
+      netEl.textContent = (net >= 0 ? '✅ سود خالص واقعی این فاکتور: ' : '⚠️ زیان خالص این فاکتور (کارمزد از ارزش‌افزوده بیشتر است): ') + Math.abs(net).toLocaleString('fa-IR') + ' ریال (اعتبار ارزش‌افزوده ' + vatAmountIrr.toLocaleString('fa-IR') + ' − کارمزد ' + commissionAmountIrr.toLocaleString('fa-IR') + ')';
+    }
   };
   window.slInvoiceSave = function (supCd) {
     // v30.8 FIN-EX-01: یکتایی شماره فاکتور خرید
@@ -126,7 +210,43 @@
     if (activeInvoices(d).some(function (i) { return i.supplierCd === supCd && String(i.no || '').trim() === no; })) { alert('این شماره فاکتور قبلاً برای همین تأمین‌کننده ثبت شده است'); return; }
     var links = []; document.querySelectorAll('#slInvDlg .slLegacy:checked').forEach(function (x) { links.push(x.value); });
     var isOfficial = ((document.getElementById('slInvType') || {}).value) === 'official';
-    var inv = { cd: genCode('SFINV'), supplierCd: supCd, supName: sup.co || '', no: no, dateISO: date, dateFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(date) : date, cur: cur, rate: rate, amount: amount, amountIrr: cur === 'IRR' ? amount : Math.round(amount * rate), note: ((document.getElementById('slInvNote') || {}).value || '').trim(), isOfficial: isOfficial, legacyPayableCds: links, files: (window._slInvFiles || []).slice(), status: 'open', t: faDateTime(), by: curSession().name };
+    var amountIrr = cur === 'IRR' ? amount : Math.round(amount * rate);
+    /* فاز ۲ / گام ۵: ارزش‌افزوده برای فاکتور خرید رسمی (پوششی یا واقعی) */
+    var vatPct = 0, vatAmountIrr = 0;
+    if (isOfficial) {
+      var vatWrap = document.getElementById('slInvVatWrap');
+      if (vatWrap && vatWrap.style.display !== 'none') {
+        vatPct = typeof ptfNum === 'function' ? ptfNum((document.getElementById('slInvVatPct') || {}).value) : +(document.getElementById('slInvVatPct') || {}).value || 0;
+        vatAmountIrr = Math.round(amountIrr * vatPct / 100);
+      }
+    }
+    /* فاز ۲ / گام ۵: فاکتور پوششی/صوری — فقط نقش‌های ارشد */
+    var isCover = false, coverCommissionPct = 0, coverCommissionAmountIrr = 0, coverPeriod = null, coverNetBenefitIrr = 0;
+    var _coverCb = document.getElementById('slInvCover');
+    if (_coverCb && _coverCb.checked) {
+      if (!(function () { try { return isSenior(); } catch (e) { return false; } })()) { alert('⛔ ثبت فاکتور پوششی/صوری فقط برای مدیران ارشد مجاز است'); return; }
+      if (!isOfficial) { alert('⛔ فاکتور پوششی/صوری همیشه باید «رسمی» باشد'); return; }
+      coverCommissionPct = typeof ptfNum === 'function' ? ptfNum((document.getElementById('slInvCommissionPct') || {}).value) : +(document.getElementById('slInvCommissionPct') || {}).value || 0;
+      if (!(coverCommissionPct > 0)) { alert('⛔ درصد کارمزد فاکتورساز الزامی است'); return; }
+      var _confirmCb = document.getElementById('slInvCoverConfirm');
+      if (!_confirmCb || !_confirmCb.checked) { alert('⛔ برای ثبت فاکتور پوششی/صوری باید تاییدیه را علامت بزنید'); return; }
+      isCover = true;
+      coverCommissionAmountIrr = Math.round(amountIrr * coverCommissionPct / 100);
+      coverNetBenefitIrr = vatAmountIrr - coverCommissionAmountIrr;
+      var seasonEl = document.getElementById('slInvCoverSeason');
+      coverPeriod = { year: (typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(date) : '') || '', season: seasonEl ? seasonEl.value : '' };
+    }
+    var inv = { cd: genCode('SFINV'), supplierCd: supCd, supName: sup.co || '', no: no, dateISO: date, dateFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(date) : date, cur: cur, rate: rate, amount: amount, amountIrr: amountIrr, note: ((document.getElementById('slInvNote') || {}).value || '').trim(), isOfficial: isOfficial, legacyPayableCds: links, files: (window._slInvFiles || []).slice(), status: 'open', t: faDateTime(), by: curSession().name };
+    if (isOfficial && vatPct) { inv.vatPct = vatPct; inv.vatAmount = vatAmountIrr; }
+    if (isCover) {
+      inv.isCover = true;
+      inv.coverVatPct = vatPct;
+      inv.coverVatAmount = vatAmountIrr;
+      inv.coverCommissionPct = coverCommissionPct;
+      inv.coverCommissionAmount = coverCommissionAmountIrr;
+      inv.coverNetBenefit = coverNetBenefitIrr;
+      inv.coverPeriod = coverPeriod;
+    }
     d.invoices.unshift(inv); save(d);
     if (links.length) { var pays = getData('ptf_crm_payables'); pays.forEach(function (p) { if (links.indexOf(p.cd) > -1) p.sfInvoiceCd = inv.cd; }); setData('ptf_crm_payables', pays); }
     try { audit('فاکتور خرید تامین', 'ثبت فاکتور ' + no + ' برای ' + sup.co + ' — ' + money(amount) + ' ' + cur + (links.length ? ' | اتصال به ' + links.length + ' تعهد خرید' : ''), inv.cd); } catch (e) {}
@@ -175,6 +295,16 @@
   };
   function slChequeCreate(method, sup, amount, cur, payCd, date) {
     if (method !== 'company_cheque' && method !== 'third_party_cheque') return { ok: true };
+    /* AUD-05 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+       فرم پرداخت تأمین‌کننده گزینه‌ی «چک شرکت» را به هر کاربری با canWrite()
+       (یعنی buyPrice:true یا isSenior — شامل نقش «کارشناس خرید») نشان
+       می‌دهد، اما تا این‌جا هیچ گیت نقشی روی خودِ ساخت رکورد چک شرکتی
+       نبود؛ بر خلاف فرم عمومی چک (cheques.js) که canCreateCompanyCheque()
+       را چک می‌کند. طبق سیاست مصوب، فقط رییس هیات‌مدیره/مدیرعامل/مدیر
+       بازرگانی مجاز به صدور چک شرکتی هستند. */
+    if (method === 'company_cheque' && !(typeof window.ptfCanCreateCompanyCheque === 'function' && window.ptfCanCreateCompanyCheque())) {
+      return { ok: false, error: '⛔ فقط رییس هیات مدیره، مدیرعامل و مدیر بازرگانی می‌توانند چک شرکتی ثبت کنند' };
+    }
     if (cur !== 'IRR') return { ok: false, error: 'پرداخت با چک در این Sprint فقط برای فاکتورهای ریالی مجاز است' };
     var no = ((document.getElementById('slChNo') || {}).value || '').trim(), due = ((document.getElementById('slChDue') || {}).value || '').trim(), bank = ((document.getElementById('slChBank') || {}).value || '').trim();
     if (!no || !due) return { ok: false, error: 'شماره/صیاد و تاریخ سررسید چک الزامی است' };
@@ -215,7 +345,7 @@
     var rows = invs.map(function (i) { var rem = invRemain(i, d); return '<tr><td><b>' + escP(i.no) + '</b><br><small>' + escP(i.dateFa || i.dateISO) + '</small></td><td>' + money(rem) + ' ' + escP(cur) + '</td><td><input class="slAlloc" data-inv="' + escP(i.cd) + '" data-rem="' + rem + '" data-money="1" inputmode="numeric" value="0" style="width:130px;direction:ltr"></td></tr>'; }).join('');
     var legacyRows = legacyOpen(sup).filter(function (p) { return (p.cur || 'IRR') === cur; }).map(function (p) { var rem = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : (+p.amount || 0); return '<tr style="background:#fff7ed"><td><b>تعهد خرید بدون فاکتور</b><br><small>' + escP(p.item || p.inqNo || '') + '</small></td><td>' + money(rem) + ' ' + escP(cur) + '</td><td><input class="slAlloc" data-legacy="' + escP(p.cd) + '" data-rem="' + rem + '" data-money="1" inputmode="numeric" value="0" style="width:130px;direction:ltr"></td></tr>'; }).join('');
     rows += legacyRows;
-    var html = '<div class="md-b" id="slPayDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto"><h3>💰 ثبت پرداخت — ' + escP(sup.co) + '</h3><div class="fr"><div class="fld"><label>تاریخ پرداخت *</label><input id="slPayDate" value="' + (typeof ptfTodayJ === 'function' ? ptfTodayJ() : '') + '" placeholder="1405/04/22" style="direction:ltr"></div><div class="fld"><label>روش پرداخت *</label><select id="slPayMethod" onchange="slPayMethodUi()"><option value="cash">💵 نقدی</option><option value="bank">🏦 حواله / بانکی</option><option value="credit">🔁 تهاتر / اعتبار</option><option value="company_cheque">🧾 چک شرکت</option><option value="third_party_cheque">↪ چک ثالث منتقل‌شده</option></select></div></div><div class="fld"><label>مبلغ کل پرداخت (' + escP(cur) + ') *</label><input id="slPayAmt" data-money="1" inputmode="numeric" style="direction:ltr"></div>' + (cur !== 'IRR' ? '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر ' + escP(cur) + ') *</label><input id="slPayRate" data-money="1" inputmode="numeric" style="direction:ltr"></div>' : '') + '<div class="fld"><label>شرح</label><input id="slPayNote"></div><div id="slChequeWrap" style="display:none"><div class="fr"><div class="fld"><label>شماره / شناسه صیادی چک *</label><input id="slChNo" style="direction:ltr"></div><div class="fld"><label>تاریخ سررسید *</label><input id="slChDue" placeholder="1405/04/29" style="direction:ltr"></div></div><div class="fld"><label>بانک / شعبه</label><input id="slChBank"></div></div><div id="slThirdWrap" style="display:none"><div class="fld"><label>مشتری / صادرکننده چک ثالث *</label><select id="slThirdCust"><option value="">— مشتری را انتخاب کنید —</option>'+ slCustomerOptions() +'</select></div><div class="fld"><label>فاکتور مشتری که از مطالبات آن کسر می‌شود *</label><select id="slThirdInv"><option value="">— فاکتور را انتخاب کنید —</option>'+ slCustomerInvoicesOptions() +'</select></div><small style="color:#0369a1">این چک منتقل‌شده خارج از ید شرکت است؛ reminder ندارد و مبلغ آن از فاکتور مشتری انتخاب‌شده کسر می‌شود.</small></div><h4>تخصیص دستی به فاکتورها</h4><div class="tb2"><table><thead><tr><th>فاکتور</th><th>مانده</th><th>مبلغ تخصیص</th></tr></thead><tbody>' + (rows || '<tr><td colspan="3">فاکتور بازی در این ارز نیست؛ مبلغ پرداخت به اعتبار تأمین‌کننده تبدیل می‌شود.</td></tr>') + '</tbody></table></div><small style="color:#64748b">مجموع تخصیص‌ها می‌تواند کمتر از مبلغ پرداخت باشد؛ باقیمانده به اعتبار شرکت نزد تأمین‌کننده تبدیل می‌شود.</small><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'slPayDlg\').remove()">انصراف</button><button class="bt" onclick="slPaymentSave(\'' + escP(supCd) + '\',\'' + escP(cur) + '\')">💾 ثبت پرداخت</button></div></div></div>';
+    var html = '<div class="md-b" id="slPayDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto"><h3>💰 ثبت پرداخت — ' + escP(sup.co) + '</h3><div class="fr"><div class="fld"><label>تاریخ پرداخت *</label><input id="slPayDate" value="' + (typeof ptfTodayJ === 'function' ? ptfTodayJ() : '') + '" placeholder="1405/04/22" style="direction:ltr"></div><div class="fld"><label>روش پرداخت *</label><select id="slPayMethod" onchange="slPayMethodUi()"><option value="cash">💵 نقدی</option><option value="bank">🏦 حواله / بانکی</option><option value="credit">🔁 تهاتر / اعتبار</option>' + (typeof window.ptfCanCreateCompanyCheque === 'function' && window.ptfCanCreateCompanyCheque() ? '<option value="company_cheque">🧾 چک شرکت</option>' : '') + '<option value="third_party_cheque">↪ چک ثالث منتقل‌شده</option></select></div></div><div class="fld"><label>مبلغ کل پرداخت (' + escP(cur) + ') *</label><input id="slPayAmt" data-money="1" inputmode="numeric" style="direction:ltr"></div>' + (cur !== 'IRR' ? '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر ' + escP(cur) + ') *</label><input id="slPayRate" data-money="1" inputmode="numeric" style="direction:ltr"></div>' : '') + '<div class="fld"><label>شرح</label><input id="slPayNote"></div><div id="slChequeWrap" style="display:none"><div class="fr"><div class="fld"><label>شماره / شناسه صیادی چک *</label><input id="slChNo" style="direction:ltr"></div><div class="fld"><label>تاریخ سررسید *</label><input id="slChDue" placeholder="1405/04/29" style="direction:ltr"></div></div><div class="fld"><label>بانک / شعبه</label><input id="slChBank"></div></div><div id="slThirdWrap" style="display:none"><div class="fld"><label>مشتری / صادرکننده چک ثالث *</label><select id="slThirdCust"><option value="">— مشتری را انتخاب کنید —</option>'+ slCustomerOptions() +'</select></div><div class="fld"><label>فاکتور مشتری که از مطالبات آن کسر می‌شود *</label><select id="slThirdInv"><option value="">— فاکتور را انتخاب کنید —</option>'+ slCustomerInvoicesOptions() +'</select></div><small style="color:#0369a1">این چک منتقل‌شده خارج از ید شرکت است؛ reminder ندارد و مبلغ آن از فاکتور مشتری انتخاب‌شده کسر می‌شود.</small></div><h4>تخصیص دستی به فاکتورها</h4><div class="tb2"><table><thead><tr><th>فاکتور</th><th>مانده</th><th>مبلغ تخصیص</th></tr></thead><tbody>' + (rows || '<tr><td colspan="3">فاکتور بازی در این ارز نیست؛ مبلغ پرداخت به اعتبار تأمین‌کننده تبدیل می‌شود.</td></tr>') + '</tbody></table></div><small style="color:#64748b">مجموع تخصیص‌ها می‌تواند کمتر از مبلغ پرداخت باشد؛ باقیمانده به اعتبار شرکت نزد تأمین‌کننده تبدیل می‌شود.</small><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'slPayDlg\').remove()">انصراف</button><button class="bt" onclick="slPaymentSave(\'' + escP(supCd) + '\',\'' + escP(cur) + '\')">💾 ثبت پرداخت</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.slPaymentSave = function (supCd, cur) {
@@ -273,8 +403,13 @@
       var status = invRemain(i, d) > 0 ? 'open' : 'settled', refs = (i.legacyPayableCds || []).map(function (cd) { var p = getData('ptf_crm_payables').filter(function (x) { return x.cd === cd; })[0] || {}; return p.inqNo || cd; }).join('، ');
       if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, link: { kind: 'invoice', cd: i.cd } });
     });
-    (d.payments || []).filter(function (p) { return p.supplierCd === supCd; }).forEach(function (p) {
-      var cheque = p.chequeCd ? getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0] : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، '), isVoid = p.status === 'void';
+    /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
+       طبق تصمیم کارفرما، پرداخت ابطال‌شده باید مثل فاکتور ابطال‌شده کاملاً از
+       گردش حساب محو شود؛ برخلاف رفتار قبلی که با برچسب «پرداخت/چک ابطال‌شده»
+       باقی می‌ماند. رکورد در ptf_crm_supplier_finance حفظ می‌شود (برای
+       audit/رفع‌ابهام آینده)، فقط از این نمای گردش حساب حذف می‌شود. */
+    (d.payments || []).filter(function (p) { return p.supplierCd === supCd && p.status !== 'void'; }).forEach(function (p) {
+      var cheque = p.chequeCd ? getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0] : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، ');
       // v30.6.2: نمایش نام قلم برای پرداخت‌ها اگر item دارد
       var itemNm = p.item || (p.note||'').split(' - ')[0] || '';
       if(!itemNm){
@@ -292,7 +427,7 @@
           }
         }catch(e){}
       }
-      if (keep(p.dateISO || '', p.cur || 'IRR', isVoid ? 'void' : 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: isVoid ? 'پرداخت/چک ابطال‌شده' : (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: isVoid ? 0 : (+p.amount || 0), status: isVoid ? 'void' : 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, link: { kind: 'payment', cd: p.cd } });
+      if (keep(p.dateISO || '', p.cur || 'IRR', 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: (+p.amount || 0), status: 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, link: { kind: 'payment', cd: p.cd } });
     });
     legacyOpen(sup || {}).filter(function (p) { return !linked[p.cd]; }).forEach(function (p) {
       var rem = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : (+p.amount || 0);
@@ -521,6 +656,22 @@
       var p=(d.payments||[]).filter(function(x){ return x.cd===cd; })[0];
       if(p && slLockedYear(p.dateISO)){ alert('🔒 پرداخت مربوط به سال مالی '+slLockedYear(p.dateISO)+' قفل است - ویرایش مجاز نیست.'); return; }
       return _editPay(cd);
+    };
+  }
+  /* AUD-04 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
+     دکمه‌ی «🗑 حذف فاکتور» در بخش «مدیریت فاکتور و پرداخت» (Sprint 270) از
+     slInvoiceDelete استفاده می‌کند که همان اثر void را دارد اما تا این‌جا
+     گارد قفل سال مالی نداشت — بر خلاف slInvoiceVoid که چند خط بالاتر
+     به‌درستی پوشانده شده. slPaymentDelete نیازی به گارد جداگانه ندارد چون
+     مستقیماً به slPaymentVoid (که همین‌جا/بالاتر پوشانده شده) delegate
+     می‌کند. */
+  var _delInv = window.slInvoiceDelete;
+  if(_delInv){
+    window.slInvoiceDelete = function(cd){
+      var d=(function(){ try{return JSON.parse(localStorage.getItem('ptf_crm_supplier_finance')||'{}')}catch(e){return {}}; })();
+      var i=(d.invoices||[]).filter(function(x){ return x.cd===cd; })[0];
+      if(i && slLockedYear(i.dateISO)){ alert('🔒 فاکتور مربوط به سال مالی '+slLockedYear(i.dateISO)+' قفل است - حذف مجاز نیست. سند اصلاحی بزنید.'); return; }
+      return _delInv(cd);
     };
   }
 })();
