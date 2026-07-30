@@ -135,6 +135,66 @@
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
 
+  function supplierInvoicesForProcurement() {
+    try {
+      var d = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+      return arr(d.invoices).filter(function (i) { return i && i.status !== 'void'; });
+    } catch (e) { return []; }
+  }
+  function itemLinkForProcurement(invoice, offerNo, itemKey) {
+    return arr(invoice && invoice.itemLinks).filter(function (x) { return x.offerNo === offerNo && x.itemKey === itemKey; })[0] || null;
+  }
+  window.ptfProcurementLinkInvoice = function (offerNo, itemIndex) {
+    var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
+    if (!offer) return;
+    var rows = window.ptfProcurementLinkAuditData(offer), row = rows[itemIndex];
+    if (!row) return;
+    var itemKey = window.ptfProcLineKey(row.item);
+    var invoices = supplierInvoicesForProcurement();
+    if (!invoices.length) { alert('برای این قلم هنوز فاکتور خریدی ثبت نشده است. ابتدا فاکتور خرید را در حساب تأمین‌کننده ثبت کنید.'); return; }
+    var current = invoices.filter(function (i) { return !!itemLinkForProcurement(i, offerNo, itemKey); })[0];
+    var options = '<option value="">— انتخاب فاکتور خرید —</option>' + invoices.map(function (i) {
+      return '<option value="' + esc(i.cd) + '"' + (current && current.cd === i.cd ? ' selected' : '') + '>فاکتور ' + esc(i.no || i.cd) + ' — ' + esc(i.supName || '') + '</option>';
+    }).join('');
+    ptfDialog({
+      title: '🔗 لینک قلم به فاکتور خرید',
+      body: 'قلم: <b>' + esc(first(row.item, ['name', 'nm', 'desc'])) + '</b><br><small>فقط همین قلم تغییر می‌کند؛ اقلام دیگر خودکار جابه‌جا نمی‌شوند.</small>',
+      fields: [{ id: 'invoiceCd', label: 'فاکتور خرید', type: 'select', optionsHtml: options }],
+      okText: 'ذخیره لینک',
+      onOk: function (v) {
+        var invoiceCd = String(v.invoiceCd || '').trim();
+        if (!invoiceCd) { alert('لطفاً فاکتور خرید را انتخاب کنید.'); return; }
+        var d = {};
+        try { d = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); } catch (e) { d = {}; }
+        d.invoices = arr(d.invoices);
+        var target = d.invoices.filter(function (i) { return i.cd === invoiceCd; })[0];
+        if (!target) { alert('فاکتور خرید یافت نشد.'); return; }
+        var link = { offerNo: offerNo, inqNo: offer.inqNo || '', itemKey: itemKey, itemIndex: itemIndex, itemLabel: first(row.item, ['name', 'nm', 'desc']), linkedAt: faDateTime(), linkedBy: curSession().name };
+        d.invoices.forEach(function (i) { i.itemLinks = arr(i.itemLinks).filter(function (x) { return !(x.offerNo === offerNo && x.itemKey === itemKey); }); });
+        target.itemLinks = arr(target.itemLinks);
+        target.itemLinks.push(link);
+        var cmpList = getData('ptf_crm_buycmp');
+        var cmp = cmpList.filter(function (c) { return c.inqNo === offer.inqNo; })[0];
+        var purchase = cmp ? window.ptfResolvePurchaseForLine(cmp, row.cmp && row.cmp.line) : null;
+        if (purchase && purchase.ok) purchase.purchase.supplierInvoiceCd = invoiceCd;
+        var payableList = getData('ptf_crm_payables');
+        var payable = payableList.filter(function (p) { return (p.inqNo === offer.inqNo || p.inqNo === offer.no) && (+p.idx === +itemIndex); })[0];
+        if (payable) {
+          d.invoices.forEach(function (i) { i.legacyPayableCds = arr(i.legacyPayableCds).filter(function (cd) { return cd !== payable.cd; }); });
+          target.legacyPayableCds = arr(target.legacyPayableCds);
+          if (target.legacyPayableCds.indexOf(payable.cd) < 0) target.legacyPayableCds.push(payable.cd);
+          payable.sfInvoiceCd = invoiceCd;
+          setData('ptf_crm_payables', payableList);
+        }
+        setData('ptf_crm_supplier_finance', d);
+        if (cmp && purchase && purchase.ok) setData('ptf_crm_buycmp', cmpList);
+        try { audit('تطبیق خرید', 'لینک قلم «' + link.itemLabel + '» از پیشنهاد ' + offerNo + ' به فاکتور خرید ' + (target.no || target.cd), offerNo); } catch (eA) {}
+        var dlg = document.querySelector('.ptfdlg-b,.md-b'); if (dlg) dlg.remove();
+        window.ptfOpenProcurementLinkAudit(offerNo);
+      }
+    });
+  };
+
   window.ptfOpenProcurementLinkAudit = function (offerNo) {
     var o = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
     if (!o) return;
@@ -144,9 +204,12 @@
         var why = { unmatched: 'بدون تطبیق قطعی', ambiguous: 'تطبیق مبهم', 'ambiguous-record': 'چند منبع هم‌زمان' }[r.reason] || 'نامشخص';
         return '<span style="color:#b45309">⚠️ ' + esc(kind) + ': ' + why + '</span>';
       }
-      return '<tr><td>' + (x.index + 1) + '</td><td><b>' + esc(first(x.item, ['name', 'nm', 'desc'])) + '</b><br><small>' + esc(first(x.item, ['pcode', 'prodCd'])) + '</small></td><td>' + lb(x.cmp, 'خرید واقعی') + '</td><td>' + lb(x.rfq, 'استعلام تامین') + '</td></tr>';
+      var itemKey = window.ptfProcLineKey(x.item);
+      var linkedInvoice = supplierInvoicesForProcurement().filter(function (inv) { return !!itemLinkForProcurement(inv, offerNo, itemKey); })[0];
+      var invoiceLabel = linkedInvoice ? 'فاکتور ' + (linkedInvoice.no || linkedInvoice.cd) + (linkedInvoice.supName ? ' — ' + linkedInvoice.supName : '') : 'بدون فاکتور خرید';
+      return '<tr><td>' + (x.index + 1) + '</td><td><b>' + esc(first(x.item, ['name', 'nm', 'desc'])) + '</b><br><small>' + esc(first(x.item, ['pcode', 'prodCd'])) + '</small></td><td>' + lb(x.cmp, 'خرید واقعی') + '</td><td>' + lb(x.rfq, 'استعلام تامین') + '</td><td><span style="color:' + (linkedInvoice ? '#047857' : '#b45309') + '">' + esc(invoiceLabel) + '</span><br><button class="ba" style="margin-top:4px" onclick="ptfProcurementLinkInvoice(\'' + esc(offerNo) + '\',' + x.index + ')">' + (linkedInvoice ? '🔁 تغییر فاکتور' : '🔗 لینک فاکتور') + '</button></td></tr>';
     }).join('');
-    var html = '<div class="md-b" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:960px;max-height:92vh;overflow:auto"><h3>🔎 گزارش تطبیق اقلام خرید/استعلام — ' + esc(offerNo) + '</h3><div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">این گزارش فقط‌خواندنی است. مورد مبهم یا بدون تطبیق عمداً در سود/خرید واقعی به ردیف CO نسبت داده نمی‌شود.</div><div class="tb2"><table><thead><tr><th>#</th><th>قلم CO</th><th>خرید واقعی</th><th>استعلام تامین</th></tr></thead><tbody>' + (rows || '<tr><td colspan="4">قلمی نیست</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:12px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    var html = '<div class="md-b" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:960px;max-height:92vh;overflow:auto"><h3>🔎 گزارش تطبیق اقلام خرید/استعلام — ' + esc(offerNo) + '</h3><div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">این گزارش تطبیق را در سطح هر قلم نشان می‌دهد، اما لینک فاکتور خرید روی همان ردیف انجام می‌شود. اصلاح نوع رسمی/غیررسمی فقط در خود فاکتور خرید انجام می‌شود.</div><div class="tb2"><table><thead><tr><th>#</th><th>قلم CO</th><th>خرید واقعی</th><th>استعلام تامین</th><th>فاکتور خرید</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">قلمی نیست</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:12px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
 })();
