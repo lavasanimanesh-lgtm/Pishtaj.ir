@@ -539,8 +539,16 @@
     if (!available) { alert('مقدار قابل برگشت این lot صفر است.'); return; }
     ptfDialog({ title: '↩️ برگشت به تأمین‌کننده — ' + (item.nm || ''), body: 'تأثیر این ثبت در این مرحله فقط operational است و حساب تأمین‌کننده را تغییر نمی‌دهد.', fields: [{ id: 'qty', label: 'مقدار برگشتی (حداکثر ' + available + ')', type: 'number', value: available, required: true }, { id: 'reason', label: 'دلیل برگشت *', type: 'select', options: [{ v: 'عدم تأیید مشتری', lb: 'عدم تأیید مشتری' }, { v: 'عدم نیاز مشتری', lb: 'عدم نیاز مشتری' }, { v: 'مغایرت فنی/کیفی', lb: 'مغایرت فنی/کیفی' }, { v: 'مقدار اضافی یا اشتباه', lb: 'مقدار اضافی یا اشتباه' }, { v: 'لغو یا تغییر پروژه', lb: 'لغو یا تغییر پروژه' }, { v: 'درخواست تأمین‌کننده', lb: 'درخواست تأمین‌کننده' }, { v: 'سایر', lb: 'سایر' }] }, { id: 'reasonOther', label: 'توضیح تکمیلی (برای سایر یا شرح بیشتر)', type: 'textarea', rows: 2 }], okText: 'ثبت برگشت', onOk: function (v) {
       var qty = +v.qty || 0, reason = String(v.reason || '').trim(), detail = String(v.reasonOther || '').trim(); if (qty <= 0 || qty > available || !reason || (reason === 'سایر' && !detail)) { alert('مقدار معتبر و دلیل برگشت الزامی است؛ برای «سایر» توضیح وارد کنید.'); return; }
-      p.returnedQty = returned + qty; p.returnReason = reason + (detail ? ' — ' + detail : ''); p.returnedAt = faDateTime(); p.returnedBy = curSession().name; p.status = p.returnedQty >= purchased ? 'returned_to_supplier' : 'partially_returned';
-      cmpSave(cmpAll()); try { audit('خرید واقعی', 'ثبت برگشت ' + qty + ' از قلم ' + (item.nm || '') + ' به تأمین‌کننده — بدون اثر مالی خودکار', p.cd); } catch (e) {}
+      var stored = getData('ptf_crm_buycmp'), storedCmp = stored.filter(function (x) { return x.id === id; })[0], storedP = storedCmp && (storedCmp.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
+      if (!storedP) { alert('رکورد lot برای ذخیره پیدا نشد؛ صفحه را بازخوانی کنید.'); return; }
+      storedP.returnedQty = (+storedP.returnedQty || 0) + qty;
+      storedP.returnReason = reason + (detail ? ' — ' + detail : '');
+      storedP.returnedAt = faDateTime();
+      storedP.returnedBy = curSession().name;
+      var storedPurchased = storedP.qty != null ? (+storedP.qty || 0) : (+item.qty || 1);
+      storedP.status = storedP.returnedQty >= storedPurchased ? 'returned_to_supplier' : 'partially_returned';
+      setData('ptf_crm_buycmp', stored);
+      try { audit('خرید واقعی', 'ثبت برگشت ' + qty + ' از قلم ' + (item.nm || '') + ' به تأمین‌کننده — بدون اثر مالی خودکار', purchaseCd); } catch (e) {}
       var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); if (typeof ptfToast === 'function') ptfToast('برگشت عملیاتی ثبت شد؛ اثر مالی هنوز ایجاد نشده است.', 'ok'); cmpPurchaseDispositionOpen(id, idx);
     } });
   };
@@ -549,10 +557,11 @@
     var item = c.items[idx] || {}, lots = ptfPurchaseLotsForItem(c, idx);
     if (!lots.length) { alert('برای این قلم خرید ثبت نشده است.'); return; }
     var rows = lots.map(function (lot) {
+      var statusLabel = lot.status === 'returned_to_supplier' ? 'برگشت کامل' : lot.status === 'partially_returned' ? 'برگشت جزئی' : 'خرید ثبت‌شده';
       var returnButton = lot.status === 'returned_to_supplier' ? '<span style="color:#64748b">برگشت کامل</span>' : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#b45309" onclick="cmpPurchaseReturnOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">↩️ برگشت کامل/جزئی</button>';
-      return '<tr><td>' + escP(lot.supplier || '-') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td><td>' + fmtP(lot.price) + ' ریال</td><td>' + escP(lot.status || 'purchased') + '</td><td>' + lot.availableQty + ' ' + escP(item.un || '') + '</td><td>' + returnButton + '</td></tr>';
+      return '<tr><td>' + escP(lot.supplier || '-') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td><td>' + fmtP(lot.price) + ' ریال</td><td>' + statusLabel + '</td><td>' + lot.availableQty + ' ' + escP(item.un || '') + '</td><td>' + returnButton + '</td></tr>';
     }).join('');
-    var purchased = lots.reduce(function (s, lot) { return s + (+lot.qty || 0); }, 0);
+    var purchased = lots.reduce(function (s, lot) { return s + (+lot.availableQty || 0); }, 0);
     var html = '<div class="md-b" id="cmpDispositionDlg" style="display:grid;z-index:3200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:90vh;overflow:auto"><h3>📦 تعیین‌تکلیف خرید — ' + escP(item.nm || '') + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 11px;font-size:12px;line-height:1.9">این مرحله فقط پیش‌نمایش است و هیچ بدهی تأمین‌کننده، فاکتور، موجودی یا سند مالی را تغییر نمی‌دهد.</div><div style="margin:10px 0;font-size:13px">مقدار موردنیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | مقدار خریدشده: <b>' + purchased + ' ' + escP(item.un || '') + '</b> | قابل تعیین‌تکلیف: <b>' + purchased + ' ' + escP(item.un || '') + '</b></div><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>مقدار</th><th>قیمت واحد</th><th>وضعیت</th><th>قابل تعیین‌تکلیف</th><th>عملیات</th></tr></thead><tbody>' + rows + '</tbody></table></div><div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
