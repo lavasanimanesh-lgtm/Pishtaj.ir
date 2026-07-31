@@ -62,6 +62,14 @@
     var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === invoiceCd; })[0] || {};
     var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {};
     var gross = (offer.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) || 1;
+    if ((offer.items || []).length === 1) {
+      var expectedBase = (+offer.items[0].qty || 1) * (+offer.items[0].price || 0);
+      var recordedBase = inv.base != null ? (+inv.base || 0) : (+inv.amount || 0);
+      if (expectedBase > 0 && Math.abs(recordedBase - expectedBase) > 1) {
+        alert('⚠️ مبلغ فاکتور با خط فاکتور سازگار نیست.\nمبلغ ثبت‌شده: ' + recordedBase.toLocaleString('fa-IR') + ' ریال\nمجموع خط: ' + expectedBase.toLocaleString('fa-IR') + ' ریال\nابتدا فاکتور را اصلاح کنید؛ مرجوعی ثبت نشد.');
+        return;
+      }
+    }
     var totalAmount = selected.reduce(function (sum, x) { var it = (offer.items || [])[x.idx] || {}; return sum + ((+inv.amount || 0) * (((+it.qty || 0) * (+it.price || 0)) / gross) * x.qty / (+it.qty || 1)); }, 0);
     var returns = getData('ptf_crm_sales_returns') || [];
     returns.unshift({ cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name });
