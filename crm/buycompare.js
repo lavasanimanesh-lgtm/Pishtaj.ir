@@ -14,7 +14,7 @@
   function cmpAll() { return getData('ptf_crm_buycmp').filter(function (x) { return !x.mergedInto; }); }
   function mergeCmpRecordsForInquiry(inqNo) {
     var all = getData('ptf_crm_buycmp'), records = all.filter(function (x) { return x.inqNo === inqNo && !x.mergedInto; });
-    if (records.length < 2) return records[0] || null;
+    if (!records.length) return null;
     var primary = records[0], base = (primary.items || []).length, mergedIds = primary.mergedRecords || [primary.id];
     for (var ri = 1; ri < records.length; ri++) {
       var source = records[ri], offset = base;
@@ -27,6 +27,19 @@
       source.mergedAt = faDateTime();
       source.mergedBy = curSession().name;
     }
+    var knownKeys = {};
+    (primary.items || []).forEach(function (it) { knownKeys[String(it.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(it) : it.nm || ''))] = true; });
+    var salesOffers = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers({ inqNo: inqNo, wonOffer: primary.sourceOfferNo }) : [];
+    salesOffers.forEach(function (offer) {
+      (offer.items || []).forEach(function (it) {
+        var key = String(typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(it) : (it.pcode || it.prodCd || it.name || it.desc || ''));
+        if (!key || knownKeys[key]) return;
+        primary.items = primary.items || [];
+        primary.items.push({ nm: it.name || it.desc || '', qty: +it.qty || 1, un: it.unit || 'عدد', pcode: it.pcode || it.prodCd || '', spec: it.spec || it.desc || '', model: it.model || '', sourceOfferNo: offer.no, sourceItemKey: key });
+        knownKeys[key] = true;
+        base++;
+      });
+    });
     primary.mergedRecords = mergedIds;
     primary.mergedAt = faDateTime();
     primary.mergedBy = curSession().name;
@@ -620,6 +633,8 @@
       cmpSave(list);
       audit('قیمت خرید', 'ساخت خودکار جدول خرید واقعی برای ' + inqNo + ' (US-392)', c.id);
     }
+    var complete = mergeCmpRecordsForInquiry(inqNo);
+    if (complete) c = complete;
     cmpOpen(c.id, { realbuy: true }); /* v17.2 (US-412): مسیر پرونده فروش = نمای قفل‌شده */
   };
 
