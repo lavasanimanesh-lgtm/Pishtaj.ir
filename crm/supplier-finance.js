@@ -722,4 +722,40 @@
       return _delInv(cd);
     };
   }
+  /* Read-only audit: operational purchases vs supplier ledger. No writes/deletes. */
+  window.slLegacyFinanceAudit = function () {
+    var buycmp = getData('ptf_crm_buycmp') || [];
+    var payables = getData('ptf_crm_payables') || [];
+    var sf = data();
+    var invoices = sf.invoices || [], payments = sf.payments || [];
+    var purchases = [];
+    buycmp.forEach(function (c) {
+      (c.purchases || []).forEach(function (p) {
+        var item = (c.items || [])[p.idx] || {};
+        purchases.push({ purchaseCd: p.cd || '', cmpId: c.id || '', inqNo: c.inqNo || '', idx: p.idx, item: item.nm || item.name || item.desc || '', supplier: p.sup || '', amount: (+p.price || 0) * (+p.qty || +item.qty || 1), sourceInvoiceCd: p.supplierInvoiceCd || p.invoiceCd || '' });
+      });
+    });
+    var purchaseByCd = {};
+    purchases.forEach(function (p) { if (p.purchaseCd) purchaseByCd[p.purchaseCd] = p; });
+    var explicitAutoInvoices = invoices.filter(function (i) { return !!i.sourcePurchaseCd; }).map(function (i) {
+      return { invoiceCd: i.cd, invoiceNo: i.no, sourcePurchaseCd: i.sourcePurchaseCd, existsInBuycmp: !!purchaseByCd[i.sourcePurchaseCd], status: i.status || 'open', amount: +i.amountIrr || +i.amount || 0 };
+    });
+    var explicitAutoPayments = payments.filter(function (p) { return !!p.sourcePurchaseCd; }).map(function (p) {
+      return { paymentCd: p.cd, sourcePurchaseCd: p.sourcePurchaseCd, existsInBuycmp: !!purchaseByCd[p.sourcePurchaseCd], status: p.status || 'posted', amount: +p.amountIrr || +p.amount || 0 };
+    });
+    var candidates = payables.filter(function (p) {
+      return !p.sfInvoiceCd && purchases.some(function (buy) {
+        return (p.inqNo && p.inqNo === buy.inqNo && (+p.idx === +buy.idx)) || (p.inqNo && p.inqNo === buy.inqNo && Math.abs((+p.amount || 0) - buy.amount) <= 1 && String(p.sup || '').trim() === String(buy.supplier || '').trim());
+      });
+    }).map(function (p) {
+      return { payableCd: p.cd, inqNo: p.inqNo, item: p.item || '', supplier: p.sup || '', amount: +p.amount || 0, confidence: 'candidate — نیازمند تایید دستی' };
+    });
+    var unlinkedLegacy = payables.filter(function (p) { return p.pay === 'credit' && !p.settled && !p.sfInvoiceCd && candidates.every(function (c) { return c.payableCd !== p.cd; }); }).map(function (p) {
+      return { payableCd: p.cd, inqNo: p.inqNo, item: p.item || '', supplier: p.sup || '', amount: +p.amount || 0 };
+    });
+    var report = { readOnly: true, operationalPurchaseCount: purchases.length, operationalPurchases: purchases, explicitAutoInvoiceCount: explicitAutoInvoices.length, explicitAutoInvoices: explicitAutoInvoices, orphanAutoInvoices: explicitAutoInvoices.filter(function (i) { return !i.existsInBuycmp; }), explicitAutoPaymentCount: explicitAutoPayments.length, explicitAutoPayments: explicitAutoPayments, candidateLegacyPayablesCount: candidates.length, candidateLegacyPayables: candidates, unlinkedLegacyPayablesCount: unlinkedLegacy.length, unlinkedLegacyPayables: unlinkedLegacy, note: 'این گزارش فقط خواند؛ هیچ رکوردی را تغییر نداد.' };
+    console.table({ operationalPurchases: report.operationalPurchaseCount, autoInvoices: report.explicitAutoInvoiceCount, orphanAutoInvoices: report.orphanAutoInvoices.length, autoPayments: report.explicitAutoPaymentCount, candidateLegacyPayables: report.candidateLegacyPayablesCount, unlinkedLegacyPayables: report.unlinkedLegacyPayablesCount });
+    console.log(JSON.stringify(report, null, 2));
+    return report;
+  };
 })();
