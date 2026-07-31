@@ -11,7 +11,31 @@
 (function () {
   'use strict';
 
-  function cmpAll() { return getData('ptf_crm_buycmp'); }
+  function cmpAll() { return getData('ptf_crm_buycmp').filter(function (x) { return !x.mergedInto; }); }
+  function mergeCmpRecordsForInquiry(inqNo) {
+    var all = getData('ptf_crm_buycmp'), records = all.filter(function (x) { return x.inqNo === inqNo && !x.mergedInto; });
+    if (records.length < 2) return records[0] || null;
+    var primary = records[0], base = (primary.items || []).length, mergedIds = primary.mergedRecords || [primary.id];
+    for (var ri = 1; ri < records.length; ri++) {
+      var source = records[ri], offset = base;
+      (source.items || []).forEach(function (it, itemIdx) { it = JSON.parse(JSON.stringify(it)); it._mergedFromCmp = source.id; it._mergedFromIdx = itemIdx; primary.items = primary.items || []; primary.items.push(it); });
+      (source.quotes || []).forEach(function (q) { var nq = JSON.parse(JSON.stringify(q)); nq.idx = (+q.idx || 0) + offset; nq._mergedFromCmp = source.id; primary.quotes = primary.quotes || []; primary.quotes.push(nq); });
+      (source.purchases || []).forEach(function (p) { var np = JSON.parse(JSON.stringify(p)); np.idx = (+p.idx || 0) + offset; np._mergedFromCmp = source.id; primary.purchases = primary.purchases || []; primary.purchases.push(np); });
+      base += (source.items || []).length;
+      mergedIds.push(source.id);
+      source.mergedInto = primary.id;
+      source.mergedAt = faDateTime();
+      source.mergedBy = curSession().name;
+    }
+    primary.mergedRecords = mergedIds;
+    primary.mergedAt = faDateTime();
+    primary.mergedBy = curSession().name;
+    var idx = all.indexOf(primary);
+    if (idx > -1) all[idx] = primary;
+    setData('ptf_crm_buycmp', all);
+    try { audit('قیمت خرید', 'تجمیع جدول‌های خرید واقعی برای ' + inqNo + ' — ' + base + ' قلم', primary.id); } catch (e) {}
+    return primary;
+  }
   function cmpSave(l) { setData('ptf_crm_buycmp', l); }
   function canBuy() { return !!roleDef().buyPrice; }
   function fmtP(v) { return (+v || 0).toLocaleString('fa-IR'); }
@@ -574,7 +598,7 @@
   window.ptfRealBuyOpen = function (inqNo) {
     if (!inqNo) { alert('شماره درخواست نامشخص است'); return; }
     var list = cmpAll();
-    var c = list.filter(function (x) { return x.inqNo === inqNo; })[0];
+    var c = mergeCmpRecordsForInquiry(inqNo) || list.filter(function (x) { return x.inqNo === inqNo; })[0];
     if (!c) {
       /* ساخت خودکار جدول از اقلام CO برنده؛ نبود → اقلام درخواست */
       var items = [];
