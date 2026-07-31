@@ -81,7 +81,7 @@
           var payableIds = {};
           allPayablesForProc.forEach(function (p) { if (aliases.indexOf(p.inqNo) > -1 && p.cd) payableIds[p.cd] = true; });
           var relatedInvoices = (supplierDataForProc.invoices || []).filter(function (inv) {
-            return (inv.legacyPayableCds || []).some(function (cd) { return payableIds[cd]; });
+            return inv.status !== 'void' && (inv.legacyPayableCds || []).some(function (cd) { return payableIds[cd]; });
           }).map(function (inv) { return { cd: inv.cd, label: 'فاکتور ' + (inv.no || inv.cd) + (inv.supName ? ' — ' + inv.supName : '') }; });
           add(q, 'procurement-ambiguous', 'پیشنهاد دارای اقلام نیازمند تطبیق', offer.no || offer.inqNo, 0, {
             type: 'procurement',
