@@ -401,7 +401,7 @@
     }
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var status = invRemain(i, d) > 0 ? 'open' : 'settled', refs = (i.legacyPayableCds || []).map(function (cd) { var p = getData('ptf_crm_payables').filter(function (x) { return x.cd === cd; })[0] || {}; return p.inqNo || cd; }).join('، ');
-      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, link: { kind: 'invoice', cd: i.cd } });
+      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, itemCount: (i.itemLinks || []).length || (i.legacyPayableCds || []).length || 0, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, link: { kind: 'invoice', cd: i.cd } });
     });
     /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
        طبق تصمیم کارفرما، پرداخت ابطال‌شده باید مثل فاکتور ابطال‌شده کاملاً از
@@ -453,7 +453,11 @@
     return out;
   }
   function slFiltersFromDom() { var from=((document.getElementById('slFfrom')||{}).value||''),to=((document.getElementById('slFto')||{}).value||''); if(typeof ptfJToISO==='function'){from=ptfJToISO(from)||from;to=ptfJToISO(to)||to;} return { from: from, to: to, cur: ((document.getElementById('slFcur') || {}).value || 'all'), status: ((document.getElementById('slFstatus') || {}).value || 'all'), ref: ((document.getElementById('slFref') || {}).value || '').trim() }; }
-    function slLedgerTable(rows) { return rows.map(function (e) {
+    function supplierInvoiceSummary(e) {
+    if (e.type !== 'فاکتور خرید') return '';
+    return (e.itemCount ? e.itemCount + ' قلم' : 'تعداد اقلام نامشخص') + ' — تاریخ ' + (e.dateFa || e.date || 'نامشخص');
+  }
+  function slLedgerTable(rows) { return rows.map(function (e) {
     var itemName = e.itemName || e.note || '';
     var extraInfo = e.ref || '';
     try {
@@ -476,7 +480,7 @@
     if(e.type && e.type.indexOf('legacy')>-1){
       displayRef = '<b>'+escP(e.no)+'</b><br><small style="color:#0e7490">📦 '+(itemName?escP(itemName):'بدون نام')+'</small><br><small style="color:#64748b">درخواست: '+escP(e.ref||'')+'</small>';
     } else {
-      displayRef = '<b>'+escP(e.no)+'</b>' + (e.type !== 'فاکتور خرید' && e.ref ? '<br><small>'+escP(e.ref)+'</small>' : '') + (itemName ? '<br><small style="color:#0e7490">📦 '+escP(itemName)+'</small>' : '');
+      displayRef = '<b>' + (e.type === 'فاکتور خرید' ? 'فاکتور ' : '') + escP(e.no) + '</b>' + (e.type === 'فاکتور خرید' ? '<br><small style="color:#64748b">' + escP(supplierInvoiceSummary(e)) + '</small>' : (e.ref ? '<br><small>'+escP(e.ref)+'</small>' : '')) + (itemName ? '<br><small style="color:#0e7490">📦 '+escP(itemName)+'</small>' : '');
     }
     return '<tr><td>' + escP(e.dateFa) + '</td><td>' + escP(e.type) + '</td><td>' + displayRef + '</td><td>' + (e.debit ? money(e.debit) : '—') + '</td><td>' + (e.credit ? money(e.credit) : '—') + '</td><td><b>' + money(e.balance) + ' ' + escP(e.cur) + '</b></td><td>' + act + '</td></tr>';
   }).join(''); }
@@ -488,11 +492,11 @@
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.slLedgerApply = function (supCd) { var m = document.getElementById('slLedgerDlg'); if (m) m.remove(); slOpenLedger(supCd, slFiltersFromDom()); };
-  function slCsv(rows) { return '\uFEFF' + [['تاریخ','نوع','سند/مرجع','کالا','بدهکار','بستانکار','مانده','ارز']].concat(rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? '' : (e.ref || ''); return [e.dateFa,e.type,e.no+' '+visibleRef,item,e.debit||'',e.credit||'',e.balance,e.cur]; })).map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g,'""') + '"'; }).join(','); }).join('\r\n'); }
+  function slCsv(rows) { return '\uFEFF' + [['تاریخ','نوع','سند/مرجع','کالا','بدهکار','بستانکار','مانده','ارز']].concat(rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? supplierInvoiceSummary(e) : (e.ref || ''); return [e.dateFa,e.type,e.no+' '+visibleRef,item,e.debit||'',e.credit||'',e.balance,e.cur]; })).map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g,'""') + '"'; }).join(','); }).join('\r\n'); }
   window.slLedgerCsv = function (supCd) { var rows = slEventRows(supCd, slFiltersFromDom()), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([slCsv(rows)], { type:'text/csv;charset=utf-8' })); a.download = 'supplier-ledger-' + supCd + '-' + new Date().toISOString().slice(0,10) + '.csv'; a.click(); };
   function slFaDigits(v) { return String(v == null ? '' : v).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
   function slCurFa(c) { return ({ IRR: 'ریال', USD: 'دلار', EUR: 'یورو', CNY: 'یوان', AED: 'درهم', GBP: 'پوند' })[c] || c || ''; }
-  function slPrintRows(rows) { return rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? '' : (e.ref || ''); return '<tr><td>' + slFaDigits(e.dateFa) + '</td><td>' + escP(e.type === 'payment' ? 'پرداخت' : e.type) + '</td><td><b>' + escP(e.no) + '</b>' + (visibleRef ? '<br><small>' + escP(visibleRef) + '</small>' : '') + (item ? '<br><small style="color:#0e7490">📦 '+escP(item)+'</small>' : '') + '</td><td>' + (e.debit ? slFaDigits(money(e.debit)) : '—') + '</td><td>' + (e.credit ? slFaDigits(money(e.credit)) : '—') + '</td><td><b>' + slFaDigits(money(e.balance)) + ' ' + slCurFa(e.cur) + '</b></td></tr>'; }).join(''); }
+  function slPrintRows(rows) { return rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? supplierInvoiceSummary(e) : (e.ref || ''); return '<tr><td>' + slFaDigits(e.dateFa) + '</td><td>' + escP(e.type === 'payment' ? 'پرداخت' : e.type) + '</td><td><b>' + escP(e.no) + '</b>' + (visibleRef ? '<br><small>' + escP(visibleRef) + '</small>' : '') + (item ? '<br><small style="color:#0e7490">📦 '+escP(item)+'</small>' : '') + '</td><td>' + (e.debit ? slFaDigits(money(e.debit)) : '—') + '</td><td>' + (e.credit ? slFaDigits(money(e.credit)) : '—') + '</td><td><b>' + slFaDigits(money(e.balance)) + ' ' + slCurFa(e.cur) + '</b></td></tr>'; }).join(''); }
   window.slLedgerPrint = function (supCd) { var sup=supplier(supCd), rows=slEventRows(supCd,slFiltersFromDom()), w=window.open('','_blank'); if(!w)return; w.document.write('<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>گردش حساب '+escP(sup.co||'')+'</title><style>body{font-family:Tahoma;direction:rtl;padding:20px;color:#111}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}@media print{button{display:none}}</style></head><body><h2>گردش حساب تأمین‌کننده — '+escP(sup.co||'')+'</h2><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>'+slPrintRows(rows)+'</tbody></table></body></html>'); w.document.close(); w.print(); };
 
     function box() {
