@@ -222,10 +222,11 @@
       var lotSummary = lots.map(function (lot) { return escP(lot.supplier) + ' — ' + lot.qty + ' ' + escP(it.un || '') + ' × ' + fmtP(lot.price) + ' ریال'; }).join('<br>');
       var editPurchaseAction = lots.length > 1 ? "cmpSplitOpen('" + escP(id) + "'," + idx + ")" : "cmpBuy('" + escP(id) + "'," + idx + ")";
       var editPurchaseLabel = lots.length > 1 ? '✏️ اصلاح تقسیم خرید' : '✏️ اصلاح خرید';
+      var dispositionButton = lots.length ? '<br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" data-id="' + escP(id) + '" data-idx="' + idx + '" onclick="cmpPurchaseDispositionOpen(this.dataset.id,+this.dataset.idx)">📦 تعیین‌تکلیف</button>' : '';
       var splitPurchaseButton = lots.length > 1 ? '' : '<br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#7c3aed" data-id="' + escP(id) + '" data-idx="' + idx + '" onclick="cmpSplitOpen(this.dataset.id,+this.dataset.idx)">🔀 تقسیم خرید</button>';
       var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
       var puCell = pu
-        ? '<td style="background:#fef3c7;font-size:11.5px"><b>' + (lots.length > 1 ? 'چند lot' : escP(pu.sup)) + '</b><br>' + (lots.length > 1 ? lotSummary : fmtP(pu.price) + ' ریال') + (pu.srcCur ? '<br><small dir="ltr">' + (+pu.priceFx || 0).toLocaleString('en-US') + ' ' + escP(pu.srcCur) + ' × ' + (+pu.rate || 0).toLocaleString('fa-IR') + '</small>' : '') + (pu.dueISO ? '<br><small style="color:#0e7490">تعهد تحویل: ' + escP(pu.dueISO) + '</small>' : '') + ((pu.files||[]).length ? '<br><small>📎 رسید</small>' : '') + ' <small>' + escP(pu.t) + '</small><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" onclick="' + editPurchaseAction + '">' + editPurchaseLabel + '</button>' + splitPurchaseButton + '</td>'
+        ? '<td style="background:#fef3c7;font-size:11.5px"><b>' + (lots.length > 1 ? 'چند lot' : escP(pu.sup)) + '</b><br>' + (lots.length > 1 ? lotSummary : fmtP(pu.price) + ' ریال') + (pu.srcCur ? '<br><small dir="ltr">' + (+pu.priceFx || 0).toLocaleString('en-US') + ' ' + escP(pu.srcCur) + ' × ' + (+pu.rate || 0).toLocaleString('fa-IR') + '</small>' : '') + (pu.dueISO ? '<br><small style="color:#0e7490">تعهد تحویل: ' + escP(pu.dueISO) + '</small>' : '') + ((pu.files||[]).length ? '<br><small>📎 رسید</small>' : '') + ' <small>' + escP(pu.t) + '</small><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" onclick="' + editPurchaseAction + '">' + editPurchaseLabel + '</button>' + splitPurchaseButton + dispositionButton + '</td>'
         : '<td><button class="bt" style="font-size:11px;padding:4px 9px;background:#059669" onclick="cmpBuy(\'' + escP(id) + '\',' + idx + ')">🛍 ثبت خرید</button><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#7c3aed" onclick="cmpSplitOpen(\'' + escP(id) + '\',' + idx + '\')">🔀 تقسیم خرید</button></td>';
       return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(it.nm) + '</b>' + qtySummary + '</td><td>' + (it.qty || 1) + ' ' + escP(it.un || '') + '</td>' + cells +
         '<td style="font-size:11.5px;color:#059669">' + (best !== null ? escP(bestSup) + '<br>' + fmtP(best) : '—') + '</td>' + puCell + '</tr>';
@@ -526,6 +527,18 @@
     var oldCmp = document.getElementById('cmpModal_' + id); if (oldCmp) oldCmp.remove();
     renderBuyQuotes();
     cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined);
+  };
+
+  window.cmpPurchaseDispositionOpen = function (id, idx) {
+    var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var item = c.items[idx] || {}, lots = ptfPurchaseLotsForItem(c, idx);
+    if (!lots.length) { alert('برای این قلم خرید ثبت نشده است.'); return; }
+    var rows = lots.map(function (lot) {
+      return '<tr><td>' + escP(lot.supplier || '-') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td><td>' + fmtP(lot.price) + ' ریال</td><td>' + escP(lot.status || 'purchased') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td></tr>';
+    }).join('');
+    var purchased = lots.reduce(function (s, lot) { return s + (+lot.qty || 0); }, 0);
+    var html = '<div class="md-b" id="cmpDispositionDlg" style="display:grid;z-index:3200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:90vh;overflow:auto"><h3>📦 تعیین‌تکلیف خرید — ' + escP(item.nm || '') + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 11px;font-size:12px;line-height:1.9">این مرحله فقط پیش‌نمایش است و هیچ بدهی تأمین‌کننده، فاکتور، موجودی یا سند مالی را تغییر نمی‌دهد.</div><div style="margin:10px 0;font-size:13px">مقدار موردنیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | مقدار خریدشده: <b>' + purchased + ' ' + escP(item.un || '') + '</b> | قابل تعیین‌تکلیف: <b>' + purchased + ' ' + escP(item.un || '') + '</b></div><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>مقدار</th><th>قیمت واحد</th><th>وضعیت</th><th>قابل تعیین‌تکلیف</th></tr></thead><tbody>' + rows + '</tbody></table></div><div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
 
   function cmpSplitSuppliers() {
