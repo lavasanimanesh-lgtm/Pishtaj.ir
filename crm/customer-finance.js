@@ -101,6 +101,25 @@
     if (typeof ptfToast === 'function') ptfToast(returnRecord.stockPendingItems && returnRecord.stockPendingItems.length ? 'مرجوعی ثبت شد، اما برخی اقلام در کاتالوگ کالا پیدا نشدند و به موجودی نرفتند.' : 'مرجوعی ثبت شد؛ مطالبات مشتری و موجودی به‌روزرسانی شد.', returnRecord.stockPendingItems && returnRecord.stockPendingItems.length ? 'warn' : 'ok');
     var offerCustomer = offer.buyerCd; if (offerCustomer) cfOpen(offerCustomer);
   };
+  window.cfSalesReturnStockRetry = function (returnCd) {
+    var returns = getData('ptf_crm_sales_returns') || [], rtn = returns.filter(function (x) { return x.cd === returnCd; })[0];
+    if (!rtn || rtn.disposition !== 'stock') return;
+    var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === rtn.invoiceCd; })[0] || {}, products = getData('ptf_crm_products') || [], stockRefs = rtn.stockRefs || [], pending = [];
+    function normProduct(v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); }
+    (rtn.items || []).forEach(function (item) {
+      if (stockRefs.length && stockRefs.some(function (cd) { return String(cd).indexOf(returnCd) > -1; })) return;
+      var productCd = item.productCd || '', product = products.filter(function (p) { return p.cd === productCd || normProduct(p.nm || p.name || p.cd) === normProduct(item.item); })[0];
+      if (!product || typeof ptfSurplusAdd !== 'function') { pending.push(item.item); return; }
+      var existing = (typeof ptfSurplusAll === 'function' ? ptfSurplusAll() : []).filter(function (s) { return String(s.note || '').indexOf(returnCd) > -1 && s.prodCd === product.cd; })[0];
+      if (existing) { if (stockRefs.indexOf(existing.cd) < 0) stockRefs.push(existing.cd); return; }
+      var stock = ptfSurplusAdd(product.cd, item.qty, 'انبار', rtn.dealCd || rtn.offerNo, 'ورود از مرجوعی فروش ' + returnCd + ' — ' + item.item);
+      if (stock) stockRefs.push(stock.cd); else pending.push(item.item);
+    });
+    rtn.stockRefs = stockRefs; rtn.stockPendingItems = pending; rtn.stockStatus = pending.length ? 'pending_product_definition' : 'stocked';
+    setData('ptf_crm_sales_returns', returns);
+    if (typeof ptfToast === 'function') ptfToast(pending.length ? 'برخی اقلام هنوز کالا ندارند.' : 'ورود مرجوعی به موجودی تکمیل شد.', pending.length ? 'warn' : 'ok');
+    if (inv.offerNo) { var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}; if (offer.buyerCd) cfOpen(offer.buyerCd); }
+  };
   window.cfOpen = function (cd) {
     var c = cust(cd); if (!c) return;
     var rows = invs(cd).map(function (i) {
@@ -108,7 +127,7 @@
       var typeBadge = i.isUnofficial ? '<span style="background:#fffbeb;color:#b45309;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;border:1px solid #fde68a;margin-left:4px">غیررسمی</span> ' : '<span style="background:#f0fdf4;color:#166534;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;border:1px solid #bbf7d0;margin-left:4px">رسمی</span> ';
       return '<tr><td>' + escP(i.invDate || i.t || '') + '</td><td>' + typeBadge + escP(i.no || i.cd) + '<br><button class="ba" style="margin-top:4px" onclick="cfSalesReturnPreview(\'' + escP(i.cd) + '\')">↩️ پیش‌نمایش مرجوعی</button></td><td>' + m(i.amount) + ' ریال</td><td>' + m(paid(i)) + ' ریال</td><td>' + m(r) + ' ریال</td></tr>' +
         ps.map(function (p) { return '<tr style="background:#f0fdf4"><td>' + escP(p.t || p.date || '') + '</td><td>وصولی</td><td>—</td><td>' + m(p.amt || p.amount) + ' ریال</td><td>—</td></tr>'; }).join('') +
-        returns.map(function (rtn) { return '<tr style="background:#fff7ed"><td>' + escP(rtn.t || '') + '</td><td>↩️ مرجوعی فروش</td><td><b>' + escP(rtn.cd) + '</b><br><small>' + escP((rtn.items || []).map(function (x) { return (x.item || 'قلم') + ' × ' + x.qty; }).join('، ')) + '</small>' + (rtn.disposition === 'stock' ? '<br><small style="color:' + (rtn.stockStatus === 'stocked' ? '#047857' : '#b45309') + '">📦 ' + (rtn.stockStatus === 'stocked' ? 'وارد موجودی شد' : 'نیازمند تعریف کالا') + '</small>' : '') + '</td><td>—</td><td>' + m(rtn.totalAmount) + ' ریال کاهش</td></tr>'; }).join('');
+        returns.map(function (rtn) { return '<tr style="background:#fff7ed"><td>' + escP(rtn.t || '') + '</td><td>↩️ مرجوعی فروش</td><td><b>' + escP(rtn.cd) + '</b><br><small>' + escP((rtn.items || []).map(function (x) { return (x.item || 'قلم') + ' × ' + x.qty; }).join('، ')) + '</small>' + (rtn.disposition === 'stock' ? '<br><small style="color:' + (rtn.stockStatus === 'stocked' ? '#047857' : '#b45309') + '">📦 ' + (rtn.stockStatus === 'stocked' ? 'وارد موجودی شد' : 'نیازمند تعریف کالا') + '</small>' + (rtn.stockStatus === 'pending_product_definition' ? '<br><button class="ba" onclick="cfSalesReturnStockRetry(\'' + escP(rtn.cd) + '\')">📦 تکمیل ورود به موجودی</button>' : '') : '') + '</td><td>—</td><td>' + m(rtn.totalAmount) + ' ریال کاهش</td></tr>'; }).join('');
     }).join('');
     var h = '<div class="md-b" id="cfAccountDlg" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto"><h3>📘 حساب مشتری — ' + escP(nameOf(c)) + '</h3><div style="background:#fefce8;padding:10px;border-radius:10px">مطالبات باز: <b>' + m(bal(cd)) + ' ریال</b></div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>سند</th><th>فاکتور</th><th>وصولی</th><th>مانده</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></div><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', h);
