@@ -214,11 +214,14 @@
         var re = new RegExp('<td style="font-size:12px">' + fmtP(best).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         cells = cells.replace(re, '<td style="font-size:12px;background:#ecfdf5;font-weight:800">✅ ' + fmtP(best));
       }
+      var purchasedQty = window.ptfPurchaseQtyForItem(c, idx);
+      var requiredQty = +it.qty || 1;
+      var qtySummary = '<small style="display:block;color:' + (purchasedQty >= requiredQty ? '#047857' : purchasedQty > 0 ? '#b45309' : '#64748b') + '">نیاز: ' + requiredQty + ' ' + escP(it.un || '') + ' | خرید: ' + purchasedQty + ' ' + escP(it.un || '') + '</small>';
       var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
       var puCell = pu
         ? '<td style="background:#fef3c7;font-size:11.5px"><b>' + escP(pu.sup) + '</b><br>' + fmtP(pu.price) + ' ریال' + (pu.srcCur ? '<br><small dir="ltr">' + (+pu.priceFx || 0).toLocaleString('en-US') + ' ' + escP(pu.srcCur) + ' × ' + (+pu.rate || 0).toLocaleString('fa-IR') + '</small>' : '') + (pu.dueISO ? '<br><small style="color:#0e7490">تعهد تحویل: ' + escP(pu.dueISO) + '</small>' : '') + ((pu.files||[]).length ? '<br><small>📎 رسید</small>' : '') + ' <small>' + escP(pu.t) + '</small><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" onclick="cmpBuy(\'' + escP(id) + '\',' + idx + ')">✏️ اصلاح خرید</button></td>'
         : '<td><button class="bt" style="font-size:11px;padding:4px 9px;background:#059669" onclick="cmpBuy(\'' + escP(id) + '\',' + idx + ')">🛍 ثبت خرید</button></td>';
-      return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(it.nm) + '</b></td><td>' + (it.qty || 1) + ' ' + escP(it.un || '') + '</td>' + cells +
+      return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(it.nm) + '</b>' + qtySummary + '</td><td>' + (it.qty || 1) + ' ' + escP(it.un || '') + '</td>' + cells +
         '<td style="font-size:11.5px;color:#059669">' + (best !== null ? escP(bestSup) + '<br>' + fmtP(best) : '—') + '</td>' + puCell + '</tr>';
     }).join('');
     var html = '<div class="md-b" id="cmpModal_' + escP(id) + '" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:960px;max-height:94vh;overflow:auto">' +
@@ -703,12 +706,16 @@
   window.ptfRealBuyStatus = function (inqNo) {
     var records = cmpAll().filter(function (x) { return x.inqNo === inqNo; });
     if (!records.length) return { total: 0, done: 0, pendingFx: 0, has: false };
-    var total = 0, done = 0, pendingFx = 0;
+    var total = 0, done = 0, full = 0, partial = 0, pendingFx = 0;
     records.forEach(function (c) {
       (c.items || []).forEach(function (it, idx) {
-        total += (+it.qty || 1);
+        total++;
+        var requiredQty = +it.qty || 1;
         var lots = window.ptfPurchaseLotsForItem(c, idx);
-        done += lots.reduce(function (sum, lot) { return sum + (+lot.qty || 0); }, 0);
+        var purchasedQty = lots.reduce(function (sum, lot) { return sum + (+lot.qty || 0); }, 0);
+        if (purchasedQty > 0) done++;
+        if (purchasedQty >= requiredQty) full++;
+        else if (purchasedQty > 0) partial++;
         lots.forEach(function (lot) {
           if (lot.currency && lot.currency !== 'IRR') {
             var raw = (c.purchases || []).filter(function (p) { return p.cd === lot.cd; })[0] || {};
@@ -717,7 +724,7 @@
         });
       });
     });
-    return { total: total, done: done, pendingFx: pendingFx, has: true };
+    return { total: total, done: done, full: full, partial: partial, pendingFx: pendingFx, has: true };
   };
 
   /* hook روی renderDeals: بخش خرید واقعی در کشوی پرونده‌های دارای CO برنده */
@@ -740,7 +747,7 @@
         var costTxt = costs ? ' | هزینه‌های مستقیم: ' + costs.toLocaleString('fa-IR') + ' ریال' : '';
         var lb = !st.has || !st.done
           ? '<span style="color:#b45309">هنوز خریدی ثبت نشده</span>'
-          : st.done + ' از ' + st.total + ' قلم ثبت شده' + (st.pendingFx ? ' — <span style="color:#dc2626">' + st.pendingFx + ' خرید ارزی بدون نرخ ⚠️</span>' : ' ✅');
+          : st.full + ' از ' + st.total + ' قلم کامل' + (st.partial ? ' — ' + st.partial + ' قلم ناقص' : '') + (st.pendingFx ? ' — <span style="color:#dc2626">' + st.pendingFx + ' خرید ارزی بدون نرخ ⚠️</span>' : ' ✅');
         host.closest('div').insertAdjacentHTML('beforebegin',
           '<div id="rbBox_' + escP(deal.cd) + '" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px">' +
           '<span>🛒 <b>خرید واقعی اقلام</b> <small style="color:#64748b">(پس از برد — مبنای سود واقعی؛ جدا از قیمت استعلامی)</small><br><small>' + lb + adv + costTxt + '</small></span>' +

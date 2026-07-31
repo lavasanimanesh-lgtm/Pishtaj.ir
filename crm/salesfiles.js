@@ -566,7 +566,7 @@
     return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin:8px 0 10px;font-size:12px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
       '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 پیش‌پرداخت: <b>' + escP(advTxt) + '</b></span>' +
-      '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? (rb.done + ' / ' + rb.total + ' قلم') : 'هنوز شروع نشده') + '</b></span>' +
+      '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? ((rb.full || 0) + ' / ' + rb.total + ' قلم کامل' + (rb.partial ? ' — ' + rb.partial + ' قلم ناقص' : '')) : 'هنوز شروع نشده') + '</b></span>' +
       '<span style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;color:#92400e">➕ هزینه‌های مستقیم: <b>' + costSum.toLocaleString('fa-IR') + ' ریال</b></span>' +
       '<span style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:4px 8px;color:#6d28d9">🧾 فاکتورها: <b>' + invCount + '</b>' + (openAmt > 0 ? ' | باز: ' + openAmt.toLocaleString('fa-IR') + ' ریال' : ' | تسویه: کامل') + '</span>' +
       '<span style="background:' + (ready ? '#ecfdf5;color:#166534;border:1px solid #86efac' : '#fff7ed;color:#9a3412;border:1px solid #fdba74') + ';border-radius:8px;padding:4px 8px">🏁 آمادگی بایگانی: <b>' + (ready ? 'آماده' : 'نیازمند بررسی') + '</b></span>' +
@@ -831,7 +831,7 @@
     try {
       if (typeof ptfRealBuyStatus === 'function' && r.inqNo) {
         var rb = ptfRealBuyStatus(r.inqNo);
-        if (rb.total && rb.done < rb.total) out.warns.push({ id: 'realbuy', lb: '🛒 خرید واقعی فقط برای ' + rb.done + ' از ' + rb.total + ' قلم ثبت شده است — سود پرونده ممکن است ناقص/بیش‌برآورد باشد.' });
+        if (rb.total && rb.full < rb.total) out.warns.push({ id: 'realbuy', lb: '🛒 خرید واقعی برای ' + rb.full + ' از ' + rb.total + ' قلم کامل است' + (rb.partial ? ' و ' + rb.partial + ' قلم ناقص است' : '') + ' — سود پرونده ممکن است ناقص/بیش‌برآورد باشد.' });
         else if (!rb.has) out.warns.push({ id: 'realbuy-none', lb: '🛒 هنوز هیچ خرید واقعی برای این پرونده ثبت نشده است — سود واقعی قابل اتکا نیست.' });
       }
     } catch (eRB) {}
