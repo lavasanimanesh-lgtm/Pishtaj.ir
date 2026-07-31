@@ -197,6 +197,9 @@ RewriteRule "^knowledge-center/کاربردهای صنعتی-0f3bd353\.html$" "/
 RewriteRule "^knowledge-center/کاربردهای صنعتی-1b26d72b\.html$" "/knowledge-center/kc-olefin-cracking-furnace-coil-design.html" [R=301,L]
 RewriteRule "^knowledge-center/کاربردهای صنعتی-6009aa25\.html$" "/knowledge-center/kc-radar-level-transmitter-tank-installation.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۸ (آخرین ۹ مقالهٔ باقی‌مانده از ۹۹ مقاله)
+RewriteRule "^knowledge-center/کاربردهای صنعتی-72ba5280\.html$" "/knowledge-center/kc-cement-kiln-refractory-lining-guide.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
