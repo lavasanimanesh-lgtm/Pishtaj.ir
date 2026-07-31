@@ -144,6 +144,22 @@
   function itemLinkForProcurement(invoice, offerNo, itemKey) {
     return arr(invoice && invoice.itemLinks).filter(function (x) { return x.offerNo === offerNo && x.itemKey === itemKey; })[0] || null;
   }
+  function supplierInvoiceForLine(offer, row, invoices) {
+    var itemKey = window.ptfProcLineKey(row.item);
+    var explicit = invoices.filter(function (inv) { return !!itemLinkForProcurement(inv, offer.no, itemKey); })[0];
+    if (explicit) return explicit;
+    var cmp = getData('ptf_crm_buycmp').filter(function (c) { return c.inqNo === offer.inqNo; })[0];
+    if (cmp && row.cmp && row.cmp.line) {
+      var purchase = window.ptfResolvePurchaseForLine(cmp, row.cmp.line);
+      if (purchase && purchase.ok && purchase.purchase && purchase.purchase.supplierInvoiceCd) {
+        var byPurchase = invoices.filter(function (inv) { return inv.cd === purchase.purchase.supplierInvoiceCd; })[0];
+        if (byPurchase) return byPurchase;
+      }
+    }
+    var payable = getData('ptf_crm_payables').filter(function (p) { return (p.inqNo === offer.inqNo || p.inqNo === offer.no) && (+p.idx === +row.index); })[0];
+    if (payable && payable.sfInvoiceCd) return invoices.filter(function (inv) { return inv.cd === payable.sfInvoiceCd; })[0] || null;
+    return null;
+  }
   window.ptfProcurementLinkInvoice = function (offerNo, itemIndex) {
     var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
     if (!offer) return;
@@ -152,7 +168,7 @@
     var itemKey = window.ptfProcLineKey(row.item);
     var invoices = supplierInvoicesForProcurement();
     if (!invoices.length) { alert('برای این قلم هنوز فاکتور خریدی ثبت نشده است. ابتدا فاکتور خرید را در حساب تأمین‌کننده ثبت کنید.'); return; }
-    var current = invoices.filter(function (i) { return !!itemLinkForProcurement(i, offerNo, itemKey); })[0];
+    var current = supplierInvoiceForLine(offer, row, invoices);
     var options = '<option value="">— انتخاب فاکتور خرید —</option>' + invoices.map(function (i) {
       return '<option value="' + esc(i.cd) + '"' + (current && current.cd === i.cd ? ' selected' : '') + '>فاکتور ' + esc(i.no || i.cd) + ' — ' + esc(i.supName || '') + '</option>';
     }).join('');
@@ -205,7 +221,7 @@
         return '<span style="color:#b45309">⚠️ ' + esc(kind) + ': ' + why + '</span>';
       }
       var itemKey = window.ptfProcLineKey(x.item);
-      var linkedInvoice = supplierInvoicesForProcurement().filter(function (inv) { return !!itemLinkForProcurement(inv, offerNo, itemKey); })[0];
+      var linkedInvoice = supplierInvoiceForLine(o, x, supplierInvoicesForProcurement());
       var invoiceLabel = linkedInvoice ? 'فاکتور ' + (linkedInvoice.no || linkedInvoice.cd) + (linkedInvoice.supName ? ' — ' + linkedInvoice.supName : '') : 'بدون فاکتور خرید';
       return '<tr><td>' + (x.index + 1) + '</td><td><b>' + esc(first(x.item, ['name', 'nm', 'desc'])) + '</b><br><small>' + esc(first(x.item, ['pcode', 'prodCd'])) + '</small></td><td>' + lb(x.cmp, 'خرید واقعی') + '</td><td>' + lb(x.rfq, 'استعلام تامین') + '</td><td><span style="color:' + (linkedInvoice ? '#047857' : '#b45309') + '">' + esc(invoiceLabel) + '</span><br><button class="ba" style="margin-top:4px" onclick="ptfProcurementLinkInvoice(\'' + esc(offerNo) + '\',' + x.index + ')">' + (linkedInvoice ? '🔁 تغییر فاکتور' : '🔗 لینک فاکتور') + '</button></td></tr>';
     }).join('');
