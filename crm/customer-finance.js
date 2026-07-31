@@ -39,12 +39,27 @@
     });
   };
 
+  window.cfSalesReturnPreview = function (invoiceCd) {
+    var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === invoiceCd; })[0];
+    if (!inv) return;
+    var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}, items = offer.items || [];
+    if (!items.length) { alert('برای این فاکتور خطوط کالا پیدا نشد.'); return; }
+    var rows = items.map(function (it, idx) { return '<label style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px dashed #e2e8f0"><input type="checkbox" class="cfReturnLine" value="' + idx + '"><span style="flex:1"><b>' + escP(it.name || it.nm || it.desc || 'قلم ' + (idx + 1)) + '</b><small style="display:block;color:#64748b">مقدار فاکتور: ' + (+it.qty || 1) + ' ' + escP(it.unit || it.un || '') + '</small></span><input class="cfReturnQty" data-idx="' + idx + '" type="number" min="0" max="' + (+it.qty || 1) + '" value="' + (+it.qty || 1) + '" style="width:90px;direction:ltr"></label>'; }).join('');
+    var html = '<div class="md-b" id="cfReturnDlg" style="display:grid;z-index:3200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:90vh;overflow:auto"><h3>↩️ پیش‌نمایش مرجوعی فاکتور ' + escP(inv.no || inv.cd) + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 11px;font-size:12px;margin-bottom:9px">در این مرحله فقط خطوط قابل انتخاب و مقدار پیشنهادی نمایش داده می‌شود؛ هیچ سند یا مبلغی ذخیره نمی‌شود.</div><div>' + rows + '</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button><button class="bt" onclick="cfSalesReturnPreviewSelected(\'' + escP(invoiceCd) + '\')">ادامهٔ پیش‌نمایش</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.cfSalesReturnPreviewSelected = function (invoiceCd) {
+    var selected = [];
+    document.querySelectorAll('#cfReturnDlg .cfReturnLine:checked').forEach(function (el) { var q = document.querySelector('#cfReturnDlg .cfReturnQty[data-idx="' + el.value + '"]'); selected.push({ idx: +el.value, qty: +(q && q.value) || 0 }); });
+    if (!selected.length || selected.some(function (x) { return x.qty <= 0; })) { alert('حداقل یک قلم و مقدار معتبر برای آن الزامی است.'); return; }
+    if (typeof ptfToast === 'function') ptfToast(selected.length + ' قلم برای مرجوعی انتخاب شد — ذخیره‌ای انجام نشد.', 'info');
+  };
   window.cfOpen = function (cd) {
     var c = cust(cd); if (!c) return;
     var rows = invs(cd).map(function (i) {
       var ps = (i.payments || []).concat(i.pays || []).filter(active), r = Math.max(0, (+i.amount || 0) - paid(i));
       var typeBadge = i.isUnofficial ? '<span style="background:#fffbeb;color:#b45309;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;border:1px solid #fde68a;margin-left:4px">غیررسمی</span> ' : '<span style="background:#f0fdf4;color:#166534;padding:2px 6px;border-radius:4px;font-size:10.5px;font-weight:bold;border:1px solid #bbf7d0;margin-left:4px">رسمی</span> ';
-      return '<tr><td>' + escP(i.invDate || i.t || '') + '</td><td>' + typeBadge + escP(i.no || i.cd) + '</td><td>' + m(i.amount) + ' ریال</td><td>' + m(paid(i)) + ' ریال</td><td>' + m(r) + ' ریال</td></tr>' +
+      return '<tr><td>' + escP(i.invDate || i.t || '') + '</td><td>' + typeBadge + escP(i.no || i.cd) + '<br><button class="ba" style="margin-top:4px" onclick="cfSalesReturnPreview(\'' + escP(i.cd) + '\')">↩️ پیش‌نمایش مرجوعی</button></td><td>' + m(i.amount) + ' ریال</td><td>' + m(paid(i)) + ' ریال</td><td>' + m(r) + ' ریال</td></tr>' +
         ps.map(function (p) { return '<tr style="background:#f0fdf4"><td>' + escP(p.t || p.date || '') + '</td><td>وصولی</td><td>—</td><td>' + m(p.amt || p.amount) + ' ریال</td><td>—</td></tr>'; }).join('');
     }).join('');
     var h = '<div class="md-b" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto"><h3>📘 حساب مشتری — ' + escP(nameOf(c)) + '</h3><div style="background:#fefce8;padding:10px;border-radius:10px">مطالبات باز: <b>' + m(bal(cd)) + ' ریال</b></div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>سند</th><th>فاکتور</th><th>وصولی</th><th>مانده</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></div><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
