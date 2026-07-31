@@ -40,6 +40,32 @@
         base++;
       });
     });
+    function normItem(v) { return String(v || '').trim().toLowerCase().replace(/[\u0600-\u06ff]/g, function (d) { return d; }).replace(/[\s\-_.،,؛;()\/\\]/g, ''); }
+    function sameItem(a, b) {
+      var ak = String(a.sourceItemKey || a.procLineKey || a.lineKey || '').trim();
+      var bk = String(b.sourceItemKey || b.procLineKey || b.lineKey || '').trim();
+      if (ak && bk && ak === bk) return true;
+      var ac = normItem(a.pcode || a.prodCd || a.productCd), bc = normItem(b.pcode || b.prodCd || b.productCd);
+      if (ac && bc && ac === bc) return true;
+      var an = normItem(a.nm || a.name || a.desc), bn = normItem(b.nm || b.name || b.desc);
+      if (!an || !bn || an !== bn) return false;
+      var am = normItem(a.model || a.md), bm = normItem(b.model || b.md);
+      var as = normItem(a.spec || a.st), bs = normItem(b.spec || b.st);
+      return (!am || !bm || am === bm) && (!as || !bs || as === bs);
+    }
+    var compact = [], remap = [];
+    (primary.items || []).forEach(function (it, oldIdx) {
+      var duplicate = -1;
+      for (var ci = 0; ci < compact.length; ci++) { if (sameItem(compact[ci], it)) { duplicate = ci; break; } }
+      if (duplicate > -1) remap[oldIdx] = duplicate;
+      else { remap[oldIdx] = compact.length; compact.push(it); }
+    });
+    if (compact.length !== (primary.items || []).length) {
+      (primary.purchases || []).forEach(function (p) { if (remap[p.idx] != null) p.idx = remap[p.idx]; });
+      (primary.quotes || []).forEach(function (q) { if (remap[q.idx] != null) q.idx = remap[q.idx]; });
+      primary.items = compact;
+      base = compact.length;
+    }
     primary.mergedRecords = mergedIds;
     primary.mergedAt = faDateTime();
     primary.mergedBy = curSession().name;
