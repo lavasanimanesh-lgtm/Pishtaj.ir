@@ -200,6 +200,16 @@ RewriteRule "^knowledge-center/کاربردهای صنعتی-6009aa25\.html$" "/
 # SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۸ (آخرین ۹ مقالهٔ باقی‌مانده از ۹۹ مقاله)
 RewriteRule "^knowledge-center/کاربردهای صنعتی-72ba5280\.html$" "/knowledge-center/kc-cement-kiln-refractory-lining-guide.html" [R=301,L]
 
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۹ (آخرین ۸ مقالهٔ باقی‌مانده — تکمیل کامل ۹۹ از ۹۹)
+RewriteRule "^knowledge-center/کاربردهای صنعتی-749fa682\.html$" "/knowledge-center/kc-steel-continuous-casting-mold-cooling.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-74d78597\.html$" "/knowledge-center/kc-offshore-subsea-pipeline-cathodic-protection.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-8941d618\.html$" "/knowledge-center/kc-refinery-distillation-column-tray-design.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-95bb026f\.html$" "/knowledge-center/kc-lng-boil-off-gas-management.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-b26c91da\.html$" "/knowledge-center/kc-boiler-water-treatment-scale-prevention.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-bf3563bb\.html$" "/knowledge-center/kc-pipeline-welding-npi-qualification.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-ecd46214\.html$" "/knowledge-center/kc-pipeline-pigging-cleaning-operations.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-feb0ae89\.html$" "/knowledge-center/kc-pipeline-coating-holiday-detection.html" [R=301,L]
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
