@@ -543,6 +543,44 @@
     if (!locked.length) { alert('سال مالی قفل‌شده‌ای برای اصلاح وجود ندارد'); return; }
     ptfDialog({ title: '🧾 سند اصلاحی حساب تأمین‌کننده', body: 'سند اصلی سال قفل‌شده تغییر نمی‌کند؛ این رکورد با تاریخ جاری و مرجع سال قفل‌شده ثبت می‌شود.', fields: [{id:'year',label:'سال مرجع قفل‌شده',type:'select',options:locked},{id:'cur',label:'ارز',type:'select',options:['IRR','USD','EUR','CNY','AED','GBP']},{id:'amount',label:'مبلغ اصلاحی (+ افزایش بدهی / − کاهش بدهی)',type:'number',money:false,dir:'ltr',required:true},{id:'rate',label:'نرخ تسعیر (برای ارز خارجی)',type:'number',money:false,dir:'ltr'},{id:'note',label:'دلیل اصلاح *',type:'textarea',rows:2,required:true}], okText:'ثبت سند اصلاحی', onOk:function(v){ var amt=+v.amount||0, cur=v.cur||'IRR', rate=cur==='IRR'?1:(+v.rate||0); if(!amt || !v.note || (cur!=='IRR'&&!rate)){alert('مبلغ، دلیل و برای ارز خارجی نرخ الزامی است');return;} var d=data(); d.adjustments=d.adjustments||[]; var sup=supplier(supCd); var a={cd:genCode('SFADJ'),supplierCd:supCd,supName:sup?sup.co:'',refYear:v.year,cur:cur,rate:rate,amount:amt,amountIrr:cur==='IRR'?amt:Math.round(amt*rate),note:v.note,dateISO:new Date().toISOString().slice(0,10),dateFa:faDate(),status:'posted',t:faDateTime(),by:curSession().name}; d.adjustments.unshift(a);save(d);try{audit('حساب تامین','سند اصلاحی سال '+v.year+' برای '+a.supName+' — '+money(amt)+' '+cur,a.cd)}catch(e){};slOpenLedger(supCd); } });
   };
+  window.slInvoiceLinkLegacy = function (invoiceCd) {
+    var d = data(), inv = (d.invoices || []).filter(function (x) { return x.cd === invoiceCd; })[0];
+    if (!inv) return;
+    var pays = getData('ptf_crm_payables').filter(function (p) {
+      return p.sup && inv.supName && String(p.sup).trim() === String(inv.supName).trim() && (p.pay === 'credit' || p.sfInvoiceCd === invoiceCd);
+    });
+    if (!pays.length) { alert('تعهد خرید مرتبطی برای این تأمین‌کننده پیدا نشد.'); return; }
+    var checked = {};
+    (inv.legacyPayableCds || []).forEach(function (cd) { checked[cd] = true; });
+    var rows = pays.map(function (p) {
+      var owned = p.sfInvoiceCd && p.sfInvoiceCd !== invoiceCd;
+      return '<label style="display:flex;gap:8px;align-items:flex-start;padding:7px 4px;border-bottom:1px dashed #e2e8f0;' + (owned ? 'opacity:.65' : '') + '"><input type="checkbox" class="sfLegacyLink" value="' + escP(p.cd) + '"' + (checked[p.cd] ? ' checked' : '') + '><span><b>' + escP(p.item || p.desc || 'تعهد خرید') + '</b><br><small>' + escP(p.cd) + ' — ' + escP(p.inqNo || '') + ' — ' + money(p.amount) + ' ' + escP(p.cur || 'IRR') + (owned ? ' — متصل به فاکتور دیگر' : '') + '</small></span></label>';
+    }).join('');
+    var html = '<div class="md-b" id="sfLinkDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px"><h3>🧷 اصلاح لینک فاکتور ' + escP(inv.no || inv.cd) + '</h3><div style="font-size:12px;color:#64748b;margin-bottom:8px">فقط رابطهٔ فاکتور با تعهدهای خرید تغییر می‌کند؛ مبلغ فاکتور و مبلغ تعهدها تغییر نمی‌کند.</div><div style="max-height:360px;overflow:auto">' + rows + '</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="slInvoiceLinkLegacySave(\'' + escP(invoiceCd) + '\')">ذخیره لینک‌ها</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.slInvoiceLinkLegacySave = function (invoiceCd) {
+    var d = data(), inv = (d.invoices || []).filter(function (x) { return x.cd === invoiceCd; })[0];
+    if (!inv) return;
+    var selected = {};
+    document.querySelectorAll('#sfLinkDlg .sfLegacyLink:checked').forEach(function (x) { selected[x.value] = true; });
+    var pays = getData('ptf_crm_payables'), linked = [];
+    pays.forEach(function (p) {
+      if (selected[p.cd]) {
+        d.invoices.forEach(function (other) { other.legacyPayableCds = (other.legacyPayableCds || []).filter(function (cd) { return cd !== p.cd || other.cd === invoiceCd; }); });
+        p.sfInvoiceCd = invoiceCd;
+        linked.push(p.cd);
+      } else if (p.sfInvoiceCd === invoiceCd) {
+        delete p.sfInvoiceCd;
+      }
+    });
+    inv.legacyPayableCds = linked;
+    setData('ptf_crm_payables', pays);
+    save(d);
+    try { audit('حساب تامین', 'اصلاح لینک فاکتور ' + (inv.no || inv.cd) + ' — ' + linked.length + ' تعهد', invoiceCd); } catch (e) {}
+    var dlg = document.getElementById('sfLinkDlg'); if (dlg) dlg.remove();
+    slReconcileOpen(inv.supplierCd);
+  };
   window.slReconcileOpen = function (supCd) {
     var d = data(), sup = supplier(supCd) || {}, allPayables = getData('ptf_crm_payables') || [];
     var invs = activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; });
@@ -554,7 +592,7 @@
     var rows = invs.map(function (i) {
       var ps = allPayables.filter(function (p) { return (i.legacyPayableCds || []).indexOf(p.cd) > -1; });
       var legacy = ps.reduce(function (s, p) { return s + (+p.amount || 0); }, 0), diff = (+i.amountIrr || +i.amount || 0) - legacy;
-      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + (Math.abs(diff) <= 1 ? '<span style="color:#059669">✓ منطبق</span>' : '<span style="color:#dc2626">⚠️ اختلاف ' + money(diff) + ' ریال</span>') + '</td></tr>';
+      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + (Math.abs(diff) <= 1 ? '<span style="color:#059669">✓ منطبق</span>' : '<span style="color:#dc2626">⚠️ اختلاف ' + money(diff) + ' ریال</span>') + '<br><button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="slInvoiceLinkLegacy(\'' + escP(i.cd) + '\')">🧷 اصلاح لینک</button></td></tr>';
     }).join('');
     var unlinked = legacyOpen(sup).filter(function (p) { return !p.sfInvoiceCd && !linkedIds[p.cd]; });
     var unlinkedIrr = unlinked.reduce(function (s, p) { return s + (+p.amount || 0); }, 0);
