@@ -75,9 +75,22 @@
   var ht = setInterval(function () { htr++; if (hookOfferSave() || htr > 50) clearInterval(ht); }, 400);
 
   /* ---------- جمع‌آوری زنده اسناد منضم یک درخواست ---------- */
+  window.ptfSalesFileOffers = function (r) {
+    if (!r) return [];
+    var all = getData('ptf_crm_offers'), out = [], seen = {};
+    function add(o) { if (!o || !o.no || seen[o.no]) return; seen[o.no] = true; out.push(o); }
+    if (r.wonOffer) add(all.filter(function (o) { return o.no === r.wonOffer; })[0]);
+    all.filter(function (o) {
+      return o.inqNo === r.inqNo && (o.st === 'won' || o.status === 'won');
+    }).forEach(add);
+    all.filter(function (o) {
+      return o.inqNo === r.inqNo && ((o.altOf && seen[o.altOf]) || (o.srcToNo && seen[o.srcToNo]));
+    }).forEach(add);
+    return out;
+  };
   function sfDocsOf(r) {
     var out = { offers: [], letters: [], invoices: [], misc: r.docs || [], supply: [] };
-    var offers = getData('ptf_crm_offers').filter(function (o) { return o.inqNo === r.inqNo; });
+    var offers = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers(r) : getData('ptf_crm_offers').filter(function (o) { return o.inqNo === r.inqNo; });
     out.offers = offers; // نمایش زنده = همیشه آخرین رویژن (o.rev)
     out.letters = getData('ptf_crm_letters').filter(function (l) {
       return l.prjNo === 'SF:' + r.inqNo || l.inqNo === r.inqNo;

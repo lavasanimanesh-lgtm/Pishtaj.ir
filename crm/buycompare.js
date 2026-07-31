@@ -613,14 +613,17 @@
 
   /* وضعیت خرید واقعی یک درخواست: {total, done, pendingFx} — مصرف: پرونده فروش */
   window.ptfRealBuyStatus = function (inqNo) {
-    var c = cmpAll().filter(function (x) { return x.inqNo === inqNo; })[0];
-    if (!c) return { total: 0, done: 0, pendingFx: 0, has: false };
-    var done = 0, pendingFx = 0;
-    (c.items || []).forEach(function (it, idx) {
-      var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
-      if (pu) { done++; if (pu.cur && pu.cur !== 'IRR' && !(+pu.rate > 0)) pendingFx++; }
+    var records = cmpAll().filter(function (x) { return x.inqNo === inqNo; });
+    if (!records.length) return { total: 0, done: 0, pendingFx: 0, has: false };
+    var total = 0, done = 0, pendingFx = 0;
+    records.forEach(function (c) {
+      total += (c.items || []).length;
+      (c.items || []).forEach(function (it, idx) {
+        var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
+        if (pu) { done++; if (pu.cur && pu.cur !== 'IRR' && !(+pu.rate > 0)) pendingFx++; }
+      });
     });
-    return { total: (c.items || []).length, done: done, pendingFx: pendingFx, has: true };
+    return { total: total, done: done, pendingFx: pendingFx, has: true };
   };
 
   /* hook روی renderDeals: بخش خرید واقعی در کشوی پرونده‌های دارای CO برنده */

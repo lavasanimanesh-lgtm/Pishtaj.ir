@@ -107,8 +107,8 @@
     if (!d) return { total: 0, used: 0, remain: 0, ratio: 0 };
     var total = 0;
     try {
-      var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === d.wonOffer; })[0];
-      total = (wo && wo.items && wo.items.length) ? wo.items.length : 0;
+      var offerList = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers(d) : getData('ptf_crm_offers').filter(function (o) { return o.no === d.wonOffer; });
+      total = offerList.reduce(function (sum, o) { return sum + ((o.items || []).length); }, 0);
     } catch (e) {}
     var used = Object.keys(docxUsedRefs(d, typeId, null)).length;
     return { total: total, used: used, remain: Math.max(0, total - used), ratio: total ? Math.round(used * 100 / total) : 0 };
@@ -117,14 +117,16 @@
   function docxOfferRowsForType(d, typeId, ignoreCd) {
     var out = [];
     try {
-      var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === d.wonOffer; })[0];
+      var offerList = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers(d) : getData('ptf_crm_offers').filter(function (o) { return o.no === d.wonOffer; });
       var used = docxUsedRefs(d, typeId, ignoreCd);
-      if (!wo) return out;
-      (wo.items || []).forEach(function (it, idx) {
-        if (used[idx]) return;
-        if (typeId === 'IN') out.push({ ref: idx, row: [it.name || it.desc || '', it.model || '', it.brand || '', it.qty || '', it.unit || 'NO', ''] });
-        else if (typeId === 'PL') out.push({ ref: idx, row: [it.name || it.desc || '', it.model || '', it.brand || '', it.qty || '', it.unit || 'NO', '', '', '', '', ''] });
-        else out.push({ ref: idx, row: [it.name || it.desc || '', it.qty || '', it.unit || ''] });
+      offerList.forEach(function (wo) {
+        (wo.items || []).forEach(function (it, idx) {
+          var ref = wo.no === d.wonOffer ? idx : wo.no + ':' + idx;
+          if (used[ref]) return;
+          if (typeId === 'IN') out.push({ ref: ref, row: [it.name || it.desc || '', it.model || '', it.brand || '', it.qty || '', it.unit || 'NO', ''] });
+          else if (typeId === 'PL') out.push({ ref: ref, row: [it.name || it.desc || '', it.model || '', it.brand || '', it.qty || '', it.unit || 'NO', '', '', '', '', ''] });
+          else out.push({ ref: ref, row: [it.name || it.desc || '', it.qty || '', it.unit || 'NO'] });
+        });
       });
     } catch (e) {}
     return out;
