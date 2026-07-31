@@ -639,7 +639,7 @@
         var deal = getData('ptf_crm_deals').filter(function (x) { return x.cd === window._sfOpen; })[0];
         if (!deal || !deal.inqNo || !deal.wonOffer) return; /* فقط پرونده‌های برنده */
         var host = wrap.querySelector('[id="sfUp_' + deal.cd + '"]');
-        if (!host || document.getElementById('rbBox_' + deal.cd)) return;
+        if (!host || document.getElementById('rbBox_' + deal.cd) || document.getElementById('sfRealBuyBtn_' + deal.cd)) return;
         var st = ptfRealBuyStatus(deal.inqNo);
         var adv = ''; try { var wo = getData('ptf_crm_offers').filter(function(o){return o.no===deal.wonOffer;})[0]; if (wo && typeof ptfAdvanceLabel === 'function') adv = ' | پیش‌پرداخت: ' + ptfAdvanceLabel(wo); } catch(eAdv) {}
         var costs = (deal.costEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0);

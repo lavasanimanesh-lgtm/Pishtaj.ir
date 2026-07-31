@@ -674,6 +674,7 @@
     } catch (eCov) {}
     h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود (US-434)</div>' : '') +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:' + (r.wonOffer ? '6' : '10') + 'px" onclick="event.stopPropagation()">' +
+      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + escP(r.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' : '') +
       '<span id="sfUp_' + escP(r.cd) + '" style="flex:1;min-width:180px"></span>' +
       /* v14.8 (US-351): ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
       '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + escP(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
