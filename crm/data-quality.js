@@ -74,7 +74,12 @@
           [d.wonOffer, d.offerNo].filter(Boolean).forEach(function (no) { salesFileOffers[String(no)] = true; });
           if ((d.wonOffer || d.offerNo) && d.inqNo) salesFileInqs[String(d.inqNo)] = true;
         });
-        ptfProcurementLinkAuditAll().forEach(function (x) {
+        var auditedOffers = ptfProcurementLinkAuditAll();
+        auditedOffers.forEach(function (x) {
+          var directOffer = x.offer || {};
+          if (salesFileOffers[String(directOffer.no || '')] && directOffer.inqNo) salesFileInqs[String(directOffer.inqNo)] = true;
+        });
+        auditedOffers.forEach(function (x) {
           if (!(x.issues || []).length) return;
           var offer = x.offer || {};
           var isDirectSalesOffer = !!salesFileOffers[String(offer.no || '')];
