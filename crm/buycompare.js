@@ -527,21 +527,31 @@
   function cmpSplitSuppliers() {
     return getData('ptf_crm_suppliers').map(function (s) { return s.co || s.name || s.cd; }).filter(Boolean);
   }
-  function cmpSplitMoney(v) { return (+v || 0).toLocaleString('fa-IR') + ' ریال'; }
+  function cmpSplitMoney(v) { return (+v || 0).toLocaleString('en-US') + ' ریال'; }
+  function cmpSplitNumber(v) { return String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/,/g, ''); }
+  window.cmpSplitNumber = cmpSplitNumber;
+  function cmpSplitUpdateSummary() {
+    var st = window._cmpSplitState; if (!st) return;
+    var item = st.c.items[st.idx] || {};
+    var qty = st.rows.reduce(function (s, r) { return s + (+r.qty || 0); }, 0);
+    var total = st.rows.reduce(function (s, r) { return s + ((+r.qty || 0) * (+r.price || 0)); }, 0);
+    var sum = document.getElementById('cmpSplitSummary');
+    if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | مجموع خرید: <b>' + cmpSplitMoney(total) + '</b>';
+  }
   window.cmpSplitRender = function () {
     var st = window._cmpSplitState; if (!st) return;
     var item = st.c.items[st.idx] || {}, sups = cmpSplitSuppliers();
     var rows = st.rows.map(function (r, ri) {
       var opts = '<option value="">— تامین‌کننده —</option>' + sups.map(function (s) { return '<option value="' + escP(s) + '"' + (r.sup === s ? ' selected' : '') + '>' + escP(s) + '</option>'; }).join('');
       var total = (+r.qty || 0) * (+r.price || 0);
-      return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin:6px 0"><div style="display:grid;grid-template-columns:1.4fr .7fr 1fr auto;gap:6px;align-items:end"><label class="fld" style="margin:0"><span>تامین‌کننده</span><select onchange="cmpSplitField(' + ri + ',\'sup\',this.value)">' + opts + '</select></label><label class="fld" style="margin:0"><span>مقدار</span><input type="number" min="0" step="any" value="' + escP(r.qty) + '" oninput="cmpSplitField(' + ri + ',\'qty\',this.value)"></label><label class="fld" style="margin:0"><span>قیمت واحد (ریال)</span><input type="number" min="0" step="any" value="' + escP(r.price) + '" oninput="cmpSplitField(' + ri + ',\'price\',this.value)"></label><button type="button" class="bt bt-o" style="padding:5px 8px;color:#dc2626" onclick="cmpSplitRemove(' + ri + ')">✕</button></div><div style="font-size:11.5px;color:#0e7490;margin-top:6px">مبلغ این lot: <b>' + cmpSplitMoney(total) + '</b></div></div>';
+      return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin:6px 0"><div style="display:grid;grid-template-columns:1.4fr .7fr 1fr auto;gap:6px;align-items:end"><label class="fld" style="margin:0"><span>تامین‌کننده</span><select onchange="cmpSplitField(' + ri + ',\'sup\',this.value)">' + opts + '</select></label><label class="fld" style="margin:0"><span>مقدار</span><input type="text" inputmode="decimal" value="' + escP(r.qty) + '" oninput="cmpSplitField(' + ri + ',\'qty\',this.value)" onblur="this.value=cmpSplitNumber(this.value)"></label><label class="fld" style="margin:0"><span>قیمت واحد (ریال)</span><input type="text" inputmode="decimal" value="' + escP(r.price) + '" oninput="cmpSplitField(' + ri + ',\'price\',this.value)" onblur="this.value=Number(cmpSplitNumber(this.value)||0).toLocaleString(\"en-US\")"></label><button type="button" class="bt bt-o" style="padding:5px 8px;color:#dc2626" onclick="cmpSplitRemove(' + ri + ')">✕</button></div><div style="font-size:11.5px;color:#0e7490;margin-top:6px">مبلغ این lot: <b>' + cmpSplitMoney(total) + '</b></div></div>';
     }).join('');
     var qty = st.rows.reduce(function (s, r) { return s + (+r.qty || 0); }, 0);
     var total = st.rows.reduce(function (s, r) { return s + ((+r.qty || 0) * (+r.price || 0)); }, 0);
     var el = document.getElementById('cmpSplitRows'); if (el) el.innerHTML = rows;
     var sum = document.getElementById('cmpSplitSummary'); if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | مجموع خرید: <b>' + cmpSplitMoney(total) + '</b>';
   };
-  window.cmpSplitField = function (ri, key, value) { if (window._cmpSplitState && window._cmpSplitState.rows[ri]) { window._cmpSplitState.rows[ri][key] = key === 'sup' ? value : (+value || 0); cmpSplitRender(); } };
+  window.cmpSplitField = function (ri, key, value) { if (window._cmpSplitState && window._cmpSplitState.rows[ri]) { window._cmpSplitState.rows[ri][key] = key === 'sup' ? value : (+cmpSplitNumber(value) || 0); cmpSplitUpdateSummary(); } };
   window.cmpSplitAdd = function () { if (window._cmpSplitState) { window._cmpSplitState.rows.push({ sup: '', qty: 0, price: 0 }); cmpSplitRender(); } };
   window.cmpSplitRemove = function (ri) { if (window._cmpSplitState && window._cmpSplitState.rows.length > 1) { window._cmpSplitState.rows.splice(ri, 1); cmpSplitRender(); } };
   window.cmpSplitOpen = function (id, idx) {
