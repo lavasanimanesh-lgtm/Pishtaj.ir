@@ -96,7 +96,7 @@
     });
   };
   window.ptfPurchaseQtyForItem = function (cmp, idx) {
-    return window.ptfPurchaseLotsForItem(cmp, idx).reduce(function (sum, lot) { return sum + (+lot.qty || 0); }, 0);
+    return window.ptfPurchaseLotsForItem(cmp, idx).reduce(function (sum, lot) { return sum + (lot.availableQty != null ? (+lot.availableQty || 0) : (+lot.qty || 0)); }, 0);
   };
 
   /* ---------- فهرست درخواست‌های دارای اقلام ---------- */
@@ -541,7 +541,7 @@
       var qty = +v.qty || 0; if (qty <= 0 || qty > available || !String(v.reason || '').trim()) { alert('مقدار معتبر و دلیل برگشت الزامی است.'); return; }
       p.returnedQty = returned + qty; p.returnReason = String(v.reason).trim(); p.returnedAt = faDateTime(); p.returnedBy = curSession().name; p.status = p.returnedQty >= purchased ? 'returned_to_supplier' : 'partially_returned';
       cmpSave(cmpAll()); try { audit('خرید واقعی', 'ثبت برگشت ' + qty + ' از قلم ' + (item.nm || '') + ' به تأمین‌کننده — بدون اثر مالی خودکار', p.cd); } catch (e) {}
-      var dlg = document.querySelector('.md-b'); if (dlg) dlg.remove(); cmpPurchaseDispositionOpen(id, idx);
+      var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); if (typeof ptfToast === 'function') ptfToast('برگشت عملیاتی ثبت شد؛ اثر مالی هنوز ایجاد نشده است.', 'ok'); cmpPurchaseDispositionOpen(id, idx);
     } });
   };
   window.cmpPurchaseDispositionOpen = function (id, idx) {
