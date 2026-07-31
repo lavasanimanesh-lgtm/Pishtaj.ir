@@ -91,7 +91,8 @@
         invoiceCd: p.supplierInvoiceCd || p.invoiceCd || '',
         status: p.status || 'purchased',
         returnedQty: +p.returnedQty || 0,
-        availableQty: Math.max(0, (p.qty != null ? (+p.qty || 0) : (purchases.length === 1 ? (+item.qty || 1) : 1)) - (+p.returnedQty || 0))
+        stockedQty: +p.stockedQty || 0,
+        availableQty: Math.max(0, (p.qty != null ? (+p.qty || 0) : (purchases.length === 1 ? (+item.qty || 1) : 1)) - (+p.returnedQty || 0) - (+p.stockedQty || 0))
       };
     });
   };
@@ -531,6 +532,26 @@
     cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined);
   };
 
+  window.cmpPurchaseStockOpen = function (id, idx, purchaseCd) {
+    var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var item = c.items[idx] || {}, p = (c.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
+    if (!p) return;
+    var purchased = p.qty != null ? (+p.qty || 0) : (+item.qty || 1), available = Math.max(0, purchased - (+p.returnedQty || 0) - (+p.stockedQty || 0));
+    if (!available) { alert('مقدار قابل انتقال به انبار صفر است.'); return; }
+    var products = getData('ptf_crm_products') || [], options = '<option value="">— انتخاب کالا —</option>' + products.map(function (x) { return '<option value="' + escP(x.cd) + '"' + (x.cd === (item.pcode || item.prodCd) ? ' selected' : '') + '>' + escP(x.nm || x.cd) + ' — ' + escP(x.cd) + '</option>'; }).join('');
+    ptfDialog({ title: '📦 انتقال خرید به موجودی — ' + (item.nm || ''), body: 'این مرحله فقط موجودی عملیاتی را ثبت می‌کند و بدهی تأمین‌کننده یا فاکتور را تغییر نمی‌دهد.', fields: [{ id: 'prodCd', label: 'کالا *', type: 'select', optionsHtml: options, required: true }, { id: 'qty', label: 'مقدار انتقالی (حداکثر ' + available + ')', type: 'number', value: available, required: true }, { id: 'location', label: 'محل نگهداری', value: 'انبار', required: true }, { id: 'note', label: 'یادداشت', type: 'textarea', value: 'انتقال از پرونده ' + (c.inqNo || '') }], okText: 'ثبت انتقال به انبار', onOk: function (v) {
+      var qty = +v.qty || 0; if (!v.prodCd || qty <= 0 || qty > available) { alert('کالا و مقدار معتبر الزامی است.'); return; }
+      if (typeof ptfSurplusAdd !== 'function') { alert('ماژول موجودی انبار در دسترس نیست.'); return; }
+      var stock = ptfSurplusAdd(v.prodCd, qty, v.location || 'انبار', c.inqNo || '', v.note || 'انتقال خرید به موجودی');
+      if (!stock) { alert('ثبت موجودی انجام نشد.'); return; }
+      var stored = getData('ptf_crm_buycmp'), storedCmp = stored.filter(function (x) { return x.id === id; })[0], storedP = storedCmp && (storedCmp.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
+      if (!storedP) return;
+      storedP.stockedQty = (+storedP.stockedQty || 0) + qty; storedP.stockedAt = faDateTime(); storedP.stockedBy = curSession().name;
+      var totalDisposition = (+storedP.returnedQty || 0) + (+storedP.stockedQty || 0); storedP.status = totalDisposition >= purchased ? ((+storedP.returnedQty || 0) >= purchased ? 'returned_to_supplier' : 'transferred_to_stock') : 'partially_disposed';
+      setData('ptf_crm_buycmp', stored); try { audit('موجودی انبار', 'انتقال ' + qty + ' از قلم ' + (item.nm || '') + ' به موجودی — بدون اثر مالی', purchaseCd); } catch (e) {}
+      var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); cmpPurchaseDispositionOpen(id, idx);
+    } });
+  };
   window.cmpPurchaseReturnOpen = function (id, idx, purchaseCd) {
     var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
     var item = c.items[idx] || {}, p = (c.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
@@ -557,9 +578,10 @@
     var item = c.items[idx] || {}, lots = ptfPurchaseLotsForItem(c, idx);
     if (!lots.length) { alert('برای این قلم خرید ثبت نشده است.'); return; }
     var rows = lots.map(function (lot) {
-      var statusLabel = lot.status === 'returned_to_supplier' ? 'برگشت کامل' : lot.status === 'partially_returned' ? 'برگشت جزئی' : 'خرید ثبت‌شده';
-      var returnButton = lot.status === 'returned_to_supplier' ? '<span style="color:#64748b">برگشت کامل</span>' : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#b45309" onclick="cmpPurchaseReturnOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">↩️ برگشت کامل/جزئی</button>';
-      return '<tr><td>' + escP(lot.supplier || '-') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td><td>' + fmtP(lot.price) + ' ریال</td><td>' + statusLabel + '</td><td>' + lot.availableQty + ' ' + escP(item.un || '') + '</td><td>' + returnButton + '</td></tr>';
+      var statusLabel = lot.status === 'returned_to_supplier' ? 'برگشت کامل' : lot.status === 'partially_returned' ? 'برگشت جزئی' : lot.status === 'transferred_to_stock' ? 'انتقال کامل به انبار' : lot.status === 'partially_disposed' ? 'تعیین‌تکلیف جزئی' : 'خرید ثبت‌شده';
+      var returnButton = lot.status === 'returned_to_supplier' || lot.availableQty <= 0 ? '<span style="color:#64748b">—</span>' : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#b45309" onclick="cmpPurchaseReturnOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">↩️ برگشت کامل/جزئی</button>';
+      var stockButton = lot.availableQty > 0 ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#047857;margin-top:3px" onclick="cmpPurchaseStockOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">📦 انتقال انبار</button>' : '';
+      return '<tr><td>' + escP(lot.supplier || '-') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td><td>' + fmtP(lot.price) + ' ریال</td><td>' + statusLabel + '</td><td>' + lot.availableQty + ' ' + escP(item.un || '') + '</td><td>' + returnButton + '<br>' + stockButton + '</td></tr>';
     }).join('');
     var purchased = lots.reduce(function (s, lot) { return s + (+lot.availableQty || 0); }, 0);
     var html = '<div class="md-b" id="cmpDispositionDlg" style="display:grid;z-index:3200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:90vh;overflow:auto"><h3>📦 تعیین‌تکلیف خرید — ' + escP(item.nm || '') + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 11px;font-size:12px;line-height:1.9">این مرحله فقط پیش‌نمایش است و هیچ بدهی تأمین‌کننده، فاکتور، موجودی یا سند مالی را تغییر نمی‌دهد.</div><div style="margin:10px 0;font-size:13px">مقدار موردنیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | مقدار خریدشده: <b>' + purchased + ' ' + escP(item.un || '') + '</b> | قابل تعیین‌تکلیف: <b>' + purchased + ' ' + escP(item.un || '') + '</b></div><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>مقدار</th><th>قیمت واحد</th><th>وضعیت</th><th>قابل تعیین‌تکلیف</th><th>عملیات</th></tr></thead><tbody>' + rows + '</tbody></table></div><div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
