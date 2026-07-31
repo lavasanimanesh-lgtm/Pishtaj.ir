@@ -546,8 +546,14 @@
   window.slInvoiceLinkLegacy = function (invoiceCd) {
     var d = data(), inv = (d.invoices || []).filter(function (x) { return x.cd === invoiceCd; })[0];
     if (!inv) return;
+    var supplierRecord = getData('ptf_crm_suppliers').filter(function (s) { return s.cd === inv.supplierCd; })[0] || {};
+    var normSupplier = function (v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); };
+    var supplierNames = [inv.supName, supplierRecord.co, supplierRecord.name].filter(Boolean).map(normSupplier);
+    var linkedToThisInvoice = {};
+    (inv.legacyPayableCds || []).forEach(function (cd) { linkedToThisInvoice[cd] = true; });
     var pays = getData('ptf_crm_payables').filter(function (p) {
-      return p.sup && inv.supName && String(p.sup).trim() === String(inv.supName).trim() && (p.pay === 'credit' || p.sfInvoiceCd === invoiceCd);
+      var sameSupplier = (inv.supplierCd && p.supplierCd && inv.supplierCd === p.supplierCd) || supplierNames.indexOf(normSupplier(p.sup || p.supName)) > -1;
+      return linkedToThisInvoice[p.cd] || (sameSupplier && (p.pay === 'credit' || p.sfInvoiceCd === invoiceCd));
     });
     if (!pays.length) { alert('تعهد خرید مرتبطی برای این تأمین‌کننده پیدا نشد.'); return; }
     var checked = {};
