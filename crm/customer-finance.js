@@ -72,8 +72,23 @@
     }
     var totalAmount = selected.reduce(function (sum, x) { var it = (offer.items || [])[x.idx] || {}; return sum + ((+inv.amount || 0) * (((+it.qty || 0) * (+it.price || 0)) / gross) * x.qty / (+it.qty || 1)); }, 0);
     var returns = getData('ptf_crm_sales_returns') || [];
-    returns.unshift({ cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name });
+    var deal = getData('ptf_crm_deals').filter(function (d) { return d.wonOffer === (offer.no || inv.offerNo); })[0] || {};
+    var returnRecord = { cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: deal.cd || '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', productCd: it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name };
+    returns.unshift(returnRecord);
     setData('ptf_crm_sales_returns', returns);
+    if (disposition === 'stock') {
+      var stockRefs = [], stockPending = [];
+      returnRecord.items.forEach(function (item) {
+        if (item.productCd && typeof ptfSurplusAdd === 'function') {
+          var stock = ptfSurplusAdd(item.productCd, item.qty, 'انبار', returnRecord.dealCd || returnRecord.offerNo, 'ورود از مرجوعی فروش ' + returnRecord.cd + ' — ' + item.item);
+          if (stock) stockRefs.push(stock.cd); else stockPending.push(item.item);
+        } else stockPending.push(item.item);
+      });
+      returnRecord.stockRefs = stockRefs;
+      returnRecord.stockStatus = stockPending.length ? 'pending_product_definition' : 'stocked';
+      returnRecord.stockPendingItems = stockPending;
+      setData('ptf_crm_sales_returns', returns);
+    }
     try { audit('مرجوعی فروش', 'ثبت مرجوعی فاکتور ' + (inv.no || invoiceCd) + ' — ' + Math.round(totalAmount).toLocaleString('fa-IR') + ' ریال', invoiceCd); } catch (e) {}
     var dlg = document.getElementById('cfReturnDlg'); if (dlg) dlg.remove();
     var accountDlg = document.getElementById('cfAccountDlg'); if (accountDlg) accountDlg.remove();
