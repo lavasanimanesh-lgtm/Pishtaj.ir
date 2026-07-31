@@ -69,14 +69,18 @@
       try {
         var supplierDataForProc = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
         var allPayablesForProc = arr('ptf_crm_payables');
-        var salesFileOffers = {};
+        var salesFileOffers = {}, salesFileInqs = {};
         arr('ptf_crm_deals').concat(arr('ptf_crm_projects')).forEach(function (d) {
           [d.wonOffer, d.offerNo].filter(Boolean).forEach(function (no) { salesFileOffers[String(no)] = true; });
+          if ((d.wonOffer || d.offerNo) && d.inqNo) salesFileInqs[String(d.inqNo)] = true;
         });
         ptfProcurementLinkAuditAll().forEach(function (x) {
           if (!(x.issues || []).length) return;
           var offer = x.offer || {};
-          if (!salesFileOffers[String(offer.no || '')]) return;
+          var isDirectSalesOffer = !!salesFileOffers[String(offer.no || '')];
+          var isAddendumOfSalesOffer = !!(offer.altOf && salesFileOffers[String(offer.altOf)]) || !!(offer.srcToNo && salesFileOffers[String(offer.srcToNo)]);
+          var isWonOfferForSalesFile = !!(offer.inqNo && salesFileInqs[String(offer.inqNo)] && (offer.st === 'won' || offer.status === 'won'));
+          if (!isDirectSalesOffer && !isAddendumOfSalesOffer && !isWonOfferForSalesFile) return;
           var aliases = [offer.inqNo, offer.no].filter(Boolean);
           var payableIds = {};
           allPayablesForProc.forEach(function (p) { if (aliases.indexOf(p.inqNo) > -1 && p.cd) payableIds[p.cd] = true; });
