@@ -558,7 +558,7 @@
     var sum = document.getElementById('cmpSplitSummary'); if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | مجموع خرید: <b>' + cmpSplitMoney(total) + '</b>';
   };
   window.cmpSplitField = function (ri, key, value) { if (window._cmpSplitState && window._cmpSplitState.rows[ri]) { window._cmpSplitState.rows[ri][key] = (key === 'sup' || key === 'cur') ? value : (+cmpSplitNumber(value) || 0); cmpSplitUpdateSummary(); } };
-  window.cmpSplitAdd = function () { if (window._cmpSplitState) { window._cmpSplitState.rows.push({ sup: '', qty: 0, price: 0 }); cmpSplitRender(); } };
+  window.cmpSplitAdd = function () { if (window._cmpSplitState) { window._cmpSplitState.rows.push({ sup: '', qty: 0, price: 0, cur: 'IRR', rate: 0 }); cmpSplitRender(); } };
   window.cmpSplitRemove = function (ri) { if (window._cmpSplitState && window._cmpSplitState.rows.length > 1) { window._cmpSplitState.rows.splice(ri, 1); cmpSplitRender(); } };
   window.cmpSplitOpen = function (id, idx) {
     var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
