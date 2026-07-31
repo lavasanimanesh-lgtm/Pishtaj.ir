@@ -21,7 +21,9 @@
   function paid(i) {
     return (i.payments || []).concat(i.pays || []).filter(active).reduce(function (s, p) { return s + (+p.amt || +p.amount || 0); }, 0);
   }
-  function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i)); }, 0); }
+  function salesReturnsForInvoice(invoiceCd) { return getData('ptf_crm_sales_returns').filter(function (r) { return r.invoiceCd === invoiceCd && r.status !== 'void'; }); }
+  function returnedAmount(invoiceCd) { return salesReturnsForInvoice(invoiceCd).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0); }
+  function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i.cd)); }, 0); }
   function norm(v) { return String(v || '').trim().toLowerCase(); }
 
   /* Useful to UI and deterministic tests; it never writes to localStorage. */
@@ -43,16 +45,31 @@
     var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === invoiceCd; })[0];
     if (!inv) return;
     var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}, items = offer.items || [];
+    var priorReturns = salesReturnsForInvoice(inv.cd);
+    function priorQty(idx) { return priorReturns.reduce(function (sum, r) { return sum + (r.items || []).filter(function (x) { return +x.idx === +idx; }).reduce(function (s, x) { return s + (+x.qty || 0); }, 0); }, 0); }
     if (!items.length) { alert('برای این فاکتور خطوط کالا پیدا نشد.'); return; }
-    var rows = items.map(function (it, idx) { return '<label style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px dashed #e2e8f0"><input type="checkbox" class="cfReturnLine" value="' + idx + '"><span style="flex:1"><b>' + escP(it.name || it.nm || it.desc || 'قلم ' + (idx + 1)) + '</b><small style="display:block;color:#64748b">مقدار فاکتور: ' + (+it.qty || 1) + ' ' + escP(it.unit || it.un || '') + '</small></span><input class="cfReturnQty" data-idx="' + idx + '" type="number" min="0" max="' + (+it.qty || 1) + '" value="' + (+it.qty || 1) + '" style="width:90px;direction:ltr"></label>'; }).join('');
-    var html = '<div class="md-b" id="cfReturnDlg" style="display:grid;z-index:3200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:90vh;overflow:auto"><h3>↩️ پیش‌نمایش مرجوعی فاکتور ' + escP(inv.no || inv.cd) + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 11px;font-size:12px;margin-bottom:9px">در این مرحله فقط خطوط قابل انتخاب و مقدار پیشنهادی نمایش داده می‌شود؛ هیچ سند یا مبلغی ذخیره نمی‌شود.</div><div>' + rows + '</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button><button class="bt" onclick="cfSalesReturnPreviewSelected(\'' + escP(invoiceCd) + '\')">ادامهٔ پیش‌نمایش</button></div></div></div>';
+    var rows = items.map(function (it, idx) { var totalQty=+it.qty||1, available=Math.max(0,totalQty-priorQty(idx)); return '<label style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px dashed #e2e8f0;opacity:' + (available ? '1' : '.55') + '"><input type="checkbox" class="cfReturnLine" value="' + idx + '"' + (available ? '' : ' disabled') + '><span style="flex:1"><b>' + escP(it.name || it.nm || it.desc || 'قلم ' + (idx + 1)) + '</b><small style="display:block;color:#64748b">فاکتور: ' + totalQty + ' ' + escP(it.unit || it.un || '') + ' | قابل مرجوعی: ' + available + '</small></span><input class="cfReturnQty" data-idx="' + idx + '" type="number" min="0" max="' + available + '" value="' + (available || 0) + '"' + (available ? '' : ' disabled') + ' style="width:90px;direction:ltr"></label>'; }).join('');
+    var html = '<div class="md-b" id="cfReturnDlg" style="display:grid;z-index:3200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:90vh;overflow:auto"><h3>↩️ پیش‌نمایش مرجوعی فاکتور ' + escP(inv.no || inv.cd) + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 11px;font-size:12px;margin-bottom:9px">در این مرحله فقط خطوط قابل انتخاب و مقدار پیشنهادی نمایش داده می‌شود؛ هیچ سند یا مبلغی ذخیره نمی‌شود.</div><div>' + rows + '</div><div class="fr" style="margin-top:10px"><div class="fld"><label>دلیل مرجوعی *</label><select id="cfReturnReason"><option value="">— انتخاب کنید —</option><option>عدم تأیید مشتری</option><option>عدم نیاز مشتری</option><option>مغایرت فنی/کیفی</option><option>مقدار اضافی یا اشتباه</option><option>لغو یا تغییر پروژه</option><option>درخواست مشتری</option><option>سایر</option></select></div><div class="fld"><label>سرنوشت کالا</label><select id="cfReturnDisposition"><option value="stock">ورود به موجودی</option><option value="supplier">برگشت به تأمین‌کننده</option><option value="quarantine">قرنطینه/بازرسی</option><option value="scrap">ضایعات</option></select></div></div><div class="fld"><label>توضیح تکمیلی</label><textarea id="cfReturnNote" rows="2"></textarea></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button><button class="bt" onclick="cfSalesReturnPreviewSelected(\'' + escP(invoiceCd) + '\')">ثبت مرجوعی</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.cfSalesReturnPreviewSelected = function (invoiceCd) {
     var selected = [];
     document.querySelectorAll('#cfReturnDlg .cfReturnLine:checked').forEach(function (el) { var q = document.querySelector('#cfReturnDlg .cfReturnQty[data-idx="' + el.value + '"]'); selected.push({ idx: +el.value, qty: +(q && q.value) || 0 }); });
-    if (!selected.length || selected.some(function (x) { return x.qty <= 0; })) { alert('حداقل یک قلم و مقدار معتبر برای آن الزامی است.'); return; }
-    if (typeof ptfToast === 'function') ptfToast(selected.length + ' قلم برای مرجوعی انتخاب شد — ذخیره‌ای انجام نشد.', 'info');
+    var reason = ((document.getElementById('cfReturnReason') || {}).value || '').trim();
+    var disposition = ((document.getElementById('cfReturnDisposition') || {}).value || 'stock');
+    var note = ((document.getElementById('cfReturnNote') || {}).value || '').trim();
+    if (!selected.length || selected.some(function (x) { return x.qty <= 0; }) || !reason) { alert('حداقل یک قلم، مقدار معتبر و دلیل مرجوعی الزامی است.'); return; }
+    var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === invoiceCd; })[0] || {};
+    var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {};
+    var gross = (offer.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) || 1;
+    var totalAmount = selected.reduce(function (sum, x) { var it = (offer.items || [])[x.idx] || {}; return sum + ((+inv.amount || 0) * (((+it.qty || 0) * (+it.price || 0)) / gross) * x.qty / (+it.qty || 1)); }, 0);
+    var returns = getData('ptf_crm_sales_returns') || [];
+    returns.unshift({ cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name });
+    setData('ptf_crm_sales_returns', returns);
+    try { audit('مرجوعی فروش', 'ثبت مرجوعی فاکتور ' + (inv.no || invoiceCd) + ' — ' + Math.round(totalAmount).toLocaleString('fa-IR') + ' ریال', invoiceCd); } catch (e) {}
+    var dlg = document.getElementById('cfReturnDlg'); if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast('مرجوعی ثبت شد؛ مطالبات مشتری به‌روزرسانی شد.', 'ok');
+    var offerCustomer = offer.buyerCd; if (offerCustomer) cfOpen(offerCustomer);
   };
   window.cfOpen = function (cd) {
     var c = cust(cd); if (!c) return;
