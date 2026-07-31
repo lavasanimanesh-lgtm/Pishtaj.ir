@@ -544,6 +544,17 @@
     rqsQuotes.forEach(function (rq) {
       opts += '<option value="' + escP(rq.sup) + '" data-price="' + rq.price + '" data-cur="' + escP(rq.cur) + '">' + escP(rq.sup) + ' — ' + rq.price.toLocaleString('en-US') + ' ' + escP(rq.cur) + ' (استعلام ' + escP(rq.src) + ')</option>';
     });
+    if (realbuy) {
+      var existingSupNames = {};
+      Object.keys(last).forEach(function (s) { existingSupNames[String(s)] = true; });
+      rqsQuotes.forEach(function (rq) { existingSupNames[String(rq.sup)] = true; });
+      getData('ptf_crm_suppliers').forEach(function (s) {
+        var supName = String(s.co || s.name || '').trim();
+        if (!supName || existingSupNames[supName]) return;
+        existingSupNames[supName] = true;
+        opts += '<option value="' + escP(supName) + '" data-cur="IRR">' + escP(supName) + ' — تامین‌کننده ثبت‌شده</option>';
+      });
+    }
     opts += '<option value="__manual__">✍️ ورود دستی (تامین‌کننده/قیمت دلخواه)</option>';
     /* v17.2 (US-412): پیشنهاد نرخ زنده برای تسعیر (فقط راهنما — تصمیم با کاربر) */
     var fxHint = '';
