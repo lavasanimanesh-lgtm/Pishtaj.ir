@@ -78,6 +78,23 @@
   function cmpSave(l) { setData('ptf_crm_buycmp', l); }
   function canBuy() { return !!roleDef().buyPrice; }
   function fmtP(v) { return (+v || 0).toLocaleString('fa-IR'); }
+  window.ptfPurchaseLotsForItem = function (cmp, idx) {
+    var item = (cmp && cmp.items || [])[idx] || {}, purchases = (cmp && cmp.purchases || []).filter(function (p) { return +p.idx === +idx; });
+    return purchases.map(function (p) {
+      return {
+        cd: p.cd || '',
+        qty: p.qty != null ? (+p.qty || 0) : (purchases.length === 1 ? (+item.qty || 1) : 1),
+        supplier: p.sup || '',
+        price: +p.price || 0,
+        currency: p.cur || 'IRR',
+        invoiceCd: p.supplierInvoiceCd || p.invoiceCd || '',
+        status: p.status || 'purchased'
+      };
+    });
+  };
+  window.ptfPurchaseQtyForItem = function (cmp, idx) {
+    return window.ptfPurchaseLotsForItem(cmp, idx).reduce(function (sum, lot) { return sum + (+lot.qty || 0); }, 0);
+  };
 
   /* ---------- فهرست درخواست‌های دارای اقلام ---------- */
   function inqChoices() {
@@ -688,10 +705,16 @@
     if (!records.length) return { total: 0, done: 0, pendingFx: 0, has: false };
     var total = 0, done = 0, pendingFx = 0;
     records.forEach(function (c) {
-      total += (c.items || []).length;
       (c.items || []).forEach(function (it, idx) {
-        var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
-        if (pu) { done++; if (pu.cur && pu.cur !== 'IRR' && !(+pu.rate > 0)) pendingFx++; }
+        total += (+it.qty || 1);
+        var lots = window.ptfPurchaseLotsForItem(c, idx);
+        done += lots.reduce(function (sum, lot) { return sum + (+lot.qty || 0); }, 0);
+        lots.forEach(function (lot) {
+          if (lot.currency && lot.currency !== 'IRR') {
+            var raw = (c.purchases || []).filter(function (p) { return p.cd === lot.cd; })[0] || {};
+            if (!(+raw.rate > 0)) pendingFx++;
+          }
+        });
       });
     });
     return { total: total, done: done, pendingFx: pendingFx, has: true };
