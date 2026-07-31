@@ -577,7 +577,10 @@
     c.purchases = (c.purchases || []).filter(function (p) { return +p.idx !== +st.idx; });
     st.rows.forEach(function (r) { var priceFx = r.cur === 'IRR' ? 0 : +r.price, buyPrice = r.cur === 'IRR' ? +r.price : Math.round(+r.price * (+r.rate || 0)); c.purchases.push({ cd: genCode('PUR'), idx: st.idx, qty: +r.qty, sourceItemKey: item.sourceItemKey || '', sup: String(r.sup).trim(), price: buyPrice, cur: 'IRR', srcCur: r.cur !== 'IRR' ? r.cur : '', priceFx: priceFx, rate: r.cur !== 'IRR' ? (+r.rate || 0) : 0, pay: 'cash', t: faDate(), by: curSession().name, splitLot: true, files: [] }); });
     cmpSave(list); try { audit('قیمت خرید', 'تقسیم خرید قلم ' + (item.nm || '') + ' بین ' + st.rows.length + ' تامین‌کننده', c.inqNo); } catch (e) {}
-    var dlg = document.getElementById('cmpSplitDlg'); if (dlg) dlg.remove(); window._cmpSplitState = null; cmpOpen(c.id, { realbuy: true });
+    var dlg = document.getElementById('cmpSplitDlg'); if (dlg) dlg.remove();
+    var baseDlg = document.getElementById('cmpModal_' + c.id); if (baseDlg) baseDlg.remove();
+    window._cmpSplitState = null;
+    cmpOpen(c.id, { realbuy: true });
   };
 
   /* ---------- انتخاب تامین‌کننده خرید نهایی per آیتم ---------- */
