@@ -322,18 +322,18 @@ def main():
     json.dump(index_meta, open(os.path.join(ROOT, '_tools', 'kc-new-articles.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 
     # sitemap
-    sm_path = os.path.join(ROOT, 'sitemap.xml')
-    sm = open(sm_path, encoding='utf-8').read()
-    added = 0
-    entries = ''
-    for m in index_meta:
-        loc = f'https://pishtaj.ir/knowledge-center/{m["u"]}'
-        if f'<loc>{loc}</loc>' not in sm:
-            entries += f'  <url><loc>{loc}</loc><lastmod>2026-07-04</lastmod></url>\n'
-            added += 1
-    sm = sm.replace('</urlset>', entries + '</urlset>')
-    open(sm_path, 'w', encoding='utf-8').write(sm)
-    print(f'sitemap: +{added}')
+    # توجه (۲۰۲۶-۰۷-۲۷): قبلاً اینجا با string-replace خام روی </urlset>
+    # افزوده می‌شد که به مرور می‌توانست با ساختار XML واقعی روی دیسک
+    # (که یک بار با namespace ns0: تولید شده بود) ناسازگار شود و تگ
+    # priority هم اصلاً درج نمی‌کرد. حالا از سازندهٔ متمرکز sitemap
+    # استفاده می‌شود که کل دیسک را می‌خواند و یک sitemap.xml معتبر و
+    # کامل (namespace پیش‌فرض + priority + حفظ lastmod قبلی) می‌سازد.
+    import subprocess
+    r = subprocess.run(
+        ['python3', os.path.join(ROOT, '_tools', 'build_sitemap.py')],
+        capture_output=True, text=True
+    )
+    print(r.stdout.strip() or r.stderr.strip())
 
 if __name__ == '__main__':
     main()
