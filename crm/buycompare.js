@@ -415,9 +415,7 @@
       c2.purchases = c2.purchases || [];
       var srcItem = (c2.items || [])[idx] || {};
       c2.purchases.push({ cd: pcd, idx: idx, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: sup, price: buyPrice, cur: 'IRR', srcCur: cur !== 'IRR' ? cur : '', priceFx: priceFx, rate: cur !== 'IRR' ? rate : 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '', manual: true, bulk: true, t: faDate(), by: curSession().name, files: [] });
-      if (typeof ptfPayableUpsert === 'function') {
-        ptfPayableUpsert({ inqNo: c2.inqNo, idx: idx, item: (c2.items[idx] || {}).nm || '', sup: sup, amount: buyPrice * (+(c2.items[idx] || {}).qty || 1), cur: 'IRR', rate: 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '' });
-      }
+      /* خرید واقعی فقط operational است؛ تعهد یا فاکتور تأمین‌کننده اینجا ساخته نمی‌شود. */
       total += buyPrice * (+(c2.items[idx] || {}).qty || 1);
       done++;
     });
@@ -616,10 +614,7 @@
         if (typeof ptfRealBuyEnsureStatus === 'function') ptfRealBuyEnsureStatus(c2.inqNo);
         /* v16.6 (US-400): ثبت بستانکاری تامین‌کننده — نقدی = تسویه فوری؛ غیرنقدی = باز تا ثبت پرداخت‌های مرحله‌ای
            v17.2: مبلغ = معادل ریالی قطعی (تسعیرشده) — بدهی ارزی بی‌نرخ دیگر پیش نمی‌آید */
-        if (typeof ptfPayableUpsert === 'function') {
-          var _payRec = ptfPayableUpsert({ inqNo: c2.inqNo, idx: idx, item: (c2.items[idx] || {}).nm || '', sup: supName, amount: buyPrice * (+(c2.items[idx] || {}).qty || 1), cur: 'IRR', rate: 0, pay: v.pay || 'cash', dueISO: v.dueISO || '', dueNote: v.dueNote || '' });
-          if (typeof window.slImportRealPurchase === 'function') { var _supRec = getData('ptf_crm_suppliers').filter(function(s){return s.co===supName;})[0]||{}; window.slImportRealPurchase({ purchaseCd: pcd, payableCd: _payRec && _payRec.cd, supplierCd: _supRec.cd||'', supName:supName, amount:buyPrice*(+(c2.items[idx]||{}).qty||1), pay:v.pay||'cash', item:(c2.items[idx]||{}).nm||'', files:[] }); }
-        }
+        /* خرید واقعی فقط operational است؛ تعهد یا فاکتور تأمین‌کننده اینجا ساخته نمی‌شود. */
         // ثبت در buyquotes قدیمی هم برای گزارش‌های موجود
         var bq = getData('ptf_crm_buyquotes');
         bq.unshift({ cd: genCode('BQ'), ref: c2.inqNo, sup: supName, desc: (c2.items[idx] || {}).nm || '', price: buyPrice, note: 'خرید واقعی' + (priceFx ? ' (تسعیر ' + priceFx.toLocaleString('en-US') + ' ' + (c2.purchases[c2.purchases.length-1].srcCur || '') + ' × ' + buyRate.toLocaleString('fa-IR') + ')' : ''), t: faDate(), by: curSession().name });

@@ -19,7 +19,7 @@ SECTION('US-441 — ساختار: ثبت گروهی');
 T('هسته قابل تست cmpBulkBuyCommit(id, rows, shared) با {ok,done,skipped,total}', bc.indexOf('window.cmpBulkBuyCommit') > -1 && bc.indexOf('return { ok: true, done: done, skipped: skipped, total: total };') > -1);
 T('تسعیر الزامی ارز مشترک (US-412 پابرجا)', bc.indexOf("if (cur !== 'IRR' && !rate) return { ok: false, why: 'rate' };") > -1);
 T('ردیف ناقص = رد (ثبت جزئی مجاز) + قلم خریده‌شده دست نمی‌خورد', bc.indexOf('ردیف ناقص = رد (ثبت جزئی مجاز)') > -1 && bc.indexOf('خریده‌شده دست نمی‌خورد') > -1);
-T('هر ردیف از مسیر موجود purchases + payables (US-400)', bc.split('window.cmpBulkBuyCommit')[1].split('window.cmpBulkBuy =')[0].indexOf('ptfPayableUpsert') > -1);
+T('هر ردیف فقط در purchases ثبت می‌شود و payable نمی‌سازد', bc.split('window.cmpBulkBuyCommit')[1].split('window.cmpBulkBuy =')[0].indexOf('ptfPayableUpsert') < 0);
 T('گذار st8 با اولین خرید موفق (BUG-029)', bc.split('window.cmpBulkBuyCommit')[1].split('window.cmpBulkBuy =')[0].indexOf('ptfRealBuyEnsureStatus') > -1);
 T('UI: دکمه 🛒 ثبت گروهی فقط وقتی >۱ قلم بدون خرید', bc.indexOf('🛒 ثبت گروهی خرید</button>') > -1 && bc.indexOf('.length > 1') > -1);
 T('«⚡ اعمال روی همه» تامین‌کننده ردیف ۱ (فقط ردیف‌های خالی)', bc.indexOf('window.cmpBulkApplySup') > -1 && bc.indexOf('!el.value.trim()) el.value = first') > -1);
@@ -40,7 +40,6 @@ global.ptfNum = function (v) { return +String(v == null ? '' : v).replace(/[^\d.
   global.cmpAll = function () { return getData('ptf_crm_buycmp'); };
   global.cmpSave = function (l) { setData('ptf_crm_buycmp', l); };
   global._pays = [];
-  global.ptfPayableUpsert = function (o) { global._pays.push(o); };
   global._st8 = null;
   global.ptfRealBuyEnsureStatus = function (inq) { global._st8 = inq; };
   eval(bc.match(/window\.cmpBulkBuyCommit = function \(id, rows, shared\) \{[\s\S]*?\n  \};/)[0].replace(/cmpAll\(\)/g, 'global.cmpAll()').replace(/cmpSave\(list\)/g, 'global.cmpSave(list)').replace(/canBuy\(\)/g, 'global.canBuy()'));
@@ -60,7 +59,7 @@ global.ptfNum = function (v) { return +String(v == null ? '' : v).replace(/[^\d.
   T('۲ ثبت + ۲ رد', res.ok && res.done === 2 && res.skipped === 2);
   T('قیمت کامادار پارس شد و per قلم نشست (BUG-032)', c.purchases.length === 3 && c.purchases.filter(function (p) { return p.idx === 0 && p.price === 1000000; }).length === 1 && c.purchases.filter(function (p) { return p.idx === 1 && p.price === 250000; }).length === 1);
   T('جمع کل = ۱م×۲ + ۲۵۰ه×۱ = ۲,۲۵۰,۰۰۰ (×تعداد)', res.total === 2250000);
-  T('بستانکاری per قلم با مبلغ×تعداد', global._pays.length === 2 && global._pays[0].amount === 2000000 && global._pays[0].pay === 'credit' && global._pays[1].amount === 250000);
+  T('خرید واقعی بستانکاری خودکار نمی‌سازد', global._pays.length === 0 && getData('ptf_crm_payables').length === 0);
   T('گذار st8 صدا شد (BUG-029)', global._st8 === 'INQ-9');
   T('قلم خریده‌شده مصون ماند', c.purchases.filter(function (p) { return p.idx === 3; }).length === 1 && c.purchases.filter(function (p) { return p.idx === 3; })[0].sup === 'قبلی');
 

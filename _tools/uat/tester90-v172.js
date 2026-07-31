@@ -27,7 +27,7 @@ T('ورود دستی: نام تامین‌کننده الزامی', bc.indexOf('
 T('تسعیر ارزی الزامی — بدون confirm دورزدنی', bc.indexOf('بدون «نرخ تسعیر» ثبت نمی‌شود (US-412)') > -1 && bc.indexOf('بدون نرخ پرداخت ریالی ثبت می') === -1);
 T('معادل تومانی = قیمت خرید واقعی (priceFx/rate رهگیری)', bc.indexOf('buyPrice = Math.round(priceFx * buyRate);') > -1 && bc.indexOf("cur: 'IRR', srcCur:") > -1);
 T('پیشنهاد نرخ زنده آزاد/سنا (فقط راهنما)', bc.indexOf('window._ptfFxLive && window._ptfFxLive.rates') > -1 && bc.indexOf('نرخ زنده: دلار آزاد') > -1);
-T('بستانکاری v16.6 با مبلغ تومانی قطعی (بدهی ارزی بی‌نرخ حذف)', bc.indexOf("sup: supName, amount: buyPrice * (+(c2.items[idx] || {}).qty || 1)") > -1 && bc.indexOf("cur: 'IRR', rate: 0, pay: v.pay || 'cash'") > -1);
+T('خرید واقعی دیگر تعهد/فاکتور خودکار نمی‌سازد', bc.indexOf('ptfPayableUpsert') < 0 && bc.indexOf('slImportRealPurchase') < 0);
 T('پیش‌اتصال/تضمین st8 با خرید واقعی پابرجاست', bc.indexOf('ptfRealBuyEnsureStatus') > -1 && bc.indexOf("ptfRfqSetStatus(r.cd, 'st8'") > -1);
 
 SECTION('رفتاری: تسعیر و منابع قیمت');
@@ -41,7 +41,6 @@ global.audit = function () {};
 global.notify = function () {};
 global.SENIOR_ROLES = ['admin'];
 global.renderBuyQuotes = function () {};
-global.ptfPayableUpsert = function (o) { global._lastPayable = o; };
 global.roleDef = function () { return { buyPrice: true }; };
 (function () {
   /* شبیه‌سازی onOk واقعی cmpBuy: استخراج و اجرای بدنه با ورودی‌های کنترل‌شده */
@@ -84,7 +83,7 @@ global.roleDef = function () { return { buyPrice: true }; };
   c1 = getData('ptf_crm_buycmp')[0];
   T('استعلام EUR انتخابی: مبنا ۱۵۰۰ یورو، تسعیر ۱۰۵هزار → ۱۵۷.۵م تومان', c1.purchases.length === 1 && c1.purchases[0].price === 157500000 && c1.purchases[0].priceFx === 1500 && c1.purchases[0].srcCur === 'EUR');
   T('purchases به ریال قطعی (cur=IRR) — موتور سود بدون خرید معلق ارزی', c1.purchases[0].cur === 'IRR' && c1.purchases[0].rate === 105000);
-  T('بستانکاری با مبلغ تومانی × تعداد (۲) و IRR', global._lastPayable.amount === 315000000 && global._lastPayable.cur === 'IRR' && global._lastPayable.sup === 'یورو تجهیز');
+  T('خرید واقعی فقط operational است و بستانکاری خودکار نمی‌سازد', !global._lastPayable && getData('ptf_crm_payables').length === 0);
   T('گذار st8 هنوز اجرا نشده (وضعیت موجود نیست — ایمن تا US-413)', !global._stSet);
 
   /* ③ ورود دستی بدون نام → رد؛ با نام → ثبت */
