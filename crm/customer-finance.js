@@ -10,12 +10,15 @@
   function cust(cd) { return getData('ptf_crm_customers').filter(function (c) { return c.cd === cd; })[0]; }
   function nameOf(c) { return (c && (c.co || c.name || c.cd)) || ''; }
   function invs(cd) {
-    var offers = getData('ptf_crm_offers');
+    var offers = getData('ptf_crm_offers'), customer = cust(cd);
+    var normalizeName = function (v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); };
+    var customerNames = [customer && (customer.co || customer.name), customer && customer.coEn].filter(Boolean).map(normalizeName);
     return getData('ptf_crm_invoices').filter(function (i) {
       if (!active(i)) return false;
       if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) { if (i.isUnofficial) return false; }
       var o = offers.filter(function (x) { return x.no === i.offerNo; })[0] || {};
-      return (i.buyerCd || o.buyerCd) === cd;
+      var invoiceCustomerName = normalizeName(i.buyerCo || o.buyerCo);
+      return (i.buyerCd || o.buyerCd) === cd || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
     });
   }
   function paid(i) {
