@@ -268,7 +268,7 @@
     }).join('');
     var html = '<div class="md-b" style="display:grid;z-index:65" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px;max-height:92vh;overflow:auto">' +
       '<h3>💰 ثبت قیمت دور ' + round + ' — ' + escP(c.inqNo) + '</h3>' +
-      '<div class="fld"><label>تامین‌کننده *</label><select id="cmpSup">' + supOpts + '</select></div>' +
+      '<div class="fld"><label>تامین‌کننده *</label>' + (typeof window.ptfSupPickerHtml === 'function' ? window.ptfSupPickerHtml('cmpSup', '', '') : '<select id="cmpSup">' + supOpts + '</select>') + '</div>' +
       '<h4 style="margin:10px 0 6px;font-size:13px">قیمت هر آیتم (خالی = قیمت نداده)</h4>' + itemRows +
       '<div class="fld" style="margin-top:8px"><label>یادداشت (شرایط/اعتبار قیمت)</label><input type="text" id="cmpNote"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
@@ -595,6 +595,24 @@
   function cmpSplitIrr(r) { return r.cur === 'IRR' ? (+r.qty || 0) * (+r.price || 0) : (+r.qty || 0) * (+r.price || 0) * (+r.rate || 0); }
   function cmpSplitNumber(v) { return String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/,/g, ''); }
   window.cmpSplitNumber = cmpSplitNumber;
+  /* UR-2026-08-01-06: همگام‌سازی انتخاب پیکر تامین‌کننده با سلکت «منبع قیمت» و فیلد «ورود دستی» در ptfDialog ثبت خرید */
+  window.cmpBuySupPick = function (name) {
+    var sel = null, manualInput = null;
+    try {
+      document.querySelectorAll('.ptfdlg select').forEach(function (s) {
+        if (sel) return;
+        for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === '__manual__') { sel = s; break; } }
+      });
+      document.querySelectorAll('.ptfdlg input[type=text]').forEach(function (inp) {
+        if (!manualInput && String(inp.placeholder || '').indexOf('ورود دستی') > -1) manualInput = inp;
+      });
+    } catch (e) { return; }
+    var found = false;
+    if (sel) {
+      for (var j = 0; j < sel.options.length; j++) { if (sel.options[j].value === name) { sel.value = name; found = true; break; } }
+      if (!found) { sel.value = '__manual__'; if (manualInput) manualInput.value = name; }
+    } else if (manualInput) { manualInput.value = name; }
+  };
   function cmpSplitUpdateSummary() {
     var st = window._cmpSplitState; if (!st) return;
     var item = st.c.items[st.idx] || {};
@@ -610,7 +628,10 @@
       var opts = '<option value="">— تامین‌کننده —</option>' + sups.map(function (s) { return '<option value="' + escP(s) + '"' + (r.sup === s ? ' selected' : '') + '>' + escP(s) + '</option>'; }).join('');
       var curOpts = '<option value="IRR"' + (r.cur === 'IRR' ? ' selected' : '') + '>ریال</option><option value="USD"' + (r.cur === 'USD' ? ' selected' : '') + '>دلار</option><option value="EUR"' + (r.cur === 'EUR' ? ' selected' : '') + '>یورو</option><option value="CNY"' + (r.cur === 'CNY' ? ' selected' : '') + '>یوان</option>';
       var total = (+r.qty || 0) * (+r.price || 0), totalIrr = cmpSplitIrr(r);
-      return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin:6px 0"><div style="display:grid;grid-template-columns:1.25fr .6fr .9fr .65fr .9fr auto;gap:6px;align-items:end"><label class="fld" style="margin:0"><span>تامین‌کننده</span><select onchange="cmpSplitField(' + ri + ',\'sup\',this.value)">' + opts + '</select></label><label class="fld" style="margin:0"><span>مقدار</span><input type="text" inputmode="decimal" value="' + escP(r.qty) + '" oninput="cmpSplitField(' + ri + ',\'qty\',this.value)" onblur="this.value=cmpSplitNumber(this.value)"></label><label class="fld" style="margin:0"><span>قیمت واحد</span><input type="text" inputmode="decimal" value="' + escP(r.price) + '" oninput="cmpSplitField(' + ri + ',\'price\',this.value)" onblur="this.value=Number(cmpSplitNumber(this.value)||0).toLocaleString(\"en-US\")"></label><label class="fld" style="margin:0"><span>ارز</span><select onchange="cmpSplitField(' + ri + ',\'cur\',this.value)">' + curOpts + '</select></label><label class="fld" style="margin:0"><span>نرخ تسعیر</span><input type="text" inputmode="decimal" value="' + escP(r.rate || '') + '" oninput="cmpSplitField(' + ri + ',\'rate\',this.value)" onblur="this.value=Number(cmpSplitNumber(this.value)||0).toLocaleString(\"en-US\")"></label><button type="button" class="bt bt-o" style="padding:5px 8px;color:#dc2626" onclick="cmpSplitRemove(' + ri + ')">✕</button></div><div style="font-size:11.5px;color:#0e7490;margin-top:6px">مبلغ lot: <b>' + cmpSplitMoney(total, r.cur === 'IRR' ? 'ریال' : r.cur) + '</b>' + (r.cur !== 'IRR' ? ' | معادل ریالی: ' + cmpSplitMoney(totalIrr, 'ریال') : '') + '</div></div>';
+      var supField = typeof window.ptfSupPickerHtml === 'function'
+        ? window.ptfSupPickerHtml('cmpSplitSup' + ri, r.sup || '', "cmpSplitField(" + ri + ",'sup',name)")
+        : '<select onchange="cmpSplitField(' + ri + ',\'sup\',this.value)">' + opts + '</select>';
+      return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin:6px 0"><div style="display:grid;grid-template-columns:1.25fr .6fr .9fr .65fr .9fr auto;gap:6px;align-items:end"><label class="fld" style="margin:0"><span>تامین‌کننده</span>' + supField + '</label><label class="fld" style="margin:0"><span>مقدار</span><input type="text" inputmode="decimal" value="' + escP(r.qty) + '" oninput="cmpSplitField(' + ri + ',\'qty\',this.value)" onblur="this.value=cmpSplitNumber(this.value)"></label><label class="fld" style="margin:0"><span>قیمت واحد</span><input type="text" inputmode="decimal" value="' + escP(r.price) + '" oninput="cmpSplitField(' + ri + ',\'price\',this.value)" onblur="this.value=Number(cmpSplitNumber(this.value)||0).toLocaleString(\"en-US\")"></label><label class="fld" style="margin:0"><span>ارز</span><select onchange="cmpSplitField(' + ri + ',\'cur\',this.value)">' + curOpts + '</select></label><label class="fld" style="margin:0"><span>نرخ تسعیر</span><input type="text" inputmode="decimal" value="' + escP(r.rate || '') + '" oninput="cmpSplitField(' + ri + ',\'rate\',this.value)" onblur="this.value=Number(cmpSplitNumber(this.value)||0).toLocaleString(\"en-US\")"></label><button type="button" class="bt bt-o" style="padding:5px 8px;color:#dc2626" onclick="cmpSplitRemove(' + ri + ')">✕</button></div><div style="font-size:11.5px;color:#0e7490;margin-top:6px">مبلغ lot: <b>' + cmpSplitMoney(total, r.cur === 'IRR' ? 'ریال' : r.cur) + '</b>' + (r.cur !== 'IRR' ? ' | معادل ریالی: ' + cmpSplitMoney(totalIrr, 'ریال') : '') + '</div></div>';
     }).join('');
     var qty = st.rows.reduce(function (s, r) { return s + (+r.qty || 0); }, 0);
     var total = st.rows.reduce(function (s, r) { return s + cmpSplitIrr(r); }, 0);
@@ -703,7 +724,8 @@
     } catch (eH) {}
     ptfDialog({
       title: '🛍 ثبت خرید واقعی: ' + (it ? it.nm : ''),
-      body: '<b style="color:#b45309">⚠️ قیمت واحد فقط همین قلم را وارد کنید — نه جمع کل اقلام (BUG-032).</b> برای ثبت همه اقلام یکجا از «🛒 ثبت گروهی خرید» استفاده کنید.<br>' + (realbuy ? '💡 منبع قیمت: از استعلامی‌های موجود انتخاب کنید یا «ورود دستی». خرید ارزی حتما نرخ تسعیر می‌خواهد — همه محاسبات سود به ریال است (US-412).' : 'سیستم کمترین قیمت را پیش‌فرض انتخاب کرده — در صورت صلاحدید تغییر دهید.') + fxHint,
+      body: '<b style="color:#b45309">⚠️ قیمت واحد فقط همین قلم را وارد کنید — نه جمع کل اقلام (BUG-032).</b> برای ثبت همه اقلام یکجا از «🛒 ثبت گروهی خرید» استفاده کنید.<br>' + (realbuy ? '💡 منبع قیمت: از استعلامی‌های موجود انتخاب کنید یا «ورود دستی». خرید ارزی حتما نرخ تسعیر می‌خواهد — همه محاسبات سود به ریال است (US-412).' : 'سیستم کمترین قیمت را پیش‌فرض انتخاب کرده — در صورت صلاحدید تغییر دهید.') + fxHint +
+        '<div class="fld" style="margin:8px 0 4px"><label>🔍 جستجوی تامین‌کننده (نام یا برند)</label>' + (typeof window.ptfSupPickerHtml === 'function' ? window.ptfSupPickerHtml('cmpBuySupPick', '', "cmpBuySupPick(name)") : '') + '</div>',
       fields: [
         { id: 'sup', label: 'منبع قیمت / تامین‌کننده', type: 'select', optionsHtml: opts },
         { id: 'supName', label: 'نام تامین‌کننده (فقط برای ورود دستی)', type: 'text' },
