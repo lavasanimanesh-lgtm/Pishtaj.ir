@@ -45,7 +45,7 @@
     if (!canHub()) return;
     var t = tab();
     function show(id, on) { var el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }
-    ['ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap'].forEach(function (id) { show(id, t === 'petty'); });
+    ['ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap'].forEach(function (id) { show(id, t === 'petty'); });
     show('opexBox', t === 'opex');
     show('shareBox', t === 'share');
     show('fiscalBox', t === 'fiscal');

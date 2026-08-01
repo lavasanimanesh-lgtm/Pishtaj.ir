@@ -218,7 +218,10 @@
     try { audit('کاتالوگ', 'ادغام کنترل‌شده کالاها در ' + canonicalCd + ' — ' + from.join(', '), merge.cd); } catch (e) {}
     var dlg = document.getElementById('catalogMergeDlg'); if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast('ادغام کنترل‌شده ثبت شد؛ کالاهای فرعی حذف نشدند.', 'ok');
-    window.ptfCatalogSimilarAudit();
+    /* به‌جای بازکردن دوبارهٔ پنجرهٔ تشخیص مشابه (که باعث می‌شد کاربر فکر کند هیچ اتفاقی نیفتاده)،
+       پنجره بسته می‌شود و نتیجه با toast تأیید می‌شود؛ دفعهٔ بعد که گزارش باز شود،
+       کالاهای ادغام‌شده دیگر پیشنهاد نمی‌شوند (فیلتر hidden/merged در ptfCatalogSimilarAudit). */
+    document.querySelectorAll('#catalogSimilarDlg').forEach(function (el) { el.remove(); });
   };
   window.ptfCatalogIdentityReviewFilter = function () {
     var input = document.getElementById('ptfCatReviewSearch'), select = document.getElementById('ptfCatReviewProduct');
@@ -253,10 +256,13 @@
       var t = norm(field(p)), size = token(t, /(?:^|\s)(\d+(?:\.\d+)?)\s*(?:in|\")(?=\s|$)/), sch = token(t, /(?:^|\s)sch\s*(\d+(?:\.\d+)?)/), std = token(t, /\b(a\s*\d{3,4}(?:\s*gr\s*[a-z0-9-]+)?|api\s*\d+|astm\s*[a-z]\s*\d+)\b/), seamless = t.indexOf('seamless') > -1 ? 'seamless' : '', pipe = /(^|\s)(pipe|لوله)(\s|$)/.test(t) ? 'pipe' : '';
       return [pipe, size, sch, std.replace(/\s/g, ''), seamless].join('|');
     }
-    var products = getData('ptf_crm_products') || [], buckets = {};
-    products.forEach(function (p) { var key = fp(p); if (key !== '||||' && key.split('|').filter(Boolean).length >= 3) { (buckets[key] = buckets[key] || []).push(p); } });
+    var products = getData('ptf_crm_products') || [];
+    /* کالاهای ادغام‌شده/مخفی دیگر در گروه‌های پیشنهادی نمی‌آیند (رفع چرخهٔ «ادغام → همان گروه دوباره»). */
+    var activeProducts = products.filter(function (p) { return p.hidden !== true && p.status !== 'merged'; });
+    var buckets = {};
+    activeProducts.forEach(function (p) { var key = fp(p); if (key !== '||||' && key.split('|').filter(Boolean).length >= 3) { (buckets[key] = buckets[key] || []).push(p); } });
     var groups = Object.keys(buckets).map(function (key) { return { fingerprint: key, confidence: key.split('|').filter(Boolean).length >= 4 ? 'high' : 'medium', products: buckets[key].map(function (p) { return { cd: p.cd || '', name: p.nm || p.name || '', technicalText: field(p) }; }) }; }).filter(function (g) { return g.products.length > 1; });
-    var report = { readOnly: true, productCount: products.length, groupCount: groups.length, candidateCount: groups.reduce(function (n, g) { return n + g.products.length; }, 0), groups: groups, note: 'این گزارش فقط پیشنهاد می‌دهد؛ هیچ ادغام یا حذف خودکاری انجام نشده است.' };
+    var report = { readOnly: true, productCount: activeProducts.length, groupCount: groups.length, candidateCount: groups.reduce(function (n, g) { return n + g.products.length; }, 0), groups: groups, note: 'این گزارش فقط پیشنهاد می‌دهد؛ هیچ ادغام یا حذف خودکاری انجام نشده است.' };
     window._ptfCatalogSimilarReport = report;
     console.table({ products: report.productCount, groups: report.groupCount, candidates: report.candidateCount }); console.log(JSON.stringify(report, null, 2));
     var body = groups.slice(0, 100).map(function (g, i) { return '<tr><td>' + (i + 1) + '</td><td>' + escP(g.confidence === 'high' ? 'بالا' : 'متوسط') + '</td><td>' + g.products.map(function (p) { return '<div style="padding:4px 0;border-bottom:1px dashed #e2e8f0"><b>' + escP(p.name || p.cd) + '</b> <small dir="ltr">' + escP(p.cd) + '</small><br><small>' + escP(p.technicalText) + '</small></div>'; }).join('') + '</td><td>فقط پیشنهاد؛ ادغام انجام نشده<br><button class="ba" data-index="' + i + '" onclick="ptfCatalogMergeOpen(this.dataset.index)">🧩 بررسی و ادغام</button></td></tr>'; }).join('');

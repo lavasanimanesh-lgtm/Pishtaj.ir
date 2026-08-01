@@ -107,4 +107,10 @@ var beforeMerge = getData('ptf_crm_catalog_merges').length;
 ptfCatalogMergeConfirm(0);
 T('بدون شرح نهایی → هشدار و عدم ثبت', global._alerts.length === 1 && getData('ptf_crm_catalog_merges').length === beforeMerge);
 
+SECTION('پس از ادغام — گزارش، گروه ادغام‌شده را دیگر پیشنهاد نمی‌کند');
+var sim2 = ptfCatalogSimilarAudit();
+T('گروه ادغام‌شده در گزارش جدید نیست (کالاهای hidden/merged فیلتر شدند)', sim2.groupCount === 0 && sim2.productCount === 2);
+var mcBody = code.split('window.ptfCatalogMergeConfirm =')[1].split('window.ptfCatalogIdentityReviewFilter =')[0] || '';
+T('تأیید ادغام پنجره را دوباره باز نمی‌کند (فقط می‌بندد)', mcBody.indexOf('ptfCatalogSimilarAudit()') === -1 && mcBody.indexOf("querySelectorAll('#catalogSimilarDlg')") > -1);
+
 DONE('tester201-v3300-catalog-identity');
