@@ -6,6 +6,7 @@ var BASE = path.resolve(__dirname, '../../crm');
 var mod = fs.readFileSync(path.join(BASE, 'cheque-module.js'), 'utf-8');
 var panel = fs.readFileSync(path.join(BASE, 'cheque-panel.js'), 'utf-8');
 var finhub = fs.readFileSync(path.join(BASE, 'financehub.js'), 'utf-8');
+var rbac = fs.readFileSync(path.join(BASE, 'rbac.js'), 'utf-8');
 
 global.curSession = function () { return { user: 'u1', name: 'علی رضایی' }; };
 global.faDateTime = function () { return '1405/05/10 12:00'; };
@@ -100,6 +101,11 @@ var sync = fs.readFileSync(path.join(BASE, 'sync.js'), 'utf-8');
 var bak = fs.readFileSync(path.join(BASE, 'backup.js'), 'utf-8');
 var api = fs.readFileSync(path.resolve(BASE, '../api/crm.php'), 'utf-8');
 T('کلیدهای issued/received در sync/backup/api هست', sync.indexOf('ptf_crm_cheques_issued') > -1 && sync.indexOf('ptf_crm_cheques_received') > -1 && bak.indexOf('ptf_crm_cheques_issued') > -1 && api.indexOf('ptf_crm_cheques_issued') > -1 && api.indexOf('ptf_crm_cheques_received') > -1);
+
+SECTION('گام ۴ — وصول مشتری با چک → چک وارده (rbac.js savePay)');
+T('فرم وصولی فیلدهای چک دارد (شماره/سررسید/بانک)', rbac.indexOf('nPayChNo') > -1 && rbac.indexOf('nPayChDue') > -1 && rbac.indexOf('nPayChBank') > -1 && rbac.indexOf('nPayChWrap') > -1);
+T('savePay با روش چک، ptfChequeCreate(received) را صدا می‌زند و chequeCd لینک می‌شود', rbac.indexOf("window.ptfChequeCreate('received'") > -1 && rbac.indexOf('payRec.chequeCd = ch.cd') > -1);
+T('بدون شماره صیادی، وصول چک مسدود است', rbac.indexOf('شماره/شناسه صیادی الزامی') > -1);
 
 SECTION('گزارش پنل');
 window.ptfChequePanelSub = 'issued';
