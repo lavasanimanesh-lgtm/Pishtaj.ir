@@ -37,7 +37,7 @@ T('راهنمای Liquid/Gas/Steam/Two-phase در UI وجود دارد', ['ما�
 T('placeholder مبنای دبی واحدهای Liquid/Gas/Steam را روشن می‌کند', adv.indexOf('Liquid: m³/h | Gas: Nm³/h | Steam: kg/h') > -1);
 T('report preview design basis شامل Flow basis و MW/Z/k/Xt است', ['Flow basis','MW','Z','k','Xt'].every(function (x) { return adv.indexOf("'" + x + "'") > -1 || adv.indexOf(x + ':') > -1; }));
 T('strict readiness برای gas از MW یا SG پشتیبانی می‌کند', adv.indexOf('MW or SG basis') > -1 && adv.indexOf('!String(d.adv_mw') > -1 && adv.indexOf('!String(d.adv_sg') > -1);
-T('نسخه CRM v33.4.3 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM v33.4.4 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime Gas/Steam readiness');
 var sb = makeSandbox(true);

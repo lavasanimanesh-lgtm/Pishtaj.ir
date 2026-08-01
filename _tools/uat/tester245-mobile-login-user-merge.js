@@ -22,6 +22,6 @@ T('doLogin وقتی users_get کاربر را نشان نداد direct auth_logi
 T('direct auth_login در موفقیت token/session/local user را ذخیره می‌کند', idx.indexOf("localStorage.setItem('ptf_crm_token', _directLogin.token)") > -1 && idx.indexOf("curUsers.push({ username: u") > -1 && idx.indexOf('showCrm();') > -1);
 T('پیام خطای قدیمی «نه در این مرورگر و نه روی سرور یافت نشد» حذف شده است', idx.indexOf('نه در این مرورگر و نه روی سرور یافت نشد') === -1);
 T('پیام جدید راهکار همگام‌سازی کاربران را به ادمین می‌گوید', idx.indexOf('همگام‌سازی کاربران') > -1 && idx.indexOf('احراز هویت مستقیم سرور') > -1);
-T('نسخه CRM و SW به v33.4.3 رسیده‌اند', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM و SW به v33.4.4 رسیده‌اند', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester245-mobile-login-user-merge');

@@ -19,10 +19,10 @@ T('gate readiness/missing/pipeIssues را بررسی می‌کند', ['Strict re
 T('gate لایسنس active/expiry/quota/tool را بررسی می‌کند', ['License is not active','License is expired','License report quota is exhausted','License tool does not allow Control Valve Advanced'].every(function (x) { return api.indexOf(x) > -1; }));
 T('gate نتیجه را در finalGate و finalGateHistory ذخیره می‌کند', api.indexOf("$draft['finalGate'] = $gate") > -1 && api.indexOf('finalGateHistory') > -1);
 T('gate در صورت آمادگی مسیر issue_final_report را فعال می‌کند ولی quota مصرف نمی‌کند', api.indexOf("'finalReportGenerationEnabled' => $ready") > -1 && api.indexOf("'pdfReady' => $ready") > -1 && api.indexOf("'quotaConsumed' => false") > -1 && api.indexOf('issue_final_report') > -1);
-T('tools API status به v33.4.3 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status به v33.4.4 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM final gate UI');
-T('CRM نسخه v33.4.3 و tool-report-drafts cache-bust دارد', /window\.VER = 'v3[0-9.]+'/.test(idx) && /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM نسخه v33.4.4 و tool-report-drafts cache-bust دارد', /window\.VER = 'v3[0-9.]+'/.test(idx) && /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('UI تابع ptfToolReportDraftFinalGate دارد', ui.indexOf('window.ptfToolReportDraftFinalGate = function') > -1);
 T('UI اکشن admin_report_final_gate را صدا می‌زند', ui.indexOf('admin_report_final_gate') > -1);
 T('جدول ستون Final Gate و badge دارد', ui.indexOf('<th>Final Gate</th>') > -1 && ui.indexOf('function gateBadge') > -1 && ui.indexOf('Gate ready') > -1 && ui.indexOf('Gate blocked') > -1);

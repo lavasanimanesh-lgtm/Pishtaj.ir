@@ -100,6 +100,18 @@ setData('ptf_crm_petty_tx', [
 
 SECTION('تقویم + نرمال‌سازی تاریخ (UR-11 تکمیلی)');
 T('نرمال‌سازی فرمت 1405-04-01 → 1405/04/01', ptfPettyNormDate('1405-4-1') === '1405/04/01');
+T('نرمال‌سازی ارقام فارسی ۱۴۰۵/۰۴/۰۱ → 1405/04/01', ptfPettyNormDate('۱۴۰۵/۰۴/۰۱') === '1405/04/01');
+T('نرمال‌سازی ارقام عربی ١٤٠٥/٠٤/٠١ → 1405/04/01', ptfPettyNormDate('١٤٠٥/٠٤/٠١') === '1405/04/01');
+T('onOk با تاریخ فارسی خطا نمی‌دهد (نرمال می‌شود)', (function () {
+  var res = null; var oldR = global.ptfPettyPeriodReport; global.ptfPettyPeriodReport = function (a, b) { res = [a, b]; };
+  global._alerts.length = 0;
+  var dlg3 = null; var oldD = global.ptfDialog; global.ptfDialog = function (o) { dlg3 = o; };
+  ptfPettyPeriodReportDialog();
+  global.ptfDialog = oldD;
+  dlg3.onOk({ from: '۱۴۰۵/۰۴/۱۵', to: '1405/04/20' });
+  global.ptfPettyPeriodReport = oldR;
+  return global._alerts.length === 0 && res && res[0] === '1405/04/15';
+})());
 T('دیالوگ بازه فیلدهای datePicker دارد', (function () {
   global._dlg = null;
   var oldDlg = global.ptfDialog; global.ptfDialog = function (o) { global._dlg = o; };

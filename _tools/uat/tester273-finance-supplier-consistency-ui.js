@@ -49,6 +49,6 @@ SECTION('UI readability fixes');
 T('کارت‌های مالی اعداد بزرگ را wrap/clip-safe نمایش می‌دهند', idx.indexOf('.sc{background:var(--crd);padding:16px;border-radius:14px;border:1px solid var(--brd);min-width:0;overflow:hidden}') > -1 && idx.indexOf('overflow-wrap:anywhere') > -1 && idx.indexOf('font-size:clamp') > -1);
 T('settings accordion در حالت شب از var(--crd)/var(--tx) استفاده می‌کند', acc.indexOf('background:var(--crd') > -1 && acc.indexOf('color:var(--tx') > -1 && acc.indexOf('ptf-set-row{background:var(--crd') > -1);
 T('settings accordion ورودی‌ها و labelها را برای dark mode override می‌کند', acc.indexOf('.ptf-set-body input') > -1 && acc.indexOf('color:var(--tx') > -1 && acc.indexOf('background:var(--crd') > -1);
-T('CRM/SW نسخه v33.4.3 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.4 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester273-finance-supplier-consistency-ui');

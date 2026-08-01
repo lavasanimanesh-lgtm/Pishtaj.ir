@@ -39,7 +39,7 @@ T('توابع feedback pack وجود دارند', ['ptfAdvCvApplyFeedbackSample'
 T('UI دکمه بسته تست و feedback دارد', adv.indexOf('بسته تست و feedback') > -1 && adv.indexOf('advCvFeedbackPack') > -1);
 T('قالب feedback سوال‌های مهندسی کلیدی دارد', ['input labels/units','Cv/Kv','velocity / reducer','cavitation/flashing','actuator shell','English report preview'].every(function (x) { return adv.indexOf(x) > -1; }));
 T('هیچ مسیر PDF/download/print/fetch/export اضافه نشده است', adv.indexOf('fetch(') === -1 && adv.indexOf('window.print') === -1 && adv.indexOf('document.write') === -1 && adv.indexOf('exportPdf') === -1 && adv.indexOf('download=') === -1);
-T('نسخه CRM به v33.4.3 رسیده است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM به v33.4.4 رسیده است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime feedback samples');
 var sb = makeSandbox(true);

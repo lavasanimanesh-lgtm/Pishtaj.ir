@@ -479,6 +479,9 @@
      — با تقویم شمسی (ptfDatePicker) و پذیرش فرمت‌های رایج (1405/04/01 یا 1405-04-01) */
   window.ptfPettyNormDate = function (s) {
     var v = String(s || '').trim();
+    /* تبدیل ارقام فارسی/عربی به لاتین (تقویم/کاربر ممکن است ۱۴۰۵ وارد کند) */
+    v = v.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+         .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
     var m = v.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
     if (!m) return v;
     return m[1] + '/' + String(+m[2]).padStart(2, '0') + '/' + String(+m[3]).padStart(2, '0');

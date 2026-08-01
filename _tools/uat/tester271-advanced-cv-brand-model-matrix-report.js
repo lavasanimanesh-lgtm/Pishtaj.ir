@@ -19,6 +19,6 @@ T('final HTML report بخش Brand / Series Candidate Matrix دارد', api.index
 T('final meta brandCandidateMatrix را ذخیره می‌کند', api.indexOf("'brandCandidateMatrix' => tools_brand_candidate_matrix") > -1 && api.indexOf("$draft['brandCandidateMatrix']") > -1);
 T('disclaimer vendor-certified شفاف است', api.indexOf('final model selection requires project specifications and vendor-certified sizing') > -1);
 T('sample report هم brand matrix را نشان می‌دهد', adv.indexOf('Brand / Series Candidate Matrix') > -1 && adv.indexOf('Fisher / Emerson') > -1 && adv.indexOf('Official link') > -1);
-T('tools API و CRM نسخه v33.4.3 است', /'version' => 'v3[0-9.]+'/.test(api) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tools API و CRM نسخه v33.4.4 است', /'version' => 'v3[0-9.]+'/.test(api) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester271-advanced-cv-brand-model-matrix-report');
