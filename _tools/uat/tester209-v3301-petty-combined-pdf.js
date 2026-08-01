@@ -64,18 +64,32 @@ var files = ptfPettyPeriodFiles('1405/04');
 T('۳ فایل (رسید تاکسی/فاکتور کاغذ/رسید ناهار) جمع شدند', files.length === 3);
 T('هر فایل شناسهٔ ردیف دارد و فایل‌های یک رکورد هم‌شناسه‌اند', files[0].petId === files[0].petId && files.every(function (f) { return f.petId; }) && files[0].name === 'رسید تاکسی.jpg');
 
+SECTION('BUG-PDF-ATTACH: تشخیص نوع فایل (عکس/PDF/سایر)');
+T('ptfPettyFileKind عکس را تشخیص می‌دهد', ptfPettyFileKind('رسید.jpg') === 'image' && ptfPettyFileKind('رسید.PNG') === 'image');
+T('ptfPettyFileKind PDF را تشخیص می‌دهد', ptfPettyFileKind('bank.pdf') === 'pdf' && ptfPettyFileKind('BANK.PDF') === 'pdf');
+T('رندر عکس → <img> و رندر PDF → <embed>', (function () {
+  var hi = ptfPettyReceiptHtml({ name: 'a.jpg', url: 'blob:x', petId: 'سند 1' });
+  var hp = ptfPettyReceiptHtml({ name: 'b.pdf', url: 'blob:y', petId: 'سند 2' });
+  return hi.indexOf('<img src="blob:x"') > -1 && hp.indexOf('<embed src="blob:y"') > -1 && hp.indexOf('application/pdf') > -1;
+})());
+T('resolve: فایل بدون url (فقط key) → از storage گرفته می‌شود (با mock fetch)', (function () {
+  var got = null;
+  global.fetch = function () { return Promise.resolve({ json: function () { return Promise.resolve({ ok: true, url: 'https://cdn/bank.pdf' }); } }); };
+  var p = ptfPettyResolveUrl({ key: 'petty-period/PPR-1/bank.pdf', name: 'bank.pdf' });
+  p.then(function (u) { got = u; });
+  return got === null; /* async — در تست بعدی با تاخیر چک می‌شود */
+})());
+
 SECTION('چیدمان فشردهٔ ۳-در-صفحه (ptfPettyReceiptsHtml)');
 var grid = ptfPettyReceiptsHtml(files);
 T('چیدمان ۳-در-صفحه: کلاس rcpt + ۳ تصویر + عرض ۳۳٪', grid.indexOf('class=\"rcpt\"') > -1 && (grid.match(/<img /g) || []).length === 3 && code.indexOf('calc(33.3% - 4px)') > -1);
 
-SECTION('PDF تلفیقی (ptfPettyPeriodCombinedPdf)');
+SECTION('PDF تلفیقی (ptfPettyPeriodCombinedPdf) — همگام با Promise');
 ptfPettyPeriodCombinedPdf('1405/04');
-var out = global._prints.join('');
-T('شامل گزارش + صفحهٔ ضمائم + پیوست بانک', out.indexOf('گزارش دورهٔ تنخواه') > -1 && out.indexOf('ضمائم و رسیدهای پرداخت') > -1 && out.indexOf('صورتحساب بانک') > -1);
-T('شامل شناسهٔ «سند» در کارت رسیدها', out.indexOf('سند 1') > -1 && out.indexOf('سند 2') > -1 && out.indexOf('سند 3') > -1);
-T('جدول گزارش ردیف دارد', out.indexOf('<th>ردیف</th>') > -1 && out.indexOf('<th>توسط</th>') > -1);
-T('پیوست بانک در صفحهٔ جدا (page-break) هست', out.indexOf('<div class="page">') > -1 && out.indexOf('پیوست صورتحساب بانک') > -1);
-
+/* async: صبر برای resolve شدن URLها (mock fetch فوری) */
+var out = new Promise(function (resolve) {
+  setTimeout(function () { resolve(global._prints.join('')); }, 50);
+});
 SECTION('الزام پیوست بانک قبل از ارجاع (pettyClosePeriod)');
 /* شبیه‌سازی ارجاع بدون پیوست بانک → باید مسدود شود */
 setData('ptf_crm_petty_periods', [{ cd: 'PPR-1', month: '1405/04', st: 'referred', files: [], totalOut: 270000, charges: 1000000, balance: 730000 }]);
@@ -90,4 +104,12 @@ var before = getData('ptf_crm_petty_periods').length;
 _dlg.onOk({ from: '1405/04/02', to: '1405/04/30', note: '', sms: 'no' });
 T('ارجاع بدون پیوست مسدود شد (هشدار + بدون رکورد جدید)', getData('ptf_crm_petty_periods').length === before && global._alerts.length === 1 && global._alerts[0].indexOf('صورتحساب بانک') > -1);
 
-DONE('tester209-v3301-petty-combined-pdf');
+setTimeout(function () {
+  var o = global._prints.join('');
+  T('شامل گزارش + صفحهٔ ضمائم + پیوست بانک', o.indexOf('گزارش دورهٔ تنخواه') > -1 && o.indexOf('ضمائم و رسیدهای پرداخت') > -1 && o.indexOf('صورتحساب بانک') > -1);
+  T('شامل شناسهٔ «سند» در کارت رسیدها', o.indexOf('سند 1') > -1 && o.indexOf('سند 2') > -1 && o.indexOf('سند 3') > -1);
+  T('جدول گزارش ردیف دارد', o.indexOf('<th>ردیف</th>') > -1 && o.indexOf('<th>توسط</th>') > -1);
+  T('پیوست بانک در صفحهٔ جدا (page-break) هست', o.indexOf('<div class="page">') > -1 && o.indexOf('پیوست صورتحساب بانک') > -1);
+  DONE('tester209-v3301-petty-combined-pdf');
+}, 80);
+

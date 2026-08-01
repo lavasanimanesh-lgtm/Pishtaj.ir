@@ -99,3 +99,18 @@
 - **خطای فرمت:** ارقام فارسی/عربی (`۱۴۰۵/۰۴/۱۵`) در تاریخ‌ها رد می‌شدند → `ptfPettyNormDate` حالا ارقام فارسی/عربی را به لاتین تبدیل می‌کند (در گزارش دلخواه و ارجاع).
 - **جابه‌جایی تقویم:** ناوبری ماه/سال با `this.closest('[id$=_cal]')` در برخی محیط‌ها fail می‌شد → دکمه‌های ◀▶ حالا با `ptfCalNav(inputId, jy, jm)` (id مستقیم) کار می‌کنند؛ `ptfCalShow` هم مقدار فارسی input را نرمال می‌کند.
 - تست: tester212 (۲۵/۰) — نرمال‌سازی فارسی/عربی + onOk بدون خطا با تاریخ فارسی؛ رگرسیون ۲۰۸/۲۰۹/۱۱۰/۲۱۴/۲۱۵/۲۱۶ سبز؛ audit PASS.
+
+---
+
+## BUG-PDF-ATTACH — گزارش تلفیقی ضمایم را نمایش نمی‌داد (v33.4.5)
+
+**ریشه:** `ptfPettyReceiptsHtml` فقط `<img>` می‌ساخت و `f.url` هرگز از storage گرفته نمی‌شد (هیچ presign_get) → تصویر خالی → پیام «فرمت غیرمجاز» برای همهٔ ضمائم.
+
+**رفع (v33.4.5):**
+- `ptfPettyFileKind(name)`: تشخیص نوع فایل (عکس jpg/png/gif/webp / PDF / سایر).
+- `ptfPettyResolveUrl(f)`: گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile؛ روی window هم قرار گرفت.
+- `ptfPettyReceiptHtml(f)`: عکس → `<img>`؛ PDF → `<embed type=application/pdf>` (قابل مشاهده در PDF)؛ سایر → پیام «این فرمت در گزارش تلفیقی نمایش داده نمی‌شود».
+- `ptfPettyPeriodCombinedPdf`: ابتدا URL همهٔ ضمائم (رسیدها + پیوست بانک) resolve می‌شود (Promise.all) سپس HTML ساخته و چاپ می‌شود.
+- CSS: استایل `.rcpt embed`.
+
+**تست:** tester209 (۱۷/۰) — تشخیص نوع + رندر img/embed + resolve؛ tester212 (۲۳/۰)؛ رگرسیون ۲۰۸ سبز؛ audit PASS؛ zip بازسازی.

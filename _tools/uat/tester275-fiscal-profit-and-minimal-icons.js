@@ -64,6 +64,6 @@ T('financehub آیکون خطی semantic دارد و badge عددی/emoji ندا
 T('Quick access صفحه اصلی SVG خطی دارد و badgeهای 01..05 حذف شده‌اند', home.indexOf('class="ptf-line-icon"') > -1 && home.indexOf('>01</span> سامانه استعلام هوشمند') === -1 && home.indexOf('>CRM</span> ورود همکاران') === -1);
 T('Knowledge Center heading آیکون کتاب خطی دارد نه KC/emoji', kc.indexOf('<h1><span class="ptf-line-icon"') > -1 && kc.indexOf('>KC</span>') === -1 && kc.indexOf('<h1>📚') === -1);
 T('clusterهای مرکز دانش icon key معنایی و SVG دارند، نه شماره', kc.indexOf('function kcIcon') > -1 && kc.indexOf('icon:"pipe"') > -1 && kc.indexOf('icon:"01"') === -1 && kc.indexOf('kcIcon(cat.icon)') > -1);
-T('CRM/SW نسخه v33.4.4 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester275-fiscal-profit-and-minimal-icons');

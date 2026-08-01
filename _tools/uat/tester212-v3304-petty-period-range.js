@@ -167,9 +167,12 @@ ptfPettyPeriodReport('1405/04/11', '1405/04/20');
 var h = global._inserted[global._inserted.length - 1] || '';
 T('مودال گزارش: هدر بازه + ستون «نحوهٔ پرداخت/وضعیت»', h.indexOf('تنخواه‌گردان از تاریخ 1405/04/11 تا تاریخ 1405/04/20') > -1 && h.indexOf('نحوهٔ پرداخت/وضعیت') > -1);
 ptfPettyPeriodCombinedPdf('1405/04/11', '1405/04/20');
-var out = global._prints.join('');
-T('PDF تلفیقی: هدر بازه + رسیدهای بازه (سند 1/2/3)', out.indexOf('از تاریخ 1405/04/11 تا تاریخ 1405/04/20') > -1 && out.indexOf('سند 1') > -1 && out.indexOf('سند 2') > -1 && out.indexOf('سند 3') > -1 && out.indexOf('PTY-1') === -1);
-T('PDF تلفیقی دورهٔ جاری: پیوست بانک ندارد (هنوز ارجاع نشده)', out.indexOf('صورتحساب بانک') === -1);
+/* چک async — چون خروجی بعد از resolve URLها ساخته می‌شود */
+setTimeout(function () {
+  var o2 = global._prints.join('');
+  T('PDF تلفیقی: هدر بازه + رسیدهای بازه (سند 1/2/3) — بدون سند دورهٔ قبل', o2.indexOf('از تاریخ 1405/04/11 تا تاریخ 1405/04/20') > -1 && o2.indexOf('سند 1') > -1 && o2.indexOf('سند 2') > -1 && o2.indexOf('سند 3') > -1 && o2.indexOf('PTY-1') === -1);
+  T('PDF تلفیقی دورهٔ جاری: پیوست بانک ندارد (هنوز ارجاع نشده)', o2.indexOf('صورتحساب بانک') === -1);
+}, 60);
 
 SECTION('دورهٔ ذخیره‌شده: گزارش از همان لحظهٔ ارجاع (pettyIds/txIds)');
 setData('ptf_crm_petty_periods', [

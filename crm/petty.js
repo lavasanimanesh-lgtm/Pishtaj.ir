@@ -665,6 +665,7 @@
       '.rcpt{width:calc(33.3% - 4px);box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:5px;page-break-inside:avoid;background:#fff;overflow:hidden}' +
       '.rcpt img{width:100%;height:auto;display:block;border-radius:5px;max-height:380px;object-fit:contain;background:#fff}' +
       '.rcpt .cap{font-size:9.5px;color:#1d4ed8;font-weight:bold;margin:4px 0 2px}' +
+      '.rcpt embed{width:100%;height:280px;border:1px solid #ddd;border-radius:5px;background:#fff}' +
       '.rcpt .meta{font-size:9px;color:#475569;margin-bottom:3px}' +
       '</style></head><body>' +
       '<div class="page"><h2 style="font-size:16px;margin:0 0 8px">گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
@@ -676,13 +677,46 @@
   };
 
   /* صفحهٔ ضمائم: چیدمان ۳-در-صفحهٔ فشرده + شناسهٔ «سند N» برای هر فایل */
+  /* BUG-PDF-ATTACH: نوع فایل (عکس/PDF/سایر) — برای نمایش صحیح در گزارش تلفیقی */
+  window.ptfPettyFileKind = function (name) {
+    var n = String(name || '').toLowerCase();
+    if (/\.(jpe?g|png|gif|webp|bmp)$/.test(n)) return 'image';
+    if (/\.pdf$/.test(n)) return 'pdf';
+    return 'other';
+  };
+  /* گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile */
+  window.ptfPettyResolveUrl = function (f) { return ptfPettyResolveUrl(f); };
+  function ptfPettyResolveUrl(f) {
+    return new Promise(function (resolve) {
+      if (!f || !f.key) return resolve('');
+      if (f.url) return resolve(f.url);
+      try {
+        fetch(STORAGE_API + '?action=presign_get', {
+          method: 'POST', headers: ptfStorageAuthHeaders(true),
+          body: JSON.stringify({ key: f.key })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) { resolve(d && d.ok ? d.url : ''); })
+          .catch(function () { resolve(''); });
+      } catch (e) { resolve(''); }
+    });
+  }
+  /* رندر یک ضمیمه: عکس → <img>؛ PDF → <embed> (قابل مشاهده در چاپ/PDF)؛ سایر → پیام */
+  window.ptfPettyReceiptHtml = function (f) {
+    var petId = f.petId || '';
+    var kind = window.ptfPettyFileKind(f.name || f.key || '');
+    var inner;
+    if (kind === 'image') {
+      inner = '<img src="' + String(f.url || '').replace(/"/g, '&quot;') + '" onerror="this.parentNode.innerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ تصویر قابل نمایش نیست</div>\'">';
+    } else if (kind === 'pdf') {
+      inner = '<embed src="' + String(f.url || '').replace(/"/g, '&quot;') + '" type="application/pdf" style="width:100%;height:280px;border-radius:5px">';
+    } else {
+      inner = '<div style="padding:14px;color:#7c3aed;font-size:11px;text-align:center">📄 ' + escP(f.name || f.key || 'سند') + '<br><small style="color:#94a3b8">این فرمت در گزارش تلفیقی نمایش داده نمی‌شود؛ از «باز کردن فایل» استفاده کنید.</small></div>';
+    }
+    return '<div class="rcpt"><div class="cap">' + escP(petId || 'سند') + '</div>' +
+      (f.name ? '<div class="meta">' + escP(f.name) + '</div>' : '') + inner + '</div>';
+  };
   window.ptfPettyReceiptsHtml = function (records) {
-    var cards = (records || []).map(function (f) {
-      var petId = f.petId || '';
-      return '<div class="rcpt"><div class="cap">' + escP(petId || 'سند') + '</div>' +
-        (f.name ? '<div class="meta">' + escP(f.name) + '</div>' : '') +
-        '<img src="' + String(f.url || '').replace(/"/g, '&quot;') + '" onerror="this.parentNode.innerHTML=\'<div style=padding:12px;color:#b91c1c;font-size:10px>⚠️ تصویر این رسید قابل نمایش نیست (فرمت نامعتبر/دسترسی)</div>\'"></div>';
-    }).join('');
+    var cards = (records || []).map(window.ptfPettyReceiptHtml).join('');
     if (!cards) return '<div style="padding:16px;color:#64748b;font-size:12px">رسید/ضمیمه‌ای برای نمایش در این دوره موجود نیست.</div>';
     return '<div class="grid">' + cards + '</div>';
   };
@@ -723,18 +757,23 @@
     if (key.isRange) periodRec = prAll().filter(function (x) { return x.from === key.from && x.to === key.to; })[0];
     else periodRec = prAll().filter(function (x) { return x.month === key.month; })[0];
     var periodFiles = (periodRec && periodRec.files) || [];
-    var pageBreaks = [];
-    var receiptsHtml = window.ptfPettyReceiptsHtml(files);
-    pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">📎 ضمائم و رسیدهای پرداخت (شناسهٔ هر رسید مطابق ردیف‌های گزارش)</h3>' + receiptsHtml + '</div>');
-    if (periodFiles.length) {
-      pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">🏦 پیوست صورتحساب بانک / گردش حساب دوره</h3>' + window.ptfPettyReceiptsHtml(periodFiles) + '</div>');
-    }
-    var label = window.ptfPettyRangeLabel(a, b);
-    var reportHtml = window.ptfPettyPeriodCombinedPdfHtml(a, b, 'تعداد رسیدهای ضمیمه‌شده: ' + files.length + (periodFiles.length ? ' | پیوست بانک: ' + periodFiles.length : ''));
-    var fullHtml = reportHtml + pageBreaks.join('');
-    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تلفیقی دورهٔ تنخواه — ' + label, fullHtml, 'petty-period-combined-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
-    var w = window.open('', '_blank'); if (!w) return;
-    w.document.write(fullHtml); w.document.close(); w.print();
+    /* BUG-PDF-ATTACH: اول URL همهٔ ضمائم (عکس/PDF) از storage گرفته می‌شود، بعد HTML ساخته و چاپ می‌شود */
+    var all = files.concat(periodFiles);
+    var jobs = all.map(function (f) { return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; }); });
+    Promise.all(jobs).then(function () {
+      var pageBreaks = [];
+      var receiptsHtml = window.ptfPettyReceiptsHtml(files);
+      pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">📎 ضمائم و رسیدهای پرداخت (شناسهٔ هر رسید مطابق ردیف‌های گزارش)</h3>' + receiptsHtml + '</div>');
+      if (periodFiles.length) {
+        pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">🏦 پیوست صورتحساب بانک / گردش حساب دوره</h3>' + window.ptfPettyReceiptsHtml(periodFiles) + '</div>');
+      }
+      var label = window.ptfPettyRangeLabel(a, b);
+      var reportHtml = window.ptfPettyPeriodCombinedPdfHtml(a, b, 'تعداد رسیدهای ضمیمه‌شده: ' + files.length + (periodFiles.length ? ' | پیوست بانک: ' + periodFiles.length : ''));
+      var fullHtml = reportHtml + pageBreaks.join('');
+      if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تلفیقی دورهٔ تنخواه — ' + label, fullHtml, 'petty-period-combined-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
+      var w = window.open('', '_blank'); if (!w) return;
+      w.document.write(fullHtml); w.document.close(); w.print();
+    });
   };
 
   window.pettyClosePeriod = function () {
