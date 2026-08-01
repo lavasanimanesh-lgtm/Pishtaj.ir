@@ -52,6 +52,7 @@
   };
 
   window.cfSalesReturnPreview = function (invoiceCd) {
+    document.querySelectorAll('#cfReturnDlg').forEach(function (el) { el.remove(); });
     var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === invoiceCd; })[0];
     if (!inv) return;
     var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}, items = offer.items || [];
@@ -152,6 +153,8 @@
     if (inv.offerNo) { var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}; if (offer.buyerCd) cfOpen(offer.buyerCd); }
   };
   window.cfOpen = function (cd) {
+    /* Account dialogs are singleton: refresh in place, never stack overlays. */
+    document.querySelectorAll('#cfAccountDlg').forEach(function (el) { el.remove(); });
     var c = cust(cd); if (!c) return;
     var rows = invs(cd).map(function (i) {
       var ps = (i.payments || []).concat(i.pays || []).filter(active), r = Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i.cd)), returns = salesReturnsForInvoice(i.cd);
