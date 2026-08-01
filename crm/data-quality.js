@@ -26,7 +26,9 @@
     catch (e) { return 'unclassified'; }
   }
   window.ptfDataQualityData = function () {
-    var q = {}, invoices = arr('ptf_crm_invoices'), payables = arr('ptf_crm_payables'), cheques = arr('ptf_crm_cheques');
+    var q = {}, invoices = arr('ptf_crm_invoices'), payables = arr('ptf_crm_payables');
+    /* CHQ-MOD-001: چک‌ها از دو کلید جدید (issued/received) + legacy */
+    var cheques = (typeof window.ptfChequeAll === 'function') ? window.ptfChequeAll() : arr('ptf_crm_cheques');
     invoices.forEach(function (i) {
       if (!yearOf(i.invDate || i.dateISO || i.t)) add(q, 'invoice-undated', 'فاکتور بدون سال مالی معتبر', i.no || i.cd, i.amount);
       var paid = (i.payments || []).concat(i.pays || []).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);

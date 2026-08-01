@@ -123,6 +123,9 @@
   function chUpsertReminder(rec) {
     try {
       /* v25.4: چک ضمانت/سپرده یادآور سررسید ندارد */
+      /* CHQ-MOD-001: چک‌های وارده (direction=received) هم یادآور سررسید دارند؛
+         فقط چک‌های شخصی/ضمانت/انتقال‌یافته/ابطال از یادآور مستثنی‌اند */
+      var isReceived = rec.direction === 'received';
       if (!rec || rec.ownership === 'personal' || rec.kind === 'guarantee' || rec.reminderDisabled || rec.ownership === 'third_party' || rec.st === 'transferred' || rec.st === 'voided_transfer' || rec.st === 'void') {
         if (rec && rec.remCd) chFinishReminder(rec, true);
         if (rec) { rec.remCd = ''; }
@@ -132,8 +135,8 @@
       var rems = getData('ptf_crm_reminders');
       var r = rec.remCd ? rems.filter(function (x) { return x.cd === rec.remCd; })[0] : null;
       var payload = {
-        title: 'سررسید چک صادره ' + (rec.sayad || rec.no || ''),
-        topic: 'سررسید چک صادره',
+        title: (isReceived ? 'سررسید چک وارده ' : 'سررسید چک صادره ') + (rec.sayad || rec.no || ''),
+        topic: isReceived ? 'سررسید چک وارده' : 'سررسید چک صادره',
         dueISO: rec.dueISO,
         dueFa: rec.dueFa || (typeof ptfISOToJ === 'function' ? ptfISOToJ(rec.dueISO) : rec.dueISO),
         dueTime: '', pri: 'متوسط',

@@ -126,6 +126,8 @@
         if (sub === 'received') rec.payerName = String(v.party).trim();
         else rec.payeeName = String(v.party).trim();
         window.ptfChequeCreate(sub, rec);
+        /* CHQ-MOD-001: یادآور سررسید برای چک وارده و صادره (غیر ضمانت/غیر ابطال) */
+        try { if (typeof chUpsertReminder === 'function') chUpsertReminder(rec); } catch (eR) {}
         if (typeof ptfToast === 'function') ptfToast('چک ثبت شد.', 'ok');
         window.ptfChequePanelRender();
       }
@@ -134,6 +136,10 @@
 
   /* ---------- عملیات ---------- */
   window.ptfChequeEndorseUi = function (cd) {
+    var chk = window.ptfChequeFind(cd);
+    var dueFa = (chk && (chk.dueFa || chk.dueISO)) || '';
+    var fy = String(dueFa).match(/(13|14)\d{2}/);
+    try { if (fy && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(fy[0])) { alert('🔒 سال مالی ' + fy[0] + ' قفل است؛ انتقال چک مجاز نیست.'); return; } } catch (eF) {}
     ptfDialog({ title: '↪ انتقال چک وارده به تامین‌کننده', fields: [{ id: 'sup', label: 'نام تامین‌کننده *', type: 'text', required: true }], okText: 'انتقال', onOk: function (v) {
       var r = window.ptfChequeEndorse(cd, String(v.sup).trim());
       if (!r.ok) { alert(r.why === 'state' ? 'وضعیت چک اجازه انتقال نمی‌دهد.' : 'چک یافت نشد.'); return; }
@@ -142,6 +148,9 @@
     } });
   };
   window.ptfChequeCollectUi = function (cd) {
+    var chk2 = window.ptfChequeFind(cd);
+    var fy2 = String((chk2 && (chk2.dueFa || chk2.dueISO)) || '').match(/(13|14)\d{2}/);
+    try { if (fy2 && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(fy2[0])) { alert('🔒 سال مالی ' + fy2[0] + ' قفل است؛ ثبت وصول مجاز نیست.'); return; } } catch (eF2) {}
     ptfDialog({ title: '✔ ثبت وصول چک', fields: [{ id: 'note', label: 'یادداشت', type: 'textarea', rows: 2 }], okText: 'وصول شد', onOk: function (v) {
       var c = window.ptfChequeFind(cd);
       var r = c && c.direction === 'received' ? window.ptfChequeCollect(cd, v.note) : window.ptfChequeClearIssued(cd, v.note);

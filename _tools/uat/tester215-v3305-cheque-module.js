@@ -1,4 +1,4 @@
-/* CHQ-MOD-001 — ماژول مستقل چک (v33.4.7): صادره/وارده + عملیات + مهاجرت نرم */
+/* CHQ-MOD-001 — ماژول مستقل چک (v33.4.8): صادره/وارده + عملیات + مهاجرت نرم */
 'use strict';
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -106,6 +106,18 @@ SECTION('گام ۴ — وصول مشتری با چک → چک وارده (rbac.j
 T('فرم وصولی فیلدهای چک دارد (شماره/سررسید/بانک)', rbac.indexOf('nPayChNo') > -1 && rbac.indexOf('nPayChDue') > -1 && rbac.indexOf('nPayChBank') > -1 && rbac.indexOf('nPayChWrap') > -1);
 T('savePay با روش چک، ptfChequeCreate(received) را صدا می‌زند و chequeCd لینک می‌شود', rbac.indexOf("window.ptfChequeCreate('received'") > -1 && rbac.indexOf('payRec.chequeCd = ch.cd') > -1);
 T('بدون شماره صیادی، وصول چک مسدود است', rbac.indexOf('شماره/شناسه صیادی الزامی') > -1);
+
+SECTION('یکپارچه‌سازی: یادآور + قفل سال مالی + data-quality');
+T('یادآور: چک وارده/صادره پشتیبانی می‌شود (عنوان وارده/صادره)', (function () {
+  var chq = fs.readFileSync(path.join(BASE, 'cheques.js'), 'utf-8');
+  return chq.indexOf('سررسید چک وارده') > -1 && chq.indexOf('سررسید چک صادره') > -1 && chq.indexOf("isReceived = rec.direction === 'received'") > -1;
+})());
+T('پنل: بعد از ثبت چک یادآور صدا زده می‌شود', panel.indexOf("typeof chUpsertReminder === 'function'") > -1);
+T('پنل: عملیات وصول/انتقال گارد قفل سال مالی دارند', panel.indexOf('ptfFiscalYearLocked') > -1);
+T('data-quality چک‌ها را از ptfChequeAll می‌خواند (هر دو کلید)', (function () {
+  var dq = fs.readFileSync(path.join(BASE, 'data-quality.js'), 'utf-8');
+  return dq.indexOf('window.ptfChequeAll') > -1;
+})());
 
 SECTION('گزارش پنل');
 window.ptfChequePanelSub = 'issued';

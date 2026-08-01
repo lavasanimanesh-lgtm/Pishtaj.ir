@@ -11,7 +11,7 @@ var sw = fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8');
 var sq = fs.readFileSync(path.join(ROOT, 'crm/storage-quota.js'), 'utf-8');
 
 SECTION('Static module-primary migration');
-T('نسخه CRM و cache-bust v33.4.7 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ai-workbench.js\?v=3[0-9.]+/.test(idx) && /draftx.js\?v=3[0-9.]+/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM و cache-bust v33.4.8 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ai-workbench.js\?v=3[0-9.]+/.test(idx) && /draftx.js\?v=3[0-9.]+/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('AI Workbench کلید full history در IndexedDB دارد', ai.indexOf('function aiWB_histIdbKey()') > -1 && ai.indexOf("aiWB_histKey() + ':idb-full'") > -1);
 T('AI Workbench full history را با ptfStorageIdbSet/Get می‌خواند/می‌نویسد', ai.indexOf('ptfStorageIdbSet(aiWB_histIdbKey()') > -1 && ai.indexOf('ptfStorageIdbGet(aiWB_histIdbKey()') > -1);
 T('AI localStorage فقط summary سبک نگه می‌دارد', ai.indexOf('aiWB_histSummary') > -1 && ai.indexOf('localStorage فقط خلاصه سبک') > -1 && ai.indexOf('JSON.stringify(x.data||{}).length < 30000') > -1);
