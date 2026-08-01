@@ -11,7 +11,7 @@ var bak = fs.readFileSync(path.join(ROOT, 'crm/backup.js'), 'utf-8');
 SECTION('Script loading and version');
 T('storage-quota.js در CRM با نسخه رسمی فعلی لود می‌شود', /storage-quota.js\?v=3[0-9.]+/.test(idx));
 T('storage-quota قبل از codegen/backup لود می‌شود', /storage-quota.js\?v=3[0-9.]+/.test(idx) && idx.indexOf('storage-quota.js') < idx.indexOf('codegen.js') && idx.indexOf('storage-quota.js') < idx.indexOf('backup.js'));
-T('نسخه CRM و service worker به v33.3.3 bump شده‌اند', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8')));
+T('نسخه CRM و service worker به v33.3.4 bump شده‌اند', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8')));
 
 SECTION('Storage quota API');
 T('سقف محافظه‌کارانه localStorage همان ۵MB تعریف شده است', sq.indexOf('LOCALSTORAGE_SOFT_LIMIT = 5 * 1024 * 1024') > -1);

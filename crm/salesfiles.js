@@ -819,7 +819,14 @@
         if (rfqD && rfqD.st === 'st7') hasDelivery = true;
       } catch (eD) {}
     }
-    if (!hasDelivery) out.blockers.push({ id: 'delivery', lb: '🤝 تحویل به کارفرما ثبت نشده است — ابتدا از دکمه «تحویل کارفرما» در همین پرونده ثبت کنید' });
+    /* UR-12 (ساده‌سازی مختومه): تحویل به‌صورت پیش‌فرض blocker است (US-437) اما با تأیید صریح
+       ثبت‌کننده (closeOverride.deliveryConfirmed + دلیل) قابل عبور است — تا مختومه‌کردن پرونده‌های
+       واقعاً تحویل‌شده بدون ثبت رویداد، بی‌دردسر شود؛ مسئولیت در audit ثبت می‌شود. */
+    if (!hasDelivery) {
+      var ovr = r.closeOverride || {};
+      if (ovr.deliveryConfirmed) out.warns.push({ id: 'delivery-override', lb: '🤝 تحویل با تأیید صریح ' + (ovr.by || '') + (ovr.reason ? ' — ' + ovr.reason : '') });
+      else out.blockers.push({ id: 'delivery', lb: '🤝 تحویل به کارفرما ثبت نشده است — یا از دکمه «تحویل کارفرما» ثبت کنید یا در این مودال «تحویل انجام شده است» را با ذکر دلیل تأیید کنید' });
+    }
     /* ② تسویه کامل (AC1) — blocker نرم: در مودال قابل رفع با تسویه خودکار */
     out.openInvs = d.invoices.filter(function (i) {
       var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
@@ -1041,6 +1048,11 @@
     var blocksHtml = au.blockers.map(function (b) { return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:7px 11px;font-size:12px;color:#b91c1c;margin-bottom:6px">⛔ ' + b.lb + '</div>'; }).join('');
     var warnsHtml = au.warns.map(function (w) { return '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:7px 11px;font-size:12px;color:#92400e;margin-bottom:6px">' + w.lb + '</div>'; }).join('');
     var canClose = !au.blockers.length;
+    /* UR-12: اگر تنها blocker «تحویل» است، مسیر تأیید صریح نمایش داده می‌شود */
+    var deliveryOvr = '';
+    if (au.blockers.some(function (b) { return b.id === 'delivery'; })) {
+      deliveryOvr = '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsDeliv" onchange="document.getElementById(\'sfClsGoBtn\').disabled = !this.checked"> تحویل به کارفرما انجام شده است (با مسئولیت ثبت‌کننده)</label><input id="sfClsDelivReason" type="text" placeholder="دلیل/توضیح (اختیاری)" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
+    }
     var settleChk = au.openInvs.length
       ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsSettle" checked> مانده ' + au.remainSum.toLocaleString('fa-IR') + ' ریال مطالبات «تسویه‌شده» ثبت شود (US-324/FIN-WF-013) — بدون تیک: مطالبات باز می‌ماند</label><textarea id="sfClsSettleReason" rows="2" style="width:100%;margin-top:7px" placeholder="دلیل تسویه خودکار را وارد کنید — اجباری"></textarea></div>'
       : '';
@@ -1048,11 +1060,11 @@
       '<h3>🏁 کنترل پیش از مختومه — ' + escP(r.inqNo || cd) + '</h3>' +
       '<div style="font-size:12px;color:#475569;margin-bottom:8px">US-437: مختومه فقط پس از <b>تحویل موفق</b> و <b>تسویه کامل</b> — همه اسناد پیش از بایگانی کنترل می‌شوند و کل پرونده (سند برد، QC، ارسال، هزینه‌ها، زیان‌ها) به بایگانی منتقل می‌شود.</div>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;font-size:12.5px;margin-bottom:8px"><b>🧭 مرحله فعلی: ' + escP(typeof sfStageLabel === 'function' ? sfStageLabel(r) : '') + '</b> (' + au.stage + '/12)' + docsHtml + '</div>' +
-      blocksHtml + warnsHtml + settleChk +
+      blocksHtml + warnsHtml + deliveryOvr + settleChk +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       (canClose
-        ? '<button class="bt" style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
+        ? '<button class="bt" id="sfClsGoBtn" style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
         : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>') +
       '</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -1063,6 +1075,20 @@
     if (settle && !settleReason) { alert('⛔ برای تسویه خودکار، دلیل الزامی است.'); return; }
     var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
+    /* UR-12: تأیید صریح تحویل (در صورت وجود) روی رکورد ذخیره می‌شود تا audit بعدی blocker نداشته باشد */
+    var delivChk = document.getElementById('sfClsDeliv');
+    if (delivChk && delivChk.checked) {
+      var list = sfAll(); var rr = list.filter(function (x) { return x.cd === cd; })[0];
+      if (rr) {
+        rr.closeOverride = rr.closeOverride || {};
+        rr.closeOverride.deliveryConfirmed = true;
+        rr.closeOverride.reason = ((document.getElementById('sfClsDelivReason') || {}).value || '').trim();
+        rr.closeOverride.by = curSession().name;
+        rr.closeOverride.t = faDateTime();
+        sfSave(list);
+        r = rr;
+      }
+    }
     var au = sfCloseAudit(r);
     if (au.openInvs.length && !settle) { alert('⛔ با مطالبات باز نمی‌توان مختومه کرد (US-437) — یا تیک تسویه را بزنید یا ابتدا وصولی‌ها را ثبت کنید.'); return; }
     if (!confirm('🏁 تایید نهایی مختومه پرونده «' + (r.inqNo || cd) + '»:\n\nپایان پروژه و تسویه کامل — کل پرونده با تمام اسناد به «بایگانی» منتقل می‌شود.\n\nادامه می‌دهید؟')) return;

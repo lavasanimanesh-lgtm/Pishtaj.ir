@@ -1,0 +1,98 @@
+/* UR-11 — دورهٔ بازه‌ای تنخواه: از آخرین ارجاع تا تاریخ انتخابی + قالب کامل گزارش (نحوهٔ پرداخت) */
+'use strict';
+require('./harness');
+var fs = require('fs'), path = require('path');
+var BASE = path.resolve(__dirname, '../../crm');
+var code = fs.readFileSync(path.join(BASE, 'petty.js'), 'utf-8');
+
+global.curSession = function () { return { user: 'u1', name: 'علی رضایی' }; };
+global.userName = function () { return 'علی رضایی'; };
+global.faMonthNow = function () { return '1405/04'; };
+global.faDate = function () { return '1405/04/20'; };
+global.faDateTime = function () { return '1405/04/20 10:00'; };
+global.isoNow = function () { return '2026-07-11'; };
+global.isMgr = function () { return true; };
+global.isTreasurer = function () { return true; };
+global.isAccountant = function () { return false; };
+global.canAll = function () { return true; };
+global.curRole = function () { return 'admin'; };
+global._alerts = [];
+global.alert = function (m) { global._alerts.push(String(m)); };
+global.audit = function () {}; global.notify = function () {};
+global._prints = []; global._downloads = [];
+function makeEl(ov) {
+  return Object.assign({ value: '', innerHTML: '', textContent: '', style: {},
+    remove: function () {}, insertAdjacentHTML: function () {}, setAttribute: function () {},
+    addEventListener: function () {}, querySelectorAll: function () { return []; }, querySelector: function () { return null; },
+    appendChild: function () {}, options: [], classList: { add: function () {}, remove: function () {}, contains: function () { return false; } } }, ov || {});
+}
+global._domGet = {}; global._inserted = [];
+global.document = {
+  getElementById: function (id) { return global._domGet[id] || makeEl(); },
+  querySelector: function () { return makeEl(); },
+  querySelectorAll: function () { return []; },
+  createElement: function () { return makeEl({ click: function () {}, href: '' }); },
+  head: makeEl(), body: makeEl(), addEventListener: function () {}
+};
+global.URL = { createObjectURL: function (b) { global._downloads.push(b); return 'blob:x'; } };
+global.Blob = function (parts) { this.parts = parts; };
+global.window.open = function () { return { document: { write: function (h) { global._prints.push(h); }, close: function () {} }, print: function () {} }; };
+global._domGet['panels'] = makeEl({ insertAdjacentHTML: function (_, h) { global._inserted.push(h); } });
+
+eval.call(global, code);
+
+/* ---------- داده: دورهٔ قبلی ارجاع‌شده تا 1405/04/10 + هزینه‌های قبل/بعد ---------- */
+setData('ptf_crm_petty_periods', [
+  { cd: 'PPR-OLD', from: '1405/04/01', to: '1405/04/10', month: '1405/04', st: 'referred', files: [{ key: 'k-bank', name: 'bank.jpg' }], totalOut: 100000, charges: 1000000, balance: 900000 }
+]);
+setData('ptf_crm_petty', [
+  { cd: 'PTY-1', amt: 100000, cat: 'قبلی', desc: 'داخل دورهٔ قبلی', by: 'علی رضایی', t: '1405/04/05 09:00', month: '1405/04', st: 'settled', settledT: '1405/04/06', settledBy: 'علی رضایی' },
+  { cd: 'PTY-2', amt: 50000, cat: 'ایاب و ذهاب', desc: 'تاکسی', by: 'مریم احمدی', t: '1405/04/15 09:00', month: '1405/04', st: 'settled', settledT: '1405/04/16', settledBy: 'علی رضایی', files: [{ key: 'k1', name: 'رسید تاکسی.jpg', petId: 'سند 1' }] },
+  { cd: 'PTY-3', amt: 30000, cat: 'ملزومات', desc: 'کاغذ', by: 'علی رضایی', t: '1405/04/18 11:00', month: '1405/04', st: 'open', payMode: 'direct', files: [{ key: 'k2', name: 'رسید کاغذ.jpg', petId: 'سند 2' }] }
+]);
+setData('ptf_crm_petty_tx', [
+  { cd: 'TX-1', type: 'charge', amt: 500000, by: 'علی رضایی', t: '1405/04/12 09:00', month: '1405/04', note: 'شارژ دورهٔ جدید' },
+  { cd: 'TX-2', type: 'direct', amt: 70000, by: 'علی رضایی', t: '1405/04/17 12:00', month: '1405/04', note: 'پرداخت مستقیم ناهار', files: [{ key: 'k3', name: 'رسید ناهار.jpg', petId: 'سند 3' }] }
+]);
+
+SECTION('بازهٔ پیشنهادی (از آخرین ارجاع تا امروز)');
+var sg = ptfPettySuggestedRange();
+T('from = روز پس از «تا» آخرین دوره (1405/04/11) و to = امروز (1405/04/20)', sg.from === '1405/04/11' && sg.to === '1405/04/20');
+
+SECTION('فیلتر بازه');
+var d = ptfPettyPeriodData('1405/04/11', '1405/04/20');
+T('فقط رکوردهای بازه: ۲ هزینه + ۲ تراکنش (هزینهٔ 04/05 خارج شد)', d.isRange === true && d.petty.length === 2 && d.tx.length === 2 && d.petty.every(function (p) { return p.cd !== 'PTY-1'; }));
+
+SECTION('قالب کامل رویدادها (نحوهٔ پرداخت)');
+var ev = ptfPettyPeriodEvents('1405/04/11', '1405/04/20');
+T('۴ رویداد با ترتیب زمانی', ev.length === 4 && ev[0].row === 1);
+var settled = ev.filter(function (e) { return e.cd === undefined && e.desc.indexOf('تاکسی') > -1; })[0] || ev.filter(function (e) { return e.desc && e.desc.indexOf('تاکسی') > -1; })[0];
+T('هزینهٔ تسویه‌شده: «تسویه در تاریخ X توسط Y» دارد', !!settled && settled.status.indexOf('تسویه در 1405/04/16') > -1 && settled.status.indexOf('علی رضایی') > -1);
+var direct = ev.filter(function (e) { return e.desc && e.desc.indexOf('کاغذ') > -1; })[0];
+T('هزینهٔ مستقیم: «پرداخت مستقیم از تنخواه» دارد', !!direct && direct.status === 'پرداخت مستقیم از تنخواه');
+var txDirect = ev.filter(function (e) { return e.desc && e.desc.indexOf('ناهار') > -1; })[0];
+T('تراکنش مستقیم: «پرداخت مستقیم از تنخواه»', !!txDirect && txDirect.status === 'پرداخت مستقیم از تنخواه');
+var charge = ev.filter(function (e) { return e.kind === 'شارژ حساب'; })[0];
+T('شارژ: «شارژ حساب» با نام ثبت‌کننده', !!charge && charge.by === 'علی رضایی');
+
+SECTION('هدر بازه');
+T('برچسب: «تنخواه‌گردان از تاریخ … تا تاریخ …»', ptfPettyRangeLabel('1405/04/11', '1405/04/20') === 'تنخواه‌گردان از تاریخ 1405/04/11 تا تاریخ 1405/04/20');
+T('سازگاری با ماه قدیمی: «ماه 1405/04»', ptfPettyRangeLabel('1405/04') === 'ماه 1405/04');
+
+SECTION('گزارش/PDF شامل هدر بازه + ستون نحوهٔ پرداخت');
+ptfPettyPeriodReport('1405/04/11', '1405/04/20');
+var h = global._inserted[global._inserted.length - 1] || '';
+T('مودال گزارش: هدر بازه + ستون «نحوهٔ پرداخت/وضعیت»', h.indexOf('تنخواه‌گردان از تاریخ 1405/04/11 تا تاریخ 1405/04/20') > -1 && h.indexOf('نحوهٔ پرداخت/وضعیت') > -1);
+ptfPettyPeriodCombinedPdf('1405/04/11', '1405/04/20');
+var out = global._prints.join('');
+T('PDF تلفیقی: هدر بازه + رسیدهای بازه (سند 1/2/3)', out.indexOf('از تاریخ 1405/04/11 تا تاریخ 1405/04/20') > -1 && out.indexOf('سند 1') > -1 && out.indexOf('سند 2') > -1 && out.indexOf('سند 3') > -1 && out.indexOf('PTY-1') === -1);
+T('PDF تلفیقی دورهٔ جاری: پیوست بانک ندارد (هنوز ارجاع نشده)', out.indexOf('صورتحساب بانک') === -1);
+
+SECTION('دورهٔ ذخیره‌شده: گزارش از همان لحظهٔ ارجاع (pettyIds/txIds)');
+setData('ptf_crm_petty_periods', [
+  { cd: 'PPR-OLD', from: '1405/04/01', to: '1405/04/10', month: '1405/04', st: 'referred', files: [], pettyIds: ['PTY-2'], txIds: [], totalOut: 100000, charges: 1000000, balance: 900000 }
+]);
+var filesOfOld = ptfPettyPeriodFiles('1405/04', '', ['PTY-2']);
+T('files با ids دوره فقط رسید همان دوره را برمی‌گرداند (PTY-2)', filesOfOld.length === 1 && filesOfOld[0].name === 'رسید تاکسی.jpg');
+
+DONE('tester212-v3304-petty-period-range');

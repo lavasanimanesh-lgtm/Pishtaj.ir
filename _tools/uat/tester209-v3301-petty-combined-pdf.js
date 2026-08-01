@@ -85,9 +85,9 @@ global._alerts.length = 0;
 pettyClosePeriod();
 T('دیالوگ ارجاع باز شد', !!_dlg && _dlg.title.indexOf('ارجاع گزارش دوره') > -1);
 T('بدنه هشدار «پیوست الزامی» دارد', !!_dlg && _dlg.body.indexOf('پیوست') > -1 && _dlg.body.indexOf('الزامی') > -1);
-/* اجرای onOk بدون پیوست → باید هشدار بدهد و ارجاع نسازد */
+/* اجرای onOk بدون پیوست (آخرین دورهٔ referred بدون فایل) → باید هشدار بدهد و ارجاع نسازد */
 var before = getData('ptf_crm_petty_periods').length;
-_dlg.onOk({ month: '1405/04', note: '', sms: 'no' });
+_dlg.onOk({ from: '1405/04/02', to: '1405/04/30', note: '', sms: 'no' });
 T('ارجاع بدون پیوست مسدود شد (هشدار + بدون رکورد جدید)', getData('ptf_crm_petty_periods').length === before && global._alerts.length === 1 && global._alerts[0].indexOf('صورتحساب بانک') > -1);
 
 DONE('tester209-v3301-petty-combined-pdf');

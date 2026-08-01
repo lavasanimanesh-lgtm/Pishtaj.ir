@@ -13,7 +13,7 @@ T('cache-bust salesfiles >= 19.4', (function () { var m = idx.match(/salesfiles\
 
 SECTION('US-437 — ساختار کد: کنترل پیش از مختومه');
 T('هسته ممیزی قابل تست sfCloseAudit → {blockers, warns, docs}', sf.indexOf('window.sfCloseAudit') > -1 && sf.indexOf('out.blockers.push') > -1);
-T('AC1: مدرک تحویل الزامی و مستقل از مرحله (ضد دور زدن با پرداخت نقدی) = blocker سخت', sf.indexOf("ev.type === 'delivered'") > -1 && sf.indexOf("if (!hasDelivery) out.blockers.push({ id: 'delivery'") > -1 && sf.indexOf("rfqD.st === 'st7'") > -1);
+T('AC1: مدرک تحویل الزامی و مستقل از مرحله (ضد دور زدن با پرداخت نقدی) = blocker سخت (با مسیر تأیید صریح UR-12)', sf.indexOf("ev.type === 'delivered'") > -1 && sf.indexOf("if (!hasDelivery) {") > -1 && sf.indexOf("out.blockers.push({ id: 'delivery'") > -1 && sf.indexOf("deliveryConfirmed") > -1 && sf.indexOf("rfqD.st === 'st7'") > -1);
 T('AC1: مطالبات باز = بدون تیک تسویه، مختومه ممنوع', sf.indexOf('با مطالبات باز نمی‌توان مختومه کرد (US-437)') > -1);
 T('سد برنامه‌ای نه فقط UI (درس US-371): commit هم blocker را چک می‌کند', sf.indexOf('window.sfCloseSettledCommit') > -1 && sf.indexOf('if (au.blockers.length) return false;') > -1);
 T('هشدار بدهی باز تامین‌کننده پرونده (اتصال R9 payables)', sf.indexOf("id: 'payable'") > -1 && sf.indexOf('ptfPayableRemain') > -1);

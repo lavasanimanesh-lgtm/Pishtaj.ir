@@ -30,6 +30,6 @@ SECTION('Structured data and assets');
 T('مقاله JSON-LD Article/FAQPage/BreadcrumbList دارد', ['Article','FAQPage','BreadcrumbList','ADV-CV-FIRST-SEO-ARTICLE-v1'].every(function (x) { return article.indexOf(x) > -1; }));
 T('مقاله favicon و metrics دارد', article.indexOf('favicon-32.png') > -1 && article.indexOf('ptf-metrics.js') > -1);
 T('آیکون/emoji سنگین در CTAهای مقاله اضافه نشده است', article.indexOf('🚀') === -1 && article.indexOf('💰') === -1 && article.indexOf('🔥') === -1);
-T('CRM/SW نسخه v33.3.3 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.3.4 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester264-control-valve-first-seo-article');
