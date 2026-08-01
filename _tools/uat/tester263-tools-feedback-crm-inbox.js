@@ -19,7 +19,7 @@ T('feedback runtime در crm/data/tool_feedback.json ذخیره می‌شود', 
 T('feedback_create rate limit و safe output دارد', api.indexOf("tools_rate_limit('feedback_create'") > -1 && api.indexOf('tools_feedback_summary') > -1);
 T('admin feedback list/update با admin auth محافظت می‌شود', api.indexOf("$action === 'admin_feedback_list'") > -1 && api.indexOf("$action === 'admin_feedback_update'") > -1 && /admin_feedback_list[\s\S]{0,120}tools_admin_require\(\)/.test(api) && /admin_feedback_update[\s\S]{0,160}tools_admin_require\(\)/.test(api));
 T('feedback statusهای CRM تعریف شده‌اند', ['new','reviewed','contacted','converted','needs_followup','spam','archived'].every(function (x) { return api.indexOf(x) > -1; }));
-T('tools API status v33.4.9 است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status v33.5.0 است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('Public feedback UI');
 T('advanced-feedback-ui.js وجود و نسخه دارد', fb.indexOf('PTF Advanced Tools Feedback UI') > -1 && fb.indexOf('v31.7.97') > -1);
@@ -32,7 +32,7 @@ T('advanced modal دکمه ارسال feedback دارد ولی advanced-tools-ui
 SECTION('CRM feedback inbox');
 T('crm/tool-feedback.js وجود و توابع لازم دارد', crm.indexOf('PTF CRM — tool-feedback.js') > -1 && ['ptfToolFeedbackHtml','ptfToolFeedbackLoad','ptfToolFeedbackSet'].every(function (x) { return crm.indexOf(x) > -1; }));
 T('CRM feedback UI اکشن‌های admin را صدا می‌زند', crm.indexOf('admin_feedback_list') > -1 && crm.indexOf('admin_feedback_update') > -1);
-T('CRM index tool-feedback را cache-bust v33.4.9 لود می‌کند', /tool-feedback.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM index tool-feedback را cache-bust v33.5.0 لود می‌کند', /tool-feedback.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('online payment همچنان اضافه نشده است', api.indexOf('payment_gateway') === -1 && api.indexOf('zarinpal') === -1 && fb.indexOf('zarinpal') === -1);
 
 DONE('tester263-tools-feedback-crm-inbox');

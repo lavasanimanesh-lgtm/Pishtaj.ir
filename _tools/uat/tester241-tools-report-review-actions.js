@@ -16,10 +16,10 @@ T('statusهای review مجاز تعریف شده‌اند', ['reviewed','needs_
 T('history کوتاه review ذخیره می‌شود', api.indexOf('reviewHistory') > -1 && api.indexOf('array_unshift($hist') > -1 && api.indexOf('array_slice($hist, 0, 30)') > -1);
 T('review note/by/at ذخیره و در summary برگردانده می‌شود', ['reviewNote','reviewedAt','reviewedBy','historyCount','statusLabel'].every(function (x) { return api.indexOf(x) > -1; }));
 T('update فقط review را تغییر می‌دهد و final issue جداست', api.indexOf('Report draft review status updated. Final issue is available') > -1 && api.indexOf('admin_report_final_issue') > -1 && api.indexOf("'pdf' => false") > -1);
-T('tools API status به v33.4.9 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status به v33.5.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM review action UI');
-T('tool-report-drafts.js با v33.4.9 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-report-drafts.js با v33.5.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('UI تابع ptfToolReportDraftSetStatus دارد', ui.indexOf('window.ptfToolReportDraftSetStatus = function') > -1 && ui.indexOf('admin_report_draft_update') > -1);
 T('UI برای statusها دکمه دارد', ['Reviewed','Needs data','Approved for final phase','Rejected','Duplicate'].every(function (x) { return ui.indexOf(x) > -1; }));
 T('UI note review با prompt می‌گیرد', ui.indexOf('یادداشت review') > -1 && ui.indexOf('prompt(') > -1);

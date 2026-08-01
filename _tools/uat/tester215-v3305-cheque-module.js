@@ -1,4 +1,4 @@
-/* CHQ-MOD-001 — ماژول مستقل چک (v33.4.9): صادره/وارده + عملیات + مهاجرت نرم */
+/* CHQ-MOD-001 — ماژول مستقل چک (v33.5.0): صادره/وارده + عملیات + مهاجرت نرم */
 'use strict';
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -106,6 +106,40 @@ SECTION('گام ۴ — وصول مشتری با چک → چک وارده (rbac.j
 T('فرم وصولی فیلدهای چک دارد (شماره/سررسید/بانک)', rbac.indexOf('nPayChNo') > -1 && rbac.indexOf('nPayChDue') > -1 && rbac.indexOf('nPayChBank') > -1 && rbac.indexOf('nPayChWrap') > -1);
 T('savePay با روش چک، ptfChequeCreate(received) را صدا می‌زند و chequeCd لینک می‌شود', rbac.indexOf("window.ptfChequeCreate('received'") > -1 && rbac.indexOf('payRec.chequeCd = ch.cd') > -1);
 T('بدون شماره صیادی، وصول چک مسدود است', rbac.indexOf('شماره/شناسه صیادی الزامی') > -1);
+
+SECTION('CHQ-V2: اثر مالی چک بر حساب (به محض ثبت؛ برگشتی/ابطال → معکوس)');
+/* چک وارده با فاکتور → payment روی فاکتور مشتری */
+setData('ptf_crm_invoices', [{ cd: 'INV-X', no: 'INV-900', offerNo: 'O1', amount: 500000, payments: [] }]);
+setData('ptf_crm_offers', [{ no: 'O1', buyerCd: 'C1', items: [] }]);
+var rv = ptfChequeCreate('received', { no: 'CH-R1', amt: 200000, sourceCustomerCd: 'C1', sourceInvoiceCd: 'INV-X', dueFa: '1405/06/01' });
+var invX = getData('ptf_crm_invoices')[0];
+T('چک وارده → payment روی فاکتور (ماندهٔ مشتری کم می‌شود)', rv.financial && rv.financial.ok && rv.financial.applied === 'invoice' && (invX.payments || []).some(function (p) { return p.chequeCd === rv.cd && p.amt === 200000; }));
+/* برگشتی → payment حذف می‌شود (مانده برمی‌گردد) */
+var bnc = ptfChequeBounce(rv.cd, 'بدون موجودی');
+T('برگشتی → معکوس اثر مالی (payment چک حذف شد)', bnc.ok && !getData('ptf_crm_invoices')[0].payments.some(function (p) { return p.chequeCd === rv.cd; }));
+
+/* چک صادره با تامین‌کننده → payment در supplier-finance */
+setData('ptf_crm_supplier_finance', { schema: 1, invoices: [], payments: [], adjustments: [] });
+setData('ptf_crm_suppliers', [{ cd: 'S1', co: 'تامین الف' }]);
+var iv = ptfChequeCreate('issued', { no: 'CH-I1', amt: 300000, supplierCd: 'S1', dueFa: '1405/06/01' });
+var sfData = getData('ptf_crm_supplier_finance');
+T('چک صادره → payment در حساب تامین‌کننده', iv.financial && iv.financial.ok && iv.financial.applied === 'supplier' && (sfData.payments || []).some(function (p) { return p.chequeCd === iv.cd && p.amount === 300000 && p.method === 'cheque'; }));
+/* ابطال صادره → void payment */
+var vd = ptfChequeVoidIssued(iv.cd, 'اشتباه');
+T('ابطال صادره → payment تامین‌کننده void می‌شود', vd.ok && getData('ptf_crm_supplier_finance').payments.some(function (p) { return p.chequeCd === iv.cd && p.status === 'void'; }));
+
+SECTION('CHQ-V2: دستیار هوشمند + چاپ برگه + حذف ثبت شخصی');
+T('پنل: دکمهٔ دستیار هوشمند + تابع ptfChequeAiOpen/Commit', panel.indexOf('🤖 دستیار هوشمند') > -1 && panel.indexOf('window.ptfChequeAiOpen') > -1 && panel.indexOf('window.ptfChAiCommit') > -1 && panel.indexOf("action=cheque") > -1);
+T('دستیار: فیلد انتخاب مشتری/تامین‌کننده + ضمیمهٔ کپی دارد', panel.indexOf('ptfChAiCust') > -1 && panel.indexOf('ptfChAiSup') > -1 && panel.indexOf('ptfChAiUp') > -1);
+T('چاپ برگه چک + مبلغ به حروف', (function () {
+  var w = ptfNumToFaWords(1250000);
+  var p = panel.indexOf('window.ptfChequePrint') > -1 && panel.indexOf('مبلغ به حروف') > -1 && panel.indexOf('🖨 چاپ برگه') > -1;
+  return p && w.indexOf('یک میلیون') > -1 && w.indexOf('دویست و پنجاه هزار') > -1 && w.indexOf('ریال') > -1;
+})());
+T('ثبت چک از ماژول شخصی حذف شد (پیام → هاب مالی)', (function () {
+  var chq = fs.readFileSync(path.join(BASE, 'cheques.js'), 'utf-8');
+  return chq.indexOf('ثبت چک فقط از «هاب مالی → تب چک‌ها»') > -1;
+})());
 
 SECTION('یکپارچه‌سازی: یادآور + قفل سال مالی + data-quality');
 T('یادآور: چک وارده/صادره پشتیبانی می‌شود (عنوان وارده/صادره)', (function () {

@@ -299,8 +299,18 @@
     var w2 = document.getElementById('chDealWrap'); if (w2) w2.style.display = g ? '' : 'none';
     var lb = document.getElementById('chDueLbl'); if (lb) lb.textContent = g ? 'تاریخ (اختیاری)' : 'تاریخ چک / سررسید (شمسی) *';
   };
-  window.chNew = function () { (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', chFormHtml()); setTimeout(function(){ try{ chKindUi(); }catch(e){} }, 0); };
-  window.chEdit = function (cd) { var rec = chFind(cd); if (!rec) return; (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', chFormHtml(rec)); setTimeout(function(){ try{ chKindUi(); }catch(e){} }, 0); };
+  window.chNew = function () {
+    /* CHQ-V2: ثبت چک دیگر از ماژول شخصی ممکن نیست — همهٔ ثبت‌ها در هاب مالی (تب چک‌ها) */
+    if (typeof ptfToast === 'function') ptfToast('ثبت چک فقط از «هاب مالی → تب چک‌ها» انجام می‌شود.', 'info');
+    else alert('ثبت چک فقط از «هاب مالی → تب چک‌ها» انجام می‌شود.');
+    try { if (typeof finHubSet === 'function') finHubSet('cheque'); } catch (e) {}
+  };
+  window.chEdit = function (cd) {
+    /* CHQ-V2: مدیریت چک‌ها در هاب مالی */
+    if (typeof ptfToast === 'function') ptfToast('مدیریت چک‌ها از «هاب مالی → تب چک‌ها» انجام می‌شود.', 'info');
+    else alert('مدیریت چک‌ها از «هاب مالی → تب چک‌ها» انجام می‌شود.');
+    try { if (typeof finHubSet === 'function') finHubSet('cheque'); } catch (e) {}
+  };
 
   window.chCollectForm = function(ex){ return chCollectForm(ex); };
   function canCreateCompanyCheque(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} }
