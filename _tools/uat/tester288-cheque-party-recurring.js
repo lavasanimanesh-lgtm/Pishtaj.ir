@@ -150,7 +150,10 @@ T('تاریخ payment چک خالی نیست (باگ بازگشتی faDateTimeL 
   return p && p.t && String(p.t).length > 4 && p.dateFa === '1405/06/01';
 })());
 var c2 = ptfChequeCreate('received', { no: 'CH-R1', sayad: 'CH-R1', amt: 400000000, kind: 'finance', custCd: 'C1', sourceInvoiceCd: 'INV1', dueFa: '1405/06/01' });
-T('چک وارده مالی با فاکتور → payment روی فاکتور', c2.financial && c2.financial.ok && c2.financial.applied === 'invoice' && getData('ptf_crm_invoices').filter(function (i) { return i.cd === 'INV1'; })[0].payments.some(function (p) { return p.chequeCd === c2.cd && p.amt === 400000000; }));
+/* v33.10.0 (منطق نقدی مصوب): چک وارده درآمد در لحظه وصول — ثبت بدون payment */
+T('ثبت چک وارده مالی با فاکتور: بدون payment (درآمد در وصول)', c2.pendingFinancial === true && !c2.financialApplied && !getData('ptf_crm_invoices').filter(function (i) { return i.cd === 'INV1'; })[0].payments.some(function (p) { return p.chequeCd === c2.cd; }));
+var coll2 = ptfChequeCollect(c2.cd, 'وصول شد');
+T('وصول چک وارده → payment روی فاکتور', coll2.financial && coll2.financial.ok && getData('ptf_crm_invoices').filter(function (i) { return i.cd === 'INV1'; })[0].payments.some(function (p) { return p.chequeCd === c2.cd && p.amt === 400000000; }));
 var c3 = ptfChequeCreate('received', { no: 'CH-R2', sayad: 'CH-R2', amt: 5000000, kind: 'finance', custCd: 'C1', dueFa: '1405/06/01' });
 T('چک وارده بدون فاکتور → در گردش (بدون اثر مالی)', !c3.financialApplied && !c3.financial.ok);
 var cc = ptfChequeCollect(c3.cd, 'وصول شد');

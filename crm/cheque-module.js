@@ -47,10 +47,17 @@
     if (rec.kind === 'guarantee') rec.direction = 'issued'; /* تصویب: ضمانت → صادره */
     var key = rec.direction === 'received' ? K_RECEIVED : K_ISSUED;
     var l = read(key); l.unshift(rec); write(key, l);
-    /* CHQ-V2: اثر مالی به محض ثبت — اگر طرف/فاکتور مشخص باشد (ضمانت هرگز اثر مالی ندارد) */
-    var applied = window.ptfChequeApplyFinancial(rec);
-    rec.financial = applied;
-    if (applied && applied.ok) rec.financialApplied = { at: faDateTimeL(), result: applied };
+    /* CHQ-V2: اثر مالی به محض ثبت — اگر طرف/فاکتور مشخص باشد (ضمانت هرگز اثر مالی ندارد).
+       v33.10.0 (منطق نقدی مصوب کارفرما): چک وارده «درآمد واقعی» نیست تا وقتی وصول نشود —
+       اثر مالی (payment روی فاکتور مشتری) فقط هنگام «وصول» (ptfChequeCollect) ساخته می‌شود. */
+    if (rec.direction === 'issued') {
+      var applied = window.ptfChequeApplyFinancial(rec);
+      rec.financial = applied;
+      if (applied && applied.ok) rec.financialApplied = { at: faDateTimeL(), result: applied };
+    } else {
+      rec.financial = { ok: false, why: 'received_pending_collect' };
+      rec.pendingFinancial = true;
+    }
     write(key, l);
     return rec;
   };
@@ -79,28 +86,32 @@
     return { ok: true, cheque: c, financial: applied };
   };
   /* ثبت وصول (Cleared) — v33.7.0: چک مالی وارده‌ای که هنگام ثبت فاکتور نداشت،
-     با وصول اثر مالی می‌گیرد (روی اولین فاکتور باز همان مشتری). */
+     با وصول اثر مالی می‌گیرد (روی اولین فاکتور باز همان مشتری).
+     v33.10.0 (منطق نقدی مصوب کارفرما): وصول = لحظهٔ تحقق درآمد — اثر مالی همیشه اینجا ساخته می‌شود. */
   window.ptfChequeCollect = function (cd, note) {
     var l = read(K_RECEIVED), c = l.filter(function (x) { return x.cd === cd; })[0];
     if (!c) return { ok: false, why: 'notfound' };
     if (c.st === 'cleared' || c.st === 'bounced') return { ok: false, why: 'state' };
     c.st = 'cleared'; c.clearedAt = faDateTime(); c.clearedBy = me().name; c.clearNote = note || '';
     write(K_RECEIVED, l);
-    /* اثر مالی هنگام وصول (اگر قبلاً اثر نرفته باشد) */
+    /* اثر مالی هنگام وصول (همیشه — حتی اگر در ثبت قبلاً اثر رفته باشد، جلوگیری از دوباره‌شماری) */
     var applied = null;
-    if (c.kind !== 'guarantee' && !c.financialApplied) {
-      var r = window.ptfChequeApplyFinancial(c);
-      if (r.ok) { c.financialApplied = { at: faDateTimeL(), result: r }; applied = r; }
-      else if (r.why === 'no_invoice' && (c.custCd || c.sourceCustomerCd)) {
-        /* چک وارده بدون فاکتور مشخص: روی اولین فاکتور باز همان مشتری */
-        var invs = window.ptfChequeOpenInvoicesOf(c.custCd || c.sourceCustomerCd);
-        if (invs.length) {
-          c.sourceInvoiceCd = invs[0].cd;
-          var r2 = window.ptfChequeApplyFinancial(c);
-          if (r2.ok) { c.financialApplied = { at: faDateTimeL(), result: r2 }; applied = r2; }
+    if (c.kind !== 'guarantee') {
+      if (!c.financialApplied) {
+        var r = window.ptfChequeApplyFinancial(c);
+        if (r.ok) { c.financialApplied = { at: faDateTimeL(), result: r }; applied = r; }
+        else if (r.why === 'no_invoice' && (c.custCd || c.sourceCustomerCd)) {
+          var invs = window.ptfChequeOpenInvoicesOf(c.custCd || c.sourceCustomerCd);
+          if (invs.length) {
+            c.sourceInvoiceCd = invs[0].cd;
+            var r2 = window.ptfChequeApplyFinancial(c);
+            if (r2.ok) { c.financialApplied = { at: faDateTimeL(), result: r2 }; applied = r2; }
+          }
         }
+        if (applied) write(K_RECEIVED, l);
+      } else {
+        applied = c.financialApplied && c.financialApplied.result;
       }
-      if (applied) write(K_RECEIVED, l);
     }
     return { ok: true, cheque: c, financial: applied };
   };

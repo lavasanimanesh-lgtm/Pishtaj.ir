@@ -144,15 +144,22 @@ T('savePay با روش چک، ptfChequeCreate(received) را صدا می‌زن�
 T('بدون شماره صیادی، وصول چک مسدود است', rbac.indexOf('شماره/شناسه صیادی الزامی') > -1);
 
 SECTION('CHQ-V2: اثر مالی چک بر حساب (به محض ثبت؛ برگشتی/ابطال → معکوس)');
-/* چک وارده با فاکتور → payment روی فاکتور مشتری */
+/* چک وارده با فاکتور → v33.10.0 (منطق نقدی مصوب): اثر مالی فقط هنگام وصول */
 setData('ptf_crm_invoices', [{ cd: 'INV-X', no: 'INV-900', offerNo: 'O1', amount: 500000, payments: [] }]);
 setData('ptf_crm_offers', [{ no: 'O1', buyerCd: 'C1', items: [] }]);
 var rv = ptfChequeCreate('received', { no: 'CH-R1', amt: 200000, sourceCustomerCd: 'C1', sourceInvoiceCd: 'INV-X', dueFa: '1405/06/01' });
 var invX = getData('ptf_crm_invoices')[0];
-T('چک وارده → payment روی فاکتور (ماندهٔ مشتری کم می‌شود)', rv.financial && rv.financial.ok && rv.financial.applied === 'invoice' && (invX.payments || []).some(function (p) { return p.chequeCd === rv.cd && p.amt === 200000; }));
-/* برگشتی → payment حذف می‌شود (مانده برمی‌گردد) */
+T('ثبت چک وارده: payment ساخته نمی‌شود (درآمد در وصول — منطق نقدی)', rv.pendingFinancial === true && !rv.financialApplied && !(invX.payments || []).some(function (p) { return p.chequeCd === rv.cd; }));
+/* وصول → payment ساخته می‌شود */
+var collX = ptfChequeCollect(rv.cd, 'وصول شد');
+T('وصول چک وارده → payment روی فاکتور (تحقق درآمد)', collX.financial && collX.financial.ok && collX.financial.applied === 'invoice' && getData('ptf_crm_invoices')[0].payments.some(function (p) { return p.chequeCd === rv.cd && p.amt === 200000; }));
+/* v33.10.0: چک وصول‌شده دیگر برگشتی نمی‌شود (state) — معکوس فقط پیش از وصول معنی دارد */
 var bnc = ptfChequeBounce(rv.cd, 'بدون موجودی');
-T('برگشتی → معکوس اثر مالی (payment چک حذف شد)', bnc.ok && !getData('ptf_crm_invoices')[0].payments.some(function (p) { return p.chequeCd === rv.cd; }));
+T('برگشتی بعد از وصول مسدود است (state — چک نقد شده)', bnc.ok === false && bnc.why === 'state');
+/* برگشتی پیش از وصول: بدون payment و معکوس بی‌خطر */
+var rv2 = ptfChequeCreate('received', { no: 'CH-R2', amt: 100000, sourceCustomerCd: 'C1', sourceInvoiceCd: 'INV-X', dueFa: '1405/06/01' });
+var bnc2 = ptfChequeBounce(rv2.cd, 'بدون موجودی');
+T('برگشتی پیش از وصول: معکوس بی‌خطر و بدون payment', bnc2.ok && !getData('ptf_crm_invoices')[0].payments.some(function (p) { return p.chequeCd === rv2.cd; }));
 
 /* چک صادره با تامین‌کننده → payment در supplier-finance */
 setData('ptf_crm_supplier_finance', { schema: 1, invoices: [], payments: [], adjustments: [] });
