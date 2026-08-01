@@ -167,15 +167,32 @@
       });
       var status = code ? 'linked' : candidates.length === 1 ? 'exactCandidate' : candidates.length > 1 ? 'ambiguous' : 'missing';
       counts[status]++;
-      lines.push({ offerNo: offer.no || '', line: idx + 1, item: item.name || item.nm || item.desc || '', status: status, candidates: candidates.slice(0, 8).map(function (p) { return (p.nm || p.name || p.cd) + ' [' + p.cd + ']'; }) });
+      lines.push({ offerNo: offer.no || '', line: idx + 1, item: item.name || item.nm || item.desc || '', status: status, candidates: candidates.slice(0, 8).map(function (p) { return (p.nm || p.name || p.cd) + ' [' + p.cd + ']'; }), candidateCodes: candidates.slice(0, 8).map(function (p) { return p.cd || ''; }) });
     }); });
     var report = { readOnly: true, offerCount: offers.length, productCount: products.length, lineCount: lines.length, counts: counts, lines: lines };
     console.table({ offers: report.offerCount, products: report.productCount, lines: report.lineCount, linked: counts.linked, exactCandidate: counts.exactCandidate, ambiguous: counts.ambiguous, missing: counts.missing });
     console.log(JSON.stringify(report, null, 2));
     var problem = lines.filter(function (x) { return x.status !== 'linked'; });
-    var body = problem.slice(0, 100).map(function (x) { return '<tr><td>' + escP(x.offerNo) + '</td><td>' + escP(x.item) + '</td><td>' + escP(x.status === 'exactCandidate' ? 'یک پیشنهاد دقیق' : x.status === 'ambiguous' ? 'چند پیشنهاد' : 'بدون پیشنهاد') + '<br><small>' + escP((x.candidates || []).join('، ')) + '</small></td></tr>'; }).join('');
-    var html = '<div class="md-b" id="catalogAuditDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:90vh;overflow:auto"><h3>🔎 ممیزی هویت کالا — فقط‌خواندنی</h3><div style="background:#eff6ff;padding:9px;border-radius:9px;font-size:12px;margin-bottom:9px">مرتبط: ' + counts.linked + ' | پیشنهاد دقیق: ' + counts.exactCandidate + ' | مبهم: ' + counts.ambiguous + ' | بدون پیشنهاد: ' + counts.missing + '<br>هیچ خط پیشنهاد یا کالایی در این گزارش تغییر نمی‌کند.</div><div class="tb2"><table><thead><tr><th>پیشنهاد</th><th>قلم</th><th>وضعیت / نامزدها</th></tr></thead><tbody>' + (body || '<tr><td colspan="3">همه اقلام به کالا متصل هستند.</td></tr>') + '</tbody></table></div>' + (problem.length > 100 ? '<small>۱۰۰ مورد اول نمایش داده شد؛ جزئیات کامل در Console موجود است.</small>' : '') + '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    var body = problem.slice(0, 100).map(function (x) { var action = x.status === 'exactCandidate' && x.candidateCodes && x.candidateCodes[0] ? '<br><button class="ba" data-offer="' + escP(x.offerNo) + '" data-line="' + x.line + '" data-product="' + escP(x.candidateCodes[0]) + '" onclick="ptfCatalogIdentityLink(this.dataset.offer, this.dataset.line, this.dataset.product)">✅ اتصال دقیق</button>' : ''; return '<tr><td>' + escP(x.offerNo) + '</td><td>' + escP(x.item) + '</td><td>' + escP(x.status === 'exactCandidate' ? 'یک پیشنهاد دقیق' : x.status === 'ambiguous' ? 'چند پیشنهاد' : 'بدون پیشنهاد') + '<br><small>' + escP((x.candidates || []).join('، ')) + '</small>' + action + '</td></tr>'; }).join('');
+    var html = '<div class="md-b" id="catalogAuditDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:90vh;overflow:auto"><h3>🔎 ممیزی هویت کالا — فقط‌خواندنی</h3><div style="background:#eff6ff;padding:9px;border-radius:9px;font-size:12px;margin-bottom:9px">مرتبط: ' + counts.linked + ' | پیشنهاد دقیق: ' + counts.exactCandidate + ' | مبهم: ' + counts.ambiguous + ' | بدون پیشنهاد: ' + counts.missing + '<br>هیچ خط پیشنهاد یا کالایی در این گزارش تغییر نمی‌کند.</div><div class="tb2"><table><thead><tr><th>پیشنهاد</th><th>قلم</th><th>وضعیت / نامزدها / اقدام</th></tr></thead><tbody>' + (body || '<tr><td colspan="3">همه اقلام به کالا متصل هستند.</td></tr>') + '</tbody></table></div>' + (problem.length > 100 ? '<small>۱۰۰ مورد اول نمایش داده شد؛ جزئیات کامل در Console موجود است.</small>' : '') + '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     return report;
+  };
+  window.ptfCatalogIdentityLink = function (offerNo, lineNo, productCd) {
+    var offers = getData('ptf_crm_offers') || [], products = getData('ptf_crm_products') || [];
+    var offer = offers.filter(function (x) { return x.no === offerNo; })[0], item = offer && offer.items && offer.items[+lineNo - 1];
+    var product = products.filter(function (x) { return x.cd === productCd; })[0];
+    if (!offer || !item || !product) { alert('قلم پیشنهاد یا کالای انتخاب‌شده پیدا نشد.'); return; }
+    function norm(v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;()\/\\]/g, '').toLowerCase(); }
+    function sig(x) { return [norm(x.name || x.nm || x.desc), norm(x.model || x.md), norm(x.spec || x.st || x.detail), norm(x.unit || x.un)].join('|'); }
+    var candidates = products.filter(function (p) { return sig(item) !== '|||' && sig(p) === sig(item); });
+    if (candidates.length !== 1 || candidates[0].cd !== productCd) { alert('این اتصال دیگر تطبیق دقیق یکتا نیست؛ گزارش را دوباره بازخوانی کنید.'); return; }
+    if (!confirm('اتصال دقیق این قلم به «' + (product.nm || product.name || product.cd) + '» ثبت شود؟')) return;
+    item.pcode = productCd;
+    setData('ptf_crm_offers', offers);
+    try { audit('کاتالوگ', 'اتصال دقیق قلم پیشنهاد به کالا ' + productCd, offerNo); } catch (e) {}
+    var dlg = document.getElementById('catalogAuditDlg'); if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast('اتصال دقیق کالا ثبت شد؛ پیشنهاد و گزارش به‌روزرسانی شد.', 'ok');
+    window.ptfCatalogIdentityAudit();
   };
 })();
