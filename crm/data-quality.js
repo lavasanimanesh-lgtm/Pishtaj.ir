@@ -152,7 +152,30 @@
     var rows = window.ptfDataQualityData();
     var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
     var body = rows.map(function (r) { return '<tr><td><details style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px"><summary style="cursor:pointer;font-weight:800;color:#334155">' + escP(r.label) + ' — ' + r.count + ' مورد' + (r.amount ? ' — ' + (+r.amount).toLocaleString('fa-IR') + ' ریال' : '') + '</summary><div style="padding-top:7px">' + qualityRefsHtml(r) + '</div></details></td></tr>'; }).join('');
-    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
+    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button><button class="bt bt-o" onclick="ptfCatalogIdentityAudit()">🔎 ممیزی هویت کالا</button></span></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
   };
   window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
+
+  /* Phase 1 catalog identity audit: read-only, no auto-link and no catalog writes. */
+  window.ptfCatalogIdentityAudit = function () {
+    function norm(v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;()\/\\]/g, '').toLowerCase(); }
+    function signature(x) { return [norm(x.name || x.nm || x.desc), norm(x.model || x.md), norm(x.spec || x.st || x.detail), norm(x.unit || x.un)].join('|'); }
+    var products = getData('ptf_crm_products') || [], offers = getData('ptf_crm_offers') || [], lines = [], counts = { linked: 0, exactCandidate: 0, ambiguous: 0, missing: 0 };
+    offers.forEach(function (offer) { (offer.items || []).forEach(function (item, idx) {
+      var code = item.pcode || item.prodCd || item.productCd || '', candidates = products.filter(function (p) {
+        return (code && p.cd === code) || (signature(item) !== '|||' && signature(p) === signature(item));
+      });
+      var status = code ? 'linked' : candidates.length === 1 ? 'exactCandidate' : candidates.length > 1 ? 'ambiguous' : 'missing';
+      counts[status]++;
+      lines.push({ offerNo: offer.no || '', line: idx + 1, item: item.name || item.nm || item.desc || '', status: status, candidates: candidates.slice(0, 8).map(function (p) { return (p.nm || p.name || p.cd) + ' [' + p.cd + ']'; }) });
+    }); });
+    var report = { readOnly: true, offerCount: offers.length, productCount: products.length, lineCount: lines.length, counts: counts, lines: lines };
+    console.table({ offers: report.offerCount, products: report.productCount, lines: report.lineCount, linked: counts.linked, exactCandidate: counts.exactCandidate, ambiguous: counts.ambiguous, missing: counts.missing });
+    console.log(JSON.stringify(report, null, 2));
+    var problem = lines.filter(function (x) { return x.status !== 'linked'; });
+    var body = problem.slice(0, 100).map(function (x) { return '<tr><td>' + escP(x.offerNo) + '</td><td>' + escP(x.item) + '</td><td>' + escP(x.status === 'exactCandidate' ? 'یک پیشنهاد دقیق' : x.status === 'ambiguous' ? 'چند پیشنهاد' : 'بدون پیشنهاد') + '<br><small>' + escP((x.candidates || []).join('، ')) + '</small></td></tr>'; }).join('');
+    var html = '<div class="md-b" id="catalogAuditDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:90vh;overflow:auto"><h3>🔎 ممیزی هویت کالا — فقط‌خواندنی</h3><div style="background:#eff6ff;padding:9px;border-radius:9px;font-size:12px;margin-bottom:9px">مرتبط: ' + counts.linked + ' | پیشنهاد دقیق: ' + counts.exactCandidate + ' | مبهم: ' + counts.ambiguous + ' | بدون پیشنهاد: ' + counts.missing + '<br>هیچ خط پیشنهاد یا کالایی در این گزارش تغییر نمی‌کند.</div><div class="tb2"><table><thead><tr><th>پیشنهاد</th><th>قلم</th><th>وضعیت / نامزدها</th></tr></thead><tbody>' + (body || '<tr><td colspan="3">همه اقلام به کالا متصل هستند.</td></tr>') + '</tbody></table></div>' + (problem.length > 100 ? '<small>۱۰۰ مورد اول نمایش داده شد؛ جزئیات کامل در Console موجود است.</small>' : '') + '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    return report;
+  };
 })();
