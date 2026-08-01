@@ -44,6 +44,7 @@
     var k = typeof window.ptfChequePartyKind === 'function' ? window.ptfChequePartyKind(c) : 'other';
     if (k === 'sup') return '<span class="bd" style="background:#f0fdf4;color:#15803d;font-size:10px">🏭 تامین‌کننده</span>';
     if (k === 'cust') return '<span class="bd" style="background:#eff6ff;color:#1d4ed8;font-size:10px">🤝 مشتری</span>';
+    if (k === 'third') return '<span class="bd" style="background:#fdf2f8;color:#be185d;font-size:10px">🪪 ثالث</span>';
     return '<span class="bd" style="background:#f1f5f9;color:#64748b;font-size:10px">👤 سایر</span>';
   }
   function issuedTable() {
@@ -132,9 +133,22 @@
     if (el) el.outerHTML = window.ptfChequePanelHtml();
   };
 
-  /* ---------- ثبت چک جدید (v33.7.0 — ذینفع شرطی: مشتری/تامین‌کننده/سایر) ---------- */
+  /* ---------- ثبت چک جدید ----------
+     v33.8.0 (مصوب کارفرما): اول می‌پرسد «وارده است یا صادره» و سپس فیلدها بر آن اساس ساخته می‌شوند. */
   window.ptfChequeNewUi = function () {
-    var sub = window.ptfChequePanelSub === 'received' ? 'received' : 'issued';
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2700) : 2700;
+    var html = '<div class="md-b" id="ptfChNewDirDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
+      '<h3>🧾 ثبت چک — نوع چک چیست؟</h3>' +
+      '<div style="font-size:12.5px;color:#475569;margin-bottom:12px">ابتدا مشخص کنید چک <b>وارده</b> (دریافتی از مشتری/ثالث) است یا <b>صادره</b> (پرداختی/ضمانت شرکت) — فیلدها بر همان اساس تنظیم می‌شوند.</div>' +
+      '<div style="display:grid;gap:10px">' +
+      '<button class="bt" style="background:#0e7490;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'received\');document.getElementById(\'ptfChNewDirDlg\').remove()">📥 چک وارده — دریافت از مشتری / ثالث</button>' +
+      '<button class="bt" style="background:#b45309;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'issued\');document.getElementById(\'ptfChNewDirDlg\').remove()">🏢 چک صادره — پرداخت / ضمانت شرکت</button>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'ptfChNewDirDlg\').remove()">انصراف</button></div></div></div>';
+    (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
+  };
+  window.ptfChequeNewForm = function (dir) {
+    var sub = dir === 'received' ? 'received' : 'issued';
     var isR = sub === 'received';
     var supOpts = '<option value="">— تامین‌کننده دارای مطالبه —</option>', custOpts = '<option value="">— مشتری دارای پرونده باز —</option>';
     try {
@@ -151,12 +165,10 @@
       '</div>' +
       '<div class="fr"><div class="fld"><label>نوع ذی‌نفع *</label><select id="ptfChNParty" onchange="ptfChNPartyUi()">' +
       (isR
-        ? '<option value="cust">🤝 مشتری (دارای پرونده باز)</option><option value="other">👤 سایر</option>'
+        ? '<option value="cust">🤝 مشتری (دارای پرونده باز)</option><option value="third">🪪 ثالث (چک شخص/شرکت دیگر)</option><option value="other">👤 سایر</option>'
         : '<option value="sup">🏭 تامین‌کننده (دارای مطالبه)</option><option value="other">👤 سایر</option>') +
       '</select></div>' +
-      '<div class="fld" id="ptfChNPickWrap" style="min-width:260px">' + (isR
-        ? '<label>مشتری (صادرکننده) *</label><select id="ptfChNCust" onchange="ptfChNInvReload()">' + custOpts + '</select>'
-        : '<label>تامین‌کننده (ذی‌نفع) *</label><select id="ptfChNSup">' + supOpts + '</select>') + '</div></div>' +
+      '<div class="fld" id="ptfChNPickWrap" style="min-width:260px"></div></div>' +
       '<div class="fr"><div class="fld"><label>شماره / شناسه صیادی *</label><input id="ptfChNNo" style="direction:ltr" placeholder="در صورت موجود بودن"></div>' +
       '<div class="fld"><label>مبلغ (ریال) *</label><input id="ptfChNAmt" type="text" inputmode="numeric" data-money="1" autocomplete="off" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>تاریخ سررسید (شمسی) *</label>' + (typeof window.ptfDatePicker === 'function' ? window.ptfDatePicker('ptfChNDue', '', '1405/05/11') : '<input id="ptfChNDue" placeholder="1405/05/11" style="direction:ltr">') + '</div>' +
@@ -174,14 +186,29 @@
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfChNewDlg\').remove()">انصراف</button>' +
       '<button type="button" class="bt" onclick="ptfChNCommit()">✅ ثبت چک</button></div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
+    window._ptfChNFormDir = sub;
+    window._ptfChNCustOpts = custOpts;
+    window._ptfChNSupOpts = supOpts;
     window.ptfChNPartyUi();
-    if (isR) window.ptfChNInvReload();
-    else window.ptfChNKindUi();
+    if (!isR) window.ptfChNKindUi();
   };
   window.ptfChNPartyUi = function () {
-    var v = ((document.getElementById('ptfChNPickWrap') || {}).value);
-    var sel = document.getElementById('ptfChNPickWrap');
-    if (sel) sel.style.display = v === 'other' ? 'none' : '';
+    var isR = window._ptfChNFormDir === 'received';
+    var v = ((document.getElementById('ptfChNParty') || {}).value || (isR ? 'cust' : 'sup'));
+    var wrap = document.getElementById('ptfChNPickWrap'); if (!wrap) return;
+    var html = '';
+    if (isR) {
+      if (v === 'cust') html = '<label>مشتری (صادرکننده) *</label><select id="ptfChNCust" onchange="ptfChNInvReload()">' + (window._ptfChNCustOpts || '') + '</select>';
+      else if (v === 'third') html = '<label>نام ثالث (صادرکننده چک) *</label><input id="ptfChNThird" placeholder="نام شخص/شرکت ثالث — بدون پرونده">';
+      else html = '<label>نام ذی‌نفع (سایر) *</label><input id="ptfChNOther">';
+    } else {
+      if (v === 'sup') html = '<label>تامین‌کننده (ذی‌نفع) *</label><select id="ptfChNSup">' + (window._ptfChNSupOpts || '') + '</select>';
+      else html = '<label>نام ذی‌نفع (سایر) *</label><input id="ptfChNOther">';
+    }
+    wrap.innerHTML = html;
+    var invWrap = document.getElementById('ptfChNInvWrap');
+    if (invWrap) invWrap.style.display = (isR && v === 'cust' && ((document.getElementById('ptfChNCust') || {}).value)) ? '' : 'none';
+    if (isR && v === 'cust') window.ptfChNInvReload();
   };
   window.ptfChNKindUi = function () {
     var k = ((document.getElementById('ptfChNKind') || {}).value || 'finance');
@@ -221,16 +248,21 @@
     var dueISO = (typeof window.ptfJToISO === 'function') ? window.ptfJToISO(dueRaw) : '';
     var bank = ((document.getElementById('ptfChNBank') || {}).value || '').trim();
     var note = ((document.getElementById('ptfChNNote') || {}).value || '').trim();
-    var custCd = '', supCd = '', toWhom = '';
+    var custCd = '', supCd = '', toWhom = '', thirdParty = false;
     if (isR) {
       if (partyKind === 'cust') {
         custCd = ((document.getElementById('ptfChNCust') || {}).value || '');
         var cust = (getData('ptf_crm_customers') || []).filter(function (x) { return x.cd === custCd; })[0];
         toWhom = cust ? (cust.co || cust.nm || cust.cd) : '';
         if (!custCd) { alert('⛔ مشتری (صادرکننده) را از فهرست انتخاب کنید'); return; }
+      } else if (partyKind === 'third') {
+        /* v33.8.0: چک ثالث — صادرکننده شخص/شرکت دیگری است (بدون پرونده) */
+        toWhom = ((document.getElementById('ptfChNThird') || {}).value || '').trim();
+        thirdParty = true;
+        if (!toWhom) { alert('⛔ نام ثالث (صادرکننده چک) الزامی است'); return; }
       } else {
-        toWhom = prompt('نام ذی‌نفع (سایر):') || '';
-        if (!toWhom.trim()) { alert('نام ذی‌نفع الزامی است'); return; }
+        toWhom = ((document.getElementById('ptfChNOther') || {}).value || '').trim();
+        if (!toWhom) { alert('نام ذی‌نفع الزامی است'); return; }
       }
     } else {
       if (partyKind === 'sup') {
@@ -239,8 +271,8 @@
         toWhom = sup ? (sup.co || sup.cd) : '';
         if (!supCd) { alert('⛔ تامین‌کننده را از فهرست انتخاب کنید'); return; }
       } else {
-        toWhom = prompt('نام ذی‌نفع (سایر):') || '';
-        if (!toWhom.trim()) { alert('نام ذی‌نفع الزامی است'); return; }
+        toWhom = ((document.getElementById('ptfChNOther') || {}).value || '').trim();
+        if (!toWhom) { alert('نام ذی‌نفع الزامی است'); return; }
       }
     }
     if (!no && !confirm('شماره صیادی وارد نشده — بدون شماره ثبت شود؟')) return;
@@ -285,7 +317,8 @@
       var invCd = ((document.getElementById('ptfChNInv') || {}).value || '');
       var rec3 = {
         no: no, sayad: no, amt: amt, kind: 'finance', toWhom: toWhom, custCd: custCd || undefined,
-        payerName: toWhom, sourceInvoiceCd: invCd || undefined, bank: bank, note: note, dueISO: dueISO,
+        payerName: toWhom, sourceInvoiceCd: invCd || undefined, thirdParty: thirdParty || undefined,
+        bank: bank, note: note, dueISO: dueISO,
         dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw
       };
       var saved3 = window.ptfChequeCreate('received', rec3);
@@ -302,12 +335,35 @@
     var dueFa = (chk && (chk.dueFa || chk.dueISO)) || '';
     var fy = String(dueFa).match(/(13|14)\d{2}/);
     try { if (fy && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(fy[0])) { alert('🔒 سال مالی ' + fy[0] + ' قفل است؛ انتقال چک مجاز نیست.'); return; } } catch (eF) {}
-    ptfDialog({ title: '↪ انتقال چک وارده به تامین‌کننده', fields: [{ id: 'sup', label: 'نام تامین‌کننده *', type: 'text', required: true }], okText: 'انتقال', onOk: function (v) {
-      var r = window.ptfChequeEndorse(cd, String(v.sup).trim());
-      if (!r.ok) { alert(r.why === 'state' ? 'وضعیت چک اجازه انتقال نمی‌دهد.' : 'چک یافت نشد.'); return; }
-      if (typeof ptfToast === 'function') ptfToast('چک منتقل شد.', 'ok');
-      window.ptfChequePanelRender();
-    } });
+    /* v33.8.0 (مصوب کارفرما): خرج کردن چک (ثالث یا مشتری) نزد تامین‌کننده —
+       انتخاب تامین‌کننده از فهرست دارای مطالبه → اثر مالی همان لحظه روی بدهی. */
+    var supOpts = '<option value="">— انتخاب تامین‌کننده —</option>';
+    try {
+      (typeof window.ptfChequeSupOptions === 'function' ? window.ptfChequeSupOptions() : []).forEach(function (x) {
+        supOpts += '<option value="' + escP(x.cd) + '">' + escP(x.lb) + '</option>';
+      });
+    } catch (eL) {}
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2600) : 2600;
+    var html = '<div class="md-b" id="ptfChEndDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
+      '<h3>↪ خرج کردن چک به تامین‌کننده</h3>' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px 12px;font-size:12px;color:#0c4a6e;line-height:2;margin-bottom:10px">چک وارده (' + escP((chk && (chk.sayad || chk.no)) || cd) + ' — ' + (+(chk && chk.amt) || 0).toLocaleString('fa-IR') + ' ریال) به تامین‌کننده داده می‌شود. اگر چک مالی باشد، همان لحظه <b>روی بدهی تامین‌کننده اثر می‌گذارد</b> (کسر بدهی ما).</div>' +
+      '<div class="fld"><label>تامین‌کننده (ذی‌نفع خرج) *</label><select id="ptfChEndSup">' + supOpts + '</select></div>' +
+      '<div class="fld"><label>یادداشت</label><input id="ptfChEndNote" placeholder="اختیاری"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+      '<button class="bt bt-o" onclick="document.getElementById(\'ptfChEndDlg\').remove()">انصراف</button>' +
+      '<button class="bt" style="background:#0e7490" onclick="ptfChEndGo(\'' + escP(cd) + '\')">↪ خرج چک</button></div></div></div>';
+    (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
+  };
+  window.ptfChEndGo = function (cd) {
+    var supCd = ((document.getElementById('ptfChEndSup') || {}).value || '');
+    var note = ((document.getElementById('ptfChEndNote') || {}).value || '').trim();
+    if (!supCd) { alert('⛔ تامین‌کننده را از فهرست انتخاب کنید'); return; }
+    var sup = (getData('ptf_crm_suppliers') || []).filter(function (x) { return x.cd === supCd; })[0] || {};
+    var r = window.ptfChequeEndorse(cd, sup.co || sup.cd, note, supCd);
+    if (!r.ok) { alert(r.why === 'state' ? 'وضعیت چک اجازه خرج/انتقال نمی‌دهد.' : 'چک یافت نشد.'); return; }
+    var dlg = document.getElementById('ptfChEndDlg'); if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast('چک خرج شد' + ((r.financial && r.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : '') + '.', 'ok');
+    window.ptfChequePanelRender();
   };
   window.ptfChequeCollectUi = function (cd) {
     var chk2 = window.ptfChequeFind(cd);
@@ -384,6 +440,10 @@ window.ptfChequeAiOpen = function (direction) {
   var dir = direction === 'received' ? 'received' : 'issued';
   var html = '<div class="md-b" id="ptfChAiDlg" style="display:grid;z-index:2300" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:700px;max-height:94vh;overflow:auto">' +
     '<h3>🤖 دستیار هوشمند چک — ' + (dir === 'received' ? 'چک وارده' : 'چک صادره') + '</h3>' +
+    /* v33.8.0 (مصوب کارفرما): در دستیار هم اول نوع وارده/صادره پرسیده می‌شود */
+    '<div class="fld" style="max-width:280px;margin-bottom:8px"><label>نوع چک</label><select id="ptfChAiDirSel" onchange="ptfChAiDirChange(this.value)">' +
+    '<option value="received"' + (dir === 'received' ? ' selected' : '') + '>📥 چک وارده (دریافتی از مشتری/ثالث)</option>' +
+    '<option value="issued"' + (dir === 'issued' ? ' selected' : '') + '>🏢 چک صادره (پرداخت/ضمانت شرکت)</option></select></div>' +
     '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#5b21b6;margin-bottom:10px">عکس/PDF چک را بدهید؛ سیستم شناسه صیادی، مبلغ، تاریخ و ذینفع را می‌خواند. اگر موردی ناقص بود، از فهرست تامین‌کننده/مشتری انتخاب کنید یا دستی وارد کنید. ثبت نهایی فقط پس از تایید شما.</div>' +
     '<input type="file" id="ptfChAiFile" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="ptfChAiFileGo(this)">' +
     '<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="bt" onclick="document.getElementById(\'ptfChAiFile\').click()">📎 عکس/PDF چک</button><button class="bt bt-o" onclick="ptfChAiTextBox()">📝 ورود متن</button></div>' +
@@ -392,6 +452,18 @@ window.ptfChequeAiOpen = function (direction) {
     '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   window._ptfChAiDir = dir;
+};
+window.ptfChAiDirChange = function (d) {
+  window._ptfChAiDir = d === 'received' ? 'received' : 'issued';
+  try {
+    var h = document.querySelector('#ptfChAiDlg h3');
+    if (h) h.textContent = '🤖 دستیار هوشمند چک — ' + (window._ptfChAiDir === 'received' ? 'چک وارده' : 'چک صادره');
+  } catch (eH) {}
+  var out = document.getElementById('ptfChAiOut');
+  if (out) {
+    if (window._ptfChAiData && Object.keys(window._ptfChAiData).length) window.ptfChAiRender(window._ptfChAiData);
+    else out.innerHTML = '';
+  }
 };
 window.ptfChAiApi = function (body, cb) {
   fetch('../api/llm.php?action=cheque', { method: 'POST', headers: (typeof ptfApiAuthHeaders === 'function' ? ptfApiAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify(body) })
@@ -438,15 +510,19 @@ window.ptfChAiRender = function (c, fileObj) {
     '<div class="fr"><div class="fld"><label>تاریخ سررسید (شمسی) *</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('ptfChAiDueJ', c.dueISO || '', '1405/06/15') : '<input id="ptfChAiDueJ" value="' + escP(c.dueJ || '') + '" style="direction:ltr">') + '</div>' +
     '<div class="fld"><label>نوع چک</label><select id="ptfChAiKind" onchange="ptfChAiKindUi()"><option value="finance">💰 مالی</option><option value="guarantee">🛡 ضمانت / سپرده</option></select></div></div>' +
     (dir === 'received'
-      ? '<div class="fr"><div class="fld"><label>مشتری (صادرکننده) *</label><select id="ptfChAiCust" onchange="ptfChAiCustInv()">' + custOpts + '</select></div><div class="fld"><label>فاکتور باز (اختیاری — کسر از مطالبات)</label><select id="ptfChAiInv"><option value="">— بدون فاکتور (در گردش) —</option></select></div></div>'
+      ? '<div class="fr"><div class="fld"><label>نوع ذی‌نفع</label><select id="ptfChAiParty" onchange="ptfChAiPartyUi()"><option value="cust">🤝 مشتری (پرونده باز)</option><option value="third">🪪 ثالث (چک شخص/شرکت دیگر)</option><option value="other">👤 سایر</option></select></div><div class="fld" id="ptfChAiPartyWrap" style="min-width:240px"></div></div>' +
+        '<div class="fld" id="ptfChAiInvWrap" style="display:none"><label>فاکتور باز (اختیاری — کسر از مطالبات)</label><select id="ptfChAiInv"><option value="">— بدون فاکتور (در گردش) —</option></select></div>'
       : '<div class="fld"><label>تامین‌کننده (ذینفع) *</label><select id="ptfChAiSup">' + supOpts + '</select></div>' +
         '<div class="fld" id="ptfChAiGuarWrap" style="display:none"><label>نوع ضمانت</label><select id="ptfChAiGuarType"><option value="advance">ضمانت پیش‌پرداخت</option><option value="performance">ضمانت حسن انجام کار</option><option value="bid">ضمانت شرکت در مناقصه</option><option value="other">سایر</option></select></div>' +
         '<div class="fld" id="ptfChAiDealWrap" style="display:none"><label>پرونده فروش (الزامی برای ضمانت) *</label><select id="ptfChAiDeal"><option value="">— انتخاب پرونده فروش —</option></select></div>') +
     '<div class="fld"><label>📎 کپی چک (اختیاری — ضمیمه شود)</label><div id="ptfChAiUp" style="min-height:40px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
     '<div class="fld"><label>یادداشت</label><input id="ptfChAiNote" value="' + escP(c.note || '') + '"></div>' +
     '<button class="bt" style="margin-top:6px" onclick="ptfChAiCommit()">✅ ثبت چک</button></div>';
+  window._ptfChAiCustOpts = custOpts;
+  window._ptfChAiSupOpts = supOpts;
   window.ptfChAiKindUi();
-  if (dir !== 'received') window.ptfChAiDealReload();
+  if (dir === 'received') window.ptfChAiPartyUi();
+  else window.ptfChAiDealReload();
   /* کپی چک (اختیاری) */
   window._ptfChAiFiles = [];
   try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptfChAiUp', 'cheques/', function (fr) { if (fr) window._ptfChAiFiles.push(fr); }); } catch (eU) {}
@@ -456,6 +532,21 @@ window.ptfChAiKindUi = function () {
   var g = ((document.getElementById('ptfChAiKind') || {}).value === 'guarantee');
   var w1 = document.getElementById('ptfChAiGuarWrap'); if (w1) w1.style.display = g ? '' : 'none';
   var w2 = document.getElementById('ptfChAiDealWrap'); if (w2) w2.style.display = g ? '' : 'none';
+};
+/* v33.8.0: نوع ذی‌نفع در دستیار (مشتری/ثالث/سایر) برای چک وارده */
+window.ptfChAiPartyUi = function () {
+  var v = ((document.getElementById('ptfChAiParty') || {}).value || 'cust');
+  var wrap = document.getElementById('ptfChAiPartyWrap'); if (!wrap) return;
+  if (v === 'cust') {
+    wrap.innerHTML = '<label>مشتری (صادرکننده) *</label><select id="ptfChAiCust" onchange="ptfChAiCustInv()">' + (window._ptfChAiCustOpts || '') + '</select>';
+  } else if (v === 'third') {
+    wrap.innerHTML = '<label>نام ثالث (صادرکننده چک) *</label><input id="ptfChAiThird" placeholder="نام شخص/شرکت ثالث — بدون پرونده">';
+  } else {
+    wrap.innerHTML = '<label>نام ذی‌نفع (سایر) *</label><input id="ptfChAiOther">';
+  }
+  var iw = document.getElementById('ptfChAiInvWrap');
+  if (iw) iw.style.display = (v === 'cust' && ((document.getElementById('ptfChAiCust') || {}).value)) ? '' : 'none';
+  if (v === 'cust') window.ptfChAiCustInv();
 };
 window.ptfChAiDealReload = function () {
   var sel = document.getElementById('ptfChAiDeal'); if (!sel) return;
@@ -492,12 +583,24 @@ window.ptfChAiCommit = function () {
   var dueFa = /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(dueRaw) ? dueRaw : (typeof ptfISOToJ === 'function' ? (ptfISOToJ(dueRaw) || '') : '');
   var rec = { no: no, sayad: no, amt: amt, bank: bank, note: note, kind: kind, toWhom: toWhom, files: window._ptfChAiFiles || [] };
   if (dir === 'received') {
-    var custCd = ((document.getElementById('ptfChAiCust') || {}).value || '');
-    var invCd = ((document.getElementById('ptfChAiInv') || {}).value || '');
-    if (!custCd) { alert('مشتری (صادرکننده چک) را از فهرست مشتریان دارای پرونده باز انتخاب کنید'); return; }
-    var cRec = (getData('ptf_crm_customers') || []).filter(function (x) { return x.cd === custCd; })[0] || {};
-    rec.sourceCustomerCd = custCd; rec.custCd = custCd; rec.payerName = cRec.co || cRec.name || custCd; rec.sourceInvoiceCd = invCd || '';
-    rec.toWhom = rec.toWhom || cRec.co || custCd;
+    var partyKind = ((document.getElementById('ptfChAiParty') || {}).value || 'cust');
+    var custCd = '', invCd = '';
+    if (partyKind === 'cust') {
+      custCd = ((document.getElementById('ptfChAiCust') || {}).value || '');
+      invCd = ((document.getElementById('ptfChAiInv') || {}).value || '');
+      if (!custCd) { alert('مشتری (صادرکننده چک) را از فهرست مشتریان دارای پرونده باز انتخاب کنید'); return; }
+      var cRec = (getData('ptf_crm_customers') || []).filter(function (x) { return x.cd === custCd; })[0] || {};
+      rec.sourceCustomerCd = custCd; rec.custCd = custCd; rec.payerName = cRec.co || cRec.name || custCd; rec.sourceInvoiceCd = invCd || '';
+      rec.toWhom = rec.toWhom || cRec.co || custCd;
+    } else if (partyKind === 'third') {
+      var thirdNm = ((document.getElementById('ptfChAiThird') || {}).value || '').trim();
+      if (!thirdNm) { alert('نام ثالث (صادرکننده چک) الزامی است'); return; }
+      rec.thirdParty = true; rec.payerName = thirdNm; rec.toWhom = rec.toWhom || thirdNm;
+    } else {
+      var otherNm = ((document.getElementById('ptfChAiOther') || {}).value || '').trim();
+      if (!otherNm) { alert('نام ذی‌نفع الزامی است'); return; }
+      rec.payerName = otherNm; rec.toWhom = rec.toWhom || otherNm;
+    }
     rec.dueFa = dueFa;
   } else {
     var supCd = ((document.getElementById('ptfChAiSup') || {}).value || '');

@@ -119,7 +119,28 @@ T('فاکتورهای باز مشتری: INV1 (مانده کامل) + INV2 (ما
   var l = ptfChequeOpenInvoicesOf('C1');
   return l.length === 2 && l.some(function (i) { return i.cd === 'INV1' && i.remain === 500000000; }) && l.some(function (i) { return i.cd === 'INV2' && i.remain === 10000000; });
 })());
-T('برچسب دسته ذی‌نفع', ptfChequePartyKind({ supplierCd: 'S1' }) === 'sup' && ptfChequePartyKind({ custCd: 'C1' }) === 'cust' && ptfChequePartyKind({}) === 'other');
+T('برچسب دسته ذی‌نفع', ptfChequePartyKind({ supplierCd: 'S1' }) === 'sup' && ptfChequePartyKind({ custCd: 'C1' }) === 'cust' && ptfChequePartyKind({ thirdParty: true }) === 'third' && ptfChequePartyKind({}) === 'other');
+/* v33.8.0 BUG-FIX: dealها فقط buyerCo دارند (بدون buyerCd) → تطبیق نام */
+T('پرونده باز مشتری با تطبیق نام (deal بدون buyerCd)', (function () {
+  setData('ptf_crm_deals', [
+    { cd: 'D1', inqNo: 'INQ-1', buyerCo: 'مشتری یک', wonOffer: 'CO-1', st: 'open' },
+    { cd: 'D2', inqNo: 'INQ-2', buyerCo: 'مشتری دو', wonOffer: 'CO-2', st: 'archived' }
+  ]);
+  var l = ptfChequeCustOptions();
+  return l.length === 1 && l[0].cd === 'C1' && l[0].lb.indexOf('پرونده باز') > -1;
+})());
+/* v33.8.0: ثبت چک ثالث + خرج به تامین‌کننده با اثر مالی */
+T('ثبت چک ثالث + خرج (endorse) با supCd → payment تامین‌کننده', (function () {
+  var t = ptfChequeCreate('received', { no: 'CH-T1', sayad: 'CH-T1', amt: 70000000, kind: 'finance', thirdParty: true, payerName: 'شرکت ثالث', dueFa: '1405/06/01' });
+  var e = ptfChequeEndorse(t.cd, 'تامین یک', 'خرج چک ثالث', 'S1');
+  var pays = getData('ptf_crm_supplier_finance').payments;
+  return t.thirdParty === true && e.ok && e.financial && e.financial.ok && e.financial.applied === 'supplier' &&
+    pays.some(function (p) { return p.chequeCd === t.cd && p.amount === 70000000 && p.status === 'posted'; }) &&
+    ptfChequePartyKind(t) === 'third';
+})());
+T('ثبت دستی: اول می‌پرسد وارده/صادره + گزینه ثالث', panel.indexOf('ptfChequeNewForm') > -1 && panel.indexOf('چک وارده — دریافت از مشتری / ثالث') > -1 && panel.indexOf('چک صادره — پرداخت / ضمانت شرکت') > -1 && panel.indexOf('ptfChNThird') > -1);
+T('دستیار AI: سِلکت وارده/صادره + ثالث', panel.indexOf('ptfChAiDirChange') > -1 && panel.indexOf('ptfChAiDirSel') > -1 && panel.indexOf('ptfChAiParty') > -1 && panel.indexOf('ptfChAiThird') > -1);
+T('خرج چک: لیست تامین‌کننده + اثر مالی در UI', panel.indexOf('ptfChEndSup') > -1 && panel.indexOf('ptfChEndGo') > -1 && panel.indexOf('خرج کردن چک') > -1);
 
 SECTION('اثر مالی چک مالی (به محض ثبت)');
 var c1 = ptfChequeCreate('issued', { no: 'CH-S1', sayad: 'CH-S1', amt: 100000000, kind: 'finance', supplierCd: 'S1', dueFa: '1405/06/01' });
@@ -215,6 +236,9 @@ T('HTML چاپ: دو مبلغ (بالا قرمز + پایین چپ) دارد', (
   return h.indexOf('f-amt') > -1 && h.indexOf('f-amt2') > -1 && h.indexOf('color:#b91c1c') > -1;
 })());
 T('حالت گرافیکی: توابع درگ + رندر برگه + هم‌گام', prt.indexOf('chqGvRender') > -1 && prt.indexOf('chqGvStart') > -1 && prt.indexOf('chqGvMove') > -1 && prt.indexOf('chqpGv') > -1 && prt.indexOf('GV_SCALE') > -1);
+/* v33.8.0: حالت گرافیکی در صفحهٔ اصلی ماژول + اسکن پس‌زمینه + زوم */
+T('حالت گرافیکی داخل صفحهٔ ماژول (inline) بدون مودال', prt.indexOf('chqpGvSection') > -1 && prt.indexOf('chqpGvToggleBtn') > -1 && prt.indexOf('حالت گرافیکی چیدمان (روی برگهٔ واقعی چک)') > -1 && prt.indexOf('چاپ آزمایشی') > -1);
+T('اسکن برگه چک به‌عنوان پس‌زمینه + زوم', prt.indexOf('chqBgUpload') > -1 && prt.indexOf('chqBgClear') > -1 && prt.indexOf('chqBgZoom') > -1 && prt.indexOf('ptf_chqprint_bg') > -1 && prt.indexOf('GV_SCALE = 6') > -1);
 T('ذخیره چیدمان: amt2 در لیست فیلدها', prt.indexOf("'amt2Top', 'amt2Left', 'amt2Size'") > -1);
 
 DONE('tester288-cheque-party-recurring');

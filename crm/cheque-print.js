@@ -191,10 +191,29 @@
       '<button class="bt bt-o" style="color:#0e7490" onclick="chqPrintLayoutOpen()">📐 تنظیمات چاپ (فونت/اندازه/مختصات)</button>' +
       '<button class="bt bt-o" style="color:#7c3aed" onclick="chqPrintHelp()">❓ راهنما</button>' +
       '</div>' +
+      /* v33.8.0 (مصوب کارفرما): حالت گرافیکی در همان صفحهٔ ماژول — اندازه واقعی چک + اسکن پس‌زمینه */
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-top:12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">' +
+      '<b style="font-size:13.5px">🖱 حالت گرافیکی چیدمان (روی برگهٔ واقعی چک)</b>' +
+      '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button class="bt" id="chqpGvToggleBtn" onclick="chqGvToggle(true)">🖱 فعال</button>' +
+      '<button class="bt bt-o" onclick="document.getElementById(\'chqpBgFile\').click()">📎 اسکن برگه چک (پس‌زمینه)</button>' +
+      '<button class="bt bt-o" style="color:#dc2626" onclick="chqBgClear()">✕ حذف پس‌زمینه</button>' +
+      '<button class="bt bt-o" onclick="chqBgZoom(-0.25)">➖ کوچک‌نمایی</button>' +
+      '<button class="bt bt-o" onclick="chqBgZoom(0.25)">➕ بزرگ‌نمایی</button>' +
+      '<button class="bt bt-o" style="color:#0e7490" onclick="chqPrintLayoutSave(true)">💾 ذخیره چیدمان</button>' +
+      '<button class="bt" style="background:#0e7490" onclick="chqPrintLayoutSave(false);chqPrintLayoutTest()">🖨 چاپ آزمایشی</button>' +
+      '<input type="file" id="chqpBgFile" accept="image/*" style="display:none" onchange="chqBgUpload(this)">' +
+      '</span></div>' +
+      '<div style="font-size:12px;color:#1e40af;line-height:1.9;margin-bottom:8px">اندازهٔ این برگه ≈ چک صیادی واقعی (169×78mm). اگر اسکن برگهٔ چک بانکی خودتان را آپلود کنید، در پس‌زمینه قرار می‌گیرد و هر نوشته را می‌کشید تا دقیقاً روی جای صحیح چک بنشیند؛ سپس «💾 ذخیره چیدمان».</div>' +
+      '<div id="chqpGvSection"><div id="chqpGv" style="overflow:auto;background:#e2e8f0;border:1px solid var(--brd);border-radius:12px;padding:14px;max-height:70vh"></div></div>' +
+      '</div>' +
       '<div id="chqpSingle">' + singleFormHtml() + '</div>' +
       '<div id="chqpMulti" style="display:none">' + multiFormHtml() + '</div></div>';
   };
-  window.renderChequePrint = function () { /* پنل استاتیک — نیازی به رندر مجدد نیست */ };
+  window.renderChequePrint = function () {
+    setTimeout(function () { try { window.chqGvRender(); } catch (e) {} }, 80);
+  };
 
   window.chqPrintTab = function (t) {
     var s = document.getElementById('chqpSingle'), m = document.getElementById('chqpMulti');
@@ -394,12 +413,8 @@
       '<div class="fld" style="display:flex;align-items:flex-end"><label style="font-size:11px;display:flex;align-items:center;gap:5px"><input type="checkbox" id="chqpL_guide"' + (L.showGuide ? ' checked' : '') + '> نمایش خطوط راهنما</label></div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px">' + fieldInputs(L) + '</div>' +
-      /* v33.7.0: حالت گرافیکی — کشیدن فیلدها روی برگه */
-      '<div style="margin-top:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
-      '<b style="font-size:12.5px">🖱 حالت گرافیکی: هر نوشته را روی برگه بکشید و در جای صحیح رها کنید</b>' +
-      '<button type="button" class="bt bt-o" style="font-size:11.5px" onclick="chqGvRender()">↻ هم‌گام با مقادیر</button></div>' +
-      '<div id="chqpGv" style="overflow:auto;padding:4px"></div></div>' +
+      /* v33.8.0: حالت گرافیکی از مودال به صفحهٔ اصلی ماژول منتقل شد (جلوگیری از تداخل id) */
+      '<div style="margin-top:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#1e40af">🖱 حالت گرافیکی (کشیدن فیلدها + اسکن پس‌زمینه) در <b>صفحهٔ اصلی ماژول «چاپ چک فیزیکی»</b> بالای همین پنجره قرار دارد — اینجا فقط مقادیر عددی است.</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'chqpLayoutDlg\').remove()">بستن</button>' +
       '<button type="button" class="bt bt-o" onclick="chqPrintLayoutSave(true)">💾 ذخیره چیدمان</button>' +
@@ -408,32 +423,88 @@
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
     setTimeout(function () { try { window.chqGvRender(); } catch (e) {} }, 50);
   };
-  /* ---------- v33.7.0: حالت گرافیکی — کشیدن فیلدها روی برگه ---------- */
-  var GV_SCALE = 1.5; /* px per mm */
+  /* ---------- v33.8.0: حالت گرافیکی — کشیدن فیلدها روی برگه (اندازه واقعی چک صیادی)
+     - در همان صفحهٔ ماژول (بدون مودال)؛ ابعاد ≈ چک واقعی (169×78mm → ~۱۰۰۰px با زوم ۱).
+     - می‌توان اسکن برگهٔ چک واقعی را به‌عنوان پس‌زمینه قرار داد و فیلدها را روی آن جانمایی کرد.
+     - زوم +/− برای صفحه‌های کوچک. ---------- */
+  var GV_SCALE = 6; /* px per mm — 169mm ≈ 1014px (اندازهٔ واقعی چک) */
+  window._chqGvZoom = 1;
+  function gvScale() { return GV_SCALE * (window._chqGvZoom || 1); }
+  /* آپلود اسکن برگه چک → پس‌زمینه (کوچک‌سازی با canvas و ذخیره در localStorage) */
+  window.chqBgUpload = function (inp) {
+    var f = inp && inp.files && inp.files[0];
+    if (!f) return;
+    if (f.size > 12 * 1048576) { alert('فایل بزرگتر از ۱۲MB است'); return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var maxW = 1600, w = img.width, h = img.height;
+            if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+            var cv = document.createElement('canvas');
+            cv.width = w; cv.height = h;
+            var ctx = cv.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            var dataUrl = cv.toDataURL('image/jpeg', 0.82);
+            if (dataUrl.length > 3.5 * 1048576) { alert('حجم تصویر پس از فشرده‌سازی زیاد است — تصویر با وضوح کمتر انتخاب کنید'); return; }
+            try { localStorage.setItem('ptf_chqprint_bg', dataUrl); } catch (eS) { alert('ذخیره تصویر در مرورگر ممکن نشد — تصویر کوچک‌تری انتخاب کنید'); return; }
+            window.chqGvRender();
+            if (typeof window.ptfToast === 'function') window.ptfToast('✅ اسکن برگه چک در پس‌زمینه قرار گرفت — فیلدها را روی آن بکشید', 'ok');
+          } catch (eC) { alert('پردازش تصویر ممکن نشد'); }
+        };
+        img.onerror = function () { alert('خواندن تصویر ممکن نشد'); };
+        img.src = rd.result;
+      } catch (eR) { alert('خواندن فایل ممکن نشد'); }
+    };
+    rd.readAsDataURL(f);
+    if (inp) inp.value = '';
+  };
+  window.chqBgClear = function () {
+    try { localStorage.removeItem('ptf_chqprint_bg'); } catch (e) {}
+    window.chqGvRender();
+    if (typeof window.ptfToast === 'function') window.ptfToast('پس‌زمینه حذف شد', 'info');
+  };
+  window.chqBgZoom = function (d) {
+    window._chqGvZoom = Math.min(2, Math.max(0.5, (window._chqGvZoom || 1) + d));
+    window.chqGvRender();
+  };
+  window.chqGvToggle = function (show) {
+    var s = document.getElementById('chqpGvSection'); if (s) s.style.display = show ? '' : 'none';
+    var b = document.getElementById('chqpGvToggleBtn');
+    if (b) b.className = show ? 'bt' : 'bt bt-o';
+  };
   function gvFieldHtml(key, lb, sample, color, size) {
     return '<div id="chqpGv_' + key + '" onmousedown="chqGvStart(event,\'' + key + '\')" style="position:absolute;cursor:move;white-space:nowrap;font-weight:800;color:' + (color || '#111827') + ';font-size:' + (size || 12) + 'px;background:rgba(255,255,255,.75);border:1px dashed rgba(100,116,139,.5);border-radius:4px;padding:1px 4px;z-index:3;user-select:none" title="' + lb + ' — بکشید و رها کنید">' + sample + '</div>';
   }
   window.chqGvRender = function () {
     var box = document.getElementById('chqpGv'); if (!box) return;
     var L = chqLoadLayout();
-    var wPx = L.pageW * GV_SCALE, hPx = L.pageH * GV_SCALE;
+    var scale = gvScale();
+    var wPx = Math.round(L.pageW * scale), hPx = Math.round(L.pageH * scale);
+    var bg = '';
+    try { bg = localStorage.getItem('ptf_chqprint_bg') || ''; } catch (eB) {}
     box.innerHTML =
-      '<div style="position:relative;width:' + wPx + 'px;height:' + hPx + 'px;border:2px solid #94a3b8;border-radius:8px;background:#fff;margin:0 auto;overflow:hidden">' +
-      '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent ' + (10 * GV_SCALE - 1) + 'px,rgba(14,165,233,.12) ' + (10 * GV_SCALE) + 'px),repeating-linear-gradient(90deg,transparent,transparent ' + (10 * GV_SCALE - 1) + 'px,rgba(14,165,233,.12) ' + (10 * GV_SCALE) + 'px);pointer-events:none"></div>' +
-      gvFieldHtml('date', 'تاریخ (عدد)', faD('1405/04/21'), L.dateColor, (L.dateSize || 12) * 1.1) +
-      gvFieldHtml('dw', 'تاریخ به حروف', 'بیست و یکم تیر ماه هزار و چهارصد و پنج', L.dwColor, (L.dwSize || 9) * 1.1) +
-      gvFieldHtml('pay', 'در وجه', 'شرکت نمونه ذی‌نفع', L.payColor, (L.paySize || 12) * 1.1) +
-      gvFieldHtml('nid', 'کد ملی', '14010077558', L.nidColor, (L.nidSize || 9) * 1.1) +
-      gvFieldHtml('amt', 'مبلغ (بالا)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amtColor, (L.amtSize || 13) * 1.1) +
-      gvFieldHtml('amt2', 'مبلغ اصلی (پایین چپ)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amt2Color, (L.amt2Size || 12) * 1.1) +
-      gvFieldHtml('words', 'مبلغ به حروف', 'یک میلیون و دویست و پنجاه هزار ریال', L.wordsColor, (L.wordsSize || 10.5) * 1.1) +
-      gvFieldHtml('memo', 'بابت', 'بابت پیش‌پرداخت', L.memoColor, (L.memoSize || 9) * 1.1) +
+      '<div style="position:relative;width:' + wPx + 'px;height:' + hPx + 'px;border:2px solid #94a3b8;border-radius:8px;background:#fff;margin:0 auto;overflow:hidden;' + (bg ? 'background-image:url(\'' + bg + '\');background-size:100% 100%;background-repeat:no-repeat;' : '') + '">' +
+      (bg ? '' : '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent ' + (10 * scale - 1) + 'px,rgba(14,165,233,.12) ' + (10 * scale) + 'px),repeating-linear-gradient(90deg,transparent,transparent ' + (10 * scale - 1) + 'px,rgba(14,165,233,.12) ' + (10 * scale) + 'px);pointer-events:none"></div>') +
+      gvFieldHtml('date', 'تاریخ (عدد)', faD('1405/04/21'), L.dateColor, (L.dateSize || 12) * scale / 3) +
+      gvFieldHtml('dw', 'تاریخ به حروف', 'بیست و یکم تیر ماه هزار و چهارصد و پنج', L.dwColor, (L.dwSize || 9) * scale / 3) +
+      gvFieldHtml('pay', 'در وجه', 'شرکت نمونه ذی‌نفع', L.payColor, (L.paySize || 12) * scale / 3) +
+      gvFieldHtml('nid', 'کد ملی', '14010077558', L.nidColor, (L.nidSize || 9) * scale / 3) +
+      gvFieldHtml('amt', 'مبلغ (بالا)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amtColor, (L.amtSize || 13) * scale / 3) +
+      gvFieldHtml('amt2', 'مبلغ اصلی (پایین چپ)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amt2Color, (L.amt2Size || 12) * scale / 3) +
+      gvFieldHtml('words', 'مبلغ به حروف', 'یک میلیون و دویست و پنجاه هزار ریال', L.wordsColor, (L.wordsSize || 10.5) * scale / 3) +
+      gvFieldHtml('memo', 'بابت', 'بابت پیش‌پرداخت', L.memoColor, (L.memoSize || 9) * scale / 3) +
+      (bg ? '<div style="position:absolute;bottom:4px;left:4px;font-size:11px;color:#fff;background:rgba(0,0,0,.55);border-radius:6px;padding:2px 8px;z-index:4">📎 پس‌زمینه: اسکن برگه چک — فیلدها را بکشید</div>' : '') +
       '</div>';
     window.chqGvSync();
   };
   window.chqGvSync = function () {
     var L = chqLoadLayout();
-    var wPx = L.pageW * GV_SCALE, hPx = L.pageH * GV_SCALE;
+    var scale = gvScale();
+    var wPx = L.pageW * scale, hPx = L.pageH * scale;
     var map = {
       date: { top: L.dateTop, right: L.dateRight, size: L.dateSize, fam: L.dateFam, color: L.dateColor },
       dw: { top: L.dwTop, right: L.dwRight, size: L.dwSize, fam: L.dwFam, color: L.dwColor },
@@ -447,10 +518,10 @@
     Object.keys(map).forEach(function (k) {
       var el = document.getElementById('chqpGv_' + k); if (!el) return;
       var f = map[k];
-      var st = 'position:absolute;top:' + (f.top * GV_SCALE) + 'px;cursor:move;white-space:nowrap;font-weight:800;';
-      if (f.left != null) st += 'left:' + (f.left * GV_SCALE) + 'px;';
-      else st += 'right:' + ((L.pageW - (f.right || 0)) * GV_SCALE) + 'px;';
-      st += 'color:' + (f.color || '#111827') + ';font-size:' + ((f.size || 10) * 1.1) + 'px;';
+      var st = 'position:absolute;top:' + (f.top * scale) + 'px;cursor:move;white-space:nowrap;font-weight:800;';
+      if (f.left != null) st += 'left:' + (f.left * scale) + 'px;';
+      else st += 'right:' + ((L.pageW - (f.right || 0)) * scale) + 'px;';
+      st += 'color:' + (f.color || '#111827') + ';font-size:' + ((f.size || 10) * scale / 3) + 'px;';
       el.setAttribute('style', st + 'background:rgba(255,255,255,.75);border:1px dashed rgba(100,116,139,.5);border-radius:4px;padding:1px 4px;z-index:3;user-select:none');
     });
   };
@@ -460,7 +531,7 @@
     ev.preventDefault();
     var L = chqLoadLayout();
     var rect = document.getElementById('chqpGv').getBoundingClientRect();
-    window._chqDrag = { key: key, sx: ev.clientX, sy: ev.clientY, scale: GV_SCALE, origin: rect.left, topOrigin: rect.top, pageW: L.pageW, start: Object.assign({}, (function () {
+    window._chqDrag = { key: key, sx: ev.clientX, sy: ev.clientY, scale: gvScale(), origin: rect.left, topOrigin: rect.top, pageW: L.pageW, start: Object.assign({}, (function () {
       var map = {
         date: { top: L.dateTop, right: L.dateRight }, dw: { top: L.dwTop, right: L.dwRight }, pay: { top: L.payTop, right: L.payRight },
         nid: { top: L.nidTop, right: L.nidRight }, amt: { top: L.amtTop, left: L.amtLeft }, amt2: { top: L.amt2Top, left: L.amt2Left },

@@ -1,4 +1,4 @@
-/* tester287 — v33.7.0 (CHQ-PRINT): ماژول مستقل «چاپ چک فیزیکی» زیر گروه کالا و اسناد
+/* tester287 — v33.8.0 (CHQ-PRINT): ماژول مستقل «چاپ چک فیزیکی» زیر گروه کالا و اسناد
  * مصوب کارفرما ۱۴۰۵/۰۸/۱۱:
  *  - فقط چاپ (تکی/چندتایی)، بدون هیچ ذخیره‌سازی و بدون کد صیادی.
  *  - تاریخ به حروف + ذی‌نفع + کد/شناسه ملی + مبلغ (عدد قرمز در بالا + به حروف).
@@ -155,7 +155,7 @@ T('چندتایی: شناسه ملی ۱۱ رقمی چاپ می‌شود', !!(glo
 
 SECTION('تنظیمات چاپ (کالیبره)');
 T('چیدمان پیش‌فرض: مختصات/اندازه/رنگ هر بخش', /amtColor: '#b91c1c'/.test(prt) && /pageW: 169, pageH: 78/.test(prt) && /dateSize: 12/.test(prt) && /wordsSize: 10\.5/.test(prt) && /fontFam: ''/.test(prt));
-/* v33.7.0: مبلغ دوم پایین-چپ + حالت گرافیکی درگ */
+/* v33.8.0: مبلغ دوم پایین-چپ + حالت گرافیکی درگ */
 T('مبلغ اصلی دوم پایین-چپ (amt2) در چیدمان/HTML', /amt2Top: 48, amt2Left: 8/.test(prt) && prt.indexOf("'amt2Top', 'amt2Left', 'amt2Size'") > -1 && prt.indexOf('f-amt2') > -1);
 T('حالت گرافیکی: درگ فیلدها روی برگه', prt.indexOf('chqGvRender') > -1 && prt.indexOf('chqGvStart') > -1 && prt.indexOf('chqGvMove') > -1 && prt.indexOf('chqpGv') > -1);
 T('فونت‌های چاپی فارسی موجودند', prt.indexOf('IranNastaliq') > -1 && prt.indexOf('B Nazanin') > -1 && prt.indexOf('B Yagut') > -1 && prt.indexOf('Vazirmatn') > -1);
@@ -168,6 +168,6 @@ SECTION('حذف از ماژول شخصی و هاب مالی');
 T('باکس چک از پنل شخصی (یادآورها) کاملاً حذف شد', chq.indexOf('chqBox') === -1 && chq.indexOf('chBoxHtml') === -1 && chq.indexOf('hookReminders') === -1);
 T('چاپ برگه از هاب مالی حذف شد', panel.indexOf('window.ptfChequePrint') === -1 && panel.indexOf('🖨 چاپ برگه') === -1 && panel.indexOf('ptfNumToFaWords') === -1);
 T('ثبت چک همچنان فقط از هاب مالی (پیام راهنما حفظ شد)', chq.indexOf('ثبت چک فقط از «هاب مالی → تب چک‌ها»') > -1);
-T('نسخه 33.7.0 در index/sw/clear-cache', idx.indexOf("window.VER = 'v33.7.0'") > -1 && sw.indexOf('ptf-crm-v33.7.0') > -1 && fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = 'v33.7.0'") > -1);
+T('نسخه 33.8.0 در index/sw/clear-cache', idx.indexOf("window.VER = 'v33.8.0'") > -1 && sw.indexOf('ptf-crm-v33.8.0') > -1 && fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = 'v33.8.0'") > -1);
 
 DONE('tester287-chqprint-module');

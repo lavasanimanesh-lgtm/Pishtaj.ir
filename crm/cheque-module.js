@@ -56,15 +56,27 @@
   };
 
   /* ---------- عملیات چک وارده ---------- */
-  /* انتقال (Endorse) به تامین‌کننده */
-  window.ptfChequeEndorse = function (cd, supName, note) {
+  /* انتقال (Endorse) به تامین‌کننده — v33.8.0 (مصوب کارفرما): «چک ثالث هم خرج و ثبت شود».
+     خرج کردن چک وارده نزد تامین‌کننده = پرداخت بدهی ما به آن تامین‌کننده:
+     اگر تامین‌کننده از فهرست انتخاب شود (supCd) و چک مالی باشد، همان لحظه payment
+     در supplier-finance ساخته می‌شود (کسر بدهی) و چک endorsed می‌شود. */
+  window.ptfChequeEndorse = function (cd, supName, note, supCd) {
     var l = read(K_RECEIVED), c = l.filter(function (x) { return x.cd === cd; })[0];
     if (!c) return { ok: false, why: 'notfound' };
     if (c.st !== 'open' && c.st !== 'held') return { ok: false, why: 'state' };
     c.st = 'endorsed'; c.endorsedAt = faDateTime(); c.endorsedBy = me().name;
     c.endorseTo = supName || ''; c.transferNote = note || '';
+    var applied = null;
+    if (supCd && c.kind !== 'guarantee') {
+      c.endorseSupplierCd = supCd;
+      c.supplierCd = supCd;
+      c.supplierName = supName || '';
+      /* اثر مالی خرج: payment در حساب تامین‌کننده (مثل چک صادره مالی) */
+      var r = ptfChequeApplyIssued(c);
+      if (r.ok) { c.financialApplied = { at: faDateTimeL(), result: r, via: 'endorse' }; applied = r; }
+    }
     write(K_RECEIVED, l);
-    return { ok: true, cheque: c };
+    return { ok: true, cheque: c, financial: applied };
   };
   /* ثبت وصول (Cleared) — v33.7.0: چک مالی وارده‌ای که هنگام ثبت فاکتور نداشت،
      با وصول اثر مالی می‌گیرد (روی اولین فاکتور باز همان مشتری). */
@@ -220,24 +232,36 @@
     return ptfChequeApplyIssued(c);
   };
 
-  /* ============ v33.7.0: ذینفع = مشتری/تامین‌کننده/سایر + فهرست‌های شرطی ============ */
-  /* مشتریان دارای پرونده فروش باز (wonOffer و مختومه/بایگانی‌نشده) */
+  /* ============ v33.8.0: ذینفع = مشتری/تامین‌کننده/سایر/ثالث + فهرست‌های شرطی ============ */
+  function dealNormName(s) {
+    return String(s || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase();
+  }
+  /* مشتریان دارای پرونده فروش باز (wonOffer و بایگانی‌نشده).
+     v33.8.0 BUG-FIX: رکوردهای deal فقط buyerCo (نام) دارند و buyerCd ندارند
+     (salesfiles.js: r={cd,inqNo,buyerCo,...}) → تطبیق قبلی با d.buyerCd همیشه خالی بود.
+     حالا: buyerCd (اگر هست) یا تطبیق نام buyerCo با نام مشتری (الگوی ptfOfferMatchCust). */
   window.ptfChequeCustOptions = function () {
     var out = [];
     try {
       var deals = getData('ptf_crm_deals') || [];
-      var open = {};
-      deals.forEach(function (d) {
-        if (d && d.wonOffer && d.st !== 'archived') open[d.buyerCd || ''] = 1;
+      var openDeals = deals.filter(function (d) { return d && d.wonOffer && d.st !== 'archived'; });
+      var openCd = {}, openNm = {};
+      openDeals.forEach(function (d) {
+        if (d.buyerCd) openCd[d.buyerCd] = 1;
+        if (d.buyerCo) openNm[dealNormName(d.buyerCo)] = 1;
       });
       var custs = getData('ptf_crm_customers') || [];
       var seen = {};
       custs.forEach(function (c) {
         if (!c || !c.cd || seen[c.cd]) return;
-        if (!open[c.cd]) return;
+        var matched = openCd[c.cd] ? true : false;
+        if (!matched && (c.co || c.nm)) matched = !!openNm[dealNormName(c.co || c.nm)];
+        if (!matched) return;
         seen[c.cd] = 1;
-        var dealsLb = deals.filter(function (d) { return d.buyerCd === c.cd && d.wonOffer && d.st !== 'archived'; });
-        out.push({ cd: c.cd, lb: (c.co || c.nm || c.cd) + ' — 📁 ' + dealsLb.length + ' پرونده باز' });
+        var n = openDeals.filter(function (d) {
+          return (d.buyerCd && d.buyerCd === c.cd) || ((!d.buyerCd || !c.co) && d.buyerCo && dealNormName(d.buyerCo) === dealNormName(c.co || c.nm));
+        }).length;
+        out.push({ cd: c.cd, lb: (c.co || c.nm || c.cd) + ' — 📁 ' + n + ' پرونده باز' });
       });
     } catch (e) {}
     return out;
@@ -276,16 +300,17 @@
     } catch (e) {}
     return out;
   };
-  /* برچسب دسته ذینفع برای نمایش در جدول‌ها */
+  /* برچسب دسته ذینفع برای نمایش در جدول‌ها — v33.8.0: ثالث (چک شخص/شرکت دیگر) */
   window.ptfChequePartyKind = function (rec) {
     rec = rec || {};
     if (rec.supplierCd) return 'sup';
     if (rec.custCd || rec.sourceCustomerCd) return 'cust';
+    if (rec.thirdParty) return 'third';
     return 'other';
   };
   window.ptfChequePartyKindLabel = function (rec) {
     var k = window.ptfChequePartyKind(rec);
-    return k === 'sup' ? 'تامین‌کننده' : k === 'cust' ? 'مشتری' : 'سایر';
+    return k === 'sup' ? 'تامین‌کننده' : k === 'cust' ? 'مشتری' : k === 'third' ? 'ثالث' : 'سایر';
   };
   /* فاکتورهای باز یک مشتری (دارای مانده) — برای چک وارده */
   window.ptfChequeOpenInvoicesOf = function (custCd) {
