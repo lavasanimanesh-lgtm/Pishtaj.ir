@@ -55,7 +55,8 @@ SECTION('رفتاری — moneyx');
   T('ptfNumWordsFa: عدد بزرگ ریالی', ptfNumWordsFa(1500000000) === 'یک میلیارد و پانصد میلیون');
   T('ptfNumWordsFa: ترکیبی', ptfNumWordsFa(1234567) === 'یک میلیون و دویست و سی و چهار هزار و پانصد و شصت و هفت');
   T('ptfMoneyFmt: کامادار', ptfMoneyFmt(1234567) === '1,234,567' && ptfMoneyFmt('') === '');
-  T('دو listener سراسری capture ثبت شد', listeners.length === 2 && listeners.every(function (l) { return l.cap === true; }));
+  /* v33.9.0: listener سوم (focusout) برای فرمت خودکار فیلدهای مبلغ‌مانند اضافه شد */
+T('سه listener سراسری capture ثبت شد (input/focusin/focusout)', listeners.length === 3 && listeners.every(function (l) { return l.cap === true; }));
   /* شبیه‌سازی تایپ در فیلد data-money */
   var el = {
     value: '1500000', selectionStart: 7, _attrs: { 'data-money': '1' },
@@ -63,10 +64,11 @@ SECTION('رفتاری — moneyx');
     setSelectionRange: function (a) { this._caret = a; },
     parentNode: { insertBefore: function () {} }, nextSibling: null
   };
-  listeners[0].fn({ target: el });
+  var inpL = listeners.filter(function (l) { return l.ev === 'input'; })[0];
+  inpL.fn({ target: el });
   T('تایپ 1500000 → 1,500,000 (کامای زنده)', el.value === '1,500,000');
   el.value = '1,500,000a'; el.selectionStart = 10;
-  listeners[0].fn({ target: el });
+  inpL.fn({ target: el });
   T('حرف غیرعددی حذف می‌شود', el.value === '1,500,000');
 })();
 

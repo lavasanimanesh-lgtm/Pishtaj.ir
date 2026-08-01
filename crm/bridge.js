@@ -885,9 +885,9 @@
         '<td>' + escP(r.ca || '-') + '</td><td>' + escP(r.dt || '—') + '</td>' +
         '<td><span class="bd b-' + (r.st || 'st1') + '">' + escP(r.stxt || 'دریافت اولیه') + '</span>' + rfqWaitBadge(r, offers) + '</td>' +
         '<td style="font-size:12px">' + (r.assignee ? '👤 ' + escP(r.assignee.name) + ' <small style="color:#94a3b8">(' + escP(r.assignee.act) + ')</small>' : '<span style="color:#cbd5e1">—</span>') + '</td>' +
-        '<td><button class="ba" style="color:#0f172a;font-weight:bold" onclick="ptfViewRfq(\'' + escP(r.cd) + '\')">👁 مشاهده</button>' +
-        ' <button class="ba" onclick="editRfq(\'' + escP(r.cd) + '\')">✏️ ویرایش/حذف</button>' +
-        ' <button class="ba" style="color:#0e7490" onclick="showRefModal(\'' + escP(r.cd) + '\')">📨 ارجاع</button>' +
+        '<td><button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="ptfViewRfq(\'' + escP(r.cd) + '\')" title="مشاهده درخواست">👁️</button> ' +
+        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="editRfq(\'' + escP(r.cd) + '\')" title="ویرایش / حذف">✏️</button> ' +
+        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="showRefModal(\'' + escP(r.cd) + '\')" title="ارجاع">📨</button>' +
         '</td></tr>';
     });
     tb.innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:22px">استعلامی ثبت نشده</td></tr>';
