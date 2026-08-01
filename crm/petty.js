@@ -80,6 +80,7 @@
         { key: 'amt', dir: 'desc', lb: '💰 بیشترین مبلغ' }, { key: 'amt', dir: 'asc', lb: '💰 کمترین مبلغ' },
         { key: 'by', dir: 'asc', lb: '👤 ثبت‌کننده' }
       ]) : '') +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodReport()" title="گزارش کامل دورهٔ جاری">📊 گزارش دورهٔ جاری</button>' +
       '<button class="bt" onclick="pettyAdd()">+ ثبت هزینه</button>' +
       (isTreasurer() ? '<button class="bt" onclick="pettyDirectPay()" style="background:#0e7490">پرداخت مستقیم</button><button class="bt" onclick="pettyCharge()" style="background:#059669">شارژ حساب</button><button class="bt bt-o" onclick="pettyClosePeriod()">ارجاع دوره</button>' : '') +
       '</div></div>' +
@@ -107,9 +108,9 @@
     if (!periods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
     var rows = periods.map(function (p) {
       var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
-      var acts = '';
-      if (isAccountant() && p.st === 'referred') acts = '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="pettyPeriodRegistered(\'' + p.cd + '\')">ثبت در حسابداری</button>';
-      if (isTreasurer() && p.st === 'referred') acts = '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="pettyAttachBank(\'' + p.cd + '\')">پیوست صورتحساب</button>';
+      var acts = '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfPettyPeriodReport(\'' + escP(p.month) + '\')">📊 گزارش دوره</button>';
+      if (isAccountant() && p.st === 'referred') acts += '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="pettyPeriodRegistered(\'' + p.cd + '\')">ثبت در حسابداری</button>';
+      if (isTreasurer() && p.st === 'referred') acts += '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="pettyAttachBank(\'' + p.cd + '\')">پیوست صورتحساب</button>';
       var st = p.st === 'registered' ? '<span class="bd b-st4">ثبت‌شده</span>' : '<span class="bd" style="background:#dbeafe;color:#1d4ed8">ارجاع‌شده</span>';
       return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:6px;font-size:12.5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>دوره ' + escP(p.month || '-') + '</b> — ' + st + '<br><small style="color:#64748b">گردش: ' + money(p.totalOut || 0) + ' | مانده: ' + money(p.balance || 0) + ' | ' + escP(p.t || '') + '</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span>' + acts + '</span></div>';
     }).join('');
@@ -430,6 +431,80 @@
     var totalOut = tx.reduce(function (s, x) { return s + ((x.type === 'direct' || x.type === 'settle') ? +x.amt || 0 : 0); }, 0);
     var charges = tx.reduce(function (s, x) { return s + (x.type === 'charge' ? +x.amt || 0 : 0); }, 0);
     return { month: month, petty: petty, tx: tx, totalOut: totalOut, charges: charges, balance: window.ptfPettyBalance(), pending: window.ptfPettyPendingByUser() };
+  };
+
+  /* ============ UR-2026-08-01-09: گزارش کامل دورهٔ تنخواه ============ */
+  window.ptfPettyPeriodEvents = function (month) {
+    var d = window.ptfPettyPeriodData(month), events = [];
+    (d.tx || []).forEach(function (x) {
+      var kind = x.type === 'charge' ? 'شارژ حساب' : x.type === 'direct' ? 'پرداخت مستقیم' : x.type === 'settle' ? 'تسویه از حساب' : (x.type || 'تراکنش');
+      events.push({ t: x.t || x.date || '', desc: (x.note || x.desc || '') + (x.ref ? ' (' + x.ref + ')' : ''), by: x.by || '', amt: +x.amt || 0, kind: kind });
+    });
+    (d.petty || []).forEach(function (p) {
+      events.push({
+        t: p.t || '',
+        desc: (p.cat || 'هزینه') + (p.desc ? ' — ' + p.desc : '') + (p.rfq ? ' (' + p.rfq + ')' : ''),
+        by: p.by || '',
+        amt: +p.amt || 0,
+        kind: p.st === 'void' ? 'هزینه (ابطال‌شده)' : (p.st === 'settled' ? 'هزینه (تسویه‌شده)' : 'هزینه (در انتظار تسویه)')
+      });
+    });
+    events.sort(function (a, b) { var ta = a.t || '9999', tb = b.t || '9999'; return ta < tb ? -1 : ta > tb ? 1 : 0; });
+    events.forEach(function (e, i) { e.row = i + 1; });
+    return events;
+  };
+
+  /* جمع‌های زندهٔ دوره (هر لحظه از دادهٔ فعلی): خرج، شارژ، موجودی */
+  window.ptfPettyPeriodTotals = function (month) {
+    var d = window.ptfPettyPeriodData(month);
+    var pettyOut = (d.petty || []).filter(function (p) { return p.st !== 'void'; }).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    var directOut = (d.tx || []).filter(function (x) { return x.type === 'direct'; }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    return { pettyOut: pettyOut, directOut: directOut, totalOut: pettyOut + directOut, charges: d.charges, balance: d.balance };
+  };
+
+  window.ptfPettyPeriodReport = function (month) {
+    month = month || faMonthNow();
+    var events = window.ptfPettyPeriodEvents(month), t = window.ptfPettyPeriodTotals(month);
+    function rowHtml(e) {
+      return '<tr><td>' + e.row + '</td><td>' + escP(e.t || '—') + '</td><td>' + escP(e.kind) + '</td><td>' + escP(e.desc || '—') + '</td><td>' + escP(e.by || '—') + '</td><td>' + money(e.amt) + '</td></tr>';
+    }
+    var body = events.map(rowHtml).join('') || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:18px">رکوردی در این دوره ثبت نشده است</td></tr>';
+    var summary = '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 14px;margin:10px 0;display:flex;gap:14px;flex-wrap:wrap;font-size:13px">' +
+      '<b style="color:#b45309">💸 هزینه‌های دوره: ' + money(t.totalOut) + '</b>' +
+      '<b style="color:#047857">💰 شارژ دوره: ' + money(t.charges) + '</b>' +
+      '<b style="color:#0e7490">🏦 موجودی دوره: ' + money(t.balance) + '</b>' +
+      (t.directOut > 0 ? '<small style="color:#64748b">(پرداخت مستقیم: ' + money(t.directOut) + ')</small>' : '') + '</div>';
+    var html = '<div class="md-b" id="pettyPeriodReportDlg" style="display:grid;z-index:4000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:860px;max-height:90vh;overflow:auto"><h3>📊 گزارش دورهٔ تنخواه — ' + escP(month) + '</h3>' + summary +
+      '<div class="tb2"><table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>مبلغ</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodCsv(\'' + escP(month) + '\')">⬇ اکسل</button>' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodPrint(\'' + escP(month) + '\')">🖨 چاپ/PDF</button>' +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+
+  window.ptfPettyPeriodCsv = function (month) {
+    var events = window.ptfPettyPeriodEvents(month), t = window.ptfPettyPeriodTotals(month);
+    var csv = '\uFEFF' + [['ردیف', 'تاریخ', 'نوع', 'شرح', 'توسط', 'مبلغ']]
+      .concat(events.map(function (e) { return [e.row, e.t, e.kind, e.desc, e.by, e.amt]; }))
+      .concat([[], ['هزینه‌های دوره', '', '', '', '', t.totalOut], ['شارژ دوره', '', '', '', '', t.charges], ['موجودی دوره', '', '', '', '', t.balance]])
+      .map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'petty-period-' + month.replace(/\//g, '-') + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+  };
+
+  window.ptfPettyPeriodPrint = function (month) {
+    var events = window.ptfPettyPeriodEvents(month), t = window.ptfPettyPeriodTotals(month);
+    function rowHtml(e) { return '<tr><td>' + e.row + '</td><td>' + escP(e.t || '—') + '</td><td>' + escP(e.kind) + '</td><td>' + escP(e.desc || '—') + '</td><td>' + escP(e.by || '—') + '</td><td>' + money(e.amt) + '</td></tr>'; }
+    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma;padding:20px;color:#111}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}</style></head><body>' +
+      '<h2>گزارش دورهٔ تنخواه — ' + escP(month) + '</h2>' +
+      '<p>هزینه‌های دوره: ' + money(t.totalOut) + ' | شارژ دوره: ' + money(t.charges) + ' | موجودی دوره: ' + money(t.balance) + '</p>' +
+      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>مبلغ</th></tr></thead><tbody>' + events.map(rowHtml).join('') + '</tbody></table></body></html>';
+    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش دورهٔ تنخواه — ' + month, html, 'petty-period-' + month.replace(/\//g, '-')); return; }
+    var w = window.open('', '_blank'); if (!w) return;
+    w.document.write(html); w.document.close(); w.print();
   };
 
   window.pettyClosePeriod = function () {
