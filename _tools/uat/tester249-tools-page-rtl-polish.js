@@ -9,7 +9,7 @@ var idx = fs.readFileSync(path.join(ROOT, 'crm/index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8');
 
 SECTION('Version and advanced page shell');
-T('نسخه CRM/SW v33.3.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM/SW v33.4.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('کلاس‌های بصری جدید صفحه ابزارها وجود دارند', ['adv-wrap','adv-catalog','adv-cv-panel','adv-report-card','adv-schema-card'].every(function (x) { return tools.indexOf(x) > -1; }));
 T('CSS مخصوص polish صفحه ابزار ثبت شده است', tools.indexOf('ADV-TOOLS-PAGE-RTL-POLISH-001') > -1 && tools.indexOf('.adv-en{direction:ltr') > -1);
 T('متن اصلی کاتالوگ فارسی است', ['سایزینگ پیشرفته کنترل ولو','تحلیل پیشرفته پایپینگ','انتخاب و بررسی پمپ','فلومتر و اوریفیس','محاسبات برق صنعتی','ابزار دقیق و لوپ کنترل'].every(function (x) { return tools.indexOf(x) > -1; }));

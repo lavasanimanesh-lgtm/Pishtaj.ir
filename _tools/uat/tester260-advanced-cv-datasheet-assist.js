@@ -52,7 +52,7 @@ T('توابع datasheet assist وجود دارند', ['ptfAdvCvExtractDatasheetT
 T('UI بخش دیتاشیت و upload دارد', adv.indexOf('ورود سریع از دیتاشیت') > -1 && adv.indexOf('adv_ds_file') > -1 && adv.indexOf('adv_ds_text') > -1 && adv.indexOf('استخراج و تکمیل خودکار') > -1);
 T('محدودیت PDF/OCR شفاف توضیح داده شده است', adv.indexOf('server PDF/OCR parser') > -1 && adv.indexOf('TXT/CSV/JSON') > -1);
 T('parser فیلدهای vendor کلیدی را پوشش می‌دهد', ['rated\\s*cv','manufacturer|brand|make','model|series|type','leakage\\s*class','\\bfl','\\bxt'].every(function(x){ return adv.indexOf(x) > -1; }));
-T('CRM/SW نسخه v33.3.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime parser/autofill');
 var sb = makeSandbox(true);

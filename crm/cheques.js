@@ -14,13 +14,17 @@
   function chPersonalAll(){ try{return JSON.parse(localStorage.getItem(chPersonalKey())||'[]')}catch(e){return[]} }
   // v31.7.4 BUG-AUDIT-007 FIXED: Add ownership filter to prevent personal cheques from leaking into company reports
   function chAll() { 
-    var company = getData(K) || [];
-    var personal = chPersonalAll();
-    // Filter: company cheques should not include personal ownership
-    var filteredCompany = company.filter(function(c) { 
+    /* CHQ-MOD-001: اگر ماژول مستقل چک موجود است، نمای یکپارچه (issued+received+legacy) خوانده می‌شود.
+       چک‌های شخصی همچنان جدا (کلید شخصی) و به همین خروجی اضافه می‌شوند. */
+    if (typeof window.ptfChequeAll === 'function') {
+      var company = window.ptfChequeAll().filter(function (c) { return !c || c.ownership !== 'personal'; });
+      return company.concat(chPersonalAll());
+    }
+    var companyLegacy = getData(K) || [];
+    var filteredCompany = companyLegacy.filter(function(c) { 
       return !c || c.ownership !== 'personal'; 
     });
-    return filteredCompany.concat(personal); 
+    return filteredCompany.concat(chPersonalAll()); 
   }
   function chMine() {
     var me = (curSession() || {}).user || '';
@@ -93,6 +97,8 @@
   };
   // auto-migrate on boot
   try { window.chMigratePersonal(); } catch(e){}
+  /* CHQ-MOD-001: مهاجرت نرم چک‌ها به دو کلید صادره/وارده (یک‌باره، بدون حذف) */
+  try { if (typeof window.ptfChequeSplitMigrate === 'function') window.ptfChequeSplitMigrate(); } catch (eChq) {}
 
   function chDaysTo(iso) {
     try { return Math.ceil((new Date(iso) - new Date(new Date().toISOString().slice(0, 10))) / 86400000); } catch (e) { return 999; }

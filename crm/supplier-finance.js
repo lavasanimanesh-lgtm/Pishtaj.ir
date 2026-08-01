@@ -326,7 +326,17 @@
       }
       rec.st = 'transferred'; rec.reminderDisabled = true; rec.sourceCustomerCd = sourceCd; rec.sourceInvoiceCd = invCd; rec.transferredAt = faDateTime(); rec.transferNote = 'انتقال به تامین‌کننده ' + (sup.co || '');
     }
-    checks.unshift(rec); setData('ptf_crm_cheques', checks);
+    /* CHQ-MOD-001: چک شرکت → صادره (issued)؛ چک ثالث → وارده (received) + انتقال (endorsed) */
+    if (typeof window.ptfChequeCreate === 'function') {
+      if (method === 'company_cheque') {
+        window.ptfChequeCreate('issued', rec);
+      } else {
+        rec.st = 'endorsed'; rec.reminderDisabled = true; rec.sourceCustomerCd = sourceCd; rec.sourceInvoiceCd = invCd; rec.transferredAt = faDateTime(); rec.transferNote = 'انتقال به تامین‌کننده ' + (sup.co || ''); rec.endorsedAt = rec.transferredAt; rec.endorsedBy = curSession().name; rec.endorseTo = sup.co || '';
+        window.ptfChequeCreate('received', rec);
+      }
+    } else {
+      checks.unshift(rec); setData('ptf_crm_cheques', checks);
+    }
     if (method === 'company_cheque' && typeof chUpsertReminder === 'function') chUpsertReminder(rec);
     try { audit('چک‌ها', method === 'company_cheque' ? 'ثبت چک شرکت برای پرداخت تامین‌کننده ' + sup.co : 'ثبت و انتقال چک ثالث به تامین‌کننده ' + sup.co, rec.cd); } catch (e) {}
     return { ok: true, cheque: rec };
