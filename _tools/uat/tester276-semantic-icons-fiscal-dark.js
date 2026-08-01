@@ -1,4 +1,4 @@
-/* tester276 — v33.4.0 (MINIMAL-LINE-ICONS-DARK-FISCAL-001)
+/* tester276 — v33.4.1 (MINIMAL-LINE-ICONS-DARK-FISCAL-001)
  * Numeric badges are not icons. Website/Knowledge/Settings/Finance Hub use semantic line SVGs;
  * Fiscal Year must remain readable in dark mode.
  */
@@ -45,6 +45,6 @@ T('Fiscal lock contrast >= 4.5', ratio('#2e1065','#e9d5ff')>=4.5,ratio('#2e1065'
 T('Fiscal warning contrast >= 4.5', ratio('#451a03','#fde68a')>=4.5,ratio('#451a03','#fde68a'));
 T('Fiscal KPI transparent gradient متن در شب خنثی می‌شود', th.indexOf('#fiscalBox .ptf-fiscal-kpi b')>-1 && th.indexOf('-webkit-text-fill-color:currentColor!important')>-1 && th.indexOf('background-image:none!important')>-1);
 T('Fiscal DOM کلاس‌های semantic دارد', ['ptf-fiscal-shell','ptf-fiscal-title','ptf-fiscal-kpi','ptf-fiscal-alert-danger','ptf-fiscal-alert-success','ptf-fiscal-alert-lock','ptf-fiscal-alert-warning'].every(function(x){return fi.indexOf(x)>-1;}));
-T('نسخه CRM/SW به v33.4.0 همگام است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM/SW به v33.4.1 همگام است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester276-semantic-icons-fiscal-dark');

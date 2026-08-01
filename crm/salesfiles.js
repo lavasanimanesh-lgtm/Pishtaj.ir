@@ -79,13 +79,24 @@
     if (!r) return [];
     var all = getData('ptf_crm_offers'), out = [], seen = {};
     function add(o) { if (!o || !o.no || seen[o.no]) return; seen[o.no] = true; out.push(o); }
+    /* BUG-ARCHIVE (۱۴۰۵/۰۸/۱۰): پیش از این فقط wonOffer + offers با st==='won' برمی‌گشت
+       و سایر اسناد پرونده (پیشنهاد اصلی، متمم‌ها، پیشنهادهای غیربرندهٔ همان درخواست) از
+       نمایش حذف می‌شدند → در بایگانی فقط «سند متمم» دیده می‌شد. حالا همهٔ پیشنهادهای
+       همان درخواست + زنجیرهٔ (altOf/srcToNo/coNo) + wonOffer برگردانده می‌شوند تا
+       فاکتورها/نامه‌های مرتبط هم در بایگانی دیده شوند. */
     if (r.wonOffer) add(all.filter(function (o) { return o.no === r.wonOffer; })[0]);
     all.filter(function (o) {
-      return o.inqNo === r.inqNo && (o.st === 'won' || o.status === 'won');
+      return o.inqNo === r.inqNo;
     }).forEach(add);
-    all.filter(function (o) {
-      return o.inqNo === r.inqNo && ((o.altOf && seen[o.altOf]) || (o.srcToNo && seen[o.srcToNo]));
-    }).forEach(add);
+    /* زنجیره: COهایی که به TO/CO دیگر متصل‌اند یا altOf دارند */
+    var grew = true;
+    while (grew) {
+      grew = false;
+      all.forEach(function (o) {
+        if (seen[o.no]) return;
+        if ((o.altOf && seen[o.altOf]) || (o.srcToNo && seen[o.srcToNo]) || (o.coNo && seen[o.coNo])) { add(o); grew = true; }
+      });
+    }
     return out;
   };
   function sfDocsOf(r) {
@@ -1227,6 +1238,16 @@
     }
     var d = r.inqNo ? sfDocsOf(r) : { offers: [], letters: [], invoices: [], misc: r.docs || [], supply: [] };
     var prjs = getData('ptf_crm_projects');
+    /* BUG-ARCHIVE: snapshot کامل فهرست اسناد پرونده (پیشنهادها/نامه‌ها/فاکتورها/استعلام‌ها/متفرقه)
+       همراه بایگانی ذخیره می‌شود تا «تمام اسناد پرونده» حتی اگر دادهٔ زنده بعداً تغییر کند،
+       در بایگانی قابل مشاهده باشند. */
+    var docSnap = {
+      offers: d.offers.map(function (o) { return { no: o.no, kind: o.kind, rev: o.rev || 0, t: o.t || '', st: o.st || '' }; }),
+      letters: d.letters.map(function (l) { return { no: l.no, subject: l.subject || '', kind: l.kind || '', t: l.t || '' }; }),
+      invoices: d.invoices.map(function (i) { return { no: i.no, offerNo: i.offerNo, amount: +i.amount || 0, t: i.t || i.invDate || '' }; }),
+      supply: d.supply.map(function (q) { return { no: q.no || q.cd || '', t: q.t || '' }; }),
+      misc: (r.docs || []).map(function (m) { return { name: m.name, key: m.key || null, t: m.t, by: m.by }; })
+    };
     var rec = {
       no: 'ARC-' + (r.inqNo || r.cd),
       dealCd: r.cd || '', /* AUD-07: مرجع پرونده‌ی اصلی برای یافتن بایگانی از روی cd سابق (sfReverseAutoSettle) */
@@ -1262,6 +1283,8 @@
                totalCOCur: (d.offers.filter(function (o) { return o.kind !== 'TO' && o.currency && o.currency !== 'IRR'; })[0] || {}).currency || 'IRR', /* v17.4 US-416 */
                lossIrr: (typeof ptfProjectLossTotal === 'function' ? ptfProjectLossTotal(r) : (r.lossEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0)) /* v18.0 US-421 */ },
       docs: keepDocs ? (r.docs || []).map(function (m) { return { folder: 'misc', name: m.name, key: m.key || null, t: m.t, by: m.by }; }) : [],
+      docSnap: docSnap, /* BUG-ARCHIVE: فهرست کامل اسناد بایگانی‌شده */
+      offerNos: d.offers.map(function (o) { return o.no; }),
       t: faDateTime(),
       timeline: [{ t: faDateTime(), by: curSession().name, tx: closeKind === 'settled' ? '🏁 مختومه — پایان پروژه و تسویه کامل (انتقال از پرونده‌های فروش)' : '🚫 مختومه بدون فاکتور — ' + (why || '') }]
     };

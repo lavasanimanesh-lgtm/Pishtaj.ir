@@ -63,6 +63,9 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
         } else {
           inner = '<input id="ptfF' + i + '" type="text" inputmode="numeric" data-money="1"' + (f.nohint ? ' data-nohint="1"' : '') + ' value="' + v + '" placeholder="' + (f.placeholder || '') + '" autocomplete="off" spellcheck="false" style="direction:ltr' + (f.dir && f.dir !== 'ltr' ? ';direction:' + f.dir : '') + '">';
         }
+      } else if (f.datePicker && typeof window.ptfDatePicker === 'function') {
+        /* تقویم شمسی برای فیلدهای تاریخ (مثل بازهٔ تنخواه) */
+        inner = window.ptfDatePicker('ptfF' + i, '', f.placeholder || '1405/04/01');
       } else {
         inner = '<input id="ptfF' + i + '" type="' + (f.type || 'text') + '" value="' + v + '" placeholder="' + (f.placeholder || '') + '"' + (f.dir ? ' style="direction:' + f.dir + '"' : '') + '>';
       }

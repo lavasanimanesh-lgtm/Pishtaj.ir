@@ -75,6 +75,23 @@ T('تراکنش مستقیم: «پرداخت مستقیم از تنخواه»', 
 var charge = ev.filter(function (e) { return e.kind === 'شارژ حساب'; })[0];
 T('شارژ: «شارژ حساب» با نام ثبت‌کننده', !!charge && charge.by === 'علی رضایی');
 
+SECTION('تقویم + نرمال‌سازی تاریخ (UR-11 تکمیلی)');
+T('نرمال‌سازی فرمت 1405-04-01 → 1405/04/01', ptfPettyNormDate('1405-4-1') === '1405/04/01');
+T('دیالوگ بازه فیلدهای datePicker دارد', (function () {
+  global._dlg = null;
+  var oldDlg = global.ptfDialog; global.ptfDialog = function (o) { global._dlg = o; };
+  ptfPettyPeriodReportDialog();
+  global.ptfDialog = oldDlg;
+  return global._dlg && global._dlg.fields.some(function (x) { return x.id === 'from' && x.datePicker; }) && global._dlg.fields.some(function (x) { return x.id === 'to' && x.datePicker; });
+})());
+T('ارجاع دوره فیلد شارژ حساب دارد', (function () {
+  global._dlg2 = null;
+  var oldDlg2 = global.ptfDialog; global.ptfDialog = function (o) { global._dlg2 = o; };
+  pettyClosePeriod();
+  global.ptfDialog = oldDlg2;
+  return global._dlg2 && global._dlg2.fields.some(function (x) { return x.id === 'chargeAmt'; }) && global._dlg2.fields.some(function (x) { return x.id === 'chargeDoc'; });
+})());
+
 SECTION('باگ split: آرگومان رشته‌ای from|to (از renderPeriods)');
 var dSplit = ptfPettyPeriodData('1405/04/11|1405/04/20');
 T('رشتهٔ از-تا (با |) به‌درستی split و فیلتر می‌شود', dSplit.isRange === true && dSplit.from === '1405/04/11' && dSplit.to === '1405/04/20' && dSplit.petty.length === 2);

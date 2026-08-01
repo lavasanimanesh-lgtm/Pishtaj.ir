@@ -462,20 +462,27 @@
     if (!from && to) from = String(to).slice(0, 7) + '/01';
     return { from: from || '', to: to || '' };
   };
-  /* UR-11: دیالوگ انتخاب بازهٔ دلخواه (از تاریخ/تا تاریخ — هر بازه‌ای مثل ۱۰ روزه، ۴۵ روزه و…) برای گزارش */
+  /* UR-11: دیالوگ انتخاب بازهٔ دلخواه (از تاریخ/تا تاریخ — هر بازه‌ای مثل ۱۰ روزه، ۴۵ روزه و…) برای گزارش
+     — با تقویم شمسی (ptfDatePicker) و پذیرش فرمت‌های رایج (1405/04/01 یا 1405-04-01) */
+  window.ptfPettyNormDate = function (s) {
+    var v = String(s || '').trim();
+    var m = v.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+    if (!m) return v;
+    return m[1] + '/' + String(+m[2]).padStart(2, '0') + '/' + String(+m[3]).padStart(2, '0');
+  };
   window.ptfPettyPeriodReportDialog = function () {
     var sg = window.ptfPettySuggestedRange();
     ptfDialog({
       title: '📊 گزارش دورهٔ تنخواه — انتخاب بازه',
       body: 'بازهٔ دلخواه را انتخاب کنید (مثلاً ۱۰ روزه، ۴۵ روزه یا هر بازهٔ دیگر — بسته به مصرف تنخواه).',
       fields: [
-        { id: 'from', label: 'از تاریخ', value: sg.from || '', required: true, dir: 'ltr' },
-        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr' }
+        { id: 'from', label: 'از تاریخ', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
+        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true }
       ],
       okText: 'نمایش گزارش',
       onOk: function (v) {
-        var from = String(v.from || '').trim(), to = String(v.to || '').trim();
-        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید.'); return; }
+        var from = window.ptfPettyNormDate(v.from), to = window.ptfPettyNormDate(v.to);
+        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از دکمهٔ «انتخاب از تقویم» استفاده کنید).'); return; }
         if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
         window.ptfPettyPeriodReport(from, to);
       }
@@ -706,17 +713,27 @@
       title: '📤 ارجاع گزارش دوره تنخواه به حسابدار',
       body: 'گزارش گردش دوره شامل پرداخت‌های مستقیم، تسویه مطالبات اشخاص، مانده حساب و همه ضمایم هزینه‌هاست. پس از ثبت، در کارتابل حسابدار قابل پیگیری می‌شود.<br><b style="color:#b45309">⚠️ پیوست «صورتحساب بانک / گردش حساب» قبل از ارجاع الزامی است.</b><br><small style="color:#475569">بازهٔ پیشنهادی از «روز پس از آخرین ارجاع» تا امروز است — می‌توانید «تا تاریخ» را تغییر دهید.</small>',
       fields: [
-        { id: 'from', label: 'از تاریخ (روز پس از آخرین ارجاع)', value: sg.from || '', required: true, dir: 'ltr' },
-        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr' },
+        { id: 'from', label: 'از تاریخ (روز پس از آخرین ارجاع)', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
+        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true },
+        { id: 'chargeAmt', label: '➕ شارژ حساب در این دوره (اختیاری — مبلغ ریال)', type: 'number', dir: 'ltr', money: false },
+        { id: 'chargeDoc', label: 'شماره/شرح سند واریز شارژ (در صورت شارژ)', type: 'text' },
         { id: 'note', label: 'یادداشت برای حسابدار', type: 'textarea', rows: 2 },
         { id: 'sms', label: 'پیامک اطلاع‌رسانی؟', type: 'select', options: [{ v: 'no', lb: 'خیر' }, { v: 'yes', lb: 'بله، اگر شماره حسابدار موجود است' }] }
       ],
       okText: 'ثبت و ارجاع',
       onOk: function (v) {
-        var from = String(v.from || '').trim(), to = String(v.to || '').trim();
-        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید.'); return; }
+        var from = window.ptfPettyNormDate(v.from), to = window.ptfPettyNormDate(v.to);
+        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از تقویم استفاده کنید).'); return; }
         if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
-        var d = window.ptfPettyPeriodData(from, to);
+        /* شارژ حساب هم‌زمان با ارجاع (درخواست کارفرما) — قبل از ساخت دوره ثبت می‌شود */
+        var chargeAmt = +v.chargeAmt || 0;
+        if (chargeAmt > 0) {
+          var doc = String(v.chargeDoc || '').trim();
+          if (!doc) { alert('⚠️ برای شارژ حساب، شماره/شرح سند واریز را وارد کنید.'); return; }
+          addTx('charge', chargeAmt, doc, '', { doc: doc });
+          audit('تنخواه', 'شارژ حساب تنخواه هنگام ارجاع دوره ' + money(chargeAmt), '');
+        }
+        var d = window.ptfPettyPeriodData(from, to); /* بعد از شارژ — تا شارژ در گزارش/رکورد دوره بیفتد */
         var ps = prAll();
         /* UR-10/UR-11: اگر آخرین دورهٔ ارجاع‌شده بدون پیوست بانک باشد، ارجاع جدید مسدود می‌شود
            (چون دورهٔ جدید از روز پس از آن شروع می‌شود و آن دوره باید کامل باشد). */

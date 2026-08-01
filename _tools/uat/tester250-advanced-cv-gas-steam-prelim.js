@@ -36,7 +36,7 @@ T('پارامترهای MW/Z/k/Xt در منطق دیده می‌شوند', ['adv
 T('نمونه gas_steam_screen در feedback pack وجود دارد', adv.indexOf('gas_steam_screen') > -1 && adv.indexOf('Natural gas') > -1);
 T('report preview دیگر فقط Liquid-only نیست', adv.indexOf('Liquid, gas and steam preliminary screening are available') > -1);
 T('هیچ مسیر PDF/download/print/fetch/export اضافه نشده است', adv.indexOf('fetch(') === -1 && adv.indexOf('window.print') === -1 && adv.indexOf('document.write') === -1 && adv.indexOf('exportPdf') === -1 && adv.indexOf('download=') === -1);
-T('نسخه CRM v33.4.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM v33.4.1 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime gas preliminary');
 var sb = makeSandbox(true);
