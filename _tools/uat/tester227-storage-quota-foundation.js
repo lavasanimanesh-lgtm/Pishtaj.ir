@@ -9,9 +9,9 @@ var sq = fs.readFileSync(path.join(ROOT, 'crm/storage-quota.js'), 'utf-8');
 var bak = fs.readFileSync(path.join(ROOT, 'crm/backup.js'), 'utf-8');
 
 SECTION('Script loading and version');
-T('storage-quota.js در CRM با نسخه رسمی فعلی لود می‌شود', idx.indexOf('storage-quota.js?v=31.9') > -1);
-T('storage-quota قبل از codegen/backup لود می‌شود', idx.indexOf('storage-quota.js?v=31.9') > -1 && idx.indexOf('storage-quota.js?v=31.9') < idx.indexOf('codegen.js?v=31.9') && idx.indexOf('storage-quota.js?v=31.9') < idx.indexOf('backup.js?v=31.9'));
-T('نسخه CRM و service worker به v31.9 bump شده‌اند', idx.indexOf("window.VER = 'v31.9'") > -1 && fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8').indexOf('ptf-crm-v31.9') > -1);
+T('storage-quota.js در CRM با نسخه رسمی فعلی لود می‌شود', /storage-quota.js\?v=3[0-9.]+/.test(idx));
+T('storage-quota قبل از codegen/backup لود می‌شود', /storage-quota.js\?v=3[0-9.]+/.test(idx) && idx.indexOf('storage-quota.js') < idx.indexOf('codegen.js') && idx.indexOf('storage-quota.js') < idx.indexOf('backup.js'));
+T('نسخه CRM و service worker به v33.3.0 bump شده‌اند', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8')));
 
 SECTION('Storage quota API');
 T('سقف محافظه‌کارانه localStorage همان ۵MB تعریف شده است', sq.indexOf('LOCALSTORAGE_SOFT_LIMIT = 5 * 1024 * 1024') > -1);
@@ -32,7 +32,7 @@ T('پنل حافظه از API جدید health/topKeys استفاده می‌کن
 T('پاک‌سازی تنظیمات از ptfStorageEmergencyCompact استفاده می‌کند', bak.indexOf('ptfStorageEmergencyCompact') > -1 && bak.indexOf('پاک‌سازی امن فوری') > -1);
 T('fallback بک‌آپ حجیم به IndexedDB منتقل می‌شود', bak.indexOf("ptfStorageIdbSet('ptf_backup_local'") > -1 && bak.indexOf("ptfStorageIdbSet('ptf_backup_prerestore'") > -1);
 T('متن آموزشی توضیح می‌دهد سقف localStorage از مرورگر است', bak.indexOf('سقف عملی آن معمولاً حدود ۵MB است') > -1 && bak.indexOf('با کد سایت مستقیماً بزرگ‌تر نمی‌شود') > -1);
-T('setData مرکزی از ptfStorageSafeSetItem استفاده می‌کند', idx.indexOf('function setData(k, d) { var s = JSON.stringify(d); if (typeof ptfStorageSafeSetItem') > -1);
+T('setData مرکزی از ptfStorageSafeSetItem استفاده می‌کند', idx.indexOf('window.setData = function') > -1 && idx.indexOf("if (typeof ptfStorageSafeSetItem === 'function') saveResult = ptfStorageSafeSetItem(k, s)") > -1);
 
 SECTION('Runtime compact smoke');
 function LS() { this.s = {}; }

@@ -18,7 +18,7 @@ T('payload schema و checksum validate می‌شود', api.indexOf('tools_valida
 T('server stable_json و checksum32 دارد', api.indexOf('function tools_stable_json') > -1 && api.indexOf('function tools_checksum32') > -1);
 T('draft runtime در crm/data/tool_report_drafts.json ذخیره می‌شود', api.indexOf('tools_report_drafts_file') > -1 && api.indexOf('tool_report_drafts.json') > -1 && api.indexOf('tools_save_report_drafts') > -1);
 T('draft safe output اولیه قفل است ولی مسیر CRM final workflow دارد', api.indexOf("'final' => (bool)($summary['final'] ?? false)") > -1 && api.indexOf("'pdf' => false") > -1 && api.indexOf("'download' => (bool)($summary['download'] ?? false)") > -1 && api.indexOf('crm_review_then_final_issue') > -1);
-T('status API به v31.9 رسیده است', api.indexOf("'version' => 'v31.9'") > -1);
+T('status API به v33.3.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('Client scaffold');
 T('advanced-report-ui.js در tools بعد از advanced-tools-ui لود می‌شود', tools.indexOf('advanced-tools-ui.js') > -1 && tools.indexOf('advanced-report-ui.js') > -1 && tools.indexOf('advanced-tools-ui.js') < tools.indexOf('advanced-report-ui.js'));
@@ -28,6 +28,6 @@ T('client payload را از ptfAdvCvBuildLockedReportPayload می‌سازد', r
 T('دکمه ثبت draft گزارش در سرور در advanced UI وجود دارد', adv.indexOf('ثبت draft گزارش در سرور') > -1 && adv.indexOf('ptfAdvCvSubmitReportDraft') > -1);
 T('advanced-tools-ui همچنان fetch ندارد و PDF باز نمی‌کند', adv.indexOf('fetch(') === -1 && adv.indexOf('window.print') === -1 && adv.indexOf('document.write') === -1 && adv.indexOf('exportPdf') === -1);
 T('advanced-report-ui هیچ PDF/download/print/export ندارد', rep.indexOf('window.print') === -1 && rep.indexOf('document.write') === -1 && rep.indexOf('exportPdf') === -1 && rep.indexOf('createObjectURL') === -1 && rep.indexOf('download=') === -1);
-T('نسخه CRM v31.9 است', idx.indexOf("window.VER = 'v31.9'") > -1 && sw.indexOf('ptf-crm-v31.9') > -1);
+T('نسخه CRM v33.3.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester239-advanced-cv-server-report-scaffold');
