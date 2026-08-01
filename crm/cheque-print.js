@@ -519,8 +519,15 @@
       var el = document.getElementById('chqpGv_' + k); if (!el) return;
       var f = map[k];
       var st = 'position:absolute;top:' + (f.top * scale) + 'px;cursor:move;white-space:nowrap;font-weight:800;';
-      if (f.left != null) st += 'left:' + (f.left * scale) + 'px;';
-      else st += 'right:' + ((L.pageW - (f.right || 0)) * scale) + 'px;';
+      if (f.left != null) {
+        st += 'left:' + (f.left * scale) + 'px;';
+        /* v33.8.1 BUG-FIX جهت درگ/جانمایی: فیلد مبلغ‌به‌حروف بین right و left کشیده می‌شود */
+        if (k === 'words') st += 'width:' + (Math.max(0, L.pageW - (f.left || 0) - (f.right || 0)) * scale) + 'px;';
+      } else {
+        /* v33.8.1 BUG-FIX: قبلاً (pageW - right) بود → فیلدهای راست‌چسب به چپ برگه پرتاب می‌شدند
+           و جهت درگ معکوس می‌شد. حالا right = فاصله از لبهٔ راست (مثل چاپ واقعی). */
+        st += 'right:' + ((f.right || 0) * scale) + 'px;';
+      }
       st += 'color:' + (f.color || '#111827') + ';font-size:' + ((f.size || 10) * scale / 3) + 'px;';
       el.setAttribute('style', st + 'background:rgba(255,255,255,.75);border:1px dashed rgba(100,116,139,.5);border-radius:4px;padding:1px 4px;z-index:3;user-select:none');
     });
@@ -552,15 +559,25 @@
     var el = document.getElementById('chqpGv_' + d.key); if (!el) return;
     var newTop = Math.max(0, Math.round((st.top + dy) * 2) / 2);
     var isLeft = st.left != null;
+    /* v33.8.1 BUG-FIX جهت درگ:
+       - چپ‌چسب (left): موس به راست → left بیشتر → فیلد راست‌تر (هم‌جهت).
+       - راست‌چسب (right): موس به راست → right کمتر → فیلد راست‌تر (هم‌جهت). */
     var newX = isLeft ? Math.max(0, Math.round((st.left + dx) * 2) / 2) : Math.max(0, Math.round((st.right - dx) * 2) / 2);
     /* آپدیت inputهای عددی */
     var tInp = document.getElementById('chqpL_' + d.key + 'Top'); if (tInp) tInp.value = newTop;
     var xInp = document.getElementById('chqpL_' + d.key + (isLeft ? 'Left' : 'Right')); if (xInp) xInp.value = newX;
-    if (d.key === 'words') { var wl = document.getElementById('chqpL_wordsLeft'); if (wl) wl.value = Math.max(0, Math.round((st.left + dx) * 2) / 2); }
+    if (d.key === 'words') {
+      var wl = document.getElementById('chqpL_wordsLeft'); if (wl) wl.value = Math.max(0, Math.round((st.left + dx) * 2) / 2);
+      var wr = document.getElementById('chqpL_wordsRight'); if (wr) wr.value = Math.max(0, Math.round((st.right - dx) * 2) / 2);
+    }
     /* آپدیت خود چیدمان (برای درگ روان) */
     L[d.key + 'Top'] = newTop;
     if (isLeft) L[d.key + 'Left'] = newX; else L[d.key + 'Right'] = newX;
-    if (d.key === 'words') L.wordsLeft = Math.max(0, Math.round((st.left + dx) * 2) / 2);
+    if (d.key === 'words') {
+      /* جابه‌جایی کل نوار مبلغ‌به‌حروف: هر دو لبه با هم حرکت می‌کنند */
+      L.wordsLeft = Math.max(0, Math.round((st.left + dx) * 2) / 2);
+      L.wordsRight = Math.max(0, Math.round((st.right - dx) * 2) / 2);
+    }
     chqSaveLayout(L);
     window.chqGvSync();
   };

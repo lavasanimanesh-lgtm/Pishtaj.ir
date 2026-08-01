@@ -239,6 +239,14 @@ T('حالت گرافیکی: توابع درگ + رندر برگه + هم‌گا�
 /* v33.8.0: حالت گرافیکی در صفحهٔ اصلی ماژول + اسکن پس‌زمینه + زوم */
 T('حالت گرافیکی داخل صفحهٔ ماژول (inline) بدون مودال', prt.indexOf('chqpGvSection') > -1 && prt.indexOf('chqpGvToggleBtn') > -1 && prt.indexOf('حالت گرافیکی چیدمان (روی برگهٔ واقعی چک)') > -1 && prt.indexOf('چاپ آزمایشی') > -1);
 T('اسکن برگه چک به‌عنوان پس‌زمینه + زوم', prt.indexOf('chqBgUpload') > -1 && prt.indexOf('chqBgClear') > -1 && prt.indexOf('chqBgZoom') > -1 && prt.indexOf('ptf_chqprint_bg') > -1 && prt.indexOf('GV_SCALE = 6') > -1);
+/* v33.8.1 BUG-FIX: جهت درگ + جانمایی راست‌چسب‌ها (قبلاً (pageW-right) بود → معکوس + پرت به چپ) */
+T('جانمایی راست‌چسب‌ها: right = فاصله از لبهٔ راست (نه pageW-right)', prt.indexOf("st += 'right:' + ((f.right || 0) * scale) + 'px;'") > -1 && prt.indexOf('(L.pageW - (f.right || 0)) * scale') === -1);
+T('درگ هم‌جهت: راست‌چسب → st.right - dx / چپ‌چسب → st.left + dx', prt.indexOf("(st.left + dx) * 2) / 2) : Math.max(0, Math.round((st.right - dx) * 2) / 2)") > -1);
+T('words: عرض بین left/right + جابه‌جایی هر دو لبه در درگ', (function () {
+  return prt.indexOf('L.wordsLeft = Math.max(0, Math.round((st.left + dx) * 2) / 2)') > -1 &&
+    prt.indexOf('L.wordsRight = Math.max(0, Math.round((st.right - dx) * 2) / 2)') > -1 &&
+    prt.indexOf('L.pageW - (f.left || 0) - (f.right || 0)') > -1;
+})());
 T('ذخیره چیدمان: amt2 در لیست فیلدها', prt.indexOf("'amt2Top', 'amt2Left', 'amt2Size'") > -1);
 
 DONE('tester288-cheque-party-recurring');
