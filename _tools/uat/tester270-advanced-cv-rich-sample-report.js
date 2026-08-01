@@ -19,7 +19,7 @@ T('sample report برندهای اصلی و لینک رسمی دارد', ['Fishe
 T('sample report بخش‌های واقعی‌تر report را دارد', ['Design Basis','Actuator Sizing Shell','Engineering Validation Matrix','Vendor Data Validation Matrix','Formula Trace and Limitations'].every(function (x) { return adv.indexOf(x) > -1; }));
 T('صفحه tools و landing دکمه نمونه گزارش را دارند', tools.indexOf('مشاهده نمونه گزارش نهایی') > -1 && landing.indexOf('مشاهده نمونه گزارش نهایی') > -1);
 T('sample report هیچ fetch/quota مصرف نمی‌کند', adv.indexOf('ptfAdvCvOpenSampleFinalReport') > -1 && adv.indexOf('no quota/license') > -1 && adv.indexOf('fetch(') === -1);
-T('CRM/SW نسخه v33.3.1 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.3.2 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime rich sample report');
 var inserted = '';

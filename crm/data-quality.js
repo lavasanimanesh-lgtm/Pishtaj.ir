@@ -152,7 +152,7 @@
     var rows = window.ptfDataQualityData();
     var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
     var body = rows.map(function (r) { return '<tr><td><details style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px"><summary style="cursor:pointer;font-weight:800;color:#334155">' + escP(r.label) + ' — ' + r.count + ' مورد' + (r.amount ? ' — ' + (+r.amount).toLocaleString('fa-IR') + ' ریال' : '') + '</summary><div style="padding-top:7px">' + qualityRefsHtml(r) + '</div></details></td></tr>'; }).join('');
-    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button><button class="bt bt-o" onclick="ptfCatalogIdentityAudit()">🔎 ممیزی هویت کالا</button><button class="bt bt-o" onclick="ptfCatalogSimilarAudit()">🧠 تشخیص کالاهای مشابه</button></span></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
+    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfDataQualityRender()">↻ بازخوانی</button><button class="bt bt-o" onclick="ptfCatalogIdentityAudit()">🔎 ممیزی هویت کالا</button><button class="bt bt-o" onclick="ptfCatalogSimilarAudit()">🧠 تشخیص کالاهای مشابه</button><button class="bt bt-o" onclick="ptfCatalogMergeHistory()">🧩 تاریخچهٔ ادغام</button></span></div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
   };
   window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
 
@@ -222,6 +222,50 @@
        پنجره بسته می‌شود و نتیجه با toast تأیید می‌شود؛ دفعهٔ بعد که گزارش باز شود،
        کالاهای ادغام‌شده دیگر پیشنهاد نمی‌شوند (فیلتر hidden/merged در ptfCatalogSimilarAudit). */
     document.querySelectorAll('#catalogSimilarDlg').forEach(function (el) { el.remove(); });
+  };
+  /* ============ S3: تاریخچهٔ ادغام کاتالوگ + بازگشت امن ============ */
+  window.ptfCatalogMergeHistory = function () {
+    document.querySelectorAll('#catalogMergeHistoryDlg').forEach(function (el) { el.remove(); });
+    var merges = getData('ptf_crm_catalog_merges') || [];
+    var rows = merges.map(function (m) {
+      var st = m.status === 'reverted'
+        ? '<span style="color:#dc2626;font-weight:bold">↩️ بازگشت داده شد</span>'
+        : '<span style="color:#047857;font-weight:bold">فعال</span>';
+      var act = m.status === 'reverted'
+        ? '<span style="color:#94a3b8">—</span>'
+        : '<button class="ba" style="color:#dc2626" onclick="ptfCatalogMergeUndo(\'' + escP(m.cd) + '\')">↩️ بازگشت</button>';
+      return '<tr><td>' + escP(m.t || '') + '</td><td><b>' + escP(m.canonicalCd) + '</b><br><small>' + escP(m.finalName || '') + '</small></td><td>' + escP((m.mergedCds || []).join('، ')) + '</td><td>' + escP(m.by || '') + '</td><td>' + st + '</td><td>' + act + '</td></tr>';
+    }).join('') || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px">هنوز ادغامی ثبت نشده است</td></tr>';
+    var html = '<div class="md-b" id="catalogMergeHistoryDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:840px;max-height:90vh;overflow:auto"><h3>🧩 تاریخچهٔ ادغام کالاها</h3><div style="background:#eff6ff;padding:9px;border-radius:9px;font-size:12px;margin-bottom:9px">بازگشت فقط نشانه‌گذاری کالاها را برمی‌گرداند؛ ارجاع‌های بازنویسی‌شدهٔ قبلی (کدهای جایگزین‌شده در اسناد) دست‌نخورده می‌مانند — چون پس از بازنویسی قابل تشخیص از کدهای اصلی نیستند.</div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>کالای اصلی</th><th>کالاهای فرعی</th><th>توسط</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + rows + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+
+  window.ptfCatalogMergeUndo = function (mergeCd) {
+    var merges = getData('ptf_crm_catalog_merges') || [];
+    var merge = merges.filter(function (m) { return m.cd === mergeCd; })[0];
+    if (!merge) { alert('رکورد ادغام پیدا نشد.'); return; }
+    if (merge.status === 'reverted') { alert('این ادغام قبلاً بازگردانده شده است.'); return; }
+    if (!confirm('بازگشت این ادغام؟ کالاهای فرعی دوباره فعال می‌شوند و aliasهای افزوده حذف می‌شوند. ارجاع‌های بازنویسی‌شدهٔ قبلی دست‌نخورده می‌مانند.')) return;
+    var products = getData('ptf_crm_products') || [];
+    var aliasNames = (merge.mergedCds || []).map(function (cd) { var p0 = products.filter(function (x) { return x.cd === cd; })[0]; return p0 ? (p0.nm || p0.name || '') : ''; }).filter(Boolean);
+    products.forEach(function (p) {
+      if ((merge.mergedCds || []).indexOf(p.cd) > -1 && p.status === 'merged') {
+        p.hidden = false; p.status = 'active';
+        delete p.mergedInto; delete p.mergedAt;
+      }
+    });
+    var canonical = products.filter(function (p) { return p.cd === merge.canonicalCd; })[0];
+    if (canonical && Array.isArray(canonical.aliases) && aliasNames.length) {
+      canonical.aliases = canonical.aliases.filter(function (a) { return aliasNames.indexOf(a) === -1; });
+    }
+    merge.status = 'reverted';
+    merge.revertedAt = typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString();
+    merge.revertedBy = typeof curSession === 'function' ? curSession().name : '';
+    setData('ptf_crm_products', products);
+    setData('ptf_crm_catalog_merges', merges);
+    try { audit('کاتالوگ', 'بازگشت ادغام ' + merge.cd + ' — کالاهای فرعی دوباره فعال شدند', mergeCd); } catch (e) {}
+    if (typeof ptfToast === 'function') ptfToast('ادغام بازگردانده شد؛ ارجاع‌های بازنویسی‌شدهٔ قبلی دست‌نخورده ماندند.', 'ok');
+    window.ptfCatalogMergeHistory();
   };
   window.ptfCatalogIdentityReviewFilter = function () {
     var input = document.getElementById('ptfCatReviewSearch'), select = document.getElementById('ptfCatReviewProduct');
