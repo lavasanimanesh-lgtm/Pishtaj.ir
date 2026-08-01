@@ -82,7 +82,13 @@ T('resolve: فایل بدون url (فقط key) → از storage گرفته می�
 
 SECTION('چیدمان فشردهٔ ۳-در-صفحه (ptfPettyReceiptsHtml)');
 var grid = ptfPettyReceiptsHtml(files);
-T('چیدمان ۳-در-صفحه: کلاس rcpt + ۳ تصویر + عرض ۳۳٪', grid.indexOf('class=\"rcpt\"') > -1 && (grid.match(/<img /g) || []).length === 3 && code.indexOf('calc(33.3% - 4px)') > -1);
+T('چیدمان ۳-در-صفحه: کلاس rcpt + ۳ تصویر + عرض ۳۳٪', (function () {
+  var a = grid.indexOf('class="rcpt"') > -1;
+  var b = (grid.match(/<img /g) || []).length === 3;
+  var c = code.indexOf('calc(33.3% - 4px)') > -1;
+  if (!a || !b || !c) console.log('grid-fail:', a, b, c, '| grid len:', grid.length, '| code calc:', code.indexOf('calc(33.3% - 4px)'));
+  return a && b && c;
+})());
 
 SECTION('PDF تلفیقی (ptfPettyPeriodCombinedPdf) — همگام با Promise');
 ptfPettyPeriodCombinedPdf('1405/04');

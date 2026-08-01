@@ -18,11 +18,11 @@ T('validation choked/gas-steam/noise/cavitation/reducer/velocity را بررسی
 T('final gate engineeringValidation را برمی‌گرداند', api.indexOf("'engineeringValidation' => $engineeringValidation") > -1 && api.indexOf('Engineering validation [') > -1);
 T('final report HTML بخش Engineering Validation Matrix دارد', api.indexOf('Engineering Validation Matrix') > -1 && api.indexOf('tools_validation_rows_html') > -1 && api.indexOf('<th>Required action</th>') > -1);
 T('final meta validation را ذخیره می‌کند', api.indexOf("'engineeringValidation' => tools_build_engineering_validation") > -1 && api.indexOf("$draft['engineeringValidation']") > -1);
-T('tools API status v33.4.5 است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status v33.4.6 است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM engineering validation UI');
-T('CRM/SW نسخه v33.4.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
-T('tool-report-drafts با cache-bust v33.4.5 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
+T('CRM/SW نسخه v33.4.6 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-report-drafts با cache-bust v33.4.6 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
 T('CRM UI engineeringStatus را در list/detail/gate نشان می‌دهد', ui.indexOf('engineeringStatus') > -1 && ui.indexOf('engineeringCriticalCount') > -1 && ui.indexOf('Engineering validation') > -1);
 T('Final modal engineering status را نشان می‌دهد', ui.indexOf('Engineering:') > -1 && ui.indexOf('Server PDF: No') > -1);
 T('online payment همچنان اضافه نشده است', api.indexOf('payment_gateway') === -1 && ui.indexOf('payment_gateway') === -1 && api.indexOf('zarinpal') === -1);

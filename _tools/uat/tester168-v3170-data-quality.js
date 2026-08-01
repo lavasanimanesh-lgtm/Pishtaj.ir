@@ -10,7 +10,7 @@ var sw=fs.readFileSync(path.join(BASE,'sw.js'),'utf8');
 SECTION('ساختار');
 T('ماژول کیفیت داده load و pre-cache شده', idx.indexOf('data-quality.js?v=')>-1 && sw.indexOf('./data-quality.js')>-1);
 T('داشبورد read-only است', (function () {
-  /* دامنهٔ ادعا فقط خودِ ptfDataQualityData است — این فایل از v33.4.5 به بعد
+  /* دامنهٔ ادعا فقط خودِ ptfDataQualityData است — این فایل از v33.4.6 به بعد
      شامل گردش‌کار نوشتنی «هویت کاتالوگ» (صف بررسی/اتصال/ادغام) هم هست که
      عمداً می‌نویسد؛ این تست نباید کل فایل را read-only فرض کند. */
   var body = dq.split('window.ptfDataQualityData =')[1] || '';

@@ -10,7 +10,7 @@ var sw = fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8');
 
 SECTION('Version and visual system');
 T('نسخه ADV-CV-UX-POLISH-001 ثبت شده است', adv.indexOf('ADV-CV-UX-POLISH-001') > -1);
-T('CRM/SW به v33.4.5 به‌روزرسانی شده‌اند', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW به v33.4.6 به‌روزرسانی شده‌اند', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('modal از backdrop blur و gradient visual shell استفاده می‌کند', adv.indexOf('backdrop-filter:blur(6px)') > -1 && adv.indexOf('radial-gradient') > -1 && adv.indexOf('linear-gradient(180deg,#ffffff,#f8fafc') > -1);
 T('header sticky/dark premium دارد', adv.indexOf('.adv-head{position:sticky') > -1 && adv.indexOf('linear-gradient(135deg,#0f172a') > -1);
 T('stepper عددی مینیمال 01..04 اضافه شده است', adv.indexOf('adv-steps') > -1 && ['<b>01</b>','<b>02</b>','<b>03</b>','<b>04</b>'].every(function (x) { return adv.indexOf(x) > -1; }));

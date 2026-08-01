@@ -16,7 +16,7 @@ T('api/tools.php اکشن admin_metrics_summary دارد و admin protected اس
 T('metrics runtime در crm/data/tool_metrics.json ذخیره می‌شود', api.indexOf('tools_metrics_file') > -1 && api.indexOf('tool_metrics.json') > -1 && api.indexOf('tools_save_metrics') > -1);
 T('server فقط aggregate بدون sid/label/query نگه می‌دارد', api.indexOf('aggregate_only_no_sid_no_label_no_query') > -1 && api.indexOf('eventPath') > -1 && api.indexOf('tools_metric_path') > -1);
 T('metrics summary funnel دارد', ['controlValveLandingViews','sampleReportOpens','feedbackOpens','feedbackSubmits','rfqClicks'].every(function (x) { return api.indexOf(x) > -1; }));
-T('tools API status v33.4.5 است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status v33.4.6 است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('Client privacy-aware sync');
 T('ptf-metrics نسخه privacy sync دارد', metrics.indexOf('PRIVACY-METRICS-SERVER-SYNC-001') > -1 && metrics.indexOf('metrics_ingest') > -1);
@@ -24,7 +24,7 @@ T('client sanitizeForServer فقط event/path/t/utm_source ارسال می‌ک�
 T('client sid/title/label/href را در payload sync قرار نمی‌دهد', metrics.indexOf('sid: sessionId()') > -1 && metrics.indexOf('label:') > -1 && metrics.indexOf('href:') > -1 && metrics.indexOf('JSON.stringify({ events: batch') > -1);
 T('client sendBeacon/XMLHttpRequest استفاده نمی‌کند', metrics.indexOf('sendBeacon') === -1 && metrics.indexOf('XMLHttpRequest') === -1);
 T('CRM KPI dashboard admin_metrics_summary را می‌خواند', ui.indexOf('admin_metrics_summary') > -1 && ui.indexOf('Landing views') > -1 && ui.indexOf('Metrics path breakdown') > -1);
-T('CRM/SW نسخه v33.4.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.6 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime sanitized payload smoke');
 var sent = [];

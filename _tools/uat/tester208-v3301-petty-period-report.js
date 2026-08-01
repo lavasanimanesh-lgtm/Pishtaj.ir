@@ -71,6 +71,14 @@ T('شارژ دوره = ۱,۰۰۰,۰۰۰', tt.charges === 1000000);
 
 SECTION('مودال گزارش');
 ptfPettyPeriodReport('1405/04');
+T('ردیف‌های جمع در پایان جدول (مجموع هزینه/شارژ/موجودی شروع/پایان)', (function () {
+  var h = global._inserted[global._inserted.length - 1] || '';
+  return h.indexOf('مجموع هزینه‌های دوره') > -1 && h.indexOf('مجموع شارژ دوره') > -1 && h.indexOf('موجودی شروع دوره') > -1 && h.indexOf('موجودی پایان دوره') > -1;
+})());
+T('Totals شامل balanceStart/balanceEnd است', (function () {
+  var t = ptfPettyPeriodTotals('1405/04');
+  return typeof t.balanceStart === 'number' && typeof t.balanceEnd === 'number';
+})());
 T('مودال با جدول (ردیف/تاریخ/نوع/شرح/توسط/مبلغ) و جمع‌ها ساخته شد', (function () {
   var h = global._inserted[global._inserted.length - 1] || '';
   return h.indexOf('گزارش دورهٔ تنخواه') > -1 && h.indexOf('<th>ردیف</th>') > -1 && h.indexOf('<th>توسط</th>') > -1 && h.indexOf('هزینه‌های دوره') > -1 && h.indexOf('شارژ دوره') > -1 && h.indexOf('موجودی دوره') > -1;

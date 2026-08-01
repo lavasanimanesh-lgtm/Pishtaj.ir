@@ -25,6 +25,6 @@ T('صفحه اصلی tools به landing اختصاصی لینک می‌دهد', 
 T('sitemap شامل landing اختصاصی است', sitemap.indexOf('https://pishtaj.ir/tools/control-valve-sizing/') > -1 && sitemap.indexOf('<priority>0.9</priority>') > -1);
 T('صفحه اختصاصی advanced-tools-ui را برای sample report لود می‌کند', page.indexOf('<script src="../advanced-tools-ui.js"></script>') > -1 && adv.indexOf('ptfAdvCvOpenSampleFinalReport') > -1);
 T('آیکون/emoji سنگین در CTAهای landing اضافه نشده است', page.indexOf('🚀') === -1 && page.indexOf('💰') === -1 && page.indexOf('🔥') === -1);
-T('CRM/SW نسخه v33.4.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.6 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester262-control-valve-dedicated-seo-landing');

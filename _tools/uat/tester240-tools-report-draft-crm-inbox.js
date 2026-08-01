@@ -15,10 +15,10 @@ T('اکشن‌های review با tools_admin_require محافظت می‌شون�
 T('summary draft final-aware و serverPdf=false است', api.indexOf('function tools_report_draft_summary') > -1 && api.indexOf("'finalReport' => [") > -1 && api.indexOf("'serverPdf' => false") > -1 && api.indexOf("'download' => $isFinal") > -1);
 T('summary شامل project/readiness/risk/gov است', ['casesCount','governingCv','cavitationRisk','noiseRisk','inputCompleteForFutureReport','missingCount','pipeIssuesCount'].every(function (x) { return api.indexOf(x) > -1; }));
 T('admin_report_draft_get payload را همراه وضعیت final-aware برمی‌گرداند', api.indexOf("'payload' => $draft['payload']") > -1 && api.indexOf('Locked report draft review. Final issue is available') > -1 && api.indexOf('Final HTML report has been issued') > -1);
-T('tools API status به v33.4.5 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status به v33.4.6 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM inbox UI');
-T('tool-report-drafts.js در CRM با cache-bust v33.4.5 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-report-drafts.js در CRM با cache-bust v33.4.6 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('UI فقط برای admin/chairman است', ui.indexOf("['admin', 'chairman'].indexOf(curRole())") > -1 && ui.indexOf('roleOk()') > -1);
 T('UI به buildSettings تزریق می‌شود', ui.indexOf('var _buildSettings = window.buildSettings') > -1 && ui.indexOf('ptfToolReportDraftsHtml') > -1);
 T('UI admin_report_drafts و admin_report_draft_get را صدا می‌زند', ui.indexOf('admin_report_drafts') > -1 && ui.indexOf('admin_report_draft_get') > -1);

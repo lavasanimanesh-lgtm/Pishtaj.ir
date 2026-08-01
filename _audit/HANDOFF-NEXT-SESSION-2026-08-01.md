@@ -98,7 +98,8 @@ v33.3.0 سراسری + SHELL سرویس‌ورکر تکمیل + zip بازساز
 4e. ✅ **UR-13 (تقویم+شارژ تنخواه) و BUG-ARCHIVE (بایگانی کامل اسناد) — v33.4.1/4.2** — تقویم شمسی + فرمت‌های رایج در تاریخ‌ها؛ آپلود فایل PDF گردش حساب بانک در خود پنجرهٔ ارجاع (الزامی — به‌جای «شارژ» که اشتباه بود)؛ ریشه‌کنی بایگانی (ptfSalesFileOffers کامل + docSnap/offerNos + بخش «اسناد کامل پرونده») — tester212/216.
 4f. ✅ **BUG-RANGE — v33.4.3**: recDate مقاوم + فیلتر بازه شامل رکوردهای بی‌تاریخ هم‌ماه + مقدار پیشنهادی تقویم + پیام راهنما — tester212 (۲۲/۰).
 4g. ✅ **BUG-DATE-NAV — v33.4.4**: نرمال‌سازی ارقام فارسی/عربی در تاریخ‌ها + ناوبری مطمئن ماه/سال تقویم با ptfCalNav — tester212.
-4h. ✅ **BUG-PDF-ATTACH — v33.4.5**: گزارش تلفیقی ضمائم را نمایش نمی‌داد (فقط <img> با url خالی → «فرمت غیرمجاز»). رفع: ptfPettyFileKind (عکس/PDF/سایر) + ptfPettyResolveUrl (presign_get از storage) + رندر <img>/<embed> + CombinedPdf async (resolve قبل از چاپ) — tester209 (۱۷/۰).
+4h. ✅ **BUG-PDF-ATTACH — v33.4.5**: گزارش تلفیقی ضمائم را نمایش نمی‌داد. رفع: ptfPettyFileKind + ptfPettyResolveUrl + رندر <img>/<embed> + CombinedPdf async — tester209.
+4i. ✅ **BUG-TOTALS + BUG-ATTACH-URL — v33.4.6**: (۱) ردیف‌های جمع در پایان جدول (مجموع هزینه/شارژ/موجودی شروع/پایان — balanceStart/balanceEnd) در مودال/PDF/CSV؛ (۲) ریشهٔ لودنشدن ۲ سند: ptfPettyPeriodFiles url را هاردکد '' می‌کرد → حالا f.url حفظ می‌شود + پیام/دکمهٔ «باز کردن فایل» وقتی url در دسترس نیست. — tester208 (۱۲/۰)، tester209 (۱۷/۰).
 
 ---
 

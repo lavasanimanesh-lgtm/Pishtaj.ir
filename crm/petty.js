@@ -584,12 +584,34 @@
     var d = window.ptfPettyPeriodData(a, b);
     var pettyOut = (d.petty || []).filter(function (p) { return p.st !== 'void'; }).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
     var directOut = (d.tx || []).filter(function (x) { return x.type === 'direct'; }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
-    return { pettyOut: pettyOut, directOut: directOut, totalOut: pettyOut + directOut, charges: d.charges, balance: d.balance };
+    /* BUG-TOTALS: موجودی شروع و پایان دوره — از تراکنش‌های قبل از بازه (شارژ/پرداخت/تسویه) */
+    function txBalance(beforeDate) {
+      return txAll().reduce(function (s, x) {
+        var d0 = recDate(x);
+        if (beforeDate && d0 && d0 > beforeDate) return s;
+        var a = +x.amt || 0;
+        if (x.type === 'charge') return s + a;
+        if (x.type === 'direct' || x.type === 'settle') return s - a;
+        return s;
+      }, 0);
+    }
+    var fromDate = d.isRange ? d.from : '';
+    var balanceStart = fromDate ? txBalance(window.ptfPettyDayAfter(fromDate)) : 0; /* قبل از شروع بازه (شامل روز شروع) */
+    var balanceEnd = window.ptfPettyBalance(); /* موجودی لحظه‌ای کل */
+    return { pettyOut: pettyOut, directOut: directOut, totalOut: pettyOut + directOut, charges: d.charges, balance: d.balance, balanceStart: balanceStart, balanceEnd: balanceEnd };
   };
 
   function ptfPettyRowHtml(e) {
     return '<tr><td>' + e.row + '</td><td>' + escP(e.t || '—') + '</td><td>' + escP(e.kind) + '</td><td>' + escP(e.desc || '—') + '</td><td>' + escP(e.by || '—') + '</td><td>' + escP(e.status || '—') + '</td><td>' + money(e.amt) + '</td></tr>';
   }
+  /* BUG-TOTALS: ردیف‌های جمع در پایان جدول — مجموع هزینه‌ها / مجموع شارژ / موجودی شروع / موجودی پایان */
+  function ptfPettyTotalsRowsHtml(t) {
+    return '<tr style="background:#fef3c7;font-weight:bold"><td colspan="6">💸 مجموع هزینه‌های دوره</td><td>' + money(t.totalOut) + '</td></tr>' +
+      '<tr style="background:#d1fae5;font-weight:bold"><td colspan="6">💰 مجموع شارژ دوره</td><td>' + money(t.charges) + '</td></tr>' +
+      '<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6">🏦 موجودی شروع دوره</td><td>' + money(t.balanceStart) + '</td></tr>' +
+      '<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6">🏦 موجودی پایان دوره</td><td>' + money(t.balanceEnd) + '</td></tr>';
+  }
+  window.ptfPettyTotalsRowsHtml = ptfPettyTotalsRowsHtml;
   function ptfPettyArg(a, b) { return (a && b && String(a).length > 7) ? a + '|' + b : (a || ''); }
   function ptfPettyArgPair(arg) { var p = String(arg || '').split('|'); return p.length === 2 ? p : [p[0], '']; }
 
@@ -610,7 +632,7 @@
       '<b style="color:#0e7490">🏦 موجودی دوره: ' + money(t.balance) + '</b>' +
       (t.directOut > 0 ? '<small style="color:#64748b">(پرداخت مستقیم: ' + money(t.directOut) + ')</small>' : '') + '</div>';
     var html = '<div class="md-b" id="pettyPeriodReportDlg" style="display:grid;z-index:4000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:980px;max-height:90vh;overflow:auto"><h3>📊 گزارش دورهٔ تنخواه — ' + escP(label) + '</h3>' + summary +
-      '<div class="tb2"><table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '<div class="tb2"><table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + body + ptfPettyTotalsRowsHtml(t) + '</tbody></table></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodCsv(\'' + arg + '\')">⬇ اکسل</button>' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodPrint(\'' + arg + '\')">🖨 چاپ/PDF</button>' +
@@ -624,7 +646,7 @@
     var label = window.ptfPettyRangeLabel(a, b);
     var csv = '\uFEFF' + [['ردیف', 'تاریخ', 'نوع', 'شرح', 'توسط', 'نحوهٔ پرداخت/وضعیت', 'مبلغ']]
       .concat(events.map(function (e) { return [e.row, e.t, e.kind, e.desc, e.by, e.status || '', e.amt]; }))
-      .concat([[], ['هزینه‌های دوره', '', '', '', '', '', t.totalOut], ['شارژ دوره', '', '', '', '', '', t.charges], ['موجودی دوره', '', '', '', '', '', t.balance]])
+      .concat([[], ['مجموع هزینه‌های دوره', '', '', '', '', '', t.totalOut], ['مجموع شارژ دوره', '', '', '', '', '', t.charges], ['موجودی شروع دوره', '', '', '', '', '', t.balanceStart], ['موجودی پایان دوره', '', '', '', '', '', t.balanceEnd]])
       .map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
     var a2 = document.createElement('a');
     a2.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -638,7 +660,7 @@
     var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma;padding:20px;color:#111}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}</style></head><body>' +
       '<h2>گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
       '<p>هزینه‌های دوره: ' + money(t.totalOut) + ' | شارژ دوره: ' + money(t.charges) + ' | موجودی دوره: ' + money(t.balance) + '</p>' +
-      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + '</tbody></table></body></html>';
+      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table></body></html>';
     if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش دورهٔ تنخواه — ' + label, html, 'petty-period-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
     var w = window.open('', '_blank'); if (!w) return;
     w.document.write(html); w.document.close(); w.print();
@@ -670,7 +692,7 @@
       '</style></head><body>' +
       '<div class="page"><h2 style="font-size:16px;margin:0 0 8px">گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
       '<p style="margin:0 0 8px">هزینه‌های دوره: <b>' + money(t.totalOut) + '</b> | شارژ دوره: <b>' + money(t.charges) + '</b> | موجودی دوره: <b>' + money(t.balance) + '</b></p>' +
-      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + '</tbody></table>' +
+      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table>' +
       (pageBreakLabel ? '<p style="font-size:10px;color:#64748b;margin-top:6px">' + escP(pageBreakLabel) + '</p>' : '') +
       '</div>';
     return html;
@@ -704,13 +726,18 @@
   window.ptfPettyReceiptHtml = function (f) {
     var petId = f.petId || '';
     var kind = window.ptfPettyFileKind(f.name || f.key || '');
+    var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
-    if (kind === 'image') {
-      inner = '<img src="' + String(f.url || '').replace(/"/g, '&quot;') + '" onerror="this.parentNode.innerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ تصویر قابل نمایش نیست</div>\'">';
+    var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
+    if (!url && f.key) {
+      /* BUG-PDF-ATTACH: url هنوز resolve نشده/خطا — پیام واضح + دکمهٔ باز کردن */
+      inner = '<div style="padding:14px;color:#92400e;font-size:11px;text-align:center">⚠️ لینک این سند دریافت نشد.<br><small style="color:#94a3b8">برای مشاهده از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
+    } else if (kind === 'image') {
+      inner = '<img src="' + url + '" onerror="this.parentNode.innerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ تصویر قابل نمایش نیست' + (openBtn ? ' — ' + openBtn : '') + '</div>\'">';
     } else if (kind === 'pdf') {
-      inner = '<embed src="' + String(f.url || '').replace(/"/g, '&quot;') + '" type="application/pdf" style="width:100%;height:280px;border-radius:5px">';
+      inner = '<embed src="' + url + '" type="application/pdf" style="width:100%;height:280px;border-radius:5px" onerror="this.outerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ PDF قابل نمایش نیست</div>\'">' + openBtn;
     } else {
-      inner = '<div style="padding:14px;color:#7c3aed;font-size:11px;text-align:center">📄 ' + escP(f.name || f.key || 'سند') + '<br><small style="color:#94a3b8">این فرمت در گزارش تلفیقی نمایش داده نمی‌شود؛ از «باز کردن فایل» استفاده کنید.</small></div>';
+      inner = '<div style="padding:14px;color:#7c3aed;font-size:11px;text-align:center">📄 ' + escP(f.name || f.key || 'سند') + '<br><small style="color:#94a3b8">این فرمت در گزارش تلفیقی نمایش داده نمی‌شود؛ از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
     }
     return '<div class="rcpt"><div class="cap">' + escP(petId || 'سند') + '</div>' +
       (f.name ? '<div class="meta">' + escP(f.name) + '</div>' : '') + inner + '</div>';
@@ -728,7 +755,10 @@
     function pushRec(r) {
       if (!r) return;
       var petId = r.petId || ((r.files || []).length ? (r.files[0].petId || '') : '');
-      (r.files || []).forEach(function (f) { out.push({ key: f.key || '', name: f.name || f.key, url: '', petId: f.petId || petId, record: r }); });
+      (r.files || []).forEach(function (f) {
+        /* BUG-PDF-ATTACH: url فایل (اگر از قبل resolve شده) حفظ می‌شود — قبلاً '' هاردکد بود و سندها لود نمی‌شدند */
+        out.push({ key: f.key || '', name: f.name || f.key, url: f.url || '', petId: f.petId || petId, record: r });
+      });
     }
     if (ids && Array.isArray(ids)) {
       var byId = {};
