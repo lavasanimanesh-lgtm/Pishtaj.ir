@@ -13,7 +13,7 @@ var th = fs.readFileSync(path.join(ROOT, 'crm/theme.js'), 'utf-8');
 var idx = fs.readFileSync(path.join(ROOT, 'crm/index.html'), 'utf-8');
 
 SECTION('BUG-NAV-ORPHAN-001: موجودی انبار در منو');
-T('surplus به گروه «کالا و اسناد» اضافه شد', /items: \['prod', 'surplus', 'prj', 'let', 'cnt'\]/.test(sh));
+T('surplus به گروه «کالا و اسناد» اضافه شد', /items: \['prod', 'surplus', 'chqprint', 'prj', 'let', 'cnt'\]/.test(sh)); /* v33.6.0: chqprint (چاپ چک فیزیکی) هم به همین گروه اضافه شد */
 T('گارد ریشه‌ای: پنل خارج از GROUPS دیگر بی‌صدا حذف نمی‌شود', sh.indexOf('BUG-NAV-ORPHAN-001') > -1 && /if \(!grouped\[id\] && btns\[id\]\.style\.display !== 'none'\) frag\.appendChild\(btns\[id\]\)/.test(sh));
 T('دکمه موجودی انبار در index.html موجود است', /goPanel\('surplus',this\)[^<]*<span class="ic">🏬<\/span><span class="lb">موجودی انبار<\/span>/.test(idx));
 

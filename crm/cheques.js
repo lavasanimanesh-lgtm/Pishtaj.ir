@@ -214,50 +214,10 @@
     if (typeof ptfToast === 'function') ptfToast('🏆 چک ضمانت با موفقیت استرداد شد', 'ok');
   };
 
-  window._chFilterKind = window._chFilterKind || 'all';
-  window.chSetFilterKind = function (k) { window._chFilterKind = k; refreshBox(); };
-
-  function chBoxHtml() {
-    var my = chMine();
-    var numFin = my.filter(function(c){ return c.kind !== 'guarantee' && c.st !== 'cleared'; }).length;
-    var numGuar = my.filter(function(c){ return c.kind === 'guarantee' && c.st !== 'retrieved'; }).length;
-    var ft = window._chFilterKind || 'all';
-    var list = my.filter(function (c) {
-      if (ft === 'fin' && c.kind === 'guarantee') return false;
-      if (ft === 'guar' && c.kind !== 'guarantee') return false;
-      return c.kind === 'guarantee' ? c.st !== 'retrieved' : (c.st !== 'cleared' && c.st !== 'transferred' && c.st !== 'voided_transfer' && c.st !== 'void' && c.ownership !== 'third_party');
-    });
-    list.sort(function (a, b) { return (a.dueISO || '') < (b.dueISO || '') ? -1 : 1; });
-    var rows = list.map(function (c) {
-      var d = chDaysTo(c.dueISO);
-      var cl = d < 0 ? '#dc2626' : d <= 7 ? '#f59e0b' : '#0ea5e9';
-      var lb = d < 0 ? 'سررسید گذشته (' + Math.abs(d) + ' روز)' : d === 0 ? 'سررسید امروز!' : d + ' روز مانده';
-      return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:8px 12px;border:1px solid var(--brd);border-right:4px solid ' + cl + ';border-radius:10px;margin-bottom:6px;font-size:12.5px;flex-wrap:wrap">' +
-        '<span>' + chKindLabel(c) + ' <b dir="ltr">' + escP(c.sayad || c.no) + '</b> — ' + escP(c.toWhom || '-') + ' — <b>' + (+c.amt).toLocaleString('fa-IR') + ' ریال</b>' +
-        (c.dealCd ? ' <small style="color:#7c3aed">📁 ' + escP(c.dealLabel || c.dealCd) + '</small>' : '') +
-        '<br><small style="color:#64748b">بانک: ' + escP((c.bank || '-') + (c.branch ? ' / ' + c.branch : '')) +
-        (c.kind === 'guarantee' ? (c.dueFa || c.dueISO ? ' | تاریخ: ' + escP(c.dueFa || c.dueISO) : ' | بدون سررسید مالی') : (' | سررسید: ' + escP(c.dueFa || c.dueISO || '—') + ' — <b style="color:' + cl + '">' + lb + '</b>')) +
-        (c.beneficiaryId ? ' | شناسه/کدملی: ' + escP(c.beneficiaryId) : '') + (c.note ? ' | ' + escP(c.note) : '') + '</small></span>' +
-        '<span style="white-space:nowrap">' + chRowActions(c) + '</span></div>';
-    }).join('');
-    var cleared = my.filter(function (c) { return c.st === 'cleared'; }).length;
-    var voidRows = my.filter(function(c){return c.st==='void'||c.st==='voided_transfer';}).map(function(c){return '<div style="font-size:11px;color:#64748b;padding:4px 0">🗑 ابطال‌شده: <b dir="ltr">'+escP(c.sayad||c.no)+'</b> — '+(+c.amt||0).toLocaleString('fa-IR')+' ریال</div>';}).join('');
-    return '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">' +
-      '<h4 style="margin:0;font-size:14px">🏦 چک‌های صادره (' + list.length + (ft==='guar' ? ' ضمانت' : ft==='fin' ? ' مالی' : ' باز') + (cleared && ft!=='guar' ? ' / ' + cleared + ' پاس‌شده' : '') + ')</h4>' +
-      '<div style="display:flex;gap:6px;margin:8px 0 10px;flex-wrap:wrap">' +
-      '<button type="button" class="' + (ft==='all'?'bt':'bt bt-o') + '" style="font-size:11.5px;padding:4px 10px" onclick="chSetFilterKind(\'all\')">همه</button>' +
-      '<button type="button" class="' + (ft==='fin'?'bt':'bt bt-o') + '" style="font-size:11.5px;padding:4px 10px" onclick="chSetFilterKind(\'fin\')">💰 مالی (' + numFin + ')</button>' +
-      '<button type="button" class="' + (ft==='guar'?'bt':'bt bt-o') + '" style="font-size:11.5px;padding:4px 10px" onclick="chSetFilterKind(\'guar\')">🛡️ ضمانت (' + numGuar + ')</button></div>' +
-      '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="bt" style="font-size:12px" onclick="chNew()">+ ثبت تکی</button>' +
-      '<button class="bt" style="font-size:12px;background:#0e7490" onclick="chBatchFillOpen()">🧾 ثبت دسته‌ای + چاپ</button>' +
-      '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="chBulkPrint()">🖨 چاپ چندتایی</button>' +
-      '<button class="bt bt-o" style="font-size:12px" onclick="chPrintLayoutOpen()">📐 کالیبره چاپ</button>' +
-      '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="chAiOpen()">🤖 دستیار چک</button></span></div>' +
-      '<div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.8">🧾 <b>ثبت دسته‌ای + چاپ:</b> تاریخ/ذی‌نفع/مبلغ را در جدول بزنید و چند برگه چک را یک‌جا در پرینتر چاپ کنید (بدون نوشتن دستی).<br>⏰ فقط چک‌های <b>مالی</b> یادآور سررسید می‌گیرند؛ چک <b>ضمانت/سپرده</b> بدون یادآور است و قابل لینک به پرونده فروش.</div>' +
-      (rows || '<div style="color:#94a3b8;font-size:12px">چکی ثبت نشده</div>') + (voidRows ? '<details style="margin-top:8px"><summary>تاریخچه چک‌های ابطال‌شده</summary>'+voidRows+'</details>' : '') + '</div>';
-  }
+  /* CHQ-PRINT (v33.6.0، مصوب کارفرما): باکس چک‌های صادره (ثبت تکی/دسته‌ای/چاپ)
+     از ماژول شخصی (پنل یادآورها) به‌طور کامل حذف شد. ثبت/مدیریت چک فقط در
+     «هاب مالی → تب چک‌ها» و چاپ فقط در ماژول مستقل «چاپ چک فیزیکی»
+     (گروه کالا و اسناد → crm/cheque-print.js) انجام می‌شود. */
 
   function chFormHtml(rec, fromAi) {
     rec = rec || {};
@@ -793,21 +753,11 @@
   };
 
 
-  function refreshBox() {
-    var host = document.getElementById('chqBox');
-    if (host) host.innerHTML = chBoxHtml();
-  }
+  /* CHQ-PRINT (v33.6.0): باکس چک از پنل شخصی حذف شد — refreshBox فقط برای
+     سازگاری فراخوان‌های قدیمی (scoring و…) بی‌اثر نگه داشته شده است. */
+  function refreshBox() {}
 
-  /* تزریق باکس به پنل یادآورها (ماژول شخصی) */
-  function hookReminders() {
-    if (window._chqHooked || typeof window.buildReminders !== 'function') return false;
-    window._chqHooked = true;
-    var _br = window.buildReminders;
-    window.buildReminders = function () {
-      return _br() + '<div id="chqBox">' + chBoxHtml() + '</div>';
-    };
-    return true;
-  }
+  /* CHQ-PRINT (v33.6.0): هوک باکس چک به پنل یادآورها حذف شد — چک‌ها فقط در هاب مالی و چاپ فقط در ماژول چاپ چک فیزیکی. */
 
   /* ============ یادآور روزانه: از ۷ روز قبل تا سررسید، هر روز یک اعلان ============ */
   function chDailyNotify() {
@@ -1111,8 +1061,8 @@
   var tries = 0;
   var t = setInterval(function () {
     tries++;
-    var a = hookReminders(), b = hookEntityCard(), c = hookSupTabs(), d = hookSupModal();
-    if ((window._chqHooked && window._tplCardHooked && window._supTabsHooked && window._supOrgHooked) || tries > 60) {
+    var b = hookEntityCard(), c = hookSupTabs(), d = hookSupModal();
+    if ((window._tplCardHooked && window._supTabsHooked && window._supOrgHooked) || tries > 60) {
       clearInterval(t);
       chDailyNotify();
     }

@@ -22,7 +22,7 @@ var ROLES = {
   commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
   sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false, ledgerScope: 'none'     },
   buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false, ledgerScope: 'none'     },
-  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty','ai'],                            buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
+  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty','chqprint','ai'],                            buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
   collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'all'      }
 };
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)

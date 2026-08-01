@@ -61,7 +61,7 @@
       acts += '<button class="ba" style="color:#047857" onclick="ptfChequeClearIssuedUi(\'' + c.cd + '\')">✔ وصول</button> ';
       if (c.kind !== 'guarantee') acts += '<button class="ba" style="color:#dc2626" onclick="ptfChequeVoidIssuedUi(\'' + c.cd + '\')">ابطال</button>';
     }
-    acts += '<button class="ba" style="color:#7c3aed" onclick="ptfChequePrint(\'' + c.cd + '\')">🖨 چاپ برگه</button>';
+    /* CHQ-PRINT (v33.6.0): چاپ برگه از هاب مالی حذف شد — چاپ فقط از ماژول «چاپ چک فیزیکی» (کالا و اسناد) */
     return acts;
   }
   function receivedActs(c) {
@@ -335,59 +335,5 @@ window.ptfChAiCommit = function () {
   if (typeof ptfToast === 'function') ptfToast('چک ثبت شد' + ((ch.financial && ch.financial.ok) ? ' و در حساب ' + (dir === 'received' ? 'مشتری' : 'تامین‌کننده') + ' منظور شد' : '') + '.', 'ok');
   window.ptfChequePanelRender();
 };
-
-/* ============ CHQ-V2: چاپ برگه چک فیزیکی (صیادی، مبلغ به حروف، تاریخ، ذینفع) ============ */
-window.ptfNumToFaWords = function (num) {
-  num = Math.round(+num || 0);
-  if (num === 0) return 'صفر ریال';
-  var ones = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه', 'ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
-  var tens = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
-  var hundreds = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد'];
-  var groups = [['', '', ''], ['هزار', '', ''], ['میلیون', '', ''], ['میلیارد', '', '']];
-  function three(n) {
-    var h = Math.floor(n / 100), t = Math.floor((n % 100) / 10), o = n % 10;
-    var parts = [];
-    if (h) parts.push(hundreds[h]);
-    if (t === 1) parts.push(ones[t * 10 + o]);
-    else { if (t > 1) parts.push(tens[t]); if (o) parts.push(ones[o]); }
-    return parts.join(' و ');
-  }
-  var parts = [], g = 0;
-  while (num > 0) { parts.unshift(num % 1000); num = Math.floor(num / 1000); g++; }
-  var groupStrs = parts.map(function (p, i) {
-    var gi = parts.length - 1 - i;
-    if (p === 0) return '';
-    return three(p) + (groups[gi][0] ? ' ' + groups[gi][0] : '');
-  }).filter(Boolean);
-  var words = groupStrs.join(' و ');
-  return words + ' ریال';
-};
-window.ptfChequePrint = function (cd) {
-  var c = window.ptfChequeFind(cd);
-  if (!c) { alert('چک یافت نشد.'); return; }
-  var amtWords = window.ptfNumToFaWords(c.amt);
-  var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>' +
-    'body{font-family:Tahoma,Arial;padding:30px;color:#111}' +
-    '.cheque{width:100%;max-width:800px;margin:0 auto;border:2px solid #1e293b;border-radius:12px;padding:22px;box-sizing:border-box;background:#fff}' +
-    '.ch-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #cbd5e1;padding-bottom:10px;margin-bottom:16px}' +
-    '.ch-row{display:flex;justify-content:space-between;align-items:center;border-bottom:1px dashed #e2e8f0;padding:10px 4px}' +
-    '.ch-lbl{color:#475569;font-size:12px}' +
-    '.ch-val{font-size:15px;font-weight:bold}' +
-    '.amt-words{font-size:14px;line-height:2;border:1px solid #e2e8f0;border-radius:8px;padding:10px;margin:12px 0;background:#f8fafc}' +
-    '.sign{margin-top:26px;display:flex;justify-content:space-between;align-items:flex-end}' +
-    '.sign-line{width:200px;border-top:1px solid #64748b;padding-top:6px;font-size:11px;color:#64748b;text-align:center}' +
-    '@media print{body{padding:0}.cheque{border-width:1px}}' +
-    '</style></head><body><div class="cheque">' +
-    '<div class="ch-head"><b style="font-size:17px">چک بانکی — پیشرو تجهیز فرتاک</b><span style="direction:ltr;font-size:13px;color:#0e7490">' + escP(c.sayad || c.no || '') + '</span></div>' +
-    '<div class="ch-row"><span class="ch-lbl">تاریخ سررسید</span><span class="ch-val">' + escP(c.dueFa || c.dueISO || '—') + '</span></div>' +
-    '<div class="ch-row"><span class="ch-lbl">در وجه</span><span class="ch-val">' + escP(c.toWhom || c.payeeName || '—') + '</span></div>' +
-    '<div class="ch-row"><span class="ch-lbl">بانک / شعبه</span><span class="ch-val">' + escP(c.bank || '—') + '</span></div>' +
-    '<div class="ch-row"><span class="ch-lbl">مبلغ (عدد)</span><span class="ch-val" dir="ltr">' + (+c.amt || 0).toLocaleString('en-US') + ' ریال</span></div>' +
-    '<div class="amt-words"><b>مبلغ به حروف:</b> ' + escP(amtWords) + '</div>' +
-    (c.note ? '<div style="font-size:12px;color:#475569;margin:8px 0">یادداشت: ' + escP(c.note) + '</div>' : '') +
-    '<div class="sign"><div class="sign-line">مهر و امضا</div><div class="sign-line">امضای مجاز</div></div>' +
-    '</div></body></html>';
-  if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('برگه چک ' + (c.sayad || c.no || c.cd), html, 'cheque-' + (c.sayad || c.no || c.cd)); return; }
-  var w = window.open('', '_blank'); if (!w) return;
-  w.document.write(html); w.document.close(); w.print();
-};
+/* CHQ-PRINT (v33.6.0): چاپ برگه چک و تابع مبلغ‌به‌حروف از هاب مالی به ماژول مستقل
+   «چاپ چک فیزیکی» (crm/cheque-print.js — گروه کالا و اسناد) منتقل شد. */

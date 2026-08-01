@@ -13,7 +13,8 @@ T('کش sw >= v20.8', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&
 T('cache-bust cheques >=20.8', (function(){var m=idx.match(/cheques\.js\?v=([0-9.]+)/);return m&&parseFloat(m[1])>=20.8;})());
 
 SECTION('US-410 کد');
-T('دکمه دستیار چک در باکس چک‌ها', ch.indexOf('chAiOpen()')>-1 && ch.indexOf('🤖 دستیار چک')>-1);
+/* v33.6.0 CHQ-PRINT: باکس چک از پنل شخصی حذف شد — دستیار چک حالا فقط در هاب مالی (تب چک‌ها) است */
+T('دستیار چک: تابع موجود + دکمه در هاب مالی (باکس شخصی حذف شده)', ch.indexOf('window.chAiOpen = function')>-1 && ch.indexOf('chqBox')===-1 && fs.readFileSync(path.join(BASE, 'cheque-panel.js'), 'utf-8').indexOf('🤖 دستیار هوشمند')>-1);
 T('توابع دستیار چک', ['chAiOpen','chAiTextGo','chAiFileGo','chAiRender','chAiCommit'].every(function(x){return ch.indexOf(x)>-1;}));
 T('LLM action cheque سمت سرور', llm.indexOf("case 'cheque'")>-1 && llm.indexOf('Iranian cheques')>-1);
 T('تاریخ شمسی preview به ISO تبدیل می‌شود', ch.indexOf('chAiDueJ')>-1 && ch.indexOf('ptfJToISO')>-1);

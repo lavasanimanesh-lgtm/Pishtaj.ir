@@ -428,6 +428,7 @@ function ptfSafeReset() {
 <button class="sb-i" onclick="goPanel('rem',this)"><span class="ic">⏰</span><span class="lb">یادآورها</span><span class="bc" id="rmBadge" style="display:none">0</span></button>
 <button class="sb-i" onclick="goPanel('prod',this)"><span class="ic">📦</span><span class="lb">کالاها</span></button>
 <button class="sb-i" onclick="goPanel('surplus',this)"><span class="ic">🏬</span><span class="lb">موجودی انبار</span></button>
+<button class="sb-i" onclick="goPanel('chqprint',this)"><span class="ic">🖨</span><span class="lb">چاپ چک فیزیکی</span></button>
 <button class="sb-i" onclick="goPanel('off',this)"><span class="ic">📄</span><span class="lb">پیشنهاد</span></button>
 <button class="sb-i" onclick="goPanel('ai',this)" style="background:linear-gradient(90deg,rgba(124,58,237,.15),transparent);border-right:3px solid #7c3aed"><span class="ic">🤖</span><span class="lb">دستیار</span><span class="bc" style="background:#7c3aed" id="aiBadge">AI</span></button>
 <!-- v13.9 (US-344): «سفارشات و سود» حذف شد — مصوبه تیم: عملکرد موازی با مالی/تحلیلگر (داده دستی قدیمی) -->
@@ -809,7 +810,7 @@ try {
 } catch(e) {}
 
 // ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
-window.VER = 'v33.5.0'; var VER = 'v33.5.0'; // آیکون‌های خطی semantic + خوانایی قطعی سال مالی در حالت شب
+window.VER = 'v33.6.0'; var VER = 'v33.6.0'; // آیکون‌های خطی semantic + خوانایی قطعی سال مالی در حالت شب
 try { document.getElementById('sbVer').textContent = 'CRM ' + VER; } catch(e){} // US-297: ورژن واقعی در سایدبار
 try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' + VER; } catch(e){}
 (function () {
@@ -835,7 +836,7 @@ function goPanel(id, btn) {
   if (btn) btn.classList.add('act');
   
   var titles = {dash:'📊 داشبورد', rfq:'📋 درخواست‌ها', sup:'🏭 تامین‌کنندگان', cust:'🤝 مشتریان',
-    prod:'📦 کالاها', surplus:'🏬 موجودی انبار', off:'📄 پیشنهاد', leads:'🎯 سرنخ‌ها', rem:'⏰ یادآورها', orders:'💰 سفارشات و سود', fin:'💳 مالی', users:'👥 کاربران', set:'⚙️ تنظیمات', ai:'🤖 دستیار'};
+    prod:'📦 کالاها', surplus:'🏬 موجودی انبار', chqprint:'🖨 چاپ چک فیزیکی', off:'📄 پیشنهاد', leads:'🎯 سرنخ‌ها', rem:'⏰ یادآورها', orders:'💰 سفارشات و سود', fin:'💳 مالی', users:'👥 کاربران', set:'⚙️ تنظیمات', ai:'🤖 دستیار'};
   document.getElementById('pgTitle').textContent = titles[id] || 'CRM';
   
   var html = '';
@@ -846,6 +847,7 @@ function goPanel(id, btn) {
     case 'cust': html = buildCustomers(); break;
     case 'prod': html = buildProducts(); break;
     case 'surplus': html = (typeof buildSurplus === 'function' ? buildSurplus() : '<div>ماژول موجودی انبار بارگذاری نشده است</div>'); break;
+    case 'chqprint': html = (typeof buildChequePrint === 'function' ? buildChequePrint() : '<div>ماژول چاپ چک فیزیکی بارگذاری نشده است</div>'); break;
     case 'off': html = buildOffers(); break;
     case 'leads': html = buildLeads(); break;
     case 'rem': html = buildReminders(); break;
@@ -862,6 +864,7 @@ function goPanel(id, btn) {
   else if (id === 'cust') renderCustomers();
   else if (id === 'prod') renderProducts();
   else if (id === 'surplus' && typeof renderSurplus === 'function') renderSurplus();
+  else if (id === 'chqprint' && typeof renderChequePrint === 'function') renderChequePrint();
   else if (id === 'off') renderOffers();
   else if (id === 'leads') renderLeads();
   else if (id === 'rem') renderReminders();
@@ -2536,89 +2539,90 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script src="ui-kit.js?v=33.5.0"></script>
-<script src="storage-quota.js?v=33.5.0"></script>
-<script src="moneyx.js?v=33.5.0"></script>
-<script src="datex.js?v=33.5.0"></script>
-<script src="dialogx.js?v=33.5.0"></script>
-<script src="dedup.js?v=33.5.0"></script>
-<script src="codegen.js?v=33.5.0"></script>
-<script src="xlsx.min.js?v=33.5.0"></script>
-<script src="sortable.js?v=33.5.0"></script>
-<script src="offers.js?v=33.5.0"></script>
-<script src="surplus.js?v=33.5.0"></script>
-<script src="launcher.js?v=33.5.0"></script>
-<script src="leads.js?v=33.5.0"></script>
-<script src="storage.js?v=33.5.0"></script>
-<script src="rbac.js?v=33.5.0"></script>
+<script src="ui-kit.js?v=33.6.0"></script>
+<script src="storage-quota.js?v=33.6.0"></script>
+<script src="moneyx.js?v=33.6.0"></script>
+<script src="datex.js?v=33.6.0"></script>
+<script src="dialogx.js?v=33.6.0"></script>
+<script src="dedup.js?v=33.6.0"></script>
+<script src="codegen.js?v=33.6.0"></script>
+<script src="xlsx.min.js?v=33.6.0"></script>
+<script src="sortable.js?v=33.6.0"></script>
+<script src="offers.js?v=33.6.0"></script>
+<script src="surplus.js?v=33.6.0"></script>
+<script src="launcher.js?v=33.6.0"></script>
+<script src="leads.js?v=33.6.0"></script>
+<script src="storage.js?v=33.6.0"></script>
+<script src="rbac.js?v=33.6.0"></script>
 <script src="official-ledger.js?v=1.0"></script>
-<script src="projects.js?v=33.5.0"></script>
-<script src="letters.js?v=33.5.0"></script>
-<script src="draftx.js?v=33.5.0"></script>
-<script src="analyzer.js?v=33.5.0"></script>
-<script src="contracts.js?v=33.5.0"></script>
-<script src="shell.js?v=33.5.0"></script>
-<script src="bridge.js?v=33.5.0"></script>
-<script src="kanban.js?v=33.5.0"></script>
-<script src="reports.js?v=33.5.0"></script>
-<script src="backup.js?v=33.5.0"></script>
-<script src="tool-licenses.js?v=33.5.0"></script>
-<script src="tool-report-drafts.js?v=33.5.0"></script>
-<script src="tool-feedback.js?v=33.5.0"></script>
-<script src="sms.js?v=33.5.0"></script>
-<script src="rfqsmart.js?v=33.5.0"></script>
-<script src="cms.js?v=33.5.0"></script>
-<script src="perms.js?v=33.5.0"></script>
-<script src="petty.js?v=33.5.0"></script>
-<script src="opex.js?v=33.5.0"></script>
-<script src="shareholders.js?v=33.5.0"></script>
-<script src="theme.js?v=33.5.0"></script>
-<script src="archive.js?v=33.5.0"></script>
-<script src="offers-pro.js?v=33.5.0"></script>
-<script src="buycompare.js?v=33.5.0"></script>
-<script src="procurement-link.js?v=33.5.0"></script>
-<script src="listtools.js?v=33.5.0"></script>
-<script src="icons.js?v=33.5.0"></script>
-<script src="guards.js?v=33.5.0"></script>
-<script src="tables.js?v=33.5.0"></script>
-<script src="inqreader.js?v=33.5.0"></script>
-<script src="offerlock.js?v=33.5.0"></script>
-<script src="workflow.js?v=33.5.0"></script>
-<script src="fx.js?v=33.5.0"></script>
-<script src="modalx.js?v=33.5.0"></script>
-<script src="iconx.js?v=33.5.0"></script>
-<script src="salesfiles.js?v=33.5.0"></script>
-<script src="docsx.js?v=33.5.0"></script>
-<script src="oppo.js?v=33.5.0"></script>
-<script src="cheque-module.js?v=33.5.0"></script>
-<script src="cheque-panel.js?v=33.5.0"></script>
-<script src="cheques.js?v=33.5.0"></script>
-<script src="messengers.js?v=33.5.0"></script>
-<script src="phonefmt.js?v=33.5.0"></script>
-<script src="tour.js?v=33.5.0"></script>
-<script src="mobilenav.js?v=33.5.0"></script>
-<script src="ai-workbench.js?v=33.5.0"></script>
-<script src="golive.js?v=33.5.0"></script>
-<script src="custmerge.js?v=33.5.0"></script>
-<script src="listclean.js?v=33.5.0"></script>
-<script src="supspec.js?v=33.5.0"></script>
-<script src="scoring.js?v=33.5.0"></script>
-<script src="supplier-finance.js?v=33.5.0"></script>
-<script src="customer-finance.js?v=33.5.0"></script>
-<script src="working-capital.js?v=33.5.0"></script>
+<script src="projects.js?v=33.6.0"></script>
+<script src="letters.js?v=33.6.0"></script>
+<script src="draftx.js?v=33.6.0"></script>
+<script src="analyzer.js?v=33.6.0"></script>
+<script src="contracts.js?v=33.6.0"></script>
+<script src="shell.js?v=33.6.0"></script>
+<script src="bridge.js?v=33.6.0"></script>
+<script src="kanban.js?v=33.6.0"></script>
+<script src="reports.js?v=33.6.0"></script>
+<script src="backup.js?v=33.6.0"></script>
+<script src="tool-licenses.js?v=33.6.0"></script>
+<script src="tool-report-drafts.js?v=33.6.0"></script>
+<script src="tool-feedback.js?v=33.6.0"></script>
+<script src="sms.js?v=33.6.0"></script>
+<script src="rfqsmart.js?v=33.6.0"></script>
+<script src="cms.js?v=33.6.0"></script>
+<script src="perms.js?v=33.6.0"></script>
+<script src="petty.js?v=33.6.0"></script>
+<script src="opex.js?v=33.6.0"></script>
+<script src="shareholders.js?v=33.6.0"></script>
+<script src="theme.js?v=33.6.0"></script>
+<script src="archive.js?v=33.6.0"></script>
+<script src="offers-pro.js?v=33.6.0"></script>
+<script src="buycompare.js?v=33.6.0"></script>
+<script src="procurement-link.js?v=33.6.0"></script>
+<script src="listtools.js?v=33.6.0"></script>
+<script src="icons.js?v=33.6.0"></script>
+<script src="guards.js?v=33.6.0"></script>
+<script src="tables.js?v=33.6.0"></script>
+<script src="inqreader.js?v=33.6.0"></script>
+<script src="offerlock.js?v=33.6.0"></script>
+<script src="workflow.js?v=33.6.0"></script>
+<script src="fx.js?v=33.6.0"></script>
+<script src="modalx.js?v=33.6.0"></script>
+<script src="iconx.js?v=33.6.0"></script>
+<script src="salesfiles.js?v=33.6.0"></script>
+<script src="docsx.js?v=33.6.0"></script>
+<script src="oppo.js?v=33.6.0"></script>
+<script src="cheque-module.js?v=33.6.0"></script>
+<script src="cheque-panel.js?v=33.6.0"></script>
+<script src="cheque-print.js?v=33.6.0"></script>
+<script src="cheques.js?v=33.6.0"></script>
+<script src="messengers.js?v=33.6.0"></script>
+<script src="phonefmt.js?v=33.6.0"></script>
+<script src="tour.js?v=33.6.0"></script>
+<script src="mobilenav.js?v=33.6.0"></script>
+<script src="ai-workbench.js?v=33.6.0"></script>
+<script src="golive.js?v=33.6.0"></script>
+<script src="custmerge.js?v=33.6.0"></script>
+<script src="listclean.js?v=33.6.0"></script>
+<script src="supspec.js?v=33.6.0"></script>
+<script src="scoring.js?v=33.6.0"></script>
+<script src="supplier-finance.js?v=33.6.0"></script>
+<script src="customer-finance.js?v=33.6.0"></script>
+<script src="working-capital.js?v=33.6.0"></script>
 <script src="ledger-report.js?v=1.0"></script>
-<script src="data-quality.js?v=33.5.0"></script>
-<script src="commission.js?v=33.5.0"></script>
+<script src="data-quality.js?v=33.6.0"></script>
+<script src="commission.js?v=33.6.0"></script>
 
-<script src="my-customers-filter.js?v=33.5.0"></script>
-<script src="insights.js?v=33.5.0"></script>
-<script src="myday.js?v=33.5.0"></script>
-<script src="lossguard.js?v=33.5.0"></script>
-<script src="fiscal.js?v=33.5.0"></script>
-<script src="financehub.js?v=33.5.0"></script>
-<script src="theme-contrast.js?v=33.5.0"></script>
-<script src="sync.js?v=33.5.0"></script>
-<script src="unofficial-invoice.js?v=33.5.0"></script>
-<script src="settings-accordion.js?v=33.5.0"></script>
+<script src="my-customers-filter.js?v=33.6.0"></script>
+<script src="insights.js?v=33.6.0"></script>
+<script src="myday.js?v=33.6.0"></script>
+<script src="lossguard.js?v=33.6.0"></script>
+<script src="fiscal.js?v=33.6.0"></script>
+<script src="financehub.js?v=33.6.0"></script>
+<script src="theme-contrast.js?v=33.6.0"></script>
+<script src="sync.js?v=33.6.0"></script>
+<script src="unofficial-invoice.js?v=33.6.0"></script>
+<script src="settings-accordion.js?v=33.6.0"></script>
 </body>
 </html>

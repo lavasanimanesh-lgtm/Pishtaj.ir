@@ -5,9 +5,32 @@ var fs = require('fs'), path = require('path');
 var BASE = path.resolve(__dirname, '../../crm');
 var mod = fs.readFileSync(path.join(BASE, 'cheque-module.js'), 'utf-8');
 var panel = fs.readFileSync(path.join(BASE, 'cheque-panel.js'), 'utf-8');
+var prt = fs.readFileSync(path.join(BASE, 'cheque-print.js'), 'utf-8');
 var finhub = fs.readFileSync(path.join(BASE, 'financehub.js'), 'utf-8');
 var rbac = fs.readFileSync(path.join(BASE, 'rbac.js'), 'utf-8');
 
+/* مینی‌عدد به حروف برای تست تاریخ به حروف (ptfJDateWords) */
+(function () {
+  var W1 = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه'];
+  var W10 = ['ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
+  var W20 = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
+  var W100 = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد'];
+  function w3(n) {
+    var out = [];
+    if (n >= 100) { out.push(W100[Math.floor(n / 100)]); n %= 100; }
+    if (n >= 20) { out.push(W20[Math.floor(n / 10)]); n %= 10; }
+    if (n >= 10) { out.push(W10[n - 10]); n = 0; }
+    if (n > 0) out.push(W1[n]);
+    return out.join(' و ');
+  }
+  global.ptfNumWordsFa = function (n) {
+    n = Math.floor(Math.abs(+n || 0));
+    if (!n) return 'صفر';
+    var parts = [], i = 0, scales = ['', 'هزار', 'میلیون', 'میلیارد'];
+    while (n > 0 && i < scales.length) { var g = n % 1000; if (g) parts.unshift(w3(g) + (scales[i] ? ' ' + scales[i] : '')); n = Math.floor(n / 1000); i++; }
+    return parts.join(' و ');
+  };
+})();
 global.curSession = function () { return { user: 'u1', name: 'علی رضایی' }; };
 global.faDateTime = function () { return '1405/05/10 12:00'; };
 global.genCode = function (p) { return p + '-' + (++global._cdc); };
@@ -32,6 +55,7 @@ global._domGet['panels'] = makeEl({ insertAdjacentHTML: function () {} });
 
 eval.call(global, mod);
 eval.call(global, panel);
+eval.call(global, prt);
 
 setData('ptf_crm_cheques_issued', []);
 setData('ptf_crm_cheques_received', []);
@@ -131,14 +155,23 @@ T('ابطال صادره → payment تامین‌کننده void می‌شود'
 SECTION('CHQ-V2: دستیار هوشمند + چاپ برگه + حذف ثبت شخصی');
 T('پنل: دکمهٔ دستیار هوشمند + تابع ptfChequeAiOpen/Commit', panel.indexOf('🤖 دستیار هوشمند') > -1 && panel.indexOf('window.ptfChequeAiOpen') > -1 && panel.indexOf('window.ptfChAiCommit') > -1 && panel.indexOf("action=cheque") > -1);
 T('دستیار: فیلد انتخاب مشتری/تامین‌کننده + ضمیمهٔ کپی دارد', panel.indexOf('ptfChAiCust') > -1 && panel.indexOf('ptfChAiSup') > -1 && panel.indexOf('ptfChAiUp') > -1);
-T('چاپ برگه چک + مبلغ به حروف', (function () {
+/* CHQ-PRINT (v33.6.0، مصوب کارفرما): چاپ فقط از ماژول مستقل «چاپ چک فیزیکی» (کالا و اسناد) */
+T('چاپ برگه از هاب مالی حذف شد (فقط ماژول چاپ)', panel.indexOf('window.ptfChequePrint') === -1 && panel.indexOf('🖨 چاپ برگه') === -1 && panel.indexOf('ptfNumToFaWords') === -1);
+T('مبلغ به حروف + تاریخ به حروف + فونت‌ها + قرمز در ماژول چاپ', (function () {
   var w = ptfNumToFaWords(1250000);
-  var p = panel.indexOf('window.ptfChequePrint') > -1 && panel.indexOf('مبلغ به حروف') > -1 && panel.indexOf('🖨 چاپ برگه') > -1;
-  return p && w.indexOf('یک میلیون') > -1 && w.indexOf('دویست و پنجاه هزار') > -1 && w.indexOf('ریال') > -1;
+  var dw = ptfJDateWords('1405/04/21');
+  return w.indexOf('یک میلیون') > -1 && w.indexOf('دویست و پنجاه هزار') > -1 && w.indexOf('ریال') > -1 &&
+    dw.indexOf('بیست و یکم') > -1 && dw.indexOf('تیر') > -1 && dw.indexOf('هزار و چهارصد و پنج') > -1 &&
+    prt.indexOf('IranNastaliq') > -1 && prt.indexOf('B Nazanin') > -1 && prt.indexOf('B Yagut') > -1 &&
+    prt.indexOf("amtColor: '#b91c1c'") > -1 && prt.indexOf('sayad') === -1;
 })());
 T('ثبت چک از ماژول شخصی حذف شد (پیام → هاب مالی)', (function () {
   var chq = fs.readFileSync(path.join(BASE, 'cheques.js'), 'utf-8');
   return chq.indexOf('ثبت چک فقط از «هاب مالی → تب چک‌ها»') > -1;
+})());
+T('باکس چک از پنل شخصی (یادآورها) کاملاً حذف شد', (function () {
+  var chq = fs.readFileSync(path.join(BASE, 'cheques.js'), 'utf-8');
+  return chq.indexOf('chqBox') === -1 && chq.indexOf('chBoxHtml') === -1 && chq.indexOf('hookReminders') === -1;
 })());
 
 SECTION('یکپارچه‌سازی: یادآور + قفل سال مالی + data-quality');
