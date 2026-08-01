@@ -15,7 +15,7 @@ T('توابع sample final report وجود دارد', adv.indexOf('ptfAdvCvBuild
 T('sample report شامل بخش‌های اعتمادساز است', ['PUBLIC SAMPLE','Advanced Control Valve Sizing Report','Engineering Validation Matrix','Vendor Data Validation Matrix','PTF-CV-SAMPLE-001'].every(function (x) { return adv.indexOf(x) > -1; }));
 T('صفحه ابزار دکمه مشاهده نمونه گزارش نهایی دارد', tools.indexOf('مشاهده نمونه گزارش نهایی') > -1 && tools.indexOf('advanced_cv_sample_report') > -1 && tools.indexOf('ptfAdvCvOpenSampleFinalReport') > -1);
 T('sample report هیچ fetch/quota/license مصرف نمی‌کند', adv.indexOf('ptfAdvCvOpenSampleFinalReport') > -1 && adv.indexOf('no quota/license is consumed') > -1 && adv.indexOf('fetch(') === -1);
-T('CRM/SW نسخه v33.4.1 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.2 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime open sample modal');
 var inserted = '';

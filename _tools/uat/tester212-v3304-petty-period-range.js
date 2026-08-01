@@ -84,12 +84,33 @@ T('دیالوگ بازه فیلدهای datePicker دارد', (function () {
   global.ptfDialog = oldDlg;
   return global._dlg && global._dlg.fields.some(function (x) { return x.id === 'from' && x.datePicker; }) && global._dlg.fields.some(function (x) { return x.id === 'to' && x.datePicker; });
 })());
-T('ارجاع دوره فیلد شارژ حساب دارد', (function () {
+T('ارجاع دوره فیلد آپلود فایل گردش حساب دارد (و نه فیلد شارژ)', (function () {
   global._dlg2 = null;
   var oldDlg2 = global.ptfDialog; global.ptfDialog = function (o) { global._dlg2 = o; };
   pettyClosePeriod();
   global.ptfDialog = oldDlg2;
-  return global._dlg2 && global._dlg2.fields.some(function (x) { return x.id === 'chargeAmt'; }) && global._dlg2.fields.some(function (x) { return x.id === 'chargeDoc'; });
+  return global._dlg2 && global._dlg2.fields.some(function (x) { return x.id === 'bankFile' && (x.upload || x.type === 'upload'); }) && !global._dlg2.fields.some(function (x) { return x.id === 'chargeAmt'; });
+})());
+T('ارجاع بدون فایل گردش حساب → هشدار و بدون رکورد', (function () {
+  var before = getData('ptf_crm_petty_periods').length;
+  global._alerts.length = 0;
+  var oldDlg3 = global.ptfDialog; global.ptfDialog = function (o) { global._dlg3 = o; };
+  pettyClosePeriod();
+  global.ptfDialog = oldDlg3;
+  global._dlg3.onOk({ from: '1405/04/11', to: '1405/04/20', note: '', sms: 'no' }); /* بدون bankFile */
+  return global._alerts.length === 1 && global._alerts[0].indexOf('گردش حساب بانک') > -1 && getData('ptf_crm_petty_periods').length === before;
+})());
+T('ارجاع با فایل گردش حساب → رکورد با files ساخته می‌شود', (function () {
+  global._alerts.length = 0;
+  var oldDlg4 = global.ptfDialog; global.ptfDialog = function (o) { global._dlg4 = o; };
+  pettyClosePeriod();
+  global.ptfDialog = oldDlg4;
+  global._dlg4.onOk({ from: '1405/04/11', to: '1405/04/20', bankFile: [{ key: 'petty-period/PPR/bank.pdf', name: 'bank.pdf' }], note: '', sms: 'no' });
+  var ps = getData('ptf_crm_petty_periods');
+  var okR = ps.length >= 1 && ps[0].files && ps[0].files.length === 1 && ps[0].files[0].name === 'bank.pdf' && ps[0].from === '1405/04/11';
+  /* ریست داده تا تست‌های بعدی (PDF تلفیقی) با رکورد جدید تداخل نکنند */
+  setData('ptf_crm_petty_periods', [{ cd: 'PPR-OLD', from: '1405/04/01', to: '1405/04/10', month: '1405/04', st: 'referred', files: [{ key: 'k-bank', name: 'bank.jpg' }], totalOut: 100000, charges: 1000000, balance: 900000 }]);
+  return okR;
 })());
 
 SECTION('باگ split: آرگومان رشته‌ای from|to (از renderPeriods)');

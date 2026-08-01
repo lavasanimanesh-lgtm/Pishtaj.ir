@@ -10,7 +10,7 @@ var idx = fs.readFileSync(path.join(ROOT, 'crm/index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8');
 
 SECTION('Static public cache migration');
-T('نسخه CRM v33.4.1 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM v33.4.2 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('metrics نسخه STORAGE-IDB-PUBLIC-CACHE یا PRIVACY-METRICS دارد', metrics.indexOf('STORAGE-IDB-PUBLIC-CACHE-001') > -1 || metrics.indexOf('PRIVACY-METRICS-SERVER-SYNC-001') > -1);
 T('metrics full queue را در IndexedDB و summary را در localStorage نگه می‌دارد', metrics.indexOf("IDB_KEY = STORE + ':idb-full'") > -1 && metrics.indexOf('MAX_IDB = 1000') > -1 && metrics.indexOf('MAX_LOCAL = 80') > -1 && metrics.indexOf('IndexedDB full + localStorage summary') > -1);
 T('metrics privacy-aware aggregate sync دارد و همچنان IndexedDB/local summary را حفظ می‌کند', metrics.indexOf('metrics_ingest') > -1 && metrics.indexOf('sanitizeForServer') > -1 && metrics.indexOf('sendBeacon') === -1 && metrics.indexOf('XMLHttpRequest') === -1);

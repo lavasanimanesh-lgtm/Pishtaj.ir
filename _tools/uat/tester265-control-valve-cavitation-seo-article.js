@@ -32,6 +32,6 @@ SECTION('Structured data and assets');
 T('مقاله JSON-LD Article/FAQPage/BreadcrumbList دارد', ['Article','FAQPage','BreadcrumbList','ADV-CV-CAVITATION-SEO-ARTICLE-v1'].every(function (x) { return article.indexOf(x) > -1; }));
 T('مقاله favicon و metrics دارد', article.indexOf('favicon-32.png') > -1 && article.indexOf('ptf-metrics.js') > -1);
 T('CTAهای مقاله آیکون/emoji سنگین ندارند', article.indexOf('🚀') === -1 && article.indexOf('💰') === -1 && article.indexOf('🔥') === -1);
-T('CRM/SW نسخه v33.4.1 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.2 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester265-control-valve-cavitation-seo-article');

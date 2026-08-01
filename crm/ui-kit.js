@@ -66,6 +66,9 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
       } else if (f.datePicker && typeof window.ptfDatePicker === 'function') {
         /* تقویم شمسی برای فیلدهای تاریخ (مثل بازهٔ تنخواه) */
         inner = window.ptfDatePicker('ptfF' + i, '', f.placeholder || '1405/04/01');
+      } else if (f.upload || f.type === 'upload') {
+        /* آپلود فایل داخل دیالوگ (مثل پیوست گردش حساب بانک در ارجاع تنخواه) — ویجت بعد از append ساخته می‌شود */
+        inner = '<div id="ptfF' + i + '" style="min-height:44px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div>';
       } else {
         inner = '<input id="ptfF' + i + '" type="' + (f.type || 'text') + '" value="' + v + '" placeholder="' + (f.placeholder || '') + '"' + (f.dir ? ' style="direction:' + f.dir + '"' : '') + '>';
       }
@@ -78,6 +81,19 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
       '<div class="acts"><button class="cancel">انصراف</button>' +
       '<button class="ok' + (opt.danger ? ' danger' : '') + '">' + (opt.okText || 'تایید') + '</button></div></div>';
     document.body.appendChild(b);
+    /* آپلودهای داخل دیالوگ: ویجت attachUploadWidget را روی هر فیلد upload سوار کن */
+    var dlgUploads = {};
+    (opt.fields || []).forEach(function (f, i) {
+      if (f.upload || f.type === 'upload') {
+        var files = [];
+        dlgUploads[f.id] = files;
+        try {
+          if (typeof attachUploadWidget === 'function') {
+            attachUploadWidget('ptfF' + i, f.uploadFolder || 'uploads/', function (fr) { if (fr) files.push(fr); });
+          }
+        } catch (eU) { console.error('ptfDialog upload', eU); }
+      }
+    });
     b.addEventListener('click', function (e) { if (e.target === b) b.remove(); });
     b.querySelector('.cancel').onclick = function () { b.remove(); if (opt.onCancel) opt.onCancel(); };
     b.querySelector('.ok').onclick = function () {
@@ -89,6 +105,7 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
         if (f.required && !val) { errEl.style.display = 'block'; valid = false; }
         else errEl.style.display = 'none';
         if (f.type === 'number') val = (typeof ptfNum === 'function') ? ptfNum(val) : (+String(val).replace(/[^\d.-]/g, '') || 0);
+        if (f.upload || f.type === 'upload') val = dlgUploads[f.id] || [];
         values[f.id] = val;
       });
       if (!valid) return;

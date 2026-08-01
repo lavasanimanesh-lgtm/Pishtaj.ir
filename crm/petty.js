@@ -715,8 +715,7 @@
       fields: [
         { id: 'from', label: 'از تاریخ (روز پس از آخرین ارجاع)', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
         { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true },
-        { id: 'chargeAmt', label: '➕ شارژ حساب در این دوره (اختیاری — مبلغ ریال)', type: 'number', dir: 'ltr', money: false },
-        { id: 'chargeDoc', label: 'شماره/شرح سند واریز شارژ (در صورت شارژ)', type: 'text' },
+        { id: 'bankFile', label: '📎 فایل PDF گردش حساب بانک (الزامی — قبل از ارجاع)', type: 'upload', uploadFolder: 'petty-period/' },
         { id: 'note', label: 'یادداشت برای حسابدار', type: 'textarea', rows: 2 },
         { id: 'sms', label: 'پیامک اطلاع‌رسانی؟', type: 'select', options: [{ v: 'no', lb: 'خیر' }, { v: 'yes', lb: 'بله، اگر شماره حسابدار موجود است' }] }
       ],
@@ -725,15 +724,10 @@
         var from = window.ptfPettyNormDate(v.from), to = window.ptfPettyNormDate(v.to);
         if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از تقویم استفاده کنید).'); return; }
         if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
-        /* شارژ حساب هم‌زمان با ارجاع (درخواست کارفرما) — قبل از ساخت دوره ثبت می‌شود */
-        var chargeAmt = +v.chargeAmt || 0;
-        if (chargeAmt > 0) {
-          var doc = String(v.chargeDoc || '').trim();
-          if (!doc) { alert('⚠️ برای شارژ حساب، شماره/شرح سند واریز را وارد کنید.'); return; }
-          addTx('charge', chargeAmt, doc, '', { doc: doc });
-          audit('تنخواه', 'شارژ حساب تنخواه هنگام ارجاع دوره ' + money(chargeAmt), '');
-        }
-        var d = window.ptfPettyPeriodData(from, to); /* بعد از شارژ — تا شارژ در گزارش/رکورد دوره بیفتد */
+        /* UR-13 (اصلاح): فایل گردش حساب بانک باید در همین پنجره ضمیمه شده باشد — بدون آن ارجاع نمی‌شود */
+        var bankFiles = (v.bankFile || []).filter(Boolean);
+        if (!bankFiles.length) { alert('⚠️ ابتدا فایل «صورتحساب بانک / گردش حساب بانک» را در همین پنجره ضمیمه کنید؛ ارجاع بدون آن انجام نمی‌شود.'); return; }
+        var d = window.ptfPettyPeriodData(from, to);
         var ps = prAll();
         /* UR-10/UR-11: اگر آخرین دورهٔ ارجاع‌شده بدون پیوست بانک باشد، ارجاع جدید مسدود می‌شود
            (چون دورهٔ جدید از روز پس از آن شروع می‌شود و آن دوره باید کامل باشد). */
@@ -743,15 +737,13 @@
           pettyAttachBank(lastClosed.cd);
           return;
         }
-        var rec = { cd: genCode('PPR'), from: from, to: to, month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: [] };
+        var rec = { cd: genCode('PPR'), from: from, to: to, month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: bankFiles };
         ps.unshift(rec); prSave(ps);
         audit('تنخواه', 'ارجاع گزارش دوره از ' + from + ' تا ' + to + ' به حسابدار — گردش ' + money(d.totalOut), rec.cd);
         if (typeof notify === 'function') notify({ toRoles: ['accountant'], title: '📤 گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') برای ثبت حسابداری ارجاع شد', body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' } });
         if (v.sms === 'yes' && typeof smsSendSingle === 'function') accountants().forEach(function (u) { if (u.mobile) smsSendSingle(u.mobile, 'حسابدار محترم، گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') در CRM برای ثبت حسابداری ارجاع شد. https://pishtaj.ir/crm/'); });
         renderPetty();
-        /* UR-10: بعد از ساخت دوره، دیالوگ پیوست صورتحساب بانک/گزارش باز می‌شود تا قبل از اطلاع‌رسانی،
-           فایل بانک ضمیمه شده باشد. */
-        pettyAttachBank(rec.cd);
+        /* UR-13: فایل گردش حساب بانک از قبل در همین پنجره ضمیمه شده — دیگر دیالوگ پیوست جدا لازم نیست */
       }
     });
   };
