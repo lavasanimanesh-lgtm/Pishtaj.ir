@@ -86,7 +86,7 @@
     var totalAmount = selected.reduce(function (sum, x) { var it = (offer.items || [])[x.idx] || {}; return sum + ((+inv.amount || 0) * (((+it.qty || 0) * (+it.price || 0)) / gross) * x.qty / (+it.qty || 1)); }, 0);
     var returns = getData('ptf_crm_sales_returns') || [];
     var deal = getData('ptf_crm_deals').filter(function (d) { return d.wonOffer === (offer.no || inv.offerNo); })[0] || {};
-    var returnRecord = { cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: deal.cd || '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', productCd: it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), creditAmount: Math.max(0, paid(inv) + returnedAmount(invoiceCd) + Math.round(totalAmount) - (+inv.amount || 0)), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name };
+    var returnRecord = { cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: deal.cd || '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', productCd: it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', spec: it.spec || it.st || it.detail || '', model: it.model || it.md || '', brand: it.brand || it.br || '', unit: it.unit || it.un || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), creditAmount: Math.max(0, paid(inv) + returnedAmount(invoiceCd) + Math.round(totalAmount) - (+inv.amount || 0)), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name };
     returns.unshift(returnRecord);
     setData('ptf_crm_sales_returns', returns);
     if (disposition === 'stock') {
@@ -118,10 +118,28 @@
     var returns = getData('ptf_crm_sales_returns') || [], rtn = returns.filter(function (x) { return x.cd === returnCd; })[0];
     if (!rtn || rtn.disposition !== 'stock') return;
     var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === rtn.invoiceCd; })[0] || {}, products = getData('ptf_crm_products') || [], stockRefs = rtn.stockRefs || [], pending = [];
-    function normProduct(v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); }
+    var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === (rtn.offerNo || inv.offerNo); })[0] || {};
+    function normProduct(v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;()\/\\]/g, '').toLowerCase(); }
+    function identity(x) { return [normProduct(x.name || x.nm || x.desc), normProduct(x.model || x.md), normProduct(x.spec || x.st || x.detail), normProduct(x.unit || x.un)].join('|'); }
     (rtn.items || []).forEach(function (item) {
-      if (stockRefs.length && stockRefs.some(function (cd) { return String(cd).indexOf(returnCd) > -1; })) return;
-      var productCd = item.productCd || '', product = products.filter(function (p) { return p.cd === productCd || normProduct(p.nm || p.name || p.cd) === normProduct(item.item); })[0];
+      /* Old return records did not retain all identity fields. Rehydrate them
+         from the immutable offer line before trying the catalog match. */
+      var source = (offer.items || [])[+item.idx];
+      if (source) {
+        item.spec = item.spec || source.spec || source.st || source.detail || '';
+        item.model = item.model || source.model || source.md || '';
+        item.brand = item.brand || source.brand || source.br || '';
+        item.unit = item.unit || source.unit || source.un || '';
+        item.productCd = item.productCd || source.pcode || source.prodCd || source.productCd || '';
+      }
+      var productCd = item.productCd || '';
+      var candidates = products.filter(function (p) {
+        return (productCd && p.cd === productCd) || (identity(item) !== '|||' && identity(p) === identity(item));
+      });
+      /* Name-only matching is allowed only when unique; never guess between
+         duplicate catalog names. */
+      if (!candidates.length) candidates = products.filter(function (p) { return normProduct(p.nm || p.name || p.cd) === normProduct(item.item); });
+      var product = candidates.length === 1 ? candidates[0] : null;
       if (!product || typeof ptfSurplusAdd !== 'function') { pending.push(item.item); return; }
       var existing = (typeof ptfSurplusAll === 'function' ? ptfSurplusAll() : []).filter(function (s) { return String(s.note || '').indexOf(returnCd) > -1 && s.prodCd === product.cd; })[0];
       if (existing) { if (stockRefs.indexOf(existing.cd) < 0) stockRefs.push(existing.cd); return; }
