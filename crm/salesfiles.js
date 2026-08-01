@@ -842,14 +842,9 @@
         else if (!rb.has) out.warns.push({ id: 'realbuy-none', lb: '🛒 هنوز هیچ خرید واقعی برای این پرونده ثبت نشده است — سود واقعی قابل اتکا نیست.' });
       }
     } catch (eRB) {}
-    /* ④ بدهی باز شرکت به تامین‌کنندگان همین پرونده (R9 — scoring payables) */
-    try {
-      var payRem = getData('ptf_crm_payables').filter(function (p) {
-        if (!r.inqNo || p.inqNo !== r.inqNo || p.settled) return false;
-        return (typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : 0) > 0;
-      });
-      if (payRem.length) out.warns.push({ id: 'payable', lb: '🏭 ' + payRem.length + ' بستانکاری تسویه‌نشده تامین‌کننده روی این پرونده باز است (پنل بدهی تامین‌کنندگان)' });
-    } catch (eP) {}
+    /* ④ (UR-12): بدهی باز تامین‌کنندگان پرونده — طبق تصمیم کارفرما «بستن پرونده فروش لزوماً به معنای
+       بستن حساب تامین‌کنندگان آن درخواست نیست» → حساب تامین‌کننده از مختومهٔ پرونده مستقل است و
+       هیچ اثری در کنترل مختومه ندارد (نه blocker و نه هشدار). پیگیری بدهی در پنل تامین‌کنندگان انجام می‌شود. */
     /* ⑤ QC عدم انطباق بدون رویداد زیان/رفع بعدی */
     try {
       var ncs = (r.qcEvents || []).filter(function (q) { return q.conf === 'nonconform'; });

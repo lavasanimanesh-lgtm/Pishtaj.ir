@@ -80,7 +80,7 @@
         { key: 'amt', dir: 'desc', lb: '💰 بیشترین مبلغ' }, { key: 'amt', dir: 'asc', lb: '💰 کمترین مبلغ' },
         { key: 'by', dir: 'asc', lb: '👤 ثبت‌کننده' }
       ]) : '') +
-      '<button class="bt bt-o" onclick="ptfPettyPeriodReport()" title="گزارش کامل دورهٔ جاری">📊 گزارش دورهٔ جاری</button>' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodReportDialog()" title="گزارش با بازهٔ دلخواه (از/تا)">📊 گزارش دورهٔ دلخواه</button>' +
       '<button class="bt" onclick="pettyAdd()">+ ثبت هزینه</button>' +
       (isTreasurer() ? '<button class="bt" onclick="pettyDirectPay()" style="background:#0e7490">پرداخت مستقیم</button><button class="bt" onclick="pettyCharge()" style="background:#059669">شارژ حساب</button><button class="bt bt-o" onclick="pettyClosePeriod()">ارجاع دوره</button>' : '') +
       '</div></div>' +
@@ -451,19 +451,40 @@
     if (day > dim) { day = 1; mo++; if (mo > 12) { mo = 1; y++; } }
     return y + '/' + String(mo).padStart(2, '0') + '/' + String(day).padStart(2, '0');
   };
-  /* بازهٔ پیشنهادی دورهٔ جاری: از روزِ پس از «تا» آخرین دورهٔ ارجاع‌شده تا امروز (یا تاریخ انتخابی کاربر) */
+  /* بازهٔ پیشنهادی دورهٔ جاری: از روزِ پس از «تا» آخرین دورهٔ ارجاع‌شده تا امروز (قابل تغییر دلخواه توسط کاربر) */
   window.ptfPettySuggestedRange = function () {
     var to = faTodayStr();
     var from = '';
     var periods = prAll().filter(function (p) { return p.st === 'referred' || p.st === 'registered'; });
     var last = periods[0] || {};
     if (last.to) from = window.ptfPettyDayAfter(last.to);
-    else if (last.month) from = window.ptfPettyDayAfter(last.month + '/31');
+    else if (last.month) from = window.ptfPettyDayAfter(String(last.month).slice(0, 7) + '/31');
     if (!from && to) from = String(to).slice(0, 7) + '/01';
     return { from: from || '', to: to || '' };
   };
+  /* UR-11: دیالوگ انتخاب بازهٔ دلخواه (از تاریخ/تا تاریخ — هر بازه‌ای مثل ۱۰ روزه، ۴۵ روزه و…) برای گزارش */
+  window.ptfPettyPeriodReportDialog = function () {
+    var sg = window.ptfPettySuggestedRange();
+    ptfDialog({
+      title: '📊 گزارش دورهٔ تنخواه — انتخاب بازه',
+      body: 'بازهٔ دلخواه را انتخاب کنید (مثلاً ۱۰ روزه، ۴۵ روزه یا هر بازهٔ دیگر — بسته به مصرف تنخواه).',
+      fields: [
+        { id: 'from', label: 'از تاریخ', value: sg.from || '', required: true, dir: 'ltr' },
+        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr' }
+      ],
+      okText: 'نمایش گزارش',
+      onOk: function (v) {
+        var from = String(v.from || '').trim(), to = String(v.to || '').trim();
+        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید.'); return; }
+        if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
+        window.ptfPettyPeriodReport(from, to);
+      }
+    });
+  };
   /* کلید دوره: (from,to) → بازه | (month) → ماه | بدون آرگومان → دورهٔ جاری پیشنهادی */
   function ptfPettyPeriodKey(a, b) {
+    /* UR-11 (رفع باگ): آرگومان می‌تواند یک رشتهٔ 'from|to' باشد (از renderPeriods) — split می‌شود */
+    if (a && !b && String(a).indexOf('|') > -1) { var pr = String(a).split('|'); a = pr[0]; b = pr[1]; }
     if (a && b && String(a).length > 7) return { month: String(a).slice(0, 7), from: String(a), to: String(b), isRange: true };
     if (a) return { month: String(a), from: '', to: '', isRange: false };
     var sg = window.ptfPettySuggestedRange();

@@ -16,7 +16,7 @@ T('هسته ممیزی قابل تست sfCloseAudit → {blockers, warns, docs}'
 T('AC1: مدرک تحویل الزامی و مستقل از مرحله (ضد دور زدن با پرداخت نقدی) = blocker سخت (با مسیر تأیید صریح UR-12)', sf.indexOf("ev.type === 'delivered'") > -1 && sf.indexOf("if (!hasDelivery) {") > -1 && sf.indexOf("out.blockers.push({ id: 'delivery'") > -1 && sf.indexOf("deliveryConfirmed") > -1 && sf.indexOf("rfqD.st === 'st7'") > -1);
 T('AC1: مطالبات باز = بدون تیک تسویه، مختومه ممنوع', sf.indexOf('با مطالبات باز نمی‌توان مختومه کرد (US-437)') > -1);
 T('سد برنامه‌ای نه فقط UI (درس US-371): commit هم blocker را چک می‌کند', sf.indexOf('window.sfCloseSettledCommit') > -1 && sf.indexOf('if (au.blockers.length) return false;') > -1);
-T('هشدار بدهی باز تامین‌کننده پرونده (اتصال R9 payables)', sf.indexOf("id: 'payable'") > -1 && sf.indexOf('ptfPayableRemain') > -1);
+T('UR-12: بدهی تامین‌کننده از کنترل مختومه مستقل است (نه blocker و نه هشدار)', sf.indexOf("id: 'payable'") === -1 && sf.indexOf('بستن پرونده فروش لزوماً به معنای') > -1);
 T('هشدار QC عدم انطباق بدون ثبت زیان (کیس R9)', sf.indexOf("id: 'qc'") > -1 && sf.indexOf('بدون ثبت زیان/رفع') > -1);
 T('AC2: کنترل اسناد ۹گانه پیش از بایگانی (سند برد/فاکتور/ارسال/QC/هزینه/...)', sf.indexOf('out.docs = { award:') > -1 && sf.indexOf('ship: (r.shipEvents || []).length') > -1);
 T('مهاجرت نرم سند برد قبل از کنترل + هشدار نبود آن', sf.indexOf("sfAwardEnsure === 'function') sfAwardEnsure(r); /* مهاجرت نرم سند برد قبل از کنترل */") > -1 && sf.indexOf("id: 'award'") > -1);
@@ -92,7 +92,7 @@ global.notify = function () { return 'NTF-1'; };
   delete deal.lossEvents;
   setData('ptf_crm_deals', [deal]);
   var au4 = sfCloseAudit(deal);
-  T('هشدار بدهی باز تامین‌کننده پرونده', au4.warns.some(function (w) { return w.id === 'payable'; }));
+  T('UR-12: با بدهی باز تامین‌کننده هیچ هشدار/بلوکی در مختومه نیست', !au4.warns.some(function (w) { return w.id === 'payable'; }) && !au4.blockers.some(function (b) { return b.id === 'payable'; }));
   T('هشدار QC عدم انطباق بدون زیان', au4.warns.some(function (w) { return w.id === 'qc'; }));
   T('با ثبت زیان، هشدار QC رفع می‌شود', (function () { deal.lossEvents = [{ cd: 'L1', amt: 100 }]; setData('ptf_crm_deals', [deal]); return !sfCloseAudit(deal).warns.some(function (w) { return w.id === 'qc'; }); })());
   T('هشدارها مانع مختومه نیستند (فقط blocker سخت است)', sfCloseSettledCommit('D7', false) === true);

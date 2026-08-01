@@ -75,6 +75,16 @@ T('تراکنش مستقیم: «پرداخت مستقیم از تنخواه»', 
 var charge = ev.filter(function (e) { return e.kind === 'شارژ حساب'; })[0];
 T('شارژ: «شارژ حساب» با نام ثبت‌کننده', !!charge && charge.by === 'علی رضایی');
 
+SECTION('باگ split: آرگومان رشته‌ای from|to (از renderPeriods)');
+var dSplit = ptfPettyPeriodData('1405/04/11|1405/04/20');
+T('رشتهٔ از-تا (با |) به‌درستی split و فیلتر می‌شود', dSplit.isRange === true && dSplit.from === '1405/04/11' && dSplit.to === '1405/04/20' && dSplit.petty.length === 2);
+T('گزارش با رشتهٔ from|to ردیف‌ها را نشان می‌دهد', (function () {
+  global._inserted.length = 0;
+  ptfPettyPeriodReport('1405/04/11|1405/04/20');
+  var h = global._inserted[global._inserted.length - 1] || '';
+  return h.indexOf('تاکسی') > -1 && h.indexOf('کاغذ') > -1 && h.indexOf('ناهار') > -1;
+})());
+
 SECTION('هدر بازه');
 T('برچسب: «تنخواه‌گردان از تاریخ … تا تاریخ …»', ptfPettyRangeLabel('1405/04/11', '1405/04/20') === 'تنخواه‌گردان از تاریخ 1405/04/11 تا تاریخ 1405/04/20');
 T('سازگاری با ماه قدیمی: «ماه 1405/04»', ptfPettyRangeLabel('1405/04') === 'ماه 1405/04');

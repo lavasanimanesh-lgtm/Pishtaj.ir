@@ -40,7 +40,7 @@ T('QA سناریوهای baseline/cavitation/reducer/gas را استفاده م�
 T('جدول QA ستون‌های مهم Liquid/Gas/Steam دارد', ['Phase','Governing','Choked','xChoked','Actual Q','Cavitation','Noise','Vmax','Actuator','Readiness','Checksum','Warnings'].every(function (x) { return adv.indexOf(x) > -1; }));
 T('UI دکمه اجرای QA داخلی سناریوها دارد', adv.indexOf('اجرای QA داخلی سناریوها') > -1);
 T('هیچ مسیر PDF/download/print/fetch/export اضافه نشده است', adv.indexOf('fetch(') === -1 && adv.indexOf('window.print') === -1 && adv.indexOf('document.write') === -1 && adv.indexOf('exportPdf') === -1 && adv.indexOf('download=') === -1);
-T('نسخه CRM v33.3.4 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM v33.3.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 SECTION('Runtime internal scenario QA');
 var sb = makeSandbox(true);

@@ -17,11 +17,11 @@ T('تابع tools_render_locked_report_html وجود دارد', api.indexOf('fun
 T('HTML قفل‌شده watermark صریح دارد', api.indexOf('LOCKED INTERNAL HTML PREVIEW') > -1 && api.indexOf('NOT A FINAL REPORT') > -1 && api.indexOf('NO PDF GENERATED') > -1);
 T('render metadata با htmlChecksum ذخیره می‌شود', api.indexOf('lockedHtmlRender') > -1 && api.indexOf('htmlChecksum') > -1 && api.indexOf('locked_html_preview') > -1);
 T('render همچنان final/PDF/download false است', api.indexOf("'final' => false") > -1 && api.indexOf("'pdf' => false") > -1 && api.indexOf("'download' => false") > -1);
-T('tools API status به v33.3.4 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status به v33.3.5 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM locked render UI');
-T('CRM نسخه v33.3.4 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
-T('tool-report-drafts.js با v33.3.4 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
+T('CRM نسخه v33.3.5 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-report-drafts.js با v33.3.5 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
 T('UI تابع ptfToolReportDraftRenderLocked دارد', ui.indexOf('window.ptfToolReportDraftRenderLocked = function') > -1);
 T('UI اکشن admin_report_render_locked را صدا می‌زند', ui.indexOf('admin_report_render_locked') > -1);
 T('UI دکمه‌های Locked HTML دارد', ui.indexOf('Locked HTML') > -1 && ui.indexOf('ptfToolReportDraftRenderLocked') > -1);

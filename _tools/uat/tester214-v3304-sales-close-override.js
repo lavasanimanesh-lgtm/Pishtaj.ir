@@ -63,7 +63,14 @@ T('گارد commit حفظ شده (blockers)', sf.indexOf('if (au.blockers.length
 SECTION('بدون override → blocker سخت (رفتار قبلی حفظ شد)');
 var au1 = sfCloseAudit(deal);
 T('بدون تحویل و بدون override: blocker delivery', au1.blockers.length === 1 && au1.blockers[0].id === 'delivery');
-T('پکینگ‌لیست/تسویه تامین‌کننده فقط هشدارند (نه blocker)', au1.warns.length >= 0 && !au1.blockers.some(function (b) { return b.id === 'pl-missing' || b.id === 'payable'; }));
+T('پکینگ‌لیست فقط هشدار است (نه blocker)', !au1.blockers.some(function (b) { return b.id === 'pl-missing'; }));
+T('UR-12: بدهی تامین‌کننده هیچ اثری در کنترل مختومه ندارد (مستقل)', !au1.blockers.some(function (b) { return b.id === 'payable'; }) && !au1.warns.some(function (w) { return w.id === 'payable'; }));
+
+SECTION('استقلال از حساب تامین‌کننده (حتی با بدهی باز)');
+setData('ptf_crm_payables', [{ cd: 'PAY-1', inqNo: 'INQ-9', settled: false, amount: 999999 }]);
+var auPay = sfCloseAudit(deal);
+T('بدهی باز تامین‌کننده در blockers نیست', !auPay.blockers.some(function (b) { return b.id === 'payable'; }));
+T('بدهی باز تامین‌کننده در warns نیست', !auPay.warns.some(function (w) { return w.id === 'payable'; }));
 
 SECTION('با override صریح → blocker به هشدار تبدیل می‌شود');
 deal.closeOverride = { deliveryConfirmed: true, reason: 'تحویل فیزیکی انجام شده؛ ثبت رویداد فراموش شد', by: 'علی رضایی', t: '1405/05/10 12:00' };
