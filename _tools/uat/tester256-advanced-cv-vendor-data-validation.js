@@ -18,11 +18,11 @@ T('vendor validation فیلدهای کلیدی برند/سری/Cv/FL/Xt را ب�
 T('final gate vendorValidation را برمی‌گرداند و warning می‌سازد', api.indexOf("'vendorValidation' => $vendorValidation") > -1 && api.indexOf('Vendor data validation: missing/TBD fields') > -1 && api.indexOf('certified vendor sizing/selection confirmation') > -1);
 T('final report HTML بخش Vendor Data Validation Matrix دارد', api.indexOf('Vendor Data Validation Matrix') > -1 && api.indexOf('tools_vendor_validation_rows_html') > -1 && api.indexOf('<th>Vendor / Data field</th>') > -1);
 T('final meta vendorValidation را ذخیره می‌کند', api.indexOf("'vendorValidation' => tools_build_vendor_validation") > -1 && api.indexOf("$draft['vendorValidation']") > -1);
-T('tools API status v33.3.0 است', /'version' => 'v3[0-9.]+'/.test(api));
+T('tools API status v33.3.1 است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM vendor validation UI');
-T('CRM/SW نسخه v33.3.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
-T('tool-report-drafts با cache-bust v33.3.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
+T('CRM/SW نسخه v33.3.1 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-report-drafts با cache-bust v33.3.1 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
 T('CRM UI vendorStatus/vendorMissingCount را نمایش می‌دهد', ui.indexOf('vendorStatus') > -1 && ui.indexOf('vendorMissingCount') > -1 && ui.indexOf('Vendor data validation') > -1);
 T('Final modal vendor status را نشان می‌دهد', ui.indexOf('Vendor:') > -1 && ui.indexOf('Engineering:') > -1 && ui.indexOf('Server PDF: No') > -1);
 T('online payment همچنان اضافه نشده است', api.indexOf('payment_gateway') === -1 && ui.indexOf('payment_gateway') === -1 && api.indexOf('zarinpal') === -1);

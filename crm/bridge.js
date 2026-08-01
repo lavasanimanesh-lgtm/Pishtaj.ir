@@ -835,7 +835,7 @@
       },
       render: window.renderRfq
     });
-    rfqs = window.ptfSorted('rfq', rfqs);
+    rfqs = (typeof window.ptfSorted === 'function') ? window.ptfSorted('rfq', rfqs) : rfqs;
     var h = '';
     /* v17.3 (US-413 — کیس R8): رنگ ردیف برد/باخت — سبز=CO برنده، قرمز=بازنده (بایگانی lost) — اولویت بر رنگ مهلت */
     var _wonInqs = {}, _lostInqs = {};

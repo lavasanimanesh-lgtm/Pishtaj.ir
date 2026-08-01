@@ -457,7 +457,7 @@ function renderOffers() {
     },
     render: renderOffers
   });
-  offers = window.ptfSorted('off', offers);
+  offers = (typeof window.ptfSorted === 'function') ? window.ptfSorted('off', offers) : offers;
   try {
     var hint = document.getElementById('oFcustHint');
     if (hint) {

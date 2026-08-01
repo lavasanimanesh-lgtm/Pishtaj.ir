@@ -138,7 +138,7 @@
       getters: { t: function (x) { return x.t || ''; }, amt: function (x) { return +x.amt || 0; }, by: function (x) { return x.by || ''; } },
       render: renderPetty
     });
-    list = window.ptfSorted('petty', list);
+    list = (typeof window.ptfSorted === 'function') ? window.ptfSorted('petty', list) : list;
     var sm = document.getElementById('ptSummary');
     if (sm) {
       if (isMgr() || isTreasurer()) {

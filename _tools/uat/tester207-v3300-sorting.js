@@ -44,22 +44,25 @@ T('هدر onclick و فلش دارد', h.indexOf("ptfSortClick('listX','k1')") >
 
 SECTION('اتصال — پیشنهادات (offers.js)');
 T('هدرها sortable شدند (شماره/خریدار/تاریخ/مبلغ/وضعیت)', OFFERS.indexOf("ptfSortHeader('off', 'no'") > -1 && OFFERS.indexOf("ptfSortHeader('off', 'buyerCo'") > -1 && OFFERS.indexOf("ptfSortHeader('off', 'amount'") > -1 && OFFERS.indexOf("ptfSortHeader('off', 'st'") > -1);
-T('renderOffers سورت را اعمال می‌کند', OFFERS.indexOf("ptfRegisterSortable('off'") > -1 && OFFERS.indexOf("offers = window.ptfSorted('off', offers)") > -1);
+T('renderOffers سورت را اعمال می‌کند', OFFERS.indexOf("ptfRegisterSortable('off'") > -1 && OFFERS.indexOf("typeof window.ptfSorted === 'function'") > -1);
 
 SECTION('اتصال — درخواست‌ها (bridge.js)');
-T('هدرهای RFQ sortable شدند + renderRfq سورت را اعمال می‌کند', BRIDGE.indexOf("ptfSortHeader('rfq', 'cd'") > -1 && BRIDGE.indexOf("ptfSortHeader('rfq', 'co'") > -1 && BRIDGE.indexOf("rfqs = window.ptfSorted('rfq', rfqs)") > -1);
+T('هدرهای RFQ sortable شدند + renderRfq سورت را اعمال می‌کند', BRIDGE.indexOf("ptfSortHeader('rfq', 'cd'") > -1 && BRIDGE.indexOf("ptfSortHeader('rfq', 'co'") > -1 && BRIDGE.indexOf("typeof window.ptfSorted === 'function'") > -1);
 
 SECTION('اتصال — تنخواه (petty.js)');
-T('dropdown سورت در تولبار تنخواه + اعمال در renderPetty', PETTY.indexOf("ptfSortSelectHtml('petty'") > -1 && PETTY.indexOf("list = window.ptfSorted('petty', list)") > -1);
+T('dropdown سورت در تولبار تنخواه + اعمال در renderPetty', PETTY.indexOf("ptfSortSelectHtml('petty'") > -1 && PETTY.indexOf("typeof window.ptfSorted === 'function'") > -1);
 
 SECTION('اتصال — حساب مشتریان (customer-finance.js)');
-T('هدرهای cf sortable + سورت اعمال می‌شود', CF.indexOf("ptfSortHeader('cf', 'co'") > -1 && CF.indexOf("ptfSortHeader('cf', 'balance'") > -1 && CF.indexOf("rows = window.ptfSorted('cf', rows)") > -1);
+T('هدرهای cf sortable + سورت اعمال می‌شود', CF.indexOf("ptfSortHeader('cf', 'co'") > -1 && CF.indexOf("ptfSortHeader('cf', 'balance'") > -1 && CF.indexOf("typeof window.ptfSorted === 'function'") > -1);
 
 SECTION('اتصال — حساب تأمین‌کنندگان (supplier-finance.js)');
-T('هدرهای slf sortable + سورت اعمال می‌شود', SL.indexOf("ptfSortHeader('slf', 'co'") > -1 && SL.indexOf("ptfSortHeader('slf', 'exposure'") > -1 && SL.indexOf("rows = window.ptfSorted('slf', rows)") > -1);
+T('هدرهای slf sortable + سورت اعمال می‌شود', SL.indexOf("ptfSortHeader('slf', 'co'") > -1 && SL.indexOf("ptfSortHeader('slf', 'exposure'") > -1 && SL.indexOf("typeof window.ptfSorted === 'function'") > -1);
 T('slFinanceSearch دیگر با outerHTML بازسازی نمی‌کند (رفع باگ فوکوس هم‌خانواده)', SL.indexOf('slFinanceHubBox")') === -1 || SL.indexOf("el.outerHTML = window.slFinanceHubHtml()") === -1);
 
 SECTION('بارگذاری');
 T('sortable.js در index.html و sw.js هست', IDX.indexOf('sortable.js?v=') > -1 && SW.indexOf('./sortable.js') > -1);
 
 DONE('tester207-v3300-sorting');
+
+SECTION('محافظ fallback (بدون sortable.js — سناریوی خطای کاربر)');
+T('همهٔ فراخوانی‌های ptfSorted محافظ typeof دارند', OFFERS.indexOf("offers = (typeof window.ptfSorted === 'function')") > -1 && BRIDGE.indexOf("rfqs = (typeof window.ptfSorted === 'function')") > -1 && PETTY.indexOf("list = (typeof window.ptfSorted === 'function')") > -1 && CF.indexOf("rows = (typeof window.ptfSorted === 'function')") > -1 && SL.indexOf("rows = (typeof window.ptfSorted === 'function')") > -1);

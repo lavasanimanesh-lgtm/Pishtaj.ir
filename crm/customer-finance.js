@@ -277,7 +277,7 @@
       getters: { co: function (r) { return r.co || ''; }, balance: function (r) { return r.balance; }, credit: function (r) { return r.credit; } },
       render: window.cfFinanceRowsRender
     });
-    rows = window.ptfSorted('cf', rows);
+    rows = (typeof window.ptfSorted === 'function') ? window.ptfSorted('cf', rows) : rows;
     var table = rows.map(function (r) {
       var open = Math.abs(r.balance) > 0.000001;
       return '<tr' + (open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(r.co || r.cd) + '</b><br><small style="color:#94a3b8;direction:ltr">' + escP(r.cd || '') + '</small></td><td style="font-weight:' + (open ? '900' : '400') + ';color:' + (open ? '#b45309' : '#64748b') + '">' + m(r.balance) + ' ریال</td><td style="color:#047857">' + (r.credit ? m(r.credit) + ' ریال' : '—') + '</td><td><button class="ba" onclick="cfOpen(\'' + escP(r.cd) + '\')">📘 حساب</button></td></tr>';

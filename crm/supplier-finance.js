@@ -665,7 +665,7 @@
       getters: { co: function (x) { return x.co || ''; }, exposure: function (x) { return x.exposure || 0; } },
       render: window.slFinanceRowsRender
     });
-    rows = window.ptfSorted('slf', rows);
+    rows = (typeof window.ptfSorted === 'function') ? window.ptfSorted('slf', rows) : rows;
     var body = rows.map(function (x) {
       return '<tr' + (x.open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(x.co || '') + '</b><br><small style="direction:ltr;color:#94a3b8">' + escP(x.cd || '') + '</small></td><td>' + (x.balance.length ? balanceHtml(x.cd) : '<span style="color:#64748b">مانده ندارد</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + escP(x.cd) + '\')">گردش حساب</button></td></tr>';
     }).join('');
