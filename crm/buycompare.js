@@ -511,7 +511,7 @@
       n++;
     });
     var el = document.getElementById('blkTot');
-    if (el) el.innerHTML = n ? ('Σ ' + n + ' قلم = ' + (cur !== 'IRR' ? totFx.toLocaleString('en-US') + ' ' + cur + (rate ? ' ≈ ' + tot.toLocaleString('fa-IR') + ' ریال' : ' (نرخ تسعیر؟)') : tot.toLocaleString('fa-IR') + ' ریال')) : '';
+    if (el) el.innerHTML = n ? ('جمع کل (اطلاعاتی) — ' + n + ' قلم = ' + (cur !== 'IRR' ? totFx.toLocaleString('en-US') + ' ' + cur + (rate ? ' ≈ ' + tot.toLocaleString('fa-IR') + ' ریال' : ' (نرخ تسعیر؟)') : tot.toLocaleString('fa-IR') + ' ریال') + ' <small>(قیمت واحد هر قلم را وارد کنید — جمع فقط برای اطلاع است)</small>') : '';
   };
   window.cmpBulkBuyGo = function (id) {
     var ixs = window._blkPend || [];
@@ -601,7 +601,7 @@
     var qty = st.rows.reduce(function (s, r) { return s + (+r.qty || 0); }, 0);
     var total = st.rows.reduce(function (s, r) { return s + cmpSplitIrr(r); }, 0);
     var sum = document.getElementById('cmpSplitSummary');
-    if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | مجموع خرید: <b>' + cmpSplitMoney(total) + '</b>';
+    if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | جمع کل (اطلاعاتی): <b>' + cmpSplitMoney(total) + '</b>';
   }
   window.cmpSplitRender = function () {
     var st = window._cmpSplitState; if (!st) return;
@@ -615,7 +615,7 @@
     var qty = st.rows.reduce(function (s, r) { return s + (+r.qty || 0); }, 0);
     var total = st.rows.reduce(function (s, r) { return s + cmpSplitIrr(r); }, 0);
     var el = document.getElementById('cmpSplitRows'); if (el) el.innerHTML = rows;
-    var sum = document.getElementById('cmpSplitSummary'); if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | مجموع خرید: <b>' + cmpSplitMoney(total) + '</b>';
+    var sum = document.getElementById('cmpSplitSummary'); if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | جمع کل (اطلاعاتی): <b>' + cmpSplitMoney(total) + '</b>';
   };
   window.cmpSplitField = function (ri, key, value) { if (window._cmpSplitState && window._cmpSplitState.rows[ri]) { window._cmpSplitState.rows[ri][key] = (key === 'sup' || key === 'cur') ? value : (+cmpSplitNumber(value) || 0); cmpSplitUpdateSummary(); } };
   window.cmpSplitAdd = function () { if (window._cmpSplitState) { window._cmpSplitState.rows.push({ sup: '', qty: 0, price: 0, cur: 'IRR', rate: 0 }); cmpSplitRender(); } };

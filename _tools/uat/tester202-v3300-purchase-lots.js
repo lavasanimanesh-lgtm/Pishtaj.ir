@@ -58,6 +58,7 @@ setData('ptf_crm_products', [{ cd: 'P1', nm: 'شیر کنترلی' }]);
 SECTION('ساختار');
 T('توابع لوت/برگشت/انبار موجودند', bc.indexOf('window.cmpSplitSave') > -1 && bc.indexOf('window.cmpPurchaseReturnOpen') > -1 && bc.indexOf('window.cmpPurchaseStockOpen') > -1 && bc.indexOf('window.ptfPurchaseLotsForItem') > -1);
 T('تبدیل ارقام فارسی در cmpSplitNumber', cmpSplitNumber('۱,۲۳۴') === '1234' && cmpSplitNumber('١٢') === '12');
+T('UR-04: برچسب جمع صریح «جمع کل (اطلاعاتی)» است نه «مجموع خرید» (هر دو پنجره)', bc.indexOf('مجموع خرید: <b>') === -1 && bc.indexOf('جمع کل (اطلاعاتی)') > -1 && bc.indexOf('Σ ') === -1 && bc.indexOf('قیمت واحد') > -1);
 
 SECTION('تقسیم خرید — ۳ lot (ریال + یورو + دلار)');
 window._cmpSplitState = { id: 'CMP-1', idx: 0, c: getData('ptf_crm_buycmp')[0], rows: [
