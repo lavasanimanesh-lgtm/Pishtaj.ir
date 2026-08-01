@@ -31,7 +31,9 @@
   function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i.cd)); }, 0); }
   function accountPosition(cd) {
     var open = bal(cd), credit = creditForCustomer(cd);
-    return { balance: Math.max(0, open - credit), credit: Math.max(0, credit - open) };
+    /* BUG-2026-08-01-001: مقادیر ناخالص (باز و اعتبار) و خالص هر دو برگردانده می‌شوند —
+       قبلاً netting باعث می‌شد مشتری با باز=اعتبار (مثل ۲۰۰/۲۰۰) «۰/۰» دیده شود و هر دو مقدار پنهان شوند. */
+    return { balance: open, credit: credit, net: Math.max(0, open - credit), netCredit: Math.max(0, credit - open) };
   }
   function norm(v) { return String(v || '').trim().toLowerCase(); }
 
@@ -40,7 +42,7 @@
     var q = norm(query == null ? window._cfSearch : query);
     return getData('ptf_crm_customers').map(function (c) {
       var pos = accountPosition(c.cd);
-      return { cd: c.cd, co: nameOf(c), balance: pos.balance, credit: pos.credit };
+      return { cd: c.cd, co: nameOf(c), balance: pos.balance, credit: pos.credit, net: pos.net, netCredit: pos.netCredit };
     }).filter(function (r) {
       return !q || norm(r.co).indexOf(q) > -1 || norm(r.cd).indexOf(q) > -1;
     }).sort(function (a, b) {
@@ -258,7 +260,10 @@
         returns.map(function (rtn) { return '<tr style="background:#fff7ed"><td>' + escP(rtn.t || '') + '</td><td>↩️ مرجوعی فروش</td><td><b>' + escP(rtn.cd) + '</b><br><small>' + escP((rtn.items || []).map(function (x) { return (x.item || 'قلم') + ' × ' + x.qty; }).join('، ')) + '</small>' + (rtn.disposition === 'stock' ? '<br><small style="color:' + (rtn.stockStatus === 'stocked' ? '#047857' : '#b45309') + '">📦 ' + (rtn.stockStatus === 'stocked' ? 'وارد موجودی شد' : 'نیازمند تعریف کالا') + '</small>' + (rtn.stockStatus === 'pending_product_definition' ? '<br><button class="ba" onclick="cfSalesReturnStockRetry(\'' + escP(rtn.cd) + '\')">📦 تکمیل ورود به موجودی</button>' : '') : '') + '</td><td>—</td><td>' + m(rtn.totalAmount) + ' ریال کاهش' + (rtn.creditAmount ? '<br><small style="color:#047857">اعتبار: ' + m(rtn.creditAmount) + ' ریال</small>' : '') + '</td></tr>'; }).join('');
     }).join('');
     var pos = accountPosition(cd);
-    var h = '<div class="md-b" id="cfAccountDlg" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto"><h3>📘 حساب مشتری — ' + escP(nameOf(c)) + '</h3><div style="background:#fefce8;padding:10px;border-radius:10px">مطالبات نهایی باز: <b>' + m(pos.balance) + ' ریال</b>' + (pos.credit ? ' | اعتبار نهایی نزد مشتری: <b style="color:#047857">' + m(pos.credit) + ' ریال</b>' : '') + '</div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>سند</th><th>فاکتور</th><th>وصولی</th><th>مانده</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">__CF_ACTIONS__</div></div></div>';
+    var h = '<div class="md-b" id="cfAccountDlg" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto"><h3>📘 حساب مشتری — ' + escP(nameOf(c)) + '</h3><div style="background:#fefce8;padding:10px;border-radius:10px">' +
+      'مطالبات باز (ناخالص): <b>' + m(pos.balance) + ' ریال</b>' +
+      (pos.credit ? ' | اعتبار نزد مشتری (ناخالص): <b style="color:#047857">' + m(pos.credit) + ' ریال</b>' : '') +
+      '<br><small style="color:#475569">' + (pos.netCredit ? 'وضعیت خالص: <b style="color:#047857">' + m(pos.netCredit) + ' ریال بستانکار</b>' : 'وضعیت خالص: <b style="color:#b45309">' + m(pos.net) + ' ریال بدهکار</b>') + '</small></div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>سند</th><th>فاکتور</th><th>وصولی</th><th>مانده</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">__CF_ACTIONS__</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', h.replace('__CF_ACTIONS__',
       '<button class="bt bt-o" style="background:#0e7490;color:#fff" onclick="cfLedgerPrint(\'' + escP(cd) + '\')">🖨 چاپ/PDF</button>' +
       '<button class="bt bt-o" onclick="cfLedgerCsv(\'' + escP(cd) + '\')">⬇ اکسل</button>' +

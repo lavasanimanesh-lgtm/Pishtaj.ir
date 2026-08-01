@@ -1,4 +1,4 @@
-/* tester277 — v33.3.2 SEC-AUTH-SESSION-001
+/* tester277 — v33.3.3 SEC-AUTH-SESSION-001
    Contract guards for token reuse, single-flight refresh and bounded retry. */
 require('./harness');
 var fs=require('fs'), path=require('path');
@@ -6,7 +6,7 @@ var ROOT=path.resolve(__dirname,'../..');
 var idx=fs.readFileSync(path.join(ROOT,'crm/index.html'),'utf8');
 var sync=fs.readFileSync(path.join(ROOT,'crm/sync.js'),'utf8');
 var auth=fs.readFileSync(path.join(ROOT,'api/auth.php'),'utf8');
-SECTION('v33.3.2 token-session stabilization');
+SECTION('v33.3.3 token-session stabilization');
 var show=idx.slice(idx.indexOf('function showCrm()'), idx.indexOf('function hideCrm()', idx.indexOf('function showCrm()')));
 T('showCrm token موجود را قبل از auth_login reuse می‌کند', show.indexOf("localStorage.getItem('ptf_crm_token')") > -1 && show.indexOf("localStorage.getItem('ptf_crm_token')") < show.indexOf("action=auth_login"));
 T('sync refresh single-flight است', sync.indexOf('state.authRefreshing') > -1 && sync.indexOf('state.authRefreshWaiters') > -1 && sync.indexOf('function finish(ok)') > -1);

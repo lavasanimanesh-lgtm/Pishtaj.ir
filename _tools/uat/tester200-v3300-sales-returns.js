@@ -79,9 +79,7 @@ cfSalesReturnPreviewSelected('INV2');
 returns = getData('ptf_crm_sales_returns');
 T('مرجوعی دوم با مبلغ ۵۰,۰۰۰ ثبت شد (قلم ۱ × ۱ عدد)', returns.length === 2 && returns[0].invoiceCd === 'INV2' && returns[0].totalAmount === 50000);
 T('اعتبار این سند صفر است (پرداخت ۱۰۰هزار < مبلغ ۳۵۰هزار)', returns[0].creditAmount === 0);
-T('مانده/اعتبار خالص می‌شوند (۲۵۰هزار باز در برابر ۲۰۰هزار اعتبار + ماندهٔ ۲۰۰هزار) ← موقعیت خالص صفر', (function () { var r = cfAccountRows('مشتری الف'); return r.length === 1 && r[0].balance === 0 && r[0].credit === 0; })());
-/* NOTE-BUG-2026-08-01-01: netting در سطح مشتری باعث می‌شود مانده و اعتبار ناخالص (هرکدام ۲۰۰هزار)
-   هر دو صفر نمایش داده شوند — اطلاعات واقعی پنهان می‌شود. ثبت‌شده در HANDOFF برای تصمیم کارفرما. */
+T('BUG-001 رفع شد: مانده و اعتبار ناخالص (هرکدام ۲۰۰هزار) نمایش داده می‌شوند + خالص صفر', (function () { var r = cfAccountRows('مشتری الف'); return r.length === 1 && r[0].balance === 200000 && r[0].credit === 200000 && r[0].net === 0; })());
 
 SECTION('گاردها');
 T('دلیل الزامی است', (function () {
