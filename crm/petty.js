@@ -679,13 +679,13 @@
     var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
     var label = window.ptfPettyRangeLabel(a, b);
     var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>' +
-      '@page{size:A4;margin:12mm}' +
+      '@page{size:A4;margin:10mm}' +
       'body{font-family:Tahoma,Arial;padding:0;margin:0;color:#111;font-size:11px}' +
       'table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:4px 6px;text-align:right;font-size:10.5px}th{background:#eee}' +
       '.page{page-break-after:always}' +
-      '.grid{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}' +
-      '.rcpt{width:calc(33.3% - 4px);box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:5px;page-break-inside:avoid;background:#fff;overflow:hidden}' +
-      '.rcpt img{width:100%;height:auto;display:block;border-radius:5px;max-height:380px;object-fit:contain;background:#fff}' +
+      '.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-items:start}' +
+      '.rcpt{box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:5px;page-break-inside:avoid;background:#fff;overflow:hidden}' +
+      '.rcpt img{width:100%;height:auto;display:block;border-radius:5px;max-height:300px;object-fit:contain;background:#fff}' +
       '.rcpt .cap{font-size:9.5px;color:#1d4ed8;font-weight:bold;margin:4px 0 2px}' +
       '.rcpt embed{width:100%;height:280px;border:1px solid #ddd;border-radius:5px;background:#fff}' +
       '.rcpt .meta{font-size:9px;color:#475569;margin-bottom:3px}' +
@@ -704,7 +704,33 @@
     var n = String(name || '').toLowerCase();
     if (/\.(jpe?g|png|gif|webp|bmp)$/.test(n)) return 'image';
     if (/\.pdf$/.test(n)) return 'pdf';
+    if (/\.(heic|heif|heics)$/.test(n)) return 'heic'; /* BUG-PDF-ATTACH: فرمت HEIC آیفون */
     return 'other';
+  };
+  /* BUG-PDF-ATTACH: تبدیل PDF/HEIC به JPEG — از endpoint سرور (Imagick)؛ اگر نبود → خالی */
+  window.ptfPettyToJpeg = function (f) {
+    return new Promise(function (resolve) {
+      if (!f || !f.key) return resolve(f);
+      var kind = window.ptfPettyFileKind(f.name || f.key || '');
+      if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
+      try {
+        fetch('api/attachment-thumb.php', {
+          method: 'POST', headers: ptfStorageAuthHeaders(true),
+          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d && d.ok && d.images && d.images.length) {
+              f.url = d.images[0].url;
+              f.converted = true;
+              f.extraImages = d.images.slice(1).map(function (im) { return { key: im.key, url: im.url }; });
+            } else {
+              f.url = ''; f.convertError = (d && d.error) || 'no_imagick';
+            }
+            resolve(f);
+          })
+          .catch(function () { f.url = ''; f.convertError = 'net'; resolve(f); });
+      } catch (e) { f.url = ''; f.convertError = 'ex'; resolve(f); }
+    });
   };
   /* گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile */
   window.ptfPettyResolveUrl = function (f) { return ptfPettyResolveUrl(f); };
@@ -723,27 +749,34 @@
     });
   }
   /* رندر یک ضمیمه: عکس → <img>؛ PDF → <embed> (قابل مشاهده در چاپ/PDF)؛ سایر → پیام */
-  window.ptfPettyReceiptHtml = function (f) {
-    var petId = f.petId || '';
+  /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل‌شده) به‌صورت <img> نمایش داده می‌شود؛ صفحه‌های بیشتر PDF → کارت‌های جدا */
+  window.ptfPettyReceiptHtml = function (f, pageLabel) {
+    var petId = (pageLabel ? pageLabel + ' — ' : '') + (f.petId || 'سند');
     var kind = window.ptfPettyFileKind(f.name || f.key || '');
     var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
     var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
     if (!url && f.key) {
-      /* BUG-PDF-ATTACH: url هنوز resolve نشده/خطا — پیام واضح + دکمهٔ باز کردن */
-      inner = '<div style="padding:14px;color:#92400e;font-size:11px;text-align:center">⚠️ لینک این سند دریافت نشد.<br><small style="color:#94a3b8">برای مشاهده از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
-    } else if (kind === 'image') {
+      inner = '<div style="padding:14px;color:#92400e;font-size:11px;text-align:center">⚠️ لینک این سند دریافت نشد' + (f.convertError ? ' (تبدیل ممکن نشد)' : '') + '.<br><small style="color:#94a3b8">برای مشاهده از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
+    } else if (kind === 'image' || kind === 'heic' || f.converted) {
       inner = '<img src="' + url + '" onerror="this.parentNode.innerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ تصویر قابل نمایش نیست' + (openBtn ? ' — ' + openBtn : '') + '</div>\'">';
     } else if (kind === 'pdf') {
-      inner = '<embed src="' + url + '" type="application/pdf" style="width:100%;height:280px;border-radius:5px" onerror="this.outerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ PDF قابل نمایش نیست</div>\'">' + openBtn;
+      inner = '<embed src="' + url + '" type="application/pdf" style="width:100%;height:200px;border-radius:5px" onerror="this.outerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ PDF قابل نمایش نیست</div>\'">' + openBtn;
     } else {
       inner = '<div style="padding:14px;color:#7c3aed;font-size:11px;text-align:center">📄 ' + escP(f.name || f.key || 'سند') + '<br><small style="color:#94a3b8">این فرمت در گزارش تلفیقی نمایش داده نمی‌شود؛ از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
     }
-    return '<div class="rcpt"><div class="cap">' + escP(petId || 'سند') + '</div>' +
+    return '<div class="rcpt"><div class="cap">' + escP(petId) + '</div>' +
       (f.name ? '<div class="meta">' + escP(f.name) + '</div>' : '') + inner + '</div>';
   };
   window.ptfPettyReceiptsHtml = function (records) {
-    var cards = (records || []).map(window.ptfPettyReceiptHtml).join('');
+    var cards = (records || []).map(function (f) {
+      var h = window.ptfPettyReceiptHtml(f);
+      /* PDF چندصفحه (تبدیل‌شده) → کارت برای هر صفحهٔ اضافه */
+      (f.extraImages || []).forEach(function (im, i) {
+        h += window.ptfPettyReceiptHtml({ key: im.key, name: (f.name || '') + ' (صفحه ' + (i + 2) + ')', url: im.url, petId: f.petId || '', converted: true }, 'صفحه ' + (i + 2));
+      });
+      return h;
+    }).join('');
     if (!cards) return '<div style="padding:16px;color:#64748b;font-size:12px">رسید/ضمیمه‌ای برای نمایش در این دوره موجود نیست.</div>';
     return '<div class="grid">' + cards + '</div>';
   };
@@ -789,8 +822,17 @@
     var periodFiles = (periodRec && periodRec.files) || [];
     /* BUG-PDF-ATTACH: اول URL همهٔ ضمائم (عکس/PDF) از storage گرفته می‌شود، بعد HTML ساخته و چاپ می‌شود */
     var all = files.concat(periodFiles);
-    var jobs = all.map(function (f) { return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; }); });
+    var jobs = all.map(function (f) {
+      return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; });
+    });
     Promise.all(jobs).then(function () {
+      /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل سمت سرور) — قبل از رندر */
+      var convertJobs = all.filter(function (f) {
+        var k = window.ptfPettyFileKind(f.name || f.key || '');
+        return (k === 'pdf' || k === 'heic') && f.key;
+      }).map(function (f) { return window.ptfPettyToJpeg(f); });
+      return Promise.all(convertJobs);
+    }).then(function () {
       var pageBreaks = [];
       var receiptsHtml = window.ptfPettyReceiptsHtml(files);
       pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">📎 ضمائم و رسیدهای پرداخت (شناسهٔ هر رسید مطابق ردیف‌های گزارش)</h3>' + receiptsHtml + '</div>');

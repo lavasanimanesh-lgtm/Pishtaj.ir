@@ -123,3 +123,12 @@
 - **لودنشدن ۲ سند (ریشه):** `ptfPettyPeriodFiles` فایل جدید با `url:''` هاردکد می‌ساخت — حتی فایل‌های دارای url هم در گزارش تلفیقی «لینک دریافت نشد» می‌شدند. رفع: `url: f.url || ''` (حفظ url قبلی).
 - **UX مقاوم:** اگر url دریافت نشد → پیام واضح + دکمهٔ «↗ باز کردن فایل»؛ رندر PDF با `<embed>`.
 - تست: tester208 (۱۲/۰) — ردیف‌های جمع + balanceStart/End؛ tester209 (۱۷/۰)؛ tester212 (۲۳/۰)؛ audit PASS؛ zip بازسازی.
+
+---
+
+## BUG-PDF-HEIC + چیدمان + تقویم (v33.4.7)
+
+- **تبدیل PDF/HEIC → JPEG در گزارش تلفیقی:** endpoint جدید `api/attachment-thumb.php` (Imagick سمت سرور: خواندن از S3 → تبدیل PDF (تا ۸ صفحه) یا HEIC/HEIF به JPEG → آپلود thumbnail → لینک presign). کلاینت: `ptfPettyFileKind` HEIC را تشخیص می‌دهد؛ `ptfPettyToJpeg` در CombinedPdf قبل از رندر برای pdf/heic فراخوانی می‌شود؛ صفحه‌های بیشتر PDF → کارت‌های جدا (extraImages). اگر سرور Imagick نداشت → پیام واضح + «باز کردن فایل».
+- **چیدمان فشرده:** CSS از flex به `grid-template-columns:repeat(3,1fr)` تغییر کرد (۳ کارت در هر ردیف ثابت) + ارتفاع کمتر (img max-height 300px، embed 200px، margin صفحه 10mm) — «قاعده فشردگی» برقرار.
+- **تقویم:** دکمه‌های ◀▶ حالا `data-cal-nav` + **delegation** روی باکس تقویم (اگر onclick inline fail شود، کلیک همچنان کار می‌کند) + padding بیشتر برای کلیک راحت‌تر.
+- تست: tester209 (۲۱/۰) — HEIC تشخیص + رندر بعد از تبدیل + extraImages + فراخوانی endpoint؛ رگرسیون ۲۰۸/۲۱۲/۱۱۰/۲۱۴/۲۱۵/۲۱۶ سبز؛ audit PASS؛ zip بازسازی.

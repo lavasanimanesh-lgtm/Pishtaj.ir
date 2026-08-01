@@ -117,9 +117,9 @@
     if (jm > 6 && jm < 12) daysInMonth = 30;
     if (jm === 12) { var jc = jalCal(jy); daysInMonth = jc.leap ? 30 : 29; }
     var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
-      '<button type="button" onclick="ptfCalNav(\''+inputId+'\','+(jy-(jm===1?1:0))+','+(jm===1?12:jm-1)+')" style="background:none;border:none;cursor:pointer;font-size:14px">◀</button>' +
+      '<button type="button" data-cal-nav="'+(jy-(jm===1?1:0))+','+(jm===1?12:jm-1)+'" data-cal-input="'+inputId+'" onclick="ptfCalNav(\''+inputId+'\','+(jy-(jm===1?1:0))+','+(jm===1?12:jm-1)+')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px 8px">◀</button>' +
       '<b style="font-size:13px">'+jy+' / '+pad(jm)+'</b>' +
-      '<button type="button" onclick="ptfCalNav(\''+inputId+'\','+(jy+(jm===12?1:0))+','+(jm===12?1:jm+1)+')" style="background:none;border:none;cursor:pointer;font-size:14px">▶</button></div>' +
+      '<button type="button" data-cal-nav="'+(jy+(jm===12?1:0))+','+(jm===12?1:jm+1)+'" data-cal-input="'+inputId+'" onclick="ptfCalNav(\''+inputId+'\','+(jy+(jm===12?1:0))+','+(jm===12?1:jm+1)+')" style="background:none;border:none;cursor:pointer;font-size:14px;padding:4px 8px">▶</button></div>' +
       '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;font-size:11px;color:#64748b;margin-bottom:4px"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>' +
       '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
     for (var i = 0; i < firstDay; i++) html += '<div></div>';
@@ -132,6 +132,22 @@
     }
     html += '</div>';
     box.innerHTML = html;
+    /* BUG-CAL-NAV: delegation مطمئن — حتی اگر onclick inline fail شود، کلیک روی دکمه‌های ناوبری کار می‌کند */
+    if (!box.getAttribute('data-cal-hooked')) {
+      box.setAttribute('data-cal-hooked', '1');
+      box.addEventListener('click', function (e) {
+        var t = e.target;
+        if (!t || !t.closest) return;
+        var b = t.closest('button[data-cal-nav]');
+        if (b) {
+          var inp = b.getAttribute('data-cal-input') || '';
+          var p = String(b.getAttribute('data-cal-nav') || '').split(',');
+          if (inp && p.length === 2 && typeof window.ptfCalNav === 'function') {
+            window.ptfCalNav(inp, +p[0], +p[1]);
+          }
+        }
+      });
+    }
   };
   window.ptfCalNav = function (inputId, jy, jm) {
     var box = document.getElementById(inputId + '_cal');

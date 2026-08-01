@@ -19,6 +19,6 @@ SECTION('Structured data');
 T('JSON-LD جدید SoftwareApplication/FAQPage/TechArticle دارد', tools.indexOf('ADV-CV-SEO-FAQ-v1') > -1 && tools.indexOf('SoftwareApplication') > -1 && tools.indexOf('FAQPage') > -1 && tools.indexOf('TechArticle') > -1);
 T('canonical /tools حفظ شده است', tools.indexOf('<link rel="canonical" href="https://pishtaj.ir/tools/">') > -1);
 T('آیکون emoji جدید در CTAهای SEO اضافه نشده است', tools.indexOf('cv-seo-block') > -1 && tools.indexOf('🚀') === -1 && tools.indexOf('💰') === -1);
-T('CRM/SW نسخه v33.4.6 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.4.7 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester258-control-valve-seo-foundation');

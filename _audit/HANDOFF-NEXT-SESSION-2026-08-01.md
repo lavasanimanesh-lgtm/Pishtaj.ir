@@ -99,7 +99,8 @@ v33.3.0 سراسری + SHELL سرویس‌ورکر تکمیل + zip بازساز
 4f. ✅ **BUG-RANGE — v33.4.3**: recDate مقاوم + فیلتر بازه شامل رکوردهای بی‌تاریخ هم‌ماه + مقدار پیشنهادی تقویم + پیام راهنما — tester212 (۲۲/۰).
 4g. ✅ **BUG-DATE-NAV — v33.4.4**: نرمال‌سازی ارقام فارسی/عربی در تاریخ‌ها + ناوبری مطمئن ماه/سال تقویم با ptfCalNav — tester212.
 4h. ✅ **BUG-PDF-ATTACH — v33.4.5**: گزارش تلفیقی ضمائم را نمایش نمی‌داد. رفع: ptfPettyFileKind + ptfPettyResolveUrl + رندر <img>/<embed> + CombinedPdf async — tester209.
-4i. ✅ **BUG-TOTALS + BUG-ATTACH-URL — v33.4.6**: (۱) ردیف‌های جمع در پایان جدول (مجموع هزینه/شارژ/موجودی شروع/پایان — balanceStart/balanceEnd) در مودال/PDF/CSV؛ (۲) ریشهٔ لودنشدن ۲ سند: ptfPettyPeriodFiles url را هاردکد '' می‌کرد → حالا f.url حفظ می‌شود + پیام/دکمهٔ «باز کردن فایل» وقتی url در دسترس نیست. — tester208 (۱۲/۰)، tester209 (۱۷/۰).
+4i. ✅ **BUG-TOTALS + BUG-ATTACH-URL — v33.4.6**: ردیف‌های جمع (هزینه/شارژ/موجودی شروع/پایان) + حفظ url فایل‌ها — tester208.
+4j. ✅ **BUG-PDF-HEIC — v33.4.7**: تبدیل PDF/HEIC → JPEG سمت سرور (api/attachment-thumb.php + Imagick) + رندر <img> بعد از تبدیل + چندصفحه PDF → کارت‌های جدا؛ چیدمان grid سه‌ستونه فشرده؛ ناوبری تقویم با delegation (data-cal-nav). — tester209 (۲۱/۰).
 
 ---
 

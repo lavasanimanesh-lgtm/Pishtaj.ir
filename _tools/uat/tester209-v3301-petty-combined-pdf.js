@@ -82,12 +82,32 @@ T('resolve: فایل بدون url (فقط key) → از storage گرفته می�
 
 SECTION('چیدمان فشردهٔ ۳-در-صفحه (ptfPettyReceiptsHtml)');
 var grid = ptfPettyReceiptsHtml(files);
-T('چیدمان ۳-در-صفحه: کلاس rcpt + ۳ تصویر + عرض ۳۳٪', (function () {
+T('چیدمان ۳-در-صفحه: کلاس rcpt + ۳ تصویر + grid سه‌ستونه', (function () {
   var a = grid.indexOf('class="rcpt"') > -1;
   var b = (grid.match(/<img /g) || []).length === 3;
-  var c = code.indexOf('calc(33.3% - 4px)') > -1;
-  if (!a || !b || !c) console.log('grid-fail:', a, b, c, '| grid len:', grid.length, '| code calc:', code.indexOf('calc(33.3% - 4px)'));
+  var c = code.indexOf('grid-template-columns:repeat(3,1fr)') > -1;
   return a && b && c;
+})());
+
+SECTION('BUG-PDF-ATTACH: HEIC تشخیص + رندر بعد از تبدیل');
+T('ptfPettyFileKind HEIC را تشخیص می‌دهد', ptfPettyFileKind('photo.heic') === 'heic' && ptfPettyFileKind('photo.HEIF') === 'heic');
+T('رندر HEIC با url (بعد از تبدیل) → <img>', (function () {
+  var h = ptfPettyReceiptHtml({ name: 'p.heic', url: 'blob:j', petId: 'سند 9', converted: true });
+  return h.indexOf('<img src="blob:j"') > -1;
+})());
+T('رندر PDF چندصفحه → کارت‌های اضافه (extraImages)', (function () {
+  var h = ptfPettyReceiptsHtml([{ name: 'doc.pdf', url: 'blob:p1', petId: 'سند 8', converted: true, extraImages: [{ key: 'k2', url: 'blob:p2' }, { key: 'k3', url: 'blob:p3' }] }]);
+  return (h.match(/<img /g) || []).length === 3 && h.indexOf('صفحه 2') > -1;
+})());
+T('تبدیل به JPEG: فراخوانی endpoint سرور (با mock fetch)', (function () {
+  global.ptfStorageAuthHeaders = function () { return { 'X-CRM-Token': 't' }; };
+  var called = false;
+  global.fetch = function (url, opts) {
+    called = /attachment-thumb\.php/.test(String(url));
+    return Promise.resolve({ json: function () { return Promise.resolve({ ok: true, images: [{ key: 't1', url: 'blob:jpg1' }, { key: 't2', url: 'blob:jpg2' }] }); } });
+  };
+  var p = ptfPettyToJpeg({ key: 'k', name: 'doc.pdf' });
+  return called; /* فراخوانی شد */
 })());
 
 SECTION('PDF تلفیقی (ptfPettyPeriodCombinedPdf) — همگام با Promise');
