@@ -15,7 +15,7 @@
   /* ============ US-146: جمع‌آوری کل داده‌ها ============ */
   var DATA_KEYS = [
     'ptf_crm_rfqs', 'ptf_crm_suppliers', 'ptf_crm_customers', 'ptf_crm_users',
-    'ptf_crm_products', 'ptf_crm_catalog_reviews', 'ptf_crm_offers', 'ptf_crm_leads', 'ptf_crm_reminders',
+    'ptf_crm_products', 'ptf_crm_catalog_reviews', 'ptf_crm_catalog_merges', 'ptf_crm_offers', 'ptf_crm_leads', 'ptf_crm_reminders',
     'ptf_crm_buyquotes', 'ptf_crm_invoices', 'ptf_crm_surplus', 'ptf_crm_notifs', 'ptf_crm_sendqueue',
     'ptf_crm_audit', 'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects',
     'ptf_crm_packinglists', 'ptf_crm_letters', 'ptf_crm_contracts',

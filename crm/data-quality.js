@@ -188,6 +188,38 @@
     try { audit('کاتالوگ', 'ثبت قلم بدون تطبیق در صف بررسی', offerNo); } catch (e) {}
     if (typeof ptfToast === 'function') ptfToast('قلم در صف بررسی هویت کالا ثبت شد؛ کاتالوگ تغییر نکرد.', 'ok');
   };
+  window.ptfCatalogMergeOpen = function (index) {
+    var report = window._ptfCatalogSimilarReport || {}, group = (report.groups || [])[+index];
+    if (!group) return;
+    document.querySelectorAll('#catalogMergeDlg').forEach(function (el) { el.remove(); });
+    var opts = group.products.map(function (p, i) { return '<option value="' + escP(p.cd) + '"' + (!i ? ' selected' : '') + '>' + escP(p.name || p.cd) + ' — ' + escP(p.cd) + '</option>'; }).join('');
+    var html = '<div class="md-b" id="catalogMergeDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:700px"><h3>🧩 بررسی ادغام کالاهای مشابه</h3><div style="background:#fff7ed;padding:9px;border-radius:9px;font-size:12px;margin-bottom:10px">این عملیات فقط پس از انتخاب کالای اصلی و تأیید نهایی انجام می‌شود. کالاهای فرعی حذف نمی‌شوند و سابقهٔ ادغام نگهداری می‌شود.</div><div class="fld"><label>کالای اصلی و کد نهایی *</label><select id="ptfMergeCanonical">' + opts + '</select></div><div class="fld"><label>شرح نهایی کالا *</label><input id="ptfMergeName" value="' + escP(group.products[0].name || '') + '"></div><div style="font-size:12px;color:#64748b;margin-top:8px">کالاهای این گروه:<br>' + group.products.map(function (p) { return '• ' + escP(p.name || p.cd) + ' — ' + escP(p.cd); }).join('<br>') + '</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="ptfCatalogMergeConfirm(' + (+index) + ')">تأیید ادغام</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.ptfCatalogMergeConfirm = function (index) {
+    var report = window._ptfCatalogSimilarReport || {}, group = (report.groups || [])[+index], canonicalCd = (document.getElementById('ptfMergeCanonical') || {}).value || '', finalName = ((document.getElementById('ptfMergeName') || {}).value || '').trim();
+    if (!group || !canonicalCd || !finalName) { alert('کالای اصلی و شرح نهایی الزامی است.'); return; }
+    var from = group.products.map(function (p) { return p.cd; }).filter(function (cd) { return cd && cd !== canonicalCd; });
+    if (!from.length) { alert('برای ادغام حداقل یک کالای فرعی لازم است.'); return; }
+    if (!confirm('این گروه در کد «' + canonicalCd + '» ادغام شود؟ کالاهای فرعی حذف نمی‌شوند و فقط به‌عنوان ادغام‌شده علامت می‌خورند.')) return;
+    var products = getData('ptf_crm_products') || [], canonical = products.filter(function (p) { return p.cd === canonicalCd; })[0];
+    if (!canonical) { alert('کالای اصلی پیدا نشد.'); return; }
+    canonical.nm = finalName; canonical.aliases = (canonical.aliases || []).concat(group.products.filter(function (p) { return p.cd !== canonicalCd; }).map(function (p) { return p.name; }).filter(Boolean));
+    products.forEach(function (p) { if (from.indexOf(p.cd) > -1) { p.hidden = true; p.status = 'merged'; p.mergedInto = canonicalCd; p.mergedAt = typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString(); } });
+    var merge = { cd: 'CATMERGE-' + Date.now(), canonicalCd: canonicalCd, mergedCds: from, finalName: finalName, fingerprint: group.fingerprint, status: 'approved', t: typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString(), by: typeof curSession === 'function' ? curSession().name : '' };
+    /* Re-point known product-identity fields; never delete the source records. */
+    var refKeys = ['ptf_crm_offers', 'ptf_crm_rfqs', 'ptf_crm_inqitems', 'ptf_crm_buycmp', 'ptf_crm_surplus', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_invoices', 'ptf_crm_sales_returns', 'ptf_crm_catalog_reviews'];
+    var identityFields = { pcode: true, prodCd: true, productCd: true, productCode: true, sourcePcode: true, itemCode: true };
+    function rewriteRefs(value) { if (Array.isArray(value)) { value.forEach(rewriteRefs); return; } if (!value || typeof value !== 'object') return; Object.keys(value).forEach(function (k) { if (identityFields[k] && from.indexOf(String(value[k])) > -1) value[k] = canonicalCd; else rewriteRefs(value[k]); }); }
+    refKeys.forEach(function (key) { var data = getData(key); if (!Array.isArray(data) || !data.length) return; rewriteRefs(data); setData(key, data); });
+    merge.referenceKeys = refKeys;
+    setData('ptf_crm_products', products);
+    var merges = getData('ptf_crm_catalog_merges') || []; merges.unshift(merge); setData('ptf_crm_catalog_merges', merges);
+    try { audit('کاتالوگ', 'ادغام کنترل‌شده کالاها در ' + canonicalCd + ' — ' + from.join(', '), merge.cd); } catch (e) {}
+    var dlg = document.getElementById('catalogMergeDlg'); if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast('ادغام کنترل‌شده ثبت شد؛ کالاهای فرعی حذف نشدند.', 'ok');
+    window.ptfCatalogSimilarAudit();
+  };
   window.ptfCatalogIdentityReviewFilter = function () {
     var input = document.getElementById('ptfCatReviewSearch'), select = document.getElementById('ptfCatReviewProduct');
     if (!input || !select) return;
@@ -225,8 +257,9 @@
     products.forEach(function (p) { var key = fp(p); if (key !== '||||' && key.split('|').filter(Boolean).length >= 3) { (buckets[key] = buckets[key] || []).push(p); } });
     var groups = Object.keys(buckets).map(function (key) { return { fingerprint: key, confidence: key.split('|').filter(Boolean).length >= 4 ? 'high' : 'medium', products: buckets[key].map(function (p) { return { cd: p.cd || '', name: p.nm || p.name || '', technicalText: field(p) }; }) }; }).filter(function (g) { return g.products.length > 1; });
     var report = { readOnly: true, productCount: products.length, groupCount: groups.length, candidateCount: groups.reduce(function (n, g) { return n + g.products.length; }, 0), groups: groups, note: 'این گزارش فقط پیشنهاد می‌دهد؛ هیچ ادغام یا حذف خودکاری انجام نشده است.' };
+    window._ptfCatalogSimilarReport = report;
     console.table({ products: report.productCount, groups: report.groupCount, candidates: report.candidateCount }); console.log(JSON.stringify(report, null, 2));
-    var body = groups.slice(0, 100).map(function (g, i) { return '<tr><td>' + (i + 1) + '</td><td>' + escP(g.confidence === 'high' ? 'بالا' : 'متوسط') + '</td><td>' + g.products.map(function (p) { return '<div style="padding:4px 0;border-bottom:1px dashed #e2e8f0"><b>' + escP(p.name || p.cd) + '</b> <small dir="ltr">' + escP(p.cd) + '</small><br><small>' + escP(p.technicalText) + '</small></div>'; }).join('') + '</td><td>فقط پیشنهاد؛ ادغام انجام نشده</td></tr>'; }).join('');
+    var body = groups.slice(0, 100).map(function (g, i) { return '<tr><td>' + (i + 1) + '</td><td>' + escP(g.confidence === 'high' ? 'بالا' : 'متوسط') + '</td><td>' + g.products.map(function (p) { return '<div style="padding:4px 0;border-bottom:1px dashed #e2e8f0"><b>' + escP(p.name || p.cd) + '</b> <small dir="ltr">' + escP(p.cd) + '</small><br><small>' + escP(p.technicalText) + '</small></div>'; }).join('') + '</td><td>فقط پیشنهاد؛ ادغام انجام نشده<br><button class="ba" data-index="' + i + '" onclick="ptfCatalogMergeOpen(this.dataset.index)">🧩 بررسی و ادغام</button></td></tr>'; }).join('');
     var html = '<div class="md-b" id="catalogSimilarDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1000px;max-height:90vh;overflow:auto"><h3>🧠 تشخیص کالاهای مشابه — مرحلهٔ گزارش</h3><div style="background:#eff6ff;padding:9px;border-radius:9px;font-size:12px;margin-bottom:9px">این مرحله فقط بر اساس مشخصات فنی مشترک گروه‌های مشابه را پیشنهاد می‌دهد. هیچ شرح، کد، ارجاع یا سابقه‌ای تغییر نمی‌کند.</div><div class="tb2"><table><thead><tr><th>#</th><th>اطمینان</th><th>کالاهای پیشنهادی</th><th>وضعیت</th></tr></thead><tbody>' + (body || '<tr><td colspan="4">گروه مشابهی با مشخصات کافی پیدا نشد.</td></tr>') + '</tbody></table></div>' + (groups.length > 100 ? '<small>۱۰۰ گروه اول نمایش داده شد؛ گزارش کامل در Console موجود است.</small>' : '') + '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     return report;
