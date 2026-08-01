@@ -115,18 +115,40 @@
     if (typeof ptfToast === 'function') ptfToast(returnRecord.stockPendingItems && returnRecord.stockPendingItems.length ? 'مرجوعی ثبت شد، اما برخی اقلام در کاتالوگ کالا پیدا نشدند و به موجودی نرفتند.' : 'مرجوعی ثبت شد؛ مطالبات مشتری و موجودی به‌روزرسانی شد.', returnRecord.stockPendingItems && returnRecord.stockPendingItems.length ? 'warn' : 'ok');
     var offerCustomer = offer.buyerCd; if (offerCustomer) cfOpen(offerCustomer);
   };
+  function cfReturnNorm(v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;()\/\\]/g, '').toLowerCase(); }
+  function cfReturnProductText(p) { return [p.nm || p.name || '', p.cd || '', p.en || '', p.st || '', p.br || '', p.md || ''].join(' '); }
+  function cfReturnProductScore(p, query) {
+    var q = cfReturnNorm(query), text = cfReturnNorm(cfReturnProductText(p)), name = cfReturnNorm(p.nm || p.name || ''), score = 0;
+    if (!q) return 0;
+    if (name === q) score += 1000; else if (name.indexOf(q) === 0) score += 500; else if (name.indexOf(q) > -1) score += 250;
+    q.split(/\s+/).filter(Boolean).forEach(function (t) { if (text.indexOf(t) > -1) score += 30; });
+    return score;
+  }
+  function cfReturnProductOptions(products, query, base) {
+    var q = String(query || '').trim(), list = products.map(function (p, i) { return { p: p, i: i, score: cfReturnProductScore(p, q || base) }; });
+    if (q) list = list.filter(function (x) { return x.score > 0; });
+    list.sort(function (a, b) { return b.score - a.score || String(a.p.nm || a.p.cd).localeCompare(String(b.p.nm || b.p.cd), 'fa'); });
+    return '<option value="">— انتخاب کالا از کاتالوگ —</option>' + list.slice(0, q ? 80 : 12).map(function (x, i) {
+      return '<option value="' + escP(x.p.cd) + '">' + (i < 5 && !q ? '⭐ ' : '') + escP(x.p.nm || x.p.name || x.p.cd) + ' — ' + escP(x.p.cd) + '</option>';
+    }).join('');
+  }
+  window.cfReturnProductFilter = function (returnCd, index) {
+    var input = document.getElementById('cfRetSearch_' + index), select = document.getElementById('cfRetProd_' + index);
+    if (!input || !select) return;
+    var products = getData('ptf_crm_products') || [], current = select.value;
+    select.innerHTML = cfReturnProductOptions(products, input.value, input.getAttribute('data-base') || '');
+    if (products.some(function (p) { return p.cd === current; })) select.value = current;
+  };
   window.cfSalesReturnProductPicker = function (returnCd, pending) {
     var returns = getData('ptf_crm_sales_returns') || [], rtn = returns.filter(function (x) { return x.cd === returnCd; })[0];
     if (!rtn) return;
     document.querySelectorAll('#cfReturnProductDlg').forEach(function (el) { el.remove(); });
     var products = getData('ptf_crm_products') || [];
-    var options = '<option value="">— انتخاب کالا از کاتالوگ —</option>' + products.map(function (p) {
-      return '<option value="' + escP(p.cd) + '">' + escP(p.nm || p.name || p.cd) + ' — ' + escP(p.cd) + '</option>';
-    }).join('');
     var rows = pending.map(function (name, i) {
-      return '<div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,1fr);gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e2e8f0"><b>' + escP(name) + '</b><select id="cfRetProd_' + i + '">' + options + '</select></div>';
+      var opts = cfReturnProductOptions(products, '', name);
+      return '<div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,1fr);gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e2e8f0"><b>' + escP(name) + '</b><div><input id="cfRetSearch_' + i + '" data-base="' + escP(name) + '" placeholder="جست‌وجوی نام، کد، مدل یا برند" oninput="cfReturnProductFilter(\'' + escP(returnCd) + '\',' + i + ')" style="width:100%;margin-bottom:4px;box-sizing:border-box"><select id="cfRetProd_' + i + '">' + opts + '</select></div></div>';
     }).join('');
-    var html = '<div class="md-b" id="cfReturnProductDlg" style="display:grid;z-index:3600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:90vh;overflow:auto"><h3>📦 تکمیل ورود به موجودی</h3><div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px;margin-bottom:10px;font-size:12px">برای این اقلام کالای متناظر پیدا نشد. ابتدا هر قلم را به کالای درست از کاتالوگ وصل کنید؛ سیستم کالای جدید را خودکار ایجاد نمی‌کند.</div>' + rows + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="cfSalesReturnAssignProducts(\'' + escP(returnCd) + '\')">تایید و ورود به موجودی</button></div></div></div>';
+    var html = '<div class="md-b" id="cfReturnProductDlg" style="display:grid;z-index:9999;position:fixed" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:90vh;overflow:auto"><h3>📦 تکمیل ورود به موجودی</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px;margin-bottom:10px;font-size:12px">⭐ پنج پیشنهاد اول نزدیک‌ترین نتایج هستند. با جست‌وجوی نام، کد، مدل یا برند، فهرست را محدود کنید.</div>' + rows + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="cfSalesReturnAssignProducts(\'' + escP(returnCd) + '\')">تایید و ورود به موجودی</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.cfSalesReturnAssignProducts = function (returnCd) {
@@ -180,8 +202,8 @@
     rtn.stockRefs = stockRefs; rtn.stockPendingItems = pending; rtn.stockStatus = pending.length ? 'pending_product_definition' : 'stocked';
     setData('ptf_crm_sales_returns', returns);
     if (typeof ptfToast === 'function') ptfToast(pending.length ? 'برخی اقلام هنوز کالا ندارند؛ پنجره انتخاب کالا باز شد.' : 'ورود مرجوعی به موجودی تکمیل شد.', pending.length ? 'warn' : 'ok');
-    if (pending.length) window.cfSalesReturnProductPicker(returnCd, pending);
     if (inv.offerNo) { var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}; if (offer.buyerCd) cfOpen(offer.buyerCd); }
+    if (pending.length) window.cfSalesReturnProductPicker(returnCd, pending);
   };
   window.cfOpen = function (cd) {
     /* Account dialogs are singleton: refresh in place, never stack overlays. */
