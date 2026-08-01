@@ -205,6 +205,47 @@
     if (inv.offerNo) { var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}; if (offer.buyerCd) cfOpen(offer.buyerCd); }
     if (pending.length) window.cfSalesReturnProductPicker(returnCd, pending);
   };
+  /* UR-2026-08-01-03/08: خروجی گردش حساب مشتری (PDF/اکسل/چاپ)
+     الگو: supplier-finance.js (slEventRows/slCsv/slLedgerPrint). */
+  window.cfLedgerRows = function (cd) {
+    var out = [];
+    invs(cd).forEach(function (i) {
+      out.push({ date: i.invDate || i.t || '', type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: +i.amount || 0, credit: 0, cur: 'IRR' });
+      (i.payments || []).concat(i.pays || []).filter(active).forEach(function (p) {
+        out.push({ date: p.t || p.date || '', type: 'وصولی', no: p.cd || p.rpay || '', ref: '', debit: 0, credit: +p.amt || +p.amount || 0, cur: 'IRR' });
+      });
+      salesReturnsForInvoice(i.cd).forEach(function (r) {
+        var items = (r.items || []).map(function (x) { return (x.item || 'قلم') + ' × ' + x.qty; }).join('، ');
+        out.push({ date: r.t || '', type: 'مرجوعی فروش', no: r.cd || '', ref: (r.reason ? r.reason + ' — ' : '') + items, debit: 0, credit: +r.totalAmount || 0, cur: 'IRR' });
+      });
+    });
+    /* مرتب‌سازی صعودی بر اساس تاریخ (فرمت 1405/MM/DD مقایسهٔ رشته‌ای درست است)؛ بدون تاریخ آخر */
+    out.sort(function (a, b) { var da = a.date || '9999/99/99', db = b.date || '9999/99/99'; return da < db ? -1 : da > db ? 1 : 0; });
+    var bal = 0;
+    out.forEach(function (r) { bal += (+r.debit || 0) - (+r.credit || 0); r.balance = bal; });
+    return out;
+  };
+  window.cfLedgerCsv = function (cd) {
+    var c = cust(cd), rows = cfLedgerRows(cd);
+    var csv = '\uFEFF' + [['تاریخ', 'نوع', 'سند', 'مرجع', 'بدهکار', 'بستانکار', 'مانده']]
+      .concat(rows.map(function (e) { return [e.date, e.type, e.no, e.ref, e.debit || '', e.credit || '', e.balance]; }))
+      .map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'customer-ledger-' + cd + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+  };
+  window.cfLedgerPrint = function (cd) {
+    var c = cust(cd), rows = cfLedgerRows(cd);
+    function rowHtml(e) {
+      return '<tr><td>' + escP(e.date || '—') + '</td><td>' + escP(e.type) + '</td><td><b>' + escP(e.no || '—') + '</b>' + (e.ref ? '<br><small>' + escP(e.ref) + '</small>' : '') + '</td><td>' + (e.debit ? m(e.debit) : '—') + '</td><td>' + (e.credit ? m(e.credit) : '—') + '</td><td><b>' + m(e.balance) + '</b></td></tr>';
+    }
+    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma;padding:20px;color:#111}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}</style></head><body><h2>گردش حساب مشتری — ' + escP(nameOf(c)) + '</h2><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>' + rows.map(rowHtml).join('') + '</tbody></table></body></html>';
+    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گردش حساب مشتری — ' + escP(nameOf(c)), html, 'customer-ledger-' + cd); return; }
+    var w = window.open('', '_blank'); if (!w) return;
+    w.document.write(html); w.document.close(); w.print();
+  };
+
   window.cfOpen = function (cd) {
     /* Account dialogs are singleton: refresh in place, never stack overlays. */
     document.querySelectorAll('#cfAccountDlg').forEach(function (el) { el.remove(); });
@@ -217,8 +258,11 @@
         returns.map(function (rtn) { return '<tr style="background:#fff7ed"><td>' + escP(rtn.t || '') + '</td><td>↩️ مرجوعی فروش</td><td><b>' + escP(rtn.cd) + '</b><br><small>' + escP((rtn.items || []).map(function (x) { return (x.item || 'قلم') + ' × ' + x.qty; }).join('، ')) + '</small>' + (rtn.disposition === 'stock' ? '<br><small style="color:' + (rtn.stockStatus === 'stocked' ? '#047857' : '#b45309') + '">📦 ' + (rtn.stockStatus === 'stocked' ? 'وارد موجودی شد' : 'نیازمند تعریف کالا') + '</small>' + (rtn.stockStatus === 'pending_product_definition' ? '<br><button class="ba" onclick="cfSalesReturnStockRetry(\'' + escP(rtn.cd) + '\')">📦 تکمیل ورود به موجودی</button>' : '') : '') + '</td><td>—</td><td>' + m(rtn.totalAmount) + ' ریال کاهش' + (rtn.creditAmount ? '<br><small style="color:#047857">اعتبار: ' + m(rtn.creditAmount) + ' ریال</small>' : '') + '</td></tr>'; }).join('');
     }).join('');
     var pos = accountPosition(cd);
-    var h = '<div class="md-b" id="cfAccountDlg" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto"><h3>📘 حساب مشتری — ' + escP(nameOf(c)) + '</h3><div style="background:#fefce8;padding:10px;border-radius:10px">مطالبات نهایی باز: <b>' + m(pos.balance) + ' ریال</b>' + (pos.credit ? ' | اعتبار نهایی نزد مشتری: <b style="color:#047857">' + m(pos.credit) + ' ریال</b>' : '') + '</div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>سند</th><th>فاکتور</th><th>وصولی</th><th>مانده</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></div><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>';
-    document.getElementById('panels').insertAdjacentHTML('beforeend', h);
+    var h = '<div class="md-b" id="cfAccountDlg" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:92vh;overflow:auto"><h3>📘 حساب مشتری — ' + escP(nameOf(c)) + '</h3><div style="background:#fefce8;padding:10px;border-radius:10px">مطالبات نهایی باز: <b>' + m(pos.balance) + ' ریال</b>' + (pos.credit ? ' | اعتبار نهایی نزد مشتری: <b style="color:#047857">' + m(pos.credit) + ' ریال</b>' : '') + '</div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>سند</th><th>فاکتور</th><th>وصولی</th><th>مانده</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">__CF_ACTIONS__</div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', h.replace('__CF_ACTIONS__',
+      '<button class="bt bt-o" style="background:#0e7490;color:#fff" onclick="cfLedgerPrint(\'' + escP(cd) + '\')">🖨 چاپ/PDF</button>' +
+      '<button class="bt bt-o" onclick="cfLedgerCsv(\'' + escP(cd) + '\')">⬇ اکسل</button>' +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>'));
   };
 
   window.cfFinanceRowsHtml = function () {
