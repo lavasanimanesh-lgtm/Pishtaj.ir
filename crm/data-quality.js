@@ -173,10 +173,34 @@
     console.table({ offers: report.offerCount, products: report.productCount, lines: report.lineCount, linked: counts.linked, exactCandidate: counts.exactCandidate, ambiguous: counts.ambiguous, missing: counts.missing });
     console.log(JSON.stringify(report, null, 2));
     var problem = lines.filter(function (x) { return x.status !== 'linked'; });
-    var body = problem.slice(0, 100).map(function (x) { var action = x.status === 'exactCandidate' && x.candidateCodes && x.candidateCodes[0] ? '<br><button class="ba" data-offer="' + escP(x.offerNo) + '" data-line="' + x.line + '" data-product="' + escP(x.candidateCodes[0]) + '" onclick="ptfCatalogIdentityLink(this.dataset.offer, this.dataset.line, this.dataset.product)">✅ اتصال دقیق</button>' : ''; return '<tr><td>' + escP(x.offerNo) + '</td><td>' + escP(x.item) + '</td><td>' + escP(x.status === 'exactCandidate' ? 'یک پیشنهاد دقیق' : x.status === 'ambiguous' ? 'چند پیشنهاد' : 'بدون پیشنهاد') + '<br><small>' + escP((x.candidates || []).join('، ')) + '</small>' + action + '</td></tr>'; }).join('');
+    var body = problem.slice(0, 100).map(function (x) { var action = x.status === 'exactCandidate' && x.candidateCodes && x.candidateCodes[0] ? '<br><button class="ba" data-offer="' + escP(x.offerNo) + '" data-line="' + x.line + '" data-product="' + escP(x.candidateCodes[0]) + '" onclick="ptfCatalogIdentityLink(this.dataset.offer, this.dataset.line, this.dataset.product)">✅ اتصال دقیق</button>' : '<br><button class="ba" data-offer="' + escP(x.offerNo) + '" data-line="' + x.line + '" data-base="' + escP(x.item) + '" onclick="ptfCatalogIdentityReview(this.dataset.offer, this.dataset.line, this.dataset.base)">🔎 بررسی و انتخاب</button>'; return '<tr><td>' + escP(x.offerNo) + '</td><td>' + escP(x.item) + '</td><td>' + escP(x.status === 'exactCandidate' ? 'یک پیشنهاد دقیق' : x.status === 'ambiguous' ? 'چند پیشنهاد' : 'بدون پیشنهاد') + '<br><small>' + escP((x.candidates || []).join('، ')) + '</small>' + action + '</td></tr>'; }).join('');
     var html = '<div class="md-b" id="catalogAuditDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:90vh;overflow:auto"><h3>🔎 ممیزی هویت کالا — فقط‌خواندنی</h3><div style="background:#eff6ff;padding:9px;border-radius:9px;font-size:12px;margin-bottom:9px">مرتبط: ' + counts.linked + ' | پیشنهاد دقیق: ' + counts.exactCandidate + ' | مبهم: ' + counts.ambiguous + ' | بدون پیشنهاد: ' + counts.missing + '<br>هیچ خط پیشنهاد یا کالایی در این گزارش تغییر نمی‌کند.</div><div class="tb2"><table><thead><tr><th>پیشنهاد</th><th>قلم</th><th>وضعیت / نامزدها / اقدام</th></tr></thead><tbody>' + (body || '<tr><td colspan="3">همه اقلام به کالا متصل هستند.</td></tr>') + '</tbody></table></div>' + (problem.length > 100 ? '<small>۱۰۰ مورد اول نمایش داده شد؛ جزئیات کامل در Console موجود است.</small>' : '') + '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     return report;
+  };
+  window.ptfCatalogIdentityReviewFilter = function () {
+    var input = document.getElementById('ptfCatReviewSearch'), select = document.getElementById('ptfCatReviewProduct');
+    if (!input || !select) return;
+    var q = String(input.value || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;()\/\\]/g, '').toLowerCase(), products = getData('ptf_crm_products') || [];
+    var rows = products.filter(function (p) { var text = [p.nm || p.name || '', p.cd || '', p.en || '', p.st || '', p.br || '', p.md || ''].join(' ').replace(/[\u200c\u200e\u200f\s\-_.،,؛;()\/\\]/g, '').toLowerCase(); return !q || text.indexOf(q) > -1; }).slice(0, 100);
+    select.innerHTML = '<option value="">— انتخاب کالا —</option>' + rows.map(function (p) { return '<option value="' + escP(p.cd) + '">' + escP(p.nm || p.name || p.cd) + ' — ' + escP(p.cd) + '</option>'; }).join('');
+  };
+  window.ptfCatalogIdentityReview = function (offerNo, lineNo, base) {
+    document.querySelectorAll('#catalogReviewDlg').forEach(function (el) { el.remove(); });
+    var html = '<div class="md-b" id="catalogReviewDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px"><h3>🔎 بررسی و انتخاب کالای متناظر</h3><div style="background:#fff7ed;padding:9px;border-radius:9px;font-size:12px;margin-bottom:10px">این قلم تطبیق قطعی ندارد. انتخاب فقط با تأیید شما انجام می‌شود و کالای جدید خودکار ساخته نمی‌شود.</div><div style="margin-bottom:8px"><b>قلم پیشنهاد:</b> ' + escP(base) + '</div><input id="ptfCatReviewSearch" placeholder="جست‌وجوی نام، کد، مدل یا برند" oninput="ptfCatalogIdentityReviewFilter()" style="width:100%;box-sizing:border-box;margin-bottom:7px"><select id="ptfCatReviewProduct" style="width:100%"><option value="">— انتخاب کالا —</option></select><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="ptfCatalogIdentityReviewSave(\'' + escP(offerNo) + '\',' + lineNo + '\')">تأیید اتصال</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    var input = document.getElementById('ptfCatReviewSearch'); if (input) { input.value = base || ''; ptfCatalogIdentityReviewFilter(); }
+  };
+  window.ptfCatalogIdentityReviewSave = function (offerNo, lineNo) {
+    var productCd = (document.getElementById('ptfCatReviewProduct') || {}).value || '';
+    if (!productCd) { alert('ابتدا یک کالا انتخاب کنید.'); return; }
+    var offers = getData('ptf_crm_offers') || [], offer = offers.filter(function (x) { return x.no === offerNo; })[0], item = offer && offer.items && offer.items[+lineNo - 1];
+    if (!offer || !item) { alert('قلم پیشنهاد پیدا نشد.'); return; }
+    if (!confirm('اتصال این قلم به کالای انتخاب‌شده ثبت شود؟')) return;
+    item.pcode = productCd; setData('ptf_crm_offers', offers);
+    var dlg = document.getElementById('catalogReviewDlg'); if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast('اتصال دستی کالا ثبت شد.', 'ok');
+    window.ptfCatalogIdentityAudit();
   };
   window.ptfCatalogIdentityLink = function (offerNo, lineNo, productCd) {
     var offers = getData('ptf_crm_offers') || [], products = getData('ptf_crm_products') || [];
