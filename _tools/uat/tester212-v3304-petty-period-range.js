@@ -75,6 +75,29 @@ T('تراکنش مستقیم: «پرداخت مستقیم از تنخواه»', 
 var charge = ev.filter(function (e) { return e.kind === 'شارژ حساب'; })[0];
 T('شارژ: «شارژ حساب» با نام ثبت‌کننده', !!charge && charge.by === 'علی رضایی');
 
+SECTION('BUG-RANGE: رکوردهای بدون تاریخ/میلادی در بازه (ریشه‌کنی)');
+global.ptfISOToJ = function (iso) { return iso === '2026-07-06' ? '1405/04/15' : '1405/04/01'; };
+setData('ptf_crm_petty', [
+  { cd: 'NT-1', amt: 100, cat: 'بدون تاریخ', by: 'علی', month: '1405/04', st: 'open' },
+  { cd: 'ISO-1', amt: 200, cat: 'میلادی', by: 'علی', t: '2026-07-06 10:00', month: '1405/04', st: 'open' },
+  { cd: 'SH-1', amt: 300, cat: 'شمسی', by: 'علی', t: '1405/04/15 09:00', month: '1405/04', st: 'open' },
+  { cd: 'OUT-1', amt: 400, cat: 'خارج بازه', by: 'علی', t: '1405/03/01 09:00', month: '1405/03', st: 'open' }
+]);
+setData('ptf_crm_petty_tx', []);
+var evR = ptfPettyPeriodEvents('1405/04/11', '1405/04/20');
+T('هر ۳ نوع (شمسی/میلادی/بدون تاریخ) در بازه دیده می‌شوند', evR.length === 3 && evR.some(function (e) { return e.desc.indexOf('بدون تاریخ') > -1; }) && evR.some(function (e) { return e.desc.indexOf('میلادی') > -1; }) && evR.some(function (e) { return e.desc.indexOf('شمسی') > -1; }));
+T('رکورد خارج بازه (ماه قبل) نیامده', !evR.some(function (e) { return e.desc.indexOf('خارج بازه') > -1; }));
+/* ریست دادهٔ اصلی (همان ابتدای فایل) */
+setData('ptf_crm_petty', [
+  { cd: 'PTY-1', amt: 100000, cat: 'قبلی', desc: 'داخل دورهٔ قبلی', by: 'علی رضایی', t: '1405/04/05 09:00', month: '1405/04', st: 'settled', settledT: '1405/04/06', settledBy: 'علی رضایی' },
+  { cd: 'PTY-2', amt: 50000, cat: 'ایاب و ذهاب', desc: 'تاکسی', by: 'مریم احمدی', t: '1405/04/15 09:00', month: '1405/04', st: 'settled', settledT: '1405/04/16', settledBy: 'علی رضایی', files: [{ key: 'k1', name: 'رسید تاکسی.jpg', petId: 'سند 1' }] },
+  { cd: 'PTY-3', amt: 30000, cat: 'ملزومات', desc: 'کاغذ', by: 'علی رضایی', t: '1405/04/18 11:00', month: '1405/04', st: 'open', payMode: 'direct', files: [{ key: 'k2', name: 'رسید کاغذ.jpg', petId: 'سند 2' }] }
+]);
+setData('ptf_crm_petty_tx', [
+  { cd: 'TX-1', type: 'charge', amt: 500000, by: 'علی رضایی', t: '1405/04/12 09:00', month: '1405/04', note: 'شارژ دورهٔ جدید' },
+  { cd: 'TX-2', type: 'direct', amt: 70000, by: 'علی رضایی', t: '1405/04/17 12:00', month: '1405/04', note: 'پرداخت مستقیم ناهار', files: [{ key: 'k3', name: 'رسید ناهار.jpg', petId: 'سند 3' }] }
+]);
+
 SECTION('تقویم + نرمال‌سازی تاریخ (UR-11 تکمیلی)');
 T('نرمال‌سازی فرمت 1405-04-01 → 1405/04/01', ptfPettyNormDate('1405-4-1') === '1405/04/01');
 T('دیالوگ بازه فیلدهای datePicker دارد', (function () {

@@ -1,4 +1,4 @@
-/* tester278 — v33.4.2 BUG-OFFER-SYNC-INTEGRITY-001 */
+/* tester278 — v33.4.3 BUG-OFFER-SYNC-INTEGRITY-001 */
 require('./harness');
 var fs=require('fs'),path=require('path'); var R=path.resolve(__dirname,'../..');
 var sync=fs.readFileSync(path.join(R,'crm/sync.js'),'utf8');

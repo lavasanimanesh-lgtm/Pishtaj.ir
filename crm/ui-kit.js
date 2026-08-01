@@ -81,6 +81,12 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
       '<div class="acts"><button class="cancel">انصراف</button>' +
       '<button class="ok' + (opt.danger ? ' danger' : '') + '">' + (opt.okText || 'تایید') + '</button></div></div>';
     document.body.appendChild(b);
+    /* مقدار اولیهٔ فیلدهای تقویم (datePicker) — مقدار پیشنهادی sg در input ست می‌شود */
+    (opt.fields || []).forEach(function (f, i) {
+      if ((f.datePicker || f.type === 'date') && f.value) {
+        try { var dpInp = document.getElementById('ptfF' + i); if (dpInp) dpInp.value = String(f.value); } catch (eD) {}
+      }
+    });
     /* آپلودهای داخل دیالوگ: ویجت attachUploadWidget را روی هر فیلد upload سوار کن */
     var dlgUploads = {};
     (opt.fields || []).forEach(function (f, i) {

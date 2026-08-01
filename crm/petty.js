@@ -436,7 +436,20 @@
   };
 
   /* ============ UR-11: دورهٔ بازه‌ای تنخواه — از آخرین ارجاع تا تاریخ انتخابی ============ */
-  function recDate(x) { return String((x && (x.t || x.dateFa || x.date)) || '').split(' ')[0].trim(); }
+  /* BUG-RANGE (۱۴۰۵/۰۸/۱۰): تاریخ رکورد باید مقاوم باشد — رکوردها ممکن است:
+     ۱) t شمسی '1405/04/15 09:00'  ۲) t/dateISO میلادی '2026-07-06'  ۳) فقط month '1405/04'
+     قبلاً فقط حالت ۱ خوانده می‌شد و بقیه از فیلتر بازه حذف می‌شدند → «هیچ اطلاعاتی در قالب تنخواه‌گردان». */
+  function recDate(x) {
+    if (!x) return '';
+    var raw = String(x.t || x.dateFa || x.date || x.dateISO || x.iso || '').split(' ')[0].trim();
+    if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(raw)) return raw;                       /* شمسی */
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {                                        /* میلادی → شمسی */
+      try { if (typeof ptfISOToJ === 'function') { var j = ptfISOToJ(raw); if (j && /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(j)) return j; } } catch (eR) {}
+    }
+    var m = String(x.month || '').trim();                                          /* فقط ماه → اول ماه */
+    if (/^\d{4}\/\d{1,2}$/.test(m)) return m + '/01';
+    return '';
+  }
   function faTodayStr() {
     try { if (typeof faDate === 'function') return faDate(); } catch (e) {}
     try { if (typeof ptfTodayJ === 'function') return ptfTodayJ(); } catch (e) {}
@@ -503,8 +516,16 @@
     var key = ptfPettyPeriodKey(a, b);
     var allP = getData(PETTY_KEY) || [], allT = txAll(), petty, tx;
     if (key.isRange) {
-      petty = allP.filter(function (x) { var d = recDate(x); return d && d >= key.from && d <= key.to; });
-      tx = allT.filter(function (x) { var d = recDate(x); return d && d >= key.from && d <= key.to; });
+      /* BUG-RANGE: رکورد دارای تاریخ → فقط اگر تاریخ در بازه؛ رکورد بی‌تاریخ → فقط اگر ماهش در محدودهٔ بازه (تا داده گم نشود) */
+      var mFrom = key.from.slice(0, 7), mTo = key.to.slice(0, 7);
+      function inRange(x) {
+        var m = String(x.month || '').slice(0, 7);
+        var hasDate = !!(x.t || x.dateFa || x.date || x.dateISO || x.iso);
+        if (hasDate) { var d = recDate(x); return !!(d && d >= key.from && d <= key.to); }
+        return !!(m && m >= mFrom && m <= mTo);
+      }
+      petty = allP.filter(inRange);
+      tx = allT.filter(inRange);
     } else {
       petty = allP.filter(function (x) { return recMonth(x) === key.month; });
       tx = allT.filter(function (x) { return recMonth(x) === key.month; });
@@ -572,7 +593,14 @@
   window.ptfPettyPeriodReport = function (a, b) {
     var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
     var label = window.ptfPettyRangeLabel(a, b), arg = ptfPettyArg(a, b);
-    var body = events.map(ptfPettyRowHtml).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">رکوردی در این دوره ثبت نشده است</td></tr>';
+    var emptyMsg = 'رکوردی در این دوره ثبت نشده است';
+    if (!events.length) {
+      /* BUG-RANGE: راهنمای کاربر وقتی بازه خالی است */
+      var dEmpty = window.ptfPettyPeriodData(a, b);
+      var allC = (getData(PETTY_KEY) || []).length + txAll().length;
+      if (allC > 0) emptyMsg = 'در بازهٔ انتخابی رکوردی نیست — ' + allC + ' رکورد تنخواه در سیستم هست؛ بازه را گسترش دهید یا تاریخ‌ها را بررسی کنید.';
+    }
+    var body = events.map(ptfPettyRowHtml).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">' + emptyMsg + '</td></tr>';
     var summary = '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 14px;margin:10px 0;display:flex;gap:14px;flex-wrap:wrap;font-size:13px">' +
       '<b style="color:#b45309">💸 هزینه‌های دوره: ' + money(t.totalOut) + '</b>' +
       '<b style="color:#047857">💰 شارژ دوره: ' + money(t.charges) + '</b>' +
