@@ -789,7 +789,12 @@
       '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
       ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده (US-444)">🧹 یتیم‌ها</button>' : '') +
       '<button class="bt" onclick="showModal(\'rMd\')">+ ثبت درخواست جدید</button></div></div>' + /* v14.3 US-365 */
-      '<div class="tb2"><table><thead><tr><th>کد</th><th>مشتری</th><th>حوزه</th><th>تاریخ</th><th>وضعیت</th><th>مسئول رسیدگی</th><th>عملیات</th></tr></thead>' +
+      '<div class="tb2"><table><thead><tr>' +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'cd', 'کد') : '<th>کد</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'co', 'مشتری') : '<th>مشتری</th>') + '<th>حوزه</th>' +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'dt', 'تاریخ') : '<th>تاریخ</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'st', 'وضعیت') : '<th>وضعیت</th>') +
+      '<th>مسئول رسیدگی</th><th>عملیات</th></tr></thead>' +
       '<tbody id="rTb"></tbody></table></div>';
   };
 
@@ -820,6 +825,17 @@
     var offers = getData('ptf_crm_offers');
     var tb = document.getElementById('rTb');
     if (!tb) return;
+    /* UR-2026-08-01-07: سورت ستون‌ها (کد/مشتری/تاریخ/وضعیت) */
+    if (window.ptfRegisterSortable) window.ptfRegisterSortable('rfq', {
+      getters: {
+        cd: function (r) { return r.cd || ''; },
+        co: function (r) { return r.co || ''; },
+        dt: function (r) { return r.dt || ''; },
+        st: function (r) { return r.st || ''; }
+      },
+      render: window.renderRfq
+    });
+    rfqs = window.ptfSorted('rfq', rfqs);
     var h = '';
     /* v17.3 (US-413 — کیس R8): رنگ ردیف برد/باخت — سبز=CO برنده، قرمز=بازنده (بایگانی lost) — اولویت بر رنگ مهلت */
     var _wonInqs = {}, _lostInqs = {};

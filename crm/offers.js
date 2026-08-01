@@ -307,7 +307,13 @@ function buildOffers() {
     '<span id="oFcustHint" style="font-size:11.5px;color:#64748b;margin-right:auto"></span>' +
     '</div>' +
     '<div id="oCustTimeline" style="display:none;margin-bottom:12px"></div>' +
-    '<div class="tb2"><table><thead><tr><th>شماره</th><th>نوع</th><th>خریدار</th><th>شماره درخواست</th><th>تاریخ</th><th>اقلام</th><th>مبلغ کل</th><th>وضعیت</th><th>عملیات</th></tr></thead>' +
+    '<div class="tb2"><table><thead><tr>' +
+    (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('off', 'no', 'شماره') : '<th>شماره</th>') + '<th>نوع</th>' +
+    (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('off', 'buyerCo', 'خریدار') : '<th>خریدار</th>') + '<th>شماره درخواست</th>' +
+    (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('off', 'dateFa', 'تاریخ') : '<th>تاریخ</th>') + '<th>اقلام</th>' +
+    (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('off', 'amount', 'مبلغ کل') : '<th>مبلغ کل</th>') +
+    (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('off', 'st', 'وضعیت') : '<th>وضعیت</th>') + '<th>عملیات</th>' +
+    '</tr></thead>' +
     '<tbody id="oTb"></tbody></table></div>';
 }
 
@@ -440,6 +446,18 @@ function renderOffers() {
     // US-142 AC1: جستجو شامل شماره درخواست کارفرما (inqNo)
     return !q || ((o.no||'')+' '+(o.buyerCo||'')+' '+(o.inqNo||'')).toLowerCase().indexOf(q) > -1;
   });
+  /* UR-2026-08-01-07: سورت ستون‌ها (شماره/خریدار/تاریخ/مبلغ/وضعیت) */
+  if (window.ptfRegisterSortable) window.ptfRegisterSortable('off', {
+    getters: {
+      no: function (o) { return o.no || ''; },
+      buyerCo: function (o) { return o.buyerCo || ''; },
+      dateFa: function (o) { return o.dateFa || ''; },
+      amount: function (o) { return (o.kind === 'CO' || o.kind === 'TC') ? (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : 0; },
+      st: function (o) { return o.st || ''; }
+    },
+    render: renderOffers
+  });
+  offers = window.ptfSorted('off', offers);
   try {
     var hint = document.getElementById('oFcustHint');
     if (hint) {

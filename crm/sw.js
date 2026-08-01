@@ -2,7 +2,7 @@
 var CACHE = 'ptf-crm-v33.3.0';
 var SHELL = [
   './index.html',
-  './codegen.js', './surplus.js', './offers.js', './leads.js', './rbac.js', './storage.js', './projects.js',
+  './codegen.js', './surplus.js', './sortable.js', './offers.js', './leads.js', './rbac.js', './storage.js', './projects.js',
   './letters.js', './draftx.js', './analyzer.js', './contracts.js', './shell.js', './bridge.js', './reports.js', './backup.js', './sms.js', './rfqsmart.js', './cms.js', './ui-kit.js', './moneyx.js', './datex.js', './dedup.js', './perms.js', './petty.js', './opex.js', './shareholders.js', './theme.js', './archive.js', './offers-pro.js', './buycompare.js', './procurement-link.js', './listtools.js', './icons.js', './guards.js', './tables.js', './inqreader.js', './offerlock.js', './workflow.js', './fx.js', './modalx.js', './iconx.js', './salesfiles.js', './docsx.js', './oppo.js', './cheques.js', './messengers.js', './phonefmt.js', './tour.js', './golive.js', './custmerge.js', './listclean.js', './insights.js', './myday.js', './lossguard.js', './fiscal.js', './financehub.js', './data-quality.js', './official-ledger.js', './ledger-report.js', './dialogx.js', './kanban.js', './supspec.js', './scoring.js', './supplier-finance.js', './customer-finance.js', './working-capital.js', './commission.js', './my-customers-filter.js', './ai-workbench.js', './mobilenav.js', './launcher.js', './theme-contrast.js', './sync.js', './xlsx.min.js',
   './manifest.json',
   '../assets/images/favicon/favicon-192.png',

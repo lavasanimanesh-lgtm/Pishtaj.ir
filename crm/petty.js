@@ -75,6 +75,11 @@
   window.buildPetty = function () {
     return '<div class="ph"><h3>🏛 هاب مالی</h3>' +
       '<div class="sb2" id="ptToolbar">' + (isMgr() ? '<select id="ptFilter" onchange="renderPetty()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:13px"><option value="">همه کاربران</option></select>' : '') +
+      (typeof window.ptfSortSelectHtml === 'function' ? window.ptfSortSelectHtml('petty', [
+        { key: 't', dir: 'desc', lb: '🕒 جدیدترین' }, { key: 't', dir: 'asc', lb: '🕒 قدیمی‌ترین' },
+        { key: 'amt', dir: 'desc', lb: '💰 بیشترین مبلغ' }, { key: 'amt', dir: 'asc', lb: '💰 کمترین مبلغ' },
+        { key: 'by', dir: 'asc', lb: '👤 ثبت‌کننده' }
+      ]) : '') +
       '<button class="bt" onclick="pettyAdd()">+ ثبت هزینه</button>' +
       (isTreasurer() ? '<button class="bt" onclick="pettyDirectPay()" style="background:#0e7490">پرداخت مستقیم</button><button class="bt" onclick="pettyCharge()" style="background:#059669">شارژ حساب</button><button class="bt bt-o" onclick="pettyClosePeriod()">ارجاع دوره</button>' : '') +
       '</div></div>' +
@@ -128,6 +133,12 @@
       if (!canAll()) return x.by === me.name;
       return !filter || x.by === filter;
     });
+    /* UR-2026-08-01-07: سورت تنخواه (تاریخ/مبلغ/ثبت‌کننده) */
+    if (window.ptfRegisterSortable) window.ptfRegisterSortable('petty', {
+      getters: { t: function (x) { return x.t || ''; }, amt: function (x) { return +x.amt || 0; }, by: function (x) { return x.by || ''; } },
+      render: renderPetty
+    });
+    list = window.ptfSorted('petty', list);
     var sm = document.getElementById('ptSummary');
     if (sm) {
       if (isMgr() || isTreasurer()) {

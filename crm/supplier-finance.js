@@ -654,18 +654,35 @@
       return String(a.co).localeCompare(String(b.co), 'fa');
     });
   };
-  window.slFinanceHubHtml = function () {
+  window.slFinanceRowsRender = function () {
+    var tbl = document.getElementById('slFinanceTbl');
+    if (tbl) tbl.innerHTML = window.slFinanceHubBodyHtml();
+  };
+  window.slFinanceHubBodyHtml = function () {
     var q = String(window._slFinanceSearch || ''), all = window.slAccountRows(''), rows = window.slAccountRows(q);
-    var openN = all.filter(function (x) { return x.open; }).length;
+    /* UR-2026-08-01-07: سورت ستون‌ها (تأمین‌کننده/مانده) */
+    if (window.ptfRegisterSortable) window.ptfRegisterSortable('slf', {
+      getters: { co: function (x) { return x.co || ''; }, exposure: function (x) { return x.exposure || 0; } },
+      render: window.slFinanceRowsRender
+    });
+    rows = window.ptfSorted('slf', rows);
     var body = rows.map(function (x) {
       return '<tr' + (x.open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(x.co || '') + '</b><br><small style="direction:ltr;color:#94a3b8">' + escP(x.cd || '') + '</small></td><td>' + (x.balance.length ? balanceHtml(x.cd) : '<span style="color:#64748b">مانده ندارد</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + escP(x.cd) + '\')">گردش حساب</button></td></tr>';
     }).join('');
-    return '<div id="slFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🏭 حساب تأمین‌کنندگان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر، ابتدا نمایش داده می‌شود.</small></div><input id="slFinanceSearch" value="' + escP(q) + '" oninput="slFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد تأمین‌کننده" style="min-width:240px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده/اعتبار</th><th></th></tr></thead><tbody>' + (body || '<tr><td colspan="3">موردی مطابق جست‌وجو نیست</td></tr>') + '</tbody></table></div><div style="margin-top:10px"><input id="slChkDiag" placeholder="شماره چک برای تشخیص" style="direction:ltr"><button class="bt bt-o" onclick="slChequeDiag()">تشخیص چک</button><div id="slChkDiagOut"></div></div></div>';
+    return body || '<tr><td colspan="3">موردی مطابق جست‌وجو نیست</td></tr>';
+  };
+  window.slFinanceHubHtml = function () {
+    var q = String(window._slFinanceSearch || ''), all = window.slAccountRows('');
+    var openN = all.filter(function (x) { return x.open; }).length;
+    return '<div id="slFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🏭 حساب تأمین‌کنندگان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر، ابتدا نمایش داده می‌شود.</small></div><input id="slFinanceSearch" value="' + escP(q) + '" oninput="slFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد تأمین‌کننده" style="min-width:240px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr>' +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('slf', 'co', 'تأمین‌کننده') : '<th>تأمین‌کننده</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('slf', 'exposure', 'مانده/اعتبار') : '<th>مانده/اعتبار</th>') + '<th></th>' +
+      '</tr></thead><tbody id="slFinanceTbl">' + window.slFinanceHubBodyHtml() + '</tbody></table></div><div style="margin-top:10px"><input id="slChkDiag" placeholder="شماره چک برای تشخیص" style="direction:ltr"><button class="bt bt-o" onclick="slChequeDiag()">تشخیص چک</button><div id="slChkDiagOut"></div></div></div>';
   };
   window.slFinanceSearch = function (v) {
     window._slFinanceSearch = String(v || '');
-    var el = document.getElementById('slFinanceHubBox');
-    if (el) el.outerHTML = window.slFinanceHubHtml();
+    /* UR-2026-08-01-02 (هم‌خانواده): فقط tbody به‌روز می‌شود تا فوکوس کادر جستجو حفظ شود. */
+    window.slFinanceRowsRender();
   };
   window.slChequeDiag=function(){var no=((document.getElementById('slChkDiag')||{}).value||'').trim(),c=getData('ptf_crm_cheques').filter(function(x){return String(x.sayad||x.no||'')===no;})[0],o=document.getElementById('slChkDiagOut');if(!o)return;if(!c){o.textContent='چک یافت نشد';return;}var d=data(),p=(d.payments||[]).filter(function(x){return x.cd===c.supplierPaymentCd;})[0];o.innerHTML='<div style="margin-top:8px;font-size:12px">وضعیت چک: <b>'+escP(c.st||'open')+'</b> | مالکیت: <b>'+escP(c.ownership||'نامشخص')+'</b> | پرداخت مرتبط: <b>'+escP(p?p.status:'ندارد')+'</b></div>';};
   var _slPetty275=window.buildPetty; if(typeof _slPetty275==='function'){window.buildPetty=function(){return _slPetty275()+ (typeof window.slFinanceHubHtml==='function'?window.slFinanceHubHtml():'');};}

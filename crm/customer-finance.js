@@ -265,9 +265,19 @@
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>'));
   };
 
+  window.cfFinanceRowsRender = function () {
+    var tbl = document.getElementById('cfFinanceTbl');
+    if (tbl) tbl.innerHTML = window.cfFinanceRowsHtml();
+  };
   window.cfFinanceRowsHtml = function () {
     var q = String(window._cfSearch || ''), all = window.cfAccountRows(''), rows = window.cfAccountRows(q);
     var openN = all.filter(function (r) { return Math.abs(r.balance) > 0.000001; }).length;
+    /* UR-2026-08-01-07: سورت ستون‌ها (مشتری/مطالبات/اعتبار) */
+    if (window.ptfRegisterSortable) window.ptfRegisterSortable('cf', {
+      getters: { co: function (r) { return r.co || ''; }, balance: function (r) { return r.balance; }, credit: function (r) { return r.credit; } },
+      render: window.cfFinanceRowsRender
+    });
+    rows = window.ptfSorted('cf', rows);
     var table = rows.map(function (r) {
       var open = Math.abs(r.balance) > 0.000001;
       return '<tr' + (open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(r.co || r.cd) + '</b><br><small style="color:#94a3b8;direction:ltr">' + escP(r.cd || '') + '</small></td><td style="font-weight:' + (open ? '900' : '400') + ';color:' + (open ? '#b45309' : '#64748b') + '">' + m(r.balance) + ' ریال</td><td style="color:#047857">' + (r.credit ? m(r.credit) + ' ریال' : '—') + '</td><td><button class="ba" onclick="cfOpen(\'' + escP(r.cd) + '\')">📘 حساب</button></td></tr>';
@@ -281,7 +291,11 @@
       var open = Math.abs(r.balance) > 0.000001;
       return '<tr' + (open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(r.co || r.cd) + '</b><br><small style="color:#94a3b8;direction:ltr">' + escP(r.cd || '') + '</small></td><td style="font-weight:' + (open ? '900' : '400') + ';color:' + (open ? '#b45309' : '#64748b') + '">' + m(r.balance) + ' ریال</td><td style="color:#047857">' + (r.credit ? m(r.credit) + ' ریال' : '—') + '</td><td><button class="ba" onclick="cfOpen(\'' + escP(r.cd) + '\')">📘 حساب</button></td></tr>';
     }).join('');
-    return '<div id="cfFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">📘 حساب مشتریان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر، ابتدا نمایش داده می‌شود.</small></div><input id="cfSearch" value="' + escP(q) + '" oninput="cfFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد مشتری" style="min-width:230px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>مشتری</th><th>مطالبات باز</th><th>اعتبار نزد مشتری</th><th></th></tr></thead><tbody id="cfFinanceTbl">' + (table || '<tr><td colspan="4">موردی مطابق جست‌وجو نیست</td></tr>') + '</tbody></table></div></div>';
+    return '<div id="cfFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">📘 حساب مشتریان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر، ابتدا نمایش داده می‌شود.</small></div><input id="cfSearch" value="' + escP(q) + '" oninput="cfFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد مشتری" style="min-width:230px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr>' +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'co', 'مشتری') : '<th>مشتری</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'balance', 'مطالبات باز') : '<th>مطالبات باز</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'credit', 'اعتبار نزد مشتری') : '<th>اعتبار نزد مشتری</th>') + '<th></th>' +
+      '</tr></thead><tbody id="cfFinanceTbl">' + (table || '<tr><td colspan="4">موردی مطابق جست‌وجو نیست</td></tr>') + '</tbody></table></div></div>';
   };
   window.cfFinanceSearch = function (v) {
     window._cfSearch = String(v || '');
