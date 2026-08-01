@@ -373,16 +373,31 @@
       .catch(function () { state.online = false; setSyncBadge('offline'); if (done) done(); });
   }
 
-  // رندر مجدد پنل فعلی پس از دریافت داده جدید (بدون پرش اگر مودال باز است)
+  // رندر مجدد پنل فعلی پس از دریافت/ثبت داده جدید (بدون پرش وسط مودال)
   function refreshCurrentPanel() {
-    if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return; // وسط کار کاربر نپر
+    if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return false; // وسط کار کاربر نپر
     var act = document.querySelector('.sb-i.act');
-    if (!act) return;
+    if (!act) return false;
     var m = (act.getAttribute('onclick') || '').match(/goPanel\('([a-z]+)'/);
     if (m && typeof goPanelByName === 'function') {
-      try { goPanelByName(m[1]); } catch (e) {}
+      try { goPanelByName(m[1]); return true; } catch (e) {}
     }
+    return false;
   }
+  var _dataRefreshTimer = 0;
+  window.ptfRefreshCurrentPanel = refreshCurrentPanel;
+  window.ptfScheduleDataRefresh = function (key) {
+    clearTimeout(_dataRefreshTimer);
+    _dataRefreshTimer = setTimeout(function tryRefresh() {
+      /* A save often happens from a modal. Wait for its close, then refresh;
+         this keeps the modal usable and removes the need for F5. */
+      if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) {
+        _dataRefreshTimer = setTimeout(tryRefresh, 120);
+        return;
+      }
+      refreshCurrentPanel();
+    }, 0);
+  };
 
   /* ---------- نشانگر وضعیت سینک ---------- */
   var _lastSyncBadge = 'ok';

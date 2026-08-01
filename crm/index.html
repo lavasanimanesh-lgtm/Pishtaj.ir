@@ -892,6 +892,11 @@ window.setData = function (k, d) {
     if (window.ptfSyncNotifyDirty) {
       window.ptfSyncNotifyDirty(k);
     }
+    /* Same-tab writes do not emit the browser storage event. Notify the
+       active CRM view as well, so derived balances/KPIs change immediately. */
+    if (saveResult !== false && typeof window.ptfScheduleDataRefresh === 'function') {
+      window.ptfScheduleDataRefresh(k);
+    }
     return saveResult;
   } catch (e) {
     console.error('ptf_crm_localStorage_write_error:', k, e);
