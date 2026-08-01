@@ -47,9 +47,11 @@
     if (rec.kind === 'guarantee') rec.direction = 'issued'; /* تصویب: ضمانت → صادره */
     var key = rec.direction === 'received' ? K_RECEIVED : K_ISSUED;
     var l = read(key); l.unshift(rec); write(key, l);
-    /* CHQ-V2: اثر مالی به محض ثبت — اگر طرف/فاکتور مشخص باشد */
+    /* CHQ-V2: اثر مالی به محض ثبت — اگر طرف/فاکتور مشخص باشد (ضمانت هرگز اثر مالی ندارد) */
     var applied = window.ptfChequeApplyFinancial(rec);
     rec.financial = applied;
+    if (applied && applied.ok) rec.financialApplied = { at: faDateTimeL(), result: applied };
+    write(key, l);
     return rec;
   };
 
@@ -64,14 +66,31 @@
     write(K_RECEIVED, l);
     return { ok: true, cheque: c };
   };
-  /* ثبت وصول (Cleared) */
+  /* ثبت وصول (Cleared) — v33.7.0: چک مالی وارده‌ای که هنگام ثبت فاکتور نداشت،
+     با وصول اثر مالی می‌گیرد (روی اولین فاکتور باز همان مشتری). */
   window.ptfChequeCollect = function (cd, note) {
     var l = read(K_RECEIVED), c = l.filter(function (x) { return x.cd === cd; })[0];
     if (!c) return { ok: false, why: 'notfound' };
     if (c.st === 'cleared' || c.st === 'bounced') return { ok: false, why: 'state' };
     c.st = 'cleared'; c.clearedAt = faDateTime(); c.clearedBy = me().name; c.clearNote = note || '';
     write(K_RECEIVED, l);
-    return { ok: true, cheque: c };
+    /* اثر مالی هنگام وصول (اگر قبلاً اثر نرفته باشد) */
+    var applied = null;
+    if (c.kind !== 'guarantee' && !c.financialApplied) {
+      var r = window.ptfChequeApplyFinancial(c);
+      if (r.ok) { c.financialApplied = { at: faDateTimeL(), result: r }; applied = r; }
+      else if (r.why === 'no_invoice' && (c.custCd || c.sourceCustomerCd)) {
+        /* چک وارده بدون فاکتور مشخص: روی اولین فاکتور باز همان مشتری */
+        var invs = window.ptfChequeOpenInvoicesOf(c.custCd || c.sourceCustomerCd);
+        if (invs.length) {
+          c.sourceInvoiceCd = invs[0].cd;
+          var r2 = window.ptfChequeApplyFinancial(c);
+          if (r2.ok) { c.financialApplied = { at: faDateTimeL(), result: r2 }; applied = r2; }
+        }
+      }
+      if (applied) write(K_RECEIVED, l);
+    }
+    return { ok: true, cheque: c, financial: applied };
   };
   /* برگشتی (Bounced) — جدید (از open/held/endorsed مجاز است؛ از وصول‌شده نه) */
   window.ptfChequeBounce = function (cd, reason) {
@@ -103,7 +122,13 @@
     if (c.kind === 'guarantee') { c.st = 'retrieved'; c.retrievedAt = faDateTime(); c.retrievedBy = me().name; }
     else { c.st = 'cleared'; c.clearedAt = faDateTime(); c.clearedBy = me().name; c.clearNote = note || ''; }
     write(K_ISSUED, l);
-    return { ok: true, cheque: c };
+    /* v33.7.0: چک صادره قدیمی بدون اثر مالی → هنگام وصول اثر می‌گیرد */
+    var applied = null;
+    if (c.kind !== 'guarantee' && !c.financialApplied && c.supplierCd) {
+      var r = window.ptfChequeApplyFinancial(c);
+      if (r.ok) { c.financialApplied = { at: faDateTimeL(), result: r }; applied = r; write(K_ISSUED, l); }
+    }
+    return { ok: true, cheque: c, financial: applied };
   };
   window.ptfChequeVoidIssued = function (cd, reason) {
     var l = read(K_ISSUED), c = l.filter(function (x) { return x.cd === cd; })[0];
@@ -149,10 +174,12 @@
   window.ptfChequeModuleReady = true;
 })();
 
-  /* CHQ-V2: این بخش خارج از IIFE اضافه شد — توابع کمکی محلی */
+  /* CHQ-V2: این بخش خارج از IIFE اضافه شد — توابع کمکی محلی
+     v33.7.0 BUG-FIX: نسخهٔ قبلی faDateL/faDateTimeL خودشان را بازگشتی صدا می‌زدند
+     (استک‌اورفلو → تاریخ/زمان payment چک‌ها خالی می‌ماند). */
   var me = function () { try { return curSession() || {}; } catch (e) { return {}; } };
-  var faDateL = function () { try { return typeof faDate === 'function' ? faDateL() : ''; } catch (e) { return ''; } };
-  var faDateTimeL = function () { try { return typeof faDateTime === 'function' ? faDateTimeL() : ''; } catch (e) { return ''; } };
+  var faDateL = function () { try { return typeof faDate === 'function' ? faDate() : ''; } catch (e) { return ''; } };
+  var faDateTimeL = function () { try { return typeof faDateTime === 'function' ? faDateTime() : ''; } catch (e) { return ''; } };
 
   /* ============ CHQ-V2: اثر مالی چک بر حساب (به محض ثبت؛ برگشتی/ابطال → معکوس) ============ */
   /* چک وارده → payment روی فاکتور مشتری (اگر sourceInvoiceCd و مانده کافی باشد) */
@@ -186,8 +213,96 @@
   }
   window.ptfChequeApplyFinancial = function (c) {
     if (!c || !c.cd) return { ok: false, why: 'no_rec' };
+    /* v33.7.0 (مصوب کارفرما): چک‌های ضمانت (پیش‌پرداخت/حسن انجام/مناقصه/سایر) اثر مالی ندارند —
+       فقط در پرونده فروش می‌نشینند و با پایان پروژه استرداد می‌شوند. */
+    if (c.kind === 'guarantee' || (c.guarType && c.guarType !== 'finance')) return { ok: false, why: 'guarantee_no_finance' };
     if (c.direction === 'received') return ptfChequeApplyReceived(c);
     return ptfChequeApplyIssued(c);
+  };
+
+  /* ============ v33.7.0: ذینفع = مشتری/تامین‌کننده/سایر + فهرست‌های شرطی ============ */
+  /* مشتریان دارای پرونده فروش باز (wonOffer و مختومه/بایگانی‌نشده) */
+  window.ptfChequeCustOptions = function () {
+    var out = [];
+    try {
+      var deals = getData('ptf_crm_deals') || [];
+      var open = {};
+      deals.forEach(function (d) {
+        if (d && d.wonOffer && d.st !== 'archived') open[d.buyerCd || ''] = 1;
+      });
+      var custs = getData('ptf_crm_customers') || [];
+      var seen = {};
+      custs.forEach(function (c) {
+        if (!c || !c.cd || seen[c.cd]) return;
+        if (!open[c.cd]) return;
+        seen[c.cd] = 1;
+        var dealsLb = deals.filter(function (d) { return d.buyerCd === c.cd && d.wonOffer && d.st !== 'archived'; });
+        out.push({ cd: c.cd, lb: (c.co || c.nm || c.cd) + ' — 📁 ' + dealsLb.length + ' پرونده باز' });
+      });
+    } catch (e) {}
+    return out;
+  };
+  /* تامین‌کنندگانی که از ما مطالبه دارند (بدهی باز شرکت = مجموع فاکتورهای خرید باز − پرداخت‌ها > 0) */
+  window.ptfChequeSupOptions = function () {
+    var out = [];
+    try {
+      var d = getData('ptf_crm_supplier_finance');
+      var invs = (d && d.invoices) || [];
+      var pays = (d && d.payments) || [];
+      var adj = (d && d.adjustments) || [];
+      var debt = {};
+      invs.forEach(function (i) {
+        if (!i || i.status === 'void' || !i.supplierCd) return;
+        debt[i.supplierCd] = (debt[i.supplierCd] || 0) + (+i.amount || 0);
+      });
+      pays.forEach(function (p) {
+        if (!p || p.status === 'void' || !p.supplierCd) return;
+        debt[p.supplierCd] = (debt[p.supplierCd] || 0) - (+p.amount || 0);
+      });
+      adj.forEach(function (a) {
+        if (!a || a.status === 'void' || !a.supplierCd) return;
+        debt[a.supplierCd] = (debt[a.supplierCd] || 0) + (+a.amount || 0);
+      });
+      var sups = getData('ptf_crm_suppliers') || [];
+      var seen = {};
+      sups.forEach(function (s) {
+        if (!s || !s.cd || seen[s.cd]) return;
+        seen[s.cd] = 1;
+        var b = Math.round((debt[s.cd] || 0));
+        if (b <= 0) return;
+        out.push({ cd: s.cd, lb: (s.co || s.cd) + ' — بدهی ' + b.toLocaleString('fa-IR') + ' ریال' });
+      });
+      out.sort(function (a, b2) { return a.lb < b2.lb ? -1 : 1; });
+    } catch (e) {}
+    return out;
+  };
+  /* برچسب دسته ذینفع برای نمایش در جدول‌ها */
+  window.ptfChequePartyKind = function (rec) {
+    rec = rec || {};
+    if (rec.supplierCd) return 'sup';
+    if (rec.custCd || rec.sourceCustomerCd) return 'cust';
+    return 'other';
+  };
+  window.ptfChequePartyKindLabel = function (rec) {
+    var k = window.ptfChequePartyKind(rec);
+    return k === 'sup' ? 'تامین‌کننده' : k === 'cust' ? 'مشتری' : 'سایر';
+  };
+  /* فاکتورهای باز یک مشتری (دارای مانده) — برای چک وارده */
+  window.ptfChequeOpenInvoicesOf = function (custCd) {
+    var out = [];
+    try {
+      var invs = getData('ptf_crm_invoices') || [];
+      var offers = getData('ptf_crm_offers') || [];
+      invs.forEach(function (inv) {
+        if (!inv || inv.status === 'void') return;
+        var o = offers.filter(function (x) { return x.no === inv.offerNo; })[0] || {};
+        if (o.buyerCd !== custCd && inv.buyerCd !== custCd && inv.custCd !== custCd) return;
+        var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+        var rem = Math.round((+inv.amount || 0) - paid);
+        if (rem > 0) out.push({ cd: inv.cd, lb: (inv.no || inv.cd) + ' — مانده ' + rem.toLocaleString('fa-IR') + ' ریال', remain: rem });
+      });
+    } catch (e) {}
+    return out;
   };
   /* معکوس: وارده برگشتی → حذف payment چک از فاکتور */
   window.ptfChequeReverseReceived = function (cd, reason) {

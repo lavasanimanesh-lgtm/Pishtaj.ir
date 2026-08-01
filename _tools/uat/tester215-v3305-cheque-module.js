@@ -76,6 +76,18 @@ T('نمای یکپارچه هر دو را نشان می‌دهد', ptfChequeAll(
 SECTION('ضمانت → صادره (تصویب)');
 var guar = ptfChequeCreate('issued', { no: 'CH-3', amt: 1000000, kind: 'guarantee' });
 T('چک ضمانت در issued است و direction=issued', ptfChequeIssued().length === 2 && guar.direction === 'issued');
+/* v33.7.0: ضمانت اثر مالی ندارد (تصویب کارفرما) */
+T('ضمانت: اثر مالی ندارد (guarantee_no_finance)', guar.financial && guar.financial.why === 'guarantee_no_finance' && !guar.financialApplied);
+/* v33.7.0: ذینفع شرطی — تامین‌کننده دارای مطالبه / مشتری دارای پرونده باز */
+T('فهرست‌های شرطی ذینفع (sup/cust) + فاکتورهای باز', (function () {
+  setData('ptf_crm_customers', [{ cd: 'C1', co: 'مشتری یک' }]);
+  setData('ptf_crm_deals', [{ cd: 'D1', inqNo: 'I1', buyerCd: 'C1', wonOffer: 'CO-1', st: 'open' }]);
+  setData('ptf_crm_offers', [{ no: 'CO-1', buyerCd: 'C1' }]);
+  setData('ptf_crm_invoices', [{ cd: 'INV1', no: 'F1', offerNo: 'CO-1', amount: 1000000, payments: [] }]);
+  var custs = ptfChequeCustOptions();
+  var invs = ptfChequeOpenInvoicesOf('C1');
+  return custs.length === 1 && custs[0].cd === 'C1' && invs.length === 1 && invs[0].cd === 'INV1';
+})());
 
 SECTION('عملیات وارده');
 var r2 = ptfChequeReceived().filter(function (x) { return x.no === 'CH-2'; })[0];

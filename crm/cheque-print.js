@@ -47,8 +47,10 @@
       payTop: 24, payRight: 14, paySize: 12, payFam: '', payColor: '#111827',
       /* کد ملی / شناسه ملی */
       nidTop: 30, nidRight: 14, nidSize: 9, nidFam: '', nidColor: '#111827',
-      /* مبلغ به عدد — بالای چک (قرمز) */
+      /* مبلغ به عدد — بالای چک (قرمز — برای محکم کاری) */
       amtTop: 18, amtLeft: 8, amtW: 62, amtSize: 13, amtFam: '', amtColor: '#b91c1c',
+      /* v33.7.0: مبلغ اصلی به عدد — پایین چپ برگه (هر چک دو مبلغ دارد) */
+      amt2Top: 48, amt2Left: 8, amt2W: 62, amt2Size: 12, amt2Fam: '', amt2Color: '#111827',
       /* مبلغ به حروف — نوار وسط */
       wordsTop: 36, wordsRight: 14, wordsLeft: 52, wordsSize: 10.5, wordsFam: '', wordsColor: '#111827',
       /* بابت (اختیاری) */
@@ -308,8 +310,10 @@
         box('f-pay', L.payTop, L.payRight, null, 'font-size:' + L.paySize + 'pt;font-family:' + fam('pay') + ';color:' + (L.payColor || '#111827') + ';') + escP(c.toWhom || '') + '</div>' +
         /* کد/شناسه ملی */
         (c.beneficiaryId ? box('f-nid', L.nidTop, L.nidRight, null, 'font-size:' + L.nidSize + 'pt;font-family:' + fam('nid') + ';color:' + (L.nidColor || '#111827') + ';direction:ltr;') + escP(c.beneficiaryId) + '</div>' : '') +
-        /* مبلغ به عدد — بالای چک (قرمز) */
+        /* مبلغ به عدد — بالای چک (قرمز — برای محکم کاری) */
         box('f-amt', L.amtTop, null, L.amtLeft, 'width:' + (L.amtW || 62) + 'mm;font-size:' + L.amtSize + 'pt;font-family:' + fam('amt') + ';color:' + (L.amtColor || '#b91c1c') + ';font-weight:900;') + escP(topAmt) + '</div>' +
+        /* v33.7.0: مبلغ اصلی به عدد — پایین چپ برگه (هر چک دو مبلغ دارد) */
+        box('f-amt2', L.amt2Top != null ? L.amt2Top : 48, null, L.amt2Left != null ? L.amt2Left : 8, 'width:' + (L.amt2W || 62) + 'mm;font-size:' + (L.amt2Size || 12) + 'pt;font-family:' + fam('amt2') + ';color:' + (L.amt2Color || '#111827') + ';font-weight:900;') + escP('مبلغ: ' + money(c.amt) + ' ریال') + '</div>' +
         /* مبلغ به حروف */
         box('f-words', L.wordsTop, L.wordsRight, L.wordsLeft, 'font-size:' + L.wordsSize + 'pt;font-family:' + fam('words') + ';color:' + (L.wordsColor || '#111827') + ';') + escP(window.ptfNumToFaWords(c.amt)) + '</div>' +
         /* بابت */
@@ -326,7 +330,7 @@
       '.cheque.paper{background:transparent;border:0}' +
       '.cheque.mock{background:#fff;border:0.3mm dashed #cbd5e1}' +
       '.cheque.calib .guide{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 9.9mm,rgba(14,165,233,.12) 10mm),repeating-linear-gradient(90deg,transparent,transparent 9.9mm,rgba(14,165,233,.12) 10mm);pointer-events:none}' +
-      '.f-date,.f-dw,.f-pay,.f-nid,.f-amt,.f-memo{white-space:nowrap;overflow:hidden;text-overflow:clip;font-weight:700}' +
+      '.f-date,.f-dw,.f-pay,.f-nid,.f-amt,.f-amt2,.f-memo{white-space:nowrap;overflow:hidden;text-overflow:clip;font-weight:700}' +
       '.f-words{white-space:normal;line-height:1.5;max-height:14mm}' +
       '@media screen{body{background:#e2e8f0;padding:12px}.pg{margin:0 auto 12px;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.12)}}' +
       '@media print{body{background:#fff;padding:0}.pg{box-shadow:none;margin:0}}' +
@@ -354,7 +358,7 @@
   function fieldInputs(L) {
     var groups = [
       ['date', 'تاریخ (عدد)'], ['dw', 'تاریخ (به حروف)'], ['pay', 'در وجه'], ['nid', 'کد/شناسه ملی'],
-      ['amt', 'مبلغ (عدد — بالای چک)'], ['words', 'مبلغ (به حروف)'], ['memo', 'بابت']
+      ['amt', 'مبلغ (عدد — بالای چک)'], ['amt2', 'مبلغ اصلی (عدد — پایین چپ)'], ['words', 'مبلغ (به حروف)'], ['memo', 'بابت']
     ];
     return groups.map(function (g) {
       var k = g[0];
@@ -362,14 +366,14 @@
         '<b style="font-size:12px;display:block;margin-bottom:8px">' + g[1] + '</b>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' +
         '<div class="fld" style="min-width:0"><label style="font-size:10.5px">top (mm)</label><input type="number" step="0.5" id="chqpL_' + k + 'Top" value="' + L[k + 'Top'] + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>' +
-        (k === 'amt' || k === 'words'
+        (k === 'amt' || k === 'amt2' || k === 'words'
           ? '<div class="fld" style="min-width:0"><label style="font-size:10.5px">left (mm)</label><input type="number" step="0.5" id="chqpL_' + k + 'Left" value="' + (L[k + 'Left'] != null ? L[k + 'Left'] : '') + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>'
           : '<div class="fld" style="min-width:0"><label style="font-size:10.5px">right (mm)</label><input type="number" step="0.5" id="chqpL_' + k + 'Right" value="' + (L[k + 'Right'] != null ? L[k + 'Right'] : '') + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>') +
         (k === 'words' ? '<div class="fld" style="min-width:0"><label style="font-size:10.5px">right (mm)</label><input type="number" step="0.5" id="chqpL_wordsRight" value="' + (L.wordsRight != null ? L.wordsRight : '') + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>' : '') +
         '<div class="fld" style="min-width:0"><label style="font-size:10.5px">اندازه حروف (pt)</label><input type="number" step="0.5" id="chqpL_' + k + 'Size" value="' + L[k + 'Size'] + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>' +
         '<div class="fld" style="min-width:0"><label style="font-size:10.5px">فونت</label><select id="chqpL_' + k + 'Fam" style="width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px;font-size:11px"><option value="">— پیش‌فرض صفحه —</option>' + fontOpts(L[k + 'Fam']) + '</select></div>' +
         '<div class="fld" style="min-width:0"><label style="font-size:10.5px">رنگ</label><input type="color" id="chqpL_' + k + 'Color" value="' + (L[k + 'Color'] || '#111827') + '" style="width:100%;height:32px;border:1px solid var(--brd);border-radius:8px;padding:2px"></div>' +
-        (k === 'amt' ? '<div class="fld" style="min-width:0"><label style="font-size:10.5px">عرض (mm)</label><input type="number" step="0.5" id="chqpL_amtW" value="' + (L.amtW || 62) + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>' : '') +
+        (k === 'amt' || k === 'amt2' ? '<div class="fld" style="min-width:0"><label style="font-size:10.5px">عرض (mm)</label><input type="number" step="0.5" id="chqpL_' + k + 'W" value="' + (L[k + 'W'] || 62) + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>' : '') +
         '</div></div>';
     }).join('');
   }
@@ -390,28 +394,127 @@
       '<div class="fld" style="display:flex;align-items:flex-end"><label style="font-size:11px;display:flex;align-items:center;gap:5px"><input type="checkbox" id="chqpL_guide"' + (L.showGuide ? ' checked' : '') + '> نمایش خطوط راهنما</label></div>' +
       '</div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px">' + fieldInputs(L) + '</div>' +
+      /* v33.7.0: حالت گرافیکی — کشیدن فیلدها روی برگه */
+      '<div style="margin-top:14px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
+      '<b style="font-size:12.5px">🖱 حالت گرافیکی: هر نوشته را روی برگه بکشید و در جای صحیح رها کنید</b>' +
+      '<button type="button" class="bt bt-o" style="font-size:11.5px" onclick="chqGvRender()">↻ هم‌گام با مقادیر</button></div>' +
+      '<div id="chqpGv" style="overflow:auto;padding:4px"></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'chqpLayoutDlg\').remove()">بستن</button>' +
       '<button type="button" class="bt bt-o" onclick="chqPrintLayoutSave(true)">💾 ذخیره چیدمان</button>' +
       '<button type="button" class="bt" style="background:#0e7490" onclick="chqPrintLayoutSave(false);chqPrintLayoutTest()">🖨 چاپ آزمایشی (با راهنما)</button>' +
       '</div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
+    setTimeout(function () { try { window.chqGvRender(); } catch (e) {} }, 50);
+  };
+  /* ---------- v33.7.0: حالت گرافیکی — کشیدن فیلدها روی برگه ---------- */
+  var GV_SCALE = 1.5; /* px per mm */
+  function gvFieldHtml(key, lb, sample, color, size) {
+    return '<div id="chqpGv_' + key + '" onmousedown="chqGvStart(event,\'' + key + '\')" style="position:absolute;cursor:move;white-space:nowrap;font-weight:800;color:' + (color || '#111827') + ';font-size:' + (size || 12) + 'px;background:rgba(255,255,255,.75);border:1px dashed rgba(100,116,139,.5);border-radius:4px;padding:1px 4px;z-index:3;user-select:none" title="' + lb + ' — بکشید و رها کنید">' + sample + '</div>';
+  }
+  window.chqGvRender = function () {
+    var box = document.getElementById('chqpGv'); if (!box) return;
+    var L = chqLoadLayout();
+    var wPx = L.pageW * GV_SCALE, hPx = L.pageH * GV_SCALE;
+    box.innerHTML =
+      '<div style="position:relative;width:' + wPx + 'px;height:' + hPx + 'px;border:2px solid #94a3b8;border-radius:8px;background:#fff;margin:0 auto;overflow:hidden">' +
+      '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent ' + (10 * GV_SCALE - 1) + 'px,rgba(14,165,233,.12) ' + (10 * GV_SCALE) + 'px),repeating-linear-gradient(90deg,transparent,transparent ' + (10 * GV_SCALE - 1) + 'px,rgba(14,165,233,.12) ' + (10 * GV_SCALE) + 'px);pointer-events:none"></div>' +
+      gvFieldHtml('date', 'تاریخ (عدد)', faD('1405/04/21'), L.dateColor, (L.dateSize || 12) * 1.1) +
+      gvFieldHtml('dw', 'تاریخ به حروف', 'بیست و یکم تیر ماه هزار و چهارصد و پنج', L.dwColor, (L.dwSize || 9) * 1.1) +
+      gvFieldHtml('pay', 'در وجه', 'شرکت نمونه ذی‌نفع', L.payColor, (L.paySize || 12) * 1.1) +
+      gvFieldHtml('nid', 'کد ملی', '14010077558', L.nidColor, (L.nidSize || 9) * 1.1) +
+      gvFieldHtml('amt', 'مبلغ (بالا)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amtColor, (L.amtSize || 13) * 1.1) +
+      gvFieldHtml('amt2', 'مبلغ اصلی (پایین چپ)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amt2Color, (L.amt2Size || 12) * 1.1) +
+      gvFieldHtml('words', 'مبلغ به حروف', 'یک میلیون و دویست و پنجاه هزار ریال', L.wordsColor, (L.wordsSize || 10.5) * 1.1) +
+      gvFieldHtml('memo', 'بابت', 'بابت پیش‌پرداخت', L.memoColor, (L.memoSize || 9) * 1.1) +
+      '</div>';
+    window.chqGvSync();
+  };
+  window.chqGvSync = function () {
+    var L = chqLoadLayout();
+    var wPx = L.pageW * GV_SCALE, hPx = L.pageH * GV_SCALE;
+    var map = {
+      date: { top: L.dateTop, right: L.dateRight, size: L.dateSize, fam: L.dateFam, color: L.dateColor },
+      dw: { top: L.dwTop, right: L.dwRight, size: L.dwSize, fam: L.dwFam, color: L.dwColor },
+      pay: { top: L.payTop, right: L.payRight, size: L.paySize, fam: L.payFam, color: L.payColor },
+      nid: { top: L.nidTop, right: L.nidRight, size: L.nidSize, fam: L.nidFam, color: L.nidColor },
+      amt: { top: L.amtTop, left: L.amtLeft, size: L.amtSize, fam: L.amtFam, color: L.amtColor },
+      amt2: { top: L.amt2Top, left: L.amt2Left, size: L.amt2Size, fam: L.amt2Fam, color: L.amt2Color },
+      words: { top: L.wordsTop, right: L.wordsRight, left: L.wordsLeft, size: L.wordsSize, fam: L.wordsFam, color: L.wordsColor },
+      memo: { top: L.memoTop, right: L.memoRight, size: L.memoSize, fam: L.memoFam, color: L.memoColor }
+    };
+    Object.keys(map).forEach(function (k) {
+      var el = document.getElementById('chqpGv_' + k); if (!el) return;
+      var f = map[k];
+      var st = 'position:absolute;top:' + (f.top * GV_SCALE) + 'px;cursor:move;white-space:nowrap;font-weight:800;';
+      if (f.left != null) st += 'left:' + (f.left * GV_SCALE) + 'px;';
+      else st += 'right:' + ((L.pageW - (f.right || 0)) * GV_SCALE) + 'px;';
+      st += 'color:' + (f.color || '#111827') + ';font-size:' + ((f.size || 10) * 1.1) + 'px;';
+      el.setAttribute('style', st + 'background:rgba(255,255,255,.75);border:1px dashed rgba(100,116,139,.5);border-radius:4px;padding:1px 4px;z-index:3;user-select:none');
+    });
+  };
+  window.chqGvStart = function (ev, key) {
+    ev = ev || window.event;
+    if (ev.button && ev.button !== 0) return;
+    ev.preventDefault();
+    var L = chqLoadLayout();
+    var rect = document.getElementById('chqpGv').getBoundingClientRect();
+    window._chqDrag = { key: key, sx: ev.clientX, sy: ev.clientY, scale: GV_SCALE, origin: rect.left, topOrigin: rect.top, pageW: L.pageW, start: Object.assign({}, (function () {
+      var map = {
+        date: { top: L.dateTop, right: L.dateRight }, dw: { top: L.dwTop, right: L.dwRight }, pay: { top: L.payTop, right: L.payRight },
+        nid: { top: L.nidTop, right: L.nidRight }, amt: { top: L.amtTop, left: L.amtLeft }, amt2: { top: L.amt2Top, left: L.amt2Left },
+        words: { top: L.wordsTop, right: L.wordsRight, left: L.wordsLeft }, memo: { top: L.memoTop, right: L.memoRight }
+      };
+      return map[key] || {};
+    })()) };
+    document.addEventListener('mousemove', chqGvMove);
+    document.addEventListener('mouseup', chqGvEnd);
+  };
+  window.chqGvMove = function (ev) {
+    var d = window._chqDrag; if (!d) return;
+    ev.preventDefault();
+    var dx = (ev.clientX - d.sx) / d.scale;
+    var dy = (ev.clientY - d.sy) / d.scale;
+    var st = d.start;
+    var L = chqLoadLayout();
+    var el = document.getElementById('chqpGv_' + d.key); if (!el) return;
+    var newTop = Math.max(0, Math.round((st.top + dy) * 2) / 2);
+    var isLeft = st.left != null;
+    var newX = isLeft ? Math.max(0, Math.round((st.left + dx) * 2) / 2) : Math.max(0, Math.round((st.right - dx) * 2) / 2);
+    /* آپدیت inputهای عددی */
+    var tInp = document.getElementById('chqpL_' + d.key + 'Top'); if (tInp) tInp.value = newTop;
+    var xInp = document.getElementById('chqpL_' + d.key + (isLeft ? 'Left' : 'Right')); if (xInp) xInp.value = newX;
+    if (d.key === 'words') { var wl = document.getElementById('chqpL_wordsLeft'); if (wl) wl.value = Math.max(0, Math.round((st.left + dx) * 2) / 2); }
+    /* آپدیت خود چیدمان (برای درگ روان) */
+    L[d.key + 'Top'] = newTop;
+    if (isLeft) L[d.key + 'Left'] = newX; else L[d.key + 'Right'] = newX;
+    if (d.key === 'words') L.wordsLeft = Math.max(0, Math.round((st.left + dx) * 2) / 2);
+    chqSaveLayout(L);
+    window.chqGvSync();
+  };
+  window.chqGvEnd = function () {
+    if (!window._chqDrag) return;
+    window._chqDrag = null;
+    document.removeEventListener('mousemove', chqGvMove);
+    document.removeEventListener('mouseup', chqGvEnd);
   };
   window.chqPrintLayoutSave = function (toast) {
     var L = chqLoadLayout();
-    ['pageW', 'pageH', 'ox', 'oy', 'amtW', 'fontFam',
+    ['pageW', 'pageH', 'ox', 'oy', 'amtW', 'amt2W', 'fontFam',
       'dateTop', 'dateRight', 'dateSize', 'dwTop', 'dwRight', 'dwSize',
       'payTop', 'payRight', 'paySize', 'nidTop', 'nidRight', 'nidSize',
-      'amtTop', 'amtLeft', 'amtSize', 'wordsTop', 'wordsRight', 'wordsLeft', 'wordsSize',
+      'amtTop', 'amtLeft', 'amtSize', 'amt2Top', 'amt2Left', 'amt2Size',
+      'wordsTop', 'wordsRight', 'wordsLeft', 'wordsSize',
       'memoTop', 'memoRight', 'memoSize'].forEach(function (k) {
         var el = document.getElementById('chqpL_' + k);
         if (el && el.value !== '') L[k] = (k === 'fontFam') ? el.value : +el.value;
       });
-    ['dateFam', 'dwFam', 'payFam', 'nidFam', 'amtFam', 'wordsFam', 'memoFam'].forEach(function (k) {
+    ['dateFam', 'dwFam', 'payFam', 'nidFam', 'amtFam', 'amt2Fam', 'wordsFam', 'memoFam'].forEach(function (k) {
       var el = document.getElementById('chqpL_' + k);
       if (el) L[k] = el.value;
     });
-    ['dateColor', 'dwColor', 'payColor', 'nidColor', 'amtColor', 'wordsColor', 'memoColor'].forEach(function (k) {
+    ['dateColor', 'dwColor', 'payColor', 'nidColor', 'amtColor', 'amt2Color', 'wordsColor', 'memoColor'].forEach(function (k) {
       var el = document.getElementById('chqpL_' + k);
       if (el && el.value) L[k] = el.value;
     });

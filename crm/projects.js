@@ -138,6 +138,26 @@ function prjArchivedDocsHtml(p) {
     '</div>';
 }
 
+/* v33.7.0: چک‌های ضمانت پرونده (از ماژول چک — dealCd) — با پایان پروژه باید مسترد شوند */
+function prjGuaranteeChequesHtml(p) {
+  try {
+    var chqs = (typeof window.ptfChequeIssued === 'function' ? window.ptfChequeIssued() : []).filter(function (c) {
+      return c && c.kind === 'guarantee' && (c.dealCd === p.cd || c.dealCd === p.offerNo || c.dealCd === p.inqNo || c.dealCd === p.no);
+    });
+    if (!chqs.length) return '';
+    var rows = chqs.map(function (c) {
+      var st = c.st === 'retrieved'
+        ? '<span style="color:#047857">✅ مسترد شد</span>'
+        : c.st === 'void' ? '<span style="color:#dc2626">ابطال‌شده</span>' : '<span style="color:#b45309">🔴 در جریان</span>';
+      return '<div style="padding:4px 0;font-size:12px;border-bottom:1px dashed var(--brd)">' +
+        '🛡 <b dir="ltr">' + escP(c.sayad || c.no || '') + '</b> — ' + (+c.amt || 0).toLocaleString('fa-IR') + ' ریال — ' +
+        ({ advance: 'ضمانت پیش‌پرداخت', performance: 'ضمانت حسن انجام کار', bid: 'ضمانت مناقصه', other: 'سایر' }[c.guarType] || 'ضمانت') +
+        ' — سررسید: ' + escP(c.dueFa || c.dueISO || '—') + ' — ' + st + '</div>';
+    }).join('');
+    return '<h4 style="margin:12px 0 6px">🛡 چک‌های ضمانت پرونده</h4><div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:12px;padding:8px 12px;margin-bottom:8px">' + rows + '</div>';
+  } catch (e) { return ''; }
+}
+
 function openProject(no) {
   var p = getData('ptf_crm_projects').filter(function (x) { return x.no === no; })[0];
   if (!p) return;
@@ -184,6 +204,7 @@ function openProject(no) {
       : '<div style="font-size:11px;color:#d97706;margin-bottom:4px">🔒 حذف/فشرده‌سازی فایل‌های ابری فقط پس از حداقل یک بار «دانلود کل پرونده» (اگر فایل ابری داشته باشد)</div>')) +
     '<div style="font-size:11.5px;color:#64748b;margin:6px 0">CO: ' + escP(p.offerNo) + (p.inqNo ? ' | Inquiry: ' + escP(p.inqNo) : '') + ' | تحویل: ' + prjDeliveryPct(p) + '٪ | جمع هزینه‌های پرونده: ' + prjCostTotal(p).toLocaleString('fa-IR') + ' ریال</div>' +
     ((p.origin === 'salesfile' && p.docSnap) ? prjArchivedDocsHtml(p) : '') +
+    prjGuaranteeChequesHtml(p) +
     ((typeof ptfProjectLossBadge === 'function' && ptfProjectLossBadge(p)) ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:#991b1b;margin-bottom:8px">' + ptfProjectLossBadge(p) + '</div>' : '') +
     '<div id="prjCostBox"></div>' +
     '<h4 style="margin:12px 0 6px">پوشه‌های مدارک</h4>' +

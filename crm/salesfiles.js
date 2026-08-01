@@ -863,6 +863,19 @@
     } catch (eQ) {}
     /* ⑤ کنترل اسناد (AC2) */
     out.docs = { award: (r.awardDocs || []).length, offers: d.offers.length, invoices: d.invoices.length, ship: (r.shipEvents || []).length, qc: (r.qcEvents || []).length, costs: (r.costEvents || []).length, misc: (r.docs || []).length, letters: d.letters.length, supply: (d.supply || []).length };
+    /* v33.7.0 (مصوب کارفرما): چک‌های ضمانت (پیش‌پرداخت/حسن انجام/مناقصه) اثر مالی ندارند،
+       در پرونده فروش می‌نشینند و باید با پایان پروژه مسترد شوند → ضمانت باز = blocker،
+       با تأیید صریح (closeOverride.guaranteeConfirmed) قابل عبور (الگوی UR-12 تحویل). */
+    try {
+      var guarChqs = (typeof window.ptfChequeIssued === 'function' ? window.ptfChequeIssued() : [])
+        .filter(function (c) { return c && c.kind === 'guarantee' && c.dealCd === r.cd && c.st === 'open'; });
+      if (guarChqs.length) {
+        out.guarCheques = guarChqs;
+        var ovrG = r.closeOverride || {};
+        if (ovrG.guaranteeConfirmed) out.warns.push({ id: 'guarantee-override', lb: '🛡 ' + guarChqs.length + ' چک ضمانت باز با تأیید صریح ' + (ovrG.by || '') + (ovrG.reason ? ' — ' + ovrG.reason : '') + ' — پیگیری استرداد پس از مختومه بر عهدهٔ ثبت‌کننده است' });
+        else out.blockers.push({ id: 'guarantee', lb: '🛡 ' + guarChqs.length + ' چک ضمانت باز برای این پرونده ثبت شده (' + guarChqs.map(function (g) { return g.sayad || g.no || ''; }).join('، ') + ') — ضمانت با پایان پروژه باید مسترد شود: یا از تب چک‌ها «🏆 استرداد ضمانت» بزنید یا در این مودال «استرداد پس از مختومه» را تأیید کنید' });
+      }
+    } catch (eG) {}
     if (!out.docs.award && r.wonOffer) out.warns.push({ id: 'award', lb: '🏆 سند قطعی برد ثبت نشده — یک بار کشوی پرونده را باز کنید تا مهاجرت نرم انجام شود (US-432)' });
     try {
       if (r.wonOffer && typeof ptfDocxCoverage === 'function') {
@@ -1057,8 +1070,22 @@
     /* UR-12: اگر تنها blocker «تحویل» است، مسیر تأیید صریح نمایش داده می‌شود */
     var deliveryOvr = '';
     if (au.blockers.some(function (b) { return b.id === 'delivery'; })) {
-      deliveryOvr = '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsDeliv" onchange="document.getElementById(\'sfClsGoBtn\').disabled = !this.checked"> تحویل به کارفرما انجام شده است (با مسئولیت ثبت‌کننده)</label><input id="sfClsDelivReason" type="text" placeholder="دلیل/توضیح (اختیاری)" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
+      deliveryOvr = '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsDeliv" onchange="sfClsCheckGo()"> تحویل به کارفرما انجام شده است (با مسئولیت ثبت‌کننده)</label><input id="sfClsDelivReason" type="text" placeholder="دلیل/توضیح (اختیاری)" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
     }
+    /* v33.7.0: چک ضمانت باز — مسیر تأیید صریح «استرداد پس از مختومه» */
+    var guarOvr = '';
+    if (au.blockers.some(function (b) { return b.id === 'guarantee'; }) && (au.guarCheques || []).length) {
+      guarOvr = '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:8px 11px;margin-bottom:8px">' +
+        '<div style="font-size:12px;color:#5b21b6;margin-bottom:5px">🛡 ' + au.guarCheques.map(function (g) { return '<b dir="ltr">' + escP(g.sayad || g.no || '') + '</b> — ' + (+g.amt || 0).toLocaleString('fa-IR') + ' ریال (' + ({ advance: 'پیش‌پرداخت', performance: 'حسن انجام', bid: 'مناقصه', other: 'سایر' }[g.guarType] || 'ضمانت') + ')' + (g.st === 'retrieved' ? ' ✅ مسترد' : ' 🔴 باز'); }).join('<br>') + '</div>' +
+        '<label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsGuar" onchange="sfClsCheckGo()"> استرداد ضمانت پس از مختومه پیگیری می‌شود (با مسئولیت ثبت‌کننده)</label>' +
+        '<input id="sfClsGuarReason" type="text" placeholder="دلیل/توضیح (اختیاری)" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
+    }
+    window.sfClsCheckGo = function () {
+      var go = document.getElementById('sfClsGoBtn'); if (!go) return;
+      var delivOk = !document.getElementById('sfClsDeliv') || document.getElementById('sfClsDeliv').checked;
+      var guarOk = !document.getElementById('sfClsGuar') || document.getElementById('sfClsGuar').checked;
+      go.disabled = !(delivOk && guarOk);
+    };
     var settleChk = au.openInvs.length
       ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsSettle" checked> مانده ' + au.remainSum.toLocaleString('fa-IR') + ' ریال مطالبات «تسویه‌شده» ثبت شود (US-324/FIN-WF-013) — بدون تیک: مطالبات باز می‌ماند</label><textarea id="sfClsSettleReason" rows="2" style="width:100%;margin-top:7px" placeholder="دلیل تسویه خودکار را وارد کنید — اجباری"></textarea></div>'
       : '';
@@ -1066,12 +1093,17 @@
       '<h3>🏁 کنترل پیش از مختومه — ' + escP(r.inqNo || cd) + '</h3>' +
       '<div style="font-size:12px;color:#475569;margin-bottom:8px">US-437: مختومه فقط پس از <b>تحویل موفق</b> و <b>تسویه کامل</b> — همه اسناد پیش از بایگانی کنترل می‌شوند و کل پرونده (سند برد، QC، ارسال، هزینه‌ها، زیان‌ها) به بایگانی منتقل می‌شود.</div>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;font-size:12.5px;margin-bottom:8px"><b>🧭 مرحله فعلی: ' + escP(typeof sfStageLabel === 'function' ? sfStageLabel(r) : '') + '</b> (' + au.stage + '/12)' + docsHtml + '</div>' +
-      blocksHtml + warnsHtml + deliveryOvr + settleChk +
+      blocksHtml + warnsHtml + deliveryOvr + guarOvr + settleChk +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       (canClose
         ? '<button class="bt" id="sfClsGoBtn" style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
-        : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>') +
+        : (function () {
+            var onlyOverride = au.blockers.every(function (b) { return b.id === 'delivery' || b.id === 'guarantee'; });
+            return onlyOverride
+              ? '<button class="bt" id="sfClsGoBtn" disabled style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه (پس از تأیید موارد بالا)</button>'
+              : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>';
+          })()) +
       '</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   }
@@ -1093,6 +1125,20 @@
         rr.closeOverride.t = faDateTime();
         sfSave(list);
         r = rr;
+      }
+    }
+    /* v33.7.0: تأیید صریح «استرداد ضمانت پس از مختومه» */
+    var guarChk = document.getElementById('sfClsGuar');
+    if (guarChk && guarChk.checked) {
+      var listG = sfAll(); var rrG = listG.filter(function (x) { return x.cd === cd; })[0];
+      if (rrG) {
+        rrG.closeOverride = rrG.closeOverride || {};
+        rrG.closeOverride.guaranteeConfirmed = true;
+        rrG.closeOverride.guaranteeReason = ((document.getElementById('sfClsGuarReason') || {}).value || '').trim();
+        rrG.closeOverride.by = curSession().name;
+        rrG.closeOverride.t = faDateTime();
+        sfSave(listG);
+        r = rrG;
       }
     }
     var au = sfCloseAudit(r);
