@@ -115,6 +115,36 @@
     if (typeof ptfToast === 'function') ptfToast(returnRecord.stockPendingItems && returnRecord.stockPendingItems.length ? 'مرجوعی ثبت شد، اما برخی اقلام در کاتالوگ کالا پیدا نشدند و به موجودی نرفتند.' : 'مرجوعی ثبت شد؛ مطالبات مشتری و موجودی به‌روزرسانی شد.', returnRecord.stockPendingItems && returnRecord.stockPendingItems.length ? 'warn' : 'ok');
     var offerCustomer = offer.buyerCd; if (offerCustomer) cfOpen(offerCustomer);
   };
+  window.cfSalesReturnProductPicker = function (returnCd, pending) {
+    var returns = getData('ptf_crm_sales_returns') || [], rtn = returns.filter(function (x) { return x.cd === returnCd; })[0];
+    if (!rtn) return;
+    document.querySelectorAll('#cfReturnProductDlg').forEach(function (el) { el.remove(); });
+    var products = getData('ptf_crm_products') || [];
+    var options = '<option value="">— انتخاب کالا از کاتالوگ —</option>' + products.map(function (p) {
+      return '<option value="' + escP(p.cd) + '">' + escP(p.nm || p.name || p.cd) + ' — ' + escP(p.cd) + '</option>';
+    }).join('');
+    var rows = pending.map(function (name, i) {
+      return '<div style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,1fr);gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #e2e8f0"><b>' + escP(name) + '</b><select id="cfRetProd_' + i + '">' + options + '</select></div>';
+    }).join('');
+    var html = '<div class="md-b" id="cfReturnProductDlg" style="display:grid;z-index:3600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:90vh;overflow:auto"><h3>📦 تکمیل ورود به موجودی</h3><div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px;margin-bottom:10px;font-size:12px">برای این اقلام کالای متناظر پیدا نشد. ابتدا هر قلم را به کالای درست از کاتالوگ وصل کنید؛ سیستم کالای جدید را خودکار ایجاد نمی‌کند.</div>' + rows + '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="cfSalesReturnAssignProducts(\'' + escP(returnCd) + '\')">تایید و ورود به موجودی</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.cfSalesReturnAssignProducts = function (returnCd) {
+    var returns = getData('ptf_crm_sales_returns') || [], rtn = returns.filter(function (x) { return x.cd === returnCd; })[0];
+    if (!rtn) return;
+    var names = rtn.stockPendingItems || [], missing = false;
+    names.forEach(function (name, i) {
+      var select = document.getElementById('cfRetProd_' + i), value = select && select.value;
+      var item = (rtn.items || []).filter(function (x) { return x.item === name && !x.productCd; })[0];
+      if (!value || !item) { missing = true; return; }
+      item.productCd = value;
+    });
+    if (missing) { alert('برای همه اقلام، کالای متناظر را انتخاب کنید.'); return; }
+    setData('ptf_crm_sales_returns', returns);
+    var dlg = document.getElementById('cfReturnProductDlg'); if (dlg) dlg.remove();
+    cfSalesReturnStockRetry(returnCd);
+  };
+
   window.cfSalesReturnStockRetry = function (returnCd) {
     var returns = getData('ptf_crm_sales_returns') || [], rtn = returns.filter(function (x) { return x.cd === returnCd; })[0];
     if (!rtn || rtn.disposition !== 'stock') return;
@@ -149,7 +179,8 @@
     });
     rtn.stockRefs = stockRefs; rtn.stockPendingItems = pending; rtn.stockStatus = pending.length ? 'pending_product_definition' : 'stocked';
     setData('ptf_crm_sales_returns', returns);
-    if (typeof ptfToast === 'function') ptfToast(pending.length ? 'برخی اقلام هنوز کالا ندارند.' : 'ورود مرجوعی به موجودی تکمیل شد.', pending.length ? 'warn' : 'ok');
+    if (typeof ptfToast === 'function') ptfToast(pending.length ? 'برخی اقلام هنوز کالا ندارند؛ پنجره انتخاب کالا باز شد.' : 'ورود مرجوعی به موجودی تکمیل شد.', pending.length ? 'warn' : 'ok');
+    if (pending.length) window.cfSalesReturnProductPicker(returnCd, pending);
     if (inv.offerNo) { var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}; if (offer.buyerCd) cfOpen(offer.buyerCd); }
   };
   window.cfOpen = function (cd) {
