@@ -221,6 +221,16 @@
         out.push({ date: r.t || '', type: 'مرجوعی فروش', no: r.cd || '', ref: (r.reason ? r.reason + ' — ' : '') + items, debit: 0, credit: +r.totalAmount || 0, cur: 'IRR' });
       });
     });
+    /* CHQ-MOD-001: چک‌های وارده (received) از این مشتری که هنوز وصول/برگشتی نشده‌اند →
+       ردیف گردش (بستانکار = مبلغ چک، هنوز در مانده نهایی اثر ندارد تا وصول شود) */
+    try {
+      var receivedChq = (typeof window.ptfChequeReceived === 'function') ? window.ptfChequeReceived() : [];
+      receivedChq.forEach(function (c) {
+        if (!c || (c.sourceCustomerCd && c.sourceCustomerCd !== cd)) return;
+        if (c.st !== 'open' && c.st !== 'held' && c.st !== 'endorsed') return;
+        out.push({ date: c.dueFa || c.dueISO || c.t || '', type: 'چک وارده (در گردش)', no: c.sayad || c.no || c.cd, ref: (c.bank || '') + (c.sourceInvoiceCd ? ' (فاکتور ' + c.sourceInvoiceCd + ')' : ''), debit: 0, credit: 0, cur: 'IRR', note: c.payerName || '' });
+      });
+    } catch (eChq) {}
     /* مرتب‌سازی صعودی بر اساس تاریخ (فرمت 1405/MM/DD مقایسهٔ رشته‌ای درست است)؛ بدون تاریخ آخر */
     out.sort(function (a, b) { var da = a.date || '9999/99/99', db = b.date || '9999/99/99'; return da < db ? -1 : da > db ? 1 : 0; });
     var bal = 0;

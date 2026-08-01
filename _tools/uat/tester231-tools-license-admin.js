@@ -17,10 +17,10 @@ T('صدور لایسنس کد خام را با random_bytes می‌سازد', ap
 T('سرور فقط tokenHash ذخیره می‌کند و raw code در license object ذخیره نمی‌شود', api.indexOf("'tokenHash' => tools_token_hash($rawCode)") > -1 && api.indexOf("'license_code' => $rawCode") > -1 && api.indexOf("$safe['rawCodeStored'] = false") > -1);
 T('ذخیره runtime در crm/data/tool_licenses.json با wrapper licenses انجام می‌شود', api.indexOf('function tools_save_licenses') > -1 && api.indexOf("'licenses' => array_values($licenses)") > -1 && api.indexOf('JSON_PRETTY_PRINT') > -1);
 T('نوع/ابزار/وضعیت validate می‌شوند', ['tools_norm_tool','tools_norm_type','tools_norm_status','staff_internal','control_valve_advanced'].every(function (x) { return api.indexOf(x) > -1; }));
-T('status API به v33.4.8 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
+T('status API به v33.4.9 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM admin UI');
-T('tool-licenses.js در CRM با cache-bust v33.4.8 لود می‌شود', /tool-licenses.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-licenses.js در CRM با cache-bust v33.4.9 لود می‌شود', /tool-licenses.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('UI فقط برای admin/chairman نمایش داده می‌شود', ui.indexOf("['admin', 'chairman'].indexOf(curRole())") > -1 && ui.indexOf('roleOk()') > -1);
 T('UI به تنظیمات CRM تزریق می‌شود', ui.indexOf('var _buildSettings = window.buildSettings') > -1 && ui.indexOf('ptfToolLicensesAdminHtml') > -1);
 T('فرم صدور لایسنس ابزار/نوع/سقف/انقضا دارد', ['tlCompany','tlContact','tlType','tlTool','tlMax','tlExp','tlNote'].every(function (x) { return ui.indexOf(x) > -1; }));

@@ -24,7 +24,7 @@ T('staff_internal quota-exempt است', api.indexOf("($lic['type'] ?? '') === 's
 T('online payment در final issue فعال نشده است', api.indexOf('payment_gateway') === -1 && api.indexOf('online_payment') === -1 && api.indexOf('zarinpal') === -1);
 
 SECTION('CRM final report UI');
-T('CRM نسخه v33.4.8 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM نسخه v33.4.9 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 T('CRM UI توابع final issue/get/download/open دارد', ['ptfToolReportDraftFinalIssue','ptfToolReportDraftFinalGet','ptfToolReportDraftDownloadFinalHtml','ptfToolReportDraftOpenFinalWindow'].every(function (x) { return ui.indexOf(x) > -1; }));
 T('CRM UI اکشن‌های final issue/get را صدا می‌زند', ui.indexOf('admin_report_final_issue') > -1 && ui.indexOf('admin_report_final_get') > -1);
 T('CRM UI دانلود HTML با Blob و createObjectURL دارد', ui.indexOf('new Blob([html]') > -1 && ui.indexOf('URL.createObjectURL') > -1 && ui.indexOf('a.download = filename') > -1);

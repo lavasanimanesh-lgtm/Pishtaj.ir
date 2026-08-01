@@ -419,7 +419,7 @@
        باقی می‌ماند. رکورد در ptf_crm_supplier_finance حفظ می‌شود (برای
        audit/رفع‌ابهام آینده)، فقط از این نمای گردش حساب حذف می‌شود. */
     (d.payments || []).filter(function (p) { return p.supplierCd === supCd && p.status !== 'void'; }).forEach(function (p) {
-      var cheque = p.chequeCd ? getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0] : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، ');
+      var cheque = p.chequeCd ? (typeof window.ptfChequeFind === 'function' ? window.ptfChequeFind(p.chequeCd) : getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0]) : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، ');
       // v30.6.2: نمایش نام قلم برای پرداخت‌ها اگر item دارد
       var itemNm = p.item || (p.note||'').split(' - ')[0] || '';
       if(!itemNm){
@@ -439,6 +439,18 @@
       }
       if (keep(p.dateISO || '', p.cur || 'IRR', 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: (+p.amount || 0), status: 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, link: { kind: 'payment', cd: p.cd } });
     });
+    /* CHQ-MOD-001: چک‌های صادرهٔ ماژول (issued) برای همین تامین‌کننده که هنوز وصول/ابطال نشده‌اند
+       و payment لینک‌شده ندارند → ردیف گردش (بستانکار = مبلغ چک) */
+    try {
+      var issuedChq = (typeof window.ptfChequeIssued === 'function') ? window.ptfChequeIssued() : [];
+      issuedChq.forEach(function (c) {
+        if (!c || c.supplierCd !== supCd) return;
+        if (c.st !== 'open' && c.st !== 'transferred') return;
+        var payLink = (d.payments || []).some(function (p) { return p.chequeCd === c.cd; });
+        if (payLink) return; /* قبلاً در ردیف پرداخت آمده */
+        if (keep(c.dueISO || '', 'IRR', 'cheque', '')) out.push({ date: c.dueISO || '', dateFa: c.dueFa || c.dueISO || '', type: 'چک صادره (در گردش)', no: c.sayad || c.no || c.cd, ref: sup.co || '', cur: 'IRR', debit: 0, credit: (+c.amt || 0), status: 'cheque', note: (c.bank ? c.bank : ''), link: { kind: 'cheque', cd: c.cd } });
+      });
+    } catch (eChq) {}
     legacyOpen(sup || {}).filter(function (p) { return !linked[p.cd]; }).forEach(function (p) {
       var rem = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : (+p.amount || 0);
       var itemNm = p.item || p.desc || '';

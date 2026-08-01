@@ -1,4 +1,4 @@
-/* CHQ-MOD-001 — ماژول مستقل چک (v33.4.8): صادره/وارده + عملیات + مهاجرت نرم */
+/* CHQ-MOD-001 — ماژول مستقل چک (v33.4.9): صادره/وارده + عملیات + مهاجرت نرم */
 'use strict';
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -117,6 +117,16 @@ T('پنل: عملیات وصول/انتقال گارد قفل سال مالی د
 T('data-quality چک‌ها را از ptfChequeAll می‌خواند (هر دو کلید)', (function () {
   var dq = fs.readFileSync(path.join(BASE, 'data-quality.js'), 'utf-8');
   return dq.indexOf('window.ptfChequeAll') > -1;
+})());
+
+SECTION('اتصال به گردش حساب (تامین‌کننده/مشتری)');
+T('supplier-finance: چک از ptfChequeFind خوانده می‌شود', (function () {
+  var sf = fs.readFileSync(path.join(BASE, 'supplier-finance.js'), 'utf-8');
+  return sf.indexOf('window.ptfChequeFind') > -1 && sf.indexOf('چک صادره (در گردش)') > -1;
+})());
+T('customer-finance: چک وارده در گردش حساب مشتری نمایش داده می‌شود', (function () {
+  var cf = fs.readFileSync(path.join(BASE, 'customer-finance.js'), 'utf-8');
+  return cf.indexOf('چک وارده (در گردش)') > -1 && cf.indexOf('window.ptfChequeReceived') > -1;
 })());
 
 SECTION('گزارش پنل');

@@ -101,7 +101,7 @@ v33.3.0 سراسری + SHELL سرویس‌ورکر تکمیل + zip بازساز
 4h. ✅ **BUG-PDF-ATTACH — v33.4.5**: گزارش تلفیقی ضمائم را نمایش نمی‌داد. رفع: ptfPettyFileKind + ptfPettyResolveUrl + رندر <img>/<embed> + CombinedPdf async — tester209.
 4i. ✅ **BUG-TOTALS + BUG-ATTACH-URL — v33.4.6**: ردیف‌های جمع (هزینه/شارژ/موجودی شروع/پایان) + حفظ url فایل‌ها — tester208.
 4j. ✅ **BUG-PDF-HEIC — v33.4.7**: تبدیل PDF/HEIC → JPEG (api/attachment-thumb.php + Imagick) + رندر <img> + چیدمان grid سه‌ستونه + ناوبری تقویم با delegation — tester209 (۲۱/۰).
-4k. ✅ **CHQ-MOD-001 تکمیلی — v33.4.8**: یکپارچه‌سازی یادآور چک وارده/صادره + قفل سال مالی + data-quality — tester215 (۳۱/۰).
+4k. ✅ **CHQ-MOD-001 تکمیلی — v33.4.8/4.9**: یادآور چک وارده/صادره + قفل سال مالی + data-quality + **اتصال چک به گردش حساب تامین‌کننده/مشتری** (چک صادره/وارده در گردش در ledger طرف) — tester215 (۳۳/۰).
 4l. ⚠️ **OPEN-CAL-NAV و OPEN-PDF-CONVERT (باز — برای ایجنت‌های بعدی):** کارفرما تأیید کرد «تقویم درست نشد» و «تبدیل PDF به عکس ممکن نشد». هر دو در `BACKLOG-USER-2026-08-01.md` با جزئیات ثبت شدند؛ نیازمند بررسی روی استیجینگ واقعی (احتمالاً فقدان Imagick روی هاست برای PDF).
 
 ---
