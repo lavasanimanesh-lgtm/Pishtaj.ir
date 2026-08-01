@@ -108,7 +108,8 @@
     if (!periods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
     var rows = periods.map(function (p) {
       var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
-      var acts = '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfPettyPeriodReport(\'' + escP(p.month) + '\')">📊 گزارش دوره</button>';
+      var acts = '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfPettyPeriodReport(\'' + escP(p.month) + '\')">📊 گزارش دوره</button>' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#1d4ed8" onclick="ptfPettyPeriodCombinedPdf(\'' + escP(p.month) + '\')" title="گزارش + رسیدها در یک PDF با شناسهٔ هر رسید">📎 PDF تلفیقی</button>';
       if (isAccountant() && p.st === 'referred') acts += '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="pettyPeriodRegistered(\'' + p.cd + '\')">ثبت در حسابداری</button>';
       if (isTreasurer() && p.st === 'referred') acts += '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="pettyAttachBank(\'' + p.cd + '\')">پیوست صورتحساب</button>';
       var st = p.st === 'registered' ? '<span class="bd b-st4">ثبت‌شده</span>' : '<span class="bd" style="background:#dbeafe;color:#1d4ed8">ارجاع‌شده</span>';
@@ -184,7 +185,14 @@
     if (typeof attachUploadWidget === 'function') {
       attachUploadWidget('ptyUp', 'petty/' + rec.cd, function (f) {
         var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === rec.cd; })[0];
-        if (r) { r.files = r.files || []; r.files.push(f); setData(PETTY_KEY, a); }
+        if (r) {
+          r.files = r.files || [];
+          /* UR-10: هر رسید شناسهٔ «سند N» می‌گیرد تا در PDF تلفیقی با ردیف گزارش مطابقت داده شود.
+             شناسه فقط یک‌بار (اینجا) ساخته و روی خود فایل ذخیره می‌شود. */
+          if (!f.petId) f.petId = window.ptfPettyNextPetId();
+          r.petId = r.petId || f.petId;
+          r.files.push(f); setData(PETTY_KEY, a);
+        }
       });
     }
   }
@@ -507,11 +515,92 @@
     w.document.write(html); w.document.close(); w.print();
   };
 
+  /* ============ UR-10: PDF تلفیقی دورهٔ تنخواه (گزارش + ضمائم + رسیدها با شناسهٔ ردیف) ============ */
+  /* کلید پیوند شناسهٔ رسید: petId در متادیتای فایل رکورد ذخیره می‌شود (توسط رکورد ابزار پیوست). */
+  window._ptfPettyPetId = 0;
+  window.ptfPettyNextPetId = function () { return 'سند ' + (++window._ptfPettyPetId); };
+
+  /* پی‌دی‌اف تلفیقی: صفحه‌های زیر را می‌سازد (هر صفحه در چاپ/PDF جدا می‌شود):
+     ۱) صفحهٔ ۱: گزارش دوره (جدول ردیف‌ها + جمع‌ها)
+     ۲) صفحهٔ ۲: تصاویر رسیدها/ضمائم در چیدمان فشردهٔ ۳-در-صفحه (هر رسید یک بلوک با شناسهٔ «سند N»)
+     ۳) بعدی: تصاویر ضمیمهٔ صورتحساب بانک (در صورت وجود) + هر فایل دیگر */
+  window.ptfPettyPeriodCombinedPdfHtml = function (month, pageBreakLabel) {
+    var d = window.ptfPettyPeriodData(month);
+    var events = window.ptfPettyPeriodEvents(month), t = window.ptfPettyPeriodTotals(month);
+    function rowHtml(e) { return '<tr><td>' + e.row + '</td><td>' + escP(e.t || '—') + '</td><td>' + escP(e.kind) + '</td><td>' + escP(e.desc || '—') + '</td><td>' + escP(e.by || '—') + '</td><td>' + money(e.amt) + '</td></tr>'; }
+    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>' +
+      '@page{size:A4;margin:12mm}' +
+      'body{font-family:Tahoma,Arial;padding:0;margin:0;color:#111;font-size:11px}' +
+      'table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:4px 6px;text-align:right;font-size:10.5px}th{background:#eee}' +
+      '.page{page-break-after:always}' +
+      '.grid{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}' +
+      '.rcpt{width:calc(33.3% - 4px);box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:5px;page-break-inside:avoid;background:#fff;overflow:hidden}' +
+      '.rcpt img{width:100%;height:auto;display:block;border-radius:5px;max-height:380px;object-fit:contain;background:#fff}' +
+      '.rcpt .cap{font-size:9.5px;color:#1d4ed8;font-weight:bold;margin:4px 0 2px}' +
+      '.rcpt .meta{font-size:9px;color:#475569;margin-bottom:3px}' +
+      '</style></head><body>' +
+      '<div class="page"><h2 style="font-size:16px;margin:0 0 8px">گزارش دورهٔ تنخواه — ' + escP(month) + '</h2>' +
+      '<p style="margin:0 0 8px">هزینه‌های دوره: <b>' + money(t.totalOut) + '</b> | شارژ دوره: <b>' + money(t.charges) + '</b> | موجودی دوره: <b>' + money(t.balance) + '</b></p>' +
+      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>مبلغ</th></tr></thead><tbody>' + events.map(rowHtml).join('') + '</tbody></table>' +
+      (pageBreakLabel ? '<p style="font-size:10px;color:#64748b;margin-top:6px">' + escP(pageBreakLabel) + '</p>' : '') +
+      '</div>';
+    return html;
+  };
+
+  /* صفحهٔ ضمائم: چیدمان ۳-در-صفحهٔ فشرده + شناسهٔ «سند N» برای هر فایل */
+  window.ptfPettyReceiptsHtml = function (records) {
+    var cards = (records || []).map(function (f) {
+      var petId = f.petId || '';
+      return '<div class="rcpt"><div class="cap">' + escP(petId || 'سند') + '</div>' +
+        (f.name ? '<div class="meta">' + escP(f.name) + '</div>' : '') +
+        '<img src="' + String(f.url || '').replace(/"/g, '&quot;') + '" onerror="this.parentNode.innerHTML=\'<div style=padding:12px;color:#b91c1c;font-size:10px>⚠️ تصویر این رسید قابل نمایش نیست (فرمت نامعتبر/دسترسی)</div>\'"></div>';
+    }).join('');
+    if (!cards) return '<div style="padding:16px;color:#64748b;font-size:12px">رسید/ضمیمه‌ای برای نمایش در این دوره موجود نیست.</div>';
+    return '<div class="grid">' + cards + '</div>';
+  };
+
+  /* جمع‌آوری همهٔ فایل‌های دوره (هزینه‌ها + تراکنش‌ها) و اسناد + پیوست دوره */
+  window.ptfPettyPeriodFiles = function (month) {
+    var d = window.ptfPettyPeriodData(month), out = [];
+    (d.petty || []).forEach(function (p) {
+      var petId = p.petId || ((p.files || []).length ? (p.files[0].petId || '') : '');
+      (p.files || []).forEach(function (f) { out.push({ key: f.key || '', name: f.name || f.key, url: '', petId: f.petId || petId, record: p }); });
+    });
+    (d.tx || []).forEach(function (x) {
+      var petId = x.petId || ((x.files || []).length ? (x.files[0].petId || '') : '');
+      (x.files || []).forEach(function (f) { out.push({ key: f.key || '', name: f.name || f.key, url: '', petId: f.petId || petId, record: x }); });
+    });
+    return out;
+  };
+
+  /* اجرا: ساخت PDF تلفیقی با گرفتن URL هر فایل (async) و سپس چاپ/دانلود */
+  window.ptfPettyPeriodCombinedPdf = function (month) {
+    var d = window.ptfPettyPeriodData(month);
+    /* صفحات بعد از گزارش: ۱) رسیدهای هزینه‌ها/تراکنش‌ها (شناسه‌دار) ۲) پیوست صورتحساب بانک/دوره + بقیه */
+    var files = window.ptfPettyPeriodFiles(month);
+    /* پیوست دوره (صورتحساب بانک/گزارش) از رکورد دورهٔ ارجاع‌شدهٔ همان ماه */
+    var periodRec = prAll().filter(function (x) { return x.month === month; }).slice(0, 1)[0] || {};
+    var periodFiles = periodRec.files || [];
+    var pageBreaks = [];
+    /* ۱) رسیدهای هزینه‌ها در چیدمان ۳-در-صفحه */
+    var receiptsHtml = window.ptfPettyReceiptsHtml(files);
+    pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">📎 ضمائم و رسیدهای پرداخت (شناسهٔ هر رسید مطابق ردیف‌های گزارش)</h3>' + receiptsHtml + '</div>');
+    /* ۲) پیوست صورتحساب بانک/دوره */
+    if (periodFiles.length) {
+      pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">🏦 پیوست صورتحساب بانک / گردش حساب دوره</h3>' + window.ptfPettyReceiptsHtml(periodFiles) + '</div>');
+    }
+    var reportHtml = window.ptfPettyPeriodCombinedPdfHtml(month, 'تعداد رسیدهای ضمیمه‌شده: ' + files.length + (periodFiles.length ? ' | پیوست بانک: ' + periodFiles.length : ''));
+    var fullHtml = reportHtml + pageBreaks.join('');
+    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تلفیقی دورهٔ تنخواه — ' + month, fullHtml, 'petty-period-combined-' + month.replace(/\//g, '-')); return; }
+    var w = window.open('', '_blank'); if (!w) return;
+    w.document.write(fullHtml); w.document.close(); w.print();
+  };
+
   window.pettyClosePeriod = function () {
     if (!isTreasurer()) { alert('⛔ فقط تنخواه‌گردان'); return; }
     ptfDialog({
       title: '📤 ارجاع گزارش دوره تنخواه به حسابدار',
-      body: 'گزارش گردش دوره شامل پرداخت‌های مستقیم، تسویه مطالبات اشخاص، مانده حساب و همه ضمایم هزینه‌هاست. پس از ثبت، در کارتابل حسابدار قابل پیگیری می‌شود.',
+      body: 'گزارش گردش دوره شامل پرداخت‌های مستقیم، تسویه مطالبات اشخاص، مانده حساب و همه ضمایم هزینه‌هاست. پس از ثبت، در کارتابل حسابدار قابل پیگیری می‌شود.<br><b style="color:#b45309">⚠️ پیوست «صورتحساب بانک / گردش حساب» قبل از ارجاع الزامی است.</b>',
       fields: [
         { id: 'month', label: 'ماه دوره (مثال 1405/04)', value: faMonthNow(), required: true, dir: 'ltr' },
         { id: 'note', label: 'یادداشت برای حسابدار', type: 'textarea', rows: 2 },
@@ -520,12 +609,24 @@
       okText: 'ثبت و ارجاع',
       onOk: function (v) {
         var d = window.ptfPettyPeriodData(v.month);
+        var ps = prAll();
+        /* الزام پیوست صورتحساب بانک قبل از ارجاع (UR-10): اگر دورهٔ ماه قبل ارجاع‌شده پیوست نداشته باشد،
+           ابتدا دیالوگ پیوست باز می‌شود و ارجاع انجام نمی‌شود. */
+        var prev = ps.filter(function (x) { return x.month === v.month && x.st === 'referred'; })[0];
+        if (prev && !(prev.files || []).length) {
+          alert('⚠️ ابتدا «صورتحساب بانک / گردش حساب» این دوره را ضمیمه کنید؛ ارجاع تا الحاق پیوست انجام نمی‌شود.');
+          pettyAttachBank(prev.cd);
+          return;
+        }
         var rec = { cd: genCode('PPR'), month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: [] };
-        var ps = prAll(); ps.unshift(rec); prSave(ps);
+        ps.unshift(rec); prSave(ps);
         audit('تنخواه', 'ارجاع گزارش دوره ' + d.month + ' به حسابدار — گردش ' + money(d.totalOut), rec.cd);
         if (typeof notify === 'function') notify({ toRoles: ['accountant'], title: '📤 گزارش دوره تنخواه ' + d.month + ' برای ثبت حسابداری ارجاع شد', body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' } });
         if (v.sms === 'yes' && typeof smsSendSingle === 'function') accountants().forEach(function (u) { if (u.mobile) smsSendSingle(u.mobile, 'حسابدار محترم، گزارش دوره تنخواه ' + d.month + ' در CRM برای ثبت حسابداری ارجاع شد. https://pishtaj.ir/crm/'); });
-        renderPetty(); pettyAttachBank(rec.cd);
+        renderPetty();
+        /* UR-10: بعد از ساخت دوره، دیالوگ پیوست صورتحساب بانک/گزارش باز می‌شود تا قبل از اطلاع‌رسانی،
+           فایل بانک ضمیمه شده باشد. */
+        pettyAttachBank(rec.cd);
       }
     });
   };
