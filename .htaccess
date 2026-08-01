@@ -272,3 +272,40 @@ RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#
 RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-bf3563bb\.html$" "/knowledge-center/kc-pipeline-welding-standards.html" [R=301,L]
 RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-ecd46214\.html$" "/knowledge-center/kc-oil-gas-pipeline-equipment.html" [R=301,L]
 RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-feb0ae89\.html$" "/knowledge-center/kc-pipeline-corrosion-prevention.html" [R=301,L]
+
+
+# =====================================================================
+# SEO-KC-REWRITE-2026-08-01 — rename ۳۰ فایل هش‌نام یتیم (Category 3)
+# نام‌های قدیمی c-/k-/z-xxxxxxxx به اسلاگ خوانا kc-* تغییر نام یافتند؛
+# ریدایرکت ۳۰۱ برای حفظ رتبه/بک‌لینک قدیمی.
+# =====================================================================
+RewriteRule "^knowledge-center/c-059ab953\.html$" "/knowledge-center/kc-supplier-qualification-assessment.html" [R=301,L]
+RewriteRule "^knowledge-center/c-369fd340\.html$" "/knowledge-center/kc-welded-fittings-elbow-tee-reducer.html" [R=301,L]
+RewriteRule "^knowledge-center/c-4052bc8a\.html$" "/knowledge-center/kc-industrial-power-cable-sizing.html" [R=301,L]
+RewriteRule "^knowledge-center/c-b15a36c7\.html$" "/knowledge-center/kc-instrumentation-communication-protocols.html" [R=301,L]
+RewriteRule "^knowledge-center/k-114d49d9\.html$" "/knowledge-center/kc-fire-alarm-detection-system.html" [R=301,L]
+RewriteRule "^knowledge-center/k-43594446\.html$" "/knowledge-center/kc-crude-oil-products-storage-system.html" [R=301,L]
+RewriteRule "^knowledge-center/k-5b7b7133\.html$" "/knowledge-center/kc-valve-selection-by-fluid-type.html" [R=301,L]
+RewriteRule "^knowledge-center/k-6e8b98ec\.html$" "/knowledge-center/kc-control-room-equipment-standards.html" [R=301,L]
+RewriteRule "^knowledge-center/k-6fbdeecf\.html$" "/knowledge-center/kc-oil-gas-export-terminal-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/k-78c21e5e\.html$" "/knowledge-center/kc-technical-certifications-supplier-qualification.html" [R=301,L]
+RewriteRule "^knowledge-center/k-b8b2ade9\.html$" "/knowledge-center/kc-surge-arrester-emergency-shutdown-valves.html" [R=301,L]
+RewriteRule "^knowledge-center/k-c3feece0\.html$" "/knowledge-center/kc-intrusion-detection-access-control.html" [R=301,L]
+RewriteRule "^knowledge-center/k-cea4f68b\.html$" "/knowledge-center/kc-pipe-thermal-insulation.html" [R=301,L]
+RewriteRule "^knowledge-center/k-d3ca6244\.html$" "/knowledge-center/kc-cable-tray-cable-duct.html" [R=301,L]
+RewriteRule "^knowledge-center/k-edd8b9af\.html$" "/knowledge-center/kc-international-marketing-oil-gas.html" [R=301,L]
+RewriteRule "^knowledge-center/k-eedd2e06\.html$" "/knowledge-center/kc-pipe-support-steel-structure.html" [R=301,L]
+RewriteRule "^knowledge-center/k-f157c607\.html$" "/knowledge-center/kc-project-management-equipment-supply.html" [R=301,L]
+RewriteRule "^knowledge-center/k-ffd298e6\.html$" "/knowledge-center/kc-industrial-equipment-export.html" [R=301,L]
+RewriteRule "^knowledge-center/z-0320bdc9\.html$" "/knowledge-center/kc-compressed-air-system.html" [R=301,L]
+RewriteRule "^knowledge-center/z-0b758a57\.html$" "/knowledge-center/kc-hydraulic-control-valves.html" [R=301,L]
+RewriteRule "^knowledge-center/z-16aeeb93\.html$" "/knowledge-center/kc-industrial-material-handling-transport.html" [R=301,L]
+RewriteRule "^knowledge-center/z-653c9058\.html$" "/knowledge-center/kc-pneumatic-electropneumatic-control-valves.html" [R=301,L]
+RewriteRule "^knowledge-center/z-81f77cc9\.html$" "/knowledge-center/kc-spare-parts-warehousing-inventory.html" [R=301,L]
+RewriteRule "^knowledge-center/z-85401d51\.html$" "/knowledge-center/kc-industrial-laboratory-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/z-95579eef\.html$" "/knowledge-center/kc-instrumentation-control-cables.html" [R=301,L]
+RewriteRule "^knowledge-center/z-a0721288\.html$" "/knowledge-center/kc-technical-personnel-training.html" [R=301,L]
+RewriteRule "^knowledge-center/z-bdd0a52f\.html$" "/knowledge-center/kc-steel-plate-specifications.html" [R=301,L]
+RewriteRule "^knowledge-center/z-d0063fcd\.html$" "/knowledge-center/kc-steel-beam-rebar-specifications.html" [R=301,L]
+RewriteRule "^knowledge-center/z-ef76567b\.html$" "/knowledge-center/kc-energy-management-oil-gas.html" [R=301,L]
+RewriteRule "^knowledge-center/z-fe99473f\.html$" "/knowledge-center/kc-flare-burner-equipment.html" [R=301,L]
