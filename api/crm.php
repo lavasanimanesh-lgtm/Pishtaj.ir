@@ -1245,17 +1245,31 @@ switch($action) {
         $globalRev = $meta['_global']['rev'] ?? 0;
         // اگر کلاینت به‌روز است، فقط rev برگردان (سبک برای polling)
         if ($since >= $globalRev) { echo json_encode(['ok' => true, 'rev' => $globalRev, 'fresh' => true]); break; }
+        /* ===== v33.21.0 (PTF-SCALE-P0 — سینک دلتا به‌ازای هرکلید، برای افزایش تعداد کاربران):
+           کلاینت نقشهٔ rev هرکلید خود را با پارامتر krevs می‌فرستد؛ فقط کلیدهایی که روی سرور
+           جدیدترند برمی‌گردند. پیش‌تر با بالارفتن rev سراسری «اسنپ‌شات کامل (~۴MB)» برای همه
+           می‌رفت و ترافیک/CPU با تعداد کاربر خطی منفجر می‌شد.
+           کلاینت قدیمی (بدون krevs) → رفتار قبلی (اسنپ‌شات کامل) — ۱۰۰٪ سازگار با عقب. ===== */
+        $krevs = null;
+        if (isset($_REQUEST['krevs']) && is_string($_REQUEST['krevs']) && $_REQUEST['krevs'] !== '') {
+            $krj = json_decode($_REQUEST['krevs'], true);
+            if (is_array($krj)) $krevs = $krj;
+        }
         $out = [];
         $allowed_keys = sync_all_keys();
         $role_sync_keys = sync_allowed_keys_for_role($client_role);
-        $serverArchiveJson = file_exists($sdir . '/ptf_crm_deleted_archive.json') ? file_get_contents($sdir . '/ptf_crm_deleted_archive.json') : '[]';
+        $serverArchiveJson = null; /* v33.21.0: خواندن تنبَل آرشیو — پول دلتای بدون‌تغییر دیگر فایل آرشیو را نمی‌خواند */
         foreach ($meta as $k => $m) {
             if ($k === '_global') continue;
             if (!in_array($k, $allowed_keys, true) || !in_array($k, $role_sync_keys, true)) continue;
+            /* دلتا: کلیدی که rev سرورش از rev اعلامی کلاینت بزرگ‌تر نیست، دوباره فرستاده نمی‌شود */
+            if ($krevs !== null && (int)($krevs[$k] ?? -1) >= (int)($m['rev'] ?? 0)) continue;
             $f = $sdir . '/' . $k . '.json';
-            if (file_exists($f)) $out[$k] = sync_apply_tombstones($k, file_get_contents($f), $serverArchiveJson, '[]');
+            if (!file_exists($f)) continue;
+            if ($serverArchiveJson === null) { $serverArchiveJson = file_exists($sdir . '/ptf_crm_deleted_archive.json') ? file_get_contents($sdir . '/ptf_crm_deleted_archive.json') : '[]'; }
+            $out[$k] = sync_apply_tombstones($k, file_get_contents($f), $serverArchiveJson, '[]');
         }
-        echo json_encode(['ok' => true, 'rev' => $globalRev, 'data' => $out, 'meta' => $meta], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true, 'rev' => $globalRev, 'data' => $out, 'meta' => $meta, 'delta' => ($krevs !== null)], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'data_rev':

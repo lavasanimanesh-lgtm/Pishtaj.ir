@@ -49,7 +49,8 @@
     lastRev: parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10),
     online: true,
     bootstrapped: false, /* v15.0 (US-384): تا سینک اولیه کامل نشده، push ممنوع — جلوی ارسال داده کهنه هنگام رفرش */
-    initialReconcile: false /* v31.7.2: local records created before sync.js must be merged, not overwritten */
+    initialReconcile: false, /* v31.7.2: local records created before sync.js must be merged, not overwritten */
+    lastBgPull: 0 /* v33.21.0: آخرین پولِ تبِ دیده‌شدهٔ غیرمتمرکز (آهسته‌سازی به ۱۲۰ ثانیه) */
   };
 
   function setRev(r) { state.lastRev = r; localStorage.setItem('ptf_sync_rev', String(r)); }
@@ -282,6 +283,18 @@
   /* ---------- pull دوره‌ای ---------- */
   function pullCheck(done, forceFull) {
     if (!curSession().user || state.pushing) { if (done) done(); return; }
+    /* v33.21.0 (PTF-SCALE-P0 — مدیریت تب برای کاهش بار سرور):
+       تب مخفی پول نمی‌زند (تب‌های پس‌زمینه بدون استفاده، بار مردهٔ ۳ رکوئست/دقیقه می‌ساختند)؛
+       تبِ دیده‌شده اما غیرمتمرکز حداکثر هر ۱۲۰ ثانیه پول می‌زند.
+       جبران: روی focus/visibilitychange پول فوری انجام می‌شود (listener در بوت). */
+    if (!forceFull && typeof document !== 'undefined') {
+      if (document.hidden) { if (done) done(); return; }
+      if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
+        var _bgNow = Date.now();
+        if (state.lastBgPull && (_bgNow - state.lastBgPull) < 120000) { if (done) done(); return; }
+        state.lastBgPull = _bgNow;
+      }
+    }
     /* v15.0 (US-384): اگر تغییر محلی معلق داریم، اول push — سرور با base-rev محافظت می‌کند
        (در فاز بوت این مسیر اجرا نمی‌شود چون pushDirty تا bootstrapped صبر می‌کند) */
     if (!forceFull && state.bootstrapped && Object.keys(state.dirty).length) { pushDirty(); if (done) done(); return; }
@@ -292,7 +305,11 @@
        but different localStorage contents; force=0 pulls the complete server
        snapshot and makes the server authoritative before normal polling. */
     var pullSince = forceFull ? 0 : state.lastRev;
-    fetch(API + '?action=data_pull&since=' + pullSince, { headers: authHeaders(false) })
+    /* v33.21.0 (PTF-SCALE-P0 — دلتا-پول): نقشهٔ rev هرکلید می‌رود تا سرور فقط کلیدهای جدیدتر را بفرستد.
+       سرور قدیمی‌تر krevs را نادیده می‌گیرد و مثل قبل اسنپ‌شات کامل می‌فرستد — سازگار با عقب. */
+    var pullUrl = API + '?action=data_pull&since=' + pullSince;
+    if (!forceFull) { try { pullUrl += '&krevs=' + encodeURIComponent(JSON.stringify(krevs())); } catch (eKr) {} }
+    fetch(pullUrl, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         state.online = true;
@@ -499,6 +516,18 @@
     if (!window._ptfSyncPullT) {
       window._ptfSyncPullT = setInterval(pullCheck, 20000);
     }
+    /* v33.21.0: برگشت به تب (فوکوس یا خروج از حالت مخفی) → پول فوری برای جبران پول‌های ردشده */
+    if (!window._ptfSyncFocusP) {
+      window._ptfSyncFocusP = true;
+      window.addEventListener('focus', function () {
+        try { if (state.bootstrapped && !state.pulling && !state.pushing) pullCheck(); } catch (eF) {}
+      });
+      if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('visibilitychange', function () {
+          try { if (!document.hidden && state.bootstrapped && !state.pulling && !state.pushing) pullCheck(); } catch (eV) {}
+        });
+      }
+    }
     // هنگام بستن صفحه، push معلق را بفرست
     window.addEventListener('beforeunload', function () {
       var keys = Object.keys(state.dirty);
@@ -607,12 +636,21 @@
     if (key === 'ptf_crm_offers') return String(r.no || r.cd || r.id || '').trim();
     return String(r.cd || r.no || r.id || r.code || r.invoiceCd || r.feedbackId || '').trim();
   }
+  /* v33.21.0 (BUG-SYNC-RD-SCOPE-001 — خطای تولید v33.20.0): rd داخل IIFE بالای فایل تعریف
+     شده و اینجا (اسکوپ سراسری پس از پایان IIFE) قابل رؤیت نیست؛ فراخوانی tombstone روی هر
+     کلید کسب‌وکاری با ReferenceError می‌افتاد → شکست پول، نشان «آفلاین» کذب و عدم اعمال
+     تغییرات دستگاه‌های دیگر. (تسترها با rd تزریقی sandbox سبز می‌ماندند و نقص را می‌پوشاندند.)
+     حالا خواندن آرشیو با همان منطق rd به‌صورت خودکفا در همین اسکوپ انجام می‌شود. */
+  function ptfReadDeletedArchiveStr() {
+    try { if (typeof window.ptfBRead === 'function') { var v = window.ptfBRead('ptf_crm_deleted_archive'); if (v !== null) return v; } } catch (e) {}
+    try { return localStorage.getItem('ptf_crm_deleted_archive'); } catch (e2) { return null; }
+  }
   function ptfReadArchive(extraArchiveStr) {
     var out = [];
     function addFrom(str) {
       try { var a = JSON.parse(str || '[]'); if (Array.isArray(a)) out = out.concat(a); } catch (e) {}
     }
-    addFrom(rd('ptf_crm_deleted_archive') || '[]');
+    addFrom(ptfReadDeletedArchiveStr() || '[]');
     if (extraArchiveStr) addFrom(extraArchiveStr);
     return out;
   }
