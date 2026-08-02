@@ -168,6 +168,10 @@ SECTION('حذف از ماژول شخصی و هاب مالی');
 T('باکس چک از پنل شخصی (یادآورها) کاملاً حذف شد', chq.indexOf('chqBox') === -1 && chq.indexOf('chBoxHtml') === -1 && chq.indexOf('hookReminders') === -1);
 T('چاپ برگه از هاب مالی حذف شد', panel.indexOf('window.ptfChequePrint') === -1 && panel.indexOf('🖨 چاپ برگه') === -1 && panel.indexOf('ptfNumToFaWords') === -1);
 T('ثبت چک همچنان فقط از هاب مالی (پیام راهنما حفظ شد)', chq.indexOf('ثبت چک فقط از «هاب مالی → تب چک‌ها»') > -1);
-T('نسخه 33.18.0 در index/sw/clear-cache', idx.indexOf("window.VER = 'v33.18.0'") > -1 && sw.indexOf('ptf-crm-v33.18.0') > -1 && fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = 'v33.18.0'") > -1);
+/* گیت همگامی نسخه: سه فایل index/sw/clear-cache باید روی یک نسخهٔ واحد باشند.
+   v33.19.0: به‌جای نسخهٔ ثابتِ پین‌شده، VER از index.html خوانده می‌شود و دو فایل دیگر با آن الگو می‌شوند —
+   تا در بامپ‌های بعدی فقط با نام‌همگامی واقعی (نه تغییر نسخه) شکست بخورد. */
+var _verCur = (idx.match(/window\.VER = '([^']+)'/) || [null, ''])[1];
+T('نسخه در index/sw/clear-cache همگام است (' + _verCur + ')', !!_verCur && _verCur.indexOf('v33.') === 0 && sw.indexOf('ptf-crm-' + _verCur) > -1 && fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = '" + _verCur + "'") > -1);
 
 DONE('tester287-chqprint-module');
