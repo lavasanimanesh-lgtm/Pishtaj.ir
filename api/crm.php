@@ -519,6 +519,33 @@ function save_data($key, $data) {
     ptf_db_write($key, $json);
 }
 
+/* ===== v33.22.0 (P1-MySQL-WIRE — سیم‌کشی مسیر سینک به MySQL همان هاست) =====
+   حالت‌ها (mode در ptf-db-config.php — ساختهٔ migrate.php):
+     off   → فقط فایل؛ رفتار دقیقاً مثل امروز (حالت پیش‌فرض بدون دیتابیس/کانفیگ)
+     dual  → فایل منبع خواندن + آینهٔ نوشتن MySQL (دورهٔ مهاجرت؛ خطای MySQL بی‌صدا)
+     mysql → MySQL منبع حقیقت خواندن (با fallback به فایل) + نوشتن همزمان فایل (بکاپ گرم؛
+             شکست نوشتن DB به فراخوان گزارش می‌شود تا کلاینت صف را نگه دارد و retry کند —
+             وگرنه rev افزایش می‌یافت ولی pull مقدار کهنه می‌خواند)
+   توجه: دفتر rev (meta.json) در هر سه حالت دست‌نخورده باقی می‌ماند (کوچک و سبک).
+   مهم: این دو تابع باید top-level باشند (داخل switch تعریف شرطی می‌شود و در caseها
+   undefined است) — کنار load_data/save_data نگهداری می‌شوند. */
+function sync_key_read($sdir, $k) {
+    $v = ptf_db_read($k); /* خودش فقط در mode=mysql مقدار برمی‌گرداند */
+    if ($v !== null) return $v;
+    $f = $sdir . '/' . $k . '.json';
+    return file_exists($f) ? file_get_contents($f) : null;
+}
+function sync_key_write($sdir, $k, $v, $rev = 0) {
+    /* فایل همیشه نوشته می‌شود (بکاپ گرم + مسیر rollback — طبق وعدهٔ راهنمای مهاجرت) */
+    $okFile = file_put_contents($sdir . '/' . $k . '.json', $v, LOCK_EX) !== false;
+    $mode = ptf_db_mode();
+    if ($mode === 'dual' || $mode === 'mysql') {
+        $okDb = ptf_db_write_rev($k, $v, $rev);
+        if ($mode === 'mysql' && !$okDb) return false;
+    }
+    return $okFile;
+}
+
 /* ===== v33.16.0 (فاز ۲ بکاپ): چرخش بک‌آپ مشترک (سپر shrink + چرخش + آروان) =====
    هم برای بک‌آپ کامل (save_backup) و هم برای بک‌آپ دلتا (save_backup_delta) استفاده می‌شود. */
 function ptf_rotate_backup($bdir, $raw, $j) {
@@ -1166,6 +1193,7 @@ switch($action) {
         $meta_file = $sdir . '/meta.json';
         $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : [];
         $saved = 0;
+        $dbWriteFailed = false; /* v33.22.0: شکست نوشتن DB در mode=mysql → کل پاسخ ناموفق + retry */
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $krevs = []; /* v15.0 US-384 */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
@@ -1177,7 +1205,9 @@ switch($action) {
            با flock: دومی منتظر می‌ماند تا اولی تمام شود و rev واقعی را می‌بیند. */
         $metaLock = @fopen($meta_file . '.lock', 'c+');
         if ($metaLock) { @flock($metaLock, LOCK_EX); /* re-read meta under lock */ $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : []; }
-        $serverArchiveJson = file_exists($sdir . '/ptf_crm_deleted_archive.json') ? file_get_contents($sdir . '/ptf_crm_deleted_archive.json') : '[]';
+        /* v33.22.0: خواندن از مسیر یکپارچه (در mode=mysql از دیتابیس) */
+        $serverArchiveJson = sync_key_read($sdir, 'ptf_crm_deleted_archive');
+        if ($serverArchiveJson === null) $serverArchiveJson = '[]';
         $incomingArchiveJson = isset($j['data']['ptf_crm_deleted_archive']) && is_string($j['data']['ptf_crm_deleted_archive']) ? $j['data']['ptf_crm_deleted_archive'] : '[]';
         foreach ($j['data'] as $k => $v) {
             if (!in_array($k, $allowed_keys, true)) continue;
@@ -1188,8 +1218,9 @@ switch($action) {
                payload that increases duplicate offer lines. Existing corrupted
                records are deliberately not auto-mutated here; repair is explicit. */
             if ($k === 'ptf_crm_offers') {
-                $offerFile = $sdir . '/ptf_crm_offers.json';
-                $serverOffersJson = file_exists($offerFile) ? file_get_contents($offerFile) : '[]';
+                /* v33.22.0: مسیر یکپارچه (mysql → DB) */
+                $serverOffersJson = sync_key_read($sdir, 'ptf_crm_offers');
+                if ($serverOffersJson === null) $serverOffersJson = '[]';
                 if (sync_offers_payload_introduces_duplicates($v, $serverOffersJson)) {
                     $rejected[] = $k;
                     $conflicts[] = $k;
@@ -1206,8 +1237,9 @@ switch($action) {
             $curRev = (int)($meta[$k]['rev'] ?? 0);
             if (!$restore && !$allow_wipe && $base !== null && array_key_exists($k, $base) && (int)$base[$k] < $curRev) {
                 $conflicts[] = $k;
-                $cf = $sdir . '/' . $k . '.json';
-                if (file_exists($cf)) $conflictData[$k] = sync_apply_tombstones($k, file_get_contents($cf), $serverArchiveJson, $incomingArchiveJson); /* legacy UAT token: $conflictData[$k] = file_get_contents($cf); */
+                /* v33.22.0: مسیر یکپارچه (mysql → DB) */
+                $cfVal = sync_key_read($sdir, $k);
+                if ($cfVal !== null) $conflictData[$k] = sync_apply_tombstones($k, $cfVal, $serverArchiveJson, $incomingArchiveJson); /* legacy UAT token: $conflictData[$k] = file_get_contents($cf); */
                 $krevs[$k] = $curRev;
                 continue;
             }
@@ -1216,17 +1248,26 @@ switch($action) {
             if (!$allow_wipe && !$restore) {
                 $newArr = json_decode($v, true);
                 if (is_array($newArr) && count($newArr) === 0) {
-                    $exFile = $sdir . '/' . $k . '.json';
-                    if (file_exists($exFile)) {
-                        $exArr = json_decode(file_get_contents($exFile), true);
+                    /* v33.22.0: مسیر یکپارچه (mysql → DB) */
+                    $exVal = sync_key_read($sdir, $k);
+                    if ($exVal !== null) {
+                        $exArr = json_decode($exVal, true);
                         if (is_array($exArr) && count($exArr) > 0) { $rejected[] = $k; continue; }
                     }
                 }
             }
-            file_put_contents($sdir . '/' . $k . '.json', $v, LOCK_EX);
+            /* v33.22.0: نوشتن یکپارچه (فایل همیشه + MySQL با توجه به mode).
+               در mode=mysql شکست DB یعنی منبع حقیقت ذخیره نشده → کل پاسخ ناموفق + retry کلاینت. */
+            if (!sync_key_write($sdir, $k, $v, $curRev + 1)) { $dbWriteFailed = true; break; }
             $meta[$k] = ['rev' => $curRev + 1, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
             $krevs[$k] = $curRev + 1;
             $saved++;
+        }
+        if (!empty($dbWriteFailed)) {
+            /* idempotent: meta نفرستاده می‌شود؛ کلاینت همان صف را دوباره می‌فرستد و مقادیر همان بازنویسی می‌شوند */
+            if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
+            echo json_encode(['ok' => false, 'error' => 'خطا در ذخیره‌سازی دیتابیس — لطفاً دوباره تلاش کنید', 'needRetry' => true], JSON_UNESCAPED_UNICODE);
+            break;
         }
         $meta['_global'] = ['rev' => ($meta['_global']['rev'] ?? 0) + 1, 't' => date('Y-m-d H:i:s')];
         file_put_contents($meta_file, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
@@ -1264,10 +1305,11 @@ switch($action) {
             if (!in_array($k, $allowed_keys, true) || !in_array($k, $role_sync_keys, true)) continue;
             /* دلتا: کلیدی که rev سرورش از rev اعلامی کلاینت بزرگ‌تر نیست، دوباره فرستاده نمی‌شود */
             if ($krevs !== null && (int)($krevs[$k] ?? -1) >= (int)($m['rev'] ?? 0)) continue;
-            $f = $sdir . '/' . $k . '.json';
-            if (!file_exists($f)) continue;
-            if ($serverArchiveJson === null) { $serverArchiveJson = file_exists($sdir . '/ptf_crm_deleted_archive.json') ? file_get_contents($sdir . '/ptf_crm_deleted_archive.json') : '[]'; }
-            $out[$k] = sync_apply_tombstones($k, file_get_contents($f), $serverArchiveJson, '[]');
+            /* v33.22.0: مسیر یکپارچه (در mode=mysql مقدار از دیتابیس خوانده می‌شود) */
+            $kv = sync_key_read($sdir, $k);
+            if ($kv === null) continue;
+            if ($serverArchiveJson === null) { $tmpA = sync_key_read($sdir, 'ptf_crm_deleted_archive'); $serverArchiveJson = ($tmpA === null) ? '[]' : $tmpA; }
+            $out[$k] = sync_apply_tombstones($k, $kv, $serverArchiveJson, '[]');
         }
         echo json_encode(['ok' => true, 'rev' => $globalRev, 'data' => $out, 'meta' => $meta, 'delta' => ($krevs !== null)], JSON_UNESCAPED_UNICODE);
         break;
