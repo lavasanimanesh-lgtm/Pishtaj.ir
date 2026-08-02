@@ -1,8 +1,15 @@
 /* =====================================================================
-   PTF CRM — client-server.js — DB-MIG-001 (فاز B) — v33.20.0
-   کلاینت نازک: سرور (MySQL) منبع حقیقت؛ localStorage فقط کش/صف آفلاین.
+ PTF CRM — client-server.js — DB-MIG-001 (فاز B) — v33.21.0
+ کلاینت نازک: سرور (MySQL) منبع حقیقت؛ localStorage فقط کش/صف آفلاین.
 
-   v33.20.0 (آینهٔ خالدار — PTF-B-IDB-MIRROR، درخواست کارفرما):
+ v33.21.0 (PTF-SCALE-P0 — ارتقای فناوری برای افزایش تعداد کاربران):
+ getData قبلاً به‌ازای هر خواندن کلید منقضی‌شده یک پول اسنپ‌شات کامل (~۴MB) می‌زد
+ (نه single-flight نه حد نرخ) — بزرگ‌ترین هزینهٔ پنهان این معماری. حالا همهٔ
+ خواندن‌ها روی «پول مشترک دلتا» سوار می‌شوند: تک‌پرواز، حداقل فاصلهٔ ۲ثانیه،
+ rev هرکلید (مشترک با sync.js)، پاسخ‌دهی مرکزی به کش+آینهٔ همهٔ کلیدهای تازه.
+ در تب مخفی پول زمین می‌ماند. سرور: data_pull پارامتر krevs (سازگار با عقب).
+
+ v33.20.0 (آینهٔ خالدار — PTF-B-IDB-MIRROR، درخواست کارفرما):
    مشکل: با فاز B فعال هم localStorage از آینهٔ کامل سرور پر می‌شد (۸۰٪+) چون sync.js
    هر بار لود همهٔ کلیدها را در localStorage می‌نوشت و پاک‌سازی کش بی‌اثر می‌ماند.
    راه‌حل: کلیدهای سنگین (فهرست IDB_KEYS + خودکار >۱۲۰هزار کاراکتر) فقط در «حافظهٔ نشست
@@ -156,11 +163,71 @@
     try { h['X-CRM-Role'] = curRole(); } catch (eR) {}
     return h;
   }
-  function serverPull(since, cb) {
-    fetch(API + '?action=data_pull&since=' + (since || 0), { headers: authHeaders(false) })
+  function serverPull(since, cb, krevs) {
+    var url = API + '?action=data_pull&since=' + (since || 0);
+    /* v33.21.0 (PTF-SCALE-P0): krevs → سرور v33.21.0+ فقط کلیدهای جدیدتر را می‌فرستد (سرور قدیمی: نادیده → کامل) */
+    if (krevs) { try { url += '&krevs=' + encodeURIComponent(JSON.stringify(krevs)); } catch (eKr) {} }
+    fetch(url, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
       .then(function (d) { cb && cb(d); })
       .catch(function () { cb && cb({ ok: false }); });
+  }
+
+  /* ---------- v33.21.0: پول مشترک دلتا (رفع بحرانی‌ترین هزینهٔ پنهان مقیاس) ----------
+     قبل: هر خواندن کلید منقضی‌شده از کش (TTL ۳۰ثانیه) یک پول اسنپ‌شات کامل (~۴MB) می‌زد؛ نه
+     ادغامی در کار بود نه حد نرخ — UI فعال در هر دقیقه چند پول کامل تولید می‌کرد.
+     حالا: تک‌پرواز (single-flight) + حداقل فاصلهٔ ۲ ثانیه (خواندن‌های پیاپی روی یک پول سوار
+     می‌شوند) + دلتا بر اساس rev هرکلید (مشترک با sync.js در ptf_sync_krevs).
+     پاسخ، کش+آینهٔ همهٔ کلیدهای برگشتی را یک‌جا تازه می‌کند؛ در تب مخفی پول زمین می‌ماند. */
+  var _pullInflight = false, _pullWaiters = [], _pullLastAt = 0, _pullTimer = null;
+  var PULL_MIN_GAP = 2000;
+  function bPullRevs() { try { return JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}'); } catch (e) { return {}; } }
+  function bSaveRevsFromMeta(meta, globalRev) {
+    try {
+      if (meta) {
+        var m = bPullRevs();
+        Object.keys(meta).forEach(function (k) { if (k !== '_global' && meta[k] && meta[k].rev != null) m[k] = +meta[k].rev || 0; });
+        localStorage.setItem('ptf_sync_krevs', JSON.stringify(m));
+      }
+      var gr = +globalRev || 0;
+      if (gr > 0) localStorage.setItem('ptf_sync_rev', String(gr));
+    } catch (e) {}
+  }
+  function bPullSince() { try { return parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10) || 0; } catch (e) { return 0; } }
+  function sharedPull(cb) {
+    if (cb) _pullWaiters.push(cb);
+    if (_pullInflight) return;
+    /* تب مخفی: پول لازم نیست — منتظرها خالی می‌شوند و در برگشت به فوکوس، خواندن بعدی تازه می‌کند */
+    if (typeof document !== 'undefined' && document.hidden) {
+      var hs = _pullWaiters; _pullWaiters = [];
+      hs.forEach(function (f) { try { f({ ok: false, hidden: true }); } catch (eH) {} });
+      return;
+    }
+    var now = Date.now();
+    if (now - _pullLastAt < PULL_MIN_GAP) {
+      /* پنجرهٔ ادغام: رکوئست‌های نزدیک روی یک پولِ نزدیکِ آینده سوار می‌شوند */
+      if (!_pullTimer) _pullTimer = setTimeout(function () { _pullTimer = null; if (!_pullInflight) sharedPull(); }, PULL_MIN_GAP - (now - _pullLastAt));
+      return;
+    }
+    _pullInflight = true; _pullLastAt = now;
+    /* since واقعی → اگر همگام باشیم پاسخ fresh (~۶۰ بایت)؛ وگرنه دلتا بر اساس krevs */
+    serverPull(bPullSince(), function (d) {
+      _pullInflight = false;
+      try {
+        if (d && d.ok && d.data) {
+          var t = Date.now();
+          Object.keys(d.data).forEach(function (k) {
+            if (typeof d.data[k] !== 'string') return;
+            var v = d.data[k];
+            cache[k] = { t: t, v: v };
+            if (!(window.ptfBMirror && window.ptfBMirror(k, v))) localSet(k, v);
+          });
+        }
+        if (d && d.ok) bSaveRevsFromMeta(d.meta, d.rev);
+      } catch (eP) {}
+      var ws = _pullWaiters; _pullWaiters = [];
+      ws.forEach(function (f) { try { f(d); } catch (eW) {} });
+    }, bPullRevs());
   }
   /* v33.19.0: تشخیص نشست منقضی/توکن نامعتبر (data_push توکن الزامی دارد؛ تست اتصال از users_get عمومی است و همیشه سبز می‌ماند) */
   function isNeedLogin(d, status) {
@@ -374,16 +441,13 @@
         if (local === null) local = localGet(k);
         var localArr = [];
         try { localArr = local ? JSON.parse(local) : []; } catch (e) {}
-        /* درخواست سرور (async) — مقدار کش/آینه را بعداً به‌روز می‌کند؛ فعلاً محلی برمی‌گردد */
-        serverPull(0, function (d) {
-          try {
-            if (d && d.ok && d.data && Object.prototype.hasOwnProperty.call(d.data, k)) {
-              var v = d.data[k];
-              cache[k] = { t: now, v: v };
-              /* v33.20.0: سنگین → آینه IDB؛ در غیر این صورت localStorage */
-              if (!(window.ptfBMirror && window.ptfBMirror(k, v))) localSet(k, v);
-            }
-          } catch (e) {}
+        /* v33.21.0: روی پول مشترک دلتا سوار می‌شویم (به‌جای پول کاملِ مستقل برای هر خواندن).
+           پاسخ، کش+آینهٔ همهٔ کلیدهای تغییرکرده را مرکزی تازه می‌کند؛ اگر k در پاسخ نبود یعنی
+           روی سرور تغییر نکرده → فقط عمر کش همان کلید تمدید می‌شود تا رکوئست بعدی لازم نشود. */
+        sharedPull(function (d) {
+          if (d && d.ok && !(d.data && Object.prototype.hasOwnProperty.call(d.data, k)) && cache[k]) {
+            cache[k].t = Date.now();
+          }
         });
         return localArr;
       } catch (e) { return _get(k); }

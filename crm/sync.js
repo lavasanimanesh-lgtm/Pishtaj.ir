@@ -49,7 +49,9 @@
     lastRev: parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10),
     online: true,
     bootstrapped: false, /* v15.0 (US-384): تا سینک اولیه کامل نشده، push ممنوع — جلوی ارسال داده کهنه هنگام رفرش */
-    initialReconcile: false /* v31.7.2: local records created before sync.js must be merged, not overwritten */
+    initialReconcile: false, /* v31.7.2: local records created before sync.js must be merged, not overwritten */
+    lastBgPull: 0, /* v33.21.x: آخرین پول مسیر آهسته (غیرمتمرکز ۱۲۰ثانیه / مخفی ۱۸۰ثانیه) */
+    lastPingPull: 0 /* v33.21.1: آخرین پول فوریِ برگرفته از پینگ بین‌تبی (حد نرخ ۵ثانیه) */
   };
 
   function setRev(r) { state.lastRev = r; localStorage.setItem('ptf_sync_rev', String(r)); }
@@ -236,6 +238,7 @@
           var confl = d.conflicts || [];
           keys.forEach(function (k) { if (confl.indexOf(k) < 0) delete state.dirty[k]; }); saveDirty();
           if (d.rev) setRev(d.rev);
+          pingTabs(); /* v33.21.1: پوش موفق → تب‌های دیگر همین مرورگر فوری دلتا-پول بزنند */
           /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
           if (confl.length) {
             confl.forEach(function (k) {
@@ -280,8 +283,30 @@
   }
 
   /* ---------- pull دوره‌ای ---------- */
-  function pullCheck(done, forceFull) {
+  /* v33.21.1 (به انتخاب کارفرما): پینگ بین‌تبی — هر تب که دادهٔ تازه اعمال کرد یا پوش موفق داشت،
+     این نشانگر کوچک را می‌نویسد؛ رویداد storage در بقیهٔ تب‌های همین مرورگر (حتی پنهان) فوری
+     می‌شلیکد و یک دلتا-پولِ فوری می‌دهند — همگام‌سازی لحظه‌ای بین تب‌ها بدون رکوئست اضافهٔ دوره‌ای. */
+  function pingTabs() {
+    try { localStorage.setItem('ptf_sync_ping', JSON.stringify({ rev: state.lastRev, t: Date.now() })); } catch (e) {}
+  }
+
+  function pullCheck(done, forceFull, opts) {
     if (!curSession().user || state.pushing) { if (done) done(); return; }
+    /* v33.21.x (مدیریت تب برای کاهش بار سرور — پیکربندی به تأیید کارفرما):
+       متمرکز: هر ۲۰ثانیه | غیرمتمرکزِ دیده‌شده: حداکثر هر ۱۲۰ثانیه | مخفی: حداکثر هر ۱۸۰ثانیه.
+       (v33.21.0 مخفی را کامل متوقف می‌کرد که «رکورد دیر ظاهر می‌شود» را به همراه داشت.)
+       پینگ بین‌تبی (opts.instant) و forceFull این آهسته‌سازی را دور می‌زنند.
+       جبران: focus/visibilitychange → پول فوری (listener در بوت). */
+    if (!forceFull && !(opts && opts.instant) && typeof document !== 'undefined') {
+      var _isHidden = !!document.hidden;
+      var _unfocused = !_isHidden && (typeof document.hasFocus === 'function' && !document.hasFocus());
+      if (_isHidden || _unfocused) {
+        var _bgNow = Date.now();
+        var _bgGap = _isHidden ? 180000 : 120000;
+        if (state.lastBgPull && (_bgNow - state.lastBgPull) < _bgGap) { if (done) done(); return; }
+        state.lastBgPull = _bgNow;
+      }
+    }
     /* v15.0 (US-384): اگر تغییر محلی معلق داریم، اول push — سرور با base-rev محافظت می‌کند
        (در فاز بوت این مسیر اجرا نمی‌شود چون pushDirty تا bootstrapped صبر می‌کند) */
     if (!forceFull && state.bootstrapped && Object.keys(state.dirty).length) { pushDirty(); if (done) done(); return; }
@@ -292,7 +317,11 @@
        but different localStorage contents; force=0 pulls the complete server
        snapshot and makes the server authoritative before normal polling. */
     var pullSince = forceFull ? 0 : state.lastRev;
-    fetch(API + '?action=data_pull&since=' + pullSince, { headers: authHeaders(false) })
+    /* v33.21.0 (PTF-SCALE-P0 — دلتا-پول): نقشهٔ rev هرکلید می‌رود تا سرور فقط کلیدهای جدیدتر را بفرستد.
+       سرور قدیمی‌تر krevs را نادیده می‌گیرد و مثل قبل اسنپ‌شات کامل می‌فرستد — سازگار با عقب. */
+    var pullUrl = API + '?action=data_pull&since=' + pullSince;
+    if (!forceFull) { try { pullUrl += '&krevs=' + encodeURIComponent(JSON.stringify(krevs())); } catch (eKr) {} }
+    fetch(pullUrl, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         state.online = true;
@@ -377,6 +406,7 @@
           refreshCurrentPanel();
           if (typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
           if (typeof updateInboxBadge === 'function') updateInboxBadge();
+          pingTabs(); /* v33.21.1: بقیهٔ تب‌های همین مرورگر را لحظه‌ای مطلع کن */
         }
         if (done) done(); /* v15.0 US-384 */
       })
@@ -499,6 +529,38 @@
     if (!window._ptfSyncPullT) {
       window._ptfSyncPullT = setInterval(pullCheck, 20000);
     }
+    /* v33.21.0: برگشت به تب (فوکوس یا خروج از حالت مخفی) → پول فوری برای جبران پول‌های ردشده */
+    if (!window._ptfSyncFocusP) {
+      window._ptfSyncFocusP = true;
+      window.addEventListener('focus', function () {
+        try { if (state.bootstrapped && !state.pulling && !state.pushing) pullCheck(); } catch (eF) {}
+      });
+      if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('visibilitychange', function () {
+          try { if (!document.hidden && state.bootstrapped && !state.pulling && !state.pushing) pullCheck(); } catch (eV) {}
+        });
+      }
+    }
+    /* v33.21.1: پینگ بین‌تبی (رویداد storage — در تب پنهان هم فوری می‌شلیکد) → دلتا-پول فوری.
+       حلقهٔ برگشتی نداریم: فقط تب «اعمال‌شده» پینگ می‌نویسد و برابری rev مقایسه می‌شود. */
+    if (!window._ptfSyncPingL) {
+      window._ptfSyncPingL = true;
+      window.addEventListener('storage', function (e) {
+        try {
+          if (!e || e.key !== 'ptf_sync_ping' || !e.newValue) return;
+          var p = JSON.parse(e.newValue);
+          if (!p || typeof p.rev === 'undefined') return;
+          if (+p.rev <= state.lastRev) return; /* این تب همین rev یا جدیدتر را دارد */
+          if (!state.bootstrapped || state.pulling || state.pushing) return;
+          var _pn = Date.now();
+          if (state.lastPingPull && (_pn - state.lastPingPull) < 5000) return; /* حد نرخ ۵ثانیه برای طوفان ping */
+          state.lastPingPull = _pn;
+          pullCheck(null, false, { instant: true });
+        } catch (eS) {}
+      });
+      /* نشانگر قدیمیِ نشست قبل مانع مقایسهٔ rev نشود */
+      try { localStorage.removeItem('ptf_sync_ping'); } catch (eP0) {}
+    }
     // هنگام بستن صفحه، push معلق را بفرست
     window.addEventListener('beforeunload', function () {
       var keys = Object.keys(state.dirty);
@@ -607,12 +669,21 @@
     if (key === 'ptf_crm_offers') return String(r.no || r.cd || r.id || '').trim();
     return String(r.cd || r.no || r.id || r.code || r.invoiceCd || r.feedbackId || '').trim();
   }
+  /* v33.21.0 (BUG-SYNC-RD-SCOPE-001 — خطای تولید v33.20.0): rd داخل IIFE بالای فایل تعریف
+     شده و اینجا (اسکوپ سراسری پس از پایان IIFE) قابل رؤیت نیست؛ فراخوانی tombstone روی هر
+     کلید کسب‌وکاری با ReferenceError می‌افتاد → شکست پول، نشان «آفلاین» کذب و عدم اعمال
+     تغییرات دستگاه‌های دیگر. (تسترها با rd تزریقی sandbox سبز می‌ماندند و نقص را می‌پوشاندند.)
+     حالا خواندن آرشیو با همان منطق rd به‌صورت خودکفا در همین اسکوپ انجام می‌شود. */
+  function ptfReadDeletedArchiveStr() {
+    try { if (typeof window.ptfBRead === 'function') { var v = window.ptfBRead('ptf_crm_deleted_archive'); if (v !== null) return v; } } catch (e) {}
+    try { return localStorage.getItem('ptf_crm_deleted_archive'); } catch (e2) { return null; }
+  }
   function ptfReadArchive(extraArchiveStr) {
     var out = [];
     function addFrom(str) {
       try { var a = JSON.parse(str || '[]'); if (Array.isArray(a)) out = out.concat(a); } catch (e) {}
     }
-    addFrom(rd('ptf_crm_deleted_archive') || '[]');
+    addFrom(ptfReadDeletedArchiveStr() || '[]');
     if (extraArchiveStr) addFrom(extraArchiveStr);
     return out;
   }
