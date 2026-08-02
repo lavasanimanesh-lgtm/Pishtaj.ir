@@ -530,22 +530,21 @@
     var last = null;
     try { last = JSON.parse(localStorage.getItem('ptf_backup_last') || 'null'); } catch (e) {}
     return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
-      '<h4 style="margin:0 0 8px">🗄 بک‌آپ و بازگردانی (US-146)</h4>' +
+      '<h4 style="margin:0 0 8px">🗄 بک‌آپ و بازگردانی</h4>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:10px">' +
-      '⏱ بک‌آپ خودکار: <b>هر ۱ ساعت</b> — چرخشی با حداقل فضا (US-282): فشرده gzip، نسخه جدید <b>جایگزین</b> قبلی می‌شود<br>' +
-      '🗂 نگهداری: ساعتی آخر + ۳ روز اخیر + هفتگی آخر + ماهانه آخر (سرور) | ابری آروان: فقط ۲ فایل ثابت (آخرین + ماهانه) — فایل‌های قدیمی انباشته خودکار هرس می‌شوند<br>' +
-      '📥 <b>وظیفه ماهانه:</b> رییس هیات مدیره / ادمین ابتدای هر ماه یک نسخه فایل بک‌آپ را دانلود و خارج از سامانه نگه می‌دارند (یادآور خودکار در کارتابل)<br>' +
+      '⏱ بک‌آپ خودکار <b>هر ۱ ساعت</b> روی سرور و فضای ابری انجام می‌شود (نسخه‌های قدیمی چرخشی و خودکار هرس می‌شوند).<br>' +
+      '📥 <b>وظیفه ماهانه:</b> ادمین ابتدای هر ماه یک فایل بک‌آپ را دانلود و خارج از سامانه نگه می‌دارَد (یادآور خودکار در کارتابل می‌آید).<br>' +
       '📌 آخرین بک‌آپ موفق: <b id="bakLast">' + (last ? escP(last.t) + ' (' + (last.mode === 'arvan' ? 'ابری' : 'سرور') + ')' : 'هنوز ثبت نشده') + '</b></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="bt" onclick="ptfBackupNow()">🗄 بک‌آپ فوری</button>' +
-      '<button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfBackupServerCheck()">🔌 بررسی اتصال سرور</button>' +
       '<button class="bt bt-o" onclick="ptfBackupDownload()">⬇️ دانلود فایل بک‌آپ</button>' +
       '<button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadMonthly()">📥 دانلود بک‌آپ ماهانه سرور</button>' +
       '<button class="bt bt-o" style="color:#dc2626" onclick="ptfRestorePick()">⏪ بازگردانی از فایل</button>' +
       '<button class="bt bt-o" onclick="ptfServerBackups()">📂 بک‌آپ‌های سرور</button>' +
-      ' <button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfPurgeCloudOrphans()">☁️ پاک‌سازی زباله‌های ابری</button>' +
       ' <button class="bt bt-o" style="color:#b45309;border-color:#fed7aa" onclick="ptfDuplicateRepairOpen()">⚠️ بررسی کدهای تکراری</button>' +
       '</div>' +
+      /* v33.22.2: «بررسی اتصال سرور» و «پاک‌سازی زباله‌های ابری» از UI حذف شدند (سردرگمی کاربر) —
+         توابعشان (window.ptfBackupServerCheck / ptfBackupServerStatus / ptfPurgeCloudOrphans) دست‌نخورده باقی‌اند. */
       '<div id="ptfBackupConn" style="font-size:12.5px;margin-top:8px"></div>';
   }
 
@@ -612,21 +611,18 @@
     var top = (h.topKeys || []).slice(0, 6).map(function (r) {
       return '<div style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #eef2f7;padding:4px 0"><span style="direction:ltr;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:330px">' + escP(r.key) + '</span><b>' + fmtBytes(r.bytes) + '</b></div>';
     }).join('') || '<div style="color:#64748b">اطلاعات کلیدها در دسترس نیست.</div>';
-    var estimate = h.estimate && h.estimate.quota ? '<div style="font-size:11px;color:#64748b;margin-top:6px">Browser storage estimate: ' + fmtBytes(h.estimate.usage || 0) + ' / ' + fmtBytes(h.estimate.quota || 0) + ' — این عدد با سقف localStorage یکی نیست.</div>' : '';
     return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
-      '<h4 style="margin:0 0 8px">حافظه محلی CRM — Storage Health</h4>' +
-      '<div style="font-size:12px;color:#475569;line-height:1.9;margin-bottom:8px">localStorage فضای کوچک مرورگر برای همین دامنه است و سقف عملی آن معمولاً حدود ۵MB است. این سقف از طرف مرورگر تعیین می‌شود و با کد سایت مستقیماً بزرگ‌تر نمی‌شود؛ برای داده‌های حجیم باید از سرور و IndexedDB استفاده شود.</div>' +
+      '<h4 style="margin:0 0 8px">حافظه محلی CRM</h4>' +
+      '<div style="font-size:12px;color:#475569;line-height:1.9;margin-bottom:8px">این فضای کوچکِ کش مرورگر است (سقف حدود ۵MB که از طرف مرورگر تعیین می‌شود). دادهٔ اصلی روی <b>سرور</b> است؛ اگر اینجا پر شد، فقط کش دستگاه شما پر شده — با دکمهٔ پاک‌سازی رفع می‌شود.</div>' +
       '<div style="background:#f1f5f9;border-radius:10px;height:20px;position:relative;overflow:hidden;max-width:520px;border:1px solid #e2e8f0">' +
       '<div style="position:absolute;right:0;top:0;bottom:0;width:' + pct + '%;background:' + color + '"></div>' +
-      '<span style="position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:800;color:#111827">' + pct + '٪ (' + fmtBytes(h.used) + ' از سقف محافظه‌کارانه ' + fmtBytes(h.softLimit || STORAGE_LIMIT) + ')</span></div>' +
-      (pct >= 85 ? '<div style="color:#b91c1c;font-size:12px;margin-top:6px;font-weight:800">هشدار سطح بالا: حافظه محلی به محدوده خطر رسیده است. قبل از ادامه کار سنگین، بک‌آپ و پاک‌سازی امن را اجرا کنید.</div>' : (pct >= 70 ? '<div style="color:#b45309;font-size:12px;margin-top:6px">هشدار: حافظه محلی رو به پرشدن است.</div>' : '')) +
-      /* v33.14.0 (ریشهٔ «پاک‌سازی پاسخگو نیست»): راهنمای صریح — چرا حجم کم نمی‌شود و چه باید کرد */
-      '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-top:8px;font-size:12px;color:#991b1b;line-height:1.9"><b>اگر «پاک‌سازی امن» و «مهاجرت» حجم را کم نکردند:</b> یعنی بزرگ‌ترین کلیدها از نوع <b>دادهٔ اصلی کسب‌وکار</b> هستند (درخواست‌ها، پیشنهادها، فاکتورها، پرونده‌ها، موجودی، خریدها و به‌خصوص <b>عکس‌های آواتار و فایل‌های ضمیمه‌شده</b>) که برای امنیت داده عمداً حذف نمی‌شوند. برای کاهش واقعی: ① روی «نمایش کلیدهای بزرگ» بزنید و کلیدهای حجیم را ببینید ② در صورت امکان آواتار/فایل‌های قدیمی را از «بایگانی» پاک کنید ③ راه‌حل نهایی: مهاجرت داده به سرور/MySQL (برنامهٔ DB-MIG-001).</div>' +
-      estimate +
-      '<div style="margin-top:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.8"><b>بزرگ‌ترین کلیدها</b>' + top + '</div>' +
-      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfStorageCleanup()">پاک‌سازی امن فوری</button><button class="bt bt-o" onclick="ptfStorageMigrateToIdb()">مهاجرت cache/draft به IndexedDB</button><button class="bt bt-o" onclick="ptfBackupNow()">بک‌آپ سروری</button><button class="bt bt-o" onclick="if(window.ptfStorageShowLargeKeys)ptfStorageShowLargeKeys()">نمایش کلیدهای بزرگ</button><button class="bt bt-o" onclick="if(window.ptfStorageShowArchiveIndex)ptfStorageShowArchiveIndex()">آرشیوهای IndexedDB</button><button class="bt bt-o" onclick="if(window.ptfStorageRequestPersistent)ptfStorageRequestPersistent()">درخواست Persistent Storage</button></div>' +
-      /* v33.18.0 (فاز B): فعال‌سازی حالت سرور-محور (کلاینت نازک) + v33.19.0: دکمهٔ پاک‌سازی کش */
-      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#065f46;line-height:1.9"><b>🌐 حالت سرور-محور (فاز B مهاجرت)</b><br>با فعال‌سازی، دادهٔ اصلی از سرور (MySQL) خوانده/نوشته می‌شود و localStorage فقط کش/آفلاین می‌شود — مشکل پر شدن حافظه برای همیشه حل می‌شود. (یک بار هم‌گرایی دادهٔ محلی با تأیید انجام می‌شود.) پس از هم‌گرایی موفق روی دستگاه‌های پرحافظه، «پاک‌سازی کش محلی» حافظهٔ مرورگر را کاملاً آزاد می‌کند (داده روی سرور می‌ماند). <b>از v33.20.0:</b> کلیدهای سنگین (عکس‌ها، بایگانی، نامه‌ها، پکینگ‌لیست‌ها و…) هوشمندانه به IndexedDB منتقل می‌شوند تا آینهٔ localStorage خودبه‌خود دوباره پر نشود — درصد حافظه پایدار پایین می‌ماند.' +
+      '<span style="position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:800;color:#111827">' + pct + '٪ (' + fmtBytes(h.used) + ' از ' + fmtBytes(h.softLimit || STORAGE_LIMIT) + ')</span></div>' +
+      (pct >= 85 ? '<div style="color:#b91c1c;font-size:12px;margin-top:6px;font-weight:800">هشدار: حافظه محلی به محدوده خطر رسیده است. ابتدا «🗄 بک‌آپ فوری» و سپس «پاک‌سازی امن فوری» را بزنید.</div>' : (pct >= 70 ? '<div style="color:#b45309;font-size:12px;margin-top:6px">هشدار: حافظه محلی رو به پرشدن است — یک بار «پاک‌سازی امن فوری» را بزنید.</div>' : '')) +
+      /* v33.22.2 (ساده‌سازی UI به درخواست کارفرما): توضیح فنی و دکمه‌های مضاعف حذف شد؛
+         توابع (ptfStorageMigrateToIdb/ShowLargeKeys/ShowArchiveIndex/RequestPersistent) دست‌نخورده — «پاک‌سازی امن فوری» خودش ابتدا مهاجرت به IndexedDB را هم انجام می‌دهد. */
+      '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfStorageCleanup()">پاک‌سازی امن فوری</button></div>' +
+      /* v33.18.0 (فاز B): فعال‌سازی حالت سرور-محور (کلاینت نازک) + v33.19.0: دکمهٔ پاک‌سازی کش — v33.22.2: متن کوتاه‌تر شد (دیتابیس MySQL هم‌اکنون فعال است) */
+      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#065f46;line-height:1.9"><b>🌐 حالت سرور-محور</b> — راه‌حل دائمی پر شدن حافظه<br>اگر حافظهٔ این دستگاه پر است یا می‌خواهید داده فقط روی سرور باشد: این گزینه را فعال کنید تا داده از سرور خوانده/نوشته شود و حافظهٔ مرورگر فقط کش شود. سپس با «پاک‌سازی کش محلی» حافظه کاملاً آزاد می‌شود (داده روی سرور می‌ماند).' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
       '<button class="bt" style="background:#059669" onclick="ptfBEnable()">✅ فعال‌سازی حالت سرور-محور</button>' +
       '<button class="bt bt-o" onclick="ptfBConfirmFlush()">🔄 هم‌گرایی دادهٔ محلی</button>' +
@@ -646,7 +642,7 @@
         if (freed < 256 * 1024 && typeof window.ptfStorageTopKeys === 'function') {
           try {
             var tk = window.ptfStorageTopKeys(5) || [];
-            tip = '\n\nبزرگ‌ترین کلیدها (اگر از نوع دادهٔ اصلی‌اند، پاک‌سازی امن آن‌ها را حذف نمی‌کند):\n' + tk.map(function (r) { return '• ' + r.key + ' — ' + fmtBytes(r.bytes); }).join('\n') + '\n\nراه‌حل: «نمایش کلیدهای بزرگ» + حذف/آرشیو فایل‌های قدیمی، یا مهاجرت به سرور/MySQL.';
+            tip = '\n\nبزرگ‌ترین کلیدها (اگر از نوع دادهٔ اصلی‌اند، پاک‌سازی امن آن‌ها را حذف نمی‌کند):\n' + tk.map(function (r) { return '• ' + r.key + ' — ' + fmtBytes(r.bytes); }).join('\n') + '\n\nراه‌حل دائمی: در همین صفحه «حالت سرور-محور» را فعال کنید تا داده از سرور خوانده شود و حافظهٔ مرورگر فقط کش بماند.'; /* v33.22.2: MySQL فعال است؛ ارجاع به دکمهٔ حذف‌شده اصلاح شد */
           } catch (eT) {}
         }
         alert(label + ' انجام شد. حدود ' + fmtBytes(freed) + ' از localStorage آزاد شد. رکوردهای اصلی کسب‌وکاری حذف نشدند.' + tip);

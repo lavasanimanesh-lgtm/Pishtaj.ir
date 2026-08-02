@@ -22,7 +22,10 @@ var sw = fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8');
 var cc = fs.readFileSync(path.join(ROOT, 'crm/clear-cache.html'), 'utf-8');
 
 SECTION('crm.php: هلپرهای مسیر یکپارچه سینک');
-T('sync_key_read تعریف شده: اول ptf_db_read (خودش فقط mysql مقدار می‌دهد) سپس فایل', api.indexOf('function sync_key_read($sdir, $k) {') > -1 && api.indexOf('$v = ptf_db_read($k);') > -1 && api.indexOf("return file_exists($f) ? file_get_contents($f) : null;") > -1);
+/* v33.22.3 (P1-ATTACH-STALE-DB): قرارداد خواندن ارتقا یافت — به‌جای ptf_db_read خام،
+   ptf_db_read_fresh (گارد تازگی: ردیف DB کهنه‌تر از فایل ⇒ فایل + خودترمیمی) با حفظ fallback فایل */
+T('sync_key_read تعریف شده: اول ptf_db_read_fresh با گارد تازگی (خودش فقط mysql مقدار می‌دهد) سپس فایل', api.indexOf('function sync_key_read($sdir, $k) {') > -1 && api.indexOf('$v = ptf_db_read_fresh($k, $f);') > -1 && api.indexOf("return file_exists($f) ? file_get_contents($f) : null;") > -1);
+T('load_data نیز از گارد تازگی استفاده می‌کند (mysql → ptf_db_read_fresh با مسیر فایل)', api.indexOf("ptf_db_read_fresh($key, \"$data_dir/$key.json\")") > -1 && api.indexOf("ptf_db_mode() === 'mysql'") > -1);
 T('sync_key_write تعریف شده: فایل همیشه (بکاپ گرم) + DB در dual/mysql با ptf_db_write_rev', api.indexOf('function sync_key_write($sdir, $k, $v, $rev = 0) {') > -1 && api.indexOf("file_put_contents($sdir . '/' . $k . '.json', $v, LOCK_EX) !== false") > -1 && api.indexOf("if ($mode === 'dual' || $mode === 'mysql')") > -1 && api.indexOf('$okDb = ptf_db_write_rev($k, $v, $rev);') > -1);
 T('در mode=mysql شکست DB به مسیر پوش گزارش می‌شود (نه بی‌صدا)', api.indexOf("if ($mode === 'mysql' && !$okDb) return false;") > -1);
 T('هلپرها top-level‌اند (قبل از switch — داخل switch تعریف شرطی می‌شد و در caseها مرد)', api.indexOf('function sync_key_read') > -1 && api.indexOf('switch($action)') > -1 && api.indexOf('function sync_key_read') < api.indexOf('switch($action)'));

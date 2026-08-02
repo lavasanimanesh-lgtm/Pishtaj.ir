@@ -69,7 +69,7 @@ setTimeout(function () {
         T('توکن منقضی → status=needLogin', r3.status === 'needLogin');
         global.fetch = _f;
         window.ptfBackupServerCheck();
-        T('دکمهٔ بررسی اتصال در باکس بکاپ هست', bak.indexOf('ptfBackupServerCheck()') > -1 && bak.indexOf('🔌 بررسی اتصال سرور') > -1 && bak.indexOf('ptfBackupConn') > -1);
+        T('بررسی اتصال: تابع و محل نمایش حفظ؛ دکمهٔ دستی در v33.22.2 از UI حذف شد (ساده‌سازی کارفرما)', bak.indexOf('window.ptfBackupServerCheck = function') > -1 && bak.indexOf('ptfBackupConn') > -1 && bak.indexOf('onclick="ptfBackupServerCheck()"') === -1);
 
         SECTION('F1-2: بکاپ فقط در صورت تغییر');
         /* امضا اولیه */

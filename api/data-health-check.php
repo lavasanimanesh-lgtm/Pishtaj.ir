@@ -248,6 +248,52 @@ if (is_dir($data_dir)) {
         "permissions: $perms — " . (is_writable($data_dir) ? 'قابل نوشتن' : '⛔ غیرقابل نوشتن — chmod 755 لازم است'));
 }
 
+// ========== 11. تطابق فایل ↔ دیتابیس (v33.22.3 — P1-ATTACH-STALE-DB) ==========
+/* پیش از این این ابزار فقط «فایل»ها را بررسی می‌کرد و سبزِ آن هیچ تضمینی روی تازه‌بودن DB
+   نبود (زمینه‌ساز رخداد ناپدید شدن ضمایم پس از سوییچ). حالا در حالت dual/mysql، تطابق واقعی
+   فایل↔DB هرکلید (چک‌سام + تعداد) گزارش می‌شود. کلیدهای فرّارِ عمداً فایل‌محور (meta = دفتر rev
+   و tokens = نشست‌های ورود) از مقایسه مستثنا‌اند — مثل ویزارد مهاجرت. */
+$_dblib = __DIR__ . '/db-lib.php';
+if (file_exists($_dblib)) {
+    require_once $_dblib;
+    $_mode = function_exists('ptf_db_mode') ? ptf_db_mode() : 'off';
+    check('حالت دیتابیس (mode)', 'ok', 'mode = ' . $_mode . ($_mode === 'mysql' ? ' — DB منبع حقیقت خواندن (با گارد تازگی)' : ($_mode === 'dual' ? ' — فایل منبع خواندن + آینهٔ DB' : ' — فقط فایل')));
+    if (($_mode === 'mysql' || $_mode === 'dual') && function_exists('ptf_db_get')) {
+        $_keys = [];
+        foreach ([$data_dir, $sync_dir] as $_d) {
+            if (!is_dir($_d)) continue;
+            foreach (glob($_d . '/*.json') ?: [] as $_f) {
+                $_k = basename($_f, '.json');
+                if (in_array($_k, ['otp', 'ratelimit', 'meta', 'tokens'], true)) continue;
+                if (isset($_keys[$_k])) continue;
+                $_keys[$_k] = $_f;
+            }
+        }
+        $_mism = [];
+        $_checked = 0;
+        foreach ($_keys as $_k => $_f) {
+            $_raw = @file_get_contents($_f);
+            $_dbv = null;
+            try { $_dbv = ptf_db_get($_k); } catch (Throwable $_e) { $_dbv = null; }
+            if (($_raw === false) && ($_dbv === null)) continue;
+            $_checked++;
+            $_jC = hash('sha256', (string)$_raw);
+            $_dC = hash('sha256', (string)$_dbv);
+            if ($_jC !== $_dC) $_mism[] = $_k . ($_dbv === null ? ' (در DB نیست)' : '');
+        }
+        check('تطابق فایل ↔ دیتابیس', count($_mism) ? ($_mode === 'mysql' ? 'fail' : 'warn') : 'ok',
+            count($_mism)
+                ? count($_mism) . ' کلید مغایرت از ' . $_checked . ' کلید: ' . implode('، ', array_slice($_mism, 0, 12)) . (count($_mism) > 12 ? '…' : '') . ' — اجرای مرحلهٔ ۳ ویزارد (migrate.php) آن را ترمیم می‌کند'
+                : $_checked . ' کلید داده — همه یکسان ✅');
+        if ($_mode === 'mysql' && count($_mism)) {
+            check('🧯 گارد تازگی (خودترمیم لحظه‌ای)', 'ok',
+                'حتی با وجود مغایرت بالا، خواندن کاربران از فایلِ تازه‌تر انجام و ردیف DB خودکار ترمیم می‌شود (v33.22.3) — ولی برای تطبیق کامل مرحلهٔ ۳ ویزارد را اجرا کنید.');
+        }
+    } elseif ($_mode === 'off') {
+        check('تطابق فایل ↔ دیتابیس', 'ok', 'دیتابیس غیرفعال است — سامانه دقیقاً مثل گذشته فقط با فایل کار می‌کند');
+    }
+}
+
 // ========== نمایش نتایج ==========
 $okCount = count(array_filter($results, function($r) { return $r['status'] === 'ok'; }));
 $warnCount = count(array_filter($results, function($r) { return $r['status'] === 'warn'; }));
@@ -267,7 +313,7 @@ echo '.footer{margin-top:30px;padding:14px;background:#fef2f2;border:1px solid #
 echo '</style></head><body>';
 
 echo '<h1>🏥 PTF CRM — گزارش سلامت داده‌ها</h1>';
-echo '<p>تاریخ بررسی: ' . date('Y-m-d H:i:s') . ' | نسخه: v31.7.7</p>';
+echo '<p>تاریخ بررسی: ' . date('Y-m-d H:i:s') . ' | نسخه ابزار: v33.22.3 (بخش ۱۱: تطابق واقعی فایل↔DB)</p>';
 
 echo '<div class="summary">';
 echo '<div class="box box-ok">✅ ' . $okCount . ' سالم</div>';

@@ -185,6 +185,50 @@ function ptf_db_read($key) {
     } catch (Throwable $e) { return null; }
 }
 
+/* ---------- v33.22.3 (P1-ATTACH-STALE-DB — گارد تازگی لحظه‌ای + خودترمیمی) ----------
+   ریشهٔ رخداد «ناپدید شدن ضمایم/رکوردهای تازه پس از سوییچ»: ردیف‌های کهنهٔ DB (مانده از
+   مهاجرت قبلی یا انتقال ناقص) در حالت mysql «منبع حقیقت» خوانده می‌شدند درحالی‌که فایل‌ها
+   تازه‌تر بودند. قرارداد نوشتن این سامانه: «فایل همیشه اول و سپس DB» (sync_key_write و
+   save_data)؛ بنابراین اگر mtime فایل از updated_at ردیف DB جلوتر باشد، آن ردیف «یقیناً»
+   کهنه است (آخرین نوشتن هرگز به DB نرسیده). در آن حالت:
+     ۱) مقدار تازهٔ فایل سرو می‌شود (کاربر هرگز دادهٔ عقب‌افتاده نمی‌بیند)
+     ۲) همان لحظه ردیف DB با مقدار فایل خودترمیم می‌شود (خواندن بعدی از DB تازه می‌خواند)
+   حاشیهٔ ۳ ثانیه برای امنیت در برابر رُند ثانیه‌ای/اختلاف ساعت جزئی PHP↔MySQL گذاشته شده؛
+   در نوشتن عادی (فایل قبل از DB در همان ثانیه) هرگز فعال نمی‌شود و فقط «کهنگی واقعی»
+   (دقیقه/ساعت/روز اختلاف) را شکار می‌کند. با این گارد، حتی مهاجرت ناقص/اشتباه هم دیگر
+   نمی‌تواند خواندن را از فایل عقب‌تر نگه دارد — ریشه‌کن دائمی این دسته از خرابی.
+   نکته: ptf_db_read (بدون گارد) برای مقایسهٔ دقیق در migrate/verify حفظ می‌شود. */
+function ptf_db_read_fresh($key, $filePath = null) {
+    $mode = ptf_db_mode();
+    if ($mode !== 'mysql') return null;
+    try {
+        $m = ptf_db_conn();
+        if (!$m) return null;
+        $t = ptf_db_table();
+        $st = mysqli_prepare($m, "SELECT v, UNIX_TIMESTAMP(updated_at) AS uts FROM `$t` WHERE k = ?");
+        if (!$st) return null;
+        mysqli_stmt_bind_param($st, 's', $key);
+        mysqli_stmt_execute($st);
+        mysqli_stmt_bind_result($st, $v, $uts);
+        $ok = mysqli_stmt_fetch($st);
+        mysqli_stmt_close($st);
+        if (!$ok) return null;
+        if ($filePath && is_string($v)) {
+            @clearstatcache(true, $filePath);
+            $fmt = file_exists($filePath) ? @filemtime($filePath) : false;
+            if ($fmt !== false && (int)$uts > 0 && (int)$fmt > (int)$uts + 3) {
+                $fv = @file_get_contents($filePath);
+                if ($fv !== false) {
+                    /* خودترمیمی: ردیف کهنه با مقدار تازهٔ فایل به‌روز می‌شود (idempotent) */
+                    try { ptf_db_set($key, $fv); } catch (Throwable $e2) {}
+                    return $fv;
+                }
+            }
+        }
+        return $v;
+    } catch (Throwable $e) { return null; }
+}
+
 /* ---------- ابزار checksum (برای گزارش مهاجرت) ---------- */
 function ptf_db_checksum($value) {
     return hash('sha256', (string)$value);

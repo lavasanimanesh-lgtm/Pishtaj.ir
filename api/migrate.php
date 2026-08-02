@@ -128,6 +128,32 @@ function mig_keys() {
     return $out;
 }
 
+/* v33.22.3 (P1-ATTACH-STALE-DB): کلیدهای فرّارِ عمداً فایل‌محور — از «مقایسهٔ تطابق» کنار گذاشته می‌شوند.
+   meta = دفتر rev سینک (طرح: همیشه فایل‌محور و با هر push عوض می‌شود) و tokens = نشست‌های ورود
+   (با هر ورود/خروج تغییر می‌کند). پیش از این، همین دو کلید باعث می‌شدند «بررسی تطابق» روی سامانهٔ
+   زنده همیشه یک مغایرت نشان دهد و کاربر با تصور «عادی بودن مغایرت» سوییچ را با DB کهنه جلو ببرد —
+   زمینه‌ساز رخداد «ناپدید شدن ضمایم/رکوردهای تازه». */
+function mig_compare_excluded() { return ['meta', 'tokens']; }
+
+/* مقایسهٔ یک کلید بین فایل و دیتابیس (چک‌سام + تعداد رکورد + بایت) */
+function mig_compare_row($item) {
+    $raw = @file_get_contents($item['file']);
+    $dbv = ptf_db_get($item['key']);
+    $jChecksum = ptf_db_checksum($raw === false ? '' : $raw);
+    $dChecksum = ptf_db_checksum($dbv === null ? '' : $dbv);
+    $jArr = json_decode($raw === false ? '' : ($raw ?: '[]'), true);
+    $dArr = json_decode($dbv === null ? '' : ($dbv ?: '[]'), true);
+    $jCount = is_array($jArr) ? count($jArr) : -1;
+    $dCount = is_array($dArr) ? count($dArr) : -1;
+    return [
+        'same'    => ($jChecksum === $dChecksum) && ($jCount === $dCount),
+        'jCount'  => $jCount, 'dCount' => $dCount,
+        'jBytes'  => ($raw === false) ? -1 : strlen($raw),
+        'dBytes'  => ($dbv === null) ? -1 : strlen($dbv),
+        'inDb'    => ($dbv !== null),
+    ];
+}
+
 /* بکاپ اضطراری (کپی کامل به پوشهٔ زمان‌دار) */
 function mig_emergency_backup() {
     global $data_dir;
@@ -229,52 +255,77 @@ elseif ($step === 'migrate') {
 elseif ($step === 'migrate_go') {
     require_token();
     if (trim($_POST['confirm_word'] ?? '') !== 'مهاجرت') { echo fa_err('کلمهٔ تأیید اشتباه است — چیزی تغییر نکرد.'); page_footer(); exit; }
+    /* v33.22.3 (P1-ATTACH-STALE-DB): انتقال دسته‌ای (ضد تایم‌اوت هاست اشتراکی).
+       پیش‌تر همهٔ کلیدها در یک درخواست کپی می‌شدند و پیام نتیجه فقط «پایان حلقه» چاپ می‌شد؛
+       اگر PHP وسط کار کشته می‌شد (محدودیت ۳۰ ثانیه)، کاربر هیچ پیامی نمی‌دید و نمی‌فهمید
+       انتقال ناقص مانده — DB نیمه‌کهنه «منبع حقیقت» می‌شد. حالا هر درخواست حداکثر ۱۵ کلید را
+       منتقل می‌کند، پیشرفت را شفاف نشان می‌دهد و دستهٔ بعد خودکار ادامه می‌یابد؛ نتیجهٔ
+       نهایی (موفق/ناموفق هرکلید) همیشه دیده می‌شود. عمل idempotent است (INSERT … ON DUPLICATE
+       KEY UPDATE) — اجرای دوباره همیشه امن است و دادهٔ قبلی پاک نمی‌شود. */
+    @set_time_limit(120);
+    $keys = mig_keys();
+    $total = count($keys);
+    $off = max(0, (int)($_POST['offset'] ?? 0));
+    $BATCH = 15;
+    $failList = array_values(array_filter(explode(',', (string)($_POST['fails'] ?? ''))));
     $m = ptf_db_connect();
     if (!$m) { echo fa_err('اتصال به دیتابیس برقرار نیست.'); page_footer(); exit; }
     /* اطمینان از وجود جدول */
     mysqli_query($m, ptf_db_schema_sql());
     mysqli_close($m);
-    $keys = mig_keys();
-    $okCount = 0; $failList = [];
-    foreach ($keys as $item) {
+    $slice = array_slice($keys, $off, $BATCH);
+    $doneNow = 0;
+    foreach ($slice as $item) {
         $raw = @file_get_contents($item['file']);
         if ($raw === false) { $failList[] = $item['key'] . ' (خوانده نشد)'; continue; }
-        if (ptf_db_set($item['key'], $raw)) $okCount++; else $failList[] = $item['key'];
+        if (ptf_db_set($item['key'], $raw)) $doneNow++; else $failList[] = $item['key'];
     }
-    if ($okCount) {
-        echo fa_ok('انتقال انجام شد: ' . $okCount . ' کلید با موفقیت به دیتابیس منتقل شد.' . ($failList ? ' — موارد ناموفق: ' . h(implode('، ', $failList)) : ''));
-        echo '<div style="margin:12px 0">' . btn('ادامه: بررسی تطابق (مرحله ۴)', 'verify') . '</div>';
+    $newOff = $off + count($slice);
+    if ($newOff < $total) {
+        echo fa_ok('انتقال دسته‌ای در حال انجام… ✅ ' . $doneNow . ' کلید این دسته | پیشرفت: <b style="direction:ltr">' . $newOff . ' / ' . $total . '</b>' . ($failList ? ' — ناموفق تاکنون: ' . h(implode('، ', $failList)) : ''));
+        echo '<form id="migNext" method="post"><input type="hidden" name="step" value="migrate_go">'
+            . '<input type="hidden" name="mig_token" value="' . h(ptf_db_config()['mig_token'] ?? '') . '">'
+            . '<input type="hidden" name="confirm_word" value="مهاجرت">'
+            . '<input type="hidden" name="offset" value="' . $newOff . '">'
+            . '<input type="hidden" name="fails" value="' . h(implode(',', $failList)) . '">'
+            . '<button type="submit" style="background:#0e7490;color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit">▶ ادامهٔ خودکار انتقال (' . $newOff . ' از ' . $total . ') — اگر متوقف شد کلیک کنید</button></form>';
+        echo '<div style="font-size:12px;color:#64748b;margin-top:6px">لطفاً این صفحه را نبندید؛ انتقال به‌صورت خودکار ادامه می‌یابد.</div>';
+        echo '<script>setTimeout(function(){var f=document.getElementById("migNext");if(f)f.submit();},400);</script>';
     } else {
-        echo fa_err('هیچ کلیدی منتقل نشد. موارد ناموفق: ' . h(implode('، ', $failList)));
-        page_footer(); exit;
+        if (!$failList) {
+            echo fa_ok('انتقال داده به‌طور کامل انجام شد: ' . $total . ' کلید با موفقیت به دیتابیس منتقل شد.');
+        } else {
+            echo fa_err('انتقال تمام شد ولی ' . count($failList) . ' کلید ناموفق بود: ' . h(implode('، ', $failList)) . ' — دادهٔ قبلی سالم است؛ مرحلهٔ ۳ را دوباره اجرا کنید (تکرار کاملاً امن و بدون حذف است) تا موارد ناموفق جبران شوند.');
+        }
+        echo '<div style="margin:12px 0">' . btn('ادامه: بررسی تطابق (مرحله ۴)', 'verify') . '</div>';
     }
 }
 
 elseif ($step === 'verify') {
     require_token();
+    @set_time_limit(120);
     $keys = mig_keys();
+    $excluded = mig_compare_excluded(); /* v33.22.3: کلیدهای فرّارِ عمداً فایل‌محور از مقایسه مستثنا */
     $allOk = true;
     $rows = '';
+    $cmpCount = 0;
     foreach ($keys as $item) {
-        $raw = @file_get_contents($item['file']);
-        $dbv = ptf_db_get($item['key']);
-        $jChecksum = ptf_db_checksum($raw === false ? '' : $raw);
-        $dChecksum = ptf_db_checksum($dbv === null ? '' : $dbv);
-        $jArr = json_decode($raw ?: '[]', true);
-        $dArr = json_decode($dbv ?: '[]', true);
-        $jCount = is_array($jArr) ? count($jArr) : -1;
-        $dCount = is_array($dArr) ? count($dArr) : -1;
-        $same = ($jChecksum === $dChecksum) && ($jCount === $dCount);
-        if (!$same) $allOk = false;
-        $rows .= '<tr style="border-bottom:1px solid #eef2f7"><td style="padding:6px 8px;font-size:12px;direction:ltr;text-align:left">' . h($item['key']) . '</td><td style="padding:6px 8px;text-align:center">' . ($same ? '<span style="color:#047857">✅ یکسان</span>' : '<span style="color:#dc2626">❌ مغایرت</span>') . '</td><td style="padding:6px 8px;text-align:center">' . $jCount . '</td><td style="padding:6px 8px;text-align:center">' . $dCount . '</td></tr>';
+        if (in_array($item['key'], $excluded, true)) {
+            $rows .= '<tr style="border-bottom:1px solid #eef2f7;background:#f8fafc"><td style="padding:6px 8px;font-size:12px;direction:ltr;text-align:left">' . h($item['key']) . '</td><td style="padding:6px 8px;text-align:center"><span style="color:#64748b">ℹ️ فایل‌محورِ دائمی</span></td><td style="padding:6px 8px;text-align:center">—</td><td style="padding:6px 8px;text-align:center">—</td></tr>';
+            continue;
+        }
+        $c = mig_compare_row($item);
+        $cmpCount++;
+        if (!$c['same']) $allOk = false;
+        $rows .= '<tr style="border-bottom:1px solid #eef2f7"><td style="padding:6px 8px;font-size:12px;direction:ltr;text-align:left">' . h($item['key']) . '</td><td style="padding:6px 8px;text-align:center">' . ($c['same'] ? '<span style="color:#047857">✅ یکسان</span>' : '<span style="color:#dc2626">❌ مغایرت</span>' . (!$c['inDb'] ? ' <small>(در DB نیست)</small>' : '')) . '</td><td style="padding:6px 8px;text-align:center">' . $c['jCount'] . ' <small style="color:#94a3b8">(' . $c['jBytes'] . 'b)</small></td><td style="padding:6px 8px;text-align:center">' . $c['dCount'] . ' <small style="color:#94a3b8">(' . $c['dBytes'] . 'b)</small></td></tr>';
     }
     echo '<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="background:#f8fafc"><th style="padding:8px;text-align:right">کلید</th><th>وضعیت</th><th>تعداد در فایل</th><th>تعداد در دیتابیس</th></tr></thead><tbody>' . $rows . '</tbody></table>';
     if ($allOk) {
-        echo fa_ok('بررسی تطابق با موفقیت انجام شد — همهٔ کلیدها بین فایل و دیتابیس یکسان‌اند.');
+        echo fa_ok('بررسی تطابق با موفقیت انجام شد — هر ' . $cmpCount . ' کلید داده بین فایل و دیتابیس یکسان‌اند.');
         echo '<div style="margin:12px 0">' . btn('ادامه: فعال‌سازی نوشتن همزمان (مرحله ۵)', 'enable_dual') . '</div>';
     } else {
-        echo fa_err('مغایرت‌هایی یافت شد — چیزی تغییر نکرده و دادهٔ قبلی سالم است. از «بازگشت به مرحله ۳» دوباره انتقال را انجام دهید یا با پشتیبانی تماس بگیرید.');
-        echo '<div style="margin:12px 0">' . btn('بازگشت: انتقال دوباره', 'migrate') . '</div>';
+        echo fa_err('مغایرت‌هایی یافت شد — چیزی تغییر نکرده و دادهٔ قبلی سالم است. از «بازگشت به مرحله ۳» انتقال را دوباره (به‌صورت دسته‌ای و امن) انجام دهید تا همه سبز شوند.');
+        echo '<div style="margin:12px 0">' . btn('بازگشت: انتقال دوباره (مرحله ۳)', 'migrate') . '</div>';
         page_footer(); exit;
     }
 }
@@ -302,11 +353,33 @@ elseif ($step === 'switch_final') {
 elseif ($step === 'switch_go') {
     require_token();
     if (trim($_POST['confirm_word'] ?? '') !== 'مهاجرت') { echo fa_err('کلمهٔ تأیید اشتباه است — چیزی تغییر نکرد.'); page_footer(); exit; }
+    /* v33.22.3 (P1-ATTACH-STALE-DB — ریشه‌کن رخداد «ناپدید شدن ضمایم پس از سوییچ»):
+       سوییچ نهایی بدون تطابق کامل فایل↔DB «ممنوع» است. پیش‌تر ترتیب مراحل فقط توصیه بود و
+       گام سوییچ هیچ بررسی‌ای نمی‌کرد؛ اگر مرحلهٔ ۳/۴ رد شده یا نیمه‌کاره مانده بود، DB کهنه
+       «منبع حقیقت» اعلام می‌شد و تمام خواندن‌ها به حالت چندروزِ قبل برمی‌گشتند (ضمایم جدید
+       در رکوردها وجود نداشتند). حالا خودِ این گام، همان مقایسهٔ چک‌سام+تعداد را درون‌خط روی
+       همهٔ کلیدهای داده (به‌جز کلیدهای فرّارِ عمداً فایل‌محور) اجرا می‌کند و در صورت حتی یک
+       مغایرت، سوییچ را انجام نمی‌دهد و فهرست دقیق را نشان می‌دهد. */
+    @set_time_limit(120);
+    $excluded = mig_compare_excluded();
+    $mism = [];
+    foreach (mig_keys() as $item) {
+        if (in_array($item['key'], $excluded, true)) continue;
+        $c = mig_compare_row($item);
+        if (!$c['same']) $mism[] = $item['key'] . (!$c['inDb'] ? ' (در DB نیست)' : '');
+    }
+    if ($mism) {
+        echo fa_err('سوییچ انجام نشد: ' . count($mism) . ' کلید بین فایل و دیتابیس مغایرت دارد:<br><span style="direction:ltr;display:inline-block;font-size:12px">' . h(implode('، ', $mism)) . '</span><br>ابتدا «مرحلهٔ ۳ (انتقال داده)» را کامل اجرا کنید تا همه سبز شوند و دوباره تلاش کنید — هیچ چیزی تغییر نکرد و دادهٔ فعلی (فایل‌ها) سالم و فعال است.');
+        echo '<div style="margin:12px 0">' . btn('بازگشت: انتقال داده (مرحله ۳)', 'migrate') . ' ' . btn('بررسی تطابق دوباره (مرحله ۴)', 'verify') . '</div>';
+        page_footer(); exit;
+    }
     $c = ptf_db_config();
     $c['mode'] = 'mysql';
     $c['switched_at'] = date('Y-m-d H:i:s');
+    $c['pre_switch_verified_at'] = date('Y-m-d H:i:s'); /* v33.22.3: سوییچ فقط پس از تطابق کامل درون‌خط */
     ptf_db_save_config($c);
-    echo fa_ok('سوییچ نهایی با موفقیت انجام شد — دیتابیس اکنون منبع حقیقت است.');
+    echo fa_ok('سوییچ نهایی با موفقیت انجام شد — تطابق کامل فایل↔دیتابیس همین لحظه بررسی و تأیید شد و دیتابیس اکنون منبع حقیقت است.');
+    echo fa_ok('از این پس «گارد تازگی» (v33.22.3) هم فعال است: اگر به هر دلیل ردیفی در دیتابیس کهنه‌تر از فایل شود، خواندن به‌صورت خودکار از فایل تازه انجام و همان لحظه ردیف خودترمیم می‌شود — دیگر هیچ سناریویی نمی‌تواند دادهٔ نمایش‌داده‌شده را از فایل عقب‌تر نگه دارد.');
     echo fa_warn('قدم بعدی: ۱) یک بار صفحهٔ CRM را با Ctrl+Shift+R تازه‌سازی کنید تا همهٔ کاربران نسخهٔ جدید را بگیرند. ۲) این فایل (migrate.php) را از سرور حذف کنید (File Manager → api → حذف). ۳) در صورت مشاهدهٔ هر خطا، فایل‌های JSON پشتیبان در crm/data/backups/pre-mysql-… سالم هستند و می‌توان با «بازگردانی» برگشت.');
 }
 

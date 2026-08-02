@@ -31,7 +31,7 @@ SECTION('Backup/settings integration');
 T('پنل حافظه از API جدید health/topKeys استفاده می‌کند', bak.indexOf('ptfStorageHealthSync') > -1 && bak.indexOf('بزرگ‌ترین کلیدها') > -1);
 T('پاک‌سازی تنظیمات از ptfStorageEmergencyCompact استفاده می‌کند', bak.indexOf('ptfStorageEmergencyCompact') > -1 && bak.indexOf('پاک‌سازی امن فوری') > -1);
 T('fallback بک‌آپ حجیم به IndexedDB منتقل می‌شود', bak.indexOf("ptfStorageIdbSet('ptf_backup_local'") > -1 && bak.indexOf("ptfStorageIdbSet('ptf_backup_prerestore'") > -1);
-T('متن آموزشی توضیح می‌دهد سقف localStorage از مرورگر است', bak.indexOf('سقف عملی آن معمولاً حدود ۵MB است') > -1 && bak.indexOf('با کد سایت مستقیماً بزرگ‌تر نمی‌شود') > -1);
+T('متن آموزشی توضیح می‌دهد سقف localStorage از مرورگر است', /سقف[^<]*۵? ?MB?[^<]*از طرف مرورگر|حدود ۵MB/.test(bak) && bak.indexOf('مرورگر') > -1); /* v33.22.2: صورت‌بندی کوتاه‌تر شد ولی معنا (سقف از مرورگر است) پابرجا */
 T('setData مرکزی از ptfStorageSafeSetItem استفاده می‌کند', idx.indexOf('window.setData = function') > -1 && idx.indexOf("if (typeof ptfStorageSafeSetItem === 'function') saveResult = ptfStorageSafeSetItem(k, s)") > -1);
 
 SECTION('Runtime compact smoke');

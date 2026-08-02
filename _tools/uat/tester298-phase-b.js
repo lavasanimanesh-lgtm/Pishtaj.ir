@@ -162,7 +162,7 @@ setTimeout(function () {
   T('بعد از غیرفعال‌سازی، getData محلی است', (function () { setData('ptf_crm_settings', { a: 4 }); return getData('ptf_crm_settings').a === 4; })());
 
   SECTION('UI و لود');
-  T('دکمه‌های فاز B در تنظیمات (فعال/هم‌گرایی/غیرفعال)', bak.indexOf('ptfBEnable()') > -1 && bak.indexOf('ptfBConfirmFlush()') > -1 && bak.indexOf('ptfBDisable()') > -1 && bak.indexOf('حالت سرور-محور (فاز B مهاجرت)') > -1);
+  T('دکمه‌های فاز B در تنظیمات (فعال/هم‌گرایی/غیرفعال)', bak.indexOf('ptfBEnable()') > -1 && bak.indexOf('ptfBConfirmFlush()') > -1 && bak.indexOf('ptfBDisable()') > -1 && bak.indexOf('🌐 حالت سرور-محور') > -1); /* v33.22.2: متن عنوان کوتاه‌تر شد */
   T('client-server.js بعد از sync.js لود می‌شود', idx.indexOf('sync.js?v=') < idx.indexOf('client-server.js?v='));
   T('گارد idempotent (double-load) + گارد دوباره‌هوک (__ptfB) دارد', cs.indexOf('__ptfClientServerLoaded') > -1 && cs.indexOf('__ptfB') > -1);
   DONE('tester298-phase-b');

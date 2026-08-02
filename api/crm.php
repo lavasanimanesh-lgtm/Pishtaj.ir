@@ -495,15 +495,16 @@ if (!is_dir($data_dir)) {
 require_once __DIR__ . '/db-lib.php';
 
 function load_data($key) {
-    /* در حالت mysql ابتدا از دیتابیس (منبع حقیقت) */
+    global $data_dir;
+    /* در حالت mysql ابتدا از دیتابیس (منبع حقیقت) — v33.22.3 (P1-ATTACH-STALE-DB):
+       با گارد تازگی؛ اگر ردیف DB کهنه‌تر از فایل باشد، فایل سرو و ردیف خودترمیم می‌شود. */
     if (ptf_db_mode() === 'mysql') {
-        $v = ptf_db_read($key);
+        $v = ptf_db_read_fresh($key, "$data_dir/$key.json");
         if ($v !== null) {
             $d = json_decode($v, true);
             if (is_array($d)) return $d;
         }
     }
-    global $data_dir;
     $file = "$data_dir/$key.json";
     if (!file_exists($file)) return [];
     $data = file_get_contents($file);
@@ -530,9 +531,12 @@ function save_data($key, $data) {
    مهم: این دو تابع باید top-level باشند (داخل switch تعریف شرطی می‌شود و در caseها
    undefined است) — کنار load_data/save_data نگهداری می‌شوند. */
 function sync_key_read($sdir, $k) {
-    $v = ptf_db_read($k); /* خودش فقط در mode=mysql مقدار برمی‌گرداند */
-    if ($v !== null) return $v;
     $f = $sdir . '/' . $k . '.json';
+    /* v33.22.3 (P1-ATTACH-STALE-DB): گارد تازگی — در mode=mysql اگر ردیف DB کهنه‌تر از فایل
+       باشد (ماندهٔ مهاجرت ناقص/ردشده)، فایل تازه سرو و ردیف همان‌جا خودترمیم می‌شود؛
+       در نتیجه خواندن سینک هرگز از فایل عقب‌تر نمی‌ماند. */
+    $v = ptf_db_read_fresh($k, $f);
+    if ($v !== null) return $v;
     return file_exists($f) ? file_get_contents($f) : null;
 }
 function sync_key_write($sdir, $k, $v, $rev = 0) {
