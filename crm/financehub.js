@@ -49,6 +49,9 @@
     show('opexBox', t === 'opex');
     show('shareBox', t === 'share');
     show('fiscalBox', t === 'fiscal');
+    /* v33.11.0: باکس «تعهدات نقدینگی تأمین و چک‌های شرکت» (slLiquidity) قبلاً در هیچ
+       تبی مخفی نمی‌شد و در همهٔ تب‌ها دیده می‌شد → حالا فقط در تب حساب تأمین‌کنندگان. */
+    show('slLiquidity', t === 'supacc');
     show('slFinanceHubBox', t === 'supacc');
     show('cfFinanceHubBox', t === 'custacc');
     show('wcFinanceHubBox', t === 'workcap');
@@ -57,6 +60,25 @@
     show('chequeBox', t === 'cheque');
     var old = document.getElementById('finHubBar');
     if (old) old.outerHTML = bar();
+    window.finHubOrder();
+  };
+  /* v33.11.0 (بازخورد کارفرما — «هاب مالی وسط صفحه دیده می‌شود»):
+     باکس‌های opexBox/slLiquidity توسط hook های قبلی قبل از نوار هاب چیده می‌شدند.
+     این تابع ترتیب همهٔ باکس‌های هاب را بازمی‌چیند: نوار هاب اول، سپس باکس‌های تب‌ها. */
+  window.finHubOrder = function () {
+    try {
+      var panels = document.getElementById('panels');
+      var barEl = document.getElementById('finHubBar');
+      if (!panels || !barEl) return;
+      var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
+        'shareBox', 'fiscalBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
+        'ledgerReportBox', 'qualityBox', 'chequeBox'];
+      ids.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && el.parentNode === panels) panels.appendChild(el);
+      });
+      panels.insertBefore(barEl, panels.firstChild);
+    } catch (e) {}
   };
   function hook() {
     if (window._finHubHooked || typeof window.buildPetty !== 'function') return false;
@@ -64,7 +86,7 @@
     var _bp = window.buildPetty;
     window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : ''); };
     var _rp = window.renderPetty;
-    if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); } catch (e) {} };
+    if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); window.finHubOrder(); } catch (e) {} };
     return true;
   }
   var n = 0;
