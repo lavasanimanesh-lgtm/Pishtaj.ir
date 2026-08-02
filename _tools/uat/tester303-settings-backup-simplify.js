@@ -66,6 +66,7 @@ T('راهنمای اعلان پاک‌سازی به «حالت سرور-محور
 
 SECTION('نسخه‌گذاری');
 var vm = idx.match(/window\.VER = '(v[\d.]+)'/);
-T('بامپ نسخه همگام (index + sw + clear-cache)', !!vm && vm[1] === 'v33.22.2' && sw.indexOf('ptf-crm-' + vm[1]) > -1 && cc.indexOf(vm[1]) > -1);
+/* v33.22.3: خواندن VER از index (مقاوم به بامپ‌های بعدی — دیگر رشتهٔ ثابت نسخه pin نمی‌شود) */
+T('بامپ نسخه همگام (index + sw + clear-cache)', !!vm && /^v\d+\.\d+\.\d+$/.test(vm[1]) && sw.indexOf('ptf-crm-' + vm[1]) > -1 && cc.indexOf(vm[1]) > -1);
 
 DONE('tester303-settings-backup-simplify');
