@@ -21,6 +21,12 @@ function ptf_db_config() {
        ده‌ها فراخوانی در یک درخواست رخ می‌دهد). migrate.php پس از save این کش را تازه می‌کند. */
     if (array_key_exists('ptf_db_config_cache', $GLOBALS)) return $GLOBALS['ptf_db_config_cache'];
     $p = ptf_db_config_path();
+    /* v33.22.1: فایل کانفیگ PHP است و خروجی require توسط OPcache سرور کش می‌شود — روی هاست
+       اشتراکی، ویرایش دستی mode در سی‌پنل (حتی با وجود فایل جدید روی دیسک) تا انقضای کش یا
+       همیشه (validate_timestamps=0) دیده نمی‌شد و ویزارد قفل باقی می‌ماند. قبل از require،
+       کش OPcache همان فایل را باطل می‌کنیم تا همیشه نسخهٔ دیسک خوانده شود. */
+    @clearstatcache(true, $p);
+    if (function_exists('opcache_invalidate')) { @opcache_invalidate($p, true); }
     $cache = null;
     if (file_exists($p)) {
         try {
@@ -37,6 +43,10 @@ function ptf_db_save_config(array $cfg) {
     $code = "<?php\n/**\n * PTF CRM — کانفیگ اتصال دیتابیس (تولیدشده توسط migrate.php)\n * توجه: این فایل رمز دیتابیس را دارد؛ هرگز در گیت/چت/بک‌آپ عمومی قرار نگیرد.\n */\nreturn " . var_export($cfg, true) . ";\n";
     $ok = @file_put_contents($p, $code, LOCK_EX) !== false;
     if ($ok) $GLOBALS['ptf_db_config_cache'] = $cfg; /* v33.22.0: کش همان درخواست تازه شود (گام connect) */
+    if ($ok) { /* v33.22.1: باطل‌سازی OPcache تا require بعدی (درخواست‌های آینده) نسخهٔ دیسک را بخواند */
+        @clearstatcache(true, $p);
+        if (function_exists('opcache_invalidate')) { @opcache_invalidate($p, true); }
+    }
     return $ok;
 }
 function ptf_db_mode() {
