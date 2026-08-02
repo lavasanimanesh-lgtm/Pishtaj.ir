@@ -452,6 +452,8 @@
       '<div style="position:absolute;right:0;top:0;bottom:0;width:' + pct + '%;background:' + color + '"></div>' +
       '<span style="position:absolute;inset:0;display:grid;place-items:center;font-size:11px;font-weight:800;color:#111827">' + pct + '٪ (' + fmtBytes(h.used) + ' از سقف محافظه‌کارانه ' + fmtBytes(h.softLimit || STORAGE_LIMIT) + ')</span></div>' +
       (pct >= 85 ? '<div style="color:#b91c1c;font-size:12px;margin-top:6px;font-weight:800">هشدار سطح بالا: حافظه محلی به محدوده خطر رسیده است. قبل از ادامه کار سنگین، بک‌آپ و پاک‌سازی امن را اجرا کنید.</div>' : (pct >= 70 ? '<div style="color:#b45309;font-size:12px;margin-top:6px">هشدار: حافظه محلی رو به پرشدن است.</div>' : '')) +
+      /* v33.14.0 (ریشهٔ «پاک‌سازی پاسخگو نیست»): راهنمای صریح — چرا حجم کم نمی‌شود و چه باید کرد */
+      '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-top:8px;font-size:12px;color:#991b1b;line-height:1.9"><b>اگر «پاک‌سازی امن» و «مهاجرت» حجم را کم نکردند:</b> یعنی بزرگ‌ترین کلیدها از نوع <b>دادهٔ اصلی کسب‌وکار</b> هستند (درخواست‌ها، پیشنهادها، فاکتورها، پرونده‌ها، موجودی، خریدها و به‌خصوص <b>عکس‌های آواتار و فایل‌های ضمیمه‌شده</b>) که برای امنیت داده عمداً حذف نمی‌شوند. برای کاهش واقعی: ① روی «نمایش کلیدهای بزرگ» بزنید و کلیدهای حجیم را ببینید ② در صورت امکان آواتار/فایل‌های قدیمی را از «بایگانی» پاک کنید ③ راه‌حل نهایی: مهاجرت داده به سرور/MySQL (برنامهٔ DB-MIG-001).</div>' +
       estimate +
       '<div style="margin-top:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.8"><b>بزرگ‌ترین کلیدها</b>' + top + '</div>' +
       '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfStorageCleanup()">پاک‌سازی امن فوری</button><button class="bt bt-o" onclick="ptfStorageMigrateToIdb()">مهاجرت cache/draft به IndexedDB</button><button class="bt bt-o" onclick="ptfBackupNow()">بک‌آپ سروری</button><button class="bt bt-o" onclick="if(window.ptfStorageShowLargeKeys)ptfStorageShowLargeKeys()">نمایش کلیدهای بزرگ</button><button class="bt bt-o" onclick="if(window.ptfStorageShowArchiveIndex)ptfStorageShowArchiveIndex()">آرشیوهای IndexedDB</button><button class="bt bt-o" onclick="if(window.ptfStorageRequestPersistent)ptfStorageRequestPersistent()">درخواست Persistent Storage</button></div>';
@@ -462,7 +464,16 @@
     pushBackup(false, function () {
       function done(res, label) {
         if (typeof audit === 'function') audit('سیستم', label + ' — آزادسازی حدود ' + fmtBytes((res && res.freed) || 0), '');
-        alert(label + ' انجام شد. حدود ' + fmtBytes((res && res.freed) || 0) + ' از localStorage آزاد شد. رکوردهای اصلی کسب‌وکاری حذف نشدند.');
+        var freed = (res && res.freed) || 0;
+        /* v33.14.0: اگر آزادسازی ناچیز بود، علت را صریح بگو (بزرگ‌ترین کلیدها معمولاً دادهٔ اصلی‌اند) */
+        var tip = '';
+        if (freed < 256 * 1024 && typeof window.ptfStorageTopKeys === 'function') {
+          try {
+            var tk = window.ptfStorageTopKeys(5) || [];
+            tip = '\n\nبزرگ‌ترین کلیدها (اگر از نوع دادهٔ اصلی‌اند، پاک‌سازی امن آن‌ها را حذف نمی‌کند):\n' + tk.map(function (r) { return '• ' + r.key + ' — ' + fmtBytes(r.bytes); }).join('\n') + '\n\nراه‌حل: «نمایش کلیدهای بزرگ» + حذف/آرشیو فایل‌های قدیمی، یا مهاجرت به سرور/MySQL.';
+          } catch (eT) {}
+        }
+        alert(label + ' انجام شد. حدود ' + fmtBytes(freed) + ' از localStorage آزاد شد. رکوردهای اصلی کسب‌وکاری حذف نشدند.' + tip);
         if (typeof goPanelByName === 'function') goPanelByName('set');
       }
       if (typeof ptfStorageMigrateVolatileToIdb === 'function') {
