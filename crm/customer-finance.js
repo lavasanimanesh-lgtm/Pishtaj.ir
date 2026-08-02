@@ -24,17 +24,92 @@
   function paid(i) {
     return (i.payments || []).concat(i.pays || []).filter(active).reduce(function (s, p) { return s + (+p.amt || +p.amount || 0); }, 0);
   }
-  function salesReturnsForInvoice(invoiceCd) { return getData('ptf_crm_sales_returns').filter(function (r) { return r.invoiceCd === invoiceCd && r.status !== 'void'; }); }
-  function returnedAmount(invoiceCd) { return salesReturnsForInvoice(invoiceCd).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0); }
-  function creditAmountForInvoice(invoice) { return Math.max(0, paid(invoice) + returnedAmount(invoice.cd) - (+invoice.amount || 0)); }
+  /* ---------- مرجوعی فروش — تطبیق مقاوم با فاکتور (v33.12.0)
+     ریشهٔ «اعتبار مشتری از بین رفته»: مرجوعی‌های قدیمی/ثبت‌شده از مسیرهای دیگر
+     ممکن است invoiceCd نداشته باشند (فقط offerNo + customerCd یا invoiceNo)؛
+     تطبیق قبلی فقط r.invoiceCd===invoiceCd بود → returnedAmount=0 → اعتبار=0
+     در حالی که کالای مرجوعی در موجودی هست.
+     قواعد (بدون دوباره‌شماری):
+       ۱) اگر r.invoiceCd دارد و برابر cd است → match.
+       ۲) اگر r.invoiceCd ندارد: ابتدا invoiceNo برابر no فاکتور؛ سپس offerNo برابر
+          offerNo فاکتور و (customerCd فاکتور یا مشتری یکتا) — فقط اگر همان offer
+          فقط یک فاکتور غیرvoid داشته باشد (یکتایی). ---------- */
+  function invoiceOfOffer(offerNo) {
+    if (!offerNo) return null;
+    var list = getData('ptf_crm_invoices').filter(function (i) { return active(i) && i.offerNo === offerNo; });
+    return list.length === 1 ? list[0] : null;
+  }
+  function salesReturnsForInvoice(invoice) {
+    var cd = invoice && invoice.cd;
+    var no = invoice && invoice.no;
+    var offerNo = invoice && invoice.offerNo;
+    return getData('ptf_crm_sales_returns').filter(function (r) {
+      if (!r || r.status === 'void') return false;
+      if (cd && r.invoiceCd && r.invoiceCd === cd) return true;
+      if (r.invoiceCd) return false; /* invoiceCd دارد ولی برای فاکتور دیگری است */
+      /* fallback برای رکوردهای قدیمی بدون invoiceCd */
+      if (no && r.invoiceNo && String(r.invoiceNo) === String(no)) return true;
+      if (offerNo && r.offerNo && String(r.offerNo) === String(offerNo)) {
+        var single = invoiceOfOffer(offerNo);
+        return !!single && single.cd === cd;
+      }
+      return false;
+    });
+  }
+  function returnedAmount(invoice) { return salesReturnsForInvoice(invoice).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0); }
+  function creditAmountForInvoice(invoice) { return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0)); }
   function creditForCustomer(cd) { return invs(cd).reduce(function (s, i) { return s + creditAmountForInvoice(i); }, 0); }
-  function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i.cd)); }, 0); }
+  function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i)); }, 0); }
   function accountPosition(cd) {
     var open = bal(cd), credit = creditForCustomer(cd);
     /* BUG-2026-08-01-001: مقادیر ناخالص (باز و اعتبار) و خالص هر دو برگردانده می‌شوند —
        قبلاً netting باعث می‌شد مشتری با باز=اعتبار (مثل ۲۰۰/۲۰۰) «۰/۰» دیده شود و هر دو مقدار پنهان شوند. */
     return { balance: open, credit: credit, net: Math.max(0, open - credit), netCredit: Math.max(0, credit - open) };
   }
+  /* ---------- v33.12.0: تشخیص و ترمیم اعتبار مشتری (ریشه‌یابی «اعتبار از بین رفته») ----------
+     گزارش اجزای اعتبار هر مشتری: فاکتور → (مبلغ، وصولی، مرجوعی متصل، اعتبار سهم).
+     ترمیم: مرجوعی‌های بدون invoiceCd را با (invoiceNo یا offerNo یکتا) به فاکتور پیوند می‌زند. */
+  window.cfCreditAudit = function (cd) {
+    var out = { customerCd: cd, credit: 0, rows: [], unlinkedReturns: [], orphanReturns: [] };
+    try {
+      var invList = invs(cd);
+      invList.forEach(function (i) {
+        var pd = paid(i), rt = returnedAmount(i), cr = Math.max(0, pd + rt - (+i.amount || 0));
+        out.credit += cr;
+        out.rows.push({ invoiceCd: i.cd, no: i.no || '', offerNo: i.offerNo || '', amount: +i.amount || 0, paid: pd, returned: rt, credit: cr });
+      });
+      var myInv = {};
+      invList.forEach(function (i) { myInv[i.cd] = 1; });
+      var all = getData('ptf_crm_sales_returns') || [];
+      all.forEach(function (r) {
+        if (!r || r.status === 'void') return;
+        var linked = (r.invoiceCd && myInv[r.invoiceCd]);
+        if (!linked && !r.invoiceCd) out.unlinkedReturns.push({ cd: r.cd, offerNo: r.offerNo || '', invoiceNo: r.invoiceNo || '', customerCd: r.customerCd || '', totalAmount: +r.totalAmount || 0 });
+        if (r.customerCd && r.customerCd !== cd && !r.invoiceCd) out.orphanReturns.push({ cd: r.cd, customerCd: r.customerCd, totalAmount: +r.totalAmount || 0 });
+      });
+    } catch (e) {}
+    return out;
+  };
+  /* ترمیم: مرجوعی‌های بدون invoiceCd → اگر offerNo یکتاست به همان فاکتور پیوند بزن */
+  window.cfRepairReturnLinks = function () {
+    var returns = getData('ptf_crm_sales_returns') || [];
+    var fixed = 0;
+    returns.forEach(function (r) {
+      if (!r || r.status === 'void' || r.invoiceCd) return;
+      var inv = null;
+      if (r.invoiceNo) {
+        var byNo = getData('ptf_crm_invoices').filter(function (i) { return active(i) && String(i.no) === String(r.invoiceNo); });
+        if (byNo.length === 1) inv = byNo[0];
+      }
+      if (!inv && r.offerNo) inv = invoiceOfOffer(r.offerNo);
+      if (inv) { r.invoiceCd = inv.cd; r.repairedAt = faDateTime(); fixed++; }
+    });
+    if (fixed) { setData('ptf_crm_sales_returns', returns); try { audit('مرجوعی فروش', 'ترمیم خودکار لینک ' + fixed + ' مرجوعی بدون invoiceCd به فاکتور (ریشه‌یابی اعتبار مشتری)', 'SRET-REPAIR'); } catch (e) {} }
+    return fixed;
+  };
+  /* اجرای خودکار ترمیم در بوت (idempotent) */
+  try { window.cfRepairReturnLinks(); } catch (eR) {}
+
   function norm(v) { return String(v || '').trim().toLowerCase(); }
 
   /* Useful to UI and deterministic tests; it never writes to localStorage. */
@@ -58,7 +133,7 @@
     var inv = getData('ptf_crm_invoices').filter(function (x) { return x.cd === invoiceCd; })[0];
     if (!inv) return;
     var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}, items = offer.items || [];
-    var priorReturns = salesReturnsForInvoice(inv.cd);
+    var priorReturns = salesReturnsForInvoice(inv);
     function priorQty(idx) { return priorReturns.reduce(function (sum, r) { return sum + (r.items || []).filter(function (x) { return +x.idx === +idx; }).reduce(function (s, x) { return s + (+x.qty || 0); }, 0); }, 0); }
     if (!items.length) { alert('برای این فاکتور خطوط کالا پیدا نشد.'); return; }
     var rows = items.map(function (it, idx) { var totalQty=+it.qty||1, available=Math.max(0,totalQty-priorQty(idx)); return '<label style="display:flex;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px dashed #e2e8f0;opacity:' + (available ? '1' : '.55') + '"><input type="checkbox" class="cfReturnLine" value="' + idx + '"' + (available ? '' : ' disabled') + '><span style="flex:1"><b>' + escP(it.name || it.nm || it.desc || 'قلم ' + (idx + 1)) + '</b><small style="display:block;color:#64748b">فاکتور: ' + totalQty + ' ' + escP(it.unit || it.un || '') + ' | قابل مرجوعی: ' + available + '</small></span><input class="cfReturnQty" data-idx="' + idx + '" type="number" min="0" max="' + available + '" value="' + (available || 0) + '"' + (available ? '' : ' disabled') + ' style="width:90px;direction:ltr"></label>'; }).join('');
@@ -89,7 +164,7 @@
     var totalAmount = selected.reduce(function (sum, x) { var it = (offer.items || [])[x.idx] || {}; return sum + ((+inv.amount || 0) * (((+it.qty || 0) * (+it.price || 0)) / gross) * x.qty / (+it.qty || 1)); }, 0);
     var returns = getData('ptf_crm_sales_returns') || [];
     var deal = getData('ptf_crm_deals').filter(function (d) { return d.wonOffer === (offer.no || inv.offerNo); })[0] || {};
-    var returnRecord = { cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: deal.cd || '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', productCd: it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', spec: it.spec || it.st || it.detail || '', model: it.model || it.md || '', brand: it.brand || it.br || '', unit: it.unit || it.un || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), creditAmount: Math.max(0, paid(inv) + returnedAmount(invoiceCd) + Math.round(totalAmount) - (+inv.amount || 0)), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name };
+    var returnRecord = { cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: deal.cd || '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', productCd: it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', spec: it.spec || it.st || it.detail || '', model: it.model || it.md || '', brand: it.brand || it.br || '', unit: it.unit || it.un || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), creditAmount: Math.max(0, paid(inv) + returnedAmount(inv) + Math.round(totalAmount) - (+inv.amount || 0)), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name };
     returns.unshift(returnRecord);
     setData('ptf_crm_sales_returns', returns);
     if (disposition === 'stock') {
@@ -216,7 +291,7 @@
       (i.payments || []).concat(i.pays || []).filter(active).forEach(function (p) {
         out.push({ date: p.t || p.date || '', type: 'وصولی', no: p.cd || p.rpay || '', ref: '', debit: 0, credit: +p.amt || +p.amount || 0, cur: 'IRR' });
       });
-      salesReturnsForInvoice(i.cd).forEach(function (r) {
+      salesReturnsForInvoice(i).forEach(function (r) {
         var items = (r.items || []).map(function (x) { return (x.item || 'قلم') + ' × ' + x.qty; }).join('، ');
         out.push({ date: r.t || '', type: 'مرجوعی فروش', no: r.cd || '', ref: (r.reason ? r.reason + ' — ' : '') + items, debit: 0, credit: +r.totalAmount || 0, cur: 'IRR' });
       });

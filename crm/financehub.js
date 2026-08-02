@@ -1,4 +1,20 @@
-/* =====================================================================
+  /* v33.12.0 (بازخورد کارفرما): دارک‌مود برای باکس‌های با پس‌زمینهٔ روشن ثابت
+     («تعهدات نقدینگی تأمین و چک‌های شرکت» و «برنامه‌ریزی فصلی مالیات») — در نمای شب
+     پس‌زمینهٔ روشن قبلی متن را ناخوانا می‌کرد. */
+  (function () {
+    var css = document.createElement('style');
+    css.textContent =
+      'body.ptf-dark #slLiquidity{background:#1e293b !important;border-color:#334155 !important;color:#e2e8f0}' +
+      'body.ptf-dark #slLiquidity b{color:#fbbf24}' +
+      'body.ptf-dark #slLiquidity small,body.ptf-dark #slLiquidity span{color:#cbd5e1}' +
+      'body.ptf-dark #slLiquidity .sc{background:#0f172a;border-color:#334155}' +
+      'body.ptf-dark #ptfTaxPlannerBox{background:#0f172a !important;border-color:#334155 !important;color:#e2e8f0}' +
+      'body.ptf-dark #ptfTaxPlannerBox h4,body.ptf-dark #ptfTaxPlannerBox label{color:#f1f5f9}' +
+      'body.ptf-dark #ptfTaxPlannerBox input,body.ptf-dark #ptfTaxPlannerBox select{background:#1e293b;color:#e2e8f0;border-color:#334155}';
+    try { document.head.appendChild(css); } catch (e) {}
+  })();
+
+  /* =====================================================================
    PTF CRM — v31.9 + Phase 2 / Step 3 (جداسازی گزارشی رسمی/غیررسمی)
    Legacy UAT token: btn('quality', '🧪 کیفیت داده')
    US-429: هاب مالی مدیریتی R9 — تب‌بندی تنخواه/هزینه/سهامداران/سال مالی
@@ -49,6 +65,9 @@
     show('opexBox', t === 'opex');
     show('shareBox', t === 'share');
     show('fiscalBox', t === 'fiscal');
+    /* v33.12.0: «داشبورد برنامه‌ریزی فصلی مالیات» (ptfTaxPlannerBox) قبلاً در هیچ تبی
+       مخفی نمی‌شد و در همهٔ تب‌ها دیده می‌شد → حالا فقط در تب «سال مالی». */
+    show('ptfTaxPlannerBox', t === 'fiscal');
     /* v33.11.0: باکس «تعهدات نقدینگی تأمین و چک‌های شرکت» (slLiquidity) قبلاً در هیچ
        تبی مخفی نمی‌شد و در همهٔ تب‌ها دیده می‌شد → حالا فقط در تب حساب تأمین‌کنندگان. */
     show('slLiquidity', t === 'supacc');
@@ -71,7 +90,7 @@
       var barEl = document.getElementById('finHubBar');
       if (!panels || !barEl) return;
       var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
-        'shareBox', 'fiscalBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
+        'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
         'ledgerReportBox', 'qualityBox', 'chequeBox'];
       ids.forEach(function (id) {
         var el = document.getElementById(id);
