@@ -25,7 +25,8 @@ T('initialSync: اول pull کامل بعد اجازه push', sy.indexOf('state.
 T('سرور خالی (seed) و حالت به‌روز → bootstrapped فوری', (sy.match(/state\.bootstrapped = true/g) || []).length >= 4);
 T('آفلاین/خطا → قفل نمی‌ماند (کار محلی آزاد)', /\.catch\(function \(\) \{ state\.bootstrapped = true;[^\n]*setSyncBadge\('offline'\);/.test(sy)); /* v16.7: فلگ عمومی BUG-018 به همین خط اضافه شد — چک معادل */
 T('krevs per-key در push ارسال می‌شود', sy.indexOf("body: JSON.stringify({ by: curSession().name, data: data, base: base })") > -1);
-T('پاسخ تعارض → ptfSmartMerge + ارسال مجدد (رکورد هیچ‌کس گم نمی‌شود)', sy.indexOf('d.conflicts || []') > -1 && sy.indexOf('window.ptfSmartMerge(k, localStorage.getItem(k), srvStr)') > -1 && sy.indexOf("state.dirty[k] = true; /* نتیجه ادغام دوباره push می‌شود") > -1);
+/* v33.20.0 (آینهٔ خالدار): مبنای merge تعارضی از rd(k) می‌آید (حافظه/IDB → fallback localStorage) — معنای چک ثابت: مقدار فعلی این دستگاه با نسخه سرور ادغام می‌شود */
+T('پاسخ تعارض → ptfSmartMerge + ارسال مجدد (رکورد هیچ‌کس گم نمی‌شود)', sy.indexOf('d.conflicts || []') > -1 && /window\.ptfSmartMerge\(k, (localStorage\.getItem\(k\)|rd\(k\)), srvStr\)/.test(sy) && sy.indexOf("state.dirty[k] = true; /* نتیجه ادغام دوباره push می‌شود") > -1);
 T('کلیدهای موفق پاک، کلیدهای متعارض dirty می‌مانند', sy.indexOf('if (confl.indexOf(k) < 0) delete state.dirty[k];') > -1);
 T('krevs بعد از pull از meta سرور به‌روز می‌شود', sy.indexOf("mm[k].rev != null) km2[k] = +mm[k].rev || 0;") > -1);
 T('beacon خروج هم با base (بازنویسی هنگام بستن تب ناممکن)', sy.indexOf('navigator.sendBeacon') > -1 && sy.indexOf('data: data, base: bb') > -1);
