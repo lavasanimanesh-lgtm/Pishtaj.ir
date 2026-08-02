@@ -105,7 +105,7 @@
   window.ptfUpdateGuardCounts = function () {
     var c = guardCounts();
     GUARD_KEYS.forEach(function (k) {
-      try { var a = JSON.parse(localStorage.getItem(k) || '[]'); if (Array.isArray(a)) c[k] = a.length; } catch (e) {}
+      try { var a = JSON.parse(rd(k) || '[]'); if (Array.isArray(a)) c[k] = a.length; } catch (e) {}
     });
     saveGuardCounts(c);
   };
@@ -116,7 +116,7 @@
         var prev = +c[k] || 0;
         if (prev < 4) return; /* داده کم — افت معنادار نیست */
         var now = 0;
-        try { var a = JSON.parse(localStorage.getItem(k) || '[]'); now = Array.isArray(a) ? a.length : prev; } catch (e) { return; }
+        try { var a = JSON.parse(rd(k) || '[]'); now = Array.isArray(a) ? a.length : prev; } catch (e) { return; }
         if (now < prev / 2) {
           var lbl = k.replace('ptf_crm_', '');
           try { audit('سیستم', '🚨 هشدار افت انبوه داده (US-382): ' + lbl + ' از ' + prev + ' به ' + now + ' رکورد کاهش یافت', k); } catch (eA) {}
@@ -137,6 +137,16 @@
     return h;
   }
   function hasSyncToken() { try { return !!localStorage.getItem('ptf_crm_token'); } catch (e) { return false; } }
+  /* v33.20.0 (آینهٔ خالدار): کلیدهای سنگین فاز B در حافظه/IndexedDB نگهداری می‌شوند.
+     rd/wr مسیر «رشتهٔ کلید» را از client-server.js می‌پرسند؛ fallback = localStorage مثل قبل. */
+  function rd(k) {
+    try { if (typeof window.ptfBRead === 'function') { var v = window.ptfBRead(k); if (v !== null) return v; } } catch (e) {}
+    try { return localStorage.getItem(k); } catch (e) { return null; }
+  }
+  function wr(k, s) {
+    try { if (typeof window.ptfBMirror === 'function' && window.ptfBMirror(k, s)) return; } catch (e) {}
+    try { localStorage.setItem(k, s); } catch (e) {}
+  }
 
   /* v31.6.24 BUG-SYNC-AUTH-RACE: a stale/expired token used to make
      data_pull return 401; pullCheck then called done(), bootstrapped the stale
@@ -187,7 +197,7 @@
         if (GUARD_KEYS.indexOf(k) < 0) return true;
         if ((+gc[k] || 0) < 4) return true;
         try {
-          var arr = JSON.parse(localStorage.getItem(k) || '[]');
+          var arr = JSON.parse(rd(k) || '[]');
           if (Array.isArray(arr) && arr.length === 0) {
             delete state.dirty[k];
             saveDirty();
@@ -207,7 +217,7 @@
     state.pushing = true;
     var data = {};
     keys.forEach(function (k) {
-      var v = localStorage.getItem(k);
+      var v = rd(k);
       if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v;
     });
     /* v15.0 (US-384): مبنای نسخه هر کلید همراه push — سرور نوشتن روی نسخه جدیدتر را رد می‌کند */
@@ -232,10 +242,10 @@
               try {
                 var srvStr = (d.serverData || {})[k];
                 if (typeof srvStr !== 'string') return;
-                var merged = (typeof window.ptfSmartMerge === 'function') ? window.ptfSmartMerge(k, localStorage.getItem(k), srvStr) : srvStr;
+                var merged = (typeof window.ptfSmartMerge === 'function') ? window.ptfSmartMerge(k, rd(k), srvStr) : srvStr;
                 if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
                 state.pulling = true; /* جلوگیری از حلقه dirty هنگام اعمال */
-                localStorage.setItem(k, merged);
+                wr(k, merged);
                 state.pulling = false;
                 state.dirty[k] = true; /* نتیجه ادغام دوباره push می‌شود (این‌بار با base جدید پذیرفته می‌شود) */
               } catch (eM) {}
@@ -300,7 +310,7 @@
         if (dirtyKeys.length > 0) {
           try {
             var snap = {};
-            dirtyKeys.forEach(function (k) { var v = localStorage.getItem(k); if (v) snap[k] = v; });
+            dirtyKeys.forEach(function (k) { var v = rd(k); if (v) snap[k] = v; });
             if (Object.keys(snap).length > 0) {
               var snapKey = 'ptf_pre_pull_snap_' + Date.now();
               localStorage.setItem(snapKey, JSON.stringify(snap));
@@ -314,7 +324,7 @@
         // Sprint 104: Smart Array Merging & Concurrency Control
         Object.keys(d.data || {}).forEach(function (k) {
           if (SYNC_KEYS.indexOf(k) < 0) return;
-          var curStr = localStorage.getItem(k);
+          var curStr = rd(k);
           var newStr = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, d.data[k], (d.data || {})['ptf_crm_deleted_archive']) : d.data[k];
           if (curStr === newStr) return;
           /* v31.7.2 BUG-SYNC-LOCAL-LOSS: records created before sync.js
@@ -326,7 +336,7 @@
               var startupMerged = window.ptfSmartMerge(k, curStr, newStr);
               if (typeof window.ptfApplyDeletionTombstones === 'function') startupMerged = window.ptfApplyDeletionTombstones(k, startupMerged, (d.data || {})['ptf_crm_deleted_archive']);
               if (startupMerged && startupMerged !== curStr) {
-                localStorage.setItem(k, startupMerged);
+                wr(k, startupMerged);
                 state.dirty[k] = true;
                 applied++;
               }
@@ -340,7 +350,7 @@
               var merged = window.ptfSmartMerge(k, curStr, newStr);
               if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged, (d.data || {})['ptf_crm_deleted_archive']);
               if (merged && merged !== curStr) {
-                localStorage.setItem(k, merged);
+                wr(k, merged);
                 applied++;
               }
             } catch(e) {}
@@ -348,7 +358,7 @@
           }
           if (state.dirty[k]) return;
           
-          localStorage.setItem(k, newStr);
+          wr(k, newStr);
           applied++;
         });
         state.pulling = false;
@@ -455,9 +465,9 @@
         if (d.rev === 0) {
           // سرور خالی است → این دستگاه seed می‌کند (اولین اجرا پس از آپدیت)
           state.bootstrapped = true; window._ptfSyncBootstrapped = true; /* v15.0 */
-          var hasData = SYNC_KEYS.some(function (k) { return (localStorage.getItem(k) || '[]').length > 10; });
+          var hasData = SYNC_KEYS.some(function (k) { return (rd(k) || '[]').length > 10; });
           if (hasData) {
-            SYNC_KEYS.forEach(function (k) { if (localStorage.getItem(k) !== null) state.dirty[k] = true; });
+            SYNC_KEYS.forEach(function (k) { if (rd(k) !== null) state.dirty[k] = true; });
             pushDirty();
             if (typeof addLog === 'function') addLog('داده‌های این دستگاه به سرور منتقل شد (seed اولیه)');
           }
@@ -494,7 +504,7 @@
       var keys = Object.keys(state.dirty);
       if (!keys.length) return;
       var data = {};
-      keys.forEach(function (k) { var v = localStorage.getItem(k); if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v; });
+      keys.forEach(function (k) { var v = rd(k); if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v; });
       try {
         /* v15.0 (US-384): beacon هم با base — اگر دستگاه دیگری جلوتر نوشته باشد، سرور رد می‌کند */
         var kb = krevs(); var bb = {};
@@ -602,7 +612,7 @@
     function addFrom(str) {
       try { var a = JSON.parse(str || '[]'); if (Array.isArray(a)) out = out.concat(a); } catch (e) {}
     }
-    addFrom(localStorage.getItem('ptf_crm_deleted_archive') || '[]');
+    addFrom(rd('ptf_crm_deleted_archive') || '[]');
     if (extraArchiveStr) addFrom(extraArchiveStr);
     return out;
   }
@@ -725,7 +735,7 @@
     var result = { ok: true, fixed: [], unchanged: [] };
     keys.forEach(function (key) {
       try {
-        var cur = localStorage.getItem(key) || '[]';
+        var cur = rd(key) || '[]';
         var merged = ptfMergeByCodeCanonical(key, cur, '[]');
         var before = JSON.parse(cur || '[]'), after = JSON.parse(merged || '[]');
         if (after.length < before.length) {

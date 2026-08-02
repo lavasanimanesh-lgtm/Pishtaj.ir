@@ -130,7 +130,16 @@
   }
 
   /* ============ US-179: عکس پروفایل ============ */
-  function avatarsAll() { try { return JSON.parse(localStorage.getItem('ptf_crm_avatars') || '{}'); } catch (e) { return {}; } }
+  function avatarsAll() {
+    /* v33.20.0 (آینهٔ خالدار): در فاز B آواتارها در حافظه/IndexedDB نگهداری می‌شوند — via getData بخوان */
+    try {
+      if (typeof window.ptfBMirrorActive === 'function' && window.ptfBMirrorActive()) {
+        var v = (typeof getData === 'function') ? getData('ptf_crm_avatars') : null;
+        if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+      }
+    } catch (eG) {}
+    try { return JSON.parse(localStorage.getItem('ptf_crm_avatars') || '{}'); } catch (e) { return {}; }
+  }
   /* v31.7.11 BUG-AVATAR-001: مقدار هر کاربر یا رشته legacy است یا {v,ts} نسخه‌دار.
      حذف = tombstone {v:null,ts} — نه delete — تا هنگام merge با سرور، «حذف جدیدتر»
      بر «عکس قدیمی‌تر سرور» برنده شود و عکس حذف‌شده با رفرش برنگردد. */

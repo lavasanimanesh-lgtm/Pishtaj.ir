@@ -1,6 +1,14 @@
 /* =====================================================================
-   PTF CRM — client-server.js — DB-MIG-001 (فاز B) — v33.19.0
+   PTF CRM — client-server.js — DB-MIG-001 (فاز B) — v33.20.0
    کلاینت نازک: سرور (MySQL) منبع حقیقت؛ localStorage فقط کش/صف آفلاین.
+
+   v33.20.0 (آینهٔ خالدار — PTF-B-IDB-MIRROR، درخواست کارفرما):
+   مشکل: با فاز B فعال هم localStorage از آینهٔ کامل سرور پر می‌شد (۸۰٪+) چون sync.js
+   هر بار لود همهٔ کلیدها را در localStorage می‌نوشت و پاک‌سازی کش بی‌اثر می‌ماند.
+   راه‌حل: کلیدهای سنگین (فهرست IDB_KEYS + خودکار >۱۲۰هزار کاراکتر) فقط در «حافظهٔ نشست
+   + IndexedDB» نگهداری می‌شوند (سقف IDB صدها برابر localStorage است)؛ کلیدهای سبک
+   همچنان آینهٔ localStorage‌اند (آفلاین/رندر فوری حفظ می‌شود).
+   فعال‌سازی فقط وقتی: فاز B فعال + هم‌گرایی موفق (ptf_b_synced_<user>) + IndexedDB موجود.
 
    v33.19.0 (رفع باگ هم‌گرایی کاربران — ۱۴۰۵/۰۸/۱۱):
    - serverPush: needLogin/401 → بازسازی نشست (ptfSyncRefreshAuth) + یک بار retry (الگوی backup.js).
@@ -49,6 +57,79 @@
   function isSynced() { try { return localStorage.getItem(syncedKey()) === '1'; } catch (e) { return false; } }
   function getFlag() { try { return localStorage.getItem(flagKey()) === '1'; } catch (e) { return false; } }
   window.ptfBPhaseActive = getFlag;
+
+  /* ---------- v33.20.0: آینهٔ خالدار (کلیدهای سنگین → حافظهٔ نشست + IndexedDB) ----------
+     localStorage فقط برای کلیدهای سبک آینه می‌شود؛ سنگین‌ها در idbMem (بدون TTL) + IDB
+     با پیشوند «bdata:» نگهداری می‌شوند تا سقف ۵MB لمس نشود. آفلاین/رندر فوری حفظ است. */
+  var IDB_KEYS = ['ptf_crm_avatars','ptf_crm_deleted_archive','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_techproposals','ptf_crm_calc_runs','ptf_crm_fiscal_snapshots','ptf_crm_inqreads','ptf_crm_inqitems'];
+  var IDB_AUTO_LIMIT = 120000; /* ≈۲۴۰KB (UTF-16) — هر کلید بزرگ‌تر از این خودکار سنگین می‌شود */
+  var idbMem = {};   /* آینهٔ حافظهٔ کلیدهای سنگین (منبع همین نشست) */
+  var idbKnown = {}; /* کلیدهایی که در این نشست «سنگین» تشخیص داده شده‌اند */
+  function idbUsable() {
+    try { return !!(window.indexedDB && typeof window.ptfStorageIdbSet === 'function' && typeof window.ptfStorageIdbGet === 'function'); } catch (e) { return false; }
+  }
+  function idbPrefix() { return 'bdata:'; }
+  function heavyList(k, str) {
+    if (IDB_KEYS.indexOf(k) > -1) return true;
+    if (idbKnown[k]) return true;
+    try { if (str != null && String(str).length > IDB_AUTO_LIMIT) return true; } catch (e) {}
+    return false;
+  }
+  window.ptfBIsHeavyKey = heavyList;
+  /* آینهٔ خالدار فقط وقتی: فاز B فعال + هم‌گرایی موفق + IndexedDB موجود */
+  window.ptfBMirrorActive = function () { return getFlag() && isSynced() && idbUsable(); };
+  /* نویسندهٔ آینه برای sync.js/هوک‌ها: سنگین → حافظه+IDB (true)؛ نه → false (خواننده به localStorage برگردد) */
+  window.ptfBMirror = function (k, str) {
+    if (!window.ptfBMirrorActive()) return false;
+    if (!heavyList(k, str)) return false;
+    idbKnown[k] = 1;
+    idbMem[k] = String(str);
+    try { window.ptfStorageIdbSet(idbPrefix() + k, String(str), function () {}); } catch (e) {}
+    /* هر نسخهٔ محلیِ قدیمی همین کلید حذف می‌شود تا localStorage خلوت بماند */
+    try { if (localStorage.getItem(k) !== null) localStorage.removeItem(k); } catch (e) {}
+    return true;
+  };
+  /* خوانندهٔ آینه برای sync.js: رشته از حافظه — شبیه localStorage.getItem (null = نسخه‌ای در دست نیست) */
+  window.ptfBRead = function (k) {
+    if (!window.ptfBMirrorActive()) return null;
+    if (Object.prototype.hasOwnProperty.call(idbMem, k)) return idbMem[k];
+    return null;
+  };
+  /* بوت: مهاجرت نسخه‌های localStorage کلیدهای سنگین → حافظه/IDB (آزادسازی واقعی) + پرکردن حافظه از IDB */
+  var _idbPreloadDone = false;
+  window.ptfBIdbPreload = function (cb) {
+    if (_idbPreloadDone || !window.ptfBMirrorActive()) { cb && cb(); return; }
+    _idbPreloadDone = true;
+    var list = [];
+    try {
+      bKeys().forEach(function (k) {
+        if (heavyList(k, localStorage.getItem(k))) list.push(k);
+      });
+    } catch (e0) {}
+    if (!list.length) { cb && cb(); return; }
+    var n = 0;
+    function done() { if (++n >= list.length) {
+      try { if (typeof addLog === 'function') addLog('🧊 آینهٔ خالدار فعال شد — ' + list.length + ' کلید سنگین به IndexedDB منتقل شد تا localStorage سبک بماند'); } catch (eL) {}
+      cb && cb();
+    } }
+    list.forEach(function (k) {
+      idbKnown[k] = 1;
+      var local = null;
+      try { local = localStorage.getItem(k); } catch (e) {}
+      if (local !== null) {
+        idbMem[k] = local;
+        try { localStorage.removeItem(k); } catch (e2) {}
+        try { window.ptfStorageIdbSet(idbPrefix() + k, local, done); } catch (e3) { done(); }
+      } else {
+        try {
+          window.ptfStorageIdbGet(idbPrefix() + k, function (row) {
+            try { if (row && row.value != null && !Object.prototype.hasOwnProperty.call(idbMem, k)) idbMem[k] = String(row.value); } catch (e4) {}
+            done();
+          });
+        } catch (e5) { done(); }
+      }
+    });
+  };
 
   /* کلیدهایی که از سرور می‌آیند (همه — فاز B کامل) — از sync.SYNC_KEYS واقعی می‌خوانیم */
   function bKeys() {
@@ -266,7 +347,7 @@
     try { cache = {}; } catch (e) {}
     try { if (typeof addLog === 'function') addLog('🗑 پاک‌سازی کش محلی (فاز B) — ' + removed + ' کلید، حدود ' + Math.round(freed / 1024) + ' KB آزاد شد'); } catch (eL) {}
     try { if (typeof audit === 'function') audit('سیستم', '🗑 پاک‌سازی کش محلی (فاز B) — ' + removed + ' کلید', ''); } catch (eA) {}
-    alert('✅ پاک‌سازی کش محلی انجام شد.\n' + removed + ' کلید حذف شد و حدود ' + Math.round(freed / 1024) + ' KB از حافظهٔ مرورگر آزاد شد.\nدادهٔ اصلی روی سرور است و موقع استفاده دوباره بارگیری می‌شود.');
+    alert('✅ پاک‌سازی کش محلی انجام شد.\n' + removed + ' کلید حذف شد و حدود ' + Math.round(freed / 1024) + ' KB از حافظهٔ مرورگر آزاد شد.\nدادهٔ اصلی روی سرور است و موقع استفاده دوباره بارگیری می‌شود.\n(کلیدهای سنگین از v33.20.0 به‌صورت خودکار در IndexedDB نگهداری می‌شوند و localStorage را پر نمی‌کنند.)');
     try { if (typeof goPanelByName === 'function') goPanelByName('set'); } catch (eG) {}
   };
 
@@ -279,7 +360,7 @@
        بدون این گارد، getData چند لایه روی هم قرار می‌گرفت و مرورگر چند بار serverPull می‌زد. */
     if (_get.__ptfB && _set.__ptfB) return true;
 
-    /* getData: کش ۳۰ ثانیه → سرور → کش محلی */
+    /* getData: کش ۳۰ ثانیه → سرور → کش محلی (v33.20.0: سنگین‌ها از آینهٔ حافظه/IDB) */
     window.getData = function (k) {
       try {
         if (!getFlag()) return _get(k);
@@ -287,17 +368,20 @@
         if (bKeys().indexOf(k) === -1) return _get(k);
         var now = Date.now();
         if (cache[k] && (now - cache[k].t) < CACHE_TTL) return JSON.parse(cache[k].v);
-        /* خواندن از کش محلی بلافاصله (تا سرور بیاید) */
-        var local = localGet(k);
+        /* v33.20.0: کلید سنگین → آینهٔ حافظه (IDB-backed)؛ localStorage خلوت می‌ماند */
+        var local = null;
+        if (window.ptfBMirrorActive() && idbKnown[k] && Object.prototype.hasOwnProperty.call(idbMem, k)) local = idbMem[k];
+        if (local === null) local = localGet(k);
         var localArr = [];
         try { localArr = local ? JSON.parse(local) : []; } catch (e) {}
-        /* درخواست سرور (async) — مقدار کش را بعداً به‌روز می‌کند؛ فعلاً محلی برمی‌گردد */
+        /* درخواست سرور (async) — مقدار کش/آینه را بعداً به‌روز می‌کند؛ فعلاً محلی برمی‌گردد */
         serverPull(0, function (d) {
           try {
             if (d && d.ok && d.data && Object.prototype.hasOwnProperty.call(d.data, k)) {
               var v = d.data[k];
               cache[k] = { t: now, v: v };
-              localSet(k, v);
+              /* v33.20.0: سنگین → آینه IDB؛ در غیر این صورت localStorage */
+              if (!(window.ptfBMirror && window.ptfBMirror(k, v))) localSet(k, v);
             }
           } catch (e) {}
         });
@@ -314,7 +398,14 @@
         if (bKeys().indexOf(k) === -1) return _set(k, d);
         var s = JSON.stringify(d);
         cache[k] = { t: Date.now(), v: s };
-        localSet(k, s);
+        /* v33.20.0: کلید سنگین → حافظهٔ نشست + IndexedDB (نه localStorage) تا سقف ۵MB لمس نشود */
+        if (window.ptfBMirrorActive() && heavyList(k, s)) {
+          idbKnown[k] = 1; idbMem[k] = s;
+          try { window.ptfStorageIdbSet(idbPrefix() + k, s, function () {}); } catch (eI) {}
+          localDel(k);
+        } else {
+          localSet(k, s);
+        }
         queueAdd(k);
         if (pushTimer) clearTimeout(pushTimer);
         pushTimer = setTimeout(function () { window.ptfBFlushQueue(function () {}); }, 4000);
@@ -335,17 +426,25 @@
     if (typeof ptfToast === 'function') ptfToast('حالت سرور-محور فعال شد — localStorage فقط کش می‌شود', 'ok');
   };
   window.ptfBDisable = function () {
+    /* v33.20.0: کلیدهای سنگینِ منتقل‌شده به حافظه/IDB را به localStorage برگردان تا حالت قدیمی سالم بماند */
+    try {
+      Object.keys(idbMem).forEach(function (k) {
+        try { localStorage.setItem(k, idbMem[k]); } catch (e1) {}
+      });
+    } catch (e) {}
     try { localStorage.removeItem(flagKey()); } catch (e) {}
     if (typeof ptfToast === 'function') ptfToast('حالت سرور-محور غیرفعال شد (بازگشت به حالت قبلی)', 'warn');
   };
 
-  /* ---------- بوت: هوک + اگر فعال بود، هم‌گرایی ---------- */
+  /* ---------- بوت: هوک + اگر فعال بود، هم‌گرایی + preload آینهٔ خالدار ---------- */
   var tries = 0;
   var t = setInterval(function () {
     tries++;
     if (hook() || tries > 40) {
       clearInterval(t);
       try { if (getFlag() && flushRequired()) window.ptfBFinalize(); } catch (e) {}
+      /* v33.20.0: مهاجرت/پرکردن حافظهٔ کلیدهای سنگین (فقط فاز فعال + هم‌گرایی موفق + IDB) */
+      try { window.ptfBIdbPreload(function () {}); } catch (eP) {}
     }
   }, 300);
 })();

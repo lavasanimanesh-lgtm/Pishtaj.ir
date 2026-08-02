@@ -22,6 +22,9 @@ SECTION('Runtime tombstone filter');
 var ls = { s: { ptf_crm_deleted_archive: JSON.stringify([{ kind: 'OFFER', id: 'CO-DEL', iso: '2026-07-22T00:00:00Z' }]) }, getItem: function (k) { return this.s[k] || null; }, setItem: function (k, v) { this.s[k] = String(v); } };
 var sandbox = { console: console, localStorage: ls, window: null };
 sandbox.window = sandbox;
+/* v33.20.0 (آینهٔ خالدار): برش sync.js حالا rd/wr صدا می‌زند؛ همان fallback قدیمی (localStorage) شبیه‌سازی می‌شود تا معنای تست tombstone تغییر نکند */
+sandbox.rd = function (k) { return ls.getItem(k); };
+sandbox.wr = function (k, v) { ls.setItem(k, v); };
 var start = sync.indexOf('function ptfCodeIdentity');
 var end = sync.indexOf('function ptfValScore', start);
 vm.runInNewContext(sync.slice(start, end), sandbox, { filename: 'sync-tombstone-slice.js' });
