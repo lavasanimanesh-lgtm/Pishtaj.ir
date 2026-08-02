@@ -34,14 +34,51 @@ function fa_ok($s) { return '<div style="background:#ecfdf5;border:1px solid #a7
 function fa_err($s) { return '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px">⛔ ' . $s . '</div>'; }
 function fa_warn($s) { return '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px">⚠️ ' . $s . '</div>'; }
 
+/* ===== v33.22.1 — بازنشانی وضعیت مهاجرت (خودسرویس؛ قبل از گارد سوییچ) =====
+   سناریو: مهاجرت قبلاً سوییچ شده (mode=mysql) ولی لازم است مراحل دوباره اجرا شوند — مثلاً
+   تازه‌سازی دیتابیس از روی فایل‌های فعلی (کلیدهای سینک که تا v33.22.0 فایل‌محور بودند و در DB
+   کهنه‌اند). این گام فقط mode را به off برمی‌گرداند؛ هیچ داده‌ای (فایل/دیتابیس) پاک نمی‌شود.
+   همچنین راه‌حل مشکل OPcache است: ویرایش دستی ptf-db-config.php ممکن است تا انقضای کش اثر نکند،
+   ولی این دکمه از مسیر ptf_db_save_config می‌نویسد و کش را در همان لحظه باطل می‌کند. */
+if ($step === 'reset_mode') {
+    page_header('مهاجرت به MySQL');
+    if (!$cfg || ($cfg['mode'] ?? 'off') !== 'mysql') { echo fa_err('بازنشانی فقط وقتی معنا دارد که مهاجرت قبلاً سوییچ شده باشد (mode=mysql).'); page_footer(); exit; }
+    require_token();
+    if (trim($_POST['confirm_word'] ?? '') !== 'بازنشانی') { echo fa_err('کلمهٔ تأیید اشتباه است — چیزی تغییر نکرد. برای ادامه دقیقاً کلمهٔ «بازنشانی» را تایپ کنید.'); page_footer(); exit; }
+    $cfg['mode'] = 'off';
+    $cfg['reset_at'] = date('Y-m-d H:i:s');
+    if (!ptf_db_save_config($cfg)) { echo fa_err('ذخیرهٔ پیکربندی ممکن نشد — دسترسی نوشتن در پوشهٔ api/ را بررسی کنید.'); page_footer(); exit; }
+    echo fa_ok('بازنشانی انجام شد — وضعیت به «هنوز فعال نشده (off)» برگشت. هیچ داده‌ای (فایل یا دیتابیس) پاک نشد؛ فقط خواندن دوباره از فایل‌ها انجام می‌شود.');
+    echo fa_warn('حالا مراحل ۱ تا ۶ را به همان ترتیب اجرا کنید تا دیتابیس از روی فایل‌های فعلی تازه شود: بکاپ اضطراری ← ساخت جدول ← انتقال داده ← بررسی تطابق ← نوشتن همزمان ← سوییچ نهایی.');
+    echo '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">' . btn('شروع: ۱) بکاپ اضطراری', 'backup') . btn('نمایش همهٔ مراحل', 'start') . '</div>';
+    page_footer();
+    exit;
+}
+
 /* ===== v33.17.1 — گارد امنیتی پس از سوییچ نهایی =====
    اگر مهاجرت کامل شده باشد (mode=mysql)، این اسکریپت دیگر هیچ عملیاتی انجام نمی‌دهد
-   و فقط یادآوری حذف فایل را نشان می‌دهد. این گارد تضمین می‌کند حتی اگر فایل
-   پس از مرج/دیپلوی دوباره روی سرور قرار گیرد، هرگز مهاجرت دوباره اجرا نمی‌شود. */
+   و فقط یادآوری حذف فایل + امکان بازنشانی خودسرویس (v33.22.1) را نشان می‌دهد. این گارد
+   تضمین می‌کند حتی اگر فایل پس از مرج/دیپلوی دوباره روی سرور قرار گیرد، هرگز مهاجرت
+   ناخواسته اجرا نمی‌شود. */
 if ($cfg && ($cfg['mode'] ?? 'off') === 'mysql') {
     page_header('مهاجرت به MySQL');
     echo fa_ok('مهاجرت قبلاً با موفقیت کامل شده است و دیتابیس منبع حقیقت است.');
-    echo fa_warn('این فایل دیگر موردنیاز نیست. برای امنیت، آن را از سرور حذف کنید: File Manager → پوشهٔ api → فایل migrate.php → حذف.');
+    /* v33.22.1: تشخیص‌گر وضعیت — اگر فایل کانفیگ را دستی ویرایش کرده‌اید ولی اینجا هنوز mysql
+       دیده می‌شود، زمان آخرین تغییر فایل علت را مشخص می‌کند (ویرایش به فایل دیگری خورده یا OPcache). */
+    $__cp = ptf_db_config_path(); @clearstatcache(true, $__cp);
+    $__mt = file_exists($__cp) ? @filemtime($__cp) : false;
+    echo '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin:12px 0;font-size:12px;color:#64748b">'
+        . 'وضعیت خوانده‌شده از کانفیگ: <b style="direction:ltr">mode = ' . h($cfg['mode'] ?? '?') . '</b>'
+        . ' &nbsp;|&nbsp; فایل: <span style="direction:ltr">api/ptf-db-config.php</span>'
+        . ' &nbsp;|&nbsp; آخرین تغییر فایل: <b style="direction:ltr">' . ($__mt ? h(date('Y-m-d H:i:s', $__mt)) : '—') . '</b>'
+        . (!empty($cfg['switched_at']) ? ' &nbsp;|&nbsp; زمان سوییچ قبلی: <b style="direction:ltr">' . h($cfg['switched_at']) . '</b>' : '')
+        . '</div>';
+    echo fa_warn('برای اجرای دوبارهٔ مراحل (تازه‌سازی دیتابیس از روی فایل‌های فعلی) کلمهٔ «بازنشانی» را تایپ کنید — این کار فقط قفل این صفحه را باز می‌کند و هیچ داده‌ای پاک نمی‌شود:'
+        . '<form method="post" style="margin-top:8px"><input type="hidden" name="step" value="reset_mode">'
+        . (!empty($cfg['mig_token']) ? '<input type="hidden" name="mig_token" value="' . h($cfg['mig_token']) . '">' : '')
+        . '<input type="text" name="confirm_word" placeholder="بازنشانی" style="padding:9px;border:1px solid #cbd5e1;border-radius:8px;direction:rtl" required>'
+        . ' <button type="submit" style="background:#b45309;color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:14px;cursor:pointer;font-family:inherit">↩ بازنشانی وضعیت مهاجرت</button></form>');
+    echo fa_warn('در حالت عادی (بدون نیاز به اجرای دوباره) این فایل موردی ندارد و برای امنیت باید از سرور حذف شود: File Manager → پوشهٔ api → فایل migrate.php → حذف. توجه: با هر دیپلوی جدید دوباره آپلود می‌شود و همین گارد آن را بی‌اثر نگه می‌دارد.');
     page_footer();
     exit;
 }

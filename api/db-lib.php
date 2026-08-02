@@ -17,18 +17,37 @@ define('PTF_DB_LIB_LOADED', true);
 /* ---------- کانفیگ ---------- */
 function ptf_db_config_path() { return __DIR__ . '/ptf-db-config.php'; }
 function ptf_db_config() {
+    /* v33.22.0: کش request-scoped (پیش‌تر هر فراخوانی فایل را می‌خواند؛ با سیم‌کشی مسیر سینک
+       ده‌ها فراخوانی در یک درخواست رخ می‌دهد). migrate.php پس از save این کش را تازه می‌کند. */
+    if (array_key_exists('ptf_db_config_cache', $GLOBALS)) return $GLOBALS['ptf_db_config_cache'];
     $p = ptf_db_config_path();
-    if (!file_exists($p)) return null;
-    try {
-        $c = require $p;
-        return (is_array($c) && !empty($c['db_name'])) ? $c : null;
-    } catch (Throwable $e) { return null; }
+    /* v33.22.1: فایل کانفیگ PHP است و خروجی require توسط OPcache سرور کش می‌شود — روی هاست
+       اشتراکی، ویرایش دستی mode در سی‌پنل (حتی با وجود فایل جدید روی دیسک) تا انقضای کش یا
+       همیشه (validate_timestamps=0) دیده نمی‌شد و ویزارد قفل باقی می‌ماند. قبل از require،
+       کش OPcache همان فایل را باطل می‌کنیم تا همیشه نسخهٔ دیسک خوانده شود. */
+    @clearstatcache(true, $p);
+    if (function_exists('opcache_invalidate')) { @opcache_invalidate($p, true); }
+    $cache = null;
+    if (file_exists($p)) {
+        try {
+            $c = require $p;
+            $cache = (is_array($c) && !empty($c['db_name'])) ? $c : null;
+        } catch (Throwable $e) { $cache = null; }
+    }
+    $GLOBALS['ptf_db_config_cache'] = $cache;
+    return $cache;
 }
 /* ذخیرهٔ کانفیگ (فقط از migrate.php صدا زده می‌شود) */
 function ptf_db_save_config(array $cfg) {
     $p = ptf_db_config_path();
     $code = "<?php\n/**\n * PTF CRM — کانفیگ اتصال دیتابیس (تولیدشده توسط migrate.php)\n * توجه: این فایل رمز دیتابیس را دارد؛ هرگز در گیت/چت/بک‌آپ عمومی قرار نگیرد.\n */\nreturn " . var_export($cfg, true) . ";\n";
-    return @file_put_contents($p, $code, LOCK_EX) !== false;
+    $ok = @file_put_contents($p, $code, LOCK_EX) !== false;
+    if ($ok) $GLOBALS['ptf_db_config_cache'] = $cfg; /* v33.22.0: کش همان درخواست تازه شود (گام connect) */
+    if ($ok) { /* v33.22.1: باطل‌سازی OPcache تا require بعدی (درخواست‌های آینده) نسخهٔ دیسک را بخواند */
+        @clearstatcache(true, $p);
+        if (function_exists('opcache_invalidate')) { @opcache_invalidate($p, true); }
+    }
+    return $ok;
 }
 function ptf_db_mode() {
     $c = ptf_db_config();
@@ -54,6 +73,18 @@ function ptf_db_ok() {
     return true;
 }
 
+/* ---------- اتصال request-scoped (v33.22.0 — P1-MySQL-WIRE) ----------
+   بدون این، مسیر سینک به‌ازای هر کلید یک اتصال تازه می‌گشود (پوش دسته‌ای ۲۰ کلیدی = ۲۰ اتصال).
+   اتصال کش‌شده در همان درخواست PHP زنده و در پایان درخواست خودکار بسته می‌شود. */
+function ptf_db_conn() {
+    static $c = null, $tried = false;
+    if ($c) return $c;
+    if ($tried) return null;
+    $tried = true;
+    $c = ptf_db_connect();
+    return $c;
+}
+
 /* ---------- schema (کلید-ارزش با متادیتا) ---------- */
 function ptf_db_table() {
     $c = ptf_db_config();
@@ -73,64 +104,59 @@ function ptf_db_schema_sql() {
 
 /* ---------- عملیات پایه (همهٔ خروجی‌ها null-safe) ---------- */
 function ptf_db_get($key) {
-    $m = ptf_db_connect();
+    $m = ptf_db_conn(); /* v33.22.0: اتصال کش‌شدهٔ همین درخواست */
     if (!$m) return null;
     $t = ptf_db_table();
     $st = mysqli_prepare($m, "SELECT v FROM `$t` WHERE k = ?");
-    if (!$st) { mysqli_close($m); return null; }
+    if (!$st) return null;
     mysqli_stmt_bind_param($st, 's', $key);
     mysqli_stmt_execute($st);
     mysqli_stmt_bind_result($st, $v);
     $ok = mysqli_stmt_fetch($st);
     mysqli_stmt_close($st);
-    mysqli_close($m);
     return $ok ? $v : null;
 }
 /* برمی‌گرداند: true=موفق | false=خطا (JSON سالم می‌ماند) */
 function ptf_db_set($key, $value, $rev = 0) {
-    $m = ptf_db_connect();
+    $m = ptf_db_conn(); /* v33.22.0: اتصال کش‌شدهٔ همین درخواست */
     if (!$m) return false;
     $t = ptf_db_table();
     $st = mysqli_prepare($m, "INSERT INTO `$t` (k, v, rev, updated_at) VALUES (?, ?, ?, NOW())
         ON DUPLICATE KEY UPDATE v = VALUES(v), rev = VALUES(rev), updated_at = NOW()");
-    if (!$st) { mysqli_close($m); return false; }
+    if (!$st) return false;
     mysqli_stmt_bind_param($st, 'ssi', $key, $value, $rev);
     $ok = mysqli_stmt_execute($st);
     mysqli_stmt_close($st);
-    mysqli_close($m);
     return $ok;
 }
 function ptf_db_del($key) {
-    $m = ptf_db_connect();
+    $m = ptf_db_conn();
     if (!$m) return false;
     $t = ptf_db_table();
     $st = mysqli_prepare($m, "DELETE FROM `$t` WHERE k = ?");
-    if (!$st) { mysqli_close($m); return false; }
+    if (!$st) return false;
     mysqli_stmt_bind_param($st, 's', $key);
     $ok = mysqli_stmt_execute($st);
     mysqli_stmt_close($st);
-    mysqli_close($m);
     return $ok;
 }
 /* همهٔ کلیدها → ['k' => 'v'] */
 function ptf_db_all() {
-    $m = ptf_db_connect();
+    $m = ptf_db_conn();
     if (!$m) return [];
     $t = ptf_db_table();
     $out = [];
     $r = mysqli_query($m, "SELECT k, v FROM `$t`");
     if ($r) { while ($row = mysqli_fetch_assoc($r)) { $out[$row['k']] = $row['v']; } }
-    mysqli_close($m);
     return $out;
 }
 function ptf_db_count() {
-    $m = ptf_db_connect();
+    $m = ptf_db_conn();
     if (!$m) return -1;
     $t = ptf_db_table();
     $n = -1;
     $r = mysqli_query($m, "SELECT COUNT(*) AS n FROM `$t`");
     if ($r) { $row = mysqli_fetch_assoc($r); $n = (int)$row['n']; }
-    mysqli_close($m);
     return $n;
 }
 
@@ -142,6 +168,13 @@ function ptf_db_write($key, $value) {
     $mode = ptf_db_mode();
     if ($mode !== 'dual' && $mode !== 'mysql') return;
     try { ptf_db_set($key, $value); } catch (Throwable $e) { /* بی‌صدا — JSON سالم است */ }
+}
+/* v33.22.0 (P1-MySQL-WIRE): نسخهٔ rev‌دارِ نوشتن با پاسخ bool — برای مسیر سینک (sync_key_write).
+   DB خاموش (off) → true می‌دهد (فایل پادشاه است)؛ dual/mysql → نتیجهٔ واقعی نوشتن. */
+function ptf_db_write_rev($key, $value, $rev = 0) {
+    $mode = ptf_db_mode();
+    if ($mode !== 'dual' && $mode !== 'mysql') return true;
+    try { return (bool) ptf_db_set($key, $value, $rev); } catch (Throwable $e) { return false; }
 }
 function ptf_db_read($key) {
     $mode = ptf_db_mode();

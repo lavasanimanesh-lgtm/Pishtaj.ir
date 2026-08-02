@@ -212,6 +212,8 @@ try {
 T('runtime: بدون rd سراسری، tombstone خطا نمی‌دهد و رکورد حذف‌شده فیلتر می‌شود', tombOk && Array.isArray(tombOut) && tombOut.length === 1 && tombOut[0].id === 'L-OK');
 
 SECTION('نسخه‌گذاری');
-T('v33.21.x همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP', /window\.VER = 'v33\.21\.\d'/.test(idx) && /ptf-crm-v33\.21\.\d/.test(sw) && cc.indexOf('v33.21.') > -1 && api.indexOf('PTF-SCALE-P0') > -1);
+var verM = idx.match(/window\.VER = '(v[0-9.]+)'/);
+var verNow = verM ? verM[1] : '';
+T('نسخهٔ فعلی همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP', !!verNow && sw.indexOf('ptf-crm-' + verNow) > -1 && cc.indexOf(verNow) > -1 && api.indexOf('PTF-SCALE-P0') > -1);
 
 DONE('tester300-delta-poll');
