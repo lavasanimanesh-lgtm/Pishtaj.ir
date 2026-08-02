@@ -9,7 +9,9 @@ ok(sf.includes('reminderDisabled = true') && sf.includes('sourceCustomerCd') && 
 ok(sf.includes('چک منتقل‌شده خارج از ید شرکت است') && sf.includes('فاکتور انتخاب‌شده متعلق به مشتری انتخاب‌شده نیست'),'customer invoice allocation is explicit and validated');
 ok(sf.includes('supplierPaymentCd') && sf.includes("x.supplierPaymentCd !== cd"),'payment reversal removes linked third-party customer receipt');
 ok(ch.includes("rec.reminderDisabled || rec.ownership === 'third_party' || rec.st === 'transferred'"),'cheque reminder engine skips transferred third-party cheques');
-ok(ch.includes("c.st !== 'transferred'") && ch.includes("c.st !== 'voided_transfer'") && ch.includes("c.ownership !== 'third_party'"),'transferred cheque is removed from active cheque list');
+/* v33.6.0 CHQ-PRINT (مصوب کارفرما): فیلتر «لیست فعال» متعلق به باکس چک پنل شخصی بود که حذف شد؛
+   گارد انتقال/ثالث همچنان در موتور یادآور (پایین) و نقدینگی تامین‌کننده (پایین) زنده است. */
+ok(ch.includes("rec.ownership === 'third_party' || rec.st === 'transferred'") && ch.indexOf('chBoxHtml') === -1,'transferred cheque excluded from reminders; active-list filter moved out with removed personal box');
 ok(day.includes("c.ownership === 'third_party' || c.reminderDisabled || c.st === 'transferred'"),'daily dashboard excludes transferred cheque reminders');
 ok(sf.includes("c.st === 'transferred' || c.ownership === 'third_party'"),'finance liquidity excludes third-party transferred cheques');
 ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw),'Sprint version is aligned to v26.7');

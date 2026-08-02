@@ -32,10 +32,26 @@
       return (VALID_STATES.indexOf(s) > -1) ? s : 'mine';
     } catch (e) { return 'mine'; }
   }
-  function setState(s) {
-    if (VALID_STATES.indexOf(s) > -1) {
-      try { localStorage.setItem(STORAGE_KEY, s); } catch (e) {}
+  function saveStateSafely(s) {
+    try {
+      var saved;
+      if (typeof ptfStorageSafeSetItem === 'function') saved = ptfStorageSafeSetItem(STORAGE_KEY, s);
+      else { localStorage.setItem(STORAGE_KEY, s); saved = true; }
+      if (saved === false) throw new Error('localStorage write rejected');
+      return true;
+    } catch (e) {
+      var msg = '⚠️ ذخیره فیلتر مشتریان انجام نشد؛ ظرفیت حافظه محلی را بررسی کنید.';
+      console.error('ptf_my_customers_filter_storage_error:', e);
+      try {
+        if (typeof ptfToast === 'function') ptfToast(msg, 'warn');
+        else alert(msg);
+      } catch (e2) {}
+      return false;
     }
+  }
+
+  function setState(s) {
+    if (VALID_STATES.indexOf(s) > -1) saveStateSafely(s);
   }
 
   /* ============ نقش‌های ارشد (طبق تأیید کارفرما) ============ */

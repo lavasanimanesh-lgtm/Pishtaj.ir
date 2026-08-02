@@ -1,0 +1,178 @@
+{
+  "_readme": "بک‌لاگ ماشین‌خوان صفحات محصول تجاری جدید — مکمل _tools/rewrite/plan.json (که برای بازنویسی مقالات knowledge-center استفاده می‌شود). هر آیتم اینجا یک صفحهٔ تجاری/محصول پیشنهادی است که هنوز ساخته نشده. ساختار مشابه plan.json برای سازگاری گردش‌کار. هر نشست/ایجنت آینده: 1) آیتم‌های status=not_started را بردارد، 2) طبق قالب services/products/rosemount-3051.html صفحه بسازد، 3) status را به done تغییر دهد و built_path را پر کند، 4) sitemap.xml + audit.py را اجرا کند. منبع تحلیل: _audit/BRAND-PRODUCT-CATALOG-2026-07-29.md و _audit/KEYWORD-STRATEGY-2026-07-29.md",
+
+  "services/products/power-quality-monitor-multifunction.html": {
+    "title": "مولتی‌فانکشنال پاور مانیتور و آنالایزر کیفیت توان",
+    "category": "electrical",
+    "brands": ["Siemens SICAM Q100", "Siemens SICAM Q200", "Schneider ION9000", "Schneider PM8000", "Schneider PM5000", "ABB M4M"],
+    "priority": "C-1",
+    "type": "product-hub-comparison",
+    "twin_kc_article": null,
+    "notes": "صفحهٔ Hub مقایسه‌ای بین برندها؛ باید توضیح دهد چه زمانی هرکدام (ION9000 فارنزیک/حیاتی، PM8000 سازمانی، SICAM Q100/Q200 پایش کیفیت توان EN 50160، M4M پایش عمومی) مناسب است. جدول مقایسه دقت کلاس (Class A / 0.2S)، پروتکل (Modbus/IEC 61850)، کاربرد رایج.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/vacuum-circuit-breaker-mv.html": {
+    "title": "کلید قدرت وکیوم (VCB) فشار متوسط",
+    "category": "electrical",
+    "brands": ["ABB VD4", "ABB VD4 evo", "ABB VD4-G", "Siemens SION 3AE", "Siemens 3AH3", "Schneider Evolis", "Schneider HVX", "Tavrida Electric ISM/TEL"],
+    "priority": "C-1",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "vcb.html",
+    "notes": "لینک دوطرفه با kc-mv-switchgear.html و vcb.html برقرار شود. ABB VD4 پرکاربردترین جهانی (2M+ واحد نصب‌شده) - اولویت اول جدول. باید صریحاً محدودهٔ ولتاژ (تا ~46kV برای VD4) ذکر شود تا با HV اشتباه نشود.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "knowledge-center/kc-vcb-vs-sf6-hv-comparison.html": {
+    "title": "تفاوت فنی VCB فشار متوسط و SF6 فشار قوی — کِی کدام مناسب است؟",
+    "category": "electrical",
+    "brands": ["ABB", "Siemens", "Schneider", "Eaton"],
+    "priority": "C-1",
+    "type": "kc-article",
+    "twin_kc_article": "vcb.html",
+    "notes": "این مقاله باید ابهام فنی حیاتی را رفع کند: فناوری Vacuum معمولاً محدود به MV (تا ~72.5kV با جدیدترین طراحی‌های هیبریدی مثل Siemens 3AP1FI) است؛ برای HV واقعی (بالای این رنج) هنوز SF6 غالب است (مثال: Siemens 3AP1=SF6, 3AQ=هیبرید تا 550kV). نباید القا کند VCB برای هر دو سطح یکسان است. جدول مقایسهٔ 8 معیار (محیط قوس، دی‌الکتریک، محیط‌زیست GWP، نگهداری، اندازه، هزینه، کاربرد) طبق تحقیق این نشست.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/control-valve-fisher-masoneilan.html": {
+    "title": "کنترل ولو Fisher و Masoneilan",
+    "category": "valves",
+    "brands": ["Fisher easy-e ES/ED/EW/EZ/ET", "Fisher DVC6200/DVC2000 Positioner", "Masoneilan 8000/7000/28000 Camflex"],
+    "priority": "C-1",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "control-valve-complete-guide.html",
+    "notes": "نیاز به تصمیم کاربر: صفحهٔ مشترک مقایسه‌ای یا دو صفحهٔ مجزا (رجوع به سوال ۲ در BRAND-PRODUCT-CATALOG). Masoneilan اکنون در سایت صفر اشاره دارد - این بزرگ‌ترین شکاف برند در این دسته است.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/emerson-brand-hub.html": {
+    "title": "نمایندگی و تامین محصولات امرسون (Emerson) — Rosemount, Fisher, Micro Motion",
+    "category": "instrumentation",
+    "brands": ["Emerson", "Rosemount", "Fisher", "Micro Motion", "Roxar"],
+    "priority": "C-2",
+    "type": "brand-hub",
+    "twin_kc_article": "rosemount-3051.html",
+    "notes": "هدف کلمهٔ 'نمایندگی امرسون ایران'. باید لینک به تمام صفحات محصول زیرمجموعهٔ Emerson (rosemount-3051.html, control-valve-fisher-masoneilan.html بعد از ساخت, coriolis-flowmeter صفحهٔ آینده) بدهد.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/coriolis-flowmeter.html": {
+    "title": "فلومتر جرمی کوریولیس صنعتی",
+    "category": "instrumentation",
+    "brands": ["Micro Motion ELITE/R-Series/F-Series", "Endress+Hauser Promass", "Yokogawa ROTAMASS"],
+    "priority": "C-2",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "flowmeter-types-guide.html",
+    "notes": "جدول مقایسهٔ دقت، افت فشار، ماکزیمم دما/فشار سرویس هر برند.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/radar-level-transmitter.html": {
+    "title": "ترانسمیتر سطح راداری",
+    "category": "instrumentation",
+    "brands": ["Rosemount 5300", "Endress+Hauser Micropilot", "Vega VEGAPULS"],
+    "priority": "C-2",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "radar-level-transmitter-guide.html",
+    "notes": "شامل توضیح Non-contact Radar در برابر Guided Wave Radar (GWR)؛ لینک به kc-desalter-electrostatic-grid-troubleshooting.html برای کاربرد Interface Level.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/pressure-gauge-wika.html": {
+    "title": "گیج فشار صنعتی Wika",
+    "category": "instrumentation",
+    "brands": ["Wika A-10", "Wika S-11"],
+    "priority": "C-2",
+    "type": "product-single-brand",
+    "twin_kc_article": "kc-pressure-gauge-glycerin-fill-guide.html",
+    "notes": "Wika پرکاربردترین برند گیج فشار در بازار ایران طبق شواهد این تحقیق.",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/mv-switchgear.html": {
+    "title": "تابلو فشار متوسط MV Switchgear",
+    "category": "electrical",
+    "brands": ["ABB", "Siemens", "Schneider"],
+    "priority": "C-3",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "kc-mv-switchgear.html",
+    "notes": "شامل توضیح AIS در برابر GIS (طبق FAQ موجود در services/electrical-equipment/index.html که می‌تواند به این صفحه لینک بخورد).",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/air-circuit-breaker-acb.html": {
+    "title": "کلید هوایی ACB فشار ضعیف",
+    "category": "electrical",
+    "brands": ["Schneider Masterpact", "ABB Emax", "Siemens 3WL"],
+    "priority": "C-3",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "acb-circuit-breaker-guide.html",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/vfd-drive.html": {
+    "title": "درایو VFD صنعتی",
+    "category": "electrical",
+    "brands": ["Siemens SINAMICS", "ABB ACS", "Schneider ATV"],
+    "priority": "C-3",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "kc-vfd.html",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/flange-hub.html": {
+    "title": "فلنج صنعتی — انواع و کلاس فشار",
+    "category": "piping",
+    "brands": [],
+    "priority": "C-4",
+    "type": "product-hub",
+    "twin_kc_article": "kc-class-900-class-2500.html",
+    "notes": "طبق فاز C سند KEYWORD-STRATEGY-2026-07-29.md — Hub با انتخابگر نوع فلنج (WN/SO/Blind/LJ) و کلاس فشار (150 تا 2500).",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/onoff-valves-hub.html": {
+    "title": "شیرآلات صنعتی On-Off — دروازه‌ای، سوزنی، پروانه‌ای، یکطرفه",
+    "category": "valves",
+    "brands": ["KITZ", "Neway", "Velan"],
+    "priority": "C-4",
+    "type": "product-hub-comparison",
+    "twin_kc_article": "gate-valve-complete-guide.html",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/pipe-fittings-hub.html": {
+    "title": "فیتینگ جوشی صنعتی — زانو، سه‌راه، تبدیل، کپ",
+    "category": "piping",
+    "brands": [],
+    "priority": "C-4",
+    "type": "product-hub",
+    "twin_kc_article": "asme-b16-9.html",
+    "status": "not_started",
+    "built_path": null
+  },
+
+  "services/products/gasket-hub.html": {
+    "title": "گسکت صنعتی — RTJ، اسپیرال، فلزی",
+    "category": "piping",
+    "brands": [],
+    "priority": "C-4",
+    "type": "product-hub",
+    "twin_kc_article": "kc-gasket-selection-by-fluid-temperature.html",
+    "status": "not_started",
+    "built_path": null
+  }
+}

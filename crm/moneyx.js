@@ -75,6 +75,57 @@
     } else { h.textContent = ''; h.style.display = 'none'; }
   }
 
+  /* ---------- تبدیل ارقام دوجهته (v33.9.0 — مصوب کارفرما):
+     «فیلدهای مبلغ باید اعداد فارسی و انگلیسی را بپذیرند و در نهایت اگر جایی لازم است
+     آن را انگلیسی کنند — مثلا در یک قالب انگلیسی عدد فارسی را انگلیسی و بالعکس.» ---------- */
+  window.ptfEnDigits = function (s) {
+    return String(s == null ? '' : s)
+      .replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+  };
+  window.ptfFaDigits = function (s) {
+    return String(s == null ? '' : s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d] || d; });
+  };
+
+  /* ---------- v33.9.0: فرمت خودکار فیلدهای «مبلغ‌مانند» بدون data-money ----------
+     تشخیص: id/placeholder شامل (مبلغ|قیمت|هزینه|حقوق|اعتبار|پرداخت|دریافت|مانده|پیش‌پرداخت)
+     یا id شامل (amt|price|amount|salary|pay|docAmt) — با خروج امن (نرخ/درصد/تعداد/روز/تاریخ/نرخ مرجع)
+     و opt-out با data-nomoney="1". در blur: جداکننده + مبلغ به حروف زیر فیلد. */
+  function moneyLike(el) {
+    try {
+      if (!el || !el.getAttribute) return false;
+      if (el.getAttribute('data-money') != null || el.getAttribute('data-nomoney') != null) return false;
+      var id = String(el.id || '').toLowerCase();
+      var ph = String(el.getAttribute('placeholder') || '').toLowerCase();
+      var type = String(el.type || '').toLowerCase();
+      var inputmode = String(el.getAttribute('inputmode') || '').toLowerCase();
+      var cls = String(el.className || '').toLowerCase();
+      var num = (type === 'number' || inputmode === 'numeric');
+      if (!num) return false;
+      /* خروج امن: نرخ/درصد/تعداد/روز/تاریخ/ماه/سال/تلفن/سهم/مرجع نرخ */
+      if (/(rate|pct|percent|qty|count|days|delivery|date|month|year|tel|phone|share|margin|refprice|duration|hours?)/.test(id)) return false;
+      if (/(نرخ|درصد|تعداد|روز|تحویل|تاریخ|ماه|سال|سهم|حاشیه)/.test(ph)) return false;
+      var moneyTxt = /(مبلغ|قیمت|هزینه|حقوق|اعتبار|پرداخت|دریافت|مانده|پیش‌پرداخت|پورسانت|بستانکاری|بدهی)/.test(ph) || /(amt|price|amount|salary|docamt|pay)/.test(id) || /(money|price|amount|salary)/.test(cls);
+      return moneyTxt;
+    } catch (e) { return false; }
+  }
+  document.addEventListener('focusout', function (e) {
+    var el = e.target;
+    if (!moneyLike(el)) return;
+    try {
+      var raw = String(el.value || '');
+      var norm = ptfEnDigits(raw);
+      var n = ptfNum(norm);
+      if (n) {
+        var out = n.toLocaleString('en-US');
+        if (out !== raw) el.value = out;
+        var h = hintFor(el);
+        h.textContent = '✍️ ' + ptfNumWordsFa(n) + ' ریال';
+        h.style.display = '';
+      }
+    } catch (eB) {}
+  }, true);
+
   /* ---------- فرمت زنده با حفظ موقعیت مکان‌نما ---------- */
   function reformat(el) {
     var raw = String(el.value || '');

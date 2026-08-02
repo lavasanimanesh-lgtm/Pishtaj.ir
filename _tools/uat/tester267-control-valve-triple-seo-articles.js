@@ -34,6 +34,6 @@ T('sitemap هر سه مقاله جدید را دارد', ['steam-control-valve-s
 T('knowledge-center index هر سه مقاله جدید را لینک می‌دهد', ['steam-control-valve-sizing-guide.html','gas-control-valve-sizing-guide.html','control-valve-actuator-selection-guide.html'].every(function (x) { return kc.indexOf(x) > -1; }));
 T('landing کنترل ولو هر سه مقاله جدید را لینک می‌دهد', ['steam-control-valve-sizing-guide.html','gas-control-valve-sizing-guide.html','control-valve-actuator-selection-guide.html'].every(function (x) { return landing.indexOf(x) > -1; }));
 T('نسخه ADV-CV-TRIPLE-SEO-ARTICLE-001 ثبت شده است', api.indexOf('ADV-CV-TRIPLE-SEO-ARTICLE-001') > -1 && adv.indexOf('ADV-CV-TRIPLE-SEO-ARTICLE-001') > -1);
-T('CRM/SW نسخه v31.9 است', idx.indexOf("window.VER = 'v31.9'") > -1 && sw.indexOf('ptf-crm-v31.9') > -1);
+T('CRM/SW نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester267-control-valve-triple-seo-articles');

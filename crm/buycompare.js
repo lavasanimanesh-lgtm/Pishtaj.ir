@@ -11,10 +11,94 @@
 (function () {
   'use strict';
 
-  function cmpAll() { return getData('ptf_crm_buycmp'); }
+  function cmpAll() { return getData('ptf_crm_buycmp').filter(function (x) { return !x.mergedInto; }); }
+  function mergeCmpRecordsForInquiry(inqNo) {
+    var all = getData('ptf_crm_buycmp'), records = all.filter(function (x) { return x.inqNo === inqNo && !x.mergedInto; });
+    if (!records.length) return null;
+    var primary = records[0], base = (primary.items || []).length, mergedIds = primary.mergedRecords || [primary.id];
+    for (var ri = 1; ri < records.length; ri++) {
+      var source = records[ri], offset = base;
+      (source.items || []).forEach(function (it, itemIdx) { it = JSON.parse(JSON.stringify(it)); it._mergedFromCmp = source.id; it._mergedFromIdx = itemIdx; primary.items = primary.items || []; primary.items.push(it); });
+      (source.quotes || []).forEach(function (q) { var nq = JSON.parse(JSON.stringify(q)); nq.idx = (+q.idx || 0) + offset; nq._mergedFromCmp = source.id; primary.quotes = primary.quotes || []; primary.quotes.push(nq); });
+      (source.purchases || []).forEach(function (p) { var np = JSON.parse(JSON.stringify(p)); np.idx = (+p.idx || 0) + offset; np._mergedFromCmp = source.id; primary.purchases = primary.purchases || []; primary.purchases.push(np); });
+      base += (source.items || []).length;
+      mergedIds.push(source.id);
+      source.mergedInto = primary.id;
+      source.mergedAt = faDateTime();
+      source.mergedBy = curSession().name;
+    }
+    var knownKeys = {};
+    (primary.items || []).forEach(function (it) { knownKeys[String(it.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(it) : it.nm || ''))] = true; });
+    var salesOffers = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers({ inqNo: inqNo, wonOffer: primary.sourceOfferNo }) : [];
+    salesOffers.forEach(function (offer) {
+      (offer.items || []).forEach(function (it) {
+        var key = String(typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(it) : (it.pcode || it.prodCd || it.name || it.desc || ''));
+        if (!key || knownKeys[key]) return;
+        primary.items = primary.items || [];
+        primary.items.push({ nm: it.name || it.desc || '', qty: +it.qty || 1, un: it.unit || 'عدد', pcode: it.pcode || it.prodCd || '', spec: it.spec || it.desc || '', model: it.model || '', sourceOfferNo: offer.no, sourceItemKey: key });
+        knownKeys[key] = true;
+        base++;
+      });
+    });
+    function normItem(v) { return String(v || '').trim().toLowerCase().replace(/[\u0600-\u06ff]/g, function (d) { return d; }).replace(/[\s\-_.،,؛;()\/\\]/g, ''); }
+    function sameItem(a, b) {
+      var ak = String(a.sourceItemKey || a.procLineKey || a.lineKey || '').trim();
+      var bk = String(b.sourceItemKey || b.procLineKey || b.lineKey || '').trim();
+      if (ak && bk && ak === bk) return true;
+      var ac = normItem(a.pcode || a.prodCd || a.productCd), bc = normItem(b.pcode || b.prodCd || b.productCd);
+      if (ac && bc && ac === bc) return true;
+      var an = normItem(a.nm || a.name || a.desc), bn = normItem(b.nm || b.name || b.desc);
+      if (!an || !bn || an !== bn) return false;
+      var am = normItem(a.model || a.md), bm = normItem(b.model || b.md);
+      var as = normItem(a.spec || a.st), bs = normItem(b.spec || b.st);
+      return (!am || !bm || am === bm) && (!as || !bs || as === bs);
+    }
+    var compact = [], remap = [];
+    (primary.items || []).forEach(function (it, oldIdx) {
+      var duplicate = -1;
+      for (var ci = 0; ci < compact.length; ci++) { if (sameItem(compact[ci], it)) { duplicate = ci; break; } }
+      if (duplicate > -1) remap[oldIdx] = duplicate;
+      else { remap[oldIdx] = compact.length; compact.push(it); }
+    });
+    if (compact.length !== (primary.items || []).length) {
+      (primary.purchases || []).forEach(function (p) { if (remap[p.idx] != null) p.idx = remap[p.idx]; });
+      (primary.quotes || []).forEach(function (q) { if (remap[q.idx] != null) q.idx = remap[q.idx]; });
+      primary.items = compact;
+      base = compact.length;
+    }
+    primary.mergedRecords = mergedIds;
+    primary.mergedAt = faDateTime();
+    primary.mergedBy = curSession().name;
+    var idx = all.indexOf(primary);
+    if (idx > -1) all[idx] = primary;
+    setData('ptf_crm_buycmp', all);
+    try { audit('قیمت خرید', 'تجمیع جدول‌های خرید واقعی برای ' + inqNo + ' — ' + base + ' قلم', primary.id); } catch (e) {}
+    return primary;
+  }
   function cmpSave(l) { setData('ptf_crm_buycmp', l); }
   function canBuy() { return !!roleDef().buyPrice; }
   function fmtP(v) { return (+v || 0).toLocaleString('fa-IR'); }
+  window.ptfPurchaseLotsForItem = function (cmp, idx) {
+    var item = (cmp && cmp.items || [])[idx] || {}, purchases = (cmp && cmp.purchases || []).filter(function (p) { return +p.idx === +idx; });
+    return purchases.map(function (p) {
+      return {
+        cd: p.cd || '',
+        qty: p.qty != null ? (+p.qty || 0) : (purchases.length === 1 ? (+item.qty || 1) : 1),
+        supplier: p.sup || '',
+        price: p.srcCur && p.priceFx != null ? (+p.priceFx || 0) : (+p.price || 0),
+        currency: p.srcCur || p.cur || 'IRR',
+        rate: +p.rate || 0,
+        invoiceCd: p.supplierInvoiceCd || p.invoiceCd || '',
+        status: p.status || 'purchased',
+        returnedQty: +p.returnedQty || 0,
+        stockedQty: +p.stockedQty || 0,
+        availableQty: Math.max(0, (p.qty != null ? (+p.qty || 0) : (purchases.length === 1 ? (+item.qty || 1) : 1)) - (+p.returnedQty || 0) - (+p.stockedQty || 0))
+      };
+    });
+  };
+  window.ptfPurchaseQtyForItem = function (cmp, idx) {
+    return window.ptfPurchaseLotsForItem(cmp, idx).reduce(function (sum, lot) { return sum + (lot.availableQty != null ? (+lot.availableQty || 0) : (+lot.qty || 0)); }, 0);
+  };
 
   /* ---------- فهرست درخواست‌های دارای اقلام ---------- */
   function inqChoices() {
@@ -134,11 +218,20 @@
         var re = new RegExp('<td style="font-size:12px">' + fmtP(best).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         cells = cells.replace(re, '<td style="font-size:12px;background:#ecfdf5;font-weight:800">✅ ' + fmtP(best));
       }
+      var purchasedQty = window.ptfPurchaseQtyForItem(c, idx);
+      var requiredQty = +it.qty || 1;
+      var qtySummary = '<small style="display:block;color:' + (purchasedQty >= requiredQty ? '#047857' : purchasedQty > 0 ? '#b45309' : '#64748b') + '">نیاز: ' + requiredQty + ' ' + escP(it.un || '') + ' | خرید: ' + purchasedQty + ' ' + escP(it.un || '') + '</small>';
+      var lots = ptfPurchaseLotsForItem(c, idx);
+      var lotSummary = lots.map(function (lot) { return escP(lot.supplier) + ' — ' + lot.qty + ' ' + escP(it.un || '') + ' × ' + fmtP(lot.price) + ' ریال'; }).join('<br>');
+      var editPurchaseAction = lots.length > 1 ? "cmpSplitOpen('" + escP(id) + "'," + idx + ")" : "cmpBuy('" + escP(id) + "'," + idx + ")";
+      var editPurchaseLabel = lots.length > 1 ? '✏️ اصلاح تقسیم خرید' : '✏️ اصلاح خرید';
+      var dispositionButton = lots.length ? '<br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" data-id="' + escP(id) + '" data-idx="' + idx + '" onclick="cmpPurchaseDispositionOpen(this.dataset.id,+this.dataset.idx)">📦 تعیین‌تکلیف</button>' : '';
+      var splitPurchaseButton = lots.length > 1 ? '' : '<br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#7c3aed" data-id="' + escP(id) + '" data-idx="' + idx + '" onclick="cmpSplitOpen(this.dataset.id,+this.dataset.idx)">🔀 تقسیم خرید</button>';
       var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
       var puCell = pu
-        ? '<td style="background:#fef3c7;font-size:11.5px"><b>' + escP(pu.sup) + '</b><br>' + fmtP(pu.price) + ' ریال' + (pu.srcCur ? '<br><small dir="ltr">' + (+pu.priceFx || 0).toLocaleString('en-US') + ' ' + escP(pu.srcCur) + ' × ' + (+pu.rate || 0).toLocaleString('fa-IR') + '</small>' : '') + (pu.dueISO ? '<br><small style="color:#0e7490">تعهد تحویل: ' + escP(pu.dueISO) + '</small>' : '') + ((pu.files||[]).length ? '<br><small>📎 رسید</small>' : '') + ' <small>' + escP(pu.t) + '</small><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" onclick="cmpBuy(\'' + escP(id) + '\',' + idx + ')">✏️ اصلاح خرید</button></td>'
-        : '<td><button class="bt" style="font-size:11px;padding:4px 9px;background:#059669" onclick="cmpBuy(\'' + escP(id) + '\',' + idx + ')">🛍 ثبت خرید</button></td>';
-      return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(it.nm) + '</b></td><td>' + (it.qty || 1) + ' ' + escP(it.un || '') + '</td>' + cells +
+        ? '<td style="background:#fef3c7;font-size:11.5px"><b>' + (lots.length > 1 ? 'چند lot' : escP(pu.sup)) + '</b><br>' + (lots.length > 1 ? lotSummary : fmtP(pu.price) + ' ریال') + (pu.srcCur ? '<br><small dir="ltr">' + (+pu.priceFx || 0).toLocaleString('en-US') + ' ' + escP(pu.srcCur) + ' × ' + (+pu.rate || 0).toLocaleString('fa-IR') + '</small>' : '') + (pu.dueISO ? '<br><small style="color:#0e7490">تعهد تحویل: ' + escP(pu.dueISO) + '</small>' : '') + ((pu.files||[]).length ? '<br><small>📎 رسید</small>' : '') + ' <small>' + escP(pu.t) + '</small><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" onclick="' + editPurchaseAction + '">' + editPurchaseLabel + '</button>' + splitPurchaseButton + dispositionButton + '</td>'
+        : '<td><button class="bt" style="font-size:11px;padding:4px 9px;background:#059669" onclick="cmpBuy(\'' + escP(id) + '\',' + idx + ')">🛍 ثبت خرید</button><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#7c3aed" onclick="cmpSplitOpen(\'' + escP(id) + '\',' + idx + '\')">🔀 تقسیم خرید</button></td>';
+      return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(it.nm) + '</b>' + qtySummary + '</td><td>' + (it.qty || 1) + ' ' + escP(it.un || '') + '</td>' + cells +
         '<td style="font-size:11.5px;color:#059669">' + (best !== null ? escP(bestSup) + '<br>' + fmtP(best) : '—') + '</td>' + puCell + '</tr>';
     }).join('');
     var html = '<div class="md-b" id="cmpModal_' + escP(id) + '" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:960px;max-height:94vh;overflow:auto">' +
@@ -175,7 +268,7 @@
     }).join('');
     var html = '<div class="md-b" style="display:grid;z-index:65" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px;max-height:92vh;overflow:auto">' +
       '<h3>💰 ثبت قیمت دور ' + round + ' — ' + escP(c.inqNo) + '</h3>' +
-      '<div class="fld"><label>تامین‌کننده *</label><select id="cmpSup">' + supOpts + '</select></div>' +
+      '<div class="fld"><label>تامین‌کننده *</label>' + (typeof window.ptfSupPickerHtml === 'function' ? window.ptfSupPickerHtml('cmpSup', '', '') : '<select id="cmpSup">' + supOpts + '</select>') + '</div>' +
       '<h4 style="margin:10px 0 6px;font-size:13px">قیمت هر آیتم (خالی = قیمت نداده)</h4>' + itemRows +
       '<div class="fld" style="margin-top:8px"><label>یادداشت (شرایط/اعتبار قیمت)</label><input type="text" id="cmpNote"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
@@ -352,9 +445,7 @@
       c2.purchases = c2.purchases || [];
       var srcItem = (c2.items || [])[idx] || {};
       c2.purchases.push({ cd: pcd, idx: idx, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: sup, price: buyPrice, cur: 'IRR', srcCur: cur !== 'IRR' ? cur : '', priceFx: priceFx, rate: cur !== 'IRR' ? rate : 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '', manual: true, bulk: true, t: faDate(), by: curSession().name, files: [] });
-      if (typeof ptfPayableUpsert === 'function') {
-        ptfPayableUpsert({ inqNo: c2.inqNo, idx: idx, item: (c2.items[idx] || {}).nm || '', sup: sup, amount: buyPrice * (+(c2.items[idx] || {}).qty || 1), cur: 'IRR', rate: 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '' });
-      }
+      /* خرید واقعی فقط operational است؛ تعهد یا فاکتور تأمین‌کننده اینجا ساخته نمی‌شود. */
       total += buyPrice * (+(c2.items[idx] || {}).qty || 1);
       done++;
     });
@@ -420,7 +511,7 @@
       n++;
     });
     var el = document.getElementById('blkTot');
-    if (el) el.innerHTML = n ? ('Σ ' + n + ' قلم = ' + (cur !== 'IRR' ? totFx.toLocaleString('en-US') + ' ' + cur + (rate ? ' ≈ ' + tot.toLocaleString('fa-IR') + ' ریال' : ' (نرخ تسعیر؟)') : tot.toLocaleString('fa-IR') + ' ریال')) : '';
+    if (el) el.innerHTML = n ? ('جمع کل (اطلاعاتی) — ' + n + ' قلم = ' + (cur !== 'IRR' ? totFx.toLocaleString('en-US') + ' ' + cur + (rate ? ' ≈ ' + tot.toLocaleString('fa-IR') + ' ریال' : ' (نرخ تسعیر؟)') : tot.toLocaleString('fa-IR') + ' ریال') + ' <small>(قیمت واحد هر قلم را وارد کنید — جمع فقط برای اطلاع است)</small>') : '';
   };
   window.cmpBulkBuyGo = function (id) {
     var ixs = window._blkPend || [];
@@ -439,6 +530,138 @@
     var oldCmp = document.getElementById('cmpModal_' + id); if (oldCmp) oldCmp.remove();
     renderBuyQuotes();
     cmpOpen(id, wasRealbuy ? { realbuy: true } : undefined);
+  };
+
+  window.cmpPurchaseStockOpen = function (id, idx, purchaseCd) {
+    var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var item = c.items[idx] || {}, p = (c.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
+    if (!p) return;
+    var purchased = p.qty != null ? (+p.qty || 0) : (+item.qty || 1), available = Math.max(0, purchased - (+p.returnedQty || 0) - (+p.stockedQty || 0));
+    if (!available) { alert('مقدار قابل انتقال به انبار صفر است.'); return; }
+    var products = getData('ptf_crm_products') || [], options = '<option value="">— انتخاب کالا —</option>' + products.map(function (x) { return '<option value="' + escP(x.cd) + '"' + (x.cd === (item.pcode || item.prodCd) ? ' selected' : '') + '>' + escP(x.nm || x.cd) + ' — ' + escP(x.cd) + '</option>'; }).join('');
+    ptfDialog({ title: '📦 انتقال خرید به موجودی — ' + (item.nm || ''), body: 'این مرحله فقط موجودی عملیاتی را ثبت می‌کند و بدهی تأمین‌کننده یا فاکتور را تغییر نمی‌دهد.', fields: [{ id: 'prodCd', label: 'کالا *', type: 'select', optionsHtml: options, required: true }, { id: 'qty', label: 'مقدار انتقالی (حداکثر ' + available + ')', type: 'number', value: available, required: true }, { id: 'location', label: 'محل نگهداری', value: 'انبار', required: true }, { id: 'note', label: 'یادداشت', type: 'textarea', value: 'انتقال از پرونده ' + (c.inqNo || '') }], okText: 'ثبت انتقال به انبار', onOk: function (v) {
+      var qty = +v.qty || 0; if (!v.prodCd || qty <= 0 || qty > available) { alert('کالا و مقدار معتبر الزامی است.'); return; }
+      if (typeof ptfSurplusAdd !== 'function') { alert('ماژول موجودی انبار در دسترس نیست.'); return; }
+      var stock = ptfSurplusAdd(v.prodCd, qty, v.location || 'انبار', c.inqNo || '', v.note || 'انتقال خرید به موجودی');
+      if (!stock) { alert('ثبت موجودی انجام نشد.'); return; }
+      var stored = getData('ptf_crm_buycmp'), storedCmp = stored.filter(function (x) { return x.id === id; })[0], storedP = storedCmp && (storedCmp.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
+      if (!storedP) return;
+      storedP.stockedQty = (+storedP.stockedQty || 0) + qty; storedP.stockedAt = faDateTime(); storedP.stockedBy = curSession().name;
+      var totalDisposition = (+storedP.returnedQty || 0) + (+storedP.stockedQty || 0); storedP.status = totalDisposition >= purchased ? ((+storedP.returnedQty || 0) >= purchased ? 'returned_to_supplier' : 'transferred_to_stock') : 'partially_disposed';
+      setData('ptf_crm_buycmp', stored); try { audit('موجودی انبار', 'انتقال ' + qty + ' از قلم ' + (item.nm || '') + ' به موجودی — بدون اثر مالی', purchaseCd); } catch (e) {}
+      var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); cmpPurchaseDispositionOpen(id, idx);
+    } });
+  };
+  window.cmpPurchaseReturnOpen = function (id, idx, purchaseCd) {
+    var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var item = c.items[idx] || {}, p = (c.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
+    if (!p) return;
+    var purchased = p.qty != null ? (+p.qty || 0) : (+item.qty || 1), returned = +p.returnedQty || 0, available = Math.max(0, purchased - returned);
+    if (!available) { alert('مقدار قابل برگشت این lot صفر است.'); return; }
+    ptfDialog({ title: '↩️ برگشت به تأمین‌کننده — ' + (item.nm || ''), body: 'تأثیر این ثبت در این مرحله فقط operational است و حساب تأمین‌کننده را تغییر نمی‌دهد.', fields: [{ id: 'qty', label: 'مقدار برگشتی (حداکثر ' + available + ')', type: 'number', value: available, required: true }, { id: 'reason', label: 'دلیل برگشت *', type: 'select', options: [{ v: 'عدم تأیید مشتری', lb: 'عدم تأیید مشتری' }, { v: 'عدم نیاز مشتری', lb: 'عدم نیاز مشتری' }, { v: 'مغایرت فنی/کیفی', lb: 'مغایرت فنی/کیفی' }, { v: 'مقدار اضافی یا اشتباه', lb: 'مقدار اضافی یا اشتباه' }, { v: 'لغو یا تغییر پروژه', lb: 'لغو یا تغییر پروژه' }, { v: 'درخواست تأمین‌کننده', lb: 'درخواست تأمین‌کننده' }, { v: 'سایر', lb: 'سایر' }] }, { id: 'reasonOther', label: 'توضیح تکمیلی (برای سایر یا شرح بیشتر)', type: 'textarea', rows: 2 }], okText: 'ثبت برگشت', onOk: function (v) {
+      var qty = +v.qty || 0, reason = String(v.reason || '').trim(), detail = String(v.reasonOther || '').trim(); if (qty <= 0 || qty > available || !reason || (reason === 'سایر' && !detail)) { alert('مقدار معتبر و دلیل برگشت الزامی است؛ برای «سایر» توضیح وارد کنید.'); return; }
+      var stored = getData('ptf_crm_buycmp'), storedCmp = stored.filter(function (x) { return x.id === id; })[0], storedP = storedCmp && (storedCmp.purchases || []).filter(function (x) { return x.cd === purchaseCd; })[0];
+      if (!storedP) { alert('رکورد lot برای ذخیره پیدا نشد؛ صفحه را بازخوانی کنید.'); return; }
+      storedP.returnedQty = (+storedP.returnedQty || 0) + qty;
+      storedP.returnReason = reason + (detail ? ' — ' + detail : '');
+      storedP.returnedAt = faDateTime();
+      storedP.returnedBy = curSession().name;
+      var storedPurchased = storedP.qty != null ? (+storedP.qty || 0) : (+item.qty || 1);
+      storedP.status = storedP.returnedQty >= storedPurchased ? 'returned_to_supplier' : 'partially_returned';
+      setData('ptf_crm_buycmp', stored);
+      try { audit('خرید واقعی', 'ثبت برگشت ' + qty + ' از قلم ' + (item.nm || '') + ' به تأمین‌کننده — بدون اثر مالی خودکار', purchaseCd); } catch (e) {}
+      var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); if (typeof ptfToast === 'function') ptfToast('برگشت عملیاتی ثبت شد؛ اثر مالی هنوز ایجاد نشده است.', 'ok'); cmpPurchaseDispositionOpen(id, idx);
+    } });
+  };
+  window.cmpPurchaseDispositionOpen = function (id, idx) {
+    var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var item = c.items[idx] || {}, lots = ptfPurchaseLotsForItem(c, idx);
+    if (!lots.length) { alert('برای این قلم خرید ثبت نشده است.'); return; }
+    var rows = lots.map(function (lot) {
+      var statusLabel = lot.status === 'returned_to_supplier' ? 'برگشت کامل' : lot.status === 'partially_returned' ? 'برگشت جزئی' : lot.status === 'transferred_to_stock' ? 'انتقال کامل به انبار' : lot.status === 'partially_disposed' ? 'تعیین‌تکلیف جزئی' : 'خرید ثبت‌شده';
+      var returnButton = lot.status === 'returned_to_supplier' || lot.availableQty <= 0 ? '<span style="color:#64748b">—</span>' : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#b45309" onclick="cmpPurchaseReturnOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">↩️ برگشت کامل/جزئی</button>';
+      var stockButton = lot.availableQty > 0 ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#047857;margin-top:3px" onclick="cmpPurchaseStockOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">📦 انتقال انبار</button>' : '';
+      return '<tr><td>' + escP(lot.supplier || '-') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td><td>' + fmtP(lot.price) + ' ریال</td><td>' + statusLabel + '</td><td>' + lot.availableQty + ' ' + escP(item.un || '') + '</td><td>' + returnButton + '<br>' + stockButton + '</td></tr>';
+    }).join('');
+    var purchased = lots.reduce(function (s, lot) { return s + (+lot.availableQty || 0); }, 0);
+    var html = '<div class="md-b" id="cmpDispositionDlg" style="display:grid;z-index:3200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:90vh;overflow:auto"><h3>📦 تعیین‌تکلیف خرید — ' + escP(item.nm || '') + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px 11px;font-size:12px;line-height:1.9">این مرحله فقط پیش‌نمایش است و هیچ بدهی تأمین‌کننده، فاکتور، موجودی یا سند مالی را تغییر نمی‌دهد.</div><div style="margin:10px 0;font-size:13px">مقدار موردنیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | مقدار خریدشده: <b>' + purchased + ' ' + escP(item.un || '') + '</b> | قابل تعیین‌تکلیف: <b>' + purchased + ' ' + escP(item.un || '') + '</b></div><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>مقدار</th><th>قیمت واحد</th><th>وضعیت</th><th>قابل تعیین‌تکلیف</th><th>عملیات</th></tr></thead><tbody>' + rows + '</tbody></table></div><div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+  };
+
+  function cmpSplitSuppliers() {
+    return getData('ptf_crm_suppliers').map(function (s) { return s.co || s.name || s.cd; }).filter(Boolean);
+  }
+  function cmpSplitMoney(v, cur) { return (+v || 0).toLocaleString('en-US') + ' ' + (cur || 'ریال'); }
+  function cmpSplitIrr(r) { return r.cur === 'IRR' ? (+r.qty || 0) * (+r.price || 0) : (+r.qty || 0) * (+r.price || 0) * (+r.rate || 0); }
+  function cmpSplitNumber(v) { return String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/,/g, ''); }
+  window.cmpSplitNumber = cmpSplitNumber;
+  /* UR-2026-08-01-06: همگام‌سازی انتخاب پیکر تامین‌کننده با سلکت «منبع قیمت» و فیلد «ورود دستی» در ptfDialog ثبت خرید */
+  window.cmpBuySupPick = function (name) {
+    var sel = null, manualInput = null;
+    try {
+      document.querySelectorAll('.ptfdlg select').forEach(function (s) {
+        if (sel) return;
+        for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === '__manual__') { sel = s; break; } }
+      });
+      document.querySelectorAll('.ptfdlg input[type=text]').forEach(function (inp) {
+        if (!manualInput && String(inp.placeholder || '').indexOf('ورود دستی') > -1) manualInput = inp;
+      });
+    } catch (e) { return; }
+    var found = false;
+    if (sel) {
+      for (var j = 0; j < sel.options.length; j++) { if (sel.options[j].value === name) { sel.value = name; found = true; break; } }
+      if (!found) { sel.value = '__manual__'; if (manualInput) manualInput.value = name; }
+    } else if (manualInput) { manualInput.value = name; }
+  };
+  function cmpSplitUpdateSummary() {
+    var st = window._cmpSplitState; if (!st) return;
+    var item = st.c.items[st.idx] || {};
+    var qty = st.rows.reduce(function (s, r) { return s + (+r.qty || 0); }, 0);
+    var total = st.rows.reduce(function (s, r) { return s + cmpSplitIrr(r); }, 0);
+    var sum = document.getElementById('cmpSplitSummary');
+    if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | جمع کل (اطلاعاتی): <b>' + cmpSplitMoney(total) + '</b>';
+  }
+  window.cmpSplitRender = function () {
+    var st = window._cmpSplitState; if (!st) return;
+    var item = st.c.items[st.idx] || {}, sups = cmpSplitSuppliers();
+    var rows = st.rows.map(function (r, ri) {
+      var opts = '<option value="">— تامین‌کننده —</option>' + sups.map(function (s) { return '<option value="' + escP(s) + '"' + (r.sup === s ? ' selected' : '') + '>' + escP(s) + '</option>'; }).join('');
+      var curOpts = '<option value="IRR"' + (r.cur === 'IRR' ? ' selected' : '') + '>ریال</option><option value="USD"' + (r.cur === 'USD' ? ' selected' : '') + '>دلار</option><option value="EUR"' + (r.cur === 'EUR' ? ' selected' : '') + '>یورو</option><option value="CNY"' + (r.cur === 'CNY' ? ' selected' : '') + '>یوان</option>';
+      var total = (+r.qty || 0) * (+r.price || 0), totalIrr = cmpSplitIrr(r);
+      var supField = typeof window.ptfSupPickerHtml === 'function'
+        ? window.ptfSupPickerHtml('cmpSplitSup' + ri, r.sup || '', "cmpSplitField(" + ri + ",'sup',name)")
+        : '<select onchange="cmpSplitField(' + ri + ',\'sup\',this.value)">' + opts + '</select>';
+      return '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px;margin:6px 0"><div style="display:grid;grid-template-columns:1.25fr .6fr .9fr .65fr .9fr auto;gap:6px;align-items:end"><label class="fld" style="margin:0"><span>تامین‌کننده</span>' + supField + '</label><label class="fld" style="margin:0"><span>مقدار</span><input type="text" inputmode="decimal" value="' + escP(r.qty) + '" oninput="cmpSplitField(' + ri + ',\'qty\',this.value)" onblur="this.value=cmpSplitNumber(this.value)"></label><label class="fld" style="margin:0"><span>قیمت واحد</span><input type="text" inputmode="decimal" value="' + escP(r.price) + '" oninput="cmpSplitField(' + ri + ',\'price\',this.value)" onblur="this.value=Number(cmpSplitNumber(this.value)||0).toLocaleString(\"en-US\")"></label><label class="fld" style="margin:0"><span>ارز</span><select onchange="cmpSplitField(' + ri + ',\'cur\',this.value)">' + curOpts + '</select></label><label class="fld" style="margin:0"><span>نرخ تسعیر</span><input type="text" inputmode="decimal" value="' + escP(r.rate || '') + '" oninput="cmpSplitField(' + ri + ',\'rate\',this.value)" onblur="this.value=Number(cmpSplitNumber(this.value)||0).toLocaleString(\"en-US\")"></label><button type="button" class="bt bt-o" style="padding:5px 8px;color:#dc2626" onclick="cmpSplitRemove(' + ri + ')">✕</button></div><div style="font-size:11.5px;color:#0e7490;margin-top:6px">مبلغ lot: <b>' + cmpSplitMoney(total, r.cur === 'IRR' ? 'ریال' : r.cur) + '</b>' + (r.cur !== 'IRR' ? ' | معادل ریالی: ' + cmpSplitMoney(totalIrr, 'ریال') : '') + '</div></div>';
+    }).join('');
+    var qty = st.rows.reduce(function (s, r) { return s + (+r.qty || 0); }, 0);
+    var total = st.rows.reduce(function (s, r) { return s + cmpSplitIrr(r); }, 0);
+    var el = document.getElementById('cmpSplitRows'); if (el) el.innerHTML = rows;
+    var sum = document.getElementById('cmpSplitSummary'); if (sum) sum.innerHTML = 'نیاز: <b>' + (+item.qty || 1) + ' ' + escP(item.un || '') + '</b> | تخصیص: <b>' + qty + ' ' + escP(item.un || '') + '</b> | جمع کل (اطلاعاتی): <b>' + cmpSplitMoney(total) + '</b>';
+  };
+  window.cmpSplitField = function (ri, key, value) { if (window._cmpSplitState && window._cmpSplitState.rows[ri]) { window._cmpSplitState.rows[ri][key] = (key === 'sup' || key === 'cur') ? value : (+cmpSplitNumber(value) || 0); cmpSplitUpdateSummary(); } };
+  window.cmpSplitAdd = function () { if (window._cmpSplitState) { window._cmpSplitState.rows.push({ sup: '', qty: 0, price: 0, cur: 'IRR', rate: 0 }); cmpSplitRender(); } };
+  window.cmpSplitRemove = function (ri) { if (window._cmpSplitState && window._cmpSplitState.rows.length > 1) { window._cmpSplitState.rows.splice(ri, 1); cmpSplitRender(); } };
+  window.cmpSplitOpen = function (id, idx) {
+    var c = cmpAll().filter(function (x) { return x.id === id; })[0]; if (!c) return;
+    var item = c.items[idx] || {}, lots = ptfPurchaseLotsForItem(c, idx);
+    window._cmpSplitState = { id: id, idx: idx, c: c, rows: lots.length ? lots.map(function (l) { return { sup: l.supplier, qty: l.qty, price: l.price, cur: l.currency || 'IRR', rate: l.rate || 0 }; }) : [{ sup: '', qty: +item.qty || 1, price: 0, cur: 'IRR', rate: 0 }] };
+    var html = '<div class="md-b" id="cmpSplitDlg" style="display:grid;z-index:3100" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto"><h3>🔀 تقسیم خرید — ' + escP(item.nm || '') + '</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:8px 10px;font-size:12px">قیمت واحد هر lot را وارد کنید؛ مبلغ کل فقط توسط سیستم محاسبه می‌شود.</div><div id="cmpSplitSummary" style="margin:9px 0;font-size:12px;color:#0e7490"></div><div id="cmpSplitRows"></div><div style="display:flex;gap:7px;justify-content:flex-end;margin-top:9px"><button class="bt bt-o" onclick="cmpSplitAdd()">+ lot دیگر</button><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="cmpSplitSave()">ذخیره تقسیم خرید</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html); cmpSplitRender();
+  };
+  window.cmpSplitSave = function () {
+    var st = window._cmpSplitState; if (!st) return;
+    var item = st.c.items[st.idx] || {}, required = +item.qty || 1, qty = 0;
+    st.rows.forEach(function (r) { qty += +r.qty || 0; });
+    if (qty <= 0 || qty > required) { alert('مجموع مقدار lotها باید بیشتر از صفر و حداکثر ' + required + ' باشد.'); return; }
+    if (st.rows.some(function (r) { return !String(r.sup || '').trim() || !(+r.qty > 0) || !(+r.price > 0) || (r.cur !== 'IRR' && !(+r.rate > 0)); })) { alert('تامین‌کننده، مقدار و قیمت واحد الزامی است؛ برای ارز خارجی نرخ تسعیر نیز لازم است.'); return; }
+    var list = cmpAll(), c = list.filter(function (x) { return x.id === st.id; })[0]; if (!c) return;
+    c.purchases = (c.purchases || []).filter(function (p) { return +p.idx !== +st.idx; });
+    st.rows.forEach(function (r) { var priceFx = r.cur === 'IRR' ? 0 : +r.price, buyPrice = r.cur === 'IRR' ? +r.price : Math.round(+r.price * (+r.rate || 0)); c.purchases.push({ cd: genCode('PUR'), idx: st.idx, qty: +r.qty, sourceItemKey: item.sourceItemKey || '', sup: String(r.sup).trim(), price: buyPrice, cur: 'IRR', srcCur: r.cur !== 'IRR' ? r.cur : '', priceFx: priceFx, rate: r.cur !== 'IRR' ? (+r.rate || 0) : 0, pay: 'cash', t: faDate(), by: curSession().name, splitLot: true, files: [] }); });
+    cmpSave(list); try { audit('قیمت خرید', 'تقسیم خرید قلم ' + (item.nm || '') + ' بین ' + st.rows.length + ' تامین‌کننده', c.inqNo); } catch (e) {}
+    var dlg = document.getElementById('cmpSplitDlg'); if (dlg) dlg.remove();
+    var baseDlg = document.getElementById('cmpModal_' + c.id); if (baseDlg) baseDlg.remove();
+    window._cmpSplitState = null;
+    cmpOpen(c.id, { realbuy: true });
   };
 
   /* ---------- انتخاب تامین‌کننده خرید نهایی per آیتم ---------- */
@@ -481,6 +704,17 @@
     rqsQuotes.forEach(function (rq) {
       opts += '<option value="' + escP(rq.sup) + '" data-price="' + rq.price + '" data-cur="' + escP(rq.cur) + '">' + escP(rq.sup) + ' — ' + rq.price.toLocaleString('en-US') + ' ' + escP(rq.cur) + ' (استعلام ' + escP(rq.src) + ')</option>';
     });
+    if (realbuy) {
+      var existingSupNames = {};
+      Object.keys(last).forEach(function (s) { existingSupNames[String(s)] = true; });
+      rqsQuotes.forEach(function (rq) { existingSupNames[String(rq.sup)] = true; });
+      getData('ptf_crm_suppliers').forEach(function (s) {
+        var supName = String(s.co || s.name || '').trim();
+        if (!supName || existingSupNames[supName]) return;
+        existingSupNames[supName] = true;
+        opts += '<option value="' + escP(supName) + '" data-cur="IRR">' + escP(supName) + ' — تامین‌کننده ثبت‌شده</option>';
+      });
+    }
     opts += '<option value="__manual__">✍️ ورود دستی (تامین‌کننده/قیمت دلخواه)</option>';
     /* v17.2 (US-412): پیشنهاد نرخ زنده برای تسعیر (فقط راهنما — تصمیم با کاربر) */
     var fxHint = '';
@@ -490,7 +724,8 @@
     } catch (eH) {}
     ptfDialog({
       title: '🛍 ثبت خرید واقعی: ' + (it ? it.nm : ''),
-      body: '<b style="color:#b45309">⚠️ قیمت واحد فقط همین قلم را وارد کنید — نه جمع کل اقلام (BUG-032).</b> برای ثبت همه اقلام یکجا از «🛒 ثبت گروهی خرید» استفاده کنید.<br>' + (realbuy ? '💡 منبع قیمت: از استعلامی‌های موجود انتخاب کنید یا «ورود دستی». خرید ارزی حتما نرخ تسعیر می‌خواهد — همه محاسبات سود به ریال است (US-412).' : 'سیستم کمترین قیمت را پیش‌فرض انتخاب کرده — در صورت صلاحدید تغییر دهید.') + fxHint,
+      body: '<b style="color:#b45309">⚠️ قیمت واحد فقط همین قلم را وارد کنید — نه جمع کل اقلام (BUG-032).</b> برای ثبت همه اقلام یکجا از «🛒 ثبت گروهی خرید» استفاده کنید.<br>' + (realbuy ? '💡 منبع قیمت: از استعلامی‌های موجود انتخاب کنید یا «ورود دستی». خرید ارزی حتما نرخ تسعیر می‌خواهد — همه محاسبات سود به ریال است (US-412).' : 'سیستم کمترین قیمت را پیش‌فرض انتخاب کرده — در صورت صلاحدید تغییر دهید.') + fxHint +
+        '<div class="fld" style="margin:8px 0 4px"><label>🔍 جستجوی تامین‌کننده (نام یا برند)</label>' + (typeof window.ptfSupPickerHtml === 'function' ? window.ptfSupPickerHtml('cmpBuySupPick', '', "cmpBuySupPick(name)") : '') + '</div>',
       fields: [
         { id: 'sup', label: 'منبع قیمت / تامین‌کننده', type: 'select', optionsHtml: opts },
         { id: 'supName', label: 'نام تامین‌کننده (فقط برای ورود دستی)', type: 'text' },
@@ -542,10 +777,7 @@
         if (typeof ptfRealBuyEnsureStatus === 'function') ptfRealBuyEnsureStatus(c2.inqNo);
         /* v16.6 (US-400): ثبت بستانکاری تامین‌کننده — نقدی = تسویه فوری؛ غیرنقدی = باز تا ثبت پرداخت‌های مرحله‌ای
            v17.2: مبلغ = معادل ریالی قطعی (تسعیرشده) — بدهی ارزی بی‌نرخ دیگر پیش نمی‌آید */
-        if (typeof ptfPayableUpsert === 'function') {
-          var _payRec = ptfPayableUpsert({ inqNo: c2.inqNo, idx: idx, item: (c2.items[idx] || {}).nm || '', sup: supName, amount: buyPrice * (+(c2.items[idx] || {}).qty || 1), cur: 'IRR', rate: 0, pay: v.pay || 'cash', dueISO: v.dueISO || '', dueNote: v.dueNote || '' });
-          if (typeof window.slImportRealPurchase === 'function') { var _supRec = getData('ptf_crm_suppliers').filter(function(s){return s.co===supName;})[0]||{}; window.slImportRealPurchase({ purchaseCd: pcd, payableCd: _payRec && _payRec.cd, supplierCd: _supRec.cd||'', supName:supName, amount:buyPrice*(+(c2.items[idx]||{}).qty||1), pay:v.pay||'cash', item:(c2.items[idx]||{}).nm||'', files:[] }); }
-        }
+        /* خرید واقعی فقط operational است؛ تعهد یا فاکتور تأمین‌کننده اینجا ساخته نمی‌شود. */
         // ثبت در buyquotes قدیمی هم برای گزارش‌های موجود
         var bq = getData('ptf_crm_buyquotes');
         bq.unshift({ cd: genCode('BQ'), ref: c2.inqNo, sup: supName, desc: (c2.items[idx] || {}).nm || '', price: buyPrice, note: 'خرید واقعی' + (priceFx ? ' (تسعیر ' + priceFx.toLocaleString('en-US') + ' ' + (c2.purchases[c2.purchases.length-1].srcCur || '') + ' × ' + buyRate.toLocaleString('fa-IR') + ')' : ''), t: faDate(), by: curSession().name });
@@ -574,7 +806,7 @@
   window.ptfRealBuyOpen = function (inqNo) {
     if (!inqNo) { alert('شماره درخواست نامشخص است'); return; }
     var list = cmpAll();
-    var c = list.filter(function (x) { return x.inqNo === inqNo; })[0];
+    var c = mergeCmpRecordsForInquiry(inqNo) || list.filter(function (x) { return x.inqNo === inqNo; })[0];
     if (!c) {
       /* ساخت خودکار جدول از اقلام CO برنده؛ نبود → اقلام درخواست */
       var items = [];
@@ -596,6 +828,8 @@
       cmpSave(list);
       audit('قیمت خرید', 'ساخت خودکار جدول خرید واقعی برای ' + inqNo + ' (US-392)', c.id);
     }
+    var complete = mergeCmpRecordsForInquiry(inqNo);
+    if (complete) c = complete;
     cmpOpen(c.id, { realbuy: true }); /* v17.2 (US-412): مسیر پرونده فروش = نمای قفل‌شده */
   };
 
@@ -613,14 +847,27 @@
 
   /* وضعیت خرید واقعی یک درخواست: {total, done, pendingFx} — مصرف: پرونده فروش */
   window.ptfRealBuyStatus = function (inqNo) {
-    var c = cmpAll().filter(function (x) { return x.inqNo === inqNo; })[0];
-    if (!c) return { total: 0, done: 0, pendingFx: 0, has: false };
-    var done = 0, pendingFx = 0;
-    (c.items || []).forEach(function (it, idx) {
-      var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
-      if (pu) { done++; if (pu.cur && pu.cur !== 'IRR' && !(+pu.rate > 0)) pendingFx++; }
+    var records = cmpAll().filter(function (x) { return x.inqNo === inqNo; });
+    if (!records.length) return { total: 0, done: 0, pendingFx: 0, has: false };
+    var total = 0, done = 0, full = 0, partial = 0, pendingFx = 0;
+    records.forEach(function (c) {
+      (c.items || []).forEach(function (it, idx) {
+        total++;
+        var requiredQty = +it.qty || 1;
+        var lots = window.ptfPurchaseLotsForItem(c, idx);
+        var purchasedQty = lots.reduce(function (sum, lot) { return sum + (+lot.qty || 0); }, 0);
+        if (purchasedQty > 0) done++;
+        if (purchasedQty >= requiredQty) full++;
+        else if (purchasedQty > 0) partial++;
+        lots.forEach(function (lot) {
+          if (lot.currency && lot.currency !== 'IRR') {
+            var raw = (c.purchases || []).filter(function (p) { return p.cd === lot.cd; })[0] || {};
+            if (!(+raw.rate > 0)) pendingFx++;
+          }
+        });
+      });
     });
-    return { total: (c.items || []).length, done: done, pendingFx: pendingFx, has: true };
+    return { total: total, done: done, full: full, partial: partial, pendingFx: pendingFx, has: true };
   };
 
   /* hook روی renderDeals: بخش خرید واقعی در کشوی پرونده‌های دارای CO برنده */
@@ -636,14 +883,14 @@
         var deal = getData('ptf_crm_deals').filter(function (x) { return x.cd === window._sfOpen; })[0];
         if (!deal || !deal.inqNo || !deal.wonOffer) return; /* فقط پرونده‌های برنده */
         var host = wrap.querySelector('[id="sfUp_' + deal.cd + '"]');
-        if (!host || document.getElementById('rbBox_' + deal.cd)) return;
+        if (!host || document.getElementById('rbBox_' + deal.cd) || document.getElementById('sfRealBuyBtn_' + deal.cd)) return;
         var st = ptfRealBuyStatus(deal.inqNo);
         var adv = ''; try { var wo = getData('ptf_crm_offers').filter(function(o){return o.no===deal.wonOffer;})[0]; if (wo && typeof ptfAdvanceLabel === 'function') adv = ' | پیش‌پرداخت: ' + ptfAdvanceLabel(wo); } catch(eAdv) {}
         var costs = (deal.costEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0);
         var costTxt = costs ? ' | هزینه‌های مستقیم: ' + costs.toLocaleString('fa-IR') + ' ریال' : '';
         var lb = !st.has || !st.done
           ? '<span style="color:#b45309">هنوز خریدی ثبت نشده</span>'
-          : st.done + ' از ' + st.total + ' قلم ثبت شده' + (st.pendingFx ? ' — <span style="color:#dc2626">' + st.pendingFx + ' خرید ارزی بدون نرخ ⚠️</span>' : ' ✅');
+          : st.full + ' از ' + st.total + ' قلم کامل' + (st.partial ? ' — ' + st.partial + ' قلم ناقص' : '') + (st.pendingFx ? ' — <span style="color:#dc2626">' + st.pendingFx + ' خرید ارزی بدون نرخ ⚠️</span>' : ' ✅');
         host.closest('div').insertAdjacentHTML('beforebegin',
           '<div id="rbBox_' + escP(deal.cd) + '" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px">' +
           '<span>🛒 <b>خرید واقعی اقلام</b> <small style="color:#64748b">(پس از برد — مبنای سود واقعی؛ جدا از قیمت استعلامی)</small><br><small>' + lb + adv + costTxt + '</small></span>' +

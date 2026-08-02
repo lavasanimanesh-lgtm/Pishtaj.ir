@@ -11,27 +11,27 @@
   'use strict';
   var API = '../api/crm.php';
   var SYNC_KEYS = [
-    'ptf_crm_rfqs', 'ptf_crm_suppliers', 'ptf_crm_customers', 'ptf_crm_products', 'ptf_crm_surplus',
+    'ptf_crm_rfqs', 'ptf_crm_suppliers', 'ptf_crm_customers', 'ptf_crm_products', 'ptf_crm_catalog_reviews', 'ptf_crm_catalog_merges', 'ptf_crm_surplus',
     'ptf_crm_offers', 'ptf_crm_leads', 'ptf_crm_reminders', 'ptf_crm_buyquotes',
     'ptf_crm_invoices', 'ptf_crm_notifs', 'ptf_crm_sendqueue', 'ptf_crm_audit',
     'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
     'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources',
-    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive'
+    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
   var URGENT_SYNC_KEYS = [
-    'ptf_crm_cheques', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance',
+    'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance',
     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_fiscal_snapshots',
     'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_offers', 'ptf_crm_deals',
     'ptf_crm_projects', 'ptf_crm_opex'
   ];
   var SYNC_FULL_ROLES = ['admin','chairman','ceo','commercial'];
   var SYNC_ROLE_KEYS = {
-    sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques','ptf_crm_notifprefs','ptf_crm_avatars']
+    sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
+    buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
+    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns'],
+    collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars']
   };
   function syncAllowedKey(k) {
     var role = typeof curRole === 'function' ? String(curRole()).toLowerCase().trim() : 'sales';
@@ -80,8 +80,9 @@
 
   var _setData = window.setData;
   window.setData = function (k, d) {
-    _setData(k, d);
+    var saveResult = _setData(k, d);
     window.ptfSyncNotifyDirty(k);
+    return saveResult;
   };
 
   function schedulePush() {
@@ -372,16 +373,31 @@
       .catch(function () { state.online = false; setSyncBadge('offline'); if (done) done(); });
   }
 
-  // رندر مجدد پنل فعلی پس از دریافت داده جدید (بدون پرش اگر مودال باز است)
+  // رندر مجدد پنل فعلی پس از دریافت/ثبت داده جدید (بدون پرش وسط مودال)
   function refreshCurrentPanel() {
-    if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return; // وسط کار کاربر نپر
+    if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return false; // وسط کار کاربر نپر
     var act = document.querySelector('.sb-i.act');
-    if (!act) return;
+    if (!act) return false;
     var m = (act.getAttribute('onclick') || '').match(/goPanel\('([a-z]+)'/);
     if (m && typeof goPanelByName === 'function') {
-      try { goPanelByName(m[1]); } catch (e) {}
+      try { goPanelByName(m[1]); return true; } catch (e) {}
     }
+    return false;
   }
+  var _dataRefreshTimer = 0;
+  window.ptfRefreshCurrentPanel = refreshCurrentPanel;
+  window.ptfScheduleDataRefresh = function (key) {
+    clearTimeout(_dataRefreshTimer);
+    _dataRefreshTimer = setTimeout(function tryRefresh() {
+      /* A save often happens from a modal. Wait for its close, then refresh;
+         this keeps the modal usable and removes the need for F5. */
+      if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) {
+        _dataRefreshTimer = setTimeout(tryRefresh, 120);
+        return;
+      }
+      refreshCurrentPanel();
+    }, 0);
+  };
 
   /* ---------- نشانگر وضعیت سینک ---------- */
   var _lastSyncBadge = 'ok';
@@ -812,7 +828,7 @@
          استفاده شود که به‌ازای هر کد، رکورد برنده را انتخاب می‌کند اما فیلدهای آرایه‌ای
          (payments/pays/costEvents/timeline/lossEvents) را با ptfMergeArrayUnique واقعاً
          union می‌کند — نه جایگزین. */
-      if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+       if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
       var loc = JSON.parse(localStr || '[]');
       var rem = JSON.parse(remoteStr || '[]');
       if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;

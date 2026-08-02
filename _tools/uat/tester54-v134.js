@@ -10,9 +10,11 @@ var bk = fs.readFileSync(path.join(BASE, 'backup.js'), 'utf-8');
 var php = fs.readFileSync(path.resolve(__dirname, '../../api/crm.php'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
-SECTION('US-327: چک‌های صادره در ماژول شخصی');
+SECTION('US-327: چک‌های صادره (ثبت در هاب مالی — باکس شخصی حذف شده v33.6.0)');
 T('ماژول cheques ثبت شده', idx.indexOf('cheques.js') > -1 && sw.indexOf('./cheques.js') > -1);
-T('باکس چک‌ها به پنل یادآورها هوک شد', ch.indexOf('window.buildReminders = function () {') > -1 && ch.indexOf('chqBox') > -1);
+/* CHQ-PRINT (v33.6.0، مصوب کارفرما): باکس چک (ثبت/چاپ) از پنل یادآورها کاملاً حذف شد */
+T('باکس چک‌ها دیگر به پنل یادآورها هوک نمی‌شود', ch.indexOf('chqBox') === -1 && ch.indexOf('hookReminders') === -1 && ch.indexOf('buildReminders') === -1);
+T('فقط چاپ از ماژول مستقل «چاپ چک فیزیکی» (کالا و اسناد)', idx.indexOf("goPanel('chqprint'") > -1 && idx.indexOf('cheque-print.js') > -1 && ch.indexOf('چاپ فقط در ماژول مستقل') > -1);
 T('فرم ثبت: شماره/مبلغ/در وجه/بانک/سررسید/بابت', ['chNo', 'chAmt', 'chTo', 'chBank', 'chDueJ', 'chNote'].every(function (k) { return ch.indexOf('id="' + k + '"') > -1; }));
 T('یادآور روزانه از ۷ روز قبل (پنجره d<=7)', ch.indexOf('if (d > 7) return;') > -1);
 T('هر روز فقط یک اعلان (notified[today])', ch.indexOf('if (c.notified[today]) return;') > -1);

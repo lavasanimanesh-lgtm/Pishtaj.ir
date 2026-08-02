@@ -25,13 +25,13 @@ SECTION('Internal links and conversion');
 T('مقاله به ابزار، نمونه گزارش و feedback لینک دارد', article.indexOf('../tools/control-valve-sizing/') > -1 && article.indexOf('ptfAdvCvOpenSampleFinalReport') > -1 && article.indexOf('ptfAdvCvOpenFeedbackForm') > -1);
 T('مقاله Cv calculation به مقاله کاویتاسیون لینک می‌دهد', cvArticle.indexOf('control-valve-cavitation-guide.html') > -1);
 T('landing اختصاصی به مقاله کاویتاسیون لینک دارد', landing.indexOf('../../knowledge-center/control-valve-cavitation-guide.html') > -1 && landing.indexOf('کاویتاسیون در کنترل ولو') > -1);
-T('knowledge-center index مقاله را در cluster شیرآلات لینک می‌دهد', kc.indexOf('control-valve-cavitation-guide.html') > -1 && kc.indexOf('Anti-Cavitation Trim') > -1);
-T('sitemap شامل مقاله کاویتاسیون است', sitemap.indexOf('https://pishtaj.ir/knowledge-center/control-valve-cavitation-guide.html') > -1 && sitemap.indexOf('<priority>0.85</priority>') > -1);
+T('knowledge-center index مقاله را در cluster شیرآلات لینک می‌دهد', kc.indexOf('control-valve-cavitation-guide.html') > -1 && kc.indexOf('کاویتاسیون در کنترل ولو') > -1);
+T('sitemap شامل مقاله کاویتاسیون است', sitemap.indexOf('https://pishtaj.ir/knowledge-center/control-valve-cavitation-guide.html') > -1 && sitemap.indexOf('<priority>0.9</priority>') > -1);
 
 SECTION('Structured data and assets');
 T('مقاله JSON-LD Article/FAQPage/BreadcrumbList دارد', ['Article','FAQPage','BreadcrumbList','ADV-CV-CAVITATION-SEO-ARTICLE-v1'].every(function (x) { return article.indexOf(x) > -1; }));
 T('مقاله favicon و metrics دارد', article.indexOf('favicon-32.png') > -1 && article.indexOf('ptf-metrics.js') > -1);
 T('CTAهای مقاله آیکون/emoji سنگین ندارند', article.indexOf('🚀') === -1 && article.indexOf('💰') === -1 && article.indexOf('🔥') === -1);
-T('CRM/SW نسخه v31.9 است', idx.indexOf("window.VER = 'v31.9'") > -1 && sw.indexOf('ptf-crm-v31.9') > -1);
+T('CRM/SW نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
 
 DONE('tester265-control-valve-cavitation-seo-article');

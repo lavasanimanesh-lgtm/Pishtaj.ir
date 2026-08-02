@@ -112,7 +112,7 @@
         if (v.rec === 'yes' && !pre.tplId) {
           var list = tpls();
           var tid = 'TPL-' + Date.now();
-          list.push({ id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate() });
+          list.push({ id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate(), isOfficial: isOfficial });
           saveTpls(list);
           rec.tplId = tid;
         }
@@ -196,6 +196,7 @@
       body: 'مبلغ به ریال است - در صورت اصلاح واحد مبلغ قدیمی، دلیل را در شرح بنویسید. ویرایش audit می‌شود.',
       fields: [
         { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
+        { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value=""' + (!Object.prototype.hasOwnProperty.call(rec, 'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (rec.isOfficial === true ? ' selected' : '') + '>رسمی / قابل قبول ممیز</option><option value="no"' + (rec.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>' },
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: rec.amt, dir: 'ltr', required: true },
         { id: 'month', label: 'ماه شمسی', type: 'text', value: rec.month, required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: rec.desc || '' },
@@ -204,6 +205,7 @@
       okText: 'ذخیره ویرایش',
       onOk: function(v){
         var oldAmt = rec.amt;
+        var oldOfficial = Object.prototype.hasOwnProperty.call(rec, 'isOfficial') ? rec.isOfficial : null;
         var newAmt = +v.amt || 0;
         var newMonth = (function(m){ m=String(m||'').trim(); var mt=m.match(/^(\d{4})[\/\-](\d{1,2})$/); if(!mt) return ''; return mt[1]+'/'+('0'+mt[2]).slice(-2); })(v.month);
         if(newAmt<=0){ alert('⛔ مبلغ نامعتبر'); return; }
@@ -217,7 +219,16 @@
             return;
           }
         } catch(e){}
-        rec.cat = v.cat; rec.amt = newAmt; rec.month = newMonth; rec.desc = v.desc||''; 
+        var newOfficial = v.isOfficial === 'yes' ? true : v.isOfficial === 'no' ? false : null;
+        var officialChanged = oldOfficial !== newOfficial;
+        var applyToTemplate = false;
+        if (officialChanged && rec.tplId) {
+          applyToTemplate = confirm('رکوردهای دیگری از همین قالب وجود دارد.\n\nOK = اعمال نوع سند روی همه ماه‌های همین قالب\nCancel = فقط همین رکورد');
+        }
+        rec.cat = v.cat; rec.amt = newAmt; rec.month = newMonth; rec.desc = v.desc||'';
+        if (newOfficial === true) rec.isOfficial = true;
+        else if (newOfficial === false) rec.isOfficial = false;
+        else delete rec.isOfficial;
         var oldDeal = rec.dealRef; rec.dealRef = v.dealRef||'';
         rec.editedAt = faDateTime(); rec.editedBy = (typeof curSession==='function'?curSession().name:'');
         // به‌روزرسانی costEvents پرونده ها
@@ -244,10 +255,20 @@
           }
           setData('ptf_crm_deals', ds);
         } catch(e){}
-        // ذخیره opex
-        var all=oAll(); for(var i=0;i<all.length;i++){ if(all[i].cd===cd){ all[i]=rec; break; } }
+        // ذخیره opex — انتخاب گروهی فقط با تایید صریح کاربر
+        var all=oAll();
+        var groupedCount = 0;
+        for(var i=0;i<all.length;i++){
+          if(all[i].cd===cd){ all[i]=rec; continue; }
+          if(applyToTemplate && rec.tplId && all[i].tplId === rec.tplId){
+            if (newOfficial === true) all[i].isOfficial = true;
+            else if (newOfficial === false) all[i].isOfficial = false;
+            else delete all[i].isOfficial;
+            groupedCount++;
+          }
+        }
         oSave(all);
-        try { audit('هزینه جاری', 'ویرایش هزینه '+rec.cat+' '+oldAmt+' → '+newAmt+' ریال ('+newMonth+')', cd); } catch(e){}
+        try { audit('هزینه جاری', 'ویرایش هزینه '+rec.cat+' '+oldAmt+' → '+newAmt+' ریال ('+newMonth+')' + (officialChanged ? ' — تغییر نوع سند به ' + (rec.isOfficial === true ? 'رسمی' : rec.isOfficial === false ? 'غیررسمی' : 'نامشخص') : '') + (groupedCount ? ' — اعمال روی ' + groupedCount + ' رکورد دیگر از همین قالب' : ''), cd); } catch(e){}
         if(typeof ptfToast==='function') ptfToast('✅ هزینه ویرایش شد', 'ok');
         if(typeof renderDeals==='function'){ try{ renderDeals(); }catch(e){} }
         ptfOpexRender();
@@ -261,8 +282,20 @@
     if (!t) return;
     var m = ptfFaMonthNow();
     if (!confirm('🔁 ثبت هزینه تکرارشونده «' + t.cat + '» ماه ' + m + '؟\n\nمبلغ: ' + fmtT(t.amt) + ' ریال' + (t.desc ? '\nشرح: ' + t.desc : ''))) return;
+    var isOfficial;
+    if (Object.prototype.hasOwnProperty.call(t, 'isOfficial')) {
+      isOfficial = t.isOfficial === true;
+    } else {
+      isOfficial = confirm('نوع سند هزینه برای «' + t.cat + '» رسمی است؟\n\nOK = رسمی / قابل قبول ممیز\nCancel = غیررسمی');
+      var templateList = tpls();
+      var template = templateList.filter(function (x) { return x.id === t.id; })[0];
+      if (template) {
+        template.isOfficial = isOfficial;
+        saveTpls(templateList);
+      }
+    }
     var all = oAll();
-    all.unshift({ cd: genCode('OPX'), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDate(), by: curSession().name });
+    all.unshift({ cd: genCode('OPX'), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDate(), by: curSession().name, isOfficial: isOfficial });
     oSave(all);
     try { audit('هزینه جاری', 'ثبت تکرارشونده ' + t.cat + ' — ' + fmtT(t.amt) + ' ریال (' + m + ')', t.id); } catch (eA) {}
     ptfOpexRender();
@@ -274,6 +307,62 @@
     saveTpls(tpls().filter(function (x) { return x.id !== tid; }));
     try { audit('هزینه جاری', 'حذف قالب تکرارشونده ' + t.cat, tid); } catch (eA) {}
     ptfOpexRender();
+  };
+
+  /* ============ v33.7.0: اعمال خودکار هزینه‌های تکرارشونده با شروع ماه جدید ============
+     مصوب کارفرما ۱۴۰۵/۰۸/۱۱: «حقوق سهامداران و اجاره و سایر هزینه‌های تکرارشونده با
+     تعویض ماه باید خودکار اعمال شوند و نیازی به دخالت کاربر نداشته باشند.»
+     - حقوق سهامداران موظف: فقط نقش‌های ارشد (محرمانه) — از ensureSalaryTxForMonth
+       (shareholders.js) استفاده می‌شود تا یکسان با دکمهٔ دستی باشد.
+     - قالب‌های تکرارشونده (opexTpl: اجاره و…): فقط نقش‌های مالی.
+     - یک‌بار در هر ماه (flag ptf_auto_recurring_last) + ثبت کامل در audit. */
+  window.ptfAutoApplyRecurring = function () {
+    var m = ptfFaMonthNow();
+    if (!m) return { ok: false, why: 'no_month' };
+    var out = { month: m, salaries: 0, tpls: 0, skipped: 0, errors: [] };
+    var last = '';
+    try { last = localStorage.getItem('ptf_auto_recurring_last') || ''; } catch (eL) {}
+    var canSenior = (function () { try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; } })();
+    var fullRun = canFin() && canSenior;
+    /* اگر این ماه قبلاً اجرای کامل شده → هیچ */
+    if (last === m && fullRun) return { ok: true, month: m, already: true, salaries: 0, tpls: 0 };
+    /* ① حقوق سهامداران موظف (فقط ارشد — محرمانه) */
+    if (canSenior && typeof window.ptfShareEnsureSalary === 'function') {
+      try {
+        var yearLocked = (function (mm) {
+          try { return typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(String(mm).split('/')[0]); } catch (e) { return false; }
+        })(m);
+        if (!yearLocked) {
+          var shs = getData('ptf_crm_shareholders') || [];
+          shs.filter(function (s) { return s && s.active !== false && s.duty && (+s.salary || 0) > 0; }).forEach(function (s) {
+            var r = window.ptfShareEnsureSalary(s, m);
+            if (r.created || r.changed) out.salaries++;
+            else out.skipped++;
+          });
+        }
+      } catch (eS) { out.errors.push('salary:' + String(eS)); }
+    }
+    /* ② قالب‌های تکرارشونده (فقط مالی) */
+    if (canFin()) {
+      try {
+        var list = oAll();
+        tpls().forEach(function (t) {
+          if (list.some(function (x) { return x.tplId === t.id && x.month === m; })) { out.skipped++; return; }
+          var isOfficial = Object.prototype.hasOwnProperty.call(t, 'isOfficial') ? (t.isOfficial === true) : null;
+          list.unshift({ cd: genCode('OPX'), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDateTime(), by: 'سیستم (خودکار ماهانه)', isOfficial: isOfficial, autoApplied: true });
+          out.tpls++;
+        });
+        if (out.tpls) oSave(list);
+      } catch (eT) { out.errors.push('tpl:' + String(eT)); }
+    }
+    /* flag فقط وقتی ست می‌شود که حداقل بخش مجاز اجرا شده باشد (تا مدیر بعداً حقوق را بگیرد) */
+    if (canSenior || canFin()) {
+      try { localStorage.setItem('ptf_auto_recurring_last', m); } catch (eF) {}
+    }
+    try {
+      if (out.salaries || out.tpls) audit('هزینه جاری', 'اعمال خودکار تکرارشونده‌های ماه ' + m + ' — حقوق: ' + out.salaries + ' / قالب‌ها: ' + out.tpls + (out.errors.length ? ' | خطا: ' + out.errors.join('؛ ') : ''), 'auto-recurring');
+    } catch (eA) {}
+    return out;
   };
 
   /* ---------- رندر باکس داخل پنل تنخواه ---------- */
@@ -297,6 +386,7 @@
       return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--brd);font-size:12.5px">' +
         '<span><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
         (x.dealRef ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">📁 پرونده فروش</span>' : '') +
+        (x.autoApplied ? ' <span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">🤖 خودکار</span>' : '') +
         (x.desc ? ' <small style="color:#64748b">' + escP(x.desc) + '</small>' : '') +
         (x.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(x.editedAt) + '</small>' : '') +
         '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small></span>' +
@@ -339,5 +429,21 @@
     return true;
   }
   var tries = 0;
-  var t = setInterval(function () { tries++; if (hookPetty() || tries > 50) clearInterval(t); }, 350);
+  var t = setInterval(function () {
+    tries++;
+    var done = hookPetty();
+    if (done || tries > 50) {
+      clearInterval(t);
+      /* v33.7.0: اعمال خودکار تکرارشونده‌های ماه جدید (یک‌بار در ماه) */
+      try {
+        if ((canFin() || (function () { try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; } })())) {
+          var ar = window.ptfAutoApplyRecurring();
+          if (ar && (ar.salaries || ar.tpls) && typeof ptfToast === 'function') {
+            ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + ar.month + ' خودکار ثبت شد (حقوق: ' + ar.salaries + ' — قالب‌ها: ' + ar.tpls + ')', 'ok');
+          }
+          if (done) { try { ptfOpexRender(); } catch (eR) {} }
+        }
+      } catch (eA) {}
+    }
+  }, 350);
 })();

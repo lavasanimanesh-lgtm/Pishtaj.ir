@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>طراحی سیستم ESD/F&G بر اساس SIL | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="راهنمای فنی تعیین SIL، مقایسه معماری رأی‌گیری 1oo2/2oo2/2oo3 و الزامات تست دوره‌ای Proof Test طبق IEC 61511 برای خرید تجهیزات ESD و Fire & Gas در پروژه‌های نفت و…" />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="طراحی سیستم ESD/F&G بر اساس SIL" />
+<meta property="og:description" content="راهنمای فنی تعیین SIL، مقایسه معماری رأی‌گیری 1oo2/2oo2/2oo3 و الزامات تست دوره‌ای Proof Test طبق IEC 61511 برای خرید تجهیزات ESD و Fire & Gas در پروژه‌های نفت و…" />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "طراحی SIL سیستم ESD", "item": "https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html"}]}, {"@type": ["TechArticle", "Article"], "headline": "طراحی سیستم ESD/F&G بر اساس SIL", "description": "راهنمای فنی تعیین SIL، مقایسه معماری رأی‌گیری 1oo2/2oo2/2oo3 و الزامات تست دوره‌ای Proof Test طبق IEC 61511 برای خرید تجهیزات ESD و Fire & Gas در پروژه‌های نفت و…", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/kc-esd-fire-gas-sil-rated-design.html"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "dateModified": "2026-07-28", "datePublished": "2026-07-01", "articleSection": "سیستم‌های فرآیندی"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "SIL Capability و SIL Achieved چه تفاوتی دارند؟", "acceptedAnswer": {"@type": "Answer", "text": "SIL Capability حداکثر سطحی است که یک تجهیز به‌تنهایی می‌تواند پشتیبانی کند (بر اساس گواهی سازنده). SIL Achieved سطح واقعی کل حلقهٔ ایمنی (سنسور+منطق+عملگر) پس از محاسبهٔ PFDavg است که می‌تواند به دلیل معماری یا بازهٔ تست، کمتر از SIL Capability تجهیزات باشد."}}, {"@type": "Question", "name": "آیا همهٔ تجهیزات ESD باید گواهی SIL داشته باشند؟", "acceptedAnswer": {"@type": "Answer", "text": "فقط تجهیزاتی که در یک تابع ایمنی طبقه‌بندی‌شده (Safety Instrumented Function) به‌کار می‌روند نیاز به گواهی SIL دارند. تجهیزات کنترل عادی فرآیند (غیر ایمنی) این الزام را ندارند."}}, {"@type": "Question", "name": "Partial Stroke Test چیست و چرا جایگزین Full Stroke Test نمی‌شود؟", "acceptedAnswer": {"@type": "Answer", "text": "PST حرکت جزئی شیر (مثلاً ۱۰-۲۰ درصد) را بدون توقف فرآیند تست می‌کند و برخی خرابی‌های مکانیکی را آشکار می‌کند، اما نمی‌تواند عملکرد کامل بستن شیر را در شرایط واقعی تایید کند؛ به همین دلیل Full Stroke Test دوره‌ای همچنان الزامی است."}}, {"@type": "Question", "name": "چرا معماری 2oo3 نسبت به 1oo2 برای واحدهای حیاتی ترجیح داده می‌شود؟", "acceptedAnswer": {"@type": "Answer", "text": "چون هم‌زمان ریسک عدم‌تشخیص خطر (با وجود سه سنسور) و ریسک خاموشی کاذب (با نیاز به توافق دو از سه) را کاهش می‌دهد، درحالی‌که 1oo2 فقط ایمنی را افزایش می‌دهد اما احتمال خاموشی کاذب را هم بیشتر می‌کند."}}]}]}</script>
+<style>
+.article-hero{background:linear-gradient(135deg,#151517,#2d2d31);min-height:220px;display:flex;align-items:center;padding:130px 0 50px;color:#fff;position:relative}
+.article-hero .container{position:relative;z-index:1}
+.article-hero h1{font-size:clamp(24px,3.2vw,38px);margin:0 0 10px;line-height:1.3}
+.article-wrap{max-width:900px;margin:40px auto;padding:0 20px}
+.article-content{background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;font-size:16px;color:#334155;box-shadow:0 16px 42px rgba(0,0,0,.07)}
+.article-content h2{font-size:clamp(22px,2.8vw,32px);margin:40px 0 16px;color:#1e293b;font-weight:900;padding-bottom:8px;border-bottom:2px solid #f1f5f9}
+.article-content h3{font-size:19px;margin:30px 0 12px;color:#1e293b}
+.article-content p{margin:0 0 18px}
+.article-content ul,.article-content ol{margin:0 0 18px;padding-right:22px}
+.article-content li{margin-bottom:8px}
+.article-content a{color:var(--red);font-weight:900}
+.article-content table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.article-content th,.article-content td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top;text-align:right}
+.article-content th{background:#f1f5f9;color:#334155}
+.article-cta{background:linear-gradient(135deg,#f8fafc,#fff);border:2px solid var(--line);border-radius:24px;padding:30px;text-align:center;margin:40px 0 0}
+.related-articles{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:30px 0}
+.rel-item{padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fafc;text-decoration:none;transition:.2s}
+.rel-item:hover{border-color:var(--red)}
+.rel-item b{display:block;color:#1e293b;font-size:14px}
+.rel-item span{font-size:12px;color:#64748b}
+@media(max-width:700px){.article-content{padding:24px}.related-articles{grid-template-columns:1fr}}
+.faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}
+.note-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:14px 16px;margin:16px 0}
+.ok-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:14px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+<section class="article-hero">
+<div class="container">
+<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">سیستم‌های فرآیندی</span>
+<h1>طراحی سیستم ESD و Fire & Gas بر اساس سطح یکپارچگی ایمنی (SIL)</h1>
+<p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
+</div>
+</section>
+<div class="article-wrap">
+<div class="article-content">
+
+<p style="font-size:17px"><b>طراحی سیستم ESD و Fire &amp; Gas بر اساس سطح یکپارچگی ایمنی (SIL)</b> — این مقاله بر خلاف معرفی کلی سیستم ESD و F&amp;G، مستقیماً به فرآیند مهندسی تعیین SIL، معماری رأی‌گیری (Voting Architecture) و الزامات تست دوره‌ای طبق IEC 61511 می‌پردازد؛ موضوعی که برای مهندسان ایمنی فرآیند و تیم خرید تجهیزات SIS (Safety Instrumented System) در پروژه‌های پالایشگاهی و پتروشیمی حیاتی است.</p>
+
+<h2>SIL چیست و چرا فقط «سیستم ESD دارم» کافی نیست؟</h2>
+<p>سطح یکپارچگی ایمنی (Safety Integrity Level یا SIL) یک معیار کمّی برای احتمال شکست یک تابع ایمنی در زمان نیاز (Probability of Failure on Demand یا PFD) است. استاندارد IEC 61511 چهار سطح SIL 1 تا SIL 4 را تعریف می‌کند که SIL 1 کمترین و SIL 4 بیشترین سطح قابلیت اطمینان را نشان می‌دهد. در پروژه‌های نفت، گاز و پتروشیمی، اکثر توابع ایمنی مرتبط با ESD و Fire &amp; Gas در محدودهٔ SIL 1 تا SIL 3 طبقه‌بندی می‌شوند؛ SIL 4 معمولاً به دلیل هزینه و پیچیدگی بالا، فقط در موارد استثنایی به‌کار می‌رود.</p>
+<p>اشتباه رایج در پروژه‌های داخلی این است که خرید تجهیزات ESD صرفاً بر اساس «برند معتبر» یا «تجربهٔ قبلی» انجام می‌شود، بدون آنکه مطالعهٔ رسمی تعیین SIL (SIL Determination Study) و اثبات دستیابی به آن سطح (SIL Verification) انجام شده باشد. این کار باعث می‌شود در بازرسی نهایی کارفرما یا حسابرسی HSE، مستندات کافی برای اثبات ایمنی سیستم وجود نداشته باشد.</p>
+
+<h2>مراحل تعیین SIL — از تحلیل ریسک تا انتخاب تجهیز</h2>
+<ol>
+<li><b>شناسایی سناریوهای خطر:</b> از طریق مطالعات HAZOP (Hazard and Operability Study) سناریوهایی که نیاز به تابع ایمنی دارند شناسایی می‌شوند.</li>
+<li><b>تعیین SIL هدف:</b> با روش‌هایی مانند Risk Graph، LOPA (Layer of Protection Analysis) یا ماتریس ریسک، سطح SIL موردنیاز هر تابع ایمنی (مثلاً «قطع خودکار پمپ تغذیه در صورت افزایش فشار») مشخص می‌شود.</li>
+<li><b>طراحی معماری SIS:</b> بر اساس SIL هدف، معماری رأی‌گیری سنسور، منطق کنترلر و عملگر نهایی (Final Element) طراحی می‌شود.</li>
+<li><b>اثبات (SIL Verification):</b> با محاسبهٔ PFDavg کل حلقهٔ ایمنی (سنسور + منطق + عملگر) و مقایسه با محدودهٔ مجاز SIL هدف.</li>
+<li><b>تست پذیرش عملکرد ایمنی (SAT):</b> پیش از راه‌اندازی، عملکرد واقعی سیستم در برابر سناریوهای طراحی تست می‌شود.</li>
+</ol>
+
+<h2>معماری رأی‌گیری — 1oo1، 1oo2، 2oo2 و 2oo3 چه فرقی دارند؟</h2>
+<p>معماری رأی‌گیری (Voting Architecture) نحوهٔ ترکیب چند سنسور یا عملگر برای تصمیم‌گیری نهایی را مشخص می‌کند. انتخاب معماری صحیح، تعادل بین ایمنی (کاهش خطر عدم عملکرد در زمان نیاز) و دسترس‌پذیری (کاهش خاموشی کاذب) را برقرار می‌کند.</p>
+<table>
+<thead><tr><th>معماری</th><th>توضیح</th><th>اثر روی ایمنی</th><th>اثر روی دسترس‌پذیری</th></tr></thead>
+<tbody>
+<tr><td>1oo1 (یک از یک)</td><td>یک سنسور، تصمیم‌گیری مستقیم</td><td>پایین‌ترین سطح؛ برای SIL 1 ساده</td><td>ریسک خاموشی کاذب کم، ولی ریسک عدم‌تشخیص خطر بالا</td></tr>
+<tr><td>1oo2 (یک از دو)</td><td>دو سنسور موازی؛ فعال‌شدن هرکدام کافی است</td><td>بالا (افزونگی برای کاهش عدم‌تشخیص)</td><td>ریسک خاموشی کاذب بیشتر (هر سنسور به‌تنهایی می‌تواند فرمان بدهد)</td></tr>
+<tr><td>2oo2 (دو از دو)</td><td>هر دو سنسور باید هم‌زمان فعال شوند</td><td>پایین‌تر (نیاز به توافق دو سنسور)</td><td>ریسک خاموشی کاذب بسیار کم</td></tr>
+<tr><td>2oo3 (دو از سه)</td><td>سه سنسور؛ حداقل دو مورد باید توافق کنند</td><td>بالاترین تعادل ایمنی و دسترس‌پذیری</td><td>مناسب‌ترین گزینه برای SIL 2/SIL 3 حیاتی</td></tr>
+</tbody>
+</table>
+<div class="note-box"><b>نکتهٔ مهم:</b> معماری 2oo3 معمولاً برای توابع ایمنی حیاتی SIL 2 و SIL 3 در واحدهای فرایندی بزرگ (مثل حفاظت راکتور یا برج تقطیر اصلی) انتخاب می‌شود، چون هم‌زمان جلوی خاموشی‌های کاذب مکرر را می‌گیرد و هم سطح ایمنی لازم را تامین می‌کند. هزینهٔ بالاتر این معماری (سه‌برابر شدن تعداد سنسور) باید در بودجهٔ اولیهٔ پروژه لحاظ شود.</div>
+
+<h2>الزامات تست دوره‌ای (Proof Test) — چرا نصب تجهیز کافی نیست؟</h2>
+<p>یکی از اصول کلیدی IEC 61511 این است که PFDavg محاسبه‌شده برای یک تابع ایمنی، فرض می‌کند تست دوره‌ای (Proof Test) در بازه‌های زمانی مشخص انجام می‌شود. اگر این تست‌ها انجام نشوند یا با تاخیر زیاد انجام شوند، سطح ایمنی واقعی سیستم به‌مرور از SIL هدف پایین‌تر می‌آید، حتی اگر تجهیزات در ابتدا با مشخصات صحیح خریداری شده باشند.</p>
+<p>بازهٔ معمول تست دوره‌ای برای اکثر تجهیزات SIS در پروژه‌های نفت و گاز بین ۶ ماه تا ۳ سال است، بسته به نوع تجهیز و SIL هدف. برای مثال، شیرهای ESD معمولاً به تست Partial Stroke Test (PST) هر ۳ تا ۶ ماه و Full Stroke Test سالانه نیاز دارند تا اطمینان حاصل شود که شیر در زمان نیاز واقعی به‌درستی بسته می‌شود، بدون آنکه فرآیند را متوقف کند.</p>
+
+<h2>چک‌لیست خرید تجهیزات SIS برای خریدار پروژه</h2>
+<p>وقتی برای تجهیزات ESD یا Fire &amp; Gas استعلام می‌دهید، این موارد را حتماً از سازنده بخواهید:</p>
+<ul>
+<li>گواهی SIL (SIL Certificate) صادرشده توسط نهاد معتبر (مانند TÜV یا exida) که SIL Capability تجهیز را تایید می‌کند، نه فقط ادعای بازاریابی.</li>
+<li>گزارش FMEDA (Failure Mode, Effects, and Diagnostic Analysis) شامل نرخ خرابی‌های خطرناک آشکار و پنهان (λDU و λDD).</li>
+<li>PFDavg تجهیز برای بازهٔ تست دوره‌ای مشخص‌شدهٔ پروژه (نه یک عدد کلی بدون ذکر بازهٔ تست).</li>
+<li>دستورالعمل کامل Proof Test تجهیز به زبان قابل فهم برای تیم بهره‌برداری.</li>
+<li>سازگاری تجهیز با معماری رأی‌گیری موردنیاز پروژه (1oo2، 2oo3 و غیره).</li>
+</ul>
+
+
+<h2>محاسبهٔ PFDavg — مثال ساده‌شده برای درک مفهوم</h2>
+<p>برای درک بهتر رابطهٔ بین معماری و سطح ایمنی، یک مثال ساده را در نظر بگیرید: فرض کنید یک سنسور فشار با نرخ خرابی خطرناک پنهان (λDU) معادل ۵×۱۰⁻⁷ در ساعت داریم و بازهٔ تست دوره‌ای (Proof Test Interval) آن یک سال (۸۷۶۰ ساعت) است. برای معماری ۱oo۱ (یک سنسور)، تقریب سادهٔ PFDavg برابر است با نصف حاصل‌ضرب نرخ خرابی در بازهٔ تست: تقریباً ۲.۲×۱۰⁻³ که در محدودهٔ SIL 2 قرار می‌گیرد. اگر همین سنسور در معماری ۱oo۲ (دو سنسور موازی) استفاده شود، PFDavg به‌طور قابل‌توجهی کاهش می‌یابد (رابطهٔ تقریبی توان دوم برای بخش مشترک خرابی‌ها)، که می‌تواند سیستم را به سطح SIL 3 ارتقا دهد. این محاسبات دقیق باید توسط مهندس ایمنی مجرب و با نرم‌افزارهای تخصصی (مانند exSILentia یا PDS) انجام شود؛ عدد بالا فقط برای نشان‌دادن مفهوم کلی رابطهٔ معماری و PFDavg است، نه یک فرمول قابل استفادهٔ مستقیم در پروژه واقعی.</p>
+<p>نکتهٔ مهمی که اغلب نادیده گرفته می‌شود، «خرابی با علت مشترک» (Common Cause Failure یا CCF) است. اگر دو سنسور معماری ۱oo۲ از یک برند و یک باچ تولید باشند و در یک نقطهٔ نصب مشابه (مثلاً هر دو در معرض همان ارتعاش یا دمای بالا) قرار گیرند، ممکن است هر دو هم‌زمان به یک علت خراب شوند و مزیت افزونگی عملاً از بین برود. استاندارد IEC 61508 برای این منظور ضریب بتا (β Factor) را تعریف می‌کند که در محاسبات PFDavg باید لحاظ شود. توصیهٔ عملی برای کاهش CCF: استفاده از سنسورهای با تکنولوژی اندازه‌گیری متفاوت (Diverse Technology) در صورت امکان، یا حداقل تنوع در باچ تولید و مسیر کابل‌کشی دو سنسور.</p>
+
+<h2>تفاوت الزامات SIS برای پروژه‌های Brownfield و Greenfield</h2>
+<p>در پروژه‌های Greenfield (احداث از صفر)، تعیین SIL و طراحی معماری از ابتدا و هم‌زمان با طراحی فرآیند انجام می‌شود که انعطاف بیشتری در انتخاب تجهیزات و چیدمان می‌دهد. اما در پروژه‌های Brownfield (ارتقا یا بازسازی واحد موجود)، چالش اصلی این است که SIS جدید باید با زیرساخت کنترل موجود (DCS/PLC قدیمی) سازگار باشد و اغلب امکان تغییر کامل معماری رأی‌گیری به دلیل محدودیت فضای نصب یا بودجه وجود ندارد. در این حالت، مطالعهٔ Gap Analysis بین وضعیت موجود و الزامات IEC 61511 باید قبل از هرگونه خرید انجام شود تا مشخص شود کدام بخش‌های سیستم فعلی قابل ارتقا و کدام باید کاملاً جایگزین شوند.</p>
+<h2>جمع‌بندی</h2>
+<p>طراحی صحیح سیستم ESD و Fire &amp; Gas فراتر از خرید تجهیزات با برند معتبر است؛ نیازمند مطالعهٔ رسمی تعیین SIL، انتخاب معماری رأی‌گیری متناسب با ریسک واقعی فرآیند، و برنامهٔ مشخص تست دوره‌ای است. تیم مهندسی فروش پیشرو تجهیز فرتاک با درک این الزامات فنی، در انتخاب تجهیزات دارای گواهی SIL معتبر و مستندات کامل FMEDA برای پروژه‌های حیاتی نفت، گاز و پتروشیمی همراه شماست.</p>
+
+<h2>سوالات پرتکرار</h2>
+<div class="faq-list">
+<details><summary>SIL Capability و SIL Achieved چه تفاوتی دارند؟</summary><p>SIL Capability حداکثر سطحی است که یک تجهیز به‌تنهایی می‌تواند پشتیبانی کند (بر اساس گواهی سازنده). SIL Achieved سطح واقعی کل حلقهٔ ایمنی (سنسور+منطق+عملگر) پس از محاسبهٔ PFDavg است که می‌تواند به دلیل معماری یا بازهٔ تست، کمتر از SIL Capability تجهیزات باشد.</p></details><details><summary>آیا همهٔ تجهیزات ESD باید گواهی SIL داشته باشند؟</summary><p>فقط تجهیزاتی که در یک تابع ایمنی طبقه‌بندی‌شده (Safety Instrumented Function) به‌کار می‌روند نیاز به گواهی SIL دارند. تجهیزات کنترل عادی فرآیند (غیر ایمنی) این الزام را ندارند.</p></details><details><summary>Partial Stroke Test چیست و چرا جایگزین Full Stroke Test نمی‌شود؟</summary><p>PST حرکت جزئی شیر (مثلاً ۱۰-۲۰ درصد) را بدون توقف فرآیند تست می‌کند و برخی خرابی‌های مکانیکی را آشکار می‌کند، اما نمی‌تواند عملکرد کامل بستن شیر را در شرایط واقعی تایید کند؛ به همین دلیل Full Stroke Test دوره‌ای همچنان الزامی است.</p></details><details><summary>چرا معماری 2oo3 نسبت به 1oo2 برای واحدهای حیاتی ترجیح داده می‌شود؟</summary><p>چون هم‌زمان ریسک عدم‌تشخیص خطر (با وجود سه سنسور) و ریسک خاموشی کاذب (با نیاز به توافق دو از سه) را کاهش می‌دهد، درحالی‌که 1oo2 فقط ایمنی را افزایش می‌دهد اما احتمال خاموشی کاذب را هم بیشتر می‌کند.</p></details>
+</div>
+<h2>مطالب مرتبط</h2>
+<div class="related-articles">
+<a class="rel-item" href="kc-esd-fire-gas.html"><b>راهنمای کامل سیستم ESD و Fire & Gas (F&G)</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="esd-emergency-shutdown.html"><b>راهنمای سیستم ESD (Emergency Shutdown)</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="kc-dcs.html"><b>راهنمای کامل سیستم DCS در صنایع فرایندی</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="sil-certification-instrument-guide.html"><b>گواهی SIL و استانداردهای ابزار دقیق</b><span>مرکز دانش فنی</span></a>
+</div>
+</div>
+<div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:32px">📋</span>
+    <div>
+      <b style="font-size:16px;color:#1e293b;display:block;margin-bottom:4px">درخواست استعلام فنی و استعلام قیمت تخصصی: طراحی سیستم ESD و Fire & Gas بر اساس SIL — معماری رأی‌گیری و Proof Test</b>
+      <span style="font-size:13px;color:#475569">کارشناسان فنی پیشرو تجهیز فرتاک آماده بررسی MTO و مشخصات فنی پروژه شما هستند.</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a href="../rfq/?item=%D8%AA%D8%AC%D9%87%DB%8C%D8%B2%D8%A7%D8%AA%20ESD%20%D9%88%20Fire%20and%20Gas%20%D8%A8%D8%A7%20%DA%AF%D9%88%D8%A7%D9%87%DB%8C%20SIL" class="cro-btn" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:14px;box-shadow:0 6px 20px rgba(239,75,26,0.25);transition:.2s">ثبت استعلام هوشمند قیمت ←</a>
+    <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
+  </div>
+</div>
+</div>
+<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px; object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;">• سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;">• رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;">• ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;">• مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;">• مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;">🔐 ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+</body>
+</html>

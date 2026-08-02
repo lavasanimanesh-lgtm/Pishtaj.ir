@@ -14,13 +14,17 @@
   function chPersonalAll(){ try{return JSON.parse(localStorage.getItem(chPersonalKey())||'[]')}catch(e){return[]} }
   // v31.7.4 BUG-AUDIT-007 FIXED: Add ownership filter to prevent personal cheques from leaking into company reports
   function chAll() { 
-    var company = getData(K) || [];
-    var personal = chPersonalAll();
-    // Filter: company cheques should not include personal ownership
-    var filteredCompany = company.filter(function(c) { 
+    /* CHQ-MOD-001: اگر ماژول مستقل چک موجود است، نمای یکپارچه (issued+received+legacy) خوانده می‌شود.
+       چک‌های شخصی همچنان جدا (کلید شخصی) و به همین خروجی اضافه می‌شوند. */
+    if (typeof window.ptfChequeAll === 'function') {
+      var company = window.ptfChequeAll().filter(function (c) { return !c || c.ownership !== 'personal'; });
+      return company.concat(chPersonalAll());
+    }
+    var companyLegacy = getData(K) || [];
+    var filteredCompany = companyLegacy.filter(function(c) { 
       return !c || c.ownership !== 'personal'; 
     });
-    return filteredCompany.concat(personal); 
+    return filteredCompany.concat(chPersonalAll()); 
   }
   function chMine() {
     var me = (curSession() || {}).user || '';
@@ -58,11 +62,11 @@
     } catch (eDelta) {}
     // v30.0.1 server guard: company cheque only chairman/ceo/commercial
     try {
-      var canCompany = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
+      var canCompany = (function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
       if(!canCompany){
         var hasCompany=false;
         l.forEach(function(c){ if(c.ownership==='company'){ hasCompany=true; c.ownership='personal'; } });
-        if(hasCompany){ alert('⛔ فقط رییس هیات مدیره و مدیرعامل می‌توانند چک شرکتی ثبت کنند'); }
+        if(hasCompany){ alert('⛔ فقط ادمین، رییس هیات مدیره، مدیرعامل و مدیر بازرگانی می‌توانند چک شرکتی ثبت کنند'); }
       }
     } catch(e){}
     var me=(curSession()||{}).user||''; var company=l.filter(function(c){return c.ownership!=='personal';}); var mine=l.filter(function(c){return c.ownership==='personal' && c.by===me;});
@@ -93,6 +97,8 @@
   };
   // auto-migrate on boot
   try { window.chMigratePersonal(); } catch(e){}
+  /* CHQ-MOD-001: مهاجرت نرم چک‌ها به دو کلید صادره/وارده (یک‌باره، بدون حذف) */
+  try { if (typeof window.ptfChequeSplitMigrate === 'function') window.ptfChequeSplitMigrate(); } catch (eChq) {}
 
   function chDaysTo(iso) {
     try { return Math.ceil((new Date(iso) - new Date(new Date().toISOString().slice(0, 10))) / 86400000); } catch (e) { return 999; }
@@ -117,6 +123,9 @@
   function chUpsertReminder(rec) {
     try {
       /* v25.4: چک ضمانت/سپرده یادآور سررسید ندارد */
+      /* CHQ-MOD-001: چک‌های وارده (direction=received) هم یادآور سررسید دارند؛
+         فقط چک‌های شخصی/ضمانت/انتقال‌یافته/ابطال از یادآور مستثنی‌اند */
+      var isReceived = rec.direction === 'received';
       if (!rec || rec.ownership === 'personal' || rec.kind === 'guarantee' || rec.reminderDisabled || rec.ownership === 'third_party' || rec.st === 'transferred' || rec.st === 'voided_transfer' || rec.st === 'void') {
         if (rec && rec.remCd) chFinishReminder(rec, true);
         if (rec) { rec.remCd = ''; }
@@ -126,8 +135,8 @@
       var rems = getData('ptf_crm_reminders');
       var r = rec.remCd ? rems.filter(function (x) { return x.cd === rec.remCd; })[0] : null;
       var payload = {
-        title: 'سررسید چک صادره ' + (rec.sayad || rec.no || ''),
-        topic: 'سررسید چک صادره',
+        title: (isReceived ? 'سررسید چک وارده ' : 'سررسید چک صادره ') + (rec.sayad || rec.no || ''),
+        topic: isReceived ? 'سررسید چک وارده' : 'سررسید چک صادره',
         dueISO: rec.dueISO,
         dueFa: rec.dueFa || (typeof ptfISOToJ === 'function' ? ptfISOToJ(rec.dueISO) : rec.dueISO),
         dueTime: '', pri: 'متوسط',
@@ -205,64 +214,24 @@
     if (typeof ptfToast === 'function') ptfToast('🏆 چک ضمانت با موفقیت استرداد شد', 'ok');
   };
 
-  window._chFilterKind = window._chFilterKind || 'all';
-  window.chSetFilterKind = function (k) { window._chFilterKind = k; refreshBox(); };
-
-  function chBoxHtml() {
-    var my = chMine();
-    var numFin = my.filter(function(c){ return c.kind !== 'guarantee' && c.st !== 'cleared'; }).length;
-    var numGuar = my.filter(function(c){ return c.kind === 'guarantee' && c.st !== 'retrieved'; }).length;
-    var ft = window._chFilterKind || 'all';
-    var list = my.filter(function (c) {
-      if (ft === 'fin' && c.kind === 'guarantee') return false;
-      if (ft === 'guar' && c.kind !== 'guarantee') return false;
-      return c.kind === 'guarantee' ? c.st !== 'retrieved' : (c.st !== 'cleared' && c.st !== 'transferred' && c.st !== 'voided_transfer' && c.st !== 'void' && c.ownership !== 'third_party');
-    });
-    list.sort(function (a, b) { return (a.dueISO || '') < (b.dueISO || '') ? -1 : 1; });
-    var rows = list.map(function (c) {
-      var d = chDaysTo(c.dueISO);
-      var cl = d < 0 ? '#dc2626' : d <= 7 ? '#f59e0b' : '#0ea5e9';
-      var lb = d < 0 ? 'سررسید گذشته (' + Math.abs(d) + ' روز)' : d === 0 ? 'سررسید امروز!' : d + ' روز مانده';
-      return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:8px 12px;border:1px solid var(--brd);border-right:4px solid ' + cl + ';border-radius:10px;margin-bottom:6px;font-size:12.5px;flex-wrap:wrap">' +
-        '<span>' + chKindLabel(c) + ' <b dir="ltr">' + escP(c.sayad || c.no) + '</b> — ' + escP(c.toWhom || '-') + ' — <b>' + (+c.amt).toLocaleString('fa-IR') + ' ریال</b>' +
-        (c.dealCd ? ' <small style="color:#7c3aed">📁 ' + escP(c.dealLabel || c.dealCd) + '</small>' : '') +
-        '<br><small style="color:#64748b">بانک: ' + escP((c.bank || '-') + (c.branch ? ' / ' + c.branch : '')) +
-        (c.kind === 'guarantee' ? (c.dueFa || c.dueISO ? ' | تاریخ: ' + escP(c.dueFa || c.dueISO) : ' | بدون سررسید مالی') : (' | سررسید: ' + escP(c.dueFa || c.dueISO || '—') + ' — <b style="color:' + cl + '">' + lb + '</b>')) +
-        (c.beneficiaryId ? ' | شناسه/کدملی: ' + escP(c.beneficiaryId) : '') + (c.note ? ' | ' + escP(c.note) : '') + '</small></span>' +
-        '<span style="white-space:nowrap">' + chRowActions(c) + '</span></div>';
-    }).join('');
-    var cleared = my.filter(function (c) { return c.st === 'cleared'; }).length;
-    var voidRows = my.filter(function(c){return c.st==='void'||c.st==='voided_transfer';}).map(function(c){return '<div style="font-size:11px;color:#64748b;padding:4px 0">🗑 ابطال‌شده: <b dir="ltr">'+escP(c.sayad||c.no)+'</b> — '+(+c.amt||0).toLocaleString('fa-IR')+' ریال</div>';}).join('');
-    return '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:14px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">' +
-      '<h4 style="margin:0;font-size:14px">🏦 چک‌های صادره (' + list.length + (ft==='guar' ? ' ضمانت' : ft==='fin' ? ' مالی' : ' باز') + (cleared && ft!=='guar' ? ' / ' + cleared + ' پاس‌شده' : '') + ')</h4>' +
-      '<div style="display:flex;gap:6px;margin:8px 0 10px;flex-wrap:wrap">' +
-      '<button type="button" class="' + (ft==='all'?'bt':'bt bt-o') + '" style="font-size:11.5px;padding:4px 10px" onclick="chSetFilterKind(\'all\')">همه</button>' +
-      '<button type="button" class="' + (ft==='fin'?'bt':'bt bt-o') + '" style="font-size:11.5px;padding:4px 10px" onclick="chSetFilterKind(\'fin\')">💰 مالی (' + numFin + ')</button>' +
-      '<button type="button" class="' + (ft==='guar'?'bt':'bt bt-o') + '" style="font-size:11.5px;padding:4px 10px" onclick="chSetFilterKind(\'guar\')">🛡️ ضمانت (' + numGuar + ')</button></div>' +
-      '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="bt" style="font-size:12px" onclick="chNew()">+ ثبت تکی</button>' +
-      '<button class="bt" style="font-size:12px;background:#0e7490" onclick="chBatchFillOpen()">🧾 ثبت دسته‌ای + چاپ</button>' +
-      '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="chBulkPrint()">🖨 چاپ چندتایی</button>' +
-      '<button class="bt bt-o" style="font-size:12px" onclick="chPrintLayoutOpen()">📐 کالیبره چاپ</button>' +
-      '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="chAiOpen()">🤖 دستیار چک</button></span></div>' +
-      '<div style="font-size:11.5px;color:#475569;margin-bottom:8px;line-height:1.8">🧾 <b>ثبت دسته‌ای + چاپ:</b> تاریخ/ذی‌نفع/مبلغ را در جدول بزنید و چند برگه چک را یک‌جا در پرینتر چاپ کنید (بدون نوشتن دستی).<br>⏰ فقط چک‌های <b>مالی</b> یادآور سررسید می‌گیرند؛ چک <b>ضمانت/سپرده</b> بدون یادآور است و قابل لینک به پرونده فروش.</div>' +
-      (rows || '<div style="color:#94a3b8;font-size:12px">چکی ثبت نشده</div>') + (voidRows ? '<details style="margin-top:8px"><summary>تاریخچه چک‌های ابطال‌شده</summary>'+voidRows+'</details>' : '') + '</div>';
-  }
+  /* CHQ-PRINT (v33.6.0، مصوب کارفرما): باکس چک‌های صادره (ثبت تکی/دسته‌ای/چاپ)
+     از ماژول شخصی (پنل یادآورها) به‌طور کامل حذف شد. ثبت/مدیریت چک فقط در
+     «هاب مالی → تب چک‌ها» و چاپ فقط در ماژول مستقل «چاپ چک فیزیکی»
+     (گروه کالا و اسناد → crm/cheque-print.js) انجام می‌شود. */
 
   function chFormHtml(rec, fromAi) {
     rec = rec || {};
     var dueISO = rec.dueISO || '';
     var isG = rec.kind === 'guarantee';
     var gt = rec.guarType || 'advance';
-    var canCompany = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
+    var canCompany = (function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
     var own = rec.ownership || (canCompany ? 'company' : 'personal');
     return '<div class="md-b" id="chFormDlg" style="display:grid;z-index:1600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto">' +
       '<h3>' + (rec.cd ? '✏️ اصلاح' : '🏦 ثبت') + ' چک صیادی</h3>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;font-size:12px;color:#475569;margin-bottom:10px">چک <b>مالی</b>: یادآور سررسید ساخته می‌شود. چک <b>ضمانت/سپرده</b>: بدون یادآور؛ فقط برای پیگیری استرداد و لینک به پرونده فروش.</div>' +
       '<div class="fr"><div class="fld"><label>نوع چک *</label><select id="chKind" onchange="chKindUi()">' +
         '<option value="finance"' + (!isG ? ' selected' : '') + '>💰 چک مالی / پرداخت</option>' +
-        '<option value="guarantee"' + (isG ? ' selected' : '') + '>🛡️ چک ضمانت / سپرده</option></select></div><div class="fld"><label>مالکیت چک</label><select id="chOwnership">' + (function(){ var can=(function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })(); var opts=''; if(can) opts+='<option value="company"' + (own==='company'?' selected':'') + '>🏢 چک شرکت</option>'; opts+='<option value="personal"' + (own==='personal'?' selected':'') + '>👤 چک شخصی من</option>'; return opts; })() + '</select></div>' +
+        '<option value="guarantee"' + (isG ? ' selected' : '') + '>🛡️ چک ضمانت / سپرده</option></select></div><div class="fld"><label>مالکیت چک</label><select id="chOwnership">' + (function(){ var can=(function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })(); var opts=''; if(can) opts+='<option value="company"' + (own==='company'?' selected':'') + '>🏢 چک شرکت</option>'; opts+='<option value="personal"' + (own==='personal'?' selected':'') + '>👤 چک شخصی من</option>'; return opts; })() + '</select></div>' +
       '<div class="fld" id="chGuarTypeWrap" style="' + (isG ? '' : 'display:none') + '"><label>نوع ضمانت</label><select id="chGuarType">' +
         '<option value="advance"' + (gt==='advance'?' selected':'') + '>ضمانت پیش‌پرداخت</option>' +
         '<option value="performance"' + (gt==='performance'?' selected':'') + '>حسن انجام کار</option>' +
@@ -290,11 +259,21 @@
     var w2 = document.getElementById('chDealWrap'); if (w2) w2.style.display = g ? '' : 'none';
     var lb = document.getElementById('chDueLbl'); if (lb) lb.textContent = g ? 'تاریخ (اختیاری)' : 'تاریخ چک / سررسید (شمسی) *';
   };
-  window.chNew = function () { (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', chFormHtml()); setTimeout(function(){ try{ chKindUi(); }catch(e){} }, 0); };
-  window.chEdit = function (cd) { var rec = chFind(cd); if (!rec) return; (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', chFormHtml(rec)); setTimeout(function(){ try{ chKindUi(); }catch(e){} }, 0); };
+  window.chNew = function () {
+    /* CHQ-V2: ثبت چک دیگر از ماژول شخصی ممکن نیست — همهٔ ثبت‌ها در هاب مالی (تب چک‌ها) */
+    if (typeof ptfToast === 'function') ptfToast('ثبت چک فقط از «هاب مالی → تب چک‌ها» انجام می‌شود.', 'info');
+    else alert('ثبت چک فقط از «هاب مالی → تب چک‌ها» انجام می‌شود.');
+    try { if (typeof finHubSet === 'function') finHubSet('cheque'); } catch (e) {}
+  };
+  window.chEdit = function (cd) {
+    /* CHQ-V2: مدیریت چک‌ها در هاب مالی */
+    if (typeof ptfToast === 'function') ptfToast('مدیریت چک‌ها از «هاب مالی → تب چک‌ها» انجام می‌شود.', 'info');
+    else alert('مدیریت چک‌ها از «هاب مالی → تب چک‌ها» انجام می‌شود.');
+    try { if (typeof finHubSet === 'function') finHubSet('cheque'); } catch (e) {}
+  };
 
   window.chCollectForm = function(ex){ return chCollectForm(ex); };
-  function canCreateCompanyCheque(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} }
+  function canCreateCompanyCheque(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} }
   /* AUD-05 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
      supplier-finance.js مسیر مستقل دیگری برای ساخت چک شرکتی دارد
      (slChequeCreate، از فرم پرداخت تأمین‌کننده) که همین گیت نقش را نیاز
@@ -327,10 +306,10 @@
     var kindEl = document.getElementById('chKind');
     if (kindEl) obj.kind = (kindEl.value === 'guarantee') ? 'guarantee' : 'finance';
     else if (!obj.kind) obj.kind = 'finance';
-    var canCompany2 = (function(){ try{ var r=curRole(); return ['chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
+    var canCompany2 = (function(){ try{ var r=curRole(); return ['admin','chairman','ceo','commercial'].indexOf(r)>-1; }catch(e){return false;} })();
     obj.ownership = ((document.getElementById('chOwnership')||{}).value || (canCompany2 ? 'company' : 'personal'));
     if(obj.ownership==='company' && !canCreateCompanyCheque()){
-      alert('⛔ فقط رییس هیات مدیره و مدیرعامل (و در آینده مدیر بازرگانی) می‌توانند چک شرکتی ثبت کنند - زیرساخت برای نقش commercial فراهم است');
+      alert('⛔ فقط ادمین، رییس هیات مدیره، مدیرعامل و مدیر بازرگانی می‌توانند چک شرکتی ثبت کنند');
       obj.ownership='personal';
     }
     obj.guarType = obj.kind === 'guarantee' ? (((document.getElementById('chGuarType') || {}).value) || 'advance') : '';
@@ -774,21 +753,11 @@
   };
 
 
-  function refreshBox() {
-    var host = document.getElementById('chqBox');
-    if (host) host.innerHTML = chBoxHtml();
-  }
+  /* CHQ-PRINT (v33.6.0): باکس چک از پنل شخصی حذف شد — refreshBox فقط برای
+     سازگاری فراخوان‌های قدیمی (scoring و…) بی‌اثر نگه داشته شده است. */
+  function refreshBox() {}
 
-  /* تزریق باکس به پنل یادآورها (ماژول شخصی) */
-  function hookReminders() {
-    if (window._chqHooked || typeof window.buildReminders !== 'function') return false;
-    window._chqHooked = true;
-    var _br = window.buildReminders;
-    window.buildReminders = function () {
-      return _br() + '<div id="chqBox">' + chBoxHtml() + '</div>';
-    };
-    return true;
-  }
+  /* CHQ-PRINT (v33.6.0): هوک باکس چک به پنل یادآورها حذف شد — چک‌ها فقط در هاب مالی و چاپ فقط در ماژول چاپ چک فیزیکی. */
 
   /* ============ یادآور روزانه: از ۷ روز قبل تا سررسید، هر روز یک اعلان ============ */
   function chDailyNotify() {
@@ -1092,8 +1061,8 @@
   var tries = 0;
   var t = setInterval(function () {
     tries++;
-    var a = hookReminders(), b = hookEntityCard(), c = hookSupTabs(), d = hookSupModal();
-    if ((window._chqHooked && window._tplCardHooked && window._supTabsHooked && window._supOrgHooked) || tries > 60) {
+    var b = hookEntityCard(), c = hookSupTabs(), d = hookSupModal();
+    if ((window._tplCardHooked && window._supTabsHooked && window._supOrgHooked) || tries > 60) {
       clearInterval(t);
       chDailyNotify();
     }

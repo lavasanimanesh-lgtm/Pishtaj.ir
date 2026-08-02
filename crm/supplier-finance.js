@@ -326,7 +326,17 @@
       }
       rec.st = 'transferred'; rec.reminderDisabled = true; rec.sourceCustomerCd = sourceCd; rec.sourceInvoiceCd = invCd; rec.transferredAt = faDateTime(); rec.transferNote = 'انتقال به تامین‌کننده ' + (sup.co || '');
     }
-    checks.unshift(rec); setData('ptf_crm_cheques', checks);
+    /* CHQ-MOD-001: چک شرکت → صادره (issued)؛ چک ثالث → وارده (received) + انتقال (endorsed) */
+    if (typeof window.ptfChequeCreate === 'function') {
+      if (method === 'company_cheque') {
+        window.ptfChequeCreate('issued', rec);
+      } else {
+        rec.st = 'endorsed'; rec.reminderDisabled = true; rec.sourceCustomerCd = sourceCd; rec.sourceInvoiceCd = invCd; rec.transferredAt = faDateTime(); rec.transferNote = 'انتقال به تامین‌کننده ' + (sup.co || ''); rec.endorsedAt = rec.transferredAt; rec.endorsedBy = curSession().name; rec.endorseTo = sup.co || '';
+        window.ptfChequeCreate('received', rec);
+      }
+    } else {
+      checks.unshift(rec); setData('ptf_crm_cheques', checks);
+    }
     if (method === 'company_cheque' && typeof chUpsertReminder === 'function') chUpsertReminder(rec);
     try { audit('چک‌ها', method === 'company_cheque' ? 'ثبت چک شرکت برای پرداخت تامین‌کننده ' + sup.co : 'ثبت و انتقال چک ثالث به تامین‌کننده ' + sup.co, rec.cd); } catch (e) {}
     return { ok: true, cheque: rec };
@@ -401,7 +411,7 @@
     }
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var status = invRemain(i, d) > 0 ? 'open' : 'settled', refs = (i.legacyPayableCds || []).map(function (cd) { var p = getData('ptf_crm_payables').filter(function (x) { return x.cd === cd; })[0] || {}; return p.inqNo || cd; }).join('، ');
-      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, link: { kind: 'invoice', cd: i.cd } });
+      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, itemCount: (i.itemLinks || []).length || (i.legacyPayableCds || []).length || 0, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, link: { kind: 'invoice', cd: i.cd } });
     });
     /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
        طبق تصمیم کارفرما، پرداخت ابطال‌شده باید مثل فاکتور ابطال‌شده کاملاً از
@@ -409,7 +419,7 @@
        باقی می‌ماند. رکورد در ptf_crm_supplier_finance حفظ می‌شود (برای
        audit/رفع‌ابهام آینده)، فقط از این نمای گردش حساب حذف می‌شود. */
     (d.payments || []).filter(function (p) { return p.supplierCd === supCd && p.status !== 'void'; }).forEach(function (p) {
-      var cheque = p.chequeCd ? getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0] : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، ');
+      var cheque = p.chequeCd ? (typeof window.ptfChequeFind === 'function' ? window.ptfChequeFind(p.chequeCd) : getData('ptf_crm_cheques').filter(function (c) { return c.cd === p.chequeCd; })[0]) : null, refs = (p.allocations || []).map(function (a) { var i = (d.invoices || []).filter(function (x) { return x.cd === a.invoiceCd; })[0] || {}; return i.no || a.invoiceCd || a.legacyCd; }).join('، ');
       // v30.6.2: نمایش نام قلم برای پرداخت‌ها اگر item دارد
       var itemNm = p.item || (p.note||'').split(' - ')[0] || '';
       if(!itemNm){
@@ -429,6 +439,18 @@
       }
       if (keep(p.dateISO || '', p.cur || 'IRR', 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: (+p.amount || 0), status: 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, link: { kind: 'payment', cd: p.cd } });
     });
+    /* CHQ-MOD-001: چک‌های صادرهٔ ماژول (issued) برای همین تامین‌کننده که هنوز وصول/ابطال نشده‌اند
+       و payment لینک‌شده ندارند → ردیف گردش (بستانکار = مبلغ چک) */
+    try {
+      var issuedChq = (typeof window.ptfChequeIssued === 'function') ? window.ptfChequeIssued() : [];
+      issuedChq.forEach(function (c) {
+        if (!c || c.supplierCd !== supCd) return;
+        if (c.st !== 'open' && c.st !== 'transferred') return;
+        var payLink = (d.payments || []).some(function (p) { return p.chequeCd === c.cd; });
+        if (payLink) return; /* قبلاً در ردیف پرداخت آمده */
+        if (keep(c.dueISO || '', 'IRR', 'cheque', '')) out.push({ date: c.dueISO || '', dateFa: c.dueFa || c.dueISO || '', type: 'چک صادره (در گردش)', no: c.sayad || c.no || c.cd, ref: sup.co || '', cur: 'IRR', debit: 0, credit: (+c.amt || 0), status: 'cheque', note: (c.bank ? c.bank : ''), link: { kind: 'cheque', cd: c.cd } });
+      });
+    } catch (eChq) {}
     legacyOpen(sup || {}).filter(function (p) { return !linked[p.cd]; }).forEach(function (p) {
       var rem = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : (+p.amount || 0);
       var itemNm = p.item || p.desc || '';
@@ -453,7 +475,11 @@
     return out;
   }
   function slFiltersFromDom() { var from=((document.getElementById('slFfrom')||{}).value||''),to=((document.getElementById('slFto')||{}).value||''); if(typeof ptfJToISO==='function'){from=ptfJToISO(from)||from;to=ptfJToISO(to)||to;} return { from: from, to: to, cur: ((document.getElementById('slFcur') || {}).value || 'all'), status: ((document.getElementById('slFstatus') || {}).value || 'all'), ref: ((document.getElementById('slFref') || {}).value || '').trim() }; }
-    function slLedgerTable(rows) { return rows.map(function (e) {
+    function supplierInvoiceSummary(e) {
+    if (e.type !== 'فاکتور خرید') return '';
+    return (e.itemCount ? e.itemCount + ' قلم' : 'تعداد اقلام نامشخص') + ' — تاریخ ' + (e.dateFa || e.date || 'نامشخص');
+  }
+  function slLedgerTable(rows) { return rows.map(function (e) {
     var itemName = e.itemName || e.note || '';
     var extraInfo = e.ref || '';
     try {
@@ -476,7 +502,7 @@
     if(e.type && e.type.indexOf('legacy')>-1){
       displayRef = '<b>'+escP(e.no)+'</b><br><small style="color:#0e7490">📦 '+(itemName?escP(itemName):'بدون نام')+'</small><br><small style="color:#64748b">درخواست: '+escP(e.ref||'')+'</small>';
     } else {
-      displayRef = '<b>'+escP(e.no)+'</b>' + (e.ref ? '<br><small>'+escP(e.ref)+'</small>' : '') + (itemName ? '<br><small style="color:#0e7490">📦 '+escP(itemName)+'</small>' : '');
+      displayRef = '<b>' + (e.type === 'فاکتور خرید' ? 'فاکتور ' : '') + escP(e.no) + '</b>' + (e.type === 'فاکتور خرید' ? '<br><small style="color:#64748b">' + escP(supplierInvoiceSummary(e)) + '</small>' : (e.ref ? '<br><small>'+escP(e.ref)+'</small>' : '')) + (itemName ? '<br><small style="color:#0e7490">📦 '+escP(itemName)+'</small>' : '');
     }
     return '<tr><td>' + escP(e.dateFa) + '</td><td>' + escP(e.type) + '</td><td>' + displayRef + '</td><td>' + (e.debit ? money(e.debit) : '—') + '</td><td>' + (e.credit ? money(e.credit) : '—') + '</td><td><b>' + money(e.balance) + ' ' + escP(e.cur) + '</b></td><td>' + act + '</td></tr>';
   }).join(''); }
@@ -488,11 +514,11 @@
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.slLedgerApply = function (supCd) { var m = document.getElementById('slLedgerDlg'); if (m) m.remove(); slOpenLedger(supCd, slFiltersFromDom()); };
-  function slCsv(rows) { return '\uFEFF' + [['تاریخ','نوع','سند/مرجع','کالا','بدهکار','بستانکار','مانده','ارز']].concat(rows.map(function (e) { var item = e.itemName||e.note||''; return [e.dateFa,e.type,e.no+' '+(e.ref||''),item,e.debit||'',e.credit||'',e.balance,e.cur]; })).map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g,'""') + '"'; }).join(','); }).join('\r\n'); }
+  function slCsv(rows) { return '\uFEFF' + [['تاریخ','نوع','سند/مرجع','کالا','بدهکار','بستانکار','مانده','ارز']].concat(rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? supplierInvoiceSummary(e) : (e.ref || ''); return [e.dateFa,e.type,e.no+' '+visibleRef,item,e.debit||'',e.credit||'',e.balance,e.cur]; })).map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g,'""') + '"'; }).join(','); }).join('\r\n'); }
   window.slLedgerCsv = function (supCd) { var rows = slEventRows(supCd, slFiltersFromDom()), a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([slCsv(rows)], { type:'text/csv;charset=utf-8' })); a.download = 'supplier-ledger-' + supCd + '-' + new Date().toISOString().slice(0,10) + '.csv'; a.click(); };
   function slFaDigits(v) { return String(v == null ? '' : v).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
   function slCurFa(c) { return ({ IRR: 'ریال', USD: 'دلار', EUR: 'یورو', CNY: 'یوان', AED: 'درهم', GBP: 'پوند' })[c] || c || ''; }
-  function slPrintRows(rows) { return rows.map(function (e) { var item = e.itemName||e.note||''; return '<tr><td>' + slFaDigits(e.dateFa) + '</td><td>' + escP(e.type === 'payment' ? 'پرداخت' : e.type) + '</td><td><b>' + escP(e.no) + '</b><br><small>' + escP(e.ref || '') + '</small>' + (item ? '<br><small style="color:#0e7490">📦 '+escP(item)+'</small>' : '') + '</td><td>' + (e.debit ? slFaDigits(money(e.debit)) : '—') + '</td><td>' + (e.credit ? slFaDigits(money(e.credit)) : '—') + '</td><td><b>' + slFaDigits(money(e.balance)) + ' ' + slCurFa(e.cur) + '</b></td></tr>'; }).join(''); }
+  function slPrintRows(rows) { return rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? supplierInvoiceSummary(e) : (e.ref || ''); return '<tr><td>' + slFaDigits(e.dateFa) + '</td><td>' + escP(e.type === 'payment' ? 'پرداخت' : e.type) + '</td><td><b>' + escP(e.no) + '</b>' + (visibleRef ? '<br><small>' + escP(visibleRef) + '</small>' : '') + (item ? '<br><small style="color:#0e7490">📦 '+escP(item)+'</small>' : '') + '</td><td>' + (e.debit ? slFaDigits(money(e.debit)) : '—') + '</td><td>' + (e.credit ? slFaDigits(money(e.credit)) : '—') + '</td><td><b>' + slFaDigits(money(e.balance)) + ' ' + slCurFa(e.cur) + '</b></td></tr>'; }).join(''); }
   window.slLedgerPrint = function (supCd) { var sup=supplier(supCd), rows=slEventRows(supCd,slFiltersFromDom()), w=window.open('','_blank'); if(!w)return; w.document.write('<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>گردش حساب '+escP(sup.co||'')+'</title><style>body{font-family:Tahoma;direction:rtl;padding:20px;color:#111}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}@media print{button{display:none}}</style></head><body><h2>گردش حساب تأمین‌کننده — '+escP(sup.co||'')+'</h2><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>'+slPrintRows(rows)+'</tbody></table></body></html>'); w.document.close(); w.print(); };
 
     function box() {
@@ -539,6 +565,50 @@
     if (!locked.length) { alert('سال مالی قفل‌شده‌ای برای اصلاح وجود ندارد'); return; }
     ptfDialog({ title: '🧾 سند اصلاحی حساب تأمین‌کننده', body: 'سند اصلی سال قفل‌شده تغییر نمی‌کند؛ این رکورد با تاریخ جاری و مرجع سال قفل‌شده ثبت می‌شود.', fields: [{id:'year',label:'سال مرجع قفل‌شده',type:'select',options:locked},{id:'cur',label:'ارز',type:'select',options:['IRR','USD','EUR','CNY','AED','GBP']},{id:'amount',label:'مبلغ اصلاحی (+ افزایش بدهی / − کاهش بدهی)',type:'number',money:false,dir:'ltr',required:true},{id:'rate',label:'نرخ تسعیر (برای ارز خارجی)',type:'number',money:false,dir:'ltr'},{id:'note',label:'دلیل اصلاح *',type:'textarea',rows:2,required:true}], okText:'ثبت سند اصلاحی', onOk:function(v){ var amt=+v.amount||0, cur=v.cur||'IRR', rate=cur==='IRR'?1:(+v.rate||0); if(!amt || !v.note || (cur!=='IRR'&&!rate)){alert('مبلغ، دلیل و برای ارز خارجی نرخ الزامی است');return;} var d=data(); d.adjustments=d.adjustments||[]; var sup=supplier(supCd); var a={cd:genCode('SFADJ'),supplierCd:supCd,supName:sup?sup.co:'',refYear:v.year,cur:cur,rate:rate,amount:amt,amountIrr:cur==='IRR'?amt:Math.round(amt*rate),note:v.note,dateISO:new Date().toISOString().slice(0,10),dateFa:faDate(),status:'posted',t:faDateTime(),by:curSession().name}; d.adjustments.unshift(a);save(d);try{audit('حساب تامین','سند اصلاحی سال '+v.year+' برای '+a.supName+' — '+money(amt)+' '+cur,a.cd)}catch(e){};slOpenLedger(supCd); } });
   };
+  window.slInvoiceLinkLegacy = function (invoiceCd) {
+    var d = data(), inv = (d.invoices || []).filter(function (x) { return x.cd === invoiceCd; })[0];
+    if (!inv) return;
+    var supplierRecord = getData('ptf_crm_suppliers').filter(function (s) { return s.cd === inv.supplierCd; })[0] || {};
+    var normSupplier = function (v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); };
+    var supplierNames = [inv.supName, supplierRecord.co, supplierRecord.name].filter(Boolean).map(normSupplier);
+    var linkedToThisInvoice = {};
+    (inv.legacyPayableCds || []).forEach(function (cd) { linkedToThisInvoice[cd] = true; });
+    var pays = getData('ptf_crm_payables').filter(function (p) {
+      var sameSupplier = (inv.supplierCd && p.supplierCd && inv.supplierCd === p.supplierCd) || supplierNames.indexOf(normSupplier(p.sup || p.supName)) > -1;
+      return linkedToThisInvoice[p.cd] || (sameSupplier && (p.pay === 'credit' || p.sfInvoiceCd === invoiceCd));
+    });
+    if (!pays.length) { alert('تعهد خرید مرتبطی برای این تأمین‌کننده پیدا نشد.'); return; }
+    var checked = {};
+    (inv.legacyPayableCds || []).forEach(function (cd) { checked[cd] = true; });
+    var rows = pays.map(function (p) {
+      var owned = p.sfInvoiceCd && p.sfInvoiceCd !== invoiceCd;
+      return '<label style="display:flex;gap:8px;align-items:flex-start;padding:7px 4px;border-bottom:1px dashed #e2e8f0;' + (owned ? 'opacity:.65' : '') + '"><input type="checkbox" class="sfLegacyLink" value="' + escP(p.cd) + '"' + (checked[p.cd] ? ' checked' : '') + '><span><b>' + escP(p.item || p.desc || 'تعهد خرید') + '</b><br><small>' + escP(p.cd) + ' — ' + escP(p.inqNo || '') + ' — ' + money(p.amount) + ' ' + escP(p.cur || 'IRR') + (owned ? ' — متصل به فاکتور دیگر' : '') + '</small></span></label>';
+    }).join('');
+    var html = '<div class="md-b" id="sfLinkDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px"><h3>🧷 اصلاح لینک فاکتور ' + escP(inv.no || inv.cd) + '</h3><div style="font-size:12px;color:#64748b;margin-bottom:8px">فقط رابطهٔ فاکتور با تعهدهای خرید تغییر می‌کند؛ مبلغ فاکتور و مبلغ تعهدها تغییر نمی‌کند.</div><div style="max-height:360px;overflow:auto">' + rows + '</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="slInvoiceLinkLegacySave(\'' + escP(invoiceCd) + '\')">ذخیره لینک‌ها</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.slInvoiceLinkLegacySave = function (invoiceCd) {
+    var d = data(), inv = (d.invoices || []).filter(function (x) { return x.cd === invoiceCd; })[0];
+    if (!inv) return;
+    var selected = {};
+    document.querySelectorAll('#sfLinkDlg .sfLegacyLink:checked').forEach(function (x) { selected[x.value] = true; });
+    var pays = getData('ptf_crm_payables'), linked = [];
+    pays.forEach(function (p) {
+      if (selected[p.cd]) {
+        d.invoices.forEach(function (other) { other.legacyPayableCds = (other.legacyPayableCds || []).filter(function (cd) { return cd !== p.cd || other.cd === invoiceCd; }); });
+        p.sfInvoiceCd = invoiceCd;
+        linked.push(p.cd);
+      } else if (p.sfInvoiceCd === invoiceCd) {
+        delete p.sfInvoiceCd;
+      }
+    });
+    inv.legacyPayableCds = linked;
+    setData('ptf_crm_payables', pays);
+    save(d);
+    try { audit('حساب تامین', 'اصلاح لینک فاکتور ' + (inv.no || inv.cd) + ' — ' + linked.length + ' تعهد', invoiceCd); } catch (e) {}
+    var dlg = document.getElementById('sfLinkDlg'); if (dlg) dlg.remove();
+    slReconcileOpen(inv.supplierCd);
+  };
   window.slReconcileOpen = function (supCd) {
     var d = data(), sup = supplier(supCd) || {}, allPayables = getData('ptf_crm_payables') || [];
     var invs = activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; });
@@ -550,7 +620,7 @@
     var rows = invs.map(function (i) {
       var ps = allPayables.filter(function (p) { return (i.legacyPayableCds || []).indexOf(p.cd) > -1; });
       var legacy = ps.reduce(function (s, p) { return s + (+p.amount || 0); }, 0), diff = (+i.amountIrr || +i.amount || 0) - legacy;
-      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + (Math.abs(diff) <= 1 ? '<span style="color:#059669">✓ منطبق</span>' : '<span style="color:#dc2626">⚠️ اختلاف ' + money(diff) + ' ریال</span>') + '</td></tr>';
+      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + (Math.abs(diff) <= 1 ? '<span style="color:#059669">✓ منطبق</span>' : '<span style="color:#dc2626">⚠️ اختلاف ' + money(diff) + ' ریال</span>') + '<br><button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="slInvoiceLinkLegacy(\'' + escP(i.cd) + '\')">🧷 اصلاح لینک</button></td></tr>';
     }).join('');
     var unlinked = legacyOpen(sup).filter(function (p) { return !p.sfInvoiceCd && !linkedIds[p.cd]; });
     var unlinkedIrr = unlinked.reduce(function (s, p) { return s + (+p.amount || 0); }, 0);
@@ -566,7 +636,7 @@
   window.slInvoiceForm=function(supCd){_slInvForm267(supCd);slJalali('slInvDate');var l=document.querySelector('#slInvDlg label');if(l&&l.textContent.indexOf('تاریخ')>-1)l.textContent='شماره فاکتور *';var ds=document.querySelectorAll('#slInvDlg label');ds.forEach(function(x){if(x.textContent.indexOf('تاریخ فاکتور')>-1)x.textContent='تاریخ فاکتور (شمسی) *';});};
   var _slPayForm267=window.slPaymentForm;
   window.slPaymentForm=function(supCd,cur){_slPayForm267(supCd,cur);slJalali('slPayDate');slJalali('slChDue');document.querySelectorAll('#slPayDlg label').forEach(function(x){if(x.textContent.indexOf('تاریخ پرداخت')>-1)x.textContent='تاریخ پرداخت (شمسی) *';if(x.textContent.indexOf('تاریخ سررسید')>-1)x.textContent='تاریخ سررسید (شمسی) *';});};
-  window.slInvoiceEdit=function(cd){var d=data(),i=(d.invoices||[]).filter(function(x){return x.cd===cd})[0];if(!i)return;ptfDialog({title:'✏️ ویرایش فاکتور خرید '+escP(i.no),fields:[{id:'no',label:'شماره فاکتور',value:i.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',value:i.dateFa||i.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:i.amount,dir:'ltr',required:true},{id:'note',label:'یادداشت',type:'textarea',value:i.note||''}],okText:'ذخیره',onOk:function(v){var iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date,amt=+v.amount||0;if(!v.no||!iso||amt<invPaid(i,d)){alert('شماره، تاریخ و مبلغ معتبر (حداقل برابر پرداخت تخصیص‌یافته) الزامی است');return;}i.no=v.no;i.dateISO=iso;i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso;i.amount=amt;i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0));i.note=v.note||'';save(d);try{audit('فاکتور خرید تامین','ویرایش فاکتور '+i.no,cd)}catch(e){};slOpenLedger(i.supplierCd);}});};
+  window.slInvoiceEdit=function(cd){var d=data(),i=(d.invoices||[]).filter(function(x){return x.cd===cd})[0];if(!i)return;ptfDialog({title:'✏️ ویرایش فاکتور خرید '+escP(i.no),fields:[{id:'no',label:'شماره فاکتور',value:i.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',value:i.dateFa||i.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:i.amount,dir:'ltr',required:true},{id:'isOfficial',label:'نوع فاکتور خرید',type:'select',optionsHtml:'<option value=""' + (!Object.prototype.hasOwnProperty.call(i,'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (i.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (i.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>'},{id:'note',label:'یادداشت',type:'textarea',value:i.note||''}],okText:'ذخیره',onOk:function(v){var oldOfficial=Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null,iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date,amt=+v.amount||0;if(!v.no||!iso||amt<invPaid(i,d)){alert('شماره، تاریخ و مبلغ معتبر (حداقل برابر پرداخت تخصیص‌یافته) الزامی است');return;}i.no=v.no;i.dateISO=iso;i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso;i.amount=amt;i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0));i.note=v.note||'';if(v.isOfficial==='yes')i.isOfficial=true;else if(v.isOfficial==='no')i.isOfficial=false;else delete i.isOfficial;save(d);try{audit('فاکتور خرید تامین','ویرایش فاکتور '+i.no+(oldOfficial!== (Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null)?' — تغییر نوع سند':'') ,cd)}catch(e){};slOpenLedger(i.supplierCd);}});};
   window.slPaymentEdit=function(cd){var d=data(),p=(d.payments||[]).filter(function(x){return x.cd===cd})[0];if(!p)return;ptfDialog({title:'✏️ ویرایش پرداخت',fields:[{id:'date',label:'تاریخ پرداخت (شمسی)',value:p.dateFa||p.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ پرداخت',type:'number',money:false,value:p.amount,dir:'ltr',required:true},{id:'note',label:'شرح',type:'textarea',value:p.note||''}],okText:'ذخیره',onOk:function(v){var iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date,amt=+v.amount||0,min=(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);if(!iso||amt<min){alert('مبلغ نباید از مجموع تخصیص‌ها کمتر باشد');return;}p.dateISO=iso;p.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso;p.amount=amt;p.amountIrr=p.cur==='IRR'?amt:Math.round(amt*(+p.rate||0));p.unallocated=Math.max(0,amt-min);p.note=v.note||'';save(d);try{audit('پرداخت تامین','ویرایش پرداخت '+cd,cd)}catch(e){};slOpenLedger(p.supplierCd);}});};
   function slAttach(kind,cd){var html='<div class="md-b" id="slAttachDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 افزودن سند</h3><div id="slAttachWrap"></div><div style="text-align:left;margin-top:9px"><button class="bt" onclick="document.getElementById(\'slAttachDlg\').remove()">تمام</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);attachUploadWidget('slAttachWrap','supplier-finance/'+kind+'/'+cd,function(f){var d=data(),r=(kind==='invoice'?d.invoices:d.payments).filter(function(x){return x.cd===cd})[0];if(!r)return;r.files=r.files||[];r.files.push(f);save(d);try{audit('حساب تامین','افزودن پیوست '+kind,cd)}catch(e){};if(typeof ptfToast==='function')ptfToast('پیوست ذخیره شد','ok');});}
   window.slInvoiceAddFile=function(cd){slAttach('invoice',cd)};window.slPaymentAddFile=function(cd){slAttach('payment',cd)};
@@ -606,18 +676,35 @@
       return String(a.co).localeCompare(String(b.co), 'fa');
     });
   };
-  window.slFinanceHubHtml = function () {
+  window.slFinanceRowsRender = function () {
+    var tbl = document.getElementById('slFinanceTbl');
+    if (tbl) tbl.innerHTML = window.slFinanceHubBodyHtml();
+  };
+  window.slFinanceHubBodyHtml = function () {
     var q = String(window._slFinanceSearch || ''), all = window.slAccountRows(''), rows = window.slAccountRows(q);
-    var openN = all.filter(function (x) { return x.open; }).length;
+    /* UR-2026-08-01-07: سورت ستون‌ها (تأمین‌کننده/مانده) */
+    if (window.ptfRegisterSortable) window.ptfRegisterSortable('slf', {
+      getters: { co: function (x) { return x.co || ''; }, exposure: function (x) { return x.exposure || 0; } },
+      render: window.slFinanceRowsRender
+    });
+    rows = (typeof window.ptfSorted === 'function') ? window.ptfSorted('slf', rows) : rows;
     var body = rows.map(function (x) {
       return '<tr' + (x.open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(x.co || '') + '</b><br><small style="direction:ltr;color:#94a3b8">' + escP(x.cd || '') + '</small></td><td>' + (x.balance.length ? balanceHtml(x.cd) : '<span style="color:#64748b">مانده ندارد</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + escP(x.cd) + '\')">گردش حساب</button></td></tr>';
     }).join('');
-    return '<div id="slFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🏭 حساب تأمین‌کنندگان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر، ابتدا نمایش داده می‌شود.</small></div><input id="slFinanceSearch" value="' + escP(q) + '" oninput="slFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد تأمین‌کننده" style="min-width:240px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده/اعتبار</th><th></th></tr></thead><tbody>' + (body || '<tr><td colspan="3">موردی مطابق جست‌وجو نیست</td></tr>') + '</tbody></table></div><div style="margin-top:10px"><input id="slChkDiag" placeholder="شماره چک برای تشخیص" style="direction:ltr"><button class="bt bt-o" onclick="slChequeDiag()">تشخیص چک</button><div id="slChkDiagOut"></div></div></div>';
+    return body || '<tr><td colspan="3">موردی مطابق جست‌وجو نیست</td></tr>';
+  };
+  window.slFinanceHubHtml = function () {
+    var q = String(window._slFinanceSearch || ''), all = window.slAccountRows('');
+    var openN = all.filter(function (x) { return x.open; }).length;
+    return '<div id="slFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🏭 حساب تأمین‌کنندگان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر، ابتدا نمایش داده می‌شود.</small></div><input id="slFinanceSearch" value="' + escP(q) + '" oninput="slFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد تأمین‌کننده" style="min-width:240px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr>' +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('slf', 'co', 'تأمین‌کننده') : '<th>تأمین‌کننده</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('slf', 'exposure', 'مانده/اعتبار') : '<th>مانده/اعتبار</th>') + '<th></th>' +
+      '</tr></thead><tbody id="slFinanceTbl">' + window.slFinanceHubBodyHtml() + '</tbody></table></div><div style="margin-top:10px"><input id="slChkDiag" placeholder="شماره چک برای تشخیص" style="direction:ltr"><button class="bt bt-o" onclick="slChequeDiag()">تشخیص چک</button><div id="slChkDiagOut"></div></div></div>';
   };
   window.slFinanceSearch = function (v) {
     window._slFinanceSearch = String(v || '');
-    var el = document.getElementById('slFinanceHubBox');
-    if (el) el.outerHTML = window.slFinanceHubHtml();
+    /* UR-2026-08-01-02 (هم‌خانواده): فقط tbody به‌روز می‌شود تا فوکوس کادر جستجو حفظ شود. */
+    window.slFinanceRowsRender();
   };
   window.slChequeDiag=function(){var no=((document.getElementById('slChkDiag')||{}).value||'').trim(),c=getData('ptf_crm_cheques').filter(function(x){return String(x.sayad||x.no||'')===no;})[0],o=document.getElementById('slChkDiagOut');if(!o)return;if(!c){o.textContent='چک یافت نشد';return;}var d=data(),p=(d.payments||[]).filter(function(x){return x.cd===c.supplierPaymentCd;})[0];o.innerHTML='<div style="margin-top:8px;font-size:12px">وضعیت چک: <b>'+escP(c.st||'open')+'</b> | مالکیت: <b>'+escP(c.ownership||'نامشخص')+'</b> | پرداخت مرتبط: <b>'+escP(p?p.status:'ندارد')+'</b></div>';};
   var _slPetty275=window.buildPetty; if(typeof _slPetty275==='function'){window.buildPetty=function(){return _slPetty275()+ (typeof window.slFinanceHubHtml==='function'?window.slFinanceHubHtml():'');};}
@@ -674,4 +761,40 @@
       return _delInv(cd);
     };
   }
+  /* Read-only audit: operational purchases vs supplier ledger. No writes/deletes. */
+  window.slLegacyFinanceAudit = function () {
+    var buycmp = getData('ptf_crm_buycmp') || [];
+    var payables = getData('ptf_crm_payables') || [];
+    var sf = data();
+    var invoices = sf.invoices || [], payments = sf.payments || [];
+    var purchases = [];
+    buycmp.forEach(function (c) {
+      (c.purchases || []).forEach(function (p) {
+        var item = (c.items || [])[p.idx] || {};
+        purchases.push({ purchaseCd: p.cd || '', cmpId: c.id || '', inqNo: c.inqNo || '', idx: p.idx, item: item.nm || item.name || item.desc || '', supplier: p.sup || '', amount: (+p.price || 0) * (+p.qty || +item.qty || 1), sourceInvoiceCd: p.supplierInvoiceCd || p.invoiceCd || '' });
+      });
+    });
+    var purchaseByCd = {};
+    purchases.forEach(function (p) { if (p.purchaseCd) purchaseByCd[p.purchaseCd] = p; });
+    var explicitAutoInvoices = invoices.filter(function (i) { return !!i.sourcePurchaseCd; }).map(function (i) {
+      return { invoiceCd: i.cd, invoiceNo: i.no, sourcePurchaseCd: i.sourcePurchaseCd, existsInBuycmp: !!purchaseByCd[i.sourcePurchaseCd], status: i.status || 'open', amount: +i.amountIrr || +i.amount || 0 };
+    });
+    var explicitAutoPayments = payments.filter(function (p) { return !!p.sourcePurchaseCd; }).map(function (p) {
+      return { paymentCd: p.cd, sourcePurchaseCd: p.sourcePurchaseCd, existsInBuycmp: !!purchaseByCd[p.sourcePurchaseCd], status: p.status || 'posted', amount: +p.amountIrr || +p.amount || 0 };
+    });
+    var candidates = payables.filter(function (p) {
+      return !p.sfInvoiceCd && purchases.some(function (buy) {
+        return (p.inqNo && p.inqNo === buy.inqNo && (+p.idx === +buy.idx)) || (p.inqNo && p.inqNo === buy.inqNo && Math.abs((+p.amount || 0) - buy.amount) <= 1 && String(p.sup || '').trim() === String(buy.supplier || '').trim());
+      });
+    }).map(function (p) {
+      return { payableCd: p.cd, inqNo: p.inqNo, item: p.item || '', supplier: p.sup || '', amount: +p.amount || 0, confidence: 'candidate — نیازمند تایید دستی' };
+    });
+    var unlinkedLegacy = payables.filter(function (p) { return p.pay === 'credit' && !p.settled && !p.sfInvoiceCd && candidates.every(function (c) { return c.payableCd !== p.cd; }); }).map(function (p) {
+      return { payableCd: p.cd, inqNo: p.inqNo, item: p.item || '', supplier: p.sup || '', amount: +p.amount || 0 };
+    });
+    var report = { readOnly: true, operationalPurchaseCount: purchases.length, operationalPurchases: purchases, explicitAutoInvoiceCount: explicitAutoInvoices.length, explicitAutoInvoices: explicitAutoInvoices, orphanAutoInvoices: explicitAutoInvoices.filter(function (i) { return !i.existsInBuycmp; }), explicitAutoPaymentCount: explicitAutoPayments.length, explicitAutoPayments: explicitAutoPayments, candidateLegacyPayablesCount: candidates.length, candidateLegacyPayables: candidates, unlinkedLegacyPayablesCount: unlinkedLegacy.length, unlinkedLegacyPayables: unlinkedLegacy, note: 'این گزارش فقط خواند؛ هیچ رکوردی را تغییر نداد.' };
+    console.table({ operationalPurchases: report.operationalPurchaseCount, autoInvoices: report.explicitAutoInvoiceCount, orphanAutoInvoices: report.orphanAutoInvoices.length, autoPayments: report.explicitAutoPaymentCount, candidateLegacyPayables: report.candidateLegacyPayablesCount, unlinkedLegacyPayables: report.unlinkedLegacyPayablesCount });
+    console.log(JSON.stringify(report, null, 2));
+    return report;
+  };
 })();

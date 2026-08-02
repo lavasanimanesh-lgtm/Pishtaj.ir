@@ -88,7 +88,7 @@
     // US-137 AC2: «مشتریان» (cust) از سیستم به فروش منتقل شد
     { id: 'g-sales', lb: '💼 فروش', items: ['leads', 'cust', 'rfq', 'off', 'deals'] },
     { id: 'g-supply', lb: '🛒 تامین', items: ['sup', 'rfqs'] }, // v13.7 US-336: buyq حذف — ادغام در درخواست تامین
-    { id: 'g-goods', lb: '📦 کالا و اسناد', items: ['prod', 'surplus', 'prj', 'let', 'cnt'] }, /* v31.7.18 BUG-NAV-ORPHAN-001: surplus از v31.7.3 در آکاردئون جا مانده بود */
+    { id: 'g-goods', lb: '📦 کالا و اسناد', items: ['prod', 'surplus', 'chqprint', 'prj', 'let', 'cnt'] }, /* v33.6.0 CHQ-PRINT: «چاپ چک فیزیکی» به گروه کالا و اسناد اضافه شد */
     { id: 'g-fin', lb: '💰 مالی', items: ['inv', 'recv', 'petty', 'anl'] }, // v14.0 BUG-014: fin قدیمی هم حذف (v13.9: orders)
     { id: 'g-me', lb: '👤 شخصی', items: ['rem'] },
     { id: 'g-sys', lb: '⚙️ سیستم', items: ['sms', 'cms', 'rep', 'users', 'set'] }

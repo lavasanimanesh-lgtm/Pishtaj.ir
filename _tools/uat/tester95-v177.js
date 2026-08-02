@@ -84,12 +84,15 @@ global.ptfToast = function () {};
   var all = getData('ptf_crm_opex');
   T('اعمال قالب: هزینه ماه جاری با tplId ثبت شد', all.some(function (x) { return x.tplId === 'TPL-1' && x.month === nowM; }));
   T('پس از ثبت، دیگر pending نیست', ptfOpexPendingTpls(nowM).length === 0);
-  /* انصراف = ثبت نشدن */
+  /* template قدیمی: Cancel = غیررسمی و انتخاب در خود template ماندگار می‌شود */
   saveTpls(tpls().concat([{ id: 'TPL-2', cat: 'بیمه', amt: 9000000 }]));
-  global.confirm = function () { return false; };
+  var confirmCalls = 0;
+  global.confirm = function () { return ++confirmCalls === 1; };
   var before = getData('ptf_crm_opex').length;
   ptfOpexApplyTpl('TPL-2');
-  T('انصراف از قالب: هیچ ثبتی نشد (قاعده ایمنی)', getData('ptf_crm_opex').length === before);
+  var after = getData('ptf_crm_opex');
+  var legacyTpl = tpls().filter(function (x) { return x.id === 'TPL-2'; })[0];
+  T('قالب قدیمی: Cancel آن را غیررسمی ثبت و ذخیره می‌کند', after.length === before + 1 && after[0].isOfficial === false && legacyTpl.isOfficial === false);
 })();
 
 SECTION('رگرسیون');

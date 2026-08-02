@@ -35,6 +35,53 @@
   }
   function activeShares() { return shAll().filter(function (s) { return s.active !== false; }); }
   function pctSum(exceptCd) { return activeShares().reduce(function (sum, s) { return sum + (s.cd === exceptCd ? 0 : (+s.pct || 0)); }, 0); }
+  /* v33.7.0 BUG-FIX (حقوق ۱۳۰ → ۹۰): سهامدار موظف جدید در ماه جاری حقوقش ثبت نمی‌شد
+     (syncSalaryTxForMonth فقط رکورد موجود را آپدیت می‌کرد و در ptfShareEdit برای
+     سهامدار جدید اصلاً صدا زده نمی‌شد). این تابع «اطمینان از وجود» است:
+     اگر tx حقوق ماه موجود نبود → ایجاد + هزینه حقوق؛ اگر بود و مبلغ فرق داشت → آپدیت.
+     خروجی: {found, changed, created, removed, txCd} */
+  function ensureSalaryTxForMonth(sh, month) {
+    month = normMonth(month) || faMonthNow();
+    var out = { found: false, changed: false, created: false, removed: false, txCd: '' };
+    if (!sh || sh.active === false) return out;
+    var txs = txAll();
+    var hit = txs.filter(function (x) { return x.type === 'salary' && x.shCd === sh.cd && x.month === month; })[0];
+    if (sh.duty && (+sh.salary || 0) > 0) {
+      if (hit) {
+        out.found = true; out.txCd = hit.cd;
+        if ((+hit.amt || 0) !== (+sh.salary || 0)) {
+          hit.amt = +sh.salary || 0;
+          hit.desc = 'حقوق موظف ماه ' + month;
+          hit.updatedT = faDateTime(); hit.updatedBy = nm();
+          txSave(txs);
+          var opx = oAll();
+          var ox = opx.filter(function (o) { return o.shareTx === hit.cd; })[0];
+          if (ox) { ox.amt = +sh.salary || 0; ox.month = month; ox.desc = 'حقوق موظف سهامدار: ' + sh.name; ox.updatedT = faDateTime(); ox.updatedBy = nm(); oSave(opx); }
+          out.changed = true;
+        }
+        return out;
+      }
+      var tx = addTx('salary', sh, sh.salary, 'حقوق موظف ماه ' + month, { month: month });
+      var opx2 = oAll();
+      if (!opx2.some(function (o) { return o.shareTx === tx.cd; })) {
+        opx2.unshift({ cd: genCode('OPX'), cat: 'حقوق و دستمزد', amt: +sh.salary || 0, month: month, desc: 'حقوق موظف سهامدار: ' + sh.name, t: faDateTime(), by: nm(), shareTx: tx.cd, shareholderSalary: true });
+        oSave(opx2);
+      }
+      out.created = true; out.txCd = tx.cd;
+      return out;
+    }
+    /* غیرموظف/صفر شد → حذف حقوق ماه (اگر وجود داشت) */
+    if (hit) {
+      txs = txs.filter(function (x) { return x.cd !== hit.cd; });
+      txSave(txs);
+      var opx3 = oAll();
+      opx3 = opx3.filter(function (o) { return o.shareTx !== hit.cd; });
+      oSave(opx3);
+      out.removed = true; out.txCd = hit.cd;
+    }
+    return out;
+  }
+  window.ptfShareEnsureSalary = ensureSalaryTxForMonth;
   function syncSalaryTxForMonth(sh, month) {
     month = normMonth(month) || faMonthNow();
     var txs = txAll();
@@ -129,10 +176,14 @@
         rec.name = v.name; rec.pct = pct; rec.duty = v.duty === 'yes'; rec.salary = rec.duty ? n(v.salary) : 0; rec.active = v.active !== 'no'; rec.updatedBy = nm(); rec.updatedT = faDateTime();
         if (old) a = a.map(function (x) { return x.cd === rec.cd ? rec : x; }); else a.unshift(rec);
         shSave(a);
-        var sync = (old && (prevSalary !== rec.salary || prevDuty !== rec.duty)) ? syncSalaryTxForMonth(rec, month) : { found: false, changed: false };
+        /* v33.7.0 BUG-FIX (ریشهٔ ۱۳۰→۹۰): برای سهامدار جدید هم حقوق ماه جاری همان‌لحظه
+           ایجاد می‌شود؛ برای تغییر حقوق/موظف → آپدیت؛ برای غیرموظف‌شدن → حذف از ماه جاری. */
+        var sync = ensureSalaryTxForMonth(rec, month);
         audit('سهامداران', (old ? 'ویرایش ' : 'ثبت ') + rec.name + ' — ' + rec.pct + '٪' + (old && prevSalary !== rec.salary ? ' | حقوق: ' + prevSalary + ' → ' + rec.salary : ''), rec.cd);
         if (sync.changed && typeof audit === 'function') audit('سهامداران', 'به‌روزرسانی خودکار حقوق موظف ماه ' + month + ' برای ' + rec.name + ' — ' + money(rec.salary), sync.txCd || rec.cd);
-        if (sync.changed && typeof ptfToast === 'function') ptfToast('حقوق ماه ' + month + ' برای ' + rec.name + ' همزمان به‌روزرسانی شد', 'ok');
+        if (sync.created && typeof audit === 'function') audit('سهامداران', 'ثبت خودکار حقوق موظف ماه ' + month + ' برای سهامدار جدید ' + rec.name + ' — ' + money(rec.salary), sync.txCd || rec.cd);
+        if (sync.removed && typeof audit === 'function') audit('سهامداران', 'حذف حقوق موظف ماه ' + month + ' — ' + rec.name + ' دیگر موظف نیست', sync.txCd || rec.cd);
+        if ((sync.changed || sync.created) && typeof ptfToast === 'function') ptfToast('حقوق ماه ' + month + ' برای ' + rec.name + ' همزمان ثبت/به‌روزرسانی شد', 'ok');
         ptfShareRender();
         if (typeof ptfOpexRender === 'function') { try { ptfOpexRender(); } catch (e) {} }
       }
@@ -145,18 +196,10 @@
     if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ ثبت حقوق در آن سال مجاز نیست.'); return; }
     var done = 0, skipped = 0, updated = 0;
     activeShares().filter(function (s) { return s.duty && (+s.salary || 0) > 0; }).forEach(function (s) {
-      var sync = syncSalaryTxForMonth(s, month);
-      if (sync.found) {
-        if (sync.changed) updated++; else skipped++;
-        return;
-      }
-      var tx = addTx('salary', s, s.salary, 'حقوق موظف ماه ' + month, { month: month });
-      var opx = oAll();
-      if (!opx.some(function (o) { return o.shareTx === tx.cd; })) {
-        opx.unshift({ cd: genCode('OPX'), cat: 'حقوق و دستمزد', amt: +s.salary || 0, month: month, desc: 'حقوق موظف سهامدار: ' + s.name, t: faDateTime(), by: nm(), shareTx: tx.cd, shareholderSalary: true });
-        oSave(opx);
-      }
-      done++;
+      var sync = ensureSalaryTxForMonth(s, month);
+      if (sync.created) done++;
+      else if (sync.changed) updated++;
+      else skipped++;
     });
     audit('سهامداران', 'ثبت/به‌روزرسانی حقوق موظف ماه ' + month + ' — جدید: ' + done + (updated ? ' / اصلاح‌شده: ' + updated : '') + (skipped ? ' / بدون تغییر: ' + skipped : ''), month);
     if (typeof ptfToast === 'function') {

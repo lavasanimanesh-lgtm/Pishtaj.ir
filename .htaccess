@@ -66,8 +66,246 @@ RewriteRule ^blog/rfq-industrial-equipment\.html$ /blog/rfq-industrial-equipment
 # piping-supply.html, procurement-logistics.html, valves-supply.html
 
 # ------------------------------------------------------------------
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱ (۵ مقالهٔ اول از ۹۹ مقالهٔ برنامه‌ریزی‌شده):
+# این ۵ صفحه با نام قدیمی (استاب کم‌محتوا یا نام غیرقابل‌کرال) حذف و با محتوای
+# عمیق ۱۵۰۰+ کلمه‌ای در URL جدید و خواناتر بازنویسی شدند. ریدایرکت ۳۰۱ تضمین
+# می‌کند بک‌لینک/بوکمارک قدیمی به نسخهٔ جدید هدایت شود. قبل از اعمال روی
+# production حتماً روی staging تست شود (طبق درخواست صریح کاربر).
+# ------------------------------------------------------------------
+RewriteRule ^knowledge-center/c-00c8eb70\.html$ /knowledge-center/kc-air-cooled-fin-fan-selection-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-04108b23\.html$ /knowledge-center/kc-api-618-vibration-pulsation-analysis.html [R=301,L]
+RewriteRule ^knowledge-center/c-0f2066e2\.html$ /knowledge-center/kc-erw-hfw-weld-seam-inspection.html [R=301,L]
+RewriteRule ^knowledge-center/c-e344ab2a\.html$ /knowledge-center/kc-shell-tube-heat-exchanger-tema-guide.html [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-68bf20a7\.html$" "/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/c-1b253b88\.html$ /knowledge-center/kc-sawh-vs-lsaw-comparison.html [R=301,L]
+RewriteRule ^knowledge-center/c-2de72186\.html$ /knowledge-center/kc-plc-programming-languages-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-30a5b25f\.html$ /knowledge-center/kc-api-610-pump-curve-reading-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-5194b1ee\.html$ /knowledge-center/kc-304-vs-316-corrosion-resistance.html [R=301,L]
+RewriteRule ^knowledge-center/c-731e2fea\.html$ /knowledge-center/kc-reciprocating-pump-packing-seal-guide.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۳ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/c-8db77720\.html$ /knowledge-center/kc-a335-p11-p22-p91-welding-procedure.html [R=301,L]
+RewriteRule ^knowledge-center/c-92763130\.html$ /knowledge-center/kc-load-cell-calibration-procedure.html [R=301,L]
+RewriteRule ^knowledge-center/c-99c5d14b\.html$ /knowledge-center/kc-pressure-transmitter-range-selection.html [R=301,L]
+RewriteRule ^knowledge-center/c-ac49330b\.html$ /knowledge-center/kc-ct-pt-accuracy-class-burden.html [R=301,L]
+RewriteRule ^knowledge-center/c-b415b972\.html$ /knowledge-center/kc-pressure-gauge-glycerin-fill-guide.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۴ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/c-bb0c471c\.html$ /knowledge-center/kc-purchase-order-terms-conditions-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-c89f808c\.html$ /knowledge-center/kc-globe-valve-flow-direction-guide.html [R=301,L]
+RewriteRule ^knowledge-center/c-c8ba8a9c\.html$ /knowledge-center/kc-butterfly-valve-torque-actuator-sizing.html [R=301,L]
+RewriteRule ^knowledge-center/c-cf98916b\.html$ /knowledge-center/kc-api-5l-psl-charpy-impact-test.html [R=301,L]
+RewriteRule ^knowledge-center/c-deecb59d\.html$ /knowledge-center/kc-gasket-selection-by-fluid-temperature.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۵ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/c-ee885712\.html$ /knowledge-center/kc-ball-valve-seat-material-selection.html [R=301,L]
+RewriteRule ^knowledge-center/c-f1191a37\.html$ /knowledge-center/kc-gate-valve-wedge-sticking-troubleshooting.html [R=301,L]
+RewriteRule ^knowledge-center/c-f1c0b0cf\.html$ /knowledge-center/kc-api-617-surge-control-antisurge.html [R=301,L]
+RewriteRule ^knowledge-center/c-fe118620\.html$ /knowledge-center/kc-astm-a106-heat-treatment-requirements.html [R=301,L]
+RewriteRule ^knowledge-center/k-16db10c6\.html$ /knowledge-center/kc-commissioning-punch-list-management.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۶ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/k-2c6acc01\.html$ /knowledge-center/kc-flange-class-900-2500-bolt-torque-table.html [R=301,L]
+RewriteRule ^knowledge-center/k-2d1f8f12\.html$ /knowledge-center/kc-heat-tracing-power-calculation-guide.html [R=301,L]
+RewriteRule ^knowledge-center/k-3dc7129c\.html$ /knowledge-center/kc-valve-leak-test-acceptance-criteria.html [R=301,L]
+RewriteRule ^knowledge-center/k-51e85ef8\.html$ /knowledge-center/kc-cctv-camera-selection-hazardous-area.html [R=301,L]
+RewriteRule ^knowledge-center/k-6448a244\.html$ /knowledge-center/kc-fire-suppression-agent-selection-guide.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۷ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/k-bf5f9c12\.html$ /knowledge-center/kc-actuator-fail-safe-position-guide.html [R=301,L]
+RewriteRule ^knowledge-center/k-e84d3254\.html$ /knowledge-center/kc-washer-material-torque-relaxation.html [R=301,L]
+RewriteRule ^knowledge-center/k-fad15053\.html$ /knowledge-center/kc-ngl-recovery-turboexpander-process.html [R=301,L]
+RewriteRule ^knowledge-center/z-13cc2194\.html$ /knowledge-center/kc-hvac-pressurization-control-room.html [R=301,L]
+RewriteRule ^knowledge-center/z-19c52fd0\.html$ /knowledge-center/kc-lubrication-oil-analysis-condition-monitoring.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۸ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/z-3251e755\.html$ /knowledge-center/kc-nitrogen-purging-procedure-safety.html [R=301,L]
+RewriteRule ^knowledge-center/z-3a3ccc92\.html$ /knowledge-center/kc-explosion-proof-lighting-zone-classification.html [R=301,L]
+RewriteRule ^knowledge-center/z-3c852165\.html$ /knowledge-center/kc-desalter-electrostatic-grid-troubleshooting.html [R=301,L]
+RewriteRule ^knowledge-center/z-552871f7\.html$ /knowledge-center/kc-hse-permit-to-work-system-guide.html [R=301,L]
+RewriteRule ^knowledge-center/z-60e9da08\.html$ /knowledge-center/kc-chemical-injection-pump-metering-accuracy.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۹ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/z-7b1d8a53\.html$ /knowledge-center/kc-sru-claus-process-efficiency.html [R=301,L]
+RewriteRule ^knowledge-center/z-ac73a21e\.html$ /knowledge-center/kc-sulfur-recovery-tail-gas-treatment.html [R=301,L]
+RewriteRule ^knowledge-center/z-bd7d2483\.html$ /knowledge-center/kc-bms-integration-fire-alarm-hvac.html [R=301,L]
+RewriteRule ^knowledge-center/z-ce94a0a2\.html$ /knowledge-center/kc-cooling-water-legionella-control.html [R=301,L]
+RewriteRule ^knowledge-center/z-df70037f\.html$ /knowledge-center/kc-earthing-grid-resistance-testing.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۰ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule ^knowledge-center/z-e9ed0823\.html$ /knowledge-center/kc-pm-predictive-vs-preventive-strategy.html [R=301,L]
+RewriteRule ^knowledge-center/z-ef8f5f59\.html$ /knowledge-center/kc-amine-unit-foaming-corrosion-problems.html [R=301,L]
+RewriteRule ^knowledge-center/z-f0c07ffb\.html$ /knowledge-center/kc-fcc-catalyst-regeneration-process.html [R=301,L]
+RewriteRule ^knowledge-center/z-f3d4fbf4\.html$ /knowledge-center/kc-teg-dehydration-glycol-loss-control.html [R=301,L]
+RewriteRule ^knowledge-center/z-fddb4921\.html$ /knowledge-center/kc-ppe-selection-by-hazard-category.html [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۱ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/ابزار دقیق-00540f77\.html$" "/knowledge-center/kc-dcs-redundancy-architecture-guide.html" [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-a285accb\.html$" "/knowledge-center/kc-flowmeter-selection-by-fluid-application.html" [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-bdf04659\.html$" "/knowledge-center/kc-thermocouple-cold-junction-compensation.html" [R=301,L]
+RewriteRule "^knowledge-center/ابزار دقیق-c371b874\.html$" "/knowledge-center/kc-gas-analyzer-calibration-zero-span.html" [R=301,L]
+RewriteRule "^knowledge-center/اندازه‌گیری-دبی-با-orifice-plate-راهنمای-کامل\.html$" "/knowledge-center/kc-orifice-plate-beta-ratio-sizing.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۲ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/برق صنعتی-28ceb600\.html$" "/knowledge-center/kc-lightning-arrester-coordination-study.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-a4c1a926\.html$" "/knowledge-center/kc-vfd-harmonic-distortion-mitigation.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-b112a7f7\.html$" "/knowledge-center/kc-mv-switchgear-arc-flash-study.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-bf8dc10d\.html$" "/knowledge-center/kc-ups-battery-sizing-autonomy-calculation.html" [R=301,L]
+RewriteRule "^knowledge-center/برق صنعتی-c431aa57\.html$" "/knowledge-center/kc-protective-relay-coordination-curve.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۳ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/تامین و کیفیت-59eb4259\.html$" "/knowledge-center/kc-customs-clearance-hs-code-tariff-guide.html" [R=301,L]
+RewriteRule "^knowledge-center/تامین و کیفیت-8d2706c8\.html$" "/knowledge-center/kc-incoterms-fob-cif-risk-transfer-comparison.html" [R=301,L]
+RewriteRule "^knowledge-center/تامین و کیفیت-df31366c\.html$" "/knowledge-center/kc-international-lc-payment-terms-guide.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-تست-هیدرواستاتیک-خطوط-لوله-استانداردها-و-روش‌ه\.html$" "/knowledge-center/kc-hydrotest-pressure-holding-time-calculation.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-جامع-شیر-دروازه‌ای-gate-valve-api-600-طراحی-تس\.html$" "/knowledge-center/kc-gate-valve-api-600-flexible-wedge-design.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۴ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/راهنمای-جامع-لوله-a106-gr.b-مشخصات-فنی-تست-و-خرید\.html$" "/knowledge-center/kc-a106-mill-test-certificate-verification.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-جامع-لوله-a333-gr.6-لوله-کربن-استیل-دمای-پایین\.html$" "/knowledge-center/kc-a333-low-temperature-impact-testing.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-شیر-توپی-ball-valve-api-6d-طراحی-انواع-و-انتخا\.html$" "/knowledge-center/kc-ball-valve-api-6d-fire-safe-design.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-شیر-کنترل-control-valve-انواع-انتخاب-و-استاندا\.html$" "/knowledge-center/kc-control-valve-noise-prediction-iec-60534.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-فلنج-نوع-lap-joint-lj-و-stub-end-کاربرد-و-نصب\.html$" "/knowledge-center/kc-lap-joint-stub-end-rotation-installation.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۵ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/راهنمای-فولاد-api-5l-x60-مشخصات-و-کاربرد-در-خطوط-لوله\.html$" "/knowledge-center/kc-api-5l-x60-pipeline-design-factor.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-api-5l-psl2-الزامات-فنی-اضافی\.html$" "/knowledge-center/kc-api-5l-psl2-sour-service-nace-requirements.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-astm-a179-لوله-مبدل-حرارتی-و-کندانسور\.html$" "/knowledge-center/kc-a179-tube-expansion-rolling-procedure.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-astm-a53-gr.b-مشخصات-و-کاربردها\.html$" "/knowledge-center/kc-a53-vs-a106-selection-criteria.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-لوله-استینلس-استیل-stainless-steel-pipe-انواع-\.html$" "/knowledge-center/kc-stainless-steel-pipe-passivation-procedure.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۱۶ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/راهنمای-کامل-لوله-فولادی-آلیاژی-astm-a335-p5,-p9,-p11,\.html$" "/knowledge-center/kc-a335-pwht-post-weld-heat-treatment.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-کامل-مبدل-حرارتی-heat-exchanger-انواع-و-استاند\.html$" "/knowledge-center/kc-heat-exchanger-tema-class-selection.html" [R=301,L]
+RewriteRule "^knowledge-center/راهنمای-کمپرسور-صنعتی-industrial-compressor-انواع-و-کا\.html$" "/knowledge-center/kc-compressor-selection-screw-vs-reciprocating.html" [R=301,L]
+RewriteRule "^knowledge-center/شیرآلات صنعتی-4509205a\.html$" "/knowledge-center/kc-cf8-cf8m-casting-defects-inspection.html" [R=301,L]
+RewriteRule "^knowledge-center/شیرآلات صنعتی-811c56cb\.html$" "/knowledge-center/kc-slurry-valve-abrasion-wear-life-estimation.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۶ (۵ مقالهٔ بعدی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/شیرآلات صنعتی-a94aaa4d\.html$" "/knowledge-center/kc-control-valve-rangeability-turndown.html" [R=301,L]
+RewriteRule "^knowledge-center/شیرآلات صنعتی-ac069b45\.html$" "/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html" [R=301,L]
+RewriteRule "^knowledge-center/لوله و پایپینگ-256725e2\.html$" "/knowledge-center/kc-pipe-wall-thickness-corrosion-allowance.html" [R=301,L]
+RewriteRule "^knowledge-center/لوله و پایپینگ-2b8bf259\.html$" "/knowledge-center/kc-ndt-method-selection-by-defect-type.html" [R=301,L]
+RewriteRule "^knowledge-center/مقایسه-astm-a106-gr.b-و-api-5l-gr.b-تفاوت‌ها-و-کاربرده\.html$" "/knowledge-center/kc-a106-api-5l-standard-selection-by-project.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۷ (۵ مقالهٔ نهایی از ۹۹ مقالهٔ برنامه‌ریزی‌شده)
+RewriteRule "^knowledge-center/مقایسه-لوله-کشش-سرد-cold-drawn-و-نورد-گرم-hot-rolled\.html$" "/knowledge-center/kc-cold-drawn-hot-rolled-dimensional-tolerance.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-0ab63dcd\.html$" "/knowledge-center/kc-wastewater-sludge-treatment-methods.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-0f3bd353\.html$" "/knowledge-center/kc-steam-turbine-blade-erosion-prevention.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-1b26d72b\.html$" "/knowledge-center/kc-olefin-cracking-furnace-coil-design.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-6009aa25\.html$" "/knowledge-center/kc-radar-level-transmitter-tank-installation.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۸ (آخرین ۹ مقالهٔ باقی‌مانده از ۹۹ مقاله)
+RewriteRule "^knowledge-center/کاربردهای صنعتی-72ba5280\.html$" "/knowledge-center/kc-cement-kiln-refractory-lining-guide.html" [R=301,L]
+
+# SEO-KC-REWRITE-2026-07-28 — مرحلهٔ ۲۹ (آخرین ۸ مقالهٔ باقی‌مانده — تکمیل کامل ۹۹ از ۹۹)
+RewriteRule "^knowledge-center/کاربردهای صنعتی-749fa682\.html$" "/knowledge-center/kc-steel-continuous-casting-mold-cooling.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-74d78597\.html$" "/knowledge-center/kc-offshore-subsea-pipeline-cathodic-protection.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-8941d618\.html$" "/knowledge-center/kc-refinery-distillation-column-tray-design.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-95bb026f\.html$" "/knowledge-center/kc-lng-boil-off-gas-management.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-b26c91da\.html$" "/knowledge-center/kc-boiler-water-treatment-scale-prevention.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-bf3563bb\.html$" "/knowledge-center/kc-pipeline-welding-npi-qualification.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-ecd46214\.html$" "/knowledge-center/kc-pipeline-pigging-cleaning-operations.html" [R=301,L]
+RewriteRule "^knowledge-center/کاربردهای صنعتی-feb0ae89\.html$" "/knowledge-center/kc-pipeline-coating-holiday-detection.html" [R=301,L]
+
+# ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json application/xml image/svg+xml
 </IfModule>
+
+
+# =====================================================================
+# SEO-KC-REWRITE-2026-08-01 — حذف ۴۹ فایل موجیبیک (Category 1 تأییدشده)
+# این فایل‌ها بایت‌به‌بایت تکراری نسخه‌های فارسی‌نام/kc-* بودند؛ حذف شده و
+# مستقیماً به مقصد نهایی ۳۰۱ می‌شوند (بدون زنجیره). (بند ۱ بک‌لاگ سئو)
+# =====================================================================
+RewriteRule "^knowledge-center/#U0627#U0628#U0632#U0627#U0631 #U062f#U0642#U06cc#U0642-00540f77\.html$" "/knowledge-center/kc-dcs.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0627#U0628#U0632#U0627#U0631 #U062f#U0642#U06cc#U0642-68bf20a7\.html$" "/knowledge-center/kc-esd-fire-gas-sil-rated-design.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0627#U0628#U0632#U0627#U0631 #U062f#U0642#U06cc#U0642-a285accb\.html$" "/knowledge-center/kc-flowmeters-10-methods.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0627#U0628#U0632#U0627#U0631 #U062f#U0642#U06cc#U0642-bdf04659\.html$" "/knowledge-center/kc-rtd-thermocouple-thermistor.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0627#U0628#U0632#U0627#U0631 #U062f#U0642#U06cc#U0642-c371b874\.html$" "/knowledge-center/kc-gc-ph-o2-h2s.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0627#U0646#U062f#U0627#U0632#U0647#U200c#U06af#U06cc#U0631#U06cc-#U062f#U0628#U06cc-#U0628#U0627-orifice-plate-#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U06a9#U0627#U0645#U0644\.html$" "/knowledge-center/kc-orifice-plate-beta-ratio-sizing.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0628#U0631#U0642 #U0635#U0646#U0639#U062a#U06cc-28ceb600\.html$" "/knowledge-center/kc-lightning-protection-arrester.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0628#U0631#U0642 #U0635#U0646#U0639#U062a#U06cc-a4c1a926\.html$" "/knowledge-center/kc-vfd.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0628#U0631#U0642 #U0635#U0646#U0639#U062a#U06cc-b112a7f7\.html$" "/knowledge-center/kc-mv-switchgear.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0628#U0631#U0642 #U0635#U0646#U0639#U062a#U06cc-bf8dc10d\.html$" "/knowledge-center/kc-ups.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0628#U0631#U0642 #U0635#U0646#U0639#U062a#U06cc-c431aa57\.html$" "/knowledge-center/kc-ansi-50-51-87-21.html" [R=301,L]
+RewriteRule "^knowledge-center/#U062a#U0627#U0645#U06cc#U0646 #U0648 #U06a9#U06cc#U0641#U06cc#U062a-59eb4259\.html$" "/knowledge-center/kc-customs-clearance.html" [R=301,L]
+RewriteRule "^knowledge-center/#U062a#U0627#U0645#U06cc#U0646 #U0648 #U06a9#U06cc#U0641#U06cc#U062a-8d2706c8\.html$" "/knowledge-center/kc-incoterms-2024.html" [R=301,L]
+RewriteRule "^knowledge-center/#U062a#U0627#U0645#U06cc#U0646 #U0648 #U06a9#U06cc#U0641#U06cc#U062a-df31366c\.html$" "/knowledge-center/kc-international-supply-contracts.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U062c#U0627#U0645#U0639-#U0634#U06cc#U0631-#U062f#U0631#U0648#U0627#U0632#U0647#U200c#U0627#U06cc-gate-valve-api-600-#U0637#U0631#U0627#U062d#U06cc-#U062a#U0633\.html$" "/knowledge-center/kc-gate-valve-api-600-flexible-wedge-design.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U062c#U0627#U0645#U0639-#U0644#U0648#U0644#U0647-a106-gr.b-#U0645#U0634#U062e#U0635#U0627#U062a-#U0641#U0646#U06cc-#U062a#U0633#U062a-#U0648-#U062e#U0631#U06cc#U062f\.html$" "/knowledge-center/kc-a106-mill-test-certificate-verification.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U062c#U0627#U0645#U0639-#U0644#U0648#U0644#U0647-a333-gr.6-#U0644#U0648#U0644#U0647-#U06a9#U0631#U0628#U0646-#U0627#U0633#U062a#U06cc#U0644-#U062f#U0645#U0627#U06cc-#U067e#U0627#U06cc#U06cc#U0646\.html$" "/knowledge-center/kc-a333-low-temperature-impact-testing.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0634#U06cc#U0631-#U062a#U0648#U067e#U06cc-ball-valve-api-6d-#U0637#U0631#U0627#U062d#U06cc-#U0627#U0646#U0648#U0627#U0639-#U0648-#U0627#U0646#U062a#U062e#U0627\.html$" "/knowledge-center/kc-ball-valve-api-6d-fire-safe-design.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0634#U06cc#U0631-#U06a9#U0646#U062a#U0631#U0644-control-valve-#U0627#U0646#U0648#U0627#U0639-#U0627#U0646#U062a#U062e#U0627#U0628-#U0648-#U0627#U0633#U062a#U0627#U0646#U062f#U0627\.html$" "/knowledge-center/kc-control-valve-noise-prediction-iec-60534.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0641#U0644#U0646#U062c-#U0646#U0648#U0639-lap-joint-lj-#U0648-stub-end-#U06a9#U0627#U0631#U0628#U0631#U062f-#U0648-#U0646#U0635#U0628\.html$" "/knowledge-center/kc-lap-joint-stub-end-rotation-installation.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0641#U0648#U0644#U0627#U062f-api-5l-x60-#U0645#U0634#U062e#U0635#U0627#U062a-#U0648-#U06a9#U0627#U0631#U0628#U0631#U062f-#U062f#U0631-#U062e#U0637#U0648#U0637-#U0644#U0648#U0644#U0647\.html$" "/knowledge-center/kc-api-5l-x60-pipeline-design-factor.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0644#U0648#U0644#U0647-#U0627#U0633#U062a#U06cc#U0646#U0644#U0633-#U0627#U0633#U062a#U06cc#U0644-stainless-steel-pipe-#U0627#U0646#U0648#U0627#U0639-\.html$" "/knowledge-center/kc-stainless-steel-pipe-passivation-procedure.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0644#U0648#U0644#U0647-api-5l-psl2-#U0627#U0644#U0632#U0627#U0645#U0627#U062a-#U0641#U0646#U06cc-#U0627#U0636#U0627#U0641#U06cc\.html$" "/knowledge-center/kc-api-5l-psl2-sour-service-nace-requirements.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0644#U0648#U0644#U0647-astm-a179-#U0644#U0648#U0644#U0647-#U0645#U0628#U062f#U0644-#U062d#U0631#U0627#U0631#U062a#U06cc-#U0648-#U06a9#U0646#U062f#U0627#U0646#U0633#U0648#U0631\.html$" "/knowledge-center/kc-a179-tube-expansion-rolling-procedure.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U0644#U0648#U0644#U0647-astm-a53-gr.b-#U0645#U0634#U062e#U0635#U0627#U062a-#U0648-#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627\.html$" "/knowledge-center/kc-a53-vs-a106-selection-criteria.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U06a9#U0627#U0645#U0644-#U0644#U0648#U0644#U0647-#U0641#U0648#U0644#U0627#U062f#U06cc-#U0622#U0644#U06cc#U0627#U0698#U06cc-astm-a335-p5,-p9,-p11,\.html$" "/knowledge-center/kc-a335-pwht-post-weld-heat-treatment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U06a9#U0627#U0645#U0644-#U0645#U0628#U062f#U0644-#U062d#U0631#U0627#U0631#U062a#U06cc-heat-exchanger-#U0627#U0646#U0648#U0627#U0639-#U0648-#U0627#U0633#U062a#U0627#U0646#U062f\.html$" "/knowledge-center/kc-heat-exchanger-tema-class-selection.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0631#U0627#U0647#U0646#U0645#U0627#U06cc-#U06a9#U0645#U067e#U0631#U0633#U0648#U0631-#U0635#U0646#U0639#U062a#U06cc-industrial-compressor-#U0627#U0646#U0648#U0627#U0639-#U0648-#U06a9#U0627\.html$" "/knowledge-center/kc-compressor-selection-screw-vs-reciprocating.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0634#U06cc#U0631#U0622#U0644#U0627#U062a #U0635#U0646#U0639#U062a#U06cc-4509205a\.html$" "/knowledge-center/kc-cf8-cf8m-cf3m.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0634#U06cc#U0631#U0622#U0644#U0627#U062a #U0635#U0646#U0639#U062a#U06cc-811c56cb\.html$" "/knowledge-center/kc-slurry-valves.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0634#U06cc#U0631#U0622#U0644#U0627#U062a #U0635#U0646#U0639#U062a#U06cc-a94aaa4d\.html$" "/knowledge-center/kc-cv-actuator.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0634#U06cc#U0631#U0622#U0644#U0627#U062a #U0635#U0646#U0639#U062a#U06cc-ac069b45\.html$" "/knowledge-center/kc-psv.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0644#U0648#U0644#U0647 #U0648 #U067e#U0627#U06cc#U067e#U06cc#U0646#U06af-256725e2\.html$" "/knowledge-center/kc-nps-dn-schedule-od-wt.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0644#U0648#U0644#U0647 #U0648 #U067e#U0627#U06cc#U067e#U06cc#U0646#U06af-2b8bf259\.html$" "/knowledge-center/kc-ndt.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0645#U0642#U0627#U06cc#U0633#U0647-#U0644#U0648#U0644#U0647-#U06a9#U0634#U0634-#U0633#U0631#U062f-cold-drawn-#U0648-#U0646#U0648#U0631#U062f-#U06af#U0631#U0645-hot-rolled\.html$" "/knowledge-center/kc-cold-drawn-hot-rolled-dimensional-tolerance.html" [R=301,L]
+RewriteRule "^knowledge-center/#U0645#U0642#U0627#U06cc#U0633#U0647-astm-a106-gr.b-#U0648-api-5l-gr.b-#U062a#U0641#U0627#U0648#U062a#U200c#U0647#U0627-#U0648-#U06a9#U0627#U0631#U0628#U0631#U062f#U0647\.html$" "/knowledge-center/kc-a106-api-5l-standard-selection-by-project.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-0ab63dcd\.html$" "/knowledge-center/kc-water-wastewater-treatment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-0f3bd353\.html$" "/knowledge-center/kc-thermal-powerplant-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-1b26d72b\.html$" "/knowledge-center/kc-petrochemical-complex-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-6009aa25\.html$" "/knowledge-center/kc-level-measurement-6-methods.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-72ba5280\.html$" "/knowledge-center/kc-cement-industry-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-749fa682\.html$" "/knowledge-center/kc-steel-industry-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-74d78597\.html$" "/knowledge-center/kc-offshore.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-8941d618\.html$" "/knowledge-center/kc-oil-refinery-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-95bb026f\.html$" "/knowledge-center/kc-ngl-lpg-lng.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-b26c91da\.html$" "/knowledge-center/kc-steam-boiler-system.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-bf3563bb\.html$" "/knowledge-center/kc-pipeline-welding-standards.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-ecd46214\.html$" "/knowledge-center/kc-oil-gas-pipeline-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/#U06a9#U0627#U0631#U0628#U0631#U062f#U0647#U0627#U06cc #U0635#U0646#U0639#U062a#U06cc-feb0ae89\.html$" "/knowledge-center/kc-pipeline-corrosion-prevention.html" [R=301,L]
+
+
+# =====================================================================
+# SEO-KC-REWRITE-2026-08-01 — rename ۳۰ فایل هش‌نام یتیم (Category 3)
+# نام‌های قدیمی c-/k-/z-xxxxxxxx به اسلاگ خوانا kc-* تغییر نام یافتند؛
+# ریدایرکت ۳۰۱ برای حفظ رتبه/بک‌لینک قدیمی.
+# =====================================================================
+RewriteRule "^knowledge-center/c-059ab953\.html$" "/knowledge-center/kc-supplier-qualification-assessment.html" [R=301,L]
+RewriteRule "^knowledge-center/c-369fd340\.html$" "/knowledge-center/kc-welded-fittings-elbow-tee-reducer.html" [R=301,L]
+RewriteRule "^knowledge-center/c-4052bc8a\.html$" "/knowledge-center/kc-industrial-power-cable-sizing.html" [R=301,L]
+RewriteRule "^knowledge-center/c-b15a36c7\.html$" "/knowledge-center/kc-instrumentation-communication-protocols.html" [R=301,L]
+RewriteRule "^knowledge-center/k-114d49d9\.html$" "/knowledge-center/kc-fire-alarm-detection-system.html" [R=301,L]
+RewriteRule "^knowledge-center/k-43594446\.html$" "/knowledge-center/kc-crude-oil-products-storage-system.html" [R=301,L]
+RewriteRule "^knowledge-center/k-5b7b7133\.html$" "/knowledge-center/kc-valve-selection-by-fluid-type.html" [R=301,L]
+RewriteRule "^knowledge-center/k-6e8b98ec\.html$" "/knowledge-center/kc-control-room-equipment-standards.html" [R=301,L]
+RewriteRule "^knowledge-center/k-6fbdeecf\.html$" "/knowledge-center/kc-oil-gas-export-terminal-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/k-78c21e5e\.html$" "/knowledge-center/kc-technical-certifications-supplier-qualification.html" [R=301,L]
+RewriteRule "^knowledge-center/k-b8b2ade9\.html$" "/knowledge-center/kc-surge-arrester-emergency-shutdown-valves.html" [R=301,L]
+RewriteRule "^knowledge-center/k-c3feece0\.html$" "/knowledge-center/kc-intrusion-detection-access-control.html" [R=301,L]
+RewriteRule "^knowledge-center/k-cea4f68b\.html$" "/knowledge-center/kc-pipe-thermal-insulation.html" [R=301,L]
+RewriteRule "^knowledge-center/k-d3ca6244\.html$" "/knowledge-center/kc-cable-tray-cable-duct.html" [R=301,L]
+RewriteRule "^knowledge-center/k-edd8b9af\.html$" "/knowledge-center/kc-international-marketing-oil-gas.html" [R=301,L]
+RewriteRule "^knowledge-center/k-eedd2e06\.html$" "/knowledge-center/kc-pipe-support-steel-structure.html" [R=301,L]
+RewriteRule "^knowledge-center/k-f157c607\.html$" "/knowledge-center/kc-project-management-equipment-supply.html" [R=301,L]
+RewriteRule "^knowledge-center/k-ffd298e6\.html$" "/knowledge-center/kc-industrial-equipment-export.html" [R=301,L]
+RewriteRule "^knowledge-center/z-0320bdc9\.html$" "/knowledge-center/kc-compressed-air-system.html" [R=301,L]
+RewriteRule "^knowledge-center/z-0b758a57\.html$" "/knowledge-center/kc-hydraulic-control-valves.html" [R=301,L]
+RewriteRule "^knowledge-center/z-16aeeb93\.html$" "/knowledge-center/kc-industrial-material-handling-transport.html" [R=301,L]
+RewriteRule "^knowledge-center/z-653c9058\.html$" "/knowledge-center/kc-pneumatic-electropneumatic-control-valves.html" [R=301,L]
+RewriteRule "^knowledge-center/z-81f77cc9\.html$" "/knowledge-center/kc-spare-parts-warehousing-inventory.html" [R=301,L]
+RewriteRule "^knowledge-center/z-85401d51\.html$" "/knowledge-center/kc-industrial-laboratory-equipment.html" [R=301,L]
+RewriteRule "^knowledge-center/z-95579eef\.html$" "/knowledge-center/kc-instrumentation-control-cables.html" [R=301,L]
+RewriteRule "^knowledge-center/z-a0721288\.html$" "/knowledge-center/kc-technical-personnel-training.html" [R=301,L]
+RewriteRule "^knowledge-center/z-bdd0a52f\.html$" "/knowledge-center/kc-steel-plate-specifications.html" [R=301,L]
+RewriteRule "^knowledge-center/z-d0063fcd\.html$" "/knowledge-center/kc-steel-beam-rebar-specifications.html" [R=301,L]
+RewriteRule "^knowledge-center/z-ef76567b\.html$" "/knowledge-center/kc-energy-management-oil-gas.html" [R=301,L]
+RewriteRule "^knowledge-center/z-fe99473f\.html$" "/knowledge-center/kc-flare-burner-equipment.html" [R=301,L]

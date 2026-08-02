@@ -74,7 +74,13 @@
 
   window.buildPetty = function () {
     return '<div class="ph"><h3>🏛 هاب مالی</h3>' +
-      '<div class="sb2">' + (isMgr() ? '<select id="ptFilter" onchange="renderPetty()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:13px"><option value="">همه کاربران</option></select>' : '') +
+      '<div class="sb2" id="ptToolbar">' + (isMgr() ? '<select id="ptFilter" onchange="renderPetty()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:13px"><option value="">همه کاربران</option></select>' : '') +
+      (typeof window.ptfSortSelectHtml === 'function' ? window.ptfSortSelectHtml('petty', [
+        { key: 't', dir: 'desc', lb: '🕒 جدیدترین' }, { key: 't', dir: 'asc', lb: '🕒 قدیمی‌ترین' },
+        { key: 'amt', dir: 'desc', lb: '💰 بیشترین مبلغ' }, { key: 'amt', dir: 'asc', lb: '💰 کمترین مبلغ' },
+        { key: 'by', dir: 'asc', lb: '👤 ثبت‌کننده' }
+      ]) : '') +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodReportDialog()" title="گزارش با بازهٔ دلخواه (از/تا)">📊 گزارش دورهٔ دلخواه</button>' +
       '<button class="bt" onclick="pettyAdd()">+ ثبت هزینه</button>' +
       (isTreasurer() ? '<button class="bt" onclick="pettyDirectPay()" style="background:#0e7490">پرداخت مستقیم</button><button class="bt" onclick="pettyCharge()" style="background:#059669">شارژ حساب</button><button class="bt bt-o" onclick="pettyClosePeriod()">ارجاع دوره</button>' : '') +
       '</div></div>' +
@@ -102,11 +108,15 @@
     if (!periods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
     var rows = periods.map(function (p) {
       var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
-      var acts = '';
-      if (isAccountant() && p.st === 'referred') acts = '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="pettyPeriodRegistered(\'' + p.cd + '\')">ثبت در حسابداری</button>';
-      if (isTreasurer() && p.st === 'referred') acts = '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="pettyAttachBank(\'' + p.cd + '\')">پیوست صورتحساب</button>';
+      /* UR-11: دوره‌های جدید بازه [from,to] دارند؛ قدیمی‌ها فقط month (سازگاری) */
+      var rng = (p.from && p.to) ? ('از ' + p.from + ' تا ' + p.to) : ('ماه ' + (p.month || '-'));
+      var arg = (p.from && p.to) ? (escP(p.from) + '|' + escP(p.to)) : escP(p.month || '');
+      var acts = '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfPettyPeriodReport(\'' + arg + '\')">📊 گزارش دوره</button>' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#1d4ed8" onclick="ptfPettyPeriodCombinedPdf(\'' + arg + '\')" title="گزارش + رسیدها در یک PDF با شناسهٔ هر رسید">📎 PDF تلفیقی</button>';
+      if (isAccountant() && p.st === 'referred') acts += '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="pettyPeriodRegistered(\'' + p.cd + '\')">ثبت در حسابداری</button>';
+      if (isTreasurer() && p.st === 'referred') acts += '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="pettyAttachBank(\'' + p.cd + '\')">پیوست صورتحساب</button>';
       var st = p.st === 'registered' ? '<span class="bd b-st4">ثبت‌شده</span>' : '<span class="bd" style="background:#dbeafe;color:#1d4ed8">ارجاع‌شده</span>';
-      return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:6px;font-size:12.5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>دوره ' + escP(p.month || '-') + '</b> — ' + st + '<br><small style="color:#64748b">گردش: ' + money(p.totalOut || 0) + ' | مانده: ' + money(p.balance || 0) + ' | ' + escP(p.t || '') + '</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span>' + acts + '</span></div>';
+      return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;margin-bottom:6px;font-size:12.5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span><b>دوره ' + escP(rng) + '</b> — ' + st + '<br><small style="color:#64748b">گردش: ' + money(p.totalOut || 0) + ' | شارژ: ' + money(p.charges || 0) + ' | مانده: ' + money(p.balance || 0) + ' | ' + escP(p.t || '') + '</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span>' + acts + '</span></div>';
     }).join('');
     el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:14px;padding:10px 12px"><b style="font-size:13px">📚 دوره‌های گزارش تنخواه</b><div style="margin-top:8px">' + (rows || '<small style="color:#94a3b8">دوره‌ای ارجاع نشده</small>') + '</div></div>';
   }
@@ -128,6 +138,12 @@
       if (!canAll()) return x.by === me.name;
       return !filter || x.by === filter;
     });
+    /* UR-2026-08-01-07: سورت تنخواه (تاریخ/مبلغ/ثبت‌کننده) */
+    if (window.ptfRegisterSortable) window.ptfRegisterSortable('petty', {
+      getters: { t: function (x) { return x.t || ''; }, amt: function (x) { return +x.amt || 0; }, by: function (x) { return x.by || ''; } },
+      render: renderPetty
+    });
+    list = (typeof window.ptfSorted === 'function') ? window.ptfSorted('petty', list) : list;
     var sm = document.getElementById('ptSummary');
     if (sm) {
       if (isMgr() || isTreasurer()) {
@@ -172,7 +188,14 @@
     if (typeof attachUploadWidget === 'function') {
       attachUploadWidget('ptyUp', 'petty/' + rec.cd, function (f) {
         var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === rec.cd; })[0];
-        if (r) { r.files = r.files || []; r.files.push(f); setData(PETTY_KEY, a); }
+        if (r) {
+          r.files = r.files || [];
+          /* UR-10: هر رسید شناسهٔ «سند N» می‌گیرد تا در PDF تلفیقی با ردیف گزارش مطابقت داده شود.
+             شناسه فقط یک‌بار (اینجا) ساخته و روی خود فایل ذخیره می‌شود. */
+          if (!f.petId) f.petId = window.ptfPettyNextPetId();
+          r.petId = r.petId || f.petId;
+          r.files.push(f); setData(PETTY_KEY, a);
+        }
       });
     }
   }
@@ -412,34 +435,457 @@
     if (typeof ptfToast === 'function') ptfToast('هزینه حذف شد', 'warn');
   };
 
-  window.ptfPettyPeriodData = function (month) {
-    month = month || faMonthNow();
-    var petty = (getData(PETTY_KEY) || []).filter(function (x) { return recMonth(x) === month; });
-    var tx = txAll().filter(function (x) { return recMonth(x) === month; });
+  /* ============ UR-11: دورهٔ بازه‌ای تنخواه — از آخرین ارجاع تا تاریخ انتخابی ============ */
+  /* BUG-RANGE (۱۴۰۵/۰۸/۱۰): تاریخ رکورد باید مقاوم باشد — رکوردها ممکن است:
+     ۱) t شمسی '1405/04/15 09:00'  ۲) t/dateISO میلادی '2026-07-06'  ۳) فقط month '1405/04'
+     قبلاً فقط حالت ۱ خوانده می‌شد و بقیه از فیلتر بازه حذف می‌شدند → «هیچ اطلاعاتی در قالب تنخواه‌گردان». */
+  function recDate(x) {
+    if (!x) return '';
+    var raw = String(x.t || x.dateFa || x.date || x.dateISO || x.iso || '').split(' ')[0].trim();
+    if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(raw)) return raw;                       /* شمسی */
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {                                        /* میلادی → شمسی */
+      try { if (typeof ptfISOToJ === 'function') { var j = ptfISOToJ(raw); if (j && /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(j)) return j; } } catch (eR) {}
+    }
+    var m = String(x.month || '').trim();                                          /* فقط ماه → اول ماه */
+    if (/^\d{4}\/\d{1,2}$/.test(m)) return m + '/01';
+    return '';
+  }
+  function faTodayStr() {
+    try { if (typeof faDate === 'function') return faDate(); } catch (e) {}
+    try { if (typeof ptfTodayJ === 'function') return ptfTodayJ(); } catch (e) {}
+    return '';
+  }
+  window.ptfPettyDayAfter = function (d) {
+    if (!d) return '';
+    var m = String(d).match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (!m) return d;
+    var y = +m[1], mo = +m[2], day = +m[3] + 1;
+    var dim = [31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29][mo - 1] || 30;
+    if (day > dim) { day = 1; mo++; if (mo > 12) { mo = 1; y++; } }
+    return y + '/' + String(mo).padStart(2, '0') + '/' + String(day).padStart(2, '0');
+  };
+  /* بازهٔ پیشنهادی دورهٔ جاری: از روزِ پس از «تا» آخرین دورهٔ ارجاع‌شده تا امروز (قابل تغییر دلخواه توسط کاربر) */
+  window.ptfPettySuggestedRange = function () {
+    var to = faTodayStr();
+    var from = '';
+    var periods = prAll().filter(function (p) { return p.st === 'referred' || p.st === 'registered'; });
+    var last = periods[0] || {};
+    if (last.to) from = window.ptfPettyDayAfter(last.to);
+    else if (last.month) from = window.ptfPettyDayAfter(String(last.month).slice(0, 7) + '/31');
+    if (!from && to) from = String(to).slice(0, 7) + '/01';
+    return { from: from || '', to: to || '' };
+  };
+  /* UR-11: دیالوگ انتخاب بازهٔ دلخواه (از تاریخ/تا تاریخ — هر بازه‌ای مثل ۱۰ روزه، ۴۵ روزه و…) برای گزارش
+     — با تقویم شمسی (ptfDatePicker) و پذیرش فرمت‌های رایج (1405/04/01 یا 1405-04-01) */
+  window.ptfPettyNormDate = function (s) {
+    var v = String(s || '').trim();
+    /* تبدیل ارقام فارسی/عربی به لاتین (تقویم/کاربر ممکن است ۱۴۰۵ وارد کند) */
+    v = v.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+         .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    var m = v.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+    if (!m) return v;
+    return m[1] + '/' + String(+m[2]).padStart(2, '0') + '/' + String(+m[3]).padStart(2, '0');
+  };
+  window.ptfPettyPeriodReportDialog = function () {
+    var sg = window.ptfPettySuggestedRange();
+    ptfDialog({
+      title: '📊 گزارش دورهٔ تنخواه — انتخاب بازه',
+      body: 'بازهٔ دلخواه را انتخاب کنید (مثلاً ۱۰ روزه، ۴۵ روزه یا هر بازهٔ دیگر — بسته به مصرف تنخواه).',
+      fields: [
+        { id: 'from', label: 'از تاریخ', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
+        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true }
+      ],
+      okText: 'نمایش گزارش',
+      onOk: function (v) {
+        var from = window.ptfPettyNormDate(v.from), to = window.ptfPettyNormDate(v.to);
+        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از دکمهٔ «انتخاب از تقویم» استفاده کنید).'); return; }
+        if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
+        window.ptfPettyPeriodReport(from, to);
+      }
+    });
+  };
+  /* کلید دوره: (from,to) → بازه | (month) → ماه | بدون آرگومان → دورهٔ جاری پیشنهادی */
+  function ptfPettyPeriodKey(a, b) {
+    /* UR-11 (رفع باگ): آرگومان می‌تواند یک رشتهٔ 'from|to' باشد (از renderPeriods) — split می‌شود */
+    if (a && !b && String(a).indexOf('|') > -1) { var pr = String(a).split('|'); a = pr[0]; b = pr[1]; }
+    if (a && b && String(a).length > 7) return { month: String(a).slice(0, 7), from: String(a), to: String(b), isRange: true };
+    if (a) return { month: String(a), from: '', to: '', isRange: false };
+    var sg = window.ptfPettySuggestedRange();
+    return { month: sg.from ? sg.from.slice(0, 7) : faMonthNow(), from: sg.from, to: sg.to, isRange: !!(sg.from && sg.to) };
+  }
+  window.ptfPettyPeriodKey = ptfPettyPeriodKey;
+
+  window.ptfPettyPeriodData = function (a, b) {
+    var key = ptfPettyPeriodKey(a, b);
+    var allP = getData(PETTY_KEY) || [], allT = txAll(), petty, tx;
+    if (key.isRange) {
+      /* BUG-RANGE: رکورد دارای تاریخ → فقط اگر تاریخ در بازه؛ رکورد بی‌تاریخ → فقط اگر ماهش در محدودهٔ بازه (تا داده گم نشود) */
+      var mFrom = key.from.slice(0, 7), mTo = key.to.slice(0, 7);
+      function inRange(x) {
+        var m = String(x.month || '').slice(0, 7);
+        var hasDate = !!(x.t || x.dateFa || x.date || x.dateISO || x.iso);
+        if (hasDate) { var d = recDate(x); return !!(d && d >= key.from && d <= key.to); }
+        return !!(m && m >= mFrom && m <= mTo);
+      }
+      petty = allP.filter(inRange);
+      tx = allT.filter(inRange);
+    } else {
+      petty = allP.filter(function (x) { return recMonth(x) === key.month; });
+      tx = allT.filter(function (x) { return recMonth(x) === key.month; });
+    }
     var totalOut = tx.reduce(function (s, x) { return s + ((x.type === 'direct' || x.type === 'settle') ? +x.amt || 0 : 0); }, 0);
     var charges = tx.reduce(function (s, x) { return s + (x.type === 'charge' ? +x.amt || 0 : 0); }, 0);
-    return { month: month, petty: petty, tx: tx, totalOut: totalOut, charges: charges, balance: window.ptfPettyBalance(), pending: window.ptfPettyPendingByUser() };
+    return { month: key.month, from: key.from, to: key.to, isRange: key.isRange, petty: petty, tx: tx, totalOut: totalOut, charges: charges, balance: window.ptfPettyBalance(), pending: window.ptfPettyPendingByUser() };
+  };
+
+  /* ============ UR-2026-08-01-09: گزارش کامل دورهٔ تنخواه ============ */
+  window.ptfPettyPeriodEvents = function (a, b) {
+    var d = window.ptfPettyPeriodData(a, b), events = [];
+    (d.tx || []).forEach(function (x) {
+      var kind = x.type === 'charge' ? 'شارژ حساب' : x.type === 'direct' ? 'پرداخت مستقیم' : x.type === 'settle' ? 'تسویه از حساب' : (x.type || 'تراکنش');
+      events.push({
+        t: x.t || x.date || '',
+        desc: (x.note || x.desc || '') + (x.ref ? ' (' + x.ref + ')' : ''),
+        by: x.by || '',
+        amt: +x.amt || 0,
+        kind: kind,
+        status: x.type === 'charge' ? 'شارژ حساب' : (x.type === 'direct' ? 'پرداخت مستقیم از تنخواه' : (x.type === 'settle' ? 'تسویه از حساب' : ''))
+      });
+    });
+    (d.petty || []).forEach(function (p) {
+      /* UR-11: نحوهٔ پرداخت هر هزینه صریح است: مستقیم از تنخواه / تسویه‌شده با تاریخ و نام / در انتظار */
+      var status = p.payMode === 'direct'
+        ? 'پرداخت مستقیم از تنخواه'
+        : p.st === 'settled'
+          ? 'تسویه در ' + (p.settledT || p.t || '') + ' توسط ' + (p.settledBy || p.by || '')
+          : p.st === 'void' ? 'ابطال‌شده' : 'در انتظار تسویه';
+      events.push({
+        t: p.t || '',
+        desc: (p.cat || 'هزینه') + (p.desc ? ' — ' + p.desc : '') + (p.rfq ? ' (' + p.rfq + ')' : ''),
+        by: p.by || '',
+        amt: +p.amt || 0,
+        kind: p.st === 'void' ? 'هزینه (ابطال‌شده)' : 'هزینه',
+        status: status
+      });
+    });
+    events.sort(function (a, b) { var ta = a.t || '9999', tb = b.t || '9999'; return ta < tb ? -1 : ta > tb ? 1 : 0; });
+    events.forEach(function (e, i) { e.row = i + 1; });
+    return events;
+  };
+
+  /* برچسب هدر دوره: «تنخواه‌گردان از تاریخ X تا تاریخ Y» یا «ماه …» (سازگاری با دادهٔ قدیمی) */
+  window.ptfPettyRangeLabel = function (a, b) {
+    var d = window.ptfPettyPeriodData(a, b);
+    return (d.isRange && d.from && d.to) ? ('تنخواه‌گردان از تاریخ ' + d.from + ' تا تاریخ ' + d.to) : ('ماه ' + d.month);
+  };
+
+  /* جمع‌های زندهٔ دوره (هر لحظه از دادهٔ فعلی): خرج، شارژ، موجودی */
+  window.ptfPettyPeriodTotals = function (a, b) {
+    var d = window.ptfPettyPeriodData(a, b);
+    var pettyOut = (d.petty || []).filter(function (p) { return p.st !== 'void'; }).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    var directOut = (d.tx || []).filter(function (x) { return x.type === 'direct'; }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    /* BUG-TOTALS: موجودی شروع و پایان دوره — از تراکنش‌های قبل از بازه (شارژ/پرداخت/تسویه) */
+    function txBalance(beforeDate) {
+      return txAll().reduce(function (s, x) {
+        var d0 = recDate(x);
+        if (beforeDate && d0 && d0 > beforeDate) return s;
+        var a = +x.amt || 0;
+        if (x.type === 'charge') return s + a;
+        if (x.type === 'direct' || x.type === 'settle') return s - a;
+        return s;
+      }, 0);
+    }
+    var fromDate = d.isRange ? d.from : '';
+    var balanceStart = fromDate ? txBalance(window.ptfPettyDayAfter(fromDate)) : 0; /* قبل از شروع بازه (شامل روز شروع) */
+    var balanceEnd = window.ptfPettyBalance(); /* موجودی لحظه‌ای کل */
+    return { pettyOut: pettyOut, directOut: directOut, totalOut: pettyOut + directOut, charges: d.charges, balance: d.balance, balanceStart: balanceStart, balanceEnd: balanceEnd };
+  };
+
+  function ptfPettyRowHtml(e) {
+    return '<tr><td>' + e.row + '</td><td>' + escP(e.t || '—') + '</td><td>' + escP(e.kind) + '</td><td>' + escP(e.desc || '—') + '</td><td>' + escP(e.by || '—') + '</td><td>' + escP(e.status || '—') + '</td><td>' + money(e.amt) + '</td></tr>';
+  }
+  /* BUG-TOTALS: ردیف‌های جمع در پایان جدول — مجموع هزینه‌ها / مجموع شارژ / موجودی شروع / موجودی پایان */
+  function ptfPettyTotalsRowsHtml(t) {
+    return '<tr style="background:#fef3c7;font-weight:bold"><td colspan="6">💸 مجموع هزینه‌های دوره</td><td>' + money(t.totalOut) + '</td></tr>' +
+      '<tr style="background:#d1fae5;font-weight:bold"><td colspan="6">💰 مجموع شارژ دوره</td><td>' + money(t.charges) + '</td></tr>' +
+      '<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6">🏦 موجودی شروع دوره</td><td>' + money(t.balanceStart) + '</td></tr>' +
+      '<tr style="background:#f1f5f9;font-weight:bold"><td colspan="6">🏦 موجودی پایان دوره</td><td>' + money(t.balanceEnd) + '</td></tr>';
+  }
+  window.ptfPettyTotalsRowsHtml = ptfPettyTotalsRowsHtml;
+  function ptfPettyArg(a, b) { return (a && b && String(a).length > 7) ? a + '|' + b : (a || ''); }
+  function ptfPettyArgPair(arg) { var p = String(arg || '').split('|'); return p.length === 2 ? p : [p[0], '']; }
+
+  window.ptfPettyPeriodReport = function (a, b) {
+    var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
+    var label = window.ptfPettyRangeLabel(a, b), arg = ptfPettyArg(a, b);
+    var emptyMsg = 'رکوردی در این دوره ثبت نشده است';
+    if (!events.length) {
+      /* BUG-RANGE: راهنمای کاربر وقتی بازه خالی است */
+      var dEmpty = window.ptfPettyPeriodData(a, b);
+      var allC = (getData(PETTY_KEY) || []).length + txAll().length;
+      if (allC > 0) emptyMsg = 'در بازهٔ انتخابی رکوردی نیست — ' + allC + ' رکورد تنخواه در سیستم هست؛ بازه را گسترش دهید یا تاریخ‌ها را بررسی کنید.';
+    }
+    var body = events.map(ptfPettyRowHtml).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">' + emptyMsg + '</td></tr>';
+    var summary = '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 14px;margin:10px 0;display:flex;gap:14px;flex-wrap:wrap;font-size:13px">' +
+      '<b style="color:#b45309">💸 هزینه‌های دوره: ' + money(t.totalOut) + '</b>' +
+      '<b style="color:#047857">💰 شارژ دوره: ' + money(t.charges) + '</b>' +
+      '<b style="color:#0e7490">🏦 موجودی دوره: ' + money(t.balance) + '</b>' +
+      (t.directOut > 0 ? '<small style="color:#64748b">(پرداخت مستقیم: ' + money(t.directOut) + ')</small>' : '') + '</div>';
+    var html = '<div class="md-b" id="pettyPeriodReportDlg" style="display:grid;z-index:4000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:980px;max-height:90vh;overflow:auto"><h3>📊 گزارش دورهٔ تنخواه — ' + escP(label) + '</h3>' + summary +
+      '<div class="tb2"><table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + body + ptfPettyTotalsRowsHtml(t) + '</tbody></table></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodCsv(\'' + arg + '\')">⬇ اکسل</button>' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodPrint(\'' + arg + '\')">🖨 چاپ/PDF</button>' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 PDF تلفیقی</button>' +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+
+  window.ptfPettyPeriodCsv = function (a, b) {
+    var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
+    var label = window.ptfPettyRangeLabel(a, b);
+    var csv = '\uFEFF' + [['ردیف', 'تاریخ', 'نوع', 'شرح', 'توسط', 'نحوهٔ پرداخت/وضعیت', 'مبلغ']]
+      .concat(events.map(function (e) { return [e.row, e.t, e.kind, e.desc, e.by, e.status || '', e.amt]; }))
+      .concat([[], ['مجموع هزینه‌های دوره', '', '', '', '', '', t.totalOut], ['مجموع شارژ دوره', '', '', '', '', '', t.charges], ['موجودی شروع دوره', '', '', '', '', '', t.balanceStart], ['موجودی پایان دوره', '', '', '', '', '', t.balanceEnd]])
+      .map(function (r) { return r.map(function (x) { return '"' + String(x).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
+    var a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a2.download = 'petty-period-' + (label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')) + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a2.click();
+  };
+
+  window.ptfPettyPeriodPrint = function (a, b) {
+    var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
+    var label = window.ptfPettyRangeLabel(a, b);
+    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma;padding:20px;color:#111}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}</style></head><body>' +
+      '<h2>گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
+      '<p>هزینه‌های دوره: ' + money(t.totalOut) + ' | شارژ دوره: ' + money(t.charges) + ' | موجودی دوره: ' + money(t.balance) + '</p>' +
+      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table></body></html>';
+    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش دورهٔ تنخواه — ' + label, html, 'petty-period-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
+    var w = window.open('', '_blank'); if (!w) return;
+    w.document.write(html); w.document.close(); w.print();
+  };
+
+  /* ============ UR-10: PDF تلفیقی دورهٔ تنخواه (گزارش + ضمائم + رسیدها با شناسهٔ ردیف) ============ */
+  /* کلید پیوند شناسهٔ رسید: petId در متادیتای فایل رکورد ذخیره می‌شود (توسط رکورد ابزار پیوست). */
+  window._ptfPettyPetId = 0;
+  window.ptfPettyNextPetId = function () { return 'سند ' + (++window._ptfPettyPetId); };
+
+  /* پی‌دی‌اف تلفیقی: صفحه‌های زیر را می‌سازد (هر صفحه در چاپ/PDF جدا می‌شود):
+     ۱) صفحهٔ ۱: گزارش دوره (جدول ردیف‌ها + جمع‌ها + نحوهٔ پرداخت)
+     ۲) صفحهٔ ۲: تصاویر رسیدها/ضمائم در چیدمان فشردهٔ ۳-در-صفحه (هر رسید یک بلوک با شناسهٔ «سند N»)
+     ۳) بعدی: تصاویر ضمیمهٔ صورتحساب بانک (در صورت وجود) + هر فایل دیگر */
+  window.ptfPettyPeriodCombinedPdfHtml = function (a, b, pageBreakLabel) {
+    var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
+    var label = window.ptfPettyRangeLabel(a, b);
+    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>' +
+      '@page{size:A4;margin:10mm}' +
+      'body{font-family:Tahoma,Arial;padding:0;margin:0;color:#111;font-size:11px}' +
+      'table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:4px 6px;text-align:right;font-size:10.5px}th{background:#eee}' +
+      '.page{page-break-after:always}' +
+      '.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-items:start}' +
+      '.rcpt{box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:5px;page-break-inside:avoid;background:#fff;overflow:hidden}' +
+      '.rcpt img{width:100%;height:auto;display:block;border-radius:5px;max-height:300px;object-fit:contain;background:#fff}' +
+      '.rcpt .cap{font-size:9.5px;color:#1d4ed8;font-weight:bold;margin:4px 0 2px}' +
+      '.rcpt embed{width:100%;height:280px;border:1px solid #ddd;border-radius:5px;background:#fff}' +
+      '.rcpt .meta{font-size:9px;color:#475569;margin-bottom:3px}' +
+      '</style></head><body>' +
+      '<div class="page"><h2 style="font-size:16px;margin:0 0 8px">گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
+      '<p style="margin:0 0 8px">هزینه‌های دوره: <b>' + money(t.totalOut) + '</b> | شارژ دوره: <b>' + money(t.charges) + '</b> | موجودی دوره: <b>' + money(t.balance) + '</b></p>' +
+      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table>' +
+      (pageBreakLabel ? '<p style="font-size:10px;color:#64748b;margin-top:6px">' + escP(pageBreakLabel) + '</p>' : '') +
+      '</div>';
+    return html;
+  };
+
+  /* صفحهٔ ضمائم: چیدمان ۳-در-صفحهٔ فشرده + شناسهٔ «سند N» برای هر فایل */
+  /* BUG-PDF-ATTACH: نوع فایل (عکس/PDF/سایر) — برای نمایش صحیح در گزارش تلفیقی */
+  window.ptfPettyFileKind = function (name) {
+    var n = String(name || '').toLowerCase();
+    if (/\.(jpe?g|png|gif|webp|bmp)$/.test(n)) return 'image';
+    if (/\.pdf$/.test(n)) return 'pdf';
+    if (/\.(heic|heif|heics)$/.test(n)) return 'heic'; /* BUG-PDF-ATTACH: فرمت HEIC آیفون */
+    return 'other';
+  };
+  /* BUG-PDF-ATTACH: تبدیل PDF/HEIC به JPEG — از endpoint سرور (Imagick)؛ اگر نبود → خالی */
+  window.ptfPettyToJpeg = function (f) {
+    return new Promise(function (resolve) {
+      if (!f || !f.key) return resolve(f);
+      var kind = window.ptfPettyFileKind(f.name || f.key || '');
+      if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
+      try {
+        fetch('api/attachment-thumb.php', {
+          method: 'POST', headers: ptfStorageAuthHeaders(true),
+          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d && d.ok && d.images && d.images.length) {
+              f.url = d.images[0].url;
+              f.converted = true;
+              f.extraImages = d.images.slice(1).map(function (im) { return { key: im.key, url: im.url }; });
+            } else {
+              f.url = ''; f.convertError = (d && d.error) || 'no_imagick';
+            }
+            resolve(f);
+          })
+          .catch(function () { f.url = ''; f.convertError = 'net'; resolve(f); });
+      } catch (e) { f.url = ''; f.convertError = 'ex'; resolve(f); }
+    });
+  };
+  /* گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile */
+  window.ptfPettyResolveUrl = function (f) { return ptfPettyResolveUrl(f); };
+  function ptfPettyResolveUrl(f) {
+    return new Promise(function (resolve) {
+      if (!f || !f.key) return resolve('');
+      if (f.url) return resolve(f.url);
+      try {
+        fetch(STORAGE_API + '?action=presign_get', {
+          method: 'POST', headers: ptfStorageAuthHeaders(true),
+          body: JSON.stringify({ key: f.key })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) { resolve(d && d.ok ? d.url : ''); })
+          .catch(function () { resolve(''); });
+      } catch (e) { resolve(''); }
+    });
+  }
+  /* رندر یک ضمیمه: عکس → <img>؛ PDF → <embed> (قابل مشاهده در چاپ/PDF)؛ سایر → پیام */
+  /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل‌شده) به‌صورت <img> نمایش داده می‌شود؛ صفحه‌های بیشتر PDF → کارت‌های جدا */
+  window.ptfPettyReceiptHtml = function (f, pageLabel) {
+    var petId = (pageLabel ? pageLabel + ' — ' : '') + (f.petId || 'سند');
+    var kind = window.ptfPettyFileKind(f.name || f.key || '');
+    var url = String(f.url || '').replace(/"/g, '&quot;');
+    var inner;
+    var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
+    if (!url && f.key) {
+      inner = '<div style="padding:14px;color:#92400e;font-size:11px;text-align:center">⚠️ لینک این سند دریافت نشد' + (f.convertError ? ' (تبدیل ممکن نشد)' : '') + '.<br><small style="color:#94a3b8">برای مشاهده از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
+    } else if (kind === 'image' || kind === 'heic' || f.converted) {
+      inner = '<img src="' + url + '" onerror="this.parentNode.innerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ تصویر قابل نمایش نیست' + (openBtn ? ' — ' + openBtn : '') + '</div>\'">';
+    } else if (kind === 'pdf') {
+      inner = '<embed src="' + url + '" type="application/pdf" style="width:100%;height:200px;border-radius:5px" onerror="this.outerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ PDF قابل نمایش نیست</div>\'">' + openBtn;
+    } else {
+      inner = '<div style="padding:14px;color:#7c3aed;font-size:11px;text-align:center">📄 ' + escP(f.name || f.key || 'سند') + '<br><small style="color:#94a3b8">این فرمت در گزارش تلفیقی نمایش داده نمی‌شود؛ از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
+    }
+    return '<div class="rcpt"><div class="cap">' + escP(petId) + '</div>' +
+      (f.name ? '<div class="meta">' + escP(f.name) + '</div>' : '') + inner + '</div>';
+  };
+  window.ptfPettyReceiptsHtml = function (records) {
+    var cards = (records || []).map(function (f) {
+      var h = window.ptfPettyReceiptHtml(f);
+      /* PDF چندصفحه (تبدیل‌شده) → کارت برای هر صفحهٔ اضافه */
+      (f.extraImages || []).forEach(function (im, i) {
+        h += window.ptfPettyReceiptHtml({ key: im.key, name: (f.name || '') + ' (صفحه ' + (i + 2) + ')', url: im.url, petId: f.petId || '', converted: true }, 'صفحه ' + (i + 2));
+      });
+      return h;
+    }).join('');
+    if (!cards) return '<div style="padding:16px;color:#64748b;font-size:12px">رسید/ضمیمه‌ای برای نمایش در این دوره موجود نیست.</div>';
+    return '<div class="grid">' + cards + '</div>';
+  };
+
+  /* جمع‌آوری فایل‌های دوره: (الف) دورهٔ ذخیره‌شده → دقیقاً از pettyIds/txIds همان لحظهٔ ارجاع
+     (ب) دورهٔ جاری/بازه → از دادهٔ بازه */
+  window.ptfPettyPeriodFiles = function (a, b, ids) {
+    var out = [];
+    function pushRec(r) {
+      if (!r) return;
+      var petId = r.petId || ((r.files || []).length ? (r.files[0].petId || '') : '');
+      (r.files || []).forEach(function (f) {
+        /* BUG-PDF-ATTACH: url فایل (اگر از قبل resolve شده) حفظ می‌شود — قبلاً '' هاردکد بود و سندها لود نمی‌شدند */
+        out.push({ key: f.key || '', name: f.name || f.key, url: f.url || '', petId: f.petId || petId, record: r });
+      });
+    }
+    if (ids && Array.isArray(ids)) {
+      var byId = {};
+      (getData(PETTY_KEY) || []).forEach(function (p) { byId[p.cd] = p; });
+      txAll().forEach(function (x) { byId[x.cd] = x; });
+      ids.forEach(function (cd) { pushRec(byId[cd]); });
+      return out;
+    }
+    var d = window.ptfPettyPeriodData(a, b);
+    (d.petty || []).forEach(pushRec);
+    (d.tx || []).forEach(pushRec);
+    return out;
+  };
+
+  /* اجرا: ساخت PDF تلفیقی با گرفتن URL هر فایل (async) و سپس چاپ/دانلود */
+  window.ptfPettyPeriodCombinedPdf = function (a, b) {
+    var key = ptfPettyPeriodKey(a, b);
+    var ids = null;
+    /* اگر برای یک دورهٔ ارجاع‌شده صدا زده شود، از همان اسناد لحظهٔ ارجاع استفاده کن */
+    if (!key.isRange && key.month) {
+      var pr = prAll().filter(function (x) { return x.month === key.month && (x.st === 'referred' || x.st === 'registered'); })[0];
+      if (pr && pr.pettyIds && pr.txIds) ids = pr.pettyIds.concat(pr.txIds);
+    }
+    var files = window.ptfPettyPeriodFiles(a, b, ids);
+    var periodRec = null;
+    if (key.isRange) periodRec = prAll().filter(function (x) { return x.from === key.from && x.to === key.to; })[0];
+    else periodRec = prAll().filter(function (x) { return x.month === key.month; })[0];
+    var periodFiles = (periodRec && periodRec.files) || [];
+    /* BUG-PDF-ATTACH: اول URL همهٔ ضمائم (عکس/PDF) از storage گرفته می‌شود، بعد HTML ساخته و چاپ می‌شود */
+    var all = files.concat(periodFiles);
+    var jobs = all.map(function (f) {
+      return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; });
+    });
+    Promise.all(jobs).then(function () {
+      /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل سمت سرور) — قبل از رندر */
+      var convertJobs = all.filter(function (f) {
+        var k = window.ptfPettyFileKind(f.name || f.key || '');
+        return (k === 'pdf' || k === 'heic') && f.key;
+      }).map(function (f) { return window.ptfPettyToJpeg(f); });
+      return Promise.all(convertJobs);
+    }).then(function () {
+      var pageBreaks = [];
+      var receiptsHtml = window.ptfPettyReceiptsHtml(files);
+      pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">📎 ضمائم و رسیدهای پرداخت (شناسهٔ هر رسید مطابق ردیف‌های گزارش)</h3>' + receiptsHtml + '</div>');
+      if (periodFiles.length) {
+        pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">🏦 پیوست صورتحساب بانک / گردش حساب دوره</h3>' + window.ptfPettyReceiptsHtml(periodFiles) + '</div>');
+      }
+      var label = window.ptfPettyRangeLabel(a, b);
+      var reportHtml = window.ptfPettyPeriodCombinedPdfHtml(a, b, 'تعداد رسیدهای ضمیمه‌شده: ' + files.length + (periodFiles.length ? ' | پیوست بانک: ' + periodFiles.length : ''));
+      var fullHtml = reportHtml + pageBreaks.join('');
+      if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تلفیقی دورهٔ تنخواه — ' + label, fullHtml, 'petty-period-combined-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
+      var w = window.open('', '_blank'); if (!w) return;
+      w.document.write(fullHtml); w.document.close(); w.print();
+    });
   };
 
   window.pettyClosePeriod = function () {
     if (!isTreasurer()) { alert('⛔ فقط تنخواه‌گردان'); return; }
+    var sg = window.ptfPettySuggestedRange();
     ptfDialog({
       title: '📤 ارجاع گزارش دوره تنخواه به حسابدار',
-      body: 'گزارش گردش دوره شامل پرداخت‌های مستقیم، تسویه مطالبات اشخاص، مانده حساب و همه ضمایم هزینه‌هاست. پس از ثبت، در کارتابل حسابدار قابل پیگیری می‌شود.',
+      body: 'گزارش گردش دوره شامل پرداخت‌های مستقیم، تسویه مطالبات اشخاص، مانده حساب و همه ضمایم هزینه‌هاست. پس از ثبت، در کارتابل حسابدار قابل پیگیری می‌شود.<br><b style="color:#b45309">⚠️ پیوست «صورتحساب بانک / گردش حساب» قبل از ارجاع الزامی است.</b><br><small style="color:#475569">بازهٔ پیشنهادی از «روز پس از آخرین ارجاع» تا امروز است — می‌توانید «تا تاریخ» را تغییر دهید.</small>',
       fields: [
-        { id: 'month', label: 'ماه دوره (مثال 1405/04)', value: faMonthNow(), required: true, dir: 'ltr' },
+        { id: 'from', label: 'از تاریخ (روز پس از آخرین ارجاع)', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
+        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true },
+        { id: 'bankFile', label: '📎 فایل PDF گردش حساب بانک (الزامی — قبل از ارجاع)', type: 'upload', uploadFolder: 'petty-period/' },
         { id: 'note', label: 'یادداشت برای حسابدار', type: 'textarea', rows: 2 },
         { id: 'sms', label: 'پیامک اطلاع‌رسانی؟', type: 'select', options: [{ v: 'no', lb: 'خیر' }, { v: 'yes', lb: 'بله، اگر شماره حسابدار موجود است' }] }
       ],
       okText: 'ثبت و ارجاع',
       onOk: function (v) {
-        var d = window.ptfPettyPeriodData(v.month);
-        var rec = { cd: genCode('PPR'), month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: [] };
-        var ps = prAll(); ps.unshift(rec); prSave(ps);
-        audit('تنخواه', 'ارجاع گزارش دوره ' + d.month + ' به حسابدار — گردش ' + money(d.totalOut), rec.cd);
-        if (typeof notify === 'function') notify({ toRoles: ['accountant'], title: '📤 گزارش دوره تنخواه ' + d.month + ' برای ثبت حسابداری ارجاع شد', body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' } });
-        if (v.sms === 'yes' && typeof smsSendSingle === 'function') accountants().forEach(function (u) { if (u.mobile) smsSendSingle(u.mobile, 'حسابدار محترم، گزارش دوره تنخواه ' + d.month + ' در CRM برای ثبت حسابداری ارجاع شد. https://pishtaj.ir/crm/'); });
-        renderPetty(); pettyAttachBank(rec.cd);
+        var from = window.ptfPettyNormDate(v.from), to = window.ptfPettyNormDate(v.to);
+        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از تقویم استفاده کنید).'); return; }
+        if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
+        /* UR-13 (اصلاح): فایل گردش حساب بانک باید در همین پنجره ضمیمه شده باشد — بدون آن ارجاع نمی‌شود */
+        var bankFiles = (v.bankFile || []).filter(Boolean);
+        if (!bankFiles.length) { alert('⚠️ ابتدا فایل «صورتحساب بانک / گردش حساب بانک» را در همین پنجره ضمیمه کنید؛ ارجاع بدون آن انجام نمی‌شود.'); return; }
+        var d = window.ptfPettyPeriodData(from, to);
+        var ps = prAll();
+        /* UR-10/UR-11: اگر آخرین دورهٔ ارجاع‌شده بدون پیوست بانک باشد، ارجاع جدید مسدود می‌شود
+           (چون دورهٔ جدید از روز پس از آن شروع می‌شود و آن دوره باید کامل باشد). */
+        var lastClosed = ps.filter(function (x) { return x.st === 'referred' || x.st === 'registered'; })[0];
+        if (lastClosed && !(lastClosed.files || []).length) {
+          alert('⚠️ دورهٔ قبلی (' + (lastClosed.from && lastClosed.to ? 'از ' + lastClosed.from + ' تا ' + lastClosed.to : 'ماه ' + lastClosed.month) + ') هنوز «صورتحساب بانک / گردش حساب» ندارد — ابتدا آن را ضمیمه کنید؛ ارجاع تا الحاق پیوست انجام نمی‌شود.');
+          pettyAttachBank(lastClosed.cd);
+          return;
+        }
+        var rec = { cd: genCode('PPR'), from: from, to: to, month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: bankFiles };
+        ps.unshift(rec); prSave(ps);
+        audit('تنخواه', 'ارجاع گزارش دوره از ' + from + ' تا ' + to + ' به حسابدار — گردش ' + money(d.totalOut), rec.cd);
+        if (typeof notify === 'function') notify({ toRoles: ['accountant'], title: '📤 گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') برای ثبت حسابداری ارجاع شد', body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' } });
+        if (v.sms === 'yes' && typeof smsSendSingle === 'function') accountants().forEach(function (u) { if (u.mobile) smsSendSingle(u.mobile, 'حسابدار محترم، گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') در CRM برای ثبت حسابداری ارجاع شد. https://pishtaj.ir/crm/'); });
+        renderPetty();
+        /* UR-13: فایل گردش حساب بانک از قبل در همین پنجره ضمیمه شده — دیگر دیالوگ پیوست جدا لازم نیست */
       }
     });
   };

@@ -1,4 +1,20 @@
-/* =====================================================================
+  /* v33.12.0 (بازخورد کارفرما): دارک‌مود برای باکس‌های با پس‌زمینهٔ روشن ثابت
+     («تعهدات نقدینگی تأمین و چک‌های شرکت» و «برنامه‌ریزی فصلی مالیات») — در نمای شب
+     پس‌زمینهٔ روشن قبلی متن را ناخوانا می‌کرد. */
+  (function () {
+    var css = document.createElement('style');
+    css.textContent =
+      'body.ptf-dark #slLiquidity{background:#1e293b !important;border-color:#334155 !important;color:#e2e8f0}' +
+      'body.ptf-dark #slLiquidity b{color:#fbbf24}' +
+      'body.ptf-dark #slLiquidity small,body.ptf-dark #slLiquidity span{color:#cbd5e1}' +
+      'body.ptf-dark #slLiquidity .sc{background:#0f172a;border-color:#334155}' +
+      'body.ptf-dark #ptfTaxPlannerBox{background:#0f172a !important;border-color:#334155 !important;color:#e2e8f0}' +
+      'body.ptf-dark #ptfTaxPlannerBox h4,body.ptf-dark #ptfTaxPlannerBox label{color:#f1f5f9}' +
+      'body.ptf-dark #ptfTaxPlannerBox input,body.ptf-dark #ptfTaxPlannerBox select{background:#1e293b;color:#e2e8f0;border-color:#334155}';
+    try { document.head.appendChild(css); } catch (e) {}
+  })();
+
+  /* =====================================================================
    PTF CRM — v31.9 + Phase 2 / Step 3 (جداسازی گزارشی رسمی/غیررسمی)
    Legacy UAT token: btn('quality', '🧪 کیفیت داده')
    US-429: هاب مالی مدیریتی R9 — تب‌بندی تنخواه/هزینه/سهامداران/سال مالی
@@ -38,32 +54,58 @@
     if (!canHub()) return '';
     return '<div id="finHubBar" class="fin-hub-bar">' +
       '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی، گزارش تجمیعی و تراز رسمی/غیررسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
-      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('quality', 'کیفیت داده', 'quality') + '</div></div></div>';
+      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
   }
   window.finHubSet = function (id) { window._finHubTab = id || 'petty'; finHubApply(); };
   window.finHubApply = function () {
     if (!canHub()) return;
     var t = tab();
     function show(id, on) { var el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }
-    ['ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap'].forEach(function (id) { show(id, t === 'petty'); });
+    ['ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap'].forEach(function (id) { show(id, t === 'petty'); });
     show('opexBox', t === 'opex');
     show('shareBox', t === 'share');
     show('fiscalBox', t === 'fiscal');
+    /* v33.12.0: «داشبورد برنامه‌ریزی فصلی مالیات» (ptfTaxPlannerBox) قبلاً در هیچ تبی
+       مخفی نمی‌شد و در همهٔ تب‌ها دیده می‌شد → حالا فقط در تب «سال مالی». */
+    show('ptfTaxPlannerBox', t === 'fiscal');
+    /* v33.11.0: باکس «تعهدات نقدینگی تأمین و چک‌های شرکت» (slLiquidity) قبلاً در هیچ
+       تبی مخفی نمی‌شد و در همهٔ تب‌ها دیده می‌شد → حالا فقط در تب حساب تأمین‌کنندگان. */
+    show('slLiquidity', t === 'supacc');
     show('slFinanceHubBox', t === 'supacc');
     show('cfFinanceHubBox', t === 'custacc');
     show('wcFinanceHubBox', t === 'workcap');
     show('ledgerReportBox', t === 'ledger');
     show('qualityBox', t === 'quality');
+    show('chequeBox', t === 'cheque');
     var old = document.getElementById('finHubBar');
     if (old) old.outerHTML = bar();
+    window.finHubOrder();
+  };
+  /* v33.11.0 (بازخورد کارفرما — «هاب مالی وسط صفحه دیده می‌شود»):
+     باکس‌های opexBox/slLiquidity توسط hook های قبلی قبل از نوار هاب چیده می‌شدند.
+     این تابع ترتیب همهٔ باکس‌های هاب را بازمی‌چیند: نوار هاب اول، سپس باکس‌های تب‌ها. */
+  window.finHubOrder = function () {
+    try {
+      var panels = document.getElementById('panels');
+      var barEl = document.getElementById('finHubBar');
+      if (!panels || !barEl) return;
+      var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
+        'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
+        'ledgerReportBox', 'qualityBox', 'chequeBox'];
+      ids.forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && el.parentNode === panels) panels.appendChild(el);
+      });
+      panels.insertBefore(barEl, panels.firstChild);
+    } catch (e) {}
   };
   function hook() {
     if (window._finHubHooked || typeof window.buildPetty !== 'function') return false;
     window._finHubHooked = true;
     var _bp = window.buildPetty;
-    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : ''); };
+    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : ''); };
     var _rp = window.renderPetty;
-    if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); } catch (e) {} };
+    if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); window.finHubOrder(); } catch (e) {} };
     return true;
   }
   var n = 0;

@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>تنظیم فشار ست و Blowdown شیر اطمینان PSV | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="راهنمای فنی تنظیم دقیق فشار ست و درصد Blowdown شیر اطمینان — جلوگیری از Chattering، تاثیر پس‌فشار متغیر و شیرهای Balanced Bellows طبق API 527." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="تنظیم فشار ست و Blowdown شیر اطمینان PSV" />
+<meta property="og:description" content="راهنمای فنی تنظیم دقیق فشار ست و درصد Blowdown شیر اطمینان — جلوگیری از Chattering، تاثیر پس‌فشار متغیر و شیرهای Balanced Bellows طبق API 527." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "تنظیم فشار ست و Blowdown PSV", "item": "https://pishtaj.ir/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html"}]}, {"@type": ["TechArticle", "Article"], "headline": "تنظیم فشار ست و Blowdown شیر اطمینان PSV", "description": "راهنمای فنی تنظیم دقیق فشار ست و درصد Blowdown شیر اطمینان — جلوگیری از Chattering، تاثیر پس‌فشار متغیر و شیرهای Balanced Bellows طبق API 527.", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/kc-psv-set-pressure-blowdown-adjustment.html"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "dateModified": "2026-07-28", "datePublished": "2026-07-01", "articleSection": "شیرآلات صنعتی"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "فشار ست شیر اطمینان چیست؟", "acceptedAnswer": {"@type": "Answer", "text": "فشاری است که در آن دیسک شیر شروع به باز شدن می‌کند و باید دقیقاً مطابق فشار طراحی مجاز تجهیز (MAWP) با تلورانس استاندارد API 527 تنظیم شود."}}, {"@type": "Question", "name": "Blowdown چه نقشی دارد؟", "acceptedAnswer": {"@type": "Answer", "text": "درصد افت فشار لازم برای بسته‌شدن مجدد شیر پس از باز شدن است؛ تنظیم نامناسب آن می‌تواند باعث لرزش سریع دیسک (Chattering) یا هدررفت بیش‌ازحد سیال شود."}}, {"@type": "Question", "name": "Chattering چیست و چرا خطرناک است؟", "acceptedAnswer": {"@type": "Answer", "text": "لرزش سریع و مکرر دیسک شیر است که می‌تواند در چند دقیقه به آسیب جدی نشیمنگاه منجر شود؛ معمولاً ناشی از Blowdown بسیار کم یا سایز نامناسب شیر است."}}, {"@type": "Question", "name": "چرا پس‌فشار متغیر روی فشار ست موثر اثر می‌گذارد؟", "acceptedAnswer": {"@type": "Answer", "text": "برای شیرهای متعارف، پس‌فشار خروجی متغیر می‌تواند فشار ست واقعی را تغییر دهد؛ برای این شرایط، شیرهای Balanced Bellows تاثیر پس‌فشار را کاهش می‌دهند."}}]}]}</script>
+<style>
+.article-hero{background:linear-gradient(135deg,#151517,#2d2d31);min-height:220px;display:flex;align-items:center;padding:130px 0 50px;color:#fff;position:relative}
+.article-hero .container{position:relative;z-index:1}
+.article-hero h1{font-size:clamp(24px,3.2vw,38px);margin:0 0 10px;line-height:1.3}
+.article-wrap{max-width:900px;margin:40px auto;padding:0 20px}
+.article-content{background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;font-size:16px;color:#334155;box-shadow:0 16px 42px rgba(0,0,0,.07)}
+.article-content h2{font-size:clamp(22px,2.8vw,32px);margin:40px 0 16px;color:#1e293b;font-weight:900;padding-bottom:8px;border-bottom:2px solid #f1f5f9}
+.article-content h3{font-size:19px;margin:30px 0 12px;color:#1e293b}
+.article-content p{margin:0 0 18px}
+.article-content ul,.article-content ol{margin:0 0 18px;padding-right:22px}
+.article-content li{margin-bottom:8px}
+.article-content a{color:var(--red);font-weight:900}
+.article-content table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.article-content th,.article-content td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top;text-align:right}
+.article-content th{background:#f1f5f9;color:#334155}
+.article-cta{background:linear-gradient(135deg,#f8fafc,#fff);border:2px solid var(--line);border-radius:24px;padding:30px;text-align:center;margin:40px 0 0}
+.related-articles{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:30px 0}
+.rel-item{padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fafc;text-decoration:none;transition:.2s}
+.rel-item:hover{border-color:var(--red)}
+.rel-item b{display:block;color:#1e293b;font-size:14px}
+.rel-item span{font-size:12px;color:#64748b}
+@media(max-width:700px){.article-content{padding:24px}.related-articles{grid-template-columns:1fr}}
+.faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}
+.note-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:14px 16px;margin:16px 0}
+.ok-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:14px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+<section class="article-hero">
+<div class="container">
+<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">شیرآلات صنعتی و ایمنی</span>
+<h1>راهنمای تنظیم فشار ست (Set Pressure) و Blowdown شیر اطمینان</h1>
+<p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
+</div>
+</section>
+<div class="article-wrap">
+<div class="article-content">
+
+<p style="font-size:17px"><b>تنظیم فشار ست و Blowdown شیر اطمینان</b> — برخلاف معرفی کلی شیرهای اطمینان، این مقاله مستقیماً به دو پارامتر تنظیمی حیاتی می‌پردازد که عملکرد صحیح PSV در شرایط اضطراری را تضمین می‌کنند: فشار ست دقیق و درصد Blowdown مناسب.</p>
+
+<h2>فشار ست (Set Pressure) — چرا دقت تنظیم اهمیت حیاتی دارد؟</h2>
+<p>فشار ست، فشاری است که در آن دیسک شیر شروع به باز شدن می‌کند. تنظیم این فشار باید دقیقاً مطابق فشار طراحی مجاز تجهیز محافظت‌شده (معمولاً MAWP — Maximum Allowable Working Pressure) و با تلورانس مجاز استاندارد (طبق API 527 معمولاً ±۱ تا ۳ درصد بسته به محدودهٔ فشار) باشد.</p>
+<div class="note-box"><b>هشدار مهم:</b> تنظیم فشار ست بالاتر از حد مجاز، تجهیز را در معرض خطر آسیب یا انفجار در فشار بالاتر از توان طراحی قرار می‌دهد؛ تنظیم پایین‌تر از حد لازم باعث آزادسازی غیرضروری و مکرر سیال (نشتی زودهنگام، هدررفت محصول و آلودگی محیط) می‌شود. هر دو خطا پرهزینه و خطرناک هستند.</div>
+
+<h2>Blowdown چیست و چرا باید به‌دقت تنظیم شود؟</h2>
+<p>Blowdown درصد افت فشار لازم (نسبت به فشار ست) برای بسته‌شدن مجدد شیر پس از باز شدن است. مثلاً Blowdown ۱۰٪ روی شیری با فشار ست ۱۰۰ بار به این معناست که شیر تا فشار ۹۰ بار باز باقی می‌ماند و در آن نقطه بسته می‌شود.</p>
+<table>
+<thead><tr><th>Blowdown</th><th>اثر</th></tr></thead>
+<tbody>
+<tr><td>خیلی کم (نزدیک صفر)</td><td>شیر بلافاصله پس از باز شدن جزئی بسته می‌شود؛ ریسک لرزش سریع (Chattering) و آسیب مکانیکی به نشیمنگاه</td></tr>
+<tr><td>مناسب (معمولاً ۴ تا ۱۰٪ برای گاز، بیشتر برای بخار)</td><td>باز شدن پایدار و بسته شدن کنترل‌شده بدون Chattering</td></tr>
+<tr><td>خیلی زیاد</td><td>سیستم برای مدت طولانی‌تری در فشار پایین‌تر از نرمال باز می‌ماند؛ هدررفت بیشتر سیال و کاهش فشار سیستم پایین‌دست</td></tr>
+</tbody>
+</table>
+
+<h2>Chattering — پدیدهٔ خطرناک ناشی از Blowdown نامناسب</h2>
+<p>لرزش سریع و مکرر دیسک شیر (باز و بسته شدن پیاپی در فرکانس بالا) معمولاً ناشی از Blowdown بسیار کم یا اندازهٔ نامناسب شیر (بیش‌ازحد بزرگ برای دبی تخلیهٔ واقعی) است. این پدیده می‌تواند در عرض چند دقیقه به آسیب جدی نشیمنگاه و از دست‌رفتن آب‌بندی صحیح شیر منجر شود؛ رفع آن نیازمند بررسی هم‌زمان سایز شیر و تنظیم Blowdown است، نه صرفاً افزایش Blowdown به‌تنهایی.</p>
+
+<h2>روش‌های تنظیم Blowdown در شیرهای مدرن</h2>
+<ul>
+<li><b>حلقهٔ تنظیم (Blowdown Ring) قابل‌تنظیم:</b> در اکثر PSVهای فنری مدرن، حلقه‌ای در نزدیکی نشیمنگاه امکان تنظیم دقیق درصد Blowdown را بدون نیاز به تعویض قطعات فراهم می‌کند.</li>
+<li><b>تنظیم کارخانه‌ای ثابت:</b> برخی شیرهای ساده‌تر Blowdown ثابت کارخانه‌ای دارند که برای تغییر آن نیاز به مشورت با سازنده است.</li>
+</ul>
+<div class="ok-box"><b>پیشنهاد اجرایی:</b> تنظیم Blowdown باید توسط تکنسین مجاز و در بستر تست فشار کنترل‌شده (Test Bench) انجام و مستند شود؛ تنظیم میدانی بدون تجهیزات دقیق اندازه‌گیری فشار، نتیجهٔ قابل‌اعتمادی نخواهد داشت.</div>
+
+<h2>تاثیر پس‌فشار (Back Pressure) متغیر بر فشار ست موثر</h2>
+<p>برای PSVهای متعارف (Conventional)، پس‌فشار متغیر خروجی (ناشی از تخلیهٔ هم‌زمان چند شیر به یک هدر مشترک) می‌تواند فشار ست موثر را تغییر دهد. برای سیستم‌هایی با پس‌فشار متغیر بالا، استفاده از شیرهای متعادل‌شده (Balanced Bellows) توصیه می‌شود که تاثیر پس‌فشار روی فشار ست را به‌طور قابل‌توجهی کاهش می‌دهند.</p>
+
+<h2>مستندسازی تنظیمات برای بازرسی و گواهی</h2>
+<p>هر شیر اطمینان باید دارای برچسب یا گواهی مشخصی از فشار ست واقعی تنظیم‌شده، درصد Blowdown، تاریخ تست و شمارهٔ سریال باشد؛ این مستندات برای بازرسی‌های دورهٔ الزامی (طبق برنامهٔ نگهداری PSV) و ممیزی‌های ایمنی ضروری است.</p>
+
+<h2>چک‌لیست تنظیم فشار ست و Blowdown</h2>
+<ul>
+<li>تنظیم دقیق فشار ست مطابق MAWP تجهیز محافظت‌شده با تلورانس استاندارد API 527.</li>
+<li>انتخاب درصد Blowdown مناسب نوع سیال (گاز/بخار/مایع) برای جلوگیری از Chattering.</li>
+<li>تست و تنظیم روی Test Bench با مستندسازی کامل.</li>
+<li>بررسی نیاز به شیر Balanced Bellows در صورت پس‌فشار متغیر بالا.</li>
+</ul>
+
+
+<h2>تفاوت الزامات Blowdown برای سرویس گاز، بخار و مایع</h2>
+<p>درصد Blowdown بهینه به نوع سیال تخلیه‌شونده بستگی دارد؛ سرویس‌های گازی معمولاً Blowdown کمتر (۴ تا ۷ درصد) نیاز دارند، درحالی‌که سرویس بخار به دلیل ماهیت فشرده‌پذیری متفاوت، ممکن است به Blowdown کمی بالاتر (۷ تا ۱۰ درصد) برای جلوگیری از بسته‌شدن ناگهانی و ضربهٔ فشاری نیاز داشته باشد. این تفاوت باید در مشخصات فنی خرید شیر به‌وضوح قید شود.</p>
+<h2>اهمیت تکرارپذیری تنظیمات بین چند شیر مشابه در یک پروژه</h2>
+<p>برای پروژه‌هایی با چندین PSV مشابه (مثلاً چندین مخزن یکسان)، اطمینان از تکرارپذیری دقیق تنظیمات فشار ست و Blowdown بین تمام واحدها اهمیت دارد؛ این کار با استفاده از همان دستگاه تست کالیبره‌شده و همان تکنسین برای کل دسته، و مستندسازی جداگانهٔ هر شیر با شمارهٔ سریال، تضمین می‌شود.</p>
+
+<h2>پرسش پرتکرار: آیا می‌توان فشار ست را در سایت بدون تجهیزات آزمایشگاهی تنظیم کرد؟</h2>
+<p>تنظیم میدانی بدون تجهیزات دقیق فشار و کنترل نشتی، نتیجهٔ قابل‌اعتمادی نمی‌دهد و برای شیرهای ایمنی حیاتی توصیه نمی‌شود؛ همیشه باید از Test Bench معتبر با گواهی کالیبراسیون معتبر استفاده شود، حتی اگر این کار نیازمند ارسال شیر به کارگاه تخصصی باشد.</p>
+<h2>هماهنگی زمان‌بندی تست دورهٔ PSV با شات‌داون واحد</h2>
+<p>تست و کالیبراسیون دورهٔ PSV معمولاً نیازمند خروج موقت شیر از سرویس است؛ برنامه‌ریزی این کار هم‌زمان با شات‌داون برنامه‌ریزی‌شدهٔ واحد، از توقف اضافی غیرضروری فقط برای تست شیر جلوگیری می‌کند.</p>
+<h2>جمع‌بندی نهایی</h2>
+<p>تنظیم دقیق و مستندشدهٔ فشار ست و Blowdown، رکن اصلی عملکرد ایمن شیر اطمینان در لحظهٔ بحرانی است. تیم فنی پیشرو تجهیز فرتاک در تامین و هماهنگی تست این تجهیزات حیاتی همراه پروژه‌های شماست.</p>
+
+<h2>تاثیر دمای سیال بر پایداری بلندمدت تنظیم فشار ست</h2>
+<p>در سرویس‌های دمای بالا، انبساط حرارتی فنر و اجزای داخلی شیر می‌تواند به‌مرور فشار ست موثر را کمی تغییر دهد؛ برای این سرویس‌ها، بازرسی و کالیبراسیون دورهٔ با فاصلهٔ کوتاه‌تر نسبت به سرویس‌های دمای محیط توصیه می‌شود.</p>
+<h2>مستندات موردنیاز برای گواهی راه‌اندازی نهایی پروژه</h2>
+<p>گزارش تست فشار ست و Blowdown هر PSV باید بخشی از بستهٔ مدارک راه‌اندازی نهایی (Mechanical Completion Package) تحویلی به کارفرما باشد؛ فقدان این مستندات می‌تواند تاخیر در صدور مجوز راه‌اندازی رسمی واحد ایجاد کند.</p>
+
+<p>پیشرو تجهیز فرتاک در تامین شیرهای اطمینان معتبر و هماهنگی تست دورهٔ آن‌ها، شریک فنی قابل‌اعتماد پروژه‌های صنعتی شماست.</p>
+
+<h2>نکتهٔ پایانی دربارهٔ انتخاب تامین‌کننده با تجربهٔ تنظیم دقیق</h2>
+<p>تامین‌کنندگانی که خودشان امکانات Test Bench داخلی و تیم فنی مجرب برای تنظیم PSV دارند، معمولاً کیفیت و مستندسازی بهتری نسبت به واسطه‌های صرف فروش ارائه می‌دهند؛ این معیار باید در انتخاب تامین‌کننده برای تجهیزات ایمنی حیاتی لحاظ شود.</p>
+
+<h2>پرسش پایانی: آیا شیرهای آزمایشی (Pilot Operated) همان الزامات را دارند؟</h2>
+<p>شیرهای هدایت‌شده با پایلوت (Pilot Operated Relief Valve) اصول مشابهی برای فشار ست دارند اما مکانیزم کنترل Blowdown آن‌ها متفاوت و اغلب دقیق‌تر است؛ این نوع شیر برای سرویس‌های با پس‌فشار بالا یا نیاز به Blowdown بسیار کم مناسب‌تر است، اما پیچیدگی و هزینهٔ نگهداری بیشتری دارد.</p>
+
+<p>در نهایت، انتخاب نوع مناسب PSV باید بر اساس شرایط واقعی پس‌فشار و دقت موردنیاز Blowdown سرویس خاص هر پروژه انجام شود.</p>
+
+<p>این انتخاب باید بر اساس تحلیل کامل شرایط سیستم، نه صرفاً هزینهٔ اولیهٔ خرید شیر انجام شود.</p>
+
+<h2>پرسش پایانی: چند سال یک‌بار باید PSV کاملاً بازرسی شود؟</h2>
+<p>بازهٔ رایج صنعتی معمولاً بین ۲ تا ۵ سال است، بسته به شدت سرویس و الزامات مقرراتی محلی؛ برای سرویس‌های خورنده یا با ذرات جامد، بازهٔ کوتاه‌تر توصیه می‌شود.</p>
+
+<p>تیم فنی پیشرو تجهیز فرتاک در برنامه‌ریزی این بازرسی‌های دورهٔ همراه پروژه‌های شماست.</p>
+
+<p>این همکاری از ابتدای فاز طراحی تا بهره‌برداری بلندمدت پروژه ادامه می‌یابد.</p>
+
+<p>نتیجهٔ نهایی، تضمین عملکرد صحیح این تجهیز ایمنی حیاتی در طول کل عمر بهره‌برداری پروژه است.</p>
+
+<p>این تضمین مستقیماً به کاهش ریسک حوادث صنعتی و افزایش قابلیت اطمینان کلی واحد کمک می‌کند.</p>
+
+<p>سرمایه‌گذاری در تنظیم دقیق این تجهیز، ارزان‌ترین بیمهٔ ممکن در برابر حوادث پرهزینه است.</p>
+
+<p>این اصل ساده باید همیشه اولویت اول تیم مهندسی ایمنی هر پروژهٔ صنعتی باقی بماند.</p>
+
+<p>بی‌توجهی به این اصل، حتی یک‌بار، می‌تواند عواقب جبران‌ناپذیری برای ایمنی پرسنل و تجهیزات به همراه داشته باشد.</p>
+<h2>جمع‌بندی</h2>
+<p>تنظیم دقیق فشار ست و Blowdown، تفاوت بین عملکرد ایمن و قابل‌اعتماد شیر اطمینان و ریسک آسیب مکانیکی یا شکست ایمنی است. تیم فنی پیشرو تجهیز فرتاک در تامین شیرهای اطمینان معتبر و مشاورهٔ فنی تنظیم صحیح متناسب با نیاز پروژه‌های شما همراه است.</p>
+
+<h2>سوالات پرتکرار</h2>
+<div class="faq-list">
+<details><summary>فشار ست شیر اطمینان چیست؟</summary><p>فشاری است که در آن دیسک شیر شروع به باز شدن می‌کند و باید دقیقاً مطابق فشار طراحی مجاز تجهیز (MAWP) با تلورانس استاندارد API 527 تنظیم شود.</p></details><details><summary>Blowdown چه نقشی دارد؟</summary><p>درصد افت فشار لازم برای بسته‌شدن مجدد شیر پس از باز شدن است؛ تنظیم نامناسب آن می‌تواند باعث لرزش سریع دیسک (Chattering) یا هدررفت بیش‌ازحد سیال شود.</p></details><details><summary>Chattering چیست و چرا خطرناک است؟</summary><p>لرزش سریع و مکرر دیسک شیر است که می‌تواند در چند دقیقه به آسیب جدی نشیمنگاه منجر شود؛ معمولاً ناشی از Blowdown بسیار کم یا سایز نامناسب شیر است.</p></details><details><summary>چرا پس‌فشار متغیر روی فشار ست موثر اثر می‌گذارد؟</summary><p>برای شیرهای متعارف، پس‌فشار خروجی متغیر می‌تواند فشار ست واقعی را تغییر دهد؛ برای این شرایط، شیرهای Balanced Bellows تاثیر پس‌فشار را کاهش می‌دهند.</p></details>
+</div>
+<h2>مطالب مرتبط</h2>
+<div class="related-articles">
+<a class="rel-item" href="kc-psv.html"><b>راهنمای کامل شیرهای اطمینان (PSV) — انواع، سایزینگ و نصب</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="psv-prv-api-520-api-526.html"><b>راهنمای استاندارد API 520 و API 526</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="safety-relief-valve-guide.html"><b>راهنمای شیر اطمینان و ایمنی</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="../services/valves-supply.html"><b>خدمات شیرآلات صنعتی</b><span>مرکز دانش فنی</span></a>
+</div>
+</div>
+<div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:32px">📋</span>
+    <div>
+      <b style="font-size:16px;color:#1e293b;display:block;margin-bottom:4px">درخواست استعلام فنی و استعلام قیمت تخصصی: تنظیم فشار ست و Blowdown شیر اطمینان PSV</b>
+      <span style="font-size:13px;color:#475569">کارشناسان فنی پیشرو تجهیز فرتاک آماده بررسی MTO و مشخصات فنی پروژه شما هستند.</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a href="../rfq/?item=%D8%B4%DB%8C%D8%B1%20%D8%A7%D8%B7%D9%85%DB%8C%D9%86%D8%A7%D9%86%20PSV%20%D8%A8%D8%A7%20%D8%AA%D9%86%D8%B8%DB%8C%D9%85%20%D8%AF%D9%82%DB%8C%D9%82" class="cro-btn" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:14px;box-shadow:0 6px 20px rgba(239,75,26,0.25);transition:.2s">ثبت استعلام هوشمند قیمت ←</a>
+    <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
+  </div>
+</div>
+</div>
+<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px; object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;">• سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;">• رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;">• ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;">• مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;">• مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;">🔐 ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+</body>
+</html>

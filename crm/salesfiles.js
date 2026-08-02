@@ -75,9 +75,33 @@
   var ht = setInterval(function () { htr++; if (hookOfferSave() || htr > 50) clearInterval(ht); }, 400);
 
   /* ---------- جمع‌آوری زنده اسناد منضم یک درخواست ---------- */
+  window.ptfSalesFileOffers = function (r) {
+    if (!r) return [];
+    var all = getData('ptf_crm_offers'), out = [], seen = {};
+    function add(o) { if (!o || !o.no || seen[o.no]) return; seen[o.no] = true; out.push(o); }
+    /* BUG-ARCHIVE (۱۴۰۵/۰۸/۱۰): پیش از این فقط wonOffer + offers با st==='won' برمی‌گشت
+       و سایر اسناد پرونده (پیشنهاد اصلی، متمم‌ها، پیشنهادهای غیربرندهٔ همان درخواست) از
+       نمایش حذف می‌شدند → در بایگانی فقط «سند متمم» دیده می‌شد. حالا همهٔ پیشنهادهای
+       همان درخواست + زنجیرهٔ (altOf/srcToNo/coNo) + wonOffer برگردانده می‌شوند تا
+       فاکتورها/نامه‌های مرتبط هم در بایگانی دیده شوند. */
+    if (r.wonOffer) add(all.filter(function (o) { return o.no === r.wonOffer; })[0]);
+    all.filter(function (o) {
+      return o.inqNo === r.inqNo;
+    }).forEach(add);
+    /* زنجیره: COهایی که به TO/CO دیگر متصل‌اند یا altOf دارند */
+    var grew = true;
+    while (grew) {
+      grew = false;
+      all.forEach(function (o) {
+        if (seen[o.no]) return;
+        if ((o.altOf && seen[o.altOf]) || (o.srcToNo && seen[o.srcToNo]) || (o.coNo && seen[o.coNo])) { add(o); grew = true; }
+      });
+    }
+    return out;
+  };
   function sfDocsOf(r) {
     var out = { offers: [], letters: [], invoices: [], misc: r.docs || [], supply: [] };
-    var offers = getData('ptf_crm_offers').filter(function (o) { return o.inqNo === r.inqNo; });
+    var offers = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers(r) : getData('ptf_crm_offers').filter(function (o) { return o.inqNo === r.inqNo; });
     out.offers = offers; // نمایش زنده = همیشه آخرین رویژن (o.rev)
     out.letters = getData('ptf_crm_letters').filter(function (l) {
       return l.prjNo === 'SF:' + r.inqNo || l.inqNo === r.inqNo;
@@ -553,7 +577,7 @@
     return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin:8px 0 10px;font-size:12px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
       '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 پیش‌پرداخت: <b>' + escP(advTxt) + '</b></span>' +
-      '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? (rb.done + ' / ' + rb.total + ' قلم') : 'هنوز شروع نشده') + '</b></span>' +
+      '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? ((rb.full || 0) + ' / ' + rb.total + ' قلم کامل' + (rb.partial ? ' — ' + rb.partial + ' قلم ناقص' : '')) : 'هنوز شروع نشده') + '</b></span>' +
       '<span style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;color:#92400e">➕ هزینه‌های مستقیم: <b>' + costSum.toLocaleString('fa-IR') + ' ریال</b></span>' +
       '<span style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:4px 8px;color:#6d28d9">🧾 فاکتورها: <b>' + invCount + '</b>' + (openAmt > 0 ? ' | باز: ' + openAmt.toLocaleString('fa-IR') + ' ریال' : ' | تسویه: کامل') + '</span>' +
       '<span style="background:' + (ready ? '#ecfdf5;color:#166534;border:1px solid #86efac' : '#fff7ed;color:#9a3412;border:1px solid #fdba74') + ';border-radius:8px;padding:4px 8px">🏁 آمادگی بایگانی: <b>' + (ready ? 'آماده' : 'نیازمند بررسی') + '</b></span>' +
@@ -661,6 +685,7 @@
     } catch (eCov) {}
     h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود (US-434)</div>' : '') +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:' + (r.wonOffer ? '6' : '10') + 'px" onclick="event.stopPropagation()">' +
+      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + escP(r.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' : '') +
       '<span id="sfUp_' + escP(r.cd) + '" style="flex:1;min-width:180px"></span>' +
       /* v14.8 (US-351): ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
       '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + escP(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
@@ -805,7 +830,14 @@
         if (rfqD && rfqD.st === 'st7') hasDelivery = true;
       } catch (eD) {}
     }
-    if (!hasDelivery) out.blockers.push({ id: 'delivery', lb: '🤝 تحویل به کارفرما ثبت نشده است — ابتدا از دکمه «تحویل کارفرما» در همین پرونده ثبت کنید' });
+    /* UR-12 (ساده‌سازی مختومه): تحویل به‌صورت پیش‌فرض blocker است (US-437) اما با تأیید صریح
+       ثبت‌کننده (closeOverride.deliveryConfirmed + دلیل) قابل عبور است — تا مختومه‌کردن پرونده‌های
+       واقعاً تحویل‌شده بدون ثبت رویداد، بی‌دردسر شود؛ مسئولیت در audit ثبت می‌شود. */
+    if (!hasDelivery) {
+      var ovr = r.closeOverride || {};
+      if (ovr.deliveryConfirmed) out.warns.push({ id: 'delivery-override', lb: '🤝 تحویل با تأیید صریح ' + (ovr.by || '') + (ovr.reason ? ' — ' + ovr.reason : '') });
+      else out.blockers.push({ id: 'delivery', lb: '🤝 تحویل به کارفرما ثبت نشده است — یا از دکمه «تحویل کارفرما» ثبت کنید یا در این مودال «تحویل انجام شده است» را با ذکر دلیل تأیید کنید' });
+    }
     /* ② تسویه کامل (AC1) — blocker نرم: در مودال قابل رفع با تسویه خودکار */
     out.openInvs = d.invoices.filter(function (i) {
       var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
@@ -817,18 +849,13 @@
     try {
       if (typeof ptfRealBuyStatus === 'function' && r.inqNo) {
         var rb = ptfRealBuyStatus(r.inqNo);
-        if (rb.total && rb.done < rb.total) out.warns.push({ id: 'realbuy', lb: '🛒 خرید واقعی فقط برای ' + rb.done + ' از ' + rb.total + ' قلم ثبت شده است — سود پرونده ممکن است ناقص/بیش‌برآورد باشد.' });
+        if (rb.total && rb.full < rb.total) out.warns.push({ id: 'realbuy', lb: '🛒 خرید واقعی برای ' + rb.full + ' از ' + rb.total + ' قلم کامل است' + (rb.partial ? ' و ' + rb.partial + ' قلم ناقص است' : '') + ' — سود پرونده ممکن است ناقص/بیش‌برآورد باشد.' });
         else if (!rb.has) out.warns.push({ id: 'realbuy-none', lb: '🛒 هنوز هیچ خرید واقعی برای این پرونده ثبت نشده است — سود واقعی قابل اتکا نیست.' });
       }
     } catch (eRB) {}
-    /* ④ بدهی باز شرکت به تامین‌کنندگان همین پرونده (R9 — scoring payables) */
-    try {
-      var payRem = getData('ptf_crm_payables').filter(function (p) {
-        if (!r.inqNo || p.inqNo !== r.inqNo || p.settled) return false;
-        return (typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : 0) > 0;
-      });
-      if (payRem.length) out.warns.push({ id: 'payable', lb: '🏭 ' + payRem.length + ' بستانکاری تسویه‌نشده تامین‌کننده روی این پرونده باز است (پنل بدهی تامین‌کنندگان)' });
-    } catch (eP) {}
+    /* ④ (UR-12): بدهی باز تامین‌کنندگان پرونده — طبق تصمیم کارفرما «بستن پرونده فروش لزوماً به معنای
+       بستن حساب تامین‌کنندگان آن درخواست نیست» → حساب تامین‌کننده از مختومهٔ پرونده مستقل است و
+       هیچ اثری در کنترل مختومه ندارد (نه blocker و نه هشدار). پیگیری بدهی در پنل تامین‌کنندگان انجام می‌شود. */
     /* ⑤ QC عدم انطباق بدون رویداد زیان/رفع بعدی */
     try {
       var ncs = (r.qcEvents || []).filter(function (q) { return q.conf === 'nonconform'; });
@@ -836,6 +863,19 @@
     } catch (eQ) {}
     /* ⑤ کنترل اسناد (AC2) */
     out.docs = { award: (r.awardDocs || []).length, offers: d.offers.length, invoices: d.invoices.length, ship: (r.shipEvents || []).length, qc: (r.qcEvents || []).length, costs: (r.costEvents || []).length, misc: (r.docs || []).length, letters: d.letters.length, supply: (d.supply || []).length };
+    /* v33.7.0 (مصوب کارفرما): چک‌های ضمانت (پیش‌پرداخت/حسن انجام/مناقصه) اثر مالی ندارند،
+       در پرونده فروش می‌نشینند و باید با پایان پروژه مسترد شوند → ضمانت باز = blocker،
+       با تأیید صریح (closeOverride.guaranteeConfirmed) قابل عبور (الگوی UR-12 تحویل). */
+    try {
+      var guarChqs = (typeof window.ptfChequeIssued === 'function' ? window.ptfChequeIssued() : [])
+        .filter(function (c) { return c && c.kind === 'guarantee' && c.dealCd === r.cd && c.st === 'open'; });
+      if (guarChqs.length) {
+        out.guarCheques = guarChqs;
+        var ovrG = r.closeOverride || {};
+        if (ovrG.guaranteeConfirmed) out.warns.push({ id: 'guarantee-override', lb: '🛡 ' + guarChqs.length + ' چک ضمانت باز با تأیید صریح ' + (ovrG.by || '') + (ovrG.reason ? ' — ' + ovrG.reason : '') + ' — پیگیری استرداد پس از مختومه بر عهدهٔ ثبت‌کننده است' });
+        else out.blockers.push({ id: 'guarantee', lb: '🛡 ' + guarChqs.length + ' چک ضمانت باز برای این پرونده ثبت شده (' + guarChqs.map(function (g) { return g.sayad || g.no || ''; }).join('، ') + ') — ضمانت با پایان پروژه باید مسترد شود: یا از تب چک‌ها «🏆 استرداد ضمانت» بزنید یا در این مودال «استرداد پس از مختومه» را تأیید کنید' });
+      }
+    } catch (eG) {}
     if (!out.docs.award && r.wonOffer) out.warns.push({ id: 'award', lb: '🏆 سند قطعی برد ثبت نشده — یک بار کشوی پرونده را باز کنید تا مهاجرت نرم انجام شود (US-432)' });
     try {
       if (r.wonOffer && typeof ptfDocxCoverage === 'function') {
@@ -1027,6 +1067,25 @@
     var blocksHtml = au.blockers.map(function (b) { return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:7px 11px;font-size:12px;color:#b91c1c;margin-bottom:6px">⛔ ' + b.lb + '</div>'; }).join('');
     var warnsHtml = au.warns.map(function (w) { return '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:7px 11px;font-size:12px;color:#92400e;margin-bottom:6px">' + w.lb + '</div>'; }).join('');
     var canClose = !au.blockers.length;
+    /* UR-12: اگر تنها blocker «تحویل» است، مسیر تأیید صریح نمایش داده می‌شود */
+    var deliveryOvr = '';
+    if (au.blockers.some(function (b) { return b.id === 'delivery'; })) {
+      deliveryOvr = '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsDeliv" onchange="sfClsCheckGo()"> تحویل به کارفرما انجام شده است (با مسئولیت ثبت‌کننده)</label><input id="sfClsDelivReason" type="text" placeholder="دلیل/توضیح (اختیاری)" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
+    }
+    /* v33.7.0: چک ضمانت باز — مسیر تأیید صریح «استرداد پس از مختومه» */
+    var guarOvr = '';
+    if (au.blockers.some(function (b) { return b.id === 'guarantee'; }) && (au.guarCheques || []).length) {
+      guarOvr = '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:8px 11px;margin-bottom:8px">' +
+        '<div style="font-size:12px;color:#5b21b6;margin-bottom:5px">🛡 ' + au.guarCheques.map(function (g) { return '<b dir="ltr">' + escP(g.sayad || g.no || '') + '</b> — ' + (+g.amt || 0).toLocaleString('fa-IR') + ' ریال (' + ({ advance: 'پیش‌پرداخت', performance: 'حسن انجام', bid: 'مناقصه', other: 'سایر' }[g.guarType] || 'ضمانت') + ')' + (g.st === 'retrieved' ? ' ✅ مسترد' : ' 🔴 باز'); }).join('<br>') + '</div>' +
+        '<label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsGuar" onchange="sfClsCheckGo()"> استرداد ضمانت پس از مختومه پیگیری می‌شود (با مسئولیت ثبت‌کننده)</label>' +
+        '<input id="sfClsGuarReason" type="text" placeholder="دلیل/توضیح (اختیاری)" style="width:100%;margin-top:6px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"></div>';
+    }
+    window.sfClsCheckGo = function () {
+      var go = document.getElementById('sfClsGoBtn'); if (!go) return;
+      var delivOk = !document.getElementById('sfClsDeliv') || document.getElementById('sfClsDeliv').checked;
+      var guarOk = !document.getElementById('sfClsGuar') || document.getElementById('sfClsGuar').checked;
+      go.disabled = !(delivOk && guarOk);
+    };
     var settleChk = au.openInvs.length
       ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsSettle" checked> مانده ' + au.remainSum.toLocaleString('fa-IR') + ' ریال مطالبات «تسویه‌شده» ثبت شود (US-324/FIN-WF-013) — بدون تیک: مطالبات باز می‌ماند</label><textarea id="sfClsSettleReason" rows="2" style="width:100%;margin-top:7px" placeholder="دلیل تسویه خودکار را وارد کنید — اجباری"></textarea></div>'
       : '';
@@ -1034,12 +1093,17 @@
       '<h3>🏁 کنترل پیش از مختومه — ' + escP(r.inqNo || cd) + '</h3>' +
       '<div style="font-size:12px;color:#475569;margin-bottom:8px">US-437: مختومه فقط پس از <b>تحویل موفق</b> و <b>تسویه کامل</b> — همه اسناد پیش از بایگانی کنترل می‌شوند و کل پرونده (سند برد، QC، ارسال، هزینه‌ها، زیان‌ها) به بایگانی منتقل می‌شود.</div>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:9px 12px;font-size:12.5px;margin-bottom:8px"><b>🧭 مرحله فعلی: ' + escP(typeof sfStageLabel === 'function' ? sfStageLabel(r) : '') + '</b> (' + au.stage + '/12)' + docsHtml + '</div>' +
-      blocksHtml + warnsHtml + settleChk +
+      blocksHtml + warnsHtml + deliveryOvr + guarOvr + settleChk +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       (canClose
-        ? '<button class="bt" style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
-        : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>') +
+        ? '<button class="bt" id="sfClsGoBtn" style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
+        : (function () {
+            var onlyOverride = au.blockers.every(function (b) { return b.id === 'delivery' || b.id === 'guarantee'; });
+            return onlyOverride
+              ? '<button class="bt" id="sfClsGoBtn" disabled style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه (پس از تأیید موارد بالا)</button>'
+              : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>';
+          })()) +
       '</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   }
@@ -1049,6 +1113,34 @@
     if (settle && !settleReason) { alert('⛔ برای تسویه خودکار، دلیل الزامی است.'); return; }
     var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
+    /* UR-12: تأیید صریح تحویل (در صورت وجود) روی رکورد ذخیره می‌شود تا audit بعدی blocker نداشته باشد */
+    var delivChk = document.getElementById('sfClsDeliv');
+    if (delivChk && delivChk.checked) {
+      var list = sfAll(); var rr = list.filter(function (x) { return x.cd === cd; })[0];
+      if (rr) {
+        rr.closeOverride = rr.closeOverride || {};
+        rr.closeOverride.deliveryConfirmed = true;
+        rr.closeOverride.reason = ((document.getElementById('sfClsDelivReason') || {}).value || '').trim();
+        rr.closeOverride.by = curSession().name;
+        rr.closeOverride.t = faDateTime();
+        sfSave(list);
+        r = rr;
+      }
+    }
+    /* v33.7.0: تأیید صریح «استرداد ضمانت پس از مختومه» */
+    var guarChk = document.getElementById('sfClsGuar');
+    if (guarChk && guarChk.checked) {
+      var listG = sfAll(); var rrG = listG.filter(function (x) { return x.cd === cd; })[0];
+      if (rrG) {
+        rrG.closeOverride = rrG.closeOverride || {};
+        rrG.closeOverride.guaranteeConfirmed = true;
+        rrG.closeOverride.guaranteeReason = ((document.getElementById('sfClsGuarReason') || {}).value || '').trim();
+        rrG.closeOverride.by = curSession().name;
+        rrG.closeOverride.t = faDateTime();
+        sfSave(listG);
+        r = rrG;
+      }
+    }
     var au = sfCloseAudit(r);
     if (au.openInvs.length && !settle) { alert('⛔ با مطالبات باز نمی‌توان مختومه کرد (US-437) — یا تیک تسویه را بزنید یا ابتدا وصولی‌ها را ثبت کنید.'); return; }
     if (!confirm('🏁 تایید نهایی مختومه پرونده «' + (r.inqNo || cd) + '»:\n\nپایان پروژه و تسویه کامل — کل پرونده با تمام اسناد به «بایگانی» منتقل می‌شود.\n\nادامه می‌دهید؟')) return;
@@ -1192,6 +1284,16 @@
     }
     var d = r.inqNo ? sfDocsOf(r) : { offers: [], letters: [], invoices: [], misc: r.docs || [], supply: [] };
     var prjs = getData('ptf_crm_projects');
+    /* BUG-ARCHIVE: snapshot کامل فهرست اسناد پرونده (پیشنهادها/نامه‌ها/فاکتورها/استعلام‌ها/متفرقه)
+       همراه بایگانی ذخیره می‌شود تا «تمام اسناد پرونده» حتی اگر دادهٔ زنده بعداً تغییر کند،
+       در بایگانی قابل مشاهده باشند. */
+    var docSnap = {
+      offers: d.offers.map(function (o) { return { no: o.no, kind: o.kind, rev: o.rev || 0, t: o.t || '', st: o.st || '' }; }),
+      letters: d.letters.map(function (l) { return { no: l.no, subject: l.subject || '', kind: l.kind || '', t: l.t || '' }; }),
+      invoices: d.invoices.map(function (i) { return { no: i.no, offerNo: i.offerNo, amount: +i.amount || 0, t: i.t || i.invDate || '' }; }),
+      supply: d.supply.map(function (q) { return { no: q.no || q.cd || '', t: q.t || '' }; }),
+      misc: (r.docs || []).map(function (m) { return { name: m.name, key: m.key || null, t: m.t, by: m.by }; })
+    };
     var rec = {
       no: 'ARC-' + (r.inqNo || r.cd),
       dealCd: r.cd || '', /* AUD-07: مرجع پرونده‌ی اصلی برای یافتن بایگانی از روی cd سابق (sfReverseAutoSettle) */
@@ -1227,6 +1329,8 @@
                totalCOCur: (d.offers.filter(function (o) { return o.kind !== 'TO' && o.currency && o.currency !== 'IRR'; })[0] || {}).currency || 'IRR', /* v17.4 US-416 */
                lossIrr: (typeof ptfProjectLossTotal === 'function' ? ptfProjectLossTotal(r) : (r.lossEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0)) /* v18.0 US-421 */ },
       docs: keepDocs ? (r.docs || []).map(function (m) { return { folder: 'misc', name: m.name, key: m.key || null, t: m.t, by: m.by }; }) : [],
+      docSnap: docSnap, /* BUG-ARCHIVE: فهرست کامل اسناد بایگانی‌شده */
+      offerNos: d.offers.map(function (o) { return o.no; }),
       t: faDateTime(),
       timeline: [{ t: faDateTime(), by: curSession().name, tx: closeKind === 'settled' ? '🏁 مختومه — پایان پروژه و تسویه کامل (انتقال از پرونده‌های فروش)' : '🚫 مختومه بدون فاکتور — ' + (why || '') }]
     };

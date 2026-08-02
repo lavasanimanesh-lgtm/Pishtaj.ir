@@ -9,7 +9,14 @@ var idx=fs.readFileSync(path.join(BASE,'index.html'),'utf8');
 var sw=fs.readFileSync(path.join(BASE,'sw.js'),'utf8');
 SECTION('ساختار');
 T('ماژول کیفیت داده load و pre-cache شده', idx.indexOf('data-quality.js?v=')>-1 && sw.indexOf('./data-quality.js')>-1);
-T('داشبورد read-only است', dq.indexOf('window.ptfDataQualityData')>-1 && dq.indexOf('هیچ رکوردی را اصلاح یا حذف نمی‌کند')>-1 && dq.indexOf('setData(')===-1);
+T('داشبورد read-only است', (function () {
+  /* دامنهٔ ادعا فقط خودِ ptfDataQualityData است — این فایل از v33.5.0 به بعد
+     شامل گردش‌کار نوشتنی «هویت کاتالوگ» (صف بررسی/اتصال/ادغام) هم هست که
+     عمداً می‌نویسد؛ این تست نباید کل فایل را read-only فرض کند. */
+  var body = dq.split('window.ptfDataQualityData =')[1] || '';
+  body = body.split('window.ptfDataQualityHtml =')[0] || '';
+  return dq.indexOf('window.ptfDataQualityData') > -1 && dq.indexOf('هیچ رکوردی را اصلاح نمی‌کند') > -1 && body.indexOf('setData(') === -1;
+})());
 T('فاکتور بی‌تاریخ/بدون لینک', dq.indexOf('invoice-undated')>-1 && dq.indexOf('invoice-unlinked')>-1);
 T('تعهد ارزی بدون نرخ و چک بی‌مالکیت', dq.indexOf('payable-fx-rate')>-1 && dq.indexOf('cheque-ownerless')>-1);
 T('تطبیق خرید مبهم', dq.indexOf('procurement-ambiguous')>-1 && dq.indexOf('ptfProcurementLinkAuditAll')>-1);

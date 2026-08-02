@@ -282,7 +282,145 @@
     });
   }
   function isVolatileArchiveCandidate(k) {
-    return /^(ptf_web_events_v2|ptf_chat_history|ptf_draft_forms|ptf_crm_notifs|ptf_crm_sendqueue|ptf_crm_audit|ptf_backup_local|ptf_backup_prerestore)$/.test(k) || /^ptf_ai_hist_/.test(k) || /^ptf_ai_cache/.test(k);
+    /* v33.14.0: ptf_crm_avatars و ptf_storage_queue هم اضافه شدند — این دو معمولاً
+       بزرگ‌ترین کلیدهای غیرحیاتی هستند (عکس‌های base64 و صف فایل‌های آپلود). */
+    return /^(ptf_web_events_v2|ptf_chat_history|ptf_draft_forms|ptf_crm_notifs|ptf_crm_sendqueue|ptf_crm_audit|ptf_backup_local|ptf_backup_prerestore|ptf_crm_avatars|ptf_storage_queue)$/.test(k) || /^ptf_ai_hist_/.test(k) || /^ptf_ai_cache/.test(k);
+  }
+  /* v33.14.0 — هرس‌های تکمیلی برای «پاک‌سازی امن مؤثر» (ریشه: پاک‌سازی قبلی فقط
+     کلیدهای حاشیه را هدف می‌گرفت و وقتی دادهٔ اصلی/عکس‌ها بزرگ‌اند، آزادسازی ناچیز بود):
+       - avatars: فقط ۲۰ آواتار آخر (بقیه → آرشیو IDB و حذف از localStorage)
+       - storage_queue: اقلام انجام‌شده/قدیمی‌تر از ۷ روز حذف
+       - audit: قدیمی‌تر از ۱۸۰ روز حذف (علاوه بر سقف ۱۰۰۰)
+       - notifs: خوانده‌شدهٔ قدیمی‌تر از ۹۰ روز حذف (علاوه بر سقف ۲۲۰)
+       - sendqueue: sent قدیمی‌تر از ۳۰ روز حذف */
+  function compactAvatars() {
+    var k = 'ptf_crm_avatars', raw = callGet(k);
+    if (!raw) return 0;
+    var before = byteLen(raw);
+    try {
+      var obj = parseJson(raw, {});
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return 0;
+      /* سورت صعودی بر اساس زمان — جدیدترین‌ها آخر آرایه → slice(-20) = ۲۰ آواتار آخر */
+      var keys = Object.keys(obj).sort(function (a, b) { return ((obj[a] || {}).t || 0) - ((obj[b] || {}).t || 0); });
+      if (keys.length <= 20) return 0;
+      var kept = {};
+      keys.slice(-20).forEach(function (x) { kept[x] = obj[x]; });
+      /* آرشیو کامل به IDB (بازیابی در صورت نیاز) سپس نگهداشتن فقط ۲۰ آخر */
+      var full = raw;
+      var id = archiveIdForKey(k + ':full');
+      idbSet(id, full, function (ok) { if (ok) noteArchive(k + ':full', id, before); });
+      callSet(k, JSON.stringify(kept));
+      return Math.max(0, before - byteLen(JSON.stringify(kept)));
+    } catch (e) { return 0; }
+  }
+  function compactStorageQueue() {
+    var k = 'ptf_storage_queue', raw = callGet(k);
+    if (!raw) return 0;
+    var before = byteLen(raw);
+    try {
+      var arr = parseJson(raw, []);
+      if (!Array.isArray(arr) || !arr.length) return 0;
+      var cutoff = Date.now() - 7 * 86400000;
+      var next = arr.filter(function (x) {
+        if (!x) return false;
+        if (x.st === 'done' || x.st === 'uploaded' || x.st === 'failed') return false; /* انجام‌شده → حذف */
+        var t = +x.ts || +x.t || 0;
+        return !t || t > cutoff;
+      });
+      if (next.length === arr.length) return 0;
+      callSet(k, JSON.stringify(next));
+      return Math.max(0, before - byteLen(JSON.stringify(next)));
+    } catch (e) { return 0; }
+  }
+  function compactAuditByAge() {
+    /* سقف ۱۰۰۰ حفظ شد (سازگار با tester227) + هرس سنی ۱۸۰ روز اضافه شد */
+    return compactArrayKeyAge('ptf_crm_audit', 1000, false, 180 * 86400000);
+  }
+  function compactNotifsByAge() {
+    var k = 'ptf_crm_notifs', raw = callGet(k);
+    if (!raw) return 0;
+    var before = byteLen(raw);
+    try {
+      var arr = parseJson(raw, []);
+      if (!Array.isArray(arr)) return 0;
+      var cutoff = Date.now() - 90 * 86400000;
+      var kept = arr.filter(function (n) {
+        if (!n) return false;
+        var read = Array.isArray(n.readBy) && n.readBy.length > 0;
+        if (!read) return true;
+        var t = +n.ts || +n.t || (n.iso ? new Date(n.iso).getTime() : 0);
+        return !t || t > cutoff;
+      });
+      if (kept.length > 220) kept = kept.slice(0, 220);
+      if (kept.length === arr.length) return 0;
+      callSet(k, JSON.stringify(kept));
+      return Math.max(0, before - byteLen(JSON.stringify(kept)));
+    } catch (e) { return 0; }
+  }
+  function compactSendQueueByAge() {
+    var k = 'ptf_crm_sendqueue', raw = callGet(k);
+    if (!raw) return 0;
+    var before = byteLen(raw);
+    try {
+      var arr = parseJson(raw, []);
+      if (!Array.isArray(arr)) return 0;
+      var cutoff = Date.now() - 30 * 86400000;
+      var kept = arr.filter(function (x) {
+        if (!x || x.st !== 'sent') return true;
+        var t = +x.ts || +x.t || (x.iso ? new Date(x.iso).getTime() : 0);
+        return !t || t > cutoff;
+      });
+      if (kept.length === arr.length) return 0;
+      callSet(k, JSON.stringify(kept));
+      return Math.max(0, before - byteLen(JSON.stringify(kept)));
+    } catch (e) { return 0; }
+  }
+  /* compactArrayKey با پارامتر سن (maxAgeMs) */
+  function compactArrayKeyAge(k, max, remove, maxAgeMs) {
+    var raw = callGet(k);
+    if (!raw) return 0;
+    var before = byteLen(raw);
+    try {
+      var arr = parseJson(raw, []);
+      if (!Array.isArray(arr)) return 0;
+      var next = arr;
+      if (maxAgeMs) {
+        var cutoff = Date.now() - maxAgeMs;
+        next = next.filter(function (x) {
+          if (!x) return true;
+          var t = +x.ts || +x.t || (x.iso ? new Date(x.iso).getTime() : 0);
+          return !t || t > cutoff;
+        });
+      }
+      if (next.length > max) next = next.slice(0, max);
+      if (remove) callRemove(k);
+      else if (byteLen(JSON.stringify(next)) < before) callSet(k, JSON.stringify(next));
+      else return 0;
+      return Math.max(0, before - (remove ? 0 : byteLen(JSON.stringify(next))));
+    } catch (e) { return 0; }
+  }
+
+  function emergencyCompact(opts) {
+    var before = usage().used;
+    var freed = 0;
+    freed += compactNotifs();
+    freed += compactSendQueue();
+    freed += compactArrayKey('ptf_crm_audit', 1000, false);
+    freed += compactArrayKey('ptf_web_events_v2', 150, true);
+    freed += compactArrayKey('ptf_chat_history', 40, true);
+    freed += compactDraftForms();
+    freed += compactAiCaches();
+    /* v33.14.0: هرس‌های تکمیلی — بزرگ‌ترین کلیدهای غیرحیاتی */
+    freed += compactAvatars();
+    freed += compactStorageQueue();
+    freed += compactAuditByAge();
+    freed += compactNotifsByAge();
+    freed += compactSendQueueByAge();
+    var after = usage().used;
+    var actual = Math.max(freed, before - after);
+    if (opts && opts.toast) showBanner('پاک‌سازی امن حافظه انجام شد', 'حدود ' + formatBytes(actual) + ' آزاد شد (شامل آواتارهای قدیمی، صف فایل‌ها، لاگ/اعلان‌های کهنه). رکوردهای اصلی کسب‌وکاری حذف نشدند.', 'warning');
+    try { if (typeof audit === 'function' && actual > 0) audit('سیستم', 'پاک‌سازی امن حافظه محلی — آزادسازی حدود ' + formatBytes(actual), ''); } catch (eA) {}
+    return { ok: true, freed: actual, before: before, after: after, health: healthSync() };
   }
   function compactCandidateAfterArchive(k, raw, archiveId) {
     var before = byteLen(raw);
@@ -408,7 +546,7 @@
     try {
       var proto = Object.getPrototypeOf(localStorage);
       if (!proto || proto.__ptfSafeSetItemInstalled) return false;
-      var wrapped = function (k, v) { safeSetItem(k, v); };
+      var wrapped = function (k, v) { return safeSetItem(k, v); };
       Object.defineProperty(proto, 'setItem', { value: wrapped, configurable: true, writable: true });
       proto.__ptfSafeSetItemInstalled = true;
       return true;
@@ -441,6 +579,33 @@
     var rows = topKeys(12).map(function (r, i) { return (i + 1) + '. ' + r.key + ' — ' + formatBytes(r.bytes); }).join('\n');
     alert('بزرگ‌ترین کلیدهای localStorage:\n\n' + rows + '\n\nاین فهرست برای تصمیم پاک‌سازی/مهاجرت به IndexedDB است. رکوردهای اصلی را دستی حذف نکنید.');
   }
+
+  /* v33.15.0 (فاز ۱ — خودکارسازی): اگر حافظه از ۸۰٪ بالاتر بود، یک‌بار در روز
+     فشرده‌سازی امن (avatars/queue/هرس سنی) خودکار اجرا می‌شود — بدون حذف دادهٔ اصلی. */
+  window.ptfStorageAutoTame = function () {
+    try {
+      var h = healthSync();
+      if (h.percent < 80) return { ok: true, skipped: 'below80', percent: h.percent };
+      var res = emergencyCompact({ source: 'auto-daily' });
+      return { ok: true, freed: res.freed, percent: healthSync().percent };
+    } catch (e) { return { ok: false, error: String(e) }; }
+  };
+  try {
+    var _tameDate = '';
+    try { _tameDate = callGet('ptf_storage_auto_tame') || ''; } catch (eT) {}
+    var _todayIso = new Date().toISOString().slice(0, 10);
+    if (_tameDate !== _todayIso) {
+      setTimeout(function () {
+        try {
+          var hh = healthSync();
+          if (hh.percent >= 80) {
+            emergencyCompact({ source: 'auto-daily' });
+            try { callSet('ptf_storage_auto_tame', new Date().toISOString().slice(0, 10)); } catch (eS) {}
+          }
+        } catch (eA) {}
+      }, 8000);
+    }
+  } catch (eBoot) {}
 
   window.ptfStorageQuotaVersion = 'v31.7.52-STORAGE-IDB-MODULE-PRIMARY-001';
   window.ptfStorageLocalUsage = usage;

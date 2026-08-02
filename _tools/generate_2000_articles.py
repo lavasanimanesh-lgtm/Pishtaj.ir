@@ -434,17 +434,19 @@ def generate_articles():
             cluster_articles[target_cluster].append([f"{round_title} {topic}", filename])
 
     # ۲. به‌روزرسانی sitemap.xml کلاینت
+    # توجه (۲۰۲۶-۰۷-۲۷): قبلاً اینجا مستقیماً با xml.etree.ElementTree بدون
+    # register_namespace نوشته می‌شد که باعث تولید <ns0:urlset>/<ns0:loc>
+    # می‌شد (باگ سئوی جدی — گوگل این فرمت را همیشه درست پردازش نمی‌کند).
+    # حالا به‌جای دستکاری مستقیم XML، از سازندهٔ متمرکز sitemap استفاده
+    # می‌شود که namespace پیش‌فرض استاندارد تولید می‌کند و کل دیسک را
+    # هم‌گام نگه می‌دارد (نه فقط افزودن incremental).
     try:
-        sitemap_path = os.path.join(ROOT, 'sitemap.xml')
-        if os.path.exists(sitemap_path):
-            tree = ET.parse(sitemap_path)
-            root = tree.getroot()
-            for name in sitemap_entries:
-                url_el = ET.SubElement(root, '{http://www.sitemaps.org/schemas/sitemap/0.9}url')
-                loc_el = ET.SubElement(url_el, '{http://www.sitemaps.org/schemas/sitemap/0.9}loc')
-                loc_el.text = f"https://pishtaj.ir/knowledge-center/{name}"
-            tree.write(sitemap_path, encoding='utf-8', xml_declaration=True)
-            print("Sitemap.xml updated successfully.")
+        import subprocess
+        r = subprocess.run(
+            ['python3', os.path.join(ROOT, '_tools', 'build_sitemap.py')],
+            capture_output=True, text=True
+        )
+        print(r.stdout.strip() or r.stderr.strip())
     except Exception as es:
         print("Sitemap error:", es)
 

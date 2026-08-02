@@ -789,7 +789,12 @@
       '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
       ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده (US-444)">🧹 یتیم‌ها</button>' : '') +
       '<button class="bt" onclick="showModal(\'rMd\')">+ ثبت درخواست جدید</button></div></div>' + /* v14.3 US-365 */
-      '<div class="tb2"><table><thead><tr><th>کد</th><th>مشتری</th><th>حوزه</th><th>تاریخ</th><th>وضعیت</th><th>مسئول رسیدگی</th><th>عملیات</th></tr></thead>' +
+      '<div class="tb2"><table><thead><tr>' +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'cd', 'کد') : '<th>کد</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'co', 'مشتری') : '<th>مشتری</th>') + '<th>حوزه</th>' +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'dt', 'تاریخ') : '<th>تاریخ</th>') +
+      (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'st', 'وضعیت') : '<th>وضعیت</th>') +
+      '<th>مسئول رسیدگی</th><th>عملیات</th></tr></thead>' +
       '<tbody id="rTb"></tbody></table></div>';
   };
 
@@ -820,6 +825,17 @@
     var offers = getData('ptf_crm_offers');
     var tb = document.getElementById('rTb');
     if (!tb) return;
+    /* UR-2026-08-01-07: سورت ستون‌ها (کد/مشتری/تاریخ/وضعیت) */
+    if (window.ptfRegisterSortable) window.ptfRegisterSortable('rfq', {
+      getters: {
+        cd: function (r) { return r.cd || ''; },
+        co: function (r) { return r.co || ''; },
+        dt: function (r) { return r.dt || ''; },
+        st: function (r) { return r.st || ''; }
+      },
+      render: window.renderRfq
+    });
+    rfqs = (typeof window.ptfSorted === 'function') ? window.ptfSorted('rfq', rfqs) : rfqs;
     var h = '';
     /* v17.3 (US-413 — کیس R8): رنگ ردیف برد/باخت — سبز=CO برنده، قرمز=بازنده (بایگانی lost) — اولویت بر رنگ مهلت */
     var _wonInqs = {}, _lostInqs = {};
@@ -869,9 +885,9 @@
         '<td>' + escP(r.ca || '-') + '</td><td>' + escP(r.dt || '—') + '</td>' +
         '<td><span class="bd b-' + (r.st || 'st1') + '">' + escP(r.stxt || 'دریافت اولیه') + '</span>' + rfqWaitBadge(r, offers) + '</td>' +
         '<td style="font-size:12px">' + (r.assignee ? '👤 ' + escP(r.assignee.name) + ' <small style="color:#94a3b8">(' + escP(r.assignee.act) + ')</small>' : '<span style="color:#cbd5e1">—</span>') + '</td>' +
-        '<td><button class="ba" style="color:#0f172a;font-weight:bold" onclick="ptfViewRfq(\'' + escP(r.cd) + '\')">👁 مشاهده</button>' +
-        ' <button class="ba" onclick="editRfq(\'' + escP(r.cd) + '\')">✏️ ویرایش/حذف</button>' +
-        ' <button class="ba" style="color:#0e7490" onclick="showRefModal(\'' + escP(r.cd) + '\')">📨 ارجاع</button>' +
+        '<td><button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="ptfViewRfq(\'' + escP(r.cd) + '\')" title="مشاهده درخواست">👁️</button> ' +
+        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="editRfq(\'' + escP(r.cd) + '\')" title="ویرایش / حذف">✏️</button> ' +
+        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="showRefModal(\'' + escP(r.cd) + '\')" title="ارجاع">📨</button>' +
         '</td></tr>';
     });
     tb.innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:22px">استعلامی ثبت نشده</td></tr>';

@@ -110,6 +110,54 @@ function savePrj() { showPrjCreate(); }
 /* ---- نمای داخل پرونده ---- */
 var _curPrj = null;
 
+/* BUG-ARCHIVE: نمایش «تمام اسناد پرونده» در بایگانی (پیشنهادها/فاکتورها/نامه‌ها/استعلام‌ها/متفرقه)
+   — از docSnap ذخیره‌شده هنگام بایگانی؛ اگر در دسترس نبود از دادهٔ زنده (sfDocsOf) خوانده می‌شود. */
+function prjArchivedDocsHtml(p) {
+  var snap = p.docSnap || {};
+  var allOffers = getData('ptf_crm_offers') || [];
+  function offerBtn(no) {
+    var live = allOffers.filter(function (o) { return o.no === no; })[0];
+    if (live && typeof offerPrint === 'function') return '<button class="bt bt-o" style="font-size:11px" onclick="offerPrint(\'' + no + '\')">⬇ ' + no + '</button>';
+    return '<span style="font-size:11px;color:#64748b">' + no + '</span>';
+  }
+  var offers = (snap.offers || []).map(function (o) { return '<div style="padding:3px 0">' + offerBtn(o.no) + ' <small style="color:#94a3b8">' + escP(o.kind || '') + (o.rev ? ' rev ' + o.rev : '') + '</small></div>'; }).join('') || '—';
+  var invoices = (snap.invoices || []).map(function (i) { return '<div style="padding:3px 0">🧾 <b>' + escP(i.no) + '</b> <small style="color:#94a3b8">' + (+i.amount || 0).toLocaleString('fa-IR') + ' ریال' + (i.offerNo ? ' (CO ' + escP(i.offerNo) + ')' : '') + '</small></div>'; }).join('') || '—';
+  var letters = (snap.letters || []).map(function (l) { return '<div style="padding:3px 0">✉️ <b>' + escP(l.no) + '</b> <small style="color:#94a3b8">' + escP(l.subject || '') + '</small></div>'; }).join('') || '—';
+  var supply = (snap.supply || []).map(function (q) { return '<div style="padding:3px 0">🤖 ' + escP(q.no) + '</div>'; }).join('') || '—';
+  var misc = (snap.misc || []).map(function (m) { return '<div style="padding:3px 0">📎 ' + (m.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(m.key) + '\')">' + escP(m.name) + '</a>' : escP(m.name)) + '</div>'; }).join('') || '—';
+  function col(t, body) {
+    return '<div style="flex:1;min-width:150px;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 10px"><b style="font-size:12px">' + t + '</b><div style="margin-top:5px;font-size:11.5px">' + body + '</div></div>';
+  }
+  return '<h4 style="margin:14px 0 6px">📎 اسناد کامل پرونده (بایگانی)</h4>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    col('🏆 پیشنهادها (' + (snap.offers || []).length + ')', offers) +
+    col('🧾 فاکتورها (' + (snap.invoices || []).length + ')', invoices) +
+    col('✉️ نامه‌ها (' + (snap.letters || []).length + ')', letters) +
+    col('🤖 استعلام تامین (' + (snap.supply || []).length + ')', supply) +
+    col('📎 متفرقه (' + (snap.misc || []).length + ')', misc) +
+    '</div>';
+}
+
+/* v33.7.0: چک‌های ضمانت پرونده (از ماژول چک — dealCd) — با پایان پروژه باید مسترد شوند */
+function prjGuaranteeChequesHtml(p) {
+  try {
+    var chqs = (typeof window.ptfChequeIssued === 'function' ? window.ptfChequeIssued() : []).filter(function (c) {
+      return c && c.kind === 'guarantee' && (c.dealCd === p.cd || c.dealCd === p.offerNo || c.dealCd === p.inqNo || c.dealCd === p.no);
+    });
+    if (!chqs.length) return '';
+    var rows = chqs.map(function (c) {
+      var st = c.st === 'retrieved'
+        ? '<span style="color:#047857">✅ مسترد شد</span>'
+        : c.st === 'void' ? '<span style="color:#dc2626">ابطال‌شده</span>' : '<span style="color:#b45309">🔴 در جریان</span>';
+      return '<div style="padding:4px 0;font-size:12px;border-bottom:1px dashed var(--brd)">' +
+        '🛡 <b dir="ltr">' + escP(c.sayad || c.no || '') + '</b> — ' + (+c.amt || 0).toLocaleString('fa-IR') + ' ریال — ' +
+        ({ advance: 'ضمانت پیش‌پرداخت', performance: 'ضمانت حسن انجام کار', bid: 'ضمانت مناقصه', other: 'سایر' }[c.guarType] || 'ضمانت') +
+        ' — سررسید: ' + escP(c.dueFa || c.dueISO || '—') + ' — ' + st + '</div>';
+    }).join('');
+    return '<h4 style="margin:12px 0 6px">🛡 چک‌های ضمانت پرونده</h4><div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:12px;padding:8px 12px;margin-bottom:8px">' + rows + '</div>';
+  } catch (e) { return ''; }
+}
+
 function openProject(no) {
   var p = getData('ptf_crm_projects').filter(function (x) { return x.no === no; })[0];
   if (!p) return;
@@ -155,6 +203,8 @@ function openProject(no) {
       : (p.archiveMetaOnly || p.archivePurged ? '<div style="font-size:11px;color:#7c3aed;margin-bottom:4px">🗄 بایگانی متادیتایی/بدون فایل ابری — دانلود الزامی نیست (BUG-036)</div>'
       : '<div style="font-size:11px;color:#d97706;margin-bottom:4px">🔒 حذف/فشرده‌سازی فایل‌های ابری فقط پس از حداقل یک بار «دانلود کل پرونده» (اگر فایل ابری داشته باشد)</div>')) +
     '<div style="font-size:11.5px;color:#64748b;margin:6px 0">CO: ' + escP(p.offerNo) + (p.inqNo ? ' | Inquiry: ' + escP(p.inqNo) : '') + ' | تحویل: ' + prjDeliveryPct(p) + '٪ | جمع هزینه‌های پرونده: ' + prjCostTotal(p).toLocaleString('fa-IR') + ' ریال</div>' +
+    ((p.origin === 'salesfile' && p.docSnap) ? prjArchivedDocsHtml(p) : '') +
+    prjGuaranteeChequesHtml(p) +
     ((typeof ptfProjectLossBadge === 'function' && ptfProjectLossBadge(p)) ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:#991b1b;margin-bottom:8px">' + ptfProjectLossBadge(p) + '</div>' : '') +
     '<div id="prjCostBox"></div>' +
     '<h4 style="margin:12px 0 6px">پوشه‌های مدارک</h4>' +

@@ -28,7 +28,7 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
     '.ptfdlg .ok{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}' +
     '.ptfdlg .ok.danger{background:#dc2626}' +
     '.ptfdlg .cancel{background:#f1f5f9;color:#334155}' +
-    '.ptftoast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:400;background:#1e293b;color:#fff;border-radius:14px;padding:11px 20px;font-size:13.5px;font-weight:800;box-shadow:0 12px 34px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:ptfup .25s;max-width:90vw}' +
+    '.ptftoast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10000;background:#1e293b;color:#fff;border-radius:14px;padding:11px 20px;font-size:13.5px;font-weight:800;box-shadow:0 12px 34px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:ptfup .25s;max-width:90vw}' +
     '@keyframes ptfup{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}' +
     '.ptftoast.ok{background:#059669}.ptftoast.err{background:#dc2626}.ptftoast.warn{background:#d97706}';
   document.head.appendChild(css);
@@ -63,6 +63,12 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
         } else {
           inner = '<input id="ptfF' + i + '" type="text" inputmode="numeric" data-money="1"' + (f.nohint ? ' data-nohint="1"' : '') + ' value="' + v + '" placeholder="' + (f.placeholder || '') + '" autocomplete="off" spellcheck="false" style="direction:ltr' + (f.dir && f.dir !== 'ltr' ? ';direction:' + f.dir : '') + '">';
         }
+      } else if (f.datePicker && typeof window.ptfDatePicker === 'function') {
+        /* تقویم شمسی برای فیلدهای تاریخ (مثل بازهٔ تنخواه) */
+        inner = window.ptfDatePicker('ptfF' + i, '', f.placeholder || '1405/04/01');
+      } else if (f.upload || f.type === 'upload') {
+        /* آپلود فایل داخل دیالوگ (مثل پیوست گردش حساب بانک در ارجاع تنخواه) — ویجت بعد از append ساخته می‌شود */
+        inner = '<div id="ptfF' + i + '" style="min-height:44px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div>';
       } else {
         inner = '<input id="ptfF' + i + '" type="' + (f.type || 'text') + '" value="' + v + '" placeholder="' + (f.placeholder || '') + '"' + (f.dir ? ' style="direction:' + f.dir + '"' : '') + '>';
       }
@@ -75,6 +81,25 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
       '<div class="acts"><button class="cancel">انصراف</button>' +
       '<button class="ok' + (opt.danger ? ' danger' : '') + '">' + (opt.okText || 'تایید') + '</button></div></div>';
     document.body.appendChild(b);
+    /* مقدار اولیهٔ فیلدهای تقویم (datePicker) — مقدار پیشنهادی sg در input ست می‌شود */
+    (opt.fields || []).forEach(function (f, i) {
+      if ((f.datePicker || f.type === 'date') && f.value) {
+        try { var dpInp = document.getElementById('ptfF' + i); if (dpInp) dpInp.value = String(f.value); } catch (eD) {}
+      }
+    });
+    /* آپلودهای داخل دیالوگ: ویجت attachUploadWidget را روی هر فیلد upload سوار کن */
+    var dlgUploads = {};
+    (opt.fields || []).forEach(function (f, i) {
+      if (f.upload || f.type === 'upload') {
+        var files = [];
+        dlgUploads[f.id] = files;
+        try {
+          if (typeof attachUploadWidget === 'function') {
+            attachUploadWidget('ptfF' + i, f.uploadFolder || 'uploads/', function (fr) { if (fr) files.push(fr); });
+          }
+        } catch (eU) { console.error('ptfDialog upload', eU); }
+      }
+    });
     b.addEventListener('click', function (e) { if (e.target === b) b.remove(); });
     b.querySelector('.cancel').onclick = function () { b.remove(); if (opt.onCancel) opt.onCancel(); };
     b.querySelector('.ok').onclick = function () {
@@ -86,6 +111,7 @@ window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(
         if (f.required && !val) { errEl.style.display = 'block'; valid = false; }
         else errEl.style.display = 'none';
         if (f.type === 'number') val = (typeof ptfNum === 'function') ? ptfNum(val) : (+String(val).replace(/[^\d.-]/g, '') || 0);
+        if (f.upload || f.type === 'upload') val = dlgUploads[f.id] || [];
         values[f.id] = val;
       });
       if (!valid) return;

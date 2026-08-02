@@ -22,7 +22,7 @@ var ROLES = {
   commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
   sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false, ledgerScope: 'none'     },
   buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false, ledgerScope: 'none'     },
-  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty'],                                 buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
+  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty','chqprint','ai'],                            buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
   collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'all'      }
 };
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
@@ -931,7 +931,12 @@ function showPayModal(invCd) {
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:460px">' +
     '<h3>💵 ثبت وصولی</h3>' + fxMsg +
     '<div class="fr"><div class="fld"><label>مبلغ (ریال) *</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nPayAmt" style="direction:ltr"></div>' +
-    '<div class="fld"><label>روش</label><select id="nPayHow"><option>حواله بانکی</option><option>چک</option><option>نقد</option><option>سایر</option></select></div></div>' +
+    '<div class="fld"><label>روش</label><select id="nPayHow" onchange="var w=document.getElementById(\'nPayChWrap\');if(w)w.style.display=this.value===\'چک\'?\'block\':\'none\'"><option>حواله بانکی</option><option>چک</option><option>نقد</option><option>سایر</option></select></div></div>' +
+    '<div id="nPayChWrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-top:6px">' +
+    '<div class="fr"><div class="fld"><label>شماره / صیادی چک *</label><input id="nPayChNo" dir="ltr" style="direction:ltr"></div>' +
+    '<div class="fld"><label>سررسید (شمسی یا میلادی)</label><input id="nPayChDue" dir="ltr" style="direction:ltr" placeholder="1405/06/30"></div></div>' +
+    '<div class="fld"><label>بانک / شعبه</label><input id="nPayChBank"></div>' +
+    '<small style="color:#0369a1">این چک به‌عنوان «چک وارده» در ماژول چک ثبت و پیگیری می‌شود.</small></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
     '<button class="bt" onclick="savePay(\'' + invCd + '\')">ثبت</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -947,7 +952,23 @@ function savePay(invCd) {
   var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
   if (paid + amt > inv.amount) { alert('مبلغ از مانده فاکتور بیشتر است (مانده: ' + (inv.amount - paid).toLocaleString('fa-IR') + ')'); return; }
   inv.payments = inv.payments || [];
-  inv.payments.push({ cd: genCode('RPAY'), amt: amt, how: document.getElementById('nPayHow').value, t: faDate(), by: curSession().name, status: 'posted' });
+  var payRec = { cd: genCode('RPAY'), amt: amt, how: document.getElementById('nPayHow').value, t: faDate(), by: curSession().name, status: 'posted' };
+  /* CHQ-MOD-001 (گام ۴): اگر روش «چک» است، چک وارده ساخته و به وصولی لینک می‌شود */
+  if (payRec.how === 'چک' && typeof window.ptfChequeCreate === 'function') {
+    var chNo = ((document.getElementById('nPayChNo') || {}).value || '').trim();
+    if (!chNo) { alert('⚠️ برای وصول با چک، شماره/شناسه صیادی الزامی است.'); return; }
+    var due = ((document.getElementById('nPayChDue') || {}).value || '').trim();
+    var buyerCo = ofr.buyerCo || '';
+    var ch = window.ptfChequeCreate('received', {
+      no: chNo, sayad: chNo, amt: amt, bank: ((document.getElementById('nPayChBank') || {}).value || '').trim(),
+      dueISO: /^\d{4}-\d{2}-\d{2}$/.test(due) ? due : '',
+      dueFa: /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(due) ? due : '',
+      payerName: buyerCo || ofr.buyerCd || '', sourceCustomerCd: ofr.buyerCd || '', sourceInvoiceCd: invCd,
+      invoiceCd: invCd, receiptCd: payRec.cd, kind: 'finance', ownership: 'received', st: 'open'
+    });
+    payRec.chequeCd = ch.cd;
+  }
+  inv.payments.push(payRec);
   setData('ptf_crm_invoices', invs);
   hideModal(); renderReceivables();
   audit('وصولی', 'ثبت وصولی ' + amt.toLocaleString('fa-IR') + ' برای فاکتور ' + inv.no, inv.no);

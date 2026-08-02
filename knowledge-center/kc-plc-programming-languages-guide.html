@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>زبان‌های برنامه‌نویسی PLC | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="راهنمای ۵ زبان استاندارد برنامه‌نویسی PLC طبق IEC 61131-3 شامل Ladder، FBD، SFC، ST و IL، جدول تصمیم‌گیری کاربرد و اثر انتخاب زبان بر هزینه نگهداری بلندمدت." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="زبان‌های برنامه‌نویسی PLC" />
+<meta property="og:description" content="راهنمای ۵ زبان استاندارد برنامه‌نویسی PLC طبق IEC 61131-3 شامل Ladder، FBD، SFC، ST و IL، جدول تصمیم‌گیری کاربرد و اثر انتخاب زبان بر هزینه نگهداری بلندمدت." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "زبان‌های برنامه‌نویسی PLC", "item": "https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html"}]}, {"@type": ["TechArticle", "Article"], "headline": "زبان‌های برنامه‌نویسی PLC", "description": "راهنمای ۵ زبان استاندارد برنامه‌نویسی PLC طبق IEC 61131-3 شامل Ladder، FBD، SFC، ST و IL، جدول تصمیم‌گیری کاربرد و اثر انتخاب زبان بر هزینه نگهداری بلندمدت.", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/kc-plc-programming-languages-guide.html"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "dateModified": "2026-07-28", "datePublished": "2026-07-01", "articleSection": "برق صنعتی و اتوماسیون"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "چرا Ladder Diagram محبوب‌ترین زبان PLC است؟", "acceptedAnswer": {"@type": "Answer", "text": "چون ساختار آن شبیه مدارهای رله‌ای سنتی است و تکنسین‌های برق با پیش‌زمینهٔ الکتریکی می‌توانند به‌سرعت آن را یاد بگیرند و عیب‌یابی کنند؛ این امر آن را برای صنعت با نیروی کار متنوع بسیار عملی می‌کند."}}, {"@type": "Question", "name": "آیا می‌توان یک برنامهٔ ST را مستقیم به LD تبدیل کرد؟", "acceptedAnswer": {"@type": "Answer", "text": "در برخی محیط‌های برنامه‌نویسی مدرن امکان تبدیل جزئی وجود دارد، اما به‌طور کلی این دو زبان فلسفهٔ متفاوتی دارند و تبدیل کامل خودکار همیشه ممکن یا بهینه نیست؛ بازنویسی دستی معمولاً نتیجهٔ بهتری می‌دهد."}}, {"@type": "Question", "name": "چرا Instruction List دیگر توصیه نمی‌شود؟", "acceptedAnswer": {"@type": "Answer", "text": "چون در نسخهٔ سوم استاندارد IEC 61131-3 عملاً منسوخ اعلام شده و اکثر سازندگان جدید آن را در محیط‌های برنامه‌نویسی جدید ارائه نمی‌دهند؛ استفاده از آن ریسک عدم پشتیبانی آینده را افزایش می‌دهد."}}, {"@type": "Question", "name": "برای فرآیند دسته‌ای (Batch) چرا SFC بهتر از LD است؟", "acceptedAnswer": {"@type": "Answer", "text": "چون SFC امکان تعریف واضح مراحل متوالی و شرایط انتقال بین آن‌ها را فراهم می‌کند که در LD باید با ترفندهای پیچیده‌تر (مانند فلگ‌های حالت) شبیه‌سازی شود که خوانایی و نگهداری برنامه را دشوارتر می‌کند."}}]}]}</script>
+<style>
+.article-hero{background:linear-gradient(135deg,#151517,#2d2d31);min-height:220px;display:flex;align-items:center;padding:130px 0 50px;color:#fff;position:relative}
+.article-hero .container{position:relative;z-index:1}
+.article-hero h1{font-size:clamp(24px,3.2vw,38px);margin:0 0 10px;line-height:1.3}
+.article-wrap{max-width:900px;margin:40px auto;padding:0 20px}
+.article-content{background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;font-size:16px;color:#334155;box-shadow:0 16px 42px rgba(0,0,0,.07)}
+.article-content h2{font-size:clamp(22px,2.8vw,32px);margin:40px 0 16px;color:#1e293b;font-weight:900;padding-bottom:8px;border-bottom:2px solid #f1f5f9}
+.article-content h3{font-size:19px;margin:30px 0 12px;color:#1e293b}
+.article-content p{margin:0 0 18px}
+.article-content ul,.article-content ol{margin:0 0 18px;padding-right:22px}
+.article-content li{margin-bottom:8px}
+.article-content a{color:var(--red);font-weight:900}
+.article-content table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+.article-content th,.article-content td{border:1px solid #dbe3ef;padding:9px 10px;vertical-align:top;text-align:right}
+.article-content th{background:#f1f5f9;color:#334155}
+.article-cta{background:linear-gradient(135deg,#f8fafc,#fff);border:2px solid var(--line);border-radius:24px;padding:30px;text-align:center;margin:40px 0 0}
+.related-articles{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:30px 0}
+.rel-item{padding:16px;border:1px solid var(--line);border-radius:16px;background:#f8fafc;text-decoration:none;transition:.2s}
+.rel-item:hover{border-color:var(--red)}
+.rel-item b{display:block;color:#1e293b;font-size:14px}
+.rel-item span{font-size:12px;color:#64748b}
+@media(max-width:700px){.article-content{padding:24px}.related-articles{grid-template-columns:1fr}}
+.faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}
+.note-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:14px 16px;margin:16px 0}
+.ok-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:14px 16px;margin:16px 0}
+</style>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../#about">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/" class="active">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../blog/">وبلاگ</a><a href="../news/">اخبار</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
+</div></header>
+<section class="article-hero">
+<div class="container">
+<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">برق صنعتی — تکمیلی</span>
+<h1>پنج زبان استاندارد برنامه‌نویسی PLC طبق IEC 61131-3</h1>
+<p style="color:rgba(255,255,255,.75);font-size:14px">مرکز دانش فنی پیشرو تجهیز فرتاک — راهنمای مهندسی خرید</p>
+</div>
+</section>
+<div class="article-wrap">
+<div class="article-content">
+
+<p style="font-size:17px"><b>پنج زبان استاندارد برنامه‌نویسی PLC طبق IEC 61131-3</b> — این مقاله برخلاف معرفی کلی سخت‌افزار و برندهای PLC، مستقیماً به موضوعی می‌پردازد که برای مهندسان اتوماسیون و تیم خرید نرم‌افزار/خدمات برنامه‌نویسی اهمیت دارد: کدام زبان برنامه‌نویسی برای کدام نوع کاربرد صنعتی مناسب‌تر است و چرا انتخاب زبان روی هزینهٔ نگهداری بلندمدت اثر می‌گذارد.</p>
+
+<h2>چرا استاندارد IEC 61131-3 اهمیت دارد؟</h2>
+<p>پیش از تدوین استاندارد IEC 61131-3، هر سازندهٔ PLC (زیمنس، آلن بردلی، اشنایدر و غیره) محیط برنامه‌نویسی اختصاصی خود را با نحو (Syntax) متفاوت ارائه می‌داد که جابه‌جایی مهندسان بین برندها و انتقال برنامه‌ها را دشوار می‌کرد. این استاندارد بین‌المللی، پنج زبان برنامه‌نویسی مشخص را تعریف کرده که (با وجود تفاوت‌های جزئی پیاده‌سازی هر سازنده) اصول مشترکی دارند و امروزه اکثر PLCهای صنعتی مدرن حداقل چند مورد از این زبان‌ها را پشتیبانی می‌کنند.</p>
+
+<h2>پنج زبان استاندارد و کاربرد هرکدام</h2>
+<h3>۱. Ladder Diagram (LD) — نمودار نردبانی</h3>
+<p>محبوب‌ترین و پرکاربردترین زبان در صنعت، به‌ویژه در آمریکای شمالی. ساختار آن شبیه مدارهای رله‌ای الکتریکی سنتی است (خطوط عمودی به‌عنوان منابع تغذیه و شاخه‌های افقی به‌عنوان منطق کنترل)، که این شباهت باعث می‌شود تکنسین‌های برق با پیش‌زمینهٔ مدارهای رله‌ای، به‌سرعت آن را یاد بگیرند. LD برای منطق کنترل ساده تا متوسط (مانند توالی راه‌اندازی موتورها، قفل‌های ایمنی، کنترل روشن/خاموش) بسیار مناسب است.</p>
+<h3>۲. Function Block Diagram (FBD) — نمودار بلوک تابعی</h3>
+<p>در این زبان، توابع منطقی و محاسباتی به شکل بلوک‌های گرافیکی نمایش داده می‌شوند که با خطوط سیگنال به هم متصل هستند. FBD به‌ویژه برای فرآیندهای کنترل پیوسته (مانند حلقه‌های PID، محاسبات آنالوگ) که در صنایع فرآیندی (نفت، گاز، پتروشیمی) رایج است، مناسب‌تر از LD است چون جریان سیگنال آنالوگ را بصری‌تر نمایش می‌دهد.</p>
+<h3>۳. Sequential Function Chart (SFC) — نمودار توالی تابعی</h3>
+<p>SFC برای برنامه‌نویسی فرآیندهای دارای مراحل متوالی مشخص (Batch Process) طراحی شده است — مثلاً توالی مراحل شست‌وشو، پرکردن، واکنش شیمیایی و تخلیه در یک راکتور دسته‌ای. این زبان امکان تعریف واضح شرایط انتقال بین مراحل (Transition Conditions) و اجرای موازی چند مسیر را فراهم می‌کند، که برای فرآیندهای Batch در صنایع شیمیایی و دارویی بسیار کاربردی است.</p>
+<h3>۴. Structured Text (ST) — متن ساختاریافته</h3>
+<p>ST شبیه‌ترین زبان PLC به زبان‌های برنامه‌نویسی متنی سطح بالا مانند Pascal است و برای الگوریتم‌های پیچیدهٔ ریاضی، پردازش رشته‌ای، یا منطق شرطی چندلایه که در LD یا FBD نوشتن آن‌ها دشوار یا طولانی می‌شود، ایده‌آل است. برای مهندسان با پیش‌زمینهٔ برنامه‌نویسی نرم‌افزار (نه فقط برق صنعتی)، ST معمولاً سریع‌تر و خواناتر از زبان‌های گرافیکی است.</p>
+<h3>۵. Instruction List (IL) — لیست دستورالعمل</h3>
+<p>IL یک زبان سطح پایین شبیه Assembly است که دستورالعمل‌ها را به‌صورت خطی و متوالی می‌نویسد. این زبان امروزه کمتر مورد استفاده قرار می‌گیرد و در نسخهٔ سوم استاندارد IEC 61131-3 (۲۰۱۳) عملاً منسوخ (Deprecated) اعلام شده است؛ اکثر سازندگان جدید دیگر IL را در محیط‌های برنامه‌نویسی جدید ارائه نمی‌دهند.</p>
+
+<h2>جدول تصمیم‌گیری سریع انتخاب زبان</h2>
+<table>
+<thead><tr><th>نوع کاربرد</th><th>زبان پیشنهادی</th></tr></thead>
+<tbody>
+<tr><td>منطق کنترل ساده، توالی راه‌اندازی، قفل ایمنی</td><td>Ladder Diagram (LD)</td></tr>
+<tr><td>کنترل پیوسته فرآیندی، حلقه‌های PID، محاسبات آنالوگ</td><td>Function Block Diagram (FBD)</td></tr>
+<tr><td>فرآیند دسته‌ای (Batch) با مراحل متوالی مشخص</td><td>Sequential Function Chart (SFC)</td></tr>
+<tr><td>الگوریتم‌های پیچیده، پردازش داده، منطق شرطی چندلایه</td><td>Structured Text (ST)</td></tr>
+</tbody>
+</table>
+
+<h2>ترکیب زبان‌ها در یک پروژه — رویکرد عملی صنعتی</h2>
+<p>در عمل، اکثر پروژه‌های صنعتی بزرگ از ترکیبی از این زبان‌ها استفاده می‌کنند، نه فقط یک زبان. رویکرد رایج در پروژه‌های نفت و گاز این است که ساختار کلی برنامه و توالی مراحل با SFC تعریف شود، منطق هر مرحله (مانند کنترل تجهیزات) با LD یا FBD پیاده‌سازی شود، و محاسبات پیچیده یا پردازش آلارم‌های سفارشی با بلوک‌های ST نوشته شود. این رویکرد ترکیبی، هم خوانایی برنامه برای تیم بهره‌برداری را حفظ می‌کند و هم از قدرت زبان‌های متنی برای بخش‌های پیچیده بهره می‌برد.</p>
+
+<h2>اثر انتخاب زبان بر هزینهٔ نگهداری بلندمدت</h2>
+<div class="note-box"><b>نکتهٔ مهم برای خریدار خدمات برنامه‌نویسی:</b> اگر پروژهٔ شما عمدتاً با LD و FBD نوشته شود، تیم بهره‌برداری محلی با پیش‌زمینهٔ برق صنعتی معمولی می‌تواند بدون نیاز به آموزش تخصصی، عیب‌یابی و تغییرات جزئی را انجام دهد. اگر بخش قابل‌توجهی از منطق با ST نوشته شده باشد، برای نگهداری بلندمدت به پرسنل با پیش‌زمینهٔ برنامه‌نویسی نیاز خواهید داشت که در برخی مناطق دورافتادهٔ عملیاتی، یافتن چنین نیرویی می‌تواند چالش‌برانگیز باشد. این موضوع باید در تصمیم‌گیری دربارهٔ زبان برنامه‌نویسی قرارداد پیمانکار اتوماسیون لحاظ شود.</div>
+
+<h2>پرتابیلیتی (قابلیت انتقال) بین برندهای مختلف</h2>
+<p>هرچند IEC 61131-3 استاندارد مشترک است، اما در عمل انتقال کامل یک برنامهٔ نوشته‌شده برای PLC زیمنس به آلن بردلی (یا برعکس) بدون تغییرات دستی، معمولاً امکان‌پذیر نیست؛ هر سازنده پیاده‌سازی، کتابخانهٔ توابع و رابط سخت‌افزاری اختصاصی خود را دارد. با این حال، آشنایی مهندس با اصول این پنج زبان استاندارد، یادگیری محیط برنامه‌نویسی برند جدید را به‌طور قابل‌توجهی سریع‌تر می‌کند.</p>
+
+
+<h2>محیط‌های برنامه‌نویسی مدرن و پشتیبانی چندزبانه</h2>
+<p>در نسل جدید نرم‌افزارهای برنامه‌نویسی PLC (مانند TIA Portal زیمنس، Studio 5000 آلن بردلی یا Unity Pro اشنایدر)، امکان ترکیب چند زبان در یک پروژه به‌صورت یکپارچه فراهم شده است؛ یعنی می‌توان یک بلوک تابعی (Function Block) را با ST نوشت و آن را از یک برنامهٔ اصلی نوشته‌شده با LD فراخوانی کرد. این قابلیت به تیم مهندسی اجازه می‌دهد از قدرت هر زبان در جای مناسب خودش استفاده کند، بدون آنکه کل پروژه محدود به یک زبان واحد باشد. برای پروژه‌های جدید، توصیه می‌شود از ابتدا معماری نرم‌افزاری پروژه (کدام بخش با کدام زبان نوشته شود) به‌صورت مکتوب تعریف و در مستندات فنی پروژه ثبت شود تا در آینده، هر مهندس جدیدی که وارد پروژه می‌شود بتواند به‌سرعت با ساختار برنامه آشنا شود.</p>
+
+<h2>نکات عملی برای مستندسازی برنامهٔ PLC</h2>
+<p>صرف‌نظر از زبان انتخابی، کیفیت مستندسازی داخل برنامه (کامنت‌گذاری، نام‌گذاری متغیرها، سازمان‌دهی بلوک‌های تابعی) تاثیر به‌مراتب بیشتری روی سهولت نگهداری بلندمدت دارد تا انتخاب خودِ زبان. یک برنامهٔ LD با کامنت‌گذاری ضعیف و نام‌گذاری متغیرهای مبهم (مانند M0.1، M0.2 به‌جای نام‌های معنادار) می‌تواند برای تیم بهره‌برداری آینده دشوارتر از یک برنامهٔ ST با مستندسازی دقیق باشد. توصیهٔ عملی برای کارفرمایان هنگام عقد قرارداد با پیمانکار برنامه‌نویسی اتوماسیون: الزام استانداردهای نام‌گذاری و کامنت‌گذاری مشخص را از ابتدا در مشخصات فنی قرارداد (Functional Design Specification) درج کنید تا کیفیت مستندسازی به سلیقهٔ شخصی برنامه‌نویس واگذار نشود.</p>
+
+<h2>روند تاریخی و آیندهٔ زبان‌های برنامه‌نویسی PLC</h2>
+<p>در دو دههٔ اخیر، روند صنعت به‌وضوح به سمت افزایش استفاده از Structured Text و کاهش استفاده از Instruction List حرکت کرده است. این روند تا حدی متاثر از ورود مهندسان با پیش‌زمینهٔ نرم‌افزار به حوزهٔ اتوماسیون صنعتی است که با زبان‌های متنی راحت‌تر کار می‌کنند، و تا حدی ناشی از پیچیدگی روزافزون الگوریتم‌های کنترلی مدرن (مانند کنترل پیش‌بین مدل‌محور یا الگوریتم‌های بهینه‌سازی انرژی) که پیاده‌سازی آن‌ها در زبان‌های گرافیکی سنتی دشوار است. با این حال، Ladder Diagram همچنان به دلیل سازگاری با فرهنگ نگهداری و عیب‌یابی صنعتی سنتی، جایگاه خود را به‌عنوان پرکاربردترین زبان در سطح کارخانه حفظ کرده است و انتظار نمی‌رود در آیندهٔ نزدیک این جایگاه را از دست بدهد.</p>
+<p>یک نکتهٔ عملی نهایی برای کارفرمایانی که PLC را همراه با بستهٔ نرم‌افزاری از سازنده خریداری می‌کنند: همیشه کد منبع کامل برنامه (نه فقط فایل کامپایل‌شدهٔ اجرایی) را به‌عنوان بخشی از تحویل پروژه مطالبه کنید. این کد منبع دارایی فکری مهمی است که برای هرگونه تغییر، ارتقا یا عیب‌یابی آینده توسط تیم داخلی یا پیمانکار دیگر ضروری خواهد بود.</p><p>عدم دریافت کد منبع (که متاسفانه در برخی قراردادهای داخلی به دلیل عدم آگاهی فنی خریدار نادیده گرفته می‌شود) می‌تواند در آینده خریدار را به‌طور کامل به همان پیمانکار اولیه وابسته کند و قدرت چانه‌زنی برای هرگونه تغییر یا توسعهٔ آتی را از بین ببرد.</p><h2>جمع‌بندی</h2>
+<p>انتخاب زبان برنامه‌نویسی PLC مناسب برای هر بخش از منطق کنترل، تاثیر مستقیمی روی خوانایی، سرعت توسعه و هزینهٔ نگهداری بلندمدت پروژه دارد. تیم مهندسی پیشرو تجهیز فرتاک با تجربهٔ تامین سیستم‌های اتوماسیون از برندهای معتبر (زیمنس، آلن بردلی و مشابه)، در انتخاب پلتفرم و همراهی با پیمانکاران برنامه‌نویسی متناسب با نیاز فنی پروژهٔ شما همراه است.</p>
+
+<h2>سوالات پرتکرار</h2>
+<div class="faq-list">
+<details><summary>چرا Ladder Diagram محبوب‌ترین زبان PLC است؟</summary><p>چون ساختار آن شبیه مدارهای رله‌ای سنتی است و تکنسین‌های برق با پیش‌زمینهٔ الکتریکی می‌توانند به‌سرعت آن را یاد بگیرند و عیب‌یابی کنند؛ این امر آن را برای صنعت با نیروی کار متنوع بسیار عملی می‌کند.</p></details><details><summary>آیا می‌توان یک برنامهٔ ST را مستقیم به LD تبدیل کرد؟</summary><p>در برخی محیط‌های برنامه‌نویسی مدرن امکان تبدیل جزئی وجود دارد، اما به‌طور کلی این دو زبان فلسفهٔ متفاوتی دارند و تبدیل کامل خودکار همیشه ممکن یا بهینه نیست؛ بازنویسی دستی معمولاً نتیجهٔ بهتری می‌دهد.</p></details><details><summary>چرا Instruction List دیگر توصیه نمی‌شود؟</summary><p>چون در نسخهٔ سوم استاندارد IEC 61131-3 عملاً منسوخ اعلام شده و اکثر سازندگان جدید آن را در محیط‌های برنامه‌نویسی جدید ارائه نمی‌دهند؛ استفاده از آن ریسک عدم پشتیبانی آینده را افزایش می‌دهد.</p></details><details><summary>برای فرآیند دسته‌ای (Batch) چرا SFC بهتر از LD است؟</summary><p>چون SFC امکان تعریف واضح مراحل متوالی و شرایط انتقال بین آن‌ها را فراهم می‌کند که در LD باید با ترفندهای پیچیده‌تر (مانند فلگ‌های حالت) شبیه‌سازی شود که خوانایی و نگهداری برنامه را دشوارتر می‌کند.</p></details>
+</div>
+<h2>مطالب مرتبط</h2>
+<div class="related-articles">
+<a class="rel-item" href="kc-plc.html"><b>راهنمای کامل تابلوهای PLC و اتوماسیون صنعتی</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="plc-types-industrial-guide.html"><b>راهنمای انواع PLC صنعتی و کاربرد</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="scada-rtu-system-guide.html"><b>راهنمای سیستم SCADA و RTU</b><span>مرکز دانش فنی</span></a><a class="rel-item" href="../services/electrical-equipment/"><b>خدمات تجهیزات برق صنعتی</b><span>مرکز دانش فنی</span></a>
+</div>
+</div>
+<div class="article-cro-cta" style="background:linear-gradient(135deg, #fffcf9, #fff5eb);border:2px dashed #ff7a30;border-radius:20px;padding:24px;margin-top:35px;box-shadow:0 8px 30px rgba(255,122,48,0.08);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:15px">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:32px">📋</span>
+    <div>
+      <b style="font-size:16px;color:#1e293b;display:block;margin-bottom:4px">درخواست استعلام فنی و استعلام قیمت تخصصی: ۵ زبان برنامه‌نویسی PLC طبق IEC 61131-3 — کاربرد و انتخاب</b>
+      <span style="font-size:13px;color:#475569">کارشناسان فنی پیشرو تجهیز فرتاک آماده بررسی MTO و مشخصات فنی پروژه شما هستند.</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <a href="../rfq/?item=%D8%B3%DB%8C%D8%B3%D8%AA%D9%85%20PLC%20%D9%88%20%D8%AE%D8%AF%D9%85%D8%A7%D8%AA%20%D8%A8%D8%B1%D9%86%D8%A7%D9%85%D9%87%E2%80%8C%D9%86%D9%88%DB%8C%D8%B3%DB%8C%20%D8%A7%D8%AA%D9%88%D9%85%D8%A7%D8%B3%DB%8C%D9%88%D9%86" class="cro-btn" style="background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;text-decoration:none;padding:12px 24px;border-radius:12px;font-size:14px;box-shadow:0 6px 20px rgba(239,75,26,0.25);transition:.2s">ثبت استعلام هوشمند قیمت ←</a>
+    <span style="font-size:13.5px;color:#475569">یا تماس: <b dir="ltr" style="color:#0f172a">021-46087679</b></span>
+  </div>
+</div>
+</div>
+<footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
+    <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
+      <div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+          <img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو پیشرو تجهیز فرتاک" style="width:54px; height:54px; object-fit:contain">
+          <span style="color:#fff; font-weight:900; font-size:18px;">پیشرو تجهیز فرتاک<small style="display:block; font-size:11px; color:var(--red);">Pishro Tajhiz Fartak</small></span>
+        </div>
+        <p style="font-size:13.5px; color:#94a3b8; line-height:1.8;">تامین‌کننده تخصصی تجهیزات پایپینگ، برق صنعتی و ابزار دقیق برای پروژه‌های ملی نفت، گاز، پتروشیمی، فولاد و نیروگاهی.</p>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">دسترسی سریع پروژه‌ای</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../rfq/" style="color:#cbd5e1; transition:.2s;">• سامانه استعلام هوشمند (RFQ)</a>
+          <a href="../tracking/" style="color:#cbd5e1; transition:.2s;">• رهگیری آنلاین وضعیت پرونده</a>
+          <a href="../supplier/" style="color:#cbd5e1; transition:.2s;">• ثبت‌نام تامین‌کنندگان و انبارداران</a>
+          <a href="../catalog/" style="color:#cbd5e1; transition:.2s;">• مرکز دانلود کاتالوگ و دیتاشیت</a>
+          <a href="../assistant/" style="color:#ffb033; transition:.2s;">• مشاور هوشمند انتخاب تجهیزات</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">حوزه‌های تخصصی تامین</b>
+        <div style="display:grid; gap:10px; font-size:14px;">
+          <a href="../services/products/seamless-pipe.html" style="color:#cbd5e1; transition:.2s;">• لوله مانیسمان ASTM A106</a>
+          <a href="../services/products/welding-flanges.html" style="color:#cbd5e1; transition:.2s;">• فلنج‌های جوشی ASME B16.5</a>
+          <a href="../services/products/ball-valve.html" style="color:#cbd5e1; transition:.2s;">• شیر توپی Ball Valve API 6D</a>
+          <a href="../services/products/rosemount-3051.html" style="color:#cbd5e1; transition:.2s;">• ترانسمیتر فشار روزمونت Rosemount</a>
+        </div>
+      </div>
+      <div>
+        <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
+      </div>
+    </div>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,.08); font-size:13px; color:#64748b;">
+      <span>© 2026 Pishro Tajhiz Fartak. All rights reserved. | تامین تخصصی پروژه‌ای</span>
+      <a href="https://www.instagram.com/pishrotajheezfartak/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;color:#94a3b8;font-size:12.5px;text-decoration:none" aria-label="اینستاگرام پیشرو تجهیز فرتاک"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>pishrotajheezfartak</a>
+      <a href="../crm/" style="display:inline-flex;align-items:center;gap:6px;color:#e2e8f0;font-size:12.5px;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px;">🔐 ورود همکاران (CRM)</a>
+    </div>
+  </footer>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+</body>
+</html>

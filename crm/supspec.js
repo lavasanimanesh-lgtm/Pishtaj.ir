@@ -112,6 +112,72 @@
     return true;
   }
 
+  /* ============ UR-2026-08-01-06: جستجوی تامین‌کننده با نام/برند/تجهیزات ============ */
+  window.ptfSupSearch = function (q) {
+    var qq = String(q || '').trim();
+    if (!qq) return getData('ptf_crm_suppliers').slice(0, 12);
+    var qn = norm(qq), qc = norm(ptfBrandCanon(qq));
+    return getData('ptf_crm_suppliers').map(function (s) {
+      var name = norm(s.co || s.name || s.cd || ''), blob = ptfSupSpecBlob(s);
+      var score = 0;
+      if (name === qn) score += 1000;
+      else if (name.indexOf(qn) === 0) score += 500;
+      else if (name.indexOf(qn) > -1) score += 250;
+      if (blob.indexOf(qn) > -1 || (qc && blob.indexOf(qc) > -1)) score += 150;
+      try { if (typeof window.entityMatches === 'function' && window.entityMatches(s, qq)) score += 100; } catch (e) {}
+      return { s: s, score: score };
+    }).filter(function (x) { return x.score > 0; })
+      .sort(function (a, b) { return b.score - a.score || String(a.s.co || '').localeCompare(String(b.s.co || ''), 'fa'); })
+      .slice(0, 12).map(function (x) { return x.s; });
+  };
+
+  window.ptfSupPickerHtml = function (id, current, onPickExpr) {
+    return '<div style="position:relative">' +
+      '<input type="text" id="' + escP(id) + '" value="' + escP(current || '') + '" autocomplete="off" data-onpick="' + escP(onPickExpr || '') + '" ' +
+      'placeholder="🔍 جستجوی تامین‌کننده با نام یا برند (زیمنس، ویکا، Siemens، WIKA، …)" ' +
+      'oninput="ptfSupPickerFilter(\'' + id + '\')" onfocus="ptfSupPickerFilter(\'' + id + '\')" onkeydown="ptfSupPickerKey(\'' + id + '\',event)" ' +
+      'style="width:100%;box-sizing:border-box;padding:7px;border:1px solid var(--brd);border-radius:8px;font-size:12.5px">' +
+      '<div id="' + id + 'List" style="display:none;position:absolute;z-index:99;background:#fff;border:1px solid var(--brd);border-radius:10px;max-height:220px;overflow:auto;width:100%;box-shadow:0 6px 18px rgba(0,0,0,.12)"></div></div>';
+  };
+
+  window.ptfSupPickerFilter = function (id) {
+    var inp = document.getElementById(id); if (!inp) return;
+    var list = document.getElementById(id + 'List'); if (!list) return;
+    var res = window.ptfSupSearch(inp.value);
+    if (!res.length) {
+      list.innerHTML = '<div style="padding:8px 12px;color:#94a3b8;font-size:12px">تامین‌کننده‌ای یافت نشد — ابتدا آن را در «تامین‌کنندگان» ثبت کنید یا نام را دقیق‌تر بنویسید.</div>';
+      list.style.display = 'block'; return;
+    }
+    list.innerHTML = res.map(function (s, i) {
+      var sub = '';
+      try { var blob = ptfSupSpecBlob(s); if (blob) sub = ' <small style="color:#64748b">' + escP(blob.split(' ').slice(0, 8).join(' ')) + '</small>'; } catch (e) {}
+      return '<div data-name="' + escP(s.co || s.name || '') + '" onmousedown="ptfSupPick(\'' + id + '\',\'' + escP(s.co || s.name || '') + '\')" ' +
+        'style="padding:7px 12px;cursor:pointer;border-bottom:1px dashed #e2e8f0;font-size:12.5px">' +
+        escP(s.co || s.name || s.cd) + sub + '</div>';
+    }).join('');
+    list.style.display = 'block';
+  };
+
+  window.ptfSupPick = function (id, name) {
+    var inp = document.getElementById(id);
+    if (inp) {
+      inp.value = name;
+      var cb = inp.getAttribute('data-onpick');
+      if (cb) { try { (new Function('name', cb))(name); } catch (e) {} }
+    }
+    var list = document.getElementById(id + 'List'); if (list) list.style.display = 'none';
+  };
+
+  window.ptfSupPickerKey = function (id, ev) {
+    var list = document.getElementById(id + 'List');
+    if (ev.key === 'Escape' && list) { list.style.display = 'none'; return; }
+    if (ev.key === 'Enter' && list) {
+      ev.preventDefault();
+      var first = list.querySelector('[data-name]');
+      if (first) ptfSupPick(id, first.getAttribute('data-name'));
+    }
+  };
+
   /* ============ AC1: چیپ‌های تخصص در فرم تامین‌کننده ============ */
   var _chips = { br: [], eq: [] };
 
