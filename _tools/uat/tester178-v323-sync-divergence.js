@@ -6,7 +6,7 @@ var ROOT=path.resolve(__dirname,'../..');
 var sy=fs.readFileSync(path.join(ROOT,'crm/sync.js'),'utf8');
 var api=fs.readFileSync(path.join(ROOT,'api/crm.php'),'utf8');
 SECTION('RCA guard');
-T('pullCheck forceFull دارد', sy.indexOf('function pullCheck(done, forceFull)')>-1);
+T('pullCheck forceFull دارد', /function pullCheck\(done, forceFull(, opts)?\)/.test(sy));
 T('startup همیشه snapshot کامل server را می‌کشد', sy.indexOf('} else if (d.rev > 0)')>-1 && sy.indexOf('state.initialReconcile = true;')>-1 && sy.indexOf('}, true);')>-1);
 T('startup دیگر به cached rev اعتماد نمی‌کند', sy.indexOf('d.rev > state.lastRev')===-1);
 T('forceFull با since=0 به API می‌رود', sy.indexOf('var pullSince = forceFull ? 0 : state.lastRev')>-1 && sy.indexOf("data_pull&since=' + pullSince")>-1);

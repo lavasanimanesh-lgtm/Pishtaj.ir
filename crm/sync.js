@@ -50,7 +50,8 @@
     online: true,
     bootstrapped: false, /* v15.0 (US-384): تا سینک اولیه کامل نشده، push ممنوع — جلوی ارسال داده کهنه هنگام رفرش */
     initialReconcile: false, /* v31.7.2: local records created before sync.js must be merged, not overwritten */
-    lastBgPull: 0 /* v33.21.0: آخرین پولِ تبِ دیده‌شدهٔ غیرمتمرکز (آهسته‌سازی به ۱۲۰ ثانیه) */
+    lastBgPull: 0, /* v33.21.x: آخرین پول مسیر آهسته (غیرمتمرکز ۱۲۰ثانیه / مخفی ۱۸۰ثانیه) */
+    lastPingPull: 0 /* v33.21.1: آخرین پول فوریِ برگرفته از پینگ بین‌تبی (حد نرخ ۵ثانیه) */
   };
 
   function setRev(r) { state.lastRev = r; localStorage.setItem('ptf_sync_rev', String(r)); }
@@ -237,6 +238,7 @@
           var confl = d.conflicts || [];
           keys.forEach(function (k) { if (confl.indexOf(k) < 0) delete state.dirty[k]; }); saveDirty();
           if (d.rev) setRev(d.rev);
+          pingTabs(); /* v33.21.1: پوش موفق → تب‌های دیگر همین مرورگر فوری دلتا-پول بزنند */
           /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
           if (confl.length) {
             confl.forEach(function (k) {
@@ -281,17 +283,27 @@
   }
 
   /* ---------- pull دوره‌ای ---------- */
-  function pullCheck(done, forceFull) {
+  /* v33.21.1 (به انتخاب کارفرما): پینگ بین‌تبی — هر تب که دادهٔ تازه اعمال کرد یا پوش موفق داشت،
+     این نشانگر کوچک را می‌نویسد؛ رویداد storage در بقیهٔ تب‌های همین مرورگر (حتی پنهان) فوری
+     می‌شلیکد و یک دلتا-پولِ فوری می‌دهند — همگام‌سازی لحظه‌ای بین تب‌ها بدون رکوئست اضافهٔ دوره‌ای. */
+  function pingTabs() {
+    try { localStorage.setItem('ptf_sync_ping', JSON.stringify({ rev: state.lastRev, t: Date.now() })); } catch (e) {}
+  }
+
+  function pullCheck(done, forceFull, opts) {
     if (!curSession().user || state.pushing) { if (done) done(); return; }
-    /* v33.21.0 (PTF-SCALE-P0 — مدیریت تب برای کاهش بار سرور):
-       تب مخفی پول نمی‌زند (تب‌های پس‌زمینه بدون استفاده، بار مردهٔ ۳ رکوئست/دقیقه می‌ساختند)؛
-       تبِ دیده‌شده اما غیرمتمرکز حداکثر هر ۱۲۰ ثانیه پول می‌زند.
-       جبران: روی focus/visibilitychange پول فوری انجام می‌شود (listener در بوت). */
-    if (!forceFull && typeof document !== 'undefined') {
-      if (document.hidden) { if (done) done(); return; }
-      if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
+    /* v33.21.x (مدیریت تب برای کاهش بار سرور — پیکربندی به تأیید کارفرما):
+       متمرکز: هر ۲۰ثانیه | غیرمتمرکزِ دیده‌شده: حداکثر هر ۱۲۰ثانیه | مخفی: حداکثر هر ۱۸۰ثانیه.
+       (v33.21.0 مخفی را کامل متوقف می‌کرد که «رکورد دیر ظاهر می‌شود» را به همراه داشت.)
+       پینگ بین‌تبی (opts.instant) و forceFull این آهسته‌سازی را دور می‌زنند.
+       جبران: focus/visibilitychange → پول فوری (listener در بوت). */
+    if (!forceFull && !(opts && opts.instant) && typeof document !== 'undefined') {
+      var _isHidden = !!document.hidden;
+      var _unfocused = !_isHidden && (typeof document.hasFocus === 'function' && !document.hasFocus());
+      if (_isHidden || _unfocused) {
         var _bgNow = Date.now();
-        if (state.lastBgPull && (_bgNow - state.lastBgPull) < 120000) { if (done) done(); return; }
+        var _bgGap = _isHidden ? 180000 : 120000;
+        if (state.lastBgPull && (_bgNow - state.lastBgPull) < _bgGap) { if (done) done(); return; }
         state.lastBgPull = _bgNow;
       }
     }
@@ -394,6 +406,7 @@
           refreshCurrentPanel();
           if (typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
           if (typeof updateInboxBadge === 'function') updateInboxBadge();
+          pingTabs(); /* v33.21.1: بقیهٔ تب‌های همین مرورگر را لحظه‌ای مطلع کن */
         }
         if (done) done(); /* v15.0 US-384 */
       })
@@ -527,6 +540,26 @@
           try { if (!document.hidden && state.bootstrapped && !state.pulling && !state.pushing) pullCheck(); } catch (eV) {}
         });
       }
+    }
+    /* v33.21.1: پینگ بین‌تبی (رویداد storage — در تب پنهان هم فوری می‌شلیکد) → دلتا-پول فوری.
+       حلقهٔ برگشتی نداریم: فقط تب «اعمال‌شده» پینگ می‌نویسد و برابری rev مقایسه می‌شود. */
+    if (!window._ptfSyncPingL) {
+      window._ptfSyncPingL = true;
+      window.addEventListener('storage', function (e) {
+        try {
+          if (!e || e.key !== 'ptf_sync_ping' || !e.newValue) return;
+          var p = JSON.parse(e.newValue);
+          if (!p || typeof p.rev === 'undefined') return;
+          if (+p.rev <= state.lastRev) return; /* این تب همین rev یا جدیدتر را دارد */
+          if (!state.bootstrapped || state.pulling || state.pushing) return;
+          var _pn = Date.now();
+          if (state.lastPingPull && (_pn - state.lastPingPull) < 5000) return; /* حد نرخ ۵ثانیه برای طوفان ping */
+          state.lastPingPull = _pn;
+          pullCheck(null, false, { instant: true });
+        } catch (eS) {}
+      });
+      /* نشانگر قدیمیِ نشست قبل مانع مقایسهٔ rev نشود */
+      try { localStorage.removeItem('ptf_sync_ping'); } catch (eP0) {}
     }
     // هنگام بستن صفحه، push معلق را بفرست
     window.addEventListener('beforeunload', function () {

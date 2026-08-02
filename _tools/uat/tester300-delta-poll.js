@@ -1,4 +1,4 @@
-/* tester300 — v33.21.0 (PTF-SCALE-P0 — سینک دلتا + پول مشترک + مدیریت تب)
+/* tester300 — v33.21.x (PTF-SCALE-P0 — سینک دلتا + پول مشترک + مدیریت تب + پینگ بین‌تبی)
  * چرا (هدف: آماده‌سازی برای افزایش تعداد کاربران):
  * سه ضایعهٔ اصلی بار سرور حذف شدند:
  * ۱) data_pull: با هر تغییر «اسنپ‌شات کامل (~۴MB)» برای همه می‌رفت → حالا دلتا به‌ازای
@@ -6,7 +6,11 @@
  * ۲) getData فاز B به‌ازای هر خواندن کلید منقضی‌شده یک پول کامل مستقل می‌زد (نه single-flight
  *    نه حد نرخ) → حالا sharedPull: تک‌پرواز + حداقل فاصلهٔ ۲ثانیه + دلتا + تخلیه در تب مخفی.
  * ۳) پول ۲۰ثانیه‌ای sync.js برای تب‌های مخفی/غیرمتمرکز هم اجرا می‌شد (ضرب‌دار چندتبی) →
- *    گارد document.hidden/hasFocus (۱۲۰ثانیه) + جبران فوری روی focus/visibilitychange.
+ *    v33.21.0: مخفی=توقف کامل → گزارش کارفرما: «رکورد در تب دوم دیر ظاهر می‌شود»
+ *    v33.21.1 (به انتخاب کارفرما): مخفی=مسیر آهسته ۱۸۰ثانیه + غیرمتمرکز ۱۲۰ثانیه +
+ *    **پینگ بین‌تبی (storage event)**: اعمال پول/پوش موفق → پینگ → تب‌های دیگرِ همین مرورگر
+ *    (حتی پنهان) فوراً دلتا-پول می‌زنند — همگام‌سازی لحظه‌ای بین تب‌ها با هزینهٔ ~صفر.
+ * چک رفتاری BUG-SYNC-RD-SCOPE-001 (خطای تولید v33.20.0) نیز اینجا پابرجاست.
  * تست‌ها: سورس‌چک PHP/JS + اجرای واقعی pullCheck و sharedPull در vm با شبکهٔ شبیه‌سازی‌شده.
  */
 'use strict';
@@ -29,7 +33,8 @@ T('پاسخ فلگ delta دارد + خواندن آرشیو تنبَل (پول �
 SECTION('sync.js: ارسال krevs و گارد تب (سورس)');
 T('krevs در URL پول می‌رود', sync.indexOf("'&krevs=' + encodeURIComponent(JSON.stringify(krevs()))") > -1);
 T('krevs فقط برای پول عادی است — forceFull (بوت/بازسازی) since=0 و بدون krevs', /var pullSince = forceFull \? 0 : state\.lastRev;[\s\S]{0,400}if \(!forceFull\) \{ try \{ pullUrl \+= '&krevs='/.test(sync));
-T('گارد تب: مخفی → بدون پول؛ غیرمتمرکز → حداکثر هر ۱۲۰ ثانیه', sync.indexOf('document.hidden) { if (done) done(); return; }') > -1 && sync.indexOf('document.hasFocus') > -1 && sync.indexOf('120000') > -1 && sync.indexOf('state.lastBgPull') > -1);
+T('گارد تب (v33.21.1): غیرمتمرکز ۱۲۰ثانیه / مخفی ۱۸۰ثانیه؛ پینگ (opts.instant) دور می‌زند', sync.indexOf('document.hasFocus') > -1 && sync.indexOf('120000') > -1 && sync.indexOf('180000') > -1 && sync.indexOf('state.lastBgPull') > -1 && sync.indexOf('opts.instant') > -1);
+T('پینگ بین‌تبی: pingTabs در اعمالِ پول و پوش موفق + listener storage با مقایسهٔ rev و حد نرخ', (sync.match(/pingTabs\(\);/g) || []).length >= 2 && sync.indexOf("window.addEventListener('storage'") > -1 && sync.indexOf('+p.rev <= state.lastRev') > -1 && sync.indexOf('pingTabs') > -1);
 T('جبران فوری: focus + visibilitychange با گارد bootstrapped', sync.indexOf("window.addEventListener('focus'") > -1 && sync.indexOf("document.addEventListener('visibilitychange'") > -1 && sync.indexOf('state.bootstrapped && !state.pulling && !state.pushing') > -1);
 
 /* ---------- کمک‌تابع: thenable همگام (زنجیره‌های fetch در همان لحظه تمام می‌شوند) ---------- */
@@ -94,7 +99,10 @@ T('پول عادی: since=۴ و krevs همان نقشهٔ ذخیره‌شده ا
 
 var s2 = mkSyncSandbox({ hidden: true, store: { ptf_crm_token: 'tok', ptf_sync_rev: '4' } });
 s2.sandbox.__pullCheck();
-T('تب مخفی: هیچ fetchای انجام نمی‌شود', s2.calls.length === 0);
+s2.sandbox.__pullCheck();
+T('تب مخفی (v33.21.1 مسیر آهسته): پول اول آزاد است ولی دومی در پنجرهٔ ۱۸۰ثانیه دفع می‌شود', s2.calls.length === 1);
+s2.sandbox.__pullCheck(null, false, { instant: true });
+T('پینگ بین‌تبی (instant) حتی در تب مخفی فوراً پول می‌دهد', s2.calls.length === 2);
 
 var s3 = mkSyncSandbox({ focus: false, store: { ptf_crm_token: 'tok', ptf_sync_rev: '4' } });
 s3.sandbox.__pullCheck();
@@ -118,6 +126,8 @@ s5.sandbox.__pullCheck();
 var krAfter = JSON.parse(s5.store['ptf_sync_krevs'] || '{}');
 T('پاسخ دلتا: فقط کلید موجود در data نوشته می‌شود و بقیه دست‌نخورده می‌مانند', s5.store['ptf_crm_leads'].indexOf('L1') > -1 && s5.store['ptf_crm_customers'].indexOf('C9') > -1);
 T('پس از دلتا: rev سراسری=۷ و rev هرکلید از meta به‌روز می‌شود (leads=6, customers=3)', s5.store['ptf_sync_rev'] === '7' && krAfter.ptf_crm_leads === 6 && krAfter.ptf_crm_customers === 3);
+var pingSt = null; try { pingSt = JSON.parse(s5.store['ptf_sync_ping'] || 'null'); } catch (ePg) {}
+T('اعمال موفق پول → پینگ بین‌تبی با rev جدید نوشته می‌شود', !!pingSt && pingSt.rev === 7);
 
 /* ---------- client-server.js: sharedPull در vm ---------- */
 SECTION('client-server.js: sharedPull (سورس)');
@@ -202,6 +212,6 @@ try {
 T('runtime: بدون rd سراسری، tombstone خطا نمی‌دهد و رکورد حذف‌شده فیلتر می‌شود', tombOk && Array.isArray(tombOut) && tombOut.length === 1 && tombOut[0].id === 'L-OK');
 
 SECTION('نسخه‌گذاری');
-T('v33.21.0 همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP', /window\.VER = 'v33\.21\.0'/.test(idx) && /ptf-crm-v33\.21\.0/.test(sw) && cc.indexOf('v33.21.0') > -1 && api.indexOf('PTF-SCALE-P0') > -1);
+T('v33.21.x همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP', /window\.VER = 'v33\.21\.\d'/.test(idx) && /ptf-crm-v33\.21\.\d/.test(sw) && cc.indexOf('v33.21.') > -1 && api.indexOf('PTF-SCALE-P0') > -1);
 
 DONE('tester300-delta-poll');
