@@ -625,11 +625,12 @@
       estimate +
       '<div style="margin-top:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:8px 10px;font-size:12px;line-height:1.8"><b>بزرگ‌ترین کلیدها</b>' + top + '</div>' +
       '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfStorageCleanup()">پاک‌سازی امن فوری</button><button class="bt bt-o" onclick="ptfStorageMigrateToIdb()">مهاجرت cache/draft به IndexedDB</button><button class="bt bt-o" onclick="ptfBackupNow()">بک‌آپ سروری</button><button class="bt bt-o" onclick="if(window.ptfStorageShowLargeKeys)ptfStorageShowLargeKeys()">نمایش کلیدهای بزرگ</button><button class="bt bt-o" onclick="if(window.ptfStorageShowArchiveIndex)ptfStorageShowArchiveIndex()">آرشیوهای IndexedDB</button><button class="bt bt-o" onclick="if(window.ptfStorageRequestPersistent)ptfStorageRequestPersistent()">درخواست Persistent Storage</button></div>' +
-      /* v33.18.0 (فاز B): فعال‌سازی حالت سرور-محور (کلاینت نازک) */
-      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#065f46;line-height:1.9"><b>🌐 حالت سرور-محور (فاز B مهاجرت)</b><br>با فعال‌سازی، دادهٔ اصلی از سرور (MySQL) خوانده/نوشته می‌شود و localStorage فقط کش/آفلاین می‌شود — مشکل پر شدن حافظه برای همیشه حل می‌شود. (یک بار هم‌گرایی دادهٔ محلی با تأیید انجام می‌شود.)' +
+      /* v33.18.0 (فاز B): فعال‌سازی حالت سرور-محور (کلاینت نازک) + v33.19.0: دکمهٔ پاک‌سازی کش */
+      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#065f46;line-height:1.9"><b>🌐 حالت سرور-محور (فاز B مهاجرت)</b><br>با فعال‌سازی، دادهٔ اصلی از سرور (MySQL) خوانده/نوشته می‌شود و localStorage فقط کش/آفلاین می‌شود — مشکل پر شدن حافظه برای همیشه حل می‌شود. (یک بار هم‌گرایی دادهٔ محلی با تأیید انجام می‌شود.) پس از هم‌گرایی موفق روی دستگاه‌های پرحافظه، «پاک‌سازی کش محلی» حافظهٔ مرورگر را کاملاً آزاد می‌کند (داده روی سرور می‌ماند).' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
       '<button class="bt" style="background:#059669" onclick="ptfBEnable()">✅ فعال‌سازی حالت سرور-محور</button>' +
       '<button class="bt bt-o" onclick="ptfBConfirmFlush()">🔄 هم‌گرایی دادهٔ محلی</button>' +
+      '<button class="bt bt-o" style="color:#b45309" onclick="if(window.ptfBClearLocalCache)ptfBClearLocalCache()">🗑 پاک‌سازی کش محلی</button>' +
       '<button class="bt bt-o" style="color:#dc2626" onclick="ptfBDisable()">⛔ غیرفعال‌سازی</button>' +
       '</div></div>';
   };

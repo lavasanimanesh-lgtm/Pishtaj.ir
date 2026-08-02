@@ -1,6 +1,15 @@
 /* =====================================================================
-   PTF CRM — client-server.js — DB-MIG-001 (فاز B) — v33.18.0
+   PTF CRM — client-server.js — DB-MIG-001 (فاز B) — v33.19.0
    کلاینت نازک: سرور (MySQL) منبع حقیقت؛ localStorage فقط کش/صف آفلاین.
+
+   v33.19.0 (رفع باگ هم‌گرایی کاربران — ۱۴۰۵/۰۸/۱۱):
+   - serverPush: needLogin/401 → بازسازی نشست (ptfSyncRefreshAuth) + یک بار retry (الگوی backup.js).
+     قبلاً خطای توکن با پیام اشتباه «سرور در دسترس نیست» نمایش داده می‌شد.
+   - ptfBPushBatch: ارسال دسته‌ای (هر بار حداکثر ۲۰ کلید) — در flush صف و هم‌گرایی یک‌باره؛
+     payload چندمگابایتی یک‌جا روی دستگاه‌های پرحافظه رد/تایم‌اوت می‌شد.
+   - هم‌گرایی موفق → نشانگر ptf_b_synced_<user> (پیش‌نیاز پاک‌سازی کش).
+   - ptfBClearLocalCache: پاک‌سازی امن کش محلی — فقط با فاز B فعال + هم‌گرایی موفق + صف خالی
+     + تأیید صریح با تایپ کلمهٔ «پاک».
 
    تصمیمات کارفرما (۱۴۰۵/۰۸/۱۱):
    ۱) آفلاین: صف محلی + همگام‌سازی مجدد خودکار (تغییرات در صف می‌ماند و با برگشت اینترنت می‌رود)
@@ -30,6 +39,14 @@
     try { u = (curSession() || {}).user || ''; } catch (e) {}
     return 'ptf_b_flushed_' + (u || '_');
   }
+  /* v33.19.0: نشانگر «هم‌گرایی موفق» — فقط با موفقیت کامل ارسال دسته‌ای ست می‌شود (پیش‌نیاز پاک‌سازی کش) */
+  function syncedKey() {
+    var u = '';
+    try { u = (curSession() || {}).user || ''; } catch (e) {}
+    return 'ptf_b_synced_' + (u || '_');
+  }
+  function markSynced() { try { localStorage.setItem(syncedKey(), '1'); } catch (e) {} }
+  function isSynced() { try { return localStorage.getItem(syncedKey()) === '1'; } catch (e) { return false; } }
   function getFlag() { try { return localStorage.getItem(flagKey()) === '1'; } catch (e) { return false; } }
   window.ptfBPhaseActive = getFlag;
 
@@ -64,13 +81,39 @@
       .then(function (d) { cb && cb(d); })
       .catch(function () { cb && cb({ ok: false }); });
   }
-  function serverPush(payload, cb) {
+  /* v33.19.0: تشخیص نشست منقضی/توکن نامعتبر (data_push توکن الزامی دارد؛ تست اتصال از users_get عمومی است و همیشه سبز می‌ماند) */
+  function isNeedLogin(d, status) {
+    if (status === 401) return true;
+    if (!d) return false;
+    if (d.needLogin === true) return true;
+    return /token|unauthorized|401/i.test(String(d.error || ''));
+  }
+  function serverPush(payload, cb, attempt) {
+    attempt = attempt || 0;
     fetch(API + '?action=data_push', {
       method: 'POST', headers: authHeaders(true),
       body: JSON.stringify({ data: payload })
     })
-      .then(function (r) { return r.json(); })
-      .then(function (d) { cb && cb(d); })
+      .then(function (r) {
+        var st = (r && r.status) || 0;
+        return r.json().then(function (d) { return { d: d, st: st }; }, function () { return { d: { ok: false, error: 'HTTP ' + st }, st: st }; });
+      })
+      .then(function (res) {
+        var d = res.d;
+        /* v33.19.0: needLogin/401 → بازسازی نشست (ptfSyncRefreshAuth) + یک بار تلاش مجدد (الگوی backup.js F0-3).
+           اگر بازسازی نشست ممکن نبود، needLogin به بالا برمی‌گردد تا پیام دقیق «نشست منقضی» نمایش داده شود. */
+        if (isNeedLogin(d, res.st)) {
+          d.needLogin = true;
+          if (attempt === 0 && typeof window.ptfSyncRefreshAuth === 'function') {
+            window.ptfSyncRefreshAuth(function (ok) {
+              if (ok) { serverPush(payload, cb, 1); return; }
+              cb && cb(d);
+            });
+            return;
+          }
+        }
+        cb && cb(d);
+      })
       .catch(function () { cb && cb({ ok: false }); });
   }
 
@@ -96,15 +139,53 @@
     var q = queueRead(); (keys || []).forEach(function (k) { delete q[k]; }); queueWrite(q);
   }
 
+  /* ---------- v33.19.0: ارسال دسته‌ای (هر بار حداکثر ۲۰ کلید) ----------
+     ریشهٔ باگ: روی دستگاه‌های پرحافظه، ارسال همهٔ کلیدها یک‌جا → payload چند مگابایتی
+     → رد/تایم‌اوت سرور؛ درحالی‌که تست اتصال (users_get عمومی) سبز می‌ماند.
+     شکست یک دسته → فقط همان دسته ناموفق است؛ needLogin → توقف کامل (ادامه بی‌فایده است). */
+  var BATCH_SIZE = 20;
+  window.ptfBPushBatch = function (payload, cb) {
+    var keys = Object.keys(payload || {});
+    if (!keys.length) { cb && cb({ ok: true, pushed: 0, total: 0 }); return; }
+    var batches = [];
+    for (var i = 0; i < keys.length; i += BATCH_SIZE) batches.push(keys.slice(i, i + BATCH_SIZE));
+    var done = 0, failed = [], lastError = '';
+    function step(idx) {
+      if (idx >= batches.length) {
+        cb && cb({ ok: !failed.length, pushed: done, failed: failed, total: keys.length, error: lastError });
+        return;
+      }
+      var sub = {};
+      batches[idx].forEach(function (k) { sub[k] = payload[k]; });
+      serverPush(sub, function (d) {
+        if (d && d.ok) { done += batches[idx].length; step(idx + 1); return; }
+        if (d && d.needLogin) {
+          /* نشست منقضی: باقی دسته‌ها هم شکست می‌خورند — همهٔ کلیدهای باقی‌مانده تا ورود دوباره نگه داشته می‌شوند */
+          for (var j = idx; j < batches.length; j++) failed = failed.concat(batches[j]);
+          cb && cb({ ok: false, pushed: done, failed: failed, total: keys.length, error: 'needLogin', needLogin: true });
+          return;
+        }
+        failed = failed.concat(batches[idx]);
+        lastError = (d && d.error) || 'network';
+        step(idx + 1);
+      });
+    }
+    step(0);
+  };
+
   /* ---------- flush صف به سرور ---------- */
   window.ptfBFlushQueue = function (cb) {
     var q = queueRead(); var keys = Object.keys(q);
     if (!keys.length) { cb && cb({ ok: true, pushed: 0 }); return; }
     var payload = {};
     keys.forEach(function (k) { var v = localGet(k); if (v !== null) payload[k] = v; });
-    serverPush(payload, function (d) {
-      if (d && d.ok) { queueClear(keys); cb && cb({ ok: true, pushed: keys.length }); }
-      else cb && cb({ ok: false, error: (d && d.error) || 'network' });
+    /* v33.19.0: ارسال دسته‌ای — کلیدهای موفق از صف خارج، شکست‌خورده‌ها برای تلاش مجدد می‌مانند */
+    window.ptfBPushBatch(payload, function (d) {
+      var failed = (d && d.failed) || [];
+      var okKeys = keys.filter(function (k) { return failed.indexOf(k) === -1; });
+      if (okKeys.length) queueClear(okKeys);
+      if (d && d.ok) { cb && cb({ ok: true, pushed: d.pushed }); return; }
+      cb && cb(Object.assign({ ok: false }, d));
     });
   };
 
@@ -123,18 +204,70 @@
         /* v33.18.0: فلگ را قبل از ارسال ست می‌کنیم تا در همان session دوباره نپرسد؛
            اگر push ناموفق بود، دادهٔ محلی محفوظ است و دکمهٔ «هم‌گرایی» دوباره در دسترس است. */
         markFlushed();
-        serverPush(payload, function (d) {
-          if (d && d.ok) { alert('✅ هم‌گرایی انجام شد.'); location.reload(); }
-          else alert('⚠️ سرور در دسترس نیست — دادهٔ محلی محفوظ است؛ از «تنظیمات → هم‌گرایی داده» بعداً تلاش کنید.');
+        /* v33.19.0: ارسال دسته‌ای (دستگاه‌های پرحافظه payload چندمگابایتی داشتند و یک‌جا رد می‌شدند)
+           + پیام دقیق انقضای نشست (به‌جای «سرور در دسترس نیست» که با تست اتصال سبز تناقض داشت) */
+        window.ptfBPushBatch(payload, function (d) {
+          if (d && d.ok) {
+            markSynced();
+            alert('✅ هم‌گرایی انجام شد.');
+            location.reload();
+            return;
+          }
+          if (d && d.needLogin) {
+            alert('⚠️ نشست شما منقضی شده است؛ دوباره وارد شوید، سپس هم‌گرایی را از «تنظیمات → هم‌گرایی داده» انجام دهید. دادهٔ محلی شما محفوظ است.');
+            return;
+          }
+          alert('⚠️ فقط ' + (d.pushed || 0) + ' از ' + (d.total || Object.keys(payload).length) + ' کلید هم‌گرایی شد (' + ((d && d.error) || 'network') + '). دادهٔ محلی شما محفوظ است؛ از «تنظیمات → هم‌گرایی داده» دوباره تلاش کنید.');
         });
-      } else markFlushed();
+      } else { markFlushed(); markSynced(); }
     }
     /* صف آفلاین را هم خالی کن */
     window.ptfBFlushQueue(function () {});
   };
   window.ptfBConfirmFlush = function () {
-    try { localStorage.removeItem(flushKey()); } catch (e) {}
+    try { localStorage.removeItem(flushKey()); localStorage.removeItem(syncedKey()); } catch (e) {}
     window.ptfBFinalize();
+  };
+
+  /* ---------- v33.19.0: پاک‌سازی امن کش محلی ----------
+     دکمهٔ «🗑 پاک‌سازی کش محلی» در باکس فاز B در تنظیمات (backup.js).
+     برای دستگاه‌های پرحافظه پس از مهاجرت: حافظهٔ localStorage آزاد می‌شود چون
+     منبع حقیقت روی سرور است و کش هنگام استفاده دوباره از سرور پر می‌شود.
+     گاردهای امنیتی (همه الزامی):
+       ۱) حالت سرور-محور (فاز B) فعال باشد
+       ۲) هم‌گرایی یک‌باره با موفقیت انجام شده باشد (نشانگر ptf_b_synced_<user>)
+       ۳) صف آفلاین خالی باشد (هیچ داده‌ای منتظر ارسال نباشد)
+       ۴) تأیید صریح کاربر با تایپ کلمهٔ «پاک» */
+  window.ptfBClearLocalCache = function () {
+    if (!getFlag()) {
+      alert('⚠️ حالت سرور-محور (فاز B) فعال نیست.\nبرای امنیت داده، پاک‌سازی کش فقط در حالت سرور-محور ممکن است. ابتدا «فعال‌سازی حالت سرور-محور» را بزنید و هم‌گرایی را کامل کنید.');
+      return;
+    }
+    if (flushRequired() || !isSynced()) {
+      alert('⚠️ هم‌گرایی دادهٔ محلی با سرور هنوز کامل نشده است.\nابتدا از «تنظیمات → 🔄 هم‌گرایی دادهٔ محلی» هم‌گرایی را انجام دهید و موفقیت آن را ببینید؛ سپس پاک‌سازی کش را اجرا کنید.');
+      return;
+    }
+    var qs = queueRead();
+    var qn = Object.keys(qs).length;
+    if (qn) {
+      alert('⚠️ ' + qn + ' کلید در صف آفلاین هنوز به سرور ارسال نشده است.\nپاک‌سازی متوقف شد تا هیچ داده‌ای گم نشود. با اتصال پایدار «🔄 هم‌گرایی دادهٔ محلی» را بزنید تا صف خالی شود؛ سپس پاک‌سازی کنید.');
+      return;
+    }
+    var word = prompt('🗑 پاک‌سازی کش محلی\n\nاین کار کش localStorage را برای کلیدهای اصلی CRM خالی می‌کند. دادهٔ اصلی روی سرور است و حذف نمی‌شود؛ هنگام استفاده دوباره از سرور بارگیری می‌شود.\n\nبرای تأیید، کلمهٔ «پاک» را بنویسید:');
+    if (word === null) return; /* کاربر لغو کرد */
+    if (String(word).trim() !== 'پاک') { alert('پاک‌سازی لغو شد — کلمهٔ تأیید درست نبود.'); return; }
+    var keys = bKeys(), removed = 0, freed = 0;
+    keys.forEach(function (k) {
+      try {
+        var v = localStorage.getItem(k);
+        if (v !== null) { freed += (k.length + v.length) * 2; localStorage.removeItem(k); removed++; }
+      } catch (e) {}
+    });
+    try { cache = {}; } catch (e) {}
+    try { if (typeof addLog === 'function') addLog('🗑 پاک‌سازی کش محلی (فاز B) — ' + removed + ' کلید، حدود ' + Math.round(freed / 1024) + ' KB آزاد شد'); } catch (eL) {}
+    try { if (typeof audit === 'function') audit('سیستم', '🗑 پاک‌سازی کش محلی (فاز B) — ' + removed + ' کلید', ''); } catch (eA) {}
+    alert('✅ پاک‌سازی کش محلی انجام شد.\n' + removed + ' کلید حذف شد و حدود ' + Math.round(freed / 1024) + ' KB از حافظهٔ مرورگر آزاد شد.\nدادهٔ اصلی روی سرور است و موقع استفاده دوباره بارگیری می‌شود.');
+    try { if (typeof goPanelByName === 'function') goPanelByName('set'); } catch (eG) {}
   };
 
   /* ---------- هوک getData / setData ----------
@@ -142,6 +275,9 @@
   function hook() {
     var _get = window.getData, _set = window.setData;
     if (typeof _get !== 'function' || typeof _set !== 'function') return false;
+    /* v33.19.0: جلوگیری از دوباره‌هوک‌شدن — boot interval و ptfBEnable هر دو hook را صدا می‌زنند؛
+       بدون این گارد، getData چند لایه روی هم قرار می‌گرفت و مرورگر چند بار serverPull می‌زد. */
+    if (_get.__ptfB && _set.__ptfB) return true;
 
     /* getData: کش ۳۰ ثانیه → سرور → کش محلی */
     window.getData = function (k) {
@@ -186,6 +322,8 @@
         return true;
       } catch (e) { return _set(k, d); }
     };
+    window.getData.__ptfB = true;
+    window.setData.__ptfB = true;
     return true;
   }
 
