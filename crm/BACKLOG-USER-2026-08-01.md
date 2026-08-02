@@ -326,3 +326,13 @@
 | `BACKUP-F1-SMART` | نیاز | بکاپ خودکار فقط در صورت تغییر (حذف ارسال ساعتی بی‌شرط) | ✅ **رفع شد** — backupSignature (hash محتوای کامل — رفع باگ «طول یکسان») + ptfBackupMaybeAuto |
 | `BACKUP-F1-AUTO` | نیاز | فشرده‌سازی خودکار روزانه وقتی حافظه ≥ ۸۰٪ | ✅ **رفع شد** — ptfStorageAutoTame + flag روزانه |
 | `BACKUP-F2` | 🟡 | بکاپ دلتا + ذخیرهٔ MySQL + بازگردانی تراکنشی | 🔲 برنامه‌ریزی‌شده (هم‌راستا با مهاجرت MySQL) |
+
+---
+
+## v33.16.0 — فاز ۲ بکاپ (بکاپ دلتا + بازگردانی تراکنشی)
+
+| شناسه | نوع | عنوان | وضعیت |
+|---|---|---|---|
+| `BACKUP-F2-DELTA` | نیاز | بکاپ دلتا: فقط کلیدهای تغییرکرده (امضای per-key) + سرور ادغام با آخرین بکاپ کامل + fallback needFull | ✅ **رفع شد (v33.16.0)** — client: hashString/deltaSigs/Collect/pushBackupDelta؛ سرور: `save_backup_delta` + `ptf_rotate_backup` مشترک. tester296 |
+| `BACKUP-F2-TX` | نیاز | بازگردانی تراکنشی (تمام‌یا-هیچ) با rollback خودکار | ✅ **رفع شد** — doRestore: snapshot قبلی → در صورت هر کلید ناموفق، rollback کامل + audit RESTORE-FAIL + پیام (بدون reload) |
+| `BACKUP-F2-MYSQL` | 🟡 | ذخیرهٔ بکاپ در MySQL | 🔲 پس از مهاجرت DB-MIG-001 (ساختار دلتا آماده است) |

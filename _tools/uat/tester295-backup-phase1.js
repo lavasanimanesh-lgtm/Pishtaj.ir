@@ -93,7 +93,8 @@ setTimeout(function () {
         var rB = window.ptfBackupMaybeAuto();
         setTimeout(function () {
           console.log('DEBUG rB:', JSON.stringify(rB), 'fetchLog:', global._fetchLog.join(' | '));
-          T('با تغییر → MaybeAuto بکاپ می‌فرستد و امضا را آپدیت می‌کند', rB.pushed === true && global._fetchLog.some(function (u) { return /save_backup/.test(u); }));
+          /* v33.16.0: بدون امضای per-key → بکاپ کامل اولیه (full_initial)؛ امضا آپدیت می‌شود */
+          T('با تغییر → MaybeAuto بکاپ می‌فرستد (کامل اولیه) و امضا را آپدیت می‌کند', !!rB.pushed && global._fetchLog.some(function (u) { return /action=save_backup/.test(u) || /save_backup_delta/.test(u); }));
           T('پس از موفقیت، امضا آپدیت شد (بکاپ بعدی skip)', (function () {
             try { localStorage.setItem('ptf_backup_sig', window.ptfBackupSignature()); } catch (e) {}
             return window.ptfBackupChanged() === false;

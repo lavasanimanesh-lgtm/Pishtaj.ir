@@ -142,7 +142,14 @@
         cb && cb({ ok: false, error: String((e && e.message) || 'network') });
       });
   }
-  window.ptfBackupNow = function () { pushBackup(true); };
+  window.ptfBackupNow = function () {
+    /* v33.16.0: بکاپ فوری = کامل + آپدیت امضای per-key (برای دلتاهای بعدی) */
+    pushBackup(true, function (d) { if (d && d.ok) { backupMarkSent(); deltaSaveSentKeys(DATA_KEYS); } });
+  };
+  /* export برای تست/یکپارچگی (فاز ۲) */
+  window.ptfBackupRestore = doRestore;
+  window.ptfBackupPushDelta = function (manual, cb) { pushBackupDelta(manual, cb); };
+  window.ptfBackupPushFull = function (manual, cb) { pushBackup(manual, cb); };
 
   // AC1: بک‌آپ خودکار هر ۱ ساعت (+ یک بک‌آپ ۲ دقیقه بعد از ورود)
   /* v14.0 (US-263): هرس دوره‌ای صف‌ها — همراه چرخه بک‌آپ (بدون polling جدید) */
@@ -224,13 +231,88 @@
   function backupMarkSent() {
     try { localStorage.setItem('ptf_backup_sig', backupSignature()); } catch (e) {}
   }
-  /* هستهٔ تصمیم بکاپ خودکار — در schedule صدا زده می‌شود (قابل تست) */
+
+  /* ============ v33.16.0 — فاز ۲: بکاپ دلتا (فقط کلیدهای تغییرکرده) ============ */
+  function hashString(s) {
+    var h = 5381;
+    s = String(s == null ? '' : s);
+    for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return String(h);
+  }
+  function deltaSigs() {
+    try { var o = JSON.parse(localStorage.getItem('ptf_backup_delta_sig') || '{}'); return o && typeof o === 'object' ? o : {}; } catch (e) { return {}; }
+  }
+  function deltaSaveSigs(o) { try { localStorage.setItem('ptf_backup_delta_sig', JSON.stringify(o || {})); } catch (e) {} }
+  function deltaSaveSentKeys(keys) {
+    var o = deltaSigs();
+    (keys || []).forEach(function (k) {
+      try { o[k] = hashString(localStorage.getItem(k)); } catch (e) {}
+    });
+    deltaSaveSigs(o);
+  }
+  /* جمع‌آوری دلتا: فقط کلیدهایی که امضای per-key‌شان تغییر کرده (یا امضایی ندارند) */
+  window.ptfBackupDeltaCollect = function () {
+    var sigs = deltaSigs();
+    var delta = {}, changed = [];
+    DATA_KEYS.forEach(function (k) {
+      var v = localStorage.getItem(k);
+      var cur = hashString(v);
+      if (sigs[k] !== cur) { delta[k] = v; changed.push(k); }
+    });
+    return { delta: delta, changed: changed };
+  };
+  /* ارسال دلتا به سرور؛ اگر سرور بکاپ پایه نداشت → fallback به بکاپ کامل */
+  function pushBackupDelta(manual, cb) {
+    var c = window.ptfBackupDeltaCollect();
+    if (!c.changed.length) { cb && cb({ ok: true, skipped: 'no_change' }); return; }
+    backupFetch(API + '?action=save_backup_delta', {
+      method: 'POST',
+      headers: ptfBackupAuthHeaders(true),
+      body: JSON.stringify({ delta: c.delta, tFa: faDateTime(), by: curSession().name || '?' })
+    })
+      .then(function (d) {
+        if (d && d.ok) {
+          deltaSaveSentKeys(c.changed);
+          if (manual) alert('✅ بک‌آپ دلتا ثبت شد (' + c.changed.length + ' بخش تغییرکرده)');
+          cb && cb(d);
+          return;
+        }
+        if (d && (d.needLogin || /token|unauthorized|401/i.test(String(d.error || ''))) && typeof window.ptfSyncRefreshAuth === 'function') {
+          window.ptfSyncRefreshAuth(function (ok) { if (ok) pushBackupDelta(manual, cb); else { if (manual) alert('⚠️ نشست منقضی — دوباره وارد شوید.'); cb && cb({ ok: false, error: 'needLogin' }); } });
+          return;
+        }
+        if (d && d.needFull) {
+          /* سرور بکاپ پایه ندارد → بکاپ کامل */
+          pushBackup(manual, function (d2) { if (d2 && d2.ok) backupMarkSent(); cb && cb(d2 || { ok: false }); });
+          return;
+        }
+        if (manual) alert('⚠️ خطا در بک‌آپ دلتا: ' + ((d && d.error) || 'نامشخص'));
+        cb && cb(d);
+      })
+      .catch(function (e) {
+        /* آفلاین → نگهداری محلی (فقط IDB) مثل قبل */
+        try {
+          var payload = collectBackup();
+          backupStoreLocalFallback(payload, JSON.stringify(payload));
+        } catch (eS) {}
+        if (manual) alert('⚠️ سرور در دسترس نیست — تغییرات محلی حفظ شد؛ بعداً تلاش مجدد می‌شود.');
+        cb && cb({ ok: false, error: String((e && e.message) || 'network') });
+      });
+  }
+
+  /* هستهٔ تصمیم بکاپ خودکار — v33.16.0: دلتا به‌جای بکاپ کامل */
   window.ptfBackupMaybeAuto = function () {
     if (!curSession() || !curSession().user) return { ok: false, why: 'no_session' };
     if (!backupChangedSinceLast()) return { ok: true, skipped: 'no_change' };
     pruneQueues();
-    pushBackup(false, function (d) { if (d && d.ok) backupMarkSent(); });
-    return { ok: true, pushed: true };
+    /* اگر امضای per-key نداریم (نسخهٔ قدیمی) → بکاپ کامل اولیه */
+    var sigs = deltaSigs();
+    if (!Object.keys(sigs).length) {
+      pushBackup(false, function (d) { if (d && d.ok) { backupMarkSent(); deltaSaveSentKeys(DATA_KEYS); } });
+      return { ok: true, pushed: 'full_initial' };
+    }
+    pushBackupDelta(false, function (d) { if (d && d.ok) backupMarkSent(); });
+    return { ok: true, pushed: 'delta' };
   };
   function scheduleBackups() {
     if (window._ptfBakT) return;
@@ -370,6 +452,11 @@
          - ابتدا کلیدهای موقت/کش پاک می‌شوند تا فضا آزاد شود.
          - هر کلید با ptfStorageSafeSetItem نوشته می‌شود (در خطای Quota تلاش می‌کند فضا آزاد کند).
          - کلیدهای ناموفق جمع و در پایان گزارش می‌شوند — بازگردانی نیمه‌کارهٔ بی‌صدا دیگر رخ نمی‌دهد. */
+      /* v33.16.0 (F2-3): بازگردانی تراکنشی (تمام‌یا-هیچ) با rollback خودکار —
+         ابتدا مقادیر قبلی snapshot می‌شوند؛ اگر هر کلیدی نتوانست نوشته شود،
+         همه‌چیز به حالت قبل برمی‌گردد (دادهٔ قبلی هرگز نیمه‌کاره نمی‌ماند). */
+      var prev = {};
+      DATA_KEYS.forEach(function (k) { try { prev[k] = localStorage.getItem(k); } catch (eP) { prev[k] = undefined; } });
       var failedKeys = [];
       DATA_KEYS.forEach(function (k) {
         try { localStorage.removeItem(k); } catch (eR) {}
@@ -385,7 +472,21 @@
           }
         } catch (eW) { failedKeys.push(k); }
       });
-      if (typeof audit === 'function') audit('سیستم', 'بازگردانی کامل داده‌ها از بک‌آپ ' + (j.tFa || j.t) + (failedKeys.length ? ' — کلیدهای ناموفق: ' + failedKeys.join('، ') : ''), 'RESTORE');
+      if (failedKeys.length) {
+        /* ROLLBACK کامل — دادهٔ قبلی برگردانده می‌شود */
+        DATA_KEYS.forEach(function (k) {
+          try {
+            var old = prev[k];
+            if (old === null || old === undefined) { try { localStorage.removeItem(k); } catch (eD) {} }
+            else if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem(k, old, { noWarn: true });
+            else localStorage.setItem(k, old);
+          } catch (eR2) {}
+        });
+        if (typeof audit === 'function') audit('سیستم', '⛔ بازگردانی ناموفق (ظرفیت حافظه) — دادهٔ قبلی کامل برگردانده شد؛ کلیدهای مشکل‌دار: ' + failedKeys.join('، '), 'RESTORE-FAIL');
+        alert('⛔ بازگردانی ناموفق — حافظهٔ محلی ظرفیت دادهٔ این بک‌آپ را نداشت و دادهٔ قبلی شما کامل برگردانده شد.\n\nابتدا از «تنظیمات → حافظه محلی CRM → پاک‌سازی امن فوری» استفاده کنید، سپس دوباره بازگردانی را اجرا کنید.');
+        return; /* بدون reload — دادهٔ قبلی سالم است */
+      }
+      if (typeof audit === 'function') audit('سیستم', 'بازگردانی کامل داده‌ها از بک‌آپ ' + (j.tFa || j.t), 'RESTORE');
       /* ===== v15.0 (US-384 — ریشه «بازگردانی اثر نکرد»): =====
          قبلا فقط localStorage برمی‌گشت ولی فایل‌های سینک سرور (crm/data/sync) دست‌نخورده می‌ماند؛
          ۲۰ ثانیه بعد pull دوره‌ای، همان داده خراب سرور را روی داده بازگردانده می‌ریخت!

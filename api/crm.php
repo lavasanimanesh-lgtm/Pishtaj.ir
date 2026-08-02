@@ -502,6 +502,83 @@ function save_data($key, $data) {
     file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
 }
 
+/* ===== v33.16.0 (فاز ۲ بکاپ): چرخش بک‌آپ مشترک (سپر shrink + چرخش + آروان) =====
+   هم برای بک‌آپ کامل (save_backup) و هم برای بک‌آپ دلتا (save_backup_delta) استفاده می‌شود. */
+function ptf_rotate_backup($bdir, $raw, $j) {
+    $canGz = function_exists('gzencode');
+    $blob = $canGz ? gzencode($raw, 6) : $raw;
+    $ext  = $canGz ? '.json.gz' : '.json';
+    /* v15.0 (US-384 — سپر بک‌آپ): اگر شمار رکوردهای کلیدهای حیاتی نسبت به بک‌آپ موجود
+       >۵۰٪ افت کرده باشد، نسخه جدید «قرنطینه» می‌شود و چرخشی‌ها دست نمی‌خورند. */
+    $allow_shrink = !empty($j['allow_shrink']);
+    $suspect = [];
+    if (!$allow_shrink) {
+        $exF = null;
+        foreach (['/hourly-latest.json.gz', '/hourly-latest.json'] as $cand) { if (file_exists($bdir . $cand)) { $exF = $bdir . $cand; break; } }
+        if ($exF) {
+            $exRaw = (substr($exF, -3) === '.gz' && function_exists('gzdecode')) ? @gzdecode(@file_get_contents($exF)) : @file_get_contents($exF);
+            $ex = $exRaw ? json_decode($exRaw, true) : null;
+            $exC = is_array($ex['counts'] ?? null) ? $ex['counts'] : [];
+            $newC = is_array($j['counts'] ?? null) ? $j['counts'] : [];
+            foreach (['ptf_crm_customers','ptf_crm_rfqs','ptf_crm_offers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_invoices','ptf_crm_deals','ptf_crm_projects'] as $gk) {
+                $pv = (int)($exC[$gk] ?? 0); $nv = (int)($newC[$gk] ?? 0);
+                if ($pv >= 4 && $nv < $pv / 2) $suspect[] = $gk;
+            }
+        }
+    }
+    if ($suspect) {
+        file_put_contents($bdir . '/suspect-' . date('Y-m-d-His') . $ext, $blob, LOCK_EX);
+        $sfiles = array_merge(glob($bdir . '/suspect-*.json') ?: [], glob($bdir . '/suspect-*.json.gz') ?: []);
+        if (count($sfiles) > 3) { sort($sfiles); foreach (array_slice($sfiles, 0, count($sfiles) - 3) as $f) @unlink($f); }
+        return ['ok' => true, 'mode' => 'quarantined', 'suspect' => $suspect, 't' => date('Y-m-d H:i:s')];
+    }
+    // ساعتی: همیشه جایگزین
+    file_put_contents($bdir . '/hourly-latest' . $ext, $blob, LOCK_EX);
+    if ($canGz) @unlink($bdir . '/hourly-latest.json');
+    // روزانه: یک فایل per روز، فقط ۳ روز اخیر
+    file_put_contents($bdir . '/daily-' . date('Y-m-d') . $ext, $blob, LOCK_EX);
+    $files = array_merge(glob($bdir . '/daily-*.json') ?: [], glob($bdir . '/daily-*.json.gz') ?: []);
+    if ($files && count($files) > 3) { sort($files); foreach (array_slice($files, 0, count($files) - 3) as $f) @unlink($f); }
+    // هفتگی: فقط اگر هفته عوض شده
+    $wk = $bdir . '/weekly-latest' . $ext;
+    if (!file_exists($wk) || date('oW', filemtime($wk)) !== date('oW')) file_put_contents($wk, $blob, LOCK_EX);
+    // ماهانه: فقط اول هر ماه
+    $mo = $bdir . '/monthly-latest' . $ext;
+    $isNewMonth = !file_exists($mo) || date('Y-m', filemtime($mo)) !== date('Y-m');
+    if ($isNewMonth) file_put_contents($mo, $blob, LOCK_EX);
+    // آپلود ابری با کلید ثابت + هرس
+    $arvan = 'local-only';
+    $storage = __DIR__ . '/storage.php';
+    if (file_exists($storage)) {
+        $base = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['SCRIPT_NAME'] ?? '/api/x') . '/storage.php';
+        $upload = function ($name, $body) use ($base) {
+            $ch = curl_init($base . '?action=presign_put_backup');
+            curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 8,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+                CURLOPT_POSTFIELDS => json_encode(['name' => $name])]);
+            $pr = json_decode(curl_exec($ch) ?: '', true);
+            curl_close($ch);
+            if (!$pr || empty($pr['ok']) || empty($pr['url'])) return false;
+            $ch2 = curl_init($pr['url']);
+            curl_setopt_array($ch2, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => 'PUT', CURLOPT_TIMEOUT => 30, CURLOPT_POSTFIELDS => $body]);
+            curl_exec($ch2);
+            $code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+            curl_close($ch2);
+            return $code >= 200 && $code < 300;
+        };
+        if ($upload('crm-backup-latest' . $ext, $blob)) $arvan = 'arvan';
+        if ($arvan === 'arvan' && $isNewMonth) $upload('crm-backup-monthly' . $ext, $blob);
+        if ($arvan === 'arvan') {
+            $ch3 = curl_init($base . '?action=backup_prune');
+            curl_setopt_array($ch3, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 15,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_POSTFIELDS => '{}']);
+            curl_exec($ch3);
+            curl_close($ch3);
+        }
+    }
+    return ['ok' => true, 'mode' => $arvan, 't' => date('Y-m-d H:i:s')];
+}
+
 // v31.7.68 BUG-AUTH-MOBILE-USER-001: merge all possible user stores.
 // Root cause: mobile login relied on users_get, but users_get/auth_login used the
 // first non-empty source only (users OR crm_users OR sync). If one source was stale,
@@ -989,91 +1066,41 @@ switch($action) {
         if (!$j || empty($j['data'])) { echo json_encode(['ok' => false, 'error' => 'ساختار بک‌آپ نامعتبر']); break; }
         $bdir = $data_dir . '/backups';
         if (!is_dir($bdir)) { mkdir($bdir, 0755, true); file_put_contents($bdir . '/.htaccess', "Deny from all\n"); }
-        /* ===== US-282 (v122.3): بک‌آپ چرخشی با حداقل فضا =====
-           - فشرده‌سازی gzip (حجم JSON معمولاً ~۸۰-۹۰٪ کم می‌شود)
-           - سرور: hourly-latest (جایگزین) + ۳ نسخه روزانه + weekly-latest + monthly-latest = حداکثر ۶ فایل
-           - ابری: فقط ۲ کلید ثابت جایگزین‌شونده + هرس خودکار فایل‌های قدیمی انباشته */
-        $canGz = function_exists('gzencode');
-        $blob = $canGz ? gzencode($raw, 6) : $raw;
-        $ext  = $canGz ? '.json.gz' : '.json';
-        /* ===== v15.0 (US-384 — سپر بک‌آپ): ریشه «بک‌آپ قبلی هم خراب بود» =====
-           بک‌آپ خودکار (۲ دقیقه بعد از ورود + ساعتی) از دستگاهی که داده‌اش آسیب دیده،
-           hourly-latest سالم را جایگزین می‌کرد. حالا: اگر شمار رکوردهای کلیدهای حیاتی
-           نسبت به بک‌آپ موجود >۵۰٪ افت کرده باشد، نسخه جدید «قرنطینه» می‌شود
-           (فایل suspect-*) و بک‌آپ‌های چرخشی سالم دست نمی‌خورند — مگر فلگ allow_shrink
-           (بعد از Go-Live یا تایید صریح ادمین از تنظیمات). */
-        $allow_shrink = !empty($j['allow_shrink']);
-        $suspect = [];
-        if (!$allow_shrink) {
-            $exF = null;
-            foreach (['/hourly-latest.json.gz', '/hourly-latest.json'] as $cand) { if (file_exists($bdir . $cand)) { $exF = $bdir . $cand; break; } }
-            if ($exF) {
-                $exRaw = (substr($exF, -3) === '.gz' && function_exists('gzdecode')) ? @gzdecode(@file_get_contents($exF)) : @file_get_contents($exF);
-                $ex = $exRaw ? json_decode($exRaw, true) : null;
-                $exC = is_array($ex['counts'] ?? null) ? $ex['counts'] : [];
-                $newC = is_array($j['counts'] ?? null) ? $j['counts'] : [];
-                foreach (['ptf_crm_customers','ptf_crm_rfqs','ptf_crm_offers','ptf_crm_suppliers','ptf_crm_products','ptf_crm_invoices','ptf_crm_deals','ptf_crm_projects'] as $gk) {
-                    $pv = (int)($exC[$gk] ?? 0); $nv = (int)($newC[$gk] ?? 0);
-                    if ($pv >= 4 && $nv < $pv / 2) $suspect[] = $gk;
-                }
-            }
-        }
-        if ($suspect) {
-            file_put_contents($bdir . '/suspect-' . date('Y-m-d-His') . $ext, $blob, LOCK_EX);
-            $sfiles = array_merge(glob($bdir . '/suspect-*.json') ?: [], glob($bdir . '/suspect-*.json.gz') ?: []);
-            if (count($sfiles) > 3) { sort($sfiles); foreach (array_slice($sfiles, 0, count($sfiles) - 3) as $f) @unlink($f); }
-            echo json_encode(['ok' => true, 'mode' => 'quarantined', 'suspect' => $suspect, 't' => date('Y-m-d H:i:s')], JSON_UNESCAPED_UNICODE);
-            break;
-        }
-        // ساعتی: همیشه جایگزین
-        file_put_contents($bdir . '/hourly-latest' . $ext, $blob, LOCK_EX);
-        if ($canGz) @unlink($bdir . '/hourly-latest.json'); // پاک‌سازی نسخه نافشرده قدیمی
-        // روزانه: یک فایل per روز، فقط ۳ روز اخیر
-        file_put_contents($bdir . '/daily-' . date('Y-m-d') . $ext, $blob, LOCK_EX);
-        $files = array_merge(glob($bdir . '/daily-*.json') ?: [], glob($bdir . '/daily-*.json.gz') ?: []);
-        if ($files && count($files) > 3) {
-            sort($files);
-            foreach (array_slice($files, 0, count($files) - 3) as $f) @unlink($f);
-        }
-        // هفتگی: یک فایل ثابت، فقط اگر هفته عوض شده جایگزین می‌شود
-        $wk = $bdir . '/weekly-latest' . $ext;
-        if (!file_exists($wk) || date('oW', filemtime($wk)) !== date('oW')) file_put_contents($wk, $blob, LOCK_EX);
-        // ماهانه: یک فایل ثابت، فقط اول هر ماه جایگزین می‌شود
-        $mo = $bdir . '/monthly-latest' . $ext;
-        $isNewMonth = !file_exists($mo) || date('Y-m', filemtime($mo)) !== date('Y-m');
-        if ($isNewMonth) file_put_contents($mo, $blob, LOCK_EX);
-        // آپلود ابری با کلید ثابت (جایگزین قبلی — بدون انباشت) + هرس فایل‌های قدیمی
-        $arvan = 'local-only';
-        $storage = __DIR__ . '/storage.php';
-        if (file_exists($storage)) {
-            $base = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['SCRIPT_NAME'] ?? '/api/x') . '/storage.php';
-            $upload = function ($name, $body) use ($base) {
-                $ch = curl_init($base . '?action=presign_put_backup');
-                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 8,
-                    CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-                    CURLOPT_POSTFIELDS => json_encode(['name' => $name])]);
-                $pr = json_decode(curl_exec($ch) ?: '', true);
-                curl_close($ch);
-                if (!$pr || empty($pr['ok']) || empty($pr['url'])) return false;
-                $ch2 = curl_init($pr['url']);
-                curl_setopt_array($ch2, [CURLOPT_RETURNTRANSFER => true, CURLOPT_CUSTOMREQUEST => 'PUT', CURLOPT_TIMEOUT => 30, CURLOPT_POSTFIELDS => $body]);
-                curl_exec($ch2);
-                $code = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
-                curl_close($ch2);
-                return $code >= 200 && $code < 300;
-            };
-            if ($upload('crm-backup-latest' . $ext, $blob)) $arvan = 'arvan';
-            if ($arvan === 'arvan' && $isNewMonth) $upload('crm-backup-monthly' . $ext, $blob);
-            // هرس ابری: هر چیزی زیر backups/ جز ۲ کلید ثابت حذف شود (پاکسازی انباشت آپلودهای ساعتی قدیمی)
-            if ($arvan === 'arvan') {
-                $ch3 = curl_init($base . '?action=backup_prune');
-                curl_setopt_array($ch3, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 15,
-                    CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_POSTFIELDS => '{}']);
-                curl_exec($ch3);
-                curl_close($ch3);
-            }
-        }
-        echo json_encode(['ok' => true, 'mode' => $arvan, 't' => date('Y-m-d H:i:s')], JSON_UNESCAPED_UNICODE);
+        /* v33.16.0: چرخش مشترک (سپر + gzip + ساعتی/روزانه/هفتگی/ماهانه + آروان) */
+        echo json_encode(ptf_rotate_backup($bdir, $raw, $j), JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'save_backup_delta':
+        /* v33.16.0 (فاز ۲ بکاپ): دریافت فقط کلیدهای تغییرکرده و ادغام با آخرین بکاپ کامل —
+           حجم ارسال و زمان پردازش به‌شدت کاهش می‌یابد؛ فایل نهایی همچنان کامل است. */
+        verify_request();
+        $raw = file_get_contents('php://input');
+        if (strlen($raw) > 30 * 1048576) { echo json_encode(['ok' => false, 'error' => 'حجم دلتا بیش از حد']); break; }
+        $j = json_decode($raw, true);
+        if (!$j || empty($j['delta']) || !is_array($j['delta'])) { echo json_encode(['ok' => false, 'error' => 'ساختار دلتا نامعتبر']); break; }
+        $bdir = $data_dir . '/backups';
+        if (!is_dir($bdir)) { mkdir($bdir, 0755, true); file_put_contents($bdir . '/.htaccess', "Deny from all\n"); }
+        /* لود آخرین بک‌آپ کامل به‌عنوان پایه */
+        $exF = null;
+        foreach (['/hourly-latest.json.gz', '/hourly-latest.json'] as $cand) { if (file_exists($bdir . $cand)) { $exF = $bdir . $cand; break; } }
+        if (!$exF) { echo json_encode(['ok' => false, 'error' => 'ابتدا یک بک‌آپ کامل بفرستید', 'needFull' => true]); break; }
+        $exRaw = (substr($exF, -3) === '.gz' && function_exists('gzdecode')) ? @gzdecode(@file_get_contents($exF)) : @file_get_contents($exF);
+        $ex = $exRaw ? json_decode($exRaw, true) : null;
+        if (!$ex || empty($ex['data']) || !is_array($ex['data'])) { echo json_encode(['ok' => false, 'error' => 'بک‌آپ پایه خراب است — بک‌آپ کامل بفرستید', 'needFull' => true]); break; }
+        /* اپلای دلتا */
+        foreach ($j['delta'] as $k => $v) { $ex['data'][$k] = $v; }
+        if (!empty($j['removed']) && is_array($j['removed'])) { foreach ($j['removed'] as $k) { unset($ex['data'][$k]); } }
+        /* بازمحاسبه counts */
+        $ex['counts'] = [];
+        foreach ($ex['data'] as $k => $v) { $dd = json_decode((string)$v, true); $ex['counts'][$k] = is_array($dd) ? count($dd) : 1; }
+        $ex['t'] = date('Y-m-d H:i:s');
+        if (!empty($j['tFa'])) $ex['tFa'] = $j['tFa'];
+        if (!empty($j['by'])) $ex['by'] = $j['by'];
+        $newRaw = json_encode($ex, JSON_UNESCAPED_UNICODE);
+        if (!$newRaw || strlen($newRaw) > 50 * 1048576) { echo json_encode(['ok' => false, 'error' => 'بک‌آپ تلفیقی نامعتبر']); break; }
+        $res = ptf_rotate_backup($bdir, $newRaw, $ex);
+        $res['delta'] = count($j['delta']);
+        echo json_encode($res, JSON_UNESCAPED_UNICODE);
         break;
 
     case 'list_backups':
