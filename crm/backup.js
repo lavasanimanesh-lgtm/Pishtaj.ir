@@ -165,12 +165,77 @@
     } catch (e) {}
   }
 
+  /* ============ v33.15.0 — فاز ۱: بکاپ هوشمند + بررسی اتصال سرور ============ */
+
+  /* F1-1: بررسی وضعیت اتصال/توکن سرور (پینگ سبک users_get — اکشن عمومی) */
+  window.ptfBackupServerStatus = function (cb) {
+    backupFetch(API + '?action=users_get', { headers: ptfBackupAuthHeaders(false) })
+      .then(function (d) {
+        var st = (d && (d.ok || d.users || Array.isArray(d))) ? 'online' : (d && d.needLogin ? 'needLogin' : 'error');
+        cb && cb({ status: st, error: (d && d.error) || '' });
+      })
+      .catch(function () { cb && cb({ status: 'offline', error: 'عدم دسترسی به سرور' }); });
+  };
+  window.ptfBackupServerCheck = function () {
+    var box = document.getElementById('ptfBackupConn');
+    if (box) box.innerHTML = '<span style="color:#94a3b8">در حال بررسی اتصال...</span>';
+    window.ptfBackupServerStatus(function (r) {
+      if (box) {
+        if (r.status === 'online') box.innerHTML = '<span style="color:#047857;font-weight:800">✅ سرور در دسترس است — توکن معتبر</span>';
+        else if (r.status === 'needLogin') box.innerHTML = '<span style="color:#b45309;font-weight:800">⚠️ نشست منقضی شده — دوباره وارد شوید</span>';
+        else if (r.status === 'offline') box.innerHTML = '<span style="color:#dc2626;font-weight:800">❌ سرور در دسترس نیست (' + escP(r.error || '') + ')</span>';
+        else box.innerHTML = '<span style="color:#dc2626;font-weight:800">⚠️ خطای سرور: ' + escP(r.error || '') + '</span>';
+      }
+      try { if (typeof ptfToast === 'function') ptfToast(r.status === 'online' ? 'اتصال سرور برقرار است' : 'اتصال سرور برقرار نیست', r.status === 'online' ? 'ok' : 'warn'); } catch (eT) {}
+    });
+  };
+
+  /* F1-2: امضای داده — بکاپ خودکار فقط وقتی داده تغییر کرده باشد.
+     v33.15.0: hash محتوای کامل (djb2) — نسخهٔ اول فقط «طول» کلیدها را می‌شمرد و
+     اگر داده عوض می‌شد ولی طولش ثابت می‌ماند، امضا تغییر نمی‌کرد (بکاپ نمی‌رفت). */
+  function backupSignature() {
+    var h = 5381;
+    try {
+      DATA_KEYS.forEach(function (k) {
+        var v = localStorage.getItem(k);
+        h = ((h << 5) + h + k.length) | 0;
+        if (v) {
+          var n = v.length;
+          h = ((h << 5) + h + n) | 0;
+          /* djb2 روی محتوا — برای کل حجم چند MB حدود چند ده ms (یک بار در ساعت) */
+          for (var i = 0; i < n; i++) {
+            h = ((h << 5) + h + v.charCodeAt(i)) | 0;
+          }
+        } else {
+          h = ((h << 5) + h + 999) | 0;
+        }
+      });
+    } catch (e) {}
+    return String(h);
+  }
+  function backupChangedSinceLast() {
+    try {
+      var last = localStorage.getItem('ptf_backup_sig') || '';
+      return backupSignature() !== last;
+    } catch (e) { return true; }
+  }
+  window.ptfBackupSignature = backupSignature;
+  window.ptfBackupChanged = backupChangedSinceLast;
+  function backupMarkSent() {
+    try { localStorage.setItem('ptf_backup_sig', backupSignature()); } catch (e) {}
+  }
+  /* هستهٔ تصمیم بکاپ خودکار — در schedule صدا زده می‌شود (قابل تست) */
+  window.ptfBackupMaybeAuto = function () {
+    if (!curSession() || !curSession().user) return { ok: false, why: 'no_session' };
+    if (!backupChangedSinceLast()) return { ok: true, skipped: 'no_change' };
+    pruneQueues();
+    pushBackup(false, function (d) { if (d && d.ok) backupMarkSent(); });
+    return { ok: true, pushed: true };
+  };
   function scheduleBackups() {
     if (window._ptfBakT) return;
-    window._ptfBakT = setInterval(function () {
-      if (curSession().user) { pruneQueues(); pushBackup(false); }
-    }, 3600000);
-    setTimeout(function () { if (curSession().user) { pruneQueues(); pushBackup(false); } }, 120000);
+    window._ptfBakT = setInterval(function () { window.ptfBackupMaybeAuto(); }, 3600000);
+    setTimeout(function () { window.ptfBackupMaybeAuto(); }, 120000);
   }
 
   /* ============ دانلود بک‌آپ (فایل محلی) ============ */
@@ -372,13 +437,15 @@
       '📌 آخرین بک‌آپ موفق: <b id="bakLast">' + (last ? escP(last.t) + ' (' + (last.mode === 'arvan' ? 'ابری' : 'سرور') + ')' : 'هنوز ثبت نشده') + '</b></div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button class="bt" onclick="ptfBackupNow()">🗄 بک‌آپ فوری</button>' +
+      '<button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfBackupServerCheck()">🔌 بررسی اتصال سرور</button>' +
       '<button class="bt bt-o" onclick="ptfBackupDownload()">⬇️ دانلود فایل بک‌آپ</button>' +
       '<button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadMonthly()">📥 دانلود بک‌آپ ماهانه سرور</button>' +
       '<button class="bt bt-o" style="color:#dc2626" onclick="ptfRestorePick()">⏪ بازگردانی از فایل</button>' +
       '<button class="bt bt-o" onclick="ptfServerBackups()">📂 بک‌آپ‌های سرور</button>' +
       ' <button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ptfPurgeCloudOrphans()">☁️ پاک‌سازی زباله‌های ابری</button>' +
       ' <button class="bt bt-o" style="color:#b45309;border-color:#fed7aa" onclick="ptfDuplicateRepairOpen()">⚠️ بررسی کدهای تکراری</button>' +
-      '</div>';
+      '</div>' +
+      '<div id="ptfBackupConn" style="font-size:12.5px;margin-top:8px"></div>';
   }
 
   window.ptfServerBackups = function () {

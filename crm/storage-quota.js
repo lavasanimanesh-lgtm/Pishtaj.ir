@@ -580,6 +580,33 @@
     alert('بزرگ‌ترین کلیدهای localStorage:\n\n' + rows + '\n\nاین فهرست برای تصمیم پاک‌سازی/مهاجرت به IndexedDB است. رکوردهای اصلی را دستی حذف نکنید.');
   }
 
+  /* v33.15.0 (فاز ۱ — خودکارسازی): اگر حافظه از ۸۰٪ بالاتر بود، یک‌بار در روز
+     فشرده‌سازی امن (avatars/queue/هرس سنی) خودکار اجرا می‌شود — بدون حذف دادهٔ اصلی. */
+  window.ptfStorageAutoTame = function () {
+    try {
+      var h = healthSync();
+      if (h.percent < 80) return { ok: true, skipped: 'below80', percent: h.percent };
+      var res = emergencyCompact({ source: 'auto-daily' });
+      return { ok: true, freed: res.freed, percent: healthSync().percent };
+    } catch (e) { return { ok: false, error: String(e) }; }
+  };
+  try {
+    var _tameDate = '';
+    try { _tameDate = callGet('ptf_storage_auto_tame') || ''; } catch (eT) {}
+    var _todayIso = new Date().toISOString().slice(0, 10);
+    if (_tameDate !== _todayIso) {
+      setTimeout(function () {
+        try {
+          var hh = healthSync();
+          if (hh.percent >= 80) {
+            emergencyCompact({ source: 'auto-daily' });
+            try { callSet('ptf_storage_auto_tame', new Date().toISOString().slice(0, 10)); } catch (eS) {}
+          }
+        } catch (eA) {}
+      }, 8000);
+    }
+  } catch (eBoot) {}
+
   window.ptfStorageQuotaVersion = 'v31.7.52-STORAGE-IDB-MODULE-PRIMARY-001';
   window.ptfStorageLocalUsage = usage;
   window.ptfStorageHealthSync = healthSync;
