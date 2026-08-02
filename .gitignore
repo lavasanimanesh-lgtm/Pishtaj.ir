@@ -9,6 +9,8 @@ api/error_log
 api/logs/
 api/ptf-secrets.php
 api/ptf-secrets.staging.php
+api/ptf-db-config.php
+api/ptf-db-config.staging.php
 
 # فایل‌های فشرده و آرتیفکت‌های استخراج ناقص
 *.zip

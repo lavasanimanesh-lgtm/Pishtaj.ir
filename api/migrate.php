@@ -34,6 +34,18 @@ function fa_ok($s) { return '<div style="background:#ecfdf5;border:1px solid #a7
 function fa_err($s) { return '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px">⛔ ' . $s . '</div>'; }
 function fa_warn($s) { return '<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:10px 14px;margin:10px 0;font-size:14px">⚠️ ' . $s . '</div>'; }
 
+/* ===== v33.17.1 — گارد امنیتی پس از سوییچ نهایی =====
+   اگر مهاجرت کامل شده باشد (mode=mysql)، این اسکریپت دیگر هیچ عملیاتی انجام نمی‌دهد
+   و فقط یادآوری حذف فایل را نشان می‌دهد. این گارد تضمین می‌کند حتی اگر فایل
+   پس از مرج/دیپلوی دوباره روی سرور قرار گیرد، هرگز مهاجرت دوباره اجرا نمی‌شود. */
+if ($cfg && ($cfg['mode'] ?? 'off') === 'mysql') {
+    page_header('مهاجرت به MySQL');
+    echo fa_ok('مهاجرت قبلاً با موفقیت کامل شده است و دیتابیس منبع حقیقت است.');
+    echo fa_warn('این فایل دیگر موردنیاز نیست. برای امنیت، آن را از سرور حذف کنید: File Manager → پوشهٔ api → فایل migrate.php → حذف.');
+    page_footer();
+    exit;
+}
+
 function page_header($title) {
     echo '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . h($title) . '</title></head><body style="font-family:Tahoma,Vazirmatn,sans-serif;background:#f1f5f9;margin:0;padding:20px">';
     echo '<div style="max-width:760px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:22px 26px">';

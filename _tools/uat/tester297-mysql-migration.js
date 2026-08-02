@@ -34,6 +34,11 @@ SECTION('crm.php: wrapper dual-write/read');
 T('require db-lib + load_data از دیتابیس در حالت mysql', crm.indexOf("require_once __DIR__ . '/db-lib.php'") > -1 && crm.indexOf("ptf_db_mode() === 'mysql'") > -1);
 T('save_data: فایل + ptf_db_write', crm.indexOf('file_put_contents($file, $json, LOCK_EX);') > -1 && crm.indexOf('ptf_db_write($key, $json);') > -1);
 
+SECTION('گارد امنیتی پس از سوییچ (v33.17.1)');
+T('migrate.php بعد از mode=mysql قفل می‌شود (فقط پیام حذف فایل)', mig.indexOf("($cfg['mode'] ?? 'off') === 'mysql'") > -1 && mig.indexOf('مهاجرت قبلاً با موفقیت کامل شده است') > -1 && mig.indexOf('فایل migrate.php → حذف') > -1);
+T('گارد قبل از پردازش هر step اجرا می‌شود', mig.indexOf("if ($cfg && ($cfg['mode'] ?? 'off') === 'mysql') {") > -1 && mig.indexOf('exit;') > -1);
+T('ptf-db-config.php در gitignore است (رمز دیتابیس به گیت نمی‌رود)', fs.readFileSync(path.join(ROOT, '.gitignore'), 'utf-8').indexOf('api/ptf-db-config.php') > -1);
+
 SECTION('مستندات فارسی');
 T('راهنمای سی‌پنل فارسی: ۵ مرحله + عیب‌یابی + راهنمای کاربران', guide.indexOf('MySQL Database Wizard') > -1 && guide.indexOf('File Manager') > -1 && guide.indexOf('migrate.php') > -1 && guide.indexOf('کلمهٔ «مهاجرت»') > -1 && guide.indexOf('کاربران روی دستگاه‌های خود') > -1 && guide.indexOf('Ctrl+Shift+R') > -1);
 T('سند اصلی به‌روزرسانی شد (v33.17.0 + سی‌پنل بدون ترمینال)', spec.indexOf('v33.17.0') > -1 && spec.indexOf('ترمینال/SSH') > -1);
