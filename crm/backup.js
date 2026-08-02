@@ -13,21 +13,35 @@
   }
 
   /* ============ US-146: جمع‌آوری کل داده‌ها ============ */
+  /* v33.13.0 (F0-5): ptf_storage_queue (صف موقت آپلود فایل‌ها) از بکاپ حذف شد —
+     حجیم و موقتی است و فایل‌ها در ابری/IndexedDB جدا نگهداری می‌شوند. */
   var DATA_KEYS = [
     'ptf_crm_rfqs', 'ptf_crm_suppliers', 'ptf_crm_customers', 'ptf_crm_users',
     'ptf_crm_products', 'ptf_crm_catalog_reviews', 'ptf_crm_catalog_merges', 'ptf_crm_offers', 'ptf_crm_leads', 'ptf_crm_reminders',
     'ptf_crm_buyquotes', 'ptf_crm_invoices', 'ptf_crm_surplus', 'ptf_crm_notifs', 'ptf_crm_sendqueue',
     'ptf_crm_audit', 'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects',
     'ptf_crm_packinglists', 'ptf_crm_letters', 'ptf_crm_contracts',
-    'ptf_crm_sigprofiles', 'ptf_storage_queue', 'ptf_crm_settings', 'ptf_crm_finance',
+    'ptf_crm_sigprofiles', 'ptf_crm_settings', 'ptf_crm_finance',
     'ptf_crm_order_prices', 'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_smsbook', 'ptf_crm_rfqsmart', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex'
   ];
+
+  /* v33.13.0 (F0-6): کاهش حجم payload — کلیدهای لاگ/اعلان در بکاپ به N رکورد آخر محدود
+     می‌شوند (دادهٔ کامل در localStorage محفوظ است؛ بکاپ فقط برای بازگردانی/بایگانی). */
+  var PAYLOAD_CAPS = { 'ptf_crm_audit': 1000, 'ptf_crm_notifs': 500 };
 
   function collectBackup() {
     var data = {};
     DATA_KEYS.forEach(function (k) {
       var v = localStorage.getItem(k);
-      if (v !== null) data[k] = v;
+      if (v === null) return;
+      var cap = PAYLOAD_CAPS[k];
+      if (cap) {
+        try {
+          var arr = JSON.parse(v);
+          if (Array.isArray(arr) && arr.length > cap) { data[k] = JSON.stringify(arr.slice(0, cap)); return; }
+        } catch (e) {}
+      }
+      data[k] = v;
     });
     return {
       app: 'PTF-CRM', ver: 71,
@@ -51,36 +65,81 @@
   }
 
   /* ============ ارسال بک‌آپ به سرور (→ آروان) ============ */
-  function pushBackup(manual, cb) {
+  /* v33.13.0 (فوریت): 
+     - F0-4: همهٔ fetchهای بکاپ timeout دارند (۲۰ ثانیه، AbortController).
+     - F0-3: پاسخ 401/needLogin → refresh توکن (ptfSyncRefreshAuth) و یک بار تلاش مجدد.
+     - F0-1: در آفلاین هرگز دادهٔ حجیم در localStorage نوشته نمی‌شود — فقط IndexedDB؛
+       اگر IDB هم fail شد → فقط marker کوچک با پیام (حافظهٔ مرورگر پر نمی‌شود). */
+  function backupFetch(url, opts, timeoutMs) {
+    var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    var to = null;
+    if (ctrl) { to = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, timeoutMs || 20000); }
+    return fetch(url, Object.assign({}, opts || {}, ctrl ? { signal: ctrl.signal } : {}))
+      .then(function (r) { return r.json(); })
+      .finally(function () { if (to) clearTimeout(to); });
+  }
+  function backupStoreLocalFallback(payload, raw) {
+    /* F0-1: هرگز دادهٔ حجیم مستقیم در localStorage. فقط IDB؛ در غیر این صورت marker کوچک. */
+    var stored = false, bytes = 0;
+    try { bytes = raw.length; } catch (eB) {}
+    if (typeof ptfStorageIdbSet === 'function') {
+      try {
+        ptfStorageIdbSet('ptf_backup_local', raw, function (ok, b) {
+          try {
+            var marker = { storedIn: ok ? 'indexedDB' : 'none', key: 'ptf_backup_local', bytes: b || bytes, updatedAt: new Date().toISOString(), error: ok ? '' : 'IDB write failed' };
+            if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem('ptf_backup_local', JSON.stringify(marker), { noWarn: true });
+            else localStorage.setItem('ptf_backup_local', JSON.stringify(marker));
+          } catch (eM) {}
+        });
+        stored = true;
+      } catch (eI) {}
+    }
+    if (!stored) {
+      /* فقط marker — نه خود داده (حافظهٔ مرورگر پر نمی‌شود) */
+      try {
+        var m2 = { storedIn: 'none', key: 'ptf_backup_local', bytes: bytes, updatedAt: new Date().toISOString(), error: 'IndexedDB not available; raw backup NOT stored locally' };
+        if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem('ptf_backup_local', JSON.stringify(m2), { noWarn: true });
+        else localStorage.setItem('ptf_backup_local', JSON.stringify(m2));
+      } catch (eM2) {}
+    }
+  }
+  function pushBackup(manual, cb, attempt) {
+    attempt = attempt || 0;
     var payload = collectBackup();
-    fetch(API + '?action=save_backup', {
+    backupFetch(API + '?action=save_backup', {
       method: 'POST',
       headers: ptfBackupAuthHeaders(true),
       body: JSON.stringify(payload)
-    }).then(function (r) { return r.json(); })
+    })
       .then(function (d) {
-        if (d.ok) {
-          localStorage.setItem('ptf_backup_last', JSON.stringify({ t: payload.tFa, iso: payload.t, mode: d.mode }));
+        if (d && d.ok) {
+          try { localStorage.setItem('ptf_backup_last', JSON.stringify({ t: payload.tFa, iso: payload.t, mode: d.mode })); } catch (eL) {}
           if (manual) alert('✅ بک‌آپ ثبت شد (' + (d.mode === 'arvan' ? 'فضای ابری آروان + سرور' : 'سرور هاست') + ')');
-        } else if (manual) alert('⚠️ خطا در بک‌آپ سروری: ' + (d.error || ''));
+          cb && cb(d);
+          return;
+        }
+        /* F0-3: 401/needLogin → refresh توکن و یک بار تلاش مجدد */
+        if (d && (d.needLogin || /token|unauthorized|401/i.test(String(d.error || ''))) && attempt === 0 && typeof window.ptfSyncRefreshAuth === 'function') {
+          window.ptfSyncRefreshAuth(function (ok) {
+            if (ok) pushBackup(manual, cb, 1);
+            else {
+              if (manual) alert('⚠️ نشست شما منقضی شده است — لطفاً دوباره وارد شوید و سپس بک‌آپ بگیرید.');
+              cb && cb({ ok: false, error: 'needLogin' });
+            }
+          });
+          return;
+        }
+        if (manual) alert('⚠️ خطا در بک‌آپ سروری: ' + ((d && d.error) || 'نامشخص') + (d && d.needLogin ? ' — ابتدا دوباره وارد شوید.' : ''));
         cb && cb(d);
       })
-      .catch(function () {
-        // v31.7.50: fallback حجیم را در IndexedDB نگه می‌داریم تا localStorage 5MB پرتر نشود.
+      .catch(function (e) {
+        /* F0-1: fallback فقط IndexedDB — هرگز localStorage حجیم */
         try {
           var raw = JSON.stringify(payload);
-          if (typeof ptfStorageIdbSet === 'function') {
-            ptfStorageIdbSet('ptf_backup_local', raw, function (ok, bytes) {
-              try {
-                var marker = { storedIn: ok ? 'indexedDB' : 'localStorage', key: 'ptf_backup_local', bytes: bytes || raw.length, updatedAt: new Date().toISOString() };
-                if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem('ptf_backup_local', JSON.stringify(marker), { noWarn: true });
-                else localStorage.setItem('ptf_backup_local', JSON.stringify(marker));
-              } catch (eM) {}
-            });
-          } else localStorage.setItem('ptf_backup_local', raw);
-        } catch (e) {}
-        if (manual) alert('سرور در دسترس نیست — نسخه اضطراری تا حد امکان در IndexedDB/مرورگر نگهداری شد.');
-        cb && cb({ ok: false });
+          backupStoreLocalFallback(payload, raw);
+        } catch (eS) {}
+        if (manual) alert('⚠️ سرور در دسترس نیست یا پاسخ نداد — نسخهٔ اضطراری تا حد امکان در IndexedDB نگهداری شد (حافظهٔ مرورگر پر نمی‌شود). بعداً تلاش مجدد می‌شود.');
+        cb && cb({ ok: false, error: String((e && e.message) || 'network') });
       });
   }
   window.ptfBackupNow = function () { pushBackup(true); };
@@ -131,8 +190,7 @@
     var tryNames = ['monthly-latest.json.gz', 'monthly-latest.json'];
     (function attempt(i) {
       if (i >= tryNames.length) { alert('⚠️ هنوز نسخه ماهانه روی سرور ساخته نشده — از «⬇️ دانلود فایل بک‌آپ» استفاده کنید'); return; }
-      fetch(API + '?action=get_backup&name=' + tryNames[i], { headers: ptfBackupAuthHeaders(false) })
-        .then(function (r) { return r.text(); })
+      backupFetch(API + '?action=get_backup&name=' + tryNames[i], { headers: ptfBackupAuthHeaders(false) })
         .then(function (t) {
           var j = null; try { j = JSON.parse(t); } catch (e) {}
           if (!j || j.app !== 'PTF-CRM') { attempt(i + 1); return; }
@@ -243,12 +301,26 @@
       } else localStorage.setItem('ptf_backup_prerestore', curRaw);
     } catch (e) {}
     pushBackup(false, function () {
-      // پاکسازی کلیدهای داده و جایگزینی
-      DATA_KEYS.forEach(function (k) { localStorage.removeItem(k); });
-      Object.keys(j.data).forEach(function (k) {
-        if (DATA_KEYS.indexOf(k) > -1) localStorage.setItem(k, j.data[k]);
+      /* v33.13.0 (F0-2 — فوریت): بازگردانی با گارد ظرفیت.
+         - ابتدا کلیدهای موقت/کش پاک می‌شوند تا فضا آزاد شود.
+         - هر کلید با ptfStorageSafeSetItem نوشته می‌شود (در خطای Quota تلاش می‌کند فضا آزاد کند).
+         - کلیدهای ناموفق جمع و در پایان گزارش می‌شوند — بازگردانی نیمه‌کارهٔ بی‌صدا دیگر رخ نمی‌دهد. */
+      var failedKeys = [];
+      DATA_KEYS.forEach(function (k) {
+        try { localStorage.removeItem(k); } catch (eR) {}
       });
-      if (typeof audit === 'function') audit('سیستم', 'بازگردانی کامل داده‌ها از بک‌آپ ' + (j.tFa || j.t), 'RESTORE');
+      Object.keys(j.data).forEach(function (k) {
+        if (DATA_KEYS.indexOf(k) === -1) return;
+        try {
+          if (typeof ptfStorageSafeSetItem === 'function') {
+            var ok = ptfStorageSafeSetItem(k, j.data[k], { noWarn: true });
+            if (ok === false) failedKeys.push(k);
+          } else {
+            localStorage.setItem(k, j.data[k]);
+          }
+        } catch (eW) { failedKeys.push(k); }
+      });
+      if (typeof audit === 'function') audit('سیستم', 'بازگردانی کامل داده‌ها از بک‌آپ ' + (j.tFa || j.t) + (failedKeys.length ? ' — کلیدهای ناموفق: ' + failedKeys.join('، ') : ''), 'RESTORE');
       /* ===== v15.0 (US-384 — ریشه «بازگردانی اثر نکرد»): =====
          قبلا فقط localStorage برمی‌گشت ولی فایل‌های سینک سرور (crm/data/sync) دست‌نخورده می‌ماند؛
          ۲۰ ثانیه بعد pull دوره‌ای، همان داده خراب سرور را روی داده بازگردانده می‌ریخت!
@@ -259,26 +331,31 @@
         if (DATA_KEYS.indexOf(k) > -1 && k !== 'ptf_crm_users' && k !== 'ptf_storage_queue') syncData[k] = j.data[k];
       });
       localStorage.removeItem('ptf_guard_counts'); /* baseline نو از داده سالم */
-      var finishReload = function () {
-        alert('✅ بازگردانی انجام شد (محلی + سرور سینک) — سیستم مجدداً بارگذاری می‌شود.\n(نسخه اضطراری وضعیت قبلی در ptf_backup_prerestore نگهداری شد)');
+      var finishReload = function (syncFail) {
+        alert('✅ بازگردانی انجام شد (محلی + سرور سینک)' + (failedKeys.length ? '\n⚠️ کلیدهایی که به دلیل کمبود حافظه نوشته نشدند: ' + failedKeys.join('، ') + ' — از «بازگردانی» دوباره بعد از پاک‌سازی حافظه اقدام کنید.' : '') + (syncFail ? '\n⚠️ سرور سینک در دسترس نبود — بعد از اتصال، دوباره «بازگردانی» را اجرا کنید.' : '') + '\n(نسخه اضطراری وضعیت قبلی در ptf_backup_prerestore نگهداری شد)');
         location.reload();
       };
-      fetch(API + '?action=data_push', {
-        method: 'POST',
-        headers: ptfBackupAuthHeaders(true),
-        body: JSON.stringify({ by: curSession().name + ' (RESTORE)', restore: true, data: syncData })
-      }).then(function (r) { return r.json(); })
-        .then(function (d) {
-          try {
-            if (d && d.rev) localStorage.setItem('ptf_sync_rev', String(d.rev));
-            if (d && d.krevs) localStorage.setItem('ptf_sync_krevs', JSON.stringify(d.krevs));
-          } catch (e2) {}
-          finishReload();
+      /* F0-3+F0-4: data_push با timeout و refresh توکن در صورت 401 */
+      var tryPushServer = function (attempt) {
+        backupFetch(API + '?action=data_push', {
+          method: 'POST',
+          headers: ptfBackupAuthHeaders(true),
+          body: JSON.stringify({ by: curSession().name + ' (RESTORE)', restore: true, data: syncData })
         })
-        .catch(function () {
-          alert('⚠️ داده محلی بازگردانده شد ولی سرور سینک در دسترس نبود — بعد از اتصال، دوباره «بازگردانی» را اجرا کنید تا سرور هم هم‌راستا شود.');
-          finishReload();
-        });
+          .then(function (d) {
+            if (d && d.needLogin && attempt === 0 && typeof window.ptfSyncRefreshAuth === 'function') {
+              window.ptfSyncRefreshAuth(function (ok) { if (ok) tryPushServer(1); else finishReload(true); });
+              return;
+            }
+            try {
+              if (d && d.rev) localStorage.setItem('ptf_sync_rev', String(d.rev));
+              if (d && d.krevs) localStorage.setItem('ptf_sync_krevs', JSON.stringify(d.krevs));
+            } catch (e2) {}
+            finishReload(false);
+          })
+          .catch(function () { finishReload(true); });
+      };
+      tryPushServer(0);
     });
   }
 
@@ -305,8 +382,7 @@
   }
 
   window.ptfServerBackups = function () {
-    fetch(API + '?action=list_backups', { headers: ptfBackupAuthHeaders(false) })
-      .then(function (r) { return r.json(); })
+    backupFetch(API + '?action=list_backups', { headers: ptfBackupAuthHeaders(false) })
       .then(function (d) {
         if (!d.ok) { alert('خطا در دریافت فهرست'); return; }
         var list = (d.backups || []).map(function (b) {
@@ -324,8 +400,7 @@
 
   window.ptfRestoreServer = function (name) {
     if (curRole() !== 'admin') { alert('⛔ فقط ادمین'); return; }
-    fetch(API + '?action=get_backup&name=' + encodeURIComponent(name), { headers: ptfBackupAuthHeaders(false) })
-      .then(function (r) { return r.json(); })
+    backupFetch(API + '?action=get_backup&name=' + encodeURIComponent(name), { headers: ptfBackupAuthHeaders(false) })
       .then(function (j) {
         if (!j || j.app !== 'PTF-CRM') { alert('فایل بک‌آپ معتبر نیست'); return; }
         var mds = document.querySelectorAll('.md-b');
