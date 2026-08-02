@@ -488,7 +488,21 @@ if (!is_dir($data_dir)) {
     file_put_contents($data_dir . '/.htaccess', "Deny from all\n");
 }
 
+/* ===== DB-MIG-001 (فاز A — v33.17.0): لایهٔ MySQL (اختیاری) =====
+   وقتی db-lib.php موجود باشد و پیکربندی کامل شده باشد:
+   - حالت dual (دورهٔ مهاجرت): نوشتن هم در فایل و هم در دیتابیس (خطای دیتابیس هرگز مسیر فایل را نمی‌شکند).
+   - حالت mysql (پس از سوییچ نهایی): خواندن از دیتابیس (منبع حقیقت) با fallback به فایل. */
+require_once __DIR__ . '/db-lib.php';
+
 function load_data($key) {
+    /* در حالت mysql ابتدا از دیتابیس (منبع حقیقت) */
+    if (ptf_db_mode() === 'mysql') {
+        $v = ptf_db_read($key);
+        if ($v !== null) {
+            $d = json_decode($v, true);
+            if (is_array($d)) return $d;
+        }
+    }
     global $data_dir;
     $file = "$data_dir/$key.json";
     if (!file_exists($file)) return [];
@@ -498,8 +512,11 @@ function load_data($key) {
 
 function save_data($key, $data) {
     global $data_dir;
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    /* dual-write: ابتدا فایل (مسیر همیشه‌موفق)، سپس دیتابیس (در صورت فعال بودن) */
     $file = "$data_dir/$key.json";
-    file_put_contents($file, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+    file_put_contents($file, $json, LOCK_EX);
+    ptf_db_write($key, $json);
 }
 
 /* ===== v33.16.0 (فاز ۲ بکاپ): چرخش بک‌آپ مشترک (سپر shrink + چرخش + آروان) =====
