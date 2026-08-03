@@ -12,6 +12,12 @@
  *     کلیدهای فرّارِ عمداً فایل‌محور (meta/tokens) از مقایسه مستثنا (mig_compare_excluded)؛ انتقال
  *     داده دسته‌ای/خودکار (BATCH=15 + ادامهٔ خودکار) تا تایم‌اوت هاست هرگز انتقال را نیمه‌کاره پنهان نکند.
  *  ۳) تشخیص: data-health-check بخش ۱۱ دارد (تطابق واقعی فایل↔DB) — سبزِ فایل‌محور دیگر فریب نمی‌دهد.
+ * v33.22.4 (UR-2026-08-03-31 — ریشه‌کن «مغایرت کاذب fx-cache در health-check بخش ۱۱»):
+ * fx-cache کش ۱۰‌دقیقه‌ای نرخ ارز است (api/fx-rates.php → crm/data/fx-cache.json) که فقط و مستقیم
+ * در فایل بازنویسی می‌شود؛ نه نوشتن DB دارد و نه هیچ خوانندهٔ DB‌ای → هر تازه‌سازی نرخ = یک مغایرت
+ * کاذب در بخش ۱۱ و مرحلهٔ ۴ ویزارد (همان کلاس meta/tokens). رفع = افزودن به فهرست استثنای مقایسه‌ها
+ * (mig_compare_excluded + استثنای بخش ۱۱) — بدون تغییر کلاینت/رفتار mode. خطا صرفاً مانیتورینگ بود؛
+ * ۵۳ کلید دیگر ✅ و داده سالم است.
  * تست‌ها: سورس‌چک دقیق PHP (اجرای واقعی نیازمند PHP/MySQL سرور است).
  */
 'use strict';
@@ -41,8 +47,8 @@ T('مسیرهای خواندن (load_data + sync_key_read) به گارد تاز�
   api.indexOf('return file_exists($f) ? file_get_contents($f) : null;') > -1);
 
 SECTION('لایهٔ ۲ — ویزارد: سوییچ فقط با تطابق کامل + کلیدهای فرّار مستثنا');
-T('کلیدهای فرّارِ عمداً فایل‌محور (meta/tokens) از مقایسه مستثنا‌شده‌اند',
-  mig.indexOf('function mig_compare_excluded()') > -1 && mig.indexOf("return ['meta', 'tokens'];") > -1);
+T('کلیدهای فرّارِ عمداً فایل‌محور (meta/tokens/fx-cache) از مقایسه مستثنا‌شده‌اند',
+  mig.indexOf('function mig_compare_excluded()') > -1 && mig.indexOf("return ['meta', 'tokens', 'fx-cache'];") > -1);
 var iSw = mig.indexOf("$step === 'switch_go'");
 var iMism = mig.indexOf('سوییچ انجام نشد', iSw);
 var iModeSet = mig.indexOf("$c['mode'] = 'mysql';", iSw);
@@ -62,10 +68,17 @@ T('ادامهٔ خودکار دستهٔ بعد (فرم migNext + auto-submit) ت
   mig.indexOf('پیشرفت:', iMg) > iMg);
 
 SECTION('لایهٔ ۳ — تشخیص: بخش ۱۱ health-check (تطابق واقعی فایل↔DB)');
-T('بخش ۱۱ با نمایش mode + مقایسهٔ چک‌سام هرکلید + استثنای meta/tokens موجود است',
+T('بخش ۱۱ با نمایش mode + مقایسهٔ چک‌سام هرکلید + استثنای meta/tokens/fx-cache موجود است',
   hc.indexOf('تطابق فایل ↔ دیتابیس') > -1 && hc.indexOf('حالت دیتابیس (mode)') > -1 &&
-  hc.indexOf("['otp', 'ratelimit', 'meta', 'tokens']") > -1 && hc.indexOf('ptf_db_get($_k)') > -1);
+  hc.indexOf("['otp', 'ratelimit', 'meta', 'tokens', 'fx-cache']") > -1 && hc.indexOf('ptf_db_get($_k)') > -1);
 T('در mode=mysql مغایرت = خطا و در dual = هشدار + نسخهٔ ابزار به‌روز است',
-  /count\(\$_mism\) \? \(\$_mode === 'mysql' \? 'fail' : 'warn'\) : 'ok'/.test(hc) && hc.indexOf('نسخه ابزار: v33.22.3') > -1);
+  /count\(\$_mism\) \? \(\$_mode === 'mysql' \? 'fail' : 'warn'\) : 'ok'/.test(hc) && hc.indexOf('نسخه ابزار: v33.22.4') > -1);
+
+SECTION('v33.22.4 — ریشه‌کن مغایرت کاذب fx-cache (UR-2026-08-03-31)');
+var fxr = fs.readFileSync(path.join(ROOT, 'api/fx-rates.php'), 'utf-8');
+T('ریشهٔ مغایرت کاذب: fx-cache کش ۱۰‌دقیقه‌ایِ فایل‌محور است و fx-rates.php هیچ تماس DB‌ای ندارد (نه خوانندهٔ DB، نه نویسندهٔ DB)',
+  fxr.indexOf("$TTL = 600;") > -1 && fxr.indexOf("'/fx-cache.json'") > -1 &&
+  fxr.indexOf('file_put_contents($cache_file') > -1 &&
+  fxr.indexOf('ptf_db_') === -1 && fxr.indexOf('db-lib') === -1);
 
 DONE('tester304-p1-attach-stale-db');
