@@ -248,11 +248,14 @@ if (is_dir($data_dir)) {
         "permissions: $perms — " . (is_writable($data_dir) ? 'قابل نوشتن' : '⛔ غیرقابل نوشتن — chmod 755 لازم است'));
 }
 
-// ========== 11. تطابق فایل ↔ دیتابیس (v33.22.3 — P1-ATTACH-STALE-DB) ==========
+// ========== 11. تطابق فایل ↔ دیتابیس (v33.22.3 — P1-ATTACH-STALE-DB؛ v33.22.4 — استثنای fx-cache) ==========
 /* پیش از این این ابزار فقط «فایل»ها را بررسی می‌کرد و سبزِ آن هیچ تضمینی روی تازه‌بودن DB
    نبود (زمینه‌ساز رخداد ناپدید شدن ضمایم پس از سوییچ). حالا در حالت dual/mysql، تطابق واقعی
    فایل↔DB هرکلید (چک‌سام + تعداد) گزارش می‌شود. کلیدهای فرّارِ عمداً فایل‌محور (meta = دفتر rev
-   و tokens = نشست‌های ورود) از مقایسه مستثنا‌اند — مثل ویزارد مهاجرت. */
+   و tokens = نشست‌های ورود) از مقایسه مستثنا‌اند — مثل ویزارد مهاجرت.
+   v33.22.4 (UR-2026-08-03-31): fx-cache هم مستثنا شد — کش ۱۰‌دقیقه‌ای نرخ ارز
+   (fx-rates.php → crm/data/fx-cache.json) که فقط در فایل بازنویسی می‌شود و هیچ خواننده/نویسندهٔ
+   DB‌ای ندارد؛ در غیر این صورت هر تازه‌سازی نرخ یک «مغایرت کاذب» می‌ساخت (خطا صرفاً مانیتورینگ بود). */
 $_dblib = __DIR__ . '/db-lib.php';
 if (file_exists($_dblib)) {
     require_once $_dblib;
@@ -264,7 +267,7 @@ if (file_exists($_dblib)) {
             if (!is_dir($_d)) continue;
             foreach (glob($_d . '/*.json') ?: [] as $_f) {
                 $_k = basename($_f, '.json');
-                if (in_array($_k, ['otp', 'ratelimit', 'meta', 'tokens'], true)) continue;
+                if (in_array($_k, ['otp', 'ratelimit', 'meta', 'tokens', 'fx-cache'], true)) continue; /* v33.22.4: + fx-cache (کش فایل‌محور نرخ ارز — بدون خواننده/نویسندهٔ DB) */
                 if (isset($_keys[$_k])) continue;
                 $_keys[$_k] = $_f;
             }
@@ -313,7 +316,7 @@ echo '.footer{margin-top:30px;padding:14px;background:#fef2f2;border:1px solid #
 echo '</style></head><body>';
 
 echo '<h1>🏥 PTF CRM — گزارش سلامت داده‌ها</h1>';
-echo '<p>تاریخ بررسی: ' . date('Y-m-d H:i:s') . ' | نسخه ابزار: v33.22.3 (بخش ۱۱: تطابق واقعی فایل↔DB)</p>';
+echo '<p>تاریخ بررسی: ' . date('Y-m-d H:i:s') . ' | نسخه ابزار: v33.22.4 (بخش ۱۱: تطابق واقعی فایل↔DB + استثنای fx-cache)</p>';
 
 echo '<div class="summary">';
 echo '<div class="box box-ok">✅ ' . $okCount . ' سالم</div>';
