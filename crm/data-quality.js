@@ -47,14 +47,18 @@
        گذاشته می‌شوند تا پنهان و به‌اشتباه غیررسمی حساب نشوند. */
     arr('ptf_crm_opex').forEach(function (o) {
       if (o.st === 'void') return;
-      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt);
+      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt, { type: 'opex', cd: o.cd, label: 'هزینه ' + (o.cat || '—') + ' — ' + (o.desc || o.cd) + (o.month ? ' (' + o.month + ')' : '') });
     });
     /* فاز ۲ / گام ۲: فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی */
     try {
       var sfData = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
       (sfData.invoices || []).forEach(function (inv) {
         if (inv.status === 'void') return;
-        if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') add(q, 'supplier-invoice-unclassified', 'فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی', inv.no || inv.cd, inv.amountIrr || inv.amount);
+        if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') {
+          var supName = inv.supName || '';
+          try { var sup = (getData('ptf_crm_suppliers') || []).filter(function (x) { return x.cd === inv.supplierCd; })[0]; if (sup) supName = sup.co || supName; } catch (eS) {}
+          add(q, 'supplier-invoice-unclassified', 'فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی', (inv.no || inv.cd) + (supName ? ' — ' + supName : ''), inv.amountIrr || inv.amount, { type: 'supplier-invoice', cd: inv.cd, label: 'فاکتور خرید ' + (inv.no || inv.cd) + (supName ? ' — ' + supName : '') });
+        }
       });
     } catch (eSf) {}
     /* فاز ۲ / گام ۵: فاکتور پوششی/صوری با سود خالص منفی — یعنی کارمزد فاکتورساز
