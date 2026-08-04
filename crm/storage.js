@@ -277,6 +277,10 @@ function openStoredFile(key, nameHint) {
       if (d.ok) {
         if (typeof ptfOpenDocViewer === 'function') ptfOpenDocViewer(d.url, { key: key, name: name });
         else window.open(d.url, '_blank');
+      } else if (d.error === 'file_not_found') {
+        /* v34.0.18-alpha: پیام معنادار برای کلیدهای قدیمی/نامعتبر */
+        if (typeof ptfToast === 'function') ptfToast('⚠️ فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.', 'warn');
+        else alert('فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.');
       } else alert('خطا در دریافت لینک: ' + (d.error || ''));
     })
     .catch(function () { alert('عدم دسترسی به سرور'); });

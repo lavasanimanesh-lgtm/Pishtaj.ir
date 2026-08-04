@@ -140,7 +140,7 @@ function s3_request($cfg, $method, $path, $query = '') {
 
     $url = $cfg['endpoint'] . $path . ($query ? "?$query" : '');
     $ch = curl_init($url);
-    curl_setopt_array($ch, [
+    $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_TIMEOUT => 20,
@@ -149,7 +149,10 @@ function s3_request($cfg, $method, $path, $query = '') {
             "x-amz-content-sha256: $payloadHash",
             "x-amz-date: $now",
         ],
-    ]);
+    ];
+    /* v34.0.18-alpha: HEAD (برای بررسی وجود فایل) — بدون body */
+    if (strtoupper($method) === 'HEAD') { $opts[CURLOPT_NOBODY] = true; $opts[CURLOPT_CUSTOMREQUEST] = 'HEAD'; }
+    curl_setopt_array($ch, $opts);
     $body = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err  = curl_error($ch);
@@ -220,6 +223,20 @@ switch ($action) {
     case 'presign_get':
         $key = $in['key'] ?? '';
         if (!$key) { echo json_encode(['ok' => false, 'error' => 'key لازم است']); break; }
+        /* v34.0.18-alpha (رفع NoSuchKey): قبل از امضای URL، وجود فایل را با HEAD بررسی می‌کنیم.
+           کلیدهای نامعتبر/مهاجرت‌نشده (مثل کلیدهای قدیمی filestx که در باکت نیستند) دیگر URL
+           امضاشده نمی‌گیرند که بعداً در مرورگر «NoSuchKey» بدهند؛ پیام معنادار برمی‌گردد. */
+        $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($key));
+        $h = s3_request($cfg, 'HEAD', $uri);
+        $code = (int)($h['code'] ?? 0);
+        if ($code === 404 || $code === 403) {
+            echo json_encode(['ok' => false, 'error' => 'file_not_found', 'detail' => 'فایل با این کلید در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده).', 'key' => $key, 'http' => $code]);
+            break;
+        }
+        /* اگر HEAD پشتیبانی نشد (بعضی پروکسی‌ها 405/501 می‌دهند)، ادامه می‌دهیم */
+        if ($code >= 500) {
+            /* سرور خطای داخلی — کلید را امضا و برگردان (شاید HEAD ممنوع باشد) */
+        }
         $url = sig_v4($cfg, 'GET', $key, [], $cfg['expiry'] ?? 3600);
         echo json_encode(['ok' => true, 'url' => $url]);
         break;

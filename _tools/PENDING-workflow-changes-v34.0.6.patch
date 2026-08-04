@@ -79,6 +79,7 @@ jobs:
             tester311-v34.0.15-alpha-petty-month-sort \
             tester312-v34.0.16-alpha-cheque-book-attach \
             tester313-v34.0.17-alpha-mobile-ui \
+            tester314-v34.0.18-alpha-presign-head \
           ; do
             echo "── $t ──"
             if ! node "$t.js"; then
