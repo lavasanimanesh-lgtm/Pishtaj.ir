@@ -136,7 +136,7 @@
 
 ## به‌روزرسانی جدید — صفحات محصول جدید + QA (۲۰۲۶-۰۸-۰۴)
 چهار صفحه محصول جدید بر اساس فرصت‌های باقی‌مانده ایجاد شد و هاب محصولات دوباره بازسازی شد:
-- `stainless-steel-pipe.html` — لوله استنلس استیل ASTM A312 — تصویر `stainless-steel-pipe-realistic.jpg`
+- `stainless-steel-pipe.html` — لوله استنلس استیل ASTM A312 — تصویر `stainless-steel-pipe-long-bundle-realistic.jpg`
 - `forged-fittings.html` — فیتینگ فورج ASME B16.11 — تصویر `forged-fittings-realistic.jpg`
 - `industrial-power-instrument-cable.html` — کابل قدرت و ابزار دقیق صنعتی — تصویر `industrial-cables-realistic.jpg`
 - `industrial-ups-battery-charger.html` — UPS صنعتی و شارژر باتری — تصویر `industrial-ups-battery-charger-realistic.jpg`
@@ -150,3 +150,8 @@
 - QA اختصاصی محصول: ۰ خطا
 
 sitemap اکنون ۵۵۲ URL عمومی دارد.
+
+## اصلاح تصویر لوله استنلس (۲۰۲۶-۰۸-۰۴)
+با بازخورد کارفرما، تصویر قبلی لوله استنلس به‌دلیل نمایش لوله‌های تکه‌تکه مناسب نبود. تصویر جدید با نمای دسته‌ای از لوله‌های بلند و پیوسته جایگزین شد:
+`assets/images/products/generated/stainless-steel-pipe-long-bundle-realistic.jpg`
+تصویر قدیمی حذف شد.

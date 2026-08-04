@@ -5,7 +5,7 @@
 ## صفحات جدید ایجادشده
 | صفحه | محصول | تصویر کم‌حجم |
 |---|---|---|
-| `services/products/stainless-steel-pipe.html` | لوله استنلس استیل ASTM A312 | `assets/images/products/generated/stainless-steel-pipe-realistic.jpg` |
+| `services/products/stainless-steel-pipe.html` | لوله استنلس استیل ASTM A312 | `assets/images/products/generated/stainless-steel-pipe-long-bundle-realistic.jpg` |
 | `services/products/forged-fittings.html` | فیتینگ فورج ASME B16.11 | `assets/images/products/generated/forged-fittings-realistic.jpg` |
 | `services/products/industrial-power-instrument-cable.html` | کابل قدرت و ابزار دقیق صنعتی | `assets/images/products/generated/industrial-cables-realistic.jpg` |
 | `services/products/industrial-ups-battery-charger.html` | UPS صنعتی و شارژر باتری | `assets/images/products/generated/industrial-ups-battery-charger-realistic.jpg` |

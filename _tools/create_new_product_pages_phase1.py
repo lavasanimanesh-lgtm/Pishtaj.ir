@@ -11,7 +11,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 PRODUCTS=[
 {
-'slug':'stainless-steel-pipe','fa':'لوله استنلس استیل ASTM A312','en':'Stainless Steel Pipe ASTM A312','cat':'پایپینگ','service':'../../services/piping-equipment/','img':'../../assets/images/products/generated/stainless-steel-pipe-realistic.jpg',
+'slug':'stainless-steel-pipe','fa':'لوله استنلس استیل ASTM A312','en':'Stainless Steel Pipe ASTM A312','cat':'پایپینگ','service':'../../services/piping-equipment/','img':'../../assets/images/products/generated/stainless-steel-pipe-long-bundle-realistic.jpg',
 'title':'خرید و تامین لوله استنلس استیل ASTM A312 TP304/TP316','desc':'تامین لوله استنلس استیل ASTM A312 TP304/304L/316/316L؛ انتخاب Schedule، Finish، Pickling/Passivation، MTC، PMI و کنترل خوردگی برای پروژه‌های صنعتی.',
 'standards':['ASTM A312 برای لوله‌های استنلس آستنیتی Seamless و Welded','ASME B36.19M برای ابعاد لوله‌های استنلس و Scheduleهای 5S، 10S، 40S و 80S','ASTM A358 برای لوله استنلس جوشی بزرگ‌قطر در برخی پروژه‌ها','ASTM A269/A213 برای Tubing یا Tubeهای خاص، نه جایگزین مستقیم Pipe بدون بررسی','ASME B31.3 برای طراحی و نصب پایپینگ فرایندی','EN 10204 3.1/3.2 برای مدارک متریال و ردیابی Heat'],
 'brands':['Alleima / Sandvik Materials Technology','Tubacex','Outokumpu','Tenaris در برخی خطوط استنلس/آلیاژی','Vallourec برای بعضی کاربردهای خاص','سازندگان تاییدشده وندورلیست پروژه'],
