@@ -880,7 +880,7 @@
       '<div style="font-size:12px;color:#64748b;margin-bottom:8px">💡 ۵ پیشنهاد برتر خودکار تیک خورده‌اند و قابل تغییر هستند. جستجوی زنده دوزبانه + بخش «تامین‌کنندگان اخیر همین درخواست» (v21.7 US-452).</div>' +
       '<div id="rqsTgChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:8px"></div>' +
       '<input type="search" id="rqsTgQ" placeholder="🔍 جستجو: نام، برند، تجهیز، زمینه… (زیمنس = Siemens)" ' +
-      'oninput="_st._tgQ=this.value;rfqsRenderTargets()" style="width:100%;padding:10px 12px;border:1px solid var(--brd);border-radius:12px;font-size:13px;margin-bottom:10px;box-sizing:border-box">' +
+      'oninput="rfqsSetSearch(this.value)" style="width:100%;padding:10px 12px;border:1px solid var(--brd);border-radius:12px;font-size:13px;margin-bottom:10px;box-sizing:border-box">' +
       '<div id="rqsTgWrap" style="max-height:380px;overflow:auto"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">' +
       '<button class="bt bt-o" onclick="rfqsReviewItems();this.closest(\'.md-b\').remove()">→ بازگشت به اقلام</button>' +
@@ -908,6 +908,13 @@
     });
     rfqsRenderTargets();
   };
+
+  /* v34.0.13-alpha (فاز ۱۰ — رفع باگ ناوبری/جستجوی تامین‌کنندگان در گام ۳):
+     دسترسی مستقیم به `_st` (متغیر خصوصی داخل IIFE) از onclick/oninput inline شکست می‌خورد
+     (ReferenceError: _st is not defined) → دکمهٔ «▼ نمایش» و جستجوی زنده کار نمی‌کردند.
+     این دو wrapper سراسری، وضعیت را از داخل IIFE مدیریت می‌کنند (مثل الگوی rfqsToggleSup). */
+  window.rfqsToggleOther = function () { _st._tgOtherOpen = !_st._tgOtherOpen; rfqsRenderTargets(); };
+  window.rfqsSetSearch = function (v) { _st._tgQ = v; rfqsRenderTargets(); };
 
   window.rfqsRenderTargets = function () {
     var el = document.getElementById('rqsTgWrap');
@@ -983,7 +990,7 @@
     }).join('') || '<div style="color:#94a3b8;font-size:12px;padding:6px 0">موردی در پیشنهادها با این جستجو نیست</div>';
     h += '<div style="margin:12px 0 8px;display:flex;align-items:center;justify-content:space-between;gap:8px">' +
       '<span style="font-size:12.5px;font-weight:800;color:#475569">سایر تامین‌کنندگان (' + others.length + ')</span>' +
-      '<button type="button" class="bt bt-o" style="padding:3px 10px;font-size:11.5px" onclick="_st._tgOtherOpen=!_st._tgOtherOpen;rfqsRenderTargets()">' +
+      '<button type="button" class="bt bt-o" style="padding:3px 10px;font-size:11.5px" onclick="rfqsToggleOther()">' +
       (_st._tgOtherOpen ? '▲ جمع کردن' : '▼ نمایش') + '</button></div>';
     if (_st._tgOtherOpen || q) {
       h += others.map(function (r) { return rowHtml(r, recentCds[r.cd] ? '<span class="bd" style="background:#e0f2fe;color:#0369a1">اخیر</span>' : '', 'var(--crd,#fff)', 'var(--brd)'); }).join('') || '<div style="color:#94a3b8;font-size:12px;padding:6px 0">موردی نیست</div>';
