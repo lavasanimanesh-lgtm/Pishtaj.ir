@@ -326,10 +326,13 @@
         out.supplierInvoices += (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
       });
       (getData('ptf_crm_payables') || []).forEach(function (p) {
+        /* v34.0.12-alpha (فاز ۹ — هماهنگ با فاز ۳/۶): «تعهد لگاسی» دیگر به‌عنوان هزینه/خروجی نقدیِ
+           سود شمرده نمی‌شود. تعهدِ legacy (pay:'credit') فقط دادهٔ تاریخیِ پیش از زیر‌دفتر است و
+           مبنای تعهد، فاکتور خرید ثبت‌شده است (خریدِ تعهدی بی‌معناست). این‌جا عمداً صرف‌نظر می‌شود
+           تا با balance()/working-capital (که legacy را از مبلغ حذف کرده‌اند) یک‌دست شود و
+           دوباره‌شماری (تعهد + فاکتورِ هم‌مبلغ) در سود نقدی رخ ندهد. */
         if (!p || p.pay !== 'credit' || p.status === 'void' || p.sfInvoiceCd) return;
-        var iso = cashIsoOf(p.dateISO || p.date || p.t || p.createdAt);
-        if (!cashInRange(iso, start, end)) return;
-        out.supplierInvoices += (p.cur && p.cur !== 'IRR') ? (+p.amount || 0) * (+p.rate || 0) : (+p.amount || 0);
+        /* legacy دیگر در خروجی نقدی سود نمی‌آید (فقط اطلاع‌رسانی/گزارش جدا) */
       });
       (sf.adjustments || []).forEach(function (a) {
         if (!a || a.status === 'void') return;

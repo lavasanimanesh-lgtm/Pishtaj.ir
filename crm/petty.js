@@ -782,7 +782,20 @@
         status: status
       });
     });
-    events.sort(function (a, b) { var ta = a.t || '9999', tb = b.t || '9999'; return ta < tb ? -1 : ta > tb ? 1 : 0; });
+    /* v34.0.12-alpha (فاز ۹ — گزارش دورهٔ تنخواه با ترتیب درست تاریخ): مرتب‌سازی قبلی فقط با
+       `a.t` (رشتهٔ خام) انجام می‌شد؛ تاریخ‌ها در `t` با فرمت‌های ناهمگن‌اند (شمسی `1405/04/15`
+       یا میلادی `2026-08-03` یا با ساعت). مقایسهٔ رشت‌های بین این فرمت‌ها ترتیب اشتباه می‌داد.
+       حالا با recDate (نرمال‌سازی به شمسی YYYY/MM/DD) و recDateCmp (مقایسهٔ عددی YYYYMMDD) مرتب می‌شود؛
+       رکوردِ بی‌تاریخ به انتها می‌رود. برای ثبات، رکوردهای هم‌تاریخ با cd/بدهکار مرتب می‌شوند. */
+    events.sort(function (a, b) {
+      var da = recDate(a) || '', db = recDate(b) || '';
+      var c = recDateCmp(da, db);
+      if (c !== 0) return c;
+      /* هم‌تاریخ: رکوردِ دارای تاریخ دقیق زودتر (بی‌تاریخ آخر)؛ سپس شناسه برای پایداری */
+      var ha = da ? 1 : 0, hb = db ? 1 : 0;
+      if (ha !== hb) return hb - ha;
+      return String(a.cd || '').localeCompare(String(b.cd || ''));
+    });
     events.forEach(function (e, i) { e.row = i + 1; });
     return events;
   };

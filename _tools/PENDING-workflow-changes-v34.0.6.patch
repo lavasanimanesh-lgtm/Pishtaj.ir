@@ -73,6 +73,7 @@ jobs:
             tester305-v34.0.9-alpha-ledger-reconcile \
             tester306-v34.0.10-alpha-ledger-transparency \
             tester307-v34.0.11-alpha-quality-links \
+            tester308-v34.0.12-alpha-legacy-petty-sort \
           ; do
             echo "── $t ──"
             if ! node "$t.js"; then
