@@ -133,3 +133,20 @@
 پس از این مرحله، بهتر است یا:
 1. چند صفحه منتخب در مرورگر/موبایل به‌صورت دستی بازبینی شوند و اگر نیاز بود UI جزئی اصلاح شود؛ یا
 2. تولید صفحات محصول جدید فقط با تحقیق واقعی کلمات کلیدی، برندها و تصویر/لوگوی مجاز آغاز شود.
+
+## به‌روزرسانی جدید — صفحات محصول جدید + QA (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید بر اساس فرصت‌های باقی‌مانده ایجاد شد و هاب محصولات دوباره بازسازی شد:
+- `stainless-steel-pipe.html` — لوله استنلس استیل ASTM A312 — تصویر `stainless-steel-pipe-realistic.jpg`
+- `forged-fittings.html` — فیتینگ فورج ASME B16.11 — تصویر `forged-fittings-realistic.jpg`
+- `industrial-power-instrument-cable.html` — کابل قدرت و ابزار دقیق صنعتی — تصویر `industrial-cables-realistic.jpg`
+- `industrial-ups-battery-charger.html` — UPS صنعتی و شارژر باتری — تصویر `industrial-ups-battery-charger-realistic.jpg`
+
+همه صفحات جدید بالای ۱۵۰۰ کلمه هستند، CTA موبایلی و Product/FAQ/Breadcrumb Schema دارند و در هاب محصولات قابل جستجو هستند.
+
+وضعیت هاب محصولات:
+- تعداد صفحات محصول: ۳۵
+- جستجو و فیلتر فعال است.
+- ItemList Schema به‌روزرسانی شد.
+- QA اختصاصی محصول: ۰ خطا
+
+sitemap اکنون ۵۵۲ URL عمومی دارد.
