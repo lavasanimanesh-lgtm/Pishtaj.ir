@@ -75,6 +75,7 @@ jobs:
             tester307-v34.0.11-alpha-quality-links \
             tester308-v34.0.12-alpha-legacy-petty-sort \
             tester309-v34.0.13-alpha-rfq-smart-nav \
+            tester310-v34.0.14-alpha-cheque-edit-delete \
           ; do
             echo "── $t ──"
             if ! node "$t.js"; then

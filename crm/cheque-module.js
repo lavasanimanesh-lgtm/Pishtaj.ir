@@ -362,3 +362,101 @@
     if (changed) setData('ptf_crm_supplier_finance', d);
     return changed;
   };
+
+  /* ================= v34.0.14-alpha (فاز ۱۱: ویرایش/حذف چک + اصلاح/حذف آنی اثر مالی) =================
+     هستهٔ مدیریت چک برای ویرایش/حذف. به‌دلیل حساسیت مالی:
+       - یافتن محل ذخیرهٔ چک (issued/received/legacy)
+       - به‌روزرسانی چک (ویرایش)
+       - اصلاح مبلغ اثر مالیِ چک مالیِ صادره روی حساب تأمین‌کننده
+       - حذف کامل چک + حذف کامل اثر مالی/گردش (نه void) */
+
+  /* محل ذخیرهٔ چک را پیدا کن و شیء چک را در آن آرایه برگردان (همراه نام کلید).
+     (بخش خارج از IIFE — کلیدها/read را این‌جا دوباره تعریف می‌کنیم چون به‌صورت
+     private داخل IIFE بودند و این توابع بیرون از آن قرار دارند.) */
+  var CHK_KEYS = ['ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheques'];
+  function chFindStore(cd) {
+    for (var i = 0; i < CHK_KEYS.length; i++) {
+      var key = CHK_KEYS[i];
+      var l = getData(key); if (!Array.isArray(l)) l = [];
+      var hit = l.filter(function (x) { return x && x.cd === cd; })[0];
+      if (hit) return { key: key, list: l, rec: hit, idx: l.indexOf(hit) };
+    }
+    return null;
+  }
+  /* یافتن payment تامین‌کننده مرتبط با یک چک صادرهٔ مالی */
+  function sfPayForCheque(cd) {
+    var d = getData('ptf_crm_supplier_finance');
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+    var hits = (d.payments || []).filter(function (p) { return p.chequeCd === cd && p.status !== 'void'; });
+    return hits[0] || null;
+  }
+  function sfSave(d) { setData('ptf_crm_supplier_finance', d); }
+
+  /* به‌روزرسانی چک (ویرایش). فیلدهای داده‌شده را روی رکورد اعمال و در کلید درست ذخیره می‌کند.
+     خروجی: {ok, rec, store} */
+  window.ptfChequeUpdate = function (cd, patch) {
+    var st = chFindStore(cd);
+    if (!st) return { ok: false, why: 'notfound' };
+    patch = patch || {};
+    Object.keys(patch).forEach(function (k) { if (patch[k] !== undefined) st.rec[k] = patch[k]; });
+    if (patch.dueISO) st.rec.dueFa = (typeof ptfISOToJ === 'function') ? ptfISOToJ(patch.dueISO) : patch.dueISO;
+    setData(st.key, st.list);
+    return { ok: true, rec: st.rec, store: st.key };
+  };
+
+  /* اصلاح مبلغ اثر مالی چک صادرهٔ مالی روی حساب تأمین‌کننده (پس از ویرایش مبلغ چک).
+     payment مرتبط (method:'cheque') با مبلغ جدید به‌روزرسانی می‌شود و گردش حساب آنی اصلاح می‌شود.
+     نکته: d و p باید از یک getData گرفته شوند تا ذخیرهٔ d تغییر p را شامل شود. */
+  window.ptfChequeApplyFinancialAmount = function (cd, newAmt) {
+    newAmt = Math.round(+newAmt || 0);
+    var d = getData('ptf_crm_supplier_finance');
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return { ok: false, why: 'no_data' };
+    var p = (d.payments || []).filter(function (x) { return x.chequeCd === cd && x.status !== 'void'; })[0];
+    if (!p) return { ok: false, why: 'no_financial' };
+    var diff = newAmt - (+p.amount || 0);
+    if (Math.abs(diff) < 1) return { ok: true, diff: 0, updated: false };
+    p.amount = newAmt; p.amountIrr = newAmt;
+    p.updatedAt = faDateTimeL(); p.updatedBy = me().name; p.updatedNote = 'اصلاح مبلغ چک ' + cd;
+    var allocSum = (p.allocations || []).reduce(function (s, a) { return s + (+a.amount || 0); }, 0);
+    p.unallocated = Math.max(0, newAmt - allocSum);
+    setData('ptf_crm_supplier_finance', d);
+    return { ok: true, diff: diff, updated: true, paymentCd: p.cd };
+  };
+
+  /* حذف کامل چک + حذف کامل اثر مالی/گردش حساب (نه void).
+     اگر چک صادرهٔ مالی به تأمین‌کننده وصل بود، payment مرتبط به‌طور کامل از
+     supplier-finance حذف می‌شود تا گردش حساب هم به‌طور کامل حذف شود. */
+  window.ptfChequeDelete = function (cd, opts) {
+    opts = opts || {};
+    var st = chFindStore(cd);
+    if (!st) return { ok: false, why: 'notfound' };
+    var c = st.rec;
+    /* چک صادرهٔ مالی: payment مرتبط را کامل حذف کن */
+    if (c.direction === 'issued' || c.ownership === 'company') {
+      var d = getData('ptf_crm_supplier_finance');
+      if (d && typeof d === 'object' && !Array.isArray(d)) {
+        var before = (d.payments || []).length;
+        d.payments = (d.payments || []).filter(function (p) { return !(p.chequeCd === cd); });
+        var removedPay = before - (d.payments || []).length;
+        /* legacy payables وصل‌شده به این payment (via supplierPaymentCd) را پاک کن */
+        if (removedPay) {
+          var payCdSet = {};
+          var payCd = c.supplierPaymentCd || '';
+          if (payCd) payCdSet[payCd] = 1;
+          (d.payments || []).forEach(function () {});
+          var lp = getData('ptf_crm_payables');
+          lp.forEach(function (p) { if (p.supplierPaymentCd && payCdSet[p.supplierPaymentCd]) { p.paid = (p.paid || []).filter(function (x) { return x.supplierPaymentCd !== p.supplierPaymentCd; }); } });
+          setData('ptf_crm_payables', lp);
+        }
+        sfSave(d);
+      }
+    }
+    /* چک را از آرایهٔ خودش حذف کن */
+    st.list.splice(st.idx, 1);
+    setData(st.key, st.list);
+    try {
+      if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd);
+    } catch (eN) {}
+    return { ok: true, removed: true, cd: cd };
+  };
+

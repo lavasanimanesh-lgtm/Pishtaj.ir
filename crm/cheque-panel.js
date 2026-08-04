@@ -70,6 +70,9 @@
 
   function issuedActs(c) {
     var acts = '';
+    /* v34.0.14-alpha (فاز ۱۱): دکمهٔ ویرایش و حذف چک در هر ردیف */
+    acts += '<button class="ba" style="color:#0e7490" title="ویرایش چک" onclick="ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button> ';
+    acts += '<button class="ba" style="color:#dc2626" title="حذف چک" onclick="ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')">🗑</button> ';
     if (c.st === 'open' || c.st === 'transferred') {
       if (c.kind === 'guarantee') {
         /* v33.7.0: ضمانت با پایان پروژه مسترد می‌شود */
@@ -112,6 +115,9 @@
   };
   function receivedActs(c) {
     var acts = '';
+    /* v34.0.14-alpha (فاز ۱۱): دکمهٔ ویرایش و حذف چک در هر ردیف */
+    acts += '<button class="ba" style="color:#0e7490" title="ویرایش چک" onclick="ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button> ';
+    acts += '<button class="ba" style="color:#dc2626" title="حذف چک" onclick="ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')">🗑</button> ';
     if (c.st === 'open' || c.st === 'held') {
       acts += '<button class="ba" style="color:#0e7490" onclick="ptfChequeEndorseUi(\'' + c.cd + '\')">↪ انتقال</button> ';
       acts += '<button class="ba" style="color:#047857" onclick="ptfChequeCollectUi(\'' + c.cd + '\')">✔ وصول</button> ';
@@ -440,6 +446,89 @@
     if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش چک‌های ' + sub, html, 'cheques-' + window.ptfChequePanelSub); return; }
     var w = window.open('', '_blank'); if (!w) return;
     w.document.write(html); w.document.close(); w.print();
+  };
+
+  /* ================= v34.0.14-alpha (فاز ۱۱): ویرایش و حذف چک ================= */
+  /* مودال ویرایش چک — فیلدهای کلیدی (شماره/صیادی/مبلغ/تاریخ/ذی‌نفع/بانک/یادداشت).
+     برای چک مالیِ صادره که اثر مالی دارد، پس از ذخیره مبلغ، اثر مالی آنی اصلاح می‌شود. */
+  window.ptfChequeEditUi = function (cd) {
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) { alert('چک یافت نشد'); return; }
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2800) : 2800;
+    var financialNote = '';
+    if ((c.direction === 'issued' || c.ownership === 'company') && (c.supplierCd || c.supplierPaymentCd)) {
+      financialNote = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:7px 10px;font-size:12px;color:#065f46;margin-bottom:8px">💳 این چک اثر مالی روی حساب تأمین‌کننده دارد — با تغییر مبلغ، گردش حساب همان لحظه اصلاح می‌شود.</div>';
+    }
+    var html = '<div class="md-b" id="ptfChEditDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px;max-height:92vh;overflow:auto">' +
+      '<h3>✏️ ویرایش چک ' + escP(c.sayad || c.no || c.cd) + '</h3>' + financialNote +
+      '<div class="fr"><div class="fld"><label>شماره برگه چک</label><input id="chE_No" value="' + escP(c.no || '') + '" style="direction:ltr"></div>' +
+      '<div class="fld"><label>شناسه صیادی *</label><input id="chE_Sayad" value="' + escP(c.sayad || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>مبلغ (ریال) *</label><input id="chE_Amt" inputmode="numeric" data-money="1" value="' + escP(c.amt != null ? String(+c.amt).toLocaleString("en-US") : '') + '" style="direction:ltr"></div>' +
+      '<div class="fld"><label>تاریخ سررسید (شمسی)</label><input id="chE_Due" value="' + escP(c.dueFa || '') + '" placeholder="1405/04/19" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>ذی‌نفع *</label><input id="chE_To" value="' + escP(c.toWhom || '') + '"></div>' +
+      '<div class="fld"><label>بانک</label><input id="chE_Bank" value="' + escP(c.bank || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fld"><label>یادداشت</label><input id="chE_Note" value="' + escP(c.note || '') + '"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
+      '<button class="bt bt-o" onclick="document.getElementById(\'ptfChEditDlg\').remove()">انصراف</button>' +
+      '<button class="bt" onclick="ptfChequeEditSave(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+  };
+
+  /* ذخیرهٔ ویرایش چک — و اصلاح آنی اثر مالی اگر مبلغ چک مالی تغییر کرد */
+  window.ptfChequeEditSave = function (cd) {
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) { alert('چک یافت نشد'); return; }
+    function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+    var sayad = String(val('chE_Sayad') || '').trim();
+    var amt = (typeof ptfNum === 'function') ? ptfNum(val('chE_Amt')) : (+String(val('chE_Amt') || '').replace(/[^\\d.-]/g, '') || 0);
+    var to = String(val('chE_To') || '').trim();
+    if (!sayad || !amt || !to) { alert('شناسه صیادی، مبلغ و ذی‌نفع الزامی است'); return; }
+    var dueJ = String(val('chE_Due') || '').trim();
+    var dueISO = '';
+    if (dueJ) { try { dueISO = (typeof ptfJToISO === 'function') ? (ptfJToISO(dueJ) || '') : ''; } catch (eD) {} }
+    var patch = {
+      no: String(val('chE_No') || '').trim() || sayad,
+      sayad: sayad, amt: amt, toWhom: to,
+      bank: String(val('chE_Bank') || '').trim(),
+      note: String(val('chE_Note') || '').trim()
+    };
+    if (dueISO) patch.dueISO = dueISO; else if (dueJ) patch.dueISO = dueJ;
+    if (c.dueISO && !dueJ) { patch.dueISO = c.dueISO; }
+    var oldAmt = +c.amt || 0;
+    var r = (typeof window.ptfChequeUpdate === 'function') ? window.ptfChequeUpdate(cd, patch) : { ok: false };
+    if (!r.ok) { alert('ذخیره نشد (' + (r.why || 'خطا') + ')'); return; }
+    /* اصلاح آنی اثر مالی اگر چک مالیِ صادره است و مبلغ تغییر کرد */
+    var finMsg = '';
+    if (oldAmt !== amt && (c.direction === 'issued' || c.ownership === 'company') && typeof window.ptfChequeApplyFinancialAmount === 'function') {
+      var fr = window.ptfChequeApplyFinancialAmount(cd, amt);
+      if (fr.ok && fr.updated) finMsg = ' — اثر مالی حساب تأمین‌کننده از ' + money(oldAmt) + ' به ' + money(amt) + ' اصلاح شد';
+    }
+    try { audit('چک‌ها', 'ویرایش چک ' + (sayad || cd) + ' — مبلغ ' + money(amt) + ' در وجه ' + to, cd); } catch (eA) {}
+    var dlg = document.getElementById('ptfChEditDlg'); if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast('✅ چک ویرایش شد' + finMsg, 'ok');
+    window.ptfChequePanelRender();
+    if (c.direction === 'issued' || c.ownership === 'company') { if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender(); }
+  };
+
+  /* حذف کامل چک + حذف کامل اثر مالی/گردش حساب (نه void) */
+  window.ptfChequeDeleteUi = function (cd) {
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) { alert('چک یافت نشد'); return; }
+    var hasFin = (c.direction === 'issued' || c.ownership === 'company') && (c.supplierCd || c.supplierPaymentCd);
+    var msg = 'چک «' + (c.sayad || c.no || cd) + '» به مبلغ ' + money(c.amt) + ' ریال به‌طور کامل حذف شود؟' +
+      (hasFin ? '\\n\\nاین چک اثر مالی روی حساب تأمین‌کننده دارد — حذف آن، اثر مالی و گردش حساب را هم به‌طور کامل حذف می‌کند.' : '');
+    if (!confirm(msg)) return;
+    var r = (typeof window.ptfChequeDelete === 'function') ? window.ptfChequeDelete(cd) : { ok: false, why: 'no_fn' };
+    if (!r.ok) { alert('حذف نشد (' + (r.why || 'خطا') + ')'); return; }
+    try { audit('چک‌ها', 'حذف کامل چک ' + (c.sayad || c.no || cd) + ' — مبلغ ' + money(c.amt) + (hasFin ? ' + حذف اثر مالی تأمین‌کننده' : ''), cd); } catch (eA) {}
+    if (typeof ptfToast === 'function') ptfToast('🗑 چک و اثر مالی/گردش مرتبط حذف شد', 'warn');
+    window.ptfChequePanelRender();
+  };
+
+  /* لینک از تب کیفیت داده — همان مودال ویرایش چک را برای چک مشخص باز می‌کند */
+  window.ptfChequeEditFromQuality = function (cd) {
+    try { if (typeof window.finHubSet === 'function') window.finHubSet('cheque'); } catch (e) {}
+    setTimeout(function () { window.ptfChequeEditUi(cd); }, 150);
   };
 })();
 

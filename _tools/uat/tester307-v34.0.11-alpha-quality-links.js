@@ -22,7 +22,7 @@ T('action اصلاح فاکتور خرید (slInvoiceEdit) در qualityRefsHtml 
 T('نام تأمین‌کننده در label فاکتور خرید لحاظ می‌شود', dq.indexOf("supName ? ' — ' + supName : ''") > -1 && dq.indexOf('فاکتور خرید ') > -1);
 
 SECTION('سایر actionهای موجود حفظ شدند');
-T('action چک (chEdit) حفظ شد', dq.indexOf("d.type === 'cheque' && typeof chEdit === 'function'") > -1);
+T('action چک به مودال اصلاحِ همان چک لینک شد (ptfChequeEditFromQuality)', dq.indexOf("d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function'") > -1 && dq.indexOf('ptfChequeEditFromQuality') > -1);
 T('action بررسی پیش‌فاکتور (procurement) حفظ شد', dq.indexOf('ptfOpenProcurementLinkAudit') > -1);
 
 DONE('tester307-v34.0.11-alpha');
