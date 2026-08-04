@@ -172,3 +172,12 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 با بازخورد کارفرما، تصویر قبلی اوریفیس پلیت مناسب نبود. تصویر جدید با نمای واقعی‌تر از Orifice Flange Assembly شامل فلنج‌ها، پیچ‌ومهره‌ها، اوریفیس پلیت قابل مشاهده و pressure tapping ports جایگزین شد:
 `assets/images/products/generated/orifice-plate-flowmeter-flange-assembly-realistic.jpg`
 تصویر قدیمی حذف شد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۳ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید دیگر با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `mechanical-seal.html` — مکانیکال سیل API 682 — تصویر `mechanical-seal-api682-realistic.jpg`
+- `air-cooler-fin-fan.html` — Air Cooler / Fin Fan API 661 — تصویر `air-cooler-fin-fan-realistic.jpg`
+- `plate-heat-exchanger.html` — مبدل حرارتی صفحه‌ای — تصویر `plate-heat-exchanger-realistic.jpg`
+- `explosion-proof-lighting.html` — چراغ ضدانفجار LED — تصویر `explosion-proof-led-lighting-realistic.jpg`
+
+هاب محصولات اکنون ۴۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۰ URL عمومی دارد.
