@@ -589,10 +589,15 @@
       '<span><b>↔️ حاشیه صفحه:</b> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'6mm\')">باریک (6mm)</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'10mm\')">استاندارد</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'14mm\')">جادار</button></span>' +
       '<span><b>💳 چیدمان مهر و امضا:</b> <select onchange="ptfAdjustPreviewLayout(\'sig\',this.value)" style="font-size:11px;padding:2px 6px;border-radius:6px"><option value="side">↔️ افقی کنار شرایط (Side-by-Side — بیشترین صرفه‌جویی فضا)</option><option value="stack">↕️ عمودی زیر شرایط (کلاسیک)</option><option value="page1">⚓ چسبیده به انتهای صفحه اول</option><option value="break">📄 انتقال به صفحه جدید</option></select></span>' +
       '</div>' +
-      '<iframe id="ptfPrintFrame" style="width:100%;height:78vh;border:1px solid var(--brd);border-radius:12px;background:#fff" sandbox="allow-same-origin allow-scripts allow-modals"></iframe></div>';
+      /* v34.0.3-alpha: حذف sandbox از iframe پیش‌نمایش چاپ — ترکیب allow-same-origin + allow-scripts
+         هشدار امنیتی کروم «can escape its sandboxing» می‌دهد (و عملاً ایزولاسیونی ندارد).
+         محتوای این iframe سند چاپیِ تولیدشدهٔ داخلی (escP شده) است؛ و توابع
+         ptfAdjustPreviewLayout / ptfPrintPreviewGo به دسترسی same-origin
+         (contentDocument / contentWindow.print) نیاز دارند. */
+      '<iframe id="ptfPrintFrame" style="width:100%;height:78vh;border:1px solid var(--brd);border-radius:12px;background:#fff"></iframe></div>';
     document.body.appendChild(modal);
     var fr = document.getElementById('ptfPrintFrame');
-    if (fr) { window._ptfLayoutState = null; var _cleanHtml = String(html || '').replace(/<script[^>]*>[\s\S]*?window\.print\(\)[\s\S]*?<\/script>/gi, ''); fr.srcdoc = _cleanHtml; }
+    if (fr) { window._ptfLayoutState = null; var _cleanHtml = String(html || '').replace(/<script[^>]*>[\s\S]*?window\.print\(\)[\s\S]*?<\/script>/gi, '').replace(/<\/iframe>/gi, '<\\/iframe>'); fr.srcdoc = _cleanHtml; }
   };
 
   window.offerPrintTpl = function (o, tpl, isPreview) {
