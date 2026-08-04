@@ -47,8 +47,10 @@
 - حذف: `ai-tech-assistant.js`، `lead-finder.js`، `eng-calc.js`، `tech-proposals.js`، `xss-guard.js`، `dompurify.min.js`، `datex.js`، `inqreader.js.bak`.
 - دو تستر کهن (tester121/tester136) که ماژول حذف‌شدهٔ `datex.js` را می‌خواندند نیز حذف شدند (پیش‌نیازِ تست برای ماژولِ سرگردان).
 
-### D-05 — CI
-- ورک‌فلو جدید `.github/workflows/uat-tests.yml` مجموعهٔ کانونی (101/287/288/290/291/300/301/302) را روی هر push/PR به `main` اجرا می‌کند — جلوگیری از رگرسیون بی‌صدا.
+### D-05 — CI (⚠️ نیازمند اجازهٔ `workflows`)
+- ورک‌فلو جدید `.github/workflows/uat-tests.yml` نوشته شد (مجموعهٔ کانونی 101/287/288/290/291/300/301/302 روی هر push/PR به `main`) و دو ورک‌فلو دیپلوی برای حذف `data-health-check.php` ویرایش شدند.
+- **محدودیت:** GitHub App این نشست اجازهٔ `workflows` را ندارد؛ تغییرات `.github/workflows/*` را نمی‌توان پوش کرد و از کامیتِ پوش‌شده جدا ماندند. پچِ آن‌ها در `_tools/PENDING-workflow-changes-v34.0.6.patch` ذخیره شده تا توسط فرد دارای اجازه اعمال شود.
+- نکتهٔ امنیتی: SEC-02 روی خود `data-health-check.php` (گارد توکن) اعمال شد؛ حذف از بستهٔ دیپلوی فقط لایهٔ دوم دفاعی است.
 
 ### بدهی #۲
 - پاک‌سازی knowledge-center اکنون یک‌بار با marker (`.kc-cleanup-done`) اجرا می‌شود نه در هر ریکوئست.
