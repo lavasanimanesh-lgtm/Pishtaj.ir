@@ -181,3 +181,12 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `explosion-proof-lighting.html` — چراغ ضدانفجار LED — تصویر `explosion-proof-led-lighting-realistic.jpg`
 
 هاب محصولات اکنون ۴۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۴ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید دیگر با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `stud-bolts-nuts.html` — استادبولت و مهره ASTM A193/A194 — تصویر `stud-bolts-nuts-realistic.jpg`
+- `cable-accessories.html` — متعلقات کابل صنعتی؛ گلند، لاگ، سینی کابل — تصویر `cable-glands-lugs-tray-realistic.jpg`
+- `earthing-lightning-protection.html` — سیستم ارتینگ و حفاظت صاعقه — تصویر `earthing-lightning-protection-realistic.jpg`
+- `industrial-strainer-filter.html` — Y Strainer / Basket Strainer / Filter — تصویر `industrial-strainer-filter-realistic.jpg`
+
+هاب محصولات اکنون ۴۷ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۴ URL عمومی دارد.
