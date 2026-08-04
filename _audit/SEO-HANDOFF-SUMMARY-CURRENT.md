@@ -72,3 +72,21 @@
 - Steam Trap
 - Shell & Tube Heat Exchanger
 - Pressure Vessel
+
+## به‌روزرسانی جدید — بسته پایپینگ (۲۰۲۶-۰۸-۰۴)
+بسته پایپینگ با همان استاندارد عمیق و تصاویر کم‌حجم انجام شد:
+- `seamless-pipe.html` — تصویر `seamless-pipe-a106-realistic.jpg` — حدود ۱۹۴۸ کلمه
+- `welding-flanges.html` — تصویر `welding-neck-flanges-realistic.jpg` — حدود ۱۹۲۴ کلمه
+- `butt-weld-fittings.html` — تصویر `butt-weld-fittings-realistic.jpg` — حدود ۱۹۲۰ کلمه
+- `industrial-gaskets.html` — تصویر `industrial-gaskets-realistic.jpg` — حدود ۱۸۸۷ کلمه
+
+تصاویر همگی JPG کم‌حجم زیر ۵۰KB هستند و بدون لوگو/متن/واترمارک تولید شده‌اند.
+
+## گام بعدی پیشنهادی
+بسته پمپ/کمپرسور/بخار/تجهیزات ثابت:
+- API 610 Pump
+- Dosing Pump
+- Screw Compressor
+- Steam Trap
+- Shell & Tube Heat Exchanger
+- Pressure Vessel
