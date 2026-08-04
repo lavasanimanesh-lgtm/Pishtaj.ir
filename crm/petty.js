@@ -719,14 +719,19 @@
       var mFrom = key.from.slice(0, 7), mTo = key.to.slice(0, 7);
       function inRange(x) {
         var m = String(x.month || (x.t || '').slice(0, 7) || '').slice(0, 7);
-        var d = recDate(x);
-        /* v34.0.0-alpha (F4-10): مقایسهٔ عددی YYYYMMDD — حل string comparison bug
-           - قبلاً string comparison بین "1405/5/1" و "1405/04/16" اشتباه می‌داد
-           - حالا recDateCmp تبدیل به عدد می‌کند (مثلاً 14050501 vs 14050416 → درست) */
-        if (d) {
+        /* v34.0.15-alpha (فاز ۱۲ — رفع باگ «عدم نمایش هزینهٔ ماه بدون انتخاب روز اول»):
+           قبلاً recDate هر رکوردی (حتی فقط‌ماه) را به روزِ اول ماه (مثلاً 1405/05/01) تبدیل
+           می‌کرد و چون این مقدار در `if (d)` می‌افتاد، با تاریخِ دقیقِ بازه مقایسه می‌شد
+           → اگر بازه از وسط ماه شروع می‌شد (مثلاً از 1405/05/15)، هزینهٔ همان ماه حذف می‌شد.
+           راه‌حل: فقط وقتی مقایسهٔ دقیق انجام می‌شود که رکورد «تاریخ دقیق واقعی» دارد
+           (t/date/dateISO/iso). اگر فقط `month` دارد (بدون تاریخ دقیق) → fallback ماهانه
+           (ماهِ رکورد در بازه باشد → نگه دار). */
+        var hasExact = !!(x.t || x.date || x.dateISO || x.iso || x.dateFa);
+        var d = hasExact ? recDate(x) : '';
+        if (hasExact && d) {
           return recDateCmp(d, key.from) >= 0 && recDateCmp(d, key.to) <= 0;
         }
-        /* fallback: اگر تاریخ قابل استخراج نیست، ماه رکورد را با بازه مقایسه کن */
+        /* fallback: اگر تاریخ دقیق موجود نیست یا قابل استخراج نبود، ماه رکورد را با بازه مقایسه کن */
         return !!(m && m >= mFrom && m <= mTo);
       }
       petty = allP.filter(inRange);
