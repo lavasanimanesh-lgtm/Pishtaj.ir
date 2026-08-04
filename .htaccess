@@ -210,6 +210,33 @@ RewriteRule "^knowledge-center/کاربردهای صنعتی-bf3563bb\.html$" "/
 RewriteRule "^knowledge-center/کاربردهای صنعتی-ecd46214\.html$" "/knowledge-center/kc-pipeline-pigging-cleaning-operations.html" [R=301,L]
 RewriteRule "^knowledge-center/کاربردهای صنعتی-feb0ae89\.html$" "/knowledge-center/kc-pipeline-coating-holiday-detection.html" [R=301,L]
 
+
+
+# ------------------------------------------------------------------
+# SEO-PERF-2026-08-04 — browser caching for static public assets
+# ------------------------------------------------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 30 days"
+  ExpiresByType application/javascript "access plus 30 days"
+  ExpiresByType text/javascript "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 365 days"
+  ExpiresByType image/png "access plus 365 days"
+  ExpiresByType image/webp "access plus 365 days"
+  ExpiresByType image/svg+xml "access plus 365 days"
+  ExpiresByType image/x-icon "access plus 365 days"
+  ExpiresByType font/woff2 "access plus 365 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(?:css|js|jpg|jpeg|png|webp|svg|ico|woff2)$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+  <FilesMatch "\.(?:woff2|jpg|jpeg|png|webp|svg|ico)$">
+    Header append Cache-Control "immutable"
+  </FilesMatch>
+</IfModule>
+
 # ------------------------------------------------------------------
 # PERFORMANCE & GZIP/DEFLATE COMPRESSION (v33.2.0)
 # ------------------------------------------------------------------
