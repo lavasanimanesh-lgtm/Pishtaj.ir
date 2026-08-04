@@ -13,10 +13,10 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه و یکپارچگی');
-T('VERSION.json/index.html/sw.js هم‌نسخه v34.0.4-alpha', vjson.crm_version === 'v34.0.4-alpha' && idx.indexOf("var VER = 'v34.0.4-alpha'") > -1 && sw.indexOf("'ptf-crm-v34.0.4-alpha'") > -1);
-T('clear-cache.html نیز هم‌نسخه است', fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = 'v34.0.4-alpha'") > -1);
+T('VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند', vjson.crm_version === 'v34.0.5-alpha' && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 && sw.indexOf("'ptf-crm-" + vjson.crm_version + "'") > -1);
+T('clear-cache.html نیز هم‌نسخه است', fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = '" + vjson.crm_version + "'") > -1);
 T('هیچ cache-buster قدیمی ?v=1.0 نمانده', idx.indexOf('?v=1.0') === -1);
-T('همهٔ اسکریپت‌ها باستر v34.0.4-alpha دارند', (idx.match(/\.js\?v=/g) || []).length === (idx.match(/\.js\?v=34\.0\.4-alpha/g) || []).length);
+T('همهٔ اسکریپت‌ها باستر نسخهٔ جاری دارند', (idx.match(/\.js\?v=/g) || []).length === (idx.match(new RegExp('\\.js\\?v=' + vjson.crm_version.replace(/^v/, '').replace(/\./g, '\\.'), 'g')) || []).length);
 
 SECTION('BUG-FISCAL-LOST-UI (قفل/رندر/اسنپ‌شات سال مالی)');
 T('ptfFiscalRender بازگردانده شد (با گارد canFiscal)', fiscal.indexOf('window.ptfFiscalRender = function () { if (!canFiscal()) return;') > -1);
