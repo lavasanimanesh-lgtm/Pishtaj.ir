@@ -163,6 +163,7 @@
       var acts = '';
       if (canEdit) {
         acts = '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="pettyEdit(\'' + x.cd + '\')">✏️</button>' +
+               '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfPettyFilesUi(\'' + x.cd + '\')" title="مدیریت اسناد (مشاهده/حذف/افزودن)">📎 اسناد</button>' +
                '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="pettyDel(\'' + x.cd + '\')">🗑️</button>';
       }
       /* فاز ۲ / گام ۸: رفع باگ نمایشی — رکورد ابطال‌شده باید صریحاً با برچسب
@@ -479,6 +480,42 @@
         if (typeof ptfToast === 'function') ptfToast('هزینه ویرایش شد', 'ok');
       }
     });
+  };
+
+  /* ================= v34.0.20-alpha (فاز ۱۸): مدیریت اسناد تنخواه =================
+     مودال مشاهده/حذف/افزودن سند برای هر هزینهٔ تنخواه — رفع «فایل قابل مشاهده/حذف نیست». */
+  window.ptfPettyFilesUi = function (cd) {
+    var all = getData(PETTY_KEY);
+    var r = all.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2750) : 2750;
+    var rows = (r.files || []).map(function (f) {
+      var key = String(f.key || '').replace(/[\\']/g, '');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--brd);flex-wrap:wrap">' +
+        '<a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;flex:1;min-width:120px">📎 ' + escP(f.name || 'فایل') + '</a>' +
+        '<button class="ba" style="color:#dc2626" onclick="pettyRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕ حذف</button></div>';
+    }).join('') || '<div style="color:#94a3b8;font-size:12px;padding:6px 0">سندی ثبت نشده است.</div>';
+    var html = '<div class="md-b" id="ptfPettyFilesDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px">' +
+      '<h3>📎 اسناد هزینهٔ تنخواه — ' + escP(r.cat || '') + ' ' + money(r.amt) + '</h3>' + rows +
+      '<div id="ptyFilesUp" style="margin-top:10px"></div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt" onclick="document.getElementById(\'ptfPettyFilesDlg\').remove()">تمام</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    window._ptfPettyFilesCd = cd;
+    try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptyFilesUp', 'petty/' + cd, function (f) {
+      var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
+      rr.files = rr.files || []; rr.files.push(f); setData(PETTY_KEY, a);
+      if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
+      var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+    }); } catch (eU) {}
+  };
+  window.pettyRemoveFile = function (cd, key) {
+    if (!confirm('این سند از تنخواه حذف شود؟')) return;
+    var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;
+    r.files = (r.files || []).filter(function (f) { return f.key !== key; });
+    setData(PETTY_KEY, a);
+    try { fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {}); } catch (eD) {}
+    if (typeof ptfToast === 'function') ptfToast('سند حذف شد', 'warn');
+    var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
   };
 
   window.pettyDel = function (cd) {

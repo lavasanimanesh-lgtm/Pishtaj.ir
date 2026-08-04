@@ -81,6 +81,7 @@ jobs:
             tester313-v34.0.17-alpha-mobile-ui \
             tester314-v34.0.18-alpha-presign-head \
             tester315-v34.0.20-alpha-customer-sms \
+            tester316-v34.0.21-alpha-attach-manage \
           ; do
             echo "── $t ──"
             if ! node "$t.js"; then
