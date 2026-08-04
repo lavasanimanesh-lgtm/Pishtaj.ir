@@ -37,7 +37,14 @@
     var d = data(), sup = supplier(supCd), name = sup ? sup.co : '';
     var by = {}, linked = linkedLegacyIds(d);
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
-      var c = i.cur || 'IRR', r = invRemain(i, d); if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0 };
+      var c = i.cur || 'IRR';
+      /* v34.0.8-alpha (هماهنگ با موتور سود): فاکتور صوری/پوششی خرید واقعی نیست — مبلغ اسمی و اعتبار
+         ارزش‌افزوده بدهیِ واقعی ایجاد نمی‌کنند؛ فقط «کارمزد فاکتورساز» بدهیِ نقدی واقعی است. */
+      var r = i.isCover === true
+        ? ((+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0)
+            : Math.round((i.cur && i.cur !== 'IRR' ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0)) * (+i.coverCommissionPct || 0) / 100))
+        : invRemain(i, d);
+      if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0 };
       by[c].amount += r; by[c].irr += c === 'IRR' ? r : r * (+i.rate || 0); by[c].invoices++;
       if ((i.legacyPayableCds || []).length) {
         var legacyTotal = getData('ptf_crm_payables').filter(function (p) { return (i.legacyPayableCds || []).indexOf(p.cd) > -1; }).reduce(function (s, p) { return s + (+p.amount || 0); }, 0);

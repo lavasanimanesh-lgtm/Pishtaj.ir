@@ -73,22 +73,25 @@
     var salesSplit = splitSafe(invoices, ledgerOfInvoiceSafe, function (i) { return +i.amount || 0; });
     var opexSplit = splitSafe(opex, ledgerOfOpexSafe, function (o) { return +o.amt || 0; });
     var purchaseSplit = splitSafe(supplierInvoices, ledgerOfSupplierInvoiceSafe, function (i) { return +i.amountIrr || +i.amount || 0; });
-
-    /* دفتر واقعی (پیش‌نمایش برای فاز ۵ — فاکتور پوششی/صوری):
-       خرید واقعی = مجموع مبالغ فاکتور خرید بدون احتساب فاکتورهای پوششی؛
-       سود جانبی فاکتور پوششی = مجموع (اعتبار ارزش‌افزوده − کارمزد) که تا
-       پیاده‌سازی گام ۵ همیشه صفر است چون هیچ رکوردی isCover ندارد. */
-    var realPurchaseTotal = supplierInvoices.reduce(function (s, i) { return s + realPurchaseSafe(i); }, 0);
+    /* v34.0.8-alpha (هماهنگ با موتور سود سال مالی): خرید «واقعی» بدون مبلغ اسمی فاکتورهای
+       پوششی/صوری — فاکتور پوششی خرید واقعی نیست، فقط منفعتِ خالص (اعتبار ارزش‌افزوده − کارمزد)
+       اثر دارد. برای هماهنگی سود رسمی/غیررسمی/تجمیعی، خریدِ پوششی از کسر هزینه حذف و منفعتش
+       جدا افزوده می‌شود (مثل fiscal.js). */
+    var realPurchaseSplit = splitSafe(supplierInvoices, ledgerOfSupplierInvoiceSafe, realPurchaseSafe);
     var coverBenefitTotal = supplierInvoices.reduce(function (s, i) { return s + coverNetBenefitSafe(i); }, 0);
     var coverCount = supplierInvoices.filter(function (i) { return i.isCover === true; }).length;
+
+    /* دفتر واقعی (بدون فاکتور پوششی) — مبلغ اسمیِ پوششی در خرید واقعی نیست */
+    var realPurchaseTotal = realPurchaseSplit.total;
 
     return {
       sales: salesSplit,
       opex: opexSplit,
       purchase: purchaseSplit,
-      officialProfit: salesSplit.official - opexSplit.official - purchaseSplit.official,
-      unofficialProfit: salesSplit.unofficial - opexSplit.unofficial - purchaseSplit.unofficial,
-      aggregateProfit: salesSplit.total - opexSplit.total - purchaseSplit.total,
+      /* سود بر مبنای خرید واقعی + منفعت پوششی (نه مبلغ اسمی پوششی) */
+      officialProfit: salesSplit.official - opexSplit.official - realPurchaseSplit.official + coverBenefitTotal,
+      unofficialProfit: salesSplit.unofficial - opexSplit.unofficial - realPurchaseSplit.unofficial,
+      aggregateProfit: salesSplit.total - opexSplit.total - realPurchaseSplit.total + coverBenefitTotal,
       realPurchaseTotal: realPurchaseTotal,
       coverBenefitTotal: coverBenefitTotal,
       coverCount: coverCount

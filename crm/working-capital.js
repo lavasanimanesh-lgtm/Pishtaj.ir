@@ -147,16 +147,34 @@
       var irrRemain = (inv.cur || 'IRR') === 'IRR' ? nativeRemain : nativeRemain * (+inv.rate || 0);
       var iso = dateOf(inv, ['dateISO', 'date', 't']);
       if ((inv.cur || 'IRR') !== 'IRR' && !(+inv.rate || 0)) pushIssue(issues, 'supplierFxRate', 0, inv.no || inv.cd);
+      /* v34.0.8-alpha (هماهنگ با موتور سود): فاکتور صوری/پوششی خرید واقعی نیست — مبلغ اسمی و
+         اعتبار ارزش‌افزوده بدهیِ واقعی ایجاد نمی‌کنند؛ فقط «کارمزد فاکتورساز» بدهیِ نقدی واقعی است.
+         منفعت پوششی (VAT − کارمزد) جدا گزارش می‌شود. */
+      if (inv.isCover === true) {
+        var cBase = amountIrr(inv);
+        var cComm = (+inv.coverCommissionAmount != null && +inv.coverCommissionAmount > 0) ? (+inv.coverCommissionAmount || 0) : Math.round(cBase * (+inv.coverCommissionPct || 0) / 100);
+        var cVat = (+inv.coverVatAmount != null && +inv.coverVatAmount > 0) ? (+inv.coverVatAmount || 0) : Math.round(cBase * (+inv.coverVatPct || 0) / 100);
+        src.coverCommission = (src.coverCommission || 0) + cComm;
+        src.coverVat = (src.coverVat || 0) + cVat;
+        src.coverCount = (src.coverCount || 0) + 1;
+        if (!iso) pushIssue(issues, 'supplierInvoiceDate', cComm, inv.no || inv.cd);
+        else if (inAsOf(iso, asOf)) src.supplierLiability += cComm; /* فقط کارمزد = بدهی واقعی */
+        if (inPeriod(iso, start, asOf)) { moves.supplierInvoices += cComm; counts.supplierInvoices++; }
+        return;
+      }
       if (!iso) pushIssue(issues, 'supplierInvoiceDate', irrRemain, inv.no || inv.cd);
       else if (inAsOf(iso, asOf)) src.supplierLiability += irrRemain;
       if (inPeriod(iso, start, asOf)) { moves.supplierInvoices += amountIrr(inv); counts.supplierInvoices++; }
     });
-    /* Legacy payable is counted only when it has no linked new supplier invoice. */
+    /* v34.0.8-alpha (هماهنگ با فاز ۳): Legacy payable دیگر در مبلغ بدهیِ تأمین‌کننده نمی‌آید
+       (مبنای تعهد فقط فاکتور خرید است؛ خریدِ تعهدی بی‌معناست). فقط به‌عنوان شمارشِ تعهدِ
+       بازِ بدون‌فاکتور گزارش می‌شود تا اطلاعات از دست نرود. */
     legacy.filter(function (p) { return active(p) && p.pay === 'credit' && !p.sfInvoiceCd && !linkedLegacy[p.cd]; }).forEach(function (p) {
       var native = legacyRemain(p), irr = (p.cur || 'IRR') === 'IRR' ? native : native * (+p.rate || 0), iso = dateOf(p, ['dateISO', 'date', 't', 'createdAt']);
       if ((p.cur || 'IRR') !== 'IRR' && !(+p.rate || 0)) pushIssue(issues, 'legacyFxRate', 0, p.cd || p.item);
       if (!iso) pushIssue(issues, 'legacyPayableDate', irr, p.cd || p.item);
-      else if (inAsOf(iso, asOf)) src.supplierLiability += irr;
+      src.legacyUnlinked = (src.legacyUnlinked || 0) + irr;
+      src.legacyUnlinkedCount = (src.legacyUnlinkedCount || 0) + 1;
     });
     sfAdjustments.filter(active).forEach(function (a) {
       var val = amountIrr(a), iso = dateOf(a, ['dateISO', 'date', 't']);
@@ -184,6 +202,10 @@
     });
     cheques.filter(function (c) { return c && c.kind !== 'guarantee' && c.st === 'open' && !c.ownership; }).forEach(function (c) { pushIssue(issues, 'unclassifiedCheque', +c.amt || 0, c.sayad || c.no || c.cd); });
 
+    /* v34.0.8-alpha (M-B3): بازنویسی از slSupplierOpenTotalsIRR دیگر «وضعیتِ امروز» را متفاوت
+       از مسیر داخلی نمی‌کند — balance() (که منبع آن است) حالا هم‌ارزِ مسیر داخلی است:
+       فاکتور پوششی فقط کارمزد و legacy از مبلغ بدهی حذف. فقط برای هم‌ارزسازی مقادیر
+       supplierLiability/Credit استفاده می‌شود؛ فیلدهای پوششی/legacy از محاسبهٔ داخلی حفظ می‌شوند. */
     if (asOf === today && typeof window.slSupplierOpenTotalsIRR === 'function') {
       try {
         var slt = window.slSupplierOpenTotalsIRR();
@@ -202,7 +224,9 @@
       cashBank: opening.cash_bank
     };
     total.netWorkingCapital = total.receivable + total.cashBank - total.supplierLiability + total.supplierCredit - total.companyCheque;
-    return { schema: 281, cfg: cfg, asOf: asOf, asOfFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(asOf) : asOf, opening: opening, source: src, total: total, moves: moves, counts: counts, issues: issues, openingEntries: openingEntries(cfg.fiscalYear) };
+    return { schema: 281, cfg: cfg, asOf: asOf, asOfFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(asOf) : asOf, opening: opening, source: src, total: total, moves: moves, counts: counts, issues: issues, openingEntries: openingEntries(cfg.fiscalYear),
+      coverCommission: src.coverCommission || 0, coverVat: src.coverVat || 0, coverCount: src.coverCount || 0,
+      legacyUnlinked: src.legacyUnlinked || 0, legacyUnlinkedCount: src.legacyUnlinkedCount || 0 };
   };
 
   function card(value, label, color) { return '<div class="sc"><b style="color:' + (color || '#0f172a') + '">' + money(value) + '</b><span>' + label + '</span></div>'; }
@@ -228,13 +252,15 @@
     var d = window.ptfFinanceOfficialData(), c = d.cfg, t = d.total, s = d.source, o = d.opening, mv = d.moves;
     return '<div id="wcFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px">' +
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;flex-wrap:wrap"><div><h4 style="margin:0">📊 گزارش تجمیعی وضعیت مالی و سرمایه در گردش</h4><small style="color:#64748b">شامل رسمی و غیررسمی با هم — برای تراز جداگانه به تب «تراز رسمی/غیررسمی» مراجعه کنید. سال مالی ' + esc(c.fiscalYear) + ' | از ' + esc(c.startFa) + ' تا ' + esc(c.endFa) + ' | وضعیت تا ' + esc(d.asOfFa) + '</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="fcConfigOpen()">⚙️ تنظیم سال مالی</button><button class="bt bt-o" onclick="fcOpeningOpen()">🏁 ثبت مانده افتتاحیه</button><button class="bt bt-o" onclick="wcPrint()">🖨 پیش‌نمایش/چاپ</button><button class="bt bt-o" onclick="wcCsv()">📥 CSV</button></div></div>' +
-      '<div style="background:var(--crd,#fff);border:1px solid var(--brd,#bfdbfe);border-radius:10px;padding:9px 11px;margin:10px 0;color:var(--tx,#1e3a8a);font-size:12px;line-height:1.8"><b>روش محاسبه:</b> مانده‌ها مستقیماً از فاکتورهای مشتری، زیر‌دفتر تأمین‌کننده، تعهدهای legacy و چک‌های با مالکیت صریح «شرکت» خوانده می‌شوند. «مانده افتتاحیه» فقط برای اسناد/مانده‌هایی است که در این منابع وجود ندارند؛ ورود تکراری آن باعث دوباره‌شماری می‌شود. این گزارش هیچ سند عملیاتی را تغییر نمی‌دهد و جایگزین دفترکل یا گردش بانکی نیست.</div>' +
+      '<div style="background:var(--crd,#fff);border:1px solid var(--brd,#bfdbfe);border-radius:10px;padding:9px 11px;margin:10px 0;color:var(--tx,#1e3a8a);font-size:12px;line-height:1.8"><b>روش محاسبه:</b> مانده‌ها مستقیماً از فاکتورهای مشتری، زیر‌دفتر تأمین‌کننده (فاکتور خرید) و چک‌های با مالکیت صریح «شرکت» خوانده می‌شوند. <b>فاکتور صوری/پوششی خرید واقعی نیست</b> — فقط کارمزد فاکتورساز در بدهی لحاظ و اعتبار ارزش‌افزوده جدا نشان داده می‌شود. تعهدِ خریدِ legacy (بدون فاکتور) از مبلغ بدهی حذف شده (فقط گزارش). «مانده افتتاحیه» فقط برای اسناد/مانده‌هایی است که در این منابع وجود ندارند؛ ورود تکراری آن باعث دوباره‌شماری می‌شود. این گزارش هیچ سند عملیاتی را تغییر نمی‌دهد و جایگزین دفترکل یا گردش بانکی نیست.</div>' +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr));margin-top:10px">' +
       card(t.receivable, 'مطالبات باز مشتریان', '#b45309') + card(t.supplierLiability, 'بدهی باز تأمین‌کنندگان', '#dc2626') + card(t.supplierCredit, 'اعتبار نزد تأمین‌کنندگان', '#059669') + card(t.companyCheque, 'چک‌های شرکتی باز', '#7c3aed') + card(t.cashBank, 'وجه نقد/بانکِ افتتاحیه', '#0369a1') + card(t.netWorkingCapital, 'خالص سرمایه در گردش ثبتی', t.netWorkingCapital >= 0 ? '#059669' : '#dc2626') +
       '</div>' +
       '<div class="tb2" style="margin-top:12px"><table><thead><tr><th>سرفصل</th><th>مانده افتتاحیه دستی</th><th>مانده از اسناد فعال</th><th>مانده گزارش</th><th>منبع</th></tr></thead><tbody>' +
       '<tr><td>مطالبات مشتریان</td><td>' + money(o.receivable) + '</td><td>' + money(s.receivable) + '</td><td><b>' + money(t.receivable) + '</b></td><td>فاکتورهای مشتری − وصولی‌ها</td></tr>' +
-      '<tr><td>بدهی تأمین‌کنندگان</td><td>' + money(o.supplier_liability) + '</td><td>' + money(s.supplierLiability) + '</td><td><b>' + money(t.supplierLiability) + '</b></td><td>فاکتور تأمین + legacy + اصلاحیات</td></tr>' +
+      '<tr><td>بدهی تأمین‌کنندگان</td><td>' + money(o.supplier_liability) + '</td><td>' + money(s.supplierLiability) + '</td><td><b>' + money(t.supplierLiability) + '</b></td><td>فاکتور خرید (واقعی + کارمزد پوششی) + اصلاحیات</td></tr>' +
+      (d.coverCommission ? '<tr><td>کارمزد فاکتورهای صوری/پوششی</td><td>—</td><td>' + money(d.coverCommission) + '</td><td><b>' + money(d.coverCommission) + '</b></td><td>بدهیِ نقدی واقعی فاکتور پوششی (در بدهی تأمین لحاظ شده)</td></tr><tr><td>اعتبار ارزش‌افزودهٔ پوششی (منفعت)</td><td>—</td><td>' + money(d.coverVat) + '</td><td><b>' + money(d.coverVat) + '</b></td><td>منفعت — نقد نیست؛ در بدهی محاسبه نشده</td></tr>' : '') +
+      (d.legacyUnlinked ? '<tr><td>تعهد خرید legacy بدون فاکتور</td><td>—</td><td>' + money(d.legacyUnlinked) + '</td><td><b>' + money(d.legacyUnlinked) + '</b></td><td>گزارشی فقط — در بدهی لحاظ نمی‌شود (مبنای تعهد فاکتور خرید است)</td></tr>' : '') +
       '<tr><td>اعتبار تأمین‌کنندگان</td><td>' + money(o.supplier_credit) + '</td><td>' + money(s.supplierCredit) + '</td><td><b>' + money(t.supplierCredit) + '</b></td><td>پرداخت بدون تخصیص + اصلاحیات منفی</td></tr>' +
       '<tr><td>چک شرکتی باز</td><td>' + money(o.company_cheque) + '</td><td>' + money(s.companyCheque) + '</td><td><b>' + money(t.companyCheque) + '</b></td><td>فقط ownership=company و status=open</td></tr>' +
       '<tr><td>وجه نقد/بانک</td><td>' + money(o.cash_bank) + '</td><td>—</td><td><b>' + money(t.cashBank) + '</b></td><td>فقط افتتاحیهٔ دستی؛ گردش بانکی در CRM موجود نیست</td></tr>' +
