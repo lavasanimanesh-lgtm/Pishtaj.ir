@@ -246,3 +246,12 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `online-water-quality-analyzer.html` — آنالایزر آنلاین کیفیت آب — تصویر `water-quality-analyzer-realistic.jpg` — حدود ۱۶۵۵ کلمه
 
 هاب محصولات اکنون ۶۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۶ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۱۱ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید پمپ/فن با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `vertical-multistage-pump.html` — پمپ طبقاتی عمودی — تصویر `vertical-multistage-pump-realistic.jpg` — حدود ۱۶۲۴ کلمه
+- `slurry-pump.html` — پمپ اسلاری و دوغاب صنعتی — تصویر `slurry-pump-horizontal-realistic.jpg` — حدود ۱۶۲۸ کلمه
+- `positive-displacement-pump.html` — پمپ جابجایی مثبت Screw/Gear/Lobe — تصویر `rotary-screw-gear-pump-realistic.jpg` — حدود ۱۶۴۹ کلمه
+- `industrial-fan-blower.html` — فن و بلوور صنعتی API 673 / AMCA — تصویر `industrial-centrifugal-fan-blower-realistic.jpg` — حدود ۱۶۳۰ کلمه
+
+هاب محصولات اکنون ۷۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۹۰ URL عمومی دارد.
