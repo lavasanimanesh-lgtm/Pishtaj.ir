@@ -71,6 +71,7 @@ jobs:
             tester303-v34.0.7-alpha-ai-attachments \
             tester304-v34.0.8-alpha-profit-cover-salary \
             tester305-v34.0.9-alpha-ledger-reconcile \
+            tester306-v34.0.10-alpha-ledger-transparency \
           ; do
             echo "── $t ──"
             if ! node "$t.js"; then

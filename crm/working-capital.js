@@ -117,6 +117,8 @@
     var start = cfg.startISO || normalYearBounds(cfg.fiscalYear).startISO;
     var opening = openingTotals(cfg.fiscalYear);
     var src = { receivable: 0, supplierLiability: 0, supplierCredit: 0, companyCheque: 0 };
+    /* v34.0.10-alpha: تفکیک سال جاری / سال‌های قبل برای reconciliation بدهی تأمین‌کننده */
+    var recSup = { opening: +opening.supplier_liability || 0, invoicesThis: 0, invoicesPrior: 0, paysThis: 0, paysPrior: 0, adjustments: 0 };
     var moves = { customerInvoices: 0, customerReceipts: 0, supplierInvoices: 0, supplierPayments: 0, companyCheques: 0 };
     var counts = { customerInvoices: 0, supplierInvoices: 0, companyCheques: 0 };
     var issues = {};
@@ -159,12 +161,14 @@
         src.coverCount = (src.coverCount || 0) + 1;
         if (!iso) pushIssue(issues, 'supplierInvoiceDate', cComm, inv.no || inv.cd);
         else if (inAsOf(iso, asOf)) src.supplierLiability += cComm; /* فقط کارمزد = بدهی واقعی */
-        if (inPeriod(iso, start, asOf)) { moves.supplierInvoices += cComm; counts.supplierInvoices++; }
+        if (inPeriod(iso, start, asOf)) { moves.supplierInvoices += cComm; counts.supplierInvoices++; recSup.invoicesThis += cComm; }
+        else if (iso && iso <= asOf) recSup.invoicesPrior += cComm;
         return;
       }
       if (!iso) pushIssue(issues, 'supplierInvoiceDate', irrRemain, inv.no || inv.cd);
       else if (inAsOf(iso, asOf)) src.supplierLiability += irrRemain;
-      if (inPeriod(iso, start, asOf)) { moves.supplierInvoices += amountIrr(inv); counts.supplierInvoices++; }
+      if (inPeriod(iso, start, asOf)) { moves.supplierInvoices += amountIrr(inv); counts.supplierInvoices++; recSup.invoicesThis += amountIrr(inv); }
+      else if (iso && iso <= asOf) recSup.invoicesPrior += amountIrr(inv);
     });
     /* v34.0.8-alpha (هماهنگ با فاز ۳): Legacy payable دیگر در مبلغ بدهیِ تأمین‌کننده نمی‌آید
        (مبنای تعهد فقط فاکتور خرید است؛ خریدِ تعهدی بی‌معناست). فقط به‌عنوان شمارشِ تعهدِ
@@ -181,6 +185,7 @@
       if (!iso) { pushIssue(issues, 'supplierAdjustmentDate', Math.abs(val), a.cd); return; }
       if (!inAsOf(iso, asOf)) return;
       if (val >= 0) src.supplierLiability += val; else src.supplierCredit += Math.abs(val);
+      recSup.adjustments += val;
     });
     sfPays.filter(active).forEach(function (p) {
       var allocated = arr(p.allocations).reduce(function (s, a) { return s + (+a.amount || 0); }, 0);
@@ -190,7 +195,8 @@
       if (!iso) pushIssue(issues, 'supplierPaymentDate', amountIrr(p), p.cd);
       else {
         if (inAsOf(iso, asOf)) src.supplierCredit += creditIrr;
-        if (inPeriod(iso, start, asOf)) moves.supplierPayments += amountIrr(p);
+        if (inPeriod(iso, start, asOf)) { moves.supplierPayments += amountIrr(p); recSup.paysThis += amountIrr(p); }
+        else if (iso && iso <= asOf) recSup.paysPrior += amountIrr(p);
       }
     });
     cheques.filter(function (c) { return c && c.ownership === 'company' && c.kind !== 'guarantee' && c.st === 'open'; }).forEach(function (c) {
@@ -226,7 +232,8 @@
     total.netWorkingCapital = total.receivable + total.cashBank - total.supplierLiability + total.supplierCredit - total.companyCheque;
     return { schema: 281, cfg: cfg, asOf: asOf, asOfFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(asOf) : asOf, opening: opening, source: src, total: total, moves: moves, counts: counts, issues: issues, openingEntries: openingEntries(cfg.fiscalYear),
       coverCommission: src.coverCommission || 0, coverVat: src.coverVat || 0, coverCount: src.coverCount || 0,
-      legacyUnlinked: src.legacyUnlinked || 0, legacyUnlinkedCount: src.legacyUnlinkedCount || 0 };
+      legacyUnlinked: src.legacyUnlinked || 0, legacyUnlinkedCount: src.legacyUnlinkedCount || 0,
+      recSup: recSup };
   };
 
   function card(value, label, color) { return '<div class="sc"><b style="color:' + (color || '#0f172a') + '">' + money(value) + '</b><span>' + label + '</span></div>'; }
@@ -267,7 +274,13 @@
       '</tbody></table></div>' +
       '<h4 style="margin:14px 0 7px">گردش ثبت‌شده در سال مالی</h4><div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr))">' +
       card(mv.customerInvoices, 'فاکتور مشتری صادرشده در سال') + card(mv.customerReceipts, 'وصولی مشتری در سال', '#059669') + card(mv.supplierInvoices, 'فاکتور تأمین ثبت‌شده در سال', '#dc2626') + card(mv.supplierPayments, 'پرداخت تأمین در سال', '#7c3aed') + card(mv.companyCheques, 'چک شرکتی صادرشده در سال', '#7c3aed') +
-      '</div>' + issueHtml(d) +
+      '</div>' +
+      '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:9px 12px;margin-top:10px;font-size:12px;color:#4c1d95;line-height:1.9"><b>🧮 بازسازی بدهی باز تأمین‌کنندگان:</b><br>' +
+      'افتتاحیه (' + money(d.recSup.opening) + ') + فاکتورهای امسال (' + money(d.recSup.invoicesThis) + ') + فاکتورهای سال‌های قبل (' + money(d.recSup.invoicesPrior) + ')' +
+      (d.recSup.adjustments ? ' + اصلاحیات (' + money(d.recSup.adjustments) + ')' : '') +
+      ' − پرداخت‌های امسال (' + money(d.recSup.paysThis) + ') − پرداخت‌های سال قبل (' + money(d.recSup.paysPrior) + ')' +
+      ' = بدهی باز <b>' + money(t.supplierLiability) + '</b>.<br><small style="color:#7c3aed">پس «بدهی باز» یک ماندهٔ تجمعی است و با «فاکتورهای ثبت‌شدهٔ همین سال» قابل مقایسه مستقیم نیست.</small></div>' +
+      issueHtml(d) +
       '<h4 style="margin:14px 0 7px">ردیابی مانده‌های افتتاحیه</h4><div class="tb2"><table><thead><tr><th>تاریخ اثر</th><th>سرفصل</th><th>مبلغ</th><th>شرح/مبنا</th><th>شناسه</th><th></th></tr></thead><tbody>' + openingRows(d) + '</tbody></table></div></div>';
   }
 
