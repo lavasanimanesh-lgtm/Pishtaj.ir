@@ -212,3 +212,12 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `industrial-hvac-pressurization.html` — HVAC صنعتی و Pressurization اتاق کنترل — تصویر `industrial-hvac-pressurization-unit-realistic.jpg` — حدود ۱۶۳۴ کلمه
 
 هاب محصولات اکنون ۵۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۷۲ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۷ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `chemical-injection-package.html` — پکیج تزریق مواد شیمیایی — تصویر `chemical-injection-package-realistic.jpg` — حدود ۱۵۹۵ کلمه
+- `mixer-agitator.html` — میکسر و آگیتاتور صنعتی — تصویر `industrial-mixer-agitator-realistic.jpg` — حدود ۱۵۸۶ کلمه
+- `fire-suppression-system.html` — سیستم اطفای حریق Clean Agent/CO2/Foam — تصویر `fire-suppression-skid-realistic.jpg` — حدود ۱۵۸۴ کلمه
+- `process-gas-analyzer-system.html` — سیستم آنالایزر گاز فرایندی — تصویر `process-gas-analyzer-system-realistic.jpg` — حدود ۱۶۴۰ کلمه
+
+هاب محصولات اکنون ۵۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۷۶ URL عمومی دارد.
