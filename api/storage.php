@@ -25,11 +25,26 @@ $storageRole = strtolower((string)($storageIdentity['role'] ?? ''));
 $action = $_REQUEST['action'] ?? '';
 /* v33.0.1: authenticated role policy. Non-destructive object operations are
    available to senior CRM roles; destructive/bulk operations remain limited to
-   accountable top roles until record-level authorization is expanded. */
-$storageReadWriteRoles = ['admin', 'chairman', 'ceo', 'commercial'];
+   accountable top roles until record-level authorization is expanded.
+
+   v34.0.7-alpha (باگ پروداکشن ضمیمه): خواندن/پیش‌نمایش/آپلود ضمیمه باید برای همهٔ
+   نقش‌های احرازشده باز باشد — در غیر این صورت sales/buyer/accountant/collector که
+   ضمیمهٔ درخواست‌ها/پرونده‌ها/تنخواه را ثبت و باز می‌کنند، از storage.php پیام 403
+   می‌گرفتند و فایل‌های پیوست لود نمی‌شد. عملیات مخرب همچنان محدود به admin/chairman است. */
+$storageAllRoles = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant', 'collector'];
+$storageSeniorRoles = ['admin', 'chairman', 'ceo', 'commercial'];
 $storageDangerRoles = ['admin', 'chairman'];
 $storageDangerActions = ['delete', 'delete_batch', 'archive_zip', 'backup_prune'];
-$storageAllowedRoles = in_array($action, $storageDangerActions, true) ? $storageDangerRoles : $storageReadWriteRoles;
+$storageBackupActions = ['presign_put_backup'];
+/* عملیات مخرب → فقط admin/chairman؛ عملیات بک‌آپ نوشتنی → نقش‌های ارشد؛
+   خواندن/پیش‌نمایش/آپلود ضمیمه → همهٔ نقش‌های احرازشده. */
+if (in_array($action, $storageDangerActions, true)) {
+    $storageAllowedRoles = $storageDangerRoles;
+} elseif (in_array($action, $storageBackupActions, true)) {
+    $storageAllowedRoles = $storageSeniorRoles;
+} else {
+    $storageAllowedRoles = $storageAllRoles;
+}
 if (!in_array($storageRole, $storageAllowedRoles, true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'permission_denied']);

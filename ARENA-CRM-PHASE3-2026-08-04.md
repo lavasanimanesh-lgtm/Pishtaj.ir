@@ -73,3 +73,27 @@
 | — | راستی‌آزمایی بصری XSS روی مرورگر واقعی | 🟠 توصیه — پیش از دیپلوی |
 
 *تولیدشده توسط Arena Agent — ادامهٔ ARENA-CRM-ASSESSMENT-2026-08-04-FRESH.md*
+
+---
+
+## ۴) فاز ۴ (v34.0.7-alpha) — رفع دو باگ گزارش‌شده روی پروداکشن
+
+### بگ ۱ — دستیار هوش مصنوعی
+**درگاه‌ها (gateways) که دستیار AI در آن‌ها وجود دارد:**
+| درگاه | کلاینت | endpoint | وضعیت پیش‌از فاز ۴ |
+|---|---|---|---|
+| چت سایت عمومی | `assets/js/ptf-chat.js` | `api/chat-llm.php` | ❌ بلاک در `.htaccess` + `LLM.enabled=false` |
+| AI Workbench CRM | `crm/ai-workbench.js` | `api/llm.php` | ✅ مجاز (نیازمند config+نقش) |
+| خوانندهٔ درخواست (OCR) | `crm/inqreader.js` | `api/llm.php` + `api/attachment-read.php` | ⚠️ llm مجاز / attachment-read بلاک |
+| قرارداد/چک AI | `crm/contracts.js`,`cheques.js` | `api/llm.php` | ✅ مجاز |
+
+**ریشه:** `chat-llm.php` در `api/.htaccess` (RewriteRule deny + خارج از allow-list) بلاک بود → 403؛ و `LLM.enabled=false` در `ptf-chat.js` → درگاه چت سایت حتی با کانفیگ هم AI را صدا نمی‌زد. همچنین نقش `collector` (که پنل `ai` دارد) در لیست مجاز `llm.php` نبود.
+
+**رفع:** حذف `chat-llm` از بلاک + افزودن به allow-list + گارد Cross-origin (هم‌دامنه) + `LLM.enabled=true` + افزودن `collector` به `llm.php`.
+
+### بگ ۲ — لود نشدن ضمیمه در درخواست‌ها/پرونده‌ها/تنخواه
+**ریشه:** (الف) `api/attachment-read.php` (خواندن محتوای پیوست برای AI/OCR) در `.htaccess` بلاک بود و گارد احراز نداشت → 403؛ (ب) `api/storage.php` عملیات خواندن/پیش‌نمایش (`presign_get`) را فقط به نقش‌های ارشد (admin/chairman/ceo/commercial) می‌داد → sales/buyer/accountant/collector هنگام باز کردن ضمیمه 403 می‌گرفتند.
+
+**رفع:** (الف) گارد `auth_verify_token` + همهٔ نقش‌های CRM به `attachment-read.php` افزوده و از بلاک خارج شد؛ (ب) `storage.php` اکنون خواندن/پیش‌نمایش/آپلود ضمیمه را به همهٔ نقش‌های احرازشده می‌دهد؛ عملیات مخرب (delete/archive/backup_prune) همچنان admin/chairman و بک‌آپ نوشتنی ارشد.
+
+**تست:** tester303 جدید (۱۴/۰) + به‌روزرسانی tester300 (۳۴/۰) + بامپ نسخه → `v34.0.7-alpha`.

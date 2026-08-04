@@ -1,27 +1,3 @@
-diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
-index 6817d26..1b8b1f6 100644
---- a/.github/workflows/deploy-production.yml
-+++ b/.github/workflows/deploy-production.yml
-@@ -105,6 +105,7 @@ jobs:
-             docs-deploy/**
-             tester*.js
-             FILES-CHANGED-*.txt
-+            api/data-health-check.php
- 
-       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
-       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
-diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
-index df419b5..236546e 100644
---- a/.github/workflows/deploy-staging.yml
-+++ b/.github/workflows/deploy-staging.yml
-@@ -86,6 +86,7 @@ jobs:
-             docs-deploy/**
-             tester*.js
-             FILES-CHANGED-*.txt
-+            api/data-health-check.php
- 
-       - name: Summary
-         run: |
 === new file uat-tests.yml ===
 # ─────────────────────────────────────────────────────────────────────────────
 # UAT Regression Suite — اجرای تسترهای Node CRM روی هر push/PR به main
@@ -68,6 +44,7 @@ jobs:
             tester300-v34.0.4-alpha-phase1-fixes \
             tester301-v34.0.5-alpha-fiscal-phase2 \
             tester302-v34.0.6-alpha-deploy-hygiene \
+            tester303-v34.0.7-alpha-ai-attachments \
           ; do
             echo "── $t ──"
             if ! node "$t.js"; then

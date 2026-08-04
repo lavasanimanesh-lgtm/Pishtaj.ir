@@ -31,7 +31,7 @@ if (!$llmIdentity) {
     exit;
 }
 $llmRole = strtolower((string)($llmIdentity['role'] ?? ''));
-$llmAllowedRoles = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
+$llmAllowedRoles = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant', 'collector'];
 if (!in_array($llmRole, $llmAllowedRoles, true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);

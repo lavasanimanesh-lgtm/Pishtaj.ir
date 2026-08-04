@@ -39,7 +39,9 @@ SECTION('BUG-PETTY-THUMB-PATH (مسیر thumbnail تنخواه)');
 T('مسیر نسبی ../api درست شد', petty.indexOf("fetch('../api/attachment-thumb.php'") > -1 && petty.indexOf("fetch('api/attachment-thumb.php'") === -1);
 var hta = fs.readFileSync(path.resolve(__dirname, '../../api/.htaccess'), 'utf-8');
 T('attachment-thumb در allow-list هتکسز است', /crm\|contact\|codegen\|fx-rates\|storage\|cms\|auth\|llm\|attachment-thumb/.test(hta));
-T('سرویس‌های حساس همچنان بلاک‌اند (attachment-read/chat-llm/tools)', hta.indexOf('attachment-read|notify-bot|chat-llm|tech-proposal-docx|tools') > -1);
+/* v34.0.7-alpha: attachment-read و chat-llm با گارد احراز/منشأ دوباره فعال شدند (باگ پروداکشن) */
+T('attachment-read و chat-llm در allow-list هتکسز هستند', /attachment-thumb\|attachment-read\|chat-llm/.test(hta));
+T('سرویس‌های حساسِ باقی‌مانده همچنان بلاک‌اند (notify-bot/tech-proposal-docx/tools)', hta.indexOf('notify-bot|tech-proposal-docx|tools') > -1);
 
 SECTION('SW precache');
 ['client-server', 'settings-accordion', 'storage-quota', 'tool-feedback', 'tool-licenses', 'tool-report-drafts', 'unofficial-invoice'].forEach(function (s) {
