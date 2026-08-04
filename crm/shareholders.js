@@ -105,6 +105,48 @@
     return out;
   }
   window.ptfShareEnsureSalary = ensureSalaryTxForMonth;
+
+  /* v34.0.2-alpha (F4-7 تکمیلی): مهاجرت یک‌بارهٔ «حقوق سهامدار فاقد opex».
+     قبل از فیکس F4-7، اگر هزینهٔ حقوق یک سهامدار از opex حذف می‌شد (یا هرگز
+     ساخته نمی‌شد)، فراخوانی بعدی دیگر opex نمی‌ساخت → حقوق در «هزینه‌های جاری»
+     و محاسبات سال مالی دیده نمی‌شد. فیکس کدی فقط برای ثبت‌های جدید کار می‌کند؛
+     این تابع برای رکوردهای تاریخیِ ازقبل‌خراب‌شده، به‌ازای هر tx حقوق که opex
+     متناظرش (shareTx) وجود ندارد یک opex می‌سازد.
+     از داخل اپ (دکمهٔ «🛠 بازسازی حقوق سهامدار» در پنل هزینه‌های جاری) یا
+     کنسول مرورگر قابل اجراست؛ خروجی: {created, skipped, totalOpex}. */
+  window.ptfMigrateShareholderOpex = function () {
+    var shs = shAll(), txs = txAll(), opx = oAll();
+    var opxByShareTx = {};
+    opx.forEach(function (o) { if (o.shareTx) opxByShareTx[o.shareTx] = o; });
+    var created = 0, skipped = 0, errors = [];
+    shs.filter(function (s) { return s && s.active !== false && s.duty && (+s.salary || 0) > 0; }).forEach(function (s) {
+      txs.filter(function (x) { return x.type === 'salary' && x.shCd === s.cd; }).forEach(function (x) {
+        if (opxByShareTx[x.cd]) { skipped++; return; }
+        var newOpx = {
+          cd: 'OPX-MIG-' + x.cd,
+          cat: 'حقوق و دستمزد',
+          amt: +x.amt || 0,
+          month: x.month,
+          desc: 'حقوق موظف سهامدار: ' + s.name + ' (مهاجرت F4-7)',
+          t: x.t,
+          by: x.by || 'migration-F4-7',
+          shareTx: x.cd,
+          shareholderSalary: true,
+          migrated: true
+        };
+        opx.unshift(newOpx);
+        opxByShareTx[x.cd] = newOpx;
+        created++;
+      });
+    });
+    if (created > 0) {
+      oSave(opx);
+      if (typeof ptfOpexRender === 'function') { try { ptfOpexRender(); } catch (e) {} }
+      if (typeof ptfShareRender === 'function') { try { ptfShareRender(); } catch (e) {} }
+    }
+    return { created: created, skipped: skipped, totalOpex: opx.length, errors: errors };
+  };
+
   function syncSalaryTxForMonth(sh, month) {
     month = normMonth(month) || faMonthNow();
     var txs = txAll();

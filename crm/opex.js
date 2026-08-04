@@ -83,6 +83,31 @@
   };
 
   /* ---------- ثبت هزینه ---------- */
+  /* v34.0.2-alpha (F4-7 تکمیلی): اجرای مهاجرت «حقوق سهامدار فاقد opex» از داخل اپ.
+     داده از طریق setData ذخیره و خودکار سینک می‌شود؛ بعد از اجرا، پنل هزینه‌های
+     جاری و پنل سهامداران بلافاصله تازه می‌شوند. فقط نقش‌های مالی. */
+  window.ptfOpexMigrateShareholders = function () {
+    if (!canFin()) { alert('⛔ هزینه‌های جاری فقط برای نقش‌های مالی (US-418)'); return; }
+    if (typeof window.ptfMigrateShareholderOpex !== 'function') { alert('⚠️ ماژول سهامداران بارگذاری نشده؛ صفحه را تازه کنید.'); return; }
+    var before = (oAll() || []).length;
+    var msg = 'برای هر تراکنش «حقوق موظف» سهامدار که رکورد هزینهٔ متناظر (opex) ندارد، یک ردیف «حقوق و دستمزد» ساخته می‌شود تا در هزینه‌های جاری و محاسبات سال مالی دیده شود.\n\nادامه می‌دهید؟';
+    if (!confirm(msg)) return;
+    try {
+      var res = window.ptfMigrateShareholderOpex();
+      var added = res.created || 0;
+      if (typeof ptfToast === 'function') {
+        ptfToast(added > 0 ? '✅ ' + added + ' رکورد حقوق سهامدار به هزینه‌های جاری اضافه شد (کل: ' + res.totalOpex + ')' : (res.totalOpex > before ? 'ℹ️ مورد جدیدی نبود — رکوردهای قبلی سالم‌اند' : 'ℹ️ موردی برای بازسازی نبود (created=0, skipped=' + res.skipped + ')'), added > 0 ? 'ok' : 'info');
+      } else {
+        alert(added > 0 ? '✅ ' + added + ' رکورد حقوق سهامدار اضافه شد' : 'ℹ️ موردی برای بازسازی نبود');
+      }
+      return res;
+    } catch (e) {
+      console.error('ptfOpexMigrateShareholders:', e);
+      if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در بازسازی: ' + (e && e.message || e), 'warn');
+      return null;
+    }
+  };
+
   window.ptfOpexAdd = function (pre) {
     if (!canFin()) { alert('⛔ هزینه‌های جاری فقط برای نقش‌های مالی (US-418)'); return; }
     pre = pre || {};
@@ -400,7 +425,8 @@
       '<h4 style="margin:0;font-size:13.5px">🏢 هزینه‌های جاری شرکت (US-418)</h4>' +
       '<span style="display:flex;gap:6px;align-items:center">' +
       '<input type="text" value="' + escP(m) + '" onchange="window._opexMonth=this.value.trim();ptfOpexRender()" style="width:90px;padding:6px;border:1.5px solid var(--brd);border-radius:9px;direction:ltr;font-size:12px" title="ماه شمسی — خالی = همه">' +
-      '<button class="bt" style="font-size:12px" onclick="ptfOpexAdd()">+ ثبت هزینه</button></span></div>' +
+      '<button class="bt" style="font-size:12px" onclick="ptfOpexAdd()">+ ثبت هزینه</button>' +
+      (canFin() ? '<button class="bt bt-o" style="font-size:12px" onclick="ptfOpexMigrateShareholders()" title="برای تراکنش‌های قدیمیِ حقوق سهامدار که رکورد هزینه (opex) ندارند، ردیف «حقوق و دستمزد» می‌سازد">🛠 بازسازی حقوق سهامدار</button>' : '') + '</span></div>' +
       pendHtml +
       '<div style="font-size:12.5px;margin-bottom:6px">جمع ماه <b dir="ltr">' + escP(m || '—') + '</b>: <b style="color:#b45309">' + fmtT(sm.total) + ' ریال</b> | جمع سال ' + escP(year) + ': <b>' + fmtT(sy.total) + ' ریال</b></div>' +
       (chips ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">' + chips + '</div>' : '') +

@@ -6,16 +6,24 @@
    ensureSalaryTxForMonth دیگر opex را ایجاد نمی‌کرد. در نتیجه
    حقوق سهامدار در opex نبود و در محاسبات سال مالی لحاظ نمی‌شد.
 
-   این اسکریپت برای هر tx حقوق موظف که opex متناظرش وجود ندارد،
-   یک opex می‌سازد.
+   از v34.0.2-alpha به بعد، منطق اصلی به تابع
+   window.ptfMigrateShareholderOpex در crm/shareholders.js منتقل شده و
+   از داخل اپ هم با دکمهٔ «🛠 بازسازی حقوق سهامدار» در پنل «هزینه‌های
+   جاری» قابل اجراست (توصیه‌شده — نیاز به کنسول ندارد).
 
-   نحوهٔ اجرا: در کنسول مرورگر (در پنل CRM):
-   1) وارد پنل «تنخواه» (یا هر پنل دیگر) شوید
+   نحوهٔ اجرای این اسکریپت قدیمی (فقط در صورت لزوم):
+   1) وارد پنل CRM شوید (دسترسی مالی)
    2) کنسول مرورگر را باز کنید (F12 → Console)
    3) محتوای این فایل را copy-paste و Enter بزنید
    ===================================================================== */
 (function () {
   'use strict';
+  if (typeof window.ptfMigrateShareholderOpex === 'function') {
+    var r = window.ptfMigrateShareholderOpex();
+    console.log('✅ مهاجرت از طریق تابع داخلی اپ انجام شد:', r);
+    return r;
+  }
+  /* fallback مستقل (اگر shareholders.js بارگذاری نشده بود) */
   var K_SH = 'ptf_crm_shareholders', K_TX = 'ptf_crm_sharetx', K_OPX = 'ptf_crm_opex';
   function _get(k) { return typeof getData === 'function' ? getData(k) : JSON.parse(localStorage.getItem(k) || '[]'); }
   function _set(k, v) { if (typeof setData === 'function') setData(k, v); else localStorage.setItem(k, JSON.stringify(v)); }

@@ -743,7 +743,17 @@
   /* ============ UR-2026-08-01-09: گزارش کامل دورهٔ تنخواه (v2: با cd برای نگاشت ضمیمه) ============ */
   window.ptfPettyPeriodEvents = function (a, b) {
     var d = window.ptfPettyPeriodData(a, b), events = [];
+    /* v34.0.2-alpha (گزارش دوره‌ای): رفع «ردیف‌های تکراری» — هر هزینهٔ تنخواه که
+       تسویه/پرداخت‌مستقیم می‌شود، دو رکورد دارد: ردیف «هزینه» در ptf_crm_petty و
+       تراکنش «تسویه از حساب»/«پرداخت مستقیم» در ptf_crm_petty_tx (با ref = شناسهٔ
+       هزینه). قبلاً هر دو به‌عنوان ردیف مجزا چاپ می‌شدند → ظاهرِ «ردیف تکراری».
+       حالا اگر تراکنش، همان پرداختِ یک هزینهٔ حاضر در همین دوره باشد، ردیفِ
+       تراکنش حذف می‌شود و اطلاعات آن در ستون «نحوهٔ پرداخت» همان ردیف هزینه می‌آید.
+       جمع‌ها دست نمی‌خورند (قبلاً هم جمع درست بود؛ فقط نمایش تکراری بود). */
+    var pettyByCd = {};
+    (d.petty || []).forEach(function (p) { if (p.cd) pettyByCd[p.cd] = 1; });
     (d.tx || []).forEach(function (x) {
+      if ((x.type === 'direct' || x.type === 'settle') && x.ref && pettyByCd[x.ref]) return; /* همان پرداختِ هزینهٔ حاضر → حذف ردیف تکراری */
       var kind = x.type === 'charge' ? 'شارژ حساب' : x.type === 'direct' ? 'پرداخت مستقیم' : x.type === 'settle' ? 'تسویه از حساب' : (x.type || 'تراکنش');
       events.push({
         cd: x.cd,  /* v2: شناسه رکورد برای نگاشت file → row */
@@ -758,9 +768,9 @@
     (d.petty || []).forEach(function (p) {
       /* UR-11: نحوهٔ پرداخت هر هزینه صریح است: مستقیم از تنخواه / تسویه‌شده با تاریخ و نام / در انتظار */
       var status = p.payMode === 'direct'
-        ? 'پرداخت مستقیم از تنخواه'
+        ? 'پرداخت مستقیم از حساب تنخواه' + (p.settleDoc ? ' — سند: ' + p.settleDoc : '')
         : p.st === 'settled'
-          ? 'تسویه در ' + (p.settledT || p.t || '') + ' توسط ' + (p.settledBy || p.by || '')
+          ? 'تسویه در ' + (p.settledT || p.t || '') + ' توسط ' + (p.settledBy || p.by || '') + (p.settleDoc ? ' — سند: ' + p.settleDoc : '')
           : p.st === 'void' ? 'ابطال‌شده' : 'در انتظار تسویه';
       events.push({
         cd: p.cd,  /* v2: شناسه رکورد برای نگاشت file → row */
@@ -787,7 +797,14 @@
   window.ptfPettyPeriodTotals = function (a, b) {
     var d = window.ptfPettyPeriodData(a, b);
     var pettyOut = (d.petty || []).filter(function (p) { return p.st !== 'void'; }).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
-    var directOut = (d.tx || []).filter(function (x) { return x.type === 'direct'; }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    /* v34.0.2-alpha (گزارش دوره‌ای): جلوگیری از دوباره‌شماری پرداخت‌های مستقیم —
+       رکورد «هزینهٔ مستقیم» در ptf_crm_petty هست و تراکنش direct (ref=شناسهٔ همان
+       هزینه) هم در ptf_crm_petty_tx؛ قبلاً هر دو در totalOut می‌آمدند. حالا
+       تراکنش‌های مستقیمی که به هزینهٔ حاضر در همین دوره وصل‌اند فقط یک بار
+       (در pettyOut) شمرده می‌شوند. */
+    var pettyByCd = {};
+    (d.petty || []).forEach(function (p) { if (p.cd) pettyByCd[p.cd] = 1; });
+    var directOut = (d.tx || []).filter(function (x) { return x.type === 'direct' && !(x.ref && pettyByCd[x.ref]); }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
     /* BUG-TOTALS: موجودی شروع و پایان دوره — از تراکنش‌های قبل از بازه (شارژ/پرداخت/تسویه) */
     function txBalance(beforeDate) {
       return txAll().reduce(function (s, x) {
