@@ -221,3 +221,12 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `process-gas-analyzer-system.html` — سیستم آنالایزر گاز فرایندی — تصویر `process-gas-analyzer-system-realistic.jpg` — حدود ۱۶۴۰ کلمه
 
 هاب محصولات اکنون ۵۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۷۶ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۸ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول بویلر و بخار با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `fire-tube-boiler.html` — بویلر فایرتیوب صنعتی — تصویر `fire-tube-boiler-realistic.jpg` — حدود ۱۵۹۲ کلمه
+- `water-tube-boiler.html` — بویلر واترتیوب صنعتی — تصویر `water-tube-boiler-realistic.jpg` — حدود ۱۶۳۱ کلمه
+- `industrial-burner.html` — مشعل صنعتی و Burner Management — تصویر `industrial-burner-realistic.jpg` — حدود ۱۶۵۷ کلمه
+- `deaerator-feedwater-system.html` — دی‌اریاتور و سیستم آب تغذیه بویلر — تصویر `deaerator-feedwater-system-realistic.jpg` — حدود ۱۵۷۱ کلمه
+
+هاب محصولات اکنون ۶۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۰ URL عمومی دارد.
