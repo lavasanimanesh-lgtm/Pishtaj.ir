@@ -203,3 +203,12 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 ## گام بعدی پیشنهادی
 ۱) بازبینی دستی UX هاب محصولات و چند صفحه جدید ابزار دقیق در موبایل.  
 ۲) اگر تأیید بود، تولید فاز بعدی صفحات محصول بر اساس فرصت‌های باقی‌مانده مثل Mixer/Agitator، Fire Alarm/F&G Panel، PLC/SCADA Hardware، CCTV/Access Control صنعتی یا HVAC صنعتی، فقط بعد از تحقیق واقعی برند/استاندارد/تصویر.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۶ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول سیستم‌های صنعتی/اتوماسیون/ایمنی با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `plc-control-panel.html` — تابلو کنترل PLC و اتوماسیون صنعتی — تصویر `plc-control-panel-realistic.jpg` — حدود ۱۶۵۸ کلمه
+- `fire-alarm-fg-panel.html` — پنل اعلام حریق و Fire & Gas صنعتی — تصویر `fire-alarm-fg-panel-realistic.jpg` — حدود ۱۵۸۳ کلمه
+- `hazardous-area-cctv-access-control.html` — CCTV ضدانفجار و Access Control صنعتی — تصویر `explosion-proof-cctv-camera-realistic.jpg` — حدود ۱۵۹۲ کلمه
+- `industrial-hvac-pressurization.html` — HVAC صنعتی و Pressurization اتاق کنترل — تصویر `industrial-hvac-pressurization-unit-realistic.jpg` — حدود ۱۶۳۴ کلمه
+
+هاب محصولات اکنون ۵۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۷۲ URL عمومی دارد.
