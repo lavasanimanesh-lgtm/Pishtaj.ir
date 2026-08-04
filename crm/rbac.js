@@ -751,12 +751,18 @@ function saveInv(offerNo) {
   try {
     var _fxOfferForSanity = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
     var _fxSanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(_fxOfferForSanity, grand) : { applicable: false, ok: true };
+    /* v34.0.8-alpha (فاز ۴ — مورد C تأییدشده): اصل بر صحت فاکتور است و «مغایرت پیشنهاد و فاکتور
+       معنا ندارد»؛ پیشنهاد فقط مبنای صدور فاکتور است. پس این فقط یک اطلاع‌رسانیِ غیربلوکه‌کننده است
+       (برای جلوگیری از اشتباه ورود رقم ارزی خام به‌جای ریالی) و هرگز ثبت فاکتور را متوقف نمی‌کند
+       و مبنای تعهد/مانده قرار نمی‌گیرد. */
     if (_fxSanity.applicable && !_fxSanity.ok) {
-      var _fxWarnMsg = '⚠️ هشدار مغایرت شدید با پیش‌فاکتور ارزی!\n\n' +
-        'پیش‌فاکتور مبنای ' + (_fxOfferForSanity.currency || '') + ' ' + _fxSanity.rawForeignTotal.toLocaleString('en-US') + ' است (نرخ مرجع ' + _fxSanity.fxRateRef.toLocaleString('fa-IR') + ' ریال) — یعنی معادل ریالی مورد انتظار حدود ' + _fxSanity.expectedIrr.toLocaleString('fa-IR') + ' ریال است.\n\n' +
-        'مبلغ واردشده (' + grand.toLocaleString('fa-IR') + ' ریال) خیلی کمتر از این مقدار است — احتمالاً رقم ارزی خام به‌جای معادل ریالی وارد شده.\n\n' +
-        'اگر این تخفیف واقعی و آگاهانه است، OK را بزنید. اگر اشتباه است، Cancel را بزنید و مبلغ صحیح ریالی را وارد کنید.';
-      if (!confirm(_fxWarnMsg)) return;
+      var _fxWarnMsg = '⚠️ توجه: مبلغ فاکتور (' + grand.toLocaleString('fa-IR') + ' ریال) با معادلِ پیش‌فاکتور ارزی (' +
+        (_fxOfferForSanity.currency || '') + ' ' + _fxSanity.rawForeignTotal.toLocaleString('en-US') +
+        ' × ' + _fxSanity.fxRateRef.toLocaleString('fa-IR') + ' ≈ ' + _fxSanity.expectedIrr.toLocaleString('fa-IR') +
+        ' ریال) تفاوت چشمگیر دارد. ممکن است رقم ارزی خام به‌جای ریالی وارد شده باشد.\n\n' +
+        'مغایرت با پیش‌فاکتور مانع ثبت فاکتور نیست — اصل، صحت فاکتور است. لطفاً از درست بودن مبلغ مطمئن شوید.';
+      if (typeof ptfToast === 'function') { try { ptfToast(_fxWarnMsg.replace(/\n+/g, ' '), 'warn'); } catch (eT) {} }
+      else { try { alert(_fxWarnMsg); } catch (eA) {} }
     }
   } catch (eFxSanity) {}
 
@@ -792,8 +798,17 @@ function saveInv(offerNo) {
     alert('⛔ شماره رسمی فاکتور از سرور دریافت نشده است. اتصال/ورود را برقرار کنید و دوباره تلاش کنید.');
     return;
   }
+  /* v34.0.8-alpha (فاز ۶ — مورد D تأییدشده): نرخ تسعیر ارزی فقط برای محاسبهٔ درصد پیش‌پرداخت از کل
+     پیشنهاد به‌کار می‌رود؛ بدهیِ باقی‌مانده در لحظهٔ صدور فاکتور با نرخِ روزِ فاکتور بیان می‌شود.
+     نرخ روزِ فاکتور (issueFxRate) روی رکورد ذخیره می‌شود تا گزارش ارزیِ مانده، آن را با نرخ روز محاسبه کند. */
+  var _issueFxRate = 0;
+  try {
+    if (_offerMeta.currency && _offerMeta.currency !== 'IRR') {
+      _issueFxRate = +((window._ptfFxLive && window._ptfFxLive.rates && (window._ptfFxLive.rates.usd_free || window._ptfFxLive.rates.eur_free)) || 0) || +_offerMeta.fxRateRef || 0;
+    }
+  } catch (eFxRate) {}
   var newInv = { cd: _newInvCd, offerNo: offerNo, no: no, amount: grand, base: amt, vat: vat, invDate: invDate,
-    buyerCo: _offerMeta.buyerCo || '', offerCurrency: _offerMeta.currency || 'IRR', offerFxBasis: _offerMeta.fxBasis || '', offerFxRateRef: +_offerMeta.fxRateRef || 0,
+    buyerCo: _offerMeta.buyerCo || '', offerCurrency: _offerMeta.currency || 'IRR', offerFxBasis: _offerMeta.fxBasis || '', offerFxRateRef: +_offerMeta.fxRateRef || 0, issueFxRate: _issueFxRate,
     files: files, file: files.length ? files[0].name : '', t: faDate(), by: curSession().name, payments: [] };
   /* v19.3 (US-436 AC5/AC6): پیش‌پرداخت ساختاریافته (v18.2) — نقدی/کامل=تسویه فوری؛ وصول‌شده=کسر خودکار از مطالبات */
   try {

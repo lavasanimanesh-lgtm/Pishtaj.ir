@@ -201,40 +201,57 @@
       if (!res.sellIrr) { res.ok = false; res.warnings.push('⛔ مبلغ فروش ثبت نشده (CO/فاکتور).'); }
     }
 
-    /* ---------- سمت خرید (به ریال واقعی) ---------- */
+    /* ---------- سمت خرید (فاز ۵ — مورد A تأییدشده) ----------
+       تعریف کارفرما: «ورود قیمت خرید در پرونده اختیاری و فقط برای بررسی صحت فاکتور خرید است؛
+       مبنای تعهد و هزینه، فاکتور خرید ثبت‌شده است؛ خریدِ تعهدی معنا ندارد.»
+       لذا مبنای هزینهٔ پروژه از فاکتورهای خریدِ لینک‌شده (legacyPayableCds→payable.inqNo،
+       itemLinks.offerNo، یا inqNo/offerNo مستقیم) خوانده می‌شود. قیمت دستی (buycmp.purchases)
+       فقط به‌عنوان «کنترل مغایرت» است و نبودِ آن سود را ناقص نمی‌کند. */
+    var invCost = 0, invCount = 0, invMatched = 0, invCoverCount = 0, invCoverBenefit = 0;
+    var sfA = {};
+    try { sfA = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sfA || Array.isArray(sfA)) sfA = {}; } catch (eSfA) {}
+    var payablesA = getData('ptf_crm_payables') || [];
+    var projKeys = [prj.inqNo, prj.offerNo, prj.no, prj.cd].filter(Boolean);
+    (sfA.invoices || []).forEach(function (i) {
+      if (!i || i.status === 'void') return;
+      var viaLegacy = (i.legacyPayableCds || []).some(function (cd) { var p = payablesA.filter(function (x) { return x.cd === cd; })[0]; return p && projKeys.indexOf(p.inqNo) > -1; });
+      var viaItems = (i.itemLinks || []).some(function (l) { return projKeys.indexOf(l.offerNo) > -1 || projKeys.indexOf(l.inqNo) > -1; });
+      var viaDirect = projKeys.indexOf(i.inqNo) > -1 || projKeys.indexOf(i.offerNo) > -1;
+      if (!(viaLegacy || viaItems || viaDirect)) return;
+      var amt = (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
+      if (i.isCover === true) {
+        var comm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0) : Math.round(amt * (+i.coverCommissionPct || 0) / 100);
+        var vat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0) : Math.round(amt * (+i.coverVatPct || 0) / 100);
+        invCost += comm; invCount++; invMatched++; invCoverCount++; invCoverBenefit += (vat - comm);
+        res.warnings.push('ℹ️ فاکتور پوششی ' + (i.no || '') + ' لینک‌شده به پرونده: کارمزد ' + comm.toLocaleString('fa-IR') + ' هزینه و اعتبار ارزش‌افزوده ' + vat.toLocaleString('fa-IR') + ' منفعت (اثر خالص در سطح سال مالی).');
+        return;
+      }
+      invCost += amt; invCount++; invMatched++;
+    });
+    /* قیمت دستی = فقط کنترل (مغایرت‌سنجی با فاکتور) — نه مبنای هزینهٔ قطعی */
+    var priceCost = 0, priceCount = 0, priceUnmatched = 0;
     getData('ptf_crm_buycmp').forEach(function (c2) {
       if (c2.inqNo !== prj.inqNo && c2.inqNo !== prj.offerNo) return;
       (c2.purchases || []).forEach(function (pu) {
         var link = (typeof window.ptfResolveItemForPurchase === 'function') ? window.ptfResolveItemForPurchase(c2, pu) : { ok: false, reason: 'resolver' };
-        if (!link.ok) {
-          res.complete = false;
-          res.buyUnmatched.push({ nm: pu.item || pu.nm || '', price: +pu.price || 0, cur: pu.cur || 'IRR', reason: link.reason });
-          return;
-        }
-        var it = link.item || {};
-        var qty = +it.qty || 1;
+        var qty = link && link.item ? (+link.item.qty || 1) : (+pu.qty || 1);
         var unit = +pu.price || 0;
-        var pCur = pu.cur || 'IRR';
-        if (pCur === 'IRR') { res.buyIrr += unit * qty; res.buyItems++; }
-        else if (+pu.rate > 0) { res.buyIrr += unit * (+pu.rate) * qty; res.buyItems++; } /* حالت ③: ارز آزاد × نرخ پرداخت */
-        else {
-          res.complete = false;
-          res.buyPendingFx.push({ nm: it.nm || it.name || '', fx: unit * qty, cur: pCur });
-        }
+        var lineCost = unit * qty;
+        if (pu.cur && pu.cur !== 'IRR' && +pu.rate > 0) lineCost = unit * (+pu.rate) * qty;
+        if (lineCost > 0) { priceCost += lineCost; priceCount++; if (!link.ok) priceUnmatched++; }
       });
     });
-    /* مسیر قدیمی buyquotes فقط اگر هیچ خریدی از جدول مقایسه و بدون تطبیق نبود */
-    if (!res.buyItems && !res.buyPendingFx.length && !res.buyUnmatched.length) {
-      getData('ptf_crm_buyquotes').forEach(function (b) {
-        if (b.ref === prj.inqNo && b.note && b.note.indexOf('خرید نهایی') > -1) { res.buyIrr += +b.price || 0; res.buyItems++; }
-      });
-    }
-    if (res.buyPendingFx.length) {
-      var pf = res.buyPendingFx.map(function (x) { return x.nm + ' (' + x.fx.toLocaleString('en-US') + ' ' + x.cur + ')'; }).join('، ');
-      res.warnings.push('⛔ ' + res.buyPendingFx.length + ' خرید ارزی «بدون نرخ پرداخت ریالی» است: ' + pf + ' — تا ثبت نرخ، این اقلام در هزینه لحاظ نمی‌شوند و سود نمایشی بیش‌برآورد است. (قیمت‌های خرید → ثبت مجدد خرید با نرخ)');
-    }
-    if (res.buyUnmatched.length) {
-      res.warnings.push('⛔ ' + res.buyUnmatched.length + ' خرید واقعی به قلم CO تطبیق قطعی ندارد و عمداً در هزینه/سود وارد نشد — provenance یا کد کالای خرید را تکمیل کنید.');
+    if (invMatched > 0) {
+      /* مبنای هزینه = فاکتور خرید (قطعی) */
+      res.buyIrr = invCost; res.buyItems = invCount; res.buySrc = 'فاکتور خرید تأمین‌کننده (' + invCount + ' فاکتور)';
+      if (priceCount > 0 && Math.abs(priceCost - invCost) > 1) {
+        res.warnings.push('⚠️ [کنترل صحت] مجموع قیمت‌های خریدِ دستی پرونده (' + priceCost.toLocaleString('fa-IR') + ') با مجموع فاکتورهای خرید (' + invCost.toLocaleString('fa-IR') + ') مغایرت دارد — مبنای هزینه فاکتور خرید است و قیمت دستی فقط برای بررسی است (مغایرت مانع محاسبه نیست).');
+      }
+    } else {
+      /* مبنای هزینه باید فاکتور خرید باشد؛ بدون آن، هزینه قطعی نیست و سود اعلام نمی‌شود.
+         قیمت دستی (حتی با provenance) فقط کنترل است و جایگزین فاکتور خرید نیست. */
+      res.complete = false;
+      res.warnings.push('ℹ️ برای این پرونده فاکتور خریدِ لینک‌شده ثبت نشده — مبنای هزینه و تعهد، فاکتور خرید است؛ تا ثبت/لینک فاکتور خرید، سود این پرونده قطعی نیست.' + (priceCount ? ' (قیمت دستی ' + priceCost.toLocaleString('fa-IR') + ' ریال فقط برای کنترل است و مبنای هزینه نیست.)' : ''));
     }
 
     /* ---------- سود ---------- */

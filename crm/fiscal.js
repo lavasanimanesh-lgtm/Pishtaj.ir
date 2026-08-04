@@ -131,6 +131,31 @@
     });
     return out;
   }
+  /* ===== v34.0.8-alpha (فاز ۱ — فاکتور صوری/پوششی) =====
+     تعریف کارفرما: فاکتور صوری پوششی «خرید واقعی کالا نیست»؛ پس مبلغ اسمی آن نباید
+     هزینهٔ کامل شود. فقط «درصد کارمزد فاکتورساز» (مثلاً ۱.۵/۲/۳٪) هزینه است و در عوض
+     «اعتبار ارزش‌افزوده» (VAT) منفعت ایجاد می‌کند. یعنی اثر بر سود = اعتبار ارزش‌افزوده − کارمزد.
+     مثال: فاکتور ۱۰۰م با ۱۰م ارزش‌افزوده و کارمزد ۱.۵٪ → کارمزد ۱.۵م هزینه، اعتبار ۱۰م،
+     خالص منفعت ۸.۵م. این تابع فقط فاکتورهای پوششیِ همان سال را جمع می‌کند. */
+  function fiscalCoverTotals(year) {
+    var out = { count: 0, commission: 0, vat: 0, netBenefit: 0, rows: [] };
+    try {
+      var sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+      if (!sf || Array.isArray(sf)) sf = {};
+      var b = fiscalYearBoundsISO(year);
+      (sf.invoices || []).forEach(function (i) {
+        if (!i || i.status === 'void' || i.isCover !== true) return;
+        var iso = cashIsoOf(i.dateISO || i.date || i.t);
+        if (!cashInRange(iso, b.startISO, b.endISO)) return;
+        var base = (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
+        var comm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0) : Math.round(base * (+i.coverCommissionPct || 0) / 100);
+        var vat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0) : Math.round(base * (+i.coverVatPct || 0) / 100);
+        out.count++; out.commission += comm; out.vat += vat; out.netBenefit += (vat - comm);
+        if (out.rows.length < 12) out.rows.push({ no: i.no || '', supplierCd: i.supplierCd || '', base: base, commission: comm, vat: vat, netBenefit: vat - comm });
+      });
+    } catch (e) {}
+    return out;
+  }
 
   window.ptfFiscalData = function (year) {
     year = normFiscalYear(year);
@@ -178,7 +203,10 @@
     var amendments = snaps().filter(function (x) { return x.type === 'amendment' && String(x.effectYear) === String(year); });
     var amendTotal = amendments.reduce(function (z, x) { return z + (+x.amt || 0); }, 0);
     var pettyStandalone = fiscalPettyStandalone(year);
-    var net = projectProfit - (+ox.total || 0) - (+pettyStandalone.total || 0) + amendTotal; /* legacy UAT netProfit += amendTotal: var net = projectProfit - (+ox.total || 0) + amendTotal; */
+    /* v34.0.8-alpha (فاز ۱): منفعت خالص فاکتورهای صوری/پوششی (اعتبار ارزش‌افزوده − کارمزد) به سود اضافه می‌شود.
+       مبلغ اسمی فاکتور پوششی در projectProfit نیامده (خودش خرید نیست)؛ بنابراین افزودن اینجا دوباره‌شماری نمی‌سازد. */
+    var cover = fiscalCoverTotals(year);
+    var net = projectProfit - (+ox.total || 0) - (+pettyStandalone.total || 0) + amendTotal + (+cover.netBenefit || 0); /* legacy UAT netProfit += amendTotal: var net = projectProfit - (+ox.total || 0) + amendTotal; */
     /* Sprint 281: the official financial position is a read-only derived attachment.
        It is included only when its configured fiscal year matches this report, so
        an old selected year can never silently receive today's position. */
@@ -189,7 +217,7 @@
         if (fp && fp.cfg && String(fp.cfg.fiscalYear) === String(year)) financialPosition = fp;
       }
     } catch (eFP) {}
-    return { year: year, projects: rows, incomplete: incomplete, undated: cand.undated, invoiceUndated: invUndated, projectProfit: projectProfit, projectLossOnly: projectLossOnly, opexTotal: +ox.total || 0, opexByCat: ox.byCat || {}, pettyStandaloneTotal: +pettyStandalone.total || 0, pettyStandaloneCount: pettyStandalone.count || 0, pettyStandalonePending: +pettyStandalone.pending || 0, pettyStandalonePendingCount: pettyStandalone.pendingCount || 0, pettyStandaloneRows: pettyStandalone.rows || [], openReceivables: openTotal, openReceivablesTotal: openTotal, openReceivablesYear: openYear, amendments: amendments, amendTotal: amendTotal, netProfit: net, financialPosition: financialPosition };
+    return { year: year, projects: rows, incomplete: incomplete, undated: cand.undated, invoiceUndated: invUndated, projectProfit: projectProfit, projectLossOnly: projectLossOnly, opexTotal: +ox.total || 0, opexByCat: ox.byCat || {}, pettyStandaloneTotal: +pettyStandalone.total || 0, pettyStandaloneCount: pettyStandalone.count || 0, pettyStandalonePending: +pettyStandalone.pending || 0, pettyStandalonePendingCount: pettyStandalone.pendingCount || 0, pettyStandaloneRows: pettyStandalone.rows || [], coverCount: cover.count || 0, coverCommission: cover.commission || 0, coverVat: cover.vat || 0, coverNetBenefit: cover.netBenefit || 0, openReceivables: openTotal, openReceivablesTotal: openTotal, openReceivablesYear: openYear, amendments: amendments, amendTotal: amendTotal, netProfit: net, financialPosition: financialPosition };
   };
 
   window.ptfFiscalDistribution = function (year, distPct) {
@@ -278,7 +306,7 @@
       });
     });
     /* خروجی‌های دوره (بدون دوباره‌شماری) */
-    var out = { supplierInvoices: 0, unallocatedPayments: 0, independentCheques: 0, opex: +d.opexTotal || 0, petty: +d.pettyStandaloneTotal || 0 };
+    var out = { supplierInvoices: 0, unallocatedPayments: 0, independentCheques: 0, opex: +d.opexTotal || 0, petty: +d.pettyStandaloneTotal || 0, coverCommission: 0, coverVat: 0, coverNetBenefit: 0, coverCount: 0 };
     try {
       var sf = {};
       try { sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sf || Array.isArray(sf)) sf = {}; } catch (eS) {}
@@ -286,6 +314,15 @@
         if (!i || i.status === 'void') return;
         var iso = cashIsoOf(i.dateISO || i.date || i.t);
         if (!cashInRange(iso, start, end)) return;
+        /* v34.0.8-alpha (فاز ۱): فاکتور صوری/پوششی خرید واقعی نیست — مبلغ اسمی در خروجیِ نقدی
+           نمی‌آید؛ فقط «کارمزد» (هزینهٔ واقعیِ نقدی) خروجی است و اعتبار ارزش‌افزوده منفعتِ جدا. */
+        if (i.isCover === true) {
+          var cbase = (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
+          var ccomm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0) : Math.round(cbase * (+i.coverCommissionPct || 0) / 100);
+          var cvat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0) : Math.round(cbase * (+i.coverVatPct || 0) / 100);
+          out.coverCount++; out.coverCommission += ccomm; out.coverVat += cvat; out.coverNetBenefit += (cvat - ccomm);
+          return;
+        }
         out.supplierInvoices += (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
       });
       (getData('ptf_crm_payables') || []).forEach(function (p) {
@@ -322,10 +359,12 @@
         out.independentCheques += +c.amt || 0;
       });
     } catch (eC) {}
-    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty;
+    /* کارمزد فاکتور پوششی خروجیِ نقدی واقعی است (نقد پرداخت می‌شود)؛ اعتبار ارزش‌افزوده نقد نیست
+       و به موجودی/قابل تقسیم اضافه نمی‌شود — فقط در «منفعت» گزارش می‌شود. */
+    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty + out.coverCommission;
     var netCash = receipts - outflowsTotal;
     var cashEnd = openingCash + netCash;
-    return { year: year, openingCash: openingCash, receipts: receipts, pendingCheques: chqPending, outflows: out, outflowsTotal: outflowsTotal, netCash: netCash, cashEnd: cashEnd, floor: window.ptfFiscalCashFloor(year) };
+    return { year: year, openingCash: openingCash, receipts: receipts, pendingCheques: chqPending, outflows: out, outflowsTotal: outflowsTotal, netCash: netCash, cashEnd: cashEnd, floor: window.ptfFiscalCashFloor(year), coverCount: out.coverCount, coverCommission: out.coverCommission, coverVat: out.coverVat, coverNetBenefit: out.coverNetBenefit };
   };
   /* توزیع نقدی: مازاد بر کف → تقسیم (٪ توافقی) + بازگشت به کف */
   window.ptfFiscalCashDistribution = function (year, distPct) {
@@ -333,7 +372,9 @@
     var c = window.ptfFiscalCashData(year);
     /* v34.0.5-alpha (BUG-FISCAL-ADV-004 — درخواست کارفرما): برداشت‌های علی‌الحساب/بدهیِ همان سال
        (sharetx نوع draw/advance/debit با سال مالی جاری) باید از سهم سود هر سهامدار کسر شوند.
-       توجه: ثبت سود همچنان «ناخالص» است تا دفتر درست بماند؛ کسر در «ماندهٔ قابل تسویهٔ امسال» دیده می‌شود. */
+       توجه: ثبت سود همچنان «ناخالص» است تا دفتر درست بماند؛ کسر در «ماندهٔ قابل تسویهٔ امسال» دیده می‌شود.
+       v34.0.8-alpha (فاز ۲): نوع salary_payment عمداً اینجا نیست — حقوق «مطالبهٔ سهامدار» است نه
+       علی‌الحسابِ سود؛ پس پرداخت حقوق از سهم سود کسر نمی‌شود و ستون «ماندهٔ قابل تسویهٔ امسال» گمراه‌کننده نیست. */
     var advRows = [];
     try {
       advRows = (getData('ptf_crm_sharetx') || []).filter(function (x) {
@@ -438,7 +479,7 @@
       '<div class="sc ptf-fiscal-kpi"><b style="color:#059669">' + money(c.distributable) + '</b><span>قابل تقسیم (' + c.distPct + '٪)</span></div>' +
       '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + money(c.backToFloor) + '</b><span>بازگشت به کف (' + (100 - c.distPct) + '٪)</span></div>' +
       '</div>' +
-      '<div style="margin-top:8px;font-size:11.5px;color:#64748b;line-height:1.8">تفکیک خروجی‌ها: فاکتورهای خرید ' + money(c.outflows.supplierInvoices) + ' | پرداخت بدون تخصیص ' + money(c.outflows.unallocatedPayments) + ' | چک صادرهٔ مستقل ' + money(c.outflows.independentCheques) + ' | هزینه‌های جاری ' + money(c.outflows.opex) + ' | تنخواه مستقل ' + money(c.outflows.petty) + '</div>' +
+      '<div style="margin-top:8px;font-size:11.5px;color:#64748b;line-height:1.8">تفکیک خروجی‌ها: فاکتورهای خرید ' + money(c.outflows.supplierInvoices) + ' | کارمزد پوششی ' + money(c.outflows.coverCommission || 0) + ' | پرداخت بدون تخصیص ' + money(c.outflows.unallocatedPayments) + ' | چک صادرهٔ مستقل ' + money(c.outflows.independentCheques) + ' | هزینه‌های جاری ' + money(c.outflows.opex) + ' | تنخواه مستقل ' + money(c.outflows.petty) + (c.outflows.coverVat ? ' | اعتبار ارزش‌افزودهٔ پوششی (منفعت): ' + money(c.outflows.coverVat) : '') + '</div>' +
       '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم ناخالص</th><th>علی‌الحساب/بدهی سال</th><th>مانده قابل تسویهٔ امسال</th><th>مانده جاری</th><th>نتیجه پس از تقسیم</th></tr></thead><tbody>' + (cashShRows || '<tr><td colspan="7">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>' +
       (c.advYearTotal ? '<div style="margin-top:6px;font-size:11.5px;color:#7c3aed">ℹ️ جمع برداشت‌های علی‌الحساب/بدهیِ سال ' + escP(String(year)) + ': ' + money(c.advYearTotal) + ' — هنگام تسویه از سهم ناخالص هر سهامدار کسر می‌شود (ستون «مانده قابل تسویهٔ امسال»).</div>' : '') +
       '</div>';
@@ -595,7 +636,9 @@
       '<h3>درآمد و خروجی نقدی سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>بخش</th><th>مبلغ (ریال)</th></tr></thead><tbody>' +
       tr(['درآمد نقدی (وصولی‌ها — نقد + چک وصول‌شده)', d.receipts]) +
       tr(['چک وارده وصول‌نشده (درآمد نیست)', d.pendingCheques]) +
-      tr(['فاکتورهای خرید تأمین‌کننده', d.outflows.supplierInvoices]) +
+      tr(['فاکتورهای خرید تأمین‌کننده (واقعی)', d.outflows.supplierInvoices]) +
+      tr(['کارمزد فاکتورهای صوری/پوششی (هزینهٔ نقدی)', d.outflows.coverCommission || 0]) +
+      tr(['اعتبار ارزش‌افزودهٔ فاکتورهای پوششی (منفعت — نقد نیست)', d.outflows.coverVat || 0]) +
       tr(['پرداخت بدون تخصیص (مسائل دیگر)', d.outflows.unallocatedPayments]) +
       tr(['چک صادرهٔ مستقل (بابت مسائل دیگر)', d.outflows.independentCheques]) +
       tr(['هزینه‌های جاری سال', d.outflows.opex]) +
@@ -702,7 +745,9 @@
     rows.push(['بخش', 'مبلغ (ریال)']);
     rows.push(['درآمد نقدی (وصولی‌های سال — نقد + چک وصول‌شده)', d.receipts]);
     rows.push(['چک وارده وصول‌نشده (درآمد نیست)', d.pendingCheques]);
-    rows.push(['فاکتورهای خرید تأمین‌کننده', d.outflows.supplierInvoices]);
+    rows.push(['فاکتورهای خرید تأمین‌کننده (واقعی)', d.outflows.supplierInvoices]);
+    rows.push(['کارمزد فاکتورهای صوری/پوششی (هزینهٔ نقدی)', d.outflows.coverCommission || 0]);
+    rows.push(['اعتبار ارزش‌افزودهٔ فاکتورهای پوششی (منفعت)', d.outflows.coverVat || 0]);
     rows.push(['پرداخت بدون تخصیص (مسائل دیگر)', d.outflows.unallocatedPayments]);
     rows.push(['چک صادرهٔ مستقل (بابت مسائل دیگر)', d.outflows.independentCheques]);
     rows.push(['هزینه‌های جاری سال', d.outflows.opex]);

@@ -44,11 +44,15 @@
         if (i.amountIrr && Math.abs((+i.amountIrr || 0) - legacyTotal) > 1) by[c].warn++;
       }
     });
+    /* v34.0.8-alpha (فاز ۳ — مورد B تأییدشده): گردش حساب تأمین‌کننده فقط بر «فاکتور خرید + ماندهٔ
+       باقیماندهٔ همان» استوار است؛ «تعهد خرید legacy» دیگر در مانده‌ٔ بدهی اضافه نمی‌شود (چون خریدِ
+       تعهدی بی‌معناست). فقط به‌عنوان شمارشِ اطلاع‌رسانی (legacy count) دیده می‌شود تا کاربر بداند
+       تعهدِ بازِ لینک‌نشده هست، ولی در مبلغ گردش/بدهی اثر نمی‌گذارد. */
     legacyOpen(sup || { co: name }).forEach(function (p) {
       if (linked[p.cd]) return;
-      var c = p.cur || 'IRR', r = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : Math.max(0, (+p.amount || 0) - (p.paid || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0))
+      var c = p.cur || 'IRR';
       if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0, credit: 0 };
-      by[c].amount += r; by[c].irr += c === 'IRR' ? r : r * (+p.rate || 0); by[c].legacy++;
+      by[c].legacy++;
     });
     (d.adjustments || []).filter(function (a) { return a.status !== 'void' && a.supplierCd === supCd; }).forEach(function (a) { var c=a.cur||'IRR'; if(!by[c]) by[c]={cur:c,amount:0,irr:0,invoices:0,legacy:0,warn:0,credit:0}; by[c].amount += (+a.amount||0); by[c].irr += c==='IRR'?(+a.amount||0):(+a.amount||0)*(+a.rate||0); });
     (d.payments || []).filter(function (p) { return p.status !== 'void' && p.supplierCd === supCd; }).forEach(function (p) {
