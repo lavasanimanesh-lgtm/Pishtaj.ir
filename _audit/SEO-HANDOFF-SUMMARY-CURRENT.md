@@ -230,3 +230,10 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `deaerator-feedwater-system.html` — دی‌اریاتور و سیستم آب تغذیه بویلر — تصویر `deaerator-feedwater-system-realistic.jpg` — حدود ۱۵۷۱ کلمه
 
 هاب محصولات اکنون ۶۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۹ (۲۰۲۶-۰۸-۰۴)
+دو صفحه محصول تجهیزات دوار با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `reciprocating-compressor.html` — کمپرسور رفت‌وبرگشتی API 618 — تصویر `reciprocating-compressor-api618-realistic.jpg` — حدود ۱۶۲۷ کلمه
+- `ansi-process-pump.html` — پمپ ANSI Process مطابق ASME B73.1 — تصویر `ansi-process-pump-b731-realistic.jpg` — حدود ۱۶۲۴ کلمه
+
+هاب محصولات اکنون ۶۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۲ URL عمومی دارد.
