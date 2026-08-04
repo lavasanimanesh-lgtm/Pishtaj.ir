@@ -2385,6 +2385,15 @@ function offerSave() {
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
   setData('ptf_crm_offers', offers);
+  /* v34.0.20-alpha (فاز ۱۷): اطلاع‌رسانی پیامکی به مشتری هنگام صدور پیشنهاد مالی —
+     با ذکر شمارهٔ درخواست مشتری (o.inqNo) و شمارهٔ پیشنهاد (o.no). */
+  try {
+    if (typeof window.ptfSmsCustomer === 'function' && o.buyerCd) {
+      var _inqRef = (o.inqNo || '') ? (' درخواست شمارهٔ ' + o.inqNo) : '';
+      var _smsTxt = 'پیشرو تجهیز فرتاک\nپیشنهاد مالی ' + (o.kind || '') + ' ' + (o.no || '') + ' برای شما' + _inqRef + ' صادر شد.\nبرای بررسی از وب‌سایت یا تماس با کارشناس استفاده کنید.\n021-46087679';
+      window.ptfSmsCustomer(o.buyerCd, _smsTxt, null);
+    }
+  } catch (eSms) {}
   try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
   hideModal(); renderOffers();
   var _editLbl = idx > -1 ? (madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';

@@ -1020,6 +1020,14 @@
     notify({ toRoles: SALES_ROLES, title: '📋 استعلام سایت «' + code + '» (' + r.company + ') تایید و وارد چرخه شد' + (cust ? ' — مشتری: ' + cust.cd : ''), kind: 'rfq_ok', channels: ['cart'], link: { panel: 'rfq' } });
     renderRfq();
     updateInboxBadge();
+    /* v34.0.20-alpha (فاز ۱۷): اطلاع‌رسانی پیامکی «ثبت درخواست» به مشتری — با ذکر شمارهٔ درخواست */
+    try {
+      var _rfqMob = (typeof normMob === 'function') ? normMob(r.phone || '') : String(r.phone || '').replace(/\D/g, '');
+      if (_rfqMob && typeof smsSendSingle === 'function') {
+        smsSendSingle(_rfqMob, 'پیشرو تجهیز فرتاک\nدرخواست شما با شمارهٔ ' + (code || '') + ' ثبت و در حال بررسی فنی و تامین است.\n021-46087679', null);
+        if (typeof addLog === 'function') try { addLog('📱 پیامک ثبت درخواست به ' + (r.company || '') + ' (' + _rfqMob + ') ارسال شد'); } catch (eS2) {}
+      }
+    } catch (eSms) {}
     if (cust) alert('✅ درخواست تایید شد.\n\n🏢 مشتری «' + cust.co + '» (' + cust.cd + ')' + (cust.srcSite === code ? ' به‌صورت خودکار ساخته' : ' متصل') + ' شد — همه اطلاعات فرم سایت (رابط/تلفن/ایمیل/شرح/استاندارد/برندها' + (r.attachment ? '/پیوست' : '') + ') روی رکوردها نشست.');
   };
 
