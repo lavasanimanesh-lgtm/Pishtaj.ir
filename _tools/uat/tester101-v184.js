@@ -7,13 +7,13 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v18.4+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.4;})());
+T('نسخه v34+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)(?:-[a-z0-9.]+)?'/);return m&&parseFloat(m[1])>=34;})()); /* v34.0.4-alpha: طرح نسخه‌گذاری -alpha — قبلی با ' پایانی regex نمی‌خواند */
 T('کش sw >= v18.4', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=18.4;})());
 T('cache-bust fiscal >= v18.4', (function(){var m=idx.match(/fiscal\.js\?v=([0-9.]+)/);return m&&parseFloat(m[1])>=18.4;})());
 
 SECTION('BUG-024 محرمانگی');
 T('fiscalHtml برای نقش غیرمجاز خروجی خالی می‌دهد', fc.indexOf("if (!canFiscal()) return ''")>-1);
-T('render/print/lock guard دارند', fc.indexOf('window.ptfFiscalRender = function () { if (!canFiscal()) return;')>-1 && fc.indexOf("window.ptfFiscalPrint = function () {\n    if (!canFiscal())")>-1 && fc.indexOf("if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره'); return; }")>-1);
+T('render/print/lock guard دارند', fc.indexOf('window.ptfFiscalRender = function () { if (!canFiscal()) return;')>-1 && fc.indexOf("window.ptfFiscalPrint = function () {\n    if (!canFiscal())")>-1 && fc.indexOf("if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }")>-1); /* v34.0.4-alpha: متن نقش ۴گانهٔ مصوب v14.9 (US-383) */
 T('hook buildPetty فقط fiscalHtml را append می‌کند (پس نقش غیرمجاز چیزی نمی‌بیند)', fc.indexOf('return _bp() + fiscalHtml();')>-1);
 
 SECTION('BUG-025 سال مالی/مطالبات');
@@ -62,6 +62,24 @@ T('فقط پروژه سال ۱۴۰۵ وارد سود می‌شود', d.projects.
 T('پروژه بی‌تاریخ جدا می‌شود و سال قبل وارد نمی‌شود', d.undated.length===1 && d.undated[0].no==='P-NODATE');
 T('مطالبات باز: کل=4100، سال=600، فاکتور بی‌تاریخ جدا', d.openReceivablesTotal===4100 && d.openReceivablesYear===600 && d.invoiceUndated.length===1);
 ptfFiscalPrint();
-T('role=chairman گزارش رسمی با منبع اعداد می‌بیند', global._modal.indexOf('گزارش رسمی سال مالی')>-1 && global._modal.indexOf('منبع سود پروژه‌ها')>-1 && global._modal.indexOf('کاربرگ تقسیم سود')>-1);
+T('role=chairman گزارش رسمی (نقدی v33.11) با منبع اعداد می‌بیند', global._modal.indexOf('گزارش رسمی سال مالی')>-1 && global._modal.indexOf('درآمد و خروجی نقدی سال')>-1 && global._modal.indexOf('کاربرگ تقسیم سود')>-1); /* v34.0.4-alpha: v33.11 گزارش نقدی — جدول تعهدی «منبع سود پروژه‌ها» دیگر در چاپ نیست */
+
+SECTION('v34.0.4-alpha: بازگردانی توابع حذف‌شده (رگرسیون BUG-FISCAL-LOST-UI)');
+T('ptfFiscalLock تعریف شده', typeof window.ptfFiscalLock === 'function');
+T('ptfFiscalRender تعریف شده', typeof window.ptfFiscalRender === 'function');
+T('ptfFiscalSnapshotOpen تعریف شده', typeof window.ptfFiscalSnapshotOpen === 'function');
+T('کد مرده قفل بعد از return باقی نمانده', fc.indexOf("'<\/div>';\n    if ((d.incomplete.length")===-1);
+
+global._role='chairman'; global._alerts=[];
+setData('ptf_crm_fiscal_snapshots', []);
+ptfFiscalLock();
+var _snaps = getData('ptf_crm_fiscal_snapshots');
+T('قفل سال snapshot منجمد می‌سازد (locked + data)', _snaps.length===1 && _snaps[0].locked===true && !!_snaps[0].data && _snaps[0].data.receipts!=null);
+ptfFiscalLock();
+T('دوباره‌قفل ممنوع است', getData('ptf_crm_fiscal_snapshots').length===1 && global._alerts.some(function(a){return a.indexOf('قبلاً قفل')>-1;}));
+global._role='sales'; global._alerts=[];
+setData('ptf_crm_fiscal_snapshots', []);
+ptfFiscalLock();
+T('role=sales نمی‌تواند قفل کند', getData('ptf_crm_fiscal_snapshots').length===0 && global._alerts.some(function(a){return a.indexOf('فقط ادمین')>-1;}));
 
 DONE('tester101-v184');

@@ -8,7 +8,7 @@
 </IfModule>
 
 <FilesMatch "\.(?:php|json|log|txt)$">
-  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm)\.php$#">
+  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm|attachment-thumb)\.php$#">
     Require all granted
   </If>
   <Else>

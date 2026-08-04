@@ -97,6 +97,19 @@
     if (typeof ptfToast === 'function') ptfToast('🏆 چک ضمانت مسترد شد', 'ok');
     window.ptfChequePanelRender();
   };
+  /* ===== v34.0.4-alpha (BUG-CHEQUE-CLEAR-UI-001): دکمهٔ «✔ وصول» چک صادرهٔ عادی در هاب مالی
+     ptfChequeClearIssuedUi را صدا می‌زد که هیچ‌جا تعریف نشده بود → ReferenceError. ===== */
+  window.ptfChequeClearIssuedUi = function (cd) {
+    var c = window.ptfChequeFind(cd);
+    if (!c) return;
+    if (c.kind === 'guarantee') return; /* ضمانت مسیر «استرداد» دارد */
+    if (!confirm('وصول چک «' + (c.sayad || c.no || cd) + '» به مبلغ ' + money(c.amt) + ' ریال ثبت شود؟\nوضعیت چک «پاس‌شده» می‌شود و اثر مالیِ معوقش (در صورت وجود) اعمال می‌گردد.')) return;
+    var r = window.ptfChequeClearIssued(cd, 'وصول از پنل مالی');
+    if (!r.ok) { alert('وصول ممکن نشد (' + (r.why || 'خطا') + ').'); return; }
+    try { audit('چک‌ها', 'وصول چک صادره ' + (c.sayad || c.no || '') + ' — مبلغ ' + money(c.amt), cd); } catch (eA) {}
+    if (typeof ptfToast === 'function') ptfToast('✔ چک پاس/وصول شد', 'ok');
+    window.ptfChequePanelRender();
+  };
   function receivedActs(c) {
     var acts = '';
     if (c.st === 'open' || c.st === 'held') {

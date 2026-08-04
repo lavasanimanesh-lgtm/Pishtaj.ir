@@ -436,7 +436,7 @@
     /* v33.11.0 (بازخورد کارفرما): جدول/کارت‌های سود تعهدی قبلی (که اعداد را ناسازگار با
        منطق نقدی نشان می‌دادند) به‌طور کامل حذف شدند — فقط «سود نقدی و تقسیم» نمایش داده می‌شود. */
     return '<div id="fiscalBox" class="ptf-fiscal-shell" style="background:#f8fafc;border:1px solid var(--brd);border-radius:16px;padding:12px 14px;margin:12px 0">' +
-      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><b class="ptf-fiscal-title" style="font-size:14px;color:#0f172a">' + fiscalIcon('calendar') + ' داشبورد سال مالی و تقسیم سود</b><br><small style="color:#64748b">محرمانه — فقط مدیران ارشد (ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی). مبنای محاسبه: منطق نقدی (وصولی‌ها − خروجی‌ها) و کف نقدینگی در گردش.</small></div>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><b class="ptf-fiscal-title" style="font-size:14px;color:#0f172a">' + fiscalIcon('calendar') + ' داشبورد سال مالی و تقسیم سود</b><br><small style="color:#64748b">محرمانه — فقط مدیران ارشد (ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی). مبنای محاسبه: منطق نقدی (وصولی‌ها − خروجی‌ها) و کف نقدینگی در گردش. قاعده سال: تاریخ مختومه/برد/ثبت سند.</small></div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
       '<input value="' + escP(year) + '" onchange="window._fiscalYear=this.value.trim();ptfFiscalRender()" style="width:76px;padding:7px;border:1px solid var(--brd);border-radius:9px;direction:ltr">' +
       '<input value="' + escP(distPct) + '" onchange="window._fiscalDistPct=this.value.trim();ptfFiscalRender()" title="درصد تقسیم سود" style="width:62px;padding:7px;border:1px solid var(--brd);border-radius:9px;direction:ltr">' +
@@ -447,10 +447,49 @@
       '</div></div>' + lockBox + unlockHistoryBox + cashBlock + incHtml +
       ((d.amendments || []).length ? '<div class="ptf-fiscal-alert ptf-fiscal-alert-lock" style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 12px;margin:10px 0;font-size:12px;color:#5b21b6"><b>سندهای اصلاحی موثر بر سال ' + escP(String(d.year)) + ':</b><br>' + d.amendments.map(function (a) { return '• <b>' + escP(a.cd) + '</b> (مرجع: سال قفل‌شده ' + escP(a.refYear) + ') — ' + (a.amt >= 0 ? '➕' : '➖') + ' ' + money(Math.abs(a.amt)) + ' — ' + escP(a.desc) + ' <small style="color:#94a3b8">(' + escP(a.t || '') + ' — ' + escP(a.by || '') + ')</small>'; }).join('<br>') + '</div>' : '') +
       '</div>';
-    if ((d.incomplete.length || d.undated.length || d.invoiceUndated.length) && !confirm('⚠️ ' + (d.incomplete.length + d.undated.length + d.invoiceUndated.length) + ' مورد ناقص/بی‌تاریخ وجود دارد و در سود لحاظ نشده است. با این وجود snapshot سال قفل شود؟')) return;
+  };
+
+  /* ===== v34.0.4-alpha (BUG-FISCAL-LOST-UI-001/002/004) بازگردانی توابع حذف‌شدهٔ داشبورد سال مالی =====
+     ریشه: در refactor v33.10/33.11 (حذف جدول سود تعهدی)، بدنهٔ ptfFiscalRender/ptfFiscalLock/ptfFiscalSnapshotOpen
+     حذف شد (کد قفل به‌صورت مرده بعد از return در fiscalHtml مانده بود) ولی دکمه‌های UI هنوز همان‌ها را
+     صدا می‌زدند → ReferenceError: قفل سال غیرممکن، تغییر سال/درصد رفرش نمی‌شد، و دکمهٔ «اسنپ‌شات و ترازنامه»
+     گزارش جامع بی‌صدا کاری نمی‌کرد. tester101 این رگرسیون را ثبت کرده بود. */
+  window.ptfFiscalRender = function () { if (!canFiscal()) return; var box = document.getElementById('fiscalBox'); if (box) box.outerHTML = fiscalHtml(); };
+
+  /* قفل سال مالی: snapshot منجمد (تعهدی + نقدی — الگوی ptfFiscalCsv) + حفاظ دوباره‌قفل + تأیید موارد ناقص */
+  window.ptfFiscalLock = function () {
+    if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }
+    var year = String(window._fiscalYear || yearNow());
+    if (findLocked(year)) { alert('سال ' + year + ' قبلاً قفل شده است («بازکردن قفل» فقط برای رییس هیات مدیره و با ثبت دلیل ممکن است).'); return; }
+    var distPct = window._fiscalDistPct == null ? 60 : window._fiscalDistPct;
+    var d = ptfFiscalDistribution(year, distPct);
+    var c = window.ptfFiscalCashDistribution(year, distPct);
+    var incN = d.incomplete.length + d.undated.length + d.invoiceUndated.length;
+    if (incN && !confirm('⚠️ ' + incN + ' مورد ناقص/بی‌تاریخ وجود دارد و در سود لحاظ نشده است. با این وجود snapshot سال قفل شود؟')) return;
     var nowLock = faDateTime(), nowLockIso = fiscalNowIso();
-    var rec = { cd: genCode('FSY'), year: String(year), locked: true, t: nowLock, lockedAt: nowLock, lockStateAtISO: nowLockIso, ts: nowLockIso, by: (curSession() || {}).name || '', data: d };
-    var a = snaps(); a.unshift(rec); saveSnaps(a); audit('سال مالی', 'قفل snapshot سال ' + year + ' — سود خالص ' + money(d.netProfit), rec.cd); if (typeof ptfToast === 'function') ptfToast('سال مالی قفل شد', 'ok'); ptfFiscalRender();
+    var frozen = Object.assign({}, d, c, { distPct: (c && c.distPct != null) ? c.distPct : distPct });
+    var rec = { cd: genCode('FSY'), year: year, locked: true, t: nowLock, lockedAt: nowLock, lockStateAtISO: nowLockIso, ts: nowLockIso, by: (curSession() || {}).name || '', data: frozen };
+    var a = snaps(); a.unshift(rec); saveSnaps(a);
+    audit('سال مالی', 'قفل snapshot سال ' + year + ' — سود خالص ' + money(d.netProfit), rec.cd);
+    if (typeof ptfToast === 'function') ptfToast('سال مالی قفل شد', 'ok');
+    ptfFiscalRender();
+  };
+
+  /* فهرست snapshotها و اسناد سال مالی (فقط‌خواندنی) + چاپ از دادهٔ منجمد */
+  window.ptfFiscalSnapshotOpen = function () {
+    if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }
+    var list = snaps();
+    var rows = list.map(function (s) {
+      var kindLb = s.type === 'dividend' ? '💰 تقسیم سود' : s.type === 'amendment' ? '🧾 سند اصلاحی' : (s.locked === true ? '🔒 قفل سال' : '📄 snapshot');
+      var prnt = (s.data && typeof window.ptfFiscalSnapPrint === 'function') ? '<button class="bt bt-o" style="font-size:11px;color:#5b21b6;border-color:#ddd6fe" onclick="ptfFiscalSnapPrint(\'' + escP(s.cd) + '\')">🖨 چاپ</button>' : '<span style="color:#94a3b8;font-size:11px">—</span>';
+      return '<tr><td><b>' + escP(s.cd) + '</b></td><td>' + escP(kindLb) + '</td><td>' + escP(s.year || s.refYear || '—') + '</td><td>' + escP(s.lockedAt || s.t || '—') + '</td><td>' + escP(s.by || '—') + '</td><td>' + prnt + '</td></tr>';
+    }).join('');
+    var html = '<div class="md-b" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:90vh;overflow:auto">' +
+      '<h3>🔒 اسنپ‌شات‌ها و اسناد سال مالی</h3>' +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.8">snapshot قفل‌شده هرگز ویرایش/حذف نمی‌شود؛ اصلاحات بعدی فقط با «سند اصلاحی» اثر می‌گذارند و چاپ هر snapshot از <b>دادهٔ منجمد همان لحظه</b> انجام می‌شود.</div>' +
+      '<div class="tb2"><table><thead><tr><th>شناسه</th><th>نوع</th><th>سال</th><th>تاریخ</th><th>توسط</th><th>چاپ</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">هنوز snapshot یا سندی ثبت نشده — ابتدا از «داشبورد سال مالی» (هاب مالی) سال را قفل کنید.</td></tr>') + '</tbody></table></div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
   /* Sprint 283: audited fiscal unlock — does not delete or rewrite the snapshot.
      It only changes the active lock flag and is intentionally chairman-only. */

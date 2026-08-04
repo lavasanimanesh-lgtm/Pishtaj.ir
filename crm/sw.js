@@ -1,9 +1,11 @@
 /* PTF CRM — Service Worker (US-112) — Sprint 69 */
-var CACHE = 'ptf-crm-v34.0.3-alpha';
+var CACHE = 'ptf-crm-v34.0.4-alpha';
 var SHELL = [
   './index.html',
   './codegen.js', './surplus.js', './sortable.js', './offers.js', './leads.js', './rbac.js', './storage.js', './projects.js',
   './letters.js', './draftx.js', './analyzer.js', './contracts.js', './shell.js', './bridge.js', './reports.js', './backup.js', './sms.js', './rfqsmart.js', './cms.js', './ui-kit.js', './moneyx.js', './finance-helpers.js', './finance-core.js', './date-kit.js', './dedup.js', './perms.js', './petty.js', './opex.js', './shareholders.js', './theme.js', './archive.js', './offers-pro.js', './buycompare.js', './procurement-link.js', './listtools.js', './icons.js', './guards.js', './tables.js', './inqreader.js', './offerlock.js', './workflow.js', './fx.js', './modalx.js', './iconx.js', './salesfiles.js', './docsx.js', './oppo.js', './cheque-module.js', './cheque-panel.js', './cheque-print.js', './cheques.js', './messengers.js', './phonefmt.js', './tour.js', './golive.js', './custmerge.js', './listclean.js', './insights.js', './myday.js', './lossguard.js', './fiscal.js', './financehub.js', './data-quality.js', './official-ledger.js', './ledger-report.js', './dialogx.js', './kanban.js', './supspec.js', './scoring.js', './supplier-finance.js', './customer-finance.js', './working-capital.js', './commission.js', './my-customers-filter.js', './ai-workbench.js', './mobilenav.js', './launcher.js', './theme-contrast.js', './sync.js', './xlsx.min.js',
+  /* v34.0.4-alpha: تکمیل precache — این ۷ اسکریپت در index.html لود می‌شوند ولی در SHELL نبودند */
+  './client-server.js', './settings-accordion.js', './storage-quota.js', './tool-feedback.js', './tool-licenses.js', './tool-report-drafts.js', './unofficial-invoice.js',
   './manifest.json',
   '../assets/images/favicon/favicon-192.png',
   '../assets/images/favicon/favicon-512.png',

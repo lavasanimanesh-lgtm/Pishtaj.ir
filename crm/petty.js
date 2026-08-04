@@ -980,7 +980,7 @@
       var kind = window.ptfPettyFileKind(f.name || f.key || '');
       if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
       try {
-        fetch('api/attachment-thumb.php', {
+        fetch('../api/attachment-thumb.php', { /* v34.0.4-alpha (BUG-PETTY-THUMB-PATH-001): بدون ../ از زیر /crm/ نسبی می‌شد و 404 می‌گرفت */
           method: 'POST', headers: ptfStorageAuthHeaders(true),
           body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 }),
           /* v2: timeout 30 ثانیه — اگر سرور کند بود، ادامه دهیم */

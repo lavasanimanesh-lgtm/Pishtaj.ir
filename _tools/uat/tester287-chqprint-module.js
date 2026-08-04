@@ -172,6 +172,6 @@ T('ثبت چک همچنان فقط از هاب مالی (پیام راهنما �
    v33.19.0: به‌جای نسخهٔ ثابتِ پین‌شده، VER از index.html خوانده می‌شود و دو فایل دیگر با آن الگو می‌شوند —
    تا در بامپ‌های بعدی فقط با نام‌همگامی واقعی (نه تغییر نسخه) شکست بخورد. */
 var _verCur = (idx.match(/window\.VER = '([^']+)'/) || [null, ''])[1];
-T('نسخه در index/sw/clear-cache همگام است (' + _verCur + ')', !!_verCur && _verCur.indexOf('v33.') === 0 && sw.indexOf('ptf-crm-' + _verCur) > -1 && fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = '" + _verCur + "'") > -1);
+T('نسخه در index/sw/clear-cache همگام است (' + _verCur + ')', !!_verCur && /^v\d+\./.test(_verCur) /* v34.0.4-alpha: پیشوند ثابت v33. با طرح نسخهٔ جاری ناسازگار بود — طبق کامنت خود تست، فقط نام‌همگانی مهم است */ && sw.indexOf('ptf-crm-' + _verCur) > -1 && fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = '" + _verCur + "'") > -1);
 
 DONE('tester287-chqprint-module');
