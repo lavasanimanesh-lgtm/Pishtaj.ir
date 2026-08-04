@@ -42,7 +42,7 @@
   }
   window.ptfFiscalYearOf = fiscalYearOf;
   function yearOf(s) { return fiscalYearOf(s); }
-  function lossTotal(o) { return (typeof ptfProjectLossTotal === 'function') ? ptfProjectLossTotal(o) : ((o && o.lossEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0)); }
+  function lossTotal(o) { return (typeof ptfProjectLossTotal === 'function') ? ptfProjectLossTotal(o) : ((o && o.lossEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0)) }
   function hasHardWarning(r) { return (r.warnings || []).some(function (w) { return /^[⛔⚠️]/.test(String(w)); }); }
   function srcDate(o) { return o.closedAt || o.t || o.wonAt || o.createdAt || o.iso || o.date || ''; }
   function invDate(inv) { return inv.t || inv.date || inv.createdAt || inv.iso || inv.issueDate || ''; }
@@ -77,7 +77,9 @@
     var d = findDealForFiscal(p);
     var dealCosts = costSum(d && d.costEvents);
     var projectCosts = costSum(p && p.costEvents) + costSum(p && p.postArchiveCosts);
-    return Math.max(dealCosts, projectCosts);
+    /* P0-3 FIX: قبلاً Math.max بود که هزینه‌های کوچک‌تر را نادیده می‌گرفت.
+       هزینه‌های پرونده و پروژه باید جمع شوند (هر دو منبع هزینه هستند، نه جایگزین). */
+    return (dealCosts || 0) + (projectCosts || 0);
   }
   function fiscalPettyStandalone(year) {
     var out = { total: 0, count: 0, pending: 0, pendingCount: 0, rows: [] };
@@ -126,7 +128,7 @@
     var openTotal = 0, openYear = 0, invUndated = [];
     getData('ptf_crm_invoices').forEach(function (inv) {
       if (inv.status === 'void' || inv.st === 'void' || inv.void === true) return;
-      var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
+      var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (z, p) { return z + (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amt || 0)); }, 0);
       var rem = Math.max(0, (+inv.amount || 0) - paid);
       if (!rem) return;
       openTotal += rem;
@@ -229,7 +231,7 @@
     } catch (eR) {}
     (getData('ptf_crm_invoices') || []).forEach(function (inv) {
       if (!inv || inv.status === 'void' || inv.st === 'void' || inv.void === true) return;
-      (inv.payments || []).concat(inv.pays || []).forEach(function (p) {
+      (inv.payments || []).concat(inv.pays || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true}).forEach(function (p) {
         if (!p || p.status === 'void') return;
         var amt = +p.amt || +p.amount || 0; if (!amt) return;
         var iso = cashIsoOf(p.dateISO || p.date || p.t || p.paidAt || inv.t);

@@ -1154,7 +1154,7 @@ window.ptfCustOpenBalance = function (custCd) {
   var open = 0, cnt = 0;
   invs.forEach(function (inv) {
     if (!myCOs[inv.offerNo]) return;
-    var payRows = (inv.payments || []).concat(inv.pays || []);
+    var payRows = (inv.payments || []).concat(inv.pays || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true});
     var paid = payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
     var remain = Math.max(0, (+inv.amount || 0) - paid);
     if (remain > 0) { open += remain; cnt++; }

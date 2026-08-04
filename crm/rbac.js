@@ -622,7 +622,7 @@ function renderInvoices() {
   refd.forEach(function (o) {
     var inv = invs.filter(function (i) { return i.offerNo === o.no; })[0];
     var total = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
-    var invPaidSum = inv ? ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0) : 0;
+    var invPaidSum = inv ? (window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0)) : 0;
     h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
       '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
       '<div style="font-size:13px"><b>' + escP(o.no) + '</b> — ' + escP(o.buyerCo || '-') +
@@ -949,7 +949,7 @@ function savePay(invCd) {
   if (!inv) return;
   var invYear = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(inv.invDate || inv.dateISO || inv.t || '') : ((String(inv.invDate || inv.dateISO || inv.t || '').match(/(13|14)\d{2}/) || [])[0] || '');
   if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ثبت وصولی مستقیم در آن سال مجاز نیست.'); return; }
-  var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+  var paid = window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
   if (paid + amt > inv.amount) { alert('مبلغ از مانده فاکتور بیشتر است (مانده: ' + (inv.amount - paid).toLocaleString('fa-IR') + ')'); return; }
   inv.payments = inv.payments || [];
   var payRec = { cd: genCode('RPAY'), amt: amt, how: document.getElementById('nPayHow').value, t: faDate(), by: curSession().name, status: 'posted' };
@@ -1032,7 +1032,7 @@ window.ptfInvoiceVoid = function (invCd) {
   var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
   if (!inv) { alert('⛔ فاکتور یافت نشد'); return; }
   if (inv.status === 'void') { alert('این فاکتور قبلاً ابطال شده است'); return; }
-  var paidSum = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+  var paidSum = window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
   if (paidSum > 0) { alert('⛔ این فاکتور دارای وصولی است؛ ابتدا وصولی‌ها را ابطال کنید یا از سند اصلاحی سال مالی استفاده کنید.'); return; }
   var invYear = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(inv.invDate || inv.t || '') : ((String(inv.invDate || inv.t || '').match(/(13|14)\d{2}/) || [])[0] || '');
   if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ابطال فاکتور در آن سال مجاز نیست. از سند اصلاحی استفاده کنید.'); return; }

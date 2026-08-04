@@ -668,13 +668,43 @@
       });
       h += '</div>';
     }
+    /* v34.0.0-alpha (F4-5): نمایش متمایز هزینه‌های لینک‌شده از تنخواه
+       - هزینهٔ مستقیم پرونده: دکمه‌های ✏️📎🗑 (همان قبل)
+       - هزینهٔ لینک‌شده از تنخواه (fromPetty): فقط دکمهٔ 🏦 (رفتن به تنخواه) + 🗑 (حذف لینک) */
+    var pjPettyLinkedCds = (r.costEvents || []).filter(function (x) { return x.pettyCd || x.fromPetty; }).map(function (x) { return x.pettyCd || x.cd; });
+    /* v34.0.0-alpha (F4-5) FIX: هزینه‌های تنخواه لینک‌نشده به این پرونده
+       = همهٔ هزینه‌های فعال (st !== 'void' && st !== 'settled'?) که dealRef خالی/متفاوت دارند
+       و هنوز در costEvents این پرونده نیستند.
+       الگو از petty.js#ptfPettyRelatedCosts گرفته شده ولی فیلتر معکوس شده. */
+    var pjPettyUnlinkedAvailable = (getData('ptf_crm_petty') || []).filter(function (p) {
+      if (p.st === 'void') return false;
+      /* هزینه‌ای که به این پرونده لینک شده → از دکمهٔ «افزودن» حذف */
+      if (p.dealRef === r.cd) return false;
+      /* هزینه‌ای که به پروندهٔ دیگری لینک شده → نباید اینجا بیاید (هر هزینه فقط به یک پرونده) */
+      if (p.dealRef && p.dealRef !== r.cd) return false;
+      return pjPettyLinkedCds.indexOf(p.cd) === -1;
+    });
     h += '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>➕ هزینه‌های مستقیم پرونده</b>' +
       ((r.costEvents && r.costEvents.length)
         ? (r.costEvents.map(function (ce) {
             var files = (ce.files || []).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join(' ');
-            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap"><span><b>' + (+ce.amt || 0).toLocaleString('fa-IR') + ' ریال</b> — ' + escP(ce.desc || '') + ' <small style="color:#94a3b8">(' + escP(ce.t || '') + ' — ' + escP(ce.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap"><button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfProjectCostOpen(\'' + escP(r.inqNo || '') + '\',\'' + escP(ce.cd) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="ptfProjectCostUpload(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\')">📎</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfProjectCostDel(\'' + escP(r.inqNo || '') + '\',\'' + escP(ce.cd) + '\')">🗑️</button></span></div>';
+            var isPetty = ce.pettyCd || ce.fromPetty;
+            var pettyCd = ce.pettyCd || ce.cd;
+            var tagBtn = isPetty ? '<span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:6px;font-size:10.5px;margin-left:6px">🔗 از تنخواه</span>' : '';
+            /* هزینهٔ مستقیم: ✏️📎🗑 / هزینهٔ تنخواه: 🏦 (رفتن به ماژول تنخواه) + 🗑 (حذف لینک) */
+            var actions = isPetty
+              ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0d9488" onclick="ptfDealGoPetty(\'' + escP(pettyCd) + '\')" title="مشاهده در ماژول تنخواه">🏦</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\',\'' + escP(pettyCd) + '\')" title="حذف لینک از تنخواه">🗑️</button>'
+              : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfProjectCostOpen(\'' + escP(r.inqNo || '') + '\',\'' + escP(ce.cd) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="ptfProjectCostUpload(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\')">📎</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\',\'' + escP(ce.pettyCd || '') + '\')" title="حذف هزینه">🗑️</button>';
+            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap;align-items:center"><span><b>' + (+ce.amt || 0).toLocaleString('fa-IR') + ' ریال</b> ' + tagBtn + ' — ' + escP(ce.desc || '') + ' <small style="color:#94a3b8">(' + escP(ce.t || '') + ' — ' + escP(ce.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap">' + actions + '</span></div>';
           }).join(''))
         : '<div style="padding:6px 0;color:#94a3b8">هنوز هزینه مستقیمی برای این پرونده ثبت نشده است.</div>') +
+      /* v34.0.0-alpha (F4-5): دکمهٔ «افزودن از تنخواه» — لیست هزینه‌های لینک‌نشده تنخواه به این پرونده */
+      (pjPettyUnlinkedAvailable.length
+        ? '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px dashed #fdba74">' +
+          '<button class="bt bt-o" style="font-size:12px;background:#0d9488;color:#fff;border-color:#0d9488" onclick="ptfDealLinkFromPetty(\'' + escP(r.cd) + '\',\'' + escP(r.inqNo || '') + '\')">🔗 افزودن هزینهٔ تنخواه به پرونده (' + pjPettyUnlinkedAvailable.length + ' مورد لینک‌نشده)</button>' +
+          '<span style="font-size:11px;color:#64748b">جلوگیری از ثبت تکراری</span>' +
+          '</div>'
+        : '') +
       '</div>';
     try {
       if (r.wonOffer && typeof ptfDocxCoverage === 'function') {
@@ -1370,6 +1400,90 @@
     };
     return true;
   }
+  /* v34.0.0-alpha (F4-5): توابع کمکی سمت پرونده برای لینک از پرونده ↔ تنخواه
+     این توابع در کنار توابع ptfPettyRelatedCosts / ptfPettyUpdateDealLink در petty.js کار می‌کنند. */
+  window.ptfDealGoPetty = function (pettyCd) {
+    /* رفتن به ماژول تنخواه + هایلایت رکورد مربوطه */
+    try { if (typeof goPanel === 'function') goPanel('petty'); } catch (e) {}
+    setTimeout(function () {
+      try {
+        var el = document.getElementById('pty-' + (pettyCd || ''));
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          var prevOutline = el.style.outline || '';
+          el.style.outline = '3px solid #fde68a';
+          setTimeout(function () { el.style.outline = prevOutline; }, 2400);
+          if (typeof ptfToast === 'function') ptfToast('رکورد تنخواه ' + pettyCd + ' در لیست پیدا شد ✨', 'ok');
+        } else {
+          if (typeof ptfDialog === 'function') ptfDialog({ title: '🏦 هزینهٔ تنخواه ' + pettyCd, body: 'به ماژول تنخواه بروید و رکورد ' + pettyCd + ' را در لیست پیدا کنید. (المنت مخصوص بعد از رندر کامل لیست ایجاد می‌شود.)' });
+          else if (typeof ptfToast === 'function') ptfToast('به ماژول تنخواه بروید و رکورد ' + pettyCd + ' را پیدا کنید', 'info');
+        }
+      } catch (e2) { console.warn('ptfDealGoPetty:', e2); }
+    }, 350);
+  };
+
+  /* v34.0.0-alpha (F4-5): دیالوگ انتخاب هزینهٔ تنخواه موجود + لینک به پروندهٔ فروش */
+  window.ptfDealLinkFromPetty = function (dealCd, inqNo) {
+    var ds = getData('ptf_crm_deals') || [];
+    var deal = ds.filter(function (x) { return x.cd === dealCd; })[0];
+    if (!deal) { alert('پرونده یافت نشد'); return; }
+    var linkedCds = (deal.costEvents || []).filter(function (x) { return x.pettyCd || x.fromPetty; }).map(function (x) { return x.pettyCd || x.cd; });
+    var available = (typeof ptfPettyRelatedCosts === 'function' ? ptfPettyRelatedCosts(dealCd) : [])
+      .filter(function (p) { return p.st !== 'void' && linkedCds.indexOf(p.cd) === -1; });
+    if (!available.length) { if (typeof ptfToast === 'function') ptfToast('هیچ هزینهٔ تنخواه لینک‌نشدهٔ فعالی به این پرونده وجود ندارد', 'info'); return; }
+    var options = available.map(function (p) {
+      return '<option value="' + escP(p.cd) + '">' + escP(p.cd) + ' — ' + escP(p.cat || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال — ' + escP((p.desc || '').slice(0, 60)) + ' (' + escP((p.t || '').split(' ')[0] || '') + ' — ' + escP(p.by || '') + ')</option>';
+    }).join('');
+    ptfDialog({
+      title: '🔗 افزودن هزینهٔ تنخواه به پرونده — ' + (deal.inqNo || dealCd),
+      body: 'از لیست زیر، هزینهٔ تنخواه مورد نظر را انتخاب کنید. پس از تایید، در سود پروژه لحاظ می‌شود (بدون دوباره‌شماری با OPEX).',
+      fields: [{ id: 'pcd', label: 'هزینهٔ تنخواه', type: 'select', optionsHtml: options, required: true }],
+      okText: 'افزودن به پرونده',
+      onOk: function (v) {
+        var r = available.filter(function (x) { return x.cd === v.pcd; })[0];
+        if (!r) return;
+        /* به‌روزرسانی dealRef در رکورد تنخواه */
+        try {
+          var allP = getData('ptf_crm_petty') || [];
+          var idx = allP.findIndex(function (x) { return x.cd === r.cd; });
+          if (idx > -1) { allP[idx].dealRef = dealCd; setData('ptf_crm_petty', allP); }
+        } catch (eP) { console.warn('set petty.dealRef:', eP); }
+        /* فراخوانی helper مرکزی در petty.js — همان منطق لینک دوطرفه (ایجاد costEvent + timeline + audit) */
+        try { if (typeof ptfPettyUpdateDealLink === 'function') ptfPettyUpdateDealLink(r, dealCd, ''); } catch (eU) { console.warn('ptfPettyUpdateDealLink:', eU); }
+        if (typeof audit === 'function') audit('پرونده فروش', '➕ لینک هزینهٔ تنخواه ' + r.cd + ' (' + (+r.amt || 0).toLocaleString('fa-IR') + ' ریال) به پرونده ' + (deal.inqNo || dealCd), r.cd);
+        if (typeof ptfToast === 'function') ptfToast('هزینهٔ تنخواه به پرونده لینک شد', 'ok');
+        if (typeof renderDeals === 'function') renderDeals();
+      }
+    });
+  };
+
+  /* v34.0.0-alpha (F4-5): حذف هزینه از پرونده + در صورت fromPetty، حذف لینک از تنخواه نیز
+     - برای هزینهٔ مستقیم پرونده: فقط از costEvents پاک می‌شود
+     - برای هزینهٔ لینک‌شده از تنخواه: علاوه بر costEvents، فیلد dealRef در رکورد تنخواه خالی می‌شود
+       (هزینهٔ اصلی در تنخواه باقی می‌ماند و تنها «لینک» قطع می‌شود — مطابق درخواست کارفرما) */
+  window.ptfDealRemoveCost = function (dealCd, costCd, pettyCd) {
+    var ds = getData('ptf_crm_deals') || [];
+    var d = ds.filter(function (x) { return x.cd === dealCd; })[0];
+    if (!d) return;
+    if (!confirm('این هزینه از پرونده حذف شود؟' + (pettyCd ? '\n\n(لینک از تنخواه نیز حذف می‌شود ولی هزینهٔ اصلی در تنخواه باقی می‌ماند.)' : ''))) return;
+    d.costEvents = (d.costEvents || []).filter(function (x) { if (x.cd === costCd) return false; return true; });
+    d.timeline = d.timeline || [];
+    d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینهٔ پرونده ' + costCd + (pettyCd ? ' (لینک تنخواه ' + pettyCd + ')' : '') });
+    setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
+    if (pettyCd) {
+      try {
+        var pt = (getData('ptf_crm_petty') || []).filter(function (x) { return x.cd === pettyCd; })[0];
+        if (pt) {
+          pt.dealRef = '';
+          setData('ptf_crm_petty', (getData('ptf_crm_petty') || []).map(function (x) { return x.cd === pettyCd ? pt : x; }));
+          if (typeof audit === 'function') audit('پرونده فروش', '🔗 حذف لینک هزینهٔ تنخواه ' + pettyCd + ' از پرونده ' + (d.inqNo || dealCd), pettyCd);
+        }
+      } catch (ePt) { console.warn('remove petty link:', ePt); }
+    }
+    if (typeof audit === 'function') audit('پرونده فروش', '🗑 حذف هزینهٔ پرونده ' + costCd + (pettyCd ? ' (لینک تنخواه ' + pettyCd + ')' : ''), costCd);
+    if (typeof renderDeals === 'function') renderDeals();
+  };
+
   var htr2 = 0;
   var ht2 = setInterval(function () { htr2++; if (hookLetterModal() || htr2 > 50) clearInterval(ht2); }, 400);
 })();

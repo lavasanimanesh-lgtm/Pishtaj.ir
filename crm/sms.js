@@ -21,7 +21,16 @@
 
   function canSms() { return SMS_ROLES.indexOf(curRole()) > -1; }
   function book() { return getData('ptf_crm_smsbook'); }
-  function saveBook(b) { setData('ptf_crm_smsbook', b); }
+  /* v33.22.6 (UR-33): ریشه‌کن حلقهٔ بی‌نهایت + پرش smsStatusBox —
+     ① saveBook با early-return اگر محتوا تغییر نکرده (جلوگیری از چرخهٔ setData → ptfScheduleDataRefresh → refreshCurrentPanel → goPanelByName('sms') → goPanel('sms') → ...)
+     ② smsStatusCache ۱۵ ثانیه‌ای (جلوگیری از re-render مکرر و پرش ارتفاع) */
+  function saveBook(b) {
+    var str = JSON.stringify(b);
+    try {
+      if (localStorage.getItem('ptf_crm_smsbook') === str) return;
+    } catch (e) {}
+    setData('ptf_crm_smsbook', b);
+  }
   /* v21.3 BUG-038: ریشه خالی بودن تب مشتریان —
      phonefmt (US-338) شماره‌ها را با ارقام فارسی ذخیره می‌کند؛
      replace(/\D/g,'') ارقام فارسی را «غیررقم» می‌شمارد و کل شماره را حذف می‌کرد.
@@ -192,12 +201,14 @@
     var tabsEl = document.getElementById('smsTabs');
     if (!tabsEl) return;
     var b = book();
-    tabsEl.innerHTML = CATS.map(function (c) {
+    var tabsHtml = CATS.map(function (c) {
       var n = b.filter(function (r) { return r.cat === c.id; }).length;
       var on = _smsTab === c.id;
       return '<button type="button" onclick="smsSetTab(\'' + c.id + '\')" style="border:0;border-radius:10px;padding:8px 16px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' +
         (on ? 'background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff' : 'background:#f1f5f9;color:#475569') + '">' + c.lb + ' (' + n + ')</button>';
     }).join('');
+    /* v33.22.6: چک تغییر قبل از innerHTML — جلوگیری از re-render بیهوده و پرش UI */
+    if (tabsEl.innerHTML !== tabsHtml) tabsEl.innerHTML = tabsHtml;
 
     var list = b.filter(function (r) { return r.cat === _smsTab; });
     var h = '<div class="tb2"><table><thead><tr>' +
@@ -213,8 +224,10 @@
         '<td style="font-size:11px">' + (r.src === 'auto' ? '<span class="bd" style="background:#e0f2fe;color:#0369a1">سینک خودکار</span>' : r.src === 'xls' ? '<span class="bd" style="background:#fef3c7;color:#b45309">اکسل</span>' : '<span class="bd" style="background:#f1f5f9;color:#475569">دستی</span>') + '</td>' +
         '<td>' + moveOpts + (r.src !== 'auto' ? ' <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="smsDel(\'' + r.cd + '\')">🗑️</button>' : '') + '</td></tr>';
     });
-    document.getElementById('smsBookWrap').innerHTML = h + '</tbody></table></div>' +
+    var bw = document.getElementById('smsBookWrap');
+    var bwHtml = h + '</tbody></table></div>' +
       (list.length ? '' : '<div style="text-align:center;color:#94a3b8;padding:18px;font-size:13px">مخاطبی در این دسته نیست</div>');
+    if (bw && bw.innerHTML !== bwHtml) bw.innerHTML = bwHtml;
     renderSmsSendBox();
     smsRenderStatus();
   };
@@ -372,18 +385,30 @@
     setData('ptf_crm_sendqueue', q);
   }
 
-  window.smsRenderStatus = function () {
+  var _smsStatusCache = null;
+  var _smsStatusTime = 0;
+  window.smsRenderStatus = function (force) {
     var el = document.getElementById('smsStatusBox');
     if (!el) return;
+
+    var now = Date.now();
+    if (!force && _smsStatusCache && (now - _smsStatusTime < 15000)) {
+      if (el.innerHTML !== _smsStatusCache) el.innerHTML = _smsStatusCache;
+      return;
+    }
+
     fetch(API + '?action=sms_status')
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var q = getData('ptf_crm_sendqueue').filter(function (x) { return x.ch === 'sms' && x.st === 'queued'; }).length;
-        el.innerHTML = d.enabled
+        var newHtml = d.enabled
           ? '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#065f46;display:flex;align-items:center;gap:10px;flex-wrap:wrap">✅ پنل پیامک متصل است' +
             ' <button class="bt" style="padding:4px 12px;font-size:12px;background:#059669" onclick="smsTestSend()">📲 ارسال پیامک تست به خودم</button>' +
             (q ? ' | ' + q + ' پیامک در صف — <a href="javascript:void(0)" onclick="smsFlushQueue()" style="color:#0e7490">ارسال صف ←</a>' : '') + '</div>'
           : '<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:12px;padding:8px 14px;font-size:12.5px;color:#92400e">⚠️ پنل پیامک هنوز پیکربندی نشده (sms-config.php) — ارسال‌ها در صف ذخیره می‌شوند' + (q ? ' | صف فعلی: ' + q : '') + '</div>';
+        _smsStatusCache = newHtml;
+        _smsStatusTime = Date.now();
+        if (el.innerHTML !== newHtml) el.innerHTML = newHtml;
       }).catch(function () { el.innerHTML = ''; });
   };
 

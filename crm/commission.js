@@ -137,7 +137,7 @@
         var o = offerByNo[inv.offerNo] || {};
         var owner = resolveOfferOwner(o);
         if (filterUser && owner !== filterUser) return;
-        ((inv.payments || []).concat(inv.pays || [])).forEach(function (p) {
+        ((inv.payments || []).concat(inv.pays || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true})).forEach(function (p) {
           var when = '';
           var rawT = p.iso || p.date || p.t || '';
           var hasPayISO = !!(rawT && String(rawT).match(/\d{4}-\d{2}-\d{2}/));

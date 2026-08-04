@@ -97,7 +97,7 @@
   }
   function unpaidCustomer(inv) {
     var total = +inv.amountIrr || +inv.amount || 0;
-    var paid = arr(inv.payments).concat(arr(inv.pays)).filter(active).reduce(function (s, p) { return s + (+p.amountIrr || +p.amt || +p.amount || 0); }, 0);
+    var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv, { activeOnly: true, useAmountIrr: true }) : arr(inv.payments).concat(arr(inv.pays)).filter(active).reduce(function (s, p) { return s + (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amountIrr || +p.amt || +p.amount || 0)); }, 0);
     return Math.max(0, total - paid);
   }
   function supplierInvoicePaid(inv, pays) {
@@ -134,7 +134,7 @@
       else if (inAsOf(iso, asOf)) src.receivable += amount;
       /* A dated invoice after the report date does not exist in this report yet. */
       if (inPeriod(iso, start, asOf)) { moves.customerInvoices += (+inv.amountIrr || +inv.amount || 0); counts.customerInvoices++; }
-      arr(inv.payments).concat(arr(inv.pays)).filter(active).forEach(function (p) {
+      arr(inv.payments).concat(arr(inv.pays)).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : active).forEach(function (p) {
         var pi = dateOf(p, ['dateISO', 'date', 't', 'paidAt']);
         var pa = +p.amountIrr || +p.amt || +p.amount || 0;
         if (!pi) pushIssue(issues, 'customerPaymentDate', pa, inv.no || inv.cd);

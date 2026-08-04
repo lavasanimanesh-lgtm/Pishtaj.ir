@@ -87,7 +87,7 @@
     var o = getData('ptf_crm_offers').filter(function (x) { return x.no === (offerNo || inv.offerNo); })[0];
     var totalFx = o ? (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : 0;
     var paidIrr = 0, paidFx = 0;
-    ((inv.pays || []).concat(inv.payments || [])).forEach(function (p) {
+    ((inv.pays || []).concat(inv.payments || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true})).forEach(function (p) {
       paidIrr += +p.amt || 0;
       if (p.fx && p.fx.fxAmt) paidFx += +p.fx.fxAmt;
       else if (p.fx && p.fx.rate) paidFx += (+p.amt || 0) / (+p.fx.rate || 1);
@@ -172,7 +172,7 @@
       var totalFx = offer ? (offer.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0) : 0;
       var paidIrr = 0, paidFx = 0, unratedPays = 0;
       invs.forEach(function (inv) {
-        var pays = (inv.pays || []).concat(inv.payments || []); /* هر دو ساختار تاریخی */
+        var pays = (inv.pays || []).concat(inv.payments || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true}); /* هر دو ساختار تاریخی */
         pays.forEach(function (pp) {
           var amt = +pp.amt || 0;
           if (!amt) return;

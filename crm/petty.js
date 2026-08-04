@@ -219,18 +219,93 @@
       }
     } catch (e) {}
   }
+  /* v34.0.0-alpha (F4-5): لینک دوطرفهٔ تنخواه ↔ پرونده
+     - costEvent از deal قدیمی حذف شود (اگر oldDealRef داده شده)
+     - costEvent به deal جدید اضافه شود (اگر newDealRef داده شده) */
+  window.ptfPettyUpdateDealLink = function (r, newDealRef, oldDealRef) {
+    try {
+      var ds = getData('ptf_crm_deals') || [];
+      var dirty = false;
+      if (oldDealRef && oldDealRef !== newDealRef) {
+        var od = ds.filter(function (x) { return x.cd === oldDealRef; })[0];
+        if (od && od.costEvents) {
+          var beforeCount = od.costEvents.length;
+          od.costEvents = od.costEvents.filter(function (x) { return x.pettyCd !== r.cd && x.cd !== r.cd; });
+          if (od.costEvents.length !== beforeCount) {
+            od.timeline = od.timeline || [];
+            od.timeline.push({ t: faDateTime(), by: userName(), tx: '🔗 حذف لینک هزینه تنخواه ' + r.cd + ' (' + money(r.amt) + ') از پرونده' });
+            dirty = true;
+          }
+        }
+      }
+      if (newDealRef) {
+        var nd = ds.filter(function (x) { return x.cd === newDealRef; })[0];
+        if (nd) {
+          nd.costEvents = nd.costEvents || [];
+          nd.costEvents = nd.costEvents.filter(function (x) { return x.pettyCd !== r.cd && x.cd !== r.cd; });
+          nd.costEvents.unshift({ cd: r.cd, amt: r.amt, cat: 'fromPetty', desc: '[تنخواه] ' + (r.desc || r.cat), by: r.by, t: r.t || faDateTime(), files: r.files || [], fromPetty: true, pettyCd: r.cd });
+          nd.timeline = nd.timeline || [];
+          nd.timeline.push({ t: faDateTime(), by: userName(), tx: '🔗 لینک هزینه تنخواه ' + r.cd + ' (' + money(r.amt) + ' — ' + (r.desc || r.cat) + ') به پرونده' });
+          dirty = true;
+        }
+      }
+      if (dirty) setData('ptf_crm_deals', ds);
+    } catch (eUd) { console.error('ptfPettyUpdateDealLink:', eUd); }
+  };
+
+  /* ============ F4-5: helper functions برای لینک دوطرفه تنخواه ↔ پرونده ============ */
+  /* v34.0.0-alpha (F4-5): جلوگیری از ثبت تکراری + پیشنهاد هزینه‌های مرتبط */
+  window.ptfPettyRelatedCosts = function (dealCd) {
+    if (!dealCd) return [];
+    return (getData(PETTY_KEY) || []).filter(function (p) { return p.dealRef === dealCd; });
+  };
+  window.ptfPettyWarnDuplicate = function (newRec) {
+    if (!newRec || !newRec.cat) return null;
+    var now = new Date().getTime();
+    var ms30 = 30 * 24 * 60 * 60 * 1000;
+    var candidates = (getData(PETTY_KEY) || []).filter(function (p) {
+      if (p.cd === newRec.excludeCd) return false;
+      if (p.st === 'void') return false;
+      if (newRec.dealRef && p.dealRef !== newRec.dealRef) return false;
+      if (!newRec.dealRef && p.dealRef) return false;
+      if (p.cat !== newRec.cat) return false;
+      if (Math.abs((+p.amt || 0) - (+newRec.amt || 0)) > ((+newRec.amt || 0) * 0.15)) return false;
+      try {
+        var pIso = (window.DateKit && window.DateKit.jToIso) ? window.DateKit.jToIso(p.t && p.t.split(' ')[0]) : '';
+        if (pIso) {
+          var pMs = new Date(pIso).getTime();
+          if (Math.abs(now - pMs) > ms30) return false;
+        }
+      } catch (eTs) {}
+      return true;
+    });
+    if (!candidates.length) return null;
+    return candidates;
+  };
+  window.ptfPettyDealSummary = function (dealCd) {
+    if (!dealCd) return '<small style="color:#64748b">💡 برای جلوگیری از ثبت تکراری، می‌توانید هزینه را به یک پروندهٔ فعال لینک کنید.</small>';
+    var linked = window.ptfPettyRelatedCosts(dealCd);
+    if (!linked.length) return '<small style="color:#64748b">📂 این پرونده هنوز هزینهٔ تنخواه لینک‌شده‌ای ندارد.</small>';
+    var totalAmt = linked.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    return '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12px;color:#0c4a6e">📂 <b>' + linked.length + ' هزینهٔ تنخواه لینک‌شده</b> (جمع: ' + totalAmt.toLocaleString('fa-IR') + ' ریال)</div>';
+  };
 
   window.pettyAdd = function () {
     try{ var curM = (typeof faMonthNow==='function'?faMonthNow():'').split('/')[0]; if(curM && isFiscalLocked(curM)){ alert('🔒 سال مالی '+curM+' قفل است - ثبت هزینه در سال قفل‌شده مجاز نیست.'); return; } }catch(e){}
     var dealOpts = '<option value="">— مستقل از پرونده فروش —</option>' + (getData('ptf_crm_deals') || []).filter(function (d) { return d.wonOffer && d.st !== 'archived'; }).map(function (d) { return '<option value="' + escP(d.cd) + '">' + escP(d.inqNo || d.cd) + ' — ' + escP(d.buyerCo || '') + '</option>'; }).join('');
     ptfDialog({
       title: '💵 ثبت هزینه تنخواه',
+      body: '<div style="font-size:12.5px;color:#475569;line-height:1.8;margin-bottom:8px">هزینهٔ تنخواه را ثبت کنید. در صورت لینک به پروندهٔ فعال، در سود پروژه لحاظ می‌شود.</div>' +
+        '<div id="ptyDealSummarySlot">' + window.ptfPettyDealSummary('') + '</div>' +
+        '<div id="ptyDupWarnSlot" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#92400e"></div>',
       fields: [
         { id: 'amt', label: 'مبلغ (ریال)', type: 'number', required: true, dir: 'ltr' },
         { id: 'cat', label: 'نوع هزینه', type: 'select', options: CATS.map(function (c) { return { v: c, lb: c }; }) },
         { id: 'rfq', label: 'مربوط به درخواست/پرونده (اختیاری)', placeholder: 'مثال: PTF-RFQ-1405-0012', dir: 'ltr' },
-        { id: 'dealRef', label: 'مربوط به کدام پرونده فروش؟ (اختیاری - برای جلوگیری از دوباره‌شماری)', type: 'select', optionsHtml: dealOpts },
-        { id: 'desc', label: 'توضیح', type: 'textarea', rows: 2, required: true }
+        { id: 'dealRef', label: 'مربوط به کدام پرونده فروش؟ (اختیاری)', type: 'select', optionsHtml: dealOpts,
+          onchange: 'try{var s=document.getElementById("ptyDealSummarySlot");if(s)s.innerHTML=ptfPettyDealSummary(this.value);}catch(e){}' },
+        { id: 'desc', label: 'توضیح', type: 'textarea', rows: 2, required: true,
+          oninput: 'try{var w=document.getElementById("ptyDupWarnSlot");if(!w)return;var deal=document.getElementById("ptfF3");var amt=document.getElementById("ptfF0");var cat=document.getElementById("ptfF1");var rec={cat:cat&&cat.value,amt:amt&&(+amt.value||0),desc:this.value,dealRef:deal&&deal.value};var dups=ptfPettyWarnDuplicate(rec);if(dups&&dups.length){var html="⚠️ <b>"+dups.length+" هزینهٔ مشابه</b> در ۳۰ روز اخیر یافت شد:<br>";dups.slice(0,3).forEach(function(p){html+="<div style=&quot;padding:3px 0;border-top:1px dashed #fde68a&quot;>• <b>"+p.cat+"</b> — "+(+p.amt).toLocaleString("fa-IR")+" ریال — "+escP(p.desc||"")+" ("+escP(p.t||"")+")</div>"});html+="<div style=&quot;margin-top:5px;font-size:11.5px&quot;>اگر تکراری است، «انصراف» بزنید.</div>";w.style.display="block";w.innerHTML=html;}else{w.style.display="none";}}catch(e){}' }
       ],
       okText: 'ثبت و پیوست مدرک',
       onOk: function (v) {
@@ -303,13 +378,20 @@
   window.pettySettle = function (cd) {
     if (!isTreasurer()) { alert('⛔ فقط تنخواه‌گردان'); return; }
     var rr = (getData(PETTY_KEY) || []).filter(function (x) { return x.cd === cd; })[0];
-    if (rr && !ensureBalance(rr.amt)) return;
+    if (!rr) return;
+    /* P0-1 FIX: جلوگیری از تسویه تکراری — اگر قبلاً settled/void شده، مسدود شود */
+    if (rr.st === 'settled') { alert('⛔ این هزینه قبلاً تسویه شده است (سند: ' + (rr.settleDoc || '-') + '). برای اصلاح از ویرایش استفاده کنید.'); return; }
+    if (rr.st === 'void') { alert('⛔ این هزینه ابطال شده است و قابل تسویه نیست.'); return; }
+    if (!ensureBalance(rr.amt)) return;
     ptfDialog({
       title: '✔ تسویه از حساب تنخواه',
       fields: [{ id: 'doc', label: 'شماره/شرح سند پرداخت', required: true, placeholder: 'مثال: حواله بانکی 12345' }],
       okText: 'ثبت تسویه',
       onOk: function (v) {
         var all = getData(PETTY_KEY); var r = all.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;
+        /* P0-1 FIX: re-check بعد از باز شدن دیالوگ (race condition: کاربر دیگری ممکن است در همین لحظه تسویه کرده باشد) */
+        if (r.st === 'settled') { alert('⛔ این هزینه در همین لحظه توسط کاربر دیگری تسویه شد.'); return; }
+        if (r.st === 'void') { alert('⛔ این هزینه ابطال شده است.'); return; }
         if (!ensureBalance(r.amt)) return;
         var tx = addTx('settle', r.amt, v.doc, cd, { to: r.by });
         r.st = 'settled'; r.settleDoc = v.doc; r.settledBy = userName(); r.settledT = faDateTime(); r.acctTx = tx.cd;
@@ -334,19 +416,27 @@
        مجاز است، چون باید هم‌زمان تراکنش حساب تنخواه (ptf_crm_petty_tx)
        اصلاح شود تا موجودی حساب با رکورد هزینه ناهماهنگ نماند. */
     var isSettledAmountChange = r.st === 'settled';
+    /* v34.0.0-alpha (F4-5): dealOpts برای فیلد dealRef در ویرایش */
+    var dealOpts = '<option value="">— مستقل از پرونده فروش —</option>' + (getData('ptf_crm_deals') || []).filter(function (d) { return d.wonOffer && d.st !== 'archived'; }).map(function (d) { return '<option value="' + escP(d.cd) + '"' + (d.cd === r.dealRef ? ' selected' : '') + '>' + escP(d.inqNo || d.cd) + ' — ' + escP(d.buyerCo || '') + '</option>'; }).join('');
     ptfDialog({
       title: '✏️ ویرایش هزینه تنخواه — ' + cd,
-      body: isSettledAmountChange ? '⚠️ این هزینه تسویه شده است. اصلاح مبلغ فقط برای مدیر/تنخواه‌گردان مجاز است و تراکنش حساب تنخواه هم به‌طور هم‌زمان اصلاح می‌شود.' : '',
+      body: (isSettledAmountChange ? '⚠️ این هزینه تسویه شده است. اصلاح مبلغ فقط برای مدیر/تنخواه‌گردان مجاز است و تراکنش حساب تنخواه هم به‌طور هم‌زمان اصلاح می‌شود.' : '') +
+        '<div id="ptyDealSummarySlot">' + window.ptfPettyDealSummary(r.dealRef || '') + '</div>',
       fields: [
         { id: 'amt', label: 'مبلغ (ریال)', type: 'number', value: r.amt, required: true, dir: 'ltr' },
         { id: 'cat', label: 'نوع هزینه', type: 'select', value: r.cat, options: CATS.map(function (c) { return { v: c, lb: c }; }) },
         { id: 'rfq', label: 'مربوط به درخواست/پرونده (اختیاری)', value: r.rfq || '', placeholder: 'مثال: PTF-RFQ-1405-0012', dir: 'ltr' },
+        { id: 'dealRef', label: 'مربوط به کدام پرونده فروش؟ (اختیاری)', type: 'select', optionsHtml: dealOpts,
+          onchange: 'try{var s=document.getElementById("ptyDealSummarySlot");if(s)s.innerHTML=ptfPettyDealSummary(this.value);}catch(e){}' },
         { id: 'desc', label: 'توضیح', type: 'textarea', rows: 2, value: r.desc || '', required: true }
       ].concat(isSettledAmountChange ? [{ id: 'reason', label: 'دلیل اصلاح مبلغ تسویه‌شده *', type: 'textarea', rows: 2, required: true, placeholder: 'مثال: مبلغ اشتباه وارد شده بود' }] : []),
       okText: 'ذخیره تغییرات',
       onOk: function (v) {
         var amt = toNum(v.amt);
         var amtChanged = amt !== r.amt;
+        /* v34.0.0-alpha (F4-5): مدیریت تغییر dealRef */
+        var newDealRef = v.dealRef || '';
+        var dealRefChanged = newDealRef !== (r.dealRef || '');
         if (isSettledAmountChange && amtChanged) {
           if (!canAll()) { alert('⛔ اصلاح مبلغ هزینه‌ی تسویه‌شده فقط برای مدیر/تنخواه‌گردان مجاز است'); return; }
           if (!v.reason || !v.reason.trim()) { alert('⛔ دلیل اصلاح مبلغ الزامی است'); return; }
@@ -368,17 +458,23 @@
             }
           } catch (eTx) {}
           r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
+          r.dealRef = newDealRef;
           r.amountCorrections = r.amountCorrections || [];
           r.amountCorrections.push({ from: oldAmt, to: amt, reason: v.reason.trim(), t: faDateTime(), by: userName() });
           setData(PETTY_KEY, all);
-          audit('تنخواه', 'اصلاح مبلغ هزینه تسویه‌شده ' + cd + ' — ' + money(oldAmt) + ' → ' + money(amt) + ' — دلیل: ' + v.reason.trim(), cd);
+          /* v34.0.0-alpha (F4-5): به‌روزرسانی لینک دوطرفهٔ پرونده */
+          if (dealRefChanged || newDealRef) { try { window.ptfPettyUpdateDealLink(r, newDealRef, r.dealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
+          audit('تنخواه', 'اصلاح مبلغ هزینه تسویه‌شده ' + cd + ' — ' + money(oldAmt) + ' → ' + money(amt) + ' — دلیل: ' + v.reason.trim() + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف') + ']' : ''), cd);
           renderPetty();
           if (typeof ptfToast === 'function') ptfToast('مبلغ اصلاح شد و حساب تنخواه هم‌زمان به‌روزرسانی شد', 'ok');
           return;
         }
         r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
+        r.dealRef = newDealRef;
         setData(PETTY_KEY, all);
-        audit('تنخواه', 'ویرایش هزینه تنخواه ' + cd + ' — ' + money(amt), cd);
+        /* v34.0.0-alpha (F4-5): به‌روزرسانی لینک دوطرفهٔ پرونده */
+        if (dealRefChanged) { try { window.ptfPettyUpdateDealLink(r, newDealRef, r.dealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
+        audit('تنخواه', 'ویرایش هزینه تنخواه ' + cd + ' — ' + money(amt) + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف شد') + ']' : ''), cd);
         renderPetty();
         if (typeof ptfToast === 'function') ptfToast('هزینه ویرایش شد', 'ok');
       }
@@ -419,6 +515,8 @@
          هزینه‌ی تنخواهِ ابطال‌شده دیگر نباید در سود پروژه‌ی لینک‌شده اثر
          بگذارد؛ الگو دقیقاً مثل opex.js#ptfOpexDel. */
       ptfPettyRemoveDealCostEvent(r);
+      /* v34.0.0-alpha (F4-5): حذف costEvent مرتبط (اگر هنوز هست) */
+      try { window.ptfPettyUpdateDealLink(r, '', r.dealRef); } catch (eU) { console.warn('updateDealLink void:', eU); }
       audit('تنخواه', 'ابطال هزینه تسویه‌شده '+cd+' — دلیل: '+reason.trim(), cd);
       renderPetty();
       if(typeof ptfToast==='function') ptfToast('هزینه ابطال شد - تراکنش معکوس ثبت شد', 'ok');
@@ -439,18 +537,64 @@
   /* BUG-RANGE (۱۴۰۵/۰۸/۱۰): تاریخ رکورد باید مقاوم باشد — رکوردها ممکن است:
      ۱) t شمسی '1405/04/15 09:00'  ۲) t/dateISO میلادی '2026-07-06'  ۳) فقط month '1405/04'
      قبلاً فقط حالت ۱ خوانده می‌شد و بقیه از فیلتر بازه حذف می‌شدند → «هیچ اطلاعاتی در قالب تنخواه‌گردان». */
+  /* v34.0.0-alpha (F4-13): تاریخ رکورد با دقت — تشخیص میلادی/شمسی بر اساس سال
+     ریشه: padJalaliDate قبلی هر رشتهٔ YYYY/MM/DD را بدون تشخیص میلادی/شمسی normalize می‌کرد.
+       اگر t میلادی بود (مثل '2026-07-22' یعنی ۱ مرداد ۱۴۰۵) و month شمسی بود
+       (1405/05) → recDate برمی‌گشت '2026/07/22' (میلادی به جای شمسی).
+       نتیجه: recDateCmp(d='2026/07/22', '1405/05/01') = عدد ۲۰۲۶۰۷۲۲ vs ۱۴۰۵۰۵۰۱
+       → ۲۰۲۶۰۷۲۲ > ۱۴۰۵۰۵۰۱ (عدد بزرگ‌تر) → در بازه نیست → رکورد مرداد حذف شد!
+     راه‌حل: ابتدا تشخیص میلادی/شمسی بر اساس سال (میلادی > ۱۹۰۰). سپس اگر میلادی، ابتدا به شمسی تبدیل شود. */
   function recDate(x) {
     if (!x) return '';
     var raw = String(x.t || x.dateFa || x.date || x.dateISO || x.iso || '').split(' ')[0].trim();
-    if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(raw)) return raw;                       /* شمسی */
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {                                        /* میلادی → شمسی */
-      try { if (typeof ptfISOToJ === 'function') { var j = ptfISOToJ(raw); if (j && /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(j)) return j; } } catch (eR) {}
+    function padJalaliDate(s) {
+      var m = String(s || '').match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+      if (!m) return '';
+      return m[1] + '/' + ('0' + m[2]).slice(-2) + '/' + ('0' + m[3]).slice(-2);
     }
-    var m = String(x.month || '').trim();                                          /* فقط ماه → اول ماه */
-    if (/^\d{4}\/\d{1,2}$/.test(m)) return m + '/01';
+    var m = raw.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+    if (m) {
+      var y = +m[1];
+      if (y > 1900) {
+        /* میلادی — ابتدا به شمسی تبدیل کن (سپس recDate جواب درست می‌دهد) */
+        if (typeof ptfISOToJ === 'function') {
+          try {
+            var j = ptfISOToJ(raw);
+            if (j) {
+              var s2 = padJalaliDate(j);
+              if (s2) return s2;
+            }
+          } catch (eR1) {}
+        }
+        /* fallback: اگر تبدیل میلادی→شمسی شکست خورد، بهتر است خالی برگردانیم
+           (تا به ماه اشتباه fallback نکند). بعداً در جستجوی این رکوردها می‌توان از month استفاده کرد. */
+        return '';
+      }
+      /* شمسی (سال < ۱۹۰۰) — مستقیم */
+      return padJalaliDate(raw);
+    }
+    /* اگر فرمت ناشناخته، امتحان میلادی خام */
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      try { if (typeof ptfISOToJ === 'function') { var j = ptfISOToJ(raw); if (j) { var s2 = padJalaliDate(j); if (s2) return s2; } } } catch (eR) {}
+    }
+    var m2 = String(x.month || '').trim();
+    var mp = padJalaliDate(m2 + '/01');
+    if (mp) return mp;
     return '';
   }
-  function faTodayStr() {
+  /* v34.0.0-alpha (F4-10): تبدیل تاریخ شمسی به عدد YYYYMMDD برای مقایسهٔ صحیح
+     - قبلاً مقایسهٔ string بین "1405/5/1" و "1405/04/16" نتیجهٔ غلط می‌داد
+     - حالا هر دو به عدد تبدیل می‌شوند: "14050401" < "14050416" → true (همیشه درست)
+     - پشتیبان: اگر parse نشد، string comparison فقط برای فرمت normalize‌شدهٔ YYYY/MM/DD */
+  function recDateNum(s) {
+    if (!s || !/^\d{4}\/\d{2}\/\d{2}$/.test(s)) return 0;
+    return +s.replace(/[\/\-]/g, '');
+  }
+  function recDateCmp(a, b) {
+    var na = recDateNum(a), nb = recDateNum(b);
+    if (na && nb) return na - nb;
+    return String(a || '').localeCompare(String(b || ''));
+  }  function faTodayStr() {
     try { if (typeof faDate === 'function') return faDate(); } catch (e) {}
     try { if (typeof ptfTodayJ === 'function') return ptfTodayJ(); } catch (e) {}
     return '';
@@ -486,23 +630,69 @@
     if (!m) return v;
     return m[1] + '/' + String(+m[2]).padStart(2, '0') + '/' + String(+m[3]).padStart(2, '0');
   };
+  /* v34.0.0-alpha (فاز ۴.۵): دیالوگ انتخاب بازه با DateKit.range
+     - دو فیلد تاریخ (DateKit.picker با فلش‌های ناوبری fix شده)
+     - quick-pick: امروز / ۷/۱۰/۱۵/۳۰ روز اخیر / این ماه / ماه قبل / امسال
+     - range nav: جابجایی بازه با حفظ طول (−۱/۷ روز، −۱ ماه، +۱/۷ روز، +۱ ماه)
+     - HTML modal سفارشی (نه ptfDialog) تا دکمه‌های ناوبری/quick-pick کار کنند
+     - سازگاری: اگر DateKit هنوز لود نشده باشد، fallback به ptfDialog قدیمی */
   window.ptfPettyPeriodReportDialog = function () {
     var sg = window.ptfPettySuggestedRange();
-    ptfDialog({
-      title: '📊 گزارش دورهٔ تنخواه — انتخاب بازه',
-      body: 'بازهٔ دلخواه را انتخاب کنید (مثلاً ۱۰ روزه، ۴۵ روزه یا هر بازهٔ دیگر — بسته به مصرف تنخواه).',
-      fields: [
-        { id: 'from', label: 'از تاریخ', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
-        { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true }
-      ],
-      okText: 'نمایش گزارش',
-      onOk: function (v) {
-        var from = window.ptfPettyNormDate(v.from), to = window.ptfPettyNormDate(v.to);
-        if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از دکمهٔ «انتخاب از تقویم» استفاده کنید).'); return; }
-        if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
-        window.ptfPettyPeriodReport(from, to);
-      }
-    });
+    if (!window.DateKit) {
+      /* fallback: اگر به هر دلیلی DateKit لود نشده (مثلاً نسخهٔ قدیمی کش) */
+      ptfDialog({
+        title: '📊 گزارش دورهٔ تنخواه — انتخاب بازه',
+        body: 'بازهٔ دلخواه را انتخاب کنید (مثلاً ۱۰ روزه، ۴۵ روزه یا هر بازهٔ دیگر — بسته به مصرف تنخواه).',
+        fields: [
+          { id: 'from', label: 'از تاریخ', value: sg.from || '', required: true, dir: 'ltr', datePicker: true },
+          { id: 'to', label: 'تا تاریخ', value: sg.to || '', required: true, dir: 'ltr', datePicker: true }
+        ],
+        okText: 'نمایش گزارش',
+        onOk: function (v) {
+          var from = window.ptfPettyNormDate(v.from), to = window.ptfPettyNormDate(v.to);
+          if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) { alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از دکمهٔ «انتخاب از تقویم» استفاده کنید).'); return; }
+          if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
+          window.ptfPettyPeriodReport(from, to);
+        }
+      });
+      return;
+    }
+    // FIX: اگر sg.from/to خالی بودند (مثلاً به دلیل نبودن دورهٔ قبلی)، از امروز به‌عنوان fallback استفاده کن
+    var todayJ = (window.DateKit && window.DateKit.todayJ) ? window.DateKit.todayJ() : '';
+    var fallbackFrom = todayJ ? (todayJ.slice(0, 7) + '/01') : '';  // اول ماه جاری
+    var fallbackTo = todayJ;
+    var initFrom = sg.from || fallbackFrom;
+    var initTo = sg.to || fallbackTo;
+    var widgetHtml = window.DateKit.range('ptfPettyFromJ', 'ptfPettyToJ', initFrom, initTo);
+    var html = '<div class="md-b" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()">' +
+      '<div class="md" style="max-width:760px;max-height:90vh;overflow:auto">' +
+        '<h3>📊 گزارش دورهٔ تنخواه — انتخاب بازه</h3>' +
+        '<div style="font-size:12.5px;color:#475569;margin-bottom:10px;line-height:1.8">' +
+          'بازهٔ دلخواه را انتخاب کنید. <b>quick-pick</b> برای بازه‌های رایج، و <b>دکمه‌های ناوبری</b> برای جابجایی سریع بازه فعلی با حفظ طول آن.' +
+        '</div>' +
+        widgetHtml +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
+          '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+          '<button class="bt" onclick="ptfPettyRangeDialogGo()">📊 نمایش گزارش</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  /* v34.0.0-alpha: handler دکمهٔ «نمایش گزارش» — مقادیر را از فیلدهای DateKit می‌خواند و validate می‌کند */
+  window.ptfPettyRangeDialogGo = function () {
+    var fEl = document.getElementById('ptfPettyFromJ');
+    var tEl = document.getElementById('ptfPettyToJ');
+    if (!fEl || !tEl) { alert('⚠️ فیلدهای تاریخ یافت نشد — صفحه را رفرش کنید.'); return; }
+    var from = window.ptfPettyNormDate(fEl.value);
+    var to = window.ptfPettyNormDate(tEl.value);
+    if (!/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(from) || !/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(to)) {
+      alert('⚠️ تاریخ‌ها را با فرمت 1405/04/01 وارد کنید (یا از دکمهٔ «انتخاب از تقویم» استفاده کنید، یا یکی از quick-pick ها را بزنید).');
+      return;
+    }
+    if (from > to) { alert('⚠️ «از تاریخ» نمی‌تواند بعد از «تا تاریخ» باشد.'); return; }
+    var md = document.querySelector('.md-b'); if (md) md.remove();
+    window.ptfPettyPeriodReport(from, to);
   };
   /* کلید دوره: (from,to) → بازه | (month) → ماه | بدون آرگومان → دورهٔ جاری پیشنهادی */
   function ptfPettyPeriodKey(a, b) {
@@ -519,12 +709,24 @@
     var key = ptfPettyPeriodKey(a, b);
     var allP = getData(PETTY_KEY) || [], allT = txAll(), petty, tx;
     if (key.isRange) {
-      /* BUG-RANGE: رکورد دارای تاریخ → فقط اگر تاریخ در بازه؛ رکورد بی‌تاریخ → فقط اگر ماهش در محدودهٔ بازه (تا داده گم نشود) */
+      /* v34.0.0-alpha (F4-6): رفع بحرانی — فیلتر recDate قبلی رکوردهایی که
+         تاریخ دقیق `t` در بازه نبود را حذف می‌کرد (مثلاً اگر t = '2026-08-03'
+         میلادی و بازه شمسی 1405/04/15 تا 1405/05/15 بود، recDate نمی‌توانست
+         تبدیل کند و رکورد حذف می‌شد → "فقط هزینه آخر نمایش داده شد").
+         منطق جدید:
+         1) اگر تاریخ دقیق قابل استخراج باشد → مقایسه با بازه
+         2) اگر نه ولی month در بازه باشد → نگه داشتن (fallback ماهانه) */
       var mFrom = key.from.slice(0, 7), mTo = key.to.slice(0, 7);
       function inRange(x) {
-        var m = String(x.month || '').slice(0, 7);
-        var hasDate = !!(x.t || x.dateFa || x.date || x.dateISO || x.iso);
-        if (hasDate) { var d = recDate(x); return !!(d && d >= key.from && d <= key.to); }
+        var m = String(x.month || (x.t || '').slice(0, 7) || '').slice(0, 7);
+        var d = recDate(x);
+        /* v34.0.0-alpha (F4-10): مقایسهٔ عددی YYYYMMDD — حل string comparison bug
+           - قبلاً string comparison بین "1405/5/1" و "1405/04/16" اشتباه می‌داد
+           - حالا recDateCmp تبدیل به عدد می‌کند (مثلاً 14050501 vs 14050416 → درست) */
+        if (d) {
+          return recDateCmp(d, key.from) >= 0 && recDateCmp(d, key.to) <= 0;
+        }
+        /* fallback: اگر تاریخ قابل استخراج نیست، ماه رکورد را با بازه مقایسه کن */
         return !!(m && m >= mFrom && m <= mTo);
       }
       petty = allP.filter(inRange);
@@ -538,12 +740,13 @@
     return { month: key.month, from: key.from, to: key.to, isRange: key.isRange, petty: petty, tx: tx, totalOut: totalOut, charges: charges, balance: window.ptfPettyBalance(), pending: window.ptfPettyPendingByUser() };
   };
 
-  /* ============ UR-2026-08-01-09: گزارش کامل دورهٔ تنخواه ============ */
+  /* ============ UR-2026-08-01-09: گزارش کامل دورهٔ تنخواه (v2: با cd برای نگاشت ضمیمه) ============ */
   window.ptfPettyPeriodEvents = function (a, b) {
     var d = window.ptfPettyPeriodData(a, b), events = [];
     (d.tx || []).forEach(function (x) {
       var kind = x.type === 'charge' ? 'شارژ حساب' : x.type === 'direct' ? 'پرداخت مستقیم' : x.type === 'settle' ? 'تسویه از حساب' : (x.type || 'تراکنش');
       events.push({
+        cd: x.cd,  /* v2: شناسه رکورد برای نگاشت file → row */
         t: x.t || x.date || '',
         desc: (x.note || x.desc || '') + (x.ref ? ' (' + x.ref + ')' : ''),
         by: x.by || '',
@@ -560,6 +763,7 @@
           ? 'تسویه در ' + (p.settledT || p.t || '') + ' توسط ' + (p.settledBy || p.by || '')
           : p.st === 'void' ? 'ابطال‌شده' : 'در انتظار تسویه';
       events.push({
+        cd: p.cd,  /* v2: شناسه رکورد برای نگاشت file → row */
         t: p.t || '',
         desc: (p.cat || 'هزینه') + (p.desc ? ' — ' + p.desc : '') + (p.rfq ? ' (' + p.rfq + ')' : ''),
         by: p.by || '',
@@ -615,6 +819,44 @@
   function ptfPettyArg(a, b) { return (a && b && String(a).length > 7) ? a + '|' + b : (a || ''); }
   function ptfPettyArgPair(arg) { var p = String(arg || '').split('|'); return p.length === 2 ? p : [p[0], '']; }
 
+  /* v34.0.0-alpha (F4-6): اصلاح بحرانی — متغیر `arg` تعریف نشده بود و
+     منطق apply اشتباه بود. حالا arg از ابتدا محاسبه می‌شود. */
+  window.ptfPettyPeriodShowReceipts = function (a, b) {
+    /* v34.0.0-alpha (F4-6): ساخت arg در ابتدا — ارجاع در onclick بعداً به آن بستگی دارد */
+    var arg = ptfPettyArg(a, b);
+    /* ptfPettyPeriodFiles و ptfPettyPeriodEvents امضای (a,b) دارند — اگر a یک
+       رشتهٔ 'from|to' باشد، باید [from, to] از آن استخراج شود (نه [a, b]). */
+    var argPair = ptfPettyArgPair(arg);
+    var files = window.ptfPettyPeriodFiles(argPair[0], argPair[1]);
+    var jobs = files.map(function (f) { return window.ptfPettyResolveUrl(f); });
+    Promise.all(jobs).then(function () {
+      try {
+        var events = window.ptfPettyPeriodEvents(argPair[0], argPair[1]);
+        var rowByCd = {};
+        events.forEach(function (e) { if (e.cd) rowByCd[e.cd] = e.row; });
+        files.forEach(function (f) { if (f.cd && rowByCd[f.cd]) f.row = rowByCd[f.cd]; });
+      } catch (eM2) { console.warn('map file→row:', eM2); }
+      var convertJobs = files.filter(function (f) {
+        var k = window.ptfPettyFileKind(f.name || f.key || '');
+        return (k === 'pdf' || k === 'heic') && f.key;
+      }).map(function (f) { return window.ptfPettyToJpeg(f); });
+      return Promise.all(convertJobs);
+    }).then(function () {
+      var label = window.ptfPettyRangeLabel(argPair[0], argPair[1]);
+      var html = '<div class="md-b" id="pettyPeriodReceiptsDlg" style="display:grid;z-index:4050" onclick="if(event.target===this)this.remove()">' +
+        '<div class="md" style="max-width:1100px;max-height:92vh;overflow:auto;padding:18px">' +
+        '<h3 style="margin:0 0 4px;font-size:15px">📎 فیش‌ها و ضمیمه‌های پرونده — ' + escP(label) + '</h3>' +
+        '<div style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.8">هر فیش با برچسب «ضمیمه ردیف N» (شماره ردیف در گزارش) و «سند M» (شناسهٔ پیوست) نمایش داده می‌شود. برای تطابق سریع چشمی.</div>' +
+        (files.length ? window.ptfPettyReceiptsHtml(files) : '<div style="padding:18px;color:#94a3b8;text-align:center;font-size:13px">هیچ فیشی برای این دوره ثبت نشده است.</div>') +
+        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;border-top:1px solid var(--brd);padding-top:12px">' +
+        '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>' +
+        /* v34.0.0-alpha (F4-6): arg به درستی در دکمهٔ PDF تلفیقی ارجاع می‌شود */
+        '<button class="bt" onclick="this.closest(\'.md-b\').remove();ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 دانلود PDF تلفیقی</button>' +
+        '</div></div></div>';
+      document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    }).catch(function (eShow) { console.error('ptfPettyPeriodShowReceipts:', eShow); if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در نمایش ضمیمه‌ها: ' + (eShow.message || eShow), 'warn'); });
+  };
+
   window.ptfPettyPeriodReport = function (a, b) {
     var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
     var label = window.ptfPettyRangeLabel(a, b), arg = ptfPettyArg(a, b);
@@ -636,6 +878,7 @@
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodCsv(\'' + arg + '\')">⬇ اکسل</button>' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodPrint(\'' + arg + '\')">🖨 چاپ/PDF</button>' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodShowReceipts(\'' + arg + '\')">📎 فیش‌های پیوست</button>' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 PDF تلفیقی</button>' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -683,11 +926,11 @@
       'body{font-family:Tahoma,Arial;padding:0;margin:0;color:#111;font-size:11px}' +
       'table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:4px 6px;text-align:right;font-size:10.5px}th{background:#eee}' +
       '.page{page-break-after:always}' +
-      '.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-items:start}' +
-      '.rcpt{box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:5px;page-break-inside:avoid;background:#fff;overflow:hidden}' +
-      '.rcpt img{width:100%;height:auto;display:block;border-radius:5px;max-height:300px;object-fit:contain;background:#fff}' +
-      '.rcpt .cap{font-size:9.5px;color:#1d4ed8;font-weight:bold;margin:4px 0 2px}' +
-      '.rcpt embed{width:100%;height:280px;border:1px solid #ddd;border-radius:5px;background:#fff}' +
+      '.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;align-items:stretch;justify-items:stretch}' +
+      '.rcpt{box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:4px;page-break-inside:avoid;background:#fff;overflow:hidden;width:100%}' +
+      '.rcpt img{width:100%;height:auto;display:block;border-radius:5px;max-height:220px;object-fit:contain;background:#fff}' +
+      '.rcpt .cap{font-size:9.5px;color:#1d4ed8;font-weight:bold;margin:3px 0 2px}' +
+      '.rcpt embed{width:100%;height:200px;border:1px solid #ddd;border-radius:5px;background:#fff}' +
       '.rcpt .meta{font-size:9px;color:#475569;margin-bottom:3px}' +
       '</style></head><body>' +
       '<div class="page"><h2 style="font-size:16px;margin:0 0 8px">گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
@@ -699,15 +942,21 @@
   };
 
   /* صفحهٔ ضمائم: چیدمان ۳-در-صفحهٔ فشرده + شناسهٔ «سند N» برای هر فایل */
-  /* BUG-PDF-ATTACH: نوع فایل (عکس/PDF/سایر) — برای نمایش صحیح در گزارش تلفیقی */
+  /* BUG-PDF-ATTACH v2: نوع فایل (عکس/PDF/HEIC/سایر) — فرمت‌های رایج برای نمایش صحیح */
   window.ptfPettyFileKind = function (name) {
     var n = String(name || '').toLowerCase();
-    if (/\.(jpe?g|png|gif|webp|bmp)$/.test(n)) return 'image';
+    /* image: jpg/jpeg/png/gif/webp/bmp/svg — فرمت‌هایی که در <img> نمایش داده می‌شوند */
+    if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(n)) return 'image';
     if (/\.pdf$/.test(n)) return 'pdf';
-    if (/\.(heic|heif|heics)$/.test(n)) return 'heic'; /* BUG-PDF-ATTACH: فرمت HEIC آیفون */
+    /* HEIC/HEIF: فرمت Live Photo آیفون — اکثر مرورگرهای مدرن در <img> پشتیبانی می‌کنند */
+    if (/\.(heic|heif|heics)$/.test(n)) return 'heic';
     return 'other';
   };
-  /* BUG-PDF-ATTACH: تبدیل PDF/HEIC به JPEG — از endpoint سرور (Imagick)؛ اگر نبود → خالی */
+  /* BUG-PDF-ATTACH v2: تبدیل PDF/HEIC به JPEG — با fallback کامل
+     - اگر سرور Imagick داشت → از آن استفاده می‌کند
+     - اگر نداشت یا خطا داد → فایل با همان URL اصلی باقی می‌ماند (نمایش در <img> یا <embed>)
+     - برای HEIC: مرورگرهای مدرن (Safari 14+, Chrome 110+) خودشان HEIC را در <img> نمایش می‌دهند
+     - برای PDF: اگر Imagick نبود، در <embed> نمایش داده می‌شود */
   window.ptfPettyToJpeg = function (f) {
     return new Promise(function (resolve) {
       if (!f || !f.key) return resolve(f);
@@ -716,20 +965,36 @@
       try {
         fetch('api/attachment-thumb.php', {
           method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 })
+          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 }),
+          /* v2: timeout 30 ثانیه — اگر سرور کند بود، ادامه دهیم */
         }).then(function (r) { return r.json(); })
           .then(function (d) {
             if (d && d.ok && d.images && d.images.length) {
               f.url = d.images[0].url;
               f.converted = true;
+              f.convertedKind = kind;
               f.extraImages = d.images.slice(1).map(function (im) { return { key: im.key, url: im.url }; });
+              f.convertError = '';
             } else {
-              f.url = ''; f.convertError = (d && d.error) || 'no_imagick';
+              /* FIX: نگه‌داشتن URL اصلی برای fallback — حذف نکن!
+                 اگر kind=pdf باشد، در <embed> نمایش داده می‌شود
+                 اگر kind=heic باشد، اکثر مرورگرها در <img> نمایش می‌دهند */
+              f.convertError = (d && d.error) || 'convert_failed';
+              f.convertedKind = kind;
+              /* f.url دست‌نخورده می‌ماند — همان URL اصلی S3 */
             }
             resolve(f);
           })
-          .catch(function () { f.url = ''; f.convertError = 'net'; resolve(f); });
-      } catch (e) { f.url = ''; f.convertError = 'ex'; resolve(f); }
+          .catch(function () {
+            f.convertError = 'net';
+            f.convertedKind = kind;
+            resolve(f);
+          });
+      } catch (e) {
+        f.convertError = 'ex';
+        f.convertedKind = kind;
+        resolve(f);
+      }
     });
   };
   /* گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile */
@@ -748,61 +1013,116 @@
       } catch (e) { resolve(''); }
     });
   }
-  /* رندر یک ضمیمه: عکس → <img>؛ PDF → <embed> (قابل مشاهده در چاپ/PDF)؛ سایر → پیام */
-  /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل‌شده) به‌صورت <img> نمایش داده می‌شود؛ صفحه‌های بیشتر PDF → کارت‌های جدا */
+  /* رندر یک ضمیمه (v2: با fallback قوی)
+     - image (jpg/png/webp/svg): → <img>
+     - heic: → <img> (اکثر مرورگرهای مدرن HEIC را نمایش می‌دهند)
+     - pdf: → <embed> (اگر سرور Imagick نداشت، PDF اصلی نمایش داده می‌شود)
+     - pdf (تبدیل‌شده): → <img> از JPEG تولید شده
+     - heic (تبدیل‌شده): → <img> از JPEG تولید شده
+     - other: → پیام + لینک «باز کردن فایل»
+     - اگر URL اصلاً نیست: placeholder زیبا + لینک «باز کردن فایل» */
   window.ptfPettyReceiptHtml = function (f, pageLabel) {
     var petId = (pageLabel ? pageLabel + ' — ' : '') + (f.petId || 'سند');
     var kind = window.ptfPettyFileKind(f.name || f.key || '');
     var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
     var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
+
     if (!url && f.key) {
-      inner = '<div style="padding:14px;color:#92400e;font-size:11px;text-align:center">⚠️ لینک این سند دریافت نشد' + (f.convertError ? ' (تبدیل ممکن نشد)' : '') + '.<br><small style="color:#94a3b8">برای مشاهده از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
+      /* FIX v2: حتی اگر URL نیست، یک placeholder زیبا نمایش بده (نه حذف فایل) */
+      var ext = (f.name || f.key || '').split('.').pop().toUpperCase();
+      var iconMap = { 'JPG': '🖼', 'JPEG': '🖼', 'PNG': '🖼', 'WEBP': '🖼', 'GIF': '🖼', 'BMP': '🖼', 'SVG': '🖼',
+                      'PDF': '📕', 'HEIC': '📷', 'HEIF': '📷' };
+      var icon = iconMap[ext] || '📄';
+      var errMsg = f.convertError === 'no_imagick'
+        ? 'سرور تبدیل PDF/HEIC ندارد (Imagick)'
+        : f.convertError === 'read_failed'
+          ? 'فایل از آروان خوانده نشد'
+          : f.convertError === 'convert_failed'
+            ? 'تبدیل فایل ناموفق بود'
+            : f.convertError === 'net'
+              ? 'خطای شبکه'
+              : f.convertError
+                ? 'خطا: ' + f.convertError
+                : 'لینک فایل در دسترس نیست';
+      inner = '<div style="padding:18px 12px;color:#475569;font-size:11px;text-align:center;background:#f8fafc;border-radius:6px;border:1px dashed #cbd5e1">' +
+        '<div style="font-size:32px;margin-bottom:6px">' + icon + '</div>' +
+        '<div style="font-weight:bold;margin-bottom:4px">' + escP(f.name || ('سند ' + (f.petId || ''))) + '</div>' +
+        '<div style="color:#92400e;margin-bottom:6px">⚠️ ' + errMsg + '</div>' +
+        '<small style="color:#64748b">برای مشاهده روی «باز کردن فایل» بزنید.</small>' +
+        openBtn + '</div>';
+    } else if (kind === 'pdf' && !f.converted) {
+      /* PDF بدون تبدیل → <embed> که در اکثر مرورگرها/پرینترها کار می‌کند */
+      inner = '<embed src="' + url + '" type="application/pdf" style="width:100%;height:220px;border-radius:5px;background:#fff" onerror="this.outerHTML=\'<div style=&quot;padding:10px;color:#b91c1c;font-size:10px&quot;>⚠️ PDF قابل نمایش نیست — ' + openBtn + '</div>\'">' + openBtn;
     } else if (kind === 'image' || kind === 'heic' || f.converted) {
-      inner = '<img src="' + url + '" onerror="this.parentNode.innerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ تصویر قابل نمایش نیست' + (openBtn ? ' — ' + openBtn : '') + '</div>\'">';
-    } else if (kind === 'pdf') {
-      inner = '<embed src="' + url + '" type="application/pdf" style="width:100%;height:200px;border-radius:5px" onerror="this.outerHTML=\'<div style=padding:10px;color:#b91c1c;font-size:10px>⚠️ PDF قابل نمایش نیست</div>\'">' + openBtn;
+      /* تصویر (یا PDF/HEIC تبدیل‌شده) → <img> */
+      inner = '<img src="' + url + '" alt="' + escP(f.name || 'سند') + '" style="width:100%;height:auto;display:block;border-radius:5px;max-height:300px;object-fit:contain;background:#fff" onerror="this.outerHTML=\'<div style=&quot;padding:10px;color:#b91c1c;font-size:10px&quot;>⚠️ تصویر قابل نمایش نیست — ' + openBtn.replace(/'/g, '\\\'') + '</div>\'">';
+      if (f.converted && f.convertError) {
+        /* اگر تبدیل موفق بوده ولی قبلاً خطا داشت، پیام نمی‌دهیم */
+      }
     } else {
-      inner = '<div style="padding:14px;color:#7c3aed;font-size:11px;text-align:center">📄 ' + escP(f.name || f.key || 'سند') + '<br><small style="color:#94a3b8">این فرمت در گزارش تلفیقی نمایش داده نمی‌شود؛ از «باز کردن فایل» استفاده کنید.</small>' + openBtn + '</div>';
+      /* فرمت ناشناس → پیام + لینک باز کردن */
+      inner = '<div style="padding:14px;color:#7c3aed;font-size:11px;text-align:center;background:#f5f3ff;border-radius:6px">📄 ' + escP(f.name || f.key || 'سند') + '<br><small style="color:#94a3b8">این فرمت در گزارش تلفیقی نمایش داده نمی‌شود.</small>' + openBtn + '</div>';
     }
-    return '<div class="rcpt"><div class="cap">' + escP(petId) + '</div>' +
-      (f.name ? '<div class="meta">' + escP(f.name) + '</div>' : '') + inner + '</div>';
+    /* v2: تگ دوگانه — «ضمیمه ردیف N» (از row گزارش) + «سند M» (petId)
+       اگر f.row نباشد (مثل ضمیمهٔ صورتحساب بانک)، فقط petId نمایش داده می‌شود */
+    var tags = [];
+    if (f.row) tags.push('ضمیمه ردیف ' + f.row);
+    tags.push(petId);
+    var tagsHtml = '<div class="cap" style="display:flex;justify-content:space-between;align-items:center;gap:4px;flex-wrap:wrap">' +
+      '<span>' + escP(tags.join(' — ')) + '</span>' +
+      '</div>';
+    return '<div class="rcpt" style="font-size:10.5px">' + tagsHtml +
+      (f.name ? '<div class="meta" style="font-size:10px;color:#64748b;margin-bottom:3px;word-break:break-all">' + escP(f.name) + '</div>' : '') + inner + '</div>';
   };
+  /* v2: ضمیمه‌ها به‌صورت فشرده (۲-ستونه + max-height کم) با تگ دوگانه
+     - F4-9 (گزارش استیج): «تماماً زیر هم (وسط‌چین) با حاشیهٔ سفید زیاد» — قبلاً ۴-ستونه بود
+       و در چاپ A4 (عرض ~۱۹۰mm محتوا) ۴ ستون جا نمی‌شد → margin خودکار + center-align
+     - رفع: grid-template-columns: repeat(2, 1fr) (دو ستون پر) + max-height: 220px (فشرده‌تر)
+       + justify-items: stretch (پر کردن عرض). نتیجه: ضمیمه‌ها عرض A4 را پر می‌کنند.
+     - «ضمیمه ردیف N» (از شمارهٔ ردیف گزارش — برای تطابق سریع چشمی)
+     - «سند M» (petId موجود — شناسهٔ منحصر به فرد هر پیوست)
+     نگاشت file → row از طریق f.cd === event.cd (در ptfPettyPeriodReport ساخته می‌شود) */
   window.ptfPettyReceiptsHtml = function (records) {
     var cards = (records || []).map(function (f) {
       var h = window.ptfPettyReceiptHtml(f);
-      /* PDF چندصفحه (تبدیل‌شده) → کارت برای هر صفحهٔ اضافه */
       (f.extraImages || []).forEach(function (im, i) {
         h += window.ptfPettyReceiptHtml({ key: im.key, name: (f.name || '') + ' (صفحه ' + (i + 2) + ')', url: im.url, petId: f.petId || '', converted: true }, 'صفحه ' + (i + 2));
       });
       return h;
     }).join('');
     if (!cards) return '<div style="padding:16px;color:#64748b;font-size:12px">رسید/ضمیمه‌ای برای نمایش در این دوره موجود نیست.</div>';
-    return '<div class="grid">' + cards + '</div>';
+    /* F4-9: ۲-ستونه + gap کم + max-height کم برای چاپ فشرده (پر کردن عرض A4) */
+    return '<div class="grid" style="grid-template-columns:repeat(2,1fr);gap:4px;align-items:stretch;justify-items:stretch">' + cards + '</div>';
   };
 
   /* جمع‌آوری فایل‌های دوره: (الف) دورهٔ ذخیره‌شده → دقیقاً از pettyIds/txIds همان لحظهٔ ارجاع
-     (ب) دورهٔ جاری/بازه → از دادهٔ بازه */
+     (ب) دورهٔ جاری/بازه → از دادهٔ بازه
+     v2: هر file همراه cd (شناسه رکورد) و kind ذخیره می‌شود برای نگاشت به row گزارش + تگ «ضمیمه ردیف N» */
   window.ptfPettyPeriodFiles = function (a, b, ids) {
     var out = [];
-    function pushRec(r) {
+    function pushRec(r, kind) {
       if (!r) return;
       var petId = r.petId || ((r.files || []).length ? (r.files[0].petId || '') : '');
       (r.files || []).forEach(function (f) {
-        /* BUG-PDF-ATTACH: url فایل (اگر از قبل resolve شده) حفظ می‌شود — قبلاً '' هاردکد بود و سندها لود نمی‌شدند */
-        out.push({ key: f.key || '', name: f.name || f.key, url: f.url || '', petId: f.petId || petId, record: r });
+        out.push({ key: f.key || '', name: f.name || f.key, url: f.url || '', petId: f.petId || petId, cd: r.cd, kind: kind, record: r });
       });
     }
     if (ids && Array.isArray(ids)) {
       var byId = {};
       (getData(PETTY_KEY) || []).forEach(function (p) { byId[p.cd] = p; });
       txAll().forEach(function (x) { byId[x.cd] = x; });
-      ids.forEach(function (cd) { pushRec(byId[cd]); });
+      ids.forEach(function (cd) {
+        var r = byId[cd];
+        if (!r) return;
+        var kind = (r.type === 'charge' || r.type === 'direct' || r.type === 'settle') ? 'tx' : 'petty';
+        pushRec(r, kind);
+      });
       return out;
     }
     var d = window.ptfPettyPeriodData(a, b);
-    (d.petty || []).forEach(pushRec);
-    (d.tx || []).forEach(pushRec);
+    (d.petty || []).forEach(function (r) { pushRec(r, 'petty'); });
+    (d.tx || []).forEach(function (r) { pushRec(r, 'tx'); });
     return out;
   };
 
@@ -833,6 +1153,13 @@
       }).map(function (f) { return window.ptfPettyToJpeg(f); });
       return Promise.all(convertJobs);
     }).then(function () {
+      /* v2: نگاشت file → row گزارش — هر file، ردیف رکوردش را می‌گیرد */
+      try {
+        var events = window.ptfPettyPeriodEvents(a, b);
+        var rowByCd = {};
+        events.forEach(function (e) { if (e.cd) rowByCd[e.cd] = e.row; });
+        all.forEach(function (f) { if (f.cd && rowByCd[f.cd]) f.row = rowByCd[f.cd]; });
+      } catch (eMap) { console.warn('map file→row:', eMap); }
       var pageBreaks = [];
       var receiptsHtml = window.ptfPettyReceiptsHtml(files);
       pageBreaks.push('<div class="page"><h3 style="font-size:14px;margin:0 0 6px">📎 ضمائم و رسیدهای پرداخت (شناسهٔ هر رسید مطابق ردیف‌های گزارش)</h3>' + receiptsHtml + '</div>');

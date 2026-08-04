@@ -211,7 +211,7 @@
     var invs = getData('ptf_crm_invoices') || [];
     var inv = invs.filter(function (x) { return x.cd === c.sourceInvoiceCd; })[0];
     if (!inv) return { ok: false, why: 'invoice_not_found' };
-    var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amt || 0)); }, 0);
     var remain = (+inv.amount || 0) - paid;
     if (c.amt > remain + 0.5) return { ok: false, why: 'over_remain' };
     inv.payments = inv.payments || [];
@@ -333,7 +333,7 @@
         if (!inv || inv.status === 'void') return;
         var o = offers.filter(function (x) { return x.no === inv.offerNo; })[0] || {};
         if (o.buyerCd !== custCd && inv.buyerCd !== custCd && inv.custCd !== custCd) return;
-        var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+        var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amt || 0)); }, 0);
         var rem = Math.round((+inv.amount || 0) - paid);
         if (rem > 0) out.push({ cd: inv.cd, lb: (inv.no || inv.cd) + ' — مانده ' + rem.toLocaleString('fa-IR') + ' ریال', remain: rem });
       });

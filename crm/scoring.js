@@ -429,7 +429,7 @@
       if (!myCOs[inv.offerNo]) return;
       invN++;
       invAmt += (+inv.amount || 0);
-      invPaid += ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+      invPaid += (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
     });
     if (invN > 0 && invAmt > 0) {
       signals++;

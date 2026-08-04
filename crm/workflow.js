@@ -73,7 +73,7 @@
         var prj = getData('ptf_crm_projects').filter(function (p) { return p.offerNo === lastCo.no; })[0];
         if (prj && (prj.state === 'done' || prj.state === 'closed' || prj.state === 'archived')) {
           var inv = getData('ptf_crm_invoices').filter(function (v) { return v.offerNo === lastCo.no; })[0];
-          var paid = inv && ((inv.pays || []).concat(inv.payments || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0) >= (+inv.amount || 1);
+          var paid = inv && (window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.pays || []).concat(inv.payments || [])).reduce(function(s, p) { return s + (+p.amt || 0); }, 0)) >= (+inv.amount || 1);
           return paid ? 'WF85' : 'WF80';
         }
         return 'WF70';

@@ -25,7 +25,9 @@
   function invRemain(inv, d) { return Math.max(0, (+inv.amount || 0) - invPaid(inv, d)); }
   function legacyOpen(sup) {
     return getData('ptf_crm_payables').filter(function (p) {
-      return p.pay === 'credit' && !p.settled && !p.sfInvoiceCd && nrm(p.sup) === nrm(sup.co || sup.name || '');
+      return p.pay === 'credit' && !p.settled && !p.sfInvoiceCd &&
+        /* P0-2 FIX: اولویت با supplierCd (یکتاست)؛ اگر legacy data فقط نام دارد، از نام به‌عنوان fallback استفاده شود */
+        (p.supplierCd ? p.supplierCd === sup.cd : nrm(p.sup) === nrm(sup.co || sup.name || ''));
     });
   }
   function linkedLegacyIds(d) {
@@ -44,7 +46,7 @@
     });
     legacyOpen(sup || { co: name }).forEach(function (p) {
       if (linked[p.cd]) return;
-      var c = p.cur || 'IRR', r = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : Math.max(0, (+p.amount || 0) - (p.paid || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0));
+      var c = p.cur || 'IRR', r = typeof ptfPayableRemain === 'function' ? ptfPayableRemain(p) : Math.max(0, (+p.amount || 0) - (p.paid || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0))
       if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0, credit: 0 };
       by[c].amount += r; by[c].irr += c === 'IRR' ? r : r * (+p.rate || 0); by[c].legacy++;
     });
@@ -282,9 +284,16 @@
   }
   function slCustomerInvoicesOptions() {
     var offers = getData('ptf_crm_offers'), customers = getData('ptf_crm_customers'), invs = getData('ptf_crm_invoices');
-    return invs.filter(function (i) { var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0); return (+i.amount || 0) - paid > 0; }).map(function (i) {
+    /* v33.23.x فاز ۳: استفاده از helpers مشترک برای تشخیص فعال بودن پرداخت و مبلغ صحیح (amountIrr > amt > amount) */
+    var _amtIrr = (window.PTF && window.PTF.paymentAmtIrr) ? window.PTF.paymentAmtIrr : function(p){ return +p.amt || 0; };
+    var _isActive = (window.PTF && window.PTF.isPaymentActive) ? window.PTF.isPaymentActive : function(){ return true; };
+    return invs.filter(function (i) {
+      var paid = ((i.payments || []).concat(i.pays || []).filter(_isActive)).reduce(function (s, p) { return s + _amtIrr(p); }, 0);
+      return (+i.amount || 0) - paid > 0;
+    }).map(function (i) {
       var o = offers.filter(function (x) { return x.no === i.offerNo; })[0] || {}, c = customers.filter(function (x) { return x.cd === o.buyerCd; })[0] || {};
-      return '<option value="' + escP(i.cd) + '" data-cust="' + escP(o.buyerCd || '') + '">' + escP(c.co || o.buyerCo || '-') + ' — ' + escP(i.no || i.cd) + ' — مانده ' + money((+i.amount || 0) - ((i.payments || []).concat(i.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0)) + ' ریال</option>';
+      var paid = ((i.payments || []).concat(i.pays || []).filter(_isActive)).reduce(function (s, p) { return s + _amtIrr(p); }, 0);
+      return '<option value="' + escP(i.cd) + '" data-cust="' + escP(o.buyerCd || '') + '">' + escP(c.co || o.buyerCo || '-') + ' — ' + escP(i.no || i.cd) + ' — مانده ' + money((+i.amount || 0) - paid) + ' ریال</option>';
     }).join('');
   }
   window.slPayMethodUi = function () {
@@ -320,7 +329,7 @@
       if (sourceCd && inv) {
         var srcOffer = getData('ptf_crm_offers').filter(function (o) { return o.no === inv.offerNo; })[0] || {};
         if (srcOffer.buyerCd !== sourceCd) return { ok: false, error: 'فاکتور انتخاب‌شده متعلق به مشتری انتخاب‌شده نیست' };
-        var paid = ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+        var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amt || 0)); }, 0);
         if (amount > (+inv.amount || 0) - paid) return { ok: false, error: 'مبلغ چک از مانده فاکتور مشتری بیشتر است' };
         inv.payments = inv.payments || []; inv.payments.push({ amt: amount, how: 'چک ثالث منتقل‌شده به تامین‌کننده', t: faDate(), by: curSession().name, chequeCd: rec.cd, supplierPaymentCd: payCd, transferred: true }); setData('ptf_crm_invoices', invs);
       }

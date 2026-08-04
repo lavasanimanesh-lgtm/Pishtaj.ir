@@ -42,10 +42,25 @@
      خروجی: {found, changed, created, removed, txCd} */
   function ensureSalaryTxForMonth(sh, month) {
     month = normMonth(month) || faMonthNow();
-    var out = { found: false, changed: false, created: false, removed: false, txCd: '' };
+    var out = { found: false, changed: false, created: false, removed: false, txCd: '', opexCreated: false };
     if (!sh || sh.active === false) return out;
     var txs = txAll();
     var hit = txs.filter(function (x) { return x.type === 'salary' && x.shCd === sh.cd && x.month === month; })[0];
+    /* v34.0.0-alpha (F4-7): اطمینان از وجود opex متناظر — اگر hit پیدا شد ولی ox
+       پیدا نشد (مثلاً opex قبلاً حذف شده)، opex ایجاد می‌شود. قبلاً فقط
+       در صورت تغییر مبلغ، opex آپدیت می‌شد و اگر ox نبود، چیزی ایجاد نمی‌شد
+       → حقوق سهامدار در opex ثبت نمی‌شد و در محاسبات سال مالی لحاظ نمی‌شد. */
+    function ensureOpex(cd) {
+      var opx = oAll();
+      var exists = opx.filter(function (o) { return o.shareTx === cd; })[0];
+      if (!exists) {
+        opx.unshift({ cd: genCode('OPX'), cat: 'حقوق و دستمزد', amt: +sh.salary || 0, month: month, desc: 'حقوق موظف سهامدار: ' + sh.name, t: faDateTime(), by: nm(), shareTx: cd, shareholderSalary: true });
+        oSave(opx);
+        out.opexCreated = true;
+        return true;
+      }
+      return false;
+    }
     if (sh.duty && (+sh.salary || 0) > 0) {
       if (hit) {
         out.found = true; out.txCd = hit.cd;
@@ -54,19 +69,27 @@
           hit.desc = 'حقوق موظف ماه ' + month;
           hit.updatedT = faDateTime(); hit.updatedBy = nm();
           txSave(txs);
-          var opx = oAll();
-          var ox = opx.filter(function (o) { return o.shareTx === hit.cd; })[0];
-          if (ox) { ox.amt = +sh.salary || 0; ox.month = month; ox.desc = 'حقوق موظف سهامدار: ' + sh.name; ox.updatedT = faDateTime(); ox.updatedBy = nm(); oSave(opx); }
+          /* v34.0.0-alpha (F4-7): آپدیت opex اگر وجود داشت، یا ایجاد اگر نبود */
+          var opxChg = oAll();
+          var oxChg = opxChg.filter(function (o) { return o.shareTx === hit.cd; })[0];
+          if (oxChg) {
+            oxChg.amt = +sh.salary || 0; oxChg.month = month;
+            oxChg.desc = 'حقوق موظف سهامدار: ' + sh.name;
+            oxChg.updatedT = faDateTime(); oxChg.updatedBy = nm();
+            oSave(opxChg);
+          } else {
+            ensureOpex(hit.cd);
+          }
           out.changed = true;
+        } else {
+          /* v34.0.0-alpha (F4-7): مبلغ برابر — فقط مطمئن شو opex هست
+             (اگر قبلاً حذف شده، دوباره ایجاد شود) */
+          ensureOpex(hit.cd);
         }
         return out;
       }
       var tx = addTx('salary', sh, sh.salary, 'حقوق موظف ماه ' + month, { month: month });
-      var opx2 = oAll();
-      if (!opx2.some(function (o) { return o.shareTx === tx.cd; })) {
-        opx2.unshift({ cd: genCode('OPX'), cat: 'حقوق و دستمزد', amt: +sh.salary || 0, month: month, desc: 'حقوق موظف سهامدار: ' + sh.name, t: faDateTime(), by: nm(), shareTx: tx.cd, shareholderSalary: true });
-        oSave(opx2);
-      }
+      ensureOpex(tx.cd);
       out.created = true; out.txCd = tx.cd;
       return out;
     }

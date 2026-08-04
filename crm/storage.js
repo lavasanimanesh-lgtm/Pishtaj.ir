@@ -285,6 +285,30 @@ window.openStoredFile = openStoredFile;
 
 /* ---------- ویجت آپلود چندمنظوره ---------- */
 // attachUploadWidget(containerId, folder, onDone(fileRec))
+/* v34.0.0-alpha (F4-11): لیست سفید فرمت‌های مجاز ضمیمه
+   - ریشه: سرور Imagick ندارد (هاست اشتراکی) → PDF/HEIC قابل تبدیل به JPEG نیست
+     و در گزارش تلفیقی، <embed> برای PDF یا <img> برای HEIC در همهٔ مرورگرها/پرینترها کار نمی‌کند.
+   - راه‌حل: فرمت‌های غیرقابل‌تبدیل (PDF، HEIC، DOCX، ...) قبل از آپلود رد می‌شوند
+     با پیام واضح به کاربر. فقط عکس (JPG/PNG/WEBP/GIF/SVG) + PDF (با محدودیت حجم) مجازند.
+   - ptfAllowedExts سفید است — ویژهٔ فایل‌هایی که در رندر مستقیم <img> یا <embed> قابل نمایش‌اند.
+   - پیشنهاد: کاربر PDF/HEIC را قبل از آپلود به JPG/PNG تبدیل کند. */
+var ptfAllowedExts = ['jpg','jpeg','png','webp','gif','bmp','svg','pdf'];
+var ptfMaxPdfMB = 5;  // PDF باید < ۵MB باشد (پرینتر محدودیت دارد)
+function ptfIsAllowedFile(file) {
+  var name = String(file && file.name || '').toLowerCase();
+  var m = name.match(/\.([a-z0-9]+)$/);
+  var ext = m ? m[1] : '';
+  if (ptfAllowedExts.indexOf(ext) < 0) {
+    return { ok: false, error: 'فرمت «.' + ext + '» مجاز نیست. فرمت‌های مجاز: ' + ptfAllowedExts.join(', ') + '. لطفاً PDF/HEIC را قبل از آپلود به JPG یا PNG تبدیل کنید.' };
+  }
+  if (ext === 'pdf' && file.size > ptfMaxPdfMB * 1048576) {
+    return { ok: false, error: 'حجم PDF نباید از ' + ptfMaxPdfMB + 'MB بیشتر باشد (این فایل ' + fmtSize(file.size) + ' است). لطفاً PDF را فشرده کنید یا به JPG تبدیل کنید.' };
+  }
+  return { ok: true };
+}
+window.ptfAllowedExts = ptfAllowedExts;
+window.ptfIsAllowedFile = ptfIsAllowedFile;
+
 function attachUploadWidget(containerId, folder, onDone) {
   var c = document.getElementById(containerId);
   if (!c) return;
@@ -292,7 +316,8 @@ function attachUploadWidget(containerId, folder, onDone) {
   var uid = 'up' + Date.now() + '_' + window._ptfUploadSeq;
   c.innerHTML = '<div style="border:2px dashed var(--brd);border-radius:12px;padding:14px;text-align:center;font-size:12.5px;color:#64748b;cursor:pointer" id="' + uid + 'z">' +
     '📎 برای انتخاب فایل کلیک کنید یا فایل را اینجا رها کنید' +
-    '<input type="file" id="' + uid + 'i" multiple style="display:none">' +
+    '<br><small style="color:#94a3b8;font-size:11px">فرمت‌های مجاز: ' + ptfAllowedExts.join(', ') + ' | PDF ≤ ' + ptfMaxPdfMB + 'MB</small>' +
+    '<input type="file" id="' + uid + 'i" multiple style="display:none" accept="' + ptfAllowedExts.map(function(e) { return '.' + e; }).join(',') + '">' +
     '</div><div id="' + uid + 'p" style="margin-top:6px;font-size:12px"></div>';
   var zone = document.getElementById(uid + 'z');
   var inp = document.getElementById(uid + 'i');
@@ -304,6 +329,13 @@ function attachUploadWidget(containerId, folder, onDone) {
       row.style.cssText = 'padding:4px 0;color:#475569';
       row.textContent = '⏳ ' + f.name + ' ...';
       prog.appendChild(row);
+      /* F4-11: چک فرمت قبل از آپلود — اگر مجاز نیست، abort */
+      var allow = ptfIsAllowedFile(f);
+      if (!allow.ok) {
+        row.innerHTML = '⛔ ' + escP(f.name) + ' — <span style="color:#b91c1c">' + escP(allow.error) + '</span>';
+        if (typeof ptfToast === 'function') ptfToast('فرمت ' + f.name + ' مجاز نیست', 'warn');
+        return;
+      }
       uploadFile(f, folder, function (res) {
         if (res.ok) {
           row.innerHTML = (res.mode === 'arvan' ? '✅ ' : '🕓 ') + escP(res.name) +
