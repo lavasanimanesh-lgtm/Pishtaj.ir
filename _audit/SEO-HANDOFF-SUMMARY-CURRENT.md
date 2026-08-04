@@ -237,3 +237,12 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `ansi-process-pump.html` — پمپ ANSI Process مطابق ASME B73.1 — تصویر `ansi-process-pump-b731-realistic.jpg` — حدود ۱۶۲۴ کلمه
 
 هاب محصولات اکنون ۶۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۲ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۱۰ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `motor-control-center-mcc.html` — تابلو MCC مرکز کنترل موتور — تصویر `motor-control-center-mcc-realistic.jpg` — حدود ۱۵۵۸ کلمه
+- `ultrasonic-flowmeter.html` — فلومتر التراسونیک Clamp-on و Inline — تصویر `ultrasonic-flowmeter-clamp-on-realistic.jpg` — حدود ۱۵۶۱ کلمه
+- `thermal-mass-flowmeter.html` — فلومتر جرمی حرارتی گاز و هوای فشرده — تصویر `thermal-mass-flowmeter-realistic.jpg` — حدود ۱۵۵۲ کلمه
+- `online-water-quality-analyzer.html` — آنالایزر آنلاین کیفیت آب — تصویر `water-quality-analyzer-realistic.jpg` — حدود ۱۶۵۵ کلمه
+
+هاب محصولات اکنون ۶۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۶ URL عمومی دارد.
