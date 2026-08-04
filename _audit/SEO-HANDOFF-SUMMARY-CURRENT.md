@@ -190,3 +190,16 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `industrial-strainer-filter.html` — Y Strainer / Basket Strainer / Filter — تصویر `industrial-strainer-filter-realistic.jpg`
 
 هاب محصولات اکنون ۴۷ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۴ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۵ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول ابزار دقیق جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `pressure-gauge.html` — گیج فشار صنعتی و Safety Pressure Gauge — تصویر `pressure-gauge-safety-realistic.jpg` — حدود ۱۶۲۷ کلمه
+- `thermowell.html` — ترموول صنعتی ASME PTC 19.3 TW — تصویر `thermowell-flanged-realistic.jpg` — حدود ۱۵۸۷ کلمه
+- `temperature-transmitter.html` — ترانسمیتر دما صنعتی — تصویر `temperature-transmitter-headmount-realistic.jpg` — حدود ۱۶۳۶ کلمه
+- `diaphragm-seal.html` — دیافراگم سیل و Remote Seal — تصویر `diaphragm-seal-remote-realistic.jpg` — حدود ۱۶۵۰ کلمه
+
+هاب محصولات اکنون ۵۱ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۸ URL عمومی دارد.
+
+## گام بعدی پیشنهادی
+۱) بازبینی دستی UX هاب محصولات و چند صفحه جدید ابزار دقیق در موبایل.  
+۲) اگر تأیید بود، تولید فاز بعدی صفحات محصول بر اساس فرصت‌های باقی‌مانده مثل Mixer/Agitator، Fire Alarm/F&G Panel، PLC/SCADA Hardware، CCTV/Access Control صنعتی یا HVAC صنعتی، فقط بعد از تحقیق واقعی برند/استاندارد/تصویر.
