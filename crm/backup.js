@@ -555,7 +555,7 @@
         var list = (d.backups || []).map(function (b) {
           return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid var(--brd);border-radius:9px;margin-bottom:5px;font-size:12px">' +
             '<span style="direction:ltr">' + escP(b.name) + ' <small style="color:#94a3b8">(' + Math.round(b.size / 1024) + 'KB — ' + escP(b.t) + ')</small></span>' +
-            (curRole() === 'admin' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="ptfRestoreServer(\'' + escP(b.name) + '\')">⏪ بازگردانی</button>' : '') + '</div>';
+            (curRole() === 'admin' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="ptfRestoreServer(\'' + ptfOnClickArg(b.name) + '\')">⏪ بازگردانی</button>' : '') + '</div>';
         }).join('') || '<div style="color:#94a3b8;text-align:center;padding:14px;font-size:12.5px">بک‌آپی روی سرور نیست</div>';
         var html = '<div class="md-b" style="display:grid;z-index:70" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
           '<h3>📂 بک‌آپ‌های سرور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:8px">hourly-latest = آخرین ساعتی | daily-… = ۳ روز اخیر | weekly-latest = هفتگی | monthly-latest = ماهانه (چرخشی US-282 — پسوند .gz یعنی فشرده؛ بازگردانی/دانلود خودکار بازش می‌کند)</div>' + list +
@@ -745,8 +745,8 @@
         var td = tr.querySelectorAll('td');
         var last = td[td.length - 1];
         last.insertAdjacentHTML('beforeend',
-          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" title="فقط ادمین: بازگشت از برنده + حذف پرونده خودکار" onclick="adminUnwin(\'' + escP(no) + '\')">⏪ بازگشت</button>' +
-          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="adminDelOffer(\'' + escP(no) + '\')">🗑️</button>');
+          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" title="فقط ادمین: بازگشت از برنده + حذف پرونده خودکار" onclick="adminUnwin(\'' + ptfOnClickArg(no) + '\')">⏪ بازگشت</button>' +
+          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="adminDelOffer(\'' + ptfOnClickArg(no) + '\')">🗑️</button>');
       }
     });
   };

@@ -220,7 +220,7 @@
       }).join('');
       var ecCells = ec.map(function (c) {
         var v = (it.extra || {})[c] || '';
-        return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + escP(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+        return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
       }).join('');
       rows += '<tr><td>' + (i + 1) + '</td>' + tds + ecCells +
         (isCO
@@ -272,8 +272,8 @@
       '<h3>🖨 انتخاب قالب سند ' + escP(o.no) + '</h3>' + cards +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt bt-o" onclick="offerTplGo(\'' + escP(o.no) + '\', true)">👁 پیش‌نمایش</button>' +
-      '<button class="bt" onclick="offerTplGo(\'' + escP(o.no) + '\', false)">🖨 دریافت PDF</button></div></div></div>';
+      '<button class="bt bt-o" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', true)">👁 پیش‌نمایش</button>' +
+      '<button class="bt" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', false)">🖨 دریافت PDF</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.offerTplGo = function (no, isPreview) {
@@ -579,8 +579,8 @@
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
       '<button class="bt" style="background:#0e7490" onclick="ptfPrintPreviewGo()">🖨️ چاپ / ذخیره PDF</button>' +
       '<button class="bt bt-o" style="color:#b45309;border-color:#fde68a;background:#fffbeb;font-weight:bold" onclick="ptfToggleLayoutBar()">🎛️ تنظیم چیدمان و گنجایش صفحه</button>' +
-      '<button class="bt bt-o" onclick="ptfDownloadPreviewHtml(\'' + escP(fileName || 'document') + '\')">⬇️ دانلود HTML</button>' +
-      '<button class="bt bt-o" style="color:#7c3aed;border-color:#ddd6fe" onclick="ptfDownloadPreviewWord(\'' + escP(fileName || 'document') + '\')">⬇️ دانلود Word (.doc)</button>' +
+      '<button class="bt bt-o" onclick="ptfDownloadPreviewHtml(\'' + ptfOnClickArg(fileName || 'document') + '\')">⬇️ دانلود HTML</button>' +
+      '<button class="bt bt-o" style="color:#7c3aed;border-color:#ddd6fe" onclick="ptfDownloadPreviewWord(\'' + ptfOnClickArg(fileName || 'document') + '\')">⬇️ دانلود Word (.doc)</button>' +
       '<button class="bt bt-o" onclick="ptfOpenPreviewNewTab()">🗗 تب جدید</button>' +
       '<button class="bt" style="background:#64748b" onclick="document.getElementById(\'ptfPrintPreview\').remove()">بستن</button></div></div>' +
       '<div id="ptfLayoutBarWrap" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;margin-bottom:10px;gap:12px;align-items:center;flex-wrap:wrap;font-size:11.5px">' +

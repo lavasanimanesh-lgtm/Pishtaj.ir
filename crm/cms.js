@@ -161,7 +161,7 @@
           '<span style="font-size:12.5px;flex:1"><b>' + escP(a.title) + '</b>' + (a.archived ? ' <span class="bd" style="background:#f1f5f9;color:#94a3b8">آرشیو</span>' : '') + '<br><small style="color:#94a3b8;direction:ltr;display:inline-block">' + escP(a.file) + ' (' + Math.round(a.size / 1024) + 'KB)</small></span>' +
           '<span style="display:flex;gap:4px">' +
           '<a class="bt bt-o" style="padding:4px 9px;font-size:12px;text-decoration:none" target="_blank" href="../blog/' + escP(a.file) + '">👁️</a>' +
-          (!a.archived ? '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="cmsBlogArchive(\'' + escP(a.file.replace('.html', '')) + '\')">🗄 آرشیو</button>' : '') +
+          (!a.archived ? '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="cmsBlogArchive(\'' + ptfOnClickArg(a.file.replace('.html', '')) + '\')">🗄 آرشیو</button>' : '') +
           '</span></div>';
       }).join('') || '<div style="color:#94a3b8;text-align:center;padding:14px">مقاله‌ای نیست</div>';
     });

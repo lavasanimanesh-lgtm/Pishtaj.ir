@@ -251,7 +251,7 @@ window.ptfOpenDocViewer = function (url, meta) {
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h3 style="margin:0;font-size:15px;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escP(name) + '">👁 ' + escP(name) + '</h3>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-    (key ? '<button type="button" class="bt bt-o" style="font-size:12px" onclick="event.stopPropagation();ptfDownloadStoredFile(\'' + escP(key) + '\',\'' + escP(name).replace(/'/g, '') + '\')">⬇️ دانلود</button>' : '') +
+    (key ? '<button type="button" class="bt bt-o" style="font-size:12px" onclick="event.stopPropagation();ptfDownloadStoredFile(\'' + ptfOnClickArg(key) + '\',\'' + escP(name).replace(/'/g, '') + '\')">⬇️ دانلود</button>' : '') +
     '<a class="bt bt-o" style="font-size:12px;text-decoration:none" href="' + String(url).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗗 تب جدید</a>' +
     '<button type="button" class="bt" style="font-size:12px" onclick="event.stopPropagation();var m=document.getElementById(\'ptfDocViewer\');if(m)m.remove()">✕ بستن</button>' +
     '</div></div>' + body + '</div></div>';
@@ -500,7 +500,7 @@ window.ptfReviewAndCommitInqItems = function(inqNo, items, cb) {
     '<tbody>' + rowsHtml + '</tbody></table></div>' +
     '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
     '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfCommitModal\').remove()">انصراف</button>' +
-    '<button type="button" class="bt" style="background:#059669;color:#fff;font-weight:bold" onclick="ptfFinalCommitItems(\'' + escP(inqNo) + '\')">✅ تایید و ثبت نهایی (ضدتکرار + صدور TO و استعلام تامین)</button>' +
+    '<button type="button" class="bt" style="background:#059669;color:#fff;font-weight:bold" onclick="ptfFinalCommitItems(\'' + ptfOnClickArg(inqNo) + '\')">✅ تایید و ثبت نهایی (ضدتکرار + صدور TO و استعلام تامین)</button>' +
     '</div></div></div>';
   document.body.insertAdjacentHTML('beforeend', html);
   window._pendingCommitItems = items;

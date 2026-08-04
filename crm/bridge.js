@@ -441,8 +441,8 @@
       h += '<tr><td><b>' + escP(s.code) + '</b></td><td>' + escP(s.company) + '</td><td>' + escP(s.name || '-') + '</td>' +
         '<td style="direction:ltr">' + escP(s.phone || '-') + '</td><td style="font-size:11px">' + escP(s.category || '-') + '</td><td style="font-size:11px">' + escP(s.date || '-') + '</td><td>' +
         (isSenior()
-          ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="supApprove(\'' + escP(s.code) + '\')">✅ تایید</button> ' +
-            '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="supReject(\'' + escP(s.code) + '\')">✖ رد</button>'
+          ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="supApprove(\'' + ptfOnClickArg(s.code) + '\')">✅ تایید</button> ' +
+            '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="supReject(\'' + ptfOnClickArg(s.code) + '\')">✖ رد</button>'
           : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
         '</td></tr>';
     });
@@ -539,7 +539,7 @@
         return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 14px;margin-bottom:10px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
           '<b style="font-size:13px">📋 اقلام استعلام (' + its.length + ' قلم)</b>' +
-          '<button type="button" class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="this.closest(\'.md-b\').remove();if(typeof ptfOpenFullInqEditor===\'function\')ptfOpenFullInqEditor(\'' + escP(cd) + '\')">' + (its.length ? '✏️ ویرایش اقلام' : '+ ورود اقلام (دستی / اکسل / دستیار)') + '</button></div>' +
+          '<button type="button" class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="this.closest(\'.md-b\').remove();if(typeof ptfOpenFullInqEditor===\'function\')ptfOpenFullInqEditor(\'' + ptfOnClickArg(cd) + '\')">' + (its.length ? '✏️ ویرایش اقلام' : '+ ورود اقلام (دستی / اکسل / دستیار)') + '</button></div>' +
           (itRows || '<div style="color:#94a3b8;font-size:12px">قلمی ثبت نشده — با دکمه بالا وارد کنید تا «از درخواست» در پیشنهادها فعال شود</div>') +
           (its.length > 8 ? '<div style="color:#94a3b8;font-size:11px;margin-top:4px">… و ' + (its.length - 8) + ' قلم دیگر (در ویرایش اقلام)</div>' : '') +
           '</div>';
@@ -555,19 +555,19 @@
             tot++;
             fh += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed var(--brd);font-size:12px">' +
               '<span>' + cats[k2] + ' — ' + escP(f2.name || '-') + '</span>' +
-              (f2.key ? '<span style="white-space:nowrap"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f2.key) + '\')" style="color:#0e7490">👁 مشاهده</a> <a href="javascript:void(0)" onclick="ptfDownloadStoredFile(\'' + escP(f2.key) + '\',\'' + escP(f2.name || 'file') + '\')" style="color:#059669">⬇️ دانلود</a></span>' : '<small style="color:#94a3b8">صف محلی</small>') + '</div>';
+              (f2.key ? '<span style="white-space:nowrap"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f2.key) + '\')" style="color:#0e7490">👁 مشاهده</a> <a href="javascript:void(0)" onclick="ptfDownloadStoredFile(\'' + ptfOnClickArg(f2.key) + '\',\'' + ptfOnClickArg(f2.name || 'file') + '\')" style="color:#059669">⬇️ دانلود</a></span>' : '<small style="color:#94a3b8">صف محلی</small>') + '</div>';
           });
         });
         return '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:10px 14px;margin-bottom:10px">' +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><b style="font-size:13px">📎 ضمایم درخواست (' + tot + ')</b>' +
-          '<button type="button" class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#6d28d9;border-color:#ddd6fe" onclick="ptfManageInqAttachments(\'' + escP(cd) + '\')">＋ افزودن / مدیریت</button></div>' +
+          '<button type="button" class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#6d28d9;border-color:#ddd6fe" onclick="ptfManageInqAttachments(\'' + ptfOnClickArg(cd) + '\')">＋ افزودن / مدیریت</button></div>' +
           (fh || '<div style="color:#94a3b8;font-size:12px">ضمیمه‌ای ثبت نشده — با دکمه بالا اضافه کنید</div>') + '</div>';
       })() +
       '<h4 style="margin:10px 0 6px;font-size:13px">🕓 تاریخچه گردش کار</h4>' + log +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;border-top:1px solid var(--brd);padding-top:10px">' +
-      '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="delRfq(\'' + escP(cd) + '\')">🗑 حذف درخواست</button>' +
+      '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="delRfq(\'' + ptfOnClickArg(cd) + '\')">🗑 حذف درخواست</button>' +
       '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>' +
-      '<button class="bt" onclick="saveRfqEdit(\'' + escP(cd) + '\')">💾 ذخیره تغییرات</button></div></div></div></div>';
+      '<button class="bt" onclick="saveRfqEdit(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره تغییرات</button></div></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 
@@ -859,7 +859,7 @@
       /* v15.7 (US-388 ②): بج شمار ضمایم — کلیک = مشاهده/دانلود (رفرنس کاربران) */
       var nAtt = 0;
       try { Object.keys(r.files || {}).forEach(function (k2) { nAtt += (r.files[k2] || []).length; }); } catch (eAt) {}
-      var attBadge = nAtt ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;cursor:pointer" title="مشاهده و دانلود ضمایم" onclick="event.stopPropagation();ptfManageInqAttachments(\'' + escP(r.cd) + '\')">📎 ' + nAtt + ' ضمیمه</span>' : '';
+      var attBadge = nAtt ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;cursor:pointer" title="مشاهده و دانلود ضمایم" onclick="event.stopPropagation();ptfManageInqAttachments(\'' + ptfOnClickArg(r.cd) + '\')">📎 ' + nAtt + ' ضمیمه</span>' : '';
       var rowBg = wl === 'won' ? '#ecfdf5' : wl === 'lost' ? '#fef2f2' : (due && due.bg ? due.bg : '');
       /* v21.5 US-411ف1: نمایش ثبت‌کننده زیر کد درخواست */
       var crLine = '';
@@ -885,9 +885,9 @@
         '<td>' + escP(r.ca || '-') + '</td><td>' + escP(r.dt || '—') + '</td>' +
         '<td><span class="bd b-' + (r.st || 'st1') + '">' + escP(r.stxt || 'دریافت اولیه') + '</span>' + rfqWaitBadge(r, offers) + '</td>' +
         '<td style="font-size:12px">' + (r.assignee ? '👤 ' + escP(r.assignee.name) + ' <small style="color:#94a3b8">(' + escP(r.assignee.act) + ')</small>' : '<span style="color:#cbd5e1">—</span>') + '</td>' +
-        '<td><button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="ptfViewRfq(\'' + escP(r.cd) + '\')" title="مشاهده درخواست">👁️</button> ' +
-        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="editRfq(\'' + escP(r.cd) + '\')" title="ویرایش / حذف">✏️</button> ' +
-        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="showRefModal(\'' + escP(r.cd) + '\')" title="ارجاع">📨</button>' +
+        '<td><button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="ptfViewRfq(\'' + ptfOnClickArg(r.cd) + '\')" title="مشاهده درخواست">👁️</button> ' +
+        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="editRfq(\'' + ptfOnClickArg(r.cd) + '\')" title="ویرایش / حذف">✏️</button> ' +
+        '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="showRefModal(\'' + ptfOnClickArg(r.cd) + '\')" title="ارجاع">📨</button>' +
         '</td></tr>';
     });
     tb.innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:22px">استعلامی ثبت نشده</td></tr>';
@@ -909,10 +909,10 @@
         '<td style="direction:ltr;font-size:12px">' + escP(r.phone || '-') + '</td><td style="font-size:11px">' + escP(r.category || '-') + '</td>' +
         '<td style="font-size:11px;max-width:220px">' + escP((r.message || '').slice(0, 120)) + '</td><td style="font-size:11px">' + escP(r.date || '-') + '</td><td>' +
         /* v14.7 (US-380 AC1): جزئیات کامل — همه فیلدهای فرم سایت + پیوست */
-        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#0e7490" onclick="rfqSiteDetail(\'' + escP(r.code) + '\')">👁 جزئیات کامل</button> ' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#0e7490" onclick="rfqSiteDetail(\'' + ptfOnClickArg(r.code) + '\')">👁 جزئیات کامل</button> ' +
         (isSenior()
-          ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="rfqApprove(\'' + escP(r.code) + '\')">✅ تایید و ورود</button> ' +
-            '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="rfqReject(\'' + escP(r.code) + '\')">✖ رد</button>'
+          ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="rfqApprove(\'' + ptfOnClickArg(r.code) + '\')">✅ تایید و ورود</button> ' +
+            '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="rfqReject(\'' + ptfOnClickArg(r.code) + '\')">✖ رد</button>'
           : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
         '</td></tr>';
     });
@@ -942,7 +942,7 @@
       siteAttachmentHtml(r.attachment) +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
       (isSenior() && r.status === 'pending'
-        ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();rfqApprove(\'' + escP(code) + '\')">✅ تایید و ورود</button>'
+        ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();rfqApprove(\'' + ptfOnClickArg(code) + '\')">✅ تایید و ورود</button>'
         : '') +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -1303,7 +1303,7 @@
       waitList.forEach(function (r) {
         h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #fed7aa;flex-wrap:wrap">' +
           '<span style="font-size:12.5px"><b>' + escP(r.cd) + '</b> — ' + escP(r.co) + ' <span class="bd" style="background:#fef3c7;color:#b45309">منتظر ' + (r.waiting === 'TO' ? 'پیشنهاد فنی' : 'پیشنهاد مالی') + '</span></span>' +
-          '<button class="bt" style="padding:5px 12px;font-size:12px" onclick="offerFromRfq(\'' + escP(r.cd) + '\')">صدور ' + r.waiting + ' ←</button></div>';
+          '<button class="bt" style="padding:5px 12px;font-size:12px" onclick="offerFromRfq(\'' + ptfOnClickArg(r.cd) + '\')">صدور ' + r.waiting + ' ←</button></div>';
       });
       h += '</div>';
     }
@@ -1362,7 +1362,7 @@
       // v85: تیک پیامک پیش‌فرض غیرفعال — فقط با صلاحدید کاربر
       '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="refSms"> 📱 ارسال پیامک اطلاع‌رسانی به گیرنده ارجاع</label>' +
       '<div style="font-size:11.5px;color:#64748b;margin-bottom:10px">اعلان برای همه کاربران فروش ارسال می‌شود؛ اما پیام فقط برای گیرنده هایلایت و در کارتابل او ثبت می‌گردد.</div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveReferral(\'' + escP(cd) + '\')">📨 ارسال ارجاع</button></div></div></div>';
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveReferral(\'' + ptfOnClickArg(cd) + '\')">📨 ارسال ارجاع</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 

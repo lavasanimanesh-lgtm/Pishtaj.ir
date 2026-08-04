@@ -346,8 +346,8 @@ window.ptfCustOfferTimelineHtml = function (custCd) {
       (total ? ' — ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') : '') +
       '</div></div>' +
       (o.st === 'won' && o.kind !== 'TO'
-        ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="if(typeof ptfGoSalesFileForOffer===\'function\')ptfGoSalesFileForOffer(\'' + escP(o.no) + '\')">📁 پرونده</button>'
-        : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerEdit(\'' + escP(o.no) + '\')">✏️</button>') +
+        ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="if(typeof ptfGoSalesFileForOffer===\'function\')ptfGoSalesFileForOffer(\'' + ptfOnClickArg(o.no) + '\')">📁 پرونده</button>'
+        : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerEdit(\'' + ptfOnClickArg(o.no) + '\')">✏️</button>') +
       '</div>';
   }).join('');
   return '<div style="background:linear-gradient(135deg,#f8fafc,#eff6ff);border:1px solid #bfdbfe;border-radius:14px;padding:12px 14px">' +
@@ -654,8 +654,8 @@ window.offOpenProfitOptimizer = function(no) {
     ? '<div>سود ناخالص فقط از خریدهای واقعیِ دارای تطبیق قطعی: <b style="color:#059669;font-size:14px">' + fm(totalSelling - totalBuyingIRR, 'IRR') + '</b></div>'
     : '<div style="color:#0e7490">سود ریالی نهایی: در گزارش سود پس از وصول/تسعیر فروش محاسبه می‌شود</div>';
   var mapBox = mappingIssues.length
-    ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">⚠️ ' + mappingIssues.length + ' قلم تطبیق قطعی خرید/استعلام ندارد و عمداً از محاسبه خرید واقعی کنار گذاشته شد. <button class="bt bt-o" style="font-size:11px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(o.no) + '\')">🔎 گزارش تطبیق اقلام</button></div>'
-    : '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;margin-bottom:10px">✅ همه اقلام این ماتریس با شناسه/مشخصات قطعی تطبیق داده شدند. <button class="bt bt-o" style="font-size:11px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(o.no) + '\')">🔎 گزارش تطبیق اقلام</button></div>';
+    ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">⚠️ ' + mappingIssues.length + ' قلم تطبیق قطعی خرید/استعلام ندارد و عمداً از محاسبه خرید واقعی کنار گذاشته شد. <button class="bt bt-o" style="font-size:11px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(o.no) + '\')">🔎 گزارش تطبیق اقلام</button></div>'
+    : '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;margin-bottom:10px">✅ همه اقلام این ماتریس با شناسه/مشخصات قطعی تطبیق داده شدند. <button class="bt bt-o" style="font-size:11px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(o.no) + '\')">🔎 گزارش تطبیق اقلام</button></div>';
   var adv = (typeof ptfAdvanceLabel === 'function') ? ptfAdvanceLabel(o) : '—';
   var html = '<div class="md-b" id="ptfOptModal" style="display:grid;z-index:99999" onclick="if(event.target===this)this.remove()">' +
     '<div class="md" style="max-width:980px;max-height:94vh;overflow:auto">' +
@@ -1525,7 +1525,7 @@ function offLoadInqItems(pickedInq) {
       '<h3>🗂 انتخاب درخواست</h3>' +
       keys.map(function (k) {
         return '<button type="button" class="bt bt-o" style="width:100%;justify-content:space-between;display:flex;margin-bottom:6px" ' +
-          'onclick="document.getElementById(\'offInqPick\').remove();offLoadInqItems(\'' + escP(k) + '\')">' +
+          'onclick="document.getElementById(\'offInqPick\').remove();offLoadInqItems(\'' + ptfOnClickArg(k) + '\')">' +
           '<span style="direction:ltr">' + escP(k) + '</span><span style="color:#7c3aed;font-weight:800">' + groups[k] + ' قلم</span></button>';
       }).join('') +
       '<div style="text-align:left;margin-top:6px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div></div>';
@@ -1616,7 +1616,7 @@ function prodSrchRender() {
     return !q || ((p.nm||'')+' '+(p.en||'')+' '+(p.cd||'')+' '+(p.st||'')+' '+(p.br||'')).toLowerCase().indexOf(q) > -1;
   }).slice(0, 40);
   el.innerHTML = prods.map(function(p) {
-    return '<div onclick="prodSrchPick(\'' + escP(p.cd) + '\')" style="padding:9px 12px;border:1px solid var(--brd);border-radius:10px;margin-bottom:5px;cursor:pointer;font-size:12.5px" onmouseover="this.style.background=\'#fff8f5\'" onmouseout="this.style.background=\'#fff\'">' +
+    return '<div onclick="prodSrchPick(\'' + ptfOnClickArg(p.cd) + '\')" style="padding:9px 12px;border:1px solid var(--brd);border-radius:10px;margin-bottom:5px;cursor:pointer;font-size:12.5px" onmouseover="this.style.background=\'#fff8f5\'" onmouseout="this.style.background=\'#fff\'">' +
       '<b>' + escP(p.nm) + '</b>' + (p.en ? ' <span style="color:#64748b;direction:ltr;display:inline-block">/ ' + escP(p.en) + '</span>' : '') +
       '<div style="font-size:11px;color:#94a3b8;margin-top:2px">' + escP(p.cd) + (p.st ? ' | ' + escP(p.st) : '') + (p.br ? ' | ' + escP(p.br) : '') + ' | واحد: ' + escP(p.un||'-') + '</div></div>';
   }).join('') || '<div style="text-align:center;color:#94a3b8;padding:16px;font-size:12.5px">کالایی با این جستجو یافت نشد</div>';
@@ -1840,7 +1840,7 @@ function offRenderItems() {
       return '<input type="' + inputType + '" value="' + escP(it[f]||'') + '"' + moneyAttr + ' oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:' + w + ';padding:5px;border:1px solid var(--brd);border-radius:6px;direction:' + ((type==='number' || f==='price')?'ltr':'') + ';font-size:12px">';
     };
     var ecCells = ec.map(function(c){
-      return '<td><input type="text" value="' + escP((it.extra||{})[c]||'') + '" oninput="offUpdExtra(' + i + ',\'' + escP(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+      return '<td><input type="text" value="' + escP((it.extra||{})[c]||'') + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
     }).join('');
     
     var bestBuyHtml = '';
@@ -2939,8 +2939,8 @@ function renderCustomers2() {
       '<td>' + (pp ? escP(pp.nm) + ' <small style="color:#94a3b8">(' + escP(pp.role||'') + ')</small>' : '-') +
       ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + ((c.phones||[]).length ? '<a href="tel:' + escP(c.phones[0].n) + '" style="direction:ltr">' + escP(c.phones[0].n) + '</a>' + (c.phones.length > 1 ? ' <small style="color:#94a3b8">+' + (c.phones.length - 1) + '</small>' : '') : (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-'))) + '</td>' +
-      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_customers\',\'' + escP(c.cd) + '\')">👁️</button> ' +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showCustModal(\'' + escP(c.cd) + '\')">✏️</button></td></tr>';
+      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dCust')) document.getElementById('dCust').textContent = items.length;
@@ -2961,8 +2961,8 @@ function renderSuppliers2() {
       '<td>' + (pp ? escP(pp.nm) : '-') + ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-')) + '</td>' +
       '<td>' + escP(c.ca||'-') + '</td>' +
-      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + escP(c.cd) + '\')">👁️</button> ' +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showSupModal2(\'' + escP(c.cd) + '\')">✏️</button></td></tr>';
+      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
@@ -2979,7 +2979,7 @@ function showEntityCard(key, cd) {
     venBox = '<div style="background:#f8fafc;border:1px solid #cbd5e1;border-right:4px solid #7c3aed;border-radius:12px;padding:10px 14px;margin:10px 0;font-size:12.5px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
       '<span><b style="color:#5b21b6">🏆 وضعیت عضویت PTF در وندور لیست (AVL):</b><br><span style="font-size:13px;font-weight:bold">' + stLb + '</span>' + (c.venNo ? ' | شماره وندور: <b dir="ltr" style="color:#059669">' + escP(c.venNo) + '</b>' : '') + '</span>' +
-      '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfCustVendorFollowup(\'' + escP(c.cd) + '\')">📅 ثبت پیگیری و یادآور وندور</button></div>' +
+      '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfCustVendorFollowup(\'' + ptfOnClickArg(c.cd) + '\')">📅 ثبت پیگیری و یادآور وندور</button></div>' +
       (c.venNote ? '<div style="margin-top:6px;font-size:11.5px;color:#475569">📝 آخرین اقدام: ' + escP(c.venNote) + '</div>' : '') +
       (c.venDueFa || c.venDueISO ? '<div style="margin-top:4px;font-size:11.5px;color:' + (isOv ? '#dc2626;font-weight:bold' : '#0e7490') + '">📅 سررسید پیگیری بعدی وندور: ' + escP(c.venDueFa || c.venDueISO) + (isOv ? ' (🔴 تاخیر در پیگیری — US-267)' : '') + '</div>' : '') +
       '</div>';

@@ -81,7 +81,7 @@
     } else if (c.st === 'retrieved') {
       acts += '<span class="bd" style="background:#ecfdf5;color:#047857;font-size:10.5px">✅ مسترد شد</span>';
     }
-    if (c.dealCd && typeof window.ptfGoSalesFile === 'function') acts += ' <button class="ba" style="color:#0e7490" onclick="ptfGoSalesFile(\'' + escP(c.dealCd) + '\')">📁 پرونده</button>';
+    if (c.dealCd && typeof window.ptfGoSalesFile === 'function') acts += ' <button class="ba" style="color:#0e7490" onclick="ptfGoSalesFile(\'' + ptfOnClickArg(c.dealCd) + '\')">📁 پرونده</button>';
     else if (c.dealCd && typeof goPanel === 'function') acts += ' <button class="ba" style="color:#0e7490" onclick="goPanel(\'deals\')">📁 پرونده</button>';
     /* CHQ-PRINT (v33.6.0): چاپ برگه از هاب مالی حذف شد — چاپ فقط از ماژول «چاپ چک فیزیکی» (کالا و اسناد) */
     return acts || '<span style="color:#94a3b8">—</span>';
@@ -364,7 +364,7 @@
       '<div class="fld"><label>یادداشت</label><input id="ptfChEndNote" placeholder="اختیاری"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="document.getElementById(\'ptfChEndDlg\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#0e7490" onclick="ptfChEndGo(\'' + escP(cd) + '\')">↪ خرج چک</button></div></div></div>';
+      '<button class="bt" style="background:#0e7490" onclick="ptfChEndGo(\'' + ptfOnClickArg(cd) + '\')">↪ خرج چک</button></div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
   };
   window.ptfChEndGo = function (cd) {

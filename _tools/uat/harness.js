@@ -13,6 +13,13 @@ global.faDate = () => '1405/04/14';
 global.faDateTime = () => '1405/04/14 10:00';
 global.faYear = () => '1405';
 global.escP = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+global.ptfOnClickArg = v => String(v == null ? '' : v)
+  .replace(/\\/g, '\\\\')
+  .replace(/'/g, "\\'")
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
 global.window = global;
 global.document = { getElementById: () => null, querySelectorAll: () => [], createElement: () => ({style:{},setAttribute(){},appendChild(){},addEventListener(){}}), head:{appendChild(){}}, body:{appendChild(){}}, addEventListener(){} };
 global.alert = () => {}; global.confirm = () => true; global.prompt = () => 'test';

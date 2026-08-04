@@ -150,8 +150,8 @@
         '<div style="margin-top:5px;line-height:2.2">' + dueB + waitB + ' ' + chips + '</div></div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap;white-space:nowrap">' +
         '<button class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#0e7490" onclick="if(typeof goPanelByName===\'function\')goPanelByName(\'off\');else if(typeof goPanel===\'function\')goPanel(\'off\')" title="مدیریت پیشنهادها — برنده شدن CO از همان‌جا ثبت می‌شود">📄 پیشنهادها</button>' +
-        (g.rfq ? '<button class="bt bt-o" style="padding:4px 11px;font-size:12px" onclick="editRfq(\'' + escP(g.rfq.cd) + '\')">✏️ درخواست</button>' : '') +
-        '<button class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOppoLose(\'' + escP(g.inqNo) + '\',\'' + escP((g.buyerCo || '').replace(/'/g, '')) + '\')" title="باخت با دلیل استاندارد — مستقیم به گزارش Win/Loss">🚫 ثبت باخت</button>' +
+        (g.rfq ? '<button class="bt bt-o" style="padding:4px 11px;font-size:12px" onclick="editRfq(\'' + ptfOnClickArg(g.rfq.cd) + '\')">✏️ درخواست</button>' : '') +
+        '<button class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOppoLose(\'' + ptfOnClickArg(g.inqNo) + '\',\'' + ptfOnClickArg((g.buyerCo || '').replace(/'/g, '')) + '\')" title="باخت با دلیل استاندارد — مستقیم به گزارش Win/Loss">🚫 ثبت باخت</button>' +
         '</div></div>' +
         (hasLiveCO ? '<div style="font-size:11px;color:#64748b;margin-top:6px">💡 با ثبت «🏆 برنده» روی پیشنهاد مالی، این فرصت خودکار به «📁 پرونده‌ها (ابلاغ سفارش)» منتقل می‌شود.</div>' : '') +
         '</div>';
@@ -232,7 +232,7 @@
         return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px dashed var(--brd);font-size:12px;align-items:center">'
           + '<span><b dir="ltr">'+escP(o.no)+'</b> - '+escP(o.dateFa||o.dateEn||'')+' - '+ (typeof ptfMoney==='function'?ptfMoney(total,o.currency):total.toLocaleString('fa-IR')+' ریال') 
           + ' - <span class="bd" style="font-size:10px">'+escP(o.st||'')+'</span></span>'
-          + '<span><button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerEdit(\''+escP(o.no)+'\')">✏️</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerQuickPreview(\''+escP(o.no)+'\')">👁️</button></span>'
+          + '<span><button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerEdit(\''+ptfOnClickArg(o.no)+'\')">✏️</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerQuickPreview(\''+ptfOnClickArg(o.no)+'\')">👁️</button></span>'
           + '</div>';
       }).join('');
       h+='<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;padding:12px 14px">'

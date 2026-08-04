@@ -143,7 +143,7 @@
         '<div><b style="direction:ltr;display:inline-block">' + escP(c.inqNo) + '</b>' +
         (won ? ' <span style="background:#d1fae5;color:#059669;border-radius:8px;padding:1px 8px;font-size:10.5px">🏆 برنده — دور ۲ فعال</span>' : ' <span style="background:#e0e7ff;color:#4338ca;border-radius:8px;padding:1px 8px;font-size:10.5px">دور ۱</span>') +
         '<div style="font-size:11.5px;color:#64748b;margin-top:3px">' + (c.items || []).length + ' آیتم | ' + nQ + ' قیمت ثبت‌شده | ' + nP + ' خرید نهایی | ' + escP(c.t || '') + '</div></div>' +
-        '<button class="bt" style="font-size:12px" onclick="cmpOpen(\'' + escP(c.id) + '\')">📊 جدول مقایسه</button></div>';
+        '<button class="bt" style="font-size:12px" onclick="cmpOpen(\'' + ptfOnClickArg(c.id) + '\')">📊 جدول مقایسه</button></div>';
     }).join('');
     if (legacy.length) {
       h += '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#64748b">📜 قیمت‌های خرید قدیمی (' + legacy.length + ' رکورد — فرمت قبل از v84)</summary><div class="tb2"><table><thead><tr><th>مرجع</th><th>تامین‌کننده</th><th>شرح</th><th>قیمت</th><th>تاریخ</th></tr></thead><tbody>' +
@@ -230,7 +230,7 @@
       var pu = (c.purchases || []).filter(function (p) { return p.idx === idx; })[0];
       var puCell = pu
         ? '<td style="background:#fef3c7;font-size:11.5px"><b>' + (lots.length > 1 ? 'چند lot' : escP(pu.sup)) + '</b><br>' + (lots.length > 1 ? lotSummary : fmtP(pu.price) + ' ریال') + (pu.srcCur ? '<br><small dir="ltr">' + (+pu.priceFx || 0).toLocaleString('en-US') + ' ' + escP(pu.srcCur) + ' × ' + (+pu.rate || 0).toLocaleString('fa-IR') + '</small>' : '') + (pu.dueISO ? '<br><small style="color:#0e7490">تعهد تحویل: ' + escP(pu.dueISO) + '</small>' : '') + ((pu.files||[]).length ? '<br><small>📎 رسید</small>' : '') + ' <small>' + escP(pu.t) + '</small><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#0e7490" onclick="' + editPurchaseAction + '">' + editPurchaseLabel + '</button>' + splitPurchaseButton + dispositionButton + '</td>'
-        : '<td><button class="bt" style="font-size:11px;padding:4px 9px;background:#059669" onclick="cmpBuy(\'' + escP(id) + '\',' + idx + ')">🛍 ثبت خرید</button><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#7c3aed" onclick="cmpSplitOpen(\'' + escP(id) + '\',' + idx + '\')">🔀 تقسیم خرید</button></td>';
+        : '<td><button class="bt" style="font-size:11px;padding:4px 9px;background:#059669" onclick="cmpBuy(\'' + ptfOnClickArg(id) + '\',' + idx + ')">🛍 ثبت خرید</button><br><button class="bt bt-o" style="margin-top:4px;font-size:10.5px;padding:3px 8px;color:#7c3aed" onclick="cmpSplitOpen(\'' + ptfOnClickArg(id) + '\',' + idx + '\')">🔀 تقسیم خرید</button></td>';
       return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(it.nm) + '</b>' + qtySummary + '</td><td>' + (it.qty || 1) + ' ' + escP(it.un || '') + '</td>' + cells +
         '<td style="font-size:11.5px;color:#059669">' + (best !== null ? escP(bestSup) + '<br>' + fmtP(best) : '—') + '</td>' + puCell + '</tr>';
     }).join('');
@@ -240,13 +240,13 @@
       '<div data-noix style="width:100%;font-size:11.5px;color:#64748b;margin-top:2px">قیمت‌های دور۱/دور۲ = <b>استعلامی (کشف قیمت)</b> | ستون «خرید نهایی» = <b>خرید واقعی</b> که مبنای سود پروژه است (US-392)</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
       ((c.items || []).filter(function (it2, ix2) { return !(c.purchases || []).some(function (p2) { return p2.idx === ix2; }); }).length > 1
-        ? '<button class="bt" style="font-size:12px;background:#0e7490" onclick="cmpBulkBuy(\'' + escP(id) + '\')" title="قیمت خرید هر قلم جداگانه در یک جدول — تامین‌کننده/ارز ردیف ۱ با یک کلیک روی همه (US-441)">🛒 ثبت گروهی خرید</button>'
+        ? '<button class="bt" style="font-size:12px;background:#0e7490" onclick="cmpBulkBuy(\'' + ptfOnClickArg(id) + '\')" title="قیمت خرید هر قلم جداگانه در یک جدول — تامین‌کننده/ارز ردیف ۱ با یک کلیک روی همه (US-441)">🛒 ثبت گروهی خرید</button>'
         : '') +
       (locked
         ? '<span class="bd" style="background:#fef3c7;color:#b45309;padding:6px 12px" title="در مسیر پرونده فروش، قیمت‌های استعلامی فقط قابل مشاهده‌اند (US-412)">📌 استعلامی — فقط مشاهده</span>' +
-          '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="ptfRealBuyNewInquiry(\'' + escP(c.inqNo) + '\')" title="هر تغییر/استعلام قیمت (دور ۱ و ۲) فقط از سامانه استعلام تامین">🤖 استعلام جدید از تامین‌کننده</button>'
-        : '<button class="bt" style="font-size:12px" onclick="cmpAddQuote(\'' + escP(id) + '\',1)">+ قیمت دور ۱</button>' +
-          (won ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="cmpAddQuote(\'' + escP(id) + '\',2)">+ قیمت دور ۲ (پس از برد)</button>' : '<span style="font-size:11px;color:#94a3b8;padding:6px">دور ۲ پس از برنده شدن CO فعال می‌شود</span>')) +
+          '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="ptfRealBuyNewInquiry(\'' + ptfOnClickArg(c.inqNo) + '\')" title="هر تغییر/استعلام قیمت (دور ۱ و ۲) فقط از سامانه استعلام تامین">🤖 استعلام جدید از تامین‌کننده</button>'
+        : '<button class="bt" style="font-size:12px" onclick="cmpAddQuote(\'' + ptfOnClickArg(id) + '\',1)">+ قیمت دور ۱</button>' +
+          (won ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="cmpAddQuote(\'' + ptfOnClickArg(id) + '\',2)">+ قیمت دور ۲ (پس از برد)</button>' : '<span style="font-size:11px;color:#94a3b8;padding:6px">دور ۲ پس از برنده شدن CO فعال می‌شود</span>')) +
       '</div></div>' +
       (won ? '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:6px 12px;font-size:12px;color:#047857;margin:8px 0">🏆 CO این درخواست برنده شده — می‌توانید از تامین‌کنندگان جدید هم قیمت دور ۲ بگیرید و بهترین را انتخاب کنید.</div>' : '') +
       '<div class="tb2" style="margin-top:8px"><table>' + head + rows + '</table></div>' +
@@ -272,7 +272,7 @@
       '<h4 style="margin:10px 0 6px;font-size:13px">قیمت هر آیتم (خالی = قیمت نداده)</h4>' + itemRows +
       '<div class="fld" style="margin-top:8px"><label>یادداشت (شرایط/اعتبار قیمت)</label><input type="text" id="cmpNote"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" onclick="cmpQuoteSave(\'' + escP(id) + '\',' + round + ', this)">ثبت قیمت‌ها</button></div></div></div>';
+      '<button class="bt" onclick="cmpQuoteSave(\'' + ptfOnClickArg(id) + '\',' + round + ', this)">ثبت قیمت‌ها</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   window.cmpQuoteSave = function (id, round, btn) {
@@ -467,23 +467,23 @@
     var supOptsHtml = '<option value="">— انتخاب تامین‌کننده —</option>' + supList.map(function(s){ return '<option value="'+escP(s.co)+'" data-cd="'+escP(s.cd)+'">'+escP(s.co)+' ('+escP(s.cd)+')</option>'; }).join('') + '<option value="__manual__">✍️ ورود دستی</option>';
     var rowsHtml = pend.map(function (x, n) {
       return '<tr><td style="text-align:right;font-size:12px"><b>' + escP(x.it.nm) + '</b><br><small style="color:#94a3b8">تعداد: ' + (x.it.qty || 1) + ' ' + escP(x.it.un || '') + '</small></td>' +
-        '<td><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="blkP' + x.ix + '" oninput="cmpBulkTotal(\'' + escP(id) + '\')" placeholder="قیمت واحد" style="width:120px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr;font-size:12px"></td>' +
+        '<td><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="blkP' + x.ix + '" oninput="cmpBulkTotal(\'' + ptfOnClickArg(id) + '\')" placeholder="قیمت واحد" style="width:120px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr;font-size:12px"></td>' +
         '<td><select id="blkS' + x.ix + '" style="width:170px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px">' + supOptsHtml + '</select>' +
-        (n === 0 ? '<br><button type="button" class="bt bt-o" style="font-size:10.5px;padding:2px 8px;margin-top:3px;color:#0e7490" onclick="cmpBulkApplySup(\'' + escP(id) + '\')">⚡ اعمال روی همه</button>' : '') + '</td>' +
+        (n === 0 ? '<br><button type="button" class="bt bt-o" style="font-size:10.5px;padding:2px 8px;margin-top:3px;color:#0e7490" onclick="cmpBulkApplySup(\'' + ptfOnClickArg(id) + '\')">⚡ اعمال روی همه</button>' : '') + '</td>' +
         '<td><select id="blkPay' + x.ix + '" style="padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px"><option value="cash">💵 نقدی</option><option value="credit">🧾 غیرنقدی</option></select></td></tr>';
     }).join('');
     var html = '<div class="md-b" id="blkDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto">' +
       '<h3>🛒 ثبت گروهی خرید واقعی — ' + escP(c.inqNo) + ' <small style="color:#64748b">(' + pend.length + ' قلم بدون خرید)</small></h3>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">قیمت <b>واحد</b> هر قلم را جدا وارد کنید (BUG-032) — ردیف خالی ثبت نمی‌شود (ثبت جزئی مجاز). تامین‌کننده ردیف ۱ با «⚡ اعمال روی همه» تکثیر می‌شود (US-441).</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:end">' +
-      '<div class="fld" style="margin:0"><label>ارز قیمت‌ها</label><select id="blkCur" onchange="cmpBulkTotal(\'' + escP(id) + '\')" style="padding:7px;border:1px solid var(--brd);border-radius:8px"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option></select></div>' +
-      '<div class="fld" style="margin:0"><label>نرخ تسعیر (ریال per واحد ارز — برای ارزی الزامی)</label><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="blkRate" oninput="cmpBulkTotal(\'' + escP(id) + '\')" style="width:150px;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr"></div>' +
+      '<div class="fld" style="margin:0"><label>ارز قیمت‌ها</label><select id="blkCur" onchange="cmpBulkTotal(\'' + ptfOnClickArg(id) + '\')" style="padding:7px;border:1px solid var(--brd);border-radius:8px"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option></select></div>' +
+      '<div class="fld" style="margin:0"><label>نرخ تسعیر (ریال per واحد ارز — برای ارزی الزامی)</label><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="blkRate" oninput="cmpBulkTotal(\'' + ptfOnClickArg(id) + '\')" style="width:150px;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr"></div>' +
       '<div class="fld" style="margin:0"><label>تعهد تحویل تامین‌کننده (شمسی/اختیاری)</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('blkDueJ','') : '<input type="text" id="blkDueJ" placeholder="1405/04/19" style="padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr">') + '</div></div>' +
       '<div class="tb2"><table style="width:100%"><thead><tr><th>قلم</th><th>قیمت واحد</th><th>تامین‌کننده</th><th>پرداخت</th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
       '<div id="blkTot" style="font-size:13.5px;font-weight:900;color:#0e7490;margin-top:10px;text-align:left;direction:ltr"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#0e7490" onclick="cmpBulkBuyGo(\'' + escP(id) + '\')">🛒 ثبت خریدهای واردشده</button>' +
+      '<button class="bt" style="background:#0e7490" onclick="cmpBulkBuyGo(\'' + ptfOnClickArg(id) + '\')">🛒 ثبت خریدهای واردشده</button>' +
       '</div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
     window._blkPend = pend.map(function (x) { return x.ix; });
@@ -579,8 +579,8 @@
     if (!lots.length) { alert('برای این قلم خرید ثبت نشده است.'); return; }
     var rows = lots.map(function (lot) {
       var statusLabel = lot.status === 'returned_to_supplier' ? 'برگشت کامل' : lot.status === 'partially_returned' ? 'برگشت جزئی' : lot.status === 'transferred_to_stock' ? 'انتقال کامل به انبار' : lot.status === 'partially_disposed' ? 'تعیین‌تکلیف جزئی' : 'خرید ثبت‌شده';
-      var returnButton = lot.status === 'returned_to_supplier' || lot.availableQty <= 0 ? '<span style="color:#64748b">—</span>' : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#b45309" onclick="cmpPurchaseReturnOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">↩️ برگشت کامل/جزئی</button>';
-      var stockButton = lot.availableQty > 0 ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#047857;margin-top:3px" onclick="cmpPurchaseStockOpen(\'' + escP(id) + '\',' + idx + ',\'' + escP(lot.cd) + '\')">📦 انتقال انبار</button>' : '';
+      var returnButton = lot.status === 'returned_to_supplier' || lot.availableQty <= 0 ? '<span style="color:#64748b">—</span>' : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#b45309" onclick="cmpPurchaseReturnOpen(\'' + ptfOnClickArg(id) + '\',' + idx + ',\'' + ptfOnClickArg(lot.cd) + '\')">↩️ برگشت کامل/جزئی</button>';
+      var stockButton = lot.availableQty > 0 ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#047857;margin-top:3px" onclick="cmpPurchaseStockOpen(\'' + ptfOnClickArg(id) + '\',' + idx + ',\'' + ptfOnClickArg(lot.cd) + '\')">📦 انتقال انبار</button>' : '';
       return '<tr><td>' + escP(lot.supplier || '-') + '</td><td>' + lot.qty + ' ' + escP(item.un || '') + '</td><td>' + fmtP(lot.price) + ' ریال</td><td>' + statusLabel + '</td><td>' + lot.availableQty + ' ' + escP(item.un || '') + '</td><td>' + returnButton + '<br>' + stockButton + '</td></tr>';
     }).join('');
     var purchased = lots.reduce(function (s, lot) { return s + (+lot.availableQty || 0); }, 0);
@@ -894,9 +894,9 @@
         host.closest('div').insertAdjacentHTML('beforebegin',
           '<div id="rbBox_' + escP(deal.cd) + '" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px">' +
           '<span>🛒 <b>خرید واقعی اقلام</b> <small style="color:#64748b">(پس از برد — مبنای سود واقعی؛ جدا از قیمت استعلامی)</small><br><small>' + lb + adv + costTxt + '</small></span>' +
-          '<span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + escP(deal.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' +
-          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="event.stopPropagation();ptfAdvanceOpen(\'' + escP(deal.wonOffer) + '\')">💰 اصلاح پیش‌پرداخت</button>' : '') +
-          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="event.stopPropagation();ptfRealBuyNewInquiry(\'' + escP(deal.inqNo) + '\')">🤖 استعلام مجدد</button><button class="bt bt-o" style="font-size:12px;color:#b45309" onclick="event.stopPropagation();ptfProjectCostOpen(\'' + escP(deal.inqNo) + '\')">➕ هزینه پرونده</button></span></div>');
+          '<span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' +
+          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')">💰 اصلاح پیش‌پرداخت</button>' : '') +
+          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')">🤖 استعلام مجدد</button><button class="bt bt-o" style="font-size:12px;color:#b45309" onclick="event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')">➕ هزینه پرونده</button></span></div>');
       } catch (e) {}
     };
     return true;
@@ -931,8 +931,8 @@
         '<div style="font-size:12px;color:#0c4a6e;background:#f0f9ff;border-radius:10px;padding:8px 12px;margin-bottom:12px">با «ادغام»، اطلاعات غیرتکراری (ایمیل، برند، تلفن جدید، دسته) به رکورد موجود اضافه می‌شود و به ثبت‌کننده سایت پیام تایید می‌رود. رکورد تکراری جدید ساخته نمی‌شود.</div>' +
         '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">' +
         '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-        '<button class="bt bt-o" style="color:#7c3aed" onclick="supMergeForce(\'' + escP(code) + '\')">ثبت به‌عنوان رکورد جدید</button>' +
-        '<button class="bt" style="background:#059669" onclick="supMergeDo(\'' + escP(code) + '\',\'' + escP(exist.cd) + '\')">🔗 ادغام و تایید</button></div></div></div>';
+        '<button class="bt bt-o" style="color:#7c3aed" onclick="supMergeForce(\'' + ptfOnClickArg(code) + '\')">ثبت به‌عنوان رکورد جدید</button>' +
+        '<button class="bt" style="background:#059669" onclick="supMergeDo(\'' + ptfOnClickArg(code) + '\',\'' + ptfOnClickArg(exist.cd) + '\')">🔗 ادغام و تایید</button></div></div></div>';
       document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     };
     window.supMergeForce = function (code) {

@@ -99,15 +99,15 @@
         '<span style="font-size:12.5px"><b>' + escP(p.a.co || p.a.nm || '-') + '</b> <small dir="ltr">(' + escP(p.a.cd) + ')</small> ↔ <b>' + escP(p.b.co || p.b.nm || '-') + '</b> <small dir="ltr">(' + escP(p.b.cd) + ')</small>' +
         '<br><small style="color:' + cl + ';font-weight:800">شباهت ' + p.score + '٪</small> <small style="color:#64748b">— ' + escP(p.why) + '</small></span>' +
         '<span style="white-space:nowrap">' +
-        '<button class="bt" style="padding:4px 11px;font-size:12px;background:#7c3aed" onclick="ptfCleanMerge(\'' + kind + '\',\'' + escP(p.a.cd) + '\',\'' + escP(p.b.cd) + '\')">🔀 تلفیق (با تایید)</button> ' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px" onclick="ptfCleanNotDup(\'' + kind + '\',\'' + escP(p.a.cd) + '\',\'' + escP(p.b.cd) + '\',this)" title="این دو، تکراری نیستند — دیگر پیشنهاد نشود">✋ تکراری نیست</button></span></div></div>';
+        '<button class="bt" style="padding:4px 11px;font-size:12px;background:#7c3aed" onclick="ptfCleanMerge(\'' + kind + '\',\'' + ptfOnClickArg(p.a.cd) + '\',\'' + ptfOnClickArg(p.b.cd) + '\')">🔀 تلفیق (با تایید)</button> ' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px" onclick="ptfCleanNotDup(\'' + kind + '\',\'' + ptfOnClickArg(p.a.cd) + '\',\'' + ptfOnClickArg(p.b.cd) + '\',this)" title="این دو، تکراری نیستند — دیگر پیشنهاد نشود">✋ تکراری نیست</button></span></div></div>';
     }).join('');
     var uRows = useless.map(function (r) {
       return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 10px;border:1px dashed var(--brd);border-radius:10px;margin-bottom:6px;font-size:12.5px;flex-wrap:wrap">' +
         '<span><b>' + escP(r.co || r.nm || '-') + '</b> <small dir="ltr">(' + escP(r.cd) + ')</small> <small style="color:#94a3b8">— بدون راه تماس و بدون تراکنش</small></span>' +
         '<span style="white-space:nowrap">' +
-        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#059669" onclick="ptfCleanEdit(\'' + kind + '\',\'' + escP(r.cd) + '\')">✏️ تکمیل</button> ' +
-        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="ptfCleanDrop(\'' + kind + '\',\'' + escP(r.cd) + '\')">🗑 حذف با دلیل</button></span></div>';
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#059669" onclick="ptfCleanEdit(\'' + kind + '\',\'' + ptfOnClickArg(r.cd) + '\')">✏️ تکمیل</button> ' +
+        '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="ptfCleanDrop(\'' + kind + '\',\'' + ptfOnClickArg(r.cd) + '\')">🗑 حذف با دلیل</button></span></div>';
     }).join('');
     var html = '<div class="md-b" id="cleanMd" style="display:grid;z-index:2450" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:860px;max-height:94vh;overflow:auto">' +
       '<h3>🧹 ویراستار فهرست ' + K.lb + ' (US-417 فاز ۱)</h3>' +

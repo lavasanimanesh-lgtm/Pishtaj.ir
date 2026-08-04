@@ -56,12 +56,12 @@
         '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.srcRfq ? ' <small style="color:#64748b">(از درخواست ' + escP(r.srcRfq) + ')</small>' : '') +
         '<div style="font-size:11.5px;color:#64748b;margin-top:2px">' + (r.items || []).length + ' قلم | ' + (r.targets || []).length + ' تامین‌کننده | پاسخ: ' + resp + ' | ' + escP(r.t || '') + ' | ' + (STL[r.st] || '') + '</div></div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
-        '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff;font-weight:bold" onclick="rfqsToggleAccordion(\'' + escP(r.no) + '\')">🔻 تخصیص و استعلام کشویی (بدون مودال)</button>' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsOpen(\'' + escP(r.no) + '\')">📂 باز کردن</button>' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsPrintPreview(\'' + escP(r.no) + '\',null)">🖨️ PDF</button>' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#0e7490" onclick="rfqsPrintPickSupplier(\'' + escP(r.no) + '\')">🖨 اختصاصی</button>' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsXls(\'' + escP(r.no) + '\')">⬇️ اکسل پاک</button>' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="rfqsDel(\'' + escP(r.no) + '\')">🗑️</button>' +
+        '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff;font-weight:bold" onclick="rfqsToggleAccordion(\'' + ptfOnClickArg(r.no) + '\')">🔻 تخصیص و استعلام کشویی (بدون مودال)</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsOpen(\'' + ptfOnClickArg(r.no) + '\')">📂 باز کردن</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsPrintPreview(\'' + ptfOnClickArg(r.no) + '\',null)">🖨️ PDF</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#0e7490" onclick="rfqsPrintPickSupplier(\'' + ptfOnClickArg(r.no) + '\')">🖨 اختصاصی</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsXls(\'' + ptfOnClickArg(r.no) + '\')">⬇️ اکسل پاک</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="rfqsDel(\'' + ptfOnClickArg(r.no) + '\')">🗑️</button>' +
         '</div></div>' +
         '<div id="rfqAcc_' + escP(r.no) + '" style="display:none;margin-top:12px;border-top:1px dashed var(--brd);padding-top:12px"></div>' +
         '</div>';
@@ -93,13 +93,13 @@
       var assignedTags = it.assignedSups.map(function(scd) {
         var sObj = sups.filter(function(x){ return x.cd === scd; })[0] || { co: scd };
         return '<span style="background:#e0e7ff;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-flex;align-items:center;gap:4px;margin-left:4px">' +
-          escP(sObj.co || sObj.nm) + ' <a href="javascript:void(0)" onclick="rfqsRemoveSup(\'' + escP(no) + '\',' + i + ',\'' + escP(scd) + '\')" style="color:#dc2626;font-weight:bold;text-decoration:none">✕</a></span>';
+          escP(sObj.co || sObj.nm) + ' <a href="javascript:void(0)" onclick="rfqsRemoveSup(\'' + ptfOnClickArg(no) + '\',' + i + ',\'' + ptfOnClickArg(scd) + '\')" style="color:#dc2626;font-weight:bold;text-decoration:none">✕</a></span>';
       }).join('');
       return '<tr>' +
         '<td>' + (i+1) + '</td>' +
         '<td><b>' + escP(it.name) + '</b><br><small style="color:#64748b">' + escP(it.spec||'') + '</small></td>' +
         '<td>' + (it.qty||1) + ' ' + escP(it.unit||'عدد') + '</td>' +
-        '<td>' + assignedTags + '<br><select style="margin-top:4px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px" onchange="rfqsAssignSup(\'' + escP(no) + '\',' + i + ',this.value)">' + supOpts + '</select></td>' +
+        '<td>' + assignedTags + '<br><select style="margin-top:4px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px" onchange="rfqsAssignSup(\'' + ptfOnClickArg(no) + '\',' + i + ',this.value)">' + supOpts + '</select></td>' +
         '</tr>';
     }).join('');
 
@@ -133,7 +133,7 @@
           // هایلایت سریع‌ترین تحویل - سبز کم‌رنگ
           var dBg = (dv>0 && dv===minD) ? 'background:#e0f2fe;border:1px solid #7dd3fc;' : '';
           var dBadge = (dv>0 && dv===minD) ? '<span style="font-size:9px;color:#0369a1">⚡ سریع‌ترین</span>' : '';
-          return '<td style="background:' + bg + ';border:' + bd + ';padding:4px"><div style="display:flex;flex-direction:column;gap:3px"><input type="text" inputmode="numeric" data-rqsprice="' + escP(no) + '" value="' + (p > 0 ? p.toLocaleString('en-US') : '') + '" placeholder="قیمت (' + escP(r.quoteCur || 'IRR') + ')" oninput="rfqsUpdatePriceCompare(\'' + escP(no) + '\',' + i + ',\'' + escP(s.cd) + '\',this.value)" onblur="rfqsPriceBlur(\'' + escP(no) + '\')" style="width:100px;padding:4px;border:1px solid #cbd5e1;border-radius:5px;direction:ltr;font-size:11px;color:' + col + ';font-weight:' + (p === minP && p>0 ? 'bold' : 'normal') + '"><div style="'+dBg+'border-radius:4px;padding:2px;display:flex;align-items:center;gap:2px"><input type="text" placeholder="تحویل (روز)" value="' + escP(d) + '" oninput="rfqsUpdateDeliveryTime(\'' + escP(no) + '\',' + i + ',\'' + escP(s.cd) + '\',this.value)" style="width:60px;padding:3px;border:1px dashed #94a3b8;border-radius:4px;direction:ltr;font-size:10px" title="زمان تحویل به روز">'+dBadge+'</div></div></td>';
+          return '<td style="background:' + bg + ';border:' + bd + ';padding:4px"><div style="display:flex;flex-direction:column;gap:3px"><input type="text" inputmode="numeric" data-rqsprice="' + escP(no) + '" value="' + (p > 0 ? p.toLocaleString('en-US') : '') + '" placeholder="قیمت (' + escP(r.quoteCur || 'IRR') + ')" oninput="rfqsUpdatePriceCompare(\'' + ptfOnClickArg(no) + '\',' + i + ',\'' + ptfOnClickArg(s.cd) + '\',this.value)" onblur="rfqsPriceBlur(\'' + ptfOnClickArg(no) + '\')" style="width:100px;padding:4px;border:1px solid #cbd5e1;border-radius:5px;direction:ltr;font-size:11px;color:' + col + ';font-weight:' + (p === minP && p>0 ? 'bold' : 'normal') + '"><div style="'+dBg+'border-radius:4px;padding:2px;display:flex;align-items:center;gap:2px"><input type="text" placeholder="تحویل (روز)" value="' + escP(d) + '" oninput="rfqsUpdateDeliveryTime(\'' + ptfOnClickArg(no) + '\',' + i + ',\'' + ptfOnClickArg(s.cd) + '\',this.value)" style="width:60px;padding:3px;border:1px dashed #94a3b8;border-radius:4px;direction:ltr;font-size:10px" title="زمان تحویل به روز">'+dBadge+'</div></div></td>';
         }).join('');
         return '<tr><td>' + (i+1) + '</td><td><b>' + escP(it.name) + '</b></td>' + tdSups + '</tr>';
       }).join('');
@@ -142,7 +142,7 @@
       /* v15.6 (US-387 ②): انتخاب ارز قیمت‌های خرید — IRR (ریال) پیش‌فرض؛ روی رکورد ذخیره و به قیمت مرجع کالا منتقل می‌شود */
       var qCur = r.quoteCur || 'IRR';
       var curList = (window.PTF_CURRENCIES || [{ id: 'IRR', lb: 'ریال ایران (IRR)' }, { id: 'EUR', lb: 'یورو (EUR)' }, { id: 'USD', lb: 'دلار آمریکا (USD)' }]);
-      var qCurSel = '<label style="font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:6px">💱 ارز قیمت‌ها: <select onchange="rfqsSetQuoteCur(\'' + escP(no) + '\',this.value)" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;direction:ltr">' +
+      var qCurSel = '<label style="font-size:12px;font-weight:800;display:inline-flex;align-items:center;gap:6px">💱 ارز قیمت‌ها: <select onchange="rfqsSetQuoteCur(\'' + ptfOnClickArg(no) + '\',this.value)" style="padding:4px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;direction:ltr">' +
         curList.map(function (c) { return '<option value="' + c.id + '"' + (qCur === c.id ? ' selected' : '') + '>' + c.lb + '</option>'; }).join('') + '</select></label>';
       // v30.6.3: خلاصه سریع‌ترین تحویل
       var deliverySummary = '';
@@ -161,8 +161,8 @@
           var fastest = sortedDel[0];
           deliverySummary = '<div style="background:#e0f2fe;border:1px solid #7dd3fc;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
             + '<span>⚡ <b>سریع‌ترین میانگین تحویل:</b> '+escP(fastest.co)+' — '+fastest.avg+' روز (از '+fastest.cnt+' قلم) — بقیه: '+sortedDel.map(function(x){ return escP(x.co)+': '+x.avg+' روز'; }).join(' | ')+'</span>'
-            + '<span style="display:flex;gap:6px"><button class="bt bt-o" style="font-size:11px;padding:4px 10px;background:#dbeafe" onclick="rfqsHighlightFastest(\''+escP(no)+'\')">🔍 نمایش سریع‌ترین</button>'
-            + '<button class="bt bt-o" style="font-size:11px;padding:4px 10px;background:#d1fae5" onclick="rfqsSelectCheapest(\''+escP(no)+'\')">💰 انتخاب ارزان‌ترین</button></span></div>';
+            + '<span style="display:flex;gap:6px"><button class="bt bt-o" style="font-size:11px;padding:4px 10px;background:#dbeafe" onclick="rfqsHighlightFastest(\''+ptfOnClickArg(no)+'\')">🔍 نمایش سریع‌ترین</button>'
+            + '<button class="bt bt-o" style="font-size:11px;padding:4px 10px;background:#d1fae5" onclick="rfqsSelectCheapest(\''+ptfOnClickArg(no)+'\')">💰 انتخاب ارزان‌ترین</button></span></div>';
         }
       } catch(e){}
 
@@ -172,15 +172,15 @@
         '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:#e2e8f0"><tr><th>#</th><th>کالا</th>' + thSups + '</tr></thead><tbody>' + compRows + '</tbody></table></div>' +
         '<div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap">' +
         '<small style="color:#64748b">قیمت‌ها حین تایپ خودکار ذخیره می‌شوند؛ زمان تحویل برای مقایسه سریع‌ترین تامین‌کننده استفاده می‌شود. با «ثبت قیمت‌ها» قیمت مرجع کالاها هم به‌روزرسانی می‌شود.</small>' +
-        '<button type="button" class="bt" style="background:#059669;color:#fff;font-weight:bold" onclick="rfqsCommitPrices(\'' + escP(no) + '\')">💾 ثبت قیمت‌ها' + (r.pricesCommittedAt ? ' (آخرین ثبت: ' + escP(r.pricesCommittedAt) + ')' : '') + '</button></div></div>';
+        '<button type="button" class="bt" style="background:#059669;color:#fff;font-weight:bold" onclick="rfqsCommitPrices(\'' + ptfOnClickArg(no) + '\')">💾 ثبت قیمت‌ها' + (r.pricesCommittedAt ? ' (آخرین ثبت: ' + escP(r.pricesCommittedAt) + ')' : '') + '</button></div></div>';
     }
 
     el.innerHTML = '<div style="background:#fcfcfc;border:1px solid #e2e8f0;border-radius:10px;padding:12px">' +
       '<h4 style="margin:0 0 8px">📦 تخصیص اقلام استعلام به تامین‌کنندگان مرتبط</h4>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:#f1f5f9"><tr><th>#</th><th>شرح کالا</th><th>مقدار</th><th>تامین‌کنندگان اختصاص‌یافته</th></tr></thead><tbody>' + itemsRows + '</tbody></table></div>' +
       '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap">' +
-      '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:12px" onclick="rfqsGenDedicatedPdfs(\'' + escP(no) + '\')">🖨️ تولید PDF اختصاصی هر تامین‌کننده (بدون ذخیره ابری)</button>' +
-      (!isSent ? '<button type="button" class="bt" style="background:#059669;color:#fff;font-size:12.5px;font-weight:bold" onclick="rfqsMarkSentLive(\'' + escP(no) + '\')">📤 ارسال به تامین‌کنندگان انجام شد (فعال‌سازی جدول ثبت قیمت)</button>' : '<span style="color:#059669;font-weight:bold">✅ ارسال‌شده (جدول مقایسه قیمت فعال است)</span>') +
+      '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:12px" onclick="rfqsGenDedicatedPdfs(\'' + ptfOnClickArg(no) + '\')">🖨️ تولید PDF اختصاصی هر تامین‌کننده (بدون ذخیره ابری)</button>' +
+      (!isSent ? '<button type="button" class="bt" style="background:#059669;color:#fff;font-size:12.5px;font-weight:bold" onclick="rfqsMarkSentLive(\'' + ptfOnClickArg(no) + '\')">📤 ارسال به تامین‌کنندگان انجام شد (فعال‌سازی جدول ثبت قیمت)</button>' : '<span style="color:#059669;font-weight:bold">✅ ارسال‌شده (جدول مقایسه قیمت فعال است)</span>') +
       '</div>' + priceCompTable + '</div>';
   };
 
@@ -929,7 +929,7 @@
     function rowHtml(r, badgeHtml, bg, bd) {
       var cd = r.cd || '';
       return '<label style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border:1px solid ' + (bd || 'var(--brd)') + ';border-radius:11px;margin-bottom:6px;cursor:pointer;background:' + (bg || 'var(--crd,#fff)') + '">' +
-        '<input type="checkbox" ' + (_st._sel[cd] ? 'checked' : '') + ' onchange="rfqsToggleSup(\'' + escP(cd) + '\',this.checked)" style="margin-top:3px"' + (cd ? '' : ' disabled') + '>' +
+        '<input type="checkbox" ' + (_st._sel[cd] ? 'checked' : '') + ' onchange="rfqsToggleSup(\'' + ptfOnClickArg(cd) + '\',this.checked)" style="margin-top:3px"' + (cd ? '' : ' disabled') + '>' +
         '<span style="flex:1;min-width:0"><b style="font-size:13px">' + escP(r.co) + '</b> ' + (badgeHtml || '') +
         '<span style="display:block;font-size:11.5px;color:#64748b;margin-top:2px">' +
         (r.score != null ? ('امتیاز ' + r.score + ' — ') : '') + escP(r.why || '') +
@@ -999,7 +999,7 @@
         ? selRows.map(function (r) {
             return '<span style="display:inline-flex;align-items:center;gap:6px;background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;border-radius:999px;padding:4px 10px;font-size:12px">' +
               escP(r.co) +
-              ' <button type="button" onclick="rfqsToggleSup(\'' + escP(r.cd) + '\',false)" style="border:0;background:transparent;color:#b91c1c;cursor:pointer;font-weight:900;padding:0 2px" title="حذف">✕</button></span>';
+              ' <button type="button" onclick="rfqsToggleSup(\'' + ptfOnClickArg(r.cd) + '\',false)" style="border:0;background:transparent;color:#b91c1c;cursor:pointer;font-weight:900;padding:0 2px" title="حذف">✕</button></span>';
           }).join('')
         : '<span style="font-size:11.5px;color:#94a3b8">هنوز تامین‌کننده‌ای انتخاب نشده</span>';
     }
@@ -1049,11 +1049,11 @@
         '<span style="font-size:13px"><b>' + escP(t.co) + '</b> ' + stBadge +
         ((t.sends || []).length ? '<small style="color:#94a3b8"> | آخرین ارسال: ' + escP(t.sends[t.sends.length - 1].t) + ' (' + t.sends.map(function (s) { return s.ch; }).join('، ') + ')</small>' : '') + '</span>' +
         '<span style="display:flex;gap:4px;flex-wrap:wrap">' +
-        (t.email ? '<a class="bt bt-o" style="padding:4px 9px;font-size:11.5px;text-decoration:none" href="mailto:' + escP(t.email) + '?subject=' + encodeURIComponent('استعلام ' + r.no + ' — پیشرو تجهیز فرتاک') + '&body=' + mailBody + '" onclick="rfqsMarkSend(\'' + escP(r.no) + '\',' + i + ',\'email\')">✉️ ایمیل</a>' : '') +
-        (t.ph ? '<a class="bt bt-o" style="padding:4px 9px;font-size:11.5px;text-decoration:none" target="_blank" href="https://wa.me/98' + escP(String(t.ph).replace(/\D/g, '').replace(/^0/, '')) + '?text=' + waTxt + '" onclick="rfqsMarkSend(\'' + escP(r.no) + '\',' + i + ',\'whatsapp\')">💬 واتساپ</a>' : '') +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="rfqsPrintPreview(\'' + escP(r.no) + '\',' + i + ')" title="پیش‌نمایش/دانلود PDF افقی مختص این تامین‌کننده">🖨 PDF</button>' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#059669" onclick="rfqsReply(\'' + escP(r.no) + '\',' + i + ')">💰 ثبت پاسخ</button>' +
-        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626" onclick="rfqsDecline(\'' + escP(r.no) + '\',' + i + ')">رد کرد</button>' +
+        (t.email ? '<a class="bt bt-o" style="padding:4px 9px;font-size:11.5px;text-decoration:none" href="mailto:' + escP(t.email) + '?subject=' + encodeURIComponent('استعلام ' + r.no + ' — پیشرو تجهیز فرتاک') + '&body=' + mailBody + '" onclick="rfqsMarkSend(\'' + ptfOnClickArg(r.no) + '\',' + i + ',\'email\')">✉️ ایمیل</a>' : '') +
+        (t.ph ? '<a class="bt bt-o" style="padding:4px 9px;font-size:11.5px;text-decoration:none" target="_blank" href="https://wa.me/98' + escP(String(t.ph).replace(/\D/g, '').replace(/^0/, '')) + '?text=' + waTxt + '" onclick="rfqsMarkSend(\'' + ptfOnClickArg(r.no) + '\',' + i + ',\'whatsapp\')">💬 واتساپ</a>' : '') +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="rfqsPrintPreview(\'' + ptfOnClickArg(r.no) + '\',' + i + ')" title="پیش‌نمایش/دانلود PDF افقی مختص این تامین‌کننده">🖨 PDF</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#059669" onclick="rfqsReply(\'' + ptfOnClickArg(r.no) + '\',' + i + ')">💰 ثبت پاسخ</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626" onclick="rfqsDecline(\'' + ptfOnClickArg(r.no) + '\',' + i + ')">رد کرد</button>' +
         '</span></div></div>';
     }).join('');
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:94vh;overflow:auto">' +
@@ -1062,9 +1062,9 @@
       '<div class="tb2"><table><thead><tr><th>#</th><th>شرح</th><th>مشخصات</th><th>تعداد</th><th>واحد</th></tr></thead><tbody>' + itemsRows + '</tbody></table></div>' +
       '<h4 style="margin:14px 0 6px;font-size:13.5px">🏭 تامین‌کنندگان و ارسال <small style="color:#94a3b8">(هیچ ارسالی خودکار نیست — با کلیک شما انجام می‌شود)</small></h4>' + tgRows +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">' +
-      '<button class="bt bt-o" onclick="rfqsXls(\'' + escP(r.no) + '\')">⬇️ اکسل پاک</button>' +
-      '<button class="bt bt-o" onclick="rfqsPrintPreview(\'' + escP(r.no) + '\',null)">🖨️ PDF عمومی (افقی)</button>' +
-      '<button class="bt bt-o" style="color:#0e7490" onclick="rfqsPrintPickSupplier(\'' + escP(r.no) + '\')">🖨 PDF اختصاصی تامین‌کننده</button>' +
+      '<button class="bt bt-o" onclick="rfqsXls(\'' + ptfOnClickArg(r.no) + '\')">⬇️ اکسل پاک</button>' +
+      '<button class="bt bt-o" onclick="rfqsPrintPreview(\'' + ptfOnClickArg(r.no) + '\',null)">🖨️ PDF عمومی (افقی)</button>' +
+      '<button class="bt bt-o" style="color:#0e7490" onclick="rfqsPrintPickSupplier(\'' + ptfOnClickArg(r.no) + '\')">🖨 PDF اختصاصی تامین‌کننده</button>' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -1213,8 +1213,8 @@
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
       + '<h3 style="margin:0">🖨️ پیش‌نمایش PDF افقی — <span dir="ltr">' + escP(r.no) + '</span><small style="color:#0e7490">' + titleSup + '</small></h3>'
       + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-      + '<button class="bt" style="font-size:12px;background:#059669" onclick="rfqsDownloadPrintHtml(\'' + escP(no) + '\',' + idxArg + ')">⬇️ دانلود</button>'
-      + '<button class="bt bt-o" style="font-size:12px" onclick="rfqsOpenPrintWindow(\'' + escP(no) + '\',' + idxArg + ')">🖨 چاپ / Save as PDF</button>'
+      + '<button class="bt" style="font-size:12px;background:#059669" onclick="rfqsDownloadPrintHtml(\'' + ptfOnClickArg(no) + '\',' + idxArg + ')">⬇️ دانلود</button>'
+      + '<button class="bt bt-o" style="font-size:12px" onclick="rfqsOpenPrintWindow(\'' + ptfOnClickArg(no) + '\',' + idxArg + ')">🖨 چاپ / Save as PDF</button>'
       + '<button class="bt" style="font-size:12px" onclick="var m=document.getElementById(\'rqsPdfDlg\');if(m)m.remove()">بستن</button>'
       + '</div></div>'
       + '<iframe id="rqsPdfFrame" style="width:100%;height:70vh;border:1px solid var(--brd);border-radius:12px;background:#fff"></iframe>'
@@ -1278,7 +1278,7 @@
       + '<div style="max-height:50vh;overflow:auto;margin-bottom:12px">' + opts + '</div>'
       + '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'
       + '<button class="bt bt-o" onclick="var m=document.getElementById(\'rqsPdfPick\');if(m)m.remove()">انصراف</button>'
-      + '<button class="bt" style="background:#0e7490" onclick="rfqsPrintPickGo(\'' + escP(no) + '\')">👁 پیش‌نمایش / دانلود</button>'
+      + '<button class="bt" style="background:#0e7490" onclick="rfqsPrintPickGo(\'' + ptfOnClickArg(no) + '\')">👁 پیش‌نمایش / دانلود</button>'
       + '</div></div></div>';
     try { var old = document.getElementById('rqsPdfPick'); if (old) old.remove(); } catch (e1) {}
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);

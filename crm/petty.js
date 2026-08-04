@@ -107,7 +107,7 @@
     var periods = prAll().slice(0, 8);
     if (!periods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
     var rows = periods.map(function (p) {
-      var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
+      var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
       /* UR-11: دوره‌های جدید بازه [from,to] دارند؛ قدیمی‌ها فقط month (سازگاری) */
       var rng = (p.from && p.to) ? ('از ' + p.from + ' تا ' + p.to) : ('ماه ' + (p.month || '-'));
       var arg = (p.from && p.to) ? (escP(p.from) + '|' + escP(p.to)) : escP(p.month || '');
@@ -157,7 +157,7 @@
       }
     }
     el.innerHTML = list.map(function (x) {
-      var files = (x.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ');
+      var files = (x.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ');
       var isVoid = x.st === 'void';
       var canEdit = !isVoid && ((x.by === me.name) || canAll());
       var acts = '';
@@ -1043,7 +1043,7 @@
     var kind = window.ptfPettyFileKind(f.name || f.key || '');
     var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
-    var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
+    var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
 
     if (!url && f.key) {
       /* FIX v2: حتی اگر URL نیست، یک placeholder زیبا نمایش بده (نه حذف فایل) */
@@ -1476,7 +1476,7 @@
       var totalAdv = openAdvs.reduce(function (s, o) { return s + (ptfAdvanceNormalize(o).remainAmt || 0); }, 0);
       var h = '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:12px 14px;margin-bottom:10px">' +
         '<h4 style="margin:0 0 8px;font-size:13.5px;color:#c2410c">💰 پیش‌پرداخت‌ها (' + openAdvs.length + ' مطالبه باز — جمع مانده: ' + totalAdv.toLocaleString('fa-IR') + ' ریال)</h4>' +
-        openAdvs.map(function (o) { var a = ptfAdvanceNormalize(o); var pays = (a.payments || []).map(function (p) { return '◽ ' + escP(p.t || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال' + (p.docAmt ? ' <small style="color:#0e7490">(' + (+p.docAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur || '') + ' @ ' + (+p.rate || 0).toLocaleString('fa-IR') + ')</small>' : '') + ' <a href="javascript:void(0)" onclick="advancePayDel(\'' + escP(o.no) + '\',\'' + escP(p.cd || '') + '\')" style="color:#dc2626">✕</a>'; }).join('<br>'); return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fed7aa;flex-wrap:wrap"><span style="font-size:12.5px"><b>' + escP(o.buyerCo || '-') + '</b> — ' + escP(o.no) + ' — پیش‌پرداخت: <b>' + ptfAdvanceLabel(o) + '</b><br><small style="color:#166534">وصول‌شده: ' + (+a.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.receivedDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + ' | مانده: ' + (+a.remainAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.remainDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + '</small>' + (a.note ? '<br><small style="color:#64748b">' + escP(a.note) + '</small>' : '') + (pays ? '<br><small style="color:#475569">' + pays + '</small>' : '') + '</span><span style="display:flex;gap:5px"><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfAdvanceOpen(\'' + escP(o.no) + '\')">اصلاح</button><button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="advancePaid(\'' + escP(o.no) + '\')">+ ثبت وصول</button></span></div>'; }).join('') +
+        openAdvs.map(function (o) { var a = ptfAdvanceNormalize(o); var pays = (a.payments || []).map(function (p) { return '◽ ' + escP(p.t || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال' + (p.docAmt ? ' <small style="color:#0e7490">(' + (+p.docAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur || '') + ' @ ' + (+p.rate || 0).toLocaleString('fa-IR') + ')</small>' : '') + ' <a href="javascript:void(0)" onclick="advancePayDel(\'' + ptfOnClickArg(o.no) + '\',\'' + ptfOnClickArg(p.cd || '') + '\')" style="color:#dc2626">✕</a>'; }).join('<br>'); return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fed7aa;flex-wrap:wrap"><span style="font-size:12.5px"><b>' + escP(o.buyerCo || '-') + '</b> — ' + escP(o.no) + ' — پیش‌پرداخت: <b>' + ptfAdvanceLabel(o) + '</b><br><small style="color:#166534">وصول‌شده: ' + (+a.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.receivedDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + ' | مانده: ' + (+a.remainAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.remainDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + '</small>' + (a.note ? '<br><small style="color:#64748b">' + escP(a.note) + '</small>' : '') + (pays ? '<br><small style="color:#475569">' + pays + '</small>' : '') + '</span><span style="display:flex;gap:5px"><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfAdvanceOpen(\'' + ptfOnClickArg(o.no) + '\')">اصلاح</button><button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="advancePaid(\'' + ptfOnClickArg(o.no) + '\')">+ ثبت وصول</button></span></div>'; }).join('') +
         (fulls.length ? '<div style="margin-top:8px;font-size:12px;color:#059669">✅ پرداخت کامل/نقدی: ' + fulls.map(function (o) { return escP(o.no); }).join('، ') + '</div>' : '') + '</div>';
       el.insertAdjacentHTML('afterbegin', h);
     };

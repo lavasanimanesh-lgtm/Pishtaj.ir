@@ -124,7 +124,7 @@ function prjArchivedDocsHtml(p) {
   var invoices = (snap.invoices || []).map(function (i) { return '<div style="padding:3px 0">🧾 <b>' + escP(i.no) + '</b> <small style="color:#94a3b8">' + (+i.amount || 0).toLocaleString('fa-IR') + ' ریال' + (i.offerNo ? ' (CO ' + escP(i.offerNo) + ')' : '') + '</small></div>'; }).join('') || '—';
   var letters = (snap.letters || []).map(function (l) { return '<div style="padding:3px 0">✉️ <b>' + escP(l.no) + '</b> <small style="color:#94a3b8">' + escP(l.subject || '') + '</small></div>'; }).join('') || '—';
   var supply = (snap.supply || []).map(function (q) { return '<div style="padding:3px 0">🤖 ' + escP(q.no) + '</div>'; }).join('') || '—';
-  var misc = (snap.misc || []).map(function (m) { return '<div style="padding:3px 0">📎 ' + (m.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(m.key) + '\')">' + escP(m.name) + '</a>' : escP(m.name)) + '</div>'; }).join('') || '—';
+  var misc = (snap.misc || []).map(function (m) { return '<div style="padding:3px 0">📎 ' + (m.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(m.key) + '\')">' + escP(m.name) + '</a>' : escP(m.name)) + '</div>'; }).join('') || '—';
   function col(t, body) {
     return '<div style="flex:1;min-width:150px;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 10px"><b style="font-size:12px">' + t + '</b><div style="margin-top:5px;font-size:11.5px">' + body + '</div></div>';
   }
@@ -182,22 +182,22 @@ function openProject(no) {
     '<h3 style="margin:0">📁 ' + escP(p.no) + ' — ' + escP(p.buyerCo || '') + '</h3>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
     '<select onchange="prjSetState(\'' + no + '\',this.value)" style="padding:6px;border:1px solid var(--brd);border-radius:9px;font-size:12px">' + stOpts + '</select>' +
-    '<button class="bt bt-o" style="font-size:12px" onclick="offerPrint(\'' + escP(p.offerNo) + '\')">⬇️ CO مبدا</button>' +
-    '<button class="bt" style="font-size:12px;background:#0e7490" onclick="hideModal();plCreate(\'' + escP(p.offerNo) + '\')">📦 پکینگ لیست جدید</button>' +
+    '<button class="bt bt-o" style="font-size:12px" onclick="offerPrint(\'' + ptfOnClickArg(p.offerNo) + '\')">⬇️ CO مبدا</button>' +
+    '<button class="bt" style="font-size:12px;background:#0e7490" onclick="hideModal();plCreate(\'' + ptfOnClickArg(p.offerNo) + '\')">📦 پکینگ لیست جدید</button>' +
     '</div></div>' +
     // US-178: چرخه فایل‌های پرونده — دانلود کامل / بایگانی فشرده / آزادسازی فضا
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">' +
-    '<button class="bt bt-o" style="font-size:12px" onclick="prjDownloadAll(\'' + escP(no) + '\')">⬇️ دانلود کل پرونده' + (p.dlAt ? ' ✅' : '') + '</button>' +
+    '<button class="bt bt-o" style="font-size:12px" onclick="prjDownloadAll(\'' + ptfOnClickArg(no) + '\')">⬇️ دانلود کل پرونده' + (p.dlAt ? ' ✅' : '') + '</button>' +
     /* v121.1: اتصال توابع مرده US-110/111 v120 به UI پرونده */
-    '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="ptfOpenProjectBinder(\'' + escP(no) + '\')">🗄️ زونکن دیجیتال</button>' +
-    (['admin','chairman','ceo','commercial'].indexOf(curRole()) > -1 ? '<button class="bt bt-o" style="font-size:12px;color:#059669" onclick="ptfCalculateNetProfit(\'' + escP(no) + '\')">💰 سود خالص (مدیر)</button>' : '') + /* v14.9 US-383 */
-    (typeof ptfLossOpen === 'function' && ['admin','chairman','ceo','commercial'].indexOf(curRole()) > -1 ? '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'project\',\'' + escP(no) + '\')">💥 ثبت زیان پروژه</button>' : '') +
+    '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="ptfOpenProjectBinder(\'' + ptfOnClickArg(no) + '\')">🗄️ زونکن دیجیتال</button>' +
+    (['admin','chairman','ceo','commercial'].indexOf(curRole()) > -1 ? '<button class="bt bt-o" style="font-size:12px;color:#059669" onclick="ptfCalculateNetProfit(\'' + ptfOnClickArg(no) + '\')">💰 سود خالص (مدیر)</button>' : '') + /* v14.9 US-383 */
+    (typeof ptfLossOpen === 'function' && ['admin','chairman','ceo','commercial'].indexOf(curRole()) > -1 ? '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'project\',\'' + ptfOnClickArg(no) + '\')">💥 ثبت زیان پروژه</button>' : '') +
     (p.archiveKey
-      ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="openStoredFile(\'' + escP(p.archiveKey) + '\')">🗄 دانلود zip بایگانی</button>' +
-        '<button class="bt bt-o" style="font-size:12px;color:#dc2626" onclick="prjFreeCloud(\'' + escP(no) + '\')">☁️🗑 آزادسازی فضای ابری</button>'
+      ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="openStoredFile(\'' + ptfOnClickArg(p.archiveKey) + '\')">🗄 دانلود zip بایگانی</button>' +
+        '<button class="bt bt-o" style="font-size:12px;color:#dc2626" onclick="prjFreeCloud(\'' + ptfOnClickArg(no) + '\')">☁️🗑 آزادسازی فضای ابری</button>'
       : (p.archivePurged
         ? '<span style="font-size:11.5px;color:#7c3aed;padding:6px 4px">🗄 بایگانی‌شده — فایل‌ها روی فضای محلی (' + escP(p.dlBy || '') + ')</span>'
-        : '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="prjArchiveWizard(\'' + escP(no) + '\')">🗄 بایگانی و فشرده‌سازی</button>')) +
+        : '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="prjArchiveWizard(\'' + ptfOnClickArg(no) + '\')">🗄 بایگانی و فشرده‌سازی</button>')) +
     '</div>' +
     (p.dlAt ? '<div style="font-size:11px;color:#059669;margin-bottom:4px">✅ آخرین دانلود کامل: ' + escP(p.dlAt) + ' توسط ' + escP(p.dlBy || '') + '</div>'
       : (p.archiveMetaOnly || p.archivePurged ? '<div style="font-size:11px;color:#7c3aed;margin-bottom:4px">🗄 بایگانی متادیتایی/بدون فایل ابری — دانلود الزامی نیست (BUG-036)</div>'
@@ -227,18 +227,18 @@ function prjRenderCosts(no) {
   var labels = prjCostLabels();
   var rows = prjAllCosts(p).map(function (c) {
     var post = !!c.postArchive;
-    var files = (c.files || []).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>' : ''; }).join(' ');
+    var files = (c.files || []).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>' : ''; }).join(' ');
     var acts = '';
     if (p.state === 'archived' && ptfArcDocAllowed() && p.closeKind !== 'lost') {
-      acts = '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="prjPostCostOpen(\'' + escP(no) + '\',\'' + escP(c.cd) + '\')">✏️ اصلاح</button> ' +
-             '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="prjPostCostUpload(\'' + escP(no) + '\',\'' + escP(c.cd) + '\')">📎</button> ' +
-             '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="prjPostCostDel(\'' + escP(no) + '\',\'' + escP(c.cd) + '\')">🗑️</button>';
+      acts = '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="prjPostCostOpen(\'' + ptfOnClickArg(no) + '\',\'' + ptfOnClickArg(c.cd) + '\')">✏️ اصلاح</button> ' +
+             '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="prjPostCostUpload(\'' + ptfOnClickArg(no) + '\',\'' + ptfOnClickArg(c.cd) + '\')">📎</button> ' +
+             '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="prjPostCostDel(\'' + ptfOnClickArg(no) + '\',\'' + ptfOnClickArg(c.cd) + '\')">🗑️</button>';
     }
     return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap"><span><b>' + (+c.amt || 0).toLocaleString('fa-IR') + ' ریال</b> — ' + escP(labels[c.cat] || c.cat || 'هزینه') + ' — ' + escP(c.desc || '') + (post ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9">پسابایگانی</span>' : '') + ' <small style="color:#94a3b8">(' + escP(c.t || '') + ' — ' + escP(c.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap">' + acts + '</span></div>';
   }).join('');
   var tools = '';
   if (p.state === 'archived' && ptfArcDocAllowed() && p.closeKind !== 'lost') {
-    tools = '<button class="bt bt-o" style="font-size:12px;color:#b45309" onclick="prjPostCostOpen(\'' + escP(no) + '\')">➕ هزینه گارانتی/پسابایگانی</button>';
+    tools = '<button class="bt bt-o" style="font-size:12px;color:#b45309" onclick="prjPostCostOpen(\'' + ptfOnClickArg(no) + '\')">➕ هزینه گارانتی/پسابایگانی</button>';
   }
   if (!rows && !tools) { el.innerHTML = ''; return; }
   el.innerHTML = '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:8px 12px;margin-bottom:10px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>💰 هزینه‌های پرونده</b>' + tools + '</div>' + (rows || '<div style="padding:6px 0;color:#94a3b8">هزینه‌ای ثبت نشده است.</div>') + '</div>';
@@ -341,7 +341,7 @@ function prjShowFolder(fid) {
     listHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px">' +
       docs.map(function (d, i) {
         return '<div style="border:1px solid var(--brd);border-radius:10px;overflow:hidden;text-align:center;font-size:10.5px">' +
-          '<div style="height:80px;background:#f1f5f9;display:grid;place-items:center;cursor:pointer" onclick="event.stopPropagation();openStoredFile(\'' + escP(d.key || '') + '\')">🖼️</div>' +
+          '<div style="height:80px;background:#f1f5f9;display:grid;place-items:center;cursor:pointer" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(d.key || '') + '\')">🖼️</div>' +
           '<div style="padding:4px">' + escP(d.tag || '') + '<br><span style="color:#94a3b8">' + escP(d.caption || d.name) + '</span></div></div>';
       }).join('') + '</div>';
   } else {
@@ -349,14 +349,14 @@ function prjShowFolder(fid) {
       var gi = (p.docs || []).indexOf(d); // ایندکس سراسری برای حذف
       // US-141: مدارک سیستمی (PDF پیشنهاد/درخواست از خود سیستم باز می‌شوند)
       var act;
-      if (d.sysOffer) act = '<a href="javascript:void(0)" onclick="offerPrint(\'' + escP(d.sysOffer) + '\')" style="color:#7c3aed">🖨️ PDF سیستمی</a>';
+      if (d.sysOffer) act = '<a href="javascript:void(0)" onclick="offerPrint(\'' + ptfOnClickArg(d.sysOffer) + '\')" style="color:#7c3aed">🖨️ PDF سیستمی</a>';
       else if (d.sysRfq) act = '<small style="color:#0e7490">سیستمی (استعلام)</small>';
       // US-178: متادیتای فایل‌های حذف/بایگانی‌شده — روند پروژه گم نمی‌شود
       else if (d.purged) act = '<small style="color:#94a3b8" title="' + escP((d.purgedAt || '') + ' ' + (d.purgedBy || '')) + '">🗑 حذف‌شده از ابر (متادیتا)</small>';
       else if (d.archived) act = '<small style="color:#7c3aed">🗄 در zip بایگانی</small>';
-      else if (d.key) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(d.key) + '\')" style="color:#0e7490">👁 مشاهده</a>' +
-        ' <a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(d.key) + '\')" style="color:#0e7490">⬇️</a>' +
-        ' <a href="javascript:void(0)" onclick="event.stopPropagation();prjDocDel(\'' + escP(_curPrj) + '\',' + gi + ')" style="color:#dc2626" title="حذف از فضای ابری (متادیتا می‌ماند)">🗑</a>';
+      else if (d.key) act = '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(d.key) + '\')" style="color:#0e7490">👁 مشاهده</a>' +
+        ' <a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(d.key) + '\')" style="color:#0e7490">⬇️</a>' +
+        ' <a href="javascript:void(0)" onclick="event.stopPropagation();prjDocDel(\'' + ptfOnClickArg(_curPrj) + '\',' + gi + ')" style="color:#dc2626" title="حذف از فضای ابری (متادیتا می‌ماند)">🗑</a>';
       else act = '<small style="color:#d97706">در صف ابری</small>';
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border:1px solid var(--brd);border-radius:9px;margin-bottom:5px;font-size:12px' + (d.purged ? ';opacity:.6' : '') + '">' +
         '<span>📄 ' + escP(d.name) + ' <small style="color:#94a3b8">' + escP(d.t || '') + (d.note ? ' — ' + escP(d.note) : '') + '</small></span>' +

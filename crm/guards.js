@@ -162,7 +162,7 @@
           var tds = tr.querySelectorAll('td');
           if (!tds.length) return;
           tds[tds.length - 1].insertAdjacentHTML('beforeend',
-            ' <button class="bt bt-o del-ent" style="padding:4px 9px;font-size:12px;color:#dc2626" title="حذف" onclick="ptfDelEntity(\'' + m.kind + '\',\'' + escP(cd) + '\')">🗑</button>');
+            ' <button class="bt bt-o del-ent" style="padding:4px 9px;font-size:12px;color:#dc2626" title="حذف" onclick="ptfDelEntity(\'' + m.kind + '\',\'' + ptfOnClickArg(cd) + '\')">🗑</button>');
         });
       });
     } catch (e) {}
@@ -194,7 +194,7 @@
       '<div class="fld"><label>توضیح تکمیلی (اختیاری)</label><input type="text" id="delNote" placeholder="جزئیات بیشتر..."></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#dc2626;border-color:#dc2626" onclick="ptfConfirmReasonedDelete(\'' + escP(kind) + '\',\'' + escP(id) + '\',\'' + escP(label||id) + '\')">🗑 تأیید حذف و بایگانی</button></div></div></div>';
+      '<button class="bt" style="background:#dc2626;border-color:#dc2626" onclick="ptfConfirmReasonedDelete(\'' + ptfOnClickArg(kind) + '\',\'' + ptfOnClickArg(id) + '\',\'' + ptfOnClickArg(label||id) + '\')">🗑 تأیید حذف و بایگانی</button></div></div></div>';
     window._curDelCb = callback;
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };

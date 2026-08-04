@@ -1,10 +1,14 @@
 <?php
 // Clean up any remaining numerical kc files on the server (v33.2.0)
+// v34.0.6-alpha (بدهی فنی #۲ در ارزیابی): این یک عملیات یک‌بارِ مهاجرت بود ولی در هر
+// ریکوئست روی تمامِ pathها glob+unlink اجرا می‌شد. حالا فقط یک‌بار اجرا و سپس با
+// نشانگر (marker) علامت‌گذاری می‌شود تا I/O بیهودهٔ هر درخواست حذف شود.
 $kc_dir = __DIR__ . '/../knowledge-center';
-if (is_dir($kc_dir)) {
+if (is_dir($kc_dir) && !file_exists($kc_dir . '/.kc-cleanup-done')) {
     foreach (glob($kc_dir . '/kc-[0-9]*.html') as $f) {
         @unlink($f);
     }
+    @file_put_contents($kc_dir . '/.kc-cleanup-done', date('c'));
 }
 
 // API سامانه مدیریت یکپارچه استعلامات (CRM API) — نسخه اسپرینت ۶۹
@@ -1450,19 +1454,27 @@ switch($action) {
 
     case 'users_get':
         // v31.7.4 BUG-AUDIT-004 FIXED: only return safe fields, never passhash
+        // v34.0.6-alpha D-02 (PII): users_get در لیست اکشن‌های عمومی است و پیش از لاگین
+        //   برای پینگ/پیش‌بار کاربران فراخوانی می‌شود. فیلدهای حساس (mobile/email) دیگر
+        //   بدون توکن بازنمی‌گردند — «حداقل‌سازی فیلدهای خروجی پیش از لاگین» طبق ارزیابی.
+        //   با توکن معتبر، مجموعهٔ کامل (بدون passhash) برای مدیریت کاربران برمی‌گردد.
         verify_request();
-        // v31.7.68 BUG-AUTH-MOBILE-USER-001: return safe merged users from all server stores.
+        global $client_role;
+        $authenticated = !empty($client_role);
         $all_users = load_all_crm_users_sources();
-        $safe_users = array_map(function($u) {
-            return [
+        $safe_users = array_map(function($u) use ($authenticated) {
+            $row = [
                 'username' => $u['username'] ?? '',
                 'name'     => $u['name'] ?? '',
                 'nameEn'   => $u['nameEn'] ?? '',
                 'roleId'   => $u['roleId'] ?? 'sales',
                 'role'     => $u['role'] ?? '',
-                'mobile'   => $u['mobile'] ?? '',
-                'email'    => $u['email'] ?? '',
             ];
+            if ($authenticated) {
+                $row['mobile'] = $u['mobile'] ?? '';
+                $row['email']  = $u['email'] ?? '';
+            }
+            return $row;
         }, $all_users);
         echo json_encode(['ok' => true, 'users' => $safe_users], JSON_UNESCAPED_UNICODE);
         break;

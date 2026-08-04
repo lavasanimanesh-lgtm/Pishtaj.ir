@@ -514,8 +514,8 @@ function renderUsers2() {
       '<td style="direction:ltr;font-size:11.5px">' + escP(us.mobile || '-') + '<br>' + escP(us.email || '-') + '</td>' +
       '<td><span class="bd b-st4">✔ فعال</span></td>' +
       '<td>' + (canManage
-        ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#0e7490" title="ارسال مجدد پیامک اطلاعات ورود — رمز موقت جدید (US-376)" onclick="smsResendLogin(\'' + escP(us.username) + '\')">📱 ارسال مجدد</button> ' +
-          '<button class="bt bt-o" style="padding:3px 9px;font-size:12px;color:#dc2626" onclick="delUser2(\'' + escP(us.username) + '\')">🗑️</button>'
+        ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#0e7490" title="ارسال مجدد پیامک اطلاعات ورود — رمز موقت جدید (US-376)" onclick="smsResendLogin(\'' + ptfOnClickArg(us.username) + '\')">📱 ارسال مجدد</button> ' +
+          '<button class="bt bt-o" style="padding:3px 9px;font-size:12px;color:#dc2626" onclick="delUser2(\'' + ptfOnClickArg(us.username) + '\')">🗑️</button>'
         : '') + '</td></tr>';
   });
   tb.innerHTML = h;
@@ -629,7 +629,7 @@ function renderInvoices() {
       '<div style="font-size:11.5px;color:#64748b">مبلغ CO: ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') + (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <span style="color:#0e7490">| مبنا: ' + escP(o.currency || inv.offerCurrency) + (o.fxBasis ? ' / ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') : '') + (o.fxRateRef ? ' / ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</span>' : '') + ' | ارجاع: ' + escP(o.invRef.t) + ' توسط ' + escP(o.invRef.by) + ' (' + escP(o.invRef.role) + ')</div>' + /* v17.4 US-416 */
       (inv ? '<div style="font-size:12px;color:#10b981;margin-top:3px">🧾 فاکتور ' + escP(inv.no) + ' — ' + escP(inv.t) + ' — ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال' +
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +
-        ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +
+        ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +
         (inv.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(inv.editedAt) + ' — ' + escP(inv.editedBy || '') + '</small>' : '') +
         /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
            این هشدار قدیمی «مغایرت با CO» مقدار inv.amount (همیشه ریالی) را
@@ -655,12 +655,12 @@ function renderInvoices() {
       '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
       /* v19.3 (US-436 AC3/US-435 AC3): اگر ارجاع از پرونده فروش آمده، سند ضمیمه = snapshot قطعی برد (US-432) */
       (o.invRef && o.invRef.fromFile && typeof sfAwardPrint === 'function'
-        ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای فاکتور رسمی" onclick="sfAwardPrint(\'' + escP(o.invRef.fromFile) + '\',\'' + o.no + '\')">🏆 سند قطعی برد (PDF)</button>'
+        ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای فاکتور رسمی" onclick="sfAwardPrint(\'' + ptfOnClickArg(o.invRef.fromFile) + '\',\'' + o.no + '\')">🏆 سند قطعی برد (PDF)</button>'
         : '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="offerPrint(\'' + o.no + '\')">⬇️ دانلود CO</button>') +
       (!inv ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\')">+ ثبت فاکتور صادره</button>' : '') +
       /* فاز ۲ / گام ۷: ویرایش/ابطال فاکتور فروش رسمی — فقط پیش از اولین وصولی، فقط نقش‌های ارشد */
-      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
-      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + ptfOnClickArg(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + ptfOnClickArg(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';
@@ -699,7 +699,7 @@ function showInvModal(offerNo, editCd) {
     '<div id="nInvSum" style="font-size:12px;color:#0e7490;font-weight:800;margin-bottom:8px"></div>' +
     '<div class="fld"><label>' + (editRec ? 'افزودن فایل جدید (اختیاری — فایل‌های قبلی حفظ می‌شوند)' : 'فایل فاکتور (PDF/عکس)') + '</label><div id="invUpWrap"></div></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
-    '<button class="bt" onclick="saveInv(\'' + escP(offerNo) + '\')">' + (editRec ? '💾 ذخیره تغییرات' : 'ثبت فاکتور') + '</button></div></div></div>';
+    '<button class="bt" onclick="saveInv(\'' + ptfOnClickArg(offerNo) + '\')">' + (editRec ? '💾 ذخیره تغییرات' : 'ثبت فاکتور') + '</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   window._invFiles = [];
   if (typeof attachUploadWidget === 'function')
@@ -913,7 +913,7 @@ function renderReceivables() {
       (payRows.length ? '<div style="margin-top:6px;font-size:11.5px;color:#475569">' + payRows.map(function (p, pi) {
         var payLabel = p.status === 'reversal' ? '↩ ابطال وصولی' : (p.voided ? '⛔ وصولی ابطال‌شده' : (p.how || (p.fx ? 'تسعیر ارزی' : '-')));
         var payAction = (!p.voided && p.status !== 'reversal' && typeof window.ptfCanInvoicePayVoid === 'function' && window.ptfCanInvoicePayVoid())
-          ? ' <button class="bt bt-o" style="padding:1px 6px;font-size:10px;color:#dc2626" onclick="ptfInvoicePayVoidPrompt(\'' + escP(inv.cd) + '\',\'' + escP(p.cd || pi) + '\')">ابطال</button>' : '';
+          ? ' <button class="bt bt-o" style="padding:1px 6px;font-size:10px;color:#dc2626" onclick="ptfInvoicePayVoidPrompt(\'' + ptfOnClickArg(inv.cd) + '\',\'' + ptfOnClickArg(p.cd || pi) + '\')">ابطال</button>' : '';
         return '◽ ' + escP(p.t) + ' — ' + (+p.amt).toLocaleString('fa-IR') + ' ریال (' + escP(payLabel) + ') ثبت: ' + escP(p.by) + payAction + (p.voidReason ? ' <small>— دلیل: ' + escP(p.voidReason) + '</small>' : '') + (p.fx && p.fx.cur ? ' <small style="color:#0e7490">| معادل ' + (+p.fx.fxAmt || 0).toLocaleString('en-US') + ' ' + escP(p.fx.cur) + ' @ ' + (+p.fx.rate || 0).toLocaleString('fa-IR') + '</small>' : '');
       }).join('<br>') + '</div>' : '') +
       '</div>';
@@ -1138,7 +1138,7 @@ function renderDeals() {
           return '◽ <b>' + (e.step === 'ship' ? '🚚 ارسال' : e.step === 'invoice' ? '🧾 ' + (d.formal === false ? 'رسید ' + escP(e.intNo || '') : 'فاکتور ' + escP(e.no || '')) : e.step === 'settle' ? '💵 تسویه' : 'ابلاغ') + '</b> — ' + escP(e.t) + ' — ' + escP(e.by || '') +
             (e.note ? ' | ' + escP(e.note) : '') +
             (e.waybill ? ' | بیجک/بارنامه: ' + escP(e.waybill) + (e.carrier ? ' (' + escP(e.carrier) + ')' : '') : '') +
-            ((e.files || []).length ? ' | ' + e.files.map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '');
+            ((e.files || []).length ? ' | ' + e.files.map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '');
         }).join('<br>') + '</div>' : '') +
       '</div>';
   });
