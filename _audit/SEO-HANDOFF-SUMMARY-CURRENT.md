@@ -255,3 +255,10 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `industrial-fan-blower.html` — فن و بلوور صنعتی API 673 / AMCA — تصویر `industrial-centrifugal-fan-blower-realistic.jpg` — حدود ۱۶۳۰ کلمه
 
 هاب محصولات اکنون ۷۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۹۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۱۲ (۲۰۲۶-۰۸-۰۴)
+دو صفحه محصول جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `displacer-level-transmitter.html` — ترانسمیتر سطح دیسپلیسری — تصویر `displacer-level-transmitter-realistic.jpg` — حدود ۱۵۷۸ کلمه
+- `instrument-air-package.html` — پکیج هوای ابزار دقیق Instrument Air — تصویر `instrument-air-package-realistic.jpg` — حدود ۱۵۸۰ کلمه
+
+هاب محصولات اکنون ۷۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۹۲ URL عمومی دارد.
