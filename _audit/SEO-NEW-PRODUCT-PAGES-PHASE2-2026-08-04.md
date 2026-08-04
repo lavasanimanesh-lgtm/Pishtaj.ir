@@ -7,7 +7,7 @@
 |---|---|---|
 | `services/products/alloy-steel-pipe-a335.html` | لوله آلیاژی ASTM A335 P11/P22/P91 | `assets/images/products/generated/alloy-steel-pipe-a335-realistic.jpg` |
 | `services/products/a333-low-temperature-pipe.html` | لوله دمای پایین ASTM A333 Gr.6 | `assets/images/products/generated/a333-low-temperature-pipe-realistic.jpg` |
-| `services/products/orifice-plate-flowmeter.html` | Orifice Plate Flowmeter | `assets/images/products/generated/orifice-plate-flowmeter-realistic.jpg` |
+| `services/products/orifice-plate-flowmeter.html` | Orifice Plate Flowmeter | `assets/images/products/generated/orifice-plate-flowmeter-flange-assembly-realistic.jpg` |
 | `services/products/fixed-gas-detector.html` | دتکتور گاز ثابت صنعتی | `assets/images/products/generated/fixed-gas-detector-realistic.jpg` |
 
 ## منابع تحقیق خارجی استفاده‌شده

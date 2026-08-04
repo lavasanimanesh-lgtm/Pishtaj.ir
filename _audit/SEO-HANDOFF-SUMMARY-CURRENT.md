@@ -167,3 +167,8 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 
 ## گام بعدی پیشنهادی
 بازبینی دستی UX همین ۴ صفحه جدید و سپس تصمیم برای فاز بعدی صفحات جدید، فقط بعد از تحقیق واقعی کلیدواژه/برند/تصویر.
+
+## اصلاح تصویر Orifice Plate Flowmeter (۲۰۲۶-۰۸-۰۴)
+با بازخورد کارفرما، تصویر قبلی اوریفیس پلیت مناسب نبود. تصویر جدید با نمای واقعی‌تر از Orifice Flange Assembly شامل فلنج‌ها، پیچ‌ومهره‌ها، اوریفیس پلیت قابل مشاهده و pressure tapping ports جایگزین شد:
+`assets/images/products/generated/orifice-plate-flowmeter-flange-assembly-realistic.jpg`
+تصویر قدیمی حذف شد.
