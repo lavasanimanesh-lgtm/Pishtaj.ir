@@ -13,7 +13,7 @@ T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
 SECTION('سرور: presign_get با HEAD بررسی وجود فایل');
 var storage = fs.readFileSync(path.join(API, 'storage.php'), 'utf-8');
 T('presign_get با s3_request HEAD بررسی می‌کند', storage.indexOf("s3_request($cfg, 'HEAD', $uri)") > -1);
-T('کلید ناموجود → file_not_found (404/403)', storage.indexOf("'file_not_found'") > -1 && storage.indexOf("$code === 404 || $code === 403") > -1);
+T('فقط 404 قطعی → file_not_found (403 رد نمی‌شود — فایل موجود)', storage.indexOf("'file_not_found'") > -1 && storage.indexOf("$code === 404") > -1 && storage.indexOf("$code === 404 || $code === 403") === -1);
 T('s3_request HEAD پشتیبانی می‌کند (CURLOPT_NOBODY)', storage.indexOf("CURLOPT_NOBODY") > -1 && storage.indexOf("strtoupper($method) === 'HEAD'") > -1);
 
 SECTION('کلاینت: openStoredFile پیام معنادار');
