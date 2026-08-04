@@ -155,3 +155,15 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 با بازخورد کارفرما، تصویر قبلی لوله استنلس به‌دلیل نمایش لوله‌های تکه‌تکه مناسب نبود. تصویر جدید با نمای دسته‌ای از لوله‌های بلند و پیوسته جایگزین شد:
 `assets/images/products/generated/stainless-steel-pipe-long-bundle-realistic.jpg`
 تصویر قدیمی حذف شد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۲ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید دیگر با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `alloy-steel-pipe-a335.html` — لوله آلیاژی ASTM A335 P11/P22/P91 — تصویر `alloy-steel-pipe-a335-realistic.jpg`
+- `a333-low-temperature-pipe.html` — لوله دمای پایین ASTM A333 Gr.6 — تصویر `a333-low-temperature-pipe-realistic.jpg`
+- `orifice-plate-flowmeter.html` — Orifice Plate Flowmeter — تصویر `orifice-plate-flowmeter-realistic.jpg`
+- `fixed-gas-detector.html` — دتکتور گاز ثابت صنعتی — تصویر `fixed-gas-detector-realistic.jpg`
+
+هاب محصولات اکنون ۳۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۵۶ URL عمومی دارد.
+
+## گام بعدی پیشنهادی
+بازبینی دستی UX همین ۴ صفحه جدید و سپس تصمیم برای فاز بعدی صفحات جدید، فقط بعد از تحقیق واقعی کلیدواژه/برند/تصویر.
