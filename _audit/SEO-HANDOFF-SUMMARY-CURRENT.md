@@ -90,3 +90,28 @@
 - Steam Trap
 - Shell & Tube Heat Exchanger
 - Pressure Vessel
+
+## به‌روزرسانی جدید — بسته پمپ/کمپرسور/بخار/تجهیزات ثابت (۲۰۲۶-۰۸-۰۴)
+بسته نهایی این دور از محصولات صنعتی با استاندارد عمیق و تصاویر کم‌حجم انجام شد:
+- `api-610-centrifugal-pump.html` — تصویر `api-610-centrifugal-pump-realistic.jpg` — حدود ۱۹۷۹ کلمه
+- `dosing-metering-pump.html` — تصویر `dosing-metering-pump-realistic.jpg` — حدود ۱۹۱۴ کلمه
+- `screw-compressor.html` — تصویر `screw-compressor-realistic.jpg` — حدود ۱۹۵۱ کلمه
+- `steam-trap.html` — تصویر `steam-trap-realistic.jpg` — حدود ۱۹۱۱ کلمه
+- `shell-tube-heat-exchanger.html` — تصویر `shell-tube-heat-exchanger-realistic.jpg` — حدود ۱۹۶۷ کلمه
+- `pressure-vessel.html` — تصویر `pressure-vessel-realistic.jpg` — حدود ۱۹۰۴ کلمه
+
+تصاویر JPG کم‌حجم هستند: از حدود ۱۸KB تا ۵۳KB، بدون لوگو/متن/واترمارک.
+
+## وضعیت پس از این بسته
+اکنون همه بسته‌های اصلی محصولی در این دور ارتقای عمیق شده‌اند:
+- Pilot: Ball Valve، Pressure Transmitter، API 5L Pipe
+- Valves: Gate، Globe، Check، Butterfly، Control
+- Instrumentation: DP، Magnetic، Coriolis، Vortex، Radar Level
+- Electrical: Switchgear، VFD/Soft Starter، Circuit Breakers، Transformer
+- Piping: Seamless Pipe، Flanges، BW Fittings، Gaskets
+- Rotating/Fixed/Steam: API 610 Pump، Dosing Pump، Screw Compressor، Steam Trap، Shell & Tube، Pressure Vessel
+
+## گام بعدی پیشنهادی
+۱) مرور دستی چند صفحه منتخب در مرورگر و اصلاح UX جزئی.  
+۲) بررسی سرچ هاب محصولات با عبارات فارسی/انگلیسی پرکاربرد.  
+۳) شروع تولید صفحات محصول جدید فقط بعد از تحقیق واقعی برند/تصویر/کلیدواژه.
