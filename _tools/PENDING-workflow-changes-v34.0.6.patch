@@ -77,6 +77,7 @@ jobs:
             tester309-v34.0.13-alpha-rfq-smart-nav \
             tester310-v34.0.14-alpha-cheque-edit-delete \
             tester311-v34.0.15-alpha-petty-month-sort \
+            tester312-v34.0.16-alpha-cheque-book-attach \
           ; do
             echo "── $t ──"
             if ! node "$t.js"; then

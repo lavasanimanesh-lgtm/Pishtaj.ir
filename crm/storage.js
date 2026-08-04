@@ -338,8 +338,14 @@ function attachUploadWidget(containerId, folder, onDone) {
       }
       uploadFile(f, folder, function (res) {
         if (res.ok) {
+          /* v34.0.16-alpha (فاز ۱۳): فایل آپلودشده در همان نقطه با لینک «مشاهده» و دکمهٔ «حذف»
+             نمایش داده می‌شود تا کاربر همان‌جا بتواند سند را ببیند یا حذف کند (سرتاسری). */
+          var key = String(res.key || '').replace(/[\\']/g, '');
           row.innerHTML = (res.mode === 'arvan' ? '✅ ' : '🕓 ') + escP(res.name) +
-            ' <small style="color:#94a3b8">(' + fmtSize(res.size) + (res.savedNote ? ' — ' + escP(res.savedNote) : '') + ')</small>';
+            ' <small style="color:#94a3b8">(' + fmtSize(res.size) + (res.savedNote ? ' — ' + escP(res.savedNote) : '') + ')</small>' +
+            ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;font-size:11px;margin-left:6px">👁 مشاهده</a>' +
+            ' <button type="button" class="ba" style="color:#dc2626;font-size:11px" onclick="ptfRemoveJustUploaded(this,\'' + key + '\',\'' + escP(res.name).replace(/[\\']/g, '') + '\')">✕ حذف</button>';
+          row.setAttribute('data-key', key);
           onDone({ key: res.key, name: res.name, size: res.size, mode: res.mode, t: faDateTime() });
         } else {
           row.innerHTML = '❌ ' + escP(f.name) + ' — ' + escP(res.error || 'خطا');
@@ -353,6 +359,20 @@ function attachUploadWidget(containerId, folder, onDone) {
   zone.ondragleave = function () { zone.style.borderColor = ''; };
   zone.ondrop = function (e) { e.preventDefault(); zone.style.borderColor = ''; handle(e.dataTransfer.files); };
 }
+
+/* v34.0.16-alpha (فاز ۱۳): حذف فایلِ تازه‌آپلودشده از UI و فضای ابری — از دکمهٔ «✕ حذف» هر فایل در attachUploadWidget */
+window.ptfRemoveJustUploaded = function (btnEl, key, name) {
+  if (!key) { if (btnEl && btnEl.parentNode) btnEl.parentNode.remove(); return; }
+  if (!confirm('فایل «' + (name || '') + '» از فضای ابری حذف شود؟')) return;
+  /* حذف از فضای ابری */
+  try {
+    fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ key: key }) }).catch(function () {});
+  } catch (eD) {}
+  /* حذف ردیف از UI */
+  var row = btnEl ? btnEl.parentNode : null;
+  if (row && row.parentNode) row.parentNode.removeChild(row);
+  if (typeof ptfToast === 'function') ptfToast('فایل از فضای ابری حذف شد', 'warn');
+};
 
 /* =====================================================================
    US-210: توابع سراسری ثبت خلاصه کالا، همگام‌سازی استعلام‌های قدیمی و مدیریت مودال‌ها

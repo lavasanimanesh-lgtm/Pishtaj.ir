@@ -143,6 +143,7 @@
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🧾 چک‌ها</h4><small style="color:#64748b">ماژول مستقل — صادره و وارده</small></div>' +
       '<div style="display:flex;gap:6px">' + tbtn('issued', '🏢 چک‌های صادره', '#b45309') + tbtn('received', '📥 چک‌های وارده', '#0e7490') +
       '<button class="bt" style="background:#7c3aed;color:#fff" onclick="ptfChequeAiOpenSub()">🤖 دستیار هوشمند</button>' + '<button class="bt bt-o" onclick="ptfChequeNewUi()">+ چک جدید</button>' +
+      '<button class="bt bt-o" onclick="ptfChequeBookUi()">📒 دسته چک</button>' +
       '<button class="bt bt-o" onclick="ptfChequePanelPdf()">🖨 PDF</button>' +
       '<button class="bt bt-o" onclick="ptfChequePanelCsv()">⬇ اکسل</button></div></div>' + body + '</div>';
   };
@@ -192,6 +193,8 @@
       '<div class="fld"><label>مبلغ (ریال) *</label><input id="ptfChNAmt" type="text" inputmode="numeric" data-money="1" autocomplete="off" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>تاریخ سررسید (شمسی) *</label>' + (typeof window.ptfDatePicker === 'function' ? window.ptfDatePicker('ptfChNDue', '', '1405/05/11') : '<input id="ptfChNDue" placeholder="1405/05/11" style="direction:ltr">') + '</div>' +
       '<div class="fld"><label>بانک / شعبه</label><input id="ptfChNBank" style="direction:ltr"></div></div>' +
+      (!isR ? '<div class="fld"><label>📒 دسته چک (اختیاری — انتخاب خودکار بانک/شعبه/سری)</label><select id="ptfChNBook" onchange="ptfChNBookPick()"></select></div>' : '') +
+      '<div class="fld"><label>📎 کپی چک (اختیاری — ضمیمه شود)</label><div id="ptfChNUp" style="min-height:38px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
       (isR
         ? '<div class="fld" id="ptfChNInvWrap" style="display:none"><label>فاکتور باز مشتری (اختیاری — کسر از مطالبات)</label><select id="ptfChNInv"><option value="">— بدون فاکتور (در گردش) —</option></select></div>'
         : '<div class="fr"><div class="fld"><label>نوع چک *</label><select id="ptfChNKind" onchange="ptfChNKindUi()">' +
@@ -209,7 +212,29 @@
     window._ptfChNCustOpts = custOpts;
     window._ptfChNSupOpts = supOpts;
     window.ptfChNPartyUi();
+    /* v34.0.16-alpha (فاز ۱۳): فیلد دسته چک و کپی چک در فرم ثبت */
+    window._ptfChNFiles = [];
+    try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptfChNUp', 'cheques/', function (fr) { if (fr) window._ptfChNFiles.push(fr); }); } catch (eU) {}
+    var bookSel = document.getElementById('ptfChNBook');
+    if (bookSel) {
+      var bookOpts = '<option value="">— بدون دسته (دستی) —</option>';
+      try {
+        (typeof window.ptfChequeBooks === 'function' ? window.ptfChequeBooks() : []).forEach(function (b) {
+          bookOpts += '<option value="' + escP(b.cd) + '">' + escP(b.bookName || b.bank || b.cd) + (b.fromNo ? ' (' + b.fromNo + '..' + b.toNo + ')' : '') + '</option>';
+        });
+      } catch (eB) {}
+      bookSel.innerHTML = bookOpts;
+    }
     if (!isR) window.ptfChNKindUi();
+  };
+  /* انتخاب دسته چک → انتقال خودکار بانک/شعبه/سری به فرم */
+  window.ptfChNBookPick = function () {
+    var sel = document.getElementById('ptfChNBook'); if (!sel) return;
+    var bookCd = sel.value || '';
+    var book = (typeof window.ptfChequeBooks === 'function' ? window.ptfChequeBooks() : []).filter(function (b) { return b.cd === bookCd; })[0];
+    if (!book) return;
+    var bankEl = document.getElementById('ptfChNBank'); if (bankEl) bankEl.value = (book.bank || '') + (book.branch ? ' — ' + book.branch : '');
+    window._ptfChNBook = book;
   };
   window.ptfChNPartyUi = function () {
     var isR = window._ptfChNFormDir === 'received';
@@ -305,27 +330,37 @@
         var dealCd = ((document.getElementById('ptfChNDeal') || {}).value || '');
         if (!dealCd) { alert('⛔ برای چک ضمانت، انتخاب پرونده فروش الزامی است (ضمانت با پایان پروژه مسترد می‌شود)'); return; }
         var deal = (getData('ptf_crm_deals') || []).filter(function (x) { return x.cd === dealCd; })[0];
+        var book = window._ptfChNBook || null;
         var rec = {
           no: no, sayad: no, amt: amt, kind: kind, guarType: guarType, dealCd: dealCd,
           dealLabel: deal ? ((deal.inqNo || deal.cd) + ' — ' + (deal.buyerCo || '')) : '',
-          toWhom: toWhom, supplierCd: supCd || undefined, bank: bank, note: note,
-          dueISO: dueISO, dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw,
-          ownership: 'company'
+          toWhom: toWhom, supplierCd: supCd || undefined, bank: bank || (book ? book.bank : ''), branch: book ? book.branch : '',
+          note: note, dueISO: dueISO, dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw,
+          ownership: 'company', files: window._ptfChNFiles || [],
+          bookCd: book ? book.cd : '', series: book ? (book.series || '') : '',
+          accountNo: book ? (book.accountNo || '') : '', owner: book ? (book.owner || '') : ''
         };
         var saved = window.ptfChequeCreate('issued', rec);
+        if (!saved || saved.why === 'sayad_locked') { alert(saved && saved.error ? saved.error : '⛔ ثبت چک ممکن نشد'); return; }
         try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved); } catch (eR) {}
         var dlg = document.getElementById('ptfChNewDlg'); if (dlg) dlg.remove();
         if (typeof ptfToast === 'function') ptfToast('✅ چک ضمانت ثبت شد — در پرونده فروش نشانده شد (با پایان پروژه مسترد می‌شود)', 'ok');
         window.ptfChequePanelRender();
         return;
       } else {
+        var book = window._ptfChNBook || null;
         var rec2 = {
           no: no, sayad: no, amt: amt, kind: 'finance', toWhom: toWhom, supplierCd: supCd || undefined,
-          bank: bank, note: note, dueISO: dueISO,
+          bank: bank || (book ? book.bank : ''), branch: book ? book.branch : '',
+          note: note, dueISO: dueISO,
           dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw,
-          ownership: 'company'
+          ownership: 'company', files: window._ptfChNFiles || [],
+          bookCd: book ? book.cd : '', series: book ? (book.series || '') : '',
+          accountNo: book ? (book.accountNo || '') : '', owner: book ? (book.owner || '') : ''
         };
         var saved2 = window.ptfChequeCreate('issued', rec2);
+        /* قفل صیاد: اگر ثبت مجدد صیادِ رزرو‌شده ممنوع شد */
+        if (!saved2 || saved2.why === 'sayad_locked') { alert(saved2 && saved2.error ? saved2.error : '⛔ ثبت چک ممکن نشد'); return; }
         try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved2); } catch (eR2) {}
         var dlg2 = document.getElementById('ptfChNewDlg'); if (dlg2) dlg2.remove();
         if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : ''), 'ok');
@@ -338,9 +373,11 @@
         no: no, sayad: no, amt: amt, kind: 'finance', toWhom: toWhom, custCd: custCd || undefined,
         payerName: toWhom, sourceInvoiceCd: invCd || undefined, thirdParty: thirdParty || undefined,
         bank: bank, note: note, dueISO: dueISO,
-        dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw
+        dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw,
+        files: window._ptfChNFiles || []
       };
       var saved3 = window.ptfChequeCreate('received', rec3);
+      if (!saved3 || saved3.why === 'sayad_locked') { alert(saved3 && saved3.error ? saved3.error : '⛔ ثبت چک ممکن نشد'); return; }
       try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved3); } catch (eR3) {}
       var dlg3 = document.getElementById('ptfChNewDlg'); if (dlg3) dlg3.remove();
       if (typeof ptfToast === 'function') ptfToast('✅ چک وارده ثبت شد' + ((saved3.financial && saved3.financial.ok) ? ' — اثر مالی روی فاکتور مشتری اعمال شد' : (invCd ? '' : ' — بدون فاکتور؛ با وصول اثر مالی می‌گیرد')), 'ok');
@@ -529,6 +566,154 @@
   window.ptfChequeEditFromQuality = function (cd) {
     try { if (typeof window.finHubSet === 'function') window.finHubSet('cheque'); } catch (e) {}
     setTimeout(function () { window.ptfChequeEditUi(cd); }, 150);
+  };
+
+  /* ================= v34.0.16-alpha (فاز ۱۳): مدیریت دسته چک + ویرایش کامل چک + سند ================= */
+
+  /* مودال مدیریت دسته‌های چک (لیست + ثبت + حذف) */
+  window.ptfChequeBookUi = function () {
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2850) : 2850;
+    var books = (typeof window.ptfChequeBooks === 'function') ? window.ptfChequeBooks() : [];
+    var rows = books.map(function (b) {
+      return '<tr><td><b>' + escP(b.bookName || b.bank || b.cd) + '</b><br><small style="color:#64748b">' + escP(b.bank || '') + (b.branch ? ' — ' + escP(b.branch) : '') + (b.series ? ' | سری ' + escP(b.series) : '') + '</small></td>' +
+        '<td style="direction:ltr">' + escP(b.accountNo || '—') + '</td><td>' + escP(b.owner || '—') + '</td>' +
+        '<td style="direction:ltr">' + escP(b.fromNo || '') + ' .. ' + escP(b.toNo || '') + '</td>' +
+        '<td><button class="ba" style="color:#dc2626" onclick="ptfChequeBookDeleteUi(\'' + ptfOnClickArg(b.cd) + '\')">🗑</button></td></tr>';
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:14px">دسته چکی ثبت نشده است</td></tr>';
+    var html = '<div class="md-b" id="ptfChBookDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:90vh;overflow:auto">' +
+      '<h3>📒 دسته‌های چک شرکت</h3>' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;font-size:12px;color:#0c4a6e;margin-bottom:10px">دسته چک = کتاب چکِ شرکت (بانک/شماره حساب/مالک/شعبه/سری/شماره از..تا). هنگام ثبت چک صادره از منوی کشویی انتخاب می‌شود و مشخصات به‌صورت خودکار منتقل می‌شود.</div>' +
+      '<div class="tb2"><table><thead><tr><th>نام/بانک</th><th>شماره حساب</th><th>مالک</th><th>شماره از..تا</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="bt" onclick="ptfChequeBookForm()">+ دسته چک جدید</button><button class="bt bt-o" onclick="document.getElementById(\'ptfChBookDlg\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+  };
+
+  /* فرم ثبت دسته چک */
+  window.ptfChequeBookForm = function (bookCd) {
+    var book = null;
+    if (bookCd) book = (typeof window.ptfChequeBooks === 'function' ? window.ptfChequeBooks() : []).filter(function (b) { return b.cd === bookCd; })[0];
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2860) : 2860;
+    var html = '<div class="md-b" id="ptfChBookFormDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px;max-height:92vh;overflow:auto">' +
+      '<h3>' + (book ? '✏️ ویرایش' : '📒 ثبت') + ' دسته چک</h3>' +
+      '<div class="fr"><div class="fld"><label>نام دسته (اختیاری)</label><input id="cbName" value="' + escP(book ? book.bookName || '' : '') + '"></div>' +
+      '<div class="fld"><label>بانک *</label><input id="cbBank" value="' + escP(book ? book.bank : '') + '"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شعبه</label><input id="cbBranch" value="' + escP(book ? book.branch || '' : '') + '"></div>' +
+      '<div class="fld"><label>سری</label><input id="cbSeries" value="' + escP(book ? book.series || '' : '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شماره حساب / شبا</label><input id="cbAcc" value="' + escP(book ? book.accountNo || '' : '') + '" style="direction:ltr"></div>' +
+      '<div class="fld"><label>مالک چک</label><input id="cbOwner" value="' + escP(book ? book.owner || '' : '') + '"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شماره چک از *</label><input id="cbFrom" value="' + escP(book ? book.fromNo || '' : '') + '" inputmode="numeric" style="direction:ltr"></div>' +
+      '<div class="fld"><label>شماره چک تا *</label><input id="cbTo" value="' + escP(book ? book.toNo || '' : '') + '" inputmode="numeric" style="direction:ltr"></div></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'ptfChBookFormDlg\').remove()">انصراف</button>' +
+      '<button class="bt" onclick="ptfChequeBookSave(\'' + ptfOnClickArg(book ? book.cd : '') + '\')">💾 ذخیره</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+  };
+  window.ptfChequeBookSave = function (cd) {
+    function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+    var bank = String(val('cbBank') || '').trim(), fromNo = String(val('cbFrom') || '').trim(), toNo = String(val('cbTo') || '').trim();
+    if (!bank || !fromNo || !toNo) { alert('بانک و شماره چک از..تا الزامی است'); return; }
+    var book = cd ? ((typeof window.ptfChequeBooks === 'function' ? window.ptfChequeBooks() : []).filter(function (b) { return b.cd === cd; })[0] || { cd: cd }) : { cd: (typeof genCode === 'function' ? genCode('CHQB') : 'CHQB-' + Date.now()) };
+    book.bookName = String(val('cbName') || '').trim();
+    book.bank = bank; book.branch = String(val('cbBranch') || '').trim(); book.series = String(val('cbSeries') || '').trim();
+    book.accountNo = String(val('cbAcc') || '').trim(); book.owner = String(val('cbOwner') || '').trim();
+    book.fromNo = fromNo; book.toNo = toNo;
+    var r = (typeof window.ptfChequeBookSave === 'function') ? window.ptfChequeBookSave(book) : { ok: false };
+    if (!r.ok) { alert('ذخیره نشد'); return; }
+    var dlg = document.getElementById('ptfChBookFormDlg'); if (dlg) dlg.remove();
+    try { audit('چک‌ها', 'ثبت دسته چک ' + (book.bank || '') + ' شماره ' + fromNo + '..' + toNo, book.cd); } catch (eA) {}
+    if (typeof ptfToast === 'function') ptfToast('✅ دسته چک ذخیره شد', 'ok');
+    window.ptfChequeBookUi();
+  };
+  window.ptfChequeBookDeleteUi = function (cd) {
+    if (!confirm('دسته چک حذف شود؟')) return;
+    if (typeof window.ptfChequeBookDelete === 'function') window.ptfChequeBookDelete(cd);
+    window.ptfChequeBookUi();
+  };
+
+  /* ارتقای مودال ویرایش چک — افزودن سند/کپی چک + بانک/شعبه/سری/مالک/حساب */
+  window.ptfChequeEditUi = function (cd) {
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) { alert('چک یافت نشد'); return; }
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2800) : 2800;
+    var financialNote = '';
+    if ((c.direction === 'issued' || c.ownership === 'company') && (c.supplierCd || c.supplierPaymentCd)) {
+      financialNote = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:7px 10px;font-size:12px;color:#065f46;margin-bottom:8px">💳 این چک اثر مالی روی حساب تأمین‌کننده دارد — با تغییر مبلغ، گردش حساب همان لحظه اصلاح می‌شود.</div>';
+    }
+    var html = '<div class="md-b" id="ptfChEditDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:680px;max-height:92vh;overflow:auto">' +
+      '<h3>✏️ ویرایش چک ' + escP(c.sayad || c.no || c.cd) + '</h3>' + financialNote +
+      '<div class="fr"><div class="fld"><label>شماره برگه چک</label><input id="chE_No" value="' + escP(c.no || '') + '" style="direction:ltr"></div>' +
+      '<div class="fld"><label>شناسه صیادی *</label><input id="chE_Sayad" value="' + escP(c.sayad || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>مبلغ (ریال) *</label><input id="chE_Amt" inputmode="numeric" data-money="1" value="' + escP(c.amt != null ? String(+c.amt).toLocaleString("en-US") : '') + '" style="direction:ltr"></div>' +
+      '<div class="fld"><label>تاریخ سررسید (شمسی)</label><input id="chE_Due" value="' + escP(c.dueFa || '') + '" placeholder="1405/04/19" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>ذی‌نفع *</label><input id="chE_To" value="' + escP(c.toWhom || '') + '"></div>' +
+      '<div class="fld"><label>بانک</label><input id="chE_Bank" value="' + escP(c.bank || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شعبه</label><input id="chE_Branch" value="' + escP(c.branch || '') + '"></div>' +
+      '<div class="fld"><label>سری چک</label><input id="chE_Series" value="' + escP(c.series || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>مالک چک</label><input id="chE_Owner" value="' + escP(c.owner || '') + '"></div>' +
+      '<div class="fld"><label>شماره حساب</label><input id="chE_Acc" value="' + escP(c.accountNo || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fld"><label>یادداشت</label><input id="chE_Note" value="' + escP(c.note || '') + '"></div>' +
+      '<div class="fld"><label>📎 اسناد / کپی چک (افزودن + حذف)</label><div id="chE_Files" style="min-height:40px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
+      '<button class="bt bt-o" onclick="document.getElementById(\'ptfChEditDlg\').remove()">انصراف</button>' +
+      '<button class="bt" onclick="ptfChequeEditSave(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    window._ptfChEditNewFiles = [];
+    /* نمایش اسناد موجود + آپلود سند جدید */
+    var fw = document.getElementById('chE_Files');
+    if (fw) {
+      var existing = (c.files || []).map(function (f) {
+        return '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">📎 ' + escP(f.name || 'فایل') + '</a> <button class="ba" style="color:#dc2626" onclick="ptfChEditRemoveFile(' + JSON.stringify(f.key) + ')">✕</button></div>';
+      }).join('');
+      fw.innerHTML = existing + '<div id="chE_Up" style="margin-top:4px"></div>';
+      try { if (typeof attachUploadWidget === 'function') attachUploadWidget('chE_Up', 'cheques/', function (fr) { if (fr) window._ptfChEditNewFiles.push(fr); }); } catch (eU) {}
+    }
+  };
+  /* حذف یک فایل از چک در ویرایش (با کلید) */
+  window.ptfChEditRemoveFile = function (key) {
+    var cd = window._ptfChEditCd;
+    if (!cd) return;
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) return;
+    c.files = (c.files || []).filter(function (f) { return f.key !== key; });
+    if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { files: c.files });
+    window.ptfChequeEditUi(cd);
+  };
+  /* ذخیرهٔ ویرایش چک — با فایل‌های موجود + جدید + اصلاح آنی مبلغ اثر مالی */
+  window.ptfChequeEditSave = function (cd) {
+    window._ptfChEditCd = cd;
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) { alert('چک یافت نشد'); return; }
+    function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+    var sayad = String(val('chE_Sayad') || '').trim();
+    var amt = (typeof ptfNum === 'function') ? ptfNum(val('chE_Amt')) : (+String(val('chE_Amt') || '').replace(/[^\\d.-]/g, '') || 0);
+    var to = String(val('chE_To') || '').trim();
+    if (!sayad || !amt || !to) { alert('شناسه صیادی، مبلغ و ذی‌نفع الزامی است'); return; }
+    var dueJ = String(val('chE_Due') || '').trim();
+    var dueISO = '';
+    if (dueJ) { try { dueISO = (typeof ptfJToISO === 'function') ? (ptfJToISO(dueJ) || '') : ''; } catch (eD) {} }
+    var patch = {
+      no: String(val('chE_No') || '').trim() || sayad,
+      sayad: sayad, amt: amt, toWhom: to,
+      bank: String(val('chE_Bank') || '').trim(), branch: String(val('chE_Branch') || '').trim(),
+      series: String(val('chE_Series') || '').trim(), owner: String(val('chE_Owner') || '').trim(),
+      accountNo: String(val('chE_Acc') || '').trim(),
+      note: String(val('chE_Note') || '').trim()
+    };
+    if (dueISO) patch.dueISO = dueISO; else if (c.dueISO && !dueJ) patch.dueISO = c.dueISO;
+    /* ترکیب فایل‌های موجود + جدید */
+    var newFiles = (window._ptfChEditNewFiles || []).slice();
+    if (newFiles.length) patch.files = (c.files || []).concat(newFiles);
+    var oldAmt = +c.amt || 0;
+    var r = (typeof window.ptfChequeUpdate === 'function') ? window.ptfChequeUpdate(cd, patch) : { ok: false };
+    if (!r.ok) { alert('ذخیره نشد (' + (r.why || 'خطا') + ')'); return; }
+    var finMsg = '';
+    if (oldAmt !== amt && (c.direction === 'issued' || c.ownership === 'company') && typeof window.ptfChequeApplyFinancialAmount === 'function') {
+      var fr = window.ptfChequeApplyFinancialAmount(cd, amt);
+      if (fr.ok && fr.updated) finMsg = ' — اثر مالی حساب تأمین‌کننده از ' + money(oldAmt) + ' به ' + money(amt) + ' اصلاح شد';
+    }
+    try { audit('چک‌ها', 'ویرایش چک ' + (sayad || cd) + ' — مبلغ ' + money(amt) + ' در وجه ' + to, cd); } catch (eA) {}
+    var dlg = document.getElementById('ptfChEditDlg'); if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast('✅ چک ویرایش شد' + finMsg, 'ok');
+    window.ptfChequePanelRender();
   };
 })();
 

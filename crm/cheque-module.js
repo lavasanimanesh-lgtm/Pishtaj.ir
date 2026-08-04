@@ -195,6 +195,86 @@
 
   /* پرچم برای UI (در دسترس بودن ماژول) */
   window.ptfChequeModuleReady = true;
+
+  /* ================= v34.0.16-alpha (فاز ۱۳): دسته چک (Cheque Book) + قفل شماره صیادی =================
+     - دسته چک: ثبت مشخصات کتاب چک شرکت (بانک، شماره حساب، مالک، شعبه، سری، شماره چک از..تا).
+       هنگام ثبت چکِ صادره از فهرست دسته‌ها انتخاب می‌شود و مشخصات به چک منتقل می‌شود.
+     - قفل شماره صیادی: شماره صیادِ ثبت‌شده (مخصوصاً از دستیار) دیگر قابل ثبت مجدد نیست. */
+
+  /* کلید دادهٔ دسته‌های چک */
+  var K_BOOKS = 'ptf_crm_cheque_books';
+
+  /* فهرست دسته‌های چک */
+  window.ptfChequeBooks = function () { return read(K_BOOKS); };
+  window.ptfChequeBookSave = function (book) {
+    if (!book || !book.cd) return { ok: false, why: 'no_cd' };
+    book.updatedAt = faDateTimeL(); book.updatedBy = me().name;
+    var l = read(K_BOOKS);
+    var hit = l.filter(function (x) { return x.cd === book.cd; })[0];
+    if (hit) { Object.keys(book).forEach(function (k) { hit[k] = book[k]; }); }
+    else l.unshift(book);
+    write(K_BOOKS, l);
+    return { ok: true, book: hit || book };
+  };
+  window.ptfChequeBookDelete = function (cd) {
+    var l = read(K_BOOKS);
+    write(K_BOOKS, l.filter(function (x) { return x.cd !== cd; }));
+    return { ok: true };
+  };
+  /* آیا یک شماره صیاد در این دسته/بازه است؟ */
+  window.ptfChequeBookCoversNo = function (book, no) {
+    if (!book || !no) return false;
+    var n = /^\d+$/.test(String(no).replace(/[-\s]/g, '')) ? parseInt(String(no).replace(/[-\s]/g, ''), 10) : NaN;
+    var from = parseInt(String(book.fromNo || '').replace(/[-\s]/g, ''), 10);
+    var to = parseInt(String(book.toNo || '').replace(/[-\s]/g, ''), 10);
+    if (!isFinite(n) || !isFinite(from) || !isFinite(to)) return false;
+    return n >= from && n <= to;
+  };
+  /* شماره صیادی ثبت‌شده‌ها (برای قفل) — از همهٔ کلیدها */
+  function usedSayads() {
+    var set = {};
+    [K_ISSUED, K_RECEIVED, K_LEGACY].forEach(function (key) {
+      read(key).forEach(function (c) { if (c && c.sayad) set[String(c.sayad).replace(/[-\s]/g, '').toLowerCase()] = 1; });
+    });
+    return set;
+  }
+  /* بررسی قفل: آیا این شماره صیاد قبلاً ثبت شده؟ */
+  window.ptfChequeSayadUsed = function (sayad) {
+    if (!sayad) return false;
+    var k = String(sayad).replace(/[-\s]/g, '').toLowerCase();
+    return !!usedSayads()[k];
+  };
+  /* ثبت شماره صیاد (اضافه به مجموعهٔ استفاده‌شده) — بعد از ثبت چک از دستیار/فرم */
+  window.ptfChequeReserveSayad = function (sayad) {
+    if (!sayad) return;
+    /* ذخیرهٔ جدا برای ردیابی قفل صیاد (حتی اگر چک حذف شود، صیاد رزرو می‌ماند تا ثبت مجدد نشود) */
+    var reserved = getData(K_LEGACY + '_sayads');
+    if (!Array.isArray(reserved)) reserved = [];
+    var k = String(sayad).replace(/[-\s]/g, '').toLowerCase();
+    if (reserved.indexOf(k) === -1) { reserved.push(k); setData(K_LEGACY + '_sayads', reserved); }
+  };
+  /* بررسی قفل رزرو صیاد (رزرو = چک از دستیار ثبت شد و صیاد قفل شد) */
+  window.ptfChequeSayadReserved = function (sayad) {
+    if (!sayad) return false;
+    var k = String(sayad).replace(/[-\s]/g, '').toLowerCase();
+    try { var reserved = getData(K_LEGACY + '_sayads'); return Array.isArray(reserved) && reserved.indexOf(k) > -1; } catch (e) { return false; }
+  };
+
+  /* در ptfChequeCreate: قفل صیاد — اگر از دستیار ثبت می‌شود (reserveSayad) یا صیاد رزرو شده، ثبت مجدد ممنوع */
+  var _origChequeCreate = window.ptfChequeCreate;
+  window.ptfChequeCreate = function (dir, rec) {
+    rec = rec || {};
+    var sayad = String(rec.sayad || rec.no || '').trim();
+    /* قفل: اگر این صیاد رزرو شده (از دستیار ثبت شده) و چکِ در حال ثبت، چکِ جدیدی است (بدون cd) →
+       ثبت مجدد ممنوع؛ مگر اینکه ویرایشِ همان چک باشد (existingCd). */
+    if (sayad && !rec.cd && window.ptfChequeSayadReserved(sayad)) {
+      return { ok: false, why: 'sayad_locked', error: '⛔ شماره صیاد ' + sayad + ' قبلاً ثبت/قفل شده است و قابلیت ثبت مجدد ندارد.' };
+    }
+    var r = _origChequeCreate(dir, rec);
+    if (r && r.cd && sayad) window.ptfChequeReserveSayad(sayad);
+    return r;
+  };
+  window.ptfChequeCreate = window.ptfChequeCreate;
 })();
 
   /* CHQ-V2: این بخش خارج از IIFE اضافه شد — توابع کمکی محلی
