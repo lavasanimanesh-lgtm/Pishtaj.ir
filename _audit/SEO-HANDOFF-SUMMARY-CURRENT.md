@@ -432,3 +432,30 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
 
 قاعده برای ایجنت بعدی: همین روند کیفیت‌محور را ادامه دهد. اولویت‌های بعدی گزارش فعلی: `brands/fisher-samson-control-valves.html`، `brands/wika-instrumentation.html`، `brands/emerson-rosemount.html`، `brands/schneider-electric.html` و `brands/omron-automation.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز سوم بازنویسی عمیق صفحات برند پرریسک (۲۰۲۶-۰۸-۰۵)
+پنج صفحه برندمحور پرریسک دیگر بازنویسی عمیق شدند:
+- `brands/fisher-samson-control-valves.html` — اکنون `OK` و حدود ۱۸۷۲ کلمه
+- `brands/wika-instrumentation.html` — اکنون `OK` و حدود ۱۸۳۴ کلمه
+- `brands/emerson-rosemount.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+- `brands/schneider-electric.html` — اکنون `OK` و حدود ۱۸۰۸ کلمه
+- `brands/omron-automation.html` — اکنون `OK` و حدود ۱۸۳۸ کلمه
+
+محتواها با تمرکز بر کاربرد واقعی برند در پروژه‌های صنعتی، Model/Part Number، داده‌های RFQ، مدارک، نصب، commissioning، spare، lifecycle، TBE و کنترل اصالت نوشته شدند. هیچ ادعای نمایندگی رسمی، موجودی دائمی یا واردکنندگی انحصاری مطرح نشد و از لوگوی برندها استفاده نشد.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۳۶ به ۴۱ افزایش یافت.
+- صفحات پرریسک کل: از ۶۱ به ۵۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۶۱ به ۵۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۵۳ به ۴۸ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۴۲ به ۳۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-BRAND-QUALITY-REWRITE-PHASE3-2026-08-05.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: همین روند کیفیت‌محور ادامه یابد. اولویت‌های بعدی گزارش فعلی: `services/products/thermal-mass-flowmeter.html`، `brands/kitz-valves.html`, `brands/eaton-crouse-hinds.html`, `services/products/motor-control-center-mcc.html`, `brands/vallourec-pipes.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
