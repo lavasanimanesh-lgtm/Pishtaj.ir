@@ -356,3 +356,30 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `brands/tenaris-pipes.html`
 
 پاراگراف‌های تکراری عمومی از این صفحات حذف و با محتوای برند/محصول‌محور اختصاصی جایگزین شد. نتیجه: تعداد `REPEATED_PARAGRAPH_INSIDE` در گزارش کیفیت از ۵۴ به ۵۱ کاهش یافت و این چهار صفحه از صدر لیست اولویت ریسک خارج شدند. همچنان نیاز است در فازهای بعدی صفحات اولویت‌دار بعدی بازنویسی شوند.
+
+## به‌روزرسانی جدید — بازنویسی عمیق چهار صفحه محصول پرریسک (۲۰۲۶-۰۸-۰۵)
+در ادامه مسیر کیفیت‌محور و مطابق تأکید کاربر بر عدم تولید متن کلیشه‌ای، چهار صفحه محصول اولویت‌دار از گزارش کیفیت بازنویسی عمیق شدند:
+- `services/products/cable-accessories.html` — اکنون ۱۸۹۰ کلمه و وضعیت `OK`
+- `services/products/industrial-strainer-filter.html` — اکنون ۱۸۲۴ کلمه و وضعیت `OK`
+- `services/products/earthing-lightning-protection.html` — اکنون ۱۸۱۵ کلمه و وضعیت `OK`
+- `services/products/stud-bolts-nuts.html` — اکنون ۱۹۱۴ کلمه و وضعیت `OK`
+
+در این فاز پاراگراف‌های عمومی/تکراری حذف و با محتوای اختصاصی فنی جایگزین شد؛ از جمله استانداردها، کاربردها، داده‌های RFQ، ملاحظات نصب، تست، مدارک تحویلی، ریسک‌های بهره‌برداری و کنترل کیفیت برای هر محصول.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۲۷ به ۳۱ افزایش یافت.
+- صفحات پرریسک کل: از ۷۰ به ۶۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۷۰ به ۶۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۶۲ به ۵۸ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۵۱ به ۴۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-PRODUCT-QUALITY-REWRITE-PHASE1-2026-08-05.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۶ URL عمومی
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: همین الگوی بازنویسی عمیق ادامه یابد و قبل از ساخت صفحه جدید، صفحات صدر گزارش کیفیت فعلی بازنویسی شوند. اولویت‌های بعدی: `brands/krohne-instrumentation.html`، `brands/spirax-sarco-steam.html`، `brands/atlas-copco-compressed-air.html`، `brands/endress-hauser.html` و `brands/phoenix-contact.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
