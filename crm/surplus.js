@@ -104,21 +104,146 @@ window.ptfSurplusReleaseForOffer = function(o){
   if(released){ save(list); auditSafe('آزادسازی رزرو مازاد برای پیشنهاد باخته '+(o.no||'-')+' — '+released+' عدد',o.no||''); }
   return {ok:true,qty:released};
 };
+/* ===== v34.1 US-SELL: فروش کالا از انبار — دیالوگ حرفه‌ای =====
+   سناریو: کاربر روی «💰 فروش» می‌زند →
+   ۱. دیالوگ با اطلاعات کالا + فیلد تعداد + انتخاب خریدار + قیمت پیشنهادی
+   ۲. تأیید → ساخت پیشنهاد مالی (CO) با اقلام پُرشده
+   ۳. باز شدن فرم CO برای بررسی نهایی و ذخیره
+*/
 window.ptfSurplusSell = function(cd){
   var s=all().filter(function(x){return x.cd===cd;})[0]; if(!s) return;
   var avail=activeQty(s); if(!avail) return;
-  var raw=prompt('تعداد قابل فروش از '+s.prodName+' (قابل استفاده: '+avail+'):',String(avail)); if(raw===null)return;
-  var qty=+String(raw).replace(/[^\d.]/g,'')||0;
+
+  /* اطلاعات کالا از ماژول محصولات */
+  var prods=getData('ptf_crm_products')||[];
+  var prod=prods.filter(function(p){return p.cd===s.prodCd;})[0]||{};
+  var refPrice=+(prod.pr||0);
+  var refUnit=prod.un||'عدد';
+  var refBrand=prod.br||'';
+
+  /* لیست خریداران */
+  var custs=getData('ptf_crm_customers')||[];
+  var custOpts='<option value="">— انتخاب خریدار —</option>'+custs.map(function(c){
+    return '<option value="'+escP(c.cd)+'">'+escP(c.co||c.nm)+'</option>';
+  }).join('');
+
+  var esc=function(v){return String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
+  var dlgId='ptfSurplusSellDlg';
+  var old=document.getElementById(dlgId); if(old)old.remove();
+
+  var html=
+    '<div id="'+dlgId+'" class="md-b" style="display:grid;z-index:2800">'+
+    '<div class="md" style="width:480px;max-width:96vw">'+
+    '<h3>💰 فروش کالا از انبار</h3>'+
+
+    /* اطلاعات کالا */
+    '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.8">'+
+    '<b>'+esc(s.prodName||s.prodCd)+'</b>'+
+    (refBrand?' <span style="color:#6d28d9">('+esc(refBrand)+')</span>':'')+
+    '<br><span style="color:#475569">موجودی قابل فروش: <b style="color:#059669">'+avail+' '+esc(refUnit)+'</b></span>'+
+    (s.sourceDealCd?' | <small style="color:#94a3b8">از پروژه '+esc(s.sourceDealCd)+'</small>':'')+
+    (refPrice?'<br><span style="color:#0e7490">قیمت مرجع: <b>'+refPrice.toLocaleString('fa-IR')+' ریال</b></span>':'')+
+    '</div>'+
+
+    /* فرم */
+    '<div class="fr" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+
+    '<div class="fld"><label style="font-weight:900;font-size:12px">تعداد فروش *</label>'+
+    '<input type="number" id="ptfSlQty" value="'+avail+'" min="1" max="'+avail+'" '+
+    'style="padding:10px;border:2px solid var(--brd);border-radius:10px;font-size:14px;width:100%;box-sizing:border-box"></div>'+
+
+    '<div class="fld"><label style="font-weight:900;font-size:12px">قیمت واحد (ریال)</label>'+
+    '<input type="number" id="ptfSlPrice" value="'+refPrice+'" min="0" '+
+    'style="padding:10px;border:2px solid var(--brd);border-radius:10px;font-size:14px;width:100%;box-sizing:border-box;direction:ltr"></div>'+
+    '</div>'+
+
+    '<div class="fld" style="margin-top:12px"><label style="font-weight:900;font-size:12px">خریدار (کارفرما) *</label>'+
+    '<select id="ptfSlBuyer" style="padding:10px;border:2px solid var(--brd);border-radius:10px;font-size:13px;width:100%;box-sizing:border-box">'+custOpts+'</select></div>'+
+
+    /* جمع کل */
+    '<div id="ptfSlTotal" style="margin-top:12px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-size:13px;color:#1e40af;font-weight:700;text-align:center"></div>'+
+
+    /* دکمه‌ها */
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
+    '<button class="bt bt-o" onclick="document.getElementById(\''+dlgId+'\').remove()">انصراف</button>'+
+    '<button class="bt" id="ptfSlGo" onclick="ptfSurplusSellGo(\''+esc(cd)+'\')">📄 صدور پیشنهاد مالی</button>'+
+    '</div></div></div>';
+
+  document.body.insertAdjacentHTML('beforeend',html);
+
+  /* بروزرسانی جمع کل */
+  function updTotal(){
+    var q=+(document.getElementById('ptfSlQty')||{}).value||0;
+    var p=+(document.getElementById('ptfSlPrice')||{}).value||0;
+    var t=q*p;
+    var el=document.getElementById('ptfSlTotal');
+    if(el) el.textContent='جمع کل: '+t.toLocaleString('fa-IR')+' ریال';
+  }
+  document.getElementById('ptfSlQty').addEventListener('input',updTotal);
+  document.getElementById('ptfSlPrice').addEventListener('input',updTotal);
+  updTotal();
+};
+
+/* ساخت CO و باز کردن فرم */
+window.ptfSurplusSellGo = function(cd){
+  var s=all().filter(function(x){return x.cd===cd;})[0]; if(!s) return;
+  var qty=+(document.getElementById('ptfSlQty')||{}).value||0;
+  var price=+(document.getElementById('ptfSlPrice')||{}).value||0;
+  var buyerCd=(document.getElementById('ptfSlBuyer')||{}).value||'';
+  var avail=activeQty(s);
+
+  if(qty<=0||qty>avail){alert('تعداد نامعتبر است (حداکثر '+avail+')');return;}
+  if(!buyerCd){alert('لطفاً خریدار را انتخاب کنید');return;}
+
+  /* بستن دیالوگ */
+  var dlg=document.getElementById('ptfSurplusSellDlg'); if(dlg)dlg.remove();
+
   try{
-    if(typeof offerNew==='function'){
-      offerNew('CO');
-      var offerNo=window._offState&&window._offState.no||'';
-      var res=ptfSurplusReserve(cd,qty,offerNo);
-      if(!res.ok){alert('⛔ تعداد فروش از موجودی قابل استفاده بیشتر است.');return;}
-      if(window._offState){ window._offState.items=[{pcode:s.prodCd,name:s.prodName,desc:'از مازاد پروژه '+(s.sourceDealCd||''),qty:qty,unit:'عدد',brand:'',price:0,surplusCd:s.cd,sourceSurplusCd:s.cd,sourceDealCd:s.sourceDealCd||'',reservationOfferNo:offerNo}]; if(typeof offRenderItems==='function') offRenderItems(); }
-      if(typeof goPanelByName==='function') goPanelByName('off');
+    if(typeof offerNew!=='function'){alert('ماژول پیشنهادها بارگذاری نشده');return;}
+
+    /* ساخت CO جدید */
+    offerNew('CO');
+    var offerNo=window._offState&&window._offState.no||'';
+
+    /* رزرو موجودی */
+    var res=ptfSurplusReserve(cd,qty,offerNo);
+    if(!res.ok){alert('⛔ تعداد فروش از موجودی قابل استفاده بیشتر است.');return;}
+
+    /* اطلاعات کالا */
+    var prods=getData('ptf_crm_products')||[];
+    var prod=prods.filter(function(p){return p.cd===s.prodCd;})[0]||{};
+
+    /* پُر کردن فرم CO */
+    if(window._offState){
+      window._offState.buyerCd=buyerCd;
+      var cust=(getData('ptf_crm_customers')||[]).filter(function(c){return c.cd===buyerCd;})[0];
+      if(cust) window._offState.buyerCo=cust.coEn||cust.co||'';
+      window._offState.items=[{
+        pcode:s.prodCd,
+        name:s.prodName||prod.nm||'',
+        desc:(prod.st||'')+(s.sourceDealCd?' — از پروژه '+s.sourceDealCd:''),
+        model:prod.model||'',
+        qty:qty,
+        unit:prod.un||'عدد',
+        brand:prod.br||'',
+        price:price,
+        dlv:'',
+        surplusCd:s.cd,
+        sourceSurplusCd:s.cd,
+        sourceDealCd:s.sourceDealCd||'',
+        reservationOfferNo:offerNo
+      }];
+      /* بروزرسانی فرم */
+      if(typeof offRenderItems==='function') offRenderItems();
+      if(typeof offerPickBuyer==='function') offerPickBuyer(buyerCd);
     }
-  }catch(e){ auditSafe('خطا در ساخت پیشنهاد فروش مازاد '+cd,cd); }
+
+    if(typeof ptfToast==='function') ptfToast('✅ پیشنهاد مالی '+offerNo+' با '+qty+' عدد '+escP(s.prodName)+' ساخته شد — بررسی و ذخیره کنید','ok');
+    auditSafe('صدور پیشنهاد فروش مازاد: '+qty+' عدد '+s.prodName+' به پیشنهاد '+offerNo,cd);
+
+  }catch(e){
+    auditSafe('خطا در ساخت پیشنهاد فروش مازاد '+cd,cd);
+    alert('⛔ خطا: '+(e&&e.message?e.message:e));
+  }
 };
 window.buildSurplus = function(){ return '<div class="ph"><h3>🏬 موجودی انبار (US-436)</h3><div class="sb2"><input type="text" id="surpSrch" placeholder="جستجو کالا/پروژه/محل..." oninput="renderSurplus()" style="flex:1"><button class="bt" onclick="ptfSurplusAddDialog()">+ ثبت موجودی</button></div></div><div id="surplusStats"></div><div id="surplusWrap"></div>'; };
 window.renderSurplus = function(){
