@@ -304,3 +304,14 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `brands/schneider-electric.html` — Schneider Electric — حدود ۱۵۴۶ کلمه
 
 هاب برندها اکنون ۹ صفحه دارد. همه صفحات برندمحور بدون ادعای نمایندگی رسمی نوشته شده‌اند، از لوگوی برند استفاده نشده و به محصولات مرتبط سایت لینک داده‌اند. Sitemap اکنون ۶۰۴ URL عمومی دارد.
+
+## به‌روزرسانی جدید — فاز سوم برندمحور و بازسازی هاب برندها (۲۰۲۶-۰۸-۰۴)
+شش صفحه برندمحور جدید ایجاد شد:
+- `brands/flexitallic-gaskets.html` — Flexitallic — حدود ۱۵۱۸ کلمه
+- `brands/galperti-flanges.html` — Galperti — حدود ۱۵۰۰ کلمه
+- `brands/tenaris-pipes.html` — Tenaris — حدود ۱۵۱۰ کلمه
+- `brands/vallourec-pipes.html` — Vallourec — حدود ۱۵۵۸ کلمه
+- `brands/krohne-instrumentation.html` — KROHNE — حدود ۱۵۱۸ کلمه
+- `brands/fisher-samson-control-valves.html` — Fisher / SAMSON — حدود ۱۵۴۳ کلمه
+
+هاب برندها بازسازی شد و اکنون ۱۴ صفحه برندمحور را پوشش می‌دهد، با جستجو، فیلتر دسته‌بندی و ItemList Schema. همچنان هیچ ادعای نمایندگی رسمی یا استفاده از لوگوی برند بدون مجوز انجام نشده است. Sitemap اکنون ۶۱۰ URL عمومی دارد.
