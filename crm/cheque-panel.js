@@ -161,8 +161,8 @@
       '<h3>🧾 ثبت چک — نوع چک چیست؟</h3>' +
       '<div style="font-size:12.5px;color:#475569;margin-bottom:12px">ابتدا مشخص کنید چک <b>وارده</b> (دریافتی از مشتری/ثالث) است یا <b>صادره</b> (پرداختی/ضمانت شرکت) — فیلدها بر همان اساس تنظیم می‌شوند.</div>' +
       '<div style="display:grid;gap:10px">' +
-      '<button class="bt" style="background:#0e7490;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'received\');document.getElementById(\'ptfChNewDirDlg\').remove()">📥 چک وارده — دریافت از مشتری / ثالث</button>' +
-      '<button class="bt" style="background:#b45309;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'issued\');document.getElementById(\'ptfChNewDirDlg\').remove()">🏢 چک صادره — پرداخت / ضمانت شرکت</button>' +
+      '<button class="bt" style="background:#0e7490;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'received\');document.getElementById(\'ptfChNewDirDlg\').remove()">📥 چک وارده</button>' +
+      '<button class="bt" style="background:#b45309;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'issued\');document.getElementById(\'ptfChNewDirDlg\').remove()">🏢 چک صادره</button>' +
       '</div>' +
       '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'ptfChNewDirDlg\').remove()">انصراف</button></div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);

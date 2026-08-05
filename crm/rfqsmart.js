@@ -38,7 +38,7 @@
   /* ============ پنل ============ */
   window.buildRfqSmart = function () {
     return '<div class="ph"><h3>🛒 درخواست تامین</h3>' +
-      '<div class="sb2"><button class="bt" onclick="rfqsNew()">+ درخواست تامین جدید</button></div></div>' +
+      '<div class="sb2"><button class="bt" onclick="rfqsNew()">+ تامین جدید</button></div></div>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#0c4a6e">' +
       'ℹ️ چرخه: پیوست/اقلام درخواست مشتری ← استخراج و پاکسازی (بدون نام و اطلاعات کارفرما) ← پیشنهاد بهترین تامین‌کنندگان ← فرم استعلام PDF ← ارسال ایمیل/واتساپ ← رهگیری پاسخ‌ها</div>' +
       '<div id="rfqsWrap"></div>';
@@ -419,7 +419,7 @@
       '<div class="fld"><label>اتصال به درخواست مشتری (اختیاری — برای رهگیری)</label><select id="rqsSrc" onchange="rfqsSyncSrcInqUI()">' + rfqOpts + '</select></div>' +
       '<div style="display:grid;gap:8px;margin:10px 0">' +
       '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="rfqsFromFile()">📎 <b>خواندن از فایل پیوست</b> — اکسل/CSV مستقیم خوانده می‌شود؛ PDF و عکس به بازبینی سریع می‌رود<input type="file" id="rqsFile" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.zip" style="display:none" onchange="rfqsHandleFile(this)"></button>' +
-      (inqOpts ? '<div style="display:flex;gap:6px;align-items:center"><select id="rqsInq" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 از اقلام درخواست‌ها</button></div>' : '') +
+      (inqOpts ? '<div style="display:flex;gap:6px;align-items:center"><select id="rqsInq" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 اقلام</button></div>' : '') +
       '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="rfqsManual()">✍️ <b>ورود دستی اقلام</b> — فرم سریع چندردیفی</button>' +
       '</div>' +
       '<div style="display:flex;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button></div></div></div>';

@@ -1069,7 +1069,7 @@ function offerForm() {
     '<button type="button" id="offInqBtn" class="bt" style="font-size:12px;background:#7c3aed" onclick="offLoadInqItems()">🗂 بارگذاری از درخواست</button>' +
     
     '<button type="button" class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="offOpenProductMultiPicker()">+ از ماژول کالا (انتخاب چندگانه)</button>' +
-    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل با راهنما</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل</button>' +
     '<button type="button" class="bt bt-o" style="font-size:11.5px;color:#475569" onclick="offShowAdvCols()">⛭ ستون‌های تکمیلی ستون‌ها</button>' +
     '<input type="file" id="offXls" accept=".csv,.xlsx,.xls" style="display:none" onchange="offImportFile(this)">' +
     '</div>' +

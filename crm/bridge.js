@@ -753,7 +753,7 @@
       (sc.protectedChains.length ? '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;color:#92400e;margin-top:10px"><b>🔒 محفوظ (بایگانی مختومه دارد — پاک نمی‌شود):</b>' + sc.protectedChains.map(row).join('') + '</div>' : '') +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>' +
-      (sc.purgeable.length ? '<button class="bt" style="background:#dc2626" onclick="var pv=ptfOrphanPreview();if(confirm(\'⚠️ پیش‌نمایش تایید شد؛ رکوردهای عملیاتی حذف و اسناد مالی فقط قرنطینه می‌شوند. ادامه؟\')){var r=ptfOrphanPurge(pv);document.getElementById(\'orphDlg\').remove();if(typeof ptfToast===\'function\')ptfToast(\'🧹 \'+r.purged+\' رکورد پاک شد / \'+(r.quarantined||0)+\' سند مالی قرنطینه شد\',\'ok\');if(typeof renderRfq===\'function\')renderRfq();}">🧹 پیش‌نمایش و پاکسازی امن</button>' : '') +
+      (sc.purgeable.length ? '<button class="bt" style="background:#dc2626" onclick="var pv=ptfOrphanPreview();if(confirm(\'⚠️ پیش‌نمایش تایید شد؛ رکوردهای عملیاتی حذف و اسناد مالی فقط قرنطینه می‌شوند. ادامه؟\')){var r=ptfOrphanPurge(pv);document.getElementById(\'orphDlg\').remove();if(typeof ptfToast===\'function\')ptfToast(\'🧹 \'+r.purged+\' رکورد پاک شد / \'+(r.quarantined||0)+\' سند مالی قرنطینه شد\',\'ok\');if(typeof renderRfq===\'function\')renderRfq();}">🧹 پاکسازی</button>' : '') +
       '</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -788,7 +788,7 @@
       '<div class="ph"><h3>📋 درخواست‌ها</h3>' +
       '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
       ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده (US-444)">🧹 یتیم‌ها</button>' : '') +
-      '<button class="bt" onclick="showModal(\'rMd\')">+ ثبت درخواست جدید</button></div></div>' + /* v14.3 US-365 */
+      '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' + /* v14.3 US-365 */
       '<div class="tb2"><table><thead><tr>' +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'cd', 'کد') : '<th>کد</th>') +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'co', 'مشتری') : '<th>مشتری</th>') + '<th>حوزه</th>' +

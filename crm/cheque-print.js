@@ -418,7 +418,7 @@
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'chqpLayoutDlg\').remove()">بستن</button>' +
       '<button type="button" class="bt bt-o" onclick="chqPrintLayoutSave(true)">💾 ذخیره چیدمان</button>' +
-      '<button type="button" class="bt" style="background:#0e7490" onclick="chqPrintLayoutSave(false);chqPrintLayoutTest()">🖨 چاپ آزمایشی (با راهنما)</button>' +
+      '<button type="button" class="bt" style="background:#0e7490" onclick="chqPrintLayoutSave(false);chqPrintLayoutTest()">🖨 چاپ آزمایشی</button>' +
       '</div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
     setTimeout(function () { try { window.chqGvRender(); } catch (e) {} }, 50);

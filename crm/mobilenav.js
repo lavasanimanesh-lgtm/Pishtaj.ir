@@ -187,7 +187,7 @@
     '.tb .tbic svg{display:block!important;margin:auto!important;width:17px!important;height:17px!important}' +
     /* بایگانی/ابر در موبایل از کشوی «سایر» در دسترس‌اند — هدر خلوت و منظم */
     '.tb .tbic[title="بایگانی"],.tb .tbic[title="فضای ابری"]{display:none!important}' +
-    '#trialBarWrap,#trialBarWrap *{max-width:100%;overflow-wrap:anywhere}' +
+    '#trialBarWrap,#trialBarWrap *{max-width:100%;overflow-wrap:break-word}' +
     /* US-290: دکمه جستجوی هدر در موبایل فقط آیکون (SVG مینیمال iconx زنده می‌ماند) + مخفی‌سازی متن و Ctrl+K */
     '.tb button[onclick*="ptfOpenCommandPalette"]{padding:8px 10px!important;font-size:0!important;gap:0!important;min-height:40px!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span{display:none!important}' +

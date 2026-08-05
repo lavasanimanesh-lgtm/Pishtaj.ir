@@ -47,22 +47,22 @@
     justify-content: center !important;
     gap: 6px !important;
     text-align: center !important;
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
     min-width: 0 !important;
     max-width: 100% !important;
     line-height: 1.5 !important;
   }
-  .md .bt, .md .bt-o, .md .btn, .md .ba, .md button { width: 100% !important; }
+  .md .bt, .md .bt-o, .md .btn, .md .ba, .md button { width: 100% !important; white-space: normal !important; overflow: visible !important; text-overflow: unset !important; }
   .md .fr > .fld button { width: auto !important; }
   /* دکمه‌های کوچک داخل جدول/عملگری — بزرگ‌تر و لمسی */
   .tb2 .ba, .tb2 button, .ba { min-height: 34px !important; padding: 6px 10px !important; }
   /* متن توضیحات/برچسب‌های کوتاه — خوانا */
-  .md small, .md .fld label, .tb2 small, .tb2 td { overflow-wrap: anywhere !important; word-break: break-word !important; }
+  .md small, .md .fld label, .tb2 small, .tb2 td { overflow-wrap: break-word !important; word-break: normal !important; }
 
   /* نسخه فعال — خوانا در موبایل */
-  #topVerPill, #liveHealthPill { font-size: 12.5px !important; white-space: normal !important; overflow-wrap: anywhere !important; line-height: 1.4 !important; padding: 6px 10px !important; }
+  #topVerPill, #liveHealthPill { font-size: 12.5px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.4 !important; padding: 6px 10px !important; }
   .tb { flex-direction: column !important; align-items: stretch !important; }
   .tb > div { justify-content: flex-start !important; }
   
@@ -294,7 +294,7 @@ body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;
 .ca{padding:20px 24px}
 .sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
 .sc{background:var(--crd);padding:16px;border-radius:14px;border:1px solid var(--brd);min-width:0;overflow:hidden}
-.sc b{font-size:clamp(17px,1.8vw,24px);line-height:1.35;background:linear-gradient(135deg,var(--pri),var(--org));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;white-space:normal;overflow-wrap:anywhere;word-break:break-word;text-align:right;direction:rtl}
+.sc b{font-size:clamp(17px,1.8vw,24px);line-height:1.35;background:linear-gradient(135deg,var(--pri),var(--org));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;white-space:normal;overflow-wrap:break-word;word-break:normal;text-align:right;direction:rtl}
 .sc span{font-size:11px;color:#64748b;font-weight:900;line-height:1.8}
 .pn{background:var(--crd);border-radius:20px;border:1px solid var(--brd);padding:20px;display:none;animation:fi .2s ease}
 .pn.act{display:block}
@@ -303,7 +303,7 @@ body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;
 .ph h3{font-size:17px;color:var(--tx);font-weight:900}
 .sb2{display:flex;gap:6px}
 .sb2 input{padding:8px 12px;border:2px solid var(--brd);border-radius:10px;font-size:13px;background:#f8fafc}
-.bt{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:8px 16px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;vertical-align:middle;white-space:normal;overflow-wrap:anywhere;line-height:1.5;box-sizing:border-box}
+.bt{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:8px 16px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;box-sizing:border-box}
 .bt-o{background:transparent;color:#475569;border:2px solid var(--brd)}
 .bt-s{background:#10b981}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -313,7 +313,7 @@ tr:hover td{background:#fffcfa}
 .bd{display:inline-block;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:900}
 .b-st1{background:#fee2e2;color:#dc2626}.b-st2{background:#e0e7ff;color:#3b82f6}.b-st3{background:#fef3c7;color:#d97706}.b-st4{background:#d1fae5;color:#059669}.b-st5{background:#dbeafe;color:#2563eb}.b-st6{background:#fef3c7;color:#d97706}.b-st7{background:#d1fae5;color:#065f46}.b-st8{background:#fde68a;color:#92400e}.b-st9{background:#bbf7d0;color:#166534}.b-stTO{background:#ede9fe;color:#6d28d9}.b-stCO{background:#cffafe;color:#0e7490}.b-stX{background:#f1f5f9;color:#64748b}
 .b-ad{background:#f3e8ff;color:#7c3aed}.b-op{background:#dbeafe;color:#2563eb}
-.ba{background:#f1f5f9;border:1px solid var(--brd);padding:4px 8px;border-radius:7px;font-size:11px;cursor:pointer;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:5px;text-align:center;vertical-align:middle;white-space:normal;overflow-wrap:anywhere;line-height:1.4;box-sizing:border-box}
+.ba{background:#f1f5f9;border:1px solid var(--brd);padding:4px 8px;border-radius:7px;font-size:11px;cursor:pointer;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:5px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;box-sizing:border-box}
 .ba:hover{background:var(--pri);color:#fff}
 .md-b{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;place-items:center;z-index:1200;backdrop-filter:blur(4px)}
 .md{background:#fff;padding:24px;border-radius:20px;width:520px;max-width:92%;max-height:90vh;overflow-y:auto}
@@ -325,106 +325,6 @@ tr:hover td{background:#fffcfa}
   .sb-l h3,.sb-l span,.sb-u span,.sb-i .lb,.nl{display:none}
   .sb-i{justify-content:center;padding:10px}.sb-i .ic{font-size:20px}.sb-i .bc{display:none}
   .mn{margin-right:56px;width:calc(100% - 56px);max-width:calc(100% - 56px)}.ca{padding:14px}.tb{padding:10px 14px}
-}
-
-/* ============ Sprint 108 / US-112: انقلابی در تجربه موبایل (Mobile Data Card View & Native PWA Feel) ============ */
-@media (max-width: 768px) {
-  body { font-size: 14px !important; background: var(--bg, #f1f5f9) !important; } /* US-285: رنگ متغیر — حالت شب موبایل */
-  .btn, .bt, .bt-o, .btn-l, button {
-    min-height: 46px !important;
-    font-size: 14px !important;
-    padding: 10px 14px !important;
-    border-radius: 12px !important;
-  }
-  /* US-285: فیلدهای ورودی ۱۶px — جلوگیری از زوم خودکار iOS هنگام فوکوس */
-  select, textarea, input[type="text"], input[type="number"], input[type="password"], input[type="email"], input[type="date"], input[type="search"] {
-    min-height: 46px !important;
-    font-size: 16px !important;
-    padding: 10px 14px !important;
-    border-radius: 12px !important;
-  }
-
-  /* v34.0.21-alpha (فاز ۱۴): یکنواخت‌سازی دکمه‌ها در موبایل —
-     آیکون وسط، متن خوانا/شکستنی، جلوگیری از خروج از صفحه */
-  .bt, .bt-o, .btn, .btn-l, .ba, button {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 6px !important;
-    text-align: center !important;
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    line-height: 1.5 !important;
-  }
-  .md .bt, .md .bt-o, .md .btn, .md .ba, .md button { width: 100% !important; }
-  .md .fr > .fld button { width: auto !important; }
-  /* دکمه‌های کوچک داخل جدول/عملگری — بزرگ‌تر و لمسی */
-  .tb2 .ba, .tb2 button, .ba { min-height: 34px !important; padding: 6px 10px !important; }
-  /* متن توضیحات/برچسب‌های کوتاه — خوانا */
-  .md small, .md .fld label, .tb2 small, .tb2 td { overflow-wrap: anywhere !important; word-break: break-word !important; }
-
-  /* نسخه فعال — خوانا در موبایل */
-  #topVerPill, #liveHealthPill { font-size: 12.5px !important; white-space: normal !important; overflow-wrap: anywhere !important; line-height: 1.4 !important; padding: 6px 10px !important; }
-  .tb { flex-direction: column !important; align-items: stretch !important; }
-  .tb > div { justify-content: flex-start !important; }
-  
-  /* تبدیل ردیف‌های جدول به کارت‌های اطلاعاتی مستقل لمسی (Card Transformation) */
-  .tb2 table, .tb2 thead, .tb2 tbody, .tb2 th, .tb2 td, .tb2 tr {
-    display: block !important;
-    width: 100% !important;
-  }
-  .tb2 thead tr {
-    position: absolute !important;
-    top: -9999px !important;
-    left: -9999px !important;
-  }
-  .tb2 tr {
-    background: var(--crd, #fff) !important; /* US-285 */
-    border: 1px solid var(--brd) !important;
-    border-radius: 18px !important;
-    margin-bottom: 14px !important;
-    padding: 14px !important;
-    box-shadow: 0 6px 20px rgba(0,0,0,.06) !important;
-    position: relative !important;
-  }
-  .tb2 td {
-    border: none !important;
-    border-bottom: 1px dashed var(--brd, #e2e8f0) !important; /* US-285 */
-    position: relative !important;
-    padding: 10px 0 !important;
-    text-align: left !important;
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    font-size: 13px !important;
-  }
-  .tb2 td:last-child {
-    border-bottom: none !important;
-    justify-content: flex-end !important;
-    gap: 10px !important;
-    padding-top: 14px !important;
-    margin-top: 4px !important;
-    border-top: 1px solid var(--brd) !important;
-  }
-  
-  /* بهبود نمایش سایدبار و ناوبری در موبایل */
-  /* crm-l normal */
-  /* sb 56px kept */
-  .mn { padding: 10px !important; }
-  .md, .ptfdlg-b .md {
-    width: 96% !important;
-    max-width: 96vw !important;
-    max-height: 88vh !important;
-    margin: 10px auto !important;
-    padding: 18px !important;
-    border-radius: 20px !important;
-  }
-  .ph { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
-  .sb2 { width: 100% !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
-  .sb2 input, .sb2 select, .sb2 button { width: 100% !important; }
 }
 
 </style>
@@ -477,21 +377,21 @@ function ptfSafeReset() {
 <button class="sb-i act" onclick="goPanel('dash',this)"><span class="ic">📊</span><span class="lb">داشبورد</span></button>
 <button class="sb-i" onclick="goPanel('rfq',this)"><span class="ic">📋</span><span class="lb">درخواست‌ها</span><span class="bc" id="rBadge" style="display:none">0</span></button>
 <button class="sb-i" onclick="goPanel('sup',this)"><span class="ic">🏭</span><span class="lb">تامین‌کنندگان</span></button>
-<button class="sb-i" onclick="goPanel('rfqs',this)"><span class="ic">🤖</span><span class="lb">درخواست تامین</span></button>
+<button class="sb-i" onclick="goPanel('rfqs',this)"><span class="ic">🤖</span><span class="lb">تامین</span></button>
 <button class="sb-i" onclick="goPanel('cust',this)"><span class="ic">🤝</span><span class="lb">مشتریان</span></button>
 <button class="sb-i" onclick="goPanel('leads',this)"><span class="ic">🎯</span><span class="lb">سرنخ‌ها</span><span class="bc" id="ldBadge" style="display:none">0</span></button>
 <button class="sb-i" onclick="goPanel('rem',this)"><span class="ic">⏰</span><span class="lb">یادآورها</span><span class="bc" id="rmBadge" style="display:none">0</span></button>
 <button class="sb-i" onclick="goPanel('prod',this)"><span class="ic">📦</span><span class="lb">کالاها</span></button>
-<button class="sb-i" onclick="goPanel('surplus',this)"><span class="ic">🏬</span><span class="lb">موجودی انبار</span></button>
-<button class="sb-i" onclick="goPanel('chqprint',this)"><span class="ic">🖨</span><span class="lb">چاپ چک فیزیکی</span></button>
+<button class="sb-i" onclick="goPanel('surplus',this)"><span class="ic">🏬</span><span class="lb">انبار</span></button>
+<button class="sb-i" onclick="goPanel('chqprint',this)"><span class="ic">🖨</span><span class="lb">چاپ چک</span></button>
 <button class="sb-i" onclick="goPanel('off',this)"><span class="ic">📄</span><span class="lb">پیشنهاد</span></button>
 <button class="sb-i" onclick="goPanel('ai',this)" style="background:linear-gradient(90deg,rgba(124,58,237,.15),transparent);border-right:3px solid #7c3aed"><span class="ic">🤖</span><span class="lb">دستیار</span><span class="bc" style="background:#7c3aed" id="aiBadge">AI</span></button>
 <!-- v13.9 (US-344): «سفارشات و سود» حذف شد — مصوبه تیم: عملکرد موازی با مالی/تحلیلگر (داده دستی قدیمی) -->
 <!-- v14.0 (BUG-014/US-272): «مالی» قدیمی حذف شد — کلید legacy ptf_crm_finance که هیچ ماژولی به آن نمی‌نویسد (پنل همیشه خالی)؛ فاکتورها/مطالبات/سود خالص جایگزین کامل‌اند -->
-<button class="sb-i" onclick="goPanel('deals',this)"><span class="ic">📁</span><span class="lb">پرونده‌های فروش</span></button>
+<button class="sb-i" onclick="goPanel('deals',this)"><span class="ic">📁</span><span class="lb">پرونده‌ها</span></button>
 <button class="sb-i" onclick="goPanel('prj',this)"><span class="ic">🗄️</span><span class="lb">بایگانی</span></button>
 <button class="sb-i" onclick="goPanel('let',this)"><span class="ic">✉️</span><span class="lb">مکاتبات</span></button>
-<button class="sb-i" onclick="goPanel('anl',this)"><span class="ic">📊</span><span class="lb">تحلیلگر هوشمند</span></button>
+<button class="sb-i" onclick="goPanel('anl',this)"><span class="ic">📊</span><span class="lb">تحلیلگر</span></button>
 <button class="sb-i" onclick="goPanel('cnt',this)"><span class="ic">📜</span><span class="lb">قراردادها</span></button>
 <button class="sb-i" onclick="goPanel('cart',this)"><span class="ic">🗂</span><span class="lb">کارتابل من</span><span class="bc" id="ctBadge" style="display:none">0</span></button>
 <!-- v13.7 (US-336): «قیمت‌های خرید» از منو حذف شد — هم‌پوشان با «درخواست تامین» (مصوبه تیم چابکی)؛ داده‌ها محفوظ و از درخواست تامین در دسترس -->
@@ -499,8 +399,8 @@ function ptfSafeReset() {
 <button class="sb-i" onclick="goPanel('recv',this)"><span class="ic">💰</span><span class="lb">مطالبات</span></button>
 <button class="sb-i" onclick="goPanel('petty',this)"><span class="ic">💵</span><span class="lb">هاب مالی</span></button>
 <div class="nl">سیستم</div>
-<button class="sb-i" onclick="goPanel('sms',this)"><span class="ic">💬</span><span class="lb">سامانه پیامکی</span></button>
-<button class="sb-i" onclick="goPanel('cms',this)"><span class="ic">🎛</span><span class="lb">مدیریت سایت</span></button>
+<button class="sb-i" onclick="goPanel('sms',this)"><span class="ic">💬</span><span class="lb">پیامک</span></button>
+<button class="sb-i" onclick="goPanel('cms',this)"><span class="ic">🎛</span><span class="lb">سایت</span></button>
 <button class="sb-i" onclick="goPanel('rep',this)"><span class="ic">📈</span><span class="lb">گزارشات</span></button>
 <button class="sb-i" onclick="goPanel('users',this)"><span class="ic">👥</span><span class="lb">کاربران</span></button>
 <button class="sb-i" onclick="goPanel('set',this)"><span class="ic">⚙️</span><span class="lb">تنظیمات</span></button>
@@ -891,7 +791,7 @@ function goPanel(id, btn) {
   if (btn) btn.classList.add('act');
   
   var titles = {dash:'📊 داشبورد', rfq:'📋 درخواست‌ها', sup:'🏭 تامین‌کنندگان', cust:'🤝 مشتریان',
-    prod:'📦 کالاها', surplus:'🏬 موجودی انبار', chqprint:'🖨 چاپ چک فیزیکی', off:'📄 پیشنهاد', leads:'🎯 سرنخ‌ها', rem:'⏰ یادآورها', orders:'💰 سفارشات و سود', fin:'💳 مالی', users:'👥 کاربران', set:'⚙️ تنظیمات', ai:'🤖 دستیار'};
+    prod:'📦 کالاها', surplus:'🏬 انبار', chqprint:'🖨 چاپ چک', off:'📄 پیشنهاد', leads:'🎯 سرنخ‌ها', rem:'⏰ یادآورها', orders:'💰 سفارشات و سود', fin:'💳 مالی', users:'👥 کاربران', set:'⚙️ تنظیمات', ai:'🤖 دستیار'};
   document.getElementById('pgTitle').textContent = titles[id] || 'CRM';
   
   var html = '';
@@ -1438,7 +1338,7 @@ window.ptfShowExcelGuidelineModal = function (moduleType, fileInputId) {
     '</div></div></details>' +
     '<div style="display:flex;justify-content:space-between;align-items:center">' +
     '<button class="bt bt-o" onclick="this.closest(&quot;.md-b&quot;).remove()">انصراف</button>' +
-    '<button class="bt" style="background:#059669;color:#fff;padding:10px 20px;font-size:13px" onclick="ptfXlsGuideGo(this, &quot;' + fileInputId + '&quot;)">✅ متوجه شدم، انتخاب و بارگذاری فایل اکسل</button>' +
+    '<button class="bt" style="background:#059669;color:#fff;padding:10px 20px;font-size:13px" onclick="ptfXlsGuideGo(this, &quot;' + fileInputId + '&quot;)">✅ بارگذاری اکسل</button>' +
     '</div></div></div>';
 
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -1784,7 +1684,7 @@ function buildSuppliers() {
   return '<div class="ph"><h3>🏭 تامین‌کنندگان</h3>' +
     '<div class="sb2"><input type="text" id="sSrch" placeholder="جستجو..." oninput="renderSuppliers()">' +
     '<button class="bt" onclick="showSupModal2()">+ ثبت</button>' +
-    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;SUP&quot;, &quot;supXlsInp&quot;)">📥 ورود اکسل با راهنما</button>' +
+    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;SUP&quot;, &quot;supXlsInp&quot;)">📥 ورود اکسل</button>' +
     '<input type="file" id="supXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportSupXls(this)"></div></div>' +
     '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>رابط اصلی</th><th>تماس</th><th>دسته</th><th>عملیات</th></tr></thead>' +
     '<tbody id="sTb"></tbody></table></div>';
@@ -2078,7 +1978,7 @@ function buildCustomers() {
   return '<div class="ph"><h3>🤝 مشتریان</h3>' +
     '<div class="sb2"><input type="text" id="cSrch" placeholder="جستجو (شرکت، صنعت، رابط، تلفن)..." oninput="renderCustomers()" style="flex:1">' +
     '<select id="cVenFlt" onchange="renderCustomers()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:12px"><option value="">همه وضعیت‌های وندور</option><option value="approved">🏆 وندور تاییدشده</option><option value="pending">⏳ بررسی مدارک</option><option value="unreg">⚪ ثبت‌نشده</option></select>' +
-    '<button class="bt" onclick="showCustModal()">+ ثبت</button><button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;CUST&quot;, &quot;custXlsInp&quot;)">📥 ورود اکسل با راهنما</button><input type="file" id="custXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportCustXls(this)"></div></div>' +
+    '<button class="bt" onclick="showCustModal()">+ ثبت</button><button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;CUST&quot;, &quot;custXlsInp&quot;)">📥 ورود اکسل</button><input type="file" id="custXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportCustXls(this)"></div></div>' +
     '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>صنعت</th><th>رابط اصلی</th><th>تماس</th><th>عملیات</th></tr></thead>' +
     '<tbody id="cTb"></tbody></table></div>';
 }

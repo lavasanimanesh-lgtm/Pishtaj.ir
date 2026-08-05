@@ -37,7 +37,7 @@ function buildLeads() {
     '<input type="text" id="ldSrch" placeholder="جستجو: شرکت، رابط، تلفن..." oninput="renderLeads()">' +
     '<select id="ldView" onchange="renderLeads()" style="padding:9px;border:1px solid var(--brd);border-radius:10px"><option value="kanban">🗂 کانبان</option><option value="table">📋 جدول</option></select>' +
     '<button class="bt" onclick="showLeadModal()">+ لید جدید</button>' +
-    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;LEADS&quot;, &quot;leadsXlsInp&quot;)">⬆️ ورود اکسل با راهنما</button><input type="file" id="leadsXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportLeadsXls(this)">' +
+    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;LEADS&quot;, &quot;leadsXlsInp&quot;)">⬆️ ورود اکسل</button><input type="file" id="leadsXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportLeadsXls(this)">' +
     '<button class="bt bt-o" onclick="exportLeadsCsv()">⬇️ Excel</button>' +
     '<button class="bt bt-o" onclick="showLeadReport()">📊 گزارش تبدیل</button>' +
     '</div></div>' +
