@@ -39,7 +39,9 @@
   function toNum(v) { return +String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^\d.-]/g, '') || 0; }
   function isoNow() { try { return new Date().toISOString(); } catch (e) { return ''; } }
   function faMonthNow() { try { var s = new Intl.DateTimeFormat('fa-IR-u-nu-latn', { year: 'numeric', month: '2-digit' }).format(new Date()); return s.replace(/\s/g, '').replace('-', '/'); } catch (e) { return (faDate ? faDate().slice(0, 7) : ''); } }
-  function recMonth(x) { return x.month || (x.t || '').slice(0, 7) || faMonthNow(); }
+  /* v34.1 BUG-PETTY-PERIOD: لاتین‌سازی ارقام فارسی قبل از slice */
+  function toLatinDigits(s) { return String(s||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}); }
+  function recMonth(x) { return toLatinDigits(x.month) || toLatinDigits(x.t || '').slice(0, 7) || faMonthNow(); }
   function userName() { return (curSession() || {}).name || (curSession() || {}).user || ''; }
   function userToUsername(name) { return ((getData('ptf_crm_users') || []).filter(function (u) { return u.name === name; })[0] || {}).username || ''; }
   function accountants() { return (getData('ptf_crm_users') || []).filter(function (u) { return u.roleId === 'accountant'; }); }
@@ -584,6 +586,10 @@
   function recDate(x) {
     if (!x) return '';
     var raw = String(x.t || x.dateFa || x.date || x.dateISO || x.iso || '').split(' ')[0].trim();
+    /* v34.1 BUG-PETTY-PERIOD: لاتین‌سازی ارقام فارسی/عربی — بدون این، regex \d ارقام فارسی را نمی‌شناسد
+       و تاریخ‌هایی مثل «۱۴۰۵/۰۵/۱۸» پارس نمی‌شوند → رکورد از گزارش حذف می‌شود */
+    raw = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+             .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
     function padJalaliDate(s) {
       var m = String(s || '').match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
       if (!m) return '';
@@ -755,7 +761,7 @@
          2) اگر نه ولی month در بازه باشد → نگه داشتن (fallback ماهانه) */
       var mFrom = key.from.slice(0, 7), mTo = key.to.slice(0, 7);
       function inRange(x) {
-        var m = String(x.month || (x.t || '').slice(0, 7) || '').slice(0, 7);
+        var m = toLatinDigits(x.month || (x.t || '').slice(0, 7) || '').slice(0, 7);
         /* v34.0.15-alpha (فاز ۱۲ — رفع باگ «عدم نمایش هزینهٔ ماه بدون انتخاب روز اول»):
            قبلاً recDate هر رکوردی (حتی فقط‌ماه) را به روزِ اول ماه (مثلاً 1405/05/01) تبدیل
            می‌کرد و چون این مقدار در `if (d)` می‌افتاد، با تاریخِ دقیقِ بازه مقایسه می‌شد

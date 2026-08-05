@@ -732,7 +732,7 @@
       '<h4 style="margin:14px 0 6px">اقلام درخواستی</h4>' +
       '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" style="font-size:11px" onclick="_inqEditItems.push({nm:\'\',st:\'\',qty:1,un:\'عدد\'}); ptfRefreshInqEditItems();">+ افزودن ردیف</button>' +
-      '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:11px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'inqEdXlsInp\');else document.getElementById(\'inqEdXlsInp\').click()">ورود اکسل با راهنما</button>' +
+      '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:11px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'inqEdXlsInp\');else document.getElementById(\'inqEdXlsInp\').click()">ورود اکسل</button>' +
       '<button type="button" class="bt bt-o" style="font-size:11px;color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadInqItemsTemplate()">دانلود نمونه CSV</button>' +
       '<input type="file" id="inqEdXlsInp" accept=".xlsx,.xls,.csv" style="display:none" onchange="ptfImportInqEditXls(\'' + ptfOnClickArg(cd) + '\',this)">' +
       '</div>' +
@@ -866,7 +866,7 @@
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
       '<button class="bt bt-o" style="font-size:12px" onclick="irAdd()">+ ردیف</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="irDetectAll()">🎯 تشخیص خودکار تایپ همه ردیف‌ها</button>' +
-      '<button class="bt bt-o" style="font-size:12px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'irXls\');else document.getElementById(\'irXls\').click()">ورود اکسل با راهنما</button>' +
+      '<button class="bt bt-o" style="font-size:12px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'irXls\');else document.getElementById(\'irXls\').click()">ورود اکسل</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadInqItemsTemplate()">دانلود نمونه CSV</button>' +
       '<input type="file" id="irXls" accept=".xlsx,.xls,.csv" style="display:none" onchange="irImportXls(this)">' +
       '<button class="bt llm-only" style="font-size:12px;background:#0e7490;display:none" onclick="irAiReadCurrentAttachments()">🤖 خواندن ضمیمه‌های درخواست با AI</button>' +

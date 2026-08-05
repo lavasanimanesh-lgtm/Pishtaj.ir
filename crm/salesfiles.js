@@ -15,7 +15,7 @@
   function sfAll() { return getData(K); }
   function sfSave(list) { setData(K, list); }
 
-  /* v14.8 (US-349): دلایل استاندارد باخت — به جای متن آزاد */
+  /* v14.8: دلایل استاندارد باخت — به جای متن آزاد */
   window.SF_LOST_REASONS = [
     { id: 'price', lb: 'قیمت' },
     { id: 'delivery', lb: 'زمان تحویل' },
@@ -24,7 +24,7 @@
     { id: 'other', lb: 'سایر' }
   ];
 
-  /* v14.8 (US-351): وضعیت تاریخ تحویل تعهدی — قرمز=گذشته/امروز، نارنجی=تا ۳ روز آینده */
+  /* v14.8: وضعیت تاریخ تحویل تعهدی — قرمز=گذشته/امروز، نارنجی=تا ۳ روز آینده */
   window.ptfSfDueState = function (r) {
     if (!r || !r.dueISO || r.st === 'archived') return null;
     var today = new Date().toISOString().slice(0, 10);
@@ -120,7 +120,7 @@
   }
   function sfHasInvoice(r) { return sfDocsOf(r).invoices.length > 0; }
 
-  /* ===== v19.1 (US-432): اسناد قطعی برد — snapshot تغییرناپذیر پیشنهاد مالی برنده + آخرین فنی مرتبط.
+  /* ===== v19.1: اسناد قطعی برد — snapshot تغییرناپذیر پیشنهاد مالی برنده + آخرین فنی مرتبط.
      ساخت اصلی: لحظه برد در autoCreateProjectFromCO (offers.js). این تابع مهاجرت نرم پرونده‌های
      قدیمی برد‌شده (قبل از v19.1) است: یک‌بار از پیشنهاد زنده snapshot می‌سازد. ===== */
   window.sfAwardEnsure = function (r) {
@@ -210,7 +210,7 @@
       }
     });
   };
-  /* ===== v19.2 (US-433): وضعیت‌های مرحله‌ای ۱۲گانه پرونده فروش پس از برد =====
+  /* ===== v19.2: وضعیت‌های مرحله‌ای ۱۲گانه پرونده فروش پس از برد =====
      اصل معماری: وضعیت پرونده «مشتق» است نه فیلد آزاد — تابع واحد sfStageOf از روی
      سیگنال‌های واقعی (وضعیت درخواست، رویدادهای ارسال، ارجاع/صدور فاکتور، وصول) محاسبه
      می‌کند؛ لذا عقب‌گرد ساختاری ناممکن است (AC3) و پرونده/درخواست/کانبان همیشه از
@@ -365,13 +365,13 @@
     ptfDialog({
       title: tp.lb + ' — ' + (r.inqNo || cd),
       body: typeId === 'delivered'
-        ? 'با ثبت تحویل، وضعیت درخواست به «✅ تحویل شده» می‌رود و مرحله پرونده «تحویل‌شده به کارفرما» می‌شود — پیش‌نیاز ارجاع فاکتور (US-435).'
-        : 'سند در پرونده ثبت و وضعیت درخواست (در صورت عقب‌تر بودن) به «🟠 آماده‌سازی» می‌رود — عقب‌گرد هرگز رخ نمی‌دهد (US-433).',
+        ? 'با ثبت تحویل، وضعیت درخواست به «✅ تحویل شده» می‌رود و مرحله پرونده «تحویل‌شده به کارفرما» می‌شود — پیش‌نیاز ارجاع فاکتور.'
+        : 'سند در پرونده ثبت و وضعیت درخواست (در صورت عقب‌تر بودن) به «🟠 آماده‌سازی» می‌رود — عقب‌گرد هرگز رخ نمی‌دهد.',
       fields: flds,
       okText: 'ثبت در پرونده',
       onOk: function (v) {
         var ev = sfShipCommit(cd, typeId, v);
-        if (ev && ev.ok === false && ev.why === 'seq') { alert('⛔ نقض توالی رویدادها (US-440):\n' + ev.lb); return; }
+        if (ev && ev.ok === false && ev.why === 'seq') { alert('⛔ نقض توالی رویدادها:\n' + ev.lb); return; }
         if (!ev) return;
         if (typeof ptfToast === 'function') ptfToast(tp.lb + ' ثبت شد', 'ok');
         if (confirm('برای این رکورد، سند/اسکن پیوست می‌کنید؟') && typeof attachUploadWidget === 'function') sfShipUpload(cd, ev.cd);
@@ -396,7 +396,7 @@
     });
   };
 
-  /* ===== v19.3 (US-435): ارجاع فاکتور رسمی — فقط از پرونده فروش و فقط پس از تحویل کارفرما =====
+  /* ===== v19.3: ارجاع فاکتور رسمی — فقط از پرونده فروش و فقط پس از تحویل کارفرما =====
      هسته برنامه‌ای قابل تست؛ خروجی {ok, why} — UI فقط wrapper.
      قفل سه‌لایه: ① نقش ارشد ② پرونده برنده ③ مرحله >= ۷ (تحویل‌شده به کارفرما — sfStageOf مشتق v19.2).
      پس از ارجاع، مرحله خودکار ۸ «در حال صدور فاکتور» می‌شود (invRef سیگنال sfStageOf است). */
@@ -410,7 +410,7 @@
     var o = offers.filter(function (x) { return x.no === r.wonOffer; })[0];
     if (!o) return { ok: false, why: 'nooffer' };
     if (o.invRef) return { ok: false, why: 'already' };
-    /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد (US-432)، نه پیشنهاد زندهٔ قابل‌تغییر */
+    /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد، نه پیشنهاد زندهٔ قابل‌تغییر */
     if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r);
     o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer };
     setData('ptf_crm_offers', offers);
@@ -428,7 +428,7 @@
     if (!res.ok) {
       var msgs = {
         role: '⛔ فقط نقش‌های ارشد می‌توانند ارجاع فاکتور بدهند.',
-        stage: '🔒 ارجاع فاکتور قفل است — تا قبل از ثبت «🤝 تحویل کارفرما» در همین پرونده، ارجاع به حسابدار مجاز نیست (US-435).\n\nمرحله فعلی پرونده: ' + (typeof sfStageLabel === 'function' ? sfStageLabel(sfAll().filter(function (x) { return x.cd === cd; })[0]) : '') ,
+        stage: '🔒 ارجاع فاکتور قفل است — تا قبل از ثبت «🤝 تحویل کارفرما» در همین پرونده، ارجاع به حسابدار مجاز نیست.\n\nمرحله فعلی پرونده: ' + (typeof sfStageLabel === 'function' ? sfStageLabel(sfAll().filter(function (x) { return x.cd === cd; })[0]) : '') ,
         already: 'ℹ️ این پرونده قبلا برای فاکتور ارجاع شده است.',
         nofile: '⛔ پرونده برنده یافت نشد.', nooffer: '⛔ پیشنهاد برنده پرونده یافت نشد.'
       };
@@ -487,7 +487,7 @@
       (tab === 'files'
         ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12px;color:#0c4a6e">ℹ️ US-404: پرونده فروش فقط با ثبت «🏆 برنده» پیشنهاد مالی (ابلاغ سفارش) ساخته می‌شود — هر ابلاغ = یک پرونده با همه اسناد. پس از مختومه/تسویه به بایگانی می‌رود.</div>'
         : '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 14px;margin-bottom:8px;font-size:12px;color:#5b21b6">🎯 درخواست‌های دارای پیشنهادِ هنوز برنده‌نشده — رهگیری مهلت‌ها و ثبت نتیجه. با برنده شدن CO، خودکار «پرونده» می‌شوند؛ باخت هم با دلیل استاندارد مستقیم به گزارش Win/Loss می‌رود.</div>' +
-          '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;color:#64748b">نمای فرصت‌ها:</span>' + ov('inq', 'بر اساس درخواست') + ov('customer', 'بر اساس مشتری (US-435)') + '</div>') +
+          '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;color:#64748b">نمای فرصت‌ها:</span>' + ov('inq', 'بر اساس درخواست') + ov('customer', 'بر اساس مشتری') + '</div>') +
       '<div id="dealWrap"></div>';
   };
   window.sfSetTab = function (t) {
@@ -527,9 +527,9 @@
       var hasInv = r.inqNo ? sfHasInvoice(r) : false;
       var lossBadge = (typeof ptfProjectLossBadge === 'function') ? ptfProjectLossBadge(r) : '';
       var open = window._sfOpen === r.cd;
-      /* v14.8 (US-351): بج تاریخ تحویل تعهدی — قرمز=گذشته/امروز، نارنجی=نزدیک */
+      /* v14.8: بج تاریخ تحویل تعهدی — قرمز=گذشته/امروز، نارنجی=نزدیک */
       var dueSt = (typeof ptfSfDueState === 'function') ? ptfSfDueState(r) : null;
-      /* v19.2 (US-433): بج مرحله ۱۲گانه — مشتق از سیگنال‌های واقعی، منبع واحد sfStageOf */
+      /* v19.2: بج مرحله ۱۲گانه — مشتق از سیگنال‌های واقعی، منبع واحد sfStageOf */
       var stgN = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
       var stgBadge = stgN ? ' | <span style="color:#0e7490;font-weight:800">' + escP((typeof sfStageLabel === 'function' ? sfStageLabel(r) : '')) + ' <small style="color:#94a3b8">(' + stgN + '/12)</small></span>' : '';
       var dueBadge = r.dueISO
@@ -620,7 +620,7 @@
     });
     if (!d.offers.length && !d.letters.length && !d.invoices.length && !d.misc.length && !(d.supply || []).length)
       h += '<div style="color:#94a3b8;font-size:12px;padding:8px 0">سندی منضم نشده</div>';
-    /* v19.2 (US-433): استپر مراحل ۱۲گانه پرونده — فقط نمایش؛ منبع واحد sfStageOf */
+    /* v19.2: استپر مراحل ۱۲گانه پرونده — فقط نمایش؛ منبع واحد sfStageOf */
     if (r.wonOffer && typeof sfStageOf === 'function') {
       var _stg = sfStageOf(r);
       h += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:8px 12px;margin-top:10px;font-size:11.5px" onclick="event.stopPropagation()"><b style="font-size:12.5px">🧭 مرحله پرونده: ' + escP(sfStageLabel(r)) + ' <small style="color:#64748b">(' + _stg + ' از 12 — US-433)</small></b>' +
@@ -642,12 +642,12 @@
       });
       h += '</div>';
     }
-    /* v19.1 (US-432): باکس اسناد قطعی برد — snapshot لحظه ابلاغ سفارش */
+    /* v19.1: باکس اسناد قطعی برد — snapshot لحظه ابلاغ سفارش */
     if (r.wonOffer) {
       var awd = (typeof sfAwardEnsure === 'function') ? sfAwardEnsure(r) : (r.awardDocs || []);
       if (awd && awd.length) {
         h += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:8px 12px;margin-top:10px;font-size:12.5px" onclick="event.stopPropagation()">' +
-          '<b>🏆 اسناد قطعی برد</b> <small style="color:#92400e">— نسخه لحظه ابلاغ سفارش (تغییرناپذیر) — مبنای فاکتور و ارجاع حسابدار (US-432)</small>';
+          '<b>🏆 اسناد قطعی برد</b> <small style="color:#92400e">— نسخه لحظه ابلاغ سفارش (تغییرناپذیر) — مبنای فاکتور و ارجاع حسابدار</small>';
         awd.forEach(function (adoc) {
           h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed #fde68a;flex-wrap:wrap">' +
             '<span>' + (adoc.role === 'technical' ? '🔧 پیشنهاد فنی مرتبط' : '💰 پیشنهاد مالی برنده') + ' — <b dir="ltr">' + escP(adoc.no) + '</b>' + (adoc.rev ? ' (Rev.' + adoc.rev + ')' : '') + ' <small style="color:#94a3b8">' + escP(adoc.t || '') + (adoc.migrated ? ' — مهاجرت نرم' : '') + '</small></span>' +
@@ -678,10 +678,9 @@
        الگو از petty.js#ptfPettyRelatedCosts گرفته شده ولی فیلتر معکوس شده. */
     var pjPettyUnlinkedAvailable = (getData('ptf_crm_petty') || []).filter(function (p) {
       if (p.st === 'void') return false;
-      /* هزینه‌ای که به این پرونده لینک شده → از دکمهٔ «افزودن» حذف */
-      if (p.dealRef === r.cd) return false;
-      /* هزینه‌ای که به پروندهٔ دیگری لینک شده → نباید اینجا بیاید (هر هزینه فقط به یک پرونده) */
-      if (p.dealRef && p.dealRef !== r.cd) return false;
+      /* هزینه‌ای که dealRef دارد (به هر پرونده‌ای) → لینک‌شده → از لیست حذف */
+      if (p.dealRef) return false;
+      /* هزینه‌ای که قبلاً در costEvents این پرونده ثبت شده → تکراری نشود */
       return pjPettyLinkedCds.indexOf(p.cd) === -1;
     });
     h += '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>➕ هزینه‌های مستقیم پرونده</b>' +
@@ -713,18 +712,18 @@
         if (_inCov.total) h += '<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:7px 11px;margin-top:6px;font-size:11.5px;color:#0f766e" onclick="event.stopPropagation()">🔬 پوشش نوت بازرسی رسمی: <b>' + _inCov.used + ' / ' + _inCov.total + '</b>' + (_inCov.remain ? ' — باقیمانده: ' + _inCov.remain + ' قلم' : ' — کامل ✅') + '</div>';
       }
     } catch (eCov) {}
-    h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود (US-434)</div>' : '') +
+    h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود</div>' : '') +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:' + (r.wonOffer ? '6' : '10') + 'px" onclick="event.stopPropagation()">' +
-      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' : '') +
+      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')">🛍 خرید</button>' : '') +
       '<span id="sfUp_' + escP(r.cd) + '" style="flex:1;min-width:180px"></span>' +
-      /* v14.8 (US-351): ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
+      /* v14.8: ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
       '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + ptfOnClickArg(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
       (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#0d9488;border-color:#99f6e4" onclick="sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')">🔬 QC / نتیجه بازرسی</button>' : '') +
       (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#c4b5fd" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')">📄 نوت بازرسی رسمی</button>' : '') +
       (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')">🧰 پکینگ لیست رسمی</button>' +
         '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'shipdoc\')">🚚 بارنامه/ارسال</button>' +
         '<button class="bt bt-o" style="font-size:12px;color:#166534;border-color:#bbf7d0" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'delivered\')">🤝 تحویل کارفرما</button>' : '') +
-      /* v19.3 (US-435): ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
+      /* v19.3: ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
       (function () {
         if (!r.wonOffer) return '';
         var _wo = getData('ptf_crm_offers').filter(function (x) { return x.no === r.wonOffer; })[0];
@@ -734,7 +733,7 @@
         var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
         return _stg7 >= 7
           ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور به حسابدار</button>'
-          : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما (US-435)" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
+          : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
       })() +
       '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')">💥 ثبت زیان پروژه</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="sfClose(\'' + ptfOnClickArg(r.cd) + '\')">' + (hasInv ? '🏁 مختومه (پایان پروژه و تسویه کامل)' : '🚫 مختومه بدون فاکتور (عدم برنده شدن/سایر)') + '</button>' +
@@ -749,7 +748,7 @@
     return h;
   }
 
-  /* ===== v14.8 (US-351): تاریخ تحویل تعهدی ساختاریافته روی پرونده فروش ===== */
+  /* ===== v14.8: تاریخ تحویل تعهدی ساختاریافته روی پرونده فروش ===== */
   window.sfSetDue = function (cd) {
     var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
@@ -759,7 +758,7 @@
        راه‌حل ریشه‌ای: خواندن مقدار و بستن مودال در تابع مجزا؛ حذف هم مسیر جدا دارد. */
     var html = '<div class="md-b" id="sfDueDlg" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:440px">' +
       '<h3>🚚 تاریخ تحویل تعهدی — ' + escP(r.inqNo || cd) + '</h3>' +
-      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">تاریخی که به کارفرما «تعهد» داده‌اید. ۳ روز قبل یادآور خودکار می‌آید و از روز سررسید، پرونده قرمز و هشدار تاخیر صادر می‌شود (US-351).</div>' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">تاریخی که به کارفرما «تعهد» داده‌اید. ۳ روز قبل یادآور خودکار می‌آید و از روز سررسید، پرونده قرمز و هشدار تاخیر صادر می‌شود.</div>' +
       '<div class="fld"><label>تاریخ تحویل تعهدی (شمسی) *</label>' + (typeof ptfDateInput==="function" ? ptfDateInput("sfDueJ", r.dueISO || "") : '<input type="text" id="sfDueJ" value="' + escP(r.dueISO || '') + '" style="direction:ltr;color:#0e7490">') + '</div>' +
       '<div class="fld"><label>یادداشت تعهد (اختیاری)</label><input type="text" id="sfDueNote" value="' + escP(r.dueNote || '') + '" placeholder="مثلا: طبق بند ۴ قرارداد / توافق تلفنی"></div>' +
       '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:6px">' +
@@ -839,7 +838,7 @@
   }
 
   /* ---------- مختومه‌سازی ---------- */
-  /* ===== v19.4 (US-437): کنترل پیش از مختومه — تحویل موفق + تسویه کامل + کنترل اسناد =====
+  /* ===== v19.4: کنترل پیش از مختومه — تحویل موفق + تسویه کامل + کنترل اسناد =====
      هسته قابل تست: sfCloseAudit(r) → { blockers[], warns[], docs{} }
      - blocker «تحویل»: مرحله < ۷ (بدون ثبت تحویل کارفرما) → مختومه با فاکتور ممنوع (AC1).
      - مطالبات باز blocker نرم است: قابل رفع در همان مودال با تسویه خودکار (رفتار US-324 حفظ شد).
@@ -860,7 +859,7 @@
         if (rfqD && rfqD.st === 'st7') hasDelivery = true;
       } catch (eD) {}
     }
-    /* UR-12 (ساده‌سازی مختومه): تحویل به‌صورت پیش‌فرض blocker است (US-437) اما با تأیید صریح
+    /* UR-12 (ساده‌سازی مختومه): تحویل به‌صورت پیش‌فرض blocker است اما با تأیید صریح
        ثبت‌کننده (closeOverride.deliveryConfirmed + دلیل) قابل عبور است — تا مختومه‌کردن پرونده‌های
        واقعاً تحویل‌شده بدون ثبت رویداد، بی‌دردسر شود؛ مسئولیت در audit ثبت می‌شود. */
     if (!hasDelivery) {
@@ -906,7 +905,7 @@
         else out.blockers.push({ id: 'guarantee', lb: '🛡 ' + guarChqs.length + ' چک ضمانت باز برای این پرونده ثبت شده (' + guarChqs.map(function (g) { return g.sayad || g.no || ''; }).join('، ') + ') — ضمانت با پایان پروژه باید مسترد شود: یا از تب چک‌ها «🏆 استرداد ضمانت» بزنید یا در این مودال «استرداد پس از مختومه» را تأیید کنید' });
       }
     } catch (eG) {}
-    if (!out.docs.award && r.wonOffer) out.warns.push({ id: 'award', lb: '🏆 سند قطعی برد ثبت نشده — یک بار کشوی پرونده را باز کنید تا مهاجرت نرم انجام شود (US-432)' });
+    if (!out.docs.award && r.wonOffer) out.warns.push({ id: 'award', lb: '🏆 سند قطعی برد ثبت نشده — یک بار کشوی پرونده را باز کنید تا مهاجرت نرم انجام شود' });
     try {
       if (r.wonOffer && typeof ptfDocxCoverage === 'function') {
         var covPL = ptfDocxCoverage(r, 'PL');
@@ -1080,10 +1079,10 @@
       return;
     }
 
-    /* مسیر ۱: بدون فاکتور — v14.8 (US-349): دلیل باخت استاندارد به جای متن آزاد (AC4: محفوظ) */
+    /* مسیر ۱: بدون فاکتور — v14.8: دلیل باخت استاندارد به جای متن آزاد (AC4: محفوظ) */
     sfLostModal(cd);
   };
-  /* v19.4 (US-437): مودال کنترل نهایی — چک‌لیست تحویل/تسویه/اسناد */
+  /* v19.4: مودال کنترل نهایی — چک‌لیست تحویل/تسویه/اسناد */
   function sfCloseModal(cd) {
     var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
@@ -1117,7 +1116,7 @@
       go.disabled = !(delivOk && guarOk);
     };
     var settleChk = au.openInvs.length
-      ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsSettle" checked> مانده ' + au.remainSum.toLocaleString('fa-IR') + ' ریال مطالبات «تسویه‌شده» ثبت شود (US-324/FIN-WF-013) — بدون تیک: مطالبات باز می‌ماند</label><textarea id="sfClsSettleReason" rows="2" style="width:100%;margin-top:7px" placeholder="دلیل تسویه خودکار را وارد کنید — اجباری"></textarea></div>'
+      ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 11px;margin-bottom:8px"><label style="display:flex;gap:7px;align-items:center;font-size:12.5px;cursor:pointer"><input type="checkbox" id="sfClsSettle" checked> مانده ' + au.remainSum.toLocaleString('fa-IR') + ' ریال مطالبات «تسویه‌شده» ثبت شود — بدون تیک: مطالبات باز می‌ماند</label><textarea id="sfClsSettleReason" rows="2" style="width:100%;margin-top:7px" placeholder="دلیل تسویه خودکار را وارد کنید — اجباری"></textarea></div>'
       : '';
     var html = '<div class="md-b" id="sfClsDlg" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
       '<h3>🏁 کنترل پیش از مختومه — ' + escP(r.inqNo || cd) + '</h3>' +
@@ -1132,7 +1131,7 @@
             var onlyOverride = au.blockers.every(function (b) { return b.id === 'delivery' || b.id === 'guarantee'; });
             return onlyOverride
               ? '<button class="bt" id="sfClsGoBtn" disabled style="background:#b45309" onclick="sfCloseGo(\'' + ptfOnClickArg(cd) + '\')">🏁 مختومه (پس از تأیید موارد بالا)</button>'
-              : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>';
+              : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست\')">🔒 مختومه قفل است</button>';
           })()) +
       '</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -1172,7 +1171,7 @@
       }
     }
     var au = sfCloseAudit(r);
-    if (au.openInvs.length && !settle) { alert('⛔ با مطالبات باز نمی‌توان مختومه کرد (US-437) — یا تیک تسویه را بزنید یا ابتدا وصولی‌ها را ثبت کنید.'); return; }
+    if (au.openInvs.length && !settle) { alert('⛔ با مطالبات باز نمی‌توان مختومه کرد — یا تیک تسویه را بزنید یا ابتدا وصولی‌ها را ثبت کنید.'); return; }
     if (!confirm('🏁 تایید نهایی مختومه پرونده «' + (r.inqNo || cd) + '»:\n\nپایان پروژه و تسویه کامل — کل پرونده با تمام اسناد به «بایگانی» منتقل می‌شود.\n\nادامه می‌دهید؟')) return;
     var ok = sfCloseSettledCommit(cd, settle, settleReason);
     var dlg = document.getElementById('sfClsDlg');
@@ -1180,14 +1179,14 @@
     if (!ok) alert('⛔ کنترل مختومه رد شد — موارد قرمز را رفع کنید.');
   };
 
-  /* v14.8 (US-349): مودال انتخاب دلیل استاندارد باخت + توضیح اختیاری */
+  /* v14.8: مودال انتخاب دلیل استاندارد باخت + توضیح اختیاری */
   function sfLostModal(cd) {
     var opts = SF_LOST_REASONS.map(function (x) {
       return '<option value="' + x.id + '">' + x.lb + '</option>';
     }).join('');
     var html = '<div class="md-b" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
       '<h3>🚫 مختومه بدون فاکتور — دلیل باخت</h3>' +
-      '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:10px">دلیل استاندارد انتخاب کنید — این داده مبنای گزارش مدیریتی Win/Loss است (US-349).</div>' +
+      '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:10px">دلیل استاندارد انتخاب کنید — این داده مبنای گزارش مدیریتی Win/Loss است.</div>' +
       '<div class="fld"><label>دلیل باخت *</label><select id="sfLostReason">' + opts + '</select></div>' +
       '<div class="fld"><label>توضیح تکمیلی (اختیاری)</label><textarea id="sfLostNote" rows="2" placeholder="مثلا: قیمت رقیب ۱۲٪ پایین‌تر بود"></textarea></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
@@ -1197,7 +1196,7 @@
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   }
 
-  /* v14.8 (US-349): ادامه مختومه‌سازی باخت با دلیل استاندارد (قابل فراخوانی برنامه‌ای/تست) */
+  /* v14.8: ادامه مختومه‌سازی باخت با دلیل استاندارد (قابل فراخوانی برنامه‌ای/تست) */
 
   /* v21.1 BUG-035: یافتن بایگانی قبلی برای همین پرونده (دو-شناسه‌ای inqNo/cd) */
   function sfArchiveAliases(r) {
@@ -1335,7 +1334,7 @@
       origin: 'salesfile',
       closeKind: closeKind, /* lost | settled */
       closeWhy: why || '',
-      closeReason: reasonId || (closeKind === 'settled' ? 'won' : ''), /* v14.8 (US-349): کد دلیل استاندارد برای گزارش Win/Loss */
+      closeReason: reasonId || (closeKind === 'settled' ? 'won' : ''), /* v14.8: کد دلیل استاندارد برای گزارش Win/Loss */
       lossEvents: (r.lossEvents || []).slice(), /* v18.0 US-421: زیان‌های ثبت‌شده همراه پرونده به بایگانی منتقل می‌شوند */
       awardDocs: (r.awardDocs || []).slice(), /* v19.1 US-432: snapshot اسناد قطعی برد همراه پرونده بایگانی می‌شود */
       qcEvents: (r.qcEvents || []).slice(), /* v19.1 US-434ف۱: سوابق QC/بازرسی حفظ می‌شود */
@@ -1428,8 +1427,15 @@
     var deal = ds.filter(function (x) { return x.cd === dealCd; })[0];
     if (!deal) { alert('پرونده یافت نشد'); return; }
     var linkedCds = (deal.costEvents || []).filter(function (x) { return x.pettyCd || x.fromPetty; }).map(function (x) { return x.pettyCd || x.cd; });
-    var available = (typeof ptfPettyRelatedCosts === 'function' ? ptfPettyRelatedCosts(dealCd) : [])
-      .filter(function (p) { return p.st !== 'void' && linkedCds.indexOf(p.cd) === -1; });
+    var available = (getData('ptf_crm_petty') || []).filter(function (p) {
+      if (p.st === 'void') return false;
+      /* هزینه‌ای که به این پرونده لینک شده → از لیست «افزودن» حذف */
+      if (p.dealRef === dealCd) return false;
+      /* هزینه‌ای که به پروندهٔ دیگری لینک شده → نباید اینجا بیاید */
+      if (p.dealRef) return false;
+      /* هزینه‌ای که قبلاً در costEvents این پرونده ثبت شده → تکراری نشود */
+      return linkedCds.indexOf(p.cd) === -1;
+    });
     if (!available.length) { if (typeof ptfToast === 'function') ptfToast('هیچ هزینهٔ تنخواه لینک‌نشدهٔ فعالی به این پرونده وجود ندارد', 'info'); return; }
     var options = available.map(function (p) {
       return '<option value="' + escP(p.cd) + '">' + escP(p.cd) + ' — ' + escP(p.cat || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال — ' + escP((p.desc || '').slice(0, 60)) + ' (' + escP((p.t || '').split(' ')[0] || '') + ' — ' + escP(p.by || '') + ')</option>';

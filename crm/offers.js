@@ -925,7 +925,7 @@ function ptfOfferDelDo(no) {
   try {
     if (target) {
       var arc = getData('ptf_crm_deleted_archive');
-      arc.unshift({ id: no, kind: 'OFFER', label: target.kind + ' — ' + (target.buyerCo || '?'), reason: 'حذف دستی پیشنهاد (US-260)', by: (typeof curSession === 'function' && curSession().name) ? curSession().name : 'کاربر', t: (typeof faDateTime === 'function') ? faDateTime() : '', iso: new Date().toISOString() });
+      arc.unshift({ id: no, kind: 'OFFER', label: target.kind + ' — ' + (target.buyerCo || '?'), reason: 'حذف دستی پیشنهاد', by: (typeof curSession === 'function' && curSession().name) ? curSession().name : 'کاربر', t: (typeof faDateTime === 'function') ? faDateTime() : '', iso: new Date().toISOString() });
       if (arc.length > 500) arc = arc.slice(0, 500);
       setData('ptf_crm_deleted_archive', arc);
     }
@@ -1028,8 +1028,8 @@ function offerForm() {
     ' — <span style="direction:ltr;display:inline-block">' + escP(o.no) + '</span>' +
     (o.buyerCo || o.buyerCd ? ' <small style="font-weight:700;color:#0e7490;font-size:12px">| 🏢 ' + escP(o.buyerCo || o.buyerCd) + (o.buyerCd ? ' <span dir="ltr" style="opacity:.75">(' + escP(o.buyerCd) + ')</span>' : '') + '</small>' : '') +
     '</h3>' +
-    /* v20.1 (US-442): TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ */
-    (o.kind !== 'TO' ? '<div class="fld" style="max-width:340px"><label>🖨 قالب چاپ سند (US-442)</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
+    /* v20.1: TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ */
+    (o.kind !== 'TO' ? '<div class="fld" style="max-width:340px"><label>🖨 قالب چاپ سند</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
     '<div class="fr">' +
     '<div class="fld"><label>کارفرما (خریدار) *</label><select id="ofBuyer" onchange="offerPickBuyer(this.value)">' + custOpts + '</select>' +
     '<div id="ofBuyerChip" style="margin-top:8px;padding:8px 10px;border-radius:12px;background:#f8fafc;border:1px solid var(--brd);font-size:12.5px;line-height:1.6">' +
@@ -1069,7 +1069,7 @@ function offerForm() {
     '<button type="button" id="offInqBtn" class="bt" style="font-size:12px;background:#7c3aed" onclick="offLoadInqItems()">🗂 بارگذاری از درخواست</button>' +
     
     '<button type="button" class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="offOpenProductMultiPicker()">+ از ماژول کالا (انتخاب چندگانه)</button>' +
-    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل با راهنما</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل</button>' +
     '<button type="button" class="bt bt-o" style="font-size:11.5px;color:#475569" onclick="offShowAdvCols()">⛭ ستون‌های تکمیلی ستون‌ها</button>' +
     '<input type="file" id="offXls" accept=".csv,.xlsx,.xls" style="display:none" onchange="offImportFile(this)">' +
     '</div>' +
@@ -1261,12 +1261,12 @@ window.offerPickInq = function(inqNo) {
     var aliases = (typeof ptfInqAliases === 'function') ? ptfInqAliases(inqNo) : [inqNo];
     var tos = offers.filter(function(o){ return o.kind === 'TO' && aliases.indexOf(o.inqNo) > -1; });
     if (!tos.length) {
-      /* v20.1 (US-442): سند همان CO می‌ماند — فقط قالب چاپ فنی-مالی پیشنهاد می‌شود */
+      /* v20.1: سند همان CO می‌ماند — فقط قالب چاپ فنی-مالی پیشنهاد می‌شود */
       if (confirm('ℹ️ برای این استعلام قبلاً پیشنهاد فنی (TO) صادر نشده است.\nآیا مایلید این پیشنهاد مالی با «قالب چاپ فنی-مالی (Techno-Commercial)» صادر شود؟')) {
         _offState.printAs = 'TC';
         var pSel = document.getElementById('ofPrintAs');
         if (pSel) pSel.value = 'TC';
-        if (typeof ptfToast === 'function') ptfToast('🤝 قالب چاپ سند: فنی-مالی (Techno-Commercial) — ماهیت سند همان پیشنهاد مالی است (US-442)', 'ok');
+        if (typeof ptfToast === 'function') ptfToast('🤝 قالب چاپ سند: فنی-مالی (Techno-Commercial) — ماهیت سند همان پیشنهاد مالی است', 'ok');
       }
     } else if (!_offState.srcToNo) {
       var to = tos[tos.length - 1]; /* آخرین TO این درخواست */
@@ -1887,7 +1887,7 @@ function offRenderItems() {
   }
 
   var globalMarginBar = isCO ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:10px 14px;margin-bottom:10px;flex-wrap:wrap;gap:10px">' +
-    '<span style="font-size:12.5px;color:#5b21b6">📈 <b>حاشیه سود پیش‌فرض و نرخ مرجع کالا (US-289):</b><br><small style="color:#64748b">درصد سود دلخواه را وارد کرده و دکمه محاسبه را بزنید؛ سیستم قیمت واحد فروش را برای تمام اقلام دارای نرخ مرجع محاسبه می‌کند.</small></span>' +
+    '<span style="font-size:12.5px;color:#5b21b6">📈 <b>حاشیه سود پیش‌فرض و نرخ مرجع کالا:</b><br><small style="color:#64748b">درصد سود دلخواه را وارد کرده و دکمه محاسبه را بزنید؛ سیستم قیمت واحد فروش را برای تمام اقلام دارای نرخ مرجع محاسبه می‌کند.</small></span>' +
     '<span style="display:flex;align-items:center;gap:6px"><input type="number" id="ofGlobalMargin" value="30" placeholder="30" style="width:65px;padding:6px;border:1.5px solid #8b5cf6;border-radius:8px;direction:ltr;font-weight:bold;text-align:center"> <b>٪</b> ' +
     '<button type="button" class="bt" style="background:#7c3aed;padding:6px 14px;font-size:12px" onclick="offApplyGlobalMargin()">⚡ محاسبه خودکار قیمت فروش تمام اقلام</button></span></div>' : '';
 
@@ -2245,12 +2245,12 @@ function offerSave() {
     }
   }
 
-  /* v14.6 (US-352): هشدار عبور از سقف اعتبار — مانده باز + مبلغ CO جدید */
+  /* v14.6: هشدار عبور از سقف اعتبار — مانده باز + مبلغ CO جدید */
   if ((o.kind === 'CO' || o.kind === 'TC') && c && +c.creditLimit > 0 && typeof ptfCustOpenBalance === 'function') {
     var _bal = ptfCustOpenBalance(o.buyerCd);
     var _newTotal = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     if (_bal.open + _newTotal > +c.creditLimit) {
-      if (!confirm('⛔ هشدار سقف اعتبار مشتری (US-352)\n\nمانده مطالبات باز: ' + _bal.open.toLocaleString('fa-IR') + ' ریال\nمبلغ این پیشنهاد: ' + _newTotal.toLocaleString('fa-IR') + ' ریال\nجمع: ' + (_bal.open + _newTotal).toLocaleString('fa-IR') + ' ریال\nسقف اعتبار: ' + (+c.creditLimit).toLocaleString('fa-IR') + ' ریال\n\nجمع از سقف اعتبار تعیین‌شده عبور می‌کند. با مسئولیت خود ادامه می‌دهید؟')) return;
+      if (!confirm('⛔ هشدار سقف اعتبار مشتری\n\nمانده مطالبات باز: ' + _bal.open.toLocaleString('fa-IR') + ' ریال\nمبلغ این پیشنهاد: ' + _newTotal.toLocaleString('fa-IR') + ' ریال\nجمع: ' + (_bal.open + _newTotal).toLocaleString('fa-IR') + ' ریال\nسقف اعتبار: ' + (+c.creditLimit).toLocaleString('fa-IR') + ' ریال\n\nجمع از سقف اعتبار تعیین‌شده عبور می‌کند. با مسئولیت خود ادامه می‌دهید؟')) return;
       try { audit('پیشنهادها', 'صدور ' + o.no + ' با عبور از سقف اعتبار مشتری ' + (c.co || '') + ' (مانده ' + _bal.open + ' + جدید ' + _newTotal + ' > سقف ' + c.creditLimit + ')', o.no); } catch (eCL) {}
     }
   }
@@ -2385,13 +2385,21 @@ function offerSave() {
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
   setData('ptf_crm_offers', offers);
-  /* v34.0.20-alpha (فاز ۱۷): اطلاع‌رسانی پیامکی به مشتری هنگام صدور پیشنهاد مالی —
-     با ذکر شمارهٔ درخواست مشتری (o.inqNo) و شمارهٔ پیشنهاد (o.no). */
+  /* ===== v34.1 US-SMS-CO: اطلاع‌رسانی پیامکی به مشتری هنگام صدور پیشنهاد مالی ===== */
   try {
-    if (typeof window.ptfSmsCustomer === 'function' && o.buyerCd) {
-      var _inqRef = (o.inqNo || '') ? (' درخواست شمارهٔ ' + o.inqNo) : '';
-      var _smsTxt = 'پیشرو تجهیز فرتاک\nپیشنهاد مالی ' + (o.kind || '') + ' ' + (o.no || '') + ' برای شما' + _inqRef + ' صادر شد.\nبرای بررسی از وب‌سایت یا تماس با کارشناس استفاده کنید.\n021-46087679';
-      window.ptfSmsCustomer(o.buyerCd, _smsTxt, null);
+    if ((o.kind === 'CO' || o.kind === 'TC') && o.buyerCd && typeof window.ptfSmsNotifyDialog === 'function') {
+      var _cust = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0];
+      if (_cust) {
+        var _inqRef = (o.inqNo || '') ? (' (درخواست ' + o.inqNo + ')') : '';
+        var _totalAmt = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+        var _amtStr = _totalAmt ? ('\nمبلغ کل: ' + _totalAmt.toLocaleString('fa-IR') + ' ' + (o.currency === 'EUR' ? 'یورو' : o.currency === 'USD' ? 'دلار' : 'ریال')) : '';
+        var _coSmsTxt = 'پیشرو تجهیز فرتاک\n' +
+          'پیشنهاد مالی ' + (o.no || '') + _inqRef + ' صادر شد.' + _amtStr + '\n' +
+          (o.validUntil ? 'اعتبار: ' + o.validUntil + '\n' : '') +
+          'جهت بررسی با کارشناس فروش تماس بگیرید.\n' +
+          '021-46087679\npishtaj.ir';
+        window.ptfSmsNotifyDialog(_cust, _coSmsTxt, 'صدور پیشنهاد مالی ' + o.no);
+      }
     }
   } catch (eSms) {}
   try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
@@ -2646,7 +2654,7 @@ function showCustModal(cd) {
     '<h3>' + (c ? '✏️ ویرایش مشتری' : '🤝 مشتری جدید') + '</h3>' +
     '<div class="fr"><div class="fld"><label>نام شرکت / شخص (فارسی) *</label><input type="text" id="nC2Comp" value="' + (c ? escP(c.co) : '') + '"></div>' +
     '<div class="fld"><label>نام انگلیسی شرکت (روی اسناد TO/CO)</label><input type="text" id="nC2CoEn" value="' + (c ? escP(c.coEn||'') : '') + '" placeholder="e.g. Sadaf Petrochemical Co." style="direction:ltr">' +
-    '<a href="javascript:void(0)" onclick="ptfGenCoEn()" style="font-size:11px;color:#7c3aed">🤖 تولید نام انگلیسی با AI (US-362)</a></div></div>' +
+    '<a href="javascript:void(0)" onclick="ptfGenCoEn()" style="font-size:11px;color:#7c3aed">🤖 تولید نام انگلیسی با AI</a></div></div>' +
     /* v14.6 (US-352 — نقشه راه مصوب): سقف اعتبار مشتری — هنگام صدور CO با مانده باز مقایسه می‌شود */
     ((typeof roleDef === 'function' && (roleDef() || {}).sellPrice) ? '<div class="fr"><div class="fld"><label>💳 سقف اعتبار مشتری (ریال — خالی = بدون سقف)</label><input type="text" inputmode="numeric" data-money="1" id="nC2Credit" value="' + (c && c.creditLimit ? (+c.creditLimit).toLocaleString('en-US') : '') + '" style="direction:ltr" placeholder="مثال: 5,000,000,000" autocomplete="off"></div><div class="fld"><small style="color:#94a3b8;font-size:11px;display:block;padding-top:26px">هنگام صدور پیشنهاد مالی، اگر مانده مطالبات باز + مبلغ جدید از سقف عبور کند هشدار داده می‌شود.</small></div></div>' : '') +
     '<div class="fr"><div class="fld"><label>نوع مشتری *</label><select id="nC2Kind" onchange="custKindToggle()">' +
@@ -2817,7 +2825,7 @@ function saveCust2(cd) {
     for (var i = 0; i < items.length; i++) if (items[i].cd === cd) {
       rec.crAt = items[i].crAt; rec.crBy = items[i].crBy;
       if (!document.getElementById('nC2Owner')) rec.owner = items[i].owner || items[i].crBy || rec.owner || '';
-      /* v14.6 (US-352): اگر فیلد سقف اعتبار برای این نقش نمایش داده نشده، مقدار قبلی حفظ شود */
+      /* v14.6: اگر فیلد سقف اعتبار برای این نقش نمایش داده نشده، مقدار قبلی حفظ شود */
       if (!document.getElementById('nC2Credit')) rec.creditLimit = items[i].creditLimit || 0;
       items[i] = rec;
     }

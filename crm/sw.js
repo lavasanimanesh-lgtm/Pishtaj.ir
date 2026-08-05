@@ -1,5 +1,5 @@
 /* PTF CRM — Service Worker (US-112) — Sprint 69 */
-var CACHE = 'ptf-crm-v34.0.21-alpha';
+var CACHE = 'ptf-crm-v34.1.0';
 var SHELL = [
   './index.html',
   './codegen.js', './surplus.js', './sortable.js', './offers.js', './leads.js', './rbac.js', './storage.js', './projects.js',
