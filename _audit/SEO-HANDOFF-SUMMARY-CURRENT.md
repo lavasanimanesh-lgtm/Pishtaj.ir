@@ -459,3 +459,31 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
 
 قاعده برای ایجنت بعدی: همین روند کیفیت‌محور ادامه یابد. اولویت‌های بعدی گزارش فعلی: `services/products/thermal-mass-flowmeter.html`، `brands/kitz-valves.html`, `brands/eaton-crouse-hinds.html`, `services/products/motor-control-center-mcc.html`, `brands/vallourec-pipes.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز ترکیبی بازنویسی صفحات پرریسک محصول/برند (۲۰۲۶-۰۸-۰۵)
+پنج صفحه صدر گزارش کیفیت، شامل دو صفحه محصول و سه صفحه برند، اصلاح شدند:
+- `services/products/thermal-mass-flowmeter.html` — اکنون `OK` و حدود ۱۸۲۳ کلمه
+- `services/products/motor-control-center-mcc.html` — اکنون `OK` و حدود ۱۹۰۶ کلمه
+- `brands/kitz-valves.html` — اکنون `OK` و حدود ۱۸۰۵ کلمه
+- `brands/eaton-crouse-hinds.html` — اکنون `OK` و حدود ۱۸۴۶ کلمه
+- `brands/vallourec-pipes.html` — اکنون `OK` و حدود ۱۸۰۱ کلمه
+
+در این فاز پاراگراف‌های تکراری عمومی حذف شدند و با محتوای اختصاصی درباره انتخاب فنی، RFQ، مدارک، نصب، تست، تحویل، traceability، hazardous area، MCC/FAT و کنترل اصالت جایگزین شدند.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۴۱ به ۴۶ افزایش یافت.
+- صفحات پرریسک کل: از ۵۶ به ۵۱ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۵۶ به ۵۱ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۴۸ به ۴۳ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۳۷ به ۳۲ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-MIXED-QUALITY-REWRITE-PHASE1-2026-08-05.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `brands/abb-industrial.html`، `brands/yokogawa-industrial.html`، `services/products/ultrasonic-flowmeter.html`، `brands/grundfos-pumps.html` و `services/products/deaerator-feedwater-system.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
