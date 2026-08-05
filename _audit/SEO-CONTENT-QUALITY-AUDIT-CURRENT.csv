@@ -13,7 +13,7 @@ product,services/products/check-valve.html,خرید و تامین چک ولو Sw
 product,services/products/chemical-injection-package.html,خرید و تامین پکیج تزریق مواد شیمیایی؛ Chemical Injection Skid,1595,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
 product,services/products/control-valve.html,خرید و تامین کنترل ولو IEC 60534,2044,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/coriolis-flowmeter.html,خرید و تامین فلومتر کوریولیس,1937,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/deaerator-feedwater-system.html,خرید و تامین دی‌اریاتور و سیستم آب تغذیه بویلر,1571,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/deaerator-feedwater-system.html,خرید و تامین دی‌اریاتور و سیستم آب تغذیه بویلر,1980,23,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/diaphragm-seal.html,خرید و تامین دیافراگم سیل و Remote Seal برای ترانسمیتر و گیج,1650,18,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
 product,services/products/differential-pressure-transmitter.html,خرید و تامین ترانسمیتر اختلاف فشار DP,1994,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/displacer-level-transmitter.html,خرید و تامین ترانسمیتر سطح دیسپلیسری؛ Torque Tube و Cage Type,1578,16,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
@@ -69,14 +69,14 @@ product,services/products/stud-bolts-nuts.html,خرید و تامین استاد
 product,services/products/temperature-transmitter.html,خرید و تامین ترانسمیتر دما؛ Head Mount، Field Mount و Rail Mount,1636,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
 product,services/products/thermal-mass-flowmeter.html,خرید و تامین فلومتر جرمی حرارتی برای هوای فشرده و گاز,1823,20,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/thermowell.html,خرید و تامین ترموول صنعتی؛ Flanged، Threaded و Weld-in,1587,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/ultrasonic-flowmeter.html,خرید و تامین فلومتر التراسونیک Clamp-on و Inline,1561,16,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/ultrasonic-flowmeter.html,خرید و تامین فلومتر التراسونیک Clamp-on و Inline,1942,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/valve-actuator.html,خرید و تامین اکچویتور ولو,1682,17,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
 product,services/products/vertical-multistage-pump.html,خرید و تامین پمپ طبقاتی عمودی؛ Vertical Multistage Pump,1624,16,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
 product,services/products/vfd-soft-starter.html,خرید و تامین VFD و Soft Starter,1930,20,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/vortex-flowmeter.html,خرید و تامین فلومتر ورتکس,1907,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/water-tube-boiler.html,خرید و تامین بویلر واترتیوب صنعتی؛ بخار فشار و ظرفیت بالا,1631,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
 product,services/products/welding-flanges.html,خرید و تامین فلنج صنعتی ASME B16.5,1935,21,0,0,assets/images/ptf-logo.png,196,OK
-brand,brands/abb-industrial.html,تامین و سورسینگ ABB صنعتی,1560,20,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+brand,brands/abb-industrial.html,تامین و سورسینگ ABB صنعتی,1800,20,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/atlas-copco-compressed-air.html,تامین و سورسینگ اطلس کوپکو Atlas Copco,1809,23,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/eaton-crouse-hinds.html,تامین و سورسینگ ایتون / کراوس-هایندز Eaton Crouse-Hinds,1846,23,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/emerson-rosemount.html,تامین و سورسینگ امرسون / روزمونت,1800,22,0,0,assets/images/ptf-logo.png,196,OK
@@ -84,15 +84,15 @@ brand,brands/endress-hauser.html,تامین و سورسینگ اندرس هاو�
 brand,brands/fisher-samson-control-valves.html,تامین و سورسینگ کنترل ولو Fisher و SAMSON,1872,21,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/flexitallic-gaskets.html,تامین و سورسینگ فلکسیتالیک Flexitallic,1502,25,0,1,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
 brand,brands/galperti-flanges.html,تامین و سورسینگ گالپرتی Galperti,1501,22,0,1,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-brand,brands/grundfos-pumps.html,تامین و سورسینگ گراندفوس Grundfos,1564,22,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+brand,brands/grundfos-pumps.html,تامین و سورسینگ گراندفوس Grundfos,1848,21,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/kitz-valves.html,تامین و سورسینگ شیرآلات KITZ,1805,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/krohne-instrumentation.html,تامین و سورسینگ کرونه KROHNE,1810,19,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/omron-automation.html,تامین و سورسینگ امرون Omron Automation,1838,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/phoenix-contact.html,تامین و سورسینگ فونیکس کنتاکت Phoenix Contact,1839,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/schneider-electric.html,تامین و سورسینگ اشنایدر الکتریک Schneider Electric,1808,21,0,0,assets/images/ptf-logo.png,196,OK
-brand,brands/siemens-industrial.html,تامین و سورسینگ زیمنس صنعتی,1771,24,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+brand,brands/siemens-industrial.html,تامین و سورسینگ زیمنس صنعتی,1771,24,1,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE
 brand,brands/spirax-sarco-steam.html,تامین و سورسینگ اسپیرکس سارکو Spirax Sarco,1809,20,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/tenaris-pipes.html,تامین و سورسینگ تناریس Tenaris,1502,24,0,1,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
 brand,brands/vallourec-pipes.html,تامین و سورسینگ والورک Vallourec,1801,21,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/wika-instrumentation.html,تامین و سورسینگ ویکا WIKA,1834,22,0,0,assets/images/ptf-logo.png,196,OK
-brand,brands/yokogawa-industrial.html,تامین و سورسینگ یوکوگاوا Yokogawa,1560,23,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+brand,brands/yokogawa-industrial.html,تامین و سورسینگ یوکوگاوا Yokogawa,1800,22,0,0,assets/images/ptf-logo.png,196,OK

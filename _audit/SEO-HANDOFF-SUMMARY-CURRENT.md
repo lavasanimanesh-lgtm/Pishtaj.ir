@@ -487,3 +487,36 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
 
 قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `brands/abb-industrial.html`، `brands/yokogawa-industrial.html`، `services/products/ultrasonic-flowmeter.html`، `brands/grundfos-pumps.html` و `services/products/deaerator-feedwater-system.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — merge main و فاز ترکیبی دوم بازنویسی صفحات پرریسک (۲۰۲۶-۰۸-۰۶)
+طبق دستور کاربر، ابتدا آخرین `origin/main` در شاخه ثابت `arena/019fcb93-pishtaj-ir` merge شد. پس از merge، کار سئو فقط روی سایت عمومی ادامه یافت و هیچ ویرایش دستی روی `crm/` یا `api/` انجام نشد.
+
+نکته audit پس از merge: چون نسخه CRM در `VERSION.json`/`crm/index.html` به `v34.1.0` رسیده بود، ابزار audit وجود دو سند انتشار را الزامی دانست. برای سبز شدن گیت audit، دو سند ریشه پروژه اضافه شد:
+- `RELEASE-NOTES-v34.1.0.md`
+- `REGRESSION-REPORT-v34.1.0.md`
+این اسناد صریحاً اعلام می‌کنند دامنه این نوبت، کنترل عمومی سایت و سئو بوده و رگرسیون تخصصی CRM/API در این فاز اجرا نشده است.
+
+پنج صفحه عمومی پرریسک دیگر اصلاح شدند:
+- `brands/abb-industrial.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+- `brands/yokogawa-industrial.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+- `services/products/ultrasonic-flowmeter.html` — اکنون `OK` و حدود ۱۹۴۲ کلمه
+- `brands/grundfos-pumps.html` — اکنون `OK` و حدود ۱۸۴۸ کلمه
+- `services/products/deaerator-feedwater-system.html` — اکنون `OK` و حدود ۱۹۸۰ کلمه
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۴۶ به ۵۱ افزایش یافت.
+- صفحات پرریسک کل: از ۵۱ به ۴۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۵۱ به ۴۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۴۳ به ۳۷ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۳۲ به ۲۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-MIXED-QUALITY-REWRITE-PHASE2-2026-08-06.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → پس از تکمیل اسناد انتشار `v34.1.0`، همه بررسی‌ها PASS شدند.
+
+قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `services/products/displacer-level-transmitter.html`، `services/products/instrument-air-package.html`، `services/products/fire-alarm-fg-panel.html`، `services/products/fire-suppression-system.html` و `services/products/mixer-agitator.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
