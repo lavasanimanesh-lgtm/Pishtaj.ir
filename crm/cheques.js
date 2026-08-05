@@ -167,18 +167,18 @@
     } catch (e) {}
   }
   function chRowActions(c) {
-    var h = '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="chEdit(\'' + escP(c.cd) + '\')">✏️</button> ' +
-      '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="chPrintOne(\'' + escP(c.cd) + '\')">👁/🖨</button> ';
+    var h = '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="chEdit(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button> ' +
+      '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="chPrintOne(\'' + ptfOnClickArg(c.cd) + '\')">👁/🖨</button> ';
     if (c.kind === 'guarantee') {
-      if (c.st !== 'retrieved') h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="chRetrieve(\'' + escP(c.cd) + '\')">🏆 استرداد</button> ';
-      if (c.dealCd && typeof ptfGoSalesFile === 'function') h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="ptfGoSalesFile(\'' + escP(c.dealCd) + '\')">📁 پرونده</button> ';
+      if (c.st !== 'retrieved') h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="chRetrieve(\'' + ptfOnClickArg(c.cd) + '\')">🏆 استرداد</button> ';
+      if (c.dealCd && typeof ptfGoSalesFile === 'function') h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="ptfGoSalesFile(\'' + ptfOnClickArg(c.dealCd) + '\')">📁 پرونده</button> ';
       else if (c.dealCd && typeof goPanel === 'function') h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="goPanel(\'deals\')">📁 پرونده</button> ';
     } else if (c.ownership === 'third_party' || c.st === 'transferred' || c.st === 'voided_transfer') {
       h += '<span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">↪ منتقل‌شده / خارج از ید شرکت</span> ';
     } else {
-      h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#059669" onclick="chClear(\'' + escP(c.cd) + '\')">✓ پاس شد</button> ';
+      h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#059669" onclick="chClear(\'' + ptfOnClickArg(c.cd) + '\')">✓ پاس شد</button> ';
     }
-    h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="chDel(\'' + escP(c.cd) + '\')">✕</button>';
+    h += '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="chDel(\'' + ptfOnClickArg(c.cd) + '\')">✕</button>';
     return h;
   }
   function chDealOptions(selected) {
@@ -886,7 +886,7 @@
   window.ptfTplPick = function (aud, name) {
     var list = tplAll().filter(function (t) { return t.aud === aud || aud === 'همه'; });
     var rows = list.map(function (t, i) {
-      return '<div style="border:1px solid var(--brd);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer" onclick="ptfTplCopy(' + i + ',\'' + escP(aud) + '\',\'' + escP(name || '') + '\')">' +
+      return '<div style="border:1px solid var(--brd);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer" onclick="ptfTplCopy(' + i + ',\'' + ptfOnClickArg(aud) + '\',\'' + ptfOnClickArg(name || '') + '\')">' +
         '<b style="font-size:12.5px">' + escP(t.title) + '</b> <small style="color:#94a3b8">(' + escP(t.aud) + ')</small>' +
         '<div style="font-size:12px;color:#475569;margin-top:4px">' + escP(ptfTplRender(t, name)) + '</div></div>';
     }).join('');
@@ -928,7 +928,7 @@
         }
         var h3 = md ? md.querySelector('h3') : null;
         if (h3) h3.insertAdjacentHTML('afterend',
-          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe;margin-bottom:8px" onclick="ptfTplPick(\'' + aud + '\',\'' + escP(nm) + '\')">💬 متن‌های آماده پیام</button>');
+          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe;margin-bottom:8px" onclick="ptfTplPick(\'' + aud + '\',\'' + ptfOnClickArg(nm) + '\')">💬 متن‌های آماده پیام</button>');
       } catch (e) {}
     };
     return true;
@@ -956,7 +956,7 @@
       var rows = items.map(function (c) {
         return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--brd);font-size:12.5px">' +
           '<span><b>' + escP(c.co) + '</b> <small dir="ltr">(' + escP(c.cd) + ')</small></span>' +
-          '<select onchange="ptfSupOriginSet(\'' + escP(c.cd) + '\',this.value)" style="padding:5px;border:1px solid var(--brd);border-radius:8px;font-size:12px">' +
+          '<select onchange="ptfSupOriginSet(\'' + ptfOnClickArg(c.cd) + '\',this.value)" style="padding:5px;border:1px solid var(--brd);border-radius:8px;font-size:12px">' +
           '<option value="داخلی"' + ((c.origin || 'داخلی') === 'داخلی' ? ' selected' : '') + '>🇮🇷 داخلی</option>' +
           '<option value="خارجی"' + (c.origin === 'خارجی' ? ' selected' : '') + '>🌍 خارجی</option></select></div>';
       }).join('');

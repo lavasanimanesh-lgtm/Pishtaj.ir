@@ -47,14 +47,18 @@
        گذاشته می‌شوند تا پنهان و به‌اشتباه غیررسمی حساب نشوند. */
     arr('ptf_crm_opex').forEach(function (o) {
       if (o.st === 'void') return;
-      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt);
+      if (ledgerOfOpexSafe(o) === 'unclassified') add(q, 'opex-unclassified', 'هزینه جاری بدون تعیین نوع رسمی/غیررسمی', o.cd, o.amt, { type: 'opex', cd: o.cd, label: 'هزینه ' + (o.cat || '—') + ' — ' + (o.desc || o.cd) + (o.month ? ' (' + o.month + ')' : '') });
     });
     /* فاز ۲ / گام ۲: فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی */
     try {
       var sfData = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
       (sfData.invoices || []).forEach(function (inv) {
         if (inv.status === 'void') return;
-        if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') add(q, 'supplier-invoice-unclassified', 'فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی', inv.no || inv.cd, inv.amountIrr || inv.amount);
+        if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') {
+          var supName = inv.supName || '';
+          try { var sup = (getData('ptf_crm_suppliers') || []).filter(function (x) { return x.cd === inv.supplierCd; })[0]; if (sup) supName = sup.co || supName; } catch (eS) {}
+          add(q, 'supplier-invoice-unclassified', 'فاکتور خرید تأمین‌کننده بدون تعیین نوع رسمی/غیررسمی', (inv.no || inv.cd) + (supName ? ' — ' + supName : ''), inv.amountIrr || inv.amount, { type: 'supplier-invoice', cd: inv.cd, label: 'فاکتور خرید ' + (inv.no || inv.cd) + (supName ? ' — ' + supName : '') });
+        }
       });
     } catch (eSf) {}
     /* فاز ۲ / گام ۵: فاکتور پوششی/صوری با سود خالص منفی — یعنی کارمزد فاکتورساز
@@ -133,12 +137,12 @@
     if (!details.length) return r.refs && r.refs.length ? escP(r.refs.join(', ')) : '—';
     return details.map(function (d) {
       var action = '';
-      if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح هزینه</button>';
-      else if (d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>';
-      else if (d.type === 'cheque' && typeof chEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="chEdit(\'' + escP(d.cd) + '\')">✏️ اصلاح چک</button>';
-      else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + escP(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
+      if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح هزینه</button>';
+      else if (d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>';
+      else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
+      else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
       var invoiceActions = d.type === 'procurement' && (d.relatedInvoices || []).length
-        ? '<div style="margin-top:9px;padding-top:7px;border-top:1px solid #e2e8f0"><b style="display:block;color:#475569;font-size:11px">فاکتورهای خرید مرتبط</b>' + d.relatedInvoices.map(function (inv) { return '<div style="margin-top:4px"><span>' + escP(inv.label) + '</span><br><button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:3px" onclick="slInvoiceEdit(\'' + escP(inv.cd) + '\')">✏️ اصلاح همین فاکتور</button></div>'; }).join('') + '</div>'
+        ? '<div style="margin-top:9px;padding-top:7px;border-top:1px solid #e2e8f0"><b style="display:block;color:#475569;font-size:11px">فاکتورهای خرید مرتبط</b>' + d.relatedInvoices.map(function (inv) { return '<div style="margin-top:4px"><span>' + escP(inv.label) + '</span><br><button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:3px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(inv.cd) + '\')">✏️ اصلاح همین فاکتور</button></div>'; }).join('') + '</div>'
         : '';
       var explanation = d.type === 'procurement'
         ? 'این پیش‌فاکتور ' + (d.issueCount || 0) + ' قلم نیازمند تطبیق دارد؛ تطبیق باید در سطح فاکتور خرید انجام شود، نه تک‌تک اقلام.'
@@ -235,7 +239,7 @@
         : '<span style="color:#047857;font-weight:bold">فعال</span>';
       var act = m.status === 'reverted'
         ? '<span style="color:#94a3b8">—</span>'
-        : '<button class="ba" style="color:#dc2626" onclick="ptfCatalogMergeUndo(\'' + escP(m.cd) + '\')">↩️ بازگشت</button>';
+        : '<button class="ba" style="color:#dc2626" onclick="ptfCatalogMergeUndo(\'' + ptfOnClickArg(m.cd) + '\')">↩️ بازگشت</button>';
       return '<tr><td>' + escP(m.t || '') + '</td><td><b>' + escP(m.canonicalCd) + '</b><br><small>' + escP(m.finalName || '') + '</small></td><td>' + escP((m.mergedCds || []).join('، ')) + '</td><td>' + escP(m.by || '') + '</td><td>' + st + '</td><td>' + act + '</td></tr>';
     }).join('') || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px">هنوز ادغامی ثبت نشده است</td></tr>';
     var html = '<div class="md-b" id="catalogMergeHistoryDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:840px;max-height:90vh;overflow:auto"><h3>🧩 تاریخچهٔ ادغام کالاها</h3><div style="background:#eff6ff;padding:9px;border-radius:9px;font-size:12px;margin-bottom:9px">بازگشت فقط نشانه‌گذاری کالاها را برمی‌گرداند؛ ارجاع‌های بازنویسی‌شدهٔ قبلی (کدهای جایگزین‌شده در اسناد) دست‌نخورده می‌مانند — چون پس از بازنویسی قابل تشخیص از کدهای اصلی نیستند.</div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>کالای اصلی</th><th>کالاهای فرعی</th><th>توسط</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + rows + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
@@ -278,7 +282,7 @@
   };
   window.ptfCatalogIdentityReview = function (offerNo, lineNo, base) {
     document.querySelectorAll('#catalogReviewDlg').forEach(function (el) { el.remove(); });
-    var html = '<div class="md-b" id="catalogReviewDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px"><h3>🔎 بررسی و انتخاب کالای متناظر</h3><div style="background:#fff7ed;padding:9px;border-radius:9px;font-size:12px;margin-bottom:10px">این قلم تطبیق قطعی ندارد. انتخاب فقط با تأیید شما انجام می‌شود و کالای جدید خودکار ساخته نمی‌شود.</div><div style="margin-bottom:8px"><b>قلم پیشنهاد:</b> ' + escP(base) + '</div><input id="ptfCatReviewSearch" placeholder="جست‌وجوی نام، کد، مدل یا برند" oninput="ptfCatalogIdentityReviewFilter()" style="width:100%;box-sizing:border-box;margin-bottom:7px"><select id="ptfCatReviewProduct" style="width:100%"><option value="">— انتخاب کالا —</option></select><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="ptfCatalogIdentityReviewSave(\'' + escP(offerNo) + '\',' + lineNo + '\')">تأیید اتصال</button></div></div></div>';
+    var html = '<div class="md-b" id="catalogReviewDlg" style="display:grid;z-index:9999" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px"><h3>🔎 بررسی و انتخاب کالای متناظر</h3><div style="background:#fff7ed;padding:9px;border-radius:9px;font-size:12px;margin-bottom:10px">این قلم تطبیق قطعی ندارد. انتخاب فقط با تأیید شما انجام می‌شود و کالای جدید خودکار ساخته نمی‌شود.</div><div style="margin-bottom:8px"><b>قلم پیشنهاد:</b> ' + escP(base) + '</div><input id="ptfCatReviewSearch" placeholder="جست‌وجوی نام، کد، مدل یا برند" oninput="ptfCatalogIdentityReviewFilter()" style="width:100%;box-sizing:border-box;margin-bottom:7px"><select id="ptfCatReviewProduct" style="width:100%"><option value="">— انتخاب کالا —</option></select><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" onclick="ptfCatalogIdentityReviewSave(\'' + ptfOnClickArg(offerNo) + '\',' + lineNo + '\')">تأیید اتصال</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     var input = document.getElementById('ptfCatReviewSearch'); if (input) { input.value = base || ''; ptfCatalogIdentityReviewFilter(); }
   };

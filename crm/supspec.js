@@ -151,7 +151,7 @@
     list.innerHTML = res.map(function (s, i) {
       var sub = '';
       try { var blob = ptfSupSpecBlob(s); if (blob) sub = ' <small style="color:#64748b">' + escP(blob.split(' ').slice(0, 8).join(' ')) + '</small>'; } catch (e) {}
-      return '<div data-name="' + escP(s.co || s.name || '') + '" onmousedown="ptfSupPick(\'' + id + '\',\'' + escP(s.co || s.name || '') + '\')" ' +
+      return '<div data-name="' + escP(s.co || s.name || '') + '" onmousedown="ptfSupPick(\'' + id + '\',\'' + ptfOnClickArg(s.co || s.name || '') + '\')" ' +
         'style="padding:7px 12px;cursor:pointer;border-bottom:1px dashed #e2e8f0;font-size:12.5px">' +
         escP(s.co || s.name || s.cd) + sub + '</div>';
     }).join('');

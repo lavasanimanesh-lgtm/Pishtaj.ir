@@ -467,14 +467,14 @@
         (r.message ? '<div style="margin-top:8px"><b>یادداشت تکمیلی:</b><br>' + escP(r.message) + '</div>' : '') +
       '</div>' : '') +
       '<div style="display:grid;grid-template-columns:1.3fr .7fr;gap:12px">' +
-        '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><b style="display:block">اقلام درخواست (' + items.length + ')</b><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" onclick="this.closest(\'.md-b\').remove();ptfOpenFullInqEditor(\'' + escP(cd) + '\')">افزودن/ویرایش اقلام</button><button class="bt bt-o" style="font-size:11.5px;color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadInqItemsTemplate()">نمونه اکسل</button></span></div>' +
+        '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap"><b style="display:block">اقلام درخواست (' + items.length + ')</b><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" onclick="this.closest(\'.md-b\').remove();ptfOpenFullInqEditor(\'' + ptfOnClickArg(cd) + '\')">افزودن/ویرایش اقلام</button><button class="bt bt-o" style="font-size:11.5px;color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadInqItemsTemplate()">نمونه اکسل</button></span></div>' +
         (!items.length ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:12px;color:#92400e;margin-bottom:8px">قلمی ثبت نشده است. اگر خواندن فایل با AI موفق نبود، از «افزودن/ویرایش اقلام» می‌توانید دستی یا با اکسل راهنمادار اقلام را وارد کنید.</div>' : '') +
         '<div class="tb2"><table><thead><tr><th>#</th><th>شرح</th><th>مشخصات</th><th>تعداد</th><th>واحد</th></tr></thead><tbody>' + itemRows + '</tbody></table></div>' + (items.length > 12 ? '<div style="font-size:11px;color:#94a3b8;margin-top:6px">فقط ۱۲ قلم اول نمایش داده شد</div>' : '') + '</div>' +
         '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px"><b style="display:block;margin-bottom:8px">📎 ضمایم</b><div style="font-size:12px;color:#475569;line-height:2">' + fsum + '</div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="bt bt-o" style="font-size:11.5px" onclick="ptfManageInqAttachments(\'' + escP(cd) + '\')">مدیریت ضمایم</button>' +
-        (rfqHasReadable(r) ? '<button class="bt bt-o" style="font-size:11.5px;color:#7c3aed" onclick="inqReadOpen(\'' + escP(cd) + '\')">خواندن فایل</button>' : '') + '</div></div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button class="bt bt-o" style="font-size:11.5px" onclick="ptfManageInqAttachments(\'' + ptfOnClickArg(cd) + '\')">مدیریت ضمایم</button>' +
+        (rfqHasReadable(r) ? '<button class="bt bt-o" style="font-size:11.5px;color:#7c3aed" onclick="inqReadOpen(\'' + ptfOnClickArg(cd) + '\')">خواندن فایل</button>' : '') + '</div></div>' +
       '</div>' +
-      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button><button class="bt" onclick="this.closest(\'.md-b\').remove();ptfOpenFullInqEditor(\'' + escP(cd) + '\')">✏️ ویرایش</button></div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button><button class="bt" onclick="this.closest(\'.md-b\').remove();ptfOpenFullInqEditor(\'' + ptfOnClickArg(cd) + '\')">✏️ ویرایش</button></div>' +
     '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -620,12 +620,12 @@
         return '<div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:6px 10px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:4px;font-size:12px">' +
           '<span>📄 ' + escP(f.name) + ' <small style="color:#64748b">(' + (f.t||'') + ')</small></span>' +
           '<div style="display:flex;gap:4px">' +
-          (f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490;text-decoration:none">👁️ مشاهده</a> <a href="javascript:void(0)" onclick="ptfDownloadStoredFile(\'' + escP(f.key) + '\',\'' + escP(f.name) + '\')" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#059669;text-decoration:none">⬇️ دانلود</a>' : '<span style="color:#94a3b8">صف محلی</span>') +
-          '<button onclick="ptfDelInqAtt(\'' + escP(cd) + '\',\'' + catKey + '\',' + idx + ')" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></div></div>';
+          (f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490;text-decoration:none">👁️ مشاهده</a> <a href="javascript:void(0)" onclick="ptfDownloadStoredFile(\'' + ptfOnClickArg(f.key) + '\',\'' + ptfOnClickArg(f.name) + '\')" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#059669;text-decoration:none">⬇️ دانلود</a>' : '<span style="color:#94a3b8">صف محلی</span>') +
+          '<button onclick="ptfDelInqAtt(\'' + ptfOnClickArg(cd) + '\',\'' + catKey + '\',' + idx + ')" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></div></div>';
       }).join('');
       return '<div style="margin-bottom:12px"><b style="color:#1e293b;font-size:13px">' + catName + ' (' + arr.length + ')</b>' +
         '<div style="margin-top:4px">' + (items || '<small style="color:#94a3b8">هیچ فایلی پیوست نشده</small>') + '</div>' +
-        '<div style="margin-top:6px"><input type="file" id="attInp_' + catKey + '" style="display:none" onchange="ptfHandleInqAttUpload(\'' + escP(cd) + '\',\'' + catKey + '\',this)"><label for="attInp_' + catKey + '" class="bt bt-o" style="font-size:11px;padding:3px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px">+ 📎 انتخاب و آپلود فایل</label></div></div>';
+        '<div style="margin-top:6px"><input type="file" id="attInp_' + catKey + '" style="display:none" onchange="ptfHandleInqAttUpload(\'' + ptfOnClickArg(cd) + '\',\'' + catKey + '\',this)"><label for="attInp_' + catKey + '" class="bt bt-o" style="font-size:11px;padding:3px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px">+ 📎 انتخاب و آپلود فایل</label></div></div>';
     };
     var html = '<div class="md-b" id="ptfAttModal" style="display:grid;z-index:' + ((typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2000) : 2000) + '" onclick="if(event.target===this)this.remove()">' +
       '<div class="md" style="max-width:680px;max-height:92vh;overflow:auto">' +
@@ -734,13 +734,13 @@
       '<button type="button" class="bt bt-o" style="font-size:11px" onclick="_inqEditItems.push({nm:\'\',st:\'\',qty:1,un:\'عدد\'}); ptfRefreshInqEditItems();">+ افزودن ردیف</button>' +
       '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:11px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'inqEdXlsInp\');else document.getElementById(\'inqEdXlsInp\').click()">ورود اکسل با راهنما</button>' +
       '<button type="button" class="bt bt-o" style="font-size:11px;color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadInqItemsTemplate()">دانلود نمونه CSV</button>' +
-      '<input type="file" id="inqEdXlsInp" accept=".xlsx,.xls,.csv" style="display:none" onchange="ptfImportInqEditXls(\'' + escP(cd) + '\',this)">' +
+      '<input type="file" id="inqEdXlsInp" accept=".xlsx,.xls,.csv" style="display:none" onchange="ptfImportInqEditXls(\'' + ptfOnClickArg(cd) + '\',this)">' +
       '</div>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:#f1f5f9"><tr><th>#</th><th>شرح کالا</th><th>مشخصات فنی</th><th>تعداد</th><th>واحد</th><th>نوع</th><th>برند</th><th>مدل</th><th></th></tr></thead>' +
       '<tbody id="inqEditTbBody">' + renderItemsRows() + '</tbody></table></div>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfInqEditMd\').remove()">انصراف</button>' +
-      '<button type="button" class="bt" style="background:#059669;color:#fff" onclick="ptfSaveFullInqEdit(\'' + escP(cd) + '\')">💾 ذخیره تغییرات استعلام و اقلام</button>' +
+      '<button type="button" class="bt" style="background:#059669;color:#fff" onclick="ptfSaveFullInqEdit(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره تغییرات استعلام و اقلام</button>' +
       '</div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
   };
@@ -844,7 +844,7 @@
     if (old) old.remove();
     var files = irAllRequestAttachments(r).map(function (x) {
       var f = x.file;
-      return f.key ? '<button class="bt bt-o" style="font-size:11.5px" onclick="openStoredFile(\'' + escP(f.key) + '\')">📄 ' + escP(f.name) + '</button>' : '<span class="bd" style="background:#f1f5f9;color:#64748b">📄 ' + escP(f.name) + ' (صف محلی)</span>';
+      return f.key ? '<button class="bt bt-o" style="font-size:11.5px" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">📄 ' + escP(f.name) + '</button>' : '<span class="bd" style="background:#f1f5f9;color:#64748b">📄 ' + escP(f.name) + ' (صف محلی)</span>';
     }).join(' ');
     var rowsHtml = _ir.rows.map(function (row, i) {
       var inp = function (f, w, type) {

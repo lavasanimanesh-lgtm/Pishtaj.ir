@@ -31,13 +31,13 @@
     var html = '<div class="md-b" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
       '<h3>💬 ارسال پیام — ' + escP(nm || c.co) + '</h3>' +
       '<div style="font-size:11.5px;color:#64748b;margin-bottom:10px">پیام از اکانت خودِ شما در پیام‌رسان انتخابی ارسال می‌شود (چت مستقیم باز می‌شود)</div>' +
-      '<div class="fld"><label>متن آماده (نام مخاطب خودکار جایگذاری می‌شود)</label><select id="msgTpl" onchange="ptfMsgTplPick(this.value,\'' + escP(nm) + '\',\'' + aud + '\')">' + tplOpts + '</select></div>' +
+      '<div class="fld"><label>متن آماده (نام مخاطب خودکار جایگذاری می‌شود)</label><select id="msgTpl" onchange="ptfMsgTplPick(this.value,\'' + ptfOnClickArg(nm) + '\',\'' + aud + '\')">' + tplOpts + '</select></div>' +
       '<div class="fld"><label>متن پیام</label><textarea id="msgTxt" rows="4" style="font-size:13px"></textarea></div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">' +
       APPS.map(function (a) {
         var lnk = a.link({ mob: mob, txt: '', tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika });
         return '<button type="button" class="bt bt-o" style="font-size:12.5px"' + (lnk ? '' : ' disabled title="شناسه/شماره ثبت نشده"') +
-          ' onclick="ptfMsgOpen(\'' + a.id + '\',\'' + escP(entityKey) + '\',\'' + escP(cd) + '\')">' + a.ic + ' ' + a.lb + '</button>';
+          ' onclick="ptfMsgOpen(\'' + a.id + '\',\'' + ptfOnClickArg(entityKey) + '\',\'' + ptfOnClickArg(cd) + '\')">' + a.ic + ' ' + a.lb + '</button>';
       }).join('') +
       '</div>' +
       '<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12px;color:#0e7490">⚙️ شناسه‌های پیام‌رسان این مخاطب (تلگرام/بله/ایتا/روبیکا)</summary>' +
@@ -45,7 +45,7 @@
       '<div class="fld"><label>آیدی بله</label><input type="text" id="msgIdBale" value="' + escP(ids.bale || '') + '" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>آیدی ایتا</label><input type="text" id="msgIdEitaa" value="' + escP(ids.eitaa || '') + '" style="direction:ltr"></div>' +
       '<div class="fld"><label>آیدی روبیکا</label><input type="text" id="msgIdRubika" value="' + escP(ids.rubika || '') + '" style="direction:ltr"></div></div>' +
-      '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfMsgSaveIds(\'' + escP(entityKey) + '\',\'' + escP(cd) + '\')">💾 ذخیره شناسه‌ها</button></details>' +
+      '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfMsgSaveIds(\'' + ptfOnClickArg(entityKey) + '\',\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره شناسه‌ها</button></details>' +
       '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -106,7 +106,7 @@
         var tds = tr.querySelectorAll('td');
         var last = tds[tds.length - 1];
         if (last) last.insertAdjacentHTML('beforeend',
-          ' <button class="bt bt-o msg-btn" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام (واتساپ/تلگرام/بله/ایتا/روبیکا)" onclick="ptfMsgSend(\'' + key + '\',\'' + escP(cd) + '\')">💬</button>');
+          ' <button class="bt bt-o msg-btn" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام (واتساپ/تلگرام/بله/ایتا/روبیکا)" onclick="ptfMsgSend(\'' + key + '\',\'' + ptfOnClickArg(cd) + '\')">💬</button>');
       });
     });
   }

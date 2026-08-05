@@ -514,8 +514,8 @@ function renderUsers2() {
       '<td style="direction:ltr;font-size:11.5px">' + escP(us.mobile || '-') + '<br>' + escP(us.email || '-') + '</td>' +
       '<td><span class="bd b-st4">✔ فعال</span></td>' +
       '<td>' + (canManage
-        ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#0e7490" title="ارسال مجدد پیامک اطلاعات ورود — رمز موقت جدید (US-376)" onclick="smsResendLogin(\'' + escP(us.username) + '\')">📱 ارسال مجدد</button> ' +
-          '<button class="bt bt-o" style="padding:3px 9px;font-size:12px;color:#dc2626" onclick="delUser2(\'' + escP(us.username) + '\')">🗑️</button>'
+        ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#0e7490" title="ارسال مجدد پیامک اطلاعات ورود — رمز موقت جدید (US-376)" onclick="smsResendLogin(\'' + ptfOnClickArg(us.username) + '\')">📱 ارسال مجدد</button> ' +
+          '<button class="bt bt-o" style="padding:3px 9px;font-size:12px;color:#dc2626" onclick="delUser2(\'' + ptfOnClickArg(us.username) + '\')">🗑️</button>'
         : '') + '</td></tr>';
   });
   tb.innerHTML = h;
@@ -629,7 +629,7 @@ function renderInvoices() {
       '<div style="font-size:11.5px;color:#64748b">مبلغ CO: ' + (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : total.toLocaleString('fa-IR') + ' ریال') + (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <span style="color:#0e7490">| مبنا: ' + escP(o.currency || inv.offerCurrency) + (o.fxBasis ? ' / ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') : '') + (o.fxRateRef ? ' / ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</span>' : '') + ' | ارجاع: ' + escP(o.invRef.t) + ' توسط ' + escP(o.invRef.by) + ' (' + escP(o.invRef.role) + ')</div>' + /* v17.4 US-416 */
       (inv ? '<div style="font-size:12px;color:#10b981;margin-top:3px">🧾 فاکتور ' + escP(inv.no) + ' — ' + escP(inv.t) + ' — ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال' +
         (((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR') ? ' <small style="color:#0e7490">| فاکتور ریالیِ درخواست ' + escP(o.currency || inv.offerCurrency) + '</small>' : '') +
-        ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +
+        ((inv.files||[]).length ? ' | ' + inv.files.map(function(f,fi){ return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key||'') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '') +
         (inv.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(inv.editedAt) + ' — ' + escP(inv.editedBy || '') + '</small>' : '') +
         /* AUD-12 (گزارش کارفرما ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
            این هشدار قدیمی «مغایرت با CO» مقدار inv.amount (همیشه ریالی) را
@@ -655,12 +655,12 @@ function renderInvoices() {
       '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
       /* v19.3 (US-436 AC3/US-435 AC3): اگر ارجاع از پرونده فروش آمده، سند ضمیمه = snapshot قطعی برد (US-432) */
       (o.invRef && o.invRef.fromFile && typeof sfAwardPrint === 'function'
-        ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای فاکتور رسمی" onclick="sfAwardPrint(\'' + escP(o.invRef.fromFile) + '\',\'' + o.no + '\')">🏆 سند قطعی برد (PDF)</button>'
+        ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#b45309;border-color:#fde68a" title="نسخه تغییرناپذیر لحظه ابلاغ سفارش — مبنای فاکتور رسمی" onclick="sfAwardPrint(\'' + ptfOnClickArg(o.invRef.fromFile) + '\',\'' + o.no + '\')">🏆 سند قطعی برد (PDF)</button>'
         : '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="offerPrint(\'' + o.no + '\')">⬇️ دانلود CO</button>') +
       (!inv ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\')">+ ثبت فاکتور صادره</button>' : '') +
       /* فاز ۲ / گام ۷: ویرایش/ابطال فاکتور فروش رسمی — فقط پیش از اولین وصولی، فقط نقش‌های ارشد */
-      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
-      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + escP(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + ptfOnClickArg(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + ptfOnClickArg(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';
@@ -699,7 +699,7 @@ function showInvModal(offerNo, editCd) {
     '<div id="nInvSum" style="font-size:12px;color:#0e7490;font-weight:800;margin-bottom:8px"></div>' +
     '<div class="fld"><label>' + (editRec ? 'افزودن فایل جدید (اختیاری — فایل‌های قبلی حفظ می‌شوند)' : 'فایل فاکتور (PDF/عکس)') + '</label><div id="invUpWrap"></div></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
-    '<button class="bt" onclick="saveInv(\'' + escP(offerNo) + '\')">' + (editRec ? '💾 ذخیره تغییرات' : 'ثبت فاکتور') + '</button></div></div></div>';
+    '<button class="bt" onclick="saveInv(\'' + ptfOnClickArg(offerNo) + '\')">' + (editRec ? '💾 ذخیره تغییرات' : 'ثبت فاکتور') + '</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   window._invFiles = [];
   if (typeof attachUploadWidget === 'function')
@@ -751,12 +751,18 @@ function saveInv(offerNo) {
   try {
     var _fxOfferForSanity = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
     var _fxSanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(_fxOfferForSanity, grand) : { applicable: false, ok: true };
+    /* v34.0.8-alpha (فاز ۴ — مورد C تأییدشده): اصل بر صحت فاکتور است و «مغایرت پیشنهاد و فاکتور
+       معنا ندارد»؛ پیشنهاد فقط مبنای صدور فاکتور است. پس این فقط یک اطلاع‌رسانیِ غیربلوکه‌کننده است
+       (برای جلوگیری از اشتباه ورود رقم ارزی خام به‌جای ریالی) و هرگز ثبت فاکتور را متوقف نمی‌کند
+       و مبنای تعهد/مانده قرار نمی‌گیرد. */
     if (_fxSanity.applicable && !_fxSanity.ok) {
-      var _fxWarnMsg = '⚠️ هشدار مغایرت شدید با پیش‌فاکتور ارزی!\n\n' +
-        'پیش‌فاکتور مبنای ' + (_fxOfferForSanity.currency || '') + ' ' + _fxSanity.rawForeignTotal.toLocaleString('en-US') + ' است (نرخ مرجع ' + _fxSanity.fxRateRef.toLocaleString('fa-IR') + ' ریال) — یعنی معادل ریالی مورد انتظار حدود ' + _fxSanity.expectedIrr.toLocaleString('fa-IR') + ' ریال است.\n\n' +
-        'مبلغ واردشده (' + grand.toLocaleString('fa-IR') + ' ریال) خیلی کمتر از این مقدار است — احتمالاً رقم ارزی خام به‌جای معادل ریالی وارد شده.\n\n' +
-        'اگر این تخفیف واقعی و آگاهانه است، OK را بزنید. اگر اشتباه است، Cancel را بزنید و مبلغ صحیح ریالی را وارد کنید.';
-      if (!confirm(_fxWarnMsg)) return;
+      var _fxWarnMsg = '⚠️ توجه: مبلغ فاکتور (' + grand.toLocaleString('fa-IR') + ' ریال) با معادلِ پیش‌فاکتور ارزی (' +
+        (_fxOfferForSanity.currency || '') + ' ' + _fxSanity.rawForeignTotal.toLocaleString('en-US') +
+        ' × ' + _fxSanity.fxRateRef.toLocaleString('fa-IR') + ' ≈ ' + _fxSanity.expectedIrr.toLocaleString('fa-IR') +
+        ' ریال) تفاوت چشمگیر دارد. ممکن است رقم ارزی خام به‌جای ریالی وارد شده باشد.\n\n' +
+        'مغایرت با پیش‌فاکتور مانع ثبت فاکتور نیست — اصل، صحت فاکتور است. لطفاً از درست بودن مبلغ مطمئن شوید.';
+      if (typeof ptfToast === 'function') { try { ptfToast(_fxWarnMsg.replace(/\n+/g, ' '), 'warn'); } catch (eT) {} }
+      else { try { alert(_fxWarnMsg); } catch (eA) {} }
     }
   } catch (eFxSanity) {}
 
@@ -792,8 +798,17 @@ function saveInv(offerNo) {
     alert('⛔ شماره رسمی فاکتور از سرور دریافت نشده است. اتصال/ورود را برقرار کنید و دوباره تلاش کنید.');
     return;
   }
+  /* v34.0.8-alpha (فاز ۶ — مورد D تأییدشده): نرخ تسعیر ارزی فقط برای محاسبهٔ درصد پیش‌پرداخت از کل
+     پیشنهاد به‌کار می‌رود؛ بدهیِ باقی‌مانده در لحظهٔ صدور فاکتور با نرخِ روزِ فاکتور بیان می‌شود.
+     نرخ روزِ فاکتور (issueFxRate) روی رکورد ذخیره می‌شود تا گزارش ارزیِ مانده، آن را با نرخ روز محاسبه کند. */
+  var _issueFxRate = 0;
+  try {
+    if (_offerMeta.currency && _offerMeta.currency !== 'IRR') {
+      _issueFxRate = +((window._ptfFxLive && window._ptfFxLive.rates && (window._ptfFxLive.rates.usd_free || window._ptfFxLive.rates.eur_free)) || 0) || +_offerMeta.fxRateRef || 0;
+    }
+  } catch (eFxRate) {}
   var newInv = { cd: _newInvCd, offerNo: offerNo, no: no, amount: grand, base: amt, vat: vat, invDate: invDate,
-    buyerCo: _offerMeta.buyerCo || '', offerCurrency: _offerMeta.currency || 'IRR', offerFxBasis: _offerMeta.fxBasis || '', offerFxRateRef: +_offerMeta.fxRateRef || 0,
+    buyerCo: _offerMeta.buyerCo || '', offerCurrency: _offerMeta.currency || 'IRR', offerFxBasis: _offerMeta.fxBasis || '', offerFxRateRef: +_offerMeta.fxRateRef || 0, issueFxRate: _issueFxRate,
     files: files, file: files.length ? files[0].name : '', t: faDate(), by: curSession().name, payments: [] };
   /* v19.3 (US-436 AC5/AC6): پیش‌پرداخت ساختاریافته (v18.2) — نقدی/کامل=تسویه فوری؛ وصول‌شده=کسر خودکار از مطالبات */
   try {
@@ -913,7 +928,7 @@ function renderReceivables() {
       (payRows.length ? '<div style="margin-top:6px;font-size:11.5px;color:#475569">' + payRows.map(function (p, pi) {
         var payLabel = p.status === 'reversal' ? '↩ ابطال وصولی' : (p.voided ? '⛔ وصولی ابطال‌شده' : (p.how || (p.fx ? 'تسعیر ارزی' : '-')));
         var payAction = (!p.voided && p.status !== 'reversal' && typeof window.ptfCanInvoicePayVoid === 'function' && window.ptfCanInvoicePayVoid())
-          ? ' <button class="bt bt-o" style="padding:1px 6px;font-size:10px;color:#dc2626" onclick="ptfInvoicePayVoidPrompt(\'' + escP(inv.cd) + '\',\'' + escP(p.cd || pi) + '\')">ابطال</button>' : '';
+          ? ' <button class="bt bt-o" style="padding:1px 6px;font-size:10px;color:#dc2626" onclick="ptfInvoicePayVoidPrompt(\'' + ptfOnClickArg(inv.cd) + '\',\'' + ptfOnClickArg(p.cd || pi) + '\')">ابطال</button>' : '';
         return '◽ ' + escP(p.t) + ' — ' + (+p.amt).toLocaleString('fa-IR') + ' ریال (' + escP(payLabel) + ') ثبت: ' + escP(p.by) + payAction + (p.voidReason ? ' <small>— دلیل: ' + escP(p.voidReason) + '</small>' : '') + (p.fx && p.fx.cur ? ' <small style="color:#0e7490">| معادل ' + (+p.fx.fxAmt || 0).toLocaleString('en-US') + ' ' + escP(p.fx.cur) + ' @ ' + (+p.fx.rate || 0).toLocaleString('fa-IR') + '</small>' : '');
       }).join('<br>') + '</div>' : '') +
       '</div>';
@@ -1138,7 +1153,7 @@ function renderDeals() {
           return '◽ <b>' + (e.step === 'ship' ? '🚚 ارسال' : e.step === 'invoice' ? '🧾 ' + (d.formal === false ? 'رسید ' + escP(e.intNo || '') : 'فاکتور ' + escP(e.no || '')) : e.step === 'settle' ? '💵 تسویه' : 'ابلاغ') + '</b> — ' + escP(e.t) + ' — ' + escP(e.by || '') +
             (e.note ? ' | ' + escP(e.note) : '') +
             (e.waybill ? ' | بیجک/بارنامه: ' + escP(e.waybill) + (e.carrier ? ' (' + escP(e.carrier) + ')' : '') : '') +
-            ((e.files || []).length ? ' | ' + e.files.map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '');
+            ((e.files || []).length ? ' | ' + e.files.map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ') : '');
         }).join('<br>') + '</div>' : '') +
       '</div>';
   });

@@ -1,4 +1,17 @@
-window.ptfOnClickArg = function (v) { return String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); };
+window.ptfOnClickArg = function (v) {
+  /* SEC-01 (v34.0.6-alpha): escape امن براي آرگومان‌هاي رشتهٔ JS درون هندلرهاي inline.
+     escP() فقط HTML-escape مي‌کند و تک‌کوتيشن را در لابهٔ JS مي‌سازد؛ چون HTML-entityها
+     پيش از پارسِ JS ديکد مي‌شوند، XSS ذخيره‌شده در onclick="fn(...)" را نمي‌بندد.
+     اين تابع در لابهٔ JS (بک‌اسلش و تک‌کوتيشن ← با HTML-decode حفظ مي‌شوند) و سپس در
+     لابهٔ HTML-attribute (& < > ") escape مي‌کند؛ جايگزين امن escP در آرگومان هندلرهاست. */
+  return String(v == null ? '' : v)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+};
 /* =====================================================================
    PTF CRM — Sprint 77 (ui-kit.js)
    US-153: کامپوننت‌های استاندارد تعامل — جایگزین prompt/alert

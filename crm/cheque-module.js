@@ -195,6 +195,86 @@
 
   /* پرچم برای UI (در دسترس بودن ماژول) */
   window.ptfChequeModuleReady = true;
+
+  /* ================= v34.0.16-alpha (فاز ۱۳): دسته چک (Cheque Book) + قفل شماره صیادی =================
+     - دسته چک: ثبت مشخصات کتاب چک شرکت (بانک، شماره حساب، مالک، شعبه، سری، شماره چک از..تا).
+       هنگام ثبت چکِ صادره از فهرست دسته‌ها انتخاب می‌شود و مشخصات به چک منتقل می‌شود.
+     - قفل شماره صیادی: شماره صیادِ ثبت‌شده (مخصوصاً از دستیار) دیگر قابل ثبت مجدد نیست. */
+
+  /* کلید دادهٔ دسته‌های چک */
+  var K_BOOKS = 'ptf_crm_cheque_books';
+
+  /* فهرست دسته‌های چک */
+  window.ptfChequeBooks = function () { return read(K_BOOKS); };
+  window.ptfChequeBookSave = function (book) {
+    if (!book || !book.cd) return { ok: false, why: 'no_cd' };
+    book.updatedAt = faDateTimeL(); book.updatedBy = me().name;
+    var l = read(K_BOOKS);
+    var hit = l.filter(function (x) { return x.cd === book.cd; })[0];
+    if (hit) { Object.keys(book).forEach(function (k) { hit[k] = book[k]; }); }
+    else l.unshift(book);
+    write(K_BOOKS, l);
+    return { ok: true, book: hit || book };
+  };
+  window.ptfChequeBookDelete = function (cd) {
+    var l = read(K_BOOKS);
+    write(K_BOOKS, l.filter(function (x) { return x.cd !== cd; }));
+    return { ok: true };
+  };
+  /* آیا یک شماره صیاد در این دسته/بازه است؟ */
+  window.ptfChequeBookCoversNo = function (book, no) {
+    if (!book || !no) return false;
+    var n = /^\d+$/.test(String(no).replace(/[-\s]/g, '')) ? parseInt(String(no).replace(/[-\s]/g, ''), 10) : NaN;
+    var from = parseInt(String(book.fromNo || '').replace(/[-\s]/g, ''), 10);
+    var to = parseInt(String(book.toNo || '').replace(/[-\s]/g, ''), 10);
+    if (!isFinite(n) || !isFinite(from) || !isFinite(to)) return false;
+    return n >= from && n <= to;
+  };
+  /* شماره صیادی ثبت‌شده‌ها (برای قفل) — از همهٔ کلیدها */
+  function usedSayads() {
+    var set = {};
+    [K_ISSUED, K_RECEIVED, K_LEGACY].forEach(function (key) {
+      read(key).forEach(function (c) { if (c && c.sayad) set[String(c.sayad).replace(/[-\s]/g, '').toLowerCase()] = 1; });
+    });
+    return set;
+  }
+  /* بررسی قفل: آیا این شماره صیاد قبلاً ثبت شده؟ */
+  window.ptfChequeSayadUsed = function (sayad) {
+    if (!sayad) return false;
+    var k = String(sayad).replace(/[-\s]/g, '').toLowerCase();
+    return !!usedSayads()[k];
+  };
+  /* ثبت شماره صیاد (اضافه به مجموعهٔ استفاده‌شده) — بعد از ثبت چک از دستیار/فرم */
+  window.ptfChequeReserveSayad = function (sayad) {
+    if (!sayad) return;
+    /* ذخیرهٔ جدا برای ردیابی قفل صیاد (حتی اگر چک حذف شود، صیاد رزرو می‌ماند تا ثبت مجدد نشود) */
+    var reserved = getData(K_LEGACY + '_sayads');
+    if (!Array.isArray(reserved)) reserved = [];
+    var k = String(sayad).replace(/[-\s]/g, '').toLowerCase();
+    if (reserved.indexOf(k) === -1) { reserved.push(k); setData(K_LEGACY + '_sayads', reserved); }
+  };
+  /* بررسی قفل رزرو صیاد (رزرو = چک از دستیار ثبت شد و صیاد قفل شد) */
+  window.ptfChequeSayadReserved = function (sayad) {
+    if (!sayad) return false;
+    var k = String(sayad).replace(/[-\s]/g, '').toLowerCase();
+    try { var reserved = getData(K_LEGACY + '_sayads'); return Array.isArray(reserved) && reserved.indexOf(k) > -1; } catch (e) { return false; }
+  };
+
+  /* در ptfChequeCreate: قفل صیاد — اگر از دستیار ثبت می‌شود (reserveSayad) یا صیاد رزرو شده، ثبت مجدد ممنوع */
+  var _origChequeCreate = window.ptfChequeCreate;
+  window.ptfChequeCreate = function (dir, rec) {
+    rec = rec || {};
+    var sayad = String(rec.sayad || rec.no || '').trim();
+    /* قفل: اگر این صیاد رزرو شده (از دستیار ثبت شده) و چکِ در حال ثبت، چکِ جدیدی است (بدون cd) →
+       ثبت مجدد ممنوع؛ مگر اینکه ویرایشِ همان چک باشد (existingCd). */
+    if (sayad && !rec.cd && window.ptfChequeSayadReserved(sayad)) {
+      return { ok: false, why: 'sayad_locked', error: '⛔ شماره صیاد ' + sayad + ' قبلاً ثبت/قفل شده است و قابلیت ثبت مجدد ندارد.' };
+    }
+    var r = _origChequeCreate(dir, rec);
+    if (r && r.cd && sayad) window.ptfChequeReserveSayad(sayad);
+    return r;
+  };
+  window.ptfChequeCreate = window.ptfChequeCreate;
 })();
 
   /* CHQ-V2: این بخش خارج از IIFE اضافه شد — توابع کمکی محلی
@@ -362,3 +442,101 @@
     if (changed) setData('ptf_crm_supplier_finance', d);
     return changed;
   };
+
+  /* ================= v34.0.14-alpha (فاز ۱۱: ویرایش/حذف چک + اصلاح/حذف آنی اثر مالی) =================
+     هستهٔ مدیریت چک برای ویرایش/حذف. به‌دلیل حساسیت مالی:
+       - یافتن محل ذخیرهٔ چک (issued/received/legacy)
+       - به‌روزرسانی چک (ویرایش)
+       - اصلاح مبلغ اثر مالیِ چک مالیِ صادره روی حساب تأمین‌کننده
+       - حذف کامل چک + حذف کامل اثر مالی/گردش (نه void) */
+
+  /* محل ذخیرهٔ چک را پیدا کن و شیء چک را در آن آرایه برگردان (همراه نام کلید).
+     (بخش خارج از IIFE — کلیدها/read را این‌جا دوباره تعریف می‌کنیم چون به‌صورت
+     private داخل IIFE بودند و این توابع بیرون از آن قرار دارند.) */
+  var CHK_KEYS = ['ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheques'];
+  function chFindStore(cd) {
+    for (var i = 0; i < CHK_KEYS.length; i++) {
+      var key = CHK_KEYS[i];
+      var l = getData(key); if (!Array.isArray(l)) l = [];
+      var hit = l.filter(function (x) { return x && x.cd === cd; })[0];
+      if (hit) return { key: key, list: l, rec: hit, idx: l.indexOf(hit) };
+    }
+    return null;
+  }
+  /* یافتن payment تامین‌کننده مرتبط با یک چک صادرهٔ مالی */
+  function sfPayForCheque(cd) {
+    var d = getData('ptf_crm_supplier_finance');
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+    var hits = (d.payments || []).filter(function (p) { return p.chequeCd === cd && p.status !== 'void'; });
+    return hits[0] || null;
+  }
+  function sfSave(d) { setData('ptf_crm_supplier_finance', d); }
+
+  /* به‌روزرسانی چک (ویرایش). فیلدهای داده‌شده را روی رکورد اعمال و در کلید درست ذخیره می‌کند.
+     خروجی: {ok, rec, store} */
+  window.ptfChequeUpdate = function (cd, patch) {
+    var st = chFindStore(cd);
+    if (!st) return { ok: false, why: 'notfound' };
+    patch = patch || {};
+    Object.keys(patch).forEach(function (k) { if (patch[k] !== undefined) st.rec[k] = patch[k]; });
+    if (patch.dueISO) st.rec.dueFa = (typeof ptfISOToJ === 'function') ? ptfISOToJ(patch.dueISO) : patch.dueISO;
+    setData(st.key, st.list);
+    return { ok: true, rec: st.rec, store: st.key };
+  };
+
+  /* اصلاح مبلغ اثر مالی چک صادرهٔ مالی روی حساب تأمین‌کننده (پس از ویرایش مبلغ چک).
+     payment مرتبط (method:'cheque') با مبلغ جدید به‌روزرسانی می‌شود و گردش حساب آنی اصلاح می‌شود.
+     نکته: d و p باید از یک getData گرفته شوند تا ذخیرهٔ d تغییر p را شامل شود. */
+  window.ptfChequeApplyFinancialAmount = function (cd, newAmt) {
+    newAmt = Math.round(+newAmt || 0);
+    var d = getData('ptf_crm_supplier_finance');
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return { ok: false, why: 'no_data' };
+    var p = (d.payments || []).filter(function (x) { return x.chequeCd === cd && x.status !== 'void'; })[0];
+    if (!p) return { ok: false, why: 'no_financial' };
+    var diff = newAmt - (+p.amount || 0);
+    if (Math.abs(diff) < 1) return { ok: true, diff: 0, updated: false };
+    p.amount = newAmt; p.amountIrr = newAmt;
+    p.updatedAt = faDateTimeL(); p.updatedBy = me().name; p.updatedNote = 'اصلاح مبلغ چک ' + cd;
+    var allocSum = (p.allocations || []).reduce(function (s, a) { return s + (+a.amount || 0); }, 0);
+    p.unallocated = Math.max(0, newAmt - allocSum);
+    setData('ptf_crm_supplier_finance', d);
+    return { ok: true, diff: diff, updated: true, paymentCd: p.cd };
+  };
+
+  /* حذف کامل چک + حذف کامل اثر مالی/گردش حساب (نه void).
+     اگر چک صادرهٔ مالی به تأمین‌کننده وصل بود، payment مرتبط به‌طور کامل از
+     supplier-finance حذف می‌شود تا گردش حساب هم به‌طور کامل حذف شود. */
+  window.ptfChequeDelete = function (cd, opts) {
+    opts = opts || {};
+    var st = chFindStore(cd);
+    if (!st) return { ok: false, why: 'notfound' };
+    var c = st.rec;
+    /* چک صادرهٔ مالی: payment مرتبط را کامل حذف کن */
+    if (c.direction === 'issued' || c.ownership === 'company') {
+      var d = getData('ptf_crm_supplier_finance');
+      if (d && typeof d === 'object' && !Array.isArray(d)) {
+        var before = (d.payments || []).length;
+        d.payments = (d.payments || []).filter(function (p) { return !(p.chequeCd === cd); });
+        var removedPay = before - (d.payments || []).length;
+        /* legacy payables وصل‌شده به این payment (via supplierPaymentCd) را پاک کن */
+        if (removedPay) {
+          var payCdSet = {};
+          var payCd = c.supplierPaymentCd || '';
+          if (payCd) payCdSet[payCd] = 1;
+          (d.payments || []).forEach(function () {});
+          var lp = getData('ptf_crm_payables');
+          lp.forEach(function (p) { if (p.supplierPaymentCd && payCdSet[p.supplierPaymentCd]) { p.paid = (p.paid || []).filter(function (x) { return x.supplierPaymentCd !== p.supplierPaymentCd; }); } });
+          setData('ptf_crm_payables', lp);
+        }
+        sfSave(d);
+      }
+    }
+    /* چک را از آرایهٔ خودش حذف کن */
+    st.list.splice(st.idx, 1);
+    setData(st.key, st.list);
+    try {
+      if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd);
+    } catch (eN) {}
+    return { ok: true, removed: true, cd: cd };
+  };
+

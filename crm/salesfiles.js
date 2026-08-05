@@ -537,7 +537,7 @@
           (dueSt === 'red' ? '🚚⏰ تحویل تعهدی: ' + escP(r.dueISO) + ' — سررسید/تاخیر!' : dueSt === 'orange' ? '🚚⏳ تحویل تعهدی نزدیک: ' + escP(r.dueISO) : '🚚 تحویل تعهدی: ' + escP(r.dueISO)) + '</span>'
         : '';
       h += '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;overflow:hidden' + (dueSt === 'red' ? ';border-color:#fca5a5' : '') + '">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;flex-wrap:wrap' + (dueSt === 'red' ? ';background:#fef2f2' : dueSt === 'orange' ? ';background:#fffbeb' : '') + '" onclick="sfToggle(\'' + escP(r.cd) + '\')">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;flex-wrap:wrap' + (dueSt === 'red' ? ';background:#fef2f2' : dueSt === 'orange' ? ';background:#fffbeb' : '') + '" onclick="sfToggle(\'' + ptfOnClickArg(r.cd) + '\')">' +
         '<div style="font-size:13px"><b dir="ltr">' + escP(inqKey) + '</b> — ' + escP(r.buyerCo || '-') +
         '<div style="font-size:11px;color:#64748b;margin-top:2px">' + nDocs + ' سند منضم | ایجاد: ' + escP(r.t || '') + stgBadge + (hasInv ? ' | <span style="color:#059669">🧾 فاکتور ثبت شده</span>' : '') + dueBadge + (lossBadge ? ' | ' + lossBadge : '') + '</div></div>' +
         '<span style="font-size:13px;color:#94a3b8">' + (open ? '▲' : '▼') + '</span></div>' +
@@ -591,32 +591,32 @@
     var KINDS = { TO: 'پیشنهاد فنی', CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی' };
     d.offers.forEach(function (o) {
       h += row('📄', '<b dir="ltr">' + escP(o.no) + '</b> — ' + (KINDS[o.kind] || o.kind) + (o.rev ? ' <span style="color:#7c3aed">(آخرین رویژن: Rev.' + o.rev + ')</span>' : '') + ' — ' + escP(o.dt || o.dateFa || ''),
-        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();offerQuickPreview(\'' + escP(o.no) + '\')">👁</button>');
+        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();offerQuickPreview(\'' + ptfOnClickArg(o.no) + '\')">👁</button>');
     });
     /* v17.1 (US-404 فاز ۲): استعلام‌های تامین — رهگیری کشف قیمت داخل خود پرونده */
     (d.supply || []).forEach(function (q2) {
       var nT = (q2.targets || []).length;
       var nR = (q2.targets || []).filter(function (t2) { return t2.st === 'replied'; }).length;
       h += row('🤖', '<b dir="ltr">' + escP(q2.no) + '</b> — استعلام تامین (' + (q2.items || []).length + ' قلم | ' + nT + ' تامین‌کننده | ' + nR + ' پاسخ)',
-        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();if(typeof rfqsOpen===\'function\')rfqsOpen(\'' + escP(q2.no) + '\')">👁 کارت رهگیری</button>');
+        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();if(typeof rfqsOpen===\'function\')rfqsOpen(\'' + ptfOnClickArg(q2.no) + '\')">👁 کارت رهگیری</button>');
     });
     d.letters.forEach(function (l) {
       h += row('✉️', escP(l.no || l.cd) + ' — ' + escP(l.subject || '-'),
-        (l.st === 'signed' || l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();letPrint(\'' + escP(l.cd) + '\',false)">👁</button>' : '<span style="color:#94a3b8;font-size:11px">' + escP(l.st || '') + '</span>'));
+        (l.st === 'signed' || l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();letPrint(\'' + ptfOnClickArg(l.cd) + '\',false)">👁</button>' : '<span style="color:#94a3b8;font-size:11px">' + escP(l.st || '') + '</span>'));
     });
     d.invoices.forEach(function (i) {
       var act = '';
       if (i.isUnofficial) {
-        act = '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#d97706;border-color:#f59e0b" onclick="event.stopPropagation();unofficialInvoicePrint(\'' + escP(i.offerNo) + '\')">👁 نمایش/چاپ</button>';
+        act = '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#d97706;border-color:#f59e0b" onclick="event.stopPropagation();unofficialInvoicePrint(\'' + ptfOnClickArg(i.offerNo) + '\')">👁 نمایش/چاپ</button>';
       } else {
-        act = (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' ');
+        act = (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' ');
       }
       h += row('🧾', (i.isUnofficial ? 'فاکتور غیررسمی ' : 'فاکتور ') + escP(i.no) + ' — ' + (+i.amount).toLocaleString('fa-IR') + ' ریال — ' + escP(i.t || ''), act);
     });
     d.misc.forEach(function (m, mi) {
       h += row('📎', escP(m.name || '-') + ' <small style="color:#94a3b8">(' + escP(m.t || '') + ' — ' + escP(m.by || '') + ')</small>',
-        (m.key ? '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + escP(m.key) + '\')" style="color:#0e7490;font-size:11.5px">مشاهده</a> ' : '') +
-        '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();sfDelMisc(\'' + escP(r.cd) + '\',' + mi + ')">✕</button>');
+        (m.key ? '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(m.key) + '\')" style="color:#0e7490;font-size:11.5px">مشاهده</a> ' : '') +
+        '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();sfDelMisc(\'' + ptfOnClickArg(r.cd) + '\',' + mi + ')">✕</button>');
     });
     if (!d.offers.length && !d.letters.length && !d.invoices.length && !d.misc.length && !(d.supply || []).length)
       h += '<div style="color:#94a3b8;font-size:12px;padding:8px 0">سندی منضم نشده</div>';
@@ -638,7 +638,7 @@
         var tpS = (window.SF_SHIP_TYPES || []).filter(function (x) { return x.id === se.type; })[0] || {};
         h += '<div style="padding:5px 0;border-top:1px dashed #fde047">' + (tpS.lb || se.type) + (se.no ? ' — <b dir="ltr">' + escP(se.no) + '</b>' : '') + (se.carrier ? ' — ' + escP(se.carrier) : '') + (se.receiver ? ' — تحویل‌گیرنده: <b>' + escP(se.receiver) + '</b>' : '') + (se.dateISO ? ' — <span dir="ltr">' + escP(se.dateISO) + '</span>' : '') + (se.note ? ' — ' + escP(se.note) : '') +
           ' <small style="color:#94a3b8">(' + escP(se.t || '') + ' — ' + escP(se.by || '') + ')</small>' +
-          (se.files || []).map(function (f) { return f.key ? ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join('') + '</div>';
+          (se.files || []).map(function (f) { return f.key ? ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join('') + '</div>';
       });
       h += '</div>';
     }
@@ -651,7 +651,7 @@
         awd.forEach(function (adoc) {
           h += '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed #fde68a;flex-wrap:wrap">' +
             '<span>' + (adoc.role === 'technical' ? '🔧 پیشنهاد فنی مرتبط' : '💰 پیشنهاد مالی برنده') + ' — <b dir="ltr">' + escP(adoc.no) + '</b>' + (adoc.rev ? ' (Rev.' + adoc.rev + ')' : '') + ' <small style="color:#94a3b8">' + escP(adoc.t || '') + (adoc.migrated ? ' — مهاجرت نرم' : '') + '</small></span>' +
-            '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="sfAwardPrint(\'' + escP(r.cd) + '\',\'' + escP(adoc.no) + '\')">🖨 PDF / چاپ سند برد</button></div>';
+            '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="sfAwardPrint(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(adoc.no) + '\')">🖨 PDF / چاپ سند برد</button></div>';
         });
         h += '</div>';
       }
@@ -664,7 +664,7 @@
         var cfQ = (window.SF_QC_CONF || []).filter(function (x) { return x.id === qe.conf; })[0] || {};
         h += '<div style="padding:5px 0;border-top:1px dashed #99f6e4' + (qe.conf === 'nonconform' ? ';color:#b91c1c' : '') + '">' + (tpQ.lb || qe.type) + ' — <b>' + (cfQ.lb || qe.conf) + '</b> — ' + escP(qe.desc || '') +
           ' <small style="color:#94a3b8">(' + escP(qe.t || '') + ' — ' + escP(qe.by || '') + ')</small>' +
-          (qe.files || []).map(function (f) { return f.key ? ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join('') + '</div>';
+          (qe.files || []).map(function (f) { return f.key ? ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join('') + '</div>';
       });
       h += '</div>';
     }
@@ -687,21 +687,21 @@
     h += '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>➕ هزینه‌های مستقیم پرونده</b>' +
       ((r.costEvents && r.costEvents.length)
         ? (r.costEvents.map(function (ce) {
-            var files = (ce.files || []).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join(' ');
+            var files = (ce.files || []).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join(' ');
             var isPetty = ce.pettyCd || ce.fromPetty;
             var pettyCd = ce.pettyCd || ce.cd;
             var tagBtn = isPetty ? '<span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:6px;font-size:10.5px;margin-left:6px">🔗 از تنخواه</span>' : '';
             /* هزینهٔ مستقیم: ✏️📎🗑 / هزینهٔ تنخواه: 🏦 (رفتن به ماژول تنخواه) + 🗑 (حذف لینک) */
             var actions = isPetty
-              ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0d9488" onclick="ptfDealGoPetty(\'' + escP(pettyCd) + '\')" title="مشاهده در ماژول تنخواه">🏦</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\',\'' + escP(pettyCd) + '\')" title="حذف لینک از تنخواه">🗑️</button>'
-              : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfProjectCostOpen(\'' + escP(r.inqNo || '') + '\',\'' + escP(ce.cd) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="ptfProjectCostUpload(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\')">📎</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + escP(r.cd) + '\',\'' + escP(ce.cd) + '\',\'' + escP(ce.pettyCd || '') + '\')" title="حذف هزینه">🗑️</button>';
+              ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0d9488" onclick="ptfDealGoPetty(\'' + ptfOnClickArg(pettyCd) + '\')" title="مشاهده در ماژول تنخواه">🏦</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(ce.cd) + '\',\'' + ptfOnClickArg(pettyCd) + '\')" title="حذف لینک از تنخواه">🗑️</button>'
+              : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfProjectCostOpen(\'' + ptfOnClickArg(r.inqNo || '') + '\',\'' + ptfOnClickArg(ce.cd) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="ptfProjectCostUpload(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(ce.cd) + '\')">📎</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(ce.cd) + '\',\'' + ptfOnClickArg(ce.pettyCd || '') + '\')" title="حذف هزینه">🗑️</button>';
             return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap;align-items:center"><span><b>' + (+ce.amt || 0).toLocaleString('fa-IR') + ' ریال</b> ' + tagBtn + ' — ' + escP(ce.desc || '') + ' <small style="color:#94a3b8">(' + escP(ce.t || '') + ' — ' + escP(ce.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap">' + actions + '</span></div>';
           }).join(''))
         : '<div style="padding:6px 0;color:#94a3b8">هنوز هزینه مستقیمی برای این پرونده ثبت نشده است.</div>') +
       /* v34.0.0-alpha (F4-5): دکمهٔ «افزودن از تنخواه» — لیست هزینه‌های لینک‌نشده تنخواه به این پرونده */
       (pjPettyUnlinkedAvailable.length
         ? '<div style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px dashed #fdba74">' +
-          '<button class="bt bt-o" style="font-size:12px;background:#0d9488;color:#fff;border-color:#0d9488" onclick="ptfDealLinkFromPetty(\'' + escP(r.cd) + '\',\'' + escP(r.inqNo || '') + '\')">🔗 افزودن هزینهٔ تنخواه به پرونده (' + pjPettyUnlinkedAvailable.length + ' مورد لینک‌نشده)</button>' +
+          '<button class="bt bt-o" style="font-size:12px;background:#0d9488;color:#fff;border-color:#0d9488" onclick="ptfDealLinkFromPetty(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(r.inqNo || '') + '\')">🔗 افزودن هزینهٔ تنخواه به پرونده (' + pjPettyUnlinkedAvailable.length + ' مورد لینک‌نشده)</button>' +
           '<span style="font-size:11px;color:#64748b">جلوگیری از ثبت تکراری</span>' +
           '</div>'
         : '') +
@@ -715,15 +715,15 @@
     } catch (eCov) {}
     h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود (US-434)</div>' : '') +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:' + (r.wonOffer ? '6' : '10') + 'px" onclick="event.stopPropagation()">' +
-      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + escP(r.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' : '') +
+      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' : '') +
       '<span id="sfUp_' + escP(r.cd) + '" style="flex:1;min-width:180px"></span>' +
       /* v14.8 (US-351): ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
-      '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + escP(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#0d9488;border-color:#99f6e4" onclick="sfQcOpen(\'' + escP(r.cd) + '\')">🔬 QC / نتیجه بازرسی</button>' : '') +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#c4b5fd" onclick="ptfDocxOpen(\'' + escP(r.cd) + '\',\'IN\')">📄 نوت بازرسی رسمی</button>' : '') +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="ptfDocxOpen(\'' + escP(r.cd) + '\',\'PL\')">🧰 پکینگ لیست رسمی</button>' +
-        '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="sfShipOpen(\'' + escP(r.cd) + '\',\'shipdoc\')">🚚 بارنامه/ارسال</button>' +
-        '<button class="bt bt-o" style="font-size:12px;color:#166534;border-color:#bbf7d0" onclick="sfShipOpen(\'' + escP(r.cd) + '\',\'delivered\')">🤝 تحویل کارفرما</button>' : '') +
+      '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + ptfOnClickArg(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
+      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#0d9488;border-color:#99f6e4" onclick="sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')">🔬 QC / نتیجه بازرسی</button>' : '') +
+      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#c4b5fd" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')">📄 نوت بازرسی رسمی</button>' : '') +
+      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')">🧰 پکینگ لیست رسمی</button>' +
+        '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'shipdoc\')">🚚 بارنامه/ارسال</button>' +
+        '<button class="bt bt-o" style="font-size:12px;color:#166534;border-color:#bbf7d0" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'delivered\')">🤝 تحویل کارفرما</button>' : '') +
       /* v19.3 (US-435): ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
       (function () {
         if (!r.wonOffer) return '';
@@ -733,11 +733,11 @@
         if (_wo && _wo.invRef) return '<span class="bd" style="background:#ede9fe;color:#6d28d9;align-self:center" title="ارجاع‌شده توسط ' + escP(_wo.invRef.by || '') + ' — ' + escP(_wo.invRef.t || '') + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
         var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
         return _stg7 >= 7
-          ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="sfInvoiceRef(\'' + escP(r.cd) + '\')">🧾 ارجاع فاکتور به حسابدار</button>'
-          : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما (US-435)" onclick="sfInvoiceRef(\'' + escP(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
+          ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور به حسابدار</button>'
+          : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما (US-435)" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
       })() +
-      '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'deal\',\'' + escP(r.cd) + '\')">💥 ثبت زیان پروژه</button>' +
-      '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="sfClose(\'' + escP(r.cd) + '\')">' + (hasInv ? '🏁 مختومه (پایان پروژه و تسویه کامل)' : '🚫 مختومه بدون فاکتور (عدم برنده شدن/سایر)') + '</button>' +
+      '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')">💥 ثبت زیان پروژه</button>' +
+      '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="sfClose(\'' + ptfOnClickArg(r.cd) + '\')">' + (hasInv ? '🏁 مختومه (پایان پروژه و تسویه کامل)' : '🚫 مختومه بدون فاکتور (عدم برنده شدن/سایر)') + '</button>' +
       '</div></div>';
     setTimeout(function () {
       var w = document.getElementById('sfUp_' + r.cd);
@@ -763,10 +763,10 @@
       '<div class="fld"><label>تاریخ تحویل تعهدی (شمسی) *</label>' + (typeof ptfDateInput==="function" ? ptfDateInput("sfDueJ", r.dueISO || "") : '<input type="text" id="sfDueJ" value="' + escP(r.dueISO || '') + '" style="direction:ltr;color:#0e7490">') + '</div>' +
       '<div class="fld"><label>یادداشت تعهد (اختیاری)</label><input type="text" id="sfDueNote" value="' + escP(r.dueNote || '') + '" placeholder="مثلا: طبق بند ۴ قرارداد / توافق تلفنی"></div>' +
       '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:6px">' +
-      (r.dueISO ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="sfClearDue(\'' + escP(cd) + '\')">🗑 حذف تعهد</button>' : '<span></span>') +
+      (r.dueISO ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="sfClearDue(\'' + ptfOnClickArg(cd) + '\')">🗑 حذف تعهد</button>' : '<span></span>') +
       '<span style="display:flex;gap:8px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" onclick="sfDueSave(\'' + escP(cd) + '\')">💾 ذخیره</button>' +
+      '<button class="bt" onclick="sfDueSave(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره</button>' +
       '</span></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -1127,11 +1127,11 @@
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       (canClose
-        ? '<button class="bt" id="sfClsGoBtn" style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
+        ? '<button class="bt" id="sfClsGoBtn" style="background:#b45309" onclick="sfCloseGo(\'' + ptfOnClickArg(cd) + '\')">🏁 مختومه و انتقال به بایگانی</button>'
         : (function () {
             var onlyOverride = au.blockers.every(function (b) { return b.id === 'delivery' || b.id === 'guarantee'; });
             return onlyOverride
-              ? '<button class="bt" id="sfClsGoBtn" disabled style="background:#b45309" onclick="sfCloseGo(\'' + escP(cd) + '\')">🏁 مختومه (پس از تأیید موارد بالا)</button>'
+              ? '<button class="bt" id="sfClsGoBtn" disabled style="background:#b45309" onclick="sfCloseGo(\'' + ptfOnClickArg(cd) + '\')">🏁 مختومه (پس از تأیید موارد بالا)</button>'
               : '<button class="bt" style="background:#94a3b8;cursor:not-allowed" onclick="alert(\'⛔ ابتدا موارد قرمز را رفع کنید — مختومه بدون تحویل موفق ممکن نیست (US-437)\')">🔒 مختومه قفل است</button>';
           })()) +
       '</div></div></div>';
@@ -1192,7 +1192,7 @@
       '<div class="fld"><label>توضیح تکمیلی (اختیاری)</label><textarea id="sfLostNote" rows="2" placeholder="مثلا: قیمت رقیب ۱۲٪ پایین‌تر بود"></textarea></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#b45309" onclick="this.closest(\'.md-b\').remove();sfCloseLost(\'' + escP(cd) + '\',(document.getElementById(\'sfLostReason\')||{}).value,((document.getElementById(\'sfLostNote\')||{}).value||\'\'))">🚫 مختومه شود</button>' +
+      '<button class="bt" style="background:#b45309" onclick="this.closest(\'.md-b\').remove();sfCloseLost(\'' + ptfOnClickArg(cd) + '\',(document.getElementById(\'sfLostReason\')||{}).value,((document.getElementById(\'sfLostNote\')||{}).value||\'\'))">🚫 مختومه شود</button>' +
       '</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   }
@@ -1286,7 +1286,7 @@
       var dl = confirm('این پرونده ' + miscKeys.length + ' سند متفرقه در فضای ابری دارد که هنگام مختومه شدن پاک می‌شوند.\n\nآیا می‌خواهید قبل از حذف، اسناد را دانلود کنید؟\n(OK = نمایش اسناد برای دانلود | Cancel = ادامه بدون دانلود)');
       if (dl) {
         var links = (r.docs || []).filter(function (m) { return m.key; }).map(function (m, i2) {
-          return '<div style="padding:6px 0;border-bottom:1px dashed var(--brd)"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(m.key) + '\')" style="color:#0e7490">⬇️ ' + escP(m.name) + '</a></div>';
+          return '<div style="padding:6px 0;border-bottom:1px dashed var(--brd)"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(m.key) + '\')" style="color:#0e7490">⬇️ ' + escP(m.name) + '</a></div>';
         }).join('');
         var html = '<div class="md-b" style="display:grid;z-index:2500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
           '<h3>⬇️ دانلود اسناد قبل از مختومه شدن</h3>' + links +

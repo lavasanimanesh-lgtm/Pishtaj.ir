@@ -2,13 +2,14 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
-  # These services remain disabled until their record-level authorization work is complete.
-  # storage / cms / auth / llm are exposed only through real per-request auth guards.
-  RewriteRule ^(?:attachment-read|notify-bot|chat-llm|tech-proposal-docx|tools)\.php$ - [F,L,NC]
+  # v34.0.7-alpha: attachment-read.php و chat-llm.php دوباره فعال شدند — هرکدام
+  # اکنون گارد احراز/منشأ خود را دارند (SEC-01 و باگ‌های پروداکشن AI/ضمیمه).
+  # بقیهٔ سرویس‌ها همچنان غیرفعال‌اند تا کار احراز سطح‌رکورد کامل شود.
+  RewriteRule ^(?:notify-bot|tech-proposal-docx|tools)\.php$ - [F,L,NC]
 </IfModule>
 
 <FilesMatch "\.(?:php|json|log|txt)$">
-  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm)\.php$#">
+  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm|attachment-thumb|attachment-read|chat-llm)\.php$#">
     Require all granted
   </If>
   <Else>

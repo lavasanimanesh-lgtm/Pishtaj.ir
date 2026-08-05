@@ -127,11 +127,11 @@
       '<div style="display:flex;gap:6px;margin-bottom:8px">' +
       '<button class="bt bt-o" style="font-size:11.5px" onclick="permsSetAll(true)">✅ همه مجاز</button>' +
       '<button class="bt bt-o" style="font-size:11.5px" onclick="permsSetAll(false)">⛔ همه غیرمجاز</button>' +
-      '<button class="bt bt-o" style="font-size:11.5px;color:#7c3aed" onclick="permsResetRole(\'' + escP(username) + '\')">↩️ بازگشت به پیش‌فرض نقش</button></div>' +
+      '<button class="bt bt-o" style="font-size:11.5px;color:#7c3aed" onclick="permsResetRole(\'' + ptfOnClickArg(username) + '\')">↩️ بازگشت به پیش‌فرض نقش</button></div>' +
       '<div class="tb2"><table><thead><tr><th>ماژول</th><th>مجاز</th><th>غیرمجاز</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
-      '<button class="bt" onclick="savePerms(\'' + escP(username) + '\')">💾 ذخیره دسترسی‌ها</button></div></div></div>';
+      '<button class="bt" onclick="savePerms(\'' + ptfOnClickArg(username) + '\')">💾 ذخیره دسترسی‌ها</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 
@@ -189,7 +189,7 @@
         if (un === 'admin' || tr.querySelector('.pm-btn')) return;
         var last = tr.querySelectorAll('td');
         last[last.length - 1].insertAdjacentHTML('beforeend',
-          ' <button class="bt bt-o pm-btn" style="padding:3px 9px;font-size:12px;color:#7c3aed" title="شخصی‌سازی دسترسی ماژول‌ها" onclick="showPermModal(\'' + escP(un) + '\')">🎛 دسترسی</button>');
+          ' <button class="bt bt-o pm-btn" style="padding:3px 9px;font-size:12px;color:#7c3aed" title="شخصی‌سازی دسترسی ماژول‌ها" onclick="showPermModal(\'' + ptfOnClickArg(un) + '\')">🎛 دسترسی</button>');
       });
     };
     window.renderUsers = window.renderUsers2;

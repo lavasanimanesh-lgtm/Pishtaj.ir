@@ -771,7 +771,7 @@
     returns.forEach(function (r, idx) {
       var fileLink = '—';
       if (r.file) {
-        fileLink = '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(r.file.key || '') + '\')" style="color:#0e7490;font-weight:bold;text-decoration:underline">📎 ' + escP(r.file.name) + '</a>';
+        fileLink = '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(r.file.key || '') + '\')" style="color:#0e7490;font-weight:bold;text-decoration:underline">📎 ' + escP(r.file.name) + '</a>';
       }
       
       var delBtn = '';

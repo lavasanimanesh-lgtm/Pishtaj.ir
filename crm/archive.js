@@ -168,7 +168,7 @@
       rows +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#7c3aed" onclick="prjArchiveGo(\'' + escP(no) + '\', this)">تایید نهایی: حذف انتخابی‌ها + فشرده‌سازی بقیه</button></div></div></div>';
+      '<button class="bt" style="background:#7c3aed" onclick="prjArchiveGo(\'' + ptfOnClickArg(no) + '\', this)">تایید نهایی: حذف انتخابی‌ها + فشرده‌سازی بقیه</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 

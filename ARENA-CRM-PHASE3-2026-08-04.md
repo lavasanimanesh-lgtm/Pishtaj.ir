@@ -1,0 +1,99 @@
+# فاز ۳ (v34.0.6-alpha) — ادامهٔ «یافته‌ها و مسیر اصلاحات» ارزیابی CRM
+
+**برنچ:** `arena/019fcd1d-pishtaj-ir` — پس از مرجِ `arena/019fcc74-pishtaj-ir`
+(که فاز ۱ = v34.0.4 و فاز ۲ = v34.0.5 را آورد) و اعمال فاز ۳ در همین نشست.
+
+---
+
+## ۰) مرج شاخه
+
+شاخهٔ `arena/019fcc74-pishtaj-ir` به‌صورت fast-forward در این شاخه مرج شد
+(پایهٔ مشترک `2a361a7`):
+- `7af9fe1` — سند ارزیابی جامع (ARENA-CRM-ASSESSMENT-2026-08-04-FRESH.md)
+- `d4188cd` — v34.0.4-alpha فاز ۱ (بازگردانی توابع UI + مسیر thumbnail + cache-bust)
+- `a1c3ac3` — v34.0.5-alpha فاز ۲ (داشبورد سال مالی)
+
+تسترهای آن (101، 287، 288، 290، 291، 300، 301) همگی سبز تأیید شدند.
+
+## ۱) کارهای انجام‌شده در فاز ۳ (این نشست)
+
+| شناسه | عنوان | وضعیت |
+|---|---|---|
+| **SEC-01** | XSS ذخیره‌شده در ۳۲۵ آرگومان هندلر inline | ✅ رفع |
+| **SEC-02** | `data-health-check.php` بدون احراز هویت | ✅ رفع |
+| **D-02** | `users_get` افشای PII پیش از لاگین | ✅ رفع |
+| **D-03** | ۴ فایل zip (~۲۲MB) در ردیابی گیت | ✅ رفع |
+| **D-04** | حذف ۸ فایل کد مرده (~۱۷۰KB) | ✅ رفع |
+| **D-05** | اجرای تسترها در CI | ✅ رفع |
+| **بدهی #۲** | glob+unlink knowledge-center در هر ریکوئست | ✅ رفع |
+
+### SEC-01 — ریشهٔ XSS و رفع
+- `escP()` فقط HTML-escape می‌کند و تک‌کوتیشن را نمی‌سازد. چون HTML-entityها **پیش از** پارسِ JS در attribute دیکد می‌شوند، `&#39;` در `onclick="fn('...')"` تزریق را نمی‌بندد.
+- helper جدید `ptfOnClickArg` (در `crm/ui-kit.js` — اولین اسکریپت) escape را **در لایهٔ JS** (`\` و `'`) و سپس **در لایهٔ HTML-attribute** (`& < > "`) انجام می‌دهد؛ هر دو از HTML-decode جان می‌مانند.
+- اسکن دقیق ۳۲۵ نقطهٔ «آرگومان هندلر» (الگوی بسته‌شوندهٔ `' + '\`) انجام و `escP(` → `ptfOnClickArg(` شد؛ نقاط HTML-text دست‌نخورده ماندند. پسماند: **۰**.
+- PoC `EVIL');alert(1);//` در تستر ۳۰۲ خنثی می‌شود (alert درون رشته می‌ماند).
+
+### SEC-02 — health-check
+- گارد `auth_verify_token` + نقش `admin`/`chairman` پیش از اجرای تشخیص (مستقل از `.htaccess`).
+- حذف از بستهٔ دیپلوی هر دو ورک‌فلو (`deploy-production` و `deploy-staging`).
+
+### D-02 — PII
+- `users_get` در حالت بی‌توکن فقط `username/name/nameEn/roleId/role` برمی‌گرداند؛ `mobile/email` فقط با توکن معتبر.
+
+### D-03 — zip
+- چهار بایگانی (`crm-update.zip` و…) از ردیابی گیت خارج شدند (در `.gitignore` بودند).
+
+### D-04 — کد مرده
+- حذف: `ai-tech-assistant.js`، `lead-finder.js`، `eng-calc.js`، `tech-proposals.js`، `xss-guard.js`، `dompurify.min.js`، `datex.js`، `inqreader.js.bak`.
+- دو تستر کهن (tester121/tester136) که ماژول حذف‌شدهٔ `datex.js` را می‌خواندند نیز حذف شدند (پیش‌نیازِ تست برای ماژولِ سرگردان).
+
+### D-05 — CI (⚠️ نیازمند اجازهٔ `workflows`)
+- ورک‌فلو جدید `.github/workflows/uat-tests.yml` نوشته شد (مجموعهٔ کانونی 101/287/288/290/291/300/301/302 روی هر push/PR به `main`) و دو ورک‌فلو دیپلوی برای حذف `data-health-check.php` ویرایش شدند.
+- **محدودیت:** GitHub App این نشست اجازهٔ `workflows` را ندارد؛ تغییرات `.github/workflows/*` را نمی‌توان پوش کرد و از کامیتِ پوش‌شده جدا ماندند. پچِ آن‌ها در `_tools/PENDING-workflow-changes-v34.0.6.patch` ذخیره شده تا توسط فرد دارای اجازه اعمال شود.
+- نکتهٔ امنیتی: SEC-02 روی خود `data-health-check.php` (گارد توکن) اعمال شد؛ حذف از بستهٔ دیپلوی فقط لایهٔ دوم دفاعی است.
+
+### بدهی #۲
+- پاک‌سازی knowledge-center اکنون یک‌بار با marker (`.kc-cleanup-done`) اجرا می‌شود نه در هر ریکوئست.
+
+## ۲) تست‌ها
+- تستر جدید `tester302-v34.0.6-alpha-deploy-hygiene.js`: **۲۸ PASS / 0 FAIL** (همهٔ موارد بالا).
+- رگرسیون: tester101 (24/0)، tester287 (32/0)، tester288 (39/0)، tester290 (15/0)، tester291 (12/0)، tester300 (33/0)، tester301 (23/0).
+- ۳۵ فایل JS تغییرشده همه `node --check` سبز.
+- بامپ نسخه: `VERSION.json`، `index.html` (VER + ۸۸ باستر)، `sw.js` (کش)، `clear-cache.html` هم‌راستا به `v34.0.6-alpha`.
+
+## ۳) موارد باز (طبق نقشهٔ راه ارزیابی)
+
+| شناسه | عنوان | وضعیت |
+|---|---|---|
+| بدهی #۱ | معماری ۸۹ اسکریپت سراسری (Strangler Fig با finance-core) | 🔵 باقی — بلندمدت |
+| بدهی #۳ | سازگاری فرمت نسخه با regex قدیمی تسترهای کهن | 🔵 جزئی؛ tester300/301 مستقل‌ازنسخه شدند |
+| بدهی #۴ | گام ۴ ماژول چک (CHQ-MOD-001) طبق بک‌لاگ | 🔵 باقی — محصولی |
+| بدهی #۵ | عملیاتی: `ptfMigrateShareholderOpex` یک‌بار روی پروداکشن | 🔵 نیازمند تأیید اجرا روی سرور |
+| — | ۶ تستر کهن (81/96/119/126/227/281) از قبل شکست‌خورده بودند (کهن/چک‌نسخه‌ای) | 🔵 خارج از این نشست |
+| — | راستی‌آزمایی بصری XSS روی مرورگر واقعی | 🟠 توصیه — پیش از دیپلوی |
+
+*تولیدشده توسط Arena Agent — ادامهٔ ARENA-CRM-ASSESSMENT-2026-08-04-FRESH.md*
+
+---
+
+## ۴) فاز ۴ (v34.0.7-alpha) — رفع دو باگ گزارش‌شده روی پروداکشن
+
+### بگ ۱ — دستیار هوش مصنوعی
+**درگاه‌ها (gateways) که دستیار AI در آن‌ها وجود دارد:**
+| درگاه | کلاینت | endpoint | وضعیت پیش‌از فاز ۴ |
+|---|---|---|---|
+| چت سایت عمومی | `assets/js/ptf-chat.js` | `api/chat-llm.php` | ❌ بلاک در `.htaccess` + `LLM.enabled=false` |
+| AI Workbench CRM | `crm/ai-workbench.js` | `api/llm.php` | ✅ مجاز (نیازمند config+نقش) |
+| خوانندهٔ درخواست (OCR) | `crm/inqreader.js` | `api/llm.php` + `api/attachment-read.php` | ⚠️ llm مجاز / attachment-read بلاک |
+| قرارداد/چک AI | `crm/contracts.js`,`cheques.js` | `api/llm.php` | ✅ مجاز |
+
+**ریشه:** `chat-llm.php` در `api/.htaccess` (RewriteRule deny + خارج از allow-list) بلاک بود → 403؛ و `LLM.enabled=false` در `ptf-chat.js` → درگاه چت سایت حتی با کانفیگ هم AI را صدا نمی‌زد. همچنین نقش `collector` (که پنل `ai` دارد) در لیست مجاز `llm.php` نبود.
+
+**رفع:** حذف `chat-llm` از بلاک + افزودن به allow-list + گارد Cross-origin (هم‌دامنه) + `LLM.enabled=true` + افزودن `collector` به `llm.php`.
+
+### بگ ۲ — لود نشدن ضمیمه در درخواست‌ها/پرونده‌ها/تنخواه
+**ریشه:** (الف) `api/attachment-read.php` (خواندن محتوای پیوست برای AI/OCR) در `.htaccess` بلاک بود و گارد احراز نداشت → 403؛ (ب) `api/storage.php` عملیات خواندن/پیش‌نمایش (`presign_get`) را فقط به نقش‌های ارشد (admin/chairman/ceo/commercial) می‌داد → sales/buyer/accountant/collector هنگام باز کردن ضمیمه 403 می‌گرفتند.
+
+**رفع:** (الف) گارد `auth_verify_token` + همهٔ نقش‌های CRM به `attachment-read.php` افزوده و از بلاک خارج شد؛ (ب) `storage.php` اکنون خواندن/پیش‌نمایش/آپلود ضمیمه را به همهٔ نقش‌های احرازشده می‌دهد؛ عملیات مخرب (delete/archive/backup_prune) همچنان admin/chairman و بک‌آپ نوشتنی ارشد.
+
+**تست:** tester303 جدید (۱۴/۰) + به‌روزرسانی tester300 (۳۴/۰) + بامپ نسخه → `v34.0.7-alpha`.

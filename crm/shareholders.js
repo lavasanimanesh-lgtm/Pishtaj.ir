@@ -176,7 +176,7 @@
     var s = shAll().filter(function (x) { return x.cd === cd; })[0];
     var ledger = txAll().filter(function (x) { return x.shCd === cd; }).reduce(function (a, x) {
       if (x.type === 'salary' || x.type === 'credit' || x.type === 'profit') a.credit += (+x.amt || 0);
-      else if (x.type === 'draw' || x.type === 'advance' || x.type === 'debit') a.debit += (+x.amt || 0);
+      else if (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment') a.debit += (+x.amt || 0);
       return a;
     }, { credit: 0, debit: 0 });
     var petty = 0;
@@ -207,7 +207,7 @@
       return '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:10px 12px;margin-bottom:8px">' +
         '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div style="font-size:13px"><b>' + escP(s.name) + '</b> <span class="bd" style="background:#eef2ff;color:#3730a3">' + (+s.pct || 0) + '٪</span> ' + (s.duty ? '<span class="bd b-st3">موظف</span>' : '') + (s.active === false ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">غیرفعال</span>' : '') +
         '<br><small style="color:#64748b">حقوق موظف: ' + money(s.salary || 0) + ' | مطالبات تنخواه: ' + money(b.petty) + '</small><br><b style="color:' + cls + '">مانده: ' + money(Math.abs(b.net)) + ' — ' + st + '</b></div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="padding:5px 10px;font-size:12px" onclick="ptfShareEdit(\'' + s.cd + '\')">ویرایش</button><button class="bt" style="padding:5px 10px;font-size:12px;background:#7c3aed" onclick="ptfShareDraw(\'' + s.cd + '\')">برداشت/علی‌الحساب</button><button class="bt bt-o" style="padding:5px 10px;font-size:12px" onclick="ptfShareLedger(\'' + s.cd + '\')">گردش</button></div></div></div>';
+        '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="padding:5px 10px;font-size:12px" onclick="ptfShareEdit(\'' + s.cd + '\')">ویرایش</button>' + (s.duty && (+s.salary || 0) > 0 ? '<button class="bt" style="padding:5px 10px;font-size:12px;background:#059669" onclick="ptfSharePaySalary(\'' + s.cd + '\')">💳 پرداخت حقوق</button>' : '') + '<button class="bt" style="padding:5px 10px;font-size:12px;background:#7c3aed" onclick="ptfShareDraw(\'' + s.cd + '\')">برداشت/علی‌الحساب</button><button class="bt bt-o" style="padding:5px 10px;font-size:12px" onclick="ptfShareLedger(\'' + s.cd + '\')">گردش</button></div></div></div>';
     }).join('');
     var warn = Math.round(totalPct * 100) / 100 === 100 ? '<span style="color:#059669">جمع سهام فعال: ۱۰۰٪ ✅</span>' : '<span style="color:#dc2626">جمع سهام فعال: ' + totalPct + '٪ — باید به ۱۰۰٪ برسد</span>';
     el.innerHTML = '<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:16px;padding:12px 14px;margin:12px 0">' +
@@ -291,12 +291,42 @@
     } });
   };
 
+  /* ===== v34.0.8-alpha (فاز ۲ — حقوق به‌عنوان «مطالبه» نه «علی‌الحساب سود») =====
+     پرداخت حقوق سهامدار موظف با نوع جداگانهٔ salary_payment ثبت می‌شود تا در توزیع سود
+     به‌عنوان «برداشت/علی‌الحساب» شمرده نشود و ستون «ماندهٔ قابل تسویهٔ امسال» برای سهامدار
+     موظف گمراه‌کننده نباشد. حقوق = مطالبهٔ سهامدار از شرکت (فارغ از درصد سهم) است. */
+  window.ptfSharePaySalary = function (cd) {
+    if (!canShare()) { alert('⛔ فقط مدیران ارشد'); return; }
+    var s = shAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!s) { alert('سهامدار یافت نشد'); return; }
+    if (!s.duty || !(+s.salary || 0)) { alert('این سهامدار موظف نیست یا حقوقی برایش تعریف نشده.'); return; }
+    var month = normMonth(window._shareMonth || faMonthNow()) || faMonthNow();
+    if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ پرداخت حقوق در آن سال مجاز نیست.'); return; }
+    ptfDialog({
+      title: '💳 پرداخت حقوق — ' + s.name,
+      body: 'حقوق ماهانهٔ موظف این سهامدار: <b>' + money(s.salary) + '</b> ریال.<br><small>این مبلغ به‌عنوان «پرداخت مطالبهٔ حقوق» ثبت می‌شود (نه علی‌الحساب سود) و در گردش حساب سهامدار اثر می‌گذارد.</small>',
+      fields: [
+        { id: 'amt', label: 'مبلغ پرداختی (ریال) *', type: 'number', value: String(+s.salary || 0), required: true, dir: 'ltr' },
+        { id: 'desc', label: 'شرح/شماره سند', value: 'پرداخت حقوق موظف ' + month, required: true }
+      ],
+      okText: 'ثبت پرداخت حقوق',
+      onOk: function (v) {
+        var amt = n(v.amt); if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
+        var tx = addTx('salary_payment', s, amt, String(v.desc || '').trim(), { month: month, salaryMonth: month });
+        audit('سهامداران', 'پرداخت حقوق ' + money(amt) + ' برای ' + s.name + ' (مطالبهٔ حقوق — نه علی‌الحساب سود)', tx.cd);
+        if (typeof ptfToast === 'function') ptfToast('حقوق ' + s.name + ' پرداخت و به‌عنوان تسویهٔ مطالبه ثبت شد', 'ok');
+        ptfShareRender();
+      }
+    });
+  };
+
   window.ptfShareLedger = function (cd) {
     if (!canShare()) return;
     var s = shAll().filter(function (x) { return x.cd === cd; })[0]; if (!s) return;
     var rows = txAll().filter(function (x) { return x.shCd === cd; }).map(function (x) {
-      var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit') ? '-' : '+';
-      return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(x.type) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td></tr>';
+      var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment') ? '-' : '+';
+      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود' }[x.type] || x.type;
+      return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td></tr>';
     }).join('');
     var b = ptfShareholderBalance(cd);
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px"><h3>گردش سهامدار — ' + escP(s.name) + '</h3><p style="font-size:13px;color:#475569">مانده لحظه‌ای: <b>' + money(Math.abs(b.net)) + ' ' + (b.net >= 0 ? 'بستانکار' : 'بدهکار') + '</b> | مطالبات تنخواه باز: ' + money(b.petty) + '</p><div class="tb2"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>شرح</th></tr></thead><tbody>' + (rows || '<tr><td colspan="4">گردشی ثبت نشده</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';

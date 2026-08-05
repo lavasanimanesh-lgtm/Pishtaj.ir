@@ -107,7 +107,7 @@
     var periods = prAll().slice(0, 8);
     if (!periods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
     var rows = periods.map(function (p) {
-      var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
+      var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
       /* UR-11: دوره‌های جدید بازه [from,to] دارند؛ قدیمی‌ها فقط month (سازگاری) */
       var rng = (p.from && p.to) ? ('از ' + p.from + ' تا ' + p.to) : ('ماه ' + (p.month || '-'));
       var arg = (p.from && p.to) ? (escP(p.from) + '|' + escP(p.to)) : escP(p.month || '');
@@ -157,12 +157,13 @@
       }
     }
     el.innerHTML = list.map(function (x) {
-      var files = (x.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ');
+      var files = (x.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ');
       var isVoid = x.st === 'void';
       var canEdit = !isVoid && ((x.by === me.name) || canAll());
       var acts = '';
       if (canEdit) {
         acts = '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="pettyEdit(\'' + x.cd + '\')">✏️</button>' +
+               '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfPettyFilesUi(\'' + x.cd + '\')" title="مدیریت اسناد (مشاهده/حذف/افزودن)">📎 اسناد</button>' +
                '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="pettyDel(\'' + x.cd + '\')">🗑️</button>';
       }
       /* فاز ۲ / گام ۸: رفع باگ نمایشی — رکورد ابطال‌شده باید صریحاً با برچسب
@@ -481,6 +482,42 @@
     });
   };
 
+  /* ================= v34.0.20-alpha (فاز ۱۸): مدیریت اسناد تنخواه =================
+     مودال مشاهده/حذف/افزودن سند برای هر هزینهٔ تنخواه — رفع «فایل قابل مشاهده/حذف نیست». */
+  window.ptfPettyFilesUi = function (cd) {
+    var all = getData(PETTY_KEY);
+    var r = all.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2750) : 2750;
+    var rows = (r.files || []).map(function (f) {
+      var key = String(f.key || '').replace(/[\\']/g, '');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--brd);flex-wrap:wrap">' +
+        '<a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;flex:1;min-width:120px">📎 ' + escP(f.name || 'فایل') + '</a>' +
+        '<button class="ba" style="color:#dc2626" onclick="pettyRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕ حذف</button></div>';
+    }).join('') || '<div style="color:#94a3b8;font-size:12px;padding:6px 0">سندی ثبت نشده است.</div>';
+    var html = '<div class="md-b" id="ptfPettyFilesDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px">' +
+      '<h3>📎 اسناد هزینهٔ تنخواه — ' + escP(r.cat || '') + ' ' + money(r.amt) + '</h3>' + rows +
+      '<div id="ptyFilesUp" style="margin-top:10px"></div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt" onclick="document.getElementById(\'ptfPettyFilesDlg\').remove()">تمام</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    window._ptfPettyFilesCd = cd;
+    try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptyFilesUp', 'petty/' + cd, function (f) {
+      var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
+      rr.files = rr.files || []; rr.files.push(f); setData(PETTY_KEY, a);
+      if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
+      var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+    }); } catch (eU) {}
+  };
+  window.pettyRemoveFile = function (cd, key) {
+    if (!confirm('این سند از تنخواه حذف شود؟')) return;
+    var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;
+    r.files = (r.files || []).filter(function (f) { return f.key !== key; });
+    setData(PETTY_KEY, a);
+    try { fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {}); } catch (eD) {}
+    if (typeof ptfToast === 'function') ptfToast('سند حذف شد', 'warn');
+    var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+  };
+
   window.pettyDel = function (cd) {
     var all = getData(PETTY_KEY);
     var r = all.filter(function (x) { return x.cd === cd; })[0];
@@ -719,14 +756,19 @@
       var mFrom = key.from.slice(0, 7), mTo = key.to.slice(0, 7);
       function inRange(x) {
         var m = String(x.month || (x.t || '').slice(0, 7) || '').slice(0, 7);
-        var d = recDate(x);
-        /* v34.0.0-alpha (F4-10): مقایسهٔ عددی YYYYMMDD — حل string comparison bug
-           - قبلاً string comparison بین "1405/5/1" و "1405/04/16" اشتباه می‌داد
-           - حالا recDateCmp تبدیل به عدد می‌کند (مثلاً 14050501 vs 14050416 → درست) */
-        if (d) {
+        /* v34.0.15-alpha (فاز ۱۲ — رفع باگ «عدم نمایش هزینهٔ ماه بدون انتخاب روز اول»):
+           قبلاً recDate هر رکوردی (حتی فقط‌ماه) را به روزِ اول ماه (مثلاً 1405/05/01) تبدیل
+           می‌کرد و چون این مقدار در `if (d)` می‌افتاد، با تاریخِ دقیقِ بازه مقایسه می‌شد
+           → اگر بازه از وسط ماه شروع می‌شد (مثلاً از 1405/05/15)، هزینهٔ همان ماه حذف می‌شد.
+           راه‌حل: فقط وقتی مقایسهٔ دقیق انجام می‌شود که رکورد «تاریخ دقیق واقعی» دارد
+           (t/date/dateISO/iso). اگر فقط `month` دارد (بدون تاریخ دقیق) → fallback ماهانه
+           (ماهِ رکورد در بازه باشد → نگه دار). */
+        var hasExact = !!(x.t || x.date || x.dateISO || x.iso || x.dateFa);
+        var d = hasExact ? recDate(x) : '';
+        if (hasExact && d) {
           return recDateCmp(d, key.from) >= 0 && recDateCmp(d, key.to) <= 0;
         }
-        /* fallback: اگر تاریخ قابل استخراج نیست، ماه رکورد را با بازه مقایسه کن */
+        /* fallback: اگر تاریخ دقیق موجود نیست یا قابل استخراج نبود، ماه رکورد را با بازه مقایسه کن */
         return !!(m && m >= mFrom && m <= mTo);
       }
       petty = allP.filter(inRange);
@@ -782,7 +824,20 @@
         status: status
       });
     });
-    events.sort(function (a, b) { var ta = a.t || '9999', tb = b.t || '9999'; return ta < tb ? -1 : ta > tb ? 1 : 0; });
+    /* v34.0.12-alpha (فاز ۹ — گزارش دورهٔ تنخواه با ترتیب درست تاریخ): مرتب‌سازی قبلی فقط با
+       `a.t` (رشتهٔ خام) انجام می‌شد؛ تاریخ‌ها در `t` با فرمت‌های ناهمگن‌اند (شمسی `1405/04/15`
+       یا میلادی `2026-08-03` یا با ساعت). مقایسهٔ رشت‌های بین این فرمت‌ها ترتیب اشتباه می‌داد.
+       حالا با recDate (نرمال‌سازی به شمسی YYYY/MM/DD) و recDateCmp (مقایسهٔ عددی YYYYMMDD) مرتب می‌شود؛
+       رکوردِ بی‌تاریخ به انتها می‌رود. برای ثبات، رکوردهای هم‌تاریخ با cd/بدهکار مرتب می‌شوند. */
+    events.sort(function (a, b) {
+      var da = recDate(a) || '', db = recDate(b) || '';
+      var c = recDateCmp(da, db);
+      if (c !== 0) return c;
+      /* هم‌تاریخ: رکوردِ دارای تاریخ دقیق زودتر (بی‌تاریخ آخر)؛ سپس شناسه برای پایداری */
+      var ha = da ? 1 : 0, hb = db ? 1 : 0;
+      if (ha !== hb) return hb - ha;
+      return String(a.cd || '').localeCompare(String(b.cd || ''));
+    });
     events.forEach(function (e, i) { e.row = i + 1; });
     return events;
   };
@@ -980,7 +1035,7 @@
       var kind = window.ptfPettyFileKind(f.name || f.key || '');
       if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
       try {
-        fetch('api/attachment-thumb.php', {
+        fetch('../api/attachment-thumb.php', { /* v34.0.4-alpha (BUG-PETTY-THUMB-PATH-001): بدون ../ از زیر /crm/ نسبی می‌شد و 404 می‌گرفت */
           method: 'POST', headers: ptfStorageAuthHeaders(true),
           body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 }),
           /* v2: timeout 30 ثانیه — اگر سرور کند بود، ادامه دهیم */
@@ -1043,7 +1098,7 @@
     var kind = window.ptfPettyFileKind(f.name || f.key || '');
     var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
-    var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + escP(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
+    var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
 
     if (!url && f.key) {
       /* FIX v2: حتی اگر URL نیست، یک placeholder زیبا نمایش بده (نه حذف فایل) */
@@ -1476,7 +1531,7 @@
       var totalAdv = openAdvs.reduce(function (s, o) { return s + (ptfAdvanceNormalize(o).remainAmt || 0); }, 0);
       var h = '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:12px 14px;margin-bottom:10px">' +
         '<h4 style="margin:0 0 8px;font-size:13.5px;color:#c2410c">💰 پیش‌پرداخت‌ها (' + openAdvs.length + ' مطالبه باز — جمع مانده: ' + totalAdv.toLocaleString('fa-IR') + ' ریال)</h4>' +
-        openAdvs.map(function (o) { var a = ptfAdvanceNormalize(o); var pays = (a.payments || []).map(function (p) { return '◽ ' + escP(p.t || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال' + (p.docAmt ? ' <small style="color:#0e7490">(' + (+p.docAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur || '') + ' @ ' + (+p.rate || 0).toLocaleString('fa-IR') + ')</small>' : '') + ' <a href="javascript:void(0)" onclick="advancePayDel(\'' + escP(o.no) + '\',\'' + escP(p.cd || '') + '\')" style="color:#dc2626">✕</a>'; }).join('<br>'); return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fed7aa;flex-wrap:wrap"><span style="font-size:12.5px"><b>' + escP(o.buyerCo || '-') + '</b> — ' + escP(o.no) + ' — پیش‌پرداخت: <b>' + ptfAdvanceLabel(o) + '</b><br><small style="color:#166534">وصول‌شده: ' + (+a.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.receivedDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + ' | مانده: ' + (+a.remainAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.remainDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + '</small>' + (a.note ? '<br><small style="color:#64748b">' + escP(a.note) + '</small>' : '') + (pays ? '<br><small style="color:#475569">' + pays + '</small>' : '') + '</span><span style="display:flex;gap:5px"><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfAdvanceOpen(\'' + escP(o.no) + '\')">اصلاح</button><button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="advancePaid(\'' + escP(o.no) + '\')">+ ثبت وصول</button></span></div>'; }).join('') +
+        openAdvs.map(function (o) { var a = ptfAdvanceNormalize(o); var pays = (a.payments || []).map(function (p) { return '◽ ' + escP(p.t || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال' + (p.docAmt ? ' <small style="color:#0e7490">(' + (+p.docAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur || '') + ' @ ' + (+p.rate || 0).toLocaleString('fa-IR') + ')</small>' : '') + ' <a href="javascript:void(0)" onclick="advancePayDel(\'' + ptfOnClickArg(o.no) + '\',\'' + ptfOnClickArg(p.cd || '') + '\')" style="color:#dc2626">✕</a>'; }).join('<br>'); return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fed7aa;flex-wrap:wrap"><span style="font-size:12.5px"><b>' + escP(o.buyerCo || '-') + '</b> — ' + escP(o.no) + ' — پیش‌پرداخت: <b>' + ptfAdvanceLabel(o) + '</b><br><small style="color:#166534">وصول‌شده: ' + (+a.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.receivedDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + ' | مانده: ' + (+a.remainAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.remainDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + '</small>' + (a.note ? '<br><small style="color:#64748b">' + escP(a.note) + '</small>' : '') + (pays ? '<br><small style="color:#475569">' + pays + '</small>' : '') + '</span><span style="display:flex;gap:5px"><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfAdvanceOpen(\'' + ptfOnClickArg(o.no) + '\')">اصلاح</button><button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="advancePaid(\'' + ptfOnClickArg(o.no) + '\')">+ ثبت وصول</button></span></div>'; }).join('') +
         (fulls.length ? '<div style="margin-top:8px;font-size:12px;color:#059669">✅ پرداخت کامل/نقدی: ' + fulls.map(function (o) { return escP(o.no); }).join('، ') + '</div>' : '') + '</div>';
       el.insertAdjacentHTML('afterbegin', h);
     };

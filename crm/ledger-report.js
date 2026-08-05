@@ -73,22 +73,25 @@
     var salesSplit = splitSafe(invoices, ledgerOfInvoiceSafe, function (i) { return +i.amount || 0; });
     var opexSplit = splitSafe(opex, ledgerOfOpexSafe, function (o) { return +o.amt || 0; });
     var purchaseSplit = splitSafe(supplierInvoices, ledgerOfSupplierInvoiceSafe, function (i) { return +i.amountIrr || +i.amount || 0; });
-
-    /* دفتر واقعی (پیش‌نمایش برای فاز ۵ — فاکتور پوششی/صوری):
-       خرید واقعی = مجموع مبالغ فاکتور خرید بدون احتساب فاکتورهای پوششی؛
-       سود جانبی فاکتور پوششی = مجموع (اعتبار ارزش‌افزوده − کارمزد) که تا
-       پیاده‌سازی گام ۵ همیشه صفر است چون هیچ رکوردی isCover ندارد. */
-    var realPurchaseTotal = supplierInvoices.reduce(function (s, i) { return s + realPurchaseSafe(i); }, 0);
+    /* v34.0.8-alpha (هماهنگ با موتور سود سال مالی): خرید «واقعی» بدون مبلغ اسمی فاکتورهای
+       پوششی/صوری — فاکتور پوششی خرید واقعی نیست، فقط منفعتِ خالص (اعتبار ارزش‌افزوده − کارمزد)
+       اثر دارد. برای هماهنگی سود رسمی/غیررسمی/تجمیعی، خریدِ پوششی از کسر هزینه حذف و منفعتش
+       جدا افزوده می‌شود (مثل fiscal.js). */
+    var realPurchaseSplit = splitSafe(supplierInvoices, ledgerOfSupplierInvoiceSafe, realPurchaseSafe);
     var coverBenefitTotal = supplierInvoices.reduce(function (s, i) { return s + coverNetBenefitSafe(i); }, 0);
     var coverCount = supplierInvoices.filter(function (i) { return i.isCover === true; }).length;
+
+    /* دفتر واقعی (بدون فاکتور پوششی) — مبلغ اسمیِ پوششی در خرید واقعی نیست */
+    var realPurchaseTotal = realPurchaseSplit.total;
 
     return {
       sales: salesSplit,
       opex: opexSplit,
       purchase: purchaseSplit,
-      officialProfit: salesSplit.official - opexSplit.official - purchaseSplit.official,
-      unofficialProfit: salesSplit.unofficial - opexSplit.unofficial - purchaseSplit.unofficial,
-      aggregateProfit: salesSplit.total - opexSplit.total - purchaseSplit.total,
+      /* سود بر مبنای خرید واقعی + منفعت پوششی (نه مبلغ اسمی پوششی) */
+      officialProfit: salesSplit.official - opexSplit.official - realPurchaseSplit.official + coverBenefitTotal,
+      unofficialProfit: salesSplit.unofficial - opexSplit.unofficial - realPurchaseSplit.unofficial,
+      aggregateProfit: salesSplit.total - opexSplit.total - realPurchaseSplit.total + coverBenefitTotal,
       realPurchaseTotal: realPurchaseTotal,
       coverBenefitTotal: coverBenefitTotal,
       coverCount: coverCount
@@ -97,7 +100,7 @@
 
   function unclassifiedNote(splitData, label) {
     if (!splitData.unclassifiedCount) return '';
-    return '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:11.5px;color:#9a3412">⚠️ ' + splitData.unclassifiedCount + ' مورد ' + esc(label) + ' نوع رسمی/غیررسمی‌شان مشخص نیست (' + money(splitData.unclassified) + ') — در «رسمی» و «غیررسمی» زیر لحاظ نشده‌اند. فهرست کامل در تب «کیفیت داده» است.</div>';
+    return '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 11px;margin-top:8px;font-size:12px;color:#9a3412;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span><b>⚠️ ' + splitData.unclassifiedCount + ' مورد ' + esc(label) + '</b> (به‌مبلغ ' + money(splitData.unclassified) + ') نوع رسمی/غیررسمی‌شان مشخص نیست — برای همین «رسمی+غیررسمی» با «کل» یکی نیست و در «دفتر واقعی/سود» لحاظ نشده‌اند.</span><button class="bt bt-o" style="font-size:11.5px;color:#9a3412;border-color:#fed7aa" onclick="ptfLedgerGoQuality()">🔍 باز در کیفیت داده</button></div>';
   }
 
   function block(title, value, color, sub) {
@@ -133,6 +136,11 @@
       block('کل هزینه جاری', d.opex.total, '#b45309') +
       block('سود ناخالص تجمیعی', d.aggregateProfit, d.aggregateProfit >= 0 ? '#059669' : '#dc2626') +
       '</div>' +
+      '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:6px">' +
+      (d.purchase.unclassifiedCount ? block('خرید نامشخص', d.purchase.unclassified, '#b45309', d.purchase.unclassifiedCount + ' مورد — در سود نیست') : '') +
+      (d.opex.unclassifiedCount ? block('هزینه‌جاری نامشخص', d.opex.unclassified, '#b45309', d.opex.unclassifiedCount + ' مورد — در سود نیست') : '') +
+      (d.sales.unclassifiedCount ? block('فروش نامشخص', d.sales.unclassified, '#b45309', d.sales.unclassifiedCount + ' مورد') : '') +
+      '</div>' +
       unclassifiedNote(d.opex, 'هزینه جاری') + unclassifiedNote(d.purchase, 'فاکتور خرید تأمین‌کننده') +
 
       '<h5 style="margin:16px 0 6px;font-size:13px;color:#0f172a">💰 دفتر واقعی <small style="color:#64748b;font-weight:400">(مبنای پیشنهادی تقسیم سود — رسمی+غیررسمی واقعی، بدون فاکتور پوششی/صوری)</small></h5>' +
@@ -152,5 +160,13 @@
     var tmp = document.createElement('div');
     tmp.innerHTML = html;
     el.replaceWith(tmp.firstElementChild);
+  };
+  /* v34.0.10-alpha: رفتن به تب «کیفیت داده» (که لیست رکوردهای نامشخص را دارد) */
+  window.ptfLedgerGoQuality = function () {
+    try {
+      if (typeof window.finHubSet === 'function') { window.finHubSet('quality'); }
+      var qEl = document.getElementById('qualityBox');
+      if (qEl) setTimeout(function () { qEl.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);
+    } catch (e) {}
   };
 })();

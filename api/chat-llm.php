@@ -11,6 +11,17 @@
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
+/* v34.0.7-alpha (باگ پروداکشن دستیار هوش مصنوعی): این پروکسی در api/.htaccess
+   بلاک بود و درگاه چت سایت عمومی 403 می‌گرفت. حالا دوباره فعال شده؛ برای جلوگیری از
+   سوءاستفادهٔ خارجی، درخواست فقط از همان دامنه پذیرفته می‌شود (هم‌راستا با بقیهٔ endpointها). */
+$ref = $_SERVER['HTTP_ORIGIN'] ?? $_SERVER['HTTP_REFERER'] ?? '';
+$host = $_SERVER['HTTP_HOST'] ?? '';
+if ($ref && $host && parse_url($ref, PHP_URL_HOST) !== $host) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'Cross-origin blocked']);
+    exit;
+}
+
 $cfgFile = dirname(__DIR__, 2) . '/llm-config.php'; // خارج از webroot
 if (!file_exists($cfgFile)) {
     echo json_encode(['ok' => false, 'error' => 'LLM not configured']);

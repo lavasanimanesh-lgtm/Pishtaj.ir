@@ -27,9 +27,11 @@
     } catch (e) {}
   })();
 
-  /* ---------- پیکربندی LLM (فاز ۲ — آماده اتصال) ---------- */
-  // برای فعال‌سازی: endpoint پروکسی سرور را ست کنید (کلید API فقط سمت سرور نگهداری شود)
-  var LLM = { enabled: false, endpoint: BASE + 'api/chat-llm.php', timeoutMs: 12000 };
+  /* ---------- پیکربندی LLM (فاز ۲) ---------- */
+  // v34.0.7-alpha: فعال شد — پروکسی سرور api/chat-llm.php در .htaccess دوباره باز شد
+  // (کلید API فقط سمت سرور نگهداری می‌شود). اگر llm-config.php نباشد یا خطایی رخ دهد،
+  // askLLM خودکار به موتور محلی KB برمی‌گردد (cb(null) → fallback).
+  var LLM = { enabled: true, endpoint: BASE + 'api/chat-llm.php', timeoutMs: 12000 };
 
   function askLLM(question, history, cb) {
     if (!LLM.enabled) { cb(null); return; }

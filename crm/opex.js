@@ -402,7 +402,7 @@
     var pendHtml = pend.length
       ? '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px">' +
         '🔁 <b>هزینه‌های تکرارشونده ماه جاری که هنوز ثبت نشده‌اند:</b> ' +
-        pend.map(function (t) { return '<button class="bt bt-o" style="padding:3px 10px;font-size:11.5px;margin:2px" onclick="ptfOpexApplyTpl(\'' + escP(t.id) + '\')">' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال ➕</button>'; }).join(' ') + '</div>'
+        pend.map(function (t) { return '<button class="bt bt-o" style="padding:3px 10px;font-size:11.5px;margin:2px" onclick="ptfOpexApplyTpl(\'' + ptfOnClickArg(t.id) + '\')">' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال ➕</button>'; }).join(' ') + '</div>'
       : '';
     var chips = Object.keys(sm.byCat).map(function (c) {
       return '<span style="background:#f1f5f9;border-radius:999px;padding:4px 11px;font-size:11.5px">' + escP(c) + ': <b>' + fmtT(sm.byCat[c]) + '</b> ریال</span>';
@@ -415,10 +415,10 @@
         (x.desc ? ' <small style="color:#64748b">' + escP(x.desc) + '</small>' : '') +
         (x.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(x.editedAt) + '</small>' : '') +
         '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small></span>' +
-        '<span style="display:flex;gap:4px"><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="ptfOpexEdit(\'' + escP(x.cd) + '\')">✏️</button><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#dc2626" onclick="ptfOpexDel(\'' + escP(x.cd) + '\')">✕</button></span></div>';
+        '<span style="display:flex;gap:4px"><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(x.cd) + '\')">✏️</button><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#dc2626" onclick="ptfOpexDel(\'' + ptfOnClickArg(x.cd) + '\')">✕</button></span></div>';
     }).join('');
     var tplRows = tpls().map(function (t) {
-      return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + escP(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
+      return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + ptfOnClickArg(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
     }).join(' ');
     el.innerHTML =
       '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +

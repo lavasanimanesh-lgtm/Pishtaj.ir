@@ -216,6 +216,42 @@
   };
 
 
+/* ===== v34.0.4-alpha (BUG-UNIHUB-EMPTY-001): بازگردانی بدنهٔ «گزارش جامع مدیریتی» =====
+   ptfBuildReportHtml حذف شده بود و مرکز فرماندهی همیشه «گزارشی ثبت نشده» نشان می‌داد.
+   نسخهٔ ایستای آمار عملکرد کاربران (کل دوره) — بدون کنترل زنده/idهای rep* تا با پنل گزارشات تداخل نکند. */
+window.ptfBuildReportHtml = function () {
+  /* خارج از IIFE ماژول گزارشات است → هیچ تابع محلی‌ای در دسترس نیست؛ گارد نقش و محاسبه self-contained */
+  var _role = (typeof curRole === 'function') ? curRole() : '';
+  if (['admin', 'chairman', 'ceo', 'commercial'].indexOf(_role) === -1) return '<div style="text-align:center;padding:16px;color:#94a3b8">⛔ این گزارش فقط برای مدیران ارشد است.</div>';
+  var stats = [];
+  try {
+    var users = (getData('ptf_crm_users') || []).map(function (u) { return { user: u.username, name: u.name, role: u.role }; });
+    users.unshift({ user: 'admin', name: 'ادمین سیستم', role: 'ادمین' });
+    var offers = getData('ptf_crm_offers') || [], custs = getData('ptf_crm_customers') || [],
+        leads = getData('ptf_crm_leads') || [], invs = getData('ptf_crm_invoices') || [],
+        auditLog = getData('ptf_crm_audit') || [];
+    stats = users.map(function (u) {
+      var myOffers = offers.filter(function (o) { return o.issuedBy === u.user || o.wonBy === u.name; });
+      return {
+        name: u.name, role: u.role,
+        to: myOffers.filter(function (o) { return o.kind === 'TO'; }).length,
+        co: myOffers.filter(function (o) { return o.kind === 'CO'; }).length,
+        won: offers.filter(function (o) { return o.kind === 'CO' && o.st === 'won' && (o.issuedBy === u.user || o.wonBy === u.name); }).length,
+        cust: custs.filter(function (c) { return c.by === u.name || c.createdBy === u.name; }).length,
+        lead: leads.filter(function (l) { return l.by === u.name || l.createdBy === u.name; }).length,
+        inv: invs.filter(function (i) { return i.by === u.name; }).length,
+        acts: auditLog.filter(function (a) { return a.user === u.name; }).length
+      };
+    });
+  } catch (e) {}
+  var rows = stats.map(function (u) {
+    return '<tr><td>' + escP(u.name) + '</td><td>' + escP(u.role) + '</td><td>' + u.to + '</td><td>' + u.co + '</td><td>' + u.won + '</td><td>' + u.cust + '</td><td>' + u.lead + '</td><td>' + u.inv + '</td><td>' + u.acts + '</td></tr>';
+  }).join('');
+  return '<h4 style="margin:6px 0 8px;font-size:13.5px">📊 گزارش جامع عملکرد کاربران (از ابتدا تاکنون)</h4>' +
+    '<div class="tb2"><table><thead><tr><th>کاربر</th><th>نقش</th><th>TO فنی</th><th>CO مالی</th><th>CO برنده</th><th>مشتری</th><th>لید</th><th>فاکتور</th><th>کل اقدامات</th></tr></thead><tbody>' + (rows || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:14px">داده‌ای ثبت نشده</td></tr>') + '</tbody></table></div>' +
+    '<div style="text-align:left;margin-top:8px"><button class="bt bt-o" style="font-size:12px" onclick="this.closest(\'.md-b\').remove();if(typeof goPanel===\'function\')goPanel(\'reports\')">📈 نسخهٔ کامل با فیلتر بازه/کاربر/ماژول در «گزارشات» ↗</button></div>';
+};
+
 window.ptfOpenUnifiedAnalyticsHub = function () {
   if (typeof isSenior === 'function' && !isSenior()) { alert('⛔ دسترسی به مرکز فرماندهی تحلیل و گزارشات فقط برای مدیران ارشد مجاز است'); return; }
   var deals = getData('ptf_crm_deals');

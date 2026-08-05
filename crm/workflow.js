@@ -210,9 +210,9 @@
           '<div class="fld"><label>وضعیت دستی</label><select id="er_st">' + stOpts + '</select></div>' +
           '<h4 style="margin:10px 0 6px;font-size:13px">🕓 تاریخچه گردش کار</h4>' + log +
           '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;border-top:1px solid var(--brd);padding-top:10px">' +
-          '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="delRfq(\'' + escP(cd) + '\')">🗑 حذف درخواست</button>' +
+          '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="delRfq(\'' + ptfOnClickArg(cd) + '\')">🗑 حذف درخواست</button>' +
           '<div style="display:flex;gap:8px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>' +
-          '<button class="bt" onclick="saveRfqEdit(\'' + escP(cd) + '\')">💾 ذخیره تغییرات</button></div></div></div></div>';
+          '<button class="bt" onclick="saveRfqEdit(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره تغییرات</button></div></div></div></div>';
         document.getElementById('panels').insertAdjacentHTML('beforeend', html);
       };
 
@@ -293,12 +293,12 @@
           if (!o) return;
           var tds = tr.querySelectorAll('td');
           if (o.kind === 'TO' && (o.st === 'sent' || o.tst === 'sent') && !o.tst) {
-            tds[tds.length - 1].insertAdjacentHTML('beforeend', ' <button class="ba wf-resp" style="color:#d97706" onclick="wfToResponse(\'' + escP(no) + '\')">📨 پاسخ کارفرما</button>');
+            tds[tds.length - 1].insertAdjacentHTML('beforeend', ' <button class="ba wf-resp" style="color:#d97706" onclick="wfToResponse(\'' + ptfOnClickArg(no) + '\')">📨 پاسخ کارفرما</button>');
           } else if (o.kind === 'TO' && o.tst && o.tst !== 'sent') {
             var TL = { approved: '✅ تایید فنی', revise: '✏️ اصلاح‌خواسته', rejected: '⛔ عدم تایید' };
             tds[tds.length - 1].insertAdjacentHTML('beforeend', ' <span class="wf-resp" style="font-size:10.5px;color:#64748b">' + (TL[o.tst] || '') + '</span>');
           } else if (o.kind === 'CO' && o.st === 'sent') {
-            tds[tds.length - 1].insertAdjacentHTML('beforeend', ' <button class="ba wf-resp" style="color:#be185d" onclick="wfCoRevise(\'' + escP(no) + '\')">✏️ درخواست اصلاح</button>');
+            tds[tds.length - 1].insertAdjacentHTML('beforeend', ' <button class="ba wf-resp" style="color:#be185d" onclick="wfCoRevise(\'' + ptfOnClickArg(no) + '\')">✏️ درخواست اصلاح</button>');
           } else {
             tr.querySelectorAll('td')[tds.length - 1].insertAdjacentHTML('beforeend', '<span class="wf-resp" style="display:none"></span>');
           }

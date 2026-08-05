@@ -251,7 +251,7 @@ window.ptfOpenDocViewer = function (url, meta) {
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h3 style="margin:0;font-size:15px;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escP(name) + '">👁 ' + escP(name) + '</h3>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-    (key ? '<button type="button" class="bt bt-o" style="font-size:12px" onclick="event.stopPropagation();ptfDownloadStoredFile(\'' + escP(key) + '\',\'' + escP(name).replace(/'/g, '') + '\')">⬇️ دانلود</button>' : '') +
+    (key ? '<button type="button" class="bt bt-o" style="font-size:12px" onclick="event.stopPropagation();ptfDownloadStoredFile(\'' + ptfOnClickArg(key) + '\',\'' + escP(name).replace(/'/g, '') + '\')">⬇️ دانلود</button>' : '') +
     '<a class="bt bt-o" style="font-size:12px;text-decoration:none" href="' + String(url).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗗 تب جدید</a>' +
     '<button type="button" class="bt" style="font-size:12px" onclick="event.stopPropagation();var m=document.getElementById(\'ptfDocViewer\');if(m)m.remove()">✕ بستن</button>' +
     '</div></div>' + body + '</div></div>';
@@ -277,6 +277,10 @@ function openStoredFile(key, nameHint) {
       if (d.ok) {
         if (typeof ptfOpenDocViewer === 'function') ptfOpenDocViewer(d.url, { key: key, name: name });
         else window.open(d.url, '_blank');
+      } else if (d.error === 'file_not_found') {
+        /* v34.0.18-alpha: پیام معنادار برای کلیدهای قدیمی/نامعتبر */
+        if (typeof ptfToast === 'function') ptfToast('⚠️ فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.', 'warn');
+        else alert('فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.');
       } else alert('خطا در دریافت لینک: ' + (d.error || ''));
     })
     .catch(function () { alert('عدم دسترسی به سرور'); });
@@ -338,8 +342,14 @@ function attachUploadWidget(containerId, folder, onDone) {
       }
       uploadFile(f, folder, function (res) {
         if (res.ok) {
+          /* v34.0.16-alpha (فاز ۱۳): فایل آپلودشده در همان نقطه با لینک «مشاهده» و دکمهٔ «حذف»
+             نمایش داده می‌شود تا کاربر همان‌جا بتواند سند را ببیند یا حذف کند (سرتاسری). */
+          var key = String(res.key || '').replace(/[\\']/g, '');
           row.innerHTML = (res.mode === 'arvan' ? '✅ ' : '🕓 ') + escP(res.name) +
-            ' <small style="color:#94a3b8">(' + fmtSize(res.size) + (res.savedNote ? ' — ' + escP(res.savedNote) : '') + ')</small>';
+            ' <small style="color:#94a3b8">(' + fmtSize(res.size) + (res.savedNote ? ' — ' + escP(res.savedNote) : '') + ')</small>' +
+            ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;font-size:11px;margin-left:6px">👁 مشاهده</a>' +
+            ' <button type="button" class="ba" style="color:#dc2626;font-size:11px" onclick="ptfRemoveJustUploaded(this,\'' + key + '\',\'' + escP(res.name).replace(/[\\']/g, '') + '\')">✕ حذف</button>';
+          row.setAttribute('data-key', key);
           onDone({ key: res.key, name: res.name, size: res.size, mode: res.mode, t: faDateTime() });
         } else {
           row.innerHTML = '❌ ' + escP(f.name) + ' — ' + escP(res.error || 'خطا');
@@ -353,6 +363,20 @@ function attachUploadWidget(containerId, folder, onDone) {
   zone.ondragleave = function () { zone.style.borderColor = ''; };
   zone.ondrop = function (e) { e.preventDefault(); zone.style.borderColor = ''; handle(e.dataTransfer.files); };
 }
+
+/* v34.0.16-alpha (فاز ۱۳): حذف فایلِ تازه‌آپلودشده از UI و فضای ابری — از دکمهٔ «✕ حذف» هر فایل در attachUploadWidget */
+window.ptfRemoveJustUploaded = function (btnEl, key, name) {
+  if (!key) { if (btnEl && btnEl.parentNode) btnEl.parentNode.remove(); return; }
+  if (!confirm('فایل «' + (name || '') + '» از فضای ابری حذف شود؟')) return;
+  /* حذف از فضای ابری */
+  try {
+    fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ key: key }) }).catch(function () {});
+  } catch (eD) {}
+  /* حذف ردیف از UI */
+  var row = btnEl ? btnEl.parentNode : null;
+  if (row && row.parentNode) row.parentNode.removeChild(row);
+  if (typeof ptfToast === 'function') ptfToast('فایل از فضای ابری حذف شد', 'warn');
+};
 
 /* =====================================================================
    US-210: توابع سراسری ثبت خلاصه کالا، همگام‌سازی استعلام‌های قدیمی و مدیریت مودال‌ها
@@ -500,7 +524,7 @@ window.ptfReviewAndCommitInqItems = function(inqNo, items, cb) {
     '<tbody>' + rowsHtml + '</tbody></table></div>' +
     '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
     '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfCommitModal\').remove()">انصراف</button>' +
-    '<button type="button" class="bt" style="background:#059669;color:#fff;font-weight:bold" onclick="ptfFinalCommitItems(\'' + escP(inqNo) + '\')">✅ تایید و ثبت نهایی (ضدتکرار + صدور TO و استعلام تامین)</button>' +
+    '<button type="button" class="bt" style="background:#059669;color:#fff;font-weight:bold" onclick="ptfFinalCommitItems(\'' + ptfOnClickArg(inqNo) + '\')">✅ تایید و ثبت نهایی (ضدتکرار + صدور TO و استعلام تامین)</button>' +
     '</div></div></div>';
   document.body.insertAdjacentHTML('beforeend', html);
   window._pendingCommitItems = items;

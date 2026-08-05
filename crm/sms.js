@@ -623,4 +623,46 @@
   var _hk = 0, _hki = setInterval(function () { _hk++; if (hookEntitySaves() || _hk > 40) clearInterval(_hki); }, 400);
   hookEntitySaves();
 
+  /* ================= v34.0.20-alpha (فاز ۱۷): اطلاع‌رسانی پیامکی به مشتری =================
+     helper مرکزی: موبایل مشتری را از رکورد مشتری (people.mobs / phones / ph) استخراج و پیامک می‌فرستد.
+     توسط نقاط کلیدی فرایند (ثبت درخواست، صدور پیشنهاد مالی و…) صدا زده می‌شود. */
+  function ptfCustomerMobile(c) {
+    if (!c) return '';
+    try {
+      if (c.ph) return c.ph;
+      if (Array.isArray(c.phones)) {
+        var m = c.phones.filter(function (p) { return p && (p.k === 'mob' || p.k === 'mobile') && p.n; })[0];
+        if (m) return m.n;
+      }
+      if (Array.isArray(c.people)) {
+        var mb = null;
+        c.people.forEach(function (p) { if (!mb && p && Array.isArray(p.mobs) && p.mobs[0] && p.mobs[0].n) mb = p.mobs[0].n; });
+        if (mb) return mb;
+      }
+      if (c.mobile) return c.mobile;
+      if (c.phone) return c.phone;
+    } catch (e) {}
+    return '';
+  }
+  /* ارسال پیامک به مشتری با شمارهٔ درخواست — همیشه از صف سرور می‌گذرد (در صورت قطع، local queue) */
+  window.ptfSmsCustomer = function (customerCd, text, cb) {
+    try {
+      var c = getData('ptf_crm_customers').filter(function (x) { return x.cd === customerCd; })[0];
+      if (!c) { cb && cb({ ok: false, error: 'no_customer' }); return; }
+      var mob = ptfCustomerMobile(c);
+      if (!mob) {
+        if (typeof addLog === 'function') try { addLog('📱 پیامک به ' + (c.co || c.cd) + ': شماره موبایل مشتری ثبت نشده — ارسال نشد'); } catch (eL) {}
+        cb && cb({ ok: false, error: 'no_mobile', customerCd: customerCd });
+        return;
+      }
+      if (typeof smsSendSingle === 'function') {
+        smsSendSingle(mob, text, function (d) {
+          cb && cb(d);
+          if (typeof addLog === 'function') try { addLog('📱 پیامک به ' + (c.co || c.cd) + ' (' + mob + '): ' + (d && d.ok ? 'ارسال شد' : (d && d.queued ? 'در صف' : 'ناموفق'))); } catch (eL2) {}
+        });
+      } else { cb && cb({ ok: false, error: 'no_sms_fn' }); }
+    } catch (e) { cb && cb({ ok: false, error: e && e.message ? e.message : 'err' }); }
+  };
+  window.ptfCustomerMobile = ptfCustomerMobile;
+
 })();

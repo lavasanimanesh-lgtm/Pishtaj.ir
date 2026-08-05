@@ -20,7 +20,7 @@
   function saveSnaps(a) { setData(SNAP_KEY, a || []); }
   function fiscalNowIso() { return new Date().toISOString(); }
   function findLocked(year) { return snaps().filter(function (s) { return s && String(s.year) === String(year) && s.locked === true; })[0]; }
-  window.ptfFiscalYearLocked = function (year) { return !!findLocked(String(year || '')); };
+  window.ptfFiscalYearLocked = function (year) { return !!findLocked(normFiscalYear(year)); }; /* v34.0.5-alpha */
   function lastUnlocked(year) {
     var a = snaps().filter(function (s) { return s && String(s.year) === String(year) && s.unlockedAt; });
     a.sort(function (x, y) { return String(y.unlockedAtISO || y.unlockedAt || '').localeCompare(String(x.unlockedAtISO || x.unlockedAt || '')); });
@@ -42,6 +42,42 @@
   }
   window.ptfFiscalYearOf = fiscalYearOf;
   function yearOf(s) { return fiscalYearOf(s); }
+  /* ===== v34.0.5-alpha (BUG-FISCAL-YEAR-001 — گزارش کارفرما: «۱۴۰۴ همان اعداد ۱۴۰۵ را نشان داد») =====
+     ریشه: ورودی سال فارسی/عربی («۱۴۰۴») → fiscalYearBoundsISO بازهٔ خالی ('') برمی‌گرداند و
+     cashInRange با start/end خالی فیلتر سال را بی‌اثر می‌کرد → مجموع همهٔ سال‌ها نمایش داده می‌شد.
+     رفع: نرمال‌سازی ارقام فارسی/عربی به لاتین در همهٔ نقاط ورود سال. */
+  function normFiscalYear(y) {
+    var t = fiscalYearOf(y);
+    if (t) return t;
+    var d = String(y == null ? '' : y).replace(/[۰-۹]/g, function (x) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(x); }).replace(/[٠-٩]/g, function (x) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(x); }).replace(/[^\d]/g, '');
+    if (/^\d{4}$/.test(d)) return d;
+    return yearNow();
+  }
+
+  /* v34.0.5-alpha: نرمال‌سازی ورودی درصد تقسیم (ارقام فارسی/عربی → عدد ۰ تا ۱۰۰) + رندر */
+  window.ptfFiscalPctChange = function (el) {
+    var v = String(el && el.value != null ? el.value : '').replace(/[۰-۹]/g, function (dd) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(dd); }).replace(/[٠-٩]/g, function (dd) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(dd); });
+    window._fiscalDistPct = Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+    ptfFiscalRender();
+  };
+
+  /* v34.0.5-alpha: فهرست سال‌های قابل انتخاب (از داده‌های واقعی + سال جاری ±۱) — ارقام لاتین */
+  function fiscalYearOptions(curYear) {
+    var set = {}, yn = yearNow();
+    set[yn] = 1; set[String(+yn - 1)] = 1; set[String(+yn + 1)] = 1;
+    if (curYear) set[String(curYear)] = 1;
+    function add(v) { var y = fiscalYearOf(v); if (y) set[y] = 1; }
+    try {
+      (getData('ptf_crm_projects') || []).forEach(function (x) { add(srcDate(x)); });
+      (getData('ptf_crm_deals') || []).forEach(function (x) { add(srcDate(x)); });
+      (getData('ptf_crm_invoices') || []).forEach(function (x) { add(invDate(x)); });
+      (getData('ptf_crm_sharetx') || []).forEach(function (x) { add(x.t || x.month); });
+      (getData('ptf_crm_cheques_issued') || []).forEach(function (x) { add(x.issueISO || x.createdISO || x.t); });
+      (getData('ptf_crm_petty') || []).forEach(function (x) { add(x.month || x.iso || x.t); });
+      snaps().forEach(function (x) { add(x.year || x.refYear); });
+    } catch (e) {}
+    return Object.keys(set).sort(function (a, b) { return +b - +a; });
+  }
   function lossTotal(o) { return (typeof ptfProjectLossTotal === 'function') ? ptfProjectLossTotal(o) : ((o && o.lossEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0)) }
   function hasHardWarning(r) { return (r.warnings || []).some(function (w) { return /^[⛔⚠️]/.test(String(w)); }); }
   function srcDate(o) { return o.closedAt || o.t || o.wonAt || o.createdAt || o.iso || o.date || ''; }
@@ -95,9 +131,34 @@
     });
     return out;
   }
+  /* ===== v34.0.8-alpha (فاز ۱ — فاکتور صوری/پوششی) =====
+     تعریف کارفرما: فاکتور صوری پوششی «خرید واقعی کالا نیست»؛ پس مبلغ اسمی آن نباید
+     هزینهٔ کامل شود. فقط «درصد کارمزد فاکتورساز» (مثلاً ۱.۵/۲/۳٪) هزینه است و در عوض
+     «اعتبار ارزش‌افزوده» (VAT) منفعت ایجاد می‌کند. یعنی اثر بر سود = اعتبار ارزش‌افزوده − کارمزد.
+     مثال: فاکتور ۱۰۰م با ۱۰م ارزش‌افزوده و کارمزد ۱.۵٪ → کارمزد ۱.۵م هزینه، اعتبار ۱۰م،
+     خالص منفعت ۸.۵م. این تابع فقط فاکتورهای پوششیِ همان سال را جمع می‌کند. */
+  function fiscalCoverTotals(year) {
+    var out = { count: 0, commission: 0, vat: 0, netBenefit: 0, rows: [] };
+    try {
+      var sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
+      if (!sf || Array.isArray(sf)) sf = {};
+      var b = fiscalYearBoundsISO(year);
+      (sf.invoices || []).forEach(function (i) {
+        if (!i || i.status === 'void' || i.isCover !== true) return;
+        var iso = cashIsoOf(i.dateISO || i.date || i.t);
+        if (!cashInRange(iso, b.startISO, b.endISO)) return;
+        var base = (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
+        var comm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0) : Math.round(base * (+i.coverCommissionPct || 0) / 100);
+        var vat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0) : Math.round(base * (+i.coverVatPct || 0) / 100);
+        out.count++; out.commission += comm; out.vat += vat; out.netBenefit += (vat - comm);
+        if (out.rows.length < 12) out.rows.push({ no: i.no || '', supplierCd: i.supplierCd || '', base: base, commission: comm, vat: vat, netBenefit: vat - comm });
+      });
+    } catch (e) {}
+    return out;
+  }
 
   window.ptfFiscalData = function (year) {
-    year = String(year || yearNow());
+    year = normFiscalYear(year);
     var rows = [], incomplete = [], projectProfit = 0, projectLossOnly = 0;
     var cand = collectCandidates(year);
     cand.items.forEach(function (p) {
@@ -142,7 +203,10 @@
     var amendments = snaps().filter(function (x) { return x.type === 'amendment' && String(x.effectYear) === String(year); });
     var amendTotal = amendments.reduce(function (z, x) { return z + (+x.amt || 0); }, 0);
     var pettyStandalone = fiscalPettyStandalone(year);
-    var net = projectProfit - (+ox.total || 0) - (+pettyStandalone.total || 0) + amendTotal; /* legacy UAT netProfit += amendTotal: var net = projectProfit - (+ox.total || 0) + amendTotal; */
+    /* v34.0.8-alpha (فاز ۱): منفعت خالص فاکتورهای صوری/پوششی (اعتبار ارزش‌افزوده − کارمزد) به سود اضافه می‌شود.
+       مبلغ اسمی فاکتور پوششی در projectProfit نیامده (خودش خرید نیست)؛ بنابراین افزودن اینجا دوباره‌شماری نمی‌سازد. */
+    var cover = fiscalCoverTotals(year);
+    var net = projectProfit - (+ox.total || 0) - (+pettyStandalone.total || 0) + amendTotal + (+cover.netBenefit || 0); /* legacy UAT netProfit += amendTotal: var net = projectProfit - (+ox.total || 0) + amendTotal; */
     /* Sprint 281: the official financial position is a read-only derived attachment.
        It is included only when its configured fiscal year matches this report, so
        an old selected year can never silently receive today's position. */
@@ -153,7 +217,7 @@
         if (fp && fp.cfg && String(fp.cfg.fiscalYear) === String(year)) financialPosition = fp;
       }
     } catch (eFP) {}
-    return { year: year, projects: rows, incomplete: incomplete, undated: cand.undated, invoiceUndated: invUndated, projectProfit: projectProfit, projectLossOnly: projectLossOnly, opexTotal: +ox.total || 0, opexByCat: ox.byCat || {}, pettyStandaloneTotal: +pettyStandalone.total || 0, pettyStandaloneCount: pettyStandalone.count || 0, pettyStandalonePending: +pettyStandalone.pending || 0, pettyStandalonePendingCount: pettyStandalone.pendingCount || 0, pettyStandaloneRows: pettyStandalone.rows || [], openReceivables: openTotal, openReceivablesTotal: openTotal, openReceivablesYear: openYear, amendments: amendments, amendTotal: amendTotal, netProfit: net, financialPosition: financialPosition };
+    return { year: year, projects: rows, incomplete: incomplete, undated: cand.undated, invoiceUndated: invUndated, projectProfit: projectProfit, projectLossOnly: projectLossOnly, opexTotal: +ox.total || 0, opexByCat: ox.byCat || {}, pettyStandaloneTotal: +pettyStandalone.total || 0, pettyStandaloneCount: pettyStandalone.count || 0, pettyStandalonePending: +pettyStandalone.pending || 0, pettyStandalonePendingCount: pettyStandalone.pendingCount || 0, pettyStandaloneRows: pettyStandalone.rows || [], coverCount: cover.count || 0, coverCommission: cover.commission || 0, coverVat: cover.vat || 0, coverNetBenefit: cover.netBenefit || 0, openReceivables: openTotal, openReceivablesTotal: openTotal, openReceivablesYear: openYear, amendments: amendments, amendTotal: amendTotal, netProfit: net, financialPosition: financialPosition };
   };
 
   window.ptfFiscalDistribution = function (year, distPct) {
@@ -179,6 +243,7 @@
      چک وارده درآمد در لحظه وصول؛ بدون دوباره‌شماری؛ کف = عدد دستی.
      ===================================================================== */
   function fiscalYearBoundsISO(year) {
+    year = normFiscalYear(year); /* v34.0.5-alpha */
     var startISO = (typeof ptfJToISO === 'function') ? ptfJToISO(String(year) + '/01/01') : '';
     var nextISO = (typeof ptfJToISO === 'function') ? ptfJToISO((+year + 1) + '/01/01') : '';
     var endISO = '';
@@ -195,14 +260,14 @@
   function cashInRange(iso, start, end) { return !!iso && (!start || iso >= start) && (!end || iso <= end); }
   /* کف نقدینگی در گردش (عدد دستی — ذخیره در snapshots) */
   window.ptfFiscalCashFloor = function (year) {
-    year = String(year || yearNow());
+    year = normFiscalYear(year);
     var all = snaps().filter(function (s) { return s && s.type === 'cash_floor' && String(s.year) === year; });
     all.sort(function (a, b) { return String(b.updatedAt || b.t || '').localeCompare(String(a.updatedAt || a.t || '')); });
     return all[0] ? Math.max(0, +all[0].floor || 0) : 0;
   };
   window.ptfFiscalCashFloorSet = function (year, floor) {
     if (!canFiscal()) { alert('⛔ فقط مدیران ارشد'); return false; }
-    year = String(year || yearNow());
+    year = normFiscalYear(year);
     floor = Math.max(0, n(floor));
     var rec = { cd: genCode('FLR'), type: 'cash_floor', year: year, floor: floor, updatedAt: faDateTime(), updatedBy: (curSession() || {}).name };
     var a = snaps(); a.unshift(rec); saveSnaps(a);
@@ -212,7 +277,7 @@
   };
   /* دادهٔ سود نقدی سال (بدون دوباره‌شماری) */
   window.ptfFiscalCashData = function (year) {
-    year = String(year || yearNow());
+    year = normFiscalYear(year);
     var d = ptfFiscalData(year);
     var b = fiscalYearBoundsISO(year), start = b.startISO, end = b.endISO;
     var openingCash = 0;
@@ -241,7 +306,7 @@
       });
     });
     /* خروجی‌های دوره (بدون دوباره‌شماری) */
-    var out = { supplierInvoices: 0, unallocatedPayments: 0, independentCheques: 0, opex: +d.opexTotal || 0, petty: +d.pettyStandaloneTotal || 0 };
+    var out = { supplierInvoices: 0, unallocatedPayments: 0, independentCheques: 0, opex: +d.opexTotal || 0, petty: +d.pettyStandaloneTotal || 0, coverCommission: 0, coverVat: 0, coverNetBenefit: 0, coverCount: 0 };
     try {
       var sf = {};
       try { sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sf || Array.isArray(sf)) sf = {}; } catch (eS) {}
@@ -249,13 +314,25 @@
         if (!i || i.status === 'void') return;
         var iso = cashIsoOf(i.dateISO || i.date || i.t);
         if (!cashInRange(iso, start, end)) return;
+        /* v34.0.8-alpha (فاز ۱): فاکتور صوری/پوششی خرید واقعی نیست — مبلغ اسمی در خروجیِ نقدی
+           نمی‌آید؛ فقط «کارمزد» (هزینهٔ واقعیِ نقدی) خروجی است و اعتبار ارزش‌افزوده منفعتِ جدا. */
+        if (i.isCover === true) {
+          var cbase = (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
+          var ccomm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0) : Math.round(cbase * (+i.coverCommissionPct || 0) / 100);
+          var cvat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0) : Math.round(cbase * (+i.coverVatPct || 0) / 100);
+          out.coverCount++; out.coverCommission += ccomm; out.coverVat += cvat; out.coverNetBenefit += (cvat - ccomm);
+          return;
+        }
         out.supplierInvoices += (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
       });
       (getData('ptf_crm_payables') || []).forEach(function (p) {
+        /* v34.0.12-alpha (فاز ۹ — هماهنگ با فاز ۳/۶): «تعهد لگاسی» دیگر به‌عنوان هزینه/خروجی نقدیِ
+           سود شمرده نمی‌شود. تعهدِ legacy (pay:'credit') فقط دادهٔ تاریخیِ پیش از زیر‌دفتر است و
+           مبنای تعهد، فاکتور خرید ثبت‌شده است (خریدِ تعهدی بی‌معناست). این‌جا عمداً صرف‌نظر می‌شود
+           تا با balance()/working-capital (که legacy را از مبلغ حذف کرده‌اند) یک‌دست شود و
+           دوباره‌شماری (تعهد + فاکتورِ هم‌مبلغ) در سود نقدی رخ ندهد. */
         if (!p || p.pay !== 'credit' || p.status === 'void' || p.sfInvoiceCd) return;
-        var iso = cashIsoOf(p.dateISO || p.date || p.t || p.createdAt);
-        if (!cashInRange(iso, start, end)) return;
-        out.supplierInvoices += (p.cur && p.cur !== 'IRR') ? (+p.amount || 0) * (+p.rate || 0) : (+p.amount || 0);
+        /* legacy دیگر در خروجی نقدی سود نمی‌آید (فقط اطلاع‌رسانی/گزارش جدا) */
       });
       (sf.adjustments || []).forEach(function (a) {
         if (!a || a.status === 'void') return;
@@ -285,14 +362,28 @@
         out.independentCheques += +c.amt || 0;
       });
     } catch (eC) {}
-    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty;
+    /* کارمزد فاکتور پوششی خروجیِ نقدی واقعی است (نقد پرداخت می‌شود)؛ اعتبار ارزش‌افزوده نقد نیست
+       و به موجودی/قابل تقسیم اضافه نمی‌شود — فقط در «منفعت» گزارش می‌شود. */
+    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty + out.coverCommission;
     var netCash = receipts - outflowsTotal;
     var cashEnd = openingCash + netCash;
-    return { year: year, openingCash: openingCash, receipts: receipts, pendingCheques: chqPending, outflows: out, outflowsTotal: outflowsTotal, netCash: netCash, cashEnd: cashEnd, floor: window.ptfFiscalCashFloor(year) };
+    return { year: year, openingCash: openingCash, receipts: receipts, pendingCheques: chqPending, outflows: out, outflowsTotal: outflowsTotal, netCash: netCash, cashEnd: cashEnd, floor: window.ptfFiscalCashFloor(year), coverCount: out.coverCount, coverCommission: out.coverCommission, coverVat: out.coverVat, coverNetBenefit: out.coverNetBenefit };
   };
   /* توزیع نقدی: مازاد بر کف → تقسیم (٪ توافقی) + بازگشت به کف */
   window.ptfFiscalCashDistribution = function (year, distPct) {
+    year = normFiscalYear(year); /* v34.0.5-alpha */
     var c = window.ptfFiscalCashData(year);
+    /* v34.0.5-alpha (BUG-FISCAL-ADV-004 — درخواست کارفرما): برداشت‌های علی‌الحساب/بدهیِ همان سال
+       (sharetx نوع draw/advance/debit با سال مالی جاری) باید از سهم سود هر سهامدار کسر شوند.
+       توجه: ثبت سود همچنان «ناخالص» است تا دفتر درست بماند؛ کسر در «ماندهٔ قابل تسویهٔ امسال» دیده می‌شود.
+       v34.0.8-alpha (فاز ۲): نوع salary_payment عمداً اینجا نیست — حقوق «مطالبهٔ سهامدار» است نه
+       علی‌الحسابِ سود؛ پس پرداخت حقوق از سهم سود کسر نمی‌شود و ستون «ماندهٔ قابل تسویهٔ امسال» گمراه‌کننده نیست. */
+    var advRows = [];
+    try {
+      advRows = (getData('ptf_crm_sharetx') || []).filter(function (x) {
+        return x && (x.type === 'draw' || x.type === 'advance' || x.type === 'debit') && fiscalYearOf(x.t || x.month || '') === String(year);
+      });
+    } catch (eAdv) {}
     distPct = Math.max(0, Math.min(100, n(distPct == null ? 60 : distPct)));
     var over = Math.max(0, c.cashEnd - c.floor);
     var distributable = Math.round(over * distPct / 100);
@@ -300,20 +391,22 @@
     var shareholders = getData('ptf_crm_shareholders').filter(function (s) { return s.active !== false; }).map(function (s) {
       var bal = (typeof ptfShareholderBalance === 'function') ? ptfShareholderBalance(s.cd) : { net: 0 };
       var gross = distributable * (+s.pct || 0) / 100;
-      return { cd: s.cd, name: s.name, pct: +s.pct || 0, gross: Math.round(gross), currentBalance: Math.round(bal.net || 0), final: Math.round(gross + (bal.net || 0)) };
+      var adv = advRows.reduce(function (z, x) { return z + (x.shCd === s.cd ? (+x.amt || 0) : 0); }, 0);
+      return { cd: s.cd, name: s.name, pct: +s.pct || 0, gross: Math.round(gross), advYear: Math.round(adv), settleYear: Math.round(gross - adv), currentBalance: Math.round(bal.net || 0), final: Math.round(gross + (bal.net || 0)) };
     });
-    return Object.assign(c, { distPct: distPct, overFloor: over, distributable: distributable, backToFloor: backToFloor, shareholders: shareholders });
+    return Object.assign(c, { distPct: distPct, overFloor: over, distributable: distributable, backToFloor: backToFloor, shareholders: shareholders, advYearTotal: Math.round(advRows.reduce(function (z, x) { return z + (+x.amt || 0); }, 0)) });
   };
   /* ثبت واقعی تقسیم در دفاتر سهامداران (نوع profit در ptf_crm_sharetx) */
   window.ptfFiscalDividendApply = function (year, distPct) {
     if (!canFiscal()) { alert('⛔ فقط مدیران ارشد'); return { ok: false }; }
-    year = String(year || yearNow());
+    year = normFiscalYear(year); /* v34.0.5-alpha */
     if (!findLocked(year)) { alert('🔒 ابتدا سال مالی را قفل کنید (دکمه «قفل سال» بالای داشبورد).'); return { ok: false }; }
     var d = window.ptfFiscalCashDistribution(year, distPct);
     if (d.distributable <= 0) { alert('مبلغ قابل تقسیم صفر است — موجودی نقد پایان (' + money(d.cashEnd) + ') از کف نقدینگی (' + money(d.floor) + ') بیشتر نیست.'); return { ok: false }; }
     var prev = snaps().filter(function (s) { return s && s.type === 'dividend' && String(s.year) === year; });
     if (prev.length) { alert('⚠️ تقسیم سود سال ' + year + ' قبلاً ثبت شده — برای ثبت مجدد ابتدا سند قبلی برگردانده شود.'); return { ok: false }; }
-    if (!confirm('💰 ثبت تقسیم سود سال ' + year + '؟\n\nقابل تقسیم: ' + money(d.distributable) + '\nبازگشت به کف (' + (100 - d.distPct) + '٪): ' + money(d.backToFloor) + '\n\nبرای ' + d.shareholders.length + ' سهامدار فعال در دفاتر ثبت می‌شود (نوع: تقسیم سود).')) return { ok: false };
+    var advTot = d.shareholders.reduce(function (z, s) { return z + (+s.advYear || 0); }, 0);
+    if (!confirm('💰 ثبت تقسیم سود سال ' + year + '؟\n\nقابل تقسیم: ' + money(d.distributable) + '\nبازگشت به کف (' + (100 - d.distPct) + '٪): ' + money(d.backToFloor) + (advTot ? '\nعلی‌الحساب‌های ثبت‌شدهٔ این سال: ' + money(advTot) + ' ← در ماندهٔ هر سهامدار از سهم ناخالص او کسر می‌شود (بخش «مانده قابل تسویهٔ امسال» جدول)' : '') + '\n\nبرای ' + d.shareholders.length + ' سهامدار فعال در دفاتر ثبت می‌شود (سهم ناخالص؛ برداشت‌های قبلی خودکار خالص می‌شوند).')) return { ok: false };
     var made = 0;
     d.shareholders.forEach(function (s) {
       if (s.gross <= 0) return;
@@ -322,7 +415,7 @@
       setData('ptf_crm_sharetx', txs);
       made++;
     });
-    var a = snaps(); a.unshift({ cd: genCode('DIV'), type: 'dividend', year: year, amount: d.distributable, backToFloor: d.backToFloor, floor: d.floor, distPct: d.distPct, t: faDateTime(), by: (curSession() || {}).name });
+    var a = snaps(); a.unshift({ cd: genCode('DIV'), type: 'dividend', year: year, amount: d.distributable, backToFloor: d.backToFloor, floor: d.floor, distPct: d.distPct, advYearTotal: advTot, t: faDateTime(), by: (curSession() || {}).name });
     saveSnaps(a);
     try { audit('سال مالی', 'ثبت تقسیم سود سال ' + year + ' — ' + money(d.distributable) + ' بین ' + made + ' سهامدار؛ بازگشت به کف: ' + money(d.backToFloor), year); } catch (e) {}
     if (typeof ptfToast === 'function') ptfToast('✅ تقسیم سود سال ' + year + ' در دفاتر سهامداران ثبت شد', 'ok');
@@ -355,8 +448,8 @@
 
   function fiscalHtml() {
     if (!canFiscal()) return '';
-    var year = window._fiscalYear || yearNow();
-    var distPct = window._fiscalDistPct == null ? 60 : window._fiscalDistPct;
+    var year = normFiscalYear(window._fiscalYear); /* v34.0.5-alpha */
+    var distPct = Math.max(0, Math.min(100, n(window._fiscalDistPct == null ? 60 : window._fiscalDistPct))); /* v34.0.5-alpha: رقم فارسی/رشته → عدد ۰ تا ۱۰۰ */
     var d = ptfFiscalDistribution(year, distPct);
     /* v33.10.0: منطق نقدی (مصوب کارفرما) — سود نقدی + کف نقدینگی + تقسیم */
     var c = window.ptfFiscalCashDistribution(year, distPct);
@@ -365,7 +458,7 @@
     var incHtml = incN ? '<div class="ptf-fiscal-alert ptf-fiscal-alert-danger" style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 12px;margin:10px 0;color:#991b1b;font-size:12.5px"><b>⚠️ ' + incN + ' مورد نیازمند تعیین تکلیف حسابرسی:</b><br>' + d.incomplete.slice(0, 6).map(function (x) { return '• ناقص سود: ' + escP(x.no || '-') + ' — ' + escP(x.buyerCo || '') + ': ' + escP((x.warnings || []).join(' | ')); }).join('<br>') + (d.undated.length ? '<br>' + d.undated.slice(0, 4).map(function (x) { return '• بدون تاریخ سال مالی: ' + escP(x.no || '-') + ' — ' + escP(x.reason); }).join('<br>') : '') + (d.invoiceUndated.length ? '<br>' + d.invoiceUndated.slice(0, 4).map(function (x) { return '• فاکتور باز بدون تاریخ: ' + escP(x.no || '-') + ' — مانده ' + money(x.remain); }).join('<br>') : '') + '</div>' : '<div class="ptf-fiscal-alert ptf-fiscal-alert-success" style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin:10px 0;color:#065f46;font-size:12px">✅ مورد ناقص اثرگذار برای سود سال شناسایی نشد.</div>';
     var shRows = (d.shareholders || []).map(function (s) { var cl = s.final >= 0 ? '#059669' : '#dc2626'; return '<tr><td>' + escP(s.name) + '</td><td>' + s.pct + '٪</td><td>' + money(s.gross) + '</td><td>' + money(s.currentBalance) + '</td><td style="color:' + cl + ';font-weight:900">' + money(Math.abs(s.final)) + (s.final >= 0 ? ' بستانکار' : ' بدهکار') + '</td></tr>'; }).join('');
     /* v33.10.0: بلوک سود نقدی — کارت‌ها + جدول سهامداران نقدی + دکمه ثبت تقسیم */
-    var cashShRows = (c.shareholders || []).map(function (s) { var cl = s.final >= 0 ? '#059669' : '#dc2626'; return '<tr><td>' + escP(s.name) + '</td><td>' + s.pct + '٪</td><td>' + money(s.gross) + '</td><td>' + money(s.currentBalance) + '</td><td style="color:' + cl + ';font-weight:900">' + money(Math.abs(s.final)) + (s.final >= 0 ? ' بستانکار' : ' بدهکار') + '</td></tr>'; }).join('');
+    var cashShRows = (c.shareholders || []).map(function (s) { var cl = s.final >= 0 ? '#059669' : '#dc2626'; var cls = (s.settleYear || 0) >= 0 ? '#059669' : '#dc2626'; return '<tr><td>' + escP(s.name) + '</td><td>' + s.pct + '٪</td><td>' + money(s.gross) + '</td><td>' + money(s.advYear || 0) + '</td><td style="color:' + cls + ';font-weight:700">' + money(s.settleYear != null ? s.settleYear : s.gross) + '</td><td>' + money(s.currentBalance) + '</td><td style="color:' + cl + ';font-weight:900">' + money(Math.abs(s.final)) + (s.final >= 0 ? ' بستانکار' : ' بدهکار') + '</td></tr>'; }).join('');
     var lowCash = c.cashEnd < c.floor;
     var cashBlock =
       '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:16px;padding:12px 14px;margin-top:12px">' +
@@ -374,7 +467,7 @@
       '<small style="color:#64748b">درآمد واقعی = وصولی‌ها (نقد + چک وصول‌شده)؛ خروجی = فاکتورهای خرید + پرداخت‌های بدون تخصیص + چک‌های صادرهٔ مستقل + هزینه‌های جاری + تنخواه (بدون دوباره‌شماری). تقسیم فقط از مازاد موجودی نقد بر «کف نقدینگی در گردش».</small></div>' +
       '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
       '<button class="bt bt-o" style="font-size:12px" onclick="ptfFiscalCashFloorOpen()">⚙️ کف نقدینگی (' + money(c.floor) + ')</button>' +
-      '<button class="bt" style="font-size:12px;background:#059669" onclick="ptfFiscalDividendApply(\'' + escP(String(year)) + '\',' + distPct + ')">💰 ثبت تقسیم سود در دفاتر سهامداران</button>' +
+      '<button class="bt" style="font-size:12px;background:#059669" onclick="ptfFiscalDividendApply(\'' + ptfOnClickArg(String(year)) + '\',' + distPct + ')">💰 ثبت تقسیم سود در دفاتر سهامداران</button>' +
       '</span></div>' +
       (lowCash ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#991b1b"><b>⚠️ نقدینگی زیر کف است</b> — موجودی نقد پایان (' + money(c.cashEnd) + ') کمتر از کف نقدینگی (' + money(c.floor) + ') است؛ تا پر شدن کف، تقسیم سود مجاز نیست.</div>' : '') +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">' +
@@ -389,8 +482,9 @@
       '<div class="sc ptf-fiscal-kpi"><b style="color:#059669">' + money(c.distributable) + '</b><span>قابل تقسیم (' + c.distPct + '٪)</span></div>' +
       '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + money(c.backToFloor) + '</b><span>بازگشت به کف (' + (100 - c.distPct) + '٪)</span></div>' +
       '</div>' +
-      '<div style="margin-top:8px;font-size:11.5px;color:#64748b;line-height:1.8">تفکیک خروجی‌ها: فاکتورهای خرید ' + money(c.outflows.supplierInvoices) + ' | پرداخت بدون تخصیص ' + money(c.outflows.unallocatedPayments) + ' | چک صادرهٔ مستقل ' + money(c.outflows.independentCheques) + ' | هزینه‌های جاری ' + money(c.outflows.opex) + ' | تنخواه مستقل ' + money(c.outflows.petty) + '</div>' +
-      '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم از تقسیم نقدی</th><th>مانده جاری</th><th>نتیجه پس از تقسیم</th></tr></thead><tbody>' + (cashShRows || '<tr><td colspan="5">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>' +
+      '<div style="margin-top:8px;font-size:11.5px;color:#64748b;line-height:1.8">تفکیک خروجی‌ها: فاکتورهای خرید ' + money(c.outflows.supplierInvoices) + ' | کارمزد پوششی ' + money(c.outflows.coverCommission || 0) + ' | پرداخت بدون تخصیص ' + money(c.outflows.unallocatedPayments) + ' | چک صادرهٔ مستقل ' + money(c.outflows.independentCheques) + ' | هزینه‌های جاری ' + money(c.outflows.opex) + ' | تنخواه مستقل ' + money(c.outflows.petty) + (c.outflows.coverVat ? ' | اعتبار ارزش‌افزودهٔ پوششی (منفعت): ' + money(c.outflows.coverVat) : '') + '</div>' +
+      '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم ناخالص</th><th>علی‌الحساب/بدهی سال</th><th>مانده قابل تسویهٔ امسال</th><th>مانده جاری</th><th>نتیجه پس از تقسیم</th></tr></thead><tbody>' + (cashShRows || '<tr><td colspan="7">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>' +
+      (c.advYearTotal ? '<div style="margin-top:6px;font-size:11.5px;color:#7c3aed">ℹ️ جمع برداشت‌های علی‌الحساب/بدهیِ سال ' + escP(String(year)) + ': ' + money(c.advYearTotal) + ' — هنگام تسویه از سهم ناخالص هر سهامدار کسر می‌شود (ستون «مانده قابل تسویهٔ امسال»).</div>' : '') +
       '</div>';
 
     // v31.3 FIN-EX-05: 3 سرفصل مدیریتی جدید برای گزارش سال
@@ -429,28 +523,68 @@
         + '</div>';
     } catch(eExtra){ extraCards=''; }
 
-    var unlockBtn = (locked && canFiscalUnlock()) ? '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fed7aa" onclick="ptfFiscalUnlockOpen(\'' + escP(String(year)) + '\')">🔓 بازکردن قفل</button>' : '';
-    var lockBox = locked ? '<div class="ptf-fiscal-alert ptf-fiscal-alert-lock" style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 12px;margin:10px 0;color:#5b21b6;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔒 سال ' + escP(year) + ' قفل است — snapshot: ' + escP(locked.cd) + ' توسط ' + escP(locked.by || '') + ' در ' + escP(locked.lockedAt || locked.t || '') + (canFiscalUnlock() ? '<br><small>رییس هیات مدیره می‌تواند بدون بازگردانی بک‌آپ و با ثبت دلیل، فقط قفل را باز کند.</small>' : '') + '</span><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="font-size:11.5px;color:#5b21b6;border-color:#ddd6fe" onclick="ptfFiscalSnapPrint(\'' + escP(locked.cd) + '\')">🖨 چاپ snapshot</button>' + unlockBtn + '</span></div>' : '';
+    var unlockBtn = (locked && canFiscalUnlock()) ? '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fed7aa" onclick="ptfFiscalUnlockOpen(\'' + ptfOnClickArg(String(year)) + '\')">🔓 بازکردن قفل</button>' : '';
+    var lockBox = locked ? '<div class="ptf-fiscal-alert ptf-fiscal-alert-lock" style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 12px;margin:10px 0;color:#5b21b6;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔒 سال ' + escP(year) + ' قفل است — snapshot: ' + escP(locked.cd) + ' توسط ' + escP(locked.by || '') + ' در ' + escP(locked.lockedAt || locked.t || '') + (canFiscalUnlock() ? '<br><small>رییس هیات مدیره می‌تواند بدون بازگردانی بک‌آپ و با ثبت دلیل، فقط قفل را باز کند.</small>' : '') + '</span><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="font-size:11.5px;color:#5b21b6;border-color:#ddd6fe" onclick="ptfFiscalSnapPrint(\'' + ptfOnClickArg(locked.cd) + '\')">🖨 چاپ snapshot</button>' + unlockBtn + '</span></div>' : '';
     var unlocked = lastUnlocked(year);
-    var unlockHistoryBox = (!locked && unlocked) ? '<div class="ptf-fiscal-alert ptf-fiscal-alert-warning" style="background:#fffbeb;border:1px solid #fed7aa;border-radius:12px;padding:9px 12px;margin:10px 0;color:#9a3412;font-size:12px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><span>🔓 آخرین بازگشایی سال ' + escP(year) + ': ' + escP(unlocked.unlockedAt || '') + ' توسط ' + escP(unlocked.unlockedBy || '') + '<br><small>دلیل: ' + escP(unlocked.unlockReason || 'ثبت نشده') + ' — snapshot اصلی حفظ شده است.</small></span><button class="bt bt-o" style="font-size:11px" onclick="ptfFiscalSnapPrint(\'' + escP(unlocked.cd) + '\')">🖨 چاپ snapshot محفوظ</button></div>' : '';
+    var unlockHistoryBox = (!locked && unlocked) ? '<div class="ptf-fiscal-alert ptf-fiscal-alert-warning" style="background:#fffbeb;border:1px solid #fed7aa;border-radius:12px;padding:9px 12px;margin:10px 0;color:#9a3412;font-size:12px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><span>🔓 آخرین بازگشایی سال ' + escP(year) + ': ' + escP(unlocked.unlockedAt || '') + ' توسط ' + escP(unlocked.unlockedBy || '') + '<br><small>دلیل: ' + escP(unlocked.unlockReason || 'ثبت نشده') + ' — snapshot اصلی حفظ شده است.</small></span><button class="bt bt-o" style="font-size:11px" onclick="ptfFiscalSnapPrint(\'' + ptfOnClickArg(unlocked.cd) + '\')">🖨 چاپ snapshot محفوظ</button></div>' : '';
     /* v33.11.0 (بازخورد کارفرما): جدول/کارت‌های سود تعهدی قبلی (که اعداد را ناسازگار با
        منطق نقدی نشان می‌دادند) به‌طور کامل حذف شدند — فقط «سود نقدی و تقسیم» نمایش داده می‌شود. */
     return '<div id="fiscalBox" class="ptf-fiscal-shell" style="background:#f8fafc;border:1px solid var(--brd);border-radius:16px;padding:12px 14px;margin:12px 0">' +
-      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><b class="ptf-fiscal-title" style="font-size:14px;color:#0f172a">' + fiscalIcon('calendar') + ' داشبورد سال مالی و تقسیم سود</b><br><small style="color:#64748b">محرمانه — فقط مدیران ارشد (ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی). مبنای محاسبه: منطق نقدی (وصولی‌ها − خروجی‌ها) و کف نقدینگی در گردش.</small></div>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><b class="ptf-fiscal-title" style="font-size:14px;color:#0f172a">' + fiscalIcon('calendar') + ' داشبورد سال مالی و تقسیم سود</b><br><small style="color:#64748b">محرمانه — فقط مدیران ارشد (ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی). مبنای محاسبه: منطق نقدی (وصولی‌ها − خروجی‌ها) و کف نقدینگی در گردش. قاعده سال: تاریخ مختومه/برد/ثبت سند.</small></div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<input value="' + escP(year) + '" onchange="window._fiscalYear=this.value.trim();ptfFiscalRender()" style="width:76px;padding:7px;border:1px solid var(--brd);border-radius:9px;direction:ltr">' +
-      '<input value="' + escP(distPct) + '" onchange="window._fiscalDistPct=this.value.trim();ptfFiscalRender()" title="درصد تقسیم سود" style="width:62px;padding:7px;border:1px solid var(--brd);border-radius:9px;direction:ltr">' +
+      '<label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:#475569;background:#fff;border:1px solid var(--brd);border-radius:9px;padding:2px 8px">📅 سال مالی: <select onchange="window._fiscalYear=this.value;ptfFiscalRender()" style="padding:5px 4px;border:none;outline:none;font-weight:700;color:#0f172a;direction:ltr">' + fiscalYearOptions(year).map(function (y) { return '<option value="' + y + '"' + (String(y) === String(year) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></label>' /* v34.0.5-alpha (BUG-FISCAL-YEAR-UI-002): انتخاب سال فقط از منوی کشویی — ورود دستی فارسی فیلتر را می‌شکست */ +
+      '<label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:#475569;background:#fff;border:1px solid var(--brd);border-radius:9px;padding:2px 8px">٪ سهم تقسیم سود: <input value="' + escP(String(distPct)) + '" inputmode="numeric" onchange="ptfFiscalPctChange(this)" style="width:50px;padding:5px;border:none;outline:none;direction:ltr;text-align:center;font-weight:700;color:#0f172a"> ٪</label>' /* v34.0.5-alpha (BUG-FISCAL-PCT-003): برچسب صریح + نرمال ارقام فارسی (ptfFiscalPctChange) */ +
       '<button class="bt" style="font-size:12px" onclick="ptfFiscalLock()">🔒 قفل سال</button>' +
       '<button class="bt bt-o" style="font-size:12px" onclick="ptfFiscalPrint()">گزارش رسمی</button>' +
+      '<button class="bt bt-o" style="font-size:12px;color:#991b1b;border-color:#fecaca" onclick="ptfFiscalPdf()">📄 خروجی PDF</button>' + /* v34.0.5-alpha */
       '<button class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="ptfFiscalCsv()">📥 CSV حسابدار</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfFiscalAmendOpen()">🧾 سند اصلاحی</button>' +
       '</div></div>' + lockBox + unlockHistoryBox + cashBlock + incHtml +
       ((d.amendments || []).length ? '<div class="ptf-fiscal-alert ptf-fiscal-alert-lock" style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 12px;margin:10px 0;font-size:12px;color:#5b21b6"><b>سندهای اصلاحی موثر بر سال ' + escP(String(d.year)) + ':</b><br>' + d.amendments.map(function (a) { return '• <b>' + escP(a.cd) + '</b> (مرجع: سال قفل‌شده ' + escP(a.refYear) + ') — ' + (a.amt >= 0 ? '➕' : '➖') + ' ' + money(Math.abs(a.amt)) + ' — ' + escP(a.desc) + ' <small style="color:#94a3b8">(' + escP(a.t || '') + ' — ' + escP(a.by || '') + ')</small>'; }).join('<br>') + '</div>' : '') +
       '</div>';
-    if ((d.incomplete.length || d.undated.length || d.invoiceUndated.length) && !confirm('⚠️ ' + (d.incomplete.length + d.undated.length + d.invoiceUndated.length) + ' مورد ناقص/بی‌تاریخ وجود دارد و در سود لحاظ نشده است. با این وجود snapshot سال قفل شود؟')) return;
+  };
+
+  /* ===== v34.0.4-alpha (BUG-FISCAL-LOST-UI-001/002/004) بازگردانی توابع حذف‌شدهٔ داشبورد سال مالی =====
+     ریشه: در refactor v33.10/33.11 (حذف جدول سود تعهدی)، بدنهٔ ptfFiscalRender/ptfFiscalLock/ptfFiscalSnapshotOpen
+     حذف شد (کد قفل به‌صورت مرده بعد از return در fiscalHtml مانده بود) ولی دکمه‌های UI هنوز همان‌ها را
+     صدا می‌زدند → ReferenceError: قفل سال غیرممکن، تغییر سال/درصد رفرش نمی‌شد، و دکمهٔ «اسنپ‌شات و ترازنامه»
+     گزارش جامع بی‌صدا کاری نمی‌کرد. tester101 این رگرسیون را ثبت کرده بود. */
+  window.ptfFiscalRender = function () { if (!canFiscal()) return; var box = document.getElementById('fiscalBox'); if (box) box.outerHTML = fiscalHtml(); };
+
+  /* قفل سال مالی: snapshot منجمد (تعهدی + نقدی — الگوی ptfFiscalCsv) + حفاظ دوباره‌قفل + تأیید موارد ناقص */
+  window.ptfFiscalLock = function () {
+    if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }
+    var year = normFiscalYear(window._fiscalYear) /* v34.0.5-alpha */;
+    if (findLocked(year)) { alert('سال ' + year + ' قبلاً قفل شده است («بازکردن قفل» فقط برای رییس هیات مدیره و با ثبت دلیل ممکن است).'); return; }
+    var distPct = window._fiscalDistPct == null ? 60 : window._fiscalDistPct;
+    var d = ptfFiscalDistribution(year, distPct);
+    var c = window.ptfFiscalCashDistribution(year, distPct);
+    var incN = d.incomplete.length + d.undated.length + d.invoiceUndated.length;
+    if (incN && !confirm('⚠️ ' + incN + ' مورد ناقص/بی‌تاریخ وجود دارد و در سود لحاظ نشده است. با این وجود snapshot سال قفل شود؟')) return;
     var nowLock = faDateTime(), nowLockIso = fiscalNowIso();
-    var rec = { cd: genCode('FSY'), year: String(year), locked: true, t: nowLock, lockedAt: nowLock, lockStateAtISO: nowLockIso, ts: nowLockIso, by: (curSession() || {}).name || '', data: d };
-    var a = snaps(); a.unshift(rec); saveSnaps(a); audit('سال مالی', 'قفل snapshot سال ' + year + ' — سود خالص ' + money(d.netProfit), rec.cd); if (typeof ptfToast === 'function') ptfToast('سال مالی قفل شد', 'ok'); ptfFiscalRender();
+    var frozen = Object.assign({}, d, c, { distPct: (c && c.distPct != null) ? c.distPct : distPct });
+    var rec = { cd: genCode('FSY'), year: year, locked: true, t: nowLock, lockedAt: nowLock, lockStateAtISO: nowLockIso, ts: nowLockIso, by: (curSession() || {}).name || '', data: frozen };
+    var a = snaps(); a.unshift(rec); saveSnaps(a);
+    audit('سال مالی', 'قفل snapshot سال ' + year + ' — سود خالص ' + money(d.netProfit), rec.cd);
+    if (typeof ptfToast === 'function') ptfToast('سال مالی قفل شد', 'ok');
+    ptfFiscalRender();
+  };
+
+  /* فهرست snapshotها و اسناد سال مالی (فقط‌خواندنی) + چاپ از دادهٔ منجمد */
+  window.ptfFiscalSnapshotOpen = function () {
+    if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }
+    var list = snaps();
+    var rows = list.map(function (s) {
+      var kindLb = s.type === 'dividend' ? '💰 تقسیم سود' : s.type === 'amendment' ? '🧾 سند اصلاحی' : (s.locked === true ? '🔒 قفل سال' : '📄 snapshot');
+      var prnt = (s.data && typeof window.ptfFiscalSnapPrint === 'function') ? '<button class="bt bt-o" style="font-size:11px;color:#5b21b6;border-color:#ddd6fe" onclick="ptfFiscalSnapPrint(\'' + ptfOnClickArg(s.cd) + '\')">🖨 چاپ</button>' : '<span style="color:#94a3b8;font-size:11px">—</span>';
+      return '<tr><td><b>' + escP(s.cd) + '</b></td><td>' + escP(kindLb) + '</td><td>' + escP(s.year || s.refYear || '—') + '</td><td>' + escP(s.lockedAt || s.t || '—') + '</td><td>' + escP(s.by || '—') + '</td><td>' + prnt + '</td></tr>';
+    }).join('');
+    var html = '<div class="md-b" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:90vh;overflow:auto">' +
+      '<h3>🔒 اسنپ‌شات‌ها و اسناد سال مالی</h3>' +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.8">snapshot قفل‌شده هرگز ویرایش/حذف نمی‌شود؛ اصلاحات بعدی فقط با «سند اصلاحی» اثر می‌گذارند و چاپ هر snapshot از <b>دادهٔ منجمد همان لحظه</b> انجام می‌شود.</div>' +
+      '<div class="tb2"><table><thead><tr><th>شناسه</th><th>نوع</th><th>سال</th><th>تاریخ</th><th>توسط</th><th>چاپ</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:16px">هنوز snapshot یا سندی ثبت نشده — ابتدا از «داشبورد سال مالی» (هاب مالی) سال را قفل کنید.</td></tr>') + '</tbody></table></div>' +
+      '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
   /* Sprint 283: audited fiscal unlock — does not delete or rewrite the snapshot.
      It only changes the active lock flag and is intentionally chairman-only. */
@@ -474,7 +608,7 @@
   };
   window.ptfFiscalUnlockOpen = function (year) {
     if (!canFiscalUnlock()) { alert('⛔ بازکردن قفل سال مالی فقط برای رییس هیات مدیره مجاز است.'); return; }
-    year = String(year || window._fiscalYear || yearNow());
+    year = normFiscalYear(year || window._fiscalYear); /* v34.0.5-alpha */
     var rec = findLocked(year);
     if (!rec) { alert('سال انتخابی قفل فعالی ندارد.'); return; }
     ptfDialog({ title: '🔓 بازکردن کنترل‌شده قفل سال مالی ' + escP(year), body: '<b>هشدار:</b> snapshot ' + escP(rec.cd) + ' حذف یا بازنویسی نمی‌شود. این عملیات فقط امکان ثبت/اصلاح اسناد همان سال را برمی‌گرداند و دلیل آن در audit ثبت می‌شود. این کار جای بازگردانی بک‌آپ نیست.', fields: [{ id: 'reason', label: 'دلیل بازگشایی *', type: 'textarea', rows: 3, required: true, placeholder: 'مثال: قفل پیش از تکمیل اسناد ثبت شده بود' }], okText: 'بازکردن قفل با ثبت ردپا', danger: true, onOk: function (v) {
@@ -490,13 +624,13 @@
     var pr = (d.projects || []).map(function (p) { return tr([escP(p.no || ''), escP(p.buyerCo || ''), escP(p.date || ''), money(p.sellIrr || 0), money(p.buyIrr || 0), money(p.projectCostIrr || 0), money(p.loss || 0), '<b>' + money(p.profit || 0) + '</b>']); }).join('');
     var ox = Object.keys(d.opexByCat || {}).map(function (k) { return tr([escP(k), money(d.opexByCat[k])]); }).join('');
     var inc = (d.incomplete || []).map(function (x) { return tr([escP(x.no || ''), escP(x.buyerCo || ''), escP((x.warnings || []).join(' | '))]); }).join('') + (d.undated || []).map(function (x) { return tr([escP(x.no || ''), escP(x.buyerCo || ''), escP(x.reason || '')]); }).join('');
-    var sh = (d.shareholders || []).map(function (s) { return tr([escP(s.name), s.pct + '٪', money(s.gross), money(s.currentBalance), money(s.final)]); }).join('');
-    return '<div style="direction:rtl;font-family:Tahoma,Vazirmatn,sans-serif;color:#0f172a"><h2>گزارش رسمی سال مالی ' + escP(d.year) + '</h2><p>سود خالص مدیریتی: <b>' + money(d.netProfit) + '</b>' + ((d.amendments || []).length ? ' (شامل ' + (d.amendments || []).length + ' سند اصلاحی: ' + money(d.amendTotal || 0) + ')' : '') + ' | قابل تقسیم: <b>' + money(d.distributable) + '</b> | اندوخته: <b>' + money(d.reserve) + '</b> | مطالبات باز کل: <b>' + money(d.openReceivablesTotal) + '</b></p><h3>منبع سود پروژه‌ها</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>پرونده</th><th>کارفرما</th><th>تاریخ</th><th>فروش</th><th>خرید</th><th>هزینه مستقیم</th><th>زیان</th><th>سود</th></tr></thead><tbody>' + (pr || '<tr><td colspan="8">موردی نیست</td></tr>') + '</tbody></table><h3>هزینه‌های جاری</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><tbody>' + (ox || '<tr><td>موردی نیست</td></tr>') + '</tbody></table><h3>هزینه‌های تنخواه مستقل سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><tbody>' + ((d.pettyStandaloneRows || []).map(function (p) { return tr([escP(p.cd || ''), escP(p.cat || ''), escP(p.by || ''), escP(p.st || ''), money(p.amt || 0)]); }).join('') || '<tr><td>موردی نیست</td></tr>') + '</tbody></table><h3>سندهای اصلاحی موثر بر سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سند</th><th>سال مرجع</th><th>مبلغ</th><th>شرح</th></tr></thead><tbody>' + ((d.amendments || []).map(function (a) { return tr([escP(a.cd), escP(a.refYear), (a.amt >= 0 ? '+' : '−') + money(Math.abs(a.amt)), escP(a.desc || '')]); }).join('') || '<tr><td colspan="4">موردی نیست</td></tr>') + '</tbody></table><h3>موارد ناقص/بی‌تاریخ</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><tbody>' + (inc || '<tr><td>موردی نیست</td></tr>') + '</tbody></table><h3>کاربرگ تقسیم سود</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم سود</th><th>مانده جاری</th><th>نتیجه</th></tr></thead><tbody>' + (sh || '<tr><td colspan="5">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>';
+    var sh = (d.shareholders || []).map(function (s) { return tr([escP(s.name), s.pct + '٪', money(s.gross), money(s.advYear || 0), money(s.settleYear != null ? s.settleYear : s.gross), money(s.currentBalance), money(s.final)]); }).join(''); /* v34.0.5-alpha */
+    return '<div style="direction:rtl;font-family:Tahoma,Vazirmatn,sans-serif;color:#0f172a"><h2>گزارش رسمی سال مالی ' + escP(d.year) + '</h2><p>سود خالص مدیریتی: <b>' + money(d.netProfit) + '</b>' + ((d.amendments || []).length ? ' (شامل ' + (d.amendments || []).length + ' سند اصلاحی: ' + money(d.amendTotal || 0) + ')' : '') + ' | قابل تقسیم: <b>' + money(d.distributable) + '</b> | اندوخته: <b>' + money(d.reserve) + '</b> | مطالبات باز کل: <b>' + money(d.openReceivablesTotal) + '</b></p><h3>منبع سود پروژه‌ها</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>پرونده</th><th>کارفرما</th><th>تاریخ</th><th>فروش</th><th>خرید</th><th>هزینه مستقیم</th><th>زیان</th><th>سود</th></tr></thead><tbody>' + (pr || '<tr><td colspan="8">موردی نیست</td></tr>') + '</tbody></table><h3>هزینه‌های جاری</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><tbody>' + (ox || '<tr><td>موردی نیست</td></tr>') + '</tbody></table><h3>هزینه‌های تنخواه مستقل سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><tbody>' + ((d.pettyStandaloneRows || []).map(function (p) { return tr([escP(p.cd || ''), escP(p.cat || ''), escP(p.by || ''), escP(p.st || ''), money(p.amt || 0)]); }).join('') || '<tr><td>موردی نیست</td></tr>') + '</tbody></table><h3>سندهای اصلاحی موثر بر سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سند</th><th>سال مرجع</th><th>مبلغ</th><th>شرح</th></tr></thead><tbody>' + ((d.amendments || []).map(function (a) { return tr([escP(a.cd), escP(a.refYear), (a.amt >= 0 ? '+' : '−') + money(Math.abs(a.amt)), escP(a.desc || '')]); }).join('') || '<tr><td colspan="4">موردی نیست</td></tr>') + '</tbody></table><h3>موارد ناقص/بی‌تاریخ</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><tbody>' + (inc || '<tr><td>موردی نیست</td></tr>') + '</tbody></table><h3>کاربرگ تقسیم سود</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم ناخالص</th><th>علی‌الحساب سال</th><th>مانده قابل تسویهٔ امسال</th><th>مانده جاری</th><th>نتیجه</th></tr></thead><tbody>' + (sh || '<tr><td colspan="7">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>';
   };
   /* v33.11.0: گزارش نقدی (مصوب کارفرما) — اگر دادهٔ نقدی موجود باشد */
   window.ptfFiscalCashReportHtml = function (d) {
     function tr(cells) { return '<tr>' + cells.map(function (c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; }
-    var sh = (d.shareholders || []).map(function (s) { return tr([escP(s.name), s.pct + '٪', money(s.gross), money(s.currentBalance), money(s.final)]); }).join('');
+    var sh = (d.shareholders || []).map(function (s) { return tr([escP(s.name), s.pct + '٪', money(s.gross), money(s.advYear || 0), money(s.settleYear != null ? s.settleYear : s.gross), money(s.currentBalance), money(s.final)]); }).join(''); /* v34.0.5-alpha: ستون علی‌الحساب */
     var inc = (d.incomplete || []).map(function (x) { return tr([escP(x.no || ''), escP(x.buyerCo || ''), escP((x.warnings || []).join(' | '))]); }).join('') + (d.undated || []).map(function (x) { return tr([escP(x.no || ''), escP(x.buyerCo || ''), escP(x.reason || '')]); }).join('');
     var amendRows = (d.amendments || []).map(function (a) { return tr([escP(a.cd), escP(a.refYear), (a.amt >= 0 ? '+' : '−') + money(Math.abs(a.amt)), escP(a.desc || '')]); }).join('');
     return '<div style="direction:rtl;font-family:Tahoma,Vazirmatn,sans-serif;color:#0f172a"><h2>گزارش رسمی سال مالی ' + escP(d.year) + ' (منطق نقدی)</h2>' +
@@ -505,7 +639,9 @@
       '<h3>درآمد و خروجی نقدی سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>بخش</th><th>مبلغ (ریال)</th></tr></thead><tbody>' +
       tr(['درآمد نقدی (وصولی‌ها — نقد + چک وصول‌شده)', d.receipts]) +
       tr(['چک وارده وصول‌نشده (درآمد نیست)', d.pendingCheques]) +
-      tr(['فاکتورهای خرید تأمین‌کننده', d.outflows.supplierInvoices]) +
+      tr(['فاکتورهای خرید تأمین‌کننده (واقعی)', d.outflows.supplierInvoices]) +
+      tr(['کارمزد فاکتورهای صوری/پوششی (هزینهٔ نقدی)', d.outflows.coverCommission || 0]) +
+      tr(['اعتبار ارزش‌افزودهٔ فاکتورهای پوششی (منفعت — نقد نیست)', d.outflows.coverVat || 0]) +
       tr(['پرداخت بدون تخصیص (مسائل دیگر)', d.outflows.unallocatedPayments]) +
       tr(['چک صادرهٔ مستقل (بابت مسائل دیگر)', d.outflows.independentCheques]) +
       tr(['هزینه‌های جاری سال', d.outflows.opex]) +
@@ -513,7 +649,7 @@
       '</tbody></table>' +
       '<h3>سندهای اصلاحی موثر بر سال</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سند</th><th>سال مرجع</th><th>مبلغ</th><th>شرح</th></tr></thead><tbody>' + (amendRows || '<tr><td colspan="4">موردی نیست</td></tr>') + '</tbody></table>' +
       '<h3>موارد ناقص/بی‌تاریخ</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><tbody>' + (inc || '<tr><td>موردی نیست</td></tr>') + '</tbody></table>' +
-      '<h3>کاربرگ تقسیم سود (نقدی — مازاد بر کف)</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم سود</th><th>مانده جاری</th><th>نتیجه</th></tr></thead><tbody>' + (sh || '<tr><td colspan="5">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>';
+      '<h3>کاربرگ تقسیم سود (نقدی — مازاد بر کف)</h3><table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم ناخالص</th><th>علی‌الحساب سال</th><th>مانده قابل تسویهٔ امسال</th><th>مانده جاری</th><th>نتیجه</th></tr></thead><tbody>' + (sh || '<tr><td colspan="7">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>';
   };
   /* Sprint 281: print/snapshot report receives an immutable summary of the
      matching official financial position. No live data is injected into an old
@@ -530,11 +666,38 @@
 
   window.ptfFiscalPrint = function () {
     if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }
-    var year = window._fiscalYear || yearNow();
+    var year = normFiscalYear(window._fiscalYear); /* v34.0.5-alpha */
     /* v33.11.0: گزارش رسمی بر مبنای منطق نقدی (مصوب کارفرما) */
     var d = Object.assign(ptfFiscalData(year), ptfFiscalCashDistribution(year, window._fiscalDistPct == null ? 60 : window._fiscalDistPct));
     var html = '<div class="md-b" style="display:grid"><div class="md" style="max-width:980px;max-height:92vh;overflow:auto"><div id="fisReportPrintable">' + ptfFiscalReportHtml(d) + '</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="ptfPrintWithTitle(\'FIS-\'+(window._fiscalYear||\'\'))">چاپ مرورگر</button><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+  };
+
+  /* ===== v34.0.5-alpha (BUG-FISCAL-PDF-005 — درخواست کارفرما: «گزارش در قالب مناسب PDF») =====
+     سند A4 مستقل (RTL) با سربرگ شرکت، وضعیت قفل/snapshot و پاصفحه — در پنجرهٔ چاپ «Save as PDF». */
+  window.ptfFiscalPdf = function () {
+    if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return; }
+    var year = normFiscalYear(window._fiscalYear);
+    var distPct = Math.max(0, Math.min(100, n(window._fiscalDistPct == null ? 60 : window._fiscalDistPct)));
+    var d = Object.assign(ptfFiscalDistribution(year, distPct), ptfFiscalCashDistribution(year, distPct));
+    var locked = findLocked(year);
+    var bodyHtml = ptfFiscalReportHtml(d);
+    var today = ''; try { today = faDateTime(); } catch (eT) {}
+    var head = '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2.5px solid #5b21b6;padding-bottom:8px;margin-bottom:14px">'
+      + '<div><b style="font-size:16px">پیشرو تجهیز فرتاک</b><br><small style="color:#475569">گزارش رسمی سال مالی و تقسیم سود — محرمانه مدیریتی</small></div>'
+      + '<div style="text-align:left;font-size:11px;color:#475569;line-height:1.9">' + (locked ? '🔒 snapshot: <b>' + escP(locked.cd) + '</b><br>قفل: ' + escP(locked.lockedAt || locked.t || '') + ' — ' + escP(locked.by || '') + '<br>' : '⚠️ سال هنوز قفل نشده — گزارش لحظه‌ای از دادهٔ زنده<br>') + 'صدور: ' + escP(today) + '</div></div>';
+    var foot = '<div style="margin-top:20px;border-top:1px solid #cbd5e1;padding-top:7px;font-size:10.5px;color:#64748b;display:flex;justify-content:space-between"><span>سامانهٔ CRM پیشرو تجهیز فرتاک — سند FIS-' + escP(year) + '</span><span>منبع اعداد: ' + (locked ? 'دادهٔ منجمد snapshot ' + escP(locked.cd) : 'دادهٔ زندهٔ سیستم') + '</span></div>';
+    var doc = '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>FIS-' + escP(year) + '</title><style>'
+      + '@page{size:A4;margin:14mm 12mm}html,body{margin:0;padding:0}body{font-family:Vazirmatn,Tahoma,sans-serif;color:#0f172a;font-size:12.5px;line-height:1.75;direction:rtl}'
+      + 'h2{font-size:17px;margin:10px 0 6px}h3{font-size:13.5px;margin:16px 0 6px;border-right:3.5px solid #5b21b6;padding-right:8px;page-break-after:avoid}'
+      + 'table{border-collapse:collapse;width:100%;page-break-inside:auto}tr{page-break-inside:avoid}thead{display:table-header-group}td,th{vertical-align:top}.pb{page-break-before:always}'
+      + '</style></head><body>' + head + bodyHtml + foot + '</body></html>';
+    var w = window.open('', '_blank');
+    if (!w) { alert('پاپ‌آپ توسط مرورگر مسدود شد — برای خروجی PDF اجازهٔ باز شدن پنجره را بدهید.'); return; }
+    w.document.write(doc); w.document.close();
+    try { w.document.title = 'گزارش-سال-مالی-' + year; } catch (eT2) {}
+    setTimeout(function () { try { w.focus(); w.print(); } catch (eP) {} }, 450);
+    try { audit('سال مالی', 'خروجی PDF گزارش سال ' + year + (locked ? ' (snapshot ' + locked.cd + ')' : ' (لحظه‌ای)'), locked ? locked.cd : ''); } catch (eA) {}
   };
 
   /* ===== v19.5 (US-427): سند اصلاحی پس از قفل سال — snapshot گذشته immutable ===== */
@@ -578,14 +741,16 @@
   /* ===== v19.5 (US-426 فاز ۲): خروجی CSV حسابدار + چاپ snapshot قفل‌شده ===== */
   window.ptfFiscalCsv = function (year) {
     if (!canFiscal()) { alert('⛔ فقط ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی'); return null; }
-    year = String(year || window._fiscalYear || yearNow());
+    year = normFiscalYear(year || window._fiscalYear); /* v34.0.5-alpha */
     /* v33.11.0: CSV بر مبنای منطق نقدی (مصوب کارفرما) */
     var d = Object.assign(ptfFiscalData(year), ptfFiscalCashDistribution(year, window._fiscalDistPct == null ? 60 : window._fiscalDistPct));
     var rows = [['گزارش سال مالی (منطق نقدی)', d.year], []];
     rows.push(['بخش', 'مبلغ (ریال)']);
     rows.push(['درآمد نقدی (وصولی‌های سال — نقد + چک وصول‌شده)', d.receipts]);
     rows.push(['چک وارده وصول‌نشده (درآمد نیست)', d.pendingCheques]);
-    rows.push(['فاکتورهای خرید تأمین‌کننده', d.outflows.supplierInvoices]);
+    rows.push(['فاکتورهای خرید تأمین‌کننده (واقعی)', d.outflows.supplierInvoices]);
+    rows.push(['کارمزد فاکتورهای صوری/پوششی (هزینهٔ نقدی)', d.outflows.coverCommission || 0]);
+    rows.push(['اعتبار ارزش‌افزودهٔ فاکتورهای پوششی (منفعت)', d.outflows.coverVat || 0]);
     rows.push(['پرداخت بدون تخصیص (مسائل دیگر)', d.outflows.unallocatedPayments]);
     rows.push(['چک صادرهٔ مستقل (بابت مسائل دیگر)', d.outflows.independentCheques]);
     rows.push(['هزینه‌های جاری سال', d.outflows.opex]);

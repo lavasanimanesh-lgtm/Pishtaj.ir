@@ -284,7 +284,7 @@
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:12px">' +
       '<div class="fld" style="margin:0"><label>دوره (YYYY-MM میلادی)</label>' +
       '<input type="month" id="cmPeriod" value="' + escP(ym) + '" style="direction:ltr;padding:6px;border:1px solid var(--brd);border-radius:8px"></div>' +
-      '<button class="bt" style="font-size:12px" onclick="ptfCommissionReport(((document.getElementById(\'cmPeriod\')||{}).value)||\'' + escP(ym) + '\');document.getElementById(\'cmReportDlg\').remove()">🔄 محاسبه</button></div>' +
+      '<button class="bt" style="font-size:12px" onclick="ptfCommissionReport(((document.getElementById(\'cmPeriod\')||{}).value)||\'' + ptfOnClickArg(ym) + '\');document.getElementById(\'cmReportDlg\').remove()">🔄 محاسبه</button></div>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#0c4a6e;margin-bottom:10px">' +
       'مبنا: <b>' + basisLb + '</b> | دوره: <b dir="ltr">' + escP(res.period.label) + '</b><br>' +
       'جمع مبنا: <b>' + res.totalBase.toLocaleString('fa-IR') + '</b> — جمع پورسانت: <b style="color:#0e7490">' + res.totalComm.toLocaleString('fa-IR') + ' ریال</b>' +

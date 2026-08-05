@@ -5,6 +5,25 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
 header('Expires: 0');
 
+/* v34.0.7-alpha (باگ پروداکشن ضمیمه + SEC-01): این endpoint قبلاً هیچ گارد احرازی
+   نداشت و به همین دلیل در api/.htaccess بلاک شده بود (و در نتیجه خواندن محتوای
+   پیوست‌ها در درخواست‌ها/پرونده‌ها/تنخواه در پروداکشن 403 می‌گرفت). حالا به‌مانند
+   بقیهٔ endpointها توکن معتبر راستی‌آزمایی می‌شود تا بتوان بدون نگرانی آن را فعال کرد. */
+require_once __DIR__ . '/auth.php';
+$arIdentity = auth_verify_token(auth_get_header_token());
+if (!$arIdentity) {
+    http_response_code(401);
+    echo json_encode(['ok' => false, 'error' => 'authentication_required'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+$arRole = strtolower((string)($arIdentity['role'] ?? ''));
+$arAllowedRoles = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant', 'collector'];
+if (!in_array($arRole, $arAllowedRoles, true)) {
+    http_response_code(403);
+    echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 $ref = $_SERVER['HTTP_ORIGIN'] ?? $_SERVER['HTTP_REFERER'] ?? '';
 $host = $_SERVER['HTTP_HOST'] ?? '';
 if ($ref && $host && parse_url($ref, PHP_URL_HOST) !== $host) {

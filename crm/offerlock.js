@@ -63,7 +63,7 @@
     var res = prodSearch(el.value);
     var browsing = !String(el.value || '').trim();
     dd.innerHTML = (browsing && res.length ? '<div style="padding:5px 10px;font-size:10.5px;color:#7c3aed;background:#f5f3ff;font-weight:800">📦 کالاهای ثبت‌شده (' + getData('ptf_crm_products').length + ') — تایپ کنید تا فیلتر شود</div>' : '') + res.map(function (p) {
-      return '<div onclick="offPickProd(' + i + ',\'' + escP(p.cd) + '\')" style="padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--brd);font-size:12px;display:flex;justify-content:space-between;gap:8px" onmouseover="this.style.background=\'#fff8f5\'" onmouseout="this.style.background=\'\'">' +
+      return '<div onclick="offPickProd(' + i + ',\'' + ptfOnClickArg(p.cd) + '\')" style="padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--brd);font-size:12px;display:flex;justify-content:space-between;gap:8px" onmouseover="this.style.background=\'#fff8f5\'" onmouseout="this.style.background=\'\'">' +
         '<span>' + escP(p.nm) + (p.en ? ' <small style="color:#94a3b8">' + escP(p.en) + '</small>' : '') + '</span>' +
         '<b style="direction:ltr;color:#7c3aed;white-space:nowrap">' + escP(p.cd) + '</b></div>';
     }).join('');
@@ -224,7 +224,7 @@
       }).join('');
       var ecCells = ec.map(function (c) {
         var v = (it.extra || {})[c] || '';
-        return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + escP(c) + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
+        return '<td><input type="text" value="' + escP(v) + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
       }).join('');
       /* v14.6 (US-347 — نقشه راه مصوب): قیمت خرید مرجع (p.pr با تاریخ US-335) + درصد سود + هشدار سود منفی
          فقط برای نقش‌های دارای buyPrice — سایر نقش‌ها هیچ قیمتی خریدی نمی‌بینند */
@@ -379,7 +379,7 @@
         h += '<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--brd);border-radius:9px;padding:6px 10px;margin-bottom:5px;font-size:12px">' +
           '<span>' + escP(f.name || 'فایل') + ' <small style="color:#94a3b8">' + escP(f.t || '') + '</small></span>' +
           (f.key
-            ? '<button class="bt" style="font-size:11px;padding:4px 12px" onclick="openStoredFile(\'' + escP(f.key) + '\')">مشاهده / دانلود</button>'
+            ? '<button class="bt" style="font-size:11px;padding:4px 12px" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">مشاهده / دانلود</button>'
             : '<small style="color:#d97706">🕓 در صف آپلود ابری (پس از اتصال آروان باز می‌شود)</small>') + '</div>';
       });
     });
@@ -399,7 +399,7 @@
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:14px 16px;font-size:13.5px;line-height:2.1;white-space:pre-wrap;max-height:55vh;overflow:auto">' + escP(r.inqText) + '</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">' +
       '<button class="bt bt-o" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.querySelector(\'#panels .md-b:last-child .md div[style*=pre-wrap]\').textContent).then(function(){ptfToast(\'کپی شد\',\'ok\')})">📋 کپی متن</button>' +
-      '<button class="bt bt-o" style="color:#7c3aed" onclick="this.closest(\'.md-b\').remove();inqReadOpen(\'' + escP(cd) + '\')">📖 استخراج اقلام از این متن</button>' +
+      '<button class="bt bt-o" style="color:#7c3aed" onclick="this.closest(\'.md-b\').remove();inqReadOpen(\'' + ptfOnClickArg(cd) + '\')">📖 استخراج اقلام از این متن</button>' +
       '<button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -439,10 +439,10 @@
         var tds = tr.querySelectorAll('td');
         var h = '';
         var cnt = r.files ? Object.keys(r.files).reduce(function (s, g) { return s + ((r.files[g] || []).length); }, 0) : 0;
-        if (cnt) h += ' <button class="ba rfq-att-btn" title="مشاهده پیوست‌ها" onclick="rfqShowFiles(\'' + escP(cd) + '\')">📎 ' + cnt + '</button>';
+        if (cnt) h += ' <button class="ba rfq-att-btn" title="مشاهده پیوست‌ها" onclick="rfqShowFiles(\'' + ptfOnClickArg(cd) + '\')">📎 ' + cnt + '</button>';
         h += r.inqText
-          ? ' <button class="ba rfq-att-btn" style="color:#0e7490" title="مشاهده استعلام متنی" onclick="rfqShowText(\'' + escP(cd) + '\')">📝 متن استعلام</button>'
-          : ' <button class="ba rfq-att-btn" style="color:#cbd5e1" title="افزودن متن استعلام" onclick="rfqEditText(\'' + escP(cd) + '\')">📝+ متن استعلام</button>';
+          ? ' <button class="ba rfq-att-btn" style="color:#0e7490" title="مشاهده استعلام متنی" onclick="rfqShowText(\'' + ptfOnClickArg(cd) + '\')">📝 متن استعلام</button>'
+          : ' <button class="ba rfq-att-btn" style="color:#cbd5e1" title="افزودن متن استعلام" onclick="rfqEditText(\'' + ptfOnClickArg(cd) + '\')">📝+ متن استعلام</button>';
         if (!cnt && !h) return;
         tds[tds.length - 1].insertAdjacentHTML('beforeend', h);
       });

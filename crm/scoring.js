@@ -123,7 +123,7 @@
       return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed var(--brd);font-size:12.5px">' +
         '<span><b>' + escP(d.sup) + '</b> <small style="color:#94a3b8">(' + d.cnt + ' قلم باز)</small></span>' +
         '<span style="white-space:nowrap"><b style="color:#b45309">' + fmtT(Math.round(d.irr)) + ' ریال</b>' + (fxTx ? ' <small style="color:#dc2626">+ ' + fxTx + '</small>' : '') +
-        ' <button class="bt bt-o" style="padding:2px 9px;font-size:11px" onclick="ptfPayablesOpen(\'' + escP(d.sup) + '\')">💳 پرداخت/جزئیات</button></span></div>';
+        ' <button class="bt bt-o" style="padding:2px 9px;font-size:11px" onclick="ptfPayablesOpen(\'' + ptfOnClickArg(d.sup) + '\')">💳 پرداخت/جزئیات</button></span></div>';
     }).join('');
     return '<div id="payablesBox" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:14px;padding:12px 14px;margin-bottom:14px">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">' +
@@ -144,14 +144,14 @@
       var payLog = (p.paid || []).map(function (x) { return '<div style="font-size:11px;color:#64748b">◉ ' + escP(x.t) + ' — ' + fmtT(x.amt) + (p.cur !== 'IRR' ? ' ' + p.cur : ' ریال') + (x.note ? ' (' + escP(x.note) + ')' : '') + ' — ' + escP(x.by || '') + '</div>'; }).join('');
       var dlvBtns = p.dlv
         ? (p.dlv === 'ok' ? '<span class="bd" style="background:#d1fae5;color:#065f46">✅ تحویل بدون مشکل</span>' : '<span class="bd" style="background:#fee2e2;color:#b91c1c">⚠️ تحویل با مشکل</span>')
-        : '<button class="bt bt-o" style="padding:2px 8px;font-size:10.5px;color:#059669" onclick="ptfPayableDlv(\'' + escP(p.cd) + '\',\'ok\')" title="اختیاری — در امتیاز کیفیت تحویل اثر دارد">✅ تحویل ok</button> <button class="bt bt-o" style="padding:2px 8px;font-size:10.5px;color:#dc2626" onclick="ptfPayableDlv(\'' + escP(p.cd) + '\',\'issue\')">⚠️ با مشکل</button>';
+        : '<button class="bt bt-o" style="padding:2px 8px;font-size:10.5px;color:#059669" onclick="ptfPayableDlv(\'' + ptfOnClickArg(p.cd) + '\',\'ok\')" title="اختیاری — در امتیاز کیفیت تحویل اثر دارد">✅ تحویل ok</button> <button class="bt bt-o" style="padding:2px 8px;font-size:10.5px;color:#dc2626" onclick="ptfPayableDlv(\'' + ptfOnClickArg(p.cd) + '\',\'issue\')">⚠️ با مشکل</button>';
       var dueInfo = (p.dueISO ? '<br><small style="color:#0e7490">تعهد تحویل تامین‌کننده: ' + escP(p.dueISO) + (p.dueNote ? ' — ' + escP(p.dueNote) : '') + '</small>' : '') +
         (p.dlvISO ? '<br><small style="color:' + (p.dlvLate ? '#dc2626' : '#059669') + '">تحویل واقعی: ' + escP(p.dlvISO) + (p.dlvLate ? ' — با تاخیر' : '') + '</small>' : '');
       return '<div style="border:1px solid var(--brd);border-right:4px solid ' + (isOpen ? '#f59e0b' : '#10b981') + ';border-radius:11px;padding:9px 12px;margin-bottom:7px">' +
         '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:12.5px">' +
         '<span><b>' + escP(p.sup) + '</b> — ' + escP(p.item) + ' <small style="color:#94a3b8">(' + escP(p.inqNo) + ' | ' + escP(p.t) + ')</small><br>' +
         '<small>مبلغ: <b>' + fmtT(p.amount) + (p.cur !== 'IRR' ? ' ' + p.cur : ' ریال') + '</b> | ' + (p.pay === 'cash' ? '💵 نقدی — تسویه‌شده' : isOpen ? '🧾 غیرنقدی — مانده: <b style="color:#b45309">' + fmtT(rem) + (p.cur !== 'IRR' ? ' ' + p.cur : ' ریال') + '</b>' : '🧾 غیرنقدی — تسویه کامل ✅') + '</small>' + dueInfo + '</span>' +
-        '<span style="white-space:nowrap;display:flex;gap:4px;align-items:center">' + (isOpen ? '<button class="bt" style="padding:4px 11px;font-size:11.5px;background:#059669" onclick="ptfPayablePay(\'' + escP(p.cd) + '\')">💰 پرداخت</button>' : '') + '<button class="bt bt-o" style="padding:4px 8px;font-size:11px;color:#0e7490;border-color:#bae6fd" onclick="ptfPayableEdit(\'' + escP(p.cd) + '\')" title="اصلاح و ویرایش بدهی">✏️ ویرایش</button><button class="bt bt-o" style="padding:4px 7px;font-size:11px;color:#dc2626;border-color:#fecaca" onclick="ptfPayableDel(\'' + escP(p.cd) + '\')" title="حذف بدهی">🗑 حذف</button>' + dlvBtns + '</span></div>' + payLog + '</div>';
+        '<span style="white-space:nowrap;display:flex;gap:4px;align-items:center">' + (isOpen ? '<button class="bt" style="padding:4px 11px;font-size:11.5px;background:#059669" onclick="ptfPayablePay(\'' + ptfOnClickArg(p.cd) + '\')">💰 پرداخت</button>' : '') + '<button class="bt bt-o" style="padding:4px 8px;font-size:11px;color:#0e7490;border-color:#bae6fd" onclick="ptfPayableEdit(\'' + ptfOnClickArg(p.cd) + '\')" title="اصلاح و ویرایش بدهی">✏️ ویرایش</button><button class="bt bt-o" style="padding:4px 7px;font-size:11px;color:#dc2626;border-color:#fecaca" onclick="ptfPayableDel(\'' + ptfOnClickArg(p.cd) + '\')" title="حذف بدهی">🗑 حذف</button>' + dlvBtns + '</span></div>' + payLog + '</div>';
     }).join('');
     var html = '<div class="md-b" style="display:grid;z-index:2200" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto">' +
       '<h3>💳 بستانکاری تامین‌کنندگان' + (sup ? ' — ' + escP(sup) : '') + '</h3>' +
@@ -557,7 +557,7 @@
       (!r.dataOk ? '<div style="font-size:11px;color:#94a3b8;margin-top:3px">داده تراکنشی ناکافی — امتیاز پس از اولین تعاملات ساخته می‌شود</div>' : '') + '</div>' +
       rows +
       '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">' +
-      (isSenior() ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="this.closest(\'.md-b\').remove();ptfScoreAdjust(\'' + kind + '\',\'' + escP(cd) + '\',\'' + escP(rec.co) + '\')">⚖️ تعدیل دستی</button>' : '<span></span>') +
+      (isSenior() ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="this.closest(\'.md-b\').remove();ptfScoreAdjust(\'' + kind + '\',\'' + ptfOnClickArg(cd) + '\',\'' + ptfOnClickArg(rec.co) + '\')">⚖️ تعدیل دستی</button>' : '<span></span>') +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -565,7 +565,7 @@
   /* ---------- بج در فهرست‌ها (پس-پردازش — الگوی supspec) ---------- */
   function badgeHtml(kind, rec) {
     var r = kind === 'sup' ? ptfSupplierScore(rec) : ptfCustomerScore(rec);
-    return ' <span class="bd" style="background:#f8fafc;border:1px solid var(--brd);cursor:pointer;font-size:10.5px" title="' + r.lb + (r.dataOk ? ' — ' + r.score + '/۱۰۰' : '') + ' — کلیک: جزئیات" onclick="event.stopPropagation();ptfScoreCard(\'' + kind + '\',\'' + escP(rec.cd) + '\')">' + r.icon + ' ' + (r.dataOk ? r.score : '—') + (r.adj ? '⚖️' : '') + '</span>';
+    return ' <span class="bd" style="background:#f8fafc;border:1px solid var(--brd);cursor:pointer;font-size:10.5px" title="' + r.lb + (r.dataOk ? ' — ' + r.score + '/۱۰۰' : '') + ' — کلیک: جزئیات" onclick="event.stopPropagation();ptfScoreCard(\'' + kind + '\',\'' + ptfOnClickArg(rec.cd) + '\')">' + r.icon + ' ' + (r.dataOk ? r.score : '—') + (r.adj ? '⚖️' : '') + '</span>';
   }
   function decorateSup() {
     if (!canSeeSup()) return;

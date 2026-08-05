@@ -56,7 +56,7 @@
       '<div class="fld"><label>ادغام در (رکورد مقصد که باقی می‌ماند):</label><select id="mgTarget">' + opts + '</select></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#7c3aed" onclick="var t=document.getElementById(\'mgTarget\').value;document.getElementById(\'mgPick\').remove();ptfMergeWizard(t,\'' + escP(dropCd) + '\')">ادامه ← ویزارد ادغام</button></div></div></div>';
+      '<button class="bt" style="background:#7c3aed" onclick="var t=document.getElementById(\'mgTarget\').value;document.getElementById(\'mgPick\').remove();ptfMergeWizard(t,\'' + ptfOnClickArg(dropCd) + '\')">ادامه ← ویزارد ادغام</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 
@@ -268,7 +268,7 @@
           var cd = strong.textContent.trim();
           var tds = tr.querySelectorAll('td');
           tds[tds.length - 1].insertAdjacentHTML('beforeend',
-            ' <button class="bt bt-o mg-btn" style="padding:4px 9px;font-size:12px;color:#7c3aed" title="ادغام این مشتری در مشتری دیگر (US-363)" onclick="ptfMergeStart(\'' + escP(cd) + '\')">🔀</button>');
+            ' <button class="bt bt-o mg-btn" style="padding:4px 9px;font-size:12px;color:#7c3aed" title="ادغام این مشتری در مشتری دیگر (US-363)" onclick="ptfMergeStart(\'' + ptfOnClickArg(cd) + '\')">🔀</button>');
         });
       } catch (e) {}
     };

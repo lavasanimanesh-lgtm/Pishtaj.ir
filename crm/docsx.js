@@ -262,9 +262,9 @@
       (old ? 'شما در حال اصلاح همان سند قبلی هستید و سند جدیدی ساخته نمی‌شود.' : 'سند با قالب رسمی شرکت صادر و در همین پرونده ثبت می‌شود. شماره خودکار: <b dir="ltr">' + escP(serialFor(tp)) + '</b>') + '</div>' +
       ctxInfo + flds + itemsHtml +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
-      (old ? '<button class="bt bt-o" onclick="ptfDocxPrint(\'' + escP(dealCd) + '\',\'' + escP(old.cd) + '\')">👁 نمایش</button>' : '') +
+      (old ? '<button class="bt bt-o" onclick="ptfDocxPrint(\'' + ptfOnClickArg(dealCd) + '\',\'' + ptfOnClickArg(old.cd) + '\')">👁 نمایش</button>' : '') +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#0e7490" onclick="ptfDocxSaveGo(\'' + escP(dealCd) + '\',\'' + tp.id + '\'' + (old ? ',\'' + escP(old.cd) + '\'' : '') + ')">' + (old ? '💾 ذخیره اصلاح' : '📄 صدور و ثبت در پرونده') + '</button>' +
+      '<button class="bt" style="background:#0e7490" onclick="ptfDocxSaveGo(\'' + ptfOnClickArg(dealCd) + '\',\'' + tp.id + '\'' + (old ? ',\'' + ptfOnClickArg(old.cd) + '\'' : '') + ')">' + (old ? '💾 ذخیره اصلاح' : '📄 صدور و ثبت در پرونده') + '</button>' +
       '</div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
@@ -366,12 +366,12 @@
         if (!host || document.getElementById('dxBox_' + d.cd)) return;
         var list = (d.docsx || []).map(function (x) {
           var tp = typeOf(x.type) || {};
-          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-top:1px dashed #c7d2fe;font-size:12px;flex-wrap:wrap"><span>' + (tp.lb || x.type) + ' — <b dir="ltr">' + escP(x.no) + '</b> <small style="color:#94a3b8">(' + escP(x.t || '') + ' — ' + escP(x.by || '') + ')</small></span><span style="display:flex;gap:4px;flex-wrap:wrap"><button class="bt bt-o" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation();ptfDocxPrint(\'' + escP(d.cd) + '\',\'' + escP(x.cd) + '\')">👁 نمایش</button><button class="bt bt-o" style="padding:2px 8px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();ptfDocxOpen(\'' + escP(d.cd) + '\',\'' + escP(x.type) + '\',\'' + escP(x.cd) + '\')">✏️ اصلاح</button></span></div>';
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-top:1px dashed #c7d2fe;font-size:12px;flex-wrap:wrap"><span>' + (tp.lb || x.type) + ' — <b dir="ltr">' + escP(x.no) + '</b> <small style="color:#94a3b8">(' + escP(x.t || '') + ' — ' + escP(x.by || '') + ')</small></span><span style="display:flex;gap:4px;flex-wrap:wrap"><button class="bt bt-o" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation();ptfDocxPrint(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.cd) + '\')">👁 نمایش</button><button class="bt bt-o" style="padding:2px 8px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.type) + '\',\'' + ptfOnClickArg(x.cd) + '\')">✏️ اصلاح</button></span></div>';
         }).join('');
         host.closest('div').insertAdjacentHTML('beforebegin',
           '<div id="dxBox_' + escP(d.cd) + '" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()">' +
           '<b>📄 اسناد رسمی قالب شرکت (US-443)</b> <span style="display:inline-flex;gap:4px;flex-wrap:wrap;margin-right:6px">' +
-          PTF_DOCX_TYPES.map(function (tp) { return '<button class="bt bt-o" style="padding:3px 9px;font-size:11px;color:#4338ca;border-color:#c7d2fe" onclick="event.stopPropagation();ptfDocxOpen(\'' + escP(d.cd) + '\',\'' + tp.id + '\')">+ ' + tp.lb + '</button>'; }).join('') +
+          PTF_DOCX_TYPES.map(function (tp) { return '<button class="bt bt-o" style="padding:3px 9px;font-size:11px;color:#4338ca;border-color:#c7d2fe" onclick="event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + tp.id + '\')">+ ' + tp.lb + '</button>'; }).join('') +
           '</span>' + list + '</div>');
       } catch (e) {}
     };

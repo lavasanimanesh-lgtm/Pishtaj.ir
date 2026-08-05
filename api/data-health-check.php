@@ -3,12 +3,27 @@
  * PTF CRM — Data Health Diagnostic Tool
  * v31.7.7 — اجرا فقط توسط ادمین — از مرورگر حذف شود پس از استفاده
  * 
- * نحوه استفاده:
- * 1. فایل را در پوشه api/ آپلود کنید
- * 2. باز کنید: https://yourdomain.com/api/data-health-check.php?confirm=yes
+ * نحوه استفاده (پس از فاز امنیتی v34.0.6-alpha):
+ * 1. فایل را در پوشه api/ آپلود کنید (پیش‌فرض از بستهٔ دیپلوی حذف شده است؛ SEC-02)
+ * 2. با هدر X-CRM-Token (توکن معتبر نقش admin یا chairman) باز کنید:
+ *    https://yourdomain.com/api/data-health-check.php?confirm=yes
  * 3. نتیجه را بررسی کنید
  * 4. فایل را از سرور حذف کنید
  */
+
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+
+/* SEC-02: بدون توکن معتبر سرور (نقش admin/chairman) این ابزار اجرا نمی‌شود.
+   دیگر مانند قبل با صرف ?confirm=yes در دسترس نیست؛ وابسته به پردازش .htaccess هاست نیست. */
+require_once __DIR__ . '/auth.php';
+$_ident = auth_verify_token(auth_get_header_token());
+if (!$_ident || !in_array($_ident['role'] ?? '', ['admin', 'chairman'], true)) {
+    http_response_code(401);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['ok' => false, 'error' => 'authentication_required', 'hint' => 'این ابزار به توکن معتبر نقش admin/chairman نیاز دارد'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 
 if (($_GET['confirm'] ?? '') !== 'yes') {
     header('Content-Type: text/html; charset=utf-8');

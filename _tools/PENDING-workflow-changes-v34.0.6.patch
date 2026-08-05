@@ -1,0 +1,96 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index 6817d26..1b8b1f6 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -105,6 +105,7 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/data-health-check.php
+ 
+       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index df419b5..236546e 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -86,6 +86,7 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/data-health-check.php
+ 
+       - name: Summary
+         run: |
+=== new file uat-tests.yml ===
+# ─────────────────────────────────────────────────────────────────────────────
+# UAT Regression Suite — اجرای تسترهای Node CRM روی هر push/PR به main
+#
+# انگیزه (D-05 در ARENA-CRM-ASSESSMENT): tester101 که باگ‌های مالی v33.10/11 را
+# می‌گرفت (B-01/B-02) در چرخهٔ ریلیز اجرا نمی‌شد و رگرسیون بی‌صدا به پروداکشن رفت.
+# این ورک‌فلو مجموعهٔ کانونیِ تسترهای سبز را روی هر تغییر اجرا می‌کند تا از تکرار آن جلوگیری شود.
+# ─────────────────────────────────────────────────────────────────────────────
+name: UAT Regression
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # تسترها هیچ وابستگی npm ندارند (فقط node); کاش npm لازم نیست.
+
+      # هارنس تسترها هیچ وابستگی npm ندارد؛ فقط node لازم است.
+      - name: Run UAT regression suite
+        working-directory: _tools/uat
+        run: |
+          set -e
+          FAIL=0
+          for t in \
+            tester101-v184 \
+            tester287-chqprint-module \
+            tester288-cheque-party-recurring \
+            tester290-cash-profit \
+            tester291-hub-clean \
+            tester300-v34.0.4-alpha-phase1-fixes \
+            tester301-v34.0.5-alpha-fiscal-phase2 \
+            tester302-v34.0.6-alpha-deploy-hygiene \
+            tester303-v34.0.7-alpha-ai-attachments \
+            tester304-v34.0.8-alpha-profit-cover-salary \
+            tester305-v34.0.9-alpha-ledger-reconcile \
+            tester306-v34.0.10-alpha-ledger-transparency \
+            tester307-v34.0.11-alpha-quality-links \
+            tester308-v34.0.12-alpha-legacy-petty-sort \
+            tester309-v34.0.13-alpha-rfq-smart-nav \
+            tester310-v34.0.14-alpha-cheque-edit-delete \
+            tester311-v34.0.15-alpha-petty-month-sort \
+            tester312-v34.0.16-alpha-cheque-book-attach \
+            tester313-v34.0.17-alpha-mobile-ui \
+            tester314-v34.0.18-alpha-presign-head \
+            tester315-v34.0.20-alpha-customer-sms \
+            tester316-v34.0.21-alpha-attach-manage \
+          ; do
+            echo "── $t ──"
+            if ! node "$t.js"; then
+              echo "::error::$t FAILED"
+              FAIL=1
+            fi
+          done
+          if [ "$FAIL" = "1" ]; then
+            echo "::error::یک یا چند تستر UAT شکست خوردند"
+            exit 1
+          fi
+          echo "✅ همهٔ تسترهای UAT سبز"

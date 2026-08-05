@@ -25,11 +25,26 @@ $storageRole = strtolower((string)($storageIdentity['role'] ?? ''));
 $action = $_REQUEST['action'] ?? '';
 /* v33.0.1: authenticated role policy. Non-destructive object operations are
    available to senior CRM roles; destructive/bulk operations remain limited to
-   accountable top roles until record-level authorization is expanded. */
-$storageReadWriteRoles = ['admin', 'chairman', 'ceo', 'commercial'];
+   accountable top roles until record-level authorization is expanded.
+
+   v34.0.7-alpha (باگ پروداکشن ضمیمه): خواندن/پیش‌نمایش/آپلود ضمیمه باید برای همهٔ
+   نقش‌های احرازشده باز باشد — در غیر این صورت sales/buyer/accountant/collector که
+   ضمیمهٔ درخواست‌ها/پرونده‌ها/تنخواه را ثبت و باز می‌کنند، از storage.php پیام 403
+   می‌گرفتند و فایل‌های پیوست لود نمی‌شد. عملیات مخرب همچنان محدود به admin/chairman است. */
+$storageAllRoles = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant', 'collector'];
+$storageSeniorRoles = ['admin', 'chairman', 'ceo', 'commercial'];
 $storageDangerRoles = ['admin', 'chairman'];
 $storageDangerActions = ['delete', 'delete_batch', 'archive_zip', 'backup_prune'];
-$storageAllowedRoles = in_array($action, $storageDangerActions, true) ? $storageDangerRoles : $storageReadWriteRoles;
+$storageBackupActions = ['presign_put_backup'];
+/* عملیات مخرب → فقط admin/chairman؛ عملیات بک‌آپ نوشتنی → نقش‌های ارشد؛
+   خواندن/پیش‌نمایش/آپلود ضمیمه → همهٔ نقش‌های احرازشده. */
+if (in_array($action, $storageDangerActions, true)) {
+    $storageAllowedRoles = $storageDangerRoles;
+} elseif (in_array($action, $storageBackupActions, true)) {
+    $storageAllowedRoles = $storageSeniorRoles;
+} else {
+    $storageAllowedRoles = $storageAllRoles;
+}
 if (!in_array($storageRole, $storageAllowedRoles, true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'permission_denied']);
@@ -125,7 +140,7 @@ function s3_request($cfg, $method, $path, $query = '') {
 
     $url = $cfg['endpoint'] . $path . ($query ? "?$query" : '');
     $ch = curl_init($url);
-    curl_setopt_array($ch, [
+    $opts = [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_TIMEOUT => 20,
@@ -134,7 +149,10 @@ function s3_request($cfg, $method, $path, $query = '') {
             "x-amz-content-sha256: $payloadHash",
             "x-amz-date: $now",
         ],
-    ]);
+    ];
+    /* v34.0.18-alpha: HEAD (برای بررسی وجود فایل) — بدون body */
+    if (strtoupper($method) === 'HEAD') { $opts[CURLOPT_NOBODY] = true; $opts[CURLOPT_CUSTOMREQUEST] = 'HEAD'; }
+    curl_setopt_array($ch, $opts);
     $body = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err  = curl_error($ch);
@@ -205,6 +223,18 @@ switch ($action) {
     case 'presign_get':
         $key = $in['key'] ?? '';
         if (!$key) { echo json_encode(['ok' => false, 'error' => 'key لازم است']); break; }
+        /* v34.0.18-alpha (رفع NoSuchKey): قبل از امضای URL، وجود فایل را با HEAD بررسی می‌کنیم.
+           v34.0.19-alpha (اصلاح): فقط 404 قطعی = file_not_found. 403 ممکن است برای فایلِ موجود
+           هم برگردد (signature/HEAD نامطمئن در برخی کانفیگ‌های Arvan)؛ پس 403 را کلید امضا و
+           برمی‌گردانیم تا فایل‌های معتبر به‌اشتباه رد نشوند (باگ: استیجینگ کار می‌کرد، پروداکشن نه). */
+        $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($key));
+        $h = s3_request($cfg, 'HEAD', $uri);
+        $code = (int)($h['code'] ?? 0);
+        if ($code === 404) {
+            echo json_encode(['ok' => false, 'error' => 'file_not_found', 'detail' => 'فایل با این کلید در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده).', 'key' => $key, 'http' => $code]);
+            break;
+        }
+        /* 403/5xx/نامعتبر: HEAD مطمئن نیست → کلید را امضا و برگردان (GET امضاشده خودش تعیین تکلیف می‌کند) */
         $url = sig_v4($cfg, 'GET', $key, [], $cfg['expiry'] ?? 3600);
         echo json_encode(['ok' => true, 'url' => $url]);
         break;
