@@ -678,10 +678,9 @@
        الگو از petty.js#ptfPettyRelatedCosts گرفته شده ولی فیلتر معکوس شده. */
     var pjPettyUnlinkedAvailable = (getData('ptf_crm_petty') || []).filter(function (p) {
       if (p.st === 'void') return false;
-      /* هزینه‌ای که به این پرونده لینک شده → از دکمهٔ «افزودن» حذف */
-      if (p.dealRef === r.cd) return false;
-      /* هزینه‌ای که به پروندهٔ دیگری لینک شده → نباید اینجا بیاید (هر هزینه فقط به یک پرونده) */
-      if (p.dealRef && p.dealRef !== r.cd) return false;
+      /* هزینه‌ای که dealRef دارد (به هر پرونده‌ای) → لینک‌شده → از لیست حذف */
+      if (p.dealRef) return false;
+      /* هزینه‌ای که قبلاً در costEvents این پرونده ثبت شده → تکراری نشود */
       return pjPettyLinkedCds.indexOf(p.cd) === -1;
     });
     h += '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>➕ هزینه‌های مستقیم پرونده</b>' +
@@ -1428,8 +1427,15 @@
     var deal = ds.filter(function (x) { return x.cd === dealCd; })[0];
     if (!deal) { alert('پرونده یافت نشد'); return; }
     var linkedCds = (deal.costEvents || []).filter(function (x) { return x.pettyCd || x.fromPetty; }).map(function (x) { return x.pettyCd || x.cd; });
-    var available = (typeof ptfPettyRelatedCosts === 'function' ? ptfPettyRelatedCosts(dealCd) : [])
-      .filter(function (p) { return p.st !== 'void' && linkedCds.indexOf(p.cd) === -1; });
+    var available = (getData('ptf_crm_petty') || []).filter(function (p) {
+      if (p.st === 'void') return false;
+      /* هزینه‌ای که به این پرونده لینک شده → از لیست «افزودن» حذف */
+      if (p.dealRef === dealCd) return false;
+      /* هزینه‌ای که به پروندهٔ دیگری لینک شده → نباید اینجا بیاید */
+      if (p.dealRef) return false;
+      /* هزینه‌ای که قبلاً در costEvents این پرونده ثبت شده → تکراری نشود */
+      return linkedCds.indexOf(p.cd) === -1;
+    });
     if (!available.length) { if (typeof ptfToast === 'function') ptfToast('هیچ هزینهٔ تنخواه لینک‌نشدهٔ فعالی به این پرونده وجود ندارد', 'info'); return; }
     var options = available.map(function (p) {
       return '<option value="' + escP(p.cd) + '">' + escP(p.cd) + ' — ' + escP(p.cat || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال — ' + escP((p.desc || '').slice(0, 60)) + ' (' + escP((p.t || '').split(' ')[0] || '') + ' — ' + escP(p.by || '') + ')</option>';
