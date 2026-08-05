@@ -38,7 +38,7 @@
   /* ============ پنل ============ */
   window.buildRfqSmart = function () {
     return '<div class="ph"><h3>🛒 درخواست تامین</h3>' +
-      '<div class="sb2"><button class="bt" onclick="rfqsNew()">+ درخواست تامین جدید</button></div></div>' +
+      '<div class="sb2"><button class="bt" onclick="rfqsNew()">+ تامین جدید</button></div></div>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#0c4a6e">' +
       'ℹ️ چرخه: پیوست/اقلام درخواست مشتری ← استخراج و پاکسازی (بدون نام و اطلاعات کارفرما) ← پیشنهاد بهترین تامین‌کنندگان ← فرم استعلام PDF ← ارسال ایمیل/واتساپ ← رهگیری پاسخ‌ها</div>' +
       '<div id="rfqsWrap"></div>';
@@ -87,9 +87,9 @@
     
     var itemsRows = (r.items || []).map(function(it, i) {
       it.assignedSups = it.assignedSups || [];
-      var supOpts = '<option value="">+ افزودن تامین‌کننده برای این قلم...</option>' + sups.map(function(s) {
-        return '<option value="' + escP(s.cd) + '">' + escP(s.co || s.nm) + ' (' + escP(s.ca || 'عمومی') + ')</option>';
-      }).join('');
+      /* v34.1 US-SUP-SEARCH: منوی انتخاب تامین‌کننده با جستجوی زنده */
+      var comboId = 'rqsSupCombo_' + i;
+      var tagsId = 'rqsSupTags_' + i;
       var assignedTags = it.assignedSups.map(function(scd) {
         var sObj = sups.filter(function(x){ return x.cd === scd; })[0] || { co: scd };
         return '<span style="background:#e0e7ff;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-flex;align-items:center;gap:4px;margin-left:4px">' +
@@ -99,7 +99,15 @@
         '<td>' + (i+1) + '</td>' +
         '<td><b>' + escP(it.name) + '</b><br><small style="color:#64748b">' + escP(it.spec||'') + '</small></td>' +
         '<td>' + (it.qty||1) + ' ' + escP(it.unit||'عدد') + '</td>' +
-        '<td>' + assignedTags + '<br><select style="margin-top:4px;padding:4px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px" onchange="rfqsAssignSup(\'' + ptfOnClickArg(no) + '\',' + i + ',this.value)">' + supOpts + '</select></td>' +
+        '<td><div id="' + tagsId + '">' + assignedTags + '</div>' +
+        '<div id="' + comboId + '" class="ptf-sup-combo" style="position:relative;margin-top:4px">' +
+        '<input type="text" placeholder="🔍 جستجوی تامین‌کننده..." ' +
+        'onfocus="ptfSupComboOpen(this,\'' + ptfOnClickArg(no) + '\',' + i + ')" ' +
+        'oninput="ptfSupComboFilter(this,\'' + ptfOnClickArg(no) + '\',' + i + ')" ' +
+        'autocomplete="off" ' +
+        'style="width:100%;padding:7px 10px;border:1.5px solid var(--brd,#cbd5e1);border-radius:8px;font-size:12px;box-sizing:border-box">' +
+        '<div class="ptf-sup-combo-list" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;max-height:220px;overflow-y:auto;background:var(--crd,#fff);border:1.5px solid var(--brd,#cbd5e1);border-top:0;border-radius:0 0 8px 8px;box-shadow:0 8px 24px rgba(15,23,42,.12)"></div>' +
+        '</div></td>' +
         '</tr>';
     }).join('');
 
@@ -214,6 +222,95 @@
       alert(msg||'هنوز قیمتی وارد نشده');
     }catch(e){ alert('خطا: '+e.message); }
   };
+  /* ===== v34.1 US-SUP-SEARCH: Searchable Supplier Combobox ===== */
+  function supComboItems(q) {
+    var sups = getData('ptf_crm_suppliers') || [];
+    if (!q) return sups;
+    var ql = q.toLowerCase();
+    return sups.filter(function (s) {
+      return (s.co && s.co.toLowerCase().indexOf(ql) > -1) ||
+             (s.nm && s.nm.toLowerCase().indexOf(ql) > -1) ||
+             (s.ca && s.ca.toLowerCase().indexOf(ql) > -1) ||
+             (s.cd && s.cd.toLowerCase().indexOf(ql) > -1) ||
+             (s.coEn && s.coEn.toLowerCase().indexOf(ql) > -1);
+    });
+  }
+
+  function supComboRenderList(input, no, idx) {
+    var wrap = input.closest('.ptf-sup-combo');
+    var listEl = wrap && wrap.querySelector('.ptf-sup-combo-list');
+    if (!listEl) return;
+    var q = (input.value || '').trim();
+    var results = supComboItems(q);
+    if (!results.length) {
+      listEl.innerHTML = '<div style="padding:10px 12px;color:#94a3b8;font-size:12px;text-align:center">تامین‌کننده‌ای یافت نشد</div>';
+      listEl.style.display = 'block';
+      return;
+    }
+    listEl.innerHTML = results.slice(0, 30).map(function (s) {
+      return '<div class="ptf-sup-combo-opt" onmousedown="ptfSupComboPick(this,\'' + ptfOnClickArg(no) + '\',' + idx + ',\'' + ptfOnClickArg(s.cd) + '\')" ' +
+        'style="padding:8px 12px;cursor:pointer;font-size:12.5px;border-bottom:1px solid var(--brd,#f1f5f9);display:flex;justify-content:space-between;align-items:center">' +
+        '<span><b>' + escP(s.co || s.nm) + '</b>' +
+        (s.ca ? ' <small style="color:#64748b">(' + escP(s.ca) + ')</small>' : '') + '</span>' +
+        (s.ph ? '<small style="color:#94a3b8;direction:ltr">' + escP(s.ph) + '</small>' : '') +
+        '</div>';
+    }).join('') +
+    (results.length > 30 ? '<div style="padding:6px 12px;color:#94a3b8;font-size:11px;text-align:center">و ' + (results.length - 30) + ' مورد دیگر — تایپ کنید...</div>' : '');
+    listEl.style.display = 'block';
+  }
+
+  window.ptfSupComboOpen = function (input, no, idx) {
+    supComboRenderList(input, no, idx);
+  };
+  window.ptfSupComboFilter = function (input, no, idx) {
+    supComboRenderList(input, no, idx);
+  };
+  window.ptfSupComboPick = function (optEl, no, idx, supCd) {
+    /* بستن لیست + خالی کردن ورودی */
+    var wrap = optEl.closest('.ptf-sup-combo');
+    var inp = wrap && wrap.querySelector('input');
+    if (inp) inp.value = '';
+    var listEl = wrap && wrap.querySelector('.ptf-sup-combo-list');
+    if (listEl) listEl.style.display = 'none';
+    /* ثبت تامین‌کننده */
+    rfqsAssignSup(no, idx, supCd);
+  };
+  /* بستن لیست با blur (با تاخیر تا mousedown ثبت شود) */
+  document.addEventListener('focusout', function (e) {
+    if (!e.target || !e.target.closest || !e.target.closest('.ptf-sup-combo')) return;
+    setTimeout(function () {
+      var wrap = e.target.closest('.ptf-sup-combo');
+      if (wrap && !wrap.contains(document.activeElement)) {
+        var listEl = wrap.querySelector('.ptf-sup-combo-list');
+        if (listEl) listEl.style.display = 'none';
+      }
+    }, 200);
+  });
+
+  /* hover highlight */
+  (function () {
+    var css = document.createElement('style');
+    css.textContent = '.ptf-sup-combo-opt:hover{background:var(--bg,#f1f5f9)!important}';
+    document.head.appendChild(css);
+  })();
+
+  /* v34.1: بروزرسانی فقط تگ‌های تامین‌کننده یک ردیف (بدون ری‌رندر کل جدول)
+     — combobox باز می‌ماند و کاربر می‌تواند پشت سر هم انتخاب کند */
+  function rfqsRefreshRowTags(no, idx) {
+    var tagsEl = document.getElementById('rqsSupTags_' + idx);
+    if (!tagsEl) { rfqsRenderAccordion(no); return; } /* fallback: اگر DOM پیدا نشد */
+    var list = getData('ptf_crm_rfqsmart');
+    var r = list.filter(function(x){ return x.no === no; })[0];
+    if (!r || !r.items[idx]) return;
+    var sups = getData('ptf_crm_suppliers') || [];
+    var assignedSups = r.items[idx].assignedSups || [];
+    tagsEl.innerHTML = assignedSups.map(function(scd) {
+      var sObj = sups.filter(function(x){ return x.cd === scd; })[0] || { co: scd };
+      return '<span style="background:#e0e7ff;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-flex;align-items:center;gap:4px;margin-left:4px">' +
+        escP(sObj.co || sObj.nm) + ' <a href="javascript:void(0)" onclick="rfqsRemoveSup(\'' + ptfOnClickArg(no) + '\',' + idx + ',\'' + ptfOnClickArg(scd) + '\')" style="color:#dc2626;font-weight:bold;text-decoration:none">✕</a></span>';
+    }).join('');
+  }
+
   window.rfqsAssignSup = function(no, idx, supCd) {
     if (!supCd) return;
     var list = getData('ptf_crm_rfqsmart');
@@ -222,7 +319,7 @@
     r.items[idx].assignedSups = r.items[idx].assignedSups || [];
     if (r.items[idx].assignedSups.indexOf(supCd) < 0) r.items[idx].assignedSups.push(supCd);
     setData('ptf_crm_rfqsmart', list);
-    rfqsRenderAccordion(no);
+    rfqsRefreshRowTags(no, idx);
   };
 
   window.rfqsRemoveSup = function(no, idx, supCd) {
@@ -233,7 +330,7 @@
     var pos = arr.indexOf(supCd);
     if (pos > -1) arr.splice(pos, 1);
     setData('ptf_crm_rfqsmart', list);
-    rfqsRenderAccordion(no);
+    rfqsRefreshRowTags(no, idx);
   };
 
   window.rfqsGenDedicatedPdfs = function(no) {
@@ -419,7 +516,7 @@
       '<div class="fld"><label>اتصال به درخواست مشتری (اختیاری — برای رهگیری)</label><select id="rqsSrc" onchange="rfqsSyncSrcInqUI()">' + rfqOpts + '</select></div>' +
       '<div style="display:grid;gap:8px;margin:10px 0">' +
       '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="rfqsFromFile()">📎 <b>خواندن از فایل پیوست</b> — اکسل/CSV مستقیم خوانده می‌شود؛ PDF و عکس به بازبینی سریع می‌رود<input type="file" id="rqsFile" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.zip" style="display:none" onchange="rfqsHandleFile(this)"></button>' +
-      (inqOpts ? '<div style="display:flex;gap:6px;align-items:center"><select id="rqsInq" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 از اقلام درخواست‌ها</button></div>' : '') +
+      (inqOpts ? '<div style="display:flex;gap:6px;align-items:center"><select id="rqsInq" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 اقلام</button></div>' : '') +
       '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="rfqsManual()">✍️ <b>ورود دستی اقلام</b> — فرم سریع چندردیفی</button>' +
       '</div>' +
       '<div style="display:flex;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button></div></div></div>';

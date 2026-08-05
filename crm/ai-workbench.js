@@ -220,7 +220,7 @@ function aiWB_html_bizcard(){
     '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:18px">'+
       '<h3>💳 استخراج کارت ویزیت</h3><p style="font-size:13px;color:#64748b;line-height:1.9">عکس/PDF کارت ویزیت را بارگذاری کنید؛ اطلاعات شرکت، شخص، سمت، تماس و زمینه فعالیت استخراج و پس از تایید شما در مشتری/تامین‌کننده/سرنخ ثبت می‌شود.</p>'+
       '<input type="file" id="aiBizInp" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="aiWB_bizGo(this)">'+
-      '<button class="bt" onclick="document.getElementById(\'aiBizInp\').click()">📎 انتخاب کارت ویزیت</button><div id="aiBizStatus" style="margin-top:10px;font-size:12.5px;color:#64748b"></div></div>'+
+      '<button class="bt" onclick="document.getElementById(\'aiBizInp\').click()">📎 کارت ویزیت</button><div id="aiBizStatus" style="margin-top:10px;font-size:12.5px;color:#64748b"></div></div>'+
     '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:16px;padding:16px"><h4 style="margin:0 0 8px">قواعد ثبت</h4><ul style="font-size:13px;line-height:2;color:#475569;margin:0 18px"><li>ثبت نهایی فقط بعد از تایید شما انجام می‌شود.</li><li>قبل از ثبت، ضدتکرار نام/تلفن/ایمیل بررسی می‌شود.</li><li>برای تامین‌کننده خارجی، نام انگلیسی مبنا قرار می‌گیرد.</li></ul></div></div><div id="aiBizOut" style="margin-top:14px"></div>';
 }
 window.aiWB_bizGo=function(inp){
@@ -244,7 +244,7 @@ window.aiWB_bizRender=function(card,src){
     '<div class="fr">'+bizField('city','شهر/کشور')+bizField('activity','حوزه فعالیت/تخصص')+'</div>'+
     '<div class="fr">'+bizField('brands','برندها (با کاما جدا کنید)')+bizField('equip','تجهیزات تخصصی (با کاما جدا کنید)')+'</div>'+
     '<div class="fld"><label>آدرس</label><textarea id="biz_address" rows="2">'+esc(c.address||'')+'</textarea></div>'+
-    '<button class="bt" onclick="aiWB_bizSave()">✅ ثبت در فهرست انتخاب‌شده</button> <button class="bt bt-o" onclick="aiWB_bizRender(window._aiWB_bizCard)">بازنشانی</button><div id="biz_save_res" style="margin-top:8px;font-size:12.5px"></div></div>';
+    '<button class="bt" onclick="aiWB_bizSave()">✅ ثبت</button> <button class="bt bt-o" onclick="aiWB_bizRender(window._aiWB_bizCard)">بازنشانی</button><div id="biz_save_res" style="margin-top:8px;font-size:12.5px"></div></div>';
   document.getElementById('aiBizOut').innerHTML=html;
 };
 function bizPeople(){var p=bizVal('person'); if(!p)return []; return [{nm:p,role:bizVal('role'),tels:bizVal('phone')?[{n:bizVal('phone'),lb:'کارت ویزیت'}]:[],mobs:bizVal('mobile')?[{n:bizVal('mobile'),lb:'کارت ویزیت'}]:[],mails:bizVal('email')?[{n:bizVal('email')}]:[],primary:true,src:'ai-bizcard'}];}
@@ -773,7 +773,7 @@ function aiWB_html_letter(){
     '<div class="fr"><div class="fld"><label>نوع سند</label><select id="aiLtKind"><option value="letter">نامه اداری</option><option value="followup">پیگیری مطالبات</option><option value="thanks">تشکر / قدردانی</option><option value="invite">دعوت به جلسه</option><option value="contract">پیش‌نویس قرارداد</option></select></div>'+
     '<div class="fld"><label>لحن</label><select id="aiLtTone"><option value="formal">رسمی سازمانی</option><option value="friendly">دوستانه حرفه‌ای</option><option value="firm">قاطع حقوقی</option></select></div></div>'+
     '<div class="fld"><label>متن خواسته شما (به زبان خودمانی)</label><textarea id="aiLtPrompt" rows="4" placeholder="مثلا: آقای رضایی ۳ ماهه پول فاکتور ۴۸۲ رو نداده، ۱.۲ میلیارد … یه نامه محترمانه ولی جدی بزن …"></textarea></div>'+
-    '<button class="bt" style="background:#7c3aed" onclick="aiWB_letterGo()">🤖 تولید پیش‌نویس رسمی</button>'+
+    '<button class="bt" style="background:#7c3aed" onclick="aiWB_letterGo()">🤖 پیش‌نویس</button>'+
    '</div>'+
    '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px">'+
     '<h4>📄 پیش‌نمایش</h4><div id="aiLtOut" style="min-height:280px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;line-height:2;color:#334155;white-space:pre-wrap">اینجا پیش‌نویس نامه نمایش داده می‌شود…</div>'+
@@ -789,7 +789,7 @@ window.aiWB_ltFill=function(v){
   if(nm) document.getElementById('aiLtName').value=nm;
 };
 window.aiWB_letterActionsHtml=function(){
-  return '<button class="bt" onclick="aiWB_letterSave()">✅ تایید و ذخیره در مکاتبات</button>'+
+  return '<button class="bt" onclick="aiWB_letterSave()">✅ ذخیره</button>'+
     '<button class="bt bt-o" onclick="aiWB_letterCopy()">📋 کپی متن</button>'+
     '<button class="bt bt-o" onclick="ptfPrintWithTitle(\'LTR-DRAFT\')">🖨 چاپ</button>'+
     '<button class="bt bt-o" onclick="aiWB_letterGo()">🔄 بازنویسی با لحن دیگر</button>';
@@ -991,7 +991,7 @@ window.ptfOpenAiDocDialog = function (targetModule) {
     '<textarea id="aiDocText" rows="4" placeholder="اگر متن استعلام را کپی کرده‌اید، اینجا بچسبانید..."></textarea></div>' +
     '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">' +
     '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-    '<button class="bt" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)" onclick="ptfRunAiDocReader(\'' + targetModule + '\')">🚀 استخراج واقعی و جاگذاری خودکار اقلام</button></div></div></div>';
+    '<button class="bt" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)" onclick="ptfRunAiDocReader(\'' + targetModule + '\')">🚀 استخراج اقلام</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
 };
 

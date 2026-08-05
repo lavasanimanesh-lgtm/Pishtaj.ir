@@ -168,7 +168,7 @@
       rows +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#7c3aed" onclick="prjArchiveGo(\'' + ptfOnClickArg(no) + '\', this)">تایید نهایی: حذف انتخابی‌ها + فشرده‌سازی بقیه</button></div></div></div>';
+      '<button class="bt" style="background:#7c3aed" onclick="prjArchiveGo(\'' + ptfOnClickArg(no) + '\', this)">تایید و اجرا</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 
@@ -237,12 +237,12 @@
             openProject(no);
           } else {
             alert('❌ خطا در بایگانی: ' + (d.error || '') + '\nفایل‌های باقیمانده دست نخورده ماندند.');
-            if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'تایید نهایی: حذف انتخابی‌ها + فشرده‌سازی بقیه'; }
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'تایید و اجرا'; }
           }
         })
         .catch(function () {
           alert('❌ عدم دسترسی به سرور — بایگانی انجام نشد');
-          if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'تایید نهایی: حذف انتخابی‌ها + فشرده‌سازی بقیه'; }
+          if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'تایید و اجرا'; }
         });
     }
   };

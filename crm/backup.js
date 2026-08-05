@@ -624,7 +624,7 @@
       /* v33.18.0 (فاز B): فعال‌سازی حالت سرور-محور (کلاینت نازک) + v33.19.0: دکمهٔ پاک‌سازی کش — v33.22.2: متن کوتاه‌تر شد (دیتابیس MySQL هم‌اکنون فعال است) */
       '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#065f46;line-height:1.9"><b>🌐 حالت سرور-محور</b> — راه‌حل دائمی پر شدن حافظه<br>اگر حافظهٔ این دستگاه پر است یا می‌خواهید داده فقط روی سرور باشد: این گزینه را فعال کنید تا داده از سرور خوانده/نوشته شود و حافظهٔ مرورگر فقط کش شود. سپس با «پاک‌سازی کش محلی» حافظه کاملاً آزاد می‌شود (داده روی سرور می‌ماند).' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
-      '<button class="bt" style="background:#059669" onclick="ptfBEnable()">✅ فعال‌سازی حالت سرور-محور</button>' +
+      '<button class="bt" style="background:#059669" onclick="ptfBEnable()">✅ فعال‌سازی</button>' +
       '<button class="bt bt-o" onclick="ptfBConfirmFlush()">🔄 هم‌گرایی دادهٔ محلی</button>' +
       '<button class="bt bt-o" style="color:#b45309" onclick="if(window.ptfBClearLocalCache)ptfBClearLocalCache()">🗑 پاک‌سازی کش محلی</button>' +
       '<button class="bt bt-o" style="color:#dc2626" onclick="ptfBDisable()">⛔ غیرفعال‌سازی</button>' +

@@ -122,7 +122,7 @@
   /* ---------- پنل بازسازی‌شده «قیمت‌های خرید» ---------- */
   window.buildBuyQuotes = function () {
     return '<div class="ph"><h3>🛒 قیمت‌های خرید و مقایسه تامین‌کنندگان</h3>' +
-      '<div class="sb2"><button class="bt" onclick="cmpNew()">+ استعلام قیمت جدید (انتخاب درخواست)</button></div></div>' +
+      '<div class="sb2"><button class="bt" onclick="cmpNew()">+ استعلام جدید</button></div></div>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:9px 13px;font-size:12px;color:#0c4a6e;margin-bottom:10px">' +
       'روند کار (US-186): ① درخواست را انتخاب کنید ② قیمت‌های <b>دور ۱</b> (قبل از پیشنهاد مالی) را per آیتم per تامین‌کننده ثبت کنید ③ بعد از برنده شدن، قیمت‌های <b>دور ۲</b> را از تامین‌کنندگان جدید بگیرید ④ سیستم پایین‌ترین قیمت هر آیتم را ✅ نشان می‌دهد ⑤ تامین‌کننده خرید نهایی را انتخاب و ثبت کنید.</div>' +
       '<div id="cmpWrap"></div>';
@@ -244,9 +244,9 @@
         : '') +
       (locked
         ? '<span class="bd" style="background:#fef3c7;color:#b45309;padding:6px 12px" title="در مسیر پرونده فروش، قیمت‌های استعلامی فقط قابل مشاهده‌اند (US-412)">📌 استعلامی — فقط مشاهده</span>' +
-          '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="ptfRealBuyNewInquiry(\'' + ptfOnClickArg(c.inqNo) + '\')" title="هر تغییر/استعلام قیمت (دور ۱ و ۲) فقط از سامانه استعلام تامین">🤖 استعلام جدید از تامین‌کننده</button>'
+          '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="ptfRealBuyNewInquiry(\'' + ptfOnClickArg(c.inqNo) + '\')" title="هر تغییر/استعلام قیمت (دور ۱ و ۲) فقط از سامانه استعلام تامین">🤖 استعلام</button>'
         : '<button class="bt" style="font-size:12px" onclick="cmpAddQuote(\'' + ptfOnClickArg(id) + '\',1)">+ قیمت دور ۱</button>' +
-          (won ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="cmpAddQuote(\'' + ptfOnClickArg(id) + '\',2)">+ قیمت دور ۲ (پس از برد)</button>' : '<span style="font-size:11px;color:#94a3b8;padding:6px">دور ۲ پس از برنده شدن CO فعال می‌شود</span>')) +
+          (won ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="cmpAddQuote(\'' + ptfOnClickArg(id) + '\',2)">+ قیمت دور ۲</button>' : '<span style="font-size:11px;color:#94a3b8;padding:6px">دور ۲ پس از برنده شدن CO فعال می‌شود</span>')) +
       '</div></div>' +
       (won ? '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:6px 12px;font-size:12px;color:#047857;margin:8px 0">🏆 CO این درخواست برنده شده — می‌توانید از تامین‌کنندگان جدید هم قیمت دور ۲ بگیرید و بهترین را انتخاب کنید.</div>' : '') +
       '<div class="tb2" style="margin-top:8px"><table>' + head + rows + '</table></div>' +
@@ -894,7 +894,7 @@
         host.closest('div').insertAdjacentHTML('beforebegin',
           '<div id="rbBox_' + escP(deal.cd) + '" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px">' +
           '<span>🛒 <b>خرید واقعی اقلام</b> <small style="color:#64748b">(پس از برد — مبنای سود واقعی؛ جدا از قیمت استعلامی)</small><br><small>' + lb + adv + costTxt + '</small></span>' +
-          '<span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')">🛍 ثبت / مشاهده / اصلاح خرید</button>' +
+          '<span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')">🛍 خرید</button>' +
           ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')">💰 اصلاح پیش‌پرداخت</button>' : '') +
           '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')">🤖 استعلام مجدد</button><button class="bt bt-o" style="font-size:12px;color:#b45309" onclick="event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')">➕ هزینه پرونده</button></span></div>');
       } catch (e) {}

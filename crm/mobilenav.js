@@ -174,25 +174,22 @@
     '@keyframes mnvPanelIn{from{opacity:.35;transform:translateY(10px)}to{opacity:1;transform:none}}' +
     '.pn{animation:mnvPanelIn .18s ease-out}' +
     '@media(prefers-reduced-motion:reduce){.pn{animation:none!important}}' +
-    /* US-287: هدر تک‌ردیفه فشرده */
-    '#clockD,#liveHealthPill{display:none!important}' +
-    '.tb{padding:8px 12px!important;flex-wrap:nowrap!important}' + /* v31.7.19: overflow:hidden حذف شد — بج‌ها را می‌برید؛ مهار سرریز با min-width/ellipsis بچه‌هاست */
-    '.tb h2{font-size:15px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw}' +
-    /* v31.7.18 BUG-HDR-MOBILE-001 + v31.7.19 BUG-HDR-MOBILE-002 (اسکرین‌شات دوم کارفرما):
-       overflow:hidden سراسری، بج نسخه و بج زنگ را می‌برید («.7.18» و بج 67 بریده).
-       راه‌حل نهایی: مینیمال‌سازی هدر موبایل — فقط جستجو/زنگ/تم؛ بج نسخه ellipsis؛ بدون clip بج‌ها. */
-    '.tb>div{min-width:0;flex-shrink:1}' +
-    '#topVerPill{white-space:nowrap!important;font-size:10px!important;padding:3px 8px!important;max-width:96px;overflow:hidden;text-overflow:ellipsis;direction:ltr}' +
-    '.tb .tbic{width:36px!important;height:36px!important;flex:none;overflow:visible}' +
-    '.tb .tbic svg{display:block!important;margin:auto!important;width:17px!important;height:17px!important}' +
-    /* بایگانی/ابر در موبایل از کشوی «سایر» در دسترس‌اند — هدر خلوت و منظم */
-    '.tb .tbic[title="بایگانی"],.tb .tbic[title="فضای ابری"]{display:none!important}' +
-    '#trialBarWrap,#trialBarWrap *{max-width:100%;overflow-wrap:anywhere}' +
-    /* US-290: دکمه جستجوی هدر در موبایل فقط آیکون (SVG مینیمال iconx زنده می‌ماند) + مخفی‌سازی متن و Ctrl+K */
-    '.tb button[onclick*="ptfOpenCommandPalette"]{padding:8px 10px!important;font-size:0!important;gap:0!important;min-height:40px!important}' +
+    /* ===== هدر تک‌ردیفه موبایل (v34.1 — بازنویسی کامل) ===== */
+    '#clockD,#liveHealthPill,#topVerPill{display:none!important}' +
+    '.tb{padding:6px 12px!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:space-between!important;height:48px!important;gap:6px!important}' +
+    '.tb>div:first-child{flex:1 1 auto!important;min-width:0!important;overflow:hidden!important}' +
+    '.tb>div:last-child{flex:0 0 auto!important}' +
+    '.tb h2{font-size:14px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}' +
+    /* جستجو: فقط آیکون مربعی */
+    '.tb button[onclick*="ptfOpenCommandPalette"]{font-size:0!important;padding:0!important;gap:0!important;width:34px!important;height:34px!important;min-height:34px!important;min-width:34px!important;border-radius:10px!important;display:grid!important;place-items:center!important;background:var(--bg,#f4f6f9)!important;border:1px solid var(--brd,#e8ebf0)!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span{display:none!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span[data-ix]{display:inline-flex!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span[data-ix] svg{width:17px!important;height:17px!important}' +
+    /* آیکون‌های هدر: فشرده‌تر */
+    '.tb .tbic{width:34px!important;height:34px!important;flex:none;overflow:visible}' +
+    '.tb .tbic svg{display:block!important;margin:auto!important;width:16px!important;height:16px!important}' +
+    '.tb .tbic[title="بایگانی"],.tb .tbic[title="فضای ابری"]{display:none!important}' +
+    '#trialBarWrap,#trialBarWrap *{max-width:100%;overflow-wrap:break-word}' +
     /* کشوی بیشتر */
     '.mnv-more{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1600;opacity:0;transition:opacity .2s;backdrop-filter:blur(3px)}' +
     '.mnv-more.on{opacity:1}' +
