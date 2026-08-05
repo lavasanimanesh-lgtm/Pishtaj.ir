@@ -63,8 +63,12 @@
 
   /* نسخه فعال — خوانا در موبایل */
   #topVerPill, #liveHealthPill { font-size: 12.5px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.4 !important; padding: 6px 10px !important; }
-  .tb { flex-direction: column !important; align-items: stretch !important; }
-  .tb > div { justify-content: flex-start !important; }
+  /* هدر تک‌ردیفه موبایل — عنوان چپ + آیکون‌ها راست (۴۸px ارتفاع) */
+  .tb { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important; height: 48px !important; overflow: hidden !important; }
+  .tb > div:first-child { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; align-items: center !important; gap: 8px !important; }
+  .tb > div:last-child { flex: 0 0 auto !important; display: flex !important; align-items: center !important; gap: 4px !important; }
+  /* مخفی‌سازی عناصر غیرضروری موبایل */
+  #topVerPill, #liveHealthPill, #clockD { display: none !important; }
   
   /* تبدیل ردیف‌های جدول به کارت‌های اطلاعاتی مستقل لمسی (Card Transformation) */
   .tb2 table, .tb2 thead, .tb2 tbody, .tb2 th, .tb2 td, .tb2 tr {
@@ -131,54 +135,48 @@
   .md > div[style*="justify-content:flex-end"] .bt, .md > div[style*="justify-content: flex-end"] .bt {
     width: 100% !important; justify-content: center !important; text-align: center !important;
   }
-  .sb2 { width: 100% !important; display: flex !important; flex-direction: column !important; gap: 10px !important; }
-  .sb2 input, .sb2 select, .sb2 button { width: 100% !important; }
-}
+  .sb2 { width: 100% !important; display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
+  .sb2 input, .sb2 select { width: 100% !important; }
 
-
-  /* ============ Sprint 111: مینیمالیسم مطلق سایدبار موبایل (بدون نوشته، بدون اسکرول افقی و متمایز از زیرمجموعه‌ها) ============ */
-  @media (max-width: 768px) {
-    /* ۱. تثبیت عرض سایدبار روی ۵۶ پیکسل؛ مهار اسکرول افقی و جابجایی محتوا */
-    .sb {
-      width: 56px !important; min-width: 56px !important; max-width: 56px !important;
-      overflow-x: hidden !important; overflow-y: auto !important;
-      touch-action: pan-y !important; border-left: 1px solid var(--brd) !important;
-    }
-    .sb * { max-width: 56px !important; overflow-x: hidden !important; white-space: nowrap !important; }
-    
-    /* ۲. مخفی‌سازی دائمی تمام نوشته‌ها، برچسب‌ها، متن تیترها و فلش‌های آکاردئون */
-    /* US-285: «>» تا SVGهای iconx (span[data-ix] داخل .ic) مخفی نشوند + gt جدا کنترل می‌شود */
-    .sb-l h3, .sb-l span, .sb-u span, .sb-i .lb, .sb-i > span:not(.ic), .nl, .sb-g .ar, .sb-g .gb {
-      display: none !important;
-    }
-    
-    /* ۳. تبدیل سرفصل‌ها: آیکون در بالا و متن کلمه با فونت ریز ۹ پیکسلی در زیر آیکون (طبق دستور کارفرما) */
-    .sb-g {
-      width: 50px !important; height: 46px !important;
-      display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: center !important;
-      padding: 2px 0 !important; margin: 6px auto 2px auto !important;
-      background: var(--crd, #f1f5f9) !important; border-radius: 10px !important; /* US-285: حالت شب */
-      border: 1px solid var(--brd) !important;
-      line-height: 1.1 !important;
-    }
-    /* US-285: ساختار جدید سرگروه — .gi آیکون / .gt متن ریز (سرریز ناممکن: ellipsis داخل 48px) */
-    .sb-g .gi { display: grid !important; place-items: center !important; margin: 0 auto !important; font-size: 17px !important; }
-    .sb-g .gt { display: block !important; font-size: 9px !important; font-weight: 900 !important; color: var(--tx, #334155) !important; text-align: center !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; max-width: 46px !important; }
-    .sb-g .ar, .sb-g .gb { display: none !important; }
-    
-    /* ۴. زیرمجموعه‌ها: آیکون‌های مینیمال زیر سرفصل */
-    .sb-gw { display: block !important; width: 100% !important; height: auto !important; max-height: none !important; overflow: visible !important; }
-    .sb-gw .sb-i {
-      width: 100% !important; height: 38px !important;
-      display: flex !important; justify-content: center !important; align-items: center !important;
-      padding: 0 !important; margin: 3px 0 !important;
-    }
-    .sb-i .ic { font-size: 22px !important; width: 28px !important; height: 28px !important; display: grid !important; place-items: center !important; margin: 0 auto !important; }
-    
-    /* ۵. تنظیم عرض پنل محتوا در کنار سایدبار ۵۶ پیکسلی */
-    .mn { margin-right: 56px !important; width: calc(100% - 56px) !important; max-width: calc(100% - 56px) !important; padding: 10px !important; }
+  /* ===== v34.1: دکمه‌های هدر ماژول → Icon-Only در موبایل ===== */
+  /* دکمه‌های .ph (هدر ماژول‌ها) و .sb2 (نوار ابزار): فقط ایموجی/آیکون */
+  .ph .bt, .ph .bt-o, .sb2 .bt, .sb2 .bt-o {
+    font-size: 0 !important;
+    padding: 0 !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    border-radius: 12px !important;
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
   }
+  /* ایموجی آغازی → بزرگ و مرکزی */
+  .ph .bt::first-letter, .ph .bt-o::first-letter,
+  .sb2 .bt::first-letter, .sb2 .bt-o::first-letter {
+    font-size: 18px !important;
+  }
+  /* دکمه‌های عملیاتی کارت/ردیف (مشاهده، ویرایش، حذف): فقط آیکون */
+  .tb2 .ba {
+    font-size: 0 !important;
+    padding: 0 !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    border-radius: 10px !important;
+  }
+  .tb2 .ba::first-letter { font-size: 16px !important; }
 
+  /* .ph فلکس ردیفی بماند — عنوان + آیکون‌دکمه‌ها */
+  .ph { flex-direction: row !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; }
+  .ph h3 { flex: 1 1 auto !important; min-width: 0 !important; font-size: 15px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+}
 
 /* ============ Sprint 118 / US-121: کنترل‌های مینیمال شناور (جای کلاسیک بالا-چپ) ============ */
 .md { position: relative !important; overflow-x: hidden !important; padding-top: 36px !important; }
@@ -784,8 +782,22 @@ try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' 
 })();
 
 // ===== NAV =====
+/* ===== v34.1: History API — دکمه Back = برگشت به ماژول قبلی ===== */
+var _ptfNavFromPop = false;
+window.addEventListener('popstate', function(e) {
+  if (e.state && e.state.panel) {
+    _ptfNavFromPop = true;
+    goPanel(e.state.panel);
+    _ptfNavFromPop = false;
+  }
+});
+
 function goPanel(id, btn) {
   try { window.scrollTo(0, 0); } catch(e){}
+  /* ثبت در history — فقط اگر ناوبری واقعی کاربر باشد (نه popstate) */
+  if (!_ptfNavFromPop) {
+    try { history.pushState({ panel: id }, '', '#' + id); } catch(eH) {}
+  }
   var btns = document.querySelectorAll('.sb-i');
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('act');
   if (btn) btn.classList.add('act');
@@ -2494,93 +2506,93 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script src="ui-kit.js?v=34.0.21-alpha"></script>
-<script src="storage-quota.js?v=34.0.21-alpha"></script>
-<script src="moneyx.js?v=34.0.21-alpha"></script>
-<script src="finance-helpers.js?v=34.0.21-alpha"></script>
-<script src="finance-core.js?v=34.0.21-alpha"></script>
-<script src="date-kit.js?v=34.0.21-alpha"></script>
-<script src="dialogx.js?v=34.0.21-alpha"></script>
-<script src="dedup.js?v=34.0.21-alpha"></script>
-<script src="codegen.js?v=34.0.21-alpha"></script>
-<script src="xlsx.min.js?v=34.0.21-alpha"></script>
-<script src="sortable.js?v=34.0.21-alpha"></script>
-<script src="offers.js?v=34.0.21-alpha"></script>
-<script src="surplus.js?v=34.0.21-alpha"></script>
-<script src="launcher.js?v=34.0.21-alpha"></script>
-<script src="leads.js?v=34.0.21-alpha"></script>
-<script src="storage.js?v=34.0.21-alpha"></script>
-<script src="rbac.js?v=34.0.21-alpha"></script>
-<script src="official-ledger.js?v=34.0.21-alpha"></script>
-<script src="projects.js?v=34.0.21-alpha"></script>
-<script src="letters.js?v=34.0.21-alpha"></script>
-<script src="draftx.js?v=34.0.21-alpha"></script>
-<script src="analyzer.js?v=34.0.21-alpha"></script>
-<script src="contracts.js?v=34.0.21-alpha"></script>
-<script src="shell.js?v=34.0.21-alpha"></script>
-<script src="bridge.js?v=34.0.21-alpha"></script>
-<script src="kanban.js?v=34.0.21-alpha"></script>
-<script src="reports.js?v=34.0.21-alpha"></script>
-<script src="backup.js?v=34.0.21-alpha"></script>
-<script src="tool-licenses.js?v=34.0.21-alpha"></script>
-<script src="tool-report-drafts.js?v=34.0.21-alpha"></script>
-<script src="tool-feedback.js?v=34.0.21-alpha"></script>
-<script src="sms.js?v=34.0.21-alpha"></script>
-<script src="rfqsmart.js?v=34.0.21-alpha"></script>
-<script src="cms.js?v=34.0.21-alpha"></script>
-<script src="perms.js?v=34.0.21-alpha"></script>
-<script src="petty.js?v=34.0.21-alpha"></script>
-<script src="opex.js?v=34.0.21-alpha"></script>
-<script src="shareholders.js?v=34.0.21-alpha"></script>
-<script src="theme.js?v=34.0.21-alpha"></script>
-<script src="archive.js?v=34.0.21-alpha"></script>
-<script src="offers-pro.js?v=34.0.21-alpha"></script>
-<script src="buycompare.js?v=34.0.21-alpha"></script>
-<script src="procurement-link.js?v=34.0.21-alpha"></script>
-<script src="listtools.js?v=34.0.21-alpha"></script>
-<script src="icons.js?v=34.0.21-alpha"></script>
-<script src="guards.js?v=34.0.21-alpha"></script>
-<script src="tables.js?v=34.0.21-alpha"></script>
-<script src="inqreader.js?v=34.0.21-alpha"></script>
-<script src="offerlock.js?v=34.0.21-alpha"></script>
-<script src="workflow.js?v=34.0.21-alpha"></script>
-<script src="fx.js?v=34.0.21-alpha"></script>
-<script src="modalx.js?v=34.0.21-alpha"></script>
-<script src="iconx.js?v=34.0.21-alpha"></script>
-<script src="salesfiles.js?v=34.0.21-alpha"></script>
-<script src="docsx.js?v=34.0.21-alpha"></script>
-<script src="oppo.js?v=34.0.21-alpha"></script>
-<script src="cheque-module.js?v=34.0.21-alpha"></script>
-<script src="cheque-panel.js?v=34.0.21-alpha"></script>
-<script src="cheque-print.js?v=34.0.21-alpha"></script>
-<script src="cheques.js?v=34.0.21-alpha"></script>
-<script src="messengers.js?v=34.0.21-alpha"></script>
-<script src="phonefmt.js?v=34.0.21-alpha"></script>
-<script src="tour.js?v=34.0.21-alpha"></script>
-<script src="mobilenav.js?v=34.0.21-alpha"></script>
-<script src="ai-workbench.js?v=34.0.21-alpha"></script>
-<script src="golive.js?v=34.0.21-alpha"></script>
-<script src="custmerge.js?v=34.0.21-alpha"></script>
-<script src="listclean.js?v=34.0.21-alpha"></script>
-<script src="supspec.js?v=34.0.21-alpha"></script>
-<script src="scoring.js?v=34.0.21-alpha"></script>
-<script src="supplier-finance.js?v=34.0.21-alpha"></script>
-<script src="customer-finance.js?v=34.0.21-alpha"></script>
-<script src="working-capital.js?v=34.0.21-alpha"></script>
-<script src="ledger-report.js?v=34.0.21-alpha"></script>
-<script src="data-quality.js?v=34.0.21-alpha"></script>
-<script src="commission.js?v=34.0.21-alpha"></script>
+<script defer src="ui-kit.js?v=34.0.21-alpha"></script>
+<script defer src="storage-quota.js?v=34.0.21-alpha"></script>
+<script defer src="moneyx.js?v=34.0.21-alpha"></script>
+<script defer src="finance-helpers.js?v=34.0.21-alpha"></script>
+<script defer src="finance-core.js?v=34.0.21-alpha"></script>
+<script defer src="date-kit.js?v=34.0.21-alpha"></script>
+<script defer src="dialogx.js?v=34.0.21-alpha"></script>
+<script defer src="dedup.js?v=34.0.21-alpha"></script>
+<script defer src="codegen.js?v=34.0.21-alpha"></script>
+<script async src="xlsx.min.js?v=34.0.21-alpha"></script>
+<script defer src="sortable.js?v=34.0.21-alpha"></script>
+<script defer src="offers.js?v=34.0.21-alpha"></script>
+<script defer src="surplus.js?v=34.0.21-alpha"></script>
+<script defer src="launcher.js?v=34.0.21-alpha"></script>
+<script defer src="leads.js?v=34.0.21-alpha"></script>
+<script defer src="storage.js?v=34.0.21-alpha"></script>
+<script defer src="rbac.js?v=34.0.21-alpha"></script>
+<script defer src="official-ledger.js?v=34.0.21-alpha"></script>
+<script defer src="projects.js?v=34.0.21-alpha"></script>
+<script defer src="letters.js?v=34.0.21-alpha"></script>
+<script defer src="draftx.js?v=34.0.21-alpha"></script>
+<script defer src="analyzer.js?v=34.0.21-alpha"></script>
+<script defer src="contracts.js?v=34.0.21-alpha"></script>
+<script defer src="shell.js?v=34.0.21-alpha"></script>
+<script defer src="bridge.js?v=34.0.21-alpha"></script>
+<script defer src="kanban.js?v=34.0.21-alpha"></script>
+<script defer src="reports.js?v=34.0.21-alpha"></script>
+<script defer src="backup.js?v=34.0.21-alpha"></script>
+<script defer src="tool-licenses.js?v=34.0.21-alpha"></script>
+<script defer src="tool-report-drafts.js?v=34.0.21-alpha"></script>
+<script defer src="tool-feedback.js?v=34.0.21-alpha"></script>
+<script defer src="sms.js?v=34.0.21-alpha"></script>
+<script defer src="rfqsmart.js?v=34.0.21-alpha"></script>
+<script defer src="cms.js?v=34.0.21-alpha"></script>
+<script defer src="perms.js?v=34.0.21-alpha"></script>
+<script defer src="petty.js?v=34.0.21-alpha"></script>
+<script defer src="opex.js?v=34.0.21-alpha"></script>
+<script defer src="shareholders.js?v=34.0.21-alpha"></script>
+<script defer src="theme.js?v=34.0.21-alpha"></script>
+<script defer src="archive.js?v=34.0.21-alpha"></script>
+<script defer src="offers-pro.js?v=34.0.21-alpha"></script>
+<script defer src="buycompare.js?v=34.0.21-alpha"></script>
+<script defer src="procurement-link.js?v=34.0.21-alpha"></script>
+<script defer src="listtools.js?v=34.0.21-alpha"></script>
+<script defer src="icons.js?v=34.0.21-alpha"></script>
+<script defer src="guards.js?v=34.0.21-alpha"></script>
+<script defer src="tables.js?v=34.0.21-alpha"></script>
+<script defer src="inqreader.js?v=34.0.21-alpha"></script>
+<script defer src="offerlock.js?v=34.0.21-alpha"></script>
+<script defer src="workflow.js?v=34.0.21-alpha"></script>
+<script defer src="fx.js?v=34.0.21-alpha"></script>
+<script defer src="modalx.js?v=34.0.21-alpha"></script>
+<script defer src="iconx.js?v=34.0.21-alpha"></script>
+<script defer src="salesfiles.js?v=34.0.21-alpha"></script>
+<script defer src="docsx.js?v=34.0.21-alpha"></script>
+<script defer src="oppo.js?v=34.0.21-alpha"></script>
+<script defer src="cheque-module.js?v=34.0.21-alpha"></script>
+<script defer src="cheque-panel.js?v=34.0.21-alpha"></script>
+<script defer src="cheque-print.js?v=34.0.21-alpha"></script>
+<script defer src="cheques.js?v=34.0.21-alpha"></script>
+<script defer src="messengers.js?v=34.0.21-alpha"></script>
+<script defer src="phonefmt.js?v=34.0.21-alpha"></script>
+<script defer src="tour.js?v=34.0.21-alpha"></script>
+<script defer src="mobilenav.js?v=34.0.21-alpha"></script>
+<script defer src="ai-workbench.js?v=34.0.21-alpha"></script>
+<script defer src="golive.js?v=34.0.21-alpha"></script>
+<script defer src="custmerge.js?v=34.0.21-alpha"></script>
+<script defer src="listclean.js?v=34.0.21-alpha"></script>
+<script defer src="supspec.js?v=34.0.21-alpha"></script>
+<script defer src="scoring.js?v=34.0.21-alpha"></script>
+<script defer src="supplier-finance.js?v=34.0.21-alpha"></script>
+<script defer src="customer-finance.js?v=34.0.21-alpha"></script>
+<script defer src="working-capital.js?v=34.0.21-alpha"></script>
+<script defer src="ledger-report.js?v=34.0.21-alpha"></script>
+<script defer src="data-quality.js?v=34.0.21-alpha"></script>
+<script defer src="commission.js?v=34.0.21-alpha"></script>
 
-<script src="my-customers-filter.js?v=34.0.21-alpha"></script>
-<script src="insights.js?v=34.0.21-alpha"></script>
-<script src="myday.js?v=34.0.21-alpha"></script>
-<script src="lossguard.js?v=34.0.21-alpha"></script>
-<script src="fiscal.js?v=34.0.21-alpha"></script>
-<script src="financehub.js?v=34.0.21-alpha"></script>
-<script src="theme-contrast.js?v=34.0.21-alpha"></script>
-<script src="sync.js?v=34.0.21-alpha"></script>
-<script src="client-server.js?v=34.0.21-alpha"></script>
-<script src="unofficial-invoice.js?v=34.0.21-alpha"></script>
-<script src="settings-accordion.js?v=34.0.21-alpha"></script>
+<script defer src="my-customers-filter.js?v=34.0.21-alpha"></script>
+<script defer src="insights.js?v=34.0.21-alpha"></script>
+<script defer src="myday.js?v=34.0.21-alpha"></script>
+<script defer src="lossguard.js?v=34.0.21-alpha"></script>
+<script defer src="fiscal.js?v=34.0.21-alpha"></script>
+<script defer src="financehub.js?v=34.0.21-alpha"></script>
+<script defer src="theme-contrast.js?v=34.0.21-alpha"></script>
+<script defer src="sync.js?v=34.0.21-alpha"></script>
+<script defer src="client-server.js?v=34.0.21-alpha"></script>
+<script defer src="unofficial-invoice.js?v=34.0.21-alpha"></script>
+<script defer src="settings-accordion.js?v=34.0.21-alpha"></script>
 </body>
 </html>
