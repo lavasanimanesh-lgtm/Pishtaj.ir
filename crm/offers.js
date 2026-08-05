@@ -2385,13 +2385,21 @@ function offerSave() {
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
   setData('ptf_crm_offers', offers);
-  /* v34.0.20-alpha (فاز ۱۷): اطلاع‌رسانی پیامکی به مشتری هنگام صدور پیشنهاد مالی —
-     با ذکر شمارهٔ درخواست مشتری (o.inqNo) و شمارهٔ پیشنهاد (o.no). */
+  /* ===== v34.1 US-SMS-CO: اطلاع‌رسانی پیامکی به مشتری هنگام صدور پیشنهاد مالی ===== */
   try {
-    if (typeof window.ptfSmsCustomer === 'function' && o.buyerCd) {
-      var _inqRef = (o.inqNo || '') ? (' درخواست شمارهٔ ' + o.inqNo) : '';
-      var _smsTxt = 'پیشرو تجهیز فرتاک\nپیشنهاد مالی ' + (o.kind || '') + ' ' + (o.no || '') + ' برای شما' + _inqRef + ' صادر شد.\nبرای بررسی از وب‌سایت یا تماس با کارشناس استفاده کنید.\n021-46087679';
-      window.ptfSmsCustomer(o.buyerCd, _smsTxt, null);
+    if ((o.kind === 'CO' || o.kind === 'TC') && o.buyerCd && typeof window.ptfSmsNotifyDialog === 'function') {
+      var _cust = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0];
+      if (_cust) {
+        var _inqRef = (o.inqNo || '') ? (' (درخواست ' + o.inqNo + ')') : '';
+        var _totalAmt = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+        var _amtStr = _totalAmt ? ('\nمبلغ کل: ' + _totalAmt.toLocaleString('fa-IR') + ' ' + (o.currency === 'EUR' ? 'یورو' : o.currency === 'USD' ? 'دلار' : 'ریال')) : '';
+        var _coSmsTxt = 'پیشرو تجهیز فرتاک\n' +
+          'پیشنهاد مالی ' + (o.no || '') + _inqRef + ' صادر شد.' + _amtStr + '\n' +
+          (o.validUntil ? 'اعتبار: ' + o.validUntil + '\n' : '') +
+          'جهت بررسی با کارشناس فروش تماس بگیرید.\n' +
+          '021-46087679\npishtaj.ir';
+        window.ptfSmsNotifyDialog(_cust, _coSmsTxt, 'صدور پیشنهاد مالی ' + o.no);
+      }
     }
   } catch (eSms) {}
   try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}

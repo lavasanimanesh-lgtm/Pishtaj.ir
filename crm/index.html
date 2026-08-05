@@ -2338,6 +2338,19 @@ function saveRfq() {
   hideModal();
   renderRfq();
   addLog('استعلام ' + cd + ' ثبت شد');
+
+  /* ===== v34.1 US-SMS-RFQ: اطلاع‌رسانی پیامکی به مشتری هنگام ثبت درخواست ===== */
+  try {
+    var _rfqCust = getData('ptf_crm_customers').filter(function (x) { return x.co && x.co.trim() === comp; })[0];
+    if (_rfqCust && typeof window.ptfSmsNotifyDialog === 'function') {
+      var _rfqSmsTxt = 'پیشرو تجهیز فرتاک\n' +
+        'درخواست شما با شماره ' + cd + ' در تاریخ ' + recSimple.dt + ' ثبت شد.\n' +
+        'کارشناسان ما در اسرع وقت بررسی و نتیجه را اعلام خواهند کرد.\n' +
+        '021-46087679\npishtaj.ir';
+      window.ptfSmsNotifyDialog(_rfqCust, _rfqSmsTxt, 'ثبت درخواست ' + cd);
+    }
+  } catch (eRfqSms) {}
+
   /* US-303 (مصوب تیم متخصصان): بلافاصله ویرایشگر اقلام باز شود — ورود دستی/اکسل/دستیار
      تا «بارگذاری از درخواست» در TO/CO/TC واقعا کارا باشد */
   if (typeof ptfOpenFullInqEditor === 'function') {

@@ -665,4 +665,90 @@
   };
   window.ptfCustomerMobile = ptfCustomerMobile;
 
+  /* ===== v34.1 US-SMS-NOTIFY: دیالوگ اطلاع‌رسانی پیامکی به مشتری =====
+     نمایش دیالوگ تأیید با:
+     - شماره موبایل مشتری (قابل اصلاح)
+     - متن پیام (قابل ویرایش)
+     - دکمه ارسال / انصراف
+     صدا زده می‌شود از: saveRfq (ثبت درخواست) + offerSave (صدور CO)
+  */
+  window.ptfSmsNotifyDialog = function (customer, defaultText, title) {
+    if (!customer) return;
+    var mob = normMob(ptfCustomerMobile(customer));
+    var custName = customer.co || customer.nm || 'مشتری';
+
+    /* ساخت دیالوگ */
+    var dlgId = 'ptfSmsNotifyDlg';
+    var old = document.getElementById(dlgId);
+    if (old) old.remove();
+
+    var esc = function (s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+    var html =
+      '<div id="' + dlgId + '" class="md-b" style="display:grid;z-index:2800">' +
+      '<div class="md" style="width:440px;max-width:94vw">' +
+      '<h3>📱 اطلاع‌رسانی پیامکی — ' + esc(title || '') + '</h3>' +
+
+      '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#166534">' +
+      '✅ عملیات با موفقیت انجام شد. آیا می‌خواهید به مشتری پیامک اطلاع‌رسانی ارسال کنید؟</div>' +
+
+      '<div class="fld" style="margin-bottom:10px">' +
+      '<label style="font-weight:900;font-size:12px">👤 مشتری</label>' +
+      '<div style="font-size:13px;padding:8px 0">' + esc(custName) + '</div></div>' +
+
+      '<div class="fld" style="margin-bottom:10px">' +
+      '<label style="font-weight:900;font-size:12px">📱 شماره موبایل</label>' +
+      '<input type="text" id="ptfSmsNMob" value="' + esc(mob) + '" dir="ltr" placeholder="09xxxxxxxxx" ' +
+      'style="padding:10px;border:2px solid ' + (mob ? '#86efac' : '#fca5a5') + ';border-radius:10px;font-size:14px;width:100%;box-sizing:border-box">' +
+      (!mob ? '<small style="color:#dc2626;font-size:11px">⚠️ شماره موبایل این مشتری ثبت نشده — لطفاً وارد کنید</small>' : '') +
+      '</div>' +
+
+      '<div class="fld" style="margin-bottom:10px">' +
+      '<label style="font-weight:900;font-size:12px">✉️ متن پیام <small style="color:#94a3b8;font-weight:400">(قابل ویرایش)</small></label>' +
+      '<textarea id="ptfSmsNTxt" rows="6" dir="rtl" style="padding:10px;border:2px solid var(--brd,#e2e8f0);border-radius:10px;font-size:13px;line-height:1.8;width:100%;box-sizing:border-box;resize:vertical">' + esc(defaultText) + '</textarea>' +
+      '<small style="color:#94a3b8;font-size:10.5px" id="ptfSmsNLen">0 کاراکتر</small></div>' +
+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
+      '<button class="bt bt-o" onclick="document.getElementById(\'' + dlgId + '\').remove()">بدون ارسال</button>' +
+      '<button class="bt" id="ptfSmsNSend" onclick="ptfSmsNotifySend()">📤 ارسال پیامک</button>' +
+      '</div></div></div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    /* شمارنده کاراکتر */
+    var ta = document.getElementById('ptfSmsNTxt');
+    var lenEl = document.getElementById('ptfSmsNLen');
+    function updLen() { lenEl.textContent = ta.value.length + ' کاراکتر'; }
+    ta.addEventListener('input', updLen);
+    updLen();
+  };
+
+  /* ارسال واقعی از دیالوگ */
+  window.ptfSmsNotifySend = function () {
+    var mob = (document.getElementById('ptfSmsNMob') || {}).value || '';
+    var text = (document.getElementById('ptfSmsNTxt') || {}).value || '';
+    mob = normMob(mob);
+    if (!mob) { alert('شماره موبایل معتبر نیست (09xxxxxxxxx)'); return; }
+    if (!text.trim()) { alert('متن پیام خالی است'); return; }
+
+    var btn = document.getElementById('ptfSmsNSend');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ در حال ارسال...'; }
+
+    smsSendSingle(mob, text, function (d) {
+      var dlg = document.getElementById('ptfSmsNotifyDlg');
+      if (d && d.ok && d.sent) {
+        if (typeof ptfToast === 'function') ptfToast('✅ پیامک اطلاع‌رسانی به ' + mob + ' ارسال شد', 'ok');
+        if (dlg) dlg.remove();
+      } else if (d && d.queued) {
+        if (typeof ptfToast === 'function') ptfToast('📨 پیامک در صف ارسال قرار گرفت', 'info');
+        if (dlg) dlg.remove();
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = '📤 ارسال پیامک'; }
+        alert('⚠️ ارسال ناموفق' + (d && d.error ? ': ' + d.error : '') + '\nپیامک در صف ذخیره شد — بعداً ارسال می‌شود.');
+        if (dlg) dlg.remove();
+      }
+      try { if (typeof audit === 'function') audit('پیامک', 'اطلاع‌رسانی به ' + mob + ': ' + (d && d.ok ? 'ارسال شد' : 'صف'), mob); } catch (eA) {}
+    });
+  };
+
 })();
