@@ -1,0 +1,74 @@
+cluster,brand,official_url,status,priority,related_pages,notes
+Instrumentation,Emerson / Rosemount,https://www.emerson.com/,covered,1,brands/emerson-rosemount.html; services/products/rosemount-3051.html,بدون ادعای نمایندگی رسمی
+Instrumentation,Endress+Hauser,https://www.endress.com/,covered,1,brands/endress-hauser.html; services/products/flowmeter.html,بدون لوگوی برند تا زمان مجوز
+Instrumentation,Yokogawa,https://www.yokogawa.com/,covered,1,brands/yokogawa-industrial.html; services/products/differential-pressure-transmitter.html,کنترل Model/Revision مهم است
+Instrumentation,WIKA,https://www.wika.com/,covered,1,brands/wika-instrumentation.html; services/products/pressure-gauge.html,Pressure/Temperature/Seal
+Instrumentation,KROHNE,https://www.krohne.com/,covered,1,brands/krohne-instrumentation.html; services/products/flowmeter.html,Flow/Level/DP Flow
+Final Control,Fisher / Emerson Final Control,https://www.emerson.com/en/final-control,covered,1,brands/fisher-samson-control-valves.html; services/products/control-valve.html,Control Valve/Positioner
+Final Control,SAMSON,https://www.samsongroup.com/,covered,1,brands/fisher-samson-control-valves.html; services/products/control-valve.html,صفحه مشترک با Fisher فعلاً کافی است
+Valves,KITZ,https://www.kitz.com/,covered,1,brands/kitz-valves.html; services/products/ball-valve.html,Valve sourcing
+Electrical/Automation,Siemens,https://www.siemens.com/,covered,1,brands/siemens-industrial.html; services/products/plc-control-panel.html,Automation/Drive/Switchgear
+Electrical/Automation,Schneider Electric,https://www.se.com/,covered,1,brands/schneider-electric.html; services/products/vfd-soft-starter.html,Modicon/Altivar/TeSys
+Electrical/Automation,ABB,https://global.abb/,covered,1,brands/abb-industrial.html; services/products/lv-mv-switchgear.html,Electrification/Motion/Automation
+Electrical/Connectivity,Phoenix Contact,https://www.phoenixcontact.com/,covered,2,brands/phoenix-contact.html; services/products/cable-accessories.html,Terminal/Power/SPD
+Electrical/Automation,Omron,https://automation.omron.com/,covered,2,brands/omron-automation.html; services/products/plc-control-panel.html,Sensors/PLC/Temp Controller
+Electrical/Hazardous,Eaton / Crouse-Hinds,https://www.eaton.com/,covered,2,brands/eaton-crouse-hinds.html; services/products/explosion-proof-lighting.html,Hazardous Area / Power
+Steam,Spirax Sarco,https://www.spiraxsarco.com/,covered,2,brands/spirax-sarco-steam.html; services/products/steam-trap.html,Steam Trap/PRV
+Pumps,Grundfos,https://www.grundfos.com/,covered,2,brands/grundfos-pumps.html; services/products/vertical-multistage-pump.html,CR/CRE/Booster
+Compressed Air,Atlas Copco,https://www.atlascopco.com/,covered,2,brands/atlas-copco-compressed-air.html; services/products/screw-compressor.html,Compressed Air/Instrument Air
+Piping/Gaskets,Flexitallic,https://flexitallic.com/,covered,1,brands/flexitallic-gaskets.html; services/products/industrial-gaskets.html,Gaskets
+Piping/Flanges,Galperti,http://galpertisrl.com/,covered,1,brands/galperti-flanges.html; services/products/welding-flanges.html,Flanges/Forgings
+Piping/Pipes,Tenaris,https://www.tenaris.com/,covered,1,brands/tenaris-pipes.html; services/products/api-5l-pipe.html,Pipes/OCTG
+Piping/Pipes,Vallourec,https://www.vallourec.com/,covered,1,brands/vallourec-pipes.html; services/products/alloy-steel-pipe-a335.html,Seamless/Line Pipe
+Instrumentation,VEGA,https://www.vega.com/,planned,2,services/products/radar-level-transmitter.html,Radar/Level page recommended
+Instrumentation,Honeywell Analytics,https://www.honeywellanalytics.com/,planned,2,services/products/fixed-gas-detector.html,Gas Detection / F&G
+Instrumentation,MSA Safety,https://us.msasafety.com/,planned,2,services/products/fixed-gas-detector.html,Gas Detection PPE
+Instrumentation,Dräger,https://www.draeger.com/,planned,2,services/products/fixed-gas-detector.html,Gas Detection
+Instrumentation,Teledyne Gas and Flame,https://www.teledynegasandflamedetection.com/,planned,2,services/products/fixed-gas-detector.html,Gas/Flame Detection
+Instrumentation,SICK,https://www.sick.com/,planned,3,services/products/process-gas-analyzer-system.html,Analyzer/Sensor
+Instrumentation,Servomex,https://www.servomex.com/,planned,3,services/products/process-gas-analyzer-system.html,Gas Analyzer
+Instrumentation,AMETEK Process Instruments,https://www.ametekpi.com/,planned,3,services/products/process-gas-analyzer-system.html,Analyzer
+Instrumentation,Hach,https://www.hach.com/,planned,3,services/products/online-water-quality-analyzer.html,Water Quality Analyzer
+Instrumentation,Mettler Toledo,https://www.mt.com/,planned,3,services/products/online-water-quality-analyzer.html,pH/Conductivity/Analytics
+Valves,Velan,https://www.velan.com/,planned,2,services/products/gate-valve.html; services/products/check-valve.html,Industrial Valves
+Valves,Crane,https://www.cranecpe.com/,planned,2,services/products/globe-valve.html; services/products/gate-valve.html,Valves
+Valves,Neway,https://www.newayvalve.com/,planned,2,services/products/ball-valve.html,Valves
+Valves,OMB Valves,https://www.ombvalves.com/,planned,2,services/products/ball-valve.html; services/products/gate-valve.html,Valves
+Valves,Bonney Forge,https://bonneyforge.com/,planned,2,services/products/forged-fittings.html; services/products/gate-valve.html,Forged fittings/valves
+Valves,Bray,https://www.bray.com/,planned,3,services/products/butterfly-valve.html,Butterfly/Actuator
+Valves,Rotork,https://www.rotork.com/,planned,2,services/products/valve-actuator.html,Actuator
+Valves,AUMA,https://www.auma.com/,planned,2,services/products/valve-actuator.html,Actuator
+Pumps,Flowserve,https://www.flowserve.com/,planned,2,services/products/api-610-centrifugal-pump.html; services/products/ansi-process-pump.html,Pumps/Valves/Seals
+Pumps,KSB,https://www.ksb.com/,planned,2,services/products/api-610-centrifugal-pump.html; services/products/slurry-pump.html,Pumps
+Pumps,Sulzer,https://www.sulzer.com/,planned,2,services/products/api-610-centrifugal-pump.html; services/products/mixer-agitator.html,Pumps/Mixers
+Pumps,Ebara,https://www.ebara.com/,planned,3,services/products/api-610-centrifugal-pump.html,Pumps
+Pumps,ITT Goulds,https://www.gouldspumps.com/,planned,2,services/products/ansi-process-pump.html,ANSI Process Pumps
+Pumps,NETZSCH,https://pumps-systems.netzsch.com/,planned,3,services/products/positive-displacement-pump.html,PD Pumps
+Pumps,Viking Pump,https://www.vikingpump.com/,planned,3,services/products/positive-displacement-pump.html,PD Pumps
+Pumps,LEWA,https://www.lewa.com/,planned,3,services/products/chemical-injection-package.html,Chemical Injection
+Pumps,Milton Roy,https://www.miltonroy.com/,planned,3,services/products/dosing-metering-pump.html; services/products/chemical-injection-package.html,Dosing/Chemical Injection
+Seals,John Crane,https://www.johncrane.com/,planned,2,services/products/mechanical-seal.html,Mechanical Seals
+Seals,EagleBurgmann,https://www.eagleburgmann.com/,planned,2,services/products/mechanical-seal.html,Mechanical Seals
+Seals,AESSEAL,https://www.aesseal.com/,planned,2,services/products/mechanical-seal.html,Mechanical Seals
+Compressors,Ingersoll Rand,https://www.ingersollrand.com/,planned,3,services/products/screw-compressor.html,Compressors
+Compressors,Kaeser,https://www.kaeser.com/,planned,3,services/products/screw-compressor.html,Compressors
+Compressors,Ariel,https://www.arielcorp.com/,planned,3,services/products/reciprocating-compressor.html,Recip Compressor
+Compressors,Burckhardt Compression,https://www.burckhardtcompression.com/,planned,3,services/products/reciprocating-compressor.html,Recip Compressor
+Piping/Pipes,JFE Steel,https://www.jfe-steel.co.jp/,planned,3,services/products/api-5l-pipe.html,Pipes
+Piping/Pipes,Nippon Steel,https://www.nipponsteel.com/,planned,3,services/products/api-5l-pipe.html,Pipes
+Piping/Pipes,Sumitomo,https://www.nipponsteel.com/,planned,3,services/products/seamless-pipe.html,Pipes
+Piping/Supports,LISEGA,https://www.lisega.de/,planned,3,services/products/pipe-supports-spring-hangers.html,Pipe Supports
+Piping/Bellows,Senior Flexonics,https://www.seniorflexonics.com/,planned,3,services/products/expansion-joints-flexible-hose.html,Bellows/Hose
+Electrical,Hawke International,https://www.eaton.com/,planned,3,services/products/cable-accessories.html,Cable Glands
+Electrical,CMP Products,https://www.cmp-products.com/,planned,3,services/products/cable-accessories.html,Cable Glands
+Electrical,DEHN,https://www.dehn-international.com/,planned,3,services/products/earthing-lightning-protection.html,Lightning/SPD
+Electrical,nVent ERICO,https://www.nvent.com/,planned,3,services/products/earthing-lightning-protection.html,Earthing/Cadweld
+Electrical,Legrand,https://www.legrand.com/,planned,3,services/products/industrial-circuit-breakers.html,Electrical
+Electrical,LS Electric,https://www.ls-electric.com/,planned,3,services/products/lv-mv-switchgear.html,Electrical
+Fire/Safety,Kidde,https://www.kidde-fenwal.com/,planned,3,services/products/fire-suppression-system.html,Fire Suppression
+Fire/Safety,Fike,https://www.fike.com/,planned,3,services/products/fire-suppression-system.html,Fire Suppression
+Fire/Safety,Minimax,https://www.minimax.com/,planned,3,services/products/fire-suppression-system.html,Fire Suppression
+Boiler,Cleaver-Brooks,https://cleaverbrooks.com/,planned,3,services/products/fire-tube-boiler.html; services/products/deaerator-feedwater-system.html,Boilers/Deaerators
+Boiler,Bosch Industriekessel,https://www.bosch-industrial.com/,planned,3,services/products/fire-tube-boiler.html,Boilers
+Burner,Weishaupt,https://www.weishaupt-corp.com/,planned,3,services/products/industrial-burner.html,Burners
+Burner,Riello,https://www.rielloburners.com/,planned,3,services/products/industrial-burner.html,Burners
