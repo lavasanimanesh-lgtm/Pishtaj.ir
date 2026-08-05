@@ -245,7 +245,7 @@ window.ptfSurplusSellGo = function(cd){
     alert('⛔ خطا: '+(e&&e.message?e.message:e));
   }
 };
-window.buildSurplus = function(){ return '<div class="ph"><h3>🏬 موجودی انبار (US-436)</h3><div class="sb2"><input type="text" id="surpSrch" placeholder="جستجو کالا/پروژه/محل..." oninput="renderSurplus()" style="flex:1"><button class="bt" onclick="ptfSurplusAddDialog()">+ ثبت موجودی</button></div></div><div id="surplusStats"></div><div id="surplusWrap"></div>'; };
+window.buildSurplus = function(){ return '<div class="ph"><h3>🏬 موجودی انبار</h3><div class="sb2"><input type="text" id="surpSrch" placeholder="جستجو کالا/پروژه/محل..." oninput="renderSurplus()" style="flex:1"><button class="bt" onclick="ptfSurplusAddDialog()">+ ثبت موجودی</button></div></div><div id="surplusStats"></div><div id="surplusWrap"></div>'; };
 window.renderSurplus = function(){
   var el=document.getElementById('surplusWrap'); if(!el)return;
   var q=((document.getElementById('surpSrch')||{}).value||'').toLowerCase();

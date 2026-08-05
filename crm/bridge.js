@@ -729,7 +729,7 @@
     purge('ptf_crm_payables', function (p) { return p.inqNo && keys[p.inqNo]; });
     purge('ptf_crm_deals', function (d) { return d.inqNo && keys[d.inqNo]; });
     purge('ptf_crm_inqitems', function (r) { return r.inqNo && keys[r.inqNo]; });
-    if (typeof audit === 'function') audit('استعلامات', 'پاکسازی یتیم‌ها (US-444): ' + sc.purgeable.length + ' زنجیره / ' + n + ' رکورد عملیاتی پاک شد / ' + quarantined + ' سند مالی قرنطینه شد — کلیدها: ' + sc.purgeable.map(function (c) { return c.key; }).join('، '), '');
+    if (typeof audit === 'function') audit('استعلامات', 'پاکسازی یتیم‌ها: ' + sc.purgeable.length + ' زنجیره / ' + n + ' رکورد عملیاتی پاک شد / ' + quarantined + ' سند مالی قرنطینه شد — کلیدها: ' + sc.purgeable.map(function (c) { return c.key; }).join('، '), '');
     return { ok: true, purged: n, quarantined: quarantined, skippedLocked: skippedLocked, chains: sc.purgeable.length, keys: sc.purgeable.map(function (c) { return c.key; }) };
   };
   window.ptfOrphanReview = function () {
@@ -747,7 +747,7 @@
       return '<div style="padding:6px 0;border-bottom:1px dashed var(--brd);font-size:12.5px"><b dir="ltr">' + escP(c.key) + '</b> — ' + parts.join('، ') + '</div>';
     }
     var html = '<div class="md-b" id="orphDlg" style="display:grid;z-index:2500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px;max-height:88vh;overflow:auto">' +
-      '<h3>🧹 پاکسازی زنجیره‌های یتیم (US-444)</h3>' +
+      '<h3>🧹 پاکسازی زنجیره‌های یتیم</h3>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">رکوردهایی که به درخواست حذف‌شده اشاره می‌کنند (یادگار قبل از BUG-031). پس از پیش‌نمایش، رکوردهای عملیاتی پاک و اسناد مالی قرنطینه می‌شوند تا سابقهٔ مالی از بین نرود.</div>' +
       (sc.purgeable.length ? '<b style="font-size:13px">قابل پاکسازی (' + sc.purgeable.length + ' زنجیره):</b>' + sc.purgeable.map(row).join('') : '<div style="color:#059669;font-size:13px;padding:8px 0">✅ هیچ زنجیره یتیمی یافت نشد.</div>') +
       (sc.protectedChains.length ? '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:12px;color:#92400e;margin-top:10px"><b>🔒 محفوظ (بایگانی مختومه دارد — پاک نمی‌شود):</b>' + sc.protectedChains.map(row).join('') + '</div>' : '') +
@@ -787,7 +787,7 @@
     return '<div id="rfqPendWrap"></div>' +
       '<div class="ph"><h3>📋 درخواست‌ها</h3>' +
       '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
-      ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده (US-444)">🧹 یتیم‌ها</button>' : '') +
+      ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده">🧹 یتیم‌ها</button>' : '') +
       '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' + /* v14.3 US-365 */
       '<div class="tb2"><table><thead><tr>' +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'cd', 'کد') : '<th>کد</th>') +
@@ -983,7 +983,7 @@
       coWeb: r.email || '', coTels: [], coAddr: '',
       people: r.contact ? [{ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: [], mobs: r.phone ? [{ n: r.phone, lb: 'فرم سایت' }] : [], mails: r.email ? [{ n: r.email, lb: '' }] : [], primary: true, src: 'site' }] : [],
       phones: [], con: r.contact || '', ph: r.phone || '',
-      ds: 'ثبت خودکار از درخواست سایت ' + (r.code || '') + ' (US-380)', srcSite: r.code || ''
+      ds: 'ثبت خودکار از درخواست سایت ' + (r.code || '') + '', srcSite: r.code || ''
     };
     if (typeof dedupStamp === 'function') dedupStamp(newC);
     custs.unshift(newC);

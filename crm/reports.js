@@ -103,7 +103,7 @@
       '<h4 style="margin:4px 0 8px;font-size:14px">📊 عملکرد کاربران</h4>' +
       '<div class="tb2"><table><thead><tr><th>کاربر</th><th>نقش</th><th>TO فنی</th><th>CO مالی</th><th>CO برنده</th><th>تامین‌کننده</th><th>مشتری</th><th>لید</th><th>فاکتور</th><th>نامه</th><th>کل اقدامات</th></tr></thead>' +
       '<tbody id="repTb"></tbody></table></div>' +
-      '<h4 style="margin:18px 0 8px;font-size:14px;color:#b91c1c">🗑 بایگانی حذفیات و بررسی‌های آماری دلایل (Sprint 105/107)</h4>' +
+      '<h4 style="margin:18px 0 8px;font-size:14px;color:#b91c1c">🗑 بایگانی حذفیات و بررسی‌های آماری دلایل</h4>' +
       '<div id="repDeletedArcWrap" style="margin-bottom:24px"></div>' +
       '<h4 style="margin:18px 0 8px;font-size:14px">🕵️ رصد کلیه تحرکات (Audit Trail)</h4>' +
       '<div class="sb2" style="margin-bottom:8px"><select id="repMod" onchange="renderReports()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:13px">' + mOpts + '</select></div>' +
@@ -264,7 +264,7 @@ window.ptfOpenUnifiedAnalyticsHub = function () {
   var totalPayables = payables.reduce(function(s,p){ return s + (+p.amount||0)*(p.cur==='IRR'?1:(+p.rate||110000)); }, 0);
   
   var html = '<div class="md-b" id="uniHubDlg" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:860px;max-height:92vh;overflow:auto">' +
-    '<h3>📊 مرکز فرماندهی تحلیل و گزارشات جامع مدیریتی (US-272)</h3>' +
+    '<h3>📊 مرکز فرماندهی تحلیل و گزارشات جامع مدیریتی</h3>' +
     '<div style="font-size:12px;color:#64748b;margin-bottom:12px">یکپارچه‌سازی ابزارهای تحلیلی (`analyzer.js`) و گزارشات عملکرد (`reports.js`) در یک مرکز فرماندهی واحد.</div>' +
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">' +
       '<div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:12px;padding:12px;text-align:center"><b>🏆 حجم کل پرونده‌های برنده</b><br><span style="font-size:16px;font-weight:bold;color:#059669">' + Math.round(totalWonIRR/1e6).toLocaleString('fa-IR') + ' میلیون ریال</span></div>' +
