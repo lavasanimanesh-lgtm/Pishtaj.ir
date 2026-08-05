@@ -89,6 +89,7 @@
       it.assignedSups = it.assignedSups || [];
       /* v34.1 US-SUP-SEARCH: منوی انتخاب تامین‌کننده با جستجوی زنده */
       var comboId = 'rqsSupCombo_' + i;
+      var tagsId = 'rqsSupTags_' + i;
       var assignedTags = it.assignedSups.map(function(scd) {
         var sObj = sups.filter(function(x){ return x.cd === scd; })[0] || { co: scd };
         return '<span style="background:#e0e7ff;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-flex;align-items:center;gap:4px;margin-left:4px">' +
@@ -98,7 +99,7 @@
         '<td>' + (i+1) + '</td>' +
         '<td><b>' + escP(it.name) + '</b><br><small style="color:#64748b">' + escP(it.spec||'') + '</small></td>' +
         '<td>' + (it.qty||1) + ' ' + escP(it.unit||'عدد') + '</td>' +
-        '<td>' + assignedTags +
+        '<td><div id="' + tagsId + '">' + assignedTags + '</div>' +
         '<div id="' + comboId + '" class="ptf-sup-combo" style="position:relative;margin-top:4px">' +
         '<input type="text" placeholder="🔍 جستجوی تامین‌کننده..." ' +
         'onfocus="ptfSupComboOpen(this,\'' + ptfOnClickArg(no) + '\',' + i + ')" ' +
@@ -293,6 +294,23 @@
     document.head.appendChild(css);
   })();
 
+  /* v34.1: بروزرسانی فقط تگ‌های تامین‌کننده یک ردیف (بدون ری‌رندر کل جدول)
+     — combobox باز می‌ماند و کاربر می‌تواند پشت سر هم انتخاب کند */
+  function rfqsRefreshRowTags(no, idx) {
+    var tagsEl = document.getElementById('rqsSupTags_' + idx);
+    if (!tagsEl) { rfqsRenderAccordion(no); return; } /* fallback: اگر DOM پیدا نشد */
+    var list = getData('ptf_crm_rfqsmart');
+    var r = list.filter(function(x){ return x.no === no; })[0];
+    if (!r || !r.items[idx]) return;
+    var sups = getData('ptf_crm_suppliers') || [];
+    var assignedSups = r.items[idx].assignedSups || [];
+    tagsEl.innerHTML = assignedSups.map(function(scd) {
+      var sObj = sups.filter(function(x){ return x.cd === scd; })[0] || { co: scd };
+      return '<span style="background:#e0e7ff;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-flex;align-items:center;gap:4px;margin-left:4px">' +
+        escP(sObj.co || sObj.nm) + ' <a href="javascript:void(0)" onclick="rfqsRemoveSup(\'' + ptfOnClickArg(no) + '\',' + idx + ',\'' + ptfOnClickArg(scd) + '\')" style="color:#dc2626;font-weight:bold;text-decoration:none">✕</a></span>';
+    }).join('');
+  }
+
   window.rfqsAssignSup = function(no, idx, supCd) {
     if (!supCd) return;
     var list = getData('ptf_crm_rfqsmart');
@@ -301,7 +319,7 @@
     r.items[idx].assignedSups = r.items[idx].assignedSups || [];
     if (r.items[idx].assignedSups.indexOf(supCd) < 0) r.items[idx].assignedSups.push(supCd);
     setData('ptf_crm_rfqsmart', list);
-    rfqsRenderAccordion(no);
+    rfqsRefreshRowTags(no, idx);
   };
 
   window.rfqsRemoveSup = function(no, idx, supCd) {
@@ -312,7 +330,7 @@
     var pos = arr.indexOf(supCd);
     if (pos > -1) arr.splice(pos, 1);
     setData('ptf_crm_rfqsmart', list);
-    rfqsRenderAccordion(no);
+    rfqsRefreshRowTags(no, idx);
   };
 
   window.rfqsGenDedicatedPdfs = function(no) {
