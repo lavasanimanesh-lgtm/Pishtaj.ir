@@ -283,3 +283,15 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `expansion-joints-flexible-hose.html` — اکسپنشن جوینت و شیلنگ فلزی انعطاف‌پذیر — تصویر `metal-expansion-joint-flexible-hose-realistic.jpg` — حدود ۱۶۰۷ کلمه
 
 هاب محصولات اکنون ۷۷ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۹۵ URL عمومی دارد.
+
+## به‌روزرسانی جدید — فاز برندمحور و سورسینگ (۲۰۲۶-۰۸-۰۴)
+پس از مرج `origin/main`، برای پوشش ضعف Off-page/Entity و جذب جستجوهای برندمحور، هاب برندها و ۴ صفحه برندمحور ایجاد شد:
+- `brands/index.html` — هاب برندهای قابل سورسینگ
+- `brands/emerson-rosemount.html` — Emerson / Rosemount — حدود ۱۵۴۵ کلمه
+- `brands/siemens-industrial.html` — Siemens Industrial — حدود ۱۵۰۷ کلمه
+- `brands/abb-industrial.html` — ABB Industrial — حدود ۱۵۶۰ کلمه
+- `brands/kitz-valves.html` — KITZ Valves — حدود ۱۵۵۶ کلمه
+
+قانون مهم: این صفحات ادعای نمایندگی رسمی ندارند و با عبارت‌های محتاطانه «سورسینگ/تامین بر اساس وندورلیست و مدارک قابل ردیابی» نوشته شده‌اند. از لوگوی برندها استفاده نشد تا بدون منبع/مجوز رسمی ریسک حقوقی ایجاد نشود.
+
+همچنین از صفحه پروفایل رسمی شرکت به هاب برندها لینک داخلی اضافه شد. Sitemap اکنون ۶۰۰ URL عمومی دارد.
