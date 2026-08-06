@@ -599,3 +599,32 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `_audit/SEO-STABILIZATION-STEP-8-2026-08-06.md`
 
 قاعده برای ادامه: پس از commit این فاز، طبق دستور کاربر باید یک‌بار دیگر `origin/main` در همین شاخه merge شود و سپس audit کامل اجرا گردد. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر؛ تغییرات CRM/API فقط از مسیر merge مجاز هستند.
+
+## به‌روزرسانی جدید — merge مجدد main پس از تکمیل گام‌های ۲ تا ۸ و رسیدن به ثبات محتوا (۲۰۲۶-۰۸-۰۶)
+پس از تکمیل هفت گام متوالی پایدارسازی کیفیت محتوا، طبق دستور کاربر `origin/main` دوباره در شاخه `arena/019fcb93-pishtaj-ir` merge شد. چون مخزن shallow بود و ابتدا merge-base پیدا نمی‌شد، `git fetch --unshallow origin` اجرا شد و سپس merge با موفقیت انجام شد.
+
+پس از merge، کنترل‌های زیر اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py`
+- `python3 _tools/build_sitemap.py`
+- `python3 _tools/audit.py || true`
+
+نتیجه نهایی:
+- صفحات محصول بررسی‌شده: ۷۷
+- صفحات برند بررسی‌شده: ۲۰
+- کل صفحات محصول/برند: ۹۷
+- `OK`: ۹۷
+- صفحات پرریسک: ۰
+- `UNDER_1500_CRITICAL`: ۰
+- `LOW_DEPTH_REVIEW`: ۰
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: ۰
+- `REPEATED_PARAGRAPH_INSIDE`: ۰
+- `product_pages=77`
+- `qa_errors=0`
+- `sitemap.xml`: ۶۱۷ URL عمومی
+- audit عمومی: PASS
+
+گزارش نهایی ثبات پس از merge main:
+- `_audit/SEO-FINAL-STABILITY-AFTER-MAIN-MERGE-2026-08-06.md`
+
+قاعده برای ایجنت بعدی: اکنون از نظر سئوی عمومی و کیفیت صفحات محصول/برند، سایت در نقطه ثبات مهمی قرار دارد. قبل از هر تولید محتوای جدید، ابتدا باید این وضعیت حفظ شود. اگر main دوباره تغییر کند، merge مجدد و اجرای کامل auditها الزامی است. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر؛ تغییرات CRM/API فقط از مسیر merge رسمی main مجاز است.
