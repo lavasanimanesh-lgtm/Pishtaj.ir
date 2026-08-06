@@ -1,0 +1,299 @@
+/* =====================================================================
+   PTF CRM — offer-rial-convert.js — v34.2.0 — US-FX2RIAL (فاز ۱)
+   «تبدیل پیشنهاد ارزی به پیشنهاد ریالی» — دستور کارفرما ۱۴۰۵/۰۵/۱۵
+
+   سناریو: پیشنهاد مالی «ارزی» برنده شده است. کارفرما (خریدار) تقاضا دارد
+   نسخه ریالی همان پیشنهاد هم به او داده شود. طبق منطق موجود، پیشنهاد
+   برنده قفل است و تغییر نمی‌یابد؛ بنابراین این ماژول یک «نسخه همراه»
+   (Companion) ریالی می‌سازد:
+
+   • پیشنهاد اصلی ارزی هیچ فیلدی‌اش تغییر نمی‌کند (حتی قفل برد هم دست نمی‌خورد)
+   • نسخه ریالی شماره مستقل CO می‌گیرد و به همان درخواست (inqNo) منضم می‌شود
+     → خودکار در کشوی «پرونده فروش» و فهرست پیشنهادها دیده می‌شود
+   • قیمت هر ردیف = قیمت ارزی × نرخ تسعیر ورودی (گرد به ریال صحیح)
+   • تاریخ نسخه ریالی به‌صورت پیش‌فرض = تاریخ پیشنهاد اولیه؛ قابل تغییر توسط کاربر
+   • نسخه ریالی هرگز وضعیت «برنده/بازنده» نمی‌گیرد (جلوگیری از دوشمار شدن
+     آمار برد/باخت و جلوگیری از تشکیل پرونده دوم — هوک offerSetSt)
+   • آثار مالی: فاکتور رسمی همچنان از پیشنهاد ارزی برنده صادر می‌شود
+     (روال موجود rbac.js — فاکتور همیشه ریالی است)؛ این تبدیل سند جدیدی
+     به چرخه مالی وارد نمی‌کند و فقط سند ارائه‌شده به کارفرما را ریالی می‌کند.
+
+   فاز ۲ (بعدی): همین هسته برای «تمام پیشنهادهای ارزی حتی غیربرنده» از
+   داخل ماژول پیشنهادها نیز در دسترس قرار می‌گیرد — توابع هسته از هیچ
+   وابستگی به پرونده فروش استفاده نمی‌کنند.
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  var OFFERS_KEY = 'ptf_crm_offers';
+  var DEALS_KEY = 'ptf_crm_deals';
+
+  /* ---------- کمکی ---------- */
+  function offersAll() { try { return getData(OFFERS_KEY) || []; } catch (e) { return []; } }
+  function offerByNo(no) { return offersAll().filter(function (o) { return o && o.no === no; })[0] || null; }
+  function curName() { try { return curSession().name || ''; } catch (e) { return ''; } }
+  function curUser() { try { return curSession().user || ''; } catch (e) { return ''; } }
+  function toast(msg, kind) { try { if (typeof ptfToast === 'function') ptfToast(msg, kind || 'ok'); } catch (e) {} }
+  function isFxOffer(o) { return !!(o && (o.kind === 'CO' || o.kind === 'TC') && o.currency && o.currency !== 'IRR'); }
+  function fxTotal(o) {
+    return ((o && o.items) || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+  }
+  function money(v, cur) {
+    if (typeof ptfMoney === 'function') return ptfMoney(v, cur || 'IRR');
+    return cur && cur !== 'IRR' ? (+v || 0).toLocaleString('en-US') + ' ' + cur : (+v || 0).toLocaleString('fa-IR') + ' ریال';
+  }
+  function curFa(cur) { return cur === 'EUR' ? 'یورو' : cur === 'USD' ? 'دلار' : 'ریال'; }
+
+  window.ptfOfferIsFx = isFxOffer;
+
+  /* ---------- نسخه همراه ریالی یک پیشنهاد (اگر قبلاً ساخته شده) ---------- */
+  window.ptfRialCompanionOf = function (no) {
+    if (!no) return null;
+    return offersAll().filter(function (o) { return o && o.rialOf === no; })[0] || null;
+  };
+
+  /* ---------- اعتبارسنجی امکان تبدیل — خروجی {ok, why, offer} ----------
+     هسته مستقل از پرونده فروش → فاز ۲ برای همه پیشنهادهای ارزی قابل استفاده است */
+  window.ptfOfferRialConvertCheck = function (noOrOffer) {
+    var o = (typeof noOrOffer === 'object') ? noOrOffer : offerByNo(noOrOffer);
+    if (!o) return { ok: false, why: 'notfound' };
+    if (!isFxOffer(o)) return { ok: false, why: 'notfx' };
+    if (!(((o.items || []).length))) return { ok: false, why: 'noitems' };
+    if (!(fxTotal(o) > 0)) return { ok: false, why: 'nototal' };
+    if (window.ptfRialCompanionOf(o.no)) return { ok: false, why: 'exists' };
+    return { ok: true, offer: o };
+  };
+
+  var WHY_FA = {
+    notfound: '⛔ پیشنهاد یافت نشد.',
+    notfx: '⛔ فقط «پیشنهاد ارزی» (EUR/USD) قابل تبدیل به ریالی است — این پیشنهاد ریالی یا غیرمالی است.',
+    noitems: '⛔ این پیشنهاد ردیف کالایی ندارد.',
+    nototal: '⛔ مبلغ این پیشنهاد صفر است — قابل تبدیل نیست.',
+    exists: 'ℹ️ نسخه ریالی این پیشنهاد قبلاً ساخته شده است (هر پیشنهاد ارزی یک نسخه ریالی می‌گیرد).',
+    rate: '⛔ نرخ تسعیر (ریال به‌ازای هر واحد ارز) باید عددی بزرگ‌تر از صفر باشد.',
+    serial: '⛔ شماره رسمی پیشنهاد از سرور دریافت نشد — اتصال را بررسی و دوباره تلاش کنید.',
+    role: '⛔ ساخت نسخه ریالی فقط برای نقش‌های ارشد (مدیریت/بازرگانی) مجاز است.'
+  };
+  window.ptfOfferRialWhyFa = function (why) { return WHY_FA[why] || ('⛔ خطا: ' + (why || 'نامشخص')); };
+
+  function seniorOk() {
+    try { if (typeof isSenior === 'function') return isSenior(); } catch (e) {}
+    try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e2) { return true; }
+  }
+
+  /* ---------- ساخت نسخه همراه (هسته برنامه‌ای قابل تست) ----------
+     no: شماره پیشنهاد ارزی مبدأ
+     rate: نرخ تسعیر (ریال به‌ازای هر واحد ارز)
+     dateISO: تاریخ نسخه ریالی (YYYY-MM-DD) — پیش‌فرض با تاریخ پیشنهاد اولیه
+     cb: تابع بازخورد {ok, why?, no?} */
+  window.ptfOfferRialConvertCommit = function (no, rate, dateISO, cb) {
+    function done(res) { if (typeof cb === 'function') cb(res); return res; }
+    var chk = window.ptfOfferRialConvertCheck(no);
+    if (!chk.ok) return done({ ok: false, why: chk.why });
+    if (!seniorOk()) return done({ ok: false, why: 'role' });
+    var o = chk.offer;
+    rate = +rate || 0;
+    if (!(rate > 0)) { alert(WHY_FA.rate); return done({ ok: false, why: 'rate' }); }
+    if (!dateISO || !/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) dateISO = o.dateEn || new Date().toISOString().slice(0, 10);
+
+    /* شماره رسمی CO — فقط از سرور (هم‌سیاست offerSave: TMP هرگز سند رسمی نمی‌شود) */
+    function finish(newNo) {
+      if (!newNo || /^TMP-/.test(String(newNo))) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
+      if (offersAll().some(function (x) { return x.no === newNo; })) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
+      var items = (o.items || []).map(function (it) {
+        var c = JSON.parse(JSON.stringify(it || {}));
+        delete c.lineId; /* شناسه خط با شماره جدید بازتولید می‌شود — خطای تطبیق خرید پیش نیاید */
+        c.price = Math.round((+it.price || 0) * rate);
+        return c;
+      });
+      var totalFx = fxTotal(o);
+      var totalIrr = items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+      var comp = {
+        no: newNo, kind: 'CO', rev: 0, editMode: 'new',
+        /* وضعیت: ارسال‌شده — نسخه ریالی هرگز برنده/بازنده نمی‌شود (هوک offerSetSt) */
+        st: 'sent',
+        rialOf: o.no,
+        fxConvert: { from: o.no, cur: o.currency, rate: rate, totalFx: totalFx, totalIrr: totalIrr, dateISO: dateISO, at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()), by: curName() },
+        currency: 'IRR', fxBasis: '', fxRateRef: 0,
+        dateEn: dateISO,
+        dateFa: (typeof ptfISOToJ === 'function' ? ptfISOToJ(dateISO) : dateISO),
+        t: (typeof faDateTime === 'function' ? faDateTime() : ''),
+        buyerCd: o.buyerCd || '', buyerCo: o.buyerCo || '', buyerContact: o.buyerContact || '', buyerTel: o.buyerTel || '',
+        inqNo: o.inqNo || '',
+        items: items,
+        terms: JSON.parse(JSON.stringify(o.terms || [])),
+        extraCols: JSON.parse(JSON.stringify(o.extraCols || [])),
+        colOrder: o.colOrder ? JSON.parse(JSON.stringify(o.colOrder)) : [],
+        hiddenCols: JSON.parse(JSON.stringify(o.hiddenCols || [])),
+        vatNote: o.vatNote !== false,
+        printAs: 'CO',
+        issuedBy: o.issuedBy || curUser(),
+        sellerContact: o.sellerContact || '',
+        useSig: !!o.useSig, signAs: o.signAs || '',
+        updatedAtISO: new Date().toISOString()
+        /* عامدانه کپی نمی‌شود: invRef / wonAt / wonBy / marginAtClose / altOf / srcToNo / coNo / validUntil
+           → ارجاع فاکتور، آمار برد، زنجیره گزینه‌ها و یادآور انقضا به پیشنهاد اصلی ارزی متصل می‌مانند */
+      };
+      try { if (typeof offEnsureOfferLineIds === 'function') offEnsureOfferLineIds(comp.items, comp.no); } catch (eL) {}
+      var offers = offersAll();
+      offers.unshift(comp);
+      setData(OFFERS_KEY, offers);
+
+      /* اثر روی پرونده فروش (اگر دارد — فاز ۱ همیشه دارد، فاز ۲ ممکن است نداشته باشد) */
+      try {
+        var deals = getData(DEALS_KEY) || [];
+        var rec = deals.filter(function (d) { return d && (d.wonOffer === o.no || (o.inqNo && d.inqNo === o.inqNo)); })[0];
+        if (rec) {
+          rec.timeline = rec.timeline || [];
+          rec.timeline.push({ t: (typeof faDateTime === 'function' ? faDateTime() : ''), by: curName(), tx: '💱 نسخه ریالی ' + newNo + ' از پیشنهاد ارزی ' + o.no + ' ساخته شد (نرخ ' + rate.toLocaleString('fa-IR') + ' ریال — US-FX2RIAL)' });
+          setData(DEALS_KEY, deals);
+          try { audit('پرونده‌های فروش', 'تبدیل پیشنهاد ارزی برنده ' + o.no + ' به نسخه ریالی ' + newNo + ' — نرخ ' + rate + ' ریال/' + o.currency + ' — تاریخ ' + dateISO, rec.cd); } catch (eA1) {}
+        }
+      } catch (eD) {}
+      try { audit('پیشنهادها', 'ساخت نسخه ریالی ' + newNo + ' از پیشنهاد ارزی ' + o.no + ' (نرخ تسعیر ' + rate + ' — تاریخ ' + dateISO + ')', newNo); } catch (eA2) {}
+      try { if (typeof addLog === 'function') addLog('💱 پیشنهاد ریالی ' + newNo + ' از ' + o.no + ' ساخته شد (نرخ ' + rate + ')'); } catch (eL2) {}
+      try {
+        if (typeof notify === 'function') {
+          notify({ toRoles: (typeof SENIOR_ROLES !== 'undefined' ? SENIOR_ROLES : ['admin', 'chairman', 'ceo', 'commercial']), title: '💱 نسخه ریالی ' + newNo + ' از پیشنهاد ارزی ' + o.no + ' ساخته شد', body: 'نرخ تسعیر: ' + rate.toLocaleString('fa-IR') + ' ریال — مبلغ: ' + money(totalIrr, 'IRR') + ' — پیشنهاد اصلی تغییر نکرده است', kind: 'info', channels: ['cart'], link: { panel: 'deals' } });
+        }
+      } catch (eN) {}
+      return done({ ok: true, no: newNo, totalIrr: totalIrr, totalFx: totalFx, rate: rate, dateISO: dateISO });
+    }
+
+    if (typeof ptfUnifiedCodeAsync === 'function') {
+      try {
+        ptfUnifiedCodeAsync('CO', 1).then(finish, function () { alert(WHY_FA.serial); done({ ok: false, why: 'serial' }); });
+        return { ok: true, pending: true };
+      } catch (eP) { /* fallback below */ }
+    }
+    return finish(typeof offerSerial === 'function' ? offerSerial('CO') : '');
+  };
+
+  /* ---------- هوک: نسخه ریالی هرگز برنده/بازنده نمی‌شود ----------
+     محافظ آماری: با برنده شدن نسخه ریالی، پرونده فروش دوم ساخته می‌شد و
+     wonOffer از سند ارزی اصلی جدا می‌شد؛ با بازنده شدن هم آزار Win/Loss
+     دوشمار می‌شد. سایر وضعیت‌ها (ارسال/تایید و...) آزاد است. */
+  function hookOfferSetSt() {
+    if (window._ptfRialStHooked || typeof window.offerSetSt !== 'function') return false;
+    window._ptfRialStHooked = true;
+    var _setSt = window.offerSetSt;
+    window.offerSetSt = function (no, st, selEl) {
+      try {
+        var o = offerByNo(no);
+        if (o && o.rialOf && (st === 'won' || st === 'lost')) {
+          alert('🔒 این سند «نسخه ریالی» پیشنهاد ' + o.rialOf + ' است.\n\n' +
+            '• وضعیت «برنده» فقط متعلق به پیشنهاد اصلی ارزی است و پرونده فروش/فاکتور به آن متصل است.\n' +
+            '• ثبت برد/باخت روی نسخه ریالی آمار تحلیلگر را دوشمار می‌کند.\n\n' +
+            'ادامه فرایند معامله: پرونده فروش ← ' + (o.inqNo || o.rialOf));
+          if (selEl) selEl.value = o.st || 'sent';
+          return;
+        }
+      } catch (e) {}
+      return _setSt.apply(this, arguments);
+    };
+    return true;
+  }
+  var _hTry = 0;
+  var _hTimer = setInterval(function () { _hTry++; if (hookOfferSetSt() || _hTry > 50) clearInterval(_hTimer); }, 400);
+
+  /* ---------- دیالوگ تبدیل ---------- */
+  window.ptfOfferRialConvertOpenByNo = function (no, dealCd) {
+    var chk = window.ptfOfferRialConvertCheck(no);
+    if (!chk.ok) { alert(window.ptfOfferRialWhyFa(chk.why)); return; }
+    var o = chk.offer;
+    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
+    var liveRate = o.currency === 'USD' ? (+L.usd_free || 0) : o.currency === 'EUR' ? (+L.eur_free || 0) : 0;
+    var defRate = (+o.fxRateRef > 0) ? +o.fxRateRef : liveRate;
+    var defDate = o.dateEn || new Date().toISOString().slice(0, 10);
+    var totalFx = fxTotal(o);
+    var dateInp = (typeof ptfDateInput === 'function')
+      ? ptfDateInput('sfRcDateJ', defDate)
+      : '<input type="text" id="sfRcDateJ" value="' + escP(defDate) + '" style="direction:ltr;color:#0e7490">';
+    var html = '<div class="md-b" id="sfRcDlg" style="display:grid;z-index:2500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
+      '<h3>💱 تبدیل به پیشنهاد ریالی</h3>' +
+      '<input type="hidden" id="sfRcNo" value="' + escP(o.no) + '">' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">' +
+        'پیشنهاد اصلی <b dir="ltr">' + escP(o.no) + '</b> (' + curFa(o.currency) + ') <b>هیچ تغییری نمی‌کند</b> — یک پیشنهاد ریالی جدید با شماره مستقل ساخته و به همین پرونده منضم می‌شود تا به کارفرما ارائه شود.' +
+      '</div>' +
+      '<div style="font-size:12.5px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:10px">' +
+        'مبلغ پیشنهاد ارزی: <b dir="ltr">' + money(totalFx, o.currency) + '</b>' +
+        (o.fxBasis || o.fxRateRef ? '<div style="color:#64748b;font-size:11px;margin-top:2px">مرجع ثبت‌شده سند: ' + (o.fxBasis === 'free' ? 'نرخ آزاد' : o.fxBasis === 'agreed' ? 'توافقی' : o.fxBasis === 'sana' ? 'سنا (تاریخی)' : '-') + (o.fxRateRef ? ' — ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') +
+      '</div>' +
+      '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر ' + escP(o.currency) + ') *</label>' +
+        '<input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="sfRcRate" value="' + (defRate ? defRate.toLocaleString('en-US') : '') + '" style="direction:ltr" oninput="sfRcPreview()">' +
+        '<small style="color:#64748b">نرخ آزاد لحظه‌ای: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'در دسترس نیست') + '</small></div>' +
+      '<div class="fld"><label>تاریخ پیشنهاد ریالی (شمسی) — پیش‌فرض: تاریخ پیشنهاد اولیه</label>' + dateInp + '</div>' +
+      '<div id="sfRcPreview" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;font-size:12.5px;color:#065f46;margin-bottom:10px"></div>' +
+      '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;font-size:11.5px;color:#92400e;margin-bottom:10px">' +
+        '<b>آثار مالی این تبدیل:</b> پیشنهاد برنده ارزی و سند قطعی برد دست‌نخورده می‌ماند • فاکتور رسمی همچنان از پیشنهاد ارزی برنده صادر می‌شود (روال جاری — فاکتور همیشه ریالی است) • نسخه ریالی وضعیت برد/باخت نمی‌گیرد و در آمار تحلیلگر دوشمار نمی‌شود • هزینه‌ها/خرید واقعی/پیش‌پرداخت به قوت خود باقی است.' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button class="bt bt-o" onclick="document.getElementById(\'sfRcDlg\').remove()">انصراف</button>' +
+        '<button class="bt" style="background:#0e7490" onclick="sfRcDoConvert(\'' + ptfOnClickArg(o.no) + '\',\'' + ptfOnClickArg(dealCd || '') + '\')">💱 ساخت پیشنهاد ریالی</button>' +
+      '</div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    window.sfRcPreview();
+  };
+
+  window.sfRcPreview = function () {
+    var el = document.getElementById('sfRcPreview');
+    if (!el || !document.getElementById('sfRcDlg')) return;
+    var no = ((document.getElementById('sfRcNo') || {}).value || '');
+    var o = offerByNo(no);
+    var rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfRcRate') || {}).value || '')) : 0;
+    if (!o || !isFxOffer(o)) { el.innerHTML = ''; return; }
+    if (!(rate > 0)) { el.innerHTML = 'نرخ تسعیر را وارد کنید تا معادل ریالی محاسبه شود.'; return; }
+    /* دقیقاً هم‌فرمول هسته تبدیل: گرد ریال صحیح روی قیمت هر ردیف */
+    var totalIrr = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * Math.round((+it.price || 0) * rate); }, 0);
+    el.innerHTML = 'معادل ریالی پیشنهاد: <b>' + money(totalIrr, 'IRR') + '</b>' +
+      '<div style="font-size:11px;color:#047857;margin-top:2px">قیمت هر ردیف = قیمت ' + escP(o.currency) + ' × ' + rate.toLocaleString('fa-IR') + ' (گردشده به ریال صحیح)</div>';
+  };
+
+  window.sfRcDoConvert = function (no, dealCd) {
+    var rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfRcRate') || {}).value || '')) : (+(((document.getElementById('sfRcRate') || {}).value || '').replace(/[^\d.]/g, '')) || 0);
+    var jRaw = ((document.getElementById('sfRcDateJ') || {}).value || '').trim();
+    var dateISO = (typeof ptfJToISO === 'function') ? ptfJToISO(jRaw) : jRaw;
+    if (!(rate > 0)) { alert(WHY_FA.rate); return; }
+    if (!dateISO || !/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) { alert('⛔ تاریخ پیشنهاد ریالی را به‌صورت شمسی (مثل 1405/04/19) وارد کنید.'); return; }
+    window.ptfOfferRialConvertCommit(no, rate, dateISO, function (res) {
+      if (!res || !res.ok) { if (res && res.why && res.why !== 'rate' && res.why !== 'serial') alert(window.ptfOfferRialWhyFa(res.why)); return; }
+      var dlg = document.getElementById('sfRcDlg');
+      if (dlg) dlg.remove();
+      toast('💱 پیشنهاد ریالی ' + res.no + ' ساخته شد', 'ok');
+      try { if (typeof renderDeals === 'function') renderDeals(); } catch (eR) {}
+      try { if (typeof renderOffers === 'function') renderOffers(); } catch (eR2) {}
+      setTimeout(function () {
+        if (confirm('✅ پیشنهاد ریالی ' + res.no + ' ساخته و به پرونده منضم شد.\nمبلغ: ' + money(res.totalIrr, 'IRR') + '\n\nالآن چاپ/PDF شود؟')) {
+          try { if (typeof offerPrint === 'function') offerPrint(res.no); } catch (eP) {}
+        }
+      }, 150);
+    });
+  };
+
+  /* ---------- دکمه پرونده فروش (فاز ۱) ----------
+     ورودی: رکورد پرونده فروش r — خروجی: HTML دکمه/بج برای نوار عملیات پرونده */
+  window.ptfOfferRialToolbarHtml = function (r) {
+    try {
+      if (!r || !r.wonOffer) return '';
+      var wo = offerByNo(r.wonOffer);
+      if (!wo) return '';
+      var comp = window.ptfRialCompanionOf(wo.no);
+      if (comp) {
+        return '<span class="bd" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;align-self:center" title="نسخه ریالی پیشنهاد برنده — ساخته‌شده با نرخ ' + ((comp.fxConvert && comp.fxConvert.rate) ? (+comp.fxConvert.rate).toLocaleString('fa-IR') : '') + ' ریال">' +
+          '💱 ریالی: <b dir="ltr">' + escP(comp.no) + '</b></span>' +
+          '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerQuickPreview(\'' + ptfOnClickArg(comp.no) + '\')" title="نمایش نسخه ریالی">👁</button>' +
+          '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerPrint(\'' + ptfOnClickArg(comp.no) + '\')" title="چاپ/PDF نسخه ریالی">🖨</button>';
+      }
+      if (!isFxOffer(wo)) return '';
+      var chk = window.ptfOfferRialConvertCheck(wo.no);
+      if (!chk.ok) return '';
+      return '<button class="bt" style="font-size:12px;background:#0e7490" title="ساخت نسخه ریالی از پیشنهاد ارزی برنده — پیشنهاد اصلی تغییر نمی‌کند" onclick="ptfOfferRialConvertOpenByNo(\'' + ptfOnClickArg(wo.no) + '\',\'' + ptfOnClickArg(r.cd || '') + '\')">💱 تبدیل به پیشنهاد ریالی</button>';
+    } catch (e) { return ''; }
+  };
+
+  /* برچسب نسخه ریالی در فهرست پیشنهادها/کشوی پرونده (برای نمایش کنار شماره) */
+  window.ptfRialCompanionBadge = function (o) {
+    if (!o || !o.rialOf) return '';
+    return '<span class="bd" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size:10px" title="نسخه ریالی پیشنهاد ' + escP(o.rialOf) + ' — نرخ ' + ((o.fxConvert && o.fxConvert.rate) ? (+o.fxConvert.rate).toLocaleString('fa-IR') : '') + ' ریال">💱 ریالی از ' + escP(o.rialOf) + '</span>';
+  };
+})();
