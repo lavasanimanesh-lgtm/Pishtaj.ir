@@ -548,3 +548,26 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `python3 _tools/audit.py || true` → همه بررسی‌ها PASS شدند.
 
 قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `services/products/thermowell.html`، `services/products/fire-tube-boiler.html`، `services/products/hazardous-area-cctv-access-control.html`، `services/products/chemical-injection-package.html` و `services/products/pipe-supports-spring-hangers.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز سوم بازنویسی عمیق صفحات محصول و گزارش ثبات (۲۰۲۶-۰۸-۰۶)
+پنج صفحه محصول پرریسک دیگر اصلاح و عمیق‌سازی شدند:
+- `services/products/thermowell.html` — اکنون `OK` و حدود ۱۸۰۶ کلمه
+- `services/products/fire-tube-boiler.html` — اکنون `OK` و حدود ۱۸۰۱ کلمه
+- `services/products/hazardous-area-cctv-access-control.html` — اکنون `OK` و حدود ۱۸۲۴ کلمه
+- `services/products/chemical-injection-package.html` — اکنون `OK` و حدود ۱۸۳۲ کلمه
+- `services/products/pipe-supports-spring-hangers.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۵۶ به ۶۱ افزایش یافت.
+- صفحات پرریسک کل: از ۴۱ به ۳۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۴۱ به ۳۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۳۲ به ۲۷ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۲۲ به ۱۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-PRODUCT-QUALITY-REWRITE-PHASE3-2026-08-06.md`
+
+همچنین طبق درخواست کاربر، گزارش وضعیت فعلی و پیشنهاد تعداد گام‌های بعدی تا ثبات و آمادگی merge به main ثبت شد:
+- `_audit/SEO-STABILITY-STATUS-AND-NEXT-STEPS-2026-08-06.md`
+
+جمع‌بندی پیشنهادی: برای ثبات قابل قبول حداقل ۵ گام دیگر و برای merge تمیزتر به main حدود ۷ گام دیگر پیشنهاد می‌شود. اگر هدف رساندن تقریباً همه صفحات محصول/برند به OK باشد، حدود ۸ گام دیگر لازم است. اولویت گام بعدی: `expansion-joints-flexible-hose.html`، `ansi-process-pump.html`، `vertical-multistage-pump.html`، `pressure-gauge.html` و `reciprocating-compressor.html`.
