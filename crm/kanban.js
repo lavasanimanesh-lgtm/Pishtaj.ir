@@ -151,6 +151,7 @@
     var q = ((document.getElementById('oFsrch') || {}).value || '').trim().toLowerCase();
     var custF = window._offCustFilter || ((document.getElementById('oFcust') || {}).value) || '';
     var offers = all.filter(function (o) {
+      if (o.rialOf) return false; /* US-FX2RIAL: نسخه ریالی کارت مستقل نمی‌سازد — در همان ردیف/کارت پیشنهاد ارزی مبدأ */
       if (o.kind !== tab && !(tab === 'CO' && o.kind === 'TC')) return false; /* TC کنار CO — همان چرخه CO را دارد */
       if (custF && typeof ptfOfferMatchCust === 'function' && !ptfOfferMatchCust(o, custF)) return false; /* v21.3 US-450 */
       return !q || ((o.no || '') + ' ' + (o.buyerCo || '') + ' ' + (o.inqNo || '')).toLowerCase().indexOf(q) > -1;
@@ -175,11 +176,19 @@
           else if (o.coNo && all.some(function (x) { return x.no === o.coNo; })) toCoB = '<span class="bd" style="background:#f1f5f9;color:#94a3b8">→CO 🔒</span> ';
         }
         var lockB = isWon ? '<span class="bd" style="background:#d1fae5;color:#065f46">🏆 قفل 🔒</span> ' : '';
+        /* US-FX2RIAL: نشانگر نسخه ریالی روی کارت پیشنهاد ارزی (بدون کارت/ردیف مستقل) */
+        var rialKb = '';
+        try {
+          if ((o.kind === 'CO' || o.kind === 'TC') && o.currency && o.currency !== 'IRR' && typeof window.ptfRialCompanionOf === 'function') {
+            if (window.ptfRialCompanionOf(o.no)) rialKb = '<span class="bd" style="background:#ecfdf5;color:#047857" title="نسخه ریالی همین پیشنهاد — همان شماره">💱 ریالی</span> ';
+            else if (!isWon) rialKb = '<button class="bt" style="padding:0 5px;font-size:10px;background:#0e7490;color:#fff" onpointerdown="event.stopPropagation()" onclick="ptfOfferRialConvertOpenByNo(\'' + esc(o.no) + '\')" title="تبدیل به پیشنهاد ریالی">💱 ریالی</button> ';
+          }
+        } catch (eK) { rialKb = ''; }
         return '<div class="kb-card' + (isWon ? ' kb-lock' : '') + '" data-id="' + esc(o.no) + '" data-st="' + s.v + '"' + (isWon ? ' data-lock="1"' : '') + ' onpointerdown="ptfKbDown(event,this,\'off\')">' +
           '<div class="kb-t">' + esc(o.no) + (o.rev ? ' <small>Rev.' + o.rev + '</small>' : '') + ' <small>' + (o.kind === 'TO' ? '🔧' : o.kind === 'TC' ? '🤝' : '💰') + '</small></div>' +
           '<div>' + esc(o.buyerCo || '-') + '</div>' +
           '<div><small>' + esc(o.inqNo || '') + (o.dateFa ? ' — ' + esc(o.dateFa) : '') + '</small></div>' +
-          '<div>' + (totalLb ? '<b style="font-size:11.5px">' + totalLb + '</b> ' : '') + lockB + vB + toCoB + '</div>' +
+          '<div>' + (totalLb ? '<b style="font-size:11.5px">' + totalLb + '</b> ' : '') + lockB + vB + toCoB + rialKb + '</div>' +
           '<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap" onclick="event.stopPropagation()">' +
           '<button class="bt bt-o" style="padding:2px 7px;font-size:10.5px" onpointerdown="event.stopPropagation()" onclick="offerQuickPreview(\'' + esc(o.no) + '\')">👁 نمایش</button>' +
           '<button class="bt bt-o" style="padding:2px 7px;font-size:10.5px" onpointerdown="event.stopPropagation()" onclick="offerPickTemplate(\'' + esc(o.no) + '\')">🖨 قالب/دانلود</button>' +

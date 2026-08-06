@@ -441,6 +441,7 @@ function renderOffers() {
   var custF = window._offCustFilter || ((document.getElementById('oFcust') || {}).value) || '';
   window._offCustFilter = custF;
   var offers = all.filter(function(o) {
+    if (o.rialOf) return false; /* US-FX2RIAL: نسخه ریالی (همراه) ردیف مستقل نمی‌سازد — در همان ردیف پیشنهاد ارزی مبدأ نمایش داده می‌شود */
     if (tab !== 'ALL' && o.kind !== tab && !(tab === 'CO' && o.kind === 'TC')) return false; /* v20.1 US-442: TC قدیمی زیر تب مالی */
     if (custF && typeof ptfOfferMatchCust === 'function' && !ptfOfferMatchCust(o, custF)) return false; /* v21.3 US-450 */
     // US-142 AC1: جستجو شامل شماره درخواست کارفرما (inqNo)
@@ -550,9 +551,28 @@ function renderOffers() {
     }
     // US-157 AC1: بج اعتبار
     var vst = offerValidState(o);
+    /* US-FX2RIAL: نسخه ریالی این پیشنهاد (اگر ساخته شده) — درون همان ردیف و با همان شماره،
+       نه به‌صورت ردیف مستقل. رکورد پشت‌صحنه جدا می‌ماند (برای چاپ/audit/مالی) ولی نمایش هم‌ردیف است. */
+    var rialInline = '';
+    try {
+      if ((o.kind === 'CO' || o.kind === 'TC') && o.currency && o.currency !== 'IRR' && typeof window.ptfRialCompanionOf === 'function') {
+        var _comp = window.ptfRialCompanionOf(o.no);
+        if (_comp) {
+          var _rt = (_comp.fxConvert && +_comp.fxConvert.rate) || 0;
+          rialInline = '<div style="margin-top:6px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:5px 8px;font-size:10.5px;color:#047857;display:flex;flex-wrap:wrap;align-items:center;gap:6px" title="نسخه ریالی همین پیشنهاد — ساخته‌شده با نرخ ' + (_rt ? _rt.toLocaleString('fa-IR') : '') + ' ریال">' +
+            '<span>💱 نسخه ریالی (همان شماره)</span>' +
+            (_rt ? '<span style="font-size:10px;opacity:.85">نرخ ' + _rt.toLocaleString('fa-IR') + ' ریال</span>' : '') +
+            '<span style="margin-left:auto;display:inline-flex;gap:4px">' +
+              '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#0e7490" onclick="offerQuickPreview(\'' + ptfOnClickArg(_comp.no) + '\')" title="نمایش نسخه ریالی">👁</button>' +
+              '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#0e7490" onclick="offerPrint(\'' + ptfOnClickArg(_comp.no) + '\')" title="چاپ/PDF نسخه ریالی">🖨</button>' +
+              '<button class="bt bt-o" style="width:24px;height:24px;padding:0;font-size:11px;color:#b45309" onclick="ptfOfferRialTermsOpen(\'' + ptfOnClickArg(_comp.no) + '\')" title="شرایط و ضوابط + نرخ تسعیر نسخه ریالی">🔧</button>' +
+            '</span></div>';
+        }
+      }
+    } catch (eRi) { rialInline = ''; }
     h += '<tr><td><strong>' + escP(o.no) + '</strong>' + (o.rev ? ' <small>Rev.' + o.rev + '</small>' : '') +
       (o.altOf ? '<br><span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px" title="پیشنهاد جایگزین برای همین درخواست — در کنار ' + escP(o.altOf) + '">⑂ گزینه جایگزین</span>' : '') +
-      (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + '</td>' +
+      (vst ? '<br><span class="bd" style="background:' + vst.cl + ';font-size:10px">' + vst.lb + '</span>' : '') + rialInline + '</td>' +
       '<td>' + (o.kind === 'TO' ? '🔧 فنی' : o.kind === 'TC' ? '🤝 فنی-مالی' : '💰 مالی') + '</td>' /* v12.8 */ +
       '<td>' + escP(o.buyerCo || '-') + (o.buyerCd ? '<div style="font-size:10.5px;color:#64748b" dir="ltr">' + escP(o.buyerCd) + '</div>' : '') + '</td>' +
       '<td style="direction:ltr;font-size:12px">' + escP(o.inqNo || '—') + '</td>' +
