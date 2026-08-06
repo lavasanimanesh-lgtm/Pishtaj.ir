@@ -1,11 +1,10 @@
 /* =====================================================================
-   PTF CRM — offer-rial-convert.js — v34.2.1 — US-FX2RIAL (فاز ۱)
+   PTF CRM — offer-rial-convert.js — v34.2.2 — US-FX2RIAL (فاز ۲)
    «تبدیل پیشنهاد ارزی به پیشنهاد ریالی» — دستور کارفرما ۱۴۰۵/۰۵/۱۵
 
-   سناریو: پیشنهاد مالی «ارزی» برنده شده است. کارفرما (خریدار) تقاضا دارد
-   نسخه ریالی همان پیشنهاد هم به او داده شود. طبق منطق موجود، پیشنهاد
-   برنده قفل است و تغییر نمی‌یابد؛ بنابراین این ماژول یک «نسخه همراه»
-   (Companion) ریالی می‌سازد:
+   سناریو: کارفرما (خریدار) تقاضا دارد نسخه ریالیِ یک پیشنهاد مالی «ارزی»
+   هم به او داده شود. طبق منطق موجود، پیشنهاد برنده قفل است و تغییر
+   نمی‌یابد؛ بنابراین این ماژول یک «نسخه همراه» (Companion) ریالی می‌سازد:
 
    • پیشنهاد اصلی ارزی هیچ فیلدی‌اش تغییر نمی‌کند (حتی قفل برد هم دست نمی‌خورد)
    • نسخه ریالی شماره مستقل CO می‌گیرد و به همان درخواست (inqNo) منضم می‌شود
@@ -18,9 +17,17 @@
      (روال موجود rbac.js — فاکتور همیشه ریالی است)؛ این تبدیل سند جدیدی
      به چرخه مالی وارد نمی‌کند و فقط سند ارائه‌شده به کارفرما را ریالی می‌کند.
 
-   فاز ۲ (بعدی): همین هسته برای «تمام پیشنهادهای ارزی حتی غیربرنده» از
-   داخل ماژول پیشنهادها نیز در دسترس قرار می‌گیرد — توابع هسته از هیچ
-   وابستگی به پرونده فروش استفاده نمی‌کنند.
+   فاز ۲ (این نسخه) — دکمه «شرایط» بازبینی شد:
+   • روی دکمه «🔧 شرایط» (پرونده فروش + فهرست پیشنهادها) حالا یک دیالوگِ
+     پیش‌نمایش + ویرایش بندهای شرایط باز می‌شود؛ اصلاح کاربر دریافت و با
+     «ذخیره» به نسخه ریالی منضم می‌شود (ptfOfferRialTermsOpen).
+   • تبدیل ارزی → ریالی برای «تمام» پیشنهادهای ارزی — حتی برنده‌نشده — از
+     داخل ماژول پیشنهادها در دسترس است (دکمه 💱 در ردیف پیشنهاد).
+   • هم برای برنده و هم برنده‌نشده، «دیدن پیشنهاد ارزی قبلی» فراهم است
+     (دکمه 👁 ارزی و دکمه داخل دیالوگ شرایط).
+   • «اصلاح نرخ تسعیر» در برنده‌نشده (و هر نسخه ریالی) از داخل همان
+     دیالوگ شرایط در دسترس است — اقلام/مجموع نسخه ریالی هم با نرخ جدید
+     به‌روز می‌شوند. توابع هسته مستقل از پرونده فروش هستند.
    ===================================================================== */
 (function () {
   'use strict';
@@ -118,6 +125,14 @@
     return { terms: out, changed: changed };
   }
 
+  /* جمع‌بندی بندهای شرایط نسخه ریالی: تبدیل خودکار عبارت‌های ارزی + بند شرایط پرداخت (اگر باشد) */
+  function buildConvertedTerms(o, rate) {
+    var conv = convertTermsArr((o && o.terms) || [], (o && o.currency), rate);
+    var advTerm = buildAdvanceTerm(o && o.advance, fxTotal(o), rate);
+    if (advTerm) { conv.terms.unshift(advTerm); conv.changed++; }
+    return conv;
+  }
+
   /* بند شرایط پرداخت: از advance ساختاریافته پیشنهاد ارزی (بدون کپی خود advance —
      کپی آن در مطالبات/پیش‌پرداخت‌ها مطالبه تکراری می‌سازد؛ فقط معادل ریالی به متن شرایط می‌آید) */
   function buildAdvanceTerm(adv, totalFx, rate) {
@@ -153,6 +168,133 @@
     try { audit('پیشنهادها', 'بازسازی شرایط و ضوابط ریالی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ')', comp.no); } catch (e) {}
     toast('🔧 شرایط و ضوابط نسخه ریالی به‌صورت ریالی بازسازی شد (' + conv.terms.length + ' بند)', 'ok');
     try { if (typeof renderDeals === 'function') renderDeals(); } catch (e2) {}
+  };
+
+  /* ---------- دیالوگ پیش‌نمایش/ویرایش شرایط نسخه ریالی (فاز ۲) ----------
+     روی دکمه «شرایط» در پرونده فروش (و فهرست پیشنهادها) صدا زده می‌شود:
+     ۱) پیش‌نمایش بندهای تبدیل‌شده به کاربر نمایش داده می‌شود
+     ۲) اصلاح کاربر دریافت می‌شود (هر بند قابل ویرایش / افزودن)
+     ۳) با «ذخیره»، شرایط (و در صورت تغییر نرخ، اقلام/مجموع) به نسخه ریالی منضم می‌شود
+     همچنین امکان دیدن «پیشنهاد ارزی قبلی» و «اصلاح نرخ تسعیر» نیز دارد. */
+  var _termDlg = null;
+
+  window.ptfOfferRialTermsOpen = function (compNo) {
+    var comp = offerByNo(compNo);
+    if (!comp || !comp.rialOf) { alert('⛔ نسخه ریالی یافت نشد.'); return; }
+    var src = offerByNo(comp.rialOf);
+    if (!src) { alert('⛔ پیشنهاد ارزی مبدأ یافت نشد.'); return; }
+    var rate = (comp.fxConvert && +comp.fxConvert.rate) || 0;
+    if (!(rate > 0)) rate = +src.fxRateRef || 0;
+    _termDlg = {
+      comp: comp, src: src, rate: rate,
+      /* پیش‌فرض: شرایط فعلی نسخه ریالی؛ اگر خالی بود → تبدیل خودکار از مبدأ */
+      terms: ((comp.terms && comp.terms.length) ? comp.terms.slice() : buildConvertedTerms(src, rate).terms)
+    };
+    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
+    var liveRate = src.currency === 'USD' ? (+L.usd_free || 0) : src.currency === 'EUR' ? (+L.eur_free || 0) : 0;
+    var totalFx = fxTotal(src);
+    var html = '<div class="md-b" id="sfRcTermsDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:800px">' +
+      '<h3>🔧 شرایط و ضوابط نسخه ریالی — <span dir="ltr">' + escP(comp.no) + '</span></h3>' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">' +
+        'این نسخه ریالی از پیشنهاد ارزی <b dir="ltr">' + escP(src.no) + '</b> (' + curFa(src.currency) + ') با نرخ <b>' + rate.toLocaleString('fa-IR') + ' ریال</b> ساخته شده است. ' +
+        'عبارت‌ها/مبالغ ارزی خودکار به ریال تبدیل شدند — در صورت نیاز بندها را ویرایش کنید و با «ذخیره» به نسخه ریالی منضم کنید. پیشنهاد ارزی اصلی هیچ تغییری نمی‌کند.' +
+      '</div>' +
+      '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر ' + escP(src.currency) + ') — تغییر با «بازسازی خودکار» و ذخیره، اقلام/مجموع نسخه ریالی را هم به‌روز می‌کند</label>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="sfRcTermsRate" value="' + rate.toLocaleString('en-US') + '" style="direction:ltr;flex:1;min-width:160px" oninput="sfRcTermsRateChanged()">' +
+          '<button class="bt bt-o" style="font-size:12px" onclick="sfRcTermsRebuild()" title="بازسازی خودکار بندها از پیشنهاد ارزی با نرخ فعلی">↻ بازسازی خودکار</button>' +
+          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="sfRcTermsViewSrc()" title="دیدن پیشنهاد ارزی قبلی">👁 دیدن پیشنهاد ارزی قبلی</button>' +
+        '</div>' +
+        '<small style="color:#64748b">نرخ آزاد لحظه‌ای: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'در دسترس نیست') + '</small></div>' +
+      '<div style="font-size:12px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:8px">' +
+        'مبلغ پیشنهاد ارزی: <b dir="ltr">' + money(totalFx, src.currency) + '</b> — معادل ریالی (با نرخ فعلی): <b id="sfRcTermsTotal">' + money(Math.round(totalFx * rate), 'IRR') + '</b></div>' +
+      '<div id="sfRcTermsList"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap">' +
+        '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerQuickPreview(\'' + ptfOnClickArg(comp.no) + '\')" title="پیش‌نمایش سند نسخه ریالی">👁 پیش‌نمایش سند</button>' +
+        '<span style="display:flex;gap:8px">' +
+          '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+          '<button class="bt" style="background:#0e7490" onclick="sfRcTermsSave(\'' + ptfOnClickArg(comp.no) + '\')">💾 ذخیره و منضم به پیشنهاد</button>' +
+        '</span></div>' +
+      '</div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    sfRcTermsRenderList();
+  };
+
+  window.sfRcTermsRenderList = function () {
+    if (!_termDlg) return;
+    var el = document.getElementById('sfRcTermsList');
+    if (!el) return;
+    var terms = _termDlg.terms || [];
+    el.innerHTML = '<div style="font-size:12px;color:#334155;font-weight:800;margin-bottom:6px">بندهای شرایط و ضوابط (' + terms.length + ')</div>' +
+      terms.map(function (t, i) {
+        return '<div style="margin-bottom:6px"><div style="font-size:10.5px;color:#64748b;margin-bottom:2px">بند ' + (i + 1) + '</div>' +
+          '<textarea data-ti="' + i + '" oninput="sfRcTermsEdit(this)" style="width:100%;height:52px;padding:6px;border:1px solid var(--brd);border-radius:8px;font-size:12px;direction:ltr;text-align:left;resize:vertical">' + escP(t) + '</textarea></div>';
+      }).join('') +
+      '<button class="bt bt-o" style="font-size:12px;margin-top:4px" onclick="sfRcTermsAdd()">+ بند دلخواه</button>';
+  };
+  window.sfRcTermsEdit = function (el) {
+    if (!_termDlg) return;
+    var i = +(el.getAttribute('data-ti') || 0);
+    if (_termDlg.terms[i] !== undefined) _termDlg.terms[i] = el.value;
+  };
+  window.sfRcTermsAdd = function () {
+    if (!_termDlg) return;
+    _termDlg.terms.push('');
+    sfRcTermsRenderList();
+    var ta = document.querySelector('#sfRcTermsList textarea:last-of-type');
+    if (ta) { ta.focus(); }
+  };
+  window.sfRcTermsRateChanged = function () {
+    if (!_termDlg) return;
+    _termDlg.rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfRcTermsRate') || {}).value || '')) : 0;
+    var totalEl = document.getElementById('sfRcTermsTotal');
+    if (totalEl) totalEl.textContent = money(Math.round(fxTotal(_termDlg.src) * _termDlg.rate), 'IRR');
+  };
+  window.sfRcTermsRebuild = function () {
+    if (!_termDlg) return;
+    var rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfRcTermsRate') || {}).value || '')) : 0;
+    if (!(rate > 0)) { alert(WHY_FA.rate); return; }
+    _termDlg.rate = rate;
+    _termDlg.terms = buildConvertedTerms(_termDlg.src, rate).terms;
+    sfRcTermsRenderList();
+    toast('↻ بندهای شرایط از پیشنهاد ارزی با نرخ جدید بازسازی شد', 'ok');
+  };
+  window.sfRcTermsViewSrc = function () {
+    if (!_termDlg || !_termDlg.src) return;
+    try { if (typeof offerQuickPreview === 'function') offerQuickPreview(_termDlg.src.no); } catch (e) {}
+  };
+  window.sfRcTermsSave = function (compNo) {
+    if (!_termDlg) return;
+    var rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfRcTermsRate') || {}).value || '')) : 0;
+    if (!(rate > 0)) { alert(WHY_FA.rate); return; }
+    var offers = offersAll();
+    var comp = offers.filter(function (o) { return o && o.no === compNo; })[0];
+    if (!comp) { alert('⛔ نسخه ریالی یافت نشد.'); return; }
+    var src = _termDlg.src;
+    /* اگر نرخ تغییر کرده باشد، اقلام نسخه ریالی هم با همان نرخ به‌روز می‌شود (گرد ریال صحیح) */
+    var items = (src.items || []).map(function (it) {
+      var c = JSON.parse(JSON.stringify(it || {}));
+      delete c.lineId;
+      c.price = Math.round((+it.price || 0) * rate);
+      return c;
+    });
+    var totalIrr = items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+    comp.items = items;
+    comp.terms = (_termDlg.terms || []).filter(function (t) { return String(t || '').trim() !== ''; });
+    comp.fxConvert = comp.fxConvert || {};
+    comp.fxConvert.rate = rate;
+    comp.fxConvert.totalIrr = totalIrr;
+    comp.fxConvert.termsRewritten = comp.terms.length;
+    comp.currency = 'IRR';
+    comp.updatedAtISO = new Date().toISOString();
+    setData(OFFERS_KEY, offers);
+    try { audit('پیشنهادها', 'اصلاح شرایط/نرخ نسخه ریالی ' + comp.no + ' از ' + src.no + ' (نرخ ' + rate + ')', comp.no); } catch (eA) {}
+    toast('🔧 شرایط و ضوابط نسخه ریالی ' + comp.no + ' ذخیره و منضم شد', 'ok');
+    var dlg = document.getElementById('sfRcTermsDlg');
+    if (dlg) dlg.remove();
+    _termDlg = null;
+    try { if (typeof renderDeals === 'function') renderDeals(); } catch (eR) {}
+    try { if (typeof renderOffers === 'function') renderOffers(); } catch (eR2) {}
   };
 
   var WHY_FA = {
@@ -380,7 +522,8 @@
           '💱 ریالی: <b dir="ltr">' + escP(comp.no) + '</b></span>' +
           '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerQuickPreview(\'' + ptfOnClickArg(comp.no) + '\')" title="نمایش نسخه ریالی">👁</button>' +
           '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerPrint(\'' + ptfOnClickArg(comp.no) + '\')" title="چاپ/PDF نسخه ریالی">🖨</button>' +
-          '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsRepair(\'' + ptfOnClickArg(comp.no) + '\',true)" title="بازسازی خودکار شرایط و ضوابط ریالی از پیشنهاد ارزی اصلی (اگر متنی ارزی باقی مانده یا دستی ویرایش شده)">🔧 شرایط</button>';
+          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\'' + ptfOnClickArg(wo.no) + '\')" title="دیدن پیشنهاد ارزی قبلی (برنده)">👁 ارزی</button>' +
+          '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\'' + ptfOnClickArg(comp.no) + '\')" title="پیش‌نمایش و ویرایش شرایط و ضوابط ریالی + اصلاح نرخ تسعیر + دیدن پیشنهاد ارزی قبلی">🔧 شرایط</button>';
       }
       if (!isFxOffer(wo)) return '';
       var chk = window.ptfOfferRialConvertCheck(wo.no);
