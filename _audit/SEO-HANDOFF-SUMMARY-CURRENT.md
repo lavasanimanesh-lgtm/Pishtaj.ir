@@ -520,3 +520,31 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `python3 _tools/audit.py || true` → پس از تکمیل اسناد انتشار `v34.1.0`، همه بررسی‌ها PASS شدند.
 
 قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `services/products/displacer-level-transmitter.html`، `services/products/instrument-air-package.html`، `services/products/fire-alarm-fg-panel.html`، `services/products/fire-suppression-system.html` و `services/products/mixer-agitator.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز دوم بازنویسی عمیق صفحات محصول پرریسک (۲۰۲۶-۰۸-۰۶)
+پنج صفحه محصول پرریسک دیگر اصلاح و عمیق‌سازی شدند:
+- `services/products/displacer-level-transmitter.html` — اکنون `OK` و حدود ۱۸۰۷ کلمه
+- `services/products/instrument-air-package.html` — اکنون `OK` و حدود ۱۸۳۰ کلمه
+- `services/products/fire-alarm-fg-panel.html` — اکنون `OK` و حدود ۱۸۲۵ کلمه
+- `services/products/fire-suppression-system.html` — اکنون `OK` و حدود ۱۸۱۷ کلمه
+- `services/products/mixer-agitator.html` — اکنون `OK` و حدود ۱۸۱۸ کلمه
+
+در این فاز پاراگراف‌های تکراری عمومی حذف شدند و با محتوای اختصاصی درباره buoyancy/density/interface، instrument air quality، fire & gas mapping، suppression design و mixer scale-up/rheology جایگزین شدند.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۵۱ به ۵۶ افزایش یافت.
+- صفحات پرریسک کل: از ۴۶ به ۴۱ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۴۶ به ۴۱ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۳۷ به ۳۲ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۲۷ به ۲۲ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-PRODUCT-QUALITY-REWRITE-PHASE2-2026-08-06.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → همه بررسی‌ها PASS شدند.
+
+قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `services/products/thermowell.html`، `services/products/fire-tube-boiler.html`، `services/products/hazardous-area-cctv-access-control.html`، `services/products/chemical-injection-package.html` و `services/products/pipe-supports-spring-hangers.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
