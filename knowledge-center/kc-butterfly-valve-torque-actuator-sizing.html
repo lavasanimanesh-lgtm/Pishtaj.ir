@@ -18,6 +18,10 @@
 <meta property="og:url" content="https://pishtaj.ir/knowledge-center/kc-butterfly-valve-torque-actuator-sizing.html" />
 <meta property="og:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
 <meta name="twitter:card" content="summary_large_image" />
+
+<meta name="twitter:title" content="گشتاور شیر Butterfly و انتخاب اکچویتور" />
+<meta name="twitter:description" content="راهنمای فنی محاسبه گشتاور شیر Butterfly شامل Break-to-Open Torque، Dynamic Torque، اثر فشار دیفرانسیل و ضریب ایمنی برای انتخاب صحیح اکچویتور پنوماتیک…" />
+<meta name="twitter:image" content="https://pishtaj.ir/assets/images/ptf-logo.png" />
 <link rel="stylesheet" href="../assets/css/style.css" />
 <script type="application/ld+json">{"@context": "https://schema.org", "@graph": [{"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مرکز دانش", "item": "https://pishtaj.ir/knowledge-center/"}, {"@type": "ListItem", "position": 3, "name": "گشتاور شیر Butterfly", "item": "https://pishtaj.ir/knowledge-center/kc-butterfly-valve-torque-actuator-sizing.html"}]}, {"@type": ["TechArticle", "Article"], "headline": "گشتاور شیر Butterfly و انتخاب اکچویتور", "description": "راهنمای فنی محاسبه گشتاور شیر Butterfly شامل Break-to-Open Torque، Dynamic Torque، اثر فشار دیفرانسیل و ضریب ایمنی برای انتخاب صحیح اکچویتور پنوماتیک…", "author": {"@type": "Organization", "name": "تیم مهندسی و تامین پیشرو تجهیز فرتاک", "url": "https://pishtaj.ir/about/why-ptf/"}, "publisher": {"@type": "Organization", "name": "Pishro Tajhiz Fartak", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/knowledge-center/kc-butterfly-valve-torque-actuator-sizing.html"}, "inLanguage": "fa-IR", "isAccessibleForFree": true, "dateModified": "2026-07-28", "datePublished": "2026-07-01", "articleSection": "شیرآلات صنعتی"}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "چرا گشتاور شکست (Break-to-Open) بیشترین اهمیت را دارد؟", "acceptedAnswer": {"@type": "Answer", "text": "چون این معمولاً بالاترین نقطهٔ گشتاور در کل چرخهٔ عملکرد شیر است؛ اکچویتوری که فقط بر اساس گشتاور دینامیک متوسط انتخاب شود، ممکن است اصلاً نتواند شیر بستهٔ چسبیده را باز کند."}}, {"@type": "Question", "name": "چرا فشار هوای واقعی سایت مهم‌تر از فشار کاتالوگ است؟", "acceptedAnswer": {"@type": "Answer", "text": "چون گشتاور خروجی اکچویتور پنوماتیک مستقیماً به فشار هوای ورودی بستگی دارد؛ اگر فشار هوای واقعی سایت کمتر از فشار طراحی ایده‌آل کاتالوگ باشد، گشتاور خروجی واقعی هم کمتر خواهد بود."}}, {"@type": "Question", "name": "چرا باید ضریب ایمنی روی محاسبات گشتاور اعمال شود؟", "acceptedAnswer": {"@type": "Answer", "text": "برای پوشش عدم‌قطعیت‌هایی مانند افزایش اصطکاک با گذشت زمان، نوسانات جزئی فشار سیستم، و افت تدریجی عملکرد خود اکچویتور در طول عمر بهره‌برداری."}}, {"@type": "Question", "name": "چه زمانی اکچویتور هیدرولیک نسبت به پنوماتیک یا الکتریکی ترجیح دارد؟", "acceptedAnswer": {"@type": "Answer", "text": "برای شیرهای بسیار بزرگ با نیاز گشتاور بسیار بالا که اکچویتور پنوماتیک یا الکتریکی معمولی نمی‌تواند به‌صرفه تامین کند، هرچند نیاز به سیستم هیدرولیک کمکی پیچیدگی و هزینهٔ اضافه ایجاد می‌کند."}}]}]}</script>
 <style>
@@ -45,6 +49,11 @@
 .faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}
 .note-box{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:16px;padding:14px 16px;margin:16px 0}
 .ok-box{background:#ecfdf5;border:1px solid #bbf7d0;color:#047857;border-radius:16px;padding:14px 16px;margin:16px 0}
+</style>
+<style id="ptf-product-link-style">
+.ptf-product-linkbox{margin:34px 0;padding:22px;border-radius:24px;background:linear-gradient(135deg,#fff7ed,#f8fafc);border:1px solid #fed7aa;box-shadow:0 14px 34px rgba(15,23,42,.06)}
+.ptf-product-linkbox b{display:block;color:#0f2744;font-size:18px;margin-bottom:8px}.ptf-product-linkbox p{margin:0 0 14px;color:#475569;line-height:2}.ptf-product-linkbox a{display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#ef4b1a;color:#fff;border-radius:999px;padding:10px 18px;font-weight:900}.ptf-product-linkbox a.secondary{background:#0f2744;margin-right:8px}
+.ptf-service-products{margin:34px 0;padding:26px;border:1px solid #e2e8f0;border-radius:28px;background:#fff;box-shadow:0 16px 42px rgba(15,23,42,.06)}.ptf-service-products h2{margin:0 0 10px;color:#0f2744}.ptf-service-products p{color:#64748b;line-height:2}.ptf-service-products-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.ptf-service-products-grid a{display:block;text-decoration:none;color:#0f2744;background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:14px;font-weight:900}.ptf-service-products-grid a:hover{border-color:#ef4b1a;color:#ef4b1a;background:#fff7ed}
 </style>
 </head>
 <body>
@@ -145,6 +154,7 @@
   </div>
 </div>
 </div>
+<div class="ptf-product-linkbox" data-ptf-product-link="butterfly-valve"><b>مسیر خرید و استعلام: باترفلای ولو صنعتی (Butterfly Valve)</b><p>برای استعلام باترفلای ولو، نوع Concentric/Double Offset/Triple Offset، Seat، کلاس، متریال، گشتاور و عملگر را مشخص کنید. این صفحه محصول، مشخصات فنی، مدارک RFQ، خطاهای رایج و مسیر ثبت استعلام را جمع‌بندی می‌کند.</p><a href="../services/products/butterfly-valve.html">مشاهده صفحه محصول باترفلای ولو صنعتی ←</a><a class="secondary" href="../rfq/?product=butterfly-valve">ثبت RFQ همین محصول</a></div>
 <footer class="footer" style="background:#111113; color:#cbd5e1; padding:4.5rem 0 2rem; border-top:4px solid var(--red);">
     <div class="container" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:35px; margin-bottom:3.5rem; text-align:right;">
       <div>
@@ -175,7 +185,7 @@
       </div>
       <div>
         <b style="color:#fff; font-size:16px; display:block; margin-bottom:16px; border-bottom:2px solid rgba(255,255,255,.1); padding-bottom:8px;">استانداردها و تضمین کیفیت</b>
-        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">تضمین ۱۰۰٪ انطباق با Approved Vendor List وزارت نفت (NIOC/NPC) همراه با گواهی MTC 3.1 و بازرسی TPI.</p>
+        <p style="font-size:13px; color:#94a3b8; line-height:1.7;">کنترل انطباق فنی بر اساس RFQ، وندورلیست کارفرما، MTC/COC، تست‌های لازم و امکان هماهنگی TPI در صورت الزام قرارداد.</p>
         <a href="../quality/" style="display:inline-block; margin-top:10px; background:rgba(239,75,26,.15); color:#ffb033; border:1px solid rgba(239,75,26,.3); padding:8px 16px; border-radius:10px; font-size:12.5px; font-weight:bold;">مشاهده نظام تضمین کیفیت ←</a>
       </div>
     </div>
@@ -187,5 +197,6 @@
   </footer>
 <script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
 <script src="../assets/js/ptf-chat.js" defer></script>
+<script src="../assets/js/ptf-metrics.js" defer></script>
 </body>
 </html>

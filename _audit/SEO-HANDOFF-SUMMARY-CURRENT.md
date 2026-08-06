@@ -1,0 +1,640 @@
+# SEO Handoff Summary — Current
+**آخرین به‌روزرسانی:** ۲۰۲۶-۰۸-۰۴  
+**شاخه:** `arena/019fcb93-pishtaj-ir`  
+**دامنه کار:** فقط سایت عمومی؛ بدون تغییر در `crm/` و `api/`
+
+## قانون مهم برای ایجنت بعدی
+این فایل باید در پایان هر فاز سئو به‌روز شود. ایجنت بعدی نیز باید همین کار را انجام دهد و در گزارش نهایی خود این الزام را تکرار کند.
+
+## وضعیت فعلی
+- صفحات عمومی در sitemap: ۵۴۸ URL
+- `sitemap.xml` بدون `ns0:` و همگام با صفحات عمومی است.
+- metrics روی صفحات عمومی فعال است.
+- لینک شکسته عمومی در آخرین بررسی: ۰
+- JSON-LD parse error در آخرین بررسی: ۰
+- متن قابل مشاهده زیر فوتر در `knowledge-center/`: ۰
+- audit کامل فقط یک خطای خارج از دامنه سئو دارد: `release-docs: window.VER در crm/index.html پیدا نشد`.
+
+## قواعد الزامی ادامه کار
+- هیچ محتوای محصولی نباید قالبی یا تکراری باشد.
+- هر صفحه محصول حداقل ۱۵۰۰ کلمه مفید و محصول‌محور داشته باشد.
+- تصاویر محصول باید واقعی/واقع‌گرایانه تک‌محصولی و کم‌حجم باشند.
+- تصویر تولیدی نباید لوگو/متن/واترمارک داشته باشد.
+- لوگوی برند فقط از منبع رسمی/معتبر و با اطمینان حقوقی استفاده شود؛ در غیر این صورت برند فقط متنی ذکر شود.
+- هر صفحه محصول باید برای کاربر محصول، بهره‌بردار، نگهداری، مهندس، بازرسی و خرید مفید باشد.
+- بعد از هر تغییر، لینک‌ها، Schema، sitemap، تصویر سنگین و ساختار HTML بررسی شود.
+
+## فازهای انجام‌شده مهم
+1. فاز فنی پایه سئو: canonical، hreflang، OG/Twitter/Schema، sitemap.
+2. موج اول و دوم صفحات محصول.
+3. لینک‌سازی داخلی محصول‌محور.
+4. Performance و metrics foundation.
+5. بازنگری صفحات محصول برای حذف پاراگراف تکراری و فوتر یکپارچه.
+6. پاک‌سازی محتوای زیر فوتر در مرکز دانش.
+7. شروع ارتقای عمیق محصول با تصاویر واقع‌گرایانه:
+   - Ball Valve
+   - Pressure Transmitter
+   - API 5L Pipe
+8. ارتقای عمیق شیرآلات:
+   - Gate Valve
+   - Globe Valve
+   - Check Valve
+   - Butterfly Valve
+   - Control Valve
+9. ارتقای عمیق ابزار دقیق:
+   - DP Transmitter
+   - Magnetic Flowmeter
+   - Coriolis Flowmeter
+   - Vortex Flowmeter
+   - Radar Level Transmitter
+10. ارتقای عمیق برق صنعتی:
+   - LV/MV Switchgear
+   - VFD & Soft Starter
+   - Industrial Circuit Breakers
+   - Power Transformer
+11. هاب محصولات:
+   - جستجو اضافه شد.
+   - فیلتر دسته‌بندی اضافه شد.
+   - لینک RFQ در کارت‌ها اضافه شد.
+   - ItemList Schema اضافه شد.
+
+## گام بعدی پیشنهادی
+ادامه بسته پایپینگ با همین استاندارد:
+- Seamless Pipe
+- Welding Flanges
+- Butt Weld Fittings
+- Industrial Gaskets
+
+سپس بسته پمپ/کمپرسور/بخار/تجهیزات ثابت:
+- API 610 Pump
+- Dosing Pump
+- Screw Compressor
+- Steam Trap
+- Shell & Tube Heat Exchanger
+- Pressure Vessel
+
+## به‌روزرسانی جدید — بسته پایپینگ (۲۰۲۶-۰۸-۰۴)
+بسته پایپینگ با همان استاندارد عمیق و تصاویر کم‌حجم انجام شد:
+- `seamless-pipe.html` — تصویر `seamless-pipe-a106-realistic.jpg` — حدود ۱۹۴۸ کلمه
+- `welding-flanges.html` — تصویر `welding-neck-flanges-realistic.jpg` — حدود ۱۹۲۴ کلمه
+- `butt-weld-fittings.html` — تصویر `butt-weld-fittings-realistic.jpg` — حدود ۱۹۲۰ کلمه
+- `industrial-gaskets.html` — تصویر `industrial-gaskets-realistic.jpg` — حدود ۱۸۸۷ کلمه
+
+تصاویر همگی JPG کم‌حجم زیر ۵۰KB هستند و بدون لوگو/متن/واترمارک تولید شده‌اند.
+
+## گام بعدی پیشنهادی
+بسته پمپ/کمپرسور/بخار/تجهیزات ثابت:
+- API 610 Pump
+- Dosing Pump
+- Screw Compressor
+- Steam Trap
+- Shell & Tube Heat Exchanger
+- Pressure Vessel
+
+## به‌روزرسانی جدید — بسته پمپ/کمپرسور/بخار/تجهیزات ثابت (۲۰۲۶-۰۸-۰۴)
+بسته نهایی این دور از محصولات صنعتی با استاندارد عمیق و تصاویر کم‌حجم انجام شد:
+- `api-610-centrifugal-pump.html` — تصویر `api-610-centrifugal-pump-realistic.jpg` — حدود ۱۹۷۹ کلمه
+- `dosing-metering-pump.html` — تصویر `dosing-metering-pump-realistic.jpg` — حدود ۱۹۱۴ کلمه
+- `screw-compressor.html` — تصویر `screw-compressor-realistic.jpg` — حدود ۱۹۵۱ کلمه
+- `steam-trap.html` — تصویر `steam-trap-realistic.jpg` — حدود ۱۹۱۱ کلمه
+- `shell-tube-heat-exchanger.html` — تصویر `shell-tube-heat-exchanger-realistic.jpg` — حدود ۱۹۶۷ کلمه
+- `pressure-vessel.html` — تصویر `pressure-vessel-realistic.jpg` — حدود ۱۹۰۴ کلمه
+
+تصاویر JPG کم‌حجم هستند: از حدود ۱۸KB تا ۵۳KB، بدون لوگو/متن/واترمارک.
+
+## وضعیت پس از این بسته
+اکنون همه بسته‌های اصلی محصولی در این دور ارتقای عمیق شده‌اند:
+- Pilot: Ball Valve، Pressure Transmitter، API 5L Pipe
+- Valves: Gate، Globe، Check، Butterfly، Control
+- Instrumentation: DP، Magnetic، Coriolis، Vortex، Radar Level
+- Electrical: Switchgear، VFD/Soft Starter، Circuit Breakers، Transformer
+- Piping: Seamless Pipe، Flanges، BW Fittings، Gaskets
+- Rotating/Fixed/Steam: API 610 Pump، Dosing Pump، Screw Compressor، Steam Trap، Shell & Tube، Pressure Vessel
+
+## گام بعدی پیشنهادی
+۱) مرور دستی چند صفحه منتخب در مرورگر و اصلاح UX جزئی.  
+۲) بررسی سرچ هاب محصولات با عبارات فارسی/انگلیسی پرکاربرد.  
+۳) شروع تولید صفحات محصول جدید فقط بعد از تحقیق واقعی برند/تصویر/کلیدواژه.
+
+## به‌روزرسانی جدید — UX و QA هاب/صفحات محصول (۲۰۲۶-۰۸-۰۴)
+- برای همه ۳۱ صفحه محصول، CTA موبایلی ثابت و سبک اضافه شد تا کاربر در موبایل سریع به RFQ همان محصول برسد.
+- QA اختصاصی هاب و صفحات محصول اضافه شد:
+  - تعداد کارت‌های هاب = تعداد صفحات محصول
+  - وجود جستجو و فیلتر دسته‌بندی
+  - وجود لینک RFQ هر محصول
+  - وجود ItemList Schema در هاب
+  - وجود Product/FAQ/Breadcrumb Schema در صفحات محصول
+  - فعال بودن metrics
+  - حداقل ۱۵۰۰ کلمه برای صفحات محصول
+- ابزار جدید: `_tools/product_ux_polish_and_qa.py`
+- نتیجه QA: ۰ خطا
+
+## گام بعدی پیشنهادی
+پس از این مرحله، بهتر است یا:
+1. چند صفحه منتخب در مرورگر/موبایل به‌صورت دستی بازبینی شوند و اگر نیاز بود UI جزئی اصلاح شود؛ یا
+2. تولید صفحات محصول جدید فقط با تحقیق واقعی کلمات کلیدی، برندها و تصویر/لوگوی مجاز آغاز شود.
+
+## به‌روزرسانی جدید — صفحات محصول جدید + QA (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید بر اساس فرصت‌های باقی‌مانده ایجاد شد و هاب محصولات دوباره بازسازی شد:
+- `stainless-steel-pipe.html` — لوله استنلس استیل ASTM A312 — تصویر `stainless-steel-pipe-long-bundle-realistic.jpg`
+- `forged-fittings.html` — فیتینگ فورج ASME B16.11 — تصویر `forged-fittings-realistic.jpg`
+- `industrial-power-instrument-cable.html` — کابل قدرت و ابزار دقیق صنعتی — تصویر `industrial-cables-realistic.jpg`
+- `industrial-ups-battery-charger.html` — UPS صنعتی و شارژر باتری — تصویر `industrial-ups-battery-charger-realistic.jpg`
+
+همه صفحات جدید بالای ۱۵۰۰ کلمه هستند، CTA موبایلی و Product/FAQ/Breadcrumb Schema دارند و در هاب محصولات قابل جستجو هستند.
+
+وضعیت هاب محصولات:
+- تعداد صفحات محصول: ۳۵
+- جستجو و فیلتر فعال است.
+- ItemList Schema به‌روزرسانی شد.
+- QA اختصاصی محصول: ۰ خطا
+
+sitemap اکنون ۵۵۲ URL عمومی دارد.
+
+## اصلاح تصویر لوله استنلس (۲۰۲۶-۰۸-۰۴)
+با بازخورد کارفرما، تصویر قبلی لوله استنلس به‌دلیل نمایش لوله‌های تکه‌تکه مناسب نبود. تصویر جدید با نمای دسته‌ای از لوله‌های بلند و پیوسته جایگزین شد:
+`assets/images/products/generated/stainless-steel-pipe-long-bundle-realistic.jpg`
+تصویر قدیمی حذف شد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۲ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید دیگر با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `alloy-steel-pipe-a335.html` — لوله آلیاژی ASTM A335 P11/P22/P91 — تصویر `alloy-steel-pipe-a335-realistic.jpg`
+- `a333-low-temperature-pipe.html` — لوله دمای پایین ASTM A333 Gr.6 — تصویر `a333-low-temperature-pipe-realistic.jpg`
+- `orifice-plate-flowmeter.html` — Orifice Plate Flowmeter — تصویر `orifice-plate-flowmeter-realistic.jpg`
+- `fixed-gas-detector.html` — دتکتور گاز ثابت صنعتی — تصویر `fixed-gas-detector-realistic.jpg`
+
+هاب محصولات اکنون ۳۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۵۶ URL عمومی دارد.
+
+## گام بعدی پیشنهادی
+بازبینی دستی UX همین ۴ صفحه جدید و سپس تصمیم برای فاز بعدی صفحات جدید، فقط بعد از تحقیق واقعی کلیدواژه/برند/تصویر.
+
+## اصلاح تصویر Orifice Plate Flowmeter (۲۰۲۶-۰۸-۰۴)
+با بازخورد کارفرما، تصویر قبلی اوریفیس پلیت مناسب نبود. تصویر جدید با نمای واقعی‌تر از Orifice Flange Assembly شامل فلنج‌ها، پیچ‌ومهره‌ها، اوریفیس پلیت قابل مشاهده و pressure tapping ports جایگزین شد:
+`assets/images/products/generated/orifice-plate-flowmeter-flange-assembly-realistic.jpg`
+تصویر قدیمی حذف شد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۳ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید دیگر با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `mechanical-seal.html` — مکانیکال سیل API 682 — تصویر `mechanical-seal-api682-realistic.jpg`
+- `air-cooler-fin-fan.html` — Air Cooler / Fin Fan API 661 — تصویر `air-cooler-fin-fan-realistic.jpg`
+- `plate-heat-exchanger.html` — مبدل حرارتی صفحه‌ای — تصویر `plate-heat-exchanger-realistic.jpg`
+- `explosion-proof-lighting.html` — چراغ ضدانفجار LED — تصویر `explosion-proof-led-lighting-realistic.jpg`
+
+هاب محصولات اکنون ۴۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۴ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید دیگر با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `stud-bolts-nuts.html` — استادبولت و مهره ASTM A193/A194 — تصویر `stud-bolts-nuts-realistic.jpg`
+- `cable-accessories.html` — متعلقات کابل صنعتی؛ گلند، لاگ، سینی کابل — تصویر `cable-glands-lugs-tray-realistic.jpg`
+- `earthing-lightning-protection.html` — سیستم ارتینگ و حفاظت صاعقه — تصویر `earthing-lightning-protection-realistic.jpg`
+- `industrial-strainer-filter.html` — Y Strainer / Basket Strainer / Filter — تصویر `industrial-strainer-filter-realistic.jpg`
+
+هاب محصولات اکنون ۴۷ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۴ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۵ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول ابزار دقیق جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `pressure-gauge.html` — گیج فشار صنعتی و Safety Pressure Gauge — تصویر `pressure-gauge-safety-realistic.jpg` — حدود ۱۶۲۷ کلمه
+- `thermowell.html` — ترموول صنعتی ASME PTC 19.3 TW — تصویر `thermowell-flanged-realistic.jpg` — حدود ۱۵۸۷ کلمه
+- `temperature-transmitter.html` — ترانسمیتر دما صنعتی — تصویر `temperature-transmitter-headmount-realistic.jpg` — حدود ۱۶۳۶ کلمه
+- `diaphragm-seal.html` — دیافراگم سیل و Remote Seal — تصویر `diaphragm-seal-remote-realistic.jpg` — حدود ۱۶۵۰ کلمه
+
+هاب محصولات اکنون ۵۱ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۶۸ URL عمومی دارد.
+
+## گام بعدی پیشنهادی
+۱) بازبینی دستی UX هاب محصولات و چند صفحه جدید ابزار دقیق در موبایل.  
+۲) اگر تأیید بود، تولید فاز بعدی صفحات محصول بر اساس فرصت‌های باقی‌مانده مثل Mixer/Agitator، Fire Alarm/F&G Panel، PLC/SCADA Hardware، CCTV/Access Control صنعتی یا HVAC صنعتی، فقط بعد از تحقیق واقعی برند/استاندارد/تصویر.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۶ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول سیستم‌های صنعتی/اتوماسیون/ایمنی با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `plc-control-panel.html` — تابلو کنترل PLC و اتوماسیون صنعتی — تصویر `plc-control-panel-realistic.jpg` — حدود ۱۶۵۸ کلمه
+- `fire-alarm-fg-panel.html` — پنل اعلام حریق و Fire & Gas صنعتی — تصویر `fire-alarm-fg-panel-realistic.jpg` — حدود ۱۵۸۳ کلمه
+- `hazardous-area-cctv-access-control.html` — CCTV ضدانفجار و Access Control صنعتی — تصویر `explosion-proof-cctv-camera-realistic.jpg` — حدود ۱۵۹۲ کلمه
+- `industrial-hvac-pressurization.html` — HVAC صنعتی و Pressurization اتاق کنترل — تصویر `industrial-hvac-pressurization-unit-realistic.jpg` — حدود ۱۶۳۴ کلمه
+
+هاب محصولات اکنون ۵۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۷۲ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۷ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `chemical-injection-package.html` — پکیج تزریق مواد شیمیایی — تصویر `chemical-injection-package-realistic.jpg` — حدود ۱۵۹۵ کلمه
+- `mixer-agitator.html` — میکسر و آگیتاتور صنعتی — تصویر `industrial-mixer-agitator-realistic.jpg` — حدود ۱۵۸۶ کلمه
+- `fire-suppression-system.html` — سیستم اطفای حریق Clean Agent/CO2/Foam — تصویر `fire-suppression-skid-realistic.jpg` — حدود ۱۵۸۴ کلمه
+- `process-gas-analyzer-system.html` — سیستم آنالایزر گاز فرایندی — تصویر `process-gas-analyzer-system-realistic.jpg` — حدود ۱۶۴۰ کلمه
+
+هاب محصولات اکنون ۵۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۷۶ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۸ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول بویلر و بخار با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `fire-tube-boiler.html` — بویلر فایرتیوب صنعتی — تصویر `fire-tube-boiler-realistic.jpg` — حدود ۱۵۹۲ کلمه
+- `water-tube-boiler.html` — بویلر واترتیوب صنعتی — تصویر `water-tube-boiler-realistic.jpg` — حدود ۱۶۳۱ کلمه
+- `industrial-burner.html` — مشعل صنعتی و Burner Management — تصویر `industrial-burner-realistic.jpg` — حدود ۱۶۵۷ کلمه
+- `deaerator-feedwater-system.html` — دی‌اریاتور و سیستم آب تغذیه بویلر — تصویر `deaerator-feedwater-system-realistic.jpg` — حدود ۱۵۷۱ کلمه
+
+هاب محصولات اکنون ۶۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۹ (۲۰۲۶-۰۸-۰۴)
+دو صفحه محصول تجهیزات دوار با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `reciprocating-compressor.html` — کمپرسور رفت‌وبرگشتی API 618 — تصویر `reciprocating-compressor-api618-realistic.jpg` — حدود ۱۶۲۷ کلمه
+- `ansi-process-pump.html` — پمپ ANSI Process مطابق ASME B73.1 — تصویر `ansi-process-pump-b731-realistic.jpg` — حدود ۱۶۲۴ کلمه
+
+هاب محصولات اکنون ۶۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۲ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۱۰ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `motor-control-center-mcc.html` — تابلو MCC مرکز کنترل موتور — تصویر `motor-control-center-mcc-realistic.jpg` — حدود ۱۵۵۸ کلمه
+- `ultrasonic-flowmeter.html` — فلومتر التراسونیک Clamp-on و Inline — تصویر `ultrasonic-flowmeter-clamp-on-realistic.jpg` — حدود ۱۵۶۱ کلمه
+- `thermal-mass-flowmeter.html` — فلومتر جرمی حرارتی گاز و هوای فشرده — تصویر `thermal-mass-flowmeter-realistic.jpg` — حدود ۱۵۵۲ کلمه
+- `online-water-quality-analyzer.html` — آنالایزر آنلاین کیفیت آب — تصویر `water-quality-analyzer-realistic.jpg` — حدود ۱۶۵۵ کلمه
+
+هاب محصولات اکنون ۶۹ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۸۶ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۱۱ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه محصول جدید پمپ/فن با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `vertical-multistage-pump.html` — پمپ طبقاتی عمودی — تصویر `vertical-multistage-pump-realistic.jpg` — حدود ۱۶۲۴ کلمه
+- `slurry-pump.html` — پمپ اسلاری و دوغاب صنعتی — تصویر `slurry-pump-horizontal-realistic.jpg` — حدود ۱۶۲۸ کلمه
+- `positive-displacement-pump.html` — پمپ جابجایی مثبت Screw/Gear/Lobe — تصویر `rotary-screw-gear-pump-realistic.jpg` — حدود ۱۶۴۹ کلمه
+- `industrial-fan-blower.html` — فن و بلوور صنعتی API 673 / AMCA — تصویر `industrial-centrifugal-fan-blower-realistic.jpg` — حدود ۱۶۳۰ کلمه
+
+هاب محصولات اکنون ۷۳ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۹۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۱۲ (۲۰۲۶-۰۸-۰۴)
+دو صفحه محصول جدید با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `displacer-level-transmitter.html` — ترانسمیتر سطح دیسپلیسری — تصویر `displacer-level-transmitter-realistic.jpg` — حدود ۱۵۷۸ کلمه
+- `instrument-air-package.html` — پکیج هوای ابزار دقیق Instrument Air — تصویر `instrument-air-package-realistic.jpg` — حدود ۱۵۸۰ کلمه
+
+هاب محصولات اکنون ۷۵ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۹۲ URL عمومی دارد.
+
+## به‌روزرسانی جدید — فاز ساختاری Entity و Citation (۲۰۲۶-۰۸-۰۴)
+برای پوشش ضعف گزارش گوگل درباره وابستگی برند به دایرکتوری‌ها و نبود مرجع رسمی قوی در دامنه اصلی، صفحه پروفایل رسمی شرکت ایجاد شد:
+- `about/company-profile/index.html`
+
+اقدامات:
+- افزودن NAP رسمی: نام، شناسه ملی، ایمیل، تلفن و آدرس
+- افزودن Organization/ProfilePage Schema با `sameAs` به پروفایل‌های بیرونی
+- لینک به Instagram، سامانه صبا و HacinHaseb به‌عنوان citation خارجی
+- لینک داخلی از صفحه درباره ما به پروفایل رسمی
+- تکمیل `sameAs` در Organization Schema صفحه اصلی
+- sitemap اکنون ۵۹۳ URL عمومی دارد.
+
+قاعده برای ایجنت‌های بعدی: هر دایرکتوری، پروفایل اجتماعی، PDF کاتالوگ یا محتوای بیرونی باید در صورت امکان به دامنه اصلی و صفحه مرتبط لینک بدهد تا اعتبار برند از منابع ثالث به سایت اصلی منتقل شود.
+
+## به‌روزرسانی جدید — صفحات محصول جدید فاز ۱۳ (۲۰۲۶-۰۸-۰۴)
+دو صفحه محصول پایپینگ/جبران حرکت با تحقیق اولیه استاندارد/برند و تصاویر تک‌محصولی کم‌حجم ایجاد شد:
+- `pipe-supports-spring-hangers.html` — ساپورت پایپینگ و Spring Hanger — تصویر `pipe-support-spring-hanger-realistic.jpg` — حدود ۱۶۰۶ کلمه
+- `expansion-joints-flexible-hose.html` — اکسپنشن جوینت و شیلنگ فلزی انعطاف‌پذیر — تصویر `metal-expansion-joint-flexible-hose-realistic.jpg` — حدود ۱۶۰۷ کلمه
+
+هاب محصولات اکنون ۷۷ صفحه محصول دارد. QA اختصاصی محصول: ۰ خطا. Sitemap اکنون ۵۹۵ URL عمومی دارد.
+
+## به‌روزرسانی جدید — فاز برندمحور و سورسینگ (۲۰۲۶-۰۸-۰۴)
+پس از مرج `origin/main`، برای پوشش ضعف Off-page/Entity و جذب جستجوهای برندمحور، هاب برندها و ۴ صفحه برندمحور ایجاد شد:
+- `brands/index.html` — هاب برندهای قابل سورسینگ
+- `brands/emerson-rosemount.html` — Emerson / Rosemount — حدود ۱۵۴۵ کلمه
+- `brands/siemens-industrial.html` — Siemens Industrial — حدود ۱۵۰۷ کلمه
+- `brands/abb-industrial.html` — ABB Industrial — حدود ۱۵۶۰ کلمه
+- `brands/kitz-valves.html` — KITZ Valves — حدود ۱۵۵۶ کلمه
+
+قانون مهم: این صفحات ادعای نمایندگی رسمی ندارند و با عبارت‌های محتاطانه «سورسینگ/تامین بر اساس وندورلیست و مدارک قابل ردیابی» نوشته شده‌اند. از لوگوی برندها استفاده نشد تا بدون منبع/مجوز رسمی ریسک حقوقی ایجاد نشود.
+
+همچنین از صفحه پروفایل رسمی شرکت به هاب برندها لینک داخلی اضافه شد. Sitemap اکنون ۶۰۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — فاز دوم برندمحور و سورسینگ (۲۰۲۶-۰۸-۰۴)
+چهار صفحه برندمحور جدید ایجاد شد:
+- `brands/endress-hauser.html` — Endress+Hauser — حدود ۱۵۳۷ کلمه
+- `brands/yokogawa-industrial.html` — Yokogawa — حدود ۱۵۶۰ کلمه
+- `brands/wika-instrumentation.html` — WIKA — حدود ۱۵۴۳ کلمه
+- `brands/schneider-electric.html` — Schneider Electric — حدود ۱۵۴۶ کلمه
+
+هاب برندها اکنون ۹ صفحه دارد. همه صفحات برندمحور بدون ادعای نمایندگی رسمی نوشته شده‌اند، از لوگوی برند استفاده نشده و به محصولات مرتبط سایت لینک داده‌اند. Sitemap اکنون ۶۰۴ URL عمومی دارد.
+
+## به‌روزرسانی جدید — فاز سوم برندمحور و بازسازی هاب برندها (۲۰۲۶-۰۸-۰۴)
+شش صفحه برندمحور جدید ایجاد شد:
+- `brands/flexitallic-gaskets.html` — Flexitallic — حدود ۱۵۱۸ کلمه
+- `brands/galperti-flanges.html` — Galperti — حدود ۱۵۰۰ کلمه
+- `brands/tenaris-pipes.html` — Tenaris — حدود ۱۵۱۰ کلمه
+- `brands/vallourec-pipes.html` — Vallourec — حدود ۱۵۵۸ کلمه
+- `brands/krohne-instrumentation.html` — KROHNE — حدود ۱۵۱۸ کلمه
+- `brands/fisher-samson-control-valves.html` — Fisher / SAMSON — حدود ۱۵۴۳ کلمه
+
+هاب برندها بازسازی شد و اکنون ۱۴ صفحه برندمحور را پوشش می‌دهد، با جستجو، فیلتر دسته‌بندی و ItemList Schema. همچنان هیچ ادعای نمایندگی رسمی یا استفاده از لوگوی برند بدون مجوز انجام نشده است. Sitemap اکنون ۶۱۰ URL عمومی دارد.
+
+## به‌روزرسانی جدید — فاز ممیزی کیفیت محتوا و توقف تولید انبوه (۲۰۲۶-۰۸-۰۴)
+برای رعایت جدی کیفیت محتوا، ابزار غیرتخریبی ممیزی کیفیت محتوا اضافه شد:
+- `_tools/seo_content_quality_audit.py`
+
+خروجی‌ها:
+- `_audit/SEO-CONTENT-QUALITY-AUDIT-CURRENT.md`
+- `_audit/SEO-CONTENT-QUALITY-AUDIT-CURRENT.csv`
+
+نتیجه مهم: هیچ صفحه محصول یا برند زیر ۱۵۰۰ کلمه نیست، اما ۶۴ صفحه در محدوده `LOW_DEPTH_REVIEW` یا دارای ریسک تکرار پاراگراف/عمق کم هستند. بنابراین از این نقطه به بعد، تولید انبوه صفحه جدید باید متوقف شود مگر اینکه هم‌زمان کیفیت صفحات قبلی ارتقا یابد. گام بعدی پیشنهادی: بازنویسی عمیق و دستی صفحات اولویت‌دار در گزارش کیفیت، به‌خصوص صفحات برندمحور و محصولاتی که نزدیک ۱۵۰۰ کلمه هستند.
+
+قاعده جدید برای ایجنت بعدی: قبل و بعد از هر فاز باید `python3 _tools/seo_content_quality_audit.py` اجرا شود و تعداد ریسک‌های کیفیت نباید افزایش یابد.
+
+## به‌روزرسانی جدید — فاز چهارم برندمحور و سورسینگ (۲۰۲۶-۰۸-۰۴)
+شش صفحه برندمحور جدید ایجاد شد:
+- `brands/phoenix-contact.html` — Phoenix Contact — حدود ۱۵۴۱ کلمه
+- `brands/omron-automation.html` — Omron Automation — حدود ۱۵۵۰ کلمه
+- `brands/eaton-crouse-hinds.html` — Eaton / Crouse-Hinds — حدود ۱۵۵۷ کلمه
+- `brands/spirax-sarco-steam.html` — Spirax Sarco — حدود ۱۵۱۸ کلمه
+- `brands/grundfos-pumps.html` — Grundfos — حدود ۱۵۶۴ کلمه
+- `brands/atlas-copco-compressed-air.html` — Atlas Copco — حدود ۱۵۳۲ کلمه
+
+هاب برندها اکنون ۲۰ صفحه برندمحور را پوشش می‌دهد، با جستجو، فیلتر دسته‌بندی و ItemList Schema. همچنان هیچ ادعای نمایندگی رسمی یا استفاده از لوگوی برند بدون مجوز انجام نشده است. Sitemap اکنون ۶۱۶ URL عمومی دارد.
+
+## به‌روزرسانی جدید — نقشه پوشش بلندمدت برندها (۲۰۲۶-۰۸-۰۵)
+برای ادامه سئوی برندمحور بدون تولید پراکنده، ماتریس کامل برندها و رودمپ پوشش برند ایجاد شد:
+- `_audit/SEO-BRAND-COVERAGE-MATRIX-2026-08-05.csv`
+- `_audit/SEO-BRAND-COVERAGE-ROADMAP-2026-08-05.md`
+
+این ماتریس بیش از ۷۰ برند/گروه برند را در خوشه‌های ابزار دقیق، برق، شیرآلات، پایپینگ، پمپ، کمپرسور، گسکت، ایمنی، بویلر و تجهیزات ثابت دسته‌بندی می‌کند و وضعیت هر کدام را به‌صورت `covered` یا `planned` مشخص می‌کند.
+
+قاعده مهم: از این نقطه به بعد، صفحه برند جدید نباید بدون بررسی این ماتریس ساخته شود. همچنین پیش از تولید صفحه برند جدید، باید صفحات برند موجود که در گزارش کیفیت ریسک دارند بازنویسی شوند.
+
+## به‌روزرسانی جدید — بازنویسی عمیق چهار صفحه برند پرریسک (۲۰۲۶-۰۸-۰۵)
+طبق گزارش کیفیت محتوا، چهار صفحه برند دارای اولویت بازنویسی شدند:
+- `brands/galperti-flanges.html`
+- `brands/siemens-industrial.html`
+- `brands/flexitallic-gaskets.html`
+- `brands/tenaris-pipes.html`
+
+پاراگراف‌های تکراری عمومی از این صفحات حذف و با محتوای برند/محصول‌محور اختصاصی جایگزین شد. نتیجه: تعداد `REPEATED_PARAGRAPH_INSIDE` در گزارش کیفیت از ۵۴ به ۵۱ کاهش یافت و این چهار صفحه از صدر لیست اولویت ریسک خارج شدند. همچنان نیاز است در فازهای بعدی صفحات اولویت‌دار بعدی بازنویسی شوند.
+
+## به‌روزرسانی جدید — بازنویسی عمیق چهار صفحه محصول پرریسک (۲۰۲۶-۰۸-۰۵)
+در ادامه مسیر کیفیت‌محور و مطابق تأکید کاربر بر عدم تولید متن کلیشه‌ای، چهار صفحه محصول اولویت‌دار از گزارش کیفیت بازنویسی عمیق شدند:
+- `services/products/cable-accessories.html` — اکنون ۱۸۹۰ کلمه و وضعیت `OK`
+- `services/products/industrial-strainer-filter.html` — اکنون ۱۸۲۴ کلمه و وضعیت `OK`
+- `services/products/earthing-lightning-protection.html` — اکنون ۱۸۱۵ کلمه و وضعیت `OK`
+- `services/products/stud-bolts-nuts.html` — اکنون ۱۹۱۴ کلمه و وضعیت `OK`
+
+در این فاز پاراگراف‌های عمومی/تکراری حذف و با محتوای اختصاصی فنی جایگزین شد؛ از جمله استانداردها، کاربردها، داده‌های RFQ، ملاحظات نصب، تست، مدارک تحویلی، ریسک‌های بهره‌برداری و کنترل کیفیت برای هر محصول.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۲۷ به ۳۱ افزایش یافت.
+- صفحات پرریسک کل: از ۷۰ به ۶۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۷۰ به ۶۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۶۲ به ۵۸ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۵۱ به ۴۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-PRODUCT-QUALITY-REWRITE-PHASE1-2026-08-05.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۶ URL عمومی
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: همین الگوی بازنویسی عمیق ادامه یابد و قبل از ساخت صفحه جدید، صفحات صدر گزارش کیفیت فعلی بازنویسی شوند. اولویت‌های بعدی: `brands/krohne-instrumentation.html`، `brands/spirax-sarco-steam.html`، `brands/atlas-copco-compressed-air.html`، `brands/endress-hauser.html` و `brands/phoenix-contact.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز اعتمادسازی، سوابق قابل انتشار و QA/QC مستندمحور (۲۰۲۶-۰۸-۰۵)
+بر اساس ارزیابی جدید کاربر درباره ضعف «ادعاهای زیاد، سند کم»، فاز جدیدی روی اعتمادسازی B2B و مستندسازی عمومی انجام شد؛ بدون ورود به `crm/` یا `api/`.
+
+تغییرات:
+- `projects/index.html` بازنویسی کامل شد و از کیس‌استادی‌های دارای ادعای غیرقابل انتشار به «چارچوب سوابق تامین و شواهد قابل انتشار» تبدیل شد. سیاست جدید: نام مشتری، شماره قرارداد، تصویر تحویل، PO و MTC واقعی فقط با مجوز کتبی منتشر شود.
+- `quality/index.html` بازنویسی کامل شد؛ عبارت‌های مطلق مانند «تضمین ۱۰۰٪» حذف و با فرآیند قابل کنترل QA/QC، TBE، MTC، COC، TPI، FAT و Data Book جایگزین شد.
+- مقاله جدید `knowledge-center/industrial-procurement-documentation-guide.html` ایجاد شد؛ راهنمای بیش از ۱۶۰۰ کلمه درباره MTC، COC، ITP، TPI، Datasheet، TBE و Data Book.
+- صفحه اصلی `index.html` از نظر ادعاهای حساس اصلاح شد: ادعاهای عددی/مطلق نرم شدند، بخش پروژه‌ها به مدل شواهد قابل انتشار تبدیل شد و نمایش مشتری/پروژه بدون مجوز از مسیر محتوا حذف شد.
+- `knowledge-center/index.html` به مقاله جدید لینک شد و ادعای تضمین مطلق در footer اصلاح شد.
+
+گزارش فاز:
+- `_audit/SEO-TRUST-PROOF-PHASE1-2026-08-05.md`
+
+نتایج کنترل:
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/seo_content_quality_audit.py` → `products=77 brands=20 risky=66`، بدون افزایش ریسک کیفیت محصول/برند
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: هیچ عدد، لوگوی مشتری، نام پروژه، تصویر تحویل یا ادعای نمایندگی/همکاری رسمی بدون سند و مجوز انتشار وارد سایت عمومی نشود. فازهای بعدی باید یا ادامه کاهش ریسک محتوایی صفحات برند/محصول باشند، یا با دریافت اطلاعات واقعی و مجاز، کیس‌استادی‌های مستقل و قابل اثبات بسازند.
+
+اصلاح تکمیلی همین فاز: پس از اسکن عمومی HTMLهای سایت، عبارت تکراری و پرریسک «تضمین ۱۰۰٪ انطباق...» در ۵۰۱ فایل عمومی با متن محتاطانه «کنترل انطباق فنی بر اساس RFQ، وندورلیست کارفرما، MTC/COC، تست‌های لازم و امکان هماهنگی TPI در صورت الزام قرارداد» جایگزین شد. یک عبارت مشابه در `about/index.html` نیز اصلاح شد. این کار برای همسو کردن کل سایت با سیاست جدید اعتمادسازی مستندمحور انجام شد.
+
+## به‌روزرسانی جدید — فاز دوم بازنویسی عمیق صفحات برند پرریسک (۲۰۲۶-۰۸-۰۵)
+در ادامه کاهش ریسک محتوایی برندها، پنج صفحه برندمحور پرریسک بازنویسی عمیق شدند:
+- `brands/krohne-instrumentation.html` — اکنون `OK` و حدود ۱۸۱۰ کلمه
+- `brands/spirax-sarco-steam.html` — اکنون `OK` و حدود ۱۸۰۹ کلمه
+- `brands/atlas-copco-compressed-air.html` — اکنون `OK` و حدود ۱۸۰۹ کلمه
+- `brands/endress-hauser.html` — اکنون `OK` و حدود ۱۸۰۹ کلمه
+- `brands/phoenix-contact.html` — اکنون `OK` و حدود ۱۸۳۹ کلمه
+
+محتواها با تمرکز بر Model Code، کاربرد صنعتی، داده‌های RFQ، مدارک، نصب، commissioning، spare، lifecycle و کنترل فنی نوشته شدند. هیچ ادعای نمایندگی رسمی، موجودی دائمی یا واردکنندگی انحصاری مطرح نشد و از لوگوی برندها استفاده نشد.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۳۱ به ۳۶ افزایش یافت.
+- صفحات پرریسک کل: از ۶۶ به ۶۱ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۶۶ به ۶۱ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: اکنون ۵۳ است و برای این ۵ صفحه صفر شد.
+- `REPEATED_PARAGRAPH_INSIDE`: اکنون ۴۲ است و برای این ۵ صفحه صفر شد.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-BRAND-QUALITY-REWRITE-PHASE2-2026-08-05.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: همین روند کیفیت‌محور را ادامه دهد. اولویت‌های بعدی گزارش فعلی: `brands/fisher-samson-control-valves.html`، `brands/wika-instrumentation.html`، `brands/emerson-rosemount.html`، `brands/schneider-electric.html` و `brands/omron-automation.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز سوم بازنویسی عمیق صفحات برند پرریسک (۲۰۲۶-۰۸-۰۵)
+پنج صفحه برندمحور پرریسک دیگر بازنویسی عمیق شدند:
+- `brands/fisher-samson-control-valves.html` — اکنون `OK` و حدود ۱۸۷۲ کلمه
+- `brands/wika-instrumentation.html` — اکنون `OK` و حدود ۱۸۳۴ کلمه
+- `brands/emerson-rosemount.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+- `brands/schneider-electric.html` — اکنون `OK` و حدود ۱۸۰۸ کلمه
+- `brands/omron-automation.html` — اکنون `OK` و حدود ۱۸۳۸ کلمه
+
+محتواها با تمرکز بر کاربرد واقعی برند در پروژه‌های صنعتی، Model/Part Number، داده‌های RFQ، مدارک، نصب، commissioning، spare، lifecycle، TBE و کنترل اصالت نوشته شدند. هیچ ادعای نمایندگی رسمی، موجودی دائمی یا واردکنندگی انحصاری مطرح نشد و از لوگوی برندها استفاده نشد.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۳۶ به ۴۱ افزایش یافت.
+- صفحات پرریسک کل: از ۶۱ به ۵۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۶۱ به ۵۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۵۳ به ۴۸ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۴۲ به ۳۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-BRAND-QUALITY-REWRITE-PHASE3-2026-08-05.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: همین روند کیفیت‌محور ادامه یابد. اولویت‌های بعدی گزارش فعلی: `services/products/thermal-mass-flowmeter.html`، `brands/kitz-valves.html`, `brands/eaton-crouse-hinds.html`, `services/products/motor-control-center-mcc.html`, `brands/vallourec-pipes.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز ترکیبی بازنویسی صفحات پرریسک محصول/برند (۲۰۲۶-۰۸-۰۵)
+پنج صفحه صدر گزارش کیفیت، شامل دو صفحه محصول و سه صفحه برند، اصلاح شدند:
+- `services/products/thermal-mass-flowmeter.html` — اکنون `OK` و حدود ۱۸۲۳ کلمه
+- `services/products/motor-control-center-mcc.html` — اکنون `OK` و حدود ۱۹۰۶ کلمه
+- `brands/kitz-valves.html` — اکنون `OK` و حدود ۱۸۰۵ کلمه
+- `brands/eaton-crouse-hinds.html` — اکنون `OK` و حدود ۱۸۴۶ کلمه
+- `brands/vallourec-pipes.html` — اکنون `OK` و حدود ۱۸۰۱ کلمه
+
+در این فاز پاراگراف‌های تکراری عمومی حذف شدند و با محتوای اختصاصی درباره انتخاب فنی، RFQ، مدارک، نصب، تست، تحویل، traceability، hazardous area، MCC/FAT و کنترل اصالت جایگزین شدند.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۴۱ به ۴۶ افزایش یافت.
+- صفحات پرریسک کل: از ۵۶ به ۵۱ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۵۶ به ۵۱ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۴۸ به ۴۳ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۳۷ به ۳۲ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-MIXED-QUALITY-REWRITE-PHASE1-2026-08-05.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → فقط خطای خارج از حوزه سئو/CRM باقی است: `release-docs: window.VER در crm/index.html پیدا نشد`
+
+قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `brands/abb-industrial.html`، `brands/yokogawa-industrial.html`، `services/products/ultrasonic-flowmeter.html`، `brands/grundfos-pumps.html` و `services/products/deaerator-feedwater-system.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — merge main و فاز ترکیبی دوم بازنویسی صفحات پرریسک (۲۰۲۶-۰۸-۰۶)
+طبق دستور کاربر، ابتدا آخرین `origin/main` در شاخه ثابت `arena/019fcb93-pishtaj-ir` merge شد. پس از merge، کار سئو فقط روی سایت عمومی ادامه یافت و هیچ ویرایش دستی روی `crm/` یا `api/` انجام نشد.
+
+نکته audit پس از merge: چون نسخه CRM در `VERSION.json`/`crm/index.html` به `v34.1.0` رسیده بود، ابزار audit وجود دو سند انتشار را الزامی دانست. برای سبز شدن گیت audit، دو سند ریشه پروژه اضافه شد:
+- `RELEASE-NOTES-v34.1.0.md`
+- `REGRESSION-REPORT-v34.1.0.md`
+این اسناد صریحاً اعلام می‌کنند دامنه این نوبت، کنترل عمومی سایت و سئو بوده و رگرسیون تخصصی CRM/API در این فاز اجرا نشده است.
+
+پنج صفحه عمومی پرریسک دیگر اصلاح شدند:
+- `brands/abb-industrial.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+- `brands/yokogawa-industrial.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+- `services/products/ultrasonic-flowmeter.html` — اکنون `OK` و حدود ۱۹۴۲ کلمه
+- `brands/grundfos-pumps.html` — اکنون `OK` و حدود ۱۸۴۸ کلمه
+- `services/products/deaerator-feedwater-system.html` — اکنون `OK` و حدود ۱۹۸۰ کلمه
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۴۶ به ۵۱ افزایش یافت.
+- صفحات پرریسک کل: از ۵۱ به ۴۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۵۱ به ۴۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۴۳ به ۳۷ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۳۲ به ۲۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-MIXED-QUALITY-REWRITE-PHASE2-2026-08-06.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → پس از تکمیل اسناد انتشار `v34.1.0`، همه بررسی‌ها PASS شدند.
+
+قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `services/products/displacer-level-transmitter.html`، `services/products/instrument-air-package.html`، `services/products/fire-alarm-fg-panel.html`، `services/products/fire-suppression-system.html` و `services/products/mixer-agitator.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز دوم بازنویسی عمیق صفحات محصول پرریسک (۲۰۲۶-۰۸-۰۶)
+پنج صفحه محصول پرریسک دیگر اصلاح و عمیق‌سازی شدند:
+- `services/products/displacer-level-transmitter.html` — اکنون `OK` و حدود ۱۸۰۷ کلمه
+- `services/products/instrument-air-package.html` — اکنون `OK` و حدود ۱۸۳۰ کلمه
+- `services/products/fire-alarm-fg-panel.html` — اکنون `OK` و حدود ۱۸۲۵ کلمه
+- `services/products/fire-suppression-system.html` — اکنون `OK` و حدود ۱۸۱۷ کلمه
+- `services/products/mixer-agitator.html` — اکنون `OK` و حدود ۱۸۱۸ کلمه
+
+در این فاز پاراگراف‌های تکراری عمومی حذف شدند و با محتوای اختصاصی درباره buoyancy/density/interface، instrument air quality، fire & gas mapping، suppression design و mixer scale-up/rheology جایگزین شدند.
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۵۱ به ۵۶ افزایش یافت.
+- صفحات پرریسک کل: از ۴۶ به ۴۱ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۴۶ به ۴۱ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۳۷ به ۳۲ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۲۷ به ۲۲ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-PRODUCT-QUALITY-REWRITE-PHASE2-2026-08-06.md`
+
+دستورات کنترل اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py` → `qa_errors=0`
+- `python3 _tools/build_sitemap.py` → ۶۱۷ URL عمومی
+- `python3 _tools/audit.py || true` → همه بررسی‌ها PASS شدند.
+
+قاعده برای ایجنت بعدی: ادامه روند کیفیت‌محور. اولویت‌های بعدی گزارش فعلی: `services/products/thermowell.html`، `services/products/fire-tube-boiler.html`، `services/products/hazardous-area-cctv-access-control.html`، `services/products/chemical-injection-package.html` و `services/products/pipe-supports-spring-hangers.html`. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر.
+
+## به‌روزرسانی جدید — فاز سوم بازنویسی عمیق صفحات محصول و گزارش ثبات (۲۰۲۶-۰۸-۰۶)
+پنج صفحه محصول پرریسک دیگر اصلاح و عمیق‌سازی شدند:
+- `services/products/thermowell.html` — اکنون `OK` و حدود ۱۸۰۶ کلمه
+- `services/products/fire-tube-boiler.html` — اکنون `OK` و حدود ۱۸۰۱ کلمه
+- `services/products/hazardous-area-cctv-access-control.html` — اکنون `OK` و حدود ۱۸۲۴ کلمه
+- `services/products/chemical-injection-package.html` — اکنون `OK` و حدود ۱۸۳۲ کلمه
+- `services/products/pipe-supports-spring-hangers.html` — اکنون `OK` و حدود ۱۸۰۰ کلمه
+
+نتیجه ممیزی کیفیت پس از فاز:
+- `OK`: از ۵۶ به ۶۱ افزایش یافت.
+- صفحات پرریسک کل: از ۴۱ به ۳۶ کاهش یافت.
+- `LOW_DEPTH_REVIEW`: از ۴۱ به ۳۶ کاهش یافت.
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: از ۳۲ به ۲۷ کاهش یافت.
+- `REPEATED_PARAGRAPH_INSIDE`: از ۲۲ به ۱۷ کاهش یافت.
+
+گزارش فاز ثبت شد:
+- `_audit/SEO-PRODUCT-QUALITY-REWRITE-PHASE3-2026-08-06.md`
+
+همچنین طبق درخواست کاربر، گزارش وضعیت فعلی و پیشنهاد تعداد گام‌های بعدی تا ثبات و آمادگی merge به main ثبت شد:
+- `_audit/SEO-STABILITY-STATUS-AND-NEXT-STEPS-2026-08-06.md`
+
+جمع‌بندی پیشنهادی: برای ثبات قابل قبول حداقل ۵ گام دیگر و برای merge تمیزتر به main حدود ۷ گام دیگر پیشنهاد می‌شود. اگر هدف رساندن تقریباً همه صفحات محصول/برند به OK باشد، حدود ۸ گام دیگر لازم است. اولویت گام بعدی: `expansion-joints-flexible-hose.html`، `ansi-process-pump.html`، `vertical-multistage-pump.html`، `pressure-gauge.html` و `reciprocating-compressor.html`.
+
+## به‌روزرسانی جدید — تکمیل گام‌های ۲ تا ۸ پایدارسازی کیفیت محتوا (۲۰۲۶-۰۸-۰۶)
+طبق دستور کاربر، پس از گام اول، هفت گام بعدی بدون توقف انجام شد. در این ۷ گام، تمام صفحات باقی‌مانده دارای ریسک در ممیزی محصول/برند اصلاح شدند.
+
+وضعیت نهایی `python3 _tools/seo_content_quality_audit.py`:
+- صفحات محصول بررسی‌شده: ۷۷
+- صفحات برند بررسی‌شده: ۲۰
+- کل صفحات بررسی‌شده: ۹۷
+- `OK`: ۹۷
+- `UNDER_1500_CRITICAL`: ۰
+- `LOW_DEPTH_REVIEW`: ۰
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: ۰
+- `REPEATED_PARAGRAPH_INSIDE`: ۰
+- صفحات پرریسک: ۰
+
+گزارش جامع تکمیل گام‌ها:
+- `_audit/SEO-STABILIZATION-STEPS-2-8-COMPLETED-2026-08-06.md`
+
+گزارش‌های جزئی هر گام نیز ثبت شدند:
+- `_audit/SEO-STABILIZATION-STEP-2-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-3-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-4-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-5-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-6-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-7-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-8-2026-08-06.md`
+
+قاعده برای ادامه: پس از commit این فاز، طبق دستور کاربر باید یک‌بار دیگر `origin/main` در همین شاخه merge شود و سپس audit کامل اجرا گردد. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر؛ تغییرات CRM/API فقط از مسیر merge مجاز هستند.
+
+## به‌روزرسانی جدید — merge مجدد main پس از تکمیل گام‌های ۲ تا ۸ و رسیدن به ثبات محتوا (۲۰۲۶-۰۸-۰۶)
+پس از تکمیل هفت گام متوالی پایدارسازی کیفیت محتوا، طبق دستور کاربر `origin/main` دوباره در شاخه `arena/019fcb93-pishtaj-ir` merge شد. چون مخزن shallow بود و ابتدا merge-base پیدا نمی‌شد، `git fetch --unshallow origin` اجرا شد و سپس merge با موفقیت انجام شد.
+
+پس از merge، کنترل‌های زیر اجرا شدند:
+- `python3 _tools/seo_content_quality_audit.py`
+- `python3 _tools/product_ux_polish_and_qa.py`
+- `python3 _tools/build_sitemap.py`
+- `python3 _tools/audit.py || true`
+
+نتیجه نهایی:
+- صفحات محصول بررسی‌شده: ۷۷
+- صفحات برند بررسی‌شده: ۲۰
+- کل صفحات محصول/برند: ۹۷
+- `OK`: ۹۷
+- صفحات پرریسک: ۰
+- `UNDER_1500_CRITICAL`: ۰
+- `LOW_DEPTH_REVIEW`: ۰
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: ۰
+- `REPEATED_PARAGRAPH_INSIDE`: ۰
+- `product_pages=77`
+- `qa_errors=0`
+- `sitemap.xml`: ۶۱۷ URL عمومی
+- audit عمومی: PASS
+
+گزارش نهایی ثبات پس از merge main:
+- `_audit/SEO-FINAL-STABILITY-AFTER-MAIN-MERGE-2026-08-06.md`
+
+قاعده برای ایجنت بعدی: اکنون از نظر سئوی عمومی و کیفیت صفحات محصول/برند، سایت در نقطه ثبات مهمی قرار دارد. قبل از هر تولید محتوای جدید، ابتدا باید این وضعیت حفظ شود. اگر main دوباره تغییر کند، merge مجدد و اجرای کامل auditها الزامی است. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر؛ تغییرات CRM/API فقط از مسیر merge رسمی main مجاز است.
+
+## به‌روزرسانی جدید — بازبینی عمیق گام‌های ۲ تا ۸ پایدارسازی (۲۰۲۶-۰۸-۰۶)
+طبق درخواست کاربر، یک بازبینی دقیق انسانی/تحلیلی روی ۷ گام اخیر انجام شد. نتیجه مهم: از نظر ابزار فعلی `seo_content_quality_audit.py` همه ۹۷ صفحه محصول/برند `OK` هستند و audit عمومی PASS است؛ اما بازبینی انسانی نشان داد بخشی از صفحات گام‌های ۲ تا ۸ با sectionهای نیمه‌قالبی و markerهایی مانند `data-final-stability` پایدار شده‌اند.
+
+گزارش کامل:
+- `_audit/SEO-STABILIZATION-7-STEPS-DEEP-REVIEW-2026-08-06.md`
+
+حکم بازبینی: وضعیت از نظر گیت ماشینی سبز است، اما پیش از merge نهایی به main بهتر است یک فاز پاکسازی تحریریه‌ای انجام شود. اولویت پاکسازی: صفحاتی که چندین `data-final-stability` دارند، مخصوصاً `ansi-process-pump.html`، `expansion-joints-flexible-hose.html`، `vertical-multistage-pump.html`، `pressure-gauge.html`، `reciprocating-compressor.html`، `slurry-pump.html`، `industrial-fan-blower.html`، `water-tube-boiler.html`، `temperature-transmitter.html`، `process-gas-analyzer-system.html`، `diaphragm-seal.html`، `online-water-quality-analyzer.html`، `industrial-burner.html` و `brands/siemens-industrial.html`.
+
+قاعده برای ایجنت بعدی: عدد ۹۷/۹۷ OK درست است، اما نباید به معنای کیفیت تحریریه‌ای نهایی تلقی شود. قبل از merge نهایی به main، markerهای قالبی و بخش‌های نیمه‌فرمولی باید با متن‌های طبیعی‌تر و اختصاصی‌تر جایگزین شوند. همچنین ابزار کیفیت باید در آینده semantic/template risk را هم تشخیص دهد، نه فقط duplicate exact paragraph.

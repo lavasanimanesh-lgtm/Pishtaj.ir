@@ -1,0 +1,41 @@
+cluster,priority,product_fa,product_en,suggested_url,current_status,notes
+Piping,1,لوله API 5L PSL1/PSL2,API 5L Line Pipe,services/products/api-5l-pipe.html,created_batch1_2026-08-04,مقاله آموزشی دارد؛ برای خرید/استعلام صفحه محصول لازم است؛ صفحه ایجاد شد
+Piping,1,فیتینگ جوشی BW زانویی سه‌راهی ردیوسر,Butt Weld Fittings,services/products/butt-weld-fittings.html,created_batch1_2026-08-04,برای اتصال مقالات fitting/elbow/tee/reducer به مقصد تجاری؛ صفحه ایجاد شد
+Piping,1,گسکت صنعتی Spiral Wound RTJ Kammprofile,Industrial Gaskets,services/products/industrial-gaskets.html,created_batch1_2026-08-04,محتوای آموزشی دارد؛ صفحه فروش ندارد؛ صفحه ایجاد شد
+Piping,2,لوله استنلس استیل ASTM A312,Stainless Steel Pipe,services/products/stainless-steel-pipe.html,missing_product_page,برای کلمات خرید لوله استیل 304/316
+Piping,2,لوله آلیاژی ASTM A335 P11/P22/P91,Alloy Steel Pipe A335,services/products/alloy-steel-pipe-a335.html,missing_product_page,مرتبط با نیروگاه و بخار فشار بالا
+Piping,2,لوله دمای پایین ASTM A333 Gr.6,Low Temperature Pipe A333,services/products/a333-low-temperature-pipe.html,missing_product_page,مرتبط با سرویس‌های سرد و گاز
+Piping,2,فیتینگ فورج Socket Weld Threaded,Forged Fittings,services/products/forged-fittings.html,missing_product_page,مکمل پایپینگ فشار بالا
+Piping,3,استادبولت و پیچ‌ومهره B7/2H,Stud Bolts and Nuts,services/products/stud-bolts-nuts.html,missing_product_page,مکمل فلنج و گسکت
+Valves,1,شیر دروازه‌ای API 600/API 602,Gate Valve,services/products/gate-valve.html,created_batch1_2026-08-04,چند مقاله دارد؛ صفحه محصول ندارد؛ صفحه ایجاد شد
+Valves,1,شیر کروی صنعتی,Globe Valve,services/products/globe-valve.html,created_batch1_2026-08-04,برای خرید و انتخاب ولو کنترلی/قطع و وصل؛ صفحه ایجاد شد
+Valves,1,چک ولو Swing Dual Plate Nozzle,Check Valve,services/products/check-valve.html,created_batch1_2026-08-04,چند مقاله دارد؛ صفحه محصول ندارد؛ صفحه ایجاد شد
+Valves,1,کنترل ولو,Control Valve,services/products/control-valve.html,created_batch1_2026-08-04,ابزار و مقالات دارد؛ صفحه محصول/خرید لازم است؛ صفحه ایجاد شد
+Valves,2,باترفلای ولو API 609,Butterfly Valve,services/products/butterfly-valve.html,created_batch2_2026-08-04,مقاله دارد؛ صفحه محصول ندارد؛ صفحه ایجاد شد
+Valves,2,شیر اطمینان و PSV/PRV,Safety Valve PSV PRV,services/products/psv-prv-safety-valve.html,created_batch2_2026-08-04,برای سرویس بخار/فرایند مهم است؛ صفحه ایجاد شد
+Valves,2,اکچویتور برقی و پنوماتیک,Valve Actuator,services/products/valve-actuator.html,created_batch2_2026-08-04,مقاله دارد؛ محصول ندارد؛ صفحه ایجاد شد
+Instrumentation,1,فلومتر صنعتی,Industrial Flowmeter,services/products/flowmeter.html,created_batch1_2026-08-04,صفحه هاب محصولی برای Mag/Coriolis/Vortex/Ultrasonic؛ صفحه ایجاد شد
+Instrumentation,1,ترانسمیتر فشار عمومی,Pressure Transmitter,services/products/pressure-transmitter.html,created_batch1_2026-08-04,Rosemount 3051 دارد؛ هاب عمومی ندارد؛ صفحه ایجاد شد
+Instrumentation,1,ترانسمیتر اختلاف فشار,DP Transmitter,services/products/differential-pressure-transmitter.html,created_batch2_2026-08-04,برای level/flow/pressure کاربردی است؛ صفحه ایجاد شد
+Instrumentation,2,فلومتر مغناطیسی,Magnetic Flowmeter,services/products/magnetic-flowmeter.html,created_batch2_2026-08-04,زیرصفحه محصولی از هاب فلومتر؛ صفحه ایجاد شد
+Instrumentation,2,فلومتر کوریولیس,Coriolis Flowmeter,services/products/coriolis-flowmeter.html,created_batch2_2026-08-04,کلمه خرید ارزشمند؛ صفحه ایجاد شد
+Instrumentation,2,فلومتر ورتکس,Vortex Flowmeter,services/products/vortex-flowmeter.html,created_batch2_2026-08-04,مقاله دارد؛ محصول ندارد؛ صفحه ایجاد شد
+Instrumentation,2,رادار لول ترانسمیتر,Radar Level Transmitter,services/products/radar-level-transmitter.html,created_batch2_2026-08-04,مقاله دارد؛ محصول ندارد؛ صفحه ایجاد شد
+Instrumentation,2,Displacer Level Transmitter,Displacer Level Transmitter,services/products/displacer-level-transmitter.html,missing_product_page,خلأ محتوایی/محصولی مهم
+Electrical,1,تابلو برق LV/MV Switchgear,LV MV Switchgear,services/products/lv-mv-switchgear.html,created_batch1_2026-08-04,صفحه خدمات دارد؛ محصول ندارد؛ صفحه ایجاد شد
+Electrical,1,کلید صنعتی ACB/MCCB/VCB,Industrial Circuit Breakers,services/products/industrial-circuit-breakers.html,created_batch2_2026-08-04,مقالات پراکنده دارد؛ صفحه ایجاد شد
+Electrical,1,VFD و Soft Starter,VFD and Soft Starter,services/products/vfd-soft-starter.html,created_batch2_2026-08-04,مقاله دارد؛ صفحه خرید لازم است؛ صفحه ایجاد شد
+Electrical,2,ترانسفورماتور توزیع و قدرت,Power Transformer,services/products/power-transformer.html,created_batch2_2026-08-04,مقاله دارد؛ محصول ندارد؛ صفحه ایجاد شد
+Electrical,2,UPS صنعتی و شارژر باتری,Industrial UPS Battery Charger,services/products/industrial-ups-battery-charger.html,missing_product_page,مقاله دارد؛ محصول ندارد
+Electrical,2,کابل قدرت و ابزار دقیق,Industrial Power and Instrument Cable,services/products/industrial-power-instrument-cable.html,missing_product_page,مقاله دارد؛ محصول ندارد
+Pumps,1,پمپ سانتریفیوژ API 610,API 610 Centrifugal Pump,services/products/api-610-centrifugal-pump.html,created_batch1_2026-08-04,صفحه خدمات پمپ دارد؛ صفحه محصول لازم است؛ صفحه ایجاد شد
+Pumps,2,دوزینگ پمپ API 675,Dosing Metering Pump,services/products/dosing-metering-pump.html,created_batch2_2026-08-04,برای مواد شیمیایی و تزریق؛ صفحه ایجاد شد
+Pumps,2,پمپ اسلاری,Slurry Pump,services/products/slurry-pump.html,missing_product_page,مرتبط با فولاد/معدن/پساب
+Compressors,2,کمپرسور اسکرو,Screw Compressor,services/products/screw-compressor.html,created_batch2_2026-08-04,صفحه خدمات دارد؛ محصول ندارد؛ صفحه ایجاد شد
+Compressors,2,کمپرسور رفت‌وبرگشتی API 618,Reciprocating Compressor,services/products/reciprocating-compressor.html,missing_product_page,مقاله/خدمات دارد
+Compressors,2,پکیج Instrument Air,Instrument Air Package,services/products/instrument-air-package.html,missing_product_page,برای پتروشیمی و نیروگاه مهم است
+Boilers,2,بویلر Fire-tube,Fire Tube Boiler,services/products/fire-tube-boiler.html,missing_product_page,صفحه خدمات دارد؛ محصول ندارد
+Boilers,2,Steam Trap,Steam Trap,services/products/steam-trap.html,created_batch2_2026-08-04,برای long-tail خرید مناسب است؛ صفحه ایجاد شد
+Process Equipment,1,مبدل حرارتی Shell & Tube,Shell and Tube Heat Exchanger,services/products/shell-tube-heat-exchanger.html,created_batch1_2026-08-04,مقاله دارد؛ محصول ندارد؛ صفحه ایجاد شد
+Process Equipment,2,Air Cooler / Fin Fan,Air Cooler Fin Fan,services/products/air-cooler-fin-fan.html,missing_product_page,مقاله دارد؛ محصول ندارد
+Process Equipment,2,مخزن تحت فشار,Pressure Vessel,services/products/pressure-vessel.html,created_batch2_2026-08-04,بلاگ دارد؛ صفحه محصول ندارد؛ صفحه ایجاد شد
