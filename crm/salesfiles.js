@@ -590,7 +590,7 @@
     var h = '<div style="padding:4px 14px 12px;border-top:1px solid var(--brd)">' + sfFinancialStrip(r, d);
     var KINDS = { TO: 'پیشنهاد فنی', CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی' };
     d.offers.forEach(function (o) {
-      h += row('📄', '<b dir="ltr">' + escP(o.no) + '</b> — ' + (KINDS[o.kind] || o.kind) + (o.rev ? ' <span style="color:#7c3aed">(آخرین رویژن: Rev.' + o.rev + ')</span>' : '') + ' — ' + escP(o.dt || o.dateFa || ''),
+      h += row('📄', '<b dir="ltr">' + escP(o.no) + '</b> — ' + (KINDS[o.kind] || o.kind) + ((typeof window.ptfRialCompanionBadge === 'function') ? ' ' + window.ptfRialCompanionBadge(o) : '') + (o.rev ? ' <span style="color:#7c3aed">(آخرین رویژن: Rev.' + o.rev + ')</span>' : '') + ' — ' + escP(o.dt || o.dateFa || ''),
         '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();offerQuickPreview(\'' + ptfOnClickArg(o.no) + '\')">👁</button>');
     });
     /* v17.1 (US-404 فاز ۲): استعلام‌های تامین — رهگیری کشف قیمت داخل خود پرونده */
@@ -735,6 +735,8 @@
           ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور به حسابدار</button>'
           : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
       })() +
+      /* v34.2.0 (US-FX2RIAL فاز ۱): تبدیل پیشنهاد ارزی برنده به نسخه ریالی — پیشنهاد اصلی هرگز تغییر نمی‌کند */
+      ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') +
       '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')">💥 ثبت زیان پروژه</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="sfClose(\'' + ptfOnClickArg(r.cd) + '\')">' + (hasInv ? '🏁 مختومه (پایان پروژه و تسویه کامل)' : '🚫 مختومه بدون فاکتور (عدم برنده شدن/سایر)') + '</button>' +
       '</div></div>';
