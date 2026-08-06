@@ -1439,6 +1439,12 @@
     var o = offers.filter(function (x) { return x.no === no; })[0];
     if (!o) return;
     if (o.kind !== 'CO' && o.kind !== 'TC') { alert('پیش‌پرداخت فقط برای پیشنهاد مالی/فنی‌مالی کاربرد دارد'); return; }
+    /* US-FX2RIAL: نسخه ریالی (همراه) سند ارائه‌ای است — پیش‌پرداخت/مطالبه فقط روی سند ارزی مبدأ ثبت می‌شود
+       تا مطالبهٔ تکراری ایجاد نشود و مبنای ارزی/نرخ ثبت‌شدهٔ اصلی محفوظ بماند. */
+    if (o.rialOf) {
+      alert('🔒 این سند «نسخه ریالی» پیشنهاد ارزی ' + o.rialOf + ' است.\n\n• پیش‌پرداخت واقعی فقط روی پیشنهاد ارزی مبدأ (' + o.rialOf + ') ثبت می‌شود و نرخ/مبلغ وصولیِ آنجا محفوظ است.\n• ثبت پیش‌پرداخت روی نسخه ریالی «مطالبه تکراری» می‌سازد و مجاز نیست.\n\nبرای اصلاح پیش‌پرداخت به پیشنهاد ارزی مبدأ یا پرونده فروش مراجعه کنید.');
+      return;
+    }
     var cur = offerCur(o), total = offerTotal(o), old = ptfAdvanceNormalize(o) || {};
     var fx = cur !== 'IRR';
     var body = 'مبلغ کل سند: <b dir="ltr">' + advMoney(total, cur) + '</b><br>درصد و مبلغ به‌صورت ساختاریافته ذخیره می‌شود و متن/مطالبات از همین داده ساخته می‌شود؛ متن آزاد مبنای محاسبه مالی نیست.' + (fx ? '<br>برای سند ارزی، نرخ تسعیر پیش‌پرداخت الزامی است.' : '') + '<div id="advLiveBox" style="margin-top:8px"></div>';
@@ -1543,9 +1549,11 @@
     };
   }
   window.advancePaid = function (no) {
+    var offers = getData('ptf_crm_offers'); var o = offers.filter(function (x) { return x.no === no; })[0];
+    if (o && o.rialOf) { alert('🔒 این سند «نسخه ریالی» پیشنهاد ارزی ' + o.rialOf + ' است — وصول پیش‌پرداخت فقط روی پیشنهاد ارزی مبدأ ثبت می‌شود (US-FX2RIAL).'); return; }
     var hasInv = (getData('ptf_crm_invoices') || []).some(function (iv) { return iv.offerNo === no; });
     if (hasInv) { alert('برای این درخواست فاکتور صادر شده است؛ از این به بعد ملاک وصول، مبلغ فاکتور ریالی است و ثبت وصول باید در بخش مطالبات/فاکتور انجام شود.'); return; }
-    var offers = getData('ptf_crm_offers'); var o = offers.filter(function (x) { return x.no === no; })[0]; if (!o || !o.advance) return;
+    if (!o || !o.advance) return;
     var a = ptfAdvanceNormalize(o); var cur = a.cur || offerCur(o);
     if (cur !== 'IRR') {
       ptfDialog({ title: '✔ ثبت وصول پیش‌پرداخت ارزی ' + no, body: 'سند ارزی است. یا «درصد از مانده پیش‌پرداخت» را وارد کنید یا مبلغ ریالی وصولی را. نرخ تسعیر روز الزامی است.', fields: [

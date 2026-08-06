@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — offer-rial-convert.js — v34.2.2 — US-FX2RIAL (فاز ۲)
+   PTF CRM — offer-rial-convert.js — v34.2.3 — US-FX2RIAL (فاز ۲)
    «تبدیل پیشنهاد ارزی به پیشنهاد ریالی» — دستور کارفرما ۱۴۰۵/۰۵/۱۵
 
    سناریو: کارفرما (خریدار) تقاضا دارد نسخه ریالیِ یک پیشنهاد مالی «ارزی»
@@ -128,24 +128,62 @@
   /* جمع‌بندی بندهای شرایط نسخه ریالی: تبدیل خودکار عبارت‌های ارزی + بند شرایط پرداخت (اگر باشد) */
   function buildConvertedTerms(o, rate) {
     var conv = convertTermsArr((o && o.terms) || [], (o && o.currency), rate);
-    var advTerm = buildAdvanceTerm(o && o.advance, fxTotal(o), rate);
+    var advTerm = buildAdvanceTerm(o);
     if (advTerm) { conv.terms.unshift(advTerm); conv.changed++; }
     return conv;
   }
 
-  /* بند شرایط پرداخت: از advance ساختاریافته پیشنهاد ارزی (بدون کپی خود advance —
-     کپی آن در مطالبات/پیش‌پرداخت‌ها مطالبه تکراری می‌سازد؛ فقط معادل ریالی به متن شرایط می‌آید) */
-  function buildAdvanceTerm(adv, totalFx, rate) {
+  /* ---------- بلوک «مبنای ارزی» برای نسخه ریالی (US-FX2RIAL) ----------
+     پیش‌پرداخت/فاکتور واقعی روی پیشنهاد ارزی مبدأ می‌ماند؛ این بلوک صرفاً
+     «مبنای ارزی» (نرخ مبدأ، مبلغ ارزی، درصد و مبلغ وصول‌شدهٔ پیش‌پرداخت) را
+     روی نسخه ریالی نگه می‌دارد تا در صورت تغییر نرخ، مبلغ واقعی وصول‌شده
+     (که با نرخ قدیم دریافت شده) گم نشود. */
+  function fxBasisOf(o) {
+    var adv = (o && o.advance) || null;
+    var a = null;
+    try { a = (typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(o) : null; } catch (e) { a = null; }
+    return {
+      originalRate: (+(o && o.fxRateRef) > 0) ? +o.fxRateRef : ((adv && +adv.rate) || 0),
+      originalFxTotal: fxTotal(o),
+      currency: (o && o.currency) || 'IRR',
+      advancePct: (a && a.pct != null) ? Math.round(+a.pct) : ((adv && +adv.pct) || 0),
+      advanceDocAmt: (a && +a.docAmt) || ((adv && +adv.docAmt) || 0),
+      advanceReceivedIrr: (a && +a.receivedAmt) || 0,
+      advanceReceivedDoc: (a && +a.receivedDocAmt) || 0
+    };
+  }
+
+  /* بند شرایط پرداخت نسخه ریالی: از دادهٔ پیش‌پرداختِ پیشنهاد ارزی مبدأ ساخته می‌شود
+     (بدون کپی خود advance — کپی آن در مطالبات مطالبه تکراری می‌سازد). مبلغ ریالی با
+     «نرخِ ثبت‌شدهٔ پیش‌پرداخت» و مبلغِ واقعیِ وصول‌شده، و «مبنای ارزی» را صریح نشان می‌دهد
+     تا تغییر نرخِ تبدیل، درصد/مبلغ واقعی پرداخت‌شده را تحریف نکند. */
+  function buildAdvanceTerm(o) {
     try {
-      if (!adv || !adv.mode || adv.mode === 'none' || adv.mode === 'no') return null;
-      var pct = Math.max(0, Math.min(100, +adv.pct || 0));
-      if (adv.mode === 'full' || pct >= 100) return 'Payment Terms: 100% full payment — total ' + fmtIrr(totalFx * rate) + ' IRR.';
-      if (adv.mode === 'pct' && pct > 0) return 'Payment Terms: ' + pct + '% advance payment (= ' + fmtIrr(totalFx * pct / 100 * rate) + ' IRR), balance before delivery.';
-      if (adv.mode === 'amt' && +adv.docAmt > 0) {
-        var p = totalFx ? Math.round(+adv.docAmt * 100 / totalFx) : 0;
-        return 'Payment Terms: Advance payment ' + fmtIrr(+adv.docAmt * rate) + ' IRR' + (p ? ' (' + p + '%)' : '') + ', balance before delivery.';
+      var adv = (o && o.advance) || null;
+      if (!adv || adv.mode === 'none' || adv.mode === 'no') return null;
+      var a = null;
+      try { a = (typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(o) : null; } catch (e) { a = null; }
+      var cur = (o && o.currency) || 'IRR';
+      var totalFx = fxTotal(o);
+      var pct = (a && a.pct != null) ? Math.round(+a.pct) : Math.max(0, Math.min(100, +adv.pct || 0));
+      var advRate = (+adv.rate > 0) ? +adv.rate : ((a && +a.rate) || 0); /* نرخِ ثبت پیش‌پرداخت، نه نرخ تبدیل */
+      var docAmt = (a && +a.docAmt) || (+adv.docAmt) || 0;
+      var irrAmt = (a && +a.amt) || (docAmt && advRate ? Math.round(docAmt * advRate) : (totalFx * pct / 100 * (advRate || 1)));
+      var receivedIrr = (a && +a.receivedAmt) || 0;
+      var receivedDoc = (a && +a.receivedDocAmt) || 0;
+      var full = adv.mode === 'full' || adv.cashFull || pct >= 100 || (a && a.cashFull);
+      var s = 'Payment Terms: ';
+      if (full) s += '100% full payment — total ' + fmtIrr(irrAmt || (totalFx * advRate)) + ' IRR';
+      else s += (pct > 0 ? pct + '% ' : '') + 'advance payment' + (irrAmt ? ' (= ' + fmtIrr(irrAmt) + ' IRR)' : '') + ', balance before delivery';
+      /* مبنای ارزی (نرخِ مبدأ) — فقط اگر ارزی و دادهٔ ارزی موجود باشد */
+      if (cur !== 'IRR') {
+        s += ' — FX basis: ' + fmtIrr(docAmt || (totalFx * pct / 100)) + ' ' + cur + (advRate ? ' @ ' + fmtIrr(advRate) + ' IRR' : '');
       }
-      return null;
+      /* مبلغ واقعیِ وصول‌شده — با نرخ قدیم دریافت شده؛ باید صریح بماند */
+      if (receivedIrr > 0) {
+        s += ' — ' + fmtIrr(receivedIrr) + ' IRR already received' + (receivedDoc ? ' (' + fmtIrr(receivedDoc) + ' ' + cur + ')' : '');
+      }
+      return s + '.';
     } catch (e) { return null; }
   }
 
@@ -159,7 +197,7 @@
     if (!src || !(rate > 0)) { alert('⛔ پیشنهاد مبدأ یا نرخ تسعیر ثبت‌شده یافت نشد.'); return; }
     if (confirmFirst && !confirm('⚠️ شرایط و ضوابط فعلی نسخه ریالی با نسخه تبدیل‌شده از پیشنهاد اصلی ' + src.no + ' جایگزین می‌شود.\nادامه می‌دهید؟')) return;
     var conv = convertTermsArr(src.terms || [], src.currency, rate);
-    var advTerm = buildAdvanceTerm(src.advance, fxTotal(src), rate);
+    var advTerm = buildAdvanceTerm(src);
     if (advTerm) conv.terms.unshift(advTerm);
     comp.terms = conv.terms;
     comp.fxConvert.termsRewritten = conv.terms.length;
@@ -193,6 +231,10 @@
     var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
     var liveRate = src.currency === 'USD' ? (+L.usd_free || 0) : src.currency === 'EUR' ? (+L.eur_free || 0) : 0;
     var totalFx = fxTotal(src);
+    var _b = fxBasisOf(src);
+    var fxNote = (_b.advanceReceivedIrr > 0 || _b.advancePct > 0)
+      ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:5px 9px;font-size:11px;color:#166534;margin-top:4px">💰 مبنای ارزی محفوظ: نرخ مبدأ <b>' + (+_b.originalRate).toLocaleString('fa-IR') + '</b> ریال — ' + (_b.advancePct ? 'پیش‌پرداخت ' + _b.advancePct + '٪' : '') + (_b.advanceReceivedIrr > 0 ? ' — وصول‌شدهٔ واقعی: <b>' + (+_b.advanceReceivedIrr).toLocaleString('fa-IR') + ' ریال</b>' + (_b.advanceReceivedDoc ? ' (' + (+_b.advanceReceivedDoc).toLocaleString('en-US') + ' ' + escP(src.currency) + ')' : '') : '') + ' (تغییر نرخِ تبدیل، مبلغ واقعی وصول‌شده را عوض نمی‌کند)</div>'
+      : '';
     var html = '<div class="md-b" id="sfRcTermsDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:800px">' +
       '<h3>🔧 شرایط و ضوابط نسخه ریالی — <span dir="ltr">' + escP(comp.no) + '</span></h3>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">' +
@@ -207,7 +249,7 @@
         '</div>' +
         '<small style="color:#64748b">نرخ آزاد لحظه‌ای: ' + (liveRate ? liveRate.toLocaleString('fa-IR') + ' ریال' : 'در دسترس نیست') + '</small></div>' +
       '<div style="font-size:12px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:8px">' +
-        'مبلغ پیشنهاد ارزی: <b dir="ltr">' + money(totalFx, src.currency) + '</b> — معادل ریالی (با نرخ فعلی): <b id="sfRcTermsTotal">' + money(Math.round(totalFx * rate), 'IRR') + '</b></div>' +
+        'مبلغ پیشنهاد ارزی: <b dir="ltr">' + money(totalFx, src.currency) + '</b> — معادل ریالی (با نرخ فعلی): <b id="sfRcTermsTotal">' + money(Math.round(totalFx * rate), 'IRR') + '</b>' + fxNote + '</div>' +
       '<div id="sfRcTermsList"></div>' +
       '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap">' +
         '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerQuickPreview(\'' + ptfOnClickArg(comp.no) + '\')" title="پیش‌نمایش سند نسخه ریالی">👁 پیش‌نمایش سند</button>' +
@@ -286,6 +328,13 @@
     comp.fxConvert.rate = rate;
     comp.fxConvert.totalIrr = totalIrr;
     comp.fxConvert.termsRewritten = comp.terms.length;
+    /* مبنای ارزی دست‌نخورده بماند (نرخ مبدأ/مبلغ ارزی/مبلغ وصول‌شده‌ٔ واقعی — US-FX2RIAL)؛
+       فقط در صورت نبود، یک‌بار از مبدأ پر شود. */
+    if (!comp.fxConvert.originalRate) { var _fb = fxBasisOf(src); comp.fxConvert.originalRate = _fb.originalRate; comp.fxConvert.originalFxTotal = _fb.originalFxTotal; comp.fxConvert.srcCurrency = _fb.currency; comp.fxConvert.advancePct = _fb.advancePct; comp.fxConvert.advanceDocAmt = _fb.advanceDocAmt; comp.fxConvert.advanceReceivedIrr = _fb.advanceReceivedIrr; comp.fxConvert.advanceReceivedDoc = _fb.advanceReceivedDoc; }
+    /* درصد وصول‌شده با مبلغ واقعی (دریافت‌شده با نرخ قدیم) بر کل جدید — تحریف نشود */
+    if (comp.fxConvert.advanceReceivedIrr > 0 && totalIrr > 0) {
+      comp.fxConvert.advanceReceivedPctOfNew = Math.round(comp.fxConvert.advanceReceivedIrr * 10000 / totalIrr) / 100;
+    } else { comp.fxConvert.advanceReceivedPctOfNew = 0; }
     comp.currency = 'IRR';
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
@@ -344,14 +393,19 @@
       var totalIrr = items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
       /* شرایط و ضوابط: تبدیل خودکار عبارات/مبالغ ارزی به ریالی + بند شرایط پرداخت */
       var termsConv = convertTermsArr(o.terms || [], o.currency, rate);
-      var advTerm = buildAdvanceTerm(o.advance, totalFx, rate);
+      var advTerm = buildAdvanceTerm(o);
       if (advTerm) { termsConv.terms.unshift(advTerm); termsConv.changed++; }
+      var _fxBasis = fxBasisOf(o); /* مبنای ارزی/پیش‌پرداخت واقعی سند مبدأ — برای محفوظ ماندن پس از ریالی‌شدن */
       var comp = {
         no: newNo, kind: 'CO', rev: 0, editMode: 'new',
         /* وضعیت: ارسال‌شده — نسخه ریالی هرگز برنده/بازنده نمی‌شود (هوک offerSetSt) */
         st: 'sent',
         rialOf: o.no,
-        fxConvert: { from: o.no, cur: o.currency, rate: rate, totalFx: totalFx, totalIrr: totalIrr, dateISO: dateISO, termsRewritten: termsConv.changed || 0, at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()), by: curName() },
+        fxConvert: { from: o.no, cur: o.currency, rate: rate, totalFx: totalFx, totalIrr: totalIrr, dateISO: dateISO, termsRewritten: termsConv.changed || 0, at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()), by: curName(),
+          /* مبنای ارزی (نرخ مبدأ، مبلغ ارزی، درصد و مبلغ وصول‌شدهٔ پیش‌پرداخت) — US-FX2RIAL */
+          originalRate: _fxBasis.originalRate, originalFxTotal: _fxBasis.originalFxTotal, srcCurrency: _fxBasis.currency,
+          advancePct: _fxBasis.advancePct, advanceDocAmt: _fxBasis.advanceDocAmt,
+          advanceReceivedIrr: _fxBasis.advanceReceivedIrr, advanceReceivedDoc: _fxBasis.advanceReceivedDoc },
         currency: 'IRR', fxBasis: '', fxRateRef: 0,
         dateEn: dateISO,
         dateFa: (typeof ptfISOToJ === 'function' ? ptfISOToJ(dateISO) : dateISO),
