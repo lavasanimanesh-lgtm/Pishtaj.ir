@@ -1,8 +1,8 @@
 type,path,title,words,long_paragraphs,repeated_inside_count,duplicate_across_count,hero_image,hero_image_kb,risk
-product,services/products/a333-low-temperature-pipe.html,خرید و تامین لوله دمای پایین ASTM A333 Gr.6,1500,19,0,4,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/air-cooler-fin-fan.html,خرید و تامین Air Cooler و Fin Fan مطابق API 661,1505,17,0,6,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/alloy-steel-pipe-a335.html,خرید و تامین لوله آلیاژی ASTM A335 P11/P22/P91,1532,18,0,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/ansi-process-pump.html,خرید و تامین پمپ ANSI Process مطابق ASME B73.1,1624,17,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/a333-low-temperature-pipe.html,خرید و تامین لوله دمای پایین ASTM A333 Gr.6,1931,21,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/air-cooler-fin-fan.html,خرید و تامین Air Cooler و Fin Fan مطابق API 661,1853,17,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/alloy-steel-pipe-a335.html,خرید و تامین لوله آلیاژی ASTM A335 P11/P22/P91,1932,22,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/ansi-process-pump.html,خرید و تامین پمپ ANSI Process مطابق ASME B73.1,1939,17,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/api-5l-pipe.html,خرید و تامین لوله API 5L PSL1/PSL2,1996,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/api-610-centrifugal-pump.html,خرید و تامین پمپ سانتریفیوژ API 610,1989,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/ball-valve.html,خرید و تامین بال ولو صنعتی API 6D,2164,21,0,0,assets/images/ptf-logo.png,196,OK
@@ -14,67 +14,67 @@ product,services/products/chemical-injection-package.html,خرید و تامین
 product,services/products/control-valve.html,خرید و تامین کنترل ولو IEC 60534,2044,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/coriolis-flowmeter.html,خرید و تامین فلومتر کوریولیس,1937,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/deaerator-feedwater-system.html,خرید و تامین دی‌اریاتور و سیستم آب تغذیه بویلر,1980,23,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/diaphragm-seal.html,خرید و تامین دیافراگم سیل و Remote Seal برای ترانسمیتر و گیج,1650,18,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/diaphragm-seal.html,خرید و تامین دیافراگم سیل و Remote Seal برای ترانسمیتر و گیج,1870,17,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/differential-pressure-transmitter.html,خرید و تامین ترانسمیتر اختلاف فشار DP,1994,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/displacer-level-transmitter.html,خرید و تامین ترانسمیتر سطح دیسپلیسری؛ Torque Tube و Cage Type,1807,20,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/dosing-metering-pump.html,خرید و تامین دوزینگ پمپ API 675,1924,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/earthing-lightning-protection.html,خرید و تامین سیستم ارتینگ و حفاظت صاعقه؛ IEC 62305 و IEEE 80,1815,17,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/expansion-joints-flexible-hose.html,خرید و تامین اکسپنشن جوینت فلزی و Flexible Metal Hose,1607,17,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/explosion-proof-lighting.html,خرید و تامین چراغ ضدانفجار LED؛ ATEX، IECEx، Zone 1/2,1535,17,0,6,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/expansion-joints-flexible-hose.html,خرید و تامین اکسپنشن جوینت فلزی و Flexible Metal Hose,1818,16,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/explosion-proof-lighting.html,خرید و تامین چراغ ضدانفجار LED؛ ATEX، IECEx، Zone 1/2,1848,17,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/fire-alarm-fg-panel.html,خرید و تامین پنل اعلام حریق و Fire &amp; Gas صنعتی؛ EN 54، NFPA 72,1825,23,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/fire-suppression-system.html,خرید و تامین سیستم اطفای حریق Clean Agent، CO2، Foam و Water Mist,1817,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/fire-tube-boiler.html,خرید و تامین بویلر فایرتیوب صنعتی؛ Packaged Steam Boiler,1801,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/fixed-gas-detector.html,خرید و تامین دتکتور گاز ثابت صنعتی؛ H2S، LEL، O2، CO,1503,19,0,4,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/flowmeter.html,خرید و تامین فلومتر صنعتی,1687,17,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
-product,services/products/forged-fittings.html,خرید و تامین فیتینگ فورج ASME B16.11؛ Socket Weld و Threaded,1518,18,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
+product,services/products/fixed-gas-detector.html,خرید و تامین دتکتور گاز ثابت صنعتی؛ H2S، LEL، O2، CO,1907,21,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/flowmeter.html,خرید و تامین فلومتر صنعتی,2072,21,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/forged-fittings.html,خرید و تامین فیتینگ فورج ASME B16.11؛ Socket Weld و Threaded,1909,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/gate-valve.html,خرید و تامین گیت ولو API 600 و API 602,2104,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/globe-valve.html,خرید و تامین گلوب ولو صنعتی API 623,2076,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/hazardous-area-cctv-access-control.html,خرید و تامین CCTV ضدانفجار و Access Control صنعتی,1824,22,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/industrial-burner.html,خرید و تامین مشعل صنعتی؛ Gas/Oil/Dual Fuel Burner و BMS,1657,18,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/industrial-burner.html,خرید و تامین مشعل صنعتی؛ Gas/Oil/Dual Fuel Burner و BMS,1892,17,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/industrial-circuit-breakers.html,خرید و تامین کلید صنعتی ACB MCCB VCB,1934,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/industrial-fan-blower.html,خرید و تامین فن و بلوور صنعتی؛ Centrifugal Fan، ID/FD Fan,1630,17,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/industrial-fan-blower.html,خرید و تامین فن و بلوور صنعتی؛ Centrifugal Fan، ID/FD Fan,1843,16,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/industrial-gaskets.html,خرید و تامین گسکت صنعتی,1895,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/industrial-hvac-pressurization.html,خرید و تامین HVAC صنعتی و Pressurization اتاق کنترل,1634,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/industrial-power-instrument-cable.html,خرید و تامین کابل قدرت و ابزار دقیق صنعتی؛ XLPE، Armored، Shielded,1500,18,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
+product,services/products/industrial-hvac-pressurization.html,خرید و تامین HVAC صنعتی و Pressurization اتاق کنترل,1804,15,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/industrial-power-instrument-cable.html,خرید و تامین کابل قدرت و ابزار دقیق صنعتی؛ XLPE، Armored، Shielded,1905,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/industrial-strainer-filter.html,خرید و تامین Y Strainer، Basket Strainer و فیلتر صنعتی,1824,19,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/industrial-ups-battery-charger.html,خرید و تامین UPS صنعتی و شارژر باتری؛ AC/DC Backup Power,1502,19,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
+product,services/products/industrial-ups-battery-charger.html,خرید و تامین UPS صنعتی و شارژر باتری؛ AC/DC Backup Power,1906,23,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/instrument-air-package.html,خرید و تامین پکیج Instrument Air؛ کمپرسور، درایر، فیلتر و Receiver,1830,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/lv-mv-switchgear.html,خرید و تامین تابلو برق LV/MV,1902,20,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/magnetic-flowmeter.html,خرید و تامین فلومتر مغناطیسی Magmeter,1934,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/mechanical-seal.html,خرید و تامین مکانیکال سیل صنعتی API 682 برای پمپ,1514,17,0,6,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/mechanical-seal.html,خرید و تامین مکانیکال سیل صنعتی API 682 برای پمپ,1830,17,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/mixer-agitator.html,خرید و تامین میکسر و آگیتاتور صنعتی؛ Top Entry، Side Entry و High Shear,1818,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/motor-control-center-mcc.html,خرید و تامین تابلو MCC مرکز کنترل موتور IEC 61439 / NEMA ICS 18,1906,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/online-water-quality-analyzer.html,خرید و تامین آنالایزر آنلاین کیفیت آب؛ pH، Conductivity، Turbidity، DO,1655,17,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/orifice-plate-flowmeter.html,خرید و تامین Orifice Plate Flowmeter مطابق ISO 5167,1504,19,0,4,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/online-water-quality-analyzer.html,خرید و تامین آنالایزر آنلاین کیفیت آب؛ pH، Conductivity، Turbidity، DO,1833,16,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/orifice-plate-flowmeter.html,خرید و تامین Orifice Plate Flowmeter مطابق ISO 5167,1909,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/pipe-supports-spring-hangers.html,خرید و تامین ساپورت پایپینگ، Spring Hanger و Pipe Shoe,1800,19,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/plate-heat-exchanger.html,خرید و تامین مبدل حرارتی صفحه‌ای Gasketed و Brazed,1508,16,0,6,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/plc-control-panel.html,خرید و تامین تابلو کنترل PLC، I/O، HMI و تجهیزات اتوماسیون صنعتی,1658,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/positive-displacement-pump.html,خرید و تامین پمپ جابجایی مثبت؛ Screw، Gear و Lobe Pump,1649,17,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/plate-heat-exchanger.html,خرید و تامین مبدل حرارتی صفحه‌ای Gasketed و Brazed,1831,16,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/plc-control-panel.html,خرید و تامین تابلو کنترل PLC، I/O، HMI و تجهیزات اتوماسیون صنعتی,1940,16,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/positive-displacement-pump.html,خرید و تامین پمپ جابجایی مثبت؛ Screw، Gear و Lobe Pump,1834,16,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/power-transformer.html,خرید و تامین ترانسفورماتور توزیع و قدرت,1884,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/pressure-gauge.html,خرید و تامین گیج فشار صنعتی؛ Safety Pattern مطابق ASME B40.100,1627,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/pressure-gauge.html,خرید و تامین گیج فشار صنعتی؛ Safety Pattern مطابق ASME B40.100,1879,16,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/pressure-transmitter.html,خرید و تامین ترانسمیتر فشار صنعتی,1986,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/pressure-vessel.html,خرید و تامین مخزن تحت فشار ASME,1914,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/process-gas-analyzer-system.html,خرید و تامین سیستم آنالایزر گاز فرایندی؛ Extractive و In-situ,1640,18,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/psv-prv-safety-valve.html,خرید و تامین PSV و Safety Valve,1743,18,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
+product,services/products/process-gas-analyzer-system.html,خرید و تامین سیستم آنالایزر گاز فرایندی؛ Extractive و In-situ,1886,17,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/psv-prv-safety-valve.html,خرید و تامین PSV و Safety Valve,2150,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/radar-level-transmitter.html,خرید و تامین رادار لول ترانسمیتر,1937,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/reciprocating-compressor.html,خرید و تامین کمپرسور رفت‌وبرگشتی API 618 برای گاز فرایندی,1627,17,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/rosemount-3051.html,تامین ترانسمیتر فشار Rosemount 3051,1676,18,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
+product,services/products/reciprocating-compressor.html,خرید و تامین کمپرسور رفت‌وبرگشتی API 618 برای گاز فرایندی,1950,17,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/rosemount-3051.html,تامین ترانسمیتر فشار Rosemount 3051,2066,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/screw-compressor.html,خرید و تامین کمپرسور اسکرو صنعتی,1960,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/seamless-pipe.html,خرید و تامین لوله مانیسمان ASTM A106,1958,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/shell-tube-heat-exchanger.html,خرید و تامین مبدل حرارتی Shell &amp; Tube,1979,22,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/slurry-pump.html,خرید و تامین پمپ اسلاری؛ Slurry Pump معدنی و صنعتی,1628,17,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-product,services/products/stainless-steel-pipe.html,خرید و تامین لوله استنلس استیل ASTM A312 TP304/TP316,1524,17,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
+product,services/products/slurry-pump.html,خرید و تامین پمپ اسلاری؛ Slurry Pump معدنی و صنعتی,1807,16,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/stainless-steel-pipe.html,خرید و تامین لوله استنلس استیل ASTM A312 TP304/TP316,1917,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/steam-trap.html,خرید و تامین تله بخار صنعتی,1920,21,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/stud-bolts-nuts.html,خرید و تامین استادبولت ASTM A193 B7/B8 و مهره A194 2H,1914,19,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/temperature-transmitter.html,خرید و تامین ترانسمیتر دما؛ Head Mount، Field Mount و Rail Mount,1636,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/temperature-transmitter.html,خرید و تامین ترانسمیتر دما؛ Head Mount، Field Mount و Rail Mount,1857,16,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/thermal-mass-flowmeter.html,خرید و تامین فلومتر جرمی حرارتی برای هوای فشرده و گاز,1823,20,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/thermowell.html,خرید و تامین ترموول صنعتی؛ Flanged، Threaded و Weld-in,1806,22,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/ultrasonic-flowmeter.html,خرید و تامین فلومتر التراسونیک Clamp-on و Inline,1942,22,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/valve-actuator.html,خرید و تامین اکچویتور ولو,1682,17,0,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW
-product,services/products/vertical-multistage-pump.html,خرید و تامین پمپ طبقاتی عمودی؛ Vertical Multistage Pump,1624,16,1,2,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/valve-actuator.html,خرید و تامین اکچویتور ولو,2073,21,0,0,assets/images/ptf-logo.png,196,OK
+product,services/products/vertical-multistage-pump.html,خرید و تامین پمپ طبقاتی عمودی؛ Vertical Multistage Pump,1837,15,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/vfd-soft-starter.html,خرید و تامین VFD و Soft Starter,1930,20,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/vortex-flowmeter.html,خرید و تامین فلومتر ورتکس,1907,21,0,0,assets/images/ptf-logo.png,196,OK
-product,services/products/water-tube-boiler.html,خرید و تامین بویلر واترتیوب صنعتی؛ بخار فشار و ظرفیت بالا,1631,17,1,3,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+product,services/products/water-tube-boiler.html,خرید و تامین بویلر واترتیوب صنعتی؛ بخار فشار و ظرفیت بالا,1860,16,0,0,assets/images/ptf-logo.png,196,OK
 product,services/products/welding-flanges.html,خرید و تامین فلنج صنعتی ASME B16.5,1935,21,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/abb-industrial.html,تامین و سورسینگ ABB صنعتی,1800,20,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/atlas-copco-compressed-air.html,تامین و سورسینگ اطلس کوپکو Atlas Copco,1809,23,0,0,assets/images/ptf-logo.png,196,OK
@@ -82,17 +82,17 @@ brand,brands/eaton-crouse-hinds.html,تامین و سورسینگ ایتون / �
 brand,brands/emerson-rosemount.html,تامین و سورسینگ امرسون / روزمونت,1800,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/endress-hauser.html,تامین و سورسینگ اندرس هاوزر Endress+Hauser,1809,23,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/fisher-samson-control-valves.html,تامین و سورسینگ کنترل ولو Fisher و SAMSON,1872,21,0,0,assets/images/ptf-logo.png,196,OK
-brand,brands/flexitallic-gaskets.html,تامین و سورسینگ فلکسیتالیک Flexitallic,1502,25,0,1,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
-brand,brands/galperti-flanges.html,تامین و سورسینگ گالپرتی Galperti,1501,22,0,1,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+brand,brands/flexitallic-gaskets.html,تامین و سورسینگ فلکسیتالیک Flexitallic,1855,28,0,0,assets/images/ptf-logo.png,196,OK
+brand,brands/galperti-flanges.html,تامین و سورسینگ گالپرتی Galperti,1858,25,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/grundfos-pumps.html,تامین و سورسینگ گراندفوس Grundfos,1848,21,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/kitz-valves.html,تامین و سورسینگ شیرآلات KITZ,1805,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/krohne-instrumentation.html,تامین و سورسینگ کرونه KROHNE,1810,19,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/omron-automation.html,تامین و سورسینگ امرون Omron Automation,1838,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/phoenix-contact.html,تامین و سورسینگ فونیکس کنتاکت Phoenix Contact,1839,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/schneider-electric.html,تامین و سورسینگ اشنایدر الکتریک Schneider Electric,1808,21,0,0,assets/images/ptf-logo.png,196,OK
-brand,brands/siemens-industrial.html,تامین و سورسینگ زیمنس صنعتی,1771,24,1,0,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|REPEATED_PARAGRAPH_INSIDE
+brand,brands/siemens-industrial.html,تامین و سورسینگ زیمنس صنعتی,1816,18,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/spirax-sarco-steam.html,تامین و سورسینگ اسپیرکس سارکو Spirax Sarco,1809,20,0,0,assets/images/ptf-logo.png,196,OK
-brand,brands/tenaris-pipes.html,تامین و سورسینگ تناریس Tenaris,1502,24,0,1,assets/images/ptf-logo.png,196,LOW_DEPTH_REVIEW|DUPLICATE_PARAGRAPH_ACROSS_PAGES
+brand,brands/tenaris-pipes.html,تامین و سورسینگ تناریس Tenaris,1892,28,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/vallourec-pipes.html,تامین و سورسینگ والورک Vallourec,1801,21,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/wika-instrumentation.html,تامین و سورسینگ ویکا WIKA,1834,22,0,0,assets/images/ptf-logo.png,196,OK
 brand,brands/yokogawa-industrial.html,تامین و سورسینگ یوکوگاوا Yokogawa,1800,22,0,0,assets/images/ptf-logo.png,196,OK

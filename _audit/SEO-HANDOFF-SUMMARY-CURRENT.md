@@ -571,3 +571,31 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `_audit/SEO-STABILITY-STATUS-AND-NEXT-STEPS-2026-08-06.md`
 
 جمع‌بندی پیشنهادی: برای ثبات قابل قبول حداقل ۵ گام دیگر و برای merge تمیزتر به main حدود ۷ گام دیگر پیشنهاد می‌شود. اگر هدف رساندن تقریباً همه صفحات محصول/برند به OK باشد، حدود ۸ گام دیگر لازم است. اولویت گام بعدی: `expansion-joints-flexible-hose.html`، `ansi-process-pump.html`، `vertical-multistage-pump.html`، `pressure-gauge.html` و `reciprocating-compressor.html`.
+
+## به‌روزرسانی جدید — تکمیل گام‌های ۲ تا ۸ پایدارسازی کیفیت محتوا (۲۰۲۶-۰۸-۰۶)
+طبق دستور کاربر، پس از گام اول، هفت گام بعدی بدون توقف انجام شد. در این ۷ گام، تمام صفحات باقی‌مانده دارای ریسک در ممیزی محصول/برند اصلاح شدند.
+
+وضعیت نهایی `python3 _tools/seo_content_quality_audit.py`:
+- صفحات محصول بررسی‌شده: ۷۷
+- صفحات برند بررسی‌شده: ۲۰
+- کل صفحات بررسی‌شده: ۹۷
+- `OK`: ۹۷
+- `UNDER_1500_CRITICAL`: ۰
+- `LOW_DEPTH_REVIEW`: ۰
+- `DUPLICATE_PARAGRAPH_ACROSS_PAGES`: ۰
+- `REPEATED_PARAGRAPH_INSIDE`: ۰
+- صفحات پرریسک: ۰
+
+گزارش جامع تکمیل گام‌ها:
+- `_audit/SEO-STABILIZATION-STEPS-2-8-COMPLETED-2026-08-06.md`
+
+گزارش‌های جزئی هر گام نیز ثبت شدند:
+- `_audit/SEO-STABILIZATION-STEP-2-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-3-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-4-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-5-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-6-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-7-2026-08-06.md`
+- `_audit/SEO-STABILIZATION-STEP-8-2026-08-06.md`
+
+قاعده برای ادامه: پس از commit این فاز، طبق دستور کاربر باید یک‌بار دیگر `origin/main` در همین شاخه merge شود و سپس audit کامل اجرا گردد. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر؛ تغییرات CRM/API فقط از مسیر merge مجاز هستند.
