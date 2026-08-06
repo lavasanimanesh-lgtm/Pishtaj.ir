@@ -628,3 +628,13 @@ sitemap اکنون ۵۵۲ URL عمومی دارد.
 - `_audit/SEO-FINAL-STABILITY-AFTER-MAIN-MERGE-2026-08-06.md`
 
 قاعده برای ایجنت بعدی: اکنون از نظر سئوی عمومی و کیفیت صفحات محصول/برند، سایت در نقطه ثبات مهمی قرار دارد. قبل از هر تولید محتوای جدید، ابتدا باید این وضعیت حفظ شود. اگر main دوباره تغییر کند، merge مجدد و اجرای کامل auditها الزامی است. همچنان وارد `crm/` یا `api/` نشو مگر با دستور صریح کاربر؛ تغییرات CRM/API فقط از مسیر merge رسمی main مجاز است.
+
+## به‌روزرسانی جدید — بازبینی عمیق گام‌های ۲ تا ۸ پایدارسازی (۲۰۲۶-۰۸-۰۶)
+طبق درخواست کاربر، یک بازبینی دقیق انسانی/تحلیلی روی ۷ گام اخیر انجام شد. نتیجه مهم: از نظر ابزار فعلی `seo_content_quality_audit.py` همه ۹۷ صفحه محصول/برند `OK` هستند و audit عمومی PASS است؛ اما بازبینی انسانی نشان داد بخشی از صفحات گام‌های ۲ تا ۸ با sectionهای نیمه‌قالبی و markerهایی مانند `data-final-stability` پایدار شده‌اند.
+
+گزارش کامل:
+- `_audit/SEO-STABILIZATION-7-STEPS-DEEP-REVIEW-2026-08-06.md`
+
+حکم بازبینی: وضعیت از نظر گیت ماشینی سبز است، اما پیش از merge نهایی به main بهتر است یک فاز پاکسازی تحریریه‌ای انجام شود. اولویت پاکسازی: صفحاتی که چندین `data-final-stability` دارند، مخصوصاً `ansi-process-pump.html`، `expansion-joints-flexible-hose.html`، `vertical-multistage-pump.html`، `pressure-gauge.html`، `reciprocating-compressor.html`، `slurry-pump.html`، `industrial-fan-blower.html`، `water-tube-boiler.html`، `temperature-transmitter.html`، `process-gas-analyzer-system.html`، `diaphragm-seal.html`، `online-water-quality-analyzer.html`، `industrial-burner.html` و `brands/siemens-industrial.html`.
+
+قاعده برای ایجنت بعدی: عدد ۹۷/۹۷ OK درست است، اما نباید به معنای کیفیت تحریریه‌ای نهایی تلقی شود. قبل از merge نهایی به main، markerهای قالبی و بخش‌های نیمه‌فرمولی باید با متن‌های طبیعی‌تر و اختصاصی‌تر جایگزین شوند. همچنین ابزار کیفیت باید در آینده semantic/template risk را هم تشخیص دهد، نه فقط duplicate exact paragraph.
