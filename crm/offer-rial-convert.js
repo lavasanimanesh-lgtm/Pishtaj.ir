@@ -280,6 +280,7 @@
     });
     var totalIrr = items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     comp.items = items;
+    try { if (typeof offEnsureOfferLineIds === 'function') offEnsureOfferLineIds(comp.items, comp.no); } catch (eL) {} /* lineId بازتولید — تطبیق خرید سالم بماند */
     comp.terms = (_termDlg.terms || []).filter(function (t) { return String(t || '').trim() !== ''; });
     comp.fxConvert = comp.fxConvert || {};
     comp.fxConvert.rate = rate;

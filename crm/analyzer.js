@@ -16,7 +16,9 @@ function _daysBetween(iso1, iso2) {
 /* ---------- ۱. تحلیل قیف پیشنهادها (TO/CO) ---------- */
 function anlOfferFunnel() {
   var offers = getData('ptf_crm_offers');
-  var cos = offers.filter(function (o) { return o.kind === 'CO'; });
+  /* US-FX2RIAL: «نسخه همراه ریالی» (rialOf) سند ارائه به کارفرماست، نه فرصت مستقل —
+     در قیف/آمار به‌عنوان پیشنهاد در جریان شمرده نشود تا بردِ قبلی دوشمار نشود. */
+  var cos = offers.filter(function (o) { return o.kind === 'CO' && !o.rialOf; });
   var draft = cos.filter(function (o) { return o.st === 'draft'; }).length;
   var sent = cos.filter(function (o) { return o.st === 'sent'; }).length;
   var won = cos.filter(function (o) { return o.st === 'won'; }).length;
@@ -134,9 +136,9 @@ function anlForecast() {
   invs.forEach(function (i) { ((i.payments || []).concat(i.pays || [])).forEach(function (p) { totalPaid += +p.amt || 0; }); });
   var openRecv = Math.max(0, totalInvoiced - totalPaid);
   var f = anlOfferFunnel();
-  // پایپ‌لاین وزنی: sent با احتمال winRate (یا ۳۰٪ پیش‌فرض)
+  // پایپ‌لاین وزنی: sent با احتمال winRate (یا ۳۰٪ پیش‌فرض) — بدون نسخه همراه ریالی (US-FX2RIAL)
   var sentValue = 0;
-  getData('ptf_crm_offers').filter(function (o) { return o.kind === 'CO' && o.st === 'sent'; }).forEach(function (o) {
+  getData('ptf_crm_offers').filter(function (o) { return o.kind === 'CO' && o.st === 'sent' && !o.rialOf; }).forEach(function (o) {
     sentValue += (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
   });
   var p = f.winRate != null ? f.winRate / 100 : 0.3;
@@ -158,9 +160,9 @@ function anlSuggestions() {
       out.push({ p: 1, icon: '🔔', tx: 'لید «' + l.co + '» بیش از ۷ روز بدون پیگیری است', act: { panel: 'leads' } });
   });
 
-  // CO های sent قدیمی
+  // CO های sent قدیمی (نسخه همراه ریالی فرصت مستقل نیست — US-FX2RIAL)
   getData('ptf_crm_offers').forEach(function (o) {
-    if (o.kind === 'CO' && o.st === 'sent' && o.dateEn && _daysBetween(o.dateEn, today) > 10)
+    if (o.kind === 'CO' && o.st === 'sent' && !o.rialOf && o.dateEn && _daysBetween(o.dateEn, today) > 10)
       out.push({ p: 1, icon: '📄', tx: 'پیشنهاد ' + o.no + ' (' + (o.buyerCo || '') + ') ' + _daysBetween(o.dateEn, today) + ' روز بدون تعیین تکلیف — پیگیری کنید', act: { panel: 'off' } });
   });
 
