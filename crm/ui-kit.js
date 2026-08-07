@@ -45,7 +45,8 @@ window.ptfOnClickArg = function (v) {
     /* MOB-004: toast پایین در 320px مستقیماً روی bottom-nav می‌افتاد. offset
        بنر پایدار sync از CSS variable می‌آید تا در صورت نمایش هم‌زمان، دو notice
        روی هم هم قرار نگیرند. toast عملیاتی نیست؛ لمس باید به کنترل زیر آن برسد. */
-    '@media(max-width:768px){.ptftoast{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 12px + var(--ptf-unsaved-banner-offset,0px));max-width:calc(100vw - 24px);pointer-events:none}}' +
+    '@media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){.ptftoast{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 12px + var(--ptf-unsaved-banner-offset,0px));max-width:calc(100vw - 24px);pointer-events:none}}' +
+    '@media(max-width:900px) and (max-height:600px) and (orientation:landscape){.ptftoast{bottom:calc(52px + env(safe-area-inset-bottom,0px) + 12px + var(--ptf-unsaved-banner-offset,0px))}}' +
     /* animation عمودی نباید notice تازه را موقتاً به سمت bottom-nav هل بدهد. */
     '@keyframes ptfup{from{opacity:0}to{opacity:1}}' +
     '.ptftoast.ok{background:#059669}.ptftoast.err{background:#dc2626}.ptftoast.warn{background:#d97706}';

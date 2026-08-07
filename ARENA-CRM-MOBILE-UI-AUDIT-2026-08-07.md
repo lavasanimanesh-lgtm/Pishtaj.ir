@@ -633,6 +633,14 @@ toast و banner تغییرات آفلاین/ذخیره‌نشده دیگر رو�
 
 **تأیید فنی:** در 320×568، banner تا y=486 در برابر شروع nav در y=494 و toast تا y=389 بود؛ در 390×844، banner تا y=762 در برابر nav y=770 و toast تا y=685 بود. هیچ تقاطعی دیده نشد؛ toast بدون banner هم دقیقاً 12px بالای nav قرار گرفت و لمس tab پایین به `#mnvBar` رسید.
 
+### MOB-005 — رفع سقوط به layout نیمه‌دسکتاپ در landscape
+
+در گوشی landscape با اندازهٔ رایج 844×390، شرط قدیمی `max-width:768px` فعال نمی‌شد؛ sidebar 56px برمی‌گشت، bottom-nav پنهان می‌شد و header با الگوی desktop رندر می‌شد. shell موبایل اکنون برای `(max-width:900px) and (max-height:600px) and (orientation:landscape)` نیز فعال است.
+
+sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و bottom-nav فشرده با ارتفاع 52px و tabهای 45px هستند. breakpoint toast/banner نیز هم‌راستا شد تا اعلان‌ها در landscape روی nav نیفتند.
+
+**تأیید فنی:** در شروع مستقیم و در آزمون چرخش portrait→844×390، sidebar `display:none`، main `844px`، nav `844×52px` و header `52px` بود؛ پنج tab داخل viewport ماندند، `document.scrollWidth=844` و page/console error صفر بود. کلیک «کارتابل» نیز state صحیح `cart` را ثبت کرد.
+
 ## پیوست: شواهد عددی
 
 | شاخص | نتیجه |
@@ -647,6 +655,6 @@ toast و banner تغییرات آفلاین/ذخیره‌نشده دیگر رو�
 | First Contentful Paint در همان تست | ~344ms |
 | toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
-| landscape 844×390 | bottom-nav مخفی، sidebar 56px، header 99px |
+| landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |
 
-> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-004 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل landscape، semantics/focus مودال، کارایی/PWA و Kanban هستند.
+> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل semantics/focus مودال، کارایی/PWA، deep-link و Kanban هستند.

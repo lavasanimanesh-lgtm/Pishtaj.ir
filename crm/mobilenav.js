@@ -134,7 +134,9 @@
   var css = document.createElement('style');
   css.textContent =
     '#mnvBar{display:none}' +
-    '@media(max-width:' + BP + 'px){' +
+    /* MOB-005: موبایل landscape با عرض 844px نباید به sidebar تبلتی/desktop
+       سقوط کند؛ شرط ارتفاع، tablet/desktop عریض را از این shell جدا نگه می‌دارد. */
+    '@media(max-width:' + BP + 'px), (max-width:900px) and (max-height:600px) and (orientation:landscape){' +
     /* US-286: سایدبار مخفی — عرض کامل آزاد */
     '.sb{display:none!important}' +
     '.mn{margin-right:0!important;width:100%!important;max-width:100%!important}' +
@@ -197,6 +199,19 @@
     '.tb .tbic svg{display:block!important;margin:auto!important;width:26px!important;height:26px!important;min-width:26px!important;flex:0 0 26px!important;stroke-width:2!important}' +
     '.tb .tbic[title="بایگانی"],.tb .tbic[title="فضای ابری"]{display:none!important}' +
     '#trialBarWrap,#trialBarWrap *{max-width:100%;overflow-wrap:break-word}' +
+    /* MOB-005: ارتفاع landscape کوتاه است؛ نوار پایین و header فشرده اما
+       همچنان با hit-area حداقل 44px نگه داشته می‌شوند. */
+    '@media(max-width:900px) and (max-height:600px) and (orientation:landscape){' +
+      '#mnvBar{padding:3px 4px calc(3px + env(safe-area-inset-bottom,0px))}' +
+      '.ca{padding-bottom:calc(54px + env(safe-area-inset-bottom,0px))!important}' +
+      '.mnv-tab{min-height:44px!important;padding:2px!important}' +
+      '.mnv-tab .mnv-ic{width:40px;padding:2px 0}' +
+      '.mnv-tab .mnv-lb{font-size:9px;margin-top:1px}' +
+      '.mnv-fab{top:-22px;width:50px;height:50px}' +
+      '.mnv-fab svg{width:23px!important;height:23px!important}' +
+      '.mnv-fablb{margin-top:24px!important}' +
+      '.tb{height:52px!important;padding:5px 10px!important}' +
+    '}' +
     /* کشوی بیشتر */
     '.mnv-more{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:1600;opacity:0;transition:opacity .2s;backdrop-filter:blur(3px)}' +
     '.mnv-more.on{opacity:1}' +

@@ -463,14 +463,16 @@
     if (document.getElementById('ptfSyncNoticeMobileCss')) return;
     var css = document.createElement('style');
     css.id = 'ptfSyncNoticeMobileCss';
-    css.textContent = '@media(max-width:768px){#ptfUnsavedBanner{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 8px)!important;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border-radius:14px!important;padding:10px 12px!important;min-height:48px!important;line-height:1.55!important;overflow-wrap:anywhere!important;pointer-events:auto!important}#ptfUnsavedBanner>span{min-width:0!important;overflow-wrap:anywhere!important}}';
+    css.textContent = '@media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 8px)!important;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border-radius:14px!important;padding:10px 12px!important;min-height:48px!important;line-height:1.55!important;overflow-wrap:anywhere!important;pointer-events:auto!important}#ptfUnsavedBanner>span{min-width:0!important;overflow-wrap:anywhere!important}}' +
+      '@media(max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(52px + env(safe-area-inset-bottom,0px) + 8px)!important}}';
     document.head.appendChild(css);
   }
   function syncNoticeStackOffset() {
     var root = document.documentElement;
     var banner = document.getElementById('ptfUnsavedBanner');
     if (!root) return;
-    var visible = banner && window.innerWidth <= 768 && window.getComputedStyle(banner).display !== 'none';
+    var compactLandscape = window.innerWidth <= 900 && window.innerHeight <= 600 && window.matchMedia && window.matchMedia('(orientation:landscape)').matches;
+    var visible = banner && (window.innerWidth <= 768 || compactLandscape) && window.getComputedStyle(banner).display !== 'none';
     var offset = visible ? Math.ceil(banner.getBoundingClientRect().height || banner.offsetHeight || 0) + 12 : 0;
     root.style.setProperty('--ptf-unsaved-banner-offset', offset + 'px');
   }

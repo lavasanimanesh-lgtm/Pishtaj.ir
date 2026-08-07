@@ -16,10 +16,15 @@
   .pn{border:1px solid var(--brd);box-shadow:0 1px 3px rgba(15,23,42,.04)}
   html{overflow-y:scroll;scrollbar-gutter:stable}
   /* موبایل: سایدبار از همان فریم اول مخفی — دیگر فلشِ ستون ایموجی‌ها دیده نمی‌شود */
-  @media(max-width:768px){
+  /* MOB-005: گوشی افقی 844×390 از نظر عرض «desktop» نیست؛ قبل از لود JS نیز
+     باید sidebar پنهان و فضای bottom-nav رزرو باشد تا layout یک فریم نپرد. */
+  @media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){
     .sb{display:none!important}
     .mn{margin-right:0!important;width:100%!important;max-width:100%!important}
     .ca{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important}
+  }
+  @media(max-width:900px) and (max-height:600px) and (orientation:landscape){
+    .ca{padding-bottom:calc(54px + env(safe-area-inset-bottom,0px))!important}
   }
 
 /* ============ Sprint 108 / US-112: انقلابی در تجربه موبایل (Mobile Data Card View & Native PWA Feel) ============ */
@@ -3324,7 +3329,7 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script defer src="ui-kit.js?v=34.3.6"></script>
+<script defer src="ui-kit.js?v=34.3.7"></script>
 <script defer src="storage-quota.js?v=34.0.21-alpha"></script>
 <script defer src="moneyx.js?v=34.0.21-alpha"></script>
 <script defer src="finance-helpers.js?v=34.0.21-alpha"></script>
@@ -3388,7 +3393,7 @@ setInterval(function(){
 <script defer src="messengers.js?v=34.3.4"></script>
 <script defer src="phonefmt.js?v=34.0.21-alpha"></script>
 <script defer src="tour.js?v=34.0.21-alpha"></script>
-<script defer src="mobilenav.js?v=34.3.2"></script>
+<script defer src="mobilenav.js?v=34.3.7"></script>
 <script defer src="ai-workbench.js?v=34.0.21-alpha"></script>
 <script defer src="golive.js?v=34.0.21-alpha"></script>
 <script defer src="custmerge.js?v=34.2.8"></script>
@@ -3409,7 +3414,7 @@ setInterval(function(){
 <script defer src="fiscal.js?v=34.3.5"></script>
 <script defer src="financehub.js?v=34.3.5"></script>
 <script defer src="theme-contrast.js?v=34.0.21-alpha"></script>
-<script defer src="sync.js?v=34.3.6"></script>
+<script defer src="sync.js?v=34.3.7"></script>
 <script defer src="client-server.js?v=34.0.21-alpha"></script>
 <script defer src="unofficial-invoice.js?v=34.0.21-alpha"></script>
 <script defer src="settings-accordion.js?v=34.0.21-alpha"></script>

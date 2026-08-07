@@ -213,7 +213,7 @@
 | MOB-002 label جدول‌ها | ⏳ باز؛ قبل از migration گسترده action rowها انجام شود |
 | MOB-003 refresh پس از bottom-nav/sync | ⏳ باز، P0 |
 | MOB-004 toast/banner روی nav | ✅ اجرا و آزمایش شد؛ stack بالای nav و لمس آزاد است |
-| MOB-005 landscape | ⏳ باز، P1 |
+| MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -239,7 +239,7 @@
 
 6. **MOB-002** — table-card labels و action schema.
 7. **MOB-003** — state مستقل active panel و refresh sync.
-8. **MOB-005/030/031/032** — landscape، tabs، Kanban و overflowهای باقی‌مانده.
+8. **MOB-030/031/032** — tabs، Kanban و overflowهای باقی‌مانده.
 
 ---
 
@@ -365,3 +365,16 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 **بازآزمایی 320×568:** nav از y=494 شروع شد؛ banner چندخطی در y=405.6 تا 486 (فاصلهٔ 8px از nav) و toast در y=240.7 تا 389 قرار گرفت (فاصلهٔ 16.6px از banner). هیچ تقاطع toast/banner با nav یا با یکدیگر وجود نداشت؛ point روی tab پایین همچنان داخل `#mnvBar` بود. در حالت بدون banner نیز toast دقیقاً 12px بالای nav ماند.
 
 **بازآزمایی 390×844:** banner تا y=762 و nav از y=770 بود؛ toast تا y=685 و فاصلهٔ toast/banner برابر 16.7px بود. `document.scrollWidth` با viewport برابر، `pageerror/console error` صفر و pointer-event toast برابر `none` بود. سناریوی واقعی sync آفلاین با dirty persisted نیز banner فعال را بدون پوشاندن nav نمایش داد.
+
+### 18. پیگیری اجرایی — MOB-005: shell واقعی موبایل در landscape
+
+در 844×390، شرط صرفاً عرضی `max-width:768px` دیگر برقرار نبود؛ CRM به sidebar 56px بازمی‌گشت و `#mnvBar` پنهان می‌شد. برای گوشی landscape یک شرط ترکیبی افزوده شد: `max-width:900px` همراه با `max-height:600px` و `orientation:landscape`.
+
+- sidebar از همان CSS بحرانی head پنهان می‌ماند و main تمام عرض را می‌گیرد؛
+- bottom-nav در landscape با ارتفاع 52px و پنج tab با hit-area حدود 45px فعال است؛
+- header بدون wrap، 52px و با padding فشرده باقی می‌ماند؛
+- همین breakpoint برای toast/banner نیز اعمال شد تا پس از فعال‌شدن nav در landscape، MOB-004 بازگشت نکند.
+
+**بازآزمایی شروع مستقیم 844×390:** sidebar `display:none`، main `844px`، header `52px` و bottom-nav از y=338 تا 390 بود؛ 5 tab همگی داخل viewport و بدون overflow بودند. کلیک واقعی «کارتابل» `ptfActivePanel=cart` و active tab درست را ثبت کرد.
+
+**بازآزمایی چرخش:** صفحه ابتدا در 390×844 باز و سپس به 844×390 چرخانده شد؛ sidebar پنهان، nav `844×52px` و header nowrap/52px باقی ماندند؛ `document.scrollWidth=844` و page/console error صفر بود. سناریوی toast+banner در همین landscape نیز هیچ overlap با nav نداشت.
