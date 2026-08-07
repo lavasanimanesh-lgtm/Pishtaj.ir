@@ -172,6 +172,17 @@
     border-radius: 10px !important;
   }
   .tb2 .ba::first-letter { font-size: 16px !important; }
+  /* MOB-023: icons.js ایموجیِ actionهای ردیف درخواست را به SVG داخل [data-ix]
+     تبدیل می‌کند. font-size:0 والد، SVGهای em-based را صفر می‌کرد و دکمه‌های
+     «متن استعلام» / «مشاهده پروژه» بدون آیکون دیده می‌شدند. */
+  #rTb .ba [data-ix] {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+  }
+  #rTb .ba [data-ix] svg { width: 18px !important; height: 18px !important; }
 
   /* .ph فلکس ردیفی بماند — عنوان + آیکون‌دکمه‌ها */
   .ph { flex-direction: row !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; }
