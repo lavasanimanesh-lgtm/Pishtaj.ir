@@ -122,12 +122,50 @@
     border-radius: 20px !important;
   }
   .ph { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
-  /* v13.7 (US-337): یکسان‌سازی دکمه‌های مودال در موبایل — سهولت کاربری */
-  .md { padding-top: 44px !important; } /* جا برای دکمه‌های مک */
-  .mx-dots { top: 14px !important; left: 12px !important; }
-  /* v20.0 BUG-033: چیپ بیضی mx-ai حذف شد — دستیار = نقطه چهارم mx-dot.a (بدون تداخل) */
+  /* MOB-001: کنترل‌های مودال در موبایل دیگر مک‌داتِ بی‌معنا/کشیده نیستند.
+     هر کنترل hit-area ثابت، نماد همیشه قابل‌دیدن و رنگ معنایی دارد. */
+  body .md { padding-top: 62px !important; } /* عنوان زیر ردیف کنترل‌ها می‌آید، نه زیر آن‌ها */
+  .md .mx-dots { top: 12px !important; left: 12px !important; gap: 6px !important; }
+  .md .mx-dots .mx-dot {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    flex: 0 0 36px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 12px !important;
+    border: 1px solid transparent !important;
+    line-height: 1 !important;
+    overflow: visible !important;
+  }
+  .md .mx-dots .mx-dot span {
+    position: static !important;
+    inset: auto !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-size: 17px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    pointer-events: none !important;
+  }
+  .md .mx-dots .mx-dot.r { background: #fef2f2 !important; border-color: #fecaca !important; }
+  .md .mx-dots .mx-dot.r span { color: #dc2626 !important; }
+  .md .mx-dots .mx-dot.y { background: #fffbeb !important; border-color: #fde68a !important; }
+  .md .mx-dots .mx-dot.y span { color: #d97706 !important; }
+  .md .mx-dots .mx-dot.g { background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  .md .mx-dots .mx-dot.g span { color: #059669 !important; }
+  .md .mx-dots .mx-dot.a { background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  .md .mx-dots .mx-dot.a span { color: #7c3aed !important; font-size: 15px !important; }
+  /* v20.0 BUG-033: چیپ بیضی mx-ai حذف شد — دستیار = نقطه چهارم mx-dot.a */
   .md .fr { grid-template-columns: 1fr !important; } /* فرم‌های دوستونه → تک‌ستون در موبایل */
-  .md h3 { font-size: 15px !important; padding-left: 72px !important; } /* تیتر زیر دکمه‌ها نرود */
+  .md h3 { font-size: 15px !important; padding-left: 0 !important; }
   /* ردیف دکمه‌های پایین مودال: تمام‌عرض و زیر هم */
   .md > div[style*="justify-content:flex-end"], .md > div[style*="justify-content: flex-end"] {
     flex-direction: column-reverse !important; align-items: stretch !important; gap: 8px !important;

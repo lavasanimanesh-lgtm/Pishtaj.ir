@@ -85,7 +85,7 @@
 
     var r = document.createElement('button');
     r.type = 'button';
-    r.className = 'mx-dot r'; r.title = 'بستن';
+    r.className = 'mx-dot r'; r.title = 'بستن'; r.setAttribute('aria-label', 'بستن پنجره');
     r.style.cssText = 'width:13px;height:13px;min-width:13px;min-height:13px;border-radius:50%;border:0;padding:0;margin:0;cursor:pointer;background:#e5655c;flex:none';
     r.innerHTML = '<span>✕</span>';
     r.onclick = function (e) { e.stopPropagation(); mdb.remove(); };
@@ -109,14 +109,14 @@
 
     var y = document.createElement('button');
     y.type = 'button';
-    y.className = 'mx-dot y'; y.title = 'ارسال به پایین صفحه (اطلاعات حفظ می‌شود)';
+    y.className = 'mx-dot y'; y.title = 'ارسال به پایین صفحه (اطلاعات حفظ می‌شود)'; y.setAttribute('aria-label', 'کوچک‌سازی پنجره');
     y.style.cssText = 'width:13px;height:13px;min-width:13px;min-height:13px;border-radius:50%;border:0;padding:0;margin:0;cursor:pointer;background:#f0b429;flex:none';
     y.innerHTML = '<span>−</span>';
     y.onclick = function (e) { e.stopPropagation(); mxMinimize(); };
 
     var g = document.createElement('button');
     g.type = 'button';
-    g.className = 'mx-dot g'; g.title = 'تمام‌صفحه / برگشت';
+    g.className = 'mx-dot g'; g.title = 'تمام‌صفحه / برگشت'; g.setAttribute('aria-label', 'تمام‌صفحه یا بازگشت پنجره');
     g.style.cssText = 'width:13px;height:13px;min-width:13px;min-height:13px;border-radius:50%;border:0;padding:0;margin:0;cursor:pointer;background:#61c454;flex:none';
     g.innerHTML = '<span>⤢</span>';
     g.onclick = function (e) { e.stopPropagation(); md.classList.toggle('mx-full'); };
@@ -129,6 +129,7 @@
       a.className = 'mx-dot a';
       a.type = 'button';
       a.title = 'انتقال به دستیار هوشمند (این پنجره با اطلاعاتش به پایین صفحه می‌رود)';
+      a.setAttribute('aria-label', 'انتقال پنجره به دستیار هوشمند');
       a.style.cssText = 'width:13px;height:13px;min-width:13px;min-height:13px;border-radius:50%;border:0;padding:0;margin:0;cursor:pointer;background:#8b5cf6;flex:none';
       a.innerHTML = '<span>🤖</span>';
       a.onclick = function (e) { e.stopPropagation(); mxMinimize(); goPanel('ai'); };
