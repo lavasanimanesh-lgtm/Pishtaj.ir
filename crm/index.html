@@ -314,6 +314,78 @@
   #cTb .entity-row-action[data-entity-action="message"], #sTb .entity-row-action[data-entity-action="message"] { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
   #cTb .entity-row-action[data-entity-action="merge"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
 
+  /* MOB-028/033: قرارداد runtime برای toolbarهای مبهم و .baهای جدول‌های باقی‌مانده. */
+  #panels .mobile-toolbar-action {
+    position: relative !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 44px !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+  }
+  #panels .mobile-toolbar-action > [data-ix] { display: none !important; }
+  #panels .mobile-toolbar-icon {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 22px !important;
+    height: 22px !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+  }
+  #panels .mobile-toolbar-icon [data-ix], #panels .mobile-toolbar-icon svg { width: 22px !important; height: 22px !important; display: inline-flex !important; place-items: center !important; }
+  #panels .mobile-ba-row { align-items: center !important; justify-content: flex-end !important; flex-wrap: wrap !important; gap: 6px !important; }
+  #panels .mobile-ba-action {
+    position: relative !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
+    flex: 0 0 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+  }
+  #panels .mobile-ba-action > [data-ix] { display: none !important; }
+  #panels .mobile-ba-icon { position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; width: 20px !important; height: 20px !important; display: grid !important; place-items: center !important; font-size: 20px !important; line-height: 1 !important; pointer-events: none !important; }
+  #panels .mobile-ba-icon [data-ix], #panels .mobile-ba-icon svg { width: 20px !important; height: 20px !important; display: inline-flex !important; place-items: center !important; }
+  #panels [data-mobile-tone="blue"]   { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #panels [data-mobile-tone="violet"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #panels [data-mobile-tone="amber"]  { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #panels [data-mobile-tone="teal"]   { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  #panels [data-mobile-tone="cyan"]   { color: #0891b2 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #panels [data-mobile-tone="green"]  { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  #panels [data-mobile-tone="pink"]   { color: #db2777 !important; background: #fdf2f8 !important; border-color: #fbcfe8 !important; }
+  #panels [data-mobile-tone="red"]    { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  #panels [data-mobile-tone="slate"]  { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+
   /* MOB-025: نوار عملیات پیشنهاد — حداکثر چند action اصلی روی کارت؛ عملیات ثانویه در sheet. */
   #oTb tr > td:last-child {
     align-items: center !important;
@@ -2938,5 +3010,6 @@ setInterval(function(){
 <script defer src="client-server.js?v=34.0.21-alpha"></script>
 <script defer src="unofficial-invoice.js?v=34.0.21-alpha"></script>
 <script defer src="settings-accordion.js?v=34.0.21-alpha"></script>
+<script defer src="mobile-actions.js?v=34.3.0"></script>
 </body>
 </html>
