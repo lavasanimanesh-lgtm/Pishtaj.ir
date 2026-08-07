@@ -593,3 +593,307 @@
     return '<span class="bd" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size:10px" title="نسخه ریالی پیشنهاد ' + escP(o.rialOf) + ' — نرخ ' + ((o.fxConvert && o.fxConvert.rate) ? (+o.fxConvert.rate).toLocaleString('fa-IR') : '') + ' ریال">💱 ریالی از ' + escP(o.rialOf) + '</span>';
   };
 })();
+
+/* =====================================================================
+   MOB-025 — تراکم‌زدایی actionهای ردیف پیشنهاد در موبایل
+   - فقط چند action اصلی روی کارت می‌مانند؛ بقیه داخل sheet «بیشتر» هستند.
+   - نسخه‌های ریالی همراه، دکمه‌های ریز داخل کارت را به action sheet منتقل می‌کنند.
+   - هر action metadata (نام، آیکون، رنگ، سطح اهمیت) دارد.
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  var BP = 768;
+  var META = {
+    edit:        { label: 'ویرایش پیشنهاد',             icon: '✏️', tone: 'amber',  primary: true  },
+    salesFile:   { label: 'پرونده فروش',                icon: '📁', tone: 'violet', primary: true  },
+    preview:     { label: 'پیش‌نمایش اقلام',            icon: '👁', tone: 'sky',    primary: true  },
+    print:       { label: 'چاپ یا PDF',                 icon: '🖨', tone: 'indigo', primary: true  },
+    toCo:        { label: 'ساخت پیشنهاد مالی',          icon: '💸', tone: 'teal',   primary: true  },
+    rialConvert: { label: 'تبدیل به پیشنهاد ریالی',     icon: '💱', tone: 'teal',   primary: true  },
+    rialMenu:    { label: 'عملیات نسخه ریالی',          icon: '💱', tone: 'teal',   primary: true  },
+    more:        { label: 'عملیات بیشتر پیشنهاد',       icon: '⋯',  tone: 'slate',  primary: true  },
+    unwin:       { label: 'بازگردانی از برنده',         icon: '⏪', tone: 'red',    primary: true  },
+    revise:      { label: 'ایجاد نگارش جدید',           icon: '📑', tone: 'blue',   primary: false },
+    csv:         { label: 'دانلود اکسل اقلام',          icon: '⬇️', tone: 'slate',  primary: false },
+    optimizer:   { label: 'بهینه‌سازی سود',             icon: '📊', tone: 'green',  primary: false },
+    integrity:   { label: 'سلامت و کنترل اقلام',        icon: '🔎', tone: 'cyan',   primary: false },
+    invoice:     { label: 'صورتحساب پرداخت',            icon: '🧾', tone: 'orange', primary: false },
+    del:         { label: 'حذف پیشنهاد',                icon: '🗑️', tone: 'red',    primary: false },
+    workflow:    { label: 'پاسخ یا اصلاح پیشنهاد',      icon: '✏️', tone: 'pink',   primary: false },
+    rialPreview: { label: 'نمایش نسخه ریالی',           icon: '👁', tone: 'sky',    primary: false },
+    rialPrint:   { label: 'چاپ یا PDF نسخه ریالی',      icon: '🖨', tone: 'indigo', primary: false },
+    rialTerms:   { label: 'شرایط و نرخ تسعیر ریالی',    icon: '🔧', tone: 'orange', primary: false },
+    unknown:     { label: 'عملیات تکمیلی پیشنهاد',      icon: '⚙️', tone: 'slate',  primary: false }
+  };
+
+  var TONES = {
+    sky:    { color: '#0284c7', background: '#eff6ff', border: '#bfdbfe' },
+    blue:   { color: '#2563eb', background: '#eff6ff', border: '#bfdbfe' },
+    indigo: { color: '#4f46e5', background: '#eef2ff', border: '#c7d2fe' },
+    violet: { color: '#7c3aed', background: '#f5f3ff', border: '#ddd6fe' },
+    amber:  { color: '#d97706', background: '#fffbeb', border: '#fde68a' },
+    orange: { color: '#ea580c', background: '#fff7ed', border: '#fed7aa' },
+    teal:   { color: '#0f766e', background: '#f0fdfa', border: '#99f6e4' },
+    cyan:   { color: '#0891b2', background: '#ecfeff', border: '#a5f3fc' },
+    green:  { color: '#059669', background: '#ecfdf5', border: '#a7f3d0' },
+    pink:   { color: '#db2777', background: '#fdf2f8', border: '#fbcfe8' },
+    red:    { color: '#dc2626', background: '#fef2f2', border: '#fecaca' },
+    slate:  { color: '#475569', background: '#f8fafc', border: '#cbd5e1' }
+  };
+
+  function isMob() { return window.innerWidth <= BP; }
+
+  function applyTone(btn, tone) {
+    var c = TONES[tone] || TONES.slate;
+    /* بعضی theme helperها رنگ button را با !important بازنویسی می‌کنند؛
+       inline-important برای حفظ رنگ معنایی action لازم است. */
+    btn.style.setProperty('color', c.color, 'important');
+    btn.style.setProperty('background', c.background, 'important');
+    btn.style.setProperty('border-color', c.border, 'important');
+  }
+
+  function detect(btn) {
+    var known = btn.getAttribute('data-offer-action') || '';
+    if (META[known]) return known;
+    var on = btn.getAttribute('onclick') || '';
+    var title = btn.getAttribute('title') || '';
+    if (/adminUnwin\s*\(/.test(on)) return 'unwin';
+    if (/adminDelOffer\s*\(|offerDel\s*\(/.test(on)) return 'del';
+    if (/offerEdit\s*\(/.test(on)) return 'edit';
+    if (/ptfGoSalesFileForOffer\s*\(/.test(on)) return 'salesFile';
+    if (/offerReviseClone\s*\(/.test(on)) return 'revise';
+    if (/offerQuickPreview\s*\(/.test(on)) return (btn.getAttribute('data-offer-group') === 'rial' || /نسخه ریالی|ارزی قبلی/i.test(title)) ? 'rialPreview' : 'preview';
+    if (/offerPrint\s*\(/.test(on)) return (btn.getAttribute('data-offer-group') === 'rial' || /نسخه ریالی/i.test(title)) ? 'rialPrint' : 'print';
+    if (/offerCsv\s*\(/.test(on)) return 'csv';
+    if (/offOpenProfitOptimizer\s*\(/.test(on)) return 'optimizer';
+    if (/ptfOfferIntegrityDialog\s*\(/.test(on)) return 'integrity';
+    if (/unofficialInvoicePrint\s*\(/.test(on)) return 'invoice';
+    if (/offerToCo\s*\(/.test(on)) return 'toCo';
+    if (/ptfOfferRialConvertOpenByNo\s*\(/.test(on)) return 'rialConvert';
+    if (/ptfOfferRialTermsOpen\s*\(/.test(on)) return 'rialTerms';
+    if (/wfToResponse\s*\(|wfCoRevise\s*\(/.test(on)) return 'workflow';
+    return 'unknown';
+  }
+
+  function labelFor(btn, key) {
+    if (key === 'unknown') return btn.getAttribute('aria-label') || btn.getAttribute('title') || String(btn.textContent || '').trim() || META.unknown.label;
+    return META[key].label;
+  }
+
+  function applyFace(btn, key, label) {
+    var meta = META[key] || META.unknown;
+    btn.classList.add('offer-row-action');
+    btn.setAttribute('data-offer-action', key);
+    btn.setAttribute('data-offer-tone', meta.tone);
+    btn.setAttribute('data-offer-label', label);
+    var primary = !!meta.primary && btn.getAttribute('data-offer-group') !== 'rial';
+    btn.setAttribute('data-offer-primary', primary ? '1' : '0');
+    btn.setAttribute('data-offer-secondary', primary ? '0' : '1');
+    btn.setAttribute('title', label);
+    btn.setAttribute('aria-label', label);
+    applyTone(btn, meta.tone);
+
+    /* در دسکتاپ متن/استایل فعلی حفظ می‌شود؛ نمای compact فقط برای موبایل است. */
+    if (!isMob()) return;
+    while (btn.firstChild) btn.removeChild(btn.firstChild);
+    var icon = document.createElement('span');
+    icon.className = 'offer-action-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = meta.icon;
+    var text = document.createElement('span');
+    text.className = 'offer-action-label';
+    text.textContent = label;
+    btn.appendChild(icon);
+    btn.appendChild(text);
+    try { if (typeof window.ptfIconxSweep === 'function') window.ptfIconxSweep(btn); } catch (e) {}
+  }
+
+  function rowFor(no) {
+    var rows = document.querySelectorAll('#oTb tr');
+    for (var i = 0; i < rows.length; i++) {
+      var strong = rows[i].querySelector('td strong');
+      if (strong && strong.textContent.trim() === no) return rows[i];
+    }
+    return null;
+  }
+
+  function createSheetButton(key, label, click) {
+    var meta = META[key] || META.unknown;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'offer-sheet-action offer-tone-' + meta.tone;
+    b.setAttribute('aria-label', label);
+    var i = document.createElement('span');
+    i.className = 'offer-sheet-icon';
+    i.setAttribute('aria-hidden', 'true');
+    i.textContent = meta.icon;
+    var t = document.createElement('span');
+    t.className = 'offer-sheet-label';
+    t.textContent = label;
+    b.appendChild(i); b.appendChild(t);
+    b.addEventListener('click', click);
+    return b;
+  }
+
+  function openSheet(no, group) {
+    var row = rowFor(no);
+    if (!row) return;
+    var last = row.querySelectorAll('td');
+    last = last[last.length - 1];
+    if (!last) return;
+    var list = Array.prototype.slice.call(last.querySelectorAll('button.offer-row-action')).filter(function (b) {
+      if (b.getAttribute('data-offer-action') === 'more' || b.getAttribute('data-offer-action') === 'rialMenu') return false;
+      if (group === 'rial') return b.getAttribute('data-offer-group') === 'rial';
+      return b.getAttribute('data-offer-secondary') === '1' && b.getAttribute('data-offer-group') !== 'rial';
+    });
+    if (!list.length) {
+      try { if (typeof ptfToast === 'function') ptfToast('عملیات بیشتری برای این پیشنهاد نیست', 'info'); } catch (e) {}
+      return;
+    }
+
+    var old = document.getElementById('ptfOfferActionSheet');
+    if (old) old.remove();
+    var previousFocus = document.activeElement;
+    var overlay = document.createElement('div');
+    overlay.id = 'ptfOfferActionSheet';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    var panel = document.createElement('div');
+    panel.className = 'offer-action-sheet';
+    var head = document.createElement('div');
+    head.className = 'offer-sheet-head';
+    var title = document.createElement('b');
+    title.textContent = group === 'rial' ? '💱 عملیات نسخه ریالی' : '⋯ عملیات بیشتر پیشنهاد';
+    var close = document.createElement('button');
+    close.type = 'button'; close.className = 'offer-sheet-close'; close.setAttribute('aria-label', 'بستن'); close.textContent = '✕';
+    head.appendChild(title); head.appendChild(close);
+    var sub = document.createElement('small');
+    sub.className = 'offer-sheet-sub'; sub.textContent = no;
+    var listEl = document.createElement('div');
+    listEl.className = 'offer-sheet-list';
+    function dismiss() {
+      document.removeEventListener('keydown', onKey, true);
+      overlay.remove();
+      try { if (previousFocus && previousFocus.focus) previousFocus.focus(); } catch (e) {}
+    }
+    function onKey(ev) { if (ev.key === 'Escape') { ev.preventDefault(); dismiss(); } }
+    close.addEventListener('click', dismiss);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) dismiss(); });
+    document.addEventListener('keydown', onKey, true);
+    list.forEach(function (source) {
+      var key = source.getAttribute('data-offer-action') || 'unknown';
+      var label = source.getAttribute('data-offer-label') || labelFor(source, key);
+      listEl.appendChild(createSheetButton(key, label, function () { dismiss(); source.click(); }));
+    });
+    panel.appendChild(head); panel.appendChild(sub); panel.appendChild(listEl); overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+    try { if (typeof window.ptfIconxSweep === 'function') window.ptfIconxSweep(overlay); } catch (e2) {}
+    setTimeout(function () { var first = listEl.querySelector('button'); if (first) first.focus(); }, 20);
+  }
+  window.ptfOfferOpenActionSheet = openSheet;
+
+  function addMenuButton(last, no, action, group) {
+    if (last.querySelector('[data-offer-action="' + action + '"]')) return;
+    var key = action === 'rialMenu' ? 'rialMenu' : 'more';
+    var label = key === 'rialMenu' ? META.rialMenu.label : 'عملیات بیشتر پیشنهاد';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'offer-row-action ' + (key === 'rialMenu' ? 'offer-row-rial-menu' : 'offer-row-more');
+    btn.style.display = 'none'; /* desktop: دکمه‌های اصلی بدون تغییر می‌مانند */
+    btn.setAttribute('data-offer-action', key);
+    btn.setAttribute('data-offer-tone', META[key].tone);
+    btn.setAttribute('data-offer-label', label);
+    btn.setAttribute('data-offer-primary', '1');
+    btn.setAttribute('data-offer-secondary', '0');
+    btn.setAttribute('title', label);
+    btn.setAttribute('aria-label', label);
+    applyTone(btn, META[key].tone);
+    var icon = document.createElement('span');
+    icon.className = 'offer-action-icon'; icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = META[key].icon;
+    var text = document.createElement('span');
+    text.className = 'offer-action-label'; text.textContent = label;
+    btn.appendChild(icon); btn.appendChild(text);
+    btn.addEventListener('click', function () { openSheet(no, group || ''); });
+    last.appendChild(btn);
+    try { if (typeof window.ptfIconxSweep === 'function') window.ptfIconxSweep(btn); } catch (e) {}
+  }
+
+  function moveRialButtons(row, last, no) {
+    var inline = row.querySelector('td:first-child [title*="نسخه ریالی"]');
+    if (!inline) return;
+    var buttons = Array.prototype.slice.call(inline.querySelectorAll('button'));
+    if (!buttons.length) return;
+    var parents = [];
+    buttons.forEach(function (btn) {
+      if (btn.parentNode && parents.indexOf(btn.parentNode) < 0) parents.push(btn.parentNode);
+      btn.setAttribute('data-offer-group', 'rial');
+      last.appendChild(btn); /* handlerهای قبلی بدون تغییر منتقل می‌شوند */
+    });
+    parents.forEach(function (p) { if (!p.querySelector('button') && !String(p.textContent || '').trim()) p.remove(); });
+    addMenuButton(last, no, 'rialMenu', 'rial');
+  }
+
+  function polish() {
+    if (!isMob()) return;
+    var tb = document.getElementById('oTb');
+    if (!tb) return;
+    Array.prototype.forEach.call(tb.querySelectorAll('tr'), function (row) {
+      var strong = row.querySelector('td strong');
+      if (!strong) return;
+      var no = strong.textContent.trim();
+      var cells = row.querySelectorAll('td');
+      var last = cells[cells.length - 1];
+      if (!last) return;
+      moveRialButtons(row, last, no);
+      Array.prototype.forEach.call(last.querySelectorAll('button:not(.offer-row-more):not(.offer-row-rial-menu)'), function (btn) {
+        var key = detect(btn);
+        applyFace(btn, key, labelFor(btn, key));
+      });
+      var secondary = last.querySelectorAll('button.offer-row-action[data-offer-secondary="1"]:not([data-offer-group="rial"])');
+      if (secondary.length) addMenuButton(last, no, 'more', '');
+    });
+  }
+
+  function polishSoon() {
+    /* backup.js و workflow.js هر کدام renderOffers را hook می‌کنند. اجرای async
+       تضمین می‌کند actionهایی که wrapperهای بیرونی پس از render اضافه می‌کنند هم دیده شوند. */
+    setTimeout(function () { try { polish(); } catch (e) {} }, 0);
+  }
+
+  function hookLatest() {
+    var current = window.renderOffers;
+    if (typeof current !== 'function') return false;
+    if (current._ptfOfferMobileActionsOuter) return true;
+    var original = current;
+    var wrapped = function () {
+      var result = original.apply(this, arguments);
+      polishSoon();
+      return result;
+    };
+    wrapped._ptfOfferMobileActionsOuter = true;
+    window.renderOffers = wrapped;
+    return true;
+  }
+
+  window.ptfOfferMobilePolish = polish;
+  /* تا پایان hookهای تاخیردار سایر ماژول‌ها، outer wrapper را دوباره بررسی کن. */
+  var tries = 0;
+  var timer = setInterval(function () {
+    tries++;
+    hookLatest();
+    if (tries > 40) { clearInterval(timer); polishSoon(); }
+  }, 200);
+  var lastMob = isMob();
+  var resizeTimer = 0;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var now = isMob();
+      if (now !== lastMob && typeof window.renderOffers === 'function') window.renderOffers();
+      else if (now) polish();
+      lastMob = now;
+    }, 120);
+  });
+})();
