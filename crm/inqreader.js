@@ -1076,9 +1076,10 @@
       // چک‌باکس
       try {
         var srch = document.getElementById('pSrch');
+        var extras = document.getElementById('prodFilterExtras');
         if (srch && !document.getElementById('prodShowHidden')) {
-          srch.parentElement.insertAdjacentHTML('beforeend',
-            '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer"><input type="checkbox" id="prodShowHidden" onchange="renderProducts()"> نمایش کالاهای استعلامی (' + hiddenOnes.length + ')</label>');
+          (extras || srch.parentElement).insertAdjacentHTML('beforeend',
+            '<label class="prod-hidden-toggle"><input type="checkbox" id="prodShowHidden" onchange="renderProducts()"> <span>نمایش کالاهای استعلامی (' + hiddenOnes.length + ')</span></label>');
         }
       } catch (e) {}
     };

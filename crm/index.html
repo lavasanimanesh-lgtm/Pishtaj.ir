@@ -192,6 +192,12 @@
   }
   .sb2 { width: 100% !important; display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
   .sb2 input, .sb2 select { width: 100% !important; }
+  /* MOB-030: فیلتر کالا و actionهای زیر «همه» در ردیف مستقل، بدون هم‌پوشانی. */
+  #prodFilters { width: 100% !important; display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; margin-bottom: 10px !important; }
+  #prodFilters > input, #prodFilters > select { width: 100% !important; min-width: 0 !important; min-height: 46px !important; }
+  #prodFilterExtras { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; align-items: center !important; gap: 8px !important; }
+  #prodFilterExtras .prod-hidden-toggle { min-width: 0 !important; white-space: normal !important; line-height: 1.5 !important; }
+  #prodFilterExtras .lt-btn { justify-self: end !important; }
 
   /* ===== v34.1: دکمه‌های هدر ماژول → Icon-Only در موبایل ===== */
   /* دکمه‌های .ph (هدر ماژول‌ها) و .sb2 (نوار ابزار): فقط ایموجی/آیکون */
@@ -726,6 +732,12 @@ body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;
 .ph h3{font-size:17px;color:var(--tx);font-weight:900}
 .sb2{display:flex;gap:6px}
 .sb2 input{padding:8px 12px;border:2px solid var(--brd);border-radius:10px;font-size:13px;background:#f8fafc}
+/* نوار فیلتر اختصاصی کالا: افزونه‌های پویا (کالاهای استعلامی/فیلتر و خروجی) محل مستقل دارند. */
+.product-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.product-filters>input{flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px}
+.product-filters>select{padding:8px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px;background:var(--crd,#fff)}
+.product-filter-extras{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.prod-hidden-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer}
 .bt{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:8px 16px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;box-sizing:border-box}
 .bt-o{background:transparent;color:#475569;border:2px solid var(--brd)}
 .bt-s{background:#10b981}
@@ -2173,9 +2185,10 @@ function buildProducts() {
     '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfBatchDeleteProducts()">🗑 حذف دسته‌جمعی انتخاب‌شده‌ها</button>' +
     '<input type="file" id="pCsvIn" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportProdXls(this)">' +
     '</div></div>' +
-    '<div class="sb2" style="margin-bottom:10px;display:flex;gap:8px">' +
-    '<input type="text" id="pSrch" placeholder="جستجو: کد، نام، برند، استاندارد..." oninput="renderProducts()" style="flex:1;padding:8px 12px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px">' +
-    '<select id="pFcat" onchange="renderProducts()" style="padding:8px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px">' + catOpts + '</select>' +
+    '<div id="prodFilters" class="product-filters">' +
+    '<input type="text" id="pSrch" placeholder="جستجو: کد، نام، برند، استاندارد..." oninput="renderProducts()">' +
+    '<select id="pFcat" onchange="renderProducts()">' + catOpts + '</select>' +
+    '<div id="prodFilterExtras" class="product-filter-extras"></div>' +
     '</div>' +
     '<div style="font-size:12px;color:#94a3b8;margin-bottom:8px" id="pCount"></div>' +
     '<div class="tb2"><table><thead><tr><th style="width:32px"><input type="checkbox" id="pChkAll" onclick="ptfToggleAllProdChk(this)" title="انتخاب همه"></th><th onclick="sortProd(&quot;cd&quot;)" style="cursor:pointer">کد ⇅</th><th onclick="sortProd(&quot;nm&quot;)" style="cursor:pointer">نام کالا ⇅</th><th>دسته</th><th>استاندارد/گرید</th><th>برند</th><th>واحد</th><th onclick="sortProd(&quot;pr&quot;)" style="cursor:pointer">قیمت مرجع ⇅</th><th>عملیات</th></tr></thead>' +
@@ -2995,11 +3008,11 @@ setInterval(function(){
 <script defer src="offers-pro.js?v=34.0.21-alpha"></script>
 <script defer src="buycompare.js?v=34.0.21-alpha"></script>
 <script defer src="procurement-link.js?v=34.0.21-alpha"></script>
-<script defer src="listtools.js?v=34.0.21-alpha"></script>
+<script defer src="listtools.js?v=34.3.3"></script>
 <script defer src="icons.js?v=34.0.21-alpha"></script>
 <script defer src="guards.js?v=34.2.8"></script>
 <script defer src="tables.js?v=34.0.21-alpha"></script>
-<script defer src="inqreader.js?v=34.0.21-alpha"></script>
+<script defer src="inqreader.js?v=34.3.3"></script>
 <script defer src="offerlock.js?v=34.0.21-alpha"></script>
 <script defer src="workflow.js?v=34.0.21-alpha"></script>
 <script defer src="fx.js?v=34.0.21-alpha"></script>
