@@ -217,6 +217,7 @@
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
 | MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.0` و precache هم‌مسیر اجرا شد |
+| MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -419,3 +420,9 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
 **بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.0`، تنها cache فعال `ptf-crm-v34.4.0` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+
+### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
+
+badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار داشت که قانون عمومی mobile آن را `overflow:hidden!important` می‌کرد؛ به همین دلیل دایرهٔ قرمز نیمه دیده می‌شد. اکنون overflow wrapper/bell به‌صورت محدود `visible` است و خود badge با offset داخلی `1px` داخل hit-area قرار می‌گیرد.
+
+**بازآزمایی 320×568 و 390×844 با مقدار `99+`:** bell برابر `42×42px` و badge برابر `29×18px` بود؛ تمام کادر badge داخل bell و header باقی ماند، `document.scrollWidth` با viewport برابر و page/console error صفر بود.

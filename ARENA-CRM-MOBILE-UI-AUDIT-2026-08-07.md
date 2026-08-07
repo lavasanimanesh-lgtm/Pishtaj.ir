@@ -665,6 +665,12 @@ release واحد **`v34.4.0`** اکنون در `VERSION.json`، runtime CRM، ma
 
 **تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.0`، cache فعال `ptf-crm-v34.4.0` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
 
+### MOB-037 — رفع بریدگی badge قرمز زنگولهٔ header
+
+بازخورد کاربر نشان داد شمارندهٔ قرمز صندوق پیام روی زنگوله نصفه دیده می‌شود. علت، ترکیب offset منفی badge با `overflow:hidden!important` عمومی button بود. overflow زنگوله و wrapper آن به‌صورت محدود visible شد و badge به offset داخلی امن `1px` منتقل شد؛ بنابراین بدون بیرون‌زدن از header، کامل دیده می‌شود.
+
+**تأیید فنی:** در 320×568 و 390×844 با شمارندهٔ `99+`، badge `29×18px` کاملاً داخل bell `42×42px` و header قرار داشت؛ overflow افقی و page/console error صفر بود.
+
 ## پیوست: شواهد عددی
 
 | شاخص | نتیجه |

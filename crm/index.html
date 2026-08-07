@@ -39,6 +39,10 @@
   @media(max-width:900px) and (max-height:600px) and (orientation:landscape){#crmL[data-ptf-boot="nav"] #ptfBootStatus{bottom:calc(62px + env(safe-area-inset-bottom,0px))}}
   @keyframes ptfBootSpin{to{transform:rotate(360deg)}}
   @media(prefers-reduced-motion:reduce){#ptfBootStatus .ptf-boot-spin{animation:none}}
+  /* MOB-037: badge صندوق پیام دیگر از button زنگوله بیرون نمی‌زند و توسط
+     overflow عمومی button بریده نمی‌شود؛ حتی شمارندهٔ 99+ کامل دیده می‌شود. */
+  #tbIcons,#tbBellBtn{overflow:visible!important}
+  #tbBellBtn #ibBadge{top:1px!important;left:1px!important;right:auto!important;bottom:auto!important;z-index:4!important;box-sizing:border-box!important;pointer-events:none!important;line-height:1!important}
 
 /* ============ Sprint 108 / US-112: انقلابی در تجربه موبایل (Mobile Data Card View & Native PWA Feel) ============ */
 @media (max-width: 768px) {
