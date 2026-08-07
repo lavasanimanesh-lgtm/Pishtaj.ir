@@ -641,14 +641,22 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 **تأیید فنی:** در شروع مستقیم و در آزمون چرخش portrait→844×390، sidebar `display:none`، main `844px`، nav `844×52px` و header `52px` بود؛ پنج tab داخل viewport ماندند، `document.scrollWidth=844` و page/console error صفر بود. کلیک «کارتابل» نیز state صحیح `cart` را ثبت کرد.
 
+### MOB-007 — استانداردسازی semantics، focus و Escape مودال‌ها
+
+لایهٔ مرکزی `modalx.js` اکنون تمام modalهای متداول `.md-b` و `.ptfdlg-b` را هنگام ایجاد تجهیز می‌کند: `role="dialog"`، `aria-modal`، `aria-labelledby`، focus اولیه، Tab/Shift+Tab trap، Escape برای بالاترین modal و بازگردانی focus به trigger.
+
+در modalهای تو‌در‌تو، Escape فقط پنجرهٔ رویی را می‌بندد. `ptfDialog` از مسیر Cancel خودش بسته می‌شود تا callback حفظ شود؛ `dialogx` نیز Promise/handler اختصاصی خود را نگه می‌دارد. dock کوچک‌سازی هم با keyboard قابل استفاده و قابل بازگردانی شد.
+
+**تأیید فنی:** در 320×568 و 390×844، modal واقعی ثبت درخواست role/aria صحیح و focus اولیه داخل فرم داشت؛ Tab و Shift+Tab از modal خارج نشدند و Escape focus را به trigger بازگرداند. nested `ptfDialog`، `dialogx.confirm` و minimize/restore با Enter نیز بدون page/console error آزموده شدند.
+
 ## پیوست: شواهد عددی
 
 | شاخص | نتیجه |
 |---|---:|
 | مسیرهای اصلی که با fixture بدون pageerror باز شدند | 21 پنل |
 | اندازهٔ modal dot در اجرای واقعی | 98×46px برای هر کنترل، به‌جای طراحی 13px |
-| modal پایه با role/aria-modal | ندارد |
-| Escape روی modal پایه | مودال باز ماند |
+| modal پایه با role/aria-modal | ✅ MOB-007: `role=dialog`، `aria-modal` و `aria-labelledby` خودکار |
+| Escape روی modal پایه | ✅ فقط بالاترین modal بسته و focus به trigger بازمی‌گردد |
 | table-card label (`data-label`) | 0 occurrence |
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navbar در 2Mbps آزمایشگاهی | 13.4 ثانیه تا آماده‌شدن |
@@ -657,4 +665,4 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |
 
-> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل semantics/focus مودال، کارایی/PWA، deep-link و Kanban هستند.
+> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005 و semantics پایهٔ MOB-007 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل کارایی/PWA، deep-link، Kanban و focus/inert کشوی «سایر» هستند.

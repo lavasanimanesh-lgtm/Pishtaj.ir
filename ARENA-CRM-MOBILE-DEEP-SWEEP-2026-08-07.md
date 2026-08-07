@@ -209,11 +209,12 @@
 
 | شناسه | وضعیت کنونی |
 |---|---|
-| MOB-001 کنترل‌های مودال | ✅ مرحلهٔ visual/label اجرا شد؛ focus trap و Escape عمومی هنوز در MOB-007 باز است |
+| MOB-001 کنترل‌های مودال | ✅ visual/label و semantics پایه اجرا شد |
 | MOB-002 label جدول‌ها | ⏳ باز؛ قبل از migration گسترده action rowها انجام شود |
 | MOB-003 refresh پس از bottom-nav/sync | ⏳ باز، P0 |
 | MOB-004 toast/banner روی nav | ✅ اجرا و آزمایش شد؛ stack بالای nav و لمس آزاد است |
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
+| MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -378,3 +379,16 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 **بازآزمایی شروع مستقیم 844×390:** sidebar `display:none`، main `844px`، header `52px` و bottom-nav از y=338 تا 390 بود؛ 5 tab همگی داخل viewport و بدون overflow بودند. کلیک واقعی «کارتابل» `ptfActivePanel=cart` و active tab درست را ثبت کرد.
 
 **بازآزمایی چرخش:** صفحه ابتدا در 390×844 باز و سپس به 844×390 چرخانده شد؛ sidebar پنهان، nav `844×52px` و header nowrap/52px باقی ماندند؛ `document.scrollWidth=844` و page/console error صفر بود. سناریوی toast+banner در همین landscape نیز هیچ overlap با nav نداشت.
+
+### 19. پیگیری اجرایی — MOB-007: semantics، focus trap و Escape مودال‌ها
+
+برای پوشش الگوی غالب CRM، `modalx.js` به یک ModalManager سبک برای overlayهای `.md-b` و `.ptfdlg-b` ارتقا یافت؛ بنابراین مهاجرت پرریسک صدها modal inline لازم نیست.
+
+- dialogهای پایه اکنون `role="dialog"`، `aria-modal="true"`، `aria-labelledby` و `tabindex` دارند؛
+- focus اولیه به نخستین فیلد قابل‌استفاده می‌رود و Tab / Shift+Tab از modal خارج نمی‌شود؛
+- Escape فقط بالاترین overlay را می‌بندد؛ در `ptfDialog` مسیر Cancel و callback آن حفظ می‌شود؛
+- پس از بستن، focus به trigger بازمی‌گردد؛ در modal تو‌در‌تو ابتدا outer modal دوباره focus می‌گیرد؛
+- `dialogx` به‌دلیل Promise/handler اختصاصی خود intercept نمی‌شود، اما focus بازگشتی آن حفظ شد؛
+- dock کوچک‌سازی نیز keyboard-reachable (`role=button`، Enter/Space/Escape) است و پس از restore، focus را به همان modal برمی‌گرداند.
+
+**بازآزمایی 320×568 و 390×844:** یک modal واقعی ثبت درخواست با role/aria صحیح، focus اولیه داخل فرم و 21 target قابل‌چرخه رندر شد. Tab و Shift+Tab هر دو داخل modal ماندند؛ Escape modal را بست و focus به trigger برگشت. در سناریوی nested، Escape فقط `ptfDialog` داخلی را بست، callback Cancel اجرا شد و outer modal فعال ماند. `dialogx.confirm` با Escape مقدار `false` resolve کرد. minimize/restore با Enter نیز focus داخل modal را بازگرداند. page/console error در هر دو viewport صفر بود.
