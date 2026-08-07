@@ -421,12 +421,12 @@
       return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + ptfOnClickArg(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
     }).join(' ');
     el.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
+      '<div class="opex-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
       '<h4 style="margin:0;font-size:13.5px">🏢 هزینه‌های جاری شرکت (US-418)</h4>' +
-      '<span style="display:flex;gap:6px;align-items:center">' +
-      '<input type="text" value="' + escP(m) + '" onchange="window._opexMonth=this.value.trim();ptfOpexRender()" style="width:90px;padding:6px;border:1.5px solid var(--brd);border-radius:9px;direction:ltr;font-size:12px" title="ماه شمسی — خالی = همه">' +
-      '<button class="bt" style="font-size:12px" onclick="ptfOpexAdd()">+ ثبت هزینه</button>' +
-      (canFin() ? '<button class="bt bt-o" style="font-size:12px" onclick="ptfOpexMigrateShareholders()" title="برای تراکنش‌های قدیمیِ حقوق سهامدار که رکورد هزینه (opex) ندارند، ردیف «حقوق و دستمزد» می‌سازد">🛠 بازسازی حقوق سهامدار</button>' : '') + '</span></div>' +
+      '<span class="opex-tools" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
+      '<input class="opex-month" type="text" value="' + escP(m) + '" onchange="window._opexMonth=this.value.trim();ptfOpexRender()" style="width:90px;padding:6px;border:1.5px solid var(--brd);border-radius:9px;direction:ltr;font-size:12px" title="ماه شمسی — خالی = همه">' +
+      '<button class="bt opex-add-action" style="font-size:12px" onclick="ptfOpexAdd()">+ ثبت هزینه</button>' +
+      (canFin() ? '<button class="bt bt-o opex-rebuild-action" style="font-size:12px" onclick="ptfOpexMigrateShareholders()" title="برای تراکنش‌های قدیمیِ حقوق سهامدار که رکورد هزینه (opex) ندارند، ردیف «حقوق و دستمزد» می‌سازد">🛠 بازسازی حقوق سهامدار</button>' : '') + '</span></div>' +
       pendHtml +
       '<div style="font-size:12.5px;margin-bottom:6px">جمع ماه <b dir="ltr">' + escP(m || '—') + '</b>: <b style="color:#b45309">' + fmtT(sm.total) + ' ریال</b> | جمع سال ' + escP(year) + ': <b>' + fmtT(sy.total) + ' ریال</b></div>' +
       (chips ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">' + chips + '</div>' : '') +

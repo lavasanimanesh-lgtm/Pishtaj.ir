@@ -48,19 +48,35 @@
   }
   function btn(id, lb, icon) {
     var on = tab() === id;
-    return '<button type="button" class="fin-hub-tab' + (on ? ' active' : '') + '" onclick="finHubSet(\'' + id + '\')">' + finIcon(icon) + '<span>' + lb + '</span></button>';
+    /* MOB-036: متن tab باید حتی در grid موبایل قابل تشخیص باشد، نه یک chip
+       با عرض محتوا که ردیف‌ها را نامتقارن/خارج از صفحه می‌کند. */
+    return '<button type="button" class="fin-hub-tab' + (on ? ' active' : '') + '" data-fin-hub-tab="' + id + '" title="' + lb + '" aria-label="' + lb + '" aria-pressed="' + (on ? 'true' : 'false') + '" onclick="finHubSet(\'' + id + '\')">' + finIcon(icon) + '<span class="fin-hub-tab-label">' + lb + '</span></button>';
   }
   function bar() {
     if (!canHub()) return '';
     return '<div id="finHubBar" class="fin-hub-bar">' +
       '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی، گزارش تجمیعی و تراز رسمی/غیررسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
-      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
+      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', 'چک‌ها', 'cheque') + '</div></div></div>';
   }
   window.finHubSet = function (id) { window._finHubTab = id || 'petty'; finHubApply(); };
   window.finHubApply = function () {
     if (!canHub()) return;
     var t = tab();
-    function show(id, on) { var el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; }
+    /* این state برای رندرهای داخلی tabها نیز می‌ماند: بعضی renderها outerHTML
+       را با style="display:none" بازسازی می‌کنند؛ CSS وابسته به این attribute
+       tab فعال را پس از بازسازی قابل‌مشاهده نگه می‌دارد. */
+    var panelRoot = document.getElementById('panels');
+    if (panelRoot) panelRoot.setAttribute('data-fin-hub-active', t);
+    /* .ph و .sb2 در CSS موبایل display:flex!important دارند. style.display='none'
+       به‌تنهایی از آن ضعیف‌تر بود، پس toolbar تنخواه زیر همهٔ tabها باقی می‌ماند.
+       برای پنهان‌سازی باید inline important بگذاریم؛ برای نمایش آن را کامل برمی‌داریم. */
+    function show(id, on) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (on) el.style.removeProperty('display');
+      else el.style.setProperty('display', 'none', 'important');
+    }
+    show('ptPettyHead', t === 'petty');
     ['ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap'].forEach(function (id) { show(id, t === 'petty'); });
     show('opexBox', t === 'opex');
     show('shareBox', t === 'share');

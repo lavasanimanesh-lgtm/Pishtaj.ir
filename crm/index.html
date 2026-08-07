@@ -311,6 +311,242 @@
   #panels .cartable-head .cartable-preferences { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
   #panels .cartable-head .cartable-message-action { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
 
+  /* MOB-035: فیلترهای یادآورها همان مشکل کارتابل را داشتند: checkbox کشیده و
+     «یادآور جدید» به icon-only مبهم تبدیل می‌شد. */
+  #panels .reminders-head .reminders-toolbar {
+    width: 100% !important;
+    flex: 1 0 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+  #panels .reminders-head .reminders-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 48px !important;
+    box-sizing: border-box !important;
+    padding: 9px 12px !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--crd, #fff) !important;
+  }
+  #panels .reminders-head .reminders-footer {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels .reminders-head .reminders-toggle {
+    min-width: 0 !important;
+    min-height: 58px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    border: 1px solid #fde68a !important;
+    border-radius: 12px !important;
+    background: #fffbeb !important;
+    color: #92400e !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1.45 !important;
+  }
+  #panels .reminders-head .reminders-toggle input[type="checkbox"] {
+    appearance: auto !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 20px !important;
+    accent-color: #d97706 !important;
+  }
+  #panels .reminders-head .reminders-new-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 58px !important;
+    margin: 0 !important;
+    padding: 7px 5px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels .reminders-head .reminders-action-icon { font-size: 19px !important; line-height: 1 !important; }
+  #panels .reminders-head .reminders-action-label { display: block !important; max-width: 100% !important; overflow-wrap: anywhere !important; }
+
+  /* MOB-036: tabهای هاب مالی در 320px با عرض متن چیده می‌شدند و 10 tab را
+     به ردیف‌های نامتقارن و بلند تبدیل می‌کردند. grid دو ستونه، همهٔ مقصدها را
+     در یک الگوی پایدار و بدون horizontal overflow نگه می‌دارد. */
+  #panels #finHubBar {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #panels #finHubBar .fin-hub-layout {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  #panels #finHubBar .fin-hub-heading { width: 100% !important; min-width: 0 !important; }
+  #panels #finHubBar .fin-hub-heading small { display: block !important; margin-top: 4px !important; line-height: 1.75 !important; }
+  #panels #finHubBar .fin-hub-tabs {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels #finHubBar .fin-hub-tab {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 58px !important;
+    margin: 0 !important;
+    padding: 7px 8px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    text-align: right !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  #panels #finHubBar .fin-hub-tab-label { flex: 1 1 auto !important; min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels #finHubBar .fin-hub-icon { width: 20px !important; height: 20px !important; flex: 0 0 20px !important; }
+  #panels #finHubBar .fin-hub-icon svg { width: 18px !important; height: 18px !important; }
+
+  /* ابزارهای درونی tabهای مالی: فرم/دکمه‌های بلند باید wrap یا grid داشته باشند،
+     نه اینکه به چپ از viewport بروند. */
+  #panels #fiscalBox, #panels #opexBox, #panels #chequeBox {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+  #panels #fiscalBox .ptf-fiscal-copy { min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels #fiscalBox .ptf-fiscal-toolbar {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-control {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 50px !important;
+    box-sizing: border-box !important;
+    padding: 3px 9px !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-control select { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; max-width: 100% !important; min-height: 42px !important; padding: 5px !important; }
+  #panels #fiscalBox .ptf-fiscal-control input { width: 54px !important; min-width: 54px !important; min-height: 42px !important; padding: 5px !important; }
+  #panels #fiscalBox .ptf-fiscal-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 54px !important;
+    margin: 0 !important;
+    padding: 7px 5px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-amend-action { grid-column: 1 / -1 !important; }
+  #panels #fiscalBox .ptf-fiscal-alert, #panels #fiscalBox .ptf-fiscal-kpi { min-width: 0 !important; max-width: 100% !important; overflow-wrap: anywhere !important; }
+  #panels #fiscalBox .sr { min-width: 0 !important; max-width: 100% !important; }
+  /* action بلند «ثبت تقسیم سود» در cash block نباید min-content کل flex را عریض کند. */
+  #panels #fiscalBox .ptf-fiscal-cash-block { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-copy { min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-actions button { width: 100% !important; min-width: 0 !important; max-width: 100% !important; min-height: 50px !important; margin: 0 !important; padding: 7px 9px !important; box-sizing: border-box !important; font-size: 11px !important; line-height: 1.35 !important; white-space: normal !important; overflow: hidden !important; text-overflow: clip !important; }
+
+  #panels #opexBox .opex-head { align-items: stretch !important; }
+  #panels #opexBox .opex-head h4 { width: 100% !important; min-width: 0 !important; }
+  #panels #opexBox .opex-tools {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels #opexBox .opex-month, #panels #opexBox .opex-add-action { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+  #panels #opexBox .opex-rebuild-action {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 52px !important;
+    padding: 7px 9px !important;
+    box-sizing: border-box !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+
+  #panels #chequeBox { overflow-x: hidden !important; }
+  #panels #chequeBox .cheque-panel-head { align-items: flex-start !important; }
+  #panels #chequeBox .cheque-panel-head > div:first-child { width: 100% !important; min-width: 0 !important; }
+  #panels #chequeBox .cheque-panel-tools { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #chequeBox .cheque-panel-subtabs { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #chequeBox .cheque-panel-actions { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #chequeBox .cheque-panel-tools button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 54px !important;
+    margin: 0 !important;
+    padding: 7px 5px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels #chequeBox .cheque-panel-actions button { min-height: 60px !important; padding:6px 3px !important; flex-direction: column !important; gap: 3px !important; font-size: 10px !important; }
+
   /* دکمه‌های عملیاتی کارت/ردیف (مشاهده، ویرایش، حذف): فقط آیکون */
   .tb2 .ba {
     font-size: 0 !important;
@@ -838,6 +1074,29 @@ body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;
 .cartable-action-label{white-space:nowrap}
 .cartable-read-all{color:#0e7490!important;border-color:#bae6fd!important}
 .cartable-message-action{color:#2563eb!important;border-color:#bfdbfe!important}
+/* نوار اختصاصی یادآورها؛ در desktop همان چیدمان جمع‌وجور flex حفظ می‌شود. */
+.reminders-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.reminders-select{padding:9px;border:1px solid var(--brd);border-radius:10px;background:var(--crd,#fff);font:inherit}
+.reminders-footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.reminders-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer}
+.reminders-toggle input[type="checkbox"]{width:16px;height:16px;margin:0;accent-color:#d97706}
+.reminders-action-icon{font-size:16px;line-height:1}
+.reminders-action-label{white-space:nowrap}
+/* در دسکتاپ بار تنخواه نیز با عرض باقیمانده می‌شکند، نه اینکه آخرین action بیرون برود. */
+#ptPettyHead #ptToolbar{flex-wrap:wrap;justify-content:flex-end;min-width:0;max-width:100%}
+/* رندرهای داخلی برخی تب‌ها root را با display:none بازسازی می‌کنند. state فعال
+   هاب مالی باید مستقل از markup تازه باقی بماند (به‌خصوص tab چک و گزارش‌ها). */
+#panels[data-fin-hub-active="opex"] #opexBox,
+#panels[data-fin-hub-active="share"] #shareBox,
+#panels[data-fin-hub-active="fiscal"] #fiscalBox,
+#panels[data-fin-hub-active="fiscal"] #ptfTaxPlannerBox,
+#panels[data-fin-hub-active="supacc"] #slLiquidity,
+#panels[data-fin-hub-active="supacc"] #slFinanceHubBox,
+#panels[data-fin-hub-active="custacc"] #cfFinanceHubBox,
+#panels[data-fin-hub-active="workcap"] #wcFinanceHubBox,
+#panels[data-fin-hub-active="ledger"] #ledgerReportBox,
+#panels[data-fin-hub-active="quality"] #qualityBox,
+#panels[data-fin-hub-active="cheque"] #chequeBox{display:block!important}
 .bt{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:8px 16px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;box-sizing:border-box}
 .bt-o{background:transparent;color:#475569;border:2px solid var(--brd)}
 .bt-s{background:#10b981}
@@ -3079,7 +3338,7 @@ setInterval(function(){
 <script defer src="offers.js?v=34.2.9"></script>
 <script defer src="surplus.js?v=34.0.21-alpha"></script>
 <script defer src="launcher.js?v=34.0.21-alpha"></script>
-<script defer src="leads.js?v=34.0.21-alpha"></script>
+<script defer src="leads.js?v=34.3.5"></script>
 <script defer src="storage.js?v=34.0.21-alpha"></script>
 <script defer src="rbac.js?v=34.3.4"></script>
 <script defer src="official-ledger.js?v=34.0.21-alpha"></script>
@@ -3100,8 +3359,8 @@ setInterval(function(){
 <script defer src="rfqsmart.js?v=34.0.21-alpha"></script>
 <script defer src="cms.js?v=34.0.21-alpha"></script>
 <script defer src="perms.js?v=34.0.21-alpha"></script>
-<script defer src="petty.js?v=34.0.21-alpha"></script>
-<script defer src="opex.js?v=34.0.21-alpha"></script>
+<script defer src="petty.js?v=34.3.5"></script>
+<script defer src="opex.js?v=34.3.5"></script>
 <script defer src="shareholders.js?v=34.0.21-alpha"></script>
 <script defer src="theme.js?v=34.0.21-alpha"></script>
 <script defer src="archive.js?v=34.0.21-alpha"></script>
@@ -3123,7 +3382,7 @@ setInterval(function(){
 <script defer src="docsx.js?v=34.0.21-alpha"></script>
 <script defer src="oppo.js?v=34.0.21-alpha"></script>
 <script defer src="cheque-module.js?v=34.0.21-alpha"></script>
-<script defer src="cheque-panel.js?v=34.0.21-alpha"></script>
+<script defer src="cheque-panel.js?v=34.3.5"></script>
 <script defer src="cheque-print.js?v=34.2.6"></script>
 <script defer src="cheques.js?v=34.0.21-alpha"></script>
 <script defer src="messengers.js?v=34.3.4"></script>
@@ -3147,8 +3406,8 @@ setInterval(function(){
 <script defer src="insights.js?v=34.0.21-alpha"></script>
 <script defer src="myday.js?v=34.0.21-alpha"></script>
 <script defer src="lossguard.js?v=34.0.21-alpha"></script>
-<script defer src="fiscal.js?v=34.0.21-alpha"></script>
-<script defer src="financehub.js?v=34.0.21-alpha"></script>
+<script defer src="fiscal.js?v=34.3.5"></script>
+<script defer src="financehub.js?v=34.3.5"></script>
 <script defer src="theme-contrast.js?v=34.0.21-alpha"></script>
 <script defer src="sync.js?v=34.3.2"></script>
 <script defer src="client-server.js?v=34.0.21-alpha"></script>

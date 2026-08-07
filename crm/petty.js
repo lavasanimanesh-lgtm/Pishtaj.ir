@@ -75,7 +75,9 @@
   }
 
   window.buildPetty = function () {
-    return '<div class="ph"><h3>🏛 هاب مالی</h3>' +
+    /* id برای اینکه financehub بتواند header/فیلتر تنخواه را در تب‌های دیگر
+       واقعاً پنهان کند؛ .ph/.sb2 در موبایل display!important دارند. */
+    return '<div class="ph" id="ptPettyHead"><h3>🏛 هاب مالی</h3>' +
       '<div class="sb2" id="ptToolbar">' + (isMgr() ? '<select id="ptFilter" onchange="renderPetty()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:13px"><option value="">همه کاربران</option></select>' : '') +
       (typeof window.ptfSortSelectHtml === 'function' ? window.ptfSortSelectHtml('petty', [
         { key: 't', dir: 'desc', lb: '🕒 جدیدترین' }, { key: 't', dir: 'asc', lb: '🕒 قدیمی‌ترین' },

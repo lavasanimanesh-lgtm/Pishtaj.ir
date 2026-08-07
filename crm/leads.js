@@ -481,12 +481,16 @@ function remState(r) {
 
 function buildReminders() {
   var topicOpts = '<option value="">همه موضوعات</option>' + REM_TOPICS.map(function(t){ return '<option>' + t + '</option>'; }).join('');
-  return '<div class="ph"><h3>⏰ یادآورها</h3>' +
-    '<div class="sb2">' +
-    '<select id="rmTopic" onchange="renderReminders()" style="padding:9px;border:1px solid var(--brd);border-radius:10px">' + topicOpts + '</select>' +
-    '<select id="rmBy" onchange="renderReminders()" style="padding:9px;border:1px solid var(--brd);border-radius:10px"><option value="__me">فقط یادآورهای من</option><option value="">همه کاربران</option></select>' +
-    '<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="rmDone" onchange="renderReminders()"> نمایش انجام‌شده‌ها</label>' +
-    '<button class="bt" onclick="showRemModal()">+ یادآور جدید</button>' +
+  /* MOB-035: toolbar یادآورها از .sb2 عمومی جداست؛ input و action در 320px
+     دیگر با هم فشرده نمی‌شوند و action ایجاد برچسب قابل‌دیدن دارد. */
+  return '<div class="ph reminders-head"><h3>⏰ یادآورها</h3>' +
+    '<div class="reminders-toolbar">' +
+      '<select class="reminders-select" id="rmTopic" aria-label="فیلتر موضوع یادآورها" onchange="renderReminders()">' + topicOpts + '</select>' +
+      '<select class="reminders-select" id="rmBy" aria-label="فیلتر مالک یادآورها" onchange="renderReminders()"><option value="__me">فقط یادآورهای من</option><option value="">همه کاربران</option></select>' +
+      '<div class="reminders-footer">' +
+        '<label class="reminders-toggle" for="rmDone"><input type="checkbox" id="rmDone" onchange="renderReminders()"><span>نمایش انجام‌شده‌ها</span></label>' +
+        '<button class="bt reminders-new-action" type="button" title="ثبت یادآور جدید" aria-label="ثبت یادآور جدید" onclick="showRemModal()"><span class="reminders-action-icon" aria-hidden="true">⏰</span><span class="reminders-action-label">یادآور جدید</span></button>' +
+      '</div>' +
     '</div></div>' +
     '<div id="rmWrap"></div>';
 }

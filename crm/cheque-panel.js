@@ -136,16 +136,19 @@
     var sub = window.ptfChequePanelSub === 'received' ? 'received' : 'issued';
     var tbtn = function (id, lb, cl) {
       var on = sub === id;
-      return '<button class="bt" style="' + (on ? 'background:' + cl + ';color:#fff' : '') + '" onclick="ptfChequeSetSub(\'' + id + '\')">' + lb + '</button>';
+      return '<button type="button" class="bt cheque-panel-subtab" title="' + lb + '" aria-label="' + lb + '" aria-pressed="' + (on ? 'true' : 'false') + '" style="' + (on ? 'background:' + cl + ';color:#fff' : '') + '" onclick="ptfChequeSetSub(\'' + id + '\')">' + lb + '</button>';
     };
     var body = sub === 'received' ? receivedTable() : issuedTable();
+    /* MOB-036: ابزارهای چک پیش‌تر یک flex بدون wrap بودند و پنج button سمت چپ
+       در viewport 320px با x منفی رندر می‌شدند. گروه‌بندی semantic برای grid موبایل. */
     return '<div id="chequeBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🧾 چک‌ها</h4><small style="color:#64748b">ماژول مستقل — صادره و وارده</small></div>' +
-      '<div style="display:flex;gap:6px">' + tbtn('issued', '🏢 چک‌های صادره', '#b45309') + tbtn('received', '📥 چک‌های وارده', '#0e7490') +
-      '<button class="bt" style="background:#7c3aed;color:#fff" onclick="ptfChequeAiOpenSub()">🤖 دستیار هوشمند</button>' + '<button class="bt bt-o" onclick="ptfChequeNewUi()">+ چک جدید</button>' +
-      '<button class="bt bt-o" onclick="ptfChequeBookUi()">📒 دسته چک</button>' +
-      '<button class="bt bt-o" onclick="ptfChequePanelPdf()">🖨 PDF</button>' +
-      '<button class="bt bt-o" onclick="ptfChequePanelCsv()">⬇ اکسل</button></div></div>' + body + '</div>';
+      '<div class="cheque-panel-head" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">🧾 چک‌ها</h4><small style="color:#64748b">ماژول مستقل — صادره و وارده</small></div>' +
+      '<div class="cheque-panel-tools" style="display:flex;gap:6px;flex-wrap:wrap"><div class="cheque-panel-subtabs" style="display:flex;gap:6px;flex-wrap:wrap">' + tbtn('issued', '🏢 چک‌های صادره', '#b45309') + tbtn('received', '📥 چک‌های وارده', '#0e7490') +
+      '</div><div class="cheque-panel-actions" style="display:flex;gap:6px;flex-wrap:wrap">' +
+      '<button type="button" class="bt cheque-panel-action" title="دستیار هوشمند چک" aria-label="دستیار هوشمند چک" style="background:#7c3aed;color:#fff" onclick="ptfChequeAiOpenSub()">🤖 دستیار هوشمند</button>' + '<button type="button" class="bt bt-o cheque-panel-action" title="ثبت چک جدید" aria-label="ثبت چک جدید" onclick="ptfChequeNewUi()">+ چک جدید</button>' +
+      '<button type="button" class="bt bt-o cheque-panel-action" title="مدیریت دسته چک" aria-label="مدیریت دسته چک" onclick="ptfChequeBookUi()">📒 دسته چک</button>' +
+      '<button type="button" class="bt bt-o cheque-panel-action" title="خروجی PDF چک‌ها" aria-label="خروجی PDF چک‌ها" onclick="ptfChequePanelPdf()">🖨 PDF</button>' +
+      '<button type="button" class="bt bt-o cheque-panel-action" title="خروجی اکسل چک‌ها" aria-label="خروجی اکسل چک‌ها" onclick="ptfChequePanelCsv()">⬇ اکسل</button></div></div></div>' + body + '</div>';
   };
 
   window.ptfChequePanelRender = function () {
