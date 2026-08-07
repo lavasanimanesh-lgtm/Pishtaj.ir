@@ -562,6 +562,11 @@
     });
   };
 
+  window.ptfPrintPreviewClose = function () {
+    var modal = document.getElementById('ptfPrintPreview');
+    if (modal) modal.remove();
+  };
+
   window.ptfPreviewPrintableDoc = function (title, html, fileName) {
     var old = document.getElementById('ptfPrintPreview');
     if (old) old.remove();
@@ -573,17 +578,23 @@
     modal.style.display = 'grid';
     modal.style.zIndex = (typeof window.ptfTopZIndex === 'function' ? window.ptfTopZIndex(2800) : 2800);
     modal.onclick = function (e) { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = '<div class="md" style="max-width:min(1200px,96vw);width:96vw;max-height:94vh;overflow:auto">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">' +
-      '<h3 style="margin:0">👁 ' + safeTitle + '</h3>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="bt" style="background:#0e7490" onclick="ptfPrintPreviewGo()">🖨️ چاپ / ذخیره PDF</button>' +
-      '<button class="bt bt-o" style="color:#b45309;border-color:#fde68a;background:#fffbeb;font-weight:bold" onclick="ptfToggleLayoutBar()">🎛️ تنظیم چیدمان و گنجایش صفحه</button>' +
-      '<button class="bt bt-o" onclick="ptfDownloadPreviewHtml(\'' + ptfOnClickArg(fileName || 'document') + '\')">⬇️ دانلود HTML</button>' +
-      '<button class="bt bt-o" style="color:#7c3aed;border-color:#ddd6fe" onclick="ptfDownloadPreviewWord(\'' + ptfOnClickArg(fileName || 'document') + '\')">⬇️ دانلود Word (.doc)</button>' +
-      '<button class="bt bt-o" onclick="ptfOpenPreviewNewTab()">🗗 تب جدید</button>' +
-      '<button class="bt" style="background:#64748b" onclick="document.getElementById(\'ptfPrintPreview\').remove()">بستن</button></div></div>' +
-      '<div id="ptfLayoutBarWrap" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;margin-bottom:10px;gap:12px;align-items:center;flex-wrap:wrap;font-size:11.5px">' +
+    /* MOB-042: پیش‌نمایش چاپ overlay اختصاصی است؛ toolbar باید actionهای واضح و
+       keyboard-friendly داشته باشد، نه ردیف buttonهای بلند/ناهم‌اندازه. */
+    function previewAction(kind, icon, label, title, onClick, primary) {
+      return '<button type="button" class="bt' + (primary ? '' : ' bt-o') + ' ptf-print-action ptf-print-' + kind + '" data-print-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '"><span class="ptf-print-action-icon" aria-hidden="true">' + icon + '</span><span class="ptf-print-action-label">' + label + '</span></button>';
+    }
+    modal.innerHTML = '<div class="md ptf-print-preview-modal" style="max-width:min(1200px,96vw);width:96vw;max-height:94vh;overflow:auto">' +
+      '<div class="ptf-print-preview-head">' +
+      '<h3 id="ptfPrintPreviewTitle">👁 ' + safeTitle + '</h3>' +
+      '<div class="ptf-print-actions" role="group" aria-label="عملیات پیش‌نمایش چاپ">' +
+      previewAction('print', '🖨', 'چاپ / PDF', 'باز کردن چاپ یا ذخیره PDF', 'ptfPrintPreviewGo()', true) +
+      previewAction('layout', '🎛', 'چیدمان', 'تنظیم چیدمان و گنجایش صفحه', 'ptfToggleLayoutBar()', false) +
+      previewAction('html', '⬇', 'HTML', 'دانلود HTML سند', 'ptfDownloadPreviewHtml(\'' + ptfOnClickArg(fileName || 'document') + '\')', false) +
+      previewAction('word', '⬇', 'Word', 'دانلود Word سند', 'ptfDownloadPreviewWord(\'' + ptfOnClickArg(fileName || 'document') + '\')', false) +
+      previewAction('newtab', '↗', 'تب جدید', 'باز کردن پیش‌نمایش در تب جدید', 'ptfOpenPreviewNewTab()', false) +
+      previewAction('close', '×', 'بستن', 'بستن پیش‌نمایش چاپ', 'ptfPrintPreviewClose()', false) +
+      '</div></div>' +
+      '<div id="ptfLayoutBarWrap" class="ptf-print-layout-bar" style="display:none;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:8px 12px;margin-bottom:10px;gap:12px;align-items:center;flex-wrap:wrap;font-size:11.5px">' +
       '<span><b>🔤 فونت جدول:</b> <button class="bt bt-o" style="padding:2px 6px" onclick="ptfAdjustPreviewLayout(\'fs\',-1)">➖ کوچکتر</button> <button class="bt bt-o" style="padding:2px 6px" onclick="ptfAdjustPreviewLayout(\'fs\',1)">➕ بزرگتر</button></span>' +
       '<span><b>↕️ تراکم سطرها:</b> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'pad\',\'compact\')">کم‌حجم (فشرده)</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'pad\',\'normal\')">استاندارد</button></span>' +
       '<span><b>↔️ حاشیه صفحه:</b> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'6mm\')">باریک (6mm)</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'10mm\')">استاندارد</button> <button class="bt bt-o" style="padding:2px 7px" onclick="ptfAdjustPreviewLayout(\'margin\',\'14mm\')">جادار</button></span>' +

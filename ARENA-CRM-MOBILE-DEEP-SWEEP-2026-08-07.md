@@ -216,7 +216,7 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
-| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.6` و precache هم‌مسیر اجرا شد |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.7` و precache هم‌مسیر اجرا شد |
 | MOB-010 deep-link/hash | ✅ مقصد hash پس از bootstrap به پنل صحیح می‌رسد |
 | MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
 | MOB-038 actionهای کیفیت داده مالی | ✅ grid متقارن 2×2 و metadata صریح اجرا شد |
@@ -224,6 +224,7 @@
 | MOB-039 actionهای کارت/کشوی پرونده فروش | ✅ فرصت‌ها، Post-Award، خرید واقعی و اسناد رسمی به grid معنایی مهاجرت کردند |
 | MOB-040 دستیار و تنظیمات | ✅ workspace دستیار و تنظیمات مرحله‌ای موبایل بازطراحی شدند |
 | MOB-041 هاب مالی، چک، امضای پیشنهاد و جستجوی هدر | ✅ actionهای خوانا، امضای قابل‌دیدن و جستجوی واحد اجرا شد |
+| MOB-042 overlayها و تنظیمات | ✅ More sheet، print/tour و ردیف‌های تنظیمات دسترس‌پذیر شدند |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -421,13 +422,13 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 
 نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
 
-- release یکپارچهٔ **`v34.4.6`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
-- هر 91 script shell اکنون دقیقاً `?v=34.4.6` دارد؛
-- `sw.js?v=v34.4.6` ثبت می‌شود و cache آن `ptf-crm-v34.4.6` است؛
+- release یکپارچهٔ **`v34.4.7`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell اکنون دقیقاً `?v=34.4.7` دارد؛
+- `sw.js?v=v34.4.7` ثبت می‌شود و cache آن `ptf-crm-v34.4.7` است؛
 - هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
-**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.6`، تنها cache فعال `ptf-crm-v34.4.6` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.7`، تنها cache فعال `ptf-crm-v34.4.7` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
 
 ### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
 
@@ -522,6 +523,19 @@ badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار �
 - چهار آیکون کیفیت داده SVG بودند و text emoji نداشتند. چک ضمانت در 320/390 دارای badge کامل `110px` و نام ذی‌نفع در عرض `115/156px` wrap شد؛ دقیقاً یک action حذف و صفر action چرخ‌دنده در هر ردیف fixture بود.
 - در هر چهار viewport، ذره‌بین چپ palette را باز کرد و focus روی `cmdPalInp` نشست؛ فقط یک کنترل command palette در header باقی ماند.
 - card امضا در modal پیشنهاد در viewport کامل دیده شد؛ `ofUseSig` و `ofSignAs` هرکدام دقیقاً یک‌بار، بدون duplicate، رندر شدند. page/console error و horizontal page overflow صفر بود.
+
+### 29. پیگیری اجرایی — MOB-042: overlayهای غیرمودال و ردیف‌های تنظیمات
+
+- کشوی «سایر» اکنون `role=dialog`، `aria-modal`، عنوان، close button، focus trap، Escape، inert روی CRM/nav و بازگردانی focus به trigger دارد. انتخاب مقصد یا جستجوی سریع sheet را فوری حذف می‌کند تا overlay مرده روی palette/صفحه نماند؛
+- print preview به toolbar ساخت‌یافتهٔ چاپ/PDF، چیدمان، HTML، Word، تب جدید و بستن تبدیل شد. در mobile action grid 2×3، iframe امن درون modal و layout bar فقط هنگام فعال‌سازی ظاهر می‌شود؛
+- desktop و mobile tour به dialog keyboard-aware تبدیل شدند: role/aria، Tab trap، Escape و guard برای timeoutهای پس از بستن؛
+- تمام بخش‌های تنظیمات به details rowهای مناسب حفظ شدند. شناسه‌های نمایشی `US-*` از title/body پاک می‌شوند و normalizer برای actionهای تنظیمات title/aria/label مقاوم در برابر icon-only شدن می‌سازد.
+
+**بازآزمایی:**
+
+- More sheet در 320/390/844×390 دارای 26 مقصد، role dialog، inert صحیح، Shift+Tab از close به آخرین action، Escape و بازگشت focus به trigger بود. search sheet را حذف و `cmdPalInp` را focus کرد.
+- print preview در mobile فاقد overflow داخلی (`307/307px` در 320 و `374/374px` در 390) بود؛ شش action برچسب‌دار `136.1×52px` و `169.7×52px` داشتند. desktop tour نیز با Escape بدون pageerror بسته شد.
+- تنظیمات 11 row جزئیات داشت، عبارت US در UI صفر بود و تمام 28 action تنظیمات title/aria گرفتند؛ root در چهار viewport `clientWidth === scrollWidth` بود.
 
 ### پیوست ممیزی یکدستی مودال‌ها
 

@@ -659,11 +659,11 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 ### MOB-009 — قرارداد یکپارچهٔ release، cache و Service Worker
 
-release واحد **`v34.4.6`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.6` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
+release واحد **`v34.4.7`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.7` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
 
 `offer-rial-convert.js` که از SHELL جا افتاده بود افزوده شد، registration worker با URL نسخه‌دار انجام می‌شود و purge cache به‌جای متغیر تعریف‌نشده، release فعال را استفاده می‌کند. navigation آفلاین دارای fallback به index precache شده است.
 
-**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.6`، cache فعال `ptf-crm-v34.4.6` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
+**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.7`، cache فعال `ptf-crm-v34.4.7` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
 
 ### MOB-037 — رفع بریدگی badge قرمز زنگولهٔ header
 
@@ -717,6 +717,14 @@ signature card فرم پیشنهاد از بخش پایین و خارج از vie
 
 **تأیید فنی:** در 320/390، toolbar تنخواه `132/167×60px`، گزارش دوره `272/342×52px`، actionهای OPEX `118/153×48.8px` و سهامداران `110/145×54px` بودند. چهار آیکون quality SVG و بدون emoji بودند؛ badge ضمانت `110px` کامل، deleteCount=1 و gearCount=0 بود. signature card در viewport modal visible و IDهای امضا یکتا بودند. در 320، 390، 844×390 و desktop 1024، overflow/error صفر بود.
 
+### MOB-042 — دسترسی overlayها و action rowهای تنظیمات
+
+کشوی «سایر» پیش‌تر focus/inert/Escape نداشت و می‌توانست کاربر keyboard را پشت sheet ببرد. اکنون dialog معنایی با focus trap، Escape، inert برای CRM/nav، close button و focus return است. جستجو یا انتخاب مقصد sheet را فوری می‌بندد. print preview نیز toolbar کامل labelدار و grid موبایل دارد؛ layout controls فقط در حالت باز نمایش داده می‌شوند. Tourهای desktop/mobile role dialog، Escape و guard timeout گرفتند.
+
+در تنظیمات، `US-*` از متن نمایشی حذف شد و normalizer دکمه‌های hookهای backup/license/theme/security/report را به actionهای labelدار با title/aria تبدیل می‌کند. تمام 11 section همچنان accordion مستقل دارند و action rowها در mobile grid مناسب می‌گیرند.
+
+**تأیید فنی:** More sheet در 320، 390 و landscape role/aria/inert/focus-trap صحیح داشت؛ Search focus را به `cmdPalInp` برد. print preview در 320/390 بدون overflow داخلی و با شش action 2×3 رندر شد. desktop/mobile tour با Escape بدون error پایان یافت. در چهار viewport، settings دارای 11 row، بدون `US-*`، با 28 action دارای title/aria و بدون overflow/pageerror بود.
+
 ### پیوست ممیزی یکدستی مودال‌ها
 
 اسکن سراسری **307** الگوی `.md`، **310** occurrence از `.md-b` و **20** `ptfdlg-b` را در 56 فایل JS نشان داد. ModalManager `modalx` همهٔ overlayهای استاندارد `.md-b/.ptfdlg-b` را هنگام ایجاد تجهیز می‌کند؛ آزمون واقعی modal «فاکتور جدید» کنترل‌های جدید و semantics/focus صحیح را تأیید کرد. مسیرهای غیرمدال مانند print-preview، tour و More sheet به‌صورت مستقل در backlog باقی می‌مانند تا کنترل پنجره به آنها اشتباهاً تحمیل نشود.
@@ -733,13 +741,14 @@ signature card فرم پیشنهاد از بخش پایین و خارج از vie
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navigation در 2Mbps آزمایشگاهی | ✅ مرحلهٔ اول MOB-008: shell در 2.47s؛ صف کامل 91 script ~16.6s |
 | First Contentful Paint در آزمون MOB-008 | ~0.54s |
-| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.6` و reload آفلاین موفق |
+| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.7` و reload آفلاین موفق |
 | deep-link panel | ✅ MOB-010: `#off/#cart/#petty`، تغییر hash و Back پایدار |
 | کیفیت دادهٔ مالی | ✅ MOB-038: grid 2×2، actionهای 64px و metadata صریح |
 | پرونده‌های فروش / فرصت‌ها | ✅ MOB-030: primary/sub-tab grid هم‌اندازه، semantics و keyboard پایدار |
 | actionهای کارت و کشوی پرونده | ✅ MOB-039: action gridهای فرصت، Post-Award، خرید واقعی و اسناد رسمی یکدست |
 | دستیار و تنظیمات | ✅ MOB-040: workspace شش‌ابزارهٔ AI و تنظیمات مرحله‌ای 11بخشی یکدست |
 | هاب مالی، چک، پیشنهاد و هدر | ✅ MOB-041: actionهای مالی/چک، signature modal و جستجوی واحد اصلاح شدند |
+| overlayها و تنظیمات | ✅ MOB-042: More sheet، print/tour و action rowهای بدون US یکدست |
 | toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |

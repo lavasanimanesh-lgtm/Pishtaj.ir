@@ -15,6 +15,76 @@
 
   function isMob() { return window.innerWidth <= BP; }
 
+  /* MOB-042: کشوی «سایر» یک overlay مستقل است، نه modal استاندارد .md-b.
+     بنابراین focus/inert/Escape را صریح مدیریت می‌کنیم تا keyboard و screen reader
+     پشت sheet نروند و پس از بستن focus به trigger برگردد. */
+  var moreReturnFocus = null, moreKeyHandler = null, moreInertState = [];
+  function moreFocusable(root) {
+    if (!root) return [];
+    return Array.prototype.slice.call(root.querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(function (el) {
+      return el.offsetParent !== null && !el.hasAttribute('hidden');
+    });
+  }
+  function setMoreInert(on) {
+    var targets = [document.getElementById('crmL'), document.getElementById('mnvBar')].filter(Boolean);
+    if (on) {
+      moreInertState = targets.map(function (el) { return { el: el, inert: !!el.inert, aria: el.getAttribute('aria-hidden') }; });
+      targets.forEach(function (el) { el.inert = true; el.setAttribute('aria-hidden', 'true'); });
+      return;
+    }
+    moreInertState.forEach(function (rec) {
+      if (!rec.el) return;
+      rec.el.inert = rec.inert;
+      if (rec.aria == null) rec.el.removeAttribute('aria-hidden'); else rec.el.setAttribute('aria-hidden', rec.aria);
+    });
+    moreInertState = [];
+  }
+  function detachMoreKeyboard() {
+    if (moreKeyHandler) document.removeEventListener('keydown', moreKeyHandler, true);
+    moreKeyHandler = null;
+  }
+  function dismissMore(opt) {
+    opt = opt || {};
+    var el = document.getElementById('mnvMore');
+    detachMoreKeyboard();
+    setMoreInert(false);
+    if (el) {
+      /* هنگام رفتن به مقصد یا palette، overlay نباید حتی یک فریم focus/click را نگه دارد. */
+      if (opt.restore === false || opt.immediate) el.remove();
+      else {
+        el.classList.remove('on');
+        setTimeout(function () { if (el.parentNode) el.remove(); }, 220);
+      }
+    }
+    if (opt.restore !== false && moreReturnFocus && typeof moreReturnFocus.focus === 'function') {
+      setTimeout(function () { try { moreReturnFocus.focus(); } catch (e) {} }, 0);
+    }
+    moreReturnFocus = null;
+  }
+  function activateMoreSheet() {
+    var overlay = document.getElementById('mnvMore');
+    var sheet = overlay && overlay.querySelector('.mnv-sheet');
+    if (!overlay || !sheet) return;
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) dismissMore(); });
+    moreKeyHandler = function (e) {
+      if (!document.getElementById('mnvMore')) return;
+      if (e.key === 'Escape') { e.preventDefault(); dismissMore(); return; }
+      if (e.key !== 'Tab') return;
+      var f = moreFocusable(sheet);
+      if (!f.length) { e.preventDefault(); sheet.focus(); return; }
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', moreKeyHandler, true);
+    setMoreInert(true);
+    requestAnimationFrame(function () {
+      overlay.classList.add('on');
+      var first = sheet.querySelector('.mnv-close') || moreFocusable(sheet)[0] || sheet;
+      if (first && typeof first.focus === 'function') first.focus();
+    });
+  }
+
   /* ---------- ساختار تب‌ها (id پنل‌ها مطابق goPanel) ---------- */
   function svgi(p) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px;display:block;margin:0 auto">' + p + '</svg>'; }
 
@@ -67,7 +137,7 @@
   /* ---------- کشوی «بیشتر»: همه ماژول‌ها از روی سایدبار واقعی (RBAC اعمال‌شده) ---------- */
   function buildMoreSheet() {
     var old = document.getElementById('mnvMore');
-    if (old) old.remove();
+    if (old) { detachMoreKeyboard(); setMoreInert(false); old.remove(); }
     var items = [];
     document.querySelectorAll('.sb-n .sb-i').forEach(function (b) {
       if (b.style.display === 'none') return; // RBAC
@@ -84,36 +154,41 @@
         '<span class="mnv-mic" style="color:' + PAL[i % PAL.length] + '">' + it.ic + '</span><span class="mnv-mlb">' + it.lb + '</span></button>';
     }).join('');
     var html =
-      '<div id="mnvMore" class="mnv-more" onclick="if(event.target===this)ptfMnvMore(false)">' +
-      '<div class="mnv-sheet">' +
-      '<div class="mnv-grip"></div>' +
-      /* US-290: جستجوی سرتاسری در دسترس شست */
-      '<button type="button" class="mnv-srch" onclick="ptfMnvMore(false);if(typeof ptfOpenCommandPalette===\'function\')ptfOpenCommandPalette()">' +
+      '<div id="mnvMore" class="mnv-more">' +
+      '<section class="mnv-sheet" role="dialog" aria-modal="true" aria-labelledby="mnvMoreTitle" tabindex="-1">' +
+      '<div class="mnv-grip" aria-hidden="true"></div>' +
+      '<div class="mnv-sheet-head"><h2 id="mnvMoreTitle">سایر بخش‌ها</h2><button type="button" class="mnv-close" title="بستن سایر بخش‌ها" aria-label="بستن سایر بخش‌ها" onclick="ptfMnvMore(false)">×</button></div>' +
+      /* جستجوی سرتاسری در دسترس شست و کیبورد */
+      '<button type="button" class="mnv-srch" title="جستجوی سریع سرتاسری" aria-label="جستجوی سریع سرتاسری" onclick="ptfMnvMore(false,{restore:false});if(typeof ptfOpenCommandPalette===\'function\')ptfOpenCommandPalette()">' +
       svgi('<circle cx="11" cy="11" r="6.5"/><path d="M20.5 20.5L16 16"/>') + '<span>جستجوی سریع سرتاسری</span></button>' +
       '<div class="mnv-grid">' + grid + '</div>' +
       '<button type="button" class="mnv-out" onclick="if(typeof doLogout===\'function\')doLogout()">خروج از حساب</button>' +
-      '</div></div>';
+      '</section></div>';
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
-  window.ptfMnvMore = function (open) {
+  window.ptfMnvMore = function (open, opt) {
+    opt = opt || {};
     var el = document.getElementById('mnvMore');
     if (open && !modulesReady()) {
       queuePanelUntilReady('_more');
       return;
     }
     if (open) {
+      if (el) return;
+      var active = document.activeElement;
+      var trigger = document.querySelector('#mnvBar .mnv-tab[data-tab="_more"]');
+      moreReturnFocus = (active && active !== document.body && typeof active.focus === 'function') ? active : trigger;
       buildMoreSheet();
-      el = document.getElementById('mnvMore');
-      requestAnimationFrame(function () { el.classList.add('on'); });
-    } else if (el) {
-      el.classList.remove('on');
-      setTimeout(function () { if (el.parentNode) el.remove(); }, 220);
+      activateMoreSheet();
+    } else if (el || moreInertState.length) {
+      dismissMore(opt);
     }
   };
 
   window.ptfMnvGo = function (id) {
-    ptfMnvMore(false);
+    /* انتخاب یک مقصد focus را به trigger «سایر» برنمی‌گرداند؛ مقصد جدید باید مالک focus باشد. */
+    ptfMnvMore(false, { restore: false });
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (eV) {} /* v31.7.17: بازخورد هپتیک ظریف */
     if (id !== 'dash' && !modulesReady()) {
       queuePanelUntilReady(id);
@@ -257,7 +332,8 @@
     '.mnv-more.on{opacity:1}' +
     '.mnv-sheet{position:absolute;bottom:0;left:0;right:0;background:var(--crd,#fff);border-radius:22px 22px 0 0;padding:10px 14px calc(16px + env(safe-area-inset-bottom,0px));max-height:78vh;overflow-y:auto;overflow-x:hidden;touch-action:pan-y;transform:translateY(100%);transition:transform .22s ease}' + /* v13.0: قفل اسکرول افقی */
     '.mnv-more.on .mnv-sheet{transform:translateY(0)}' +
-    '.mnv-grip{width:44px;height:5px;border-radius:3px;background:var(--brd,#e2e8f0);margin:2px auto 12px}' +
+    '.mnv-grip{width:44px;height:5px;border-radius:3px;background:var(--brd,#e2e8f0);margin:2px auto 10px}' +
+    '.mnv-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.mnv-sheet-head h2{margin:0;color:var(--tx,#0f172a);font-size:15px;font-weight:900}.mnv-close{width:36px;height:36px;min-width:36px;padding:0;border:1px solid #fecaca;border-radius:11px;background:#fef2f2;color:#dc2626;font:inherit;font-size:23px;line-height:1;cursor:pointer;display:grid;place-items:center}' +
     '.mnv-srch{display:flex;align-items:center;gap:10px;width:100%;background:var(--bg,#f1f5f9);border:1px solid var(--brd,#e8ebf0);border-radius:14px;padding:12px 14px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--tx,#334155);cursor:pointer;margin-bottom:12px}' +
     '.mnv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;max-width:100%;overflow-x:hidden}' + /* v13.0 */
     '.mnv-mi{min-width:0}' + /* گرید آیتم‌ها هرگز از عرض بیرون نمی‌زنند */
@@ -267,6 +343,7 @@
     '.mnv-mic span[data-ix]{display:inline-flex!important}' +
     '.mnv-mlb{font-size:10px;font-weight:800;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}' +
     '.mnv-out{width:100%;margin-top:12px;background:none;border:1px solid #fecaca;color:#dc2626;border-radius:14px;padding:12px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer}' +
+    '.mnv-sheet button:focus-visible{outline:3px solid rgba(59,130,246,.38);outline-offset:2px}' +
     /* حالت شب */
     'body.ptf-dark #mnvBar{background:#0f172a;border-top-color:#1e293b;box-shadow:0 -6px 24px rgba(0,0,0,.4)}' +
     'body.ptf-dark .mnv-tab{color:#64748b}' +
