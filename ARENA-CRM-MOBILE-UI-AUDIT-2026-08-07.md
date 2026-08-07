@@ -659,11 +659,11 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 ### MOB-009 — قرارداد یکپارچهٔ release، cache و Service Worker
 
-release واحد **`v34.4.2`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.2` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
+release واحد **`v34.4.3`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.3` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
 
 `offer-rial-convert.js` که از SHELL جا افتاده بود افزوده شد، registration worker با URL نسخه‌دار انجام می‌شود و purge cache به‌جای متغیر تعریف‌نشده، release فعال را استفاده می‌کند. navigation آفلاین دارای fallback به index precache شده است.
 
-**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.2`، cache فعال `ptf-crm-v34.4.2` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
+**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.3`، cache فعال `ptf-crm-v34.4.3` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
 
 ### MOB-037 — رفع بریدگی badge قرمز زنگولهٔ header
 
@@ -683,6 +683,14 @@ hash اولیه اکنون پیش از auto-login ثبت می‌شود تا `loa
 
 **تأیید فنی:** در 320×568 هر action `117×64px` و در 390×844 هر action `152×64px` بود؛ overlap و overflow صفر بود. action بازخوانی نیز پس از re-render، quality box فعال و grid متقارن را حفظ کرد.
 
+### MOB-030 — بازطراحی tabهای «پرونده‌های فروش» و نمای فرصت‌ها
+
+رابط پرونده‌های فروش پیش‌تر تنها دو button inline با اندازهٔ وابسته به متن داشت؛ در 320px نام tabها کوتاه/بریده می‌شد و کاربر بین پروندهٔ پس از ابلاغ و فرصت پیش از برد تمایز بصری یکدستی نداشت. tabهای اصلی اکنون segmented navigation ساخت‌یافته‌اند: آیکون، عنوان، توضیح کوتاه، شمارندهٔ فرصت و رنگ معنایی teal/violet. هر button `role=tab`، `aria-selected`، `aria-controls`، `title`، `aria-label` و roving `tabindex` دارد.
+
+نمای فرصت‌ها نیز sub-tabهای مستقل «بر اساس درخواست» و «بر اساس مشتری» دارد؛ در موبایل هر دو grid هم‌اندازه‌اند و Arrow/Home/End به‌همراه بازگردانی focus کار می‌کنند. redraw بعد از event و با guard پنل فعال انجام می‌شود تا tap سریع هم button را زیر pointer حذف نکند و هم navigation دیگری را overwrite نکند.
+
+**تأیید فنی:** در 320×568 tabهای اصلی `127×68px` و sub-tabها `132×58px`، و در 390×844 به‌ترتیب `162×68px` و `167×58px` بودند. `sfDealContent` در هر دو حالت `clientWidth === scrollWidth`، overlap و خطای page/console صفر بود. route واقعی `goPanel('deals')`، هر دو tab، هر دو نمای فرصت، بازگشت به پرونده‌ها و keyboard Home روی sub-tab با state و focus صحیح اجرا شد. در 844×390 و desktop 1024 نیز اندازه‌ها برابر و horizontal overflow صفر ماند.
+
 ### پیوست ممیزی یکدستی مودال‌ها
 
 اسکن سراسری **307** الگوی `.md`، **310** occurrence از `.md-b` و **20** `ptfdlg-b` را در 56 فایل JS نشان داد. ModalManager `modalx` همهٔ overlayهای استاندارد `.md-b/.ptfdlg-b` را هنگام ایجاد تجهیز می‌کند؛ آزمون واقعی modal «فاکتور جدید» کنترل‌های جدید و semantics/focus صحیح را تأیید کرد. مسیرهای غیرمدال مانند print-preview، tour و More sheet به‌صورت مستقل در backlog باقی می‌مانند تا کنترل پنجره به آنها اشتباهاً تحمیل نشود.
@@ -699,9 +707,10 @@ hash اولیه اکنون پیش از auto-login ثبت می‌شود تا `loa
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navigation در 2Mbps آزمایشگاهی | ✅ مرحلهٔ اول MOB-008: shell در 2.47s؛ صف کامل 91 script ~16.6s |
 | First Contentful Paint در آزمون MOB-008 | ~0.54s |
-| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.2` و reload آفلاین موفق |
+| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.3` و reload آفلاین موفق |
 | deep-link panel | ✅ MOB-010: `#off/#cart/#petty`، تغییر hash و Back پایدار |
 | کیفیت دادهٔ مالی | ✅ MOB-038: grid 2×2، actionهای 64px و metadata صریح |
+| پرونده‌های فروش / فرصت‌ها | ✅ MOB-030: primary/sub-tab grid هم‌اندازه، semantics و keyboard پایدار |
 | toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |

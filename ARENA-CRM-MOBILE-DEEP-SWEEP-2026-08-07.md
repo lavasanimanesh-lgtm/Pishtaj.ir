@@ -152,15 +152,15 @@
 
 ---
 
-### MOB-030 — تب‌های پرونده فروش truncate می‌شوند
+### MOB-030 — تب‌های پرونده فروش truncate می‌شدند — ✅ انجام شد
 
-**شدت: P2**
+**شدت پیش از اصلاح: P2**
 
-در 320px متن‌های `📁 پرونده‌ها (ابلاغ سفارش)` و `🎯 فرصت‌های فعال` بیش از عرض دکمه هستند. کاربر نام کامل تب را نمی‌بیند.
+در 320px متن‌های `📁 پرونده‌ها (ابلاغ سفارش)` و `🎯 فرصت‌های فعال` بیش از عرض دکمه بودند و کاربر نام کامل tab را نمی‌دید.
 
-**ریشه:** `crm/salesfiles.js:473-490`؛ flex row بدون `flex-wrap` یا variant موبایل.
+**ریشهٔ پیشین:** `crm/salesfiles.js`؛ flex row بدون قرارداد responsive و buttonهای inline با عرض وابسته به متن.
 
-**اصلاح پیشنهادی:** در mobile، تب‌ها تمام‌عرض دو سطری یا segmented control با label کوتاه «پرونده‌ها / فرصت‌ها» و title کامل شوند.
+**اصلاح اجراشده:** tablist معنایی با tileهای هم‌اندازه، label/آیکون جدا، شمارندهٔ فرصت و زیرتب‌های grid برای «درخواست / مشتری» جایگزین شد. شواهد اندازه و آزمون کامل در §25 ثبت شده است.
 
 ---
 
@@ -216,15 +216,18 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
-| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.2` و precache هم‌مسیر اجرا شد |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.3` و precache هم‌مسیر اجرا شد |
 | MOB-010 deep-link/hash | ✅ مقصد hash پس از bootstrap به پنل صحیح می‌رسد |
 | MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
 | MOB-038 actionهای کیفیت داده مالی | ✅ grid متقارن 2×2 و metadata صریح اجرا شد |
+| MOB-030 تب‌ها و نمای فرصت‌های پرونده فروش | ✅ tablist معنایی، grid هم‌اندازه و ناوبری keyboard اجرا شد |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
 | MOB-025 action پیشنهادها/ارزی | ✅ اجرا و آزمایش شد |
-| MOB-026 تا MOB-033 | 🆕 در این پیمایش شناسایی شدند |
+| MOB-026 تا MOB-029 و MOB-033 | ✅ مراحل اولویت‌دار اجرا شدند |
+| MOB-030 | ✅ navigation اصلی پرونده/فرصت و sub-tabهای فرصت اجرا و آزموده شدند |
+| MOB-031/032 | ⏳ Kanban سرنخ‌ها و overflowهای ریز باقی‌مانده |
 
 ---
 
@@ -245,7 +248,7 @@
 
 6. **MOB-002** — table-card labels و action schema.
 7. **MOB-003** — state مستقل active panel و refresh sync.
-8. **MOB-030/031/032** — tabs، Kanban و overflowهای باقی‌مانده.
+8. **MOB-031/032** — Kanban و overflowهای باقی‌مانده.
 
 ---
 
@@ -415,13 +418,13 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 
 نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
 
-- release یکپارچهٔ **`v34.4.2`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
-- هر 91 script shell اکنون دقیقاً `?v=34.4.2` دارد؛
-- `sw.js?v=v34.4.2` ثبت می‌شود و cache آن `ptf-crm-v34.4.2` است؛
+- release یکپارچهٔ **`v34.4.3`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell اکنون دقیقاً `?v=34.4.3` دارد؛
+- `sw.js?v=v34.4.3` ثبت می‌شود و cache آن `ptf-crm-v34.4.3` است؛
 - هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
-**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.2`، تنها cache فعال `ptf-crm-v34.4.2` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.3`، تنها cache فعال `ptf-crm-v34.4.3` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
 
 ### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
 
@@ -449,6 +452,22 @@ badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار �
 - refresh تب همچنان quality box را active نگه می‌دارد.
 
 **بازآزمایی 320×568 و 390×844:** در 320px هر action `117×64px` و در 390px هر action `152×64px` بود؛ overlap صفر، `qualityBox.clientWidth === scrollWidth` و page/console error صفر بود. دکمهٔ بازخوانی نیز بعد از replace شدن quality box، grid چهارگانه را حفظ کرد.
+
+### 25. پیگیری اجرایی — MOB-030: navigation «پرونده‌های فروش» و نمای فرصت‌ها
+
+تب‌های بالای پرونده‌های فروش تا پیش از این buttonهای inline با عرض وابسته به متن بودند؛ در عرض 320px نام کامل «پرونده‌ها (ابلاغ سفارش)» و «فرصت‌های فعال» truncate می‌شد و زیرتب‌های فرصت‌ها نیز ظاهر مستقل و پایدار نداشتند.
+
+- دو مقصد اصلی اکنون یک `tablist` معنایی با `role=tab`، `aria-selected`، `aria-controls`، `title` و `aria-label` دارند؛ هر tile آیکون، عنوان و توضیح کوتاه مستقل دارد و شمارندهٔ فرصت‌ها بدون فشرده‌کردن label نمایش داده می‌شود؛
+- tabهای اصلی در موبایل grid دو‌ستونه با hit-area برابر `68px` و زیرتب‌های «بر اساس درخواست / بر اساس مشتری» grid برابر `58px` هستند؛ رنگ teal برای پرونده و violet برای فرصت فعال، state انتخاب‌شده را روشن نگه می‌دارد؛
+- Arrowها، Home و End بین tabهای هم‌سطح حرکت می‌کنند؛ focus پس از re-render به مقصد تازه بازمی‌گردد و re-render با token/timer کوتاه انجام می‌شود تا button زیر pointer در میانهٔ event حذف نشود یا پس از خروج از پنل، navigation تازه را overwrite نکند؛
+- introهای دو context و فیلد جست‌وجو نیز label و layout ماژول‌-scope گرفتند؛ کد رندر فرصت‌ها، شمارنده، `sfSetTab`، `sfSetOppoView` و hookهای `oppo.js` بدون تغییر رفتار تجاری باقی ماندند.
+
+**بازآزمایی:**
+
+- در **320×568** tabهای اصلی دقیقاً `127×68px` و زیرتب‌ها `132×58px` بودند؛ `sfDealContent` برابر `272/272px` client/scroll، overlap صفر و `document.scrollWidth=320` بود.
+- در **390×844** tabهای اصلی `162×68px` و زیرتب‌ها `167×58px` بودند؛ route واقعی `goPanel('deals')` عنوان «پرونده‌های فروش» را نگه داشت، هر دو نمای فرصت و بازگشت به پرونده‌ها اجرا شد و خطای page/console صفر بود.
+- در **844×390** tabهای اصلی `331×60px` و زیرتب‌ها `216×50px` ماندند؛ در **1024 desktop** نیز اندازه‌ها برابر و `dealWrap` بدون overflow بود.
+- tap واقعی، انتخاب هر دو tab اصلی، هر دو نمای فرصت و Home روی sub-tab آزموده شد؛ state و focus مقصد صحیح باقی ماند.
 
 ### پیوست ممیزی یکدستی مودال‌ها
 

@@ -466,39 +466,117 @@
 
   /* ---------- پنل ---------- */
   window.buildDeals = function () {
-    /* v16.8 (US-404 فاز ۱): دو تب — پرونده‌ها (فقط ابلاغ‌شده) + فرصت‌های فعال (قبل از برد) */
-    var tab = window._sfTab || 'files';
+    /* MOB-030: تب‌های پرونده/فرصت پیش‌تر buttonهای inline و متغیر بر پایهٔ طول
+       متن بودند؛ در 320px عنوان مهم tab بریده می‌شد. ساختار زیر یک tablist
+       معنایی با tileهای هم‌اندازه در موبایل و segmented-control پایدار در desktop است. */
+    var tab = window._sfTab === 'oppo' ? 'oppo' : 'files';
     var nOppo = (typeof window.ptfOppoCount === 'function') ? window.ptfOppoCount() : 0;
-    var oppoView = window._sfOppoView || 'inq';
-    function tb(id, lb, cl) {
+    var oppoView = window._sfOppoView === 'customer' ? 'customer' : 'inq';
+    var oppoCountText = nOppo ? (+nOppo).toLocaleString('fa-IR') : '';
+
+    function tb(id, icon, title, meta) {
       var on = tab === id;
-      return '<button type="button" onclick="sfSetTab(\'' + id + '\')" style="border:0;border-radius:10px;padding:8px 16px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' + (on ? 'background:' + cl + ';color:#fff' : 'background:#f1f5f9;color:#475569') + '">' + lb + '</button>';
+      var label = id === 'files'
+        ? 'پرونده‌ها، ابلاغ سفارش'
+        : 'فرصت‌های فعال، رهگیری پیش از ابلاغ' + (nOppo ? '، ' + oppoCountText + ' فرصت فعال' : '');
+      return '<button id="sfTab-' + id + '" type="button" class="sf-tab sf-tab-' + id + (on ? ' is-active' : '') + '"' +
+        ' role="tab" aria-selected="' + (on ? 'true' : 'false') + '" aria-controls="sfDealContent"' +
+        ' aria-label="' + label + '" title="' + label + '" tabindex="' + (on ? '0' : '-1') + '"' +
+        ' onclick="sfSetTab(\'' + id + '\')" onkeydown="sfTabKeydown(event,\'' + id + '\')">' +
+        '<span class="sf-tab-icon" aria-hidden="true">' + icon + '</span>' +
+        '<span class="sf-tab-copy"><span class="sf-tab-title">' + title + '</span><span class="sf-tab-meta">' + meta + '</span></span>' +
+        (id === 'oppo' && nOppo ? '<span class="sf-tab-count" aria-hidden="true">' + oppoCountText + '</span>' : '') +
+        '</button>';
     }
-    function ov(id, lb) {
+    function ov(id, icon, title, meta) {
       var on = oppoView === id;
-      return '<button type="button" onclick="sfSetOppoView(\'' + id + '\')" style="border:0;border-radius:9px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;' + (on ? 'background:#7c3aed;color:#fff' : 'background:#fff;color:#475569;border:1px solid #ddd6fe') + '">' + lb + '</button>';
+      var label = title + '؛ ' + meta;
+      return '<button id="sfOppoView-' + id + '" type="button" class="sf-oppo-view sf-oppo-view-' + id + (on ? ' is-active' : '') + '"' +
+        ' role="tab" aria-selected="' + (on ? 'true' : 'false') + '" aria-controls="dealWrap"' +
+        ' aria-label="' + label + '" title="' + label + '" tabindex="' + (on ? '0' : '-1') + '"' +
+        ' onclick="sfSetOppoView(\'' + id + '\')" onkeydown="sfOppoViewKeydown(event,\'' + id + '\')">' +
+        '<span class="sf-oppo-view-icon" aria-hidden="true">' + icon + '</span>' +
+        '<span class="sf-oppo-view-copy"><span class="sf-oppo-view-title">' + title + '</span><span class="sf-oppo-view-meta">' + meta + '</span></span>' +
+        '</button>';
     }
-    return '<div class="ph"><h3>📁 پرونده‌های فروش</h3>' +
-      '<div class="sb2"><input type="text" id="sfSrch" placeholder="جستجو: شماره درخواست، کارفرما..." oninput="renderDeals()" style="flex:1"></div></div>' +
-      '<div style="display:flex;gap:6px;margin-bottom:10px">' +
-      tb('files', '📁 پرونده‌ها (ابلاغ سفارش)', '#0e7490') +
-      tb('oppo', '🎯 فرصت‌های فعال' + (nOppo ? ' (' + nOppo + ')' : ''), '#7c3aed') +
+
+    return '<div class="ph sf-head"><h3>📁 پرونده‌های فروش</h3>' +
+      '<div class="sb2 sf-search"><input type="text" id="sfSrch" placeholder="جستجو: شماره درخواست، کارفرما..." aria-label="جست‌وجو در پرونده‌ها و فرصت‌های فروش" oninput="renderDeals()" style="flex:1"></div></div>' +
+      '<div class="sf-tabs" role="tablist" aria-label="بخش پرونده‌های فروش">' +
+      tb('files', '📁', 'پرونده‌ها', 'ابلاغ سفارش') +
+      tb('oppo', '🎯', 'فرصت‌های فعال', 'رهگیری پیش از برد') +
       '</div>' +
+      '<section id="sfDealContent" class="sf-deal-content sf-deal-content-' + tab + '" role="tabpanel" aria-labelledby="sfTab-' + tab + '">' +
       (tab === 'files'
-        ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12px;color:#0c4a6e">ℹ️ US-404: پرونده فروش فقط با ثبت «🏆 برنده» پیشنهاد مالی (ابلاغ سفارش) ساخته می‌شود — هر ابلاغ = یک پرونده با همه اسناد. پس از مختومه/تسویه به بایگانی می‌رود.</div>'
-        : '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 14px;margin-bottom:8px;font-size:12px;color:#5b21b6">🎯 درخواست‌های دارای پیشنهادِ هنوز برنده‌نشده — رهگیری مهلت‌ها و ثبت نتیجه. با برنده شدن CO، خودکار «پرونده» می‌شوند؛ باخت هم با دلیل استاندارد مستقیم به گزارش Win/Loss می‌رود.</div>' +
-          '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;color:#64748b">نمای فرصت‌ها:</span>' + ov('inq', 'بر اساس درخواست') + ov('customer', 'بر اساس مشتری') + '</div>') +
-      '<div id="dealWrap"></div>';
+        ? '<div class="sf-context sf-context-files" role="note"><span class="sf-context-icon" aria-hidden="true">ℹ️</span><span>پرونده فروش فقط با ثبت «🏆 برنده» پیشنهاد مالی (ابلاغ سفارش) ساخته می‌شود؛ هر ابلاغ یک پرونده با همهٔ اسناد است و پس از مختومه/تسویه به بایگانی می‌رود.</span></div>'
+        : '<div class="sf-context sf-context-oppo" role="note"><span class="sf-context-icon" aria-hidden="true">🎯</span><span>درخواست‌های دارای پیشنهادِ هنوز برنده‌نشده را برای مهلت و نتیجه رهگیری کنید؛ با برد CO خودکار پرونده می‌شوند و باخت با دلیل استاندارد به گزارش Win/Loss می‌رود.</span></div>' +
+          '<div class="sf-oppo-switcher"><span id="sfOppoViewLabel" class="sf-oppo-switcher-label">نمای فرصت‌ها</span>' +
+          '<div class="sf-oppo-views" role="tablist" aria-labelledby="sfOppoViewLabel">' +
+          ov('inq', '📋', 'بر اساس درخواست', 'هر درخواست') +
+          ov('customer', '🤝', 'بر اساس مشتری', 'تجمیع مشتری') +
+          '</div></div>') +
+      '<div id="dealWrap"></div></section>';
   };
+
+  var sfRenderSeq = 0;
+  function sfRenderPanel(focusId) {
+    /* تغییر DOM را یک tick بعد از pointer/keyboard event انجام می‌دهیم؛ در غیر این
+       صورت button در میانهٔ click از زیر انگشت حذف می‌شد. token نیز clickهای پشت‌سرهم
+       را به آخرین مقصد coalesce می‌کند. */
+    var token = ++sfRenderSeq;
+    var redraw = function () {
+      if (token !== sfRenderSeq) return;
+      var p = document.getElementById('panels');
+      /* اگر کاربر پیش از redraw به پنل دیگری رفته، نباید timer کوتاه، صفحهٔ تازه را
+         با پرونده‌های فروش جایگزین کند. */
+      if (!p || !p.querySelector('#sfDealContent')) return;
+      p.innerHTML = buildDeals();
+      renderDeals();
+      if (!focusId) return;
+      var restoreFocus = function () {
+        if (token !== sfRenderSeq) return;
+        var control = document.getElementById(focusId);
+        if (control && typeof control.focus === 'function') control.focus();
+      };
+      if (window.requestAnimationFrame) window.requestAnimationFrame(restoreFocus);
+      else setTimeout(restoreFocus, 0);
+    };
+    if (typeof window.setTimeout === 'function') window.setTimeout(redraw, 0);
+    else redraw();
+  }
+
   window.sfSetTab = function (t) {
-    window._sfTab = t;
-    var p = document.getElementById('panels');
-    if (p) { p.innerHTML = buildDeals(); renderDeals(); }
+    window._sfTab = t === 'oppo' ? 'oppo' : 'files';
+    sfRenderPanel('sfTab-' + window._sfTab);
   };
   window.sfSetOppoView = function (v) {
     window._sfOppoView = v === 'customer' ? 'customer' : 'inq';
-    var p = document.getElementById('panels');
-    if (p) { p.innerHTML = buildDeals(); renderDeals(); }
+    sfRenderPanel('sfOppoView-' + window._sfOppoView);
+  };
+
+  /* Tab/Shift+Tab هنوز رفتار طبیعی button را دارند؛ فلش‌ها/Home/End بین tabهای
+     هم‌سطح حرکت می‌کنند. در RTL، ArrowLeft به tile بعدیِ قابل‌مشاهده می‌رود. */
+  function sfTabTarget(event, current, ids) {
+    if (!event) return '';
+    var key = event.key;
+    var at = ids.indexOf(current);
+    if (at < 0) return '';
+    var next = at;
+    if (key === 'ArrowLeft' || key === 'ArrowDown') next = (at + 1) % ids.length;
+    else if (key === 'ArrowRight' || key === 'ArrowUp') next = (at - 1 + ids.length) % ids.length;
+    else if (key === 'Home') next = 0;
+    else if (key === 'End') next = ids.length - 1;
+    else return '';
+    event.preventDefault();
+    return ids[next];
+  }
+  window.sfTabKeydown = function (event, current) {
+    var next = sfTabTarget(event, current, ['files', 'oppo']);
+    if (next) window.sfSetTab(next);
+  };
+  window.sfOppoViewKeydown = function (event, current) {
+    var next = sfTabTarget(event, current, ['inq', 'customer']);
+    if (next) window.sfSetOppoView(next);
   };
 
   window.renderDeals = function () {
