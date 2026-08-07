@@ -36,21 +36,27 @@
   }
 
   function kindBadge(c) {
-    if (c.kind !== 'guarantee') return '<span class="bd" style="background:#ecfdf5;color:#047857;font-size:10px">💰 مالی</span>';
+    if (c.kind !== 'guarantee') return '<span class="bd cheque-kind-badge cheque-kind-finance">مالی</span>';
     var sub = ({ advance: 'پیش‌پرداخت', performance: 'حسن انجام کار', bid: 'مناقصه', other: 'سایر' })[c.guarType] || 'ضمانت';
-    return '<span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px">🛡 ' + sub + '</span>';
+    return '<span class="bd cheque-kind-badge cheque-kind-guarantee"><span class="cheque-kind-icon" aria-hidden="true">🛡</span><span>ضمانت ' + sub + '</span></span>';
   }
   function partyBadge(c) {
     var k = typeof window.ptfChequePartyKind === 'function' ? window.ptfChequePartyKind(c) : 'other';
-    if (k === 'sup') return '<span class="bd" style="background:#f0fdf4;color:#15803d;font-size:10px">🏭 تامین‌کننده</span>';
-    if (k === 'cust') return '<span class="bd" style="background:#eff6ff;color:#1d4ed8;font-size:10px">🤝 مشتری</span>';
-    if (k === 'third') return '<span class="bd" style="background:#fdf2f8;color:#be185d;font-size:10px">🪪 ثالث</span>';
-    return '<span class="bd" style="background:#f1f5f9;color:#64748b;font-size:10px">👤 سایر</span>';
+    if (k === 'sup') return '<span class="bd cheque-party-badge cheque-party-sup">تأمین‌کننده</span>';
+    if (k === 'cust') return '<span class="bd cheque-party-badge cheque-party-cust">مشتری</span>';
+    if (k === 'third') return '<span class="bd cheque-party-badge cheque-party-third">ثالث</span>';
+    return '<span class="bd cheque-party-badge cheque-party-other">سایر</span>';
+  }
+  /* MOB-041: actionهای ردیف چک باید آیکون صریح داشته باشند؛ «حذف» دائمی و
+     «ابطال» عملیاتی دو معنا/دو نشانهٔ متفاوت دارند و دیگر به شکل دو سطل یا چرخ‌دنده دیده نمی‌شوند. */
+  function chequeRowAction(kind, icon, label, title, onClick, wide) {
+    return '<button type="button" class="ba cheque-row-action cheque-row-' + kind + (wide ? ' is-wide' : '') + '" data-cheque-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+      '<span class="cheque-row-icon" aria-hidden="true">' + icon + '</span><span class="cheque-row-label">' + label + '</span></button>';
   }
   function issuedTable() {
     var rows = issuedRows();
     var body = rows.map(function (c) {
-      return '<tr><td><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</td><td>' + escP(c.toWhom || c.payeeName || '—') + '<br>' + partyBadge(c) + (c.dealCd ? '<br><small style="color:#7c3aed">📁 ' + escP(c.dealLabel || c.dealCd) + '</small>' : '') + '</td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td>' + issuedActs(c) + '</td></tr>';
+      return '<tr><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(c.toWhom || c.payeeName || '—') + '</span><br>' + partyBadge(c) + (c.dealCd ? '<br><small class="cheque-deal-link">📁 ' + escP(c.dealLabel || c.dealCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + issuedActs(c) + '</td></tr>';
     }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">چک صادره‌ای ثبت نشده است</td></tr>';
     var openSum = rows.filter(function (c) { return c.st === 'open'; }).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
     return '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره/صیادی</th><th>طرف</th><th>بانک</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
@@ -61,7 +67,7 @@
     var rows = receivedRows();
     var body = rows.map(function (c) {
       var custNm = c.payerName || c.toWhom || c.sourceCustomerCd || '—';
-      return '<tr><td><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</td><td>' + escP(custNm) + '<br>' + partyBadge(c) + (c.sourceInvoiceCd ? '<br><small style="color:#0e7490">🧾 ' + escP(c.sourceInvoiceCd) + '</small>' : '') + '</td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td>' + receivedActs(c) + '</td></tr>';
+      return '<tr><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(custNm) + '</span><br>' + partyBadge(c) + (c.sourceInvoiceCd ? '<br><small class="cheque-deal-link">🧾 ' + escP(c.sourceInvoiceCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + receivedActs(c) + '</td></tr>';
     }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">چک وارده‌ای ثبت نشده است</td></tr>';
     var openSum = rows.filter(function (c) { return c.st === 'open' || c.st === 'held' || c.st === 'endorsed'; }).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
     return '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره/صیادی</th><th>صادرکننده</th><th>بانک</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
@@ -70,23 +76,22 @@
 
   function issuedActs(c) {
     var acts = '';
-    /* v34.0.14-alpha (فاز ۱۱): دکمهٔ ویرایش و حذف چک در هر ردیف */
-    acts += '<button class="ba" style="color:#0e7490" title="ویرایش چک" onclick="ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button> ';
-    acts += '<button class="ba" style="color:#dc2626" title="حذف چک" onclick="ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')">🗑</button> ';
+    acts += chequeRowAction('edit', '✏️', 'ویرایش', 'ویرایش چک', 'ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
+    acts += chequeRowAction('delete', '🗑', 'حذف', 'حذف کامل چک و اثر مالی مرتبط', 'ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     if (c.st === 'open' || c.st === 'transferred') {
       if (c.kind === 'guarantee') {
-        /* v33.7.0: ضمانت با پایان پروژه مسترد می‌شود */
-        acts += '<button class="ba" style="color:#059669" onclick="ptfChequeRetrieveUi(\'' + c.cd + '\')">🏆 استرداد ضمانت</button> ';
+        /* ضمانت با پایان پروژه مسترد می‌شود؛ این مسیر با حذف کامل فرق دارد. */
+        acts += chequeRowAction('retrieve', '↩', 'استرداد ضمانت', 'ثبت استرداد چک ضمانت از کارفرما', 'ptfChequeRetrieveUi(\'' + ptfOnClickArg(c.cd) + '\')', true);
       } else {
-        acts += '<button class="ba" style="color:#047857" onclick="ptfChequeClearIssuedUi(\'' + c.cd + '\')">✔ وصول</button> ';
-        acts += '<button class="ba" style="color:#dc2626" onclick="ptfChequeVoidIssuedUi(\'' + c.cd + '\')">ابطال</button>';
+        acts += chequeRowAction('clear', '✓', 'وصول', 'ثبت وصول یا پاس‌شدن چک صادره', 'ptfChequeClearIssuedUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
+        acts += chequeRowAction('void', '⛔', 'ابطال', 'ابطال عملیاتی چک بدون حذف کامل رکورد', 'ptfChequeVoidIssuedUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
       }
     } else if (c.st === 'retrieved') {
-      acts += '<span class="bd" style="background:#ecfdf5;color:#047857;font-size:10.5px">✅ مسترد شد</span>';
+      acts += '<span class="bd cheque-status-retrieved">مسترد شد</span>';
     }
-    if (c.dealCd && typeof window.ptfGoSalesFile === 'function') acts += ' <button class="ba" style="color:#0e7490" onclick="ptfGoSalesFile(\'' + ptfOnClickArg(c.dealCd) + '\')">📁 پرونده</button>';
-    else if (c.dealCd && typeof goPanel === 'function') acts += ' <button class="ba" style="color:#0e7490" onclick="goPanel(\'deals\')">📁 پرونده</button>';
-    /* CHQ-PRINT (v33.6.0): چاپ برگه از هاب مالی حذف شد — چاپ فقط از ماژول «چاپ چک فیزیکی» (کالا و اسناد) */
+    if (c.dealCd && typeof window.ptfGoSalesFile === 'function') acts += chequeRowAction('deal', '📁', 'پرونده', 'رفتن به پرونده فروش مرتبط', 'ptfGoSalesFile(\'' + ptfOnClickArg(c.dealCd) + '\')', false);
+    else if (c.dealCd && typeof goPanel === 'function') acts += chequeRowAction('deal', '📁', 'پرونده', 'رفتن به پرونده‌های فروش', 'goPanel(\'deals\')', false);
+    /* چاپ برگه از هاب مالی حذف شده و فقط در ماژول چاپ چک فیزیکی است. */
     return acts || '<span style="color:#94a3b8">—</span>';
   }
   /* v33.7.0: استرداد چک ضمانت (با پایان پروژه) */
@@ -115,19 +120,18 @@
   };
   function receivedActs(c) {
     var acts = '';
-    /* v34.0.14-alpha (فاز ۱۱): دکمهٔ ویرایش و حذف چک در هر ردیف */
-    acts += '<button class="ba" style="color:#0e7490" title="ویرایش چک" onclick="ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button> ';
-    acts += '<button class="ba" style="color:#dc2626" title="حذف چک" onclick="ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')">🗑</button> ';
+    acts += chequeRowAction('edit', '✏️', 'ویرایش', 'ویرایش چک', 'ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
+    acts += chequeRowAction('delete', '🗑', 'حذف', 'حذف کامل چک', 'ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     if (c.st === 'open' || c.st === 'held') {
-      acts += '<button class="ba" style="color:#0e7490" onclick="ptfChequeEndorseUi(\'' + c.cd + '\')">↪ انتقال</button> ';
-      acts += '<button class="ba" style="color:#047857" onclick="ptfChequeCollectUi(\'' + c.cd + '\')">✔ وصول</button> ';
-      acts += '<button class="ba" style="color:#dc2626" onclick="ptfChequeBounceUi(\'' + c.cd + '\')">↩ برگشتی</button>';
+      acts += chequeRowAction('endorse', '↪', 'انتقال', 'انتقال چک به تامین‌کننده', 'ptfChequeEndorseUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
+      acts += chequeRowAction('collect', '✓', 'وصول', 'ثبت وصول چک وارده', 'ptfChequeCollectUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
+      acts += chequeRowAction('bounce', '↩', 'برگشتی', 'ثبت برگشت چک وارده', 'ptfChequeBounceUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     } else if (c.st === 'endorsed') {
-      acts += '<button class="ba" style="color:#047857" onclick="ptfChequeCollectUi(\'' + c.cd + '\')">✔ وصول</button> ';
-      acts += '<button class="ba" style="color:#b45309" onclick="ptfChequeVoidTransferUi(\'' + c.cd + '\')">↩ بازگشت انتقال</button>';
+      acts += chequeRowAction('collect', '✓', 'وصول', 'ثبت وصول چک وارده', 'ptfChequeCollectUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
+      acts += chequeRowAction('return-transfer', '↩', 'بازگشت انتقال', 'بازگرداندن انتقال چک', 'ptfChequeVoidTransferUi(\'' + ptfOnClickArg(c.cd) + '\')', true);
     } else if (c.st === 'bounced') {
-      acts += '<button class="ba" style="color:#0e7490" onclick="ptfChequeEndorseUi(\'' + c.cd + '\')">↪ انتقال مجدد</button> ';
-      acts += '<button class="ba" style="color:#dc2626" onclick="ptfChequeVoidIssuedUi(\'' + c.cd + '\')">ابطال</button>';
+      acts += chequeRowAction('endorse', '↪', 'انتقال مجدد', 'انتقال دوبارهٔ چک برگشتی', 'ptfChequeEndorseUi(\'' + ptfOnClickArg(c.cd) + '\')', true);
+      acts += chequeRowAction('void', '⛔', 'ابطال', 'ابطال عملیاتی چک بدون حذف کامل رکورد', 'ptfChequeVoidIssuedUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     }
     return acts || '<span style="color:#94a3b8">—</span>';
   }

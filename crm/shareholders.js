@@ -194,6 +194,12 @@
     var a = txAll(); a.unshift(rec); txSave(a); return rec;
   }
 
+  /* MOB-041: actionهای سهامداران به tileهای دارای نام/معنا تبدیل می‌شوند؛ هیچ
+     چرخ‌دنده یا first-letter مبهم در موبایل باقی نمی‌ماند. */
+  function shareAction(kind, icon, label, title, onClick, primary) {
+    return '<button type="button" class="bt' + (primary ? '' : ' bt-o') + ' shareholder-action shareholder-' + kind + '" data-share-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+      '<span class="shareholder-action-icon" aria-hidden="true">' + icon + '</span><span class="shareholder-action-label">' + label + '</span></button>';
+  }
   window.ptfShareRender = function () {
     var el = document.getElementById('shareBox'); if (!el) return;
     if (!canShare()) { el.innerHTML = ''; return; }
@@ -204,15 +210,23 @@
       var b = ptfShareholderBalance(s.cd);
       var cls = b.net >= 0 ? '#059669' : '#dc2626';
       var st = b.net >= 0 ? 'بستانکار از شرکت' : 'بدهکار به شرکت';
-      return '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:10px 12px;margin-bottom:8px">' +
-        '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div style="font-size:13px"><b>' + escP(s.name) + '</b> <span class="bd" style="background:#eef2ff;color:#3730a3">' + (+s.pct || 0) + '٪</span> ' + (s.duty ? '<span class="bd b-st3">موظف</span>' : '') + (s.active === false ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">غیرفعال</span>' : '') +
+      return '<div class="shareholder-card">' +
+        '<div class="shareholder-card-head"><div class="shareholder-copy"><b>' + escP(s.name) + '</b> <span class="bd" style="background:#eef2ff;color:#3730a3">' + (+s.pct || 0) + '٪</span> ' + (s.duty ? '<span class="bd b-st3">موظف</span>' : '') + (s.active === false ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">غیرفعال</span>' : '') +
         '<br><small style="color:#64748b">حقوق موظف: ' + money(s.salary || 0) + ' | مطالبات تنخواه: ' + money(b.petty) + '</small><br><b style="color:' + cls + '">مانده: ' + money(Math.abs(b.net)) + ' — ' + st + '</b></div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" style="padding:5px 10px;font-size:12px" onclick="ptfShareEdit(\'' + s.cd + '\')">ویرایش</button>' + (s.duty && (+s.salary || 0) > 0 ? '<button class="bt" style="padding:5px 10px;font-size:12px;background:#059669" onclick="ptfSharePaySalary(\'' + s.cd + '\')">💳 پرداخت حقوق</button>' : '') + '<button class="bt" style="padding:5px 10px;font-size:12px;background:#7c3aed" onclick="ptfShareDraw(\'' + s.cd + '\')">برداشت/علی‌الحساب</button><button class="bt bt-o" style="padding:5px 10px;font-size:12px" onclick="ptfShareLedger(\'' + s.cd + '\')">گردش</button></div></div></div>';
+        '<div class="shareholder-actions" role="group" aria-label="عملیات سهامدار ' + escP(s.name) + '">' +
+        shareAction('edit', '✏️', 'ویرایش', 'ویرایش مشخصات سهامدار', 'ptfShareEdit(\'' + s.cd + '\')', false) +
+        (s.duty && (+s.salary || 0) > 0 ? shareAction('salary', '💳', 'پرداخت حقوق', 'ثبت پرداخت حقوق سهامدار', 'ptfSharePaySalary(\'' + s.cd + '\')', true) : '') +
+        shareAction('draw', '💸', 'علی‌الحساب', 'ثبت برداشت یا علی‌الحساب سهامدار', 'ptfShareDraw(\'' + s.cd + '\')', true) +
+        shareAction('ledger', '📖', 'گردش', 'مشاهده گردش حساب سهامدار', 'ptfShareLedger(\'' + s.cd + '\')', false) +
+        '</div></div></div>';
     }).join('');
     var warn = Math.round(totalPct * 100) / 100 === 100 ? '<span style="color:#059669">جمع سهام فعال: ۱۰۰٪ ✅</span>' : '<span style="color:#dc2626">جمع سهام فعال: ' + totalPct + '٪ — باید به ۱۰۰٪ برسد</span>';
-    el.innerHTML = '<div style="background:#faf5ff;border:1px solid #ddd6fe;border-radius:16px;padding:12px 14px;margin:12px 0">' +
-      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div><b style="font-size:14px;color:#6d28d9">👥 سهامداران، حقوق موظف و علی‌الحساب</b><br><small>' + warn + '</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><input value="' + escP(month) + '" onchange="window._shareMonth=this.value.trim();ptfShareRender()" style="width:92px;padding:7px;border:1px solid var(--brd);border-radius:9px;direction:ltr"><button class="bt" style="font-size:12px" onclick="ptfShareEdit()">+ سهامدار</button><button class="bt" style="font-size:12px;background:#059669" onclick="ptfShareApplySalary(document.querySelector(\'#shareBox input\').value)">ثبت حقوق ماه</button></div></div>' +
-      '<div style="margin-top:10px">' + (rows || '<div style="text-align:center;color:#94a3b8;padding:18px">سهامداری ثبت نشده</div>') + '</div></div>';
+    el.innerHTML = '<div class="shareholder-box">' +
+      '<div class="shareholder-box-head"><div><b>👥 سهامداران، حقوق موظف و علی‌الحساب</b><br><small>' + warn + '</small></div><div class="shareholder-head-tools"><input class="shareholder-month" value="' + escP(month) + '" onchange="window._shareMonth=this.value.trim();ptfShareRender()" style="width:92px;padding:7px;border:1px solid var(--brd);border-radius:9px;direction:ltr" aria-label="ماه حقوق سهامداران"><div class="shareholder-head-actions" role="group" aria-label="عملیات سهامداران">' +
+      shareAction('add', '➕', 'سهامدار', 'ثبت سهامدار جدید', 'ptfShareEdit()', true) +
+      shareAction('apply-salary', '📅', 'ثبت حقوق ماه', 'ثبت حقوق ماه سهامداران', 'ptfShareApplySalary(document.querySelector(\'#shareBox input\').value)', true) +
+      '</div></div></div>' +
+      '<div class="shareholder-list">' + (rows || '<div style="text-align:center;color:#94a3b8;padding:18px">سهامداری ثبت نشده</div>') + '</div></div>';
   };
 
   window.ptfShareEdit = function (cd) {

@@ -153,18 +153,30 @@
       return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');
   }
+  /* MOB-041: emojiهای actionهای کیفیت داده در موبایل ظاهر لوگویی/چندرنگ داشتند.
+     SVGهای line سبک، همان عملیات را با زبان بصری مینیمال نشان می‌دهند. */
+  function qualityIcon(kind) {
+    var path = {
+      refresh: '<path d="M20 12a8 8 0 10-2.3 5.7"/><path d="M20 5v5h-5"/>',
+      identity: '<circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l4.2 4.2"/><path d="M8.5 10.5h4M10.5 8.5v4"/>',
+      similar: '<rect x="4" y="5" width="10" height="10" rx="2"/><rect x="10" y="10" width="10" height="10" rx="2"/>',
+      history: '<path d="M5 7v5h5"/><path d="M5.8 12A7 7 0 1012 5"/><path d="M12 8v4l2.5 1.5"/>',
+      quality: '<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M8.7 12l2.1 2.1 4.7-4.8"/>'
+    }[kind] || '';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>';
+  }
   window.ptfDataQualityHtml = function () {
     if (typeof curRole === 'function' && ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) < 0) return '';
     var rows = window.ptfDataQualityData();
     var total = rows.reduce(function (s, x) { return s + x.count; }, 0);
     var body = rows.map(function (r) { return '<tr><td><details style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px"><summary style="cursor:pointer;font-weight:800;color:#334155">' + escP(r.label) + ' — ' + r.count + ' مورد' + (r.amount ? ' — ' + (+r.amount).toLocaleString('fa-IR') + ' ریال' : '') + '</summary><div style="padding-top:7px">' + qualityRefsHtml(r) + '</div></details></td></tr>'; }).join('');
     var qualityActions = '<div class="quality-actions" style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button type="button" class="bt bt-o quality-action quality-refresh" title="بازخوانی گزارش کیفیت داده" aria-label="بازخوانی گزارش کیفیت داده" onclick="ptfDataQualityRender()"><span class="quality-action-icon" aria-hidden="true">↻</span><span class="quality-action-label">بازخوانی</span></button>' +
-      '<button type="button" class="bt bt-o quality-action quality-identity" title="ممیزی هویت کالا" aria-label="ممیزی هویت کالا" onclick="ptfCatalogIdentityAudit()"><span class="quality-action-icon" aria-hidden="true">🔎</span><span class="quality-action-label">ممیزی هویت</span></button>' +
-      '<button type="button" class="bt bt-o quality-action quality-similar" title="تشخیص کالاهای مشابه" aria-label="تشخیص کالاهای مشابه" onclick="ptfCatalogSimilarAudit()"><span class="quality-action-icon" aria-hidden="true">🧠</span><span class="quality-action-label">کالاهای مشابه</span></button>' +
-      '<button type="button" class="bt bt-o quality-action quality-history" title="تاریخچهٔ ادغام کالا" aria-label="تاریخچهٔ ادغام کالا" onclick="ptfCatalogMergeHistory()"><span class="quality-action-icon" aria-hidden="true">🧩</span><span class="quality-action-label">تاریخچهٔ ادغام</span></button>' +
+      '<button type="button" class="bt bt-o quality-action quality-refresh" title="بازخوانی گزارش کیفیت داده" aria-label="بازخوانی گزارش کیفیت داده" onclick="ptfDataQualityRender()"><span class="quality-action-icon">' + qualityIcon('refresh') + '</span><span class="quality-action-label">بازخوانی</span></button>' +
+      '<button type="button" class="bt bt-o quality-action quality-identity" title="ممیزی هویت کالا" aria-label="ممیزی هویت کالا" onclick="ptfCatalogIdentityAudit()"><span class="quality-action-icon">' + qualityIcon('identity') + '</span><span class="quality-action-label">ممیزی هویت</span></button>' +
+      '<button type="button" class="bt bt-o quality-action quality-similar" title="تشخیص کالاهای مشابه" aria-label="تشخیص کالاهای مشابه" onclick="ptfCatalogSimilarAudit()"><span class="quality-action-icon">' + qualityIcon('similar') + '</span><span class="quality-action-label">کالاهای مشابه</span></button>' +
+      '<button type="button" class="bt bt-o quality-action quality-history" title="تاریخچهٔ ادغام کالا" aria-label="تاریخچهٔ ادغام کالا" onclick="ptfCatalogMergeHistory()"><span class="quality-action-icon">' + qualityIcon('history') + '</span><span class="quality-action-label">تاریخچهٔ ادغام</span></button>' +
       '</div>';
-    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div class="quality-head" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div class="quality-copy"><h4 style="margin:0">🧪 کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div>' + qualityActions + '</div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
+    return '<div id="qualityBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px"><div class="quality-head" style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><div class="quality-copy"><h4 class="quality-title" style="margin:0"><span class="quality-title-icon">' + qualityIcon('quality') + '</span>کیفیت دادهٔ مالی</h4><small style="color:#64748b">گزارش فقط‌خواندنی است؛ اصلاح فقط از مسیر ماژول اصلی و با تأیید کاربر انجام می‌شود.</small></div>' + qualityActions + '</div><div style="margin:10px 0;background:' + (total ? '#fff7ed;border:1px solid #fed7aa;color:#9a3412' : '#ecfdf5;border:1px solid #bbf7d0;color:#065f46') + ';border-radius:10px;padding:8px 11px;font-size:12px">' + (total ? '⚠️ ' + total + ' مورد نیازمند بررسی' : '✅ مورد کیفیت داده‌ای شناسایی نشد') + '</div><div class="tb2"><table><thead><tr><th>موارد نیازمند بررسی و اصلاح</th></tr></thead><tbody>' + (body || '<tr><td>موردی نیست</td></tr>') + '</tbody></table></div></div>';
   };
   window.ptfDataQualityRender = function () { var el = document.getElementById('qualityBox'); if (el) { var html = window.ptfDataQualityHtml(); var tmp = document.createElement('div'); tmp.innerHTML = html; var next = tmp.firstElementChild; el.replaceWith(next); } };
 

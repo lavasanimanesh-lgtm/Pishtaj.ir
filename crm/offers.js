@@ -1046,13 +1046,21 @@ function offerForm() {
     if (c.cd) label = label + '  ·  ' + c.cd;
     custOpts += '<option value="' + escP(c.cd) + '"' + (o.buyerCd === c.cd ? ' selected' : '') + '>' + escP(label) + '</option>';
   });
-  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:min(96vw,1700px);max-height:92vh;overflow:auto">' +
+  /* MOB-041: امضا پیش‌تر پس از چندین بخش فرم قرار داشت و در mobile خارج از دید می‌ماند.
+     بلوک مستقل زیر عنوان/قالب چاپ می‌آید تا پیش از ورود اقلام، کامل دیده و خوانده شود. */
+  var signatureHtml = '<section class="offer-signature-card" aria-labelledby="offSignatureTitle"><div class="offer-signature-head"><span class="offer-signature-icon" aria-hidden="true">✍️</span><span><b id="offSignatureTitle">مهر و امضا</b><small>امضای انتخابی فقط هنگام پیش‌نمایش/صدور روی سند درج می‌شود.</small></span></div>' +
+    '<label class="offer-signature-toggle"><input type="checkbox" id="ofUseSig"' + (o.useSig ? ' checked' : '') + (mySigReady() || ptfCanDelegateSig() ? '' : ' disabled') + '><span>درج مهر و امضا روی سند</span>' +
+    (mySigReady() || ptfCanDelegateSig() ? '' : '<small>ابتدا در مکاتبات → «امضای من» پروفایل امضا را ثبت کنید.</small>') + '</label>' +
+    (ptfCanDelegateSig() ? '<label class="offer-signature-select"><span>امضاکننده</span><select id="ofSignAs">' + ptfSignAsOptions(o.signAs) + '</select></label>' : '') +
+    '</section>';
+  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md offer-form-modal" style="max-width:min(96vw,1700px);max-height:92vh;overflow:auto">' +
     '<h3>' + (o.kind === 'TO' ? '🔧 پیشنهاد فنی' : o.kind === 'TC' ? '🤝 پیشنهاد فنی-مالی' : '💰 پیشنهاد مالی') +
     ' — <span style="direction:ltr;display:inline-block">' + escP(o.no) + '</span>' +
     (o.buyerCo || o.buyerCd ? ' <small style="font-weight:700;color:#0e7490;font-size:12px">| 🏢 ' + escP(o.buyerCo || o.buyerCd) + (o.buyerCd ? ' <span dir="ltr" style="opacity:.75">(' + escP(o.buyerCd) + ')</span>' : '') + '</small>' : '') +
     '</h3>' +
     /* v20.1: TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ */
-    (o.kind !== 'TO' ? '<div class="fld" style="max-width:340px"><label>🖨 قالب چاپ سند</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
+    (o.kind !== 'TO' ? '<div class="fld offer-print-layout" style="max-width:340px"><label>🖨 قالب چاپ سند</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
+    signatureHtml +
     '<div class="fr">' +
     '<div class="fld"><label>کارفرما (خریدار) *</label><select id="ofBuyer" onchange="offerPickBuyer(this.value)">' + custOpts + '</select>' +
     '<div id="ofBuyerChip" style="margin-top:8px;padding:8px 10px;border-radius:12px;background:#f8fafc;border:1px solid var(--brd);font-size:12.5px;line-height:1.6">' +
@@ -1076,16 +1084,9 @@ function offerForm() {
     '</div>' +
     // US-157 AC1: اعتبار پیشنهاد (برای مالی و فنی-مالی)
     (o.kind !== 'TO' ? '<div class="fr"><div class="fld"><label>اعتبار پیشنهاد تا (شمسی) — یادآور خودکار ۳ روز قبل</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofValidJ', (o.validUntil || defaultValidity(o.dateEn))) : '<input type="text" id="ofValidJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.validUntil || defaultValidity(o.dateEn)) : (o.validUntil || ''))) + '">') + '</div><div class="fld"></div></div>' : '') +
-    '<div class="fr">' +
-    // US-142 AC3: Contact Person = اختصاری انگلیسی کاربر جاری — غیرقابل تغییر
-    '<div class="fld"><label>رابط فروشنده — روی سند: Contact Person (کاربر جاری — قفل 🔒)</label><input type="text" id="ofSeller" value="' + escP(myEnName()) + '" readonly style="direction:ltr;background:#f1f5f9;color:#475569;cursor:not-allowed"></div>' +
-    // US-148 AC2: درج مهر و امضای کاربر جاری (با پیش‌نمایش قبل از ثبت)
-    '<div class="fld"><label>مهر و امضا</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:9px 0;cursor:pointer">' +
-    '<input type="checkbox" id="ofUseSig"' + (o.useSig ? ' checked' : '') + (mySigReady() || ptfCanDelegateSig() ? '' : ' disabled') + '> درج مهر و امضا روی سند' +
-    (mySigReady() || ptfCanDelegateSig() ? '' : ' <small style="color:#d97706">(ابتدا در مکاتبات → «✍️ امضای من» ثبت کنید)</small>') + '</label>' +
-    /* v13.1 (US-321 — دستور کارفرما): رییس هیات مدیره می‌تواند با امضای یوسفی/کریمی هم امضا کند */
-    (ptfCanDelegateSig() ? '<select id="ofSignAs" style="width:100%;padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:12.5px">' + ptfSignAsOptions(o.signAs) + '</select>' : '') +
-    '</div>' +
+    '<div class="fr offer-seller-row">' +
+    // Contact Person = اختصاری انگلیسی کاربر جاری — غیرقابل تغییر
+    '<div class="fld offer-seller-field"><label>رابط فروشنده — روی سند: Contact Person (کاربر جاری — قفل 🔒)</label><input type="text" id="ofSeller" value="' + escP(myEnName()) + '" readonly style="direction:ltr;background:#f1f5f9;color:#475569;cursor:not-allowed"></div>' +
     '</div>' +
     '<h4 style="margin:14px 0 8px">اقلام</h4>' +
     '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +

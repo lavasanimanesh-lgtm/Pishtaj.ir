@@ -659,11 +659,11 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 ### MOB-009 — قرارداد یکپارچهٔ release، cache و Service Worker
 
-release واحد **`v34.4.5`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.5` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
+release واحد **`v34.4.6`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.6` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
 
 `offer-rial-convert.js` که از SHELL جا افتاده بود افزوده شد، registration worker با URL نسخه‌دار انجام می‌شود و purge cache به‌جای متغیر تعریف‌نشده، release فعال را استفاده می‌کند. navigation آفلاین دارای fallback به index precache شده است.
 
-**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.5`، cache فعال `ptf-crm-v34.4.5` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
+**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.6`، cache فعال `ptf-crm-v34.4.6` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
 
 ### MOB-037 — رفع بریدگی badge قرمز زنگولهٔ header
 
@@ -707,6 +707,16 @@ hash اولیه اکنون پیش از auto-login ثبت می‌شود تا `loa
 
 **تأیید فنی:** در 320×568 tabهای AI `126×66px` و quick-nav تنظیمات `132×48px`؛ در 390×844 `161×66px` و `167×48px` بودند. همهٔ شش tab، OCR واقعی fixture با table scroll داخلی `1074px`، پیش‌نمایش کارت، quick-nav، accordion فایل‌ها/ارتباطات و ذخیرهٔ merge با حفظ `adminHash` در 320، 390، 844×390 و desktop 1024 اجرا شد. تمام wrapperها `clientWidth === scrollWidth` داشتند و page/console error صفر بود.
 
+### MOB-041 — اصلاح actionهای مالی، چک، امضای پیشنهاد و جستجوی هدر
+
+کنترل‌های تنخواه، هزینه جاری و سهامداران در mobile بخشی از label خود را از دست می‌دادند یا عرضهای نابرابر داشتند؛ همه به actionهای صریح icon/label/title/aria تبدیل شدند. دکمه‌های row هزینه و سهامدار نیز grid ثابت و رنگ معنایی دارند.
+
+کیفیت داده با SVGهای line مینیمال جایگزین emojiهای چندرنگ شد. ردیف چک ضمانت، wrapper محتوایی گرفت تا badge و متن بلند طرف/پرونده کامل خوانده شوند. action حذف کامل از ابطال عملیاتی جداست، بنابراین فقط یک سطلِ حذف وجود دارد و fallback چرخ‌دنده‌ای باقی نمی‌ماند.
+
+signature card فرم پیشنهاد از بخش پایین و خارج از viewport به ابتدای form منتقل شد. جستجوی سریع از دکمهٔ تکراری راست حذف و روی ذره‌بین چپ هدر قرار گرفت؛ command palette و focus آن در اجرای واقعی آزموده شد.
+
+**تأیید فنی:** در 320/390، toolbar تنخواه `132/167×60px`، گزارش دوره `272/342×52px`، actionهای OPEX `118/153×48.8px` و سهامداران `110/145×54px` بودند. چهار آیکون quality SVG و بدون emoji بودند؛ badge ضمانت `110px` کامل، deleteCount=1 و gearCount=0 بود. signature card در viewport modal visible و IDهای امضا یکتا بودند. در 320، 390، 844×390 و desktop 1024، overflow/error صفر بود.
+
 ### پیوست ممیزی یکدستی مودال‌ها
 
 اسکن سراسری **307** الگوی `.md`، **310** occurrence از `.md-b` و **20** `ptfdlg-b` را در 56 فایل JS نشان داد. ModalManager `modalx` همهٔ overlayهای استاندارد `.md-b/.ptfdlg-b` را هنگام ایجاد تجهیز می‌کند؛ آزمون واقعی modal «فاکتور جدید» کنترل‌های جدید و semantics/focus صحیح را تأیید کرد. مسیرهای غیرمدال مانند print-preview، tour و More sheet به‌صورت مستقل در backlog باقی می‌مانند تا کنترل پنجره به آنها اشتباهاً تحمیل نشود.
@@ -723,12 +733,13 @@ hash اولیه اکنون پیش از auto-login ثبت می‌شود تا `loa
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navigation در 2Mbps آزمایشگاهی | ✅ مرحلهٔ اول MOB-008: shell در 2.47s؛ صف کامل 91 script ~16.6s |
 | First Contentful Paint در آزمون MOB-008 | ~0.54s |
-| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.5` و reload آفلاین موفق |
+| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.6` و reload آفلاین موفق |
 | deep-link panel | ✅ MOB-010: `#off/#cart/#petty`، تغییر hash و Back پایدار |
 | کیفیت دادهٔ مالی | ✅ MOB-038: grid 2×2، actionهای 64px و metadata صریح |
 | پرونده‌های فروش / فرصت‌ها | ✅ MOB-030: primary/sub-tab grid هم‌اندازه، semantics و keyboard پایدار |
 | actionهای کارت و کشوی پرونده | ✅ MOB-039: action gridهای فرصت، Post-Award، خرید واقعی و اسناد رسمی یکدست |
 | دستیار و تنظیمات | ✅ MOB-040: workspace شش‌ابزارهٔ AI و تنظیمات مرحله‌ای 11بخشی یکدست |
+| هاب مالی، چک، پیشنهاد و هدر | ✅ MOB-041: actionهای مالی/چک، signature modal و جستجوی واحد اصلاح شدند |
 | toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |

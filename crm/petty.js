@@ -74,20 +74,28 @@
     return true;
   }
 
+  /* MOB-041: کنترل‌های تنخواه در موبایل پیش‌تر به آیکون‌های مبهم 44px تبدیل
+     می‌شدند. هر action اکنون icon/label جدا، title و aria-label دارد. */
+  function pettyToolbarAction(kind, icon, label, title, onClick, primary) {
+    return '<button type="button" class="bt' + (primary ? '' : ' bt-o') + ' petty-toolbar-action petty-toolbar-' + kind + '" data-petty-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+      '<span class="petty-toolbar-icon" aria-hidden="true">' + icon + '</span><span class="petty-toolbar-label">' + label + '</span></button>';
+  }
   window.buildPetty = function () {
     /* id برای اینکه financehub بتواند header/فیلتر تنخواه را در تب‌های دیگر
-       واقعاً پنهان کند؛ .ph/.sb2 در موبایل display!important دارند. */
-    return '<div class="ph" id="ptPettyHead"><h3>🏛 هاب مالی</h3>' +
-      '<div class="sb2" id="ptToolbar">' + (isMgr() ? '<select id="ptFilter" onchange="renderPetty()" style="padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:13px"><option value="">همه کاربران</option></select>' : '') +
+       واقعاً پنهان کند؛ wrapper مستقل، با rule عمومی .sb2 تداخل ندارد. */
+    var filters = (isMgr() ? '<select id="ptFilter" onchange="renderPetty()" aria-label="فیلتر ثبت‌کننده تنخواه"><option value="">همه کاربران</option></select>' : '') +
       (typeof window.ptfSortSelectHtml === 'function' ? window.ptfSortSelectHtml('petty', [
         { key: 't', dir: 'desc', lb: '🕒 جدیدترین' }, { key: 't', dir: 'asc', lb: '🕒 قدیمی‌ترین' },
         { key: 'amt', dir: 'desc', lb: '💰 بیشترین مبلغ' }, { key: 'amt', dir: 'asc', lb: '💰 کمترین مبلغ' },
         { key: 'by', dir: 'asc', lb: '👤 ثبت‌کننده' }
-      ]) : '') +
-      '<button class="bt bt-o" onclick="ptfPettyPeriodReportDialog()" title="گزارش با بازهٔ دلخواه (از/تا)">📊 گزارش دورهٔ دلخواه</button>' +
-      '<button class="bt" onclick="pettyAdd()">+ ثبت هزینه</button>' +
-      (isTreasurer() ? '<button class="bt" onclick="pettyDirectPay()" style="background:#0e7490">پرداخت مستقیم</button><button class="bt" onclick="pettyCharge()" style="background:#059669">شارژ حساب</button><button class="bt bt-o" onclick="pettyClosePeriod()">ارجاع دوره</button>' : '') +
-      '</div></div>' +
+      ]) : '');
+    var actions = pettyToolbarAction('report', '📊', 'گزارش دوره', 'گزارش تنخواه با بازهٔ دلخواه', 'ptfPettyPeriodReportDialog()', false) +
+      pettyToolbarAction('add', '➕', 'ثبت هزینه', 'ثبت هزینهٔ جدید تنخواه', 'pettyAdd()', true) +
+      (isTreasurer() ? pettyToolbarAction('direct', '💳', 'پرداخت مستقیم', 'ثبت پرداخت مستقیم از حساب تنخواه', 'pettyDirectPay()', true) +
+        pettyToolbarAction('charge', '💰', 'شارژ حساب', 'شارژ حساب تنخواه', 'pettyCharge()', true) +
+        pettyToolbarAction('refer', '📨', 'ارجاع دوره', 'ارجاع دورهٔ تنخواه به حسابداری', 'pettyClosePeriod()', false) : '');
+    return '<div class="ph" id="ptPettyHead"><h3>🏛 هاب مالی</h3>' +
+      '<div class="pt-petty-toolbar" id="ptToolbar"><div class="pt-petty-filters">' + filters + '</div><div class="pt-petty-actions" role="group" aria-label="عملیات تنخواه">' + actions + '</div></div></div>' +
       '<div id="ptAccount" style="margin-bottom:10px"></div><div id="ptPeriods" style="margin-bottom:10px"></div>' +
       '<div id="ptSummary" style="margin-bottom:10px"></div><div id="ptWrap"></div>';
   };

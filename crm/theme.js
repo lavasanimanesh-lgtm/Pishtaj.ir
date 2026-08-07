@@ -107,7 +107,9 @@
       '<button class="tbic" title="بایگانی" onclick="if(typeof goPanel===\'function\')goPanel(\'prj\')">' + IC_FOLDER + '</button>' +
       /* v122.2: US-280 — زنگوله مینیمال = صندوق پیام (ادغام زنگوله ایموجی bridge.js)؛ اگر صندوق آماده نبود → کارتابل */
       '<button id="tbBellBtn" class="tbic" title="صندوق پیام و کارتابل" style="position:relative" onclick="if(typeof toggleInbox===\'function\'&&document.getElementById(\'inboxPanel\')){toggleInbox()}else if(typeof goPanel===\'function\'){goPanel(\'cart\')}">' + IC_BELL + '</button>' +
-      '<button class="tbic" title="جستجو (به‌زودی Ctrl+K)" onclick="var s=document.querySelector(\'#panels input[type=text]\');if(s)s.focus()">' + IC_SEARCH + '</button>';
+      /* MOB-041: تنها ذره‌بین باقی‌ماندهٔ هدر، جستجوی سرتاسری واقعی را باز می‌کند.
+         جستجوی قدیمی فقط نخستین input پنل را focus می‌کرد و در بسیاری از صفحه‌ها بی‌اثر بود. */
+      '<button id="tbSearchBtn" class="tbic" title="جستجوی سریع سرتاسری" aria-label="جستجوی سریع سرتاسری" onclick="if(typeof ptfOpenCommandPalette===\'function\')ptfOpenCommandPalette()">' + IC_SEARCH + '</button>';
     tb.appendChild(w);
   }
   var tries = 0;
