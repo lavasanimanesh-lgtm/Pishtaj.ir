@@ -13,6 +13,8 @@
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function findTitle(el) {
     if (!el) return 'بخش تنظیمات';
+    var declared = el.getAttribute && el.getAttribute('data-settings-title');
+    if (declared) return cleanTitle(declared) || 'بخش تنظیمات';
     var q = el.querySelector && el.querySelector('h3,h4,b,legend');
     var t = q ? cleanText(q.textContent) : '';
     if (!t && el.id) {
@@ -67,43 +69,104 @@
     if (used) used[family]=true;
     return lineIcon(ICONS[family]);
   }
+  function describeTitle(title) {
+    var t = String(title || '');
+    if (/پروفایل|آواتار|هویت/.test(t)) return 'عکس، هویت و اطلاعات شخصی';
+    if (/آروان|ابری|فضا|فایل/.test(t)) return 'اتصال، فایل‌ها و ظرفیت ذخیره‌سازی';
+    if (/هوش|AI|OCR|دستیار/.test(t)) return 'مدل، اتصال و ابزارهای هوش مصنوعی';
+    if (/پشتیبان|بک.?آپ|بازیابی/.test(t)) return 'خروجی امن، بازگردانی و سلامت داده';
+    if (/امنیت|رمز|دسترسی/.test(t)) return 'دسترسی، رمز و کنترل امنیتی';
+    if (/تم|حالت نمایش|ظاهر/.test(t)) return 'رنگ، کنتراست و حالت نمایش';
+    if (/پیامک|بات|تلگرام|اعلان/.test(t)) return 'کانال‌های اطلاع‌رسانی سازمان';
+    if (/لایسنس|گزارش|KPI|ابزار/.test(t)) return 'مدیریت ابزارها و گزارش‌های تخصصی';
+    if (/پورسانت/.test(t)) return 'قواعد محاسبه و گزارش فروش';
+    if (/ارتباط|نگهداری|ایمیل/.test(t)) return 'اطلاعات تماس و نسخهٔ پشتیبان';
+    return 'تنظیمات و کنترل‌های این بخش';
+  }
   function apply() {
     var root = document.getElementById('ptfSettingsAccordionRoot');
     if (!root || root.getAttribute('data-ptf-acc') === '1') return;
     root.setAttribute('data-ptf-acc', '1');
-    var children = Array.prototype.slice.call(root.children || []);
-    if (!children.length) return;
-    var header = children.shift();
-    var wrap = document.createElement('div');
-    wrap.className = 'ptf-set-acc-wrap';
+    var raw = Array.prototype.slice.call(root.children || []);
+    if (!raw.length) return;
+    var header = raw.filter(function (n) { return n.nodeType === 1 && n.hasAttribute && n.hasAttribute('data-settings-header'); })[0] || raw.shift();
+    var sections = [];
+    raw.forEach(function (ch) {
+      if (!ch || ch === header || (ch.nodeType === 1 && ch.matches && ch.matches('script,style'))) return;
+      if (ch.nodeType === 1 && ch.classList && ch.classList.contains('ptf-settings-base')) {
+        Array.prototype.slice.call(ch.children || []).forEach(function (part) { if (part && part.nodeType === 1) sections.push(part); });
+        return;
+      }
+      if (ch.nodeType === 1 && cleanText(ch.textContent).length < 2 && !(ch.children && ch.children.length)) return;
+      sections.push(ch);
+    });
+    if (!sections.length) return;
+
     var style = document.createElement('style');
-    style.textContent = '.ptf-settings-title-icon{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,rgba(239,75,26,.14),rgba(247,148,0,.14));color:#c2410c}.ptf-settings-title-icon svg{width:19px;height:19px;display:block}.ptf-set-acc-wrap{display:grid;gap:10px;max-width:1120px}.ptf-set-row{background:var(--crd,#fff);color:var(--tx,#0f172a);border:1px solid var(--brd,#e2e8f0);border-radius:16px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.10)}.ptf-set-row[open]{box-shadow:0 14px 34px rgba(15,23,42,.16)}.ptf-set-row>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:13px 15px;font-weight:900;color:var(--tx,#0f172a);background:linear-gradient(180deg,var(--crd,#fff),rgba(148,163,184,.10));border-bottom:1px solid transparent}.ptf-set-row[open]>summary{border-bottom-color:var(--brd,#e2e8f0)}.ptf-set-row>summary::-webkit-details-marker{display:none}.ptf-set-ico{display:inline-grid;place-items:center;min-width:32px;width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(239,75,26,.14),rgba(247,148,0,.14));color:#c2410c}.ptf-set-ico svg{width:19px;height:19px;display:block}.ptf-set-chev{margin-right:auto;color:var(--tx,#64748b);opacity:.72;font-size:13px}.ptf-set-body{padding:14px 15px;color:var(--tx,#0f172a)}.ptf-set-body .fld label,.ptf-set-body h3,.ptf-set-body h4,.ptf-set-body b{color:var(--tx,#0f172a)!important}.ptf-set-body small,.ptf-set-body p,.ptf-set-body span{color:var(--tx,#475569)}.ptf-set-body input,.ptf-set-body select,.ptf-set-body textarea{background:var(--crd,#fff)!important;color:var(--tx,#0f172a)!important;border-color:var(--brd,#cbd5e1)!important}.ptf-set-body [style*="background:#fff"],.ptf-set-body [style*="background:#f8fafc"]{background:var(--crd,#fff)!important}body.ptf-dark .ptf-set-ico,body.ptf-dark .ptf-settings-title-icon{background:#2b1d19;color:#fdba74}.ptf-set-acc-head{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 12px;color:var(--tx,#64748b);font-size:12px}.ptf-set-acc-head b{color:var(--tx,#0f172a)}';
-    root.insertBefore(style, root.firstChild);
+    style.textContent =
+      '#ptfSettingsAccordionRoot{width:100%;min-width:0;max-width:1120px}' +
+      '.ptf-settings-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 12px;padding:16px 18px;border:1px solid #fed7aa;border-radius:20px;background:linear-gradient(135deg,#fff7ed,#fff 52%,#eff6ff);box-sizing:border-box}' +
+      '.ptf-settings-head-copy{min-width:0;display:flex;align-items:flex-start;gap:11px}.ptf-settings-title-icon{display:grid;place-items:center;width:42px;height:42px;flex:0 0 42px;border-radius:14px;background:#ea580c;color:#fff;box-shadow:0 7px 16px rgba(234,88,12,.2)}.ptf-settings-title-icon svg{width:22px;height:22px}.ptf-settings-head h3{margin:0;color:var(--tx,#0f172a);font-size:18px}.ptf-settings-head p{margin:3px 0 0;color:#64748b;font-size:12px;line-height:1.7}.ptf-settings-version{flex:0 0 auto;display:inline-flex;align-items:center;min-height:32px;padding:4px 10px;border:1px solid #bfdbfe;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:900;box-sizing:border-box}' +
+      '.ptf-set-acc-head{margin:0 0 9px;color:#64748b;font-size:12px;line-height:1.7}.ptf-set-acc-head b{color:var(--tx,#0f172a)}.ptf-set-quicknav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}.ptf-set-quicknav button{min-width:0;min-height:54px;padding:7px;border:1px solid #dbeafe;border-radius:12px;background:#f8fbff;color:#1e40af;font:inherit;font-size:10.5px;font-weight:900;line-height:1.3;cursor:pointer;text-align:center}.ptf-set-quicknav button:hover{background:#eff6ff}.ptf-set-quicknav span{display:block;font-size:17px;line-height:1;margin-bottom:3px}' +
+      '.ptf-set-acc-wrap{display:grid;gap:10px;max-width:100%}.ptf-set-row{background:var(--crd,#fff);color:var(--tx,#0f172a);border:1px solid var(--brd,#e2e8f0);border-radius:18px;overflow:hidden;box-shadow:0 6px 18px rgba(15,23,42,.06)}.ptf-set-row[open]{border-color:#bfdbfe;box-shadow:0 12px 28px rgba(15,23,42,.10)}.ptf-set-row>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(180deg,var(--crd,#fff),#f8fafc);color:var(--tx,#0f172a)}.ptf-set-row>summary::-webkit-details-marker{display:none}.ptf-set-ico{display:grid;place-items:center;min-width:36px;width:36px;height:36px;border-radius:12px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa}.ptf-set-ico svg{width:20px;height:20px}.ptf-set-summary-copy{min-width:0;flex:1}.ptf-set-summary-copy b{display:block;font-size:13px;line-height:1.4}.ptf-set-summary-copy small{display:block;margin-top:2px;color:#64748b;font-size:10.5px;font-weight:700;line-height:1.45}.ptf-set-chev{flex:0 0 auto;color:#64748b;font-size:11px;font-weight:800}.ptf-set-row[open] .ptf-set-chev{color:#2563eb}.ptf-set-body{padding:14px;color:var(--tx,#0f172a);box-sizing:border-box}.ptf-set-body>.ptf-settings-section>h4{display:none}.ptf-set-body .ptf-settings-section{width:100%;min-width:0}.ptf-set-body .ptf-settings-section-note{margin:0 0 10px;color:#64748b;font-size:11px;line-height:1.7}.ptf-set-body .fld{margin-bottom:12px}.ptf-set-body .fld label{color:var(--tx,#0f172a);font-size:11px;font-weight:900}.ptf-set-body h3,.ptf-set-body h4,.ptf-set-body b{color:var(--tx,#0f172a)!important}.ptf-set-body p,.ptf-set-body small,.ptf-set-body span{max-width:100%;overflow-wrap:anywhere}.ptf-set-body input,.ptf-set-body select,.ptf-set-body textarea{background:var(--crd,#fff)!important;color:var(--tx,#0f172a)!important;border-color:var(--brd,#cbd5e1)!important}.ptf-set-body>div[style*="max-width"]{max-width:none!important;width:100%!important}.ptf-settings-contact-actions{display:flex;gap:8px;flex-wrap:wrap}.ptf-settings-contact-actions .bt{min-height:42px}.ptf-settings-save-action{background:#2563eb!important;border-color:#2563eb!important}.ptf-settings-backup-action{background:#059669!important;border-color:#059669!important}' +
+      'body.ptf-dark .ptf-settings-head{background:linear-gradient(135deg,#312018,#1f2937);border-color:#7c2d12}body.ptf-dark .ptf-settings-title-icon{background:#fb923c;color:#431407}body.ptf-dark .ptf-set-ico{background:#2b1d19;color:#fdba74;border-color:#7c2d12}body.ptf-dark .ptf-set-row>summary{background:linear-gradient(180deg,var(--crd,#111827),rgba(148,163,184,.08))}' +
+      '@media(max-width:768px){.ptf-settings-head{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:13px;border-radius:18px}.ptf-settings-head-copy{gap:9px}.ptf-settings-title-icon{width:38px;height:38px;flex-basis:38px;border-radius:13px}.ptf-settings-head h3{font-size:16px}.ptf-settings-head p{font-size:10.5px;line-height:1.65}.ptf-settings-version{width:100%;justify-content:center;font-size:10px;text-align:center}.ptf-set-quicknav{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ptf-set-quicknav button{min-height:56px;font-size:10px}.ptf-set-row{border-radius:15px}.ptf-set-row>summary{padding:10px}.ptf-set-ico{min-width:34px;width:34px;height:34px;border-radius:11px}.ptf-set-summary-copy b{font-size:11.5px}.ptf-set-summary-copy small{font-size:9.5px}.ptf-set-chev{font-size:10px}.ptf-set-body{padding:11px}.ptf-set-body .fld input,.ptf-set-body .fld select,.ptf-set-body .fld textarea{width:100%;box-sizing:border-box}.ptf-settings-contact-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.ptf-settings-contact-actions .bt{width:100%;min-width:0;margin:0;padding:7px 5px;font-size:10px;white-space:normal}.ptf-set-body [style*="display:flex"]{max-width:100%}.ptf-set-body [style*="min-width:160px"],.ptf-set-body [style*="min-width:180px"]{min-width:0!important;max-width:100%!important}}';
+
     root.innerHTML = '';
     root.appendChild(style);
     if (header) root.appendChild(header);
-    var head = document.createElement('div');
-    head.className = 'ptf-set-acc-head';
-    head.innerHTML = '<b>نمای فشرده تنظیمات:</b> هر ردیف را باز کنید تا امکانات همان بخش نمایش داده شود.';
-    root.appendChild(head);
+    var intro = document.createElement('div');
+    intro.className = 'ptf-set-acc-head';
+    intro.innerHTML = '<b>مدیریت مرحله‌ای تنظیمات:</b> بخش موردنظر را باز کنید؛ وضعیت و عملیات همان بخش در همان‌جا باقی می‌ماند.';
+    root.appendChild(intro);
+
+    var quick = document.createElement('div');
+    quick.className = 'ptf-set-quicknav';
+    var quickDefs = [
+      { key:'پروفایل', icon:'👤', label:'پروفایل' },
+      { key:'فضای ابری', icon:'☁️', label:'فایل‌ها' },
+      { key:'هوش مصنوعی', icon:'🤖', label:'هوش مصنوعی' },
+      { key:'ارتباطات', icon:'📨', label:'ارتباطات' }
+    ];
+    root.appendChild(quick);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'ptf-set-acc-wrap';
     root.appendChild(wrap);
-    var idx = 0, usedIcons = {};
-    children.forEach(function (ch) {
-      if (!ch || (ch.nodeType === 1 && ch.matches && ch.matches('script,style'))) return;
-      if (ch.nodeType === 1 && cleanText(ch.textContent).length < 2 && !(ch.children && ch.children.length)) return;
+    var usedIcons = {}, detailsByTitle = [], idx = 0;
+    sections.forEach(function (ch) {
+      var title = findTitle(ch), desc = describeTitle(title);
       var det = document.createElement('details');
       det.className = 'ptf-set-row';
+      det.id = 'ptfSetSection_' + idx;
+      det.setAttribute('data-set-title', title);
       if (idx === 0) det.open = true;
-      var title = findTitle(ch);
       var sum = document.createElement('summary');
-      sum.innerHTML = '<span class="ptf-set-ico">' + iconFor(title, usedIcons) + '</span><span>' + esc(title) + '</span><span class="ptf-set-chev">باز/بستن</span>';
+      sum.innerHTML = '<span class="ptf-set-ico">' + iconFor(title, usedIcons) + '</span><span class="ptf-set-summary-copy"><b>' + esc(title) + '</b><small>' + esc(desc) + '</small></span><span class="ptf-set-chev">باز کنید</span>';
+      det.addEventListener('toggle', function () {
+        var c = this.querySelector('.ptf-set-chev'); if (c) c.textContent = this.open ? 'بستن' : 'باز کنید';
+        /* در موبایل، بازشدن هم‌زمان چند بخش بلند باعث گم‌شدن مقصد می‌شد؛ این یک accordion واقعی است. */
+        if (this.open) detailsByTitle.forEach(function (item) { if (item.detail !== det) item.detail.open = false; });
+      });
       var body = document.createElement('div');
       body.className = 'ptf-set-body';
       body.appendChild(ch);
       det.appendChild(sum);
       det.appendChild(body);
       wrap.appendChild(det);
+      detailsByTitle.push({ title:title, detail:det });
       idx++;
+    });
+    quickDefs.forEach(function (q) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.innerHTML = '<span aria-hidden="true">' + q.icon + '</span>' + q.label;
+      b.addEventListener('click', function () {
+        var found = detailsByTitle.filter(function (x) { return x.title.indexOf(q.key) > -1; })[0];
+        if (!found) return;
+        found.detail.open = true;
+        found.detail.scrollIntoView({ behavior:'smooth', block:'start' });
+      });
+      quick.appendChild(b);
     });
   }
 

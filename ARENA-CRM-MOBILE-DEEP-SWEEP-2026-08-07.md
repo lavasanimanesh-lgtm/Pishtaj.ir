@@ -216,12 +216,13 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
-| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.4` و precache هم‌مسیر اجرا شد |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.5` و precache هم‌مسیر اجرا شد |
 | MOB-010 deep-link/hash | ✅ مقصد hash پس از bootstrap به پنل صحیح می‌رسد |
 | MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
 | MOB-038 actionهای کیفیت داده مالی | ✅ grid متقارن 2×2 و metadata صریح اجرا شد |
 | MOB-030 تب‌ها و نمای فرصت‌های پرونده فروش | ✅ tablist معنایی، grid هم‌اندازه و ناوبری keyboard اجرا شد |
 | MOB-039 actionهای کارت/کشوی پرونده فروش | ✅ فرصت‌ها، Post-Award، خرید واقعی و اسناد رسمی به grid معنایی مهاجرت کردند |
+| MOB-040 دستیار و تنظیمات | ✅ workspace دستیار و تنظیمات مرحله‌ای موبایل بازطراحی شدند |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -419,13 +420,13 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 
 نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
 
-- release یکپارچهٔ **`v34.4.4`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
-- هر 91 script shell اکنون دقیقاً `?v=34.4.4` دارد؛
-- `sw.js?v=v34.4.4` ثبت می‌شود و cache آن `ptf-crm-v34.4.4` است؛
+- release یکپارچهٔ **`v34.4.5`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell اکنون دقیقاً `?v=34.4.5` دارد؛
+- `sw.js?v=v34.4.5` ثبت می‌شود و cache آن `ptf-crm-v34.4.5` است؛
 - هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
-**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.4`، تنها cache فعال `ptf-crm-v34.4.4` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.5`، تنها cache فعال `ptf-crm-v34.4.5` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
 
 ### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
 
@@ -486,6 +487,22 @@ badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار �
 - در **390×844** actionهای فرصت `154×62.9px`، action باخت `316×52px`؛ Post-Award `142×62px` و مختومه `292×54px`؛ خرید واقعی و اسناد رسمی هرکدام grid دو ستونه با tileهای `132.5px` داشتند.
 - در **844×390** و **desktop 1024** نیز همهٔ parentها `clientWidth === scrollWidth`، overlap صفر و صفحه/console error صفر بود.
 - tap واقعی disclosure مشتری، action خرید واقعی، dialog واقعی تاریخ تعهد (`role=dialog`) و wiring ایجاد/نمایش/اصلاح سند رسمی آزموده شد. شاخهٔ تبدیل ارزی و شاخهٔ نسخهٔ ریالی همراه نیز جداگانه رندر و metadata صحیحشان تأیید شد.
+
+### 27. پیگیری اجرایی — MOB-040: بازطراحی workspace «دستیار» و «تنظیمات»
+
+بازخورد جدید نشان داد دو پنلِ پرکاربرد «دستیار» و «تنظیمات» هنوز از چینش‌های inline و گروه‌های بزرگ/پراکنده استفاده می‌کنند. این مرحله هر دو را به‌عنوان دو workspace هم‌خانواده بازطراحی کرد، بدون تغییر جریان AI، داده یا تنظیمات ذخیره‌شده.
+
+- دستیار اکنون hero مستقل، سهمیهٔ خوانا، actionهای صریح «نتایج اخیر / پاک‌سازی کش» و `tablist` شش‌ابزاره با icon/label/meta دارد؛ `aria-selected`، `aria-controls`، roving tabindex و Arrow/Home/End اضافه شد؛
+- OCR، کارت ویزیت، مترجم، شناساگر، خلاصه‌ساز و نامه/قرارداد به cardهای responsive تبدیل شدند؛ خروجی OCR دارای table viewport افقیِ صریح و pipeline سه‌گانه با کنترل‌های قابل‌لمس است؛
+- تنظیمات از یک body بزرگ و نخستین accordion بسیار بلند به چهار section مستقلِ «پروفایل، فایل‌ها، هوش مصنوعی، ارتباطات» تقسیم شد؛ quick-nav چهارتایی، summary با توضیح، و accordion واقعیِ تک‌بخش برای mobile افزوده شد؛
+- hookهای تنظیمات (backup، license، گزارش ابزارها، theme، امنیت، پورسانت و ...) به‌صورت node move حفظ شدند؛ مقدارهای ایمیل/پیامک از تنظیمات ذخیره‌شده بازیابی می‌شوند و `saveSet()` همچنان کلیدهای موجود مانند `adminHash` را merge می‌کند.
+
+**بازآزمایی:**
+
+- در **320×568** شش tab دستیار هرکدام `126×66px` و چهار quick-nav تنظیمات `132×48px` بودند؛ در **390×844** به‌ترتیب `161×66px` و `167×48px` شدند؛ overlap و overflow صفحه صفر بود.
+- همهٔ شش ابزار دستیار واقعاً render شدند؛ ArrowLeft و Home state/focus را به مقصد درست بردند. OCR با پاسخ fixture، جدول `1074px` را فقط داخل viewport داخلی scroll کرد و panel/page overflow نداشت؛ پیش‌نمایش کارت ویزیت نیز بدون overflow رندر شد.
+- در تنظیمات، **11** section مستقل رندر شد؛ quick-nav فایل‌ها و ارتباطات، accordion مقصد را باز کرد و bodyهایشان در 320/390/844×390/desktop `clientWidth === scrollWidth` داشتند. ذخیرهٔ ایمیل/پیامک، `adminHash` موجود را حفظ کرد.
+- در هر چهار viewport، page/console error صفر بود.
 
 ### پیوست ممیزی یکدستی مودال‌ها
 
