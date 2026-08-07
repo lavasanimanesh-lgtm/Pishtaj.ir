@@ -175,14 +175,41 @@
   /* MOB-023: icons.js ایموجیِ actionهای ردیف درخواست را به SVG داخل [data-ix]
      تبدیل می‌کند. font-size:0 والد، SVGهای em-based را صفر می‌کرد و دکمه‌های
      «متن استعلام» / «مشاهده پروژه» بدون آیکون دیده می‌شدند. */
-  #rTb .ba [data-ix] {
+  /* قرارداد یکپارچهٔ actionهای انتهای هر ردیف درخواست: اندازه، مرکز آیکون و زمینه یکسان. */
+  #rTb tr > td:last-child {
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  #rTb tr > td:last-child > button {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 36px !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 10px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    line-height: 1 !important;
+  }
+  #rTb tr > td:last-child > button [data-ix] {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
+    width: 18px !important;
+    height: 18px !important;
     font-size: 18px !important;
     line-height: 1 !important;
   }
-  #rTb .ba [data-ix] svg { width: 18px !important; height: 18px !important; }
+  #rTb tr > td:last-child > button [data-ix] svg { width: 18px !important; height: 18px !important; }
 
   /* .ph فلکس ردیفی بماند — عنوان + آیکون‌دکمه‌ها */
   .ph { flex-direction: row !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; }
