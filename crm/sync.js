@@ -453,6 +453,39 @@
 
   /* ---------- نشانگر وضعیت سینک ---------- */
   var _lastSyncBadge = 'ok';
+  var _noticeResizeBound = false;
+  var _noticeBannerObserver = null;
+
+  /* MOB-004: banner پایدار sync و toast کوتاه‌مدت باید بالای bottom-nav و به
+     صورت stack دیده شوند. ارتفاع banner به CSS variable داده می‌شود تا toast
+     حتی وقتی پیام banner چندخطی است با آن هم‌پوشانی نداشته باشد. */
+  function ensureNoticeMobileStyle() {
+    if (document.getElementById('ptfSyncNoticeMobileCss')) return;
+    var css = document.createElement('style');
+    css.id = 'ptfSyncNoticeMobileCss';
+    css.textContent = '@media(max-width:768px){#ptfUnsavedBanner{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 8px)!important;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border-radius:14px!important;padding:10px 12px!important;min-height:48px!important;line-height:1.55!important;overflow-wrap:anywhere!important;pointer-events:auto!important}#ptfUnsavedBanner>span{min-width:0!important;overflow-wrap:anywhere!important}}';
+    document.head.appendChild(css);
+  }
+  function syncNoticeStackOffset() {
+    var root = document.documentElement;
+    var banner = document.getElementById('ptfUnsavedBanner');
+    if (!root) return;
+    var visible = banner && window.innerWidth <= 768 && window.getComputedStyle(banner).display !== 'none';
+    var offset = visible ? Math.ceil(banner.getBoundingClientRect().height || banner.offsetHeight || 0) + 12 : 0;
+    root.style.setProperty('--ptf-unsaved-banner-offset', offset + 'px');
+  }
+  function queueNoticeStackOffset() {
+    /* یک frame برای اعمال display/content و یک frame برای layout نهایی؛ در غیر این
+       صورت banner چندخطی ممکن است با ارتفاع نسخهٔ قبلی اندازه‌گیری شود. */
+    if (typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(function () { window.requestAnimationFrame(syncNoticeStackOffset); });
+    } else setTimeout(syncNoticeStackOffset, 32);
+  }
+  function watchNoticeBanner(banner) {
+    if (!banner || _noticeBannerObserver || typeof window.ResizeObserver !== 'function') return;
+    _noticeBannerObserver = new window.ResizeObserver(queueNoticeStackOffset);
+    _noticeBannerObserver.observe(banner);
+  }
   function setSyncBadge(st) {
     _lastSyncBadge = st;
     var el = document.getElementById('syncBadge');
@@ -480,11 +513,17 @@
         banner.style.display = 'none';
       }
     }
+    queueNoticeStackOffset();
   }
 
   function injectBadge() {
     var tb = document.querySelector('.tb');
     if (!tb || document.getElementById('syncBadge')) return;
+    ensureNoticeMobileStyle();
+    if (!_noticeResizeBound) {
+      _noticeResizeBound = true;
+      window.addEventListener('resize', queueNoticeStackOffset);
+    }
     var s = document.createElement('span');
     s.id = 'syncBadge';
     s.style.cssText = 'font-size:11px;cursor:default;margin-right:8px';
@@ -496,6 +535,8 @@
     banner.id = 'ptfUnsavedBanner';
     banner.style.cssText = 'display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#f59e0b;color:#1e293b;padding:8px 16px;font-size:13px;font-weight:600;align-items:center;gap:8px;box-shadow:0 -2px 8px rgba(0,0,0,0.15)';
     document.body.appendChild(banner);
+    watchNoticeBanner(banner);
+    queueNoticeStackOffset();
   }
 
   /* ---------- مهاجرت اولیه: seed یا دریافت ---------- */

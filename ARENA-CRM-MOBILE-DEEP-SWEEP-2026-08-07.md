@@ -212,7 +212,7 @@
 | MOB-001 کنترل‌های مودال | ✅ مرحلهٔ visual/label اجرا شد؛ focus trap و Escape عمومی هنوز در MOB-007 باز است |
 | MOB-002 label جدول‌ها | ⏳ باز؛ قبل از migration گسترده action rowها انجام شود |
 | MOB-003 refresh پس از bottom-nav/sync | ⏳ باز، P0 |
-| MOB-004 toast/banner روی nav | ⏳ باز، P1 |
+| MOB-004 toast/banner روی nav | ✅ اجرا و آزمایش شد؛ stack بالای nav و لمس آزاد است |
 | MOB-005 landscape | ⏳ باز، P1 |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
@@ -239,7 +239,7 @@
 
 6. **MOB-002** — table-card labels و action schema.
 7. **MOB-003** — state مستقل active panel و refresh sync.
-8. **MOB-004/005/030/031/032** — overlay، landscape، tabs، Kanban و overflowهای باقی‌مانده.
+8. **MOB-005/030/031/032** — landscape، tabs، Kanban و overflowهای باقی‌مانده.
 
 ---
 
@@ -352,3 +352,16 @@ refresh ناشی از sync یا `setData` با فلگ `window._ptfNavIsRefresh` 
 - ریشه‌های `fiscalBox`، `opexBox` و `chequeBox` در 320px اکنون `clientWidth === scrollWidth` دارند.
 
 **بازآزمایی 320×568 و 390×844:** همهٔ 10 tab با click/handler واقعی پیمایش شدند؛ در 320px bar برابر `270/270px` و در 390px برابر `340/340px` (`clientWidth/scrollWidth`) بود. برای هیچ tab دکمهٔ خارج از viewport یا clipped وجود نداشت. در click واقعی «سال مالی»، `aria-pressed=true`، `fiscalBox=block` و `ptPettyHead=none` تأیید شد؛ تغییر select سال مالی، بازخوانی «کیفیت داده» و تغییر زیرتب به «چک‌های وارده» نیز box فعال را همچنان `block` نگه داشت. در 1024px هم هیچ action خارج از عرض دیده نشد و page/console error در همهٔ سناریوها صفر بود.
+
+### 17. پیگیری اجرایی — MOB-004: toast و بنر همگام‌سازی بالای bottom-nav
+
+toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌نشده پیش‌تر به‌ترتیب با `bottom:20px` و `bottom:0` ساخته می‌شدند؛ هر دو روی tabهای bottom-nav می‌افتادند و toast حتی لمس را هم می‌بلعید. اصلاح انجام‌شده:
+
+- toast در موبایل از `74px` ارتفاع nav، safe-area و فاصلهٔ 12px استفاده می‌کند و `pointer-events:none` دارد؛
+- banner sync در کارت 8px از nav فاصله می‌گیرد، حاشیهٔ 8px، radius 14px و wrap متن دارد؛
+- ارتفاع واقعی banner (از جمله پیام چندخطی) با `ResizeObserver` در CSS variable ذخیره می‌شود؛ toast به‌اندازهٔ همان ارتفاع + 12px بالاتر می‌رود و با banner هم overlap نمی‌کند؛
+- toast به `role=status`، `aria-live` و `aria-atomic` مجهز شد.
+
+**بازآزمایی 320×568:** nav از y=494 شروع شد؛ banner چندخطی در y=405.6 تا 486 (فاصلهٔ 8px از nav) و toast در y=240.7 تا 389 قرار گرفت (فاصلهٔ 16.6px از banner). هیچ تقاطع toast/banner با nav یا با یکدیگر وجود نداشت؛ point روی tab پایین همچنان داخل `#mnvBar` بود. در حالت بدون banner نیز toast دقیقاً 12px بالای nav ماند.
+
+**بازآزمایی 390×844:** banner تا y=762 و nav از y=770 بود؛ toast تا y=685 و فاصلهٔ toast/banner برابر 16.7px بود. `document.scrollWidth` با viewport برابر، `pageerror/console error` صفر و pointer-event toast برابر `none` بود. سناریوی واقعی sync آفلاین با dirty persisted نیز banner فعال را بدون پوشاندن nav نمایش داد.

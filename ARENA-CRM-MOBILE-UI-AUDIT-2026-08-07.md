@@ -625,6 +625,14 @@ tabها اکنون grid دو‌ستونه با label قابل‌خواندن، `
 
 **تأیید فنی:** در loop تمام 10 tab در 320×568 و 390×844، `document.scrollWidth` دقیقاً با viewport برابر بود؛ هیچ دکمهٔ خارج از viewport یا clipped و هیچ page/console error دیده نشد. `fiscalBox`، `opexBox` و `chequeBox` نیز به‌ترتیب `clientWidth === scrollWidth` داشتند. click واقعی tab سال مالی و زیرتب چک وارده، state و visibility را پایدار نگه داشت.
 
+### MOB-004 — رفع پوشاندن bottom-nav توسط toast و بنر همگام‌سازی
+
+toast و banner تغییرات آفلاین/ذخیره‌نشده دیگر روی bottom navigation رندر نمی‌شوند. toast در موبایل با clearance نوار 74px، safe-area و فاصلهٔ 12px بالا می‌رود و برای عبور لمس به کنترل زیرین `pointer-events:none` دارد. banner پایدار نیز با حاشیهٔ 8px بالای nav قرار می‌گیرد.
+
+وقتی هر دو پیام هم‌زمان حاضرند، ارتفاع واقعی banner با `ResizeObserver` در یک CSS variable ثبت می‌شود؛ toast با فاصلهٔ 16px بالاتر از آن stack می‌شود. به این ترتیب متن بلند banner نیز نه nav را می‌پوشاند و نه toast را.
+
+**تأیید فنی:** در 320×568، banner تا y=486 در برابر شروع nav در y=494 و toast تا y=389 بود؛ در 390×844، banner تا y=762 در برابر nav y=770 و toast تا y=685 بود. هیچ تقاطعی دیده نشد؛ toast بدون banner هم دقیقاً 12px بالای nav قرار گرفت و لمس tab پایین به `#mnvBar` رسید.
+
 ## پیوست: شواهد عددی
 
 | شاخص | نتیجه |
@@ -637,8 +645,8 @@ tabها اکنون grid دو‌ستونه با label قابل‌خواندن، `
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navbar در 2Mbps آزمایشگاهی | 13.4 ثانیه تا آماده‌شدن |
 | First Contentful Paint در همان تست | ~344ms |
-| toast شروع کار در 390×844 | ~195×106px روی ناحیهٔ bottom-nav |
+| toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | bottom-nav مخفی، sidebar 56px، header 99px |
 
-> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. قبل از اعمال تغییر گسترده در CSS، ابتدا MOB-001 تا MOB-004 را با regression screenshot قفل کنید.
+> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-004 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل landscape، semantics/focus مودال، کارایی/PWA و Kanban هستند.

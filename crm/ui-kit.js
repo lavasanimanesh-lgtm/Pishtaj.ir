@@ -41,8 +41,13 @@ window.ptfOnClickArg = function (v) {
     '.ptfdlg .ok{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}' +
     '.ptfdlg .ok.danger{background:#dc2626}' +
     '.ptfdlg .cancel{background:#f1f5f9;color:#334155}' +
-    '.ptftoast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10000;background:#1e293b;color:#fff;border-radius:14px;padding:11px 20px;font-size:13.5px;font-weight:800;box-shadow:0 12px 34px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:ptfup .25s;max-width:90vw}' +
-    '@keyframes ptfup{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}' +
+    '.ptftoast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10000;background:#1e293b;color:#fff;border-radius:14px;padding:11px 20px;font-size:13.5px;font-weight:800;box-shadow:0 12px 34px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:ptfup .25s;max-width:90vw;box-sizing:border-box}' +
+    /* MOB-004: toast پایین در 320px مستقیماً روی bottom-nav می‌افتاد. offset
+       بنر پایدار sync از CSS variable می‌آید تا در صورت نمایش هم‌زمان، دو notice
+       روی هم هم قرار نگیرند. toast عملیاتی نیست؛ لمس باید به کنترل زیر آن برسد. */
+    '@media(max-width:768px){.ptftoast{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 12px + var(--ptf-unsaved-banner-offset,0px));max-width:calc(100vw - 24px);pointer-events:none}}' +
+    /* animation عمودی نباید notice تازه را موقتاً به سمت bottom-nav هل بدهد. */
+    '@keyframes ptfup{from{opacity:0}to{opacity:1}}' +
     '.ptftoast.ok{background:#059669}.ptftoast.err{background:#dc2626}.ptftoast.warn{background:#d97706}';
   document.head.appendChild(css);
 
@@ -153,6 +158,10 @@ window.ptfOnClickArg = function (v) {
     if (old) old.remove();
     var t = document.createElement('div');
     t.className = 'ptftoast ' + (kind || 'info');
+    /* toast فقط اطلاع‌رسانی است؛ به‌خصوص در موبایل نباید لمس bottom-nav را ببلعد. */
+    t.setAttribute('role', 'status');
+    t.setAttribute('aria-live', kind === 'err' || kind === 'warn' ? 'assertive' : 'polite');
+    t.setAttribute('aria-atomic', 'true');
     var icons = { ok: '✅', err: '❌', warn: '⚠️', info: 'ℹ️' };
     t.innerHTML = '<span>' + (icons[kind] || icons.info) + '</span><span>' + msg + '</span>';
     document.body.appendChild(t);
