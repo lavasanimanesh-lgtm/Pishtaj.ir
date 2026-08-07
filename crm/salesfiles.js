@@ -665,6 +665,18 @@
     function row(ic, tx, actions) {
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--brd);font-size:12.5px"><span>' + ic + ' ' + tx + '</span><span style="white-space:nowrap">' + (actions || '') + '</span></div>';
     }
+    /* MOB-039: actionهای Post-Award به‌جای buttonهای رنگی/متغیر، یک contract
+       مشخص icon + label + meta دارند. این helper فقط presentation را تغییر می‌دهد؛
+       onclick و guardهای کسب‌وکار همان مسیر قبلی را حفظ می‌کنند. */
+    function postAction(kind, icon, label, title, onClick, opt) {
+      opt = opt || {};
+      var extra = (opt.primary ? ' is-primary' : '') + (opt.wide ? ' is-wide' : '') + (opt.locked ? ' is-locked' : '');
+      var meta = opt.meta ? '<span class="sf-post-award-meta">' + opt.meta + '</span>' : '';
+      return '<button type="button" class="bt bt-o sf-post-award-action sf-post-award-' + kind + extra + '" data-sf-post-action="' + kind + '"' +
+        ' title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+        '<span class="sf-post-award-icon" aria-hidden="true">' + icon + '</span>' +
+        '<span class="sf-post-award-copy"><span class="sf-post-award-label">' + label + '</span>' + meta + '</span></button>';
+    }
     var h = '<div style="padding:4px 14px 12px;border-top:1px solid var(--brd)">' + sfFinancialStrip(r, d);
     var KINDS = { TO: 'پیشنهاد فنی', CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی' };
     d.offers.forEach(function (o) {
@@ -790,34 +802,72 @@
         if (_inCov.total) h += '<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:7px 11px;margin-top:6px;font-size:11.5px;color:#0f766e" onclick="event.stopPropagation()">🔬 پوشش نوت بازرسی رسمی: <b>' + _inCov.used + ' / ' + _inCov.total + '</b>' + (_inCov.remain ? ' — باقیمانده: ' + _inCov.remain + ' قلم' : ' — کامل ✅') + '</div>';
       }
     } catch (eCov) {}
-    h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود</div>' : '') +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:' + (r.wonOffer ? '6' : '10') + 'px" onclick="event.stopPropagation()">' +
-      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')">🛍 خرید</button>' : '') +
-      '<span id="sfUp_' + escP(r.cd) + '" style="flex:1;min-width:180px"></span>' +
-      /* v14.8: ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
-      '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + ptfOnClickArg(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#0d9488;border-color:#99f6e4" onclick="sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')">🔬 QC / نتیجه بازرسی</button>' : '') +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#c4b5fd" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')">📄 نوت بازرسی رسمی</button>' : '') +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')">🧰 پکینگ لیست رسمی</button>' +
-        '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'shipdoc\')">🚚 بارنامه/ارسال</button>' +
-        '<button class="bt bt-o" style="font-size:12px;color:#166534;border-color:#bbf7d0" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'delivered\')">🤝 تحویل کارفرما</button>' : '') +
-      /* v19.3: ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
-      (function () {
-        if (!r.wonOffer) return '';
-        var _wo = getData('ptf_crm_offers').filter(function (x) { return x.no === r.wonOffer; })[0];
-        var _hasInvD = r.inqNo ? sfHasInvoice(r) : false;
-        if (_hasInvD) return '';
-        if (_wo && _wo.invRef) return '<span class="bd" style="background:#ede9fe;color:#6d28d9;align-self:center" title="ارجاع‌شده توسط ' + escP(_wo.invRef.by || '') + ' — ' + escP(_wo.invRef.t || '') + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
-        var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
-        return _stg7 >= 7
-          ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور به حسابدار</button>'
-          : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
-      })() +
-      /* v34.2.0 (US-FX2RIAL فاز ۱): تبدیل پیشنهاد ارزی برنده به نسخه ریالی — پیشنهاد اصلی هرگز تغییر نمی‌کند */
-      ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') +
-      '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')">💥 ثبت زیان پروژه</button>' +
-      '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="sfClose(\'' + ptfOnClickArg(r.cd) + '\')">' + (hasInv ? '🏁 مختومه (پایان پروژه و تسویه کامل)' : '🚫 مختومه بدون فاکتور (عدم برنده شدن/سایر)') + '</button>' +
-      '</div></div>';
+    var postActions = '';
+    if (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function') {
+      postActions += postAction(
+        'real-buy', '🛍', 'خرید واقعی', 'ثبت یا پیگیری خرید واقعی اقلام این پرونده',
+        'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')',
+        { primary: true, meta: 'اقلام پروژه' }
+      );
+    }
+    /* v14.8: ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
+    postActions += postAction(
+      'due', '🚚', 'تحویل تعهدی',
+      r.dueISO ? 'اصلاح تاریخ تحویل تعهدی ' + r.dueISO : 'ثبت تاریخ تحویل تعهدی',
+      'sfSetDue(\'' + ptfOnClickArg(r.cd) + '\')',
+      { meta: r.dueISO ? escP(r.dueISO) : 'ثبت تاریخ' }
+    );
+    if (r.wonOffer) {
+      postActions += postAction(
+        'qc', '🔬', 'کنترل کیفیت', 'ثبت یا مشاهده نتیجهٔ QC / بازرسی',
+        'sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'QC / بازرسی' }
+      );
+      postActions += postAction(
+        'inspection-note', '📄', 'نوت بازرسی', 'صدور یا مشاهده نوت بازرسی رسمی',
+        'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')', { meta: 'سند رسمی' }
+      );
+      postActions += postAction(
+        'packing-list', '🧰', 'پکینگ‌لیست', 'صدور یا مشاهده پکینگ‌لیست رسمی',
+        'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')', { meta: 'سند رسمی' }
+      );
+      postActions += postAction(
+        'shipment', '🚚', 'بارنامه / ارسال', 'ثبت بارنامه یا رویداد ارسال',
+        'sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'shipdoc\')', { meta: 'ارسال کالا' }
+      );
+      postActions += postAction(
+        'delivery', '🤝', 'تحویل کارفرما', 'ثبت تحویل موفق به کارفرما',
+        'sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'delivered\')', { meta: 'تحویل نهایی' }
+      );
+    }
+    /* v19.3: ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
+    postActions += (function () {
+      if (!r.wonOffer) return '';
+      var _wo = getData('ptf_crm_offers').filter(function (x) { return x.no === r.wonOffer; })[0];
+      var _hasInvD = r.inqNo ? sfHasInvoice(r) : false;
+      if (_hasInvD) return '';
+      if (_wo && _wo.invRef) return '<span class="bd sf-post-award-status sf-post-award-invoice-status" title="' + escP('ارجاع‌شده توسط ' + (_wo.invRef.by || '') + ' — ' + (_wo.invRef.t || '')) + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
+      var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
+      return _stg7 >= 7
+        ? postAction('invoice-ref', '🧾', 'ارجاع فاکتور', 'ارجاع فاکتور رسمی به حسابدار', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { primary: true, meta: 'برای حسابدار' })
+        : postAction('invoice-ref', '🔒', 'ارجاع فاکتور', 'ارجاع فاکتور تا ثبت تحویل کارفرما قفل است', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { locked: true, meta: 'پس از تحویل' });
+    })();
+    /* v34.2.0: عملیات نسخهٔ ریالی فقط برای پیشنهاد ارزی برنده ظاهر می‌شود. */
+    postActions += '<span class="sf-post-award-rial">' + ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') + '</span>';
+    postActions += postAction(
+      'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',
+      'ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'زیان پروژه' }
+    );
+    postActions += postAction(
+      'close', hasInv ? '🏁' : '🚫', 'مختومه‌سازی',
+      hasInv ? 'مختومه‌سازی پرونده پس از تحویل و تسویه کامل' : 'مختومه‌سازی پروندهٔ بدون فاکتور با دلیل استاندارد',
+      'sfClose(\'' + ptfOnClickArg(r.cd) + '\')',
+      { wide: true, meta: hasInv ? 'پایان پروژه و تسویه' : 'بدون فاکتور / سایر' }
+    );
+    h += '<section class="sf-post-award-shell" onclick="event.stopPropagation()">' +
+      '<div class="sf-post-award-heading"><span class="sf-post-award-heading-icon" aria-hidden="true">' + (r.wonOffer ? '🧰' : '📁') + '</span><span><b>' + (r.wonOffer ? 'عملیات پرونده' : 'عملیات پرونده') + '</b><small>' + (r.wonOffer ? 'پس از ابلاغ سفارش؛ همه عملیات از همین پرونده انجام می‌شود' : 'عملیات ثبت و پیگیری پرونده') + '</small></span></div>' +
+      '<div class="sf-post-award-actions" role="group" aria-label="عملیات پرونده ' + escP(r.inqNo || r.cd || '') + '">' + postActions + '</div>' +
+      '<div class="sf-post-award-extras"><div class="sf-post-award-upload"><div class="sf-post-award-upload-label"><span aria-hidden="true">📎</span><span>افزودن سند یا ضمیمهٔ پرونده</span></div><span id="sfUp_' + escP(r.cd) + '"></span></div></div>' +
+      '</section></div>';
     setTimeout(function () {
       var w = document.getElementById('sfUp_' + r.cd);
       if (w && typeof attachUploadWidget === 'function' && !w.getAttribute('data-up')) {

@@ -565,7 +565,14 @@
   };
 
   /* ---------- دکمه پرونده فروش (فاز ۱) ----------
-     ورودی: رکورد پرونده فروش r — خروجی: HTML دکمه/بج برای نوار عملیات پرونده */
+     MOB-039: این actionها داخل grid عملیات Post-Award قرار می‌گیرند؛ بنابراین
+     آیکون، label و metadata ساخت‌یافته دارند و به دکمهٔ متنی رنگی وابسته نیستند. */
+  function rialPostAction(kind, icon, label, title, onClick, meta, primary) {
+    return '<button type="button" class="bt bt-o sf-post-award-action sf-post-award-rial-' + kind + (primary ? ' is-primary' : '') + '" data-sf-post-action="rial-' + kind + '"' +
+      ' title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+      '<span class="sf-post-award-icon" aria-hidden="true">' + icon + '</span><span class="sf-post-award-copy"><span class="sf-post-award-label">' + label + '</span>' +
+      (meta ? '<span class="sf-post-award-meta">' + meta + '</span>' : '') + '</span></button>';
+  }
   window.ptfOfferRialToolbarHtml = function (r) {
     try {
       if (!r || !r.wonOffer) return '';
@@ -573,17 +580,17 @@
       if (!wo) return '';
       var comp = window.ptfRialCompanionOf(wo.no);
       if (comp) {
-        return '<span class="bd" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;align-self:center" title="نسخه ریالی پیشنهاد برنده — ساخته‌شده با نرخ ' + ((comp.fxConvert && comp.fxConvert.rate) ? (+comp.fxConvert.rate).toLocaleString('fa-IR') : '') + ' ریال">' +
-          '💱 ریالی: <b dir="ltr">' + escP(comp.no) + '</b></span>' +
-          '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerQuickPreview(\'' + ptfOnClickArg(comp.no) + '\')" title="نمایش نسخه ریالی">👁</button>' +
-          '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="offerPrint(\'' + ptfOnClickArg(comp.no) + '\')" title="چاپ/PDF نسخه ریالی">🖨</button>' +
-          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\'' + ptfOnClickArg(wo.no) + '\')" title="دیدن پیشنهاد ارزی قبلی (برنده)">👁 ارزی</button>' +
-          '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\'' + ptfOnClickArg(comp.no) + '\')" title="پیش‌نمایش و ویرایش شرایط و ضوابط ریالی + اصلاح نرخ تسعیر + دیدن پیشنهاد ارزی قبلی">🔧 شرایط</button>';
+        var rateTxt = (comp.fxConvert && comp.fxConvert.rate) ? (+comp.fxConvert.rate).toLocaleString('fa-IR') + ' ریال' : '';
+        return '<span class="bd sf-post-award-status sf-post-award-rial-status" title="' + escP('نسخه ریالی پیشنهاد برنده — ساخته‌شده با نرخ ' + rateTxt) + '">💱 ریالی: <b dir="ltr">' + escP(comp.no) + '</b></span>' +
+          rialPostAction('preview', '👁', 'نمایش ریالی', 'نمایش نسخه ریالی پیشنهاد', 'offerQuickPreview(\'' + ptfOnClickArg(comp.no) + '\')', 'نسخه همراه') +
+          rialPostAction('print', '🖨', 'چاپ ریالی', 'چاپ یا PDF نسخه ریالی', 'offerPrint(\'' + ptfOnClickArg(comp.no) + '\')', 'PDF / چاپ') +
+          rialPostAction('source', '👁', 'نسخه ارزی', 'دیدن پیشنهاد ارزی قبلیِ برنده', 'offerQuickPreview(\'' + ptfOnClickArg(wo.no) + '\')', 'مبنای پیشنهاد') +
+          rialPostAction('terms', '🔧', 'شرایط و نرخ', 'پیش‌نمایش و ویرایش شرایط و ضوابط ریالی، اصلاح نرخ تسعیر و دیدن پیشنهاد ارزی', 'ptfOfferRialTermsOpen(\'' + ptfOnClickArg(comp.no) + '\')', 'ویرایش شرایط');
       }
       if (!isFxOffer(wo)) return '';
       var chk = window.ptfOfferRialConvertCheck(wo.no);
       if (!chk.ok) return '';
-      return '<button class="bt" style="font-size:12px;background:#0e7490" title="ساخت نسخه ریالی از پیشنهاد ارزی برنده — پیشنهاد اصلی تغییر نمی‌کند" onclick="ptfOfferRialConvertOpenByNo(\'' + ptfOnClickArg(wo.no) + '\',\'' + ptfOnClickArg(r.cd || '') + '\')">💱 تبدیل به پیشنهاد ریالی</button>';
+      return rialPostAction('convert', '💱', 'تبدیل به ریالی', 'ساخت نسخه ریالی از پیشنهاد ارزی برنده — پیشنهاد اصلی تغییر نمی‌کند', 'ptfOfferRialConvertOpenByNo(\'' + ptfOnClickArg(wo.no) + '\',\'' + ptfOnClickArg(r.cd || '') + '\')', 'نسخه همراه', true);
     } catch (e) { return ''; }
   };
 

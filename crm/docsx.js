@@ -355,6 +355,18 @@
   function patchDrawer() {
     if (window._dxDealsHooked || typeof window.renderDeals !== 'function') return false;
     window._dxDealsHooked = true;
+    /* MOB-039: actionهای اسناد رسمی هم بخشی از کشوی پرونده‌اند؛ از tileهای
+       نام‌دار استفاده می‌کنند تا +های قدیمی و buttonهای ناهم‌اندازه نمانند. */
+    var DX_ICON = { PL: '🧰', IN: '🔬', IB: '📥', MOM: '📝' };
+    var DX_LABEL = { PL: 'پکینگ‌لیست', IN: 'نوت بازرسی', IB: 'ورود کالا', MOM: 'صورتجلسه' };
+    function dxAction(kind, icon, label, title, onClick) {
+      return '<button type="button" class="bt bt-o sf-docx-action sf-docx-action-' + kind + '" data-sf-docx-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+        '<span class="sf-docx-action-icon" aria-hidden="true">' + icon + '</span><span class="sf-docx-action-label">' + label + '</span></button>';
+    }
+    function dxRowAction(kind, icon, label, title, onClick) {
+      return '<button type="button" class="bt bt-o sf-docx-row-action sf-docx-row-action-' + kind + '" data-sf-docx-row-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+        '<span class="sf-docx-row-action-icon" aria-hidden="true">' + icon + '</span><span>' + label + '</span></button>';
+    }
     var _rd = window.renderDeals;
     window.renderDeals = function () {
       _rd();
@@ -366,13 +378,19 @@
         if (!host || document.getElementById('dxBox_' + d.cd)) return;
         var list = (d.docsx || []).map(function (x) {
           var tp = typeOf(x.type) || {};
-          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0;border-top:1px dashed #c7d2fe;font-size:12px;flex-wrap:wrap"><span>' + (tp.lb || x.type) + ' — <b dir="ltr">' + escP(x.no) + '</b> <small style="color:#94a3b8">(' + escP(x.t || '') + ' — ' + escP(x.by || '') + ')</small></span><span style="display:flex;gap:4px;flex-wrap:wrap"><button class="bt bt-o" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation();ptfDocxPrint(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.cd) + '\')">👁 نمایش</button><button class="bt bt-o" style="padding:2px 8px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.type) + '\',\'' + ptfOnClickArg(x.cd) + '\')">✏️ اصلاح</button></span></div>';
+          var kind = String(x.type || 'doc').toLowerCase();
+          var printAction = dxRowAction('view', '👁', 'نمایش', 'نمایش یا چاپ سند رسمی ' + (x.no || ''), 'event.stopPropagation();ptfDocxPrint(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.cd) + '\')');
+          var editAction = dxRowAction('edit', '✏️', 'اصلاح', 'اصلاح سند رسمی ' + (x.no || ''), 'event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.type) + '\',\'' + ptfOnClickArg(x.cd) + '\')');
+          return '<div class="sf-docx-existing-row sf-docx-existing-' + kind + '"><div class="sf-docx-existing-copy">' + (DX_ICON[x.type] || '📄') + ' ' + (DX_LABEL[x.type] || tp.lb || x.type) + ' — <b dir="ltr">' + escP(x.no) + '</b> <small>(' + escP(x.t || '') + ' — ' + escP(x.by || '') + ')</small></div><div class="sf-docx-row-actions" role="group" aria-label="عملیات سند ' + escP(x.no || '') + '">' + printAction + editAction + '</div></div>';
+        }).join('');
+        var createActions = PTF_DOCX_TYPES.map(function (tp) {
+          return dxAction('new-' + String(tp.id).toLowerCase(), DX_ICON[tp.id] || '📄', DX_LABEL[tp.id] || tp.lb || tp.id, 'ثبت سند رسمی ' + (DX_LABEL[tp.id] || tp.lb || tp.id), 'event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + tp.id + '\')');
         }).join('');
         host.closest('div').insertAdjacentHTML('beforebegin',
-          '<div id="dxBox_' + escP(d.cd) + '" style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()">' +
-          '<b>📄 اسناد رسمی قالب شرکت (US-443)</b> <span style="display:inline-flex;gap:4px;flex-wrap:wrap;margin-right:6px">' +
-          PTF_DOCX_TYPES.map(function (tp) { return '<button class="bt bt-o" style="padding:3px 9px;font-size:11px;color:#4338ca;border-color:#c7d2fe" onclick="event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + tp.id + '\')">+ ' + tp.lb + '</button>'; }).join('') +
-          '</span>' + list + '</div>');
+          '<section id="dxBox_' + escP(d.cd) + '" class="sf-docx-summary" onclick="event.stopPropagation()">' +
+          '<div class="sf-docx-heading"><span class="sf-docx-heading-icon" aria-hidden="true">📄</span><span><b>اسناد رسمی قالب شرکت</b><small>ایجاد، مشاهده و اصلاح اسناد رسمی پرونده</small></span></div>' +
+          '<div class="sf-docx-actions" role="group" aria-label="ثبت سند رسمی پرونده ' + escP(d.inqNo || d.cd) + '">' + createActions + '</div>' +
+          (list ? '<div class="sf-docx-existing">' + list + '</div>' : '') + '</section>');
       } catch (e) {}
     };
     return true;

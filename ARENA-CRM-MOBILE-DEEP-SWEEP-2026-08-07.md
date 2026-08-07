@@ -216,11 +216,12 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
-| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.3` و precache هم‌مسیر اجرا شد |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.4` و precache هم‌مسیر اجرا شد |
 | MOB-010 deep-link/hash | ✅ مقصد hash پس از bootstrap به پنل صحیح می‌رسد |
 | MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
 | MOB-038 actionهای کیفیت داده مالی | ✅ grid متقارن 2×2 و metadata صریح اجرا شد |
 | MOB-030 تب‌ها و نمای فرصت‌های پرونده فروش | ✅ tablist معنایی، grid هم‌اندازه و ناوبری keyboard اجرا شد |
+| MOB-039 actionهای کارت/کشوی پرونده فروش | ✅ فرصت‌ها، Post-Award، خرید واقعی و اسناد رسمی به grid معنایی مهاجرت کردند |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -418,13 +419,13 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 
 نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
 
-- release یکپارچهٔ **`v34.4.3`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
-- هر 91 script shell اکنون دقیقاً `?v=34.4.3` دارد؛
-- `sw.js?v=v34.4.3` ثبت می‌شود و cache آن `ptf-crm-v34.4.3` است؛
+- release یکپارچهٔ **`v34.4.4`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell اکنون دقیقاً `?v=34.4.4` دارد؛
+- `sw.js?v=v34.4.4` ثبت می‌شود و cache آن `ptf-crm-v34.4.4` است؛
 - هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
-**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.3`، تنها cache فعال `ptf-crm-v34.4.3` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.4`، تنها cache فعال `ptf-crm-v34.4.4` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
 
 ### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
 
@@ -468,6 +469,23 @@ badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار �
 - در **390×844** tabهای اصلی `162×68px` و زیرتب‌ها `167×58px` بودند؛ route واقعی `goPanel('deals')` عنوان «پرونده‌های فروش» را نگه داشت، هر دو نمای فرصت و بازگشت به پرونده‌ها اجرا شد و خطای page/console صفر بود.
 - در **844×390** tabهای اصلی `331×60px` و زیرتب‌ها `216×50px` ماندند؛ در **1024 desktop** نیز اندازه‌ها برابر و `dealWrap` بدون overflow بود.
 - tap واقعی، انتخاب هر دو tab اصلی، هر دو نمای فرصت و Home روی sub-tab آزموده شد؛ state و focus مقصد صحیح باقی ماند.
+
+### 26. پیگیری اجرایی — MOB-039: actionهای فرصت و کشوی پروندهٔ فروش
+
+پس از اصلاح navigation، دکمه‌های داخل خود فرصت و کشوی پرونده هنوز با اندازه و رنگ قدیمیِ وابسته به متن نمایش داده می‌شدند. این مرحله، فقط actionهای همین جریان را بدون تغییر منطق فروش/مالی یکدست کرد:
+
+- کارت فرصتِ نمای «بر اساس درخواست» اکنون برای «پیشنهادها»، «درخواست» و «ثبت باخت» icon/label/meta جدا، `title` و `aria-label` دارد؛ در mobile دو tile اصلی هم‌اندازه‌اند و action باخت به‌صورت ردیف کامل و واضح می‌ماند؛
+- نمای «بر اساس مشتری» به disclosure واقعی با `button` و `aria-expanded` تبدیل شد؛ actionهای ویرایش/پیش‌نمایش پیشنهاد نیز tileهای نام‌دار شدند؛
+- عملیات Post-Award پرونده (خرید واقعی، تحویل تعهدی، QC، نوت بازرسی، پکینگ‌لیست، ارسال، تحویل کارفرما، ارجاع فاکتور، تبدیل ریالی، ثبت زیان و مختومه‌سازی) یک contract واحد icon/label/meta گرفتند؛ lock ارجاع فاکتور و status نسخهٔ ریالی نیز حفظ شد؛
+- hookهای داخل همان کشو — خلاصهٔ خرید واقعی در `buycompare.js` و اسناد رسمی در `docsx.js` — نیز به gridهای برچسب‌دار تبدیل شدند؛ upload anchor به `span` سازگار با hookهای قبلی نگه داشته شد تا جای‌گذاری/عملکرد widget و extensionها نشکند؛
+- هر action تولیدشده metadata دسترسی دارد و onclick/guardهای قبلی حفظ شده‌اند؛ مسیرهای خرید، تاریخ تعهد، سند رسمی و پیشنهاد ارزی تغییر کسب‌وکاری نکرده‌اند.
+
+**بازآزمایی:**
+
+- در **320×568** actionهای فرصت `119×62.9px`، action باخت `246×52px`، Post-Award (۱۱ action شامل تبدیل ریالی) `107×62px` و مختومهٔ تمام‌عرض `222×54px` بودند؛ چهار action خرید واقعی `97.5×52px` و چهار action اسناد رسمی `97.5×52px` شدند.
+- در **390×844** actionهای فرصت `154×62.9px`، action باخت `316×52px`؛ Post-Award `142×62px` و مختومه `292×54px`؛ خرید واقعی و اسناد رسمی هرکدام grid دو ستونه با tileهای `132.5px` داشتند.
+- در **844×390** و **desktop 1024** نیز همهٔ parentها `clientWidth === scrollWidth`، overlap صفر و صفحه/console error صفر بود.
+- tap واقعی disclosure مشتری، action خرید واقعی، dialog واقعی تاریخ تعهد (`role=dialog`) و wiring ایجاد/نمایش/اصلاح سند رسمی آزموده شد. شاخهٔ تبدیل ارزی و شاخهٔ نسخهٔ ریالی همراه نیز جداگانه رندر و metadata صحیحشان تأیید شد.
 
 ### پیوست ممیزی یکدستی مودال‌ها
 
