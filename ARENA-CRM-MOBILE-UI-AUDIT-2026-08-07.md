@@ -548,6 +548,24 @@ FAB پیشنهاد به‌صورت یک دایرهٔ 54px با `top:-26px` طر�
 
 ---
 
+## پیگیری پس از ممیزی
+
+### MOB-022 — اصلاح آزمایشی انجام شد
+
+در همین شاخه، selector مربوط به FAB از:
+
+```css
+.mnv-fabwrap{overflow:visible;position:relative}
+```
+
+به selector مشخص‌تر و دارای اولویت لازم تغییر داده شد:
+
+```css
+#mnvBar .mnv-fabwrap{overflow:visible!important;position:relative}
+```
+
+**تأیید فنی:** در Chromium لمسی 390×844، `overflow` واقعی FAB wrapper برابر `visible` شد و کادر دایرهٔ 54px از y=751 تا y=805، در حالی که parent از y=777 شروع می‌شود، به‌طور کامل قابل‌مشاهده بود. screenshot regression نیز دایرهٔ کامل، ring و shadow را نشان داد. این تغییر فقط clipping FAB را هدف می‌گیرد و هنوز نیازمند تأیید بصری کاربر روی دستگاه واقعی است.
+
 ## پیوست: شواهد عددی
 
 | شاخص | نتیجه |

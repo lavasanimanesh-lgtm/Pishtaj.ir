@@ -159,7 +159,9 @@
     '.mnv-bdg{position:absolute;top:-4px;left:-8px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;min-width:16px;height:16px;border-radius:8px;display:grid;place-items:center;padding:0 4px;border:2px solid var(--crd,#fff)}' +
     /* v13.0: FAB پیشنهاد — دایره نیم‌بیرون‌زده به فضای پنل */
     '#mnvBar{overflow:visible}' +
-    '.mnv-fabwrap{overflow:visible;position:relative}' +
+    /* MOB-022: قانون عمومی موبایل برای button، overflow:hidden!important دارد.
+       FAB از بالای نوار بیرون می‌زند؛ بدون !important نیمهٔ بالایی دایره clip می‌شود. */
+    '#mnvBar .mnv-fabwrap{overflow:visible!important;position:relative}' +
     '.mnv-fab{position:absolute;top:-26px;left:50%;transform:translateX(-50%);width:54px;height:54px;border-radius:50%;' +
       'background:linear-gradient(135deg,var(--pri,#ef4b1a),var(--org,#f79400));color:#fff;display:grid;place-items:center;' +
       'box-shadow:0 8px 22px rgba(239,75,26,.42),0 0 0 5px var(--crd,#fff);}' +
