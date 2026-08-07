@@ -183,6 +183,7 @@
     gap: 6px !important;
   }
   #rTb tr > td:last-child > button {
+    position: relative !important;
     width: 36px !important;
     height: 36px !important;
     min-width: 36px !important;
@@ -200,16 +201,33 @@
     color: var(--tx, #475569) !important;
     line-height: 1 !important;
   }
+  /* برچسب متن در موبایل پنهان است؛ SVG باید مستقل از text-node دقیقاً در مرکز بنشیند. */
+  #rTb tr > td:last-child > button.ba::first-letter { font-size: 0 !important; }
   #rTb tr > td:last-child > button [data-ix] {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     width: 18px !important;
     height: 18px !important;
+    margin: 0 !important;
     font-size: 18px !important;
     line-height: 1 !important;
   }
   #rTb tr > td:last-child > button [data-ix] svg { width: 18px !important; height: 18px !important; }
+  /* رنگ معنایی actionها؛ پس‌زمینهٔ روشنِ هم‌خانواده، رنگ آیکون را برجسته می‌کند. */
+  #rTb tr > td:last-child > button[data-rfq-action="ptfViewRfq"] { color: #0284c7 !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="editRfq"] { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="showRefModal"] { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="goPanelPrj"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="ptfManageInqAttachments"],
+  #rTb tr > td:last-child > button[data-rfq-action="rfqShowFiles"] { color: #0891b2 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="inqReadOpen"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="rfqShowText"],
+  #rTb tr > td:last-child > button[data-rfq-action="rfqEditText"] { color: #db2777 !important; background: #fdf2f8 !important; border-color: #fbcfe8 !important; }
 
   /* .ph فلکس ردیفی بماند — عنوان + آیکون‌دکمه‌ها */
   .ph { flex-direction: row !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; }
