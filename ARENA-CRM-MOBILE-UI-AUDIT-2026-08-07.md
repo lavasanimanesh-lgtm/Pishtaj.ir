@@ -657,6 +657,14 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 **تأیید فنی:** در شبیه‌سازی 150ms latency / 250KiB/s در 390×844، nav در **2.47s** آماده شد، در حالی که آزمون اولیهٔ ممیزی آن را حدود 13.4s نشان داده بود. FCP حدود 0.54s و بارگیری کامل صف 91 script هنوز حدود 16.6s است؛ بنابراین lazy-load واقعی ماژول‌های سنگین همچنان مرحلهٔ بعدی performance/PWA خواهد بود. click زودهنگام کارتابل queue و پس از ready با state صحیح `cart` اجرا شد؛ تمام tabهای اصلی و More بدون error آزمایش شدند.
 
+### MOB-009 — قرارداد یکپارچهٔ release، cache و Service Worker
+
+release واحد **`v34.4.0`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.0` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
+
+`offer-rial-convert.js` که از SHELL جا افتاده بود افزوده شد، registration worker با URL نسخه‌دار انجام می‌شود و purge cache به‌جای متغیر تعریف‌نشده، release فعال را استفاده می‌کند. navigation آفلاین دارای fallback به index precache شده است.
+
+**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.0`، cache فعال `ptf-crm-v34.4.0` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
+
 ## پیوست: شواهد عددی
 
 | شاخص | نتیجه |
@@ -669,8 +677,9 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navigation در 2Mbps آزمایشگاهی | ✅ مرحلهٔ اول MOB-008: shell در 2.47s؛ صف کامل 91 script ~16.6s |
 | First Contentful Paint در آزمون MOB-008 | ~0.54s |
+| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.0` و reload آفلاین موفق |
 | toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |
 
-> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005، semantics پایهٔ MOB-007 و navigation زودهنگام MOB-008 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل lazy-load/PWA کامل، deep-link، Kanban و focus/inert کشوی «سایر» هستند.
+> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005، semantics پایهٔ MOB-007، navigation زودهنگام MOB-008 و قرارداد cache/PWA در MOB-009 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل lazy-load واقعی، deep-link، Kanban و focus/inert کشوی «سایر» هستند.

@@ -216,6 +216,7 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.0` و precache هم‌مسیر اجرا شد |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -406,3 +407,15 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 **بازآزمایی 390×844 با latency=150ms و download=250KiB/s:** shell nav در `2.47s` آماده شد؛ FCP حدود `0.54s` بود. در همان آزمون، صف کامل 91 script هنوز حدود `16.6s` طول کشید، اما status این فاصله را صریح اعلام کرد. click «کارتابل» در لحظهٔ `2.5s` queue شد، dashboard باقی ماند و پس از آماده‌شدن، `ctWrap` و state `ptfActivePanel=cart` صحیح رندر شدند. پس از ready، tabهای dashboard/cart/offer/AI و More بدون error و با `document.scrollWidth=390` آزموده شدند.
 
 > این مرحله زمان **قابل‌استفاده‌شدن navigation** را هدف گرفت؛ splitting/lazy-load واقعی bundleهای سنگین (AI، چاپ چک، مالی، گزارش و Excel) و کاهش زمان کامل load، مرحلهٔ بعدی کارایی/PWA است.
+
+### 21. پیگیری اجرایی — MOB-009: قرارداد یکپارچهٔ release / cache / PWA
+
+نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
+
+- release یکپارچهٔ **`v34.4.0`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell اکنون دقیقاً `?v=34.4.0` دارد؛
+- `sw.js?v=v34.4.0` ثبت می‌شود و cache آن `ptf-crm-v34.4.0` است؛
+- هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
+- fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
+
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.0`، تنها cache فعال `ptf-crm-v34.4.0` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
