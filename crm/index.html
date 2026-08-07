@@ -220,6 +220,97 @@
   .sb2 .bt::first-letter, .sb2 .bt-o::first-letter {
     font-size: 18px !important;
   }
+
+  /* MOB-034: کنترل‌های کارتابل من از قانون icon-only عمومی .ph مستثنا هستند.
+     filter تمام‌عرض و actionهای برچسب‌دار در grid مستقل می‌مانند؛ بنابراین در
+     عرض 320px checkbox، «خواندم همه»، ترجیحات و پیام گروه روی هم نمی‌افتند. */
+  #panels .cartable-head .cartable-toolbar {
+    width: 100% !important;
+    flex: 1 0 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+  #panels .cartable-head .cartable-toggle {
+    width: 100% !important;
+    min-height: 48px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    padding: 9px 12px !important;
+    border: 1px solid #bfdbfe !important;
+    border-radius: 12px !important;
+    background: #f8fbff !important;
+    color: #334155 !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1.5 !important;
+    cursor: pointer !important;
+  }
+  #panels .cartable-head .cartable-toggle input[type="checkbox"] {
+    appearance: auto !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 20px !important;
+    accent-color: #0e7490 !important;
+  }
+  #panels .cartable-head .cartable-quick-actions {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels .cartable-head .cartable-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 64px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 7px 4px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    border-width: 1px !important;
+    border-radius: 12px !important;
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels .cartable-head .cartable-action-icon {
+    display: grid !important;
+    place-items: center !important;
+    width: 21px !important;
+    height: 21px !important;
+    flex: 0 0 21px !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+  #panels .cartable-head .cartable-action-label {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+  }
+  #panels .cartable-head .cartable-read-all { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  #panels .cartable-head .cartable-preferences { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+  #panels .cartable-head .cartable-message-action { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+
   /* دکمه‌های عملیاتی کارت/ردیف (مشاهده، ویرایش، حذف): فقط آیکون */
   .tb2 .ba {
     font-size: 0 !important;
@@ -738,6 +829,15 @@ body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;
 .product-filters>select{padding:8px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px;background:var(--crd,#fff)}
 .product-filter-extras{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .prod-hidden-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer}
+/* کارتابل: کنترل‌ها wrapper اختصاصی دارند تا با فیلترها/toolbars عمومی تداخل نکنند. */
+.cartable-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.cartable-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#475569}
+.cartable-toggle input[type="checkbox"]{width:16px;height:16px;margin:0;accent-color:#0e7490}
+.cartable-quick-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cartable-action-icon{font-size:16px;line-height:1}
+.cartable-action-label{white-space:nowrap}
+.cartable-read-all{color:#0e7490!important;border-color:#bae6fd!important}
+.cartable-message-action{color:#2563eb!important;border-color:#bfdbfe!important}
 .bt{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:8px 16px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;box-sizing:border-box}
 .bt-o{background:transparent;color:#475569;border:2px solid var(--brd)}
 .bt-s{background:#10b981}
@@ -2981,7 +3081,7 @@ setInterval(function(){
 <script defer src="launcher.js?v=34.0.21-alpha"></script>
 <script defer src="leads.js?v=34.0.21-alpha"></script>
 <script defer src="storage.js?v=34.0.21-alpha"></script>
-<script defer src="rbac.js?v=34.0.21-alpha"></script>
+<script defer src="rbac.js?v=34.3.4"></script>
 <script defer src="official-ledger.js?v=34.0.21-alpha"></script>
 <script defer src="projects.js?v=34.0.21-alpha"></script>
 <script defer src="letters.js?v=34.0.21-alpha"></script>
@@ -3026,7 +3126,7 @@ setInterval(function(){
 <script defer src="cheque-panel.js?v=34.0.21-alpha"></script>
 <script defer src="cheque-print.js?v=34.2.6"></script>
 <script defer src="cheques.js?v=34.0.21-alpha"></script>
-<script defer src="messengers.js?v=34.2.8"></script>
+<script defer src="messengers.js?v=34.3.4"></script>
 <script defer src="phonefmt.js?v=34.0.21-alpha"></script>
 <script defer src="tour.js?v=34.0.21-alpha"></script>
 <script defer src="mobilenav.js?v=34.3.2"></script>

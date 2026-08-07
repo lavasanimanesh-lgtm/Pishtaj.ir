@@ -183,10 +183,16 @@ function updateCartBadge() {
 
 /* ---- کارتابل ---- */
 function buildCartable() {
-  return '<div class="ph"><h3>🗂 کارتابل من</h3>' +
-    '<div class="sb2"><label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="ctAll" onchange="renderCartable()"> نمایش خوانده‌شده‌ها</label>' +
-    '<button class="bt bt-o" style="color:#0e7490;border-color:#bae6fd" onclick="ntfReadAll()">✓✓ خواندم همه</button>' +
-    '<button class="bt bt-o" onclick="showNotifPrefs()">⚙️ ترجیحات اعلان</button></div></div>' +
+  /* MOB-034: کارتابل از toolbar عمومی .sb2 جداست. در موبایل، checkbox و actionها
+     فضای مستقل دارند تا زیر هم نیفتند یا به iconهای مبهم 44px تبدیل نشوند. */
+  return '<div class="ph cartable-head"><h3>🗂 کارتابل من</h3>' +
+    '<div class="cartable-toolbar">' +
+      '<label class="cartable-toggle" for="ctAll"><input type="checkbox" id="ctAll" onchange="renderCartable()"><span>نمایش خوانده‌شده‌ها</span></label>' +
+      '<div class="cartable-quick-actions" id="cartableQuickActions">' +
+        '<button class="bt bt-o cartable-action cartable-read-all" type="button" title="علامت‌گذاری همه به‌عنوان خوانده‌شده" aria-label="علامت‌گذاری همه به‌عنوان خوانده‌شده" onclick="ntfReadAll()"><span class="cartable-action-icon" aria-hidden="true">✓✓</span><span class="cartable-action-label">خواندم همه</span></button>' +
+        '<button class="bt bt-o cartable-action cartable-preferences" type="button" title="ترجیحات اعلان" aria-label="ترجیحات اعلان" onclick="showNotifPrefs()"><span class="cartable-action-icon" aria-hidden="true">⚙️</span><span class="cartable-action-label">ترجیحات اعلان</span></button>' +
+      '</div>' +
+    '</div></div>' +
     '<div id="ctWrap"></div>';
 }
 
