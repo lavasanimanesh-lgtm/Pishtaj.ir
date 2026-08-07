@@ -378,6 +378,71 @@
   #ptfOfferActionSheet .offer-tone-red .offer-sheet-icon    { color: #dc2626; background: #fef2f2; }
   #ptfOfferActionSheet .offer-tone-slate .offer-sheet-icon  { color: #475569; background: #f1f5f9; }
 
+  /* MOB-026: toolbar چاپ چک — tileهای برچسب‌دار، بدون overflow و بدون first-letter. */
+  #chqpToolbar, #chqpGraphicActions {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #chqpToolbar .chqp-action, #chqpGraphicActions .chqp-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 68px !important;
+    margin: 0 !important;
+    padding: 6px 3px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 13px !important;
+    background: var(--crd, #fff) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+  #chqpToolbar .chqp-action-icon, #chqpGraphicActions .chqp-action-icon {
+    width: 24px !important;
+    height: 24px !important;
+    flex: none !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+  }
+  #chqpToolbar .chqp-action-icon [data-ix], #chqpToolbar .chqp-action-icon svg,
+  #chqpGraphicActions .chqp-action-icon [data-ix], #chqpGraphicActions .chqp-action-icon svg {
+    width: 22px !important;
+    height: 22px !important;
+    display: inline-flex !important;
+    place-items: center !important;
+  }
+  #chqpToolbar .chqp-action-label, #chqpGraphicActions .chqp-action-label {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+  }
+  #chqpToolbar .chqp-action.chqp-active, #chqpGraphicActions .chqp-action.chqp-active { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  .chqp-action.chqp-tone-blue   { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  .chqp-action.chqp-tone-violet { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  .chqp-action.chqp-tone-red    { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  .chqp-action.chqp-tone-cyan   { color: #0891b2 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  .chqp-action.chqp-tone-green  { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  .chqp-action.chqp-tone-indigo { color: #4f46e5 !important; background: #eef2ff !important; border-color: #c7d2fe !important; }
+  .chqp-action.chqp-tone-slate  { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+  .chqp-graphic-card, #chqpGvSection { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  .chqp-graphic-head { margin-bottom: 10px; }
+  .chqp-canvas-hint { margin: 10px 0 7px; padding: 7px 9px; border-radius: 10px; background: #eff6ff; color: #1d4ed8; font-size: 11px; line-height: 1.7; }
+  #chqpGv { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; padding: 10px !important; overflow: auto !important; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; overscroll-behavior: contain; }
+
   /* .ph فلکس ردیفی بماند — عنوان + آیکون‌دکمه‌ها */
   .ph { flex-direction: row !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; }
   .ph h3 { flex: 1 1 auto !important; min-width: 0 !important; font-size: 15px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }

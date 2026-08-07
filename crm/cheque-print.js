@@ -140,6 +140,16 @@
     return '<div class="fld"><label>' + lb + '</label>' + inner +
       (note ? '<small style="display:block;color:#94a3b8;font-size:10.5px;margin-top:3px">' + note + '</small>' : '') + '</div>';
   }
+
+  /* MOB-026: toolbar چاپ چک در موبایل با markup ساخت‌یافته رندر می‌شود؛
+     CSS دیگر برای حدس زدن آیکون از first-letter استفاده نمی‌کند. */
+  function chqAction(id, icon, shortLabel, fullLabel, tone, onClick, active) {
+    return '<button type="button" class="bt bt-o chqp-action chqp-tone-' + tone + (active ? ' chqp-active' : '') + '"' +
+      (id ? ' id="' + id + '"' : '') +
+      ' data-chqp-action="' + (id || shortLabel) + '" title="' + fullLabel + '" aria-label="' + fullLabel + '" onclick="' + onClick + '">' +
+      '<span class="chqp-action-icon" aria-hidden="true">' + icon + '</span><span class="chqp-action-label">' + shortLabel + '</span></button>';
+  }
+
   function singleFormHtml() {
     return '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;padding:14px;margin-top:12px">' +
       '<h4 style="margin:0 0 4px;font-size:13.5px">🔹 چاپ تکی</h4>' +
@@ -185,28 +195,27 @@
       '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#78350f;line-height:2;margin-bottom:12px">' +
       'این ماژول <b>فقط چاپ</b> است — هیچ رکوردی ذخیره نمی‌شود و کد صیادی هم ندارد. مشخصات هر برگه را وارد کنید و روی برگهٔ چک بانکی چاپ کنید (تکی یا چندتایی).<br>' +
       'برای هم‌راستایی با برگهٔ چک خودتان: <b>«📐 تنظیمات چاپ»</b> — فونت (نستعلیق/بی‌نازنین/بی‌یاقوت/…) و اندازهٔ حروف و مختصات هر بخش قابل تنظیم است؛ مبلغ بالای چک قرمز چاپ می‌شود.</div>' +
-      '<div class="sb2" style="flex-wrap:wrap">' +
-      '<button class="bt" id="chqpTabS" onclick="chqPrintTab(\'single\')">🔹 چاپ تکی</button>' +
-      '<button class="bt bt-o" id="chqpTabM" onclick="chqPrintTab(\'multi\')">🔸 چاپ چندتایی</button>' +
-      '<button class="bt bt-o" style="color:#0e7490" onclick="chqPrintLayoutOpen()">📐 تنظیمات چاپ (فونت/اندازه/مختصات)</button>' +
-      '<button class="bt bt-o" style="color:#7c3aed" onclick="chqPrintHelp()">❓ راهنما</button>' +
+      '<div id="chqpToolbar" class="chqp-toolbar">' +
+      chqAction('chqpTabS', '🧾', 'تکی', 'چاپ یک برگه چک', 'teal', "chqPrintTab('single')", true) +
+      chqAction('chqpTabM', '📚', 'چندتایی', 'چاپ چند برگه چک', 'indigo', "chqPrintTab('multi')", false) +
+      chqAction('', '📐', 'تنظیمات', 'تنظیمات چاپ: فونت، اندازه و مختصات', 'blue', 'chqPrintLayoutOpen()', false) +
+      chqAction('', 'ℹ️', 'راهنما', 'راهنمای چاپ چک فیزیکی', 'violet', 'chqPrintHelp()', false) +
       '</div>' +
       /* v33.8.0 (مصوب کارفرما): حالت گرافیکی در همان صفحهٔ ماژول — اندازه واقعی چک + اسکن پس‌زمینه */
-      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-top:12px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">' +
-      '<b style="font-size:13.5px">🖱 حالت گرافیکی چیدمان (روی برگهٔ واقعی چک)</b>' +
-      '<span style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<button class="bt" id="chqpGvToggleBtn" onclick="chqGvToggle(true)">🖱 فعال</button>' +
-      '<button class="bt bt-o" onclick="document.getElementById(\'chqpBgFile\').click()">📎 اسکن برگه چک (پس‌زمینه)</button>' +
-      '<button class="bt bt-o" style="color:#dc2626" onclick="chqBgClear()">✕ حذف پس‌زمینه</button>' +
-      '<button class="bt bt-o" onclick="chqBgZoom(-0.25)">➖ کوچک‌نمایی</button>' +
-      '<button class="bt bt-o" onclick="chqBgZoom(0.25)">➕ بزرگ‌نمایی</button>' +
-      '<button class="bt bt-o" style="color:#0e7490" onclick="chqPrintLayoutSave(true)">💾 ذخیره چیدمان</button>' +
-      '<button class="bt" style="background:#0e7490" onclick="chqPrintLayoutSave(false);chqPrintLayoutTest()">🖨 چاپ آزمایشی</button>' +
+      '<div class="chqp-graphic-card" style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-top:12px">' +
+      '<div class="chqp-graphic-head"><b style="font-size:13.5px">📐 حالت گرافیکی چیدمان (روی برگهٔ واقعی چک)</b></div>' +
+      '<div id="chqpGraphicActions" class="chqp-toolbar chqp-graphic-actions">' +
+      chqAction('chqpGvToggleBtn', '📐', 'چیدمان', 'فعال‌سازی چیدمان گرافیکی', 'teal', 'chqGvToggle(true)', true) +
+      chqAction('', '📎', 'اسکن', 'انتخاب اسکن برگه چک برای پس‌زمینه', 'blue', "document.getElementById('chqpBgFile').click()", false) +
+      chqAction('', '🗑️', 'حذف', 'حذف پس‌زمینه اسکن‌شده', 'red', 'chqBgClear()', false) +
+      chqAction('', '−', 'کوچک', 'کوچک‌نمایی برگه چک', 'slate', 'chqBgZoom(-0.25)', false) +
+      chqAction('', '+', 'بزرگ', 'بزرگ‌نمایی برگه چک', 'slate', 'chqBgZoom(0.25)', false) +
+      chqAction('', '💾', 'ذخیره', 'ذخیره چیدمان چاپ چک', 'cyan', 'chqPrintLayoutSave(true)', false) +
+      chqAction('', '🖨', 'چاپ تست', 'چاپ آزمایشی با راهنما', 'green', 'chqPrintLayoutSave(false);chqPrintLayoutTest()', false) +
       '<input type="file" id="chqpBgFile" accept="image/*" style="display:none" onchange="chqBgUpload(this)">' +
-      '</span></div>' +
-      '<div style="font-size:12px;color:#1e40af;line-height:1.9;margin-bottom:8px">اندازهٔ این برگه ≈ چک صیادی واقعی (169×78mm). اگر اسکن برگهٔ چک بانکی خودتان را آپلود کنید، در پس‌زمینه قرار می‌گیرد و هر نوشته را می‌کشید تا دقیقاً روی جای صحیح چک بنشیند؛ سپس «💾 ذخیره چیدمان».</div>' +
-      '<div id="chqpGvSection"><div id="chqpGv" style="overflow:auto;background:#e2e8f0;border:1px solid var(--brd);border-radius:12px;padding:14px;max-height:70vh"></div></div>' +
+      '</div>' +
+      '<div class="chqp-canvas-hint">↔ برای دیدن تمام برگه چک، افقی بکشید؛ سپس فیلدها را روی برگه جابه‌جا کنید.</div>' +
+      '<div id="chqpGvSection" class="chqp-gv-section"><div id="chqpGv" style="overflow:auto;background:#e2e8f0;border:1px solid var(--brd);border-radius:12px;padding:14px;max-height:70vh"></div></div>' +
       '</div>' +
       '<div id="chqpSingle">' + singleFormHtml() + '</div>' +
       '<div id="chqpMulti" style="display:none">' + multiFormHtml() + '</div></div>';
@@ -221,8 +230,11 @@
     var isS = t !== 'multi';
     if (s) s.style.display = isS ? '' : 'none';
     if (m) m.style.display = isS ? 'none' : '';
-    if (bS) bS.className = isS ? 'bt' : 'bt bt-o';
-    if (bM) bM.className = isS ? 'bt bt-o' : 'bt';
+    /* کلاس‌های mobile action ثابت می‌مانند؛ فقط حالت فعال tab جابه‌جا می‌شود. */
+    if (bS) bS.classList.toggle('chqp-active', isS);
+    if (bM) bM.classList.toggle('chqp-active', !isS);
+    if (bS) bS.setAttribute('aria-pressed', isS ? 'true' : 'false');
+    if (bM) bM.setAttribute('aria-pressed', !isS ? 'true' : 'false');
   };
 
   window.chqPrintAddRows = function () {
@@ -474,7 +486,10 @@
   window.chqGvToggle = function (show) {
     var s = document.getElementById('chqpGvSection'); if (s) s.style.display = show ? '' : 'none';
     var b = document.getElementById('chqpGvToggleBtn');
-    if (b) b.className = show ? 'bt' : 'bt bt-o';
+    if (b) {
+      b.classList.toggle('chqp-active', !!show);
+      b.setAttribute('aria-pressed', show ? 'true' : 'false');
+    }
   };
   function gvFieldHtml(key, lb, sample, color, size) {
     return '<div id="chqpGv_' + key + '" onmousedown="chqGvStart(event,\'' + key + '\')" style="position:absolute;cursor:move;white-space:nowrap;font-weight:800;color:' + (color || '#111827') + ';font-size:' + (size || 12) + 'px;background:rgba(255,255,255,.75);border:1px dashed rgba(100,116,139,.5);border-radius:4px;padding:1px 4px;z-index:3;user-select:none" title="' + lb + ' — بکشید و رها کنید">' + sample + '</div>';
