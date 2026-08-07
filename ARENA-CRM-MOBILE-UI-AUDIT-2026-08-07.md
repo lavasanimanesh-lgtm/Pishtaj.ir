@@ -1,8 +1,9 @@
 # ممیزی عمیق رابط کاربری موبایل CRM
 
 **تاریخ:** ۱۶ مرداد ۱۴۰۵ — ۷ اوت ۲۰۲۶
-**دامنه:** `crm/` در وضعیت فعلی شاخه، با نسخهٔ اعلام‌شدهٔ برنامه `v34.1.0`
-**نوع خروجی:** ارزیابی UX/UI، رفتار تعاملی، دسترس‌پذیری، پاسخ‌گویی، PWA و کارایی موبایل — **بدون اعمال اصلاح کد**
+**آخرین به‌روزرسانی اجرایی:** ۱۷ مرداد ۱۴۰۵ / ۸ اوت ۲۰۲۶ — MOB-031
+**دامنه:** `crm/` در وضعیت فعلی شاخه، با release جاری برنامه `v34.4.8`
+**نوع خروجی:** ارزیابی UX/UI، رفتار تعاملی، دسترس‌پذیری، پاسخ‌گویی، PWA و کارایی موبایل — به‌همراه پیگیری اجرایی مرحله‌ای
 
 ---
 
@@ -659,11 +660,11 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 ### MOB-009 — قرارداد یکپارچهٔ release، cache و Service Worker
 
-release واحد **`v34.4.7`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.7` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
+release واحد **`v34.4.8`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.8` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
 
 `offer-rial-convert.js` که از SHELL جا افتاده بود افزوده شد، registration worker با URL نسخه‌دار انجام می‌شود و purge cache به‌جای متغیر تعریف‌نشده، release فعال را استفاده می‌کند. navigation آفلاین دارای fallback به index precache شده است.
 
-**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.7`، cache فعال `ptf-crm-v34.4.7` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
+**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.8`، cache فعال `ptf-crm-v34.4.8` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
 
 ### MOB-037 — رفع بریدگی badge قرمز زنگولهٔ header
 
@@ -725,6 +726,15 @@ signature card فرم پیشنهاد از بخش پایین و خارج از vie
 
 **تأیید فنی:** More sheet در 320، 390 و landscape role/aria/inert/focus-trap صحیح داشت؛ Search focus را به `cmdPalInp` برد. print preview در 320/390 بدون overflow داخلی و با شش action 2×3 رندر شد. desktop/mobile tour با Escape بدون error پایان یافت. در چهار viewport، settings دارای 11 row، بدون `US-*`، با 28 action دارای title/aria و بدون overflow/pageerror بود.
 
+
+### MOB-031 — نمای مرحله‌ای سرنخ‌ها و Kanban امن در mobile
+
+Kanban قدیمی سرنخ‌ها یک grid شش‌ستونهٔ `900px` بود که در 320px فقط بخشی از وضعیت‌ها را بدون cue نشان می‌داد. اکنون shell گوشی یک نمای مرحله‌ای دارد: هر شش وضعیت با شمارنده در `tablist` قابل‌دسترسی هستند، stage فعال با `aria-selected` و `aria-controls` مشخص می‌شود و Arrow/Home/End focus و مقصد را جابه‌جا می‌کند. لیست عمودی stage منتخب نیز کارت‌هایی با metadata، مشاهده/ویرایش، و select صریح «تغییر مرحله» دارد.
+
+تغییرهای عادی، باخت (dialog با دلیل اجباری) و برد (تبدیل واقعی به مشتری) از همان هسته‌های موجود انجام می‌شوند؛ فقط در مسیر mobile پس از redraw روی stage مقصد باقی می‌مانند. جدول جایگزین و toolbar سرنخ‌ها نیز actionهای کامل «لید جدید، ورود/خروجی اکسل، گزارش تبدیل و بررسی داده‌ها» دارند، نه icon-only. Kanban desktop حفظ شد، اما در region افقی مستقل با hint و بدون نشت overflow به document قرار گرفت.
+
+**تأیید فنی:** fixture هفت‌سرنخی در 320×568، 390×844، 844×390 و desktop 1024 اجرا شد. در 320 root/page `272/272` و `320/320px` و tileها `132×66px`؛ در 390 به‌ترتیب `342/342`، `390/390px` و `167×66px`؛ و در landscape root/page `816/816`، `844/844px` و tileها `266.7×55px` بودند. keyboard End، انتقال جدید→مذاکره، ثبت باخت همراه دلیل، تبدیل موفق به مشتری، modal role/aria/Escape و جدول جایگزین همگی با page/console error صفر گذشتند. PWA release **v34.4.8** نیز 91/91 script cache و reload آفلاین موفق داشت.
+
 ### پیوست ممیزی یکدستی مودال‌ها
 
 اسکن سراسری **307** الگوی `.md`، **310** occurrence از `.md-b` و **20** `ptfdlg-b` را در 56 فایل JS نشان داد. ModalManager `modalx` همهٔ overlayهای استاندارد `.md-b/.ptfdlg-b` را هنگام ایجاد تجهیز می‌کند؛ آزمون واقعی modal «فاکتور جدید» کنترل‌های جدید و semantics/focus صحیح را تأیید کرد. مسیرهای غیرمدال مانند print-preview، tour و More sheet به‌صورت مستقل در backlog باقی می‌مانند تا کنترل پنجره به آنها اشتباهاً تحمیل نشود.
@@ -741,10 +751,11 @@ signature card فرم پیشنهاد از بخش پایین و خارج از vie
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navigation در 2Mbps آزمایشگاهی | ✅ مرحلهٔ اول MOB-008: shell در 2.47s؛ صف کامل 91 script ~16.6s |
 | First Contentful Paint در آزمون MOB-008 | ~0.54s |
-| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.7` و reload آفلاین موفق |
+| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.8` و reload آفلاین موفق |
 | deep-link panel | ✅ MOB-010: `#off/#cart/#petty`، تغییر hash و Back پایدار |
 | کیفیت دادهٔ مالی | ✅ MOB-038: grid 2×2، actionهای 64px و metadata صریح |
 | پرونده‌های فروش / فرصت‌ها | ✅ MOB-030: primary/sub-tab grid هم‌اندازه، semantics و keyboard پایدار |
+| سرنخ‌ها / Kanban | ✅ MOB-031: نمای مرحله‌ای، stage workflow و action/toolbar نام‌دار بدون overflow |
 | actionهای کارت و کشوی پرونده | ✅ MOB-039: action gridهای فرصت، Post-Award، خرید واقعی و اسناد رسمی یکدست |
 | دستیار و تنظیمات | ✅ MOB-040: workspace شش‌ابزارهٔ AI و تنظیمات مرحله‌ای 11بخشی یکدست |
 | هاب مالی، چک، پیشنهاد و هدر | ✅ MOB-041: actionهای مالی/چک، signature modal و جستجوی واحد اصلاح شدند |
@@ -753,4 +764,4 @@ signature card فرم پیشنهاد از بخش پایین و خارج از vie
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |
 
-> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005، semantics پایهٔ MOB-007، navigation زودهنگام MOB-008، قرارداد cache/PWA در MOB-009 و deep-link MOB-010 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل lazy-load واقعی، Kanban و focus/inert کشوی «سایر» هستند.
+> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005، semantics پایهٔ MOB-007، navigation زودهنگام MOB-008، قرارداد cache/PWA در MOB-009 و deep-link MOB-010 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل lazy-load واقعی و overflowهای موضعی MOB-032 در تحلیلگر/تنظیمات/تأمین‌کننده هستند.

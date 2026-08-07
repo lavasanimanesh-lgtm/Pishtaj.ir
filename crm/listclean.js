@@ -266,7 +266,19 @@
     if (!srch || document.getElementById('cleanBtn-' + kind)) return;
     var bar = srch.closest('.sb2');
     if (!bar) return;
-    bar.insertAdjacentHTML('beforeend', '<button id="cleanBtn-' + kind + '" class="bt bt-o" style="color:#7c3aed;border-color:#ddd6fe" onclick="ptfCleanOpen(\'' + kind + '\')" title="اسکن تکراری‌ها و رکوردهای بی‌مصرف (US-417)">🧹 ویراستار</button>');
+    /* MOB-031: toolbar اختصاصی سرنخ‌ها actionهای نام‌دار دارد. hook قدیمی اگر
+       مستقیم کنار sb2 بماند در گوشی به آیکون بی‌نام تبدیل می‌شود؛ آن را در grid
+       همان toolbar قرار بده و شناسهٔ داستان را از متن قابل‌مشاهده حذف کن. */
+    var isLeadToolbar = kind === 'lead' && bar.classList.contains('leads-toolbar');
+    var host = isLeadToolbar ? (bar.querySelector('.leads-toolbar-actions') || bar) : bar;
+    var cls = isLeadToolbar ? 'bt bt-o leads-toolbar-action leads-clean-action' : 'bt bt-o';
+    var label = isLeadToolbar
+      ? '<span aria-hidden="true">⌁</span><span>بررسی داده‌ها</span>'
+      : '🧹 ویراستار';
+    var title = isLeadToolbar
+      ? 'بررسی سرنخ‌های تکراری و رکوردهای بی‌استفاده'
+      : 'اسکن تکراری‌ها و رکوردهای بی‌مصرف (US-417)';
+    host.insertAdjacentHTML('beforeend', '<button id="cleanBtn-' + kind + '" class="' + cls + '" style="color:#7c3aed;border-color:#ddd6fe" onclick="ptfCleanOpen(\'' + kind + '\')" title="' + title + '" aria-label="' + title + '">' + label + '</button>');
   }
   function hookRenders() {
     if (window._cleanHooked) return true;

@@ -31,17 +31,112 @@ var LEAD_INDS = ['نفت و گاز','پتروشیمی','نیروگاه','فول�
 
 function stageOf(id) { for (var i=0;i<LEAD_STAGES.length;i++) if (LEAD_STAGES[i].id===id) return LEAD_STAGES[i]; return LEAD_STAGES[0]; }
 
+/* MOB-031: Kanban دسکتاپ حفظ می‌شود، اما روی گوشی به «نمای مرحله‌ای» تبدیل
+   می‌شود تا شش ستونِ 900px به محتوای پنهان و بدون نشانهٔ swipe تبدیل نشوند. */
+var LEAD_MOBILE_STAGE = '';
+
+function leadClickArg(v) {
+  if (typeof ptfOnClickArg === 'function') return ptfOnClickArg(v);
+  return String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+function leadStageId(l) { return stageOf(l && l.stage).id; }
+function leadStageKnown(id) {
+  return LEAD_STAGES.some(function (s) { return s.id === id; });
+}
+function leadStageCards(leads, stage) {
+  return leads.filter(function (l) { return leadStageId(l) === stage; });
+}
+function leadEmptyStageHtml(stage) {
+  return '<div class="lead-stage-empty" role="status">' +
+    '<span aria-hidden="true">○</span><b>لیدی در «' + escP(stage.lb) + '» نیست</b>' +
+    '<small>از مرحله‌های بالا وضعیت دیگری را انتخاب کنید یا لید تازه ثبت کنید.</small>' +
+    '</div>';
+}
+
 function buildLeads() {
-  return '<div class="ph"><h3>🎯 سرنخ‌ها</h3>' +
-    '<div class="sb2">' +
-    '<input type="text" id="ldSrch" placeholder="جستجو: شرکت، رابط، تلفن..." oninput="renderLeads()">' +
-    '<select id="ldView" onchange="renderLeads()" style="padding:9px;border:1px solid var(--brd);border-radius:10px"><option value="kanban">🗂 کانبان</option><option value="table">📋 جدول</option></select>' +
-    '<button class="bt" onclick="showLeadModal()">+ لید جدید</button>' +
-    '<button class="bt bt-o" style="color:#059669;border-color:#a7f3d0" onclick="ptfShowExcelGuidelineModal(&quot;LEADS&quot;, &quot;leadsXlsInp&quot;)">⬆️ ورود اکسل</button><input type="file" id="leadsXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportLeadsXls(this)">' +
-    '<button class="bt bt-o" onclick="exportLeadsCsv()">⬇️ Excel</button>' +
-    '<button class="bt bt-o" onclick="showLeadReport()">📊 گزارش تبدیل</button>' +
-    '</div></div>' +
+  return '<div class="ph leads-head"><h3>🎯 سرنخ‌ها</h3>' +
+    '<div class="sb2 leads-toolbar" aria-label="ابزارهای سرنخ‌ها">' +
+    '<input type="text" id="ldSrch" placeholder="جستجو: شرکت، رابط، تلفن..." aria-label="جستجو در سرنخ‌ها" oninput="renderLeads()">' +
+    '<select id="ldView" aria-label="انتخاب نمای سرنخ‌ها" onchange="renderLeads()"><option value="kanban">🧭 نمای مراحل</option><option value="table">📋 جدول</option></select>' +
+    '<div class="leads-toolbar-actions">' +
+    '<button type="button" class="bt leads-toolbar-action leads-create-action" title="ثبت سرنخ جدید" aria-label="ثبت سرنخ جدید" onclick="showLeadModal()"><span aria-hidden="true">＋</span><span>لید جدید</span></button>' +
+    '<button type="button" class="bt bt-o leads-toolbar-action leads-import-action" title="ورود سرنخ از اکسل" aria-label="ورود سرنخ از اکسل" onclick="ptfShowExcelGuidelineModal(&quot;LEADS&quot;, &quot;leadsXlsInp&quot;)"><span aria-hidden="true">⇧</span><span>ورود اکسل</span></button><input type="file" id="leadsXlsInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportLeadsXls(this)">' +
+    '<button type="button" class="bt bt-o leads-toolbar-action leads-export-action" title="خروجی اکسل سرنخ‌ها" aria-label="خروجی اکسل سرنخ‌ها" onclick="exportLeadsCsv()"><span aria-hidden="true">⇩</span><span>خروجی اکسل</span></button>' +
+    '<button type="button" class="bt bt-o leads-toolbar-action leads-report-action" title="گزارش تبدیل سرنخ‌ها" aria-label="گزارش تبدیل سرنخ‌ها" onclick="showLeadReport()"><span aria-hidden="true">◔</span><span>گزارش تبدیل</span></button>' +
+    '</div></div></div>' +
     '<div id="ldWrap"></div>';
+}
+
+function leadBoardCardHtml(l, st) {
+  var id = leadClickArg(l.cd);
+  return '<article class="lead-board-card" style="--lead-stage:' + st.cl + '" aria-label="سرنخ ' + escP(l.co) + '، ' + escP(st.lb) + '">' +
+    '<div class="lead-board-card-copy">' +
+    '<b>' + escP(l.co) + '</b>' +
+    '<span>' + escP(l.person || 'بدون رابط ثبت‌شده') + '</span>' +
+    (l.val ? '<small class="lead-value">' + (+l.val).toLocaleString('fa-IR') + ' ریال</small>' : '') +
+    '<small>تماس اول: ' + escP(l.firstFa || '-') + '</small>' +
+    (l.nextFa ? '<small class="lead-next">اقدام بعدی: ' + escP(l.nextFa) + '</small>' : '') +
+    '</div>' +
+    '<div class="lead-board-card-actions">' +
+    '<button type="button" class="lead-board-action lead-board-view" title="مشاهده پرونده ' + escP(l.co) + '" aria-label="مشاهده پرونده ' + escP(l.co) + '" onclick="showLeadCard(\'' + id + '\')">مشاهده</button>' +
+    '<button type="button" class="lead-board-action lead-board-edit" title="ویرایش سرنخ ' + escP(l.co) + '" aria-label="ویرایش سرنخ ' + escP(l.co) + '" onclick="showLeadModal(\'' + id + '\')">ویرایش</button>' +
+    '<button type="button" class="lead-board-action lead-board-delete" title="حذف سرنخ ' + escP(l.co) + '" aria-label="حذف سرنخ ' + escP(l.co) + '" onclick="leadDel(\'' + id + '\')">حذف</button>' +
+    '</div></article>';
+}
+
+function leadMobileCardHtml(l, st) {
+  var id = leadClickArg(l.cd);
+  var otherStages = LEAD_STAGES.filter(function (s) { return s.id !== leadStageId(l); }).map(function (s) {
+    return '<option value="' + s.id + '">' + escP(s.lb) + '</option>';
+  }).join('');
+  return '<article class="lead-mobile-card" style="--lead-stage:' + st.cl + '">' +
+    '<div class="lead-mobile-card-head">' +
+    '<div class="lead-mobile-card-title"><b>' + escP(l.co) + '</b><small>' + escP(l.cd) + '</small></div>' +
+    '<span class="lead-mobile-status">' + escP(st.lb) + '</span></div>' +
+    '<dl class="lead-mobile-card-meta">' +
+    '<div><dt>رابط</dt><dd>' + escP(l.person || 'ثبت نشده') + '</dd></div>' +
+    '<div><dt>تماس اول</dt><dd>' + escP(l.firstFa || '-') + '</dd></div>' +
+    (l.val ? '<div><dt>ارزش برآوردی</dt><dd>' + (+l.val).toLocaleString('fa-IR') + ' ریال</dd></div>' : '') +
+    (l.nextFa ? '<div class="lead-mobile-next"><dt>اقدام بعدی</dt><dd>' + escP(l.nextFa) + '</dd></div>' : '') +
+    '</dl>' +
+    '<div class="lead-mobile-card-actions">' +
+    '<button type="button" class="lead-mobile-card-action lead-mobile-view" title="مشاهده پرونده ' + escP(l.co) + '" aria-label="مشاهده پرونده ' + escP(l.co) + '" onclick="showLeadCard(\'' + id + '\')"><span aria-hidden="true">⌕</span><span>مشاهده پرونده</span></button>' +
+    '<button type="button" class="lead-mobile-card-action lead-mobile-edit" title="ویرایش سرنخ ' + escP(l.co) + '" aria-label="ویرایش سرنخ ' + escP(l.co) + '" onclick="showLeadModal(\'' + id + '\')"><span aria-hidden="true">✎</span><span>ویرایش</span></button>' +
+    '</div>' +
+    '<label class="lead-mobile-stage-move"><span>تغییر مرحله</span>' +
+    '<select aria-label="تغییر مرحلهٔ سرنخ ' + escP(l.co) + '" onchange="ptfLeadMoveFromPipeline(\'' + id + '\',this.value,this)">' +
+    '<option value="">انتقال به مرحله…</option>' + otherStages + '</select></label>' +
+    '</article>';
+}
+
+function leadKanbanHtml(leads) {
+  var selectedId = leadStageKnown(LEAD_MOBILE_STAGE) ? LEAD_MOBILE_STAGE : 'new';
+  var selected = stageOf(selectedId);
+  var selectedLeads = leadStageCards(leads, selected.id);
+  var columns = LEAD_STAGES.map(function (st) {
+    var cards = leadStageCards(leads, st.id);
+    return '<section class="lead-board-column" style="--lead-stage:' + st.cl + '" aria-label="مرحله ' + escP(st.lb) + '، ' + cards.length + ' سرنخ">' +
+      '<header class="lead-board-column-head"><span>' + escP(st.lb) + '</span><b>' + cards.length + '</b></header>' +
+      '<div class="lead-board-column-cards">' + (cards.map(function (l) { return leadBoardCardHtml(l, st); }).join('') || leadEmptyStageHtml(st)) + '</div></section>';
+  }).join('');
+  var stageTabs = LEAD_STAGES.map(function (st) {
+    var count = leadStageCards(leads, st.id).length;
+    var active = st.id === selected.id;
+    return '<button type="button" class="lead-stage-tab' + (active ? ' is-active' : '') + '" id="ldStageTab-' + st.id + '" data-lead-stage="' + st.id + '" role="tab" aria-selected="' + (active ? 'true' : 'false') + '" aria-controls="ldMobileStagePanel" tabindex="' + (active ? '0' : '-1') + '" title="نمایش سرنخ‌های مرحلهٔ ' + escP(st.lb) + '" aria-label="مرحلهٔ ' + escP(st.lb) + '، ' + count + ' سرنخ" style="--lead-stage:' + st.cl + '" onclick="ptfLeadSelectStage(\'' + st.id + '\',this)" onkeydown="ptfLeadStageKeydown(event,\'' + st.id + '\')">' +
+      '<span class="lead-stage-tab-dot" aria-hidden="true"></span><span class="lead-stage-tab-copy"><b>' + escP(st.lb) + '</b><small>' + count + ' سرنخ</small></span></button>';
+  }).join('');
+  return '<div class="lead-kanban-shell">' +
+    '<section class="lead-board-view" aria-labelledby="leadBoardTitle">' +
+    '<div class="lead-board-intro"><div><h4 id="leadBoardTitle">نمای کانبان سرنخ‌ها</h4><p>برای دیدن همهٔ مراحل، برد را افقی حرکت دهید؛ عملیات هر کارت همچنان در دسترس است.</p></div><span>' + leads.length + ' سرنخ</span></div>' +
+    '<div class="lead-board-scroll" role="region" tabindex="0" aria-label="برد کانبان سرنخ‌ها؛ برای دیدن مرحله‌های بیشتر افقی حرکت دهید"><div class="lead-board-grid">' + columns + '</div></div>' +
+    '</section>' +
+    '<section class="lead-pipeline-view" aria-labelledby="leadPipelineTitle">' +
+    '<header class="lead-pipeline-intro"><div><h4 id="leadPipelineTitle">نمای مرحله‌ای سرنخ‌ها</h4><p>یک مرحله را انتخاب کنید؛ تغییر وضعیت هر سرنخ از داخل کارت انجام می‌شود.</p></div><span>' + leads.length + ' سرنخ</span></header>' +
+    '<div class="lead-stage-tabs" role="tablist" aria-label="مرحله‌های سرنخ">' + stageTabs + '</div>' +
+    '<div class="lead-mobile-stage-panel" id="ldMobileStagePanel" role="tabpanel" aria-labelledby="ldStageTab-' + selected.id + '">' +
+    '<header><div><span class="lead-mobile-stage-dot" style="background:' + selected.cl + '" aria-hidden="true"></span><b>' + escP(selected.lb) + '</b><small>' + selectedLeads.length + ' سرنخ در این مرحله</small></div><span>برای انتقال، منوی هر کارت را باز کنید</span></header>' +
+    '<div class="lead-mobile-cards">' + (selectedLeads.map(function (l) { return leadMobileCardHtml(l, selected); }).join('') || leadEmptyStageHtml(selected)) + '</div></div>' +
+    '</section></div>';
 }
 
 function renderLeads() {
@@ -55,47 +150,54 @@ function renderLeads() {
   });
   updateLeadBadge();
   if (view === 'table') { renderLeadsTable(el, leads); return; }
-  // ---- کانبان ----
-  var h = '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;overflow-x:auto;min-width:900px">';
-  LEAD_STAGES.forEach(function(st) {
-    var col = leads.filter(function(l){ return l.stage === st.id; });
-    h += '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:8px;min-height:120px">' +
-      '<div style="font-size:12px;font-weight:bold;color:' + st.cl + ';margin-bottom:8px;display:flex;justify-content:space-between"><span>' + st.lb + '</span><span style="background:#fff;border-radius:8px;padding:0 7px">' + col.length + '</span></div>';
-    col.forEach(function(l) {
-      h += '<div onclick="showLeadCard(\'' + l.cd + '\')" style="background:#fff;border:1px solid var(--brd);border-right:3px solid ' + st.cl + ';border-radius:10px;padding:8px;margin-bottom:6px;cursor:pointer;font-size:12px">' +
-        '<b style="display:block;font-size:12.5px">' + escP(l.co) + '</b>' +
-        '<span style="color:#64748b">' + escP(l.person||'') + '</span>' +
-        (l.val ? '<div style="color:#0e7490;font-size:11px;margin-top:2px">' + (+l.val).toLocaleString('fa-IR') + ' ریال</div>' : '') +
-        '<div style="color:#94a3b8;font-size:10.5px;margin-top:3px">تماس اول: ' + escP(l.firstFa||'-') + '</div>' +
-        (l.nextFa ? '<div style="color:#d97706;font-size:10.5px">اقدام بعدی: ' + escP(l.nextFa) + '</div>' : '') +
-        '<div style="display:flex;gap:4px;margin-top:6px" onclick="event.stopPropagation()">' +
-        '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px" onclick="showLeadModal(\'' + l.cd + '\')">✏️</button>' +
-        '<button type="button" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="leadDel(\'' + l.cd + '\')">🗑️</button>' +
-        '</div></div>';
-    });
-    h += '</div>';
-  });
-  h += '</div>';
-  el.innerHTML = h;
+  el.innerHTML = leadKanbanHtml(leads);
 }
+
+window.ptfLeadSelectStage = function (stage, trigger) {
+  if (!leadStageKnown(stage)) return;
+  LEAD_MOBILE_STAGE = stage;
+  renderLeads();
+  window.requestAnimationFrame(function () {
+    var next = document.querySelector('.lead-stage-tab[data-lead-stage="' + stage + '"]');
+    if (next && typeof next.focus === 'function') next.focus();
+  });
+};
+window.ptfLeadStageKeydown = function (ev, stage) {
+  var ix = LEAD_STAGES.map(function (s) { return s.id; }).indexOf(stage);
+  if (ix < 0) return;
+  var next = null;
+  if (ev.key === 'ArrowRight') next = (ix + LEAD_STAGES.length - 1) % LEAD_STAGES.length;
+  else if (ev.key === 'ArrowLeft') next = (ix + 1) % LEAD_STAGES.length;
+  else if (ev.key === 'Home') next = 0;
+  else if (ev.key === 'End') next = LEAD_STAGES.length - 1;
+  if (next === null) return;
+  ev.preventDefault();
+  window.ptfLeadSelectStage(LEAD_STAGES[next].id);
+};
+window.ptfLeadMoveFromPipeline = function (cd, stage, select) {
+  if (select) select.value = '';
+  if (!stage || !leadStageKnown(stage)) return;
+  leadSetStage(cd, stage, { fromPipeline: true });
+};
 
 function renderLeadsTable(el, leads) {
   var h = '<div class="tb2"><table><thead><tr><th>کد</th><th>شرکت</th><th>رابط</th><th>تماس</th><th>صنعت</th><th>منبع</th><th>تماس اول</th><th>وضعیت</th><th>ارزش</th><th></th></tr></thead><tbody>';
   leads.forEach(function(l) {
-    var st = stageOf(l.stage);
+    var st = stageOf(leadStageId(l));
+    var id = leadClickArg(l.cd);
     h += '<tr><td>' + escP(l.cd) + '</td><td><b>' + escP(l.co) + '</b></td><td>' + escP(l.person||'-') + '</td>' +
       '<td style="direction:ltr">' + escP(l.mob || l.tel || '-') + '</td><td>' + escP(l.ind||'-') + '</td><td>' + escP(l.src||'-') + '</td>' +
       '<td>' + escP(l.firstFa||'-') + '</td>' +
-      '<td><span style="color:' + st.cl + ';font-weight:bold;font-size:12px">' + st.lb + '</span></td>' +
+      '<td><span style="color:' + st.cl + ';font-weight:bold;font-size:12px">' + escP(st.lb) + '</span></td>' +
       '<td>' + (l.val ? (+l.val).toLocaleString('fa-IR') : '-') + '</td>' +
-      '<td style="white-space:nowrap">' +
-      '<button type="button" class="bt bt-o" style="padding:4px 8px;font-size:12px" onclick="event.stopPropagation();showLeadCard(\'' + l.cd + '\')" title="مشاهده کارت">👁️</button> ' +
-      '<button type="button" class="bt bt-o" style="padding:4px 8px;font-size:12px" onclick="event.stopPropagation();showLeadModal(\'' + l.cd + '\')" title="ویرایش">✏️</button> ' +
-      '<button type="button" class="bt bt-o" style="padding:4px 8px;font-size:12px;color:#dc2626" onclick="event.stopPropagation();leadDel(\'' + l.cd + '\')" title="حذف">🗑️</button>' +
+      '<td class="lead-table-actions" data-mobile-label="">' +
+      '<button type="button" class="lead-table-action lead-table-view" onclick="event.stopPropagation();showLeadCard(\'' + id + '\')" title="مشاهده پرونده ' + escP(l.co) + '" aria-label="مشاهده پرونده ' + escP(l.co) + '">مشاهده</button>' +
+      '<button type="button" class="lead-table-action lead-table-edit" onclick="event.stopPropagation();showLeadModal(\'' + id + '\')" title="ویرایش سرنخ ' + escP(l.co) + '" aria-label="ویرایش سرنخ ' + escP(l.co) + '">ویرایش</button>' +
+      '<button type="button" class="lead-table-action lead-table-delete" onclick="event.stopPropagation();leadDel(\'' + id + '\')" title="حذف سرنخ ' + escP(l.co) + '" aria-label="حذف سرنخ ' + escP(l.co) + '">حذف</button>' +
       '</td></tr>';
   });
   h += '</tbody></table></div>';
-  el.innerHTML = h + (leads.length ? '' : '<div style="text-align:center;color:#94a3b8;padding:20px">لیدی ثبت نشده</div>');
+  el.innerHTML = h + (leads.length ? '' : '<div class="lead-stage-empty" style="margin-top:10px">لیدی ثبت نشده</div>');
 }
 
 function updateLeadBadge() {
@@ -280,10 +382,12 @@ function leadFollowUp(cd) {
   addLog('پیگیری لید ' + l.co + ' ثبت شد');
 }
 
-function leadSetStage(cd, stage) {
+function leadSetStage(cd, stage, opt) {
+  opt = opt || {};
+  if (!leadStageKnown(stage)) return;
   var leads = getData('ptf_crm_leads');
   var l = leads.filter(function(x){ return x.cd === cd; })[0];
-  if (!l) return;
+  if (!l || leadStageId(l) === stage) return;
   if (stage === 'lost') {
     var why = null;
     if (typeof ptfDialog === 'function') {
@@ -291,26 +395,34 @@ function leadSetStage(cd, stage) {
         title: '❌ دلیل از دست رفتن لید',
         fields: [{ id: 'why', label: 'دلیل (الزامی)', type: 'textarea', rows: 2, required: true }],
         danger: true, okText: 'ثبت باخت',
-        onOk: function (v) { leadLoseCommit(cd, v.why); }
+        onOk: function (v) { leadLoseCommit(cd, v.why, opt); }
       });
       return;
     }
     why = prompt('دلیل از دست رفتن این لید؟ (الزامی)');
     if (!why || !why.trim()) return;
-    leadLoseCommit(cd, why);
+    leadLoseCommit(cd, why, opt);
     return;
   }
-  if (stage === 'won') { leadConvert(cd); return; }
+  if (stage === 'won') { leadConvert(cd, opt); return; }
   var old = stageOf(l.stage).lb;
   l.stage = stage;
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'وضعیت', tx: old + ' ← ' + stageOf(stage).lb });
   setData('ptf_crm_leads', leads);
+  if (opt.fromPipeline) {
+    LEAD_MOBILE_STAGE = stage;
+    renderLeads();
+    if (typeof ptfToast === 'function') ptfToast('مرحلهٔ «' + l.co + '» به «' + stageOf(stage).lb + '» تغییر کرد', 'ok');
+    addLog('مرحلهٔ لید ' + l.co + ' به «' + stageOf(stage).lb + '» تغییر کرد');
+    return;
+  }
   hideModal(); showLeadCard(cd); renderLeads();
 }
 
 // US-153: ثبت باخت لید (از مودال استاندارد یا fallback)
-function leadLoseCommit(cd, why) {
+function leadLoseCommit(cd, why, opt) {
+  opt = opt || {};
   if (!why || !String(why).trim()) return;
   var leads = getData('ptf_crm_leads');
   var l = leads.filter(function(x){ return x.cd === cd; })[0];
@@ -321,12 +433,19 @@ function leadLoseCommit(cd, why) {
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'وضعیت', tx: old + ' ← ' + stageOf('lost').lb + ' (' + l.lostWhy + ')' });
   setData('ptf_crm_leads', leads);
-  hideModal(); showLeadCard(cd); renderLeads();
+  if (opt.fromPipeline) {
+    LEAD_MOBILE_STAGE = 'lost';
+    renderLeads();
+  } else {
+    hideModal(); showLeadCard(cd); renderLeads();
+  }
   if (typeof ptfToast === 'function') ptfToast('باخت لید ثبت شد', 'warn');
+  addLog('باخت لید ' + l.co + ' ثبت شد');
 }
 
 /* ---- تبدیل به مشتری (AC6) ---- */
-function leadConvert(cd) {
+function leadConvert(cd, opt) {
+  opt = opt || {};
   var leads = getData('ptf_crm_leads');
   var l = leads.filter(function(x){ return x.cd === cd; })[0];
   if (!l) return;
@@ -357,7 +476,12 @@ function leadConvert(cd) {
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'تبدیل', tx: 'تبدیل به مشتری بالفعل — کد کارفرما: ' + newCd + (dup ? ' (موجود)' : ' (جدید)') });
   setData('ptf_crm_leads', leads);
-  hideModal(); renderLeads();
+  if (opt.fromPipeline) {
+    LEAD_MOBILE_STAGE = 'won';
+    renderLeads();
+  } else {
+    hideModal(); renderLeads();
+  }
   alert('✅ «' + l.co + '» به فهرست کارفرمایان اضافه شد (' + newCd + ')');
   addLog('لید ' + l.co + ' به مشتری تبدیل شد');
 }

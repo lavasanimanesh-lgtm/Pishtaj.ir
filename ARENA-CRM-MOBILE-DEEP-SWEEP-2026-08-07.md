@@ -1,6 +1,7 @@
 # پیمایش عمیق سراسری UI موبایل CRM — موجودی دکمه‌ها، آیکون‌ها و overflow
 
 **تاریخ:** ۱۶ مرداد ۱۴۰۵ / ۷ اوت ۲۰۲۶
+**آخرین به‌روزرسانی اجرایی:** ۱۷ مرداد ۱۴۰۵ / ۸ اوت ۲۰۲۶ — MOB-031
 **دامنه:** همهٔ پنل‌های CRM، دکمه‌های تولیدشدهٔ runtime، action rowها، toolbarها، Kanban و ماژول‌های چاپ
 **وضعیت:** گزارش شناسایی؛ مبنای اجرای مرحله‌ای اصلاحات بعدی
 
@@ -48,7 +49,7 @@
 | داشبورد | 0 | 0 | 0 | 0 | 0 | سالم در fixture |
 | کارتابل | 0 | 0 | 0 | 0 | 0 | ✅ MOB-034: toolbar اختصاصی، label و actionهای قابل‌لمس |
 | دستیار | 0 | 0 | 0 | 0 | 0 | سالم در نمای اولیه |
-| سرنخ‌ها | 1 | 0 | 0 | 0 | 1 | Kanban با عرض 900px |
+| سرنخ‌ها | 0 | 0 | 0 | 0 | 0 | ✅ MOB-031: نمای مرحله‌ای موبایل، actionهای نام‌دار و Kanban دسکتاپ با hint |
 | مشتریان | 1 | 2 | 0 | 0 | 0 | action row کوچک/بی‌نام |
 | درخواست‌ها | 1 | 0 | 0 | 0 | 0 | دکمهٔ «+ جدید» فقط + |
 | پیشنهادها | 2 | 0 | 0 | 0 | 0 | toolbar ایجاد فنی/مالی فقط + |
@@ -164,15 +165,23 @@
 
 ---
 
-### MOB-031 — Kanban سرنخ‌ها عرض 900px دارد، بدون affordance کافی برای حرکت افقی
+### MOB-031 — Kanban سرنخ‌ها در گوشی بدون affordance کافی بود — ✅ انجام شد
 
-**شدت: P2**
+**شدت پیش از اصلاح: P2**
 
-`#ldWrap` در mobile محتوای 900px در عرض 272px دارد. Grid کانبان برای desktop مناسب است، ولی کاربر موبایل cue روشن برای swipe/scroll ندارد.
+در mobile، `#ldWrap` شش ستون Kanban با حداقل عرض حدود `900px` را در فضای `272px` نگه می‌داشت؛ کاربر cue روشن برای swipe نداشت و مرحله‌های پنهان عملاً از جریان کار جدا می‌شدند.
 
-**ریشه:** `crm/leads.js:59-79`.
+**ریشهٔ پیشین:** `crm/leads.js:59-79`؛ grid inline با `min-width:900px` و actionهای کوتاه/بی‌نام.
 
-**اصلاح پیشنهادی:** wrapper دارای `overflow-x:auto` واقعی، gradient edge، hint «برای دیدن مراحل بکشید» و گزینهٔ پیش‌فرض table/card در عرض کمتر از 480px.
+**اصلاح اجراشده:**
+
+- گوشی و landscape تلفن اکنون به «نمای مرحله‌ای» تبدیل می‌شوند: شش stage هم‌زمان در tablist دو/سه‌ستونه، شمارندهٔ هر stage، `aria-selected` / `aria-controls` / roving tabindex و Arrow/Home/End دارند؛
+- فقط کارت‌های stage انتخابی در یک لیست عمودی خوانا رندر می‌شوند؛ metadata، اقدام بعدی، مشاهده، ویرایش و select نام‌دار «تغییر مرحله» داخل هر کارت هستند؛ بنابراین هیچ مرحله یا workflow پنهان نمی‌ماند؛
+- انتقال عادی، ثبت دلیل باخت و تبدیل به مشتری همان هسته‌های `leadSetStage` / `leadLoseCommit` / `leadConvert` را صدا می‌زنند؛ در مسیر مستقیم mobile، focus/state روی stage مقصد می‌ماند؛
+- جدول جایگزین نیز actionهای نام‌دار «مشاهده / ویرایش / حذف» گرفت؛ toolbar سرنخ‌ها و hook دیررس «بررسی داده‌ها» از icon-only عمومی خارج و به grid labelدار منتقل شدند؛
+- در desktop، Kanban شش‌ستونه حفظ شد اما داخل viewport افقی واقعی با scroll-snap، focusable region و hint صریح «برای دیدن همهٔ مراحل، برد را افقی حرکت دهید» قرار گرفت.
+
+**بازآزمایی واقعی:** در 320×568 ریشهٔ لید `272/272px` و صفحه `320/320px` (`clientWidth/scrollWidth`) بود؛ tileهای stage `132×66px` و پنج action toolbar (چهار action دوتایی + بررسی داده‌ها تمام‌عرض) حداقل `132×52px` بودند. در 390×844 همین نتایج `342/342px`، tileهای `167×66px` و toolbar `167×52px`/`342×52px` بود. در 844×390، stageها `266.7×55px` و root `816/816px` شدند. در desktop 1024، board cueدار داخل viewport `711px` با محتوای داخلی `1004px` ماند، اما خود صفحه `1009 ≤ 1024px` و بدون overflow سراسری بود. انتخاب stage، End keyboard، انتقال «جدید → مذاکره»، باخت با دلیل و تبدیل پیشنهاد به مشتری واقعی، modal role/aria و Escape، table alternative و desktop board همگی با page/console error صفر اجرا شدند.
 
 ---
 
@@ -216,7 +225,7 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
-| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.7` و precache هم‌مسیر اجرا شد |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.8` و precache هم‌مسیر اجرا شد |
 | MOB-010 deep-link/hash | ✅ مقصد hash پس از bootstrap به پنل صحیح می‌رسد |
 | MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
 | MOB-038 actionهای کیفیت داده مالی | ✅ grid متقارن 2×2 و metadata صریح اجرا شد |
@@ -231,7 +240,8 @@
 | MOB-025 action پیشنهادها/ارزی | ✅ اجرا و آزمایش شد |
 | MOB-026 تا MOB-029 و MOB-033 | ✅ مراحل اولویت‌دار اجرا شدند |
 | MOB-030 | ✅ navigation اصلی پرونده/فرصت و sub-tabهای فرصت اجرا و آزموده شدند |
-| MOB-031/032 | ⏳ Kanban سرنخ‌ها و overflowهای ریز باقی‌مانده |
+| MOB-031 Kanban سرنخ‌ها | ✅ نمای مرحله‌ای، workflow انتقال و toolbar/actionهای نام‌دار اجرا و آزموده شدند |
+| MOB-032 | ⏳ overflowهای ریز تحلیلگر/تنظیمات/تأمین‌کننده باقی‌مانده‌اند |
 
 ---
 
@@ -252,7 +262,7 @@
 
 6. **MOB-002** — table-card labels و action schema.
 7. **MOB-003** — state مستقل active panel و refresh sync.
-8. **MOB-031/032** — Kanban و overflowهای باقی‌مانده.
+8. **MOB-032** — overflowهای موضعی باقی‌مانده در تحلیلگر، تنظیمات و تأمین‌کننده.
 
 ---
 
@@ -422,13 +432,13 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 
 نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
 
-- release یکپارچهٔ **`v34.4.7`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
-- هر 91 script shell اکنون دقیقاً `?v=34.4.7` دارد؛
-- `sw.js?v=v34.4.7` ثبت می‌شود و cache آن `ptf-crm-v34.4.7` است؛
+- release یکپارچهٔ **`v34.4.8`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell در release جاری دقیقاً `?v=34.4.8` دارد؛
+- `sw.js?v=v34.4.8` ثبت می‌شود و cache آن `ptf-crm-v34.4.8` است؛
 - هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
-**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.7`، تنها cache فعال `ptf-crm-v34.4.7` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.8`، تنها cache فعال `ptf-crm-v34.4.8` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
 
 ### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
 
@@ -536,6 +546,18 @@ badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار �
 - More sheet در 320/390/844×390 دارای 26 مقصد، role dialog، inert صحیح، Shift+Tab از close به آخرین action، Escape و بازگشت focus به trigger بود. search sheet را حذف و `cmdPalInp` را focus کرد.
 - print preview در mobile فاقد overflow داخلی (`307/307px` در 320 و `374/374px` در 390) بود؛ شش action برچسب‌دار `136.1×52px` و `169.7×52px` داشتند. desktop tour نیز با Escape بدون pageerror بسته شد.
 - تنظیمات 11 row جزئیات داشت، عبارت US در UI صفر بود و تمام 28 action تنظیمات title/aria گرفتند؛ root در چهار viewport `clientWidth === scrollWidth` بود.
+
+
+### 30. پیگیری اجرایی — MOB-031: نمای مرحله‌ای سرنخ‌ها و Kanban امن
+
+این مرحله مشکل اختصاصی سرنخ‌ها را بدون تغییر قواعد فروش/تبدیل رفع کرد:
+
+- روی گوشی، شش وضعیت هم‌زمان دیده می‌شوند و انتخاب وضعیت به tablist واقعی با شمارنده و navigation کیبوردی منتقل شده است؛
+- کارت‌های stage منتخب metadata ضروری، مشاهده/ویرایش labelدار و کنترل مستقیم انتقال دارند؛ باخت همچنان دلیل الزامی می‌گیرد و برد همچنان مشتری را از همان هستهٔ قبلی می‌سازد؛
+- toolbar و action دیررس «بررسی داده‌ها» دیگر به دکمهٔ icon-only مستقل تبدیل نمی‌شوند؛
+- روی desktop، برد Kanban باقی مانده اما scroll داخلی قابل‌دیدن و دارای cue/label است؛ بنابراین overflow هرگز به عرض document نشت نمی‌کند.
+
+**بازآزمایی:** fixture هفت‌سرنخی در 320، 390، 844×390 و desktop 1024 اجرا شد. root/page در سه viewport تلفن به‌ترتیب `272/272` و `320/320`، `342/342` و `390/390`، و `816/816` و `844/844px` بود. stage tileها `132×66`، `167×66` و `266.7×55px` بودند. انتقال معمولی، باخت با دلیل، تبدیل به مشتری، keyboard End، modal/Escape، جدول جایگزین و desktop board با page/console error صفر تأیید شدند. قرارداد PWA نیز در release **v34.4.8** با 91/91 script query و reload آفلاین موفق دوباره بررسی شد.
 
 ### پیوست ممیزی یکدستی مودال‌ها
 
