@@ -649,6 +649,14 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 **تأیید فنی:** در 320×568 و 390×844، modal واقعی ثبت درخواست role/aria صحیح و focus اولیه داخل فرم داشت؛ Tab و Shift+Tab از modal خارج نشدند و Escape focus را به trigger بازگرداند. nested `ptfDialog`، `dialogx.confirm` و minimize/restore با Enter نیز بدون page/console error آزموده شدند.
 
+### MOB-008 — مرحلهٔ اول سرعت ادراک‌شدهٔ cold start
+
+`mobilenav.js` از انتهای صف 91 script به دومین script بعد از `ui-kit` منتقل شد. در نتیجه shell navigation بدون انتظار برای AI، چاپ چک، مالی، گزارش و سایر ماژول‌های سنگین ساخته می‌شود. status کوچک و قابل‌فهم `loading → nav → ready` نیز وضعیت را تا پایان بارگیری اعلام می‌کند.
+
+اگر کاربر پیش از کامل‌شدن bundleها روی «کارتابل»، پیشنهاد، دستیار یا «سایر» لمس کند، مقصد queue می‌شود؛ dashboard خالی نمی‌شود و پس از آماده‌شدن builder همان پنل باز خواهد شد. hook نهایی `goPanel` نیز تا پایان defer bundleها صبر می‌کند تا state ناوبری حفظ شود.
+
+**تأیید فنی:** در شبیه‌سازی 150ms latency / 250KiB/s در 390×844، nav در **2.47s** آماده شد، در حالی که آزمون اولیهٔ ممیزی آن را حدود 13.4s نشان داده بود. FCP حدود 0.54s و بارگیری کامل صف 91 script هنوز حدود 16.6s است؛ بنابراین lazy-load واقعی ماژول‌های سنگین همچنان مرحلهٔ بعدی performance/PWA خواهد بود. click زودهنگام کارتابل queue و پس از ready با state صحیح `cart` اجرا شد؛ تمام tabهای اصلی و More بدون error آزمایش شدند.
+
 ## پیوست: شواهد عددی
 
 | شاخص | نتیجه |
@@ -659,10 +667,10 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 | Escape روی modal پایه | ✅ فقط بالاترین modal بسته و focus به trigger بازمی‌گردد |
 | table-card label (`data-label`) | 0 occurrence |
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
-| navbar در 2Mbps آزمایشگاهی | 13.4 ثانیه تا آماده‌شدن |
-| First Contentful Paint در همان تست | ~344ms |
+| navigation در 2Mbps آزمایشگاهی | ✅ مرحلهٔ اول MOB-008: shell در 2.47s؛ صف کامل 91 script ~16.6s |
+| First Contentful Paint در آزمون MOB-008 | ~0.54s |
 | toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |
 
-> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005 و semantics پایهٔ MOB-007 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل کارایی/PWA، deep-link، Kanban و focus/inert کشوی «سایر» هستند.
+> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005، semantics پایهٔ MOB-007 و navigation زودهنگام MOB-008 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل lazy-load/PWA کامل، deep-link، Kanban و focus/inert کشوی «سایر» هستند.

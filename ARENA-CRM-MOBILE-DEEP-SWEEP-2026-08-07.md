@@ -210,11 +210,12 @@
 | شناسه | وضعیت کنونی |
 |---|---|
 | MOB-001 کنترل‌های مودال | ✅ visual/label و semantics پایه اجرا شد |
-| MOB-002 label جدول‌ها | ⏳ باز؛ قبل از migration گسترده action rowها انجام شود |
-| MOB-003 refresh پس از bottom-nav/sync | ⏳ باز، P0 |
+| MOB-002 label جدول‌ها | ✅ مرحلهٔ اول label کارت‌ها اجرا و آزمایش شد |
+| MOB-003 refresh پس از bottom-nav/sync | ✅ active panel و refresh sync اجرا و آزمایش شد |
 | MOB-004 toast/banner روی nav | ✅ اجرا و آزمایش شد؛ stack بالای nav و لمس آزاد است |
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
+| MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -392,3 +393,16 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 - dock کوچک‌سازی نیز keyboard-reachable (`role=button`، Enter/Space/Escape) است و پس از restore، focus را به همان modal برمی‌گرداند.
 
 **بازآزمایی 320×568 و 390×844:** یک modal واقعی ثبت درخواست با role/aria صحیح، focus اولیه داخل فرم و 21 target قابل‌چرخه رندر شد. Tab و Shift+Tab هر دو داخل modal ماندند؛ Escape modal را بست و focus به trigger برگشت. در سناریوی nested، Escape فقط `ptfDialog` داخلی را بست، callback Cancel اجرا شد و outer modal فعال ماند. `dialogx.confirm` با Escape مقدار `false` resolve کرد. minimize/restore با Enter نیز focus داخل modal را بازگرداند. page/console error در هر دو viewport صفر بود.
+
+### 20. پیگیری اجرایی — MOB-008 مرحلهٔ اول: navigation زودهنگام و status cold start
+
+در cold start، `mobilenav.js` پس از ده‌ها script defer قرار داشت؛ کاربر dashboard را می‌دید اما nav تا پایان صف bundleها قابل استفاده نبود. shell ناوبری به جایگاه دوم بعد از `ui-kit` منتقل شد و بدون انتظار polling/timeout اولیه ساخته می‌شود.
+
+- status سه‌حالتهٔ `loading → nav → ready` به CRM افزوده شد: تا قبل از nav پیام «در حال آماده‌سازی ناوبری…» و بعد از آن «ناوبری آماده است؛ در حال تکمیل…» نمایش داده می‌شود؛
+- click زودهنگام روی بخش‌هایی که builder آنها هنوز بارگیری نشده queue می‌شود؛ dashboard خالی یا ReferenceError نشان داده نمی‌شود و همان مقصد پس از آماده‌شدن ماژول‌ها باز می‌گردد؛
+- hook نهایی `goPanel` عمداً تا `window.load` صبر می‌کند تا wrapperهای دیرهنگام state را نشکند؛
+- پس از آماده‌شدن همهٔ bundleها status حذف می‌شود و nav معمولی باقی می‌ماند.
+
+**بازآزمایی 390×844 با latency=150ms و download=250KiB/s:** shell nav در `2.47s` آماده شد؛ FCP حدود `0.54s` بود. در همان آزمون، صف کامل 91 script هنوز حدود `16.6s` طول کشید، اما status این فاصله را صریح اعلام کرد. click «کارتابل» در لحظهٔ `2.5s` queue شد، dashboard باقی ماند و پس از آماده‌شدن، `ctWrap` و state `ptfActivePanel=cart` صحیح رندر شدند. پس از ready، tabهای dashboard/cart/offer/AI و More بدون error و با `document.scrollWidth=390` آزموده شدند.
+
+> این مرحله زمان **قابل‌استفاده‌شدن navigation** را هدف گرفت؛ splitting/lazy-load واقعی bundleهای سنگین (AI، چاپ چک، مالی، گزارش و Excel) و کاهش زمان کامل load، مرحلهٔ بعدی کارایی/PWA است.

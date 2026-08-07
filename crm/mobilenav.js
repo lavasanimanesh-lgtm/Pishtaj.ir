@@ -32,6 +32,38 @@
     dash: 'dash', cart: 'cart', off: 'off', ai: 'ai'
   };
 
+  /* MOB-008: nav shell زود می‌آید، اما builder بعضی پنل‌ها در bundleهای بعدی
+     تعریف می‌شود. click زودهنگام را نگه می‌داریم تا هیچ پنل خالی/ReferenceError
+     دیده نشود و پس از کامل‌شدن moduleها همان مقصد باز شود. */
+  function modulesReady() { return !!window.ptfNavModulesReady || document.readyState === 'complete'; }
+  function tabLabel(id) {
+    for (var i = 0; i < TABS.length; i++) if (TABS[i].id === id) return TABS[i].lb;
+    return 'بخش انتخاب‌شده';
+  }
+  function setBootStage(stage, message) {
+    var crm = document.getElementById('crmL');
+    if (!crm) return;
+    crm.setAttribute('data-ptf-boot', stage);
+    var label = document.querySelector('#ptfBootStatus span:last-child');
+    if (label && message) label.textContent = message;
+  }
+  function queuePanelUntilReady(id) {
+    window._ptfMnvPendingAction = id;
+    setBootStage('nav', 'در حال آماده‌سازی «' + tabLabel(id) + '»…');
+    highlight(id);
+  }
+  function flushQueuedPanel() {
+    var id = window._ptfMnvPendingAction;
+    window._ptfMnvPendingAction = '';
+    if (!id) return;
+    /* mobile-nav-state.js (آخرین defer) wrapper state را با timer کوتاه نصب می‌کند؛
+       یک مکث ناچیز مانع از اجرای مقصد queue شده روی wrapper قدیمی می‌شود. */
+    setTimeout(function () {
+      if (id === '_more') window.ptfMnvMore(true);
+      else window.ptfMnvGo(id);
+    }, 260);
+  }
+
   /* ---------- کشوی «بیشتر»: همه ماژول‌ها از روی سایدبار واقعی (RBAC اعمال‌شده) ---------- */
   function buildMoreSheet() {
     var old = document.getElementById('mnvMore');
@@ -66,6 +98,10 @@
 
   window.ptfMnvMore = function (open) {
     var el = document.getElementById('mnvMore');
+    if (open && !modulesReady()) {
+      queuePanelUntilReady('_more');
+      return;
+    }
     if (open) {
       buildMoreSheet();
       el = document.getElementById('mnvMore');
@@ -79,6 +115,10 @@
   window.ptfMnvGo = function (id) {
     ptfMnvMore(false);
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (eV) {} /* v31.7.17: بازخورد هپتیک ظریف */
+    if (id !== 'dash' && !modulesReady()) {
+      queuePanelUntilReady(id);
+      return;
+    }
     /* MOB-003: حتی در سایدبار مخفی موبایل، state فعال باید روی button واقعی بماند. */
     var btn = (typeof window.ptfFindPanelButton === 'function') ? window.ptfFindPanelButton(id) : null;
     if (typeof goPanel === 'function') goPanel(id, btn);
@@ -250,25 +290,49 @@
   }
 
   /* ---------- بوت ---------- */
+  function markNavReady() {
+    setBootStage(modulesReady() ? 'ready' : 'nav', modulesReady() ? '' : 'ناوبری آماده است؛ در حال تکمیل…');
+    try {
+      if (!window.ptfNavShellReadyAt) {
+        window.ptfNavShellReadyAt = performance.now();
+        window.dispatchEvent(new Event('ptf:nav-ready'));
+      }
+    } catch (e) {}
+  }
   function boot() {
     var crmVisible = document.getElementById('crmL') && document.getElementById('crmL').style.display !== 'none';
     if (!crmVisible) return false;
     buildBar();
-    hookGoPanel();
     watchBadge();
+    markNavReady();
+    /* wrapper نهایی goPanel باید بعد از همهٔ defer bundleها نصب شود؛ خود nav
+       لازم نیست برای آن صبر کند و با click مستقیم از همان لحظه قابل‌استفاده است. */
+    if (document.readyState === 'complete') hookGoPanel();
     return true;
   }
-  // بدون polling دائمی: تلاش محدود اولیه (سازگار با الگوی بقیه ماژول‌ها) + هوک لاگین
-  var tries = 0;
-  var t = setInterval(function () {
-    tries++;
-    if (boot() || tries > 60) clearInterval(t);
-  }, 300);
+  function modulesStable() {
+    window.ptfNavModulesReady = true;
+    hookGoPanel();
+    setBootStage('ready');
+    flushQueuedPanel();
+  }
+  if (document.readyState === 'complete') modulesStable();
+  else window.addEventListener('load', modulesStable, { once: true });
+
+  /* MOB-008: cold start auto-login پیش از bundleهای بزرگ رخ می‌دهد؛ buildBar را
+     همان لحظه امتحان کن، نه بعد از polling 300ms یا timeout 700ms. */
+  if (!boot()) {
+    var tries = 0;
+    var t = setInterval(function () {
+      tries++;
+      if (boot() || tries > 60) clearInterval(t);
+    }, 300);
+  }
   var _showCrm = window.showCrm;
   if (typeof _showCrm === 'function') {
     window.showCrm = function () {
       _showCrm();
-      setTimeout(boot, 700);
+      boot();
     };
   }
 })();
