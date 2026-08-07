@@ -79,7 +79,9 @@
   window.ptfMnvGo = function (id) {
     ptfMnvMore(false);
     try { if (navigator.vibrate) navigator.vibrate(8); } catch (eV) {} /* v31.7.17: بازخورد هپتیک ظریف */
-    if (typeof goPanel === 'function') goPanel(id);
+    /* MOB-003: حتی در سایدبار مخفی موبایل، state فعال باید روی button واقعی بماند. */
+    var btn = (typeof window.ptfFindPanelButton === 'function') ? window.ptfFindPanelButton(id) : null;
+    if (typeof goPanel === 'function') goPanel(id, btn);
     highlight(id);
   };
 

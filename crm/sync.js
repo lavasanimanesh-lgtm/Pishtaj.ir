@@ -416,13 +416,25 @@
   // رندر مجدد پنل فعلی پس از دریافت/ثبت داده جدید (بدون پرش وسط مودال)
   function refreshCurrentPanel() {
     if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return false; // وسط کار کاربر نپر
+    /* MOB-003: در mobile سایدبار مخفی است؛ class act ممکن است وجود نداشته باشد.
+       active panel مستقل از DOM نگهداری می‌شود و fallback desktop هم حفظ شده است. */
+    var id = window.ptfActivePanel || '';
     var act = document.querySelector('.sb-i.act');
-    if (!act) return false;
-    var m = (act.getAttribute('onclick') || '').match(/goPanel\('([a-z]+)'/);
-    if (m && typeof goPanelByName === 'function') {
-      try { goPanelByName(m[1]); return true; } catch (e) {}
+    if (!id && act) {
+      var m = (act.getAttribute('onclick') || '').match(/goPanel\('([a-z]+)'/);
+      id = m ? m[1] : '';
     }
-    return false;
+    if (!id || typeof goPanel !== 'function') return false;
+    try {
+      var btn = (typeof window.ptfFindPanelButton === 'function') ? window.ptfFindPanelButton(id) : act;
+      window._ptfNavIsRefresh = true;
+      goPanel(id, btn);
+      return true;
+    } catch (e) {
+      return false;
+    } finally {
+      window._ptfNavIsRefresh = false;
+    }
   }
   var _dataRefreshTimer = 0;
   window.ptfRefreshCurrentPanel = refreshCurrentPanel;

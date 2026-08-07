@@ -1203,6 +1203,17 @@ try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' 
 // ===== NAV =====
 /* ===== v34.1: History API — دکمه Back = برگشت به ماژول قبلی ===== */
 var _ptfNavFromPop = false;
+/* MOB-003: وضعیت پنل نباید به class ظاهری سایدبار (که در موبایل مخفی است) وابسته باشد. */
+window.ptfActivePanel = window.ptfActivePanel || '';
+window._ptfNavIsRefresh = false;
+window.ptfFindPanelButton = function (id) {
+  var btns = document.querySelectorAll('.sb-i');
+  for (var i = 0; i < btns.length; i++) {
+    var on = btns[i].getAttribute('onclick') || '';
+    if (on.indexOf("goPanel('" + id + "'") > -1) return btns[i];
+  }
+  return null;
+};
 window.addEventListener('popstate', function(e) {
   if (e.state && e.state.panel) {
     _ptfNavFromPop = true;
@@ -1212,9 +1223,12 @@ window.addEventListener('popstate', function(e) {
 });
 
 function goPanel(id, btn) {
-  try { window.scrollTo(0, 0); } catch(e){}
-  /* ثبت در history — فقط اگر ناوبری واقعی کاربر باشد (نه popstate) */
-  if (!_ptfNavFromPop) {
+  /* فراخوانی‌های موبایل/برنامه‌ای btn ندارند؛ دکمهٔ متناظر را برای state پایدار پیدا کن. */
+  if (!btn && typeof window.ptfFindPanelButton === 'function') btn = window.ptfFindPanelButton(id);
+  window.ptfActivePanel = id;
+  if (!window._ptfNavIsRefresh) { try { window.scrollTo(0, 0); } catch(e){} }
+  /* refresh داده نباید history را آلوده کند؛ فقط ناوبری واقعی و popstate مسیر ثبت می‌سازند. */
+  if (!_ptfNavFromPop && !window._ptfNavIsRefresh) {
     try { history.pushState({ panel: id }, '', '#' + id); } catch(eH) {}
   }
   var btns = document.querySelectorAll('.sb-i');
@@ -3002,7 +3016,7 @@ setInterval(function(){
 <script defer src="messengers.js?v=34.2.8"></script>
 <script defer src="phonefmt.js?v=34.0.21-alpha"></script>
 <script defer src="tour.js?v=34.0.21-alpha"></script>
-<script defer src="mobilenav.js?v=34.0.21-alpha"></script>
+<script defer src="mobilenav.js?v=34.3.2"></script>
 <script defer src="ai-workbench.js?v=34.0.21-alpha"></script>
 <script defer src="golive.js?v=34.0.21-alpha"></script>
 <script defer src="custmerge.js?v=34.2.8"></script>
@@ -3023,11 +3037,12 @@ setInterval(function(){
 <script defer src="fiscal.js?v=34.0.21-alpha"></script>
 <script defer src="financehub.js?v=34.0.21-alpha"></script>
 <script defer src="theme-contrast.js?v=34.0.21-alpha"></script>
-<script defer src="sync.js?v=34.0.21-alpha"></script>
+<script defer src="sync.js?v=34.3.2"></script>
 <script defer src="client-server.js?v=34.0.21-alpha"></script>
 <script defer src="unofficial-invoice.js?v=34.0.21-alpha"></script>
 <script defer src="settings-accordion.js?v=34.0.21-alpha"></script>
 <script defer src="mobile-actions.js?v=34.3.0"></script>
 <script defer src="mobile-table-labels.js?v=34.3.1"></script>
+<script defer src="mobile-nav-state.js?v=34.3.2"></script>
 </body>
 </html>
