@@ -108,6 +108,23 @@
     margin-top: 4px !important;
     border-top: 1px solid var(--brd) !important;
   }
+  /* MOB-002: label ستون‌ها روی کارت موبایل؛ مقدار بدون زمینه باقی نمی‌ماند. */
+  #panels .tb2 td[data-mobile-label]:not([data-mobile-label=""]) {
+    gap: 10px !important;
+  }
+  #panels .tb2 td[data-mobile-label]:not([data-mobile-label=""])::before {
+    content: attr(data-mobile-label);
+    flex: 0 0 42%;
+    max-width: 42%;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.6;
+    text-align: right;
+    direction: rtl;
+    overflow-wrap: anywhere;
+  }
+  #panels .tb2 td[data-mobile-label=""]::before { content: none; }
   
   /* بهبود نمایش سایدبار و ناوبری در موبایل */
   /* crm-l normal */
@@ -3011,5 +3028,6 @@ setInterval(function(){
 <script defer src="unofficial-invoice.js?v=34.0.21-alpha"></script>
 <script defer src="settings-accordion.js?v=34.0.21-alpha"></script>
 <script defer src="mobile-actions.js?v=34.3.0"></script>
+<script defer src="mobile-table-labels.js?v=34.3.1"></script>
 </body>
 </html>
