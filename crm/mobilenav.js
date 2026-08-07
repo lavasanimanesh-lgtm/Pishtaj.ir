@@ -178,18 +178,21 @@
     '@media(prefers-reduced-motion:reduce){.pn{animation:none!important}}' +
     /* ===== هدر تک‌ردیفه موبایل (v34.1 — بازنویسی کامل) ===== */
     '#clockD,#liveHealthPill,#topVerPill{display:none!important}' +
-    '.tb{padding:6px 12px!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:space-between!important;height:48px!important;gap:6px!important}' +
+    /* MOB-024: آیکون‌های ماه/زنگوله/جستجو در 34px بسیار ریز بودند.
+       هدر کمی بلندتر شد تا دکمه‌های مربعی 42px و glyphهای بزرگ‌تر بدون فشردگی جا بگیرند. */
+    '.tb{padding:7px 10px!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:space-between!important;height:56px!important;gap:6px!important}' +
     '.tb>div:first-child{flex:1 1 auto!important;min-width:0!important;overflow:hidden!important}' +
     '.tb>div:last-child{flex:0 0 auto!important}' +
+    '#tbIcons{gap:5px!important}' +
     '.tb h2{font-size:14px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0}' +
-    /* جستجو: فقط آیکون مربعی */
-    '.tb button[onclick*="ptfOpenCommandPalette"]{font-size:0!important;padding:0!important;gap:0!important;width:34px!important;height:34px!important;min-height:34px!important;min-width:34px!important;border-radius:10px!important;display:grid!important;place-items:center!important;background:var(--bg,#f4f6f9)!important;border:1px solid var(--brd,#e8ebf0)!important}' +
+    /* جستجوی سراسری: آیکون مربعی هم‌اندازهٔ آیکون‌های هدر */
+    '.tb button[onclick*="ptfOpenCommandPalette"]{font-size:0!important;padding:0!important;gap:0!important;width:42px!important;height:42px!important;min-height:42px!important;min-width:42px!important;max-height:42px!important;max-width:42px!important;border-radius:12px!important;display:grid!important;place-items:center!important;background:var(--bg,#f4f6f9)!important;border:1px solid var(--brd,#e8ebf0)!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span{display:none!important}' +
     '.tb button[onclick*="ptfOpenCommandPalette"] span[data-ix]{display:inline-flex!important}' +
-    '.tb button[onclick*="ptfOpenCommandPalette"] span[data-ix] svg{width:17px!important;height:17px!important}' +
-    /* آیکون‌های هدر: فشرده‌تر */
-    '.tb .tbic{width:34px!important;height:34px!important;flex:none;overflow:visible}' +
-    '.tb .tbic svg{display:block!important;margin:auto!important;width:16px!important;height:16px!important}' +
+    '.tb button[onclick*="ptfOpenCommandPalette"] span[data-ix] svg{width:24px!important;height:24px!important;stroke-width:2!important}' +
+    /* ماه، زنگوله و جستجوی محلی: hit-area و SVG یکدست و خوانا */
+    '.tb .tbic{width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;max-width:42px!important;max-height:42px!important;padding:0!important;gap:0!important;display:grid!important;place-items:center!important;flex:none;overflow:visible;border-radius:12px!important}' +
+    '.tb .tbic svg{display:block!important;margin:auto!important;width:26px!important;height:26px!important;min-width:26px!important;flex:0 0 26px!important;stroke-width:2!important}' +
     '.tb .tbic[title="بایگانی"],.tb .tbic[title="فضای ابری"]{display:none!important}' +
     '#trialBarWrap,#trialBarWrap *{max-width:100%;overflow-wrap:break-word}' +
     /* کشوی بیشتر */
