@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.4.0",
+  "crm_version": "v34.4.1",
   "last_stable_tag": "v2026.08.04-0943",
   "last_updated": "2026-08-07",
-  "updated_by": "Arena Agent (MOB-009)"
+  "updated_by": "Arena Agent (MOB-010)"
 }

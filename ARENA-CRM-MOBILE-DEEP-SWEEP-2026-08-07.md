@@ -216,7 +216,8 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
-| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.0` و precache هم‌مسیر اجرا شد |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.1` و precache هم‌مسیر اجرا شد |
+| MOB-010 deep-link/hash | ✅ مقصد hash پس از bootstrap به پنل صحیح می‌رسد |
 | MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
@@ -413,16 +414,27 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 
 نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
 
-- release یکپارچهٔ **`v34.4.0`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
-- هر 91 script shell اکنون دقیقاً `?v=34.4.0` دارد؛
-- `sw.js?v=v34.4.0` ثبت می‌شود و cache آن `ptf-crm-v34.4.0` است؛
+- release یکپارچهٔ **`v34.4.1`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell اکنون دقیقاً `?v=34.4.1` دارد؛
+- `sw.js?v=v34.4.1` ثبت می‌شود و cache آن `ptf-crm-v34.4.1` است؛
 - هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
-**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.0`، تنها cache فعال `ptf-crm-v34.4.0` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.1`، تنها cache فعال `ptf-crm-v34.4.1` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
 
 ### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
 
 badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار داشت که قانون عمومی mobile آن را `overflow:hidden!important` می‌کرد؛ به همین دلیل دایرهٔ قرمز نیمه دیده می‌شد. اکنون overflow wrapper/bell به‌صورت محدود `visible` است و خود badge با offset داخلی `1px` داخل hit-area قرار می‌گیرد.
 
 **بازآزمایی 320×568 و 390×844 با مقدار `99+`:** bell برابر `42×42px` و badge برابر `29×18px` بود؛ تمام کادر badge داخل bell و header باقی ماند، `document.scrollWidth` با viewport برابر و page/console error صفر بود.
+
+### 23. پیگیری اجرایی — MOB-010: deep-link پایدار برای panelها
+
+`showCrm → loadAll` پیش‌تر dashboard را فوراً با `pushState('#dash')` باز می‌کرد؛ بنابراین hash اولیه مانند `#off` قبل از تعریف builderهای پیشنهاد به dashboard تبدیل می‌شد. مقصد اولیه اکنون پیش از auto-login capture می‌شود، dashboard فقط به‌عنوان fallback امن رندر می‌شود و پس از پایان defer bundleها/نصب wrapperهای نهایی، مقصد اصلی اعمال می‌گردد.
+
+- `#off`، `#cart` و `#petty` بعد از bootstrap به پنل صحیح می‌رسند و همان hash را نگه می‌دارند؛
+- تغییر دستی hash در session فعال نیز panel را تغییر می‌دهد؛ Back یک render تکراری ایجاد نمی‌کند؛
+- hash ناشناخته به dashboard امن و hash بدون دسترسی به landing مجاز نقش normalize می‌شود؛
+- deep-link زودهنگام با queue cold-start سازگار است و builder تعریف‌نشده را صدا نمی‌زند.
+
+**بازآزمایی 320×568 و 390×844:** شروع با `#off`، `#cart` و `#petty` به‌ترتیب پیشنهاد، کارتابل و هاب مالی را با `history.state.panel` صحیح باز کرد. تغییر `#off → #cart → Back` دوباره پیشنهاد را رندر کرد. `#not-a-panel` به `#dash` برگشت و حسابدار با `#off` به landing مجاز `#inv` هدایت شد. در همهٔ سناریوها `document.scrollWidth` برابر viewport و page/console error صفر بود.

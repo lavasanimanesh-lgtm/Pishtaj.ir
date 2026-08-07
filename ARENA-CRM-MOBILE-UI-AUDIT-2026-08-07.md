@@ -659,17 +659,23 @@ sidebar پنهان، main تمام‌عرض، header بدون wrap و 52px، و 
 
 ### MOB-009 — قرارداد یکپارچهٔ release، cache و Service Worker
 
-release واحد **`v34.4.0`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.0` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
+release واحد **`v34.4.1`** اکنون در `VERSION.json`، runtime CRM، manifest، clear-cache، URL worker و cache namespace ثبت شده است. تمام 91 script صفحه از query واحد `?v=34.4.1` استفاده می‌کنند و SW نیز دقیقاً همان URLهای queryدار را precache می‌کند؛ اختلاف قبلی cache key بدون-query و درخواست queryدار حذف شد.
 
 `offer-rial-convert.js` که از SHELL جا افتاده بود افزوده شد، registration worker با URL نسخه‌دار انجام می‌شود و purge cache به‌جای متغیر تعریف‌نشده، release فعال را استفاده می‌کند. navigation آفلاین دارای fallback به index precache شده است.
 
-**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.0`، cache فعال `ptf-crm-v34.4.0` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
+**تأیید فنی:** تطابق 91/91 index و SW به‌صورت برنامه‌ای بررسی شد. در اجرای واقعی، worker فعال `sw.js?v=v34.4.1`، cache فعال `ptf-crm-v34.4.1` و assetهای queryدار نمونه در cache وجود داشتند. reload در offline با controller فعال، nav قابل‌استفاده و بدون page/console error اجرا شد.
 
 ### MOB-037 — رفع بریدگی badge قرمز زنگولهٔ header
 
 بازخورد کاربر نشان داد شمارندهٔ قرمز صندوق پیام روی زنگوله نصفه دیده می‌شود. علت، ترکیب offset منفی badge با `overflow:hidden!important` عمومی button بود. overflow زنگوله و wrapper آن به‌صورت محدود visible شد و badge به offset داخلی امن `1px` منتقل شد؛ بنابراین بدون بیرون‌زدن از header، کامل دیده می‌شود.
 
 **تأیید فنی:** در 320×568 و 390×844 با شمارندهٔ `99+`، badge `29×18px` کاملاً داخل bell `42×42px` و header قرار داشت؛ overflow افقی و page/console error صفر بود.
+
+### MOB-010 — deep-link پایدار پس از bootstrap
+
+hash اولیه اکنون پیش از auto-login ثبت می‌شود تا `loadAll()` آن را با `#dash` جایگزین نکند. پس از کامل‌شدن builderهای defer و wrapperهای نهایی، همان مقصد با `history.replaceState` و state پنل صحیح باز می‌شود. تغییر دستی hash و Back نیز بدون render دوباره پشتیبانی می‌شوند.
+
+**تأیید فنی:** در 320×568 و 390×844، `#off`، `#cart` و `#petty` به پنل‌های متناظر رسیدند؛ مسیر `#off → #cart → Back` به پیشنهاد بازگشت. hash ناشناخته به dashboard و hash خارج از دسترسی نقش به landing مجاز نقش normalize شد؛ page/console error و overflow افقی صفر بود.
 
 ## پیوست: شواهد عددی
 
@@ -683,9 +689,10 @@ release واحد **`v34.4.0`** اکنون در `VERSION.json`، runtime CRM، ma
 | table action test «ابطال» | 36×36px، font-size=0، title/aria-label خالی |
 | navigation در 2Mbps آزمایشگاهی | ✅ مرحلهٔ اول MOB-008: shell در 2.47s؛ صف کامل 91 script ~16.6s |
 | First Contentful Paint در آزمون MOB-008 | ~0.54s |
-| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.0` و reload آفلاین موفق |
+| PWA release/cache | ✅ MOB-009: 91/91 URL queryدار index/SW، cache `ptf-crm-v34.4.1` و reload آفلاین موفق |
+| deep-link panel | ✅ MOB-010: `#off/#cart/#petty`، تغییر hash و Back پایدار |
 | toast + banner در 390×844 | ✅ MOB-004: banner با فاصلهٔ 8px و toast با stack 16.7px بالاتر از آن؛ بدون پوشاندن bottom-nav |
 | More sheet در 390×844 | 26 آیتم، 4 ستون، primary tabهای تکراری |
 | landscape 844×390 | ✅ MOB-005: sidebar پنهان، main تمام‌عرض، header/nav برابر 52px و پنج tab لمسی |
 
-> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005، semantics پایهٔ MOB-007، navigation زودهنگام MOB-008 و قرارداد cache/PWA در MOB-009 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل lazy-load واقعی، deep-link، Kanban و focus/inert کشوی «سایر» هستند.
+> این گزارش فقط فهرست مشکل نیست: موارد P0/P1 با مسیر بازتولید و پیشنهاد اصلاح قابل تبدیل به ticket نوشته شده‌اند. اصلاح‌های بصری MOB-001 تا MOB-005، semantics پایهٔ MOB-007، navigation زودهنگام MOB-008، قرارداد cache/PWA در MOB-009 و deep-link MOB-010 اکنون با regression screenshot قفل شده‌اند؛ موارد باز بعدی شامل lazy-load واقعی، Kanban و focus/inert کشوی «سایر» هستند.
