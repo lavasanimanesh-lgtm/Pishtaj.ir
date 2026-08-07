@@ -216,9 +216,10 @@
 | MOB-005 landscape | ✅ اجرا و آزمایش شد؛ shell موبایل فشرده در 844×390 فعال است |
 | MOB-007 semantics/focus/Escape مودال | ✅ برای `.md-b` و `.ptfdlg-b` اجرا شد؛ More sheet در MOB-020 جداست |
 | MOB-008 cold-start navigation | ✅ مرحلهٔ اول: shell زودهنگام + status/queue؛ split bundle هنوز باز است |
-| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.1` و precache هم‌مسیر اجرا شد |
+| MOB-009 PWA/version/cache | ✅ قرارداد release `v34.4.2` و precache هم‌مسیر اجرا شد |
 | MOB-010 deep-link/hash | ✅ مقصد hash پس از bootstrap به پنل صحیح می‌رسد |
 | MOB-037 badge زنگوله header | ✅ بج کامل و داخل hit-area زنگوله رندر می‌شود |
+| MOB-038 actionهای کیفیت داده مالی | ✅ grid متقارن 2×2 و metadata صریح اجرا شد |
 | MOB-012 header icons | ✅ اجرا و آزمایش شد |
 | MOB-022 FAB پیشنهاد | ✅ اجرا و آزمایش شد |
 | MOB-023 action ردیف درخواست | ✅ اجرا و آزمایش شد |
@@ -414,13 +415,13 @@ toast کوتاه‌مدت و بنر پایدار تغییرات ذخیره‌ن�
 
 نسخهٔ runtime، query scriptها، worker cache و manifest پیش‌تر از هم جدا بودند؛ به‌خصوص `SHELL` worker URLهای بدون query را precache می‌کرد، در حالی که `index.html` URLهای queryدار می‌خواست و `offer-rial-convert.js` در precache نبود.
 
-- release یکپارچهٔ **`v34.4.1`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
-- هر 91 script shell اکنون دقیقاً `?v=34.4.1` دارد؛
-- `sw.js?v=v34.4.1` ثبت می‌شود و cache آن `ptf-crm-v34.4.1` است؛
+- release یکپارچهٔ **`v34.4.2`** در `VERSION.json`، runtime index، manifest، clear-cache و worker ثبت شد؛
+- هر 91 script shell اکنون دقیقاً `?v=34.4.2` دارد؛
+- `sw.js?v=v34.4.2` ثبت می‌شود و cache آن `ptf-crm-v34.4.2` است؛
 - هر 91 URL queryدار index دقیقاً در `SHELL` worker precache می‌شوند؛ `offer-rial-convert.js` نیز افزوده شد؛
 - fallback آفلاین navigation با query به index precache شده برمی‌گردد و handler `purge_old_cache` دیگر به متغیر تعریف‌نشده تکیه نمی‌کند.
 
-**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.1`، تنها cache فعال `ptf-crm-v34.4.1` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
+**بازآزمایی:** assertion ایستا 91/91 تطابق index و SW و یکسانی نسخه‌ها را تأیید کرد. در اجرای واقعی Service Worker، script URL برابر `sw.js?v=v34.4.2`، تنها cache فعال `ptf-crm-v34.4.2` و پنج asset نمونه به‌همراه manifest در cache queryدار حاضر بودند. پس از reload تحت offline، صفحه از cache بالا آمد، bottom-nav `flex` شد، `document.scrollWidth=390` و page/console error صفر بود.
 
 ### 22. پیگیری اجرایی — MOB-037: بریدگی badge قرمز زنگولهٔ header
 
@@ -438,3 +439,17 @@ badge صندوق پیام با `top:-5px;left:-5px` داخل buttonی قرار �
 - deep-link زودهنگام با queue cold-start سازگار است و builder تعریف‌نشده را صدا نمی‌زند.
 
 **بازآزمایی 320×568 و 390×844:** شروع با `#off`، `#cart` و `#petty` به‌ترتیب پیشنهاد، کارتابل و هاب مالی را با `history.state.panel` صحیح باز کرد. تغییر `#off → #cart → Back` دوباره پیشنهاد را رندر کرد. `#not-a-panel` به `#dash` برگشت و حسابدار با `#off` به landing مجاز `#inv` هدایت شد. در همهٔ سناریوها `document.scrollWidth` برابر viewport و page/console error صفر بود.
+
+### 24. پیگیری اجرایی — MOB-038: تقارن عملیات «کیفیت دادهٔ مالی»
+
+بازخورد کاربر دربارهٔ تب کیفیت داده درست بود: چهار action براساس طول متن در ردیف‌های پلکانی و با عرضهای 92 تا 175px قرار می‌گرفتند. markup به actionهای ساخت‌یافته با `title`/`aria-label` تبدیل و در موبایل به grid ثابت 2×2 مهاجرت کرد.
+
+- بازخوانی خاکستری، ممیزی هویت آبی، کالاهای مشابه بنفش و تاریخچهٔ ادغام کهربایی هستند؛
+- هر tile icon/label جدا، hit-area `64px` و عرض برابر دارد؛
+- refresh تب همچنان quality box را active نگه می‌دارد.
+
+**بازآزمایی 320×568 و 390×844:** در 320px هر action `117×64px` و در 390px هر action `152×64px` بود؛ overlap صفر، `qualityBox.clientWidth === scrollWidth` و page/console error صفر بود. دکمهٔ بازخوانی نیز بعد از replace شدن quality box، grid چهارگانه را حفظ کرد.
+
+### پیوست ممیزی یکدستی مودال‌ها
+
+اسکن منبع فعلی **307** الگوی `.md`، **310** occurrence از `.md-b` و **20** `ptfdlg-b` را در **56** فایل JS نشان داد. ModalManager `modalx` همهٔ overlayهای استاندارد `.md-b/.ptfdlg-b` را هنگام ایجاد تجهیز می‌کند؛ آزمون runtime «فاکتور جدید» نیز کنترل‌های جدید × / − / ⤢ / AI، role/aria و focus صحیح را نشان داد. overlayهای غیرمدال مانند print-preview، tour و More sheet عمداً در backlog جدا نگه داشته می‌شوند تا کنترل پنجره به آنها اشتباهاً تحمیل نشود.
