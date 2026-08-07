@@ -106,7 +106,7 @@
         var tds = tr.querySelectorAll('td');
         var last = tds[tds.length - 1];
         if (last) last.insertAdjacentHTML('beforeend',
-          ' <button class="bt bt-o msg-btn" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام (واتساپ/تلگرام/بله/ایتا/روبیکا)" onclick="ptfMsgSend(\'' + key + '\',\'' + ptfOnClickArg(cd) + '\')">💬</button>');
+          ' <button class="bt bt-o msg-btn entity-row-action" data-entity-action="message" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام (واتساپ/تلگرام/بله/ایتا/روبیکا)" aria-label="ارسال پیام" onclick="ptfMsgSend(\'' + key + '\',\'' + ptfOnClickArg(cd) + '\')">💬</button>');
       });
     });
   }

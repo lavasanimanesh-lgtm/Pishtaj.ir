@@ -268,7 +268,7 @@
           var cd = strong.textContent.trim();
           var tds = tr.querySelectorAll('td');
           tds[tds.length - 1].insertAdjacentHTML('beforeend',
-            ' <button class="bt bt-o mg-btn" style="padding:4px 9px;font-size:12px;color:#7c3aed" title="ادغام این مشتری در مشتری دیگر (US-363)" onclick="ptfMergeStart(\'' + ptfOnClickArg(cd) + '\')">🔀</button>');
+            ' <button class="bt bt-o mg-btn entity-row-action" data-entity-action="merge" style="padding:4px 9px;font-size:12px;color:#7c3aed" title="ادغام این مشتری در مشتری دیگر (US-363)" aria-label="ادغام مشتری" onclick="ptfMergeStart(\'' + ptfOnClickArg(cd) + '\')">🔗</button>');
         });
       } catch (e) {}
     };

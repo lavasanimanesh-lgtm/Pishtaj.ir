@@ -2979,8 +2979,8 @@ function renderCustomers2() {
       '<td>' + (pp ? escP(pp.nm) + ' <small style="color:#94a3b8">(' + escP(pp.role||'') + ')</small>' : '-') +
       ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + ((c.phones||[]).length ? '<a href="tel:' + escP(c.phones[0].n) + '" style="direction:ltr">' + escP(c.phones[0].n) + '</a>' + (c.phones.length > 1 ? ' <small style="color:#94a3b8">+' + (c.phones.length - 1) + '</small>' : '') : (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-'))) + '</td>' +
-      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده مشتری" aria-label="مشاهده مشتری" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش مشتری" aria-label="ویرایش مشتری" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dCust')) document.getElementById('dCust').textContent = items.length;
@@ -3001,8 +3001,8 @@ function renderSuppliers2() {
       '<td>' + (pp ? escP(pp.nm) : '-') + ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-')) + '</td>' +
       '<td>' + escP(c.ca||'-') + '</td>' +
-      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده تأمین‌کننده" aria-label="مشاهده تأمین‌کننده" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش تأمین‌کننده" aria-label="ویرایش تأمین‌کننده" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;

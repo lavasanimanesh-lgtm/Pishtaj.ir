@@ -267,6 +267,53 @@
   #rTb tr > td:last-child > button[data-rfq-action="rfqShowText"],
   #rTb tr > td:last-child > button[data-rfq-action="rfqEditText"] { color: #db2777 !important; background: #fdf2f8 !important; border-color: #fbcfe8 !important; }
 
+  /* MOB-029: action rowهای مشتری/تأمین‌کننده/کالا — اندازه، label و icon contract یکسان. */
+  #cTb tr > td:last-child, #sTb tr > td:last-child, #pTb tr > td:last-child {
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  #cTb .entity-row-action, #sTb .entity-row-action, #pTb .entity-row-action {
+    position: relative !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
+    flex: 0 0 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+  }
+  #cTb .entity-row-action [data-ix], #sTb .entity-row-action [data-ix], #pTb .entity-row-action [data-ix] {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+  }
+  #cTb .entity-row-action [data-ix] svg, #sTb .entity-row-action [data-ix] svg, #pTb .entity-row-action [data-ix] svg { width: 20px !important; height: 20px !important; }
+  #cTb .entity-row-action[data-entity-action="view"], #sTb .entity-row-action[data-entity-action="view"] { color: #0284c7 !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #cTb .entity-row-action[data-entity-action="edit"], #sTb .entity-row-action[data-entity-action="edit"], #pTb .entity-row-action[data-entity-action="edit"] { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #cTb .entity-row-action[data-entity-action="delete"], #sTb .entity-row-action[data-entity-action="delete"], #pTb .entity-row-action[data-entity-action="delete"] { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  #cTb .entity-row-action[data-entity-action="message"], #sTb .entity-row-action[data-entity-action="message"] { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  #cTb .entity-row-action[data-entity-action="merge"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+
   /* MOB-025: نوار عملیات پیشنهاد — حداکثر چند action اصلی روی کارت؛ عملیات ثانویه در sheet. */
   #oTb tr > td:last-child {
     align-items: center !important;
@@ -2067,8 +2114,8 @@ function renderProducts() {
       '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small style="color:#94a3b8">'+escP(p.en)+'</small>':'')+'</td>'+
       '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small style="color:#7c3aed;direction:ltr;display:inline-block">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
       '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small style="color:#0e7490" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+ /* v13.7 US-335 + v15.6 US-387: ارز واقعی به جای ریال */
-      '<td><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
-      '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="delProd(\''+safeCd+'\')">✕</button></td></tr>';
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 10px;font-size:12px" title="ویرایش کالا" aria-label="ویرایش کالا" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
+      '<button class="bt bt-o entity-row-action" data-entity-action="delete" style="padding:4px 10px;font-size:12px;color:#dc2626" title="حذف کالا" aria-label="حذف کالا" onclick="delProd(\''+safeCd+'\')">🗑️</button></td></tr>';
   }
   tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">کالایی یافت نشد</td></tr>';
 }
@@ -2813,7 +2860,7 @@ setInterval(function(){
 <script defer src="codegen.js?v=34.0.21-alpha"></script>
 <script async src="xlsx.min.js?v=34.0.21-alpha"></script>
 <script defer src="sortable.js?v=34.0.21-alpha"></script>
-<script defer src="offers.js?v=34.2.5"></script>
+<script defer src="offers.js?v=34.2.9"></script>
 <script defer src="surplus.js?v=34.0.21-alpha"></script>
 <script defer src="launcher.js?v=34.0.21-alpha"></script>
 <script defer src="leads.js?v=34.0.21-alpha"></script>
@@ -2847,7 +2894,7 @@ setInterval(function(){
 <script defer src="procurement-link.js?v=34.0.21-alpha"></script>
 <script defer src="listtools.js?v=34.0.21-alpha"></script>
 <script defer src="icons.js?v=34.0.21-alpha"></script>
-<script defer src="guards.js?v=34.0.21-alpha"></script>
+<script defer src="guards.js?v=34.2.8"></script>
 <script defer src="tables.js?v=34.0.21-alpha"></script>
 <script defer src="inqreader.js?v=34.0.21-alpha"></script>
 <script defer src="offerlock.js?v=34.0.21-alpha"></script>
@@ -2863,13 +2910,13 @@ setInterval(function(){
 <script defer src="cheque-panel.js?v=34.0.21-alpha"></script>
 <script defer src="cheque-print.js?v=34.2.6"></script>
 <script defer src="cheques.js?v=34.0.21-alpha"></script>
-<script defer src="messengers.js?v=34.0.21-alpha"></script>
+<script defer src="messengers.js?v=34.2.8"></script>
 <script defer src="phonefmt.js?v=34.0.21-alpha"></script>
 <script defer src="tour.js?v=34.0.21-alpha"></script>
 <script defer src="mobilenav.js?v=34.0.21-alpha"></script>
 <script defer src="ai-workbench.js?v=34.0.21-alpha"></script>
 <script defer src="golive.js?v=34.0.21-alpha"></script>
-<script defer src="custmerge.js?v=34.0.21-alpha"></script>
+<script defer src="custmerge.js?v=34.2.8"></script>
 <script defer src="listclean.js?v=34.0.21-alpha"></script>
 <script defer src="supspec.js?v=34.0.21-alpha"></script>
 <script defer src="scoring.js?v=34.2.7"></script>
