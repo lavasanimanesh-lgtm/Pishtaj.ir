@@ -891,12 +891,22 @@
         var lb = !st.has || !st.done
           ? '<span style="color:#b45309">هنوز خریدی ثبت نشده</span>'
           : st.full + ' از ' + st.total + ' قلم کامل' + (st.partial ? ' — ' + st.partial + ' قلم ناقص' : '') + (st.pendingFx ? ' — <span style="color:#dc2626">' + st.pendingFx + ' خرید ارزی بدون نرخ ⚠️</span>' : ' ✅');
+        /* MOB-039: این بلوک داخل کشوی پرونده نمایش داده می‌شود؛ actionهای آن باید
+           همان contract tile/label عملیات Post-Award را داشته باشند، نه چهار button
+           رنگی با عرض متن متغیر. */
+        function rbAction(kind, icon, label, title, onClick, primary) {
+          return '<button type="button" class="bt bt-o sf-real-buy-action sf-real-buy-action-' + kind + (primary ? ' is-primary' : '') + '" data-sf-real-buy-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+            '<span class="sf-real-buy-action-icon" aria-hidden="true">' + icon + '</span><span class="sf-real-buy-action-label">' + label + '</span></button>';
+        }
         host.closest('div').insertAdjacentHTML('beforebegin',
-          '<div id="rbBox_' + escP(deal.cd) + '" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-top:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px">' +
-          '<span>🛒 <b>خرید واقعی اقلام</b> <small style="color:#64748b">(پس از برد — مبنای سود واقعی؛ جدا از قیمت استعلامی)</small><br><small>' + lb + adv + costTxt + '</small></span>' +
-          '<span style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')">🛍 خرید</button>' +
-          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')">💰 اصلاح پیش‌پرداخت</button>' : '') +
-          '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')">🤖 استعلام مجدد</button><button class="bt bt-o" style="font-size:12px;color:#b45309" onclick="event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')">➕ هزینه پرونده</button></span></div>');
+          '<section id="rbBox_' + escP(deal.cd) + '" class="sf-real-buy-summary">' +
+          '<div class="sf-real-buy-copy"><div class="sf-real-buy-heading"><span class="sf-real-buy-heading-icon" aria-hidden="true">🛒</span><span><b>خرید واقعی اقلام</b><small>پس از برد؛ مبنای سود واقعی و جدا از قیمت استعلامی</small></span></div><div class="sf-real-buy-status">' + lb + adv + costTxt + '</div></div>' +
+          '<div class="sf-real-buy-actions" role="group" aria-label="عملیات خرید واقعی پرونده ' + escP(deal.inqNo) + '">' +
+          rbAction('open', '🛍', 'خرید', 'ثبت یا پیگیری خرید واقعی اقلام پرونده', 'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')', true) +
+          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? rbAction('advance', '💰', 'پیش‌پرداخت', 'اصلاح پیش‌پرداخت پیشنهاد برنده', 'event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')') : '') +
+          rbAction('inquiry', '🤖', 'استعلام مجدد', 'ثبت استعلام تامین جدید برای این پرونده', 'event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
+          rbAction('cost', '➕', 'هزینه پرونده', 'ثبت هزینهٔ مستقیم برای پرونده', 'event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
+          '</div></section>');
       } catch (e) {}
     };
     return true;

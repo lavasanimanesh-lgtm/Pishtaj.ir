@@ -745,8 +745,8 @@
         var td = tr.querySelectorAll('td');
         var last = td[td.length - 1];
         last.insertAdjacentHTML('beforeend',
-          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" title="فقط ادمین: بازگشت از برنده + حذف پرونده خودکار" onclick="adminUnwin(\'' + ptfOnClickArg(no) + '\')">⏪ بازگشت</button>' +
-          ' <button class="bt bt-o adm-unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="adminDelOffer(\'' + ptfOnClickArg(no) + '\')">🗑️</button>');
+          ' <button class="bt bt-o adm-unwin" data-offer-action="unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" title="فقط ادمین: بازگشت از برنده + حذف پرونده خودکار" aria-label="بازگردانی پیشنهاد از برنده" onclick="adminUnwin(\'' + ptfOnClickArg(no) + '\')">⏪</button>' +
+          ' <button class="bt bt-o adm-unwin" data-offer-action="del" style="padding:4px 9px;font-size:12px;color:#dc2626" title="حذف ادمینی پیشنهاد" aria-label="حذف ادمینی پیشنهاد" onclick="adminDelOffer(\'' + ptfOnClickArg(no) + '\')">🗑️</button>');
       }
     });
   };

@@ -141,13 +141,14 @@
     ];
     map.forEach(function (m) {
       var inp = document.querySelector(m.sel);
-      if (!inp || inp.parentElement.querySelector('.lt-btn')) return;
+      var target = m.id === 'prod' ? (document.getElementById('prodFilterExtras') || (inp && inp.parentElement)) : (inp && inp.parentElement);
+      if (!inp || !target || target.querySelector('.lt-btn')) return;
       var b = document.createElement('button');
       b.className = 'bt bt-o lt-btn';
       b.style.cssText = 'font-size:12px;white-space:nowrap';
       b.textContent = '🧰 فیلتر و خروجی';
       b.onclick = function () { ptfListTools(m.id); };
-      inp.parentElement.appendChild(b);
+      target.appendChild(b);
     });
   }
   setInterval(function () { try { injectButtons(); } catch (e) {} }, 1200);

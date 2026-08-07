@@ -162,7 +162,7 @@
           var tds = tr.querySelectorAll('td');
           if (!tds.length) return;
           tds[tds.length - 1].insertAdjacentHTML('beforeend',
-            ' <button class="bt bt-o del-ent" style="padding:4px 9px;font-size:12px;color:#dc2626" title="حذف" onclick="ptfDelEntity(\'' + m.kind + '\',\'' + ptfOnClickArg(cd) + '\')">🗑</button>');
+            ' <button class="bt bt-o del-ent entity-row-action" data-entity-action="delete" style="padding:4px 9px;font-size:12px;color:#dc2626" title="حذف ' + (m.kind === 'customer' ? 'مشتری' : 'تأمین‌کننده') + '" aria-label="حذف ' + (m.kind === 'customer' ? 'مشتری' : 'تأمین‌کننده') + '" onclick="ptfDelEntity(\'' + m.kind + '\',\'' + ptfOnClickArg(cd) + '\')">🗑</button>');
         });
       });
     } catch (e) {}

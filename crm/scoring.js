@@ -113,6 +113,12 @@
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.irr - a.irr; });
   };
 
+  /* MOB-027: actionهای کارت بدهی تأمین‌کنندگان در mobile ساخت‌یافته و برچسب‌دار هستند. */
+  function payableAction(icon, shortLabel, fullLabel, tone, onClick, cls) {
+    return '<button type="button" class="bt bt-o payable-action payable-tone-' + tone + (cls ? ' ' + cls : '') + '" title="' + fullLabel + '" aria-label="' + fullLabel + '" onclick="' + onClick + '">' +
+      '<span class="payable-action-icon" aria-hidden="true">' + icon + '</span><span class="payable-action-label">' + shortLabel + '</span></button>';
+  }
+
   /* باکس «بدهی غیرنقدی تامین‌کنندگان» بالای ماژول تامین‌کنندگان — رویت لحظه‌ای مدیران */
   function payablesBoxHtml() {
     if (!canSeeSup()) return '';
@@ -120,18 +126,21 @@
     var tot = debts.reduce(function (s, d) { return s + d.irr; }, 0);
     var rows = debts.slice(0, 8).map(function (d) {
       var fxTx = Object.keys(d.fx).map(function (c) { return fmtT(d.fx[c]) + ' ' + c + ' (بی‌نرخ)'; }).join(' + ');
-      return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed var(--brd);font-size:12.5px">' +
-        '<span><b>' + escP(d.sup) + '</b> <small style="color:#94a3b8">(' + d.cnt + ' قلم باز)</small></span>' +
-        '<span style="white-space:nowrap"><b style="color:#b45309">' + fmtT(Math.round(d.irr)) + ' ریال</b>' + (fxTx ? ' <small style="color:#dc2626">+ ' + fxTx + '</small>' : '') +
-        ' <button class="bt bt-o" style="padding:2px 9px;font-size:11px" onclick="ptfPayablesOpen(\'' + ptfOnClickArg(d.sup) + '\')">💳 پرداخت/جزئیات</button></span></div>';
+      return '<div class="payable-debt-row">' +
+        '<div class="payable-debt-info"><b>' + escP(d.sup) + '</b> <small style="color:#94a3b8">(' + d.cnt + ' قلم باز)</small>' +
+        '<div><b style="color:#b45309">' + fmtT(Math.round(d.irr)) + ' ریال</b>' + (fxTx ? ' <small style="color:#dc2626">+ ' + fxTx + '</small>' : '') + '</div></div>' +
+        payableAction('💳', 'جزئیات', 'پرداخت و جزئیات بدهی ' + escP(d.sup), 'amber', "ptfPayablesOpen('" + ptfOnClickArg(d.sup) + "')", 'payable-debt-action') +
+        '</div>';
     }).join('');
-    return '<div id="payablesBox" style="background:#fffbeb;border:1px solid #fcd34d;border-radius:14px;padding:12px 14px;margin-bottom:14px">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px">' +
-      '<h4 style="margin:0;font-size:13.5px;color:#92400e">💳 بدهی غیرنقدی به تامین‌کنندگان (US-400)' + (debts.length ? ' — جمع: ' + fmtT(Math.round(tot)) + ' ریال' : '') + '</h4>' +
-      '<span style="display:flex;gap:6px">' +
-      '<button class="bt bt-o" style="font-size:11.5px;padding:4px 10px" onclick="ptfPayablesOpen()">📋 همه بستانکاری‌ها</button>' +
-      '<button class="bt bt-o" style="font-size:11.5px;padding:4px 10px;color:#7c3aed" onclick="ptfScoreReport()">📄 گزارش امتیازها (درخواستی)</button></span></div>' +
-      (rows || '<div style="color:#94a3b8;font-size:12px">بدهی غیرنقدی بازی وجود ندارد — خرید نقدی همان لحظه تسویه می‌شود ✅</div>') + '</div>';
+    var total = debts.length ? '<span class="payables-total">جمع: ' + fmtT(Math.round(tot)) + ' ریال</span>' : '';
+    return '<div id="payablesBox">' +
+      '<div class="payables-head">' +
+      '<div class="payables-summary"><h4>💳 بدهی غیرنقدی تأمین‌کنندگان</h4>' + total + '</div>' +
+      '<div class="payables-actions">' +
+      payableAction('📋', 'بستانکاری‌ها', 'مشاهده همه بستانکاری‌های تأمین‌کنندگان', 'blue', 'ptfPayablesOpen()', '') +
+      payableAction('📈', 'امتیازها', 'گزارش درخواستی امتیازهای تأمین‌کنندگان', 'violet', 'ptfScoreReport()', '') +
+      '</div></div>' +
+      (rows || '<div class="payables-empty">بدهی غیرنقدی بازی وجود ندارد — خرید نقدی همان لحظه تسویه می‌شود ✅</div>') + '</div>';
   }
 
   /* مودال جزئیات بستانکاری‌ها + ثبت پرداخت مرحله‌ای + رویداد تحویل (یک کلیک اختیاری) */

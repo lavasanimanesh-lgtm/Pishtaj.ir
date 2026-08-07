@@ -466,39 +466,117 @@
 
   /* ---------- پنل ---------- */
   window.buildDeals = function () {
-    /* v16.8 (US-404 فاز ۱): دو تب — پرونده‌ها (فقط ابلاغ‌شده) + فرصت‌های فعال (قبل از برد) */
-    var tab = window._sfTab || 'files';
+    /* MOB-030: تب‌های پرونده/فرصت پیش‌تر buttonهای inline و متغیر بر پایهٔ طول
+       متن بودند؛ در 320px عنوان مهم tab بریده می‌شد. ساختار زیر یک tablist
+       معنایی با tileهای هم‌اندازه در موبایل و segmented-control پایدار در desktop است. */
+    var tab = window._sfTab === 'oppo' ? 'oppo' : 'files';
     var nOppo = (typeof window.ptfOppoCount === 'function') ? window.ptfOppoCount() : 0;
-    var oppoView = window._sfOppoView || 'inq';
-    function tb(id, lb, cl) {
+    var oppoView = window._sfOppoView === 'customer' ? 'customer' : 'inq';
+    var oppoCountText = nOppo ? (+nOppo).toLocaleString('fa-IR') : '';
+
+    function tb(id, icon, title, meta) {
       var on = tab === id;
-      return '<button type="button" onclick="sfSetTab(\'' + id + '\')" style="border:0;border-radius:10px;padding:8px 16px;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;' + (on ? 'background:' + cl + ';color:#fff' : 'background:#f1f5f9;color:#475569') + '">' + lb + '</button>';
+      var label = id === 'files'
+        ? 'پرونده‌ها، ابلاغ سفارش'
+        : 'فرصت‌های فعال، رهگیری پیش از ابلاغ' + (nOppo ? '، ' + oppoCountText + ' فرصت فعال' : '');
+      return '<button id="sfTab-' + id + '" type="button" class="sf-tab sf-tab-' + id + (on ? ' is-active' : '') + '"' +
+        ' role="tab" aria-selected="' + (on ? 'true' : 'false') + '" aria-controls="sfDealContent"' +
+        ' aria-label="' + label + '" title="' + label + '" tabindex="' + (on ? '0' : '-1') + '"' +
+        ' onclick="sfSetTab(\'' + id + '\')" onkeydown="sfTabKeydown(event,\'' + id + '\')">' +
+        '<span class="sf-tab-icon" aria-hidden="true">' + icon + '</span>' +
+        '<span class="sf-tab-copy"><span class="sf-tab-title">' + title + '</span><span class="sf-tab-meta">' + meta + '</span></span>' +
+        (id === 'oppo' && nOppo ? '<span class="sf-tab-count" aria-hidden="true">' + oppoCountText + '</span>' : '') +
+        '</button>';
     }
-    function ov(id, lb) {
+    function ov(id, icon, title, meta) {
       var on = oppoView === id;
-      return '<button type="button" onclick="sfSetOppoView(\'' + id + '\')" style="border:0;border-radius:9px;padding:6px 12px;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;' + (on ? 'background:#7c3aed;color:#fff' : 'background:#fff;color:#475569;border:1px solid #ddd6fe') + '">' + lb + '</button>';
+      var label = title + '؛ ' + meta;
+      return '<button id="sfOppoView-' + id + '" type="button" class="sf-oppo-view sf-oppo-view-' + id + (on ? ' is-active' : '') + '"' +
+        ' role="tab" aria-selected="' + (on ? 'true' : 'false') + '" aria-controls="dealWrap"' +
+        ' aria-label="' + label + '" title="' + label + '" tabindex="' + (on ? '0' : '-1') + '"' +
+        ' onclick="sfSetOppoView(\'' + id + '\')" onkeydown="sfOppoViewKeydown(event,\'' + id + '\')">' +
+        '<span class="sf-oppo-view-icon" aria-hidden="true">' + icon + '</span>' +
+        '<span class="sf-oppo-view-copy"><span class="sf-oppo-view-title">' + title + '</span><span class="sf-oppo-view-meta">' + meta + '</span></span>' +
+        '</button>';
     }
-    return '<div class="ph"><h3>📁 پرونده‌های فروش</h3>' +
-      '<div class="sb2"><input type="text" id="sfSrch" placeholder="جستجو: شماره درخواست، کارفرما..." oninput="renderDeals()" style="flex:1"></div></div>' +
-      '<div style="display:flex;gap:6px;margin-bottom:10px">' +
-      tb('files', '📁 پرونده‌ها (ابلاغ سفارش)', '#0e7490') +
-      tb('oppo', '🎯 فرصت‌های فعال' + (nOppo ? ' (' + nOppo + ')' : ''), '#7c3aed') +
+
+    return '<div class="ph sf-head"><h3>📁 پرونده‌های فروش</h3>' +
+      '<div class="sb2 sf-search"><input type="text" id="sfSrch" placeholder="جستجو: شماره درخواست، کارفرما..." aria-label="جست‌وجو در پرونده‌ها و فرصت‌های فروش" oninput="renderDeals()" style="flex:1"></div></div>' +
+      '<div class="sf-tabs" role="tablist" aria-label="بخش پرونده‌های فروش">' +
+      tb('files', '📁', 'پرونده‌ها', 'ابلاغ سفارش') +
+      tb('oppo', '🎯', 'فرصت‌های فعال', 'رهگیری پیش از برد') +
       '</div>' +
+      '<section id="sfDealContent" class="sf-deal-content sf-deal-content-' + tab + '" role="tabpanel" aria-labelledby="sfTab-' + tab + '">' +
       (tab === 'files'
-        ? '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:9px 14px;margin-bottom:12px;font-size:12px;color:#0c4a6e">ℹ️ US-404: پرونده فروش فقط با ثبت «🏆 برنده» پیشنهاد مالی (ابلاغ سفارش) ساخته می‌شود — هر ابلاغ = یک پرونده با همه اسناد. پس از مختومه/تسویه به بایگانی می‌رود.</div>'
-        : '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:9px 14px;margin-bottom:8px;font-size:12px;color:#5b21b6">🎯 درخواست‌های دارای پیشنهادِ هنوز برنده‌نشده — رهگیری مهلت‌ها و ثبت نتیجه. با برنده شدن CO، خودکار «پرونده» می‌شوند؛ باخت هم با دلیل استاندارد مستقیم به گزارش Win/Loss می‌رود.</div>' +
-          '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px"><span style="font-size:11px;color:#64748b">نمای فرصت‌ها:</span>' + ov('inq', 'بر اساس درخواست') + ov('customer', 'بر اساس مشتری') + '</div>') +
-      '<div id="dealWrap"></div>';
+        ? '<div class="sf-context sf-context-files" role="note"><span class="sf-context-icon" aria-hidden="true">ℹ️</span><span>پرونده فروش فقط با ثبت «🏆 برنده» پیشنهاد مالی (ابلاغ سفارش) ساخته می‌شود؛ هر ابلاغ یک پرونده با همهٔ اسناد است و پس از مختومه/تسویه به بایگانی می‌رود.</span></div>'
+        : '<div class="sf-context sf-context-oppo" role="note"><span class="sf-context-icon" aria-hidden="true">🎯</span><span>درخواست‌های دارای پیشنهادِ هنوز برنده‌نشده را برای مهلت و نتیجه رهگیری کنید؛ با برد CO خودکار پرونده می‌شوند و باخت با دلیل استاندارد به گزارش Win/Loss می‌رود.</span></div>' +
+          '<div class="sf-oppo-switcher"><span id="sfOppoViewLabel" class="sf-oppo-switcher-label">نمای فرصت‌ها</span>' +
+          '<div class="sf-oppo-views" role="tablist" aria-labelledby="sfOppoViewLabel">' +
+          ov('inq', '📋', 'بر اساس درخواست', 'هر درخواست') +
+          ov('customer', '🤝', 'بر اساس مشتری', 'تجمیع مشتری') +
+          '</div></div>') +
+      '<div id="dealWrap"></div></section>';
   };
+
+  var sfRenderSeq = 0;
+  function sfRenderPanel(focusId) {
+    /* تغییر DOM را یک tick بعد از pointer/keyboard event انجام می‌دهیم؛ در غیر این
+       صورت button در میانهٔ click از زیر انگشت حذف می‌شد. token نیز clickهای پشت‌سرهم
+       را به آخرین مقصد coalesce می‌کند. */
+    var token = ++sfRenderSeq;
+    var redraw = function () {
+      if (token !== sfRenderSeq) return;
+      var p = document.getElementById('panels');
+      /* اگر کاربر پیش از redraw به پنل دیگری رفته، نباید timer کوتاه، صفحهٔ تازه را
+         با پرونده‌های فروش جایگزین کند. */
+      if (!p || !p.querySelector('#sfDealContent')) return;
+      p.innerHTML = buildDeals();
+      renderDeals();
+      if (!focusId) return;
+      var restoreFocus = function () {
+        if (token !== sfRenderSeq) return;
+        var control = document.getElementById(focusId);
+        if (control && typeof control.focus === 'function') control.focus();
+      };
+      if (window.requestAnimationFrame) window.requestAnimationFrame(restoreFocus);
+      else setTimeout(restoreFocus, 0);
+    };
+    if (typeof window.setTimeout === 'function') window.setTimeout(redraw, 0);
+    else redraw();
+  }
+
   window.sfSetTab = function (t) {
-    window._sfTab = t;
-    var p = document.getElementById('panels');
-    if (p) { p.innerHTML = buildDeals(); renderDeals(); }
+    window._sfTab = t === 'oppo' ? 'oppo' : 'files';
+    sfRenderPanel('sfTab-' + window._sfTab);
   };
   window.sfSetOppoView = function (v) {
     window._sfOppoView = v === 'customer' ? 'customer' : 'inq';
-    var p = document.getElementById('panels');
-    if (p) { p.innerHTML = buildDeals(); renderDeals(); }
+    sfRenderPanel('sfOppoView-' + window._sfOppoView);
+  };
+
+  /* Tab/Shift+Tab هنوز رفتار طبیعی button را دارند؛ فلش‌ها/Home/End بین tabهای
+     هم‌سطح حرکت می‌کنند. در RTL، ArrowLeft به tile بعدیِ قابل‌مشاهده می‌رود. */
+  function sfTabTarget(event, current, ids) {
+    if (!event) return '';
+    var key = event.key;
+    var at = ids.indexOf(current);
+    if (at < 0) return '';
+    var next = at;
+    if (key === 'ArrowLeft' || key === 'ArrowDown') next = (at + 1) % ids.length;
+    else if (key === 'ArrowRight' || key === 'ArrowUp') next = (at - 1 + ids.length) % ids.length;
+    else if (key === 'Home') next = 0;
+    else if (key === 'End') next = ids.length - 1;
+    else return '';
+    event.preventDefault();
+    return ids[next];
+  }
+  window.sfTabKeydown = function (event, current) {
+    var next = sfTabTarget(event, current, ['files', 'oppo']);
+    if (next) window.sfSetTab(next);
+  };
+  window.sfOppoViewKeydown = function (event, current) {
+    var next = sfTabTarget(event, current, ['inq', 'customer']);
+    if (next) window.sfSetOppoView(next);
   };
 
   window.renderDeals = function () {
@@ -586,6 +664,18 @@
   function sfDrawerHtml(r, d, hasInv) {
     function row(ic, tx, actions) {
       return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--brd);font-size:12.5px"><span>' + ic + ' ' + tx + '</span><span style="white-space:nowrap">' + (actions || '') + '</span></div>';
+    }
+    /* MOB-039: actionهای Post-Award به‌جای buttonهای رنگی/متغیر، یک contract
+       مشخص icon + label + meta دارند. این helper فقط presentation را تغییر می‌دهد؛
+       onclick و guardهای کسب‌وکار همان مسیر قبلی را حفظ می‌کنند. */
+    function postAction(kind, icon, label, title, onClick, opt) {
+      opt = opt || {};
+      var extra = (opt.primary ? ' is-primary' : '') + (opt.wide ? ' is-wide' : '') + (opt.locked ? ' is-locked' : '');
+      var meta = opt.meta ? '<span class="sf-post-award-meta">' + opt.meta + '</span>' : '';
+      return '<button type="button" class="bt bt-o sf-post-award-action sf-post-award-' + kind + extra + '" data-sf-post-action="' + kind + '"' +
+        ' title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+        '<span class="sf-post-award-icon" aria-hidden="true">' + icon + '</span>' +
+        '<span class="sf-post-award-copy"><span class="sf-post-award-label">' + label + '</span>' + meta + '</span></button>';
     }
     var h = '<div style="padding:4px 14px 12px;border-top:1px solid var(--brd)">' + sfFinancialStrip(r, d);
     var KINDS = { TO: 'پیشنهاد فنی', CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی' };
@@ -712,34 +802,72 @@
         if (_inCov.total) h += '<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:7px 11px;margin-top:6px;font-size:11.5px;color:#0f766e" onclick="event.stopPropagation()">🔬 پوشش نوت بازرسی رسمی: <b>' + _inCov.used + ' / ' + _inCov.total + '</b>' + (_inCov.remain ? ' — باقیمانده: ' + _inCov.remain + ' قلم' : ' — کامل ✅') + '</div>';
       }
     } catch (eCov) {}
-    h += (r.wonOffer ? '<div style="font-size:11px;color:#64748b;margin-top:10px;font-weight:800">🧰 عملیات پرونده (Post-Award) — همه فقط از داخل همین پرونده انجام می‌شود</div>' : '') +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:' + (r.wonOffer ? '6' : '10') + 'px" onclick="event.stopPropagation()">' +
-      (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' ? '<button id="sfRealBuyBtn_' + escP(r.cd) + '" class="bt" style="font-size:12px;background:#059669" onclick="event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')">🛍 خرید</button>' : '') +
-      '<span id="sfUp_' + escP(r.cd) + '" style="flex:1;min-width:180px"></span>' +
-      /* v14.8: ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
-      '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#a5f3fc" onclick="sfSetDue(\'' + ptfOnClickArg(r.cd) + '\')">🚚 ' + (r.dueISO ? 'اصلاح تحویل تعهدی (' + escP(r.dueISO) + ')' : 'ثبت تاریخ تحویل تعهدی') + '</button>' +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#0d9488;border-color:#99f6e4" onclick="sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')">🔬 QC / نتیجه بازرسی</button>' : '') +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#c4b5fd" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')">📄 نوت بازرسی رسمی</button>' : '') +
-      (r.wonOffer ? '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')">🧰 پکینگ لیست رسمی</button>' +
-        '<button class="bt bt-o" style="font-size:12px;color:#a16207;border-color:#fde047" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'shipdoc\')">🚚 بارنامه/ارسال</button>' +
-        '<button class="bt bt-o" style="font-size:12px;color:#166534;border-color:#bbf7d0" onclick="sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'delivered\')">🤝 تحویل کارفرما</button>' : '') +
-      /* v19.3: ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
-      (function () {
-        if (!r.wonOffer) return '';
-        var _wo = getData('ptf_crm_offers').filter(function (x) { return x.no === r.wonOffer; })[0];
-        var _hasInvD = r.inqNo ? sfHasInvoice(r) : false;
-        if (_hasInvD) return '';
-        if (_wo && _wo.invRef) return '<span class="bd" style="background:#ede9fe;color:#6d28d9;align-self:center" title="ارجاع‌شده توسط ' + escP(_wo.invRef.by || '') + ' — ' + escP(_wo.invRef.t || '') + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
-        var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
-        return _stg7 >= 7
-          ? '<button class="bt" style="font-size:12px;background:#7c3aed" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور به حسابدار</button>'
-          : '<button class="bt bt-o" style="font-size:12px;color:#94a3b8;border-color:#e2e8f0" title="قفل تا ثبت تحویل کارفرما" onclick="sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')">🧾 ارجاع فاکتور 🔒</button>';
-      })() +
-      /* v34.2.0 (US-FX2RIAL فاز ۱): تبدیل پیشنهاد ارزی برنده به نسخه ریالی — پیشنهاد اصلی هرگز تغییر نمی‌کند */
-      ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') +
-      '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')">💥 ثبت زیان پروژه</button>' +
-      '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="sfClose(\'' + ptfOnClickArg(r.cd) + '\')">' + (hasInv ? '🏁 مختومه (پایان پروژه و تسویه کامل)' : '🚫 مختومه بدون فاکتور (عدم برنده شدن/سایر)') + '</button>' +
-      '</div></div>';
+    var postActions = '';
+    if (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function') {
+      postActions += postAction(
+        'real-buy', '🛍', 'خرید واقعی', 'ثبت یا پیگیری خرید واقعی اقلام این پرونده',
+        'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')',
+        { primary: true, meta: 'اقلام پروژه' }
+      );
+    }
+    /* v14.8: ثبت/اصلاح تاریخ تحویل تعهدی ساختاریافته */
+    postActions += postAction(
+      'due', '🚚', 'تحویل تعهدی',
+      r.dueISO ? 'اصلاح تاریخ تحویل تعهدی ' + r.dueISO : 'ثبت تاریخ تحویل تعهدی',
+      'sfSetDue(\'' + ptfOnClickArg(r.cd) + '\')',
+      { meta: r.dueISO ? escP(r.dueISO) : 'ثبت تاریخ' }
+    );
+    if (r.wonOffer) {
+      postActions += postAction(
+        'qc', '🔬', 'کنترل کیفیت', 'ثبت یا مشاهده نتیجهٔ QC / بازرسی',
+        'sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'QC / بازرسی' }
+      );
+      postActions += postAction(
+        'inspection-note', '📄', 'نوت بازرسی', 'صدور یا مشاهده نوت بازرسی رسمی',
+        'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')', { meta: 'سند رسمی' }
+      );
+      postActions += postAction(
+        'packing-list', '🧰', 'پکینگ‌لیست', 'صدور یا مشاهده پکینگ‌لیست رسمی',
+        'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')', { meta: 'سند رسمی' }
+      );
+      postActions += postAction(
+        'shipment', '🚚', 'بارنامه / ارسال', 'ثبت بارنامه یا رویداد ارسال',
+        'sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'shipdoc\')', { meta: 'ارسال کالا' }
+      );
+      postActions += postAction(
+        'delivery', '🤝', 'تحویل کارفرما', 'ثبت تحویل موفق به کارفرما',
+        'sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'delivered\')', { meta: 'تحویل نهایی' }
+      );
+    }
+    /* v19.3: ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
+    postActions += (function () {
+      if (!r.wonOffer) return '';
+      var _wo = getData('ptf_crm_offers').filter(function (x) { return x.no === r.wonOffer; })[0];
+      var _hasInvD = r.inqNo ? sfHasInvoice(r) : false;
+      if (_hasInvD) return '';
+      if (_wo && _wo.invRef) return '<span class="bd sf-post-award-status sf-post-award-invoice-status" title="' + escP('ارجاع‌شده توسط ' + (_wo.invRef.by || '') + ' — ' + (_wo.invRef.t || '')) + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
+      var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
+      return _stg7 >= 7
+        ? postAction('invoice-ref', '🧾', 'ارجاع فاکتور', 'ارجاع فاکتور رسمی به حسابدار', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { primary: true, meta: 'برای حسابدار' })
+        : postAction('invoice-ref', '🔒', 'ارجاع فاکتور', 'ارجاع فاکتور تا ثبت تحویل کارفرما قفل است', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { locked: true, meta: 'پس از تحویل' });
+    })();
+    /* v34.2.0: عملیات نسخهٔ ریالی فقط برای پیشنهاد ارزی برنده ظاهر می‌شود. */
+    postActions += '<span class="sf-post-award-rial">' + ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') + '</span>';
+    postActions += postAction(
+      'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',
+      'ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'زیان پروژه' }
+    );
+    postActions += postAction(
+      'close', hasInv ? '🏁' : '🚫', 'مختومه‌سازی',
+      hasInv ? 'مختومه‌سازی پرونده پس از تحویل و تسویه کامل' : 'مختومه‌سازی پروندهٔ بدون فاکتور با دلیل استاندارد',
+      'sfClose(\'' + ptfOnClickArg(r.cd) + '\')',
+      { wide: true, meta: hasInv ? 'پایان پروژه و تسویه' : 'بدون فاکتور / سایر' }
+    );
+    h += '<section class="sf-post-award-shell" onclick="event.stopPropagation()">' +
+      '<div class="sf-post-award-heading"><span class="sf-post-award-heading-icon" aria-hidden="true">' + (r.wonOffer ? '🧰' : '📁') + '</span><span><b>' + (r.wonOffer ? 'عملیات پرونده' : 'عملیات پرونده') + '</b><small>' + (r.wonOffer ? 'پس از ابلاغ سفارش؛ همه عملیات از همین پرونده انجام می‌شود' : 'عملیات ثبت و پیگیری پرونده') + '</small></span></div>' +
+      '<div class="sf-post-award-actions" role="group" aria-label="عملیات پرونده ' + escP(r.inqNo || r.cd || '') + '">' + postActions + '</div>' +
+      '<div class="sf-post-award-extras"><div class="sf-post-award-upload"><div class="sf-post-award-upload-label"><span aria-hidden="true">📎</span><span>افزودن سند یا ضمیمهٔ پرونده</span></div><span id="sfUp_' + escP(r.cd) + '"></span></div></div>' +
+      '</section></div>';
     setTimeout(function () {
       var w = document.getElementById('sfUp_' + r.cd);
       if (w && typeof attachUploadWidget === 'function' && !w.getAttribute('data-up')) {

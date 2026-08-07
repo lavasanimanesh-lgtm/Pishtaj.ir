@@ -106,7 +106,7 @@
         var tds = tr.querySelectorAll('td');
         var last = tds[tds.length - 1];
         if (last) last.insertAdjacentHTML('beforeend',
-          ' <button class="bt bt-o msg-btn" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام (واتساپ/تلگرام/بله/ایتا/روبیکا)" onclick="ptfMsgSend(\'' + key + '\',\'' + ptfOnClickArg(cd) + '\')">💬</button>');
+          ' <button class="bt bt-o msg-btn entity-row-action" data-entity-action="message" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام (واتساپ/تلگرام/بله/ایتا/روبیکا)" aria-label="ارسال پیام" onclick="ptfMsgSend(\'' + key + '\',\'' + ptfOnClickArg(cd) + '\')">💬</button>');
       });
     });
   }
@@ -247,7 +247,12 @@
       try {
         var ph = document.querySelector('#panels .ph h3');
         if (ph && ph.textContent.indexOf('کارتابل') > -1 && !document.getElementById('botCartBtn')) {
-          ph.insertAdjacentHTML('afterend', '<button id="botCartBtn" class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#bae6fd;margin-right:8px" onclick="ptfBotCompose()">✍️ پیام به گروه شرکت</button>');
+          /* MOB-034: action گروه هم‌ردیف actionهای اختصاصی کارتابل باشد، نه یک
+             sibling شناور کنار عنوان که در عرض 320px فشرده/هم‌پوشان می‌شد. */
+          var quick = document.getElementById('cartableQuickActions');
+          var button = '<button id="botCartBtn" class="bt bt-o cartable-action cartable-message-action" type="button" title="پیام به گروه شرکت" aria-label="پیام به گروه شرکت" onclick="ptfBotCompose()"><span class="cartable-action-icon" aria-hidden="true">✍️</span><span class="cartable-action-label">پیام گروه</span></button>';
+          if (quick) quick.insertAdjacentHTML('beforeend', button);
+          else ph.insertAdjacentHTML('afterend', button); /* fallback برای نسخه‌های قدیمی markup */
         }
       } catch (e) {}
     });

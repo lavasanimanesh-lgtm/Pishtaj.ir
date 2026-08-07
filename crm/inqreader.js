@@ -487,6 +487,10 @@
     btn.className = 'ba' + (extraClass ? (' ' + extraClass) : '');
     if (extraStyle) btn.setAttribute('style', extraStyle);
     btn.textContent = label;
+    /* در موبایل متن action پنهان و فقط آیکون نمایش داده می‌شود؛ نام قابل‌خواندن
+       برای tooltip و screen reader باید روی خود دکمه بماند. */
+    btn.setAttribute('title', label || 'عملیات درخواست');
+    btn.setAttribute('aria-label', label || 'عملیات درخواست');
     btn.setAttribute('data-rfq-cd', cd || '');
     btn.setAttribute('data-rfq-action', onClickName || '');
     btn.addEventListener('click', function (ev) {
@@ -549,6 +553,8 @@
               prjBtn.type = 'button';
               prjBtn.className = 'ba';
               prjBtn.setAttribute('style', 'background:#7c3aed;color:#fff');
+              prjBtn.setAttribute('title', 'مشاهده پروژه');
+              prjBtn.setAttribute('aria-label', 'مشاهده پروژه');
               prjBtn.setAttribute('data-rfq-action', 'goPanelPrj');
               prjBtn.textContent = '📁 مشاهده پروژه';
               prjBtn.addEventListener('click', function (ev) {
@@ -1070,9 +1076,10 @@
       // چک‌باکس
       try {
         var srch = document.getElementById('pSrch');
+        var extras = document.getElementById('prodFilterExtras');
         if (srch && !document.getElementById('prodShowHidden')) {
-          srch.parentElement.insertAdjacentHTML('beforeend',
-            '<label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer"><input type="checkbox" id="prodShowHidden" onchange="renderProducts()"> نمایش کالاهای استعلامی (' + hiddenOnes.length + ')</label>');
+          (extras || srch.parentElement).insertAdjacentHTML('beforeend',
+            '<label class="prod-hidden-toggle"><input type="checkbox" id="prodShowHidden" onchange="renderProducts()"> <span>نمایش کالاهای استعلامی (' + hiddenOnes.length + ')</span></label>');
         }
       } catch (e) {}
     };

@@ -542,12 +542,13 @@ function renderOffers() {
         toCoBtn = ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" title="تبدیل به پیشنهاد مالی (→CO)" onclick="offerToCo(\''+o.no+'\')">💸</button>';
       }
     }
-    // US-141 AC5: ارجاع فاکتور فقط برای CO برنده
-    var invBtn = '';
+    // US-141 AC5: وضعیت فاکتور، نشانگر اطلاعاتی است نه action؛ در ستون وضعیت می‌نشیند.
+    // قبلاً در کنار دکمه‌ها فقط دو آیکون خاکستری دیده می‌شد و با یک کنترل اشتباه گرفته می‌شد.
+    var invBadge = '';
     if (o.kind === 'CO') {
-      if (o.invRef) invBtn = ' <span class="bd b-st4" style="font-size:11px" title="ارجاع‌شده برای فاکتور رسمی">🧾 ✔</span>';
-      else if (isWon) invBtn = ' <span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:11px" title="پس از تشکیل پرونده فروش، ارجاع فاکتور فقط از داخل پرونده مجاز است">🧾 🔒</span>';
-      else invBtn = ' <span class="bd" style="background:#f1f5f9;color:#94a3b8;font-size:11px" title="فقط پیش‌فاکتور برنده قابل ارجاع برای فاکتور است">🧾 🔒</span>';
+      if (o.invRef) invBadge = ' <span class="bd b-st4" style="font-size:10px" title="ارجاع‌شده برای فاکتور رسمی">🧾 ارجاع فاکتور</span>';
+      else if (isWon) invBadge = ' <span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:10px" title="پس از تشکیل پرونده فروش، ارجاع فاکتور فقط از داخل پرونده مجاز است">🔒 فاکتور از پرونده</span>';
+      else invBadge = ' <span class="bd" style="background:#f1f5f9;color:#64748b;font-size:10px" title="فقط پیش‌فاکتور برنده قابل ارجاع برای فاکتور است">🔒 فاکتور پس از برد</span>';
     }
     // US-157 AC1: بج اعتبار
     var vst = offerValidState(o);
@@ -579,7 +580,7 @@ function renderOffers() {
       '<td>' + escP(o.dateFa || '') + '</td>' +
       '<td>' + o.items.length + '</td>' +
       '<td>' + ((o.kind === 'CO' || o.kind === 'TC') && total ? (typeof ptfMoney === 'function' ? ptfMoney(total, o.currency) : (o.currency && o.currency !== 'IRR' ? total.toLocaleString('en-US') + ' ' + o.currency : total.toLocaleString('fa-IR') + ' ریال')) : '—') + (((o.currency && o.currency !== 'IRR') && (o.fxBasis || o.fxRateRef)) ? '<div style="font-size:10px;color:#64748b">مرجع: ' + escP(o.fxBasis === 'sana' ? 'سنا' : o.fxBasis === 'free' ? 'آزاد' : 'توافقی') + (o.fxRateRef ? ' | ' + (+o.fxRateRef).toLocaleString('fa-IR') + ' ریال' : '') + '</div>' : '') + marginBadge + '</td>' + /* v17.4 US-416: ارز سند */
-      '<td>' + stCell + '</td>' +
+      '<td>' + stCell + invBadge + '</td>' +
       '<td>' + (isWon ? '<span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:11px" title="پیشنهاد برنده قفل است؛ ادامه از پرونده فروش">🔒 برنده</span> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerEdit(\''+o.no+'\')" title="ویرایش پیش‌فاکتور">✏️</button> ') +
       (isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')" title="مشاهده پرونده فروش">📁</button> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="offerReviseClone(\''+o.no+'\')" title="ایجاد نگارش جدید (Revise)">📑</button> ') +
       '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerQuickPreview(\''+o.no+'\')" title="نمایش سریع اقلام">👁️</button> ' +
@@ -587,7 +588,7 @@ function renderOffers() {
       ((o.kind === 'CO' || o.kind === 'TC') && isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#d97706;border-color:#f59e0b" onclick="unofficialInvoicePrint(\''+o.no+'\')" title="صدور صورتحساب پرداخت (غیررسمی)">🧾</button> ' : '') +
       '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerCsv(\''+o.no+'\')" title="دانلود اکسل اقلام">⬇️</button>' +
       (o.kind === 'CO' ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:13px;background:#059669;color:#fff" onclick="offOpenProfitOptimizer(\''+o.no+'\')" title="ماتریس بهینه‌سازی سود">📊</button> ' : '') +
-      toCoBtn + invBtn +
+      toCoBtn +
       ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎</button>' : '') +
       ((o.rialOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\''+o.no+'\')" title="پیش‌نمایش/ویرایش شرایط و ضوابط نسخه ریالی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.rialOf+'\')" title="دیدن پیشنهاد ارزی قبلی">👁 ارزی</button> ' : '') +
        ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !isWon && (o.currency && o.currency !== 'IRR') && !(typeof window.ptfRialCompanionOf === 'function' && window.ptfRialCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#0e7490;color:#fff" onclick="ptfOfferRialConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ریالی">💱</button> ' : '')) +
@@ -1045,13 +1046,21 @@ function offerForm() {
     if (c.cd) label = label + '  ·  ' + c.cd;
     custOpts += '<option value="' + escP(c.cd) + '"' + (o.buyerCd === c.cd ? ' selected' : '') + '>' + escP(label) + '</option>';
   });
-  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:min(96vw,1700px);max-height:92vh;overflow:auto">' +
+  /* MOB-041: امضا پیش‌تر پس از چندین بخش فرم قرار داشت و در mobile خارج از دید می‌ماند.
+     بلوک مستقل زیر عنوان/قالب چاپ می‌آید تا پیش از ورود اقلام، کامل دیده و خوانده شود. */
+  var signatureHtml = '<section class="offer-signature-card" aria-labelledby="offSignatureTitle"><div class="offer-signature-head"><span class="offer-signature-icon" aria-hidden="true">✍️</span><span><b id="offSignatureTitle">مهر و امضا</b><small>امضای انتخابی فقط هنگام پیش‌نمایش/صدور روی سند درج می‌شود.</small></span></div>' +
+    '<label class="offer-signature-toggle"><input type="checkbox" id="ofUseSig"' + (o.useSig ? ' checked' : '') + (mySigReady() || ptfCanDelegateSig() ? '' : ' disabled') + '><span>درج مهر و امضا روی سند</span>' +
+    (mySigReady() || ptfCanDelegateSig() ? '' : '<small>ابتدا در مکاتبات → «امضای من» پروفایل امضا را ثبت کنید.</small>') + '</label>' +
+    (ptfCanDelegateSig() ? '<label class="offer-signature-select"><span>امضاکننده</span><select id="ofSignAs">' + ptfSignAsOptions(o.signAs) + '</select></label>' : '') +
+    '</section>';
+  var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md offer-form-modal" style="max-width:min(96vw,1700px);max-height:92vh;overflow:auto">' +
     '<h3>' + (o.kind === 'TO' ? '🔧 پیشنهاد فنی' : o.kind === 'TC' ? '🤝 پیشنهاد فنی-مالی' : '💰 پیشنهاد مالی') +
     ' — <span style="direction:ltr;display:inline-block">' + escP(o.no) + '</span>' +
     (o.buyerCo || o.buyerCd ? ' <small style="font-weight:700;color:#0e7490;font-size:12px">| 🏢 ' + escP(o.buyerCo || o.buyerCd) + (o.buyerCd ? ' <span dir="ltr" style="opacity:.75">(' + escP(o.buyerCd) + ')</span>' : '') + '</small>' : '') +
     '</h3>' +
     /* v20.1: TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ */
-    (o.kind !== 'TO' ? '<div class="fld" style="max-width:340px"><label>🖨 قالب چاپ سند</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
+    (o.kind !== 'TO' ? '<div class="fld offer-print-layout" style="max-width:340px"><label>🖨 قالب چاپ سند</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
+    signatureHtml +
     '<div class="fr">' +
     '<div class="fld"><label>کارفرما (خریدار) *</label><select id="ofBuyer" onchange="offerPickBuyer(this.value)">' + custOpts + '</select>' +
     '<div id="ofBuyerChip" style="margin-top:8px;padding:8px 10px;border-radius:12px;background:#f8fafc;border:1px solid var(--brd);font-size:12.5px;line-height:1.6">' +
@@ -1075,16 +1084,9 @@ function offerForm() {
     '</div>' +
     // US-157 AC1: اعتبار پیشنهاد (برای مالی و فنی-مالی)
     (o.kind !== 'TO' ? '<div class="fr"><div class="fld"><label>اعتبار پیشنهاد تا (شمسی) — یادآور خودکار ۳ روز قبل</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofValidJ', (o.validUntil || defaultValidity(o.dateEn))) : '<input type="text" id="ofValidJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.validUntil || defaultValidity(o.dateEn)) : (o.validUntil || ''))) + '">') + '</div><div class="fld"></div></div>' : '') +
-    '<div class="fr">' +
-    // US-142 AC3: Contact Person = اختصاری انگلیسی کاربر جاری — غیرقابل تغییر
-    '<div class="fld"><label>رابط فروشنده — روی سند: Contact Person (کاربر جاری — قفل 🔒)</label><input type="text" id="ofSeller" value="' + escP(myEnName()) + '" readonly style="direction:ltr;background:#f1f5f9;color:#475569;cursor:not-allowed"></div>' +
-    // US-148 AC2: درج مهر و امضای کاربر جاری (با پیش‌نمایش قبل از ثبت)
-    '<div class="fld"><label>مهر و امضا</label><label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:9px 0;cursor:pointer">' +
-    '<input type="checkbox" id="ofUseSig"' + (o.useSig ? ' checked' : '') + (mySigReady() || ptfCanDelegateSig() ? '' : ' disabled') + '> درج مهر و امضا روی سند' +
-    (mySigReady() || ptfCanDelegateSig() ? '' : ' <small style="color:#d97706">(ابتدا در مکاتبات → «✍️ امضای من» ثبت کنید)</small>') + '</label>' +
-    /* v13.1 (US-321 — دستور کارفرما): رییس هیات مدیره می‌تواند با امضای یوسفی/کریمی هم امضا کند */
-    (ptfCanDelegateSig() ? '<select id="ofSignAs" style="width:100%;padding:8px;border:1px solid var(--brd);border-radius:10px;font-size:12.5px">' + ptfSignAsOptions(o.signAs) + '</select>' : '') +
-    '</div>' +
+    '<div class="fr offer-seller-row">' +
+    // Contact Person = اختصاری انگلیسی کاربر جاری — غیرقابل تغییر
+    '<div class="fld offer-seller-field"><label>رابط فروشنده — روی سند: Contact Person (کاربر جاری — قفل 🔒)</label><input type="text" id="ofSeller" value="' + escP(myEnName()) + '" readonly style="direction:ltr;background:#f1f5f9;color:#475569;cursor:not-allowed"></div>' +
     '</div>' +
     '<h4 style="margin:14px 0 8px">اقلام</h4>' +
     '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
@@ -2978,8 +2980,8 @@ function renderCustomers2() {
       '<td>' + (pp ? escP(pp.nm) + ' <small style="color:#94a3b8">(' + escP(pp.role||'') + ')</small>' : '-') +
       ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + ((c.phones||[]).length ? '<a href="tel:' + escP(c.phones[0].n) + '" style="direction:ltr">' + escP(c.phones[0].n) + '</a>' + (c.phones.length > 1 ? ' <small style="color:#94a3b8">+' + (c.phones.length - 1) + '</small>' : '') : (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-'))) + '</td>' +
-      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده مشتری" aria-label="مشاهده مشتری" onclick="showEntityCard(\'ptf_crm_customers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش مشتری" aria-label="ویرایش مشتری" onclick="showCustModal(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">مشتری‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dCust')) document.getElementById('dCust').textContent = items.length;
@@ -3000,8 +3002,8 @@ function renderSuppliers2() {
       '<td>' + (pp ? escP(pp.nm) : '-') + ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-')) + '</td>' +
       '<td>' + escP(c.ca||'-') + '</td>' +
-      '<td><button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
-      '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده تأمین‌کننده" aria-label="مشاهده تأمین‌کننده" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش تأمین‌کننده" aria-label="ویرایش تأمین‌کننده" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;

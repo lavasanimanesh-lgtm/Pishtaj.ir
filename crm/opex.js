@@ -394,6 +394,12 @@
   window.ptfOpexRender = function () {
     var el = document.getElementById('opexBox');
     if (!el) return;
+    /* MOB-041: actionهای هزینه جاری contract صریح دارند تا icon fallback/چرخ‌دنده
+       و دکمه‌های ناهم‌اندازه در موبایل تولید نشود. */
+    function opexAction(kind, icon, label, title, onClick, primary) {
+      return '<button type="button" class="bt' + (primary ? '' : ' bt-o') + ' opex-fin-action opex-fin-' + kind + '" data-opex-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+        '<span class="opex-fin-icon" aria-hidden="true">' + icon + '</span><span class="opex-fin-label">' + label + '</span></button>';
+    }
     var m = window._opexMonth || ptfFaMonthNow();
     var year = m ? m.split('/')[0] : '';
     var sm = ptfOpexSum(m);
@@ -408,25 +414,30 @@
       return '<span style="background:#f1f5f9;border-radius:999px;padding:4px 11px;font-size:11.5px">' + escP(c) + ': <b>' + fmtT(sm.byCat[c]) + '</b> ریال</span>';
     }).join(' ');
     var rows = oAll().filter(function (x) { return !m || x.month === m; }).map(function (x) {
-      return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--brd);font-size:12.5px">' +
-        '<span><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
+      return '<div class="opex-row">' +
+        '<span class="opex-row-copy"><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
         (x.dealRef ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">📁 پرونده فروش</span>' : '') +
         (x.autoApplied ? ' <span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">🤖 خودکار</span>' : '') +
         (x.desc ? ' <small style="color:#64748b">' + escP(x.desc) + '</small>' : '') +
         (x.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(x.editedAt) + '</small>' : '') +
         '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small></span>' +
-        '<span style="display:flex;gap:4px"><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(x.cd) + '\')">✏️</button><button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#dc2626" onclick="ptfOpexDel(\'' + ptfOnClickArg(x.cd) + '\')">✕</button></span></div>';
+        '<span class="opex-row-actions" role="group" aria-label="عملیات هزینه ' + escP(x.cat || '') + '">' +
+        opexAction('edit', '✏️', 'اصلاح', 'اصلاح هزینهٔ جاری', 'ptfOpexEdit(\'' + ptfOnClickArg(x.cd) + '\')', false) +
+        opexAction('delete', '🗑', 'حذف', 'حذف هزینهٔ جاری', 'ptfOpexDel(\'' + ptfOnClickArg(x.cd) + '\')', false) +
+        '</span></div>';
     }).join('');
     var tplRows = tpls().map(function (t) {
       return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + ptfOnClickArg(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
     }).join(' ');
     el.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
+      '<div class="opex-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
       '<h4 style="margin:0;font-size:13.5px">🏢 هزینه‌های جاری شرکت (US-418)</h4>' +
-      '<span style="display:flex;gap:6px;align-items:center">' +
-      '<input type="text" value="' + escP(m) + '" onchange="window._opexMonth=this.value.trim();ptfOpexRender()" style="width:90px;padding:6px;border:1.5px solid var(--brd);border-radius:9px;direction:ltr;font-size:12px" title="ماه شمسی — خالی = همه">' +
-      '<button class="bt" style="font-size:12px" onclick="ptfOpexAdd()">+ ثبت هزینه</button>' +
-      (canFin() ? '<button class="bt bt-o" style="font-size:12px" onclick="ptfOpexMigrateShareholders()" title="برای تراکنش‌های قدیمیِ حقوق سهامدار که رکورد هزینه (opex) ندارند، ردیف «حقوق و دستمزد» می‌سازد">🛠 بازسازی حقوق سهامدار</button>' : '') + '</span></div>' +
+      '<span class="opex-tools">' +
+      '<input class="opex-month" type="text" value="' + escP(m) + '" onchange="window._opexMonth=this.value.trim();ptfOpexRender()" style="width:90px;padding:6px;border:1.5px solid var(--brd);border-radius:9px;direction:ltr;font-size:12px" title="ماه شمسی — خالی = همه" aria-label="ماه هزینه‌های جاری">' +
+      '<span class="opex-head-actions" role="group" aria-label="عملیات هزینه جاری">' +
+      opexAction('add', '➕', 'ثبت هزینه', 'ثبت هزینهٔ جاری جدید', 'ptfOpexAdd()', true) +
+      (canFin() ? opexAction('rebuild', '🛠', 'بازسازی حقوق', 'برای تراکنش‌های قدیمیِ حقوق سهامدار که رکورد هزینه ندارند، ردیف حقوق و دستمزد می‌سازد', 'ptfOpexMigrateShareholders()', false) : '') +
+      '</span></span></div>' +
       pendHtml +
       '<div style="font-size:12.5px;margin-bottom:6px">جمع ماه <b dir="ltr">' + escP(m || '—') + '</b>: <b style="color:#b45309">' + fmtT(sm.total) + ' ریال</b> | جمع سال ' + escP(year) + ': <b>' + fmtT(sy.total) + ' ریال</b></div>' +
       (chips ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">' + chips + '</div>' : '') +

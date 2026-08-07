@@ -439,10 +439,10 @@
         var tds = tr.querySelectorAll('td');
         var h = '';
         var cnt = r.files ? Object.keys(r.files).reduce(function (s, g) { return s + ((r.files[g] || []).length); }, 0) : 0;
-        if (cnt) h += ' <button class="ba rfq-att-btn" title="مشاهده پیوست‌ها" onclick="rfqShowFiles(\'' + ptfOnClickArg(cd) + '\')">📎 ' + cnt + '</button>';
+        if (cnt) h += ' <button class="ba rfq-att-btn" data-rfq-action="rfqShowFiles" title="مشاهده پیوست‌ها" aria-label="مشاهده پیوست‌های درخواست" onclick="rfqShowFiles(\'' + ptfOnClickArg(cd) + '\')">📎 ' + cnt + '</button>';
         h += r.inqText
-          ? ' <button class="ba rfq-att-btn" style="color:#0e7490" title="مشاهده استعلام متنی" onclick="rfqShowText(\'' + ptfOnClickArg(cd) + '\')">📝 متن استعلام</button>'
-          : ' <button class="ba rfq-att-btn" style="color:#cbd5e1" title="افزودن متن استعلام" onclick="rfqEditText(\'' + ptfOnClickArg(cd) + '\')">📝+ متن استعلام</button>';
+          ? ' <button class="ba rfq-att-btn" data-rfq-action="rfqShowText" style="color:#0e7490" title="مشاهده استعلام متنی" aria-label="مشاهده متن استعلام" onclick="rfqShowText(\'' + ptfOnClickArg(cd) + '\')">📝 متن استعلام</button>'
+          : ' <button class="ba rfq-att-btn" data-rfq-action="rfqEditText" style="color:#cbd5e1" title="افزودن متن استعلام" aria-label="افزودن متن استعلام" onclick="rfqEditText(\'' + ptfOnClickArg(cd) + '\')">📝+ متن استعلام</button>';
         if (!cnt && !h) return;
         tds[tds.length - 1].insertAdjacentHTML('beforeend', h);
       });

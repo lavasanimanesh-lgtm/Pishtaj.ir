@@ -16,11 +16,33 @@
   .pn{border:1px solid var(--brd);box-shadow:0 1px 3px rgba(15,23,42,.04)}
   html{overflow-y:scroll;scrollbar-gutter:stable}
   /* موبایل: سایدبار از همان فریم اول مخفی — دیگر فلشِ ستون ایموجی‌ها دیده نمی‌شود */
-  @media(max-width:768px){
+  /* MOB-005: گوشی افقی 844×390 از نظر عرض «desktop» نیست؛ قبل از لود JS نیز
+     باید sidebar پنهان و فضای bottom-nav رزرو باشد تا layout یک فریم نپرد. */
+  @media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){
     .sb{display:none!important}
     .mn{margin-right:0!important;width:100%!important;max-width:100%!important}
     .ca{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))!important}
   }
+  @media(max-width:900px) and (max-height:600px) and (orientation:landscape){
+    .ca{padding-bottom:calc(54px + env(safe-area-inset-bottom,0px))!important}
+  }
+  /* MOB-008: در cold start، پیش از رسیدن bundleهای غیرضروری یک status واقعی
+     به کاربر نشان بده تا فضای خالی با «خرابی» اشتباه گرفته نشود. */
+  #ptfBootStatus{display:none}
+  @media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){
+    #crmL[data-ptf-boot="loading"] #ptfBootStatus,#crmL[data-ptf-boot="nav"] #ptfBootStatus{position:fixed;display:inline-flex;align-items:center;gap:8px;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:1400;max-width:calc(100vw - 24px);background:#1e293b;color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:9px 14px;font-size:12px;font-weight:800;box-shadow:0 10px 28px rgba(15,23,42,.28);pointer-events:none;white-space:nowrap;overflow:hidden}
+    #ptfBootStatus span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+    /* nav زودتر آماده است اما bundleهای بخش‌ها هنوز در پس‌زمینه می‌آیند. */
+    #crmL[data-ptf-boot="nav"] #ptfBootStatus{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+    #ptfBootStatus .ptf-boot-spin{width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:ptfBootSpin .75s linear infinite}
+  }
+  @media(max-width:900px) and (max-height:600px) and (orientation:landscape){#crmL[data-ptf-boot="nav"] #ptfBootStatus{bottom:calc(62px + env(safe-area-inset-bottom,0px))}}
+  @keyframes ptfBootSpin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){#ptfBootStatus .ptf-boot-spin{animation:none}}
+  /* MOB-037: badge صندوق پیام دیگر از button زنگوله بیرون نمی‌زند و توسط
+     overflow عمومی button بریده نمی‌شود؛ حتی شمارندهٔ 99+ کامل دیده می‌شود. */
+  #tbIcons,#tbBellBtn{overflow:visible!important}
+  #tbBellBtn #ibBadge{top:1px!important;left:1px!important;right:auto!important;bottom:auto!important;z-index:4!important;box-sizing:border-box!important;pointer-events:none!important;line-height:1!important}
 
 /* ============ Sprint 108 / US-112: انقلابی در تجربه موبایل (Mobile Data Card View & Native PWA Feel) ============ */
 @media (max-width: 768px) {
@@ -63,8 +85,8 @@
 
   /* نسخه فعال — خوانا در موبایل */
   #topVerPill, #liveHealthPill { font-size: 12.5px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1.4 !important; padding: 6px 10px !important; }
-  /* هدر تک‌ردیفه موبایل — عنوان چپ + آیکون‌ها راست (۴۸px ارتفاع) */
-  .tb { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important; height: 48px !important; overflow: hidden !important; }
+  /* هدر تک‌ردیفه موبایل — فضای کافی برای آیکون‌های 42px */
+  .tb { flex-direction: row !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important; height: 56px !important; overflow: hidden !important; }
   .tb > div:first-child { flex: 1 1 auto !important; min-width: 0 !important; display: flex !important; align-items: center !important; gap: 8px !important; }
   .tb > div:last-child { flex: 0 0 auto !important; display: flex !important; align-items: center !important; gap: 4px !important; }
   /* مخفی‌سازی عناصر غیرضروری موبایل */
@@ -108,6 +130,23 @@
     margin-top: 4px !important;
     border-top: 1px solid var(--brd) !important;
   }
+  /* MOB-002: label ستون‌ها روی کارت موبایل؛ مقدار بدون زمینه باقی نمی‌ماند. */
+  #panels .tb2 td[data-mobile-label]:not([data-mobile-label=""]) {
+    gap: 10px !important;
+  }
+  #panels .tb2 td[data-mobile-label]:not([data-mobile-label=""])::before {
+    content: attr(data-mobile-label);
+    flex: 0 0 42%;
+    max-width: 42%;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.6;
+    text-align: right;
+    direction: rtl;
+    overflow-wrap: anywhere;
+  }
+  #panels .tb2 td[data-mobile-label=""]::before { content: none; }
   
   /* بهبود نمایش سایدبار و ناوبری در موبایل */
   /* crm-l normal */
@@ -122,12 +161,50 @@
     border-radius: 20px !important;
   }
   .ph { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
-  /* v13.7 (US-337): یکسان‌سازی دکمه‌های مودال در موبایل — سهولت کاربری */
-  .md { padding-top: 44px !important; } /* جا برای دکمه‌های مک */
-  .mx-dots { top: 14px !important; left: 12px !important; }
-  /* v20.0 BUG-033: چیپ بیضی mx-ai حذف شد — دستیار = نقطه چهارم mx-dot.a (بدون تداخل) */
+  /* MOB-001: کنترل‌های مودال در موبایل دیگر مک‌داتِ بی‌معنا/کشیده نیستند.
+     هر کنترل hit-area ثابت، نماد همیشه قابل‌دیدن و رنگ معنایی دارد. */
+  body .md { padding-top: 62px !important; } /* عنوان زیر ردیف کنترل‌ها می‌آید، نه زیر آن‌ها */
+  .md .mx-dots { top: 12px !important; left: 12px !important; gap: 6px !important; }
+  .md .mx-dots .mx-dot {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    flex: 0 0 36px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border-radius: 12px !important;
+    border: 1px solid transparent !important;
+    line-height: 1 !important;
+    overflow: visible !important;
+  }
+  .md .mx-dots .mx-dot span {
+    position: static !important;
+    inset: auto !important;
+    display: grid !important;
+    place-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    font-size: 17px !important;
+    line-height: 1 !important;
+    font-weight: 900 !important;
+    pointer-events: none !important;
+  }
+  .md .mx-dots .mx-dot.r { background: #fef2f2 !important; border-color: #fecaca !important; }
+  .md .mx-dots .mx-dot.r span { color: #dc2626 !important; }
+  .md .mx-dots .mx-dot.y { background: #fffbeb !important; border-color: #fde68a !important; }
+  .md .mx-dots .mx-dot.y span { color: #d97706 !important; }
+  .md .mx-dots .mx-dot.g { background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  .md .mx-dots .mx-dot.g span { color: #059669 !important; }
+  .md .mx-dots .mx-dot.a { background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  .md .mx-dots .mx-dot.a span { color: #7c3aed !important; font-size: 15px !important; }
+  /* v20.0 BUG-033: چیپ بیضی mx-ai حذف شد — دستیار = نقطه چهارم mx-dot.a */
   .md .fr { grid-template-columns: 1fr !important; } /* فرم‌های دوستونه → تک‌ستون در موبایل */
-  .md h3 { font-size: 15px !important; padding-left: 72px !important; } /* تیتر زیر دکمه‌ها نرود */
+  .md h3 { font-size: 15px !important; padding-left: 0 !important; }
   /* ردیف دکمه‌های پایین مودال: تمام‌عرض و زیر هم */
   .md > div[style*="justify-content:flex-end"], .md > div[style*="justify-content: flex-end"] {
     flex-direction: column-reverse !important; align-items: stretch !important; gap: 8px !important;
@@ -137,6 +214,12 @@
   }
   .sb2 { width: 100% !important; display: flex !important; flex-wrap: wrap !important; gap: 8px !important; }
   .sb2 input, .sb2 select { width: 100% !important; }
+  /* MOB-030: فیلتر کالا و actionهای زیر «همه» در ردیف مستقل، بدون هم‌پوشانی. */
+  #prodFilters { width: 100% !important; display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; margin-bottom: 10px !important; }
+  #prodFilters > input, #prodFilters > select { width: 100% !important; min-width: 0 !important; min-height: 46px !important; }
+  #prodFilterExtras { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) auto !important; align-items: center !important; gap: 8px !important; }
+  #prodFilterExtras .prod-hidden-toggle { min-width: 0 !important; white-space: normal !important; line-height: 1.5 !important; }
+  #prodFilterExtras .lt-btn { justify-self: end !important; }
 
   /* ===== v34.1: دکمه‌های هدر ماژول → Icon-Only در موبایل ===== */
   /* دکمه‌های .ph (هدر ماژول‌ها) و .sb2 (نوار ابزار): فقط ایموجی/آیکون */
@@ -159,6 +242,598 @@
   .sb2 .bt::first-letter, .sb2 .bt-o::first-letter {
     font-size: 18px !important;
   }
+
+  /* MOB-034: کنترل‌های کارتابل من از قانون icon-only عمومی .ph مستثنا هستند.
+     filter تمام‌عرض و actionهای برچسب‌دار در grid مستقل می‌مانند؛ بنابراین در
+     عرض 320px checkbox، «خواندم همه»، ترجیحات و پیام گروه روی هم نمی‌افتند. */
+  #panels .cartable-head .cartable-toolbar {
+    width: 100% !important;
+    flex: 1 0 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+  #panels .cartable-head .cartable-toggle {
+    width: 100% !important;
+    min-height: 48px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    padding: 9px 12px !important;
+    border: 1px solid #bfdbfe !important;
+    border-radius: 12px !important;
+    background: #f8fbff !important;
+    color: #334155 !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1.5 !important;
+    cursor: pointer !important;
+  }
+  #panels .cartable-head .cartable-toggle input[type="checkbox"] {
+    appearance: auto !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 20px !important;
+    accent-color: #0e7490 !important;
+  }
+  #panels .cartable-head .cartable-quick-actions {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels .cartable-head .cartable-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 64px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 7px 4px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    border-width: 1px !important;
+    border-radius: 12px !important;
+    font-size: 10.5px !important;
+    font-weight: 800 !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels .cartable-head .cartable-action-icon {
+    display: grid !important;
+    place-items: center !important;
+    width: 21px !important;
+    height: 21px !important;
+    flex: 0 0 21px !important;
+    font-size: 19px !important;
+    line-height: 1 !important;
+  }
+  #panels .cartable-head .cartable-action-label {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+  }
+  #panels .cartable-head .cartable-read-all { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  #panels .cartable-head .cartable-preferences { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+  #panels .cartable-head .cartable-message-action { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+
+  /* MOB-035: فیلترهای یادآورها همان مشکل کارتابل را داشتند: checkbox کشیده و
+     «یادآور جدید» به icon-only مبهم تبدیل می‌شد. */
+  #panels .reminders-head .reminders-toolbar {
+    width: 100% !important;
+    flex: 1 0 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+  #panels .reminders-head .reminders-select {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 48px !important;
+    box-sizing: border-box !important;
+    padding: 9px 12px !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--crd, #fff) !important;
+  }
+  #panels .reminders-head .reminders-footer {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels .reminders-head .reminders-toggle {
+    min-width: 0 !important;
+    min-height: 58px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    border: 1px solid #fde68a !important;
+    border-radius: 12px !important;
+    background: #fffbeb !important;
+    color: #92400e !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1.45 !important;
+  }
+  #panels .reminders-head .reminders-toggle input[type="checkbox"] {
+    appearance: auto !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 20px !important;
+    accent-color: #d97706 !important;
+  }
+  #panels .reminders-head .reminders-new-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 58px !important;
+    margin: 0 !important;
+    padding: 7px 5px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels .reminders-head .reminders-action-icon { font-size: 19px !important; line-height: 1 !important; }
+  #panels .reminders-head .reminders-action-label { display: block !important; max-width: 100% !important; overflow-wrap: anywhere !important; }
+
+  /* MOB-036: tabهای هاب مالی در 320px با عرض متن چیده می‌شدند و 10 tab را
+     به ردیف‌های نامتقارن و بلند تبدیل می‌کردند. grid دو ستونه، همهٔ مقصدها را
+     در یک الگوی پایدار و بدون horizontal overflow نگه می‌دارد. */
+  #panels #finHubBar {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #panels #finHubBar .fin-hub-layout {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  #panels #finHubBar .fin-hub-heading { width: 100% !important; min-width: 0 !important; }
+  #panels #finHubBar .fin-hub-heading small { display: block !important; margin-top: 4px !important; line-height: 1.75 !important; }
+  #panels #finHubBar .fin-hub-tabs {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels #finHubBar .fin-hub-tab {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 58px !important;
+    margin: 0 !important;
+    padding: 7px 8px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    text-align: right !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+  #panels #finHubBar .fin-hub-tab-label { flex: 1 1 auto !important; min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels #finHubBar .fin-hub-icon { width: 20px !important; height: 20px !important; flex: 0 0 20px !important; }
+  #panels #finHubBar .fin-hub-icon svg { width: 18px !important; height: 18px !important; }
+
+  /* ابزارهای درونی tabهای مالی: فرم/دکمه‌های بلند باید wrap یا grid داشته باشند،
+     نه اینکه به چپ از viewport بروند. */
+  #panels #fiscalBox, #panels #opexBox, #panels #chequeBox {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+  #panels #fiscalBox .ptf-fiscal-copy { min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels #fiscalBox .ptf-fiscal-toolbar {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-control {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 50px !important;
+    box-sizing: border-box !important;
+    padding: 3px 9px !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-control select { flex: 1 1 auto !important; width: auto !important; min-width: 0 !important; max-width: 100% !important; min-height: 42px !important; padding: 5px !important; }
+  #panels #fiscalBox .ptf-fiscal-control input { width: 54px !important; min-width: 54px !important; min-height: 42px !important; padding: 5px !important; }
+  #panels #fiscalBox .ptf-fiscal-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 54px !important;
+    margin: 0 !important;
+    padding: 7px 5px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels #fiscalBox .ptf-fiscal-amend-action { grid-column: 1 / -1 !important; }
+  #panels #fiscalBox .ptf-fiscal-alert, #panels #fiscalBox .ptf-fiscal-kpi { min-width: 0 !important; max-width: 100% !important; overflow-wrap: anywhere !important; }
+  #panels #fiscalBox .sr { min-width: 0 !important; max-width: 100% !important; }
+  /* action بلند «ثبت تقسیم سود» در cash block نباید min-content کل flex را عریض کند. */
+  #panels #fiscalBox .ptf-fiscal-cash-block { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-copy { min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #fiscalBox .ptf-fiscal-cash-actions button { width: 100% !important; min-width: 0 !important; max-width: 100% !important; min-height: 50px !important; margin: 0 !important; padding: 7px 9px !important; box-sizing: border-box !important; font-size: 11px !important; line-height: 1.35 !important; white-space: normal !important; overflow: hidden !important; text-overflow: clip !important; }
+
+  #panels #opexBox .opex-head { align-items: stretch !important; }
+  #panels #opexBox .opex-head h4 { width: 100% !important; min-width: 0 !important; }
+  #panels #opexBox .opex-tools {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #panels #opexBox .opex-month, #panels #opexBox .opex-add-action { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+  #panels #opexBox .opex-rebuild-action {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 52px !important;
+    padding: 7px 9px !important;
+    box-sizing: border-box !important;
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+
+  #panels #chequeBox { overflow-x: hidden !important; }
+  #panels #chequeBox .cheque-panel-head { align-items: flex-start !important; }
+  #panels #chequeBox .cheque-panel-head > div:first-child { width: 100% !important; min-width: 0 !important; }
+  #panels #chequeBox .cheque-panel-tools { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #chequeBox .cheque-panel-subtabs { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #chequeBox .cheque-panel-actions { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #chequeBox .cheque-panel-tools button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 54px !important;
+    margin: 0 !important;
+    padding: 7px 5px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    text-align: center !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels #chequeBox .cheque-panel-actions button { min-height: 60px !important; padding:6px 3px !important; flex-direction: column !important; gap: 3px !important; font-size: 10px !important; }
+
+  /* MOB-038: نوار عملیات «کیفیت داده» پیش‌تر چهار دکمه با عرض متن و ردیف‌های
+     پلکانی داشت. grid ثابت 2×2، چهار عمل را هم‌اندازه و قابل‌تشخیص نگه می‌دارد. */
+  #panels #qualityBox { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels #qualityBox .quality-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+  #panels #qualityBox .quality-copy { min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels #qualityBox .quality-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #qualityBox .quality-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 64px !important; margin: 0 !important; padding: 7px 5px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 4px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10.5px !important; font-weight: 800 !important; line-height: 1.3 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels #qualityBox .quality-action-icon { width: 20px !important; height: 20px !important; flex: 0 0 20px !important; display: grid !important; place-items: center !important; font-size: 18px !important; line-height: 1 !important; }
+  #panels #qualityBox .quality-action-label { display: block !important; max-width: 100% !important; overflow-wrap: anywhere !important; }
+  #panels #qualityBox .quality-refresh  { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+  #panels #qualityBox .quality-identity { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #panels #qualityBox .quality-similar  { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #panels #qualityBox .quality-history  { color: #b45309 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #panels #qualityBox .quality-action-icon svg { width: 19px !important; height: 19px !important; display: block !important; }
+  #panels #qualityBox .quality-title { gap: 6px !important; font-size: 13px !important; }
+  #panels #qualityBox .quality-title-icon { width: 18px !important; height: 18px !important; flex: 0 0 18px !important; }
+  #panels #qualityBox .quality-title-icon svg { width: 17px !important; height: 17px !important; }
+
+  /* MOB-041: ابزارهای مالی و ردیف چک‌ها؛ هر action label/icon صریح دارد و هیچ
+     first-letter یا emoji چندگانه به کنترل مبهم/بریده تبدیل نمی‌شود. */
+  #panels #ptPettyHead { align-items: stretch !important; }
+  #panels #ptPettyHead h3 { width: 100% !important; }
+  #panels #ptPettyHead .pt-petty-toolbar { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #ptPettyHead .pt-petty-filters { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #ptPettyHead .pt-petty-filters select, #panels #ptPettyHead .pt-petty-filters > * { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels #ptPettyHead .pt-petty-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #ptPettyHead .petty-toolbar-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 60px !important; margin: 0 !important; padding: 7px 5px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10.5px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels #ptPettyHead .petty-toolbar-report { grid-column: 1 / -1 !important; min-height: 52px !important; flex-direction: row !important; }
+  #panels #ptPettyHead .petty-toolbar-icon { font-size: 18px !important; line-height: 1 !important; }
+  #panels #opexBox .opex-tools { grid-template-columns: minmax(0, 1fr) !important; }
+  #panels #opexBox .opex-month { width: 100% !important; min-height: 46px !important; }
+  #panels #opexBox .opex-head-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #opexBox .opex-fin-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 56px !important; margin: 0 !important; padding: 7px 5px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels #opexBox .opex-fin-rebuild { grid-column: 1 / -1 !important; min-height: 52px !important; flex-direction: row !important; }
+  #panels #opexBox .opex-row { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 7px !important; padding: 8px 0 !important; box-sizing: border-box !important; }
+  #panels #opexBox .opex-row-copy { min-width: 0 !important; white-space: normal !important; overflow-wrap: anywhere !important; line-height: 1.7 !important; }
+  #panels #opexBox .opex-row-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 6px !important; }
+  #panels #opexBox .opex-row-actions .opex-fin-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 44px !important; padding: 5px 4px !important; font-size: 9.5px !important; }
+  #panels #shareBox { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels #shareBox .shareholder-box { width: 100% !important; min-width: 0 !important; margin: 10px 0 !important; padding: 10px !important; box-sizing: border-box !important; }
+  #panels #shareBox .shareholder-box-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #shareBox .shareholder-head-tools { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #shareBox .shareholder-month { width: 100% !important; min-height: 46px !important; box-sizing: border-box !important; }
+  #panels #shareBox .shareholder-head-actions, #panels #shareBox .shareholder-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #shareBox .shareholder-card { width: 100% !important; min-width: 0 !important; padding: 10px !important; box-sizing: border-box !important; }
+  #panels #shareBox .shareholder-card-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #shareBox .shareholder-copy { min-width: 0 !important; line-height: 1.8 !important; overflow-wrap: anywhere !important; }
+  #panels #shareBox .shareholder-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 54px !important; margin: 0 !important; padding: 6px 4px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 9.8px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels #shareBox .shareholder-actions .shareholder-action:last-child:nth-child(odd) { grid-column: 1 / -1 !important; }
+  #panels #shareBox .shareholder-action-icon { font-size: 17px !important; line-height: 1 !important; }
+  #panels #chequeBox .cheque-cell-party { align-items: flex-start !important; }
+  #panels #chequeBox .cheque-cell-content { min-width: 0 !important; flex: 1 1 auto !important; max-width: 100% !important; display: block !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels #chequeBox .cheque-party-name { min-width: 0 !important; max-width: 100% !important; display: block !important; white-space: normal !important; overflow-wrap: anywhere !important; line-height: 1.65 !important; }
+  #panels #chequeBox .cheque-kind-badge, #panels #chequeBox .cheque-party-badge { max-width: 100% !important; white-space: normal !important; overflow-wrap: anywhere !important; text-align: right !important; }
+  #panels #chequeBox .cheque-kind-guarantee { padding: 4px 7px !important; font-size: 10px !important; }
+  #panels #chequeBox .cheque-deal-link { max-width: 100% !important; white-space: normal !important; overflow-wrap: anywhere !important; line-height: 1.55 !important; }
+  #panels #chequeBox .cheque-cell-actions { display: flex !important; align-items: center !important; justify-content: flex-end !important; flex-wrap: wrap !important; gap: 6px !important; }
+  #panels #chequeBox .cheque-row-action { position: relative !important; width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; max-width: 42px !important; max-height: 42px !important; flex: 0 0 42px !important; margin: 0 !important; padding: 0 !important; display: grid !important; place-items: center !important; border-width: 1px !important; border-radius: 11px !important; font-size: 0 !important; line-height: 1 !important; overflow: hidden !important; }
+  #panels #chequeBox .cheque-row-icon { width: 19px !important; height: 19px !important; display: grid !important; place-items: center !important; font-size: 18px !important; line-height: 1 !important; }
+  #panels #chequeBox .cheque-row-label { display: none !important; }
+  #panels #chequeBox .cheque-row-action.is-wide { width: auto !important; min-width: 118px !important; max-width: 100% !important; padding: 5px 8px !important; display: flex !important; gap: 5px !important; font-size: 10px !important; }
+  #panels #chequeBox .cheque-row-action.is-wide .cheque-row-label { display: block !important; white-space: normal !important; }
+  #panels #chequeBox .cheque-row-edit { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #panels #chequeBox .cheque-row-delete, #panels #chequeBox .cheque-row-void { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  #panels #chequeBox .cheque-row-retrieve, #panels #chequeBox .cheque-row-collect { color: #047857 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  #panels #chequeBox .cheque-row-deal, #panels #chequeBox .cheque-row-endorse { color: #0e7490 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #panels #chequeBox .cheque-row-bounce, #panels #chequeBox .cheque-row-return-transfer { color: #b45309 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #panels .offer-form-modal .offer-signature-card { width: 100% !important; min-width: 0 !important; max-width: 100% !important; margin: 10px 0 !important; padding: 10px !important; box-sizing: border-box !important; }
+  #panels .offer-form-modal .offer-signature-head { min-width: 0 !important; }
+  #panels .offer-form-modal .offer-signature-head small { font-size: 10px !important; line-height: 1.55 !important; overflow-wrap: anywhere !important; }
+  #panels .offer-form-modal .offer-signature-toggle { min-width: 0 !important; margin-top: 8px !important; padding: 8px !important; font-size: 11px !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  #panels .offer-form-modal .offer-signature-toggle input { appearance: auto !important; width: 20px !important; height: 20px !important; min-width: 20px !important; min-height: 20px !important; max-width: 20px !important; max-height: 20px !important; margin: 0 !important; padding: 0 !important; }
+  #panels .offer-form-modal .offer-signature-select { grid-template-columns: minmax(0, 1fr) !important; gap: 5px !important; }
+  #panels .offer-form-modal .offer-signature-select select { width: 100% !important; min-height: 46px !important; box-sizing: border-box !important; }
+  #panels .offer-form-modal .offer-seller-row { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; }
+  body .ptf-print-preview-modal { width: 96vw !important; max-width: 96vw !important; padding: 14px !important; }
+  body .ptf-print-preview-modal .ptf-print-preview-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  body .ptf-print-preview-modal .ptf-print-preview-head h3 { min-width: 0 !important; font-size: 14px !important; overflow-wrap: anywhere !important; }
+  body .ptf-print-preview-modal .ptf-print-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px !important; }
+  body .ptf-print-preview-modal .ptf-print-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 52px !important; margin: 0 !important; padding: 6px 4px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 2px !important; border-width: 1px !important; border-radius: 11px !important; font-size: 9.5px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  body .ptf-print-preview-modal .ptf-print-action-icon { font-size: 17px !important; line-height: 1 !important; }
+  body .ptf-print-preview-modal #ptfPrintFrame { height: 52vh !important; min-height: 300px !important; }
+  body .ptf-print-preview-modal .ptf-print-layout-bar { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+  body .ptf-print-preview-modal .ptf-print-layout-bar[style*="display: flex"] { display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  body .ptf-print-preview-modal .ptf-print-layout-bar > span { width: 100% !important; min-width: 0 !important; font-size: 10px !important; }
+
+  /* MOB-030: tabهای «پرونده‌های فروش» باید مثل سایر navigationهای اصلاح‌شده
+     (هاب مالی و کیفیت داده) grid ثابت، label کامل و hit-area برابر داشته باشند.
+     این selectorها عمداً فقط روی ماژول پرونده اعمال می‌شوند تا قاعدهٔ سراسری
+     button و toolbarهای سایر پنل‌ها را دوباره تغییر ندهند. */
+  #panels .sf-tabs {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin: 0 0 12px !important;
+    padding: 4px !important;
+    box-sizing: border-box !important;
+  }
+  #panels .sf-tab {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 68px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 7px 9px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 7px !important;
+    border-width: 1px !important;
+    border-radius: 12px !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+    white-space: normal !important;
+    text-align: right !important;
+    overflow: hidden !important;
+    text-overflow: clip !important;
+  }
+  #panels .sf-tab-icon { width: 21px !important; height: 21px !important; flex: 0 0 21px !important; font-size: 19px !important; }
+  #panels .sf-tab-copy { min-width: 0 !important; gap: 2px !important; }
+  #panels .sf-tab-title { display: block !important; max-width: 100% !important; font-size: 11.5px !important; line-height: 1.3 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  #panels .sf-tab-meta { display: block !important; max-width: 100% !important; font-size: 9.5px !important; line-height: 1.35 !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels .sf-tab-oppo .sf-tab-copy { padding-left: 21px !important; }
+  #panels .sf-tab-count { top: 6px !important; left: 6px !important; min-width: 19px !important; padding: 1px 4px !important; font-size: 9.5px !important; line-height: 1.35 !important; }
+  #panels .sf-deal-content { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels .sf-context { width: 100% !important; min-width: 0 !important; margin: 0 0 12px !important; padding: 9px 10px !important; box-sizing: border-box !important; font-size: 11px !important; line-height: 1.75 !important; }
+  #panels .sf-context-icon { width: 19px !important; flex: 0 0 19px !important; font-size: 16px !important; }
+  #panels .sf-oppo-switcher { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 7px !important; margin: 0 0 12px !important; }
+  #panels .sf-oppo-switcher-label { font-size: 10.5px !important; }
+  #panels .sf-oppo-views { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels .sf-oppo-view { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 58px !important; height: auto !important; margin: 0 !important; padding: 6px 7px !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 6px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10px !important; line-height: 1.3 !important; white-space: normal !important; text-align: right !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels .sf-oppo-view-icon { width: 18px !important; height: 18px !important; flex: 0 0 18px !important; font-size: 16px !important; }
+  #panels .sf-oppo-view-copy { min-width: 0 !important; gap: 2px !important; }
+  #panels .sf-oppo-view-title { display: block !important; max-width: 100% !important; font-size: 10.5px !important; line-height: 1.25 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+  #panels .sf-oppo-view-meta { display: block !important; max-width: 100% !important; font-size: 9px !important; line-height: 1.3 !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+
+  /* MOB-039: کارت فرصت و actionهای Post-Award پرونده فروش؛ ruleهای عمومی button
+     به این گروه‌ها سرایت نمی‌کند و همهٔ actionها tileهای هم‌تراز/نام‌دار هستند. */
+  #panels .sf-oppo-card, #panels .sf-oppo-customer-card, #panels .sf-post-award-shell { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels .sf-oppo-card { padding: 11px 12px !important; }
+  #panels .sf-oppo-card-head { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 9px !important; }
+  #panels .sf-oppo-card-summary { width: 100% !important; min-width: 0 !important; font-size: 12px !important; overflow-wrap: anywhere !important; }
+  #panels .sf-oppo-card-chips { width: 100% !important; min-width: 0 !important; line-height: 1.9 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-oppo-card-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels .sf-oppo-card-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 62px !important; height: auto !important; margin: 0 !important; padding: 7px 5px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10.5px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels .sf-oppo-card-actions.has-rfq .sf-oppo-card-action-loss { grid-column: 1 / -1 !important; min-height: 52px !important; padding: 6px 10px !important; flex-direction: row !important; }
+  #panels .sf-oppo-card-action-icon { width: 19px !important; height: 19px !important; flex: 0 0 19px !important; font-size: 17px !important; }
+  #panels .sf-oppo-card-action-copy { min-width: 0 !important; align-items: center !important; }
+  #panels .sf-oppo-card-action-label { display: block !important; max-width: 100% !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels .sf-oppo-card-action-meta { display: block !important; max-width: 100% !important; font-size: 9px !important; line-height: 1.2 !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels .sf-oppo-card-hint { width: 100% !important; min-width: 0 !important; margin-top: 8px !important; font-size: 10.5px !important; line-height: 1.7 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-oppo-customer-card { padding: 8px 9px !important; }
+  #panels .sf-oppo-customer-head { width: 100% !important; min-width: 0 !important; min-height: 52px !important; margin: 0 !important; padding: 7px 4px !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 7px !important; font-size: 11.5px !important; line-height: 1.45 !important; white-space: normal !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels .sf-oppo-customer-head-copy { min-width: 0 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-oppo-customer-code { font-size: 9.5px !important; }
+  #panels .sf-oppo-customer-toggle-text { font-size: 10px !important; }
+  #panels .sf-oppo-customer-detail { width: 100% !important; min-width: 0 !important; box-sizing: border-box !important; }
+  #panels .sf-oppo-customer-offer { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 7px !important; padding: 8px !important; box-sizing: border-box !important; font-size: 10.5px !important; }
+  #panels .sf-oppo-customer-offer-main { min-width: 0 !important; line-height: 1.8 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-oppo-customer-offer-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px !important; }
+  #panels .sf-oppo-customer-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 48px !important; margin: 0 !important; padding: 6px 4px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 2px !important; border-width: 1px !important; border-radius: 11px !important; font-size: 10px !important; line-height: 1.25 !important; white-space: normal !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels .sf-oppo-customer-action-icon { font-size: 16px !important; line-height: 1 !important; }
+  #panels .sf-post-award-shell { margin-top: 10px !important; padding: 9px !important; border-radius: 14px !important; }
+  #panels .sf-post-award-heading { width: 100% !important; min-width: 0 !important; margin-bottom: 9px !important; }
+  #panels .sf-post-award-heading b { font-size: 11.5px !important; }
+  #panels .sf-post-award-heading small { font-size: 9.5px !important; line-height: 1.55 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-post-award-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels .sf-post-award-rial { display: contents !important; }
+  #panels .sf-post-award-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 62px !important; height: auto !important; margin: 0 !important; padding: 7px 5px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels .sf-post-award-action.is-wide { grid-column: 1 / -1 !important; min-height: 54px !important; padding: 7px 10px !important; flex-direction: row !important; justify-content: center !important; }
+  #panels .sf-post-award-icon { width: 19px !important; height: 19px !important; flex: 0 0 19px !important; font-size: 17px !important; }
+  #panels .sf-post-award-copy { min-width: 0 !important; align-items: center !important; }
+  #panels .sf-post-award-label { display: block !important; max-width: 100% !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels .sf-post-award-meta { display: block !important; max-width: 100% !important; font-size: 8.8px !important; line-height: 1.2 !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels .sf-post-award-status { grid-column: 1 / -1 !important; width: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 7px 9px !important; box-sizing: border-box !important; text-align: center !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels .sf-post-award-extras { width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+  #panels .sf-post-award-upload { width: 100% !important; min-width: 0 !important; margin-top: 10px !important; padding-top: 8px !important; box-sizing: border-box !important; }
+  #panels .sf-post-award-upload-label { margin-bottom: 6px !important; font-size: 10.5px !important; }
+  #panels .sf-post-award-upload [id^="sfUp_"] { width: 100% !important; min-width: 0 !important; max-width: 100% !important; display: block !important; }
+  #panels .sf-post-award-upload [id^="sfUp_"] > div { max-width: 100% !important; box-sizing: border-box !important; }
+  #panels .sf-post-award-real-buy { color: #047857 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  #panels .sf-post-award-due { color: #0e7490 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #panels .sf-post-award-qc { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  #panels .sf-post-award-inspection-note, #panels .sf-post-award-invoice-ref, #panels .sf-post-award-rial-source { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #panels .sf-post-award-packing-list, #panels .sf-post-award-shipment, #panels .sf-post-award-close, #panels .sf-post-award-rial-terms { color: #a16207 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #panels .sf-post-award-delivery { color: #166534 !important; background: #ecfdf5 !important; border-color: #bbf7d0 !important; }
+  #panels .sf-post-award-loss { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  #panels .sf-post-award-rial-preview, #panels .sf-post-award-rial-print { color: #0e7490 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #panels .sf-post-award-rial-convert { color: #fff !important; background: #0e7490 !important; border-color: #0e7490 !important; }
+  #panels .sf-post-award-invoice-ref.is-locked { color: #94a3b8 !important; background: #f8fafc !important; border-color: #e2e8f0 !important; }
+  #panels .sf-real-buy-summary { width: 100% !important; min-width: 0 !important; max-width: 100% !important; margin-top: 8px !important; padding: 9px !important; box-sizing: border-box !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels .sf-real-buy-copy { width: 100% !important; min-width: 0 !important; }
+  #panels .sf-real-buy-heading { min-width: 0 !important; }
+  #panels .sf-real-buy-heading b { font-size: 11px !important; }
+  #panels .sf-real-buy-heading small, #panels .sf-real-buy-status { font-size: 9.5px !important; line-height: 1.65 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-real-buy-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px !important; }
+  #panels .sf-real-buy-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 52px !important; margin: 0 !important; padding: 6px 4px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 2px !important; border-width: 1px !important; border-radius: 11px !important; font-size: 9.5px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels .sf-real-buy-action-icon { font-size: 16px !important; line-height: 1 !important; }
+  #panels .sf-real-buy-action-open { color: #fff !important; background: #059669 !important; border-color: #059669 !important; }
+  #panels .sf-real-buy-action-advance { color: #0e7490 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #panels .sf-real-buy-action-inquiry { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #panels .sf-real-buy-action-cost { color: #b45309 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #panels .sf-docx-summary { width: 100% !important; min-width: 0 !important; max-width: 100% !important; margin-top: 8px !important; padding: 9px !important; box-sizing: border-box !important; }
+  #panels .sf-docx-heading { min-width: 0 !important; }
+  #panels .sf-docx-heading b { font-size: 11px !important; }
+  #panels .sf-docx-heading small { font-size: 9.5px !important; line-height: 1.55 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-docx-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px !important; margin-top: 8px !important; }
+  #panels .sf-docx-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 52px !important; margin: 0 !important; padding: 6px 4px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 2px !important; border-width: 1px !important; border-radius: 11px !important; font-size: 9.5px !important; line-height: 1.25 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels .sf-docx-action-icon { font-size: 16px !important; line-height: 1 !important; }
+  #panels .sf-docx-existing { width: 100% !important; min-width: 0 !important; margin-top: 8px !important; }
+  #panels .sf-docx-existing-row { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 7px !important; padding: 8px 0 !important; box-sizing: border-box !important; font-size: 10px !important; }
+  #panels .sf-docx-existing-copy { min-width: 0 !important; line-height: 1.7 !important; overflow-wrap: anywhere !important; }
+  #panels .sf-docx-row-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px !important; }
+  #panels .sf-docx-row-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 46px !important; margin: 0 !important; padding: 6px 4px !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 4px !important; border-width: 1px !important; border-radius: 10px !important; font-size: 9.5px !important; line-height: 1.25 !important; white-space: normal !important; overflow: hidden !important; text-overflow: clip !important; }
+
+  /* MOB-040: دستیار در موبایل یک workspace کامل است، نه ردیف‌های button با عرض متن. */
+  #panels #aiWB_root { width: 100% !important; min-width: 0 !important; max-width: 100% !important; display: grid !important; gap: 12px !important; box-sizing: border-box !important; }
+  #panels #aiWB_root .aiwb-hero { width: 100% !important; min-width: 0 !important; padding: 13px !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 11px !important; border-radius: 18px !important; box-sizing: border-box !important; }
+  #panels #aiWB_root .aiwb-hero-copy { min-width: 0 !important; gap: 9px !important; }
+  #panels #aiWB_root .aiwb-hero-icon { width: 38px !important; height: 38px !important; flex: 0 0 38px !important; border-radius: 13px !important; font-size: 21px !important; }
+  #panels #aiWB_root .aiwb-hero h3 { font-size: 16px !important; line-height: 1.35 !important; }
+  #panels #aiWB_root .aiwb-hero p { font-size: 10.5px !important; line-height: 1.65 !important; }
+  #panels #aiWB_root .aiwb-hero-tools { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #aiWB_root .aiwb-quota { width: 100% !important; min-height: 40px !important; padding: 7px 9px !important; justify-content: center !important; box-sizing: border-box !important; font-size: 10.5px !important; text-align: center !important; white-space: normal !important; }
+  #panels #aiWB_root .aiwb-quick-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #aiWB_root .aiwb-quick-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 54px !important; margin: 0 !important; padding: 6px 4px !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10px !important; line-height: 1.25 !important; white-space: normal !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels #aiWB_root .aiwb-tabs { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; margin: 0 !important; padding: 5px !important; box-sizing: border-box !important; }
+  #panels #aiWB_root .aiwb-tab { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 66px !important; height: auto !important; margin: 0 !important; padding: 7px 8px !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: flex-start !important; gap: 7px !important; border-width: 1px !important; border-radius: 12px !important; font-size: 10.5px !important; line-height: 1.25 !important; white-space: normal !important; text-align: right !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels #aiWB_root .aiwb-tab.is-active { color: #fff !important; background: #4f46e5 !important; border-color: #4f46e5 !important; }
+  #panels #aiWB_root .aiwb-tab-ocr.is-active { background: #0f766e !important; border-color: #0f766e !important; }
+  #panels #aiWB_root .aiwb-tab-letter.is-active { background: #7c3aed !important; border-color: #7c3aed !important; }
+  #panels #aiWB_root .aiwb-tab.is-active .aiwb-tab-label, #panels #aiWB_root .aiwb-tab.is-active .aiwb-tab-meta, #panels #aiWB_root .aiwb-tab.is-active .aiwb-tab-icon { color: #fff !important; }
+  #panels #aiWB_root .aiwb-tab-icon { width: 20px !important; height: 20px !important; flex: 0 0 20px !important; font-size: 18px !important; }
+  #panels #aiWB_root .aiwb-tab-copy { min-width: 0 !important; gap: 2px !important; }
+  #panels #aiWB_root .aiwb-tab-label { display: block !important; max-width: 100% !important; font-size: 10.8px !important; line-height: 1.25 !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels #aiWB_root .aiwb-tab-meta { display: block !important; max-width: 100% !important; font-size: 8.8px !important; line-height: 1.25 !important; white-space: normal !important; overflow-wrap: anywhere !important; }
+  #panels #aiWB_root .aiwb-panel, #panels #aiWB_root .aiwb-tool-grid, #panels #aiWB_root .aiwb-result-slot { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  #panels #aiWB_root .aiwb-tool-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 10px !important; }
+  #panels #aiWB_root .aiwb-tool-card, #panels #aiWB_root .aiwb-result-card { width: 100% !important; min-width: 0 !important; max-width: 100% !important; margin: 0 !important; padding: 12px !important; border-radius: 16px !important; box-sizing: border-box !important; }
+  #panels #aiWB_root .aiwb-tool-title { margin-bottom: 7px !important; font-size: 13px !important; }
+  #panels #aiWB_root .aiwb-tool-copy { margin-bottom: 10px !important; font-size: 10.8px !important; line-height: 1.75 !important; }
+  #panels #aiWB_root .aiwb-dropzone { min-height: 116px !important; padding: 12px !important; border-radius: 14px !important; gap: 8px !important; }
+  #panels #aiWB_root .aiwb-dropzone b { font-size: 11.5px !important; }
+  #panels #aiWB_root .aiwb-dropzone small { font-size: 9.5px !important; }
+  #panels #aiWB_root .aiwb-status, #panels #aiWB_root .aiwb-output { margin-top: 10px !important; font-size: 10.5px !important; line-height: 1.7 !important; overflow-wrap: anywhere !important; }
+  #panels #aiWB_root .aiwb-note { margin-top: 10px !important; padding: 8px !important; font-size: 10px !important; }
+  #panels #aiWB_root .aiwb-check { min-height: 46px !important; padding: 8px 9px !important; font-size: 10.5px !important; line-height: 1.5 !important; }
+  #panels #aiWB_root .aiwb-check input { width: 19px !important; height: 19px !important; min-width: 19px !important; min-height: 19px !important; padding: 0 !important; }
+  #panels #aiWB_root .aiwb-inline-actions { width: 100% !important; min-width: 0 !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  #panels #aiWB_root .aiwb-inline-actions .bt, #panels #aiWB_root .aiwb-primary-action, #panels #aiWB_root .aiwb-secondary-action { width: 100% !important; min-width: 0 !important; max-width: none !important; min-height: 50px !important; margin: 0 !important; padding: 7px 5px !important; box-sizing: border-box !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 10px !important; line-height: 1.3 !important; white-space: normal !important; text-align: center !important; overflow: hidden !important; text-overflow: clip !important; }
+  #panels #aiWB_root .aiwb-table-scroll { width: 100% !important; max-width: 100% !important; }
+  #panels #aiWB_root .aiwb-triple-pipeline { width: 100% !important; min-width: 0 !important; margin-top: 12px !important; padding: 11px !important; box-sizing: border-box !important; }
+  #panels #aiWB_root .aiwb-triple-pipeline > label { min-width: 0 !important; min-height: 42px !important; padding: 7px 8px !important; border: 1px solid #bbf7d0 !important; border-radius: 10px !important; background: #fff !important; box-sizing: border-box !important; font-size: 10.5px !important; line-height: 1.55 !important; }
+  #panels #aiWB_root .aiwb-triple-selects { width: 100% !important; min-width: 0 !important; grid-template-columns: minmax(0, 1fr) !important; gap: 8px !important; }
+  #panels #aiWB_root .aiwb-triple-selects select { min-height: 42px !important; }
+  #panels #aiWB_root .aiwb-letter-output { min-height: 220px !important; padding: 10px !important; font-size: 11px !important; line-height: 1.9 !important; }
+  #panels #aiWB_root .aiwb-card-switcher { width: 100% !important; display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 7px !important; }
+  #panels #aiWB_root .aiwb-card-switcher .bt { width: 100% !important; min-height: 44px !important; margin: 0 !important; padding: 6px !important; font-size: 10px !important; white-space: normal !important; }
+  #panels #aiWB_root .aiwb-log { width: 100% !important; max-width: 100% !important; font-size: 10px !important; box-sizing: border-box !important; }
+
   /* دکمه‌های عملیاتی کارت/ردیف (مشاهده، ویرایش، حذف): فقط آیکون */
   .tb2 .ba {
     font-size: 0 !important;
@@ -172,6 +847,376 @@
     border-radius: 10px !important;
   }
   .tb2 .ba::first-letter { font-size: 16px !important; }
+  /* MOB-023: icons.js ایموجیِ actionهای ردیف درخواست را به SVG داخل [data-ix]
+     تبدیل می‌کند. font-size:0 والد، SVGهای em-based را صفر می‌کرد و دکمه‌های
+     «متن استعلام» / «مشاهده پروژه» بدون آیکون دیده می‌شدند. */
+  /* قرارداد یکپارچهٔ actionهای انتهای هر ردیف درخواست: اندازه، مرکز آیکون و زمینه یکسان. */
+  #rTb tr > td:last-child {
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  #rTb tr > td:last-child > button {
+    position: relative !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 36px !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 10px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    line-height: 1 !important;
+  }
+  /* برچسب متن در موبایل پنهان است؛ SVG باید مستقل از text-node دقیقاً در مرکز بنشیند. */
+  #rTb tr > td:last-child > button.ba::first-letter { font-size: 0 !important; }
+  #rTb tr > td:last-child > button [data-ix] {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+  }
+  #rTb tr > td:last-child > button [data-ix] svg { width: 18px !important; height: 18px !important; }
+  /* رنگ معنایی actionها؛ پس‌زمینهٔ روشنِ هم‌خانواده، رنگ آیکون را برجسته می‌کند. */
+  #rTb tr > td:last-child > button[data-rfq-action="ptfViewRfq"] { color: #0284c7 !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="editRfq"] { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="showRefModal"] { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="goPanelPrj"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="ptfManageInqAttachments"],
+  #rTb tr > td:last-child > button[data-rfq-action="rfqShowFiles"] { color: #0891b2 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="inqReadOpen"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #rTb tr > td:last-child > button[data-rfq-action="rfqShowText"],
+  #rTb tr > td:last-child > button[data-rfq-action="rfqEditText"] { color: #db2777 !important; background: #fdf2f8 !important; border-color: #fbcfe8 !important; }
+
+  /* MOB-029: action rowهای مشتری/تأمین‌کننده/کالا — اندازه، label و icon contract یکسان. */
+  #cTb tr > td:last-child, #sTb tr > td:last-child, #pTb tr > td:last-child {
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  #cTb .entity-row-action, #sTb .entity-row-action, #pTb .entity-row-action {
+    position: relative !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
+    flex: 0 0 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+  }
+  #cTb .entity-row-action [data-ix], #sTb .entity-row-action [data-ix], #pTb .entity-row-action [data-ix] {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+  }
+  #cTb .entity-row-action [data-ix] svg, #sTb .entity-row-action [data-ix] svg, #pTb .entity-row-action [data-ix] svg { width: 20px !important; height: 20px !important; }
+  #cTb .entity-row-action[data-entity-action="view"], #sTb .entity-row-action[data-entity-action="view"] { color: #0284c7 !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #cTb .entity-row-action[data-entity-action="edit"], #sTb .entity-row-action[data-entity-action="edit"], #pTb .entity-row-action[data-entity-action="edit"] { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #cTb .entity-row-action[data-entity-action="delete"], #sTb .entity-row-action[data-entity-action="delete"], #pTb .entity-row-action[data-entity-action="delete"] { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  #cTb .entity-row-action[data-entity-action="message"], #sTb .entity-row-action[data-entity-action="message"] { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  #cTb .entity-row-action[data-entity-action="merge"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+
+  /* MOB-028/033: قرارداد runtime برای toolbarهای مبهم و .baهای جدول‌های باقی‌مانده. */
+  #panels .mobile-toolbar-action {
+    position: relative !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    max-width: 44px !important;
+    max-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 44px !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+  }
+  #panels .mobile-toolbar-action > [data-ix] { display: none !important; }
+  #panels .mobile-toolbar-icon {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 22px !important;
+    height: 22px !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+  }
+  #panels .mobile-toolbar-icon [data-ix], #panels .mobile-toolbar-icon svg { width: 22px !important; height: 22px !important; display: inline-flex !important; place-items: center !important; }
+  #panels .mobile-ba-row { align-items: center !important; justify-content: flex-end !important; flex-wrap: wrap !important; gap: 6px !important; }
+  #panels .mobile-ba-action {
+    position: relative !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
+    flex: 0 0 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+  }
+  #panels .mobile-ba-action > [data-ix] { display: none !important; }
+  #panels .mobile-ba-icon { position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; width: 20px !important; height: 20px !important; display: grid !important; place-items: center !important; font-size: 20px !important; line-height: 1 !important; pointer-events: none !important; }
+  #panels .mobile-ba-icon [data-ix], #panels .mobile-ba-icon svg { width: 20px !important; height: 20px !important; display: inline-flex !important; place-items: center !important; }
+  #panels [data-mobile-tone="blue"]   { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #panels [data-mobile-tone="violet"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #panels [data-mobile-tone="amber"]  { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #panels [data-mobile-tone="teal"]   { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  #panels [data-mobile-tone="cyan"]   { color: #0891b2 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #panels [data-mobile-tone="green"]  { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  #panels [data-mobile-tone="pink"]   { color: #db2777 !important; background: #fdf2f8 !important; border-color: #fbcfe8 !important; }
+  #panels [data-mobile-tone="red"]    { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  #panels [data-mobile-tone="slate"]  { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+
+  /* MOB-025: نوار عملیات پیشنهاد — حداکثر چند action اصلی روی کارت؛ عملیات ثانویه در sheet. */
+  #oTb tr > td:last-child {
+    align-items: center !important;
+    justify-content: flex-end !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  #oTb tr > td:last-child > .offer-row-action {
+    position: relative !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    max-width: 40px !important;
+    max-height: 40px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    flex: 0 0 40px !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 12px !important;
+    background: var(--bg, #f8fafc) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 0 !important;
+    line-height: 1 !important;
+    overflow: hidden !important;
+  }
+  #oTb tr > td:last-child > .offer-row-action[data-offer-secondary="1"] { display: none !important; }
+  #oTb tr > td:last-child > .offer-row-more,
+  #oTb tr > td:last-child > .offer-row-rial-menu { display: grid !important; }
+  #oTb .offer-action-icon {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 20px !important;
+    height: 20px !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+    pointer-events: none !important;
+  }
+  #oTb .offer-action-icon [data-ix],
+  #oTb .offer-action-icon svg {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+  }
+  #oTb .offer-action-label { display: none !important; }
+  #oTb .offer-row-more .offer-action-icon { font-size: 24px !important; }
+  #oTb .offer-row-more .offer-action-icon [data-ix] { width: 22px !important; height: 22px !important; }
+  #oTb .offer-row-action[data-offer-tone="sky"]    { color: #0284c7 !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #oTb .offer-row-action[data-offer-tone="blue"]   { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #oTb .offer-row-action[data-offer-tone="indigo"] { color: #4f46e5 !important; background: #eef2ff !important; border-color: #c7d2fe !important; }
+  #oTb .offer-row-action[data-offer-tone="violet"] { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #oTb .offer-row-action[data-offer-tone="amber"]  { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #oTb .offer-row-action[data-offer-tone="orange"] { color: #ea580c !important; background: #fff7ed !important; border-color: #fed7aa !important; }
+  #oTb .offer-row-action[data-offer-tone="teal"]   { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  #oTb .offer-row-action[data-offer-tone="cyan"]   { color: #0891b2 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  #oTb .offer-row-action[data-offer-tone="green"]  { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  #oTb .offer-row-action[data-offer-tone="pink"]   { color: #db2777 !important; background: #fdf2f8 !important; border-color: #fbcfe8 !important; }
+  #oTb .offer-row-action[data-offer-tone="red"]    { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  #oTb .offer-row-action[data-offer-tone="slate"]  { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+
+  /* sheet عملیات ثانویه — بدون شلوغی یا دکمه‌های نیمه‌نمایان در کارت پیشنهاد */
+  #ptfOfferActionSheet {
+    position: fixed;
+    inset: 0;
+    z-index: 5200;
+    display: flex;
+    align-items: flex-end;
+    background: rgba(15,23,42,.48);
+    backdrop-filter: blur(3px);
+  }
+  #ptfOfferActionSheet .offer-action-sheet {
+    width: 100%;
+    max-height: min(72dvh, 620px);
+    overflow: auto;
+    padding: 12px 14px calc(18px + env(safe-area-inset-bottom,0px));
+    border-radius: 22px 22px 0 0;
+    background: var(--crd, #fff);
+    color: var(--tx, #1e293b);
+    box-shadow: 0 -14px 42px rgba(15,23,42,.22);
+  }
+  #ptfOfferActionSheet .offer-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  #ptfOfferActionSheet .offer-sheet-head b { font-size: 15px; }
+  #ptfOfferActionSheet .offer-sheet-close { width: 40px !important; height: 40px !important; min-width: 40px !important; min-height: 40px !important; padding: 0 !important; border: 1px solid var(--brd) !important; border-radius: 12px !important; background: var(--bg) !important; color: var(--tx) !important; }
+  #ptfOfferActionSheet .offer-sheet-sub { display: block; margin: 2px 0 10px; color: #64748b; direction: ltr; font-size: 11px; }
+  #ptfOfferActionSheet .offer-sheet-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #ptfOfferActionSheet .offer-sheet-action { min-height: 54px !important; padding: 8px 10px !important; border: 1px solid var(--brd) !important; border-radius: 14px !important; background: var(--bg) !important; color: var(--tx) !important; display: flex !important; align-items: center !important; gap: 10px !important; text-align: right !important; font-size: 12px !important; font-weight: 800 !important; }
+  #ptfOfferActionSheet .offer-sheet-icon { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; font-size: 19px; }
+  #ptfOfferActionSheet .offer-sheet-icon [data-ix],
+  #ptfOfferActionSheet .offer-sheet-icon svg { width: 19px !important; height: 19px !important; display: inline-flex !important; }
+  #ptfOfferActionSheet .offer-tone-sky .offer-sheet-icon    { color: #0284c7; background: #eff6ff; }
+  #ptfOfferActionSheet .offer-tone-blue .offer-sheet-icon   { color: #2563eb; background: #eff6ff; }
+  #ptfOfferActionSheet .offer-tone-indigo .offer-sheet-icon { color: #4f46e5; background: #eef2ff; }
+  #ptfOfferActionSheet .offer-tone-violet .offer-sheet-icon { color: #7c3aed; background: #f5f3ff; }
+  #ptfOfferActionSheet .offer-tone-amber .offer-sheet-icon  { color: #d97706; background: #fffbeb; }
+  #ptfOfferActionSheet .offer-tone-orange .offer-sheet-icon { color: #ea580c; background: #fff7ed; }
+  #ptfOfferActionSheet .offer-tone-teal .offer-sheet-icon   { color: #0f766e; background: #f0fdfa; }
+  #ptfOfferActionSheet .offer-tone-cyan .offer-sheet-icon   { color: #0891b2; background: #ecfeff; }
+  #ptfOfferActionSheet .offer-tone-green .offer-sheet-icon  { color: #059669; background: #ecfdf5; }
+  #ptfOfferActionSheet .offer-tone-pink .offer-sheet-icon   { color: #db2777; background: #fdf2f8; }
+  #ptfOfferActionSheet .offer-tone-red .offer-sheet-icon    { color: #dc2626; background: #fef2f2; }
+  #ptfOfferActionSheet .offer-tone-slate .offer-sheet-icon  { color: #475569; background: #f1f5f9; }
+
+  /* MOB-026: toolbar چاپ چک — tileهای برچسب‌دار، بدون overflow و بدون first-letter. */
+  #chqpToolbar, #chqpGraphicActions {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  #chqpToolbar .chqp-action, #chqpGraphicActions .chqp-action {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 68px !important;
+    margin: 0 !important;
+    padding: 6px 3px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--brd, #e2e8f0) !important;
+    border-radius: 13px !important;
+    background: var(--crd, #fff) !important;
+    color: var(--tx, #475569) !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+  #chqpToolbar .chqp-action-icon, #chqpGraphicActions .chqp-action-icon {
+    width: 24px !important;
+    height: 24px !important;
+    flex: none !important;
+    display: grid !important;
+    place-items: center !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+  }
+  #chqpToolbar .chqp-action-icon [data-ix], #chqpToolbar .chqp-action-icon svg,
+  #chqpGraphicActions .chqp-action-icon [data-ix], #chqpGraphicActions .chqp-action-icon svg {
+    width: 22px !important;
+    height: 22px !important;
+    display: inline-flex !important;
+    place-items: center !important;
+  }
+  #chqpToolbar .chqp-action-label, #chqpGraphicActions .chqp-action-label {
+    display: block !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+  }
+  #chqpToolbar .chqp-action.chqp-active, #chqpGraphicActions .chqp-action.chqp-active { color: #0f766e !important; background: #f0fdfa !important; border-color: #99f6e4 !important; }
+  .chqp-action.chqp-tone-blue   { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  .chqp-action.chqp-tone-violet { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  .chqp-action.chqp-tone-red    { color: #dc2626 !important; background: #fef2f2 !important; border-color: #fecaca !important; }
+  .chqp-action.chqp-tone-cyan   { color: #0891b2 !important; background: #ecfeff !important; border-color: #a5f3fc !important; }
+  .chqp-action.chqp-tone-green  { color: #059669 !important; background: #ecfdf5 !important; border-color: #a7f3d0 !important; }
+  .chqp-action.chqp-tone-indigo { color: #4f46e5 !important; background: #eef2ff !important; border-color: #c7d2fe !important; }
+  .chqp-action.chqp-tone-slate  { color: #475569 !important; background: #f8fafc !important; border-color: #cbd5e1 !important; }
+  .chqp-graphic-card, #chqpGvSection { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; }
+  .chqp-graphic-head { margin-bottom: 10px; }
+  .chqp-canvas-hint { margin: 10px 0 7px; padding: 7px 9px; border-radius: 10px; background: #eff6ff; color: #1d4ed8; font-size: 11px; line-height: 1.7; }
+  #chqpGv { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; padding: 10px !important; overflow: auto !important; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; overscroll-behavior: contain; }
+
+  /* MOB-027: کارت بستانکاری تامین‌کنندگان — title و actionها در عرض موبایل نمی‌بُرند. */
+  #payablesBox { width: 100% !important; min-width: 0 !important; max-width: 100% !important; box-sizing: border-box !important; background: #fffbeb !important; border: 1px solid #fcd34d !important; border-radius: 14px !important; padding: 12px !important; margin-bottom: 14px !important; overflow: hidden !important; }
+  #payablesBox .payables-head { display: grid !important; grid-template-columns: 1fr !important; gap: 10px !important; margin-bottom: 10px !important; }
+  #payablesBox .payables-summary { min-width: 0 !important; }
+  #payablesBox .payables-summary h4 { margin: 0 !important; color: #92400e !important; font-size: 14px !important; line-height: 1.7 !important; overflow-wrap: anywhere !important; }
+  #payablesBox .payables-total { display: inline-block !important; margin-top: 2px !important; color: #b45309 !important; font-size: 12px !important; font-weight: 800 !important; direction: ltr; }
+  #payablesBox .payables-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; width: 100% !important; min-width: 0 !important; }
+  #payablesBox .payable-action { min-width: 0 !important; min-height: 58px !important; margin: 0 !important; padding: 7px 5px !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 4px !important; border: 1px solid var(--brd, #e2e8f0) !important; border-radius: 12px !important; background: var(--crd, #fff) !important; color: var(--tx, #475569) !important; white-space: normal !important; text-align: center !important; font-size: 10px !important; line-height: 1.2 !important; overflow: hidden !important; }
+  #payablesBox .payable-action-icon { width: 22px !important; height: 22px !important; display: grid !important; place-items: center !important; flex: none !important; font-size: 20px !important; line-height: 1 !important; }
+  #payablesBox .payable-action-icon [data-ix], #payablesBox .payable-action-icon svg { width: 20px !important; height: 20px !important; display: inline-flex !important; place-items: center !important; }
+  #payablesBox .payable-action-label { display: block !important; max-width: 100% !important; overflow-wrap: anywhere !important; font-weight: 800 !important; }
+  #payablesBox .payable-tone-blue { color: #2563eb !important; background: #eff6ff !important; border-color: #bfdbfe !important; }
+  #payablesBox .payable-tone-violet { color: #7c3aed !important; background: #f5f3ff !important; border-color: #ddd6fe !important; }
+  #payablesBox .payable-tone-amber { color: #d97706 !important; background: #fffbeb !important; border-color: #fde68a !important; }
+  #payablesBox .payable-debt-row { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: 8px !important; padding: 8px 0 !important; border-top: 1px dashed var(--brd, #e2e8f0) !important; }
+  #payablesBox .payable-debt-info { flex: 1 1 auto !important; min-width: 0 !important; overflow-wrap: anywhere !important; font-size: 12px !important; line-height: 1.8 !important; }
+  #payablesBox .payable-debt-action { width: 54px !important; min-width: 54px !important; min-height: 54px !important; }
+  #payablesBox .payables-empty { color: #64748b !important; font-size: 12px !important; line-height: 1.8 !important; }
 
   /* .ph فلکس ردیفی بماند — عنوان + آیکون‌دکمه‌ها */
   .ph { flex-direction: row !important; align-items: center !important; flex-wrap: wrap !important; gap: 8px !important; }
@@ -216,7 +1261,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json?v=34.4.8">
 <meta name="theme-color" content="#ef4b1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -301,6 +1346,217 @@ body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;
 .ph h3{font-size:17px;color:var(--tx);font-weight:900}
 .sb2{display:flex;gap:6px}
 .sb2 input{padding:8px 12px;border:2px solid var(--brd);border-radius:10px;font-size:13px;background:#f8fafc}
+/* MOB-030: پرونده‌های فروش — navigation اصلی و نمای فرصت‌ها از دکمه‌های inline
+   با عرض وابسته به متن به tabهای معنایی و هم‌اندازه منتقل شدند. */
+.sf-tabs{width:100%;max-width:680px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 12px;padding:4px;border:1px solid #dbeafe;border-radius:16px;background:#f8fafc}
+.sf-tab{position:relative;min-width:0;min-height:60px;margin:0;padding:8px 14px;display:flex;align-items:center;justify-content:flex-start;gap:8px;border:1px solid transparent;border-radius:12px;background:#fff;color:#475569;font:inherit;text-align:right;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+.sf-tab:hover{box-shadow:0 3px 10px rgba(15,23,42,.08)}
+.sf-tab:focus-visible,.sf-oppo-view:focus-visible{outline:3px solid rgba(37,99,235,.34);outline-offset:2px}
+.sf-tab-files{background:#f0fdfa;color:#0f766e;border-color:#99f6e4}
+.sf-tab-oppo{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe}
+.sf-tab-files.is-active{background:#0f766e;color:#fff;border-color:#0f766e;box-shadow:0 5px 13px rgba(15,118,110,.22)}
+.sf-tab-oppo.is-active{background:#7c3aed;color:#fff;border-color:#7c3aed;box-shadow:0 5px 13px rgba(124,58,237,.22)}
+.sf-tab-icon{width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;font-size:20px;line-height:1}
+.sf-tab-copy{min-width:0;display:flex;flex:1 1 auto;flex-direction:column;gap:2px;line-height:1.25}
+.sf-tab-title{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sf-tab-meta{font-size:10.5px;font-weight:700;opacity:.82;white-space:normal;overflow-wrap:anywhere}
+.sf-tab-oppo .sf-tab-copy{padding-left:24px}
+.sf-tab-count{position:absolute;top:7px;left:7px;min-width:20px;padding:1px 5px;border-radius:999px;background:rgba(124,58,237,.13);color:#6d28d9;font-size:10px;font-weight:900;line-height:1.45;text-align:center;direction:ltr}
+.sf-tab-oppo.is-active .sf-tab-count{background:rgba(255,255,255,.22);color:#fff}
+.sf-deal-content{min-width:0;max-width:100%}
+.sf-context{width:100%;display:flex;align-items:flex-start;gap:8px;margin:0 0 12px;padding:10px 12px;border:1px solid;border-radius:14px;font-size:12px;font-weight:700;line-height:1.85}
+.sf-context-icon{width:20px;flex:0 0 20px;display:grid;place-items:center;font-size:17px;line-height:1.25}
+.sf-context-files{background:#f0f9ff;border-color:#bae6fd;color:#0c4a6e}
+.sf-context-oppo{background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6}
+.sf-oppo-switcher{width:100%;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.sf-oppo-switcher-label{font-size:11px;font-weight:900;color:#64748b;white-space:nowrap}
+.sf-oppo-views{width:min(100%,440px);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sf-oppo-view{min-width:0;min-height:50px;margin:0;padding:6px 10px;display:flex;align-items:center;justify-content:flex-start;gap:7px;border:1px solid #ddd6fe;border-radius:11px;background:#fff;color:#64748b;font:inherit;text-align:right;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+.sf-oppo-view:hover{background:#faf5ff;color:#6d28d9}
+.sf-oppo-view.is-active{background:#7c3aed;color:#fff;border-color:#7c3aed;box-shadow:0 4px 10px rgba(124,58,237,.18)}
+.sf-oppo-view-icon{width:19px;height:19px;flex:0 0 19px;display:grid;place-items:center;font-size:17px;line-height:1}
+.sf-oppo-view-copy{min-width:0;display:flex;flex:1 1 auto;flex-direction:column;gap:1px;line-height:1.25}
+.sf-oppo-view-title{font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sf-oppo-view-meta{font-size:10px;font-weight:700;opacity:.8;white-space:normal;overflow-wrap:anywhere}
+/* MOB-039: actionهای کارت فرصت و عملیات Post-Award پرونده فروش. این قرارداد
+   ماژول‌-scope است تا دکمه‌های legacy سایر بخش‌ها تغییر نکنند. */
+.sf-oppo-card{background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;padding:12px 14px;min-width:0}
+.sf-oppo-card.is-overdue{border-color:#fca5a5;background:#fef2f2}
+.sf-oppo-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap}
+.sf-oppo-card-summary{min-width:0;flex:1 1 220px;font-size:13px}
+.sf-oppo-card-chips{margin-top:5px;line-height:2.2}
+.sf-oppo-card-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.sf-oppo-card-action{min-width:0;min-height:44px;margin:0;padding:6px 9px;display:inline-flex;align-items:center;justify-content:flex-start;gap:6px;border:1px solid var(--brd);border-radius:11px;background:#f8fafc;color:#475569;font:inherit;font-size:11px;font-weight:900;line-height:1.3;text-align:right;cursor:pointer}
+.sf-oppo-card-action:hover{filter:brightness(.98);box-shadow:0 3px 9px rgba(15,23,42,.09)}
+.sf-oppo-card-action-icon{width:18px;height:18px;flex:0 0 18px;display:grid;place-items:center;font-size:17px;line-height:1}
+.sf-oppo-card-action-copy{min-width:0;display:flex;flex-direction:column;gap:1px}
+.sf-oppo-card-action-label{font-weight:900;white-space:nowrap}
+.sf-oppo-card-action-meta{display:none;font-size:9.5px;font-weight:700;opacity:.8}
+.sf-oppo-card-action-offers{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
+.sf-oppo-card-action-request{background:#fffbeb;color:#b45309;border-color:#fde68a}
+.sf-oppo-card-action-loss{background:#fef2f2;color:#dc2626;border-color:#fecaca}
+.sf-oppo-card-hint{margin-top:7px;font-size:11px;color:#64748b;line-height:1.7}
+.sf-oppo-customer-card{background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;padding:8px 10px;min-width:0}
+.sf-oppo-customer-head{width:100%;min-width:0;margin:0;padding:5px 3px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:0;background:transparent;color:var(--tx);font:inherit;font-size:13px;text-align:right;cursor:pointer}
+.sf-oppo-customer-head-copy{min-width:0;display:block;overflow-wrap:anywhere}
+.sf-oppo-customer-code{display:inline-block;margin:0 3px;padding:1px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px}
+.sf-oppo-customer-count{background:#fef3c7;color:#b45309}
+.sf-oppo-customer-toggle-text{flex:0 0 auto;font-size:11px;color:#64748b;font-weight:800}
+.sf-oppo-customer-detail{margin-top:8px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden}
+.sf-oppo-customer-offer{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 8px;border-bottom:1px dashed var(--brd);font-size:12px}
+.sf-oppo-customer-offer:last-child{border-bottom:0}
+.sf-oppo-customer-offer-main{min-width:0;line-height:1.8;overflow-wrap:anywhere}
+.sf-oppo-customer-offer-state{font-size:10px;background:#f8fafc;border:1px solid var(--brd);color:#475569}
+.sf-oppo-customer-offer-actions{flex:0 0 auto;display:flex;gap:5px}
+.sf-oppo-customer-action{min-width:0;min-height:36px;margin:0;padding:4px 8px;display:inline-flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--brd);border-radius:9px;background:#f8fafc;color:#475569;font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}
+.sf-oppo-customer-action-icon{font-size:15px;line-height:1}
+.sf-oppo-customer-action-edit{background:#fffbeb;color:#b45309;border-color:#fde68a}
+.sf-oppo-customer-action-preview{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
+.sf-post-award-shell{width:100%;min-width:0;margin-top:10px;padding:10px;border:1px solid #dbeafe;border-radius:14px;background:#f8fafc;box-sizing:border-box}
+.sf-post-award-heading{display:flex;align-items:flex-start;gap:8px;margin-bottom:9px;color:#334155;line-height:1.45}
+.sf-post-award-heading-icon{width:21px;height:21px;flex:0 0 21px;display:grid;place-items:center;font-size:18px;line-height:1}
+.sf-post-award-heading b{display:block;font-size:12px}
+.sf-post-award-heading small{display:block;margin-top:2px;font-size:10.5px;color:#64748b;font-weight:700}
+.sf-post-award-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.sf-post-award-rial{display:contents}
+.sf-post-award-action{min-width:0;min-height:44px;margin:0;padding:6px 9px;display:inline-flex;align-items:center;justify-content:flex-start;gap:6px;border:1px solid var(--brd);border-radius:11px;background:#fff;color:#475569;font:inherit;font-size:11px;font-weight:900;line-height:1.3;text-align:right;cursor:pointer}
+.sf-post-award-action:hover{filter:brightness(.98);box-shadow:0 3px 9px rgba(15,23,42,.09)}
+.sf-post-award-icon{width:18px;height:18px;flex:0 0 18px;display:grid;place-items:center;font-size:17px;line-height:1}
+.sf-post-award-copy{min-width:0;display:flex;flex-direction:column;gap:1px}
+.sf-post-award-label{font-weight:900;white-space:nowrap}
+.sf-post-award-meta{display:none;font-size:9.5px;font-weight:700;opacity:.8}
+.sf-post-award-status{align-self:center;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+.sf-post-award-real-buy{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.sf-post-award-due{background:#ecfeff;color:#0e7490;border-color:#a5f3fc}
+.sf-post-award-qc{background:#f0fdfa;color:#0f766e;border-color:#99f6e4}
+.sf-post-award-inspection-note{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe}
+.sf-post-award-packing-list,.sf-post-award-shipment{background:#fffbeb;color:#a16207;border-color:#fde68a}
+.sf-post-award-delivery{background:#ecfdf5;color:#166534;border-color:#bbf7d0}
+.sf-post-award-invoice-ref{background:#f5f3ff;color:#6d28d9;border-color:#ddd6fe}
+.sf-post-award-invoice-ref.is-locked{background:#f8fafc;color:#94a3b8;border-color:#e2e8f0}
+.sf-post-award-loss{background:#fef2f2;color:#dc2626;border-color:#fecaca}
+.sf-post-award-close{background:#fffbeb;color:#b45309;border-color:#fcd34d}
+.sf-post-award-rial-preview,.sf-post-award-rial-print{background:#ecfeff;color:#0e7490;border-color:#a5f3fc}
+.sf-post-award-rial-source{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe}
+.sf-post-award-rial-terms{background:#fffbeb;color:#b45309;border-color:#fcd34d}
+.sf-post-award-rial-convert{background:#0e7490;color:#fff;border-color:#0e7490}
+.sf-post-award-extras{width:100%;min-width:0}
+.sf-post-award-upload{width:100%;min-width:0;margin-top:10px;padding-top:9px;border-top:1px dashed #bfdbfe}
+.sf-post-award-upload-label{display:flex;align-items:center;gap:6px;margin-bottom:6px;color:#475569;font-size:11px;font-weight:900}
+/* MOB-039: خلاصهٔ «خرید واقعی» توسط buycompare.js داخل همان کشوی پرونده inject
+   می‌شود؛ از contract عملیات Post-Award پیروی می‌کند تا دکمه‌های کلاسیک جدا نمانند. */
+.sf-real-buy-summary{width:100%;min-width:0;margin-top:8px;padding:9px 10px;display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap;border:1px solid #bbf7d0;border-radius:12px;background:#f0fdf4;box-sizing:border-box}
+.sf-real-buy-copy{min-width:0;flex:1 1 230px}
+.sf-real-buy-heading{display:flex;align-items:flex-start;gap:7px;color:#166534;line-height:1.4}
+.sf-real-buy-heading-icon{width:19px;height:19px;flex:0 0 19px;display:grid;place-items:center;font-size:17px;line-height:1}
+.sf-real-buy-heading b{display:block;font-size:12px}
+.sf-real-buy-heading small{display:block;margin-top:1px;color:#64748b;font-size:10px;font-weight:700}
+.sf-real-buy-status{margin-top:4px;color:#475569;font-size:10.5px;line-height:1.7;overflow-wrap:anywhere}
+.sf-real-buy-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.sf-real-buy-action{min-width:0;min-height:42px;margin:0;padding:5px 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid #a7f3d0;border-radius:10px;background:#fff;color:#047857;font:inherit;font-size:10.5px;font-weight:900;line-height:1.25;cursor:pointer}
+.sf-real-buy-action-icon{font-size:16px;line-height:1}
+.sf-real-buy-action-open{background:#059669;color:#fff;border-color:#059669}
+.sf-real-buy-action-advance{background:#ecfeff;color:#0e7490;border-color:#a5f3fc}
+.sf-real-buy-action-inquiry{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe}
+.sf-real-buy-action-cost{background:#fffbeb;color:#b45309;border-color:#fde68a}
+/* MOB-039: اسناد رسمی injectشده از docsx.js نیز در همان کشوی پرونده هستند. */
+.sf-docx-summary{width:100%;min-width:0;margin-top:8px;padding:9px 10px;border:1px solid #c7d2fe;border-radius:12px;background:#eef2ff;box-sizing:border-box}
+.sf-docx-heading{display:flex;align-items:flex-start;gap:7px;color:#3730a3;line-height:1.4}
+.sf-docx-heading-icon{width:19px;height:19px;flex:0 0 19px;display:grid;place-items:center;font-size:17px;line-height:1}
+.sf-docx-heading b{display:block;font-size:12px}
+.sf-docx-heading small{display:block;margin-top:1px;color:#64748b;font-size:10px;font-weight:700}
+.sf-docx-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin-top:8px}
+.sf-docx-action{min-width:0;min-height:42px;margin:0;padding:5px 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid #c7d2fe;border-radius:10px;background:#fff;color:#4338ca;font:inherit;font-size:10.5px;font-weight:900;line-height:1.25;cursor:pointer}
+.sf-docx-action-icon{font-size:16px;line-height:1}
+.sf-docx-existing{margin-top:8px;border-top:1px dashed #a5b4fc}
+.sf-docx-existing-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed #c7d2fe;font-size:11px;flex-wrap:wrap}
+.sf-docx-existing-row:last-child{border-bottom:0}
+.sf-docx-existing-copy{min-width:0;flex:1 1 220px;line-height:1.7;overflow-wrap:anywhere}
+.sf-docx-existing-copy small{color:#64748b}
+.sf-docx-row-actions{display:flex;gap:5px}
+.sf-docx-row-action{min-width:0;min-height:36px;margin:0;padding:4px 8px;display:inline-flex;align-items:center;justify-content:center;gap:4px;border:1px solid #c7d2fe;border-radius:9px;background:#fff;color:#4338ca;font:inherit;font-size:10px;font-weight:900;cursor:pointer}
+.sf-docx-row-action-icon{font-size:15px;line-height:1}
+.sf-docx-row-action-view{background:#eef2ff;color:#4338ca;border-color:#c7d2fe}
+.sf-docx-row-action-edit{background:#ecfeff;color:#0e7490;border-color:#a5f3fc}
+/* MOB-040: فضای کار دستیار هوشمند — پوسته، ابزارها، خروجی‌ها و فرم‌ها به یک
+   design system مستقل منتقل شده‌اند تا قواعد کلی button/mobile آنها را نشکنند. */
+.aiwb-shell{width:100%;max-width:1160px;min-width:0;display:grid;gap:14px}
+.aiwb-hero{width:100%;min-width:0;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;border:1px solid #c7d2fe;border-radius:20px;background:linear-gradient(135deg,#f5f3ff 0%,#eef2ff 45%,#ecfeff 100%);box-sizing:border-box}
+.aiwb-hero-copy{min-width:0;display:flex;align-items:flex-start;gap:11px}
+.aiwb-hero-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border-radius:14px;background:#4f46e5;color:#fff;font-size:23px;box-shadow:0 7px 16px rgba(79,70,229,.24)}
+.aiwb-hero h3{margin:0;color:#312e81;font-size:18px;font-weight:900}
+.aiwb-hero p{margin:3px 0 0;color:#475569;font-size:12px;line-height:1.7}
+.aiwb-hero-tools{min-width:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.aiwb-quota{display:inline-flex;align-items:center;min-height:34px;padding:5px 10px;border:1px solid #86efac;border-radius:999px;background:#f0fdf4;color:#047857;font-size:11px;font-weight:900;line-height:1.45;box-sizing:border-box}
+.aiwb-quick-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.aiwb-quick-action{min-height:36px;margin:0;padding:5px 9px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#475569;font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}
+.aiwb-history{color:#2563eb;border-color:#bfdbfe;background:#eff6ff}.aiwb-clear{color:#b91c1c;border-color:#fecaca;background:#fef2f2}
+.aiwb-tabs{width:100%;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:5px;border:1px solid var(--brd);border-radius:18px;background:#f8fafc;box-sizing:border-box}
+.aiwb-tab{position:relative;min-width:0;min-height:64px;margin:0;padding:8px 11px;display:flex;align-items:center;justify-content:flex-start;gap:8px;border:1px solid transparent;border-radius:13px;background:#fff;color:#475569;font:inherit;text-align:right;cursor:pointer;transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease}
+.aiwb-tab:hover{background:#f5f3ff;border-color:#ddd6fe}.aiwb-tab:focus-visible,.aiwb-quick-action:focus-visible{outline:3px solid rgba(79,70,229,.34);outline-offset:2px}
+.aiwb-tab.is-active{background:#4f46e5;color:#fff;border-color:#4f46e5;box-shadow:0 6px 14px rgba(79,70,229,.24)}
+.aiwb-tab-letter.is-active{background:#7c3aed;border-color:#7c3aed}.aiwb-tab-ocr.is-active{background:#0f766e;border-color:#0f766e}
+.aiwb-tab-icon{width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;font-size:20px;line-height:1}
+.aiwb-tab-copy{min-width:0;display:flex;flex:1 1 auto;flex-direction:column;gap:2px;line-height:1.25}
+.aiwb-tab-label{font-size:12px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.aiwb-tab-meta{font-size:10px;font-weight:700;opacity:.8;white-space:normal;overflow-wrap:anywhere}
+.aiwb-panel{width:100%;min-width:0;max-width:100%}.aiwb-tool-grid{width:100%;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.aiwb-tool-card,.aiwb-result-card{min-width:0;padding:16px;border:1px solid var(--brd);border-radius:18px;background:var(--crd,#fff);box-shadow:0 6px 18px rgba(15,23,42,.05);box-sizing:border-box}
+.aiwb-tool-title{margin:0 0 8px;color:var(--tx,#1e293b);font-size:15px;font-weight:900;line-height:1.45}.aiwb-tool-copy{margin:0 0 12px;color:#64748b;font-size:12px;line-height:1.8}
+.aiwb-rule-card{background:#f8fafc}.aiwb-rule-list{margin:0;padding-right:18px;color:#475569;font-size:12px;line-height:2}.aiwb-rule-list li+li{margin-top:3px}
+.aiwb-dropzone{min-height:132px;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:2px dashed #f59e0b;border-radius:16px;background:#fffbeb;color:#92400e;text-align:right;cursor:pointer;box-sizing:border-box}.aiwb-dropzone:hover{background:#fff7ed}.aiwb-dropzone-icon{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;font-size:25px}.aiwb-dropzone b,.aiwb-dropzone small{display:block}.aiwb-dropzone b{font-size:13px}.aiwb-dropzone small{margin-top:4px;font-size:10.5px;line-height:1.55}
+.aiwb-status,.aiwb-output{margin-top:12px;color:#475569;font-size:12px;line-height:1.75;min-height:0}.aiwb-note{margin-top:13px;padding:9px 10px;border-radius:12px;background:#f8fafc;color:#64748b;font-size:11px;line-height:1.8}
+.aiwb-check{display:flex;align-items:center;gap:8px;min-height:40px;margin:0 0 7px;padding:7px 9px;border:1px solid #dbeafe;border-radius:10px;background:#f8fbff;color:#334155;font-size:12px;font-weight:800;cursor:pointer}.aiwb-check input{width:18px;height:18px;margin:0;accent-color:#4f46e5}
+.aiwb-tool-card .fld{margin-bottom:12px}.aiwb-tool-card .fld label{font-size:11px}.aiwb-tool-card .fld input,.aiwb-tool-card .fld textarea,.aiwb-tool-card .fld select,.aiwb-result-card input,.aiwb-result-card textarea,.aiwb-result-card select{width:100%;box-sizing:border-box}
+.aiwb-primary-action{background:#4f46e5!important;color:#fff!important;border-color:#4f46e5!important}.aiwb-secondary-action{background:#fff!important;color:#475569!important;border-color:#cbd5e1!important}.aiwb-add-row{color:#7c3aed!important;border-color:#ddd6fe!important;background:#f5f3ff!important}.aiwb-letter-action{background:#7c3aed!important;border-color:#7c3aed!important}.aiwb-triple-run{background:#059669!important;border-color:#059669!important}
+.aiwb-inline-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.aiwb-inline-actions .bt{min-height:40px}
+.aiwb-result-slot{width:100%;min-width:0;margin-top:14px}.aiwb-result-card{margin-top:14px}.aiwb-result-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}.aiwb-result-head select{width:auto;min-width:150px;padding:8px;border:1px solid var(--brd);border-radius:10px;background:var(--crd,#fff);font:inherit}.aiwb-table-scroll{width:100%;overflow-x:auto;border:1px solid var(--brd);border-radius:12px}.aiwb-table-scroll table{min-width:820px;margin:0}.aiwb-table-scroll thead{background:#f8fafc}
+.aiwb-triple-pipeline{margin-top:16px;padding:14px;border:1.5px solid #86efac;border-radius:15px;background:#f0fdf4}.aiwb-triple-title{margin-bottom:9px;color:#065f46;font-size:13px;font-weight:900}.aiwb-triple-pipeline>label{display:flex;align-items:center;gap:8px;min-height:34px;margin:0 0 6px;color:#334155;font-size:12px;cursor:pointer}.aiwb-triple-pipeline input[type="checkbox"]{width:18px;height:18px;margin:0;accent-color:#059669}.aiwb-triple-selects{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:10px}.aiwb-triple-selects label{display:block;margin-bottom:4px;color:#475569;font-size:11px;font-weight:800}.aiwb-triple-selects select{width:100%;padding:7px;border:1px solid #a7f3d0;border-radius:8px;background:#fff;font:inherit}
+.aiwb-letter-output{min-height:280px;padding:13px;border-radius:12px;background:#f8fafc;color:#334155;font-size:13px;line-height:2;white-space:pre-wrap;box-sizing:border-box}.aiwb-card-switcher{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.aiwb-log{margin-top:2px;padding:11px 14px;border-radius:14px;background:#0f172a;color:#94ffb8;font-family:monospace;font-size:11.5px;line-height:1.7;max-height:160px;overflow:auto;box-sizing:border-box}
+/* MOB-041: عملیات مالی، کیفیت داده، چک و امضای پیشنهاد — contractهای محدود به ماژول. */
+.pt-petty-toolbar{display:flex;align-items:stretch;justify-content:flex-end;gap:8px;flex-wrap:wrap}.pt-petty-filters{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.pt-petty-filters select{padding:8px;border:1px solid var(--brd);border-radius:10px;background:var(--crd,#fff);font:inherit}.pt-petty-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}.petty-toolbar-action{min-height:40px;margin:0;padding:5px 9px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--brd);border-radius:10px;background:#fff;color:#475569;font:inherit;font-size:11px;font-weight:900;cursor:pointer}.petty-toolbar-icon{font-size:16px;line-height:1}.petty-toolbar-report{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}.petty-toolbar-add{background:#4f46e5;color:#fff;border-color:#4f46e5}.petty-toolbar-direct{background:#ecfeff;color:#0e7490;border-color:#a5f3fc}.petty-toolbar-charge{background:#ecfdf5;color:#047857;border-color:#a7f3d0}.petty-toolbar-refer{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe}
+.opex-head-actions,.opex-row-actions{display:flex;align-items:stretch;gap:5px;flex-wrap:wrap}.opex-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--brd);font-size:12.5px}.opex-row-copy{min-width:0;flex:1 1 auto;overflow-wrap:anywhere}.opex-fin-action{min-height:38px;margin:0;padding:5px 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--brd);border-radius:10px;background:#fff;color:#475569;font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}.opex-fin-icon{font-size:16px;line-height:1}.opex-fin-add{background:#b45309;color:#fff;border-color:#b45309}.opex-fin-rebuild{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe}.opex-fin-edit{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}.opex-fin-delete{background:#fef2f2;color:#dc2626;border-color:#fecaca}
+.shareholder-box{background:#faf5ff;border:1px solid #ddd6fe;border-radius:16px;padding:12px 14px;margin:12px 0}.shareholder-box-head,.shareholder-card-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}.shareholder-box-head>b,.shareholder-box-head b{font-size:14px;color:#6d28d9}.shareholder-head-tools{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.shareholder-actions,.shareholder-head-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:stretch}.shareholder-month{background:var(--crd,#fff)}.shareholder-card{background:#fff;border:1px solid var(--brd);border-radius:14px;padding:10px 12px;margin-bottom:8px}.shareholder-copy{min-width:0;font-size:13px}.shareholder-action{min-height:38px;margin:0;padding:5px 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--brd);border-radius:10px;background:#fff;color:#475569;font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}.shareholder-action-icon{font-size:16px;line-height:1}.shareholder-add{background:#4f46e5;color:#fff;border-color:#4f46e5}.shareholder-apply-salary,.shareholder-salary{background:#ecfdf5;color:#047857;border-color:#a7f3d0}.shareholder-draw{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe}.shareholder-edit{background:#fffbeb;color:#b45309;border-color:#fde68a}.shareholder-ledger{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}
+#qualityBox .quality-action-icon svg{width:19px;height:19px;display:block}.quality-title{display:flex;align-items:center;gap:6px}.quality-title-icon{width:19px;height:19px;display:grid;place-items:center;color:#0f766e}.quality-title-icon svg{width:18px;height:18px;display:block}.cheque-kind-badge,.cheque-party-badge{display:inline-flex;align-items:center;gap:3px;max-width:100%;white-space:normal;line-height:1.45}.cheque-kind-finance{background:#ecfdf5;color:#047857}.cheque-kind-guarantee{background:#f5f3ff;color:#6d28d9}.cheque-party-sup{background:#f0fdf4;color:#15803d}.cheque-party-cust{background:#eff6ff;color:#1d4ed8}.cheque-party-third{background:#fdf2f8;color:#be185d}.cheque-party-other{background:#f1f5f9;color:#64748b}.cheque-party-name{font-weight:800;overflow-wrap:anywhere}.cheque-deal-link{display:inline-block;color:#7c3aed;overflow-wrap:anywhere}.cheque-row-action{min-height:36px;margin:0;padding:4px 7px;display:inline-flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--brd);border-radius:9px;background:#fff;color:#475569;font:inherit;font-size:10px;font-weight:900;cursor:pointer}.cheque-row-icon{font-size:15px;line-height:1}.cheque-row-edit{background:#eff6ff;color:#2563eb;border-color:#bfdbfe}.cheque-row-delete,.cheque-row-void{background:#fef2f2;color:#dc2626;border-color:#fecaca}.cheque-row-retrieve,.cheque-row-collect{background:#ecfdf5;color:#047857;border-color:#a7f3d0}.cheque-row-deal,.cheque-row-endorse{background:#ecfeff;color:#0e7490;border-color:#a5f3fc}.cheque-row-bounce,.cheque-row-return-transfer{background:#fffbeb;color:#b45309;border-color:#fde68a}.cheque-status-retrieved{background:#ecfdf5;color:#047857;font-size:10.5px}
+.offer-form-modal .offer-signature-card{margin:12px 0;padding:11px 12px;border:1px solid #c7d2fe;border-radius:14px;background:#f5f3ff}.offer-signature-head{display:flex;align-items:flex-start;gap:8px;color:#3730a3}.offer-signature-icon{width:24px;height:24px;flex:0 0 24px;display:grid;place-items:center;border-radius:8px;background:#7c3aed;color:#fff;font-size:15px}.offer-signature-head b{display:block;font-size:13px}.offer-signature-head small{display:block;margin-top:2px;color:#64748b;font-size:11px;line-height:1.55}.offer-signature-toggle{display:flex;align-items:flex-start;gap:8px;margin-top:9px;padding:8px 9px;border:1px solid #ddd6fe;border-radius:10px;background:#fff;color:#334155;font-size:12px;font-weight:800;line-height:1.55;cursor:pointer}.offer-signature-toggle input{width:18px;height:18px;margin:0;flex:0 0 18px;accent-color:#7c3aed}.offer-signature-toggle small{display:block;color:#b45309;font-size:10.5px;font-weight:700}.offer-signature-select{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:8px;margin-top:8px;color:#475569;font-size:11px;font-weight:900}.offer-signature-select select{min-width:0;padding:8px;border:1px solid #c7d2fe;border-radius:10px;background:#fff;font:inherit}.offer-seller-field{grid-column:1/-1}
+.ptf-print-preview-modal{width:min(1200px,96vw)!important}.ptf-print-preview-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}.ptf-print-preview-head h3{min-width:0;flex:1 1 220px}.ptf-print-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}.ptf-print-action{min-height:38px;margin:0;padding:5px 8px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--brd);border-radius:10px;background:#fff;color:#475569;font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}.ptf-print-action-icon{font-size:16px;line-height:1}.ptf-print-print{background:#0e7490;color:#fff;border-color:#0e7490}.ptf-print-layout{background:#fffbeb;color:#a16207;border-color:#fde68a}.ptf-print-word{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe}.ptf-print-close{background:#f8fafc;color:#475569;border-color:#cbd5e1}.ptf-print-layout-bar>span{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+/* نوار فیلتر اختصاصی کالا: افزونه‌های پویا (کالاهای استعلامی/فیلتر و خروجی) محل مستقل دارند. */
+.product-filters{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.product-filters>input{flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px}
+.product-filters>select{padding:8px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px;background:var(--crd,#fff)}
+.product-filter-extras{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.prod-hidden-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;cursor:pointer}
+/* کارتابل: کنترل‌ها wrapper اختصاصی دارند تا با فیلترها/toolbars عمومی تداخل نکنند. */
+.cartable-toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.cartable-toggle{display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#475569}
+.cartable-toggle input[type="checkbox"]{width:16px;height:16px;margin:0;accent-color:#0e7490}
+.cartable-quick-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.cartable-action-icon{font-size:16px;line-height:1}
+.cartable-action-label{white-space:nowrap}
+.cartable-read-all{color:#0e7490!important;border-color:#bae6fd!important}
+.cartable-message-action{color:#2563eb!important;border-color:#bfdbfe!important}
+/* نوار اختصاصی یادآورها؛ در desktop همان چیدمان جمع‌وجور flex حفظ می‌شود. */
+.reminders-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.reminders-select{padding:9px;border:1px solid var(--brd);border-radius:10px;background:var(--crd,#fff);font:inherit}
+.reminders-footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.reminders-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;cursor:pointer}
+.reminders-toggle input[type="checkbox"]{width:16px;height:16px;margin:0;accent-color:#d97706}
+.reminders-action-icon{font-size:16px;line-height:1}
+.reminders-action-label{white-space:nowrap}
+/* در دسکتاپ بار تنخواه نیز با عرض باقیمانده می‌شکند، نه اینکه آخرین action بیرون برود. */
+#ptPettyHead #ptToolbar{flex-wrap:wrap;justify-content:flex-end;min-width:0;max-width:100%}
+/* رندرهای داخلی برخی تب‌ها root را با display:none بازسازی می‌کنند. state فعال
+   هاب مالی باید مستقل از markup تازه باقی بماند (به‌خصوص tab چک و گزارش‌ها). */
+#panels[data-fin-hub-active="opex"] #opexBox,
+#panels[data-fin-hub-active="share"] #shareBox,
+#panels[data-fin-hub-active="fiscal"] #fiscalBox,
+#panels[data-fin-hub-active="fiscal"] #ptfTaxPlannerBox,
+#panels[data-fin-hub-active="supacc"] #slLiquidity,
+#panels[data-fin-hub-active="supacc"] #slFinanceHubBox,
+#panels[data-fin-hub-active="custacc"] #cfFinanceHubBox,
+#panels[data-fin-hub-active="workcap"] #wcFinanceHubBox,
+#panels[data-fin-hub-active="ledger"] #ledgerReportBox,
+#panels[data-fin-hub-active="quality"] #qualityBox,
+#panels[data-fin-hub-active="cheque"] #chequeBox{display:block!important}
 .bt{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border:none;padding:8px 16px;border-radius:10px;font-weight:900;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;box-sizing:border-box}
 .bt-o{background:transparent;color:#475569;border:2px solid var(--brd)}
 .bt-s{background:#10b981}
@@ -313,10 +1569,70 @@ tr:hover td{background:#fffcfa}
 .b-ad{background:#f3e8ff;color:#7c3aed}.b-op{background:#dbeafe;color:#2563eb}
 .ba{background:#f1f5f9;border:1px solid var(--brd);padding:4px 8px;border-radius:7px;font-size:11px;cursor:pointer;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:5px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;box-sizing:border-box}
 .ba:hover{background:var(--pri);color:#fff}
+/* دکمهٔ بیشتر/ریالی فقط در کارت موبایل پیشنهاد نمایش داده می‌شود. */
+.offer-row-more,.offer-row-rial-menu{display:none}
 .md-b{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;place-items:center;z-index:1200;backdrop-filter:blur(4px)}
 .md{background:#fff;padding:24px;border-radius:20px;width:520px;max-width:92%;max-height:90vh;overflow-y:auto}
 .md h3{font-size:17px;margin:0 0 14px;padding-bottom:12px;border-bottom:2px solid #f1f5f9}
 .md .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* MOB-031: سرنخ‌ها — برد Kanban در دسکتاپ و نمای مرحله‌ای قابل‌لمس در گوشی.
+   این scope عمداً از buttonهای عمومی جداست تا قانون icon-only ابزارهای دیگر وارد آن نشود. */
+.leads-head .leads-toolbar{min-width:0;align-items:center;flex-wrap:wrap}
+.leads-toolbar>input:not([type="file"]){flex:1 1 230px;min-width:180px}
+.leads-toolbar>select{min-width:145px;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;background:var(--crd,#fff);font:inherit}
+.leads-toolbar-actions{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.leads-toolbar-action{min-height:38px;margin:0;padding:6px 10px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:10px;font:inherit;font-size:11px;font-weight:900;line-height:1.35;white-space:nowrap;cursor:pointer}
+.leads-toolbar-action>span:first-child{font-size:15px;line-height:1}.leads-import-action{color:#047857!important;border-color:#a7f3d0!important;background:#f0fdf4!important}.leads-export-action{color:#0e7490!important;border-color:#bae6fd!important;background:#ecfeff!important}.leads-report-action{color:#6d28d9!important;border-color:#ddd6fe!important;background:#f5f3ff!important}.leads-clean-action{color:#7c3aed!important;border-color:#ddd6fe!important;background:#f5f3ff!important}
+.lead-kanban-shell{width:100%;min-width:0;max-width:100%}.lead-board-view{display:block}.lead-pipeline-view{display:none}
+.lead-board-intro,.lead-pipeline-intro{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px;padding:11px 12px;border:1px solid #dbeafe;border-radius:14px;background:#f8fbff;color:#334155;box-sizing:border-box}
+.lead-board-intro>div,.lead-pipeline-intro>div{min-width:0;flex:1 1 260px}.lead-board-intro h4,.lead-pipeline-intro h4{margin:0;font-size:13px;font-weight:900;color:#1e3a5f}.lead-board-intro p,.lead-pipeline-intro p{margin:3px 0 0;color:#64748b;font-size:11px;line-height:1.75}.lead-board-intro>span,.lead-pipeline-intro>span{display:inline-flex;align-items:center;min-height:27px;padding:3px 9px;border-radius:999px;background:#e0f2fe;color:#0369a1;font-size:10.5px;font-weight:900;white-space:nowrap}
+.lead-board-scroll{position:relative;width:100%;min-width:0;overflow-x:auto;overflow-y:visible;padding:2px 2px 10px;box-sizing:border-box;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-color:#94a3b8 transparent;scrollbar-width:thin}.lead-board-scroll:focus-visible{outline:3px solid rgba(14,116,144,.3);outline-offset:3px;border-radius:16px}
+.lead-board-grid{min-width:1000px;display:grid;grid-template-columns:repeat(6,minmax(155px,1fr));gap:10px;align-items:start}.lead-board-column{min-width:0;min-height:178px;padding:9px;border:1px solid var(--brd);border-top:3px solid var(--lead-stage,#64748b);border-radius:15px;background:#f8fafc;box-sizing:border-box;scroll-snap-align:start}.lead-board-column-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 8px;color:var(--lead-stage,#475569);font-size:12px;font-weight:900;line-height:1.45}.lead-board-column-head>b{display:grid;place-items:center;min-width:23px;height:23px;padding:0 6px;border-radius:999px;background:#fff;color:#475569;font-size:10.5px;box-shadow:0 1px 2px rgba(15,23,42,.06)}.lead-board-column-cards{display:grid;gap:7px}
+.lead-board-card{min-width:0;padding:9px;border:1px solid var(--brd);border-right:3px solid var(--lead-stage,#64748b);border-radius:11px;background:var(--crd,#fff);box-shadow:0 2px 5px rgba(15,23,42,.04);box-sizing:border-box}.lead-board-card-copy{min-width:0;display:grid;gap:2px;line-height:1.55}.lead-board-card-copy>b{color:#1e293b;font-size:12px;overflow-wrap:anywhere}.lead-board-card-copy>span{color:#64748b;font-size:10.5px;overflow-wrap:anywhere}.lead-board-card-copy small{color:#94a3b8;font-size:9.5px;line-height:1.5;overflow-wrap:anywhere}.lead-board-card-copy .lead-value{color:#0e7490}.lead-board-card-copy .lead-next{color:#b45309}.lead-board-card-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:8px}.lead-board-action{min-width:0;min-height:31px;margin:0;padding:4px;border:1px solid var(--brd);border-radius:8px;background:#fff;color:#475569;font:inherit;font-size:9px;font-weight:900;line-height:1.3;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lead-board-view{color:#2563eb;background:#eff6ff;border-color:#bfdbfe}.lead-board-edit{color:#b45309;background:#fffbeb;border-color:#fde68a}.lead-board-delete{color:#dc2626;background:#fef2f2;border-color:#fecaca}.lead-board-action:hover{filter:brightness(.98);box-shadow:0 2px 7px rgba(15,23,42,.1)}.lead-stage-empty{min-width:0;min-height:88px;display:grid;place-items:center;align-content:center;gap:3px;padding:10px;border:1.5px dashed #cbd5e1;border-radius:11px;background:rgba(255,255,255,.62);color:#64748b;text-align:center;box-sizing:border-box}.lead-stage-empty>span{font-size:17px;color:#94a3b8;line-height:1}.lead-stage-empty>b{font-size:10.5px;line-height:1.5}.lead-stage-empty small{font-size:9.5px;line-height:1.55;overflow-wrap:anywhere}
+/* جدول جایگزین همچنان actionهای نام‌دار دارد؛ قواعد موبایل آن را مخفی نمی‌کند. */
+#ldWrap .lead-table-actions{white-space:normal}
+#ldWrap .lead-table-action{min-height:32px;margin:0 2px 0 0;padding:4px 8px;border:1px solid var(--brd);border-radius:8px;background:#fff;color:#475569;font:inherit;font-size:10.5px;font-weight:900;cursor:pointer}.lead-table-view{color:#2563eb!important;border-color:#bfdbfe!important;background:#eff6ff!important}.lead-table-edit{color:#b45309!important;border-color:#fde68a!important;background:#fffbeb!important}.lead-table-delete{color:#dc2626!important;border-color:#fecaca!important;background:#fef2f2!important}
+@media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){
+  #panels .leads-head{width:100%;display:flex!important;align-items:flex-start!important;gap:9px!important}
+  #panels .leads-head h3{width:100%;font-size:16px!important}
+  #panels .leads-head .leads-toolbar{width:100%!important;min-width:0!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:8px!important}
+  #panels .leads-toolbar>input:not([type="file"]),#panels .leads-toolbar>select{width:100%!important;min-width:0!important;max-width:none!important;box-sizing:border-box!important}
+  #panels .leads-toolbar>select{min-height:46px!important;padding:10px 14px!important}
+  #panels .leads-toolbar-actions{width:100%;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}
+  #panels .leads-toolbar .leads-toolbar-action{width:100%!important;min-width:0!important;max-width:none!important;min-height:52px!important;height:auto!important;margin:0!important;padding:8px 10px!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;border-radius:12px!important;font-size:11.5px!important;line-height:1.4!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;box-sizing:border-box!important}
+  #panels .leads-toolbar .leads-toolbar-action::first-letter{font-size:inherit!important}
+  #panels .leads-toolbar .leads-toolbar-action>span:first-child{font-size:16px!important;line-height:1!important;flex:0 0 auto!important}
+  #panels .leads-toolbar .leads-toolbar-action>span:last-child{min-width:0!important;overflow-wrap:anywhere!important}
+  #panels .leads-toolbar .leads-clean-action{grid-column:1/-1!important}
+  #ldWrap{width:100%;min-width:0;max-width:100%}
+  #ldWrap .lead-board-view{display:none!important}
+  #ldWrap .lead-pipeline-view{width:100%;min-width:0;display:grid!important;gap:9px}
+  #ldWrap .lead-pipeline-intro{display:flex;align-items:flex-start;gap:8px;margin:0;padding:10px 11px;border-radius:14px}
+  #ldWrap .lead-pipeline-intro>div{flex:1 1 170px}#ldWrap .lead-pipeline-intro h4{font-size:12.5px}#ldWrap .lead-pipeline-intro p{font-size:10.5px;line-height:1.65}#ldWrap .lead-pipeline-intro>span{min-height:24px;font-size:10px}
+  #ldWrap .lead-stage-tabs{width:100%;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0}
+  #ldWrap .lead-stage-tab{min-width:0!important;min-height:66px!important;margin:0!important;padding:8px 9px!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;border:1px solid #dbe3ee!important;border-right:4px solid var(--lead-stage,#64748b)!important;border-radius:13px!important;background:#fff!important;color:#475569!important;font:inherit!important;text-align:right!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;cursor:pointer!important;box-shadow:0 2px 6px rgba(15,23,42,.04)!important;box-sizing:border-box!important}
+  #ldWrap .lead-stage-tab.is-active{background:color-mix(in srgb,var(--lead-stage,#64748b) 10%,white)!important;border-color:var(--lead-stage,#64748b)!important;color:#1e293b!important;box-shadow:0 5px 13px color-mix(in srgb,var(--lead-stage,#64748b) 20%,transparent)!important}
+  #ldWrap .lead-stage-tab:focus-visible,#ldWrap .lead-mobile-card-action:focus-visible,#ldWrap .lead-mobile-stage-move select:focus-visible{outline:3px solid rgba(37,99,235,.35)!important;outline-offset:2px!important}
+  #ldWrap .lead-stage-tab-dot{width:10px;height:10px;flex:0 0 10px;border-radius:50%;background:var(--lead-stage,#64748b);box-shadow:0 0 0 3px color-mix(in srgb,var(--lead-stage,#64748b) 16%,transparent)}
+  #ldWrap .lead-stage-tab-copy{min-width:0;display:grid;gap:2px;line-height:1.35}#ldWrap .lead-stage-tab-copy b{font-size:11px;font-weight:900;overflow-wrap:anywhere}#ldWrap .lead-stage-tab-copy small{color:#64748b;font-size:9.5px;font-weight:700;line-height:1.35}
+  #ldWrap .lead-mobile-stage-panel{width:100%;min-width:0;padding:10px;border:1px solid #dbeafe;border-radius:16px;background:#f8fbff;box-sizing:border-box}
+  #ldWrap .lead-mobile-stage-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:9px;padding:0 1px;color:#475569;font-size:10px;line-height:1.6}
+  #ldWrap .lead-mobile-stage-panel>header>div{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}#ldWrap .lead-mobile-stage-panel>header b{color:#1e293b;font-size:12px}#ldWrap .lead-mobile-stage-panel>header small{color:#64748b;font-size:10px}#ldWrap .lead-mobile-stage-panel>header>span{color:#0e7490;font-weight:800}
+  #ldWrap .lead-mobile-stage-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%}
+  #ldWrap .lead-mobile-cards{display:grid;gap:9px}
+  #ldWrap .lead-mobile-card{width:100%;min-width:0;padding:11px;border:1px solid var(--brd);border-right:4px solid var(--lead-stage,#64748b);border-radius:14px;background:var(--crd,#fff);box-shadow:0 3px 10px rgba(15,23,42,.05);box-sizing:border-box}
+  #ldWrap .lead-mobile-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}#ldWrap .lead-mobile-card-title{min-width:0;display:grid;gap:2px}#ldWrap .lead-mobile-card-title b{color:#1e293b;font-size:13px;line-height:1.45;overflow-wrap:anywhere}#ldWrap .lead-mobile-card-title small{color:#94a3b8;font-size:9.5px;direction:ltr;text-align:right}
+  #ldWrap .lead-mobile-status{flex:0 0 auto;max-width:46%;padding:3px 7px;border:1px solid color-mix(in srgb,var(--lead-stage,#64748b) 32%,white);border-radius:999px;background:color-mix(in srgb,var(--lead-stage,#64748b) 11%,white);color:var(--lead-stage,#64748b);font-size:9.5px;font-weight:900;line-height:1.4;white-space:normal;overflow-wrap:anywhere;text-align:center}
+  #ldWrap .lead-mobile-card-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 9px;padding:0}#ldWrap .lead-mobile-card-meta>div{min-width:0;padding:6px 7px;border-radius:9px;background:#f8fafc}#ldWrap .lead-mobile-card-meta .lead-mobile-next{grid-column:1/-1;background:#fffbeb}#ldWrap .lead-mobile-card-meta dt{margin:0 0 2px;color:#64748b;font-size:9px;font-weight:800}#ldWrap .lead-mobile-card-meta dd{margin:0;color:#334155;font-size:10.5px;font-weight:800;line-height:1.55;overflow-wrap:anywhere}#ldWrap .lead-mobile-card-meta .lead-mobile-next dd{color:#a16207}
+  #ldWrap .lead-mobile-card-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0 0 8px}#ldWrap .lead-mobile-card-action{min-width:0!important;min-height:50px!important;margin:0!important;padding:7px!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;border:1px solid var(--brd)!important;border-radius:11px!important;font:inherit!important;font-size:10.5px!important;font-weight:900!important;line-height:1.35!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;cursor:pointer!important;box-sizing:border-box!important}#ldWrap .lead-mobile-card-action>span:first-child{font-size:16px;line-height:1}#ldWrap .lead-mobile-view{background:#eff6ff!important;color:#2563eb!important;border-color:#bfdbfe!important}#ldWrap .lead-mobile-edit{background:#fffbeb!important;color:#b45309!important;border-color:#fde68a!important}
+  #ldWrap .lead-mobile-stage-move{display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:center;gap:8px;min-width:0;margin:0;padding:7px 8px;border:1px solid #dbeafe;border-radius:11px;background:#f8fbff;color:#475569;font-size:10.5px;font-weight:900;line-height:1.4}#ldWrap .lead-mobile-stage-move select{width:100%;min-width:0!important;min-height:42px!important;margin:0!important;padding:7px 9px!important;border:1px solid #bfdbfe!important;border-radius:9px!important;background:#fff!important;color:#1e3a5f!important;font:inherit!important;font-size:11px!important;box-sizing:border-box!important}
+  #ldWrap .lead-stage-empty{min-height:118px;padding:16px;border-radius:13px}#ldWrap .lead-stage-empty>b{font-size:11px}#ldWrap .lead-stage-empty small{max-width:220px;font-size:10px}
+  #ldWrap .lead-table-actions{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px!important;align-items:stretch!important;justify-content:stretch!important;white-space:normal!important}#ldWrap .lead-table-action{width:100%!important;min-width:0!important;min-height:40px!important;margin:0!important;padding:5px!important;font-size:10px!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+}
+@media(max-width:900px) and (max-height:600px) and (orientation:landscape){
+  #panels .leads-head{flex-direction:row!important;align-items:center!important}#panels .leads-head h3{width:auto;flex:0 0 auto}#panels .leads-head .leads-toolbar{flex:1 1 450px;grid-template-columns:minmax(0,1fr) 150px!important}#panels .leads-toolbar-actions{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr))!important}#panels .leads-toolbar .leads-toolbar-action{min-height:46px!important}
+  #ldWrap .lead-stage-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}#ldWrap .lead-stage-tab{min-height:55px!important;padding:6px 8px!important}#ldWrap .lead-stage-tab-copy b{font-size:10.5px}#ldWrap .lead-mobile-stage-panel{padding:9px}#ldWrap .lead-mobile-card{padding:9px}#ldWrap .lead-mobile-card-actions{grid-template-columns:repeat(2,minmax(0,1fr))}#ldWrap .lead-mobile-card-action{min-height:44px!important}
+}
 @media(min-width:1400px){:root{--sw:290px}.ca{padding:26px 40px}body{font-size:16.5px}.sb-i{font-size:15px;padding:12px 16px}.tb2 table{font-size:14.5px}}
 @media(max-width:900px){
   .sb{width:56px}
@@ -367,6 +1683,7 @@ function ptfSafeReset() {
 </div></div>
 
 <div class="crm-l" id="crmL">
+<div id="ptfBootStatus" role="status" aria-live="polite" aria-atomic="true"><span class="ptf-boot-spin" aria-hidden="true"></span><span>در حال آماده‌سازی ناوبری…</span></div>
 <aside class="sb">
 <div class="sb-l"><img src="../assets/images/ptf-logo.png" alt="PTF"><h3>پیشرو تجهیز فرتاک</h3><span id="sbVer">CRM</span></div>
 <div class="sb-u"><div class="av" id="navAv">A</div><span id="navU">کاربر</span></div>
@@ -407,9 +1724,9 @@ function ptfSafeReset() {
 </aside>
 <main class="mn">
 <div class="tb" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-  <div style="display:flex;align-items:center;gap:12px">
+  <!-- MOB-041: جستجوی سرتاسری به ذره‌بین چپ هدر منتقل شد؛ این کنترل تکراری کنار عنوان حذف شد. -->
+  <div style="display:flex;align-items:center;gap:12px;min-width:0">
     <h2 id="pgTitle" style="margin:0">📊 داشبورد</h2>
-    <button type="button" class="bt bt-o" style="padding:5px 12px;font-size:12px;display:flex;align-items:center;gap:6px;background:#f8fafc;border:1px solid #cbd5e1;color:#334155;border-radius:10px;cursor:pointer" onclick="ptfOpenCommandPalette()">🔎 جستجوی سریع سرتاسری <span style="background:#e2e8f0;padding:1px 6px;border-radius:4px;font-size:10.5px;font-weight:bold">Ctrl+K</span></button>
   </div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span id="topVerPill" style="font-size:11.5px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:4px 10px;color:#1e40af;font-weight:700"></span>
@@ -709,7 +2026,9 @@ function showCrm() {
     return;
   }
   document.getElementById('loginS').style.display = 'none';
-  document.getElementById('crmL').style.display = 'flex';
+  var crmRoot = document.getElementById('crmL');
+  crmRoot.setAttribute('data-ptf-boot', 'loading');
+  crmRoot.style.display = 'flex';
   document.getElementById('navAv').textContent = s.name[0];
   document.getElementById('navU').textContent = s.name;
   // v33.0.3: token is obtained only during real server-side login. No silent passhash refresh here.
@@ -744,9 +2063,20 @@ function doLogout() {
   localStorage.removeItem('ptf_crm_session');
   localStorage.removeItem('ptf_crm_token');
   localStorage.removeItem('ptf_crm_token_role');
-  document.getElementById('crmL').style.display = 'none';
+  var crmRoot = document.getElementById('crmL');
+  crmRoot.removeAttribute('data-ptf-boot');
+  crmRoot.style.display = 'none';
   document.getElementById('loginS').style.display = 'grid';
 }
+
+/* MOB-010: loadAll داشبورد را بلافاصله render می‌کند و پیش‌تر #off را
+   با #dash جایگزین می‌کرد. مقصد اولیه را پیش از auto-login نگه می‌داریم. */
+window.ptfInitialHashPanel = (function () {
+  try {
+    var raw = String(window.location.hash || '').replace(/^#/, '').trim().toLowerCase();
+    return /^[a-z][a-z0-9_-]*$/.test(raw) ? raw : '';
+  } catch (e) { return ''; }
+})();
 
 // Auto-login check
 try {
@@ -755,7 +2085,7 @@ try {
 } catch(e) {}
 
 // ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
-window.VER = 'v34.1.0'; var VER = 'v34.1.0'; // v34.1.0: فاز ۱۸ (مدیریت اسناد تنخواه/فاکتور + رفع پنجرهٔ همپوشان حذف فاکتور) — دکمهٔ «📎 اسناد» در تنخواه؛ نمایش/حذف/افزودن سند در ویرایش فاکتور؛ حذف مودال قبلی گردش حساب پیش از بازکردن مجدد | v34.0.20-alpha| v34.0.19-alpha| v34.0.18-alpha| v34.0.17-alpha| v34.0.16-alpha| v34.0.15-alpha: فاز ۱۲ (رفع باگ نمایش هزینه‌های ماه تنخواه در بازهٔ ناقص + تأیید سورتینگ زمانی) — فقط‌ماه با fallback ماهانه نگه داشته می‌شود | v34.0.14-alpha: فاز ۱۱ (ویرایش/حذف چک + اصلاح/حذف آنی اثر مالی + لینک کیفیت داده به چک) — مودال ویرایش/حذف چک در پنل چک؛ ویرایش مبلغ چک مالی، اثر مالی حساب تأمین‌کننده را آنی اصلاح می‌کند؛ حذف چک، اثر مالی/گردش را کامل حذف می‌کند؛ تب کیفیت داده به مودال اصلاح همان چک لینک شد | v34.0.13-alpha: فاز ۱۰ (رفع باگ ناوبری/جستجوی تأمین‌کنندگان در ثبت استعلام تامین) — دکمهٔ نمایش «سایر تأمین‌کنندگان» و جستجوی زنده از wrapper سراسری استفاده می‌کنند (نه _st خصوصیِ IIFE)؛ تخصیص به کالا در خرید واقعی موجود است | v34.0.12-alpha: فاز ۹ (هماهنگ‌سازی تعهد لگاسی در سود سال مالی + ترتیب تاریخ گزارش تنخواه) — تعهد legacy لینک‌نشده دیگر دوباره‌شماری نمی‌شود؛ گزارش دورهٔ تنخواه به ترتیب صحیح تاریخ (نرمال شمسی/میلادی) | v34.0.11-alpha: فاز ۸ (لینک موارد کیفیت داده به بخش مربوطه) — فاکتور خرید/هزینه‌جاریِ نامشخص در تب کیفیت داده به ماژول اصلی (slInvoiceEdit/ptfOpexEdit) و نام تأمین‌کننده لینک شدند | v34.0.10-alpha: فاز ۷ (شفافیت تراز و reconciliation) — باکت «نامشخص» در تراز صریح + دکمه رفتن به کیفیت داده؛ بلوک بازسازی بدهی تأمین‌کننده در گزارش تجمیعی (افتتاحیه+فاکتورها−پرداخت‌ها) | v34.0.9-alpha: فاز ۶ (هماهنگ‌سازی تراز و گزارش تجمیعی — پوششی فقط کارمزد + منفعت جدا؛ legacy از بدهی حذف) | v34.0.8-alpha: فاز ۵ (منطق سود/اصلاحات مالی) — فاز۱ فاکتور صوری/پوششی (فقط کارمزد ۱.۵/۲/۳٪ هزینه + اعتبار ارزش‌افزوده منفعت)؛ فاز۲ حقوق سهامدار = مطالبه (salary_payment جدا از علی‌الحساب سود)؛ فاز۳ (B) گردش تأمین‌کننده فقط فاکتور خرید؛ فاز۴ (C) مغایرت فاکتور/پیش‌فاکتور غیربلوکه (اصل صحت فاکتور)؛ فاز۵ (A) مبنای هزینهٔ پروژه = فاکتور خرید نه قیمت دستی؛ فاز۶ (D) نرخ روزِ فاکتور (issueFxRate) | v34.0.7-alpha: فاز ۴ (رفع دو باگ پروداکشن) — دستیار AI: بازکردن chat-llm در هتکسز + فعال‌سازی LLM در چت سایت + افزودن collector به llm؛ ضمیمه: بازکردن attachment-read با گارد توکن + دسترسی همهٔ نقش‌ها به خواندن/آپلود ضمیمه در storage (مخرب‌ها admin/chairman) | v34.0.6-alpha: فاز ۳ (امنیت/دیپلوی) — SEC-01 XSS ذخیره‌شده: ptfOnClickArg به‌جای escP در ۳۲۵ آرگومان هندلر + گارد توکن data-health-check (SEC-02) + محدودسازی PII users_get (D-02) + حذف ۴ زیپ از ردیابی (D-03) + حذف ۸ فایل کد مرده (D-04) + اجرای تسترها در CI (D-05) | v34.0.5-alpha: فاز ۲ سال مالی (نرمال سال فارسی → فیلتر صحیح ۱۴۰۴/صفر، سلکتور سال، برچسب+نرمال درصد، خروجی PDF گزارش A4، کسر علی‌الحساب از سهم) | v34.0.4-alpha: بازگردانی توابع حذف‌شده مالی (قفل/رندر/اسنپ‌شات سال مالی، گزارش جامع، وصول چک) + مسیر thumbnail تنخواه + cache-bust دو فایل | v34.0.3-alpha: بازنویسی — finance-core.js (لایهٔ واحد) + date-kit.js (تقویم با فلش‌های fix + range nav + quick-pick) + حذف datex.js (Strangler Fig)
+window.PTF_CRM_RELEASE = 'v34.4.8'; window.VER = window.PTF_CRM_RELEASE; var VER = window.PTF_CRM_RELEASE; // v34.4.8: MOB-031 — نمای مرحله‌ای سرنخ‌ها، Kanban امن و actionهای خوانای لید | v34.4.7: MOB-042 — دسترسی overlayها و action/accordion تنظیمات | v34.4.6: MOB-041 — اصلاح actionهای هاب مالی/چک، امضای پیشنهاد و جستجوی هدر | v34.4.5: MOB-040 — بازطراحی کامل workspace دستیار و تنظیمات موبایل | v34.4.4: MOB-039 — actionهای فرصت، Post-Award، خرید واقعی و اسناد رسمی پرونده در موبایل یکدست شدند | v34.4.3: MOB-030 — tabهای پرونده/فرصت فروش، نمای فرصت‌ها و navigation لمسی/کیبوردی یکدست شدند | v34.4.2: یکدست‌سازی کیفیت داده + قرارداد cache/PWA | v34.1.0: فاز ۱۸ (مدیریت اسناد تنخواه/فاکتور + رفع پنجرهٔ همپوشان حذف فاکتور) — دکمهٔ «📎 اسناد» در تنخواه؛ نمایش/حذف/افزودن سند در ویرایش فاکتور؛ حذف مودال قبلی گردش حساب پیش از بازکردن مجدد | v34.0.20-alpha| v34.0.19-alpha| v34.0.18-alpha| v34.0.17-alpha| v34.0.16-alpha| v34.0.15-alpha: فاز ۱۲ (رفع باگ نمایش هزینه‌های ماه تنخواه در بازهٔ ناقص + تأیید سورتینگ زمانی) — فقط‌ماه با fallback ماهانه نگه داشته می‌شود | v34.0.14-alpha: فاز ۱۱ (ویرایش/حذف چک + اصلاح/حذف آنی اثر مالی + لینک کیفیت داده به چک) — مودال ویرایش/حذف چک در پنل چک؛ ویرایش مبلغ چک مالی، اثر مالی حساب تأمین‌کننده را آنی اصلاح می‌کند؛ حذف چک، اثر مالی/گردش را کامل حذف می‌کند؛ تب کیفیت داده به مودال اصلاح همان چک لینک شد | v34.0.13-alpha: فاز ۱۰ (رفع باگ ناوبری/جستجوی تأمین‌کنندگان در ثبت استعلام تامین) — دکمهٔ نمایش «سایر تأمین‌کنندگان» و جستجوی زنده از wrapper سراسری استفاده می‌کنند (نه _st خصوصیِ IIFE)؛ تخصیص به کالا در خرید واقعی موجود است | v34.0.12-alpha: فاز ۹ (هماهنگ‌سازی تعهد لگاسی در سود سال مالی + ترتیب تاریخ گزارش تنخواه) — تعهد legacy لینک‌نشده دیگر دوباره‌شماری نمی‌شود؛ گزارش دورهٔ تنخواه به ترتیب صحیح تاریخ (نرمال شمسی/میلادی) | v34.0.11-alpha: فاز ۸ (لینک موارد کیفیت داده به بخش مربوطه) — فاکتور خرید/هزینه‌جاریِ نامشخص در تب کیفیت داده به ماژول اصلی (slInvoiceEdit/ptfOpexEdit) و نام تأمین‌کننده لینک شدند | v34.0.10-alpha: فاز ۷ (شفافیت تراز و reconciliation) — باکت «نامشخص» در تراز صریح + دکمه رفتن به کیفیت داده؛ بلوک بازسازی بدهی تأمین‌کننده در گزارش تجمیعی (افتتاحیه+فاکتورها−پرداخت‌ها) | v34.0.9-alpha: فاز ۶ (هماهنگ‌سازی تراز و گزارش تجمیعی — پوششی فقط کارمزد + منفعت جدا؛ legacy از بدهی حذف) | v34.0.8-alpha: فاز ۵ (منطق سود/اصلاحات مالی) — فاز۱ فاکتور صوری/پوششی (فقط کارمزد ۱.۵/۲/۳٪ هزینه + اعتبار ارزش‌افزوده منفعت)؛ فاز۲ حقوق سهامدار = مطالبه (salary_payment جدا از علی‌الحساب سود)؛ فاز۳ (B) گردش تأمین‌کننده فقط فاکتور خرید؛ فاز۴ (C) مغایرت فاکتور/پیش‌فاکتور غیربلوکه (اصل صحت فاکتور)؛ فاز۵ (A) مبنای هزینهٔ پروژه = فاکتور خرید نه قیمت دستی؛ فاز۶ (D) نرخ روزِ فاکتور (issueFxRate) | v34.0.7-alpha: فاز ۴ (رفع دو باگ پروداکشن) — دستیار AI: بازکردن chat-llm در هتکسز + فعال‌سازی LLM در چت سایت + افزودن collector به llm؛ ضمیمه: بازکردن attachment-read با گارد توکن + دسترسی همهٔ نقش‌ها به خواندن/آپلود ضمیمه در storage (مخرب‌ها admin/chairman) | v34.0.6-alpha: فاز ۳ (امنیت/دیپلوی) — SEC-01 XSS ذخیره‌شده: ptfOnClickArg به‌جای escP در ۳۲۵ آرگومان هندلر + گارد توکن data-health-check (SEC-02) + محدودسازی PII users_get (D-02) + حذف ۴ زیپ از ردیابی (D-03) + حذف ۸ فایل کد مرده (D-04) + اجرای تسترها در CI (D-05) | v34.0.5-alpha: فاز ۲ سال مالی (نرمال سال فارسی → فیلتر صحیح ۱۴۰۴/صفر، سلکتور سال، برچسب+نرمال درصد، خروجی PDF گزارش A4، کسر علی‌الحساب از سهم) | v34.0.4-alpha: بازگردانی توابع حذف‌شده مالی (قفل/رندر/اسنپ‌شات سال مالی، گزارش جامع، وصول چک) + مسیر thumbnail تنخواه + cache-bust دو فایل | v34.0.3-alpha: بازنویسی — finance-core.js (لایهٔ واحد) + date-kit.js (تقویم با فلش‌های fix + range nav + quick-pick) + حذف datex.js (Strangler Fig)
 try { document.getElementById('sbVer').textContent = 'CRM ' + VER; } catch(e){} // US-297: ورژن واقعی در سایدبار
 try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' + VER; } catch(e){}
 (function () {
@@ -776,8 +2106,21 @@ try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' 
 // ===== NAV =====
 /* ===== v34.1: History API — دکمه Back = برگشت به ماژول قبلی ===== */
 var _ptfNavFromPop = false;
+/* MOB-003: وضعیت پنل نباید به class ظاهری سایدبار (که در موبایل مخفی است) وابسته باشد. */
+window.ptfActivePanel = window.ptfActivePanel || '';
+window._ptfNavIsRefresh = false;
+window.ptfFindPanelButton = function (id) {
+  var btns = document.querySelectorAll('.sb-i');
+  for (var i = 0; i < btns.length; i++) {
+    var on = btns[i].getAttribute('onclick') || '';
+    if (on.indexOf("goPanel('" + id + "'") > -1) return btns[i];
+  }
+  return null;
+};
 window.addEventListener('popstate', function(e) {
   if (e.state && e.state.panel) {
+    /* hashchange پس از Back نباید همان پنل را بار دوم render کند. */
+    window._ptfSkipNextHashChange = true;
     _ptfNavFromPop = true;
     goPanel(e.state.panel);
     _ptfNavFromPop = false;
@@ -785,9 +2128,12 @@ window.addEventListener('popstate', function(e) {
 });
 
 function goPanel(id, btn) {
-  try { window.scrollTo(0, 0); } catch(e){}
-  /* ثبت در history — فقط اگر ناوبری واقعی کاربر باشد (نه popstate) */
-  if (!_ptfNavFromPop) {
+  /* فراخوانی‌های موبایل/برنامه‌ای btn ندارند؛ دکمهٔ متناظر را برای state پایدار پیدا کن. */
+  if (!btn && typeof window.ptfFindPanelButton === 'function') btn = window.ptfFindPanelButton(id);
+  window.ptfActivePanel = id;
+  if (!window._ptfNavIsRefresh) { try { window.scrollTo(0, 0); } catch(e){} }
+  /* refresh داده نباید history را آلوده کند؛ فقط ناوبری واقعی و popstate مسیر ثبت می‌سازند. */
+  if (!_ptfNavFromPop && !window._ptfNavIsRefresh) {
     try { history.pushState({ panel: id }, '', '#' + id); } catch(eH) {}
   }
   var btns = document.querySelectorAll('.sb-i');
@@ -833,6 +2179,65 @@ function goPanel(id, btn) {
   else if (id === 'users') renderUsers();
   else if (id === 'dash') { updateStats(); renderDashRfq(); addLog('به سامانه خوش آمدید'); }
 }
+
+/* =====================================================================
+   MOB-010 — deep-link پنل‌ها
+   مقصد hash بعد از اتمام defer bundleها اعمال می‌شود؛ بنابراین #off در cold
+   start نه به #dash بازنویسی می‌شود و نه پیش از تعریف buildOffers خطا می‌دهد.
+   ===================================================================== */
+function ptfHashPanelId(value) {
+  var raw = String(value == null ? '' : value).replace(/^#/, '').trim().toLowerCase();
+  return /^[a-z][a-z0-9_-]*$/.test(raw) ? raw : '';
+}
+function ptfDeepLinkButton(id) {
+  return (typeof window.ptfFindPanelButton === 'function') ? window.ptfFindPanelButton(id) : null;
+}
+function ptfReplacePanelHash(id) {
+  try { history.replaceState({ panel: id }, '', '#' + id); } catch (e) {}
+}
+function ptfDeepLinkFallback() {
+  try {
+    var role = (typeof window.roleDef === 'function') ? window.roleDef() : null;
+    if (role && role.panels !== '*') {
+      if (role.panels.indexOf('dash') > -1) return 'dash';
+      if (role.panels.length) return role.panels[0];
+    }
+  } catch (e) {}
+  return 'dash';
+}
+window.ptfOpenHashPanel = function (value) {
+  var id = ptfHashPanelId(value);
+  if (!id) return false;
+  var crm = document.getElementById('crmL');
+  if (!crm || crm.style.display === 'none') return false;
+  var btn = ptfDeepLinkButton(id);
+  /* panel ناشناخته یا بدون دسترسی → landing مجاز نقش، بدون alert گمراه‌کننده. */
+  if (!btn || window.getComputedStyle(btn).display === 'none' || (typeof window.canPanel === 'function' && !window.canPanel(id) && id !== 'set')) {
+    ptfReplacePanelHash(ptfDeepLinkFallback());
+    return false;
+  }
+  _ptfNavFromPop = true;
+  try { goPanel(id, btn); } catch (e) { _ptfNavFromPop = false; return false; }
+  _ptfNavFromPop = false;
+  /* بعضی wrapperهای پنل سفارشی history/state پایه را دور می‌زنند. */
+  window.ptfActivePanel = id;
+  ptfReplacePanelHash(id);
+  return true;
+};
+function ptfApplyInitialHashPanel() {
+  var id = ptfHashPanelId(window.ptfInitialHashPanel);
+  window.ptfInitialHashPanel = '';
+  if (id && id !== 'dash') window.ptfOpenHashPanel(id);
+  else if (id === 'dash') ptfReplacePanelHash('dash');
+}
+/* همهٔ scriptهای defer و mobile-nav-state تا load تمام می‌شوند؛ 360ms برای wrapper
+   state آخر لازم است و همان قراردادی است که queue ناوبری cold-start استفاده می‌کند. */
+window.addEventListener('load', function () { setTimeout(ptfApplyInitialHashPanel, 360); }, { once: true });
+window.addEventListener('hashchange', function () {
+  if (window._ptfSkipNextHashChange) { window._ptfSkipNextHashChange = false; return; }
+  if (document.readyState !== 'complete') return;
+  setTimeout(function () { window.ptfOpenHashPanel(window.location.hash); }, 0);
+});
 
 // ===== DATA HELPERS =====
 function getData(k) {
@@ -1732,9 +3137,10 @@ function buildProducts() {
     '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfBatchDeleteProducts()">🗑 حذف دسته‌جمعی انتخاب‌شده‌ها</button>' +
     '<input type="file" id="pCsvIn" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfStandardImportProdXls(this)">' +
     '</div></div>' +
-    '<div class="sb2" style="margin-bottom:10px;display:flex;gap:8px">' +
-    '<input type="text" id="pSrch" placeholder="جستجو: کد، نام، برند، استاندارد..." oninput="renderProducts()" style="flex:1;padding:8px 12px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px">' +
-    '<select id="pFcat" onchange="renderProducts()" style="padding:8px;border:1.5px solid var(--brd);border-radius:10px;font-size:13px">' + catOpts + '</select>' +
+    '<div id="prodFilters" class="product-filters">' +
+    '<input type="text" id="pSrch" placeholder="جستجو: کد، نام، برند، استاندارد..." oninput="renderProducts()">' +
+    '<select id="pFcat" onchange="renderProducts()">' + catOpts + '</select>' +
+    '<div id="prodFilterExtras" class="product-filter-extras"></div>' +
     '</div>' +
     '<div style="font-size:12px;color:#94a3b8;margin-bottom:8px" id="pCount"></div>' +
     '<div class="tb2"><table><thead><tr><th style="width:32px"><input type="checkbox" id="pChkAll" onclick="ptfToggleAllProdChk(this)" title="انتخاب همه"></th><th onclick="sortProd(&quot;cd&quot;)" style="cursor:pointer">کد ⇅</th><th onclick="sortProd(&quot;nm&quot;)" style="cursor:pointer">نام کالا ⇅</th><th>دسته</th><th>استاندارد/گرید</th><th>برند</th><th>واحد</th><th onclick="sortProd(&quot;pr&quot;)" style="cursor:pointer">قیمت مرجع ⇅</th><th>عملیات</th></tr></thead>' +
@@ -1776,8 +3182,8 @@ function renderProducts() {
       '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small style="color:#94a3b8">'+escP(p.en)+'</small>':'')+'</td>'+
       '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small style="color:#7c3aed;direction:ltr;display:inline-block">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
       '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small style="color:#0e7490" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+ /* v13.7 US-335 + v15.6 US-387: ارز واقعی به جای ریال */
-      '<td><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
-      '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="delProd(\''+safeCd+'\')">✕</button></td></tr>';
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 10px;font-size:12px" title="ویرایش کالا" aria-label="ویرایش کالا" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
+      '<button class="bt bt-o entity-row-action" data-entity-action="delete" style="padding:4px 10px;font-size:12px;color:#dc2626" title="حذف کالا" aria-label="حذف کالا" onclick="delProd(\''+safeCd+'\')">🗑️</button></td></tr>';
   }
   tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">کالایی یافت نشد</td></tr>';
 }
@@ -2108,19 +3514,17 @@ function buildSettings() {
         : '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:10px 12px;font-size:13px">⚠️ <b>غیرفعال</b><br><small style="color:#b45309">' + escP(d.error||'') + ' — راهنما: DOCS-LLM-SETUP.md</small></div>';
     }).catch(function(){ el.innerHTML = '<small style="color:#dc2626">عدم دسترسی به سرور api/llm.php</small>'; });
   }, 200);
-  return '<div class="ph" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:12px"><h3 style="margin:0;display:inline-flex;align-items:center;gap:8px"><span class="ptf-settings-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.15-1.4l2.05-1.6-2-3.45-2.4 1a7 7 0 00-2.4-1.4L13.7 2.6h-3.4l-.4 2.55a7 7 0 00-2.4 1.4l-2.4-1-2 3.45 2.05 1.6A7 7 0 005 12c0 .5.05.95.15 1.4L3.1 15l2 3.45 2.4-1a7 7 0 002.4 1.4l.4 2.55h3.4l.4-2.55a7 7 0 002.4-1.4l2.4 1 2-3.45-2.05-1.6c.1-.45.15-.9.15-1.4z"/></svg></span>تنظیمات سیستم</h3>' +
-    '<span style="background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;border-radius:16px;padding:4px 10px;font-size:12px;font-weight:bold">نسخه: ' + (window.VER || 'v22.4') + ' | فاز ثبات — بک‌لاگ و گردش‌کار</span></div>' +
-    '<div style="max-width:560px">' +
-    (typeof ptfAvatarSection === 'function' ? ptfAvatarSection() : '') +
-    '<h4 style="margin:0 0 8px">☁️ فضای ابری آروان (انبار فایل‌ها)</h4>' +
-    '<div id="arvanBox"></div>' +
-    '<h4 style="margin:16px 0 8px">🤖 هوش مصنوعی (ترجمه/OCR/تشخیص برند)</h4>' +
-    '<div id="llmBox"><small style="color:#94a3b8">در حال بررسی...</small></div>' +
-    '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
-    '<div class="fld"><label>ایمیل:</label><input type="email" id="sEmail"></div>' +
-    '<div class="fld"><label>پیامک:</label><input type="text" id="sSms"></div>' +
-    '<button class="bt" onclick="saveSet()">✔ ذخیره</button>' +
-    '<button class="bt bt-s" style="margin-right:8px" onclick="backup()">📤 پشتیبان</button></div>';
+  var _savedSettings = {};
+  try { _savedSettings = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}') || {}; } catch (eSet) {}
+  return '<header class="ptf-settings-head" data-settings-header><div class="ptf-settings-head-copy"><span class="ptf-settings-title-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.15-1.4l2.05-1.6-2-3.45-2.4 1a7 7 0 00-2.4-1.4L13.7 2.6h-3.4l-.4 2.55a7 7 0 00-2.4 1.4l-2.4-1-2 3.45 2.05 1.6A7 7 0 005 12c0 .5.05.95.15 1.4L3.1 15l2 3.45 2.4-1a7 7 0 002.4 1.4l.4 2.55h3.4l.4-2.55a7 7 0 002.4-1.4l2.4 1 2-3.45-2.05-1.6c.1-.45.15-.9.15-1.4z"/></svg></span><span><h3>تنظیمات سیستم</h3><p>پروفایل، ذخیره‌سازی، هوش مصنوعی و ارتباطات سازمان را از یک نمای امن مدیریت کنید.</p></span></div>' +
+    '<span class="ptf-settings-version">نسخه: ' + (window.VER || 'v22.4') + '</span></header>' +
+    '<div class="ptf-settings-base">' +
+      '<section class="ptf-settings-section ptf-settings-profile" data-settings-title="پروفایل و هویت"><h4>👤 پروفایل و هویت</h4>' +
+        (typeof ptfAvatarSection === 'function' ? ptfAvatarSection() : '') + '</section>' +
+      '<section class="ptf-settings-section ptf-settings-cloud" data-settings-title="فضای ابری و فایل‌ها"><h4>☁️ فضای ابری و فایل‌ها</h4><p class="ptf-settings-section-note">وضعیت اتصال و مصرف فضای ذخیره‌سازی اسناد سازمان.</p><div id="arvanBox"></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-ai" data-settings-title="هوش مصنوعی سازمان"><h4>🤖 هوش مصنوعی سازمان</h4><p class="ptf-settings-section-note">پیکربندی، مدل فعال و بررسی امن اتصال سرویس AI.</p><div id="llmBox"><small style="color:#94a3b8">در حال بررسی...</small></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-contact" data-settings-title="ارتباطات و نگهداری"><h4>📨 ارتباطات و نگهداری</h4><div class="fld"><label>ایمیل</label><input type="email" id="sEmail" value="' + escP(_savedSettings.email || '') + '" aria-label="ایمیل تنظیمات"></div><div class="fld"><label>پیامک</label><input type="text" id="sSms" value="' + escP(_savedSettings.sms || '') + '" aria-label="شماره پیامک تنظیمات"></div><div class="ptf-settings-contact-actions"><button type="button" class="bt ptf-settings-save-action" onclick="saveSet()">✔ ذخیره تنظیمات</button><button type="button" class="bt bt-s ptf-settings-backup-action" onclick="backup()">📤 تهیه پشتیبان</button></div></section>' +
+    '</div>';
 }
 
 // v101.2: تست واقعی AI بدون cache + نمایش تشخیصی امن transport
@@ -2496,7 +3900,12 @@ function ptfDashEnsureFull() {
   }, 200);
 }
 function loadAll() {
+  /* مقصد deep-link پس از کامل‌شدن moduleها باز می‌شود؛ تا آن زمان dashboard امن
+     رندر می‌شود، اما hash اولیه نباید با pushState به #dash بازنویسی شود. */
+  var keepInitialHash = !!(window.ptfInitialHashPanel && window.ptfInitialHashPanel !== 'dash');
+  if (keepInitialHash) _ptfNavFromPop = true;
   goPanel('dash', document.querySelector('.sb-i'));
+  if (keepInitialHash) _ptfNavFromPop = false;
   ptfDashEnsureFull();
   // Load settings
   var s = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}');
@@ -2511,94 +3920,98 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script defer src="ui-kit.js?v=34.0.21-alpha"></script>
-<script defer src="storage-quota.js?v=34.0.21-alpha"></script>
-<script defer src="moneyx.js?v=34.0.21-alpha"></script>
-<script defer src="finance-helpers.js?v=34.0.21-alpha"></script>
-<script defer src="finance-core.js?v=34.0.21-alpha"></script>
-<script defer src="date-kit.js?v=34.0.21-alpha"></script>
-<script defer src="dialogx.js?v=34.0.21-alpha"></script>
-<script defer src="dedup.js?v=34.0.21-alpha"></script>
-<script defer src="codegen.js?v=34.0.21-alpha"></script>
-<script async src="xlsx.min.js?v=34.0.21-alpha"></script>
-<script defer src="sortable.js?v=34.0.21-alpha"></script>
-<script defer src="offers.js?v=34.0.21-alpha"></script>
-<script defer src="surplus.js?v=34.0.21-alpha"></script>
-<script defer src="launcher.js?v=34.0.21-alpha"></script>
-<script defer src="leads.js?v=34.0.21-alpha"></script>
-<script defer src="storage.js?v=34.0.21-alpha"></script>
-<script defer src="rbac.js?v=34.0.21-alpha"></script>
-<script defer src="official-ledger.js?v=34.0.21-alpha"></script>
-<script defer src="projects.js?v=34.0.21-alpha"></script>
-<script defer src="letters.js?v=34.0.21-alpha"></script>
-<script defer src="draftx.js?v=34.0.21-alpha"></script>
-<script defer src="analyzer.js?v=34.0.21-alpha"></script>
-<script defer src="contracts.js?v=34.0.21-alpha"></script>
-<script defer src="shell.js?v=34.0.21-alpha"></script>
-<script defer src="bridge.js?v=34.0.21-alpha"></script>
-<script defer src="kanban.js?v=34.0.21-alpha"></script>
-<script defer src="reports.js?v=34.0.21-alpha"></script>
-<script defer src="backup.js?v=34.0.21-alpha"></script>
-<script defer src="tool-licenses.js?v=34.0.21-alpha"></script>
-<script defer src="tool-report-drafts.js?v=34.0.21-alpha"></script>
-<script defer src="tool-feedback.js?v=34.0.21-alpha"></script>
-<script defer src="sms.js?v=34.0.21-alpha"></script>
-<script defer src="rfqsmart.js?v=34.0.21-alpha"></script>
-<script defer src="cms.js?v=34.0.21-alpha"></script>
-<script defer src="perms.js?v=34.0.21-alpha"></script>
-<script defer src="petty.js?v=34.0.21-alpha"></script>
-<script defer src="opex.js?v=34.0.21-alpha"></script>
-<script defer src="shareholders.js?v=34.0.21-alpha"></script>
-<script defer src="theme.js?v=34.0.21-alpha"></script>
-<script defer src="archive.js?v=34.0.21-alpha"></script>
-<script defer src="offers-pro.js?v=34.0.21-alpha"></script>
-<script defer src="buycompare.js?v=34.0.21-alpha"></script>
-<script defer src="procurement-link.js?v=34.0.21-alpha"></script>
-<script defer src="listtools.js?v=34.0.21-alpha"></script>
-<script defer src="icons.js?v=34.0.21-alpha"></script>
-<script defer src="guards.js?v=34.0.21-alpha"></script>
-<script defer src="tables.js?v=34.0.21-alpha"></script>
-<script defer src="inqreader.js?v=34.0.21-alpha"></script>
-<script defer src="offerlock.js?v=34.0.21-alpha"></script>
-<script defer src="workflow.js?v=34.0.21-alpha"></script>
-<script defer src="fx.js?v=34.0.21-alpha"></script>
-<script defer src="modalx.js?v=34.0.21-alpha"></script>
-<script defer src="iconx.js?v=34.0.21-alpha"></script>
-<script defer src="salesfiles.js?v=34.0.21-alpha"></script>
-<script defer src="offer-rial-convert.js?v=34.2.4"></script>
-<script defer src="docsx.js?v=34.0.21-alpha"></script>
-<script defer src="oppo.js?v=34.0.21-alpha"></script>
-<script defer src="cheque-module.js?v=34.0.21-alpha"></script>
-<script defer src="cheque-panel.js?v=34.0.21-alpha"></script>
-<script defer src="cheque-print.js?v=34.0.21-alpha"></script>
-<script defer src="cheques.js?v=34.0.21-alpha"></script>
-<script defer src="messengers.js?v=34.0.21-alpha"></script>
-<script defer src="phonefmt.js?v=34.0.21-alpha"></script>
-<script defer src="tour.js?v=34.0.21-alpha"></script>
-<script defer src="mobilenav.js?v=34.0.21-alpha"></script>
-<script defer src="ai-workbench.js?v=34.0.21-alpha"></script>
-<script defer src="golive.js?v=34.0.21-alpha"></script>
-<script defer src="custmerge.js?v=34.0.21-alpha"></script>
-<script defer src="listclean.js?v=34.0.21-alpha"></script>
-<script defer src="supspec.js?v=34.0.21-alpha"></script>
-<script defer src="scoring.js?v=34.0.21-alpha"></script>
-<script defer src="supplier-finance.js?v=34.0.21-alpha"></script>
-<script defer src="customer-finance.js?v=34.0.21-alpha"></script>
-<script defer src="working-capital.js?v=34.0.21-alpha"></script>
-<script defer src="ledger-report.js?v=34.0.21-alpha"></script>
-<script defer src="data-quality.js?v=34.0.21-alpha"></script>
-<script defer src="commission.js?v=34.0.21-alpha"></script>
+<script defer src="ui-kit.js?v=34.4.8"></script>
+<!-- MOB-008: nav shell باید پیش از ده‌ها bundle عملیاتی اجرا شود. -->
+<script defer src="mobilenav.js?v=34.4.8"></script>
+<script defer src="storage-quota.js?v=34.4.8"></script>
+<script defer src="moneyx.js?v=34.4.8"></script>
+<script defer src="finance-helpers.js?v=34.4.8"></script>
+<script defer src="finance-core.js?v=34.4.8"></script>
+<script defer src="date-kit.js?v=34.4.8"></script>
+<script defer src="dialogx.js?v=34.4.8"></script>
+<script defer src="dedup.js?v=34.4.8"></script>
+<script defer src="codegen.js?v=34.4.8"></script>
+<script async src="xlsx.min.js?v=34.4.8"></script>
+<script defer src="sortable.js?v=34.4.8"></script>
+<script defer src="offers.js?v=34.4.8"></script>
+<script defer src="surplus.js?v=34.4.8"></script>
+<script defer src="launcher.js?v=34.4.8"></script>
+<script defer src="leads.js?v=34.4.8"></script>
+<script defer src="storage.js?v=34.4.8"></script>
+<script defer src="rbac.js?v=34.4.8"></script>
+<script defer src="official-ledger.js?v=34.4.8"></script>
+<script defer src="projects.js?v=34.4.8"></script>
+<script defer src="letters.js?v=34.4.8"></script>
+<script defer src="draftx.js?v=34.4.8"></script>
+<script defer src="analyzer.js?v=34.4.8"></script>
+<script defer src="contracts.js?v=34.4.8"></script>
+<script defer src="shell.js?v=34.4.8"></script>
+<script defer src="bridge.js?v=34.4.8"></script>
+<script defer src="kanban.js?v=34.4.8"></script>
+<script defer src="reports.js?v=34.4.8"></script>
+<script defer src="backup.js?v=34.4.8"></script>
+<script defer src="tool-licenses.js?v=34.4.8"></script>
+<script defer src="tool-report-drafts.js?v=34.4.8"></script>
+<script defer src="tool-feedback.js?v=34.4.8"></script>
+<script defer src="sms.js?v=34.4.8"></script>
+<script defer src="rfqsmart.js?v=34.4.8"></script>
+<script defer src="cms.js?v=34.4.8"></script>
+<script defer src="perms.js?v=34.4.8"></script>
+<script defer src="petty.js?v=34.4.8"></script>
+<script defer src="opex.js?v=34.4.8"></script>
+<script defer src="shareholders.js?v=34.4.8"></script>
+<script defer src="theme.js?v=34.4.8"></script>
+<script defer src="archive.js?v=34.4.8"></script>
+<script defer src="offers-pro.js?v=34.4.8"></script>
+<script defer src="buycompare.js?v=34.4.8"></script>
+<script defer src="procurement-link.js?v=34.4.8"></script>
+<script defer src="listtools.js?v=34.4.8"></script>
+<script defer src="icons.js?v=34.4.8"></script>
+<script defer src="guards.js?v=34.4.8"></script>
+<script defer src="tables.js?v=34.4.8"></script>
+<script defer src="inqreader.js?v=34.4.8"></script>
+<script defer src="offerlock.js?v=34.4.8"></script>
+<script defer src="workflow.js?v=34.4.8"></script>
+<script defer src="fx.js?v=34.4.8"></script>
+<script defer src="modalx.js?v=34.4.8"></script>
+<script defer src="iconx.js?v=34.4.8"></script>
+<script defer src="salesfiles.js?v=34.4.8"></script>
+<script defer src="offer-rial-convert.js?v=34.4.8"></script>
+<script defer src="docsx.js?v=34.4.8"></script>
+<script defer src="oppo.js?v=34.4.8"></script>
+<script defer src="cheque-module.js?v=34.4.8"></script>
+<script defer src="cheque-panel.js?v=34.4.8"></script>
+<script defer src="cheque-print.js?v=34.4.8"></script>
+<script defer src="cheques.js?v=34.4.8"></script>
+<script defer src="messengers.js?v=34.4.8"></script>
+<script defer src="phonefmt.js?v=34.4.8"></script>
+<script defer src="tour.js?v=34.4.8"></script>
+<script defer src="ai-workbench.js?v=34.4.8"></script>
+<script defer src="golive.js?v=34.4.8"></script>
+<script defer src="custmerge.js?v=34.4.8"></script>
+<script defer src="listclean.js?v=34.4.8"></script>
+<script defer src="supspec.js?v=34.4.8"></script>
+<script defer src="scoring.js?v=34.4.8"></script>
+<script defer src="supplier-finance.js?v=34.4.8"></script>
+<script defer src="customer-finance.js?v=34.4.8"></script>
+<script defer src="working-capital.js?v=34.4.8"></script>
+<script defer src="ledger-report.js?v=34.4.8"></script>
+<script defer src="data-quality.js?v=34.4.8"></script>
+<script defer src="commission.js?v=34.4.8"></script>
 
-<script defer src="my-customers-filter.js?v=34.0.21-alpha"></script>
-<script defer src="insights.js?v=34.0.21-alpha"></script>
-<script defer src="myday.js?v=34.0.21-alpha"></script>
-<script defer src="lossguard.js?v=34.0.21-alpha"></script>
-<script defer src="fiscal.js?v=34.0.21-alpha"></script>
-<script defer src="financehub.js?v=34.0.21-alpha"></script>
-<script defer src="theme-contrast.js?v=34.0.21-alpha"></script>
-<script defer src="sync.js?v=34.0.21-alpha"></script>
-<script defer src="client-server.js?v=34.0.21-alpha"></script>
-<script defer src="unofficial-invoice.js?v=34.0.21-alpha"></script>
-<script defer src="settings-accordion.js?v=34.0.21-alpha"></script>
+<script defer src="my-customers-filter.js?v=34.4.8"></script>
+<script defer src="insights.js?v=34.4.8"></script>
+<script defer src="myday.js?v=34.4.8"></script>
+<script defer src="lossguard.js?v=34.4.8"></script>
+<script defer src="fiscal.js?v=34.4.8"></script>
+<script defer src="financehub.js?v=34.4.8"></script>
+<script defer src="theme-contrast.js?v=34.4.8"></script>
+<script defer src="sync.js?v=34.4.8"></script>
+<script defer src="client-server.js?v=34.4.8"></script>
+<script defer src="unofficial-invoice.js?v=34.4.8"></script>
+<script defer src="settings-accordion.js?v=34.4.8"></script>
+<script defer src="mobile-actions.js?v=34.4.8"></script>
+<script defer src="mobile-table-labels.js?v=34.4.8"></script>
+<script defer src="mobile-nav-state.js?v=34.4.8"></script>
 </body>
 </html>

@@ -174,54 +174,100 @@ window.ptfAiClean = function(t){
 };
 
 // ---------- Panel builder ----------
+/* MOB-040: پوستهٔ دستیار از مجموعه‌ای button/inline-style پراکنده به یک فضای کار
+   مستقل با hero، actionهای صریح و tablist دسترس‌پذیر تبدیل شد. */
+var AIWB_TABS = [
+  { id:'ocr',       icon:'📄', label:'استخراج اسناد', meta:'فایل و RFQ' },
+  { id:'bizcard',   icon:'💳', label:'کارت ویزیت', meta:'ثبت مخاطب' },
+  { id:'translate', icon:'🌐', label:'مترجم فنی', meta:'فارسی و English' },
+  { id:'identify',  icon:'🏷️', label:'شناساگر برند', meta:'برند و مدل' },
+  { id:'summarize', icon:'📝', label:'خلاصه‌ساز', meta:'خلاصه RFQ' },
+  { id:'letter',    icon:'✍️', label:'نامه و قرارداد', meta:'پیش‌نویس رسمی' }
+];
+function aiWB_tabButton(tab, active) {
+  var label = tab.label + '؛ ' + tab.meta;
+  return '<button type="button" id="aiTab_' + tab.id + '" class="aiwb-tab' + (active ? ' is-active' : '') + ' aiwb-tab-' + tab.id + '"' +
+    ' role="tab" aria-selected="' + (active ? 'true' : 'false') + '" aria-controls="aiPanelBody"' +
+    ' title="' + esc(label) + '" aria-label="' + esc(label) + '" tabindex="' + (active ? '0' : '-1') + '"' +
+    ' onclick="aiWB_tab(\'' + tab.id + '\')" onkeydown="aiWB_tabKeydown(event,\'' + tab.id + '\')">' +
+    '<span class="aiwb-tab-icon" aria-hidden="true">' + tab.icon + '</span>' +
+    '<span class="aiwb-tab-copy"><span class="aiwb-tab-label">' + tab.label + '</span><span class="aiwb-tab-meta">' + tab.meta + '</span></span></button>';
+}
 window.buildAi = function(){
-  return '<div class="ph"><h3>🤖 دستیار</h3>'+
-    '<div class="sb2"><span id="aiQuotaPill" style="font-size:11px;background:#f0fdf4;border:1px solid #86efac;border-radius:999px;padding:4px 10px;color:#047857">🤖 سهمیه امروز: در حال بررسی…</span>'+
-    '<button class="bt bt-o" onclick="aiWB_histShow()">🕓 نتایج اخیر</button>'+ /* v14.4 US-378 */
-    '<button class="bt bt-o" onclick="aiWB_clearCache()">🧹 پاکسازی کش AI</button></div></div>'+
-  '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;border-bottom:2px solid var(--brd);padding-bottom:8px" id="aiTabs">'+
-    '<button class="bt bt-o" id="aiTab_ocr" onclick="aiWB_tab(\'ocr\')">📄 استخراج اسناد</button>'+
-    '<button class="bt bt-o" id="aiTab_bizcard" onclick="aiWB_tab(\'bizcard\')">💳 کارت ویزیت</button>'+
-    '<button class="bt bt-o" id="aiTab_translate" onclick="aiWB_tab(\'translate\')">🌐 مترجم فنی</button>'+
-    '<button class="bt bt-o" id="aiTab_identify" onclick="aiWB_tab(\'identify\')">🏷️ شناساگر برند</button>'+
-    '<button class="bt bt-o" id="aiTab_summarize" onclick="aiWB_tab(\'summarize\')">📝 خلاصه‌ساز</button>'+
-    '<button class="bt bt-o" id="aiTab_letter" onclick="aiWB_tab(\'letter\')" style="background:linear-gradient(135deg,#7c3aed,#a78bfa);color:#fff">✍️ دستیار نامه و قرارداد</button>'+
-  '</div>'+
-  '<div id="aiPanelBody"></div>'+
-  '<div id="aiLogBox" style="margin-top:16px;background:#0f172a;color:#94ffb8;border-radius:12px;padding:10px 14px;font-family:monospace;font-size:11.5px;max-height:160px;overflow:auto;direction:ltr;display:none"></div>';
+  return '<section id="aiWB_root" class="aiwb-shell" aria-label="دستیار هوشمند CRM">' +
+    '<header class="aiwb-hero"><div class="aiwb-hero-copy"><span class="aiwb-hero-icon" aria-hidden="true">🤖</span><span><h3>دستیار هوشمند</h3><p>استخراج، تحلیل و ساخت پیش‌نویس؛ نتیجه را پیش از ثبت بازبینی کنید.</p></span></div>' +
+      '<div class="aiwb-hero-tools"><span id="aiQuotaPill" class="aiwb-quota" aria-live="polite">🤖 سهمیه امروز: در حال بررسی…</span>' +
+        '<div class="aiwb-quick-actions" role="group" aria-label="عملیات دستیار">' +
+          '<button type="button" class="bt bt-o aiwb-quick-action aiwb-history" title="نتایج اخیر دستیار" aria-label="نتایج اخیر دستیار" onclick="aiWB_histShow()"><span aria-hidden="true">🕓</span><span>نتایج اخیر</span></button>' +
+          '<button type="button" class="bt bt-o aiwb-quick-action aiwb-clear" title="پاک‌سازی کش پاسخ‌های هوش مصنوعی" aria-label="پاک‌سازی کش پاسخ‌های هوش مصنوعی" onclick="aiWB_clearCache()"><span aria-hidden="true">🧹</span><span>پاک‌سازی کش</span></button>' +
+        '</div></div></header>' +
+    '<nav id="aiTabs" class="aiwb-tabs" role="tablist" aria-label="ابزارهای دستیار">' +
+      AIWB_TABS.map(function(tab){ return aiWB_tabButton(tab, tab.id === 'ocr'); }).join('') +
+    '</nav>' +
+    '<div id="aiPanelBody" class="aiwb-panel" role="tabpanel" aria-labelledby="aiTab_ocr"></div>' +
+    '<div id="aiLogBox" class="aiwb-log" aria-live="polite" dir="ltr" style="display:none"></div>' +
+  '</section>';
 };
 
 window.renderAi = function(){
   aiWB_updateQuota();
-  aiWB_tab('ocr');
+  aiWB_tab(window._aiWBActiveTab || 'ocr');
 };
 
-window.aiWB_tab = function(t){
-  var tabs=['ocr','bizcard','translate','identify','summarize','letter'];
-  tabs.forEach(function(x){
-    var b=document.getElementById('aiTab_'+x);
-    if(b){ b.className = x===t ? 'bt' : 'bt bt-o'; }
+function aiWB_tabTarget(event, current) {
+  if (!event) return '';
+  var ids = AIWB_TABS.map(function(x){ return x.id; });
+  var at = ids.indexOf(current), key = event.key, next = at;
+  if (at < 0) return '';
+  if (key === 'ArrowLeft' || key === 'ArrowDown') next = (at + 1) % ids.length;
+  else if (key === 'ArrowRight' || key === 'ArrowUp') next = (at - 1 + ids.length) % ids.length;
+  else if (key === 'Home') next = 0;
+  else if (key === 'End') next = ids.length - 1;
+  else return '';
+  event.preventDefault();
+  return ids[next];
+}
+window.aiWB_tabKeydown = function(event, current) {
+  var next = aiWB_tabTarget(event, current);
+  if (next) window.aiWB_tab(next, true);
+};
+
+window.aiWB_tab = function(t, restoreFocus){
+  var known = AIWB_TABS.some(function(x){ return x.id === t; });
+  if (!known) t = 'ocr';
+  window._aiWBActiveTab = t;
+  AIWB_TABS.forEach(function(tab){
+    var b=document.getElementById('aiTab_'+tab.id), active=tab.id===t;
+    if(b){
+      b.className = 'aiwb-tab' + (active ? ' is-active' : '') + ' aiwb-tab-' + tab.id;
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+      b.setAttribute('tabindex', active ? '0' : '-1');
+    }
   });
   var el=document.getElementById('aiPanelBody');
   if(!el) return;
-  else if(t==='ocr') el.innerHTML = aiWB_html_ocr();
+  el.setAttribute('aria-labelledby','aiTab_'+t);
+  if(t==='ocr') el.innerHTML = aiWB_html_ocr();
   else if(t==='bizcard') el.innerHTML = aiWB_html_bizcard();
   else if(t==='translate') el.innerHTML = aiWB_html_translate();
   else if(t==='identify') el.innerHTML = aiWB_html_identify();
   else if(t==='summarize') el.innerHTML = aiWB_html_summarize();
   else if(t==='letter') el.innerHTML = aiWB_html_letter();
-  try { aiWB_restore(t); } catch(eR) {} /* v14.4 US-378: بازیابی آخرین نتیجه بدون مصرف توکن */
+  try { aiWB_restore(t); } catch(eR) {} /* بازیابی آخرین نتیجه بدون مصرف توکن */
+  if (restoreFocus) {
+    setTimeout(function(){ var b=document.getElementById('aiTab_'+t); if(b) b.focus(); },0);
+  }
 };
 
 
 // ---------- BUSINESS CARD TAB (v20.4 / US-445) ----------
 function aiWB_html_bizcard(){
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">'+
-    '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:18px">'+
-      '<h3>💳 استخراج کارت ویزیت</h3><p style="font-size:13px;color:#64748b;line-height:1.9">عکس/PDF کارت ویزیت را بارگذاری کنید؛ اطلاعات شرکت، شخص، سمت، تماس و زمینه فعالیت استخراج و پس از تایید شما در مشتری/تامین‌کننده/سرنخ ثبت می‌شود.</p>'+
+  return '<div class="aiwb-tool-grid aiwb-biz-grid">'+
+    '<section class="aiwb-tool-card aiwb-upload-card">'+
+      '<h4 class="aiwb-tool-title">💳 استخراج کارت ویزیت</h4><p class="aiwb-tool-copy">عکس یا PDF کارت ویزیت را بارگذاری کنید؛ اطلاعات شرکت، شخص، سمت و تماس پیش از ثبت قابل بازبینی است.</p>'+
       '<input type="file" id="aiBizInp" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="aiWB_bizGo(this)">'+
-      '<button class="bt" onclick="document.getElementById(\'aiBizInp\').click()">📎 کارت ویزیت</button><div id="aiBizStatus" style="margin-top:10px;font-size:12.5px;color:#64748b"></div></div>'+
-    '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:16px;padding:16px"><h4 style="margin:0 0 8px">قواعد ثبت</h4><ul style="font-size:13px;line-height:2;color:#475569;margin:0 18px"><li>ثبت نهایی فقط بعد از تایید شما انجام می‌شود.</li><li>قبل از ثبت، ضدتکرار نام/تلفن/ایمیل بررسی می‌شود.</li><li>برای تامین‌کننده خارجی، نام انگلیسی مبنا قرار می‌گیرد.</li></ul></div></div><div id="aiBizOut" style="margin-top:14px"></div>';
+      '<button type="button" class="bt aiwb-primary-action" onclick="document.getElementById(\'aiBizInp\').click()"><span aria-hidden="true">📎</span><span>انتخاب کارت ویزیت</span></button><div id="aiBizStatus" class="aiwb-status"></div></section>'+
+    '<aside class="aiwb-tool-card aiwb-rule-card"><h4 class="aiwb-tool-title">قواعد ثبت</h4><ul class="aiwb-rule-list"><li>ثبت نهایی فقط بعد از تایید شما انجام می‌شود.</li><li>پیش از ثبت، نام، تلفن و ایمیل ضدتکرار می‌شوند.</li><li>برای تامین‌کننده خارجی، نام انگلیسی مبنا قرار می‌گیرد.</li></ul></aside></div><div id="aiBizOut" class="aiwb-result-slot"></div>';
 }
 window.aiWB_bizGo=function(inp){
   var f=inp.files[0]; if(!f)return; if(f.size>6*1048576){alert('فایل بزرگتر از ۶MB');return;}
@@ -265,24 +311,24 @@ window.aiWB_bizSave=function(){
 
 // ---------- OCR TAB ----------
 function aiWB_html_ocr(){
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">'+
-   '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px">'+
-    '<h4>📤 بارگذاری فایل استعلام</h4>'+
-    '<div style="border:2px dashed #f59e0b;border-radius:14px;padding:22px;text-align:center;background:#fffbeb;margin-top:10px;cursor:pointer" onclick="document.getElementById(\'aiOcrInp\').click()">'+
-      '📎 کلیک کنید یا فایل را بکشید اینجا<br><small style="color:#92400e">PDF / JPG / PNG / WebP — حداکثر ۶MB</small>'+
+  return '<div class="aiwb-tool-grid aiwb-ocr-grid">'+
+   '<section class="aiwb-tool-card aiwb-upload-card">'+
+    '<h4 class="aiwb-tool-title">📤 بارگذاری فایل استعلام</h4>'+
+    '<label class="aiwb-dropzone" tabindex="0" role="button" aria-label="انتخاب فایل استعلام" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();document.getElementById(\'aiOcrInp\').click()}">'+
+      '<span class="aiwb-dropzone-icon" aria-hidden="true">📎</span><span><b>فایل را انتخاب کنید</b><small>PDF / JPG / PNG / WebP — حداکثر ۶MB</small></span>'+
       '<input type="file" id="aiOcrInp" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="aiWB_ocrGo(this)">' +
-    '</div>'+
-    '<div id="aiOcrStatus" style="margin-top:10px;font-size:12.5px;color:#475569"></div>'+
-    '<div style="margin-top:14px;font-size:12px;color:#64748b;line-height:1.9">💡 نکته US-256:<br>• هوش مصنوعی خارج از مسیر ثبت درخواست اجرا می‌شود<br>• خروجی قابل ویرایش است<br>• سپس با ۱ کلیک به بانک کالا / استعلام تامین / TO متصل می‌شود</div>'+
-   '</div>'+
-   '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px">'+
-    '<h4>⚙️ تنظیمات استخراج</h4>'+
-    '<div class="fld"><label><input type="checkbox" id="aiOcr_brand" checked> تشخیص برند و مدل خودکار</label></div>'+
-    '<div class="fld"><label><input type="checkbox" id="aiOcr_concise" checked> ساخت شرح خلاصه کاتالوگی</label></div>'+
+    '</label>'+
+    '<div id="aiOcrStatus" class="aiwb-status"></div>'+
+    '<div class="aiwb-note">💡 خروجی پیش از ثبت قابل ویرایش است و سپس می‌تواند به بانک کالا، استعلام تامین یا پیش‌نویس پیشنهاد متصل شود.</div>'+
+   '</section>'+
+   '<section class="aiwb-tool-card aiwb-options-card">'+
+    '<h4 class="aiwb-tool-title">⚙️ تنظیمات استخراج</h4>'+
+    '<label class="aiwb-check"><input type="checkbox" id="aiOcr_brand" checked><span>تشخیص خودکار برند و مدل</span></label>'+
+    '<label class="aiwb-check"><input type="checkbox" id="aiOcr_concise" checked><span>ساخت شرح خلاصه کاتالوگی</span></label>'+
     '<div class="fld"><label>زبان خروجی شرح خلاصه</label><select id="aiOcr_lang"><option value="fa">فارسی</option><option value="en">English</option><option value="both" selected>هر دو</option></select></div>'+
-   '</div>'+
+   '</section>'+
   '</div>'+
-  '<div id="aiOcrResult" style="margin-top:16px"></div>';
+  '<div id="aiOcrResult" class="aiwb-result-slot"></div>';
 }
 
 window.aiWB_ocrGo = function(inp){
@@ -317,14 +363,14 @@ window.aiWB_ocrGo = function(inp){
 var aiWB_lastRows=[];
 function aiWB_renderOcrTable(rows, srcName){
   aiWB_lastRows = JSON.parse(JSON.stringify(rows));
-  var h='<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px;margin-top:12px">'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'+
-    '<h4 style="margin:0">📋 اقلام استخراج‌شده — قابل ویرایش</h4>'+
-    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
-      '<button class="bt bt-o" onclick="aiWB_exportExcel()">⬇️ دانلود Excel استاندارد PTF</button>'+
-      '<button class="bt bt-o" style="color:#7c3aed" onclick="aiWB_addRow()">+ ردیف دستی</button>'+
+  var h='<section class="aiwb-result-card aiwb-ocr-result">'+
+    '<div class="aiwb-result-head">'+
+    '<h4 class="aiwb-tool-title">📋 اقلام استخراج‌شده — قابل ویرایش</h4>'+
+    '<div class="aiwb-inline-actions">'+
+      '<button type="button" class="bt bt-o aiwb-secondary-action" onclick="aiWB_exportExcel()">⬇️ دانلود Excel</button>'+
+      '<button type="button" class="bt bt-o aiwb-secondary-action aiwb-add-row" onclick="aiWB_addRow()">➕ ردیف دستی</button>'+
     '</div></div>'+
-    '<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px"><thead style="background:#f8fafc"><tr>'+
+    '<div class="aiwb-table-scroll"><table><thead><tr>' +
       '<th>#</th><th>تایپ</th><th>شرح خلاصه *</th><th>مشخصات کامل</th><th>برند</th><th>مدل</th><th>تعداد</th><th>واحد</th><th>✔</th></tr></thead><tbody id="aiOcrTb">';
   rows.forEach(function(r,i){
     h+='<tr>'+
@@ -341,8 +387,8 @@ function aiWB_renderOcrTable(rows, srcName){
   });
   h+='</tbody></table></div>';
   // Triple Pipeline UI
-  h+='<div style="margin-top:16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:14px">'+
-    '<div style="font-weight:900;color:#065f46;margin-bottom:8px">🚀 اجرای سه‌گانه — US-257 Triple Pipeline</div>'+
+  h+='<section class="aiwb-triple-pipeline">'+
+    '<div class="aiwb-triple-title">🚀 اجرای سه‌گانه</div>'+
     '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px"><input type="checkbox" id="aiTP_prod" checked> ① ثبت در بانک کالا — کد PTF-P خودکار</label>'+
     '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px"><input type="checkbox" id="aiTP_src" checked> ② ایجاد استعلام تامین — انتخاب تامین‌کنندگان</label>'+
     '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px"><input type="checkbox" id="aiTP_quote" checked> ③ ساخت پیش‌نویس پیشنهاد '+
@@ -354,17 +400,17 @@ function aiWB_renderOcrTable(rows, srcName){
     /* v12.5 (US-305/306): ثبت درخواست جدید + مشتری شناسایی‌شده از سربرگ */
     '<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px"><input type="checkbox" id="aiTP_rfq"> ④ ثبت به‌عنوان <b>درخواست (استعلام) جدید</b> با همین اقلام</label>'+
     '<div id="aiTP_coBox"></div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
-      '<div><label style="font-size:11px;color:#475569">شماره درخواست مرتبط (اختیاری)</label>'+
+    '<div class="aiwb-triple-selects">'+
+      '<div><label>شماره درخواست مرتبط <small>(اختیاری)</small></label>'+
       '<select id="aiTP_inq" style="width:100%;padding:7px;border:1px solid #a7f3d0;border-radius:8px"><option value="">— بدون اتصال —</option></select></div>'+
-      '<div><label style="font-size:11px;color:#475569">مشتری برای TO</label>'+
+      '<div><label>مشتری برای TO</label>'+
       '<select id="aiTP_cust" style="width:100%;padding:7px;border:1px solid #a7f3d0;border-radius:8px"><option value="">— انتخاب بعدا —</option></select></div>'+
     '</div>'+
     '<label style="display:flex;align-items:flex-start;gap:8px;margin:-2px 0 10px;font-size:12.5px;line-height:1.7;cursor:pointer"><input type="checkbox" id="aiTP_addItems"> <span>⑤ افزودن اقلام انتخاب‌شده به <b>اقلام درخواست مرتبط</b><br><small style="color:#64748b">برای درخواست موجود: ثبت append و ضدتکرار؛ برای درخواست جدید، گزینه ④ این کار را خودکار انجام می‌دهد.</small></span></label>'+
-    '<button class="bt" style="background:#059669;padding:10px 22px;font-size:14px" onclick="aiWB_tripleGo()">🚀 اجرای سه‌گانه</button> '+
-    '<button class="bt bt-o" onclick="aiWB_exportExcel()">⬇️ فقط Excel بگیر</button>'+
-    '<div id="aiTP_res" style="margin-top:10px;font-size:12.5px"></div>'+
-  '</div></div>';
+    '<div class="aiwb-inline-actions"><button type="button" class="bt aiwb-primary-action aiwb-triple-run" onclick="aiWB_tripleGo()">🚀 اجرای سه‌گانه</button>'+
+    '<button type="button" class="bt bt-o aiwb-secondary-action" onclick="aiWB_exportExcel()">⬇️ فقط Excel بگیر</button></div>'+
+    '<div id="aiTP_res" class="aiwb-output"></div>'+
+  '</section></section>';
   document.getElementById('aiOcrResult').innerHTML=h;
   // populate inq + cust dropdowns
   try{
@@ -686,19 +732,19 @@ window.aiWB_rollback=function(qNo, sNo){
 
 // ---------- other tabs (translate / identify / summarize) ----------
 function aiWB_html_translate(){
-  return '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px;max-width:720px">'+
-   '<h4>🌐 مترجم فنی صنعتی</h4>'+
-   '<div class="fld"><label>متن مبدا</label><textarea id="aiTrIn" rows="3" placeholder="شرح کالا فارسی یا انگلیسی…"></textarea></div>'+
-   '<div style="display:flex;gap:8px"><button class="bt" onclick="aiWB_tr(\'fa2en\')">فارسی → English</button>'+
-   '<button class="bt bt-o" onclick="aiWB_tr(\'en2fa\')">English → فارسی</button></div>'+
-   '<div id="aiTrOut" style="margin-top:12px"></div></div>';
+  return '<section class="aiwb-tool-card aiwb-single-card aiwb-translate-card">'+
+   '<h4 class="aiwb-tool-title">🌐 مترجم فنی صنعتی</h4><p class="aiwb-tool-copy">شرح کالا یا متن فنی را با حفظ لحن تخصصی بین فارسی و English تبدیل کنید.</p>'+
+   '<div class="fld"><label>متن مبدا</label><textarea id="aiTrIn" rows="4" placeholder="شرح کالا فارسی یا انگلیسی…"></textarea></div>'+
+   '<div class="aiwb-inline-actions"><button type="button" class="bt aiwb-primary-action" onclick="aiWB_tr(\'fa2en\')">فارسی → English</button>'+
+   '<button type="button" class="bt bt-o aiwb-secondary-action" onclick="aiWB_tr(\'en2fa\')">English → فارسی</button></div>'+
+   '<div id="aiTrOut" class="aiwb-output"></div></section>';
 }
 window.aiWB_tr=function(dir){
   var t=document.getElementById('aiTrIn').value.trim();
   if(t.length<2){alert('متن وارد کنید');return;}
   document.getElementById('aiTrOut').innerHTML='⏳ …';
   llmPost('translate',{text:t,dir:dir},function(d){
-    var html = d.ok && d.data ? 
+    var html = d.ok && d.data ?
       '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px">'+esc(d.data.t)+
       '<br><button class="ba" style="margin-top:6px" onclick="navigator.clipboard.writeText(\''+ (d.data.t||'').replace(/'/g,"\\'") +'\')">📋 کپی</button></div>' :
       '<span style="color:#dc2626">❌ '+(d.error||'')+'</span>';
@@ -708,11 +754,11 @@ window.aiWB_tr=function(dir){
 };
 
 function aiWB_html_identify(){
-  return '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px;max-width:720px">'+
-   '<h4>🏷️ شناساگر برند و تایپ</h4>'+
+  return '<section class="aiwb-tool-card aiwb-single-card aiwb-identify-card">'+
+   '<h4 class="aiwb-tool-title">🏷️ شناساگر برند و تایپ</h4><p class="aiwb-tool-copy">شرح کالا را وارد کنید تا برند، مدل و دسته‌بندی پیشنهادی برای بازبینی شما استخراج شود.</p>'+
    '<div class="fld"><label>شرح کالا</label><input type="text" id="aiIdIn" placeholder="مثلا: Rosemount 3051CD pressure transmitter"></div>'+
-   '<button class="bt" onclick="aiWB_idGo()">🤖 شناسایی</button>'+
-   '<div id="aiIdOut" style="margin-top:12px"></div></div>';
+   '<button type="button" class="bt aiwb-primary-action" onclick="aiWB_idGo()">🤖 شناسایی</button>'+
+   '<div id="aiIdOut" class="aiwb-output"></div></section>';
 }
 window.aiWB_idGo=function(){
   var d=document.getElementById('aiIdIn').value.trim();
@@ -734,11 +780,11 @@ window.aiWB_idGo=function(){
 };
 
 function aiWB_html_summarize(){
-  return '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px;max-width:760px">'+
-   '<h4>📝 خلاصه‌ساز هوشمند درخواست</h4>'+
-   '<div class="fld"><label>متن درخواست / استعلام</label><textarea id="aiSumIn" rows="5" placeholder="متن RFQ را اینجا پیست کنید…"></textarea></div>'+
-   '<button class="bt" onclick="aiWB_sumGo()">🤖 ساخت خلاصه</button>'+
-   '<div id="aiSumOut" style="margin-top:12px"></div></div>';
+  return '<section class="aiwb-tool-card aiwb-single-card aiwb-summary-card">'+
+   '<h4 class="aiwb-tool-title">📝 خلاصه‌ساز هوشمند درخواست</h4><p class="aiwb-tool-copy">متن RFQ را وارد کنید تا حوزه، خلاصهٔ تصمیم‌پذیر و نکات تامین را یک‌جا دریافت کنید.</p>'+
+   '<div class="fld"><label>متن درخواست / استعلام</label><textarea id="aiSumIn" rows="6" placeholder="متن RFQ را اینجا پیست کنید…"></textarea></div>'+
+   '<button type="button" class="bt aiwb-primary-action" onclick="aiWB_sumGo()">🤖 ساخت خلاصه</button>'+
+   '<div id="aiSumOut" class="aiwb-output"></div></section>';
 }
 window.aiWB_sumGo=function(){
   var t=document.getElementById('aiSumIn').value.trim();
@@ -762,23 +808,22 @@ window.aiWB_sumGo=function(){
 function aiWB_html_letter(){
   var custs=getData('ptf_crm_customers'); var custOpts='<option value="">— دستی وارد می‌کنم —</option>';
   custs.forEach(function(c){ custOpts+='<option value="'+esc(c.co)+'|'+esc(c.con||'')+'">'+esc(c.co)+ (c.con?' — '+esc(c.con):'') +'</option>';});
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">'+
-   '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px">'+
-    '<h4>✍️ دستیار نامه و قرارداد — US-258</h4>'+
-    '<div class="fld"><label>انتخاب از مشتریان (اختیاری)</label><select id="aiLtCustPick" onchange="aiWB_ltFill(this.value)"><option value="">— آزاد —</option>'+custOpts+'</select>'+
-    '<small style="color:#64748b">می‌توانید خالی بگذارید و دستی پر کنید — اجباری نیست ✅</small></div>'+
-    '<div class="fr"><div class="fld"><label>نام گیرنده *</label><input type="text" id="aiLtName" placeholder="مثلا: علی رضایی"></div>'+
-    '<div class="fld"><label>سمت ★ جدید</label><input type="text" id="aiLtRole" placeholder="مثال: مدیر محترم بازرگانی"></div></div>'+
+  return '<div class="aiwb-tool-grid aiwb-letter-grid">'+
+   '<section class="aiwb-tool-card aiwb-letter-form">'+
+    '<h4 class="aiwb-tool-title">✍️ دستیار نامه و قرارداد</h4><p class="aiwb-tool-copy">با چند ورودی ساده، پیش‌نویس رسمی تولید کنید و قبل از ذخیره آن را کنترل کنید.</p>'+
+    '<div class="fld"><label>انتخاب از مشتریان <small>(اختیاری)</small></label><select id="aiLtCustPick" onchange="aiWB_ltFill(this.value)"><option value="">— آزاد —</option>'+custOpts+'</select></div>'+
+    '<div class="fr aiwb-form-grid"><div class="fld"><label>نام گیرنده *</label><input type="text" id="aiLtName" placeholder="مثلا: علی رضایی"></div>'+
+    '<div class="fld"><label>سمت</label><input type="text" id="aiLtRole" placeholder="مثال: مدیر محترم بازرگانی"></div></div>'+
     '<div class="fld"><label>شرکت / سازمان</label><input type="text" id="aiLtCo" placeholder="مثلا: پتروشیمی جم"></div>'+
-    '<div class="fr"><div class="fld"><label>نوع سند</label><select id="aiLtKind"><option value="letter">نامه اداری</option><option value="followup">پیگیری مطالبات</option><option value="thanks">تشکر / قدردانی</option><option value="invite">دعوت به جلسه</option><option value="contract">پیش‌نویس قرارداد</option></select></div>'+
+    '<div class="fr aiwb-form-grid"><div class="fld"><label>نوع سند</label><select id="aiLtKind"><option value="letter">نامه اداری</option><option value="followup">پیگیری مطالبات</option><option value="thanks">تشکر / قدردانی</option><option value="invite">دعوت به جلسه</option><option value="contract">پیش‌نویس قرارداد</option></select></div>'+
     '<div class="fld"><label>لحن</label><select id="aiLtTone"><option value="formal">رسمی سازمانی</option><option value="friendly">دوستانه حرفه‌ای</option><option value="firm">قاطع حقوقی</option></select></div></div>'+
-    '<div class="fld"><label>متن خواسته شما (به زبان خودمانی)</label><textarea id="aiLtPrompt" rows="4" placeholder="مثلا: آقای رضایی ۳ ماهه پول فاکتور ۴۸۲ رو نداده، ۱.۲ میلیارد … یه نامه محترمانه ولی جدی بزن …"></textarea></div>'+
-    '<button class="bt" style="background:#7c3aed" onclick="aiWB_letterGo()">🤖 پیش‌نویس</button>'+
-   '</div>'+
-   '<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px">'+
-    '<h4>📄 پیش‌نمایش</h4><div id="aiLtOut" style="min-height:280px;background:#f8fafc;border-radius:10px;padding:12px;font-size:13px;line-height:2;color:#334155;white-space:pre-wrap">اینجا پیش‌نویس نامه نمایش داده می‌شود…</div>'+
-    '<div id="aiLtActions" style="display:none;margin-top:10px;gap:8px;flex-wrap:wrap"></div>'+
-   '</div>'+
+    '<div class="fld"><label>متن خواسته شما</label><textarea id="aiLtPrompt" rows="5" placeholder="مثلا: پیگیری محترمانه اما جدی برای پرداخت فاکتور…"></textarea></div>'+
+    '<button type="button" class="bt aiwb-primary-action aiwb-letter-action" onclick="aiWB_letterGo()">🤖 ساخت پیش‌نویس</button>'+
+   '</section>'+
+   '<section class="aiwb-tool-card aiwb-letter-preview">'+
+    '<h4 class="aiwb-tool-title">📄 پیش‌نمایش</h4><div id="aiLtOut" class="aiwb-letter-output">اینجا پیش‌نویس نامه نمایش داده می‌شود…</div>'+
+    '<div id="aiLtActions" class="aiwb-inline-actions" style="display:none"></div>'+
+   '</section>'+
   '</div>';
 }
 window.aiWB_ltFill=function(v){
@@ -789,10 +834,10 @@ window.aiWB_ltFill=function(v){
   if(nm) document.getElementById('aiLtName').value=nm;
 };
 window.aiWB_letterActionsHtml=function(){
-  return '<button class="bt" onclick="aiWB_letterSave()">✅ ذخیره</button>'+
-    '<button class="bt bt-o" onclick="aiWB_letterCopy()">📋 کپی متن</button>'+
-    '<button class="bt bt-o" onclick="ptfPrintWithTitle(\'LTR-DRAFT\')">🖨 چاپ</button>'+
-    '<button class="bt bt-o" onclick="aiWB_letterGo()">🔄 بازنویسی با لحن دیگر</button>';
+  return '<button type="button" class="bt aiwb-primary-action" onclick="aiWB_letterSave()">✅ ذخیره</button>'+
+    '<button type="button" class="bt bt-o aiwb-secondary-action" onclick="aiWB_letterCopy()">📋 کپی متن</button>'+
+    '<button type="button" class="bt bt-o aiwb-secondary-action" onclick="ptfPrintWithTitle(\'LTR-DRAFT\')">🖨 چاپ</button>'+
+    '<button type="button" class="bt bt-o aiwb-secondary-action" onclick="aiWB_letterGo()">🔄 بازنویسی</button>';
 };
 window.aiWB_letterGo=function(){
   var name=document.getElementById('aiLtName').value.trim();
@@ -876,7 +921,7 @@ function aiWB_updateQuota(){
   el.style.background = q.n > lim*0.8 ? '#fef3c7' : '#f0fdf4';
 }
 window.aiWB_clearCache=function(){
-  if(confirm('کش پاسخ‌های AI پاک شود؟')){ 
+  if(confirm('کش پاسخ‌های AI پاک شود؟')){
     Object.keys(localStorage).forEach(function(k){ if(k.indexOf('ptf_ai_cache')===0) localStorage.removeItem(k); });
     alert('✅ کش پاک شد');
   }
@@ -926,10 +971,10 @@ window.buildAi = window.buildAi || function(){ return '<div id="aiWB_root">loadi
   function field(k,lb,dir){var v=(window._aiWB_bizCard||{})[k]||'';return '<div class="fld"><label>'+lb+'</label><input id="biz_'+k+'" value="'+esc(v)+'" '+(dir?'style="direction:'+dir+'"':'')+'></div>';}
   window.aiWB_bizRender=function(card,src,idx){
     window._aiWB_bizCard=card||{}; var cards=window._aiWB_bizCards||[window._aiWB_bizCard]; idx=idx||0;
-    var nav=cards.length>1?'<div style="display:flex;gap:5px;flex-wrap:wrap;margin:8px 0">'+cards.map(function(c,i){return '<button class="bt '+(i===idx?'':'bt-o')+'" style="padding:4px 9px;font-size:11px" onclick="aiWB_bizSelect('+i+')">کارت '+(i+1)+'</button>';}).join('')+'</div>':'';
+    var nav=cards.length>1?'<div class="aiwb-card-switcher">'+cards.map(function(c,i){return '<button type="button" class="bt '+(i===idx?'aiwb-primary-action':'bt-o aiwb-secondary-action')+'" onclick="aiWB_bizSelect('+i+')">کارت '+(i+1)+'</button>';}).join('')+'</div>':'';
     var c=window._aiWB_bizCard;
-    var html='<div style="background:var(--crd);border:1px solid var(--brd);border-radius:16px;padding:16px"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap"><h4 style="margin:0">💳 پیش‌نمایش کارت ویزیت — '+esc(src||'')+'</h4><select id="biz_dest" style="padding:8px;border:1px solid var(--brd);border-radius:10px"><option value="supplier">تامین‌کننده</option><option value="customer">مشتری</option><option value="lead">سرنخ</option></select></div>'+nav+
-      '<div class="fr" style="margin-top:12px">'+field('company','نام شرکت فارسی')+field('companyEn','English Company','ltr')+'</div>'+ '<div class="fr">'+field('person','نام شخص')+field('role','سمت')+'</div>'+ '<div class="fr">'+field('mobile','موبایل','ltr')+field('phone','تلفن','ltr')+'</div>'+ '<div class="fr">'+field('email','ایمیل','ltr')+field('website','وب‌سایت','ltr')+'</div>'+ '<div class="fr">'+field('city','شهر/کشور')+field('activity','حوزه فعالیت/تخصص')+'</div>'+ '<div class="fr">'+field('brands','برندها (با کاما جدا کنید)')+field('equip','تجهیزات تخصصی (با کاما جدا کنید)')+'</div>'+ '<div class="fld"><label>آدرس</label><textarea id="biz_address" rows="2">'+esc(c.address||'')+'</textarea></div>'+ '<button class="bt" onclick="aiWB_bizSave()">✅ ثبت همین کارت</button> '+(cards.length>1?'<button class="bt bt-o" onclick="aiWB_bizSaveAll()">✅ ثبت همه '+cards.length+' کارت با همین مقصد</button> ':'')+'<div id="biz_save_res" style="margin-top:8px;font-size:12.5px"></div></div>';
+    var html='<section class="aiwb-result-card aiwb-biz-result"><div class="aiwb-result-head"><h4 class="aiwb-tool-title">💳 پیش‌نمایش کارت ویزیت — '+esc(src||'')+'</h4><select id="biz_dest"><option value="supplier">تامین‌کننده</option><option value="customer">مشتری</option><option value="lead">سرنخ</option></select></div>'+nav+
+      '<div class="fr aiwb-form-grid">'+field('company','نام شرکت فارسی')+field('companyEn','English Company','ltr')+'</div>'+ '<div class="fr aiwb-form-grid">'+field('person','نام شخص')+field('role','سمت')+'</div>'+ '<div class="fr aiwb-form-grid">'+field('mobile','موبایل','ltr')+field('phone','تلفن','ltr')+'</div>'+ '<div class="fr aiwb-form-grid">'+field('email','ایمیل','ltr')+field('website','وب‌سایت','ltr')+'</div>'+ '<div class="fr aiwb-form-grid">'+field('city','شهر/کشور')+field('activity','حوزه فعالیت/تخصص')+'</div>'+ '<div class="fr aiwb-form-grid">'+field('brands','برندها (با کاما جدا کنید)')+field('equip','تجهیزات تخصصی (با کاما جدا کنید)')+'</div>'+ '<div class="fld"><label>آدرس</label><textarea id="biz_address" rows="2">'+esc(c.address||'')+'</textarea></div>'+ '<div class="aiwb-inline-actions"><button type="button" class="bt aiwb-primary-action" onclick="aiWB_bizSave()">✅ ثبت همین کارت</button> '+(cards.length>1?'<button type="button" class="bt bt-o aiwb-secondary-action" onclick="aiWB_bizSaveAll()">✅ ثبت همه '+cards.length+' کارت</button> ':'')+'</div><div id="biz_save_res" class="aiwb-output"></div></section>';
     document.getElementById('aiBizOut').innerHTML=html;
   };
   function v(k){var e=document.getElementById('biz_'+k);return e?e.value.trim():'';}
@@ -1000,24 +1045,24 @@ window.ptfRunAiDocReader = function (targetModule) {
   var txtInp = document.getElementById('aiDocText');
   var files = (filesInp && filesInp.files) ? filesInp.files : [];
   var text = txtInp ? txtInp.value.trim() : '';
-  
+
   if (!files.length && !text) { alert('لطفاً یک فایل اکسل/سند انتخاب کنید یا متنی را بچسبانید.'); return; }
-  
+
   var md = document.querySelector('#panels .md-b:last-child');
   if (md) md.remove();
-  
+
   if (typeof ptfToast === 'function') ptfToast('⏳ هوش مصنوعی در حال اسکن دقیق و پردازش فایل استعلام (حداکثر ۱ دقیقه)...', 'info');
-  
+
   var openReviewModal = function(extractedList, detectedExtraCols) {
     if (!extractedList || !extractedList.length) {
       alert('❌ هیچ قلم کالایی از فایل استخراج نشد. ساختار فایل را بررسی کنید.');
       return;
     }
-    
+
     window._aiExtractedList = extractedList;
     window._aiDetectedExtraCols = detectedExtraCols || [];
     window._aiTargetModule = targetModule;
-    
+
     var modLb = (targetModule === 'TO' || targetModule === 'CO') ? 'پیشنهاد فنی/مالی' : 'کاتالوگ کالاها';
     var rowsHtml = '';
     extractedList.forEach(function(it, i) {
@@ -1030,7 +1075,7 @@ window.ptfRunAiDocReader = function (targetModule) {
         '<td><input type="text" id="air_ds_' + i + '" value="' + escP(it.desc) + '" style="width:120px;padding:5px;font-size:11.5px"></td>' +
         '<td><button class="bt bt-o" style="padding:2px 6px;color:#dc2626" onclick="ptfRemoveAiReviewRow(' + i + ')">✕</button></td></tr>';
     });
-    
+
     var html = '<div class="md-b" style="display:grid;z-index:1800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:880px;max-height:94vh;overflow:auto">' +
       '<h3>🤖 پنجره بازبینی و تأیید اقلام خوانده‌شده توسط دستیار هوشمند</h3>' +
       '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px;font-size:12.5px;color:#166534;margin-bottom:12px">' +
@@ -1045,7 +1090,7 @@ window.ptfRunAiDocReader = function (targetModule) {
       '<span style="font-size:12px;color:#64748b">تأیید نهایی توسط شما انجام می‌شود</span>' +
       '<div style="display:flex;gap:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       '<button class="bt" style="background:#059669;color:#fff;font-size:13px;padding:10px 20px" onclick="ptfConfirmAiReviewItems()">✅ تأیید نهایی و درج در ' + modLb + '</button></div></div></div></div>';
-    
+
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 
@@ -1056,7 +1101,7 @@ window.ptfRunAiDocReader = function (targetModule) {
         var wb = XLSX.read(new Uint8Array(rd.result), {type:'array'});
         var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:true, defval:''});
         if (!rows || rows.length < 2) { openReviewModal([], []); return; }
-        
+
         var head = rows[0].map(function(h){ return String(h||'').toLowerCase().trim(); });
         var findIdx = function(cands){
           for (var i=0;i<head.length;i++) {
@@ -1066,25 +1111,25 @@ window.ptfRunAiDocReader = function (targetModule) {
           }
           return -1;
         };
-        
+
         var iDesc = findIdx(['شرح کامل','شرح کالا','شرح','desc','name','item','specification']);
         var iUnit = findIdx(['واحد','un','unit']);
         var iQty = findIdx(['مقدار','تعداد','qty','quantity']);
         var iPrice = findIdx(['قیمت','بها','price','fee','val']);
         var iCode = findIdx(['کد','code','id','شماره']);
         var iNote = findIdx(['ملاحظات','یادداشت','standard','spec','note','remark']);
-        
+
         if (iDesc < 0) iDesc = (iCode === 0 ? 1 : 0);
-        
+
         var prods = getData('ptf_crm_products');
         var startNum = 1000 + prods.length + 1;
         var list = [];
-        
+
         for (var r=1; r<rows.length; r++) {
           var row = rows[r];
           var desc = String(row[iDesc] || '').trim();
           if (!desc || desc === '-' || /^\d+$/.test(desc)) continue;
-          
+
           var cdRaw = iCode > -1 ? String(row[iCode] || '').trim() : '';
           var cd = '';
           if (cdRaw && /^[A-Z0-9_-]{3,20}$/i.test(cdRaw) && !/^\d{1,3}$/.test(cdRaw)) {
@@ -1092,12 +1137,12 @@ window.ptfRunAiDocReader = function (targetModule) {
           } else {
             cd = window.ptfUnifiedCode ? window.ptfUnifiedCode('PROD') : 'P-' + (startNum + list.length);
           }
-          
+
           var un = iUnit > -1 ? String(row[iUnit] || 'عدد').trim() : 'عدد';
           var qty = iQty > -1 ? +String(row[iQty]).replace(/[^\d.]/g,'') || 1 : 1;
           var pr = iPrice > -1 ? +String(row[iPrice]).replace(/[^\d.]/g,'') || 0 : 0;
           var note = iNote > -1 ? String(row[iNote] || '-').trim() : '-';
-          
+
           list.push({ cd: cd, name: desc, un: un || 'عدد', qty: qty, price: pr, desc: note || '-' });
         }
         openReviewModal(list, head);
@@ -1136,7 +1181,7 @@ window.ptfRemoveAiReviewRow = function(idx) {
 
 window.ptfConfirmAiReviewItems = function() {
   if (!window._aiExtractedList || !window._aiExtractedList.length) { alert('اقلامی برای درج وجود ندارد'); return; }
-  
+
   var finalList = [];
   window._aiExtractedList.forEach(function(it, i) {
     var cdEl = document.getElementById('air_cd_' + i);
@@ -1145,7 +1190,7 @@ window.ptfConfirmAiReviewItems = function() {
     var qtEl = document.getElementById('air_qt_' + i);
     var prEl = document.getElementById('air_pr_' + i);
     var dsEl = document.getElementById('air_ds_' + i);
-    
+
     if (nmEl && nmEl.value.trim()) {
       finalList.push({
         cd: cdEl ? cdEl.value.trim() : it.cd,
@@ -1157,11 +1202,11 @@ window.ptfConfirmAiReviewItems = function() {
       });
     }
   });
-  
+
   var syncCols = (document.getElementById('aiChkSyncCols') || {}).checked;
   var saveCat = (document.getElementById('aiChkSaveCatalog') || {}).checked;
   var mod = window._aiTargetModule;
-  
+
   if (saveCat) {
     var prods = getData('ptf_crm_products');
     var addedCat = 0;
@@ -1175,7 +1220,7 @@ window.ptfConfirmAiReviewItems = function() {
     if (typeof renderProducts === 'function') renderProducts();
     if (mod !== 'PROD' && typeof ptfToast === 'function') ptfToast('📦 تعداد ' + addedCat + ' کالا همزمان در ماژول کاتالوگ ذخیره شد', 'ok');
   }
-  
+
   if (mod === 'TO' || mod === 'CO') {
     try {
       if (!window._offState.items) window._offState.items = [];
@@ -1183,7 +1228,7 @@ window.ptfConfirmAiReviewItems = function() {
         var nit = { pcode: it.cd, name: it.name, unit: it.un, qty: it.qty, price: it.price, desc: it.desc, model: '', brand: '', dlv: '' };
         if (typeof offSmartInsert === 'function') offSmartInsert(nit); else window._offState.items.push(nit); /* v12.6 US-310 */
       });
-      
+
       if (syncCols && window._aiDetectedExtraCols && window._aiDetectedExtraCols.length > 5) {
         var baseK = ['k','cd','code','name','desc','unit','un','qty','quantity','price','val','ردیف','شرح','کد','تعداد','واحد','قیمت','شرح کامل','ملاحظات'];
         window._aiDetectedExtraCols.forEach(function(colName) {
@@ -1193,7 +1238,7 @@ window.ptfConfirmAiReviewItems = function() {
           }
         });
       }
-      
+
       if (typeof offRenderItems === 'function') offRenderItems();
       if (typeof ptfToast === 'function') ptfToast('✅ تعداد ' + finalList.length + ' قلم کالا در جدول پیشنهاد جاگذاری شد', 'ok');
       else alert('✅ تعداد ' + finalList.length + ' قلم کالا در پیشنهاد جاگذاری شد');
@@ -1201,7 +1246,7 @@ window.ptfConfirmAiReviewItems = function() {
   } else if (mod === 'PROD') {
     if (typeof ptfToast === 'function') ptfToast('✅ کالاها با موفقیت در کاتالوگ ثبت شدند', 'ok');
   }
-  
+
   var md = document.querySelector('#panels .md-b:last-child');
   if (md) md.remove();
 };

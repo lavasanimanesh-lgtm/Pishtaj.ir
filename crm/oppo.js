@@ -125,6 +125,31 @@
     try { return ptfOppoList().length; } catch (e) { return 0; }
   };
 
+  /* MOB-039: actionهای فرصت تا اینجا buttonهای inline با طول متن متغیر بودند.
+     markup ساخت‌یافته، label و metadata را از layout جدا می‌کند تا در کارت موبایل
+     tileهای هم‌اندازه، قابل‌لمس و قابل‌فهم ساخته شوند. */
+  function oppoCardAction(kind, icon, label, meta, title, onClick) {
+    return '<button type="button" class="bt bt-o sf-oppo-card-action sf-oppo-card-action-' + kind + '" data-sf-oppo-action="' + kind + '"' +
+      ' title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+      '<span class="sf-oppo-card-action-icon" aria-hidden="true">' + icon + '</span>' +
+      '<span class="sf-oppo-card-action-copy"><span class="sf-oppo-card-action-label">' + label + '</span>' +
+      (meta ? '<span class="sf-oppo-card-action-meta">' + meta + '</span>' : '') + '</span></button>';
+  }
+  function oppoCustomerAction(kind, icon, label, title, onClick) {
+    return '<button type="button" class="bt bt-o sf-oppo-customer-action sf-oppo-customer-action-' + kind + '" data-sf-oppo-customer-action="' + kind + '"' +
+      ' title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
+      '<span class="sf-oppo-customer-action-icon" aria-hidden="true">' + icon + '</span><span class="sf-oppo-customer-action-label">' + label + '</span></button>';
+  }
+  window.ptfOppoCustomerToggle = function (btn) {
+    var detail = btn && btn.nextElementSibling;
+    if (!detail) return;
+    var open = detail.style.display === 'none';
+    detail.style.display = open ? '' : 'none';
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    var hint = btn.querySelector('.sf-oppo-customer-toggle-text');
+    if (hint) hint.textContent = open ? 'بستن ▲' : 'نمایش ▼';
+  };
+
   /* رندر تب فرصت‌ها (صدازده‌شده از renderDeals — salesfiles v16.8) */
   window.ptfOppoRender = function (el, q) {
     var list = ptfOppoList().filter(function (g) {
@@ -144,17 +169,30 @@
       }).join(' ');
       var hasLiveCO = g.offers.some(function (o) { return (o.kind === 'CO' || o.kind === 'TC') && o.st !== 'lost'; });
       if (g.legacy && !chips) chips = '<span class="bd" style="background:#fef3c7;color:#b45309;font-size:10.5px">📂 رکورد قدیمی بدون پیشنهاد زنده — نتیجه را ثبت کنید</span>';
-      h += '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;padding:12px 14px' + (due && due.over ? ';border-color:#fca5a5;background:#fef2f2' : '') + '">' +
-        '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">' +
-        '<div style="font-size:13px"><b dir="ltr">' + escP(g.inqNo) + '</b> — ' + escP(g.buyerCo || (g.rfq ? g.rfq.co : '') || '-') +
-        '<div style="margin-top:5px;line-height:2.2">' + dueB + waitB + ' ' + chips + '</div></div>' +
-        '<div style="display:flex;gap:5px;flex-wrap:wrap;white-space:nowrap">' +
-        '<button class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#0e7490" onclick="if(typeof goPanelByName===\'function\')goPanelByName(\'off\');else if(typeof goPanel===\'function\')goPanel(\'off\')" title="مدیریت پیشنهادها — برنده شدن CO از همان‌جا ثبت می‌شود">📄 پیشنهادها</button>' +
-        (g.rfq ? '<button class="bt bt-o" style="padding:4px 11px;font-size:12px" onclick="editRfq(\'' + ptfOnClickArg(g.rfq.cd) + '\')">✏️ درخواست</button>' : '') +
-        '<button class="bt bt-o" style="padding:4px 11px;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOppoLose(\'' + ptfOnClickArg(g.inqNo) + '\',\'' + ptfOnClickArg((g.buyerCo || '').replace(/'/g, '')) + '\')" title="باخت با دلیل استاندارد — مستقیم به گزارش Win/Loss">🚫 ثبت باخت</button>' +
+      var offerAction = oppoCardAction(
+        'offers', '📄', 'پیشنهادها', 'مدیریت و ثبت برد',
+        'مدیریت پیشنهادها — برنده شدن CO از همان‌جا ثبت می‌شود',
+        'if(typeof goPanelByName===\'function\')goPanelByName(\'off\');else if(typeof goPanel===\'function\')goPanel(\'off\')'
+      );
+      var requestAction = g.rfq ? oppoCardAction(
+        'request', '✏️', 'درخواست', 'ویرایش درخواست',
+        'ویرایش درخواست مرتبط با این فرصت',
+        'editRfq(\'' + ptfOnClickArg(g.rfq.cd) + '\')'
+      ) : '';
+      var loseAction = oppoCardAction(
+        'loss', '🚫', 'ثبت باخت', 'دلیل استاندارد',
+        'ثبت باخت با دلیل استاندارد — مستقیم به گزارش Win/Loss',
+        'ptfOppoLose(\'' + ptfOnClickArg(g.inqNo) + '\',\'' + ptfOnClickArg((g.buyerCo || '').replace(/'/g, '')) + '\')'
+      );
+      h += '<article class="sf-oppo-card' + (due && due.over ? ' is-overdue' : '') + '">' +
+        '<div class="sf-oppo-card-head">' +
+        '<div class="sf-oppo-card-summary"><b dir="ltr">' + escP(g.inqNo) + '</b> — ' + escP(g.buyerCo || (g.rfq ? g.rfq.co : '') || '-') +
+        '<div class="sf-oppo-card-chips">' + dueB + waitB + ' ' + chips + '</div></div>' +
+        '<div class="sf-oppo-card-actions' + (g.rfq ? ' has-rfq' : ' no-rfq') + '" role="group" aria-label="عملیات فرصت ' + escP(g.inqNo) + '">' +
+        offerAction + requestAction + loseAction +
         '</div></div>' +
-        (hasLiveCO ? '<div style="font-size:11px;color:#64748b;margin-top:6px">💡 با ثبت «🏆 برنده» روی پیشنهاد مالی، این فرصت خودکار به «📁 پرونده‌ها (ابلاغ سفارش)» منتقل می‌شود.</div>' : '') +
-        '</div>';
+        (hasLiveCO ? '<div class="sf-oppo-card-hint">💡 با ثبت «🏆 برنده» روی پیشنهاد مالی، این فرصت خودکار به «📁 پرونده‌ها (ابلاغ سفارش)» منتقل می‌شود.</div>' : '') +
+        '</article>';
     });
     el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">فرصت فعالی نیست — با ثبت پیشنهاد برای یک درخواست، اینجا رهگیری می‌شود 🎯</div>';
   };
@@ -226,21 +264,24 @@
       return ((g.buyerCo||'')+' '+g.buyerCd).toLowerCase().indexOf(q.toLowerCase())>-1;
     });
     var h='';
-    list.forEach(function(g){
+    list.forEach(function(g, gi){
+      var detailId = 'sfOppoCustDetail_' + gi;
       var offersHtml = g.offers.map(function(o){
         var total = (o.items||[]).reduce(function(s,it){ return s+(+it.qty||0)*(+it.price||0); },0);
-        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-bottom:1px dashed var(--brd);font-size:12px;align-items:center">'
-          + '<span><b dir="ltr">'+escP(o.no)+'</b> - '+escP(o.dateFa||o.dateEn||'')+' - '+ (typeof ptfMoney==='function'?ptfMoney(total,o.currency):total.toLocaleString('fa-IR')+' ریال') 
-          + ' - <span class="bd" style="font-size:10px">'+escP(o.st||'')+'</span></span>'
-          + '<span><button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerEdit(\''+ptfOnClickArg(o.no)+'\')">✏️</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="offerQuickPreview(\''+ptfOnClickArg(o.no)+'\')">👁️</button></span>'
+        var editAction = oppoCustomerAction('edit', '✏️', 'ویرایش', 'ویرایش پیشنهاد ' + (o.no || ''), 'offerEdit(\'' + ptfOnClickArg(o.no) + '\')');
+        var previewAction = oppoCustomerAction('preview', '👁️', 'نمایش', 'پیش‌نمایش پیشنهاد ' + (o.no || ''), 'offerQuickPreview(\'' + ptfOnClickArg(o.no) + '\')');
+        return '<div class="sf-oppo-customer-offer">'
+          + '<div class="sf-oppo-customer-offer-main"><b dir="ltr">'+escP(o.no)+'</b> — '+escP(o.dateFa||o.dateEn||'')+' — '+ (typeof ptfMoney==='function'?ptfMoney(total,o.currency):total.toLocaleString('fa-IR')+' ریال')
+          + ' — <span class="bd sf-oppo-customer-offer-state">'+escP(o.st||'')+'</span></div>'
+          + '<div class="sf-oppo-customer-offer-actions" role="group" aria-label="عملیات پیشنهاد '+escP(o.no)+'">'+editAction+previewAction+'</div>'
           + '</div>';
       }).join('');
-      h+='<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;padding:12px 14px">'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'">'
-        +'<div style="font-size:13px"><b>'+escP(g.buyerCo||g.buyerCd)+'</b> <span dir="ltr" style="background:#eef2ff;color:#3730a3;border-radius:999px;padding:1px 8px;font-size:11px">'+escP(g.buyerCd)+'</span> <span class="bd" style="background:#fef3c7;color:#b45309">'+g.offers.length+' پیشنهاد مالی</span></div>'
-        +'<span style="font-size:11px;color:#64748b">کلیک برای نمایش ▼</span></div>'
-        +'<div style="display:none;margin-top:8px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">'+offersHtml+'</div>'
-        +'</div>';
+      h+='<article class="sf-oppo-customer-card">'
+        +'<button type="button" class="sf-oppo-customer-head" aria-expanded="false" aria-controls="'+detailId+'" onclick="ptfOppoCustomerToggle(this)">'
+        +'<span class="sf-oppo-customer-head-copy"><b>'+escP(g.buyerCo||g.buyerCd)+'</b> <span dir="ltr" class="sf-oppo-customer-code">'+escP(g.buyerCd)+'</span> <span class="bd sf-oppo-customer-count">'+g.offers.length+' پیشنهاد مالی</span></span>'
+        +'<span class="sf-oppo-customer-toggle-text">نمایش ▼</span></button>'
+        +'<div id="'+detailId+'" class="sf-oppo-customer-detail" style="display:none">'+offersHtml+'</div>'
+        +'</article>';
     });
     var dupWarn = '';
     try {

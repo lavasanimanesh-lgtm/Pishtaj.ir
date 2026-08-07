@@ -82,12 +82,31 @@
     if (h) h.classList.add('act');
   }
 
-  var idx = 0, box = null, dim = null, preOpenG = '';
+  /* MOB-042: تور نیز overlay اختصاصی است؛ focus و Escape باید مثل dialog رفتار کنند. */
+  var idx = 0, box = null, dim = null, preOpenG = '', tourReturnFocus = null, tourKeyHandler = null;
+  function tourFocusable(root) {
+    return root ? Array.prototype.slice.call(root.querySelectorAll('button:not([disabled]),[href],[tabindex]:not([tabindex="-1"])')).filter(function (el) { return el.offsetParent !== null; }) : [];
+  }
+  function bindTourKeyboard(getBox, onClose) {
+    if (tourKeyHandler) document.removeEventListener('keydown', tourKeyHandler, true);
+    tourKeyHandler = function (e) {
+      var current = getBox(); if (!current) return;
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      if (e.key !== 'Tab') return;
+      var f = tourFocusable(current); if (!f.length) { e.preventDefault(); current.focus(); return; }
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', tourKeyHandler, true);
+  }
+  function unbindTourKeyboard() { if (tourKeyHandler) document.removeEventListener('keydown', tourKeyHandler, true); tourKeyHandler = null; }
 
   window.ptfTourStart = function () {
     /* US-375 AC5: در موبایل تور دسکتاپ اجرا نشود — تور نوار پایین جایگزین است */
     if (isMob()) { if (typeof window.ptfTourMnvStart === 'function') { window.ptfTourMnvStart(); } return; }
     idx = 0;
+    tourReturnFocus = document.activeElement && typeof document.activeElement.focus === 'function' ? document.activeElement : null;
     var steps = visSteps();
     if (!steps.length) { alert('موردی برای معرفی یافت نشد'); return; }
     /* وضعیت پیش از تور برای بازگردانی */
@@ -101,12 +120,17 @@
     if (dim) return;
     dim = document.createElement('div');
     dim.id = 'ptfTourDim';
+    dim.setAttribute('aria-hidden', 'true');
     dim.style.cssText = 'position:fixed;inset:0;z-index:4000;pointer-events:auto';
     document.body.appendChild(dim);
     box = document.createElement('div');
     box.id = 'ptfTourBox';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('tabindex', '-1');
     box.style.cssText = 'position:fixed;z-index:4002;background:var(--crd,#fff);border-radius:16px;padding:16px 18px;max-width:300px;box-shadow:0 20px 60px rgba(0,0,0,.4);font-size:13px';
     document.body.appendChild(box);
+    bindTourKeyboard(function () { return box; }, window.ptfTourEnd);
   }
 
   function spotlight(r, pad) {
@@ -121,15 +145,17 @@
     openOnlyGroup(st.gid);
     /* صبر برای پایان انیمیشن آکاردئون (max-height .3s) و سپس اندازه‌گیری دقیق */
     setTimeout(function () {
+      if (!box || !dim) return;
       var el = btnOf(st.id);
       if (!el) { idx++; show(steps); return; }
       try { el.scrollIntoView({ block: 'center' }); } catch (e) { el.scrollIntoView(); }
       var r = el.getBoundingClientRect();
       /* AC2: اسپات‌لایت هم‌اندازه کادر آیتم (حاشیه حداقلی ۳px فقط برای دید بهتر گوشه‌ها) */
       spotlight(r, 3);
+      box.setAttribute('aria-label', st.t + ' — گام ' + (idx + 1) + ' از ' + steps.length);
       box.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-        '<b style="font-size:14px;color:var(--pri,#ef4b1a)">' + st.t + '</b>' +
+        '<b id="ptfTourTitle" style="font-size:14px;color:var(--pri,#ef4b1a)">' + st.t + '</b>' +
         '<small style="color:#94a3b8">' + (idx + 1) + ' از ' + steps.length + '</small></div>' +
         '<div style="line-height:1.9;color:var(--tx,#334155)">' + st.d + '</div>' +
         '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:12px">' +
@@ -143,6 +169,8 @@
       var by = Math.min(Math.max(r.top - 10, 8), window.innerHeight - 220);
       box.style.left = bx + 'px';
       box.style.top = by + 'px';
+      var first = tourFocusable(box)[0] || box;
+      if (first && typeof first.focus === 'function') first.focus();
     }, 330);
   }
 
@@ -151,8 +179,11 @@
     show(visSteps());
   };
   window.ptfTourEnd = function () {
+    unbindTourKeyboard();
     if (dim) { dim.remove(); dim = null; }
     if (box) { box.remove(); box = null; }
+    if (tourReturnFocus && typeof tourReturnFocus.focus === 'function') { try { tourReturnFocus.focus(); } catch (eF) {} }
+    tourReturnFocus = null;
     /* US-361 AC5 (دستور کارفرما): پس از پایان/رد، تمام منوهای کشویی بسته باشند.
        کلید ptf_nav_open تغییری نکرده — رفرش/ورود بعدی همان ترجیح قبلی کاربر را باز می‌کند. */
     openOnlyGroup('');
@@ -163,7 +194,7 @@
      US-375: تور اختصاصی کوچک نوار پایین موبایل — ۵ گام
      داشبورد | کارتابل | FAB پیشنهاد | دستیار | سایر (با باز شدن کشو)
      ===================================================================== */
-  var mIdx = 0, mDim = null, mBox = null;
+  var mIdx = 0, mDim = null, mBox = null, mReturnFocus = null;
   var MNV_STEPS = [
     { tab: 'dash', t: 'داشبورد', d: 'شروع کار از اینجا: کاشی همه ماژول‌ها + «روز من».' },
     { tab: 'cart', t: 'کارتابل', d: 'اعلان‌ها و ارجاعات شما — عدد قرمز یعنی منتظر اقدام شماست.' },
@@ -177,15 +208,21 @@
   window.ptfTourMnvStart = function () {
     if (!document.getElementById('mnvBar')) { alert('این تور مخصوص نوار پایین موبایل است.'); return; }
     mIdx = 0;
+    mReturnFocus = document.activeElement && typeof document.activeElement.focus === 'function' ? document.activeElement : null;
     if (!mDim) {
       mDim = document.createElement('div');
       mDim.id = 'ptfTourMnvDim';
+      mDim.setAttribute('aria-hidden', 'true');
       mDim.style.cssText = 'position:fixed;inset:0;z-index:5000;pointer-events:auto';
       document.body.appendChild(mDim);
       mBox = document.createElement('div');
       mBox.id = 'ptfTourMnvBox';
+      mBox.setAttribute('role', 'dialog');
+      mBox.setAttribute('aria-modal', 'true');
+      mBox.setAttribute('tabindex', '-1');
       mBox.style.cssText = 'position:fixed;z-index:5002;background:var(--crd,#fff);border-radius:16px;padding:14px 16px;left:12px;right:12px;box-shadow:0 20px 60px rgba(0,0,0,.4);font-size:13px';
       document.body.appendChild(mBox);
+      bindTourKeyboard(function () { return mBox; }, window.ptfTourMnvEnd);
     }
     mnvShow();
   };
@@ -197,17 +234,19 @@
     var isMore = st.tab === '_more';
     /* AC4: گام «سایر» = باز شدن کشو و اشاره به گروه‌های رنگی */
     if (isMore && typeof window.ptfMnvMore === 'function') window.ptfMnvMore(true);
-    else if (!isMore && typeof window.ptfMnvMore === 'function') window.ptfMnvMore(false);
+    else if (!isMore && typeof window.ptfMnvMore === 'function') window.ptfMnvMore(false, { restore: false });
     setTimeout(function () {
+      if (!mBox || !mDim) return;
       var el = isMore ? (document.querySelector('#mnvMore .mnv-grid') || mnvBtn(st.tab)) : mnvBtn(st.tab);
       if (!el) { mIdx++; mnvShow(); return; }
       var r = el.getBoundingClientRect();
       var pad = 4;
       /* AC3: اسپات‌لایت هم‌اندازه دکمه */
       mDim.innerHTML = '<div style="position:fixed;top:' + (r.top - pad) + 'px;right:' + (window.innerWidth - r.right - pad) + 'px;width:' + (r.width + pad * 2) + 'px;height:' + (r.height + pad * 2) + 'px;border-radius:14px;box-shadow:0 0 0 9999px rgba(15,23,42,.78);pointer-events:none;transition:all .25s ease"></div>';
+      mBox.setAttribute('aria-label', st.t + ' — گام ' + (mIdx + 1) + ' از ' + MNV_STEPS.length);
       mBox.innerHTML =
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
-        '<b style="font-size:14px;color:var(--pri,#ef4b1a)">' + st.t + '</b>' +
+        '<b id="ptfTourMnvTitle" style="font-size:14px;color:var(--pri,#ef4b1a)">' + st.t + '</b>' +
         '<small style="color:#94a3b8">' + (mIdx + 1) + ' از ' + MNV_STEPS.length + '</small></div>' +
         '<div style="line-height:1.9;color:var(--tx,#334155)">' + st.d + '</div>' +
         '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:10px">' +
@@ -221,14 +260,19 @@
       var top = r.top - boxH - 14;
       if (top < 8) top = Math.min(r.bottom + 14, window.innerHeight - boxH - 8);
       mBox.style.top = top + 'px';
+      var first = tourFocusable(mBox)[0] || mBox;
+      if (first && typeof first.focus === 'function') first.focus();
     }, isMore ? 320 : 60);
   }
 
   window.ptfTourMnvNav = function (dir) { mIdx += dir; mnvShow(); };
   window.ptfTourMnvEnd = function () {
+    unbindTourKeyboard();
     if (mDim) { mDim.remove(); mDim = null; }
     if (mBox) { mBox.remove(); mBox = null; }
-    if (typeof window.ptfMnvMore === 'function') window.ptfMnvMore(false); /* کشو بسته شود */
+    if (typeof window.ptfMnvMore === 'function') window.ptfMnvMore(false, { restore: false }); /* کشو بسته شود */
+    if (mReturnFocus && typeof mReturnFocus.focus === 'function') { try { mReturnFocus.focus(); } catch (eF) {} }
+    mReturnFocus = null;
     try { localStorage.setItem('ptf_tour_mnv_done_' + curSession().user, '1'); } catch (e) {}
   };
 
