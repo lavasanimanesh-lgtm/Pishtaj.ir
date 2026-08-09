@@ -364,25 +364,38 @@
       '.f-date,.f-dw,.f-pay,.f-nid,.f-amt,.f-amt2,.f-memo{white-space:nowrap;overflow:hidden;text-overflow:clip;font-weight:700}' +
       '.f-words{white-space:normal;line-height:1.5;max-height:14mm}' +
       '@media screen{body{background:#e2e8f0;padding:12px}.pg{margin:0 auto 12px;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.12)}}' +
-      '@media print{body{background:#fff;padding:0}.pg{box-shadow:none;margin:0}}' +
+      '@media print{body{background:#fff;padding:0}.pg{box-shadow:none;margin:0}.noprint{display:none!important}}' +
       '</style></head><body onload="setTimeout(function(){try{window.focus();window.print()}catch(e){}},300)">' + body +
       '<div class="noprint" style="position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:8px 14px;border-radius:999px;font-size:12px;z-index:9;white-space:nowrap">' +
-      'پرینتر: برگهٔ چک را در سینی بگذارید · حاشیه = None · Scale = 100% · ' + list.length + ' برگه' +
+      'چاپ چک: Scale = 100% / Actual Size · Margins = None · Headers & Footers = Off · Fit to Page = Off · ' + list.length + ' برگه' +
       '</div></body></html>';
+  }
+  /* چاپ فیزیکی چک نباید از preview عمومی A4 عبور کند؛ آن مسیر script چاپ را
+     پاک می‌کند و راهنمای A4 می‌دهد. برای کاغذ واقعی، پنجره اختصاصی با page-size
+     چک باز می‌شود. Preview/کالیبراسیون همچنان در preview امن CRM نمایش داده می‌شود. */
+  function chqOpenDirectPrint(html, count) {
+    var w = window.open('', '_blank');
+    if (!w) { alert('پنجره چاپ توسط مرورگر مسدود شد. اجازه Pop-up برای CRM را فعال کنید و دوباره چاپ بزنید.'); return false; }
+    w.document.open(); w.document.write(html); w.document.close();
+    try { w.focus(); } catch (e) {}
+    return true;
   }
   function chqOpenPrint(list, mode) {
     list = list || [];
     if (!list.length) { alert('چکی برای چاپ نیست'); return; }
-    var html = chqPrintHtml(list, mode || 'paper');
-    if (typeof window.ptfPreviewPrintableDoc === 'function') {
-      window.ptfPreviewPrintableDoc('پیش‌نمایش چاپ چک فیزیکی', html, 'cheque-print');
+    mode = mode || 'paper';
+    var html = chqPrintHtml(list, mode);
+    if (mode === 'paper') {
+      if (chqOpenDirectPrint(html, list.length)) {
+        try { if (typeof audit === 'function') audit('چاپ چک', 'باز کردن چاپ فیزیکی ' + list.length + ' برگه', 'manual-print'); } catch (eA) {}
+      }
       return;
     }
-    var w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 300);
+    if (typeof window.ptfPreviewPrintableDoc === 'function') {
+      window.ptfPreviewPrintableDoc('پیش‌نمایش/کالیبراسیون چک فیزیکی', html, 'cheque-print');
+      return;
+    }
+    chqOpenDirectPrint(html, list.length);
   }
 
   /* ---------- تنظیمات چاپ (کالیبره) ---------- */
@@ -639,7 +652,7 @@
       '۱) در «چاپ تکی» مشخصات یک برگه یا در «چاپ چندتایی» چند برگه را وارد کنید (هیچ‌چیز ذخیره نمی‌شود).<br>' +
       '۲) «👁 پیش‌نمایش» بزنید و جای نوشته‌ها را روی برگهٔ چک ببینید.<br>' +
       '۳) اگر جای فیلدها جابه‌جاست: «📐 تنظیمات چاپ» → «🖨 چاپ آزمایشی (با راهنما)» → مختصات هر بخش را تنظیم و «💾 ذخیره» کنید.<br>' +
-      '۴) برگهٔ چک را در پرینتر بگذارید و «🖨 چاپ روی برگه چک» را بزنید (در دیالوگ پرینت: <b>Margins = None</b> و <b>Scale = 100%</b>).<br>' +
+      '۴) برگهٔ چک را در سینی درست پرینتر بگذارید و «🖨 چاپ روی برگه چک» را بزنید. پنجره چاپ اختصاصی چک باز می‌شود؛ در دیالوگ پرینت: <b>Margins = None</b>، <b>Scale = 100% / Actual Size</b>، <b>Headers and Footers = Off</b> و <b>Fit to Page = Off</b> را انتخاب کنید.<br>' +
       '۵) مبلغ بالای چک <b>قرمز</b> چاپ می‌شود؛ فونت هر بخش (نستعلیق/بی‌نازنین/بی‌یاقوت/…) از تنظیمات قابل انتخاب است. کد صیادی در این ماژول وجود ندارد.</div>' +
       '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
