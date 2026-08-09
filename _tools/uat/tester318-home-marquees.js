@@ -16,7 +16,8 @@ T('container اسلایدر برند وجود دارد', home.indexOf('brandMarq
 T('لوگوهای اسلایدر از برندهای فعلی سایت تولید می‌شوند', js.indexOf("document.querySelectorAll('.brand-panel a')") > -1 && js.indexOf('brandTrack.appendChild(link)') > -1);
 T('فایل‌های نادرست Flexitallic/Garlock قبلی از نمایش حذف شده‌اند', home.indexOf('flexitallic.svg') === -1 && home.indexOf('garlock.svg') === -1);
 T('هر دسته حداقل ۱۰ لوگوی برند دارد', ['piping','valve','electrical','instrument','gasket'].every(function (id) { var m = home.match(new RegExp('<div class="brand-panel[^>]*id="' + id + '">([\\s\\S]*?)</div>')); return m && (m[1].match(/<a href=/g) || []).length >= 10; }));
-T('لوگوهای جدید گسکت/سیلینگ و دو برند جدید پایپینگ به assetهای محلی متصل‌اند', ['lamons-official-logo','victor-reinz','roxtec-official','sgl-carbon','mersen-graphite','durlon-gasket','tubacex-official','jindal-stainless'].every(function (x) { return home.indexOf(x) > -1; }));
+T('لوگوهای جدید گسکت/سیلینگ و دو برند جدید پایپینگ به assetهای محلی متصل‌اند', ['lamons-official-logo','victor-reinz','roxtec-official','sgl-carbon','mersen-graphite','durlon-gasket','tubos-reunidos.png','hi-tech-pipe-wordmark.svg'].every(function (x) { return home.indexOf(x) > -1; }));
+T('تصاویر کاتالوگی Tubacex و Jindal از بخش پایپینگ حذف شده‌اند', home.indexOf('tubacex-official-logo-png-pipe-1.jpg') === -1 && home.indexOf('jindal-stainless-official-logo-png-pipes-1.png') === -1);
 SECTION('خوانایی و دسترس‌پذیری');
 T('زمینه روشن و متن تیره برای کارت‌ها تعریف شده است', css.indexOf('.marquee-track span{display:inline-flex') > -1 && css.indexOf('background:#fff') > -1 && css.indexOf('color:#1e3a5f') > -1);
 T('حرکت با hover/focus متوقف و reduced motion پشتیبانی می‌شود', css.indexOf('animation-play-state:paused') > -1 && css.indexOf('prefers-reduced-motion:reduce') > -1);
