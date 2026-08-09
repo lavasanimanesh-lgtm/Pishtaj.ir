@@ -2409,7 +2409,14 @@ function offerSave() {
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
   setData('ptf_crm_offers', offers);
-  /* ===== v34.1 US-SMS-CO: اطلاع‌رسانی پیامکی به مشتری هنگام صدور پیشنهاد مالی ===== */
+  /*
+     اول خودِ فرم پیشنهاد را ببند. ptfSmsNotifyDialog یک .md-b جدید به انتهای DOM
+     اضافه می‌کند و hideModal() همیشه آخرین modal قابل‌مشاهده را می‌بندد. ترتیب
+     پیشین باعث می‌شد دیالوگ پیامک بسته شود و فرم پیشنهاد پشت آن باز بماند.
+  */
+  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
+  hideModal(); renderOffers();
+  /* ===== v34.4.9 BUG-OFFER-MODAL-001: اطلاع‌رسانی پیامکی پس از بستن فرم ===== */
   try {
     if ((o.kind === 'CO' || o.kind === 'TC') && o.buyerCd && typeof window.ptfSmsNotifyDialog === 'function') {
       var _cust = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0];
@@ -2426,8 +2433,6 @@ function offerSave() {
       }
     }
   } catch (eSms) {}
-  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
-  hideModal(); renderOffers();
   var _editLbl = idx > -1 ? (madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';
   addLog('پیشنهاد ' + o.no + _editLbl + ' شد');
   if (typeof ptfToast === 'function') ptfToast('💾 پیشنهاد ' + o.no + ' ذخیره شد', 'ok');
