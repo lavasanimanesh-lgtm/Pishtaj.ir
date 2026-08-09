@@ -51,6 +51,26 @@
   }
   function curFa(cur) { return cur === 'EUR' ? 'یورو' : cur === 'USD' ? 'دلار' : 'ریال'; }
 
+  /* مبلغ فروش تنها مبلغ ارزیِ ردیف نیست؛ نرخ مرجع/خرید نیز در پیشنهاد ارزی
+     با همان واحد ارز نگه‌داری شده است. تبدیل فقط price باعث می‌شد حاشیهٔ
+     پیشنهاد ریالی، «ریال فروش» را با «یورو/دلار خرید» مقایسه کند. */
+  function convertItemToIrr(it, rate, sourceCurrency) {
+    var c = JSON.parse(JSON.stringify(it || {}));
+    var costs = {};
+    ['refPrice', 'refBuyPrice', 'bestBuyPrice'].forEach(function (key) {
+      var amount = +c[key] || 0;
+      if (amount > 0) {
+        costs[key] = amount;
+        c[key] = Math.round(amount * rate);
+      }
+    });
+    c.price = Math.round((+c.price || 0) * rate);
+    /* هم ردپای واحد/نرخ اصلی برای ممیزی می‌ماند، هم موتور حاشیه می‌فهمد
+       که مرجعِ همین ردیف قبلاً به ریال تسعیر شده است. */
+    c.fxConvertedCosts = { fromCurrency: sourceCurrency || '', rate: rate, source: costs };
+    return c;
+  }
+
   window.ptfOfferIsFx = isFxOffer;
 
   /* ---------- نسخه همراه ریالی یک پیشنهاد (اگر قبلاً ساخته شده) ---------- */
@@ -315,9 +335,8 @@
     var src = _termDlg.src;
     /* اگر نرخ تغییر کرده باشد، اقلام نسخه ریالی هم با همان نرخ به‌روز می‌شود (گرد ریال صحیح) */
     var items = (src.items || []).map(function (it) {
-      var c = JSON.parse(JSON.stringify(it || {}));
+      var c = convertItemToIrr(it, rate, src.currency);
       delete c.lineId;
-      c.price = Math.round((+it.price || 0) * rate);
       return c;
     });
     var totalIrr = items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
@@ -384,9 +403,8 @@
       if (!newNo || /^TMP-/.test(String(newNo))) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
       if (offersAll().some(function (x) { return x.no === newNo; })) { alert(WHY_FA.serial); return done({ ok: false, why: 'serial' }); }
       var items = (o.items || []).map(function (it) {
-        var c = JSON.parse(JSON.stringify(it || {}));
+        var c = convertItemToIrr(it, rate, o.currency);
         delete c.lineId; /* شناسه خط با شماره جدید بازتولید می‌شود — خطای تطبیق خرید پیش نیاید */
-        c.price = Math.round((+it.price || 0) * rate);
         return c;
       });
       var totalFx = fxTotal(o);

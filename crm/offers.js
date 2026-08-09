@@ -1697,12 +1697,18 @@ window.ptfOfferBestBuyRef = ptfOfferBestBuyRef;
 function ptfOfferOverallMargin(o) {
   if (!o || !(o.kind === 'CO' || o.kind === 'TC') || !Array.isArray(o.items)) return null;
   var buy = 0, sell = 0, covered = 0, totalItems = 0;
+  /* BUG-OFFER-FX-MARGIN-001: در نسخهٔ ریالی، فروش به ریال است. نسخه‌های
+     قدیمی قبل از اصلاح، refPrice ارزی را بدون تسعیر کپی کرده‌اند؛ نرخ تبدیل
+     ثبت‌شده را فقط برای همان legacy-row اعمال می‌کنیم. نسخه‌های جدید metadata
+     fxConvertedCosts دارند و refPrice آنها از قبل ریالی است. */
+  var legacyRialRate = (o.currency === 'IRR' && o.rialOf && o.fxConvert && +o.fxConvert.rate > 0) ? +o.fxConvert.rate : 0;
   o.items.forEach(function (it) {
     if (!it) return;
     var qty = +it.qty || 0, price = +it.price || 0;
     if (!qty || !price) return;
     totalItems++;
     var refP = +it.refPrice || +it.refBuyPrice || 0;
+    if (refP > 0 && legacyRialRate && !(it.fxConvertedCosts && +it.fxConvertedCosts.rate > 0)) refP = Math.round(refP * legacyRialRate);
     if (refP > 0) { buy += qty * refP; sell += qty * price; covered++; }
   });
   if (!covered || buy <= 0) return { marginPct: null, coverage: covered, totalItems: totalItems, buyTotal: 0, sellTotal: 0 };
