@@ -207,7 +207,7 @@ function anlSuggestions() {
 /* ---------- UI پنل تحلیلگر ---------- */
 function buildAnalyzer() {
   return '<div class="ph"><h3>📊 تحلیلگر هوشمند</h3>' +
-    '<div class="sb2"><button class="bt bt-o" onclick="anlExportReport()">🖨️ گزارش PDF</button></div></div>' +
+    '<div class="sb2"><button class="bt" style="background:#0e7490" onclick="ptfManagementInsightsOpen()">🧠 تصمیم‌یار مدیریت</button><button class="bt bt-o" onclick="anlExportReport()">🖨️ گزارش PDF</button></div></div>' +
     '<div id="anlWrap"></div>';
 }
 
