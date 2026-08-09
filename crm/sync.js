@@ -914,6 +914,30 @@
         } catch (eAv) { return remoteStr; }
       }
 
+      /* BUG-LETTER-SIG-SYNC-001: پروفایل امضا map کاربرهاست، نه آرایه.
+         remote-wins عمومی می‌توانست امضای تازهٔ دسکتاپ را با نسخهٔ قدیمی/خالی
+         موبایل جایگزین کند. هر پروفایل با updatedAtISO جداگانه ادغام می‌شود. */
+      if (key === 'ptf_crm_sigprofiles') {
+        try {
+          var locS = JSON.parse(localStr || '{}'), remS = JSON.parse(remoteStr || '{}');
+          if (Array.isArray(locS) || Array.isArray(remS) || !locS || !remS || typeof locS !== 'object' || typeof remS !== 'object') return remoteStr;
+          var outS = {}, usersS = {};
+          Object.keys(locS).forEach(function (u) { usersS[u] = 1; });
+          Object.keys(remS).forEach(function (u) { usersS[u] = 1; });
+          Object.keys(usersS).forEach(function (u) {
+            var lv = locS[u], rv = remS[u];
+            if (lv === undefined) outS[u] = rv;
+            else if (rv === undefined) outS[u] = lv;
+            else {
+              var lt = String((lv && lv.updatedAtISO) || ''), rt = String((rv && rv.updatedAtISO) || '');
+              /* دادهٔ نسخه‌دار بر legacy بی‌تاریخ مقدم است؛ در تساوی local حفظ می‌شود. */
+              outS[u] = lt >= rt ? lv : rv;
+            }
+          });
+          return JSON.stringify(outS);
+        } catch (eSig) { return remoteStr; }
+      }
+
       /* Sprint 283 + AUD-01 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):
          fiscal lock/unlock is a state transition on one snapshot, not an ordinary
          display timestamp. A chairman unlock has lockStateAtISO; keep that transition
