@@ -152,6 +152,54 @@
     (document.getElementById('panels')||document.body).insertAdjacentHTML('beforeend',h);
   };
 
+  var REPORT_KEY = 'ptf_crm_management_reports';
+  function reports() { return list(REPORT_KEY); }
+  function settingsObj() { var x=list('ptf_crm_settings'); return x && !Array.isArray(x) ? x : {}; }
+  function saveSettingsObj(x) { setData('ptf_crm_settings',x); }
+  function reportPeriod(kind) {
+    var d=new Date();
+    if(kind==='monthly') return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    var start=new Date(d); start.setDate(d.getDate()-((d.getDay()+6)%7));
+    return start.toISOString().slice(0,10);
+  }
+  function reportSchedule() { var s=settingsObj(); return s.managementReportSchedule || {weekly:true,monthly:true}; }
+  function reportHistoryHtml() { return reports().slice(0,8).map(function(r){return '<div style="padding:6px 0;border-bottom:1px dashed #e2e8f0;font-size:12px"><b>'+esc(r.kind==='monthly'?'ماهانه':'هفتگی')+'</b> — دوره '+esc(r.period||'')+' <small style="color:#64748b">('+esc(r.t||'')+' — '+esc(r.by||'')+')</small> <button class="bt bt-o" style="font-size:10px;padding:2px 6px" onclick="ptfManagementReportPdf(\''+jsArg(r.cd)+'\')">🖨️</button></div>';}).join('') || '<small style="color:#94a3b8">گزارش ذخیره‌شده‌ای نیست.</small>'; }
+  window.ptfManagementReportGenerate = function(kind) {
+    if(!canManage()) { alert('⛔ دسترسی ندارید'); return; }
+    kind=kind==='monthly'?'monthly':'weekly';
+    var rec={cd:genCode('MGR'),kind:kind,period:reportPeriod(kind),snapshot:window.ptfManagementAiSnapshot(),t:(typeof faDateTime==='function'?faDateTime():new Date().toISOString()),by:(curSession()||{}).name||'',createdAt:new Date().toISOString()};
+    var all=reports(); all.unshift(rec); if(all.length>60)all=all.slice(0,60); setData(REPORT_KEY,all);
+    try { if(typeof ntfResolveByRef==='function')ntfResolveByRef('MGRPT-'+kind+'-'+rec.period); }catch(eR){}
+    try {if(typeof audit==='function')audit('تصمیم‌یار مدیریت','تولید گزارش '+(kind==='monthly'?'ماهانه':'هفتگی'),rec.cd);}catch(eA){}
+    window.ptfManagementReportPdf(rec.cd);
+    var h=document.getElementById('mgmtReportHistory');if(h)h.innerHTML=reportHistoryHtml();
+  };
+  window.ptfManagementReportPdf = function(cd) {
+    var r=cd?reports().filter(function(x){return x.cd===cd;})[0]:null, d=(r&&r.snapshot)?r.snapshot:window.ptfManagementAiSnapshot();
+    var customers=(d.customers||[]).slice(0,10).map(function(c){return '<tr><td>'+esc(c.name)+'</td><td>'+c.rfqs+'</td><td>'+c.offers+'</td><td>'+c.won+'</td><td>'+(c.winRate==null?'—':c.winRate+'٪')+'</td><td>'+money(c.wonValue)+'</td></tr>';}).join('')||'<tr><td colspan="6">داده کافی نیست</td></tr>';
+    var insights=(d.insights||[]).map(function(i){return '<li><b>'+esc(i.title)+':</b> '+esc(i.text)+'</li>';}).join('');
+    var html='<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4;margin:14mm}body{font-family:Vazirmatn,Tahoma,sans-serif;color:#1e293b;font-size:12px}h1{color:#0e7490;border-bottom:2px solid #0e7490;padding-bottom:7px}h2{font-size:15px;margin-top:18px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #cbd5e1;padding:6px;text-align:right}th{background:#f1f5f9}</style></head><body><h1>گزارش مدیریتی '+(r&&r.kind==='monthly'?'ماهانه':'هفتگی')+'</h1><p>دوره: '+esc((r&&r.period)||reportPeriod('weekly'))+' | تاریخ تولید: '+esc((r&&r.t)||(typeof faDateTime==='function'?faDateTime():''))+'</p><h2>خلاصه و اقدام‌های پیشنهادی</h2><ol>'+insights+'</ol><h2>مشتریان کلیدی</h2><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th></tr></thead><tbody>'+customers+'</tbody></table><h2>کیفیت داده</h2><p>پیشنهاد بی‌مشتری: '+n((d.dataQuality||{}).offersMissingBuyer)+' | باخت بدون دلیل: '+n((d.dataQuality||{}).lostWithoutReason)+' | RFQ بدون مسئول: '+n((d.dataQuality||{}).rfqWithoutOwner)+'</p><p style="color:#64748b">این گزارش مبتنی بر snapshot داده‌های ثبت‌شده CRM است و هر تصمیم نیازمند تایید مدیریت است.</p></body></html>';
+    if(typeof ptfPreviewPrintableDoc==='function')ptfPreviewPrintableDoc('گزارش مدیریتی',html,'management-'+((r&&r.kind)||'weekly'));else{var w=window.open('','_blank');w.document.write(html);w.document.close();}
+  };
+  window.ptfManagementReportScheduleOpen = function() {
+    if(!canManage()){alert('⛔ دسترسی ندارید');return;}
+    var q=reportSchedule();
+    ptfDialog({title:'🗓️ برنامه گزارش‌های مدیریتی',body:'هشدار گزارش در اولین بازدید CRM در روز مقرر به کارتابل مدیران می‌آید. تولید PDF و تایید محتوا همچنان دستی است.',fields:[
+      {id:'weekly',label:'گزارش هفتگی',type:'select',optionsHtml:'<option value="yes"'+(q.weekly?' selected':'')+'>فعال — دوشنبه‌ها</option><option value="no"'+(!q.weekly?' selected':'')+'>غیرفعال</option>'},
+      {id:'monthly',label:'گزارش ماهانه',type:'select',optionsHtml:'<option value="yes"'+(q.monthly?' selected':'')+'>فعال — روز اول ماه میلادی</option><option value="no"'+(!q.monthly?' selected':'')+'>غیرفعال</option>'}
+    ],okText:'ذخیره برنامه',onOk:function(v){var st=settingsObj();st.managementReportSchedule={weekly:v.weekly==='yes',monthly:v.monthly==='yes'};saveSettingsObj(st);if(typeof ptfToast==='function')ptfToast('✅ برنامه گزارش مدیریتی ذخیره شد','ok');}});
+  };
+  window.ptfManagementReportCheck = function() {
+    if(!canManage())return;
+    var q=reportSchedule(), now=new Date(), st=settingsObj(), changed=false;
+    [['weekly',q.weekly&&now.getDay()===1],['monthly',q.monthly&&now.getDate()===1]].forEach(function(x){
+      if(!x[1])return;var kind=x[0],period=reportPeriod(kind), key='MGRPT-'+kind+'-'+period;
+      st.managementReportNotified=st.managementReportNotified||{};if(st.managementReportNotified[key])return;st.managementReportNotified[key]=new Date().toISOString();changed=true;
+      try{if(typeof notify==='function')notify({toRoles:['admin','chairman','ceo','commercial'],title:'📊 گزارش مدیریتی '+(kind==='monthly'?'ماهانه':'هفتگی')+' آماده تولید است',body:'دوره '+period+' — از تصمیم‌یار مدیریت PDF را تولید و بررسی کنید.',kind:'management_report',channels:['cart'],link:{panel:'anl'},actionable:true,refCd:key,taskType:'management_report',dkey:key});}catch(e){}
+    });
+    if(changed)saveSettingsObj(st);
+  };
+
   /* حداقل داده لازم برای AI: فقط top rows و KPI؛ نه متن آزاد، اطلاعات تماس یا فایل‌ها. */
   window.ptfManagementAiSnapshot = function () {
     var d = window.ptfManagementIntelligence();
@@ -186,7 +234,7 @@
     /* مشتری/سود/وصول دادهٔ مدیریتی است؛ فقط نقش‌های ارشد یا مالی. */
     try { if (typeof isSenior === 'function' && !isSenior() && !((roleDef() || {}).finance)) { alert('⛔ گزارش تصمیم‌یار مدیریت فقط برای نقش‌های ارشد و مالی مجاز است.'); return; } } catch (eRole) {}
     var d = window.ptfManagementIntelligence();
-    var html='<div class="md-b" id="mgmtInsightDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1100px;width:96vw;max-height:92vh;overflow:auto"><h3>🧠 تصمیم‌یار مدیریت فروش — فاز داده‌محور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:10px">این گزارش از داده‌های ثبت‌شده CRM ساخته شده و هنوز اقدام خودکار انجام نمی‌دهد. هر توصیه نیازمند تایید مدیر است.</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px"><div class="sc"><b>'+d.totals.customers+'</b><span>مشتری دارای داده</span></div><div class="sc"><b>'+d.totals.products+'</b><span>کالا/قلم</span></div><div class="sc"><b>'+d.totals.suppliers+'</b><span>تأمین‌کننده دارای قیمت</span></div><div class="sc"><b style="color:#dc2626">'+d.totals.projectsAtRisk+'</b><span>پرونده نیازمند بررسی</span></div></div><h4>اقدامات و بینش‌های مدیریتی</h4>'+d.insights.map(function(i){return insightHtml(i)+'<button class="bt bt-o" style="font-size:11px;padding:3px 8px;margin:-4px 0 7px" onclick="ptfManagementActionOpen(\''+jsArg(i.title)+'\',\''+jsArg(i.text)+'\',\''+jsArg(i.text)+'\')">📌 تبدیل به اقدام</button>';}).join('')+'<h4>مشتریان</h4><div class="tb2"><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th><th>وصول</th><th>سلامت</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table></div><h4>کالاهای پرارزش</h4><div class="tb2"><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table></div><h4>تأمین‌کنندگان</h4><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>پاسخ</th><th>ارزش قیمت ثبت‌شده</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table></div><h4 style="margin-top:16px">اقدام‌های مدیریتی باز</h4><div id="mgmtActionsBox">'+actionListHtml(true)+'</div><div id="mgmtAiOut" style="margin-top:14px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfManagementActionCenterOpen()">📌 مرکز اقدام‌ها</button><button class="bt" id="mgmtAiBtn" style="background:#7c3aed" onclick="ptfManagementAiInterpret()">✨ تفسیر AI</button><button class="bt bt-o" onclick="ptfManagementInsightsPdf()">🖨️ PDF مدیریتی</button><button class="bt bt-o" onclick="navigator.clipboard.writeText(JSON.stringify(ptfManagementAiSnapshot()))">📋 کپی دادهٔ خلاصه</button><button class="bt" onclick="document.getElementById(\'mgmtInsightDlg\').remove()">بستن</button></div></div></div>';
+    var html='<div class="md-b" id="mgmtInsightDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1100px;width:96vw;max-height:92vh;overflow:auto"><h3>🧠 تصمیم‌یار مدیریت فروش — فاز داده‌محور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:10px">این گزارش از داده‌های ثبت‌شده CRM ساخته شده و هنوز اقدام خودکار انجام نمی‌دهد. هر توصیه نیازمند تایید مدیر است.</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px"><div class="sc"><b>'+d.totals.customers+'</b><span>مشتری دارای داده</span></div><div class="sc"><b>'+d.totals.products+'</b><span>کالا/قلم</span></div><div class="sc"><b>'+d.totals.suppliers+'</b><span>تأمین‌کننده دارای قیمت</span></div><div class="sc"><b style="color:#dc2626">'+d.totals.projectsAtRisk+'</b><span>پرونده نیازمند بررسی</span></div></div><h4>اقدامات و بینش‌های مدیریتی</h4>'+d.insights.map(function(i){return insightHtml(i)+'<button class="bt bt-o" style="font-size:11px;padding:3px 8px;margin:-4px 0 7px" onclick="ptfManagementActionOpen(\''+jsArg(i.title)+'\',\''+jsArg(i.text)+'\',\''+jsArg(i.text)+'\')">📌 تبدیل به اقدام</button>';}).join('')+'<h4>مشتریان</h4><div class="tb2"><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th><th>وصول</th><th>سلامت</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table></div><h4>کالاهای پرارزش</h4><div class="tb2"><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table></div><h4>تأمین‌کنندگان</h4><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>پاسخ</th><th>ارزش قیمت ثبت‌شده</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table></div><h4 style="margin-top:16px">اقدام‌های مدیریتی باز</h4><div id="mgmtActionsBox">'+actionListHtml(true)+'</div><h4 style="margin-top:16px">گزارش‌های دوره‌ای</h4><div id="mgmtReportHistory">'+reportHistoryHtml()+'</div><div id="mgmtAiOut" style="margin-top:14px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfManagementReportGenerate(&quot;weekly&quot;)">🗓️ گزارش هفتگی</button><button class="bt bt-o" onclick="ptfManagementReportGenerate(&quot;monthly&quot;)">📅 گزارش ماهانه</button><button class="bt bt-o" onclick="ptfManagementReportScheduleOpen()">⚙️ برنامه گزارش</button><button class="bt bt-o" onclick="ptfManagementActionCenterOpen()">📌 مرکز اقدام‌ها</button><button class="bt" id="mgmtAiBtn" style="background:#7c3aed" onclick="ptfManagementAiInterpret()">✨ تفسیر AI</button><button class="bt bt-o" onclick="ptfManagementInsightsPdf()">🖨️ PDF مدیریتی</button><button class="bt bt-o" onclick="navigator.clipboard.writeText(JSON.stringify(ptfManagementAiSnapshot()))">📋 کپی دادهٔ خلاصه</button><button class="bt" onclick="document.getElementById(\'mgmtInsightDlg\').remove()">بستن</button></div></div></div>';
     (document.getElementById('panels')||document.body).insertAdjacentHTML('beforeend',html);
   };
   window.ptfManagementInsightsPdf = function () {
@@ -195,4 +243,6 @@
     if(typeof ptfPreviewPrintableDoc==='function') ptfPreviewPrintableDoc('گزارش تصمیم‌یار مدیریت',html,'management-intelligence'); else {var w=window.open('','_blank');w.document.write(html);w.document.close();}
     try{audit('تصمیم‌یار مدیریت','تولید PDF گزارش مدیریت','');}catch(e){}
   };
+  /* بررسی برنامه هنگام load؛ فقط در صورت باز بودن CRM و نقش مجاز اعلان می‌سازد. */
+  setTimeout(function(){ try{ window.ptfManagementReportCheck(); }catch(e){} },2500);
 })();
