@@ -36,9 +36,10 @@ setData('ptf_crm_buyquotes', [{sup:'تامین‌کننده الف',price:50,not
 setData('ptf_crm_deals', []);
 var d = ptfManagementIntelligence();
 var c1 = d.customers.filter(function(x){return x.key==='C1';})[0], c2 = d.customers.filter(function(x){return x.key==='C2';})[0];
-T('مشتری راهبردی: برد و وصول صحیح محاسبه می‌شود', c1 && c1.won === 1 && c1.wonValue === 200 && c1.collectionRate === 75);
-T('مشتری پرتقاضا/بدون برد به عنوان نیازمند کنترل مشخص می‌شود', c2 && c2.rfqs === 3 && c2.won === 0 && c2.control === true);
+T('مشتری راهبردی: برد، وصول و کارت سلامت صحیح محاسبه می‌شود', c1 && c1.won === 1 && c1.wonValue === 200 && c1.collectionRate === 75 && c1.healthScore >= 50);
+T('مشتری پرتقاضا/بدون برد به عنوان نیازمند کنترل مشخص می‌شود', c2 && c2.rfqs === 3 && c2.won === 0 && c2.control === true && c2.healthLabel === 'نیازمند کنترل');
 T('کالای برنده و تامین‌کننده فعال استخراج می‌شوند', d.products[0].name === 'Valve' && d.suppliers[0].name === 'تامین‌کننده الف' && d.suppliers[0].purchases === 1);
+T('گزارش کیفیت داده شامل باخت بدون دلیل و RFQ بدون مسئول است', d.dataQuality && d.dataQuality.lostWithoutReason >= 0 && d.dataQuality.rfqWithoutOwner >= 0);
 T('بینش اجرایی از داده‌ها ساخته می‌شود', d.insights.length > 0 && d.insights.some(function(i){return /کنترل هزینه فروش|ارزش ثبت/.test(i.title); }));
 
 DONE('tester320-v34.4.15-management-intelligence');
