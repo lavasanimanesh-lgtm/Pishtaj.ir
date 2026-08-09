@@ -1,7 +1,7 @@
 /* PTF CRM — Service Worker (MOB-009 release cache contract) */
 /* `RELEASE` باید با window.PTF_CRM_RELEASE، VERSION.json و query تمام scriptها یکی باشد. */
-var RELEASE = 'v34.4.20';
-var ASSET_VERSION = '34.4.20';
+var RELEASE = 'v34.4.21';
+var ASSET_VERSION = '34.4.21';
 var CACHE = 'ptf-crm-' + RELEASE;
 var ASSET_QUERY = '?v=' + ASSET_VERSION;
 

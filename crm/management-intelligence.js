@@ -163,7 +163,7 @@
     return start.toISOString().slice(0,10);
   }
   function reportSchedule() { var s=settingsObj(); return s.managementReportSchedule || {weekly:true,monthly:true}; }
-  function reportHistoryHtml() { return reports().slice(0,8).map(function(r){return '<div style="padding:6px 0;border-bottom:1px dashed #e2e8f0;font-size:12px"><b>'+esc(r.kind==='monthly'?'ماهانه':'هفتگی')+'</b> — دوره '+esc(r.period||'')+' <small style="color:#64748b">('+esc(r.t||'')+' — '+esc(r.by||'')+')</small> <button class="bt bt-o" style="font-size:10px;padding:2px 6px" onclick="ptfManagementReportPdf(\''+jsArg(r.cd)+'\')">🖨️</button></div>';}).join('') || '<small style="color:#94a3b8">گزارش ذخیره‌شده‌ای نیست.</small>'; }
+  function reportHistoryHtml() { return reports().slice(0,8).map(function(r){var open=r.fileKey&&typeof openStoredFile==='function'?"openStoredFile('"+jsArg(r.fileKey)+"')":"ptfManagementReportPdf('"+jsArg(r.cd)+"')";return '<div style="padding:6px 0;border-bottom:1px dashed #e2e8f0;font-size:12px"><b>'+esc(r.kind==='monthly'?'ماهانه':r.kind==='quarterly'?'فصلی':r.kind==='annual'?'سالانه':'هفتگی')+'</b> — دوره '+esc(r.period||'')+' <small style="color:#64748b">('+esc(r.t||'')+' — '+esc(r.by||'')+')</small> <button class="bt bt-o" style="font-size:10px;padding:2px 6px" onclick="'+open+'">🖨️</button></div>';}).join('') || '<small style="color:#94a3b8">گزارش ذخیره‌شده‌ای نیست.</small>'; }
   window.ptfManagementReportGenerate = function(kind) {
     if(!canManage()) { alert('⛔ دسترسی ندارید'); return; }
     kind=kind==='monthly'?'monthly':'weekly';
