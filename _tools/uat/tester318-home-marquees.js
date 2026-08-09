@@ -21,4 +21,5 @@ T('تصاویر کاتالوگی Tubacex و Jindal از بخش پایپینگ ح
 SECTION('خوانایی و دسترس‌پذیری');
 T('زمینه روشن و متن تیره برای کارت‌ها تعریف شده است', css.indexOf('.marquee-track span{display:inline-flex') > -1 && css.indexOf('background:#fff') > -1 && css.indexOf('color:#1e3a5f') > -1);
 T('حرکت با hover/focus متوقف و reduced motion پشتیبانی می‌شود', css.indexOf('animation-play-state:paused') > -1 && css.indexOf('prefers-reduced-motion:reduce') > -1);
+T('marquee و محتوای صفحه نمی‌توانند عرض سند را بزرگ کنند', css.indexOf('html,body{max-width:100%;overflow-x:hidden}') > -1 && css.indexOf('.marquee-shell{contain:layout paint}') > -1);
 DONE('tester318-home-marquees');

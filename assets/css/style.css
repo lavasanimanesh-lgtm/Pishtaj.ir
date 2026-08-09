@@ -74,3 +74,10 @@
 /* Uniform compact category-logo cards: every brand section shares the same visual footprint. */
 .brand-panel.active{align-items:stretch}.brand-panel a{min-height:66px!important;height:66px!important;padding:7px!important;display:grid!important;place-items:center!important;background:#fff;border:1px solid #dbe3ed;border-radius:12px;overflow:hidden}.brand-panel a .brand-logo{width:128px!important;height:42px!important;max-width:100%!important;max-height:42px!important;object-fit:contain!important;padding:0!important;filter:none!important}.brand-panel a:hover .brand-logo{transform:scale(1.04)}
 @media(max-width:600px){.brand-panel a{min-height:58px!important;height:58px!important;padding:6px!important}.brand-panel a .brand-logo{height:36px!important;max-height:36px!important;width:112px!important}}
+
+/* Horizontal-scroll guard: animated marquee tracks and wide media must never expand the document canvas. */
+html,body{max-width:100%;overflow-x:hidden}
+@supports (overflow:clip){html,body{overflow-x:clip}}
+main,.section,.container,.client-showcase,.brand-marquee-section,.marquee-shell{max-width:100%;min-width:0}
+.marquee-shell{contain:layout paint}
+.marquee-track{will-change:transform}
