@@ -2415,6 +2415,8 @@ function offerSave() {
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
   setData('ptf_crm_offers', offers);
+  /* ثبت پیشنهاد مالی، ارجاع باز «صدور پیشنهاد مالی» همین درخواست را حل می‌کند. */
+  try { if ((o.kind === 'CO' || o.kind === 'TC') && o.inqNo && typeof window.ptfResolveOfferReferral === 'function') window.ptfResolveOfferReferral(o.inqNo); } catch (eResolveRef) {}
   /*
      اول خودِ فرم پیشنهاد را ببند. ptfSmsNotifyDialog یک .md-b جدید به انتهای DOM
      اضافه می‌کند و hideModal() همیشه آخرین modal قابل‌مشاهده را می‌بندد. ترتیب

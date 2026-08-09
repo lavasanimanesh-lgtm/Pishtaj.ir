@@ -84,6 +84,8 @@ window.ptfPruneStaleNotifs = function () {
     var cutoff = Date.now() - NTF_INFO_TTL_DAYS * 86400000;
     var kept = notifs.filter(function (n) {
       if (!n) return false;
+      /* پیشنهاد منقضی/نزدیک انقضا کارتابل نیست؛ وضعیت آن فقط در ماژول پیشنهادها دیده می‌شود. */
+      if (n.kind === 'co_expiry') return false;
       if (typeof ntfIsImportant === 'function' && ntfIsImportant(n)) return true; /* مهم‌ها هرگز با گذر زمان حذف نمی‌شوند */
       if ((n.readBy || []).length > 0) return true; /* خوانده‌شده — از قبل در کارتابل/صندوق پیام پیش‌فرض مخفی است؛ نیازی به حذف اجباری نیست */
       var t = 0;
@@ -146,7 +148,8 @@ function notify(opt) {
     readBy: [], actionable: !!opt.actionable, done: false, dkey: dkey, repeat: 1,
     tier: opt.tier || null, /* v33.4.1: override صریح دسته‌بندی مهم/اطلاعی (ر.ک ntfIsImportant) */
     refCd: opt.refCd || null, /* v33.4.1: کد رکورد منبع (مثلاً چک/نامه) — با حل‌شدن آن رویداد، اعلان کاملاً حذف می‌شود (ر.ک ntfResolveByRef) */
-    remCd: opt.remCd || null /* v33.4.1: کد یادآور منبع (سازگار با addMsg در bridge.js) — همان مکانیزم resolve */
+    remCd: opt.remCd || null, /* v33.4.1: کد یادآور منبع */
+    taskType: opt.taskType || null /* قرارداد تکمیل خودکار ارجاعات */
   };
   notifs.unshift(rec);
   if (notifs.length > 1000) notifs = notifs.slice(0, 1000);
@@ -176,7 +179,8 @@ function myNotifs() {
 
 function updateCartBadge() {
   var me = curSession().user;
-  var unread = myNotifs().filter(function (n) { return (n.readBy || []).indexOf(me) < 0; }).length;
+  /* badge فقط «کاری که اقدام من می‌خواهد» را می‌شمارد، نه خبرهای عمومی/تاریخی. */
+  var unread = myNotifs().filter(function (n) { return !!n.actionable && !n.done && (n.readBy || []).indexOf(me) < 0; }).length;
   var b = document.getElementById('ctBadge');
   if (b) { b.textContent = unread; b.style.display = unread ? '' : 'none'; }
 }
@@ -208,6 +212,7 @@ function ntfIsImportant(n) {
   if (!n) return false;
   if (n.tier === 'important') return true;
   if (n.tier === 'info') return false;
+  if (n.actionable) return true; /* هر کار شخصی، مهم‌تر از خبر صرف است */
   if (NTF_IMPORTANT_KINDS.indexOf(n.kind || '') > -1) return true;
   if (n.kind === 'referral') return true; /* ارجاع به شخص معین */
   if (n.kind === 'reminder' && n.remCd) return true; /* یادآور دستی واقعی کاربر (نه هشدار خودکار CO/RFQ/Deal) */
@@ -236,16 +241,21 @@ function renderCartable() {
   var me = curSession().user;
   var showAll = (document.getElementById('ctAll') || {}).checked;
   var list = myNotifs().filter(function (n) { return showAll || (n.readBy || []).indexOf(me) < 0; });
-  var impList = list.filter(function (n) { return ntfIsImportant(n); });
-  var normList = list.filter(function (n) { return !ntfIsImportant(n); });
+  var actionList = list.filter(function (n) { return !!n.actionable && !n.done; });
+  var alertList = list.filter(function (n) { return !n.actionable && ntfIsImportant(n); });
+  var infoList = list.filter(function (n) { return !n.actionable && !ntfIsImportant(n); });
   var h = '';
-  if (impList.length) {
-    h += '<div style="font-size:12.5px;font-weight:bold;color:#dc2626;margin:2px 0 8px">🔴 اعلان‌های مهم (' + impList.length + ')</div>';
-    impList.forEach(function (n) { h += ntfCard(n, me); });
+  if (actionList.length) {
+    h += '<div style="font-size:12.5px;font-weight:bold;color:#dc2626;margin:2px 0 8px">🔴 اقدام من (' + actionList.length + ')</div>';
+    actionList.forEach(function (n) { h += ntfCard(n, me); });
   }
-  if (normList.length) {
-    h += (impList.length ? '<div style="font-size:12.5px;font-weight:bold;color:#64748b;margin:14px 0 8px">🔵 سایر اعلان‌ها (' + normList.length + ')</div>' : '');
-    normList.forEach(function (n) { h += ntfCard(n, me); });
+  if (alertList.length) {
+    h += '<div style="font-size:12.5px;font-weight:bold;color:#b45309;margin:14px 0 8px">🟠 هشدارهای معتبر (' + alertList.length + ')</div>';
+    alertList.forEach(function (n) { h += ntfCard(n, me); });
+  }
+  if (infoList.length) {
+    h += '<div style="font-size:12.5px;font-weight:bold;color:#64748b;margin:14px 0 8px">🔵 اطلاع‌رسانی (' + infoList.length + ')</div>';
+    infoList.forEach(function (n) { h += ntfCard(n, me); });
   }
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">اعلانی ندارید</div>';
   updateCartBadge();
@@ -284,6 +294,20 @@ window.ntfResolveByRef = function (refCd) {
   var kept = notifs.filter(function (n) { return !(n && (n.refCd === refCd || n.remCd === refCd)); });
   var removed = notifs.length - kept.length;
   if (removed) { setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (eB) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eB2) {} }
+  return removed;
+};
+
+/* ثبت CO برای همان درخواست، ارجاع «صدور پیشنهاد مالی» را برای همیشه می‌بندد.
+   برای رکوردهای قدیمی هم title بررسی می‌شود تا کارتابل‌های قبلی پاک شوند. */
+window.ptfResolveOfferReferral = function (inqNo) {
+  if (!inqNo) return 0;
+  var notifs = getData('ptf_crm_notifs');
+  var kept = notifs.filter(function (n) {
+    if (!n || n.refCd !== inqNo || (n.kind !== 'referral' && n.kind !== 'referral_info')) return true;
+    return !(n.taskType === 'create_offer' || /صدور پیشنهاد مالی/.test(String(n.title || '')));
+  });
+  var removed = notifs.length - kept.length;
+  if (removed) { setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (e1) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (e2) {} }
   return removed;
 };
 

@@ -92,7 +92,9 @@
       toRoles: opt.toRoles || [], toUsers: opt.toUsers || [],
       title: opt.title, body: opt.body || '', kind: opt.kind || 'info',
       channels: ['cart'], link: opt.link || null,
-      readBy: [], actionable: !!opt.actionable, done: false, remCd: opt.remCd || null
+      readBy: [], actionable: !!opt.actionable, done: false,
+      remCd: opt.remCd || null, refCd: opt.refCd || null, taskType: opt.taskType || null,
+      dkey: opt.dkey || null
     };
     notifs.unshift(rec);
     if (notifs.length > 1000) notifs = notifs.slice(0, 1000);
@@ -206,17 +208,11 @@
       var due = o.validUntil <= warn;
       if (!due) return;
       var expired = o.validUntil < today;
-      var stage = expired ? 'expired' : 'warn';
-      if (o.expiryNotifyStage === stage) return; /* v33.4.1: فقط در لحظه‌ی گذار، نه هر روز */
-      o.expiryNotifyStage = stage;
-      changed = true; added = true;
-      addMsg({
-        title: (expired ? '⛔ پیشنهاد ' + o.no + ' منقضی شد' : '⏳ اعتبار پیشنهاد ' + o.no + ' تا ' + o.validUntil + ' — با مشتری پیگیری کنید') + (o.buyerCo ? ' (' + o.buyerCo + ')' : ''),
-        toUsers: o.issuedBy ? [o.issuedBy] : [],
-        toRoles: o.issuedBy ? [] : SENIOR_ROLES,
-        kind: 'co_expiry',
-        link: { panel: 'off' }
-      });
+      /* پیشنهاد منقضی یا رو به انقضا کارتابل/روز من نیست؛ تصمیم آن در خود ماژول پیشنهادها ثبت می‌شود. */
+      if (expired) { if (o.expiryNotifyStage !== 'expired') { o.expiryNotifyStage = 'expired'; changed = true; } return; }
+      if (o.expiryNotifyStage === 'warn') return;
+      o.expiryNotifyStage = 'warn'; changed = true;
+      /* صرفاً ثبت stage برای منطق داخلی؛ هیچ اعلان مزاحمی تولید نمی‌شود. */
     });
     if (changed) setData('ptf_crm_offers', offers);
     return added;
@@ -343,6 +339,8 @@
         toRoles: mine ? [] : SALES_ROLES,
         toUsers: mine ? [me.user] : [],
         kind: 'referral', actionable: mine,
+        refCd: d.code || '', taskType: d.taskType || '',
+        dkey: 'referral|' + (d.code || ev.id || '') + '|' + (d.to || '') + '|' + (d.taskType || d.act || ''),
         link: { panel: 'rfq' }
       });
       return SALES_ROLES.indexOf(curRole()) > -1 || mine;
@@ -1389,11 +1387,13 @@
     setData('ptf_crm_rfqs', rfqs);
     var title = 'درخواست ' + cd + (target ? ' (' + target.co + ')' : '') + ' جهت «' + act + '» به ' + toUser.name + ' ارجاع شد' + (note ? ' — ' + note : '');
     // اعلان عمومی برای همه نقش‌های فروش (غیرهایلایت)
-    notify({ toRoles: SALES_ROLES, title: '📢 ' + title, kind: 'referral_info', channels: ['cart'], link: { panel: 'rfq' } });
-    // پیام هایلایت + کارتابل فقط برای گیرنده
-    notify({ toUsers: [toU], title: '⭐ اقدام شما لازم است: ' + title, kind: 'referral', channels: ['cart'], link: { panel: 'rfq' }, actionable: true });
+    notify({ toRoles: SALES_ROLES, title: '📢 ' + title, kind: 'referral_info', channels: ['cart'], link: { panel: 'rfq' }, refCd: cd });
+    // پیام هایلایت + کارتابل فقط برای گیرنده. نوع کار و ref، قرارداد بستن خودکار task هستند.
+    var taskType = act === 'صدور پیشنهاد مالی (CO)' ? 'create_offer' : act === 'صدور پیشنهاد فنی (TO)' ? 'create_technical_offer' : 'rfq_followup';
+    notify({ toUsers: [toU], title: '⭐ اقدام شما لازم است: ' + title, kind: 'referral', channels: ['cart'], link: { panel: 'rfq' }, actionable: true,
+      refCd: cd, taskType: taskType, dkey: 'referral|' + cd + '|' + toU + '|' + taskType });
     // رویداد سروری برای رسیدن لحظه‌ای به مرورگر گیرنده (دینگ)
-    pushEvent('referral', title, { to: toU, toName: toUser.name, act: act, code: cd });
+    pushEvent('referral', title, { to: toU, toName: toUser.name, act: act, code: cd, taskType: taskType });
     // US-150 AC6: پیامک به گیرنده ارجاع (در صورت تیک)
     if ((document.getElementById('refSms') || {}).checked && typeof smsSendSingle === 'function') {
       var mob = typeof smsUserMobile === 'function' ? smsUserMobile(toU) : '';
