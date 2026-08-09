@@ -108,9 +108,55 @@
     }
   };
 
+  /* پیوست‌های هزینه جاری: قبض مالیات، رسید پرداخت، تصویر چک و … روی خود
+     رکورد OPEX نگه‌داری می‌شوند و در صورت لینک‌شدن، در پرونده فروش هم دیده می‌شوند. */
+  function opexSyncDealFiles(rec) {
+    if (!rec || !rec.dealRef) return;
+    try {
+      var ds = getData('ptf_crm_deals');
+      var d = ds.filter(function (x) { return x.cd === rec.dealRef; })[0];
+      if (!d) return;
+      var ev = (d.costEvents || []).filter(function (x) { return x.cd === rec.cd; })[0];
+      if (ev) ev.files = (rec.files || []).slice();
+      setData('ptf_crm_deals', ds);
+    } catch (e) {}
+  }
+  window.ptfOpexAttachOpen = function (cd) {
+    if (!canFin()) return;
+    var rec = oAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!rec) return;
+    var html = '<div class="md-b" id="opexAttachDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:500px"><h3>📎 اسناد هزینه جاری</h3><div style="font-size:12px;color:#475569;line-height:1.8;margin-bottom:10px">قبض، رسید پرداخت، تصویر چک، فاکتور یا هر مدرک مرتبط را بارگذاری کنید. فایل‌ها به همین هزینه متصل می‌مانند.</div><div id="opexAttachUp"></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="document.getElementById(\'opexAttachDlg\').remove();ptfOpexRender()">تمام</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    if (typeof attachUploadWidget !== 'function') { alert('ماژول بارگذاری فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    attachUploadWidget('opexAttachUp', 'opex/' + rec.cd, function (f) {
+      var all = oAll(), target = all.filter(function (x) { return x.cd === cd; })[0];
+      if (!target || !f || !f.key) return;
+      target.files = target.files || [];
+      if (!target.files.some(function (x) { return x.key === f.key; })) target.files.push(f);
+      oSave(all); opexSyncDealFiles(target);
+      try { audit('هزینه جاری', 'پیوست سند «' + (f.name || '') + '» به هزینه ' + target.cd, target.cd); } catch (eA) {}
+      if (typeof ptfToast === 'function') ptfToast('✅ سند به هزینه جاری پیوست شد', 'ok');
+    });
+  };
+  window.ptfOpexRemoveFile = function (cd, key) {
+    if (!canFin() || !key) return;
+    var all = oAll(), rec = all.filter(function (x) { return x.cd === cd; })[0];
+    if (!rec) return;
+    var file = (rec.files || []).filter(function (x) { return x.key === key; })[0] || {};
+    if (!confirm('پیوست «' + (file.name || 'فایل') + '» حذف شود؟')) return;
+    rec.files = (rec.files || []).filter(function (x) { return x.key !== key; });
+    oSave(all); opexSyncDealFiles(rec);
+    try { audit('هزینه جاری', 'حذف پیوست «' + (file.name || '') + '» از هزینه ' + rec.cd, rec.cd); } catch (eA) {}
+    try { if (typeof ptfRemoveJustUploaded === 'function') { /* فقط حذف UI نمی‌خواهیم؛ API را مستقیم صدا می‌زنیم */
+      fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ key: key }) }).catch(function () {});
+    } } catch (eD) {}
+    ptfOpexRender();
+  };
+
   window.ptfOpexAdd = function (pre) {
     if (!canFin()) { alert('⛔ هزینه‌های جاری فقط برای نقش‌های مالی (US-418)'); return; }
     pre = pre || {};
+    var draftCd = genCode('OPX');
     var catOpts = PTF_OPEX_CATS.map(function (c) { return '<option' + (pre.cat === c ? ' selected' : '') + '>' + c + '</option>'; }).join('');
     var dealOpts = '<option value="">— مستقل از پرونده فروش —</option>' + (getData('ptf_crm_deals') || []).filter(function (d) { return d.wonOffer && d.st !== 'archived'; }).map(function (d) { return '<option value="' + escP(d.cd) + '">' + escP(d.inqNo || d.cd) + ' — ' + escP(d.buyerCo || '') + '</option>'; }).join('');
     ptfDialog({
@@ -123,6 +169,7 @@
         { id: 'month', label: 'ماه شمسی (مثلا 1405/04) *', type: 'text', value: pre.month || ptfFaMonthNow(), required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: pre.desc || '' },
         { id: 'dealRef', label: 'مربوط به کدام درخواست/پرونده فروش؟', type: 'select', optionsHtml: dealOpts },
+        { id: 'files', label: 'پیوست اسناد (قبض، رسید پرداخت، تصویر چک، فاکتور)', type: 'upload', uploadFolder: 'opex/' + draftCd },
         { id: 'rec', label: 'تکرارشونده ماهانه؟ (اجاره/حقوق — هر ماه پیشنهاد ثبت می‌آید)', type: 'select', optionsHtml: '<option value="no" selected>خیر — یک‌باره</option><option value="yes">بله — هر ماه پیشنهاد شود</option>' }
       ],
       okText: 'ثبت هزینه',
@@ -132,7 +179,7 @@
         if (amt <= 0) { alert('⛔ مبلغ نامعتبر'); return; }
         if (!month) { alert('⛔ ماه شمسی مثل 1405/04 وارد کنید'); return; }
         var isOfficial = v.isOfficial === 'yes';
-        var rec = { cd: genCode('OPX'), cat: v.cat, amt: amt, month: month, desc: v.desc || '', dealRef: v.dealRef || '', t: faDate(), by: curSession().name, isOfficial: isOfficial };
+        var rec = { cd: draftCd, cat: v.cat, amt: amt, month: month, desc: v.desc || '', dealRef: v.dealRef || '', files: (v.files || []).slice(), t: faDate(), by: curSession().name, isOfficial: isOfficial };
         if (pre.tplId) rec.tplId = pre.tplId;
         if (v.rec === 'yes' && !pre.tplId) {
           var list = tpls();
@@ -150,7 +197,7 @@
             var d = ds.filter(function (x) { return x.cd === rec.dealRef; })[0];
             if (d) {
               d.costEvents = d.costEvents || [];
-              d.costEvents.unshift({ cd: rec.cd, amt: amt, cat: 'other', desc: '[هزینه جاری] ' + (v.desc || v.cat), by: curSession().name, t: faDateTime(), files: [], fromOpex: true });
+              d.costEvents.unshift({ cd: rec.cd, amt: amt, cat: 'other', desc: '[هزینه جاری] ' + (v.desc || v.cat), by: curSession().name, t: faDateTime(), files: (rec.files || []).slice(), fromOpex: true });
               d.timeline = d.timeline || [];
               d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '➕ لینک هزینه جاری به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
               setData('ptf_crm_deals', ds);
@@ -225,7 +272,8 @@
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: rec.amt, dir: 'ltr', required: true },
         { id: 'month', label: 'ماه شمسی', type: 'text', value: rec.month, required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: rec.desc || '' },
-        { id: 'dealRef', label: 'پرونده فروش', type: 'select', optionsHtml: dealOpts }
+        { id: 'dealRef', label: 'پرونده فروش', type: 'select', optionsHtml: dealOpts },
+        { id: 'files', label: 'افزودن پیوست جدید (اختیاری)', type: 'upload', uploadFolder: 'opex/' + rec.cd }
       ],
       okText: 'ذخیره ویرایش',
       onOk: function(v){
@@ -251,6 +299,7 @@
           applyToTemplate = confirm('رکوردهای دیگری از همین قالب وجود دارد.\n\nOK = اعمال نوع سند روی همه ماه‌های همین قالب\nCancel = فقط همین رکورد');
         }
         rec.cat = v.cat; rec.amt = newAmt; rec.month = newMonth; rec.desc = v.desc||'';
+        if ((v.files || []).length) rec.files = (rec.files || []).concat(v.files);
         if (newOfficial === true) rec.isOfficial = true;
         else if (newOfficial === false) rec.isOfficial = false;
         else delete rec.isOfficial;
@@ -270,9 +319,9 @@
             if(dNew){
               dNew.costEvents=dNew.costEvents||[];
               var ev=dNew.costEvents.filter(function(x){ return x.cd===rec.cd; })[0];
-              if(ev){ ev.amt=newAmt; ev.desc='[هزینه جاری ویرایش] '+(v.desc||v.cat); }
+              if(ev){ ev.amt=newAmt; ev.desc='[هزینه جاری ویرایش] '+(v.desc||v.cat); ev.files=(rec.files||[]).slice(); }
               else {
-                dNew.costEvents.unshift({ cd: rec.cd, amt: newAmt, cat: 'other', desc: '[هزینه جاری] '+(v.desc||v.cat), by: rec.editedBy, t: faDateTime(), files: [], fromOpex: true });
+                dNew.costEvents.unshift({ cd: rec.cd, amt: newAmt, cat: 'other', desc: '[هزینه جاری] '+(v.desc||v.cat), by: rec.editedBy, t: faDateTime(), files: (rec.files||[]).slice(), fromOpex: true });
               }
               dNew.timeline=dNew.timeline||[];
               dNew.timeline.push({ t: faDateTime(), by: rec.editedBy, tx: '✏️ ویرایش هزینه جاری لینک‌شده: ' + oldAmt.toLocaleString('fa-IR') + ' → ' + newAmt.toLocaleString('fa-IR') + ' ریال' });
@@ -414,14 +463,20 @@
       return '<span style="background:#f1f5f9;border-radius:999px;padding:4px 11px;font-size:11.5px">' + escP(c) + ': <b>' + fmtT(sm.byCat[c]) + '</b> ریال</span>';
     }).join(' ');
     var rows = oAll().filter(function (x) { return !m || x.month === m; }).map(function (x) {
+      var docs = (x.files || []).map(function (f) {
+        var key = ptfOnClickArg(f.key || ''), name = escP(f.name || 'فایل');
+        return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;font-size:11px">📎 ' + name + '</a> <button type="button" class="ba" title="حذف پیوست" onclick="ptfOpexRemoveFile(\'' + ptfOnClickArg(x.cd) + '\',\'' + key + '\')" style="color:#dc2626;font-size:11px">×</button>';
+      }).join(' ');
       return '<div class="opex-row">' +
         '<span class="opex-row-copy"><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
         (x.dealRef ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">📁 پرونده فروش</span>' : '') +
         (x.autoApplied ? ' <span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">🤖 خودکار</span>' : '') +
         (x.desc ? ' <small style="color:#64748b">' + escP(x.desc) + '</small>' : '') +
         (x.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(x.editedAt) + '</small>' : '') +
-        '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small></span>' +
+        '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small>' +
+        (docs ? '<br><small style="display:inline-flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:4px">' + docs + '</small>' : '') + '</span>' +
         '<span class="opex-row-actions" role="group" aria-label="عملیات هزینه ' + escP(x.cat || '') + '">' +
+        opexAction('attach', '📎', 'سند', 'افزودن قبض، رسید پرداخت، چک یا فاکتور', 'ptfOpexAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')', false) +
         opexAction('edit', '✏️', 'اصلاح', 'اصلاح هزینهٔ جاری', 'ptfOpexEdit(\'' + ptfOnClickArg(x.cd) + '\')', false) +
         opexAction('delete', '🗑', 'حذف', 'حذف هزینهٔ جاری', 'ptfOpexDel(\'' + ptfOnClickArg(x.cd) + '\')', false) +
         '</span></div>';
