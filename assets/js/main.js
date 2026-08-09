@@ -6,3 +6,18 @@ const reveals=document.querySelectorAll('.reveal');const io=new IntersectionObse
 const sections=document.querySelectorAll('section[id]'),navLinks=document.querySelectorAll('.main-nav a');window.addEventListener('scroll',()=>{let cur='';sections.forEach(s=>{if(scrollY>=s.offsetTop-135)cur=s.id});navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+cur))});
 document.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.brand-panel').forEach(p=>p.classList.remove('active'));tab.classList.add('active');document.getElementById(tab.dataset.tab).classList.add('active')}));
 const form=document.getElementById('contactForm'),statusBox=document.getElementById('formStatus');function setStatus(msg,type){if(!statusBox)return;statusBox.textContent=msg;statusBox.className='form-status full '+(type||'')}if(form&&statusBox&&!form.dataset.ptfCustomSubmit){form.addEventListener('submit',async e=>{e.preventDefault();setStatus('');if(!form.checkValidity()){setStatus('لطفاً فیلدهای الزامی را کامل و صحیح وارد کنید.','err');form.reportValidity();return}const btn=form.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='در حال ارسال...';try{const res=await fetch(form.action,{method:'POST',body:new FormData(form),headers:{'Accept':'application/json'}});let data={};try{data=await res.json()}catch(_){}if(res.ok&&data.ok){setStatus('درخواست شما با موفقیت ثبت شد. کارشناسان بازرگانی با شما تماس خواهند گرفت.','ok');form.reset()}else{throw new Error(data.message||'ارسال انجام نشد.')}}catch(err){setStatus('ارسال آنلاین ناموفق بود. لطفاً با شماره ۰۲۱-۴۶۰۸۷۶۷۹ تماس بگیرید یا ایمیل ارسال کنید.','err')}finally{btn.disabled=false;btn.textContent='ارسال درخواست به واحد بازرگانی'}})};
+/* Home marquees: duplicate tracks once for seamless motion; brand logos come from existing category cards. */
+(function(){
+  function duplicate(track){ if(!track || track.dataset.marqueeReady) return; track.dataset.marqueeReady='1'; Array.from(track.children).forEach(function(n){ track.appendChild(n.cloneNode(true)); }); }
+  duplicate(document.getElementById('clientMarqueeTrack'));
+  var brandTrack=document.getElementById('brandMarqueeTrack');
+  if(brandTrack){
+    var seen={};
+    Array.from(document.querySelectorAll('.brand-panel a')).forEach(function(a){
+      var img=a.querySelector('img'), key=img && img.getAttribute('src');
+      if(!img || !key || seen[key]) return; seen[key]=1;
+      var link=a.cloneNode(true); link.removeAttribute('loading'); var copied=link.querySelector('img'); if(copied){copied.loading='lazy';copied.decoding='async';} brandTrack.appendChild(link);
+    });
+    duplicate(brandTrack);
+  }
+}());
