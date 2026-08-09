@@ -1389,7 +1389,7 @@
     // اعلان عمومی برای همه نقش‌های فروش (غیرهایلایت)
     notify({ toRoles: SALES_ROLES, title: '📢 ' + title, kind: 'referral_info', channels: ['cart'], link: { panel: 'rfq' }, refCd: cd });
     // پیام هایلایت + کارتابل فقط برای گیرنده. نوع کار و ref، قرارداد بستن خودکار task هستند.
-    var taskType = act === 'صدور پیشنهاد مالی (CO)' ? 'create_offer' : act === 'صدور پیشنهاد فنی (TO)' ? 'create_technical_offer' : 'rfq_followup';
+    var taskType = act === 'صدور پیشنهاد مالی (CO)' ? 'create_offer' : act === 'صدور پیشنهاد فنی (TO)' ? 'create_technical_offer' : act === 'استعلام قیمت از تامین‌کننده' ? 'create_supplier_rfq' : 'rfq_review';
     notify({ toUsers: [toU], title: '⭐ اقدام شما لازم است: ' + title, kind: 'referral', channels: ['cart'], link: { panel: 'rfq' }, actionable: true,
       refCd: cd, taskType: taskType, dkey: 'referral|' + cd + '|' + toU + '|' + taskType });
     // رویداد سروری برای رسیدن لحظه‌ای به مرورگر گیرنده (دینگ)

@@ -299,17 +299,20 @@ window.ntfResolveByRef = function (refCd) {
 
 /* ثبت CO برای همان درخواست، ارجاع «صدور پیشنهاد مالی» را برای همیشه می‌بندد.
    برای رکوردهای قدیمی هم title بررسی می‌شود تا کارتابل‌های قبلی پاک شوند. */
-window.ptfResolveOfferReferral = function (inqNo) {
-  if (!inqNo) return 0;
+window.ptfResolveRfqReferral = function (inqNo, taskType) {
+  if (!inqNo || !taskType) return 0;
+  var legacyText = taskType === 'create_offer' ? /صدور پیشنهاد مالی/ : taskType === 'create_technical_offer' ? /صدور پیشنهاد فنی/ : taskType === 'create_supplier_rfq' ? /استعلام قیمت از تامین‌کننده/ : /بررسی و اظهارنظر/;
   var notifs = getData('ptf_crm_notifs');
   var kept = notifs.filter(function (n) {
     if (!n || n.refCd !== inqNo || (n.kind !== 'referral' && n.kind !== 'referral_info')) return true;
-    return !(n.taskType === 'create_offer' || /صدور پیشنهاد مالی/.test(String(n.title || '')));
+    return !(n.taskType === taskType || (!n.taskType && legacyText.test(String(n.title || ''))));
   });
   var removed = notifs.length - kept.length;
   if (removed) { setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (e1) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (e2) {} }
   return removed;
 };
+/* سازگاری با فراخوان قدیمی CO */
+window.ptfResolveOfferReferral = function (inqNo) { return window.ptfResolveRfqReferral(inqNo, 'create_offer'); };
 
 
 function ntfGo(cd) {

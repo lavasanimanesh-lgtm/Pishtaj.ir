@@ -1130,6 +1130,8 @@
     }
     if (idx > -1) list[idx] = _st; else list.unshift(_st);
     setData('ptf_crm_rfqsmart', list);
+    /* ساخت استعلام تامین برای RFQ ارجاع‌شده، کار «استعلام قیمت از تامین‌کننده» را می‌بندد. */
+    try { if (_st.srcRfq && typeof window.ptfResolveRfqReferral === 'function') window.ptfResolveRfqReferral(_st.srcRfq, 'create_supplier_rfq'); } catch (eResolveTask) {}
     audit('استعلام هوشمند', 'ثبت ' + _st.no + ' با ' + _st.items.length + ' قلم و ' + targets.length + ' تامین‌کننده', _st.no);
     var mds = document.querySelectorAll('.md-b');
     for (var _mi = mds.length - 1; _mi >= 0; _mi--) { if ((mds[_mi].style || {}).display !== 'none') { mds[_mi].remove(); break; } } /* v16.2 BUG-017 */
