@@ -416,6 +416,10 @@
   // رندر مجدد پنل فعلی پس از دریافت/ثبت داده جدید (بدون پرش وسط مودال)
   function refreshCurrentPanel() {
     if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return false; // وسط کار کاربر نپر
+    /* باگ ۲: جلوگیری از رندر مجدد پنل هنگامی که کاربر روی یک فیلد ورودی/جدول کار می‌کند */
+    var ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'SELECT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return false;
+    if (window.ptfActivePanel === 'rfqs' && (ae && ae.closest && ae.closest('#panels'))) return false;
     /* MOB-003: در mobile سایدبار مخفی است؛ class act ممکن است وجود نداشته باشد.
        active panel مستقل از DOM نگهداری می‌شود و fallback desktop هم حفظ شده است. */
     var id = window.ptfActivePanel || '';
@@ -439,6 +443,8 @@
   var _dataRefreshTimer = 0;
   window.ptfRefreshCurrentPanel = refreshCurrentPanel;
   window.ptfScheduleDataRefresh = function (key) {
+    /* باگ ۲: ماژول درخواست تامین (rfqsmart) خودش DOM را حین کار به‌روز می‌کند؛ رندر مجدد کل صفحه ممنوع */
+    if ((key === 'ptf_crm_rfqsmart' || key === 'ptf_crm_rfqs') && window.ptfActivePanel === 'rfqs') return;
     clearTimeout(_dataRefreshTimer);
     _dataRefreshTimer = setTimeout(function tryRefresh() {
       /* A save often happens from a modal. Wait for its close, then refresh;

@@ -282,7 +282,44 @@
      نمایش داده می‌شود.
      =================================================================== */
   window._ptfFxLive = null; /* آخرین نرخ‌ها برای پیشنهاد در دیالوگ تسعیر */
+  var _fxLoading = false;
+  var _fxLastLoadTs = 0;
+  function fxTickerContentHtml(d) {
+    if (!d || !d.ok || !d.rates) {
+      return '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b><span style="color:#d97706;font-size:11.5px">⚠️ منبع نرخ فعلا در دسترس نیست — بعدا خودکار تلاش می‌شود</span>';
+    }
+    var R = d.rates;
+    var stale = d.cache === 'stale' ? '<span class="bd" style="background:#fef3c7;color:#b45309" title="منبع فعلا قطع است — آخرین نرخ دریافتی">⏳ قدیمی (' + (d.staleMin || '?') + ' دقیقه پیش)</span>' : '';
+    var usdCny = R.usd_cny
+      ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">دلار→یوآن 🔁</small><b style="direction:ltr;color:#b45309">' + (+R.usd_cny).toLocaleString('fa-IR', { maximumFractionDigits: 2 }) + ' <small>¥</small></b></span>' : '';
+    var goldRial = R.gold18_rial
+      ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">طلا ۱۸ عیار (گرم) 🥇</small><b style="direction:ltr;color:#b45309">' + (+R.gold18_rial).toLocaleString('fa-IR', { maximumFractionDigits: 0 }) + ' <small>ریال</small></b></span>' : '';
+    var eurUsd = R.eur_usd
+      ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">یورو→دلار 🔁</small><b style="direction:ltr;color:#0e7490">' + (+R.eur_usd).toLocaleString('fa-IR', { maximumFractionDigits: 4 }) + ' <small>$</small></b></span>' : '';
+    return '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b>' +
+      fxCell('دلار آزاد 🇺🇸', R.usd_free, '#059669') +
+      fxCell('یورو آزاد 🇪🇺', R.eur_free, '#0e7490') +
+      fxCell('یوان آزاد 🇨🇳', R.cny_free, '#dc2626') +
+      fxCell('حواله یوان 🧾', R.cny_hav, '#dc2626') +
+      usdCny + goldRial + eurUsd +
+      stale +
+      '<span style="margin-right:auto;color:#94a3b8;font-size:10.5px">' + (d.t || '') +
+      (d.src_market ? ' | بازار: ' + d.src_market : '') +
+      ' | صرفا اطلاع‌رسانی؛ مبنای اسناد: نرخ تاییدی شما</span>';
+  }
   function fxTickerHtml() {
+    var cached = window._ptfFxLive;
+    if (!cached) {
+      try {
+        var str = sessionStorage.getItem('ptf_fx_live_cache') || localStorage.getItem('ptf_fx_live_cache');
+        if (str) cached = JSON.parse(str);
+      } catch (e) {}
+    }
+    if (cached && cached.ok && cached.rates) {
+      window._ptfFxLive = cached;
+      return '<div id="fxTicker" data-noix style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:16px;padding:10px 16px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:12.5px">' +
+        fxTickerContentHtml(cached) + '</div>';
+    }
     return '<div id="fxTicker" data-noix style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:16px;padding:10px 16px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:12.5px">' +
       '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b><span style="color:#94a3b8;font-size:11.5px">در حال دریافت…</span></div>';
   }
@@ -290,45 +327,39 @@
     if (!v) return '';
     return '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">' + lb + '</small><b style="color:' + (cl || 'var(--tx,#1e293b)') + ';direction:ltr">' + (+v).toLocaleString('fa-IR') + ' <small>ریال</small></b></span>';
   }
-  window.ptfFxTickerLoad = function () {
+  window.ptfFxTickerLoad = function (force) {
     var el = document.getElementById('fxTicker');
     if (!el) return;
-    fetch('../api/fx-rates.php?action=rates')
+    var now = Date.now();
+    if (!force && window._ptfFxLive && (now - _fxLastLoadTs) < 60000) {
+      el.innerHTML = fxTickerContentHtml(window._ptfFxLive);
+      return;
+    }
+    if (_fxLoading && !force) return;
+    _fxLoading = true;
+    fetch('../api/fx-rates.php?action=rates' + (force ? '&force=1' : ''))
       .then(function (r) { return r.json(); })
       .then(function (d) {
+        _fxLoading = false;
+        _fxLastLoadTs = Date.now();
         var el2 = document.getElementById('fxTicker');
         if (!el2) return;
         if (!d.ok || !d.rates) {
-          el2.innerHTML = '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b><span style="color:#d97706;font-size:11.5px">⚠️ منبع نرخ فعلا در دسترس نیست — بعدا خودکار تلاش می‌شود</span>';
+          el2.innerHTML = fxTickerContentHtml(d);
           return;
         }
         window._ptfFxLive = d;
-        var R = d.rates;
-        var stale = d.cache === 'stale' ? '<span class="bd" style="background:#fef3c7;color:#b45309" title="منبع فعلا قطع است — آخرین نرخ دریافتی">⏳ قدیمی (' + (d.staleMin || '?') + ' دقیقه پیش)</span>' : '';
-        /* v16.7 (ابلاغ کارفرما، v33.4.2 محدودشده به آزاد): یوان آزاد + حواله یوان +
-           تبدیل دلار→یوآن و طلا→یوآن. سلول‌های بدون داده (مثلا حواله یوان اگر منبع
-           نداد) خودکار حذف می‌شوند — نوار نمی‌شکند. */
-        var usdCny = R.usd_cny
-          ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">دلار→یوآن 🔁</small><b style="direction:ltr;color:#b45309">' + (+R.usd_cny).toLocaleString('fa-IR', { maximumFractionDigits: 2 }) + ' <small>¥</small></b></span>' : '';
-        var goldRial = R.gold18_rial
-          ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">طلا ۱۸ عیار (گرم) 🥇</small><b style="direction:ltr;color:#b45309">' + (+R.gold18_rial).toLocaleString('fa-IR', { maximumFractionDigits: 0 }) + ' <small>ریال</small></b></span>' : '';
-        var eurUsd = R.eur_usd
-          ? '<span style="display:inline-flex;flex-direction:column;line-height:1.6"><small style="color:#64748b">یورو→دلار 🔁</small><b style="direction:ltr;color:#0e7490">' + (+R.eur_usd).toLocaleString('fa-IR', { maximumFractionDigits: 4 }) + ' <small>$</small></b></span>' : '';
-        el2.innerHTML =
-          '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b>' +
-          fxCell('دلار آزاد 🇺🇸', R.usd_free, '#059669') +
-          fxCell('یورو آزاد 🇪🇺', R.eur_free, '#0e7490') +
-          fxCell('یوان آزاد 🇨🇳', R.cny_free, '#dc2626') +
-          fxCell('حواله یوان 🧾', R.cny_hav, '#dc2626') +
-          usdCny + goldRial + eurUsd +
-          stale +
-          '<span style="margin-right:auto;color:#94a3b8;font-size:10.5px">' + (d.t || '') +
-          (d.src_market ? ' | بازار: ' + d.src_market : '') +
-          ' | صرفا اطلاع‌رسانی؛ مبنای اسناد: نرخ تاییدی شما</span>';
+        try {
+          var str = JSON.stringify(d);
+          sessionStorage.setItem('ptf_fx_live_cache', str);
+          localStorage.setItem('ptf_fx_live_cache', str);
+        } catch (eC) {}
+        el2.innerHTML = fxTickerContentHtml(d);
       })
       .catch(function () {
+        _fxLoading = false;
         var el2 = document.getElementById('fxTicker');
-        if (el2) el2.innerHTML = '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b><span style="color:#94a3b8;font-size:11.5px">🔴 آفلاین</span>';
+        if (el2 && !window._ptfFxLive) el2.innerHTML = '<b style="font-size:13px">💱 نرخ لحظه‌ای ارز</b><span style="color:#94a3b8;font-size:11.5px">🔴 آفلاین</span>';
       });
   };
   /* v16.9: تست منبع نرخ برای ادمین — پاسخ خام fx-rates.php را نشان می‌دهد تا «مشکل کد» از «مشکل منبع/هاست» فوری تفکیک شود */
