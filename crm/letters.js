@@ -264,8 +264,8 @@ window.ptfLetEditorTable = function () {
   letEditorExec('insertHTML', h);
 };
 window.ptfLetEditorImagePick = function () { var i = document.getElementById('ltInlineImg'); if (i) i.click(); };
-window.ptfLetEditorImage = function (inp) {
-  var f = (inp.files || [])[0]; inp.value = ''; if (!f || !/^image\//.test(f.type)) return;
+function letEditorInsertImageFile(f) {
+  if (!f || !/^image\//.test(f.type)) { alert('فقط فایل تصویری قابل درج است'); return; }
   var img = new Image(), url = URL.createObjectURL(f);
   img.onload = function () {
     var max = 1100, k = Math.min(1, max / Math.max(img.width, img.height)), cv = document.createElement('canvas');
@@ -276,7 +276,33 @@ window.ptfLetEditorImage = function (inp) {
   };
   img.onerror = function () { URL.revokeObjectURL(url); alert('خواندن تصویر ناموفق بود'); };
   img.src = url;
+}
+window.ptfLetEditorImage = function (inp) {
+  var f = (inp.files || [])[0]; inp.value = ''; letEditorInsertImageFile(f);
 };
+function letEditorWirePasteAndDrop(editor) {
+  if (!editor || editor.dataset.richWire) return;
+  editor.dataset.richWire = '1';
+  editor.addEventListener('paste', function (ev) {
+    var cb = ev.clipboardData, file = cb && Array.prototype.slice.call(cb.files || []).filter(function (f) { return /^image\//.test(f.type); })[0];
+    if (file) { ev.preventDefault(); letEditorInsertImageFile(file); return; }
+    /* Word/Excel معمولاً HTML table را در clipboard می‌گذارند؛ ساختار مجاز آن
+       حفظ می‌شود اما style/script خارجی و ناسالم پیش از ورود حذف می‌گردد. */
+    var html = cb && cb.getData && cb.getData('text/html');
+    if (html && /<(table|tr|td|th|img)\b/i.test(html)) {
+      ev.preventDefault(); letEditorExec('insertHTML', letSafeBodyHtml(html));
+    }
+  });
+  editor.addEventListener('dragover', function (ev) { ev.preventDefault(); editor.classList.add('is-dragover'); });
+  editor.addEventListener('dragleave', function () { editor.classList.remove('is-dragover'); });
+  editor.addEventListener('drop', function (ev) {
+    ev.preventDefault(); editor.classList.remove('is-dragover');
+    var files = Array.prototype.slice.call((ev.dataTransfer || {}).files || []), image = files.filter(function (f) { return /^image\//.test(f.type); })[0];
+    if (image) { letEditorInsertImageFile(image); return; }
+    var html = (ev.dataTransfer || {}).getData && ev.dataTransfer.getData('text/html');
+    if (html) letEditorExec('insertHTML', letSafeBodyHtml(html));
+  });
+}
 
 function showLetterModal(cd) {
   var l = cd ? getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0] : null;
@@ -290,7 +316,7 @@ function showLetterModal(cd) {
       .map(function (u) { return '<option value="' + escP(u.username) + '"' + (l && l.signer === u.username ? ' selected' : '') + '>' + escP(u.name) + ' — ' + escP(u.role) + '</option>'; }).join('');
   var s = (l && l.style) || {};
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
-    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
+    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
     '<h3>📤 نامه صادره' + (l ? ' — ویرایش' : '') + '</h3>' +
     '<div class="fr"><div class="fld"><label>زبان نامه</label><select id="ltLang"><option value="fa"' + (l && l.lang === 'fa' ? ' selected' : '') + '>فارسی</option><option value="en"' + (l && l.lang === 'en' ? ' selected' : '') + '>English</option></select></div>' +
     '<div class="fld"><label>گیرنده (شرکت/سازمان)</label><select id="ltToSel" onchange="document.getElementById(\'ltTo\').value=this.value">' + toOpts + '</select></div></div>' +
@@ -302,7 +328,7 @@ function showLetterModal(cd) {
     '<button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'bold\')"><b>Bold</b></button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'italic\')"><i>Italic</i></button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'insertUnorderedList\')">• فهرست</button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorTable()">▦ جدول</button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorImagePick()">🖼 تصویر در متن</button></div>' +
     '<input type="file" id="ltInlineImg" accept="image/*" style="display:none" onchange="ptfLetEditorImage(this)">' +
     '<div id="ltBodyEditor" class="let-rich-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>' +
-    '<small style="color:#94a3b8">جدول و تصویر دقیقاً در محل نشانگر درج می‌شوند. اندازه فونت چاپ خودکار تنظیم می‌شود.</small></div>' +
+    '<small style="color:#94a3b8">جدول را از Word/Excel در محل نشانگر Paste کنید؛ همچنین می‌توانید فایل تصویر را داخل متن Drag &amp; Drop کنید. اندازه فونت چاپ خودکار تنظیم می‌شود.</small></div>' +
     /* v31.7.22 US-LTR-IMG: تصاویر داخل متن نامه — حداکثر ۳ تصویر فشرده، بعد از متن چاپ می‌شوند */
     '<div class="fld"><label>🖼 تصاویر نامه (اختیاری — حداکثر ۳؛ بعد از متن چاپ می‌شوند)</label>' +
     '<input type="file" id="ltImgFile" accept="image/*" multiple style="display:none" onchange="ptfLtImgAdd(this)">' +
@@ -329,7 +355,7 @@ function showLetterModal(cd) {
   /* v31.7.22 US-LTR-IMG */
   window._ltImgs = (l && Array.isArray(l.images)) ? JSON.parse(JSON.stringify(l.images)) : [];
   var editor = document.getElementById('ltBodyEditor');
-  if (editor) editor.innerHTML = letSafeBodyHtml((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>'));
+  if (editor) { editor.innerHTML = letSafeBodyHtml((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>')); letEditorWirePasteAndDrop(editor); }
   ptfLtImgRender();
 }
 

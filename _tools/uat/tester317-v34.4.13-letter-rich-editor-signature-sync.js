@@ -10,6 +10,8 @@ SECTION('ویرایشگر غنی مکاتبات');
 T('متن نامه contenteditable با toolbar دارد', lt.indexOf('id="ltBodyEditor"') > -1 && lt.indexOf('contenteditable="true"') > -1 && lt.indexOf('let-editor-tools') > -1);
 T('درج جدول با تعداد سطر/ستون پشتیبانی می‌شود', lt.indexOf('window.ptfLetEditorTable') > -1 && lt.indexOf("'<table><tbody>'") > -1);
 T('تصویر در محل cursor متن درج و فشرده می‌شود', lt.indexOf('window.ptfLetEditorImage') > -1 && lt.indexOf("letEditorExec('insertHTML', '<img src=") > -1 && lt.indexOf("toDataURL('image/jpeg', .84)") > -1);
+T('Paste جدول Word/Excel با sanitize ساختار table را حفظ می‌کند', lt.indexOf("editor.addEventListener('paste'") > -1 && lt.indexOf("letSafeBodyHtml(html)") > -1 && lt.indexOf('/<(table|tr|td|th|img)') > -1);
+T('Drag & Drop تصویر در ویرایشگر پشتیبانی می‌شود', lt.indexOf("editor.addEventListener('drop'") > -1 && lt.indexOf('letEditorInsertImageFile(image)') > -1 && lt.indexOf('is-dragover') > -1);
 T('HTML نامه پیش از ذخیره sanitize و در bodyHtml ذخیره می‌شود', lt.indexOf('function letSafeBodyHtml') > -1 && lt.indexOf('l.bodyHtml = letSafeBodyHtml') > -1);
 T('چاپ جدول و تصویر داخل متن را با CSS مناسب رندر می‌کند', lt.indexOf("l.bodyHtml ? letSafeBodyHtml(l.bodyHtml)") > -1 && lt.indexOf('.body table{width:100%') > -1 && lt.indexOf('.body img{display:block') > -1);
 
