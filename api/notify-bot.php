@@ -15,18 +15,37 @@ function bot_cfg() {
         dirname(__DIR__, 2) . '/bot-config.php',
         dirname(__DIR__, 3) . '/bot-config.php',
         dirname(__DIR__) . '/bot-config.php', // fallback اضطراری
+        __DIR__ . '/bot-config.php', // fallback داخل پوشه api
     ];
-    foreach ($paths as $p) if (file_exists($p)) return include $p;
+    $fa = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    $en = ['0','1','2','3','4','5','6','7','8','9','0','1','2','3','4','5','6','7','8','9'];
+    foreach ($paths as $p) {
+        if (file_exists($p)) {
+            $c = include $p;
+            if (is_array($c)) {
+                foreach (['telegram_token', 'telegram_chat_id', 'bale_token', 'bale_chat_id'] as $k) {
+                    if (isset($c[$k]) && is_string($c[$k])) {
+                        $c[$k] = trim(str_replace($fa, $en, $c[$k]));
+                    }
+                }
+                return $c;
+            }
+        }
+    }
     return null;
 }
 
-/* فقط از خود دامنه (همان الگوی امنیتی storage.php) */
+/* فقط از خود دامنه (همان الگوی امنیتی storage.php) — با پشتیبانی پورت‌های غیرستاندارد */
 $ref = $_SERVER['HTTP_ORIGIN'] ?? $_SERVER['HTTP_REFERER'] ?? '';
 $host = $_SERVER['HTTP_HOST'] ?? '';
-if ($ref && $host && parse_url($ref, PHP_URL_HOST) !== $host) {
-    http_response_code(403);
-    echo json_encode(['ok' => false, 'error' => 'Cross-origin blocked']);
-    exit;
+if ($ref && $host) {
+    $refHost = parse_url($ref, PHP_URL_HOST);
+    $hostOnly = preg_replace('/:\d+$/', '', $host);
+    if ($refHost && strcasecmp((string)$refHost, (string)$hostOnly) !== 0) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => 'Cross-origin blocked']);
+        exit;
+    }
 }
 
 $cfg = bot_cfg();
@@ -46,13 +65,16 @@ function bot_post($url, $payload) {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_TIMEOUT => 12,
+        CURLOPT_CONNECTTIMEOUT => 6,
+        CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
         CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
     ]);
     $res = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
     curl_close($ch);
-    return ['code' => $code, 'body' => $res];
+    return ['code' => $code, 'body' => $res, 'err' => $err];
 }
 
 switch ($action) {
@@ -108,11 +130,13 @@ switch ($action) {
         if ($pChat !== '') {
             if ($pApp !== 'bale' && !empty($cfg['telegram_token'])) {
                 $rp = bot_post('https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage', ['chat_id' => $pChat, 'text' => $text]);
-                if ($rp['code'] >= 200 && $rp['code'] < 300) $sent[] = 'telegram-personal'; else $errs[] = 'tg-p:' . $rp['code'];
+                if ($rp['code'] >= 200 && $rp['code'] < 300) $sent[] = 'telegram-personal';
+                else $errs[] = 'tg-p:' . $rp['code'] . (!empty($rp['err']) ? ' (' . $rp['err'] . ')' : '');
             }
             if ($pApp === 'bale' && !empty($cfg['bale_token'])) {
                 $rp2 = bot_post('https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage', ['chat_id' => $pChat, 'text' => $text]);
-                if ($rp2['code'] >= 200 && $rp2['code'] < 300) $sent[] = 'bale-personal'; else $errs[] = 'bale-p:' . $rp2['code'];
+                if ($rp2['code'] >= 200 && $rp2['code'] < 300) $sent[] = 'bale-personal';
+                else $errs[] = 'bale-p:' . $rp2['code'] . (!empty($rp2['err']) ? ' (' . $rp2['err'] . ')' : '');
             }
             echo json_encode(['ok' => count($sent) > 0, 'sent' => $sent, 'errors' => $errs], JSON_UNESCAPED_UNICODE);
             break;
@@ -122,14 +146,14 @@ switch ($action) {
             $r = bot_post('https://api.telegram.org/bot' . $cfg['telegram_token'] . '/sendMessage',
                 ['chat_id' => $cfg['telegram_chat_id'], 'text' => $text]);
             if ($r['code'] >= 200 && $r['code'] < 300) $sent[] = 'telegram';
-            else $errs[] = 'telegram:' . $r['code'];
+            else $errs[] = 'telegram:' . $r['code'] . (!empty($r['err']) ? ' (' . $r['err'] . ')' : '');
         }
         /* بله: Bot API (سازگار با تلگرام — tapi.bale.ai) */
         if (!empty($cfg['bale_token']) && !empty($cfg['bale_chat_id'])) {
             $r = bot_post('https://tapi.bale.ai/bot' . $cfg['bale_token'] . '/sendMessage',
                 ['chat_id' => $cfg['bale_chat_id'], 'text' => $text]);
             if ($r['code'] >= 200 && $r['code'] < 300) $sent[] = 'bale';
-            else $errs[] = 'bale:' . $r['code'];
+            else $errs[] = 'bale:' . $r['code'] . (!empty($r['err']) ? ' (' . $r['err'] . ')' : '');
         }
         echo json_encode(['ok' => count($sent) > 0, 'sent' => $sent, 'errors' => $errs], JSON_UNESCAPED_UNICODE);
         break;

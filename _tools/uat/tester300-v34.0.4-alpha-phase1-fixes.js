@@ -41,7 +41,9 @@ var hta = fs.readFileSync(path.resolve(__dirname, '../../api/.htaccess'), 'utf-8
 T('attachment-thumb در allow-list هتکسز است', /crm\|contact\|codegen\|fx-rates\|storage\|cms\|auth\|llm\|attachment-thumb/.test(hta));
 /* v34.0.7-alpha: attachment-read و chat-llm با گارد احراز/منشأ دوباره فعال شدند (باگ پروداکشن) */
 T('attachment-read و chat-llm در allow-list هتکسز هستند', /attachment-thumb\|attachment-read\|chat-llm/.test(hta));
-T('سرویس‌های حساسِ باقی‌مانده همچنان بلاک‌اند (notify-bot/tech-proposal-docx/tools)', hta.indexOf('notify-bot|tech-proposal-docx|tools') > -1);
+/* v34.4.9: notify-bot.php فعال شد (رفع باگ اتصال بات تلگرام/بله در حضور فایل کانفیگ) */
+T('notify-bot در allow-list هتکسز است', /storage\|crm\|[^"]*notify-bot/.test(hta));
+T('سرویس‌های حساسِ باقی‌مانده همچنان بلاک‌اند (tech-proposal-docx/tools)', hta.indexOf('tech-proposal-docx|tools') > -1);
 
 SECTION('SW precache');
 ['client-server', 'settings-accordion', 'storage-quota', 'tool-feedback', 'tool-licenses', 'tool-report-drafts', 'unofficial-invoice'].forEach(function (s) {

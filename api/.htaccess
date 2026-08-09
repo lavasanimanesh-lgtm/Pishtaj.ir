@@ -4,18 +4,20 @@
 
   # v34.0.7-alpha: attachment-read.php و chat-llm.php دوباره فعال شدند — هرکدام
   # اکنون گارد احراز/منشأ خود را دارند (SEC-01 و باگ‌های پروداکشن AI/ضمیمه).
+  # v34.4.9: notify-bot.php فعال شد (رفع مشکل اتصال بات؛ گارد منشأ فعال است).
   # بقیهٔ سرویس‌ها همچنان غیرفعال‌اند تا کار احراز سطح‌رکورد کامل شود.
-  RewriteRule ^(?:notify-bot|tech-proposal-docx|tools)\.php$ - [F,L,NC]
+  RewriteRule ^(?:tech-proposal-docx|tools)\.php$ - [F,L,NC]
 </IfModule>
 
 <FilesMatch "\.(?:php|json|log|txt)$">
-  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm|attachment-thumb|attachment-read|chat-llm)\.php$#">
+  <If "%{REQUEST_URI} =~ m#/(crm|contact|codegen|fx-rates|storage|cms|auth|llm|attachment-thumb|attachment-read|chat-llm|notify-bot)\.php$#">
     Require all granted
   </If>
   <Else>
     Require all denied
   </Else>
 </FilesMatch>
+# Allow storage|crm|notify-bot compatibility for v13.5 check
 
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
