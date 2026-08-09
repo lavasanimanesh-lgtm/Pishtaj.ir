@@ -348,10 +348,56 @@
     if (!c.list.length) { alert('حداقل یک ردیف کامل وارد کنید'); return; }
     chqOpenPrint(c.list, 'preview');
   };
+  /* ثبت اختیاری همان چک چاپ‌شده در هاب مالی: فقط برای چاپ تکی امن است، چون
+     هر چک ممکن است ذی‌نفع/تامین‌کننده و اثر مالی متفاوت داشته باشد. */
+  window.chqRegisterPrintedOpen = function (printed) {
+    if (!printed) return;
+    if (typeof window.ptfChequeCreate !== 'function') { alert('ماژول چک‌های هاب مالی بارگذاری نشده است.'); return; }
+    var supOpts = '<option value="">— ذی‌نفع آزاد / بدون اثر مالی —</option>';
+    try { supOpts += (typeof window.ptfChequeSupOptions === 'function' ? window.ptfChequeSupOptions() : []).map(function (x) { return '<option value="' + escP(x.cd) + '">' + escP(x.lb) + '</option>'; }).join(''); } catch (e) {}
+    ptfDialog({
+      title: '🧾 ثبت چک چاپ‌شده در هاب مالی',
+      body: 'چک روی برگه چاپ شده است. با ثبت این فرم، رکورد چک صادره در هاب مالی ساخته می‌شود. اگر تأمین‌کننده انتخاب شود، اثر مالی پرداخت چکی در حساب تأمین‌کننده ثبت خواهد شد.',
+      fields: [
+        { id: 'no', label: 'شماره سریال / شماره چک *', type: 'text', dir: 'ltr', required: true, placeholder: 'شماره روی برگه چک' },
+        { id: 'bank', label: 'بانک / شعبه', type: 'text', value: '' },
+        { id: 'supplierCd', label: 'تأمین‌کننده ذی‌نفع (برای اثر مالی)', type: 'select', optionsHtml: supOpts },
+        { id: 'nid', label: 'کد ملی / شناسه ملی ذی‌نفع', type: 'text', dir: 'ltr', value: printed.beneficiaryId || '' },
+        { id: 'note', label: 'بابت / یادداشت', type: 'textarea', rows: 2, value: printed.note || '' }
+      ],
+      okText: 'ثبت در هاب مالی',
+      onOk: function (v) {
+        var sup = null;
+        try { sup = (getData('ptf_crm_suppliers') || []).filter(function (x) { return x.cd === v.supplierCd; })[0] || null; } catch (eS) {}
+        if (sup && printed.toWhom && sup.co && String(printed.toWhom).trim() !== String(sup.co).trim()) {
+          if (!confirm('نام ذی‌نفع چاپ‌شده («' + printed.toWhom + '») با تامین‌کننده انتخاب‌شده («' + sup.co + '») متفاوت است. با مسئولیت شما ثبت شود؟')) return;
+        }
+        var rec = {
+          no: String(v.no || '').trim(), sayad: String(v.no || '').trim(), bank: String(v.bank || '').trim(),
+          toWhom: printed.toWhom, beneficiaryId: normNid(v.nid || printed.beneficiaryId || ''),
+          amt: +printed.amt || 0, dueFa: printed.dueFa || '', dueISO: printed.dueISO || '',
+          note: String(v.note || printed.note || '').trim(), kind: 'finance', supplierCd: sup ? sup.cd : '', supplierName: sup ? (sup.co || '') : '',
+          printedFrom: 'chqprint', printedAt: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString())
+        };
+        if (!rec.no) { alert('شماره سریال / شماره چک الزامی است'); return; }
+        var out = window.ptfChequeCreate('issued', rec);
+        if (!out || out.ok === false) { alert('ثبت چک ناموفق بود: ' + ((out && (out.error || out.why)) || 'خطای نامشخص')); return; }
+        try { if (typeof audit === 'function') audit('چاپ چک', 'ثبت چک چاپ‌شده در هاب مالی' + (sup ? ' با اثر مالی تامین‌کننده' : ' بدون تامین‌کننده'), out.cd); } catch (eA) {}
+        if (typeof ptfToast === 'function') ptfToast(sup ? '✅ چک در هاب مالی ثبت و اثر مالی آن لحاظ شد' : '✅ چک در هاب مالی ثبت شد — برای اثر مالی، تامین‌کننده را در ویرایش چک تعیین کنید', sup ? 'ok' : 'warn');
+        try { if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender(); } catch (eR) {}
+      }
+    });
+  };
   window.chqPrintGo = function (mode) {
     var c = mode === 'multi' ? chqCollectMulti() : chqCollectSingle();
     if (c.errs.length) { alert(c.errs.join('\n')); return; }
     if (!c.list.length) { alert('حداقل یک ردیف کامل وارد کنید'); return; }
+    if (mode !== 'multi' && confirm('آیا این چک چاپ‌شده در «چک‌های هاب مالی» هم ثبت شود؟\n\nدر صورت تایید، پس از باز شدن پنجره چاپ فرم اطلاعات تکمیلی و اثر مالی باز می‌شود.')) {
+      chqRegisterPrintedOpen(c.list[0]);
+    } else if (mode === 'multi') {
+      /* ثبت گروهی مالی عمداً خودکار نیست؛ هر چک می‌تواند تامین‌کننده و اثر متفاوت داشته باشد. */
+      if (typeof ptfToast === 'function') ptfToast('برای ثبت مالی هر چک چاپ چندتایی، از هاب مالی استفاده کنید.', 'info');
+    }
     chqOpenPrint(c.list, 'paper');
   };
 
