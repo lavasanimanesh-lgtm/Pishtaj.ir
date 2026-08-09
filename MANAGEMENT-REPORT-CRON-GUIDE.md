@@ -56,7 +56,7 @@ php management-report-cron.php --period=weekly --dry-run
 php management-report-cron.php --period=weekly
 ```
 
-اگر Chromium نصب نباشد، سیستم snapshot و گزارش HTML fallback ایجاد می‌کند. PDF خودکار پس از فعال‌سازی Chromium بدون تغییر نرم‌افزار فعال می‌شود.
+اگر Chromium نصب نباشد، سیستم snapshot و گزارش HTML fallback ایجاد می‌کند، آن را در تاریخچه CRM نگه می‌دارد و لینک CRM را با پیامک برای گیرندگان مجاز می‌فرستد. مدیر پس از ورود به CRM گزارش را باز می‌کند و از مرورگر PDF می‌گیرد. این همان گزینه A بدون هزینه است؛ PDF خودکار پس از فعال‌سازی Chromium بدون تغییر نرم‌افزار فعال می‌شود.
 
 ## ۵. Cron
 

@@ -64,6 +64,7 @@ function sms_send_report($mobile,$text) {
     $paths=[dirname(__DIR__,2).'/sms-config.php',dirname(__DIR__,3).'/sms-config.php',dirname(__DIR__).'/sms-config.php']; $cfg=null; foreach($paths as $p)if(is_file($p)){$cfg=include $p;break;} if(!is_array($cfg)||empty($cfg['api_key']))return false;
     $mobile=preg_replace('/\D/','',$mobile); if(!preg_match('/^09\d{9}$/',$mobile))return false;
     if(($cfg['provider']??'kavenegar')==='kavenegar'){$url='https://api.kavenegar.com/v1/'.rawurlencode($cfg['api_key']).'/sms/send.json?receptor='.rawurlencode($mobile).'&message='.rawurlencode($text);$r=@file_get_contents($url);return $r!==false;}
+    if(($cfg['provider']??'')==='melipayamak' && function_exists('curl_init')){$ch=curl_init('https://rest.payamak-panel.com/api/SendSMS/SendSMS');curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>http_build_query(['username'=>$cfg['username']??'','password'=>$cfg['api_key'],'to'=>$mobile,'from'=>$cfg['line']??'','text'=>$text])]);$r=curl_exec($ch);$code=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);return $r!==false&&$code>=200&&$code<300;}
     return false;
 }
 
