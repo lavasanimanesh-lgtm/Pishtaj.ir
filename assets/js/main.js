@@ -13,10 +13,10 @@ const form=document.getElementById('contactForm'),statusBox=document.getElementB
   var brandTrack=document.getElementById('brandMarqueeTrack');
   if(brandTrack){
     var seen={};
-    Array.from(document.querySelectorAll('.brand-panel a')).forEach(function(a){
+    Array.from(document.querySelectorAll('.brand-panel a')).slice(0,18).forEach(function(a,index){
       var img=a.querySelector('img'), key=img && img.getAttribute('src');
       if(!img || !key || seen[key]) return; seen[key]=1;
-      var link=a.cloneNode(true); link.removeAttribute('loading'); var copied=link.querySelector('img'); if(copied){copied.loading='lazy';copied.decoding='async';} brandTrack.appendChild(link);
+      var link=a.cloneNode(true); link.removeAttribute('loading'); var copied=link.querySelector('img'); if(copied){copied.loading=index < 10 ? 'eager' : 'lazy';copied.fetchPriority=index < 4 ? 'high' : 'auto';copied.decoding='async';} brandTrack.appendChild(link);
     });
     duplicate(brandTrack);
   }
