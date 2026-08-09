@@ -16,7 +16,7 @@
     'ptf_crm_rfqs', 'ptf_crm_customers', 'ptf_crm_leads', 'ptf_crm_inqitems',
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_rfqsmart', 'ptf_crm_buyquotes', 'ptf_crm_buycmp', 'ptf_crm_inqreads',
-    'ptf_crm_invoices', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_opex', 'ptf_crm_supplier_finance', 'ptf_crm_cheques',
+    'ptf_crm_invoices', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots','ptf_crm_management_actions', 'ptf_crm_opex', 'ptf_crm_supplier_finance', 'ptf_crm_cheques',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_reminders', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs',
     'ptf_crm_notifs', 'ptf_crm_sendqueue', 'ptf_crm_trash', 'ptf_crm_deleted_archive',
     'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_surplus', 'ptf_crm_smsbook'

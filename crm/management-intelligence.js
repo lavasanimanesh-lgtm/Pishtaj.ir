@@ -82,6 +82,53 @@
       return '<tr><td>'+esc(r.name)+'</td><td>'+r.quotes+'</td><td>'+r.purchases+'</td><td>'+money(r.value)+'</td></tr>';
     }).join('') || '<tr><td colspan="7">داده کافی نیست</td></tr>';
   }
+  var ACTION_KEY = 'ptf_crm_management_actions';
+  function actions() { return list(ACTION_KEY); }
+  function canManage() { try { return typeof isSenior !== 'function' || isSenior() || !!((roleDef() || {}).finance); } catch (e) { return false; } }
+  function jsArg(v) { return typeof ptfOnClickArg === 'function' ? ptfOnClickArg(v) : String(v || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+  function actionRows(openOnly) {
+    var a=actions().filter(function(x){return !openOnly || x.status==='open' || x.status==='postponed';});
+    return a.sort(function(x,y){return String(x.dueISO||'9999').localeCompare(String(y.dueISO||'9999'));});
+  }
+  function actionListHtml(openOnly) {
+    var a=actionRows(openOnly);
+    return a.map(function(x){ var mine=(typeof curSession==='function' && x.owner===curSession().user); return '<div style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin:6px 0;background:'+(x.status==='done'?'#f8fafc':'#fff')+'"><b>'+esc(x.title)+'</b><div style="font-size:11.5px;color:#64748b">مسئول: '+esc(x.ownerName||x.owner||'—')+' | موعد: '+esc(x.dueISO||'—')+' | وضعیت: '+esc(x.status||'open')+'</div>'+(x.note?'<div style="font-size:11.5px;color:#475569">'+esc(x.note)+'</div>':'')+((x.status==='open'||x.status==='postponed')&&canManage()?'<button class="bt bt-o" style="font-size:11px;padding:3px 8px;margin-top:5px" onclick="ptfManagementActionDone(\''+jsArg(x.cd)+'\')">✅ انجام شد</button> ':'')+'</div>'; }).join('') || '<div style="font-size:12px;color:#94a3b8">اقدام مدیریتی بازی ثبت نشده است.</div>';
+  }
+  window.ptfManagementActionOpen = function(title, evidence, recommendation) {
+    if (!canManage()) { alert('⛔ ثبت اقدام مدیریتی فقط برای نقش‌های ارشد و مالی مجاز است.'); return; }
+    var users=list('ptf_crm_users').filter(function(u){return u && u.username;});
+    var opts=users.map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name||u.username)+' — '+esc(u.role||u.roleId||'')+'</option>';}).join('');
+    ptfDialog({title:'📌 تبدیل توصیه به اقدام مدیریتی',body:'این اقدام فقط پس از تایید شما ثبت می‌شود و به مسئول منتخب در کارتابل ارسال خواهد شد.',fields:[
+      {id:'owner',label:'مسئول اقدام *',type:'select',optionsHtml:opts},
+      {id:'due',label:'موعد اقدام (میلادی، اختیاری)',type:'date',value:new Date(Date.now()+7*86400000).toISOString().slice(0,10)},
+      {id:'note',label:'یادداشت/تصمیم مدیریت',type:'textarea',rows:3,value:recommendation||''}
+    ],okText:'ثبت و ارجاع اقدام',onOk:function(v){
+      if(!v.owner){alert('مسئول را انتخاب کنید');return;}
+      var u=users.filter(function(x){return x.username===v.owner;})[0]||{};
+      var rec={cd:genCode('MGA'),title:String(title||'اقدام مدیریتی'),evidence:String(evidence||''),recommendation:String(recommendation||''),note:String(v.note||''),owner:v.owner,ownerName:u.name||v.owner,dueISO:String(v.due||''),status:'open',createdAt:new Date().toISOString(),createdBy:(curSession()||{}).user||'',createdByName:(curSession()||{}).name||''};
+      var all=actions(); all.unshift(rec); setData(ACTION_KEY,all);
+      try { if(typeof notify==='function') notify({toUsers:[rec.owner],title:'📌 اقدام مدیریتی: '+rec.title,body:(rec.dueISO?'موعد: '+rec.dueISO+' — ':'')+rec.note,kind:'management_action',channels:['cart'],link:{panel:'anl'},actionable:true,refCd:rec.cd,taskType:'management_action',dkey:'management-action|'+rec.cd}); } catch(eN){}
+      try { if(typeof audit==='function') audit('تصمیم‌یار مدیریت','ثبت و ارجاع اقدام مدیریتی: '+rec.title,rec.cd); } catch(eA){}
+      if(typeof ptfToast==='function')ptfToast('✅ اقدام مدیریتی ثبت و ارجاع شد','ok');
+      var box=document.getElementById('mgmtActionsBox');if(box)box.innerHTML=actionListHtml(true);
+    }});
+  };
+  window.ptfManagementActionDone = function(cd) {
+    var all=actions(), rec=all.filter(function(x){return x.cd===cd;})[0]; if(!rec)return;
+    var me=(curSession()||{}).user||'';
+    if(!canManage() && rec.owner!==me){alert('⛔ فقط مسئول اقدام یا مدیر می‌تواند آن را ببندد.');return;}
+    var result=prompt('نتیجه/توضیح انجام اقدام (اختیاری):','')||'';
+    rec.status='done';rec.doneAt=new Date().toISOString();rec.doneBy=me;rec.result=result;setData(ACTION_KEY,all);
+    try {if(typeof ntfResolveByRef==='function')ntfResolveByRef(cd);}catch(eR){}
+    try {if(typeof audit==='function')audit('تصمیم‌یار مدیریت','تکمیل اقدام مدیریتی: '+rec.title,cd);}catch(eA){}
+    var box=document.getElementById('mgmtActionsBox');if(box)box.innerHTML=actionListHtml(true);
+  };
+  window.ptfManagementActionCenterOpen = function(){
+    if(!canManage()){alert('⛔ دسترسی ندارید');return;}
+    var h='<div class="md-b" style="display:grid;z-index:3100" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:88vh;overflow:auto"><h3>📌 مرکز اقدام‌های مدیریتی</h3><div id="mgmtActionCenterList">'+actionListHtml(false)+'</div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels')||document.body).insertAdjacentHTML('beforeend',h);
+  };
+
   /* حداقل داده لازم برای AI: فقط top rows و KPI؛ نه متن آزاد، اطلاعات تماس یا فایل‌ها. */
   window.ptfManagementAiSnapshot = function () {
     var d = window.ptfManagementIntelligence();
@@ -116,7 +163,7 @@
     /* مشتری/سود/وصول دادهٔ مدیریتی است؛ فقط نقش‌های ارشد یا مالی. */
     try { if (typeof isSenior === 'function' && !isSenior() && !((roleDef() || {}).finance)) { alert('⛔ گزارش تصمیم‌یار مدیریت فقط برای نقش‌های ارشد و مالی مجاز است.'); return; } } catch (eRole) {}
     var d = window.ptfManagementIntelligence();
-    var html='<div class="md-b" id="mgmtInsightDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1100px;width:96vw;max-height:92vh;overflow:auto"><h3>🧠 تصمیم‌یار مدیریت فروش — فاز داده‌محور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:10px">این گزارش از داده‌های ثبت‌شده CRM ساخته شده و هنوز اقدام خودکار انجام نمی‌دهد. هر توصیه نیازمند تایید مدیر است.</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px"><div class="sc"><b>'+d.totals.customers+'</b><span>مشتری دارای داده</span></div><div class="sc"><b>'+d.totals.products+'</b><span>کالا/قلم</span></div><div class="sc"><b>'+d.totals.suppliers+'</b><span>تأمین‌کننده دارای قیمت</span></div><div class="sc"><b style="color:#dc2626">'+d.totals.projectsAtRisk+'</b><span>پرونده نیازمند بررسی</span></div></div><h4>اقدامات و بینش‌های مدیریتی</h4>'+d.insights.map(insightHtml).join('')+'<h4>مشتریان</h4><div class="tb2"><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th><th>وصول</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table></div><h4>کالاهای پرارزش</h4><div class="tb2"><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table></div><h4>تأمین‌کنندگان</h4><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>ارزش قیمت ثبت‌شده</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table></div><div id="mgmtAiOut" style="margin-top:14px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap"><button class="bt" id="mgmtAiBtn" style="background:#7c3aed" onclick="ptfManagementAiInterpret()">✨ تفسیر AI</button><button class="bt bt-o" onclick="ptfManagementInsightsPdf()">🖨️ PDF مدیریتی</button><button class="bt bt-o" onclick="navigator.clipboard.writeText(JSON.stringify(ptfManagementAiSnapshot()))">📋 کپی دادهٔ خلاصه</button><button class="bt" onclick="document.getElementById(\'mgmtInsightDlg\').remove()">بستن</button></div></div></div>';
+    var html='<div class="md-b" id="mgmtInsightDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1100px;width:96vw;max-height:92vh;overflow:auto"><h3>🧠 تصمیم‌یار مدیریت فروش — فاز داده‌محور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:10px">این گزارش از داده‌های ثبت‌شده CRM ساخته شده و هنوز اقدام خودکار انجام نمی‌دهد. هر توصیه نیازمند تایید مدیر است.</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px"><div class="sc"><b>'+d.totals.customers+'</b><span>مشتری دارای داده</span></div><div class="sc"><b>'+d.totals.products+'</b><span>کالا/قلم</span></div><div class="sc"><b>'+d.totals.suppliers+'</b><span>تأمین‌کننده دارای قیمت</span></div><div class="sc"><b style="color:#dc2626">'+d.totals.projectsAtRisk+'</b><span>پرونده نیازمند بررسی</span></div></div><h4>اقدامات و بینش‌های مدیریتی</h4>'+d.insights.map(function(i){return insightHtml(i)+'<button class="bt bt-o" style="font-size:11px;padding:3px 8px;margin:-4px 0 7px" onclick="ptfManagementActionOpen(\''+jsArg(i.title)+'\',\''+jsArg(i.text)+'\',\''+jsArg(i.text)+'\')">📌 تبدیل به اقدام</button>';}).join('')+'<h4>مشتریان</h4><div class="tb2"><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th><th>وصول</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table></div><h4>کالاهای پرارزش</h4><div class="tb2"><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table></div><h4>تأمین‌کنندگان</h4><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>ارزش قیمت ثبت‌شده</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table></div><h4 style="margin-top:16px">اقدام‌های مدیریتی باز</h4><div id="mgmtActionsBox">'+actionListHtml(true)+'</div><div id="mgmtAiOut" style="margin-top:14px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfManagementActionCenterOpen()">📌 مرکز اقدام‌ها</button><button class="bt" id="mgmtAiBtn" style="background:#7c3aed" onclick="ptfManagementAiInterpret()">✨ تفسیر AI</button><button class="bt bt-o" onclick="ptfManagementInsightsPdf()">🖨️ PDF مدیریتی</button><button class="bt bt-o" onclick="navigator.clipboard.writeText(JSON.stringify(ptfManagementAiSnapshot()))">📋 کپی دادهٔ خلاصه</button><button class="bt" onclick="document.getElementById(\'mgmtInsightDlg\').remove()">بستن</button></div></div></div>';
     (document.getElementById('panels')||document.body).insertAdjacentHTML('beforeend',html);
   };
   window.ptfManagementInsightsPdf = function () {
