@@ -102,12 +102,20 @@
     });
     return used;
   }
+  /* اسناد عملیاتی باید جمع اقلام همهٔ CO/TCهای پرونده باشند؛ TO برای
+     مشخصات فنی است و نسخهٔ ریالی همراه نیز همان اقلام را تکرار می‌کند. */
+  function docxCommercialOffers(d) {
+    var list = typeof window.ptfSalesFileOffers === 'function'
+      ? window.ptfSalesFileOffers(d)
+      : getData('ptf_crm_offers').filter(function (o) { return o.no === d.wonOffer; });
+    return (list || []).filter(function (o) { return o && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf; });
+  }
   window.ptfDocxCoverage = function (dealCd, typeId) {
     var d = typeof dealCd === 'object' ? dealCd : dealsAll().filter(function (x) { return x.cd === dealCd; })[0];
     if (!d) return { total: 0, used: 0, remain: 0, ratio: 0 };
     var total = 0;
     try {
-      var offerList = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers(d) : getData('ptf_crm_offers').filter(function (o) { return o.no === d.wonOffer; });
+      var offerList = docxCommercialOffers(d);
       total = offerList.reduce(function (sum, o) { return sum + ((o.items || []).length); }, 0);
     } catch (e) {}
     var used = Object.keys(docxUsedRefs(d, typeId, null)).length;
@@ -117,7 +125,7 @@
   function docxOfferRowsForType(d, typeId, ignoreCd) {
     var out = [];
     try {
-      var offerList = typeof window.ptfSalesFileOffers === 'function' ? window.ptfSalesFileOffers(d) : getData('ptf_crm_offers').filter(function (o) { return o.no === d.wonOffer; });
+      var offerList = docxCommercialOffers(d);
       var used = docxUsedRefs(d, typeId, ignoreCd);
       offerList.forEach(function (wo) {
         (wo.items || []).forEach(function (it, idx) {
