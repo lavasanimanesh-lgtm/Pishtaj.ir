@@ -14,6 +14,8 @@
   'use strict';
 
   var LK = 'ptf_chqprint_layout_v1';
+  var PK = 'ptf_chqprint_profiles_v1';
+  var AK = 'ptf_chqprint_active_profile_v1';
 
   /* ---------- فونت‌های چاپی فارسی قابل انتخاب ---------- */
   var FONTS = [
@@ -58,23 +60,45 @@
       showGuide: false
     };
   }
-  function chqLoadLayout() {
+  function chqProfiles() {
     try {
-      var o = JSON.parse(localStorage.getItem(LK) || 'null');
-      if (!o || typeof o !== 'object') return chqDefaultLayout();
-      var d = chqDefaultLayout();
-      Object.keys(d).forEach(function (k) {
-        if (o[k] == null || o[k] === '') return;
-        if (typeof d[k] === 'boolean') d[k] = !!o[k];
-        else if (typeof d[k] === 'string') d[k] = String(o[k]);
-        else d[k] = (+o[k] === +o[k]) ? +o[k] : o[k];
-      });
-      return d;
-    } catch (e) { return chqDefaultLayout(); }
+      var raw = JSON.parse(localStorage.getItem(PK) || 'null');
+      if (raw && Array.isArray(raw.items) && raw.items.length) return raw;
+    } catch (e) {}
+    /* مهاجرت بی‌خطر از چیدمان تک‌پروفایلی قبلی */
+    var legacy = null; try { legacy = JSON.parse(localStorage.getItem(LK) || 'null'); } catch (e2) {}
+    return { version: 1, items: [{ id: 'default', name: 'پروفایل پیش‌فرض', bank: '', printer: '', layout: legacy || chqDefaultLayout(), calibratedAt: '' }] };
+  }
+  function chqActiveProfile() {
+    var p = chqProfiles(), id = ''; try { id = localStorage.getItem(AK) || ''; } catch (e) {}
+    return p.items.filter(function (x) { return x.id === id; })[0] || p.items[0];
+  }
+  function chqSaveProfiles(p) { try { localStorage.setItem(PK, JSON.stringify(p)); } catch (e) {} }
+  function chqLoadLayout() {
+    var o = (chqActiveProfile() || {}).layout || null;
+    if (!o || typeof o !== 'object') return chqDefaultLayout();
+    var d = chqDefaultLayout();
+    Object.keys(d).forEach(function (k) {
+      if (o[k] == null || o[k] === '') return;
+      if (typeof d[k] === 'boolean') d[k] = !!o[k];
+      else if (typeof d[k] === 'string') d[k] = String(o[k]);
+      else d[k] = (+o[k] === +o[k]) ? +o[k] : o[k];
+    });
+    return d;
   }
   function chqSaveLayout(L) {
-    try { localStorage.setItem(LK, JSON.stringify(L || chqLoadLayout())); } catch (e) {}
+    var p = chqProfiles(), active = chqActiveProfile(), found = false;
+    p.items.forEach(function (x) { if (x.id === active.id) { x.layout = L || chqDefaultLayout(); found = true; } });
+    if (!found) p.items.push({ id: 'default', name: 'پروفایل پیش‌فرض', bank: '', printer: '', layout: L || chqDefaultLayout(), calibratedAt: '' });
+    chqSaveProfiles(p);
+    /* سازگاری با نسخه‌های قبلی و امکان بازیابی تنظیم آخر */
+    try { localStorage.setItem(LK, JSON.stringify(L || chqDefaultLayout())); } catch (e) {}
   }
+  function chqProfileTitle() {
+    var p = chqActiveProfile();
+    return (p.name || 'پروفایل پیش‌فرض') + (p.bank ? ' · ' + p.bank : '') + (p.printer ? ' · ' + p.printer : '');
+  }
+
 
   /* ---------- ابزارهای تبدیل ---------- */
   function faD(s) { return String(s == null ? '' : s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d] || d; }); }
@@ -195,6 +219,7 @@
       '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#78350f;line-height:2;margin-bottom:12px">' +
       'این ماژول <b>فقط چاپ</b> است — هیچ رکوردی ذخیره نمی‌شود و کد صیادی هم ندارد. مشخصات هر برگه را وارد کنید و روی برگهٔ چک بانکی چاپ کنید (تکی یا چندتایی).<br>' +
       'برای هم‌راستایی با برگهٔ چک خودتان: <b>«📐 تنظیمات چاپ»</b> — فونت (نستعلیق/بی‌نازنین/بی‌یاقوت/…) و اندازهٔ حروف و مختصات هر بخش قابل تنظیم است؛ مبلغ بالای چک قرمز چاپ می‌شود.</div>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:12px"><span>🖨️ پروفایل فعال: <b>'+escP(chqProfileTitle())+'</b></span><span style="display:flex;gap:6px"><button class="bt bt-o" style="padding:4px 9px;font-size:11px" onclick="chqProfileOpen()">🗂 پروفایل‌ها</button><button class="bt bt-o" style="padding:4px 9px;font-size:11px" onclick="chqProfileMarkCalibrated()">✅ تایید کالیبراسیون</button></span></div>' +
       '<div id="chqpToolbar" class="chqp-toolbar">' +
       chqAction('chqpTabS', '🧾', 'تکی', 'چاپ یک برگه چک', 'teal', "chqPrintTab('single')", true) +
       chqAction('chqpTabM', '📚', 'چندتایی', 'چاپ چند برگه چک', 'indigo', "chqPrintTab('multi')", false) +
@@ -223,6 +248,21 @@
   window.renderChequePrint = function () {
     setTimeout(function () { try { window.chqGvRender(); } catch (e) {} }, 80);
   };
+
+  window.chqProfileOpen = function () {
+    var p = chqProfiles(), active = chqActiveProfile();
+    var rows = p.items.map(function (x) { return '<div style="border:1px solid #e2e8f0;border-radius:9px;padding:7px 9px;margin:5px 0;font-size:12px"><b>'+escP(x.name)+'</b>'+(x.bank?' · '+escP(x.bank):'')+(x.printer?' · '+escP(x.printer):'')+(x.calibratedAt?' <small style="color:#047857">کالیبره: '+escP(x.calibratedAt)+'</small>':'')+' <span style="float:left"><button class="bt bt-o" style="font-size:10px;padding:2px 6px" onclick="chqProfileSelect(\''+x.id+'\')">'+(x.id===active.id?'فعال':'انتخاب')+'</button>'+(p.items.length>1?' <button class="bt bt-o" style="font-size:10px;padding:2px 6px;color:#dc2626" onclick="chqProfileDelete(\''+x.id+'\')">حذف</button>':'')+'</span></div>'; }).join('');
+    var html='<div class="md-b" id="chqpProfilesDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px"><h3>🗂 پروفایل‌های چاپ چک</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:8px">برای هر بانک/دسته چک/چاپگر، یک پروفایل جدا بسازید. چیدمان هر پروفایل فقط روی همین دستگاه نگهداری می‌شود.</div><div id="chqpProfilesList">'+rows+'</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="chqProfileNew()">＋ پروفایل جدید</button><button class="bt" onclick="document.getElementById(\'chqpProfilesDlg\').remove()">بستن</button></div></div></div>';
+    (document.body||document.getElementById('panels')).insertAdjacentHTML('beforeend',html);
+  };
+  window.chqProfileSelect = function(id) { try { localStorage.setItem(AK,id); } catch(e) {} var dlg=document.getElementById('chqpProfilesDlg');if(dlg)dlg.remove(); var panels=document.getElementById('panels');if(panels){panels.innerHTML=buildChequePrint();renderChequePrint();} };
+  window.chqProfileNew = function() {
+    var name=prompt('نام پروفایل (مثلاً بانک ملت / دسته اول):',''); if(!name||!name.trim())return;
+    var bank=prompt('نام بانک (اختیاری):','')||'', printer=prompt('نام چاپگر (اختیاری):','')||'';
+    var p=chqProfiles(), src=chqLoadLayout(), id='P-'+Date.now().toString(36); p.items.push({id:id,name:name.trim(),bank:bank.trim(),printer:printer.trim(),layout:JSON.parse(JSON.stringify(src)),calibratedAt:''});chqSaveProfiles(p);try{localStorage.setItem(AK,id);}catch(e){} var dlg=document.getElementById('chqpProfilesDlg');if(dlg)dlg.remove();var panels=document.getElementById('panels');if(panels){panels.innerHTML=buildChequePrint();renderChequePrint();}
+  };
+  window.chqProfileDelete = function(id) { var p=chqProfiles();if(p.items.length<2)return;if(!confirm('پروفایل حذف شود؟'))return;p.items=p.items.filter(function(x){return x.id!==id;});chqSaveProfiles(p);if(chqActiveProfile().id===id)try{localStorage.setItem(AK,p.items[0].id);}catch(e){}chqProfileOpen(); };
+  window.chqProfileMarkCalibrated = function() { var p=chqProfiles(), a=chqActiveProfile();p.items.forEach(function(x){if(x.id===a.id)x.calibratedAt=(typeof faDateTime==='function'?faDateTime():new Date().toISOString());});chqSaveProfiles(p);if(typeof ptfToast==='function')ptfToast('✅ کالیبراسیون پروفایل ثبت شد؛ قبل از چاپ نهایی یک برگه آزمایشی بررسی کنید.','ok'); };
 
   window.chqPrintTab = function (t) {
     var s = document.getElementById('chqpSingle'), m = document.getElementById('chqpMulti');
