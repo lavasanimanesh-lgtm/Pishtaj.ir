@@ -7,10 +7,13 @@ var mi = fs.readFileSync(path.join(BASE, 'management-intelligence.js'), 'utf8');
 var an = fs.readFileSync(path.join(BASE, 'analyzer.js'), 'utf8');
 var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf8');
+var llm = fs.readFileSync(path.resolve(__dirname, '../../api/llm.php'), 'utf8');
 
 SECTION('ساختار و دسترسی');
 T('موتور تحلیل مدیریت export شده', mi.indexOf('window.ptfManagementIntelligence = function') > -1);
 T('پنجره گزارش و خروجی PDF وجود دارد', mi.indexOf('window.ptfManagementInsightsOpen') > -1 && mi.indexOf('window.ptfManagementInsightsPdf') > -1 && mi.indexOf('ptfPreviewPrintableDoc') > -1);
+T('AI فقط snapshot کمینه دریافت می‌کند و خروجی قابل‌مشاهده تولید می‌شود', mi.indexOf('window.ptfManagementAiSnapshot') > -1 && mi.indexOf('management_insight') > -1 && mi.indexOf('window.ptfManagementAiInterpret') > -1);
+T('endpoint AI فقط برای نقش‌های ارشد و با guard حجم snapshot فعال است', llm.indexOf("case 'management_insight':") > -1 && llm.indexOf("['admin','chairman','ceo','commercial']") > -1 && llm.indexOf('snapshot بیش از حد بزرگ است') > -1);
 T('دکمه تصمیم‌یار در تحلیلگر قرار دارد', an.indexOf('ptfManagementInsightsOpen()') > -1);
 T('ماژول در index و service worker لود می‌شود', idx.indexOf('management-intelligence.js?v=') > -1 && sw.indexOf("'./management-intelligence.js'") > -1);
 
