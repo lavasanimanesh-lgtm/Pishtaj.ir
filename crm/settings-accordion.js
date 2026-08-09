@@ -241,7 +241,11 @@
   if (typeof old === 'function') {
     window.buildSettings = function () {
       var html = old();
-      setTimeout(apply, 80);
+      setTimeout(apply, 0);
+      /* باگ ۳: جلوگیری از پرش و نمایش کادر خام؛ در همان فریم و بدون تأخیر ۸۰ میلی‌ثانیه تبدیل به آکاردئون شود */
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(function () { apply(); });
+      }
       return '<div id="ptfSettingsAccordionRoot">' + html + '</div>';
     };
   }
