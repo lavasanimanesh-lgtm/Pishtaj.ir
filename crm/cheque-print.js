@@ -388,17 +388,30 @@
       }
     });
   };
+  window.chqPrintPreflight = function (list, mode) {
+    var L = chqLoadLayout();
+    var proceed = function () {
+      if (mode !== 'multi' && confirm('آیا این چک چاپ‌شده در «چک‌های هاب مالی» هم ثبت شود؟\n\nدر صورت تایید، فرم اطلاعات تکمیلی و اثر مالی باز می‌شود.')) {
+        chqRegisterPrintedOpen(list[0]);
+      } else if (mode === 'multi' && typeof ptfToast === 'function') {
+        /* ثبت گروهی مالی عمداً خودکار نیست؛ هر چک می‌تواند تامین‌کننده و اثر متفاوت داشته باشد. */
+        ptfToast('برای ثبت مالی هر چک چاپ چندتایی، از هاب مالی استفاده کنید.', 'info');
+      }
+      chqOpenPrint(list, 'paper');
+    };
+    var body = '<div style="font-size:12.5px;line-height:2;color:#334155">' +
+      '<b>اندازه برگه فعال:</b> ' + L.pageW + ' × ' + L.pageH + ' میلی‌متر<br>' +
+      'پیش از ادامه، در پنجره چاپگر این تنظیمات را انتخاب کنید: <b>Actual Size / 100%</b>، <b>Margins = None</b>، <b>Headers & Footers = Off</b> و <b>Fit to Page = Off</b>.<br>' +
+      '<span style="color:#b45309">چاپگر باید برای همین اندازه کاغذ کوچک یا Custom Paper تنظیم شده باشد؛ اگر چاپگر روی A4 باشد، مختصات برگه چک صحیح نخواهد بود.</span><br>' +
+      'برای تغییر ابعاد، ابتدا «📐 تنظیمات چاپ» و سپس پروفایل چاپگر را اصلاح کنید.</div>';
+    if (typeof ptfDialog === 'function') { ptfDialog({ title:'🖨️ آماده‌سازی چاپ فیزیکی چک', body:body, okText:'باز کردن چاپگر', onOk:proceed }); }
+    else if (confirm('اندازه برگه '+L.pageW+'×'+L.pageH+'mm است. چاپ با Actual Size و بدون حاشیه آماده است؟')) proceed();
+  };
   window.chqPrintGo = function (mode) {
     var c = mode === 'multi' ? chqCollectMulti() : chqCollectSingle();
     if (c.errs.length) { alert(c.errs.join('\n')); return; }
     if (!c.list.length) { alert('حداقل یک ردیف کامل وارد کنید'); return; }
-    if (mode !== 'multi' && confirm('آیا این چک چاپ‌شده در «چک‌های هاب مالی» هم ثبت شود؟\n\nدر صورت تایید، پس از باز شدن پنجره چاپ فرم اطلاعات تکمیلی و اثر مالی باز می‌شود.')) {
-      chqRegisterPrintedOpen(c.list[0]);
-    } else if (mode === 'multi') {
-      /* ثبت گروهی مالی عمداً خودکار نیست؛ هر چک می‌تواند تامین‌کننده و اثر متفاوت داشته باشد. */
-      if (typeof ptfToast === 'function') ptfToast('برای ثبت مالی هر چک چاپ چندتایی، از هاب مالی استفاده کنید.', 'info');
-    }
-    chqOpenPrint(c.list, 'paper');
+    chqPrintPreflight(c.list, mode === 'multi' ? 'multi' : 'single');
   };
 
   /* ---------- تولید HTML چاپ ---------- */
@@ -452,9 +465,7 @@
       '@media screen{body{background:#e2e8f0;padding:12px}.pg{margin:0 auto 12px;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.12)}}' +
       '@media print{body{background:#fff;padding:0}.pg{box-shadow:none;margin:0}.noprint{display:none!important}}' +
       '</style></head><body onload="setTimeout(function(){try{window.focus();window.print()}catch(e){}},300)">' + body +
-      '<div class="noprint" style="position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:8px 14px;border-radius:999px;font-size:12px;z-index:9;white-space:nowrap">' +
-      'چاپ چک: Scale = 100% / Actual Size · Margins = None · Headers & Footers = Off · Fit to Page = Off · ' + list.length + ' برگه' +
-      '</div></body></html>';
+      '</body></html>';
   }
   /* چاپ فیزیکی چک نباید از preview عمومی A4 عبور کند؛ آن مسیر script چاپ را
      پاک می‌کند و راهنمای A4 می‌دهد. برای کاغذ واقعی، پنجره اختصاصی با page-size
@@ -507,6 +518,12 @@
         '</div></div>';
     }).join('');
   }
+  window.chqPaperPreset = function (w, h) {
+    var wi = document.getElementById('chqpL_pageW'), hi = document.getElementById('chqpL_pageH');
+    if (wi) wi.value = +w; if (hi) hi.value = +h;
+    if (typeof ptfToast === 'function') ptfToast((+w === 210 ? 'A4 فقط برای چاپ آزمایشی است؛ برای چک واقعی اندازه برگه بانک را انتخاب کنید.' : 'ابعاد چک تنظیم شد؛ پس از کالیبراسیون ذخیره کنید.'), 'info');
+  };
+
   window.chqPrintLayoutOpen = function () {
     var L = chqLoadLayout();
     var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2500) : 2500;
@@ -514,7 +531,8 @@
       '<h3>📐 تنظیمات چاپ چک فیزیکی</h3>' +
       '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#1e40af;line-height:2;margin-bottom:10px">' +
       'برای هم‌راستایی نوشته‌ها با برگهٔ چک بانکی خودتان: ابتدا «🖨 چاپ آزمایشی (با راهنما)» را روی یک برگهٔ معمولی بزنید، سپس مختصات (top/right/left) و اندازهٔ حروف هر بخش را تنظیم و ذخیره کنید.<br>' +
-      '<b>مبلغ بالای چک طبق مصوبه قرمز چاپ می‌شود</b> (رنگ آن از همین‌جا قابل تغییر است). ابعاد پیش‌فرض برگه: 169×78mm — اگر بانک شما فرق دارد pageW/pageH را عوض کنید.</div>' +
+      '<b>مبلغ بالای چک طبق مصوبه قرمز چاپ می‌شود</b> (رنگ آن از همین‌جا قابل تغییر است). ابعاد پیش‌فرض برگه: 169×78mm — اگر بانک شما فرق دارد pageW/pageH را عوض کنید.<br>' +
+      '<span style="display:inline-flex;gap:6px;margin-top:5px"><button type="button" class="bt bt-o" style="font-size:11px;padding:3px 7px" onclick="chqPaperPreset(169,78)">پیش‌فرض چک 169×78</button><button type="button" class="bt bt-o" style="font-size:11px;padding:3px 7px" onclick="chqPaperPreset(210,297)">A4 فقط برای آزمون</button></span></div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">' +
       '<div class="fld"><label style="font-size:11px">عرض برگه pageW (mm)</label><input type="number" step="0.5" id="chqpL_pageW" value="' + L.pageW + '" style="direction:ltr;width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px"></div>' +
       '<div class="fld"><label style="font-size:11px">ارتفاع برگه pageH (mm)</label><input type="number" step="0.5" id="chqpL_pageH" value="' + L.pageH + '" style="direction:ltr;width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px"></div>' +
