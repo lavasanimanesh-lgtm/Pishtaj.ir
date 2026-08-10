@@ -188,7 +188,7 @@
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px 12px;font-size:12px;color:#0c4a6e;line-height:2;margin-bottom:10px">' +
       (isR
         ? 'چک دریافتی: ذی‌نفع/صادرکننده را از «مشتریان دارای پرونده فروش باز» یا «سایر» انتخاب کنید. اگر فاکتور باز انتخاب شود، همان لحظه از مطالبات کسر می‌شود؛ بدون فاکتور، چک در گردش می‌ماند و با «وصول» اثر مالی می‌گیرد.'
-        : 'چک صادره: ذی‌نفع را از «تامین‌کنندگان دارای مطالبه از ما» یا «سایر» انتخاب کنید. چک مالی همان لحظه روی بدهی تامین‌کننده اثر می‌گذارد؛ چک ضمانت اثر مالی ندارد و باید به پرونده فروش لینک شود.') +
+        : 'چک صادره: ذی‌نفع را از «تامین‌کنندگان دارای مطالبه از ما» یا «سایر» انتخاب کنید. چک مالی همان لحظه روی بدهی تامین‌کننده اثر می‌گذارد؛ چک ضمانت اثر مالی ندارد؛ ضمانت شرکت در مناقصه می‌تواند مستقل از پرونده فروش ثبت شود.') +
       '</div>' +
       '<div class="fr"><div class="fld"><label>نوع ذی‌نفع *</label><select id="ptfChNParty" onchange="ptfChNPartyUi()">' +
       (isR
@@ -207,9 +207,9 @@
         : '<div class="fr"><div class="fld"><label>نوع چک *</label><select id="ptfChNKind" onchange="ptfChNKindUi()">' +
           '<option value="finance">💰 مالی</option>' +
           '<option value="guarantee">🛡 ضمانت / سپرده</option></select></div>' +
-          '<div class="fld" id="ptfChNGuarWrap" style="display:none"><label>نوع ضمانت</label><select id="ptfChNGuarType">' +
-          '<option value="advance">ضمانت پیش‌پرداخت</option><option value="performance">ضمانت حسن انجام کار</option><option value="bid">ضمانت شرکت در مناقصه</option><option value="other">سایر</option></select></div></div>' +
-          '<div class="fld" id="ptfChNDealWrap" style="display:none"><label>پرونده فروش (الزامی برای ضمانت) *</label><select id="ptfChNDeal"><option value="">— انتخاب پرونده فروش —</option></select></div>') +
+          '<div class="fld" id="ptfChNGuarWrap" style="display:none"><label>نوع ضمانت</label><select id="ptfChNGuarType" onchange="ptfChNKindUi()">' +
+          '<option value="advance">ضمانت پیش‌پرداخت</option><option value="performance">ضمانت حسن انجام کار</option><option value="bid">ضمانت شرکت در مناقصه (مستقل)</option><option value="other">سایر</option></select></div></div>' +
+          '<div class="fld" id="ptfChNDealWrap" style="display:none"><label>پرونده فروش (برای پیش‌پرداخت/حسن انجام کار)</label><select id="ptfChNDeal"><option value="">— انتخاب پرونده فروش —</option></select></div>') +
       '<div class="fld"><label>بابت / یادداشت</label><input id="ptfChNNote"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfChNewDlg\').remove()">انصراف</button>' +
@@ -264,9 +264,11 @@
   window.ptfChNKindUi = function () {
     var k = ((document.getElementById('ptfChNKind') || {}).value || 'finance');
     var g = k === 'guarantee';
+    var gt = ((document.getElementById('ptfChNGuarType') || {}).value || 'advance');
+    var needDeal = g && gt !== 'bid'; /* ضمانت شرکت در مناقصه می‌تواند مستقل از پرونده فروش باشد. */
     var w1 = document.getElementById('ptfChNGuarWrap'); if (w1) w1.style.display = g ? '' : 'none';
-    var w2 = document.getElementById('ptfChNDealWrap'); if (w2) w2.style.display = g ? '' : 'none';
-    if (g && typeof window.ptfChNDealReload === 'function') window.ptfChNDealReload();
+    var w2 = document.getElementById('ptfChNDealWrap'); if (w2) w2.style.display = needDeal ? '' : 'none';
+    if (needDeal && typeof window.ptfChNDealReload === 'function') window.ptfChNDealReload();
   };
   window.ptfChNDealReload = function () {
     var sel = document.getElementById('ptfChNDeal'); if (!sel) return;
@@ -335,7 +337,7 @@
       if (kind === 'guarantee') {
         guarType = ((document.getElementById('ptfChNGuarType') || {}).value || 'advance');
         var dealCd = ((document.getElementById('ptfChNDeal') || {}).value || '');
-        if (!dealCd) { alert('⛔ برای چک ضمانت، انتخاب پرونده فروش الزامی است (ضمانت با پایان پروژه مسترد می‌شود)'); return; }
+        if (guarType !== 'bid' && !dealCd) { alert('⛔ برای ضمانت پیش‌پرداخت، حسن انجام کار یا سایر، انتخاب پرونده فروش الزامی است. ضمانت شرکت در مناقصه می‌تواند مستقل ثبت شود.'); return; }
         var deal = (getData('ptf_crm_deals') || []).filter(function (x) { return x.cd === dealCd; })[0];
         var book = window._ptfChNBook || null;
         var rec = {
@@ -351,7 +353,7 @@
         if (!saved || saved.why === 'sayad_locked') { alert(saved && saved.error ? saved.error : '⛔ ثبت چک ممکن نشد'); return; }
         try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved); } catch (eR) {}
         var dlg = document.getElementById('ptfChNewDlg'); if (dlg) dlg.remove();
-        if (typeof ptfToast === 'function') ptfToast('✅ چک ضمانت ثبت شد — در پرونده فروش نشانده شد (با پایان پروژه مسترد می‌شود)', 'ok');
+        if (typeof ptfToast === 'function') ptfToast(guarType === 'bid' ? '✅ ضمانت شرکت در مناقصه به‌صورت مستقل ثبت شد (بدون اثر مالی)' : '✅ چک ضمانت ثبت شد — در پرونده فروش نشانده شد (با پایان پروژه مسترد می‌شود)', 'ok');
         window.ptfChequePanelRender();
         return;
       } else {
@@ -611,10 +613,10 @@
       '<div class="fr"><div class="fld"><label>شماره چک از *</label><input id="cbFrom" value="' + escP(book ? book.fromNo || '' : '') + '" inputmode="numeric" style="direction:ltr"></div>' +
       '<div class="fld"><label>شماره چک تا *</label><input id="cbTo" value="' + escP(book ? book.toNo || '' : '') + '" inputmode="numeric" style="direction:ltr"></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'ptfChBookFormDlg\').remove()">انصراف</button>' +
-      '<button class="bt" onclick="ptfChequeBookSave(\'' + ptfOnClickArg(book ? book.cd : '') + '\')">💾 ذخیره</button></div></div></div>';
+      '<button class="bt" onclick="ptfChequeBookSaveUi(\'' + ptfOnClickArg(book ? book.cd : '') + '\')">💾 ذخیره</button></div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
   };
-  window.ptfChequeBookSave = function (cd) {
+  window.ptfChequeBookSaveUi = function (cd) {
     function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
     var bank = String(val('cbBank') || '').trim(), fromNo = String(val('cbFrom') || '').trim(), toNo = String(val('cbTo') || '').trim();
     if (!bank || !fromNo || !toNo) { alert('بانک و شماره چک از..تا الزامی است'); return; }
@@ -807,8 +809,8 @@ window.ptfChAiRender = function (c, fileObj) {
       ? '<div class="fr"><div class="fld"><label>نوع ذی‌نفع</label><select id="ptfChAiParty" onchange="ptfChAiPartyUi()"><option value="cust">🤝 مشتری (پرونده باز)</option><option value="third">🪪 ثالث (چک شخص/شرکت دیگر)</option><option value="other">👤 سایر</option></select></div><div class="fld" id="ptfChAiPartyWrap" style="min-width:240px"></div></div>' +
         '<div class="fld" id="ptfChAiInvWrap" style="display:none"><label>فاکتور باز (اختیاری — کسر از مطالبات)</label><select id="ptfChAiInv"><option value="">— بدون فاکتور (در گردش) —</option></select></div>'
       : '<div class="fld"><label>تامین‌کننده (ذینفع) *</label><select id="ptfChAiSup">' + supOpts + '</select></div>' +
-        '<div class="fld" id="ptfChAiGuarWrap" style="display:none"><label>نوع ضمانت</label><select id="ptfChAiGuarType"><option value="advance">ضمانت پیش‌پرداخت</option><option value="performance">ضمانت حسن انجام کار</option><option value="bid">ضمانت شرکت در مناقصه</option><option value="other">سایر</option></select></div>' +
-        '<div class="fld" id="ptfChAiDealWrap" style="display:none"><label>پرونده فروش (الزامی برای ضمانت) *</label><select id="ptfChAiDeal"><option value="">— انتخاب پرونده فروش —</option></select></div>') +
+        '<div class="fld" id="ptfChAiGuarWrap" style="display:none"><label>نوع ضمانت</label><select id="ptfChAiGuarType" onchange="ptfChAiKindUi()"><option value="advance">ضمانت پیش‌پرداخت</option><option value="performance">ضمانت حسن انجام کار</option><option value="bid">ضمانت شرکت در مناقصه</option><option value="other">سایر</option></select></div>' +
+        '<div class="fld" id="ptfChAiDealWrap" style="display:none"><label>پرونده فروش (برای پیش‌پرداخت/حسن انجام کار)</label><select id="ptfChAiDeal"><option value="">— انتخاب پرونده فروش —</option></select></div>') +
     '<div class="fld"><label>📎 کپی چک (اختیاری — ضمیمه شود)</label><div id="ptfChAiUp" style="min-height:40px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
     '<div class="fld"><label>یادداشت</label><input id="ptfChAiNote" value="' + escP(c.note || '') + '"></div>' +
     '<button class="bt" style="margin-top:6px" onclick="ptfChAiCommit()">✅ ثبت چک</button></div>';
@@ -824,8 +826,11 @@ window.ptfChAiRender = function (c, fileObj) {
 };
 window.ptfChAiKindUi = function () {
   var g = ((document.getElementById('ptfChAiKind') || {}).value === 'guarantee');
+  var gt = ((document.getElementById('ptfChAiGuarType') || {}).value || 'advance');
+  var needDeal = g && gt !== 'bid'; /* ضمانت شرکت در مناقصه مستقل از پرونده فروش است. */
   var w1 = document.getElementById('ptfChAiGuarWrap'); if (w1) w1.style.display = g ? '' : 'none';
-  var w2 = document.getElementById('ptfChAiDealWrap'); if (w2) w2.style.display = g ? '' : 'none';
+  var w2 = document.getElementById('ptfChAiDealWrap'); if (w2) w2.style.display = needDeal ? '' : 'none';
+  if (needDeal && typeof window.ptfChAiDealReload === 'function') window.ptfChAiDealReload();
 };
 /* v33.8.0: نوع ذی‌نفع در دستیار (مشتری/ثالث/سایر) برای چک وارده */
 window.ptfChAiPartyUi = function () {
@@ -905,7 +910,7 @@ window.ptfChAiCommit = function () {
     if (kind === 'guarantee') {
       rec.guarType = ((document.getElementById('ptfChAiGuarType') || {}).value || 'advance');
       var dealCd = ((document.getElementById('ptfChAiDeal') || {}).value || '');
-      if (!dealCd) { alert('⛔ برای چک ضمانت، انتخاب پرونده فروش الزامی است (ضمانت با پایان پروژه مسترد می‌شود)'); return; }
+      if (rec.guarType !== 'bid' && !dealCd) { alert('⛔ برای این نوع ضمانت، انتخاب پرونده فروش الزامی است. ضمانت شرکت در مناقصه می‌تواند مستقل ثبت شود.'); return; }
       var deal = (getData('ptf_crm_deals') || []).filter(function (x) { return x.cd === dealCd; })[0];
       rec.dealCd = dealCd; rec.dealLabel = deal ? ((deal.inqNo || deal.cd) + ' — ' + (deal.buyerCo || '')) : '';
     }
@@ -914,7 +919,7 @@ window.ptfChAiCommit = function () {
   try { if (typeof chUpsertReminder === 'function') chUpsertReminder(ch); } catch (eR) {}
   var dlg = document.getElementById('ptfChAiDlg'); if (dlg) dlg.remove();
   if (typeof ptfToast === 'function') {
-    if (kind === 'guarantee') ptfToast('چک ضمانت ثبت شد — در پرونده فروش نشانده شد (با پایان پروژه مسترد می‌شود)', 'ok');
+    if (kind === 'guarantee') ptfToast(rec.guarType === 'bid' ? 'ضمانت شرکت در مناقصه به‌صورت مستقل ثبت شد (بدون اثر مالی)' : 'چک ضمانت ثبت شد — در پرونده فروش نشانده شد (با پایان پروژه مسترد می‌شود)', 'ok');
     else ptfToast('چک ثبت شد' + ((ch.financial && ch.financial.ok) ? ' — اثر مالی در حساب ' + (dir === 'received' ? 'مشتری' : 'تامین‌کننده') + ' اعمال شد' : (dir === 'received' ? ' — بدون فاکتور؛ با وصول اثر مالی می‌گیرد' : '')) + '.', 'ok');
   }
   window.ptfChequePanelRender();

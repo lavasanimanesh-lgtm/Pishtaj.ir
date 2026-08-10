@@ -14,13 +14,18 @@ var sf = fs.readFileSync(path.join(BASE, 'supplier-finance.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(?:\.\d+){2}(?:-[A-Za-z0-9.-]+)?$/.test(vjson.crm_version));
 
 SECTION('دسته چک (Cheque Book)');
 T('ptfChequeBooks/ptfChequeBookSave تعریف شده', cm.indexOf('window.ptfChequeBooks = function') > -1 && cm.indexOf('window.ptfChequeBookSave = function') > -1);
 T('ptfChequeBookCoversNo (پوشش شماره از..تا) تعریف شده', cm.indexOf('window.ptfChequeBookCoversNo = function') > -1);
 T('دکمهٔ «دسته چک» در پنل چک', cp.indexOf('ptfChequeBookUi') > -1 && cp.indexOf('📒 دسته چک') > -1);
 T('فرم دسته چک: بانک/حساب/مالک/شعبه/سری/از..تا', cp.indexOf('cbBank') > -1 && cp.indexOf('cbAcc') > -1 && cp.indexOf('cbOwner') > -1 && cp.indexOf('cbFrom') > -1 && cp.indexOf('cbTo') > -1);
+T('handler رابط دسته چک، تابع ذخیرهٔ ماژول را overwrite نمی‌کند', cp.indexOf('window.ptfChequeBookSaveUi = function') > -1 && cp.indexOf('onclick=\"ptfChequeBookSaveUi(') > -1 && cp.indexOf('window.ptfChequeBookSave(book)') > -1 && cp.indexOf('window.ptfChequeBookSave = function (cd)') === -1);
+
+SECTION('ضمانت شرکت در مناقصه');
+T('نوع bid در فرم ثبت چک موجود و مستقل از پرونده است', cp.indexOf('value=\"bid\">ضمانت شرکت در مناقصه') > -1 && cp.indexOf("var needDeal = g && gt !== 'bid'") > -1);
+T('ثبت ضمانت bid بدون پرونده فروش مجاز است', cp.indexOf("if (guarType !== 'bid' && !dealCd)") > -1 && cp.indexOf("if (rec.guarType !== 'bid' && !dealCd)") > -1);
 
 SECTION('قفل شماره صیادی');
 T('ptfChequeReserveSayad/ptfChequeSayadReserved تعریف شده', cm.indexOf('window.ptfChequeReserveSayad') > -1 && cm.indexOf('window.ptfChequeSayadReserved') > -1);
