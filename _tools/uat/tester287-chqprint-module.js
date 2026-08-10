@@ -92,7 +92,7 @@ var html = buildChequePrint();
 T('پنل قابل ساخت است و راهنمای «فقط چاپ» دارد', html.indexOf('فقط چاپ') > -1 && html.indexOf('هیچ رکوردی ذخیره نمی‌شود') > -1);
 T('فرم تکی: تاریخ/ذی‌نفع/کد ملی/مبلغ/بابت', ['chqpD', 'chqpTo', 'chqpNid', 'chqpAmt', 'chqpNote'].every(function (k) { return html.indexOf('id="' + k + '"') > -1; }));
 T('فرم چندتایی: جدول ردیف‌ها + دکمه افزودن ردیف', html.indexOf('chqpMBody') > -1 && html.indexOf('chqpM_d') > -1 && html.indexOf('chqpM_amt') > -1 && html.indexOf('chqPrintAddRows') > -1);
-T('هیچ فیلد/ارجاع صیادی وجود ندارد', prt.indexOf('sayad') === -1 && html.indexOf('sayad') === -1);
+T('فرم چاپ فیزیکی فیلد ورودی صیادی ندارد', html.indexOf('id="chqpSayad"') === -1 && html.indexOf('class="chqpM_sayad"') === -1);
 T('دکمه‌های تنظیمات چاپ و راهنما', html.indexOf('chqPrintLayoutOpen') > -1 && html.indexOf('chqPrintHelp') > -1);
 
 SECTION('مبلغ و تاریخ به حروف');
@@ -120,10 +120,10 @@ T('رکورد: تاریخ/ذی‌نفع/کدملی (فارسی→لاتین)/م�
   var h = global._lastPrint.html;
   return h.indexOf('شرکت آلفا') > -1 && h.indexOf('14010077558') > -1 && h.indexOf('۱٬۲۵۰٬۰۰۰') > -1;
 })());
-T('مبلغ بالا با «مبلغ: … ریال» و رنگ قرمز چاپ می‌شود', (function () {
+T('مبلغ بالا با فرمت انگلیسی # … IRR # و رنگ قرمز چاپ می‌شود', (function () {
   if (!global._lastPrint) return false;
   var h = global._lastPrint.html;
-  return h.indexOf('مبلغ:') > -1 && h.indexOf("color:#b91c1c") > -1;
+  return h.indexOf('# 1,250,000 IRR #') > -1 && h.indexOf("color:#b91c1c") > -1;
 })());
 T('تاریخ به حروف در HTML چاپ هست', (function () {
   return !!(global._lastPrint && global._lastPrint.html.indexOf('بیست و یکم تیر ماه هزار و چهارصد و پنج') > -1);
