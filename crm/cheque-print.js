@@ -110,7 +110,7 @@
   function escP(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function money(v) { return (+v || 0).toLocaleString('fa-IR'); }
   function moneyEn(v) { return (+v || 0).toLocaleString('en-US'); }
-  function amountWordsNoUnit(v) { return String(window.ptfNumToFaWords(v) || '').replace(/\s*ریال\s*$/, '').trim(); }
+  function amountWordsWithUnit(v) { return String(window.ptfNumToFaWords(v) || '').trim(); }
 
   /* ---------- مبلغ به حروف (از چاپ هاب مالی منتقل شد — مرجع واحد چاپ) ---------- */
   window.ptfNumToFaWords = function (num) {
@@ -448,7 +448,7 @@
         /* v33.7.0: مبلغ اصلی به عدد — پایین چپ برگه (هر چک دو مبلغ دارد) */
         box('f-amt2', L.amt2Top != null ? L.amt2Top : 48, null, L.amt2Left != null ? L.amt2Left : 8, 'width:' + (L.amt2W || 62) + 'mm;font-size:' + (L.amt2Size || 12) + 'pt;font-family:' + fam('amt2') + ';color:' + (L.amt2Color || '#111827') + ';font-weight:900;') + escP('# ' + money(c.amt) + ' #') + '</div>' +
         /* مبلغ به حروف */
-        box('f-words', L.wordsTop, L.wordsRight, L.wordsLeft, 'font-size:' + L.wordsSize + 'pt;font-family:' + fam('words') + ';color:' + (L.wordsColor || '#111827') + ';') + escP('# ' + amountWordsNoUnit(c.amt) + ' #') + '</div>' +
+        box('f-words', L.wordsTop, L.wordsRight, L.wordsLeft, 'font-size:' + L.wordsSize + 'pt;font-family:' + fam('words') + ';color:' + (L.wordsColor || '#111827') + ';') + escP('# ' + amountWordsWithUnit(c.amt) + ' #') + '</div>' +
         /* بابت */
         (c.note ? box('f-memo', L.memoTop, L.memoRight, null, 'font-size:' + L.memoSize + 'pt;font-family:' + fam('memo') + ';color:' + (L.memoColor || '#111827') + ';') + escP(c.note) + '</div>' : '') +
         '</div></section>';
@@ -630,7 +630,7 @@
       gvFieldHtml('nid', 'کد ملی', '14010077558', L.nidColor, (L.nidSize || 9) * scale / 3) +
       gvFieldHtml('amt', 'مبلغ (بالا)', '# 1,250,000 IRR #', L.amtColor, (L.amtSize || 13) * scale / 3) +
       gvFieldHtml('amt2', 'مبلغ اصلی (پایین چپ)', '# ۱٬۲۵۰٬۰۰۰ #', L.amt2Color, (L.amt2Size || 12) * scale / 3) +
-      gvFieldHtml('words', 'مبلغ به حروف', '# یک میلیون و دویست و پنجاه هزار #', L.wordsColor, (L.wordsSize || 10.5) * scale / 3) +
+      gvFieldHtml('words', 'مبلغ به حروف', '# یک میلیون و دویست و پنجاه هزار ریال #', L.wordsColor, (L.wordsSize || 10.5) * scale / 3) +
       gvFieldHtml('memo', 'بابت', 'بابت پیش‌پرداخت', L.memoColor, (L.memoSize || 9) * scale / 3) +
       (bg ? '<div style="position:absolute;bottom:4px;left:4px;font-size:11px;color:#fff;background:rgba(0,0,0,.55);border-radius:6px;padding:2px 8px;z-index:4">📎 پس‌زمینه: اسکن برگه چک — فیلدها را بکشید</div>' : '') +
       '</div>';
