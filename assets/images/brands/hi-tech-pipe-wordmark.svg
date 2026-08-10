@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 180" role="img" aria-labelledby="title desc">
+  <title id="title">HI-TECH PIPE</title><desc id="desc">Hi-Tech Pipe wordmark</desc>
+  <rect width="640" height="180" fill="white"/>
+  <path d="M42 38h78l-18 25H78L45 142H15L42 38zM128 38h30l-8 32h38l8-32h30l-26 104h-30l9-38h-38l-9 38h-30l24-104z" fill="#e55225"/>
+  <text x="238" y="93" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="64" fill="#173f70">HI-TECH</text>
+  <text x="241" y="139" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="34" letter-spacing="7" fill="#e55225">PIPE</text>
+</svg>

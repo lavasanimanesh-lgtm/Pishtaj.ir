@@ -1,0 +1,20 @@
+/* tester323 — Cron PDF + SMS گزارش دوره‌ای */
+'use strict';
+require('./harness');
+var fs=require('fs'),path=require('path');
+var ROOT=path.resolve(__dirname,'../..');
+var cron=fs.readFileSync(path.join(ROOT,'api/management-report-cron.php'),'utf8');
+var cfg=fs.readFileSync(path.join(ROOT,'api/management-report-config.sample.php'),'utf8');
+var guide=fs.readFileSync(path.join(ROOT,'MANAGEMENT-REPORT-CRON-GUIDE.md'),'utf8');
+var mi=fs.readFileSync(path.join(ROOT,'crm/management-intelligence.js'),'utf8');
+SECTION('Cron و امنیت');
+T('اسکریپت فقط CLI است', cron.indexOf("PHP_SAPI !== 'cli'")>-1);
+T('دوره‌های چهارگانه پشتیبانی می‌شوند', ['weekly','monthly','quarterly','annual'].every(function(x){return cron.indexOf("'"+x+"'")>-1;}));
+T('Chromium با fallback HTML بررسی می‌شود', cron.indexOf('chromium_bin')>-1 && cron.indexOf('--headless --no-sandbox')>-1 && cron.indexOf('html-fallback')>-1);
+T('PDF در storage خصوصی گزارش آپلود می‌شود', cron.indexOf("ptf_storage_object_key('management-reports'")>-1 && cron.indexOf('ptf_storage_put_uploaded_file')>-1);
+T('پیامک فقط لینک CRM امن می‌فرستد و هر دو provider فعلی پشتیبانی می‌شوند', cron.indexOf("'crm_url'")>-1 && cron.indexOf('sms_send_report')>-1 && cron.indexOf('melipayamak')>-1 && cron.indexOf('kavenegar')>-1);
+SECTION('راهنما و CRM');
+T('config نمونه گیرندگان نقش‌محور دارد', cfg.indexOf("'recipients'")>-1 && cfg.indexOf("'weekly'")>-1 && cfg.indexOf("'monthly'")>-1);
+T('راهنمای تشخیص Chromium و Cron موجود است', guide.indexOf('which chromium')>-1 && guide.indexOf('crontab')>-1 && guide.indexOf('management-report-cron.php')>-1);
+T('تاریخچه CRM در صورت وجود فایل ذخیره‌شده، فایل واقعی را باز می‌کند', mi.indexOf('r.fileKey')>-1 && mi.indexOf('openStoredFile')>-1);
+DONE('tester323-v34.4.21-cron-pdf-reports');

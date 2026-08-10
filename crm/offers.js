@@ -1697,12 +1697,18 @@ window.ptfOfferBestBuyRef = ptfOfferBestBuyRef;
 function ptfOfferOverallMargin(o) {
   if (!o || !(o.kind === 'CO' || o.kind === 'TC') || !Array.isArray(o.items)) return null;
   var buy = 0, sell = 0, covered = 0, totalItems = 0;
+  /* BUG-OFFER-FX-MARGIN-001: در نسخهٔ ریالی، فروش به ریال است. نسخه‌های
+     قدیمی قبل از اصلاح، refPrice ارزی را بدون تسعیر کپی کرده‌اند؛ نرخ تبدیل
+     ثبت‌شده را فقط برای همان legacy-row اعمال می‌کنیم. نسخه‌های جدید metadata
+     fxConvertedCosts دارند و refPrice آنها از قبل ریالی است. */
+  var legacyRialRate = (o.currency === 'IRR' && o.rialOf && o.fxConvert && +o.fxConvert.rate > 0) ? +o.fxConvert.rate : 0;
   o.items.forEach(function (it) {
     if (!it) return;
     var qty = +it.qty || 0, price = +it.price || 0;
     if (!qty || !price) return;
     totalItems++;
     var refP = +it.refPrice || +it.refBuyPrice || 0;
+    if (refP > 0 && legacyRialRate && !(it.fxConvertedCosts && +it.fxConvertedCosts.rate > 0)) refP = Math.round(refP * legacyRialRate);
     if (refP > 0) { buy += qty * refP; sell += qty * price; covered++; }
   });
   if (!covered || buy <= 0) return { marginPct: null, coverage: covered, totalItems: totalItems, buyTotal: 0, sellTotal: 0 };
@@ -2409,7 +2415,16 @@ function offerSave() {
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
   setData('ptf_crm_offers', offers);
-  /* ===== v34.1 US-SMS-CO: اطلاع‌رسانی پیامکی به مشتری هنگام صدور پیشنهاد مالی ===== */
+  /* ثبت پیشنهاد مالی، ارجاع باز «صدور پیشنهاد مالی» همین درخواست را حل می‌کند. */
+  try { if (o.inqNo && typeof window.ptfResolveRfqReferral === 'function') { if (o.kind === 'CO' || o.kind === 'TC') window.ptfResolveRfqReferral(o.inqNo, 'create_offer'); else if (o.kind === 'TO') window.ptfResolveRfqReferral(o.inqNo, 'create_technical_offer'); } } catch (eResolveRef) {}
+  /*
+     اول خودِ فرم پیشنهاد را ببند. ptfSmsNotifyDialog یک .md-b جدید به انتهای DOM
+     اضافه می‌کند و hideModal() همیشه آخرین modal قابل‌مشاهده را می‌بندد. ترتیب
+     پیشین باعث می‌شد دیالوگ پیامک بسته شود و فرم پیشنهاد پشت آن باز بماند.
+  */
+  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
+  hideModal(); renderOffers();
+  /* ===== v34.4.9 BUG-OFFER-MODAL-001: اطلاع‌رسانی پیامکی پس از بستن فرم ===== */
   try {
     if ((o.kind === 'CO' || o.kind === 'TC') && o.buyerCd && typeof window.ptfSmsNotifyDialog === 'function') {
       var _cust = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0];
@@ -2426,8 +2441,6 @@ function offerSave() {
       }
     }
   } catch (eSms) {}
-  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
-  hideModal(); renderOffers();
   var _editLbl = idx > -1 ? (madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';
   addLog('پیشنهاد ' + o.no + _editLbl + ' شد');
   if (typeof ptfToast === 'function') ptfToast('💾 پیشنهاد ' + o.no + ' ذخیره شد', 'ok');

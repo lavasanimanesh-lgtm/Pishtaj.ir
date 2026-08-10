@@ -57,3 +57,27 @@
   .brand-panel.active{ grid-template-columns:1fr; }
   .page-brands.active{ grid-template-columns:1fr!important; }
 }
+
+/* Homepage target-industries & brand marquees — light, accessible, readable */
+.client-showcase,.brand-marquee-section{background:#fff;border:1px solid #e2e8f0;border-radius:24px;padding:20px;margin:18px 0;box-shadow:0 12px 28px rgba(15,23,42,.06)}
+.logo-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}.logo-title h3{margin:0;color:#172033;font-size:18px}.logo-title span{color:#64748b;font-size:12px;font-weight:800;direction:ltr}.showcase-note{margin:8px 0 14px;color:#475569;font-size:12.5px;line-height:1.8}
+.marquee-shell{overflow:hidden;position:relative;border-radius:16px;background:linear-gradient(135deg,#f8fafc,#eef6ff);border:1px solid #dbeafe;direction:ltr}.marquee-shell:before,.marquee-shell:after{content:'';position:absolute;top:0;bottom:0;width:64px;z-index:2;pointer-events:none}.marquee-shell:before{left:0;background:linear-gradient(90deg,#f4f8fd,transparent)}.marquee-shell:after{right:0;background:linear-gradient(270deg,#f4f8fd,transparent)}
+.marquee-track{width:max-content;min-width:100%;display:flex;align-items:center;gap:10px;padding:12px 0;animation:ptf-marquee 52s linear infinite}.marquee-shell:hover .marquee-track,.marquee-shell:focus-within .marquee-track{animation-play-state:paused}.marquee-track span{display:inline-flex;align-items:center;justify-content:center;min-width:174px;min-height:44px;padding:7px 14px;border-radius:12px;background:#fff;border:1px solid #cbd5e1;color:#1e3a5f;font-size:12px;font-weight:850;white-space:nowrap;box-shadow:0 3px 10px rgba(15,23,42,.06)}
+.brand-marquee-track{animation-duration:42s}.brand-marquee-track a{width:168px;height:64px;display:grid;place-items:center;background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:8px;box-shadow:0 3px 10px rgba(15,23,42,.06)}.brand-marquee-track img{display:block;max-width:142px;max-height:44px;width:auto;height:auto;object-fit:contain;filter:none!important}
+@keyframes ptf-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+@media(prefers-reduced-motion:reduce){.marquee-track{animation:none;overflow-x:auto;width:100%;justify-content:flex-start;padding:12px}.marquee-shell{overflow-x:auto}}@media(max-width:600px){.client-showcase,.brand-marquee-section{padding:14px;border-radius:18px}.marquee-track span{min-width:150px;font-size:11.5px}.brand-marquee-track a{width:140px;height:58px}.brand-marquee-track img{max-width:116px;max-height:38px}.marquee-shell:before,.marquee-shell:after{width:28px}}
+/* Verified client-logo cards and safe placeholders for logos still under verification */
+.marquee-track span.client-logo{min-width:184px;height:72px;gap:7px;padding:6px 10px}.client-logo img{width:62px;height:48px;object-fit:contain;filter:none!important}.client-logo b{font-size:10.5px;line-height:1.35;text-align:center}.brand-panel .brand-verify{background:linear-gradient(135deg,#f8fafc,#fff7ed)!important;border:1px dashed #f59e0b!important;color:#92400e!important;text-align:center;font-weight:900;line-height:1.55}.brand-panel .brand-verify small{font-weight:600;color:#a16207;font-size:10px}
+/* Client marks are logo-only, exactly the same compact visual rhythm as brand cards. */
+.client-marquee .marquee-track{gap:10px}.client-marquee .marquee-track span.client-logo{min-width:168px;width:168px;height:64px;min-height:64px;padding:8px;display:grid;place-items:center}.client-marquee .client-logo img{width:142px;height:44px;max-width:142px;max-height:44px;object-fit:contain;display:block}.client-marquee .client-logo b{display:none}
+@media(max-width:600px){.client-marquee .marquee-track span.client-logo{min-width:140px;width:140px;height:58px;min-height:58px}.client-marquee .client-logo img{max-width:116px;width:116px;height:38px;max-height:38px}}
+/* Uniform compact category-logo cards: every brand section shares the same visual footprint. */
+.brand-panel.active{align-items:stretch}.brand-panel a{min-height:66px!important;height:66px!important;padding:7px!important;display:grid!important;place-items:center!important;background:#fff;border:1px solid #dbe3ed;border-radius:12px;overflow:hidden}.brand-panel a .brand-logo{width:128px!important;height:42px!important;max-width:100%!important;max-height:42px!important;object-fit:contain!important;padding:0!important;filter:none!important}.brand-panel a:hover .brand-logo{transform:scale(1.04)}
+@media(max-width:600px){.brand-panel a{min-height:58px!important;height:58px!important;padding:6px!important}.brand-panel a .brand-logo{height:36px!important;max-height:36px!important;width:112px!important}}
+
+/* Horizontal-scroll guard: animated marquee tracks and wide media must never expand the document canvas. */
+html,body{max-width:100%;overflow-x:hidden}
+@supports (overflow:clip){html,body{overflow-x:clip}}
+main,.section,.container,.client-showcase,.brand-marquee-section,.marquee-shell{max-width:100%;min-width:0}
+.marquee-shell{contain:layout paint}
+.marquee-track{will-change:transform}

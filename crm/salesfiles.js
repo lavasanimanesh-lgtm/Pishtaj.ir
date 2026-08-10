@@ -88,13 +88,19 @@
     all.filter(function (o) {
       return o.inqNo === r.inqNo;
     }).forEach(add);
-    /* زنجیره: COهایی که به TO/CO دیگر متصل‌اند یا altOf دارند */
+    /* زنجیرهٔ پیشنهادها دوطرفه است. متمم ممکن است offer برندهٔ پرونده باشد و
+       فقط با altOf/srcToNo به پیشنهاد اصلی وصل شده باشد؛ در این حالت شرط یک‌طرفهٔ
+       قبلی، چون «پیشنهاد اصلی» به متمم اشاره نمی‌کرد، آن را پیدا نمی‌کرد. */
     var grew = true;
     while (grew) {
       grew = false;
       all.forEach(function (o) {
         if (seen[o.no]) return;
-        if ((o.altOf && seen[o.altOf]) || (o.srcToNo && seen[o.srcToNo]) || (o.coNo && seen[o.coNo])) { add(o); grew = true; }
+        var linkedToKnown = (o.altOf && seen[o.altOf]) || (o.srcToNo && seen[o.srcToNo]) || (o.coNo && seen[o.coNo]);
+        var knownLinksBack = out.some(function (known) {
+          return known && (known.altOf === o.no || known.srcToNo === o.no || known.coNo === o.no);
+        });
+        if (linkedToKnown || knownLinksBack) { add(o); grew = true; }
       });
     }
     return out;

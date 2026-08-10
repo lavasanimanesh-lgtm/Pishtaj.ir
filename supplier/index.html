@@ -206,6 +206,7 @@
           <p style="color:var(--gray);">واحد سورسینگ و بازرگانی پیشرو تجهیز فرتاک پس از ارزیابی رزومه و موجودی، جهت همکاری در استعلام‌های جاری با شما تماس خواهد گرفت.</p>
           
           <div class="badge-code" id="venCode">PTF-VEN-59210</div>
+          <p id="venWarning" role="status" style="display:none;margin:12px 0;padding:10px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;font-size:13px;font-weight:700"></p>
           <p style="font-size:13px;color:#888;">کد رهگیری یکتای فوق را ذخیره نمایید — با همین کد می‌توانید وضعیت ثبت‌نام خود را در <a href="../tracking/" style="color:var(--red);font-weight:800;">صفحه رهگیری</a> (بخش «رهگیری ثبت‌نام تامین‌کننده») پیگیری کنید.</p>
 
           <a class="btn btn-ghost" style="margin-top:20px;background:#f1f2f4;color:#333;display:inline-flex;" href="../tracking/">رهگیری وضعیت ثبت‌نام ←</a>
@@ -299,26 +300,30 @@
 
       // US-133: ثبت سروری → دریافت شماره یکتای ترتیبی از CRM
       let code = '';
+      let warning = '';
+      let submitError = '';
       try {
         const fd = new FormData(form);
         if (typeof ptfCaptchaAppend === 'function') ptfCaptchaAppend(fd);
         if (typeof ptfOtpToken === 'function' && ptfOtpToken()) fd.append('otp_token', ptfOtpToken());
         const res = await fetch('../api/crm.php?action=add_supplier', { method: 'POST', body: fd });
-        const data = await res.json();
-        if (res.status === 403 && (data.error === 'captcha' || data.error === 'otp')) {
-          statusBox.textContent = data.message || 'اعتبارسنجی امنیتی ناموفق — کپچا/تایید شماره را دوباره انجام دهید';
-          statusBox.className = 'form-status full err';
-          btn.disabled = false;
-          btn.textContent = 'ثبت در بانک تامین‌کنندگان CRM';
-          return;
+        const raw = await res.text();
+        let data = null;
+        try { data = JSON.parse(raw); } catch (_) { submitError = 'پاسخ نامعتبر از سرور دریافت شد (کد ' + res.status + ')'; }
+        if (data && !res.ok) submitError = data.message || data.error || ('خطای سرور (کد ' + res.status + ')');
+        if (data && data.ok && data.code) {
+          code = data.code;
+          warning = data.warning || '';
+        } else if (data && !submitError) {
+          submitError = data.message || data.error || 'سرور کد رهگیری صادر نکرد';
         }
-        if (data && data.ok && data.code) code = data.code;
-      } catch (err) {}
+      } catch (err) {
+        submitError = 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.';
+      }
 
       if (!code) {
-        // v31.7.43 WEB-INT-OPS-001: ثبت‌نام تامین‌کننده نباید با کد موقت fake-success بدهد.
-        // اگر سرور کد واقعی نداد، فرم باز می‌ماند تا کاربر دوباره تلاش کند یا تماس بگیرد.
-        statusBox.textContent = 'ثبت در سرور انجام نشد؛ هیچ کد رهگیری تامین‌کننده صادر نشده است. لطفاً دوباره تلاش کنید یا با ۰۲۱-۴۶۰۸۷۶۷۹ تماس بگیرید.';
+        // ثبت‌نام فقط با کد واقعی سرور موفق تلقی می‌شود؛ علت خطا پنهان نمی‌ماند.
+        statusBox.textContent = 'ثبت در سرور انجام نشد: ' + (submitError || 'خطای نامشخص') + ' — هیچ کد رهگیری تامین‌کننده صادر نشده است.';
         statusBox.className = 'form-status full err';
         btn.disabled = false;
         btn.textContent = 'ثبت در بانک تامین‌کنندگان CRM';
@@ -327,6 +332,10 @@
 
       form.style.display = 'none';
       document.getElementById('venCode').textContent = code;
+      if (warning) {
+        const warningBox = document.getElementById('venWarning');
+        if (warningBox) { warningBox.textContent = '⚠️ ' + warning; warningBox.style.display = 'block'; }
+      }
       document.getElementById('resBox').style.display = 'block';
       window.scrollTo({top: 80, behavior: 'smooth'});
     });

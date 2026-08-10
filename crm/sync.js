@@ -16,7 +16,7 @@
     'ptf_crm_invoices', 'ptf_crm_notifs', 'ptf_crm_sendqueue', 'ptf_crm_audit',
     'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
-    'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources',
+    'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports',
     'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
@@ -912,6 +912,30 @@
           });
           return JSON.stringify(outA);
         } catch (eAv) { return remoteStr; }
+      }
+
+      /* BUG-LETTER-SIG-SYNC-001: پروفایل امضا map کاربرهاست، نه آرایه.
+         remote-wins عمومی می‌توانست امضای تازهٔ دسکتاپ را با نسخهٔ قدیمی/خالی
+         موبایل جایگزین کند. هر پروفایل با updatedAtISO جداگانه ادغام می‌شود. */
+      if (key === 'ptf_crm_sigprofiles') {
+        try {
+          var locS = JSON.parse(localStr || '{}'), remS = JSON.parse(remoteStr || '{}');
+          if (Array.isArray(locS) || Array.isArray(remS) || !locS || !remS || typeof locS !== 'object' || typeof remS !== 'object') return remoteStr;
+          var outS = {}, usersS = {};
+          Object.keys(locS).forEach(function (u) { usersS[u] = 1; });
+          Object.keys(remS).forEach(function (u) { usersS[u] = 1; });
+          Object.keys(usersS).forEach(function (u) {
+            var lv = locS[u], rv = remS[u];
+            if (lv === undefined) outS[u] = rv;
+            else if (rv === undefined) outS[u] = lv;
+            else {
+              var lt = String((lv && lv.updatedAtISO) || ''), rt = String((rv && rv.updatedAtISO) || '');
+              /* دادهٔ نسخه‌دار بر legacy بی‌تاریخ مقدم است؛ در تساوی local حفظ می‌شود. */
+              outS[u] = lt >= rt ? lv : rv;
+            }
+          });
+          return JSON.stringify(outS);
+        } catch (eSig) { return remoteStr; }
       }
 
       /* Sprint 283 + AUD-01 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md):

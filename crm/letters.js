@@ -166,8 +166,11 @@ function saveSigProfile() {
   var fst = document.getElementById('sgStamp').files[0];
   var pending = (fs ? 1 : 0) + (fst ? 1 : 0);
   function done() {
+    p.updatedAtISO = new Date().toISOString();
     profiles[me] = p;
-    localStorage.setItem('ptf_crm_sigprofiles', JSON.stringify(profiles));
+    /* setData به‌جای localStorage مستقیم: تغییر باید وارد صف sync شود تا پروفایل
+       امضا روی موبایل/دستگاه‌های دیگر هم باقی بماند. */
+    setData('ptf_crm_sigprofiles', profiles);
     hideModal();
     audit('مکاتبات', 'به‌روزرسانی پروفایل امضا', me);
     alert('✅ پروفایل امضا ذخیره شد');
@@ -227,6 +230,80 @@ function renderLetters() {
 }
 
 /* ---------- فرم نامه صادره ---------- */
+/* ---------- ویرایشگر غنی نامه (جدول و تصویر داخل متن) ---------- */
+function letEscHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function letSafeBodyHtml(html) {
+  var box = document.createElement('div');
+  box.innerHTML = String(html || '');
+  var allowed = { P:1, DIV:1, BR:1, B:1, STRONG:1, I:1, EM:1, U:1, UL:1, OL:1, LI:1, TABLE:1, THEAD:1, TBODY:1, TR:1, TH:1, TD:1, IMG:1, A:1, H1:1, H2:1, H3:1, BLOCKQUOTE:1, SPAN:1 };
+  Array.prototype.slice.call(box.querySelectorAll('*')).forEach(function (el) {
+    if (!allowed[el.tagName]) { el.replaceWith(document.createTextNode(el.textContent || '')); return; }
+    Array.prototype.slice.call(el.attributes).forEach(function (a) {
+      var n = a.name.toLowerCase(), v = a.value || '';
+      var keep = n === 'colspan' || n === 'rowspan' || n === 'alt' || n === 'title' ||
+        (n === 'href' && /^(https?:|mailto:|#)/i.test(v)) ||
+        (n === 'src' && (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(v) || /^https:\/\//i.test(v)));
+      if (!keep) el.removeAttribute(a.name);
+    });
+  });
+  return box.innerHTML;
+}
+function letEditorExec(cmd, value) {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  ed.focus(); try { document.execCommand(cmd, false, value || null); } catch (e) {}
+}
+window.ptfLetEditorCmd = function (cmd) { letEditorExec(cmd); };
+window.ptfLetEditorTable = function () {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  var rows = Math.max(1, Math.min(12, +(prompt('تعداد سطر جدول:', '2') || 0)));
+  var cols = Math.max(1, Math.min(10, +(prompt('تعداد ستون جدول:', '2') || 0)));
+  if (!rows || !cols) return;
+  var h = '<table><tbody>';
+  for (var r = 0; r < rows; r++) { h += '<tr>'; for (var c = 0; c < cols; c++) h += (r === 0 ? '<th>عنوان</th>' : '<td>&nbsp;</td>'); h += '</tr>'; }
+  h += '</tbody></table><p><br></p>';
+  letEditorExec('insertHTML', h);
+};
+window.ptfLetEditorImagePick = function () { var i = document.getElementById('ltInlineImg'); if (i) i.click(); };
+function letEditorInsertImageFile(f) {
+  if (!f || !/^image\//.test(f.type)) { alert('فقط فایل تصویری قابل درج است'); return; }
+  var img = new Image(), url = URL.createObjectURL(f);
+  img.onload = function () {
+    var max = 1100, k = Math.min(1, max / Math.max(img.width, img.height)), cv = document.createElement('canvas');
+    cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
+    var data = cv.toDataURL('image/jpeg', .84);
+    if (data.length > 450000) { alert('تصویر پس از فشرده‌سازی بزرگ است؛ تصویر کوچک‌تری انتخاب کنید.'); return; }
+    letEditorExec('insertHTML', '<img src="' + data + '" alt="تصویر نامه">');
+  };
+  img.onerror = function () { URL.revokeObjectURL(url); alert('خواندن تصویر ناموفق بود'); };
+  img.src = url;
+}
+window.ptfLetEditorImage = function (inp) {
+  var f = (inp.files || [])[0]; inp.value = ''; letEditorInsertImageFile(f);
+};
+function letEditorWirePasteAndDrop(editor) {
+  if (!editor || editor.dataset.richWire) return;
+  editor.dataset.richWire = '1';
+  editor.addEventListener('paste', function (ev) {
+    var cb = ev.clipboardData, file = cb && Array.prototype.slice.call(cb.files || []).filter(function (f) { return /^image\//.test(f.type); })[0];
+    if (file) { ev.preventDefault(); letEditorInsertImageFile(file); return; }
+    /* Word/Excel معمولاً HTML table را در clipboard می‌گذارند؛ ساختار مجاز آن
+       حفظ می‌شود اما style/script خارجی و ناسالم پیش از ورود حذف می‌گردد. */
+    var html = cb && cb.getData && cb.getData('text/html');
+    if (html && /<(table|tr|td|th|img)\b/i.test(html)) {
+      ev.preventDefault(); letEditorExec('insertHTML', letSafeBodyHtml(html));
+    }
+  });
+  editor.addEventListener('dragover', function (ev) { ev.preventDefault(); editor.classList.add('is-dragover'); });
+  editor.addEventListener('dragleave', function () { editor.classList.remove('is-dragover'); });
+  editor.addEventListener('drop', function (ev) {
+    ev.preventDefault(); editor.classList.remove('is-dragover');
+    var files = Array.prototype.slice.call((ev.dataTransfer || {}).files || []), image = files.filter(function (f) { return /^image\//.test(f.type); })[0];
+    if (image) { letEditorInsertImageFile(image); return; }
+    var html = (ev.dataTransfer || {}).getData && ev.dataTransfer.getData('text/html');
+    if (html) letEditorExec('insertHTML', letSafeBodyHtml(html));
+  });
+}
+
 function showLetterModal(cd) {
   var l = cd ? getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0] : null;
   var custs = getData('ptf_crm_customers'), sups = getData('ptf_crm_suppliers');
@@ -239,6 +316,7 @@ function showLetterModal(cd) {
       .map(function (u) { return '<option value="' + escP(u.username) + '"' + (l && l.signer === u.username ? ' selected' : '') + '>' + escP(u.name) + ' — ' + escP(u.role) + '</option>'; }).join('');
   var s = (l && l.style) || {};
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
+    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
     '<h3>📤 نامه صادره' + (l ? ' — ویرایش' : '') + '</h3>' +
     '<div class="fr"><div class="fld"><label>زبان نامه</label><select id="ltLang"><option value="fa"' + (l && l.lang === 'fa' ? ' selected' : '') + '>فارسی</option><option value="en"' + (l && l.lang === 'en' ? ' selected' : '') + '>English</option></select></div>' +
     '<div class="fld"><label>گیرنده (شرکت/سازمان)</label><select id="ltToSel" onchange="document.getElementById(\'ltTo\').value=this.value">' + toOpts + '</select></div></div>' +
@@ -246,8 +324,11 @@ function showLetterModal(cd) {
     /* v123.1: سمت گیرنده — در متن نامه دقیقا زیر نام چاپ می‌شود */
     '<div class="fld"><label>سمت گیرنده (زیر نام چاپ می‌شود)</label><input type="text" id="ltToRole" value="' + (l ? escP(l.toRole || '') : '') + '" placeholder="مدیر محترم بازرگانی شرکت ..."></div></div>' +
     '<div class="fld"><label>موضوع *</label><input type="text" id="ltSub" value="' + (l ? escP(l.subject || '') : '') + '"></div>' +
-    '<div class="fld"><label>متن نامه *</label><textarea id="ltBody" rows="9" style="font-size:14px;line-height:2">' + (l ? escP(l.body || '') : '') + '</textarea>' +
-    '<small style="color:#94a3b8">اندازه فونت خودکار تنظیم می‌شود (عادی ۱۴ — حداقل ۱۲ برای متن‌های بلند) — در پیش‌نمایش قابل تغییر دستی است</small></div>' +
+    '<div class="fld"><label>متن نامه *</label><div class="let-editor-tools" role="toolbar" aria-label="ابزار ویرایش متن">' +
+    '<button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'bold\')"><b>Bold</b></button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'italic\')"><i>Italic</i></button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'insertUnorderedList\')">• فهرست</button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorTable()">▦ جدول</button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorImagePick()">🖼 تصویر در متن</button></div>' +
+    '<input type="file" id="ltInlineImg" accept="image/*" style="display:none" onchange="ptfLetEditorImage(this)">' +
+    '<div id="ltBodyEditor" class="let-rich-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>' +
+    '<small style="color:#94a3b8">جدول را از Word/Excel در محل نشانگر Paste کنید؛ همچنین می‌توانید فایل تصویر را داخل متن Drag &amp; Drop کنید. اندازه فونت چاپ خودکار تنظیم می‌شود.</small></div>' +
     /* v31.7.22 US-LTR-IMG: تصاویر داخل متن نامه — حداکثر ۳ تصویر فشرده، بعد از متن چاپ می‌شوند */
     '<div class="fld"><label>🖼 تصاویر نامه (اختیاری — حداکثر ۳؛ بعد از متن چاپ می‌شوند)</label>' +
     '<input type="file" id="ltImgFile" accept="image/*" multiple style="display:none" onchange="ptfLtImgAdd(this)">' +
@@ -273,6 +354,8 @@ function showLetterModal(cd) {
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   /* v31.7.22 US-LTR-IMG */
   window._ltImgs = (l && Array.isArray(l.images)) ? JSON.parse(JSON.stringify(l.images)) : [];
+  var editor = document.getElementById('ltBodyEditor');
+  if (editor) { editor.innerHTML = letSafeBodyHtml((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>')); letEditorWirePasteAndDrop(editor); }
   ptfLtImgRender();
 }
 
@@ -323,7 +406,9 @@ function _collectLetter(cd) {
   l.to = document.getElementById('ltTo').value.trim();
   l.toRole = ((document.getElementById('ltToRole') || {}).value || '').trim(); // v123.1: سمت گیرنده
   l.subject = document.getElementById('ltSub').value.trim();
-  l.body = document.getElementById('ltBody').value;
+  var editor = document.getElementById('ltBodyEditor');
+  l.bodyHtml = letSafeBodyHtml(editor ? editor.innerHTML : '');
+  l.body = editor ? (editor.innerText || '').trim() : '';
   l.att = document.getElementById('ltAtt').value;
   l.bsm = document.getElementById('ltBsm').checked;
   l.prjNo = document.getElementById('ltPrj').value;
@@ -363,6 +448,7 @@ function letSubmit(cd) {
     l.st = 'signed';
     l.signer = curSession().user;
     l.signerNm = p.nm; l.signerRole = p.role;
+    l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: p.nm || '', role: p.role || '', at: faDateTime() };
     l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
   } else {
     l.st = 'pending';
@@ -403,6 +489,7 @@ function letSign(cd) {
   l.no = letSerial('OUT', l.lang);
   l.st = 'signed';
   l.signerNm = p.nm; l.signerRole = p.role;
+  l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: p.nm || '', role: p.role || '', at: faDateTime() };
   l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
   setData('ptf_crm_letters', ls);
   if (l.prjNo) _letAttachToPrj(l);
@@ -495,7 +582,8 @@ function letPrintObj(l, isPreview) {
   var align = s.align || (isEn ? 'left' : 'right');
   var font = isEn ? LETTER_FONT_EN : LETTER_FONT_FA;
   var dir = isEn ? 'ltr' : 'rtl';
-  var sigP = l.st === 'signed' ? (sigProfiles()[l.signer] || {}) : {};
+  /* نامهٔ امضاشده snapshot دارد تا تغییر/همگام‌سازی بعدی پروفایل، امضای سند تاریخی را پاک نکند. */
+  var sigP = l.st === 'signed' ? (l.signatureSnapshot || sigProfiles()[l.signer] || {}) : {};
   var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + escP(l.no || 'پیش‌نمایش') + '</title><style>' +
     '@page{size:A4 portrait;margin:0}' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
@@ -523,8 +611,9 @@ function letPrintObj(l, isPreview) {
     '.to{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:0.5mm}' +
     '.torl{font-weight:600;font-size:' + fs + 'pt;margin-bottom:2mm}' + /* v123.1: سمت گیرنده زیر نام */          /* مخاطب: بولد +۱ */
     '.sub{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:6mm}' +          /* موضوع: بولد +۱ */
-    '.body{font-size:' + fs + 'pt;line-height:2.1;text-align:' + align + ';white-space:pre-wrap;' +
+    '.body{font-size:' + fs + 'pt;line-height:2.1;text-align:' + align + ';white-space:normal;' +
       (s.bold ? 'font-weight:700;' : '') + (s.italic ? 'font-style:italic;' : '') + '}' +
+    '.body p{margin:0 0 3mm}.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm;text-align:' + align + '}.body th{background:#f1f5f9}.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
     /* v31.7.22 US-LTR-IMG: تصاویر متن نامه — وسط‌چین، متناسب صفحه، بدون شکستن وسط تصویر */
     '.limgs{margin-top:5mm}' +
     '.limgs figure{margin:4mm auto;text-align:center;page-break-inside:avoid}' +
@@ -566,7 +655,7 @@ function letPrintObj(l, isPreview) {
     '<div class="to">' + (isEn ? 'To: ' : '') + escP(l.to) + '</div>' +
     (l.toRole ? '<div class="torl">' + escP(l.toRole) + '</div>' : '') + /* v123.1: سمت — دقیقا زیر نام */
     '<div class="sub">' + (isEn ? 'Subject: ' : 'موضوع: ') + escP(l.subject) + '</div>' +
-    '<div class="body">' + escP(l.body) + '</div>' +
+    '<div class="body">' + (l.bodyHtml ? letSafeBodyHtml(l.bodyHtml) : escP(l.body).replace(/\n/g, '<br>')) + '</div>' +
     ((l.images && l.images.length) ? '<div class="limgs">' + l.images.map(function (im) {
       return '<figure><img src="' + im.src + '" alt="">' + (im.cap ? '<figcaption>' + escP(im.cap) + '</figcaption>' : '') + '</figure>';
     }).join('') + '</div>' : '') +

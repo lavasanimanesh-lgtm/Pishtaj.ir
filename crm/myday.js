@@ -76,55 +76,15 @@
       });
     } catch (e) {}
 
-    /* ۲) مهلت پاسخ درخواست‌ها (US-348) */
+    /* ۲) فقط کارهای actionableِ مستقیمِ همین کاربر. اعلان عمومی/اطلاعی، موعدهای
+       بدون مسئول و پیشنهادهای رو به انقضا عمداً وارد «روز من» نمی‌شوند. */
     try {
-      getData('ptf_crm_rfqs').forEach(function (r) {
-        var d = (typeof ptfRfqDueState === 'function') ? ptfRfqDueState(r) : null;
-        if (!d || !d.bg) return;
-        out.push({ ic: '📋', cl: d.cl, panel: 'rfq',
-          tx: (d.over ? 'مهلت پاسخ گذشته: ' : 'مهلت پاسخ: ') + r.cd + (r.co ? ' — ' + r.co : ''), sub: r.dueISO });
-      });
-    } catch (e) {}
-
-    /* ۳) تحویل تعهدی پرونده‌ها (US-351) */
-    try {
-      getData('ptf_crm_deals').forEach(function (r) {
-        var st = (typeof ptfSfDueState === 'function') ? ptfSfDueState(r) : null;
-        if (!st) return;
-        out.push({ ic: '🚚', cl: st === 'red' ? '#dc2626' : '#d97706', panel: 'deals',
-          tx: (st === 'red' && r.dueISO < today ? 'تاخیر تحویل تعهدی: ' : st === 'red' ? 'تحویل تعهدی امروز: ' : 'تحویل تعهدی نزدیک: ') + (r.inqNo || r.cd) + (r.buyerCo ? ' — ' + r.buyerCo : ''), sub: r.dueISO });
-      });
-    } catch (e) {}
-
-    /* ۴) چک‌های صادره ≤۷ روز */
-    try {
-      var w7 = plusDays(7);
-      getData('ptf_crm_cheques').forEach(function (c) {
-        if (c.kind === 'guarantee' || c.ownership === 'personal' || c.ownership === 'third_party' || c.reminderDisabled || c.st === 'transferred' || c.st === 'voided_transfer' || c.st === 'paid' || c.st === 'cleared' || c.st === 'retrieved' || c.st === 'void' || !c.dueISO || c.dueISO > w7) return;
-        out.push({ ic: '🧾', cl: c.dueISO <= today ? '#dc2626' : '#d97706', panel: 'rem',
-          tx: 'چک ' + ((+c.amt || 0)).toLocaleString('fa-IR') + ' ریال — ' + (c.toWhom || c.bank || ''), sub: c.dueFa || c.dueISO });
-      });
-    } catch (e) {}
-
-    /* ۵) CO های رو به انقضا / منقضی (منطق موجود US-157) */
-    try {
-      var warn3 = plusDays(3);
-      getData('ptf_crm_offers').forEach(function (o) {
-        if (o.kind !== 'CO' || !o.validUntil || o.st === 'won' || o.st === 'lost') return;
-        if (o.validUntil > warn3) return;
-        out.push({ ic: '📄', cl: o.validUntil < today ? '#dc2626' : '#d97706', panel: 'off',
-          tx: (o.validUntil < today ? 'پیشنهاد منقضی: ' : 'اعتبار رو به پایان: ') + o.no + (o.buyerCo ? ' — ' + o.buyerCo : ''), sub: o.validUntil });
-      });
-    } catch (e) {}
-
-    /* ۶) سرنخ‌های تازه بی‌پیگیری > ۳ روز */
-    try {
-      var cut = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
-      getData('ptf_crm_leads').forEach(function (l) {
-        if (l.stage !== 'new' || (l.hist || []).length) return;
-        if ((l.createdISO || '') > cut) return;
-        out.push({ ic: '🎯', cl: '#7c3aed', panel: 'leads',
-          tx: 'سرنخ بی‌پیگیری: ' + (l.co || ''), sub: 'ثبت: ' + (l.createdFa || l.createdISO || '') });
+      getData('ptf_crm_notifs').forEach(function (n) {
+        if (!n || n.done || !n.actionable) return;
+        if ((n.toUsers || []).indexOf(me.user) < 0) return; /* کار شخصی، نه اعلان نقش عمومی */
+        if ((n.readBy || []).indexOf(me.user) > -1) return;
+        out.push({ ic: '✅', cl: '#dc2626', panel: (n.link || {}).panel || 'cart',
+          tx: n.title || 'اقدام ارجاع‌شده', sub: n.t || '', _fp: 'ntf|' + (n.cd || '') });
       });
     } catch (e) {}
 
@@ -148,7 +108,7 @@
       var rb = b.cl === '#dc2626' ? 0 : b.cl === '#d97706' ? 1 : 2;
       return ra - rb;
     });
-    return out.slice(0, 30); /* سقف نمایش */
+    return out.slice(0, 5); /* فقط پنج اولویت واقعی امروز */
   };
 
   window.ptfMyDayHtml = function () {

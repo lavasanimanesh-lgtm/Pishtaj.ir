@@ -64,4 +64,15 @@ T('offerNos هر ۳ را دارد', (arc.offerNos || []).length === 3);
 SECTION('نمایش بایگانی — prjArchivedDocsHtml همهٔ اسناد را نشان می‌دهد');
 T('projects.js تابع نمایش اسناد کامل بایگانی دارد', prj.indexOf('prjArchivedDocsHtml') > -1 && prj.indexOf("p.origin === 'salesfile' && p.docSnap") > -1 && prj.indexOf('اسناد کامل پرونده (بایگانی)') > -1);
 
+SECTION('BUG-SF-SUPPLEMENT-DOCS-001 — زنجیرهٔ معکوس متمم');
+/* در دادهٔ واقعی ممکن است پیشنهاد اصلی شماره درخواست نداشته/با شماره دیگری ثبت شده باشد
+   و فقط متمم برنده با altOf به آن وصل شود. */
+setData('ptf_crm_offers', [
+  { no: 'CO-BASE', kind: 'CO', inqNo: 'LEGACY-OTHER', items: [{ name: 'Base valve' }] },
+  { no: 'CO-SUP', kind: 'CO', inqNo: 'INQ-SUP', st: 'won', altOf: 'CO-BASE', items: [{ name: 'Supplement actuator' }] }
+]);
+var reverseChain = ptfSalesFileOffers({ inqNo: 'INQ-SUP', wonOffer: 'CO-SUP' });
+T('اگر متمم برنده به پیشنهاد اصلی اشاره کند، پیشنهاد اصلی هم از زنجیرهٔ معکوس برمی‌گردد', reverseChain.length === 2 && reverseChain.some(function (o) { return o.no === 'CO-BASE'; }) && reverseChain.some(function (o) { return o.no === 'CO-SUP'; }));
+T('docsx برای پکینگ/نوت، منبع تجاری همهٔ پیشنهادهای پرونده را می‌خواند و TO/نسخه ریالی را تکرار نمی‌کند', fs.readFileSync(path.join(BASE, 'docsx.js'), 'utf-8').indexOf('function docxCommercialOffers(d)') > -1 && fs.readFileSync(path.join(BASE, 'docsx.js'), 'utf-8').indexOf("(o.kind === 'CO' || o.kind === 'TC') && !o.rialOf") > -1);
+
 DONE('tester216-v3304-archive-full-docs');

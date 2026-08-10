@@ -14,6 +14,8 @@
   'use strict';
 
   var LK = 'ptf_chqprint_layout_v1';
+  var PK = 'ptf_chqprint_profiles_v1';
+  var AK = 'ptf_chqprint_active_profile_v1';
 
   /* ---------- فونت‌های چاپی فارسی قابل انتخاب ---------- */
   var FONTS = [
@@ -58,23 +60,45 @@
       showGuide: false
     };
   }
-  function chqLoadLayout() {
+  function chqProfiles() {
     try {
-      var o = JSON.parse(localStorage.getItem(LK) || 'null');
-      if (!o || typeof o !== 'object') return chqDefaultLayout();
-      var d = chqDefaultLayout();
-      Object.keys(d).forEach(function (k) {
-        if (o[k] == null || o[k] === '') return;
-        if (typeof d[k] === 'boolean') d[k] = !!o[k];
-        else if (typeof d[k] === 'string') d[k] = String(o[k]);
-        else d[k] = (+o[k] === +o[k]) ? +o[k] : o[k];
-      });
-      return d;
-    } catch (e) { return chqDefaultLayout(); }
+      var raw = JSON.parse(localStorage.getItem(PK) || 'null');
+      if (raw && Array.isArray(raw.items) && raw.items.length) return raw;
+    } catch (e) {}
+    /* مهاجرت بی‌خطر از چیدمان تک‌پروفایلی قبلی */
+    var legacy = null; try { legacy = JSON.parse(localStorage.getItem(LK) || 'null'); } catch (e2) {}
+    return { version: 1, items: [{ id: 'default', name: 'پروفایل پیش‌فرض', bank: '', printer: '', layout: legacy || chqDefaultLayout(), calibratedAt: '' }] };
+  }
+  function chqActiveProfile() {
+    var p = chqProfiles(), id = ''; try { id = localStorage.getItem(AK) || ''; } catch (e) {}
+    return p.items.filter(function (x) { return x.id === id; })[0] || p.items[0];
+  }
+  function chqSaveProfiles(p) { try { localStorage.setItem(PK, JSON.stringify(p)); } catch (e) {} }
+  function chqLoadLayout() {
+    var o = (chqActiveProfile() || {}).layout || null;
+    if (!o || typeof o !== 'object') return chqDefaultLayout();
+    var d = chqDefaultLayout();
+    Object.keys(d).forEach(function (k) {
+      if (o[k] == null || o[k] === '') return;
+      if (typeof d[k] === 'boolean') d[k] = !!o[k];
+      else if (typeof d[k] === 'string') d[k] = String(o[k]);
+      else d[k] = (+o[k] === +o[k]) ? +o[k] : o[k];
+    });
+    return d;
   }
   function chqSaveLayout(L) {
-    try { localStorage.setItem(LK, JSON.stringify(L || chqLoadLayout())); } catch (e) {}
+    var p = chqProfiles(), active = chqActiveProfile(), found = false;
+    p.items.forEach(function (x) { if (x.id === active.id) { x.layout = L || chqDefaultLayout(); found = true; } });
+    if (!found) p.items.push({ id: 'default', name: 'پروفایل پیش‌فرض', bank: '', printer: '', layout: L || chqDefaultLayout(), calibratedAt: '' });
+    chqSaveProfiles(p);
+    /* سازگاری با نسخه‌های قبلی و امکان بازیابی تنظیم آخر */
+    try { localStorage.setItem(LK, JSON.stringify(L || chqDefaultLayout())); } catch (e) {}
   }
+  function chqProfileTitle() {
+    var p = chqActiveProfile();
+    return (p.name || 'پروفایل پیش‌فرض') + (p.bank ? ' · ' + p.bank : '') + (p.printer ? ' · ' + p.printer : '');
+  }
+
 
   /* ---------- ابزارهای تبدیل ---------- */
   function faD(s) { return String(s == null ? '' : s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d] || d; }); }
@@ -85,6 +109,8 @@
   }
   function escP(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function money(v) { return (+v || 0).toLocaleString('fa-IR'); }
+  function moneyEn(v) { return (+v || 0).toLocaleString('en-US'); }
+  function amountWordsWithUnit(v) { return String(window.ptfNumToFaWords(v) || '').trim(); }
 
   /* ---------- مبلغ به حروف (از چاپ هاب مالی منتقل شد — مرجع واحد چاپ) ---------- */
   window.ptfNumToFaWords = function (num) {
@@ -195,6 +221,7 @@
       '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#78350f;line-height:2;margin-bottom:12px">' +
       'این ماژول <b>فقط چاپ</b> است — هیچ رکوردی ذخیره نمی‌شود و کد صیادی هم ندارد. مشخصات هر برگه را وارد کنید و روی برگهٔ چک بانکی چاپ کنید (تکی یا چندتایی).<br>' +
       'برای هم‌راستایی با برگهٔ چک خودتان: <b>«📐 تنظیمات چاپ»</b> — فونت (نستعلیق/بی‌نازنین/بی‌یاقوت/…) و اندازهٔ حروف و مختصات هر بخش قابل تنظیم است؛ مبلغ بالای چک قرمز چاپ می‌شود.</div>' +
+      '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 10px;margin-bottom:10px;font-size:12px"><span>🖨️ پروفایل فعال: <b>'+escP(chqProfileTitle())+'</b></span><span style="display:flex;gap:6px"><button class="bt bt-o" style="padding:4px 9px;font-size:11px" onclick="chqProfileOpen()">🗂 پروفایل‌ها</button><button class="bt bt-o" style="padding:4px 9px;font-size:11px" onclick="chqProfileMarkCalibrated()">✅ تایید کالیبراسیون</button></span></div>' +
       '<div id="chqpToolbar" class="chqp-toolbar">' +
       chqAction('chqpTabS', '🧾', 'تکی', 'چاپ یک برگه چک', 'teal', "chqPrintTab('single')", true) +
       chqAction('chqpTabM', '📚', 'چندتایی', 'چاپ چند برگه چک', 'indigo', "chqPrintTab('multi')", false) +
@@ -223,6 +250,21 @@
   window.renderChequePrint = function () {
     setTimeout(function () { try { window.chqGvRender(); } catch (e) {} }, 80);
   };
+
+  window.chqProfileOpen = function () {
+    var p = chqProfiles(), active = chqActiveProfile();
+    var rows = p.items.map(function (x) { return '<div style="border:1px solid #e2e8f0;border-radius:9px;padding:7px 9px;margin:5px 0;font-size:12px"><b>'+escP(x.name)+'</b>'+(x.bank?' · '+escP(x.bank):'')+(x.printer?' · '+escP(x.printer):'')+(x.calibratedAt?' <small style="color:#047857">کالیبره: '+escP(x.calibratedAt)+'</small>':'')+' <span style="float:left"><button class="bt bt-o" style="font-size:10px;padding:2px 6px" onclick="chqProfileSelect(\''+x.id+'\')">'+(x.id===active.id?'فعال':'انتخاب')+'</button>'+(p.items.length>1?' <button class="bt bt-o" style="font-size:10px;padding:2px 6px;color:#dc2626" onclick="chqProfileDelete(\''+x.id+'\')">حذف</button>':'')+'</span></div>'; }).join('');
+    var html='<div class="md-b" id="chqpProfilesDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px"><h3>🗂 پروفایل‌های چاپ چک</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:8px">برای هر بانک/دسته چک/چاپگر، یک پروفایل جدا بسازید. چیدمان هر پروفایل فقط روی همین دستگاه نگهداری می‌شود.</div><div id="chqpProfilesList">'+rows+'</div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="chqProfileNew()">＋ پروفایل جدید</button><button class="bt" onclick="document.getElementById(\'chqpProfilesDlg\').remove()">بستن</button></div></div></div>';
+    (document.body||document.getElementById('panels')).insertAdjacentHTML('beforeend',html);
+  };
+  window.chqProfileSelect = function(id) { try { localStorage.setItem(AK,id); } catch(e) {} var dlg=document.getElementById('chqpProfilesDlg');if(dlg)dlg.remove(); var panels=document.getElementById('panels');if(panels){panels.innerHTML=buildChequePrint();renderChequePrint();} };
+  window.chqProfileNew = function() {
+    var name=prompt('نام پروفایل (مثلاً بانک ملت / دسته اول):',''); if(!name||!name.trim())return;
+    var bank=prompt('نام بانک (اختیاری):','')||'', printer=prompt('نام چاپگر (اختیاری):','')||'';
+    var p=chqProfiles(), src=chqLoadLayout(), id='P-'+Date.now().toString(36); p.items.push({id:id,name:name.trim(),bank:bank.trim(),printer:printer.trim(),layout:JSON.parse(JSON.stringify(src)),calibratedAt:''});chqSaveProfiles(p);try{localStorage.setItem(AK,id);}catch(e){} var dlg=document.getElementById('chqpProfilesDlg');if(dlg)dlg.remove();var panels=document.getElementById('panels');if(panels){panels.innerHTML=buildChequePrint();renderChequePrint();}
+  };
+  window.chqProfileDelete = function(id) { var p=chqProfiles();if(p.items.length<2)return;if(!confirm('پروفایل حذف شود؟'))return;p.items=p.items.filter(function(x){return x.id!==id;});chqSaveProfiles(p);if(chqActiveProfile().id===id)try{localStorage.setItem(AK,p.items[0].id);}catch(e){}chqProfileOpen(); };
+  window.chqProfileMarkCalibrated = function() { var p=chqProfiles(), a=chqActiveProfile();p.items.forEach(function(x){if(x.id===a.id)x.calibratedAt=(typeof faDateTime==='function'?faDateTime():new Date().toISOString());});chqSaveProfiles(p);if(typeof ptfToast==='function')ptfToast('✅ کالیبراسیون پروفایل ثبت شد؛ قبل از چاپ نهایی یک برگه آزمایشی بررسی کنید.','ok'); };
 
   window.chqPrintTab = function (t) {
     var s = document.getElementById('chqpSingle'), m = document.getElementById('chqpMulti');
@@ -308,11 +350,70 @@
     if (!c.list.length) { alert('حداقل یک ردیف کامل وارد کنید'); return; }
     chqOpenPrint(c.list, 'preview');
   };
+  /* ثبت اختیاری همان چک چاپ‌شده در هاب مالی: فقط برای چاپ تکی امن است، چون
+     هر چک ممکن است ذی‌نفع/تامین‌کننده و اثر مالی متفاوت داشته باشد. */
+  window.chqRegisterPrintedOpen = function (printed) {
+    if (!printed) return;
+    if (typeof window.ptfChequeCreate !== 'function') { alert('ماژول چک‌های هاب مالی بارگذاری نشده است.'); return; }
+    var supOpts = '<option value="">— ذی‌نفع آزاد / بدون اثر مالی —</option>';
+    try { supOpts += (typeof window.ptfChequeSupOptions === 'function' ? window.ptfChequeSupOptions() : []).map(function (x) { return '<option value="' + escP(x.cd) + '">' + escP(x.lb) + '</option>'; }).join(''); } catch (e) {}
+    ptfDialog({
+      title: '🧾 ثبت چک چاپ‌شده در هاب مالی',
+      body: 'چک روی برگه چاپ شده است. با ثبت این فرم، رکورد چک صادره در هاب مالی ساخته می‌شود. اگر تأمین‌کننده انتخاب شود، اثر مالی پرداخت چکی در حساب تأمین‌کننده ثبت خواهد شد.',
+      fields: [
+        { id: 'no', label: 'شماره سریال / شماره چک *', type: 'text', dir: 'ltr', required: true, placeholder: 'شماره روی برگه چک' },
+        { id: 'bank', label: 'بانک / شعبه', type: 'text', value: '' },
+        { id: 'supplierCd', label: 'تأمین‌کننده ذی‌نفع (برای اثر مالی)', type: 'select', optionsHtml: supOpts },
+        { id: 'nid', label: 'کد ملی / شناسه ملی ذی‌نفع', type: 'text', dir: 'ltr', value: printed.beneficiaryId || '' },
+        { id: 'note', label: 'بابت / یادداشت', type: 'textarea', rows: 2, value: printed.note || '' }
+      ],
+      okText: 'ثبت در هاب مالی',
+      onOk: function (v) {
+        var sup = null;
+        try { sup = (getData('ptf_crm_suppliers') || []).filter(function (x) { return x.cd === v.supplierCd; })[0] || null; } catch (eS) {}
+        if (sup && printed.toWhom && sup.co && String(printed.toWhom).trim() !== String(sup.co).trim()) {
+          if (!confirm('نام ذی‌نفع چاپ‌شده («' + printed.toWhom + '») با تامین‌کننده انتخاب‌شده («' + sup.co + '») متفاوت است. با مسئولیت شما ثبت شود؟')) return;
+        }
+        var rec = {
+          no: String(v.no || '').trim(), sayad: String(v.no || '').trim(), bank: String(v.bank || '').trim(),
+          toWhom: printed.toWhom, beneficiaryId: normNid(v.nid || printed.beneficiaryId || ''),
+          amt: +printed.amt || 0, dueFa: printed.dueFa || '', dueISO: printed.dueISO || '',
+          note: String(v.note || printed.note || '').trim(), kind: 'finance', supplierCd: sup ? sup.cd : '', supplierName: sup ? (sup.co || '') : '',
+          printedFrom: 'chqprint', printedAt: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString())
+        };
+        if (!rec.no) { alert('شماره سریال / شماره چک الزامی است'); return; }
+        var out = window.ptfChequeCreate('issued', rec);
+        if (!out || out.ok === false) { alert('ثبت چک ناموفق بود: ' + ((out && (out.error || out.why)) || 'خطای نامشخص')); return; }
+        try { if (typeof audit === 'function') audit('چاپ چک', 'ثبت چک چاپ‌شده در هاب مالی' + (sup ? ' با اثر مالی تامین‌کننده' : ' بدون تامین‌کننده'), out.cd); } catch (eA) {}
+        if (typeof ptfToast === 'function') ptfToast(sup ? '✅ چک در هاب مالی ثبت و اثر مالی آن لحاظ شد' : '✅ چک در هاب مالی ثبت شد — برای اثر مالی، تامین‌کننده را در ویرایش چک تعیین کنید', sup ? 'ok' : 'warn');
+        try { if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender(); } catch (eR) {}
+      }
+    });
+  };
+  window.chqPrintPreflight = function (list, mode) {
+    var L = chqLoadLayout();
+    var proceed = function () {
+      if (mode !== 'multi' && confirm('آیا این چک چاپ‌شده در «چک‌های هاب مالی» هم ثبت شود؟\n\nدر صورت تایید، فرم اطلاعات تکمیلی و اثر مالی باز می‌شود.')) {
+        chqRegisterPrintedOpen(list[0]);
+      } else if (mode === 'multi' && typeof ptfToast === 'function') {
+        /* ثبت گروهی مالی عمداً خودکار نیست؛ هر چک می‌تواند تامین‌کننده و اثر متفاوت داشته باشد. */
+        ptfToast('برای ثبت مالی هر چک چاپ چندتایی، از هاب مالی استفاده کنید.', 'info');
+      }
+      chqOpenPrint(list, 'paper');
+    };
+    var body = '<div style="font-size:12.5px;line-height:2;color:#334155">' +
+      '<b>اندازه برگه فعال:</b> ' + L.pageW + ' × ' + L.pageH + ' میلی‌متر<br>' +
+      'پیش از ادامه، در پنجره چاپگر این تنظیمات را انتخاب کنید: <b>Actual Size / 100%</b>، <b>Margins = None</b>، <b>Headers & Footers = Off</b> و <b>Fit to Page = Off</b>.<br>' +
+      '<span style="color:#b45309">چاپگر باید برای همین اندازه کاغذ کوچک یا Custom Paper تنظیم شده باشد؛ اگر چاپگر روی A4 باشد، مختصات برگه چک صحیح نخواهد بود.</span><br>' +
+      'برای تغییر ابعاد، ابتدا «📐 تنظیمات چاپ» و سپس پروفایل چاپگر را اصلاح کنید.</div>';
+    if (typeof ptfDialog === 'function') { ptfDialog({ title:'🖨️ آماده‌سازی چاپ فیزیکی چک', body:body, okText:'باز کردن چاپگر', onOk:proceed }); }
+    else if (confirm('اندازه برگه '+L.pageW+'×'+L.pageH+'mm است. چاپ با Actual Size و بدون حاشیه آماده است؟')) proceed();
+  };
   window.chqPrintGo = function (mode) {
     var c = mode === 'multi' ? chqCollectMulti() : chqCollectSingle();
     if (c.errs.length) { alert(c.errs.join('\n')); return; }
     if (!c.list.length) { alert('حداقل یک ردیف کامل وارد کنید'); return; }
-    chqOpenPrint(c.list, 'paper');
+    chqPrintPreflight(c.list, mode === 'multi' ? 'multi' : 'single');
   };
 
   /* ---------- تولید HTML چاپ ---------- */
@@ -330,7 +431,9 @@
         return '<div class="' + cls + '" style="' + st + (extra || '') + '">';
       }
       function fam(k) { return fontStack(L[k + 'Fam'] || L.fontFam || ''); }
-      var topAmt = 'مبلغ: ' + money(c.amt) + ' ریال';
+      /* مبلغ قرمز به فرمت قدیمی انگلیسی، با واحد IRR و محافظ دوطرفه. */
+      var topAmt = '# ' + moneyEn(c.amt) + ' IRR #';
+      var topAmtColor = '#b91c1c'; /* مبلغ قرمز طبق قرارداد چاپ؛ پروفایل نمی‌تواند آن را سیاه کند. */
       return '<section class="pg"><div class="cheque ' + (mode === 'paper' ? 'paper' : 'mock') + (guide ? ' calib' : '') + '">' +
         (guide ? '<div class="guide"></div>' : '') +
         /* تاریخ — عدد */
@@ -342,11 +445,11 @@
         /* کد/شناسه ملی */
         (c.beneficiaryId ? box('f-nid', L.nidTop, L.nidRight, null, 'font-size:' + L.nidSize + 'pt;font-family:' + fam('nid') + ';color:' + (L.nidColor || '#111827') + ';direction:ltr;') + escP(c.beneficiaryId) + '</div>' : '') +
         /* مبلغ به عدد — بالای چک (قرمز — برای محکم کاری) */
-        box('f-amt', L.amtTop, null, L.amtLeft, 'width:' + (L.amtW || 62) + 'mm;font-size:' + L.amtSize + 'pt;font-family:' + fam('amt') + ';color:' + (L.amtColor || '#b91c1c') + ';font-weight:900;') + escP(topAmt) + '</div>' +
+        box('f-amt', L.amtTop, null, L.amtLeft, 'width:' + (L.amtW || 62) + 'mm;font-size:' + L.amtSize + 'pt;font-family:' + fam('amt') + ';color:' + topAmtColor + ';font-weight:900;direction:ltr;text-align:left;') + escP(topAmt) + '</div>' +
         /* v33.7.0: مبلغ اصلی به عدد — پایین چپ برگه (هر چک دو مبلغ دارد) */
-        box('f-amt2', L.amt2Top != null ? L.amt2Top : 48, null, L.amt2Left != null ? L.amt2Left : 8, 'width:' + (L.amt2W || 62) + 'mm;font-size:' + (L.amt2Size || 12) + 'pt;font-family:' + fam('amt2') + ';color:' + (L.amt2Color || '#111827') + ';font-weight:900;') + escP('مبلغ: ' + money(c.amt) + ' ریال') + '</div>' +
+        box('f-amt2', L.amt2Top != null ? L.amt2Top : 48, null, L.amt2Left != null ? L.amt2Left : 8, 'width:' + (L.amt2W || 62) + 'mm;font-size:' + (L.amt2Size || 12) + 'pt;font-family:' + fam('amt2') + ';color:' + (L.amt2Color || '#111827') + ';font-weight:900;') + escP('# ' + money(c.amt) + ' #') + '</div>' +
         /* مبلغ به حروف */
-        box('f-words', L.wordsTop, L.wordsRight, L.wordsLeft, 'font-size:' + L.wordsSize + 'pt;font-family:' + fam('words') + ';color:' + (L.wordsColor || '#111827') + ';') + escP(window.ptfNumToFaWords(c.amt)) + '</div>' +
+        box('f-words', L.wordsTop, L.wordsRight, L.wordsLeft, 'font-size:' + L.wordsSize + 'pt;font-family:' + fam('words') + ';color:' + (L.wordsColor || '#111827') + ';') + escP('# ' + amountWordsWithUnit(c.amt) + ' #') + '</div>' +
         /* بابت */
         (c.note ? box('f-memo', L.memoTop, L.memoRight, null, 'font-size:' + L.memoSize + 'pt;font-family:' + fam('memo') + ';color:' + (L.memoColor || '#111827') + ';') + escP(c.note) + '</div>' : '') +
         '</div></section>';
@@ -362,27 +465,38 @@
       '.cheque.mock{background:#fff;border:0.3mm dashed #cbd5e1}' +
       '.cheque.calib .guide{position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 9.9mm,rgba(14,165,233,.12) 10mm),repeating-linear-gradient(90deg,transparent,transparent 9.9mm,rgba(14,165,233,.12) 10mm);pointer-events:none}' +
       '.f-date,.f-dw,.f-pay,.f-nid,.f-amt,.f-amt2,.f-memo{white-space:nowrap;overflow:hidden;text-overflow:clip;font-weight:700}' +
-      '.f-words{white-space:normal;line-height:1.5;max-height:14mm}' +
+      '.f-words{white-space:normal;line-height:1.5;max-height:14mm}.f-amt{color:#b91c1c!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
       '@media screen{body{background:#e2e8f0;padding:12px}.pg{margin:0 auto 12px;background:#fff;box-shadow:0 4px 18px rgba(0,0,0,.12)}}' +
-      '@media print{body{background:#fff;padding:0}.pg{box-shadow:none;margin:0}}' +
+      '@media print{body{background:#fff;padding:0}.pg{box-shadow:none;margin:0}.noprint{display:none!important}}' +
       '</style></head><body onload="setTimeout(function(){try{window.focus();window.print()}catch(e){}},300)">' + body +
-      '<div class="noprint" style="position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:8px 14px;border-radius:999px;font-size:12px;z-index:9;white-space:nowrap">' +
-      'پرینتر: برگهٔ چک را در سینی بگذارید · حاشیه = None · Scale = 100% · ' + list.length + ' برگه' +
-      '</div></body></html>';
+      '</body></html>';
+  }
+  /* چاپ فیزیکی چک نباید از preview عمومی A4 عبور کند؛ آن مسیر script چاپ را
+     پاک می‌کند و راهنمای A4 می‌دهد. برای کاغذ واقعی، پنجره اختصاصی با page-size
+     چک باز می‌شود. Preview/کالیبراسیون همچنان در preview امن CRM نمایش داده می‌شود. */
+  function chqOpenDirectPrint(html, count) {
+    var w = window.open('', '_blank');
+    if (!w) { alert('پنجره چاپ توسط مرورگر مسدود شد. اجازه Pop-up برای CRM را فعال کنید و دوباره چاپ بزنید.'); return false; }
+    w.document.open(); w.document.write(html); w.document.close();
+    try { w.focus(); } catch (e) {}
+    return true;
   }
   function chqOpenPrint(list, mode) {
     list = list || [];
     if (!list.length) { alert('چکی برای چاپ نیست'); return; }
-    var html = chqPrintHtml(list, mode || 'paper');
-    if (typeof window.ptfPreviewPrintableDoc === 'function') {
-      window.ptfPreviewPrintableDoc('پیش‌نمایش چاپ چک فیزیکی', html, 'cheque-print');
+    mode = mode || 'paper';
+    var html = chqPrintHtml(list, mode);
+    if (mode === 'paper') {
+      if (chqOpenDirectPrint(html, list.length)) {
+        try { if (typeof audit === 'function') audit('چاپ چک', 'باز کردن چاپ فیزیکی ' + list.length + ' برگه', 'manual-print'); } catch (eA) {}
+      }
       return;
     }
-    var w = window.open('', '_blank');
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 300);
+    if (typeof window.ptfPreviewPrintableDoc === 'function') {
+      window.ptfPreviewPrintableDoc('پیش‌نمایش/کالیبراسیون چک فیزیکی', html, 'cheque-print');
+      return;
+    }
+    chqOpenDirectPrint(html, list.length);
   }
 
   /* ---------- تنظیمات چاپ (کالیبره) ---------- */
@@ -394,7 +508,7 @@
     return groups.map(function (g) {
       var k = g[0];
       return '<div style="border:1px dashed var(--brd);border-radius:12px;padding:10px;background:#f8fafc">' +
-        '<b style="font-size:12px;display:block;margin-bottom:8px">' + g[1] + '</b>' +
+        '<b style="font-size:12px;display:block;margin-bottom:8px">' + g[1] + (k === 'amt' ? ' <small style="color:#b91c1c">(قرمز ثابت)</small>' : '') + '</b>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' +
         '<div class="fld" style="min-width:0"><label style="font-size:10.5px">top (mm)</label><input type="number" step="0.5" id="chqpL_' + k + 'Top" value="' + L[k + 'Top'] + '" style="direction:ltr;width:100%;padding:5px;border:1px solid var(--brd);border-radius:8px"></div>' +
         (k === 'amt' || k === 'amt2' || k === 'words'
@@ -408,6 +522,12 @@
         '</div></div>';
     }).join('');
   }
+  window.chqPaperPreset = function (w, h) {
+    var wi = document.getElementById('chqpL_pageW'), hi = document.getElementById('chqpL_pageH');
+    if (wi) wi.value = +w; if (hi) hi.value = +h;
+    if (typeof ptfToast === 'function') ptfToast((+w === 210 ? 'A4 فقط برای چاپ آزمایشی است؛ برای چک واقعی اندازه برگه بانک را انتخاب کنید.' : 'ابعاد چک تنظیم شد؛ پس از کالیبراسیون ذخیره کنید.'), 'info');
+  };
+
   window.chqPrintLayoutOpen = function () {
     var L = chqLoadLayout();
     var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2500) : 2500;
@@ -415,7 +535,8 @@
       '<h3>📐 تنظیمات چاپ چک فیزیکی</h3>' +
       '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#1e40af;line-height:2;margin-bottom:10px">' +
       'برای هم‌راستایی نوشته‌ها با برگهٔ چک بانکی خودتان: ابتدا «🖨 چاپ آزمایشی (با راهنما)» را روی یک برگهٔ معمولی بزنید، سپس مختصات (top/right/left) و اندازهٔ حروف هر بخش را تنظیم و ذخیره کنید.<br>' +
-      '<b>مبلغ بالای چک طبق مصوبه قرمز چاپ می‌شود</b> (رنگ آن از همین‌جا قابل تغییر است). ابعاد پیش‌فرض برگه: 169×78mm — اگر بانک شما فرق دارد pageW/pageH را عوض کنید.</div>' +
+      '<b>مبلغ بالای چک طبق مصوبه قرمز چاپ می‌شود</b> (رنگ آن از همین‌جا قابل تغییر است). ابعاد پیش‌فرض برگه: 169×78mm — اگر بانک شما فرق دارد pageW/pageH را عوض کنید.<br>' +
+      '<span style="display:inline-flex;gap:6px;margin-top:5px"><button type="button" class="bt bt-o" style="font-size:11px;padding:3px 7px" onclick="chqPaperPreset(169,78)">پیش‌فرض چک 169×78</button><button type="button" class="bt bt-o" style="font-size:11px;padding:3px 7px" onclick="chqPaperPreset(210,297)">A4 فقط برای آزمون</button></span></div>' +
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:12px">' +
       '<div class="fld"><label style="font-size:11px">عرض برگه pageW (mm)</label><input type="number" step="0.5" id="chqpL_pageW" value="' + L.pageW + '" style="direction:ltr;width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px"></div>' +
       '<div class="fld"><label style="font-size:11px">ارتفاع برگه pageH (mm)</label><input type="number" step="0.5" id="chqpL_pageH" value="' + L.pageH + '" style="direction:ltr;width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px"></div>' +
@@ -508,9 +629,9 @@
       gvFieldHtml('dw', 'تاریخ به حروف', 'بیست و یکم تیر ماه هزار و چهارصد و پنج', L.dwColor, (L.dwSize || 9) * scale / 3) +
       gvFieldHtml('pay', 'در وجه', 'شرکت نمونه ذی‌نفع', L.payColor, (L.paySize || 12) * scale / 3) +
       gvFieldHtml('nid', 'کد ملی', '14010077558', L.nidColor, (L.nidSize || 9) * scale / 3) +
-      gvFieldHtml('amt', 'مبلغ (بالا)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amtColor, (L.amtSize || 13) * scale / 3) +
-      gvFieldHtml('amt2', 'مبلغ اصلی (پایین چپ)', 'مبلغ: ۱٬۲۵۰٬۰۰۰ ریال', L.amt2Color, (L.amt2Size || 12) * scale / 3) +
-      gvFieldHtml('words', 'مبلغ به حروف', 'یک میلیون و دویست و پنجاه هزار ریال', L.wordsColor, (L.wordsSize || 10.5) * scale / 3) +
+      gvFieldHtml('amt', 'مبلغ (بالا)', '# 1,250,000 IRR #', '#b91c1c', (L.amtSize || 13) * scale / 3) +
+      gvFieldHtml('amt2', 'مبلغ اصلی (پایین چپ)', '# ۱٬۲۵۰٬۰۰۰ #', L.amt2Color, (L.amt2Size || 12) * scale / 3) +
+      gvFieldHtml('words', 'مبلغ به حروف', '# یک میلیون و دویست و پنجاه هزار ریال #', L.wordsColor, (L.wordsSize || 10.5) * scale / 3) +
       gvFieldHtml('memo', 'بابت', 'بابت پیش‌پرداخت', L.memoColor, (L.memoSize || 9) * scale / 3) +
       (bg ? '<div style="position:absolute;bottom:4px;left:4px;font-size:11px;color:#fff;background:rgba(0,0,0,.55);border-radius:6px;padding:2px 8px;z-index:4">📎 پس‌زمینه: اسکن برگه چک — فیلدها را بکشید</div>' : '') +
       '</div>';
@@ -623,6 +744,8 @@
     });
     var g = document.getElementById('chqpL_guide');
     if (g) L.showGuide = !!g.checked;
+    /* مبلغ بالایی قرارداداً قرمز است؛ رنگ ذخیره‌شدهٔ قدیمی نادیده گرفته می‌شود. */
+    L.amtColor = '#b91c1c';
     chqSaveLayout(L);
     if (toast && typeof window.ptfToast === 'function') window.ptfToast('چیدمان چاپ چک ذخیره شد', 'ok');
   };
@@ -639,7 +762,7 @@
       '۱) در «چاپ تکی» مشخصات یک برگه یا در «چاپ چندتایی» چند برگه را وارد کنید (هیچ‌چیز ذخیره نمی‌شود).<br>' +
       '۲) «👁 پیش‌نمایش» بزنید و جای نوشته‌ها را روی برگهٔ چک ببینید.<br>' +
       '۳) اگر جای فیلدها جابه‌جاست: «📐 تنظیمات چاپ» → «🖨 چاپ آزمایشی (با راهنما)» → مختصات هر بخش را تنظیم و «💾 ذخیره» کنید.<br>' +
-      '۴) برگهٔ چک را در پرینتر بگذارید و «🖨 چاپ روی برگه چک» را بزنید (در دیالوگ پرینت: <b>Margins = None</b> و <b>Scale = 100%</b>).<br>' +
+      '۴) برگهٔ چک را در سینی درست پرینتر بگذارید و «🖨 چاپ روی برگه چک» را بزنید. پنجره چاپ اختصاصی چک باز می‌شود؛ در دیالوگ پرینت: <b>Margins = None</b>، <b>Scale = 100% / Actual Size</b>، <b>Headers and Footers = Off</b> و <b>Fit to Page = Off</b> را انتخاب کنید.<br>' +
       '۵) مبلغ بالای چک <b>قرمز</b> چاپ می‌شود؛ فونت هر بخش (نستعلیق/بی‌نازنین/بی‌یاقوت/…) از تنظیمات قابل انتخاب است. کد صیادی در این ماژول وجود ندارد.</div>' +
       '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);

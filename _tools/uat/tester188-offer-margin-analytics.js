@@ -8,12 +8,14 @@ var fs = require('fs'), path = require('path');
 var BASE = path.resolve(__dirname, '../../crm');
 var of = fs.readFileSync(path.join(BASE, 'offers.js'), 'utf-8');
 var an = fs.readFileSync(path.join(BASE, 'analyzer.js'), 'utf-8');
+var rial = fs.readFileSync(path.join(BASE, 'offer-rial-convert.js'), 'utf-8');
 
 SECTION('وجود اصلاحات در source');
 T('helper ptfOfferOverallMargin موجود و export شده', of.indexOf('function ptfOfferOverallMargin') > -1 && of.indexOf('window.ptfOfferOverallMargin = ptfOfferOverallMargin') > -1);
 T('بج حاشیه کل در renderOffers فقط با buyPrice', /_canSeeMargin = !!\(roleDef\(\) \|\| \{\}\)\.buyPrice/.test(of) && of.indexOf('حاشیه کل:') > -1);
 T('snapshot لحظه برد (marginAtClose)', /o\.st = 'won';[\s\S]{0,400}marginAtClose/.test(of));
 T('snapshot لحظه باخت', /st === 'lost'[\s\S]{0,200}marginAtClose/.test(of));
+T('تبدیل ریالی نرخ‌های مرجع خرید را نیز تسعیر و metadata آن را نگه می‌دارد', rial.indexOf('function convertItemToIrr') > -1 && rial.indexOf("['refPrice', 'refBuyPrice', 'bestBuyPrice']") > -1 && rial.indexOf('fxConvertedCosts') > -1);
 T('موتور anlMarginWinCurve و بازه‌ها در تحلیلگر', an.indexOf('function anlMarginWinCurve') > -1 && an.indexOf('ANL_MARGIN_BUCKETS') > -1);
 T('تحلیلگر snapshot را بر محاسبه زنده مقدم می‌کند', /o\.marginAtClose && o\.marginAtClose\.marginPct != null\) \? o\.marginAtClose/.test(an));
 T('نمودار و پیشنهاد سیستم در renderAnalyzer', an.indexOf('احتمال برد بر حسب حاشیه سود کلی صورت') > -1 && an.indexOf('پیشنهاد سیستم:') > -1);
@@ -40,6 +42,16 @@ T('قلم بدون نرخ مرجع از محاسبه خارج و coverage گزا
 T('TO حاشیه ندارد (null)', ptfOfferOverallMargin({ kind: 'TO', items: [{ qty: 1, refPrice: 1, price: 2 }] }) === null);
 var rNeg = ptfOfferOverallMargin({ kind: 'CO', items: [{ qty: 1, refPrice: 100, price: 90 }] });
 T('حاشیه منفی (زیان) درست محاسبه می‌شود', rNeg.marginPct === -10);
+/* BUG-OFFER-FX-MARGIN-001: در companion ریالی، فروش و نرخ مرجع باید هم‌واحد باشند.
+   پوشش legacy نیز لازم است؛ رکوردهای ساخته‌شده پیش از رفع، refPrice ارزی دارند. */
+var rFxNew = ptfOfferOverallMargin({ kind: 'CO', currency: 'IRR', rialOf: 'CO-FX-1', fxConvert: { rate: 1000000 }, items: [
+  { qty: 1, refPrice: 100000000, price: 120000000, fxConvertedCosts: { rate: 1000000 } }
+] });
+T('حاشیه نسخه ریالی جدید با نرخ مرجع تسعیرشده درست = ۲۰٪', rFxNew.marginPct === 20 && rFxNew.buyTotal === 100000000);
+var rFxLegacy = ptfOfferOverallMargin({ kind: 'CO', currency: 'IRR', rialOf: 'CO-FX-OLD', fxConvert: { rate: 1000000 }, items: [
+  { qty: 1, refPrice: 100, price: 120000000 }
+] });
+T('حاشیه نسخه ریالی قدیمی با مرجع ارزیِ باقیمانده، با نرخ تبدیل اصلاح می‌شود = ۲۰٪', rFxLegacy.marginPct === 20 && rFxLegacy.buyTotal === 100000000);
 
 SECTION('رفتاری: منحنی احتمال برد');
 eval(an.match(/var ANL_MARGIN_BUCKETS[\s\S]*?window\.anlMarginWinCurve = anlMarginWinCurve;/)[0]);

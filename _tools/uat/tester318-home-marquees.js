@@ -1,0 +1,25 @@
+/* tester318 — Homepage: accessible light client and brand marquees */
+'use strict';
+require('./harness');
+var fs = require('fs'), path = require('path');
+var ROOT = path.resolve(__dirname, '../..');
+var home = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+var css = fs.readFileSync(path.join(ROOT, 'assets/css/style.css'), 'utf8');
+var js = fs.readFileSync(path.join(ROOT, 'assets/js/main.js'), 'utf8');
+SECTION('اسلایدر صنایع/کارفرمایان هدف');
+T('عنوان شفاف و بدون ادعای مشتری بودن', home.indexOf('صنایع و کارفرمایان هدف') > -1 && home.indexOf('به‌معنای ادعای همکاری') > -1);
+T('فهرست لوگوهای کارفرمایان/صنایع قابل راستی‌آزمایی موجود است', ['petropars.png','mapna.png','petro-jam.png','petro-maroun.png','petro-pardis.png','khalij-fars.png','jundi-shapur.png'].every(function (x) { return home.indexOf(x) > -1; }));
+T('نام متنی کنار لوگوی کارفرما نمایش داده نمی‌شود', home.indexOf('<b>پتروپارس</b>') === -1 && home.indexOf('<b>MAPNA</b>') === -1 && home.indexOf('client-logo"><img loading="eager"') > -1);
+T('marquee برای کارفرمایان وجود دارد', home.indexOf('clientMarqueeTrack') > -1 && js.indexOf("duplicate(document.getElementById('clientMarqueeTrack'))") > -1);
+SECTION('اسلایدر برندها');
+T('container اسلایدر برند وجود دارد', home.indexOf('brandMarqueeTrack') > -1);
+T('لوگوهای اسلایدر از برندهای فعلی سایت تولید می‌شوند', js.indexOf("document.querySelectorAll('.brand-panel a')") > -1 && js.indexOf('brandTrack.appendChild(link)') > -1);
+T('فایل‌های نادرست Flexitallic/Garlock قبلی از نمایش حذف شده‌اند', home.indexOf('flexitallic.svg') === -1 && home.indexOf('garlock.svg') === -1);
+T('هر دسته حداقل ۱۰ لوگوی برند دارد', ['piping','valve','electrical','instrument','gasket'].every(function (id) { var m = home.match(new RegExp('<div class="brand-panel[^>]*id="' + id + '">([\\s\\S]*?)</div>')); return m && (m[1].match(/<a href=/g) || []).length >= 10; }));
+T('لوگوهای جدید گسکت/سیلینگ و دو برند جدید پایپینگ به assetهای محلی متصل‌اند', ['lamons-official-logo','victor-reinz','roxtec-official','sgl-carbon','mersen-graphite','durlon-gasket','tubos-reunidos.png','hi-tech-pipe-wordmark.svg'].every(function (x) { return home.indexOf(x) > -1; }));
+T('تصاویر کاتالوگی Tubacex و Jindal از بخش پایپینگ حذف شده‌اند', home.indexOf('tubacex-official-logo-png-pipe-1.jpg') === -1 && home.indexOf('jindal-stainless-official-logo-png-pipes-1.png') === -1);
+SECTION('خوانایی و دسترس‌پذیری');
+T('زمینه روشن و متن تیره برای کارت‌ها تعریف شده است', css.indexOf('.marquee-track span{display:inline-flex') > -1 && css.indexOf('background:#fff') > -1 && css.indexOf('color:#1e3a5f') > -1);
+T('حرکت با hover/focus متوقف و reduced motion پشتیبانی می‌شود', css.indexOf('animation-play-state:paused') > -1 && css.indexOf('prefers-reduced-motion:reduce') > -1);
+T('marquee و محتوای صفحه نمی‌توانند عرض سند را بزرگ کنند', css.indexOf('html,body{max-width:100%;overflow-x:hidden}') > -1 && css.indexOf('.marquee-shell{contain:layout paint}') > -1);
+DONE('tester318-home-marquees');
