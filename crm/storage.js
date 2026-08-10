@@ -185,9 +185,32 @@ function uploadFile(file, folder, cb, progressCb) {
         xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) {
             cb({ ok: true, key: d.key, name: finalFile.name, size: finalFile.size, mode: 'arvan', savedNote: note });
-          } else cb({ ok: false, error: 'آپلود فضای ابری ناموفق بود (HTTP ' + xhr.status + ')' });
+          } else {
+            // v34.4.33: HTTP خطا (مثل 403 CORS ناقص استیجینگ) -> فالو‌بک به پراکسی سروری (بدون CORS)
+            fallbackProxy('HTTP ' + xhr.status);
+          }
         };
-        xhr.onerror = xhr.ontimeout = function () { cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد' }); };
+        xhr.onerror = xhr.ontimeout = function () { fallbackProxy('network'); };
+        function fallbackProxy(reason) {
+          try {
+            var fd = new FormData();
+            fd.append('file', finalFile);
+            fd.append('folder', folder || 'general');
+            // Fallback: آپلود از طریق سرور خودمان (PHP cURL -> S3) تا وابسته به CORS مرورگر نباشد
+            fetch(STORAGE_API + '?action=upload_proxy', {
+              method: 'POST',
+              headers: ptfStorageAuthHeaders(false),
+              body: fd
+            }).then(function(r){ return r.text().then(function(tx){ try{ return JSON.parse(tx);} catch(e){ throw new Error('پاسخ غیر JSON از سرور ('+r.status+'): '+tx.slice(0,180));}}); })
+              .then(function(pr){
+                if (pr.ok) cb({ ok: true, key: pr.key, name: pr.name || finalFile.name, size: pr.size || finalFile.size, mode: pr.mode || 'arvan-proxy', savedNote: note ? note + ' (proxy: '+reason+')' : 'proxy: '+reason });
+                else cb({ ok: false, error: pr.error || 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy: '+reason+')' });
+              })
+              .catch(function(e){ cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد' + (e && e.message ? ' — ' + e.message : ' (proxy: '+reason+')') }); });
+          } catch(e) {
+            cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy exception)' });
+          }
+        }
         xhr.send(finalFile);
       })
       .catch(function () { cb({ ok: false, error: 'دریافت مجوز آپلود ابری ناموفق بود؛ فایل روی هاست ذخیره نشد' }); });
