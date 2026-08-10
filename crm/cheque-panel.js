@@ -76,6 +76,8 @@
 
   function issuedActs(c) {
     var acts = '';
+    var hasDocs = (c.files || []).length > 0;
+    acts += chequeRowAction('docs', hasDocs ? '📎' : '📎', hasDocs ? 'سند (' + c.files.length + ')' : 'سند', hasDocs ? 'مشاهده/حذف عکس یا کپی چک' : 'افزودن عکس/کپی چک', 'ptfChequeFilesUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     acts += chequeRowAction('edit', '✏️', 'ویرایش', 'ویرایش چک', 'ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     acts += chequeRowAction('delete', '🗑', 'حذف', 'حذف کامل چک و اثر مالی مرتبط', 'ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     if (c.st === 'open' || c.st === 'transferred') {
@@ -120,6 +122,8 @@
   };
   function receivedActs(c) {
     var acts = '';
+    var hasDocs2 = (c.files || []).length > 0;
+    acts += chequeRowAction('docs', '📎', hasDocs2 ? 'سند (' + c.files.length + ')' : 'سند', hasDocs2 ? 'مشاهده/حذف عکس یا کپی چک' : 'افزودن عکس/کپی چک', 'ptfChequeFilesUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     acts += chequeRowAction('edit', '✏️', 'ویرایش', 'ویرایش چک', 'ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     acts += chequeRowAction('delete', '🗑', 'حذف', 'حذف کامل چک', 'ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     if (c.st === 'open' || c.st === 'held') {
@@ -494,67 +498,7 @@
     w.document.write(html); w.document.close(); w.print();
   };
 
-  /* ================= v34.0.14-alpha (فاز ۱۱): ویرایش و حذف چک ================= */
-  /* مودال ویرایش چک — فیلدهای کلیدی (شماره/صیادی/مبلغ/تاریخ/ذی‌نفع/بانک/یادداشت).
-     برای چک مالیِ صادره که اثر مالی دارد، پس از ذخیره مبلغ، اثر مالی آنی اصلاح می‌شود. */
-  window.ptfChequeEditUi = function (cd) {
-    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
-    if (!c) { alert('چک یافت نشد'); return; }
-    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2800) : 2800;
-    var financialNote = '';
-    if ((c.direction === 'issued' || c.ownership === 'company') && (c.supplierCd || c.supplierPaymentCd)) {
-      financialNote = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:9px;padding:7px 10px;font-size:12px;color:#065f46;margin-bottom:8px">💳 این چک اثر مالی روی حساب تأمین‌کننده دارد — با تغییر مبلغ، گردش حساب همان لحظه اصلاح می‌شود.</div>';
-    }
-    var html = '<div class="md-b" id="ptfChEditDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px;max-height:92vh;overflow:auto">' +
-      '<h3>✏️ ویرایش چک ' + escP(c.sayad || c.no || c.cd) + '</h3>' + financialNote +
-      '<div class="fr"><div class="fld"><label>شماره برگه چک</label><input id="chE_No" value="' + escP(c.no || '') + '" style="direction:ltr"></div>' +
-      '<div class="fld"><label>شناسه صیادی *</label><input id="chE_Sayad" value="' + escP(c.sayad || '') + '" style="direction:ltr"></div></div>' +
-      '<div class="fr"><div class="fld"><label>مبلغ (ریال) *</label><input id="chE_Amt" inputmode="numeric" data-money="1" value="' + escP(c.amt != null ? String(+c.amt).toLocaleString("en-US") : '') + '" style="direction:ltr"></div>' +
-      '<div class="fld"><label>تاریخ سررسید (شمسی)</label><input id="chE_Due" value="' + escP(c.dueFa || '') + '" placeholder="1405/04/19" style="direction:ltr"></div></div>' +
-      '<div class="fr"><div class="fld"><label>ذی‌نفع *</label><input id="chE_To" value="' + escP(c.toWhom || '') + '"></div>' +
-      '<div class="fld"><label>بانک</label><input id="chE_Bank" value="' + escP(c.bank || '') + '" style="direction:ltr"></div></div>' +
-      '<div class="fld"><label>یادداشت</label><input id="chE_Note" value="' + escP(c.note || '') + '"></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
-      '<button class="bt bt-o" onclick="document.getElementById(\'ptfChEditDlg\').remove()">انصراف</button>' +
-      '<button class="bt" onclick="ptfChequeEditSave(\'' + ptfOnClickArg(cd) + '\')">💾 ذخیره</button></div></div></div>';
-    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
-  };
-
-  /* ذخیرهٔ ویرایش چک — و اصلاح آنی اثر مالی اگر مبلغ چک مالی تغییر کرد */
-  window.ptfChequeEditSave = function (cd) {
-    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
-    if (!c) { alert('چک یافت نشد'); return; }
-    function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
-    var sayad = String(val('chE_Sayad') || '').trim();
-    var amt = (typeof ptfNum === 'function') ? ptfNum(val('chE_Amt')) : (+String(val('chE_Amt') || '').replace(/[^\\d.-]/g, '') || 0);
-    var to = String(val('chE_To') || '').trim();
-    if (!sayad || !amt || !to) { alert('شناسه صیادی، مبلغ و ذی‌نفع الزامی است'); return; }
-    var dueJ = String(val('chE_Due') || '').trim();
-    var dueISO = '';
-    if (dueJ) { try { dueISO = (typeof ptfJToISO === 'function') ? (ptfJToISO(dueJ) || '') : ''; } catch (eD) {} }
-    var patch = {
-      no: String(val('chE_No') || '').trim() || sayad,
-      sayad: sayad, amt: amt, toWhom: to,
-      bank: String(val('chE_Bank') || '').trim(),
-      note: String(val('chE_Note') || '').trim()
-    };
-    if (dueISO) patch.dueISO = dueISO; else if (dueJ) patch.dueISO = dueJ;
-    if (c.dueISO && !dueJ) { patch.dueISO = c.dueISO; }
-    var oldAmt = +c.amt || 0;
-    var r = (typeof window.ptfChequeUpdate === 'function') ? window.ptfChequeUpdate(cd, patch) : { ok: false };
-    if (!r.ok) { alert('ذخیره نشد (' + (r.why || 'خطا') + ')'); return; }
-    /* اصلاح آنی اثر مالی اگر چک مالیِ صادره است و مبلغ تغییر کرد */
-    var finMsg = '';
-    if (oldAmt !== amt && (c.direction === 'issued' || c.ownership === 'company') && typeof window.ptfChequeApplyFinancialAmount === 'function') {
-      var fr = window.ptfChequeApplyFinancialAmount(cd, amt);
-      if (fr.ok && fr.updated) finMsg = ' — اثر مالی حساب تأمین‌کننده از ' + money(oldAmt) + ' به ' + money(amt) + ' اصلاح شد';
-    }
-    try { audit('چک‌ها', 'ویرایش چک ' + (sayad || cd) + ' — مبلغ ' + money(amt) + ' در وجه ' + to, cd); } catch (eA) {}
-    var dlg = document.getElementById('ptfChEditDlg'); if (dlg) dlg.remove();
-    if (typeof ptfToast === 'function') ptfToast('✅ چک ویرایش شد' + finMsg, 'ok');
-    window.ptfChequePanelRender();
-    if (c.direction === 'issued' || c.ownership === 'company') { if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender(); }
-  };
+  /* توجه: نسخهٔ قدیمی ptfChequeEditUi/ptfChequeEditSave (v34.0.14-alpha، بدون فیلد بانک/شعبه/سری/مالک/حساب و بدون مدیریت سند) حذف شد؛ نسخهٔ کامل‌تر (v34.0.16-alpha، فاز ۱۳) پایین‌تر در همین فایل تعریف شده و همان است که واقعاً بارگذاری می‌شود. */
 
   /* حذف کامل چک + حذف کامل اثر مالی/گردش حساب (نه void) */
   window.ptfChequeDeleteUi = function (cd) {
@@ -638,10 +582,59 @@
     window.ptfChequeBookUi();
   };
 
+  /* مشاهدهٔ سریع/افزودن/حذف عکس یا کپی چک — بدون نیاز به باز کردن فرم کامل ویرایش.
+     پاسخ به گزارش: «عکس چک را می‌دهیم اما بعداً جایی برای دیدنش نیست» — این دکمه
+     مستقیماً در ردیف چک (صادره/وارده) در دسترس است. */
+  window.ptfChequeFilesUi = function (cd) {
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) { alert('چک یافت نشد'); return; }
+    window._ptfChFilesCd = cd;
+    var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2820) : 2820;
+    var existing = (c.files || []).map(function (f) {
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px;border-bottom:1px dashed var(--brd)"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490;flex:1">👁 مشاهده — ' + escP(f.name || 'فایل') + '</a> <button class="ba" style="color:#dc2626" onclick="ptfChequeQuickRemoveFile(' + JSON.stringify(f.key) + ')">✕ حذف</button></div>';
+    }).join('') || '<div style="color:#94a3b8;font-size:12.5px;padding:6px 0">هنوز سندی (عکس/کپی چک) برای این چک ثبت نشده است.</div>';
+    var html = '<div class="md-b" id="ptfChFilesDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px;max-height:88vh;overflow:auto">' +
+      '<h3>📎 اسناد چک ' + escP(c.sayad || c.no || c.cd) + '</h3>' +
+      '<div style="margin-bottom:8px">' + existing + '</div>' +
+      '<div class="fld"><label>افزودن عکس/کپی چک جدید</label><div id="ptfChFilesUp" style="min-height:40px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="document.getElementById(\'ptfChFilesDlg\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptfChFilesUp', 'cheques/', function (fr) {
+      if (!fr) return;
+      var cc = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+      if (!cc) return;
+      var files = (cc.files || []).concat([fr]);
+      if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { files: files });
+      var dlg = document.getElementById('ptfChFilesDlg'); if (dlg) dlg.remove();
+      window.ptfChequeFilesUi(cd);
+      if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender();
+    }); } catch (eU) {}
+  };
+  /* حذف سریع یک سند از همان دیالوگ (بدون بازکردن فرم کامل ویرایش) */
+  window.ptfChequeQuickRemoveFile = function (key) {
+    var cd = window._ptfChFilesCd;
+    if (!cd) return;
+    if (!confirm('این سند از چک حذف شود؟')) return;
+    var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+    if (!c) return;
+    var files = (c.files || []).filter(function (f) { return f.key !== key; });
+    if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { files: files });
+    try {
+      fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {});
+    } catch (eD) {}
+    if (typeof ptfToast === 'function') ptfToast('سند حذف شد', 'warn');
+    var dlg = document.getElementById('ptfChFilesDlg'); if (dlg) dlg.remove();
+    window.ptfChequeFilesUi(cd);
+    if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender();
+  };
+
   /* ارتقای مودال ویرایش چک — افزودن سند/کپی چک + بانک/شعبه/سری/مالک/حساب */
   window.ptfChequeEditUi = function (cd) {
     var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
     if (!c) { alert('چک یافت نشد'); return; }
+    /* رفع باگ: قبلاً window._ptfChEditCd فقط داخل ptfChequeEditSave ست می‌شد؛
+       در نتیجه دکمهٔ «✕ حذف سند» بلافاصله بعد از باز شدن مودال (قبل از هر ذخیره) کار نمی‌کرد. */
+    window._ptfChEditCd = cd;
     var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2800) : 2800;
     var financialNote = '';
     if ((c.direction === 'issued' || c.ownership === 'company') && (c.supplierCd || c.supplierPaymentCd)) {

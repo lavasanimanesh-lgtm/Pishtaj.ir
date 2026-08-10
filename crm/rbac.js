@@ -984,10 +984,13 @@ function showPayModal(invCd) {
     '<div class="fr"><div class="fld"><label>شماره / صیادی چک *</label><input id="nPayChNo" dir="ltr" style="direction:ltr"></div>' +
     '<div class="fld"><label>سررسید (شمسی یا میلادی)</label><input id="nPayChDue" dir="ltr" style="direction:ltr" placeholder="1405/06/30"></div></div>' +
     '<div class="fld"><label>بانک / شعبه</label><input id="nPayChBank"></div>' +
+    '<div class="fld"><label>📎 عکس/کپی چک (اختیاری)</label><div id="nPayChFileWrap" style="min-height:38px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#fff"></div></div>' +
     '<small style="color:#0369a1">این چک به‌عنوان «چک وارده» در ماژول چک ثبت و پیگیری می‌شود.</small></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
     '<button class="bt" onclick="savePay(\'' + invCd + '\')">ثبت</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  window._nPayChFiles = [];
+  try { if (typeof attachUploadWidget === 'function') attachUploadWidget('nPayChFileWrap', 'cheques/', function (f) { if (f) window._nPayChFiles.push(f); }); } catch (eU) {}
 }
 function savePay(invCd) {
   var amt = ptfNum(document.getElementById('nPayAmt').value);
@@ -1012,7 +1015,8 @@ function savePay(invCd) {
       dueISO: /^\d{4}-\d{2}-\d{2}$/.test(due) ? due : '',
       dueFa: /^\d{4}\/\d{1,2}\/\d{1,2}$/.test(due) ? due : '',
       payerName: buyerCo || ofr.buyerCd || '', sourceCustomerCd: ofr.buyerCd || '', sourceInvoiceCd: invCd,
-      invoiceCd: invCd, receiptCd: payRec.cd, kind: 'finance', ownership: 'received', st: 'open'
+      invoiceCd: invCd, receiptCd: payRec.cd, kind: 'finance', ownership: 'received', st: 'open',
+      files: (window._nPayChFiles || []).slice()
     });
     payRec.chequeCd = ch.cd;
   }
