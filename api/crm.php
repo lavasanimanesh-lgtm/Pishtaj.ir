@@ -984,7 +984,10 @@ switch($action) {
         }
         $attachmentError = '';
         $attachment = save_attachment('attachment', 'ven', $attachmentError);
-        if ($attachmentError) { http_response_code(503); echo json_encode(['ok' => false, 'error' => 'attachment_cloud', 'message' => $attachmentError], JSON_UNESCAPED_UNICODE); break; }
+        /* فایل کاتالوگ اختیاری است؛ اختلال فضای ابری نباید ثبت‌نامِ تاییدشده را
+           متوقف یا کد رهگیری را حذف کند. خطا به کاربر برگردانده می‌شود تا فایل را
+           بعداً ارسال کند، اما مشخصات تامین‌کننده در CRM ثبت می‌ماند. */
+        $attachmentWarning = $attachmentError ? ('ثبت‌نام انجام شد، اما پیوست ذخیره نشد: ' . $attachmentError) : '';
         $code = 'PTF-VEN-' . fa_year() . '-' . str_pad(next_seq('supplier'), 4, '0', STR_PAD_LEFT);
         $suppliers = load_data('suppliers');
         $suppliers[] = [
@@ -1006,7 +1009,7 @@ switch($action) {
         ];
         save_data('suppliers', $suppliers);
         push_event_rec('supplier_site', 'یک تامین‌کننده در سایت ثبت‌نام کرد و منتظر بررسی است: ' . clean($_POST['company'] ?? '') . ' (' . $code . ')', ['code' => $code]);
-        echo json_encode(['ok' => true, 'code' => $code], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true, 'code' => $code, 'warning' => $attachmentWarning], JSON_UNESCAPED_UNICODE);
         break;
 
     // ===== US-134: رهگیری دوبخشی (استعلام + ثبت‌نام تامین‌کننده) =====
