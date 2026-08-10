@@ -442,6 +442,18 @@
   }
   var _dataRefreshTimer = 0;
   window.ptfRefreshCurrentPanel = refreshCurrentPanel;
+  /* CHQ-DOC-002 (۱۴۰۵/۰۵/۱۹): پول فوری و به‌درخواست — برای مودال‌هایی که سند/ضمیمه
+     نمایش می‌دهند (چک، تنخواه، فاکتور/پرداخت تأمین‌کننده). این مودال‌ها هنگام باز شدن
+     یک‌بار از localStorage محلی می‌خوانند؛ اگر آخرین pull دوره‌ای (هر ۲۰ثانیه، یا کندتر
+     در تب پس‌زمینه) هنوز سندِ تازه‌ثبت‌شده (از دستگاه/کاربر دیگر) را نیاورده باشد، و چون
+     refreshCurrentPanel() عمداً هنگام باز بودن هر مودالی رندر خودکار را متوقف می‌کند
+     («وسط کار کاربر نپر»)، مودال هرگز به‌خودی‌خود به‌روز نمی‌شد — کاربر باید به تب دیگری
+     می‌رفت و برمی‌گشت تا goPanel() دوباره از localStorage (که تا آن لحظه pull دوره‌ای
+     به‌روزش کرده بود) بخواند. این تابع امکان درخواست pull فوری (بدون منتظر ماندن برای
+     تایمر ۲۰ثانیه‌ای) را به آن مودال‌ها می‌دهد تا خودشان را (بدون رندر کل پنل) به‌روز کنند. */
+  window.ptfSyncPullNow = function (cb) {
+    try { pullCheck(function () { if (cb) cb(); }, false, { instant: true }); } catch (e) { if (cb) cb(); }
+  };
   window.ptfScheduleDataRefresh = function (key) {
     /* باگ ۲: ماژول درخواست تامین (rfqsmart) خودش DOM را حین کار به‌روز می‌کند؛ رندر مجدد کل صفحه ممنوع */
     if ((key === 'ptf_crm_rfqsmart' || key === 'ptf_crm_rfqs') && window.ptfActivePanel === 'rfqs') return;

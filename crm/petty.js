@@ -499,7 +499,23 @@
   window.ptfPettyFilesUi = function (cd) {
     var all = getData(PETTY_KEY);
     var r = all.filter(function (x) { return x.cd === cd; })[0];
-    if (!r) return;
+    if (!r) {
+      /* CHQ-DOC-002: اگر رکورد در localStorage محلی هنوز نیست (مثلاً همین الان از
+         دستگاه/کاربر دیگر ثبت شده و pull دورهٔ ۲۰ثانیه‌ای هنوز نرسیده)، یک pull فوری
+         بزن و یک‌بار دوباره امتحان کن — قبلاً این حالت بی‌صدا هیچ پنجره‌ای باز نمی‌کرد. */
+      if (typeof window.ptfSyncPullNow === 'function' && !window._ptfPettyFilesRetrying) {
+        window._ptfPettyFilesRetrying = true;
+        window.ptfSyncPullNow(function () {
+          window._ptfPettyFilesRetrying = false;
+          var again = (getData(PETTY_KEY) || []).filter(function (x) { return x.cd === cd; })[0];
+          if (again) window.ptfPettyFilesUi(cd);
+          else alert('این رکورد تنخواه یافت نشد.');
+        });
+      } else {
+        alert('این رکورد تنخواه یافت نشد.');
+      }
+      return;
+    }
     var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2750) : 2750;
     var rows = (r.files || []).map(function (f) {
       var key = String(f.key || '').replace(/[\\']/g, '');
@@ -519,7 +535,17 @@
       if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     }); } catch (eU) {}
+    /* CHQ-DOC-002: اگر سندی از دستگاه/کاربر دیگر تازه ثبت شده و هنوز به این مرورگر
+       نرسیده، یک pull فوری بزن و اگر تعداد اسناد واقعاً تغییر کرد، مودال را خودکار
+       به‌روز کن — دیگر نیازی به رفتن به تب دیگر و برگشتن نیست. */
+    if (typeof window.ptfAttachRefreshOnOpen === 'function') {
+      window.ptfAttachRefreshOnOpen('ptfPettyFilesDlg', function () {
+        var rr = (getData(PETTY_KEY) || []).filter(function (x) { return x.cd === cd; })[0];
+        return (rr && rr.files || []).map(function (f) { return f.key; });
+      }, function () { window.ptfPettyFilesUi(cd); });
+    }
   };
+
   window.pettyRemoveFile = function (cd, key) {
     if (!confirm('این سند از تنخواه حذف شود؟')) return;
     var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;

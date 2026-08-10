@@ -609,6 +609,14 @@
       window.ptfChequeFilesUi(cd);
       if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender();
     }); } catch (eU) {}
+    /* CHQ-DOC-002: مثل تنخواه — اگر سند از دستگاه/کاربر دیگر تازه ثبت شده، pull فوری
+       بزن و اگر تعداد اسناد تغییر کرد، مودال را خودکار به‌روز کن. */
+    if (typeof window.ptfAttachRefreshOnOpen === 'function') {
+      window.ptfAttachRefreshOnOpen('ptfChFilesDlg', function () {
+        var cc = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+        return (cc && cc.files || []).map(function (f) { return f.key; });
+      }, function () { window.ptfChequeFilesUi(cd); });
+    }
   };
   /* حذف سریع یک سند از همان دیالوگ (بدون بازکردن فرم کامل ویرایش) */
   window.ptfChequeQuickRemoveFile = function (key) {

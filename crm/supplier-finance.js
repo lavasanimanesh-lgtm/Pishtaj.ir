@@ -720,6 +720,27 @@
   window.slOpeningOpen=function(supCd){if(!slCanAdjust()){alert('مانده افتتاحیه فقط برای مدیران ارشد مجاز است');return;}ptfDialog({title:'🏁 ثبت مانده افتتاحیه تامین‌کننده',body:'مبلغ مثبت = بدهی اولیه ما به تامین‌کننده؛ مبلغ منفی = اعتبار اولیه شرکت نزد تامین‌کننده.',fields:[{id:'cur',label:'ارز',type:'select',options:['IRR','USD','EUR','CNY','AED','GBP']},{id:'amount',label:'مانده افتتاحیه (+ بدهی / − اعتبار)',type:'number',money:false,dir:'ltr',required:true},{id:'rate',label:'نرخ تسعیر برای ارز خارجی',type:'number',money:false,dir:'ltr'},{id:'note',label:'شرح/مبنای مانده افتتاحیه',type:'textarea',required:true}],okText:'ثبت مانده افتتاحیه',onOk:function(v){var a=+v.amount||0,c=v.cur||'IRR',r=c==='IRR'?1:(+v.rate||0);if(!a||!v.note||(c!=='IRR'&&!r)){alert('مبلغ، شرح و برای ارز خارجی نرخ الزامی است');return;}var d=data(),sup=supplier(supCd);d.adjustments=d.adjustments||[];d.adjustments.unshift({cd:genCode('SFOPEN'),supplierCd:supCd,supName:sup?sup.co:'',refYear:'opening',kind:'opening',cur:c,rate:r,amount:a,amountIrr:c==='IRR'?a:Math.round(a*r),note:v.note,dateISO:new Date().toISOString().slice(0,10),dateFa:faDate(),status:'posted',t:faDateTime(),by:curSession().name});save(d);audit('حساب تامین','ثبت مانده افتتاحیه '+(sup?sup.co:''),supCd);slOpenLedger(supCd);}});};
   var _slLedger270=window.slOpenLedger;
   window.slOpenLedger=function(supCd,filters){_slLedger270(supCd,filters);var dlg=document.getElementById('slLedgerDlg');if(!dlg)return;var from=document.getElementById('slFfrom'),to=document.getElementById('slFto');if(from&&from.closest('.fld'))from.closest('.fld').innerHTML=slJalaliFilter('slFfrom','از تاریخ (شمسی)',from.value);if(to&&to.closest('.fld'))to.closest('.fld').innerHTML=slJalaliFilter('slFto','تا تاریخ (شمسی)',to.value);var d=data(),invs=activeInvoices(d).filter(function(i){return i.supplierCd===supCd;}),pays=(d.payments||[]).filter(function(p){return p.supplierCd===supCd&&p.status!=='void';});var h='<div id="slManage" style="margin-top:12px;border:1px solid var(--brd);border-radius:10px;padding:10px"><b>مدیریت فاکتور و پرداخت</b><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:7px"><button class="bt bt-o" onclick="slOpeningOpen(\''+ptfOnClickArg(supCd)+'\')">🏁 مانده افتتاحیه</button>' + invs.map(function(i){return '<button class="bt bt-o" onclick="slInvoiceEdit(\''+ptfOnClickArg(i.cd)+'\')">✏️ فاکتور '+escP(i.no)+'</button><button class="bt bt-o" style="color:#dc2626" onclick="slInvoiceDelete(\''+ptfOnClickArg(i.cd)+'\')">🗑 حذف فاکتور</button>';}).join('') + pays.map(function(p){return '<button class="bt bt-o" onclick="slPaymentEdit(\''+ptfOnClickArg(p.cd)+'\')">✏️ پرداخت '+escP(p.cd)+'</button><button class="bt bt-o" style="color:#dc2626" onclick="slPaymentDelete(\''+ptfOnClickArg(p.cd)+'\')">🗑 حذف پرداخت</button>';}).join('')+'</div></div>';dlg.querySelector('.md').insertAdjacentHTML('beforeend',h);};
+  /* CHQ-DOC-002 (۱۴۰۵/۰۵/۱۹): همان مشکل چک/تنخواه اینجا هم صادق است — این مودال یک‌بار
+     از localStorage محلی می‌خواند؛ اگر سند فاکتور/پرداختی از دستگاه/کاربر دیگر همین‌الان
+     ثبت شده و pull دورهٔ ۲۰ثانیه‌ای هنوز نرسیده باشد، دیده نمی‌شود تا کاربر به تب دیگری
+     برود و برگردد. یک pull فوری می‌زنیم و اگر امضای اسناد (فاکتور+پرداخت) این تأمین‌کننده
+     تغییر کرده باشد، خودِ مودال را (بدون دست‌کاری فیلترهای بازِ کاربر) دوباره می‌سازیم. */
+  var _slLedgerDocRefresh = window.slOpenLedger;
+  window.slOpenLedger = function (supCd, filters) {
+    _slLedgerDocRefresh(supCd, filters);
+    if (typeof window.ptfAttachRefreshOnOpen === 'function') {
+      window.ptfAttachRefreshOnOpen('slLedgerDlg', function () {
+        var d = data();
+        var invs = (d.invoices || []).filter(function (i) { return i.supplierCd === supCd; });
+        var pays = (d.payments || []).filter(function (p) { return p.supplierCd === supCd; });
+        var sig = [];
+        invs.forEach(function (i) { (i.files || []).forEach(function (f) { sig.push(f.key); }); });
+        pays.forEach(function (p) { (p.files || []).forEach(function (f) { sig.push(f.key); }); });
+        return sig;
+      }, function () { window.slOpenLedger(supCd, filters); });
+    }
+  };
+
   var _slPrint270=window.slLedgerPrint;
   window.slLedgerPrint=function(supCd){var f=slFiltersFromDom(),sup=supplier(supCd),rows=slEventRows(supCd,f),rng=(f.from||f.to)?'بازه: '+slFaDigits(typeof ptfISOToJ==='function'&&f.from?ptfISOToJ(f.from):f.from||'ابتدا')+' تا '+slFaDigits(typeof ptfISOToJ==='function'&&f.to?ptfISOToJ(f.to):f.to||'امروز'):'بازه: همه تاریخ‌ها',w=window.open('','_blank');if(!w)return;w.document.write('<!doctype html><html dir="rtl"><meta charset="utf-8"><style>body{font-family:Tahoma;padding:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:6px}th{background:#eee}</style><h2>گردش حساب تامین‌کننده — '+escP((sup||{}).co||'')+'</h2><p>'+rng+'</p><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>'+slPrintRows(rows)+'</tbody></table></html>');w.document.close();w.print();};
 

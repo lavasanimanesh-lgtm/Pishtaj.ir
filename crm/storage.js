@@ -287,6 +287,35 @@ function openStoredFile(key, nameHint) {
 }
 window.openStoredFile = openStoredFile;
 
+/* CHQ-DOC-002: هلپر مشترک برای مودال‌های «مشاهدهٔ سند/ضمیمه» (چک، تنخواه، فاکتور/پرداخت
+   تأمین‌کننده و مشابه). این مودال‌ها یک‌بار از localStorage محلی می‌خوانند و اگر سندی
+   از دستگاه/کاربر دیگر همین الان روی سرور ثبت شده باشد ولی هنوز از طریق pull دورهٔ ۲۰
+   ثانیه‌ای به این مرورگر نرسیده باشد، آن سند دیده نمی‌شود — و چون sync.js عمداً هنگام
+   باز بودن هر مودالی از رندر خودکار پنل صرف‌نظر می‌کند (تا وسط کار کاربر نپرد)، این مودال
+   تا وقتی کاربر آن را ببندد و دوباره باز کند (یا به تب دیگری برود و برگردد) به‌روز نمی‌شد.
+   ptfAttachRefreshOnOpen یک pull فوری (بدون منتظر تایمر دوره‌ای) درخواست می‌کند و اگر
+   تعداد اسناد رکورد واقعاً تغییر کرده باشد، خودِ مودال (نه کل پنل) را با فراخوانی دوبارهٔ
+   reopenFn تازه می‌سازد. */
+window.ptfAttachRefreshOnOpen = function (dlgId, getSignature, reopenFn) {
+  if (typeof window.ptfSyncPullNow !== 'function') return;
+  var before = null;
+  try { before = JSON.stringify(getSignature()); } catch (eB) {}
+  window.ptfSyncPullNow(function () {
+    try {
+      var dlg = document.getElementById(dlgId);
+      if (!dlg) return; /* کاربر قبل از رسیدن پاسخ، مودال را بسته است */
+      var after = JSON.stringify(getSignature());
+      if (after !== before) {
+        dlg.remove();
+        reopenFn();
+        if (typeof ptfToast === 'function') ptfToast('📎 اسناد به‌روزرسانی شد', 'info');
+      }
+    } catch (eR) {}
+  });
+};
+
+
+
 /* ---------- ویجت آپلود چندمنظوره ---------- */
 // attachUploadWidget(containerId, folder, onDone(fileRec))
 /* v34.0.0-alpha (F4-11): لیست سفید فرمت‌های مجاز ضمیمه
