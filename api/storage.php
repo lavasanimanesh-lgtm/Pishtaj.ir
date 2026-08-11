@@ -191,6 +191,78 @@ switch ($action) {
         echo json_encode(['ok' => true, 'url' => $url, 'key' => $key, 'max_mb' => $cfg['max_mb'] ?? 25]);
         break;
 
+    case 'upload_proxy':
+        /* v34.4.33: فالو‌بک سروری برای زمانی که مرورگر نمی‌تواند مستقیم به آروان PUT بزند
+           (CORS استیجینگ، فایروال مرورگر، یا timeout). فایل از طریق همین سرور (PHP cURL) به S3 می‌رود
+           و هیچ نسخهٔ پایداری روی هاست باقی نمی‌ماند — فقط عبور. */
+        if (empty($_FILES['file']) || ($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            echo json_encode(['ok' => false, 'error' => 'فایل دریافت نشد (مرورگر فایلی نفرستاد)']);
+            break;
+        }
+        $tmp = $_FILES['file']['tmp_name'];
+        $orig = $_FILES['file']['name'] ?? 'file';
+        $folder = preg_replace('/[^\w\-]/', '', $_POST['folder'] ?? $_REQUEST['folder'] ?? 'general');
+        $name = safe_key($orig);
+        $key = $folder . '/' . date('Y-m') . '/' . uniqid() . '-' . $name;
+        if (!is_file($tmp) || !is_readable($tmp)) {
+            echo json_encode(['ok' => false, 'error' => 'فایل موقت در دسترس نیست']);
+            break;
+        }
+        $size = filesize($tmp);
+        $max = max(1, (int)($cfg['max_mb'] ?? 25)) * 1048576;
+        if ($size === false || $size > $max) {
+            echo json_encode(['ok' => false, 'error' => 'حجم فایل از سقف فضای ابری (' . (int)($cfg['max_mb'] ?? 25) . 'MB) بیشتر است']);
+            break;
+        }
+        $host = parse_url($cfg['endpoint'], PHP_URL_HOST);
+        if (!$host) {
+            echo json_encode(['ok' => false, 'error' => 'endpoint فضای ابری نامعتبر است']);
+            break;
+        }
+        $now = gmdate('Ymd\THis\Z');
+        $date = gmdate('Ymd');
+        $scope = "$date/{$cfg['region']}/s3/aws4_request";
+        $payloadHash = hash_file('sha256', $tmp);
+        if ($payloadHash === false) $payloadHash = hash('sha256', '');
+        $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($key));
+        $headersCanonical = "host:$host\nx-amz-content-sha256:$payloadHash\nx-amz-date:$now\n";
+        $signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+        $canonicalRequest = implode("\n", ['PUT', $uri, '', $headersCanonical, $signedHeaders, $payloadHash]);
+        $stringToSign = implode("\n", ['AWS4-HMAC-SHA256', $now, $scope, hash('sha256', $canonicalRequest)]);
+        $sigKey = hmac(hmac(hmac(hmac('AWS4' . $cfg['secret_key'], $date), $cfg['region']), 's3'), 'aws4_request');
+        $signature = hmac($sigKey, $stringToSign, false);
+        $auth = "AWS4-HMAC-SHA256 Credential={$cfg['access_key']}/$scope, SignedHeaders=$signedHeaders, Signature=$signature";
+        $fh = @fopen($tmp, 'rb');
+        if (!$fh) {
+            echo json_encode(['ok' => false, 'error' => 'باز کردن فایل موقت ناموفق بود']);
+            break;
+        }
+        $ch = curl_init($cfg['endpoint'] . $uri);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_UPLOAD => true,
+            CURLOPT_INFILE => $fh,
+            CURLOPT_INFILESIZE => (int)$size,
+            CURLOPT_TIMEOUT => 120,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_HTTPHEADER => [
+                "Authorization: $auth",
+                "x-amz-content-sha256: $payloadHash",
+                "x-amz-date: $now",
+            ],
+        ]);
+        curl_exec($ch);
+        $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        fclose($fh);
+        if ($http >= 200 && $http < 300) {
+            echo json_encode(['ok' => true, 'key' => $key, 'name' => $orig, 'size' => (int)$size, 'mode' => 'arvan-proxy']);
+        } else {
+            echo json_encode(['ok' => false, 'error' => 'آپلود از طریق سرور هم ناموفق بود' . ($err ? ': ' . $err : ' (HTTP ' . $http . ')'), 'http' => $http]);
+        }
+        break;
+
     /* ===== US-282 (v122.3): بک‌آپ ابری با کلید ثابت — جایگزین قبلی، بدون انباشت ===== */
     case 'presign_put_backup':
         $name = safe_key($in['name'] ?? 'crm-backup-latest.json.gz');

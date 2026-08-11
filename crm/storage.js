@@ -185,9 +185,32 @@ function uploadFile(file, folder, cb, progressCb) {
         xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) {
             cb({ ok: true, key: d.key, name: finalFile.name, size: finalFile.size, mode: 'arvan', savedNote: note });
-          } else cb({ ok: false, error: 'آپلود فضای ابری ناموفق بود (HTTP ' + xhr.status + ')' });
+          } else {
+            // v34.4.33: HTTP خطا (مثل 403 CORS ناقص استیجینگ) -> فالو‌بک به پراکسی سروری (بدون CORS)
+            fallbackProxy('HTTP ' + xhr.status);
+          }
         };
-        xhr.onerror = xhr.ontimeout = function () { cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد' }); };
+        xhr.onerror = xhr.ontimeout = function () { fallbackProxy('network'); };
+        function fallbackProxy(reason) {
+          try {
+            var fd = new FormData();
+            fd.append('file', finalFile);
+            fd.append('folder', folder || 'general');
+            // Fallback: آپلود از طریق سرور خودمان (PHP cURL -> S3) تا وابسته به CORS مرورگر نباشد
+            fetch(STORAGE_API + '?action=upload_proxy', {
+              method: 'POST',
+              headers: ptfStorageAuthHeaders(false),
+              body: fd
+            }).then(function(r){ return r.text().then(function(tx){ try{ return JSON.parse(tx);} catch(e){ throw new Error('پاسخ غیر JSON از سرور ('+r.status+'): '+tx.slice(0,180));}}); })
+              .then(function(pr){
+                if (pr.ok) cb({ ok: true, key: pr.key, name: pr.name || finalFile.name, size: pr.size || finalFile.size, mode: pr.mode || 'arvan-proxy', savedNote: note ? note + ' (proxy: '+reason+')' : 'proxy: '+reason });
+                else cb({ ok: false, error: pr.error || 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy: '+reason+')' });
+              })
+              .catch(function(e){ cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد' + (e && e.message ? ' — ' + e.message : ' (proxy: '+reason+')') }); });
+          } catch(e) {
+            cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy exception)' });
+          }
+        }
         xhr.send(finalFile);
       })
       .catch(function () { cb({ ok: false, error: 'دریافت مجوز آپلود ابری ناموفق بود؛ فایل روی هاست ذخیره نشد' }); });
@@ -286,6 +309,35 @@ function openStoredFile(key, nameHint) {
     .catch(function () { alert('عدم دسترسی به سرور'); });
 }
 window.openStoredFile = openStoredFile;
+
+/* CHQ-DOC-002: هلپر مشترک برای مودال‌های «مشاهدهٔ سند/ضمیمه» (چک، تنخواه، فاکتور/پرداخت
+   تأمین‌کننده و مشابه). این مودال‌ها یک‌بار از localStorage محلی می‌خوانند و اگر سندی
+   از دستگاه/کاربر دیگر همین الان روی سرور ثبت شده باشد ولی هنوز از طریق pull دورهٔ ۲۰
+   ثانیه‌ای به این مرورگر نرسیده باشد، آن سند دیده نمی‌شود — و چون sync.js عمداً هنگام
+   باز بودن هر مودالی از رندر خودکار پنل صرف‌نظر می‌کند (تا وسط کار کاربر نپرد)، این مودال
+   تا وقتی کاربر آن را ببندد و دوباره باز کند (یا به تب دیگری برود و برگردد) به‌روز نمی‌شد.
+   ptfAttachRefreshOnOpen یک pull فوری (بدون منتظر تایمر دوره‌ای) درخواست می‌کند و اگر
+   تعداد اسناد رکورد واقعاً تغییر کرده باشد، خودِ مودال (نه کل پنل) را با فراخوانی دوبارهٔ
+   reopenFn تازه می‌سازد. */
+window.ptfAttachRefreshOnOpen = function (dlgId, getSignature, reopenFn) {
+  if (typeof window.ptfSyncPullNow !== 'function') return;
+  var before = null;
+  try { before = JSON.stringify(getSignature()); } catch (eB) {}
+  window.ptfSyncPullNow(function () {
+    try {
+      var dlg = document.getElementById(dlgId);
+      if (!dlg) return; /* کاربر قبل از رسیدن پاسخ، مودال را بسته است */
+      var after = JSON.stringify(getSignature());
+      if (after !== before) {
+        dlg.remove();
+        reopenFn();
+        if (typeof ptfToast === 'function') ptfToast('📎 اسناد به‌روزرسانی شد', 'info');
+      }
+    } catch (eR) {}
+  });
+};
+
+
 
 /* ---------- ویجت آپلود چندمنظوره ---------- */
 // attachUploadWidget(containerId, folder, onDone(fileRec))
