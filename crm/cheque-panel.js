@@ -80,8 +80,8 @@
     acts += chequeRowAction('delete', '🗑', 'حذف', 'حذف کامل چک و اثر مالی مرتبط', 'ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     if (c.st === 'open' || c.st === 'transferred') {
       if (c.kind === 'guarantee') {
-        /* ضمانت با پایان پروژه مسترد می‌شود؛ این مسیر با حذف کامل فرق دارد. */
-        acts += chequeRowAction('retrieve', '↩', 'استرداد ضمانت', 'ثبت استرداد چک ضمانت از کارفرما', 'ptfChequeRetrieveUi(\'' + ptfOnClickArg(c.cd) + '\')', true);
+        /* 🏆 استرداد ضمانت: با پایان پروژه مسترد می‌شود؛ این مسیر با حذف کامل فرق دارد. */
+        acts += chequeRowAction('retrieve', '🏆', 'استرداد ضمانت', 'ثبت استرداد چک ضمانت از کارفرما', 'ptfChequeRetrieveUi(\'' + ptfOnClickArg(c.cd) + '\')', true);
       } else {
         acts += chequeRowAction('clear', '✓', 'وصول', 'ثبت وصول یا پاس‌شدن چک صادره', 'ptfChequeClearIssuedUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
         acts += chequeRowAction('void', '⛔', 'ابطال', 'ابطال عملیاتی چک بدون حذف کامل رکورد', 'ptfChequeVoidIssuedUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
@@ -168,8 +168,8 @@
       '<h3>🧾 ثبت چک — نوع چک چیست؟</h3>' +
       '<div style="font-size:12.5px;color:#475569;margin-bottom:12px">ابتدا مشخص کنید چک <b>وارده</b> (دریافتی از مشتری/ثالث) است یا <b>صادره</b> (پرداختی/ضمانت شرکت) — فیلدها بر همان اساس تنظیم می‌شوند.</div>' +
       '<div style="display:grid;gap:10px">' +
-      '<button class="bt" style="background:#0e7490;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'received\');document.getElementById(\'ptfChNewDirDlg\').remove()">📥 چک وارده</button>' +
-      '<button class="bt" style="background:#b45309;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'issued\');document.getElementById(\'ptfChNewDirDlg\').remove()">🏢 چک صادره</button>' +
+      '<button class="bt" style="background:#0e7490;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'received\');document.getElementById(\'ptfChNewDirDlg\').remove()">📥 چک وارده — دریافت از مشتری / ثالث</button>' +
+      '<button class="bt" style="background:#b45309;font-size:14px;padding:14px" onclick="ptfChequeNewForm(\'issued\');document.getElementById(\'ptfChNewDirDlg\').remove()">🏢 چک صادره — پرداخت / ضمانت شرکت</button>' +
       '</div>' +
       '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'ptfChNewDirDlg\').remove()">انصراف</button></div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);

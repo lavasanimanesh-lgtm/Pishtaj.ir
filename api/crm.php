@@ -111,15 +111,16 @@ if (isset($PUBLIC_LIMITED[$action])) {
 }
 
 // ===== US-149 AC1: کپچای سروری (چالش ریاضی + توکن HMAC انقضادار) =====
+// v32.0.2 US-440-fix: captcha_key only required when captcha/OTP actions are invoked — not a global blocker
 $CAPTCHA_SECRET = load_ptf_secret('captcha_key', '');
 function captcha_token($sum, $ts) {
     global $CAPTCHA_SECRET;
-    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return '';
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return ''; /* cannot generate captcha — captcha_key missing or too short */
     return base64_encode($ts . '|' . hash_hmac('sha256', $sum . '|' . $ts, $CAPTCHA_SECRET));
 }
 function captcha_ok() {
     global $CAPTCHA_SECRET;
-    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false; /* captcha_key missing — reject silently */
     $tok = $_POST['captcha_token'] ?? '';
     $ans = trim($_POST['captcha_answer'] ?? '');
     if (!$tok || $ans === '' || !is_numeric($ans)) return false;
@@ -252,6 +253,7 @@ function otp_store_save($s) {
 }
 function otp_token_make($phone) {
     global $CAPTCHA_SECRET;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return ''; /* captcha_key missing for OTP — cannot generate secure token */
     $ts = time();
     return base64_encode($ts . '|' . $phone . '|' . hash_hmac('sha256', 'otp|' . $phone . '|' . $ts, $CAPTCHA_SECRET));
 }
