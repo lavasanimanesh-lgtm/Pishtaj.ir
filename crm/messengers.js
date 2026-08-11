@@ -49,8 +49,31 @@
     }
     return '';
   }
+  /* v34.4.39: wa.me در بعضی مرورگرها/PWAها حتی با وجود واتساپ نصب‌شده، کاربر را
+     به صفحهٔ نصب وب هدایت می‌کند. custom protocol مستقیماً اپ نصب‌شدهٔ موبایل یا
+     دسکتاپ را صدا می‌زند و تب اضافی نمی‌سازد. */
+  function whatsAppAppLink(mob, txt) {
+    var n = digits(mob);
+    return n ? 'whatsapp://send?phone=' + n + (txt ? '&text=' + encodeURIComponent(txt) : '') : null;
+  }
+  window.ptfWhatsAppAppLink = whatsAppAppLink;
+  window.ptfWhatsAppOpen = function (mob, txt) {
+    var lnk = whatsAppAppLink(mob, txt);
+    if (!lnk) return false;
+    if (typeof ptfToast === 'function') ptfToast('در حال باز کردن برنامهٔ واتساپ… اگر مرورگر اجازه خواست، Open WhatsApp را تأیید کنید.', 'info');
+    try {
+      /* assign در همان navigation و همان user gesture اجرا می‌شود؛ window.open عمداً
+         استفاده نمی‌شود تا تب wa.me/صفحهٔ نصب ساخته نشود. */
+      if (window.location && typeof window.location.assign === 'function') window.location.assign(lnk);
+      else window.location.href = lnk;
+      return true;
+    } catch (eOpen) {
+      alert('مرورگر اجازهٔ باز کردن برنامهٔ واتساپ را نداد. دسترسی Open external apps را برای CRM فعال کنید.');
+      return false;
+    }
+  };
   var APPS = [
-    { id: 'wa', lb: 'واتساپ', short: 'واتساپ', ic: '🟢', link: function (c) { var n = digits(c.mob); return n ? 'https://wa.me/' + n + (c.txt ? '?text=' + encodeURIComponent(c.txt) : '') : null; } },
+    { id: 'wa', lb: 'واتساپ', short: 'واتساپ', ic: '🟢', link: function (c) { return whatsAppAppLink(c.mob, c.txt); } },
     { id: 'tg', lb: 'تلگرام', short: 'تلگرام', ic: '🔵', link: function (c) { var u = cleanHandle(c.tg), n = digits(c.mob); return u ? 'https://t.me/' + u : (n ? 'https://t.me/+' + n + (c.txt ? '?text=' + encodeURIComponent(c.txt) : '') : null); } },
     { id: 'bale', lb: 'بله', short: 'بله', ic: '🟩', link: function (c) { var u = cleanHandle(c.bale); return u ? 'https://ble.ir/' + u : null; } },
     { id: 'eitaa', lb: 'ایتا', short: 'ایتا', ic: '🟧', link: function (c) { var u = cleanHandle(c.eitaa); return u ? 'https://eitaa.com/' + u : null; } },
@@ -134,7 +157,8 @@
     if (appId !== 'wa' && txt) {
       try { navigator.clipboard.writeText(txt); if (typeof ptfToast === 'function') ptfToast('متن کپی شد — در چت Paste کنید', 'ok'); } catch (e) {}
     }
-    window.open(lnk, '_blank', 'noopener,noreferrer');
+    if (appId === 'wa') window.ptfWhatsAppOpen(mob, txt);
+    else window.open(lnk, '_blank', 'noopener,noreferrer');
     try { audit('پیام‌رسان', 'باز کردن چت ' + a.lb + ' با ' + (c.co || c.nm || cd), cd); } catch (e) {}
   };
 
@@ -173,8 +197,12 @@
       if (typeof ptfToast === 'function') ptfToast('ابتدا شناسهٔ ' + a.lb + ' این مخاطب را ثبت کنید', 'info');
       return;
     }
-    var opened = window.open(lnk, '_blank', 'noopener,noreferrer');
-    try { if (opened) opened.opener = null; } catch (eOp) {}
+    if (appId === 'wa') {
+      window.ptfWhatsAppOpen(firstMobile(c), '');
+    } else {
+      var opened = window.open(lnk, '_blank', 'noopener,noreferrer');
+      try { if (opened) opened.opener = null; } catch (eOp) {}
+    }
     try { audit('پیام‌رسان', 'باز کردن مستقیم چت ' + a.lb + ' با ' + (c.co || c.nm || cd), cd); } catch (eA) {}
   };
 

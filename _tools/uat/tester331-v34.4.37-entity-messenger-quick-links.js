@@ -12,7 +12,9 @@ var src = fs.readFileSync('crm/messengers.js', 'utf8');
 assert.ok(src.indexOf('msg-quick-links') > -1 && src.indexOf('msg-quick-app') > -1, 'compact link strip must exist');
 assert.ok(src.indexOf('var contactCell = tds[isCustomer ? 4 : 3]') > -1, 'links must be injected under the contact column');
 assert.ok(src.indexOf("['cTb', 'sTb']") > -1 && src.indexOf('MutationObserver') > -1, 'both customer and supplier rerenders must be covered');
-assert.ok(src.indexOf("https://wa.me/") > -1 && src.indexOf("https://t.me/+") > -1, 'phone deep-links must use international formats');
+assert.ok(src.indexOf("whatsapp://send?phone=") > -1 && src.indexOf("https://t.me/+") > -1, 'phone deep-links must use native WhatsApp and international Telegram formats');
+assert.ok(src.indexOf("if (appId === 'wa') window.ptfWhatsAppOpen") > -1, 'prepared-message WhatsApp action must use the installed app');
+assert.ok(src.indexOf("if (appId === 'wa') {") > -1 && src.indexOf("window.ptfWhatsAppOpen(firstMobile(c), '')") > -1, 'quick WhatsApp action must use the installed app');
 assert.ok(src.indexOf("https://ble.ir/") > -1 && src.indexOf("https://rubika.ir/") > -1, 'username deep-links must exist');
 assert.ok(src.indexOf('updatedAtISO') > -1, 'messenger ID edits must carry a sync conflict timestamp');
 
@@ -31,11 +33,12 @@ var records = {
     msgIds: { tg: '@foreign_sales' }
   }]
 };
-var opened = [];
+var opened = [], assigned = [];
 var panels = { insertAdjacentHTML: function () {} };
 var ctx = {
   window: null, console: console, JSON: JSON, Date: Date, Promise: Promise,
   navigator: { clipboard: { writeText: function () { return Promise.resolve(); } } },
+  location: { assign: function (url) { assigned.push(url); } },
   getData: function (k) { return records[k] || []; },
   setData: function (k, v) { records[k] = v; },
   primaryPerson: function (c) { return (c.people || []).filter(function (p) { return p.primary; })[0] || (c.people || [])[0] || null; },
@@ -47,7 +50,11 @@ var ctx = {
   MutationObserver: function () { this.observe = function () {}; },
   setTimeout: function () { return 0; },
   document: {
-    getElementById: function (id) { return id === 'panels' ? panels : null; },
+    getElementById: function (id) {
+      if (id === 'panels') return panels;
+      if (id === 'msgTxt') return { value: 'سلام از CRM' };
+      return null;
+    },
     querySelector: function () { return null; }
   },
   open: function (url) { opened.push(url); return { opener: null }; }
@@ -70,8 +77,13 @@ ctx.ptfMsgQuickOpen('wa', 'ptf_crm_customers', 'C-1');
 ctx.ptfMsgQuickOpen('tg', 'ptf_crm_customers', 'C-1');
 ctx.ptfMsgQuickOpen('bale', 'ptf_crm_customers', 'C-1');
 ctx.ptfMsgQuickOpen('rubika', 'ptf_crm_customers', 'C-1');
+ctx.ptfMsgOpen('wa', 'ptf_crm_customers', 'C-1');
+assert.deepStrictEqual(assigned, [
+  'whatsapp://send?phone=989123456789',
+  'whatsapp://send?phone=989123456789&text=' + encodeURIComponent('سلام از CRM')
+], 'quick and prepared-message WhatsApp actions must open the installed app without a new tab');
+assert.strictEqual(ctx.ptfWhatsAppAppLink('۰۹۱۲ ۳۴۵ ۶۷۸۹', 'سلام تست'), 'whatsapp://send?phone=989123456789&text=' + encodeURIComponent('سلام تست'));
 assert.deepStrictEqual(opened, [
-  'https://wa.me/989123456789',
   'https://t.me/+989123456789',
   'https://ble.ir/bale_user',
   'https://rubika.ir/rubika.user'
