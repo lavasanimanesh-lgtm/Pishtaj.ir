@@ -13,7 +13,7 @@ var bc = fs.readFileSync(path.join(BASE, 'buycompare.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(vjson.crm_version));
 
 SECTION('رفع باگ ناوبری «سایر تأمین‌کنندگان»');
 T('wrapper rfqsToggleOther تعریف شده (داخل IIFE، ولی سراسری)', rfq.indexOf('window.rfqsToggleOther = function') > -1);

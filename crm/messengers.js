@@ -8,14 +8,99 @@
   'use strict';
 
   /* ---------- US-332: deep-link سازها ---------- */
-  function digits(n) { return String(n || '').replace(/[^+\d]/g, '').replace(/^0/, '+98'); }
+  var FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹', AR_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+  function enDigits(v) {
+    return String(v == null ? '' : v)
+      .replace(/[۰-۹]/g, function (d) { return FA_DIGITS.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return AR_DIGITS.indexOf(d); });
+  }
+  /* خروجی استاندارد بین‌المللی فقط با رقم؛ whatsapp:// و t.me/+ همین قالب را می‌خواهند. */
+  function digits(n) {
+    var raw = enDigits(n).trim();
+    if (!raw) return '';
+    var hadPlus = raw.indexOf('+') > -1 || /^00/.test(raw);
+    var d = raw.replace(/\D/g, '');
+    if (/^0098\d{10}$/.test(d)) d = d.slice(2);
+    else if (/^09\d{9}$/.test(d)) d = '98' + d.slice(1);
+    else if (/^9\d{9}$/.test(d)) d = '98' + d;
+    else if (!hadPlus && /^0\d+/.test(d)) return ''; /* تلفن ثابت داخلی، نه موبایل پیام‌رسان */
+    return /^\d{8,15}$/.test(d) ? d : '';
+  }
+  function cleanHandle(v) {
+    var s = String(v || '').trim().replace(/^@+/, '');
+    s = s.replace(/^https?:\/\/(?:www\.)?(?:t\.me|telegram\.me|ble\.ir|eitaa\.com|rubika\.ir)\//i, '');
+    s = s.split(/[?#/]/)[0].replace(/[^A-Za-z0-9_.-]/g, '');
+    return s.slice(0, 64);
+  }
+  function firstMobile(c) {
+    c = c || {};
+    var pp = (typeof primaryPerson === 'function' ? primaryPerson(c) : null);
+    var candidates = [];
+    function add(v, trusted) { if (v) candidates.push({ v: v, trusted: !!trusted }); }
+    (c.phones || []).forEach(function (p) { if (p && (p.k === 'mob' || p.kind === 'mob' || p.type === 'mobile')) add(p.n, true); });
+    if (pp) (pp.mobs || []).forEach(function (p) { add(p && p.n, true); });
+    (c.people || []).forEach(function (p) { if (p !== pp) (p.mobs || []).forEach(function (m) { add(m && m.n, true); }); });
+    add(c.mob, true); add(c.mobile, true); add(c.ph, false); add(c.phone, false);
+    for (var i = 0; i < candidates.length; i++) {
+      var d = digits(candidates[i].v);
+      if (!d) continue;
+      /* fallbackهای ph/phone فقط وقتی موبایل ایران‌اند؛ آرایهٔ mobs برای خارجی trusted است. */
+      if (candidates[i].trusted || /^989\d{9}$/.test(d)) return d;
+    }
+    return '';
+  }
+  /* v34.4.39: wa.me در بعضی مرورگرها/PWAها حتی با وجود واتساپ نصب‌شده، کاربر را
+     به صفحهٔ نصب وب هدایت می‌کند. custom protocol مستقیماً اپ نصب‌شدهٔ موبایل یا
+     دسکتاپ را صدا می‌زند و تب اضافی نمی‌سازد. */
+  function whatsAppAppLink(mob, txt) {
+    var n = digits(mob);
+    return n ? 'whatsapp://send?phone=' + n + (txt ? '&text=' + encodeURIComponent(txt) : '') : null;
+  }
+  window.ptfWhatsAppAppLink = whatsAppAppLink;
+  window.ptfWhatsAppOpen = function (mob, txt) {
+    var lnk = whatsAppAppLink(mob, txt);
+    if (!lnk) return false;
+    if (typeof ptfToast === 'function') ptfToast('در حال باز کردن برنامهٔ واتساپ… اگر مرورگر اجازه خواست، Open WhatsApp را تأیید کنید.', 'info');
+    try {
+      /* assign در همان navigation و همان user gesture اجرا می‌شود؛ window.open عمداً
+         استفاده نمی‌شود تا تب wa.me/صفحهٔ نصب ساخته نشود. */
+      if (window.location && typeof window.location.assign === 'function') window.location.assign(lnk);
+      else window.location.href = lnk;
+      return true;
+    } catch (eOpen) {
+      alert('مرورگر اجازهٔ باز کردن برنامهٔ واتساپ را نداد. دسترسی Open external apps را برای CRM فعال کنید.');
+      return false;
+    }
+  };
   var APPS = [
-    { id: 'wa', lb: 'واتساپ', ic: '🟢', link: function (c) { return c.mob ? 'https://wa.me/' + digits(c.mob).replace('+', '') + (c.txt ? '?text=' + encodeURIComponent(c.txt) : '') : null; } },
-    { id: 'tg', lb: 'تلگرام', ic: '🔵', link: function (c) { return c.tg ? 'https://t.me/' + c.tg.replace('@', '') : (c.mob ? 'https://t.me/' + digits(c.mob) : null); } },
-    { id: 'bale', lb: 'بله', ic: '🟩', link: function (c) { return c.bale ? 'https://ble.ir/' + c.bale.replace('@', '') : null; } },
-    { id: 'eitaa', lb: 'ایتا', ic: '🟧', link: function (c) { return c.eitaa ? 'https://eitaa.com/' + c.eitaa.replace('@', '') : null; } },
-    { id: 'rubika', lb: 'روبیکا', ic: '🟣', link: function (c) { return c.rubika ? 'https://rubika.ir/' + c.rubika.replace('@', '') : null; } }
+    { id: 'wa', lb: 'واتساپ', short: 'واتساپ', ic: '🟢', link: function (c) { return whatsAppAppLink(c.mob, c.txt); } },
+    { id: 'tg', lb: 'تلگرام', short: 'تلگرام', ic: '🔵', link: function (c) { var u = cleanHandle(c.tg), n = digits(c.mob); return u ? 'https://t.me/' + u : (n ? 'https://t.me/+' + n + (c.txt ? '?text=' + encodeURIComponent(c.txt) : '') : null); } },
+    { id: 'bale', lb: 'بله', short: 'بله', ic: '🟩', web: 'https://web.bale.ai/', link: function (c) { var u = cleanHandle(c.bale); return u ? 'https://ble.ir/' + u : (digits(c.mob) ? this.web : null); } },
+    { id: 'eitaa', lb: 'ایتا', short: 'ایتا', ic: '🟧', web: 'https://web.eitaa.com/', link: function (c) { var u = cleanHandle(c.eitaa); return u ? 'https://eitaa.com/' + u : (digits(c.mob) ? this.web : null); } },
+    { id: 'rubika', lb: 'روبیکا', short: 'روبیکا', ic: '🟣', web: 'https://web.rubika.ir/', link: function (c) { var u = cleanHandle(c.rubika); return u ? 'https://rubika.ir/' + u : (digits(c.mob) ? this.web : null); } }
   ];
+  /* v34.4.40: این سه پیام‌رسان URL عمومی و مستندِ «چت خصوصی با شماره» ندارند؛
+     اما نسخهٔ وب دارند. اگر username ثبت نشده و موبایل موجود است، نسخهٔ وب باز و
+     شماره برای جستجو/افزودن مخاطب کپی می‌شود؛ لینک مستقیم username همچنان اولویت دارد. */
+  function phoneWebFallback(a, c) {
+    return !!(a && a.web && digits(c && c.mob) && !cleanHandle(c && c[a.id]));
+  }
+  function phoneForMessengerSearch(mob) {
+    var n = digits(mob);
+    return /^98(9\d{9})$/.test(n) ? ('0' + n.slice(2)) : (n ? '+' + n : '');
+  }
+  function copyPhoneForMessengerWeb(a, mob) {
+    var phone = phoneForMessengerSearch(mob);
+    if (!phone) return;
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') navigator.clipboard.writeText(phone).catch(function () {});
+    } catch (eCopy) {}
+    if (typeof ptfToast === 'function') ptfToast('شمارهٔ ' + phone + ' کپی شد؛ در جستجو یا «افزودن مخاطب» ' + a.lb + ' وب Paste کنید.', 'info');
+  }
+  window.ptfMsgPhoneWebFallback = phoneWebFallback;
+  window.ptfMsgPhoneForSearch = phoneForMessengerSearch;
+  window.ptfMsgNormalizeMobile = digits;
+  window.ptfMsgContactMobile = firstMobile;
 
   /* دیالوگ ارسال پیام به مخاطب: انتخاب پیام‌رسان + متن آماده */
   window.ptfMsgSend = function (entityKey, cd) {
@@ -23,12 +108,13 @@
     if (!c) return;
     var pp = (typeof primaryPerson === 'function' ? primaryPerson(c) : null);
     var nm = (pp && pp.nm) || c.con || c.nm || c.co || '';
-    var mob = (pp && pp.mobs && pp.mobs[0] && pp.mobs[0].n) || c.mob || c.ph || '';
+    var mob = firstMobile(c);
     var ids = c.msgIds || {}; /* شناسه‌های پیام‌رسان ذخیره‌شده روی رکورد */
     var aud = entityKey === 'ptf_crm_customers' ? 'مشتری' : entityKey === 'ptf_crm_suppliers' ? 'تامین‌کننده' : 'سایر';
     var tpls = (typeof ptfMsgTpls === 'function' ? ptfMsgTpls() : []).filter(function (t) { return t.aud === aud; });
     var tplOpts = '<option value="">— بدون متن آماده —</option>' + tpls.map(function (t, i) { return '<option value="' + i + '">' + escP(t.title) + '</option>'; }).join('');
-    var html = '<div class="md-b" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
+    var oldDlg = document.getElementById('ptfMsgSendDlg'); if (oldDlg) oldDlg.remove();
+    var html = '<div class="md-b" id="ptfMsgSendDlg" style="display:grid;z-index:2400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
       '<h3>💬 ارسال پیام — ' + escP(nm || c.co) + '</h3>' +
       '<div style="font-size:11.5px;color:#64748b;margin-bottom:10px">پیام از اکانت خودِ شما در پیام‌رسان انتخابی ارسال می‌شود (چت مستقیم باز می‌شود)</div>' +
       '<div class="fld"><label>متن آماده (نام مخاطب خودکار جایگذاری می‌شود)</label><select id="msgTpl" onchange="ptfMsgTplPick(this.value,\'' + ptfOnClickArg(nm) + '\',\'' + aud + '\')">' + tplOpts + '</select></div>' +
@@ -64,49 +150,113 @@
     var c = list.filter(function (x) { return x.cd === cd; })[0];
     if (!c) return;
     c.msgIds = {
-      tg: ((document.getElementById('msgIdTg') || {}).value || '').trim(),
-      bale: ((document.getElementById('msgIdBale') || {}).value || '').trim(),
-      eitaa: ((document.getElementById('msgIdEitaa') || {}).value || '').trim(),
-      rubika: ((document.getElementById('msgIdRubika') || {}).value || '').trim()
+      tg: cleanHandle(((document.getElementById('msgIdTg') || {}).value || '').trim()),
+      bale: cleanHandle(((document.getElementById('msgIdBale') || {}).value || '').trim()),
+      eitaa: cleanHandle(((document.getElementById('msgIdEitaa') || {}).value || '').trim()),
+      rubika: cleanHandle(((document.getElementById('msgIdRubika') || {}).value || '').trim())
     };
+    c.updatedAtISO = new Date().toISOString();
+    try { c.updatedBy = curSession().name; } catch (eBy) {}
     setData(entityKey, list);
-    if (typeof ptfToast === 'function') ptfToast('شناسه‌ها ذخیره شد', 'ok');
+    if (entityKey === 'ptf_crm_customers' && typeof renderCustomers === 'function') renderCustomers();
+    if (entityKey === 'ptf_crm_suppliers' && typeof renderSuppliers === 'function') renderSuppliers();
+    if (typeof ptfToast === 'function') ptfToast('شناسه‌های پیام‌رسان ذخیره شد', 'ok');
   };
 
   window.ptfMsgOpen = function (appId, entityKey, cd) {
     var c = getData(entityKey).filter(function (x) { return x.cd === cd; })[0];
     if (!c) return;
-    var pp = (typeof primaryPerson === 'function' ? primaryPerson(c) : null);
-    var mob = (pp && pp.mobs && pp.mobs[0] && pp.mobs[0].n) || c.mob || c.ph || '';
+    var mob = firstMobile(c);
     var txt = (document.getElementById('msgTxt') || {}).value || '';
     var ids = c.msgIds || {};
     var a = APPS.filter(function (x) { return x.id === appId; })[0];
     if (!a) return;
     var lnk = a.link({ mob: mob, txt: txt, tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika });
     if (!lnk) { alert('شناسه/شماره این مخاطب برای ' + a.lb + ' ثبت نشده — از بخش ⚙️ شناسه‌ها اضافه کنید'); return; }
-    /* پیام‌رسان‌های بدون پارامتر text: متن در کلیپ‌بورد */
-    if (appId !== 'wa' && txt) {
+    var ctx = { mob: mob, txt: txt, tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika };
+    var webByPhone = phoneWebFallback(a, ctx);
+    /* در fallback وب، شماره باید در کلیپ‌بورد باشد تا مخاطب پیدا/اضافه شود؛
+       در لینک مستقیم username مثل قبل متن آماده کپی می‌شود. */
+    if (webByPhone) copyPhoneForMessengerWeb(a, mob);
+    else if (appId !== 'wa' && txt) {
       try { navigator.clipboard.writeText(txt); if (typeof ptfToast === 'function') ptfToast('متن کپی شد — در چت Paste کنید', 'ok'); } catch (e) {}
     }
-    window.open(lnk, '_blank');
+    if (appId === 'wa') window.ptfWhatsAppOpen(mob, txt);
+    else window.open(lnk, '_blank', 'noopener,noreferrer');
     try { audit('پیام‌رسان', 'باز کردن چت ' + a.lb + ' با ' + (c.co || c.nm || cd), cd); } catch (e) {}
   };
 
-  /* دکمه 💬 روی ردیف‌های مشتری/تامین‌کننده (کنار عملیات) */
+  /* v34.4.37: کلیدهای مستقیم زیر شماره تماس در جدول مشتری/تأمین‌کننده. واتساپ با
+     موبایل کار می‌کند؛ تلگرام با username یا phone-link؛ بله/روبیکا به شناسه نیاز دارند. */
+  function msgContext(c, txt) {
+    var ids = (c && c.msgIds) || {};
+    return { mob: firstMobile(c), txt: txt || '', tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika };
+  }
+  function quickApps() { return APPS.filter(function (a) { return ['wa', 'tg', 'bale', 'eitaa', 'rubika'].indexOf(a.id) > -1; }); }
+  window.ptfMsgQuickHtml = function (entityKey, c) {
+    if (!c || !c.cd) return '';
+    var ctx = msgContext(c, '');
+    var colors = { wa: '#15803d', tg: '#0369a1', bale: '#047857', eitaa: '#c2410c', rubika: '#7e22ce' };
+    return '<div class="msg-quick-links" data-msg-entity="' + escP(c.cd) + '" style="direction:rtl;display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-top:5px">' +
+      quickApps().map(function (a) {
+        var active = !!a.link(ctx), webByPhone = phoneWebFallback(a, ctx);
+        var hint = webByPhone ? ('باز کردن ' + a.lb + ' وب؛ شماره برای یافتن مخاطب کپی می‌شود') : (active ? ('باز کردن چت مستقیم در ' + a.lb) : ('شناسه/موبایل ' + a.lb + ' ثبت نشده — برای تنظیم کلیک کنید'));
+        return '<button type="button" class="ba msg-quick-app' + (active ? '' : ' is-missing') + '" data-msg-app="' + a.id + '"' +
+          ' style="padding:2px 5px;font-size:10.5px;border:1px solid ' + (active ? colors[a.id] : '#cbd5e1') + ';border-radius:7px;color:' + (active ? colors[a.id] : '#94a3b8') + ';background:#fff;white-space:nowrap;opacity:' + (active ? '1' : '.72') + '"' +
+          ' title="' + escP(hint) + '" aria-label="' + escP(hint) + '" onclick="event.stopPropagation();ptfMsgQuickOpen(\'' + a.id + '\',\'' + ptfOnClickArg(entityKey) + '\',\'' + ptfOnClickArg(c.cd) + '\')">' + a.ic + ' ' + a.short + '</button>';
+      }).join('') + '</div>';
+  };
+  window.ptfMsgQuickOpen = function (appId, entityKey, cd) {
+    var c = getData(entityKey).filter(function (x) { return x.cd === cd; })[0];
+    var a = APPS.filter(function (x) { return x.id === appId; })[0];
+    if (!c || !a) return;
+    var lnk = a.link(msgContext(c, ''));
+    if (!lnk) {
+      window.ptfMsgSend(entityKey, cd);
+      setTimeout(function () {
+        var dlg = document.getElementById('ptfMsgSendDlg');
+        var details = dlg ? dlg.querySelector('details') : null;
+        if (details) details.open = true;
+      }, 0);
+      if (typeof ptfToast === 'function') ptfToast('ابتدا شناسهٔ ' + a.lb + ' این مخاطب را ثبت کنید', 'info');
+      return;
+    }
+    if (appId === 'wa') {
+      window.ptfWhatsAppOpen(firstMobile(c), '');
+    } else {
+      var quickCtx = msgContext(c, '');
+      if (phoneWebFallback(a, quickCtx)) copyPhoneForMessengerWeb(a, quickCtx.mob);
+      var opened = window.open(lnk, '_blank', 'noopener,noreferrer');
+      try { if (opened) opened.opener = null; } catch (eOp) {}
+    }
+    try { audit('پیام‌رسان', 'باز کردن مستقیم چت ' + a.lb + ' با ' + (c.co || c.nm || cd), cd); } catch (eA) {}
+  };
+
+  /* دکمه 💬 روی ردیف‌های مشتری/تامین‌کننده + کلیدهای مستقیم زیر شماره */
   function injectRowBtns() {
     ['cTb', 'sTb'].forEach(function (tbId) {
       var tb = document.getElementById(tbId);
       if (!tb) return;
-      var key = tbId === 'cTb' ? 'ptf_crm_customers' : 'ptf_crm_suppliers';
+      var isCustomer = tbId === 'cTb';
+      var key = isCustomer ? 'ptf_crm_customers' : 'ptf_crm_suppliers';
+      var byCd = {};
+      (getData(key) || []).forEach(function (x) { if (x && x.cd) byCd[x.cd] = x; });
       tb.querySelectorAll('tr').forEach(function (tr) {
-        if (tr.querySelector('.msg-btn')) return;
         var strong = tr.querySelector('td strong');
         if (!strong) return;
         var cd = strong.textContent.trim();
+        var rec = byCd[cd];
+        if (!rec) return;
         var tds = tr.querySelectorAll('td');
+        /* ستون تماس: مشتری ستون پنجم، تأمین‌کننده ستون چهارم. */
+        var contactCell = tds[isCustomer ? 4 : 3];
+        if (contactCell && !contactCell.querySelector('.msg-quick-links')) {
+          contactCell.insertAdjacentHTML('beforeend', window.ptfMsgQuickHtml(key, rec));
+        }
+        if (tr.querySelector('.msg-btn')) return;
         var last = tds[tds.length - 1];
         if (last) last.insertAdjacentHTML('beforeend',
-          ' <button class="bt bt-o msg-btn entity-row-action" data-entity-action="message" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام (واتساپ/تلگرام/بله/ایتا/روبیکا)" aria-label="ارسال پیام" onclick="ptfMsgSend(\'' + key + '\',\'' + ptfOnClickArg(cd) + '\')">💬</button>');
+          ' <button class="bt bt-o msg-btn entity-row-action" data-entity-action="message" style="padding:4px 9px;font-size:12px;color:#059669;border-color:#a7f3d0" title="ارسال پیام با متن آماده و تنظیم شناسه‌ها" aria-label="ارسال پیام" onclick="ptfMsgSend(\'' + key + '\',\'' + ptfOnClickArg(cd) + '\')">💬</button>');
       });
     });
   }

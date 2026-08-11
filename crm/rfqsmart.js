@@ -35,25 +35,138 @@
 
   var _st = null; // state ویزارد جاری
 
+  /* v34.4.43: جستجوی جامع و کنترل درخواست تامین تکراری بر مبنای aliasهای
+     درخواست داخلی (cd) و شماره درخواست کارفرما (inqNo). */
+  function rfqsSearchNorm(v) {
+    var fa = '۰۱۲۳۴۵۶۷۸۹', ar = '٠١٢٣٤٥٦٧٨٩';
+    return String(v == null ? '' : v)
+      .replace(/[۰-۹]/g, function (d) { return fa.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return ar.indexOf(d); })
+      .replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/[\u200c\u200e\u200f]/g, ' ')
+      .toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+  function rfqsSourceRecord(src) {
+    if (!src) return null;
+    return (getData('ptf_crm_rfqs') || []).filter(function (r) { return r && (r.cd === src || r.inqNo === src); })[0] || null;
+  }
+  function rfqsSourceAliases(src) {
+    var seen = {}, out = [];
+    function add(v) { v = String(v || '').trim(); if (v && !seen[v]) { seen[v] = 1; out.push(v); } }
+    add(src);
+    try { if (typeof ptfInqAliases === 'function') (ptfInqAliases(src) || []).forEach(add); } catch (eAlias) {}
+    var parent = rfqsSourceRecord(src);
+    if (parent) { add(parent.cd); add(parent.inqNo); }
+    return out;
+  }
+  function rfqsSameSource(a, b) {
+    if (!a || !b) return false;
+    var aa = rfqsSourceAliases(a), bb = rfqsSourceAliases(b);
+    return aa.some(function (x) { return bb.indexOf(x) > -1; });
+  }
+  window.ptfRfqsExistingForSource = function (src, excludeNo) {
+    if (!src) return [];
+    return (getData('ptf_crm_rfqsmart') || []).filter(function (r) {
+      return r && r.no !== excludeNo && r.srcRfq && rfqsSameSource(r.srcRfq, src);
+    });
+  };
+  function rfqsSourceCaption(src) {
+    var p = rfqsSourceRecord(src);
+    if (!p) return src || 'بدون منبع';
+    return (p.cd || src) + (p.inqNo && p.inqNo !== p.cd ? (' | شماره کارفرما: ' + p.inqNo) : '') + (p.co ? (' | ' + p.co) : '');
+  }
+  window.ptfRfqsFilterRecords = function (list, query) {
+    var q = rfqsSearchNorm(query);
+    if (!q) return (list || []).slice();
+    return (list || []).filter(function (r) {
+      var p = rfqsSourceRecord(r.srcRfq), statusFa = ({ draft: 'پیش نویس', sent: 'ارسال شده', done: 'جمع بندی شده' })[r.st] || '';
+      var values = [
+        r.no, r.srcRfq, r.duplicateOf, r.st, statusFa, r.t, r.by, r.deadline,
+        p && p.cd, p && p.inqNo, p && p.co, p && p.subj, p && p.con, p && p.ca, p && p.stxt
+      ];
+      (r.items || []).forEach(function (it) { values.push(it && (it.name || it.nm), it && (it.spec || it.st || it.desc), it && (it.model || it.md), it && (it.brand || it.br), it && (it.unit || it.un), it && (it.pcode || it.cd)); });
+      (r.targets || []).forEach(function (t) { values.push(t && t.co, t && t.cd); });
+      return rfqsSearchNorm(values.filter(Boolean).join(' | ')).indexOf(q) > -1;
+    });
+  };
+  function rfqsDuplicateApprovalKey(src) { return rfqsSourceAliases(src).sort().join('|'); }
+  function rfqsSetStateSource(src) {
+    src = src || '';
+    if (_st && _st.srcRfq && !rfqsSameSource(_st.srcRfq, src)) {
+      delete _st._duplicateApprovedSource;
+      delete _st.duplicateOf;
+      delete _st.duplicateConfirmedAt;
+      delete _st.duplicateConfirmedBy;
+    }
+    if (_st) _st.srcRfq = src;
+  }
+  function rfqsOpenExistingAfterCancel(existing, triggerEl) {
+    var dlg = triggerEl && triggerEl.closest ? triggerEl.closest('.md-b') : null;
+    if (!dlg) {
+      var srcEl = document.getElementById('rqsSrc');
+      dlg = srcEl && srcEl.closest ? srcEl.closest('.md-b') : null;
+    }
+    if (dlg) dlg.remove();
+    var switched = false;
+    try {
+      if (window.ptfActivePanel !== 'rfqs' && typeof goPanelByName === 'function') { goPanelByName('rfqs'); switched = true; }
+      else renderRfqSmart();
+    } catch (eRender) {}
+    setTimeout(function () { if (existing && typeof rfqsOpen === 'function') rfqsOpen(existing.no); }, switched ? 350 : 0);
+  }
+  function rfqsGuardDuplicateSource(src, currentNo, triggerEl) {
+    if (!src) return true;
+    var existing = window.ptfRfqsExistingForSource(src, currentNo);
+    if (!existing.length) return true;
+    var approvalKey = rfqsDuplicateApprovalKey(src);
+    if (_st && _st._duplicateApprovedSource === approvalKey) return true;
+    var first = existing[0], nums = existing.map(function (r) { return r.no; }).join('، ');
+    var makeAnother = confirm('⚠️ برای «' + rfqsSourceCaption(src) + '» قبلاً ' + existing.length + ' درخواست تامین ثبت شده است:\n' + nums + '\n\nآیا با وجود درخواست قبلی، درخواست تامین جدید دیگری ثبت شود؟\n\nتأیید = ثبت درخواست جدید\nانصراف = باز کردن درخواست تامین قبلی');
+    if (makeAnother) {
+      if (_st) {
+        _st._duplicateApprovedSource = approvalKey;
+        _st.duplicateOf = first.no;
+        _st.duplicateConfirmedAt = new Date().toISOString();
+        try { _st.duplicateConfirmedBy = curSession().name || ''; } catch (eBy) {}
+      }
+      return true;
+    }
+    rfqsOpenExistingAfterCancel(first, triggerEl);
+    return false;
+  }
+  window.ptfRfqsGuardDuplicateSource = rfqsGuardDuplicateSource;
+  window.ptfRfqsOpenExisting = function (no) { if (no) rfqsOpenExistingAfterCancel({ no: no }, null); };
+
   /* ============ پنل ============ */
   window.buildRfqSmart = function () {
     return '<div class="ph"><h3>🛒 درخواست تامین</h3>' +
       '<div class="sb2"><button class="bt" onclick="rfqsNew()">+ تامین جدید</button></div></div>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#0c4a6e">' +
       'ℹ️ چرخه: پیوست/اقلام درخواست مشتری ← استخراج و پاکسازی (بدون نام و اطلاعات کارفرما) ← پیشنهاد بهترین تامین‌کنندگان ← فرم استعلام PDF ← ارسال ایمیل/واتساپ ← رهگیری پاسخ‌ها</div>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">' +
+      '<input type="search" id="rfqsSearch" value="' + escP(window._rfqsListSearch || '') + '" placeholder="🔍 جستجو: شماره درخواست تامین، RFQ داخلی، شماره درخواست کارفرما، کالا، شرکت یا تامین‌کننده…" oninput="rfqsSetListSearch(this.value)" style="flex:1;min-width:260px;padding:9px 12px;border:1.5px solid var(--brd);border-radius:10px;font-family:inherit">' +
+      '<span id="rfqsSearchCount" style="font-size:11.5px;color:#64748b"></span>' +
+      '<button type="button" class="bt bt-o" style="padding:7px 10px;font-size:11.5px" onclick="rfqsClearListSearch()">پاک کردن</button></div>' +
       '<div id="rfqsWrap"></div>';
   };
 
   window.renderRfqSmart = function () {
     var el = document.getElementById('rfqsWrap');
     if (!el) return;
-    var list = getData('ptf_crm_rfqsmart');
+    var all = getData('ptf_crm_rfqsmart'), query = window._rfqsListSearch || '';
+    var list = window.ptfRfqsFilterRecords(all, query);
+    var countEl = document.getElementById('rfqsSearchCount');
+    if (countEl) countEl.textContent = query ? (list.length.toLocaleString('fa-IR') + ' از ' + all.length.toLocaleString('fa-IR') + ' درخواست') : (all.length.toLocaleString('fa-IR') + ' درخواست تامین');
     var STL = { draft: '📝 پیش‌نویس', sent: '📤 ارسال شده', done: '✅ جمع‌بندی شده' };
     el.innerHTML = list.map(function (r) {
       var resp = (r.targets || []).filter(function (t) { return t.st === 'replied'; }).length;
+      var parent = rfqsSourceRecord(r.srcRfq);
+      var sourceMeta = r.srcRfq ? ('درخواست داخلی: ' + ((parent && parent.cd) || r.srcRfq) + ((parent && parent.inqNo && parent.inqNo !== parent.cd) ? (' | شماره درخواست کارفرما: ' + parent.inqNo) : '') + ((parent && parent.co) ? (' | کارفرما: ' + parent.co) : '')) : '';
+      /* v34.4.45: فقط پیش‌نمایش نام کالا حذف شده است. مشخصات منبع، شماره درخواست
+         کارفرما و نام کارفرما مانند v34.4.43 روی کارت باقی می‌مانند؛ اطلاعات کالا نیز
+         همچنان در index جست‌وجو حضور دارد. */
       return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
         '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
-        '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.srcRfq ? ' <small style="color:#64748b">(از درخواست ' + escP(r.srcRfq) + ')</small>' : '') +
+        '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.duplicateOf ? ' <span class="bd" style="background:#fff7ed;color:#c2410c" title="با تایید کاربر در کنار درخواست قبلی ثبت شده">تکرارِ ' + escP(r.duplicateOf) + '</span>' : '') + (sourceMeta ? '<div style="font-size:11.5px;color:#0e7490;margin-top:3px">🔗 ' + escP(sourceMeta) + '</div>' : '') +
         '<div style="font-size:11.5px;color:#64748b;margin-top:2px">' + (r.items || []).length + ' قلم | ' + (r.targets || []).length + ' تامین‌کننده | پاسخ: ' + resp + ' | ' + escP(r.t || '') + ' | ' + (STL[r.st] || '') + '</div></div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
         '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff;font-weight:bold" onclick="rfqsToggleAccordion(\'' + ptfOnClickArg(r.no) + '\')">🔻 تخصیص و استعلام کشویی (بدون مودال)</button>' +
@@ -65,7 +178,18 @@
         '</div></div>' +
         '<div id="rfqAcc_' + escP(r.no) + '" style="display:none;margin-top:12px;border-top:1px dashed var(--brd);padding-top:12px"></div>' +
         '</div>';
-    }).join('') || '<div style="text-align:center;color:#94a3b8;padding:24px">استعلامی ثبت نشده — با «+ استعلام جدید» شروع کنید</div>';
+    }).join('') || (query
+      ? '<div style="text-align:center;color:#64748b;padding:24px;border:1px dashed var(--brd);border-radius:12px">موردی مطابق «' + escP(query) + '» پیدا نشد.<br><button class="bt bt-o" style="margin-top:8px" onclick="rfqsClearListSearch()">نمایش همه درخواست‌ها</button></div>'
+      : '<div style="text-align:center;color:#94a3b8;padding:24px">درخواست تامینی ثبت نشده — با «+ تامین جدید» شروع کنید</div>');
+  };
+  window.rfqsSetListSearch = function (value) {
+    window._rfqsListSearch = String(value || '');
+    renderRfqSmart();
+  };
+  window.rfqsClearListSearch = function () {
+    window._rfqsListSearch = '';
+    var input = document.getElementById('rfqsSearch'); if (input) { input.value = ''; input.focus(); }
+    renderRfqSmart();
   };
 
   /* ============ US-216..218: پنل کشویی استعلام، تخصیص اقلام و مقایسه قیمت (بدون مودال) ============ */
@@ -500,11 +624,16 @@
   };
 
   /* ============ گام ۱: منبع اقلام ============ */
-  window.rfqsNew = function () {
-    _st = { no: rfqsSerial(), items: [], targets: [], st: 'draft', t: faDateTime(), by: curSession().name, deadline: '', srcRfq: '' };
+  window.rfqsNew = function (sourceNo) {
+    var sourceParent = rfqsSourceRecord(sourceNo), selectedSource = sourceParent ? sourceParent.cd : (sourceNo || '');
+    _st = { no: rfqsSerial(), items: [], targets: [], st: 'draft', t: faDateTime(), by: curSession().name, deadline: '', srcRfq: selectedSource };
+    /* مسیرهای ورودی از پرونده/خرید واقعی نیز دقیقاً همان تصمیم تکراری را می‌گیرند. */
+    if (selectedSource && !rfqsGuardDuplicateSource(selectedSource, _st.no, null)) return;
     var rfqs = getData('ptf_crm_rfqs');
-    var rfqOpts = '<option value="">— بدون اتصال —</option>' + rfqs.slice(0, 40).map(function (r) {
-      return '<option value="' + escP(r.cd) + '">' + escP(r.cd) + ' — ' + escP(r.co) + '</option>';
+    var rfqOpts = '<option value="">— بدون اتصال —</option>' + rfqs.slice(0, 80).map(function (r) {
+      var clientNo = r.inqNo && r.inqNo !== r.cd ? (' | شماره کارفرما: ' + r.inqNo) : '';
+      var existingN = window.ptfRfqsExistingForSource(r.cd, '').length;
+      return '<option value="' + escP(r.cd) + '"' + (selectedSource === r.cd ? ' selected' : '') + '>' + escP(r.cd + clientNo + ' — ' + (r.co || '')) + (existingN ? (' — ⚠️ ' + existingN + ' تامین ثبت‌شده') : '') + '</option>';
     }).join('');
     var iq = getData('ptf_crm_inqitems');
     var inqNos = {};
@@ -530,7 +659,10 @@
     var inq = document.getElementById('rqsInq');
     if (!src) return;
     var v = src.value || '';
-    if (_st) _st.srcRfq = v;
+    rfqsSetStateSource(v);
+    /* کنترل زودهنگام: کاربر پیش از ورود اقلام/انتخاب تامین‌کننده از درخواست قبلی
+       مطلع می‌شود؛ انصراف او را مستقیم به همان درخواست هدایت می‌کند. */
+    if (v && !rfqsGuardDuplicateSource(v, _st && _st.no, src)) return;
     if (!inq) return;
     if (!v) {
       inq.disabled = false;
@@ -576,7 +708,9 @@
   window.rfqsHandleFile = function (inp) {
     var f = inp.files[0];
     if (!f) return;
-    _st.srcRfq = (document.getElementById('rqsSrc') || { value: '' }).value;
+    var srcEl = document.getElementById('rqsSrc');
+    rfqsSetStateSource((srcEl || { value: '' }).value);
+    if (!rfqsGuardDuplicateSource(_st.srcRfq, _st.no, srcEl)) { inp.value = ''; return; }
     var name = f.name.toLowerCase();
     if (/\.(xlsx|xls|csv)$/.test(name)) {
       // AC1: اکسل/CSV — خواندن مستقیم با تشخیص ستون
@@ -654,9 +788,10 @@
     /* اگر اتصال بالا انتخاب شده، همان مبناست (حتی اگر inq قفل/همگام باشد) */
     if (src) no = src;
     if (!no) { alert('ابتدا درخواست را از منوی اتصال یا فهرست اقلام انتخاب کنید'); return; }
-    _st.srcRfq = src || no;
+    rfqsSetStateSource(src || no);
     if (srcEl && !_st.srcRfq) { /* no-op */ }
     if (srcEl && src) srcEl.value = src;
+    if (!rfqsGuardDuplicateSource(_st.srcRfq, _st.no, srcEl || inqEl)) return;
     /* اقلام با همه aliasهای شماره درخواست */
     var aliases = (typeof ptfInqAliases === 'function') ? ptfInqAliases(no) : [no];
     _st.items = getData('ptf_crm_inqitems').filter(function (x) { return aliases.indexOf(x.inqNo) > -1; })
@@ -666,7 +801,9 @@
   };
 
   window.rfqsManual = function () {
-    _st.srcRfq = _st.srcRfq || (document.getElementById('rqsSrc') || { value: '' }).value;
+    var srcEl = document.getElementById('rqsSrc');
+    rfqsSetStateSource(_st.srcRfq || (srcEl || { value: '' }).value);
+    if (!rfqsGuardDuplicateSource(_st.srcRfq, _st.no, srcEl)) return;
     if (!_st.items.length) _st.items = [{ name: '', spec: '', qty: 1, unit: 'عدد' }];
     var mds = document.querySelectorAll('.md-b');
     for (var _mi = mds.length - 1; _mi >= 0; _mi--) { if ((mds[_mi].style || {}).display !== 'none') { mds[_mi].remove(); break; } } /* v16.2 BUG-017 */
@@ -1110,24 +1247,19 @@
   };
 
   window.rfqsFinalize = function () {
+    var list = getData('ptf_crm_rfqsmart');
+    var idx = -1;
+    list.forEach(function (x, i) { if (x.no === _st.no) idx = i; });
+    /* گارد نهایی race-safe: اگر از زمان گام اول دستگاه/کاربر دیگری برای همین درخواست
+       رکورد ساخته باشد، دوباره تصمیم صریح می‌گیریم؛ «انصراف» قبلی را باز می‌کند. */
+    if (idx === -1 && _st.srcRfq && !rfqsGuardDuplicateSource(_st.srcRfq, _st.no, document.getElementById('rqsTgList'))) return;
     var targets = _st._ranked.filter(function (r) { return _st._sel[r.cd]; })
       .map(function (r) { return { cd: r.cd, co: r.co, ph: r.ph, email: r.email, st: 'pending', sends: [] }; });
     if (!targets.length) { alert('حداقل یک تامین‌کننده انتخاب کنید'); return; }
     _st.targets = targets;
     /* v16.5 (US-399 AC4): یادگیری از اصلاح کاربر — انتخاب دستی خارج از پیشنهاد برند → افزودن تخصص با تایید */
     if (typeof ptfSupSpecLearn === 'function') { try { ptfSupSpecLearn(_st.items, targets, _st._ranked); } catch (eL) {} }
-    delete _st._ranked; delete _st._sel;
-    var list = getData('ptf_crm_rfqsmart');
-    var idx = -1;
-    list.forEach(function (x, i) { if (x.no === _st.no) idx = i; });
-    if (idx === -1 && _st.srcRfq) {
-      var exist = list.filter(function(x){ return x.srcRfq === _st.srcRfq; })[0];
-      if (exist) {
-        if (!confirm('⛔ برای درخواست کارفرما شماره «' + _st.srcRfq + '» قبلاً استعلام تامین شماره «' + exist.no + '» ثبت شده است.\n\nآیا مایل به ثبت به عنوان استعلام دوم هستید؟ (در غیر این صورت لغو کنید و همان استعلام قبلی را ویرایش کنید)')) {
-          return;
-        }
-      }
-    }
+    delete _st._ranked; delete _st._sel; delete _st._duplicateApprovedSource;
     if (idx > -1) list[idx] = _st; else list.unshift(_st);
     setData('ptf_crm_rfqsmart', list);
     /* ساخت استعلام تامین برای RFQ ارجاع‌شده، کار «استعلام قیمت از تامین‌کننده» را می‌بندد. */

@@ -152,11 +152,28 @@
     if (!m) return '';
     var y = +m[1], mo = +m[2], d = +m[3];
     if (d < 1 || d > 31 || mo < 1 || mo > 12 || y < 1) return '';
+    /* ptfNumWordsFa: اگر از moneyx.js لود شده باشد استفاده می‌شود، وگرنه fallback داخلی */
+    var _nwf = (typeof window.ptfNumWordsFa === 'function') ? window.ptfNumWordsFa : function (n) {
+      var ONES = ['','یک','دو','سه','چهار','پنج','شش','هفت','هشت','نه'];
+      var TEENS = ['ده','یازده','دوازده','سیزده','چهارده','پانزده','شانزده','هفده','هجده','نوزده'];
+      var TENS = ['','','بیست','سی','چهل','پنجاه','شصت','هفتاد','هشتاد','نود'];
+      var HUN = ['','صد','دویست','سیصد','چهارصد','پانصد','ششصد','هفتصد','هشتصد','نهصد'];
+      function _sub(x) {
+        if (x === 0) return '';
+        if (x < 10) return ONES[x];
+        if (x < 20) return TEENS[x - 10];
+        if (x < 100) return TENS[Math.floor(x / 10)] + (x % 10 ? ' و ' + ONES[x % 10] : '');
+        return HUN[Math.floor(x / 100)] + (x % 100 ? ' و ' + _sub(x % 100) : '');
+      }
+      if (n < 1000) return _sub(n);
+      var th = Math.floor(n / 1000), rem = n % 1000;
+      return _sub(th) + ' هزار' + (rem ? ' و ' + _sub(rem) : '');
+    };
     var yearWords;
-    if (typeof window.ptfNumWordsFa === 'function') {
-      yearWords = (y >= 1000 && y < 2000) ? ('هزار و ' + window.ptfNumWordsFa(y - 1000)) : window.ptfNumWordsFa(y);
+    if (y >= 1000 && y < 2000) {
+      yearWords = 'هزار و ' + _nwf(y - 1000);
     } else {
-      yearWords = String(y);
+      yearWords = _nwf(y);
     }
     return (DAY_ORD[d - 1] || String(d)) + ' ' + (MONTHS[mo - 1] || '') + ' ماه ' + yearWords;
   };
@@ -375,7 +392,7 @@
           if (!confirm('نام ذی‌نفع چاپ‌شده («' + printed.toWhom + '») با تامین‌کننده انتخاب‌شده («' + sup.co + '») متفاوت است. با مسئولیت شما ثبت شود؟')) return;
         }
         var rec = {
-          no: String(v.no || '').trim(), sayad: String(v.no || '').trim(), bank: String(v.bank || '').trim(),
+          no: String(v.no || '').trim(), bank: String(v.bank || '').trim(),
           toWhom: printed.toWhom, beneficiaryId: normNid(v.nid || printed.beneficiaryId || ''),
           amt: +printed.amt || 0, dueFa: printed.dueFa || '', dueISO: printed.dueISO || '',
           note: String(v.note || printed.note || '').trim(), kind: 'finance', supplierCd: sup ? sup.cd : '', supplierName: sup ? (sup.co || '') : '',
@@ -454,7 +471,9 @@
         (c.note ? box('f-memo', L.memoTop, L.memoRight, null, 'font-size:' + L.memoSize + 'pt;font-family:' + fam('memo') + ';color:' + (L.memoColor || '#111827') + ';') + escP(c.note) + '</div>' : '') +
         '</div></section>';
     }).join('');
-    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>چاپ چک فیزیکی</title><style>' +
+    var chequeTitle = 'CHQ-' + list.map(function (c) { return (c && (c.sayad || c.no || c.cd)) || ''; }).filter(Boolean).slice(0, 3).join('_');
+    if (chequeTitle === 'CHQ-') chequeTitle = 'cheque-print';
+    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>' + escP(typeof ptfPdfFileName === 'function' ? ptfPdfFileName(chequeTitle) : chequeTitle) + '</title><style>' +
       '@page{size:' + L.pageW + 'mm ' + L.pageH + 'mm;margin:0}' +
       '*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000}' +
       'body{font-family:' + fontStack(L.fontFam || 'Tahoma') + ';-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
@@ -493,7 +512,8 @@
       return;
     }
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
-      window.ptfPreviewPrintableDoc('پیش‌نمایش/کالیبراسیون چک فیزیکی', html, 'cheque-print');
+      var previewName = 'CHQ-' + list.map(function (c) { return (c && (c.sayad || c.no || c.cd)) || ''; }).filter(Boolean).slice(0, 3).join('_');
+      window.ptfPreviewPrintableDoc('پیش‌نمایش/کالیبراسیون چک فیزیکی', html, previewName === 'CHQ-' ? 'cheque-print' : previewName);
       return;
     }
     chqOpenDirectPrint(html, list.length);

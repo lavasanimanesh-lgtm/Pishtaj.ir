@@ -208,7 +208,7 @@
   window.ptfChequeBooks = function () { return read(K_BOOKS); };
   window.ptfChequeBookSave = function (book) {
     if (!book || !book.cd) return { ok: false, why: 'no_cd' };
-    book.updatedAt = faDateTimeL(); book.updatedBy = me().name;
+    book.updatedAt = faDateTimeL(); book.updatedAtISO = new Date().toISOString(); book.updatedBy = me().name;
     var l = read(K_BOOKS);
     var hit = l.filter(function (x) { return x.cd === book.cd; })[0];
     if (hit) { Object.keys(book).forEach(function (k) { hit[k] = book[k]; }); }
@@ -480,6 +480,10 @@
     patch = patch || {};
     Object.keys(patch).forEach(function (k) { if (patch[k] !== undefined) st.rec[k] = patch[k]; });
     if (patch.dueISO) st.rec.dueFa = (typeof ptfISOToJ === 'function') ? ptfISOToJ(patch.dueISO) : patch.dueISO;
+    /* برای حل conflict بین دو دستگاه، زمان هر ویرایش (به‌ویژه files) باید عوض شود؛
+       `t` فقط زمان ایجاد بود و باعث server-wins کاذب می‌شد. */
+    st.rec.updatedAtISO = new Date().toISOString();
+    st.rec.updatedBy = me().name;
     setData(st.key, st.list);
     return { ok: true, rec: st.rec, store: st.key };
   };

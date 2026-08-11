@@ -111,22 +111,25 @@ if (isset($PUBLIC_LIMITED[$action])) {
 }
 
 // ===== US-149 AC1: کپچای سروری (چالش ریاضی + توکن HMAC انقضادار) =====
+// v32.0.2 US-440-fix: captcha_key only required when captcha/OTP actions are invoked — not a global blocker
 $CAPTCHA_SECRET = load_ptf_secret('captcha_key', '');
 function captcha_token($sum, $ts) {
     global $CAPTCHA_SECRET;
-    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return '';
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return ''; /* cannot generate captcha — captcha_key missing or too short */
     return base64_encode($ts . '|' . hash_hmac('sha256', $sum . '|' . $ts, $CAPTCHA_SECRET));
 }
 function captcha_ok() {
     global $CAPTCHA_SECRET;
-    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false; /* captcha_key missing — reject silently */
     $tok = $_POST['captcha_token'] ?? '';
     $ans = trim($_POST['captcha_answer'] ?? '');
     if (!$tok || $ans === '' || !is_numeric($ans)) return false;
     $raw = base64_decode($tok, true);
     if (!$raw || strpos($raw, '|') === false) return false;
     list($ts, $sig) = explode('|', $raw, 2);
-    if (!ctype_digit($ts) || time() - (int)$ts > 900) return false; // انقضا: ۱۵ دقیقه
+    if (!ctype_digit($ts)) return false;
+    $captchaAge = time() - (int)$ts;
+    if ($captchaAge < 0 || $captchaAge > 900) return false; // آینده نامعتبر؛ انقضا: ۱۵ دقیقه
     return hash_equals(hash_hmac('sha256', ((int)$ans) . '|' . $ts, $CAPTCHA_SECRET), $sig);
 }
 function require_captcha() {
@@ -252,17 +255,23 @@ function otp_store_save($s) {
 }
 function otp_token_make($phone) {
     global $CAPTCHA_SECRET;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return ''; /* captcha_key missing for OTP — cannot generate secure token */
     $ts = time();
     return base64_encode($ts . '|' . $phone . '|' . hash_hmac('sha256', 'otp|' . $phone . '|' . $ts, $CAPTCHA_SECRET));
 }
 function otp_token_ok($token, $phone) {
     global $CAPTCHA_SECRET;
+    /* گارد باید هم در تولید و هم در اعتبارسنجی باشد؛ فقط guard کردن make کافی نبود و
+       مهاجم می‌توانست با secret خالی/کوتاه توکن HMAC دلخواه بسازد. */
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false;
     $raw = base64_decode($token, true);
     if (!$raw) return false;
     $parts = explode('|', $raw, 3);
     if (count($parts) !== 3) return false;
     list($ts, $ph, $sig) = $parts;
-    if (!ctype_digit($ts) || time() - (int)$ts > 1800) return false; // اعتبار ۳۰ دقیقه
+    if (!ctype_digit($ts)) return false;
+    $otpAge = time() - (int)$ts;
+    if ($otpAge < 0 || $otpAge > 1800) return false; // آینده نامعتبر؛ اعتبار ۳۰ دقیقه
     if ($ph !== $phone) return false;
     return hash_equals(hash_hmac('sha256', 'otp|' . $ph . '|' . $ts, $CAPTCHA_SECRET), $sig);
 }
@@ -344,14 +353,14 @@ $SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','sav
    allowed to see. All four senior CRM roles (admin/chairman/ceo/commercial) keep
    the full company dataset. Destructive operations remain separately guarded. */
 function sync_all_keys() {
-    return ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports'];
+    return ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports'];
 }
 function sync_allowed_keys_for_role($role) {
     $role = preg_replace('/[^a-z0-9]/', '', strtolower(trim((string)$role)));
     $all = sync_all_keys();
     if (in_array($role, ['admin','chairman','ceo','commercial'], true) || strpos($role, 'commercial') !== false || strpos($role, 'manager') !== false) return $all;
     $crm = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'];
-    $accountant = ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns'];
+    $accountant = ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns'];
     $collector = ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars'];
     if ($role === 'accountant') return $accountant;
     if ($role === 'collector') return $collector;

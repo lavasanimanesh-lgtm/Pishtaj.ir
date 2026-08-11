@@ -9,12 +9,12 @@ var sf = fs.readFileSync(path.join(BASE, 'supplier-finance.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+\.\d+\.\d+(?:-[a-z0-9.-]+)?$/i.test(vjson.crm_version));
 
 SECTION('تنخواه: مدیریت اسناد');
 T('دکمهٔ «📎 اسناد» در اکشن‌های تنخواه', petty.indexOf('📎 اسناد') > -1 && petty.indexOf('ptfPettyFilesUi') > -1);
 T('ptfPettyFilesUi تعریف شده (مودال مشاهده/افزودن)', petty.indexOf('window.ptfPettyFilesUi = function') > -1);
-T('pettyRemoveFile تعریف شده (حذف سند)', petty.indexOf('window.pettyRemoveFile = function') > -1 && petty.indexOf('این سند از تنخواه حذف شود؟') > -1);
+T('pettyRemoveFile تعریف شده (حذف سند)', petty.indexOf('window.pettyRemoveFile = function') > -1 && petty.indexOf('این سند از تنخواه و فضای ابری حذف شود؟') > -1);
 
 SECTION('فاکتور خرید: مدیریت اسناد در ویرایش');
 T('slInvoiceEdit بخش اسناد (filesBox) دارد', sf.indexOf('slInvEditFilesUp') > -1 && sf.indexOf('اسناد فاکتور') > -1);

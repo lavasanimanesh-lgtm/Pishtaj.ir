@@ -35,7 +35,7 @@ SECTION('مشاهده/حذف سند (سرتاسری)');
 T('attachUploadWidget دکمهٔ مشاهده (👁) دارد', st.indexOf('👁 مشاهده') > -1 && st.indexOf('openStoredFile') > -1);
 T('attachUploadWidget دکمهٔ حذف (✕) دارد', st.indexOf('✕ حذف') > -1 && st.indexOf('ptfRemoveJustUploaded') > -1);
 T('ptfRemoveJustUploaded تعریف شده', st.indexOf('window.ptfRemoveJustUploaded = function') > -1);
-T('حذف سند از فاکتور خرید (slInvoiceRemoveFile)', sf.indexOf('window.slInvoiceRemoveFile = function') > -1 && sf.indexOf('این سند از فاکتور حذف شود؟') > -1);
+T('حذف تأییدشدهٔ سند از فاکتور خرید (slInvoiceRemoveFile)', sf.indexOf('window.slInvoiceRemoveFile = function') > -1 && sf.indexOf('این سند از فاکتور و فضای ابری حذف شود؟') > -1 && sf.indexOf('ptfDeleteStoredFile') > -1);
 
 SECTION('ویرایش کامل چک + افزودن سند');
 T('مودال ویرایش چک فیلدهای بانک/شعبه/سری/مالک/حساب دارد', cp.indexOf('chE_Branch') > -1 && cp.indexOf('chE_Series') > -1 && cp.indexOf('chE_Owner') > -1 && cp.indexOf('chE_Acc') > -1);

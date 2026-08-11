@@ -499,7 +499,23 @@
   window.ptfPettyFilesUi = function (cd) {
     var all = getData(PETTY_KEY);
     var r = all.filter(function (x) { return x.cd === cd; })[0];
-    if (!r) return;
+    if (!r) {
+      /* CHQ-DOC-002: اگر رکورد در localStorage محلی هنوز نیست (مثلاً همین الان از
+         دستگاه/کاربر دیگر ثبت شده و pull دورهٔ ۲۰ثانیه‌ای هنوز نرسیده)، یک pull فوری
+         بزن و یک‌بار دوباره امتحان کن — قبلاً این حالت بی‌صدا هیچ پنجره‌ای باز نمی‌کرد. */
+      if (typeof window.ptfSyncPullNow === 'function' && !window._ptfPettyFilesRetrying) {
+        window._ptfPettyFilesRetrying = true;
+        window.ptfSyncPullNow(function () {
+          window._ptfPettyFilesRetrying = false;
+          var again = (getData(PETTY_KEY) || []).filter(function (x) { return x.cd === cd; })[0];
+          if (again) window.ptfPettyFilesUi(cd);
+          else alert('این رکورد تنخواه یافت نشد.');
+        });
+      } else {
+        alert('این رکورد تنخواه یافت نشد.');
+      }
+      return;
+    }
     var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2750) : 2750;
     var rows = (r.files || []).map(function (f) {
       var key = String(f.key || '').replace(/[\\']/g, '');
@@ -515,19 +531,34 @@
     window._ptfPettyFilesCd = cd;
     try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptyFilesUp', 'petty/' + cd, function (f) {
       var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
-      rr.files = rr.files || []; rr.files.push(f); setData(PETTY_KEY, a);
+      rr.files = rr.files || []; rr.files.push(f); rr.updatedAtISO = new Date().toISOString(); rr.updatedBy = userName(); setData(PETTY_KEY, a);
       if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     }); } catch (eU) {}
+    /* CHQ-DOC-002: اگر سندی از دستگاه/کاربر دیگر تازه ثبت شده و هنوز به این مرورگر
+       نرسیده، یک pull فوری بزن و اگر تعداد اسناد واقعاً تغییر کرد، مودال را خودکار
+       به‌روز کن — دیگر نیازی به رفتن به تب دیگر و برگشتن نیست. */
+    if (typeof window.ptfAttachRefreshOnOpen === 'function') {
+      window.ptfAttachRefreshOnOpen('ptfPettyFilesDlg', function () {
+        var rr = (getData(PETTY_KEY) || []).filter(function (x) { return x.cd === cd; })[0];
+        return (rr && rr.files || []).map(function (f) { return f.key; });
+      }, function () { window.ptfPettyFilesUi(cd); });
+    }
   };
+
   window.pettyRemoveFile = function (cd, key) {
-    if (!confirm('این سند از تنخواه حذف شود؟')) return;
-    var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;
-    r.files = (r.files || []).filter(function (f) { return f.key !== key; });
-    setData(PETTY_KEY, a);
-    try { fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {}); } catch (eD) {}
-    if (typeof ptfToast === 'function') ptfToast('سند حذف شد', 'warn');
-    var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+    if (!confirm('این سند از تنخواه و فضای ابری حذف شود؟')) return;
+    if (typeof window.ptfDeleteStoredFile !== 'function') { alert('سرویس حذف فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    window.ptfDeleteStoredFile(key, function (res) {
+      if (!res.ok) { if (typeof ptfToast === 'function') ptfToast('⛔ سند حذف نشد: ' + res.error, 'warn'); else alert(res.error); return; }
+      var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;
+      r.files = (r.files || []).filter(function (f) { return f.key !== key; });
+      r._deletedFileKeys = (r._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
+      r.updatedAtISO = new Date().toISOString(); r.updatedBy = userName();
+      setData(PETTY_KEY, a);
+      if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
+      var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+    });
   };
 
   window.pettyDel = function (cd) {

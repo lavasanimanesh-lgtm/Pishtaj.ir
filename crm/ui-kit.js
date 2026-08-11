@@ -170,12 +170,46 @@ window.ptfOnClickArg = function (v) {
   };
 })();
 
+/* v34.4.41: قرارداد سراسری نام خروجی چاپ/PDF. مرورگر نام پیش‌فرض Save as PDF
+   را از document.title می‌گیرد؛ پس همهٔ پیش‌نمایش‌ها باید یک نام امن و سندمحور داشته باشند. */
+window.ptfPdfFileName = function (parts) {
+  var raw = Array.isArray(parts) ? parts : [parts];
+  var name = raw.map(function (v) { return String(v == null ? '' : v).trim(); }).filter(Boolean).join('__');
+  name = name.replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').replace(/\s+/g, '_');
+  name = name.replace(/_{3,}/g, '__').replace(/-{2,}/g, '-').replace(/^[._-]+|[._-]+$/g, '');
+  return (name || 'document').slice(0, 180);
+};
+window.ptfPdfHtmlWithTitle = function (html, fileName) {
+  var out = String(html || ''), name = window.ptfPdfFileName(fileName);
+  var safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (/<title[\s>]/i.test(out)) return out.replace(/<title[^>]*>[\s\S]*?<\/title>/i, '<title>' + safe + '</title>');
+  if (/<\/head>/i.test(out)) return out.replace(/<\/head>/i, '<title>' + safe + '</title></head>');
+  if (/<html[^>]*>/i.test(out)) return out.replace(/<html([^>]*)>/i, '<html$1><head><title>' + safe + '</title></head>');
+  return '<!doctype html><html><head><meta charset="utf-8"><title>' + safe + '</title></head><body>' + out + '</body></html>';
+};
+window.ptfOfferPdfFileName = function (offer) {
+  offer = offer || {};
+  var parts = [offer.no || (offer.kind === 'TO' ? 'technical-offer' : 'commercial-offer')];
+  var requestNo = '', linkedRequest = null;
+  try {
+    if (offer.inqNo && typeof getData === 'function') {
+      linkedRequest = (getData('ptf_crm_rfqs') || []).filter(function (r) { return r && (r.cd === offer.inqNo || r.inqNo === offer.inqNo); })[0] || null;
+    }
+    /* رکورد جاری: فقط شمارهٔ واقعی کارفرما (متفاوت از cd سیستمی)؛
+       سند legacy بدون رکورد والد: همان ref ذخیره‌شده حفظ می‌شود. */
+    if (linkedRequest) requestNo = linkedRequest.inqNo && linkedRequest.inqNo !== linkedRequest.cd ? linkedRequest.inqNo : '';
+    else requestNo = typeof ptfInqClientNo === 'function' ? ptfInqClientNo(offer.inqNo) : (offer.inqNo || '');
+  } catch (eReq) { requestNo = offer.inqNo || ''; }
+  if (requestNo && parts.indexOf(requestNo) < 0) parts.push(requestNo);
+  return window.ptfPdfFileName(parts);
+};
+
 /* v31.7.19 US-PDF-NAME: چاپ با عنوان سنددار — نام پیش‌فرض PDF مرورگر از document.title می‌آید.
    قبلاً چاپ‌های داخل صفحه اصلی با عنوان «CRM | سامانه مدیریت | پیشرو تجهیز فرتاک» ذخیره می‌شدند
    و اسناد قابل تمایز نبودند. این helper عنوان را موقتاً به شناسه سند تغییر می‌دهد و برمی‌گرداند. */
 window.ptfPrintWithTitle = function (docTitle) {
   var prev = document.title;
-  try { if (docTitle) document.title = String(docTitle); } catch (e) {}
+  try { if (docTitle) document.title = window.ptfPdfFileName(docTitle); } catch (e) {}
   var restore = function () { try { document.title = prev; } catch (e2) {} window.removeEventListener('afterprint', restore); };
   window.addEventListener('afterprint', restore);
   setTimeout(restore, 4000); /* fallback مرورگرهایی که afterprint نمی‌دهند */

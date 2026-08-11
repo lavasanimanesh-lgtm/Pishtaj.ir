@@ -838,10 +838,13 @@
     document.querySelectorAll('[id^="cmpModal_"]').forEach(function (m) { m.remove(); });
     if (typeof goPanelByName === 'function') goPanelByName('rfqs');
     setTimeout(function () {
-      /* اگر استعلامی برای همین درخواست هست → کارت رهگیری؛ وگرنه ویزارد جدید */
-      var q = getData('ptf_crm_rfqsmart').filter(function (x) { return x.srcRfq === inqNo; })[0];
-      if (q && typeof rfqsOpen === 'function') rfqsOpen(q.no);
-      else if (typeof rfqsNew === 'function') { rfqsNew(); if (typeof ptfToast === 'function') ptfToast('🤖 استعلام جدید — درخواست «' + inqNo + '» را در گام مبدا انتخاب کنید', 'info'); }
+      /* مسیر یکپارچهٔ ضدازدحام: اگر قبلی هست، خود rfqsNew انتخاب «ثبت مجدد / رفتن به قبلی»
+         را نشان می‌دهد؛ اگر نیست ویزارد با همان درخواست از پیش انتخاب‌شده باز می‌شود. */
+      if (typeof rfqsNew === 'function') {
+        var hadExisting = typeof window.ptfRfqsExistingForSource === 'function' && window.ptfRfqsExistingForSource(inqNo, '').length > 0;
+        rfqsNew(inqNo);
+        if (typeof ptfToast === 'function' && !hadExisting) ptfToast('🤖 درخواست «' + inqNo + '» به‌عنوان مبدا انتخاب شد', 'info');
+      }
     }, 350);
   };
 

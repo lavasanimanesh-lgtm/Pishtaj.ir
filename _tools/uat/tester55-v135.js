@@ -13,7 +13,7 @@ SECTION('US-332: دکمه‌های پیام‌رسان deep-link');
 T('ماژول ثبت شده', idx.indexOf('messengers.js') > -1 && sw.indexOf('./messengers.js') > -1);
 T('۵ پیام‌رسان: واتساپ/تلگرام/بله/ایتا/روبیکا', ['wa.me', 't.me', 'ble.ir', 'eitaa.com', 'rubika.ir'].every(function (d) { return ms.indexOf(d) > -1; }));
 T('واتساپ با متن آماده (?text=)', ms.indexOf("'?text=' + encodeURIComponent(c.txt)") > -1);
-T('نرمال‌سازی شماره ایران (0→+98)', ms.indexOf("replace(/^0/, '+98')") > -1);
+T('نرمال‌سازی شماره ایران و ارقام فارسی (09→98)', ms.indexOf("FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹'") > -1 && ms.indexOf("d = '98' + d.slice(1)") > -1);
 T('متن آماده {نام} از US-330 وصل است', ms.indexOf('ptfMsgTpls') > -1 && ms.indexOf('ptfTplRender') > -1);
 T('شناسه‌های پیام‌رسان روی رکورد مخاطب (msgIds)', ms.indexOf('c.msgIds = {') > -1);
 T('دکمه 💬 روی ردیف مشتری و تامین‌کننده (MutationObserver)', ms.indexOf("['cTb', 'sTb']") > -1 && ms.indexOf('MutationObserver') > -1);

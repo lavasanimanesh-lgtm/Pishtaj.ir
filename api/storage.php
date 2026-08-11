@@ -6,6 +6,7 @@
  * اکشن‌ها:
  *   ?action=status            → تست اتصال (لیست باکت)
  *   ?action=presign_put       → لینک موقت آپلود مستقیم مرورگر→آروان  (POST: name, type, folder)
+ *   ?action=upload_proxy      → fallback آپلود مرورگر→PHP→آروان       (multipart: file, folder)
  *   ?action=presign_get       → لینک موقت دانلود/نمایش فایل خصوصی    (POST: key)
  *   ?action=delete            → حذف فایل                              (POST: key)
  *   ?action=list              → لیست فایل‌های یک پوشه                 (POST: prefix)
@@ -163,7 +164,39 @@ function s3_request($cfg, $method, $path, $query = '') {
 /* ---------- پاکسازی نام فایل ---------- */
 function safe_key($name) {
     $name = preg_replace('/[^\w\-\.\x{0600}-\x{06FF} ]/u', '_', $name);
-    return trim(str_replace(' ', '-', $name), '-_.');
+    $name = trim(str_replace(' ', '-', $name), '-_.');
+    if ($name === '') return 'file';
+    return function_exists('mb_substr') ? mb_substr($name, 0, 180) : substr($name, 0, 180);
+}
+
+/* مسیر پوشه باید hierarchy را حفظ کند. پیاده‌سازی قبلی تمام slashها را حذف می‌کرد
+   (supplier-finance/payment/X → supplier-financepaymentX) و فایل‌ها خارج از prefix
+   مورد انتظار list/archive قرار می‌گرفتند. هر segment جداگانه پاکسازی می‌شود. */
+function safe_folder($folder) {
+    $parts = preg_split('#[\\/]+#', trim((string)$folder, " /\\"));
+    $safe = [];
+    foreach ($parts as $part) {
+        $part = preg_replace('/[^A-Za-z0-9_-]/', '', $part);
+        if ($part !== '') $safe[] = substr($part, 0, 64);
+        if (count($safe) >= 8) break;
+    }
+    return $safe ? implode('/', $safe) : 'general';
+}
+
+/* v34.4.36: MIME را از پسوند امن کلید تعیین می‌کنیم، نه مقدار قابل‌جعل مرورگر.
+   فایل‌های proxy قبلاً بدون Content-Type در S3 ثبت می‌شدند و به شکل
+   application/octet-stream/attachment برمی‌گشتند؛ تصویر و PDF در viewer باز نمی‌شد. */
+function storage_content_type($name) {
+    $path = parse_url((string)$name, PHP_URL_PATH);
+    $ext = strtolower(pathinfo($path ?: (string)$name, PATHINFO_EXTENSION));
+    $map = [
+        'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+        'gif' => 'image/gif', 'webp' => 'image/webp', 'bmp' => 'image/bmp',
+        'svg' => 'image/svg+xml', 'pdf' => 'application/pdf',
+        'txt' => 'text/plain; charset=utf-8', 'csv' => 'text/csv; charset=utf-8',
+        'json' => 'application/json', 'xml' => 'application/xml',
+    ];
+    return $map[$ext] ?? 'application/octet-stream';
 }
 
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -185,10 +218,100 @@ switch ($action) {
 
     case 'presign_put':
         $name = safe_key($in['name'] ?? 'file');
-        $folder = preg_replace('/[^\w\-]/', '', $in['folder'] ?? 'general');
+        $folder = safe_folder($in['folder'] ?? 'general');
         $key = $folder . '/' . date('Y-m') . '/' . uniqid() . '-' . $name;
         $url = sig_v4($cfg, 'PUT', $key, [], min(900, $cfg['expiry'] ?? 3600));
-        echo json_encode(['ok' => true, 'url' => $url, 'key' => $key, 'max_mb' => $cfg['max_mb'] ?? 25]);
+        echo json_encode(['ok' => true, 'url' => $url, 'key' => $key,
+            'content_type' => storage_content_type($name), 'content_disposition' => 'inline',
+            'max_mb' => $cfg['max_mb'] ?? 25]);
+        break;
+
+    case 'upload_proxy':
+        /* v34.4.33: فالو‌بک سروری برای زمانی که مرورگر نمی‌تواند مستقیم به آروان PUT بزند
+           (CORS استیجینگ، فایروال مرورگر، یا timeout). فایل از طریق همین سرور (PHP cURL) به S3 می‌رود
+           و هیچ نسخهٔ پایداری روی هاست باقی نمی‌ماند — فقط عبور. */
+        $uploadErr = isset($_FILES['file']) ? (int)($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+        if ($uploadErr !== UPLOAD_ERR_OK) {
+            http_response_code($uploadErr === UPLOAD_ERR_INI_SIZE || $uploadErr === UPLOAD_ERR_FORM_SIZE ? 413 : 400);
+            $messages = [
+                UPLOAD_ERR_INI_SIZE => 'حجم فایل از upload_max_filesize هاست بیشتر است؛ مقدار PHP را حداقل 25M کنید',
+                UPLOAD_ERR_FORM_SIZE => 'حجم فایل از سقف فرم بیشتر است',
+                UPLOAD_ERR_PARTIAL => 'فایل ناقص به سرور رسید؛ دوباره تلاش کنید',
+                UPLOAD_ERR_NO_FILE => 'فایل دریافت نشد (مرورگر فایلی نفرستاد)',
+                UPLOAD_ERR_NO_TMP_DIR => 'پوشهٔ موقت PHP روی هاست وجود ندارد',
+                UPLOAD_ERR_CANT_WRITE => 'هاست نتوانست فایل موقت را بنویسد',
+                UPLOAD_ERR_EXTENSION => 'افزونهٔ PHP آپلود را متوقف کرد',
+            ];
+            echo json_encode(['ok' => false, 'error' => $messages[$uploadErr] ?? ('خطای آپلود PHP: ' . $uploadErr)]);
+            break;
+        }
+        $tmp = $_FILES['file']['tmp_name'];
+        $orig = $_FILES['file']['name'] ?? 'file';
+        $folder = safe_folder($_POST['folder'] ?? $_REQUEST['folder'] ?? 'general');
+        $name = safe_key($orig);
+        $key = $folder . '/' . date('Y-m') . '/' . uniqid() . '-' . $name;
+        if (!is_uploaded_file($tmp) || !is_file($tmp) || !is_readable($tmp)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'فایل موقت معتبر/در دسترس نیست']);
+            break;
+        }
+        $size = filesize($tmp);
+        $max = max(1, (int)($cfg['max_mb'] ?? 25)) * 1048576;
+        if ($size === false || $size > $max) {
+            echo json_encode(['ok' => false, 'error' => 'حجم فایل از سقف فضای ابری (' . (int)($cfg['max_mb'] ?? 25) . 'MB) بیشتر است']);
+            break;
+        }
+        $host = parse_url($cfg['endpoint'], PHP_URL_HOST);
+        if (!$host) {
+            echo json_encode(['ok' => false, 'error' => 'endpoint فضای ابری نامعتبر است']);
+            break;
+        }
+        $now = gmdate('Ymd\THis\Z');
+        $date = gmdate('Ymd');
+        $scope = "$date/{$cfg['region']}/s3/aws4_request";
+        $payloadHash = hash_file('sha256', $tmp);
+        if ($payloadHash === false) $payloadHash = hash('sha256', '');
+        $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($key));
+        $headersCanonical = "host:$host\nx-amz-content-sha256:$payloadHash\nx-amz-date:$now\n";
+        $signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+        $canonicalRequest = implode("\n", ['PUT', $uri, '', $headersCanonical, $signedHeaders, $payloadHash]);
+        $stringToSign = implode("\n", ['AWS4-HMAC-SHA256', $now, $scope, hash('sha256', $canonicalRequest)]);
+        $sigKey = hmac(hmac(hmac(hmac('AWS4' . $cfg['secret_key'], $date), $cfg['region']), 's3'), 'aws4_request');
+        $signature = hmac($sigKey, $stringToSign, false);
+        $auth = "AWS4-HMAC-SHA256 Credential={$cfg['access_key']}/$scope, SignedHeaders=$signedHeaders, Signature=$signature";
+        $fh = @fopen($tmp, 'rb');
+        if (!$fh) {
+            echo json_encode(['ok' => false, 'error' => 'باز کردن فایل موقت ناموفق بود']);
+            break;
+        }
+        $contentType = storage_content_type($name);
+        $ch = curl_init($cfg['endpoint'] . $uri);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_UPLOAD => true,
+            CURLOPT_INFILE => $fh,
+            CURLOPT_INFILESIZE => (int)$size,
+            CURLOPT_TIMEOUT => 120,
+            CURLOPT_CONNECTTIMEOUT => 15,
+            CURLOPT_HTTPHEADER => [
+                "Authorization: $auth",
+                "x-amz-content-sha256: $payloadHash",
+                "x-amz-date: $now",
+                "Content-Type: $contentType",
+                "Content-Disposition: inline",
+            ],
+        ]);
+        curl_exec($ch);
+        $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+        fclose($fh);
+        if ($http >= 200 && $http < 300) {
+            echo json_encode(['ok' => true, 'key' => $key, 'name' => $orig, 'size' => (int)$size,
+                'content_type' => $contentType, 'mode' => 'arvan-proxy']);
+        } else {
+            echo json_encode(['ok' => false, 'error' => 'آپلود از طریق سرور هم ناموفق بود' . ($err ? ': ' . $err : ' (HTTP ' . $http . ')'), 'http' => $http]);
+        }
         break;
 
     /* ===== US-282 (v122.3): بک‌آپ ابری با کلید ثابت — جایگزین قبلی، بدون انباشت ===== */
@@ -234,9 +357,18 @@ switch ($action) {
             echo json_encode(['ok' => false, 'error' => 'file_not_found', 'detail' => 'فایل با این کلید در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده).', 'key' => $key, 'http' => $code]);
             break;
         }
-        /* 403/5xx/نامعتبر: HEAD مطمئن نیست → کلید را امضا و برگردان (GET امضاشده خودش تعیین تکلیف می‌کند) */
-        $url = sig_v4($cfg, 'GET', $key, [], $cfg['expiry'] ?? 3600);
-        echo json_encode(['ok' => true, 'url' => $url]);
+        /* 403/5xx/نامعتبر: HEAD مطمئن نیست → کلید را امضا و برگردان (GET امضاشده خودش تعیین تکلیف می‌کند).
+           v34.4.36: response override برای فایل‌های قدیمی که بدون MIME/inline روی S3
+           ذخیره شده‌اند؛ در نتیجه همان object قبلی هم بدون re-upload داخل viewer باز می‌شود. */
+        $contentType = storage_content_type($key);
+        $disposition = (($in['disposition'] ?? '') === 'attachment') ? 'attachment' : 'inline';
+        $responseHeaders = [
+            'response-content-type' => $contentType,
+            'response-content-disposition' => $disposition,
+        ];
+        $url = sig_v4($cfg, 'GET', $key, $responseHeaders, $cfg['expiry'] ?? 3600);
+        echo json_encode(['ok' => true, 'url' => $url, 'content_type' => $contentType,
+            'content_disposition' => $disposition]);
         break;
 
     case 'delete':
@@ -244,7 +376,9 @@ switch ($action) {
         if (!$key) { echo json_encode(['ok' => false, 'error' => 'key لازم است']); break; }
         $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($key));
         $r = s3_request($cfg, 'DELETE', $uri);
-        echo json_encode(['ok' => in_array($r['code'], [200, 204]), 'http' => $r['code']]);
+        $ok = in_array((int)$r['code'], [200, 204], true);
+        if (!$ok) http_response_code(($r['code'] >= 400 && $r['code'] < 600) ? (int)$r['code'] : 502);
+        echo json_encode(['ok' => $ok, 'http' => $r['code'], 'error' => $ok ? null : ('حذف از فضای ابری ناموفق بود' . ($r['err'] ? ': ' . $r['err'] : ' (S3 HTTP ' . $r['code'] . ')'))]);
         break;
 
     case 'list':
