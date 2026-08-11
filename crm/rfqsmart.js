@@ -159,13 +159,11 @@
     var STL = { draft: '📝 پیش‌نویس', sent: '📤 ارسال شده', done: '✅ جمع‌بندی شده' };
     el.innerHTML = list.map(function (r) {
       var resp = (r.targets || []).filter(function (t) { return t.st === 'replied'; }).length;
-      var parent = rfqsSourceRecord(r.srcRfq);
-      var sourceMeta = r.srcRfq ? ('درخواست داخلی: ' + ((parent && parent.cd) || r.srcRfq) + ((parent && parent.inqNo && parent.inqNo !== parent.cd) ? (' | شماره درخواست کارفرما: ' + parent.inqNo) : '') + ((parent && parent.co) ? (' | کارفرما: ' + parent.co) : '')) : '';
-      var itemPreview = (r.items || []).slice(0, 3).map(function (it) { return it.name || it.nm || it.model || it.md || ''; }).filter(Boolean).join('، ');
+      /* v34.4.44: نمای فشردهٔ قبلی کارت حفظ می‌شود. اطلاعات کالا در index جست‌وجو
+         باقی است، اما نام کالا دیگر در عنوان/کارت درخواست تأمین نمایش داده نمی‌شود. */
       return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
         '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
-        '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.duplicateOf ? ' <span class="bd" style="background:#fff7ed;color:#c2410c" title="با تایید کاربر در کنار درخواست قبلی ثبت شده">تکرارِ ' + escP(r.duplicateOf) + '</span>' : '') + (sourceMeta ? '<div style="font-size:11.5px;color:#0e7490;margin-top:3px">🔗 ' + escP(sourceMeta) + '</div>' : '') +
-        (itemPreview ? '<div style="font-size:11.5px;color:#475569;margin-top:2px">📦 ' + escP(itemPreview) + ((r.items || []).length > 3 ? ' …' : '') + '</div>' : '') +
+        '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.srcRfq ? ' <small style="color:#64748b">(از درخواست ' + escP(r.srcRfq) + ')</small>' : '') + (r.duplicateOf ? ' <span class="bd" style="background:#fff7ed;color:#c2410c" title="با تایید کاربر در کنار درخواست قبلی ثبت شده">تکرارِ ' + escP(r.duplicateOf) + '</span>' : '') +
         '<div style="font-size:11.5px;color:#64748b;margin-top:2px">' + (r.items || []).length + ' قلم | ' + (r.targets || []).length + ' تامین‌کننده | پاسخ: ' + resp + ' | ' + escP(r.t || '') + ' | ' + (STL[r.st] || '') + '</div></div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
         '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff;font-weight:bold" onclick="rfqsToggleAccordion(\'' + ptfOnClickArg(r.no) + '\')">🔻 تخصیص و استعلام کشویی (بدون مودال)</button>' +

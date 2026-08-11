@@ -415,6 +415,10 @@ window.openStoredFile = openStoredFile;
    reopenFn تازه می‌سازد. */
 window.ptfAttachRefreshOnOpen = function (dlgId, getSignature, reopenFn) {
   if (typeof window.ptfSyncPullNow !== 'function') return;
+  /* v34.4.44: پاسخ pull فقط مجاز است همان نمونهٔ مودالی را تازه کند که pull را
+     آغاز کرده است. id به‌تنهایی کافی نیست، چون نمونهٔ تازه نیز همان id را دارد. */
+  var openedDlg = document.getElementById(dlgId);
+  if (!openedDlg) return;
   function signature() {
     var value = getSignature();
     /* ترتیب آرایهٔ رکوردها بین mergeها تضمین‌شده نیست؛ مرتب‌سازی فقط برای signature
@@ -427,7 +431,7 @@ window.ptfAttachRefreshOnOpen = function (dlgId, getSignature, reopenFn) {
   window.ptfSyncPullNow(function (result) {
     try {
       var dlg = document.getElementById(dlgId);
-      if (!dlg) return; /* کاربر قبل از رسیدن پاسخ، مودال را بسته است */
+      if (!dlg || dlg !== openedDlg || !openedDlg.isConnected) return; /* بسته یا جایگزین شده */
       if (result && result.ok === false) return; /* روی push/pull ناموفق، refresh کاذب نزن */
       var after = signature();
       if (after !== before) {

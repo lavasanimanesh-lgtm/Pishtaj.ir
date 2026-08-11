@@ -16,7 +16,9 @@ Options -Indexes
   Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
   # SEC-04 (v34.1): CSP — مسدودسازی بارگذاری منابع خارجی (unsafe-inline لازم است چون ۸۰+ onclick/style inline وجود دارد)
-  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.arvancloud.ir https://*.arvanstorage.ir; frame-ancestors 'self'; form-action 'self'; base-uri 'self'"
+  # v34.4.44: PDF امن از attachment-read به Blob URL تبدیل و داخل iframe نمایش داده می‌شود؛
+  # default-src 'self' به‌تنهایی blob: را برای frame نمی‌پذیرفت و فقط «تب جدید» کار می‌کرد.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.arvancloud.ir https://*.arvanstorage.ir; frame-src 'self' blob:; frame-ancestors 'self'; form-action 'self'; base-uri 'self'"
 </IfModule>
 
 # Canonical HTTPS redirect for the production hostname only.

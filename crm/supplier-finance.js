@@ -779,19 +779,35 @@
       else slOpenLedger(p.supplierCd);
     });
   };
+  /* v34.4.44: افزودن سند یک جریان تک‌موداله دارد. قبلاً callback هر آپلود در حالی که
+     slAttachDlg هنوز باز بود، slOpenLedger را دوباره می‌ساخت؛ pull هم‌زمان ضمایم نیز
+     می‌توانست یک ledger دیگر زیر آن باقی بگذارد. ledger فقط هنگام بستن پنجرهٔ سند،
+     دقیقاً یک‌بار و با دادهٔ ذخیره‌شده باز می‌شود. */
+  function slRemoveAllDialogs(id) {
+    Array.prototype.slice.call(document.querySelectorAll('#' + id)).forEach(function (el) { el.remove(); });
+  }
+  window.slAttachClose = function (supCd) {
+    slRemoveAllDialogs('slAttachDlg');
+    slRemoveAllDialogs('slLedgerDlg');
+    if (supCd && typeof window.slOpenLedger === 'function') window.slOpenLedger(supCd);
+  };
   function slAttach(kind, cd) {
-    var old = document.getElementById('slAttachDlg'); if (old) old.remove();
-    var html='<div class="md-b" id="slAttachDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 افزودن سند</h3><div style="font-size:11.5px;color:#047857;margin-bottom:7px">پس از تکمیل آپلود، سند همان لحظه در گردش حساب ذخیره می‌شود.</div><div id="slAttachWrap"></div><div style="text-align:left;margin-top:9px"><button class="bt" onclick="document.getElementById(\'slAttachDlg\').remove()">تمام</button></div></div></div>';
+    var d = data();
+    var records = kind === 'invoice' ? (d.invoices || []) : (d.payments || []);
+    var record = records.filter(function (x) { return x.cd === cd; })[0];
+    var supCd = record ? String(record.supplierCd || '') : '';
+    var safeSupCd = typeof ptfOnClickArg === 'function' ? ptfOnClickArg(supCd) : supCd.replace(/[\\']/g, '');
+    slRemoveAllDialogs('slAttachDlg');
+    slRemoveAllDialogs('slLedgerDlg');
+    var html='<div class="md-b" id="slAttachDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)slAttachClose(\''+safeSupCd+'\')"><div class="md" style="max-width:460px"><h3>📎 افزودن سند</h3><div style="font-size:11.5px;color:#047857;margin-bottom:7px">پس از تکمیل آپلود، سند همان لحظه در گردش حساب ذخیره می‌شود.</div><div id="slAttachWrap"></div><div style="text-align:left;margin-top:9px"><button class="bt" onclick="slAttachClose(\''+safeSupCd+'\')">تمام</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend',html);
     attachUploadWidget('slAttachWrap','supplier-finance/'+kind+'/'+cd,function(f){
       var res=window.slPersistFile(kind,cd,f);
       if(!res.ok) { if(typeof ptfToast==='function')ptfToast('⛔ اتصال سند به رکورد ناموفق بود','warn'); return; }
       try{audit('حساب تامین','افزودن پیوست '+kind,cd)}catch(e){}
       if(typeof ptfToast==='function')ptfToast('✅ پیوست در گردش حساب ذخیره شد','ok');
-      if(res.record && res.record.supplierCd) window.slOpenLedger(res.record.supplierCd);
     },function(key){
-      var res=window.slForgetPersistedFile(kind,cd,key);
-      if(res.ok && res.record && res.record.supplierCd) window.slOpenLedger(res.record.supplierCd);
+      window.slForgetPersistedFile(kind,cd,key);
     });
   }
   window.slInvoiceAddFile=function(cd){slAttach('invoice',cd)};window.slPaymentAddFile=function(cd){slAttach('payment',cd)};
@@ -832,6 +848,8 @@
      تغییر کرده باشد، خودِ مودال را (بدون دست‌کاری فیلترهای بازِ کاربر) دوباره می‌سازیم. */
   var _slLedgerDocRefresh = window.slOpenLedger;
   window.slOpenLedger = function (supCd, filters) {
+    /* پاک‌سازی همهٔ نمونه‌های احتمالی قدیمی، نه فقط اولین id تکراری. */
+    slRemoveAllDialogs('slLedgerDlg');
     _slLedgerDocRefresh(supCd, filters);
     if (typeof window.ptfAttachRefreshOnOpen === 'function') {
       window.ptfAttachRefreshOnOpen('slLedgerDlg', function () {

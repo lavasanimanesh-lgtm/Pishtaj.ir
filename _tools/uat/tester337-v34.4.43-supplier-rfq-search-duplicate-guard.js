@@ -70,8 +70,8 @@ confirmResult = true;
 assert.strictEqual(ctx.ptfRfqsGuardDuplicateSource('RFQ-SYS-001', 'NEW-2', null), true, 'explicit confirmation must permit another supplier request');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.4.43');
+assert.ok(/^v34\.4\.(?:4[3-9]|[5-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.43 supplier-RFQ search baseline');
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
-  assert.ok(fs.readFileSync(file, 'utf8').indexOf('34.4.43') > -1, file + ' version drift');
+  assert.ok(fs.readFileSync(file, 'utf8').indexOf(version.slice(1)) > -1, file + ' version drift');
 });
 console.log('PASS tester337-v34.4.43: supplier RFQs search by request/customer/item/supplier and duplicate creation redirects or proceeds explicitly');
