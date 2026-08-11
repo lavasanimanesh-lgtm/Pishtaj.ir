@@ -10,12 +10,57 @@ function ptfStorageAuthHeaders(json) {
   return h;
 }
 
+/* v34.4.34: حذف ابری باید قبل از حذف metadata تأیید شود. نسخه‌های قبلی ابتدا
+   فایل را از رکورد محلی پاک می‌کردند، پاسخ 403/شبکه را نادیده می‌گرفتند و پیام موفقیت
+   می‌دادند؛ نتیجه یک object یتیم در S3 و «حذف‌شده» کاذب در UI بود. */
+window.ptfDeleteStoredFile = function (key, cb) {
+  var done = false;
+  function finish(result) {
+    if (done) return;
+    done = true;
+    if (typeof cb === 'function') cb(result);
+  }
+  if (!key) { finish({ ok: false, error: 'کلید فایل خالی است' }); return; }
+  fetch(STORAGE_API + '?action=delete', {
+    method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ key: key })
+  }).then(function (r) {
+    return r.text().then(function (text) {
+      var data = null;
+      try { data = JSON.parse(text); } catch (e) {}
+      if (!r.ok || !data || !data.ok) {
+        var err = data && data.error;
+        if (r.status === 403 || err === 'permission_denied') err = 'نقش فعلی اجازهٔ حذف فایل ابری را ندارد';
+        throw new Error(err || ('حذف ابری ناموفق بود (HTTP ' + r.status + ')'));
+      }
+      return data;
+    });
+  }).then(function (data) { finish({ ok: true, data: data }); })
+    .catch(function (e) { finish({ ok: false, error: (e && e.message) || 'عدم دسترسی به فضای ابری' }); });
+};
+
 /* ---------- تست اتصال (صفحه تنظیمات) ---------- */
 function storageStatus(cb) {
   fetch(STORAGE_API + '?action=status', { headers: ptfStorageAuthHeaders(false) })
     .then(function (r) { return r.json(); })
     .then(function (d) { cb(d); })
     .catch(function () { cb({ ok: false, mode: 'offline', error: 'عدم دسترسی به api/storage.php' }); });
+}
+
+window.ptfFixStorageCors = function (btn) {
+  if (btn) btn.disabled = true;
+  fetch('../api/fix-arvan-cors.php', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: '{}' })
+    .then(function (r) { return r.json().then(function (d) { if (!r.ok || !d.ok) throw new Error(d.error || d.body || ('HTTP ' + r.status)); return d; }); })
+    .then(function () { if (typeof ptfToast === 'function') ptfToast('✅ CORS فضای ابری برای پروداکشن و استیجینگ اعمال شد', 'ok'); })
+    .catch(function (e) { if (typeof ptfToast === 'function') ptfToast('⛔ اصلاح CORS ناموفق: ' + e.message, 'warn'); else alert(e.message); })
+    .then(function () { if (btn) btn.disabled = false; });
+};
+
+function ptfStorageCorsButton() {
+  var role = '';
+  try { role = String(curRole()).toLowerCase(); } catch (e) {}
+  return ['admin', 'chairman', 'ceo'].indexOf(role) > -1
+    ? '<br><button type="button" class="bt bt-o" style="margin-top:7px;font-size:11px" onclick="ptfFixStorageCors(this)">🛠 اعمال CORS استیجینگ/پروداکشن</button>'
+    : '';
 }
 
 function renderStorageStatusBox(elId) {
@@ -25,7 +70,7 @@ function renderStorageStatusBox(elId) {
   storageStatus(function (d) {
     if (d.ok) {
       el.innerHTML = '<div style="background:#ecfdf5;border:1px solid #10b981;border-radius:10px;padding:10px 12px;font-size:13px">' +
-        '✅ <b>اتصال به آروان‌کلود برقرار است</b><br><small style="color:#047857">صندوقچه: ' + escP(d.bucket) + ' — فایل‌های جدید در فضای ابری ذخیره می‌شوند</small></div>';
+        '✅ <b>اتصال به آروان‌کلود برقرار است</b><br><small style="color:#047857">صندوقچه: ' + escP(d.bucket) + ' — فایل‌های جدید در فضای ابری ذخیره می‌شوند</small>' + ptfStorageCorsButton() + '</div>';
       localStorage.setItem('ptf_storage_mode', 'arvan');
     } else if (d.mode === 'local-fallback' || d.mode === 'cloud-required') {
       el.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px">' +
@@ -163,7 +208,13 @@ function fmtSize(b) {
 // uploadFile(file, folder, cb(result))  → result: {ok, key, name, size, mode:"arvan"}
 function uploadFile(file, folder, cb, progressCb) {
   var maxMb = 25;
-  if (file.size > maxMb * 1048576) { cb({ ok: false, error: 'حجم فایل بیش از ' + maxMb + 'MB است' }); return; }
+  var completed = false;
+  function finish(result) {
+    if (completed) return;
+    completed = true;
+    cb(result);
+  }
+  if (file.size > maxMb * 1048576) { finish({ ok: false, error: 'حجم فایل بیش از ' + maxMb + 'MB است' }); return; }
 
   compressImage(file, function (finalFile, compInfo) {
     var note = compInfo ? 'فشرده: ' + fmtSize(compInfo.before) + ' → ' + fmtSize(compInfo.after) : '';
@@ -174,9 +225,15 @@ function uploadFile(file, folder, cb, progressCb) {
       body: JSON.stringify({ name: finalFile.name, type: finalFile.type, folder: folder || 'general' })
     }).then(function (r) { return r.json(); })
       .then(function (d) {
-        if (!d.ok) { cb({ ok: false, error: d.error || 'فضای ابری در دسترس نیست؛ فایل روی هاست ذخیره نشد' }); return; }
+        if (!d.ok) { finish({ ok: false, error: d.error || 'فضای ابری در دسترس نیست؛ فایل روی هاست ذخیره نشد' }); return; }
+        var serverMaxMb = Math.max(1, +(d.max_mb || maxMb));
+        if (finalFile.size > serverMaxMb * 1048576) {
+          finish({ ok: false, error: 'حجم فایل از سقف تنظیم‌شدهٔ فضای ابری (' + serverMaxMb + 'MB) بیشتر است' });
+          return;
+        }
         // آپلود مستقیم مرورگر → آروان (فایل از هاست عبور نمی‌کند)
         var xhr = new XMLHttpRequest();
+        var fallbackStarted = false;
         xhr.open('PUT', d.url);
         xhr.timeout = 120000;
         if (progressCb) xhr.upload.onprogress = function (e) {
@@ -184,14 +241,17 @@ function uploadFile(file, folder, cb, progressCb) {
         };
         xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) {
-            cb({ ok: true, key: d.key, name: finalFile.name, size: finalFile.size, mode: 'arvan', savedNote: note });
+            finish({ ok: true, key: d.key, name: finalFile.name, size: finalFile.size, mode: 'arvan', savedNote: note });
           } else {
-            // v34.4.33: HTTP خطا (مثل 403 CORS ناقص استیجینگ) -> فالو‌بک به پراکسی سروری (بدون CORS)
             fallbackProxy('HTTP ' + xhr.status);
           }
         };
-        xhr.onerror = xhr.ontimeout = function () { fallbackProxy('network'); };
+        xhr.onerror = function () { fallbackProxy('network'); };
+        xhr.ontimeout = function () { fallbackProxy('timeout'); };
         function fallbackProxy(reason) {
+          if (fallbackStarted || completed) return;
+          fallbackStarted = true;
+          xhr.onload = xhr.onerror = xhr.ontimeout = null;
           try {
             var fd = new FormData();
             fd.append('file', finalFile);
@@ -201,19 +261,19 @@ function uploadFile(file, folder, cb, progressCb) {
               method: 'POST',
               headers: ptfStorageAuthHeaders(false),
               body: fd
-            }).then(function(r){ return r.text().then(function(tx){ try{ return JSON.parse(tx);} catch(e){ throw new Error('پاسخ غیر JSON از سرور ('+r.status+'): '+tx.slice(0,180));}}); })
+            }).then(function(r){ return r.text().then(function(tx){ var parsed; try{ parsed=JSON.parse(tx);} catch(e){ throw new Error('پاسخ غیر JSON از سرور ('+r.status+'): '+tx.slice(0,180));} if(!r.ok && parsed && !parsed.error) parsed.error='HTTP '+r.status; return parsed; }); })
               .then(function(pr){
-                if (pr.ok) cb({ ok: true, key: pr.key, name: pr.name || finalFile.name, size: pr.size || finalFile.size, mode: pr.mode || 'arvan-proxy', savedNote: note ? note + ' (proxy: '+reason+')' : 'proxy: '+reason });
-                else cb({ ok: false, error: pr.error || 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy: '+reason+')' });
+                if (pr.ok) finish({ ok: true, key: pr.key, name: pr.name || finalFile.name, size: pr.size || finalFile.size, mode: 'arvan-proxy', savedNote: note ? note + ' (ارسال امن از مسیر سرور)' : 'ارسال امن از مسیر سرور' });
+                else finish({ ok: false, error: pr.error || 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy: '+reason+')' });
               })
-              .catch(function(e){ cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد' + (e && e.message ? ' — ' + e.message : ' (proxy: '+reason+')') }); });
+              .catch(function(e){ finish({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد' + (e && e.message ? ' — ' + e.message : ' (proxy: '+reason+')') }); });
           } catch(e) {
-            cb({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy exception)' });
+            finish({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy exception)' });
           }
         }
         xhr.send(finalFile);
       })
-      .catch(function () { cb({ ok: false, error: 'دریافت مجوز آپلود ابری ناموفق بود؛ فایل روی هاست ذخیره نشد' }); });
+      .catch(function () { finish({ ok: false, error: 'دریافت مجوز آپلود ابری ناموفق بود؛ فایل روی هاست ذخیره نشد' }); });
   });
 }
 
@@ -321,13 +381,21 @@ window.openStoredFile = openStoredFile;
    reopenFn تازه می‌سازد. */
 window.ptfAttachRefreshOnOpen = function (dlgId, getSignature, reopenFn) {
   if (typeof window.ptfSyncPullNow !== 'function') return;
+  function signature() {
+    var value = getSignature();
+    /* ترتیب آرایهٔ رکوردها بین mergeها تضمین‌شده نیست؛ مرتب‌سازی فقط برای signature
+       جلوی بسته/بازشدن بی‌دلیل مودال را می‌گیرد و خود داده را تغییر نمی‌دهد. */
+    if (Array.isArray(value)) value = value.slice().map(String).sort();
+    return JSON.stringify(value);
+  }
   var before = null;
-  try { before = JSON.stringify(getSignature()); } catch (eB) {}
-  window.ptfSyncPullNow(function () {
+  try { before = signature(); } catch (eB) {}
+  window.ptfSyncPullNow(function (result) {
     try {
       var dlg = document.getElementById(dlgId);
       if (!dlg) return; /* کاربر قبل از رسیدن پاسخ، مودال را بسته است */
-      var after = JSON.stringify(getSignature());
+      if (result && result.ok === false) return; /* روی push/pull ناموفق، refresh کاذب نزن */
+      var after = signature();
       if (after !== before) {
         dlg.remove();
         reopenFn();
@@ -397,7 +465,7 @@ function attachUploadWidget(containerId, folder, onDone) {
           /* v34.0.16-alpha (فاز ۱۳): فایل آپلودشده در همان نقطه با لینک «مشاهده» و دکمهٔ «حذف»
              نمایش داده می‌شود تا کاربر همان‌جا بتواند سند را ببیند یا حذف کند (سرتاسری). */
           var key = String(res.key || '').replace(/[\\']/g, '');
-          row.innerHTML = (res.mode === 'arvan' ? '✅ ' : '🕓 ') + escP(res.name) +
+          row.innerHTML = ((res.mode === 'arvan' || res.mode === 'arvan-proxy') ? '✅ ' : '🕓 ') + escP(res.name) +
             ' <small style="color:#94a3b8">(' + fmtSize(res.size) + (res.savedNote ? ' — ' + escP(res.savedNote) : '') + ')</small>' +
             ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;font-size:11px;margin-left:6px">👁 مشاهده</a>' +
             ' <button type="button" class="ba" style="color:#dc2626;font-size:11px" onclick="ptfRemoveJustUploaded(this,\'' + key + '\',\'' + escP(res.name).replace(/[\\']/g, '') + '\')">✕ حذف</button>';
@@ -420,14 +488,28 @@ function attachUploadWidget(containerId, folder, onDone) {
 window.ptfRemoveJustUploaded = function (btnEl, key, name) {
   if (!key) { if (btnEl && btnEl.parentNode) btnEl.parentNode.remove(); return; }
   if (!confirm('فایل «' + (name || '') + '» از فضای ابری حذف شود؟')) return;
-  /* حذف از فضای ابری */
-  try {
-    fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ key: key }) }).catch(function () {});
-  } catch (eD) {}
-  /* حذف ردیف از UI */
   var row = btnEl ? btnEl.parentNode : null;
-  if (row && row.parentNode) row.parentNode.removeChild(row);
-  if (typeof ptfToast === 'function') ptfToast('فایل از فضای ابری حذف شد', 'warn');
+  if (btnEl) btnEl.disabled = true;
+  window.ptfDeleteStoredFile(key, function (res) {
+    if (!res.ok) {
+      if (btnEl) btnEl.disabled = false;
+      if (typeof ptfToast === 'function') ptfToast('⛔ ' + res.error, 'warn'); else alert(res.error);
+      return;
+    }
+    /* فرم‌های ثبت، fileRec را در آرایه‌های موقت window نگه می‌دارند. حذفِ صرفِ ردیف
+       قبلاً آن reference را باقی می‌گذاشت و فرم بعداً metadata فایل حذف‌شده را ذخیره
+       می‌کرد (NoSuchKey). فقط آرایه‌های موقت فایل را بر اساس key پاک می‌کنیم. */
+    Object.keys(window).forEach(function (prop) {
+      try {
+        var value = window[prop];
+        if (prop.charAt(0) === '_' && /files/i.test(prop) && Array.isArray(value)) {
+          window[prop] = value.filter(function (f) { return !f || f.key !== key; });
+        }
+      } catch (eScan) {}
+    });
+    if (row && row.parentNode) row.parentNode.removeChild(row);
+    if (typeof ptfToast === 'function') ptfToast('فایل از فضای ابری حذف شد', 'warn');
+  });
 };
 
 /* =====================================================================

@@ -669,7 +669,7 @@
   window._slInvEditNewFiles = [];
   try { if (typeof attachUploadWidget === 'function') attachUploadWidget('slInvEditFilesUp', 'supplier-invoices/'+i.supplierCd, function(f){ if(f) window._slInvEditNewFiles.push(f); }); } catch(eU){}
   ptfDialog({title:'✏️ ویرایش فاکتور خرید '+escP(i.no),body:filesBox,fields:[{id:'no',label:'شماره فاکتور',value:i.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',value:i.dateFa||i.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:i.amount,dir:'ltr',required:true},{id:'isOfficial',label:'نوع فاکتور خرید',type:'select',optionsHtml:'<option value=""' + (!Object.prototype.hasOwnProperty.call(i,'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (i.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (i.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>'},{id:'note',label:'یادداشت',type:'textarea',value:i.note||''}],okText:'ذخیره',onOk:function(v){var oldOfficial=Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null,iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date,amt=+v.amount||0;if(!v.no||!iso||amt<invPaid(i,d)){alert('شماره، تاریخ و مبلغ معتبر (حداقل برابر پرداخت تخصیص‌یافته) الزامی است');return;}i.no=v.no;i.dateISO=iso;i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso;i.amount=amt;i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0));i.note=v.note||'';if(v.isOfficial==='yes')i.isOfficial=true;else if(v.isOfficial==='no')i.isOfficial=false;else delete i.isOfficial;
-    if((window._slInvEditNewFiles||[]).length){ i.files=i.files||[]; (window._slInvEditNewFiles||[]).forEach(function(f){ i.files.push(f); }); }
+    if((window._slInvEditNewFiles||[]).length){ i.files=i.files||[]; (window._slInvEditNewFiles||[]).forEach(function(f){ i.files.push(f); }); i.updatedAtISO=new Date().toISOString(); i.updatedBy=curSession().name; }
     save(d);try{audit('فاکتور خرید تامین','ویرایش فاکتور '+i.no+(oldOfficial!== (Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null)?' — تغییر نوع سند':'') ,cd)}catch(e){};slOpenLedger(i.supplierCd);}});};
   window.slPaymentEdit=function(cd){var d=data(),p=(d.payments||[]).filter(function(x){return x.cd===cd})[0];if(!p)return;
   /* افزودهشده: نمایش/حذف اسناد موجود پرداخت (عکس/کپی چک) + افزودن سند جدید در ویرایش */
@@ -679,34 +679,44 @@
   window._slPayEditNewFiles = [];
   try { if (typeof attachUploadWidget === 'function') attachUploadWidget('slPayEditFilesUp', 'supplier-finance/payment/'+cd, function(f){ if(f) window._slPayEditNewFiles.push(f); }); } catch(eU){}
   ptfDialog({title:'✏️ ویرایش پرداخت',body:filesBox,fields:[{id:'date',label:'تاریخ پرداخت (شمسی)',value:p.dateFa||p.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ پرداخت',type:'number',money:false,value:p.amount,dir:'ltr',required:true},{id:'note',label:'شرح',type:'textarea',value:p.note||''}],okText:'ذخیره',onOk:function(v){var iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date,amt=+v.amount||0,min=(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);if(!iso||amt<min){alert('مبلغ نباید از مجموع تخصیص‌ها کمتر باشد');return;}p.dateISO=iso;p.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso;p.amount=amt;p.amountIrr=p.cur==='IRR'?amt:Math.round(amt*(+p.rate||0));p.unallocated=Math.max(0,amt-min);p.note=v.note||'';
-    if((window._slPayEditNewFiles||[]).length){ p.files=p.files||[]; (window._slPayEditNewFiles||[]).forEach(function(f){ p.files.push(f); }); }
+    if((window._slPayEditNewFiles||[]).length){ p.files=p.files||[]; (window._slPayEditNewFiles||[]).forEach(function(f){ p.files.push(f); }); p.updatedAtISO=new Date().toISOString(); p.updatedBy=curSession().name; }
     save(d);try{audit('پرداخت تامین','ویرایش پرداخت '+cd,cd)}catch(e){};slOpenLedger(p.supplierCd);}});};
   /* حذف یک فایل از پرداخت (همانند slInvoiceRemoveFile) */
   window.slPaymentRemoveFile = function (cd, key) {
-    if (!confirm('این سند از پرداخت حذف شود؟')) return;
-    var d = data(), p = (d.payments || []).filter(function (x) { return x.cd === cd; })[0];
-    if (!p) return;
-    p.files = (p.files || []).filter(function (f) { return f.key !== key; });
-    save(d);
-    try { fetch('../api/storage.php?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {}); } catch (eD) {}
-    if (typeof ptfToast === 'function') ptfToast('سند از پرداخت حذف شد', 'warn');
-    if (window._slPayEditCd === cd && typeof window.slPaymentEdit === 'function') { window.slPaymentEdit(cd); }
-    else slOpenLedger(p.supplierCd);
+    if (!confirm('این سند از پرداخت و فضای ابری حذف شود؟')) return;
+    if (typeof window.ptfDeleteStoredFile !== 'function') { alert('سرویس حذف فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    window.ptfDeleteStoredFile(key, function (res) {
+      if (!res.ok) { if (typeof ptfToast === 'function') ptfToast('⛔ سند حذف نشد: ' + res.error, 'warn'); else alert(res.error); return; }
+      var d = data(), p = (d.payments || []).filter(function (x) { return x.cd === cd; })[0];
+      if (!p) return;
+      p.files = (p.files || []).filter(function (f) { return f.key !== key; });
+      p._deletedFileKeys = (p._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
+      p.updatedAtISO = new Date().toISOString(); p.updatedBy = curSession().name;
+      save(d);
+      if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
+      if (window._slPayEditCd === cd && typeof window.slPaymentEdit === 'function') { window.slPaymentEdit(cd); }
+      else slOpenLedger(p.supplierCd);
+    });
   };
-  function slAttach(kind,cd){var html='<div class="md-b" id="slAttachDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 افزودن سند</h3><div id="slAttachWrap"></div><div style="text-align:left;margin-top:9px"><button class="bt" onclick="document.getElementById(\'slAttachDlg\').remove()">تمام</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);attachUploadWidget('slAttachWrap','supplier-finance/'+kind+'/'+cd,function(f){var d=data(),r=(kind==='invoice'?d.invoices:d.payments).filter(function(x){return x.cd===cd})[0];if(!r)return;r.files=r.files||[];r.files.push(f);save(d);try{audit('حساب تامین','افزودن پیوست '+kind,cd)}catch(e){};if(typeof ptfToast==='function')ptfToast('پیوست ذخیره شد','ok');});}
+  function slAttach(kind,cd){var html='<div class="md-b" id="slAttachDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 افزودن سند</h3><div id="slAttachWrap"></div><div style="text-align:left;margin-top:9px"><button class="bt" onclick="document.getElementById(\'slAttachDlg\').remove()">تمام</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);attachUploadWidget('slAttachWrap','supplier-finance/'+kind+'/'+cd,function(f){var d=data(),r=(kind==='invoice'?d.invoices:d.payments).filter(function(x){return x.cd===cd})[0];if(!r)return;r.files=r.files||[];r.files.push(f);r.updatedAtISO=new Date().toISOString();r.updatedBy=curSession().name;save(d);try{audit('حساب تامین','افزودن پیوست '+kind,cd)}catch(e){};if(typeof ptfToast==='function')ptfToast('پیوست ذخیره شد','ok');});}
   window.slInvoiceAddFile=function(cd){slAttach('invoice',cd)};window.slPaymentAddFile=function(cd){slAttach('payment',cd)};
   /* v34.0.16-alpha: حذف سند از فاکتور خرید (در همان گردش حساب) */
   window.slInvoiceRemoveFile = function (cd, key) {
-    if (!confirm('این سند از فاکتور حذف شود؟')) return;
-    var d = data(), i = (d.invoices || []).filter(function (x) { return x.cd === cd; })[0];
-    if (!i) return;
-    i.files = (i.files || []).filter(function (f) { return f.key !== key; });
-    save(d);
-    try { fetch('../api/storage.php?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {}); } catch (eD) {}
-    if (typeof ptfToast === 'function') ptfToast('سند از فاکتور حذف شد', 'warn');
-    /* v34.0.20-alpha: اگر از مودال ویرایش صدا زده شده، دوباره ویرایش را باز کن؛ وگرنه گردش حساب */
-    if (window._slInvEditCd === cd && typeof window.slInvoiceEdit === 'function') { window.slInvoiceEdit(cd); }
-    else slOpenLedger(i.supplierCd);
+    if (!confirm('این سند از فاکتور و فضای ابری حذف شود؟')) return;
+    if (typeof window.ptfDeleteStoredFile !== 'function') { alert('سرویس حذف فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    window.ptfDeleteStoredFile(key, function (res) {
+      if (!res.ok) { if (typeof ptfToast === 'function') ptfToast('⛔ سند حذف نشد: ' + res.error, 'warn'); else alert(res.error); return; }
+      var d = data(), i = (d.invoices || []).filter(function (x) { return x.cd === cd; })[0];
+      if (!i) return;
+      i.files = (i.files || []).filter(function (f) { return f.key !== key; });
+      i._deletedFileKeys = (i._deletedFileKeys || []).concat([key]).filter(function (v, idx, all) { return v && all.indexOf(v) === idx; });
+      i.updatedAtISO = new Date().toISOString(); i.updatedBy = curSession().name;
+      save(d);
+      if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
+      /* v34.0.20-alpha: اگر از مودال ویرایش صدا زده شده، دوباره ویرایش را باز کن؛ وگرنه گردش حساب */
+      if (window._slInvEditCd === cd && typeof window.slInvoiceEdit === 'function') { window.slInvoiceEdit(cd); }
+      else slOpenLedger(i.supplierCd);
+    });
   };
   window.slRefreshSupplierPanel=function(){if(document.getElementById('sTb')){var p=document.getElementById('panels');if(p){p.innerHTML=buildSuppliers();if(typeof renderSuppliers==='function')renderSuppliers();}}};
   ['ptfPayableUpsert','ptfPayablePay'].forEach(function(n){var old=window[n];if(typeof old==='function'){window[n]=function(){var r=old.apply(this,arguments);setTimeout(function(){if(typeof slRefreshSupplierPanel==='function')slRefreshSupplierPanel();},120);return r;};}});

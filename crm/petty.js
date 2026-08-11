@@ -531,7 +531,7 @@
     window._ptfPettyFilesCd = cd;
     try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptyFilesUp', 'petty/' + cd, function (f) {
       var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
-      rr.files = rr.files || []; rr.files.push(f); setData(PETTY_KEY, a);
+      rr.files = rr.files || []; rr.files.push(f); rr.updatedAtISO = new Date().toISOString(); rr.updatedBy = userName(); setData(PETTY_KEY, a);
       if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     }); } catch (eU) {}
@@ -547,13 +547,18 @@
   };
 
   window.pettyRemoveFile = function (cd, key) {
-    if (!confirm('این سند از تنخواه حذف شود؟')) return;
-    var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;
-    r.files = (r.files || []).filter(function (f) { return f.key !== key; });
-    setData(PETTY_KEY, a);
-    try { fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {}); } catch (eD) {}
-    if (typeof ptfToast === 'function') ptfToast('سند حذف شد', 'warn');
-    var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+    if (!confirm('این سند از تنخواه و فضای ابری حذف شود؟')) return;
+    if (typeof window.ptfDeleteStoredFile !== 'function') { alert('سرویس حذف فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    window.ptfDeleteStoredFile(key, function (res) {
+      if (!res.ok) { if (typeof ptfToast === 'function') ptfToast('⛔ سند حذف نشد: ' + res.error, 'warn'); else alert(res.error); return; }
+      var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === cd; })[0]; if (!r) return;
+      r.files = (r.files || []).filter(function (f) { return f.key !== key; });
+      r._deletedFileKeys = (r._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
+      r.updatedAtISO = new Date().toISOString(); r.updatedBy = userName();
+      setData(PETTY_KEY, a);
+      if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
+      var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+    });
   };
 
   window.pettyDel = function (cd) {

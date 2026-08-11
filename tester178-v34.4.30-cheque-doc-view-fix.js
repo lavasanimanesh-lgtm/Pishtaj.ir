@@ -74,6 +74,7 @@ var fs = require('fs'), vm = require('vm'), assert = require('assert');
     STORAGE_API: 'api/storage.php',
     ptfStorageAuthHeaders: function () { return {}; },
     fetch: function (url, opts) { deleteCalls.push({ url: url, opts: opts }); return { catch: function () {} }; },
+    ptfDeleteStoredFile: function (key, cb) { deleteCalls.push({ key: key }); cb({ ok: true }); },
     openStoredFile: function (key) { storedFileOpens.push(key); },
     attachUploadWidget: function (containerId, folder, onDone) { uploadCalls.push({ containerId: containerId, folder: folder, onDone: onDone }); },
     ptfTopZIndex: function (z) { return z; },

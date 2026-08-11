@@ -1,11 +1,11 @@
 <?php
 /**
  * PTF CRM — Fix Arvan CORS for staging
- * v34.4.33 — تنظیم خودکار CORS باکت برای اجازه آپلود از staging.pishtaj.ir
+ * v34.4.34 — تنظیم خودکار CORS باکت + امضای صحیح SigV4 برای subresource `cors=`
  *
- * دسترسی: فقط admin / chairman با توکن معتبر
- * استفاده: POST به ../api/fix-arvan-cors.php با هدر X-CRM-Token
- * یا باز کردن در مرورگر بعد از لاگین به CRM (نشست معتبر)
+ * دسترسی: فقط admin / chairman / ceo با توکن معتبر
+ * استفاده: دکمهٔ «اعمال CORS» در تنظیمات فضای ابری CRM، یا POST مستقیم
+ * به ../api/fix-arvan-cors.php با هدر X-CRM-Token (بازکردن URL بدون هدر کافی نیست)
  *
  * این اسکریپت CORS باکت را به حالت زیر می‌گذارد:
  *   AllowedOrigins: https://pishtaj.ir, https://www.pishtaj.ir, https://staging.pishtaj.ir
@@ -52,7 +52,9 @@ if ($action === 'get') {
     $host = parse_url($cfg['endpoint'], PHP_URL_HOST);
     $now = gmdate('Ymd\THis\Z'); $date=gmdate('Ymd'); $scope="$date/{$cfg['region']}/s3/aws4_request";
     $payloadHash = hash('sha256','');
-    $path = '/'.$cfg['bucket']; $query='cors';
+    /* SigV4 برای subresource بدون مقدار باید canonical query را با = بسازد
+       (`cors=`). نسخهٔ قبلی `cors` امضا می‌کرد و S3 آن را SignatureDoesNotMatch می‌دید. */
+    $path = '/'.$cfg['bucket']; $query='cors=';
     $headers="host:$host\nx-amz-content-sha256:$payloadHash\nx-amz-date:$now\n";
     $signedHeaders='host;x-amz-content-sha256;x-amz-date';
     $canonical=implode("\n",['GET',$path,$query,$headers,$signedHeaders,$payloadHash]);
@@ -68,7 +70,13 @@ if ($action === 'get') {
     exit;
 }
 
-// default: fix (PUT)
+// default: fix (PUT) — تغییر تنظیمات فقط با POST داخلی CRM
+if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    echo json_encode(['ok'=>false,'error'=>'method_not_allowed','hint'=>'از دکمهٔ اعمال CORS در CRM استفاده کنید'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 $xml = <<<XML
 <?xml version="1.0" encoding="UTF-8"?>
 <CORSConfiguration>
@@ -91,7 +99,7 @@ XML;
 $host = parse_url($cfg['endpoint'], PHP_URL_HOST);
 $now = gmdate('Ymd\THis\Z'); $date=gmdate('Ymd'); $scope="$date/{$cfg['region']}/s3/aws4_request";
 $payloadHash = hash('sha256', $xml);
-$path='/'.$cfg['bucket']; $query='cors';
+$path='/'.$cfg['bucket']; $query='cors=';
 $headers="host:$host\nx-amz-content-sha256:$payloadHash\nx-amz-date:$now\n";
 $signedHeaders='host;x-amz-content-sha256;x-amz-date';
 $canonical=implode("\n",['PUT',$path,$query,$headers,$signedHeaders,$payloadHash]);

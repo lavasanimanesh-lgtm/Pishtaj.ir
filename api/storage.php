@@ -6,6 +6,7 @@
  * اکشن‌ها:
  *   ?action=status            → تست اتصال (لیست باکت)
  *   ?action=presign_put       → لینک موقت آپلود مستقیم مرورگر→آروان  (POST: name, type, folder)
+ *   ?action=upload_proxy      → fallback آپلود مرورگر→PHP→آروان       (multipart: file, folder)
  *   ?action=presign_get       → لینک موقت دانلود/نمایش فایل خصوصی    (POST: key)
  *   ?action=delete            → حذف فایل                              (POST: key)
  *   ?action=list              → لیست فایل‌های یک پوشه                 (POST: prefix)
@@ -163,7 +164,23 @@ function s3_request($cfg, $method, $path, $query = '') {
 /* ---------- پاکسازی نام فایل ---------- */
 function safe_key($name) {
     $name = preg_replace('/[^\w\-\.\x{0600}-\x{06FF} ]/u', '_', $name);
-    return trim(str_replace(' ', '-', $name), '-_.');
+    $name = trim(str_replace(' ', '-', $name), '-_.');
+    if ($name === '') return 'file';
+    return function_exists('mb_substr') ? mb_substr($name, 0, 180) : substr($name, 0, 180);
+}
+
+/* مسیر پوشه باید hierarchy را حفظ کند. پیاده‌سازی قبلی تمام slashها را حذف می‌کرد
+   (supplier-finance/payment/X → supplier-financepaymentX) و فایل‌ها خارج از prefix
+   مورد انتظار list/archive قرار می‌گرفتند. هر segment جداگانه پاکسازی می‌شود. */
+function safe_folder($folder) {
+    $parts = preg_split('#[\\/]+#', trim((string)$folder, " /\\"));
+    $safe = [];
+    foreach ($parts as $part) {
+        $part = preg_replace('/[^A-Za-z0-9_-]/', '', $part);
+        if ($part !== '') $safe[] = substr($part, 0, 64);
+        if (count($safe) >= 8) break;
+    }
+    return $safe ? implode('/', $safe) : 'general';
 }
 
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -185,7 +202,7 @@ switch ($action) {
 
     case 'presign_put':
         $name = safe_key($in['name'] ?? 'file');
-        $folder = preg_replace('/[^\w\-]/', '', $in['folder'] ?? 'general');
+        $folder = safe_folder($in['folder'] ?? 'general');
         $key = $folder . '/' . date('Y-m') . '/' . uniqid() . '-' . $name;
         $url = sig_v4($cfg, 'PUT', $key, [], min(900, $cfg['expiry'] ?? 3600));
         echo json_encode(['ok' => true, 'url' => $url, 'key' => $key, 'max_mb' => $cfg['max_mb'] ?? 25]);
@@ -195,17 +212,29 @@ switch ($action) {
         /* v34.4.33: فالو‌بک سروری برای زمانی که مرورگر نمی‌تواند مستقیم به آروان PUT بزند
            (CORS استیجینگ، فایروال مرورگر، یا timeout). فایل از طریق همین سرور (PHP cURL) به S3 می‌رود
            و هیچ نسخهٔ پایداری روی هاست باقی نمی‌ماند — فقط عبور. */
-        if (empty($_FILES['file']) || ($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-            echo json_encode(['ok' => false, 'error' => 'فایل دریافت نشد (مرورگر فایلی نفرستاد)']);
+        $uploadErr = isset($_FILES['file']) ? (int)($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+        if ($uploadErr !== UPLOAD_ERR_OK) {
+            http_response_code($uploadErr === UPLOAD_ERR_INI_SIZE || $uploadErr === UPLOAD_ERR_FORM_SIZE ? 413 : 400);
+            $messages = [
+                UPLOAD_ERR_INI_SIZE => 'حجم فایل از upload_max_filesize هاست بیشتر است؛ مقدار PHP را حداقل 25M کنید',
+                UPLOAD_ERR_FORM_SIZE => 'حجم فایل از سقف فرم بیشتر است',
+                UPLOAD_ERR_PARTIAL => 'فایل ناقص به سرور رسید؛ دوباره تلاش کنید',
+                UPLOAD_ERR_NO_FILE => 'فایل دریافت نشد (مرورگر فایلی نفرستاد)',
+                UPLOAD_ERR_NO_TMP_DIR => 'پوشهٔ موقت PHP روی هاست وجود ندارد',
+                UPLOAD_ERR_CANT_WRITE => 'هاست نتوانست فایل موقت را بنویسد',
+                UPLOAD_ERR_EXTENSION => 'افزونهٔ PHP آپلود را متوقف کرد',
+            ];
+            echo json_encode(['ok' => false, 'error' => $messages[$uploadErr] ?? ('خطای آپلود PHP: ' . $uploadErr)]);
             break;
         }
         $tmp = $_FILES['file']['tmp_name'];
         $orig = $_FILES['file']['name'] ?? 'file';
-        $folder = preg_replace('/[^\w\-]/', '', $_POST['folder'] ?? $_REQUEST['folder'] ?? 'general');
+        $folder = safe_folder($_POST['folder'] ?? $_REQUEST['folder'] ?? 'general');
         $name = safe_key($orig);
         $key = $folder . '/' . date('Y-m') . '/' . uniqid() . '-' . $name;
-        if (!is_file($tmp) || !is_readable($tmp)) {
-            echo json_encode(['ok' => false, 'error' => 'فایل موقت در دسترس نیست']);
+        if (!is_uploaded_file($tmp) || !is_file($tmp) || !is_readable($tmp)) {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'فایل موقت معتبر/در دسترس نیست']);
             break;
         }
         $size = filesize($tmp);
@@ -316,7 +345,9 @@ switch ($action) {
         if (!$key) { echo json_encode(['ok' => false, 'error' => 'key لازم است']); break; }
         $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($key));
         $r = s3_request($cfg, 'DELETE', $uri);
-        echo json_encode(['ok' => in_array($r['code'], [200, 204]), 'http' => $r['code']]);
+        $ok = in_array((int)$r['code'], [200, 204], true);
+        if (!$ok) http_response_code(($r['code'] >= 400 && $r['code'] < 600) ? (int)$r['code'] : 502);
+        echo json_encode(['ok' => $ok, 'http' => $r['code'], 'error' => $ok ? null : ('حذف از فضای ابری ناموفق بود' . ($r['err'] ? ': ' . $r['err'] : ' (S3 HTTP ' . $r['code'] . ')'))]);
         break;
 
     case 'list':

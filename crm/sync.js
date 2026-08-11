@@ -17,11 +17,11 @@
     'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
     'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports',
-    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns'
+    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
   var URGENT_SYNC_KEYS = [
-    'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance',
+    'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance',
     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_fiscal_snapshots',
     'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_offers', 'ptf_crm_deals',
     'ptf_crm_projects', 'ptf_crm_opex'
@@ -30,7 +30,7 @@
   var SYNC_ROLE_KEYS = {
     sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
     buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns'],
+    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns'],
     collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars']
   };
   function syncAllowedKey(k) {
@@ -45,6 +45,10 @@
     dirty: (function () { try { var s = localStorage.getItem('ptf_sync_dirty'); return s ? JSON.parse(s) : {}; } catch (e) { return {}; } })(),  // کلیدهای تغییر یافته محلی که هنوز push نشده‌اند — v33.2.1: persisted
     pushTimer: null,
     pulling: false,
+    /* v34.4.34: `pulling` فقط هنگام اعمال localStorage فعال است؛ برای جلوگیری از
+       دو fetch هم‌زمان به یک فلگ جدا نیاز داریم، وگرنه پاسخ قدیمی‌تر می‌تواند بعد
+       از پاسخ جدیدتر برسد و rev/ضمیمهٔ تازه را عقب ببرد. */
+    pullRequesting: false,
     pushing: false,
     lastRev: parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10),
     online: true,
@@ -169,14 +173,16 @@
     if (cb) cb(false);
   }
   window.ptfSyncRefreshAuth = refreshAuthToken;
-  function retryPullAfterAuth(done, forceFull) {
+  function retryPullAfterAuth(done, forceFull, opts) {
     state.authWait = (state.authWait || 0) + 1;
     setSyncBadge('warn');
-    if (state.authWait > 3) { if (done) done(); return; }
+    if (state.authWait > 3) { if (done) done({ ok: false, reason: 'auth' }); return; }
     try { localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
     refreshAuthToken(function (ok) {
-      if (ok) setTimeout(function () { pullCheck(done, forceFull); }, 0);
-      else setTimeout(function () { pullCheck(done, forceFull); }, 1000);
+      /* گزینهٔ instant باید در retry حفظ شود؛ نسخهٔ قبلی بعد از refresh توکن دوباره
+         وارد throttle تب پس‌زمینه می‌شد و «pull فوری» تا سه دقیقه عقب می‌افتاد. */
+      if (ok) setTimeout(function () { pullCheck(done, forceFull, opts); }, 0);
+      else setTimeout(function () { pullCheck(done, forceFull, opts); }, 1000);
     });
   }
   function pushDirty() {
@@ -291,7 +297,8 @@
   }
 
   function pullCheck(done, forceFull, opts) {
-    if (!curSession().user || state.pushing) { if (done) done(); return; }
+    if (!curSession().user) { if (done) done({ ok: false, reason: 'session' }); return; }
+    if (state.pushing || state.pullRequesting) { if (done) done({ ok: false, reason: 'busy' }); return; }
     /* v33.21.x (مدیریت تب برای کاهش بار سرور — پیکربندی به تأیید کارفرما):
        متمرکز: هر ۲۰ثانیه | غیرمتمرکزِ دیده‌شده: حداکثر هر ۱۲۰ثانیه | مخفی: حداکثر هر ۱۸۰ثانیه.
        (v33.21.0 مخفی را کامل متوقف می‌کرد که «رکورد دیر ظاهر می‌شود» را به همراه داشت.)
@@ -303,14 +310,18 @@
       if (_isHidden || _unfocused) {
         var _bgNow = Date.now();
         var _bgGap = _isHidden ? 180000 : 120000;
-        if (state.lastBgPull && (_bgNow - state.lastBgPull) < _bgGap) { if (done) done(); return; }
+        if (state.lastBgPull && (_bgNow - state.lastBgPull) < _bgGap) { if (done) done({ ok: true, skipped: 'throttled' }); return; }
         state.lastBgPull = _bgNow;
       }
     }
     /* v15.0 (US-384): اگر تغییر محلی معلق داریم، اول push — سرور با base-rev محافظت می‌کند
        (در فاز بوت این مسیر اجرا نمی‌شود چون pushDirty تا bootstrapped صبر می‌کند) */
-    if (!forceFull && state.bootstrapped && Object.keys(state.dirty).length) { pushDirty(); if (done) done(); return; }
-    if (!hasSyncToken()) { retryPullAfterAuth(done, forceFull); return; }
+    if (!forceFull && state.bootstrapped && Object.keys(state.dirty).length && !(opts && opts.allowDirtyMerge)) {
+      pushDirty();
+      if (done) done({ ok: false, reason: 'dirty-deferred' });
+      return;
+    }
+    if (!hasSyncToken()) { retryPullAfterAuth(done, forceFull, opts); return; }
     state.authWait = 0;
     /* v31.6.23 BUG-SYNC-DIVERGENCE: startup reconciliation must not trust a
        browser's cached global rev. Two browsers can have the same rev marker
@@ -321,16 +332,25 @@
        سرور قدیمی‌تر krevs را نادیده می‌گیرد و مثل قبل اسنپ‌شات کامل می‌فرستد — سازگار با عقب. */
     var pullUrl = API + '?action=data_pull&since=' + pullSince;
     if (!forceFull) { try { pullUrl += '&krevs=' + encodeURIComponent(JSON.stringify(krevs())); } catch (eKr) {} }
+    state.pullRequesting = true;
+    function finishPull(result) {
+      state.pullRequesting = false;
+      if (done) done(result || { ok: true });
+    }
     fetch(pullUrl, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         state.online = true;
         if (!d.ok) {
-          if (d.needLogin || /token|unauthorized|401/i.test(String(d.error || ''))) { retryPullAfterAuth(done, forceFull); return; }
-          if (done) done();
+          if (d.needLogin || /token|unauthorized|401/i.test(String(d.error || ''))) {
+            state.pullRequesting = false;
+            retryPullAfterAuth(done, forceFull, opts);
+            return;
+          }
+          finishPull({ ok: false, reason: d.error || 'server' });
           return;
         }
-        if (d.fresh) { setSyncBadge('ok'); if (done) done(); return; }
+        if (d.fresh) { setSyncBadge('ok'); finishPull({ ok: true, fresh: true, rev: d.rev }); return; }
         // سرور جلوتر است → اعمال داده‌ها
         state.pulling = true;
         /* v33.2.1: snapshot خودکار قبل از pull — اگر dirty keys هست و merge اشتباهی انجام شود،
@@ -408,9 +428,14 @@
           if (typeof updateInboxBadge === 'function') updateInboxBadge();
           pingTabs(); /* v33.21.1: بقیهٔ تب‌های همین مرورگر را لحظه‌ای مطلع کن */
         }
-        if (done) done(); /* v15.0 US-384 */
+        finishPull({ ok: true, applied: applied, rev: d.rev }); /* v34.4.34: نتیجه واقعی برای refresh مودال */
       })
-      .catch(function () { state.online = false; setSyncBadge('offline'); if (done) done(); });
+      .catch(function (err) {
+        state.pulling = false;
+        state.online = false;
+        setSyncBadge('offline');
+        finishPull({ ok: false, reason: 'network', error: err });
+      });
   }
 
   // رندر مجدد پنل فعلی پس از دریافت/ثبت داده جدید (بدون پرش وسط مودال)
@@ -451,8 +476,38 @@
      می‌رفت و برمی‌گشت تا goPanel() دوباره از localStorage (که تا آن لحظه pull دوره‌ای
      به‌روزش کرده بود) بخواند. این تابع امکان درخواست pull فوری (بدون منتظر ماندن برای
      تایمر ۲۰ثانیه‌ای) را به آن مودال‌ها می‌دهد تا خودشان را (بدون رندر کل پنل) به‌روز کنند. */
+  /* v34.4.34 RCA: نسخهٔ قبلی در دو حالت بدون هیچ pull واقعی callback را فوراً صدا
+     می‌زد: وقتی push در جریان بود، یا وقتی dirty key وجود داشت (push async شروع می‌شد
+     اما callback همان لحظه اجرا می‌شد). مودال سپس before/after یکسان می‌دید و همان
+     ضمیمهٔ کهنه را نگه می‌داشت. درخواست‌های فوری اکنون coalesce می‌شوند، تا پایان push/
+     pull جاری صبر می‌کنند و با allowDirtyMerge یک pull واقعی و conflict-safe می‌زنند. */
+  var instantPullWaiters = [];
+  var instantPullRunning = false;
+  var instantPullRetryTimer = 0;
+  function drainInstantPulls() {
+    if (instantPullRunning || !instantPullWaiters.length) return;
+    if (state.pushing || state.pullRequesting || state.pulling) {
+      clearTimeout(instantPullRetryTimer);
+      instantPullRetryTimer = setTimeout(drainInstantPulls, 60);
+      return;
+    }
+    instantPullRunning = true;
+    var waiters = instantPullWaiters.splice(0);
+    try {
+      pullCheck(function (result) {
+        instantPullRunning = false;
+        waiters.forEach(function (fn) { try { fn(result || { ok: true }); } catch (eCb) {} });
+        if (instantPullWaiters.length) setTimeout(drainInstantPulls, 0);
+      }, false, { instant: true, allowDirtyMerge: true });
+    } catch (e) {
+      instantPullRunning = false;
+      waiters.forEach(function (fn) { try { fn({ ok: false, reason: 'exception', error: e }); } catch (eCb2) {} });
+      if (instantPullWaiters.length) setTimeout(drainInstantPulls, 0);
+    }
+  }
   window.ptfSyncPullNow = function (cb) {
-    try { pullCheck(function () { if (cb) cb(); }, false, { instant: true }); } catch (e) { if (cb) cb(); }
+    instantPullWaiters.push(typeof cb === 'function' ? cb : function () {});
+    drainInstantPulls();
   };
   window.ptfScheduleDataRefresh = function (key) {
     /* باگ ۲: ماژول درخواست تامین (rfqsmart) خودش DOM را حین کار به‌روز می‌کند؛ رندر مجدد کل صفحه ممنوع */
@@ -839,10 +894,32 @@
     });
     return out;
   }
+  /* v34.4.34: ضمیمه یک فیلد تو‌در‌توی رکورد است. merge عمومی قبلی کل رکورد را
+     بر اساس timestamp اولیهٔ `t` انتخاب می‌کرد؛ افزودن/حذف فایل `t` را عوض نمی‌کرد و
+     در conflict ضمیمه بی‌صدا گم یا فایل حذف‌شده دوباره زنده می‌شد. فایل‌ها بر اساس key
+     union می‌شوند و tombstone سطح فایل (`_deletedFileKeys`) همیشه بر union مقدم است. */
+  function ptfMergeAttachmentFields(out, a, b) {
+    a = a || {}; b = b || {}; out = out || {};
+    if (!Array.isArray(a.files) && !Array.isArray(b.files) && !Array.isArray(a._deletedFileKeys) && !Array.isArray(b._deletedFileKeys)) return out;
+    var deleted = {};
+    (a._deletedFileKeys || []).concat(b._deletedFileKeys || []).forEach(function (k) { if (k) deleted[String(k)] = 1; });
+    var files = {}, noKey = [];
+    function addFile(f) {
+      if (!f || typeof f !== 'object') return;
+      var k = String(f.key || '');
+      if (!k) { noKey.push(f); return; }
+      if (!deleted[k]) files[k] = f;
+    }
+    (b.files || []).forEach(addFile);
+    (a.files || []).forEach(addFile);
+    out.files = Object.keys(files).map(function (k) { return files[k]; }).concat(noKey);
+    if (Object.keys(deleted).length) out._deletedFileKeys = Object.keys(deleted);
+    return out;
+  }
   function ptfMergeBusinessRecord(key, a, b, code) {
     var winner = ptfPreferRecord(a, b);
     var loser = winner === a ? b : a;
-    var out = ptfMergePlainObject(winner, loser);
+    var out = ptfMergeAttachmentFields(ptfMergePlainObject(winner, loser), winner, loser);
     if (key === 'ptf_crm_offers') {
       var clean = ptfNormalizeOfferSnapshot(winner.items || []);
       out.items = clean.items; /* never union winner/loser offer lines */
@@ -981,9 +1058,15 @@
                 if(!mm[it.cd]){
                   mm[it.cd]=it;
                 } else {
-                  // pick newer by t/iso/date
-                  var lt=it.iso||it.t||it.date||''; var rt=mm[it.cd].iso||mm[it.cd].t||mm[it.cd].date||'';
-                  if(lt>rt) mm[it.cd]=it;
+                  /* افزودن فایل قبلاً timestamp اولیهٔ رکورد (`t`) را تغییر نمی‌داد و
+                     در تساوی، نسخهٔ server بدون فایل برنده می‌شد. updatedAtISO ملاک
+                     اصلی است و فایل‌ها/tombstoneها مستقل از برنده merge می‌شوند. */
+                  var remoteRec=mm[it.cd];
+                  var lt=it.updatedAtISO||it.updatedAt||it.iso||it.t||it.date||'';
+                  var rt=remoteRec.updatedAtISO||remoteRec.updatedAt||remoteRec.iso||remoteRec.t||remoteRec.date||'';
+                  var winner=lt>=rt?it:remoteRec;
+                  var loser=winner===it?remoteRec:it;
+                  mm[it.cd]=ptfMergeAttachmentFields(ptfObjClone(winner),winner,loser);
                 }
               });
               merged[k]=Object.values(mm);
@@ -1006,7 +1089,7 @@
          استفاده شود که به‌ازای هر کد، رکورد برنده را انتخاب می‌کند اما فیلدهای آرایه‌ای
          (payments/pays/costEvents/timeline/lossEvents) را با ptfMergeArrayUnique واقعاً
          union می‌کند — نه جایگزین. */
-       if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+       if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals' || key === 'ptf_crm_cheques_issued' || key === 'ptf_crm_cheques_received' || key === 'ptf_crm_cheque_books' || key === 'ptf_crm_petty') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
       var loc = JSON.parse(localStr || '[]');
       var rem = JSON.parse(remoteStr || '[]');
       if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;

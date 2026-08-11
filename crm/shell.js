@@ -9,7 +9,7 @@
   if ('serviceWorker' in navigator) {
     /* MOB-009: URL version باعث می‌شود مرورگر حتی زیر cache header طولانی،
        worker تازهٔ همان release را بررسی و نصب کند. */
-    var release = window.PTF_CRM_RELEASE || window.VER || 'v34.4.33';
+    var release = window.PTF_CRM_RELEASE || window.VER || 'v34.4.34';
     navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(release), { scope: './' }).catch(function () {});
   }
 

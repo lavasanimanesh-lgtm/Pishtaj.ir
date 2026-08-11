@@ -625,15 +625,19 @@
     if (!confirm('این سند از چک حذف شود؟')) return;
     var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
     if (!c) return;
-    var files = (c.files || []).filter(function (f) { return f.key !== key; });
-    if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { files: files });
-    try {
-      fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) }).catch(function () {});
-    } catch (eD) {}
-    if (typeof ptfToast === 'function') ptfToast('سند حذف شد', 'warn');
-    var dlg = document.getElementById('ptfChFilesDlg'); if (dlg) dlg.remove();
-    window.ptfChequeFilesUi(cd);
-    if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender();
+    if (typeof window.ptfDeleteStoredFile !== 'function') { alert('سرویس حذف فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    window.ptfDeleteStoredFile(key, function (res) {
+      if (!res.ok) { if (typeof ptfToast === 'function') ptfToast('⛔ سند حذف نشد: ' + res.error, 'warn'); else alert(res.error); return; }
+      var fresh = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+      if (!fresh) return;
+      var files = (fresh.files || []).filter(function (f) { return f.key !== key; });
+      var deleted = (fresh._deletedFileKeys || []).concat([key]).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+      if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { files: files, _deletedFileKeys: deleted });
+      if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
+      var dlg = document.getElementById('ptfChFilesDlg'); if (dlg) dlg.remove();
+      window.ptfChequeFilesUi(cd);
+      if (typeof window.ptfChequePanelRender === 'function') window.ptfChequePanelRender();
+    });
   };
 
   /* ارتقای مودال ویرایش چک — افزودن سند/کپی چک + بانک/شعبه/سری/مالک/حساب */
@@ -683,9 +687,18 @@
     if (!cd) return;
     var c = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
     if (!c) return;
-    c.files = (c.files || []).filter(function (f) { return f.key !== key; });
-    if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { files: c.files });
-    window.ptfChequeEditUi(cd);
+    if (!confirm('این سند از چک و فضای ابری حذف شود؟')) return;
+    if (typeof window.ptfDeleteStoredFile !== 'function') { alert('سرویس حذف فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    window.ptfDeleteStoredFile(key, function (res) {
+      if (!res.ok) { if (typeof ptfToast === 'function') ptfToast('⛔ سند حذف نشد: ' + res.error, 'warn'); else alert(res.error); return; }
+      var fresh = (typeof window.ptfChequeFind === 'function') ? window.ptfChequeFind(cd) : null;
+      if (!fresh) return;
+      var files = (fresh.files || []).filter(function (f) { return f.key !== key; });
+      var deleted = (fresh._deletedFileKeys || []).concat([key]).filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+      if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { files: files, _deletedFileKeys: deleted });
+      var old = document.getElementById('ptfChEditDlg'); if (old) old.remove();
+      window.ptfChequeEditUi(cd);
+    });
   };
   /* ذخیرهٔ ویرایش چک — با فایل‌های موجود + جدید + اصلاح آنی مبلغ اثر مالی */
   window.ptfChequeEditSave = function (cd) {
