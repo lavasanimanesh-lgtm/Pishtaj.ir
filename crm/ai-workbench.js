@@ -545,6 +545,21 @@ window.aiWB_tripleGo=function(){
   resEl.innerHTML='⏳ در حال اجرا…';
   var out={prod:0, src:'', quote:'', cust:'', rfq:'', items:null, runId:'AIWB-'+Date.now()};
   var det=window._aiWB_detected||{};
+  var duplicateSupplyOf='';
+  /* همان گارد ضدازدحام ماژول درخواست تامین، پیش از هر تغییر Triple Pipeline. */
+  if(doSrc && inqNo && typeof window.ptfRfqsExistingForSource==='function'){
+    var existingSupply=window.ptfRfqsExistingForSource(inqNo,'');
+    if(existingSupply.length){
+      var priorNos=existingSupply.map(function(x){return x.no;}).join('، ');
+      var createAgain=confirm('⚠️ برای این درخواست قبلاً درخواست تامین ثبت شده است:\n'+priorNos+'\n\nتأیید = ثبت درخواست تامین جدید\nانصراف = باز کردن درخواست تامین قبلی و توقف عملیات فعلی');
+      if(!createAgain){
+        resEl.innerHTML='<span style="color:#0e7490">↩️ درخواست تامین قبلی «'+existingSupply[0].no+'» باز شد.</span>';
+        if(typeof window.ptfRfqsOpenExisting==='function') setTimeout(function(){window.ptfRfqsOpenExisting(existingSupply[0].no);},0);
+        return;
+      }
+      duplicateSupplyOf=existingSupply[0].no;
+    }
+  }
   if(doAddItems && !inqNo && !doRfq){ resEl.innerHTML='<span style="color:#b91c1c">برای افزودن اقلام، یک درخواست مرتبط انتخاب کنید یا گزینه «ثبت درخواست جدید» را تیک بزنید.</span>'; return; }
     /* بررسی/تایید ضدتکرار کالا پیش از هر تغییر داده، تا لغو کاربر عملیات نیمه‌کاره نسازد. */
     if(doProd){
@@ -650,6 +665,7 @@ window.aiWB_tripleGo=function(){
       } catch(e){ sqNo=genCode('RFQS'); }
       sq.unshift({
         no:sqNo, srcRfq:inqNo||'', st:'draft',
+        duplicateOf:duplicateSupplyOf||'', duplicateConfirmedAt:duplicateSupplyOf?new Date().toISOString():'', duplicateConfirmedBy:duplicateSupplyOf?(curSession().name||''):'',
         items:rows.map(function(r){ return { name:r.nm||'', spec:r.spec||'', qty:r.qty||1, unit:r.un||'عدد', brand:r.brand||'', model:r.model||'' }; }),
         targets:[], deadline:'',
         t:(typeof faDateTime==='function'?faDateTime():new Date().toLocaleDateString('fa-IR')),

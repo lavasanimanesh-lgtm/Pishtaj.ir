@@ -80,8 +80,9 @@ assert.deepStrictEqual(Array.from(noOp.ctx.ptfSyncPendingKeys()), ['ptf_crm_sett
 assert.ok(noOp.ctx.__scheduled > 0, 'real change must schedule a push');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.4.42');
+assert.ok(/^v34\.4\.(?:4[2-9]|[5-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.42 sync banner baseline');
+var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
-  assert.ok(fs.readFileSync(file, 'utf8').indexOf('34.4.42') > -1, file + ' version drift');
+  assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');
 });
 console.log('PASS tester336-v34.4.42: stale audit/no-op writes are not dirty and startup waits for a real sync failure before showing the yellow banner');
