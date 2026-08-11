@@ -1,5 +1,5 @@
 'use strict';
-/* v34.4.34 — regression for staging RCA:
+/* v34.4.35 — regression for staging RCA:
    1) an attachment refresh must perform a real pull even with dirty local data;
    2) attachment conflicts merge file keys and respect deletion tombstones;
    3) cheque books participate in client/server sync + backup;
@@ -95,6 +95,8 @@ async function syncRuntimeChecks() {
 function staticContracts() {
   var sync = fs.readFileSync('crm/sync.js', 'utf8');
   var api = fs.readFileSync('api/crm.php', 'utf8');
+  assert.ok(/function otp_token_ok[\s\S]{0,300}strlen\(\$CAPTCHA_SECRET\) < 32/.test(api), 'OTP verifier must reject missing/short HMAC secret, not only token generation');
+  assert.ok(api.indexOf('$captchaAge < 0') > -1 && api.indexOf('$otpAge < 0') > -1, 'captcha/OTP tokens from the future must be rejected');
   var backup = fs.readFileSync('crm/backup.js', 'utf8');
   var bridge = fs.readFileSync('crm/client-server.js', 'utf8');
   [sync, api, backup, bridge].forEach(function (src, i) {
@@ -115,15 +117,15 @@ function staticContracts() {
   });
 
   var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-  assert.strictEqual(version, 'v34.4.34');
+  assert.strictEqual(version, 'v34.4.35');
   ['crm/index.html', 'crm/sw.js', 'crm/manifest.json', 'crm/clear-cache.html', 'crm/shell.js'].forEach(function (f) {
-    assert.ok(fs.readFileSync(f, 'utf8').indexOf('34.4.34') > -1, f + ' must use the release cache version');
+    assert.ok(fs.readFileSync(f, 'utf8').indexOf('34.4.35') > -1, f + ' must use the release cache version');
   });
 }
 
 syncRuntimeChecks().then(function () {
   staticContracts();
-  console.log('PASS tester329-v34.4.34-staging-rca: real instant pull, attachment conflict merge/tombstones, confirmed delete, CORS SigV4, cheque-book sync, version hygiene');
+  console.log('PASS tester329-v34.4.35-staging-rca: real instant pull, attachment conflict merge/tombstones, confirmed delete, CORS SigV4, cheque-book sync, version hygiene');
 }).catch(function (err) {
   console.error(err && err.stack || err);
   process.exit(1);

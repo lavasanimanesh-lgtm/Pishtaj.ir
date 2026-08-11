@@ -111,22 +111,25 @@ if (isset($PUBLIC_LIMITED[$action])) {
 }
 
 // ===== US-149 AC1: کپچای سروری (چالش ریاضی + توکن HMAC انقضادار) =====
+// v32.0.2 US-440-fix: captcha_key only required when captcha/OTP actions are invoked — not a global blocker
 $CAPTCHA_SECRET = load_ptf_secret('captcha_key', '');
 function captcha_token($sum, $ts) {
     global $CAPTCHA_SECRET;
-    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return '';
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return ''; /* cannot generate captcha — captcha_key missing or too short */
     return base64_encode($ts . '|' . hash_hmac('sha256', $sum . '|' . $ts, $CAPTCHA_SECRET));
 }
 function captcha_ok() {
     global $CAPTCHA_SECRET;
-    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false; /* captcha_key missing — reject silently */
     $tok = $_POST['captcha_token'] ?? '';
     $ans = trim($_POST['captcha_answer'] ?? '');
     if (!$tok || $ans === '' || !is_numeric($ans)) return false;
     $raw = base64_decode($tok, true);
     if (!$raw || strpos($raw, '|') === false) return false;
     list($ts, $sig) = explode('|', $raw, 2);
-    if (!ctype_digit($ts) || time() - (int)$ts > 900) return false; // انقضا: ۱۵ دقیقه
+    if (!ctype_digit($ts)) return false;
+    $captchaAge = time() - (int)$ts;
+    if ($captchaAge < 0 || $captchaAge > 900) return false; // آینده نامعتبر؛ انقضا: ۱۵ دقیقه
     return hash_equals(hash_hmac('sha256', ((int)$ans) . '|' . $ts, $CAPTCHA_SECRET), $sig);
 }
 function require_captcha() {
@@ -252,17 +255,23 @@ function otp_store_save($s) {
 }
 function otp_token_make($phone) {
     global $CAPTCHA_SECRET;
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return ''; /* captcha_key missing for OTP — cannot generate secure token */
     $ts = time();
     return base64_encode($ts . '|' . $phone . '|' . hash_hmac('sha256', 'otp|' . $phone . '|' . $ts, $CAPTCHA_SECRET));
 }
 function otp_token_ok($token, $phone) {
     global $CAPTCHA_SECRET;
+    /* گارد باید هم در تولید و هم در اعتبارسنجی باشد؛ فقط guard کردن make کافی نبود و
+       مهاجم می‌توانست با secret خالی/کوتاه توکن HMAC دلخواه بسازد. */
+    if (!is_string($CAPTCHA_SECRET) || strlen($CAPTCHA_SECRET) < 32) return false;
     $raw = base64_decode($token, true);
     if (!$raw) return false;
     $parts = explode('|', $raw, 3);
     if (count($parts) !== 3) return false;
     list($ts, $ph, $sig) = $parts;
-    if (!ctype_digit($ts) || time() - (int)$ts > 1800) return false; // اعتبار ۳۰ دقیقه
+    if (!ctype_digit($ts)) return false;
+    $otpAge = time() - (int)$ts;
+    if ($otpAge < 0 || $otpAge > 1800) return false; // آینده نامعتبر؛ اعتبار ۳۰ دقیقه
     if ($ph !== $phone) return false;
     return hash_equals(hash_hmac('sha256', 'otp|' . $ph . '|' . $ts, $CAPTCHA_SECRET), $sig);
 }
