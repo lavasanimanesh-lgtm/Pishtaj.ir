@@ -183,6 +183,22 @@ function safe_folder($folder) {
     return $safe ? implode('/', $safe) : 'general';
 }
 
+/* v34.4.36: MIME را از پسوند امن کلید تعیین می‌کنیم، نه مقدار قابل‌جعل مرورگر.
+   فایل‌های proxy قبلاً بدون Content-Type در S3 ثبت می‌شدند و به شکل
+   application/octet-stream/attachment برمی‌گشتند؛ تصویر و PDF در viewer باز نمی‌شد. */
+function storage_content_type($name) {
+    $path = parse_url((string)$name, PHP_URL_PATH);
+    $ext = strtolower(pathinfo($path ?: (string)$name, PATHINFO_EXTENSION));
+    $map = [
+        'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png',
+        'gif' => 'image/gif', 'webp' => 'image/webp', 'bmp' => 'image/bmp',
+        'svg' => 'image/svg+xml', 'pdf' => 'application/pdf',
+        'txt' => 'text/plain; charset=utf-8', 'csv' => 'text/csv; charset=utf-8',
+        'json' => 'application/json', 'xml' => 'application/xml',
+    ];
+    return $map[$ext] ?? 'application/octet-stream';
+}
+
 $in = json_decode(file_get_contents('php://input'), true) ?: [];
 
 switch ($action) {
@@ -205,7 +221,9 @@ switch ($action) {
         $folder = safe_folder($in['folder'] ?? 'general');
         $key = $folder . '/' . date('Y-m') . '/' . uniqid() . '-' . $name;
         $url = sig_v4($cfg, 'PUT', $key, [], min(900, $cfg['expiry'] ?? 3600));
-        echo json_encode(['ok' => true, 'url' => $url, 'key' => $key, 'max_mb' => $cfg['max_mb'] ?? 25]);
+        echo json_encode(['ok' => true, 'url' => $url, 'key' => $key,
+            'content_type' => storage_content_type($name), 'content_disposition' => 'inline',
+            'max_mb' => $cfg['max_mb'] ?? 25]);
         break;
 
     case 'upload_proxy':
@@ -266,6 +284,7 @@ switch ($action) {
             echo json_encode(['ok' => false, 'error' => 'باز کردن فایل موقت ناموفق بود']);
             break;
         }
+        $contentType = storage_content_type($name);
         $ch = curl_init($cfg['endpoint'] . $uri);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -278,6 +297,8 @@ switch ($action) {
                 "Authorization: $auth",
                 "x-amz-content-sha256: $payloadHash",
                 "x-amz-date: $now",
+                "Content-Type: $contentType",
+                "Content-Disposition: inline",
             ],
         ]);
         curl_exec($ch);
@@ -286,7 +307,8 @@ switch ($action) {
         curl_close($ch);
         fclose($fh);
         if ($http >= 200 && $http < 300) {
-            echo json_encode(['ok' => true, 'key' => $key, 'name' => $orig, 'size' => (int)$size, 'mode' => 'arvan-proxy']);
+            echo json_encode(['ok' => true, 'key' => $key, 'name' => $orig, 'size' => (int)$size,
+                'content_type' => $contentType, 'mode' => 'arvan-proxy']);
         } else {
             echo json_encode(['ok' => false, 'error' => 'آپلود از طریق سرور هم ناموفق بود' . ($err ? ': ' . $err : ' (HTTP ' . $http . ')'), 'http' => $http]);
         }
@@ -335,9 +357,18 @@ switch ($action) {
             echo json_encode(['ok' => false, 'error' => 'file_not_found', 'detail' => 'فایل با این کلید در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده).', 'key' => $key, 'http' => $code]);
             break;
         }
-        /* 403/5xx/نامعتبر: HEAD مطمئن نیست → کلید را امضا و برگردان (GET امضاشده خودش تعیین تکلیف می‌کند) */
-        $url = sig_v4($cfg, 'GET', $key, [], $cfg['expiry'] ?? 3600);
-        echo json_encode(['ok' => true, 'url' => $url]);
+        /* 403/5xx/نامعتبر: HEAD مطمئن نیست → کلید را امضا و برگردان (GET امضاشده خودش تعیین تکلیف می‌کند).
+           v34.4.36: response override برای فایل‌های قدیمی که بدون MIME/inline روی S3
+           ذخیره شده‌اند؛ در نتیجه همان object قبلی هم بدون re-upload داخل viewer باز می‌شود. */
+        $contentType = storage_content_type($key);
+        $disposition = (($in['disposition'] ?? '') === 'attachment') ? 'attachment' : 'inline';
+        $responseHeaders = [
+            'response-content-type' => $contentType,
+            'response-content-disposition' => $disposition,
+        ];
+        $url = sig_v4($cfg, 'GET', $key, $responseHeaders, $cfg['expiry'] ?? 3600);
+        echo json_encode(['ok' => true, 'url' => $url, 'content_type' => $contentType,
+            'content_disposition' => $disposition]);
         break;
 
     case 'delete':

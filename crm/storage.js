@@ -236,12 +236,17 @@ function uploadFile(file, folder, cb, progressCb) {
         var fallbackStarted = false;
         xhr.open('PUT', d.url);
         xhr.timeout = 120000;
+        /* MIME/inline باید هنگام PUT در metadata شیء ثبت شود. نبود این دو هدر در
+           مسیر proxy علت application/octet-stream و بازشدن Save-As به‌جای viewer بود. */
+        try { xhr.setRequestHeader('Content-Type', d.content_type || finalFile.type || 'application/octet-stream'); } catch (eCt) {}
+        try { xhr.setRequestHeader('Content-Disposition', 'inline'); } catch (eCd) {}
         if (progressCb) xhr.upload.onprogress = function (e) {
           if (e.lengthComputable) progressCb(Math.round(e.loaded * 100 / e.total));
         };
         xhr.onload = function () {
           if (xhr.status >= 200 && xhr.status < 300) {
-            finish({ ok: true, key: d.key, name: finalFile.name, size: finalFile.size, mode: 'arvan', savedNote: note });
+            finish({ ok: true, key: d.key, name: finalFile.name, size: finalFile.size,
+              contentType: d.content_type || finalFile.type || '', mode: 'arvan', savedNote: note });
           } else {
             fallbackProxy('HTTP ' + xhr.status);
           }
@@ -263,7 +268,8 @@ function uploadFile(file, folder, cb, progressCb) {
               body: fd
             }).then(function(r){ return r.text().then(function(tx){ var parsed; try{ parsed=JSON.parse(tx);} catch(e){ throw new Error('پاسخ غیر JSON از سرور ('+r.status+'): '+tx.slice(0,180));} if(!r.ok && parsed && !parsed.error) parsed.error='HTTP '+r.status; return parsed; }); })
               .then(function(pr){
-                if (pr.ok) finish({ ok: true, key: pr.key, name: pr.name || finalFile.name, size: pr.size || finalFile.size, mode: 'arvan-proxy', savedNote: note ? note + ' (ارسال امن از مسیر سرور)' : 'ارسال امن از مسیر سرور' });
+                if (pr.ok) finish({ ok: true, key: pr.key, name: pr.name || finalFile.name, size: pr.size || finalFile.size,
+                  contentType: pr.content_type || finalFile.type || '', mode: 'arvan-proxy', savedNote: note ? note + ' (ارسال امن از مسیر سرور)' : 'ارسال امن از مسیر سرور' });
                 else finish({ ok: false, error: pr.error || 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد (proxy: '+reason+')' });
               })
               .catch(function(e){ finish({ ok: false, error: 'اتصال به فضای ابری برقرار نشد؛ فایل روی هاست ذخیره نشد' + (e && e.message ? ' — ' + e.message : ' (proxy: '+reason+')') }); });
@@ -296,7 +302,7 @@ window.ptfDownloadStoredFile = function (key, name) {
   if (!key) { alert('این فایل هنوز به فضای ابری منتقل نشده'); return; }
   fetch(STORAGE_API + '?action=presign_get', {
     method: 'POST', headers: ptfStorageAuthHeaders(true),
-    body: JSON.stringify({ key: key })
+    body: JSON.stringify({ key: key, disposition: 'attachment' })
   }).then(function (r) { return r.json(); })
     .then(function (d) {
       if (!d.ok) { alert('خطا در دریافت لینک: ' + (d.error || '')); return; }
@@ -307,61 +313,89 @@ window.ptfDownloadStoredFile = function (key, name) {
     })
     .catch(function () { alert('عدم دسترسی به سرور'); });
 };
+window.ptfCloseDocViewer = function () {
+  var modal = document.getElementById('ptfDocViewer');
+  if (modal) modal.remove();
+  if (window._ptfDocViewerObjectUrl) {
+    try { URL.revokeObjectURL(window._ptfDocViewerObjectUrl); } catch (e) {}
+    window._ptfDocViewerObjectUrl = '';
+  }
+};
 window.ptfOpenDocViewer = function (url, meta) {
   meta = meta || {};
   var name = meta.name || meta.key || 'سند';
   var key = meta.key || '';
   var ext = ptfFileExt(name) || ptfFileExt(key) || ptfFileExt(url);
   var kind = ptfDocViewerKind(ext);
-  var old = document.getElementById('ptfDocViewer');
-  if (old) old.remove();
+  window.ptfCloseDocViewer();
+  if (meta.revokeUrl) window._ptfDocViewerObjectUrl = meta.revokeUrl;
   var body;
   if (kind === 'image') {
     body = '<div style="text-align:center;background:#0f172a;border-radius:12px;padding:10px;max-height:70vh;overflow:auto">' +
-      '<img src="' + String(url).replace(/"/g, '&quot;') + '" alt="' + escP(name) + '" style="max-width:100%;max-height:66vh;object-fit:contain;border-radius:8px" onerror="this.parentNode.innerHTML=\'<div style=padding:24px;color:#fecaca>⚠️ تصویر قابل نمایش نیست — از دانلود یا تب جدید استفاده کنید</div>\'"></div>';
+      '<img src="' + String(url).replace(/"/g, '&quot;') + '" alt="' + escP(name) + '" style="max-width:100%;max-height:66vh;object-fit:contain;border-radius:8px" onerror="this.parentNode.innerHTML=\'<div style=padding:24px;color:#fecaca>⚠️ محتوای فایل تصویر معتبر نیست؛ از دکمه دانلود استفاده کنید</div>\'"></div>';
   } else if (kind === 'pdf') {
     body = '<iframe src="' + String(url).replace(/"/g, '&quot;') + '#toolbar=1" title="' + escP(name) + '" style="width:100%;height:70vh;border:1px solid var(--brd);border-radius:12px;background:#fff"></iframe>' +
-      '<div style="font-size:11.5px;color:#64748b;margin-top:6px">اگر پیش‌نمایش PDF خالی است (محدودیت ابری/مرورگر)، «🗗 تب جدید» را بزنید.</div>';
+      '<div style="font-size:11.5px;color:#64748b;margin-top:6px">سند از مسیر امن داخلی و با نوع صحیح PDF نمایش داده می‌شود.</div>';
   } else if (kind === 'text') {
     body = '<iframe src="' + String(url).replace(/"/g, '&quot;') + '" title="' + escP(name) + '" style="width:100%;height:60vh;border:1px solid var(--brd);border-radius:12px;background:#fff"></iframe>';
   } else {
     body = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px;font-size:13px;color:#92400e;line-height:1.9">' +
-      '📄 پیش‌نمایش مرورگری برای این فرمت (<b>' + escP(ext || 'نامشخص') + '</b>) در دسترس نیست.<br>از دانلود یا باز کردن در تب جدید استفاده کنید.</div>';
+      '📄 پیش‌نمایش مرورگری برای این فرمت (<b>' + escP(ext || 'نامشخص') + '</b>) در دسترس نیست.<br>از دانلود استفاده کنید.</div>';
   }
   var _vz = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(3000) : 3000;
-  var html = '<div class="md-b" id="ptfDocViewer" style="display:grid;z-index:' + _vz + '" onclick="if(event.target===this)this.remove()">' +
+  var html = '<div class="md-b" id="ptfDocViewer" style="display:grid;z-index:' + _vz + '" onclick="if(event.target===this)ptfCloseDocViewer()">' +
     '<div class="md" style="max-width:min(960px,96vw);width:96vw;max-height:94vh;overflow:auto;position:relative" onclick="event.stopPropagation()">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">' +
     '<h3 style="margin:0;font-size:15px;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escP(name) + '">👁 ' + escP(name) + '</h3>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
     (key ? '<button type="button" class="bt bt-o" style="font-size:12px" onclick="event.stopPropagation();ptfDownloadStoredFile(\'' + ptfOnClickArg(key) + '\',\'' + escP(name).replace(/'/g, '') + '\')">⬇️ دانلود</button>' : '') +
     '<a class="bt bt-o" style="font-size:12px;text-decoration:none" href="' + String(url).replace(/"/g, '&quot;') + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗗 تب جدید</a>' +
-    '<button type="button" class="bt" style="font-size:12px" onclick="event.stopPropagation();var m=document.getElementById(\'ptfDocViewer\');if(m)m.remove()">✕ بستن</button>' +
+    '<button type="button" class="bt" style="font-size:12px" onclick="event.stopPropagation();ptfCloseDocViewer()">✕ بستن</button>' +
     '</div></div>' + body + '</div></div>';
   var host = document.body || document.getElementById('panels');
   host.insertAdjacentHTML('beforeend', html);
   try { var _dv = document.getElementById('ptfDocViewer'); if (_dv && typeof window.ptfElevateModal === 'function') window.ptfElevateModal(_dv); } catch (eEl) {}
   document.addEventListener('keydown', function esc(ev) {
     if (ev.key === 'Escape') {
-      var m = document.getElementById('ptfDocViewer');
-      if (m) m.remove();
+      window.ptfCloseDocViewer();
       document.removeEventListener('keydown', esc);
     }
   });
 };
+
+/* فایل‌های raster/PDF از endpoint هم‌دامنه با هدر احراز دریافت و به Blob URL با MIME
+   قطعی تبدیل می‌شوند. این مسیر هم objectهای قدیمی octet-stream را اصلاح می‌کند و هم
+   مشکل CORS/Content-Disposition آروان را از viewer و «تب جدید» حذف می‌کند. */
+function ptfInlineStoredFileUrl(key, name) {
+  var ext = ptfFileExt(name) || ptfFileExt(key);
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'pdf'].indexOf(ext) < 0) return Promise.reject(new Error('inline_unsupported'));
+  return fetch('../api/attachment-read.php', {
+    method: 'POST', headers: ptfStorageAuthHeaders(true),
+    body: JSON.stringify({ key: key, name: name, mode: 'inline' })
+  }).then(function (r) {
+    if (!r.ok) return r.text().then(function (text) { throw new Error(text || ('HTTP ' + r.status)); });
+    return r.blob();
+  }).then(function (blob) { return URL.createObjectURL(blob); });
+}
 function openStoredFile(key, nameHint) {
   if (!key) { alert('این فایل هنوز به فضای ابری منتقل نشده'); return; }
   var name = nameHint || (String(key).split('/').pop() || key);
+  if (typeof ptfToast === 'function') ptfToast('⏳ در حال آماده‌سازی نمایش سند…', 'info');
   fetch(STORAGE_API + '?action=presign_get', {
     method: 'POST', headers: ptfStorageAuthHeaders(true),
-    body: JSON.stringify({ key: key })
+    body: JSON.stringify({ key: key, disposition: 'inline' })
   }).then(function (r) { return r.json(); })
     .then(function (d) {
       if (d.ok) {
-        if (typeof ptfOpenDocViewer === 'function') ptfOpenDocViewer(d.url, { key: key, name: name });
-        else window.open(d.url, '_blank');
+        ptfInlineStoredFileUrl(key, name).then(function (objectUrl) {
+          if (typeof ptfOpenDocViewer === 'function') ptfOpenDocViewer(objectUrl, { key: key, name: name, revokeUrl: objectUrl });
+          else window.open(objectUrl, '_blank');
+        }).catch(function () {
+          /* fallback مستقیم هم اکنون response-content-type/disposition امضاشده دارد. */
+          if (typeof ptfOpenDocViewer === 'function') ptfOpenDocViewer(d.url, { key: key, name: name });
+          else window.open(d.url, '_blank');
+        });
       } else if (d.error === 'file_not_found') {
-        /* v34.0.18-alpha: پیام معنادار برای کلیدهای قدیمی/نامعتبر */
         if (typeof ptfToast === 'function') ptfToast('⚠️ فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.', 'warn');
         else alert('فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.');
       } else alert('خطا در دریافت لینک: ' + (d.error || ''));
@@ -470,7 +504,7 @@ function attachUploadWidget(containerId, folder, onDone) {
             ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;font-size:11px;margin-left:6px">👁 مشاهده</a>' +
             ' <button type="button" class="ba" style="color:#dc2626;font-size:11px" onclick="ptfRemoveJustUploaded(this,\'' + key + '\',\'' + escP(res.name).replace(/[\\']/g, '') + '\')">✕ حذف</button>';
           row.setAttribute('data-key', key);
-          onDone({ key: res.key, name: res.name, size: res.size, mode: res.mode, t: faDateTime() });
+          onDone({ key: res.key, name: res.name, size: res.size, contentType: res.contentType || '', mode: res.mode, t: faDateTime() });
         } else {
           row.innerHTML = '❌ ' + escP(f.name) + ' — ' + escP(res.error || 'خطا');
         }

@@ -117,9 +117,10 @@ function staticContracts() {
   });
 
   var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-  assert.strictEqual(version, 'v34.4.35');
+  assert.ok(/^v34\.4\.(?:3[5-9]|[4-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.35 RCA baseline');
+  var current = version.slice(1);
   ['crm/index.html', 'crm/sw.js', 'crm/manifest.json', 'crm/clear-cache.html', 'crm/shell.js'].forEach(function (f) {
-    assert.ok(fs.readFileSync(f, 'utf8').indexOf('34.4.35') > -1, f + ' must use the release cache version');
+    assert.ok(fs.readFileSync(f, 'utf8').indexOf(current) > -1, f + ' must use the current release cache version');
   });
 }
 

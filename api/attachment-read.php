@@ -95,6 +95,14 @@ function ext_of($name) {
     $n = preg_replace('/[?#].*$/', '', $n);
     return pathinfo($n, PATHINFO_EXTENSION);
 }
+function inline_mime_of($ext) {
+    $map = [
+        'jpg'=>'image/jpeg', 'jpeg'=>'image/jpeg', 'png'=>'image/png',
+        'gif'=>'image/gif', 'webp'=>'image/webp', 'bmp'=>'image/bmp',
+        'pdf'=>'application/pdf'
+    ];
+    return $map[strtolower((string)$ext)] ?? '';
+}
 function xlsx_extract_text($bin) {
     if (!class_exists('ZipArchive')) return ['ok' => false, 'error' => 'ZipArchive unavailable'];
     $tmp = tempnam(sys_get_temp_dir(), 'ptf_xlsx_');
@@ -180,6 +188,31 @@ if (!$res['ok']) {
     exit;
 }
 $bin = $res['body'];
+
+/* v34.4.36: مسیر نمایش same-origin برای viewer. این مسیر MIME خراب objectهای قدیمی
+   S3 را اصلاح می‌کند و وابسته به CORS یا Content-Disposition ذخیره‌شدهٔ باکت نیست.
+   فقط raster image/PDF inline می‌شوند؛ SVG/HTML عمداً از origin برنامه سرو نمی‌شوند. */
+if ($mode === 'inline') {
+    $mime = inline_mime_of($ext);
+    if (!$mime) {
+        http_response_code(415);
+        echo json_encode(['ok' => false, 'error' => 'inline_unsupported', 'ext' => $ext], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    $maxInline = max(1, (int)($cfg['max_mb'] ?? 25)) * 1048576;
+    if (strlen($bin) > $maxInline) {
+        http_response_code(413);
+        echo json_encode(['ok' => false, 'error' => 'inline_too_large'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    header_remove('Content-Type');
+    header('Content-Type: ' . $mime);
+    header('Content-Disposition: inline');
+    header('Content-Length: ' . strlen($bin));
+    header('Cache-Control: private, no-store, max-age=0');
+    echo $bin;
+    exit;
+}
 
 /* v25.9: انتقال کنترل‌شدهٔ فایل S3 به OCR بدون وابستگی به CORS مرورگر.
    فقط فرمت‌های لازم و حداکثر 6MB؛ کلید/URL امضاشده هرگز به پاسخ برنمی‌گردد. */
