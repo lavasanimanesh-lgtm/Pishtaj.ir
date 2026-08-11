@@ -1,0 +1,85 @@
+'use strict';
+/* Customer/supplier messenger links under the contact number. */
+var fs = require('fs');
+var vm = require('vm');
+var assert = require('assert');
+var src = fs.readFileSync('crm/messengers.js', 'utf8');
+
+/* Structural UI contract. */
+['wa', 'tg', 'bale', 'rubika'].forEach(function (id) {
+  assert.ok(src.indexOf("id: '" + id + "'") > -1, id + ' app definition missing');
+});
+assert.ok(src.indexOf('msg-quick-links') > -1 && src.indexOf('msg-quick-app') > -1, 'compact link strip must exist');
+assert.ok(src.indexOf('var contactCell = tds[isCustomer ? 4 : 3]') > -1, 'links must be injected under the contact column');
+assert.ok(src.indexOf("['cTb', 'sTb']") > -1 && src.indexOf('MutationObserver') > -1, 'both customer and supplier rerenders must be covered');
+assert.ok(src.indexOf("https://wa.me/") > -1 && src.indexOf("https://t.me/+") > -1, 'phone deep-links must use international formats');
+assert.ok(src.indexOf("https://ble.ir/") > -1 && src.indexOf("https://rubika.ir/") > -1, 'username deep-links must exist');
+assert.ok(src.indexOf('updatedAtISO') > -1, 'messenger ID edits must carry a sync conflict timestamp');
+
+/* Execute only the direct-message section, before bot integration. */
+var end = src.indexOf('  /* ---------- US-333:');
+assert.ok(end > 0, 'US-333 boundary missing');
+var records = {
+  ptf_crm_customers: [{
+    cd: 'C-1', co: 'مشتری تست', ph: '۰۲۱۸۸۷۷۶۶۵۵',
+    people: [{ nm: 'خریدار', primary: true, mobs: [{ n: '۰۹۱۲ ۳۴۵ ۶۷۸۹' }], tels: [] }],
+    msgIds: { bale: '@bale_user', rubika: 'https://rubika.ir/rubika.user' }
+  }, { cd: 'C-FIXED', co: 'فقط ثابت', ph: '۰۲۱۸۸۷۷۶۶۵۵', people: [] }],
+  ptf_crm_suppliers: [{
+    cd: 'S-1', co: 'Foreign Supplier', origin: 'خارجی',
+    people: [{ nm: 'Sales', primary: true, mobs: [{ n: '+33 6 12 34 56 78' }], tels: [] }],
+    msgIds: { tg: '@foreign_sales' }
+  }]
+};
+var opened = [];
+var panels = { insertAdjacentHTML: function () {} };
+var ctx = {
+  window: null, console: console, JSON: JSON, Date: Date, Promise: Promise,
+  navigator: { clipboard: { writeText: function () { return Promise.resolve(); } } },
+  getData: function (k) { return records[k] || []; },
+  setData: function (k, v) { records[k] = v; },
+  primaryPerson: function (c) { return (c.people || []).filter(function (p) { return p.primary; })[0] || (c.people || [])[0] || null; },
+  escP: function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;'); },
+  ptfOnClickArg: function (v) { return String(v == null ? '' : v).replace(/'/g, ''); },
+  ptfMsgTpls: function () { return []; }, ptfToast: function () {}, audit: function () {},
+  curSession: function () { return { name: 'تستر', user: 'tester' }; },
+  renderCustomers: function () {}, renderSuppliers: function () {},
+  MutationObserver: function () { this.observe = function () {}; },
+  setTimeout: function () { return 0; },
+  document: {
+    getElementById: function (id) { return id === 'panels' ? panels : null; },
+    querySelector: function () { return null; }
+  },
+  open: function (url) { opened.push(url); return { opener: null }; }
+};
+ctx.window = ctx;
+vm.createContext(ctx);
+vm.runInContext(src.slice(0, end) + '\n})();', ctx, { filename: 'messengers-direct.js' });
+
+assert.strictEqual(ctx.ptfMsgNormalizeMobile('۰۹۱۲ ۳۴۵ ۶۷۸۹'), '989123456789', 'Persian digits/mobile normalization failed');
+assert.strictEqual(ctx.ptfMsgNormalizeMobile('021 8877 6655'), '', 'landline must not become a WhatsApp number');
+assert.strictEqual(ctx.ptfMsgContactMobile(records.ptf_crm_customers[0]), '989123456789', 'primary person mobile must win over legacy fixed phone');
+assert.strictEqual(ctx.ptfMsgContactMobile(records.ptf_crm_customers[1]), '', 'fixed-only record must have no mobile deep-link');
+assert.strictEqual(ctx.ptfMsgContactMobile(records.ptf_crm_suppliers[0]), '33612345678', 'foreign trusted mobile must retain country code');
+
+var strip = ctx.ptfMsgQuickHtml('ptf_crm_customers', records.ptf_crm_customers[0]);
+['wa','tg','bale','rubika'].forEach(function (id) { assert.ok(strip.indexOf('data-msg-app="' + id + '"') > -1, id + ' quick button missing'); });
+assert.strictEqual((strip.match(/is-missing/g) || []).length, 0, 'all configured/phone-capable apps should be active');
+
+ctx.ptfMsgQuickOpen('wa', 'ptf_crm_customers', 'C-1');
+ctx.ptfMsgQuickOpen('tg', 'ptf_crm_customers', 'C-1');
+ctx.ptfMsgQuickOpen('bale', 'ptf_crm_customers', 'C-1');
+ctx.ptfMsgQuickOpen('rubika', 'ptf_crm_customers', 'C-1');
+assert.deepStrictEqual(opened, [
+  'https://wa.me/989123456789',
+  'https://t.me/+989123456789',
+  'https://ble.ir/bale_user',
+  'https://rubika.ir/rubika.user'
+]);
+
+var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
+assert.strictEqual(version, 'v34.4.37');
+['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
+  assert.ok(fs.readFileSync(file, 'utf8').indexOf('34.4.37') > -1, file + ' version drift');
+});
+console.log('PASS tester331-v34.4.37: customer/supplier inline WhatsApp, Telegram, Bale and Rubika direct links + Persian/foreign phone normalization');
