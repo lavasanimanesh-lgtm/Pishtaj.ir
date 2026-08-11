@@ -106,10 +106,11 @@ var renderEnd = rfq.indexOf('window.rfqsSetListSearch', renderStart);
 var renderBlock = rfq.slice(renderStart, renderEnd);
 assert.strictEqual(renderBlock.indexOf('itemPreview'), -1, 'RFQ cards must not build an item-name preview');
 assert.strictEqual(renderBlock.indexOf('📦'), -1, 'RFQ card title must not display item names');
-assert.ok(renderBlock.indexOf('(از درخواست ') > -1, 'compact legacy source label must remain');
+assert.ok(renderBlock.indexOf('var sourceMeta =') > -1, 'request-source metadata must remain on the card');
+assert.ok(renderBlock.indexOf('شماره درخواست کارفرما:') > -1 && renderBlock.indexOf('| کارفرما:') > -1, 'customer request number and customer name must remain visible');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.4.44');
+assert.ok(/^v34\.4\.(?:4[4-9]|[5-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.44 attachment-view baseline');
 var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');
