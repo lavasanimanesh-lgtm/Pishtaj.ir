@@ -14,7 +14,7 @@
       .replace(/[۰-۹]/g, function (d) { return FA_DIGITS.indexOf(d); })
       .replace(/[٠-٩]/g, function (d) { return AR_DIGITS.indexOf(d); });
   }
-  /* خروجی استاندارد بین‌المللی فقط با رقم؛ wa.me و t.me/+ همین قالب را می‌خواهند. */
+  /* خروجی استاندارد بین‌المللی فقط با رقم؛ whatsapp:// و t.me/+ همین قالب را می‌خواهند. */
   function digits(n) {
     var raw = enDigits(n).trim();
     if (!raw) return '';
@@ -75,10 +75,30 @@
   var APPS = [
     { id: 'wa', lb: 'واتساپ', short: 'واتساپ', ic: '🟢', link: function (c) { return whatsAppAppLink(c.mob, c.txt); } },
     { id: 'tg', lb: 'تلگرام', short: 'تلگرام', ic: '🔵', link: function (c) { var u = cleanHandle(c.tg), n = digits(c.mob); return u ? 'https://t.me/' + u : (n ? 'https://t.me/+' + n + (c.txt ? '?text=' + encodeURIComponent(c.txt) : '') : null); } },
-    { id: 'bale', lb: 'بله', short: 'بله', ic: '🟩', link: function (c) { var u = cleanHandle(c.bale); return u ? 'https://ble.ir/' + u : null; } },
-    { id: 'eitaa', lb: 'ایتا', short: 'ایتا', ic: '🟧', link: function (c) { var u = cleanHandle(c.eitaa); return u ? 'https://eitaa.com/' + u : null; } },
-    { id: 'rubika', lb: 'روبیکا', short: 'روبیکا', ic: '🟣', link: function (c) { var u = cleanHandle(c.rubika); return u ? 'https://rubika.ir/' + u : null; } }
+    { id: 'bale', lb: 'بله', short: 'بله', ic: '🟩', web: 'https://web.bale.ai/', link: function (c) { var u = cleanHandle(c.bale); return u ? 'https://ble.ir/' + u : (digits(c.mob) ? this.web : null); } },
+    { id: 'eitaa', lb: 'ایتا', short: 'ایتا', ic: '🟧', web: 'https://web.eitaa.com/', link: function (c) { var u = cleanHandle(c.eitaa); return u ? 'https://eitaa.com/' + u : (digits(c.mob) ? this.web : null); } },
+    { id: 'rubika', lb: 'روبیکا', short: 'روبیکا', ic: '🟣', web: 'https://web.rubika.ir/', link: function (c) { var u = cleanHandle(c.rubika); return u ? 'https://rubika.ir/' + u : (digits(c.mob) ? this.web : null); } }
   ];
+  /* v34.4.40: این سه پیام‌رسان URL عمومی و مستندِ «چت خصوصی با شماره» ندارند؛
+     اما نسخهٔ وب دارند. اگر username ثبت نشده و موبایل موجود است، نسخهٔ وب باز و
+     شماره برای جستجو/افزودن مخاطب کپی می‌شود؛ لینک مستقیم username همچنان اولویت دارد. */
+  function phoneWebFallback(a, c) {
+    return !!(a && a.web && digits(c && c.mob) && !cleanHandle(c && c[a.id]));
+  }
+  function phoneForMessengerSearch(mob) {
+    var n = digits(mob);
+    return /^98(9\d{9})$/.test(n) ? ('0' + n.slice(2)) : (n ? '+' + n : '');
+  }
+  function copyPhoneForMessengerWeb(a, mob) {
+    var phone = phoneForMessengerSearch(mob);
+    if (!phone) return;
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') navigator.clipboard.writeText(phone).catch(function () {});
+    } catch (eCopy) {}
+    if (typeof ptfToast === 'function') ptfToast('شمارهٔ ' + phone + ' کپی شد؛ در جستجو یا «افزودن مخاطب» ' + a.lb + ' وب Paste کنید.', 'info');
+  }
+  window.ptfMsgPhoneWebFallback = phoneWebFallback;
+  window.ptfMsgPhoneForSearch = phoneForMessengerSearch;
   window.ptfMsgNormalizeMobile = digits;
   window.ptfMsgContactMobile = firstMobile;
 
@@ -153,8 +173,12 @@
     if (!a) return;
     var lnk = a.link({ mob: mob, txt: txt, tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika });
     if (!lnk) { alert('شناسه/شماره این مخاطب برای ' + a.lb + ' ثبت نشده — از بخش ⚙️ شناسه‌ها اضافه کنید'); return; }
-    /* پیام‌رسان‌های بدون پارامتر text: متن در کلیپ‌بورد */
-    if (appId !== 'wa' && txt) {
+    var ctx = { mob: mob, txt: txt, tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika };
+    var webByPhone = phoneWebFallback(a, ctx);
+    /* در fallback وب، شماره باید در کلیپ‌بورد باشد تا مخاطب پیدا/اضافه شود؛
+       در لینک مستقیم username مثل قبل متن آماده کپی می‌شود. */
+    if (webByPhone) copyPhoneForMessengerWeb(a, mob);
+    else if (appId !== 'wa' && txt) {
       try { navigator.clipboard.writeText(txt); if (typeof ptfToast === 'function') ptfToast('متن کپی شد — در چت Paste کنید', 'ok'); } catch (e) {}
     }
     if (appId === 'wa') window.ptfWhatsAppOpen(mob, txt);
@@ -168,15 +192,15 @@
     var ids = (c && c.msgIds) || {};
     return { mob: firstMobile(c), txt: txt || '', tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika };
   }
-  function quickApps() { return APPS.filter(function (a) { return ['wa', 'tg', 'bale', 'rubika'].indexOf(a.id) > -1; }); }
+  function quickApps() { return APPS.filter(function (a) { return ['wa', 'tg', 'bale', 'eitaa', 'rubika'].indexOf(a.id) > -1; }); }
   window.ptfMsgQuickHtml = function (entityKey, c) {
     if (!c || !c.cd) return '';
     var ctx = msgContext(c, '');
-    var colors = { wa: '#15803d', tg: '#0369a1', bale: '#047857', rubika: '#7e22ce' };
+    var colors = { wa: '#15803d', tg: '#0369a1', bale: '#047857', eitaa: '#c2410c', rubika: '#7e22ce' };
     return '<div class="msg-quick-links" data-msg-entity="' + escP(c.cd) + '" style="direction:rtl;display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-top:5px">' +
       quickApps().map(function (a) {
-        var active = !!a.link(ctx);
-        var hint = active ? ('باز کردن چت مستقیم در ' + a.lb) : ('شناسه/موبایل ' + a.lb + ' ثبت نشده — برای تنظیم کلیک کنید');
+        var active = !!a.link(ctx), webByPhone = phoneWebFallback(a, ctx);
+        var hint = webByPhone ? ('باز کردن ' + a.lb + ' وب؛ شماره برای یافتن مخاطب کپی می‌شود') : (active ? ('باز کردن چت مستقیم در ' + a.lb) : ('شناسه/موبایل ' + a.lb + ' ثبت نشده — برای تنظیم کلیک کنید'));
         return '<button type="button" class="ba msg-quick-app' + (active ? '' : ' is-missing') + '" data-msg-app="' + a.id + '"' +
           ' style="padding:2px 5px;font-size:10.5px;border:1px solid ' + (active ? colors[a.id] : '#cbd5e1') + ';border-radius:7px;color:' + (active ? colors[a.id] : '#94a3b8') + ';background:#fff;white-space:nowrap;opacity:' + (active ? '1' : '.72') + '"' +
           ' title="' + escP(hint) + '" aria-label="' + escP(hint) + '" onclick="event.stopPropagation();ptfMsgQuickOpen(\'' + a.id + '\',\'' + ptfOnClickArg(entityKey) + '\',\'' + ptfOnClickArg(c.cd) + '\')">' + a.ic + ' ' + a.short + '</button>';
@@ -200,6 +224,8 @@
     if (appId === 'wa') {
       window.ptfWhatsAppOpen(firstMobile(c), '');
     } else {
+      var quickCtx = msgContext(c, '');
+      if (phoneWebFallback(a, quickCtx)) copyPhoneForMessengerWeb(a, quickCtx.mob);
       var opened = window.open(lnk, '_blank', 'noopener,noreferrer');
       try { if (opened) opened.opener = null; } catch (eOp) {}
     }

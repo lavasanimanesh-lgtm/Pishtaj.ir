@@ -6,7 +6,7 @@ var assert = require('assert');
 var src = fs.readFileSync('crm/messengers.js', 'utf8');
 
 /* Structural UI contract. */
-['wa', 'tg', 'bale', 'rubika'].forEach(function (id) {
+['wa', 'tg', 'bale', 'eitaa', 'rubika'].forEach(function (id) {
   assert.ok(src.indexOf("id: '" + id + "'") > -1, id + ' app definition missing');
 });
 assert.ok(src.indexOf('msg-quick-links') > -1 && src.indexOf('msg-quick-app') > -1, 'compact link strip must exist');
@@ -15,7 +15,8 @@ assert.ok(src.indexOf("['cTb', 'sTb']") > -1 && src.indexOf('MutationObserver') 
 assert.ok(src.indexOf("whatsapp://send?phone=") > -1 && src.indexOf("https://t.me/+") > -1, 'phone deep-links must use native WhatsApp and international Telegram formats');
 assert.ok(src.indexOf("if (appId === 'wa') window.ptfWhatsAppOpen") > -1, 'prepared-message WhatsApp action must use the installed app');
 assert.ok(src.indexOf("if (appId === 'wa') {") > -1 && src.indexOf("window.ptfWhatsAppOpen(firstMobile(c), '')") > -1, 'quick WhatsApp action must use the installed app');
-assert.ok(src.indexOf("https://ble.ir/") > -1 && src.indexOf("https://rubika.ir/") > -1, 'username deep-links must exist');
+assert.ok(src.indexOf("https://ble.ir/") > -1 && src.indexOf("https://eitaa.com/") > -1 && src.indexOf("https://rubika.ir/") > -1, 'username deep-links must exist');
+assert.ok(src.indexOf("https://web.bale.ai/") > -1 && src.indexOf("https://web.eitaa.com/") > -1 && src.indexOf("https://web.rubika.ir/") > -1, 'phone-assisted web fallbacks must exist');
 assert.ok(src.indexOf('updatedAtISO') > -1, 'messenger ID edits must carry a sync conflict timestamp');
 
 /* Execute only the direct-message section, before bot integration. */
@@ -33,11 +34,11 @@ var records = {
     msgIds: { tg: '@foreign_sales' }
   }]
 };
-var opened = [], assigned = [];
+var opened = [], assigned = [], copied = [];
 var panels = { insertAdjacentHTML: function () {} };
 var ctx = {
   window: null, console: console, JSON: JSON, Date: Date, Promise: Promise,
-  navigator: { clipboard: { writeText: function () { return Promise.resolve(); } } },
+  navigator: { clipboard: { writeText: function (text) { copied.push(text); return Promise.resolve(); } } },
   location: { assign: function (url) { assigned.push(url); } },
   getData: function (k) { return records[k] || []; },
   setData: function (k, v) { records[k] = v; },
@@ -70,13 +71,15 @@ assert.strictEqual(ctx.ptfMsgContactMobile(records.ptf_crm_customers[1]), '', 'f
 assert.strictEqual(ctx.ptfMsgContactMobile(records.ptf_crm_suppliers[0]), '33612345678', 'foreign trusted mobile must retain country code');
 
 var strip = ctx.ptfMsgQuickHtml('ptf_crm_customers', records.ptf_crm_customers[0]);
-['wa','tg','bale','rubika'].forEach(function (id) { assert.ok(strip.indexOf('data-msg-app="' + id + '"') > -1, id + ' quick button missing'); });
+['wa','tg','bale','eitaa','rubika'].forEach(function (id) { assert.ok(strip.indexOf('data-msg-app="' + id + '"') > -1, id + ' quick button missing'); });
 assert.strictEqual((strip.match(/is-missing/g) || []).length, 0, 'all configured/phone-capable apps should be active');
+assert.ok(strip.indexOf('ایتا وب؛ شماره برای یافتن مخاطب کپی می‌شود') > -1, 'mobile-only Eitaa button must explain its assisted web fallback');
 
 ctx.ptfMsgQuickOpen('wa', 'ptf_crm_customers', 'C-1');
 ctx.ptfMsgQuickOpen('tg', 'ptf_crm_customers', 'C-1');
 ctx.ptfMsgQuickOpen('bale', 'ptf_crm_customers', 'C-1');
 ctx.ptfMsgQuickOpen('rubika', 'ptf_crm_customers', 'C-1');
+ctx.ptfMsgQuickOpen('eitaa', 'ptf_crm_customers', 'C-1');
 ctx.ptfMsgOpen('wa', 'ptf_crm_customers', 'C-1');
 assert.deepStrictEqual(assigned, [
   'whatsapp://send?phone=989123456789',
@@ -86,8 +89,10 @@ assert.strictEqual(ctx.ptfWhatsAppAppLink('۰۹۱۲ ۳۴۵ ۶۷۸۹', 'سلام 
 assert.deepStrictEqual(opened, [
   'https://t.me/+989123456789',
   'https://ble.ir/bale_user',
-  'https://rubika.ir/rubika.user'
+  'https://rubika.ir/rubika.user',
+  'https://web.eitaa.com/'
 ]);
+assert.deepStrictEqual(copied, ['09123456789'], 'mobile-only messenger web fallback must copy a searchable local phone number');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
 assert.ok(/^v34\.4\.(?:3[7-9]|[4-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.37 messenger baseline');
@@ -95,4 +100,4 @@ var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');
 });
-console.log('PASS tester331-v34.4.37: customer/supplier inline WhatsApp, Telegram, Bale and Rubika direct links + Persian/foreign phone normalization');
+console.log('PASS tester331-v34.4.37+: customer/supplier WhatsApp/Telegram direct links + Bale/Eitaa/Rubika direct-or-assisted web links + phone normalization');
