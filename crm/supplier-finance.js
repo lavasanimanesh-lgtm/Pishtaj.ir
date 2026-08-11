@@ -11,6 +11,34 @@
     catch (e) { return { schema: 1, invoices: [], payments: [] }; }
   }
   function save(d) { d = d || { schema: 1, invoices: [], payments: [] }; d.schema = 1; d.invoices = d.invoices || []; d.payments = d.payments || []; setData(KEY, d); }
+  /* v34.4.38: metadata سندِ آپلودشده باید مستقل از دکمهٔ «ذخیره فرم» و همان
+     لحظه روی source-of-truth نوشته شود؛ وگرنه بستن modal فایل را orphan می‌کرد. */
+  function fileRecord(kind, cd, d) {
+    var rows = kind === 'invoice' ? (d.invoices || []) : (d.payments || []);
+    return rows.filter(function (x) { return x.cd === cd; })[0] || null;
+  }
+  window.slPersistFile = function (kind, cd, f) {
+    if (!f || !f.key || (kind !== 'invoice' && kind !== 'payment')) return { ok: false, why: 'input' };
+    var d = data(), r = fileRecord(kind, cd, d);
+    if (!r) return { ok: false, why: 'record' };
+    r.files = r.files || [];
+    if (!r.files.some(function (x) { return x && x.key === f.key; })) r.files.push(f);
+    r._deletedFileKeys = (r._deletedFileKeys || []).filter(function (key) { return key !== f.key; });
+    r.updatedAtISO = new Date().toISOString();
+    try { r.updatedBy = curSession().name; } catch (eBy) {}
+    save(d);
+    return { ok: true, record: r };
+  };
+  window.slForgetPersistedFile = function (kind, cd, key) {
+    var d = data(), r = fileRecord(kind, cd, d);
+    if (!r) return { ok: false, why: 'record' };
+    r.files = (r.files || []).filter(function (f) { return f && f.key !== key; });
+    r._deletedFileKeys = (r._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
+    r.updatedAtISO = new Date().toISOString();
+    try { r.updatedBy = curSession().name; } catch (eBy2) {}
+    save(d);
+    return { ok: true, record: r };
+  };
   function nrm(v) { try { return typeof dedupNorm === 'function' ? dedupNorm(v) : String(v || '').trim().toLowerCase(); } catch (e) { return String(v || '').trim().toLowerCase(); } }
   function money(v) { return (+v || 0).toLocaleString('fa-IR'); }
   function supplier(cd) { return getData('ptf_crm_suppliers').filter(function (s) { return s.cd === cd; })[0]; }
@@ -436,7 +464,7 @@
     }
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var status = invRemain(i, d) > 0 ? 'open' : 'settled', refs = (i.legacyPayableCds || []).map(function (cd) { var p = getData('ptf_crm_payables').filter(function (x) { return x.cd === cd; })[0] || {}; return p.inqNo || cd; }).join('، ');
-      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, itemCount: (i.itemLinks || []).length || (i.legacyPayableCds || []).length || 0, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, link: { kind: 'invoice', cd: i.cd } });
+      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, itemCount: (i.itemLinks || []).length || (i.legacyPayableCds || []).length || 0, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, files: (i.files || []).slice(), link: { kind: 'invoice', cd: i.cd } });
     });
     /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
        طبق تصمیم کارفرما، پرداخت ابطال‌شده باید مثل فاکتور ابطال‌شده کاملاً از
@@ -462,7 +490,7 @@
           }
         }catch(e){}
       }
-      if (keep(p.dateISO || '', p.cur || 'IRR', 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: (+p.amount || 0), status: 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, link: { kind: 'payment', cd: p.cd } });
+      if (keep(p.dateISO || '', p.cur || 'IRR', 'payment', refs)) out.push({ date: p.dateISO || '', dateFa: p.dateFa || p.dateISO || '', type: (cheque ? (cheque.ownership === 'third_party' ? 'چک ثالث منتقل‌شده' : 'چک شرکت') : (p.method === 'bank' ? 'حواله بانکی' : p.method === 'credit' ? 'تهاتر/اعتبار' : 'پرداخت نقدی')), no: cheque ? (cheque.sayad || cheque.no || p.cd) : p.cd, ref: refs, cur: p.cur || 'IRR', debit: 0, credit: (+p.amount || 0), status: 'payment', note: (itemNm? itemNm+' | ':'')+(p.note||''), itemName: itemNm, files: (p.files || []).slice(), link: { kind: 'payment', cd: p.cd } });
     });
     /* CHQ-MOD-001: چک‌های صادرهٔ ماژول (issued) برای همین تامین‌کننده که هنوز وصول/ابطال نشده‌اند
        و payment لینک‌شده ندارند → ردیف گردش (بستانکار = مبلغ چک) */
@@ -504,6 +532,21 @@
     if (e.type !== 'فاکتور خرید') return '';
     return (e.itemCount ? e.itemCount + ' قلم' : 'تعداد اقلام نامشخص') + ' — تاریخ ' + (e.dateFa || e.date || 'نامشخص');
   }
+  function slLedgerFilesHtml(e) {
+    var files = (e && e.files) || [];
+    if (!files.length) return '';
+    return '<div class="sl-ledger-files" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:5px;border-top:1px dashed var(--brd)">' +
+      '<small style="color:#64748b">📎 ' + files.length.toLocaleString('fa-IR') + ' سند:</small>' +
+      files.map(function (f, idx) {
+        var key = String((f && f.key) || '');
+        if (!key) return '';
+        var name = String((f && f.name) || ('سند ' + (idx + 1)));
+        var remove = '';
+        if (e.link && e.link.kind === 'invoice') remove = '<button type="button" class="ba" style="color:#dc2626;padding:1px 4px" title="حذف سند" onclick="slInvoiceRemoveFile(\'' + ptfOnClickArg(e.link.cd) + '\',\'' + ptfOnClickArg(key) + '\')">✕</button>';
+        else if (e.link && e.link.kind === 'payment') remove = '<button type="button" class="ba" style="color:#dc2626;padding:1px 4px" title="حذف سند" onclick="slPaymentRemoveFile(\'' + ptfOnClickArg(e.link.cd) + '\',\'' + ptfOnClickArg(key) + '\')">✕</button>';
+        return '<span style="display:inline-flex;align-items:center;gap:2px"><button type="button" class="ba" style="color:#0e7490;padding:2px 5px" title="مشاهده ' + escP(name) + '" onclick="openStoredFile(\'' + ptfOnClickArg(key) + '\',\'' + ptfOnClickArg(name) + '\')">👁 ' + escP(name) + '</button>' + remove + '</span>';
+      }).join('') + '</div>';
+  }
   function slLedgerTable(rows) { return rows.map(function (e) {
     var itemName = e.itemName || e.note || '';
     var extraInfo = e.ref || '';
@@ -529,10 +572,12 @@
     } else {
       displayRef = '<b>' + (e.type === 'فاکتور خرید' ? 'فاکتور ' : '') + escP(e.no) + '</b>' + (e.type === 'فاکتور خرید' ? '<br><small style="color:#64748b">' + escP(supplierInvoiceSummary(e)) + '</small>' : (e.ref ? '<br><small>'+escP(e.ref)+'</small>' : '')) + (itemName ? '<br><small style="color:#0e7490">📦 '+escP(itemName)+'</small>' : '');
     }
+    displayRef += slLedgerFilesHtml(e);
     return '<tr><td>' + escP(e.dateFa) + '</td><td>' + escP(e.type) + '</td><td>' + displayRef + '</td><td>' + (e.debit ? money(e.debit) : '—') + '</td><td>' + (e.credit ? money(e.credit) : '—') + '</td><td><b>' + money(e.balance) + ' ' + escP(e.cur) + '</b></td><td>' + act + '</td></tr>';
   }).join(''); }
   window.slOpenLedger = function (supCd, filters) {
     if (!canSee()) { alert('⛔ دسترسی ندارید'); return; }
+    var oldLedger = document.getElementById('slLedgerDlg'); if (oldLedger) oldLedger.remove();
     var sup = supplier(supCd); if (!sup) return; var rows = slEventRows(supCd, filters), curs = ['all'].concat(rows.map(function (r) { return r.cur; }).filter(function (x, i, a) { return a.indexOf(x) === i; }));
     var f = filters || {}; var opts = curs.map(function (c) { return '<option value="' + escP(c) + '"' + ((f.cur || 'all') === c ? ' selected' : '') + '>' + (c === 'all' ? 'همه ارزها' : escP(c)) + '</option>'; }).join('');
     var html = '<div class="md-b" id="slLedgerDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1000px;max-height:92vh;overflow:auto"><h3>📒 گردش حساب تأمین‌کننده — ' + escP(sup.co || '') + '</h3><div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:9px 12px;margin-bottom:10px">' + balanceHtml(supCd) + '</div><div class="fr"><div class="fld"><label>از تاریخ</label><input id="slFfrom" value="' + escP(f.from || '') + '"></div><div class="fld"><label>تا تاریخ</label><input id="slFto" value="' + escP(f.to || '') + '"></div></div><div class="fr"><div class="fld"><label>ارز</label><select id="slFcur">' + opts + '</select></div><div class="fld"><label>وضعیت</label><select id="slFstatus"><option value="all">همه</option><option value="open"' + (f.status === 'open' ? ' selected' : '') + '>فاکتور باز</option><option value="settled"' + (f.status === 'settled' ? ' selected' : '') + '>فاکتور تسویه</option><option value="payment"' + (f.status === 'payment' ? ' selected' : '') + '>پرداخت</option><option value="legacy"' + (f.status === 'legacy' ? ' selected' : '') + '>تعهد legacy</option></select></div></div><div class="fld"><label>جستجوی RFQ / مرجع خرید</label><input id="slFref" value="' + escP(f.ref || '') + '"></div><div style="display:flex;gap:7px;justify-content:flex-end;margin-bottom:9px"><button class="bt bt-o" onclick="slLedgerApply(\'' + ptfOnClickArg(supCd) + '\')">اعمال فیلتر</button><button class="bt bt-o" onclick="slLedgerCsv(\'' + ptfOnClickArg(supCd) + '\')">📥 CSV</button><button class="bt bt-o" onclick="slLedgerPrint(\'' + ptfOnClickArg(supCd) + '\')">🖨 PDF/چاپ</button><button class="bt" onclick="document.getElementById(\'slLedgerDlg\').remove();slPaymentStart(\'' + ptfOnClickArg(supCd) + '\')">💰 پرداخت</button><button class="bt" onclick="document.getElementById(\'slLedgerDlg\').remove();slNewInvoice(\'' + ptfOnClickArg(supCd) + '\')">＋ فاکتور</button></div><div class="tb2"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده جاری</th><th>عملیات</th></tr></thead><tbody>' + (slLedgerTable(rows) || '<tr><td colspan="6">گردشی مطابق فیلتر نیست</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
@@ -661,26 +706,62 @@
   window.slInvoiceForm=function(supCd){_slInvForm267(supCd);slJalali('slInvDate');var l=document.querySelector('#slInvDlg label');if(l&&l.textContent.indexOf('تاریخ')>-1)l.textContent='شماره فاکتور *';var ds=document.querySelectorAll('#slInvDlg label');ds.forEach(function(x){if(x.textContent.indexOf('تاریخ فاکتور')>-1)x.textContent='تاریخ فاکتور (شمسی) *';});};
   var _slPayForm267=window.slPaymentForm;
   window.slPaymentForm=function(supCd,cur){_slPayForm267(supCd,cur);slJalali('slPayDate');slJalali('slChDue');document.querySelectorAll('#slPayDlg label').forEach(function(x){if(x.textContent.indexOf('تاریخ پرداخت')>-1)x.textContent='تاریخ پرداخت (شمسی) *';if(x.textContent.indexOf('تاریخ سررسید')>-1)x.textContent='تاریخ سررسید (شمسی) *';});};
-  window.slInvoiceEdit=function(cd){var d=data(),i=(d.invoices||[]).filter(function(x){return x.cd===cd})[0];if(!i)return;
-  /* v34.0.20-alpha (فاز ۱۸): نمایش/حذف اسناد موجود فاکتور + افزودن سند جدید در ویرایش */
-  window._slInvEditCd = cd;
-  var filesHtml = (i.files||[]).map(function(f){var key=String(f.key||'').replace(/[\\']/g,'');return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap"><a href="javascript:void(0)" onclick="openStoredFile(\''+key+'\')" style="color:#0e7490;flex:1">📎 '+escP(f.name||'فایل')+'</a><button class="ba" style="color:#dc2626" onclick="slInvoiceRemoveFile(\''+ptfOnClickArg(cd)+'\',\''+key+'\')">✕</button></div>';}).join('') || '<div style="color:#94a3b8;font-size:12px">سندی ثبت نشده است</div>';
-  var filesBox = '<div style="margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"><b style="font-size:12px">📎 اسناد فاکتور</b>' + filesHtml + '<div id="slInvEditFilesUp" style="margin-top:6px"></div></div>';
-  window._slInvEditNewFiles = [];
-  try { if (typeof attachUploadWidget === 'function') attachUploadWidget('slInvEditFilesUp', 'supplier-invoices/'+i.supplierCd, function(f){ if(f) window._slInvEditNewFiles.push(f); }); } catch(eU){}
-  ptfDialog({title:'✏️ ویرایش فاکتور خرید '+escP(i.no),body:filesBox,fields:[{id:'no',label:'شماره فاکتور',value:i.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',value:i.dateFa||i.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:i.amount,dir:'ltr',required:true},{id:'isOfficial',label:'نوع فاکتور خرید',type:'select',optionsHtml:'<option value=""' + (!Object.prototype.hasOwnProperty.call(i,'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (i.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (i.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>'},{id:'note',label:'یادداشت',type:'textarea',value:i.note||''}],okText:'ذخیره',onOk:function(v){var oldOfficial=Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null,iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date,amt=+v.amount||0;if(!v.no||!iso||amt<invPaid(i,d)){alert('شماره، تاریخ و مبلغ معتبر (حداقل برابر پرداخت تخصیص‌یافته) الزامی است');return;}i.no=v.no;i.dateISO=iso;i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso;i.amount=amt;i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0));i.note=v.note||'';if(v.isOfficial==='yes')i.isOfficial=true;else if(v.isOfficial==='no')i.isOfficial=false;else delete i.isOfficial;
-    if((window._slInvEditNewFiles||[]).length){ i.files=i.files||[]; (window._slInvEditNewFiles||[]).forEach(function(f){ i.files.push(f); }); i.updatedAtISO=new Date().toISOString(); i.updatedBy=curSession().name; }
-    save(d);try{audit('فاکتور خرید تامین','ویرایش فاکتور '+i.no+(oldOfficial!== (Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null)?' — تغییر نوع سند':'') ,cd)}catch(e){};slOpenLedger(i.supplierCd);}});};
-  window.slPaymentEdit=function(cd){var d=data(),p=(d.payments||[]).filter(function(x){return x.cd===cd})[0];if(!p)return;
-  /* افزودهشده: نمایش/حذف اسناد موجود پرداخت (عکس/کپی چک) + افزودن سند جدید در ویرایش */
-  window._slPayEditCd = cd;
-  var filesHtml = (p.files||[]).map(function(f){var key=String(f.key||'').replace(/[\\']/g,'');return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap"><a href="javascript:void(0)" onclick="openStoredFile(\''+key+'\')" style="color:#0e7490;flex:1">📎 '+escP(f.name||'فایل')+'</a><button class="ba" style="color:#dc2626" onclick="slPaymentRemoveFile(\''+ptfOnClickArg(cd)+'\',\''+key+'\')">✕</button></div>';}).join('') || '<div style="color:#94a3b8;font-size:12px">سندی ثبت نشده است</div>';
-  var filesBox = '<div style="margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"><b style="font-size:12px">📎 اسناد / عکس چک پرداخت</b>' + filesHtml + '<div id="slPayEditFilesUp" style="margin-top:6px"></div></div>';
-  window._slPayEditNewFiles = [];
-  try { if (typeof attachUploadWidget === 'function') attachUploadWidget('slPayEditFilesUp', 'supplier-finance/payment/'+cd, function(f){ if(f) window._slPayEditNewFiles.push(f); }); } catch(eU){}
-  ptfDialog({title:'✏️ ویرایش پرداخت',body:filesBox,fields:[{id:'date',label:'تاریخ پرداخت (شمسی)',value:p.dateFa||p.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ پرداخت',type:'number',money:false,value:p.amount,dir:'ltr',required:true},{id:'note',label:'شرح',type:'textarea',value:p.note||''}],okText:'ذخیره',onOk:function(v){var iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date,amt=+v.amount||0,min=(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);if(!iso||amt<min){alert('مبلغ نباید از مجموع تخصیص‌ها کمتر باشد');return;}p.dateISO=iso;p.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso;p.amount=amt;p.amountIrr=p.cur==='IRR'?amt:Math.round(amt*(+p.rate||0));p.unallocated=Math.max(0,amt-min);p.note=v.note||'';
-    if((window._slPayEditNewFiles||[]).length){ p.files=p.files||[]; (window._slPayEditNewFiles||[]).forEach(function(f){ p.files.push(f); }); p.updatedAtISO=new Date().toISOString(); p.updatedBy=curSession().name; }
-    save(d);try{audit('پرداخت تامین','ویرایش پرداخت '+cd,cd)}catch(e){};slOpenLedger(p.supplierCd);}});};
+  window.slInvoiceEdit = function (cd) {
+    var initialData = data(), initial = fileRecord('invoice', cd, initialData); if (!initial) return;
+    window._slInvEditCd = cd; window._slInvEditNewFiles = []; /* سازگاری با نسخه‌های قبلی */
+    var filesHtml = (initial.files || []).map(function (f) {
+      var key = String(f.key || '').replace(/[\\']/g, '');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap"><a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\',\'' + ptfOnClickArg(f.name || 'فایل') + '\')" style="color:#0e7490;flex:1">📎 ' + escP(f.name || 'فایل') + '</a><button class="ba" style="color:#dc2626" onclick="slInvoiceRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕</button></div>';
+    }).join('') || '<div style="color:#94a3b8;font-size:12px">سندی ثبت نشده است</div>';
+    var filesBox = '<div style="margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"><b style="font-size:12px">📎 اسناد فاکتور</b><small style="display:block;color:#047857;margin-top:3px">فایل پس از آپلود همان لحظه ذخیره می‌شود؛ بستن فرم آن را حذف نمی‌کند.</small>' + filesHtml + '<div id="slInvEditFilesUp" style="margin-top:6px"></div></div>';
+    ptfDialog({
+      title: '✏️ ویرایش فاکتور خرید ' + escP(initial.no), body: filesBox,
+      fields: [{id:'no',label:'شماره فاکتور',value:initial.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',value:initial.dateFa||initial.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:initial.amount,dir:'ltr',required:true},{id:'isOfficial',label:'نوع فاکتور خرید',type:'select',optionsHtml:'<option value=""' + (!Object.prototype.hasOwnProperty.call(initial,'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (initial.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (initial.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>'},{id:'note',label:'یادداشت',type:'textarea',value:initial.note||''}],
+      okText: 'ذخیره', onOk: function (v) {
+        var d = data(), i = fileRecord('invoice', cd, d); if (!i) return;
+        var oldOfficial = Object.prototype.hasOwnProperty.call(i,'isOfficial') ? i.isOfficial : null;
+        var iso = typeof ptfJToISO === 'function' ? (ptfJToISO(v.date) || v.date) : v.date, amt = +v.amount || 0;
+        if (!v.no || !iso || amt < invPaid(i, d)) { alert('شماره، تاریخ و مبلغ معتبر (حداقل برابر پرداخت تخصیص‌یافته) الزامی است'); return; }
+        i.no=v.no; i.dateISO=iso; i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; i.amount=amt; i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0)); i.note=v.note||'';
+        if(v.isOfficial==='yes') i.isOfficial=true; else if(v.isOfficial==='no') i.isOfficial=false; else delete i.isOfficial;
+        i.updatedAtISO = new Date().toISOString(); i.updatedBy = curSession().name;
+        save(d); try { audit('فاکتور خرید تامین','ویرایش فاکتور '+i.no+(oldOfficial!==(Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null)?' — تغییر نوع سند':''),cd); } catch(e) {}
+        slOpenLedger(i.supplierCd);
+      }
+    });
+    setTimeout(function () {
+      try { if (typeof attachUploadWidget === 'function') attachUploadWidget('slInvEditFilesUp', 'supplier-invoices/' + initial.supplierCd, function (f) {
+        var r = window.slPersistFile('invoice', cd, f);
+        if (r.ok && typeof ptfToast === 'function') ptfToast('✅ سند فاکتور ذخیره شد و پس از بازکردن مجدد باقی می‌ماند', 'ok');
+      }, function (key) { window.slForgetPersistedFile('invoice', cd, key); }); } catch (eU) {}
+    }, 0);
+  };
+  window.slPaymentEdit = function (cd) {
+    var initialData = data(), initial = fileRecord('payment', cd, initialData); if (!initial) return;
+    window._slPayEditCd = cd; window._slPayEditNewFiles = []; /* سازگاری */
+    var filesHtml = (initial.files || []).map(function (f) {
+      var key = String(f.key || '').replace(/[\\']/g, '');
+      return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap"><a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\',\'' + ptfOnClickArg(f.name || 'فایل') + '\')" style="color:#0e7490;flex:1">📎 ' + escP(f.name || 'فایل') + '</a><button class="ba" style="color:#dc2626" onclick="slPaymentRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕</button></div>';
+    }).join('') || '<div style="color:#94a3b8;font-size:12px">سندی ثبت نشده است</div>';
+    var filesBox = '<div style="margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"><b style="font-size:12px">📎 اسناد / عکس چک پرداخت</b><small style="display:block;color:#047857;margin-top:3px">فایل پس از آپلود همان لحظه ذخیره می‌شود.</small>' + filesHtml + '<div id="slPayEditFilesUp" style="margin-top:6px"></div></div>';
+    ptfDialog({
+      title:'✏️ ویرایش پرداخت', body:filesBox,
+      fields:[{id:'date',label:'تاریخ پرداخت (شمسی)',value:initial.dateFa||initial.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ پرداخت',type:'number',money:false,value:initial.amount,dir:'ltr',required:true},{id:'note',label:'شرح',type:'textarea',value:initial.note||''}],
+      okText:'ذخیره', onOk:function(v) {
+        var d=data(), p=fileRecord('payment', cd, d); if(!p) return;
+        var iso=typeof ptfJToISO==='function'?(ptfJToISO(v.date)||v.date):v.date, amt=+v.amount||0, min=(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);
+        if(!iso||amt<min){alert('مبلغ نباید از مجموع تخصیص‌ها کمتر باشد');return;}
+        p.dateISO=iso; p.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; p.amount=amt; p.amountIrr=p.cur==='IRR'?amt:Math.round(amt*(+p.rate||0)); p.unallocated=Math.max(0,amt-min); p.note=v.note||''; p.updatedAtISO=new Date().toISOString(); p.updatedBy=curSession().name;
+        save(d); try{audit('پرداخت تامین','ویرایش پرداخت '+cd,cd)}catch(e){} slOpenLedger(p.supplierCd);
+      }
+    });
+    setTimeout(function () {
+      try { if (typeof attachUploadWidget === 'function') attachUploadWidget('slPayEditFilesUp', 'supplier-finance/payment/' + cd, function (f) {
+        var r = window.slPersistFile('payment', cd, f);
+        if (r.ok && typeof ptfToast === 'function') ptfToast('✅ سند پرداخت ذخیره شد و پس از بازکردن مجدد باقی می‌ماند', 'ok');
+      }, function (key) { window.slForgetPersistedFile('payment', cd, key); }); } catch (eU) {}
+    }, 0);
+  };
   /* حذف یک فایل از پرداخت (همانند slInvoiceRemoveFile) */
   window.slPaymentRemoveFile = function (cd, key) {
     if (!confirm('این سند از پرداخت و فضای ابری حذف شود؟')) return;
@@ -694,11 +775,25 @@
       p.updatedAtISO = new Date().toISOString(); p.updatedBy = curSession().name;
       save(d);
       if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
-      if (window._slPayEditCd === cd && typeof window.slPaymentEdit === 'function') { window.slPaymentEdit(cd); }
+      if (window._slPayEditCd === cd && document.querySelector('.ptfdlg-b') && typeof window.slPaymentEdit === 'function') { window.slPaymentEdit(cd); }
       else slOpenLedger(p.supplierCd);
     });
   };
-  function slAttach(kind,cd){var html='<div class="md-b" id="slAttachDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 افزودن سند</h3><div id="slAttachWrap"></div><div style="text-align:left;margin-top:9px"><button class="bt" onclick="document.getElementById(\'slAttachDlg\').remove()">تمام</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);attachUploadWidget('slAttachWrap','supplier-finance/'+kind+'/'+cd,function(f){var d=data(),r=(kind==='invoice'?d.invoices:d.payments).filter(function(x){return x.cd===cd})[0];if(!r)return;r.files=r.files||[];r.files.push(f);r.updatedAtISO=new Date().toISOString();r.updatedBy=curSession().name;save(d);try{audit('حساب تامین','افزودن پیوست '+kind,cd)}catch(e){};if(typeof ptfToast==='function')ptfToast('پیوست ذخیره شد','ok');});}
+  function slAttach(kind, cd) {
+    var old = document.getElementById('slAttachDlg'); if (old) old.remove();
+    var html='<div class="md-b" id="slAttachDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px"><h3>📎 افزودن سند</h3><div style="font-size:11.5px;color:#047857;margin-bottom:7px">پس از تکمیل آپلود، سند همان لحظه در گردش حساب ذخیره می‌شود.</div><div id="slAttachWrap"></div><div style="text-align:left;margin-top:9px"><button class="bt" onclick="document.getElementById(\'slAttachDlg\').remove()">تمام</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend',html);
+    attachUploadWidget('slAttachWrap','supplier-finance/'+kind+'/'+cd,function(f){
+      var res=window.slPersistFile(kind,cd,f);
+      if(!res.ok) { if(typeof ptfToast==='function')ptfToast('⛔ اتصال سند به رکورد ناموفق بود','warn'); return; }
+      try{audit('حساب تامین','افزودن پیوست '+kind,cd)}catch(e){}
+      if(typeof ptfToast==='function')ptfToast('✅ پیوست در گردش حساب ذخیره شد','ok');
+      if(res.record && res.record.supplierCd) window.slOpenLedger(res.record.supplierCd);
+    },function(key){
+      var res=window.slForgetPersistedFile(kind,cd,key);
+      if(res.ok && res.record && res.record.supplierCd) window.slOpenLedger(res.record.supplierCd);
+    });
+  }
   window.slInvoiceAddFile=function(cd){slAttach('invoice',cd)};window.slPaymentAddFile=function(cd){slAttach('payment',cd)};
   /* v34.0.16-alpha: حذف سند از فاکتور خرید (در همان گردش حساب) */
   window.slInvoiceRemoveFile = function (cd, key) {
@@ -714,7 +809,7 @@
       save(d);
       if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
       /* v34.0.20-alpha: اگر از مودال ویرایش صدا زده شده، دوباره ویرایش را باز کن؛ وگرنه گردش حساب */
-      if (window._slInvEditCd === cd && typeof window.slInvoiceEdit === 'function') { window.slInvoiceEdit(cd); }
+      if (window._slInvEditCd === cd && document.querySelector('.ptfdlg-b') && typeof window.slInvoiceEdit === 'function') { window.slInvoiceEdit(cd); }
       else slOpenLedger(i.supplierCd);
     });
   };

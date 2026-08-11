@@ -467,7 +467,7 @@ function ptfIsAllowedFile(file) {
 window.ptfAllowedExts = ptfAllowedExts;
 window.ptfIsAllowedFile = ptfIsAllowedFile;
 
-function attachUploadWidget(containerId, folder, onDone) {
+function attachUploadWidget(containerId, folder, onDone, onRemove) {
   var c = document.getElementById(containerId);
   if (!c) return;
   window._ptfUploadSeq = (window._ptfUploadSeq || 0) + 1;
@@ -504,6 +504,10 @@ function attachUploadWidget(containerId, folder, onDone) {
             ' <a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;font-size:11px;margin-left:6px">👁 مشاهده</a>' +
             ' <button type="button" class="ba" style="color:#dc2626;font-size:11px" onclick="ptfRemoveJustUploaded(this,\'' + key + '\',\'' + escP(res.name).replace(/[\\']/g, '') + '\')">✕ حذف</button>';
           row.setAttribute('data-key', key);
+          if (typeof onRemove === 'function') {
+            window._ptfUploadRemoveHandlers = window._ptfUploadRemoveHandlers || {};
+            window._ptfUploadRemoveHandlers[res.key] = onRemove;
+          }
           onDone({ key: res.key, name: res.name, size: res.size, contentType: res.contentType || '', mode: res.mode, t: faDateTime() });
         } else {
           row.innerHTML = '❌ ' + escP(f.name) + ' — ' + escP(res.error || 'خطا');
@@ -530,6 +534,13 @@ window.ptfRemoveJustUploaded = function (btnEl, key, name) {
       if (typeof ptfToast === 'function') ptfToast('⛔ ' + res.error, 'warn'); else alert(res.error);
       return;
     }
+    /* ویجت‌های persist-immediate (مثل گردش حساب تأمین‌کننده) metadata را همان لحظه
+       ذخیره می‌کنند؛ handler ثبت‌شده باید پس از حذف موفق object، رکورد را هم پاک کند. */
+    try {
+      var handlers = window._ptfUploadRemoveHandlers || {};
+      if (typeof handlers[key] === 'function') handlers[key](key);
+      delete handlers[key];
+    } catch (eHandler) {}
     /* فرم‌های ثبت، fileRec را در آرایه‌های موقت window نگه می‌دارند. حذفِ صرفِ ردیف
        قبلاً آن reference را باقی می‌گذاشت و فرم بعداً metadata فایل حذف‌شده را ذخیره
        می‌کرد (NoSuchKey). فقط آرایه‌های موقت فایل را بر اساس key پاک می‌کنیم. */
