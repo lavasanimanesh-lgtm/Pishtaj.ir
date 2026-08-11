@@ -471,7 +471,9 @@
         (c.note ? box('f-memo', L.memoTop, L.memoRight, null, 'font-size:' + L.memoSize + 'pt;font-family:' + fam('memo') + ';color:' + (L.memoColor || '#111827') + ';') + escP(c.note) + '</div>' : '') +
         '</div></section>';
     }).join('');
-    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>چاپ چک فیزیکی</title><style>' +
+    var chequeTitle = 'CHQ-' + list.map(function (c) { return (c && (c.sayad || c.no || c.cd)) || ''; }).filter(Boolean).slice(0, 3).join('_');
+    if (chequeTitle === 'CHQ-') chequeTitle = 'cheque-print';
+    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>' + escP(typeof ptfPdfFileName === 'function' ? ptfPdfFileName(chequeTitle) : chequeTitle) + '</title><style>' +
       '@page{size:' + L.pageW + 'mm ' + L.pageH + 'mm;margin:0}' +
       '*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000}' +
       'body{font-family:' + fontStack(L.fontFam || 'Tahoma') + ';-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
@@ -510,7 +512,8 @@
       return;
     }
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
-      window.ptfPreviewPrintableDoc('پیش‌نمایش/کالیبراسیون چک فیزیکی', html, 'cheque-print');
+      var previewName = 'CHQ-' + list.map(function (c) { return (c && (c.sayad || c.no || c.cd)) || ''; }).filter(Boolean).slice(0, 3).join('_');
+      window.ptfPreviewPrintableDoc('پیش‌نمایش/کالیبراسیون چک فیزیکی', html, previewName === 'CHQ-' ? 'cheque-print' : previewName);
       return;
     }
     chqOpenDirectPrint(html, list.length);

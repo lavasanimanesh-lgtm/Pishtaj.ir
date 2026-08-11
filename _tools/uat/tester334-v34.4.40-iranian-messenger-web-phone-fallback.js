@@ -26,8 +26,9 @@ assert.ok(src.indexOf('if (phoneWebFallback(a, quickCtx)) copyPhoneForMessengerW
 assert.ok(src.indexOf("Paste کنید") > -1, 'user must receive explicit search/add-contact guidance');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.4.40');
+assert.ok(/^v34\.4\.(?:4\d|[5-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.40 Iranian messenger baseline');
+var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
-  assert.ok(fs.readFileSync(file, 'utf8').indexOf('34.4.40') > -1, file + ' version drift');
+  assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');
 });
 console.log('PASS tester334-v34.4.40: Bale, Eitaa and Rubika mobile-only actions copy the number and open each official web client');

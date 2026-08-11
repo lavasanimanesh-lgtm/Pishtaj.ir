@@ -2492,6 +2492,7 @@ function offerPrintObj(o) {
   var baseFont = ec.length === 0 ? 10 : ec.length === 1 ? 9.5 : ec.length === 2 ? 9 : 8.5;
   var _pAs = (o.kind !== 'TO') ? (o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) : ''; /* v20.1 US-442 */
   var title = _pAs === 'TC' ? 'Techno-Commercial Offer' : (o.kind === 'TO' ? 'Technical Offer' : 'Commercial Offer');
+  var pdfFileName = typeof ptfOfferPdfFileName === 'function' ? ptfOfferPdfFileName(o) : o.no;
   var total = o.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0);
   var pageCount = Math.max(1, Math.ceil(o.items.length / (isCO ? 8 : 5)));
 
@@ -2543,7 +2544,7 @@ function offerPrintObj(o) {
     '<div class="line"' + (sigImgs ? ' style="margin-top:3px"' : '') + '>Authorized Signature &amp; Stamp<br>' + SELLER_INFO.company + '</div></div></div>';
     var tailBlock = '<div class="tail">' + terms + sigBlock + '</div>';
 
-  var fullDocHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + o.no + '</title><style>' +
+  var fullDocHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + escP(pdfFileName) + '</title><style>' +
     '@page{size:A4 landscape;margin:10mm 12mm 16mm 12mm}' +
     ':root{--brand:#ef4b1a;--gold:#f79400;--ink:#1f2328}' +
     '*{box-sizing:border-box}' +
@@ -2605,12 +2606,12 @@ function offerPrintObj(o) {
     '</body></html>';
 
   if (typeof ptfPreviewPrintableDoc === 'function' && !window._inUatTestMock) {
-    ptfPreviewPrintableDoc(title + ' — ' + escP(o.no), fullDocHtml, o.no);
+    ptfPreviewPrintableDoc(title + ' — ' + escP(o.no), fullDocHtml, pdfFileName);
     return;
   }
 
   var w = window.open('', '_blank');
-  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + o.no + '</title><style>' +
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + escP(pdfFileName) + '</title><style>' +
     '@page{size:A4 landscape;margin:10mm 12mm 16mm 12mm}' +
     ':root{--brand:#ef4b1a;--gold:#f79400;--ink:#1f2328}' +
     '*{box-sizing:border-box}' +

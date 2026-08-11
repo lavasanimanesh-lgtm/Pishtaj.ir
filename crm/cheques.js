@@ -470,7 +470,9 @@
     list = list || [];
     if (!list.length) { alert('چکی برای چاپ نیست'); return; }
     var html = chPrintHtml(list, mode || 'paper');
-    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('پیش‌نمایش چک', html, 'cheque'); return; }
+    var chequeFileName = 'CHQ-' + list.map(function (c) { return (c && (c.sayad || c.no || c.cd)) || ''; }).filter(Boolean).slice(0, 3).join('_');
+    if (chequeFileName === 'CHQ-') chequeFileName = 'cheque-preview';
+    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('پیش‌نمایش چک', html, chequeFileName); return; }
     document.getElementById('panels').insertAdjacentHTML('beforeend','<div class="md-b" style="display:grid;z-index:4000"><div class="md" style="max-width:95vw;width:1000px;height:90vh"><iframe style="width:100%;height:75vh" srcdoc="'+html.replace(/"/g,'&quot;')+'"></iframe><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div>');
   }
   window.chPreviewDraft = function (existingCd) {

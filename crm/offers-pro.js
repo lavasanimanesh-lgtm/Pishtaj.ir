@@ -517,7 +517,7 @@
     var blob = new Blob([clean], { type: 'text/html;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (fileName || 'document').replace(/[^a-zA-Z0-9.\-_]/g, '_') + '.html';
+    a.download = (typeof ptfPdfFileName === 'function' ? ptfPdfFileName(fileName) : (fileName || 'document')) + '.html';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -531,11 +531,12 @@
     var html = fr.srcdoc || (fr.contentWindow ? fr.contentWindow.document.documentElement.outerHTML : '');
     if (!html) return;
     var clean = String(html).replace(/<script[^>]*>[\s\S]*?window\.print\(\)[\s\S]*?<\/script>/gi, '');
-    var wordHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>' + escP(fileName || 'Doc') + '</title><style>@page { size: A4 landscape; margin: 12mm; }</style></head><body>' + clean + '</body></html>';
+    var safeName = typeof ptfPdfFileName === 'function' ? ptfPdfFileName(fileName) : (fileName || 'document');
+    var wordHtml = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>' + escP(safeName) + '</title><style>@page { size: A4 landscape; margin: 12mm; }</style></head><body>' + clean + '</body></html>';
     var blob = new Blob([wordHtml], { type: 'application/msword;charset=utf-8' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (fileName || 'document').replace(/[^a-zA-Z0-9.\-_]/g, '_') + '.doc';
+    a.download = safeName + '.doc';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -555,8 +556,22 @@
         '<small style="color:#0e7490">همچنین در صورت نیاز به ویرایش یا اشتراک‌گذاری سریع، می‌توانید از دکمه‌های «⬇️ دانلود HTML» و «⬇️ دانلود Word» در بالای پنجره استفاده کنید.</small>',
       okText: '🖨️ باز کردن پنجره چاپ / ذخیره PDF',
       onOk: function () {
-        try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) {
-          try { var w = window.open('', '_blank'); w.document.write(fr.srcdoc); w.document.close(); setTimeout(function(){ w.focus(); w.print(); }, 500); } catch (e2) {}
+        var pdfTitle = typeof ptfPdfFileName === 'function' ? ptfPdfFileName(window._ptfPrintFileName) : (window._ptfPrintFileName || 'document');
+        var previousPageTitle = document.title;
+        var restorePageTitle = function () { try { document.title = previousPageTitle; } catch (eRestore) {} };
+        try { document.title = pdfTitle; } catch (eTopTitle) {}
+        setTimeout(restorePageTitle, 4000);
+        try {
+          var printDoc = fr.contentDocument || (fr.contentWindow ? fr.contentWindow.document : null);
+          if (printDoc) printDoc.title = pdfTitle;
+          try { fr.contentWindow.addEventListener('afterprint', restorePageTitle, { once: true }); } catch (eAfter) {}
+          fr.contentWindow.focus(); fr.contentWindow.print();
+        } catch (e) {
+          try {
+            var w = window.open('', '_blank');
+            w.document.write(typeof ptfPdfHtmlWithTitle === 'function' ? ptfPdfHtmlWithTitle(fr.srcdoc, pdfTitle) : fr.srcdoc);
+            w.document.close(); setTimeout(function(){ w.focus(); w.print(); }, 500);
+          } catch (e2) { restorePageTitle(); }
         }
       }
     });
@@ -571,7 +586,8 @@
     var old = document.getElementById('ptfPrintPreview');
     if (old) old.remove();
     var safeTitle = escP(title || 'Preview');
-    var safeDoc = String(html || '').replace(/&/g, '&amp;').replace(/<\/iframe>/gi, '<\\/iframe>');
+    var printFileName = typeof ptfPdfFileName === 'function' ? ptfPdfFileName(fileName || title || 'document') : (fileName || title || 'document');
+    window._ptfPrintFileName = printFileName;
     var modal = document.createElement('div');
     modal.id = 'ptfPrintPreview';
     modal.className = 'md-b';
@@ -585,12 +601,12 @@
     }
     modal.innerHTML = '<div class="md ptf-print-preview-modal" style="max-width:min(1200px,96vw);width:96vw;max-height:94vh;overflow:auto">' +
       '<div class="ptf-print-preview-head">' +
-      '<h3 id="ptfPrintPreviewTitle">👁 ' + safeTitle + '</h3>' +
+      '<div><h3 id="ptfPrintPreviewTitle">👁 ' + safeTitle + '</h3><small style="display:block;color:#64748b;margin-top:3px">نام پیش‌فرض PDF: <b dir="ltr">' + escP(printFileName) + '.pdf</b></small></div>' +
       '<div class="ptf-print-actions" role="group" aria-label="عملیات پیش‌نمایش چاپ">' +
       previewAction('print', '🖨', 'چاپ / PDF', 'باز کردن چاپ یا ذخیره PDF', 'ptfPrintPreviewGo()', true) +
       previewAction('layout', '🎛', 'چیدمان', 'تنظیم چیدمان و گنجایش صفحه', 'ptfToggleLayoutBar()', false) +
-      previewAction('html', '⬇', 'HTML', 'دانلود HTML سند', 'ptfDownloadPreviewHtml(\'' + ptfOnClickArg(fileName || 'document') + '\')', false) +
-      previewAction('word', '⬇', 'Word', 'دانلود Word سند', 'ptfDownloadPreviewWord(\'' + ptfOnClickArg(fileName || 'document') + '\')', false) +
+      previewAction('html', '⬇', 'HTML', 'دانلود HTML سند', 'ptfDownloadPreviewHtml(\'' + ptfOnClickArg(printFileName) + '\')', false) +
+      previewAction('word', '⬇', 'Word', 'دانلود Word سند', 'ptfDownloadPreviewWord(\'' + ptfOnClickArg(printFileName) + '\')', false) +
       previewAction('newtab', '↗', 'تب جدید', 'باز کردن پیش‌نمایش در تب جدید', 'ptfOpenPreviewNewTab()', false) +
       previewAction('close', '×', 'بستن', 'بستن پیش‌نمایش چاپ', 'ptfPrintPreviewClose()', false) +
       '</div></div>' +
@@ -608,7 +624,12 @@
       '<iframe id="ptfPrintFrame" style="width:100%;height:78vh;border:1px solid var(--brd);border-radius:12px;background:#fff"></iframe></div>';
     document.body.appendChild(modal);
     var fr = document.getElementById('ptfPrintFrame');
-    if (fr) { window._ptfLayoutState = null; var _cleanHtml = String(html || '').replace(/<script[^>]*>[\s\S]*?window\.print\(\)[\s\S]*?<\/script>/gi, '').replace(/<\/iframe>/gi, '<\\/iframe>'); fr.srcdoc = _cleanHtml; }
+    if (fr) {
+      window._ptfLayoutState = null;
+      var _cleanHtml = String(html || '').replace(/<script[^>]*>[\s\S]*?window\.print\(\)[\s\S]*?<\/script>/gi, '').replace(/<\/iframe>/gi, '<\\/iframe>');
+      fr.srcdoc = typeof ptfPdfHtmlWithTitle === 'function' ? ptfPdfHtmlWithTitle(_cleanHtml, printFileName) : _cleanHtml;
+      fr.setAttribute('data-pdf-file-name', printFileName);
+    }
   };
 
   window.offerPrintTpl = function (o, tpl, isPreview) {
@@ -760,8 +781,9 @@
         parties + docTableHtml(o) + docTailHtml(o);
     }
 
-    var fullHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + escP(o.no) + '</title><style>' + css + '</style></head><body>' + printHint() + body + '</body></html>';
-    window.ptfPreviewPrintableDoc(title + ' — ' + escP(o.no), fullHtml, o.no);
+    var pdfFileName = typeof ptfOfferPdfFileName === 'function' ? ptfOfferPdfFileName(o) : o.no;
+    var fullHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + escP(pdfFileName) + '</title><style>' + css + '</style></head><body>' + printHint() + body + '</body></html>';
+    window.ptfPreviewPrintableDoc(title + ' — ' + escP(o.no), fullHtml, pdfFileName);
   };
 
   window.offerQuickPreview = function (no) {
