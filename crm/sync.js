@@ -40,9 +40,32 @@
     return isFullRole || (SYNC_ROLE_KEYS[role] || SYNC_ROLE_KEYS.sales).indexOf(k) > -1;
   }
 
+  /* v34.4.42 BUG-SYNC-DIRTY-BANNER-001:
+     نقش‌های غیرارشد اجازهٔ sync کلید audit و برخی کلیدهای مدیریتی را ندارند. نسخهٔ قبلی
+     dirty ذخیره‌شدهٔ این کلیدها را در boot می‌خواند و قبل از پاکسازی push، بنر زرد
+     «۱ تغییر ذخیره‌نشده» را نشان می‌داد. بدتر: pushDirty کلید ممنوع را حذف و همان حذف
+     را با audit() ثبت می‌کرد؛ audit از setData می‌گذشت و همان کلید ممنوع را دوباره dirty
+     می‌کرد، بنابراین حلقه بعد از هر hard refresh تکرار می‌شد. dirty persisted پیش از
+     ساخت state از audit غیرقابل‌ارسال و کلیدهای منسوخ پاک می‌شود تا بنر فقط تغییر
+     واقعی را بشمارد، بدون اینکه dirtyهای یک کاربر دیگر هنگام تعویض نقش حذف شوند. */
+  function loadPersistedDirty() {
+    var raw = {};
+    try { raw = JSON.parse(localStorage.getItem('ptf_sync_dirty') || '{}') || {}; } catch (eRead) {}
+    var clean = {};
+    Object.keys(raw).forEach(function (k) {
+      if (!raw[k] || SYNC_KEYS.indexOf(k) < 0) return;
+      /* audit تنها کلیدی است که خودِ cleanup سینک آن را دوباره تولید می‌کند. سایر
+         dirtyهای موقتِ نامجاز تا زمان ورود با نقش درست حفظ می‌شوند و pushDirty طبق
+         قرارداد قبلی درباره‌شان تصمیم می‌گیرد. */
+      if (k === 'ptf_crm_audit' && !syncAllowedKey(k)) return;
+      clean[k] = true;
+    });
+    try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(clean)); } catch (eSave) {}
+    return clean;
+  }
   window._ptfSyncBootstrapped = false; /* v16.7 BUG-018: فلگ عمومی برای ماژول‌هایی که rebuild خودکار دارند (sms) */
   var state = {
-    dirty: (function () { try { var s = localStorage.getItem('ptf_sync_dirty'); return s ? JSON.parse(s) : {}; } catch (e) { return {}; } })(),  // کلیدهای تغییر یافته محلی که هنوز push نشده‌اند — v33.2.1: persisted
+    dirty: loadPersistedDirty(),  // کلید معتبر، بدون audit غیرقابل‌ارسال؛ v34.4.42 ضد بنر کاذب
     pushTimer: null,
     pulling: false,
     /* v34.4.34: `pulling` فقط هنگام اعمال localStorage فعال است؛ برای جلوگیری از
@@ -78,16 +101,29 @@
   /* ---------- رهگیری تغییرات: wrap setData ---------- */
   window.ptfSyncNotifyDirty = function (k) {
     if (SYNC_KEYS.indexOf(k) > -1 && !state.pulling) {
+      /* کلیدی که سرور برای نقش فعلی نمی‌پذیرد نباید «تغییر ذخیره‌نشده» محسوب شود؛
+         به‌ویژه audit داخلیِ خود sync نباید dirty را پس از پاکسازی دوباره بسازد. */
+      if (k === 'ptf_crm_audit' && !syncAllowedKey(k)) {
+        if (state.dirty[k]) { delete state.dirty[k]; saveDirty(); }
+        return;
+      }
       state.dirty[k] = true;
       saveDirty(); // v33.2.1: persist dirty keys
       schedulePush();
     }
   };
+  window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
 
   var _setData = window.setData;
   window.setData = function (k, d) {
+    /* چند migration/repair در boot همان مقدار قبلی را دوباره setData می‌کنند
+       (نمونه قطعی: ptfDupAckSet('') روی ptf_crm_settings). نسخهٔ قبلی حتی برای
+       write کاملاً یکسان dirty می‌ساخت؛ اگر کاربر hard refresh می‌کرد، beacon بدون
+       فرصت/مجوز کافی می‌ماند و نشست بعدی بنر کاذب نشان می‌داد. فقط تغییر واقعی dirty است. */
+    var before = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
     var saveResult = _setData(k, d);
-    window.ptfSyncNotifyDirty(k);
+    var after = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
+    if (before !== after) window.ptfSyncNotifyDirty(k);
     return saveResult;
   };
 
@@ -646,11 +682,20 @@
   function boot() {
     if (!curSession().user) return;
     injectBadge();
-    /* v33.2.1: خودبازیابی — اگر dirty keys از session قبل هست، هشدار بده */
+    /* v34.4.42: dirty persisted ابتدا فقط «کاندید بازیابی» است، نه اثبات خطا.
+       بنر قدیمی پیش از اولین تلاش sync روشن می‌شد و حتی برای no-op/stale dirty یک
+       هشدار زرد کاذب می‌پراند. تا ۶ ثانیه فرصت reconcile/push می‌دهیم؛ فقط اگر کلید
+       واقعاً باقی ماند هشدار نمایش داده می‌شود. خطای شبکه/احراز در مسیرهای خودشان
+       بلافاصله offline/warn را فعال می‌کند. */
     var dirtyKeys = Object.keys(state.dirty);
     if (dirtyKeys.length > 0) {
-      try { if (typeof ptfToast === 'function') ptfToast('🔄 ' + dirtyKeys.length + ' تغییر ذخیره‌نشده از جلسه قبل یافت شد — در حال تلاش برای همگام‌سازی...', 'info'); } catch (eDR) {}
-      setSyncBadge('warn');
+      clearTimeout(window._ptfSyncRecoveryNoticeT);
+      window._ptfSyncRecoveryNoticeT = setTimeout(function () {
+        var remaining = Object.keys(state.dirty).length;
+        if (!remaining) return;
+        setSyncBadge(state.online ? 'warn' : 'offline');
+        try { if (typeof ptfToast === 'function') ptfToast('🔄 ' + remaining + ' تغییر واقعی هنوز در انتظار همگام‌سازی است.', 'info'); } catch (eDR) {}
+      }, 6000);
     }
     try { if (typeof ptfUpdateGuardCounts === 'function' && !localStorage.getItem('ptf_guard_counts')) ptfUpdateGuardCounts(); } catch (eB) {} /* v14.7 US-382: baseline اولیه */
     initialSync();

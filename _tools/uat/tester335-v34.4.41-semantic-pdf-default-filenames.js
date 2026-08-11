@@ -51,8 +51,9 @@ assert.ok(docsx.indexOf("fullHtml, rec.no") > -1, 'official sales document outpu
 assert.ok(cheques.indexOf("var chequeFileName = 'CHQ-'") > -1 && chequePrint.indexOf("var chequeTitle = 'CHQ-'") > -1, 'cheque PDF/print paths must use cheque identifiers');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.4.41');
+assert.ok(/^v34\.4\.(?:4[1-9]|[5-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.41 semantic PDF naming baseline');
+var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
-  assert.ok(fs.readFileSync(file, 'utf8').indexOf('34.4.41') > -1, file + ' version drift');
+  assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');
 });
 console.log('PASS tester335-v34.4.41: semantic PDF filename reaches document.title for offers, supplier RFQs, letters and other numbered documents');
