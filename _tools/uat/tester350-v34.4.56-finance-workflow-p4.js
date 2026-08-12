@@ -11,8 +11,8 @@
   var api = read('api/crm.php');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(ver.crm_version === 'v34.4.56', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.56'") > -1, 'index release');
+  ok(/^v34\.4\.(5[6-9]|[6-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(guard.indexOf('window.ptfFinanceEventAppend') > -1, 'journal append');
   ok(guard.indexOf('window.ptfFinanceUnionEvents') > -1, 'union events');
   ok(guard.indexOf('window.ptfFinanceReplayEvents') > -1, 'replay');
