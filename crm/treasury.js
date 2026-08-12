@@ -230,6 +230,21 @@
     get('ptf_crm_sharetx').forEach(function (x) {
       if (!active(x)) return;
       var t = txt(x.type);
+      if (t === 'call_pay' || t === 'call_over') {
+        var inAmt = num(x.amt || x.amount);
+        if (!inAmt) return;
+        pushMove(out, {
+          key: 'sharein:' + (x.cd || ''),
+          cd: x.cd || '',
+          dir: 'in',
+          amount: inAmt,
+          dateISO: isoOf(x),
+          dateFa: faOf(x),
+          src: t === 'call_over' ? 'مازاد تأمین سهامدار' : 'تأمین نقدینگی سهامدار',
+          label: (t === 'call_over' ? 'مازاد تأمین ' : 'تأمین فراخوان ') + (x.shName || '')
+        });
+        return;
+      }
       if (t !== 'draw' && t !== 'advance' && t !== 'salary_payment') return;
       var amt = num(x.amt || x.amount);
       if (!amt) return;

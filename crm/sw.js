@@ -50,6 +50,7 @@ var SHELL = [
   './petty.js' + ASSET_QUERY,
   './opex.js' + ASSET_QUERY,
   './shareholders.js' + ASSET_QUERY,
+  './treasury-call.js' + ASSET_QUERY,
   './theme.js' + ASSET_QUERY,
   './archive.js' + ASSET_QUERY,
   './offers-pro.js' + ASSET_QUERY,

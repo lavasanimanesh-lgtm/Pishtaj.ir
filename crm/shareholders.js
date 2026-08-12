@@ -174,18 +174,24 @@
 
   window.ptfShareholderBalance = function (cd) {
     var s = shAll().filter(function (x) { return x.cd === cd; })[0];
-    var ledger = txAll().filter(function (x) { return x.shCd === cd; }).reduce(function (a, x) {
+    var ledger = txAll().filter(function (x) { return x && x.shCd === cd && x.status !== 'void' && !x.voided; }).reduce(function (a, x) {
       if (x.type === 'salary' || x.type === 'credit' || x.type === 'profit') a.credit += (+x.amt || 0);
       else if (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment') a.debit += (+x.amt || 0);
+      else if (x.type === 'call_due') a.callDue += (+x.amt || 0);
+      else if (x.type === 'call_pay') a.callPay += (+x.amt || 0);
+      else if (x.type === 'call_over') a.callOver += (+x.amt || 0);
       return a;
-    }, { credit: 0, debit: 0 });
+    }, { credit: 0, debit: 0, callDue: 0, callPay: 0, callOver: 0 });
     var petty = 0;
     try {
       if (s && typeof ptfPettyPendingByUser === 'function') petty = +(ptfPettyPendingByUser()[s.name] || 0);
       else if (s) petty = (getData('ptf_crm_petty') || []).filter(function (p) { return p.by === s.name && p.st !== 'settled'; }).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
     } catch (e) {}
     ledger.petty = petty;
-    ledger.net = ledger.credit + petty - ledger.debit;
+    ledger.callRemain = Math.max(0, (+ledger.callDue || 0) - (+ledger.callPay || 0));
+    ledger.callCredit = +ledger.callOver || 0;
+    ledger.opsNet = ledger.credit + petty - ledger.debit;
+    ledger.net = ledger.opsNet + ledger.callCredit - ledger.callRemain;
     return ledger;
   };
 
@@ -194,6 +200,7 @@
     if (extra && extra.files) rec.files = (extra.files || []).slice();
     var a = txAll(); a.unshift(rec); txSave(a); return rec;
   }
+  window.ptfShareAddTx = addTx;
 
   function shareTxFind(cd) {
     return txAll().filter(function (x) { return x && x.cd === cd; })[0] || null;
@@ -268,7 +275,10 @@
       var st = b.net >= 0 ? 'بستانکار از شرکت' : 'بدهکار به شرکت';
       return '<div class="shareholder-card">' +
         '<div class="shareholder-card-head"><div class="shareholder-copy"><b>' + escP(s.name) + '</b> <span class="bd" style="background:#eef2ff;color:#3730a3">' + (+s.pct || 0) + '٪</span> ' + (s.duty ? '<span class="bd b-st3">موظف</span>' : '') + (s.active === false ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">غیرفعال</span>' : '') +
-        '<br><small style="color:#64748b">حقوق موظف: ' + money(s.salary || 0) + ' | مطالبات تنخواه: ' + money(b.petty) + '</small><br><b style="color:' + cls + '">مانده: ' + money(Math.abs(b.net)) + ' — ' + st + '</b></div>' +
+        '<br><small style="color:#64748b">حقوق موظف: ' + money(s.salary || 0) + ' | مطالبات تنخواه: ' + money(b.petty) +
+        (b.callRemain ? ' | بدهی فراخوان: ' + money(b.callRemain) : '') +
+        (b.callCredit ? ' | طلب از صندوق: ' + money(b.callCredit) : '') +
+        '</small><br><b style="color:' + cls + '">مانده: ' + money(Math.abs(b.net)) + ' — ' + st + '</b></div>' +
         '<div class="shareholder-actions" role="group" aria-label="عملیات سهامدار ' + escP(s.name) + '">' +
         shareAction('edit', '✏️', 'ویرایش', 'ویرایش مشخصات سهامدار', 'ptfShareEdit(\'' + s.cd + '\')', false) +
         (s.duty && (+s.salary || 0) > 0 ? shareAction('salary', '💳', 'پرداخت حقوق', 'ثبت پرداخت حقوق سهامدار', 'ptfSharePaySalary(\'' + s.cd + '\')', true) : '') +
@@ -400,8 +410,8 @@
     if (!canShare()) return;
     var s = shAll().filter(function (x) { return x.cd === cd; })[0]; if (!s) return;
     var rows = txAll().filter(function (x) { return x.shCd === cd; }).map(function (x) {
-      var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment') ? '-' : '+';
-      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود' }[x.type] || x.type;
+      var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due') ? '-' : '+';
+      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)' }[x.type] || x.type;
       var nFiles = (x.files || []).length;
       var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
       return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td></tr>';
