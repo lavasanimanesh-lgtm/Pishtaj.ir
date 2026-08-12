@@ -1,5 +1,5 @@
-/* PTF CRM — v34.4.63 خزانه مشتق: گردش از اسناد CRM؛ یادداشت مغایرت بانک
-   موجودی بانک منبع چهارم نیست. ptf_crm_bank_recon فقط یادداشت تطبیق است. */
+/* PTF CRM — v34.4.80 خزانه مشتق: گردش از اسناد CRM
+   تطبیق صورتحساب کنار گذاشته شد — کار سخت و غیرمفید. مانده فقط مشتق است. */
 (function () {
   'use strict';
   var KEY = 'ptf_crm_bank_recon';
@@ -215,11 +215,7 @@
   };
 
   window.ptfTreasuryUnmatched = function () {
-    var lines = loadRecon();
-    var used = takenKeys();
-    var unmatchedLines = lines.filter(function (l) { return l && !l.matchKey; });
-    var unmatchedMoves = window.ptfTreasuryCrmMoves().filter(function (m) { return m.bankExpected && !used[m.key]; });
-    return { lines: unmatchedLines, moves: unmatchedMoves };
+    return { lines: [], moves: [] };
   };
 
   function digitFa(s) {
@@ -330,8 +326,7 @@
       var parsed = window.ptfTreasuryParseStatementRows(rows);
       var r = window.ptfTreasuryImportParsed(parsed);
       if (typeof ptfToast === 'function') ptfToast(r.added + ' ردیف وارد شد' + (r.skipped ? ' / ' + r.skipped + ' تکراری رد شد' : '') + ' — مانده بانک ساخته نشد', r.added ? 'ok' : 'info');
-      if (r.added && confirm('تطبیق خودکار یکتا روی ردیف‌های جدید اجرا شود؟')) window.ptfTreasuryAutoMatch();
-      else if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+      if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
       try { inp.value = ''; } catch (e) {}
     }
     var isX = /\.xlsx?$/i.test(f.name);
@@ -429,8 +424,7 @@
     var dlg = document.getElementById('ptfTreasuryPdfDlg');
     if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast(r.added + ' ردیف از PDF وارد شد' + (r.skipped ? ' / ' + r.skipped + ' تکراری' : '') + ' — مانده بانک ساخته نشد', r.added ? 'ok' : 'info');
-    if (r.added && confirm('تطبیق خودکار یکتا اجرا شود؟')) window.ptfTreasuryAutoMatch();
-    else if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+    if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
   };
 
   window.ptfTreasuryTemplateCsv = function () {
@@ -468,14 +462,14 @@
     if (typeof ptfDialog === 'function') {
       ptfDialog({
         title: 'ردیف صورتحساب بانک',
-        body: 'این ردیف یک خط از صورتحساب بانک است برای مغایرت‌گیری. موجودی خزانه را عوض نمی‌کند. بعد از ثبت، با دکمهٔ «تطبیق» آن را به وصولی/پرداخت CRM وصل کنید.',
+        body: 'این ردیف فقط یادداشت است و موجودی خزانه را عوض نمی‌کند. تطبیق با اسناد CRM انجام نمی‌شود.',
         fields: [
           { id: 'amt', label: 'مبلغ (ریال) *', required: true, dir: 'ltr' },
           { id: 'dir', label: 'جهت حرکت وجه در بانک', type: 'select', options: [{ v: 'in', lb: 'ورود / واریز به حساب' }, { v: 'out', lb: 'خروج / برداشت از حساب' }] },
           { id: 'date', label: 'تاریخ ردیف (شمسی)', value: todayJ, dir: 'ltr', datePicker: true },
           { id: 'note', label: 'شرح روی صورتحساب', type: 'textarea', rows: 2 }
         ],
-        okText: 'ثبت ردیف تطبیق',
+        okText: 'ثبت یادداشت',
         onOk: go
       });
       return;
@@ -485,101 +479,15 @@
     go({ amt: amt, dir: confirm('ورود وجه؟ OK=ورود / انصراف=خروج') ? 'in' : 'out', date: todayJ, note: prompt('شرح ردیف بانک') || '' });
   };
 
-  window.ptfTreasuryLink = function (lineCd, moveKey) {
-    var lines = loadRecon();
-    var line = lines.filter(function (x) { return x.cd === lineCd; })[0];
-    if (!line) return false;
-    var hit = window.ptfTreasuryCrmMoves().filter(function (m) { return m.key === moveKey; })[0];
-    if (!hit) return false;
-    if (line.matchKey && line.matchKey !== moveKey) {
-      if (!confirm('این ردیف بانک قبلاً به سند دیگری وصل است. تعویض شود؟')) return false;
-    }
-    line.matchKey = moveKey;
-    line.matchCd = hit.cd || '';
-    line.t = new Date().toISOString();
-    saveRecon(lines);
-    if (typeof ptfToast === 'function') ptfToast('تطبیق ثبت شد — مانده بانک ساخته نشد', 'ok');
-    window.ptfTreasuryRender();
-    return true;
-  };
+  window.ptfTreasuryLink = function () { return false; };
 
-  window.ptfTreasuryMatchMove = function (moveKey) {
-    var move = window.ptfTreasuryCrmMoves().filter(function (m) { return m.key === moveKey; })[0];
-    if (!move) { alert('این گردش در خزانه پیدا نشد.'); return; }
-    if (!move.bankExpected) { alert('این گردش از حساب شرکت نیست و نیاز به تطبیق صورتحساب ندارد.'); return; }
-    var cands = loadRecon().filter(function (l) {
-      return l && !l.matchKey && l.dir === move.dir && Math.abs(num(l.amount) - num(move.amount)) <= 1;
-    });
-    if (cands.length === 1) {
-      if (!confirm('ردیف صورتحساب «' + (cands[0].cd || '') + '» (' + money(cands[0].amount) + ' ریال) به این گردش وصل شود؟')) return;
-      window.ptfTreasuryLink(cands[0].cd, moveKey);
-      return;
-    }
-    var host = document.getElementById('panels') || document.body;
-    var old = document.getElementById('ptfTreasuryMatchDlg');
-    if (old) old.remove();
-    var rows = cands.map(function (l) {
-      return '<tr><td>' + esc(l.cd) + '</td><td>' + money(l.amount) + '</td><td>' + esc(l.note || '') + '</td>' +
-        '<td><button type="button" class="bt" style="font-size:11px" data-cd="' + esc(l.cd) + '" data-key="' + esc(moveKey) + '" onclick="ptfTreasuryLink(this.getAttribute(\'data-cd\'),this.getAttribute(\'data-key\'));var d=document.getElementById(\'ptfTreasuryMatchDlg\');if(d)d.remove();">تطبیق با این ردیف</button></td></tr>';
-    }).join('');
-    host.insertAdjacentHTML('beforeend',
-      '<div class="md-b" id="ptfTreasuryMatchDlg" style="display:grid;z-index:1900" onclick="if(event.target===this)this.remove()">' +
-      '<div class="md" style="max-width:640px" onclick="event.stopPropagation()"><h3>تطبیق گردش CRM با صورتحساب</h3>' +
-      '<div style="background:#eff6ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 11px;font-size:12.5px;line-height:1.9;margin-bottom:10px">' +
-      '<b>' + esc(move.label) + '</b> — ' + money(move.amount) + ' ریال (' + (move.dir === 'in' ? 'ورود' : 'خروج') + ')<br>' +
-      (cands.length ? 'ردیف‌های بانک هم‌مبلغ و هم‌جهت که هنوز تطبیق نشده‌اند:' : 'هنوز ردیف صورتحساب هم‌مبلغ وارد نشده. اول صورتحساب را وارد کنید، بعد همین دکمه را بزنید.') +
-      '</div>' +
-      (cands.length ? '<div class="tb2"><table><thead><tr><th>کد بانک</th><th>مبلغ</th><th>شرح</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
-      '<button type="button" class="bt bt-o" onclick="this.closest(\'.md-b\').remove();var i=document.getElementById(\'ptfTrStmtInp\');if(i)i.click()">ورود اکسل/CSV</button>' +
-      '<button type="button" class="bt bt-o" onclick="this.closest(\'.md-b\').remove();ptfTreasuryAddLine()">+ ردیف صورتحساب</button>' +
-      '<button type="button" class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>');
-  };
+  window.ptfTreasuryMatchMove = function () { if (typeof ptfToast === 'function') ptfToast('تطبیق صورتحساب کنار گذاشته شد', 'info'); };
 
-  window.ptfTreasuryOpenFromQuality = function (kind, id) {
-    window._ptfTreasuryFocus = { kind: kind || 'crm', id: String(id || '') };
-    if (typeof window.finHubSet === 'function') window.finHubSet('treasury');
-    else if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
-    setTimeout(function () {
-      var el = document.getElementById(kind === 'bank' ? ('trBank-' + id) : ('trMove-' + String(id || '').replace(/[^a-zA-Z0-9_-]/g, '_')));
-      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }, 80);
-  };
+  window.ptfTreasuryOpenFromQuality = function () { if (typeof window.finHubSet === 'function') window.finHubSet('treasury'); };
 
-  window.ptfTreasuryMatch = function (cd) {
-    var lines = loadRecon();
-    var line = lines.filter(function (x) { return x.cd === cd; })[0];
-    if (!line) return;
-    var sug = window.ptfTreasurySuggestMatch(line);
-    var msg = sug.length
-      ? ('پیشنهاد: ' + sug.slice(0, 5).map(function (s) { return s.key + ' ' + s.label; }).join(' | '))
-      : 'پیشنهاد خودکار نبود. کلید رویداد CRM را وارد کنید.';
-    var key = prompt(msg + '\nکلید رویداد CRM (خالی = لغو تطبیق)', line.matchKey || (sug[0] && sug[0].key) || '');
-    if (key == null) return;
-    line.matchKey = String(key || '').trim();
-    var hit = window.ptfTreasuryCrmMoves().filter(function (m) { return m.key === line.matchKey; })[0];
-    line.matchCd = hit ? hit.cd : '';
-    line.t = new Date().toISOString();
-    saveRecon(lines);
-    window.ptfTreasuryRender();
-  };
+  window.ptfTreasuryMatch = function () { if (typeof ptfToast === 'function') ptfToast('تطبیق صورتحساب کنار گذاشته شد', 'info'); };
 
-  window.ptfTreasuryAutoMatch = function () {
-    var lines = loadRecon();
-    var n = 0;
-    lines.forEach(function (line) {
-      if (!line || line.matchKey) return;
-      var sug = window.ptfTreasurySuggestMatch(line);
-      if (sug.length !== 1) return;
-      line.matchKey = sug[0].key;
-      line.matchCd = sug[0].cd || '';
-      line.t = new Date().toISOString();
-      n++;
-    });
-    saveRecon(lines);
-    if (typeof ptfToast === 'function') ptfToast(n ? (n + ' ردیف یکتا تطبیق شد') : 'تطبیق یکتای جدیدی نبود', n ? 'ok' : 'info');
-    window.ptfTreasuryRender();
-  };
+  window.ptfTreasuryAutoMatch = function () { if (typeof ptfToast === 'function') ptfToast('تطبیق صورتحساب کنار گذاشته شد', 'info'); };
 
   window.ptfTreasuryAttach = function (cd) {
     var host = document.getElementById('panels') || document.body;
@@ -641,10 +549,9 @@
   window.ptfTreasuryHtml = function () {
     return '<div id="treasuryBox" class="pn" style="display:none;margin-top:12px;padding:14px;border:1px solid #bae6fd;border-radius:16px;background:#f0f9ff">' +
       '<div class="treasury-head"><h4 style="margin:0 0 6px">خزانه و مغایرت بانکی (مشتق)</h4>' +
-      '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">این تب موجودی مستقل بانک نمی‌سازد. ماندهٔ نمایشی = افتتاحیه نقد/بانک + وصولی‌های ثبت‌شده − پرداخت‌های ثبت‌شده. تطبیق فقط برای حواله/شارژ تنخواه/وصول چک حساب شرکت است؛ نقد و غیررسمی انتظار صورتحساب ندارند.</small>' +
+      '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">این تب موجودی مستقل بانک نمی‌سازد. ماندهٔ نمایشی = افتتاحیه نقد/بانک + وصولی‌های ثبت‌شده − پرداخت‌های ثبت‌شده. تطبیق با صورتحساب کنار گذاشته شده است.</small>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button type="button" class="bt" onclick="ptfTreasuryAddLine()">+ ردیف صورتحساب</button>' +
-      '<button type="button" class="bt bt-o" onclick="ptfTreasuryAutoMatch()">تطبیق خودکار یکتا</button>' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfTrStmtInp\').click()">ورود اکسل/CSV</button>' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfTrPdfInp\').click()">استخراج PDF/عکس</button>' +
       '<button type="button" class="bt bt-o" onclick="ptfTreasuryTemplateCsv()">الگوی CSV</button>' +
@@ -666,8 +573,7 @@
         '<div class="sc"><b>' + money(c.inflow) + '</b><span>ورود مشتق</span></div>' +
         '<div class="sc"><b>' + money(c.outflow) + '</b><span>خروج مشتق</span></div>' +
         '<div class="sc"><b>' + money(c.derived) + '</b><span>مانده مشتق (نه دفتر بانک)</span></div>' +
-        '<div class="sc"><b>' + u.lines.length + '</b><span>ردیف بانک بدون تطبیق</span></div>' +
-        '<div class="sc"><b>' + u.moves.length + '</b><span>گردش حساب شرکت بدون تطبیق</span></div></div>';
+        '</div>';
     }
     var used = takenKeys();
     var moves = window.ptfTreasuryCrmMoves();
@@ -675,19 +581,7 @@
     if (focusEl) {
       var focusMove = focus && focus.id ? moves.filter(function (m) { return m.key === focus.id; })[0] : null;
       var focusLine = focus && focus.id ? loadRecon().filter(function (l) { return l.cd === focus.id; })[0] : null;
-      if (focus && focus.kind === 'crm' && focusMove) {
-        focusEl.innerHTML = '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:12.5px;line-height:1.9">' +
-          '<b>از کیفیت داده آمدید:</b> گردش «' + esc(focusMove.label) + '» به مبلغ ' + money(focusMove.amount) + ' ریال هنوز به خط صورتحساب وصل نیست.<br>' +
-          '۱) اگر خط بانک را وارد کرده‌اید، «تطبیق این گردش» را بزنید.<br>' +
-          '۲) اگر صورتحساب را نیاورده‌اید، اول «ورود اکسل/CSV» یا «+ ردیف صورتحساب» را بزنید، بعد تطبیق.<br>' +
-          'این کار موجودی بانک مستقل نمی‌سازد؛ فقط مغایرت را می‌بندد.' +
-          '<div style="margin-top:8px"><button type="button" class="bt" data-key="' + esc(focusMove.key) + '" onclick="ptfTreasuryMatchMove(this.getAttribute(\'data-key\'))">تطبیق این گردش</button></div></div>';
-      } else if (focus && focus.kind === 'bank' && focusLine) {
-        focusEl.innerHTML = '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:12.5px;line-height:1.9">' +
-          '<b>از کیفیت داده آمدید:</b> ردیف صورتحساب «' + esc(focusLine.cd) + '» هنوز به سند CRM وصل نیست. دکمهٔ «تطبیق» همان ردیف را بزنید.</div>';
-      } else {
-        focusEl.innerHTML = '';
-      }
+      focusEl.innerHTML = '';
     }
     var mv = document.getElementById('treasuryMoves');
     if (mv) {
@@ -695,23 +589,19 @@
         (moves.slice(0, 80).map(function (m) {
           var rid = 'trMove-' + String(m.key || '').replace(/[^a-zA-Z0-9_-]/g, '_');
           var on = focus && focus.kind === 'crm' && focus.id === m.key;
-          var matched = !!used[m.key];
-          var need = !!m.bankExpected;
-          var st = matched ? 'تطبیق‌شده' : (need ? 'منتظر صورتحساب شرکت' : ('خارج از حساب شرکت' + (m.bankSkip ? ' — ' + m.bankSkip : '')));
-          return '<tr id="' + rid + '"' + (on ? ' style="outline:2px solid #f59e0b;background:#fffbeb"' : '') + '><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td><td>' + esc(st) + '</td>' +
-            '<td>' + (matched || !need ? '' : '<button type="button" class="ba" data-key="' + esc(m.key) + '" onclick="ptfTreasuryMatchMove(this.getAttribute(\'data-key\'))">تطبیق</button>') + '</td></tr>';
+          return '<tr id="' + rid + '"><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td><td>—</td><td></td></tr>';
         }).join('') || '<tr><td colspan="6">گردش مشتق ثبت نشده</td></tr>') +
         '</tbody></table></div>';
     }
     var lines = loadRecon();
     var rec = document.getElementById('treasuryRecon');
     if (rec) {
-      rec.innerHTML = '<h5>یادداشت مغایرت صورتحساب</h5><div class="tb2"><table><thead><tr><th>کد</th><th>مبلغ</th><th>جهت</th><th>شرح</th><th>تطبیق</th><th></th></tr></thead><tbody>' +
+      rec.innerHTML = '<h5>یادداشت صورتحساب (بدون تطبیق)</h5><div class="tb2"><table><thead><tr><th>کد</th><th>مبلغ</th><th>جهت</th><th>شرح</th><th></th></tr></thead><tbody>' +
         (lines.map(function (l) {
           var on = focus && focus.kind === 'bank' && focus.id === l.cd;
           return '<tr id="trBank-' + esc(l.cd) + '"' + (on ? ' style="outline:2px solid #f59e0b;background:#fffbeb"' : '') + '><td>' + esc(l.cd) + '</td><td>' + money(l.amount) + '</td><td>' + (l.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + esc(l.note || '') + '</td><td dir="ltr">' + esc(l.matchKey || '—') + '</td>' +
             '<td><button type="button" class="ba" onclick="ptfTreasuryMatch(\'' + esc(l.cd) + '\')">تطبیق</button> <button type="button" class="ba" onclick="ptfTreasuryAttach(\'' + esc(l.cd) + '\')">📎</button></td></tr>';
-        }).join('') || '<tr><td colspan="6">ردیفی نیست</td></tr>') +
+        }).join('') || '<tr><td colspan="5">ردیفی نیست</td></tr>') +
         '</tbody></table></div>';
     }
   };
