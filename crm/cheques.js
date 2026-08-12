@@ -78,7 +78,9 @@
       var mineIds = {}; mine.forEach(function (c) { if (c && c.cd) mineIds[c.cd] = 1; });
       newlyMigrated.forEach(function (c) { if (c && c.cd && !mineIds[c.cd]) { mine.push(c); mineIds[c.cd] = 1; } });
     }
-    setData(K, company); try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }
+    if (typeof window.ptfChequeReplaceCompany === 'function') window.ptfChequeReplaceCompany(company);
+    else setData(K, company);
+    try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }
 
   // v29.7 FIN-WF-002: migration legacy personal cheques from global to personal keys
   window.chMigratePersonal = function(){
@@ -670,10 +672,15 @@
     if (!r.list.length) { alert('حداقل یک ردیف کامل وارد کنید'); return; }
     var list = chAll();
     r.list.forEach(function (rec) {
+      rec.kind = rec.kind || 'finance';
+      rec.direction = rec.direction || 'issued';
+      if (typeof window.ptfChequeCreate === 'function') {
+        var created = window.ptfChequeCreate('issued', rec);
+        if (created && created.cd) rec = created;
+      } else list.unshift(rec);
       chUpsertReminder(rec);
-      list.unshift(rec);
     });
-    chSave(list);
+    if (typeof window.ptfChequeCreate !== 'function') chSave(list);
     try { audit('چک‌ها', 'ثبت دسته‌ای ' + r.list.length + ' فقره چک برای چاپ', ''); } catch (e) {}
     var dlg = document.getElementById('chBatchDlg'); if (dlg) dlg.remove();
     if (typeof renderReminders === 'function') try { renderReminders(); } catch (e2) {}

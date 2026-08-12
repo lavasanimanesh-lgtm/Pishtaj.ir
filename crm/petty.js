@@ -236,6 +236,15 @@
      - costEvent از deal قدیمی حذف شود (اگر oldDealRef داده شده)
      - costEvent به deal جدید اضافه شود (اگر newDealRef داده شده) */
   window.ptfPettyUpdateDealLink = function (r, newDealRef, oldDealRef) {
+    if (typeof window.ptfDealCostSync === 'function') {
+      window.ptfDealCostSync({
+        rec: r, source: 'petty', dealCd: newDealRef || '', prevDealCd: oldDealRef || '',
+        by: userName(),
+        addTx: '🔗 لینک هزینه تنخواه ' + (r.cd || '') + ' (' + money(r.amt) + ' — ' + (r.desc || r.cat || '') + ') به پرونده',
+        removeTx: '🔗 حذف لینک هزینه تنخواه ' + (r.cd || '') + ' (' + money(r.amt) + ') از پرونده'
+      });
+      return;
+    }
     try {
       var ds = getData('ptf_crm_deals') || [];
       var dirty = false;
@@ -326,17 +335,7 @@
         var all = getData(PETTY_KEY); all.unshift(rec); setData(PETTY_KEY, all);
         // v30.5: اگر به پرونده لینک شد، costEvents بساز تا در سود پروژه بیاید ولی دوباره‌شماری نشود
         if(rec.dealRef){
-          try{
-            var ds=getData('ptf_crm_deals');
-            var d=ds.filter(function(x){ return x.cd===rec.dealRef; })[0];
-            if(d){
-              d.costEvents=d.costEvents||[];
-              d.costEvents.unshift({ cd: rec.cd, amt: rec.amt, cat: 'fromPetty', desc: '[تنخواه] '+(v.desc||v.cat), by: userName(), t: faDateTime(), files: [], fromPetty: true, pettyCd: rec.cd });
-              d.timeline=d.timeline||[];
-              d.timeline.push({ t: faDateTime(), by: userName(), tx: '➕ لینک هزینه تنخواه به پرونده: '+money(rec.amt)+' — '+(v.desc||v.cat) });
-              setData('ptf_crm_deals', ds);
-            }
-          }catch(e){}
+          try { window.ptfPettyUpdateDealLink(rec, rec.dealRef, ''); } catch (e) {}
         }
         audit('تنخواه', 'ثبت هزینه/مطالبه تنخواه ' + money(rec.amt) + ' — ' + v.cat + (rec.dealRef?' [لینک پرونده '+rec.dealRef+']':''), rec.cd);
         renderPetty(); afterAddUpload(rec);
@@ -470,23 +469,23 @@
               txSave(txs);
             }
           } catch (eTx) {}
+          var oldDealRef = r.dealRef || '';
           r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
           r.dealRef = newDealRef;
           r.amountCorrections = r.amountCorrections || [];
           r.amountCorrections.push({ from: oldAmt, to: amt, reason: v.reason.trim(), t: faDateTime(), by: userName() });
           setData(PETTY_KEY, all);
-          /* v34.0.0-alpha (F4-5): به‌روزرسانی لینک دوطرفهٔ پرونده */
-          if (dealRefChanged || newDealRef) { try { window.ptfPettyUpdateDealLink(r, newDealRef, r.dealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
+          if (dealRefChanged || newDealRef) { try { window.ptfPettyUpdateDealLink(r, newDealRef, oldDealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
           audit('تنخواه', 'اصلاح مبلغ هزینه تسویه‌شده ' + cd + ' — ' + money(oldAmt) + ' → ' + money(amt) + ' — دلیل: ' + v.reason.trim() + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف') + ']' : ''), cd);
           renderPetty();
           if (typeof ptfToast === 'function') ptfToast('مبلغ اصلاح شد و حساب تنخواه هم‌زمان به‌روزرسانی شد', 'ok');
           return;
         }
+        var oldDealRef2 = r.dealRef || '';
         r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
         r.dealRef = newDealRef;
         setData(PETTY_KEY, all);
-        /* v34.0.0-alpha (F4-5): به‌روزرسانی لینک دوطرفهٔ پرونده */
-        if (dealRefChanged) { try { window.ptfPettyUpdateDealLink(r, newDealRef, r.dealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
+        if (dealRefChanged) { try { window.ptfPettyUpdateDealLink(r, newDealRef, oldDealRef2); } catch (eU) { console.warn('updateDealLink:', eU); } }
         audit('تنخواه', 'ویرایش هزینه تنخواه ' + cd + ' — ' + money(amt) + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف شد') + ']' : ''), cd);
         renderPetty();
         if (typeof ptfToast === 'function') ptfToast('هزینه ویرایش شد', 'ok');

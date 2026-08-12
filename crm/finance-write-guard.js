@@ -78,4 +78,98 @@
     }
     return '<span style="color:' + color + ';font-weight:800">' + st.label + '</span>' + extra;
   };
+
+  /* P3: یک مسیر لینک/حذف هزینه روی پرونده — OPEX و تنخواه دوقلو نمانند. */
+  window.ptfDealCostMatch = function (ev, rec, source) {
+    if (!ev || !rec) return false;
+    if (source === 'opex') {
+      if (rec._opexRowId && ev.opexRowId === rec._opexRowId) return true;
+      return !!(ev.fromOpex && !ev.opexRowId && ev.cd === rec.cd);
+    }
+    if (source === 'petty') {
+      return ev.pettyCd === rec.cd || !!(ev.fromPetty && ev.cd === rec.cd);
+    }
+    return ev.cd === rec.cd;
+  };
+
+  window.ptfDealCostBuild = function (rec, source) {
+    rec = rec || {};
+    var when = (typeof faDateTime === 'function' ? faDateTime() : '');
+    if (source === 'opex') {
+      return {
+        cd: rec.cd,
+        opexRowId: rec._opexRowId,
+        amt: +rec.amt || 0,
+        cat: 'other',
+        desc: '[هزینه جاری] ' + (rec.desc || rec.cat || ''),
+        by: rec.editedBy || rec.by || '',
+        t: when,
+        files: (rec.files || []).slice(),
+        fromOpex: true
+      };
+    }
+    return {
+      cd: rec.cd,
+      amt: +rec.amt || 0,
+      cat: 'fromPetty',
+      desc: '[تنخواه] ' + (rec.desc || rec.cat || ''),
+      by: rec.by || '',
+      t: rec.t || when,
+      files: (rec.files || []).slice(),
+      fromPetty: true,
+      pettyCd: rec.cd
+    };
+  };
+
+  window.ptfDealCostSync = function (opts) {
+    opts = opts || {};
+    var rec = opts.rec;
+    if (!rec) return { ok: false, why: 'no-rec' };
+    var source = opts.source || 'petty';
+    var nextDeal = opts.dealCd || '';
+    var prevDeal = opts.prevDealCd != null ? opts.prevDealCd : '';
+    var who = opts.by || '';
+    var ds;
+    try { ds = getData('ptf_crm_deals') || []; } catch (e) { return { ok: false, why: 'deals' }; }
+    var dirty = false;
+    function findEv(deal) {
+      return ((deal && deal.costEvents) || []).filter(function (x) {
+        return window.ptfDealCostMatch(x, rec, source);
+      })[0] || null;
+    }
+    if (prevDeal && prevDeal !== nextDeal) {
+      var od = ds.filter(function (x) { return x.cd === prevDeal; })[0];
+      if (od) {
+        var ev = findEv(od);
+        if (ev) {
+          od.costEvents = (od.costEvents || []).filter(function (x) { return x !== ev; });
+          od.timeline = od.timeline || [];
+          od.timeline.push({ t: (typeof faDateTime === 'function' ? faDateTime() : ''), by: who, tx: opts.removeTx || '🗑 حذف لینک هزینه از پرونده' });
+          dirty = true;
+        }
+      }
+    }
+    if (nextDeal) {
+      var nd = ds.filter(function (x) { return x.cd === nextDeal; })[0];
+      if (nd) {
+        nd.costEvents = nd.costEvents || [];
+        var ev2 = findEv(nd);
+        var built = window.ptfDealCostBuild(rec, source);
+        if (ev2) {
+          ev2.amt = built.amt;
+          ev2.desc = built.desc;
+          ev2.files = built.files;
+          if (built.opexRowId) ev2.opexRowId = built.opexRowId;
+          if (built.pettyCd) ev2.pettyCd = built.pettyCd;
+        } else {
+          nd.costEvents.unshift(built);
+          nd.timeline = nd.timeline || [];
+          nd.timeline.push({ t: built.t, by: who || built.by, tx: opts.addTx || '➕ لینک هزینه به پرونده' });
+        }
+        dirty = true;
+      }
+    }
+    if (dirty) setData('ptf_crm_deals', ds);
+    return { ok: true, dirty: dirty };
+  };
 })();

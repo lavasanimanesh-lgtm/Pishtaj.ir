@@ -325,18 +325,8 @@
         }
         all.unshift(rec);
         oSave(all);
-        if (rec.dealRef) {
-          try {
-            var ds = getData('ptf_crm_deals');
-            var d = ds.filter(function (x) { return x.cd === rec.dealRef; })[0];
-            if (d) {
-              d.costEvents = d.costEvents || [];
-              d.costEvents.unshift({ cd: rec.cd, opexRowId: rec[OPEX_ROW_ID], amt: amt, cat: 'other', desc: '[هزینه جاری] ' + (v.desc || v.cat), by: curSession().name, t: faDateTime(), files: (rec.files || []).slice(), fromOpex: true });
-              d.timeline = d.timeline || [];
-              d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '➕ لینک هزینه جاری به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
-              setData('ptf_crm_deals', ds);
-            }
-          } catch (eD) {}
+        if (rec.dealRef && typeof window.ptfDealCostSync === 'function') {
+          window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: rec.dealRef, prevDealCd: '', by: curSession().name, addTx: '➕ لینک هزینه جاری به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
         }
         try { audit('هزینه جاری', 'ثبت ' + v.cat + ' — ' + fmtT(amt) + ' ریال (' + month + ')' + (rec.tplId ? ' [تکرارشونده]' : '') + (rec.dealRef ? ' [linked-deal]' : ''), rec.cd); } catch (eA) {}
         if (typeof ptfToast === 'function') ptfToast('✅ هزینه ثبت شد' + (rec.dealRef ? ' و به پرونده فروش متصل شد' : ''), 'ok');
@@ -365,18 +355,8 @@
     } catch(e){}
     if (!confirm('🗑 حذف هزینه «' + rec.cat + ' — ' + fmtT(rec.amt) + ' ریال» (' + rec.month + ')؟')) return;
     oSave(all.filter(function (x) { return x[OPEX_ROW_ID] !== rec[OPEX_ROW_ID]; }));
-    if (rec.dealRef) {
-      try {
-        var ds = getData('ptf_crm_deals');
-        var d = ds.filter(function (x) { return x.cd === rec.dealRef; })[0];
-        if (d) {
-          var linkedEvent = opexDealEvent(d, rec, true);
-          if (linkedEvent) d.costEvents = (d.costEvents || []).filter(function (x) { return x !== linkedEvent; });
-          d.timeline = d.timeline || [];
-          d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینه جاری لینک‌شده از پرونده: ' + fmtT(rec.amt) + ' ریال — ' + (rec.desc || rec.cat) });
-          setData('ptf_crm_deals', ds);
-        }
-      } catch (eD) {}
+    if (rec.dealRef && typeof window.ptfDealCostSync === 'function') {
+      window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: '', prevDealCd: rec.dealRef, by: curSession().name, removeTx: '🗑 حذف هزینه جاری لینک‌شده از پرونده: ' + fmtT(rec.amt) + ' ریال — ' + (rec.desc || rec.cat) });
     }
     try { audit('هزینه جاری', 'حذف هزینه ' + rec.cat + ' ' + fmtT(rec.amt) + ' ریال (' + rec.month + ')', rec.cd); } catch (eA) {}
     if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR) {} }
@@ -446,35 +426,9 @@
         else delete rec.isOfficial;
         var oldDeal = rec.dealRef; rec.dealRef = v.dealRef||'';
         rec.editedAt = faDateTime(); rec.editedBy = (typeof curSession==='function'?curSession().name:'');
-        // به‌روزرسانی costEvents پرونده ها
-        try {
-          var ds=getData('ptf_crm_deals');
-          // حذف از پرونده قدیم اگر تغییر کرد
-          if(oldDeal && oldDeal!==rec.dealRef){
-            var dOld=ds.filter(function(x){ return x.cd===oldDeal; })[0];
-            if(dOld){
-              var oldEvent = opexDealEvent(dOld, eventProbe, true);
-              if (oldEvent) dOld.costEvents=(dOld.costEvents||[]).filter(function(x){ return x!==oldEvent; });
-            }
-          }
-          // اضافه/آپدیت در پرونده جدید
-          if(rec.dealRef){
-            var dNew=ds.filter(function(x){ return x.cd===rec.dealRef; })[0];
-            if(dNew){
-              dNew.costEvents=dNew.costEvents||[];
-              /* هنگام انتقال به پرونده‌ای دیگر، event قدیمیِ هم‌کد متعلق به ردیف دیگری
-                 را claim نکن؛ فقط در همان پروندهٔ قبلی مهاجرت legacy مجاز است. */
-              var ev = oldDeal === rec.dealRef ? opexDealEvent(dNew, eventProbe, true) : null;
-              if(ev){ ev.opexRowId=rec[OPEX_ROW_ID]; ev.amt=newAmt; ev.desc='[هزینه جاری ویرایش] '+(v.desc||v.cat); ev.files=(rec.files||[]).slice(); }
-              else {
-                dNew.costEvents.unshift({ cd: rec.cd, opexRowId: rec[OPEX_ROW_ID], amt: newAmt, cat: 'other', desc: '[هزینه جاری] '+(v.desc||v.cat), by: rec.editedBy, t: faDateTime(), files: (rec.files||[]).slice(), fromOpex: true });
-              }
-              dNew.timeline=dNew.timeline||[];
-              dNew.timeline.push({ t: faDateTime(), by: rec.editedBy, tx: '✏️ ویرایش هزینه جاری لینک‌شده: ' + oldAmt.toLocaleString('fa-IR') + ' → ' + newAmt.toLocaleString('fa-IR') + ' ریال' });
-            }
-          }
-          setData('ptf_crm_deals', ds);
-        } catch(e){}
+        if (typeof window.ptfDealCostSync === 'function') {
+          window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: rec.dealRef, prevDealCd: oldDeal, by: rec.editedBy, addTx: '✏️ ویرایش هزینه جاری لینک‌شده: ' + oldAmt.toLocaleString('fa-IR') + ' → ' + newAmt.toLocaleString('fa-IR') + ' ریال', removeTx: '🗑 حذف لینک هزینه جاری از پرونده' });
+        }
         // ذخیره opex — انتخاب گروهی فقط با تایید صریح کاربر
         var all=oRows();
         var groupedCount = 0;

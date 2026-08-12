@@ -46,6 +46,14 @@
   /* ---------- ایجاد ---------- */
   window.ptfChequeCreate = function (dir, rec) {
     rec = rec || {};
+    if (typeof window.ptfFinanceAssertWritable === 'function') {
+      var gate = window.ptfFinanceAssertWritable(rec.dueISO || rec.dueFa || rec.t, {
+        action: 'ثبت چک',
+        requireCode: rec.cd,
+        companyCheque: (dir !== 'received' && rec.ownership !== 'personal' && rec.ownership !== 'third_party')
+      });
+      if (!gate.ok) return { ok: false, why: gate.why, error: gate.error };
+    }
     rec.direction = dir === 'received' ? 'received' : 'issued';
     rec.cd = rec.cd || genCode('CHQ');
     rec.t = rec.t || faDateTime();
@@ -206,6 +214,25 @@
       setData(K_LEGACY, remain);
     }
     return moved;
+  };
+
+  /* P3: chSave دیگر کل شرکت را در کلید قدیمی نمی‌نویسد — صادره/وارده منبع حقیقت‌اند. */
+  window.ptfChequeReplaceCompany = function (list) {
+    var issued = [], received = [];
+    (list || []).forEach(function (c) {
+      if (!c || !c.cd) return;
+      var dir = c.direction;
+      if (!dir) {
+        if (c.ownership === 'third_party' || c.sourceCustomerCd || c.kind === 'received') dir = 'received';
+        else dir = 'issued';
+      }
+      c.direction = dir;
+      if (dir === 'received') received.push(c); else issued.push(c);
+    });
+    write(K_ISSUED, issued);
+    write(K_RECEIVED, received);
+    setData(K_LEGACY, []);
+    return { issued: issued.length, received: received.length };
   };
 
   /* پرچم برای UI (در دسترس بودن ماژول) */
