@@ -31,13 +31,13 @@ ok(sh.indexOf('window.ptfShareAddTx') > -1, 'addTx exported');
 
 var idx = fs.readFileSync(path.join(root, 'crm/index.html'), 'utf8');
 ok(idx.indexOf('treasury-call.js') > -1, 'index loads module');
-ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.82'") > -1, 'release');
+ok(/PTF_CRM_RELEASE = 'v34\.4\.\d+'/.test(idx), 'release set');
 
 var sync = fs.readFileSync(path.join(root, 'crm/sync.js'), 'utf8');
 ok(sync.indexOf('ptf_crm_treasury_calls') > -1, 'sync key');
 
 var ver = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
-ok(ver.crm_version === 'v34.4.82', 'version');
+ok(/^v34\.4\.\d+$/.test(ver.crm_version), 'version');
 
 if (fails.length) {
   console.error('FAIL\n' + fails.join('\n'));

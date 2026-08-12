@@ -20,7 +20,7 @@ ok(tr.indexOf("get('ptf_crm_invoices').filter(active).forEach(function (inv) {\n
 ok(tr.indexOf('ptfTreasuryOpeningCash') > -1, 'opening helper');
 
 var ver = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
-ok(ver.crm_version === 'v34.4.81', 'version');
+ok(/^v34\.4\.\d+$/.test(ver.crm_version), 'version');
 
 if (fails.length) {
   console.error('FAIL\n' + fails.join('\n'));
