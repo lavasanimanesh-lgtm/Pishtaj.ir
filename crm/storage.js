@@ -521,6 +521,65 @@ function ptfRasterizeHeicBlob(blob) {
 }
 /* v34.4.67: پس از دریافت بایت از ابر، PDF/HEIC را در مرورگر به JPEG صفحه به صفحه تبدیل کن
    (هاست Imagick ندارد؛ embed/HEIC خام در چاپ گزارش تلفیقی دیده نمی‌شود). */
+/* فاز ۱: JPEG تبدیل‌شده جایگزین نمایش سند می‌شود؛ اصل در sourceKey می‌ماند.
+   گزارش بعدی دیگر تبدیل/توکن ندارد. LLM عمداً صدا زده نمی‌شود. */
+window.ptfPersistFilePreview = function (origKey, preview) {
+  if (!origKey || !preview || !preview.key) return false;
+  var stores = ['ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods'];
+  var dirtyAny = false;
+  stores.forEach(function (storeKey) {
+    var a;
+    try { a = typeof getData === 'function' ? getData(storeKey) : JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) { a = null; }
+    if (!Array.isArray(a)) return;
+    var dirty = false;
+    a.forEach(function (r) {
+      (r.files || []).forEach(function (file) {
+        if (!file || (file.key !== origKey && file.sourceKey !== origKey)) return;
+        if (!file.sourceKey) { file.sourceKey = origKey; file.sourceName = file.name || ''; }
+        file.key = preview.key;
+        file.name = preview.name || String(file.sourceName || 'سند').replace(/\.pdf$/i, '') + '.jpg';
+        file.contentType = 'image/jpeg';
+        file.previewReady = true;
+        file.convertedAt = new Date().toISOString();
+        dirty = true;
+      });
+    });
+    if (dirty) {
+      dirtyAny = true;
+      try { if (typeof setData === 'function') setData(storeKey, a); else localStorage.setItem(storeKey, JSON.stringify(a)); } catch (eS) {}
+    }
+  });
+  return dirtyAny;
+};
+window.ptfServerRasterFile = function (f) {
+  return new Promise(function (resolve) {
+    if (!f || !f.key) return resolve(f);
+    if (f.previewReady && f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f);
+    var origKey = f.sourceKey || f.key;
+    fetch('../api/attachment-thumb.php', {
+      method: 'POST', headers: ptfStorageAuthHeaders(true),
+      body: JSON.stringify({ key: origKey, name: f.key || f.name || origKey, maxPages: 4 })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.ok || !d.images || !d.images.length || !d.images[0].url) return resolve(f);
+      var first = d.images[0];
+      f.url = first.url;
+      f.converted = true;
+      f.convertError = '';
+      f.extraImages = d.images.slice(1).map(function (im, i) {
+        return { key: im.key, url: im.url, converted: true, name: (f.name || 'سند') + ' (صفحه ' + (i + 2) + ')' };
+      });
+      if (first.key && first.stored !== false) {
+        window.ptfPersistFilePreview(origKey, { key: first.key, name: String(f.name || 'سند').replace(/\.pdf$/i, '') + '.jpg' });
+        f.sourceKey = f.sourceKey || origKey;
+        f.key = first.key;
+        f.name = String(f.name || 'سند').replace(/\.pdf$/i, '') + '.jpg';
+        f.contentType = 'image/jpeg';
+        f.previewReady = true;
+      }
+      resolve(f);
+    }).catch(function () { resolve(f); });
+  });
+};
 window.ptfRasterizeCloudFile = function (f, maxPages) {
   return new Promise(function (resolve) {
     if (!f) return resolve(f);

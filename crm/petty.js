@@ -1113,41 +1113,22 @@
   window.ptfPettyToJpeg = function (f) {
     return new Promise(function (resolve) {
       if (!f) return resolve(f);
+      if ((f.previewReady || f.converted) && f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f);
       var kind = window.ptfPettyFileKind(f.name || f.key || '', f);
-      if (f.url && String(f.url).indexOf('data:application/pdf') === 0) kind = 'pdf';
-      if (f.converted && f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f);
       if (kind === 'image') return resolve(f);
-      function done(x) {
-        if (x && x.converted && x.url && String(x.url).indexOf('data:image/') === 0) {
-          x.convertError = '';
-          x.convertedKind = kind;
-        } else if (x && !x.converted) {
-          x.convertError = x.convertError || 'convert_failed';
-          x.convertedKind = kind;
-        }
-        resolve(x || f);
+      function finish(x) { resolve(x || f); }
+      function client() {
+        if (typeof window.ptfRasterizeCloudFile !== 'function') return finish(f);
+        window.ptfRasterizeCloudFile(f, 4).then(finish).catch(function () { finish(f); });
       }
-      /* هاست Imagick ندارد؛ اول رستر مرورگر (pdf.js / heic2any). */
-      if (typeof window.ptfRasterizeCloudFile === 'function') {
-        window.ptfRasterizeCloudFile(f, 8).then(function (out) {
-          if (out && out.converted && out.url) return done(out);
-          /* اگر key نبود ولی data:pdf داریم، همان را به blob بده */
-          if ((!f.key) && f.url && String(f.url).indexOf('data:application/pdf') === 0 && typeof ptfRasterizePdfBlob === 'function') {
-            return fetch(f.url).then(function (r) { return r.blob(); }).then(function (blob) {
-              return ptfRasterizePdfBlob(blob, 8);
-            }).then(function (urls) {
-              if (urls && urls.length) {
-                f.url = urls[0]; f.converted = true; f.convertError = '';
-                f.extraImages = urls.slice(1).map(function (u, i) { return { url: u, converted: true }; });
-              }
-              done(f);
-            }).catch(function () { done(f); });
-          }
-          done(out || f);
-        }).catch(function () { done(f); });
+      if (typeof window.ptfServerRasterFile === 'function') {
+        window.ptfServerRasterFile(f).then(function (out) {
+          if (out && out.converted && out.url && String(out.url).indexOf('data:image/') === 0) return finish(out);
+          client();
+        }).catch(client);
         return;
       }
-      done(f);
+      client();
     });
   };
   /* گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile */
@@ -1360,6 +1341,7 @@
     });
     Promise.all(jobs).then(function () {
       var need = all.filter(function (f) {
+        if (f.previewReady || (f.key && String(f.key).indexOf('previews/') === 0)) return false;
         var k = window.ptfPettyFileKind(f.name || f.key || '', f);
         if (f.url && String(f.url).indexOf('data:application/pdf') === 0) k = 'pdf';
         return (k === 'pdf' || k === 'heic' || k === 'other') && (f.key || f.url);
