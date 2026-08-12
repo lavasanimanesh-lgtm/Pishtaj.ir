@@ -289,10 +289,83 @@
   };
 
 
+  function faNow() {
+    try { return typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString(); } catch (e) { return ''; }
+  }
+  function fiscalLabel() {
+    try {
+      if (typeof window.ptfFinanceOfficialData === 'function') {
+        var d = window.ptfFinanceOfficialData();
+        if (d && d.cfg) return (d.cfg.fiscalYear || '') + (d.cfg.startFa ? ' | ' + d.cfg.startFa + ' تا ' + (d.cfg.endFa || '') : '');
+      }
+    } catch (e) {}
+    return '';
+  }
+  function loadCalls() { return get('ptf_crm_treasury_calls'); }
+  function callPaid(call, shCd) {
+    if (typeof window.ptfTreasuryCallPaidOf === 'function') return num(window.ptfTreasuryCallPaidOf(call, shCd));
+    return arr(call && call.pays).filter(function (p) { return p && p.shCd === shCd && p.status !== 'void'; })
+      .reduce(function (s, p) { return s + num(p.apply != null ? p.apply : p.amt); }, 0);
+  }
+  function stLabel(st) {
+    return st === 'open' ? 'باز' : st === 'closed' ? 'تسویه' : st === 'void' ? 'باطل' : (st || '—');
+  }
+
+  window.ptfTreasuryReportHtml = function () {
+    var c = window.ptfTreasuryDerivedCash();
+    var moves = window.ptfTreasuryCrmMoves();
+    var gap = Math.max(0, Math.round(-num(c.derived)));
+    var shs = get('ptf_crm_shareholders').filter(function (s) { return s && s.active !== false; });
+    var shRows = shs.map(function (s) {
+      var b = (typeof window.ptfShareholderBalance === 'function') ? window.ptfShareholderBalance(s.cd) : {};
+      return '<tr><td>' + esc(s.name) + '</td><td>' + (+s.pct || 0) + '٪</td><td>' + money(b.callRemain || 0) + '</td><td>' + money(b.callCredit || 0) + '</td><td>' + money(Math.abs(b.net || 0)) + ' ' + ((b.net || 0) >= 0 ? 'بستانکار' : 'بدهکار') + '</td></tr>';
+    }).join('');
+    var calls = loadCalls().filter(function (x) { return x && x.status !== 'void'; });
+    var callBlocks = calls.map(function (call) {
+      var rows = arr(call.shares).map(function (s) {
+        var paid = callPaid(call, s.shCd);
+        var remain = Math.max(0, num(s.due) - paid);
+        return '<tr><td>' + esc(s.shName) + '</td><td>' + (s.pct || 0) + '٪</td><td>' + money(s.due) + '</td><td>' + money(paid) + '</td><td>' + money(remain) + '</td></tr>';
+      }).join('');
+      return '<h2>فراخوان ' + esc(call.cd) + ' — ' + stLabel(call.status) + ' — کسری ' + money(call.gap) + '</h2>' +
+        (call.note ? '<p>' + esc(call.note) + '</p>' : '') +
+        '<table><thead><tr><th>سهامدار</th><th>درصد فریز</th><th>سهم</th><th>واریز/تهاتر</th><th>مانده بدهی</th></tr></thead><tbody>' +
+        (rows || '<tr><td colspan="5">سهمی نیست</td></tr>') + '</tbody></table>';
+    }).join('');
+    var moveRows = moves.map(function (m) {
+      return '<tr><td>' + esc(m.dateFa || m.dateISO || '') + '</td><td>' + esc(m.src || '') + '</td><td>' + esc(m.label || '') + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td></tr>';
+    }).join('');
+    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش خزانه نقدی</title><style>' +
+      'body{font-family:Tahoma,Vazirmatn,sans-serif;color:#111;padding:22px;direction:rtl}h1{font-size:19px;margin:0 0 6px}h2{font-size:15px;margin:20px 0 8px}p,small{font-size:12px;line-height:1.8}' +
+      'table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}td,th{border:1px solid #94a3b8;padding:7px;text-align:right}th{background:#e2e8f0}' +
+      '.kpi{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}.kpi div{border:1px solid #94a3b8;border-radius:8px;padding:8px 12px;min-width:140px}.neg{color:#b91c1c;font-weight:bold}' +
+      '</style></head><body>' +
+      '<h1>گزارش خزانه نقدی و فراخوان سهامداران</h1>' +
+      '<p>سال مالی: <b>' + esc(fiscalLabel() || '—') + '</b> | تهیه: ' + esc(faNow()) + '</p>' +
+      '<p>فقط حرکت وجه واقعی. صدور فاکتور و تهاتر در صندوق نیستند. بدهی سهامدار فقط از فراخوان فریزشده است.</p>' +
+      '<div class="kpi"><div>افتتاحیه<br><b>' + money(c.opening) + '</b></div><div>ورود نقد<br><b>' + money(c.inflow) + '</b></div><div>خروج نقد<br><b>' + money(c.outflow) + '</b></div><div>مانده صندوق<br><b class="' + (c.derived < 0 ? 'neg' : '') + '">' + money(c.derived) + '</b></div><div>کسری فعلی<br><b class="' + (gap ? 'neg' : '') + '">' + money(gap) + '</b></div></div>' +
+      '<h2>وضعیت سهامداران نسبت به صندوق</h2><table><thead><tr><th>سهامدار</th><th>درصد</th><th>بدهی فراخوان باز</th><th>طلب از صندوق</th><th>مانده حساب</th></tr></thead><tbody>' +
+      (shRows || '<tr><td colspan="5">سهامدار فعالی نیست</td></tr>') + '</tbody></table>' +
+      (callBlocks || '<h2>فراخوان</h2><p>فراخوان بازی ثبت نشده است.</p>') +
+      '<h2>گردش نقدی</h2><table><thead><tr><th>تاریخ</th><th>منبع</th><th>شرح</th><th>جهت</th><th>مبلغ</th></tr></thead><tbody>' +
+      (moveRows || '<tr><td colspan="5">گردشی نیست</td></tr>') + '</tbody></table></body></html>';
+  };
+
+  window.ptfTreasuryPrint = function () {
+    var html = window.ptfTreasuryReportHtml();
+    var year = (fiscalLabel() || '').split('|')[0].trim() || 'fund';
+    if (typeof ptfPreviewPrintableDoc === 'function') {
+      ptfPreviewPrintableDoc('گزارش خزانه نقدی — ' + year, html, 'treasury-cash-' + year.replace(/[^0-9]/g, ''));
+      return;
+    }
+    alert('پیش‌نمایش چاپ در این نسخه بارگذاری نشده است.');
+  };
+
   window.ptfTreasuryHtml = function () {
     return '<div id="treasuryBox" class="pn" style="display:none;margin-top:12px;padding:14px;border:1px solid #bae6fd;border-radius:16px;background:#f0f9ff">' +
-      '<div class="treasury-head"><h4 style="margin:0 0 6px">خزانه نقدی شرکت</h4>' +
+      '<div class="treasury-head"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start"><div><h4 style="margin:0 0 6px">خزانه نقدی شرکت</h4>' +
       '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">مانده = افتتاحیه سال + وصولی واقعی − هزینه/خرید/شارژ تنخواه/چک سررسید/برداشت. فاکتور و تهاتر وارد صندوق نمی‌شوند. تطبیق صورتحساب وجود ندارد.</small></div>' +
+      '<button type="button" class="bt bt-o" onclick="ptfTreasuryPrint()">🖨 پیش‌نمایش/چاپ</button></div></div>' +
       '<div id="treasuryKpi"></div><div id="treasuryFocus"></div><div id="treasuryMoves"></div></div>';
   };
 
