@@ -196,39 +196,45 @@
     var cur = (offer && offer.currency && offer.currency !== 'IRR') ? offer.currency : null;
     res.sellCur = cur || 'IRR';
 
-    /* ---------- سمت فروش (به ریال واقعی) ---------- */
-    if (cur) {
-      /* حالت ②: سند ارزی — فروش ریالی = جمع دریافت‌های تسعیرشده (نرخ سنا روز تسویه) */
-      var totalFx = offer ? (offer.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0) : 0;
-      var paidIrr = 0, paidFx = 0, unratedPays = 0;
-      invs.forEach(function (inv) {
-        var pays = (inv.pays || []).concat(inv.payments || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true}); /* هر دو ساختار تاریخی */
-        pays.forEach(function (pp) {
-          var amt = +pp.amt || 0;
-          if (!amt) return;
-          paidIrr += amt;
-          if (pp.fx && (+pp.fx.fxAmt || +pp.fx.rate)) paidFx += (+pp.fx.fxAmt) || (amt / (+pp.fx.rate));
-          else unratedPays++;
+    /* ---------- سمت فروش: فقط مبلغ خالص فاکتور صادره ----------
+       تا صدور فاکتور فروش سود اعلام نمی‌شود. وصولی/پیش‌پرداخت فروش نیست. */
+    function invoiceNetIrr(inv) {
+      if (!inv) return 0;
+      var amt = +inv.amount || 0;
+      if (!amt) amt = (+inv.base || 0) + (+inv.vat || 0);
+      var disc = +inv.discount || 0;
+      /* اگر تخفیف جداست و هنوز از مبلغ کم نشده */
+      if (disc > 0 && amt >= disc && Math.abs(amt - ((+inv.base || 0) + (+inv.vat || 0))) < 1) amt = amt - disc;
+      return amt > 0 ? amt : 0;
+    }
+    var invSum = invs.reduce(function (s2, v) { return s2 + invoiceNetIrr(v); }, 0);
+    if (invSum > 0) {
+      res.sellIrr = invSum;
+      res.sellSrc = 'مبلغ خالص فاکتور فروش (' + invs.length + ' سند)';
+      if (cur) {
+        var totalFx = offer ? (offer.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0) : 0;
+        var paidIrr = 0, paidFx = 0;
+        invs.forEach(function (inv) {
+          var pays = (inv.pays || []).concat(inv.payments || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function () { return true; });
+          pays.forEach(function (pp) {
+            var amt = +pp.amt || 0;
+            if (!amt) return;
+            paidIrr += amt;
+            if (pp.fx && (+pp.fx.fxAmt || +pp.fx.rate)) paidFx += (+pp.fx.fxAmt) || (amt / (+pp.fx.rate));
+          });
         });
-      });
-      res.sellIrr = paidIrr;
-      res.sellFxTotal = totalFx;
-      res.sellFxPaid = +paidFx.toFixed(2);
-      res.sellFxRemain = +(totalFx - paidFx).toFixed(2);
-      res.sellAvgRate = paidFx > 0 ? Math.round(paidIrr / paidFx) : 0;
-      res.sellSrc = 'دریافت‌های ریالی تسعیرشده (سنا — روز تسویه)';
-      if (unratedPays) { res.complete = false; res.warnings.push('⚠️ ' + unratedPays + ' دریافت ریالی این سند ارزی «بدون نرخ تسعیر» ثبت شده — معادل ارزی آن‌ها نامشخص است (مانده ارزی دقیق نیست؛ در فروش ریالی لحاظ شده).'); }
-      if (res.sellFxRemain > 0.01) { res.warnings.push('ℹ️ ' + res.sellFxRemain.toLocaleString('en-US') + ' ' + cur + ' هنوز وصول نشده — سود فعلی فقط بر مبنای وصولی‌های واقعی است و با وصول‌های بعدی بالا می‌رود.'); }
-      if (!paidIrr) { res.ok = false; res.warnings.push('⛔ هنوز هیچ دریافت ریالی برای این سند ارزی ثبت نشده — سود ریالی قابل محاسبه نیست.'); }
-    } else {
-      /* حالت ①: سند ریالی — اولویت: فاکتور؛ نبود → جمع CO */
-      var invSum = invs.reduce(function (s2, v) { return s2 + (+v.amount || 0); }, 0);
-      if (invSum > 0) { res.sellIrr = invSum; res.sellSrc = 'فاکتور(های) ثبت‌شده'; }
-      else {
-        res.sellIrr = offer ? (offer.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0) : (+prj.val || 0);
-        res.sellSrc = res.sellIrr ? 'جمع پیشنهاد مالی (فاکتور هنوز ثبت نشده)' : '';
+        res.sellFxTotal = totalFx;
+        res.sellFxPaid = +paidFx.toFixed(2);
+        res.sellFxRemain = +(totalFx - paidFx).toFixed(2);
+        res.sellAvgRate = paidFx > 0 ? Math.round(paidIrr / paidFx) : 0;
+        if (res.sellFxRemain > 0.01) res.warnings.push('ℹ️ مانده ارزی وصول‌نشده اطلاعاتی است؛ سود از مبلغ خالص فاکتور است نه از وصولی/پیش‌پرداخت.');
       }
-      if (!res.sellIrr) { res.ok = false; res.warnings.push('⛔ مبلغ فروش ثبت نشده (CO/فاکتور).'); }
+    } else {
+      res.sellIrr = 0;
+      res.sellSrc = '';
+      res.ok = false;
+      res.complete = false;
+      res.warnings.push('⛔ تا صدور فاکتور فروش، سود این پرونده قابل محاسبه نیست.');
     }
 
     /* ---------- سمت خرید (فاز ۵ — مورد A تأییدشده) ----------
@@ -241,7 +247,7 @@
     var sfA = {};
     try { sfA = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sfA || Array.isArray(sfA)) sfA = {}; } catch (eSfA) {}
     var payablesA = getData('ptf_crm_payables') || [];
-    var projKeys = [prj.inqNo, prj.offerNo, prj.no, prj.cd].filter(Boolean);
+    var projKeys = [prj.inqNo, prj.offerNo, prj.wonOffer, prj.no, prj.cd].concat(offerNoList).filter(Boolean);
     (sfA.invoices || []).forEach(function (i) {
       if (!i || i.status === 'void') return;
       var viaLegacy = (i.legacyPayableCds || []).some(function (cd) { var p = payablesA.filter(function (x) { return x.cd === cd; })[0]; return p && projKeys.indexOf(p.inqNo) > -1; });

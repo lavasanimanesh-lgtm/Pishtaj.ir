@@ -146,10 +146,15 @@
     } catch (eP) {}
     var sell = +res.sellIrr || 0;
     var buy = +res.buyIrr || 0;
-    var extra = (r.costEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    function isAdvanceCost(x) {
+      if (!x) return false;
+      if (x.fromAdvance || x.cat === 'advance' || x.kind === 'advance') return true;
+      return /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || x.label || ''));
+    }
+    var extra = (r.costEvents || []).filter(function (x) { return !isAdvanceCost(x); }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
     extra += (typeof window.ptfProjectLossTotal === 'function') ? window.ptfProjectLossTotal(r) : (r.lossEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
     var cost = buy + extra;
-    /* مبلغ/درصد را از اجزا می‌سازیم تا hookهای سود (کسر دوبارهٔ هزینه/زیان) دوبار کم نکنند. */
+    /* بدون فاکتور فروش عدد سود نشان داده نمی‌شود. پیش‌پرداخت مشتری هزینه نیست. */
     var profit = sell > 0 ? (sell - cost) : null;
     var provisional = !(res.complete && res.ok && sell > 0);
     var pct = (sell > 0 && profit != null) ? Math.round(profit * 1000 / sell) / 10 : null;
@@ -166,7 +171,7 @@
   window.ptfSalesFileMarginBadge = function (r) {
     var m = window.ptfSalesFileMargin(r);
     if (!m.ok && m.profit == null) {
-      return '<span style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:2px 8px;font-size:11px">حاشیه سود: —</span>';
+      return '<span style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:2px 8px;font-size:11px">حاشیه سود: تا صدور فاکتور —</span>';
     }
     var pos = m.profit >= 0;
     var col = m.provisional ? '#b45309' : (pos ? '#047857' : '#b91c1c');
@@ -703,7 +708,9 @@
       }
     } catch (e) {}
     var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
-    var costSum = (r.costEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    var costSum = (r.costEvents || []).filter(function (x) {
+      return !(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || ''))));
+    }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
     var invCount = (d.invoices || []).length;
     var openAmt = (d.invoices || []).reduce(function (s, i) {
       var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
@@ -713,8 +720,8 @@
     var ready = !au.blockers.length && openAmt <= 0.5;
     var mg = (typeof window.ptfSalesFileMargin === 'function') ? window.ptfSalesFileMargin(r) : null;
     var mgHtml = (mg && (mg.ok || mg.profit != null))
-      ? '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:' + (mg.provisional ? '#b45309' : (mg.profit >= 0 ? '#047857' : '#b91c1c')) + '">📈 حاشیه سود' + (mg.provisional ? ' تقریبی' : ' واقعی') + ': <b>' + (mg.profit || 0).toLocaleString('fa-IR') + ' ریال</b> <span dir="ltr">(' + (mg.pct != null ? mg.pct.toLocaleString('fa-IR') + '٪' : '—') + ')</span><small style="display:block;font-weight:400;color:#64748b">فروش ' + (mg.sell || 0).toLocaleString('fa-IR') + ' − هزینه ' + (mg.cost || 0).toLocaleString('fa-IR') + (mg.sellSrc ? ' — ' + escP(mg.sellSrc) : '') + '</small></span>'
-      : '<span style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:4px 8px;color:#64748b">📈 حاشیه سود: هنوز قابل محاسبه نیست</span>';
+      ? '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:' + (mg.provisional ? '#b45309' : (mg.profit >= 0 ? '#047857' : '#b91c1c')) + '">📈 حاشیه سود' + (mg.provisional ? ' تقریبی' : ' واقعی') + ': <b>' + (mg.profit || 0).toLocaleString('fa-IR') + ' ریال</b> <span dir="ltr">(' + (mg.pct != null ? mg.pct.toLocaleString('fa-IR') + '٪' : '—') + ')</span><small style="display:block;font-weight:400;color:#64748b">فروش خالص ' + (mg.sell || 0).toLocaleString('fa-IR') + ' − خرید تأمین ' + (mg.buy || 0).toLocaleString('fa-IR') + ' − هزینه ' + (mg.extra || 0).toLocaleString('fa-IR') + (mg.sellSrc ? ' — ' + escP(mg.sellSrc) : '') + '</small></span>'
+      : '<span style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:4px 8px;color:#64748b">📈 حاشیه سود: تا صدور فاکتور فروش قابل محاسبه نیست</span>';
     return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin:8px 0 10px;font-size:12px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
       mgHtml +

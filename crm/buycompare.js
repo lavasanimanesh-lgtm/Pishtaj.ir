@@ -1011,10 +1011,13 @@
         var d = null;
         if (prj && prj._kind === 'deal') d = prj;
         else d = rbFindDeal(prj && (prj.inqNo || prj.offerNo || prj.no));
-        var dealCosts = (d && d.costEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+        function skipAdv(x) {
+          return !(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || ''))));
+        }
+        var dealCosts = (d && d.costEvents || []).filter(skipAdv).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
         var archCosts = 0;
         if (prj && (prj.origin === 'salesfile' || prj.state === 'archived')) {
-          archCosts += ((prj.costEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0));
+          archCosts += ((prj.costEvents || []).filter(skipAdv).reduce(function (s, x) { return s + (+x.amt || 0); }, 0));
           archCosts += ((prj.postArchiveCosts || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0));
         }
         var costs = Math.max(dealCosts, archCosts);
