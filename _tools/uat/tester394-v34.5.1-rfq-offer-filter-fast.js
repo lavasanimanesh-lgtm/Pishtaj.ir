@@ -1,0 +1,9 @@
+'use strict';
+var fs = require('fs');
+var assert = require('assert');
+var br = fs.readFileSync('crm/bridge.js', 'utf8');
+assert.ok(br.indexOf('ptfRfqApplyListFilter') > -1, 'dom filter');
+assert.ok(br.indexOf('data-has-offer') > -1, 'row flag');
+assert.ok(br.indexOf('ptfRfqOfferInqSet') > -1, 'offer index');
+assert.ok(br.indexOf('if (!window.ptfRfqApplyListFilter()') > -1, 'chip uses fast path');
+console.log('PASS tester394 rfq-offer-filter-fast');
