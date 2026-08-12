@@ -17,11 +17,11 @@
     'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
     'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports',
-    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns'
+    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_fin_events'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
   var URGENT_SYNC_KEYS = [
-    'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance',
+    'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_fin_events',
     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_fiscal_snapshots',
     'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_offers', 'ptf_crm_deals',
     'ptf_crm_projects', 'ptf_crm_opex'
@@ -30,7 +30,7 @@
   var SYNC_ROLE_KEYS = {
     sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
     buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns'],
+    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events'],
     collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars']
   };
   function syncAllowedKey(k) {
@@ -827,6 +827,8 @@
       ptf_crm_invoices: ['invoice','invoices','inv'],
       ptf_crm_payables: ['payable','payables','pay'],
       ptf_crm_cheques: ['cheque','check','chq'],
+      ptf_crm_cheques_issued: ['cheque','check','chq','issued'],
+      ptf_crm_cheques_received: ['cheque','check','chq','received'],
       ptf_crm_deals: ['deal','deals','salesfile'],
       ptf_crm_projects: ['project','projects','salesfile'],
       ptf_crm_letters: ['letter','letters'],
@@ -962,7 +964,9 @@
     return out;
   }
   function ptfMergeBusinessRecord(key, a, b, code) {
-    var winner = ptfPreferRecord(a, b);
+    var winner = (typeof window.ptfFinanceVoidWins === 'function' && (key === 'ptf_crm_invoices' || key.indexOf('cheque') > -1))
+      ? (window.ptfFinanceVoidWins(a, b) || ptfPreferRecord(a, b))
+      : ptfPreferRecord(a, b);
     var loser = winner === a ? b : a;
     var out = ptfMergeAttachmentFields(ptfMergePlainObject(winner, loser), winner, loser);
     if (key === 'ptf_crm_offers') {
@@ -1082,6 +1086,16 @@
          بعد از آن چک بود و همیشه Array.isArray(loc)===false باعث می‌شد بدون رسیدن به
          اینجا، remoteStr برگردانده شود (کد مرده — AUD-01: هر فاکتور/پرداخت/تعدیل محلی
          که هنوز sync نشده، در هر تعارضی به‌طور کامل و بی‌صدا از بین می‌رفت). */
+      if (key === 'ptf_crm_fin_events') {
+        try {
+          var locE = JSON.parse(localStr || '[]'), remE = JSON.parse(remoteStr || '[]');
+          var unionE = (typeof window.ptfFinanceUnionEvents === 'function')
+            ? window.ptfFinanceUnionEvents(locE, remE)
+            : (Array.isArray(locE) ? locE : []).concat(Array.isArray(remE) ? remE : []);
+          return JSON.stringify(unionE);
+        } catch (eEv) { return remoteStr; }
+      }
+
       if (key === 'ptf_crm_supplier_finance') {
         try {
           var locO = JSON.parse(localStr||'{}'); var remO = JSON.parse(remoteStr||'{}');
@@ -1095,7 +1109,7 @@
             if(!Array.isArray(lv) && !Array.isArray(rv)){
               merged[k]= rv!=null ? rv : lv;
             } else if(Array.isArray(lv) && Array.isArray(rv)){
-              // merge by cd
+              // merge by cd — P4: void wins; allocations/files union
               var mm={};
               rv.forEach(function(it){ if(it&&it.cd) mm[it.cd]=it; });
               lv.forEach(function(it){
@@ -1103,15 +1117,18 @@
                 if(!mm[it.cd]){
                   mm[it.cd]=it;
                 } else {
-                  /* افزودن فایل قبلاً timestamp اولیهٔ رکورد (`t`) را تغییر نمی‌داد و
-                     در تساوی، نسخهٔ server بدون فایل برنده می‌شد. updatedAtISO ملاک
-                     اصلی است و فایل‌ها/tombstoneها مستقل از برنده merge می‌شوند. */
                   var remoteRec=mm[it.cd];
+                  var voidW = typeof window.ptfFinanceVoidWins === 'function' ? window.ptfFinanceVoidWins(it, remoteRec) : null;
                   var lt=it.updatedAtISO||it.updatedAt||it.iso||it.t||it.date||'';
                   var rt=remoteRec.updatedAtISO||remoteRec.updatedAt||remoteRec.iso||remoteRec.t||remoteRec.date||'';
-                  var winner=lt>=rt?it:remoteRec;
+                  var winner=voidW || (lt>=rt?it:remoteRec);
                   var loser=winner===it?remoteRec:it;
-                  mm[it.cd]=ptfMergeAttachmentFields(ptfObjClone(winner),winner,loser);
+                  var rec=ptfMergeAttachmentFields(ptfObjClone(winner),winner,loser);
+                  if (Array.isArray(it.allocations) || Array.isArray(remoteRec.allocations)) {
+                    rec.allocations = ptfMergeArrayUnique(it.allocations || [], remoteRec.allocations || []);
+                  }
+                  if (voidW) { rec.status = voidW.status || 'void'; rec.st = voidW.st || rec.st; }
+                  mm[it.cd]=rec;
                 }
               });
               merged[k]=Object.values(mm);
@@ -1119,6 +1136,10 @@
               merged[k]= Array.isArray(rv) ? rv : (Array.isArray(lv)? lv : (rv!=null?rv:lv));
             }
           });
+          try {
+            var evLoc = JSON.parse((typeof window.ptfBRead === 'function' ? window.ptfBRead('ptf_crm_fin_events') : null) || localStorage.getItem('ptf_crm_fin_events') || '[]');
+            if (typeof window.ptfFinanceReplaySupplier === 'function') merged = window.ptfFinanceReplaySupplier(merged, evLoc);
+          } catch (eRep) {}
           return JSON.stringify(merged);
         } catch(e){ return remoteStr; }
       }

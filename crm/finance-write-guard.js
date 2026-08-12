@@ -172,4 +172,132 @@
     if (dirty) setData('ptf_crm_deals', ds);
     return { ok: true, dirty: dirty };
   };
+
+  /* P4: ژورنال append-only اسناد مالی — تعارض = اتحاد رویداد، نه جایگزینی رکورد. */
+  var FIN_EV_KEY = 'ptf_crm_fin_events';
+  var FIN_WATCH = {
+    'ptf_crm_invoices': 'sale-invoice',
+    'ptf_crm_cheques_issued': 'cheque-issued',
+    'ptf_crm_cheques_received': 'cheque-received'
+  };
+  window.PTF_FIN_EVENTS_KEY = FIN_EV_KEY;
+
+  function finWho() {
+    try { return (typeof curSession === 'function' ? (curSession().name || curSession().user) : '') || ''; } catch (e) { return ''; }
+  }
+  function finIsVoid(r) {
+    if (!r) return false;
+    var st = String(r.status || r.st || '');
+    return st === 'void' || st === 'voided_transfer' || r.void === true;
+  }
+  function finSnap(r) {
+    if (!r || typeof r !== 'object') return null;
+    return {
+      cd: r.cd, no: r.no, amount: r.amount || r.amountIrr || r.amt,
+      status: r.status || r.st || '', supplierCd: r.supplierCd || '',
+      dateISO: r.dateISO || r.dueISO || r.invDate || ''
+    };
+  }
+  function finReadEvents() {
+    try {
+      var v = typeof getData === 'function' ? getData(FIN_EV_KEY) : JSON.parse(localStorage.getItem(FIN_EV_KEY) || '[]');
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  }
+  window.ptfFinanceEventAppend = function (ev) {
+    if (!ev || !ev.kind || !ev.recCd) return { ok: false };
+    ev.id = ev.id || ('FEV-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8));
+    ev.t = ev.t || (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString());
+    ev.iso = ev.iso || new Date().toISOString();
+    ev.by = ev.by || finWho();
+    var list = finReadEvents();
+    if (list.some(function (x) { return x && x.id === ev.id; })) return { ok: true, dup: true };
+    list.unshift(ev);
+    if (list.length > 4000) list = list.slice(0, 4000);
+    if (typeof setData === 'function') setData(FIN_EV_KEY, list);
+    else try { localStorage.setItem(FIN_EV_KEY, JSON.stringify(list)); } catch (eW) {}
+    return { ok: true, id: ev.id };
+  };
+  window.ptfFinanceUnionEvents = function (a, b) {
+    var by = {};
+    (Array.isArray(a) ? a : []).concat(Array.isArray(b) ? b : []).forEach(function (e) {
+      if (e && e.id && !by[e.id]) by[e.id] = e;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; })
+      .sort(function (x, y) { return String(y.iso || y.t || '').localeCompare(String(x.iso || x.t || '')); });
+  };
+  function finIndex(arr) {
+    var m = {};
+    (arr || []).forEach(function (r, i) { if (r && r.cd) m[r.cd] = i; });
+    return m;
+  }
+  window.ptfFinanceReplayEvents = function (key, recs, events) {
+    if (!Array.isArray(recs)) return recs;
+    var out = recs.slice();
+    var idx = finIndex(out);
+    (events || []).filter(function (e) { return e && e.key === key; }).forEach(function (e) {
+      var i = idx[e.recCd];
+      if (e.kind === 'create' && i == null && e.snap && e.snap.cd) {
+        out.push(Object.assign({ fromJournal: true }, e.snap));
+        idx[e.recCd] = out.length - 1;
+      } else if (e.kind === 'void' && i != null && !finIsVoid(out[i])) {
+        out[i].status = out[i].status != null ? 'void' : out[i].status;
+        out[i].st = out[i].st != null ? 'void' : out[i].st;
+        out[i].void = true;
+        out[i].voidFromJournal = e.iso || e.t;
+      }
+    });
+    return out;
+  };
+  window.ptfFinanceReplaySupplier = function (obj, events) {
+    obj = obj && typeof obj === 'object' && !Array.isArray(obj) ? obj : { schema: 1, invoices: [], payments: [] };
+    obj.invoices = window.ptfFinanceReplayEvents('ptf_crm_supplier_finance:invoices', obj.invoices || [], events);
+    obj.payments = window.ptfFinanceReplayEvents('ptf_crm_supplier_finance:payments', obj.payments || [], events);
+    return obj;
+  };
+  function finJournalRows(key, beforeArr, afterArr, recType) {
+    var b = finIndex(beforeArr), a = afterArr || [];
+    a.forEach(function (r) {
+      if (!r || !r.cd) return;
+      if (b[r.cd] == null) {
+        window.ptfFinanceEventAppend({ kind: 'create', key: key, recType: recType, recCd: r.cd, snap: finSnap(r) });
+      } else {
+        var old = beforeArr[b[r.cd]];
+        if (!finIsVoid(old) && finIsVoid(r)) {
+          window.ptfFinanceEventAppend({ kind: 'void', key: key, recType: recType, recCd: r.cd, snap: finSnap(r) });
+        }
+      }
+    });
+  }
+  window.ptfFinanceJournalDiff = function (key, before, after) {
+    if (window._ptfFinJournalMute) return;
+    if (FIN_WATCH[key]) {
+      finJournalRows(key, Array.isArray(before) ? before : [], Array.isArray(after) ? after : [], FIN_WATCH[key]);
+      return;
+    }
+    if (key !== 'ptf_crm_supplier_finance') return;
+    var b = before && typeof before === 'object' ? before : {};
+    var a = after && typeof after === 'object' ? after : {};
+    finJournalRows('ptf_crm_supplier_finance:invoices', b.invoices || [], a.invoices || [], 'supplier-invoice');
+    finJournalRows('ptf_crm_supplier_finance:payments', b.payments || [], a.payments || [], 'supplier-payment');
+  };
+
+  var _finSet = window.setData;
+  if (typeof _finSet === 'function') {
+    window.setData = function (k, d) {
+      var before = null;
+      if (FIN_WATCH[k] || k === 'ptf_crm_supplier_finance') {
+        try { before = typeof getData === 'function' ? getData(k) : null; } catch (eB) {}
+      }
+      var r = _finSet(k, d);
+      try { window.ptfFinanceJournalDiff(k, before, d); } catch (eJ) {}
+      return r;
+    };
+  }
+
+  window.ptfFinanceVoidWins = function (a, b) {
+    if (finIsVoid(a) && !finIsVoid(b)) return a;
+    if (finIsVoid(b) && !finIsVoid(a)) return b;
+    return null;
+  };
 })();
