@@ -523,6 +523,74 @@ function ptfRasterizeHeicBlob(blob) {
    (هاست Imagick ندارد؛ embed/HEIC خام در چاپ گزارش تلفیقی دیده نمی‌شود). */
 /* فاز ۱: JPEG تبدیل‌شده جایگزین نمایش سند می‌شود؛ اصل در sourceKey می‌ماند.
    گزارش بعدی دیگر تبدیل/توکن ندارد. LLM عمداً صدا زده نمی‌شود. */
+/* ZIP بدون فشرده‌سازی (STORE) — بدون CDN؛ اصل فایل‌ها دست نخورده می‌ماند. */
+window.ptfCrc32 = function (u8) {
+  window._ptfCrcTab = window._ptfCrcTab || (function () {
+    var t = new Uint32Array(256), i, c, k;
+    for (i = 0; i < 256; i++) {
+      c = i;
+      for (k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+  var crc = 0xFFFFFFFF, i;
+  for (i = 0; i < u8.length; i++) crc = window._ptfCrcTab[(crc ^ u8[i]) & 255] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+};
+window.ptfZipFromFiles = function (entries) {
+  function u16(n) { return new Uint8Array([n & 255, (n >>> 8) & 255]); }
+  function u32(n) { return new Uint8Array([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]); }
+  function encName(s) {
+    try { return new TextEncoder().encode(String(s || 'file')); } catch (e) {
+      var out = [], i, c;
+      s = String(s || 'file');
+      for (i = 0; i < s.length; i++) {
+        c = s.charCodeAt(i);
+        if (c < 128) out.push(c);
+        else out.push(95);
+      }
+      return new Uint8Array(out);
+    }
+  }
+  var locals = [], centrals = [], offset = 0, i;
+  for (i = 0; i < entries.length; i++) {
+    var name = encName(entries[i].name || ('file-' + (i + 1)));
+    var data = entries[i].bytes instanceof Uint8Array ? entries[i].bytes : new Uint8Array(entries[i].bytes || []);
+    var crc = window.ptfCrc32(data);
+    var local = new Uint8Array(30 + name.length + data.length);
+    local.set([0x50, 0x4B, 0x03, 0x04, 20, 0, 0, 8, 0, 0, 0, 0, 0, 0], 0);
+    local.set(u32(crc), 14);
+    local.set(u32(data.length), 18);
+    local.set(u32(data.length), 22);
+    local.set(u16(name.length), 26);
+    local.set(u16(0), 28);
+    local.set(name, 30);
+    local.set(data, 30 + name.length);
+    locals.push(local);
+    var central = new Uint8Array(46 + name.length);
+    central.set([0x50, 0x4B, 0x01, 0x02, 20, 0, 20, 0, 0, 8, 0, 0, 0, 0, 0, 0], 0);
+    central.set(u32(crc), 16);
+    central.set(u32(data.length), 20);
+    central.set(u32(data.length), 24);
+    central.set(u16(name.length), 28);
+    central.set(u32(offset), 42);
+    central.set(name, 46);
+    centrals.push(central);
+    offset += local.length;
+  }
+  var cdSize = 0;
+  for (i = 0; i < centrals.length; i++) cdSize += centrals[i].length;
+  var eocd = new Uint8Array(22);
+  eocd.set([0x50, 0x4B, 0x05, 0x06], 0);
+  eocd.set(u16(entries.length), 8);
+  eocd.set(u16(entries.length), 10);
+  eocd.set(u32(cdSize), 12);
+  eocd.set(u32(offset), 16);
+  var parts = locals.concat(centrals);
+  parts.push(eocd);
+  return new Blob(parts, { type: 'application/zip' });
+};
 window.ptfPersistFilePreview = function (origKey, preview) {
   if (!origKey || !preview || !preview.key) return false;
   var stores = ['ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods'];

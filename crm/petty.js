@@ -962,42 +962,77 @@
 
   /* v34.0.0-alpha (F4-6): اصلاح بحرانی — متغیر `arg` تعریف نشده بود و
      منطق apply اشتباه بود. حالا arg از ابتدا محاسبه می‌شود. */
+  function ptfPettySafeZipName(s) {
+    return String(s || 'file').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, ' ').trim() || 'file';
+  }
+  function ptfPettyFetchFileBytes(f) {
+    return new Promise(function (resolve) {
+      if (!f || !f.key) return resolve(null);
+      fetch('../api/attachment-read.php', {
+        method: 'POST', headers: ptfStorageAuthHeaders(true),
+        body: JSON.stringify({ key: f.key, name: f.key || f.name || '', mode: 'inline' })
+      }).then(function (r) {
+        if (!r.ok) throw new Error('read');
+        return r.arrayBuffer();
+      }).then(function (buf) { resolve(new Uint8Array(buf)); })
+        .catch(function () { resolve(null); });
+    });
+  }
+  /* v34.4.73: دکمهٔ فیش‌های پیوست = ZIP همهٔ اسناد ردیف‌های همین گزارش */
   window.ptfPettyPeriodShowReceipts = function (a, b) {
-    /* v34.0.0-alpha (F4-6): ساخت arg در ابتدا — ارجاع در onclick بعداً به آن بستگی دارد */
     var arg = ptfPettyArg(a, b);
-    /* ptfPettyPeriodFiles و ptfPettyPeriodEvents امضای (a,b) دارند — اگر a یک
-       رشتهٔ 'from|to' باشد، باید [from, to] از آن استخراج شود (نه [a, b]). */
     var argPair = ptfPettyArgPair(arg);
     var files = window.ptfPettyPeriodFiles(argPair[0], argPair[1]);
-    ptfPettyWaitShow('در حال آماده‌سازی فیش‌های پیوست… لطفاً منتظر بمانید');
-    var jobs = files.map(function (f) { return window.ptfPettyResolveUrl(f); });
-    Promise.all(jobs).then(function () {
-      try {
-        var events = window.ptfPettyPeriodEvents(argPair[0], argPair[1]);
-        var rowByCd = {};
-        events.forEach(function (e) { if (e.cd) rowByCd[e.cd] = e.row; });
-        files.forEach(function (f) { if (f.cd && rowByCd[f.cd]) f.row = rowByCd[f.cd]; });
-      } catch (eM2) { console.warn('map file→row:', eM2); }
-      var convertJobs = files.filter(function (f) {
-        var k = window.ptfPettyFileKind(f.name || f.key || '', f);
-        return (k === 'pdf' || k === 'heic') && (f.key || (f.url && String(f.url).indexOf('data:') === 0));
-      }).map(function (f) { return window.ptfPettyToJpeg(f); });
-      return Promise.all(convertJobs);
-    }).then(function () {
-      var label = window.ptfPettyRangeLabel(argPair[0], argPair[1]);
-      var html = '<div class="md-b" id="pettyPeriodReceiptsDlg" style="display:grid;z-index:4050" onclick="if(event.target===this)this.remove()">' +
-        '<div class="md" style="max-width:1100px;max-height:92vh;overflow:auto;padding:18px">' +
-        '<h3 style="margin:0 0 4px;font-size:15px">📎 فیش‌ها و ضمیمه‌های پرونده — ' + escP(label) + '</h3>' +
-        '<div style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.8">هر فیش با برچسب «ضمیمه ردیف N» (شماره ردیف در گزارش) و «سند M» (شناسهٔ پیوست) نمایش داده می‌شود. برای تطابق سریع چشمی.</div>' +
-        (files.length ? window.ptfPettyReceiptsHtml(files) : '<div style="padding:18px;color:#94a3b8;text-align:center;font-size:13px">هیچ فیشی برای این دوره ثبت نشده است.</div>') +
-        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;border-top:1px solid var(--brd);padding-top:12px">' +
-        '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>' +
-        /* v34.0.0-alpha (F4-6): arg به درستی در دکمهٔ PDF تلفیقی ارجاع می‌شود */
-        '<button class="bt" onclick="this.closest(\'.md-b\').remove();ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 دانلود PDF تلفیقی</button>' +
-        '</div></div></div>';
-      ptfPettyWaitHide();
-      document.getElementById('panels').insertAdjacentHTML('beforeend', html);
-    }).catch(function (eShow) { console.error('ptfPettyPeriodShowReceipts:', eShow); ptfPettyWaitHide(); if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در نمایش ضمیمه‌ها: ' + (eShow.message || eShow), 'warn'); });
+    var periodRec = window.ptfPettyFindPeriodRec(argPair[0], argPair[1]);
+    var bank = ((periodRec && periodRec.files) || []).map(function (f) {
+      return { key: f.key || '', name: f.name || f.key || 'bank', bank: true };
+    });
+    var all = files.concat(bank);
+    if (!all.length) {
+      if (typeof ptfToast === 'function') ptfToast('برای ردیف‌های این گزارش فیش پیوستی نیست', 'info');
+      else alert('برای ردیف‌های این گزارش فیش پیوستی نیست');
+      return;
+    }
+    ptfPettyWaitShow('در حال آماده‌سازی ZIP فیش‌های پیوست…');
+    try {
+      var events = window.ptfPettyPeriodEvents(argPair[0], argPair[1]);
+      var rowByCd = {};
+      events.forEach(function (e) { if (e.cd) rowByCd[e.cd] = e.row; });
+      all.forEach(function (f) { if (f.cd && rowByCd[f.cd]) f.row = rowByCd[f.cd]; });
+    } catch (eMap) {}
+    var i = 0, entries = [], used = {};
+    function next() {
+      if (i >= all.length) {
+        if (!entries.length) {
+          ptfPettyWaitHide();
+          if (typeof ptfToast === 'function') ptfToast('هیچ سندی از ابر دریافت نشد', 'warn');
+          return;
+        }
+        var zip = window.ptfZipFromFiles(entries);
+        var label = window.ptfPettyRangeLabel(argPair[0], argPair[1]);
+        var a2 = document.createElement('a');
+        a2.href = URL.createObjectURL(zip);
+        a2.download = 'petty-receipts-' + String(label).replace(/[^0-9\/]/g, '').replace(/\//g, '-') + '.zip';
+        document.body.appendChild(a2); a2.click(); a2.remove();
+        ptfPettyWaitHide();
+        if (typeof ptfToast === 'function') ptfToast('✅ ZIP فیش‌ها آماده شد (' + entries.length + ' فایل)', 'ok');
+        return;
+      }
+      var f = all[i++];
+      ptfPettyWaitShow('در حال دریافت سند ' + i + ' از ' + all.length + '…');
+      ptfPettyFetchFileBytes(f).then(function (bytes) {
+        if (bytes && bytes.length) {
+          var base = ptfPettySafeZipName((f.name || f.key || 'doc').split('/').pop());
+          var prefix = f.bank ? 'bank/' : ('row-' + (f.row || 'x') + '/');
+          var nm = prefix + base;
+          if (used[nm]) { var ext = nm.lastIndexOf('.'); nm = (ext > 0 ? nm.slice(0, ext) : nm) + '-' + i + (ext > 0 ? nm.slice(ext) : ''); }
+          used[nm] = 1;
+          entries.push({ name: nm, bytes: bytes });
+        }
+        next();
+      });
+    }
+    next();
   };
 
   window.ptfPettyPeriodReport = function (a, b) {
@@ -1021,7 +1056,7 @@
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodCsv(\'' + arg + '\')">⬇ اکسل</button>' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodPrint(\'' + arg + '\')">🖨 چاپ/PDF</button>' +
-      '<button class="bt bt-o" onclick="ptfPettyPeriodShowReceipts(\'' + arg + '\')">📎 فیش‌های پیوست</button>' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodShowReceipts(\'' + arg + '\')">📎 ZIP فیش‌های پیوست</button>' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 PDF تلفیقی</button>' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
