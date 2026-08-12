@@ -702,8 +702,10 @@
       if (wo && typeof ptfAdvanceNormalize === 'function') {
         var a = ptfAdvanceNormalize(wo);
         if (a && a.mode && a.mode !== 'none') {
-          advTxt = (typeof ptfAdvanceLabel === 'function' ? ptfAdvanceLabel(wo) : 'ثبت‌شده');
-          advState = a.paid || a.cashFull ? '#059669' : '#b45309';
+          var recv = +a.receivedAmt || 0, claim = +a.amt || 0;
+          advTxt = (recv ? ('وصولی ' + recv.toLocaleString('fa-IR') + ' ریال') : 'هنوز وصول نشده') +
+            (claim ? ' از مطالبه ' + claim.toLocaleString('fa-IR') : '');
+          advState = recv > 0 ? '#059669' : '#b45309';
         }
       }
     } catch (e) {}
@@ -725,7 +727,7 @@
     return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin:8px 0 10px;font-size:12px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
       mgHtml +
-      '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 پیش‌پرداخت: <b>' + escP(advTxt) + '</b></span>' +
+      '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 پیش‌دریافت مشتری (وصولی): <b>' + escP(advTxt) + '</b></span>' +
       '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? ((rb.full || 0) + ' / ' + rb.total + ' قلم کامل' + (rb.partial ? ' — ' + rb.partial + ' قلم ناقص' : '')) : 'هنوز شروع نشده') + '</b></span>' +
       '<span style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;color:#92400e">➕ هزینه‌های مستقیم: <b>' + costSum.toLocaleString('fa-IR') + ' ریال</b></span>' +
       '<span style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:4px 8px;color:#6d28d9">🧾 فاکتورها: <b>' + invCount + '</b>' + (openAmt > 0 ? ' | باز: ' + openAmt.toLocaleString('fa-IR') + ' ریال' : ' | تسویه: کامل') + '</span>' +

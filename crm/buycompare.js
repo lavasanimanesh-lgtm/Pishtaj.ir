@@ -888,7 +888,13 @@
         var host = wrap.querySelector('[id="sfUp_' + deal.cd + '"]');
         if (!host || document.getElementById('rbBox_' + deal.cd) || document.getElementById('sfRealBuyBtn_' + deal.cd)) return;
         var st = ptfRealBuyStatus(deal.inqNo);
-        var adv = ''; try { var wo = getData('ptf_crm_offers').filter(function(o){return o.no===deal.wonOffer;})[0]; if (wo && typeof ptfAdvanceLabel === 'function') adv = ' | پیش‌پرداخت: ' + ptfAdvanceLabel(wo); } catch(eAdv) {}
+        var adv = ''; try {
+          var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === deal.wonOffer; })[0];
+          if (wo && typeof ptfAdvanceNormalize === 'function') {
+            var aa = ptfAdvanceNormalize(wo);
+            if (aa && aa.mode && aa.mode !== 'none') adv = ' | پیش‌دریافت وصولی: ' + (+aa.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال';
+          }
+        } catch (eAdv) {}
         var costs = (deal.costEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0);
         var costTxt = costs ? ' | هزینه‌های مستقیم: ' + costs.toLocaleString('fa-IR') + ' ریال' : '';
         var lb = !st.has || !st.done
@@ -906,7 +912,7 @@
           '<div class="sf-real-buy-copy"><div class="sf-real-buy-heading"><span class="sf-real-buy-heading-icon" aria-hidden="true">🛒</span><span><b>خرید واقعی اقلام</b><small>پس از برد؛ مبنای سود واقعی و جدا از قیمت استعلامی</small></span></div><div class="sf-real-buy-status">' + lb + adv + costTxt + '</div></div>' +
           '<div class="sf-real-buy-actions" role="group" aria-label="عملیات خرید واقعی پرونده ' + escP(deal.inqNo) + '">' +
           rbAction('open', '🛍', 'خرید', 'ثبت یا پیگیری خرید واقعی اقلام پرونده', 'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')', true) +
-          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? rbAction('advance', '💰', 'پیش‌پرداخت', 'اصلاح پیش‌پرداخت پیشنهاد برنده', 'event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')') : '') +
+          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? rbAction('advance', '💰', 'پیش‌دریافت', 'ثبت یا اصلاح پیش‌دریافت مشتری (وصولی)', 'event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')') : '') +
           rbAction('inquiry', '🤖', 'استعلام مجدد', 'ثبت استعلام تامین جدید برای این پرونده', 'event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
           rbAction('cost', '➕', 'هزینه پرونده', 'ثبت هزینهٔ مستقیم برای پرونده', 'event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
           '</div></section>');
