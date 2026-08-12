@@ -525,6 +525,31 @@
     if (typeof ptfToast === 'function') ptfToast('⬇️ فایل HTML قابل چاپ دانلود شد', 'ok');
   };
 
+  window.ptfSharePreviewToMessenger = function () {
+    var fr = document.getElementById('ptfPrintFrame');
+    if (!fr) return;
+    var html = fr.srcdoc || (fr.contentWindow ? fr.contentWindow.document.documentElement.outerHTML : '');
+    if (!html) { if (typeof ptfToast === 'function') ptfToast('پیش‌نمایش سند آماده نیست', 'warn'); return; }
+    var clean = String(html).replace(/<script[^>]*>[\s\S]*?window\.print\(\)[\s\S]*?<\/script>/gi, '');
+    var name = typeof ptfPdfFileName === 'function' ? ptfPdfFileName(window._ptfPrintFileName) : (window._ptfPrintFileName || 'document');
+    var fileName = name + '.html';
+    var blob = new Blob([clean], { type: 'text/html;charset=utf-8' });
+    try {
+      var file = new File([blob], fileName, { type: 'text/html' });
+      var payload = { files: [file], title: name, text: 'سند ' + name };
+      if (navigator.share && (typeof navigator.canShare !== 'function' || navigator.canShare(payload))) {
+        navigator.share(payload).then(function () {
+          if (typeof ptfToast === 'function') ptfToast('سند به برنامهٔ پیام‌رسان داده شد — مخاطب را انتخاب کنید', 'ok');
+        }).catch(function (err) {
+          if (err && (err.name === 'AbortError' || /abort|cancel/i.test(String(err.message || '')))) return;
+          if (typeof ptfToast === 'function') ptfToast('ارسال مستقیم پشتیبانی نشد. از موبایل Chrome/Safari استفاده کنید.', 'warn');
+        });
+        return;
+      }
+    } catch (eShare) {}
+    if (typeof ptfToast === 'function') ptfToast('این دستگاه/مرورگر اشتراک فایل با پیام‌رسان را ندارد. روی گوشی از همین دکمه استفاده کنید.', 'warn');
+  };
+
   window.ptfDownloadPreviewWord = function (fileName) {
     var fr = document.getElementById('ptfPrintFrame');
     if (!fr) return;
@@ -604,6 +629,7 @@
       '<div><h3 id="ptfPrintPreviewTitle">👁 ' + safeTitle + '</h3><small style="display:block;color:#64748b;margin-top:3px">نام پیش‌فرض PDF: <b dir="ltr">' + escP(printFileName) + '.pdf</b></small></div>' +
       '<div class="ptf-print-actions" role="group" aria-label="عملیات پیش‌نمایش چاپ">' +
       previewAction('print', '🖨', 'چاپ / PDF', 'باز کردن چاپ یا ذخیره PDF', 'ptfPrintPreviewGo()', true) +
+      previewAction('share', '📤', 'پیام‌رسان', 'ارسال سند به واتساپ/تلگرام/بله بدون ذخیره روی گوشی', 'ptfSharePreviewToMessenger()', false) +
       previewAction('layout', '🎛', 'چیدمان', 'تنظیم چیدمان و گنجایش صفحه', 'ptfToggleLayoutBar()', false) +
       previewAction('html', '⬇', 'HTML', 'دانلود HTML سند', 'ptfDownloadPreviewHtml(\'' + ptfOnClickArg(printFileName) + '\')', false) +
       previewAction('word', '⬇', 'Word', 'دانلود Word سند', 'ptfDownloadPreviewWord(\'' + ptfOnClickArg(printFileName) + '\')', false) +

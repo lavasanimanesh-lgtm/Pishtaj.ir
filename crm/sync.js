@@ -391,7 +391,7 @@
     var pullSince = forceFull ? 0 : state.lastRev;
     /* v33.21.0 (PTF-SCALE-P0 — دلتا-پول): نقشهٔ rev هرکلید می‌رود تا سرور فقط کلیدهای جدیدتر را بفرستد.
        سرور قدیمی‌تر krevs را نادیده می‌گیرد و مثل قبل اسنپ‌شات کامل می‌فرستد — سازگار با عقب.
-       v34.4.97: حتی startup/forceFull هم krevs می‌فرستد تا کلیدهای تازه دوباره دانلود نشوند.
+       v34.4.98: حتی startup/forceFull هم krevs می‌فرستد تا کلیدهای تازه دوباره دانلود نشوند.
        کلید بدون دادهٔ محلی در krevs نیست → سرور rev=-1 می‌گیرد و آن کلید را می‌فرستد. */
     var pullUrl = API + '?action=data_pull&since=' + pullSince;
     try {
@@ -692,7 +692,7 @@
 
   /* ---------- مهاجرت اولیه: seed یا دریافت ---------- */
   function initialSync() {
-    /* v34.4.97: یک رفت‌وبرگشت به‌جای data_rev + snapshot کامل.
+    /* v34.4.98: یک رفت‌وبرگشت به‌جای data_rev + snapshot کامل.
        pull با since=0 و krevs محلی: کلیدهای تازه فقط دلتا؛ سرور خالی (rev=0/fresh) → seed. */
     if (!hasSyncToken()) {
       retryPullAfterAuth(function () {
