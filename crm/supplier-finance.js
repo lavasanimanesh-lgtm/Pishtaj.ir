@@ -61,6 +61,22 @@
   function linkedLegacyIds(d) {
     var out = {}; activeInvoices(d).forEach(function (i) { (i.legacyPayableCds || []).forEach(function (cd) { out[cd] = true; }); }); return out;
   }
+  function invoiceLegacyTotal(inv) {
+    return getData('ptf_crm_payables').filter(function (p) { return (inv.legacyPayableCds || []).indexOf(p.cd) > -1; }).reduce(function (s, p) { return s + (+p.amount || 0); }, 0);
+  }
+  function invoiceLinkMismatch(inv) {
+    if (!inv || !(inv.legacyPayableCds || []).length) return { mismatch: false, legacyTotal: 0, invoiceIrr: 0, sig: '' };
+    var legacyTotal = invoiceLegacyTotal(inv);
+    var invoiceIrr = +inv.amountIrr || +inv.amount || 0;
+    var mismatch = invoiceIrr && Math.abs(invoiceIrr - legacyTotal) > 1;
+    var sig = Math.round(invoiceIrr) + ':' + Math.round(legacyTotal) + ':' + (inv.legacyPayableCds || []).slice().sort().join(',');
+    return { mismatch: mismatch, legacyTotal: legacyTotal, invoiceIrr: invoiceIrr, sig: sig };
+  }
+  function invoiceLinkMismatchActive(inv) {
+    var m = invoiceLinkMismatch(inv);
+    if (!m.mismatch) return false;
+    return !(inv.linkMismatchAck && inv.linkMismatchAckSig === m.sig);
+  }
   function balance(supCd) {
     var d = data(), sup = supplier(supCd), name = sup ? sup.co : '';
     var by = {}, linked = linkedLegacyIds(d);
@@ -74,10 +90,7 @@
         : invRemain(i, d);
       if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0 };
       by[c].amount += r; by[c].irr += c === 'IRR' ? r : r * (+i.rate || 0); by[c].invoices++;
-      if ((i.legacyPayableCds || []).length) {
-        var legacyTotal = getData('ptf_crm_payables').filter(function (p) { return (i.legacyPayableCds || []).indexOf(p.cd) > -1; }).reduce(function (s, p) { return s + (+p.amount || 0); }, 0);
-        if (i.amountIrr && Math.abs((+i.amountIrr || 0) - legacyTotal) > 1) by[c].warn++;
-      }
+      if (invoiceLinkMismatchActive(i)) by[c].warn++;
     });
     /* v34.0.8-alpha (فاز ۳ — مورد B تأییدشده): گردش حساب تأمین‌کننده فقط بر «فاکتور خرید + ماندهٔ
        باقیماندهٔ همان» استوار است؛ «تعهد خرید legacy» دیگر در مانده‌ٔ بدهی اضافه نمی‌شود (چون خریدِ
@@ -105,7 +118,7 @@
   }
   function balanceHtml(supCd) {
     var b = balance(supCd); if (!b.length) return '<span style="color:#059669">مانده باز ندارد</span>';
-    return b.map(function (x) { return '<span><b style="color:#b45309">' + money(x.amount) + ' ' + escP(x.cur) + '</b>' + (x.legacy ? ' <small style="color:#64748b">(' + x.legacy + ' تعهد legacy)</small>' : '') + (x.warn ? ' <small style="color:#dc2626">⚠️ مغایرت لینک</small>' : '') + '</span>'; }).join('<br>');
+    return b.map(function (x) { return '<span><b style="color:#b45309">' + money(x.amount) + ' ' + escP(x.cur) + '</b>' + (x.legacy ? ' <small style="color:#64748b">(' + x.legacy + ' تعهد legacy)</small>' : '') + (x.warn ? ' <small style="color:#dc2626">⚠️ مغایرت لینک</small> <button type="button" class="ba" style="color:#7c3aed;font-size:11px;padding:1px 6px" onclick="slAckLinkMismatch(\'' + ptfOnClickArg(supCd) + '\')">برداشتن اخطار</button>' : '') + '</span>'; }).join('<br>');
   }
   window.slSupplierOpenTotalsIRR = function () {
     var debt = 0, credit = 0, fx = {};
@@ -635,6 +648,30 @@
     if (!locked.length) { alert('سال مالی قفل‌شده‌ای برای اصلاح وجود ندارد'); return; }
     ptfDialog({ title: '🧾 سند اصلاحی حساب تأمین‌کننده', body: 'سند اصلی سال قفل‌شده تغییر نمی‌کند؛ این رکورد با تاریخ جاری و مرجع سال قفل‌شده ثبت می‌شود.', fields: [{id:'year',label:'سال مرجع قفل‌شده',type:'select',options:locked},{id:'cur',label:'ارز',type:'select',options:['IRR','USD','EUR','CNY','AED','GBP']},{id:'amount',label:'مبلغ اصلاحی (+ افزایش بدهی / − کاهش بدهی)',type:'number',money:false,dir:'ltr',required:true},{id:'rate',label:'نرخ تسعیر (برای ارز خارجی)',type:'number',money:false,dir:'ltr'},{id:'note',label:'دلیل اصلاح *',type:'textarea',rows:2,required:true}], okText:'ثبت سند اصلاحی', onOk:function(v){ var amt=+v.amount||0, cur=v.cur||'IRR', rate=cur==='IRR'?1:(+v.rate||0); if(!amt || !v.note || (cur!=='IRR'&&!rate)){alert('مبلغ، دلیل و برای ارز خارجی نرخ الزامی است');return;} var d=data(); d.adjustments=d.adjustments||[]; var sup=supplier(supCd); var a={cd:genCode('SFADJ'),supplierCd:supCd,supName:sup?sup.co:'',refYear:v.year,cur:cur,rate:rate,amount:amt,amountIrr:cur==='IRR'?amt:Math.round(amt*rate),note:v.note,dateISO:new Date().toISOString().slice(0,10),dateFa:faDate(),status:'posted',t:faDateTime(),by:curSession().name}; d.adjustments.unshift(a);save(d);try{audit('حساب تامین','سند اصلاحی سال '+v.year+' برای '+a.supName+' — '+money(amt)+' '+cur,a.cd)}catch(e){};slOpenLedger(supCd); } });
   };
+  window.slAckLinkMismatch = function (supCd, invoiceCd) {
+    var d = data();
+    var invs = activeInvoices(d).filter(function (i) { return i.supplierCd === supCd && (!invoiceCd || i.cd === invoiceCd) && invoiceLinkMismatchActive(i); });
+    if (!invs.length) { if (typeof ptfToast === 'function') ptfToast('اخطار فعالی برای برداشتن نیست', 'info'); return; }
+    var msg = invoiceCd
+      ? 'اخطار مغایرت مبلغ فاکتور با تعهدهای لینک‌شده برای این فاکتور برداشته شود؟ مانده حساب عوض نمی‌شود.'
+      : ('اخطار مغایرت لینک برای ' + invs.length + ' فاکتور این تأمین‌کننده برداشته شود؟\n\nمعمولاً وقتی بعضی اقلام قیمت خرید واقعی ندارند، جمع تعهدها با فاکتور یکی نمی‌شود. این تأیید فقط اخطار را پنهان می‌کند.');
+    if (!confirm(msg)) return;
+    var who = '';
+    try { who = curSession().name || ''; } catch (e) {}
+    invs.forEach(function (i) {
+      var m = invoiceLinkMismatch(i);
+      i.linkMismatchAck = true;
+      i.linkMismatchAckSig = m.sig;
+      i.linkMismatchAckAt = faDateTime();
+      i.linkMismatchAckBy = who;
+    });
+    save(d);
+    try { audit('حساب تامین', 'تأیید و برداشتن اخطار مغایرت لینک — ' + invs.map(function (i) { return i.no || i.cd; }).join('، '), supCd); } catch (eA) {}
+    if (typeof ptfToast === 'function') ptfToast('✅ اخطار مغایرت لینک برداشته شد', 'ok');
+    if (typeof slRefreshSupplierPanel === 'function') slRefreshSupplierPanel();
+    if (typeof slFinanceRowsRender === 'function') slFinanceRowsRender();
+    if (document.getElementById('slLedgerDlg')) slOpenLedger(supCd);
+  };
   window.slInvoiceLinkLegacy = function (invoiceCd) {
     var d = data(), inv = (d.invoices || []).filter(function (x) { return x.cd === invoiceCd; })[0];
     if (!inv) return;
@@ -690,7 +727,10 @@
     var rows = invs.map(function (i) {
       var ps = allPayables.filter(function (p) { return (i.legacyPayableCds || []).indexOf(p.cd) > -1; });
       var legacy = ps.reduce(function (s, p) { return s + (+p.amount || 0); }, 0), diff = (+i.amountIrr || +i.amount || 0) - legacy;
-      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + (Math.abs(diff) <= 1 ? '<span style="color:#059669">✓ منطبق</span>' : '<span style="color:#dc2626">⚠️ اختلاف ' + money(diff) + ' ریال</span>') + '<br><button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="slInvoiceLinkLegacy(\'' + ptfOnClickArg(i.cd) + '\')">🧷 اصلاح لینک</button></td></tr>';
+      var mismatchOn = invoiceLinkMismatchActive(i);
+      var ackNote = (!mismatchOn && i.linkMismatchAck && Math.abs(diff) > 1) ? '<br><small style="color:#64748b">اخطار با تأیید کاربر برداشته شد</small>' : '';
+      var ackBtn = mismatchOn ? ' <button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px;color:#7c3aed" onclick="slAckLinkMismatch(\'' + ptfOnClickArg(supCd) + '\',\'' + ptfOnClickArg(i.cd) + '\')">برداشتن اخطار</button>' : '';
+      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + (Math.abs(diff) <= 1 ? '<span style="color:#059669">✓ منطبق</span>' : '<span style="color:#dc2626">⚠️ اختلاف ' + money(diff) + ' ریال</span>') + ackNote + '<br><button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="slInvoiceLinkLegacy(\'' + ptfOnClickArg(i.cd) + '\')">🧷 اصلاح لینک</button>' + ackBtn + '</td></tr>';
     }).join('');
     var unlinked = legacyOpen(sup).filter(function (p) { return !p.sfInvoiceCd && !linkedIds[p.cd]; });
     var unlinkedIrr = unlinked.reduce(function (s, p) { return s + (+p.amount || 0); }, 0);
