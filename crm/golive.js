@@ -32,6 +32,9 @@
   }
 
   window.ptfGoLiveOpen = function () {
+    /* v34.4.48: دادهٔ واقعی ثبت شده — مسیر پاک‌سازی آزمایشی بازنشسته است. */
+    alert('این سامانه در حال بهره‌برداری واقعی است.\nپاک‌سازی یکجای داده‌های آزمایشی غیرفعال شد تا اطلاعات جاری از بین نرود.');
+    return;
     if (curRole() !== 'admin') { alert('⛔ پاک‌سازی داده‌های آزمایشی فقط توسط ادمین ممکن است'); return; }
     var rows = WIPE_KEYS.map(function (k) {
       var n = wipeCount(k);
@@ -57,6 +60,9 @@
   };
 
   window.ptfGoLiveRun = function (btn) {
+    /* v34.4.48: حتی با فراخوانی دستی/قدیمی، wipe اجرا نمی‌شود. */
+    alert('پاک‌سازی آزمایشی بازنشسته است؛ هیچ رکوردی حذف نشد.');
+    return;
     if (curRole() !== 'admin') return;
     var word = (document.getElementById('glConfirmWord') || {}).value || '';
     if (word.trim() !== 'پاکسازی') { alert('برای تایید باید دقیقا کلمه «پاکسازی» تایپ شود'); return; }
@@ -125,9 +131,8 @@
   function goliveBoxHtml() {
     if (curRole() !== 'admin') return '';
     return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
-      '<h4 style="margin:0 0 8px;color:#b91c1c">🔴 منطقه خطر — شروع بهره‌برداری واقعی (US-377)</h4>' +
-      '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:10px;color:#7f1d1d">داده‌های دوره آزمایشی را یک‌جا پاک کنید تا سامانه با داده واقعی شروع شود. کاربران، تنظیمات و امضاها حفظ می‌شوند. بک‌آپ اجباری پیش از اجرا گرفته می‌شود.</div>' +
-      '<button class="bt" style="background:#dc2626" onclick="ptfGoLiveOpen()" data-noix>🔴 پاک‌سازی داده‌های آزمایشی…</button>';
+      '<h4 style="margin:0 0 8px;color:#065f46">بهره‌برداری واقعی (پاک‌سازی آزمایشی بازنشسته)</h4>' +
+      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:10px;color:#065f46">داده‌های جاری رسمی‌اند. پاک‌سازی یکجای آزمایشی غیرفعال است تا مشتریان، پرونده‌ها و اسناد مالی حفظ شوند.</div>';
   }
   function hookSettings() {
     if (window._goliveHooked || typeof window.buildSettings !== 'function') return false;

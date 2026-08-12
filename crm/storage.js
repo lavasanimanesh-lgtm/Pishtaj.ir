@@ -813,41 +813,23 @@ window.ptfFinalCommitItems = function(inqNo) {
   });
 })();
 
-// US-210: نوار نسخه آزمایشی و قابلیت تبدیل به نسخه عملیاتی واقعی برای مدیر ارشد و رئیس هیئت مدیره
+/* v34.4.48: دادهٔ واقعی الان در سامانه است. تبدیل آزمایشی→عملیاتی دیگر پاک‌سازی
+   نمی‌کند؛ فقط برچسب حالت را «عملیاتی» می‌گذارد تا نوار زرد و دکمهٔ خطرناک نماند. */
+window.ptfMarkLiveProduction = function () {
+  try { localStorage.setItem('ptf_crm_mode', 'production'); } catch (e) {}
+};
 window.ptfRenderTrialBar = function() {
   var el = document.getElementById('trialBarWrap');
   if (!el) return;
-  var isProd = localStorage.getItem('ptf_crm_mode') === 'production';
-  if (isProd) {
-    el.innerHTML = '<div style="background:#ecfdf5;border-bottom:1px solid #a7f3d0;padding:8px 20px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#065f46;font-weight:bold"><span style="font-size:16px">💎</span> نرم‌افزار در نسخه عملیاتی واقعی (Live Production Mode) فعال است. اطلاعات جاری معتبر و رسمی می‌باشند.</div>';
-    return;
-  }
-  var s = null;
-  try { s = typeof curSession === 'function' ? curSession() : JSON.parse(localStorage.getItem('ptf_crm_session')); } catch(e){}
-  var canGoLive = s && (s.role === 'مدیر ارشد' || s.role === 'مدیر کل' || (s.role||'').indexOf('مدیر ارشد') > -1 || (s.role||'').indexOf('رئیس هیئت مدیره') > -1 || (s.role||'').indexOf('Admin') > -1 || s.user === 'admin' || s.username === 'admin');
-  el.innerHTML = '<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-bottom:1px solid #f59e0b;padding:8px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 2px 10px rgba(245,158,11,.15)">' +
-    '<div style="display:flex;align-items:center;gap:8px">' +
-    '<span style="font-size:18px">🧪</span>' +
-    '<div><strong style="color:#b45309;font-size:13px">نرم‌افزار در حالت آزمایشی (Trial / Beta Mode) قرار دارد</strong>' +
-    '<div style="color:#92400e;font-size:11.5px">جهت شناسایی و رفع باگ‌ها؛ پس از اتمام تست، به نسخه عملیاتی واقعی تبدیل خواهد شد.</div></div></div>' +
-    (canGoLive ? '<button type="button" class="bt" style="background:#dc2626;color:#fff;font-size:12px;font-weight:bold;padding:7px 14px;border-radius:8px;cursor:pointer" onclick="ptfConvertToProduction()">🚀 تبدیل به نسخه عملیاتی واقعی (پاکسازی اطلاعات آزمایشی)</button>' : '') +
-    '</div>';
+  window.ptfMarkLiveProduction();
+  el.innerHTML = '<div style="background:#ecfdf5;border-bottom:1px solid #a7f3d0;padding:8px 20px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#065f46;font-weight:bold"><span style="font-size:16px">💎</span> سامانه در حال بهره‌برداری واقعی است. داده‌های جاری حفظ می‌شوند و پاک‌سازی آزمایشی غیرفعال است.</div>';
 };
 
 window.ptfConvertToProduction = function() {
-  var s = null;
-  try { s = typeof curSession === 'function' ? curSession() : JSON.parse(localStorage.getItem('ptf_crm_session')); } catch(e){}
-  var canGoLive = s && (s.role === 'مدیر ارشد' || s.role === 'مدیر کل' || (s.role||'').indexOf('مدیر ارشد') > -1 || (s.role||'').indexOf('رئیس هیئت مدیره') > -1 || (s.role||'').indexOf('Admin') > -1 || s.user === 'admin' || s.username === 'admin');
-  if (!canGoLive) { alert('⛔ دسترسی فقط برای مدیر ارشد و رئیس هیئت مدیره مجاز است.'); return; }
-  if (!confirm('⚠️ توجه بسیار مهم (تبدیل به نسخه عملیاتی واقعی):\n\nبا تایید این عملیات، کلیه اطلاعات آزمایشی (استعلام‌ها، پیشنهادها، پیش‌فاکتورها، پرونده‌ها، لیدها و کالاهای آزمایشی) به طور کامل پاکسازی شده و نرم‌افزار آماده کار واقعی می‌شود.\n\nآیا تایید می‌کنید؟')) return;
-  var ans = prompt('برای تایید نهایی پاکسازی اطلاعات آزمایشی و فعال‌سازی نسخه واقعی، کلمه «تایید» را تایپ کنید:');
-  if (ans !== 'تایید') { alert('عملیات لغو شد'); return; }
-  var keys = ['ptf_crm_rfqs', 'ptf_crm_rfqsmart', 'ptf_crm_inqitems', 'ptf_crm_inqreads', 'ptf_crm_products', 'ptf_crm_offers', 'ptf_crm_buyquotes', 'ptf_crm_leads', 'ptf_crm_projects', 'ptf_crm_deals', 'ptf_crm_invoices', 'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_packinglists', 'ptf_crm_reminders'];
-  keys.forEach(function(k) { localStorage.setItem(k, '[]'); });
-  localStorage.setItem('ptf_crm_mode', 'production');
-  if (typeof addLog === 'function') addLog('🚀 نرم‌افزار به نسخه عملیاتی واقعی تبدیل شد');
-  alert('💎 تبریک! نرم‌افزار با موفقیت به «نسخه عملیاتی واقعی» تبدیل شد و کلیه داده‌های آزمایشی پاکسازی گردید.');
-  location.reload();
+  window.ptfMarkLiveProduction();
+  if (typeof ptfToast === 'function') ptfToast('سامانه از قبل عملیاتی است؛ هیچ داده‌ای پاک نشد.', 'ok');
+  else alert('سامانه از قبل عملیاتی است؛ هیچ داده‌ای پاک نشد.');
+  if (typeof window.ptfRenderTrialBar === 'function') window.ptfRenderTrialBar();
 };
 
 /* =====================================================================
@@ -976,11 +958,26 @@ window.ptfPurgeCloudOrphans = function (cb) {
     }
   }
   try {
+    /* v34.4.47: به‌جای فهرست ناقص storeها، همهٔ کلیدهای ptf_crm_* اسکن می‌شوند
+       (چک، opex، petty_tx، payables، sales_returns، ...). هزینه فقط JSON محلی است. */
+    var storeKeys = {};
+    try {
+      for (var si = 0; si < localStorage.length; si++) {
+        var sk = localStorage.key(si);
+        if (sk && sk.indexOf('ptf_crm_') === 0) storeKeys[sk] = true;
+      }
+    } catch (eLs) {}
     ['ptf_crm_rfqs', 'ptf_crm_projects', 'ptf_crm_cms', 'ptf_crm_letters', 'ptf_crm_contracts',
-     'ptf_crm_petty', 'ptf_crm_petty_periods', 'ptf_crm_offers', 'ptf_crm_invoices', 'ptf_crm_rfqsmart', 'ptf_crm_deals',
-     'ptf_crm_packinglists', 'ptf_crm_inqreads', 'ptf_crm_supplier_finance'].forEach(function (k) { harvest(getData(k)); });
-    // پروفایل‌های امضا (object نه آرایه)
-    harvest(JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}'));
+     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_offers', 'ptf_crm_invoices', 'ptf_crm_rfqsmart', 'ptf_crm_deals',
+     'ptf_crm_packinglists', 'ptf_crm_inqreads', 'ptf_crm_supplier_finance',
+     'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books',
+     'ptf_crm_opex', 'ptf_crm_payables', 'ptf_crm_sales_returns', 'ptf_crm_sigprofiles'].forEach(function (k) { storeKeys[k] = true; });
+    Object.keys(storeKeys).forEach(function (k) {
+      try {
+        if (typeof getData === 'function') harvest(getData(k));
+        else harvest(JSON.parse(localStorage.getItem(k) || 'null'));
+      } catch (eH) {}
+    });
   } catch(e) {}
   var PROTECTED_PREFIX = ['archives/', 'backups/']; // بایگانی و بک‌آپ هرگز زباله نیستند
   
@@ -990,6 +987,11 @@ window.ptfPurgeCloudOrphans = function (cb) {
     .then(function(d) {
       if (!d.ok || !d.files) {
         alert('❌ خطا در دریافت لیست فایل‌ها از آروان‌کلود: ' + (d.error || 'عدم دسترسی'));
+        if (cb) cb(false);
+        return;
+      }
+      if (d.truncated) {
+        alert('⚠️ فهرست فضای ابری ناقص برگشت؛ برای جلوگیری از حذف اشتباه، پاک‌سازی متوقف شد. دوباره تلاش کنید.');
         if (cb) cb(false);
         return;
       }

@@ -382,13 +382,30 @@ switch ($action) {
         break;
 
     case 'list':
-        $prefix = $in['prefix'] ?? '';
-        $r = s3_request($cfg, 'GET', '/' . $cfg['bucket'],
-            'list-type=2&max-keys=1000&prefix=' . rawurlencode($prefix));
-        if ($r['code'] !== 200) { echo json_encode(['ok' => false, 'http' => $r['code']]); break; }
-        preg_match_all('#<Key>(.*?)</Key>.*?<LastModified>(.*?)</LastModified>.*?<Size>(\d+)</Size>#s', $r['body'], $m, PREG_SET_ORDER);
-        $files = array_map(function ($x) { return ['key' => html_entity_decode($x[1]), 'lastModified' => $x[2], 'size' => (int)$x[3]]; }, $m);
-        echo json_encode(['ok' => true, 'files' => $files], JSON_UNESCAPED_UNICODE);
+        /* v34.4.47: صفحه‌بندی مثل usage تا پاک‌سازی یتیم با سقف ۱۰۰۰ فایل ناقص نباشد. */
+        $prefix = $in['prefix'] ?? ($_GET['prefix'] ?? '');
+        $files = [];
+        $token = '';
+        $pages = 0;
+        $truncated = false;
+        do {
+            $q = 'list-type=2&max-keys=1000&prefix=' . rawurlencode((string)$prefix)
+                . ($token ? '&continuation-token=' . rawurlencode($token) : '');
+            $r = s3_request($cfg, 'GET', '/' . $cfg['bucket'], $q);
+            if ($r['code'] !== 200) { echo json_encode(['ok' => false, 'http' => $r['code']]); break 2; }
+            preg_match_all('#<Key>(.*?)</Key>.*?<LastModified>(.*?)</LastModified>.*?<Size>(\d+)</Size>#s', $r['body'], $m, PREG_SET_ORDER);
+            foreach ($m as $x) {
+                $files[] = ['key' => html_entity_decode($x[1]), 'lastModified' => $x[2], 'size' => (int)$x[3]];
+            }
+            $token = '';
+            if (strpos($r['body'], '<IsTruncated>true</IsTruncated>') !== false &&
+                preg_match('#<NextContinuationToken>(.*?)</NextContinuationToken>#', $r['body'], $tm)) {
+                $token = html_entity_decode($tm[1]);
+            }
+            $pages++;
+        } while ($token && $pages < 30);
+        if ($token) $truncated = true;
+        echo json_encode(['ok' => true, 'files' => $files, 'pages' => $pages, 'truncated' => $truncated], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'delete_batch':
@@ -445,6 +462,8 @@ switch ($action) {
         $zip = new ZipArchive();
         $zip->open($tmp, ZipArchive::OVERWRITE);
         $added = 0; $totalIn = 0;
+        $addedKeys = [];
+        $missed = [];
         foreach ($keys as $k) {
             $k = (string)$k;
             if ($k === '' || strlen($k) > 500) continue;
@@ -457,6 +476,9 @@ switch ($action) {
             if ($code === 200 && $body !== false) {
                 $zip->addFromString(basename($k), $body);
                 $added++; $totalIn += strlen($body);
+                $addedKeys[] = $k;
+            } else {
+                $missed[] = $k;
             }
         }
         $zip->close();
@@ -476,14 +498,20 @@ switch ($action) {
             echo json_encode(['ok' => false, 'error' => 'آپلود zip بایگانی ناموفق (HTTP ' . $putCode . ') — فایل‌های اصلی دست نخورده ماندند']);
             break;
         }
-        // حذف اصل‌ها فقط بعد از آپلود موفق zip
+        /* v34.4.47: اصل فقط وقتی حذف می‌شود که همان کلید داخل zip آمده باشد.
+           اگر حتی یک فایل از قلم افتاده، هیچ اصلی پاک نمی‌شود (zip کمکی می‌ماند؛
+           فضای اضافه موقت است تا کاربر دوباره بایگانی کامل بگیرد). */
         $deleted = 0;
-        foreach ($keys as $k) {
-            $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode((string)$k));
-            $r = s3_request($cfg, 'DELETE', $uri);
-            if (in_array($r['code'], [200, 204])) $deleted++;
+        $deleteSkipped = count($missed) > 0;
+        if (!$deleteSkipped) {
+            foreach ($addedKeys as $k) {
+                $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode((string)$k));
+                $r = s3_request($cfg, 'DELETE', $uri);
+                if (in_array($r['code'], [200, 204])) $deleted++;
+            }
         }
         echo json_encode(['ok' => true, 'zipKey' => $zipKey, 'zipped' => $added, 'deleted' => $deleted,
+            'deleteSkipped' => $deleteSkipped, 'missed' => $missed,
             'bytesIn' => $totalIn, 'bytesZip' => $zipSize]);
         break;
 
