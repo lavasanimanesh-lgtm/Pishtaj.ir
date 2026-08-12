@@ -159,9 +159,39 @@
       profit: null, pct: null
     };
     if (!prj) { res.ok = false; return res; }
-    var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === prj.offerNo; })[0];
-    var invs = getData('ptf_crm_invoices').filter(function (v) { 
-      return v.offerNo === prj.offerNo && v.status !== 'void' && v.st !== 'void' && v.void !== true; 
+    /* v34.4.65: پرونده با فاکتور متمم چند offer/فاکتور دارد. نسخهٔ قبلی فقط
+       prj.offerNo (= wonOffer = معمولاً متمم) را می‌دید و فروش را ناقص حساب می‌کرد. */
+    var offerNos = {};
+    function addOffNo(n) { if (n) offerNos[String(n)] = true; }
+    addOffNo(prj.offerNo); addOffNo(prj.wonOffer);
+    try {
+      var dealLike = prj;
+      if (!dealLike.inqNo || !dealLike.wonOffer) {
+        var deals = getData('ptf_crm_deals') || [];
+        var hit = deals.filter(function (d) {
+          return (prj.cd && (d.cd === prj.cd || d.cd === prj.no)) || (prj.inqNo && d.inqNo === prj.inqNo);
+        })[0];
+        if (hit) dealLike = hit;
+      }
+      addOffNo(dealLike.wonOffer); addOffNo(dealLike.offerNo);
+      if (typeof window.ptfSalesFileOffers === 'function') {
+        window.ptfSalesFileOffers(dealLike).forEach(function (o) { if (o) addOffNo(o.no); });
+      }
+    } catch (eOff) {}
+    var offerNoList = Object.keys(offerNos);
+    var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === prj.offerNo; })[0]
+      || getData('ptf_crm_offers').filter(function (x) { return offerNoList.indexOf(x.no) > -1; })[0];
+    var invsRaw = getData('ptf_crm_invoices').filter(function (v) {
+      if (!v || v.status === 'void' || v.st === 'void' || v.void === true) return false;
+      if (v.offerNo && offerNoList.indexOf(String(v.offerNo)) > -1) return true;
+      if (prj.inqNo && (v.inqNo === prj.inqNo || v.dealInq === prj.inqNo)) return true;
+      if (prj.cd && (v.dealCd === prj.cd || v.dealRef === prj.cd || v.projectCd === prj.cd)) return true;
+      return false;
+    });
+    var officialByOffer = {};
+    invsRaw.forEach(function (v) { if (!v.isUnofficial && v.offerNo) officialByOffer[v.offerNo] = true; });
+    var invs = invsRaw.filter(function (v) {
+      return !(v.isUnofficial && v.offerNo && officialByOffer[v.offerNo]);
     });
     var cur = (offer && offer.currency && offer.currency !== 'IRR') ? offer.currency : null;
     res.sellCur = cur || 'IRR';
