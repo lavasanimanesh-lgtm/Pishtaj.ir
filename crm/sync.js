@@ -390,9 +390,20 @@
        snapshot and makes the server authoritative before normal polling. */
     var pullSince = forceFull ? 0 : state.lastRev;
     /* v33.21.0 (PTF-SCALE-P0 — دلتا-پول): نقشهٔ rev هرکلید می‌رود تا سرور فقط کلیدهای جدیدتر را بفرستد.
-       سرور قدیمی‌تر krevs را نادیده می‌گیرد و مثل قبل اسنپ‌شات کامل می‌فرستد — سازگار با عقب. */
+       سرور قدیمی‌تر krevs را نادیده می‌گیرد و مثل قبل اسنپ‌شات کامل می‌فرستد — سازگار با عقب.
+       v34.4.97: حتی startup/forceFull هم krevs می‌فرستد تا کلیدهای تازه دوباره دانلود نشوند.
+       کلید بدون دادهٔ محلی در krevs نیست → سرور rev=-1 می‌گیرد و آن کلید را می‌فرستد. */
     var pullUrl = API + '?action=data_pull&since=' + pullSince;
-    if (!forceFull) { try { pullUrl += '&krevs=' + encodeURIComponent(JSON.stringify(krevs())); } catch (eKr) {} }
+    try {
+      var kmSend = krevs();
+      var kmOut = {};
+      Object.keys(kmSend).forEach(function (k) {
+        if (SYNC_KEYS.indexOf(k) < 0) return;
+        var loc = rd(k);
+        if (loc != null && String(loc).length > 2) kmOut[k] = +kmSend[k] || 0;
+      });
+      pullUrl += '&krevs=' + encodeURIComponent(JSON.stringify(kmOut));
+    } catch (eKr) {}
     state.pullRequesting = true;
     function finishPull(result) {
       state.pullRequesting = false;
@@ -681,30 +692,34 @@
 
   /* ---------- مهاجرت اولیه: seed یا دریافت ---------- */
   function initialSync() {
-    fetch(API + '?action=data_rev')
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        if (!d.ok) { state.bootstrapped = true; window._ptfSyncBootstrapped = true; return; } /* v15.0: خطای سرور نباید کار آفلاین را قفل کند */
-        if (d.rev === 0) {
-          // سرور خالی است → این دستگاه seed می‌کند (اولین اجرا پس از آپدیت)
-          state.bootstrapped = true; window._ptfSyncBootstrapped = true; /* v15.0 */
-          var hasData = SYNC_KEYS.some(function (k) { return (rd(k) || '[]').length > 10; });
-          if (hasData) {
-            SYNC_KEYS.forEach(function (k) { if (rd(k) !== null) state.dirty[k] = true; });
-            pushDirty();
-            if (typeof addLog === 'function') addLog('داده‌های این دستگاه به سرور منتقل شد (seed اولیه)');
-          }
-        } else if (d.rev > 0) {
-          /* v31.6.23 BUG-SYNC-DIVERGENCE: always reconcile a complete server
-             snapshot at startup. Comparing only d.rev with localStorage's
-             ptf_sync_rev falsely declares stale/different browsers fresh. */
-          state.initialReconcile = true;
-          pullCheck(function () { state.initialReconcile = false; state.bootstrapped = true; window._ptfSyncBootstrapped = true; if (Object.keys(state.dirty).length) schedulePush(); }, true);
-        } else {
-          state.bootstrapped = true; window._ptfSyncBootstrapped = true; /* v15.0: به‌روزیم */
+    /* v34.4.97: یک رفت‌وبرگشت به‌جای data_rev + snapshot کامل.
+       pull با since=0 و krevs محلی: کلیدهای تازه فقط دلتا؛ سرور خالی (rev=0/fresh) → seed. */
+    if (!hasSyncToken()) {
+      retryPullAfterAuth(function () {
+        state.bootstrapped = true; window._ptfSyncBootstrapped = true;
+      }, true);
+      return;
+    }
+    state.initialReconcile = true;
+    pullCheck(function (res) {
+      state.initialReconcile = false;
+      state.bootstrapped = true; window._ptfSyncBootstrapped = true;
+      if (!res || res.ok === false) {
+        if (res && res.reason === 'network') setSyncBadge('offline');
+        return;
+      }
+      var serverEmpty = !!(res.fresh && !(+res.rev));
+      if (serverEmpty) {
+        var hasData = SYNC_KEYS.some(function (k) { return (rd(k) || '[]').length > 10; });
+        if (hasData) {
+          SYNC_KEYS.forEach(function (k) { if (rd(k) !== null) state.dirty[k] = true; });
+          pushDirty();
+          if (typeof addLog === 'function') addLog('داده‌های این دستگاه به سرور منتقل شد (seed اولیه)');
         }
-      })
-      .catch(function () { state.bootstrapped = true; window._ptfSyncBootstrapped = true; setSyncBadge('offline'); }); /* آفلاین: کار محلی آزاد، push بعدا با base */
+        return;
+      }
+      if (Object.keys(state.dirty).length) schedulePush();
+    }, true);
   }
 
   /* ---------- شروع ---------- */
