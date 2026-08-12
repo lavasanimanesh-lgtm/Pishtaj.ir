@@ -677,7 +677,7 @@
         ? ' | <span style="color:' + (dueSt === 'red' ? '#dc2626;font-weight:800' : dueSt === 'orange' ? '#d97706;font-weight:800' : '#64748b') + '">' +
           (dueSt === 'red' ? '🚚⏰ تحویل تعهدی: ' + escP(r.dueISO) + ' — سررسید/تاخیر!' : dueSt === 'orange' ? '🚚⏳ تحویل تعهدی نزدیک: ' + escP(r.dueISO) : '🚚 تحویل تعهدی: ' + escP(r.dueISO)) + '</span>'
         : '';
-      h += '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;overflow:hidden' + (dueSt === 'red' ? ';border-color:#fca5a5' : '') + '">' +
+      h += '<div id="sfDeal-' + escP(r.cd) + '" data-ptf-nav="deal:' + escP(r.cd) + '" style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;overflow:hidden' + (dueSt === 'red' ? ';border-color:#fca5a5' : '') + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;flex-wrap:wrap' + (dueSt === 'red' ? ';background:#fef2f2' : dueSt === 'orange' ? ';background:#fffbeb' : '') + '" onclick="sfToggle(\'' + ptfOnClickArg(r.cd) + '\')">' +
         '<div style="font-size:13px"><b dir="ltr">' + escP(inqKey) + '</b> — ' + escP(r.buyerCo || '-') +
         '<div style="font-size:11px;color:#64748b;margin-top:2px">' + nDocs + ' سند منضم | ایجاد: ' + escP(r.t || '') + stgBadge + (hasInv ? ' | <span style="color:#059669">🧾 فاکتور ثبت شده</span>' : '') + dueBadge + (lossBadge ? ' | ' + lossBadge : '') + '</div>' +
@@ -1605,23 +1605,11 @@
   /* v34.0.0-alpha (F4-5): توابع کمکی سمت پرونده برای لینک از پرونده ↔ تنخواه
      این توابع در کنار توابع ptfPettyRelatedCosts / ptfPettyUpdateDealLink در petty.js کار می‌کنند. */
   window.ptfDealGoPetty = function (pettyCd) {
-    /* رفتن به ماژول تنخواه + هایلایت رکورد مربوطه */
+    if (typeof window.ptfNavGoto === 'function') {
+      window.ptfNavGoto('petty', { kind: 'petty', id: pettyCd, open: true });
+      return;
+    }
     try { if (typeof goPanel === 'function') goPanel('petty'); } catch (e) {}
-    setTimeout(function () {
-      try {
-        var el = document.getElementById('pty-' + (pettyCd || ''));
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          var prevOutline = el.style.outline || '';
-          el.style.outline = '3px solid #fde68a';
-          setTimeout(function () { el.style.outline = prevOutline; }, 2400);
-          if (typeof ptfToast === 'function') ptfToast('رکورد تنخواه ' + pettyCd + ' در لیست پیدا شد ✨', 'ok');
-        } else {
-          if (typeof ptfDialog === 'function') ptfDialog({ title: '🏦 هزینهٔ تنخواه ' + pettyCd, body: 'به ماژول تنخواه بروید و رکورد ' + pettyCd + ' را در لیست پیدا کنید. (المنت مخصوص بعد از رندر کامل لیست ایجاد می‌شود.)' });
-          else if (typeof ptfToast === 'function') ptfToast('به ماژول تنخواه بروید و رکورد ' + pettyCd + ' را پیدا کنید', 'info');
-        }
-      } catch (e2) { console.warn('ptfDealGoPetty:', e2); }
-    }, 350);
   };
 
   /* v34.0.0-alpha (F4-5): دیالوگ انتخاب هزینهٔ تنخواه موجود + لینک به پروندهٔ فروش */

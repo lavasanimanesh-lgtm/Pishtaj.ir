@@ -428,7 +428,19 @@ function offerPostAwardLocked(o) {
 }
 window.ptfOfferPostAwardLocked = offerPostAwardLocked;
 window.ptfGoSalesFileForOffer = function (no) {
-  try { if (typeof goPanelByName === 'function') goPanelByName('deals'); else if (typeof goPanel === 'function') goPanel('deals'); } catch(e) {}
+  var dealCd = '';
+  try {
+    var deals = getData('ptf_crm_deals') || [];
+    var o = (getData('ptf_crm_offers') || []).filter(function (x) { return x.no === no; })[0];
+    var hit = deals.filter(function (d) {
+      return d.wonOffer === no || d.offerNo === no || (o && o.inqNo && d.inqNo === o.inqNo);
+    })[0];
+    if (hit) dealCd = hit.cd;
+  } catch (eF) {}
+  if (dealCd && typeof window.ptfGoSalesFile === 'function') window.ptfGoSalesFile(dealCd);
+  else {
+    try { if (typeof goPanelByName === 'function') goPanelByName('deals'); else if (typeof goPanel === 'function') goPanel('deals'); } catch (e) {}
+  }
   if (typeof ptfToast === 'function') ptfToast('ادامه فرایند پیشنهاد برنده فقط از پرونده فروش انجام می‌شود', 'info');
 };
 
@@ -493,7 +505,19 @@ function renderOffers() {
   }
   window.ptfOfferPostAwardLocked = offerPostAwardLocked;
   window.ptfGoSalesFileForOffer = function (no) {
-    try { if (typeof goPanelByName === 'function') goPanelByName('deals'); else if (typeof goPanel === 'function') goPanel('deals'); } catch(e) {}
+    var dealCd = '';
+    try {
+      var deals = getData('ptf_crm_deals') || [];
+      var oo = (getData('ptf_crm_offers') || []).filter(function (x) { return x.no === no; })[0];
+      var hit = deals.filter(function (d) {
+        return d.wonOffer === no || d.offerNo === no || (oo && oo.inqNo && d.inqNo === oo.inqNo);
+      })[0];
+      if (hit) dealCd = hit.cd;
+    } catch (eF) {}
+    if (dealCd && typeof window.ptfGoSalesFile === 'function') window.ptfGoSalesFile(dealCd);
+    else {
+      try { if (typeof goPanelByName === 'function') goPanelByName('deals'); else if (typeof goPanel === 'function') goPanel('deals'); } catch(e) {}
+    }
     if (typeof ptfToast === 'function') ptfToast('ادامه فرایند پیشنهاد برنده فقط از پرونده فروش انجام می‌شود', 'info');
   };
   var h = '';

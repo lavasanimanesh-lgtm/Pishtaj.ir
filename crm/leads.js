@@ -750,7 +750,7 @@ function remDel(cd) {
 function remOpenLink(cd) {
   var r = getData('ptf_crm_reminders').filter(function(x){ return x.cd === cd; })[0];
   if (!r || !r.link) return;
-  if (r.link.kind === 'lead') { hideModal(); goPanelByName('leads'); setTimeout(function(){ showLeadCard(r.link.cd); }, 150); }
+  if (r.link.kind === 'lead') { hideModal(); if (typeof ptfNavGoto === 'function') ptfNavGoto('leads', { kind: 'lead', id: r.link.cd }); else { goPanelByName('leads'); setTimeout(function(){ showLeadCard(r.link.cd); }, 150); } }
 }
 
 function goPanelByName(name) {
