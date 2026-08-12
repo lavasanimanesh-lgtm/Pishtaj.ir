@@ -181,8 +181,9 @@
     '.md[role="dialog"],.ptfdlg[role="dialog"]{outline:none}' +
     '.mx-dot.r{background:#e5655c}.mx-dot.y{background:#f0b429}.mx-dot.g{background:#61c454}' +
     '.mx-dot{position:relative}' +
-    '.mx-dot span{display:none;position:absolute;inset:0;font-size:9.5px;line-height:13px;text-align:center;font-weight:900;color:rgba(0,0,0,.6);pointer-events:none}' +
+    '.mx-dot span{display:none;position:absolute;inset:0;font-size:9.5px;line-height:13px;text-align:center;font-weight:900;color:rgba(0,0,0,.7);pointer-events:none}' +
     '.mx-dots:hover .mx-dot span{display:block}' +
+    'body.ptf-dark .mx-dot span{display:block;color:#0f172a}' +
     '.md.mx-full,.ptfdlg.mx-full{width:96vw!important;max-width:96vw!important;height:94vh!important;max-height:94vh!important}' +
     '.mx-dot.a{background:#8b5cf6;width:13px;height:13px;min-width:13px;min-height:13px;max-width:13px;max-height:13px;border-radius:50%}' +
     '#mxDock{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:1600}' +

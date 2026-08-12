@@ -490,9 +490,17 @@ $log_file = $log_dir . '/api_log.txt';
 // حذف فایل لاگ قدیمیِ افشاشده در صورت وجود
 $old_log = __DIR__ . '/../crm/api_log.txt';
 if (file_exists($old_log)) @unlink($old_log);
-$log_entry = date('Y-m-d H:i:s') . " | " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " | $action\n";
-$log = file_exists($log_file) ? file_get_contents($log_file) : '';
-file_put_contents($log_file, $log_entry . substr($log, 0, 5000));
+/* پول/rev هر چند ثانیه تکرار می‌شود — خواندن+بازنویسی کل لاگ روی هر درخواست، خودِ بار را سنگین می‌کرد. */
+$SKIP_API_LOG = ['data_pull', 'data_rev', 'get_events', 'sms_status', 'role_verify'];
+if (!in_array($action, $SKIP_API_LOG, true)) {
+    $log_entry = date('Y-m-d H:i:s') . " | " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . " | $action\n";
+    @file_put_contents($log_file, $log_entry, FILE_APPEND | LOCK_EX);
+    clearstatcache(true, $log_file);
+    if (@filesize($log_file) > 12000) {
+        $tail = @file_get_contents($log_file, false, null, -6000);
+        if ($tail !== false) @file_put_contents($log_file, $tail, LOCK_EX);
+    }
+}
 
 // Data file paths (JSON-based storage)
 $data_dir = __DIR__ . '/../crm/data';
@@ -543,6 +551,23 @@ function save_data($key, $data) {
    توجه: دفتر rev (meta.json) در هر سه حالت دست‌نخورده باقی می‌ماند (کوچک و سبک).
    مهم: این دو تابع باید top-level باشند (داخل switch تعریف شرطی می‌شود و در caseها
    undefined است) — کنار load_data/save_data نگهداری می‌شوند. */
+/* پاسخ JSON بزرگ (data_pull) را در صورت پشتیبانی مرورگر gzip می‌کنیم — بدون تعویض هاست حجم روی سیم کم می‌شود. */
+function ptf_echo_json($payload, $flags = 0) {
+    $raw = is_string($payload) ? $payload : json_encode($payload, $flags | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($raw === false) { echo '{"ok":false,"error":"json"}'; return; }
+    if (!headers_sent()) {
+        $ae = (string)($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '');
+        $zlibOn = filter_var(ini_get('zlib.output_compression'), FILTER_VALIDATE_BOOLEAN);
+        if (!$zlibOn && strlen($raw) > 2048 && function_exists('gzencode') && stripos($ae, 'gzip') !== false) {
+            header('Content-Encoding: gzip');
+            header('Vary: Accept-Encoding');
+            echo gzencode($raw, 5);
+            return;
+        }
+    }
+    echo $raw;
+}
+
 function sync_key_read($sdir, $k) {
     $f = $sdir . '/' . $k . '.json';
     /* v33.22.3 (P1-ATTACH-STALE-DB): گارد تازگی — در mode=mysql اگر ردیف DB کهنه‌تر از فایل
@@ -1305,7 +1330,7 @@ switch($action) {
         $since = (int)($_REQUEST['since'] ?? 0);
         $globalRev = $meta['_global']['rev'] ?? 0;
         // اگر کلاینت به‌روز است، فقط rev برگردان (سبک برای polling)
-        if ($since >= $globalRev) { echo json_encode(['ok' => true, 'rev' => $globalRev, 'fresh' => true]); break; }
+        if ($since >= $globalRev) { ptf_echo_json(['ok' => true, 'rev' => $globalRev, 'fresh' => true]); break; }
         /* ===== v33.21.0 (PTF-SCALE-P0 — سینک دلتا به‌ازای هرکلید، برای افزایش تعداد کاربران):
            کلاینت نقشهٔ rev هرکلید خود را با پارامتر krevs می‌فرستد؛ فقط کلیدهایی که روی سرور
            جدیدترند برمی‌گردند. پیش‌تر با بالارفتن rev سراسری «اسنپ‌شات کامل (~۴MB)» برای همه

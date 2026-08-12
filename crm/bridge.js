@@ -782,6 +782,18 @@
 
   var _buildRfq = window.buildRfq;
   window.buildRfq = function () {
+    if (!document.getElementById('ptfRfqUiCss')) {
+      var st = document.createElement('style');
+      st.id = 'ptfRfqUiCss';
+      st.textContent = '.rfq-offer-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}' +
+        '.rfq-offer-chip{min-height:38px;padding:6px 14px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#334155;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer}' +
+        '.rfq-offer-chip.is-on{background:#0e7490;color:#fff;border-color:#0e7490}' +
+        '#rTb tr.rfq-row-hide,#rTb tr.rfq-row-hide[style]{display:none!important}' +
+        '#rTb td:last-child button{width:34px!important;height:34px!important;min-width:34px!important;padding:0!important;display:inline-grid!important;place-items:center;font-size:15px!important;line-height:1;border-radius:10px}' +
+        '#rTb td:last-child .bd{display:none}' +
+        '@media(max-width:768px){.rfq-offer-bar{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.rfq-offer-chip{width:100%;min-width:0;padding:8px 4px;font-size:11px;text-align:center}#rTb tr.rfq-row-hide{display:none!important}}';
+      document.head.appendChild(st);
+    }
     return '<div id="rfqPendWrap"></div>' +
       '<div class="ph"><h3>📋 درخواست‌ها</h3>' +
       '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
@@ -791,7 +803,12 @@
       '<option value="has">دارای پیشنهاد</option>' +
       '</select>' +
       ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده">🧹 یتیم‌ها</button>' : '') +
-      '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' + /* v14.3 US-365 */
+      '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' +
+      '<div class="rfq-offer-bar" id="rOfferBar" role="tablist" aria-label="فیلتر پیشنهاد">' +
+      '<button type="button" class="rfq-offer-chip" data-v="" onclick="ptfRfqOfferFlt(\'\')">همه</button>' +
+      '<button type="button" class="rfq-offer-chip" data-v="none" onclick="ptfRfqOfferFlt(\'none\')">بدون پیشنهاد</button>' +
+      '<button type="button" class="rfq-offer-chip" data-v="has" onclick="ptfRfqOfferFlt(\'has\')">دارای پیشنهاد</button>' +
+      '</div>' +
       '<div class="tb2"><table><thead><tr>' +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'cd', 'کد') : '<th>کد</th>') +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'co', 'مشتری') : '<th>مشتری</th>') + '<th>حوزه</th>' +
@@ -801,6 +818,13 @@
       '<tbody id="rTb"></tbody></table></div>';
   };
 
+  window.ptfRfqOfferInqSet = function (offers) {
+    var set = {};
+    (offers || getData('ptf_crm_offers') || []).forEach(function (o) {
+      if (o && o.inqNo) set[o.inqNo] = 1;
+    });
+    return set;
+  };
   window.ptfRfqLinkedOffers = function (r, offers) {
     if (!r) return [];
     var list = offers || getData('ptf_crm_offers') || [];
@@ -808,12 +832,70 @@
       return o && o.inqNo && (o.inqNo === r.cd || (r.inqNo && o.inqNo === r.inqNo));
     });
   };
-  window.ptfRfqHasOffer = function (r, offers) {
+  window.ptfRfqHasOffer = function (r, offers, inqSet) {
+    if (!r) return false;
+    if (inqSet) return !!(inqSet[r.cd] || (r.inqNo && inqSet[r.inqNo]));
     return window.ptfRfqLinkedOffers(r, offers).length > 0;
   };
 
+  function rfqPaintOfferChips(ofFlt, noneN, hasN) {
+    var bar = document.getElementById('rOfferBar');
+    if (!bar) return;
+    bar.querySelectorAll('.rfq-offer-chip').forEach(function (ch) {
+      var v = ch.getAttribute('data-v') || '';
+      ch.classList.toggle('is-on', v === ofFlt);
+      if (v === 'none') ch.textContent = 'بدون پیشنهاد' + (noneN != null ? ' (' + noneN + ')' : '');
+      if (v === 'has') ch.textContent = 'دارای پیشنهاد' + (hasN != null ? ' (' + hasN + ')' : '');
+      if (v === '') ch.textContent = 'همه';
+    });
+  }
+  /* فیلتر سریع: ردیف‌های از قبل رندرشده را نشان/پنهان می‌کند — بدون ساخت دوباره جدول. */
+  window.ptfRfqApplyListFilter = function () {
+    var css = document.getElementById('ptfRfqUiCss');
+    if (css && css.textContent.indexOf('rfq-row-hide') < 0) css.textContent += '#rTb tr.rfq-row-hide{display:none!important}';
+    var tb = document.getElementById('rTb');
+    if (!tb || !tb.querySelector('tr[data-has-offer]')) return false;
+    var qEl = document.getElementById('rSrch');
+    var q = qEl ? String(qEl.value || '').trim().toLowerCase() : '';
+    var ofEl = document.getElementById('rOfferFlt');
+    var ofFlt = ofEl ? String(ofEl.value || '') : (window._rOfferFlt || '');
+    if (ofEl && window._rOfferFlt != null && ofEl.value !== window._rOfferFlt) ofEl.value = window._rOfferFlt;
+    ofFlt = ofEl ? String(ofEl.value || '') : ofFlt;
+    window._rOfferFlt = ofFlt;
+    var noneN = 0, hasN = 0, vis = 0;
+    var empty = tb.querySelector('tr[data-rfq-empty]');
+    tb.querySelectorAll('tr[data-has-offer]').forEach(function (tr) {
+      var has = tr.getAttribute('data-has-offer') === '1';
+      if (has) hasN++; else noneN++;
+      var ok = true;
+      if (ofFlt === 'none' && has) ok = false;
+      if (ofFlt === 'has' && !has) ok = false;
+      if (q && (tr.getAttribute('data-search') || '').indexOf(q) < 0) ok = false;
+      tr.style.display = ok ? '' : 'none';
+      if (ok) vis++;
+    });
+    rfqPaintOfferChips(ofFlt, noneN, hasN);
+    if (!vis) {
+      if (!empty) {
+        empty = document.createElement('tr');
+        empty.setAttribute('data-rfq-empty', '1');
+        empty.innerHTML = '<td colspan="7" style="text-align:center;color:#94a3b8;padding:22px"></td>';
+        tb.appendChild(empty);
+      }
+      empty.style.display = '';
+      empty.querySelector('td').textContent = ofFlt === 'none' ? 'درخواستی بدون پیشنهاد نیست' : (q || ofFlt ? 'موردی با این فیلتر نیست' : 'استعلامی ثبت نشده');
+    } else if (empty) empty.style.display = 'none';
+    return true;
+  };
+  window.ptfRfqOfferFlt = function (v) {
+    window._rOfferFlt = String(v || '');
+    var ofEl = document.getElementById('rOfferFlt');
+    if (ofEl) ofEl.value = window._rOfferFlt;
+    rfqPaintOfferChips(window._rOfferFlt);
+    if (!window.ptfRfqApplyListFilter() && typeof window.renderRfq === 'function') window.renderRfq();
+  };
   window.filterRfq = function () {
-    if (typeof window.renderRfq === 'function') window.renderRfq();
+    if (!window.ptfRfqApplyListFilter() && typeof window.renderRfq === 'function') window.renderRfq();
   };
 
   window.ptfRfqWaitBadge = rfqWaitBadge; /* v16.4 (US-369): بج «منتظر صدور» روی کارت کانبان */
@@ -841,39 +923,38 @@
   window.renderRfq = function () {
     var rfqs = getData('ptf_crm_rfqs');
     var offers = getData('ptf_crm_offers');
+    var offerInq = window.ptfRfqOfferInqSet(offers);
     var tb = document.getElementById('rTb');
     if (!tb) return;
-    /* UR-2026-08-01-07: سورت ستون‌ها (کد/مشتری/تاریخ/وضعیت) */
-    if (window.ptfRegisterSortable) window.ptfRegisterSortable('rfq', {
-      getters: {
-        cd: function (r) { return r.cd || ''; },
-        co: function (r) { return r.co || ''; },
-        dt: function (r) { return r.dt || ''; },
-        st: function (r) { return r.st || ''; }
-      },
-      render: window.renderRfq
-    });
+    if (!window._ptfRfqSortReg && window.ptfRegisterSortable) {
+      window._ptfRfqSortReg = true;
+      window.ptfRegisterSortable('rfq', {
+        getters: {
+          cd: function (r) { return r.cd || ''; },
+          co: function (r) { return r.co || ''; },
+          dt: function (r) { return r.dt || ''; },
+          st: function (r) { return r.st || ''; }
+        },
+        render: window.renderRfq
+      });
+    }
     rfqs = (typeof window.ptfSorted === 'function') ? window.ptfSorted('rfq', rfqs) : rfqs;
-    var qEl = document.getElementById('rSrch');
-    var q = qEl ? String(qEl.value || '').trim().toLowerCase() : '';
     var ofEl = document.getElementById('rOfferFlt');
     var ofFlt = ofEl ? String(ofEl.value || '') : (window._rOfferFlt || '');
-    if (ofEl && window._rOfferFlt && ofEl.value !== window._rOfferFlt) ofEl.value = window._rOfferFlt;
+    if (ofEl && window._rOfferFlt != null && ofEl.value !== window._rOfferFlt) ofEl.value = window._rOfferFlt;
+    ofFlt = ofEl ? String(ofEl.value || '') : ofFlt;
     window._rOfferFlt = ofFlt;
-    rfqs = rfqs.filter(function (r) {
-      if (ofFlt === 'none' && ptfRfqHasOffer(r, offers)) return false;
-      if (ofFlt === 'has' && !ptfRfqHasOffer(r, offers)) return false;
-      if (!q) return true;
-      var blob = ((r.cd || '') + ' ' + (r.inqNo || '') + ' ' + (r.co || '') + ' ' + (r.con || '') + ' ' + (r.ca || '') + ' ' + (r.subj || '') + ' ' + (r.stxt || '')).toLowerCase();
-      return blob.indexOf(q) > -1;
+    var noneN = 0, hasN = 0;
+    rfqs.forEach(function (r0) {
+      if (ptfRfqHasOffer(r0, offers, offerInq)) hasN++; else noneN++;
     });
-    var noneN = 0;
-    getData('ptf_crm_rfqs').forEach(function (r0) { if (!ptfRfqHasOffer(r0, offers)) noneN++; });
-    if (ofEl && ofEl.options) {
-      for (var oi = 0; oi < ofEl.options.length; oi++) {
-        if (ofEl.options[oi].value === 'none') ofEl.options[oi].text = 'بدون پیشنهاد (' + noneN + ')';
-      }
-    }
+    rfqPaintOfferChips(ofFlt, noneN, hasN);
+    var userNm = {};
+    try {
+      (getData('ptf_crm_users') || []).forEach(function (u) {
+        if (u && (u.username || u.user)) userNm[u.username || u.user] = u.name || u.nm || u.username || u.user;
+      });
+    } catch (eUsers) {}
     var h = '';
     /* v17.3 (US-413 — کیس R8): رنگ ردیف برد/باخت — سبز=CO برنده، قرمز=بازنده (بایگانی lost) — اولویت بر رنگ مهلت */
     var _wonInqs = {}, _lostInqs = {};
@@ -903,11 +984,7 @@
       var crLine = '';
       try {
         if (r.crBy || r.crAt) {
-          var crName = r.crBy || '';
-          try {
-            var uu = (getData('ptf_crm_users') || []).filter(function (x) { return x.username === r.crBy || x.user === r.crBy; })[0];
-            if (uu) crName = uu.name || uu.nm || r.crBy;
-          } catch (eU) {}
+          var crName = userNm[r.crBy] || r.crBy || '';
           crLine = '<div style="font-size:10.5px;color:#64748b;margin-top:2px">📝 ثبت: ' + escP(crName || 'نامشخص') + (r.crAt ? ' — ' + escP(r.crAt) : '') + '</div>';
         } else {
           crLine = '<div style="font-size:10.5px;color:#94a3b8;margin-top:2px">📝 ثبت: نامشخص (قدیمی)</div>';
@@ -918,7 +995,9 @@
       if (r.inqNo && String(r.inqNo).trim() && String(r.inqNo).trim() !== String(r.cd || '').trim()) {
         customerInqLine = '<div style="font-size:10.5px;color:#0e7490;margin-top:2px">↳ درخواست کارفرما: <span dir="ltr">' + escP(String(r.inqNo).trim()) + '</span></div>';
       }
-      h += '<tr' + (rowBg ? ' style="background:' + rowBg + '"' : '') + '><td><strong>' + escP(r.cd) + '</strong>' + wlBadge + srcBadge + dueBadge + attBadge + customerInqLine + crLine + '</td><td>' + escP(r.co) +
+      var hasOff = ptfRfqHasOffer(r, offers, offerInq);
+      var searchBlob = ((r.cd || '') + ' ' + (r.inqNo || '') + ' ' + (r.co || '') + ' ' + (r.con || '') + ' ' + (r.ca || '') + ' ' + (r.subj || '') + ' ' + (r.stxt || '')).toLowerCase().replace(/"/g, '');
+      h += '<tr data-has-offer="' + (hasOff ? '1' : '0') + '" data-search="' + escP(searchBlob) + '"' + (rowBg ? ' style="background:' + rowBg + '"' : '') + '><td><strong>' + escP(r.cd) + '</strong>' + wlBadge + srcBadge + dueBadge + attBadge + customerInqLine + crLine + '</td><td>' + escP(r.co) +
         (r.con ? ' <small style="color:#94a3b8">(' + escP(r.con) + ')</small>' : '') + '</td>' +
         '<td>' + escP(r.ca || '-') + '</td><td>' + escP(r.dt || '—') + '</td>' +
         '<td><span class="bd b-' + (r.st || 'st1') + '">' + escP(r.stxt || 'دریافت اولیه') + '</span>' + rfqWaitBadge(r, offers) + '</td>' +
@@ -928,7 +1007,8 @@
         '<button class="bt bt-o" data-rfq-action="showRefModal" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="showRefModal(\'' + ptfOnClickArg(r.cd) + '\')" title="ارجاع" aria-label="ارجاع درخواست">📨</button>' +
         '</td></tr>';
     });
-    tb.innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:22px">' + (ofFlt === 'none' ? 'درخواستی بدون پیشنهاد نیست' : (q || ofFlt ? 'موردی با این فیلتر نیست' : 'استعلامی ثبت نشده')) + '</td></tr>';
+    tb.innerHTML = h || '<tr data-rfq-empty="1"><td colspan="7" style="text-align:center;color:#94a3b8;padding:22px">استعلامی ثبت نشده</td></tr>';
+    window.ptfRfqApplyListFilter();
     updateStats();
     renderRfqPending();
   };
@@ -1552,27 +1632,6 @@
         try { if (!localStorage.getItem('ptf_crm_token')) return; } catch (eTk2) { return; }
         if (window._ptfSyncing) return;
         window._ptfSyncing = true;
-        try { syncServerInbox(); } finally { window._ptfSyncing = false; }
-      }, 45000);
-    }
-  }
-
-  var tries = 0;
-  var bt = setInterval(function () {
-    tries++;
-    var crmVisible = document.getElementById('crmL') && document.getElementById('crmL').style.display !== 'none';
-    if (crmVisible) { boot(); clearInterval(bt); }
-    if (tries > 60) clearInterval(bt);
-  }, 300);
-  var _showCrm2 = window.showCrm;
-  if (_showCrm2) {
-    window.showCrm = function () {
-      _showCrm2();
-      setTimeout(boot, 700);
-    };
-  }
-})();
- = true;
         try { syncServerInbox(); } finally { window._ptfSyncing = false; }
       }, 45000);
     }

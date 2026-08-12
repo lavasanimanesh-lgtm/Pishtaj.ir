@@ -115,7 +115,7 @@
   };
   function applyBtnIcons() {
     document.querySelectorAll('#panels .ba, #panels .bt').forEach(function (b) {
-      if (b.getAttribute('data-mi')) return;
+      if (b.getAttribute('data-mi') || (b.classList && b.classList.contains('msg-quick-app'))) return;
       var txt = b.textContent || '';
       var em = Object.keys(BTN_ICONS).filter(function (e) { return txt.trim().indexOf(e) === 0; })[0];
       if (!em) return;

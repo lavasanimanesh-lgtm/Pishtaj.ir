@@ -1,0 +1,12 @@
+'use strict';
+var fs = require('fs');
+var assert = require('assert');
+var pro = fs.readFileSync('crm/offers-pro.js', 'utf8');
+var rfq = fs.readFileSync('crm/rfqsmart.js', 'utf8');
+assert.ok(pro.indexOf("offerTplGo('") > -1 || pro.indexOf("offerTplGo(\\''") > -1, 'tpl go');
+assert.ok(pro.indexOf("isPreview === 'share'") > -1, 'print dialog share mode');
+assert.ok(pro.indexOf("dest === 'share'") > -1, 'print builds then shares');
+assert.ok(pro.indexOf('ptfShareHtmlToMessenger') > -1, 'share html helper');
+assert.ok(rfq.indexOf('rfqsShareToMessenger') > -1, 'rfq share');
+assert.ok(rfq.indexOf('rfqsPrintPickShare') > -1, 'rfq dedicated share');
+console.log('PASS tester392 print-share-msg');

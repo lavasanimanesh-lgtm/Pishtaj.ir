@@ -180,10 +180,14 @@
     'body.ptf-dark #payablesBox{background:#451a03!important;border-color:#92400e!important}' +
     'body.ptf-dark #payablesBox .payables-summary h4,body.ptf-dark #payablesBox .payables-total{color:#fde68a!important}' +
     'body.ptf-dark #payablesBox .payable-action{background:#162235!important;color:#e2e8f0!important;border-color:#40526b!important}' +
-    'body.ptf-dark .md .mx-dots .mx-dot.r{background:#451a1a!important;border-color:#991b1b!important}' +
-    'body.ptf-dark .md .mx-dots .mx-dot.y{background:#451a03!important;border-color:#92400e!important}' +
-    'body.ptf-dark .md .mx-dots .mx-dot.g{background:#064e3b!important;border-color:#047857!important}' +
-    'body.ptf-dark .md .mx-dots .mx-dot.a{background:#2e1065!important;border-color:#6d28d9!important}' +
+    /* کنترل پنجره مودال در شب: قبلاً قهوه‌ای/سبز خیلی تیره روی سطح تیره محو می‌شد. */ +
+    'body.ptf-dark .mx-dots{padding:5px 8px!important;border-radius:999px!important;background:rgba(2,6,23,.72)!important;border:1px solid rgba(226,232,240,.28)!important;box-shadow:0 4px 16px rgba(0,0,0,.4)!important;gap:8px!important}' +
+    'body.ptf-dark .mx-dot,body.ptf-dark .md .mx-dots .mx-dot,body.ptf-dark .ptfdlg .mx-dots .mx-dot{box-shadow:0 0 0 2px rgba(15,23,42,.85)!important}' +
+    'body.ptf-dark .mx-dot span,body.ptf-dark .md .mx-dots .mx-dot span,body.ptf-dark .ptfdlg .mx-dots .mx-dot span{display:grid!important;place-items:center!important;color:#0f172a!important;opacity:1!important;font-weight:900!important}' +
+    'body.ptf-dark .md .mx-dots .mx-dot.r,body.ptf-dark .ptfdlg .mx-dots .mx-dot.r{background:#f87171!important;border-color:#fecaca!important}' +
+    'body.ptf-dark .md .mx-dots .mx-dot.y,body.ptf-dark .ptfdlg .mx-dots .mx-dot.y{background:#fbbf24!important;border-color:#fde68a!important}' +
+    'body.ptf-dark .md .mx-dots .mx-dot.g,body.ptf-dark .ptfdlg .mx-dots .mx-dot.g{background:#4ade80!important;border-color:#bbf7d0!important}' +
+    'body.ptf-dark .md .mx-dots .mx-dot.a,body.ptf-dark .ptfdlg .mx-dots .mx-dot.a{background:#c4b5fd!important;border-color:#ddd6fe!important}' +
     'body.ptf-dark [style*="background:#faf5ff"],body.ptf-dark [style*="background:#f8fbff"],body.ptf-dark [style*="background:#ecfeff"],body.ptf-dark [style*="background:#eef2ff"]{background:#1d2a3d!important;color:#e2e8f0}' +
     'body.ptf-dark [style*="background:#f1f5f9"],body.ptf-dark [style*="background:#f0f9ff"],body.ptf-dark [style*="background:#f5f3ff"]{background:#1d2a3d!important;color:#e2e8f0}';
   document.head.appendChild(style);

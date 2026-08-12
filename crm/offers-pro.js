@@ -270,9 +270,10 @@
     }).join('');
     var html = '<div class="md-b" style="display:grid;z-index:2800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
       '<h3>🖨 انتخاب قالب سند ' + escP(o.no) + '</h3>' + cards +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       '<button class="bt bt-o" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', true)">👁 پیش‌نمایش</button>' +
+      '<button class="bt bt-o" style="color:#059669;border-color:#86efac" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', \'share\')">📤 پیام‌رسان</button>' +
       '<button class="bt" onclick="offerTplGo(\'' + ptfOnClickArg(o.no) + '\', false)">🖨 دریافت PDF</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -282,7 +283,8 @@
     localStorage.setItem('ptf_offer_tpl', tpl);
     var o = getData('ptf_crm_offers').filter(function (x) { return x.no === no; })[0] || window._offPreviewObj;
     if (!o) return;
-    offerPrintTpl(o, tpl, isPreview);
+    var share = isPreview === 'share';
+    offerPrintTpl(o, tpl, share ? false : !!isPreview, share ? 'share' : '');
   };
 
   /* رشته‌های مشترک سند */
@@ -525,6 +527,36 @@
     if (typeof ptfToast === 'function') ptfToast('⬇️ فایل HTML قابل چاپ دانلود شد', 'ok');
   };
 
+  window.ptfShareHtmlToMessenger = function (html, fileName) {
+    if (!html) { if (typeof ptfToast === 'function') ptfToast('سند آماده نیست', 'warn'); return false; }
+    var clean = String(html).replace(/<script[^>]*>[\s\S]*?window\.print\(\)[\s\S]*?<\/script>/gi, '');
+    var name = typeof ptfPdfFileName === 'function' ? ptfPdfFileName(fileName) : (fileName || 'document');
+    var fname = name + '.html';
+    var blob = new Blob([clean], { type: 'text/html;charset=utf-8' });
+    try {
+      var file = new File([blob], fname, { type: 'text/html' });
+      var payload = { files: [file], title: name, text: 'سند ' + name };
+      if (navigator.share && (typeof navigator.canShare !== 'function' || navigator.canShare(payload))) {
+        navigator.share(payload).then(function () {
+          if (typeof ptfToast === 'function') ptfToast('سند به برنامهٔ پیام‌رسان داده شد — مخاطب را انتخاب کنید', 'ok');
+        }).catch(function (err) {
+          if (err && (err.name === 'AbortError' || /abort|cancel/i.test(String(err.message || '')))) return;
+          if (typeof ptfToast === 'function') ptfToast('ارسال مستقیم پشتیبانی نشد. از موبایل Chrome/Safari استفاده کنید.', 'warn');
+        });
+        return true;
+      }
+    } catch (eShare) {}
+    if (typeof ptfToast === 'function') ptfToast('این دستگاه/مرورگر اشتراک فایل با پیام‌رسان را ندارد. روی گوشی از دکمهٔ چاپ → پیام‌رسان استفاده کنید.', 'warn');
+    return false;
+  };
+  window.ptfSharePreviewToMessenger = function () {
+    var fr = document.getElementById('ptfPrintFrame');
+    if (!fr) return;
+    var html = fr.srcdoc || (fr.contentWindow ? fr.contentWindow.document.documentElement.outerHTML : '');
+    var name = typeof ptfPdfFileName === 'function' ? ptfPdfFileName(window._ptfPrintFileName) : (window._ptfPrintFileName || 'document');
+    window.ptfShareHtmlToMessenger(html, name);
+  };
+
   window.ptfDownloadPreviewWord = function (fileName) {
     var fr = document.getElementById('ptfPrintFrame');
     if (!fr) return;
@@ -604,6 +636,7 @@
       '<div><h3 id="ptfPrintPreviewTitle">👁 ' + safeTitle + '</h3><small style="display:block;color:#64748b;margin-top:3px">نام پیش‌فرض PDF: <b dir="ltr">' + escP(printFileName) + '.pdf</b></small></div>' +
       '<div class="ptf-print-actions" role="group" aria-label="عملیات پیش‌نمایش چاپ">' +
       previewAction('print', '🖨', 'چاپ / PDF', 'باز کردن چاپ یا ذخیره PDF', 'ptfPrintPreviewGo()', true) +
+      previewAction('share', '📤', 'پیام‌رسان', 'ارسال سند به واتساپ/تلگرام/بله بدون ذخیره روی گوشی', 'ptfSharePreviewToMessenger()', false) +
       previewAction('layout', '🎛', 'چیدمان', 'تنظیم چیدمان و گنجایش صفحه', 'ptfToggleLayoutBar()', false) +
       previewAction('html', '⬇', 'HTML', 'دانلود HTML سند', 'ptfDownloadPreviewHtml(\'' + ptfOnClickArg(printFileName) + '\')', false) +
       previewAction('word', '⬇', 'Word', 'دانلود Word سند', 'ptfDownloadPreviewWord(\'' + ptfOnClickArg(printFileName) + '\')', false) +
@@ -632,7 +665,7 @@
     }
   };
 
-  window.offerPrintTpl = function (o, tpl, isPreview) {
+  window.offerPrintTpl = function (o, tpl, isPreview, dest) {
     var isCO = o.kind === 'CO' || o.kind === 'TC';
     var cur = offerCurrency(o);
     var _pAs = (o.kind !== 'TO') ? (o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) : ''; /* v20.1 US-442: قالب چاپ ملاک عنوان */
@@ -783,6 +816,10 @@
 
     var pdfFileName = typeof ptfOfferPdfFileName === 'function' ? ptfOfferPdfFileName(o) : o.no;
     var fullHtml = '<!doctype html><html><head><meta charset="utf-8"><title>' + escP(pdfFileName) + '</title><style>' + css + '</style></head><body>' + printHint() + body + '</body></html>';
+    if (dest === 'share') {
+      window.ptfShareHtmlToMessenger(fullHtml, pdfFileName);
+      return;
+    }
     window.ptfPreviewPrintableDoc(title + ' — ' + escP(o.no), fullHtml, pdfFileName);
   };
 

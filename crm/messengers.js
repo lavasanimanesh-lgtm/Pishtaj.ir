@@ -72,12 +72,19 @@
       return false;
     }
   };
+  var LOGOS = {
+    wa: '<svg class="msg-logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#25D366"/><path fill="#fff" d="M17.5 14.3c-.2-.1-1.3-.6-1.5-.7-.2-.1-.4-.1-.5.1l-.7.8c-.1.2-.3.2-.5.1-1.4-.7-2.3-1.6-3-2.9-.1-.2 0-.4.1-.5l.5-.6c.1-.1.2-.3.1-.5l-.6-1.5c-.1-.3-.3-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.7.7-1 1.7-.9 2.7.2 2.2 1.8 4.3 4 5.3 2 .9 2.4.7 2.8.7.5 0 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2z"/><path fill="none" stroke="#fff" stroke-width="1.6" d="M8.2 15.8l.5-1.8A5.6 5.6 0 1116.7 16l1.8.5-1.2-1.6"/></svg>',
+    tg: '<svg class="msg-logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#229ED9"/><path fill="#fff" d="M17.6 7.2l-2.1 9.9c-.2.8-.6 1-1.2.6l-3.3-2.4-1.6 1.5c-.2.2-.3.3-.6.3l.2-3.4 6.2-5.6c.3-.2-.1-.4-.4-.2l-7.6 4.8-3.3-1c-.7-.2-.7-.7.2-1.1l12.8-4.9c.6-.2 1.1.1.7 1.5z"/></svg>',
+    bale: '<svg class="msg-logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#00B956"/><path fill="#fff" d="M8 6.8h4.2c2.4 0 3.9 1.3 3.9 3.2 0 1.2-.7 2.2-1.8 2.7 1.3.5 2.1 1.6 2.1 3 0 2.1-1.7 3.5-4.3 3.5H8V6.8zm2.3 1.8v3.1h1.8c1.2 0 1.9-.6 1.9-1.6s-.7-1.5-1.9-1.5H10.3zm0 4.8v3.5h2.1c1.3 0 2.1-.6 2.1-1.8s-.8-1.7-2.1-1.7h-2.1z"/></svg>',
+    eitaa: '<svg class="msg-logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#F97316"/><path fill="#fff" d="M8.2 7.2h7.6v2H10.5v1.8h4.6v1.9H10.5V17H8.2V7.2z"/></svg>',
+    rubika: '<svg class="msg-logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#7C3AED"/><path fill="#fff" d="M8 7.1h4.4c2.5 0 4 1.3 4 3.3 0 1.4-.8 2.5-2.1 3l2.4 3.5h-2.7l-2.1-3.1H10.3V17H8V7.1zm2.3 1.8v3.2h2c1.2 0 1.9-.5 1.9-1.6s-.7-1.6-1.9-1.6h-2z"/></svg>'
+  };
   var APPS = [
-    { id: 'wa', lb: 'واتساپ', short: 'واتساپ', ic: '🟢', link: function (c) { return whatsAppAppLink(c.mob, c.txt); } },
-    { id: 'tg', lb: 'تلگرام', short: 'تلگرام', ic: '🔵', link: function (c) { var u = cleanHandle(c.tg), n = digits(c.mob); return u ? 'https://t.me/' + u : (n ? 'https://t.me/+' + n + (c.txt ? '?text=' + encodeURIComponent(c.txt) : '') : null); } },
-    { id: 'bale', lb: 'بله', short: 'بله', ic: '🟩', web: 'https://web.bale.ai/', link: function (c) { var u = cleanHandle(c.bale); return u ? 'https://ble.ir/' + u : (digits(c.mob) ? this.web : null); } },
-    { id: 'eitaa', lb: 'ایتا', short: 'ایتا', ic: '🟧', web: 'https://web.eitaa.com/', link: function (c) { var u = cleanHandle(c.eitaa); return u ? 'https://eitaa.com/' + u : (digits(c.mob) ? this.web : null); } },
-    { id: 'rubika', lb: 'روبیکا', short: 'روبیکا', ic: '🟣', web: 'https://web.rubika.ir/', link: function (c) { var u = cleanHandle(c.rubika); return u ? 'https://rubika.ir/' + u : (digits(c.mob) ? this.web : null); } }
+    { id: 'wa', lb: 'واتساپ', short: 'واتساپ', ic: '🟢', logo: LOGOS.wa, link: function (c) { return whatsAppAppLink(c.mob, c.txt); } },
+    { id: 'tg', lb: 'تلگرام', short: 'تلگرام', ic: '🔵', logo: LOGOS.tg, link: function (c) { var u = cleanHandle(c.tg), n = digits(c.mob); return u ? 'https://t.me/' + u : (n ? 'https://t.me/+' + n + (c.txt ? '?text=' + encodeURIComponent(c.txt) : '') : null); } },
+    { id: 'bale', lb: 'بله', short: 'بله', ic: '🟩', logo: LOGOS.bale, web: 'https://web.bale.ai/', link: function (c) { var u = cleanHandle(c.bale); return u ? 'https://ble.ir/' + u : (digits(c.mob) ? this.web : null); } },
+    { id: 'eitaa', lb: 'ایتا', short: 'ایتا', ic: '🟧', logo: LOGOS.eitaa, web: 'https://web.eitaa.com/', link: function (c) { var u = cleanHandle(c.eitaa); return u ? 'https://eitaa.com/' + u : (digits(c.mob) ? this.web : null); } },
+    { id: 'rubika', lb: 'روبیکا', short: 'روبیکا', ic: '🟣', logo: LOGOS.rubika, web: 'https://web.rubika.ir/', link: function (c) { var u = cleanHandle(c.rubika); return u ? 'https://rubika.ir/' + u : (digits(c.mob) ? this.web : null); } }
   ];
   /* v34.4.40: این سه پیام‌رسان URL عمومی و مستندِ «چت خصوصی با شماره» ندارند؛
      اما نسخهٔ وب دارند. اگر username ثبت نشده و موبایل موجود است، نسخهٔ وب باز و
@@ -193,17 +200,31 @@
     return { mob: firstMobile(c), txt: txt || '', tg: ids.tg, bale: ids.bale, eitaa: ids.eitaa, rubika: ids.rubika };
   }
   function quickApps() { return APPS.filter(function (a) { return ['wa', 'tg', 'bale', 'eitaa', 'rubika'].indexOf(a.id) > -1; }); }
+  function ensureMsgQuickCss() {
+    if (document.getElementById('ptfMsgQuickCss')) return;
+    var st = document.createElement('style');
+    st.id = 'ptfMsgQuickCss';
+    st.textContent =
+      '.msg-quick-links{direction:rtl;display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:6px}' +
+      '.msg-quick-app{display:inline-flex!important;align-items:center;justify-content:center;gap:0;width:32px;height:32px;min-width:32px;min-height:32px;padding:0!important;border:0!important;border-radius:10px!important;background:transparent!important;font-size:0!important;line-height:1;cursor:pointer;box-shadow:none}' +
+      '.msg-quick-app .msg-logo{width:26px;height:26px;display:block;flex:none}' +
+      '.msg-quick-app .msg-quick-name{display:none}' +
+      '.msg-quick-app.is-missing{opacity:.38;filter:grayscale(.35)}' +
+      '@media(min-width:769px){.msg-quick-app{width:auto;min-width:0;height:28px;padding:0 7px 0 4px!important;gap:5px;border:1px solid #e2e8f0!important;background:#fff!important;font-size:11px!important;color:#334155!important}.msg-quick-app .msg-logo{width:18px;height:18px}.msg-quick-app .msg-quick-name{display:inline}}' +
+      '@media(max-width:768px){.tb2 .ba.msg-quick-app,.tb2 button.msg-quick-app{font-size:0!important;width:34px!important;height:34px!important;min-width:34px!important;max-width:34px!important;padding:0!important}#cTb .msg-quick-app::before,#sTb .msg-quick-app::before,#cTb .msg-quick-app::first-letter,#sTb .msg-quick-app::first-letter{content:none!important;font-size:0!important}}';
+    document.head.appendChild(st);
+  }
   window.ptfMsgQuickHtml = function (entityKey, c) {
     if (!c || !c.cd) return '';
     var ctx = msgContext(c, '');
-    var colors = { wa: '#15803d', tg: '#0369a1', bale: '#047857', eitaa: '#c2410c', rubika: '#7e22ce' };
-    return '<div class="msg-quick-links" data-msg-entity="' + escP(c.cd) + '" style="direction:rtl;display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-top:5px">' +
+    ensureMsgQuickCss();
+    return '<div class="msg-quick-links" data-msg-entity="' + escP(c.cd) + '">' +
       quickApps().map(function (a) {
         var active = !!a.link(ctx), webByPhone = phoneWebFallback(a, ctx);
         var hint = webByPhone ? ('باز کردن ' + a.lb + ' وب؛ شماره برای یافتن مخاطب کپی می‌شود') : (active ? ('باز کردن چت مستقیم در ' + a.lb) : ('شناسه/موبایل ' + a.lb + ' ثبت نشده — برای تنظیم کلیک کنید'));
-        return '<button type="button" class="ba msg-quick-app' + (active ? '' : ' is-missing') + '" data-msg-app="' + a.id + '"' +
-          ' style="padding:2px 5px;font-size:10.5px;border:1px solid ' + (active ? colors[a.id] : '#cbd5e1') + ';border-radius:7px;color:' + (active ? colors[a.id] : '#94a3b8') + ';background:#fff;white-space:nowrap;opacity:' + (active ? '1' : '.72') + '"' +
-          ' title="' + escP(hint) + '" aria-label="' + escP(hint) + '" onclick="event.stopPropagation();ptfMsgQuickOpen(\'' + a.id + '\',\'' + ptfOnClickArg(entityKey) + '\',\'' + ptfOnClickArg(c.cd) + '\')">' + a.ic + ' ' + a.short + '</button>';
+        return '<button type="button" class="msg-quick-app msg-app-' + a.id + (active ? '' : ' is-missing') + '" data-msg-app="' + a.id + '" data-noix="1"' +
+          ' title="' + escP(hint) + '" aria-label="' + escP(a.lb) + '" onclick="event.stopPropagation();ptfMsgQuickOpen(\'' + a.id + '\',\'' + ptfOnClickArg(entityKey) + '\',\'' + ptfOnClickArg(c.cd) + '\')">' +
+          (a.logo || a.ic) + '<span class="msg-quick-name">' + a.short + '</span></button>';
       }).join('') + '</div>';
   };
   window.ptfMsgQuickOpen = function (appId, entityKey, cd) {
