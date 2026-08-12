@@ -179,8 +179,8 @@
       else if (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment') a.debit += (+x.amt || 0);
       else if (x.type === 'call_due') a.callDue += (+x.amt || 0);
       else if (x.type === 'call_pay') a.callPay += (+x.amt || 0);
-      else if (x.type === 'call_over') a.callOver += (+x.amt || 0);
-      else if (x.type === 'call_credit_use') a.callOverUsed += (+x.amt || 0);
+      else if (x.type === 'call_over' || x.type === 'chair_in') a.callOver += (+x.amt || 0);
+      else if (x.type === 'call_credit_use' || x.type === 'chair_out') a.callOverUsed += (+x.amt || 0);
       return a;
     }, { credit: 0, debit: 0, callDue: 0, callPay: 0, callOver: 0, callOverUsed: 0 });
     var petty = 0;
@@ -412,7 +412,7 @@
     var s = shAll().filter(function (x) { return x.cd === cd; })[0]; if (!s) return;
     var rows = txAll().filter(function (x) { return x.shCd === cd; }).map(function (x) {
       var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due' || x.type === 'call_credit_use') ? '-' : '+';
-      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)', call_credit_use: 'تهاتر طلب با فراخوان' }[x.type] || x.type;
+      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)', call_credit_use: 'تهاتر طلب با فراخوان', chair_in: 'تزریق شخصی رییس به صندوق', chair_out: 'تسویه طلب رییس از صندوق' }[x.type] || x.type;
       var nFiles = (x.files || []).length;
       var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
       return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td></tr>';

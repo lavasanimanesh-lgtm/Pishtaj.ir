@@ -369,14 +369,25 @@
     try {
       (getData('ptf_crm_sharetx') || []).forEach(function (x) {
         if (!x || x.status === 'void' || x.voided) return;
-        if (x.type !== 'call_pay' && x.type !== 'call_over') return;
+        if (x.type !== 'call_pay' && x.type !== 'call_over' && x.type !== 'chair_in') return;
         if (x.fromCredit || x.noCash) return;
         var iso = cashIsoOf(x.t || x.month || '');
         if (!iso && fiscalYearOf(x.t || x.month || '') === String(year)) shareholderInject += (+x.amt || 0);
         else if (cashInRange(iso, start, end)) shareholderInject += (+x.amt || 0);
       });
     } catch (eInj) {}
-    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty + out.coverCommission;
+    var chairRepay = 0;
+    try {
+      (getData('ptf_crm_sharetx') || []).forEach(function (x) {
+        if (!x || x.status === 'void' || x.voided) return;
+        if (x.type !== 'chair_out') return;
+        var iso = cashIsoOf(x.t || x.month || '');
+        if (!iso && fiscalYearOf(x.t || x.month || '') === String(year)) chairRepay += (+x.amt || 0);
+        else if (cashInRange(iso, start, end)) chairRepay += (+x.amt || 0);
+      });
+    } catch (eCh) {}
+    out.chairRepay = chairRepay;
+    var outflowsTotal = out.supplierInvoices + out.unallocatedPayments + out.independentCheques + out.opex + out.petty + out.coverCommission + chairRepay;
     var netCash = receipts + shareholderInject - outflowsTotal;
     var cashEnd = openingCash + netCash;
     return { year: year, openingCash: openingCash, receipts: receipts, shareholderInject: shareholderInject, pendingCheques: chqPending, outflows: out, outflowsTotal: outflowsTotal, netCash: netCash, cashEnd: cashEnd, floor: window.ptfFiscalCashFloor(year), coverCount: out.coverCount, coverCommission: out.coverCommission, coverVat: out.coverVat, coverNetBenefit: out.coverNetBenefit };

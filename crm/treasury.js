@@ -215,6 +215,36 @@
     get('ptf_crm_sharetx').forEach(function (x) {
       if (!active(x)) return;
       var t = txt(x.type);
+      if (t === 'chair_in') {
+        var cin = num(x.amt || x.amount);
+        if (!cin) return;
+        pushMove(out, {
+          key: 'chairin:' + (x.cd || ''),
+          cd: x.cd || '',
+          dir: 'in',
+          amount: cin,
+          dateISO: isoOf(x),
+          dateFa: faOf(x),
+          src: 'تزریق شخصی رییس',
+          label: 'تزریق از حساب شخصی ' + (x.shName || 'رییس')
+        });
+        return;
+      }
+      if (t === 'chair_out') {
+        var cout = num(x.amt || x.amount);
+        if (!cout) return;
+        pushMove(out, {
+          key: 'chairo:' + (x.cd || ''),
+          cd: x.cd || '',
+          dir: 'out',
+          amount: cout,
+          dateISO: isoOf(x),
+          dateFa: faOf(x),
+          src: 'تسویه طلب رییس',
+          label: 'برگشت نقد به حساب شخصی ' + (x.shName || 'رییس')
+        });
+        return;
+      }
       if (t === 'call_pay' || t === 'call_over') {
         if (x.fromCredit || x.noCash) return;
         var inAmt = num(x.amt || x.amount);
@@ -289,6 +319,156 @@
   };
 
 
+  function nmNorm(s) {
+    return String(s || '').replace(/\s+/g, ' ').trim();
+  }
+  window.ptfTreasuryCustodianSh = function () {
+    var shs = get('ptf_crm_shareholders').filter(function (s) { return s && s.active !== false; });
+    var marked = shs.filter(function (s) { return s.custodian === true; })[0];
+    if (marked) return marked;
+    var chairUser = null;
+    try {
+      var users = (typeof window.getData === 'function') ? window.getData('ptf_crm_users') : [];
+      chairUser = (Array.isArray(users) ? users : []).filter(function (u) {
+        return u && (u.roleId === 'chairman' || u.role === 'رییس هیات مدیره');
+      })[0];
+    } catch (eU) {}
+    if (chairUser) {
+      var n1 = nmNorm(chairUser.name);
+      var hit = shs.filter(function (s) { return nmNorm(s.name) === n1; })[0];
+      if (hit) return hit;
+    }
+    return null;
+  };
+  window.ptfTreasurySetCustodian = function (shCd) {
+    var list = get('ptf_crm_shareholders');
+    var found = false;
+    list.forEach(function (s) {
+      if (!s) return;
+      if (s.cd === shCd) { s.custodian = true; found = true; }
+      else if (s.custodian) s.custodian = false;
+    });
+    if (!found) return false;
+    if (typeof window.setData === 'function') window.setData('ptf_crm_shareholders', list);
+    else localStorage.setItem('ptf_crm_shareholders', JSON.stringify(list));
+    if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+    return true;
+  };
+  window.ptfTreasuryChairPosition = function () {
+    var cash = window.ptfTreasuryDerivedCash();
+    var sh = window.ptfTreasuryCustodianSh();
+    var bal = (sh && typeof window.ptfShareholderBalance === 'function') ? window.ptfShareholderBalance(sh.cd) : {};
+    var claim = Math.round(num(bal.callCredit));
+    var companyCash = Math.round(num(cash.derived));
+    return {
+      sh: sh,
+      name: sh ? sh.name : '',
+      companyCash: companyCash,
+      claim: claim,
+      hint: companyCash < 0 ? 'مانده صندوق منفی است؛ اگر رییس از حساب شخصی هزینه کرده، با «تزریق شخصی» ثبت شود.' : ''
+    };
+  };
+  function chairCan() {
+    try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; }
+  }
+  function chairLocked() {
+    try {
+      var y = (typeof faDate === 'function') ? String(faDate()).split('/')[0] : '';
+      if (typeof ptfFiscalYearOf === 'function') y = ptfFiscalYearOf(y) || y;
+      return typeof ptfFiscalYearLocked === 'function' && y && ptfFiscalYearLocked(y);
+    } catch (e) { return false; }
+  }
+  window.ptfTreasuryChairIn = function () {
+    if (!chairCan()) { alert('⛔ فقط مدیران ارشد'); return; }
+    if (chairLocked()) { alert('🔒 سال مالی قفل است.'); return; }
+    var sh = window.ptfTreasuryCustodianSh();
+    if (!sh) { alert('اول مشخص کنید رییس کدام سهامدار است.'); return; }
+    function go(v) {
+      var amt = Math.round(num(v && v.amt));
+      if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
+      if (typeof window.ptfShareAddTx === 'function') {
+        window.ptfShareAddTx('chair_in', sh, amt, String((v && v.note) || 'تزریق از حساب شخصی رییس به صندوق شرکت'), {});
+      }
+      try { if (typeof audit === 'function') audit('خزانه', 'تزریق شخصی رییس ' + money(amt), sh.cd); } catch (eA) {}
+      if (typeof ptfToast === 'function') ptfToast('تزریق ثبت شد — نقد شرکت و طلب رییس هر دو بالا رفت', 'ok');
+      if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+      if (typeof window.ptfShareRender === 'function') window.ptfShareRender();
+    }
+    if (typeof ptfDialog === 'function') {
+      ptfDialog({
+        title: 'تزریق از حساب شخصی — ' + sh.name,
+        body: 'وقتی رییس از جیب خودش به حساب شرکت (یا مستقیم بابت هزینه شرکت) پول می‌گذارد. نقد شرکت زیاد می‌شود و همان مبلغ طلب رییس از شرکت می‌شود.',
+        fields: [
+          { id: 'amt', label: 'مبلغ تزریق (ریال) *', type: 'number', required: true, dir: 'ltr' },
+          { id: 'note', label: 'شرح', type: 'textarea', rows: 2, value: 'تزریق از حساب شخصی به صندوق شرکت' }
+        ],
+        okText: 'ثبت تزریق',
+        onOk: go
+      });
+      return;
+    }
+    var raw = prompt('مبلغ تزریق شخصی (ریال)', '');
+    if (raw == null) return;
+    go({ amt: raw, note: '' });
+  };
+  window.ptfTreasuryChairOut = function () {
+    if (!chairCan()) { alert('⛔ فقط مدیران ارشد'); return; }
+    if (chairLocked()) { alert('🔒 سال مالی قفل است.'); return; }
+    var pos = window.ptfTreasuryChairPosition();
+    if (!pos.sh) { alert('اول مشخص کنید رییس کدام سهامدار است.'); return; }
+    if (pos.claim <= 0) { alert('طلب بازی برای رییس ثبت نشده.'); return; }
+    function go(v) {
+      var amt = Math.round(num(v && v.amt));
+      if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
+      if (amt > pos.claim) { alert('بیش از طلب ثبت‌شده (' + money(pos.claim) + ') نمی‌شود تسویه کرد.'); return; }
+      if (typeof window.ptfShareAddTx === 'function') {
+        window.ptfShareAddTx('chair_out', pos.sh, amt, String((v && v.note) || 'تسویه طلب رییس از نقد شرکت'), {});
+      }
+      try { if (typeof audit === 'function') audit('خزانه', 'تسویه طلب رییس ' + money(amt), pos.sh.cd); } catch (eA) {}
+      if (typeof ptfToast === 'function') ptfToast('تسویه ثبت شد — نقد شرکت و طلب رییس هر دو کم شد', 'ok');
+      if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+      if (typeof window.ptfShareRender === 'function') window.ptfShareRender();
+    }
+    if (typeof ptfDialog === 'function') {
+      ptfDialog({
+        title: 'تسویه طلب رییس — ' + pos.name,
+        body: 'طلب فعلی: <b>' + money(pos.claim) + '</b> — نقد شرکت نزد رییس: <b>' + money(pos.companyCash) + '</b><br><small>وقتی از حساب شرکت به حساب شخصی رییس برمی‌گردد تا طلبش کم شود.</small>',
+        fields: [
+          { id: 'amt', label: 'مبلغ تسویه (ریال) *', type: 'number', required: true, dir: 'ltr', value: String(pos.claim) },
+          { id: 'note', label: 'شرح', type: 'textarea', rows: 2, value: 'برگشت نقد به حساب شخصی رییس' }
+        ],
+        okText: 'ثبت تسویه',
+        onOk: go
+      });
+      return;
+    }
+    var raw = prompt('مبلغ تسویه طلب (ریال)', String(pos.claim));
+    if (raw == null) return;
+    go({ amt: raw, note: '' });
+  };
+  function chairPanelHtml() {
+    var pos = window.ptfTreasuryChairPosition();
+    var shs = get('ptf_crm_shareholders').filter(function (s) { return s && s.active !== false; });
+    if (!pos.sh) {
+      var picks = shs.map(function (s) {
+        return '<button type="button" class="bt bt-o" style="font-size:12px" data-sh="' + esc(s.cd) + '" onclick="ptfTreasurySetCustodian(this.getAttribute(\'data-sh\'))">' + esc(s.name) + '</button>';
+      }).join(' ');
+      return '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:12.5px;line-height:1.9;color:#92400e"><b>خزانه‌دار شرکت کیست؟</b><br>رییس هیات مدیره تنها کسی است که به حساب شرکت دسترسی دارد. سهامدار متناظر را یک‌بار مشخص کنید.' + (picks ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">' + picks + '</div>' : '') + '</div>';
+    }
+    var cashCol = pos.companyCash < 0 ? '#b91c1c' : '#0369a1';
+    return '<div style="background:#fff;border:1px solid #93c5fd;border-radius:12px;padding:10px 12px;margin:8px 0">' +
+      '<b style="color:#1e3a8a">حساب رییس و صندوق شرکت</b> — خزانه‌دار: ' + esc(pos.name) +
+      '<div style="font-size:12px;color:#475569;line-height:1.8;margin-top:4px">پول شرکت در حسابی است که فقط رییس به آن دسترسی دارد. تزریق از جیب شخصی، طلب رییس است نه سود.</div>' +
+      '<div class="sr" style="margin-top:8px">' +
+      '<div class="sc"><b style="color:' + cashCol + '">' + money(pos.companyCash) + '</b><span>نقد شرکت نزد رییس</span></div>' +
+      '<div class="sc"><b style="color:#b45309">' + money(pos.claim) + '</b><span>طلب رییس از شرکت</span></div></div>' +
+      (pos.hint ? '<div style="margin-top:6px;font-size:12px;color:#991b1b">' + esc(pos.hint) + '</div>' : '') +
+      (chairCan() ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">' +
+        '<button type="button" class="bt" onclick="ptfTreasuryChairIn()">تزریق از حساب شخصی</button>' +
+        '<button type="button" class="bt bt-o" onclick="ptfTreasuryChairOut()">تسویه طلب رییس</button></div>' : '') +
+      '</div>';
+  }
+
   function faNow() {
     try { return typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString(); } catch (e) { return ''; }
   }
@@ -350,7 +530,9 @@
       '<h1>گزارش خزانه نقدی و فراخوان سهامداران</h1>' +
       '<p>سال مالی: <b>' + esc(fiscalLabel() || '—') + '</b> | تهیه: ' + esc(faNow()) + '</p>' +
       '<p>فقط حرکت وجه واقعی. صدور فاکتور و تهاتر در صندوق نیستند. بدهی سهامدار فقط از فراخوان فریزشده است.</p>' +
-      '<div class="kpi"><div>افتتاحیه<br><b>' + money(c.opening) + '</b></div><div>ورود نقد<br><b>' + money(c.inflow) + '</b></div><div>خروج نقد<br><b>' + money(c.outflow) + '</b></div><div>مانده صندوق<br><b class="' + (c.derived < 0 ? 'neg' : '') + '">' + money(c.derived) + '</b></div><div>کسری فعلی<br><b class="' + (gap ? 'neg' : '') + '">' + money(gap) + '</b></div></div>' +
+      '<div class="kpi"><div>افتتاحیه<br><b>' + money(c.opening) + '</b></div><div>ورود نقد<br><b>' + money(c.inflow) + '</b></div><div>خروج نقد<br><b>' + money(c.outflow) + '</b></div><div>مانده صندوق / نقد شرکت نزد رییس<br><b class="' + (c.derived < 0 ? 'neg' : '') + '">' + money(c.derived) + '</b></div><div>کسری فعلی<br><b class="' + (gap ? 'neg' : '') + '">' + money(gap) + '</b></div>' +
+      (function () { var p = window.ptfTreasuryChairPosition(); return p.sh ? '<div>طلب رییس (' + esc(p.name) + ')<br><b>' + money(p.claim) + '</b></div>' : ''; }()) +
+      '</div>' +
       '<h2>وضعیت سهامداران نسبت به صندوق</h2><table><thead><tr><th>سهامدار</th><th>درصد</th><th>بدهی فراخوان باز</th><th>طلب از صندوق</th><th>مانده حساب</th></tr></thead><tbody>' +
       (shRows || '<tr><td colspan="5">سهامدار فعالی نیست</td></tr>') + '</tbody></table>' +
       (callBlocks || '<h2>فراخوان</h2><p>فراخوان بازی ثبت نشده است.</p>') +
@@ -371,7 +553,7 @@
   window.ptfTreasuryHtml = function () {
     return '<div id="treasuryBox" class="pn" style="display:none;margin-top:12px;padding:14px;border:1px solid #bae6fd;border-radius:16px;background:#f0f9ff">' +
       '<div class="treasury-head"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start"><div><h4 style="margin:0 0 6px">خزانه نقدی شرکت</h4>' +
-      '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">مانده = افتتاحیه سال + وصولی واقعی − هزینه/خرید/شارژ تنخواه/چک سررسید/برداشت. فاکتور و تهاتر وارد صندوق نمی‌شوند. تطبیق صورتحساب وجود ندارد.</small></div>' +
+      '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">مانده صندوق = نقد شرکت نزد رییس. تزریق شخصی رییس طلب اوست، نه سود. فاکتور و تهاتر وارد صندوق نمی‌شوند.</small></div>' +
       '<button type="button" class="bt bt-o" onclick="ptfTreasuryPrint()">🖨 پیش‌نمایش/چاپ</button></div></div>' +
       '<div id="treasuryKpi"></div><div id="treasuryFocus"></div><div id="treasuryMoves"></div></div>';
   };
@@ -386,7 +568,8 @@
         '<div class="sc"><b>' + money(c.opening) + '</b><span>افتتاحیه</span></div>' +
         '<div class="sc"><b>' + money(c.inflow) + '</b><span>ورود نقد</span></div>' +
         '<div class="sc"><b>' + money(c.outflow) + '</b><span>خروج نقد</span></div>' +
-        '<div class="sc"><b>' + money(c.derived) + '</b><span>مانده صندوق</span></div></div>';
+        '<div class="sc"><b>' + money(c.derived) + '</b><span>مانده صندوق</span></div></div>' +
+        chairPanelHtml();
     }
     var mv = document.getElementById('treasuryMoves');
     if (mv) {
