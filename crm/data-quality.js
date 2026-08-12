@@ -39,7 +39,8 @@
       if ((p.cur || 'IRR') !== 'IRR' && !(+p.rate > 0)) add(q, 'payable-fx-rate', 'تعهد ارزی بدون نرخ تسعیر', p.cd || p.inqNo, p.amount);
     });
     cheques.forEach(function (c) {
-      if (c.st === 'open' && !c.ownership) add(q, 'cheque-ownerless', 'چک باز با مالکیت نامشخص', c.sayad || c.no || c.cd, c.amt, { type: 'cheque', cd: c.cd, label: 'چک ' + (c.sayad || c.no || c.cd) + (c.toWhom ? ' — ' + c.toWhom : c.bank ? ' — ' + c.bank : '') });
+      var own = (typeof window.ptfChequeOwnershipOf === 'function') ? window.ptfChequeOwnershipOf(c) : (c.ownership || '');
+      if (c.st === 'open' && !own) add(q, 'cheque-ownerless', 'چک باز با مالکیت نامشخص', c.sayad || c.no || c.cd, c.amt, { type: 'cheque', cd: c.cd, label: 'چک ' + (c.sayad || c.no || c.cd) + (c.toWhom ? ' — ' + c.toWhom : c.bank ? ' — ' + c.bank : '') });
       if (c.st === 'open' && !c.dueISO) add(q, 'cheque-undated', 'چک باز بدون تاریخ سررسید', c.sayad || c.no || c.cd, c.amt);
     });
     /* فاز ۲ / گام ۲: هزینه‌های جاری (OPEX) بدون تعیین نوع رسمی/غیررسمی —

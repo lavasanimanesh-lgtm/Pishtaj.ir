@@ -662,8 +662,14 @@
       '<div class="fld"><label>بانک</label><input id="chE_Bank" value="' + escP(c.bank || '') + '" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>شعبه</label><input id="chE_Branch" value="' + escP(c.branch || '') + '"></div>' +
       '<div class="fld"><label>سری چک</label><input id="chE_Series" value="' + escP(c.series || '') + '" style="direction:ltr"></div></div>' +
-      '<div class="fr"><div class="fld"><label>مالک چک</label><input id="chE_Owner" value="' + escP(c.owner || '') + '"></div>' +
-      '<div class="fld"><label>شماره حساب</label><input id="chE_Acc" value="' + escP(c.accountNo || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>مالکیت چک *</label><select id="chE_Own">' + (function () {
+        var cur = (typeof window.ptfChequeOwnershipOf === 'function' ? window.ptfChequeOwnershipOf(c) : (c.ownership || '')) || (c.direction === 'received' ? 'third_party' : 'company');
+        return [['company', '🏢 چک شرکت'], ['personal', '👤 چک شخصی'], ['received', '📥 چک وارده مشتری'], ['third_party', '🪪 چک ثالث']].map(function (o) {
+          return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+        }).join('');
+      })() + '</select></div>' +
+      '<div class="fld"><label>نام روی دسته / حساب</label><input id="chE_Owner" value="' + escP(c.owner || '') + '"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شماره حساب</label><input id="chE_Acc" value="' + escP(c.accountNo || '') + '" style="direction:ltr"></div><div class="fld"></div></div>' +
       '<div class="fld"><label>یادداشت</label><input id="chE_Note" value="' + escP(c.note || '') + '"></div>' +
       '<div class="fld"><label>📎 اسناد / کپی چک (افزودن + حذف)</label><div id="chE_Files" style="min-height:40px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
@@ -718,6 +724,7 @@
       sayad: sayad, amt: amt, toWhom: to,
       bank: String(val('chE_Bank') || '').trim(), branch: String(val('chE_Branch') || '').trim(),
       series: String(val('chE_Series') || '').trim(), owner: String(val('chE_Owner') || '').trim(),
+      ownership: String(val('chE_Own') || '').trim() || (c.direction === 'received' ? 'third_party' : 'company'),
       accountNo: String(val('chE_Acc') || '').trim(),
       note: String(val('chE_Note') || '').trim()
     };
@@ -737,6 +744,7 @@
     var dlg = document.getElementById('ptfChEditDlg'); if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast('✅ چک ویرایش شد' + finMsg, 'ok');
     window.ptfChequePanelRender();
+    try { if (typeof window.ptfDataQualityRender === 'function') window.ptfDataQualityRender(); } catch (eQ) {}
   };
 })();
 
