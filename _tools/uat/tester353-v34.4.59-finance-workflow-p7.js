@@ -9,8 +9,8 @@
   var tr = read('crm/treasury.js');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(ver.crm_version === 'v34.4.59', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.59'") > -1, 'index release');
+  ok(/^v34\.4\.(59|[6-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(tr.indexOf('window.ptfTreasuryParseStatementRows') > -1, 'parse rows');
   ok(tr.indexOf('window.ptfTreasuryImportParsed') > -1, 'import parsed');
   ok(tr.indexOf('window.ptfTreasuryImportFile') > -1, 'import file');

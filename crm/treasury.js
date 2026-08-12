@@ -304,6 +304,82 @@
     }
   };
 
+  window.ptfTreasuryNormalizeAiRows = function (rows) {
+    return arr(rows).map(function (r) {
+      var dir = parseDir(r.dir || r.kind || '', parseAmt(r.amount || r.amt));
+      var amount = Math.abs(parseAmt(r.amount || r.amt || r.debit || r.credit));
+      if (!dir && parseAmt(r.debit)) { dir = 'out'; amount = Math.abs(parseAmt(r.debit)); }
+      if (!dir && parseAmt(r.credit)) { dir = 'in'; amount = Math.abs(parseAmt(r.credit)); }
+      var dateISO = parseDateCell(r.dateISO || r.dateFa || r.date || r.dt || '');
+      var note = String(r.note || r.desc || r.description || '').trim();
+      return {
+        amount: amount, dir: dir, note: note,
+        dateISO: dateISO || new Date().toISOString().slice(0, 10),
+        dateFa: r.dateFa || dateISO || '',
+        fp: [dateISO || '', dir, amount, note].join('|')
+      };
+    }).filter(function (p) { return p.amount && (p.dir === 'in' || p.dir === 'out'); });
+  };
+
+  window.ptfTreasuryImportPdf = function (inp) {
+    var f = inp && inp.files && inp.files[0];
+    if (!f) return;
+    if (f.size > 6 * 1048576) { alert('فایل بزرگتر از ۶MB'); return; }
+    if (typeof ptfToast === 'function') ptfToast('⏳ در حال استخراج ردیف‌های صورتحساب…', 'info');
+    var rd = new FileReader();
+    rd.onload = function () {
+      var b64 = String(rd.result || '').split(',')[1] || '';
+      var headers = (typeof ptfApiAuthHeaders === 'function') ? ptfApiAuthHeaders(true) : { 'Content-Type': 'application/json' };
+      fetch('../api/llm.php?action=bank_statement', { method: 'POST', headers: headers, body: JSON.stringify({ mime: f.type || 'application/pdf', b64: b64 }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d || !d.ok) {
+            if (typeof ptfToast === 'function') ptfToast((d && d.error) || 'استخراج ناموفق', 'warn');
+            else alert((d && d.error) || 'استخراج ناموفق');
+            return;
+          }
+          var parsed = window.ptfTreasuryNormalizeAiRows((d.data && d.data.rows) || []);
+          window._ptfTreasuryPdfPreview = { parsed: parsed, name: f.name, bank: (d.data && d.data.bank) || '', account: (d.data && d.data.account) || '' };
+          window.ptfTreasuryShowPdfPreview();
+        })
+        .catch(function () {
+          if (typeof ptfToast === 'function') ptfToast('عدم دسترسی به سرویس استخراج', 'warn');
+        });
+    };
+    rd.readAsDataURL(f);
+    try { inp.value = ''; } catch (e) {}
+  };
+
+  window.ptfTreasuryShowPdfPreview = function () {
+    var prev = window._ptfTreasuryPdfPreview || { parsed: [] };
+    var host = document.getElementById('panels') || document.body;
+    var old = document.getElementById('ptfTreasuryPdfDlg');
+    if (old) old.remove();
+    var rows = arr(prev.parsed).map(function (p, i) {
+      return '<tr><td>' + (i + 1) + '</td><td>' + esc(p.dateFa || p.dateISO) + '</td><td>' + (p.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(p.amount) + '</td><td>' + esc(p.note) + '</td></tr>';
+    }).join('') || '<tr><td colspan="5">ردیفی استخراج نشد</td></tr>';
+    host.insertAdjacentHTML('beforeend',
+      '<div class="md-b" id="ptfTreasuryPdfDlg" style="display:grid;z-index:1800" onclick="if(event.target===this)this.remove()">' +
+      '<div class="md" style="max-width:720px;max-height:90vh;overflow:auto" onclick="event.stopPropagation()">' +
+      '<h3>بازبینی استخراج صورتحساب</h3>' +
+      '<small style="color:#0369a1;display:block;margin-bottom:8px;line-height:1.8">این ردیف‌ها فقط یادداشت مغایرت می‌شوند. مانده بانک ساخته نمی‌شود. ' +
+      esc(prev.name || '') + (prev.bank ? ' — ' + esc(prev.bank) : '') + '</small>' +
+      '<div class="tb2"><table><thead><tr><th>#</th><th>تاریخ</th><th>جهت</th><th>مبلغ</th><th>شرح</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">' +
+      '<button type="button" class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
+      '<button type="button" class="bt" onclick="ptfTreasuryCommitPdfPreview()">ثبت به‌عنوان یادداشت مغایرت</button></div></div></div>');
+  };
+
+  window.ptfTreasuryCommitPdfPreview = function () {
+    var prev = window._ptfTreasuryPdfPreview || { parsed: [] };
+    var r = window.ptfTreasuryImportParsed(prev.parsed);
+    var dlg = document.getElementById('ptfTreasuryPdfDlg');
+    if (dlg) dlg.remove();
+    if (typeof ptfToast === 'function') ptfToast(r.added + ' ردیف از PDF وارد شد' + (r.skipped ? ' / ' + r.skipped + ' تکراری' : '') + ' — مانده بانک ساخته نشد', r.added ? 'ok' : 'info');
+    if (r.added && confirm('تطبیق خودکار یکتا اجرا شود؟')) window.ptfTreasuryAutoMatch();
+    else if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+  };
+
   window.ptfTreasuryTemplateCsv = function () {
     var csv = '\uFEFFتاریخ,مبلغ,جهت,شرح\n1404/05/21,1500000,ورود,نمونه واریز\n1404/05/22,200000,خروج,نمونه برداشت\n';
     var a = document.createElement('a');

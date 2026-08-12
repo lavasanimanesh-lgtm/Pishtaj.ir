@@ -403,6 +403,22 @@ switch ($action) {
         out_json(llm_call($cfg, $sys, 'Extract all business cards from this file.', $b64, $mime, 4500));
         break;
 
+    case 'bank_statement':
+        $b64 = $in['b64'] ?? '';
+        $mime = $in['mime'] ?? '';
+        $okMime = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+        if (!$b64 || !in_array($mime, $okMime, true)) { echo json_encode(['ok' => false, 'error' => 'فایل صورتحساب نامعتبر است (jpg/png/webp/pdf)']); exit; }
+        if (strlen($b64) > 8 * 1048576) { echo json_encode(['ok' => false, 'error' => 'فایل بزرگتر از ~۶MB — فشرده کنید']); exit; }
+        $sys = 'You are an OCR/extraction engine for Iranian bank statements (صورت‌حساب بانکی / گردش حساب). '
+             . 'Extract EVERY visible money movement line. Ignore headers, balances, page numbers, stamps, IBAN, account title. '
+             . 'Do NOT invent amounts or dates. Do NOT compute a bank ledger or closing balance. '
+             . 'For each line return: dateFa as Jalali YYYY/MM/DD if printed that way else empty, dateISO as Gregorian YYYY-MM-DD only if clearly printed/inferable else empty, '
+             . 'amount as positive number in Rial (if تومان convert ×10), dir is in for واریز/بستانکار/credit and out for برداشت/بدهکار/debit, note is short description as written. '
+             . 'If debit and credit columns exist, use the non-empty column. Skip zero/empty amounts. '
+             . 'Reply ONLY valid JSON: {\"bank\":\"bank name if visible else empty\",\"account\":\"account/IBAN if visible else empty\",\"rows\":[{\"dateFa\":\"\",\"dateISO\":\"\",\"amount\":0,\"dir\":\"in|out\",\"note\":\"\"}]}';
+        out_json(llm_call($cfg, $sys, 'Extract bank statement movement lines only. Do not create a cash ledger.', $b64, $mime, 5000));
+        break;
+
     case 'ocr':
         $b64 = $in['b64'] ?? '';
         $mime = $in['mime'] ?? '';
