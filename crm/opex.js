@@ -543,6 +543,37 @@
     return out;
   };
 
+  window.ptfOpexUnlinkedForCheque = function () {
+    return oRows().filter(function (x) {
+      return x && !x.chequeCd && x.st !== 'void' && !x.voided;
+    }).sort(function (a, b) { return String(b.month || '').localeCompare(String(a.month || '')); }).slice(0, 24);
+  };
+  window.ptfOpexLinkCheque = function (chequeCd, rowIds) {
+    rowIds = Array.isArray(rowIds) ? rowIds : [];
+    if (!chequeCd || !rowIds.length) return { ok: false, n: 0 };
+    var all = oRows(), n = 0;
+    all.forEach(function (x) {
+      if (!x || rowIds.indexOf(x[OPEX_ROW_ID]) < 0) return;
+      x.chequeCd = chequeCd;
+      x.payHow = 'cheque';
+      n++;
+    });
+    if (n) oSave(all);
+    return { ok: true, n: n };
+  };
+  window.ptfOpexUnlinkCheque = function (chequeCd) {
+    if (!chequeCd) return 0;
+    var all = oRows(), n = 0;
+    all.forEach(function (x) {
+      if (!x || x.chequeCd !== chequeCd) return;
+      delete x.chequeCd;
+      if (x.payHow === 'cheque') delete x.payHow;
+      n++;
+    });
+    if (n) oSave(all);
+    return n;
+  };
+
   /* ---------- رندر باکس داخل پنل تنخواه ---------- */
   window.ptfOpexRender = function () {
     var el = document.getElementById('opexBox');
@@ -574,6 +605,7 @@
         '<span class="opex-row-copy"><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
         (x.dealRef ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">📁 پرونده فروش</span>' : '') +
         (x.autoApplied ? ' <span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">🤖 خودکار</span>' : '') +
+        (x.chequeCd ? ' <span class="bd" style="background:#fff7ed;color:#c2410c;font-size:10px">چک ' + escP(x.chequeCd) + '</span>' : '') +
         (x.desc ? ' <small style="color:#64748b">' + escP(x.desc) + '</small>' : '') +
         (x.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(x.editedAt) + '</small>' : '') +
         '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small></span>' +

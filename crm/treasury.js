@@ -146,6 +146,7 @@
     get('ptf_crm_opex').forEach(function (o) {
       if (!active(o) || o.st === 'void') return;
       if (o.shareholderSalary || o.shareTx) return;
+      if (o.chequeCd || o.payHow === 'cheque') return;
       var amt = num(o.amt || o.amount);
       if (!amt) return;
       pushMove(out, {

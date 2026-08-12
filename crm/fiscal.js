@@ -359,6 +359,7 @@
         var iso = cashIsoOf(c.issueISO || c.createdISO || c.dateISO || c.t);
         if (!cashInRange(iso, start, end)) return;
         if (c.supplierPaymentCd) return; /* payment دارد → فاکتور قبلاً کسر شده */
+        if (c.opexRowIds && c.opexRowIds.length) return; /* هزینه در opex است — نقد فقط در خزانه */
         out.independentCheques += +c.amt || 0;
       });
     } catch (eC) {}

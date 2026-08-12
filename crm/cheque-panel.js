@@ -215,6 +215,7 @@
           '<option value="advance">ضمانت پیش‌پرداخت</option><option value="performance">ضمانت حسن انجام کار</option><option value="bid">ضمانت شرکت در مناقصه (مستقل)</option><option value="other">سایر</option></select></div></div>' +
           '<div class="fld" id="ptfChNDealWrap" style="display:none"><label>پرونده فروش (برای پیش‌پرداخت/حسن انجام کار)</label><select id="ptfChNDeal"><option value="">— انتخاب پرونده فروش —</option></select></div>') +
       '<div class="fld"><label>بابت / یادداشت</label><input id="ptfChNNote"></div>' +
+      (!isR ? '<div class="fld" id="ptfChNOpexWrap" style="display:none"></div>' : '') +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfChNewDlg\').remove()">انصراف</button>' +
       '<button type="button" class="bt" onclick="ptfChNCommit()">✅ ثبت چک</button></div></div></div>';
@@ -236,7 +237,7 @@
       } catch (eB) {}
       bookSel.innerHTML = bookOpts;
     }
-    if (!isR) window.ptfChNKindUi();
+    if (!isR) { window.ptfChNKindUi(); window.ptfChNOpexReload(); }
   };
   /* انتخاب دسته چک → انتقال خودکار بانک/شعبه/سری به فرم */
   window.ptfChNBookPick = function () {
@@ -264,6 +265,7 @@
     var invWrap = document.getElementById('ptfChNInvWrap');
     if (invWrap) invWrap.style.display = (isR && v === 'cust' && ((document.getElementById('ptfChNCust') || {}).value)) ? '' : 'none';
     if (isR && v === 'cust') window.ptfChNInvReload();
+    if (!isR) window.ptfChNOpexReload();
   };
   window.ptfChNKindUi = function () {
     var k = ((document.getElementById('ptfChNKind') || {}).value || 'finance');
@@ -273,6 +275,7 @@
     var w1 = document.getElementById('ptfChNGuarWrap'); if (w1) w1.style.display = g ? '' : 'none';
     var w2 = document.getElementById('ptfChNDealWrap'); if (w2) w2.style.display = needDeal ? '' : 'none';
     if (needDeal && typeof window.ptfChNDealReload === 'function') window.ptfChNDealReload();
+    window.ptfChNOpexReload();
   };
   window.ptfChNDealReload = function () {
     var sel = document.getElementById('ptfChNDeal'); if (!sel) return;
@@ -296,6 +299,34 @@
     } catch (e) {}
     sel.innerHTML = opts;
   };
+
+  window.ptfChNOpexReload = function () {
+    var wrap = document.getElementById('ptfChNOpexWrap');
+    if (!wrap) return;
+    var isR = window._ptfChNFormDir === 'received';
+    var kind = ((document.getElementById('ptfChNKind') || {}).value || 'finance');
+    var party = ((document.getElementById('ptfChNParty') || {}).value || 'other');
+    if (isR || kind !== 'finance' || party === 'sup') { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    var rows = (typeof window.ptfOpexUnlinkedForCheque === 'function') ? window.ptfOpexUnlinkedForCheque() : [];
+    if (!rows.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    wrap.style.display = '';
+    wrap.innerHTML = '<label>بابت کدام هزینه جاری؟ (اجاره و مشابه — تا دوبار شمرده نشود)</label>' +
+      '<div style="max-height:160px;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:8px;background:#fffbeb;font-size:12.5px">' +
+      rows.map(function (x) {
+        return '<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="ptf-ch-opex" value="' + escP(x._opexRowId) + '" data-amt="' + (+x.amt || 0) + '"> ' +
+          escP(x.month || '') + ' — ' + escP(x.cat || '') + ' — ' + money(x.amt) + ' ریال' + (x.desc ? ' <small style="color:#64748b">(' + escP(x.desc) + ')</small>' : '') + '</label>';
+      }).join('') +
+      '<div style="margin-top:6px;color:#92400e">جمع ماه‌های تیک‌خورده باید با مبلغ چک یکی باشد (مثلاً دو ماه ۳۲ = یک چک ۶۴).</div></div>';
+  };
+  window.ptfChNOpexPicked = function () {
+    var ids = [], sum = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.ptf-ch-opex:checked'), function (el) {
+      ids.push(el.value);
+      sum += +el.getAttribute('data-amt') || 0;
+    });
+    return { ids: ids, sum: sum };
+  };
+
   window.ptfChNCommit = function () {
     var isR = window.ptfChequePanelSub === 'received';
     var partyKind = ((document.getElementById('ptfChNParty') || {}).value || 'other');
@@ -362,8 +393,13 @@
         return;
       } else {
         var book = window._ptfChNBook || null;
+        var opexPick = window.ptfChNOpexPicked ? window.ptfChNOpexPicked() : { ids: [], sum: 0 };
+        if (opexPick.ids.length && Math.round(opexPick.sum) !== Math.round(amt)) {
+          alert('جمع هزینه‌های انتخاب‌شده (' + money(opexPick.sum) + ') با مبلغ چک یکی نیست.');
+          return;
+        }
         var rec2 = {
-          no: no, sayad: no, amt: amt, kind: 'finance', toWhom: toWhom, supplierCd: supCd || undefined,
+          no: no, sayad: no, amt: amt, kind: 'finance', toWhom: toWhom, supplierCd: supCd || undefined, opexRowIds: opexPick.ids.length ? opexPick.ids : undefined,
           bank: bank || (book ? book.bank : ''), branch: book ? book.branch : '',
           note: note, dueISO: dueISO,
           dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw,
@@ -376,7 +412,9 @@
         if (!saved2 || saved2.why === 'sayad_locked') { alert(saved2 && saved2.error ? saved2.error : '⛔ ثبت چک ممکن نشد'); return; }
         try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved2); } catch (eR2) {}
         var dlg2 = document.getElementById('ptfChNewDlg'); if (dlg2) dlg2.remove();
-        if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : ''), 'ok');
+        if (opexPick.ids.length && typeof window.ptfOpexLinkCheque === 'function') window.ptfOpexLinkCheque(saved2.cd, opexPick.ids);
+        if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + (opexPick.ids.length ? ' — وصل به ' + opexPick.ids.length + ' هزینه جاری (بدون دوباره‌شماری)' : ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : '')), 'ok');
+        try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOx) {}
         window.ptfChequePanelRender();
         return;
       }
@@ -510,6 +548,7 @@
     if (!confirm(msg)) return;
     var r = (typeof window.ptfChequeDelete === 'function') ? window.ptfChequeDelete(cd) : { ok: false, why: 'no_fn' };
     if (!r.ok) { alert('حذف نشد (' + (r.why || 'خطا') + ')'); return; }
+    try { if (typeof window.ptfOpexUnlinkCheque === 'function') window.ptfOpexUnlinkCheque(cd); } catch (eU) {}
     try { audit('چک‌ها', 'حذف کامل چک ' + (c.sayad || c.no || cd) + ' — مبلغ ' + money(c.amt) + (hasFin ? ' + حذف اثر مالی تأمین‌کننده' : ''), cd); } catch (eA) {}
     if (typeof ptfToast === 'function') ptfToast('🗑 چک و اثر مالی/گردش مرتبط حذف شد', 'warn');
     window.ptfChequePanelRender();
