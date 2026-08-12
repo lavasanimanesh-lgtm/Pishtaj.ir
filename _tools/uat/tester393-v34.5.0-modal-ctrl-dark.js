@@ -1,0 +1,10 @@
+'use strict';
+var fs = require('fs');
+var assert = require('assert');
+var css = fs.readFileSync('crm/theme-contrast.js', 'utf8');
+var mx = fs.readFileSync('crm/modalx.js', 'utf8');
+assert.ok(css.indexOf("mx-dot.r,body.ptf-dark .ptfdlg .mx-dots .mx-dot.r{background:#f87171") > -1, 'bright close');
+assert.ok(css.indexOf('#451a1a!important;border-color:#991b1b!important}\'') < 0 || css.indexOf('mx-dot.r{background:#451a1a') < 0, 'no muddy close');
+assert.ok(css.indexOf('body.ptf-dark .mx-dots{padding:5px 8px') > -1, 'chip behind dots');
+assert.ok(mx.indexOf('body.ptf-dark .mx-dot span{display:block') > -1, 'glyphs always on in dark');
+console.log('PASS tester393 modal-ctrl-dark');
