@@ -1,4 +1,4 @@
-/* PTF CRM — v34.4.62 خزانه مشتق: گردش از اسناد CRM؛ یادداشت مغایرت بانک
+/* PTF CRM — v34.4.63 خزانه مشتق: گردش از اسناد CRM؛ یادداشت مغایرت بانک
    موجودی بانک منبع چهارم نیست. ptf_crm_bank_recon فقط یادداشت تطبیق است. */
 (function () {
   'use strict';
@@ -135,8 +135,11 @@
   };
 
   function loadRecon() {
-    var raw = get(KEY);
-    if (raw && raw.lines) return arr(raw.lines);
+    var raw;
+    try {
+      raw = (typeof window.getData === 'function') ? window.getData(KEY) : JSON.parse(localStorage.getItem(KEY) || '[]');
+    } catch (e) { raw = []; }
+    if (raw && !Array.isArray(raw) && raw.lines) return arr(raw.lines);
     return arr(raw);
   }
   function saveRecon(lines) {
@@ -396,22 +399,47 @@
   };
 
   window.ptfTreasuryAddLine = function () {
+    var todayJ = '';
+    try { todayJ = (typeof faDate === 'function') ? faDate() : ''; } catch (eD) {}
+    if (!todayJ) todayJ = new Date().toLocaleDateString('fa-IR');
+    function go(v) {
+      var amt = parseAmt(v.amt);
+      if (!amt) {
+        alert('مبلغ ردیف صورتحساب را وارد کنید (ارقام فارسی هم قبول است).');
+        return;
+      }
+      var dir = (v.dir === 'out') ? 'out' : 'in';
+      var dateISO = parseDateCell(v.date) || new Date().toISOString().slice(0, 10);
+      var lines = loadRecon();
+      var cd = (typeof window.ptfUnifiedCode === 'function') ? window.ptfUnifiedCode('BRC') : ('BRC-' + Date.now());
+      lines.unshift({
+        cd: cd, amount: amt, dir: dir, note: String(v.note || '').trim(),
+        dateISO: dateISO, dateFa: v.date || dateISO,
+        matchKey: '', matchCd: '', files: [], src: 'manual', t: new Date().toISOString()
+      });
+      saveRecon(lines);
+      if (typeof ptfToast === 'function') ptfToast('ردیف صورتحساب ثبت شد — مانده بانک عوض نشد؛ فقط برای تطبیق با گردش CRM است', 'ok');
+      if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+      if (typeof window.finHubSet === 'function') window.finHubSet('treasury');
+    }
+    if (typeof ptfDialog === 'function') {
+      ptfDialog({
+        title: 'ردیف صورتحساب بانک',
+        body: 'این ردیف یک خط از صورتحساب بانک است برای مغایرت‌گیری. موجودی خزانه را عوض نمی‌کند. بعد از ثبت، با دکمهٔ «تطبیق» آن را به وصولی/پرداخت CRM وصل کنید.',
+        fields: [
+          { id: 'amt', label: 'مبلغ (ریال) *', required: true, dir: 'ltr' },
+          { id: 'dir', label: 'جهت حرکت وجه در بانک', type: 'select', options: [{ v: 'in', lb: 'ورود / واریز به حساب' }, { v: 'out', lb: 'خروج / برداشت از حساب' }] },
+          { id: 'date', label: 'تاریخ ردیف (شمسی)', value: todayJ, dir: 'ltr', datePicker: true },
+          { id: 'note', label: 'شرح روی صورتحساب', type: 'textarea', rows: 2 }
+        ],
+        okText: 'ثبت ردیف تطبیق',
+        onOk: go
+      });
+      return;
+    }
     var amt = prompt('مبلغ ردیف صورتحساب (ریال)');
     if (amt == null) return;
-    amt = num(String(amt).replace(/[^\d.-]/g, ''));
-    if (!amt) return;
-    var dir = confirm('ورود وجه (OK) یا خروج (Cancel)؟') ? 'in' : 'out';
-    var note = prompt('شرح ردیف بانک') || '';
-    var lines = loadRecon();
-    var cd = (typeof window.ptfUnifiedCode === 'function') ? window.ptfUnifiedCode('BRC') : ('BRC-' + Date.now());
-    lines.unshift({
-      cd: cd, amount: amt, dir: dir, note: note,
-      dateISO: new Date().toISOString().slice(0, 10),
-      dateFa: new Date().toLocaleDateString('fa-IR'),
-      matchKey: '', matchCd: '', files: [], t: new Date().toISOString()
-    });
-    saveRecon(lines);
-    if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+    go({ amt: amt, dir: confirm('ورود وجه؟ OK=ورود / انصراف=خروج') ? 'in' : 'out', date: todayJ, note: prompt('شرح ردیف بانک') || '' });
   };
 
   window.ptfTreasuryMatch = function (cd) {
