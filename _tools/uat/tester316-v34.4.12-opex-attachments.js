@@ -10,7 +10,7 @@ SECTION('ساختار ضمیمهٔ هزینه جاری');
 T('فرم ثبت هزینه، field آپلود سند با پوشه اختصاصی opex دارد', ox.indexOf("id: 'files', label: 'پیوست اسناد") > -1 && ox.indexOf("uploadFolder: 'opex/' + draftCd") > -1);
 T('رکورد OPEX فایل‌ها را همراه خود ذخیره می‌کند', ox.indexOf("files: (v.files || []).slice()") > -1);
 T('فرم ویرایش هم ضمیمهٔ جدید می‌پذیرد و به فایل‌های قبلی اضافه می‌کند', ox.indexOf("id: 'files', label: 'افزودن پیوست جدید") > -1 && ox.indexOf("rec.files = (rec.files || []).concat(v.files)") > -1);
-T('دکمهٔ سند برای افزودن مدرک در هر ردیف وجود دارد', ox.indexOf("opexAction('attach', '📎', 'سند'") > -1 && ox.indexOf('window.ptfOpexAttachOpen = function') > -1);
+T('دکمهٔ سند برای افزودن/مدیریت مدرک در هر ردیف وجود دارد', ox.indexOf("opexAction('attach', '📎', fileCount ? fileCount + ' سند' : 'سند'") > -1 && ox.indexOf('window.ptfOpexAttachOpen = function') > -1);
 T('لینک مشاهده و حذف پیوست روی ردیف هزینه رندر می‌شود', ox.indexOf('openStoredFile') > -1 && ox.indexOf('ptfOpexRemoveFile') > -1);
 
 SECTION('یکپارچگی پرونده فروش');

@@ -120,8 +120,14 @@ window._ptfRefillPoolBackground = function(pref){
    کد می‌گیرند — بدون fallback به legacyMaxNext. اگر pool خالی باشد، TMP می‌دهد
    و entity بدون کد رسمی save نمی‌شود. جلوگیری از duplicate CHQ/INV/PAY بین دستگاه‌ها. */
 var SERVER_ONLY_PREFIXES = ['TO','CO','TC','CHQ','INV','PAY','CMP'];
+/* OPX فعلاً در شمارندهٔ سرور از دادهٔ واقعی seed نمی‌شود؛ پس تا زمان افزودن
+   migration سمت سرور، فقط اسکن local persisted مجاز است تا pool شمارهٔ مصرف‌شده ندهد. */
+var LOCAL_ONLY_PREFIXES = ['OPX'];
 function isServerOnlyPrefix(prefix) {
   return SERVER_ONLY_PREFIXES.indexOf(String(prefix||'').toUpperCase().trim()) > -1;
+}
+function isLocalOnlyPrefix(prefix) {
+  return LOCAL_ONLY_PREFIXES.indexOf(String(prefix||'').toUpperCase().trim()) > -1;
 }
 
 // Sync wrapper - tries server, falls back to TMP
@@ -158,6 +164,7 @@ function legacyMaxNext(prefix, year){
     var keyMap={
       'CUST':'ptf_crm_customers','SUP':'ptf_crm_suppliers','P':'ptf_crm_products',
       'RFQ':'ptf_crm_rfqs','IQI':'ptf_crm_inqitems','LEAD':'ptf_crm_leads',
+      'OPX':'ptf_crm_opex',
       'CHQ':'ptf_crm_cheques','INV':'ptf_crm_invoices','PAY':'ptf_crm_payables',
       'CMP':'ptf_crm_buycmp','TO':'ptf_crm_offers','CO':'ptf_crm_offers','TC':'ptf_crm_offers'
     };
@@ -189,10 +196,12 @@ function legacyMaxNext(prefix, year){
         });
       });
     }
-    // چک Pool و _ptfCodeSeq هم تا تکراری ندهد
+    // چک Pool و _ptfCodeSeq هم تا تکراری ندهد. OPX عمداً pool سمت سرور را نادیده می‌گیرد.
     try {
-      var pool=getPool();
-      (pool[p]||[]).forEach(function(n){ if(n>max) max=n; });
+      if (!isLocalOnlyPrefix(p)) {
+        var pool=getPool();
+        (pool[p]||[]).forEach(function(n){ if(n>max) max=n; });
+      }
       if(window._ptfCodeSeq && window._ptfCodeSeq[p] && window._ptfCodeSeq[p]>max) max=window._ptfCodeSeq[p];
     } catch(e){}
     var next=max+1;
@@ -210,7 +219,8 @@ window.ptfUnifiedCode = function(prefix){
   if(p==='PROD' || p==='PRODUCT') p='P';
 
   // 1. Try pool (server reserved, never reuse) - بهترین حالت
-  var fromPool = nextFromPool(p, year);
+  // OPX تا وقتی شمارندهٔ سرور از ptf_crm_opex seed نمی‌شود نباید pool مصرف کند.
+  var fromPool = isLocalOnlyPrefix(p) ? null : nextFromPool(p, year);
   if(fromPool) return fromPool;
 
   // 2. v31.7.3 BUG-AUDIT-002-FINANCIAL-CODEGEN: entityهای مالی (CHQ/INV/PAY/CMP)
@@ -231,7 +241,7 @@ window.ptfUnifiedCode = function(prefix){
   // 3. Legacy max scan for non-financial entities (CUST/SUP/P/LEAD/IQI)
   var legacy = legacyMaxNext(p, year);
   if(legacy){
-    try { window._ptfRefillPoolBackground(p); } catch(e){}
+    if (!isLocalOnlyPrefix(p)) { try { window._ptfRefillPoolBackground(p); } catch(e){} }
     return legacy;
   }
 
