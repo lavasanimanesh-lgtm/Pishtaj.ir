@@ -119,14 +119,26 @@
     var list = load();
     list.unshift(rec);
     save(list);
+    var appliedCredit = 0;
     shares.forEach(function (r) {
       var sh = { cd: r.shCd, name: r.shName };
       if (typeof window.ptfShareAddTx === 'function' && r.due > 0) {
         window.ptfShareAddTx('call_due', sh, r.due, 'سهم فراخوان ' + cd, { callCd: cd });
       }
+      var cred = 0;
+      try { cred = (typeof window.ptfShareholderBalance === 'function') ? (+window.ptfShareholderBalance(r.shCd).callCredit || 0) : 0; } catch (eB) {}
+      var use = Math.min(r.due, Math.round(cred));
+      if (use > 0 && typeof window.ptfShareAddTx === 'function') {
+        rec.pays.push({ cd: 'CR-' + cd + '-' + r.shCd, shCd: r.shCd, shName: r.shName, amt: use, apply: use, over: 0, fromCredit: true, t: rec.t, by: nm(), status: 'posted' });
+        window.ptfShareAddTx('call_pay', sh, use, 'تهاتر طلب قبلی با فراخوان ' + cd, { callCd: cd, fromCredit: true, noCash: true });
+        window.ptfShareAddTx('call_credit_use', sh, use, 'مصرف طلب از صندوق روی فراخوان ' + cd, { callCd: cd });
+        appliedCredit += use;
+      }
     });
-    try { if (typeof audit === 'function') audit('خزانه', 'ثبت فراخوان نقدینگی ' + money(gap), cd); } catch (eA) {}
-    if (typeof ptfToast === 'function') ptfToast('فراخوان ثبت شد — بدهی فقط به اندازهٔ سهم فریزشده است', 'ok');
+    if (rec.shares.every(function (s) { return window.ptfTreasuryCallRemainOf(rec, s.shCd) <= 0; })) rec.status = 'closed';
+    save(list);
+    try { if (typeof audit === 'function') audit('خزانه', 'ثبت فراخوان نقدینگی ' + money(gap) + (appliedCredit ? ' — تهاتر طلب ' + money(appliedCredit) : ''), cd); } catch (eA) {}
+    if (typeof ptfToast === 'function') ptfToast(appliedCredit ? ('فراخوان ثبت شد؛ ' + money(appliedCredit) + ' از طلب قبلی تهاتر شد و دوباره نقد نشد') : 'فراخوان ثبت شد — بدهی فقط به اندازهٔ سهم فریزشده است', 'ok');
     if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     if (typeof window.ptfShareRender === 'function') window.ptfShareRender();
   }
