@@ -782,6 +782,17 @@
 
   var _buildRfq = window.buildRfq;
   window.buildRfq = function () {
+    if (!document.getElementById('ptfRfqUiCss')) {
+      var st = document.createElement('style');
+      st.id = 'ptfRfqUiCss';
+      st.textContent = '.rfq-offer-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}' +
+        '.rfq-offer-chip{min-height:38px;padding:6px 14px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#334155;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer}' +
+        '.rfq-offer-chip.is-on{background:#0e7490;color:#fff;border-color:#0e7490}' +
+        '#rTb td:last-child button{width:34px!important;height:34px!important;min-width:34px!important;padding:0!important;display:inline-grid!important;place-items:center;font-size:15px!important;line-height:1;border-radius:10px}' +
+        '#rTb td:last-child .bd{display:none}' +
+        '@media(max-width:768px){.rfq-offer-bar{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.rfq-offer-chip{width:100%;min-width:0;padding:8px 4px;font-size:11px;text-align:center}}';
+      document.head.appendChild(st);
+    }
     return '<div id="rfqPendWrap"></div>' +
       '<div class="ph"><h3>📋 درخواست‌ها</h3>' +
       '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
@@ -791,7 +802,12 @@
       '<option value="has">دارای پیشنهاد</option>' +
       '</select>' +
       ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده">🧹 یتیم‌ها</button>' : '') +
-      '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' + /* v14.3 US-365 */
+      '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' +
+      '<div class="rfq-offer-bar" id="rOfferBar" role="tablist" aria-label="فیلتر پیشنهاد">' +
+      '<button type="button" class="rfq-offer-chip" data-v="" onclick="ptfRfqOfferFlt(\'\')">همه</button>' +
+      '<button type="button" class="rfq-offer-chip" data-v="none" onclick="ptfRfqOfferFlt(\'none\')">بدون پیشنهاد</button>' +
+      '<button type="button" class="rfq-offer-chip" data-v="has" onclick="ptfRfqOfferFlt(\'has\')">دارای پیشنهاد</button>' +
+      '</div>' +
       '<div class="tb2"><table><thead><tr>' +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'cd', 'کد') : '<th>کد</th>') +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'co', 'مشتری') : '<th>مشتری</th>') + '<th>حوزه</th>' +
@@ -812,6 +828,10 @@
     return window.ptfRfqLinkedOffers(r, offers).length > 0;
   };
 
+  window.ptfRfqOfferFlt = function (v) {
+    window._rOfferFlt = String(v || '');
+    if (typeof window.renderRfq === 'function') window.renderRfq();
+  };
   window.filterRfq = function () {
     if (typeof window.renderRfq === 'function') window.renderRfq();
   };
@@ -869,10 +889,13 @@
     });
     var noneN = 0;
     getData('ptf_crm_rfqs').forEach(function (r0) { if (!ptfRfqHasOffer(r0, offers)) noneN++; });
-    if (ofEl && ofEl.options) {
-      for (var oi = 0; oi < ofEl.options.length; oi++) {
-        if (ofEl.options[oi].value === 'none') ofEl.options[oi].text = 'بدون پیشنهاد (' + noneN + ')';
-      }
+    var bar = document.getElementById('rOfferBar');
+    if (bar) {
+      bar.querySelectorAll('.rfq-offer-chip').forEach(function (ch) {
+        var v = ch.getAttribute('data-v') || '';
+        ch.classList.toggle('is-on', v === ofFlt);
+        if (v === 'none') ch.textContent = 'بدون پیشنهاد (' + noneN + ')';
+      });
     }
     var h = '';
     /* v17.3 (US-413 — کیس R8): رنگ ردیف برد/باخت — سبز=CO برنده، قرمز=بازنده (بایگانی lost) — اولویت بر رنگ مهلت */
@@ -1552,27 +1575,6 @@
         try { if (!localStorage.getItem('ptf_crm_token')) return; } catch (eTk2) { return; }
         if (window._ptfSyncing) return;
         window._ptfSyncing = true;
-        try { syncServerInbox(); } finally { window._ptfSyncing = false; }
-      }, 45000);
-    }
-  }
-
-  var tries = 0;
-  var bt = setInterval(function () {
-    tries++;
-    var crmVisible = document.getElementById('crmL') && document.getElementById('crmL').style.display !== 'none';
-    if (crmVisible) { boot(); clearInterval(bt); }
-    if (tries > 60) clearInterval(bt);
-  }, 300);
-  var _showCrm2 = window.showCrm;
-  if (_showCrm2) {
-    window.showCrm = function () {
-      _showCrm2();
-      setTimeout(boot, 700);
-    };
-  }
-})();
- = true;
         try { syncServerInbox(); } finally { window._ptfSyncing = false; }
       }, 45000);
     }

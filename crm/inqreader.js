@@ -484,9 +484,10 @@
   function ptfRfqActionBtn(label, onClickName, cd, extraStyle, extraClass) {
     var btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'ba' + (extraClass ? (' ' + extraClass) : '');
+    btn.className = 'ba rfq-ico-btn' + (extraClass ? (' ' + extraClass) : '');
     if (extraStyle) btn.setAttribute('style', extraStyle);
-    btn.textContent = label;
+    var icos = { ptfViewRfq: '👁', editRfq: '✏️', ptfManageInqAttachments: '📎', inqReadOpen: '📖', ptfGoSalesFileForRfq: '📁', rfqShowFiles: '📎', rfqShowText: '📝', rfqEditText: '📝' };
+    btn.textContent = icos[onClickName] || '•';
     /* در موبایل متن action پنهان و فقط آیکون نمایش داده می‌شود؛ نام قابل‌خواندن
        برای tooltip و screen reader باید روی خود دکمه بماند. */
     btn.setAttribute('title', label || 'عملیات درخواست');
@@ -556,7 +557,7 @@
               prjBtn.setAttribute('title', 'مشاهده پرونده فروش');
               prjBtn.setAttribute('aria-label', 'مشاهده پرونده فروش');
               prjBtn.setAttribute('data-rfq-action', 'ptfGoSalesFileForRfq');
-              prjBtn.textContent = '📁 مشاهده پرونده';
+              prjBtn.textContent = '📁';
               prjBtn.addEventListener('click', function (ev) {
                 if (ev && ev.stopPropagation) ev.stopPropagation();
                 if (typeof window.ptfGoSalesFileForRfq === 'function') window.ptfGoSalesFileForRfq(cd);

@@ -100,7 +100,8 @@
   }
 
   function blocked(btn) {
-    return !!btn.closest('.md,.ptfdlg,#oTb,#rTb,#cTb,#sTb,#pTb,#chqpToolbar,#chqpGraphicActions,.offer-row-action,.entity-row-action,.chqp-action,.payable-action');
+    return !!(btn.classList && btn.classList.contains('msg-quick-app')) ||
+      !!btn.closest('.md,.ptfdlg,#oTb,#rTb,#cTb,#sTb,#pTb,#chqpToolbar,#chqpGraphicActions,.offer-row-action,.entity-row-action,.chqp-action,.payable-action,.msg-quick-links,.rfq-offer-bar');
   }
 
   function toolbar(btn) {
