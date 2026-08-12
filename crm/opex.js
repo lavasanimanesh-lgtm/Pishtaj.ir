@@ -309,6 +309,7 @@
         var month = normMonth(v.month);
         if (amt <= 0) { alert('⛔ مبلغ نامعتبر'); return; }
         if (!month) { alert('⛔ ماه شمسی مثل 1405/04 وارد کنید'); return; }
+        if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(month, { action: 'ثبت هزینه جاری', requireCode: draftCd }).ok) return;
         var isOfficial = v.isOfficial === 'yes';
         var all = oRows();
         var finalCd = all.some(function (x) { return x && x.cd === draftCd; }) ? opexNextCode(all) : draftCd;
@@ -350,6 +351,7 @@
     var all = oRows();
     var rec = opexFindRow(all, cd, rowId, true);
     if (!rec) return;
+    if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'حذف هزینه جاری' }).ok) return;
     // v29.3 FIN-WF-004: قفل سال مالی
     try {
       var y = String((rec.month||'').split('/')[0]||'').trim();
@@ -386,6 +388,7 @@
     var rec = opexFindRow(oRows(), cd, rowId, true);
     if (!rec) return;
     rowId = rec[OPEX_ROW_ID];
+    if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'ویرایش هزینه جاری' }).ok) return;
     // چک قفل سال
     try {
       var y = String((rec.month||'').split('/')[0]||'').trim();
@@ -684,3 +687,4 @@
     }
   }, 350);
 })();
+);

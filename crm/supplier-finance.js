@@ -118,7 +118,7 @@
   }
   function balanceHtml(supCd) {
     var b = balance(supCd); if (!b.length) return '<span style="color:#059669">مانده باز ندارد</span>';
-    return b.map(function (x) { return '<span><b style="color:#b45309">' + money(x.amount) + ' ' + escP(x.cur) + '</b>' + (x.legacy ? ' <small style="color:#64748b">(' + x.legacy + ' تعهد legacy)</small>' : '') + (x.warn ? ' <small style="color:#dc2626">⚠️ مغایرت لینک</small> <button type="button" class="ba" style="color:#7c3aed;font-size:11px;padding:1px 6px" onclick="slAckLinkMismatch(\'' + ptfOnClickArg(supCd) + '\')">برداشتن اخطار</button>' : '') + '</span>'; }).join('<br>');
+    return b.map(function (x) { return '<span><b style="color:#b45309">' + money(x.amount) + ' ' + escP(x.cur) + '</b>' + (x.legacy ? ' <small style="color:#64748b">(' + x.legacy + ' تعهد legacy)</small>' : '') + (x.warn ? ' <small style="color:#dc2626">⚠️ مغایرت مبلغ لینک</small> <button type="button" class="ba" style="color:#7c3aed;font-size:11px;padding:1px 6px" onclick="slAckLinkMismatch(\'' + ptfOnClickArg(supCd) + '\')">برداشتن اخطار</button>' : '') + '</span>'; }).join('<br>');
   }
   window.slSupplierOpenTotalsIRR = function () {
     var debt = 0, credit = 0, fx = {};
@@ -648,13 +648,19 @@
     if (!locked.length) { alert('سال مالی قفل‌شده‌ای برای اصلاح وجود ندارد'); return; }
     ptfDialog({ title: '🧾 سند اصلاحی حساب تأمین‌کننده', body: 'سند اصلی سال قفل‌شده تغییر نمی‌کند؛ این رکورد با تاریخ جاری و مرجع سال قفل‌شده ثبت می‌شود.', fields: [{id:'year',label:'سال مرجع قفل‌شده',type:'select',options:locked},{id:'cur',label:'ارز',type:'select',options:['IRR','USD','EUR','CNY','AED','GBP']},{id:'amount',label:'مبلغ اصلاحی (+ افزایش بدهی / − کاهش بدهی)',type:'number',money:false,dir:'ltr',required:true},{id:'rate',label:'نرخ تسعیر (برای ارز خارجی)',type:'number',money:false,dir:'ltr'},{id:'note',label:'دلیل اصلاح *',type:'textarea',rows:2,required:true}], okText:'ثبت سند اصلاحی', onOk:function(v){ var amt=+v.amount||0, cur=v.cur||'IRR', rate=cur==='IRR'?1:(+v.rate||0); if(!amt || !v.note || (cur!=='IRR'&&!rate)){alert('مبلغ، دلیل و برای ارز خارجی نرخ الزامی است');return;} var d=data(); d.adjustments=d.adjustments||[]; var sup=supplier(supCd); var a={cd:genCode('SFADJ'),supplierCd:supCd,supName:sup?sup.co:'',refYear:v.year,cur:cur,rate:rate,amount:amt,amountIrr:cur==='IRR'?amt:Math.round(amt*rate),note:v.note,dateISO:new Date().toISOString().slice(0,10),dateFa:faDate(),status:'posted',t:faDateTime(),by:curSession().name}; d.adjustments.unshift(a);save(d);try{audit('حساب تامین','سند اصلاحی سال '+v.year+' برای '+a.supName+' — '+money(amt)+' '+cur,a.cd)}catch(e){};slOpenLedger(supCd); } });
   };
+  window.slAckLinkFromQuality = function (invoiceCd) {
+    var d = data();
+    var inv = (d.invoices || []).filter(function (x) { return x.cd === invoiceCd; })[0];
+    if (!inv) { if (typeof ptfToast === 'function') ptfToast('فاکتور پیدا نشد', 'e'); return; }
+    window.slAckLinkMismatch(inv.supplierCd, invoiceCd);
+  };
   window.slAckLinkMismatch = function (supCd, invoiceCd) {
     var d = data();
     var invs = activeInvoices(d).filter(function (i) { return i.supplierCd === supCd && (!invoiceCd || i.cd === invoiceCd) && invoiceLinkMismatchActive(i); });
     if (!invs.length) { if (typeof ptfToast === 'function') ptfToast('اخطار فعالی برای برداشتن نیست', 'info'); return; }
     var msg = invoiceCd
       ? 'اخطار مغایرت مبلغ فاکتور با تعهدهای لینک‌شده برای این فاکتور برداشته شود؟ مانده حساب عوض نمی‌شود.'
-      : ('اخطار مغایرت لینک برای ' + invs.length + ' فاکتور این تأمین‌کننده برداشته شود؟\n\nمعمولاً وقتی بعضی اقلام قیمت خرید واقعی ندارند، جمع تعهدها با فاکتور یکی نمی‌شود. این تأیید فقط اخطار را پنهان می‌کند.');
+      : ('اخطار مغایرت مبلغ لینک برای ' + invs.length + ' فاکتور این تأمین‌کننده برداشته شود؟\n\nمعمولاً وقتی بعضی اقلام قیمت خرید واقعی ندارند، جمع تعهدها با فاکتور یکی نمی‌شود. این تأیید فقط اخطار را پنهان می‌کند.');
     if (!confirm(msg)) return;
     var who = '';
     try { who = curSession().name || ''; } catch (e) {}
@@ -666,8 +672,8 @@
       i.linkMismatchAckBy = who;
     });
     save(d);
-    try { audit('حساب تامین', 'تأیید و برداشتن اخطار مغایرت لینک — ' + invs.map(function (i) { return i.no || i.cd; }).join('، '), supCd); } catch (eA) {}
-    if (typeof ptfToast === 'function') ptfToast('✅ اخطار مغایرت لینک برداشته شد', 'ok');
+    try { audit('حساب تامین', 'تأیید و برداشتن اخطار مغایرت مبلغ لینک — ' + invs.map(function (i) { return i.no || i.cd; }).join('، '), supCd); } catch (eA) {}
+    if (typeof ptfToast === 'function') ptfToast('✅ اخطار مغایرت مبلغ لینک برداشته شد', 'ok');
     if (typeof slRefreshSupplierPanel === 'function') slRefreshSupplierPanel();
     if (typeof slFinanceRowsRender === 'function') slFinanceRowsRender();
     if (document.getElementById('slLedgerDlg')) slOpenLedger(supCd);
@@ -727,10 +733,11 @@
     var rows = invs.map(function (i) {
       var ps = allPayables.filter(function (p) { return (i.legacyPayableCds || []).indexOf(p.cd) > -1; });
       var legacy = ps.reduce(function (s, p) { return s + (+p.amount || 0); }, 0), diff = (+i.amountIrr || +i.amount || 0) - legacy;
+      var stHtml = typeof window.ptfInvoiceLinkStatusHtml === 'function' ? window.ptfInvoiceLinkStatusHtml(i) : '';
       var mismatchOn = invoiceLinkMismatchActive(i);
       var ackNote = (!mismatchOn && i.linkMismatchAck && Math.abs(diff) > 1) ? '<br><small style="color:#64748b">اخطار با تأیید کاربر برداشته شد</small>' : '';
       var ackBtn = mismatchOn ? ' <button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px;color:#7c3aed" onclick="slAckLinkMismatch(\'' + ptfOnClickArg(supCd) + '\',\'' + ptfOnClickArg(i.cd) + '\')">برداشتن اخطار</button>' : '';
-      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + (Math.abs(diff) <= 1 ? '<span style="color:#059669">✓ منطبق</span>' : '<span style="color:#dc2626">⚠️ اختلاف ' + money(diff) + ' ریال</span>') + ackNote + '<br><button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="slInvoiceLinkLegacy(\'' + ptfOnClickArg(i.cd) + '\')">🧷 اصلاح لینک</button>' + ackBtn + '</td></tr>';
+      return '<tr><td>' + escP(i.no) + '</td><td>' + money(i.amountIrr || i.amount) + ' ریال</td><td>' + money(legacy) + ' ریال</td><td>' + (i.legacyPayableCds || []).length + '</td><td>' + stHtml + (Math.abs(diff) <= 1 ? '' : '<br><small style="color:#dc2626">اختلاف ' + money(diff) + ' ریال</small>') + ackNote + '<br><button class="bt bt-o" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="slInvoiceLinkLegacy(\'' + ptfOnClickArg(i.cd) + '\')">🧷 اصلاح لینک</button>' + ackBtn + '</td></tr>';
     }).join('');
     var unlinked = legacyOpen(sup).filter(function (p) { return !p.sfInvoiceCd && !linkedIds[p.cd]; });
     var unlinkedIrr = unlinked.reduce(function (s, p) { return s + (+p.amount || 0); }, 0);
@@ -754,8 +761,11 @@
       return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap"><a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\',\'' + ptfOnClickArg(f.name || 'فایل') + '\')" style="color:#0e7490;flex:1">📎 ' + escP(f.name || 'فایل') + '</a><button class="ba" style="color:#dc2626" onclick="slInvoiceRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕</button></div>';
     }).join('') || '<div style="color:#94a3b8;font-size:12px">سندی ثبت نشده است</div>';
     var filesBox = '<div style="margin-top:6px;border:1px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"><b style="font-size:12px">📎 اسناد فاکتور</b><small style="display:block;color:#047857;margin-top:3px">فایل پس از آپلود همان لحظه ذخیره می‌شود؛ بستن فرم آن را حذف نمی‌کند.</small>' + filesHtml + '<div id="slInvEditFilesUp" style="margin-top:6px"></div></div>';
+    var linkBox = typeof window.ptfInvoiceLinkStatusHtml === 'function'
+      ? '<div style="margin-bottom:8px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:10px;font-size:12px">وضعیت لینک: ' + window.ptfInvoiceLinkStatusHtml(initial) + '</div>'
+      : '';
     ptfDialog({
-      title: '✏️ ویرایش فاکتور خرید ' + escP(initial.no), body: filesBox,
+      title: '✏️ ویرایش فاکتور خرید ' + escP(initial.no), body: linkBox + filesBox,
       fields: [{id:'no',label:'شماره فاکتور',value:initial.no,required:true},{id:'date',label:'تاریخ فاکتور (شمسی)',value:initial.dateFa||initial.dateISO,dir:'ltr',required:true},{id:'amount',label:'مبلغ',type:'number',money:false,value:initial.amount,dir:'ltr',required:true},{id:'isOfficial',label:'نوع فاکتور خرید',type:'select',optionsHtml:'<option value=""' + (!Object.prototype.hasOwnProperty.call(initial,'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (initial.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (initial.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>'},{id:'note',label:'یادداشت',type:'textarea',value:initial.note||''}],
       okText: 'ذخیره', onOk: function (v) {
         var d = data(), i = fileRecord('invoice', cd, d); if (!i) return;
@@ -1009,6 +1019,7 @@
     window.slInvoiceDelete = function(cd){
       var d=(function(){ try{return JSON.parse(localStorage.getItem('ptf_crm_supplier_finance')||'{}')}catch(e){return {}}; })();
       var i=(d.invoices||[]).filter(function(x){ return x.cd===cd; })[0];
+      if(i && typeof window.ptfFinanceAssertWritable==='function' && !window.ptfFinanceAssertWritable(i.dateISO,{action:'حذف فاکتور'}).ok) return;
       if(i && slLockedYear(i.dateISO)){ alert('🔒 فاکتور مربوط به سال مالی '+slLockedYear(i.dateISO)+' قفل است - حذف مجاز نیست. سند اصلاحی بزنید.'); return; }
       return _delInv(cd);
     };

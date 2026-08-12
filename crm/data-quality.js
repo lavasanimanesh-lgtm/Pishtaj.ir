@@ -55,6 +55,12 @@
       var sfData = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');
       (sfData.invoices || []).forEach(function (inv) {
         if (inv.status === 'void') return;
+        if (typeof window.ptfInvoiceLinkStatus === 'function') {
+          var lst = window.ptfInvoiceLinkStatus(inv);
+          if (lst.code === 'amount-mismatch') {
+            add(q, 'supplier-invoice-amount', 'فاکتور خرید با اختلاف مبلغ نسبت به تعهدهای لینک‌شده', (inv.no || inv.cd) + (inv.supName ? ' — ' + inv.supName : ''), Math.abs(lst.diff || 0), { type: 'supplier-amount', cd: inv.cd, label: 'فاکتور ' + (inv.no || inv.cd) + ' — اختلاف ' + Math.round(Math.abs(lst.diff || 0)).toLocaleString('fa-IR') + ' ریال' });
+          }
+        }
         if (ledgerOfSupplierInvoiceSafe(inv) === 'unclassified') {
           var supName = inv.supName || '';
           try { var sup = (getData('ptf_crm_suppliers') || []).filter(function (x) { return x.cd === inv.supplierCd; })[0]; if (sup) supName = sup.co || supName; } catch (eS) {}
@@ -139,17 +145,18 @@
     return details.map(function (d) {
       var action = '';
       if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح هزینه</button>';
-      else if (d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>';
+      else if ((d.type === 'supplier-invoice' || d.type === 'supplier-amount') && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>' + (d.type === 'supplier-amount' && typeof slAckLinkFromQuality === 'function' ? ' <button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;color:#7c3aed" onclick="slAckLinkFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">برداشتن اخطار</button>' : '');
       else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
       else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
       var invoiceActions = d.type === 'procurement' && (d.relatedInvoices || []).length
         ? '<div style="margin-top:9px;padding-top:7px;border-top:1px solid #e2e8f0"><b style="display:block;color:#475569;font-size:11px">فاکتورهای خرید مرتبط</b>' + d.relatedInvoices.map(function (inv) { return '<div style="margin-top:4px"><span>' + escP(inv.label) + '</span><br><button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:3px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(inv.cd) + '\')">✏️ اصلاح همین فاکتور</button></div>'; }).join('') + '</div>'
         : '';
       var explanation = d.type === 'procurement'
-        ? 'این پیش‌فاکتور ' + (d.issueCount || 0) + ' قلم نیازمند تطبیق دارد؛ تطبیق باید در سطح فاکتور خرید انجام شود، نه تک‌تک اقلام.'
-        : d.type === 'opex' ? 'نوع سند این هزینه مشخص نشده است.'
-        : d.type === 'supplier-invoice' ? 'نوع این فاکتور خرید مشخص نشده است.'
-        : d.type === 'cheque' ? 'مالکیت یا تاریخ سررسید این چک نیازمند تکمیل است.'
+        ? 'تطبیق قلم‌به‌قلم پیش‌فاکتور با خرید واقعی/استعلام قطعی نیست. این با «لینک فاکتور به تعهد» فرق دارد؛ اتصال فاکتور به‌تنهایی این مورد را نمی‌بندد.'
+        : d.type === 'opex' ? 'نوع سند (رسمی/غیررسمی) خالی است و در تراز داخل سطل نامشخص می‌ماند تا در همین فرم هزینه مشخص شود.'
+        : d.type === 'supplier-invoice' ? 'نوع سند فاکتور خرید خالی است؛ از دکمهٔ اصلاح، رسمی یا غیررسمی را انتخاب کنید.'
+        : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
+        : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'
         : 'این مورد نیازمند بررسی است.';
       return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');
