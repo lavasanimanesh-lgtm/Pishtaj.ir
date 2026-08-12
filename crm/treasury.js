@@ -442,6 +442,66 @@
     go({ amt: amt, dir: confirm('ورود وجه؟ OK=ورود / انصراف=خروج') ? 'in' : 'out', date: todayJ, note: prompt('شرح ردیف بانک') || '' });
   };
 
+  window.ptfTreasuryLink = function (lineCd, moveKey) {
+    var lines = loadRecon();
+    var line = lines.filter(function (x) { return x.cd === lineCd; })[0];
+    if (!line) return false;
+    var hit = window.ptfTreasuryCrmMoves().filter(function (m) { return m.key === moveKey; })[0];
+    if (!hit) return false;
+    if (line.matchKey && line.matchKey !== moveKey) {
+      if (!confirm('این ردیف بانک قبلاً به سند دیگری وصل است. تعویض شود؟')) return false;
+    }
+    line.matchKey = moveKey;
+    line.matchCd = hit.cd || '';
+    line.t = new Date().toISOString();
+    saveRecon(lines);
+    if (typeof ptfToast === 'function') ptfToast('تطبیق ثبت شد — مانده بانک ساخته نشد', 'ok');
+    window.ptfTreasuryRender();
+    return true;
+  };
+
+  window.ptfTreasuryMatchMove = function (moveKey) {
+    var move = window.ptfTreasuryCrmMoves().filter(function (m) { return m.key === moveKey; })[0];
+    if (!move) { alert('این گردش در خزانه پیدا نشد.'); return; }
+    var cands = loadRecon().filter(function (l) {
+      return l && !l.matchKey && l.dir === move.dir && Math.abs(num(l.amount) - num(move.amount)) <= 1;
+    });
+    if (cands.length === 1) {
+      if (!confirm('ردیف صورتحساب «' + (cands[0].cd || '') + '» (' + money(cands[0].amount) + ' ریال) به این گردش وصل شود؟')) return;
+      window.ptfTreasuryLink(cands[0].cd, moveKey);
+      return;
+    }
+    var host = document.getElementById('panels') || document.body;
+    var old = document.getElementById('ptfTreasuryMatchDlg');
+    if (old) old.remove();
+    var rows = cands.map(function (l) {
+      return '<tr><td>' + esc(l.cd) + '</td><td>' + money(l.amount) + '</td><td>' + esc(l.note || '') + '</td>' +
+        '<td><button type="button" class="bt" style="font-size:11px" data-cd="' + esc(l.cd) + '" data-key="' + esc(moveKey) + '" onclick="ptfTreasuryLink(this.getAttribute(\'data-cd\'),this.getAttribute(\'data-key\'));var d=document.getElementById(\'ptfTreasuryMatchDlg\');if(d)d.remove();">تطبیق با این ردیف</button></td></tr>';
+    }).join('');
+    host.insertAdjacentHTML('beforeend',
+      '<div class="md-b" id="ptfTreasuryMatchDlg" style="display:grid;z-index:1900" onclick="if(event.target===this)this.remove()">' +
+      '<div class="md" style="max-width:640px" onclick="event.stopPropagation()"><h3>تطبیق گردش CRM با صورتحساب</h3>' +
+      '<div style="background:#eff6ff;border:1px solid #bae6fd;border-radius:10px;padding:9px 11px;font-size:12.5px;line-height:1.9;margin-bottom:10px">' +
+      '<b>' + esc(move.label) + '</b> — ' + money(move.amount) + ' ریال (' + (move.dir === 'in' ? 'ورود' : 'خروج') + ')<br>' +
+      (cands.length ? 'ردیف‌های بانک هم‌مبلغ و هم‌جهت که هنوز تطبیق نشده‌اند:' : 'هنوز ردیف صورتحساب هم‌مبلغ وارد نشده. اول صورتحساب را وارد کنید، بعد همین دکمه را بزنید.') +
+      '</div>' +
+      (cands.length ? '<div class="tb2"><table><thead><tr><th>کد بانک</th><th>مبلغ</th><th>شرح</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+      '<button type="button" class="bt bt-o" onclick="this.closest(\'.md-b\').remove();var i=document.getElementById(\'ptfTrStmtInp\');if(i)i.click()">ورود اکسل/CSV</button>' +
+      '<button type="button" class="bt bt-o" onclick="this.closest(\'.md-b\').remove();ptfTreasuryAddLine()">+ ردیف صورتحساب</button>' +
+      '<button type="button" class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>');
+  };
+
+  window.ptfTreasuryOpenFromQuality = function (kind, id) {
+    window._ptfTreasuryFocus = { kind: kind || 'crm', id: String(id || '') };
+    if (typeof window.finHubSet === 'function') window.finHubSet('treasury');
+    else if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+    setTimeout(function () {
+      var el = document.getElementById(kind === 'bank' ? ('trBank-' + id) : ('trMove-' + String(id || '').replace(/[^a-zA-Z0-9_-]/g, '_')));
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 80);
+  };
+
   window.ptfTreasuryMatch = function (cd) {
     var lines = loadRecon();
     var line = lines.filter(function (x) { return x.cd === cd; })[0];
@@ -546,7 +606,7 @@
       '<button type="button" class="bt bt-o" onclick="ptfTreasuryTemplateCsv()">الگوی CSV</button>' +
       '<input type="file" id="ptfTrStmtInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfTreasuryImportFile(this)">' +
       '<input type="file" id="ptfTrPdfInp" accept="application/pdf,image/*" style="display:none" onchange="ptfTreasuryImportPdf(this)"></div></div>' +
-      '<div id="treasuryKpi"></div><div id="treasuryMoves"></div><div id="treasuryRecon"></div></div>';
+      '<div id="treasuryKpi"></div><div id="treasuryFocus"></div><div id="treasuryMoves"></div><div id="treasuryRecon"></div></div>';
   };
 
   window.ptfTreasuryRender = function () {
@@ -554,6 +614,7 @@
     if (!box) return;
     var c = window.ptfTreasuryDerivedCash();
     var u = window.ptfTreasuryUnmatched();
+    var focus = window._ptfTreasuryFocus || null;
     var kpi = document.getElementById('treasuryKpi');
     if (kpi) {
       kpi.innerHTML = '<div class="sr" style="margin:10px 0">' +
@@ -564,13 +625,36 @@
         '<div class="sc"><b>' + u.lines.length + '</b><span>ردیف بانک بدون تطبیق</span></div>' +
         '<div class="sc"><b>' + u.moves.length + '</b><span>گردش CRM بدون تطبیق</span></div></div>';
     }
+    var used = takenKeys();
     var moves = window.ptfTreasuryCrmMoves();
+    var focusEl = document.getElementById('treasuryFocus');
+    if (focusEl) {
+      var focusMove = focus && focus.id ? moves.filter(function (m) { return m.key === focus.id; })[0] : null;
+      var focusLine = focus && focus.id ? loadRecon().filter(function (l) { return l.cd === focus.id; })[0] : null;
+      if (focus && focus.kind === 'crm' && focusMove) {
+        focusEl.innerHTML = '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:12.5px;line-height:1.9">' +
+          '<b>از کیفیت داده آمدید:</b> گردش «' + esc(focusMove.label) + '» به مبلغ ' + money(focusMove.amount) + ' ریال هنوز به خط صورتحساب وصل نیست.<br>' +
+          '۱) اگر خط بانک را وارد کرده‌اید، «تطبیق این گردش» را بزنید.<br>' +
+          '۲) اگر صورتحساب را نیاورده‌اید، اول «ورود اکسل/CSV» یا «+ ردیف صورتحساب» را بزنید، بعد تطبیق.<br>' +
+          'این کار موجودی بانک مستقل نمی‌سازد؛ فقط مغایرت را می‌بندد.' +
+          '<div style="margin-top:8px"><button type="button" class="bt" data-key="' + esc(focusMove.key) + '" onclick="ptfTreasuryMatchMove(this.getAttribute(\'data-key\'))">تطبیق این گردش</button></div></div>';
+      } else if (focus && focus.kind === 'bank' && focusLine) {
+        focusEl.innerHTML = '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:10px 12px;margin:10px 0;font-size:12.5px;line-height:1.9">' +
+          '<b>از کیفیت داده آمدید:</b> ردیف صورتحساب «' + esc(focusLine.cd) + '» هنوز به سند CRM وصل نیست. دکمهٔ «تطبیق» همان ردیف را بزنید.</div>';
+      } else {
+        focusEl.innerHTML = '';
+      }
+    }
     var mv = document.getElementById('treasuryMoves');
     if (mv) {
-      mv.innerHTML = '<h5>گردش مشتق از اسناد CRM</h5><div class="tb2"><table><thead><tr><th>تاریخ</th><th>شرح</th><th>جهت</th><th>مبلغ</th><th>کلید</th></tr></thead><tbody>' +
+      mv.innerHTML = '<h5>گردش مشتق از اسناد CRM</h5><div class="tb2"><table><thead><tr><th>تاریخ</th><th>شرح</th><th>جهت</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead><tbody>' +
         (moves.slice(0, 80).map(function (m) {
-          return '<tr><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td><td dir="ltr">' + esc(m.key) + '</td></tr>';
-        }).join('') || '<tr><td colspan="5">گردش مشتق ثبت نشده</td></tr>') +
+          var rid = 'trMove-' + String(m.key || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+          var on = focus && focus.kind === 'crm' && focus.id === m.key;
+          var matched = !!used[m.key];
+          return '<tr id="' + rid + '"' + (on ? ' style="outline:2px solid #f59e0b;background:#fffbeb"' : '') + '><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td><td>' + (matched ? 'تطبیق‌شده' : 'بدون صورتحساب') + '</td>' +
+            '<td>' + (matched ? '' : '<button type="button" class="ba" data-key="' + esc(m.key) + '" onclick="ptfTreasuryMatchMove(this.getAttribute(\'data-key\'))">تطبیق</button>') + '</td></tr>';
+        }).join('') || '<tr><td colspan="6">گردش مشتق ثبت نشده</td></tr>') +
         '</tbody></table></div>';
     }
     var lines = loadRecon();
@@ -578,7 +662,8 @@
     if (rec) {
       rec.innerHTML = '<h5>یادداشت مغایرت صورتحساب</h5><div class="tb2"><table><thead><tr><th>کد</th><th>مبلغ</th><th>جهت</th><th>شرح</th><th>تطبیق</th><th></th></tr></thead><tbody>' +
         (lines.map(function (l) {
-          return '<tr><td>' + esc(l.cd) + '</td><td>' + money(l.amount) + '</td><td>' + (l.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + esc(l.note || '') + '</td><td dir="ltr">' + esc(l.matchKey || '—') + '</td>' +
+          var on = focus && focus.kind === 'bank' && focus.id === l.cd;
+          return '<tr id="trBank-' + esc(l.cd) + '"' + (on ? ' style="outline:2px solid #f59e0b;background:#fffbeb"' : '') + '><td>' + esc(l.cd) + '</td><td>' + money(l.amount) + '</td><td>' + (l.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + esc(l.note || '') + '</td><td dir="ltr">' + esc(l.matchKey || '—') + '</td>' +
             '<td><button type="button" class="ba" onclick="ptfTreasuryMatch(\'' + esc(l.cd) + '\')">تطبیق</button> <button type="button" class="ba" onclick="ptfTreasuryAttach(\'' + esc(l.cd) + '\')">📎</button></td></tr>';
         }).join('') || '<tr><td colspan="6">ردیفی نیست</td></tr>') +
         '</tbody></table></div>';
