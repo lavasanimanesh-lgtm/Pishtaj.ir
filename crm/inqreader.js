@@ -548,18 +548,19 @@
               tdEl.appendChild(document.createTextNode(' '));
               tdEl.appendChild(badge);
             }
-            if (tdEl.innerHTML.indexOf("goPanel('prj')") === -1 && tdEl.innerHTML.indexOf('goPanel("prj")') === -1 && !tdEl.querySelector('[data-rfq-action="goPanelPrj"]')) {
+            if (tdEl.innerHTML.indexOf("goPanel('prj')") === -1 && tdEl.innerHTML.indexOf('goPanel("prj")') === -1 && !tdEl.querySelector('[data-rfq-action="goPanelPrj"]') && !tdEl.querySelector('[data-rfq-action="ptfGoSalesFileForRfq"]')) {
               var prjBtn = document.createElement('button');
               prjBtn.type = 'button';
               prjBtn.className = 'ba';
               prjBtn.setAttribute('style', 'background:#7c3aed;color:#fff');
-              prjBtn.setAttribute('title', 'مشاهده پروژه');
-              prjBtn.setAttribute('aria-label', 'مشاهده پروژه');
-              prjBtn.setAttribute('data-rfq-action', 'goPanelPrj');
-              prjBtn.textContent = '📁 مشاهده پروژه';
+              prjBtn.setAttribute('title', 'مشاهده پرونده فروش');
+              prjBtn.setAttribute('aria-label', 'مشاهده پرونده فروش');
+              prjBtn.setAttribute('data-rfq-action', 'ptfGoSalesFileForRfq');
+              prjBtn.textContent = '📁 مشاهده پرونده';
               prjBtn.addEventListener('click', function (ev) {
                 if (ev && ev.stopPropagation) ev.stopPropagation();
-                if (typeof goPanel === 'function') goPanel('prj');
+                if (typeof window.ptfGoSalesFileForRfq === 'function') window.ptfGoSalesFileForRfq(cd);
+                else if (typeof goPanel === 'function') goPanel('deals');
               });
               tdEl.appendChild(document.createTextNode(' '));
               tdEl.appendChild(prjBtn);

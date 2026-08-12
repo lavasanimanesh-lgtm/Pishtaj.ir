@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — nav-focus.js — v34.4.77
+   PTF CRM — nav-focus.js — v34.4.78
    هایلایت چندثانیه‌ای رکورد مقصد بعد از هدایت بین ماژول‌ها.
    ===================================================================== */
 (function () {
@@ -107,6 +107,45 @@
     }
     try { window._sfTab = 'files'; window._sfOpen = dealCd; } catch (e2) {}
     window.ptfNavGoto('deals', { kind: 'deal', id: dealCd, open: true });
+  };
+
+  /* درخواست برنده → پرونده فروش فعال، نه بایگانی (پنل prj). */
+  window.ptfGoSalesFileForRfq = function (rfqCd) {
+    var dealCd = '';
+    try {
+      var rfqs = (typeof getData === 'function' ? getData('ptf_crm_rfqs') : []) || [];
+      var r = rfqs.filter(function (x) { return x && (x.cd === rfqCd || x.inqNo === rfqCd); })[0];
+      var aliases = [];
+      [rfqCd, r && r.cd, r && r.inqNo].forEach(function (v) {
+        v = String(v || '').trim();
+        if (v && aliases.indexOf(v) < 0) aliases.push(v);
+      });
+      var deals = (typeof getData === 'function' ? getData('ptf_crm_deals') : []) || [];
+      var offers = (typeof getData === 'function' ? getData('ptf_crm_offers') : []) || [];
+      var wonNos = {};
+      offers.forEach(function (o) {
+        if (!o || o.st !== 'won') return;
+        var v = String(o.inqNo || o.srcRfq || '').trim();
+        if (v && aliases.indexOf(v) > -1) wonNos[o.no] = true;
+      });
+      var hit = deals.filter(function (d) {
+        if (!d || d.st === 'archived') return false;
+        if (aliases.indexOf(String(d.inqNo || '')) > -1) return true;
+        if (aliases.indexOf(String(d.cd || '')) > -1) return true;
+        if (d.wonOffer && wonNos[d.wonOffer]) return true;
+        if (d.offerNo && wonNos[d.offerNo]) return true;
+        return false;
+      })[0];
+      if (hit) dealCd = hit.cd;
+    } catch (e) {}
+    if (dealCd) {
+      window.ptfGoSalesFile(dealCd);
+      return dealCd;
+    }
+    try { window._sfTab = 'files'; } catch (e2) {}
+    try { if (typeof goPanel === 'function') goPanel('deals'); } catch (e3) {}
+    if (typeof ptfToast === 'function') ptfToast('پرونده فروش فعال برای این درخواست پیدا نشد', 'warn');
+    return '';
   };
 
   function hookGoPanel() {
