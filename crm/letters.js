@@ -510,7 +510,7 @@ function letReject(cd) {
   l.rejectWhy = why.trim();
   setData('ptf_crm_letters', ls);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(l.cd); } catch (eNR) {} /* v33.4.1: رد شد — درخواست امضای مرتبط برای همه حذف شود */
-  notify({ toUsers: [l.author], title: '❌ نامه «' + l.subject + '» رد شد', body: 'دلیل: ' + why, kind: 'sign_no', channels: ['cart'], link: { panel: 'let' } });
+  notify({ toUsers: [l.author], title: '❌ نامه «' + l.subject + '» رد شد', body: 'دلیل: ' + why, kind: 'sign_no', channels: ['cart'], link: { panel: 'let' }, actionable: true, refCd: l.cd });
   audit('مکاتبات', 'رد امضای نامه: ' + why, l.cd);
   renderLetters();
 }

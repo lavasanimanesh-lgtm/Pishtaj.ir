@@ -685,7 +685,7 @@
         if (last !== today) {
           if (typeof ptfStorageSafeSetItem === 'function') ptfStorageSafeSetItem('ptf_storage_warned', today, { noWarn: true });
           else localStorage.setItem('ptf_storage_warned', today);
-          notify({ toRoles: ['admin', 'chairman'], title: 'حافظه محلی CRM بیش از ۸۵٪ پر است — از تنظیمات، بک‌آپ و پاک‌سازی امن را اجرا کنید', kind: 'system', channels: ['cart'], link: { panel: 'set' } });
+          notify({ toRoles: ['admin', 'chairman'], title: 'حافظه محلی CRM بیش از ۸۵٪ پر است — از تنظیمات، بک‌آپ و پاک‌سازی امن را اجرا کنید', kind: 'data_risk', channels: ['cart'], link: { panel: 'set' }, actionable: true, dkey: 'quota-85' });
         }
       }
     } catch (e) {}

@@ -22,7 +22,7 @@ var ROLES = {
   commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
   sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false, ledgerScope: 'none'     },
   buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false, ledgerScope: 'none'     },
-  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty','chqprint','ai'],                            buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
+  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty','chqprint','cart','ai'],                     buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
   collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'all'      }
 };
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
@@ -81,17 +81,10 @@ window.ptfPruneStaleNotifs = function () {
   try {
     var notifs = getData('ptf_crm_notifs');
     if (!notifs.length) return 0;
-    var cutoff = Date.now() - NTF_INFO_TTL_DAYS * 86400000;
     var kept = notifs.filter(function (n) {
       if (!n) return false;
-      /* پیشنهاد منقضی/نزدیک انقضا کارتابل نیست؛ وضعیت آن فقط در ماژول پیشنهادها دیده می‌شود. */
-      if (n.kind === 'co_expiry') return false;
-      if (typeof ntfIsImportant === 'function' && ntfIsImportant(n)) return true; /* مهم‌ها هرگز با گذر زمان حذف نمی‌شوند */
-      if ((n.readBy || []).length > 0) return true; /* خوانده‌شده — از قبل در کارتابل/صندوق پیام پیش‌فرض مخفی است؛ نیازی به حذف اجباری نیست */
-      var t = 0;
-      try { t = n.iso ? new Date(n.iso).getTime() : 0; } catch (eT) { t = 0; }
-      if (!t) return true; /* بدون timestamp قابل‌فهم — برای ایمنی نگه داشته می‌شود */
-      return t >= cutoff;
+      if (n.kind === 'co_expiry' || n.kind === 'referral_info') return false;
+      return typeof ntfNeedsAction === 'function' ? ntfNeedsAction(n) : !!n.actionable;
     });
     if (kept.length !== notifs.length) setData('ptf_crm_notifs', kept);
     return notifs.length - kept.length;
@@ -110,7 +103,14 @@ function audit(module, action, ref) {
 // notify({toRoles:['accountant'], toUsers:[], title, body, kind, channels:['cart','sms','email'], link, refCd, tier})
 function notify(opt) {
   window._ptfNotifySuppressed = false; /* v31.7.15 BUG-BOT-SPAM-001: مصرف‌کننده‌های پایین‌دستی (بات تلگرام) باید از dedup باخبر شوند */
-  try { ptfPruneStaleNotifs(); } catch (ePr0) {} /* v33.4.1: قبل از افزودن رکورد جدید، اعلانات اطلاعیِ منقضی‌شده حذف شوند */
+  opt = opt || {};
+  if (NTF_ACTION_KINDS.indexOf(opt.kind || '') > -1) opt.actionable = true;
+  /* v34.5.5: خبر اطلاعی وارد کارتابل نمی‌شود — فقط کار نیازمند اقدام ذخیره می‌شود. */
+  if (!ntfNeedsAction(opt)) {
+    window._ptfNotifySuppressed = true;
+    return null;
+  }
+  try { ptfPruneStaleNotifs(); } catch (ePr0) {}
   var notifs = getData('ptf_crm_notifs');
   /* v31.7.10 BUG-NTF-001: ضدتکرار اعلان — اگر همین اعلان (عنوان+متن+گیرندگان) هنوز
      توسط هیچ‌کس خوانده نشده، رکورد جدید ساخته نمی‌شود؛ فقط شمارنده تکرار و زمان
@@ -180,7 +180,7 @@ function myNotifs() {
 function updateCartBadge() {
   var me = curSession().user;
   /* badge فقط «کاری که اقدام من می‌خواهد» را می‌شمارد، نه خبرهای عمومی/تاریخی. */
-  var unread = myNotifs().filter(function (n) { return !!n.actionable && !n.done && (n.readBy || []).indexOf(me) < 0; }).length;
+  var unread = myNotifs().filter(function (n) { return ntfNeedsAction(n) && (n.readBy || []).indexOf(me) < 0; }).length;
   var b = document.getElementById('ctBadge');
   if (b) { b.textContent = unread; b.style.display = unread ? '' : 'none'; }
 }
@@ -191,12 +191,13 @@ function buildCartable() {
      فضای مستقل دارند تا زیر هم نیفتند یا به iconهای مبهم 44px تبدیل نشوند. */
   return '<div class="ph cartable-head"><h3>🗂 کارتابل من</h3>' +
     '<div class="cartable-toolbar">' +
-      '<label class="cartable-toggle" for="ctAll"><input type="checkbox" id="ctAll" onchange="renderCartable()"><span>نمایش خوانده‌شده‌ها</span></label>' +
+      '<label class="cartable-toggle" for="ctAll"><input type="checkbox" id="ctAll" onchange="renderCartable()"><span>نمایش انجام‌شده‌ها</span></label>' +
       '<div class="cartable-quick-actions" id="cartableQuickActions">' +
         '<button class="bt bt-o cartable-action cartable-read-all" type="button" title="علامت‌گذاری همه به‌عنوان خوانده‌شده" aria-label="علامت‌گذاری همه به‌عنوان خوانده‌شده" onclick="ntfReadAll()"><span class="cartable-action-icon" aria-hidden="true">✓✓</span><span class="cartable-action-label">خواندم همه</span></button>' +
         '<button class="bt bt-o cartable-action cartable-preferences" type="button" title="ترجیحات اعلان" aria-label="ترجیحات اعلان" onclick="showNotifPrefs()"><span class="cartable-action-icon" aria-hidden="true">⚙️</span><span class="cartable-action-label">ترجیحات اعلان</span></button>' +
       '</div>' +
     '</div></div>' +
+    '<p style="margin:0 16px 10px;font-size:12px;color:#64748b">فقط کارهایی که اقدام شما لازم است اینجا می‌آیند. خبرهای ثبت/تایید/مختومه وارد کارتابل نمی‌شوند.</p>' +
     '<div id="ctWrap"></div>';
 }
 
@@ -207,17 +208,20 @@ function buildCartable() {
    و رویدادهای مالی/سیستمی حیاتی. بقیه (هشدارهای خودکار تکرارشونده مثل انقضای
    پیش‌فاکتور/مهلت درخواست/تحویل تعهدی، وضعیت‌های عمومی و...) اطلاعی‌اند —
    این‌ها از قبل به‌صورت زنده در «☀️ روز من» (myday.js) هم دیده می‌شوند. */
-var NTF_IMPORTANT_KINDS = ['system', 'warn', 'error', 'finance', 'cheque', 'inv_ref', 'contact_req', 'sign_req'];
-function ntfIsImportant(n) {
-  if (!n) return false;
-  if (n.tier === 'important') return true;
+/* v34.5.5: فقط کار نیازمند اقدام. kindهای زیر حتی اگر caller فراموش کند
+   actionable بگذارد، کارتابل می‌شوند. بقیه (system/warn/info/buyq/payment…) خبرند. */
+var NTF_ACTION_KINDS = ['inv_ref', 'contact_req', 'sign_req', 'sign_no', 'referral', 'reminder', 'cheque', 'management_action', 'management_report', 'petty_period', 'qc_ncr', 'delivery_next', 'data_risk'];
+var NTF_IMPORTANT_KINDS = NTF_ACTION_KINDS;
+function ntfNeedsAction(n) {
+  if (!n || n.done) return false;
   if (n.tier === 'info') return false;
-  if (n.actionable) return true; /* هر کار شخصی، مهم‌تر از خبر صرف است */
-  if (NTF_IMPORTANT_KINDS.indexOf(n.kind || '') > -1) return true;
-  if (n.kind === 'referral') return true; /* ارجاع به شخص معین */
-  if (n.kind === 'reminder' && n.remCd) return true; /* یادآور دستی واقعی کاربر (نه هشدار خودکار CO/RFQ/Deal) */
+  if (n.tier === 'action' || n.tier === 'important') return true;
+  if (n.actionable) return true;
+  if (NTF_ACTION_KINDS.indexOf(n.kind || '') > -1) return true;
+  if (n.kind === 'reminder' && n.remCd) return true;
   return false;
 }
+function ntfIsImportant(n) { return ntfNeedsAction(n); }
 
 function ntfCard(n, me) {
   var unread = (n.readBy || []).indexOf(me) < 0;
@@ -225,7 +229,7 @@ function ntfCard(n, me) {
   var rep = (n.repeat || 1) > 1 ? ' <span style="background:#fef3c7;color:#92400e;border-radius:10px;padding:1px 7px;font-size:11px">×' + n.repeat + ' تکرار — آخرین: ' + escP(n.lastT || n.t) + '</span>' : '';
   return '<div style="background:' + (unread ? (imp ? '#fef2f2' : '#fff8f5') : '#fff') + ';border:1px solid var(--brd);border-right:4px solid ' + (unread ? (imp ? '#dc2626' : 'var(--pri)') : '#cbd5e1') + ';border-radius:12px;padding:10px 12px;margin-bottom:8px">' +
     '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">' +
-    '<div style="font-size:13px">' + (imp ? '<span style="color:#dc2626;font-size:11px;font-weight:bold">● مهم</span> ' : '') + '<b>' + escP(n.title) + '</b>' + rep +
+    '<div style="font-size:13px">' + (imp ? '<span style="color:#dc2626;font-size:11px;font-weight:bold">● اقدام</span> ' : '') + '<b>' + escP(n.title) + '</b>' + rep +
     '<div style="font-size:11.5px;color:#64748b;margin-top:2px">' + escP(n.t) + ' — از: ' + escP(n.from) + ' (' + escP(n.fromRole) + ')' +
     (n.channels.length > 1 ? ' | کانال‌ها: ' + n.channels.join('، ') : '') + '</div>' +
     (n.body ? '<div style="font-size:12px;color:#475569;margin-top:4px">' + escP(n.body) + '</div>' : '') + '</div>' +
@@ -240,24 +244,22 @@ function renderCartable() {
   if (!el) return;
   var me = curSession().user;
   var showAll = (document.getElementById('ctAll') || {}).checked;
-  var list = myNotifs().filter(function (n) { return showAll || (n.readBy || []).indexOf(me) < 0; });
-  var actionList = list.filter(function (n) { return !!n.actionable && !n.done; });
-  var alertList = list.filter(function (n) { return !n.actionable && ntfIsImportant(n); });
-  var infoList = list.filter(function (n) { return !n.actionable && !ntfIsImportant(n); });
+  var list = myNotifs().filter(function (n) {
+    if (!ntfNeedsAction(n) && !n.done) return false;
+    return showAll || ((n.readBy || []).indexOf(me) < 0 && !n.done);
+  });
+  var openList = list.filter(function (n) { return !n.done && (n.readBy || []).indexOf(me) < 0; });
+  var doneList = list.filter(function (n) { return n.done || (n.readBy || []).indexOf(me) > -1; });
   var h = '';
-  if (actionList.length) {
-    h += '<div style="font-size:12.5px;font-weight:bold;color:#dc2626;margin:2px 0 8px">🔴 اقدام من (' + actionList.length + ')</div>';
-    actionList.forEach(function (n) { h += ntfCard(n, me); });
+  if (openList.length) {
+    h += '<div style="font-size:12.5px;font-weight:bold;color:#dc2626;margin:2px 0 8px">🔴 اقدام لازم (' + openList.length + ')</div>';
+    openList.forEach(function (n) { h += ntfCard(n, me); });
   }
-  if (alertList.length) {
-    h += '<div style="font-size:12.5px;font-weight:bold;color:#b45309;margin:14px 0 8px">🟠 هشدارهای معتبر (' + alertList.length + ')</div>';
-    alertList.forEach(function (n) { h += ntfCard(n, me); });
+  if (showAll && doneList.length) {
+    h += '<div style="font-size:12.5px;font-weight:bold;color:#64748b;margin:14px 0 8px">✅ انجام‌شده / خوانده‌شده (' + doneList.length + ')</div>';
+    doneList.forEach(function (n) { h += ntfCard(n, me); });
   }
-  if (infoList.length) {
-    h += '<div style="font-size:12.5px;font-weight:bold;color:#64748b;margin:14px 0 8px">🔵 اطلاع‌رسانی (' + infoList.length + ')</div>';
-    infoList.forEach(function (n) { h += ntfCard(n, me); });
-  }
-  el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">اعلانی ندارید</div>';
+  el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">اقدام بازی ندارید</div>';
   updateCartBadge();
 }
 
@@ -341,7 +343,7 @@ function showNotifPrefs() {
   }).join('');
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:520px">' +
     '<h3>⚙️ ترجیحات دریافت اعلان</h3>' +
-    '<p style="font-size:12px;color:#64748b">کارتابل همیشه فعال است؛ کانال‌های اضافه را برای هر رویداد انتخاب کنید. (پیامک/ایمیل نیازمند پیکربندی سرور است)</p>' +
+    '<p style="font-size:12px;color:#64748b">کارتابل فقط کارهای اقدام‌دار را نشان می‌دهد. کانال پیامک/ایمیل برای همان رویدادهاست (نیازمند پیکربندی سرور).</p>' +
     '<div class="tb2"><table><thead><tr><th>رویداد</th><th>کارتابل</th><th>پیامک</th><th>ایمیل</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
     '<button class="bt" onclick="saveNotifPrefs()">ذخیره</button></div></div></div>';

@@ -191,7 +191,7 @@
     sfSave(list);
     try { audit('پرونده‌های فروش', 'ثبت ' + tp.lb + ' (' + cf.lb + ') برای پرونده ' + (r.inqNo || cd), cd); } catch (e) {}
     if (cf.id === 'nonconform' && typeof notify === 'function') {
-      try { notify({ toRoles: SENIOR_ROLES, title: '⛔ عدم انطباق کالا در پرونده ' + (r.inqNo || cd) + ' — بررسی فوری (ریسک زیان)', kind: 'warn', channels: ['cart'], link: { panel: 'deals' } }); } catch (e3) {}
+      try { notify({ toRoles: SENIOR_ROLES, title: '⛔ عدم انطباق کالا در پرونده ' + (r.inqNo || cd) + ' — بررسی فوری (ریسک زیان)', kind: 'qc_ncr', channels: ['cart'], link: { panel: 'deals' }, actionable: true, refCd: cd, dkey: 'qc-ncr-' + cd }); } catch (e3) {}
     }
     return ev;
   };
@@ -346,7 +346,7 @@
     /* گذار خودکار وضعیت درخواست — فقط رو به جلو، از مسیر واحد (AC2/AC4) */
     if (r.inqNo) sfRfqAlign(r.inqNo, tp.rfq, tp.rfqTxt);
     if (typeId === 'delivered' && typeof notify === 'function') {
-      try { notify({ toRoles: SENIOR_ROLES, title: '🤝 کالای پرونده ' + (r.inqNo || cd) + ' به کارفرما تحویل شد — گام بعد: ارجاع فاکتور از پرونده', kind: 'info', channels: ['cart'], link: { panel: 'deals' } }); } catch (e2) {}
+      try { notify({ toRoles: SENIOR_ROLES, title: '🤝 کالای پرونده ' + (r.inqNo || cd) + ' به کارفرما تحویل شد — گام بعد: ارجاع فاکتور از پرونده', kind: 'delivery_next', channels: ['cart'], link: { panel: 'deals' }, actionable: true, refCd: cd, dkey: 'delivery-next-' + cd }); } catch (e2) {}
     }
     return ev;
   };

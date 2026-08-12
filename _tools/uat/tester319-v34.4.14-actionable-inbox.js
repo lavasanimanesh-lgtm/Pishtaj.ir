@@ -10,8 +10,8 @@ var rs = fs.readFileSync(path.join(BASE, 'rfqsmart.js'), 'utf8');
 var md = fs.readFileSync(path.join(BASE, 'myday.js'), 'utf8');
 
 SECTION('قرارداد اقدام‌محور');
-T('badge فقط actionableهای باز را می‌شمارد', rb.indexOf('!!n.actionable && !n.done') > -1);
-T('کارتابل سه دسته اقدام من/هشدار/اطلاع‌رسانی دارد', rb.indexOf('🔴 اقدام من') > -1 && rb.indexOf('🟠 هشدارهای معتبر') > -1 && rb.indexOf('🔵 اطلاع‌رسانی') > -1);
+T('badge فقط اقدام‌های باز را می‌شمارد', rb.indexOf('ntfNeedsAction(n) && (n.readBy || []).indexOf(me) < 0') > -1);
+T('کارتابل فقط اقدام لازم را نشان می‌دهد', rb.indexOf('🔴 اقدام لازم') > -1 && rb.indexOf('🔵 اطلاع‌رسانی') === -1);
 T('پیشنهاد نزدیک/منقضی دیگر اعلان تولید نمی‌کند', br.indexOf('هیچ اعلان مزاحمی تولید نمی‌شود') > -1 && br.indexOf("kind: 'co_expiry'") === -1);
 T('روز من پیشنهادهای منقضی/رو به انقضا را نمی‌خواند و پنج مورد سقف دارد', md.indexOf('CO های رو به انقضا') === -1 && md.indexOf('out.slice(0, 5)') > -1);
 T('ارجاع‌ها نوع کار پایدار دارند', br.indexOf("'create_offer'") > -1 && br.indexOf("'create_technical_offer'") > -1 && br.indexOf("'create_supplier_rfq'") > -1);

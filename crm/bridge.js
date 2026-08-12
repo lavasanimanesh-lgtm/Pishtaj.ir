@@ -85,6 +85,13 @@
   /* ============ US-138: صندوق پیام ============ */
   function addMsg(opt) {
     // پیام محلی بدون عبور از notify (برای رویدادهای سروری تا audit دوباره ثبت نشود)
+    opt = opt || {};
+    if (typeof ntfNeedsAction === 'function') {
+      if (typeof NTF_ACTION_KINDS !== 'undefined' && NTF_ACTION_KINDS.indexOf(opt.kind || '') > -1) opt.actionable = true;
+      if (!ntfNeedsAction(opt)) return null;
+    } else if (!opt.actionable) {
+      return null;
+    }
     var notifs = getData('ptf_crm_notifs');
     var rec = {
       cd: genCode('NTF'), t: faDateTime(), iso: new Date().toISOString(),
@@ -92,7 +99,7 @@
       toRoles: opt.toRoles || [], toUsers: opt.toUsers || [],
       title: opt.title, body: opt.body || '', kind: opt.kind || 'info',
       channels: ['cart'], link: opt.link || null,
-      readBy: [], actionable: !!opt.actionable, done: false,
+      readBy: [], actionable: true, done: false,
       remCd: opt.remCd || null, refCd: opt.refCd || null, taskType: opt.taskType || null,
       dkey: opt.dkey || null
     };
@@ -110,7 +117,10 @@
 
   window.updateInboxBadge = function () {
     var me = curSession().user;
-    var unread = myNotifs().filter(function (n) { return (n.readBy || []).indexOf(me) < 0; }).length;
+    var unread = myNotifs().filter(function (n) {
+      if ((n.readBy || []).indexOf(me) > -1 || n.done) return false;
+      return typeof ntfNeedsAction === 'function' ? ntfNeedsAction(n) : !!n.actionable;
+    }).length;
     var b = document.getElementById('ibBadge');
     if (b) { b.textContent = unread > 99 ? '99+' : unread; b.style.display = unread ? 'grid' : 'none'; }
     if (typeof updateCartBadge === 'function') updateCartBadge();
@@ -129,8 +139,10 @@
     var p = document.getElementById('inboxList');
     if (!p) return;
     var me = curSession().user;
-    var list = myNotifs().slice(0, 40);
-    if (!list.length) { p.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:22px;font-size:13px">پیامی ندارید</div>'; return; }
+    var list = myNotifs().filter(function (n) {
+      return typeof ntfNeedsAction === 'function' ? ntfNeedsAction(n) : !!n.actionable;
+    }).slice(0, 40);
+    if (!list.length) { p.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:22px;font-size:13px">اقدام بازی ندارید</div>'; return; }
     var h = '';
     list.forEach(function (n) {
       var unread = (n.readBy || []).indexOf(me) < 0;
@@ -242,6 +254,9 @@
         toUsers: assignee,
         toRoles: assignee.length ? [] : SALES_ROLES,
         kind: 'reminder',
+        actionable: true,
+        refCd: r.cd,
+        dkey: 'rfq-due-' + r.cd,
         link: { panel: 'rfq' }
       });
     });
@@ -273,6 +288,9 @@
           (r.buyerCo ? ' — ' + r.buyerCo : '') + (r.dueNote ? ' | ' + r.dueNote : ''),
         toRoles: over ? ['admin', 'chairman', 'ceo', 'commercial'] : SALES_ROLES,
         kind: 'reminder',
+        actionable: true,
+        refCd: r.cd,
+        dkey: 'deal-due-' + r.cd,
         link: { panel: 'deals' }
       });
     });
@@ -322,23 +340,23 @@
     var d = ev.data || {};
     if (d.byUser && d.byUser === me.user) return false; // خود فرستنده پیام تکراری نگیرد
     if (ev.kind === 'supplier_site') {
-      addMsg({ title: '🏭 ' + ev.title, toRoles: SENIOR_ROLES, kind: 'supplier_site', actionable: false, link: { panel: 'sup' } });
+      /* ثبت‌نام سایت در پنل «در انتظار تایید» دیده می‌شود؛ کارتابل را شلوغ نمی‌کند. */
       if (isSenior()) { syncServerInbox(); return true; }
       return false;
     }
     if (ev.kind === 'rfq_site') {
-      addMsg({ title: '📋 ' + ev.title, toRoles: SENIOR_ROLES, kind: 'rfq_site', actionable: false, link: { panel: 'rfq' } });
       if (isSenior()) { syncServerInbox(); return true; }
       return false;
     }
     if (ev.kind === 'referral') {
       var mine = d.to === me.user;
+      if (!mine) return false;
       addMsg({
         title: '📨 ' + ev.title,
         from: d.byName || 'سیستم',
-        toRoles: mine ? [] : SALES_ROLES,
-        toUsers: mine ? [me.user] : [],
-        kind: 'referral', actionable: mine,
+        toRoles: [],
+        toUsers: [me.user],
+        kind: 'referral', actionable: true,
         refCd: d.code || '', taskType: d.taskType || '',
         dkey: 'referral|' + (d.code || ev.id || '') + '|' + (d.to || '') + '|' + (d.taskType || d.act || ''),
         link: { panel: 'rfq' }
@@ -346,10 +364,6 @@
       return SALES_ROLES.indexOf(curRole()) > -1 || mine;
     }
     if (ev.kind === 'status') {
-      if (SALES_ROLES.indexOf(curRole()) > -1) {
-        addMsg({ title: '🔁 ' + ev.title, toRoles: SALES_ROLES, kind: 'status', link: { panel: 'rfq' } });
-        return true;
-      }
       return false;
     }
     return false;
@@ -1487,7 +1501,7 @@
       '<div class="fld"><label>یادداشت (اختیاری)</label><input type="text" id="refNote"></div>' +
       // v85: تیک پیامک پیش‌فرض غیرفعال — فقط با صلاحدید کاربر
       '<label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="refSms"> 📱 ارسال پیامک اطلاع‌رسانی به گیرنده ارجاع</label>' +
-      '<div style="font-size:11.5px;color:#64748b;margin-bottom:10px">اعلان برای همه کاربران فروش ارسال می‌شود؛ اما پیام فقط برای گیرنده هایلایت و در کارتابل او ثبت می‌گردد.</div>' +
+      '<div style="font-size:11.5px;color:#64748b;margin-bottom:10px">فقط گیرنده در کارتابل خودش این اقدام را می‌بیند تا کار در انبوه اعلان‌ها گم نشود.</div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveReferral(\'' + ptfOnClickArg(cd) + '\')">📨 ارسال ارجاع</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -1506,9 +1520,7 @@
     rfqs.forEach(function (r) { if (r.cd === cd) { target = r; r.assignee = { user: toU, name: toUser.name, act: act, by: me.name, t: faDateTime() }; } });
     setData('ptf_crm_rfqs', rfqs);
     var title = 'درخواست ' + cd + (target ? ' (' + target.co + ')' : '') + ' جهت «' + act + '» به ' + toUser.name + ' ارجاع شد' + (note ? ' — ' + note : '');
-    // اعلان عمومی برای همه نقش‌های فروش (غیرهایلایت)
-    notify({ toRoles: SALES_ROLES, title: '📢 ' + title, kind: 'referral_info', channels: ['cart'], link: { panel: 'rfq' }, refCd: cd });
-    // پیام هایلایت + کارتابل فقط برای گیرنده. نوع کار و ref، قرارداد بستن خودکار task هستند.
+    // v34.5.5: اعلان عمومی به همه فروش حذف شد — فقط گیرنده کارتابل می‌گیرد.
     var taskType = act === 'صدور پیشنهاد مالی (CO)' ? 'create_offer' : act === 'صدور پیشنهاد فنی (TO)' ? 'create_technical_offer' : act === 'استعلام قیمت از تامین‌کننده' ? 'create_supplier_rfq' : 'rfq_review';
     notify({ toUsers: [toU], title: '⭐ اقدام شما لازم است: ' + title, kind: 'referral', channels: ['cart'], link: { panel: 'rfq' }, actionable: true,
       refCd: cd, taskType: taskType, dkey: 'referral|' + cd + '|' + toU + '|' + taskType });

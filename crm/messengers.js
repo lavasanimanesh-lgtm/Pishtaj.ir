@@ -320,7 +320,7 @@
              → فقط به چت خصوصی همان کاربر (اگر جفت‌سازی کرده باشد)؛ گروه نمی‌بیند
            - اعلان مدیریتی/عمومی (toRoles) → گروه شرکت
            - حسابدار طبق RBAC فقط اعلان‌های نقش خودش (accountant) را می‌گیرد — بات هم همان را رعایت می‌کند */
-        var CRITICAL = ['cheque', 'system', 'admin', 'referral', 'payment', 'buyq', 'status', 'reminder'];
+        var CRITICAL = ['cheque', 'referral', 'inv_ref', 'sign_req', 'sign_no', 'contact_req', 'reminder', 'management_action', 'petty_period', 'qc_ncr', 'delivery_next', 'data_risk'];
         if (opt && CRITICAL.indexOf(opt.kind || '') > -1 && localStorage.getItem('ptf_bot_enabled') === '1') {
           var KIND_ICON = { cheque: '🏦', system: '⚙️', admin: '👑', referral: '📨', payment: '💰', buyq: '🛒', status: '📊', reminder: '⏰' };
           var txt = (KIND_ICON[opt.kind] || '🔔') + ' ' + (opt.title || '') + (opt.body ? '\n' + opt.body : '');

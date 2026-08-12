@@ -1454,7 +1454,7 @@
         var rec = { cd: genCode('PPR'), from: from, to: to, month: d.month, st: 'referred', by: userName(), t: faDateTime(), iso: isoNow(), note: v.note || '', pettyIds: d.petty.map(function (x) { return x.cd; }), txIds: d.tx.map(function (x) { return x.cd; }), totalOut: d.totalOut, charges: d.charges, balance: d.balance, files: bankFiles };
         ps.unshift(rec); prSave(ps);
         audit('تنخواه', 'ارجاع گزارش دوره از ' + from + ' تا ' + to + ' به حسابدار — گردش ' + money(d.totalOut), rec.cd);
-        if (typeof notify === 'function') notify({ toRoles: ['accountant'], title: '📤 گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') برای ثبت حسابداری ارجاع شد', body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' } });
+        if (typeof notify === 'function') notify({ toRoles: ['accountant'], title: '📤 گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') برای ثبت حسابداری ارجاع شد', body: 'گردش دوره: ' + money(d.totalOut) + ' | مانده حساب: ' + money(d.balance), kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' }, actionable: true });
         if (v.sms === 'yes' && typeof smsSendSingle === 'function') accountants().forEach(function (u) { if (u.mobile) smsSendSingle(u.mobile, 'حسابدار محترم، گزارش دوره تنخواه (از ' + from + ' تا ' + to + ') در CRM برای ثبت حسابداری ارجاع شد. https://pishtaj.ir/crm/'); });
         renderPetty();
         /* UR-13: فایل گردش حساب بانک از قبل در همین پنجره ضمیمه شده — دیگر دیالوگ پیوست جدا لازم نیست */
@@ -1479,7 +1479,7 @@
         var ps = prAll(); var p = ps.filter(function (x) { return x.cd === cd; })[0]; if (!p) return;
         p.st = 'registered'; p.accDoc = v.doc; p.accBy = userName(); p.accT = faDateTime(); prSave(ps);
         audit('تنخواه', 'ثبت حسابداری گزارش دوره ' + (p.month || '') + ' — سند ' + v.doc, cd);
-        if (typeof notify === 'function') notify({ toRoles: ['chairman', 'admin'], title: '✅ گزارش دوره تنخواه ' + (p.month || '') + ' در حسابداری ثبت شد', kind: 'petty_period', channels: ['cart'], link: { panel: 'petty' } });
+        if (typeof notify === 'function') notify({ toRoles: ['chairman', 'admin'], title: '✅ گزارش دوره تنخواه ' + (p.month || '') + ' در حسابداری ثبت شد', kind: 'info', channels: ['cart'], link: { panel: 'petty' } });
         renderPetty();
       }
     });
