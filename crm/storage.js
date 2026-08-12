@@ -465,7 +465,9 @@ window.ptfRasterizeCloudFile = function (f, maxPages) {
   return new Promise(function (resolve) {
     if (!f) return resolve(f);
     var name = f.name || f.key || '';
-    var ext = (typeof ptfFileExt === 'function') ? ptfFileExt(name) : String(name).split('.').pop().toLowerCase();
+    var ext = (typeof ptfFileExt === 'function') ? (ptfFileExt(name) || ptfFileExt(f.key || '')) : String(name).split('.').pop().toLowerCase();
+    if (!ext && f.url && String(f.url).indexOf('data:application/pdf') === 0) ext = 'pdf';
+    if (!ext && f.blobType && String(f.blobType).indexOf('pdf') > -1) ext = 'pdf';
     var kind = (ext === 'pdf') ? 'pdf' : (['heic', 'heif', 'heics'].indexOf(ext) > -1 ? 'heic' : '');
     if (!kind) return resolve(f);
     function apply(urls) {

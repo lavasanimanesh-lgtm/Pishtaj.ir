@@ -979,8 +979,8 @@
         files.forEach(function (f) { if (f.cd && rowByCd[f.cd]) f.row = rowByCd[f.cd]; });
       } catch (eM2) { console.warn('map file→row:', eM2); }
       var convertJobs = files.filter(function (f) {
-        var k = window.ptfPettyFileKind(f.name || f.key || '');
-        return (k === 'pdf' || k === 'heic') && f.key;
+        var k = window.ptfPettyFileKind(f.name || f.key || '', f);
+        return (k === 'pdf' || k === 'heic') && (f.key || (f.url && String(f.url).indexOf('data:') === 0));
       }).map(function (f) { return window.ptfPettyToJpeg(f); });
       return Promise.all(convertJobs);
     }).then(function () {
@@ -1089,14 +1089,21 @@
 
   /* صفحهٔ ضمائم: چیدمان ۳-در-صفحهٔ فشرده + شناسهٔ «سند N» برای هر فایل */
   /* BUG-PDF-ATTACH v2: نوع فایل (عکس/PDF/HEIC/سایر) — فرمت‌های رایج برای نمایش صحیح */
-  window.ptfPettyFileKind = function (name) {
-    var n = String(name || '').toLowerCase();
-    /* image: jpg/jpeg/png/gif/webp/bmp/svg — فرمت‌هایی که در <img> نمایش داده می‌شوند */
-    if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(n)) return 'image';
-    if (/\.pdf$/.test(n)) return 'pdf';
-    /* HEIC/HEIF: فرمت Live Photo آیفون — اکثر مرورگرهای مدرن در <img> پشتیبانی می‌کنند */
-    if (/\.(heic|heif|heics)$/.test(n)) return 'heic';
-    return 'other';
+  window.ptfPettyFileKind = function (name, extra) {
+    extra = extra || {};
+    var n = String(name || extra.name || extra.key || '').toLowerCase();
+    var key = String(extra.key || '').toLowerCase();
+    var ct = String(extra.contentType || extra.type || extra.mime || '').toLowerCase();
+    var url = String(extra.url || '');
+    var blob = extra.blobType ? String(extra.blobType).toLowerCase() : '';
+    function hit(s) {
+      s = String(s || '');
+      if (/\.(jpe?g|png|gif|webp|bmp|svg)(?:$|[?#])/.test(s) || /image\/(jpeg|jpg|png|gif|webp|bmp|svg)/.test(s)) return 'image';
+      if (/\.pdf(?:$|[?#])/.test(s) || s.indexOf('application/pdf') > -1) return 'pdf';
+      if (/\.(heic|heif|heics)(?:$|[?#])/.test(s) || s.indexOf('image/heic') > -1 || s.indexOf('image/heif') > -1) return 'heic';
+      return '';
+    }
+    return hit(n) || hit(key) || hit(ct) || hit(blob) || hit(url.slice(0, 64)) || 'other';
   };
   /* BUG-PDF-ATTACH v2: تبدیل PDF/HEIC به JPEG — با fallback کامل
      - اگر سرور Imagick داشت → از آن استفاده می‌کند
@@ -1105,42 +1112,40 @@
      - برای PDF: اگر Imagick نبود، در <embed> نمایش داده می‌شود */
   window.ptfPettyToJpeg = function (f) {
     return new Promise(function (resolve) {
-      if (!f || !f.key) return resolve(f);
-      var kind = window.ptfPettyFileKind(f.name || f.key || '');
+      if (!f) return resolve(f);
+      var kind = window.ptfPettyFileKind(f.name || f.key || '', f);
       if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
-      function clientRaster() {
-        if (typeof window.ptfRasterizeCloudFile !== 'function') return Promise.resolve(f);
-        return window.ptfRasterizeCloudFile(f, 8);
+      function done(x) {
+        if (x && x.converted && x.url && String(x.url).indexOf('data:image/') === 0) {
+          x.convertError = '';
+          x.convertedKind = kind;
+        } else if (x && !x.converted) {
+          x.convertError = x.convertError || 'convert_failed';
+          x.convertedKind = kind;
+        }
+        resolve(x || f);
       }
-      try {
-        fetch('../api/attachment-thumb.php', {
-          method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 })
-        }).then(function (r) { return r.json(); })
-          .then(function (d) {
-            if (d && d.ok && d.images && d.images.length) {
-              f.url = d.images[0].url;
-              f.converted = true;
-              f.convertedKind = kind;
-              f.extraImages = d.images.slice(1).map(function (im) { return { key: im.key, url: im.url }; });
-              f.convertError = '';
-              return f;
-            }
-            f.convertError = (d && d.error) || 'convert_failed';
-            f.convertedKind = kind;
-            return clientRaster();
-          })
-          .catch(function () {
-            f.convertError = 'net';
-            f.convertedKind = kind;
-            return clientRaster();
-          })
-          .then(resolve);
-      } catch (e) {
-        f.convertError = 'ex';
-        f.convertedKind = kind;
-        clientRaster().then(resolve);
+      /* هاست Imagick ندارد؛ اول رستر مرورگر (pdf.js / heic2any). */
+      if (typeof window.ptfRasterizeCloudFile === 'function') {
+        window.ptfRasterizeCloudFile(f, 8).then(function (out) {
+          if (out && out.converted && out.url) return done(out);
+          /* اگر key نبود ولی data:pdf داریم، همان را به blob بده */
+          if ((!f.key) && f.url && String(f.url).indexOf('data:application/pdf') === 0 && typeof ptfRasterizePdfBlob === 'function') {
+            return fetch(f.url).then(function (r) { return r.blob(); }).then(function (blob) {
+              return ptfRasterizePdfBlob(blob, 8);
+            }).then(function (urls) {
+              if (urls && urls.length) {
+                f.url = urls[0]; f.converted = true; f.convertError = '';
+                f.extraImages = urls.slice(1).map(function (u, i) { return { url: u, converted: true }; });
+              }
+              done(f);
+            }).catch(function () { done(f); });
+          }
+          done(out || f);
+        }).catch(function () { done(f); });
+        return;
       }
+      done(f);
     });
   };
   /* گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile */
@@ -1148,29 +1153,35 @@
   function ptfPettyResolveUrl(f) {
     return new Promise(function (resolve) {
       if (!f || !f.key) return resolve(f && f.url ? f.url : '');
-      if (f.url && String(f.url).indexOf('data:') === 0) return resolve(f.url);
+      if (f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f.url);
+      function asDataUrl(blob) {
+        return new Promise(function (ok, bad) {
+          var fr = new FileReader();
+          fr.onload = function () { f.url = fr.result; if (blob && blob.type) f.blobType = blob.type; ok(f.url); };
+          fr.onerror = bad;
+          fr.readAsDataURL(blob);
+        });
+      }
       function fallbackPresign() {
         try {
           fetch(STORAGE_API + '?action=presign_get', {
             method: 'POST', headers: ptfStorageAuthHeaders(true),
             body: JSON.stringify({ key: f.key, disposition: 'inline' })
           }).then(function (r) { return r.json(); })
-            .then(function (d) { resolve(d && d.ok ? d.url : (f.url || '')); })
+            .then(function (d) { if (d && d.ok && d.url) f.url = d.url; resolve(f.url || ''); })
             .catch(function () { resolve(f.url || ''); });
         } catch (e2) { resolve(f.url || ''); }
       }
       try {
+        /* inline بدون سقف ۶ مگابایت base64 — برای چاپ باید data URL هم‌دامنه باشد */
         fetch('../api/attachment-read.php', {
           method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key, name: f.name || f.key, mode: 'base64' })
-        }).then(function (r) { return r.json(); })
-          .then(function (d) {
-            if (d && d.ok && d.b64) {
-              f.url = 'data:' + (d.mime || 'image/jpeg') + ';base64,' + d.b64;
-              return resolve(f.url);
-            }
-            fallbackPresign();
-          })
+          body: JSON.stringify({ key: f.key, name: f.name || f.key, mode: 'inline' })
+        }).then(function (r) {
+          if (!r.ok) throw new Error('read');
+          return r.blob();
+        }).then(function (blob) { return asDataUrl(blob); })
+          .then(function (u) { resolve(u); })
           .catch(function () { fallbackPresign(); });
       } catch (e) { fallbackPresign(); }
     });
@@ -1185,7 +1196,7 @@
      - اگر URL اصلاً نیست: placeholder زیبا + لینک «باز کردن فایل» */
   window.ptfPettyReceiptHtml = function (f, pageLabel) {
     var petId = (pageLabel ? pageLabel + ' — ' : '') + (f.petId || 'سند');
-    var kind = window.ptfPettyFileKind(f.name || f.key || '');
+    var kind = window.ptfPettyFileKind(f.name || f.key || '', f);
     var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
     var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
@@ -1349,8 +1360,8 @@
       ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… تبدیل PDF و HEIC به تصویر');
       /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل سمت سرور) — قبل از رندر */
       var convertJobs = all.filter(function (f) {
-        var k = window.ptfPettyFileKind(f.name || f.key || '');
-        return (k === 'pdf' || k === 'heic') && f.key;
+        var k = window.ptfPettyFileKind(f.name || f.key || '', f);
+        return (k === 'pdf' || k === 'heic') && (f.key || (f.url && String(f.url).indexOf('data:') === 0));
       }).map(function (f) { return window.ptfPettyToJpeg(f); });
       return Promise.all(convertJobs);
     }).then(function () {
