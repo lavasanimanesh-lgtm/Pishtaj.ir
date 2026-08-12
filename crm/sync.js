@@ -447,7 +447,9 @@
               if (typeof window.ptfApplyDeletionTombstones === 'function') startupMerged = window.ptfApplyDeletionTombstones(k, startupMerged, (d.data || {})['ptf_crm_deleted_archive']);
               if (startupMerged && startupMerged !== curStr) {
                 wr(k, startupMerged);
-                state.dirty[k] = true;
+                /* فقط اگر این دستگاه چیزی بیش از نسخهٔ سرور داشته باشد دوباره push شود.
+                   اختلاف صرفِ ترتیب کلید/نرمال‌سازی نباید بعد از هر hard refresh dirty بسازد. */
+                if (startupMerged !== newStr) state.dirty[k] = true;
                 applied++;
               }
             } catch (eStartupMerge) {}
@@ -485,7 +487,7 @@
         if (applied) {
           setSyncBadge('ok');
           refreshCurrentPanel();
-          if (typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
+          if (state.bootstrapped && !forceFull && typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
           if (typeof updateInboxBadge === 'function') updateInboxBadge();
           pingTabs(); /* v33.21.1: بقیهٔ تب‌های همین مرورگر را لحظه‌ای مطلع کن */
         }
