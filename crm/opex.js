@@ -116,6 +116,33 @@
     if (!mt) return '';
     return mt[1] + '/' + ('0' + mt[2]).slice(-2);
   }
+  var OPEX_MONTH_NAMES = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+  function opexMonthYears() {
+    var years = {}, now = String(ptfFaMonthNow() || '').split('/')[0];
+    if (/^14\d{2}$/.test(now) || /^13\d{2}$/.test(now)) {
+      var y0 = +now;
+      for (var y = y0 - 3; y <= y0 + 2; y++) years[y] = true;
+    }
+    oAll().forEach(function (x) {
+      var ym = String((x && x.month) || '').split('/')[0];
+      if (/^(13|14)\d{2}$/.test(ym)) years[ym] = true;
+    });
+    return Object.keys(years).sort();
+  }
+  function opexMonthOptions(selected, allowAll) {
+    selected = normMonth(selected) || '';
+    var html = allowAll ? '<option value=\"\">همه ماه‌ها</option>' : '';
+    var seen = {};
+    opexMonthYears().forEach(function (year) {
+      for (var i = 1; i <= 12; i++) {
+        var val = year + '/' + ('0' + i).slice(-2);
+        seen[val] = true;
+        html += '<option value=\"' + val + '\"' + (selected === val ? ' selected' : '') + '>' + OPEX_MONTH_NAMES[i - 1] + ' ' + year + ' — ' + val + '</option>';
+      }
+    });
+    if (selected && !seen[selected]) html += '<option value=\"' + selected + '\" selected>' + selected + '</option>';
+    return html;
+  }
 
   /* ---------- جمع‌ها (مصرف: پنل + US-420 آینده) ---------- */
   window.ptfOpexSum = function (monthOrYear) {
@@ -270,7 +297,7 @@
         { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
         { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value="no" selected>غیررسمی (بدون فاکتور ممیزپسند)</option><option value="yes">رسمی (فاکتور رسمی/قابل قبول ممیز)</option>' },
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: pre.amt || '', dir: 'ltr', required: true },
-        { id: 'month', label: 'ماه شمسی (مثلا 1405/04) *', type: 'text', value: pre.month || ptfFaMonthNow(), required: true },
+        { id: 'month', label: 'ماه شمسی *', type: 'select', optionsHtml: opexMonthOptions(pre.month || ptfFaMonthNow(), false), required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: pre.desc || '' },
         { id: 'dealRef', label: 'مربوط به کدام درخواست/پرونده فروش؟', type: 'select', optionsHtml: dealOpts },
         { id: 'files', label: 'پیوست اسناد (قبض، رسید پرداخت، تصویر چک، فاکتور)', type: 'upload', uploadFolder: 'opex/' + draftCd },
@@ -379,7 +406,7 @@
         { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
         { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value=""' + (!Object.prototype.hasOwnProperty.call(rec, 'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (rec.isOfficial === true ? ' selected' : '') + '>رسمی / قابل قبول ممیز</option><option value="no"' + (rec.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>' },
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: rec.amt, dir: 'ltr', required: true },
-        { id: 'month', label: 'ماه شمسی', type: 'text', value: rec.month, required: true },
+        { id: 'month', label: 'ماه شمسی *', type: 'select', optionsHtml: opexMonthOptions(rec.month, false), required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: rec.desc || '' },
         { id: 'dealRef', label: 'پرونده فروش', type: 'select', optionsHtml: dealOpts },
         { id: 'files', label: 'افزودن پیوست جدید (اختیاری)', type: 'upload', uploadFolder: 'opex/' + rec.cd }
@@ -606,7 +633,7 @@
       '<div class="opex-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
       '<h4 style="margin:0;font-size:13.5px">🏢 هزینه‌های جاری شرکت (US-418)</h4>' +
       '<span class="opex-tools">' +
-      '<input class="opex-month" type="text" value="' + escP(m) + '" onchange="window._opexMonth=this.value.trim();ptfOpexRender()" style="width:90px;padding:6px;border:1.5px solid var(--brd);border-radius:9px;direction:ltr;font-size:12px" title="ماه شمسی — خالی = همه" aria-label="ماه هزینه‌های جاری">' +
+      '<select class="opex-month" onchange="window._opexMonth=this.value;ptfOpexRender()" style="min-width:168px;padding:6px 8px;border:1.5px solid var(--brd);border-radius:9px;font-size:12px;background:var(--crd,#fff)" title="ماه شمسی — همه یا یک ماه" aria-label="ماه هزینه‌های جاری">' + opexMonthOptions(m, true) + '</select>' +
       '<span class="opex-head-actions" role="group" aria-label="عملیات هزینه جاری">' +
       opexAction('add', '➕', 'ثبت هزینه', 'ثبت هزینهٔ جاری جدید', 'ptfOpexAdd()', true) +
       (canFin() ? opexAction('rebuild', '🛠', 'بازسازی حقوق', 'برای تراکنش‌های قدیمیِ حقوق سهامدار که رکورد هزینه ندارند، ردیف حقوق و دستمزد می‌سازد', 'ptfOpexMigrateShareholders()', false) : '') +
