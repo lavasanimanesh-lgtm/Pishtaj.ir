@@ -35,7 +35,7 @@ assert.ok(filter.indexOf('it.model || it.md') > -1, 'item model must remain sear
 assert.ok(filter.indexOf('it.brand || it.br') > -1, 'item brand must remain searchable');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.4.45');
+assert.ok(/^v34\.4\.\d+$/.test(version) && Number(version.split('.')[2]) >= 45, 'CRM version must remain v34.4.45 or later');
 var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');
