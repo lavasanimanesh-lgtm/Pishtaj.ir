@@ -1114,7 +1114,9 @@
     return new Promise(function (resolve) {
       if (!f) return resolve(f);
       var kind = window.ptfPettyFileKind(f.name || f.key || '', f);
-      if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
+      if (f.url && String(f.url).indexOf('data:application/pdf') === 0) kind = 'pdf';
+      if (f.converted && f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f);
+      if (kind === 'image') return resolve(f);
       function done(x) {
         if (x && x.converted && x.url && String(x.url).indexOf('data:image/') === 0) {
           x.convertError = '';
@@ -1357,13 +1359,19 @@
       return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; }).catch(function () { f.url = f.url || ''; });
     });
     Promise.all(jobs).then(function () {
-      ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… تبدیل PDF و HEIC به تصویر');
-      /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل سمت سرور) — قبل از رندر */
-      var convertJobs = all.filter(function (f) {
+      var need = all.filter(function (f) {
         var k = window.ptfPettyFileKind(f.name || f.key || '', f);
-        return (k === 'pdf' || k === 'heic') && (f.key || (f.url && String(f.url).indexOf('data:') === 0));
-      }).map(function (f) { return window.ptfPettyToJpeg(f); });
-      return Promise.all(convertJobs);
+        if (f.url && String(f.url).indexOf('data:application/pdf') === 0) k = 'pdf';
+        return (k === 'pdf' || k === 'heic' || k === 'other') && (f.key || f.url);
+      });
+      var i = 0;
+      function next() {
+        if (i >= need.length) return Promise.resolve();
+        var f = need[i++];
+        ptfPettyWaitShow('در حال تبدیل سند ' + i + ' از ' + need.length + '…');
+        return window.ptfPettyToJpeg(f).then(next, next);
+      }
+      return next();
     }).then(function () {
       ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… ساخت پیش‌نمایش');
       /* v2: نگاشت file → row گزارش — هر file، ردیف رکوردش را می‌گیرد */

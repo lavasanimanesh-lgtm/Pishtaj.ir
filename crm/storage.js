@@ -412,39 +412,99 @@ function ptfBlobToJpegDataUrl(blob, maxW) {
     img.src = url;
   });
 }
+/* بیشتر رسیدهای PDF فقط JPEG توکار (DCTDecode) هستند. استخراج بایت JPEG
+   بدون pdf.js/CDN کار می‌کند — CDN در شبکهٔ ایران معمولاً قطع است. */
+function ptfExtractEmbeddedJpegs(buf, maxPages) {
+  maxPages = maxPages || 8;
+  var u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  var out = [];
+  var i = 0, n = u8.length;
+  while (i < n - 4 && out.length < maxPages) {
+    if (u8[i] === 0xFF && u8[i + 1] === 0xD8 && u8[i + 2] === 0xFF) {
+      var j = i + 3;
+      while (j < n - 1) {
+        if (u8[j] === 0xFF && u8[j + 1] === 0xD9) { j += 2; break; }
+        j++;
+      }
+      var len = j - i;
+      if (len > 4000 && len < 12 * 1048576) {
+        var slice = u8.subarray(i, j);
+        var copy = new Uint8Array(slice.length);
+        copy.set(slice);
+        out.push(copy);
+        i = j;
+        continue;
+      }
+    }
+    i++;
+  }
+  return out;
+}
+function ptfJpegBytesToDataUrl(bytes) {
+  return new Promise(function (resolve, reject) {
+    var blob = new Blob([bytes], { type: 'image/jpeg' });
+    ptfBlobToJpegDataUrl(blob, 1400).then(resolve, reject);
+  });
+}
 function ptfRasterizePdfBlob(blob, maxPages) {
   maxPages = maxPages || 8;
-  var worker = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  var lib = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-  return window.ptfLoadScriptOnce(lib).then(function () {
-    var pdfjs = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
-    if (!pdfjs) throw new Error('pdfjs');
-    if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = worker;
-    return blob.arrayBuffer().then(function (buf) {
-      return pdfjs.getDocument({ data: buf }).promise;
-    }).then(function (pdf) {
-      var n = Math.min(pdf.numPages || 1, maxPages);
-      var urls = [];
-      function renderPage(i) {
-        if (i > n) return Promise.resolve(urls);
-        return pdf.getPage(i).then(function (page) {
-          var vp0 = page.getViewport({ scale: 1 });
-          var scale = Math.min(1.6, 1400 / (vp0.width || 1400));
-          var vp = page.getViewport({ scale: scale });
-          var cv = document.createElement('canvas');
-          cv.width = vp.width; cv.height = vp.height;
-          var ctx = cv.getContext('2d');
-          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
-          return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () {
-            urls.push(cv.toDataURL('image/jpeg', 0.84));
-            return renderPage(i + 1);
-          });
+  return blob.arrayBuffer().then(function (buf) {
+    var head = new Uint8Array(buf, 0, Math.min(8, buf.byteLength || 0));
+    var isPdf = head.length >= 4 && head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
+    var jpegs = ptfExtractEmbeddedJpegs(buf, maxPages);
+    if (jpegs.length) {
+      var chain = Promise.resolve([]);
+      jpegs.forEach(function (bytes) {
+        chain = chain.then(function (acc) {
+          return ptfJpegBytesToDataUrl(bytes).then(function (url) { acc.push(url); return acc; }, function () { return acc; });
         });
-      }
-      return renderPage(1);
-    });
-  }).then(function (urls) { return urls || []; }, function () { return []; });
+      });
+      return chain.then(function (urls) { if (urls && urls.length) return urls; if (!isPdf) return []; return ptfRasterizePdfViaCdn(blob, maxPages); });
+    }
+    if (!isPdf) return [];
+    return ptfRasterizePdfViaCdn(blob, maxPages);
+  });
 }
+function ptfRasterizePdfViaCdn(blob, maxPages) {
+  var libs = [
+    './vendor/pdf.min.js',
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+  ];
+  function tryLib(i) {
+    if (i >= libs.length) return Promise.resolve([]);
+    return window.ptfLoadScriptOnce(libs[i]).then(function () {
+      var pdfjs = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+      if (!pdfjs) throw new Error('pdfjs');
+      try { if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = ''; } catch (eW) {}
+      return blob.arrayBuffer().then(function (buf) {
+        return pdfjs.getDocument({ data: buf, disableWorker: true, isEvalSupported: false }).promise;
+      }).then(function (pdf) {
+        var n = Math.min(pdf.numPages || 1, maxPages || 8);
+        var urls = [];
+        function renderPage(p) {
+          if (p > n) return Promise.resolve(urls);
+          return pdf.getPage(p).then(function (page) {
+            var vp0 = page.getViewport({ scale: 1 });
+            var scale = Math.min(1.4, 1200 / (vp0.width || 1200));
+            var vp = page.getViewport({ scale: scale });
+            var cv = document.createElement('canvas');
+            cv.width = vp.width; cv.height = vp.height;
+            var ctx = cv.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+            return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () {
+              urls.push(cv.toDataURL('image/jpeg', 0.82));
+              return renderPage(p + 1);
+            });
+          });
+        }
+        return renderPage(1);
+      });
+    }).catch(function () { return tryLib(i + 1); });
+  }
+  return tryLib(0);
+}
+window.ptfRasterizePdfBlob = ptfRasterizePdfBlob;
 function ptfRasterizeHeicBlob(blob) {
   return ptfBlobToJpegDataUrl(blob, 1400).catch(function () {
     var src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
@@ -469,9 +529,11 @@ window.ptfRasterizeCloudFile = function (f, maxPages) {
     if (!ext && f.url && String(f.url).indexOf('data:application/pdf') === 0) ext = 'pdf';
     if (!ext && f.blobType && String(f.blobType).indexOf('pdf') > -1) ext = 'pdf';
     var kind = (ext === 'pdf') ? 'pdf' : (['heic', 'heif', 'heics'].indexOf(ext) > -1 ? 'heic' : '');
-    if (!kind) return resolve(f);
     function apply(urls) {
-      if (!urls || !urls.length) return resolve(f);
+      if (!urls || !urls.length) {
+        f.convertError = f.convertError || 'convert_failed';
+        return resolve(f);
+      }
       f.url = urls[0];
       f.converted = true;
       f.convertError = '';
@@ -480,23 +542,35 @@ window.ptfRasterizeCloudFile = function (f, maxPages) {
       });
       resolve(f);
     }
+    function sniffKind(blob) {
+      return blob.slice(0, 16).arrayBuffer().then(function (ab) {
+        var b = new Uint8Array(ab);
+        if (b.length >= 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'pdf';
+        if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image';
+        return kind || '';
+      });
+    }
     function blobOf() {
-      if (f.key && typeof ptfInlineStoredFileUrl === 'function') {
+      if (f.url && String(f.url).indexOf('data:') === 0) return fetch(f.url).then(function (r) { return r.blob(); });
+      if (f.key) {
         return fetch('../api/attachment-read.php', {
           method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key, name: name, mode: 'inline' })
+          body: JSON.stringify({ key: f.key, name: (f.key || name), mode: 'inline' })
         }).then(function (r) {
           if (!r.ok) throw new Error('read');
           return r.blob();
         });
       }
-      if (f.url) return fetch(f.url).then(function (r) { return r.blob(); });
       throw new Error('no-src');
     }
     blobOf().then(function (blob) {
-      if (kind === 'pdf') return ptfRasterizePdfBlob(blob, maxPages || 8);
-      return ptfRasterizeHeicBlob(blob);
-    }).then(apply).catch(function () { resolve(f); });
+      return sniffKind(blob).then(function (k) {
+        if (k === 'image') return ptfBlobToJpegDataUrl(blob, 1400).then(function (u) { return [u]; });
+        if (k === 'pdf' || kind === 'pdf') return ptfRasterizePdfBlob(blob, maxPages || 8);
+        if (kind === 'heic') return ptfRasterizeHeicBlob(blob);
+        return [];
+      });
+    }).then(apply).catch(function () { f.convertError = 'convert_failed'; resolve(f); });
   });
 };
 function openStoredFile(key, nameHint) {

@@ -180,7 +180,8 @@ if (!$key) {
     echo json_encode(['ok' => false, 'error' => 'key required'], JSON_UNESCAPED_UNICODE);
     exit;
 }
-$ext = ext_of($name ?: $key);
+$ext = ext_of($name);
+if ($ext === '') $ext = ext_of($key);
 $mode = strtolower(trim((string)($in['mode'] ?? 'text')));
 $url = sig_v4($cfg, 'GET', $key, [], 600);
 $res = http_get_bin($url);
