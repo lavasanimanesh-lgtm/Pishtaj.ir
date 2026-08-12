@@ -34,10 +34,26 @@
   window.ptfChequeFind = function (cd) {
     return window.ptfChequeAll().filter(function (x) { return x.cd === cd; })[0];
   };
+  /* کیفیت داده و فرم ویرایش باید همین معنا را ببینند؛ نام روی دسته چک (owner) مالکیت نیست. */
+  window.ptfChequeOwnershipOf = function (c) {
+    if (!c) return '';
+    if (c.ownership) return String(c.ownership);
+    if (c.direction === 'received') return c.thirdParty ? 'third_party' : ((c.custCd || c.sourceCustomerCd) ? 'received' : 'third_party');
+    if (c.direction === 'issued') return 'company';
+    return '';
+  };
 
   /* ---------- ایجاد ---------- */
   window.ptfChequeCreate = function (dir, rec) {
     rec = rec || {};
+    if (typeof window.ptfFinanceAssertWritable === 'function') {
+      var gate = window.ptfFinanceAssertWritable(rec.dueISO || rec.dueFa || rec.t, {
+        action: 'ثبت چک',
+        requireCode: rec.cd,
+        companyCheque: (dir !== 'received' && rec.ownership !== 'personal' && rec.ownership !== 'third_party')
+      });
+      if (!gate.ok) return { ok: false, why: gate.why, error: gate.error };
+    }
     rec.direction = dir === 'received' ? 'received' : 'issued';
     rec.cd = rec.cd || genCode('CHQ');
     rec.t = rec.t || faDateTime();
@@ -45,6 +61,13 @@
     rec.byNm = rec.byNm || me().name;
     rec.st = rec.st || 'open';
     if (rec.kind === 'guarantee') rec.direction = 'issued'; /* تصویب: ضمانت → صادره */
+    /* مالکیت (company/personal/third_party/received) ≠ نام مالک دسته چک (owner).
+       بدون این پیش‌فرض، کیفیت داده برای چک بازِ بدون فیلد ownership تا ابد هشدار می‌دهد. */
+    if (!rec.ownership) {
+      rec.ownership = rec.direction === 'received'
+        ? (rec.thirdParty ? 'third_party' : ((rec.custCd || rec.sourceCustomerCd) ? 'received' : 'third_party'))
+        : 'company';
+    }
     var key = rec.direction === 'received' ? K_RECEIVED : K_ISSUED;
     var l = read(key); l.unshift(rec); write(key, l);
     /* CHQ-V2: اثر مالی به محض ثبت — اگر طرف/فاکتور مشخص باشد (ضمانت هرگز اثر مالی ندارد).
@@ -191,6 +214,25 @@
       setData(K_LEGACY, remain);
     }
     return moved;
+  };
+
+  /* P3: chSave دیگر کل شرکت را در کلید قدیمی نمی‌نویسد — صادره/وارده منبع حقیقت‌اند. */
+  window.ptfChequeReplaceCompany = function (list) {
+    var issued = [], received = [];
+    (list || []).forEach(function (c) {
+      if (!c || !c.cd) return;
+      var dir = c.direction;
+      if (!dir) {
+        if (c.ownership === 'third_party' || c.sourceCustomerCd || c.kind === 'received') dir = 'received';
+        else dir = 'issued';
+      }
+      c.direction = dir;
+      if (dir === 'received') received.push(c); else issued.push(c);
+    });
+    write(K_ISSUED, issued);
+    write(K_RECEIVED, received);
+    setData(K_LEGACY, []);
+    return { issued: issued.length, received: received.length };
   };
 
   /* پرچم برای UI (در دسترس بودن ماژول) */

@@ -56,7 +56,7 @@
   function issuedTable() {
     var rows = issuedRows();
     var body = rows.map(function (c) {
-      return '<tr><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(c.toWhom || c.payeeName || '—') + '</span><br>' + partyBadge(c) + (c.dealCd ? '<br><small class="cheque-deal-link">📁 ' + escP(c.dealLabel || c.dealCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + issuedActs(c) + '</td></tr>';
+      return '<tr data-ptf-nav="cheque:' + escP(c.cd) + '" data-cheque-cd="' + escP(c.cd) + '"><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(c.toWhom || c.payeeName || '—') + '</span><br>' + partyBadge(c) + (c.dealCd ? '<br><small class="cheque-deal-link">📁 ' + escP(c.dealLabel || c.dealCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + issuedActs(c) + '</td></tr>';
     }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">چک صادره‌ای ثبت نشده است</td></tr>';
     var openSum = rows.filter(function (c) { return c.st === 'open'; }).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
     return '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره/صیادی</th><th>طرف</th><th>بانک</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
@@ -67,7 +67,7 @@
     var rows = receivedRows();
     var body = rows.map(function (c) {
       var custNm = c.payerName || c.toWhom || c.sourceCustomerCd || '—';
-      return '<tr><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(custNm) + '</span><br>' + partyBadge(c) + (c.sourceInvoiceCd ? '<br><small class="cheque-deal-link">🧾 ' + escP(c.sourceInvoiceCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + receivedActs(c) + '</td></tr>';
+      return '<tr data-ptf-nav="cheque:' + escP(c.cd) + '" data-cheque-cd="' + escP(c.cd) + '"><td class="cheque-cell-id"><div class="cheque-cell-content"><b dir="ltr">' + escP(c.sayad || c.no || '—') + '</b><br>' + kindBadge(c) + '</div></td><td class="cheque-cell-party"><div class="cheque-cell-content"><span class="cheque-party-name">' + escP(custNm) + '</span><br>' + partyBadge(c) + (c.sourceInvoiceCd ? '<br><small class="cheque-deal-link">🧾 ' + escP(c.sourceInvoiceCd) + '</small>' : '') + '</div></td><td>' + escP(c.bank || '—') + '</td><td>' + faD(c.dueFa || c.dueISO) + '</td><td>' + money(c.amt) + '</td><td style="color:' + stColor(c) + '">' + stLabel(c) + '</td><td class="cheque-cell-actions">' + receivedActs(c) + '</td></tr>';
     }).join('') || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:18px">چک وارده‌ای ثبت نشده است</td></tr>';
     var openSum = rows.filter(function (c) { return c.st === 'open' || c.st === 'held' || c.st === 'endorsed'; }).reduce(function (s, c) { return s + (+c.amt || 0); }, 0);
     return '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره/صیادی</th><th>صادرکننده</th><th>بانک</th><th>سررسید</th><th>مبلغ</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
@@ -215,6 +215,7 @@
           '<option value="advance">ضمانت پیش‌پرداخت</option><option value="performance">ضمانت حسن انجام کار</option><option value="bid">ضمانت شرکت در مناقصه (مستقل)</option><option value="other">سایر</option></select></div></div>' +
           '<div class="fld" id="ptfChNDealWrap" style="display:none"><label>پرونده فروش (برای پیش‌پرداخت/حسن انجام کار)</label><select id="ptfChNDeal"><option value="">— انتخاب پرونده فروش —</option></select></div>') +
       '<div class="fld"><label>بابت / یادداشت</label><input id="ptfChNNote"></div>' +
+      (!isR ? '<div class="fld" id="ptfChNOpexWrap" style="display:none"></div>' : '') +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfChNewDlg\').remove()">انصراف</button>' +
       '<button type="button" class="bt" onclick="ptfChNCommit()">✅ ثبت چک</button></div></div></div>';
@@ -236,7 +237,7 @@
       } catch (eB) {}
       bookSel.innerHTML = bookOpts;
     }
-    if (!isR) window.ptfChNKindUi();
+    if (!isR) { window.ptfChNKindUi(); window.ptfChNOpexReload(); }
   };
   /* انتخاب دسته چک → انتقال خودکار بانک/شعبه/سری به فرم */
   window.ptfChNBookPick = function () {
@@ -264,6 +265,7 @@
     var invWrap = document.getElementById('ptfChNInvWrap');
     if (invWrap) invWrap.style.display = (isR && v === 'cust' && ((document.getElementById('ptfChNCust') || {}).value)) ? '' : 'none';
     if (isR && v === 'cust') window.ptfChNInvReload();
+    if (!isR) window.ptfChNOpexReload();
   };
   window.ptfChNKindUi = function () {
     var k = ((document.getElementById('ptfChNKind') || {}).value || 'finance');
@@ -273,6 +275,7 @@
     var w1 = document.getElementById('ptfChNGuarWrap'); if (w1) w1.style.display = g ? '' : 'none';
     var w2 = document.getElementById('ptfChNDealWrap'); if (w2) w2.style.display = needDeal ? '' : 'none';
     if (needDeal && typeof window.ptfChNDealReload === 'function') window.ptfChNDealReload();
+    window.ptfChNOpexReload();
   };
   window.ptfChNDealReload = function () {
     var sel = document.getElementById('ptfChNDeal'); if (!sel) return;
@@ -296,6 +299,52 @@
     } catch (e) {}
     sel.innerHTML = opts;
   };
+
+  window.ptfChNOpexReload = function () {
+    var wrap = document.getElementById('ptfChNOpexWrap');
+    if (!wrap) return;
+    var isR = window._ptfChNFormDir === 'received';
+    var kind = ((document.getElementById('ptfChNKind') || {}).value || 'finance');
+    var party = ((document.getElementById('ptfChNParty') || {}).value || 'other');
+    if (isR || kind !== 'finance' || party === 'sup') { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    var rows = (typeof window.ptfOpexUnlinkedForCheque === 'function') ? window.ptfOpexUnlinkedForCheque() : [];
+    var tpls = (typeof window.ptfOpexTemplates === 'function') ? window.ptfOpexTemplates() : [];
+    var futureHtml = '';
+    tpls.forEach(function (t) {
+      var fut = (typeof window.ptfOpexFutureMonthsForTpl === 'function') ? window.ptfOpexFutureMonthsForTpl(t.id) : [];
+      if (!fut.length) return;
+      futureHtml += '<div style="margin-top:8px;font-weight:700;color:#9a3412">ماه‌های باقی‌مانده «' + escP(t.cat) + '» تا آخر سال (' + money(t.amt) + ' ریال/ماه)</div>' +
+        fut.map(function (f) {
+          return '<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="ptf-ch-opex-future" data-tpl="' + escP(t.id) + '" data-month="' + escP(f.month) + '" data-amt="' + (+f.amt || 0) + '"> ' +
+            escP(f.name) + ' — هنوز ثبت نشده</label>';
+        }).join('');
+    });
+    if (!rows.length && !futureHtml) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    wrap.style.display = '';
+    wrap.innerHTML = '<label>بابت کدام ماه‌های هزینه جاری؟ (حتی خرداد تا خرداد سال بعد)</label>' +
+      '<div style="max-height:220px;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:8px;background:#fffbeb;font-size:12.5px">' +
+      (rows.length ? '<div style="font-weight:700;color:#9a3412">ثبت‌شده و بدون چک</div>' : '') +
+      rows.map(function (x) {
+        return '<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="ptf-ch-opex" value="' + escP(x._opexRowId) + '" data-amt="' + (+x.amt || 0) + '"> ' +
+          escP(x.month || '') + ' — ' + escP(x.cat || '') + ' — ' + money(x.amt) + ' ریال' + (x.desc ? ' <small style="color:#64748b">(' + escP(x.desc) + ')</small>' : '') + '</label>';
+      }).join('') +
+      futureHtml +
+      '<div style="margin-top:6px;color:#92400e">جمع تیک‌ها باید با مبلغ چک یکی باشد. ماه‌های آینده همین‌جا ساخته و به چک وصل می‌شوند تا دوباره ثبت نشوند.</div></div>';
+  };
+  window.ptfChNOpexPicked = function () {
+    var ids = [], future = [], sum = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('.ptf-ch-opex:checked'), function (el) {
+      ids.push(el.value);
+      sum += +el.getAttribute('data-amt') || 0;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.ptf-ch-opex-future:checked'), function (el) {
+      var amt = +el.getAttribute('data-amt') || 0;
+      future.push({ tplId: el.getAttribute('data-tpl'), month: el.getAttribute('data-month'), amt: amt });
+      sum += amt;
+    });
+    return { ids: ids, future: future, sum: sum };
+  };
+
   window.ptfChNCommit = function () {
     var isR = window.ptfChequePanelSub === 'received';
     var partyKind = ((document.getElementById('ptfChNParty') || {}).value || 'other');
@@ -362,8 +411,13 @@
         return;
       } else {
         var book = window._ptfChNBook || null;
+        var opexPick = window.ptfChNOpexPicked ? window.ptfChNOpexPicked() : { ids: [], future: [], sum: 0 };
+        if ((opexPick.ids.length || (opexPick.future && opexPick.future.length)) && Math.round(opexPick.sum) !== Math.round(amt)) {
+          alert('جمع هزینه‌های انتخاب‌شده (' + money(opexPick.sum) + ') با مبلغ چک یکی نیست.');
+          return;
+        }
         var rec2 = {
-          no: no, sayad: no, amt: amt, kind: 'finance', toWhom: toWhom, supplierCd: supCd || undefined,
+          no: no, sayad: no, amt: amt, kind: 'finance', toWhom: toWhom, supplierCd: supCd || undefined, opexRowIds: opexPick.ids.length ? opexPick.ids : undefined,
           bank: bank || (book ? book.bank : ''), branch: book ? book.branch : '',
           note: note, dueISO: dueISO,
           dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw,
@@ -376,7 +430,18 @@
         if (!saved2 || saved2.why === 'sayad_locked') { alert(saved2 && saved2.error ? saved2.error : '⛔ ثبت چک ممکن نشد'); return; }
         try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved2); } catch (eR2) {}
         var dlg2 = document.getElementById('ptfChNewDlg'); if (dlg2) dlg2.remove();
-        if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : ''), 'ok');
+        var linkedN = opexPick.ids.length;
+        if (opexPick.future && opexPick.future.length && typeof window.ptfOpexCreateMonthsForCheque === 'function') {
+          var made = window.ptfOpexCreateMonthsForCheque(saved2.cd, opexPick.future);
+          if (made && made.ids) {
+            opexPick.ids = (opexPick.ids || []).concat(made.ids);
+            linkedN += made.ids.length;
+          }
+        }
+        if (opexPick.ids.length && typeof window.ptfOpexLinkCheque === 'function') window.ptfOpexLinkCheque(saved2.cd, opexPick.ids);
+        if (opexPick.ids.length && typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(saved2.cd, { opexRowIds: opexPick.ids.slice() });
+        if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + (linkedN ? ' — وصل به ' + linkedN + ' ماه هزینه (بدون دوباره‌شماری)' : ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : '')), 'ok');
+        try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOx) {}
         window.ptfChequePanelRender();
         return;
       }
@@ -510,6 +575,7 @@
     if (!confirm(msg)) return;
     var r = (typeof window.ptfChequeDelete === 'function') ? window.ptfChequeDelete(cd) : { ok: false, why: 'no_fn' };
     if (!r.ok) { alert('حذف نشد (' + (r.why || 'خطا') + ')'); return; }
+    try { if (typeof window.ptfOpexUnlinkCheque === 'function') window.ptfOpexUnlinkCheque(cd); } catch (eU) {}
     try { audit('چک‌ها', 'حذف کامل چک ' + (c.sayad || c.no || cd) + ' — مبلغ ' + money(c.amt) + (hasFin ? ' + حذف اثر مالی تأمین‌کننده' : ''), cd); } catch (eA) {}
     if (typeof ptfToast === 'function') ptfToast('🗑 چک و اثر مالی/گردش مرتبط حذف شد', 'warn');
     window.ptfChequePanelRender();
@@ -662,8 +728,14 @@
       '<div class="fld"><label>بانک</label><input id="chE_Bank" value="' + escP(c.bank || '') + '" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>شعبه</label><input id="chE_Branch" value="' + escP(c.branch || '') + '"></div>' +
       '<div class="fld"><label>سری چک</label><input id="chE_Series" value="' + escP(c.series || '') + '" style="direction:ltr"></div></div>' +
-      '<div class="fr"><div class="fld"><label>مالک چک</label><input id="chE_Owner" value="' + escP(c.owner || '') + '"></div>' +
-      '<div class="fld"><label>شماره حساب</label><input id="chE_Acc" value="' + escP(c.accountNo || '') + '" style="direction:ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>مالکیت چک *</label><select id="chE_Own">' + (function () {
+        var cur = (typeof window.ptfChequeOwnershipOf === 'function' ? window.ptfChequeOwnershipOf(c) : (c.ownership || '')) || (c.direction === 'received' ? 'third_party' : 'company');
+        return [['company', '🏢 چک شرکت'], ['personal', '👤 چک شخصی'], ['received', '📥 چک وارده مشتری'], ['third_party', '🪪 چک ثالث']].map(function (o) {
+          return '<option value="' + o[0] + '"' + (cur === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+        }).join('');
+      })() + '</select></div>' +
+      '<div class="fld"><label>نام روی دسته / حساب</label><input id="chE_Owner" value="' + escP(c.owner || '') + '"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شماره حساب</label><input id="chE_Acc" value="' + escP(c.accountNo || '') + '" style="direction:ltr"></div><div class="fld"></div></div>' +
       '<div class="fld"><label>یادداشت</label><input id="chE_Note" value="' + escP(c.note || '') + '"></div>' +
       '<div class="fld"><label>📎 اسناد / کپی چک (افزودن + حذف)</label><div id="chE_Files" style="min-height:40px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap">' +
@@ -718,6 +790,7 @@
       sayad: sayad, amt: amt, toWhom: to,
       bank: String(val('chE_Bank') || '').trim(), branch: String(val('chE_Branch') || '').trim(),
       series: String(val('chE_Series') || '').trim(), owner: String(val('chE_Owner') || '').trim(),
+      ownership: String(val('chE_Own') || '').trim() || (c.direction === 'received' ? 'third_party' : 'company'),
       accountNo: String(val('chE_Acc') || '').trim(),
       note: String(val('chE_Note') || '').trim()
     };
@@ -737,6 +810,7 @@
     var dlg = document.getElementById('ptfChEditDlg'); if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast('✅ چک ویرایش شد' + finMsg, 'ok');
     window.ptfChequePanelRender();
+    try { if (typeof window.ptfDataQualityRender === 'function') window.ptfDataQualityRender(); } catch (eQ) {}
   };
 })();
 

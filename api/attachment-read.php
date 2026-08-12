@@ -99,7 +99,8 @@ function inline_mime_of($ext) {
     $map = [
         'jpg'=>'image/jpeg', 'jpeg'=>'image/jpeg', 'png'=>'image/png',
         'gif'=>'image/gif', 'webp'=>'image/webp', 'bmp'=>'image/bmp',
-        'pdf'=>'application/pdf'
+        'pdf'=>'application/pdf',
+        'heic'=>'image/heic', 'heif'=>'image/heif', 'heics'=>'image/heic'
     ];
     return $map[strtolower((string)$ext)] ?? '';
 }
@@ -179,7 +180,8 @@ if (!$key) {
     echo json_encode(['ok' => false, 'error' => 'key required'], JSON_UNESCAPED_UNICODE);
     exit;
 }
-$ext = ext_of($name ?: $key);
+$ext = ext_of($name);
+if ($ext === '') $ext = ext_of($key);
 $mode = strtolower(trim((string)($in['mode'] ?? 'text')));
 $url = sig_v4($cfg, 'GET', $key, [], 600);
 $res = http_get_bin($url);
@@ -217,7 +219,7 @@ if ($mode === 'inline') {
 /* v25.9: انتقال کنترل‌شدهٔ فایل S3 به OCR بدون وابستگی به CORS مرورگر.
    فقط فرمت‌های لازم و حداکثر 6MB؛ کلید/URL امضاشده هرگز به پاسخ برنمی‌گردد. */
 if ($mode === 'base64') {
-    $mimeMap = ['pdf'=>'application/pdf','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','webp'=>'image/webp','xlsx'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xls'=>'application/vnd.ms-excel'];
+    $mimeMap = ['pdf'=>'application/pdf','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','webp'=>'image/webp','gif'=>'image/gif','bmp'=>'image/bmp','heic'=>'image/heic','heif'=>'image/heif','heics'=>'image/heic','xlsx'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','xls'=>'application/vnd.ms-excel'];
     if (!isset($mimeMap[$ext])) {
         echo json_encode(['ok' => false, 'error' => 'unsupported for AI read', 'ext' => $ext], JSON_UNESCAPED_UNICODE);
         exit;

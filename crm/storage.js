@@ -368,7 +368,7 @@ window.ptfOpenDocViewer = function (url, meta) {
    مشکل CORS/Content-Disposition آروان را از viewer و «تب جدید» حذف می‌کند. */
 function ptfInlineStoredFileUrl(key, name) {
   var ext = ptfFileExt(name) || ptfFileExt(key);
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'pdf'].indexOf(ext) < 0) return Promise.reject(new Error('inline_unsupported'));
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'pdf', 'heic', 'heif', 'heics'].indexOf(ext) < 0) return Promise.reject(new Error('inline_unsupported'));
   return fetch('../api/attachment-read.php', {
     method: 'POST', headers: ptfStorageAuthHeaders(true),
     body: JSON.stringify({ key: key, name: name, mode: 'inline' })
@@ -377,6 +377,329 @@ function ptfInlineStoredFileUrl(key, name) {
     return r.blob();
   }).then(function (blob) { return URL.createObjectURL(blob); });
 }
+window.ptfLoadScriptOnce = function (src) {
+  window._ptfScriptLoads = window._ptfScriptLoads || {};
+  if (window._ptfScriptLoads[src]) return window._ptfScriptLoads[src];
+  window._ptfScriptLoads[src] = new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = function () { resolve(true); };
+    s.onerror = function () { reject(new Error('script ' + src)); };
+    document.head.appendChild(s);
+  });
+  return window._ptfScriptLoads[src];
+};
+function ptfBlobToJpegDataUrl(blob, maxW) {
+  return new Promise(function (resolve, reject) {
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        var cap = maxW || 1400;
+        if (w > cap) { h = Math.round(h * cap / w); w = cap; }
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(cv.toDataURL('image/jpeg', 0.84));
+      } catch (e) { URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('img')); };
+    img.src = url;
+  });
+}
+/* بیشتر رسیدهای PDF فقط JPEG توکار (DCTDecode) هستند. استخراج بایت JPEG
+   بدون pdf.js/CDN کار می‌کند — CDN در شبکهٔ ایران معمولاً قطع است. */
+function ptfExtractEmbeddedJpegs(buf, maxPages) {
+  maxPages = maxPages || 8;
+  var u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+  var out = [];
+  var i = 0, n = u8.length;
+  while (i < n - 4 && out.length < maxPages) {
+    if (u8[i] === 0xFF && u8[i + 1] === 0xD8 && u8[i + 2] === 0xFF) {
+      var j = i + 3;
+      while (j < n - 1) {
+        if (u8[j] === 0xFF && u8[j + 1] === 0xD9) { j += 2; break; }
+        j++;
+      }
+      var len = j - i;
+      if (len > 4000 && len < 12 * 1048576) {
+        var slice = u8.subarray(i, j);
+        var copy = new Uint8Array(slice.length);
+        copy.set(slice);
+        out.push(copy);
+        i = j;
+        continue;
+      }
+    }
+    i++;
+  }
+  return out;
+}
+function ptfJpegBytesToDataUrl(bytes) {
+  return new Promise(function (resolve, reject) {
+    var blob = new Blob([bytes], { type: 'image/jpeg' });
+    ptfBlobToJpegDataUrl(blob, 1400).then(resolve, reject);
+  });
+}
+function ptfRasterizePdfBlob(blob, maxPages) {
+  maxPages = maxPages || 8;
+  return blob.arrayBuffer().then(function (buf) {
+    var head = new Uint8Array(buf, 0, Math.min(8, buf.byteLength || 0));
+    var isPdf = head.length >= 4 && head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46;
+    var jpegs = ptfExtractEmbeddedJpegs(buf, maxPages);
+    if (jpegs.length) {
+      var chain = Promise.resolve([]);
+      jpegs.forEach(function (bytes) {
+        chain = chain.then(function (acc) {
+          return ptfJpegBytesToDataUrl(bytes).then(function (url) { acc.push(url); return acc; }, function () { return acc; });
+        });
+      });
+      return chain.then(function (urls) { if (urls && urls.length) return urls; if (!isPdf) return []; return ptfRasterizePdfViaCdn(blob, maxPages); });
+    }
+    if (!isPdf) return [];
+    return ptfRasterizePdfViaCdn(blob, maxPages);
+  });
+}
+function ptfRasterizePdfViaCdn(blob, maxPages) {
+  var libs = [
+    './vendor/pdf.min.js',
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+  ];
+  function tryLib(i) {
+    if (i >= libs.length) return Promise.resolve([]);
+    return window.ptfLoadScriptOnce(libs[i]).then(function () {
+      var pdfjs = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+      if (!pdfjs) throw new Error('pdfjs');
+      try { if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = ''; } catch (eW) {}
+      return blob.arrayBuffer().then(function (buf) {
+        return pdfjs.getDocument({ data: buf, disableWorker: true, isEvalSupported: false }).promise;
+      }).then(function (pdf) {
+        var n = Math.min(pdf.numPages || 1, maxPages || 8);
+        var urls = [];
+        function renderPage(p) {
+          if (p > n) return Promise.resolve(urls);
+          return pdf.getPage(p).then(function (page) {
+            var vp0 = page.getViewport({ scale: 1 });
+            var scale = Math.min(1.4, 1200 / (vp0.width || 1200));
+            var vp = page.getViewport({ scale: scale });
+            var cv = document.createElement('canvas');
+            cv.width = vp.width; cv.height = vp.height;
+            var ctx = cv.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+            return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () {
+              urls.push(cv.toDataURL('image/jpeg', 0.82));
+              return renderPage(p + 1);
+            });
+          });
+        }
+        return renderPage(1);
+      });
+    }).catch(function () { return tryLib(i + 1); });
+  }
+  return tryLib(0);
+}
+window.ptfRasterizePdfBlob = ptfRasterizePdfBlob;
+function ptfRasterizeHeicBlob(blob) {
+  return ptfBlobToJpegDataUrl(blob, 1400).catch(function () {
+    var src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    return window.ptfLoadScriptOnce(src).then(function () {
+      if (typeof heic2any !== 'function') throw new Error('heic2any');
+      return heic2any({ blob: blob, toType: 'image/jpeg', quality: 0.84 });
+    }).then(function (out) {
+      var jpeg = Array.isArray(out) ? out[0] : out;
+      return ptfBlobToJpegDataUrl(jpeg, 1400);
+    }).then(function (url) { return [url]; });
+  }).then(function (urlOrArr) {
+    return Array.isArray(urlOrArr) ? urlOrArr : [urlOrArr];
+  }, function () { return []; });
+}
+/* v34.4.67: پس از دریافت بایت از ابر، PDF/HEIC را در مرورگر به JPEG صفحه به صفحه تبدیل کن
+   (هاست Imagick ندارد؛ embed/HEIC خام در چاپ گزارش تلفیقی دیده نمی‌شود). */
+/* فاز ۱: JPEG تبدیل‌شده جایگزین نمایش سند می‌شود؛ اصل در sourceKey می‌ماند.
+   گزارش بعدی دیگر تبدیل/توکن ندارد. LLM عمداً صدا زده نمی‌شود. */
+/* ZIP بدون فشرده‌سازی (STORE) — بدون CDN؛ اصل فایل‌ها دست نخورده می‌ماند. */
+window.ptfCrc32 = function (u8) {
+  window._ptfCrcTab = window._ptfCrcTab || (function () {
+    var t = new Uint32Array(256), i, c, k;
+    for (i = 0; i < 256; i++) {
+      c = i;
+      for (k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+  var crc = 0xFFFFFFFF, i;
+  for (i = 0; i < u8.length; i++) crc = window._ptfCrcTab[(crc ^ u8[i]) & 255] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+};
+window.ptfZipFromFiles = function (entries) {
+  function u16(n) { return new Uint8Array([n & 255, (n >>> 8) & 255]); }
+  function u32(n) { return new Uint8Array([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]); }
+  function encName(s) {
+    try { return new TextEncoder().encode(String(s || 'file')); } catch (e) {
+      var out = [], i, c;
+      s = String(s || 'file');
+      for (i = 0; i < s.length; i++) {
+        c = s.charCodeAt(i);
+        if (c < 128) out.push(c);
+        else out.push(95);
+      }
+      return new Uint8Array(out);
+    }
+  }
+  var locals = [], centrals = [], offset = 0, i;
+  for (i = 0; i < entries.length; i++) {
+    var name = encName(entries[i].name || ('file-' + (i + 1)));
+    var data = entries[i].bytes instanceof Uint8Array ? entries[i].bytes : new Uint8Array(entries[i].bytes || []);
+    var crc = window.ptfCrc32(data);
+    var local = new Uint8Array(30 + name.length + data.length);
+    local.set([0x50, 0x4B, 0x03, 0x04, 20, 0, 0, 8, 0, 0, 0, 0, 0, 0], 0);
+    local.set(u32(crc), 14);
+    local.set(u32(data.length), 18);
+    local.set(u32(data.length), 22);
+    local.set(u16(name.length), 26);
+    local.set(u16(0), 28);
+    local.set(name, 30);
+    local.set(data, 30 + name.length);
+    locals.push(local);
+    var central = new Uint8Array(46 + name.length);
+    central.set([0x50, 0x4B, 0x01, 0x02, 20, 0, 20, 0, 0, 8, 0, 0, 0, 0, 0, 0], 0);
+    central.set(u32(crc), 16);
+    central.set(u32(data.length), 20);
+    central.set(u32(data.length), 24);
+    central.set(u16(name.length), 28);
+    central.set(u32(offset), 42);
+    central.set(name, 46);
+    centrals.push(central);
+    offset += local.length;
+  }
+  var cdSize = 0;
+  for (i = 0; i < centrals.length; i++) cdSize += centrals[i].length;
+  var eocd = new Uint8Array(22);
+  eocd.set([0x50, 0x4B, 0x05, 0x06], 0);
+  eocd.set(u16(entries.length), 8);
+  eocd.set(u16(entries.length), 10);
+  eocd.set(u32(cdSize), 12);
+  eocd.set(u32(offset), 16);
+  var parts = locals.concat(centrals);
+  parts.push(eocd);
+  return new Blob(parts, { type: 'application/zip' });
+};
+window.ptfPersistFilePreview = function (origKey, preview) {
+  if (!origKey || !preview || !preview.key) return false;
+  var stores = ['ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods'];
+  var dirtyAny = false;
+  stores.forEach(function (storeKey) {
+    var a;
+    try { a = typeof getData === 'function' ? getData(storeKey) : JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) { a = null; }
+    if (!Array.isArray(a)) return;
+    var dirty = false;
+    a.forEach(function (r) {
+      (r.files || []).forEach(function (file) {
+        if (!file || (file.key !== origKey && file.sourceKey !== origKey)) return;
+        if (!file.sourceKey) { file.sourceKey = origKey; file.sourceName = file.name || ''; }
+        file.key = preview.key;
+        file.name = preview.name || String(file.sourceName || 'سند').replace(/\.pdf$/i, '') + '.jpg';
+        file.contentType = 'image/jpeg';
+        file.previewReady = true;
+        file.convertedAt = new Date().toISOString();
+        dirty = true;
+      });
+    });
+    if (dirty) {
+      dirtyAny = true;
+      try { if (typeof setData === 'function') setData(storeKey, a); else localStorage.setItem(storeKey, JSON.stringify(a)); } catch (eS) {}
+    }
+  });
+  return dirtyAny;
+};
+window.ptfServerRasterFile = function (f) {
+  return new Promise(function (resolve) {
+    if (!f || !f.key) return resolve(f);
+    if (f.previewReady && f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f);
+    var origKey = f.sourceKey || f.key;
+    fetch('../api/attachment-thumb.php', {
+      method: 'POST', headers: ptfStorageAuthHeaders(true),
+      body: JSON.stringify({ key: origKey, name: f.key || f.name || origKey, maxPages: 4 })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.ok || !d.images || !d.images.length || !d.images[0].url) return resolve(f);
+      var first = d.images[0];
+      f.url = first.url;
+      f.converted = true;
+      f.convertError = '';
+      f.extraImages = d.images.slice(1).map(function (im, i) {
+        return { key: im.key, url: im.url, converted: true, name: (f.name || 'سند') + ' (صفحه ' + (i + 2) + ')' };
+      });
+      if (first.key && first.stored !== false) {
+        window.ptfPersistFilePreview(origKey, { key: first.key, name: String(f.name || 'سند').replace(/\.pdf$/i, '') + '.jpg' });
+        f.sourceKey = f.sourceKey || origKey;
+        f.key = first.key;
+        f.name = String(f.name || 'سند').replace(/\.pdf$/i, '') + '.jpg';
+        f.contentType = 'image/jpeg';
+        f.previewReady = true;
+      }
+      resolve(f);
+    }).catch(function () { resolve(f); });
+  });
+};
+window.ptfRasterizeCloudFile = function (f, maxPages) {
+  return new Promise(function (resolve) {
+    if (!f) return resolve(f);
+    var name = f.name || f.key || '';
+    var ext = (typeof ptfFileExt === 'function') ? (ptfFileExt(name) || ptfFileExt(f.key || '')) : String(name).split('.').pop().toLowerCase();
+    if (!ext && f.url && String(f.url).indexOf('data:application/pdf') === 0) ext = 'pdf';
+    if (!ext && f.blobType && String(f.blobType).indexOf('pdf') > -1) ext = 'pdf';
+    var kind = (ext === 'pdf') ? 'pdf' : (['heic', 'heif', 'heics'].indexOf(ext) > -1 ? 'heic' : '');
+    function apply(urls) {
+      if (!urls || !urls.length) {
+        f.convertError = f.convertError || 'convert_failed';
+        return resolve(f);
+      }
+      f.url = urls[0];
+      f.converted = true;
+      f.convertError = '';
+      f.extraImages = urls.slice(1).map(function (u, i) {
+        return { url: u, name: (f.name || 'سند') + ' (صفحه ' + (i + 2) + ')', converted: true };
+      });
+      resolve(f);
+    }
+    function sniffKind(blob) {
+      return blob.slice(0, 16).arrayBuffer().then(function (ab) {
+        var b = new Uint8Array(ab);
+        if (b.length >= 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'pdf';
+        if (b.length >= 3 && b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image';
+        return kind || '';
+      });
+    }
+    function blobOf() {
+      if (f.url && String(f.url).indexOf('data:') === 0) return fetch(f.url).then(function (r) { return r.blob(); });
+      if (f.key) {
+        return fetch('../api/attachment-read.php', {
+          method: 'POST', headers: ptfStorageAuthHeaders(true),
+          body: JSON.stringify({ key: f.key, name: (f.key || name), mode: 'inline' })
+        }).then(function (r) {
+          if (!r.ok) throw new Error('read');
+          return r.blob();
+        });
+      }
+      throw new Error('no-src');
+    }
+    blobOf().then(function (blob) {
+      return sniffKind(blob).then(function (k) {
+        if (k === 'image') return ptfBlobToJpegDataUrl(blob, 1400).then(function (u) { return [u]; });
+        if (k === 'pdf' || kind === 'pdf') return ptfRasterizePdfBlob(blob, maxPages || 8);
+        if (kind === 'heic') return ptfRasterizeHeicBlob(blob);
+        return [];
+      });
+    }).then(apply).catch(function () { f.convertError = 'convert_failed'; resolve(f); });
+  });
+};
 function openStoredFile(key, nameHint) {
   if (!key) { alert('این فایل هنوز به فضای ابری منتقل نشده'); return; }
   var name = nameHint || (String(key).split('/').pop() || key);
@@ -813,41 +1136,23 @@ window.ptfFinalCommitItems = function(inqNo) {
   });
 })();
 
-// US-210: نوار نسخه آزمایشی و قابلیت تبدیل به نسخه عملیاتی واقعی برای مدیر ارشد و رئیس هیئت مدیره
+/* v34.4.48: دادهٔ واقعی الان در سامانه است. تبدیل آزمایشی→عملیاتی دیگر پاک‌سازی
+   نمی‌کند؛ فقط برچسب حالت را «عملیاتی» می‌گذارد تا نوار زرد و دکمهٔ خطرناک نماند. */
+window.ptfMarkLiveProduction = function () {
+  try { localStorage.setItem('ptf_crm_mode', 'production'); } catch (e) {}
+};
 window.ptfRenderTrialBar = function() {
   var el = document.getElementById('trialBarWrap');
   if (!el) return;
-  var isProd = localStorage.getItem('ptf_crm_mode') === 'production';
-  if (isProd) {
-    el.innerHTML = '<div style="background:#ecfdf5;border-bottom:1px solid #a7f3d0;padding:8px 20px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#065f46;font-weight:bold"><span style="font-size:16px">💎</span> نرم‌افزار در نسخه عملیاتی واقعی (Live Production Mode) فعال است. اطلاعات جاری معتبر و رسمی می‌باشند.</div>';
-    return;
-  }
-  var s = null;
-  try { s = typeof curSession === 'function' ? curSession() : JSON.parse(localStorage.getItem('ptf_crm_session')); } catch(e){}
-  var canGoLive = s && (s.role === 'مدیر ارشد' || s.role === 'مدیر کل' || (s.role||'').indexOf('مدیر ارشد') > -1 || (s.role||'').indexOf('رئیس هیئت مدیره') > -1 || (s.role||'').indexOf('Admin') > -1 || s.user === 'admin' || s.username === 'admin');
-  el.innerHTML = '<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-bottom:1px solid #f59e0b;padding:8px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;box-shadow:0 2px 10px rgba(245,158,11,.15)">' +
-    '<div style="display:flex;align-items:center;gap:8px">' +
-    '<span style="font-size:18px">🧪</span>' +
-    '<div><strong style="color:#b45309;font-size:13px">نرم‌افزار در حالت آزمایشی (Trial / Beta Mode) قرار دارد</strong>' +
-    '<div style="color:#92400e;font-size:11.5px">جهت شناسایی و رفع باگ‌ها؛ پس از اتمام تست، به نسخه عملیاتی واقعی تبدیل خواهد شد.</div></div></div>' +
-    (canGoLive ? '<button type="button" class="bt" style="background:#dc2626;color:#fff;font-size:12px;font-weight:bold;padding:7px 14px;border-radius:8px;cursor:pointer" onclick="ptfConvertToProduction()">🚀 تبدیل به نسخه عملیاتی واقعی (پاکسازی اطلاعات آزمایشی)</button>' : '') +
-    '</div>';
+  window.ptfMarkLiveProduction();
+  el.innerHTML = '<div style="background:#ecfdf5;border-bottom:1px solid #a7f3d0;padding:8px 20px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#065f46;font-weight:bold"><span style="font-size:16px">💎</span> سامانه در حال بهره‌برداری واقعی است. داده‌های جاری حفظ می‌شوند و پاک‌سازی آزمایشی غیرفعال است.</div>';
 };
 
 window.ptfConvertToProduction = function() {
-  var s = null;
-  try { s = typeof curSession === 'function' ? curSession() : JSON.parse(localStorage.getItem('ptf_crm_session')); } catch(e){}
-  var canGoLive = s && (s.role === 'مدیر ارشد' || s.role === 'مدیر کل' || (s.role||'').indexOf('مدیر ارشد') > -1 || (s.role||'').indexOf('رئیس هیئت مدیره') > -1 || (s.role||'').indexOf('Admin') > -1 || s.user === 'admin' || s.username === 'admin');
-  if (!canGoLive) { alert('⛔ دسترسی فقط برای مدیر ارشد و رئیس هیئت مدیره مجاز است.'); return; }
-  if (!confirm('⚠️ توجه بسیار مهم (تبدیل به نسخه عملیاتی واقعی):\n\nبا تایید این عملیات، کلیه اطلاعات آزمایشی (استعلام‌ها، پیشنهادها، پیش‌فاکتورها، پرونده‌ها، لیدها و کالاهای آزمایشی) به طور کامل پاکسازی شده و نرم‌افزار آماده کار واقعی می‌شود.\n\nآیا تایید می‌کنید؟')) return;
-  var ans = prompt('برای تایید نهایی پاکسازی اطلاعات آزمایشی و فعال‌سازی نسخه واقعی، کلمه «تایید» را تایپ کنید:');
-  if (ans !== 'تایید') { alert('عملیات لغو شد'); return; }
-  var keys = ['ptf_crm_rfqs', 'ptf_crm_rfqsmart', 'ptf_crm_inqitems', 'ptf_crm_inqreads', 'ptf_crm_products', 'ptf_crm_offers', 'ptf_crm_buyquotes', 'ptf_crm_leads', 'ptf_crm_projects', 'ptf_crm_deals', 'ptf_crm_invoices', 'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_packinglists', 'ptf_crm_reminders'];
-  keys.forEach(function(k) { localStorage.setItem(k, '[]'); });
-  localStorage.setItem('ptf_crm_mode', 'production');
-  if (typeof addLog === 'function') addLog('🚀 نرم‌افزار به نسخه عملیاتی واقعی تبدیل شد');
-  alert('💎 تبریک! نرم‌افزار با موفقیت به «نسخه عملیاتی واقعی» تبدیل شد و کلیه داده‌های آزمایشی پاکسازی گردید.');
-  location.reload();
+  window.ptfMarkLiveProduction();
+  if (typeof ptfToast === 'function') ptfToast('سامانه از قبل عملیاتی است؛ هیچ داده‌ای پاک نشد.', 'ok');
+  else alert('سامانه از قبل عملیاتی است؛ هیچ داده‌ای پاک نشد.');
+  if (typeof window.ptfRenderTrialBar === 'function') window.ptfRenderTrialBar();
 };
 
 /* =====================================================================
@@ -976,11 +1281,26 @@ window.ptfPurgeCloudOrphans = function (cb) {
     }
   }
   try {
+    /* v34.4.47: به‌جای فهرست ناقص storeها، همهٔ کلیدهای ptf_crm_* اسکن می‌شوند
+       (چک، opex، petty_tx، payables، sales_returns، ...). هزینه فقط JSON محلی است. */
+    var storeKeys = {};
+    try {
+      for (var si = 0; si < localStorage.length; si++) {
+        var sk = localStorage.key(si);
+        if (sk && sk.indexOf('ptf_crm_') === 0) storeKeys[sk] = true;
+      }
+    } catch (eLs) {}
     ['ptf_crm_rfqs', 'ptf_crm_projects', 'ptf_crm_cms', 'ptf_crm_letters', 'ptf_crm_contracts',
-     'ptf_crm_petty', 'ptf_crm_petty_periods', 'ptf_crm_offers', 'ptf_crm_invoices', 'ptf_crm_rfqsmart', 'ptf_crm_deals',
-     'ptf_crm_packinglists', 'ptf_crm_inqreads', 'ptf_crm_supplier_finance'].forEach(function (k) { harvest(getData(k)); });
-    // پروفایل‌های امضا (object نه آرایه)
-    harvest(JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}'));
+     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_offers', 'ptf_crm_invoices', 'ptf_crm_rfqsmart', 'ptf_crm_deals',
+     'ptf_crm_packinglists', 'ptf_crm_inqreads', 'ptf_crm_supplier_finance',
+     'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books',
+     'ptf_crm_opex', 'ptf_crm_payables', 'ptf_crm_sales_returns', 'ptf_crm_sigprofiles'].forEach(function (k) { storeKeys[k] = true; });
+    Object.keys(storeKeys).forEach(function (k) {
+      try {
+        if (typeof getData === 'function') harvest(getData(k));
+        else harvest(JSON.parse(localStorage.getItem(k) || 'null'));
+      } catch (eH) {}
+    });
   } catch(e) {}
   var PROTECTED_PREFIX = ['archives/', 'backups/']; // بایگانی و بک‌آپ هرگز زباله نیستند
   
@@ -990,6 +1310,11 @@ window.ptfPurgeCloudOrphans = function (cb) {
     .then(function(d) {
       if (!d.ok || !d.files) {
         alert('❌ خطا در دریافت لیست فایل‌ها از آروان‌کلود: ' + (d.error || 'عدم دسترسی'));
+        if (cb) cb(false);
+        return;
+      }
+      if (d.truncated) {
+        alert('⚠️ فهرست فضای ابری ناقص برگشت؛ برای جلوگیری از حذف اشتباه، پاک‌سازی متوقف شد. دوباره تلاش کنید.');
         if (cb) cb(false);
         return;
       }

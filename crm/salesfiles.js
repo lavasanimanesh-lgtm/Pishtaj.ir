@@ -126,6 +126,63 @@
   }
   function sfHasInvoice(r) { return sfDocsOf(r).invoices.length > 0; }
 
+  /* v34.4.49: حاشیه سود واقعی هر پرونده — مبلغ ریال + درصد روی همان موتور
+     ptfProjectProfitIRR (فروش قطعی − فاکتور خرید − هزینه مستقیم − زیان). */
+  window.ptfSalesFileMargin = function (r) {
+    var empty = { sell: 0, buy: 0, extra: 0, cost: 0, profit: null, pct: null, complete: false, ok: false, provisional: false, warnings: [], sellSrc: '' };
+    if (!r) return empty;
+    var prj = {
+      _kind: 'deal',
+      no: r.cd, cd: r.cd,
+      offerNo: r.wonOffer || r.offerNo || '',
+      inqNo: r.inqNo || '',
+      buyerCo: r.buyerCo || '',
+      costEvents: r.costEvents || [],
+      lossEvents: r.lossEvents || []
+    };
+    var res = { ok: false, complete: false, warnings: [], sellIrr: 0, buyIrr: 0, profit: null, pct: null };
+    try {
+      if (typeof window.ptfProjectProfitIRR === 'function') res = window.ptfProjectProfitIRR(prj) || res;
+    } catch (eP) {}
+    var sell = +res.sellIrr || 0;
+    var buy = +res.buyIrr || 0;
+    function isAdvanceCost(x) {
+      if (!x) return false;
+      if (x.fromAdvance || x.cat === 'advance' || x.kind === 'advance') return true;
+      return /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || x.label || ''));
+    }
+    var extra = (r.costEvents || []).filter(function (x) { return !isAdvanceCost(x); }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    extra += (typeof window.ptfProjectLossTotal === 'function') ? window.ptfProjectLossTotal(r) : (r.lossEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    var cost = buy + extra;
+    /* بدون فاکتور فروش عدد سود نشان داده نمی‌شود. پیش‌پرداخت مشتری هزینه نیست. */
+    var profit = sell > 0 ? (sell - cost) : null;
+    var provisional = !(res.complete && res.ok && sell > 0);
+    var pct = (sell > 0 && profit != null) ? Math.round(profit * 1000 / sell) / 10 : null;
+    return {
+      sell: sell, buy: buy, extra: extra, cost: cost,
+      profit: profit, pct: pct,
+      complete: !!(res.complete && !provisional),
+      ok: !!(res.ok && sell > 0),
+      provisional: provisional || !res.complete,
+      warnings: res.warnings || [],
+      sellSrc: res.sellSrc || ''
+    };
+  };
+  window.ptfSalesFileMarginBadge = function (r) {
+    var m = window.ptfSalesFileMargin(r);
+    if (!m.ok && m.profit == null) {
+      return '<span style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:2px 8px;font-size:11px">حاشیه سود: تا صدور فاکتور —</span>';
+    }
+    var pos = m.profit >= 0;
+    var col = m.provisional ? '#b45309' : (pos ? '#047857' : '#b91c1c');
+    var bg = m.provisional ? '#fffbeb' : (pos ? '#ecfdf5' : '#fef2f2');
+    var bd = m.provisional ? '#fde68a' : (pos ? '#86efac' : '#fecaca');
+    var amt = (m.profit || 0).toLocaleString('fa-IR') + ' ریال';
+    var pct = (m.pct != null) ? (m.pct.toLocaleString('fa-IR') + '٪') : '—';
+    var tag = m.provisional ? ' تقریبی' : ' واقعی';
+    return '<span title="' + escP((m.warnings || []).join(' | ') || (m.sellSrc || 'حاشیه سود پرونده')) + '" style="background:' + bg + ';color:' + col + ';border:1px solid ' + bd + ';border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800">حاشیه سود' + tag + ': ' + amt + ' <span dir="ltr">(' + pct + ')</span></span>';
+  };
+
   /* ===== v19.1: اسناد قطعی برد — snapshot تغییرناپذیر پیشنهاد مالی برنده + آخرین فنی مرتبط.
      ساخت اصلی: لحظه برد در autoCreateProjectFromCO (offers.js). این تابع مهاجرت نرم پرونده‌های
      قدیمی برد‌شده (قبل از v19.1) است: یک‌بار از پیشنهاد زنده snapshot می‌سازد. ===== */
@@ -620,10 +677,11 @@
         ? ' | <span style="color:' + (dueSt === 'red' ? '#dc2626;font-weight:800' : dueSt === 'orange' ? '#d97706;font-weight:800' : '#64748b') + '">' +
           (dueSt === 'red' ? '🚚⏰ تحویل تعهدی: ' + escP(r.dueISO) + ' — سررسید/تاخیر!' : dueSt === 'orange' ? '🚚⏳ تحویل تعهدی نزدیک: ' + escP(r.dueISO) : '🚚 تحویل تعهدی: ' + escP(r.dueISO)) + '</span>'
         : '';
-      h += '<div style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;overflow:hidden' + (dueSt === 'red' ? ';border-color:#fca5a5' : '') + '">' +
+      h += '<div id="sfDeal-' + escP(r.cd) + '" data-ptf-nav="deal:' + escP(r.cd) + '" style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:14px;margin-bottom:8px;overflow:hidden' + (dueSt === 'red' ? ';border-color:#fca5a5' : '') + '">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;flex-wrap:wrap' + (dueSt === 'red' ? ';background:#fef2f2' : dueSt === 'orange' ? ';background:#fffbeb' : '') + '" onclick="sfToggle(\'' + ptfOnClickArg(r.cd) + '\')">' +
         '<div style="font-size:13px"><b dir="ltr">' + escP(inqKey) + '</b> — ' + escP(r.buyerCo || '-') +
-        '<div style="font-size:11px;color:#64748b;margin-top:2px">' + nDocs + ' سند منضم | ایجاد: ' + escP(r.t || '') + stgBadge + (hasInv ? ' | <span style="color:#059669">🧾 فاکتور ثبت شده</span>' : '') + dueBadge + (lossBadge ? ' | ' + lossBadge : '') + '</div></div>' +
+        '<div style="font-size:11px;color:#64748b;margin-top:2px">' + nDocs + ' سند منضم | ایجاد: ' + escP(r.t || '') + stgBadge + (hasInv ? ' | <span style="color:#059669">🧾 فاکتور ثبت شده</span>' : '') + dueBadge + (lossBadge ? ' | ' + lossBadge : '') + '</div>' +
+        '<div style="margin-top:5px">' + (typeof window.ptfSalesFileMarginBadge === 'function' ? window.ptfSalesFileMarginBadge(r) : '') + '</div></div>' +
         '<span style="font-size:13px;color:#94a3b8">' + (open ? '▲' : '▼') + '</span></div>' +
         (open ? sfDrawerHtml(r, d, hasInv) : '') +
         '</div>';
@@ -644,13 +702,17 @@
       if (wo && typeof ptfAdvanceNormalize === 'function') {
         var a = ptfAdvanceNormalize(wo);
         if (a && a.mode && a.mode !== 'none') {
-          advTxt = (typeof ptfAdvanceLabel === 'function' ? ptfAdvanceLabel(wo) : 'ثبت‌شده');
-          advState = a.paid || a.cashFull ? '#059669' : '#b45309';
+          var recv = +a.receivedAmt || 0, claim = +a.amt || 0;
+          advTxt = (recv ? ('وصولی ' + recv.toLocaleString('fa-IR') + ' ریال') : 'هنوز وصول نشده') +
+            (claim ? ' از مطالبه ' + claim.toLocaleString('fa-IR') : '');
+          advState = recv > 0 ? '#059669' : '#b45309';
         }
       }
     } catch (e) {}
     var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
-    var costSum = (r.costEvents || []).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
+    var costSum = (r.costEvents || []).filter(function (x) {
+      return !(x && (x.fromAdvance || x.cat === 'advance' || /پیش.?پرداخت|prepay|advance/.test(String(x.desc || x.cat || ''))));
+    }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
     var invCount = (d.invoices || []).length;
     var openAmt = (d.invoices || []).reduce(function (s, i) {
       var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
@@ -658,9 +720,14 @@
     }, 0);
     var au = (typeof sfCloseAudit === 'function') ? sfCloseAudit(r) : { blockers: [], warns: [] };
     var ready = !au.blockers.length && openAmt <= 0.5;
+    var mg = (typeof window.ptfSalesFileMargin === 'function') ? window.ptfSalesFileMargin(r) : null;
+    var mgHtml = (mg && (mg.ok || mg.profit != null))
+      ? '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:' + (mg.provisional ? '#b45309' : (mg.profit >= 0 ? '#047857' : '#b91c1c')) + '">📈 حاشیه سود' + (mg.provisional ? ' تقریبی' : ' واقعی') + ': <b>' + (mg.profit || 0).toLocaleString('fa-IR') + ' ریال</b> <span dir="ltr">(' + (mg.pct != null ? mg.pct.toLocaleString('fa-IR') + '٪' : '—') + ')</span><small style="display:block;font-weight:400;color:#64748b">فروش خالص ' + (mg.sell || 0).toLocaleString('fa-IR') + ' − خرید تأمین ' + (mg.buy || 0).toLocaleString('fa-IR') + ' − هزینه ' + (mg.extra || 0).toLocaleString('fa-IR') + (mg.sellSrc ? ' — ' + escP(mg.sellSrc) : '') + '</small></span>'
+      : '<span style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:4px 8px;color:#64748b">📈 حاشیه سود: تا صدور فاکتور فروش قابل محاسبه نیست</span>';
     return '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin:8px 0 10px;font-size:12px">' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
-      '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 پیش‌پرداخت: <b>' + escP(advTxt) + '</b></span>' +
+      mgHtml +
+      '<span style="background:#fff;border:1px solid #dbeafe;border-radius:8px;padding:4px 8px;color:' + advState + '">💰 پیش‌دریافت مشتری (وصولی): <b>' + escP(advTxt) + '</b></span>' +
       '<span style="background:#fff;border:1px solid #bbf7d0;border-radius:8px;padding:4px 8px;color:#166534">🛒 خرید واقعی: <b>' + (rb.has ? ((rb.full || 0) + ' / ' + rb.total + ' قلم کامل' + (rb.partial ? ' — ' + rb.partial + ' قلم ناقص' : '')) : 'هنوز شروع نشده') + '</b></span>' +
       '<span style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;color:#92400e">➕ هزینه‌های مستقیم: <b>' + costSum.toLocaleString('fa-IR') + ' ریال</b></span>' +
       '<span style="background:#fff;border:1px solid #e9d5ff;border-radius:8px;padding:4px 8px;color:#6d28d9">🧾 فاکتورها: <b>' + invCount + '</b>' + (openAmt > 0 ? ' | باز: ' + openAmt.toLocaleString('fa-IR') + ' ریال' : ' | تسویه: کامل') + '</span>' +
@@ -1538,23 +1605,11 @@
   /* v34.0.0-alpha (F4-5): توابع کمکی سمت پرونده برای لینک از پرونده ↔ تنخواه
      این توابع در کنار توابع ptfPettyRelatedCosts / ptfPettyUpdateDealLink در petty.js کار می‌کنند. */
   window.ptfDealGoPetty = function (pettyCd) {
-    /* رفتن به ماژول تنخواه + هایلایت رکورد مربوطه */
+    if (typeof window.ptfNavGoto === 'function') {
+      window.ptfNavGoto('petty', { kind: 'petty', id: pettyCd, open: true });
+      return;
+    }
     try { if (typeof goPanel === 'function') goPanel('petty'); } catch (e) {}
-    setTimeout(function () {
-      try {
-        var el = document.getElementById('pty-' + (pettyCd || ''));
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          var prevOutline = el.style.outline || '';
-          el.style.outline = '3px solid #fde68a';
-          setTimeout(function () { el.style.outline = prevOutline; }, 2400);
-          if (typeof ptfToast === 'function') ptfToast('رکورد تنخواه ' + pettyCd + ' در لیست پیدا شد ✨', 'ok');
-        } else {
-          if (typeof ptfDialog === 'function') ptfDialog({ title: '🏦 هزینهٔ تنخواه ' + pettyCd, body: 'به ماژول تنخواه بروید و رکورد ' + pettyCd + ' را در لیست پیدا کنید. (المنت مخصوص بعد از رندر کامل لیست ایجاد می‌شود.)' });
-          else if (typeof ptfToast === 'function') ptfToast('به ماژول تنخواه بروید و رکورد ' + pettyCd + ' را پیدا کنید', 'info');
-        }
-      } catch (e2) { console.warn('ptfDealGoPetty:', e2); }
-    }, 350);
   };
 
   /* v34.0.0-alpha (F4-5): دیالوگ انتخاب هزینهٔ تنخواه موجود + لینک به پروندهٔ فروش */

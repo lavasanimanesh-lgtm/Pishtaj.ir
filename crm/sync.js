@@ -17,11 +17,11 @@
     'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
     'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports',
-    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns'
+    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_fin_events', 'ptf_crm_bank_recon', 'ptf_crm_treasury_calls'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
   var URGENT_SYNC_KEYS = [
-    'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance',
+    'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_fin_events',
     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_fiscal_snapshots',
     'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_offers', 'ptf_crm_deals',
     'ptf_crm_projects', 'ptf_crm_opex'
@@ -30,7 +30,7 @@
   var SYNC_ROLE_KEYS = {
     sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
     buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns'],
+    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon'],
     collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars']
   };
   function syncAllowedKey(k) {
@@ -97,6 +97,11 @@
   }
 
   function saveDirty() { try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(state.dirty)); } catch (e) {} }
+  var pushWaiters = [];
+  function notifyPushWaiters(ok, extra) {
+    var w = pushWaiters.splice(0);
+    w.forEach(function (fn) { try { fn(!!ok, extra || {}); } catch (eW) {} });
+  }
 
   /* ---------- رهگیری تغییرات: wrap setData ---------- */
   window.ptfSyncNotifyDirty = function (k) {
@@ -109,6 +114,7 @@
       }
       state.dirty[k] = true;
       saveDirty(); // v33.2.1: persist dirty keys
+      try { setSyncBadge(_lastSyncBadge === 'ok' ? 'warn' : _lastSyncBadge); } catch (eBdg) {}
       schedulePush();
     }
   };
@@ -227,13 +233,14 @@
     forbiddenLocal.forEach(function (k) { delete state.dirty[k]; });
     if (forbiddenLocal.length) { saveDirty(); setSyncBadge('forbidden'); try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقش در sync ارسال نشد: ' + forbiddenLocal.join('، '), 'SYNC-RBAC'); } catch (eF) {} }
     keys = keys.filter(function (k) { return forbiddenLocal.indexOf(k) < 0; });
-    if (!keys.length || state.pushing) return;
-    if (!curSession().user) return;
+    if (!keys.length) { notifyPushWaiters(true, { empty: true }); return; }
+    if (state.pushing) return;
+    if (!curSession().user) { notifyPushWaiters(false, { reason: 'session' }); return; }
     /* v15.0 (US-384): قبل از کامل شدن سینک اولیه، هیچ push‌ای نرود —
        ریشه کیس استادی: رفرش کاربر دوم، حین رندر (مهاجرت وضعیت‌ها/فلگ‌های انقضا) setData روی
        داده کهنه می‌زد و لیست قدیمی را قبل از pull به سرور می‌فرستاد → پیش‌نویس کاربر اول حذف می‌شد. */
     if (!state.bootstrapped) { schedulePush(); return; }
-    if (!hasSyncToken()) { setSyncBadge('warn'); return; }
+    if (!hasSyncToken()) { setSyncBadge('warn'); notifyPushWaiters(false, { reason: 'token' }); return; }
     /* v14.7 (US-382 AC2): سد push خالی روی کلید حیاتی که قبلا ناخالی بوده */
     if (!window._ptfGoLiveWipe) {
       var gc = guardCounts();
@@ -255,7 +262,7 @@
         } catch (e2) {}
         return true;
       });
-      if (!keys.length) return;
+      if (!keys.length) { notifyPushWaiters(true, { empty: true }); return; }
     }
     massDropCheck(); /* v14.7 US-382 AC3 */
     state.pushing = true;
@@ -301,6 +308,7 @@
           }
           if (d.forbidden && d.forbidden.length) { setSyncBadge('forbidden'); try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + d.forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {} }
           else setSyncBadge('ok');
+          notifyPushWaiters(!confl.length && !(d.forbidden && d.forbidden.length), { conflicts: confl, forbidden: d.forbidden || [] });
         } else {
           setSyncBadge('warn');
           /* v33.2.1 HOTFIX: اگر push ناموفق بود، هشدار واضح بده — تغییرات محلی حفظ می‌شوند */
@@ -314,15 +322,32 @@
           }
           saveDirty(); // v33.2.1: dirty keys persisted for recovery after refresh
           schedulePush(); // دوباره تلاش
+          notifyPushWaiters(false, { reason: d.error || 'push-fail' });
         }
       })
       .catch(function () {
         state.pushing = false;
         state.online = false;
         setSyncBadge('offline');
+        notifyPushWaiters(false, { reason: 'network' });
         setTimeout(schedulePush, 15000); // آفلاین: تلاش مجدد
       });
   }
+
+  window.ptfSyncFlushNow = function (cb) {
+    if (typeof cb === 'function') pushWaiters.push(cb);
+    if (!Object.keys(state.dirty).length) { notifyPushWaiters(true, { empty: true }); return; }
+    clearTimeout(state.pushTimer);
+    pushDirty();
+  };
+  window.ptfConfirmCloudSave = function (localMsg) {
+    if (typeof ptfToast === 'function') ptfToast((localMsg || 'روی این دستگاه ذخیره شد') + ' — در حال ارسال به سرور…', 'info');
+    window.ptfSyncFlushNow(function (ok) {
+      if (typeof ptfToast !== 'function') return;
+      if (ok) ptfToast('روی سرور هم ثبت شد. در دستگاه دیگر بعد از تازه‌سازی دیده می‌شود.', 'ok');
+      else ptfToast('هنوز به سرور نرسید. تب را نبندید تا نوار زرد پایین صفحه خاموش و نشانگر همگام سبز شود.', 'warn');
+    });
+  };
 
   /* ---------- pull دوره‌ای ---------- */
   /* v33.21.1 (به انتخاب کارفرما): پینگ بین‌تبی — هر تب که دادهٔ تازه اعمال کرد یا پوش موفق داشت،
@@ -422,7 +447,9 @@
               if (typeof window.ptfApplyDeletionTombstones === 'function') startupMerged = window.ptfApplyDeletionTombstones(k, startupMerged, (d.data || {})['ptf_crm_deleted_archive']);
               if (startupMerged && startupMerged !== curStr) {
                 wr(k, startupMerged);
-                state.dirty[k] = true;
+                /* فقط اگر این دستگاه چیزی بیش از نسخهٔ سرور داشته باشد دوباره push شود.
+                   اختلاف صرفِ ترتیب کلید/نرمال‌سازی نباید بعد از هر hard refresh dirty بسازد. */
+                if (startupMerged !== newStr) state.dirty[k] = true;
                 applied++;
               }
             } catch (eStartupMerge) {}
@@ -460,7 +487,7 @@
         if (applied) {
           setSyncBadge('ok');
           refreshCurrentPanel();
-          if (typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
+          if (state.bootstrapped && !forceFull && typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
           if (typeof updateInboxBadge === 'function') updateInboxBadge();
           pingTabs(); /* v33.21.1: بقیهٔ تب‌های همین مرورگر را لحظه‌ای مطلع کن */
         }
@@ -614,12 +641,14 @@
     var banner = document.getElementById('ptfUnsavedBanner');
     if (banner) {
       var dirtyCount = Object.keys(state.dirty).length;
-      if (dirtyCount > 0 && (st === 'forbidden' || st === 'warn')) {
+      if (dirtyCount > 0) {
         banner.style.display = 'flex';
-        banner.innerHTML = '<span style="flex:1">⚠️ ' + dirtyCount + ' تغییر ذخیره‌نشده — ' + (st === 'forbidden' ? 'نقش فعلی اجازه همگام‌سازی ندارد' : 'در حال تلاش مجدد...') + '</span>';
-      } else if (dirtyCount > 0 && st === 'offline') {
-        banner.style.display = 'flex';
-        banner.innerHTML = '<span style="flex:1">🔴 ' + dirtyCount + ' تغییر آفلاین — با اتصال مجدد ارسال می‌شود</span>';
+        var msg = st === 'forbidden'
+          ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد')
+          : st === 'offline'
+            ? ('🔴 ' + dirtyCount + ' تغییر آفلاین — تب را نبندید تا وصل شود')
+            : ('🟡 ' + dirtyCount + ' تغییر هنوز به سرور نرسیده — تب را نبندید تا نشانگر همگام سبز شود');
+        banner.innerHTML = '<span style="flex:1">' + msg + '</span>';
       } else {
         banner.style.display = 'none';
       }
@@ -735,9 +764,10 @@
       try { localStorage.removeItem('ptf_sync_ping'); } catch (eP0) {}
     }
     // هنگام بستن صفحه، push معلق را بفرست
-    window.addEventListener('beforeunload', function () {
+    window.addEventListener('beforeunload', function (ev) {
       var keys = Object.keys(state.dirty);
       if (!keys.length) return;
+      try { ev.preventDefault(); ev.returnValue = ''; } catch (eU) {}
       var data = {};
       keys.forEach(function (k) { var v = rd(k); if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v; });
       try {
@@ -827,6 +857,8 @@
       ptf_crm_invoices: ['invoice','invoices','inv'],
       ptf_crm_payables: ['payable','payables','pay'],
       ptf_crm_cheques: ['cheque','check','chq'],
+      ptf_crm_cheques_issued: ['cheque','check','chq','issued'],
+      ptf_crm_cheques_received: ['cheque','check','chq','received'],
       ptf_crm_deals: ['deal','deals','salesfile'],
       ptf_crm_projects: ['project','projects','salesfile'],
       ptf_crm_letters: ['letter','letters'],
@@ -962,7 +994,9 @@
     return out;
   }
   function ptfMergeBusinessRecord(key, a, b, code) {
-    var winner = ptfPreferRecord(a, b);
+    var winner = (typeof window.ptfFinanceVoidWins === 'function' && (key === 'ptf_crm_invoices' || key.indexOf('cheque') > -1))
+      ? (window.ptfFinanceVoidWins(a, b) || ptfPreferRecord(a, b))
+      : ptfPreferRecord(a, b);
     var loser = winner === a ? b : a;
     var out = ptfMergeAttachmentFields(ptfMergePlainObject(winner, loser), winner, loser);
     if (key === 'ptf_crm_offers') {
@@ -1082,6 +1116,31 @@
          بعد از آن چک بود و همیشه Array.isArray(loc)===false باعث می‌شد بدون رسیدن به
          اینجا، remoteStr برگردانده شود (کد مرده — AUD-01: هر فاکتور/پرداخت/تعدیل محلی
          که هنوز sync نشده، در هر تعارضی به‌طور کامل و بی‌صدا از بین می‌رفت). */
+      if (key === 'ptf_crm_fin_events') {
+        try {
+          var locE = JSON.parse(localStr || '[]'), remE = JSON.parse(remoteStr || '[]');
+          var unionE = (typeof window.ptfFinanceUnionEvents === 'function')
+            ? window.ptfFinanceUnionEvents(locE, remE)
+            : (Array.isArray(locE) ? locE : []).concat(Array.isArray(remE) ? remE : []);
+          return JSON.stringify(unionE);
+        } catch (eEv) { return remoteStr; }
+      }
+
+      if (key === 'ptf_crm_bank_recon') {
+        try {
+          var locB = JSON.parse(localStr || '[]'), remB = JSON.parse(remoteStr || '[]');
+          var byCd = {};
+          function takeB(it) {
+            if (!it || !it.cd) return;
+            var prev = byCd[it.cd];
+            if (!prev || String(it.t || '') >= String(prev.t || '')) byCd[it.cd] = it;
+          }
+          (Array.isArray(locB) ? locB : []).forEach(takeB);
+          (Array.isArray(remB) ? remB : []).forEach(takeB);
+          return JSON.stringify(Object.keys(byCd).map(function (k) { return byCd[k]; }));
+        } catch (eB) { return remoteStr; }
+      }
+
       if (key === 'ptf_crm_supplier_finance') {
         try {
           var locO = JSON.parse(localStr||'{}'); var remO = JSON.parse(remoteStr||'{}');
@@ -1095,7 +1154,7 @@
             if(!Array.isArray(lv) && !Array.isArray(rv)){
               merged[k]= rv!=null ? rv : lv;
             } else if(Array.isArray(lv) && Array.isArray(rv)){
-              // merge by cd
+              // merge by cd — P4: void wins; allocations/files union
               var mm={};
               rv.forEach(function(it){ if(it&&it.cd) mm[it.cd]=it; });
               lv.forEach(function(it){
@@ -1103,15 +1162,18 @@
                 if(!mm[it.cd]){
                   mm[it.cd]=it;
                 } else {
-                  /* افزودن فایل قبلاً timestamp اولیهٔ رکورد (`t`) را تغییر نمی‌داد و
-                     در تساوی، نسخهٔ server بدون فایل برنده می‌شد. updatedAtISO ملاک
-                     اصلی است و فایل‌ها/tombstoneها مستقل از برنده merge می‌شوند. */
                   var remoteRec=mm[it.cd];
+                  var voidW = typeof window.ptfFinanceVoidWins === 'function' ? window.ptfFinanceVoidWins(it, remoteRec) : null;
                   var lt=it.updatedAtISO||it.updatedAt||it.iso||it.t||it.date||'';
                   var rt=remoteRec.updatedAtISO||remoteRec.updatedAt||remoteRec.iso||remoteRec.t||remoteRec.date||'';
-                  var winner=lt>=rt?it:remoteRec;
+                  var winner=voidW || (lt>=rt?it:remoteRec);
                   var loser=winner===it?remoteRec:it;
-                  mm[it.cd]=ptfMergeAttachmentFields(ptfObjClone(winner),winner,loser);
+                  var rec=ptfMergeAttachmentFields(ptfObjClone(winner),winner,loser);
+                  if (Array.isArray(it.allocations) || Array.isArray(remoteRec.allocations)) {
+                    rec.allocations = ptfMergeArrayUnique(it.allocations || [], remoteRec.allocations || []);
+                  }
+                  if (voidW) { rec.status = voidW.status || 'void'; rec.st = voidW.st || rec.st; }
+                  mm[it.cd]=rec;
                 }
               });
               merged[k]=Object.values(mm);
@@ -1119,6 +1181,10 @@
               merged[k]= Array.isArray(rv) ? rv : (Array.isArray(lv)? lv : (rv!=null?rv:lv));
             }
           });
+          try {
+            var evLoc = JSON.parse((typeof window.ptfBRead === 'function' ? window.ptfBRead('ptf_crm_fin_events') : null) || localStorage.getItem('ptf_crm_fin_events') || '[]');
+            if (typeof window.ptfFinanceReplaySupplier === 'function') merged = window.ptfFinanceReplaySupplier(merged, evLoc);
+          } catch (eRep) {}
           return JSON.stringify(merged);
         } catch(e){ return remoteStr; }
       }

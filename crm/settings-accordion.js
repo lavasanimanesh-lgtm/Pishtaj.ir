@@ -137,9 +137,34 @@
       if (after !== before) node.nodeValue = after;
     });
   }
+  function absorbLooseSettings(root) {
+    if (!root || !root.parentNode) return;
+    while (root.nextSibling) root.appendChild(root.nextSibling);
+  }
+  function unwrapAccordion(root) {
+    var wrap = root.querySelector('.ptf-set-acc-wrap');
+    if (wrap) {
+      wrap.querySelectorAll('.ptf-set-body').forEach(function (body) {
+        while (body.firstChild) root.insertBefore(body.firstChild, wrap);
+      });
+    }
+    Array.prototype.slice.call(root.querySelectorAll('style,.ptf-set-acc-head,.ptf-set-quicknav,.ptf-set-acc-wrap')).forEach(function (n) { n.parentNode && n.parentNode.removeChild(n); });
+    root.removeAttribute('data-ptf-acc');
+  }
+  function hasLooseChildren(root) {
+    return Array.prototype.some.call(root.children || [], function (ch) {
+      if (!ch || ch.nodeType !== 1) return false;
+      if (ch.tagName === 'STYLE' || ch.hasAttribute('data-settings-header')) return false;
+      if (ch.classList && (ch.classList.contains('ptf-set-row') || ch.classList.contains('ptf-set-acc-head') || ch.classList.contains('ptf-set-quicknav') || ch.classList.contains('ptf-set-acc-wrap') || ch.classList.contains('ptf-settings-head'))) return false;
+      return true;
+    });
+  }
   function apply() {
     var root = document.getElementById('ptfSettingsAccordionRoot');
-    if (!root || root.getAttribute('data-ptf-acc') === '1') return;
+    if (!root) return;
+    absorbLooseSettings(root);
+    if (root.getAttribute('data-ptf-acc') === '1' && hasLooseChildren(root)) unwrapAccordion(root);
+    if (root.getAttribute('data-ptf-acc') === '1') return;
     root.setAttribute('data-ptf-acc', '1');
     var raw = Array.prototype.slice.call(root.children || []);
     if (!raw.length) return;
@@ -194,7 +219,7 @@
       det.className = 'ptf-set-row';
       det.id = 'ptfSetSection_' + idx;
       det.setAttribute('data-set-title', title);
-      if (idx === 0) det.open = true;
+      det.open = false;
       var sum = document.createElement('summary');
       sum.innerHTML = '<span class="ptf-set-ico">' + iconFor(title, usedIcons) + '</span><span class="ptf-set-summary-copy"><b>' + esc(title) + '</b><small>' + esc(desc) + '</small></span><span class="ptf-set-chev">باز کنید</span>';
       det.addEventListener('toggle', function () {
@@ -237,17 +262,29 @@
     }).observe(root, { childList: true, subtree: true });
   }
 
-  var old = window.buildSettings;
-  if (typeof old === 'function') {
+  function wrapBuildSettings() {
+    var current = window.buildSettings;
+    if (typeof current !== 'function' || current._ptfAcc) return;
     window.buildSettings = function () {
-      var html = old();
+      var html = current.apply(this, arguments);
       setTimeout(apply, 0);
-      /* باگ ۳: جلوگیری از پرش و نمایش کادر خام؛ در همان فریم و بدون تأخیر ۸۰ میلی‌ثانیه تبدیل به آکاردئون شود */
-      if (typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(function () { apply(); });
-      }
+      if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(apply);
+      if (String(html).indexOf('ptfSettingsAccordionRoot') > -1) return html;
       return '<div id="ptfSettingsAccordionRoot">' + html + '</div>';
     };
+    window.buildSettings._ptfAcc = true;
+  }
+  wrapBuildSettings();
+  var wrapTries = 0;
+  var wrapIv = setInterval(function () {
+    wrapTries++;
+    wrapBuildSettings();
+    if (wrapTries > 40) clearInterval(wrapIv);
+  }, 250);
+  var panels = document.getElementById('panels');
+  if (panels && !window._ptfSetAccObs) {
+    window._ptfSetAccObs = new MutationObserver(function () { apply(); });
+    window._ptfSetAccObs.observe(panels, { childList: true, subtree: false });
   }
   window.ptfSettingsAccordionApply = apply;
 })();

@@ -785,6 +785,11 @@
     return '<div id="rfqPendWrap"></div>' +
       '<div class="ph"><h3>📋 درخواست‌ها</h3>' +
       '<div class="sb2"><input type="text" id="rSrch" placeholder="جستجو..." oninput="filterRfq()">' +
+      '<select id="rOfferFlt" onchange="filterRfq()" title="فیلتر پیشنهاد" style="padding:8px 10px;border:2px solid var(--brd);border-radius:10px;font-family:inherit;font-size:12.5px;background:#f8fafc;max-width:220px">' +
+      '<option value="">همه درخواست‌ها</option>' +
+      '<option value="none">بدون پیشنهاد</option>' +
+      '<option value="has">دارای پیشنهاد</option>' +
+      '</select>' +
       ((typeof isSenior === 'function' && isSenior()) ? '<button class="bt bt-o" style="color:#dc2626;border-color:#fecaca" onclick="ptfOrphanReview()" title="رکوردهای اشاره‌کننده به درخواست حذف‌شده">🧹 یتیم‌ها</button>' : '') +
       '<button class="bt" onclick="showModal(\'rMd\')">+ جدید</button></div></div>' + /* v14.3 US-365 */
       '<div class="tb2"><table><thead><tr>' +
@@ -794,6 +799,21 @@
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('rfq', 'st', 'وضعیت') : '<th>وضعیت</th>') +
       '<th>مسئول رسیدگی</th><th>عملیات</th></tr></thead>' +
       '<tbody id="rTb"></tbody></table></div>';
+  };
+
+  window.ptfRfqLinkedOffers = function (r, offers) {
+    if (!r) return [];
+    var list = offers || getData('ptf_crm_offers') || [];
+    return list.filter(function (o) {
+      return o && o.inqNo && (o.inqNo === r.cd || (r.inqNo && o.inqNo === r.inqNo));
+    });
+  };
+  window.ptfRfqHasOffer = function (r, offers) {
+    return window.ptfRfqLinkedOffers(r, offers).length > 0;
+  };
+
+  window.filterRfq = function () {
+    if (typeof window.renderRfq === 'function') window.renderRfq();
   };
 
   window.ptfRfqWaitBadge = rfqWaitBadge; /* v16.4 (US-369): بج «منتظر صدور» روی کارت کانبان */
@@ -834,6 +854,26 @@
       render: window.renderRfq
     });
     rfqs = (typeof window.ptfSorted === 'function') ? window.ptfSorted('rfq', rfqs) : rfqs;
+    var qEl = document.getElementById('rSrch');
+    var q = qEl ? String(qEl.value || '').trim().toLowerCase() : '';
+    var ofEl = document.getElementById('rOfferFlt');
+    var ofFlt = ofEl ? String(ofEl.value || '') : (window._rOfferFlt || '');
+    if (ofEl && window._rOfferFlt && ofEl.value !== window._rOfferFlt) ofEl.value = window._rOfferFlt;
+    window._rOfferFlt = ofFlt;
+    rfqs = rfqs.filter(function (r) {
+      if (ofFlt === 'none' && ptfRfqHasOffer(r, offers)) return false;
+      if (ofFlt === 'has' && !ptfRfqHasOffer(r, offers)) return false;
+      if (!q) return true;
+      var blob = ((r.cd || '') + ' ' + (r.inqNo || '') + ' ' + (r.co || '') + ' ' + (r.con || '') + ' ' + (r.ca || '') + ' ' + (r.subj || '') + ' ' + (r.stxt || '')).toLowerCase();
+      return blob.indexOf(q) > -1;
+    });
+    var noneN = 0;
+    getData('ptf_crm_rfqs').forEach(function (r0) { if (!ptfRfqHasOffer(r0, offers)) noneN++; });
+    if (ofEl && ofEl.options) {
+      for (var oi = 0; oi < ofEl.options.length; oi++) {
+        if (ofEl.options[oi].value === 'none') ofEl.options[oi].text = 'بدون پیشنهاد (' + noneN + ')';
+      }
+    }
     var h = '';
     /* v17.3 (US-413 — کیس R8): رنگ ردیف برد/باخت — سبز=CO برنده، قرمز=بازنده (بایگانی lost) — اولویت بر رنگ مهلت */
     var _wonInqs = {}, _lostInqs = {};
@@ -888,7 +928,7 @@
         '<button class="bt bt-o" data-rfq-action="showRefModal" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="showRefModal(\'' + ptfOnClickArg(r.cd) + '\')" title="ارجاع" aria-label="ارجاع درخواست">📨</button>' +
         '</td></tr>';
     });
-    tb.innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:22px">استعلامی ثبت نشده</td></tr>';
+    tb.innerHTML = h || '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:22px">' + (ofFlt === 'none' ? 'درخواستی بدون پیشنهاد نیست' : (q || ofFlt ? 'موردی با این فیلتر نیست' : 'استعلامی ثبت نشده')) + '</td></tr>';
     updateStats();
     renderRfqPending();
   };
@@ -1512,6 +1552,27 @@
         try { if (!localStorage.getItem('ptf_crm_token')) return; } catch (eTk2) { return; }
         if (window._ptfSyncing) return;
         window._ptfSyncing = true;
+        try { syncServerInbox(); } finally { window._ptfSyncing = false; }
+      }, 45000);
+    }
+  }
+
+  var tries = 0;
+  var bt = setInterval(function () {
+    tries++;
+    var crmVisible = document.getElementById('crmL') && document.getElementById('crmL').style.display !== 'none';
+    if (crmVisible) { boot(); clearInterval(bt); }
+    if (tries > 60) clearInterval(bt);
+  }, 300);
+  var _showCrm2 = window.showCrm;
+  if (_showCrm2) {
+    window.showCrm = function () {
+      _showCrm2();
+      setTimeout(boot, 700);
+    };
+  }
+})();
+ = true;
         try { syncServerInbox(); } finally { window._ptfSyncing = false; }
       }, 45000);
     }

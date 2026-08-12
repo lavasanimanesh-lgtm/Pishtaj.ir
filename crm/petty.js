@@ -236,6 +236,15 @@
      - costEvent از deal قدیمی حذف شود (اگر oldDealRef داده شده)
      - costEvent به deal جدید اضافه شود (اگر newDealRef داده شده) */
   window.ptfPettyUpdateDealLink = function (r, newDealRef, oldDealRef) {
+    if (typeof window.ptfDealCostSync === 'function') {
+      window.ptfDealCostSync({
+        rec: r, source: 'petty', dealCd: newDealRef || '', prevDealCd: oldDealRef || '',
+        by: userName(),
+        addTx: '🔗 لینک هزینه تنخواه ' + (r.cd || '') + ' (' + money(r.amt) + ' — ' + (r.desc || r.cat || '') + ') به پرونده',
+        removeTx: '🔗 حذف لینک هزینه تنخواه ' + (r.cd || '') + ' (' + money(r.amt) + ') از پرونده'
+      });
+      return;
+    }
     try {
       var ds = getData('ptf_crm_deals') || [];
       var dirty = false;
@@ -326,21 +335,11 @@
         var all = getData(PETTY_KEY); all.unshift(rec); setData(PETTY_KEY, all);
         // v30.5: اگر به پرونده لینک شد، costEvents بساز تا در سود پروژه بیاید ولی دوباره‌شماری نشود
         if(rec.dealRef){
-          try{
-            var ds=getData('ptf_crm_deals');
-            var d=ds.filter(function(x){ return x.cd===rec.dealRef; })[0];
-            if(d){
-              d.costEvents=d.costEvents||[];
-              d.costEvents.unshift({ cd: rec.cd, amt: rec.amt, cat: 'fromPetty', desc: '[تنخواه] '+(v.desc||v.cat), by: userName(), t: faDateTime(), files: [], fromPetty: true, pettyCd: rec.cd });
-              d.timeline=d.timeline||[];
-              d.timeline.push({ t: faDateTime(), by: userName(), tx: '➕ لینک هزینه تنخواه به پرونده: '+money(rec.amt)+' — '+(v.desc||v.cat) });
-              setData('ptf_crm_deals', ds);
-            }
-          }catch(e){}
+          try { window.ptfPettyUpdateDealLink(rec, rec.dealRef, ''); } catch (e) {}
         }
         audit('تنخواه', 'ثبت هزینه/مطالبه تنخواه ' + money(rec.amt) + ' — ' + v.cat + (rec.dealRef?' [لینک پرونده '+rec.dealRef+']':''), rec.cd);
         renderPetty(); afterAddUpload(rec);
-        if (typeof ptfToast === 'function') ptfToast('هزینه ثبت شد و به‌عنوان مطالبه شما از تنخواه منظور شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('هزینه روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه ثبت شد', 'ok');
       }
     });
   };
@@ -383,7 +382,7 @@
         var tx = addTx('charge', toNum(v.amt), v.doc || v.desc, '', { doc: v.doc });
         audit('تنخواه', 'شارژ حساب تنخواه ' + money(tx.amt), tx.cd);
         renderPetty();
-        if (typeof ptfToast === 'function') ptfToast('شارژ حساب ثبت شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('شارژ روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('شارژ حساب ثبت شد', 'ok');
       }
     });
   };
@@ -470,26 +469,26 @@
               txSave(txs);
             }
           } catch (eTx) {}
+          var oldDealRef = r.dealRef || '';
           r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
           r.dealRef = newDealRef;
           r.amountCorrections = r.amountCorrections || [];
           r.amountCorrections.push({ from: oldAmt, to: amt, reason: v.reason.trim(), t: faDateTime(), by: userName() });
           setData(PETTY_KEY, all);
-          /* v34.0.0-alpha (F4-5): به‌روزرسانی لینک دوطرفهٔ پرونده */
-          if (dealRefChanged || newDealRef) { try { window.ptfPettyUpdateDealLink(r, newDealRef, r.dealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
+          if (dealRefChanged || newDealRef) { try { window.ptfPettyUpdateDealLink(r, newDealRef, oldDealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
           audit('تنخواه', 'اصلاح مبلغ هزینه تسویه‌شده ' + cd + ' — ' + money(oldAmt) + ' → ' + money(amt) + ' — دلیل: ' + v.reason.trim() + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف') + ']' : ''), cd);
           renderPetty();
-          if (typeof ptfToast === 'function') ptfToast('مبلغ اصلاح شد و حساب تنخواه هم‌زمان به‌روزرسانی شد', 'ok');
+          if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('مبلغ روی این دستگاه اصلاح شد'); else if (typeof ptfToast === 'function') ptfToast('مبلغ اصلاح شد', 'ok');
           return;
         }
+        var oldDealRef2 = r.dealRef || '';
         r.amt = amt; r.cat = v.cat; r.rfq = v.rfq; r.desc = v.desc; r.editedT = faDateTime(); r.editedBy = userName();
         r.dealRef = newDealRef;
         setData(PETTY_KEY, all);
-        /* v34.0.0-alpha (F4-5): به‌روزرسانی لینک دوطرفهٔ پرونده */
-        if (dealRefChanged) { try { window.ptfPettyUpdateDealLink(r, newDealRef, r.dealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
+        if (dealRefChanged) { try { window.ptfPettyUpdateDealLink(r, newDealRef, oldDealRef2); } catch (eU) { console.warn('updateDealLink:', eU); } }
         audit('تنخواه', 'ویرایش هزینه تنخواه ' + cd + ' — ' + money(amt) + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف شد') + ']' : ''), cd);
         renderPetty();
-        if (typeof ptfToast === 'function') ptfToast('هزینه ویرایش شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('هزینه روی این دستگاه ویرایش شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه ویرایش شد', 'ok');
       }
     });
   };
@@ -532,7 +531,7 @@
     try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptyFilesUp', 'petty/' + cd, function (f) {
       var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
       rr.files = rr.files || []; rr.files.push(f); rr.updatedAtISO = new Date().toISOString(); rr.updatedBy = userName(); setData(PETTY_KEY, a);
-      if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('سند روی این دستگاه افزوده شد'); else if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     }); } catch (eU) {}
     /* CHQ-DOC-002: اگر سندی از دستگاه/کاربر دیگر تازه ثبت شده و هنوز به این مرورگر
@@ -556,7 +555,7 @@
       r._deletedFileKeys = (r._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
       r.updatedAtISO = new Date().toISOString(); r.updatedBy = userName();
       setData(PETTY_KEY, a);
-      if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('حذف سند روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     });
   };
@@ -599,7 +598,7 @@
       try { window.ptfPettyUpdateDealLink(r, '', r.dealRef); } catch (eU) { console.warn('updateDealLink void:', eU); }
       audit('تنخواه', 'ابطال هزینه تسویه‌شده '+cd+' — دلیل: '+reason.trim(), cd);
       renderPetty();
-      if(typeof ptfToast==='function') ptfToast('هزینه ابطال شد - تراکنش معکوس ثبت شد', 'ok');
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('ابطال روی این دستگاه ثبت شد'); else if(typeof ptfToast==='function') ptfToast('هزینه ابطال شد', 'ok');
       return;
     }
     if (!confirm('هزینه ' + money(r.amt) + ' (' + r.cat + ') حذف شود؟\nاین عمل قابل بازگشت نیست.')) return;
@@ -610,7 +609,7 @@
     ptfPettyRemoveDealCostEvent(r);
     audit('تنخواه', 'حذف هزینه تنخواه ' + cd + ' — ' + money(r.amt), cd);
     renderPetty();
-    if (typeof ptfToast === 'function') ptfToast('هزینه حذف شد', 'warn');
+    if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('حذف هزینه روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه حذف شد', 'warn');
   };
 
   /* ============ UR-11: دورهٔ بازه‌ای تنخواه — از آخرین ارجاع تا تاریخ انتخابی ============ */
@@ -626,42 +625,51 @@
      راه‌حل: ابتدا تشخیص میلادی/شمسی بر اساس سال (میلادی > ۱۹۰۰). سپس اگر میلادی، ابتدا به شمسی تبدیل شود. */
   function recDate(x) {
     if (!x) return '';
-    var raw = String(x.t || x.dateFa || x.date || x.dateISO || x.iso || '').split(' ')[0].trim();
-    /* v34.1 BUG-PETTY-PERIOD: لاتین‌سازی ارقام فارسی/عربی — بدون این، regex \d ارقام فارسی را نمی‌شناسد
-       و تاریخ‌هایی مثل «۱۴۰۵/۰۵/۱۸» پارس نمی‌شوند → رکورد از گزارش حذف می‌شود */
-    raw = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
-             .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    function latinDigits(s) {
+      return String(s || '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+        .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    }
     function padJalaliDate(s) {
       var m = String(s || '').match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
       if (!m) return '';
       return m[1] + '/' + ('0' + m[2]).slice(-2) + '/' + ('0' + m[3]).slice(-2);
     }
-    var m = raw.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
-    if (m) {
-      var y = +m[1];
-      if (y > 1900) {
-        /* میلادی — ابتدا به شمسی تبدیل کن (سپس recDate جواب درست می‌دهد) */
-        if (typeof ptfISOToJ === 'function') {
-          try {
-            var j = ptfISOToJ(raw);
-            if (j) {
-              var s2 = padJalaliDate(j);
-              if (s2) return s2;
-            }
-          } catch (eR1) {}
+    function fromYmd(raw0) {
+      var raw = latinDigits(raw0).replace(/[\u200c\u200e\u200f\u202a-\u202e]/g, '').replace(/[،,]/g, ' ').trim();
+      var first = raw.split(/\s+/)[0] || '';
+      var m = first.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+      if (m) {
+        var y = +m[1];
+        var packed = m[1] + '/' + m[2] + '/' + m[3];
+        if (y > 1900) {
+          if (typeof ptfISOToJ === 'function') {
+            try {
+              var j = ptfISOToJ(m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2));
+              if (j) { var s2 = padJalaliDate(j); if (s2) return s2; }
+            } catch (eR1) {}
+          }
+          return '';
         }
-        /* fallback: اگر تبدیل میلادی→شمسی شکست خورد، بهتر است خالی برگردانیم
-           (تا به ماه اشتباه fallback نکند). بعداً در جستجوی این رکوردها می‌توان از month استفاده کرد. */
-        return '';
+        return padJalaliDate(packed);
       }
-      /* شمسی (سال < ۱۹۰۰) — مستقیم */
-      return padJalaliDate(raw);
+      var months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+      var named = latinDigits(raw).match(/(\d{1,2})\s*(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s*(\d{4})/);
+      if (named) {
+        var mi = months.indexOf(named[2]) + 1;
+        return padJalaliDate(named[3] + '/' + mi + '/' + named[1]);
+      }
+      if (/^\d{4}-\d{2}-\d{2}/.test(first) && typeof ptfISOToJ === 'function') {
+        try { var j2 = ptfISOToJ(first.slice(0, 10)); if (j2) return padJalaliDate(j2); } catch (eR) {}
+      }
+      return '';
     }
-    /* اگر فرمت ناشناخته، امتحان میلادی خام */
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-      try { if (typeof ptfISOToJ === 'function') { var j = ptfISOToJ(raw); if (j) { var s2 = padJalaliDate(j); if (s2) return s2; } } } catch (eR) {}
+    var fields = [x.t, x.dateFa, x.date, x.dateISO, x.iso];
+    for (var fi = 0; fi < fields.length; fi++) {
+      if (!fields[fi]) continue;
+      var hit = fromYmd(fields[fi]);
+      if (hit) return hit;
     }
-    var m2 = String(x.month || '').trim();
+    var m2 = latinDigits(x.month || '').trim();
     var mp = padJalaliDate(m2 + '/01');
     if (mp) return mp;
     return '';
@@ -678,7 +686,19 @@
     var na = recDateNum(a), nb = recDateNum(b);
     if (na && nb) return na - nb;
     return String(a || '').localeCompare(String(b || ''));
-  }  function faTodayStr() {
+  }
+  function recTimeMin(x) {
+    var raw = String((x && (x.t || x.iso || x.dateISO)) || '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    var tm = raw.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!tm) return 0;
+    return (+tm[1]) * 60 + (+tm[2]);
+  }
+  function recSortStamp(x) {
+    var d = recDate(x);
+    if (!d) return 0;
+    return recDateNum(d) * 10000 + recTimeMin(x);
+  }
+  function faTodayStr() {
     try { if (typeof faDate === 'function') return faDate(); } catch (e) {}
     try { if (typeof ptfTodayJ === 'function') return ptfTodayJ(); } catch (e) {}
     return '';
@@ -880,9 +900,11 @@
       var da = recDate(a) || '', db = recDate(b) || '';
       var c = recDateCmp(da, db);
       if (c !== 0) return c;
-      /* هم‌تاریخ: رکوردِ دارای تاریخ دقیق زودتر (بی‌تاریخ آخر)؛ سپس شناسه برای پایداری */
+      /* هم‌تاریخ: رکوردِ دارای تاریخ دقیق زودتر (بی‌تاریخ آخر)؛ سپس ساعت همان روز؛ سپس شناسه */
       var ha = da ? 1 : 0, hb = db ? 1 : 0;
       if (ha !== hb) return hb - ha;
+      var ta = recSortStamp(a), tb = recSortStamp(b);
+      if (ta !== tb) return ta - tb;
       return String(a.cd || '').localeCompare(String(b.cd || ''));
     });
     events.forEach(function (e, i) { e.row = i + 1; });
@@ -911,7 +933,7 @@
     function txBalance(beforeDate) {
       return txAll().reduce(function (s, x) {
         var d0 = recDate(x);
-        if (beforeDate && d0 && d0 > beforeDate) return s;
+        if (beforeDate && d0 && recDateCmp(d0, beforeDate) > 0) return s;
         var a = +x.amt || 0;
         if (x.type === 'charge') return s + a;
         if (x.type === 'direct' || x.type === 'settle') return s - a;
@@ -940,40 +962,77 @@
 
   /* v34.0.0-alpha (F4-6): اصلاح بحرانی — متغیر `arg` تعریف نشده بود و
      منطق apply اشتباه بود. حالا arg از ابتدا محاسبه می‌شود. */
+  function ptfPettySafeZipName(s) {
+    return String(s || 'file').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, ' ').trim() || 'file';
+  }
+  function ptfPettyFetchFileBytes(f) {
+    return new Promise(function (resolve) {
+      if (!f || !f.key) return resolve(null);
+      fetch('../api/attachment-read.php', {
+        method: 'POST', headers: ptfStorageAuthHeaders(true),
+        body: JSON.stringify({ key: f.key, name: f.key || f.name || '', mode: 'inline' })
+      }).then(function (r) {
+        if (!r.ok) throw new Error('read');
+        return r.arrayBuffer();
+      }).then(function (buf) { resolve(new Uint8Array(buf)); })
+        .catch(function () { resolve(null); });
+    });
+  }
+  /* v34.4.73: دکمهٔ فیش‌های پیوست = ZIP همهٔ اسناد ردیف‌های همین گزارش */
   window.ptfPettyPeriodShowReceipts = function (a, b) {
-    /* v34.0.0-alpha (F4-6): ساخت arg در ابتدا — ارجاع در onclick بعداً به آن بستگی دارد */
     var arg = ptfPettyArg(a, b);
-    /* ptfPettyPeriodFiles و ptfPettyPeriodEvents امضای (a,b) دارند — اگر a یک
-       رشتهٔ 'from|to' باشد، باید [from, to] از آن استخراج شود (نه [a, b]). */
     var argPair = ptfPettyArgPair(arg);
     var files = window.ptfPettyPeriodFiles(argPair[0], argPair[1]);
-    var jobs = files.map(function (f) { return window.ptfPettyResolveUrl(f); });
-    Promise.all(jobs).then(function () {
-      try {
-        var events = window.ptfPettyPeriodEvents(argPair[0], argPair[1]);
-        var rowByCd = {};
-        events.forEach(function (e) { if (e.cd) rowByCd[e.cd] = e.row; });
-        files.forEach(function (f) { if (f.cd && rowByCd[f.cd]) f.row = rowByCd[f.cd]; });
-      } catch (eM2) { console.warn('map file→row:', eM2); }
-      var convertJobs = files.filter(function (f) {
-        var k = window.ptfPettyFileKind(f.name || f.key || '');
-        return (k === 'pdf' || k === 'heic') && f.key;
-      }).map(function (f) { return window.ptfPettyToJpeg(f); });
-      return Promise.all(convertJobs);
-    }).then(function () {
-      var label = window.ptfPettyRangeLabel(argPair[0], argPair[1]);
-      var html = '<div class="md-b" id="pettyPeriodReceiptsDlg" style="display:grid;z-index:4050" onclick="if(event.target===this)this.remove()">' +
-        '<div class="md" style="max-width:1100px;max-height:92vh;overflow:auto;padding:18px">' +
-        '<h3 style="margin:0 0 4px;font-size:15px">📎 فیش‌ها و ضمیمه‌های پرونده — ' + escP(label) + '</h3>' +
-        '<div style="font-size:12px;color:#64748b;margin-bottom:12px;line-height:1.8">هر فیش با برچسب «ضمیمه ردیف N» (شماره ردیف در گزارش) و «سند M» (شناسهٔ پیوست) نمایش داده می‌شود. برای تطابق سریع چشمی.</div>' +
-        (files.length ? window.ptfPettyReceiptsHtml(files) : '<div style="padding:18px;color:#94a3b8;text-align:center;font-size:13px">هیچ فیشی برای این دوره ثبت نشده است.</div>') +
-        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;border-top:1px solid var(--brd);padding-top:12px">' +
-        '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button>' +
-        /* v34.0.0-alpha (F4-6): arg به درستی در دکمهٔ PDF تلفیقی ارجاع می‌شود */
-        '<button class="bt" onclick="this.closest(\'.md-b\').remove();ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 دانلود PDF تلفیقی</button>' +
-        '</div></div></div>';
-      document.getElementById('panels').insertAdjacentHTML('beforeend', html);
-    }).catch(function (eShow) { console.error('ptfPettyPeriodShowReceipts:', eShow); if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در نمایش ضمیمه‌ها: ' + (eShow.message || eShow), 'warn'); });
+    var periodRec = window.ptfPettyFindPeriodRec(argPair[0], argPair[1]);
+    var bank = ((periodRec && periodRec.files) || []).map(function (f) {
+      return { key: f.key || '', name: f.name || f.key || 'bank', bank: true };
+    });
+    var all = files.concat(bank);
+    if (!all.length) {
+      if (typeof ptfToast === 'function') ptfToast('برای ردیف‌های این گزارش فیش پیوستی نیست', 'info');
+      else alert('برای ردیف‌های این گزارش فیش پیوستی نیست');
+      return;
+    }
+    ptfPettyWaitShow('در حال آماده‌سازی ZIP فیش‌های پیوست…');
+    try {
+      var events = window.ptfPettyPeriodEvents(argPair[0], argPair[1]);
+      var rowByCd = {};
+      events.forEach(function (e) { if (e.cd) rowByCd[e.cd] = e.row; });
+      all.forEach(function (f) { if (f.cd && rowByCd[f.cd]) f.row = rowByCd[f.cd]; });
+    } catch (eMap) {}
+    var i = 0, entries = [], used = {};
+    function next() {
+      if (i >= all.length) {
+        if (!entries.length) {
+          ptfPettyWaitHide();
+          if (typeof ptfToast === 'function') ptfToast('هیچ سندی از ابر دریافت نشد', 'warn');
+          return;
+        }
+        var zip = window.ptfZipFromFiles(entries);
+        var label = window.ptfPettyRangeLabel(argPair[0], argPair[1]);
+        var a2 = document.createElement('a');
+        a2.href = URL.createObjectURL(zip);
+        a2.download = 'petty-receipts-' + String(label).replace(/[^0-9\/]/g, '').replace(/\//g, '-') + '.zip';
+        document.body.appendChild(a2); a2.click(); a2.remove();
+        ptfPettyWaitHide();
+        if (typeof ptfToast === 'function') ptfToast('✅ ZIP فیش‌ها آماده شد (' + entries.length + ' فایل)', 'ok');
+        return;
+      }
+      var f = all[i++];
+      ptfPettyWaitShow('در حال دریافت سند ' + i + ' از ' + all.length + '…');
+      ptfPettyFetchFileBytes(f).then(function (bytes) {
+        if (bytes && bytes.length) {
+          var base = ptfPettySafeZipName((f.name || f.key || 'doc').split('/').pop());
+          var prefix = f.bank ? 'bank/' : ('row-' + (f.row || 'x') + '/');
+          var nm = prefix + base;
+          if (used[nm]) { var ext = nm.lastIndexOf('.'); nm = (ext > 0 ? nm.slice(0, ext) : nm) + '-' + i + (ext > 0 ? nm.slice(ext) : ''); }
+          used[nm] = 1;
+          entries.push({ name: nm, bytes: bytes });
+        }
+        next();
+      });
+    }
+    next();
   };
 
   window.ptfPettyPeriodReport = function (a, b) {
@@ -997,7 +1056,7 @@
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodCsv(\'' + arg + '\')">⬇ اکسل</button>' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodPrint(\'' + arg + '\')">🖨 چاپ/PDF</button>' +
-      '<button class="bt bt-o" onclick="ptfPettyPeriodShowReceipts(\'' + arg + '\')">📎 فیش‌های پیوست</button>' +
+      '<button class="bt bt-o" onclick="ptfPettyPeriodShowReceipts(\'' + arg + '\')">📎 ZIP فیش‌های پیوست</button>' +
       '<button class="bt bt-o" onclick="ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 PDF تلفیقی</button>' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -1019,7 +1078,7 @@
   window.ptfPettyPeriodPrint = function (a, b) {
     var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
     var label = window.ptfPettyRangeLabel(a, b);
-    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma;padding:20px;color:#111}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}</style></head><body>' +
+    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:8mm}body{font-family:Tahoma;padding:8px;color:#111;font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #aaa;padding:3px 4px;text-align:right;font-size:8.5px;word-wrap:break-word;overflow-wrap:anywhere;vertical-align:top}th{background:#eee}</style></head><body>' +
       '<h2>گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
       '<p>هزینه‌های دوره: ' + money(t.totalOut) + ' | شارژ دوره: ' + money(t.charges) + ' | موجودی دوره: ' + money(t.balance) + '</p>' +
       '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table></body></html>';
@@ -1041,9 +1100,12 @@
     var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
     var label = window.ptfPettyRangeLabel(a, b);
     var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>' +
-      '@page{size:A4;margin:10mm}' +
-      'body{font-family:Tahoma,Arial;padding:0;margin:0;color:#111;font-size:11px}' +
-      'table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:4px 6px;text-align:right;font-size:10.5px}th{background:#eee}' +
+      '@page{size:A4 landscape;margin:8mm}' +
+      'body{font-family:Tahoma,Arial;padding:4mm;margin:0;color:#111;font-size:9px}' +
+      'table{width:100%;border-collapse:collapse;table-layout:fixed}' +
+      'td,th{border:1px solid #aaa;padding:3px 4px;text-align:right;font-size:8.5px;word-wrap:break-word;overflow-wrap:anywhere;vertical-align:top}' +
+      'th{background:#eee}' +
+      'col.c1{width:5%}col.c2{width:12%}col.c3{width:10%}col.c4{width:28%}col.c5{width:12%}col.c6{width:21%}col.c7{width:12%}' +
       '.page{page-break-after:always}' +
       '.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;align-items:stretch;justify-items:stretch}' +
       '.rcpt{box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:4px;page-break-inside:avoid;background:#fff;overflow:hidden;width:100%}' +
@@ -1054,7 +1116,7 @@
       '</style></head><body>' +
       '<div class="page"><h2 style="font-size:16px;margin:0 0 8px">گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
       '<p style="margin:0 0 8px">هزینه‌های دوره: <b>' + money(t.totalOut) + '</b> | شارژ دوره: <b>' + money(t.charges) + '</b> | موجودی دوره: <b>' + money(t.balance) + '</b></p>' +
-      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table>' +
+      '<table><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"></colgroup><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table>' +
       (pageBreakLabel ? '<p style="font-size:10px;color:#64748b;margin-top:6px">' + escP(pageBreakLabel) + '</p>' : '') +
       '</div>';
     return html;
@@ -1062,14 +1124,21 @@
 
   /* صفحهٔ ضمائم: چیدمان ۳-در-صفحهٔ فشرده + شناسهٔ «سند N» برای هر فایل */
   /* BUG-PDF-ATTACH v2: نوع فایل (عکس/PDF/HEIC/سایر) — فرمت‌های رایج برای نمایش صحیح */
-  window.ptfPettyFileKind = function (name) {
-    var n = String(name || '').toLowerCase();
-    /* image: jpg/jpeg/png/gif/webp/bmp/svg — فرمت‌هایی که در <img> نمایش داده می‌شوند */
-    if (/\.(jpe?g|png|gif|webp|bmp|svg)$/.test(n)) return 'image';
-    if (/\.pdf$/.test(n)) return 'pdf';
-    /* HEIC/HEIF: فرمت Live Photo آیفون — اکثر مرورگرهای مدرن در <img> پشتیبانی می‌کنند */
-    if (/\.(heic|heif|heics)$/.test(n)) return 'heic';
-    return 'other';
+  window.ptfPettyFileKind = function (name, extra) {
+    extra = extra || {};
+    var n = String(name || extra.name || extra.key || '').toLowerCase();
+    var key = String(extra.key || '').toLowerCase();
+    var ct = String(extra.contentType || extra.type || extra.mime || '').toLowerCase();
+    var url = String(extra.url || '');
+    var blob = extra.blobType ? String(extra.blobType).toLowerCase() : '';
+    function hit(s) {
+      s = String(s || '');
+      if (/\.(jpe?g|png|gif|webp|bmp|svg)(?:$|[?#])/.test(s) || /image\/(jpeg|jpg|png|gif|webp|bmp|svg)/.test(s)) return 'image';
+      if (/\.pdf(?:$|[?#])/.test(s) || s.indexOf('application/pdf') > -1) return 'pdf';
+      if (/\.(heic|heif|heics)(?:$|[?#])/.test(s) || s.indexOf('image/heic') > -1 || s.indexOf('image/heif') > -1) return 'heic';
+      return '';
+    }
+    return hit(n) || hit(key) || hit(ct) || hit(blob) || hit(url.slice(0, 64)) || 'other';
   };
   /* BUG-PDF-ATTACH v2: تبدیل PDF/HEIC به JPEG — با fallback کامل
      - اگر سرور Imagick داشت → از آن استفاده می‌کند
@@ -1078,58 +1147,61 @@
      - برای PDF: اگر Imagick نبود، در <embed> نمایش داده می‌شود */
   window.ptfPettyToJpeg = function (f) {
     return new Promise(function (resolve) {
-      if (!f || !f.key) return resolve(f);
-      var kind = window.ptfPettyFileKind(f.name || f.key || '');
-      if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
-      try {
-        fetch('../api/attachment-thumb.php', { /* v34.0.4-alpha (BUG-PETTY-THUMB-PATH-001): بدون ../ از زیر /crm/ نسبی می‌شد و 404 می‌گرفت */
-          method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 }),
-          /* v2: timeout 30 ثانیه — اگر سرور کند بود، ادامه دهیم */
-        }).then(function (r) { return r.json(); })
-          .then(function (d) {
-            if (d && d.ok && d.images && d.images.length) {
-              f.url = d.images[0].url;
-              f.converted = true;
-              f.convertedKind = kind;
-              f.extraImages = d.images.slice(1).map(function (im) { return { key: im.key, url: im.url }; });
-              f.convertError = '';
-            } else {
-              /* FIX: نگه‌داشتن URL اصلی برای fallback — حذف نکن!
-                 اگر kind=pdf باشد، در <embed> نمایش داده می‌شود
-                 اگر kind=heic باشد، اکثر مرورگرها در <img> نمایش می‌دهند */
-              f.convertError = (d && d.error) || 'convert_failed';
-              f.convertedKind = kind;
-              /* f.url دست‌نخورده می‌ماند — همان URL اصلی S3 */
-            }
-            resolve(f);
-          })
-          .catch(function () {
-            f.convertError = 'net';
-            f.convertedKind = kind;
-            resolve(f);
-          });
-      } catch (e) {
-        f.convertError = 'ex';
-        f.convertedKind = kind;
-        resolve(f);
+      if (!f) return resolve(f);
+      if ((f.previewReady || f.converted) && f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f);
+      var kind = window.ptfPettyFileKind(f.name || f.key || '', f);
+      if (kind === 'image') return resolve(f);
+      function finish(x) { resolve(x || f); }
+      function client() {
+        if (typeof window.ptfRasterizeCloudFile !== 'function') return finish(f);
+        window.ptfRasterizeCloudFile(f, 4).then(finish).catch(function () { finish(f); });
       }
+      if (typeof window.ptfServerRasterFile === 'function') {
+        window.ptfServerRasterFile(f).then(function (out) {
+          if (out && out.converted && out.url && String(out.url).indexOf('data:image/') === 0) return finish(out);
+          client();
+        }).catch(client);
+        return;
+      }
+      client();
     });
   };
   /* گرفتن URL واقعی هر فایل از storage (presign_get) — مثل openStoredFile */
   window.ptfPettyResolveUrl = function (f) { return ptfPettyResolveUrl(f); };
   function ptfPettyResolveUrl(f) {
     return new Promise(function (resolve) {
-      if (!f || !f.key) return resolve('');
-      if (f.url) return resolve(f.url);
+      if (!f || !f.key) return resolve(f && f.url ? f.url : '');
+      if (f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f.url);
+      function asDataUrl(blob) {
+        return new Promise(function (ok, bad) {
+          var fr = new FileReader();
+          fr.onload = function () { f.url = fr.result; if (blob && blob.type) f.blobType = blob.type; ok(f.url); };
+          fr.onerror = bad;
+          fr.readAsDataURL(blob);
+        });
+      }
+      function fallbackPresign() {
+        try {
+          fetch(STORAGE_API + '?action=presign_get', {
+            method: 'POST', headers: ptfStorageAuthHeaders(true),
+            body: JSON.stringify({ key: f.key, disposition: 'inline' })
+          }).then(function (r) { return r.json(); })
+            .then(function (d) { if (d && d.ok && d.url) f.url = d.url; resolve(f.url || ''); })
+            .catch(function () { resolve(f.url || ''); });
+        } catch (e2) { resolve(f.url || ''); }
+      }
       try {
-        fetch(STORAGE_API + '?action=presign_get', {
+        /* inline بدون سقف ۶ مگابایت base64 — برای چاپ باید data URL هم‌دامنه باشد */
+        fetch('../api/attachment-read.php', {
           method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key })
-        }).then(function (r) { return r.json(); })
-          .then(function (d) { resolve(d && d.ok ? d.url : ''); })
-          .catch(function () { resolve(''); });
-      } catch (e) { resolve(''); }
+          body: JSON.stringify({ key: f.key, name: f.name || f.key, mode: 'inline' })
+        }).then(function (r) {
+          if (!r.ok) throw new Error('read');
+          return r.blob();
+        }).then(function (blob) { return asDataUrl(blob); })
+          .then(function (u) { resolve(u); })
+          .catch(function () { fallbackPresign(); });
+      } catch (e) { fallbackPresign(); }
     });
   }
   /* رندر یک ضمیمه (v2: با fallback قوی)
@@ -1142,7 +1214,7 @@
      - اگر URL اصلاً نیست: placeholder زیبا + لینک «باز کردن فایل» */
   window.ptfPettyReceiptHtml = function (f, pageLabel) {
     var petId = (pageLabel ? pageLabel + ' — ' : '') + (f.petId || 'سند');
-    var kind = window.ptfPettyFileKind(f.name || f.key || '');
+    var kind = window.ptfPettyFileKind(f.name || f.key || '', f);
     var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
     var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
@@ -1218,60 +1290,107 @@
   /* جمع‌آوری فایل‌های دوره: (الف) دورهٔ ذخیره‌شده → دقیقاً از pettyIds/txIds همان لحظهٔ ارجاع
      (ب) دورهٔ جاری/بازه → از دادهٔ بازه
      v2: هر file همراه cd (شناسه رکورد) و kind ذخیره می‌شود برای نگاشت به row گزارش + تگ «ضمیمه ردیف N» */
+  window.ptfPettyFindPeriodRec = function (a, b) {
+    var key = ptfPettyPeriodKey(a, b);
+    var list = prAll();
+    if (key.isRange && key.from && key.to) {
+      return list.filter(function (x) { return x.from === key.from && x.to === key.to; })[0] || null;
+    }
+    if (key.month) return list.filter(function (x) { return x.month === key.month; })[0] || null;
+    return null;
+  };
   window.ptfPettyPeriodFiles = function (a, b, ids) {
-    var out = [];
+    var out = [], seen = {};
     function pushRec(r, kind) {
       if (!r) return;
       var petId = r.petId || ((r.files || []).length ? (r.files[0].petId || '') : '');
-      (r.files || []).forEach(function (f) {
-        out.push({ key: f.key || '', name: f.name || f.key, url: f.url || '', petId: f.petId || petId, cd: r.cd, kind: kind, record: r });
+      (r.files || []).forEach(function (f, fi) {
+        if (!f) return;
+        var k = String(f.key || '') || (String(r.cd || '') + '|' + fi + '|' + String(f.name || ''));
+        if (seen[k]) return;
+        seen[k] = 1;
+        out.push({ key: f.key || '', name: f.name || f.key || ('سند ' + (fi + 1)), url: f.url || '', petId: f.petId || petId || '', cd: r.cd, kind: kind, record: r });
       });
     }
-    if (ids && Array.isArray(ids)) {
-      var byId = {};
-      (getData(PETTY_KEY) || []).forEach(function (p) { byId[p.cd] = p; });
-      txAll().forEach(function (x) { byId[x.cd] = x; });
-      ids.forEach(function (cd) {
-        var r = byId[cd];
-        if (!r) return;
-        var kind = (r.type === 'charge' || r.type === 'direct' || r.type === 'settle') ? 'tx' : 'petty';
-        pushRec(r, kind);
-      });
-      return out;
+    var idList = [];
+    function addId(cd) { if (cd && idList.indexOf(cd) < 0) idList.push(cd); }
+    (Array.isArray(ids) ? ids : []).forEach(addId);
+    var pr = window.ptfPettyFindPeriodRec(a, b);
+    if (pr) {
+      (pr.pettyIds || []).forEach(addId);
+      (pr.txIds || []).forEach(addId);
     }
+    var byId = {};
+    (getData(PETTY_KEY) || []).forEach(function (p) { if (p && p.cd) byId[p.cd] = p; });
+    txAll().forEach(function (x) { if (x && x.cd) byId[x.cd] = x; });
+    idList.forEach(function (cd) {
+      var r = byId[cd];
+      if (!r) return;
+      var kind = (r.type === 'charge' || r.type === 'direct' || r.type === 'settle') ? 'tx' : 'petty';
+      pushRec(r, kind);
+    });
     var d = window.ptfPettyPeriodData(a, b);
     (d.petty || []).forEach(function (r) { pushRec(r, 'petty'); });
     (d.tx || []).forEach(function (r) { pushRec(r, 'tx'); });
     return out;
   };
 
+  /* v34.4.68: پوشش انتظار پایدار — toast کوتاه ناپدید می‌شود ولی ساخت تلفیقی ممکن است
+     ده‌ها ثانیه طول بکشد. این پوشش تا پایان کار می‌ماند و متن مرحله را عوض می‌کند. */
+  function ptfPettyWaitShow(msg) {
+    var el = document.getElementById('ptfPettyWait');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ptfPettyWait';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.style.cssText = 'position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.55);display:grid;place-items:center;padding:16px';
+      el.innerHTML = '<div style="background:#fff;border-radius:16px;padding:22px 26px;max-width:420px;width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.28);text-align:center">' +
+        '<div style="font-size:28px;margin-bottom:8px">⏳</div>' +
+        '<div id="ptfPettyWaitMsg" style="font-size:15px;font-weight:800;color:#0f172a;line-height:1.8"></div>' +
+        '<div style="margin-top:8px;font-size:12px;color:#64748b;line-height:1.7">لطفاً این صفحه را نبندید تا گزارش آماده شود.</div></div>';
+      document.body.appendChild(el);
+    }
+    var t = document.getElementById('ptfPettyWaitMsg');
+    if (t) t.textContent = msg || 'در حال آماده‌سازی گزارش تلفیقی…';
+    el.style.display = 'grid';
+  }
+  function ptfPettyWaitHide() {
+    var el = document.getElementById('ptfPettyWait');
+    if (el) el.remove();
+  }
+
   /* اجرا: ساخت PDF تلفیقی با گرفتن URL هر فایل (async) و سپس چاپ/دانلود */
   window.ptfPettyPeriodCombinedPdf = function (a, b) {
-    var key = ptfPettyPeriodKey(a, b);
-    var ids = null;
-    /* اگر برای یک دورهٔ ارجاع‌شده صدا زده شود، از همان اسناد لحظهٔ ارجاع استفاده کن */
-    if (!key.isRange && key.month) {
-      var pr = prAll().filter(function (x) { return x.month === key.month && (x.st === 'referred' || x.st === 'registered'); })[0];
-      if (pr && pr.pettyIds && pr.txIds) ids = pr.pettyIds.concat(pr.txIds);
-    }
+    if (window._ptfPettyCombinedBusy) return;
+    window._ptfPettyCombinedBusy = true;
+    ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… دریافت اسناد از فضای ابری');
+    var periodRec = window.ptfPettyFindPeriodRec(a, b);
+    var ids = periodRec ? (periodRec.pettyIds || []).concat(periodRec.txIds || []) : null;
     var files = window.ptfPettyPeriodFiles(a, b, ids);
-    var periodRec = null;
-    if (key.isRange) periodRec = prAll().filter(function (x) { return x.from === key.from && x.to === key.to; })[0];
-    else periodRec = prAll().filter(function (x) { return x.month === key.month; })[0];
     var periodFiles = (periodRec && periodRec.files) || [];
     /* BUG-PDF-ATTACH: اول URL همهٔ ضمائم (عکس/PDF) از storage گرفته می‌شود، بعد HTML ساخته و چاپ می‌شود */
     var all = files.concat(periodFiles);
     var jobs = all.map(function (f) {
-      return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; });
+      return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; }).catch(function () { f.url = f.url || ''; });
     });
     Promise.all(jobs).then(function () {
-      /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل سمت سرور) — قبل از رندر */
-      var convertJobs = all.filter(function (f) {
-        var k = window.ptfPettyFileKind(f.name || f.key || '');
-        return (k === 'pdf' || k === 'heic') && f.key;
-      }).map(function (f) { return window.ptfPettyToJpeg(f); });
-      return Promise.all(convertJobs);
+      var need = all.filter(function (f) {
+        if (f.previewReady || (f.key && String(f.key).indexOf('previews/') === 0)) return false;
+        var k = window.ptfPettyFileKind(f.name || f.key || '', f);
+        if (f.url && String(f.url).indexOf('data:application/pdf') === 0) k = 'pdf';
+        return (k === 'pdf' || k === 'heic' || k === 'other') && (f.key || f.url);
+      });
+      var i = 0;
+      function next() {
+        if (i >= need.length) return Promise.resolve();
+        var f = need[i++];
+        ptfPettyWaitShow('در حال تبدیل سند ' + i + ' از ' + need.length + '…');
+        return window.ptfPettyToJpeg(f).then(next, next);
+      }
+      return next();
     }).then(function () {
+      ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… ساخت پیش‌نمایش');
       /* v2: نگاشت file → row گزارش — هر file، ردیف رکوردش را می‌گیرد */
       try {
         var events = window.ptfPettyPeriodEvents(a, b);
@@ -1288,9 +1407,16 @@
       var label = window.ptfPettyRangeLabel(a, b);
       var reportHtml = window.ptfPettyPeriodCombinedPdfHtml(a, b, 'تعداد رسیدهای ضمیمه‌شده: ' + files.length + (periodFiles.length ? ' | پیوست بانک: ' + periodFiles.length : ''));
       var fullHtml = reportHtml + pageBreaks.join('');
+      ptfPettyWaitHide();
+      window._ptfPettyCombinedBusy = false;
       if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تلفیقی دورهٔ تنخواه — ' + label, fullHtml, 'petty-period-combined-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
       var w = window.open('', '_blank'); if (!w) return;
       w.document.write(fullHtml); w.document.close(); w.print();
+    }).catch(function (ePdf) {
+      console.error('ptfPettyPeriodCombinedPdf:', ePdf);
+      ptfPettyWaitHide();
+      window._ptfPettyCombinedBusy = false;
+      if (typeof ptfToast === 'function') ptfToast('⚠️ ساخت گزارش تلفیقی کامل نشد: ' + ((ePdf && ePdf.message) || ePdf), 'warn');
     });
   };
 

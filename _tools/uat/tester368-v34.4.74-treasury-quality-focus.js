@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+var fs=require('fs');var path=require('path');
+var root=path.join(__dirname,'../..');
+function read(p){return fs.readFileSync(path.join(root,p),'utf8');}
+function fail(m){console.log('FAIL '+m);process.exit(1);}
+var ver=JSON.parse(read('VERSION.json'));
+if(ver.crm_version!=='v34.4.74') fail('VERSION '+ver.crm_version);
+var tr=read('crm/treasury.js');
+var dq=read('crm/data-quality.js');
+if(tr.indexOf('ptfTreasuryOpenFromQuality')<0) fail('open from quality');
+if(tr.indexOf('ptfTreasuryMatchMove')<0) fail('match move');
+if(tr.indexOf('ptfTreasuryLink')<0) fail('link');
+if(tr.indexOf('treasuryFocus')<0) fail('focus box');
+if(tr.indexOf('trMove-')<0) fail('move row id');
+if(dq.indexOf('ptfTreasuryOpenFromQuality')<0) fail('quality button');
+if(dq.indexOf("kind: 'crm'")<0) fail('crm kind');
+if(dq.indexOf("kind: 'bank'")<0) fail('bank kind');
+console.log('PASS tester368 treasury-quality-focus');

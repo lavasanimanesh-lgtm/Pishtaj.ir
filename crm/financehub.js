@@ -42,7 +42,8 @@
       customer: '<circle cx="12" cy="8.5" r="3.5"/><path d="M6.5 21v-2a5 5 0 015-5h1a5 5 0 015 5v2"/>',
       report: '<path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/>',
       ledger: '<path d="M4 4h16v16H4z"/><path d="M9 4v16M4 9h5M4 15h5M14 9h6M14 15h6"/>',
-      quality: '<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M8.5 12l2.2 2.2 4.8-5"/>'
+      quality: '<path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="M8.5 12l2.2 2.2 4.8-5"/>',
+      treasury: '<rect x="3" y="10" width="18" height="10" rx="2"/><path d="M12 10V6M8 6h8"/>'
     };
     return '<span class="fin-hub-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' + (p[kind] || p.report) + '</svg></span>';
   }
@@ -56,7 +57,7 @@
     if (!canHub()) return '';
     return '<div id="finHubBar" class="fin-hub-bar">' +
       '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی، گزارش تجمیعی و تراز رسمی/غیررسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
-      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
+      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('treasury', 'خزانه/بانک', 'treasury') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
   }
   window.finHubSet = function (id) { window._finHubTab = id || 'petty'; finHubApply(); };
   window.finHubApply = function () {
@@ -91,6 +92,8 @@
     show('cfFinanceHubBox', t === 'custacc');
     show('wcFinanceHubBox', t === 'workcap');
     show('ledgerReportBox', t === 'ledger');
+    show('treasuryBox', t === 'treasury');
+    if (t === 'treasury' && typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     show('qualityBox', t === 'quality');
     show('chequeBox', t === 'cheque');
     var old = document.getElementById('finHubBar');
@@ -107,7 +110,7 @@
       if (!panels || !barEl) return;
       var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
         'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
-        'ledgerReportBox', 'qualityBox', 'chequeBox'];
+        'ledgerReportBox', 'treasuryBox', 'qualityBox', 'chequeBox'];
       ids.forEach(function (id) {
         var el = document.getElementById(id);
         if (el && el.parentNode === panels) panels.appendChild(el);
@@ -119,7 +122,7 @@
     if (window._finHubHooked || typeof window.buildPetty !== 'function') return false;
     window._finHubHooked = true;
     var _bp = window.buildPetty;
-    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : ''); };
+    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof window.ptfTreasuryHtml === 'function' ? window.ptfTreasuryHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : ''); };
     var _rp = window.renderPetty;
     if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); window.finHubOrder(); } catch (e) {} };
     return true;

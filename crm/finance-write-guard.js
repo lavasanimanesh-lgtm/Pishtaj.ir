@@ -1,0 +1,303 @@
+/* =====================================================================
+   PTF CRM — finance-write-guard.js — v34.4.54
+   فاز ۲ طرح بهینه‌سازی ورک‌فلو: یک دروازهٔ نوشتن مالی + وضعیت لینک فاکتور خرید.
+   ماژول‌ها باید قبل از edit/delete/void/add از ptfFinanceAssertWritable عبور کنند.
+   ===================================================================== */
+(function () {
+  'use strict';
+
+  function fiscalYearOf(v) {
+    if (typeof window.ptfFiscalYearOf === 'function') return window.ptfFiscalYearOf(v);
+    var t = String(v || '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); });
+    var m = t.match(/(13|14)\d{2}/);
+    return m ? m[0] : '';
+  }
+
+  /* dateOrIso: تاریخ سند یا سال مثل 1404 */
+  window.ptfFinanceAssertWritable = function (dateOrIso, opts) {
+    opts = opts || {};
+    var year = fiscalYearOf(dateOrIso) || String(dateOrIso || '').replace(/\D/g, '').slice(0, 4);
+    if (year && typeof window.ptfFiscalYearLocked === 'function' && window.ptfFiscalYearLocked(year)) {
+      var msg = '🔒 سال مالی ' + year + ' قفل است؛ ' + (opts.action || 'تغییر سند اصلی') + ' مجاز نیست. از سند اصلاحی استفاده کنید.';
+      if (opts.silent) return { ok: false, why: 'fiscal-lock', year: year, error: msg };
+      alert(msg);
+      return { ok: false, why: 'fiscal-lock', year: year, error: msg };
+    }
+    if (opts.requireCode) {
+      var cd = String(opts.requireCode);
+      if (/^TMP-/.test(cd)) {
+        var e2 = '⛔ شماره رسمی سند از سرور نیامده است. اتصال را برقرار کنید و دوباره تلاش کنید.';
+        if (!opts.silent) alert(e2);
+        return { ok: false, why: 'tmp-code', error: e2 };
+      }
+    }
+    if (opts.companyCheque && typeof window.ptfCanCreateCompanyCheque === 'function' && !window.ptfCanCreateCompanyCheque()) {
+      var e3 = '⛔ فقط رئیس هیئت‌مدیره، مدیرعامل و مدیر بازرگانی می‌توانند چک شرکتی ثبت کنند.';
+      if (!opts.silent) alert(e3);
+      return { ok: false, why: 'cheque-role', error: e3 };
+    }
+    return { ok: true };
+  };
+
+  window.ptfInvoiceLinkStatus = function (inv) {
+    inv = inv || {};
+    var cds = inv.legacyPayableCds || [];
+    var invoiceIrr = +inv.amountIrr || +inv.amount || 0;
+    if (!cds.length) {
+      return { code: 'unlinked', label: 'بدون لینک تعهد', invoiceIrr: invoiceIrr, linkedIrr: 0, diff: invoiceIrr, zeroPrice: [] };
+    }
+    var pays = [];
+    try { pays = (typeof getData === 'function' ? getData('ptf_crm_payables') : []) || []; } catch (e) { pays = []; }
+    var linked = pays.filter(function (p) { return p && cds.indexOf(p.cd) > -1; });
+    var linkedIrr = linked.reduce(function (s, p) { return s + (+p.amount || 0); }, 0);
+    var zeroPrice = linked.filter(function (p) { return !(+p.amount); }).map(function (p) {
+      return { cd: p.cd, item: p.item || p.desc || p.inqNo || p.cd };
+    });
+    var diff = invoiceIrr - linkedIrr;
+    var mismatch = invoiceIrr && Math.abs(diff) > 1;
+    var sig = Math.round(invoiceIrr) + ':' + Math.round(linkedIrr) + ':' + cds.slice().sort().join(',');
+    var acked = !!(inv.linkMismatchAck && inv.linkMismatchAckSig === sig);
+    if (mismatch && acked) {
+      return { code: 'amount-acked', label: 'لینک‌شده — اختلاف مبلغ تأییدشده', invoiceIrr: invoiceIrr, linkedIrr: linkedIrr, diff: diff, zeroPrice: zeroPrice };
+    }
+    if (mismatch) {
+      return { code: 'amount-mismatch', label: 'لینک‌شده — اختلاف مبلغ (نه نبود لینک)', invoiceIrr: invoiceIrr, linkedIrr: linkedIrr, diff: diff, zeroPrice: zeroPrice };
+    }
+    return { code: 'matched', label: 'لینک کامل و منطبق', invoiceIrr: invoiceIrr, linkedIrr: linkedIrr, diff: 0, zeroPrice: zeroPrice };
+  };
+
+  window.ptfInvoiceLinkStatusHtml = function (inv) {
+    var st = window.ptfInvoiceLinkStatus(inv);
+    var color = st.code === 'matched' ? '#059669' : st.code === 'amount-acked' ? '#64748b' : st.code === 'unlinked' ? '#92400e' : '#dc2626';
+    var extra = '';
+    if (st.zeroPrice && st.zeroPrice.length) {
+      extra = '<br><small>اقلام بدون قیمت خرید: ' + st.zeroPrice.map(function (z) { return z.item; }).slice(0, 4).join('، ') + (st.zeroPrice.length > 4 ? '…' : '') + '</small>';
+    }
+    if (st.code === 'amount-mismatch' || st.code === 'amount-acked') {
+      extra = '<br><small>فاکتور ' + Math.round(st.invoiceIrr).toLocaleString('fa-IR') + ' — تعهدها ' + Math.round(st.linkedIrr).toLocaleString('fa-IR') + ' ریال</small>' + extra;
+    }
+    return '<span style="color:' + color + ';font-weight:800">' + st.label + '</span>' + extra;
+  };
+
+  /* P3: یک مسیر لینک/حذف هزینه روی پرونده — OPEX و تنخواه دوقلو نمانند. */
+  window.ptfDealCostMatch = function (ev, rec, source) {
+    if (!ev || !rec) return false;
+    if (source === 'opex') {
+      if (rec._opexRowId && ev.opexRowId === rec._opexRowId) return true;
+      return !!(ev.fromOpex && !ev.opexRowId && ev.cd === rec.cd);
+    }
+    if (source === 'petty') {
+      return ev.pettyCd === rec.cd || !!(ev.fromPetty && ev.cd === rec.cd);
+    }
+    return ev.cd === rec.cd;
+  };
+
+  window.ptfDealCostBuild = function (rec, source) {
+    rec = rec || {};
+    var when = (typeof faDateTime === 'function' ? faDateTime() : '');
+    if (source === 'opex') {
+      return {
+        cd: rec.cd,
+        opexRowId: rec._opexRowId,
+        amt: +rec.amt || 0,
+        cat: 'other',
+        desc: '[هزینه جاری] ' + (rec.desc || rec.cat || ''),
+        by: rec.editedBy || rec.by || '',
+        t: when,
+        files: (rec.files || []).slice(),
+        fromOpex: true
+      };
+    }
+    return {
+      cd: rec.cd,
+      amt: +rec.amt || 0,
+      cat: 'fromPetty',
+      desc: '[تنخواه] ' + (rec.desc || rec.cat || ''),
+      by: rec.by || '',
+      t: rec.t || when,
+      files: (rec.files || []).slice(),
+      fromPetty: true,
+      pettyCd: rec.cd
+    };
+  };
+
+  window.ptfDealCostSync = function (opts) {
+    opts = opts || {};
+    var rec = opts.rec;
+    if (!rec) return { ok: false, why: 'no-rec' };
+    var source = opts.source || 'petty';
+    var nextDeal = opts.dealCd || '';
+    var prevDeal = opts.prevDealCd != null ? opts.prevDealCd : '';
+    var who = opts.by || '';
+    var ds;
+    try { ds = getData('ptf_crm_deals') || []; } catch (e) { return { ok: false, why: 'deals' }; }
+    var dirty = false;
+    function findEv(deal) {
+      return ((deal && deal.costEvents) || []).filter(function (x) {
+        return window.ptfDealCostMatch(x, rec, source);
+      })[0] || null;
+    }
+    if (prevDeal && prevDeal !== nextDeal) {
+      var od = ds.filter(function (x) { return x.cd === prevDeal; })[0];
+      if (od) {
+        var ev = findEv(od);
+        if (ev) {
+          od.costEvents = (od.costEvents || []).filter(function (x) { return x !== ev; });
+          od.timeline = od.timeline || [];
+          od.timeline.push({ t: (typeof faDateTime === 'function' ? faDateTime() : ''), by: who, tx: opts.removeTx || '🗑 حذف لینک هزینه از پرونده' });
+          dirty = true;
+        }
+      }
+    }
+    if (nextDeal) {
+      var nd = ds.filter(function (x) { return x.cd === nextDeal; })[0];
+      if (nd) {
+        nd.costEvents = nd.costEvents || [];
+        var ev2 = findEv(nd);
+        var built = window.ptfDealCostBuild(rec, source);
+        if (ev2) {
+          ev2.amt = built.amt;
+          ev2.desc = built.desc;
+          ev2.files = built.files;
+          if (built.opexRowId) ev2.opexRowId = built.opexRowId;
+          if (built.pettyCd) ev2.pettyCd = built.pettyCd;
+        } else {
+          nd.costEvents.unshift(built);
+          nd.timeline = nd.timeline || [];
+          nd.timeline.push({ t: built.t, by: who || built.by, tx: opts.addTx || '➕ لینک هزینه به پرونده' });
+        }
+        dirty = true;
+      }
+    }
+    if (dirty) setData('ptf_crm_deals', ds);
+    return { ok: true, dirty: dirty };
+  };
+
+  /* P4: ژورنال append-only اسناد مالی — تعارض = اتحاد رویداد، نه جایگزینی رکورد. */
+  var FIN_EV_KEY = 'ptf_crm_fin_events';
+  var FIN_WATCH = {
+    'ptf_crm_invoices': 'sale-invoice',
+    'ptf_crm_cheques_issued': 'cheque-issued',
+    'ptf_crm_cheques_received': 'cheque-received'
+  };
+  window.PTF_FIN_EVENTS_KEY = FIN_EV_KEY;
+
+  function finWho() {
+    try { return (typeof curSession === 'function' ? (curSession().name || curSession().user) : '') || ''; } catch (e) { return ''; }
+  }
+  function finIsVoid(r) {
+    if (!r) return false;
+    var st = String(r.status || r.st || '');
+    return st === 'void' || st === 'voided_transfer' || r.void === true;
+  }
+  function finSnap(r) {
+    if (!r || typeof r !== 'object') return null;
+    return {
+      cd: r.cd, no: r.no, amount: r.amount || r.amountIrr || r.amt,
+      status: r.status || r.st || '', supplierCd: r.supplierCd || '',
+      dateISO: r.dateISO || r.dueISO || r.invDate || ''
+    };
+  }
+  function finReadEvents() {
+    try {
+      var v = typeof getData === 'function' ? getData(FIN_EV_KEY) : JSON.parse(localStorage.getItem(FIN_EV_KEY) || '[]');
+      return Array.isArray(v) ? v : [];
+    } catch (e) { return []; }
+  }
+  window.ptfFinanceEventAppend = function (ev) {
+    if (!ev || !ev.kind || !ev.recCd) return { ok: false };
+    ev.id = ev.id || ('FEV-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8));
+    ev.t = ev.t || (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString());
+    ev.iso = ev.iso || new Date().toISOString();
+    ev.by = ev.by || finWho();
+    var list = finReadEvents();
+    if (list.some(function (x) { return x && x.id === ev.id; })) return { ok: true, dup: true };
+    list.unshift(ev);
+    if (list.length > 4000) list = list.slice(0, 4000);
+    if (typeof setData === 'function') setData(FIN_EV_KEY, list);
+    else try { localStorage.setItem(FIN_EV_KEY, JSON.stringify(list)); } catch (eW) {}
+    return { ok: true, id: ev.id };
+  };
+  window.ptfFinanceUnionEvents = function (a, b) {
+    var by = {};
+    (Array.isArray(a) ? a : []).concat(Array.isArray(b) ? b : []).forEach(function (e) {
+      if (e && e.id && !by[e.id]) by[e.id] = e;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; })
+      .sort(function (x, y) { return String(y.iso || y.t || '').localeCompare(String(x.iso || x.t || '')); });
+  };
+  function finIndex(arr) {
+    var m = {};
+    (arr || []).forEach(function (r, i) { if (r && r.cd) m[r.cd] = i; });
+    return m;
+  }
+  window.ptfFinanceReplayEvents = function (key, recs, events) {
+    if (!Array.isArray(recs)) return recs;
+    var out = recs.slice();
+    var idx = finIndex(out);
+    (events || []).filter(function (e) { return e && e.key === key; }).forEach(function (e) {
+      var i = idx[e.recCd];
+      if (e.kind === 'create' && i == null && e.snap && e.snap.cd) {
+        out.push(Object.assign({ fromJournal: true }, e.snap));
+        idx[e.recCd] = out.length - 1;
+      } else if (e.kind === 'void' && i != null && !finIsVoid(out[i])) {
+        out[i].status = out[i].status != null ? 'void' : out[i].status;
+        out[i].st = out[i].st != null ? 'void' : out[i].st;
+        out[i].void = true;
+        out[i].voidFromJournal = e.iso || e.t;
+      }
+    });
+    return out;
+  };
+  window.ptfFinanceReplaySupplier = function (obj, events) {
+    obj = obj && typeof obj === 'object' && !Array.isArray(obj) ? obj : { schema: 1, invoices: [], payments: [] };
+    obj.invoices = window.ptfFinanceReplayEvents('ptf_crm_supplier_finance:invoices', obj.invoices || [], events);
+    obj.payments = window.ptfFinanceReplayEvents('ptf_crm_supplier_finance:payments', obj.payments || [], events);
+    return obj;
+  };
+  function finJournalRows(key, beforeArr, afterArr, recType) {
+    var b = finIndex(beforeArr), a = afterArr || [];
+    a.forEach(function (r) {
+      if (!r || !r.cd) return;
+      if (b[r.cd] == null) {
+        window.ptfFinanceEventAppend({ kind: 'create', key: key, recType: recType, recCd: r.cd, snap: finSnap(r) });
+      } else {
+        var old = beforeArr[b[r.cd]];
+        if (!finIsVoid(old) && finIsVoid(r)) {
+          window.ptfFinanceEventAppend({ kind: 'void', key: key, recType: recType, recCd: r.cd, snap: finSnap(r) });
+        }
+      }
+    });
+  }
+  window.ptfFinanceJournalDiff = function (key, before, after) {
+    if (window._ptfFinJournalMute) return;
+    if (FIN_WATCH[key]) {
+      finJournalRows(key, Array.isArray(before) ? before : [], Array.isArray(after) ? after : [], FIN_WATCH[key]);
+      return;
+    }
+    if (key !== 'ptf_crm_supplier_finance') return;
+    var b = before && typeof before === 'object' ? before : {};
+    var a = after && typeof after === 'object' ? after : {};
+    finJournalRows('ptf_crm_supplier_finance:invoices', b.invoices || [], a.invoices || [], 'supplier-invoice');
+    finJournalRows('ptf_crm_supplier_finance:payments', b.payments || [], a.payments || [], 'supplier-payment');
+  };
+
+  var _finSet = window.setData;
+  if (typeof _finSet === 'function') {
+    window.setData = function (k, d) {
+      var before = null;
+      if (FIN_WATCH[k] || k === 'ptf_crm_supplier_finance') {
+        try { before = typeof getData === 'function' ? getData(k) : null; } catch (eB) {}
+      }
+      var r = _finSet(k, d);
+      try { window.ptfFinanceJournalDiff(k, before, d); } catch (eJ) {}
+      return r;
+    };
+  }
+
+  window.ptfFinanceVoidWins = function (a, b) {
+    if (finIsVoid(a) && !finIsVoid(b)) return a;
+    if (finIsVoid(b) && !finIsVoid(a)) return b;
+    return null;
+  };
+})();
