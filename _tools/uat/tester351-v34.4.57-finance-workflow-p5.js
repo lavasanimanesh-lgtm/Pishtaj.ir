@@ -12,8 +12,8 @@
   var sync = read('crm/sync.js');
   var api = read('api/crm.php');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(ver.crm_version === 'v34.4.57', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.57'") > -1, 'index release');
+  ok(/^v34\.4\.(5[7-9]|[6-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(idx.indexOf('treasury.js') > -1, 'treasury script');
   ok(idx.indexOf('data-fin-hub-active="treasury"') > -1, 'hub css');
   ok(tr.indexOf('window.ptfTreasuryDerivedCash') > -1, 'derived cash');

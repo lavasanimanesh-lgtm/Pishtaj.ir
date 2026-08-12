@@ -136,6 +136,17 @@
         }
       });
     } catch (eFxCheck) {}
+    try {
+      if (typeof window.ptfTreasuryUnmatched === 'function') {
+        var tu = window.ptfTreasuryUnmatched();
+        (tu.lines || []).forEach(function (l) {
+          add(q, 'treasury-unmatched-bank', 'ردیف صورتحساب بانک بدون تطبیق با سند CRM', l.cd, l.amount, { type: 'treasury', cd: l.cd, label: 'بانک ' + (l.cd || '') + ' — ' + (l.note || '') });
+        });
+        (tu.moves || []).slice(0, 40).forEach(function (m) {
+          add(q, 'treasury-unmatched-crm', 'گردش نقدی CRM بدون تطبیق صورتحساب', m.key, m.amount, { type: 'treasury', cd: m.cd || m.key, label: m.label || m.key });
+        });
+      }
+    } catch (eTr) {}
     return Object.keys(q).map(function (k) { return q[k]; }).sort(function (a, b) { return b.count - a.count || a.id.localeCompare(b.id); });
   };
 
@@ -147,6 +158,7 @@
       if (d.type === 'opex' && typeof ptfOpexEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpexEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح هزینه</button>';
       else if ((d.type === 'supplier-invoice' || d.type === 'supplier-amount') && typeof slInvoiceEdit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح فاکتور خرید</button>' + (d.type === 'supplier-amount' && typeof slAckLinkFromQuality === 'function' ? ' <button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px;color:#7c3aed" onclick="slAckLinkFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">برداشتن اخطار</button>' : '');
       else if (d.type === 'cheque' && typeof window.ptfChequeEditFromQuality === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfChequeEditFromQuality(\'' + ptfOnClickArg(d.cd) + '\')">✏️ اصلاح چک</button>';
+      else if (d.type === 'treasury' && typeof window.finHubSet === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="finHubSet(\'treasury\')">🏦 رفتن به خزانه</button>';
       else if (d.type === 'procurement' && typeof ptfOpenProcurementLinkAudit === 'function') action = '<button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:7px" onclick="ptfOpenProcurementLinkAudit(\'' + ptfOnClickArg(d.offerNo) + '\')">🔎 بررسی پیش‌فاکتور و اقلام</button>';
       var invoiceActions = d.type === 'procurement' && (d.relatedInvoices || []).length
         ? '<div style="margin-top:9px;padding-top:7px;border-top:1px solid #e2e8f0"><b style="display:block;color:#475569;font-size:11px">فاکتورهای خرید مرتبط</b>' + d.relatedInvoices.map(function (inv) { return '<div style="margin-top:4px"><span>' + escP(inv.label) + '</span><br><button type="button" class="bt bt-o" style="padding:3px 9px;font-size:11px;margin-top:3px" onclick="slInvoiceEdit(\'' + ptfOnClickArg(inv.cd) + '\')">✏️ اصلاح همین فاکتور</button></div>'; }).join('') + '</div>'
@@ -157,6 +169,7 @@
         : d.type === 'supplier-invoice' ? 'نوع سند فاکتور خرید خالی است؛ از دکمهٔ اصلاح، رسمی یا غیررسمی را انتخاب کنید.'
         : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
         : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'
+        : d.type === 'treasury' ? 'این مورد مانده بانک مستقل نیست؛ یا ردیف صورتحساب را با کلید رویداد CRM تطبیق دهید یا گردش CRM را در تب خزانه ببینید.'
         : 'این مورد نیازمند بررسی است.';
       return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');
