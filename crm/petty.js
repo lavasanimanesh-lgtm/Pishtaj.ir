@@ -625,42 +625,51 @@
      راه‌حل: ابتدا تشخیص میلادی/شمسی بر اساس سال (میلادی > ۱۹۰۰). سپس اگر میلادی، ابتدا به شمسی تبدیل شود. */
   function recDate(x) {
     if (!x) return '';
-    var raw = String(x.t || x.dateFa || x.date || x.dateISO || x.iso || '').split(' ')[0].trim();
-    /* v34.1 BUG-PETTY-PERIOD: لاتین‌سازی ارقام فارسی/عربی — بدون این، regex \d ارقام فارسی را نمی‌شناسد
-       و تاریخ‌هایی مثل «۱۴۰۵/۰۵/۱۸» پارس نمی‌شوند → رکورد از گزارش حذف می‌شود */
-    raw = raw.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
-             .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    function latinDigits(s) {
+      return String(s || '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+        .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    }
     function padJalaliDate(s) {
       var m = String(s || '').match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
       if (!m) return '';
       return m[1] + '/' + ('0' + m[2]).slice(-2) + '/' + ('0' + m[3]).slice(-2);
     }
-    var m = raw.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
-    if (m) {
-      var y = +m[1];
-      if (y > 1900) {
-        /* میلادی — ابتدا به شمسی تبدیل کن (سپس recDate جواب درست می‌دهد) */
-        if (typeof ptfISOToJ === 'function') {
-          try {
-            var j = ptfISOToJ(raw);
-            if (j) {
-              var s2 = padJalaliDate(j);
-              if (s2) return s2;
-            }
-          } catch (eR1) {}
+    function fromYmd(raw0) {
+      var raw = latinDigits(raw0).replace(/[\u200c\u200e\u200f\u202a-\u202e]/g, '').replace(/[،,]/g, ' ').trim();
+      var first = raw.split(/\s+/)[0] || '';
+      var m = first.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+      if (m) {
+        var y = +m[1];
+        var packed = m[1] + '/' + m[2] + '/' + m[3];
+        if (y > 1900) {
+          if (typeof ptfISOToJ === 'function') {
+            try {
+              var j = ptfISOToJ(m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2));
+              if (j) { var s2 = padJalaliDate(j); if (s2) return s2; }
+            } catch (eR1) {}
+          }
+          return '';
         }
-        /* fallback: اگر تبدیل میلادی→شمسی شکست خورد، بهتر است خالی برگردانیم
-           (تا به ماه اشتباه fallback نکند). بعداً در جستجوی این رکوردها می‌توان از month استفاده کرد. */
-        return '';
+        return padJalaliDate(packed);
       }
-      /* شمسی (سال < ۱۹۰۰) — مستقیم */
-      return padJalaliDate(raw);
+      var months = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+      var named = latinDigits(raw).match(/(\d{1,2})\s*(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\s*(\d{4})/);
+      if (named) {
+        var mi = months.indexOf(named[2]) + 1;
+        return padJalaliDate(named[3] + '/' + mi + '/' + named[1]);
+      }
+      if (/^\d{4}-\d{2}-\d{2}/.test(first) && typeof ptfISOToJ === 'function') {
+        try { var j2 = ptfISOToJ(first.slice(0, 10)); if (j2) return padJalaliDate(j2); } catch (eR) {}
+      }
+      return '';
     }
-    /* اگر فرمت ناشناخته، امتحان میلادی خام */
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-      try { if (typeof ptfISOToJ === 'function') { var j = ptfISOToJ(raw); if (j) { var s2 = padJalaliDate(j); if (s2) return s2; } } } catch (eR) {}
+    var fields = [x.t, x.dateFa, x.date, x.dateISO, x.iso];
+    for (var fi = 0; fi < fields.length; fi++) {
+      if (!fields[fi]) continue;
+      var hit = fromYmd(fields[fi]);
+      if (hit) return hit;
     }
-    var m2 = String(x.month || '').trim();
+    var m2 = latinDigits(x.month || '').trim();
     var mp = padJalaliDate(m2 + '/01');
     if (mp) return mp;
     return '';
@@ -677,7 +686,19 @@
     var na = recDateNum(a), nb = recDateNum(b);
     if (na && nb) return na - nb;
     return String(a || '').localeCompare(String(b || ''));
-  }  function faTodayStr() {
+  }
+  function recTimeMin(x) {
+    var raw = String((x && (x.t || x.iso || x.dateISO)) || '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+    var tm = raw.match(/(?:T|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (!tm) return 0;
+    return (+tm[1]) * 60 + (+tm[2]);
+  }
+  function recSortStamp(x) {
+    var d = recDate(x);
+    if (!d) return 0;
+    return recDateNum(d) * 10000 + recTimeMin(x);
+  }
+  function faTodayStr() {
     try { if (typeof faDate === 'function') return faDate(); } catch (e) {}
     try { if (typeof ptfTodayJ === 'function') return ptfTodayJ(); } catch (e) {}
     return '';
@@ -879,9 +900,11 @@
       var da = recDate(a) || '', db = recDate(b) || '';
       var c = recDateCmp(da, db);
       if (c !== 0) return c;
-      /* هم‌تاریخ: رکوردِ دارای تاریخ دقیق زودتر (بی‌تاریخ آخر)؛ سپس شناسه برای پایداری */
+      /* هم‌تاریخ: رکوردِ دارای تاریخ دقیق زودتر (بی‌تاریخ آخر)؛ سپس ساعت همان روز؛ سپس شناسه */
       var ha = da ? 1 : 0, hb = db ? 1 : 0;
       if (ha !== hb) return hb - ha;
+      var ta = recSortStamp(a), tb = recSortStamp(b);
+      if (ta !== tb) return ta - tb;
       return String(a.cd || '').localeCompare(String(b.cd || ''));
     });
     events.forEach(function (e, i) { e.row = i + 1; });
@@ -910,7 +933,7 @@
     function txBalance(beforeDate) {
       return txAll().reduce(function (s, x) {
         var d0 = recDate(x);
-        if (beforeDate && d0 && d0 > beforeDate) return s;
+        if (beforeDate && d0 && recDateCmp(d0, beforeDate) > 0) return s;
         var a = +x.amt || 0;
         if (x.type === 'charge') return s + a;
         if (x.type === 'direct' || x.type === 'settle') return s - a;
@@ -1217,27 +1240,45 @@
   /* جمع‌آوری فایل‌های دوره: (الف) دورهٔ ذخیره‌شده → دقیقاً از pettyIds/txIds همان لحظهٔ ارجاع
      (ب) دورهٔ جاری/بازه → از دادهٔ بازه
      v2: هر file همراه cd (شناسه رکورد) و kind ذخیره می‌شود برای نگاشت به row گزارش + تگ «ضمیمه ردیف N» */
+  window.ptfPettyFindPeriodRec = function (a, b) {
+    var key = ptfPettyPeriodKey(a, b);
+    var list = prAll();
+    if (key.isRange && key.from && key.to) {
+      return list.filter(function (x) { return x.from === key.from && x.to === key.to; })[0] || null;
+    }
+    if (key.month) return list.filter(function (x) { return x.month === key.month; })[0] || null;
+    return null;
+  };
   window.ptfPettyPeriodFiles = function (a, b, ids) {
-    var out = [];
+    var out = [], seen = {};
     function pushRec(r, kind) {
       if (!r) return;
       var petId = r.petId || ((r.files || []).length ? (r.files[0].petId || '') : '');
-      (r.files || []).forEach(function (f) {
-        out.push({ key: f.key || '', name: f.name || f.key, url: f.url || '', petId: f.petId || petId, cd: r.cd, kind: kind, record: r });
+      (r.files || []).forEach(function (f, fi) {
+        if (!f) return;
+        var k = String(f.key || '') || (String(r.cd || '') + '|' + fi + '|' + String(f.name || ''));
+        if (seen[k]) return;
+        seen[k] = 1;
+        out.push({ key: f.key || '', name: f.name || f.key || ('سند ' + (fi + 1)), url: f.url || '', petId: f.petId || petId || '', cd: r.cd, kind: kind, record: r });
       });
     }
-    if (ids && Array.isArray(ids)) {
-      var byId = {};
-      (getData(PETTY_KEY) || []).forEach(function (p) { byId[p.cd] = p; });
-      txAll().forEach(function (x) { byId[x.cd] = x; });
-      ids.forEach(function (cd) {
-        var r = byId[cd];
-        if (!r) return;
-        var kind = (r.type === 'charge' || r.type === 'direct' || r.type === 'settle') ? 'tx' : 'petty';
-        pushRec(r, kind);
-      });
-      return out;
+    var idList = [];
+    function addId(cd) { if (cd && idList.indexOf(cd) < 0) idList.push(cd); }
+    (Array.isArray(ids) ? ids : []).forEach(addId);
+    var pr = window.ptfPettyFindPeriodRec(a, b);
+    if (pr) {
+      (pr.pettyIds || []).forEach(addId);
+      (pr.txIds || []).forEach(addId);
     }
+    var byId = {};
+    (getData(PETTY_KEY) || []).forEach(function (p) { if (p && p.cd) byId[p.cd] = p; });
+    txAll().forEach(function (x) { if (x && x.cd) byId[x.cd] = x; });
+    idList.forEach(function (cd) {
+      var r = byId[cd];
+      if (!r) return;
+      var kind = (r.type === 'charge' || r.type === 'direct' || r.type === 'settle') ? 'tx' : 'petty';
+      pushRec(r, kind);
+    });
     var d = window.ptfPettyPeriodData(a, b);
     (d.petty || []).forEach(function (r) { pushRec(r, 'petty'); });
     (d.tx || []).forEach(function (r) { pushRec(r, 'tx'); });
@@ -1246,22 +1287,14 @@
 
   /* اجرا: ساخت PDF تلفیقی با گرفتن URL هر فایل (async) و سپس چاپ/دانلود */
   window.ptfPettyPeriodCombinedPdf = function (a, b) {
-    var key = ptfPettyPeriodKey(a, b);
-    var ids = null;
-    /* اگر برای یک دورهٔ ارجاع‌شده صدا زده شود، از همان اسناد لحظهٔ ارجاع استفاده کن */
-    if (!key.isRange && key.month) {
-      var pr = prAll().filter(function (x) { return x.month === key.month && (x.st === 'referred' || x.st === 'registered'); })[0];
-      if (pr && pr.pettyIds && pr.txIds) ids = pr.pettyIds.concat(pr.txIds);
-    }
+    var periodRec = window.ptfPettyFindPeriodRec(a, b);
+    var ids = periodRec ? (periodRec.pettyIds || []).concat(periodRec.txIds || []) : null;
     var files = window.ptfPettyPeriodFiles(a, b, ids);
-    var periodRec = null;
-    if (key.isRange) periodRec = prAll().filter(function (x) { return x.from === key.from && x.to === key.to; })[0];
-    else periodRec = prAll().filter(function (x) { return x.month === key.month; })[0];
     var periodFiles = (periodRec && periodRec.files) || [];
     /* BUG-PDF-ATTACH: اول URL همهٔ ضمائم (عکس/PDF) از storage گرفته می‌شود، بعد HTML ساخته و چاپ می‌شود */
     var all = files.concat(periodFiles);
     var jobs = all.map(function (f) {
-      return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; });
+      return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; }).catch(function () { f.url = f.url || ''; });
     });
     Promise.all(jobs).then(function () {
       /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل سمت سرور) — قبل از رندر */
@@ -1290,6 +1323,9 @@
       if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تلفیقی دورهٔ تنخواه — ' + label, fullHtml, 'petty-period-combined-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
       var w = window.open('', '_blank'); if (!w) return;
       w.document.write(fullHtml); w.document.close(); w.print();
+    }).catch(function (ePdf) {
+      console.error('ptfPettyPeriodCombinedPdf:', ePdf);
+      if (typeof ptfToast === 'function') ptfToast('⚠️ ساخت گزارش تلفیقی کامل نشد: ' + ((ePdf && ePdf.message) || ePdf), 'warn');
     });
   };
 

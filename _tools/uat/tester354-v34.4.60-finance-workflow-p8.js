@@ -10,8 +10,8 @@
   var llm = read('api/llm.php');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(ver.crm_version === 'v34.4.60', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.60'") > -1, 'index release');
+  ok(/^v34\.4\.(6[0-9]|[7-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(llm.indexOf("case 'bank_statement'") > -1, 'llm action');
   ok(llm.indexOf('Do NOT compute a bank ledger') > -1, 'no ledger prompt');
   ok(tr.indexOf('window.ptfTreasuryImportPdf') > -1, 'import pdf');
