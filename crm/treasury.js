@@ -418,7 +418,7 @@
         matchKey: '', matchCd: '', files: [], src: 'manual', t: new Date().toISOString()
       });
       saveRecon(lines);
-      if (typeof ptfToast === 'function') ptfToast('ردیف صورتحساب ثبت شد — مانده بانک عوض نشد؛ فقط برای تطبیق با گردش CRM است', 'ok');
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('ردیف صورتحساب روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('ردیف صورتحساب ثبت شد — مانده بانک عوض نشد', 'ok');
       if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
       if (typeof window.finHubSet === 'function') window.finHubSet('treasury');
     }

@@ -97,6 +97,11 @@
   }
 
   function saveDirty() { try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(state.dirty)); } catch (e) {} }
+  var pushWaiters = [];
+  function notifyPushWaiters(ok, extra) {
+    var w = pushWaiters.splice(0);
+    w.forEach(function (fn) { try { fn(!!ok, extra || {}); } catch (eW) {} });
+  }
 
   /* ---------- رهگیری تغییرات: wrap setData ---------- */
   window.ptfSyncNotifyDirty = function (k) {
@@ -109,6 +114,7 @@
       }
       state.dirty[k] = true;
       saveDirty(); // v33.2.1: persist dirty keys
+      try { setSyncBadge(_lastSyncBadge === 'ok' ? 'warn' : _lastSyncBadge); } catch (eBdg) {}
       schedulePush();
     }
   };
@@ -227,13 +233,14 @@
     forbiddenLocal.forEach(function (k) { delete state.dirty[k]; });
     if (forbiddenLocal.length) { saveDirty(); setSyncBadge('forbidden'); try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقش در sync ارسال نشد: ' + forbiddenLocal.join('، '), 'SYNC-RBAC'); } catch (eF) {} }
     keys = keys.filter(function (k) { return forbiddenLocal.indexOf(k) < 0; });
-    if (!keys.length || state.pushing) return;
-    if (!curSession().user) return;
+    if (!keys.length) { notifyPushWaiters(true, { empty: true }); return; }
+    if (state.pushing) return;
+    if (!curSession().user) { notifyPushWaiters(false, { reason: 'session' }); return; }
     /* v15.0 (US-384): قبل از کامل شدن سینک اولیه، هیچ push‌ای نرود —
        ریشه کیس استادی: رفرش کاربر دوم، حین رندر (مهاجرت وضعیت‌ها/فلگ‌های انقضا) setData روی
        داده کهنه می‌زد و لیست قدیمی را قبل از pull به سرور می‌فرستاد → پیش‌نویس کاربر اول حذف می‌شد. */
     if (!state.bootstrapped) { schedulePush(); return; }
-    if (!hasSyncToken()) { setSyncBadge('warn'); return; }
+    if (!hasSyncToken()) { setSyncBadge('warn'); notifyPushWaiters(false, { reason: 'token' }); return; }
     /* v14.7 (US-382 AC2): سد push خالی روی کلید حیاتی که قبلا ناخالی بوده */
     if (!window._ptfGoLiveWipe) {
       var gc = guardCounts();
@@ -255,7 +262,7 @@
         } catch (e2) {}
         return true;
       });
-      if (!keys.length) return;
+      if (!keys.length) { notifyPushWaiters(true, { empty: true }); return; }
     }
     massDropCheck(); /* v14.7 US-382 AC3 */
     state.pushing = true;
@@ -301,6 +308,7 @@
           }
           if (d.forbidden && d.forbidden.length) { setSyncBadge('forbidden'); try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + d.forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {} }
           else setSyncBadge('ok');
+          notifyPushWaiters(!confl.length && !(d.forbidden && d.forbidden.length), { conflicts: confl, forbidden: d.forbidden || [] });
         } else {
           setSyncBadge('warn');
           /* v33.2.1 HOTFIX: اگر push ناموفق بود، هشدار واضح بده — تغییرات محلی حفظ می‌شوند */
@@ -314,15 +322,32 @@
           }
           saveDirty(); // v33.2.1: dirty keys persisted for recovery after refresh
           schedulePush(); // دوباره تلاش
+          notifyPushWaiters(false, { reason: d.error || 'push-fail' });
         }
       })
       .catch(function () {
         state.pushing = false;
         state.online = false;
         setSyncBadge('offline');
+        notifyPushWaiters(false, { reason: 'network' });
         setTimeout(schedulePush, 15000); // آفلاین: تلاش مجدد
       });
   }
+
+  window.ptfSyncFlushNow = function (cb) {
+    if (typeof cb === 'function') pushWaiters.push(cb);
+    if (!Object.keys(state.dirty).length) { notifyPushWaiters(true, { empty: true }); return; }
+    clearTimeout(state.pushTimer);
+    pushDirty();
+  };
+  window.ptfConfirmCloudSave = function (localMsg) {
+    if (typeof ptfToast === 'function') ptfToast((localMsg || 'روی این دستگاه ذخیره شد') + ' — در حال ارسال به سرور…', 'info');
+    window.ptfSyncFlushNow(function (ok) {
+      if (typeof ptfToast !== 'function') return;
+      if (ok) ptfToast('روی سرور هم ثبت شد. در دستگاه دیگر بعد از تازه‌سازی دیده می‌شود.', 'ok');
+      else ptfToast('هنوز به سرور نرسید. تب را نبندید تا نوار زرد پایین صفحه خاموش و نشانگر همگام سبز شود.', 'warn');
+    });
+  };
 
   /* ---------- pull دوره‌ای ---------- */
   /* v33.21.1 (به انتخاب کارفرما): پینگ بین‌تبی — هر تب که دادهٔ تازه اعمال کرد یا پوش موفق داشت،
@@ -614,12 +639,14 @@
     var banner = document.getElementById('ptfUnsavedBanner');
     if (banner) {
       var dirtyCount = Object.keys(state.dirty).length;
-      if (dirtyCount > 0 && (st === 'forbidden' || st === 'warn')) {
+      if (dirtyCount > 0) {
         banner.style.display = 'flex';
-        banner.innerHTML = '<span style="flex:1">⚠️ ' + dirtyCount + ' تغییر ذخیره‌نشده — ' + (st === 'forbidden' ? 'نقش فعلی اجازه همگام‌سازی ندارد' : 'در حال تلاش مجدد...') + '</span>';
-      } else if (dirtyCount > 0 && st === 'offline') {
-        banner.style.display = 'flex';
-        banner.innerHTML = '<span style="flex:1">🔴 ' + dirtyCount + ' تغییر آفلاین — با اتصال مجدد ارسال می‌شود</span>';
+        var msg = st === 'forbidden'
+          ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد')
+          : st === 'offline'
+            ? ('🔴 ' + dirtyCount + ' تغییر آفلاین — تب را نبندید تا وصل شود')
+            : ('🟡 ' + dirtyCount + ' تغییر هنوز به سرور نرسیده — تب را نبندید تا نشانگر همگام سبز شود');
+        banner.innerHTML = '<span style="flex:1">' + msg + '</span>';
       } else {
         banner.style.display = 'none';
       }
@@ -735,9 +762,10 @@
       try { localStorage.removeItem('ptf_sync_ping'); } catch (eP0) {}
     }
     // هنگام بستن صفحه، push معلق را بفرست
-    window.addEventListener('beforeunload', function () {
+    window.addEventListener('beforeunload', function (ev) {
       var keys = Object.keys(state.dirty);
       if (!keys.length) return;
+      try { ev.preventDefault(); ev.returnValue = ''; } catch (eU) {}
       var data = {};
       keys.forEach(function (k) { var v = rd(k); if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v; });
       try {

@@ -339,7 +339,7 @@
         }
         audit('تنخواه', 'ثبت هزینه/مطالبه تنخواه ' + money(rec.amt) + ' — ' + v.cat + (rec.dealRef?' [لینک پرونده '+rec.dealRef+']':''), rec.cd);
         renderPetty(); afterAddUpload(rec);
-        if (typeof ptfToast === 'function') ptfToast('هزینه ثبت شد و به‌عنوان مطالبه شما از تنخواه منظور شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('هزینه روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه ثبت شد', 'ok');
       }
     });
   };
@@ -382,7 +382,7 @@
         var tx = addTx('charge', toNum(v.amt), v.doc || v.desc, '', { doc: v.doc });
         audit('تنخواه', 'شارژ حساب تنخواه ' + money(tx.amt), tx.cd);
         renderPetty();
-        if (typeof ptfToast === 'function') ptfToast('شارژ حساب ثبت شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('شارژ روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('شارژ حساب ثبت شد', 'ok');
       }
     });
   };
@@ -478,7 +478,7 @@
           if (dealRefChanged || newDealRef) { try { window.ptfPettyUpdateDealLink(r, newDealRef, oldDealRef); } catch (eU) { console.warn('updateDealLink:', eU); } }
           audit('تنخواه', 'اصلاح مبلغ هزینه تسویه‌شده ' + cd + ' — ' + money(oldAmt) + ' → ' + money(amt) + ' — دلیل: ' + v.reason.trim() + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف') + ']' : ''), cd);
           renderPetty();
-          if (typeof ptfToast === 'function') ptfToast('مبلغ اصلاح شد و حساب تنخواه هم‌زمان به‌روزرسانی شد', 'ok');
+          if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('مبلغ روی این دستگاه اصلاح شد'); else if (typeof ptfToast === 'function') ptfToast('مبلغ اصلاح شد', 'ok');
           return;
         }
         var oldDealRef2 = r.dealRef || '';
@@ -488,7 +488,7 @@
         if (dealRefChanged) { try { window.ptfPettyUpdateDealLink(r, newDealRef, oldDealRef2); } catch (eU) { console.warn('updateDealLink:', eU); } }
         audit('تنخواه', 'ویرایش هزینه تنخواه ' + cd + ' — ' + money(amt) + (dealRefChanged ? ' [لینک پرونده: ' + (newDealRef || 'حذف شد') + ']' : ''), cd);
         renderPetty();
-        if (typeof ptfToast === 'function') ptfToast('هزینه ویرایش شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('هزینه روی این دستگاه ویرایش شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه ویرایش شد', 'ok');
       }
     });
   };
@@ -531,7 +531,7 @@
     try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptyFilesUp', 'petty/' + cd, function (f) {
       var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
       rr.files = rr.files || []; rr.files.push(f); rr.updatedAtISO = new Date().toISOString(); rr.updatedBy = userName(); setData(PETTY_KEY, a);
-      if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('سند روی این دستگاه افزوده شد'); else if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     }); } catch (eU) {}
     /* CHQ-DOC-002: اگر سندی از دستگاه/کاربر دیگر تازه ثبت شده و هنوز به این مرورگر
@@ -555,7 +555,7 @@
       r._deletedFileKeys = (r._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
       r.updatedAtISO = new Date().toISOString(); r.updatedBy = userName();
       setData(PETTY_KEY, a);
-      if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('حذف سند روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     });
   };
@@ -598,7 +598,7 @@
       try { window.ptfPettyUpdateDealLink(r, '', r.dealRef); } catch (eU) { console.warn('updateDealLink void:', eU); }
       audit('تنخواه', 'ابطال هزینه تسویه‌شده '+cd+' — دلیل: '+reason.trim(), cd);
       renderPetty();
-      if(typeof ptfToast==='function') ptfToast('هزینه ابطال شد - تراکنش معکوس ثبت شد', 'ok');
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('ابطال روی این دستگاه ثبت شد'); else if(typeof ptfToast==='function') ptfToast('هزینه ابطال شد', 'ok');
       return;
     }
     if (!confirm('هزینه ' + money(r.amt) + ' (' + r.cat + ') حذف شود؟\nاین عمل قابل بازگشت نیست.')) return;
@@ -609,7 +609,7 @@
     ptfPettyRemoveDealCostEvent(r);
     audit('تنخواه', 'حذف هزینه تنخواه ' + cd + ' — ' + money(r.amt), cd);
     renderPetty();
-    if (typeof ptfToast === 'function') ptfToast('هزینه حذف شد', 'warn');
+    if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('حذف هزینه روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه حذف شد', 'warn');
   };
 
   /* ============ UR-11: دورهٔ بازه‌ای تنخواه — از آخرین ارجاع تا تاریخ انتخابی ============ */

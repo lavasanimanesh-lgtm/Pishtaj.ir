@@ -8,7 +8,7 @@ var petty = read('crm/petty.js');
 var treas = read('crm/treasury.js');
 var hub = read('crm/financehub.js');
 var ver = JSON.parse(read('VERSION.json'));
-if (ver.crm_version !== 'v34.4.63') fail('VERSION ' + ver.crm_version);
+if (ver.crm_version !== 'v34.4.64') fail('VERSION ' + ver.crm_version);
 if (petty.indexOf("mode: 'base64'") < 0 && petty.indexOf('mode: "base64"') < 0) fail('petty resolve base64');
 if (petty.indexOf('size:A4 landscape') < 0) fail('landscape print');
 if (petty.indexOf('table-layout:fixed') < 0) fail('fixed table');
