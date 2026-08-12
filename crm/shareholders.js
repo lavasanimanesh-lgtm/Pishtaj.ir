@@ -180,8 +180,9 @@
       else if (x.type === 'call_due') a.callDue += (+x.amt || 0);
       else if (x.type === 'call_pay') a.callPay += (+x.amt || 0);
       else if (x.type === 'call_over') a.callOver += (+x.amt || 0);
+      else if (x.type === 'call_credit_use') a.callOverUsed += (+x.amt || 0);
       return a;
-    }, { credit: 0, debit: 0, callDue: 0, callPay: 0, callOver: 0 });
+    }, { credit: 0, debit: 0, callDue: 0, callPay: 0, callOver: 0, callOverUsed: 0 });
     var petty = 0;
     try {
       if (s && typeof ptfPettyPendingByUser === 'function') petty = +(ptfPettyPendingByUser()[s.name] || 0);
@@ -189,7 +190,7 @@
     } catch (e) {}
     ledger.petty = petty;
     ledger.callRemain = Math.max(0, (+ledger.callDue || 0) - (+ledger.callPay || 0));
-    ledger.callCredit = +ledger.callOver || 0;
+    ledger.callCredit = Math.max(0, (+ledger.callOver || 0) - (+ledger.callOverUsed || 0));
     ledger.opsNet = ledger.credit + petty - ledger.debit;
     ledger.net = ledger.opsNet + ledger.callCredit - ledger.callRemain;
     return ledger;
@@ -410,8 +411,8 @@
     if (!canShare()) return;
     var s = shAll().filter(function (x) { return x.cd === cd; })[0]; if (!s) return;
     var rows = txAll().filter(function (x) { return x.shCd === cd; }).map(function (x) {
-      var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due') ? '-' : '+';
-      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)' }[x.type] || x.type;
+      var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due' || x.type === 'call_credit_use') ? '-' : '+';
+      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)', call_credit_use: 'تهاتر طلب با فراخوان' }[x.type] || x.type;
       var nFiles = (x.files || []).length;
       var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
       return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td></tr>';

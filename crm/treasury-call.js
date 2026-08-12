@@ -65,7 +65,7 @@
 
   window.ptfTreasuryCallPaidOf = function (call, shCd) {
     return arr(call && call.pays).filter(function (p) { return p && p.shCd === shCd && p.status !== 'void'; })
-      .reduce(function (s, p) { return s + num(p.amt); }, 0);
+      .reduce(function (s, p) { return s + num(p.apply != null ? p.apply : p.amt); }, 0);
   };
 
   window.ptfTreasuryCallRemainOf = function (call, shCd) {
@@ -82,6 +82,9 @@
     if (!gap) { alert('مانده صندوق منفی نیست؛ فراخوان لازم نیست.'); return; }
     var shs = shActive();
     var pct = shs.reduce(function (s, x) { return s + (+x.pct || 0); }, 0);
+    if (load().some(function (c) { return c && c.status === 'open'; })) {
+      if (!confirm('یک فراخوان باز وجود دارد. فراخوان جدید فقط کسری همین لحظه را فریز می‌کند و با قبلی قاطی نمی‌شود. ادامه؟')) return;
+    }
     if (Math.round(pct * 100) / 100 !== 100) {
       alert('جمع سهام فعال ' + pct + '٪ است. فراخوان فقط وقتی سهام فعال دقیقاً ۱۰۰٪ باشد ثبت می‌شود.');
       return;

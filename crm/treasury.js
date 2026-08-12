@@ -216,6 +216,7 @@
       if (!active(x)) return;
       var t = txt(x.type);
       if (t === 'call_pay' || t === 'call_over') {
+        if (x.fromCredit || x.noCash) return;
         var inAmt = num(x.amt || x.amount);
         if (!inAmt) return;
         pushMove(out, {
