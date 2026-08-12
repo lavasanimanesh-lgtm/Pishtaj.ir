@@ -10,8 +10,8 @@
   var dq = read('crm/data-quality.js');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(ver.crm_version === 'v34.4.58', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.58'") > -1, 'index release');
+  ok(/^v34\.4\.(5[8-9]|[6-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(tr.indexOf('window.ptfTreasuryAutoMatch') > -1, 'auto match');
   ok(tr.indexOf('window.ptfTreasuryAttach') > -1, 'attach');
   ok(tr.indexOf('window.ptfTreasuryUnmatched') > -1, 'unmatched');

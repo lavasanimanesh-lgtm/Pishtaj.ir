@@ -1,4 +1,5 @@
-/* PTF CRM — v34.4.58 P6 خزانه: تطبیق یکتا + پیوست صورتحساب + کیفیت داده
+/* PTF CRM — v34.4.59 P7 خزانه: ورود اکسل/CSV صورتحساب به‌صورت یادداشت تطبیق
+   موجودی بانک منبع چهارم نیست. */
    موجودی بانک منبع چهارم نیست: گردش از اسناد CRM خوانده می‌شود.
    ptf_crm_bank_recon فقط یادداشت تطبیق صورتحساب است. */
 (function () {
@@ -168,6 +169,149 @@
     return { lines: unmatchedLines, moves: unmatchedMoves };
   };
 
+  function digitFa(s) {
+    return String(s == null ? '' : s).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+      .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+  }
+  function parseAmt(v) {
+    var s = digitFa(v).replace(/[,،\s]/g, '').replace(/[^\d.-]/g, '');
+    return num(s);
+  }
+  function parseDir(v, amtSigned) {
+    var s = String(v || '').toLowerCase();
+    if (/out|debit|برداشت|بدهکار|خروج|پرداخت/.test(s)) return 'out';
+    if (/in|credit|واریز|بستانکار|ورود|وصول/.test(s)) return 'in';
+    if (amtSigned < 0) return 'out';
+    if (amtSigned > 0) return 'in';
+    return '';
+  }
+  function parseDateCell(v) {
+    var s = digitFa(v).trim();
+    if (!s) return '';
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    var m = s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})/);
+    if (!m) return '';
+    var y = +m[1], mo = +m[2], d = +m[3];
+    if (y >= 1300 && y <= 1599 && typeof window.ptfJToISO === 'function') {
+      try { return String(window.ptfJToISO(y + '/' + mo + '/' + d) || '').slice(0, 10); } catch (e) { return ''; }
+    }
+    return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+  function headerIdx(head) {
+    var map = {};
+    (head || []).forEach(function (h, i) {
+      var t = digitFa(h).toLowerCase();
+      if (/تاریخ|date/.test(t)) map.date = i;
+      else if (/برداشت|بدهکار|debit|خروج/.test(t)) map.debit = i;
+      else if (/واریز|بستانکار|credit|ورود/.test(t)) map.credit = i;
+      else if (/مبلغ|amount/.test(t)) map.amount = i;
+      else if (/جهت|dir|نوع/.test(t)) map.dir = i;
+      else if (/شرح|توضیح|note|desc/.test(t)) map.note = i;
+    });
+    return map;
+  }
+  window.ptfTreasuryParseStatementRows = function (rows) {
+    rows = arr(rows);
+    if (!rows.length) return [];
+    var start = 0, idx = headerIdx(rows[0]);
+    if (idx.date != null || idx.amount != null || idx.debit != null || idx.credit != null) start = 1;
+    else idx = { date: 0, amount: 1, dir: 2, note: 3 };
+    var out = [];
+    for (var r = start; r < rows.length; r++) {
+      var row = arr(rows[r]);
+      if (!row.length) continue;
+      var debit = idx.debit != null ? parseAmt(row[idx.debit]) : 0;
+      var credit = idx.credit != null ? parseAmt(row[idx.credit]) : 0;
+      var amount = 0, dir = '';
+      if (debit && !credit) { amount = Math.abs(debit); dir = 'out'; }
+      else if (credit && !debit) { amount = Math.abs(credit); dir = 'in'; }
+      else {
+        var raw = idx.amount != null ? row[idx.amount] : row[1];
+        var signed = parseAmt(raw);
+        amount = Math.abs(signed);
+        dir = parseDir(idx.dir != null ? row[idx.dir] : row[2], signed);
+      }
+      if (!amount || !dir) continue;
+      var dateISO = parseDateCell(idx.date != null ? row[idx.date] : row[0]);
+      var note = String((idx.note != null ? row[idx.note] : row[3]) || '').trim();
+      out.push({
+        amount: amount, dir: dir, note: note,
+        dateISO: dateISO || new Date().toISOString().slice(0, 10),
+        dateFa: dateISO || '',
+        fp: [dateISO || '', dir, amount, note].join('|')
+      });
+    }
+    return out;
+  };
+
+  window.ptfTreasuryImportParsed = function (parsed) {
+    parsed = arr(parsed);
+    if (!parsed.length) return { added: 0, skipped: 0 };
+    var lines = loadRecon();
+    var have = {};
+    lines.forEach(function (l) {
+      have[[l.dateISO || '', l.dir || '', num(l.amount), l.note || ''].join('|')] = true;
+    });
+    var added = 0, skipped = 0;
+    parsed.forEach(function (p, i) {
+      var fp = p.fp || [p.dateISO || '', p.dir || '', num(p.amount), p.note || ''].join('|');
+      if (have[fp]) { skipped++; return; }
+      have[fp] = true;
+      var cd = (typeof window.ptfUnifiedCode === 'function') ? window.ptfUnifiedCode('BRC') : ('BRC-' + Date.now() + '-' + i);
+      lines.unshift({
+        cd: cd, amount: p.amount, dir: p.dir, note: p.note || '',
+        dateISO: p.dateISO, dateFa: p.dateFa || p.dateISO,
+        matchKey: '', matchCd: '', files: [], src: 'statement-import',
+        t: new Date().toISOString()
+      });
+      added++;
+    });
+    saveRecon(lines);
+    return { added: added, skipped: skipped };
+  };
+
+  window.ptfTreasuryImportFile = function (inp) {
+    var f = inp && inp.files && inp.files[0];
+    if (!f) return;
+    function done(rows) {
+      var parsed = window.ptfTreasuryParseStatementRows(rows);
+      var r = window.ptfTreasuryImportParsed(parsed);
+      if (typeof ptfToast === 'function') ptfToast(r.added + ' ردیف وارد شد' + (r.skipped ? ' / ' + r.skipped + ' تکراری رد شد' : '') + ' — مانده بانک ساخته نشد', r.added ? 'ok' : 'info');
+      if (r.added && confirm('تطبیق خودکار یکتا روی ردیف‌های جدید اجرا شود؟')) window.ptfTreasuryAutoMatch();
+      else if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+      try { inp.value = ''; } catch (e) {}
+    }
+    var isX = /\.xlsx?$/i.test(f.name);
+    var rd = new FileReader();
+    if (isX) {
+      if (typeof XLSX === 'undefined') { alert('کتابخانه اکسل بارگذاری نشده'); return; }
+      rd.onload = function () {
+        try {
+          var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+          done(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }));
+        } catch (e) { alert('خواندن اکسل ناموفق: ' + e.message); }
+      };
+      rd.readAsArrayBuffer(f);
+    } else {
+      rd.onload = function () {
+        var text = String(rd.result || '').replace(/^\uFEFF/, '');
+        var rows = text.split(/\r?\n/).filter(function (l) { return l.trim(); }).map(function (l) {
+          return l.split(/[,;\t]/).map(function (c) { return c.replace(/^"|"$/g, '').trim(); });
+        });
+        done(rows);
+      };
+      rd.readAsText(f, 'utf-8');
+    }
+  };
+
+  window.ptfTreasuryTemplateCsv = function () {
+    var csv = '\uFEFFتاریخ,مبلغ,جهت,شرح\n1404/05/21,1500000,ورود,نمونه واریز\n1404/05/22,200000,خروج,نمونه برداشت\n';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'ptf-bank-statement-template.csv';
+    a.click();
+  };
+
   window.ptfTreasuryAddLine = function () {
     var amt = prompt('مبلغ ردیف صورتحساب (ریال)');
     if (amt == null) return;
@@ -285,7 +429,10 @@
       '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">این تب موجودی مستقل بانک نمی‌سازد. ماندهٔ نمایشی = افتتاحیه نقد/بانک + وصولی‌های ثبت‌شده − پرداخت‌های ثبت‌شده. ردیف صورتحساب فقط یادداشت تطبیق است.</small>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button type="button" class="bt" onclick="ptfTreasuryAddLine()">+ ردیف صورتحساب</button>' +
-      '<button type="button" class="bt bt-o" onclick="ptfTreasuryAutoMatch()">تطبیق خودکار یکتا</button></div></div>' +
+      '<button type="button" class="bt bt-o" onclick="ptfTreasuryAutoMatch()">تطبیق خودکار یکتا</button>' +
+      '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfTrStmtInp\').click()">ورود اکسل/CSV</button>' +
+      '<button type="button" class="bt bt-o" onclick="ptfTreasuryTemplateCsv()">الگوی CSV</button>' +
+      '<input type="file" id="ptfTrStmtInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfTreasuryImportFile(this)"></div></div>' +
       '<div id="treasuryKpi"></div><div id="treasuryMoves"></div><div id="treasuryRecon"></div></div>';
   };
 
