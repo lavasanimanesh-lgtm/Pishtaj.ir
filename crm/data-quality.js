@@ -143,7 +143,7 @@
           add(q, 'treasury-unmatched-bank', 'ردیف صورتحساب بانک بدون تطبیق با سند CRM', l.cd, l.amount, { type: 'treasury', kind: 'bank', cd: l.cd, label: 'بانک ' + (l.cd || '') + ' — ' + (l.note || '') });
         });
         (tu.moves || []).slice(0, 40).forEach(function (m) {
-          add(q, 'treasury-unmatched-crm', 'گردش نقدی CRM بدون تطبیق صورتحساب', m.key, m.amount, { type: 'treasury', kind: 'crm', cd: m.key, label: m.label || m.key });
+          add(q, 'treasury-unmatched-crm', 'گردش حساب شرکت بدون تطبیق صورتحساب', m.key, m.amount, { type: 'treasury', kind: 'crm', cd: m.key, label: m.label || m.key });
         });
       }
     } catch (eTr) {}
@@ -170,8 +170,8 @@
         : d.type === 'supplier-amount' ? 'لینک تعهدها برقرار است اما جمع مبلغ تعهدها با مبلغ فاکتور یکی نیست — معمولاً قلم بدون قیمت خرید. می‌توانید اختلاف را در حساب تأمین تأیید و اخطار را بردارید.'
         : d.type === 'cheque' ? 'نوع مالکیت (شرکت/شخصی/وارده) خالی است؛ نام روی دسته چک کافی نیست. از اصلاح چک، «مالکیت چک» را انتخاب کنید.'
         : d.type === 'treasury' ? (d.kind === 'crm'
-          ? 'این گردش در CRM ثبت شده ولی به خط صورتحساب وصل نیست. دکمه خزانه همان ردیف را هایلایت می‌کند: اگر صورتحساب را وارد کرده‌اید «تطبیق» بزنید؛ اگر نه، اول ردیف بانک را وارد کنید.'
-          : 'این خط صورتحساب هنوز به سند CRM وصل نیست. در خزانه همان ردیف را باز کنید و «تطبیق» را بزنید. موجودی بانک مستقل ساخته نمی‌شود.')
+          ? 'فقط حواله/شارژ تنخواه/وصول چک حساب شرکت اینجا می‌آید. نقد، غیررسمی و تهاتر تطبیق نمی‌خواهند. اگر صورتحساب را وارد کرده‌اید «تطبیق» بزنید.'
+          : 'این خط صورتحساب هنوز به سند حساب شرکت وصل نیست. نقد و پرداخت غیررسمی نامزد تطبیق نیستند.')
         : 'این مورد نیازمند بررسی است.';
       return '<details style="margin:6px 0;background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 9px"><summary style="cursor:pointer;font-weight:700;color:#334155">' + escP(d.label || d.cd || '') + '</summary><div style="padding:8px 2px 2px;color:#64748b;font-size:11.5px;line-height:1.8">' + explanation + '<div>' + action + '</div>' + invoiceActions + '</div></details>';
     }).join('');

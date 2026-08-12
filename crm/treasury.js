@@ -31,12 +31,37 @@
     return x.dateFa || x.dt || x.tFa || isoOf(x);
   }
 
+  function txt(x) { return String(x == null ? '' : x).toLowerCase(); }
+  function looksBankHow(how) {
+    var s = txt(how);
+    return /حواله|بانک|bank|transfer|کارت|pos|شتاب/.test(s);
+  }
+  function looksNonBankHow(how) {
+    var s = txt(how);
+    return /نقد|cash|سایر|other|تهاتر|اعتبار|credit|چک|cheque|چک\s/.test(s) && !looksBankHow(how);
+  }
+
+  /* فقط حرکت وجه در حساب شرکت باید با صورتحساب تطبیق شود. */
+  window.ptfTreasuryBankExpected = function (move) {
+    return !!(move && move.bankExpected);
+  };
+
   window.ptfTreasuryCrmMoves = function () {
     var out = [];
     get('ptf_crm_invoices').filter(active).forEach(function (inv) {
+      var unofficialInv = !!(inv.isUnofficial || inv.isOfficial === false);
       arr(inv.payments).concat(arr(inv.pays)).filter(active).forEach(function (p, i) {
         var amt = num(p.amt || p.amount);
         if (!amt) return;
+        var how = p.how || p.method || '';
+        var bankExpected = false;
+        var skip = '';
+        if (unofficialInv) { skip = 'فاکتور غیررسمی'; }
+        else if (p.fromAdvance) { skip = 'پیش‌پرداخت/کسر از سفارش'; }
+        else if (txt(how) === 'چک' || /cheque|چک/.test(txt(how))) { skip = 'چک وارده (تطبیق هنگام وصول چک)'; }
+        else if (looksNonBankHow(how)) { skip = 'نقد/خارج از حساب شرکت'; }
+        else if (looksBankHow(how)) { bankExpected = true; }
+        else { skip = 'روش پرداخت بانکی مشخص نیست'; }
         out.push({
           key: 'invpay:' + (inv.cd || inv.id || '') + ':' + (p.cd || p.id || i),
           cd: inv.cd || '',
@@ -44,7 +69,9 @@
           amount: amt,
           dateISO: isoOf(p) || isoOf(inv),
           dateFa: faOf(p) || faOf(inv),
-          label: 'وصولی مشتری ' + (inv.cd || '')
+          label: 'وصولی مشتری ' + (inv.cd || ''),
+          bankExpected: bankExpected,
+          bankSkip: skip
         });
       });
     });
@@ -52,6 +79,13 @@
       if (!active(row) || String(row.status || '').toLowerCase() === 'void') return;
       var amt = num(row.amountIrr || row.amt || row.amount);
       if (!amt) return;
+      var method = txt(row.method || row.how || '');
+      var bankExpected = false;
+      var skip = '';
+      if (method === 'bank' || looksBankHow(method)) bankExpected = true;
+      else if (method === 'company_cheque' || method === 'company-cheque') skip = 'چک شرکت (تطبیق هنگام وصول چک)';
+      else if (method === 'cash' || method === 'credit' || method === 'third_party_cheque' || looksNonBankHow(method)) skip = 'نقد/تهاتر/خارج از حساب شرکت';
+      else skip = 'روش پرداخت بانکی مشخص نیست';
       out.push({
         key: 'suppay:' + (row.cd || row.id || ''),
         cd: row.cd || '',
@@ -59,7 +93,9 @@
         amount: amt,
         dateISO: isoOf(row),
         dateFa: faOf(row),
-        label: 'پرداخت تأمین ' + (row.supName || row.cd || '')
+        label: 'پرداخت تأمین ' + (row.supName || row.cd || ''),
+        bankExpected: bankExpected,
+        bankSkip: skip
       });
     }
     try {
@@ -73,14 +109,16 @@
       var amt = num(tx.amt || tx.amount);
       if (!amt) return;
       out.push({
-        key: 'petty:' + (tx.cd || tx.id || ''),
-        cd: tx.cd || '',
-        dir: 'out',
-        amount: amt,
-        dateISO: isoOf(tx),
-        dateFa: faOf(tx),
-        label: 'شارژ تنخواه ' + (tx.cd || '')
-      });
+          key: 'petty:' + (tx.cd || tx.id || ''),
+          cd: tx.cd || '',
+          dir: 'out',
+          amount: amt,
+          dateISO: isoOf(tx),
+          dateFa: faOf(tx),
+          label: 'شارژ تنخواه ' + (tx.cd || ''),
+          bankExpected: true,
+          bankSkip: ''
+        });
     });
     function chequeList(k) {
       var a = get(k);
@@ -99,7 +137,9 @@
         amount: amt,
         dateISO: isoOf(ch),
         dateFa: faOf(ch),
-        label: 'وصول چک وارده ' + (ch.cd || '')
+        label: 'وصول چک وارده ' + (ch.cd || ''),
+        bankExpected: true,
+        bankSkip: ''
       });
     });
     chequeList('ptf_crm_cheques_issued').filter(active).forEach(function (ch) {
@@ -114,7 +154,9 @@
         amount: amt,
         dateISO: isoOf(ch),
         dateFa: faOf(ch),
-        label: 'وصول چک صادره ' + (ch.cd || '')
+        label: 'وصول چک صادره ' + (ch.cd || ''),
+        bankExpected: (String(ch.ownership || '').toLowerCase() === 'company'),
+        bankSkip: (String(ch.ownership || '').toLowerCase() === 'company') ? '' : 'چک غیرشرکتی'
       });
     });
     return out.sort(function (a, b) { return String(b.dateISO).localeCompare(String(a.dateISO)); });
@@ -163,6 +205,7 @@
     var d = String(line.dateISO || '').slice(0, 10);
     var used = takenKeys(line && line.cd);
     return window.ptfTreasuryCrmMoves().filter(function (m) {
+      if (!m.bankExpected) return false;
       if (used[m.key]) return false;
       if (m.dir !== line.dir) return false;
       if (Math.abs(m.amount - amt) > 1) return false;
@@ -175,7 +218,7 @@
     var lines = loadRecon();
     var used = takenKeys();
     var unmatchedLines = lines.filter(function (l) { return l && !l.matchKey; });
-    var unmatchedMoves = window.ptfTreasuryCrmMoves().filter(function (m) { return !used[m.key]; });
+    var unmatchedMoves = window.ptfTreasuryCrmMoves().filter(function (m) { return m.bankExpected && !used[m.key]; });
     return { lines: unmatchedLines, moves: unmatchedMoves };
   };
 
@@ -463,6 +506,7 @@
   window.ptfTreasuryMatchMove = function (moveKey) {
     var move = window.ptfTreasuryCrmMoves().filter(function (m) { return m.key === moveKey; })[0];
     if (!move) { alert('این گردش در خزانه پیدا نشد.'); return; }
+    if (!move.bankExpected) { alert('این گردش از حساب شرکت نیست و نیاز به تطبیق صورتحساب ندارد.'); return; }
     var cands = loadRecon().filter(function (l) {
       return l && !l.matchKey && l.dir === move.dir && Math.abs(num(l.amount) - num(move.amount)) <= 1;
     });
@@ -597,7 +641,7 @@
   window.ptfTreasuryHtml = function () {
     return '<div id="treasuryBox" class="pn" style="display:none;margin-top:12px;padding:14px;border:1px solid #bae6fd;border-radius:16px;background:#f0f9ff">' +
       '<div class="treasury-head"><h4 style="margin:0 0 6px">خزانه و مغایرت بانکی (مشتق)</h4>' +
-      '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">این تب موجودی مستقل بانک نمی‌سازد. ماندهٔ نمایشی = افتتاحیه نقد/بانک + وصولی‌های ثبت‌شده − پرداخت‌های ثبت‌شده. ردیف صورتحساب فقط یادداشت تطبیق است.</small>' +
+      '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">این تب موجودی مستقل بانک نمی‌سازد. ماندهٔ نمایشی = افتتاحیه نقد/بانک + وصولی‌های ثبت‌شده − پرداخت‌های ثبت‌شده. تطبیق فقط برای حواله/شارژ تنخواه/وصول چک حساب شرکت است؛ نقد و غیررسمی انتظار صورتحساب ندارند.</small>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
       '<button type="button" class="bt" onclick="ptfTreasuryAddLine()">+ ردیف صورتحساب</button>' +
       '<button type="button" class="bt bt-o" onclick="ptfTreasuryAutoMatch()">تطبیق خودکار یکتا</button>' +
@@ -623,7 +667,7 @@
         '<div class="sc"><b>' + money(c.outflow) + '</b><span>خروج مشتق</span></div>' +
         '<div class="sc"><b>' + money(c.derived) + '</b><span>مانده مشتق (نه دفتر بانک)</span></div>' +
         '<div class="sc"><b>' + u.lines.length + '</b><span>ردیف بانک بدون تطبیق</span></div>' +
-        '<div class="sc"><b>' + u.moves.length + '</b><span>گردش CRM بدون تطبیق</span></div></div>';
+        '<div class="sc"><b>' + u.moves.length + '</b><span>گردش حساب شرکت بدون تطبیق</span></div></div>';
     }
     var used = takenKeys();
     var moves = window.ptfTreasuryCrmMoves();
@@ -652,8 +696,10 @@
           var rid = 'trMove-' + String(m.key || '').replace(/[^a-zA-Z0-9_-]/g, '_');
           var on = focus && focus.kind === 'crm' && focus.id === m.key;
           var matched = !!used[m.key];
-          return '<tr id="' + rid + '"' + (on ? ' style="outline:2px solid #f59e0b;background:#fffbeb"' : '') + '><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td><td>' + (matched ? 'تطبیق‌شده' : 'بدون صورتحساب') + '</td>' +
-            '<td>' + (matched ? '' : '<button type="button" class="ba" data-key="' + esc(m.key) + '" onclick="ptfTreasuryMatchMove(this.getAttribute(\'data-key\'))">تطبیق</button>') + '</td></tr>';
+          var need = !!m.bankExpected;
+          var st = matched ? 'تطبیق‌شده' : (need ? 'منتظر صورتحساب شرکت' : ('خارج از حساب شرکت' + (m.bankSkip ? ' — ' + m.bankSkip : '')));
+          return '<tr id="' + rid + '"' + (on ? ' style="outline:2px solid #f59e0b;background:#fffbeb"' : '') + '><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td><td>' + esc(st) + '</td>' +
+            '<td>' + (matched || !need ? '' : '<button type="button" class="ba" data-key="' + esc(m.key) + '" onclick="ptfTreasuryMatchMove(this.getAttribute(\'data-key\'))">تطبیق</button>') + '</td></tr>';
         }).join('') || '<tr><td colspan="6">گردش مشتق ثبت نشده</td></tr>') +
         '</tbody></table></div>';
     }
