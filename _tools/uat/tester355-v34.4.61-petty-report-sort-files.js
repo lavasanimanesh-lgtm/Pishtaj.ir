@@ -1,4 +1,4 @@
-/* tester355 — v34.4.61 petty period sort + combined attachments */
+/* tester355 — v34.4.62 petty period sort + combined attachments */
 (function () {
   var fs = require('fs');
   var path = require('path');
@@ -9,8 +9,8 @@
   var petty = read('crm/petty.js');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(ver.crm_version === 'v34.4.61', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.61'") > -1, 'index release');
+  ok(ver.crm_version === 'v34.4.62', 'VERSION ' + ver.crm_version);
+  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.62'") > -1, 'index release');
   ok(petty.indexOf('recSortStamp') > -1, 'time-aware sort');
   ok(petty.indexOf('فروردین|اردیبهشت') > -1, 'named jalali months');
   ok(petty.indexOf('window.ptfPettyFindPeriodRec') > -1, 'find period rec');

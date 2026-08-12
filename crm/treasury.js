@@ -1,7 +1,5 @@
-/* PTF CRM — v34.4.60 P8 خزانه: استخراج PDF/عکس صورتحساب + ورود اکسل
-   موجودی بانک منبع چهارم نیست. */
-   موجودی بانک منبع چهارم نیست: گردش از اسناد CRM خوانده می‌شود.
-   ptf_crm_bank_recon فقط یادداشت تطبیق صورتحساب است. */
+/* PTF CRM — v34.4.62 خزانه مشتق: گردش از اسناد CRM؛ یادداشت مغایرت بانک
+   موجودی بانک منبع چهارم نیست. ptf_crm_bank_recon فقط یادداشت تطبیق است. */
 (function () {
   'use strict';
   var KEY = 'ptf_crm_bank_recon';
@@ -50,10 +48,9 @@
         });
       });
     });
-    get('ptf_crm_supplier_finance').filter(active).forEach(function (row) {
-      var kind = String(row.kind || row.type || '').toLowerCase();
-      if (kind.indexOf('pay') < 0 && kind !== 'sfp' && kind !== 'payment') return;
-      var amt = num(row.amt || row.amount || row.amountIrr);
+    function pushSupPay(row) {
+      if (!active(row) || String(row.status || '').toLowerCase() === 'void') return;
+      var amt = num(row.amountIrr || row.amt || row.amount);
       if (!amt) return;
       out.push({
         key: 'suppay:' + (row.cd || row.id || ''),
@@ -62,9 +59,14 @@
         amount: amt,
         dateISO: isoOf(row),
         dateFa: faOf(row),
-        label: 'پرداخت تأمین ' + (row.cd || '')
+        label: 'پرداخت تأمین ' + (row.supName || row.cd || '')
       });
-    });
+    }
+    try {
+      var sfRaw = (typeof window.getData === 'function') ? window.getData('ptf_crm_supplier_finance') : null;
+      if (sfRaw && !Array.isArray(sfRaw) && sfRaw.payments) arr(sfRaw.payments).forEach(pushSupPay);
+      else get('ptf_crm_supplier_finance').forEach(pushSupPay);
+    } catch (eSf) {}
     get('ptf_crm_petty_tx').filter(active).forEach(function (tx) {
       var kind = String(tx.kind || tx.type || '').toLowerCase();
       if (kind.indexOf('charge') < 0 && kind.indexOf('شارژ') < 0) return;
@@ -80,7 +82,12 @@
         label: 'شارژ تنخواه ' + (tx.cd || '')
       });
     });
-    get('ptf_crm_cheques_received').filter(active).forEach(function (ch) {
+    function chequeList(k) {
+      var a = get(k);
+      if (a.length) return a;
+      return get('ptf_crm_cheques');
+    }
+    chequeList('ptf_crm_cheques_received').filter(active).forEach(function (ch) {
       var st = String(ch.st || ch.status || '').toLowerCase();
       if (st.indexOf('collect') < 0 && st.indexOf('وصول') < 0 && !ch.collected) return;
       var amt = num(ch.amt || ch.amount);
@@ -95,7 +102,7 @@
         label: 'وصول چک وارده ' + (ch.cd || '')
       });
     });
-    get('ptf_crm_cheques_issued').filter(active).forEach(function (ch) {
+    chequeList('ptf_crm_cheques_issued').filter(active).forEach(function (ch) {
       var st = String(ch.st || ch.status || '').toLowerCase();
       if (st.indexOf('pass') < 0 && st.indexOf('وصول') < 0 && st.indexOf('clear') < 0 && !ch.cleared) return;
       var amt = num(ch.amt || ch.amount);
@@ -507,8 +514,10 @@
       '<button type="button" class="bt" onclick="ptfTreasuryAddLine()">+ ردیف صورتحساب</button>' +
       '<button type="button" class="bt bt-o" onclick="ptfTreasuryAutoMatch()">تطبیق خودکار یکتا</button>' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfTrStmtInp\').click()">ورود اکسل/CSV</button>' +
+      '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfTrPdfInp\').click()">استخراج PDF/عکس</button>' +
       '<button type="button" class="bt bt-o" onclick="ptfTreasuryTemplateCsv()">الگوی CSV</button>' +
-      '<input type="file" id="ptfTrStmtInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfTreasuryImportFile(this)"></div></div>' +
+      '<input type="file" id="ptfTrStmtInp" accept=".csv,.xlsx,.xls" style="display:none" onchange="ptfTreasuryImportFile(this)">' +
+      '<input type="file" id="ptfTrPdfInp" accept="application/pdf,image/*" style="display:none" onchange="ptfTreasuryImportPdf(this)"></div></div>' +
       '<div id="treasuryKpi"></div><div id="treasuryMoves"></div><div id="treasuryRecon"></div></div>';
   };
 
@@ -542,7 +551,7 @@
       rec.innerHTML = '<h5>یادداشت مغایرت صورتحساب</h5><div class="tb2"><table><thead><tr><th>کد</th><th>مبلغ</th><th>جهت</th><th>شرح</th><th>تطبیق</th><th></th></tr></thead><tbody>' +
         (lines.map(function (l) {
           return '<tr><td>' + esc(l.cd) + '</td><td>' + money(l.amount) + '</td><td>' + (l.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + esc(l.note || '') + '</td><td dir="ltr">' + esc(l.matchKey || '—') + '</td>' +
-            '<td><button type="button" class="ba" onclick="ptfTreasuryMatch(\'' + esc(l.cd) + '\')">تطبیق</button></td></tr>';
+            '<td><button type="button" class="ba" onclick="ptfTreasuryMatch(\'' + esc(l.cd) + '\')">تطبیق</button> <button type="button" class="ba" onclick="ptfTreasuryAttach(\'' + esc(l.cd) + '\')">📎</button></td></tr>';
         }).join('') || '<tr><td colspan="6">ردیفی نیست</td></tr>') +
         '</tbody></table></div>';
     }

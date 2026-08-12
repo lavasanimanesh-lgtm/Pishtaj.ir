@@ -110,7 +110,7 @@
       if (!panels || !barEl) return;
       var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
         'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
-        'ledgerReportBox', 'qualityBox', 'chequeBox'];
+        'ledgerReportBox', 'treasuryBox', 'qualityBox', 'chequeBox'];
       ids.forEach(function (id) {
         var el = document.getElementById(id);
         if (el && el.parentNode === panels) panels.appendChild(el);

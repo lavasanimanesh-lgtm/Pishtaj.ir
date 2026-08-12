@@ -1041,7 +1041,7 @@
   window.ptfPettyPeriodPrint = function (a, b) {
     var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
     var label = window.ptfPettyRangeLabel(a, b);
-    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>body{font-family:Tahoma;padding:20px;color:#111}table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}</style></head><body>' +
+    var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:8mm}body{font-family:Tahoma;padding:8px;color:#111;font-size:9px}table{width:100%;border-collapse:collapse;table-layout:fixed}td,th{border:1px solid #aaa;padding:3px 4px;text-align:right;font-size:8.5px;word-wrap:break-word;overflow-wrap:anywhere;vertical-align:top}th{background:#eee}</style></head><body>' +
       '<h2>گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
       '<p>هزینه‌های دوره: ' + money(t.totalOut) + ' | شارژ دوره: ' + money(t.charges) + ' | موجودی دوره: ' + money(t.balance) + '</p>' +
       '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table></body></html>';
@@ -1063,9 +1063,12 @@
     var events = window.ptfPettyPeriodEvents(a, b), t = window.ptfPettyPeriodTotals(a, b);
     var label = window.ptfPettyRangeLabel(a, b);
     var html = '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>' +
-      '@page{size:A4;margin:10mm}' +
-      'body{font-family:Tahoma,Arial;padding:0;margin:0;color:#111;font-size:11px}' +
-      'table{width:100%;border-collapse:collapse}td,th{border:1px solid #aaa;padding:4px 6px;text-align:right;font-size:10.5px}th{background:#eee}' +
+      '@page{size:A4 landscape;margin:8mm}' +
+      'body{font-family:Tahoma,Arial;padding:4mm;margin:0;color:#111;font-size:9px}' +
+      'table{width:100%;border-collapse:collapse;table-layout:fixed}' +
+      'td,th{border:1px solid #aaa;padding:3px 4px;text-align:right;font-size:8.5px;word-wrap:break-word;overflow-wrap:anywhere;vertical-align:top}' +
+      'th{background:#eee}' +
+      'col.c1{width:5%}col.c2{width:12%}col.c3{width:10%}col.c4{width:28%}col.c5{width:12%}col.c6{width:21%}col.c7{width:12%}' +
       '.page{page-break-after:always}' +
       '.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;align-items:stretch;justify-items:stretch}' +
       '.rcpt{box-sizing:border-box;border:1px solid #ddd;border-radius:8px;padding:4px;page-break-inside:avoid;background:#fff;overflow:hidden;width:100%}' +
@@ -1076,7 +1079,7 @@
       '</style></head><body>' +
       '<div class="page"><h2 style="font-size:16px;margin:0 0 8px">گزارش دورهٔ تنخواه — ' + escP(label) + '</h2>' +
       '<p style="margin:0 0 8px">هزینه‌های دوره: <b>' + money(t.totalOut) + '</b> | شارژ دوره: <b>' + money(t.charges) + '</b> | موجودی دوره: <b>' + money(t.balance) + '</b></p>' +
-      '<table><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table>' +
+      '<table><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"></colgroup><thead><tr><th>ردیف</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>توسط</th><th>نحوهٔ پرداخت/وضعیت</th><th>مبلغ</th></tr></thead><tbody>' + events.map(ptfPettyRowHtml).join('') + ptfPettyTotalsRowsHtml(t) + '</tbody></table>' +
       (pageBreakLabel ? '<p style="font-size:10px;color:#64748b;margin-top:6px">' + escP(pageBreakLabel) + '</p>' : '') +
       '</div>';
     return html;
@@ -1142,16 +1145,32 @@
   window.ptfPettyResolveUrl = function (f) { return ptfPettyResolveUrl(f); };
   function ptfPettyResolveUrl(f) {
     return new Promise(function (resolve) {
-      if (!f || !f.key) return resolve('');
-      if (f.url) return resolve(f.url);
+      if (!f || !f.key) return resolve(f && f.url ? f.url : '');
+      if (f.url && String(f.url).indexOf('data:') === 0) return resolve(f.url);
+      function fallbackPresign() {
+        try {
+          fetch(STORAGE_API + '?action=presign_get', {
+            method: 'POST', headers: ptfStorageAuthHeaders(true),
+            body: JSON.stringify({ key: f.key, disposition: 'inline' })
+          }).then(function (r) { return r.json(); })
+            .then(function (d) { resolve(d && d.ok ? d.url : (f.url || '')); })
+            .catch(function () { resolve(f.url || ''); });
+        } catch (e2) { resolve(f.url || ''); }
+      }
       try {
-        fetch(STORAGE_API + '?action=presign_get', {
+        fetch('../api/attachment-read.php', {
           method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key })
+          body: JSON.stringify({ key: f.key, name: f.name || f.key, mode: 'base64' })
         }).then(function (r) { return r.json(); })
-          .then(function (d) { resolve(d && d.ok ? d.url : ''); })
-          .catch(function () { resolve(''); });
-      } catch (e) { resolve(''); }
+          .then(function (d) {
+            if (d && d.ok && d.b64) {
+              f.url = 'data:' + (d.mime || 'image/jpeg') + ';base64,' + d.b64;
+              return resolve(f.url);
+            }
+            fallbackPresign();
+          })
+          .catch(function () { fallbackPresign(); });
+      } catch (e) { fallbackPresign(); }
     });
   }
   /* رندر یک ضمیمه (v2: با fallback قوی)
