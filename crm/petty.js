@@ -969,6 +969,7 @@
        رشتهٔ 'from|to' باشد، باید [from, to] از آن استخراج شود (نه [a, b]). */
     var argPair = ptfPettyArgPair(arg);
     var files = window.ptfPettyPeriodFiles(argPair[0], argPair[1]);
+    ptfPettyWaitShow('در حال آماده‌سازی فیش‌های پیوست… لطفاً منتظر بمانید');
     var jobs = files.map(function (f) { return window.ptfPettyResolveUrl(f); });
     Promise.all(jobs).then(function () {
       try {
@@ -994,8 +995,9 @@
         /* v34.0.0-alpha (F4-6): arg به درستی در دکمهٔ PDF تلفیقی ارجاع می‌شود */
         '<button class="bt" onclick="this.closest(\'.md-b\').remove();ptfPettyPeriodCombinedPdf(\'' + arg + '\')">📎 دانلود PDF تلفیقی</button>' +
         '</div></div></div>';
+      ptfPettyWaitHide();
       document.getElementById('panels').insertAdjacentHTML('beforeend', html);
-    }).catch(function (eShow) { console.error('ptfPettyPeriodShowReceipts:', eShow); if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در نمایش ضمیمه‌ها: ' + (eShow.message || eShow), 'warn'); });
+    }).catch(function (eShow) { console.error('ptfPettyPeriodShowReceipts:', eShow); ptfPettyWaitHide(); if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در نمایش ضمیمه‌ها: ' + (eShow.message || eShow), 'warn'); });
   };
 
   window.ptfPettyPeriodReport = function (a, b) {
@@ -1304,8 +1306,36 @@
     return out;
   };
 
+  /* v34.4.68: پوشش انتظار پایدار — toast کوتاه ناپدید می‌شود ولی ساخت تلفیقی ممکن است
+     ده‌ها ثانیه طول بکشد. این پوشش تا پایان کار می‌ماند و متن مرحله را عوض می‌کند. */
+  function ptfPettyWaitShow(msg) {
+    var el = document.getElementById('ptfPettyWait');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'ptfPettyWait';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.style.cssText = 'position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.55);display:grid;place-items:center;padding:16px';
+      el.innerHTML = '<div style="background:#fff;border-radius:16px;padding:22px 26px;max-width:420px;width:92vw;box-shadow:0 20px 50px rgba(0,0,0,.28);text-align:center">' +
+        '<div style="font-size:28px;margin-bottom:8px">⏳</div>' +
+        '<div id="ptfPettyWaitMsg" style="font-size:15px;font-weight:800;color:#0f172a;line-height:1.8"></div>' +
+        '<div style="margin-top:8px;font-size:12px;color:#64748b;line-height:1.7">لطفاً این صفحه را نبندید تا گزارش آماده شود.</div></div>';
+      document.body.appendChild(el);
+    }
+    var t = document.getElementById('ptfPettyWaitMsg');
+    if (t) t.textContent = msg || 'در حال آماده‌سازی گزارش تلفیقی…';
+    el.style.display = 'grid';
+  }
+  function ptfPettyWaitHide() {
+    var el = document.getElementById('ptfPettyWait');
+    if (el) el.remove();
+  }
+
   /* اجرا: ساخت PDF تلفیقی با گرفتن URL هر فایل (async) و سپس چاپ/دانلود */
   window.ptfPettyPeriodCombinedPdf = function (a, b) {
+    if (window._ptfPettyCombinedBusy) return;
+    window._ptfPettyCombinedBusy = true;
+    ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… دریافت اسناد از فضای ابری');
     var periodRec = window.ptfPettyFindPeriodRec(a, b);
     var ids = periodRec ? (periodRec.pettyIds || []).concat(periodRec.txIds || []) : null;
     var files = window.ptfPettyPeriodFiles(a, b, ids);
@@ -1316,6 +1346,7 @@
       return ptfPettyResolveUrl(f).then(function (u) { f.url = u || ''; }).catch(function () { f.url = f.url || ''; });
     });
     Promise.all(jobs).then(function () {
+      ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… تبدیل PDF و HEIC به تصویر');
       /* BUG-PDF-ATTACH: PDF/HEIC → JPEG (تبدیل سمت سرور) — قبل از رندر */
       var convertJobs = all.filter(function (f) {
         var k = window.ptfPettyFileKind(f.name || f.key || '');
@@ -1323,6 +1354,7 @@
       }).map(function (f) { return window.ptfPettyToJpeg(f); });
       return Promise.all(convertJobs);
     }).then(function () {
+      ptfPettyWaitShow('در حال آماده‌سازی گزارش تلفیقی… ساخت پیش‌نمایش');
       /* v2: نگاشت file → row گزارش — هر file، ردیف رکوردش را می‌گیرد */
       try {
         var events = window.ptfPettyPeriodEvents(a, b);
@@ -1339,11 +1371,15 @@
       var label = window.ptfPettyRangeLabel(a, b);
       var reportHtml = window.ptfPettyPeriodCombinedPdfHtml(a, b, 'تعداد رسیدهای ضمیمه‌شده: ' + files.length + (periodFiles.length ? ' | پیوست بانک: ' + periodFiles.length : ''));
       var fullHtml = reportHtml + pageBreaks.join('');
+      ptfPettyWaitHide();
+      window._ptfPettyCombinedBusy = false;
       if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تلفیقی دورهٔ تنخواه — ' + label, fullHtml, 'petty-period-combined-' + label.replace(/[^0-9\/]/g, '').replace(/\//g, '-')); return; }
       var w = window.open('', '_blank'); if (!w) return;
       w.document.write(fullHtml); w.document.close(); w.print();
     }).catch(function (ePdf) {
       console.error('ptfPettyPeriodCombinedPdf:', ePdf);
+      ptfPettyWaitHide();
+      window._ptfPettyCombinedBusy = false;
       if (typeof ptfToast === 'function') ptfToast('⚠️ ساخت گزارش تلفیقی کامل نشد: ' + ((ePdf && ePdf.message) || ePdf), 'warn');
     });
   };
