@@ -543,10 +543,58 @@
     return out;
   };
 
+  window.ptfOpexTemplates = function () { return tpls(); };
   window.ptfOpexUnlinkedForCheque = function () {
     return oRows().filter(function (x) {
       return x && !x.chequeCd && x.st !== 'void' && !x.voided;
     }).sort(function (a, b) { return String(b.month || '').localeCompare(String(a.month || '')); }).slice(0, 24);
+  };
+  /* ماه‌های باقی‌مانده سال جاری که هنوز ردیف هزینه از این قالب ندارند (برای چک از الان تا آخر سال). */
+  window.ptfOpexFutureMonthsForTpl = function (tplId, throughYear) {
+    var t = tpls().filter(function (x) { return x && x.id === tplId; })[0];
+    if (!t) return [];
+    var now = normMonth(ptfFaMonthNow()) || '';
+    var y = throughYear || (now ? now.split('/')[0] : '');
+    if (!y) return [];
+    var startM = 1;
+    if (now && now.split('/')[0] === String(y)) startM = Math.max(1, +now.split('/')[1] || 1);
+    var have = {};
+    oRows().forEach(function (x) {
+      if (!x || x.st === 'void') return;
+      if (tplId && x.tplId === tplId && x.month) have[x.month] = true;
+    });
+    var out = [];
+    for (var i = startM; i <= 12; i++) {
+      var m = y + '/' + ('0' + i).slice(-2);
+      if (have[m]) continue;
+      out.push({ tplId: t.id, month: m, amt: +t.amt || 0, cat: t.cat || '', desc: t.desc || '', name: (OPEX_MONTH_NAMES[i - 1] || '') + ' ' + y });
+    }
+    return out;
+  };
+  window.ptfOpexCreateMonthsForCheque = function (chequeCd, items) {
+    items = Array.isArray(items) ? items : [];
+    if (!chequeCd || !items.length) return { ok: false, ids: [] };
+    var all = oRows();
+    var ids = [];
+    var by = '';
+    try { by = (curSession() || {}).name || ''; } catch (eB) {}
+    items.forEach(function (it) {
+      if (!it || !it.month) return;
+      var tpl = it.tplId ? tpls().filter(function (x) { return x.id === it.tplId; })[0] : null;
+      if (tpl && all.some(function (x) { return x && x.tplId === tpl.id && x.month === it.month && x.st !== 'void'; })) return;
+      var rec = {
+        cd: opexNextCode(all), cat: (tpl && tpl.cat) || it.cat || 'اجاره‌بها', amt: +(tpl && tpl.amt) || +it.amt || 0,
+        month: it.month, desc: (tpl && tpl.desc) || it.desc || '', tplId: tpl ? tpl.id : (it.tplId || ''),
+        t: (typeof faDateTime === 'function' ? faDateTime() : ''), by: by || 'چک',
+        chequeCd: chequeCd, payHow: 'cheque', fromCheque: true
+      };
+      if (tpl && Object.prototype.hasOwnProperty.call(tpl, 'isOfficial')) rec.isOfficial = tpl.isOfficial === true;
+      rec[OPEX_ROW_ID] = opexNewRowId();
+      all.unshift(rec);
+      ids.push(rec[OPEX_ROW_ID]);
+    });
+    if (ids.length) oSave(all);
+    return { ok: !!ids.length, ids: ids };
   };
   window.ptfOpexLinkCheque = function (chequeCd, rowIds) {
     rowIds = Array.isArray(rowIds) ? rowIds : [];

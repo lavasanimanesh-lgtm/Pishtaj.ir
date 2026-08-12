@@ -308,23 +308,41 @@
     var party = ((document.getElementById('ptfChNParty') || {}).value || 'other');
     if (isR || kind !== 'finance' || party === 'sup') { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
     var rows = (typeof window.ptfOpexUnlinkedForCheque === 'function') ? window.ptfOpexUnlinkedForCheque() : [];
-    if (!rows.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    var tpls = (typeof window.ptfOpexTemplates === 'function') ? window.ptfOpexTemplates() : [];
+    var futureHtml = '';
+    tpls.forEach(function (t) {
+      var fut = (typeof window.ptfOpexFutureMonthsForTpl === 'function') ? window.ptfOpexFutureMonthsForTpl(t.id) : [];
+      if (!fut.length) return;
+      futureHtml += '<div style="margin-top:8px;font-weight:700;color:#9a3412">ماه‌های باقی‌مانده «' + escP(t.cat) + '» تا آخر سال (' + money(t.amt) + ' ریال/ماه)</div>' +
+        fut.map(function (f) {
+          return '<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="ptf-ch-opex-future" data-tpl="' + escP(t.id) + '" data-month="' + escP(f.month) + '" data-amt="' + (+f.amt || 0) + '"> ' +
+            escP(f.name) + ' — هنوز ثبت نشده</label>';
+        }).join('');
+    });
+    if (!rows.length && !futureHtml) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
     wrap.style.display = '';
-    wrap.innerHTML = '<label>بابت کدام هزینه جاری؟ (اجاره و مشابه — تا دوبار شمرده نشود)</label>' +
-      '<div style="max-height:160px;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:8px;background:#fffbeb;font-size:12.5px">' +
+    wrap.innerHTML = '<label>بابت کدام ماه‌های هزینه جاری؟ (چک از الان تا آخر سال)</label>' +
+      '<div style="max-height:220px;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:8px;background:#fffbeb;font-size:12.5px">' +
+      (rows.length ? '<div style="font-weight:700;color:#9a3412">ثبت‌شده و بدون چک</div>' : '') +
       rows.map(function (x) {
         return '<label style="display:flex;gap:8px;align-items:center;padding:3px 0"><input type="checkbox" class="ptf-ch-opex" value="' + escP(x._opexRowId) + '" data-amt="' + (+x.amt || 0) + '"> ' +
           escP(x.month || '') + ' — ' + escP(x.cat || '') + ' — ' + money(x.amt) + ' ریال' + (x.desc ? ' <small style="color:#64748b">(' + escP(x.desc) + ')</small>' : '') + '</label>';
       }).join('') +
-      '<div style="margin-top:6px;color:#92400e">جمع ماه‌های تیک‌خورده باید با مبلغ چک یکی باشد (مثلاً دو ماه ۳۲ = یک چک ۶۴).</div></div>';
+      futureHtml +
+      '<div style="margin-top:6px;color:#92400e">جمع تیک‌ها باید با مبلغ چک یکی باشد. ماه‌های آینده همین‌جا ساخته و به چک وصل می‌شوند تا دوباره ثبت نشوند.</div></div>';
   };
   window.ptfChNOpexPicked = function () {
-    var ids = [], sum = 0;
+    var ids = [], future = [], sum = 0;
     Array.prototype.forEach.call(document.querySelectorAll('.ptf-ch-opex:checked'), function (el) {
       ids.push(el.value);
       sum += +el.getAttribute('data-amt') || 0;
     });
-    return { ids: ids, sum: sum };
+    Array.prototype.forEach.call(document.querySelectorAll('.ptf-ch-opex-future:checked'), function (el) {
+      var amt = +el.getAttribute('data-amt') || 0;
+      future.push({ tplId: el.getAttribute('data-tpl'), month: el.getAttribute('data-month'), amt: amt });
+      sum += amt;
+    });
+    return { ids: ids, future: future, sum: sum };
   };
 
   window.ptfChNCommit = function () {
@@ -393,8 +411,8 @@
         return;
       } else {
         var book = window._ptfChNBook || null;
-        var opexPick = window.ptfChNOpexPicked ? window.ptfChNOpexPicked() : { ids: [], sum: 0 };
-        if (opexPick.ids.length && Math.round(opexPick.sum) !== Math.round(amt)) {
+        var opexPick = window.ptfChNOpexPicked ? window.ptfChNOpexPicked() : { ids: [], future: [], sum: 0 };
+        if ((opexPick.ids.length || (opexPick.future && opexPick.future.length)) && Math.round(opexPick.sum) !== Math.round(amt)) {
           alert('جمع هزینه‌های انتخاب‌شده (' + money(opexPick.sum) + ') با مبلغ چک یکی نیست.');
           return;
         }
@@ -412,8 +430,17 @@
         if (!saved2 || saved2.why === 'sayad_locked') { alert(saved2 && saved2.error ? saved2.error : '⛔ ثبت چک ممکن نشد'); return; }
         try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved2); } catch (eR2) {}
         var dlg2 = document.getElementById('ptfChNewDlg'); if (dlg2) dlg2.remove();
+        var linkedN = opexPick.ids.length;
+        if (opexPick.future && opexPick.future.length && typeof window.ptfOpexCreateMonthsForCheque === 'function') {
+          var made = window.ptfOpexCreateMonthsForCheque(saved2.cd, opexPick.future);
+          if (made && made.ids) {
+            opexPick.ids = (opexPick.ids || []).concat(made.ids);
+            linkedN += made.ids.length;
+          }
+        }
         if (opexPick.ids.length && typeof window.ptfOpexLinkCheque === 'function') window.ptfOpexLinkCheque(saved2.cd, opexPick.ids);
-        if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + (opexPick.ids.length ? ' — وصل به ' + opexPick.ids.length + ' هزینه جاری (بدون دوباره‌شماری)' : ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : '')), 'ok');
+        if (opexPick.ids.length && typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(saved2.cd, { opexRowIds: opexPick.ids.slice() });
+        if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + (linkedN ? ' — وصل به ' + linkedN + ' ماه هزینه (بدون دوباره‌شماری)' : ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : '')), 'ok');
         try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOx) {}
         window.ptfChequePanelRender();
         return;
