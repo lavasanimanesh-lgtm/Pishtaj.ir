@@ -342,17 +342,33 @@
       var rows = arr(c.shares).map(function (s) {
         var remain = window.ptfTreasuryCallRemainOf(c, s.shCd);
         var paid = window.ptfTreasuryCallPaidOf(c, s.shCd);
-        var act = (c.status === 'open' && remain > 0 && can())
+        var act = (c.status !== 'void' && remain > 0 && can())
           ? '<button type="button" class="ba" data-call="' + esc(c.cd) + '" data-sh="' + esc(s.shCd) + '" onclick="ptfTreasuryCallPay(this.getAttribute(\'data-call\'),this.getAttribute(\'data-sh\'))">واریز</button>'
           : '';
         return '<tr><td>' + esc(s.shName) + '</td><td>' + s.pct + '٪</td><td>' + money(s.due) + '</td><td>' + money(paid) + '</td><td>' + money(remain) + '</td><td>' + act + '</td></tr>';
       }).join('');
-      var voidBtn = (c.status === 'open' && !arr(c.pays).length && can())
-        ? ' <button type="button" class="ba" style="color:#dc2626" data-call="' + esc(c.cd) + '" onclick="ptfTreasuryCallVoid(this.getAttribute(\'data-call\'))">ابطال</button>'
+      var hasActivePay = arr(c.pays).some(function (p) { return p && p.status !== 'void'; });
+      var payRows = arr(c.pays).map(function (p) {
+        if (!p) return '';
+        var voided = p.status === 'void';
+        var kind = p.fromCredit ? 'تهاتر طلب' : (num(p.over) > 0 ? 'نقد + مازاد' : 'نقد');
+        var acts = '';
+        if (!voided && c.status !== 'void' && can()) {
+          if (!p.fromCredit) {
+            acts += '<button type="button" class="ba" data-call="' + esc(c.cd) + '" data-pay="' + esc(p.cd) + '" onclick="ptfTreasuryCallEditPay(this.getAttribute(\'data-call\'),this.getAttribute(\'data-pay\'))">اصلاح</button> ';
+          }
+          acts += '<button type="button" class="ba" style="color:#dc2626" data-call="' + esc(c.cd) + '" data-pay="' + esc(p.cd) + '" onclick="ptfTreasuryCallVoidPay(this.getAttribute(\'data-call\'),this.getAttribute(\'data-pay\'))">ابطال</button>';
+        }
+        return '<tr' + (voided ? ' style="opacity:.55"' : '') + '><td>' + esc(p.t || '') + '</td><td>' + esc(p.shName || '') + '</td><td>' + kind + (voided ? ' — باطل' : '') + '</td><td>' + money(p.amt) + '</td><td>' + money(p.apply) + '</td><td>' + money(p.over) + '</td><td>' + acts + '</td></tr>';
+      }).join('');
+      var voidBtn = (c.status !== 'void' && !hasActivePay && can())
+        ? ' <button type="button" class="ba" style="color:#dc2626" data-call="' + esc(c.cd) + '" onclick="ptfTreasuryCallVoid(this.getAttribute(\'data-call\'))">ابطال فراخوان</button>'
         : '';
       return '<div style="background:#fff;border:1px solid #bae6fd;border-radius:12px;padding:10px;margin:8px 0"><b>' + esc(c.cd) + '</b> — ' + money(c.gap) + ' — ' + esc(c.status === 'open' ? 'باز' : (c.status === 'closed' ? 'تسویه' : 'باطل')) + voidBtn +
         (c.note ? '<br><small>' + esc(c.note) + '</small>' : '') +
-        '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>سهامدار</th><th>درصد فریز</th><th>سهم</th><th>واریز</th><th>مانده</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+        '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>سهامدار</th><th>درصد فریز</th><th>سهم</th><th>واریز</th><th>مانده</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        (payRows ? '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>تاریخ</th><th>سهامدار</th><th>نوع</th><th>مبلغ</th><th>به سهم</th><th>مازاد/طلب</th><th></th></tr></thead><tbody>' + payRows + '</tbody></table></div>' : '') +
+        '</div>';
     }).join('');
     return banner + (body || '<small style="color:#64748b">فراخوانی ثبت نشده است.</small>');
   }

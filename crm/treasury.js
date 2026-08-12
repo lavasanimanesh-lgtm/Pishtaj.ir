@@ -327,10 +327,17 @@
         var remain = Math.max(0, num(s.due) - paid);
         return '<tr><td>' + esc(s.shName) + '</td><td>' + (s.pct || 0) + '٪</td><td>' + money(s.due) + '</td><td>' + money(paid) + '</td><td>' + money(remain) + '</td></tr>';
       }).join('');
+      var pays = arr(call.pays).map(function (p) {
+        if (!p) return '';
+        var kind = p.fromCredit ? 'تهاتر طلب' : (num(p.over) > 0 ? 'نقد + مازاد' : 'نقد');
+        if (p.status === 'void') kind += ' — باطل';
+        return '<tr><td>' + esc(p.t || '') + '</td><td>' + esc(p.shName || '') + '</td><td>' + kind + '</td><td>' + money(p.amt) + '</td><td>' + money(p.apply) + '</td><td>' + money(p.over) + '</td></tr>';
+      }).join('');
       return '<h2>فراخوان ' + esc(call.cd) + ' — ' + stLabel(call.status) + ' — کسری ' + money(call.gap) + '</h2>' +
         (call.note ? '<p>' + esc(call.note) + '</p>' : '') +
         '<table><thead><tr><th>سهامدار</th><th>درصد فریز</th><th>سهم</th><th>واریز/تهاتر</th><th>مانده بدهی</th></tr></thead><tbody>' +
-        (rows || '<tr><td colspan="5">سهمی نیست</td></tr>') + '</tbody></table>';
+        (rows || '<tr><td colspan="5">سهمی نیست</td></tr>') + '</tbody></table>' +
+        (pays ? '<table><thead><tr><th>تاریخ</th><th>سهامدار</th><th>نوع واریز</th><th>مبلغ</th><th>به سهم</th><th>مازاد/طلب</th></tr></thead><tbody>' + pays + '</tbody></table>' : '');
     }).join('');
     var moveRows = moves.map(function (m) {
       return '<tr><td>' + esc(m.dateFa || m.dateISO || '') + '</td><td>' + esc(m.src || '') + '</td><td>' + esc(m.label || '') + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td></tr>';
