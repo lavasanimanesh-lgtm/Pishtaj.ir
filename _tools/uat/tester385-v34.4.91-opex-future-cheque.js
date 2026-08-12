@@ -47,6 +47,9 @@ var fut = ctx.window.ptfOpexFutureMonthsForTpl('TPL-RENT', '1405');
 var months = fut.map(function (x) { return x.month; });
 assert.ok(months.indexOf('1405/05') < 0, 'current posted month not future');
 assert.ok(months.indexOf('1405/06') > -1 && months.indexOf('1405/12') > -1, 'rest of year listed');
+var lease = ctx.window.ptfOpexFutureMonthsForTpl('TPL-RENT');
+var leaseM = lease.map(function (x) { return x.month; });
+assert.ok(leaseM.indexOf('1406/02') > -1 || leaseM.indexOf('1406/03') > -1, 'crosses into next year for Khordad-to-Khordad');
 
 var made = ctx.window.ptfOpexCreateMonthsForCheque('CHQ-1', [
   { tplId: 'TPL-RENT', month: '1405/06' },

@@ -321,7 +321,7 @@
     });
     if (!rows.length && !futureHtml) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
     wrap.style.display = '';
-    wrap.innerHTML = '<label>بابت کدام ماه‌های هزینه جاری؟ (چک از الان تا آخر سال)</label>' +
+    wrap.innerHTML = '<label>بابت کدام ماه‌های هزینه جاری؟ (حتی خرداد تا خرداد سال بعد)</label>' +
       '<div style="max-height:220px;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:8px;background:#fffbeb;font-size:12.5px">' +
       (rows.length ? '<div style="font-weight:700;color:#9a3412">ثبت‌شده و بدون چک</div>' : '') +
       rows.map(function (x) {

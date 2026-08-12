@@ -549,25 +549,29 @@
       return x && !x.chequeCd && x.st !== 'void' && !x.voided;
     }).sort(function (a, b) { return String(b.month || '').localeCompare(String(a.month || '')); }).slice(0, 24);
   };
-  /* ماه‌های باقی‌مانده سال جاری که هنوز ردیف هزینه از این قالب ندارند (برای چک از الان تا آخر سال). */
+  /* از ماه جاری تا ۱۲ ماه بعد (مثلاً خرداد امسال تا اردیبهشت سال بعد). ماه‌هایی که ردیف دارند نمی‌آیند. */
   window.ptfOpexFutureMonthsForTpl = function (tplId, throughYear) {
     var t = tpls().filter(function (x) { return x && x.id === tplId; })[0];
     if (!t) return [];
     var now = normMonth(ptfFaMonthNow()) || '';
-    var y = throughYear || (now ? now.split('/')[0] : '');
-    if (!y) return [];
-    var startM = 1;
-    if (now && now.split('/')[0] === String(y)) startM = Math.max(1, +now.split('/')[1] || 1);
+    if (!now) return [];
+    var y = +now.split('/')[0];
+    var m0 = +now.split('/')[1] || 1;
     var have = {};
     oRows().forEach(function (x) {
       if (!x || x.st === 'void') return;
       if (tplId && x.tplId === tplId && x.month) have[x.month] = true;
     });
     var out = [];
-    for (var i = startM; i <= 12; i++) {
-      var m = y + '/' + ('0' + i).slice(-2);
-      if (have[m]) continue;
-      out.push({ tplId: t.id, month: m, amt: +t.amt || 0, cat: t.cat || '', desc: t.desc || '', name: (OPEX_MONTH_NAMES[i - 1] || '') + ' ' + y });
+    var nMonths = 12;
+    if (throughYear && String(throughYear) === String(y)) nMonths = 13 - m0;
+    for (var k = 0; k < nMonths; k++) {
+      var mm = m0 + k;
+      var yy = y + Math.floor((mm - 1) / 12);
+      var mo = ((mm - 1) % 12) + 1;
+      var month = yy + '/' + ('0' + mo).slice(-2);
+      if (have[month]) continue;
+      out.push({ tplId: t.id, month: month, amt: +t.amt || 0, cat: t.cat || '', desc: t.desc || '', name: (OPEX_MONTH_NAMES[mo - 1] || '') + ' ' + yy });
     }
     return out;
   };
