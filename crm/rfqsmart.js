@@ -172,6 +172,7 @@
         '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff;font-weight:bold" onclick="rfqsToggleAccordion(\'' + ptfOnClickArg(r.no) + '\')">🔻 تخصیص و استعلام کشویی (بدون مودال)</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsOpen(\'' + ptfOnClickArg(r.no) + '\')">📂 باز کردن</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsPrintPreview(\'' + ptfOnClickArg(r.no) + '\',null)">🖨️ PDF</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#059669" onclick="rfqsShareToMessenger(\'' + ptfOnClickArg(r.no) + '\',null)">📤 پیام‌رسان</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#0e7490" onclick="rfqsPrintPickSupplier(\'' + ptfOnClickArg(r.no) + '\')">🖨 اختصاصی</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsXls(\'' + ptfOnClickArg(r.no) + '\')">⬇️ اکسل پاک</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#dc2626" onclick="rfqsDel(\'' + ptfOnClickArg(r.no) + '\')">🗑️</button>' +
@@ -1290,6 +1291,7 @@
         (t.email ? '<a class="bt bt-o" style="padding:4px 9px;font-size:11.5px;text-decoration:none" href="mailto:' + escP(t.email) + '?subject=' + encodeURIComponent('استعلام ' + r.no + ' — پیشرو تجهیز فرتاک') + '&body=' + mailBody + '" onclick="rfqsMarkSend(\'' + ptfOnClickArg(r.no) + '\',' + i + ',\'email\')">✉️ ایمیل</a>' : '') +
         (t.ph ? '<a class="bt bt-o" style="padding:4px 9px;font-size:11.5px;text-decoration:none" target="_blank" href="https://wa.me/98' + escP(String(t.ph).replace(/\D/g, '').replace(/^0/, '')) + '?text=' + waTxt + '" onclick="rfqsMarkSend(\'' + ptfOnClickArg(r.no) + '\',' + i + ',\'whatsapp\')">💬 واتساپ</a>' : '') +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="rfqsPrintPreview(\'' + ptfOnClickArg(r.no) + '\',' + i + ')" title="پیش‌نمایش/دانلود PDF افقی مختص این تامین‌کننده">🖨 PDF</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#059669" onclick="rfqsShareToMessenger(\'' + ptfOnClickArg(r.no) + '\',' + i + ')" title="ارسال سند به پیام‌رسان بدون ذخیره">📤</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#059669" onclick="rfqsReply(\'' + ptfOnClickArg(r.no) + '\',' + i + ')">💰 ثبت پاسخ</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626" onclick="rfqsDecline(\'' + ptfOnClickArg(r.no) + '\',' + i + ')">رد کرد</button>' +
         '</span></div></div>';
@@ -1433,6 +1435,17 @@
       '<div class="ftr">Pishro Tajhiz Fartak Co. | Tehran | www.pishtaj.ir</div></body></html>';
   };
 
+  window.rfqsShareToMessenger = function (no, targetIdx) {
+    var r = getData('ptf_crm_rfqsmart').filter(function (x) { return x.no === no; })[0];
+    if (!r) return;
+    var hasIdx = (targetIdx != null && targetIdx !== '' && !isNaN(+targetIdx));
+    var tgt = (hasIdx && r.targets && r.targets[+targetIdx]) ? r.targets[+targetIdx] : null;
+    var html = ptfRfqsPrintHtml(r, tgt);
+    var fname = (r.no || 'RFQ') + (tgt && tgt.co ? ('__' + String(tgt.co).replace(/[^\w\u0600-\u06FF\-]+/g, '_').slice(0, 40)) : '');
+    if (typeof ptfShareHtmlToMessenger === 'function') ptfShareHtmlToMessenger(html, fname);
+    else if (typeof ptfToast === 'function') ptfToast('ارسال به پیام‌رسان در این نسخه در دسترس نیست', 'warn');
+  };
+
   window.rfqsPrintPreview = function (no, targetIdx) {
     var r = getData('ptf_crm_rfqsmart').filter(function (x) { return x.no === no; })[0];
     if (!r) return;
@@ -1516,6 +1529,7 @@
       + '<div style="max-height:50vh;overflow:auto;margin-bottom:12px">' + opts + '</div>'
       + '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">'
       + '<button class="bt bt-o" onclick="var m=document.getElementById(\'rqsPdfPick\');if(m)m.remove()">انصراف</button>'
+      + '<button class="bt bt-o" style="color:#059669" onclick="rfqsPrintPickShare(\'' + ptfOnClickArg(no) + '\')">📤 پیام‌رسان</button>'
       + '<button class="bt" style="background:#0e7490" onclick="rfqsPrintPickGo(\'' + ptfOnClickArg(no) + '\')">👁 پیش‌نمایش / دانلود</button>'
       + '</div></div></div>';
     try { var old = document.getElementById('rqsPdfPick'); if (old) old.remove(); } catch (e1) {}
@@ -1527,6 +1541,11 @@
     if (!sel) { alert('یک تامین‌کننده را انتخاب کنید'); return; }
     try { var m = document.getElementById('rqsPdfPick'); if (m) m.remove(); } catch (e2) {}
     rfqsPrintPreview(no, +sel.value);
+  };
+  window.rfqsPrintPickShare = function (no) {
+    var sel = document.querySelector('input[name="rqsPdfSup"]:checked');
+    if (!sel) { alert('یک تامین‌کننده را انتخاب کنید'); return; }
+    rfqsShareToMessenger(no, +sel.value);
   };
 
   /* ============ روتینگ ============ */
