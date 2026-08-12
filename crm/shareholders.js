@@ -190,9 +190,65 @@
   };
 
   function addTx(type, sh, amt, desc, extra) {
-    var rec = Object.assign({ cd: genCode('SHT'), shCd: sh.cd, shName: sh.name, type: type, amt: +amt || 0, desc: desc || '', t: faDateTime(), month: faMonthNow(), by: nm() }, extra || {});
+    var rec = Object.assign({ cd: genCode('SHT'), shCd: sh.cd, shName: sh.name, type: type, amt: +amt || 0, desc: desc || '', t: faDateTime(), month: faMonthNow(), by: nm(), files: [] }, extra || {});
+    if (extra && extra.files) rec.files = (extra.files || []).slice();
     var a = txAll(); a.unshift(rec); txSave(a); return rec;
   }
+
+  function shareTxFind(cd) {
+    return txAll().filter(function (x) { return x && x.cd === cd; })[0] || null;
+  }
+  function shareTxFileRows(tx) {
+    var files = (tx && tx.files) || [];
+    if (!files.length) return '<div style="padding:10px;border:1px dashed var(--brd);border-radius:10px;text-align:center;color:#94a3b8">هنوز سندی برای این پرداخت ثبت نشده.</div>';
+    return files.map(function (f, index) {
+      var key = ptfOnClickArg(f.key || '');
+      var name = escP(f.name || ('سند ' + (index + 1)));
+      return '<div style="display:flex;align-items:center;gap:7px;min-width:0;padding:7px 9px;margin-bottom:6px;border:1px solid var(--brd);border-radius:10px;background:var(--bg)">' +
+        '<span aria-hidden="true">📄</span><span title="' + name + '" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</span>' +
+        (f.key ? '<button type="button" class="bt bt-o" style="padding:4px 8px;font-size:11px;flex:none" onclick="openStoredFile(\'' + key + '\')">مشاهده</button>' : '<small style="color:#94a3b8;flex:none">صف محلی</small>') +
+        '<button type="button" class="bt bt-o" style="padding:4px 8px;font-size:11px;color:#dc2626;flex:none" title="حذف پیوست" onclick="ptfShareTxRemoveFile(\'' + ptfOnClickArg(tx.cd) + '\',\'' + key + '\')">✕</button></div>';
+    }).join('');
+  }
+  window.ptfShareTxAttachOpen = function (cd) {
+    if (!canShare()) return;
+    var tx = shareTxFind(cd);
+    if (!tx) { alert('پرداخت یافت نشد'); return; }
+    var old = document.getElementById('shareTxAttachDlg');
+    if (old) old.remove();
+    var html = '<div class="md-b" id="shareTxAttachDlg" data-share-tx="' + escP(cd) + '" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:500px"><h3>📎 اسناد پرداخت — ' + escP(tx.cd) + '</h3><div style="font-size:12px;color:#475569;line-height:1.8;margin-bottom:10px">فیش واریز، تصویر چک، رسید یا هر مدرک این پرداخت را بارگذاری کنید. فایل به همین ردیف گردش می‌چسبد.</div><div id="shareTxAttachFiles" style="max-height:240px;overflow:auto;margin-bottom:12px">' + shareTxFileRows(tx) + '</div><div id="shareTxAttachUp"></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="document.getElementById(\'shareTxAttachDlg\').remove();if(typeof ptfShareLedger===\'function\')ptfShareLedger(\'' + ptfOnClickArg(tx.shCd) + '\')">تمام</button></div></div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    if (typeof attachUploadWidget !== 'function') { alert('ماژول بارگذاری فایل آماده نیست؛ صفحه را تازه کنید.'); return; }
+    attachUploadWidget('shareTxAttachUp', 'sharetx/' + tx.cd, function (f) {
+      var all = txAll(), rec = all.filter(function (x) { return x.cd === cd; })[0];
+      if (!rec || !f || !f.key) return;
+      rec.files = rec.files || [];
+      if (!rec.files.some(function (x) { return x.key === f.key; })) rec.files.push(f);
+      txSave(all);
+      var box = document.getElementById('shareTxAttachFiles');
+      if (box) box.innerHTML = shareTxFileRows(rec);
+      try { audit('سهامداران', 'پیوست سند «' + (f.name || '') + '» به پرداخت ' + rec.cd, rec.cd); } catch (eA) {}
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('سند روی این دستگاه به پرداخت پیوست شد');
+      else if (typeof ptfToast === 'function') ptfToast('سند به پرداخت پیوست شد', 'ok');
+    });
+  };
+  window.ptfShareTxRemoveFile = function (cd, key) {
+    if (!canShare() || !key) return;
+    var all = txAll(), rec = all.filter(function (x) { return x.cd === cd; })[0];
+    if (!rec) return;
+    var file = (rec.files || []).filter(function (x) { return x.key === key; })[0] || {};
+    if (!confirm('پیوست «' + (file.name || 'فایل') + '» حذف شود؟')) return;
+    rec.files = (rec.files || []).filter(function (x) { return x.key !== key; });
+    txSave(all);
+    var box = document.getElementById('shareTxAttachFiles');
+    if (box) box.innerHTML = shareTxFileRows(rec);
+    try { audit('سهامداران', 'حذف پیوست «' + (file.name || '') + '» از پرداخت ' + rec.cd, rec.cd); } catch (eA) {}
+    try {
+      if (typeof STORAGE_API !== 'undefined' && typeof ptfStorageAuthHeaders === 'function') {
+        fetch(STORAGE_API + '?action=delete', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ key: key }) }).catch(function () {});
+      }
+    } catch (eD) {}
+  };
 
   /* MOB-041: actionهای سهامداران به tileهای دارای نام/معنا تبدیل می‌شوند؛ هیچ
      چرخ‌دنده یا first-letter مبهم در موبایل باقی نمی‌ماند. */
@@ -292,15 +348,18 @@
   window.ptfShareDraw = function (cd) {
     if (!canShare()) return;
     var s = shAll().filter(function (x) { return x.cd === cd; })[0]; if (!s) return;
+    var draftCd = genCode('SHT');
     ptfDialog({ title: 'برداشت / علی‌الحساب — ' + s.name, fields: [
       { id: 'amt', label: 'مبلغ برداشت', type: 'number', required: true, dir: 'ltr' },
-      { id: 'desc', label: 'شرح/شماره سند', required: true }
+      { id: 'desc', label: 'شرح/شماره سند', required: true },
+      { id: 'files', label: 'پیوست سند پرداخت (فیش، چک، رسید)', type: 'upload', uploadFolder: 'sharetx/' + draftCd }
     ], okText: 'ثبت برداشت', onOk: function (v) {
       var month = normMonth(window._shareMonth || faMonthNow()) || faMonthNow();
       if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ ثبت برداشت در آن سال مجاز نیست.'); return; }
       var amt = n(v.amt); if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
-      var tx = addTx('draw', s, amt, v.desc, {});
-      audit('سهامداران', 'ثبت برداشت/علی‌الحساب ' + money(amt) + ' برای ' + s.name, tx.cd);
+      var tx = addTx('draw', s, amt, v.desc, { cd: draftCd, files: (v.files || []).slice() });
+      audit('سهامداران', 'ثبت برداشت/علی‌الحساب ' + money(amt) + ' برای ' + s.name + ((tx.files || []).length ? ' — ' + tx.files.length + ' سند' : ''), tx.cd);
+      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('برداشت روی این دستگاه ثبت شد');
       ptfShareRender();
     } });
   };
@@ -316,19 +375,22 @@
     if (!s.duty || !(+s.salary || 0)) { alert('این سهامدار موظف نیست یا حقوقی برایش تعریف نشده.'); return; }
     var month = normMonth(window._shareMonth || faMonthNow()) || faMonthNow();
     if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ پرداخت حقوق در آن سال مجاز نیست.'); return; }
+    var draftCd = genCode('SHT');
     ptfDialog({
       title: '💳 پرداخت حقوق — ' + s.name,
-      body: 'حقوق ماهانهٔ موظف این سهامدار: <b>' + money(s.salary) + '</b> ریال.<br><small>این مبلغ به‌عنوان «پرداخت مطالبهٔ حقوق» ثبت می‌شود (نه علی‌الحساب سود) و در گردش حساب سهامدار اثر می‌گذارد.</small>',
+      body: 'حقوق ماهانهٔ موظف این سهامدار: <b>' + money(s.salary) + '</b> ریال.<br><small>این مبلغ به‌عنوان «پرداخت مطالبهٔ حقوق» ثبت می‌شود (نه علی‌الحساب سود) و در گردش حساب سهامدار اثر می‌گذارد. فیش یا تصویر چک را همین‌جا پیوست کنید.</small>',
       fields: [
         { id: 'amt', label: 'مبلغ پرداختی (ریال) *', type: 'number', value: String(+s.salary || 0), required: true, dir: 'ltr' },
-        { id: 'desc', label: 'شرح/شماره سند', value: 'پرداخت حقوق موظف ' + month, required: true }
+        { id: 'desc', label: 'شرح/شماره سند', value: 'پرداخت حقوق موظف ' + month, required: true },
+        { id: 'files', label: 'پیوست سند پرداخت (فیش واریز، تصویر چک، رسید)', type: 'upload', uploadFolder: 'sharetx/' + draftCd }
       ],
       okText: 'ثبت پرداخت حقوق',
       onOk: function (v) {
         var amt = n(v.amt); if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
-        var tx = addTx('salary_payment', s, amt, String(v.desc || '').trim(), { month: month, salaryMonth: month });
-        audit('سهامداران', 'پرداخت حقوق ' + money(amt) + ' برای ' + s.name + ' (مطالبهٔ حقوق — نه علی‌الحساب سود)', tx.cd);
-        if (typeof ptfToast === 'function') ptfToast('حقوق ' + s.name + ' پرداخت و به‌عنوان تسویهٔ مطالبه ثبت شد', 'ok');
+        var tx = addTx('salary_payment', s, amt, String(v.desc || '').trim(), { cd: draftCd, month: month, salaryMonth: month, files: (v.files || []).slice() });
+        audit('سهامداران', 'پرداخت حقوق ' + money(amt) + ' برای ' + s.name + ' (مطالبهٔ حقوق — نه علی‌الحساب سود)' + ((tx.files || []).length ? ' — ' + tx.files.length + ' سند' : ''), tx.cd);
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('پرداخت حقوق روی این دستگاه ثبت شد');
+        else if (typeof ptfToast === 'function') ptfToast('حقوق ' + s.name + ' پرداخت و به‌عنوان تسویهٔ مطالبه ثبت شد', 'ok');
         ptfShareRender();
       }
     });
@@ -340,10 +402,14 @@
     var rows = txAll().filter(function (x) { return x.shCd === cd; }).map(function (x) {
       var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment') ? '-' : '+';
       var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود' }[x.type] || x.type;
-      return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td></tr>';
+      var nFiles = (x.files || []).length;
+      var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
+      return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td></tr>';
     }).join('');
     var b = ptfShareholderBalance(cd);
-    var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px"><h3>گردش سهامدار — ' + escP(s.name) + '</h3><p style="font-size:13px;color:#475569">مانده لحظه‌ای: <b>' + money(Math.abs(b.net)) + ' ' + (b.net >= 0 ? 'بستانکار' : 'بدهکار') + '</b> | مطالبات تنخواه باز: ' + money(b.petty) + '</p><div class="tb2"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>شرح</th></tr></thead><tbody>' + (rows || '<tr><td colspan="4">گردشی ثبت نشده</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    var oldLed = document.getElementById('shareLedgerDlg');
+    if (oldLed) oldLed.remove();
+    var html = '<div class="md-b" id="shareLedgerDlg" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px"><h3>گردش سهامدار — ' + escP(s.name) + '</h3><p style="font-size:13px;color:#475569">مانده لحظه‌ای: <b>' + money(Math.abs(b.net)) + ' ' + (b.net >= 0 ? 'بستانکار' : 'بدهکار') + '</b> | مطالبات تنخواه باز: ' + money(b.petty) + '</p><div class="tb2"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>مبلغ</th><th>شرح</th><th>سند</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">گردشی ثبت نشده</td></tr>') + '</tbody></table></div><div style="text-align:left;margin-top:10px"><button class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
   };
 
