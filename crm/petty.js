@@ -1106,11 +1106,14 @@
       if (!f || !f.key) return resolve(f);
       var kind = window.ptfPettyFileKind(f.name || f.key || '');
       if (kind !== 'pdf' && kind !== 'heic') return resolve(f);
+      function clientRaster() {
+        if (typeof window.ptfRasterizeCloudFile !== 'function') return Promise.resolve(f);
+        return window.ptfRasterizeCloudFile(f, 8);
+      }
       try {
-        fetch('../api/attachment-thumb.php', { /* v34.0.4-alpha (BUG-PETTY-THUMB-PATH-001): بدون ../ از زیر /crm/ نسبی می‌شد و 404 می‌گرفت */
+        fetch('../api/attachment-thumb.php', {
           method: 'POST', headers: ptfStorageAuthHeaders(true),
-          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 }),
-          /* v2: timeout 30 ثانیه — اگر سرور کند بود، ادامه دهیم */
+          body: JSON.stringify({ key: f.key, name: f.name || f.key, maxPages: 8 })
         }).then(function (r) { return r.json(); })
           .then(function (d) {
             if (d && d.ok && d.images && d.images.length) {
@@ -1119,25 +1122,22 @@
               f.convertedKind = kind;
               f.extraImages = d.images.slice(1).map(function (im) { return { key: im.key, url: im.url }; });
               f.convertError = '';
-            } else {
-              /* FIX: نگه‌داشتن URL اصلی برای fallback — حذف نکن!
-                 اگر kind=pdf باشد، در <embed> نمایش داده می‌شود
-                 اگر kind=heic باشد، اکثر مرورگرها در <img> نمایش می‌دهند */
-              f.convertError = (d && d.error) || 'convert_failed';
-              f.convertedKind = kind;
-              /* f.url دست‌نخورده می‌ماند — همان URL اصلی S3 */
+              return f;
             }
-            resolve(f);
+            f.convertError = (d && d.error) || 'convert_failed';
+            f.convertedKind = kind;
+            return clientRaster();
           })
           .catch(function () {
             f.convertError = 'net';
             f.convertedKind = kind;
-            resolve(f);
-          });
+            return clientRaster();
+          })
+          .then(resolve);
       } catch (e) {
         f.convertError = 'ex';
         f.convertedKind = kind;
-        resolve(f);
+        clientRaster().then(resolve);
       }
     });
   };

@@ -4,7 +4,7 @@ var root=path.join(__dirname,'../..');
 function read(p){return fs.readFileSync(path.join(root,p),'utf8');}
 function fail(m){console.log('FAIL '+m);process.exit(1);}
 var ver=JSON.parse(read('VERSION.json'));
-if(ver.crm_version!=='v34.4.66') fail('VERSION '+ver.crm_version);
+if(ver.crm_version!=='v34.4.67') fail('VERSION '+ver.crm_version);
 var ox=read('crm/opex.js');
 if(/\}\)\(\);\s*\);\s*$/.test(ox)) fail('opex trailing garbage');
 var fx=read('crm/fx.js');

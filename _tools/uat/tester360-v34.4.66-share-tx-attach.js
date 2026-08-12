@@ -4,7 +4,7 @@ var root=path.join(__dirname,'../..');
 function read(p){return fs.readFileSync(path.join(root,p),'utf8');}
 function fail(m){console.log('FAIL '+m);process.exit(1);}
 var ver=JSON.parse(read('VERSION.json'));
-if(ver.crm_version!=='v34.4.66') fail('VERSION '+ver.crm_version);
+if(ver.crm_version!=='v34.4.67') fail('VERSION '+ver.crm_version);
 var s=read('crm/shareholders.js');
 if(s.indexOf('ptfShareTxAttachOpen')<0) fail('attach open');
 if(s.indexOf("type: 'upload'")<0) fail('upload on pay');

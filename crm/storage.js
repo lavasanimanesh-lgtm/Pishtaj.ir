@@ -368,7 +368,7 @@ window.ptfOpenDocViewer = function (url, meta) {
    مشکل CORS/Content-Disposition آروان را از viewer و «تب جدید» حذف می‌کند. */
 function ptfInlineStoredFileUrl(key, name) {
   var ext = ptfFileExt(name) || ptfFileExt(key);
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'pdf'].indexOf(ext) < 0) return Promise.reject(new Error('inline_unsupported'));
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'pdf', 'heic', 'heif', 'heics'].indexOf(ext) < 0) return Promise.reject(new Error('inline_unsupported'));
   return fetch('../api/attachment-read.php', {
     method: 'POST', headers: ptfStorageAuthHeaders(true),
     body: JSON.stringify({ key: key, name: name, mode: 'inline' })
@@ -377,6 +377,126 @@ function ptfInlineStoredFileUrl(key, name) {
     return r.blob();
   }).then(function (blob) { return URL.createObjectURL(blob); });
 }
+window.ptfLoadScriptOnce = function (src) {
+  window._ptfScriptLoads = window._ptfScriptLoads || {};
+  if (window._ptfScriptLoads[src]) return window._ptfScriptLoads[src];
+  window._ptfScriptLoads[src] = new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = function () { resolve(true); };
+    s.onerror = function () { reject(new Error('script ' + src)); };
+    document.head.appendChild(s);
+  });
+  return window._ptfScriptLoads[src];
+};
+function ptfBlobToJpegDataUrl(blob, maxW) {
+  return new Promise(function (resolve, reject) {
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        var cap = maxW || 1400;
+        if (w > cap) { h = Math.round(h * cap / w); w = cap; }
+        var cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(cv.toDataURL('image/jpeg', 0.84));
+      } catch (e) { URL.revokeObjectURL(url); reject(e); }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('img')); };
+    img.src = url;
+  });
+}
+function ptfRasterizePdfBlob(blob, maxPages) {
+  maxPages = maxPages || 8;
+  var worker = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  var lib = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  return window.ptfLoadScriptOnce(lib).then(function () {
+    var pdfjs = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+    if (!pdfjs) throw new Error('pdfjs');
+    if (pdfjs.GlobalWorkerOptions) pdfjs.GlobalWorkerOptions.workerSrc = worker;
+    return blob.arrayBuffer().then(function (buf) {
+      return pdfjs.getDocument({ data: buf }).promise;
+    }).then(function (pdf) {
+      var n = Math.min(pdf.numPages || 1, maxPages);
+      var urls = [];
+      function renderPage(i) {
+        if (i > n) return Promise.resolve(urls);
+        return pdf.getPage(i).then(function (page) {
+          var vp0 = page.getViewport({ scale: 1 });
+          var scale = Math.min(1.6, 1400 / (vp0.width || 1400));
+          var vp = page.getViewport({ scale: scale });
+          var cv = document.createElement('canvas');
+          cv.width = vp.width; cv.height = vp.height;
+          var ctx = cv.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+          return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () {
+            urls.push(cv.toDataURL('image/jpeg', 0.84));
+            return renderPage(i + 1);
+          });
+        });
+      }
+      return renderPage(1);
+    });
+  }).then(function (urls) { return urls || []; }, function () { return []; });
+}
+function ptfRasterizeHeicBlob(blob) {
+  return ptfBlobToJpegDataUrl(blob, 1400).catch(function () {
+    var src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    return window.ptfLoadScriptOnce(src).then(function () {
+      if (typeof heic2any !== 'function') throw new Error('heic2any');
+      return heic2any({ blob: blob, toType: 'image/jpeg', quality: 0.84 });
+    }).then(function (out) {
+      var jpeg = Array.isArray(out) ? out[0] : out;
+      return ptfBlobToJpegDataUrl(jpeg, 1400);
+    }).then(function (url) { return [url]; });
+  }).then(function (urlOrArr) {
+    return Array.isArray(urlOrArr) ? urlOrArr : [urlOrArr];
+  }, function () { return []; });
+}
+/* v34.4.67: پس از دریافت بایت از ابر، PDF/HEIC را در مرورگر به JPEG صفحه به صفحه تبدیل کن
+   (هاست Imagick ندارد؛ embed/HEIC خام در چاپ گزارش تلفیقی دیده نمی‌شود). */
+window.ptfRasterizeCloudFile = function (f, maxPages) {
+  return new Promise(function (resolve) {
+    if (!f) return resolve(f);
+    var name = f.name || f.key || '';
+    var ext = (typeof ptfFileExt === 'function') ? ptfFileExt(name) : String(name).split('.').pop().toLowerCase();
+    var kind = (ext === 'pdf') ? 'pdf' : (['heic', 'heif', 'heics'].indexOf(ext) > -1 ? 'heic' : '');
+    if (!kind) return resolve(f);
+    function apply(urls) {
+      if (!urls || !urls.length) return resolve(f);
+      f.url = urls[0];
+      f.converted = true;
+      f.convertError = '';
+      f.extraImages = urls.slice(1).map(function (u, i) {
+        return { url: u, name: (f.name || 'سند') + ' (صفحه ' + (i + 2) + ')', converted: true };
+      });
+      resolve(f);
+    }
+    function blobOf() {
+      if (f.key && typeof ptfInlineStoredFileUrl === 'function') {
+        return fetch('../api/attachment-read.php', {
+          method: 'POST', headers: ptfStorageAuthHeaders(true),
+          body: JSON.stringify({ key: f.key, name: name, mode: 'inline' })
+        }).then(function (r) {
+          if (!r.ok) throw new Error('read');
+          return r.blob();
+        });
+      }
+      if (f.url) return fetch(f.url).then(function (r) { return r.blob(); });
+      throw new Error('no-src');
+    }
+    blobOf().then(function (blob) {
+      if (kind === 'pdf') return ptfRasterizePdfBlob(blob, maxPages || 8);
+      return ptfRasterizeHeicBlob(blob);
+    }).then(apply).catch(function () { resolve(f); });
+  });
+};
 function openStoredFile(key, nameHint) {
   if (!key) { alert('این فایل هنوز به فضای ابری منتقل نشده'); return; }
   var name = nameHint || (String(key).split('/').pop() || key);
