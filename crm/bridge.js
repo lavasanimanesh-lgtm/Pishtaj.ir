@@ -788,9 +788,10 @@
       st.textContent = '.rfq-offer-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}' +
         '.rfq-offer-chip{min-height:38px;padding:6px 14px;border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#334155;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer}' +
         '.rfq-offer-chip.is-on{background:#0e7490;color:#fff;border-color:#0e7490}' +
+        '#rTb tr.rfq-row-hide,#rTb tr.rfq-row-hide[style]{display:none!important}' +
         '#rTb td:last-child button{width:34px!important;height:34px!important;min-width:34px!important;padding:0!important;display:inline-grid!important;place-items:center;font-size:15px!important;line-height:1;border-radius:10px}' +
         '#rTb td:last-child .bd{display:none}' +
-        '@media(max-width:768px){.rfq-offer-bar{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.rfq-offer-chip{width:100%;min-width:0;padding:8px 4px;font-size:11px;text-align:center}}';
+        '@media(max-width:768px){.rfq-offer-bar{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.rfq-offer-chip{width:100%;min-width:0;padding:8px 4px;font-size:11px;text-align:center}#rTb tr.rfq-row-hide{display:none!important}}';
       document.head.appendChild(st);
     }
     return '<div id="rfqPendWrap"></div>' +
@@ -850,6 +851,8 @@
   }
   /* فیلتر سریع: ردیف‌های از قبل رندرشده را نشان/پنهان می‌کند — بدون ساخت دوباره جدول. */
   window.ptfRfqApplyListFilter = function () {
+    var css = document.getElementById('ptfRfqUiCss');
+    if (css && css.textContent.indexOf('rfq-row-hide') < 0) css.textContent += '#rTb tr.rfq-row-hide{display:none!important}';
     var tb = document.getElementById('rTb');
     if (!tb || !tb.querySelector('tr[data-has-offer]')) return false;
     var qEl = document.getElementById('rSrch');
@@ -992,7 +995,9 @@
       if (r.inqNo && String(r.inqNo).trim() && String(r.inqNo).trim() !== String(r.cd || '').trim()) {
         customerInqLine = '<div style="font-size:10.5px;color:#0e7490;margin-top:2px">↳ درخواست کارفرما: <span dir="ltr">' + escP(String(r.inqNo).trim()) + '</span></div>';
       }
-      h += '<tr' + (rowBg ? ' style="background:' + rowBg + '"' : '') + '><td><strong>' + escP(r.cd) + '</strong>' + wlBadge + srcBadge + dueBadge + attBadge + customerInqLine + crLine + '</td><td>' + escP(r.co) +
+      var hasOff = ptfRfqHasOffer(r, offers, offerInq);
+      var searchBlob = ((r.cd || '') + ' ' + (r.inqNo || '') + ' ' + (r.co || '') + ' ' + (r.con || '') + ' ' + (r.ca || '') + ' ' + (r.subj || '') + ' ' + (r.stxt || '')).toLowerCase().replace(/"/g, '');
+      h += '<tr data-has-offer="' + (hasOff ? '1' : '0') + '" data-search="' + escP(searchBlob) + '"' + (rowBg ? ' style="background:' + rowBg + '"' : '') + '><td><strong>' + escP(r.cd) + '</strong>' + wlBadge + srcBadge + dueBadge + attBadge + customerInqLine + crLine + '</td><td>' + escP(r.co) +
         (r.con ? ' <small style="color:#94a3b8">(' + escP(r.con) + ')</small>' : '') + '</td>' +
         '<td>' + escP(r.ca || '-') + '</td><td>' + escP(r.dt || '—') + '</td>' +
         '<td><span class="bd b-' + (r.st || 'st1') + '">' + escP(r.stxt || 'دریافت اولیه') + '</span>' + rfqWaitBadge(r, offers) + '</td>' +
