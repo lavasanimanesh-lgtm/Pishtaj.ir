@@ -58,7 +58,7 @@ ctx.ptfInlineStoredFileUrl('cheques/2026-08/sample.webp', 'sample.webp').then(fu
   assert.strictEqual(body.key, 'cheques/2026-08/sample.webp');
 
   var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-  assert.ok(/^v34\.4\.(?:3[6-9]|[4-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.36 inline-view baseline');
+  assert.ok(/^v34\.(?:4\.(?:3[6-9]|[4-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(version), 'release must retain or advance the v34.4.36 inline-view baseline');
   var current = version.slice(1);
   ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
     assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');

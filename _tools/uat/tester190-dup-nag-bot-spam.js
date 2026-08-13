@@ -56,6 +56,8 @@ T('پاک‌سازی، هر دو محل را خالی می‌کند', ptfDupAckG
 SECTION('رفتاری: بات برای notify تکراری فرستاده نمی‌شود');
 eval(rb.match(/function notify\(opt\) \{[\s\S]*?\n\}/)[0]);
 eval(rb.match(/function myNotifs\(\) \{[\s\S]*?\n\}/)[0]);
+eval(rb.match(/function ntfNeedsAction\([\s\S]*?\n\}/)[0]);
+eval(rb.match(/var NTF_ACTION_KINDS = \[[^\]]*\];/)[0] + '; global.NTF_ACTION_KINDS = NTF_ACTION_KINDS;');
 window.notify = notify;
 var botSent = [];
 global.ptfBotSend = function (t) { botSent.push(t); };
@@ -66,13 +68,13 @@ setData('ptf_crm_notifs', []);
 var hookSrc = ms.match(/var _n = window\.notify;[\s\S]*?return true;\n  \}/)[0].replace(/return true;\n  \}$/, '');
 eval(hookSrc);
 /* پس از هوک، مثل کد واقعی محصول از window.notify (wrapper) استفاده می‌شود */
-window.notify({ toRoles: ['admin'], title: 'کد تکراری X', body: 'b', kind: 'system' });
+window.notify({ toRoles: ['admin'], title: 'کد تکراری X', body: 'b', kind: 'referral' }); /* 2026-08-13: kind باید در لیست CRITICAL جاری باشد (system از v14.1/US-355 حذف شد) */
 T('اولین notify → بات یک‌بار می‌فرستد', botSent.length === 1);
-window.notify({ toRoles: ['admin'], title: 'کد تکراری X', body: 'b', kind: 'system' });
-window.notify({ toRoles: ['admin'], title: 'کد تکراری X', body: 'b', kind: 'system' });
+window.notify({ toRoles: ['admin'], title: 'کد تکراری X', body: 'b', kind: 'referral' });
+window.notify({ toRoles: ['admin'], title: 'کد تکراری X', body: 'b', kind: 'referral' });
 T('رفرش‌های بعدی (dedup) → بات دیگر نمی‌فرستد (قبلاً هر بار می‌رفت)', botSent.length === 1);
 T('کارتابل همچنان فقط ۱ رکورد با شمارنده دارد', getData('ptf_crm_notifs').length === 1 && getData('ptf_crm_notifs')[0].repeat === 3);
-window.notify({ toRoles: ['admin'], title: 'رویداد جدید Y', kind: 'system' });
+window.notify({ toRoles: ['admin'], title: 'رویداد جدید Y', kind: 'referral' });
 T('notify واقعاً جدید → بات می‌فرستد (سرکوب کور نیست)', botSent.length === 2);
 
 DONE('tester190-dup-nag-bot-spam');

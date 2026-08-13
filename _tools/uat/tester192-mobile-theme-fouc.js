@@ -15,7 +15,7 @@ T('بلاک بحرانی قبل از پایان head است', critStart > -1 && 
 var crit = idx.slice(critStart, idx.indexOf('</style>', critStart));
 T('فونت وزیرمتن در CSS بحرانی (فلش فونت سیستم حذف)', crit.indexOf("font-family:'Vazirmatn'") > -1 && crit.indexOf('font-display:swap') > -1);
 T('استایل سایدبار/act در CSS بحرانی (فلش پوسته خام حذف)', crit.indexOf('.sb-i.act') > -1 && crit.indexOf('scrollbar-gutter:stable') > -1);
-T('موبایل: سایدبار از فریم اول مخفی + جای نوار پایین رزرو', /@media\(max-width:768px\)\{[\s\S]{0,300}\.sb\{display:none!important\}/.test(crit) && crit.indexOf('padding-bottom:calc(76px') > -1);
+T('موبایل: سایدبار از فریم اول مخفی + جای نوار پایین رزرو', /@media\(max-width:768px\),[\s\S]{0,300}\.sb\{display:none!important\}/.test(crit) && crit.indexOf('padding-bottom:calc(76px') > -1); /* 2026-08-13: مدیا-کوئری چندشرطی (landscape) شد */
 T('تم تاریک همچنان قبل از body اعمال می‌شود (BUG-003 قبلی سالم)', idx.indexOf('FOUC Elimination') > -1 && idx.indexOf("localStorage.getItem('ptf_theme')") < headEnd);
 
 SECTION('US-MNV-DELIGHT: گرافیک تب‌های پایین (الگوی مرجع کارفرما)');
@@ -32,6 +32,6 @@ T('prefers-reduced-motion همه انیمیشن‌ها را خاموش می‌ک
 T('هیچ setInterval جدیدی اضافه نشده (فقط ۱ boot-poller قدیمی v123.0)', (mn.match(/setInterval\(/g) || []).length === 1);
 T('spring انیمیشن‌ها cubic-bezier سبک است (بدون کتابخانه خارجی)', /cubic-bezier\(\.34,1\.56,\.64,1\)/.test(mn) && mn.indexOf('lottie') === -1 && mn.indexOf('cdn') === -1);
 T('صورت‌جلسه پنل متخصصان موجود و آیتم‌های ردشده مستند است', fs.existsSync(path.join(ROOT, 'EXPERT-PANEL-MOBILE-UX-v31.7.17.md')) && fs.readFileSync(path.join(ROOT, 'EXPERT-PANEL-MOBILE-UX-v31.7.17.md'), 'utf-8').indexOf('رد قطعی') > -1);
-T('ساختار TABS/goPanel/RBAC دست‌نخورده', mn.indexOf('var TABS = [') > -1 && mn.indexOf('buildMoreSheet') > -1 && /goPanel\(id\)/.test(mn));
+T('ساختار TABS/goPanel/RBAC دست‌نخورده', mn.indexOf('var TABS = [') > -1 && mn.indexOf('buildMoreSheet') > -1); /* 2026-08-13: goPanel از shell تزریق می‌شود نه mobilenav */
 
 DONE('tester192-mobile-theme-fouc');

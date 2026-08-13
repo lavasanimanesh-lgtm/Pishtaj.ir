@@ -13,7 +13,7 @@
   var py = read('crm/petty.js');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(/^v34\.4\.(5[5-9]|[6-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(/^v34\.(?:4\.((5[5-9]|[6-9]\d))|[5-9]\.\d+|\d{2,}\.\d+\.\d+)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
   ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(guard.indexOf('window.ptfDealCostSync') > -1, 'shared deal-cost');
   ok(ox.indexOf("source: 'opex'") > -1, 'opex uses helper');

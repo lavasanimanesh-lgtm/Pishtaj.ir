@@ -14,7 +14,7 @@ assert.ok(src.indexOf("window.ptfWhatsAppOpen(firstMobile(c), '')") > -1, 'under
 assert.strictEqual(src.indexOf('https://wa.me/'), -1, 'messenger buttons must not retain the web/install redirect');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.ok(/^v34\.4\.(?:39|[4-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.39 native WhatsApp baseline');
+assert.ok(/^v34\.(?:4\.(?:39|[4-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(version), 'release must retain or advance the v34.4.39 native WhatsApp baseline');
 var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');

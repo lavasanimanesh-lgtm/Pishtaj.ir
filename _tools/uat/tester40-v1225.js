@@ -34,6 +34,6 @@ T('safe-area-inset-bottom', idx.indexOf('env(safe-area-inset-bottom') > -1);
 SECTION('سند هیئت و نسخه');
 T('سند ASSESSMENT-MOBILE-UX-v122.md', fs.existsSync(path.resolve(__dirname, '../../ASSESSMENT-MOBILE-UX-v122.md')));
 T('سند شامل بک‌لاگ US-286..294', (function () { var d = fs.readFileSync(path.resolve(__dirname, '../../ASSESSMENT-MOBILE-UX-v122.md'), 'utf-8'); return d.indexOf('US-286') > -1 && d.indexOf('US-294') > -1 && d.indexOf('Bottom Tab Bar') > -1; })());
-T('VER v12x', /var VER = 'v\d/.test(idx));
-T('sw.js cache v12x', /ptf-crm-v\d/.test(sw));
+T('VER v12x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw.js cache v12x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester40-v1225');

@@ -17,7 +17,7 @@ T('فقط درخواست‌های api/crm.php دستکاری می‌شوند', /
 T('توکن موجود بازنویسی نمی‌شود (احترام به هدر صریح ماژول‌ها)', /!h\['X-CRM-Token'\] && !h\['x-crm-token'\]/.test(uk) && /!h\.has\('X-CRM-Token'\)/.test(uk));
 T('پشتیبانی از هر دو شکل headers (object و Headers)', /instanceof Headers/.test(uk));
 T('ui-kit.js اول از همه ماژول‌ها لود می‌شود (پوشش کامل)', (function () {
-  var scripts = idx.match(/<script src="[^"]+\.js\?v=/g) || [];
+  var scripts = idx.match(/<script[^>]*src="[^"]+\.js\?v=/g) || [];
   return scripts.length && scripts[0].indexOf('ui-kit.js') > -1;
 })());
 
@@ -52,6 +52,6 @@ T('گارد _ptfFetchTokWrapped: بدون double-wrap', window.fetch === fetchBe
 
 SECTION('پوشش ماژول‌های آسیب‌دیده (سند دامنه باگ)');
 var sms = fs.readFileSync(path.join(ROOT, 'crm/sms.js'), 'utf-8');
-T('sms.js همچنان بدون توکن دستی است — wrapper پوشش می‌دهد (بدون تغییر ماژول)', sms.indexOf('X-CRM-Token') === -1 && sms.indexOf('sms_bulk') > -1);
+T('sms.js توکن را با هلپر خودش می‌فرستد (smsAuthHeaders) و wrapper هم پابرجاست', sms.indexOf('smsAuthHeaders') > -1 && sms.indexOf("h['X-CRM-Token'] = t") > -1 && sms.indexOf('sms_bulk') > -1); /* 2026-08-13: تزریق توکن به‌درون ماژول منتقل شد */
 
 DONE('tester200-sms-auth-token');

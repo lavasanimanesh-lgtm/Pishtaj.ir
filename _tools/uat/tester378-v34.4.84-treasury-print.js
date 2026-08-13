@@ -14,7 +14,7 @@ ok(tr.indexOf('طلب از صندوق') > -1, 'credit col');
 ok(tr.indexOf('فراخوان ') > -1 && tr.indexOf('درصد فریز') > -1, 'call freeze table');
 
 var ver = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
-ok(ver.crm_version === 'v34.4.84', 'version');
+ok(/^v34\.(?:4\.(?:84|[89]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(ver.crm_version), 'version'); /* 2026-08-13: قرارداد حفظ/پیشروی خط مبنا */
 
 if (fails.length) {
   console.error('FAIL\n' + fails.join('\n'));

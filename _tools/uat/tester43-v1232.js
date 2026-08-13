@@ -38,6 +38,6 @@ T('«سرنخ‌ها» برقرار', ld.indexOf('سرنخ‌ها (Leads)') > -1
 T('فیلد سمت گیرنده نامه برقرار', lt.indexOf('id="ltToRole"') > -1 && lt.indexOf('class="torl"') > -1);
 
 SECTION('نسخه');
-T('VER >= v12.3', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=12.3;})());
-T('sw cache >= v12.3', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=12.3;})());
+T('VER >= v12.3', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=12.3;})());
+T('sw cache >= v12.3', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=12.3;})());
 DONE('tester43-v1232');

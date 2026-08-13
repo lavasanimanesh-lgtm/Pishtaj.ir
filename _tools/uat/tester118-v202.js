@@ -7,8 +7,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v20.2+', (function () { var m = idx.match(/var VER = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 20.2; })());
-T('کش sw >= v20.2', (function () { var m = sw.match(/ptf-crm-v([0-9.]+)/); return m && parseFloat(m[1]) >= 20.2; })());
+T('نسخه v20.2+', (function () { var m = idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 20.2; })());
+T('کش sw >= v20.2', (function () { var m = sw.match(/var RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 20.2; })());
 T('docsx.js در index (بعد از salesfiles — hook کشو) + sw', idx.indexOf('docsx.js?v=') > idx.indexOf('salesfiles.js?v=') && sw.indexOf("'./docsx.js'") > -1);
 
 SECTION('US-443 — ساختار: موتور واحد اسناد رسمی');
@@ -21,7 +21,7 @@ T('توالی رویدادها: PL رسمی → sfShipCommit packing (US-433/440
 T('پیش‌بارگذاری اقلام از CO برنده (عطف به رویداد ملاک — US-440)', dx.indexOf('اقلام CO برنده پیش‌بارگذاری شد') > -1 && dx.indexOf('d.wonOffer') > -1);
 T('چاپ با سربرگ رسمی (نوار گرادیان + خطوط مورب هم‌خانواده letters)', dx.indexOf('linear-gradient(90deg,#e87200') > -1 && dx.indexOf('skewX(-35deg)') > -1 && dx.indexOf('window.ptfDocxPrint') > -1);
 T('بلوک امضا سه‌گانه + راهنمای چاپ PDF', dx.indexOf('Prepared by') > -1 && dx.indexOf('Stamp & Signature') > -1 && dx.indexOf('Save as PDF') > -1);
-T('hook کشوی پرونده: باکس اسناد رسمی + دکمه‌های صدور ۴گانه', dx.indexOf('📄 اسناد رسمی قالب شرکت (US-443)') > -1 && dx.indexOf('_dxDealsHooked') > -1);
+T('hook کشوی پرونده: باکس اسناد رسمی + دکمه‌های صدور ۴گانه', dx.indexOf('اسناد رسمی قالب شرکت') > -1 && dx.indexOf('_dxDealsHooked') > -1);
 T('timeline + audit صدور', dx.indexOf('صادر شد (US-443)') > -1 && dx.indexOf("audit('پرونده‌های فروش', 'صدور '") > -1);
 
 SECTION('رفتاری — ptfDocxCommit');

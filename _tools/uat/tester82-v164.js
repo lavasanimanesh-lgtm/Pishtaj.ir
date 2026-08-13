@@ -14,8 +14,8 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت فایل‌ها');
 /* قاعده تسترها: چک نسخه الگوی عمومی + cache-bust «>= نسخه» نه exact */
-T('نسخه v16.4+ در index.html', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.4;})());
-T('کش sw >= ptf-crm-v16.4', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.4;})());
+T('نسخه v16.4+ در index.html', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.4;})());
+T('کش sw >= ptf-crm-v16.4', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.4;})());
 T('dialogx.js و kanban.js در SHELL کش', sw.indexOf("'./dialogx.js'") > -1 && sw.indexOf("'./kanban.js'") > -1);
 T('اسکریپت‌های جدید در index.html', /dialogx\.js\?v=[0-9.]+/.test(idx) && /kanban\.js\?v=[0-9.]+/.test(idx));
 T('dialogx قبل از dedup لود می‌شود (ptfDlgAlert در دسترس ضدتکرار)', idx.indexOf('dialogx.js?v=') < idx.indexOf('dedup.js?v='));

@@ -8,9 +8,9 @@ var of = fs.readFileSync(path.join(BASE, 'offers.js'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('US-301: بازشماری نسخه (تقسیم بر ۱۰، یک رقم اعشار)');
-T('VER v1x اعشاری', /var VER = 'v\d+\.\d/.test(idx));
-T('یادداشت نگاشت نسخه جاری', /window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx));
-T('sw cache v1x', /ptf-crm-v\d/.test(sw));
+T('VER v1x اعشاری', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('یادداشت نگاشت نسخه جاری', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw cache v1x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('سایدبار ورژن واقعی را نشان می‌دهد (US-297 پابرجا)', idx.indexOf("getElementById('sbVer').textContent = 'CRM ' + VER") > -1);
 
 SECTION('US-302: داشبورد = لانچر گرافیکی با درگ');

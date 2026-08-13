@@ -54,7 +54,7 @@ T('push tombstone', api.indexOf('$v = sync_apply_tombstones($k, $v') > -1);
 T('pull tombstone + conflict + متغیرهای archive', api.indexOf('$out[$k] = sync_apply_tombstones($k') > -1 && api.indexOf('$conflictData[$k] = sync_apply_tombstones') > -1 && api.indexOf('$serverArchiveJson') > -1 && api.indexOf('$incomingArchiveJson') > -1);
 
 SECTION('نسخه‌گذاری');
-var vm = idx.match(/window\.VER = '(v[\d.]+)'/);
-T('بامپ نسخه همگام (خوانده‌شده از index): index.html + sw.js + clear-cache.html + نشان P1-MySQL-WIRE', !!vm && sw.indexOf('ptf-crm-' + vm[1]) > -1 && cc.indexOf(vm[1]) > -1 && api.indexOf('P1-MySQL-WIRE') > -1);
+var vm = idx.match(/window\.PTF_CRM_RELEASE = '(v[\d.]+)'/);
+T('بامپ نسخه همگام (خوانده‌شده از index): index.html + sw.js + clear-cache.html + نشان P1-MySQL-WIRE', !!vm && sw.indexOf("var RELEASE = '" + vm[1] + "'") > -1 && cc.indexOf(vm[1]) > -1 && api.indexOf('P1-MySQL-WIRE') > -1);
 
 DONE('tester301-mysql-sync-wire');

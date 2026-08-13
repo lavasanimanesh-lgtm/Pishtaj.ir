@@ -8,8 +8,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v18.6+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.6;})());
-T('کش sw >= v18.6', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=18.6;})());
+T('نسخه v18.6+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.6;})());
+T('کش sw >= v18.6', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.6;})());
 T('cache-bust buycompare/offers >=18.6', ['buycompare.js','offers.js'].every(function(f){var m=idx.match(new RegExp(f.replace('.', '\\.')+'\\?v=([0-9.]+)'));return m&&parseFloat(m[1])>=18.6;}));
 
 SECTION('کد: خرید واقعی پس از برد');

@@ -15,7 +15,7 @@ T('بلاک مطلق تبدیل مجدد حذف شد', of.indexOf('تبدیل م
 T('تبدیل دوم با confirm «پیشنهاد مالی جایگزین»', of.indexOf('US-OFF-ALT') > -1 && of.indexOf('پیشنهاد مالی جایگزین') > -1 && /_isAlt = true;/.test(of));
 T('شمارنده گزینه در پیام (گزینه ۲، ۳، …)', /_altCount = offers\.filter\(function\(x\)\{ return x\.kind !== 'TO' && x\.srcToNo === no; \}\)\.length/.test(of));
 T('مارک altOf روی پیشنهاد جایگزین', /_offState\.altOf = o\.coNo/.test(of));
-T('فهرست TO: دکمه «+CO گزینه ۲» به‌جای قفل مرده', of.indexOf('+CO گزینه ۲') > -1 && of.indexOf('→CO 🔒') === -1);
+T('فهرست TO: دکمه «+CO گزینه ۲» به‌جای قفل مرده', of.indexOf('گزینه ۲') > -1 && of.indexOf('→CO 🔒') === -1); /* 2026-08-13: برچسب به «ساخت پیشنهاد مالی جایگزین (گزینه ۲)» تغییر کرد */
 T('بج ⑂ گزینه جایگزین در ردیف فهرست', of.indexOf('⑂ گزینه جایگزین') > -1);
 T('لینک coNo اول بازنویسی نمی‌شود (ردیابی TO→CO اول سالم)', /x\.no === o\.srcToNo && \(!x\.coNo \|\| !offers\.some/.test(of));
 

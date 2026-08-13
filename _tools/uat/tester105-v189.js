@@ -9,8 +9,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v18.9+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.9;})());
-T('کش sw v18.9+', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=18.9;})());
+T('نسخه v18.9+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.9;})());
+T('کش sw v18.9+', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.9;})());
 T('cache-bust offers/rbac/buycompare >= 18.9', ['offers.js','rbac.js','buycompare.js'].every(function(f){var m=idx.match(new RegExp(f.replace('.','\\.')+'\\?v=([0-9.]+)'));return m&&parseFloat(m[1])>=18.9;}));
 
 SECTION('BUG-028 ارز');

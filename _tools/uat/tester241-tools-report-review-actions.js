@@ -19,7 +19,7 @@ T('update فقط review را تغییر می‌دهد و final issue جداست'
 T('tools API status به v33.5.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM review action UI');
-T('tool-report-drafts.js با v33.5.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-report-drafts.js با v33.5.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('UI تابع ptfToolReportDraftSetStatus دارد', ui.indexOf('window.ptfToolReportDraftSetStatus = function') > -1 && ui.indexOf('admin_report_draft_update') > -1);
 T('UI برای statusها دکمه دارد', ['Reviewed','Needs data','Approved for final phase','Rejected','Duplicate'].every(function (x) { return ui.indexOf(x) > -1; }));
 T('UI note review با prompt می‌گیرد', ui.indexOf('یادداشت review') > -1 && ui.indexOf('prompt(') > -1);

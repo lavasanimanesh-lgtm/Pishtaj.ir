@@ -1,3 +1,14 @@
+/* =====================================================================
+   آرشیوشده: 2026-08-13 (ARENA-UAT-TRIAGE-2026-08-13.md — سطل ۳ / گروه FX)
+   دلیل: مشخصات v16.0 (US-390) موتور سود چندارزی عمداً بازطراحی شد:
+     • مبنای هزینه = فاکتور خرید لینک‌شده (نه قیمت دستی جدول مقایسه)
+       — FIN-WF فاز ۵(A) «مبنای هزینهٔ پروژه = فاکتور خرید نه قیمت دستی»
+     • فروش = مبلغ خالص فاکتور صادره؛ تا صدور فاکتور فروش، سود محاسبه نمی‌شود
+     • UI سود از پرونده فروش حذف شد (v34.5.8 SALESFILE-PROFIT-GONE)
+   پوشش مشخصات فعلی توسط تسترهای سبز: tester369 (salesfile-profit-invoice),
+   tester101، tester176 (procurement-profit-integrity)، tester290 (cash-profit)،
+   tester304 (profit-cover-salary).
+   ===================================================================== */
 /* tester78 — v16.0 (US-390: نظام سود چندارزی — موتور واحد سود ریالی قابل اعتماد) */
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -107,8 +118,8 @@ SECTION('رفتار اجرایی: هر ۴ حالت کسب‌وکار + حالا�
 })();
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust fx/buycompare (>=16.0)', ['fx.js', 'buycompare.js'].every(function (f) {
   var m2 = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));
   return m2 && +m2[1] >= 16;

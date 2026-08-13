@@ -172,7 +172,7 @@ T('متن پیامک شامل نام و نقش', wfd.d.text.indexOf('عباس ی
 
 SECTION('یکپارچگی');
 T('sms.js در index لود می‌شود', idxCode.indexOf('sms.js') > -1);
-T('کش SW → v73', fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8').indexOf('ptf-crm-v') > -1);
+T('کش SW → v73', fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8').indexOf('ptf-crm-') > -1);
 T('دفترچه پیامک در بک‌آپ', fs.readFileSync(path.join(BASE, 'backup.js'), 'utf-8').indexOf('ptf_crm_smsbook') > -1);
 
 DONE('TESTER-10 (Sprint73 SMS)');

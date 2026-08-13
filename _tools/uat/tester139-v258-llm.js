@@ -26,8 +26,8 @@ ok(api.indexOf('$cleanBody =') < api.indexOf("$cacheData[$cacheKey] ="), 'only a
 ok(api.includes('$quotaData[$quotaKey] = $quotaUsed + 1') && api.indexOf('$quotaData[$quotaKey] = $quotaUsed + 1') > api.indexOf('$result ='), 'failed upstream calls do not consume daily quota');
 ok(index.includes('پیکربندی هوش مصنوعی پیدا شد') && index.includes('ptfLlmTransportHtml') && index.includes('r.text().then'), 'UI distinguishes configuration from live connection and displays valid API parse errors');
 ok(index.includes('فاز ثبات — بک‌لاگ و گردش‌کار</span></div>') && index.includes('<div style="max-width:560px">'), 'settings header markup is structurally closed');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(index), 'CRM version v26.7 is declared');
-ok(/var CACHE = 'ptf-crm-v\d+(?:\.\d+)+'/.test(sw), 'service-worker cache is version-aligned');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(index), 'CRM version v26.7 is declared');
+ok(/var RELEASE = 'v\d+(?:\.\d+)+'/.test(sw), 'service-worker cache is version-aligned');
 ok(sample.includes("'ip_resolve' => 'auto'") && sample.includes("'tls_verify' => true"), 'safe sample configuration contains transport controls');
 ok(doc.includes('curl_errno: 6') && doc.includes('TLS') && doc.includes('HTTP 429'), 'setup guide covers DNS, TLS and quota diagnostics');
 

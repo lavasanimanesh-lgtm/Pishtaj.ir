@@ -47,6 +47,26 @@ global.loadVar = function (file, name) {
   eval.call(global, 'global.' + name + ' = ' + m[1] + ';');
 };
 
+/* =====================================================================
+   قرارداد نسخهٔ واحد (v34.4.32+): window.PTF_CRM_RELEASE در index.html منبع
+   واحد نسخه است؛ VER (index) و RELEASE/CACHE (sw.js) همگی از آن مشتق می‌شوند.
+   تسترهای قدیمی که دنبال «var VER = window.PTF_CRM_RELEASE…'» یا «ptf-crm-v…» لفظی بودند، با
+   این قرارداد جایگزین می‌شوند (بازسازی سوئیت 2026-08-13 — ARENA-UAT-TRIAGE).
+   ===================================================================== */
+global.ptfVerContract = (function () {
+  function read(p) { try { return fs.readFileSync(path.join(BASE, p), 'utf8'); } catch (e) { return ''; } }
+  var idx = read('index.html');
+  var sw = read('sw.js');
+  var m = idx.match(/window\.PTF_CRM_RELEASE\s*=\s*'([^']+)'/);
+  var ver = m ? m[1] : null;
+  var swRel = sw.match(/var RELEASE\s*=\s*'([^']+)'/);
+  return {
+    ver: ver,
+    okDecl: !!ver && /^v\d+\.\d+(\.\d+)?$/.test(ver),
+    okSw: !!ver && !!swRel && swRel[1] === ver && sw.indexOf("'ptf-crm-' + RELEASE") > -1
+  };
+})();
+
 // شمارنده نتایج
 global.RESULTS = { pass: 0, fail: 0, bugs: [] };
 global.T = function (name, cond, detail) {

@@ -6,6 +6,13 @@ var assert = require('assert');
 
 var opexSource = fs.readFileSync('crm/opex.js', 'utf8');
 var codegenSource = fs.readFileSync('crm/codegen.js', 'utf8');
+/* 2026-08-13 (ARENA-UAT-TRIAGE سطل ۱): از FIN-WF-P3 (v34.4.55+) همگام‌سازی رویداد
+   هزینهٔ پرونده از opex.js به مسیر یکپارچهٔ finance-write-guard.js منتقل شد
+   (window.ptfDealCostSync). در مرورگر ترتیب لود index.html تضمین می‌کند که این تابع
+   پیش از opex.js تعریف شده باشد؛ در محیط vm تستر باید همان ترتیب بازسازی شود،
+   وگرنه «typeof window.ptfDealCostSync === 'function'» در opex.js نادرست می‌ماند و
+   لینک پرونده بی‌صدا به‌روز نمی‌شود — نتیجه: شکست کاذب تستر، نه باگ محصول. */
+var financeWriteGuardSource = fs.readFileSync('crm/finance-write-guard.js', 'utf8');
 
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 
@@ -126,6 +133,7 @@ function runtimeChecks() {
   ctx.window = ctx;
   ctx._opexMonth = '1405/04';
   vm.createContext(ctx);
+  vm.runInContext(financeWriteGuardSource, ctx, { filename: 'crm/finance-write-guard.js' });
   vm.runInContext(opexSource, ctx, { filename: 'crm/opex.js' });
 
   /* Migration-on-read creates stable, unique technical row identities. */
@@ -198,11 +206,16 @@ function staticChecks() {
   assert.ok(codegenSource.indexOf("'OPX':'ptf_crm_opex'") > -1, 'local legacy code generator must scan persisted OPEX codes');
   assert.ok(codegenSource.indexOf("LOCAL_ONLY_PREFIXES = ['OPX']") > -1 && codegenSource.indexOf('isLocalOnlyPrefix(p) ? null : nextFromPool') > -1, 'OPX must not consume an unseeded server pool');
   assert.ok(codegenSource.indexOf("if (!isLocalOnlyPrefix(p)) { try { window._ptfRefillPoolBackground(p);") > -1 && codegenSource.indexOf('if (!isLocalOnlyPrefix(p)) {\n        var pool=getPool();') > -1, 'OPX must neither refill nor scan the unseeded server pool');
-  assert.ok(opexSource.indexOf('opexRowId: rec[OPEX_ROW_ID]') > -1, 'linked deal event must persist OPEX row identity');
+  assert.ok(financeWriteGuardSource.indexOf('opexRowId: rec._opexRowId') > -1, 'linked deal event must persist OPEX row identity (unified FIN-WF-P3 sync)');
   assert.ok(opexSource.indexOf('var ev = opexDealEvent(d, rec, true)') > -1, 'attachment sync must resolve linked deal event by row identity');
 
   var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-  assert.strictEqual(version, 'v34.4.46');
+  /* 2026-08-13: پین لفظی v34.4.46 حذف شد — قرارداد «حفظ یا پیشروی خط مبنا»
+     (الگوی tester331/333/334) جایگزین شد تا نسخه‌های جدیدتر قرمز کاذب ندهند. */
+  var vm2 = version.match(/^v(\d+)\.(\d+)\.(\d+)$/);
+  assert.ok(vm2, 'crm_version must match vX.Y.Z');
+  var major = +vm2[1], minor = +vm2[2], patch = +vm2[3];
+  assert.ok(major > 34 || (major === 34 && (minor > 4 || (minor === 4 && patch >= 46))), 'release must retain or advance the v34.4.46 OPEX row-identity baseline');
   var current = version.slice(1);
   ['crm/index.html', 'crm/sw.js', 'crm/manifest.json', 'crm/clear-cache.html', 'crm/shell.js'].forEach(function (file) {
     assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');

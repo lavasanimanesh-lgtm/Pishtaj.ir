@@ -95,8 +95,8 @@ T('پیام نتیجه نوع سند را می‌گوید', ai.indexOf("out.quot
 T('پیش‌فرض TO (مسیر قبلی نمی‌شکند)', ai.indexOf(".value||'TO'") > -1);
 
 SECTION('نسخه و کش');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 /* قاعده تسترها: قفل نکردن نسخه دقیق — فقط «همان یا جدیدتر از 14.3» */
 T('cache-bust فایل‌های اسپرینت ب (>=14.3)', ['rfqsmart.js', 'workflow.js', 'ai-workbench.js', 'bridge.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));

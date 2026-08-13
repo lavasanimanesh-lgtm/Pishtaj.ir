@@ -80,7 +80,7 @@ ok(ir.includes('window.irAiReadCurrentAttachments = function') && ir.includes('o
 ok(!ir.includes('onclick="inqReadAttachmentAsk(_ir.cd)"'), 'no inline onclick references local _ir closure state');
 ok(bridge.includes('var customerInqLine =') && bridge.includes('↳ درخواست کارفرما:'), 'customer request number is rendered beneath internal RFQ in list');
 ok(ir.includes('شماره RFQ داخلی:') && ir.includes('شماره درخواست کارفرما:'), 'viewer distinguishes internal RFQ and customer request number');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx), 'CRM version v26.7 is declared');
-ok(/var CACHE = 'ptf-crm-v\d+(?:\.\d+)+/.test(sw), 'service-worker cache is version-aligned');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx), 'CRM version v26.7 is declared');
+ok(/var RELEASE = 'v\d+(?:\.\d+)+'/.test(sw), 'service-worker cache is version-aligned');
 console.log('=== tester141-v2510-rfq-integrity: ' + pass + ' PASS / ' + fail + ' FAIL ===');
 process.exit(fail ? 1 : 0);

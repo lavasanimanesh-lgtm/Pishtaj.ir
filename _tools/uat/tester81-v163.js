@@ -36,11 +36,13 @@ global.genCode = function (p) { return p + '-' + (++global._sq || (global._sq = 
 (function () {
   var mOpen = bc.match(/window\.ptfRealBuyOpen = function \(inqNo\) \{[\s\S]*?\n  \};/);
   var mStat = bc.match(/window\.ptfRealBuyStatus = function \(inqNo\) \{[\s\S]*?\n  \};/);
+  var mMerge = bc.match(/function mergeCmpRecordsForInquiry\(inqNo\) \{[\s\S]*?\n  \};/);
   T('توابع استخراج شدند', !!mOpen && !!mStat);
   if (!mOpen || !mStat) return;
   global.cmpAll = function () { return getData('ptf_crm_buycmp'); };
   global.cmpSave = function (l) { setData('ptf_crm_buycmp', l); };
   global.cmpOpen = function (id) { global._openedCmp = id; };
+  if (mMerge) { eval(mMerge[0].replace('function mergeCmpRecordsForInquiry', 'global.mergeCmpRecordsForInquiry = function')); }
   eval(mOpen[0].replace('window.ptfRealBuyOpen', 'global.ptfRealBuyOpen'));
   eval(mStat[0].replace('window.ptfRealBuyStatus', 'global.ptfRealBuyStatus'));
   /* سناریو: CO برنده با ۲ قلم — جدول مقایسه وجود ندارد */
@@ -95,8 +97,8 @@ SECTION('US-393 (رفتاری): جمع‌آوری آیتم‌ها');
 })();
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust فایل‌های اسپرینت (>=16.3)', ['fx.js', 'offers.js', 'buycompare.js', 'myday.js'].every(function (f) {
   var m2 = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));
   return m2 && (+m2[1] > 16 || (+m2[1] === 16 && +m2[2] >= 3));

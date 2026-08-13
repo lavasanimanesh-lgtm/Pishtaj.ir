@@ -19,5 +19,5 @@ T('ptf_crm_trash در sync و API whitelist است', s.indexOf('ptf_crm_trash')>
 T('هیچ کلید sync از backup جا نمانده', s.every(function(k){return b.indexOf(k)>-1;}));
 T('هیچ کلید API از sync جا نمانده', a.filter(function(k){return /^ptf_crm_/.test(k);}).every(function(k){return s.indexOf(k)>-1 || b.indexOf(k)>-1;}));
 T('DATA_KEYS کلید تکراری ندارد', new Set(b).size===b.length);
-T('restore همان DATA_KEYS را مصرف می‌کند', bk.indexOf('DATA_KEYS.forEach(function (k) { localStorage.removeItem(k); })')>-1 && bk.indexOf('DATA_KEYS.indexOf(k) > -1')>-1);
+T('restore همان DATA_KEYS را مصرف می‌کند', /DATA_KEYS\.forEach\(function \(k\) \{[\s\S]{0,80}localStorage\.removeItem\(k\);/.test(bk) && bk.indexOf('DATA_KEYS.indexOf(k) > -1')>-1);
 DONE('tester173-v318-backup-coverage');

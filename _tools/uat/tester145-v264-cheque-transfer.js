@@ -14,5 +14,5 @@ ok(ch.includes("rec.reminderDisabled || rec.ownership === 'third_party' || rec.s
 ok(ch.includes("rec.ownership === 'third_party' || rec.st === 'transferred'") && ch.indexOf('chBoxHtml') === -1,'transferred cheque excluded from reminders; active-list filter moved out with removed personal box');
 ok(day.includes("c.ownership === 'third_party' || c.reminderDisabled || c.st === 'transferred'"),'daily dashboard excludes transferred cheque reminders');
 ok(sf.includes("c.st === 'transferred' || c.ownership === 'third_party'"),'finance liquidity excludes third-party transferred cheques');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw),'Sprint version is aligned to v26.7');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw),'Sprint version is aligned to v26.7');
 console.log('=== tester145-v264-cheque-transfer: '+pass+' PASS / '+fail+' FAIL ===');process.exit(fail?1:0);

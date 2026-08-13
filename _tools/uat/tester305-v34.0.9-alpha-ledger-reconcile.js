@@ -21,7 +21,7 @@ eval.call(global, wc);
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 /* ---- آماده‌سازی دادهٔ مشترک ---- */
 global.faDate = function () { return '1405/06/15'; };

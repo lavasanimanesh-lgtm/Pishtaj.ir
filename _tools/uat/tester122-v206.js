@@ -12,8 +12,8 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var perms = fs.readFileSync(path.join(BASE, 'perms.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v20.6+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=20.6;})());
-T('کش sw >= v20.6', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=20.6;})());
+T('نسخه v20.6+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=20.6;})());
+T('کش sw >= v20.6', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=20.6;})());
 T('cache-bust فایل‌های اسپرینت >=20.6', ['ai-workbench.js','shareholders.js','petty.js','docsx.js','ui-kit.js'].every(function(f){var m=idx.match(new RegExp(f.replace('.', '\\.')+'\\?v=([0-9.]+)'));return m&&parseFloat(m[1])>=20.6;}));
 
 SECTION('کارت ویزیت چندتایی');

@@ -1,3 +1,10 @@
+/* =====================================================================
+   آرشیوشده: 2026-08-13 (ARENA-UAT-TRIAGE-2026-08-13.md — سطل ۳ / گروه FX)
+   دلیل: به دستور صریح کارفرما (v33.4.2) «نرخ سنا» حذف شد؛ مبنای نرخ اکنون
+   آزاد/توافقی است و ۴ شکست از ۵ شکست این تستر دربارهٔ مبنای سنا بود.
+   قرارداد حذف سنا توسط tester177-v33.4.2-fx-sana-removal.js پاس می‌شود.
+   (شکست پنجم «نوار ارز و تشخیص سنا پابرجاست» نیز عمداً منسوخ است.)
+   ===================================================================== */
 /* tester92 — v17.4 (US-414: تسعیر فروش درصدی با نرخ آزاد/سنا + US-416: شفافیت ارز — تکمیل کیس R8) */
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -10,8 +17,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v17.4+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.4;})());
-T('کش sw >= v17.4', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.4;})());
+T('نسخه v17.4+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.4;})());
+T('کش sw >= v17.4', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.4;})());
 (function () {
   function vOf(f) { var m = idx.match(new RegExp(f.replace('.', '\\.') + '\\?v=([0-9.]+)')); return m ? parseFloat(m[1]) : 0; }
   T('cache-bust fx/offers/salesfiles/rbac >= 17.4', ['fx.js', 'offers.js', 'salesfiles.js', 'rbac.js'].every(function (f) { return vOf(f) >= 17.4; }));

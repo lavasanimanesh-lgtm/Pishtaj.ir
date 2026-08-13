@@ -11,7 +11,7 @@ var fiscal = fs.readFileSync(path.join(BASE, 'fiscal.js'), 'utf-8');
 var petty = fs.readFileSync(path.join(BASE, 'petty.js'), 'utf-8');
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 /* ---- اصلاح ۱: تعهد لگاسی در سود سال مالی ---- */
 SECTION('اصلاح ۱: تعهد لگاسی در fiscal.js');

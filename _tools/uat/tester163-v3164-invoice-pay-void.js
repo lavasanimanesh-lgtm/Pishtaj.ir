@@ -8,8 +8,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ساختار');
-T('نسخه v31.6+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=31.6;})());
-T('توکن نسخهٔ سرویس‌ورکر هم‌خانواده است', /ptf-crm-v\d+\.\d+/.test(sw));
+T('نسخه v31.6+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=31.6;})());
+T('توکن نسخهٔ سرویس‌ورکر هم‌خانواده است', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('هستهٔ ابطال وصولی وجود دارد', rb.indexOf('window.ptfInvoicePayVoid = function') > -1 && rb.indexOf('status: \'reversal\'') > -1);
 T('گارد نقش و سال مالی وجود دارد', rb.indexOf('ptfCanInvoicePayVoid') > -1 && rb.indexOf("why: 'locked'") > -1);
 T('دلیل و audit ثبت می‌شود', rb.indexOf('voidReason') > -1 && rb.indexOf("audit('وصولی'") > -1);

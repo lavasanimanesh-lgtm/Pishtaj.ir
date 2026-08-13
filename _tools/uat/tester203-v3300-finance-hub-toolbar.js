@@ -11,9 +11,9 @@ SECTION('ساختار');
 T('تولبار تنخواه id دارد', petty.indexOf('id="ptToolbar"') > -1);
 T('تولبار در فهرست «فقط تب تنخواه» هاب مالی است', /\[\s*'ptToolbar'/.test(fh) && fh.indexOf("'ptToolbar'") < fh.indexOf("'ptWrap'"));
 T('دکمه‌های پرداخت مستقیم/شارژ/ارجاع دوره داخل همان تولبار هستند', (function () {
-  var seg = petty.split('id="ptToolbar"')[1] || '';
-  seg = seg.split('</div>')[0] || '';
-  return seg.indexOf('pettyDirectPay') > -1 && seg.indexOf('pettyCharge') > -1 && seg.indexOf('pettyClosePeriod') > -1;
+  /* 2026-08-13: اکشن‌ها اکنون با pettyToolbarAction در متغیر actions ساخته و به تولبار تزریق می‌شوند */
+  return petty.indexOf('id="ptToolbar"') > -1 && petty.indexOf("pettyToolbarAction('direct'") > -1 &&
+    petty.indexOf("pettyToolbarAction('charge'") > -1 && petty.indexOf("pettyToolbarAction('refer'") > -1;
 })());
 T('financehub.js لود شده', idx.indexOf('financehub.js?v=') > -1);
 

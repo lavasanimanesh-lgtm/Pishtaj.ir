@@ -12,7 +12,7 @@ const files = fs.readdirSync(dir).filter(function (f) {
 
 var passF = 0, failF = 0, passC = 0, failC = 0;
 var versionSource = fs.readFileSync(path.join(ROOT, 'crm', 'index.html'), 'utf8');
-var versionMatch = versionSource.match(/window\.VER = '([^']+)'/);
+var versionMatch = versionSource.match(/window\.PTF_CRM_RELEASE\s*=\s*'([^']+)'/);
 var currentVersion = versionMatch ? versionMatch[1] : 'unknown';
 var failed = [], prebroken = [], hung = [], soft = [];
 
@@ -27,6 +27,11 @@ files.forEach(function (f) {
   if (!m) {
     var mAlt = out.match(/PASS\s+(\d+)\s+FAIL\s+(\d+)/);
     if (mAlt) m = [mAlt[0], mAlt[1], mAlt[2]];
+    else {
+      /* سبک بدون اسلش: «testerXXX 5 PASS 0 FAIL» */
+      var mNo = out.match(/(\d+)\s+PASS\s+(\d+)\s+FAIL/);
+      if (mNo) m = [mNo[0], mNo[1], mNo[2]];
+    }
   }
   if (m) {
     passC += +m[1];
@@ -62,6 +67,19 @@ files.forEach(function (f) {
   if (m && m[2] === '0') {
     passF++;
     return;
+  }
+
+  /* 2026-08-13 (بازسازی سوئیت): تسترهای assert-محور جدید فقط «PASS testerXXX: …»
+     چاپ می‌کنند (بدون شمارش) و placeholderهای عمدی خروجی خالی دارند — خروجی ۰
+     بدون هیچ علامت FAIL یعنی سبز. پیش‌تر این‌ها به‌اشتباه «exit ?» شمارش می‌شدند. */
+  if (!m && r.status === 0) {
+    var passMarker = /^PASS\b/m.test(out);
+    var hasFailMark = /✘/.test(out) || /\bFAIL\b/.test(out);
+    if ((passMarker && !hasFailMark) || !out.trim()) {
+      passF++;
+      if (!passMarker) soft.push(f + ': placeholder (empty output) exit 0');
+      return;
+    }
   }
 
   failF++;

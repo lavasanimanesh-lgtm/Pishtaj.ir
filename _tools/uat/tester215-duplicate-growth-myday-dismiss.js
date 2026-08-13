@@ -10,7 +10,7 @@ var codegen = fs.readFileSync(path.join(ROOT, 'crm/codegen.js'), 'utf-8');
 
 SECTION('ریشه‌کنی رشد duplicate در sync');
 T('شناسه باگ و merge canonical هم‌کد در sync وجود دارد', sync.indexOf('BUG-DUP-GROW-001') > -1 && sync.indexOf('function ptfMergeByCodeCanonical') > -1 && sync.indexOf('function ptfMergeBusinessRecord') > -1);
-T('ptfSmartMerge برای RFQ/Offer دیگر no-collapse نیست و canonical merge می‌کند', sync.indexOf("if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers') return ptfMergeByCodeCanonical(key, localStr, remoteStr);") > -1 && sync.indexOf("return ptfMergeNoCollapse(key, localStr, remoteStr)") === -1);
+T('ptfSmartMerge برای RFQ/Offer دیگر no-collapse نیست و canonical merge می‌کند', sync.indexOf("key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers'") > -1 && sync.indexOf('return ptfMergeByCodeCanonical(key, localStr, remoteStr)') > -1 && sync.indexOf("return ptfMergeNoCollapse(key, localStr, remoteStr)") === -1); /* 2026-08-13: فهرست کلیدهای canonical گسترش یافت */
 T('تابع cleanup عمومی برای رکوردهای تکراری RFQ/Offer وجود دارد', sync.indexOf('window.ptfCollapseDuplicateBusinessRecords') > -1 && sync.indexOf("PTF-COLLAPSE-DUP") > -1);
 T('cleanup با setData sync می‌شود و audit دارد', sync.indexOf("setData(key, after)") > -1 && sync.indexOf('پاکسازی رکوردهای تکراری هم‌کد') > -1);
 T('codegen قبل از هشدار duplicate، cleanup canonical را اجرا می‌کند', codegen.indexOf('BUG-DUP-GROW-001') > -1 && codegen.indexOf('ptfCollapseDuplicateBusinessRecords({ confirm: \'PTF-COLLAPSE-DUP\' })') > -1);

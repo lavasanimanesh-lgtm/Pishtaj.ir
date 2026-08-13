@@ -7,5 +7,5 @@ ok(sf.includes('slFfrom') && sf.includes('slFto') && sf.includes('slFcur') && sf
 ok(sf.includes('window.slLedgerCsv') && sf.includes('window.slLedgerPrint') && sf.includes('supplier-ledger-'),'CSV and print/PDF output actions exist');
 ok(sf.includes('چک ثالث منتقل‌شده') && sf.includes('چک شرکت'),'ledger identifies linked cheque payment type');
 ok(sf.includes('legacyOpen') && sf.includes('تعهد خرید legacy'),'ledger preserves legacy obligations in report');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw),'Sprint version is v26.7');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw),'Sprint version is v26.7');
 console.log('=== tester146-v265-ledger-export: '+p+' PASS / '+f+' FAIL ===');process.exit(f?1:0);

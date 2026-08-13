@@ -20,7 +20,7 @@ T('dry-run در draft ذخیره و history نگه می‌دارد', api.indexOf
 T('tools API status به v33.5.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM quota dry-run UI');
-T('CRM نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM نسخه v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('UI تابع ptfToolReportDraftQuotaDryRun دارد', ui.indexOf('window.ptfToolReportDraftQuotaDryRun = function') > -1);
 T('UI اکشن admin_report_quota_dry_run را صدا می‌زند', ui.indexOf('admin_report_quota_dry_run') > -1);
 T('جدول ستون Quota و badge دارد', ui.indexOf('<th>Quota</th>') > -1 && ui.indexOf('function quotaBadge') > -1 && ui.indexOf('Quota OK') > -1);

@@ -57,8 +57,8 @@ T('GRAND TOTAL colspan با ستون‌های سود هم‌راستاست', ol.
 T('درج هوشمند US-310 دست نخورده', of.indexOf('offSmartInsert') > -1);
 
 SECTION('نسخه و کش');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 /* قاعده تسترها: قفل نکردن نسخه دقیق — فقط «همان یا جدیدتر از 14.2» */
 T('cache-bust سه فایل پیشنهاد (>=14.2)', ['offers.js', 'offers-pro.js', 'offerlock.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));

@@ -17,7 +17,7 @@ T('کارت‌های KPI اصلی وجود دارند', ['Feedback total','Avera
 T('dashboard breakdown و next actions دارد', ui.indexOf('Feedback source breakdown') > -1 && ui.indexOf('Feedback status breakdown') > -1 && ui.indexOf('Next actions') > -1);
 T('privacy-aware aggregate metrics در KPI شفاف است', ui.indexOf('aggregated server-side without sid, label, href or query string') > -1 && ui.indexOf('admin_metrics_summary') > -1);
 T('dashboard به buildSettings تزریق می‌شود', ui.indexOf('ptfToolFunnelKpiHtml() + window.ptfToolFeedbackHtml()') > -1 && ui.indexOf('ptfToolFunnelKpiLoad(); ptfToolFeedbackLoad();') > -1);
-T('CRM/SW نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw) && /tool-feedback.js\?v=3[0-9.]+/.test(idx));
+T('CRM/SW نسخه v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw) && /tool-feedback.js\?v=3[0-9.]+/.test(idx));
 
 SECTION('Runtime KPI render smoke');
 var els = {};

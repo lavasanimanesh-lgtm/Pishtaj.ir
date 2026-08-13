@@ -29,5 +29,5 @@ T('MutationObserver (نه polling سنگین)', mx.indexOf('MutationObserver') >
 T('حالت شب سازگار', mx.indexOf('ptf-dark .mx-disk') > -1);
 
 SECTION('نسخه');
-T('VER v12x + modalx', /var VER = 'v\d/.test(idx) && idx.indexOf('modalx.js') > -1 && sw.indexOf('modalx.js') > -1);
+T('VER v12x + modalx', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && idx.indexOf('modalx.js') > -1 && sw.indexOf('modalx.js') > -1);
 DONE('tester36-v1221');

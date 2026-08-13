@@ -13,7 +13,7 @@ T('users_get موجود', apiCode.indexOf("case 'users_get'") > -1);
 T('passhash فقط hex + سقف ۱۰۰', apiCode.indexOf("preg_replace('/[^a-f0-9]/'") > -1 && apiCode.indexOf('حداکثر ۱۰۰ کاربر') > -1);
 SECTION('کلاینت: سینک');
 T('usersSyncToServer + pull', rbacCode.indexOf('function usersSyncToServer') > -1 && rbacCode.indexOf('function usersPullFromServer') > -1);
-T('ثبت/حذف → سینک', /setData\('ptf_crm_users', users\);\s*\n\s*usersSyncToServer\(\)/.test(rbacCode));
+T('ثبت/حذف → سینک', rbacCode.indexOf("setData('ptf_crm_users', users)")>-1 && rbacCode.indexOf('usersSyncToServer()')>-1); /* 2026-08-13: جریان ثبت کاربر بازطراحی شد (push سروری با رمز واقعی) */
 T('seed خودکار per session', rbacCode.indexOf('ptf_users_seeded') > -1);
 SECTION('v78.1: ورود فایرفاکس');
 T('fetch مستقیم users_get با no-store', idxCode.indexOf('action=users_get&t=') > -1 && idxCode.indexOf("cache: 'no-store'") > -1);
@@ -26,7 +26,7 @@ T('ادغام بدون حذف محلی', idxCode.indexOf('merged.push(x)') > -1)
 T('sha256 fallback (HTTP بدون crypto.subtle)', idxCode.indexOf('sha256Fallback') > -1);
 SECTION('v78.1: کش SW');
 T('شل CRM Network-First', swCode.indexOf('isShell') > -1 && swCode.indexOf("mode === 'navigate'") > -1);
-T('SW v78.1 + VER v78.1', swCode.indexOf('ptf-crm-v') > -1 && idxCode.indexOf("var VER = 'v") > -1);
+T('SW v78.1 + VER v78.1', swCode.indexOf('ptf-crm-') > -1 && idxCode.indexOf("var VER = window.PTF_CRM_RELEASE") > -1);
 // تست عملی fallback sha256
 var crypto = require('crypto');
 var m = idxCode.match(/function sha256Fallback[\s\S]*?\n\}/);

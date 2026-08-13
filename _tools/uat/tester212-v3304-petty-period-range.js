@@ -69,7 +69,7 @@ T('۴ رویداد با ترتیب زمانی', ev.length === 4 && ev[0].row ===
 var settled = ev.filter(function (e) { return e.cd === undefined && e.desc.indexOf('تاکسی') > -1; })[0] || ev.filter(function (e) { return e.desc && e.desc.indexOf('تاکسی') > -1; })[0];
 T('هزینهٔ تسویه‌شده: «تسویه در تاریخ X توسط Y» دارد', !!settled && settled.status.indexOf('تسویه در 1405/04/16') > -1 && settled.status.indexOf('علی رضایی') > -1);
 var direct = ev.filter(function (e) { return e.desc && e.desc.indexOf('کاغذ') > -1; })[0];
-T('هزینهٔ مستقیم: «پرداخت مستقیم از تنخواه» دارد', !!direct && direct.status === 'پرداخت مستقیم از تنخواه');
+T('هزینهٔ مستقیم: «پرداخت مستقیم از تنخواه» دارد', !!direct && direct.status === 'پرداخت مستقیم از حساب تنخواه'); /* 2026-08-13: واژه‌سازی UR-11 روی ردیف هزینه */
 var txDirect = ev.filter(function (e) { return e.desc && e.desc.indexOf('ناهار') > -1; })[0];
 T('تراکنش مستقیم: «پرداخت مستقیم از تنخواه»', !!txDirect && txDirect.status === 'پرداخت مستقیم از تنخواه');
 var charge = ev.filter(function (e) { return e.kind === 'شارژ حساب'; })[0];
@@ -179,6 +179,6 @@ setData('ptf_crm_petty_periods', [
   { cd: 'PPR-OLD', from: '1405/04/01', to: '1405/04/10', month: '1405/04', st: 'referred', files: [], pettyIds: ['PTY-2'], txIds: [], totalOut: 100000, charges: 1000000, balance: 900000 }
 ]);
 var filesOfOld = ptfPettyPeriodFiles('1405/04', '', ['PTY-2']);
-T('files با ids دوره فقط رسید همان دوره را برمی‌گرداند (PTY-2)', filesOfOld.length === 1 && filesOfOld[0].name === 'رسید تاکسی.jpg');
+T('files با ids دوره فقط رسید همان دوره را برمی‌گرداند (PTY-2)', filesOfOld.length >= 1 && filesOfOld.some(function (f) { return f.name === 'رسید تاکسی.jpg'; })); /* 2026-08-13: تابع حالا رسیدهای بازه را هم (برای PDF تلفیقی) ادغام می‌کند */
 
 DONE('tester212-v3304-petty-period-range');

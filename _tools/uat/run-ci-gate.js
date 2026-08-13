@@ -23,6 +23,7 @@ var SUITE = [
   { g: 'مالی', f: '_tools/uat/tester381-v34.4.87-fiscal-call-credit.js' },
   { g: 'مالی', f: '_tools/uat/tester384-v34.4.90-opex-cheque.js' },
   { g: 'مالی', f: '_tools/uat/tester396-v34.5.6-ci-gate-contracts.js' },
+  { g: 'مالی', f: '_tools/uat/tester340-v34.4.46-opex-row-identity-collapsed-docs.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
@@ -63,6 +64,30 @@ function syntaxCheck() {
   return bad;
 }
 
+/* PHP lint (php -l) — v34.5.9: گیت CI قبل از FTP باید PHP را هم بپوشاند
+   (بدهی فنی #2 گزارش ارزیابی 2026-08-13: php.yml بدون composer.json بی‌اثر بود).
+   اگر php روی محیط نصب نباشد، این بخش به‌جای شکست کاذب skip می‌شود. */
+function phpLintCheck() {
+  var probe = spawnSync('php', ['-v'], { encoding: 'utf8' });
+  if (probe.error || probe.status !== 0) return { skipped: true, bad: [], total: 0 };
+  var bad = [];
+  var total = 0;
+  ['api', 'crm'].forEach(function (dir) {
+    var absDir = path.join(ROOT, dir);
+    if (!fs.existsSync(absDir)) return;
+    fs.readdirSync(absDir).forEach(function (f) {
+      if (!f.endsWith('.php')) return;
+      total++;
+      var p = path.join(absDir, f);
+      var r = spawnSync('php', ['-l', p], { encoding: 'utf8' });
+      if (r.status !== 0) {
+        bad.push(path.join(dir, f) + ': ' + String(r.stderr || r.stdout || 'lint').trim());
+      }
+    });
+  });
+  return { skipped: false, bad: bad, total: total };
+}
+
 var failed = [];
 var passed = 0;
 
@@ -73,6 +98,17 @@ if (syn.length) {
   failed.push('syntax');
 } else {
   console.log('  ✔ ' + SYNTAX.length + ' crm files');
+}
+
+console.log('── php -l ──');
+var phpLint = phpLintCheck();
+if (phpLint.skipped) {
+  console.log('  (php در دسترس نیست — این بخش skip شد)');
+} else if (phpLint.bad.length) {
+  phpLint.bad.forEach(function (s) { console.log('  ✘ ' + s); });
+  failed.push('php-lint');
+} else {
+  console.log('  ✔ ' + phpLint.total + ' php files');
 }
 
 SUITE.forEach(function (item) {

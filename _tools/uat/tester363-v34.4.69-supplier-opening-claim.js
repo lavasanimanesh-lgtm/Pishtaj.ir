@@ -4,7 +4,8 @@ var root=path.join(__dirname,'../..');
 function read(p){return fs.readFileSync(path.join(root,p),'utf8');}
 function fail(m){console.log('FAIL '+m);process.exit(1);}
 var ver=JSON.parse(read('VERSION.json'));
-if(ver.crm_version!=='v34.4.69') fail('VERSION '+ver.crm_version);
+var vm4 = String(ver.crm_version).match(/^v(\d+)\.(\d+)\.(\d+)$/);
+if (!vm4 || +vm4[1] < 34 || (+vm4[1] === 34 && +vm4[2] < 4) || (+vm4[1] === 34 && +vm4[2] === 4 && +vm4[3] < 69)) fail('VERSION ' + ver.crm_version);
 var sf=read('crm/supplier-finance.js');
 if(sf.indexOf("typ = isOpen ? 'مانده افتتاحیه'")<0 && sf.indexOf("isOpen ? 'مانده افتتاحیه'")<0) fail('opening type');
 if(sf.indexOf('مانده افتتاحیه')<0) fail('opening label');

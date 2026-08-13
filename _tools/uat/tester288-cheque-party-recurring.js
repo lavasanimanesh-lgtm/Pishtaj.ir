@@ -103,7 +103,9 @@ eval.call(global, panel);
 eval.call(global, prt);
 /* shareholders + opex — حذف بوت (setInterval/hook) تا در تست اجرا نشود */
 eval.call(global, sh);
-var opxClean = opx.replace(/var tries = 0;[\s\S]*$/, 'var tries = 0;\n})();');
+/* 2026-08-13: لنگر regex دقیق شد — «var tries = 0;» دوبار در opex.js هست (یکی داخل
+   opexNextCode در خط ۷۷)؛ regex قبلی اولین را می‌گرفت و ماژول نیمه‌باز می‌ماند. */
+var opxClean = opx.replace(/  var tries = 0;\n  var t = setInterval[\s\S]*$/, '  var tries = 0;\n})();');
 eval.call(global, opxClean);
 
 SECTION('فهرست‌های شرطی ذی‌نفع');

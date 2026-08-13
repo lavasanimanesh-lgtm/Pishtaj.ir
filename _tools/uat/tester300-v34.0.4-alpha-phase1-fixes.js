@@ -8,12 +8,13 @@ var fiscal = fs.readFileSync(path.join(BASE, 'fiscal.js'), 'utf-8');
 var chq = fs.readFileSync(path.join(BASE, 'cheque-panel.js'), 'utf-8');
 var rep = fs.readFileSync(path.join(BASE, 'reports.js'), 'utf-8');
 var petty = fs.readFileSync(path.join(BASE, 'petty.js'), 'utf-8');
+var st = fs.readFileSync(path.join(BASE, 'storage.js'), 'utf-8'); /* 2026-08-13: thumbnail منتقل شد */
 var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه و یکپارچگی');
-T('VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند', /^v[0-9.]+-alpha$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 && sw.indexOf("'ptf-crm-" + vjson.crm_version + "'") > -1);
+T('VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version) && idx.indexOf("window.PTF_CRM_RELEASE = '" + vjson.crm_version + "'") > -1 && sw.indexOf("var RELEASE = '" + vjson.crm_version + "'") > -1); /* 2026-08-13: قرارداد نسخهٔ واحد */
 T('clear-cache.html نیز هم‌نسخه است', fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = '" + vjson.crm_version + "'") > -1);
 T('هیچ cache-buster قدیمی ?v=1.0 نمانده', idx.indexOf('?v=1.0') === -1);
 T('همهٔ اسکریپت‌ها باستر نسخهٔ جاری دارند', (idx.match(/\.js\?v=/g) || []).length === (idx.match(new RegExp('\\.js\\?v=' + vjson.crm_version.replace(/^v/, '').replace(/\./g, '\\.'), 'g')) || []).length);
@@ -28,7 +29,7 @@ T('قاعده سال در زیرنویس داشبورد بازگشت', fiscal.in
 
 SECTION('BUG-CHEQUE-CLEAR-UI (وصول چک صادره از هاب مالی)');
 T('ptfChequeClearIssuedUi تعریف شد', chq.indexOf('window.ptfChequeClearIssuedUi = function (cd)') > -1);
-T('دکمهٔ وصول و تابع هم‌نام‌اند', chq.indexOf('onclick="ptfChequeClearIssuedUi(') > -1 && chq.indexOf('window.ptfChequeClearIssuedUi =') > -1);
+T('دکمهٔ وصول و تابع هم‌نام‌اند', chq.indexOf("chequeRowAction('clear'") > -1 && chq.indexOf('window.ptfChequeClearIssuedUi =') > -1); /* 2026-08-13: اکشن ردیف به chequeRowAction منتقل شد */
 T('وصول از هستهٔ ptfChequeClearIssued استفاده می‌کند و پنل را رفرش می‌کند', /window\.ptfChequeClearIssuedUi[\s\S]*?ptfChequeClearIssued\(cd/.test(chq) && /window\.ptfChequeClearIssuedUi[\s\S]*?ptfChequePanelRender\(\)/.test(chq));
 
 SECTION('BUG-UNIHUB-EMPTY (گزارش جامع مدیریتی)');
@@ -36,7 +37,7 @@ T('ptfBuildReportHtml بازگردانده شد', rep.indexOf('window.ptfBuildRe
 T('مرکز فرماندهی از تابع موجود استفاده می‌کند', rep.indexOf('typeof ptfBuildReportHtml === \'function\' ? ptfBuildReportHtml()') > -1);
 
 SECTION('BUG-PETTY-THUMB-PATH (مسیر thumbnail تنخواه)');
-T('مسیر نسبی ../api درست شد', petty.indexOf("fetch('../api/attachment-thumb.php'") > -1 && petty.indexOf("fetch('api/attachment-thumb.php'") === -1);
+T('مسیر نسبی ../api درست شد', (petty.indexOf("fetch('../api/attachment-thumb.php'") > -1 || st.indexOf("fetch('../api/attachment-thumb.php'") > -1) && petty.indexOf("fetch('api/attachment-thumb.php'") === -1); /* 2026-08-13: واکشی thumbnail به storage.js منتقل شد */
 var hta = fs.readFileSync(path.resolve(__dirname, '../../api/.htaccess'), 'utf-8');
 T('attachment-thumb در allow-list هتکسز است', /crm\|contact\|codegen\|fx-rates\|storage\|cms\|auth\|llm\|attachment-thumb/.test(hta));
 /* v34.0.7-alpha: attachment-read و chat-llm با گارد احراز/منشأ دوباره فعال شدند (باگ پروداکشن) */

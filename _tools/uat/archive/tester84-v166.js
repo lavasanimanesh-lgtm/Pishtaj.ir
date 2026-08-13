@@ -1,3 +1,11 @@
+/* =====================================================================
+   آرشیوشده: 2026-08-13 (ARENA-UAT-TRIAGE-2026-08-13.md — سطل ۳ / گروه FX-مالی)
+   دلیل: مسیر «ثبت خرید → بدهی تأمین‌کننده» عمداً بازطراحی شد (FIN-WF/فازهای
+   خرید): ptfPayableUpsert دیگر از buycompare فراخوانی نمی‌شود (لینک خرید از
+   مسیر procurement-link/supplier-finance می‌رود) و امضای buildSuppliers تغییر
+   کرده (+ _bSup()). پوشش رفتار فعلی توسط تسترهای سبز supplier-finance و
+   گیت CI (tester166/381/384/396) انجام می‌شود.
+   ===================================================================== */
 /* tester84 — v16.6 (US-400/401: نظام امتیازدهی مصوب + بستانکاری تامین‌کننده — ابلاغ تکمیلی کارفرما) */
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -11,8 +19,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v16.6+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.6;})());
-T('کش sw >= v16.6 + scoring در SHELL', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.6;})() && sw.indexOf("'./scoring.js'") > -1);
+T('نسخه v16.6+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.6;})());
+T('کش sw >= v16.6 + scoring در SHELL', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.6;})() && sw.indexOf("'./scoring.js'") > -1);
 T('scoring.js در index.html (>= 16.6)', (function(){var m=idx.match(/scoring\.js\?v=([0-9.]+)/);return m&&parseFloat(m[1])>=16.6;})());
 T('ptf_crm_payables در سینک و بک‌آپ', sy.indexOf("'ptf_crm_payables'") > -1 && bk.indexOf("'ptf_crm_payables'") > -1);
 (function () {

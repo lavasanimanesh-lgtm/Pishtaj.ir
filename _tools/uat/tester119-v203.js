@@ -8,8 +8,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v20.3+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=20.3;})());
-T('کش sw >= v20.3 + financehub', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=20.3;})() && sw.indexOf("'./financehub.js'")>-1);
+T('نسخه v20.3+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=20.3;})());
+T('کش sw >= v20.3 + financehub', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=20.3;})() && sw.indexOf("'./financehub.js'")>-1);
 T('cache-bust petty/financehub >=20.3', ['petty.js','financehub.js'].every(function(f){var m=idx.match(new RegExp(f.replace('.', '\\.')+'\\?v=([0-9.]+)'));return m&&parseFloat(m[1])>=20.3;}));
 T('financehub بعد از fiscal لود می‌شود', (function(){var a=idx.search(/fiscal\.js\?v=/), b=idx.search(/financehub\.js\?v=/); return a>-1 && b>a;})());
 
@@ -33,8 +33,8 @@ global.curRole=function(){return global._role;};
 global.buildPetty=function(){return '<div id="ptAccount"></div><div id="ptPeriods"></div><div id="ptSummary"></div><div id="ptWrap"></div><div id="opexBox"></div><div id="shareBox"></div><div id="fiscalBox"></div>';};
 global.renderPetty=function(){};
 var nodes={};
-['ptAccount','ptPeriods','ptSummary','ptWrap','opexBox','shareBox','fiscalBox','finHubBar'].forEach(function(id){nodes[id]={id:id,style:{},outerHTML:''};});
-global.document={ getElementById:function(id){return nodes[id]||null;}, querySelectorAll:function(){return [];} };
+['ptAccount','ptPeriods','ptSummary','ptWrap','opexBox','shareBox','fiscalBox','finHubBar'].forEach(function(id){nodes[id]={id:id,style:{setProperty:function(k,v){this[k]=v;},removeProperty:function(k){delete this[k];}},outerHTML:''};});
+global.document={ getElementById:function(id){return nodes[id]||null;}, querySelectorAll:function(){return [];}, createElement:function(){return {style:{setProperty:function(){},},setAttribute:function(){},appendChild:function(){},addEventListener:function(){}};}, head:{appendChild:function(){}}, body:{appendChild:function(){}} };
 eval(fh);
 var html=buildPetty();
 T('admin/chairman هاب را در buildPetty می‌بیند', html.indexOf('هاب مالی مدیریتی')>-1);

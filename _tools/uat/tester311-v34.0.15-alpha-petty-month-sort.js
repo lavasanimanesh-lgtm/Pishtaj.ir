@@ -10,7 +10,7 @@ var petty = fs.readFileSync(path.join(BASE, 'petty.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 SECTION('کد: تفکیک «تاریخ دقیق» از «فقط ماه» در inRange');
 T('inRange فقط با تاریخ دقیقِ واقعی مقایسهٔ روز می‌کند', petty.indexOf('var hasExact = !!(x.t || x.date || x.dateISO || x.iso || x.dateFa);') > -1);

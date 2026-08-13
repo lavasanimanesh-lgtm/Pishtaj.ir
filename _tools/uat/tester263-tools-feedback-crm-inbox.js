@@ -32,7 +32,7 @@ T('advanced modal دکمه ارسال feedback دارد ولی advanced-tools-ui
 SECTION('CRM feedback inbox');
 T('crm/tool-feedback.js وجود و توابع لازم دارد', crm.indexOf('PTF CRM — tool-feedback.js') > -1 && ['ptfToolFeedbackHtml','ptfToolFeedbackLoad','ptfToolFeedbackSet'].every(function (x) { return crm.indexOf(x) > -1; }));
 T('CRM feedback UI اکشن‌های admin را صدا می‌زند', crm.indexOf('admin_feedback_list') > -1 && crm.indexOf('admin_feedback_update') > -1);
-T('CRM index tool-feedback را cache-bust v33.5.0 لود می‌کند', /tool-feedback.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM index tool-feedback را cache-bust v33.5.0 لود می‌کند', /tool-feedback.js\?v=3[0-9.]+/.test(idx) && /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('online payment همچنان اضافه نشده است', api.indexOf('payment_gateway') === -1 && api.indexOf('zarinpal') === -1 && fb.indexOf('zarinpal') === -1);
 
 DONE('tester263-tools-feedback-crm-inbox');

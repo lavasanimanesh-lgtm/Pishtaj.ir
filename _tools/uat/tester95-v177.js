@@ -9,8 +9,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v17.7+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.7;})());
-T('کش sw >= v17.7 + opex در SHELL', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.7;})() && sw.indexOf("'./opex.js'") > -1);
+T('نسخه v17.7+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.7;})());
+T('کش sw >= v17.7 + opex در SHELL', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.7;})() && sw.indexOf("'./opex.js'") > -1);
 T('opex.js در index بعد از petty', idx.indexOf('opex.js?v=') > idx.indexOf('petty.js?v='));
 T('ptf_crm_opex در سینک + سپر داده‌صفر + بک‌آپ', sy.indexOf("'ptf_crm_opex'") > -1 && sy.indexOf("'ptf_crm_payables'") > -1 && bk.indexOf("'ptf_crm_opex'") > -1);
 
@@ -49,6 +49,14 @@ global.ptfToast = function () {};
   ok = ex('window.ptfFaMonthNow', /window\.ptfFaMonthNow = function[\s\S]*?\n  \};/) && ok;
   ok = ex('function normMonth', /function normMonth\(m\) \{[\s\S]*?\n  \}/) && ok;
   ok = ex('window.ptfOpexSum', /window\.ptfOpexSum = function[\s\S]*?\n    return out;\n  \};/) && ok;
+  ok = ex('function oRows', /function oRows\(\) \{[\s\S]*?\n  \}/) && ok; /* 2026-08-13: ptfOpexSum به oRows خصوصی وابسته است */
+  ok = ex('function opexEnsureRowIds', /function opexEnsureRowIds\(list\) \{[\s\S]*?\n  \}/) && ok; /* v34.4.46: مهاجرت شناسهٔ ردیف داخل oRows */
+  global.OPEX_ROW_ID = '_opexRowId'; /* v34.4.46: ثابت IIFE ماژول */
+  ok = ex('function opexNewRowId', /function opexNewRowId\(\) \{[\s\S]*?\n  \}/) && ok;
+  global.opexRowSeq = 0; /* شمارندهٔ IIFE ماژول */
+  global.K = 'ptf_crm_opex'; /* ثابت کلید ذخیرهٔ IIFE ماژول */
+  ok = ex('function opexNextCode', /function opexNextCode\(list\) \{[\s\S]*?\n  \}/) && ok;
+  global.genCode = function (p) { return p + '-' + (++global._sq9 || (global._sq9 = 1)); }; /* وابستهٔ opexNextCode */
   ok = ex('function tpls', /function tpls\(\) \{[\s\S]*?\n  \}/) && ok;
   ok = ex('function saveTpls', /function saveTpls\(list\) \{[\s\S]*?\n  \}/) && ok;
   ok = ex('window.ptfOpexPendingTpls', /window\.ptfOpexPendingTpls = function[\s\S]*?\n  \};/) && ok;

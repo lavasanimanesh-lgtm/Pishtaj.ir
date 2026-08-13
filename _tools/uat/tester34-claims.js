@@ -27,7 +27,7 @@ T('باگ v121.0: offerPickBuyer برگشت', off.indexOf('function offerPickBuy
 T('US-109: بج وندور در رندر فعال (override قبلا آن را می‌خورد)', off.indexOf('ptfVendorStatusBadge(c)') > -1);
 T('US-109: UI تنظیم وندور در فرم مشتری (قبلا فقط اکسل)', off.indexOf('nC2VenSt') > -1 && off.indexOf('venSt:') > -1);
 T('US-110: زونکن به داده واقعی docs وصل (نه alert جعلی)', idx.indexOf('docs.filter(function(d){ return d.folder === sc.id; })') > -1 && idx.indexOf('alert(&quot;مشاهده') === -1);
-T('US-110/111: دکمه‌ها در پرونده وصل شدند (توابع مرده بودند)', prj.indexOf('ptfOpenProjectBinder') > -1 && prj.indexOf('ptfCalculateNetProfit') > -1);
+T('US-110/111: دکمه‌ها در پرونده وصل شدند (توابع مرده بودند)', prj.indexOf('ptfOpenProjectBinder') > -1); /* 2026-08-13: UI سود از پرونده عمداً حذف شد (SALESFILE-PROFIT-GONE — tester343)؛ بایندر پابرجاست */
 /* v16.0 (US-390): منطق سود به موتور واحد ptfProjectProfitIRR در fx.js منتقل شد */
 T('US-111: سود خالص با داده واقعی (نه 0.72 فرضی/1.5 میلیارد جعلی)', idx.indexOf('1500000000') === -1 && (idx.indexOf("getData('ptf_crm_buycmp')") > -1 || (idx.indexOf('ptfProjectProfitIRR(p)') > -1 && fs.readFileSync(path.join(BASE, 'fx.js'), 'utf-8').indexOf("getData('ptf_crm_buycmp')") > -1)));
 /* v14.9 (US-383): commercial هم به فهرست مدیران اضافه شد */
@@ -41,7 +41,7 @@ T('US-103: واقعیت ثبت شد — setInterval هنوز موجود (ادع�
 T('US-116: کدینگ واحد فقط کالا (genCode در ۱۰+ ماژول باقی)', idx.indexOf('ptfUnifiedCode') > -1);
 
 SECTION('نسخه');
-T('VER نسخه‌دار', /var VER = 'v\d/.test(idx));
+T('VER نسخه‌دار', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
 DONE('tester34-claims');
 
 SECTION('دور دوم راستی‌آزمایی (v121.2)');

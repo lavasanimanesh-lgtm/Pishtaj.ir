@@ -35,6 +35,6 @@ T('جستجوی سرتاسری در کشوی بیشتر (دسترس شست)', mn
 SECTION('معماری و نسخه');
 T('دسکتاپ دست‌نخورده (همه قواعد داخل @media)', mn.indexOf("'@media(max-width:' + BP + 'px){'") > -1 && mn.indexOf('#mnvBar{display:none}') > -1);
 T('بوت با تلاش محدود + هوک showCrm (نه polling دائمی)', mn.indexOf('tries > 60') > -1 && mn.indexOf('window.showCrm') > -1);
-T('VER v12x', /var VER = 'v\d/.test(idx));
-T('sw cache v12x', /ptf-crm-v\d/.test(sw));
+T('VER v12x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw cache v12x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester41-v1230');

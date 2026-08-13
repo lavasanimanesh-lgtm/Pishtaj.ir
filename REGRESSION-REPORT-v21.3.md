@@ -1,18 +1,18 @@
-# گزارش رگرسیون کامل — v31.7.97
+# گزارش رگرسیون کامل — unknown
 
-**تاریخ اجرا:** 2026-07-22T21:23:15.318Z
-**نسخه کد:** v31.7.97
+**تاریخ اجرا:** 2026-08-13T10:24:36.761Z
+**نسخه کد:** unknown
 **دستورات:** `python3 _tools/audit.py` + همه `_tools/uat/tester*.js`
 
 ## نتیجه کلی
 
 | شاخص | مقدار |
 |:---|---:|
-| تعداد تسترها | 253 |
-| فایل تستر PASS | **253** |
-| فایل تستر FAIL | **0** |
-| مجموع چک PASS | **5066** |
-| مجموع چک FAIL | **0** |
+| تعداد تسترها | 400 |
+| فایل تستر PASS | **223** |
+| فایل تستر FAIL | **177** |
+| مجموع چک PASS | **5723** |
+| مجموع چک FAIL | **215** |
 | audit.py | PASS (بدون warning) |
 
 ## تسترهای ازقبل‌شکسته (مسیر `/home/user/pishtaj/`)
@@ -21,7 +21,183 @@
 
 ## FAILهای واقعی / جدید
 
-**هیچ**
+- tester100-v182.js: 24 PASS / 1 FAIL |   ✘ FAIL: وصول پیش‌پرداخت paid می‌شود | === tester100-v182: 24 PASS / 1 FAIL ===
+- tester103-v186.js: 18 PASS / 1 FAIL |   ✘ FAIL: باکس پرونده فروش پیش‌پرداخت/هزینه/استعلام مجدد را نشان می‌دهد | === tester103-v186: 18 PASS / 1 FAIL ===
+- tester104-v187.js: 17 PASS / 1 FAIL |   ✘ FAIL: بستانکاری تامین‌کننده dueISO/dueNote دریافت می‌کند | === tester104-v187: 17 PASS / 1 FAIL ===
+- tester105-v189.js: 17 PASS / 2 FAIL |   ✘ FAIL: رندر پیشنهاد برنده read-only و پرونده فروش نشان می‌دهد |   ✘ FAIL: دکمه فاکتور در پیشنهاد برنده به پرونده هدایت می‌شود نه refToInvoice | === tester105-v189: 17 PASS / 2 FAIL ===
+- tester106-v190.js: 23 PASS / 1 FAIL |   ✘ FAIL: fiscal فقط admin/chairman (محرمانگی R9) | === tester106-v190: 23 PASS / 1 FAIL ===
+- tester107-v191.js: 39 PASS / 3 FAIL |   ✘ FAIL: دکمه 🔬 فقط برای پرونده برنده |   ✘ FAIL: برچسب Post-Award: عملیات فقط از داخل پرونده (US-434) |   ✘ FAIL: عدم انطباق → notify مدیران با kind=warn | === tester107-v191: 39 PASS / 3 FAIL ===
+- tester109-v193.js: 40 PASS / 2 FAIL |   ✘ FAIL: دکمه در کشو: باز پس از مرحله ۷، قفل 🔒 قبل از آن، بج پس از ارجاع |   ✘ FAIL: US-434ف۲ ارسال/تحویل (v19.2) پابرجا | === tester109-v193: 40 PASS / 2 FAIL ===
+- tester110-v194.js: 34 PASS / 2 FAIL |   ✘ FAIL: AC1: مطالبات باز = بدون تیک تسویه، مختومه ممنوع |   ✘ FAIL: US-435/436 (v19.3) پابرجا | === tester110-v194: 34 PASS / 2 FAIL ===
+- tester111-v195.js: 31 PASS / 7 FAIL |   ✘ FAIL: قفل مجدد همان پیام سند اصلاحی را می‌دهد (رفتار قبلی حفظ) |   ✘ FAIL: خروجی CSV حسابدار: ptfFiscalCsv با BOM و بخش‌های کامل |   ✘ FAIL: CSV شامل پروژه‌ها + هزینه جاری + سند اصلاحی + سهامداران |   ✘ FAIL: RBAC: CSV و snapshot هر دو canFiscal دارند |   ✘ FAIL: CSV تولید شد با BOM و سود خالص
+- tester113-v197.js: 35 PASS / 1 FAIL |   ✘ FAIL: UI پیام نقض توالی | === tester113-v197: 35 PASS / 1 FAIL ===
+- tester114-v198.js: 18 PASS / 2 FAIL |   ✘ FAIL: audit با فهرست کلیدها |   ✘ FAIL: audit ثبت شد | === tester114-v198: 18 PASS / 2 FAIL ===
+- tester118-v202.js: 27 PASS / 1 FAIL |   ✘ FAIL: hook کشوی پرونده: باکس اسناد رسمی + دکمه‌های صدور ۴گانه | === tester118-v202: 27 PASS / 1 FAIL ===
+- tester119-v203.js: 13 PASS / 5 FAIL |   ✘ FAIL: کاربران عادی هاب نمی‌بینند |   ✘ FAIL: تب‌ها فقط display بخش‌ها را کنترل می‌کنند |   ✘ FAIL: تب هزینه جاری فقط opexBox را نشان می‌دهد |   ✘ FAIL: تب سهامداران فقط shareBox را نشان می‌دهد |   ✘ FAIL: تب تنخواه بخش‌های اصلی تنخواه را نشان می‌دهد
+- tester120-v204.js: 13 PASS / 1 FAIL |   ✘ FAIL: تب کارت ویزیت در buildAi و tabs وجود دارد | === tester120-v204: 13 PASS / 1 FAIL ===
+- tester122-v206.js: 14 PASS / 2 FAIL |   ✘ FAIL: دسترسی کامل petty فقط admin/chairman |   ✘ FAIL: برای سایر کاربران ثبت هزینه باز است | === tester122-v206: 14 PASS / 2 FAIL ===
+- tester124-v21.js: 13 PASS / 12 FAIL |   ✘ FAIL: کش sw هنوز v20.7 (الگوی v1x) |   ✘ FAIL: genCode ساختار صحیح دارد (P-XXX-YYYY) |   ✘ FAIL: window.rawAdj موجود |   ✘ FAIL: window.rawAdj فارسی می‌خواند |   ✘ FAIL: window.rawAdj عربی می‌خواند
+- tester126-v23.js: TypeError: m.countByOwnership is not a function
+- tester139-v258-llm.js: 13 PASS / 1 FAIL |   ✘ FAIL: settings header markup is structurally closed | === tester139-v258-llm: 13 PASS / 1 FAIL ===
+- tester143-v262-supplier-finance.js: 13 PASS / 1 FAIL |   ✘ FAIL: payment/cheque scope is intentionally deferred from Sprint 262 | === tester143-v262-supplier-finance: 13 PASS / 1 FAIL ===
+- tester145-v264-cheque-transfer.js: 10 PASS / 1 FAIL |   ✘ FAIL: daily dashboard excludes transferred cheque reminders | === tester145-v264-cheque-transfer: 10 PASS / 1 FAIL ===
+- tester15-sprint78.js: 16 PASS / 1 FAIL |   ✘ FAIL: ثبت/حذف → سینک | === TESTER-15 (Sprint78.1): 16 PASS / 1 FAIL ===
+- tester170-v3172-sync-auth.js: 5 PASS / 1 FAIL |   ✘ FAIL: pull قبل از token/401 با refresh auth retry کنترل‌شده دارد | === tester170-v3172-sync-auth: 5 PASS / 1 FAIL ===
+- tester173-v318-backup-coverage.js: 4 PASS / 2 FAIL |   ✘ FAIL: هیچ کلید sync از backup جا نمانده |   ✘ FAIL: restore همان DATA_KEYS را مصرف می‌کند | === tester173-v318-backup-coverage: 4 PASS / 2 FAIL ===
+- tester178-v323-sync-divergence.js: 7 PASS / 2 FAIL |   ✘ FAIL: startup همیشه snapshot کامل server را می‌کشد |   ✘ FAIL: retry توکن forceFull را حفظ می‌کند | === tester178-v323-sync-divergence: 7 PASS / 2 FAIL ===
+- tester179-v324-sync-auth-race.js: 2 PASS / 4 FAIL |   ✘ FAIL: auth refresh helper از session/passhash استفاده می‌کند |   ✘ FAIL: 401/needLogin stale local را fresh اعلام نمی‌کند |   ✘ FAIL: پس از refresh همان pull pending دوباره اجرا می‌شود |   ✘ FAIL: boot فقط بعد از callback pull کامل می‌شود | === tester179-v324-sync-auth-race: 2 PASS / 4 FAIL ===
+- tester180-v325-admin-token-bridge.js: 0 PASS / 4 FAIL |   ✘ FAIL: showCrm برای admin از ADMIN_HASH/settings fallback می‌گیرد |   ✘ FAIL: sync refresh برای admin به ptf_crm_users وابسته نیست |   ✘ FAIL: auth_login با passhash fallback ارسال می‌شود |   ✘ FAIL: 401 مسیر auth refresh را نگه می‌دارد | === tester180-v325-admin-token-bridge: 0 PASS / 4 FAIL ===
+- tester181-v326-sync-role-acl.js: 8 PASS / 1 FAIL |   ✘ FAIL: کلیدهای مالی در allowlist sales نیستند | === tester181-v326-sync-role-acl: 8 PASS / 1 FAIL ===
+- tester184-auth-contract-e2e.js: 6 PASS / 1 FAIL |   ✘ FAIL: data_rev در public_actions است | === tester184-auth-contract-e2e: 6 PASS / 1 FAIL ===
+- tester184-v329-startup-local-merge.js: 5 PASS / 1 FAIL |   ✘ FAIL: startup قبل از full pull reconcile را فعال می‌کند | === tester184-v329-startup-local-merge: 5 PASS / 1 FAIL ===
+- tester187-offer-refprice.js: 19 PASS / 1 FAIL |   ✘ FAIL: قبل از setData آفرها اجرا می‌شود (اتمی با ذخیره) | === tester187-offer-refprice: 19 PASS / 1 FAIL ===
+- tester190-dup-nag-bot-spam.js: 12 PASS / 4 FAIL |   ✘ FAIL: اولین notify → بات یک‌بار می‌فرستد |   ✘ FAIL: رفرش‌های بعدی (dedup) → بات دیگر نمی‌فرستد (قبلاً هر بار می‌رفت) |   ✘ FAIL: کارتابل همچنان فقط ۱ رکورد با شمارنده دارد |   ✘ FAIL: notify واقعاً جدید → بات می‌فرستد (سرکوب کور نیست) | === tester190-dup-nag-bot-spam: 12 PASS / 4 FAIL ===
+- tester191-stock-rename.js: 16 PASS / 2 FAIL |   ✘ FAIL: عنوان پنل و breadcrumb |   ✘ FAIL: هدر ماژول و دکمه ثبت | === tester191-stock-rename: 16 PASS / 2 FAIL ===
+- tester192-mobile-theme-fouc.js: 15 PASS / 2 FAIL |   ✘ FAIL: موبایل: سایدبار از فریم اول مخفی + جای نوار پایین رزرو |   ✘ FAIL: ساختار TABS/goPanel/RBAC دست‌نخورده | === tester192-mobile-theme-fouc: 15 PASS / 2 FAIL ===
+- tester193-nav-orphan-header.js: 9 PASS / 6 FAIL |   ✘ FAIL: بج نسخه تک‌خطی و فشرده در موبایل |   ✘ FAIL: کنترل سرریز کانتینرهای هدر (min-width:0، بدون clip بج‌ها — v31.7.19) |   ✘ FAIL: بج نسخه ellipsis به‌جای بریده‌شدن + هدر بدون overflow:hidden |   ✘ FAIL: آیکون‌های هدر موبایل: اندازه ثابت + svg وسط (v31.7.19: overflow:visible برای بج زنگ) |   ✘ FAIL: نوار trial هم مهار سرریز دارد
+- tester196-parallel-offers.js: 13 PASS / 1 FAIL |   ✘ FAIL: فهرست TO: دکمه «+CO گزینه ۲» به‌جای قفل مرده | === tester196-parallel-offers: 13 PASS / 1 FAIL ===
+- tester20-sprint83.js: 21 PASS / 1 FAIL |   ✘ FAIL: SW کش نسخه‌دار | === tester20-sprint83: 21 PASS / 1 FAIL ===
+- tester200-sms-auth-token.js: 10 PASS / 2 FAIL |   ✘ FAIL: ui-kit.js اول از همه ماژول‌ها لود می‌شود (پوشش کامل) |   ✘ FAIL: sms.js همچنان بدون توکن دستی است — wrapper پوشش می‌دهد (بدون تغییر ماژول) | === tester200-sms-auth-token: 10 PASS / 2 FAIL ===
+- tester203-myday-dedup.js: 6 PASS / 1 FAIL |   ✘ FAIL: فقط اعلان actionable مستقیم کاربر به روز من افزوده می‌شود | === tester203-myday-dedup: 6 PASS / 1 FAIL ===
+- tester203-v3300-finance-hub-toolbar.js: 3 PASS / 1 FAIL |   ✘ FAIL: دکمه‌های پرداخت مستقیم/شارژ/ارجاع دوره داخل همان تولبار هستند | === tester203-v3300-finance-hub-toolbar: 3 PASS / 1 FAIL ===
+- tester208-v3301-petty-period-report.js: 11 PASS / 1 FAIL |   ✘ FAIL: دکمه‌های گزارش در renderPeriods (بازه/ماه) و تولبار هست | === tester208-v3301-petty-period-report: 11 PASS / 1 FAIL ===
+- tester209-v3301-petty-combined-pdf.js: 19 PASS / 2 FAIL |   ✘ FAIL: چیدمان ۳-در-صفحه: کلاس rcpt + ۳ تصویر + grid سه‌ستونه |   ✘ FAIL: تبدیل به JPEG: فراخوانی endpoint سرور (با mock fetch) | === tester209-v3301-petty-combined-pdf: 19 PASS / 2 FAIL ===
+- tester212-v3304-petty-period-range.js: 21 PASS / 2 FAIL |   ✘ FAIL: هزینهٔ مستقیم: «پرداخت مستقیم از تنخواه» دارد |   ✘ FAIL: files با ids دوره فقط رسید همان دوره را برمی‌گرداند (PTY-2) | === tester212-v3304-petty-period-range: 21 PASS / 2 FAIL ===
+- tester215-duplicate-growth-myday-dismiss.js: 10 PASS / 1 FAIL |   ✘ FAIL: ptfSmartMerge برای RFQ/Offer دیگر no-collapse نیست و canonical merge می‌کند | === tester215-duplicate-growth-myday-dismiss: 10 PASS / 1 FAIL ===
+- tester215-v3305-cheque-module.js: 46 PASS / 1 FAIL |   ✘ FAIL: مبلغ به حروف + تاریخ به حروف + فونت‌ها + قرمز در ماژول چاپ | === tester215-v3305-cheque-module: 46 PASS / 1 FAIL ===
+- tester245-mobile-login-user-merge.js: 9 PASS / 2 FAIL |   ✘ FAIL: auth_login از منبع merged استفاده می‌کند نه اولین منبع non-empty |   ✘ FAIL: users_get از منبع merged استفاده می‌کند و همچنان passhash برنمی‌گرداند | === tester245-mobile-login-user-merge: 9 PASS / 2 FAIL ===
+- tester254-advanced-cv-finalization-backlog-doc.js: 6 PASS / 2 FAIL |   ✘ FAIL: PTF-MASTER-HANDOVER نسخه v31.7.97 را ثبت کرده است |   ✘ FAIL: handover فایل‌ها و محدودیت‌های جدید را ثبت کرده است | === tester254-advanced-cv-finalization-backlog-doc: 6 PASS / 2 FAIL ===
+- tester261-advanced-cv-gtm-sales-plan.js: 6 PASS / 1 FAIL |   ✘ FAIL: handover نسخه v31.7.97 را ثبت کرده است | === tester261-advanced-cv-gtm-sales-plan: 6 PASS / 1 FAIL ===
+- tester262-control-valve-dedicated-seo-landing.js: 10 PASS / 1 FAIL |   ✘ FAIL: title/meta/canonical صفحه اختصاصی درست است | === tester262-control-valve-dedicated-seo-landing: 10 PASS / 1 FAIL ===
+- tester272-offer-duplicate-items-settings-accordion.js: 14 PASS / 1 FAIL |   ✘ FAIL: settings-accordion.js وجود دارد و نسخه/قرارداد جدید دارد | === tester272-offer-duplicate-items-settings-accordion: 14 PASS / 1 FAIL ===
+- tester275-fiscal-profit-and-minimal-icons.js: 13 PASS / 3 FAIL |   ✘ FAIL: dashboard مالی کارت تنخواه مستقل و label سود پس از هزینه‌ها دارد |   ✘ FAIL: Knowledge Center heading آیکون کتاب خطی دارد نه KC/emoji |   ✘ FAIL: clusterهای مرکز دانش icon key معنایی و SVG دارند، نه شماره | === tester275-fiscal-profit-and-minimal-icons: 13 PASS / 3 FAIL ===
+- tester276-semantic-icons-fiscal-dark.js: 23 PASS / 2 FAIL |   ✘ FAIL: عنوان مرکز دانش آیکون کتاب SVG دارد، نه KC/emoji |   ✘ FAIL: renderer واقعی kcIcon SVG می‌سازد | === tester276-semantic-icons-fiscal-dark: 23 PASS / 2 FAIL ===
+- tester277-auth-token-session-stabilization.js: 2 PASS / 4 FAIL |   ✘ FAIL: showCrm token موجود را قبل از auth_login reuse می‌کند |   ✘ FAIL: sync refresh single-flight است |   ✘ FAIL: token map در هر درخواست PHP cache می‌شود |   ✘ FAIL: فرمت و عمر session تغییر نکرده است | === tester277-auth-token-session-stabilization: 2 PASS / 4 FAIL ===
+- tester280-settings-semantic-icons.js: 3 PASS / 1 FAIL |   ✘ FAIL: financial offers always show health check | === tester280-settings-semantic-icons: 3 PASS / 1 FAIL ===
+- tester281-captcha-guard-fix.js: exit ?
+- tester282-dummy.js: exit ?
+- tester283-dummy.js: exit ?
+- tester284-dummy.js: exit ?
+- tester285-dummy.js: exit ?
+- tester286-dummy.js: exit ?
+- tester288-cheque-party-recurring.js: SyntaxError: Unexpected token ')'
+- tester291-hub-clean.js: 11 PASS / 1 FAIL |   ✘ FAIL: finHubOrder شامل opexBox/slLiquidity/همه باکس‌هاست | === tester291-hub-clean: 11 PASS / 1 FAIL ===
+- tester300-delta-poll.js: 20 PASS / 5 FAIL |   ✘ FAIL: krevs در URL پول می‌رود |   ✘ FAIL: krevs فقط برای پول عادی است — forceFull (بوت/بازسازی) since=0 و بدون krevs |   ✘ FAIL: پول عادی: since=۴ و krevs همان نقشهٔ ذخیره‌شده است |   ✘ FAIL: forceFull: since=0 و بدون krevs (اسنп‌شات کامل بوت — همان رفتار قدیمی) |   ✘ FAIL: نسخهٔ فعلی همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP
+- tester300-v34.0.4-alpha-phase1-fixes.js: 32 PASS / 3 FAIL |   ✘ FAIL: VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند |   ✘ FAIL: دکمهٔ وصول و تابع هم‌نام‌اند |   ✘ FAIL: مسیر نسبی ../api درست شد | === tester300-v34.0.4-alpha: 32 PASS / 3 FAIL ===
+- tester301-v34.0.5-alpha-fiscal-phase2.js: 21 PASS / 2 FAIL |   ✘ FAIL: lockstep نسخهٔ جاری |   ✘ FAIL: سلکتور سال (بدون input دستی سال) | === tester301-v34.0.5-alpha: 21 PASS / 2 FAIL ===
+- tester302-v34.0.6-alpha-deploy-hygiene.js: exit 1
+- tester307-v34.0.11-alpha-quality-links.js: 7 PASS / 1 FAIL |   ✘ FAIL: action اصلاح فاکتور خرید (slInvoiceEdit) در qualityRefsHtml هست | === tester307-v34.0.11-alpha: 7 PASS / 1 FAIL ===
+- tester313-v34.0.17-alpha-mobile-ui.js: 6 PASS / 2 FAIL |   ✘ FAIL: موبایل: دکمه‌ها flex وسط‌چین + شکستن متن |   ✘ FAIL: موبایل: دکمه‌های مودال تمام‌عرض و یکنواخت | === tester313-v34.0.17-alpha: 6 PASS / 2 FAIL ===
+- tester316-v34.4.12-opex-attachments.js: 7 PASS / 1 FAIL |   ✘ FAIL: پیوست هزینهٔ لینک‌شده به پرونده در costEvent هم کپی می‌شود | === tester316-v34.4.12-opex-attachments: 7 PASS / 1 FAIL ===
+- tester329-v34.4.35-staging-rca.js: exit 1
+- tester330-v34.4.36-inline-attachment-view.js: exit 1
+- tester331-v34.4.37-entity-messenger-quick-links.js: exit ?
+- tester332-v34.4.38-supplier-ledger-attachment-persistence.js: exit 1
+- tester333-v34.4.39-whatsapp-native-deep-link.js: exit ?
+- tester334-v34.4.40-iranian-messenger-web-phone-fallback.js: exit ?
+- tester335-v34.4.41-semantic-pdf-default-filenames.js: exit 1
+- tester336-v34.4.42-sync-false-unsaved-banner.js: exit 1
+- tester337-v34.4.43-supplier-rfq-search-duplicate-guard.js: exit 1
+- tester338-v34.4.44-inline-pdf-single-ledger-rfq-card.js: exit 1
+- tester339-v34.4.45-rfq-card-metadata-without-item-preview.js: exit 1
+- tester34-claims.js: 17 PASS / 1 FAIL |   ✘ FAIL: US-110/111: دکمه‌ها در پرونده وصل شدند (توابع مرده بودند) | === tester34-claims: 17 PASS / 1 FAIL === | === tester34-claims-r2: 22 PASS / 1 FAIL ===
+- tester340-v34.4.46-opex-row-identity-collapsed-docs.js: TypeError: Cannot read properties of undefined (reading 'amt')
+- tester341-v34.4.47-data-loss-close.js: exit 1
+- tester342-v34.4.48-golive-retire.js: exit 1
+- tester343-v34.4.49-salesfile-margin.js: exit ?
+- tester344-v34.4.50-dark-module-css.js: exit 1
+- tester345-v34.4.51-cheque-ownerless.js: exit ?
+- tester346-v34.4.52-opex-month-select.js: exit ?
+- tester347-v34.4.53-link-mismatch-ack.js: exit ?
+- tester348-v34.4.54-finance-workflow-p0p2.js: exit 1
+- tester349-v34.4.55-finance-workflow-p3.js: exit 1
+- tester35-sprint122.js: 20 PASS / 2 FAIL |   ✘ FAIL: سود خالص: فروش = دریافت ریالی واقعی |   ✘ FAIL: مانده وصول‌نشده در سود لحاظ نمی‌شود | === tester35-sprint122: 20 PASS / 2 FAIL ===
+- tester350-v34.4.56-finance-workflow-p4.js: exit 1
+- tester351-v34.4.57-finance-workflow-p5.js: exit 1
+- tester352-v34.4.58-finance-workflow-p6.js: exit 1
+- tester353-v34.4.59-finance-workflow-p7.js: exit 1
+- tester354-v34.4.60-finance-workflow-p8.js: exit 1
+- tester355-v34.4.61-petty-report-sort-files.js: exit 1
+- tester356-v34.4.62-petty-pdf-treasury.js: exit 1
+- tester357-v34.4.63-treasury-add-line.js: exit 1
+- tester358-v34.4.64-honest-sync.js: exit 1
+- tester359-v34.4.65-margin-opex.js: exit 1
+- tester360-v34.4.66-share-tx-attach.js: exit 1
+- tester361-v34.4.67-combined-raster.js: exit 1
+- tester362-v34.4.68-combined-wait.js: exit 1
+- tester363-v34.4.69-supplier-opening-claim.js: exit 1
+- tester364-v34.4.70-combined-convert.js: exit 1
+- tester365-v34.4.71-pdf-jpeg-extract.js: exit 1
+- tester366-v34.4.72-preview-replace.js: exit 1
+- tester367-v34.4.73-receipts-zip.js: exit 1
+- tester368-v34.4.74-treasury-quality-focus.js: exit 1
+- tester369-v34.4.75-salesfile-profit-invoice.js: exit 1
+- tester370-v34.4.76-advance-as-receipt.js: exit 1
+- tester371-v34.4.77-nav-focus.js: exit 1
+- tester372-v34.4.78-rfq-view-salesfile.js: exit 1
+- tester373-v34.4.79-treasury-bank-match.js: exit 1
+- tester374-v34.4.80-drop-bank-match.js: exit 1
+- tester375-v34.4.81-treasury-full-cash.js: exit 1
+- tester376-v34.4.82-treasury-call.js: exit 1
+- tester377-v34.4.83-treasury-clean-cache.js: exit 1
+- tester378-v34.4.84-treasury-print.js: exit 1
+- tester379-v34.4.84-treasury-scenario.js: exit ?
+- tester380-v34.4.86-call-pay-edit.js: exit ?
+- tester381-v34.4.87-fiscal-call-credit.js: exit ?
+- tester382-v34.4.88-call-pay-ui.js: exit ?
+- tester383-v34.4.89-chair-cash.js: exit ?
+- tester384-v34.4.90-opex-cheque.js: exit ?
+- tester385-v34.4.91-opex-future-cheque.js: exit ?
+- tester386-v34.4.93-sync-refresh-false-alerts.js: exit ?
+- tester387-v34.4.94-rfq-no-offer-filter.js: exit 1
+- tester388-v34.4.95-settings-tabs.js: exit ?
+- tester389-v34.4.96-mobile-msg-rfq.js: exit ?
+- tester390-v34.4.97-sync-fast-pull.js: exit ?
+- tester391-v34.4.98-share-preview-msg.js: exit ?
+- tester392-v34.4.99-print-share-msg.js: exit ?
+- tester393-v34.5.0-modal-ctrl-dark.js: exit ?
+- tester394-v34.5.1-rfq-offer-filter-fast.js: exit ?
+- tester395-v34.5.5-action-only-cartable.js: exit ?
+- tester396-v34.5.6-ci-gate-contracts.js: exit ?
+- tester397-v34.5.7-password-rehash.js: exit ?
+- tester398-v34.5.7-migrate-prod-lock.js: exit 1
+- tester40-v1225.js: 17 PASS / 4 FAIL |   ✘ FAIL: سلکتور فقط فرزند مستقیم (index.html) |   ✘ FAIL: متن سرگروه: 9px + ellipsis + سقف 46px (index) |   ✘ FAIL: سرگروه موبایل هم متغیر تم |   ✘ FAIL: رنگ متن سرگروه متغیر | === tester40-v1225: 17 PASS / 4 FAIL ===
+- tester41-v1230.js: 20 PASS / 4 FAIL |   ✘ FAIL: ساعت و health-pill در موبایل مخفی |   ✘ FAIL: هدر فشرده بدون شکست ردیف (v31.7.19: مهار سرریز با min-width/ellipsis نه clip) |   ✘ FAIL: عنوان پنل ellipsis (سرریز ممنوع) |   ✘ FAIL: دسکتاپ دست‌نخورده (همه قواعد داخل @media) | === tester41-v1230: 20 PASS / 4 FAIL ===
+- tester5-site.js: 38 PASS / 1 FAIL |   ✘ FAIL: SW ثبت می‌شود (shell.js) | === TESTER-5 (Site/Public): 38 PASS / 1 FAIL ===
+- tester51-v131.js: 16 PASS / 2 FAIL |   ✘ FAIL: عنوان پنل «دستیار» یکدست شد |   ✘ FAIL: برای سایر نقش‌ها کشو ظاهر نمی‌شود | === tester51-v131: 16 PASS / 2 FAIL ===
+- tester52-v132.js: 21 PASS / 1 FAIL |   ✘ FAIL: مسیر بدون فاکتور: دلیل + پیشنهاد دانلود + هشدار حذف | === tester52-v132: 21 PASS / 1 FAIL ===
+- tester53-v133.js: 19 PASS / 1 FAIL |   ✘ FAIL: نظر دیگر کاربر: مانده باز می‌ماند (v19.4: بدون تیک، مطالبات باز و مختومه قفل) | === tester53-v133: 19 PASS / 1 FAIL ===
+- tester54-v134.js: 22 PASS / 2 FAIL |   ✘ FAIL: سایدبار: درخواست تامین |   ✘ FAIL: rfqsmart: عنوان و دکمه | === tester54-v134: 22 PASS / 2 FAIL ===
+- tester55-v135.js: 22 PASS / 1 FAIL |   ✘ FAIL: کلاینت: هوک notify اعلان‌های مهم (v13.8: گسترش به ارجاع/پرداخت/...) | === tester55-v135: 22 PASS / 1 FAIL ===
+- tester57-v137.js: 24 PASS / 1 FAIL |   ✘ FAIL: فضای بالای مودال برای دکمه‌های مک+چیپ | === tester57-v137: 24 PASS / 1 FAIL ===
+- tester58-v138.js: 10 PASS / 1 FAIL |   ✘ FAIL: پوشش کامل: چک/سیستم/ادمین/ارجاع/پرداخت/خرید/وضعیت/یادآور | === tester58-v138: 10 PASS / 1 FAIL ===
+- tester59-v139.js: 23 PASS / 1 FAIL |   ✘ FAIL: در بک‌لاگ هندآور ثبت شده | === tester59-v139: 23 PASS / 1 FAIL ===
+- tester6-bridge.js: 62 PASS / 3 FAIL |   ✘ FAIL: اعلان «منتظر صدور پیشنهاد فنی» ارسال شد |   ✘ FAIL: اعلان به نقش‌های فروش رفت |   ✘ FAIL: اعلان عمومی به نقش‌های فروش (غیرهایلایت) | === TESTER-6 (Sprint69 Bridge): 62 PASS / 3 FAIL ===
+- tester60-v140.js: 18 PASS / 1 FAIL |   ✘ FAIL: همراه چرخه بک‌آپ (بدون polling جدید) | === tester60-v140: 18 PASS / 1 FAIL ===
+- tester63-v143.js: 38 PASS / 2 FAIL |   ✘ FAIL: تبدیل →CO در هر وضعیت دیگر آزاد |   ✘ FAIL: دکمه فهرست: «+ ثبت درخواست جدید» | === tester63-v143: 38 PASS / 2 FAIL ===
+- tester65-v145.js: 42 PASS / 1 FAIL |   ✘ FAIL: باکس «منطقه خطر» در تنظیمات فقط ادمین | === tester65-v145: 42 PASS / 1 FAIL ===
+- tester66-v146.js: 39 PASS / 3 FAIL |   ✘ FAIL: ضدتکرار روزانه per درخواست |   ✘ FAIL: مهلت دور → خنثی (بدون bg) |   ✘ FAIL: هشدار عبور از سقف هنگام ذخیره (مانده + مبلغ جدید) | === tester66-v146: 39 PASS / 3 FAIL ===
+- tester68-v148.js: 48 PASS / 1 FAIL |   ✘ FAIL: هشدار تاخیر به مدیران + ضدتکرار روزانه | === tester68-v148: 48 PASS / 1 FAIL ===
+- tester7-sprint70.js: 62 PASS / 1 FAIL |   ✘ FAIL: UI: دکمه فاکتور برای غیربرنده قفل | === TESTER-7 (Sprint70): 62 PASS / 1 FAIL ===
+- tester70-v150.js: 36 PASS / 3 FAIL |   ✘ FAIL: سرور خالی (seed) و حالت به‌روز → bootstrapped فوری |   ✘ FAIL: آفلاین/خطا → قفل نمی‌ماند (کار محلی آزاد) |   ✘ FAIL: بک‌آپ‌های چرخشی سالم دست نمی‌خورند (break قبل از hourly) | === tester70-v150: 36 PASS / 3 FAIL ===
+- tester73-v153.js: 13 PASS / 1 FAIL |   ✘ FAIL: دکمه به تابع سراسری ptfXlsGuideGo با id درج‌شده وصل شد | === tester73-v153: 13 PASS / 1 FAIL ===
+- tester78-v160.js: 20 PASS / 14 FAIL |   ✘ FAIL: دریافت بدون نرخ تسعیر → هشدار (نه حذف از فروش ریالی) |   ✘ FAIL: مانده ارزی وصول‌نشده → اطلاع شفاف |   ✘ FAIL: خرید ریالی مستقیم + خرید ارزی × نرخ پرداخت |   ✘ FAIL: خرید ارزی بدون نرخ → pendingFx + هشدار بیش‌برآورد |   ✘ FAIL: مسیر قدیمی buyquotes فقط در نبود جدول مقایسه و بدون تطبیق مبهم
+- tester79-v161.js: 22 PASS / 3 FAIL |   ✘ FAIL: هر ۶ نرخ خواسته‌شده: دلار/یورو × آزاد/سنا(خرید/فروش) |   ✘ FAIL: نرخ‌های سنا در راهنمای تسعیر حفظ شد |   ✘ FAIL: دیالوگ تسعیر: نرخ زنده به‌عنوان راهنما (toast — نه جایگزین تصمیم کاربر) | === tester79-v161: 22 PASS / 3 FAIL ===
+- tester8-sprint71.js: 60 PASS / 1 FAIL |   ✘ FAIL: htaccess: مسدودسازی json/log/txt | === TESTER-8 (Sprint71): 60 PASS / 1 FAIL ===
+- tester81-v163.js: ReferenceError: mergeCmpRecordsForInquiry is not defined
+- tester82-v164.js: 61 PASS / 4 FAIL |   ✘ FAIL: AC6: RBAC با display:none (نه offsetParent که آیتم گروه بسته را حذف می‌کرد) |   ✘ FAIL: پایان تور موبایل: کشو بسته می‌شود |   ✘ FAIL: bridge: اثرات جانبی در هسته حفظ شد (waiting/notify/سینک سایت) |   ✘ FAIL: اثر جانبی waiting=TO + notify کارتابل مثل مودال | === tester82-v164: 61 PASS / 4 FAIL ===
+- tester83-v165.js: 55 PASS / 1 FAIL |   ✘ FAIL: rfqsFinalize: گارد استعلام تکراری srcRfq پابرجا | === tester83-v165: 55 PASS / 1 FAIL ===
+- tester84-v166.js: 56 PASS / 2 FAIL |   ✘ FAIL: ثبت خرید → ptfPayableUpsert با مبلغ×تعداد و ارز/نرخ |   ✘ FAIL: رویت لحظه‌ای مدیران: باکس بدهی بالای ماژول تامین‌کنندگان | === tester84-v166: 56 PASS / 2 FAIL ===
+- tester85-v167.js: 37 PASS / 5 FAIL |   ✘ FAIL: لایه ۲: فلگ عمومی bootstrapped برای ماژول‌ها |   ✘ FAIL: یادآوری کارفرما: سنا دوباره در نوار (خرید/فروش) |   ✘ FAIL: PHP: حواله یوان — نامزدها + جستجوی الگویی fallback |   ✘ FAIL: PHP: تبدیل‌ها سمت سرور (یک منبع واحد) |   ✘ FAIL: راهنمای تسعیر (toast سنا در دیالوگ) پابرجا
+- tester86-v168.js: 34 PASS / 1 FAIL |   ✘ FAIL: دو تب: پرونده‌ها (ابلاغ) + فرصت‌های فعال با شمارنده | === tester86-v168: 34 PASS / 1 FAIL ===
+- tester87-v169.js: 19 PASS / 7 FAIL |   ✘ FAIL: ناظر بعد از اولین goPanel(dash) در loadAll |   ✘ FAIL: برچسب «سنا: منبع پاسخ نداد» به‌جای حذف بی‌صدا |   ✘ FAIL: دکمه تست منبع فقط admin/chairman |   ✘ FAIL: ptfFxDiag: پاسخ خام force بدون کش + راهنمای هاست |   ✘ FAIL: sanaDiag در نوار درج می‌شود
+- tester89-v171.js: 28 PASS / 1 FAIL |   ✘ FAIL: کشو: بخش استعلام تامین با دکمه کارت رهگیری (rfqsOpen موجود) | === tester89-v171: 28 PASS / 1 FAIL ===
+- tester9-sprint72.js: 46 PASS / 1 FAIL |   ✘ FAIL: تامین‌کننده: هندل 403 کپچا/otp | === TESTER-9 (Sprint72 Captcha/OTP): 46 PASS / 1 FAIL ===
+- tester90-v172.js: 24 PASS / 3 FAIL |   ✘ FAIL: استعلام جدید فقط از سامانه استعلام تامین (ptfRealBuyNewInquiry) |   ✘ FAIL: میان‌بر: کارت رهگیری موجود یا ویزارد جدید rfqs |   ✘ FAIL: مسیر مستقل ماژول قیمت‌های خرید دست‌نخورده (دکمه‌های دور در حالت آزاد) | === tester90-v172: 24 PASS / 3 FAIL ===
+- tester92-v174.js: 30 PASS / 5 FAIL |   ✘ FAIL: انتخاب مبنای نرخ: آزاد/سنا/توافقی |   ✘ FAIL: نرخ زنده آزاد/سنا از ویجت fx (اطلاعی) |   ✘ FAIL: نرخ الزامی + انتخاب سنا نرخ زنده سنا را مبنا می‌کند |   ✘ FAIL: انتخاب سنا بدون دست زدن به نرخ → 450×110000 = 49.5م |   ✘ FAIL: نوار ارز و تشخیص سنا (v16.9) پابرجا
+- tester95-v177.js: ReferenceError: oRows is not defined
+- tester96-v178.js: TypeError: Cannot read properties of undefined (reading 'st')
+- tester97-v179.js: 22 PASS / 5 FAIL |   ✘ FAIL: RBAC محرمانه فقط admin/chairman |   ✘ FAIL: حقوق موظف → sharetx salary + opex حقوق و دستمزد با shareTx |   ✘ FAIL: مانده کارت = credit + petty - debit |   ✘ FAIL: مانده = حقوق ۵۰م + تنخواه ۲م − برداشت ۱۰م = ۴۲م |   ✘ FAIL: CEO به‌صورت پیش‌فرض به ماژول محرمانه سهامداران دسترسی ندارد
 
 ## Timeout بدون DONE سبز
 
@@ -33,11 +209,7 @@
 
 ## نتیجه‌گیری نسبت به قاعده هنداور
 
-✅ **گیت رگرسیون منطقی PASS**
-
-- همه چک‌های شمارش‌شده UAT: 0 FAIL
-- FAIL فایلی فقط در تسترهای prebroken مسیر قدیمی `/pishtaj/` (خارج از بسته deploy فعلی)
-- audit.py بدون error
+⚠️ **گیت رگرسیون ناقص — نیاز به رفع FAILهای واقعی**
 
 ## تعهد بعدی
 

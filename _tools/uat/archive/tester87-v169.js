@@ -1,3 +1,9 @@
+/* =====================================================================
+   آرشیوشده: 2026-08-13 (ARENA-UAT-TRIAGE-2026-08-13.md — سطل ۳ / گروه FX)
+   دلیل: تستر v16.9 دربارهٔ «نمایان‌بودن سنا + برچسب خطای منبع سنا + ناظر
+   اولیهٔ داشبورد» بود؛ سنا به دستور کارفرما (v33.4.2) حذف شد و ترتیب init
+   داشبورد/تم بارها بازطراحی شده است (ptfCriticalTheme در head و غیره).
+   ===================================================================== */
 /* tester87 — v16.9 (اسپرینت «تجربه ورود»: BUG-020 پرش تم + BUG-021 داشبورد کامل از ابتدا + تشخیص سنا) */
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -8,8 +14,8 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var pm = fs.readFileSync(path.join(BASE, 'perms.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v16.9+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.9;})());
-T('کش sw >= v16.9', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.9;})());
+T('نسخه v16.9+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.9;})());
+T('کش sw >= v16.9', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.9;})());
 (function () { var m = idx.match(/fx\.js\?v=([0-9.]+)/); T('cache-bust fx >= 16.9', m && parseFloat(m[1]) >= 16.9); })();
 
 SECTION('BUG-020 (کد): پرش تم');

@@ -52,7 +52,7 @@ ok(store.ptf_crm_rfqs[0].items.filter((x) => x.nm === 'Pressure Transmitter').le
 store.ptf_crm_offers = [{ no: 'TO-1', inqNo: 'BUYER-44' }];
 const locked = ctx.aiWBAppendItemsToRfq('PTF-RFQ-501', [{ nm: 'Cable', spec: 'NYY' }], 'AIWB-locked');
 ok(!locked.ok && /قفل/.test(locked.error), 'issued offer locks AI append to existing request');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx), 'CRM version v26.7 is declared');
-ok(/var CACHE = 'ptf-crm-v\d+(?:\.\d+)+/.test(sw), 'service-worker cache is version-aligned');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx), 'CRM version v26.7 is declared');
+ok(/var RELEASE = 'v\d+(?:\.\d+)+'/.test(sw), 'service-worker cache is version-aligned');
 console.log('=== tester142-v2511-ai-request-items: ' + pass + ' PASS / ' + fail + ' FAIL ===');
 process.exit(fail ? 1 : 0);

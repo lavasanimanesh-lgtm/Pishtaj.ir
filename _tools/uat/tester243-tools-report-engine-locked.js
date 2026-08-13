@@ -20,7 +20,7 @@ T('render همچنان final/PDF/download false است', api.indexOf("'final' =>
 T('tools API status به v33.5.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM locked render UI');
-T('CRM نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM نسخه v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('tool-report-drafts.js با v33.5.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
 T('UI تابع ptfToolReportDraftRenderLocked دارد', ui.indexOf('window.ptfToolReportDraftRenderLocked = function') > -1);
 T('UI اکشن admin_report_render_locked را صدا می‌زند', ui.indexOf('admin_report_render_locked') > -1);

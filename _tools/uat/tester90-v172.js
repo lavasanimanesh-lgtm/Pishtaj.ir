@@ -7,8 +7,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v17.2+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.2;})());
-T('کش sw >= v17.2', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.2;})());
+T('نسخه v17.2+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.2;})());
+T('کش sw >= v17.2', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.2;})());
 (function () { var m = idx.match(/buycompare\.js\?v=([0-9.]+)/); T('cache-bust buycompare >= 17.2', m && parseFloat(m[1]) >= 17.2); })();
 
 SECTION('US-412 (کد): نمای قفل‌شده مسیر پرونده');

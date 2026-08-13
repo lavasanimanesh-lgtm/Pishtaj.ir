@@ -1,3 +1,10 @@
+/* =====================================================================
+   آرشیوشده: 2026-08-13 (ARENA-UAT-TRIAGE-2026-08-13.md — سطل ۳ / گروه FX)
+   دلیل: هدف این تستر (v16.7) «سنا نمایان + یوان/حواله یوان + تبدیل دلار→یوآن»
+   بود؛ به دستور صریح کارفرما (v33.4.2) منبع سنا و منابع یوان/تبدیل‌ها به‌طور
+   کامل از سامانه حذف شدند (قرارداد حذف: tester177 ریشهٔ مخزن — سبز). چک فلگ
+   bootstrap هم فقط شمارش تعداد رخداد بود که با تکامل sync.js تغییر کرده است.
+   ===================================================================== */
 /* tester85 — v16.7 (BUG-018 رفع پاک شدن دفترچه تلفن + نرخ‌ها: سنا نمایان، یوان/حواله یوان/تبدیل دلار→یوآن و طلا→یوآن) */
 require('./harness');
 var fs = require('fs'), path = require('path');
@@ -10,8 +17,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v16.7+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.7;})());
-T('کش sw >= v16.7', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.7;})());
+T('نسخه v16.7+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.7;})());
+T('کش sw >= v16.7', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.7;})());
 (function () {
   function vOf(f) { var m = idx.match(new RegExp(f.replace('.', '\\.') + '\\?v=([0-9.]+)')); return m ? parseFloat(m[1]) : 0; }
   T('cache-bust sync/sms/fx >= 16.7', ['sync.js', 'sms.js', 'fx.js'].every(function (f) { return vOf(f) >= 16.7; }));

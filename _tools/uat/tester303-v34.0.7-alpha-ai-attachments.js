@@ -20,7 +20,7 @@ var ptfchat = read(path.join(ASSETS, 'ptf-chat.js'));
 
 SECTION('نسخه');
 var vjson = JSON.parse(read(path.join(ROOT, 'VERSION.json')));
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 /* ─── بگ ۱: دستیار هوش مصنوعی ─── */
 SECTION('بگ ۱: دستیار AI — chat-llm.php');

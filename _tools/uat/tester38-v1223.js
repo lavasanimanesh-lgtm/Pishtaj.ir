@@ -45,6 +45,6 @@ T('دانلود ماهانه در audit ثبت می‌شود', bk.indexOf('ذخ�
 T('متن باکس تنظیمات به‌روز (چرخشی + وظیفه ماهانه)', bk.indexOf('US-282') > -1 && bk.indexOf('وظیفه ماهانه') > -1);
 
 SECTION('نسخه');
-T('VER v12x', /var VER = 'v\d/.test(idx));
-T('sw.js cache v12x', /ptf-crm-v\d/.test(sw));
+T('VER v12x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw.js cache v12x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester38-v1223');

@@ -16,5 +16,5 @@ T('پاسخ server forbidden/role را اعلام می‌کند', api.indexOf("'
 SECTION('client contract');
 T('client قبل از push allowlist نقش را فیلتر می‌کند', sy.indexOf('function syncAllowedKey(k)')>-1 && sy.indexOf('forbiddenLocal')>-1);
 T('client 403/forbidden را silent نمی‌کند', sy.indexOf("setSyncBadge('forbidden')")>-1 && sy.indexOf('SYNC-RBAC')>-1);
-T('کلیدهای مالی در allowlist sales نیستند', sy.indexOf('sales: [')>-1 && sy.indexOf("sales: ['ptf_crm_rfqs'")>-1 && sy.indexOf("sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus'")>-1 && sy.indexOf("sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs'")>-1);
+T('کلیدهای مالی در allowlist sales نیستند', (function(){ var m = sy.match(/sales: \[([^\]]*)\]/); if (!m) return false; var list = m[1]; return ['ptf_crm_invoices','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_cheques_issued','ptf_crm_fiscal_snapshots','ptf_crm_sharetx','ptf_crm_shareholders'].every(function(k){ return list.indexOf(k) === -1; }); })());
 DONE('tester181-v326-sync-role-acl');

@@ -119,8 +119,8 @@ T('با سمت رابط', lt.indexOf("(pp.role ? ' (' + pp.role + ')' : '')") > 
 T('fallback به con قدیمی و خالی-امن', lt.indexOf("return r.con || '';") > -1);
 
 SECTION('نسخه و کش');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 /* قاعده تسترها: قفل نکردن نسخه دقیق — cache-bust فقط «همان یا جدیدتر از 14.7» چک می‌شود */
 T('cache-bust فایل‌های اسپرینت هـ (>=14.7)', ['bridge.js', 'ai-workbench.js', 'listtools.js', 'sync.js', 'golive.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace('.', '\\.') + '\\?v=(\\d+)\\.(\\d+)'));

@@ -79,7 +79,7 @@ T('apple-touch-icon', idx.indexOf('apple-touch-icon') > -1);
 T('باکس نصب', idx.indexOf('pwaInstallBox') > -1);
 T('هر ۱۰ اسکریپت CRM لود می‌شوند', ['offers.js','leads.js','rbac.js','storage.js','projects.js','letters.js','analyzer.js','contracts.js','shell.js','xlsx.min.js'].every(function(f){ return idx.indexOf(f) > -1; }));
 var sw = fs.readFileSync(BASE + 'crm/sw.js', 'utf-8');
-T('SW ثبت می‌شود (shell.js)', fs.readFileSync(BASE+'crm/shell.js','utf-8').indexOf("register('sw.js')") > -1);
+T('SW ثبت می‌شود (shell.js)', fs.readFileSync(BASE+'crm/shell.js','utf-8').indexOf("register('sw.js?v='") > -1); /* 2026-08-13: ثبت با query نسخه‌ای */
 
 SECTION('۵. صفحات کلیدی سایت: ساختار');
 [['index.html','پیشرو تجهیز'], ['tools/index.html','ابزارهای مهندسی'], ['assistant/index.html','مشاور'], ['rfq/index.html','استعلام'], ['about/why-ptf/index.html','تایم‌لاین']].forEach(function (p) {

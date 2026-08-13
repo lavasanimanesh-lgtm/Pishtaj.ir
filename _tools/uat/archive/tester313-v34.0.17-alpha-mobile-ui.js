@@ -1,3 +1,10 @@
+/* =====================================================================
+   آرشیوشده: 2026-08-13 (ARENA-UAT-TRIAGE-2026-08-13.md — سطل ۳ / موبایل)
+   دلیل: چک‌های CSS لفظی «دکمه flex/تمام‌عرض» نسخهٔ v34.0.17-alpha در
+   بازطراحی موبایل v34.1.0 (فاز ۱۴) عمداً عوض شدند (کلاس‌ها و اولویت‌های
+   جدید). قرارداد فعلی موبایل توسط تسترهای سبز sprint108/331/333/334 پاس
+   می‌شود.
+   ===================================================================== */
 /* tester313 — v34.0.17-alpha (فاز ۱۴: یکنواخت‌سازی UI موبایل — دکمه‌ها/آیکون‌ها/خوانایی)
    پوشش: دکمه‌ها flex وسط‌چین، متن شکستنی (بدون خروج از صفحه)، «نسخه فعال» خوانا */
 require('./harness');
@@ -7,7 +14,7 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 SECTION('دکمه‌ها flex/وسط‌چین (پایه)');
 T('.bt display:inline-flex و وسط‌چین', idx.indexOf('display:inline-flex') > -1 && idx.indexOf('justify-content:center') > -1);

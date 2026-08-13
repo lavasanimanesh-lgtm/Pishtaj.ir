@@ -21,7 +21,7 @@ T('final meta validation را ذخیره می‌کند', api.indexOf("'engineeri
 T('tools API status v33.5.0 است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM engineering validation UI');
-T('CRM/SW نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('tool-report-drafts با cache-bust v33.5.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx));
 T('CRM UI engineeringStatus را در list/detail/gate نشان می‌دهد', ui.indexOf('engineeringStatus') > -1 && ui.indexOf('engineeringCriticalCount') > -1 && ui.indexOf('Engineering validation') > -1);
 T('Final modal engineering status را نشان می‌دهد', ui.indexOf('Engineering:') > -1 && ui.indexOf('Server PDF: No') > -1);

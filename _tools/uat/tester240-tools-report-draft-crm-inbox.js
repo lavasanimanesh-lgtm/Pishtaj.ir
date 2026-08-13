@@ -18,7 +18,7 @@ T('admin_report_draft_get payload را همراه وضعیت final-aware برم�
 T('tools API status به v33.5.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM inbox UI');
-T('tool-report-drafts.js در CRM با cache-bust v33.5.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-report-drafts.js در CRM با cache-bust v33.5.0 لود می‌شود', /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('UI فقط برای admin/chairman است', ui.indexOf("['admin', 'chairman'].indexOf(curRole())") > -1 && ui.indexOf('roleOk()') > -1);
 T('UI به buildSettings تزریق می‌شود', ui.indexOf('var _buildSettings = window.buildSettings') > -1 && ui.indexOf('ptfToolReportDraftsHtml') > -1);
 T('UI admin_report_drafts و admin_report_draft_get را صدا می‌زند', ui.indexOf('admin_report_drafts') > -1 && ui.indexOf('admin_report_draft_get') > -1);

@@ -9,8 +9,8 @@
   var petty = read('crm/petty.js');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(ver.crm_version === 'v34.4.62', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.62'") > -1, 'index release');
+  ok(/^v34\.(?:4\.(?:62|[7-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(/PTF_CRM_RELEASE = 'v\d+\.\d+\.\d+'/.test(idx), 'index release'); /* 2026-08-13: پین لفظی → قرارداد نسخهٔ واحد */
   ok(petty.indexOf('recSortStamp') > -1, 'time-aware sort');
   ok(petty.indexOf('فروردین|اردیبهشت') > -1, 'named jalali months');
   ok(petty.indexOf('window.ptfPettyFindPeriodRec') > -1, 'find period rec');

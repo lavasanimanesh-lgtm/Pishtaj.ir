@@ -8,5 +8,5 @@ ok(sf.includes('window.slAdjustmentOpen') && sf.includes('refYear') && sf.includ
 ok(sf.includes('window.slReconcileOpen') && sf.includes('migration یا اصلاح خودکار انجام نمی‌شود') && sf.includes('افتتاحیه'),'reconciliation view exists without automatic migration');
 ok(sf.includes('تعهدهای legacy لینک‌نشده') && sf.includes('مغایرت'), 'legacy mismatch/unlinked obligations are explicitly reported');
 ok(sf.includes('d.adjustments') && sf.includes('amountIrr'),'adjustment affects derived supplier balance with currency conversion');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw),'Sprint version is v26.7');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw),'Sprint version is v26.7');
 console.log('=== tester147-v266-reconcile-fiscal: '+p+' PASS / '+f+' FAIL ===');process.exit(f?1:0);

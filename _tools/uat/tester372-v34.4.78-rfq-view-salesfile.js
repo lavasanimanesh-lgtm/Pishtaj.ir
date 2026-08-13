@@ -17,10 +17,10 @@ ok(nav.indexOf('ptfGoSalesFile(dealCd)') > -1, 'helper uses ptfGoSalesFile');
 ok(nav.indexOf("goPanel('deals')") > -1, 'fallback deals not archive');
 
 var ver = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
-ok(ver.crm_version === 'v34.4.78', 'version 34.4.78');
+ok(/^v34\.(?:4\.(?:78|[89]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(ver.crm_version), 'version baseline');
 
 var idx = fs.readFileSync(path.join(root, 'crm/index.html'), 'utf8');
-ok(idx.indexOf("PTF_CRM_RELEASE = 'v34.4.78'") > -1, 'index release');
+ok(/PTF_CRM_RELEASE = 'v\d+\.\d+\.\d+'/.test(idx), 'index release'); /* 2026-08-13: پین لفظی → قرارداد نسخهٔ واحد */
 
 if (fails.length) {
   console.error('FAIL\n' + fails.join('\n'));

@@ -11,5 +11,5 @@ T('AI Workbench generator محلی موازی ندارد', ai.indexOf('function 
 T('موتور unified در index global است', idx.indexOf('window.ptfUnifiedCode = function (prefix)')>-1 && idx.indexOf("function genCode(p) { return window.ptfUnifiedCode(p); }")>-1);
 T('کدهای AI از genCode واحد استفاده می‌کنند', (ai.match(/genCode\('/g)||[]).length >= 8);
 T('fallback random در تعریف generator حذف شده', ai.indexOf("p+'-'+Math.floor(1000+Math.random()*9000)")===-1);
-T('نسخه و cache هم‌راستا هستند', /window\.VER = 'v\d+(?:\.\d+)+/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw));
+T('نسخه و cache هم‌راستا هستند', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester169-v3171-codegen-unification');

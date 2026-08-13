@@ -1,3 +1,11 @@
+/* =====================================================================
+   آرشیوشده: 2026-08-13 (ARENA-UAT-TRIAGE-2026-08-13.md — سطل ۳ / خزانه)
+   دلیل: فازهای P5–P8 ورک‌فلو مالی (گارد «منبع چهارم»، ورود اکسل/CSV/PDF
+   صورتحساب بانک، تطبیق یکتا، پیش‌نمایش commit) با بازنویسی «خزانهٔ نقدی»
+   (v34.4.83+) عمداً بازنشسته شدند — قرارداد بازنشستگی توسط tester377
+   (treasury-clean-cache — سبز) پاس می‌شود و خزانهٔ فعلی توسط tester379-384
+   (سبز) پوشش دارد.
+   ===================================================================== */
 /* tester353 — v34.4.59 finance workflow P7 statement import */
 (function () {
   var fs = require('fs');
@@ -9,7 +17,7 @@
   var tr = read('crm/treasury.js');
   var idx = read('crm/index.html');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(/^v34\.4\.(59|[6-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(/^v34\.(?:4\.((59|[6-9]\d))|[5-9]\.\d+|\d{2,}\.\d+\.\d+)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
   ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(tr.indexOf('window.ptfTreasuryParseStatementRows') > -1, 'parse rows');
   ok(tr.indexOf('window.ptfTreasuryImportParsed') > -1, 'import parsed');

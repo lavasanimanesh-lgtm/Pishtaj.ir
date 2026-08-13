@@ -10,7 +10,7 @@ var dq = fs.readFileSync(path.join(BASE, 'data-quality.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 SECTION('opex-unclassified → لینک اصلاح هزینه');
 T('opex-unclassified با detail.type=opex ثبت می‌شود', /'opex-unclassified'[\s\S]*?type: 'opex'/.test(dq));
@@ -18,7 +18,7 @@ T('action اصلاح هزینه (ptfOpexEdit) در qualityRefsHtml هست', dq.i
 
 SECTION('supplier-invoice-unclassified → لینک فاکتور خرید');
 T('supplier-invoice-unclassified با detail.type=supplier-invoice ثبت می‌شود', /'supplier-invoice-unclassified'[\s\S]*?type: 'supplier-invoice'/.test(dq));
-T('action اصلاح فاکتور خرید (slInvoiceEdit) در qualityRefsHtml هست', dq.indexOf("d.type === 'supplier-invoice' && typeof slInvoiceEdit === 'function'") > -1 && dq.indexOf('slInvoiceEdit') > -1);
+T('action اصلاح فاکتور خرید (slInvoiceEdit) در qualityRefsHtml هست', dq.indexOf("(d.type === 'supplier-invoice' || d.type === 'supplier-amount') && typeof slInvoiceEdit === 'function'") > -1 && dq.indexOf('slInvoiceEdit') > -1); /* 2026-08-13: نوع supplier-amount هم اضافه شد */
 T('نام تأمین‌کننده در label فاکتور خرید لحاظ می‌شود', dq.indexOf("supName ? ' — ' + supName : ''") > -1 && dq.indexOf('فاکتور خرید ') > -1);
 
 SECTION('سایر actionهای موجود حفظ شدند');

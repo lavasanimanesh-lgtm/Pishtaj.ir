@@ -20,7 +20,7 @@ T('نوع/ابزار/وضعیت validate می‌شوند', ['tools_norm_tool','t
 T('status API به v33.5.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM admin UI');
-T('tool-licenses.js در CRM با cache-bust v33.5.0 لود می‌شود', /tool-licenses.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('tool-licenses.js در CRM با cache-bust v33.5.0 لود می‌شود', /tool-licenses.js\?v=3[0-9.]+/.test(idx) && /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('UI فقط برای admin/chairman نمایش داده می‌شود', ui.indexOf("['admin', 'chairman'].indexOf(curRole())") > -1 && ui.indexOf('roleOk()') > -1);
 T('UI به تنظیمات CRM تزریق می‌شود', ui.indexOf('var _buildSettings = window.buildSettings') > -1 && ui.indexOf('ptfToolLicensesAdminHtml') > -1);
 T('فرم صدور لایسنس ابزار/نوع/سقف/انقضا دارد', ['tlCompany','tlContact','tlType','tlTool','tlMax','tlExp','tlNote'].every(function (x) { return ui.indexOf(x) > -1; }));

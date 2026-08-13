@@ -6,7 +6,7 @@ var md = fs.readFileSync(path.join(ROOT, 'crm/myday.js'), 'utf-8');
 
 SECTION('قرارداد جدید روز من');
 T('پیشنهادهای رو به انقضا/منقضی دیگر منبع روز من نیستند', md.indexOf('CO های رو به انقضا') === -1 && md.indexOf('پیشنهاد منقضی:') === -1);
-T('فقط اعلان actionable مستقیم کاربر به روز من افزوده می‌شود', md.indexOf("if (!n || n.done || !n.actionable) return;") > -1 && md.indexOf("(n.toUsers || []).indexOf(me.user) < 0") > -1);
+T('فقط اعلان actionable مستقیم کاربر به روز من افزوده می‌شود', md.indexOf('ntfNeedsAction(n)') > -1 && md.indexOf('var forMe = (n.toUsers || []).indexOf(me.user) > -1') > -1 && md.indexOf('if (!forMe) return;') > -1); /* 2026-08-13: گیت اقدام ntfNeedsAction + منطق forMe */
 T('سقف روز من پنج اولویت واقعی است', md.indexOf('out.slice(0, 5)') > -1);
 T('dedup با امضای panel+tx پابرجاست', /var k = it\.panel \+ '\|' \+ it\.tx;/.test(md));
 

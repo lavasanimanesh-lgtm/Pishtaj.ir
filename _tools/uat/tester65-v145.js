@@ -71,8 +71,8 @@ T('US-381 ثبت شده (اعلان کالاهای تکراری دستیار)', 
 T('AC تایید کاربر و پیام دقیق', r3.indexOf('تایید کاربر اخذ شود') > -1 || r3.indexOf('کالای تکراری رد شد') > -1);
 
 SECTION('نسخه و کش');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 /* قاعده تسترها: قفل نکردن نسخه دقیق — فقط «همان یا جدیدتر از 14.5» */
 T('cache-bust فایل‌های اسپرینت د (>=14.5)', ['rbac.js', 'projects.js', 'sms.js', 'inqreader.js', 'golive.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace('.', '\\.') + '\\?v=(\\d+)\\.(\\d+)'));

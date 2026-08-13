@@ -19,6 +19,6 @@ ok(sync.includes("'ptf_crm_supplier_finance'") && backup.includes("'ptf_crm_supp
 ok(storage.includes("'ptf_crm_supplier_finance'"), 'cloud orphan collector protects invoice attachments');
 ok(scoring.includes('p.sfInvoiceCd || p.pay !== \'credit\'') && scoring.includes('!p.sfInvoiceCd &&'), 'legacy payable widgets exclude linked invoices to avoid double count');
 ok(/supplier-finance\.js\?v=\d+(?:\.\d+)+/.test(idx) && sw.includes("'./supplier-finance.js'"), 'module is loaded and PWA-precached');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw), 'Sprint version is aligned to v26.7');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw), 'Sprint version is aligned to v26.7');
 console.log('=== tester143-v262-supplier-finance: '+pass+' PASS / '+fail+' FAIL ===');
 process.exit(fail?1:0);

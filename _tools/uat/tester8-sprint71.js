@@ -148,7 +148,7 @@ mods.forEach(function (m) {
   T('ماژول ' + m + ' بدون console.log باقیمانده', !/^\s*console\.log/m.test(src));
 });
 T('اسکریپت backup.js در index لود می‌شود', idxCode.indexOf('backup.js') > -1);
-T('کش SW نسخه‌بندی شده (v71+)', fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8').indexOf('ptf-crm-v') > -1);
+T('کش SW نسخه‌بندی شده (v71+)', fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8').indexOf('ptf-crm-') > -1);
 
 DONE('TESTER-8 (Sprint71)');
 process.exit(RESULTS.fail ? 1 : 0);

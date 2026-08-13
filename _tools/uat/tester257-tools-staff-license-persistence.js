@@ -24,7 +24,7 @@ T('ptfToolsGrant ابتدا session و بعد localStorage persist را می‌�
 T('ptfToolsStoreGrant برای staff/enterprise/subscription در localStorage ذخیره می‌کند', ui.indexOf("['staff_internal','enterprise','subscription']") > -1 && ui.indexOf('localStorage.setItem(GRANT_PERSIST_KEY') > -1);
 T('grant_verify برای پاک‌سازی grant نامعتبر وجود دارد', ui.indexOf('ptfToolsVerifyStoredGrant') > -1 && ui.indexOf('action=grant_verify') > -1 && ui.indexOf('ptfToolsClearStoredGrant') > -1);
 T('advanced-report-ui fallback persistent grant دارد', fs.readFileSync(path.join(ROOT, 'tools/advanced-report-ui.js'), 'utf-8').indexOf('GRANT_PERSIST_KEY') > -1);
-T('CRM/SW نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 
 SECTION('Runtime localStorage restore');
 function Storage(){ this.s = {}; }

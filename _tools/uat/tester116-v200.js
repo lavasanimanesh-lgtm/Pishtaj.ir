@@ -7,8 +7,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v20.0+', (function () { var m = idx.match(/var VER = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 20.0; })());
-T('کش sw >= v20.0', (function () { var m = sw.match(/ptf-crm-v([0-9.]+)/); return m && parseFloat(m[1]) >= 20.0; })());
+T('نسخه v20.0+', (function () { var m = idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 20.0; })());
+T('کش sw >= v20.0', (function () { var m = sw.match(/var RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 20.0; })());
 T('cache-bust modalx >= 20.0', (function () { var m = idx.match(/modalx\.js\?v=([0-9.]+)/); return m && parseFloat(m[1]) >= 20.0; })());
 
 SECTION('BUG-033 — یکدستی کنترل‌ها');
