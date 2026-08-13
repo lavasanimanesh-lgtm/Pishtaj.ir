@@ -14,6 +14,9 @@ T('badge فقط اقدام‌های باز را می‌شمارد', rb.indexOf('
 T('کارتابل فقط اقدام لازم را نشان می‌دهد', rb.indexOf('🔴 اقدام لازم') > -1 && rb.indexOf('🔵 اطلاع‌رسانی') === -1);
 T('پیشنهاد نزدیک/منقضی دیگر اعلان تولید نمی‌کند', br.indexOf('هیچ اعلان مزاحمی تولید نمی‌شود') > -1 && br.indexOf("kind: 'co_expiry'") === -1);
 T('روز من پیشنهادهای منقضی/رو به انقضا را نمی‌خواند و پنج مورد سقف دارد', md.indexOf('CO های رو به انقضا') === -1 && md.indexOf('out.slice(0, 5)') > -1);
+T('روز من از همان گیت اقدام کارتابل استفاده می‌کند', md.indexOf('ntfNeedsAction') > -1);
+T('مهلت بدون مسئول فقط به ارشد می‌رود', br.indexOf("toRoles: assignee.length ? [] : ['admin', 'chairman', 'ceo', 'commercial']") > -1);
+T('اعلان انتظار پیشنهاد ساخته نمی‌شود', br.indexOf("kind: 'offer_wait'") === -1);
 T('ارجاع‌ها نوع کار پایدار دارند', br.indexOf("'create_offer'") > -1 && br.indexOf("'create_technical_offer'") > -1 && br.indexOf("'create_supplier_rfq'") > -1);
 T('ثبت CO/TO و استعلام تامین، ارجاع همسان را resolve می‌کند', of.indexOf("ptfResolveRfqReferral(o.inqNo, 'create_offer')") > -1 && of.indexOf("ptfResolveRfqReferral(o.inqNo, 'create_technical_offer')") > -1 && rs.indexOf("ptfResolveRfqReferral(_st.srcRfq, 'create_supplier_rfq')") > -1);
 

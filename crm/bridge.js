@@ -252,7 +252,7 @@
       addMsg({
         title: (due.over ? '🔴 مهلت پاسخ درخواست ' + r.cd + ' گذشته است!' : '⏳ مهلت پاسخ درخواست ' + r.cd + ' نزدیک است (' + r.dueISO + ')') + (r.co ? ' — ' + r.co : ''),
         toUsers: assignee,
-        toRoles: assignee.length ? [] : SALES_ROLES,
+        toRoles: assignee.length ? [] : ['admin', 'chairman', 'ceo', 'commercial'],
         kind: 'reminder',
         actionable: true,
         refCd: r.cd,
@@ -286,7 +286,7 @@
           : st === 'red' ? '🚚⏰ امروز سررسید تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + ' است'
           : '🚚⏳ تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + ' نزدیک است (' + r.dueISO + ')') +
           (r.buyerCo ? ' — ' + r.buyerCo : '') + (r.dueNote ? ' | ' + r.dueNote : ''),
-        toRoles: over ? ['admin', 'chairman', 'ceo', 'commercial'] : SALES_ROLES,
+        toRoles: ['admin', 'chairman', 'ceo', 'commercial'],
         kind: 'reminder',
         actionable: true,
         refCd: r.cd,
@@ -1404,13 +1404,8 @@
     if (typeof audit === 'function') audit('استعلامات', 'تغییر وضعیت به ' + stText, cd);
     if (target && target.waiting) {
       var kindLb = target.waiting === 'TO' ? 'فنی' : 'مالی';
-      notify({
-        toRoles: SALES_ROLES,
-        title: '⏳ درخواست ' + cd + ' (' + target.co + ') منتظر صدور پیشنهاد ' + kindLb + ' است',
-        kind: 'offer_wait', channels: ['cart'], link: { panel: 'off' }
-      });
+      /* v34.5.6: صف نارنجی ماژول پیشنهادها کافی است؛ کارتابل پر نمی‌شود. */
       pushEvent('status', 'درخواست ' + cd + ' (' + target.co + ') منتظر صدور پیشنهاد ' + kindLb + ' است');
-      updateInboxBadge();
     }
     // سینک وضعیت استعلام‌های سایت با سرور → رهگیری
     if (target && target.src === 'site') {
@@ -1606,7 +1601,7 @@
       /* v13.1 (BUG-011): در موبایل پنل absolute نسبت به tbIcons بریده می‌شد (راست صفحه + عرض بیشتر از فضای باقیمانده)
          → در موبایل fixed تمام‌عرض زیر هدر */
       '<style>@media(max-width:768px){#inboxPanel{position:fixed!important;top:60px!important;left:8px!important;right:8px!important;width:auto!important;max-height:calc(100vh - 150px)!important;z-index:1550!important}}</style>' +
-      '<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">📬 صندوق پیام</b>' +
+      '<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center"><b style="font-size:13px">📬 اقدام‌های باز</b>' +
       '<button class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="goPanelByName(\'cart\');toggleInbox()">کارتابل ↗</button></div>' +
       '<div id="inboxList"></div></div>');
     document.addEventListener('click', function (e) {

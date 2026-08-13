@@ -78,5 +78,8 @@ assert.ok(br.indexOf("kind: 'referral_info'") === -1, 'ارجاع عمومی س�
 assert.ok(br.indexOf('ntfNeedsAction') > -1, 'صندوق پیام از همان گیت اقدام استفاده می‌کند');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.5.5');
-console.log('PASS tester395: action-only cartable v34.5.5');
+assert.strictEqual(version, 'v34.5.6');
+assert.ok(br.indexOf("kind: 'offer_wait'") === -1, 'offer_wait حذف شده');
+var md = fs.readFileSync('crm/myday.js', 'utf8');
+assert.ok(md.indexOf('ntfNeedsAction') > -1, 'روز من از گیت اقدام استفاده می‌کند');
+console.log('PASS tester395: action-only cartable v34.5.6');

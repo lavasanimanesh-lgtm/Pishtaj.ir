@@ -76,12 +76,15 @@
       });
     } catch (e) {}
 
-    /* ۲) فقط کارهای actionableِ مستقیمِ همین کاربر. اعلان عمومی/اطلاعی، موعدهای
-       بدون مسئول و پیشنهادهای رو به انقضا عمداً وارد «روز من» نمی‌شوند. */
+    /* ۲) همان گیت کارتابل: فقط اقدام لازمِ قابل‌مشاهدهٔ این کاربر (نقش یا شخص). */
     try {
+      var myRole = typeof curRole === 'function' ? curRole() : '';
       getData('ptf_crm_notifs').forEach(function (n) {
-        if (!n || n.done || !n.actionable) return;
-        if ((n.toUsers || []).indexOf(me.user) < 0) return; /* کار شخصی، نه اعلان نقش عمومی */
+        if (typeof ntfNeedsAction === 'function' ? !ntfNeedsAction(n) : (!n || n.done || !n.actionable)) return;
+        var forMe = (n.toUsers || []).indexOf(me.user) > -1 ||
+          (n.toRoles || []).indexOf(myRole) > -1 ||
+          (!(n.toUsers || []).length && !(n.toRoles || []).length);
+        if (!forMe) return;
         if ((n.readBy || []).indexOf(me.user) > -1) return;
         out.push({ ic: '✅', cl: '#dc2626', panel: (n.link || {}).panel || 'cart',
           tx: n.title || 'اقدام ارجاع‌شده', sub: n.t || '', _fp: 'ntf|' + (n.cd || '') });
