@@ -169,7 +169,7 @@
           var lbl = k.replace('ptf_crm_', '');
           try { audit('سیستم', '🚨 هشدار افت انبوه داده (US-382): ' + lbl + ' از ' + prev + ' به ' + now + ' رکورد کاهش یافت', k); } catch (eA) {}
           if (typeof notify === 'function') {
-            try { notify({ toRoles: ['admin', 'chairman'], title: '🚨 هشدار: تعداد رکوردهای «' + lbl + '» از ' + prev + ' به ' + now + ' کاهش یافت — اگر عمدی نبوده فورا از تنظیمات → بک‌آپ‌های سرور بازگردانی کنید', kind: 'system', channels: ['cart'], link: { panel: 'set' } }); } catch (eN) {}
+            try { notify({ toRoles: ['admin', 'chairman'], title: '🚨 هشدار: تعداد رکوردهای «' + lbl + '» از ' + prev + ' به ' + now + ' کاهش یافت — اگر عمدی نبوده فورا از تنظیمات → بک‌آپ‌های سرور بازگردانی کنید', kind: 'data_risk', channels: ['cart'], link: { panel: 'set' }, actionable: true, dkey: 'data-drop-' + lbl }); } catch (eN) {}
           }
         }
         c[k] = now;

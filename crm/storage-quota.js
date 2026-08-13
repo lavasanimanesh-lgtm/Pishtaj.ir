@@ -126,7 +126,7 @@
       if (callGet(WARN_KEY) !== tag) {
         try { callSet(WARN_KEY, tag); } catch (e) {}
         showBanner(title, msg, level);
-        try { if (typeof notify === 'function') notify({ toRoles: ['admin', 'chairman'], title: title + ' — ' + msg, kind: 'system', channels: ['cart'], link: { panel: 'set' } }); } catch (eN) {}
+        try { if (typeof notify === 'function') notify({ toRoles: ['admin', 'chairman'], title: title + ' — ' + msg, kind: 'data_risk', channels: ['cart'], link: { panel: 'set' }, actionable: true, dkey: 'quota-' + title }); } catch (eN) {}
       }
     } catch (eW) { showBanner(title, msg, level); }
   }

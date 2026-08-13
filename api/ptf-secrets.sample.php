@@ -11,9 +11,13 @@ return [
     // Auth token signing key — REQUIRED, min 32 random chars.
     'auth_key' => 'CHANGE_ME_RANDOM_64_CHARS_MINIMUM_FOR_PRODUCTION',
 
-    // Default/server admin password hash (SHA-256 of the real admin password).
-    // Generate locally: php -r "echo hash('sha256', 'YOUR_STRONG_PASSWORD'), PHP_EOL;"
-    // Do NOT keep the old demo password in production.
+    // Preferred admin hash (PHP password_hash / bcrypt or argon2).
+    // Generate: php -r "echo password_hash('YOUR_STRONG_PASSWORD', PASSWORD_DEFAULT), PHP_EOL;"
+    'admin_password_hash' => '',
+
+    // Legacy admin hash (SHA-256). Kept only so the next login still works.
+    // Generate: php -r "echo hash('sha256', 'YOUR_STRONG_PASSWORD'), PHP_EOL;"
+    // After switching to admin_password_hash, leave this empty.
     'admin_sha256' => 'PUT_SHA256_OF_REAL_ADMIN_PASSWORD_HERE',
 
     // Backward-compatible name used by older deployments. Keep equal to admin_sha256 during migration.
@@ -25,4 +29,8 @@ return [
     // Key for server-only dangerous maintenance actions, min 32 random chars.
     // This key must never be sent by browser JavaScript.
     'sensitive_action_key' => 'CHANGE_ME_RANDOM_SENSITIVE_ACTION_KEY_64_CHARS',
+
+    // Production lock for /api/migrate.php. Leave empty. Set to 1 only for the
+    // official MySQL switch, then remove it. Staging is never locked.
+    'migrate_allow' => '',
 ];

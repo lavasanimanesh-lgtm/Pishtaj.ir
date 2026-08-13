@@ -26,25 +26,25 @@ global.updateCartBadge = function () {};
 global.document = { getElementById: function () { return null; }, querySelectorAll: function () { return []; } };
 global.ptfToast = function (m) { global._toasts = (global._toasts || []).concat([m]); };
 // استخراج notify و ntfReadAll و myNotifs از source
+eval(rb.match(/var NTF_ACTION_KINDS[\s\S]*?function ntfIsImportant\(n\) \{[\s\S]*?\n\}/)[0]);
 eval(rb.match(/function notify\(opt\) \{[\s\S]*?\n\}/)[0]);
 eval(rb.match(/function myNotifs\(\) \{[\s\S]*?\n\}/)[0]);
 eval(rb.match(/function ntfReadAll\(\) \{[\s\S]*?\n\}/)[0]);
-eval(rb.match(/var NTF_IMPORTANT_KINDS[\s\S]*?function ntfIsImportant\(n\) \{[\s\S]*?\n\}/)[0]);
 
 setData('ptf_crm_notifs', []);
-var c1 = notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'system' });
-var c2 = notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'system' });
-var c3 = notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'system' });
+var c1 = notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'referral', actionable: true });
+var c2 = notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'referral', actionable: true });
+var c3 = notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'referral', actionable: true });
 var nfs = getData('ptf_crm_notifs');
 T('سه notify یکسان → فقط ۱ رکورد', nfs.length === 1);
 T('شمارنده تکرار = ۳ و کد ثابت', nfs[0].repeat === 3 && c1 === c2 && c2 === c3);
-notify({ toRoles: ['admin'], title: 'هشدار Y', body: 'متفاوت', kind: 'info' });
+notify({ toRoles: ['admin'], title: 'هشدار Y', body: 'متفاوت', kind: 'inv_ref', actionable: true });
 T('اعلان متفاوت رکورد جدید می‌سازد', getData('ptf_crm_notifs').length === 2);
 // پس از خوانده‌شدن، وقوع جدید باید رکورد جدید بسازد (نه اینکه گم شود)
 nfs = getData('ptf_crm_notifs');
 nfs.forEach(function (n) { if (n.title === 'هشدار X') n.readBy = ['u1']; });
 setData('ptf_crm_notifs', nfs);
-notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'system' });
+notify({ toRoles: ['admin'], title: 'هشدار X', body: 'متن', kind: 'referral', actionable: true });
 T('پس از خواندن، وقوع جدید اعلان جدید می‌سازد', getData('ptf_crm_notifs').length === 3);
 
 SECTION('رفتاری: خواندم همه');
@@ -64,7 +64,7 @@ T('merge: readBy اجتماع دو طرف است (خوانده‌شده برنم
 T('merge: repeat حداکثری و رکورد سرور حفظ شد', m1.repeat === 2 && mg.length === 2);
 
 SECTION('رفتاری: تفکیک مهم/عادی');
-T('system/actionable مهم است، info عادی', ntfIsImportant({ kind: 'system' }) && ntfIsImportant({ kind: 'info', actionable: true }) && !ntfIsImportant({ kind: 'info' }));
+T('ارجاع/actionable مهم است، info عادی', ntfIsImportant({ kind: 'referral' }) && ntfIsImportant({ kind: 'info', actionable: true }) && !ntfIsImportant({ kind: 'info' }) && !ntfIsImportant({ kind: 'system' }));
 
 SECTION('رفتاری: خاموشی هشدار duplicate پس از ack');
 eval(cg.match(/function ptfDupPlanFingerprint[\s\S]*?\n\}/)[0]);

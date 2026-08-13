@@ -74,25 +74,26 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
   loadRbac(ctx);
 
   // Basic dedup still works for identical repeated calls with no explicit dkey.
-  ctx.notify({ toUsers: ['sales1'], title: 'پیام تکراری', kind: 'info' });
-  ctx.notify({ toUsers: ['sales1'], title: 'پیام تکراری', kind: 'info' });
+  ctx.notify({ toUsers: ['sales1'], title: 'پیام تکراری', kind: 'referral', actionable: true });
+  ctx.notify({ toUsers: ['sales1'], title: 'پیام تکراری', kind: 'referral', actionable: true });
   var notifs = ctx.getData('ptf_crm_notifs');
   assert.strictEqual(notifs.length, 1, 'رگرسیون: dedup فعلی notify() باید سالم بماند');
   assert.strictEqual(notifs[0].repeat, 2, 'رگرسیون: شمارنده تکرار باید بالا برود');
 
   // tier classification: system/warn/error/finance/cheque/referral/inv_ref/contact_req/sign_req => important.
-  assert.ok(ctx.ntfIsImportant({ kind: 'system' }), 'مهم: system');
+  assert.ok(!ctx.ntfIsImportant({ kind: 'system' }), 'اطلاعی: system خام');
   assert.ok(ctx.ntfIsImportant({ kind: 'cheque' }), 'مهم: cheque');
   assert.ok(ctx.ntfIsImportant({ kind: 'referral' }), 'مهم: referral');
   assert.ok(ctx.ntfIsImportant({ kind: 'inv_ref' }), 'مهم: inv_ref (ارجاع فاکتور)');
   assert.ok(ctx.ntfIsImportant({ kind: 'sign_req' }), 'مهم: sign_req (درخواست امضا)');
   assert.ok(ctx.ntfIsImportant({ kind: 'reminder', remCd: 'REM-1' }), 'مهم: reminder دستی واقعی (remCd دارد)');
-  assert.ok(!ctx.ntfIsImportant({ kind: 'reminder' }), 'اطلاعی: reminder خودکار بدون remCd (هشدار CO/RFQ/Deal)');
+  assert.ok(ctx.ntfIsImportant({ kind: 'reminder' }), 'مهلت/یادآور kind=reminder اقدام است');
   assert.ok(!ctx.ntfIsImportant({ kind: 'co_expiry' }), 'اطلاعی: انقضای پیش‌فاکتور دیگر actionable/مهم نیست');
   assert.ok(!ctx.ntfIsImportant({ kind: 'buyq' }), 'اطلاعی: قیمت خرید');
   // explicit tier override wins regardless of kind
   assert.ok(ctx.ntfIsImportant({ kind: 'info', tier: 'important' }), 'override صریح: tier=important باید غالب باشد');
   assert.ok(!ctx.ntfIsImportant({ kind: 'system', tier: 'info' }), 'override صریح: tier=info باید غالب باشد');
+  assert.strictEqual(ctx.notify({ toRoles: ['sales'], title: 'خبر صرف', kind: 'info' }), null, 'خبر اطلاعی ذخیره نشود');
 })();
 
 /* ===================== Pillar 2: ptfPruneStaleNotifs — auto-expiry of info notifs ===================== */
@@ -107,26 +108,26 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
   ctx.setData('ptf_crm_notifs', [
     { cd: 'NTF-OLD-INFO', iso: oldIso, kind: 'buyq', title: 'قیمت خرید قدیمی', readBy: [] },
     { cd: 'NTF-FRESH-INFO', iso: freshIso, kind: 'buyq', title: 'قیمت خرید تازه', readBy: [] },
-    { cd: 'NTF-OLD-IMPORTANT', iso: oldIso, kind: 'cheque', title: 'چک قدیمی', readBy: [], refCd: 'CHQ-1' },
+    { cd: 'NTF-OLD-IMPORTANT', iso: oldIso, kind: 'cheque', title: 'چک قدیمی', readBy: [], refCd: 'CHQ-1', actionable: true },
     { cd: 'NTF-OLD-READ-INFO', iso: oldIso, kind: 'buyq', title: 'قدیمی ولی خوانده‌شده', readBy: ['admin'] }
   ]);
   var removed = ctx.ptfPruneStaleNotifs();
-  assert.strictEqual(removed, 1, 'فقط یک اعلان اطلاعیِ قدیمی (خوانده‌نشده) باید حذف شود');
+  assert.ok(removed >= 2, 'خبرهای اطلاعی باید از کارتابل پاک شوند');
   var left = ctx.getData('ptf_crm_notifs').map(function (n) { return n.cd; });
   assert.ok(left.indexOf('NTF-OLD-INFO') < 0, 'اعلان اطلاعی قدیمی باید کاملاً حذف شود');
-  assert.ok(left.indexOf('NTF-FRESH-INFO') > -1, 'اعلان اطلاعی تازه هنوز نباید حذف شود');
-  assert.ok(left.indexOf('NTF-OLD-IMPORTANT') > -1, 'اعلان مهم هرگز با گذر زمان حذف نمی‌شود (فقط با خواندن/حل‌شدن رویداد)');
-  assert.ok(left.indexOf('NTF-OLD-READ-INFO') > -1, 'اعلان خوانده‌شده (حتی اطلاعی) با pruning حذف نمی‌شود — این‌ها با ntfReadAll مدیریت می‌شوند');
+  assert.ok(left.indexOf('NTF-FRESH-INFO') < 0, 'خبر اطلاعی تازه هم دیگر در کارتابل نمی‌ماند');
+  assert.ok(left.indexOf('NTF-OLD-IMPORTANT') > -1, 'اعلان اقدام هرگز با گذر زمان حذف نمی‌شود');
+  assert.ok(left.indexOf('NTF-OLD-READ-INFO') < 0, 'خبر اطلاعی خوانده‌شده هم کارتابل نیست');
 
   // notify() itself triggers pruning as a side effect (called on every notify).
   var store2 = makeStore();
   var ctx2 = baseCtx(store2);
   loadRbac(ctx2);
   ctx2.setData('ptf_crm_notifs', [{ cd: 'NTF-STALE', iso: new Date(Date.now() - 5 * 86400000).toISOString(), kind: 'info', title: 'قدیمی خیلی', readBy: [] }]);
-  ctx2.notify({ toRoles: ['sales'], title: 'اعلان جدید', kind: 'info' });
+  ctx2.notify({ toRoles: ['sales'], title: 'اعلان جدید', kind: 'referral', actionable: true });
   var after = ctx2.getData('ptf_crm_notifs');
   assert.ok(!after.some(function (n) { return n.cd === 'NTF-STALE'; }), 'notify() باید قبل از افزودن رکورد جدید، رکوردهای اطلاعی منقضی را حذف کند');
-  assert.strictEqual(after.length, 1, 'فقط اعلان جدید باقی می‌ماند');
+  assert.strictEqual(after.length, 1, 'فقط اعلان اقدام جدید باقی می‌ماند');
 })();
 
 /* ===================== Pillar 3: ntfResolveByRef — important notif removed when underlying event resolves ===================== */
@@ -152,8 +153,8 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
 /* ===================== Pillar 4: bridge.js — one-time transition notifications (no daily repeat) ===================== */
 (function () {
   var src = fs.readFileSync('crm/bridge.js', 'utf8');
-  assert.ok(src.indexOf("o.expiryNotifyStage === stage") > -1, 'checkOfferExpiry باید بر اساس stage گذار (نه today) کار کند');
-  assert.ok(src.indexOf("o.expiryNotifyStage = stage") > -1, 'checkOfferExpiry باید stage را ذخیره کند');
+  assert.ok(src.indexOf("o.expiryNotifyStage === 'warn'") > -1, 'checkOfferExpiry باید بر اساس stage گذار (نه today) کار کند');
+  assert.ok(src.indexOf("o.expiryNotifyStage = 'warn'") > -1, 'checkOfferExpiry باید stage را ذخیره کند');
   assert.ok(src.indexOf("r.dueNotified === stage") > -1, 'checkRfqDue/checkDealDue باید بر اساس stage گذار کار کنند');
   assert.ok(!/if \(o\[flagKey\] === today\)/.test(src), 'رگرسیون: الگوی قدیمی روزانه (flagKey===today) باید کاملاً حذف شده باشد');
   assert.ok(!/if \(r\.dueNotified === today\)/.test(src), 'رگرسیون: الگوی قدیمی روزانه (dueNotified===today) باید کاملاً حذف شده باشد');
@@ -265,27 +266,21 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
   ctx1.setData('ptf_crm_offers', [{ no: 'CO-1001', kind: 'CO', validUntil: warnDate, st: 'open', issuedBy: 'sales1', buyerCo: 'شرکت آزمایشی' }]);
   tick(ctx1);
   var notifs1 = ctx1.getData('ptf_crm_notifs');
-  assert.strictEqual(notifs1.length, 1, 'برای یک CO در پنجره‌ی هشدار، باید دقیقاً یک اعلان ساخته شود');
+  assert.strictEqual(notifs1.length, 0, 'v34.5.5: انقضای CO دیگر کارتابل را پر نمی‌کند');
   var offersAfter1 = ctx1.getData('ptf_crm_offers');
   assert.strictEqual(offersAfter1[0].expiryNotifyStage, 'warn', 'stage باید warn ثبت شود');
 
-  /* «روز بعد» بدون تغییر وضعیت CO — نباید اعلان دومی ساخته شود (رفع اصل گزارش
-     کارفرما: «چرا این اعلان بارها و بارها تکرار می‌شود حتی اگر دیده نشود»). */
   tick(ctx1);
-  assert.strictEqual(ctx1.getData('ptf_crm_notifs').length, 1, 'رفع باگ گزارش‌شده: تکرار تیک بعدی بدون تغییر وضعیت نباید اعلان جدید بسازد');
-  tick(ctx1); tick(ctx1); /* چند تیک دیگر برای اطمینان بیشتر */
-  assert.strictEqual(ctx1.getData('ptf_crm_notifs').length, 1, 'چند تیک متوالی بدون تغییر وضعیت هم فقط همان یک اعلان را دارند');
+  assert.strictEqual(ctx1.getData('ptf_crm_notifs').length, 0, 'تکرار تیک CO اعلان نمی‌سازد');
+  tick(ctx1); tick(ctx1);
 
-  /* گذار جدید: warn → expired — باید دقیقاً یک اعلان تازه بسازد. */
   var offers2 = ctx1.getData('ptf_crm_offers');
   offers2[0].validUntil = new Date(Date.now() - 1 * 86400000).toISOString().slice(0, 10);
   ctx1.setData('ptf_crm_offers', offers2);
   tick(ctx1);
-  assert.strictEqual(ctx1.getData('ptf_crm_notifs').length, 2, 'گذار از warn به expired باید دقیقاً یک اعلان تازه اضافه کند (نه صفر، نه بیشتر)');
-
-  /* تیک مجدد در حالت expired بدون تغییر — نباید اعلان سوم بسازد. */
+  assert.strictEqual(ctx1.getData('ptf_crm_notifs').length, 0, 'گذار expired هم کارتابل نمی‌سازد');
   tick(ctx1);
-  assert.strictEqual(ctx1.getData('ptf_crm_notifs').length, 2, 'تکرار در حالت expired بدون تغییر نباید اعلان سوم بسازد');
+  assert.strictEqual(ctx1.getData('ptf_crm_notifs').length, 0, 'تکرار expired هم اعلان ندارد');
 
   /* رگرسیون: پرونده فروش (deal) با تحویل تعهدی نزدیک — checkDealDue باید یک‌بار در
      ورود به بازه‌ی هشدار اعلان بدهد، نه هر تیک. */
