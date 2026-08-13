@@ -27,9 +27,11 @@ var fiscal = fs.readFileSync('crm/fiscal.js', 'utf8');
 assert.ok(fiscal.indexOf('ptfProjectProfitIRR') > -1, 'fiscal-year profit engine must remain');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.5.8');
+var vmm = version.match(/^v(\d+)\.(\d+)\.(\d+)$/);
+assert.ok(vmm, 'crm_version must match vX.Y.Z');
+assert.ok(+vmm[1] > 34 || (+vmm[1] === 34 && +vmm[2] > 5) || (+vmm[1] === 34 && +vmm[2] === 5 && +vmm[3] >= 8), 'release must retain or advance the v34.5.8 baseline');
 var current = version.slice(1);
 ['crm/index.html', 'crm/sw.js', 'crm/manifest.json', 'crm/clear-cache.html', 'crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');
 });
-console.log('PASS tester343: sales file profit UI removed (v34.5.8)');
+console.log('PASS tester343: sales file profit UI removed (v34.5+ baseline)');

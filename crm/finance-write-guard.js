@@ -133,7 +133,26 @@
     try { ds = getData('ptf_crm_deals') || []; } catch (e) { return { ok: false, why: 'deals' }; }
     var dirty = false;
     function findEv(deal) {
-      return ((deal && deal.costEvents) || []).filter(function (x) {
+      var evs = ((deal && deal.costEvents) || []);
+      /* P3 — اصلاحیه 2026-08-13 (OPEX-ROW-CLAIM-REGRESSION، منشأ tester340):
+         برای source='opex' تطبیق باید دقیقاً به امنیِ opexDealEvent باشد:
+         شناسهٔ ردیف مقدم است؛ رویداد لگاسی فقط وقتی ادعا می‌شود که بی‌ابهام
+         باشد (یک رویداد هم‌کد، یا در حالت چندتایی فقط تطبیقِ مبلغِ یکتا).
+         نسخهٔ قبلی اولین رویداد هم‌کد لگاسی را می‌گرفت → در کدهای تکراری
+         رویدادِ خواهر (متعلق به ردیف دیگر) ربوده و بازنویسی می‌شد؛ مبلغ
+         پرونده و سود پروژه به‌صورت بی‌صدا خراب می‌شد. */
+      if (source === 'opex') {
+        var exact = evs.filter(function (x) { return x && rec._opexRowId && x.opexRowId === rec._opexRowId; });
+        if (exact.length === 1) return exact[0];
+        var legacy = evs.filter(function (x) { return x && x.fromOpex && !x.opexRowId && x.cd === rec.cd; });
+        if (legacy.length === 1) return legacy[0];
+        if (legacy.length > 1) {
+          var amtMatch = legacy.filter(function (x) { return (+x.amt || 0) === (+rec.amt || 0); });
+          if (amtMatch.length === 1) return amtMatch[0];
+        }
+        return null; /* مبهم — هیچ رویدادی ادعا/دستکاری نمی‌شود؛ رویداد جدید ساخته می‌شود */
+      }
+      return evs.filter(function (x) {
         return window.ptfDealCostMatch(x, rec, source);
       })[0] || null;
     }
