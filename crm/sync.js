@@ -78,7 +78,11 @@
     bootstrapped: false, /* v15.0 (US-384): تا سینک اولیه کامل نشده، push ممنوع — جلوی ارسال داده کهنه هنگام رفرش */
     initialReconcile: false, /* v31.7.2: local records created before sync.js must be merged, not overwritten */
     lastBgPull: 0, /* v33.21.x: آخرین پول مسیر آهسته (غیرمتمرکز ۱۲۰ثانیه / مخفی ۱۸۰ثانیه) */
-    lastPingPull: 0 /* v33.21.1: آخرین پول فوریِ برگرفته از پینگ بین‌تبی (حد نرخ ۵ثانیه) */
+    lastPingPull: 0, /* v33.21.1: آخرین پول فوریِ برگرفته از پینگ بین‌تبی (حد نرخ ۵ثانیه) */
+    /* نوشتنی که حتی در مرورگر پایدار نشده، نباید با badge سبز/پیام موفقیت پنهان شود.
+       این وضعیت عمداً جدا از dirty است: dirty = در انتظار ACK سرور؛ writeFailure =
+       همان دستگاه حتی نتوانسته نسخهٔ قابل بازیابی بسازد. */
+    writeFailures: {}
   };
 
   function setRev(r) { state.lastRev = r; localStorage.setItem('ptf_sync_rev', String(r)); }
@@ -97,6 +101,20 @@
   }
 
   function saveDirty() { try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(state.dirty)); } catch (e) {} }
+  /* قرارداد عمومی برای فرم‌ها: قبل از باز کردن عملیات حساس نیز می‌توانند همین
+     گارد را بخوانند؛ اما wrapper setData پایین آخرین سد سراسری است. */
+  window.ptfSyncCanWriteKey = function (k) { return SYNC_KEYS.indexOf(k) < 0 || syncAllowedKey(k); };
+  window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
+  window.ptfSyncWriteFailures = function () { return Object.keys(state.writeFailures); };
+  function noteWriteFailure(k, reason) {
+    state.writeFailures[k] = String(reason || 'ذخیرهٔ پایدار مرورگر ناموفق بود');
+    try { setSyncBadge('writefail'); } catch (eB) {}
+    try {
+      if (typeof ptfToast === 'function') ptfToast('⛔ تغییر در «' + String(k).replace('ptf_crm_', '') + '» حتی روی این دستگاه پایدار نشد؛ ثبت را تکرار کنید و تب را نبندید. علت: ' + state.writeFailures[k], 'warn');
+    } catch (eT) {}
+  }
+  function clearWriteFailure(k) { if (state.writeFailures[k]) delete state.writeFailures[k]; }
+  window.ptfSyncNotifyWriteFailure = noteWriteFailure;
   var pushWaiters = [];
   function notifyPushWaiters(ok, extra) {
     var w = pushWaiters.splice(0);
@@ -118,7 +136,6 @@
       schedulePush();
     }
   };
-  window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
 
   /* یکسان‌بودن داده باید معنایی باشد، نه صرفاً برابر بودن رشته JSON. بعضی migrationها
      یا فرم‌ها همان object را با ترتیب property متفاوت دوباره می‌نویسند؛ مقایسهٔ رشته‌ای
@@ -139,11 +156,29 @@
   }
   var _setData = window.setData;
   window.setData = function (k, d) {
+    /* آخرین سد سراسری: هیچ فرم نباید بتواند دادهٔ یک کلید Sync را با نقش
+       نامجاز فقط محلی بنویسد و بعد پیام «ثبت شد» نشان دهد. */
+    if (SYNC_KEYS.indexOf(k) > -1 && !syncAllowedKey(k)) {
+      noteWriteFailure(k, 'نقش فعلی اجازهٔ ثبت/همگام‌سازی این بخش را ندارد');
+      return false;
+    }
     /* چند migration/repair در boot همان مقدار قبلی را دوباره setData می‌کنند
-       (نمونه قطعی: ptfDupAckSet('') روی ptf_crm_settings). فقط تغییر واقعی dirty است. */
+       (نمونه قطعی: ptfDupAckSet("") روی ptf_crm_settings). فقط تغییر واقعی dirty است. */
     var before = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
-    var saveResult = _setData(k, d);
+    var saveResult;
+    try { saveResult = _setData(k, d); }
+    catch (eWrite) {
+      noteWriteFailure(k, (eWrite && eWrite.message) || 'خطای نوشتن در حافظهٔ مرورگر');
+      return false;
+    }
     var after = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
+    /* storage-quota و فاز B در خطای پایدارسازی false برمی‌گردانند. اگر نویسندهٔ
+       قدیمی undefined برگرداند، فقط تفاوت واقعی before/after ملاک است. */
+    if (saveResult === false) {
+      noteWriteFailure(k, 'فضای مرورگر یا صف آفلاین نتوانست تغییر را پایدار کند');
+      return false;
+    }
+    clearWriteFailure(k);
     if (!sameSyncJson(before, after)) window.ptfSyncNotifyDirty(k);
     return saveResult;
   };
@@ -673,7 +708,8 @@
       ok: ['🟢', 'همگام با سرور'],
       warn: ['🟡', 'در حال تلاش مجدد...'],
       offline: ['🔴', 'آفلاین — تغییرات محلی ذخیره و بعداً ارسال می‌شود'],
-      forbidden: ['🟠', 'برخی بخش‌ها برای نقش فعلی قابل sync نیستند']
+      forbidden: ['🟠', 'برخی بخش‌ها برای نقش فعلی قابل sync نیستند'],
+      writefail: ['🔴', 'ثبت پایدار روی این دستگاه ناموفق بوده است']
     };
     var x = map[st] || map.ok;
     el.textContent = x[0];
@@ -682,8 +718,14 @@
     var banner = document.getElementById('ptfUnsavedBanner');
     if (banner) {
       var dirtyCount = Object.keys(state.dirty).length;
-      if (dirtyCount > 0) {
+      var failedKeys = Object.keys(state.writeFailures);
+      if (failedKeys.length > 0) {
         banner.style.display = 'flex';
+        banner.style.background = '#dc2626'; banner.style.color = '#fff';
+        banner.innerHTML = '<span style="flex:1">🔴 ' + failedKeys.length + ' تغییر حتی در حافظهٔ پایدار این دستگاه ذخیره نشد — تب را نبندید؛ فضا/دسترسی را بررسی و ثبت را دوباره انجام دهید. (' + failedKeys.map(function (k) { return k.replace('ptf_crm_', ''); }).join('، ') + ')</span>';
+      } else if (dirtyCount > 0) {
+        banner.style.display = 'flex';
+        banner.style.background = '#f59e0b'; banner.style.color = '#1e293b';
         var msg = st === 'forbidden'
           ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد')
           : st === 'offline'

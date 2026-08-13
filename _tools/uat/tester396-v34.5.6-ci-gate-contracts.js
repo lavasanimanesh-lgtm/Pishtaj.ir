@@ -35,6 +35,9 @@ assert.ok(api.indexOf('function ptf_echo_json') > -1, 'خروجی JSON فشرد�
 assert.ok(sy.indexOf('if (startupMerged !== newStr) state.dirty[k] = true') > -1, 'استارت‌آپ فقط اختلاف واقعی را dirty می‌کند');
 assert.ok(api.indexOf("'savedKeys' => array_values(array_unique($saved_keys))") > -1, 'سرور باید ACK کلیدهای واقعاً ذخیره‌شده را برگرداند');
 assert.ok(sy.indexOf('var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys : []') > -1 && sy.indexOf('savedKeys.forEach') > -1, 'کلاینت فقط کلیدهای ACKشده را از صف dirty حذف می‌کند');
+assert.ok(sy.indexOf('window.ptfSyncCanWriteKey') > -1 && sy.indexOf("noteWriteFailure(k, 'نقش فعلی اجازه") > -1, 'نوشتن کلید Sync با نقش نامجاز پیش از ذخیره محلی مسدود می‌شود');
+assert.ok(sy.indexOf('writeFailures: {}') > -1 && sy.indexOf("writefail: ['🔴'") > -1, 'شکست حافظه/صف باید banner قرمز پایدار داشته باشد');
+assert.ok(api.indexOf("'ptf_crm_treasury_calls'") > -1, 'کلید خزانه در allowlist سرور نیز وجود دارد');
 
 assert.ok(typeof rb === 'string' && rb.indexOf('function ntfNeedsAction') > -1, 'گیت اقدام کارتابل');
 assert.ok(rb.indexOf('🔴 اقدام لازم') > -1, 'عنوان کارتابل اقدام‌محور است');

@@ -278,13 +278,23 @@
   /* ---------- صف آفلاین ---------- */
   function queueKey() { return 'ptf_b_queue'; }
   function queueRead() { try { return JSON.parse(localStorage.getItem(queueKey()) || '{}'); } catch (e) { return {}; } }
-  function queueWrite(q) { try { localStorage.setItem(queueKey(), JSON.stringify(q)); } catch (e) {} }
+  function queueWrite(q) {
+    try {
+      var raw = JSON.stringify(q);
+      if (typeof ptfStorageSafeSetItem === 'function') return ptfStorageSafeSetItem(queueKey(), raw, { noWarn: true }) !== false;
+      return localStorage.setItem(queueKey(), raw) !== false;
+    } catch (e) { return false; }
+  }
   function queueAdd(k) {
-    var q = queueRead(); q[k] = (q[k] || 0) + 1; queueWrite(q);
+    var q = queueRead(); q[k] = (q[k] || 0) + 1;
+    /* صف آفلاین، write-ahead record است. اگر پایدار نشود نباید caller تصور کند
+       داده قابل بازیابی است؛ خطا به setData برمی‌گردد. */
+    if (!queueWrite(q)) return false;
     try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(k); } catch (e) {}
+    return true;
   }
   function queueClear(keys) {
-    var q = queueRead(); (keys || []).forEach(function (k) { delete q[k]; }); queueWrite(q);
+    var q = queueRead(); (keys || []).forEach(function (k) { delete q[k]; }); return queueWrite(q);
   }
 
   /* ---------- v33.19.0: ارسال دسته‌ای (هر بار حداکثر ۲۰ کلید) ----------
@@ -460,17 +470,28 @@
         if (!getFlag()) return _set(k, d);
         if (!bKeys().indexOf) return _set(k, d);
         if (bKeys().indexOf(k) === -1) return _set(k, d);
+        if (typeof window.ptfSyncCanWriteKey === 'function' && !window.ptfSyncCanWriteKey(k)) {
+          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'نقش فعلی اجازهٔ ثبت/همگام‌سازی این بخش را ندارد');
+          return false;
+        }
         var s = JSON.stringify(d);
         cache[k] = { t: Date.now(), v: s };
         /* v33.20.0: کلید سنگین → حافظهٔ نشست + IndexedDB (نه localStorage) تا سقف ۵MB لمس نشود */
+        var localOk = true;
         if (window.ptfBMirrorActive() && heavyList(k, s)) {
           idbKnown[k] = 1; idbMem[k] = s;
+          /* IDB asynchronous است؛ تا وقتی ACK سرور نیامده، queue پایدار localStorage
+             مانع از گم‌شدن تغییر در crash/refresh می‌شود. */
           try { window.ptfStorageIdbSet(idbPrefix() + k, s, function () {}); } catch (eI) {}
           localDel(k);
         } else {
-          localSet(k, s);
+          localOk = localSet(k, s) !== false;
         }
-        queueAdd(k);
+        if (!localOk || !queueAdd(k)) {
+          delete cache[k];
+          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'صف آفلاین یا حافظهٔ مرورگر پایدار نشد');
+          return false;
+        }
         if (pushTimer) clearTimeout(pushTimer);
         pushTimer = setTimeout(function () { window.ptfBFlushQueue(function () {}); }, 4000);
         try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(k); } catch (e) {}
