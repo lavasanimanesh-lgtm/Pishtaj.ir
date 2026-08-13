@@ -36,6 +36,9 @@ assert.ok(sy.indexOf('if (startupMerged !== newStr) state.dirty[k] = true') > -1
 assert.ok(sy.indexOf('window.ptfSyncTrackRecordSave') > -1 && sy.indexOf('در انتظار تأیید سرور') > -1, 'رسید فرم باید ثبت محلی را از تأیید سرور جدا کند');
 assert.ok(read('crm/offers.js').indexOf("ptfSyncTrackRecordSave({ key: 'ptf_crm_offers'") > -1, 'پیشنهاد رسید تأیید سرور دارد');
 assert.ok(read('crm/bridge.js').indexOf("ptfSyncTrackRecordSave({ key: 'ptf_crm_rfqs'") > -1, 'درخواست رسید تأیید سرور دارد');
+assert.ok(petty.indexOf("ptfConfirmCloudSave({ key: PETTY_KEY") > -1, 'هزینه تنخواه رسید تأیید سرور دارد');
+assert.ok(sf.indexOf("ptfSyncTrackRecordSave({ key: KEY, id: inv.cd") > -1 && sf.indexOf("ptfSyncTrackRecordSave({ key: KEY, id: rec.cd") > -1, 'فاکتور و پرداخت تأمین رسید تأیید سرور دارند');
+assert.ok(read('crm/cheque-module.js').indexOf("ptfSyncTrackRecordSave({ key: key, id: rec.cd") > -1, 'چک رسید تأیید سرور دارد');
 assert.ok(api.indexOf("'savedKeys' => array_values(array_unique($saved_keys))") > -1, 'سرور باید ACK کلیدهای واقعاً ذخیره‌شده را برگرداند');
 assert.ok(sy.indexOf('var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys : []') > -1 && sy.indexOf('savedKeys.forEach') > -1, 'کلاینت فقط کلیدهای ACKشده را از صف dirty حذف می‌کند');
 assert.ok(sy.indexOf('window.ptfSyncCanWriteKey') > -1 && sy.indexOf("noteWriteFailure(k, 'نقش فعلی اجازه") > -1, 'نوشتن کلید Sync با نقش نامجاز پیش از ذخیره محلی مسدود می‌شود');

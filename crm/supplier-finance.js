@@ -10,7 +10,7 @@
     try { var d = JSON.parse(localStorage.getItem(KEY) || '{}'); return d && !Array.isArray(d) ? Object.assign({ schema: 1, invoices: [], payments: [] }, d) : { schema: 1, invoices: [], payments: [] }; }
     catch (e) { return { schema: 1, invoices: [], payments: [] }; }
   }
-  function save(d) { d = d || { schema: 1, invoices: [], payments: [] }; d.schema = 1; d.invoices = d.invoices || []; d.payments = d.payments || []; setData(KEY, d); }
+  function save(d) { d = d || { schema: 1, invoices: [], payments: [] }; d.schema = 1; d.invoices = d.invoices || []; d.payments = d.payments || []; return setData(KEY, d); }
   /* v34.4.38: metadata سندِ آپلودشده باید مستقل از دکمهٔ «ذخیره فرم» و همان
      لحظه روی source-of-truth نوشته شود؛ وگرنه بستن modal فایل را orphan می‌کرد. */
   function fileRecord(kind, cd, d) {
@@ -301,11 +301,13 @@
       inv.coverNetBenefit = coverNetBenefitIrr;
       inv.coverPeriod = coverPeriod;
     }
-    d.invoices.unshift(inv); save(d);
-    if (links.length) { var pays = getData('ptf_crm_payables'); pays.forEach(function (p) { if (links.indexOf(p.cd) > -1) p.sfInvoiceCd = inv.cd; }); setData('ptf_crm_payables', pays); }
+    d.invoices.unshift(inv);
+    if (save(d) === false) { alert('⛔ فاکتور خرید روی حافظهٔ پایدار این دستگاه ذخیره نشد؛ تب را نبندید و پس از رفع خطا دوباره ثبت کنید.'); return; }
+    if (links.length) { var pays = getData('ptf_crm_payables'); pays.forEach(function (p) { if (links.indexOf(p.cd) > -1) p.sfInvoiceCd = inv.cd; }); if (setData('ptf_crm_payables', pays) === false) { alert('⛔ لینک تعهدهای خرید ذخیره نشد؛ تب را نبندید.'); return; } }
     try { audit('فاکتور خرید تامین', 'ثبت فاکتور ' + no + ' برای ' + sup.co + ' — ' + money(amount) + ' ' + cur + (links.length ? ' | اتصال به ' + links.length + ' تعهد خرید' : ''), inv.cd); } catch (e) {}
     var m = document.getElementById('slInvDlg'); if (m) m.remove();
-    if (typeof ptfToast === 'function') ptfToast('✅ فاکتور خرید ثبت شد', 'ok');
+    if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: KEY, id: inv.cd, label: 'فاکتور خرید' });
+    else if (typeof ptfToast === 'function') ptfToast('🟡 فاکتور خرید روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
     window.slOpenLedger(supCd);
   };
   window.slOpenLedger = function (supCd) {
@@ -435,10 +437,11 @@
     var payFiles = (window._slPayFiles || []).slice();
     var ch = slChequeCreate(method, sup, amount, cur, payCd, date, payFiles); if (!ch.ok) { alert(ch.error); return; }
     var rec = { cd: payCd, supplierCd: supCd, supName: sup.co || '', dateISO: date, dateFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(date) : date, cur: cur, rate: rate, amount: amount, amountIrr: cur === 'IRR' ? amount : Math.round(amount * rate), method: method, note: ((document.getElementById('slPayNote') || {}).value || '').trim(), files: payFiles, allocations: alloc, unallocated: amount - total, status: 'posted', chequeCd: ch.cheque ? ch.cheque.cd : '', thirdPartyInvoiceCd: ch.cheque ? (ch.cheque.sourceInvoiceCd || '') : '', t: faDateTime(), by: curSession().name };
-    d.payments.unshift(rec); save(d);
-    var legacyList = getData('ptf_crm_payables'); alloc.filter(function(a){return a.legacyCd;}).forEach(function(a){ var lp=legacyList.filter(function(x){return x.cd===a.legacyCd;})[0]; if(lp){ lp.paid=lp.paid||[]; lp.paid.push({amt:a.amount,t:faDate(),by:curSession().name,note:'پرداخت از حساب تامین‌کننده',supplierPaymentCd:payCd}); lp.settled=(typeof ptfPayableRemain==='function'?ptfPayableRemain(lp):0)<=0; }}); setData('ptf_crm_payables',legacyList);
+    d.payments.unshift(rec);
+    if (save(d) === false) { alert('⛔ پرداخت روی حافظهٔ پایدار این دستگاه ذخیره نشد؛ تب را نبندید و پس از رفع خطا دوباره ثبت کنید.'); return; }
+    var legacyList = getData('ptf_crm_payables'); alloc.filter(function(a){return a.legacyCd;}).forEach(function(a){ var lp=legacyList.filter(function(x){return x.cd===a.legacyCd;})[0]; if(lp){ lp.paid=lp.paid||[]; lp.paid.push({amt:a.amount,t:faDate(),by:curSession().name,note:'پرداخت از حساب تامین‌کننده',supplierPaymentCd:payCd}); lp.settled=(typeof ptfPayableRemain==='function'?ptfPayableRemain(lp):0)<=0; }}); if (setData('ptf_crm_payables',legacyList) === false) { alert('⛔ تخصیص پرداخت به تعهدهای خرید ذخیره نشد؛ تب را نبندید.'); return; }
     try { audit('پرداخت تامین', 'پرداخت ' + money(amount) + ' ' + cur + ' به ' + rec.supName + ' — تخصیص ' + money(total) + (rec.unallocated ? ' | اعتبار ' + money(rec.unallocated) : ''), rec.cd); } catch (e) {}
-    var m = document.getElementById('slPayDlg'); if (m) m.remove(); if (typeof ptfToast === 'function') ptfToast('✅ پرداخت ثبت شد', 'ok'); slOpenLedger(supCd);
+    var m = document.getElementById('slPayDlg'); if (m) m.remove(); if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: KEY, id: rec.cd, label: 'پرداخت تأمین‌کننده' }); else if (typeof ptfToast === 'function') ptfToast('🟡 پرداخت روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info'); slOpenLedger(supCd);
   };
   window.slPaymentVoid = function (cd) {
     var d = data(), p = (d.payments || []).filter(function (x) { return x.cd === cd; })[0]; if (!p || p.status === 'void') return;

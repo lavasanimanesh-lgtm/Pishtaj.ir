@@ -332,14 +332,15 @@
       okText: 'ثبت و پیوست مدرک',
       onOk: function (v) {
         var rec = { cd: genCode('PTY'), amt: toNum(v.amt), cat: v.cat, rfq: v.rfq, dealRef: v.dealRef||'', desc: v.desc, by: userName(), t: faDateTime(), iso: isoNow(), month: faMonthNow(), st: 'open', files: [] };
-        var all = getData(PETTY_KEY); all.unshift(rec); setData(PETTY_KEY, all);
+        var all = getData(PETTY_KEY); all.unshift(rec);
+        if (setData(PETTY_KEY, all) === false) { alert('⛔ هزینه روی حافظهٔ پایدار این دستگاه ذخیره نشد؛ تب را نبندید و پس از رفع خطا دوباره ثبت کنید.'); return; }
         // v30.5: اگر به پرونده لینک شد، costEvents بساز تا در سود پروژه بیاید ولی دوباره‌شماری نشود
         if(rec.dealRef){
           try { window.ptfPettyUpdateDealLink(rec, rec.dealRef, ''); } catch (e) {}
         }
         audit('تنخواه', 'ثبت هزینه/مطالبه تنخواه ' + money(rec.amt) + ' — ' + v.cat + (rec.dealRef?' [لینک پرونده '+rec.dealRef+']':''), rec.cd);
         renderPetty(); afterAddUpload(rec);
-        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('هزینه روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه ثبت شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave({ key: PETTY_KEY, id: rec.cd, label: 'هزینه تنخواه' }); else if (typeof ptfToast === 'function') ptfToast('🟡 هزینه روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
       }
     });
   };

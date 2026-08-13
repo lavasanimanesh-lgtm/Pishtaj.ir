@@ -409,6 +409,12 @@
     pushDirty();
   };
   window.ptfConfirmCloudSave = function (localMsg) {
+    /* سازگاری عقب‌رو با string؛ فرم‌های جدید key/id/label می‌دهند تا رسید دقیق
+       همان رکورد را نمایش دهیم. */
+    if (localMsg && typeof localMsg === 'object') {
+      window.ptfSyncTrackRecordSave(localMsg);
+      return;
+    }
     if (typeof ptfToast === 'function') ptfToast((localMsg || 'روی این دستگاه ذخیره شد') + ' — در حال ارسال به سرور…', 'info');
     window.ptfSyncFlushNow(function (ok) {
       if (typeof ptfToast !== 'function') return;

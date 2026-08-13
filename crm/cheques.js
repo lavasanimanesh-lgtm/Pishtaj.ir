@@ -716,7 +716,8 @@
       var m = document.getElementById('chFormDlg'); if (m) m.remove();
       if (typeof renderReminders === 'function') try { renderReminders(); } catch (e) {}
       refreshBox();
-      if (typeof ptfToast === 'function') ptfToast(found ? '✅ چک ذخیره شد' : '✅ چک ثبت شد', 'ok');
+      if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: rec.direction === 'received' ? 'ptf_crm_cheques_received' : 'ptf_crm_cheques_issued', id: rec.cd, label: 'چک' });
+      else if (typeof ptfToast === 'function') ptfToast('🟡 چک روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
     } catch (eSave) {
       try { console.error('chSaveForm', eSave); } catch (e0) {}
       alert('⛔ خطا در ذخیره چک: ' + (eSave && eSave.message ? eSave.message : eSave));
