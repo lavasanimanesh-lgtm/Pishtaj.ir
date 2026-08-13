@@ -158,7 +158,10 @@
   window.setData = function (k, d) {
     /* آخرین سد سراسری: هیچ فرم نباید بتواند دادهٔ یک کلید Sync را با نقش
        نامجاز فقط محلی بنویسد و بعد پیام «ثبت شد» نشان دهد. */
-    if (SYNC_KEYS.indexOf(k) > -1 && !syncAllowedKey(k)) {
+    /* audit یک log داخلی و غیرکسب‌وکاری است: نقش محدود آن را محلی ثبت می‌کند،
+       اما ptfSyncNotifyDirty طبق گارد اختصاصی آن را به سرور نمی‌فرستد. جلوگیری
+       از write محلی audit باعث بنر قرمز کاذب بعد از هر عملیات می‌شد. */
+    if (SYNC_KEYS.indexOf(k) > -1 && k !== 'ptf_crm_audit' && !syncAllowedKey(k)) {
       noteWriteFailure(k, 'نقش فعلی اجازهٔ ثبت/همگام‌سازی این بخش را ندارد');
       return false;
     }

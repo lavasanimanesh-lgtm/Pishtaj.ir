@@ -470,7 +470,9 @@
         if (!getFlag()) return _set(k, d);
         if (!bKeys().indexOf) return _set(k, d);
         if (bKeys().indexOf(k) === -1) return _set(k, d);
-        if (typeof window.ptfSyncCanWriteKey === 'function' && !window.ptfSyncCanWriteKey(k)) {
+        /* audit داخلی در نقش محدود محلی می‌ماند و sync.js آن را dirty نمی‌کند؛
+           آن را مثل دادهٔ کسب‌وکاریِ نقش‌ممنوع block نکنید. */
+        if (k !== 'ptf_crm_audit' && typeof window.ptfSyncCanWriteKey === 'function' && !window.ptfSyncCanWriteKey(k)) {
           if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'نقش فعلی اجازهٔ ثبت/همگام‌سازی این بخش را ندارد');
           return false;
         }
