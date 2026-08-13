@@ -1277,7 +1277,7 @@
       iq.push(rec);
       out.push(rec);
     });
-    if (out.length) setData('ptf_crm_inqitems', iq);
+    if (out.length && setData('ptf_crm_inqitems', iq) === false) return null;
     return out;
   }
 
@@ -1320,15 +1320,23 @@
     if (typeof ptfDupBlock === 'function' && ptfDupBlock('rfq', recR, null)) return;
     if (typeof dedupStamp === 'function') dedupStamp(recR);
     rfqs.unshift(recR);
-    setData('ptf_crm_rfqs', rfqs);
+    if (setData('ptf_crm_rfqs', rfqs) === false) {
+      alert('⛔ درخواست روی حافظهٔ پایدار این دستگاه ذخیره نشد. تب را نبندید؛ فضای مرورگر/دسترسی را بررسی و دوباره ثبت کنید.');
+      return;
+    }
     if (typeof audit === 'function') audit('استعلامات', 'ثبت درخواست جدید برای ' + (c ? c.co : ''), cd);
     /* v15.7 (US-388 ①): اقلام واردشده در خود مودال ذخیره شود */
     var modalItems = [];
-    try { modalItems = rfqCollectModalItems(cd) || []; } catch (eIt) {}
+    try { modalItems = rfqCollectModalItems(cd); } catch (eIt) { modalItems = null; }
+    if (modalItems === null) {
+      alert('⛔ اقلام درخواست روی حافظهٔ پایدار این دستگاه ذخیره نشدند. تب را نبندید؛ پس از رفع خطا دوباره ثبت کنید.');
+      return;
+    }
     var nItems = modalItems.length;
     hideModal();
     renderRfq();
-    addLog('استعلام ' + cd + ' ثبت شد' + (nItems ? ' (' + nItems + ' قلم)' : ''));
+    addLog('استعلام ' + cd + ' ثبت شد' + (nItems ? ' (' + nItems + ' قلم)' : '') + ' (در انتظار تأیید سرور)');
+    if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: 'ptf_crm_rfqs', id: cd, label: 'درخواست' });
     if (nItems) {
       /* v15.8 (US-388 AC تکمیلی — سوال کارفرما): کالاهای واردشده با تایید کاربر به ماژول کالا هم می‌روند
          (کد یکتا + مارک srcInq؛ تکراری‌ها ثبت نمی‌شوند — همان قاعده US-326) */
@@ -1337,13 +1345,13 @@
           confirm('📦 ' + nItems + ' قلم ثبت شد.\n\nآیا این کالاها به «ماژول کالا» هم اضافه شوند؟\n(هر کالا کد یکتا و مارک شماره درخواست می‌گیرد؛ کالاهای قبلا ثبت‌شده تکرار نمی‌شوند)')) {
         try { addedProds = window.ptfAutoRegisterSummaryProducts(cd, modalItems) || 0; } catch (eAP) {}
       }
-      if (typeof ptfToast === 'function') ptfToast('✅ درخواست ' + cd + ' با ' + nItems + ' قلم ثبت شد' + (addedProds ? ' + ' + addedProds + ' کالای جدید در ماژول کالا 📦' : ''), 'ok');
+      if (typeof ptfToast === 'function') ptfToast('🟡 درخواست ' + cd + ' با ' + nItems + ' قلم روی دستگاه ثبت شد؛ در انتظار تأیید سرور' + (addedProds ? ' + ' + addedProds + ' کالای جدید در ماژول کالا 📦' : ''), 'info');
       return; /* اقلام وارد شده — سوال دوباره لازم نیست */
     }
     /* v13.3 (US-326): پیشنهاد ورود اقلام — الزامی نیست؛ بعدا هم از دکمه «ویرایش استعلام و اقلام» ممکن است */
     setTimeout(function () {
       if (typeof ptfOpenFullInqEditor !== 'function') return;
-      if (confirm('✅ استعلام ' + cd + ' ثبت شد.\n\nآیا مایلید همین حالا اقلام درخواست را وارد کنید؟ (دستی / اکسل / دستیار)\n\nالزامی نیست — بعدا هم از دکمه «✏️ ویرایش استعلام و اقلام» روی ردیف درخواست ممکن است.')) {
+      if (confirm('🟡 استعلام ' + cd + ' روی این دستگاه ثبت و برای تأیید سرور ارسال شد.\n\nآیا مایلید همین حالا اقلام درخواست را وارد کنید؟ (دستی / اکسل / دستیار)\n\nالزامی نیست — بعدا هم از دکمه «✏️ ویرایش استعلام و اقلام» روی ردیف درخواست ممکن است.')) {
         ptfOpenFullInqEditor(cd);
       }
     }, 300);

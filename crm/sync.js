@@ -417,6 +417,31 @@
     });
   };
 
+  /* رسید قابل‌فهم برای فرم‌های اصلی: ثبت محلی را با «تأیید سرور» یکی نکنید.
+     کلید یک store کامل است، بنابراین ACK همان key یعنی رکوردی که همین لحظه داخل
+     snapshot آن قرار گرفته نیز روی سرور نوشته شده است. */
+  window.ptfSyncTrackRecordSave = function (opts) {
+    opts = opts || {};
+    var key = String(opts.key || '');
+    var label = String(opts.label || 'رکورد');
+    var id = String(opts.id || '');
+    if (!key) return;
+    try { if (typeof ptfToast === 'function') ptfToast('🟡 ' + label + (id ? ' «' + id + '»' : '') + ' روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info'); } catch (eT) {}
+    function finish(ok, extra) {
+      extra = extra || {};
+      var ack = (extra.savedKeys || []).indexOf(key) > -1 || (!!extra.empty && Object.keys(state.dirty).indexOf(key) < 0);
+      if (ok && ack) {
+        try { if (typeof ptfToast === 'function') ptfToast('🟢 ' + label + (id ? ' «' + id + '»' : '') + ' روی سرور تأیید شد.', 'ok'); } catch (eOk) {}
+      } else {
+        try { if (typeof ptfToast === 'function') ptfToast('🟡 ' + label + (id ? ' «' + id + '»' : '') + ' هنوز تأیید سرور ندارد؛ تب را نبندید.', 'warn'); } catch (eWarn) {}
+      }
+    }
+    /* push در حال اجرا باشد: callback همان push جاری نیست؛ یک تلاش کوتاه بعدی
+       رسید را به ACK واقعی وصل می‌کند. */
+    if (state.pushing) { setTimeout(function () { window.ptfSyncTrackRecordSave(opts); }, 700); return; }
+    window.ptfSyncFlushNow(finish);
+  };
+
   /* ---------- pull دوره‌ای ---------- */
   /* v33.21.1 (به انتخاب کارفرما): پینگ بین‌تبی — هر تب که دادهٔ تازه اعمال کرد یا پوش موفق داشت،
      این نشانگر کوچک را می‌نویسد؛ رویداد storage در بقیهٔ تب‌های همین مرورگر (حتی پنهان) فوری

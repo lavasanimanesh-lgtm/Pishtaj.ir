@@ -2438,7 +2438,10 @@ function offerSave() {
       try { audit('کالاها', 'همگام‌سازی از پیشنهاد ' + o.no + ': ' + _msg.join('، '), o.no); } catch (eAu) {}
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
-  setData('ptf_crm_offers', offers);
+  if (setData('ptf_crm_offers', offers) === false) {
+    alert('⛔ پیشنهاد روی حافظهٔ پایدار این دستگاه ذخیره نشد. تب را نبندید؛ فضای مرورگر/دسترسی را بررسی و دوباره ثبت کنید.');
+    return;
+  }
   /* ثبت پیشنهاد مالی، ارجاع باز «صدور پیشنهاد مالی» همین درخواست را حل می‌کند. */
   try { if (o.inqNo && typeof window.ptfResolveRfqReferral === 'function') { if (o.kind === 'CO' || o.kind === 'TC') window.ptfResolveRfqReferral(o.inqNo, 'create_offer'); else if (o.kind === 'TO') window.ptfResolveRfqReferral(o.inqNo, 'create_technical_offer'); } } catch (eResolveRef) {}
   /*
@@ -2466,8 +2469,9 @@ function offerSave() {
     }
   } catch (eSms) {}
   var _editLbl = idx > -1 ? (madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';
-  addLog('پیشنهاد ' + o.no + _editLbl + ' شد');
-  if (typeof ptfToast === 'function') ptfToast('💾 پیشنهاد ' + o.no + ' ذخیره شد', 'ok');
+  addLog('پیشنهاد ' + o.no + _editLbl + ' شد (در انتظار تأیید سرور)');
+  if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: 'ptf_crm_offers', id: o.no, label: 'پیشنهاد' });
+  else if (typeof ptfToast === 'function') ptfToast('🟡 پیشنهاد ' + o.no + ' روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
   } catch (eSave) {
     try { console.error('offerSave error', eSave); } catch (e0) {}
     alert('⛔ خطا در ذخیره پیشنهاد: ' + (eSave && eSave.message ? eSave.message : eSave));
