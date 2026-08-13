@@ -909,7 +909,7 @@
         }
         host.closest('div').insertAdjacentHTML('beforebegin',
           '<section id="rbBox_' + escP(deal.cd) + '" class="sf-real-buy-summary">' +
-          '<div class="sf-real-buy-copy"><div class="sf-real-buy-heading"><span class="sf-real-buy-heading-icon" aria-hidden="true">🛒</span><span><b>خرید واقعی اقلام</b><small>پس از برد؛ مبنای سود واقعی و جدا از قیمت استعلامی</small></span></div><div class="sf-real-buy-status">' + lb + adv + costTxt + '</div></div>' +
+          '<div class="sf-real-buy-copy"><div class="sf-real-buy-heading"><span class="sf-real-buy-heading-icon" aria-hidden="true">🛒</span><span><b>خرید واقعی اقلام</b><small>پس از برد؛ جدا از قیمت استعلامی</small></span></div><div class="sf-real-buy-status">' + lb + adv + costTxt + '</div></div>' +
           '<div class="sf-real-buy-actions" role="group" aria-label="عملیات خرید واقعی پرونده ' + escP(deal.inqNo) + '">' +
           rbAction('open', '🛍', 'خرید', 'ثبت یا پیگیری خرید واقعی اقلام پرونده', 'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')', true) +
           ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? rbAction('advance', '💰', 'پیش‌دریافت', 'ثبت یا اصلاح پیش‌دریافت مشتری (وصولی)', 'event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')') : '') +

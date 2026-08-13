@@ -190,7 +190,7 @@ function openProject(no) {
     '<button class="bt bt-o" style="font-size:12px" onclick="prjDownloadAll(\'' + ptfOnClickArg(no) + '\')">⬇️ دانلود کل پرونده' + (p.dlAt ? ' ✅' : '') + '</button>' +
     /* v121.1: اتصال توابع مرده US-110/111 v120 به UI پرونده */
     '<button class="bt bt-o" style="font-size:12px;color:#0e7490" onclick="ptfOpenProjectBinder(\'' + ptfOnClickArg(no) + '\')">🗄️ زونکن دیجیتال</button>' +
-    (['admin','chairman','ceo','commercial'].indexOf(curRole()) > -1 ? '<button class="bt bt-o" style="font-size:12px;color:#059669" onclick="ptfCalculateNetProfit(\'' + ptfOnClickArg(no) + '\')">💰 سود خالص (مدیر)</button>' : '') + /* v14.9 US-383 */
+    /* v34.5.8: نمایش سود پرونده از بایگانی/پرونده فروش حذف شد — موتور سال مالی دست‌نخورده */
     (typeof ptfLossOpen === 'function' && ['admin','chairman','ceo','commercial'].indexOf(curRole()) > -1 ? '<button class="bt bt-o" style="font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfLossOpen(\'project\',\'' + ptfOnClickArg(no) + '\')">💥 ثبت زیان پروژه</button>' : '') +
     (p.archiveKey
       ? '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="openStoredFile(\'' + ptfOnClickArg(p.archiveKey) + '\')">🗄 دانلود zip بایگانی</button>' +
