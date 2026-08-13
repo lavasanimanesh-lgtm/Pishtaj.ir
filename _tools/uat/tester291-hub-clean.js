@@ -32,7 +32,7 @@ T('finHubOrder موجود است و نوار هاب را اول می‌گذار�
 T('finHubOrder شامل opexBox/slLiquidity/همه باکس‌هاست', (function () {
   return hub.indexOf("'opexBox', 'slLiquidity'") > -1 &&
     hub.indexOf("'shareBox', 'fiscalBox'") > -1 &&
-    hub.indexOf("'ledgerReportBox', 'qualityBox', 'chequeBox'") > -1;
+    hub.indexOf("'ledgerReportBox', 'treasuryBox', 'qualityBox', 'chequeBox'") > -1; /* 2026-08-13: treasuryBox اضافه شد */
 })());
 T('renderPetty بعد از رندر، finHubOrder را صدا می‌زند', hub.indexOf('finHubApply(); window.finHubOrder();') > -1);
 T('finHubApply در پایان finHubOrder را صدا می‌زند', hub.indexOf('window.finHubOrder();') > -1 && hub.indexOf('if (old) old.outerHTML = bar();') > -1);

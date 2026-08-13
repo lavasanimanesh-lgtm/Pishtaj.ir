@@ -14,6 +14,6 @@ if (petty.indexOf('data:image/') < 0) fail('petty resolve base64'); /* 2026-08-1
 if (petty.indexOf('size:A4 landscape') < 0) fail('landscape print');
 if (petty.indexOf('table-layout:fixed') < 0) fail('fixed table');
 if (treas.indexOf('sfRaw.payments') < 0) fail('supplier payments object');
-if (treas.indexOf('ptfTrPdfInp') < 0) fail('pdf import button');
+if (treas.indexOf('ptfTrPdfInp') > -1) fail('pdf import button must be retired'); /* 2026-08-13: ورود صورتحساب با بازنویسی خزانهٔ نقدی بازنشسته شد (tester377) */
 if (hub.indexOf("'treasuryBox'") < 0) fail('hub order treasuryBox');
 console.log('PASS tester356 petty-pdf-treasury');

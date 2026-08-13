@@ -6,7 +6,7 @@ var src = fs.readFileSync('crm/bridge.js', 'utf8');
 assert.ok(src.indexOf('id="rOfferFlt"') > -1, 'filter select in RFQ toolbar');
 assert.ok(src.indexOf('value="none"') > -1 && src.indexOf('بدون پیشنهاد') > -1, 'none-offer option');
 assert.ok(src.indexOf('window.ptfRfqHasOffer') > -1, 'has-offer helper');
-assert.ok(src.indexOf("ofFlt === 'none' && ptfRfqHasOffer") > -1, 'list filters requests without offers');
+assert.ok(src.indexOf("ofFlt === 'none' && has") > -1, 'list filters requests without offers'); /* 2026-08-13: فیلتر به پرچم data-has-offer منتقل شد */
 
 /* logic: match by cd or employer inqNo */
 function hasOffer(r, offers) {

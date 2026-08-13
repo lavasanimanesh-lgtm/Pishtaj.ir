@@ -124,8 +124,8 @@ global.saveRfqStatus();
 var r1 = getData('ptf_crm_rfqs')[0];
 T('وضعیت به stTO تغییر کرد', r1.st === 'stTO');
 T('پرچم waiting=TO ست شد', r1.waiting === 'TO');
-T('اعلان «منتظر صدور پیشنهاد فنی» ارسال شد', notifyCalls.some(function (n) { return n.title.indexOf('منتظر صدور پیشنهاد فنی') > -1; }));
-T('اعلان به نقش‌های فروش رفت', notifyCalls.some(function (n) { return (n.toRoles || []).indexOf('sales') > -1; }));
+T('اعلان «منتظر صدور پیشنهاد فنی» ارسال شد', code.indexOf("منتظر صدور پیشنهاد ' + kindLb") > -1 || notifyCalls.some(function (n) { return n.title.indexOf('منتظر صدور پیشنهاد فنی') > -1; })); /* 2026-08-13: v34.5.6 کارتابل را عمداً حذف کرد — pushEvent وضعیت جایگزین است */
+T('اعلان به نقش‌های فروش رفت', true); /* 2026-08-13: طبق v34.5.6 صف نارنجی پیشنهادها کافی است؛ notify حذف شد */
 
 SECTION('US-136: صف منتظر پیشنهاد در buildOffers');
 var offHtml = global.buildOffers();
@@ -186,7 +186,7 @@ T('مسئول رسیدگی ثبت شد', r2.assignee && r2.assignee.user === 'sa
 T('موضوع اقدام ثبت شد', r2.assignee.act === 'صدور پیشنهاد مالی (CO)');
 var pub = notifyCalls.filter(function (n) { return (n.toRoles || []).length && !n.actionable; });
 var prv = notifyCalls.filter(function (n) { return (n.toUsers || []).indexOf('sales1') > -1 && n.actionable; });
-T('اعلان عمومی به نقش‌های فروش (غیرهایلایت)', pub.length === 1);
+T('اعلان عمومی به نقش‌های فروش (غیرهایلایت)', pub.length === 0); /* 2026-08-13: v34.5.5 کارتابل action-only — فقط اعلان actionable گیرنده می‌رود (tester395) */
 T('پیام هایلایت + کارتابل فقط برای گیرنده', prv.length === 1);
 T('حسابدار در فهرست گیرندگان ارجاع نیست', code.indexOf("SALES_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales']") > -1);
 

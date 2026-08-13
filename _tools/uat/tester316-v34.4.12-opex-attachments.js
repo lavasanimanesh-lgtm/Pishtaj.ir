@@ -4,6 +4,7 @@ require('./harness');
 var fs = require('fs'), path = require('path');
 var BASE = path.resolve(__dirname, '../../crm');
 var ox = fs.readFileSync(path.join(BASE, 'opex.js'), 'utf-8');
+var fwg = fs.readFileSync(path.join(BASE, 'finance-write-guard.js'), 'utf-8'); /* 2026-08-13: همگام‌سازی رویداد به FIN-WF-P3 منتقل شد */
 var ui = fs.readFileSync(path.join(BASE, 'ui-kit.js'), 'utf-8');
 
 SECTION('ساختار ضمیمهٔ هزینه جاری');
@@ -14,7 +15,7 @@ T('دکمهٔ سند برای افزودن/مدیریت مدرک در هر رد�
 T('لینک مشاهده و حذف پیوست روی ردیف هزینه رندر می‌شود', ox.indexOf('openStoredFile') > -1 && ox.indexOf('ptfOpexRemoveFile') > -1);
 
 SECTION('یکپارچگی پرونده فروش');
-T('پیوست هزینهٔ لینک‌شده به پرونده در costEvent هم کپی می‌شود', ox.indexOf('files: (rec.files || []).slice(), fromOpex: true') > -1 && ox.indexOf('function opexSyncDealFiles(rec)') > -1);
+T('پیوست هزینهٔ لینک‌شده به پرونده در costEvent هم کپی می‌شود', fwg.indexOf('files: (rec.files || []).slice()') > -1 && fwg.indexOf('fromOpex: true') > -1 && ox.indexOf('function opexSyncDealFiles(rec)') > -1); /* 2026-08-13: کپی رویداد به ptfDealCostBuild (FIN-WF-P3) منتقل شد */
 T('حذف پیوست، دادهٔ OPEX و پروندهٔ لینک‌شده را همگام می‌کند', ox.indexOf("rec.files = (rec.files || []).filter") > -1 && ox.indexOf('opexSyncDealFiles(rec)') > -1);
 
 SECTION('زیرساخت');

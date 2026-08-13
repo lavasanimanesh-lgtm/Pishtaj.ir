@@ -45,7 +45,7 @@ var ded = w.offDedupeOfferItems([{ name:'A', desc:'X', qty:1, unit:'NO', price:1
 T('runtime: dedupe ردیف تکراری صفرقیمت را حذف می‌کند و ردیف اصلی را نگه می‌دارد', ded.removed === 1 && ded.items.length === 2 && (+ded.items[0].price) === 100);
 
 SECTION('Settings accordion UX');
-T('settings-accordion.js وجود دارد و نسخه/قرارداد جدید دارد', acc.indexOf('settings-accordion.js — v33.5.0') > -1 && acc.indexOf('MINIMAL-LINE-ICONS-DARK-FISCAL-001') > -1);
+T('settings-accordion.js وجود دارد و نسخه/قرارداد جدید دارد', acc.indexOf('settings-accordion.js — v') > -1 && acc.indexOf('MINIMAL-LINE-ICONS-DARK-FISCAL-001') > -1); /* 2026-08-13: هدر نسخه‌برداری شد (v31.9) */
 T('settings accordion بعد از همه ماژول‌ها در CRM لود می‌شود', idx.indexOf('settings-accordion.js') > idx.indexOf('sync.js'));
 T('accordion از details/summary و آیکون SVG معنایی استفاده می‌کند', acc.indexOf('document.createElement(\'details\')') > -1 && acc.indexOf('document.createElement(\'summary\')') > -1 && acc.indexOf('ptf-set-ico') > -1 && acc.indexOf('function lineIcon') > -1 && acc.indexOf("return ('0' + (i + 1))") === -1);
 T('accordion root و wrapper buildSettings وجود دارد', acc.indexOf('ptfSettingsAccordionRoot') > -1 && acc.indexOf('window.buildSettings = function') > -1 && acc.indexOf('ptfSettingsAccordionApply') > -1);

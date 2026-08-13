@@ -11,7 +11,7 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 && sw.indexOf('ptf-crm-' + vjson.crm_version) > -1);
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version) && idx.indexOf("window.PTF_CRM_RELEASE = '" + vjson.crm_version + "'") > -1 && sw.indexOf("var RELEASE = '" + vjson.crm_version + "'") > -1); /* 2026-08-13: قرارداد نسخهٔ واحد */
 
 SECTION('استاتیک: نرمال‌سازی سال');
 T('normFiscalYear تعریف و در نقاط ورود اعمال شد',
@@ -20,7 +20,7 @@ T('normFiscalYear تعریف و در نقاط ورود اعمال شد',
   /ptfFiscalCashData = function \(year\) \{\n    year = normFiscalYear/.test(fc) &&
   /function fiscalYearBoundsISO\(year\) \{\n    year = normFiscalYear/.test(fc));
 T('فیلتر نقدی بدون بازهٔ معتبر بی‌اثر نمی‌ماند (bounds همیشه پر)', fc.indexOf('year = normFiscalYear(year); /* v34.0.5-alpha */\n    var startISO') > -1);
-T('سلکتور سال (بدون input دستی سال)', fc.indexOf('<select onchange="window._fiscalYear=this.value;ptfFiscalRender()"') > -1 && fc.indexOf('onchange="window._fiscalYear=this.value.trim()') === -1);
+T('سلکتور سال (بدون input دستی سال)', fc.indexOf('onchange="window._fiscalYear=this.value;ptfFiscalRender()"') > -1 && fc.indexOf('this.value.trim()') === -1); /* 2026-08-13: select دارای aria-label شد */
 T('فیلد درصد برچسب دارد و از ptfFiscalPctChange استفاده می‌کند', fc.indexOf('٪ سهم تقسیم سود:') > -1 && fc.indexOf('window.ptfFiscalPctChange = function (el)') > -1);
 T('دکمه و تابع خروجی PDF موجود است', fc.indexOf('onclick="ptfFiscalPdf()"') > -1 && fc.indexOf('window.ptfFiscalPdf = function ()') > -1 && fc.indexOf('@page{size:A4') > -1);
 T('ستون‌های علی‌الحساب در داشبورد و گزارش', fc.indexOf('علی‌الحساب/بدهی سال') > -1 && fc.indexOf('<th>علی‌الحساب سال</th>') > -1 && fc.indexOf('s.advYear || 0') > -1 && fc.indexOf('s.settleYear') > -1);

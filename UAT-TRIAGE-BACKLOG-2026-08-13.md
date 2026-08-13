@@ -1,6 +1,6 @@
-# بک‌لاگ تریاژ سوئیت UAT — باقیمانده (2026-08-13، به‌روزشدهٔ نهایی جلسه)
+# بک‌لاگ تریاژ سوئیت UAT — باقیمانده (2026-08-13، نهایی)
 
-**مبنا:** اجرای کامل `node _tools/run-full-regression.js` — 381 تستر: 312 سبز / 69 قرمز
+**مبنا:** اجرای کامل `node _tools/run-full-regression.js` — 381 تستر: 325 سبز / 56 قرمز / ۰ کرش
 **روش پردازش (هر ردیف):** اجرای تستر → مقایسه با ماژول متناظر → یکی از: (الف) به‌روزرسانی قرارداد، (ب) آرشیو با یادداشت، (ج) فیکس محصول.
 
 | تستر | شکست | خلاصهٔ شکست | تاریخی؟ |
@@ -10,21 +10,8 @@
 | tester254-advanced-cv-finalization-backlog-doc.js | 2 | PTF-MASTER-HANDOVER نسخه v31.7.97 را ثبت کرده است  | handover فایل‌ها و محدودیت‌های جدید را ثبت کرده است  | خیر |
 | tester261-advanced-cv-gtm-sales-plan.js | 1 | handover نسخه v31.7.97 را ثبت کرده است  | خیر |
 | tester262-control-valve-dedicated-seo-landing.js | 1 | title/meta/canonical صفحه اختصاصی درست است  | خیر |
-| tester272-offer-duplicate-items-settings-accordion.js | 1 | settings-accordion.js وجود دارد و نسخه/قرارداد جدید دارد  | خیر |
 | tester275-fiscal-profit-and-minimal-icons.js | 3 | dashboard مالی کارت تنخواه مستقل و label سود پس از هزینه‌ها دارد  | Knowledge Center heading آیکون کتاب خطی دارد نه KC/emoji  | clusterهای مرکز دانش icon key مع | خیر |
 | tester276-semantic-icons-fiscal-dark.js | 2 | عنوان مرکز دانش آیکون کتاب SVG دارد، نه KC/emoji  | renderer واقعی kcIcon SVG می‌سازد  | خیر |
-| tester280-settings-semantic-icons.js | 1 | financial offers always show health check  | خیر |
-| tester291-hub-clean.js | 1 | finHubOrder شامل opexBox/slLiquidity/همه باکس‌هاست  | خیر |
-| tester300-v34.0.4-alpha-phase1-fixes.js | 3 | VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند  | دکمهٔ وصول و تابع هم‌نام‌اند  | مسیر نسبی ../api درست شد  | خیر |
-| tester301-v34.0.5-alpha-fiscal-phase2.js | 2 | lockstep نسخهٔ جاری  | سلکتور سال (بدون input دستی سال)  | خیر |
-| tester307-v34.0.11-alpha-quality-links.js | 1 | action اصلاح فاکتور خرید (slInvoiceEdit) در qualityRefsHtml هست  | خیر |
-| tester316-v34.4.12-opex-attachments.js | 1 | پیوست هزینهٔ لینک‌شده به پرونده در costEvent هم کپی می‌شود  | خیر |
-| tester34-claims.js | 1 | US-110/111: دکمه‌ها در پرونده وصل شدند (توابع مرده بودند)  | خیر |
-| tester356-v34.4.62-petty-pdf-treasury.js | 0 |  | خیر |
-| tester387-v34.4.94-rfq-no-offer-filter.js | 0 |  | خیر |
-| tester398-v34.5.7-migrate-prod-lock.js | 0 |  | خیر |
-| tester5-site.js | 1 | SW ثبت می‌شود (shell.js)  | خیر |
-| tester6-bridge.js | 3 | اعلان «منتظر صدور پیشنهاد فنی» ارسال شد  | اعلان به نقش‌های فروش رفت  | اعلان عمومی به نقش‌های فروش (غیرهایلایت)  | خیر |
 | tester100-v182.js | 1 | وصول پیش‌پرداخت paid می‌شود  | بله |
 | tester103-v186.js | 1 | باکس پرونده فروش پیش‌پرداخت/هزینه/استعلام مجدد را نشان می‌دهد  | بله |
 | tester104-v187.js | 1 | بستانکاری تامین‌کننده dueISO/dueNote دریافت می‌کند  | بله |
