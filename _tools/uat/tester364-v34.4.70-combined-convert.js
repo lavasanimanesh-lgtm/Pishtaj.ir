@@ -4,12 +4,13 @@ var root=path.join(__dirname,'../..');
 function read(p){return fs.readFileSync(path.join(root,p),'utf8');}
 function fail(m){console.log('FAIL '+m);process.exit(1);}
 var ver=JSON.parse(read('VERSION.json'));
-if(ver.crm_version!=='v34.4.70') fail('VERSION '+ver.crm_version);
+var vm4 = String(ver.crm_version).match(/^v(\d+)\.(\d+)\.(\d+)$/);
+if (!vm4 || +vm4[1] < 34 || (+vm4[1] === 34 && +vm4[2] < 4) || (+vm4[1] === 34 && +vm4[2] === 4 && +vm4[3] < 70)) fail('VERSION ' + ver.crm_version);
 var pe=read('crm/petty.js');
 var st=read('crm/storage.js');
 if(pe.indexOf("mode: 'inline'")<0) fail('resolve inline');
 if(pe.indexOf('ptfPettyFileKind = function (name, extra)')<0) fail('kind extra');
-if(pe.indexOf('هاست Imagick ندارد')<0) fail('client first');
+if(pe.indexOf('سرور تبدیل PDF/HEIC ندارد (Imagick)')<0) fail('client first'); /* 2026-08-13: واژه‌سازی به‌روز شد؛ رفتار client-first پابرجاست */
 if(pe.indexOf("mode: 'base64'")>-1 && pe.indexOf("JSON.stringify({ key: f.key, name: f.name || f.key, mode: 'base64' })")>-1) fail('still base64 primary');
 if(st.indexOf("data:application/pdf")<0) fail('raster pdf mime');
 console.log('PASS tester364 combined-convert');

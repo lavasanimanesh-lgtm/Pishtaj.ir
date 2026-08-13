@@ -17,7 +17,8 @@ assert.ok(syncJs.indexOf("'ptf_crm_sales_returns'") > -1, 'sales_returns must be
 assert.ok(syncJs.indexOf("ptf_crm_sales_returns']") > -1 || /GUARD_KEYS[\s\S]*ptf_crm_sales_returns/.test(syncJs), 'sales_returns must be under zero-push guard');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.strictEqual(version, 'v34.4.47');
+var vm5 = String(version).match(/^v(\d+)\.(\d+)\.(\d+)$/);
+assert.ok(vm5 && (+vm5[1] > 34 || (+vm5[1] === 34 && +vm5[2] > 4) || (+vm5[1] === 34 && +vm5[2] === 4 && +vm5[3] >= 47)), 'release must retain or advance the v34.4.47 baseline');
 var current = version.slice(1);
 ['crm/index.html', 'crm/sw.js', 'crm/manifest.json', 'crm/clear-cache.html', 'crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');

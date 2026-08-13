@@ -14,18 +14,18 @@ ok(tr.indexOf('ptfTreasuryCrmMoves') > -1, 'cash moves remain');
 ok(tr.indexOf('treasuryFocus') > -1, 'call hook host remains');
 
 var idx = fs.readFileSync(path.join(root, 'crm/index.html'), 'utf8');
-ok(/PTF_CRM_RELEASE = 'v34\.4\.\d+'/.test(idx), 'index release');
+ok(/PTF_CRM_RELEASE = 'v34\.(?:[4-9]|\d{2,})\.\d+'/.test(idx), 'index release');
 ok(idx.indexOf('?v=34.4.73') === -1, 'no stale 73 query');
-ok(/treasury\.js\?v=34\.4\.\d+/.test(idx), 'treasury query');
-ok(/treasury-call\.js\?v=34\.4\.\d+/.test(idx), 'call query');
+ok(/treasury\.js\?v=34\.(?:[4-9]|\d{2,})\.\d+/.test(idx), 'treasury query');
+ok(/treasury-call\.js\?v=34\.(?:[4-9]|\d{2,})\.\d+/.test(idx), 'call query');
 
 var sw = fs.readFileSync(path.join(root, 'crm/sw.js'), 'utf8');
-ok(/RELEASE = 'v34\.4\.\d+'/.test(sw), 'sw release');
-ok(/ASSET_VERSION = '34\.4\.\d+'/.test(sw), 'sw asset');
+ok(/RELEASE = 'v34\.(?:[4-9]|\d{2,})\.\d+'/.test(sw), 'sw release');
+ok(/ASSET_VERSION = '34\.(?:[4-9]|\d{2,})\.\d+'/.test(sw), 'sw asset');
 ok(sw.indexOf('./treasury.js') > -1, 'sw caches treasury');
 
 var ver = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
-ok(/^v34\.4\.\d+$/.test(ver.crm_version), 'VERSION.json');
+ok(/^v34\.(?:[4-9]|\d{2,})\.\d+$/.test(ver.crm_version), 'VERSION.json');
 
 if (fails.length) {
   console.error('FAIL\n' + fails.join('\n'));
