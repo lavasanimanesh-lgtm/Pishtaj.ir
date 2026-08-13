@@ -70,8 +70,8 @@ SECTION('رفتار اجرایی: ذخیره اقلام مودال');
 })();
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust bridge (>=15.7)', (function () {
   var m = idx.match(/bridge\.js\?v=(\d+)\.(\d+)/);
   return m && (+m[1] > 15 || (+m[1] === 15 && +m[2] >= 7));

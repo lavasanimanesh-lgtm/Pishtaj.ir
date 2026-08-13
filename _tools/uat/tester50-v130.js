@@ -29,6 +29,6 @@ T('قفل اسکرول افقی شیت', mn.indexOf('overflow-x:hidden;touch-act
 T('گرید بدون سرریز (min-width:0)', mn.indexOf('.mnv-mi{min-width:0}') > -1 && mn.indexOf('max-width:100%;overflow-x:hidden') > -1);
 
 SECTION('نسخه');
-T('VER vXX', /var VER = 'v\d+\.\d/.test(idx));
-T('sw cache vXX', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER vXX', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw cache vXX', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester50-v130');

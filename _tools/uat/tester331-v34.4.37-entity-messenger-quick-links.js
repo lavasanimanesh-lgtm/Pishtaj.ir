@@ -56,7 +56,10 @@ var ctx = {
       if (id === 'msgTxt') return { value: 'سلام از CRM' };
       return null;
     },
-    querySelector: function () { return null; }
+    querySelector: function () { return null; },
+    createElement: function () { return { style: { setProperty: function () {} }, setAttribute: function () {}, appendChild: function () {}, addEventListener: function () {} }; },
+    head: { appendChild: function () {} },
+    body: { appendChild: function () {} }
   },
   open: function (url) { opened.push(url); return { opener: null }; }
 };
@@ -95,7 +98,7 @@ assert.deepStrictEqual(opened, [
 assert.deepStrictEqual(copied, ['09123456789'], 'mobile-only messenger web fallback must copy a searchable local phone number');
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.ok(/^v34\.4\.(?:3[7-9]|[4-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.37 messenger baseline');
+assert.ok(/^v34\.(?:4\.(?:3[7-9]|[4-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(version), 'release must retain or advance the v34.4.37 messenger baseline');
 var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');

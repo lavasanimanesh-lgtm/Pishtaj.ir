@@ -12,7 +12,7 @@ var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.js
 var VER = vjson.crm_version;
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 &&
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 &&
   fs.readFileSync(path.join(CRM, 'sw.js'), 'utf-8').indexOf('ptf-crm-' + vjson.crm_version) > -1);
 
 /* ─── SEC-01: XSS ذخیره‌شده ─── */

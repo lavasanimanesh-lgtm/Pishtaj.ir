@@ -41,7 +41,7 @@ T('US-103: واقعیت ثبت شد — setInterval هنوز موجود (ادع�
 T('US-116: کدینگ واحد فقط کالا (genCode در ۱۰+ ماژول باقی)', idx.indexOf('ptfUnifiedCode') > -1);
 
 SECTION('نسخه');
-T('VER نسخه‌دار', /var VER = 'v\d/.test(idx));
+T('VER نسخه‌دار', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
 DONE('tester34-claims');
 
 SECTION('دور دوم راستی‌آزمایی (v121.2)');

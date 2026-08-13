@@ -8,8 +8,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v19.3+', (function () { var m = idx.match(/var VER = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.3; })());
-T('کش sw >= v19.3', (function () { var m = sw.match(/ptf-crm-v([0-9.]+)/); return m && parseFloat(m[1]) >= 19.3; })());
+T('نسخه v19.3+', (function () { var m = idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.3; })());
+T('کش sw >= v19.3', (function () { var m = sw.match(/var RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.3; })());
 T('cache-bust salesfiles/rbac >= 19.3', (function () { var a = idx.match(/salesfiles\.js\?v=([0-9.]+)/), b = idx.match(/rbac\.js\?v=([0-9.]+)/); return a && b && parseFloat(a[1]) >= 19.3 && parseFloat(b[1]) >= 19.3; })());
 
 SECTION('US-435 — ساختار کد: قفل ارجاع فاکتور');

@@ -11,7 +11,7 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 && sw.indexOf('ptf-crm-' + vjson.crm_version) > -1);
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 && sw.indexOf('ptf-crm-' + vjson.crm_version) > -1);
 
 SECTION('استاتیک: نرمال‌سازی سال');
 T('normFiscalYear تعریف و در نقاط ورود اعمال شد',

@@ -9,7 +9,7 @@ var sh=fs.readFileSync(path.join(BASE,'shareholders.js'),'utf8');
 var idx=fs.readFileSync(path.join(BASE,'index.html'),'utf8');
 var sw=fs.readFileSync(path.join(BASE,'sw.js'),'utf8');
 SECTION('نسخه و ساختار');
-T('نسخه v31.6+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=31.6;})());
+T('نسخه v31.6+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=31.6;})());
 T('fiscal helper خروجی دارد', fc.indexOf('window.ptfFiscalYearLocked = function')>-1);
 T('ثبت invoice سال قفل‌شده guard دارد', rb.indexOf('ثبت فاکتور در آن سال مجاز نیست')>-1 && rb.indexOf('ptfFiscalYearLocked(invYear)')>-1);
 T('ثبت receipt سال قفل‌شده guard دارد', rb.indexOf('ثبت وصولی مستقیم در آن سال مجاز نیست')>-1 && rb.indexOf('ptfFiscalYearLocked(invYear)')>-1);

@@ -9,8 +9,8 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var dd = fs.readFileSync(path.join(BASE, 'dedup.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v16.5+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.5;})());
-T('کش sw >= v16.5 + supspec در SHELL', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.5;})() && sw.indexOf("'./supspec.js'") > -1);
+T('نسخه v16.5+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.5;})());
+T('کش sw >= v16.5 + supspec در SHELL', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.5;})() && sw.indexOf("'./supspec.js'") > -1);
 T('supspec.js در index.html', (function(){var m=idx.match(/supspec\.js\?v=([0-9.]+)/);return m&&parseFloat(m[1])>=16.5;})());
 (function () {
   var m = idx.match(/rfqsmart\.js\?v=([0-9.]+)/);

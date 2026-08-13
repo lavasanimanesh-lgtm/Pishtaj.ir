@@ -7,7 +7,7 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 SECTION('دکمه‌ها flex/وسط‌چین (پایه)');
 T('.bt display:inline-flex و وسط‌چین', idx.indexOf('display:inline-flex') > -1 && idx.indexOf('justify-content:center') > -1);

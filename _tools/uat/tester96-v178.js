@@ -12,8 +12,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت کلیدها');
-T('نسخه v17.8+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
-T('window.VER هم یکدست v17.8+', (function(){var m=idx.match(/window\.VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
+T('نسخه v17.8+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
+T('window.VER هم یکدست v17.8+', (function(){var m=idx.match(/window\.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
 T('کش sw v17.8+', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
 T('cache-bust petty/sync/backup/golive/storage >=17.8', ['petty.js','sync.js','backup.js','golive.js','storage.js'].every(function(f){ var m=idx.match(new RegExp(f.replace('.', '\\.')+'\\?v=([0-9.]+)')); return m && parseFloat(m[1])>=17.8; }));
 T('کلیدهای حساب تنخواه در sync + guard', (function(){ var gm=(sy.match(/var GUARD_KEYS = \[[^\]]*\]/)||[''])[0]; return ['ptf_crm_petty_tx','ptf_crm_petty_periods'].every(function(k){ return sy.indexOf("'"+k+"'")>-1 && gm.indexOf(k)>-1; }); })());

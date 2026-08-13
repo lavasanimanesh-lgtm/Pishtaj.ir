@@ -12,5 +12,5 @@ T('data_pull token ارسال می‌کند', /'\?action=data_pull&since=' \+ pu
 T('push از همان token helper استفاده می‌کند', sy.indexOf('headers: authHeaders(true)')>-1);
 T('pull قبل از token/401 با refresh auth retry کنترل‌شده دارد', sy.indexOf('retryPullAfterAuth(done, forceFull)')>-1 && sy.indexOf('ptfSyncRefreshAuth')>-1 && sy.indexOf("action=auth_login")>-1);
 T('auth_login بدون token اولیه مجاز است', api.indexOf("$SENSITIVE[$action] !== 'none'")>-1);
-T('نسخهٔ runtime marker موجود است', /window\.VER = 'v\d+(?:\.\d+)+/.test(idx));
+T('نسخهٔ runtime marker موجود است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
 DONE('tester170-v3172-sync-auth');

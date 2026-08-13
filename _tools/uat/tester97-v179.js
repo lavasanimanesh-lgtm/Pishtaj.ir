@@ -11,9 +11,9 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v17.9+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.9;})());
-T('window.VER هم v17.9+', (function(){var m=idx.match(/window\.VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.9;})());
-T('کش sw >= v17.9 + shareholders در SHELL', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=17.9;})() && sw.indexOf("'./shareholders.js'")>-1);
+T('نسخه v17.9+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.9;})());
+T('window.VER هم v17.9+', (function(){var m=idx.match(/window\.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.9;})());
+T('کش sw >= v17.9 + shareholders در SHELL', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.9;})() && sw.indexOf("'./shareholders.js'")>-1);
 T('shareholders بعد از opex لود می‌شود', /opex\.js\?v=[0-9.]+/.test(idx) && idx.indexOf('shareholders.js?v=') > idx.indexOf('opex.js?v='));
 T('کلیدهای سهامداران در sync + guard + backup + api', (function(){ var gm=(sy.match(/var GUARD_KEYS = \[[^\]]*\]/)||[''])[0]; return ['ptf_crm_shareholders','ptf_crm_sharetx'].every(function(k){ return sy.indexOf("'"+k+"'")>-1 && gm.indexOf(k)>-1 && bk.indexOf("'"+k+"'")>-1 && api.indexOf("'"+k+"'")>-1; }); })());
 T('sharetx در Go-Live پاک می‌شود اما پروفایل سهامدار setup می‌ماند', gl.indexOf("'ptf_crm_sharetx'")>-1 && gl.indexOf("'ptf_crm_shareholders'")===-1);

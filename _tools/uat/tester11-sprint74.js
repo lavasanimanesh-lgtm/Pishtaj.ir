@@ -127,7 +127,7 @@ T('دکمه در سایدبار', idx.indexOf("goPanel('rfqs'") > -1);
 T('در دسته تامین منو', /g-supply[^\]]*'rfqs'/.test(shell));
 T('اسکریپت لود می‌شود', idx.indexOf('rfqsmart.js') > -1);
 T('در بک‌آپ', fs.readFileSync(path.join(BASE, 'backup.js'), 'utf-8').indexOf('ptf_crm_rfqsmart') > -1);
-T('کش SW نسخه‌دار', fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8').indexOf('ptf-crm-v') > -1);
+T('کش SW نسخه‌دار', fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8').indexOf('ptf-crm-') > -1);
 T('دسترسی: نقش با پنل sup', code.indexOf("panels.indexOf('sup') > -1") > -1);
 
 DONE('TESTER-11 (Sprint74 RFQSmart)');

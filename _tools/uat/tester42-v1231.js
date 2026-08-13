@@ -24,6 +24,6 @@ T('CSS سمت: ظریف‌تر از نام + چسبیده به آن', lt.indexOf
 T('سازگاری عقب‌رو: نامه‌های قدیمی (بدون toRole) سالم', lt.indexOf("l ? escP(l.toRole || '')") > -1);
 
 SECTION('نسخه');
-T('VER v12x', /var VER = 'v\d/.test(idx));
-T('sw cache v12x', /ptf-crm-v\d/.test(sw));
+T('VER v12x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw cache v12x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester42-v1231');

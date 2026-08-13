@@ -16,7 +16,7 @@ var rbac = fs.readFileSync(path.join(BASE, 'rbac.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 /* ─── فاز ۱: فاکتور صوری/پوششی ─── */
 SECTION('فاز۱: فاکتور صوری/پوششی');

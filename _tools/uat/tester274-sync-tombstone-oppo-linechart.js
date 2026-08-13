@@ -42,6 +42,6 @@ T('runtime: پیشنهادی که همه CO/TCهایش lost هستند در فر
 SECTION('Control Valve line charts');
 T('api/tools.php گزارش نهایی line chart دارد', toolsApi.indexOf('function tools_chart_line_svg') > -1 && toolsApi.indexOf('Flow vs Cv line chart') > -1 && toolsApi.indexOf('Flow vs opening line chart') > -1);
 T('نمونه عمومی گزارش هم line chart دارد', adv.indexOf('Flow vs Cv line chart') > -1 && adv.indexOf('polyline points') > -1);
-T('CRM/SW نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 
 DONE('tester274-sync-tombstone-oppo-linechart');

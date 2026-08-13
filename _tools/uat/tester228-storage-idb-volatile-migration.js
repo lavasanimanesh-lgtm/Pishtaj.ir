@@ -15,7 +15,7 @@ T('Archive index و نمایش آرشیوها وجود دارد', sq.indexOf('pt
 T('کلیدهای volatile هدف migration هستند نه رکوردهای اصلی', ['ptf_web_events_v2','ptf_chat_history','ptf_draft_forms','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_backup_local','ptf_backup_prerestore','ptf_ai_hist_','ptf_ai_cache'].every(function (x) { return sq.indexOf(x) > -1; }) && sq.indexOf('ptf_crm_rfqs|ptf_crm_offers') === -1);
 T('backup UI: موتور مهاجرت/آرشیو حفظ؛ دکمهٔ جدا در v33.22.2 در «پاک‌سازی امن» ادغام شد (ساده‌سازی کارفرما)', bak.indexOf('window.ptfStorageMigrateToIdb = function') > -1 && bak.indexOf('ptfStorageMigrateVolatileToIdb') > -1 && bak.indexOf('onclick="ptfStorageMigrateToIdb()"') === -1);
 T('پاک‌سازی امن ابتدا migration را صدا می‌زند', bak.indexOf('ptfStorageMigrateVolatileToIdb({ source: \'manual-cleanup\'') > -1);
-T('اسکریپت‌ها با v31.7.51 cache-bust شده‌اند', /storage-quota.js\?v=3[0-9.]+/.test(idx) && /backup.js\?v=3[0-9.]+/.test(idx) && /window\.VER = 'v3[0-9.]+'/.test(idx));
+T('اسکریپت‌ها با v31.7.51 cache-bust شده‌اند', /storage-quota.js\?v=3[0-9.]+/.test(idx) && /backup.js\?v=3[0-9.]+/.test(idx) && /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
 
 SECTION('Runtime IndexedDB migration smoke');
 function LS() { this.s = {}; }

@@ -8,5 +8,5 @@ ok(sf.includes("method !== 'company_cheque' && method !== 'third_party_cheque'")
 ok(sf.includes("return '<details id=\"slBox\""),'supplier invoice/account panel is collapsible');
 ok(sf.includes('window.slRefreshSupplierPanel') && sf.includes("['ptfPayableUpsert','ptfPayablePay']"),'supplier panel has immediate refresh hooks after legacy purchase/payment changes');
 ok(sf.includes('slInvoiceFromLegacy') || sf.includes('legacyPayableCds'),'legacy purchase remains represented/linkable in supplier account');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw),'version is v26.7');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw),'version is v26.7');
 console.log('=== tester148-v267-uat-fixes: '+p+' PASS / '+f+' FAIL ===');process.exit(f?1:0);

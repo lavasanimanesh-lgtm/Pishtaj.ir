@@ -13,7 +13,7 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه و یکپارچگی');
-T('VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند', /^v[0-9.]+-alpha$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 && sw.indexOf("'ptf-crm-" + vjson.crm_version + "'") > -1);
+T('VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version) && idx.indexOf("var VER = '" + vjson.crm_version + "'") > -1 && sw.indexOf("'ptf-crm-" + vjson.crm_version + "'") > -1);
 T('clear-cache.html نیز هم‌نسخه است', fs.readFileSync(path.join(BASE, 'clear-cache.html'), 'utf-8').indexOf("window.VER = '" + vjson.crm_version + "'") > -1);
 T('هیچ cache-buster قدیمی ?v=1.0 نمانده', idx.indexOf('?v=1.0') === -1);
 T('همهٔ اسکریپت‌ها باستر نسخهٔ جاری دارند', (idx.match(/\.js\?v=/g) || []).length === (idx.match(new RegExp('\\.js\\?v=' + vjson.crm_version.replace(/^v/, '').replace(/\./g, '\\.'), 'g')) || []).length);

@@ -106,8 +106,8 @@ SECTION('بخش ۲ (رفتاری): جریان کامل قیمت تامین → �
 })();
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust rfqsmart/offerlock (>=15.2)', ['rfqsmart.js', 'offerlock.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));
   return m && (+m[1] > 15 || (+m[1] === 15 && +m[2] >= 2));

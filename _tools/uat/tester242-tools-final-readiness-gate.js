@@ -22,7 +22,7 @@ T('gate در صورت آمادگی مسیر issue_final_report را فعال م�
 T('tools API status به v33.5.0 رسیده است', /'version' => 'v3[0-9.]+'/.test(api));
 
 SECTION('CRM final gate UI');
-T('CRM نسخه v33.5.0 و tool-report-drafts cache-bust دارد', /window\.VER = 'v3[0-9.]+'/.test(idx) && /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM نسخه v33.5.0 و tool-report-drafts cache-bust دارد', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /tool-report-drafts.js\?v=3[0-9.]+/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('UI تابع ptfToolReportDraftFinalGate دارد', ui.indexOf('window.ptfToolReportDraftFinalGate = function') > -1);
 T('UI اکشن admin_report_final_gate را صدا می‌زند', ui.indexOf('admin_report_final_gate') > -1);
 T('جدول ستون Final Gate و badge دارد', ui.indexOf('<th>Final Gate</th>') > -1 && ui.indexOf('function gateBadge') > -1 && ui.indexOf('Gate ready') > -1 && ui.indexOf('Gate blocked') > -1);

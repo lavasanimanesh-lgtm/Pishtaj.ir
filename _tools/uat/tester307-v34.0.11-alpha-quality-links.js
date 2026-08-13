@@ -10,7 +10,7 @@ var dq = fs.readFileSync(path.join(BASE, 'data-quality.js'), 'utf-8');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 SECTION('opex-unclassified → لینک اصلاح هزینه');
 T('opex-unclassified با detail.type=opex ثبت می‌شود', /'opex-unclassified'[\s\S]*?type: 'opex'/.test(dq));

@@ -9,8 +9,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه v21.3');
-T('VER v21.3+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&(function(v){var a=v.split('.');return +a[0]>21||(+a[0]===21&&+(a[1]||0)>=3);})(m[1]);})());
-T('SW v21.3+', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&(function(v){var a=v.split('.');return +a[0]>21||(+a[0]===21&&+(a[1]||0)>=3);})(m[1]);})());
+T('VER v21.3+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&(function(v){var a=v.split('.');return +a[0]>21||(+a[0]===21&&+(a[1]||0)>=3);})(m[1]);})());
+T('SW v21.3+', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&(function(v){var a=v.split('.');return +a[0]>21||(+a[0]===21&&+(a[1]||0)>=3);})(m[1]);})());
 T('cache sms/offers/kanban', /sms\.js\?v=/.test(idx) && /offers\.js\?v=/.test(idx) && /kanban\.js\?v=/.test(idx));
 
 SECTION('BUG-038 ساختاری — ریشه ارقام فارسی + پوشش فیلدها');

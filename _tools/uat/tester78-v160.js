@@ -107,8 +107,8 @@ SECTION('رفتار اجرایی: هر ۴ حالت کسب‌وکار + حالا�
 })();
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust fx/buycompare (>=16.0)', ['fx.js', 'buycompare.js'].every(function (f) {
   var m2 = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));
   return m2 && +m2[1] >= 16;

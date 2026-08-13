@@ -8,8 +8,8 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var pm = fs.readFileSync(path.join(BASE, 'perms.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v16.9+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.9;})());
-T('کش sw >= v16.9', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.9;})());
+T('نسخه v16.9+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=16.9;})());
+T('کش sw >= v16.9', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=16.9;})());
 (function () { var m = idx.match(/fx\.js\?v=([0-9.]+)/); T('cache-bust fx >= 16.9', m && parseFloat(m[1]) >= 16.9); })();
 
 SECTION('BUG-020 (کد): پرش تم');

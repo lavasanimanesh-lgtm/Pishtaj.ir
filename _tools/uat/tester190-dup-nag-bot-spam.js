@@ -56,6 +56,8 @@ T('پاک‌سازی، هر دو محل را خالی می‌کند', ptfDupAckG
 SECTION('رفتاری: بات برای notify تکراری فرستاده نمی‌شود');
 eval(rb.match(/function notify\(opt\) \{[\s\S]*?\n\}/)[0]);
 eval(rb.match(/function myNotifs\(\) \{[\s\S]*?\n\}/)[0]);
+eval(rb.match(/function ntfNeedsAction\([\s\S]*?\n\}/)[0]);
+eval(rb.match(/var NTF_ACTION_KINDS = \[[^\]]*\];/)[0] + '; global.NTF_ACTION_KINDS = NTF_ACTION_KINDS;');
 window.notify = notify;
 var botSent = [];
 global.ptfBotSend = function (t) { botSent.push(t); };

@@ -117,8 +117,8 @@ T('users و صف storage به سینک نمی‌روند (خارج از SYNC_KEY
 T('golive: krevs هم ریست می‌شود', gl.indexOf("localStorage.removeItem('ptf_sync_krevs')") > -1);
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust فایل‌های اسپرینت (>=15.0)', ['sync.js', 'backup.js', 'golive.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));
   return m && (+m[1] >= 15);

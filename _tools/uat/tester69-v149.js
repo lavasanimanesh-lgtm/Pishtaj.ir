@@ -85,8 +85,8 @@ login('accountant');
 T('accountant: درخواست‌ها همچنان بسته', !canPanel('rfq'));
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust فایل‌های اسپرینت (>=14.9)', ['rbac.js', 'perms.js', 'reports.js', 'cms.js', 'sms.js', 'projects.js', 'offers.js', 'ai-workbench.js', 'backup.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));
   return m && (+m[1] > 14 || (+m[1] === 14 && +m[2] >= 9));

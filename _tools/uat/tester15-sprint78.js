@@ -26,7 +26,7 @@ T('ادغام بدون حذف محلی', idxCode.indexOf('merged.push(x)') > -1)
 T('sha256 fallback (HTTP بدون crypto.subtle)', idxCode.indexOf('sha256Fallback') > -1);
 SECTION('v78.1: کش SW');
 T('شل CRM Network-First', swCode.indexOf('isShell') > -1 && swCode.indexOf("mode === 'navigate'") > -1);
-T('SW v78.1 + VER v78.1', swCode.indexOf('ptf-crm-v') > -1 && idxCode.indexOf("var VER = 'v") > -1);
+T('SW v78.1 + VER v78.1', swCode.indexOf('ptf-crm-') > -1 && idxCode.indexOf("var VER = window.PTF_CRM_RELEASE") > -1);
 // تست عملی fallback sha256
 var crypto = require('crypto');
 var m = idxCode.match(/function sha256Fallback[\s\S]*?\n\}/);

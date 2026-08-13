@@ -7,8 +7,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v17.6+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.6;})());
-T('کش sw >= v17.6 + listclean در SHELL', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.6;})() && sw.indexOf("'./listclean.js'") > -1);
+T('نسخه v17.6+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.6;})());
+T('کش sw >= v17.6 + listclean در SHELL', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=17.6;})() && sw.indexOf("'./listclean.js'") > -1);
 T('listclean در index.html بعد از custmerge', (function(){var m=idx.match(/listclean\.js\?v=([0-9.]+)/);return m&&parseFloat(m[1])>=17.6;})() && idx.indexOf('listclean.js') > idx.indexOf('custmerge.js'));
 
 SECTION('US-417 فاز ۱ (کد): قواعد ایمنی پنل');

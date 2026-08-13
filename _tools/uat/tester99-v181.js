@@ -11,9 +11,9 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v18.1+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.1;})());
-T('window.VER هم >= v18.1', (function(){var m=idx.match(/window\.VER = 'v([0-9.]+)'; var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.1&&parseFloat(m[2])>=18.1;})());
-T('کش sw >= v18.1 + fiscal در SHELL', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=18.1;})() && sw.indexOf("'./fiscal.js'")>-1);
+T('نسخه v18.1+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.1;})());
+T('window.VER هم >= v18.1', (function(){var m=idx.match(/window\.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.1&&idx.indexOf('window.VER = window.PTF_CRM_RELEASE')>-1&&idx.indexOf('var VER = window.PTF_CRM_RELEASE')>-1;})());
+T('کش sw >= v18.1 + fiscal در SHELL', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.1;})() && sw.indexOf("'./fiscal.js'")>-1);
 T('fiscal بعد از lossguard لود می‌شود', idx.indexOf('lossguard.js?v=')>-1 && idx.indexOf('fiscal.js?v=')>idx.indexOf('lossguard.js?v='));
 T('کلید snapshot سال مالی در sync/guard/backup/api/golive', (function(){var gm=(sy.match(/var GUARD_KEYS = \[[^\]]*\]/)||[''])[0]; return ['ptf_crm_fiscal_snapshots'].every(function(k){return sy.indexOf(k)>-1 && gm.indexOf(k)>-1 && bk.indexOf(k)>-1 && api.indexOf(k)>-1 && gl.indexOf(k)>-1;});})());
 

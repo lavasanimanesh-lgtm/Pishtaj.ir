@@ -29,8 +29,8 @@ ok(ir.includes('return irAllRequestAttachments(r).some') && ir.includes('!!x.fil
 ok(attachmentApi.includes("$mode === 'base64'") && attachmentApi.includes('file exceeds 6MB AI read limit') && attachmentApi.includes("'b64' => base64_encode($bin)"), 'attachment API provides a bounded base64 path for AI-readable cloud files');
 ok(llm.includes("case 'ocr_text':") && llm.includes('متن پیوست نامعتبر است') && llm.includes('Source file name:'), 'backend has a bounded OCR-text action for extracted attachment text');
 ok(llm.includes('"rows":[{"tp"') && llm.includes("out_json(llm_call($cfg, $sys, $text, null, null, 6000))"), 'OCR-text action preserves structured RFQ item schema');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx), 'CRM version v26.7 is declared');
-ok(/var CACHE = 'ptf-crm-v\d+(?:\.\d+)+/.test(sw), 'service-worker cache is version-aligned');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx), 'CRM version v26.7 is declared');
+ok(/var RELEASE = 'v\d+(?:\.\d+)+'/.test(sw), 'service-worker cache is version-aligned');
 
 console.log('=== tester140-v259-attachment-ai: ' + pass + ' PASS / ' + fail + ' FAIL ===');
 process.exit(fail ? 1 : 0);

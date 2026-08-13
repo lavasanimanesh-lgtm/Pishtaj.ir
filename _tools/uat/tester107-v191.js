@@ -8,8 +8,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v19.1+', (function () { var m = idx.match(/var VER = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.1; })());
-T('کش sw >= v19.1', (function () { var m = sw.match(/ptf-crm-v([0-9.]+)/); return m && parseFloat(m[1]) >= 19.1; })());
+T('نسخه v19.1+', (function () { var m = idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.1; })());
+T('کش sw >= v19.1', (function () { var m = sw.match(/var RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.1; })());
 T('cache-bust offers >= 19.1', (function () { var m = idx.match(/offers\.js\?v=([0-9.]+)/); return m && parseFloat(m[1]) >= 19.1; })());
 T('cache-bust salesfiles >= 19.1', (function () { var m = idx.match(/salesfiles\.js\?v=([0-9.]+)/); return m && parseFloat(m[1]) >= 19.1; })());
 

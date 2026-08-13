@@ -30,6 +30,6 @@ T('بوت idempotent (گارد _ptfIconxBooted)', ix.indexOf('_ptfIconxBooted') 
 T('API دستی ptfIconxSweep برای پنل‌های خاص', ix.indexOf('window.ptfIconxSweep') > -1);
 
 SECTION('نسخه');
-T('VER v12x', /var VER = 'v\d/.test(idx));
-T('sw.js cache v12x', /ptf-crm-v\d/.test(sw));
+T('VER v12x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw.js cache v12x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester39-v1224');

@@ -14,10 +14,10 @@ const index = read('crm/index.html');
 const sw = read('crm/sw.js');
 const guard = read('crm/theme-contrast.js');
 
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(index), 'version CRM v26.7 is declared');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(index), 'version CRM v26.7 is declared');
 ok(/theme-contrast\.js\?v=\d+\.\d+/.test(index), 'contrast guard is loaded by CRM');
 ok(index.indexOf('theme-contrast.js?v=') > index.indexOf('financehub.js?v=') && index.indexOf('theme-contrast.js?v=') < index.indexOf('sync.js?v='), 'guard is loaded after UI modules and before sync');
-ok(/var CACHE = 'ptf-crm-v\d+(?:\.\d+)+'/.test(sw), 'service-worker cache is version-aligned');
+ok(/var RELEASE = 'v\d+(?:\.\d+)+'/.test(sw), 'service-worker cache is version-aligned');
 ok(sw.includes("'./theme-contrast.js'"), 'contrast guard is included in the offline PWA shell');
 ok(guard.includes('MutationObserver') && !guard.includes('setInterval'), 'dynamic content is handled event-driven without polling');
 ok(guard.includes('ptf-theme-surface') && guard.includes('ptf-theme-bg-danger') && guard.includes('ptf-theme-bg-warning') && guard.includes('ptf-theme-bg-success'), 'surface and semantic alert palettes exist');

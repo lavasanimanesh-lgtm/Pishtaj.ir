@@ -84,8 +84,8 @@ T('شرکت با پیشوند «شرکت» → Co.', ptfCoToEn('شرکت پیش�
 T('لاتین دست‌نخورده', ptfCoToEn('Pasargad Steel Co.') === 'Pasargad Steel Co.');
 
 SECTION('نسخه و کش');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 /* قاعده تسترها: قفل نکردن نسخه دقیق — فقط «همان یا جدیدتر از 14.4» */
 T('cache-bust فایل‌های اسپرینت ج (>=14.4)', ['ai-workbench.js', 'workflow.js', 'contracts.js', 'offers.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));

@@ -45,8 +45,8 @@ SECTION('رفتار اجرایی: رندر سلول‌ها و تحمل خطا');
 })();
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust fx.js (>=16.1)', (function () { var m2 = idx.match(/fx\.js\?v=(\d+)\.(\d+)/); return m2 && (+m2[1] > 16 || (+m2[1] === 16 && +m2[2] >= 1)); })());
 
 DONE('tester79-v161');

@@ -23,6 +23,6 @@ T('iOS: منوی نگه‌داشتن غیرفعال', lc.indexOf('-webkit-touch-
 T('فیلتر pointerId (چند-لمسی امن)', lc.indexOf('ev.pointerId !== e.pointerId') > -1);
 
 SECTION('نسخه');
-T('VER v1x اعشاری', /var VER = 'v\d+\.\d/.test(idx));
-T('sw cache v1x', /ptf-crm-v\d/.test(sw));
+T('VER v1x اعشاری', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw cache v1x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester49-v129');

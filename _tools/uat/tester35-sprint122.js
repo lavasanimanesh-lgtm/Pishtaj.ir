@@ -48,5 +48,5 @@ T('monospace اجباری حذف شد (فرم‌ها)', off.indexOf('monospace,s
 T('monospace اجباری حذف شد (قالب‌ها)', op.indexOf('monospace,sans-serif!important') === -1);
 
 SECTION('نسخه');
-T('VER >= v12.2 + fx.js', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=12.2;})() && idx.indexOf('fx.js?v=') > -1);
+T('VER >= v12.2 + fx.js', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=12.2;})() && idx.indexOf('fx.js?v=') > -1);
 DONE('tester35-sprint122');

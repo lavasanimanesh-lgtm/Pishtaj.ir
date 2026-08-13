@@ -12,7 +12,7 @@ const files = fs.readdirSync(dir).filter(function (f) {
 
 var passF = 0, failF = 0, passC = 0, failC = 0;
 var versionSource = fs.readFileSync(path.join(ROOT, 'crm', 'index.html'), 'utf8');
-var versionMatch = versionSource.match(/window\.VER = '([^']+)'/);
+var versionMatch = versionSource.match(/window\.PTF_CRM_RELEASE\s*=\s*'([^']+)'/);
 var currentVersion = versionMatch ? versionMatch[1] : 'unknown';
 var failed = [], prebroken = [], hung = [], soft = [];
 

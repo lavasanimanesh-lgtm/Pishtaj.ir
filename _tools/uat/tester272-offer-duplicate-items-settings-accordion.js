@@ -50,6 +50,6 @@ T('settings accordion بعد از همه ماژول‌ها در CRM لود می�
 T('accordion از details/summary و آیکون SVG معنایی استفاده می‌کند', acc.indexOf('document.createElement(\'details\')') > -1 && acc.indexOf('document.createElement(\'summary\')') > -1 && acc.indexOf('ptf-set-ico') > -1 && acc.indexOf('function lineIcon') > -1 && acc.indexOf("return ('0' + (i + 1))") === -1);
 T('accordion root و wrapper buildSettings وجود دارد', acc.indexOf('ptfSettingsAccordionRoot') > -1 && acc.indexOf('window.buildSettings = function') > -1 && acc.indexOf('ptfSettingsAccordionApply') > -1);
 T('آیکون emoji جدید در accordion اضافه نشده است', acc.indexOf('⚙️') === -1 && acc.indexOf('💰') === -1 && acc.indexOf('🚀') === -1);
-T('CRM/SW نسخه v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('CRM/SW نسخه v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 
 DONE('tester272-offer-duplicate-items-settings-accordion');

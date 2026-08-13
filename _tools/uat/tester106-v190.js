@@ -11,8 +11,8 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var php = fs.readFileSync(path.resolve(__dirname, '../../api/crm.php'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v19.0+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=19.0;})());
-T('کش sw >= v19.0', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)';/);return m&&parseFloat(m[1])>=19.0;})());
+T('نسخه v19.0+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=19.0;})());
+T('کش sw >= v19.0', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)';/);return m&&parseFloat(m[1])>=19.0;})());
 
 SECTION('ممیزی خانواده R9 ایجنت دوم (هم‌راستایی با هندآور)');
 T('ماژول‌های R9 موجود و در SHELL', ['shareholders.js', 'lossguard.js', 'fiscal.js'].every(function (f) { return fs.existsSync(path.join(BASE, f)) && sw.indexOf("'./" + f + "'") > -1; }));

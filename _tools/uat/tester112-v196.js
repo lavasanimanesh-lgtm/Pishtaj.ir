@@ -12,8 +12,8 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 var php = fs.readFileSync(path.resolve(__dirname, '../../api/fx-rates.php'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v19.6+', (function () { var m = idx.match(/var VER = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.6; })());
-T('کش sw >= v19.6', (function () { var m = sw.match(/ptf-crm-v([0-9.]+)/); return m && parseFloat(m[1]) >= 19.6; })());
+T('نسخه v19.6+', (function () { var m = idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.6; })());
+T('کش sw >= v19.6', (function () { var m = sw.match(/var RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.6; })());
 T('moneyx.js در index و sw ثبت شد', (function () { var m = idx.match(/moneyx\.js\?v=([0-9.]+)/); return m && parseFloat(m[1]) >= 19.6 && sw.indexOf("'./moneyx.js'") > -1; })());
 T('moneyx بعد از ui-kit لود می‌شود (ptfDialog وابسته)', idx.indexOf('moneyx.js?v=') > idx.indexOf('ui-kit.js?v='));
 

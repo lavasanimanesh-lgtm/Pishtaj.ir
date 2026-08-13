@@ -50,7 +50,7 @@ T('admin → همه مجاز', roleDefaultFor('admin', 'rep') === true && roleDe
 T('sales → orders غیرمجاز (finance)', roleDefaultFor('sales', 'orders') === false);
 
 SECTION('نسخه');
-T('VER نسخه‌دار', idx.indexOf("var VER = 'v") > -1);
+T('VER نسخه‌دار', idx.indexOf("var VER = window.PTF_CRM_RELEASE") > -1);
 T('SW کش نسخه‌دار', sw.indexOf("'ptf-crm-v") > -1);
 
 DONE('tester20-sprint83');

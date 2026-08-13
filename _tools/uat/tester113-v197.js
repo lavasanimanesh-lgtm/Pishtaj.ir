@@ -9,8 +9,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v19.7+', (function () { var m = idx.match(/var VER = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.7; })());
-T('کش sw >= v19.7', (function () { var m = sw.match(/ptf-crm-v([0-9.]+)/); return m && parseFloat(m[1]) >= 19.7; })());
+T('نسخه v19.7+', (function () { var m = idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.7; })());
+T('کش sw >= v19.7', (function () { var m = sw.match(/var RELEASE = 'v([0-9.]+)'/); return m && parseFloat(m[1]) >= 19.7; })());
 T('cache-bust bridge/salesfiles >= 19.7', (function () { var a = idx.match(/bridge\.js\?v=([0-9.]+)/), b = idx.match(/salesfiles\.js\?v=([0-9.]+)/); return a && b && parseFloat(a[1]) >= 19.7 && parseFloat(b[1]) >= 19.7; })());
 
 SECTION('BUG-031 — ساختار: حذف آبشاری');

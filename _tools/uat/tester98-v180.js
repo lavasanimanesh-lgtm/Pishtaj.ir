@@ -10,9 +10,9 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه و ثبت');
-T('نسخه v18.0+', (function(){var m=idx.match(/var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.0;})());
-T('window.VER هم >= v18.0', (function(){var m=idx.match(/window\.VER = 'v([0-9.]+)'; var VER = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.0&&parseFloat(m[2])>=18.0;})());
-T('کش sw >= v18.0 + lossguard در SHELL', (function(){var m=sw.match(/ptf-crm-v([0-9.]+)/);return m&&parseFloat(m[1])>=18.0;})() && sw.indexOf("'./lossguard.js'")>-1);
+T('نسخه v18.0+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.0;})());
+T('window.VER هم >= v18.0', (function(){var m=idx.match(/window\.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.0&&idx.indexOf('window.VER = window.PTF_CRM_RELEASE')>-1&&idx.indexOf('var VER = window.PTF_CRM_RELEASE')>-1;})());
+T('کش sw >= v18.0 + lossguard در SHELL', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=18.0;})() && sw.indexOf("'./lossguard.js'")>-1);
 T('cache-bust salesfiles/projects/lossguard/sync >=18.0', ['salesfiles.js','projects.js','lossguard.js','sync.js'].every(function(f){ var m=idx.match(new RegExp(f.replace('.', '\\.')+'\\?v=([0-9.]+)')); return m && parseFloat(m[1])>=18.0; }));
 
 SECTION('US-421 کد');

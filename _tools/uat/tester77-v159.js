@@ -76,8 +76,8 @@ SECTION('رفتار اجرایی: نگاشت دسته + جستجو');
 })();
 
 SECTION('نسخه و کش (بدون قفل نسخه دقیق)');
-T('VER الگوی v1x', /var VER = 'v\d+\.\d/.test(idx));
-T('کش sw هم‌خانواده ptf-crm-v1', /ptf-crm-v\d+\.\d/.test(sw));
+T('VER الگوی v1x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('کش sw هم‌خانواده ptf-crm-v1', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust فایل‌های اسپرینت (>=15.9)', ['dedup.js', 'offers.js', 'storage.js', 'inqreader.js', 'ai-workbench.js', 'offerlock.js', 'rfqsmart.js'].every(function (f) {
   var m = idx.match(new RegExp(f.replace(/[.-]/g, '\\$&') + '\\?v=(\\d+)\\.(\\d+)'));
   return m && (+m[1] > 15 || (+m[1] === 15 && +m[2] >= 9));

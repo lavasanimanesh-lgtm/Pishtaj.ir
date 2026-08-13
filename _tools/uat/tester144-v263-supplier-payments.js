@@ -11,5 +11,5 @@ ok(sf.includes('cur !== \'IRR\' && rate <= 0') && sf.includes('amountIrr'),'fore
 ok(sf.includes('status: \'posted\'') && sf.includes('p.status = \'void\''),'payment lifecycle is posted/void rather than destructive delete');
 ok(sf.includes('function liquidityHtml') && sf.includes('چک‌های شرکت در راه') && sf.includes('چک سررسید ۷ روز آینده') && sf.includes('چک ثالث منتقل‌شده در این شاخص وارد نمی‌شود'),'finance-hub liquidity metrics include supplier debt and company cheque exposure only');
 ok(sf.includes('window.buildPetty = function () { return liquidityHtml() + oldPetty(); }'),'liquidity card is hooked into Finance Hub');
-ok(/window\.VER = 'v\d+(?:\.\d+)+'; var VER = 'v\d+(?:\.\d+)+'/.test(idx) && /ptf-crm-v\d+(?:\.\d+)+/.test(sw),'Sprint version is aligned to v26.7');
+ok(/window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw),'Sprint version is aligned to v26.7');
 console.log('=== tester144-v263-supplier-payments: '+pass+' PASS / '+fail+' FAIL ==='); process.exit(fail?1:0);

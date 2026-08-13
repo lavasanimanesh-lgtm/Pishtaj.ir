@@ -28,6 +28,6 @@ T('client payload را از ptfAdvCvBuildLockedReportPayload می‌سازد', r
 T('دکمه ثبت draft گزارش در سرور در advanced UI وجود دارد', adv.indexOf('ثبت draft گزارش در سرور') > -1 && adv.indexOf('ptfAdvCvSubmitReportDraft') > -1);
 T('advanced-tools-ui همچنان fetch ندارد و PDF باز نمی‌کند', adv.indexOf('fetch(') === -1 && adv.indexOf('window.print') === -1 && adv.indexOf('document.write') === -1 && adv.indexOf('exportPdf') === -1);
 T('advanced-report-ui هیچ PDF/download/print/export ندارد', rep.indexOf('window.print') === -1 && rep.indexOf('document.write') === -1 && rep.indexOf('exportPdf') === -1 && rep.indexOf('createObjectURL') === -1 && rep.indexOf('download=') === -1);
-T('نسخه CRM v33.5.0 است', /window\.VER = 'v3[0-9.]+'/.test(idx) && /ptf-crm-v3[0-9.]+/.test(sw));
+T('نسخه CRM v33.5.0 است', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx) && /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 
 DONE('tester239-advanced-cv-server-report-scaffold');

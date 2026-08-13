@@ -8,7 +8,7 @@ var API = path.resolve(__dirname, '../../api');
 var vjson = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../VERSION.json'), 'utf-8'));
 
 SECTION('نسخه');
-T('lockstep نسخهٔ جاری', /^v[0-9.]+-alpha$/.test(vjson.crm_version));
+T('lockstep نسخهٔ جاری', /^v\d+(\.\d+){1,2}(-[a-z0-9.]+)?$/.test(vjson.crm_version));
 
 SECTION('سرور: presign_get با HEAD بررسی وجود فایل');
 var storage = fs.readFileSync(path.join(API, 'storage.php'), 'utf-8');

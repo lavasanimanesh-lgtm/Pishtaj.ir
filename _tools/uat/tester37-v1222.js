@@ -51,6 +51,6 @@ T('دکمه کپی با navigator.clipboard', idx.indexOf('navigator.clipboard.w
 T('میان‌بر به دستیار هوشمند سامانه', idx.indexOf("goPanel(\\'ai\\')") > -1);
 
 SECTION('نسخه');
-T('VER v12x', /var VER = 'v\d/.test(idx));
-T('sw.js cache v12x', /ptf-crm-v\d/.test(sw));
+T('VER v12x', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('sw.js cache v12x', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 DONE('tester37-v1222');

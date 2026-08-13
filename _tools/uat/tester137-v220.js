@@ -8,8 +8,8 @@ var idx = fs.readFileSync(path.join(BASE, 'index.html'), 'utf-8');
 var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 
 SECTION('نسخه v22.0');
-T('VER v22.0', /window\.VER = 'v\d+(?:\.\d+)+'/.test(idx));
-T('SW CACHE v22.0', /ptf-crm-v\d+(?:\.\d+)+/.test(sw));
+T('VER v22.0', /window\.PTF_CRM_RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(idx));
+T('SW CACHE v22.0', /var RELEASE\s*=\s*'v\d+(?:\.\d+)+'/.test(sw));
 T('cache-bust my-customers-filter >=22.0', (function(){var m=idx.match(/my-customers-filter\.js\?v=([0-9.]+)/);return m&&parseFloat(m[1])>=22.0;})());
 
 SECTION('US-411: my-customers-filter.js');
