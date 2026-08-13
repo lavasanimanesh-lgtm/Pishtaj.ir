@@ -1,0 +1,68 @@
+diff --git a/.github/workflows/php.yml b/.github/workflows/php.yml
+index 7d257b5..491018a 100644
+--- a/.github/workflows/php.yml
++++ b/.github/workflows/php.yml
+@@ -1,39 +1,41 @@
+-name: PHP Composer
++# ─────────────────────────────────────────────────────────────────────────────
++# PHP & JS Lint — دروازهٔ کیفیت روی هر push/PR به main
++#
++# جایگزین php.yml قدیمی (composer validate) که در این مخزن (بدون composer.json)
++# عملاً بی‌اثر بود. این جاب واقعاً کد را lint می‌کند:
++#   • php -l روی همهٔ فایل‌های api/ و crm/
++#   • node --check روی همهٔ فایل‌های crm/ (به‌جز کتابخانهٔ xlsx.min.js)
++#   • گیت UAT کانونی (run-ci-gate.js — همان گیت قبل از FTP)
++# ─────────────────────────────────────────────────────────────────────────────
++name: PHP & JS Lint + UAT gate
+ 
+ on:
+   push:
+     branches: [ "main" ]
+   pull_request:
+     branches: [ "main" ]
++  workflow_dispatch:
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+-  build:
+-
++  lint:
+     runs-on: ubuntu-latest
+-
+     steps:
+-    - uses: actions/checkout@v4
+-
+-    - name: Validate composer.json and composer.lock
+-      run: composer validate --strict
++      - uses: actions/checkout@v4
+ 
+-    - name: Cache Composer packages
+-      id: composer-cache
+-      uses: actions/cache@v3
+-      with:
+-        path: vendor
+-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+-        restore-keys: |
+-          ${{ runner.os }}-php-
++      - name: Lint PHP (api/ + crm/)
++        run: |
++          find api crm -name '*.php' -print0 | xargs -0 -n1 php -l
+ 
+-    - name: Install dependencies
+-      run: composer install --prefer-dist --no-progress
++      - uses: actions/setup-node@v4
++        with:
++          node-version: '20'
+ 
+-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+-    # Docs: https://getcomposer.org/doc/articles/scripts.md
++      - name: Lint JS (crm/ — بدون کتابخانه‌های min)
++        run: |
++          find crm -name '*.js' -not -name 'xlsx.min.js' -print0 | xargs -0 -n1 node --check
+ 
+-    # - name: Run test suite
+-    #   run: composer run-script test
++      - name: UAT gate (sync / finance / notifications / security)
++        run: node _tools/uat/run-ci-gate.js

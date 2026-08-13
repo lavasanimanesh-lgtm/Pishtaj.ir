@@ -3,6 +3,35 @@
    PTF CRM — crm/run-generator.php — v1.0.2
    موتور پی‌اچ‌پی تولید آنی ۲۰۰۰ مقاله تخصصی روی هاست استیجینگ به صورت شکیل و دسته‌بندی‌شده (بدون ارور کد)
    ===================================================================== */
+
+/* =====================================================================
+   GUARD v34.5.9 (P0-REPO-HYGIENE / ARENA-ASSESSMENT-2026-08-13):
+   این موتور تولید انبوه محتوا فقط ابزار توسعه/استیجینگ است و روی
+   پروداکشن نباید اجرا شود (هم ریسک محتوا دارد و هم بار سنگین روی هاست).
+   - روی استیجینگ: بدون محدودیت کار می‌کند (محیط اصلی تولید محتوا).
+   - روی پروداکشن: فقط با کلید مخفی `content_gen_allow=1` در ptf-secrets.php
+     یا وجود فایل `ptf-content-gen.unlock` کنار همان سکرت (خارج از webroot).
+   الگوی قفل: همان ptf_migrate_unlocked در api/migrate.php
+   ===================================================================== */
+require_once __DIR__ . '/../api/secrets.php';
+
+function ptf_content_gen_unlocked() {
+    $flag = strtolower((string)load_ptf_secret('content_gen_allow', ''));
+    if ($flag === '1' || $flag === 'true' || $flag === 'yes') return true;
+    foreach (ptf_secret_config_paths() as $secretPath) {
+        if (is_file(dirname($secretPath) . DIRECTORY_SEPARATOR . 'ptf-content-gen.unlock')) return true;
+    }
+    return false;
+}
+
+if (ptf_runtime_environment() === 'production' && !ptf_content_gen_unlocked()) {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    exit("403 — ابزار تولید محتوا فقط در محیط استیجینگ اجرا می‌شود.\n" .
+         "برای اجرای موقت روی پروداکشن: content_gen_allow=1 در ptf-secrets.php یا فایل ptf-content-gen.unlock کنار آن.\n");
+}
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 set_time_limit(600); // ۵ دقیقه سقف اجرا
