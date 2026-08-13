@@ -690,6 +690,7 @@ function load_all_crm_users_sources() {
             $next = array_merge($prev, $u);
             $next['username'] = $key;
             if (empty($next['passhash']) && !empty($prev['passhash'])) $next['passhash'] = $prev['passhash'];
+            if (empty($next['password_hash']) && !empty($prev['password_hash'])) $next['password_hash'] = $prev['password_hash'];
             if (empty($next['roleId']) && !empty($next['role'])) $next['roleId'] = normalize_role('', $next['role']);
             // v33.2.1: اگر role فارسی نیست (یا خالی)، از roleId نگاشت فارسی بگیر
             $isPersian = (bool)preg_match('/[\x{0600}-\x{06FF}]/u', (string)($next['role'] ?? ''));
@@ -722,6 +723,10 @@ function clean($v, $max = 500) {
     $v = trim(strip_tags((string)$v));
     if (function_exists('mb_substr')) return mb_substr($v, 0, $max, 'UTF-8');
     return substr($v, 0, $max);
+}
+
+function ptf_is_password_hash($h) {
+    return is_string($h) && strlen($h) >= 50 && isset($h[0]) && $h[0] === '$';
 }
 
 /* v33: login rate limiting and controlled migration from legacy SHA-256 records.
@@ -1388,18 +1393,21 @@ switch($action) {
         $dropped = [];
         foreach ($users as $u) {
             if (empty($u['username'])) continue;
-            if (empty($u['passhash'])) {
-                $prev = $existing_by_name[strtolower($u['username'])] ?? null;
+            $prev = $existing_by_name[strtolower($u['username'])] ?? null;
+            $ph = preg_replace('/[^a-f0-9]/', '', $u['passhash'] ?? '');
+            $pwh = '';
+            if (!empty($prev['password_hash']) && ptf_is_password_hash($prev['password_hash'])) $pwh = $prev['password_hash'];
+            elseif (!empty($u['password_hash']) && ptf_is_password_hash($u['password_hash'])) $pwh = $u['password_hash'];
+            if ($ph === '' && $pwh === '') {
                 if ($prev && !empty($prev['passhash'])) {
-                    $u['passhash'] = $prev['passhash']; // بازیابی هش از رکورد موجود سرور
+                    $ph = preg_replace('/[^a-f0-9]/', '', $prev['passhash']);
                 } else {
-                    $dropped[] = $u['username']; // کاربر جدید بدون هش قابل ورود نیست — گزارش می‌شود، بی‌صدا نیست
+                    $dropped[] = $u['username'];
                     continue;
                 }
             }
-            $clean[] = [
+            $row = [
                 'username' => clean($u['username'], 40),
-                'passhash' => preg_replace('/[^a-f0-9]/', '', $u['passhash'] ?? ''),
                 'name'     => clean($u['name'] ?? '', 80),
                 'nameEn'   => clean($u['nameEn'] ?? '', 80),
                 'role'     => clean($u['role'] ?? '', 80),
@@ -1409,6 +1417,9 @@ switch($action) {
                 'createdFa'=> clean($u['createdFa'] ?? '', 20),
                 'createdBy'=> clean($u['createdBy'] ?? '', 80),
             ];
+            if ($ph !== '') $row['passhash'] = $ph;
+            if ($pwh !== '') $row['password_hash'] = $pwh;
+            $clean[] = $row;
         }
         save_data('crm_users', $clean);
         echo json_encode(['ok' => true, 'count' => count($clean), 'dropped' => $dropped]);
@@ -1448,14 +1459,25 @@ switch($action) {
            The previous browser-only admin login rendered the CRM but could not data_pull.
            Admin password hash is read from ptf-secrets.php outside webroot. */
         if ($username === 'admin') {
-            $adminHash = strtolower(load_ptf_secret('admin_sha256', load_ptf_secret('default_admin_hash', '')));
-            if ($adminHash !== '' && preg_match('/^[a-f0-9]{64}$/', $adminHash) && hash_equals($adminHash, hash('sha256', $password))) {
+            $adminBcrypt = (string)load_ptf_secret('admin_password_hash', '');
+            if ($adminBcrypt !== '' && ptf_is_password_hash($adminBcrypt) && password_verify($password, $adminBcrypt)) {
                 $found = [
                     'username' => 'admin',
                     'name' => 'مدیر ارشد سیستم',
                     'roleId' => 'admin',
                     'role' => 'admin'
                 ];
+            }
+            if (!$found) {
+                $adminHash = strtolower(load_ptf_secret('admin_sha256', load_ptf_secret('default_admin_hash', '')));
+                if ($adminHash !== '' && preg_match('/^[a-f0-9]{64}$/', $adminHash) && hash_equals($adminHash, hash('sha256', $password))) {
+                    $found = [
+                        'username' => 'admin',
+                        'name' => 'مدیر ارشد سیستم',
+                        'roleId' => 'admin',
+                        'role' => 'admin'
+                    ];
+                }
             }
         }
         $legacy = false;
@@ -1547,11 +1569,14 @@ switch($action) {
         
         $username = clean($_POST['username'] ?? '', 40);
         $passhash = preg_replace('/[^a-f0-9]/', '', $_POST['passhash'] ?? '');
+        $plain = (string)($_POST['password'] ?? '');
+        $pwh = '';
+        if (strlen($plain) >= 6 && strlen($plain) <= 256) $pwh = password_hash($plain, PASSWORD_DEFAULT);
         $name = clean($_POST['name'] ?? '', 80);
         $roleId = normalize_role($_POST['roleId'] ?? '', $_POST['role'] ?? '');
         
-        if (empty($username) || empty($passhash)) {
-            echo json_encode(['ok' => false, 'error' => 'username and passhash required'], JSON_UNESCAPED_UNICODE);
+        if (empty($username) || ($passhash === '' && $pwh === '')) {
+            echo json_encode(['ok' => false, 'error' => 'username and password required'], JSON_UNESCAPED_UNICODE);
             break;
         }
         
@@ -1564,9 +1589,8 @@ switch($action) {
             }
         }
         
-        $existing_users[] = [
+        $nu = [
             'username' => $username,
-            'passhash' => $passhash,
             'name' => $name,
             'roleId' => $roleId,
             'mobile' => clean($_POST['mobile'] ?? '', 20),
@@ -1574,6 +1598,9 @@ switch($action) {
             'createdFa' => clean($_POST['createdFa'] ?? '', 20),
             'createdBy' => clean($_POST['createdBy'] ?? '', 80),
         ];
+        if ($passhash !== '') $nu['passhash'] = $passhash;
+        if ($pwh !== '') $nu['password_hash'] = $pwh;
+        $existing_users[] = $nu;
         save_data('crm_users', $existing_users);
         echo json_encode(['ok' => true]);
         break;

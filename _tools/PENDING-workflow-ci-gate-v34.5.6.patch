@@ -1,0 +1,38 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index 6817d26..8dc5630 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -81,6 +81,14 @@ jobs:
+           fi
+           echo "no staging banner"
+ 
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      - name: CI gate (sync / finance / notifications)
++        run: node _tools/uat/run-ci-gate.js
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index df419b5..03b3ce9 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -34,6 +34,14 @@ jobs:
+       - name: Checkout
+         uses: actions/checkout@v4
+ 
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      - name: CI gate (sync / finance / notifications)
++        run: node _tools/uat/run-ci-gate.js
++
+       # جلوگیری از ایندکس شدن استیجینگ توسط گوگل
+       - name: Block search engines on staging
+         run: |

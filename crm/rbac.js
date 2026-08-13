@@ -416,12 +416,26 @@ function saveUser2() {
   sha256Hex(p).then(function (ph) {
     users.push({ username: u, passhash: ph, name: nm, nameEn: nmEn, role: ROLES[rl].lb, roleId: rl, mobile: mob, email: ml, createdFa: faDate(), createdBy: curSession().name });
     setData('ptf_crm_users', users);
-    usersSyncToServer(function (d) {
-      // v33.2.1 HOTFIX: همگام‌سازی کاربر جدید با سرور — اگر ناموفق باشد، هشدار داده شود
-      if (!d || !d.ok) {
-        alert('⚠️ کاربر در این مرورگر تعریف شد اما همگام‌سازی با سرور ناموفق بود.\nاین کاربر فقط از همین مرورگر قابل ورود است.\n\nخطا: ' + ((d && d.error) || 'سرور در دسترس نیست'));
-      }
-    });
+    var fd = new FormData();
+    fd.append('username', u);
+    fd.append('password', p);
+    fd.append('name', nm);
+    fd.append('nameEn', nmEn);
+    fd.append('roleId', rl);
+    fd.append('role', ROLES[rl].lb);
+    fd.append('mobile', mob);
+    fd.append('email', ml);
+    fd.append('createdFa', faDate());
+    fd.append('createdBy', curSession().name);
+    fetch('../api/crm.php?action=add_user', { method: 'POST', headers: ptfRbacAuthHeaders(false), body: fd })
+      .catch(function () { return null; })
+      .then(function () {
+        usersSyncToServer(function (d) {
+          if (!d || !d.ok) {
+            alert('⚠️ کاربر در این مرورگر تعریف شد اما همگام‌سازی با سرور ناموفق بود.\nاین کاربر فقط از همین مرورگر قابل ورود است.\n\nخطا: ' + ((d && d.error) || 'سرور در دسترس نیست'));
+          }
+        });
+      });
     hideModal(); renderUsers();
     audit('کاربران', 'تعریف کاربر ' + nm + ' با نقش ' + ROLES[rl].lb, u);
     // US-150 AC7: پیامک خودکار اطلاعات ورود به کاربر جدید
