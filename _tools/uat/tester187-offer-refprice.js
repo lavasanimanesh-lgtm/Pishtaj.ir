@@ -29,7 +29,7 @@ T('بلاک همگام‌سازی در offerSave موجود است', of.indexOf(
 T('write-back فقط با refPriceEdited و تغییر واقعی + history', /it\.refPriceEdited && \+it\.refPrice > 0 && \+p\.pr !== \+it\.refPrice/.test(of) && /به‌روزرسانی نرخ مرجع از پیشنهاد/.test(of));
 T('کالای جدید فقط در صورت نبود تکراری (ptfCheckDup) و کد غیر TMP', /ptfCheckDup\('product', \{ nm: nm \}, null\)/.test(of) && /!\/\^TMP-\/\.test\(String\(_cd2\)\)/.test(of));
 T('مارک مخفی منبع (srcRef با no/inqNo/at/by) روی کالای خودکار', /srcRef: \{ kind: 'offer', no: o\.no/.test(of));
-T('قبل از setData آفرها اجرا می‌شود (اتمی با ذخیره)', of.indexOf('v31.7.12 US-OFF-REF') < of.indexOf("setData('ptf_crm_offers', offers);\n  try { localStorage.removeItem('ptf_autodraft_offer_'"));
+T('قبل از setData آفرها اجرا می‌شود (اتمی با ذخیره)', of.indexOf("srcRef: { kind: 'offer'") > -1 && of.lastIndexOf("setData('ptf_crm_products', _prods2)") < of.lastIndexOf("setData('ptf_crm_offers', offers)")); /* 2026-08-13: جریان finalize بازطراحی شد؛ writeback محصول همچنان قبل از ذخیرهٔ نهایی پیشنهاد است */
 
 SECTION('رفتاری: شبیه‌سازی write-back و ثبت خودکار');
 global.window = global;
