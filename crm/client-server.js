@@ -350,13 +350,20 @@
   /* ---------- هم‌گرایی یک‌باره (تأیید کاربر) ---------- */
   function flushRequired() { try { return localStorage.getItem(flushKey()) !== '1'; } catch (e) { return false; } }
   function markFlushed() { try { localStorage.setItem(flushKey(), '1'); } catch (e) {} }
-  window.ptfBFinalize = function () {
-    /* هم‌گرایی یک‌باره: دادهٔ محلی → سرور (با تأیید کاربر) */
+  window.ptfBFinalize = function (opts) {
+    opts = opts || {};
+    /* هم‌گرایی یک‌باره: دادهٔ محلی → سرور. در حالت خودکار فقط دستگاه تازه
+       (بدون payload کسب‌وکاری) مجاز است؛ دادهٔ موجود هرگز بدون تأیید overwrite نمی‌شود. */
     if (flushRequired()) {
       var keys = bKeys();
       var payload = {};
       keys.forEach(function (k) { var v = localGet(k); if (v !== null) payload[k] = v; });
       if (Object.keys(payload).length) {
+        if (opts.auto) {
+          /* هرگز payload موجود را در auto-mode به سرور نمی‌فرستیم. این guard حتی اگر
+             caller اشتباه کند، جلوی seed/merge خاموش روی دستگاه قدیمی را می‌گیرد. */
+          return { ok: false, reason: 'local_data_requires_review' };
+        }
         var ok = confirm('🌐 هم‌گرایی داده با سرور\n\nدادهٔ محلی مرورگر شما یک‌بار به سرور منتقل می‌شود تا با دیتابیس یکپارچه شود (localStorage پس از آن فقط کش می‌شود).\n\nادامه می‌دهید؟');
         if (!ok) { alert('می‌توانید بعداً از «تنظیمات → هم‌گرایی داده» این کار را انجام دهید.'); return; }
         /* v33.18.0: فلگ را قبل از ارسال ست می‌کنیم تا در همان session دوباره نپرسد؛
@@ -385,6 +392,38 @@
   window.ptfBConfirmFlush = function () {
     try { localStorage.removeItem(flushKey()); localStorage.removeItem(syncedKey()); } catch (e) {}
     window.ptfBFinalize();
+  };
+
+  /* کاربران جدید نباید تنظیمات را بدانند. فقط در دستگاه واقعاً تازه (هیچ key
+     کسب‌وکاری محلی و هیچ صفی ندارد) فاز B بی‌صدا فعال می‌شود؛ در هر حالت مبهم
+     هیچ داده‌ای push/merge/پاک نمی‌شود و Sync استاندارد همچنان محافظت می‌کند. */
+  function hasLocalBusinessPayload() {
+    var ignore = { ptf_crm_settings: 1, ptf_crm_audit: 1, ptf_crm_notifs: 1, ptf_crm_notifprefs: 1, ptf_crm_sendqueue: 1 };
+    try {
+      return bKeys().some(function (k) {
+        if (ignore[k]) return false;
+        var raw = localGet(k);
+        if (!raw || raw === '[]' || raw === '{}' || raw === 'null') return false;
+        try { var v = JSON.parse(raw); return Array.isArray(v) ? v.length > 0 : !!(v && typeof v === 'object' && Object.keys(v).length); }
+        catch (e) { return raw.length > 2; }
+      });
+    } catch (e2) { return true; } /* عدم قطعیت = محافظه‌کاری */
+  }
+  window.ptfBAutoBootstrap = function () {
+    try {
+      var u = (typeof curSession === 'function' ? curSession() : {}) || {};
+      if (!u.user) return { ok: false, reason: 'no_session' };
+      if (getFlag()) {
+        if (flushRequired() && !hasLocalBusinessPayload()) window.ptfBFinalize({ auto: true });
+        return { ok: true, enabled: true, reason: 'already_enabled' };
+      }
+      if (hasLocalBusinessPayload() || Object.keys(queueRead()).length) return { ok: false, reason: 'existing_local_data' };
+      localStorage.setItem(flagKey(), '1');
+      hook();
+      window.ptfBFinalize({ auto: true });
+      try { if (typeof addLog === 'function') addLog('حالت سرور-محور برای دستگاه تازه به‌صورت خودکار فعال شد'); } catch (eL) {}
+      return { ok: true, enabled: true, reason: 'fresh_device' };
+    } catch (e) { return { ok: false, reason: 'error' }; }
   };
 
   /* ---------- v33.19.0: پاک‌سازی امن کش محلی ----------
@@ -529,9 +568,22 @@
     tries++;
     if (hook() || tries > 40) {
       clearInterval(t);
-      try { if (getFlag() && flushRequired()) window.ptfBFinalize(); } catch (e) {}
+      /* راه‌اندازی بدون تنظیمات برای دستگاه تازه؛ دستگاه دارای دادهٔ محلی عمداً
+         وارد مسیر خودکار destructive نمی‌شود. */
+      try { window.ptfBAutoBootstrap(); } catch (e) {}
+      try { if (typeof window.ptfStorageRequestPersistentAuto === 'function') window.ptfStorageRequestPersistentAuto(); } catch (ePst) {}
       /* v33.20.0: مهاجرت/پرکردن حافظهٔ کلیدهای سنگین (فقط فاز فعال + هم‌گرایی موفق + IDB) */
       try { window.ptfBIdbPreload(function () {}); } catch (eP) {}
     }
   }, 300);
+  /* ورود کاربر ممکن است بعد از پایان interval بوت رخ دهد؛ پس auto bootstrap را
+     یک‌بار پس از showCrm هم اجرا می‌کنیم تا کاربر تازه هیچ تنظیمی لازم نداشته باشد. */
+  var _ptfBShowCrm = window.showCrm;
+  if (_ptfBShowCrm && !window._ptfBAutoShowHooked) {
+    window._ptfBAutoShowHooked = true;
+    window.showCrm = function () {
+      _ptfBShowCrm.apply(this, arguments);
+      setTimeout(function () { try { window.ptfBAutoBootstrap(); } catch (e) {} }, 900);
+    };
+  }
 })();

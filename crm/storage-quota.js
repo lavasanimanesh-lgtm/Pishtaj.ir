@@ -563,15 +563,25 @@
       } else cb && cb(null);
     } catch (e) { cb && cb(null); }
   }
-  function requestPersistent() {
+  function requestPersistent(silent) {
     try {
       if (!(navigator.storage && navigator.storage.persist)) {
-        alert('مرورگر این قابلیت را پشتیبانی نمی‌کند. برای داده‌های حجیم، بک‌آپ سرور و IndexedDB همچنان استفاده می‌شود.');
+        if (!silent) alert('مرورگر این قابلیت را پشتیبانی نمی‌کند. برای داده‌های حجیم، بک‌آپ سرور و IndexedDB همچنان استفاده می‌شود.');
         return;
       }
       navigator.storage.persist().then(function (ok) {
-        alert(ok ? 'درخواست Persistent Storage تایید شد. این مورد localStorage را بزرگ‌تر نمی‌کند، اما احتمال پاک‌شدن cache/IndexedDB توسط مرورگر را کمتر می‌کند.' : 'مرورگر درخواست Persistent Storage را تایید نکرد.');
-      });
+        try { callSet('ptf_storage_persist_result', JSON.stringify({ ok: !!ok, at: nowIso() })); } catch (eS) {}
+        if (!silent) alert(ok ? 'درخواست Persistent Storage تایید شد. این مورد localStorage را بزرگ‌تر نمی‌کند، اما احتمال پاک‌شدن cache/IndexedDB توسط مرورگر را کمتر می‌کند.' : 'مرورگر درخواست Persistent Storage را تایید نکرد.');
+      }).catch(function () {});
+    } catch (e) {}
+  }
+  /* کاربران عادی نباید برای کاهش ریسک پاک‌سازی browser storage وارد تنظیمات شوند.
+     درخواست فقط یک hint به مرورگر است، داده‌ای حذف نمی‌کند و ردشدنش نیز هیچ اثر مخربی ندارد. */
+  function requestPersistentAuto() {
+    try {
+      var prev = parseJson(callGet('ptf_storage_persist_result') || '{}', {});
+      if (prev && prev.at && (Date.now() - new Date(prev.at).getTime()) < 30 * 864e5) return;
+      requestPersistent(true);
     } catch (e) {}
   }
   function topKeys(n) { return usage().topKeys.slice(0, n || 10); }
@@ -618,6 +628,7 @@
   window.ptfStorageArchiveIndex = archiveIndex;
   window.ptfStorageShowArchiveIndex = showArchiveIndex;
   window.ptfStorageRequestPersistent = requestPersistent;
+  window.ptfStorageRequestPersistentAuto = requestPersistentAuto;
   window.ptfStorageShowLargeKeys = showLargeKeys;
   window.ptfStorageRefreshEstimate = refreshEstimate;
   window.ptfStorageIdbSet = idbSet;

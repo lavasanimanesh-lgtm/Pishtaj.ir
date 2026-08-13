@@ -44,6 +44,11 @@ assert.ok(sy.indexOf('var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys :
 assert.ok(sy.indexOf('window.ptfSyncCanWriteKey') > -1 && sy.indexOf("noteWriteFailure(k, 'نقش فعلی اجازه") > -1, 'نوشتن کلید Sync با نقش نامجاز پیش از ذخیره محلی مسدود می‌شود');
 assert.ok(sy.indexOf('writeFailures: {}') > -1 && sy.indexOf("writefail: ['🔴'") > -1, 'شکست حافظه/صف باید banner قرمز پایدار داشته باشد');
 assert.ok(api.indexOf("'ptf_crm_treasury_calls'") > -1, 'کلید خزانه در allowlist سرور نیز وجود دارد');
+var cs = read('crm/client-server.js');
+var quota = read('crm/storage-quota.js');
+assert.ok(cs.indexOf('window.ptfBAutoBootstrap') > -1 && cs.indexOf("reason: 'existing_local_data'") > -1, 'فاز B فقط برای دستگاه تازه خودکار فعال شود و دادهٔ محلی مبهم را overwrite نکند');
+assert.ok(cs.indexOf("window.ptfBFinalize({ auto: true })") > -1 && cs.indexOf("reason: 'local_data_requires_review'") > -1, 'هم‌گرایی خودکار نباید payload موجود را بدون بررسی push کند');
+assert.ok(quota.indexOf('window.ptfStorageRequestPersistentAuto') > -1 && quota.indexOf('requestPersistent(true)') > -1, 'Persistent Storage بدون ورود کاربر به تنظیمات درخواست شود');
 
 assert.ok(typeof rb === 'string' && rb.indexOf('function ntfNeedsAction') > -1, 'گیت اقدام کارتابل');
 assert.ok(rb.indexOf('🔴 اقدام لازم') > -1, 'عنوان کارتابل اقدام‌محور است');
