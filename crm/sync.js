@@ -120,16 +120,31 @@
   };
   window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
 
+  /* یکسان‌بودن داده باید معنایی باشد، نه صرفاً برابر بودن رشته JSON. بعضی migrationها
+     یا فرم‌ها همان object را با ترتیب property متفاوت دوباره می‌نویسند؛ مقایسهٔ رشته‌ای
+     آن را «تغییر جدید» می‌دید، push می‌کرد و پس از refresh بنر زرد دائمی می‌ساخت.
+     ترتیب آرایه عمداً حفظ می‌شود، چون در رکوردهای CRM می‌تواند معنا داشته باشد. */
+  function sameSyncJson(a, b) {
+    if (a === b) return true;
+    try {
+      function normalize(v) {
+        if (!v || typeof v !== 'object') return v;
+        if (Array.isArray(v)) return v.map(normalize);
+        var out = {};
+        Object.keys(v).sort().forEach(function (key) { out[key] = normalize(v[key]); });
+        return out;
+      }
+      return JSON.stringify(normalize(JSON.parse(a))) === JSON.stringify(normalize(JSON.parse(b)));
+    } catch (e) { return false; }
+  }
   var _setData = window.setData;
   window.setData = function (k, d) {
     /* چند migration/repair در boot همان مقدار قبلی را دوباره setData می‌کنند
-       (نمونه قطعی: ptfDupAckSet('') روی ptf_crm_settings). نسخهٔ قبلی حتی برای
-       write کاملاً یکسان dirty می‌ساخت؛ اگر کاربر hard refresh می‌کرد، beacon بدون
-       فرصت/مجوز کافی می‌ماند و نشست بعدی بنر کاذب نشان می‌داد. فقط تغییر واقعی dirty است. */
+       (نمونه قطعی: ptfDupAckSet('') روی ptf_crm_settings). فقط تغییر واقعی dirty است. */
     var before = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
     var saveResult = _setData(k, d);
     var after = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
-    if (before !== after) window.ptfSyncNotifyDirty(k);
+    if (!sameSyncJson(before, after)) window.ptfSyncNotifyDirty(k);
     return saveResult;
   };
 

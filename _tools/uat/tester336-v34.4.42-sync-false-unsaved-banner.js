@@ -8,7 +8,7 @@ var src = fs.readFileSync('crm/sync.js', 'utf8');
 assert.ok(src.indexOf('BUG-SYNC-DIRTY-BANNER-001') > -1, 'RCA marker missing');
 assert.ok(src.indexOf('dirty: loadPersistedDirty()') > -1, 'persisted dirty state must be normalized before boot/banner');
 assert.ok(src.indexOf("k === 'ptf_crm_audit' && !syncAllowedKey(k)") > -1, 'forbidden audit must not become dirty again');
-assert.ok(src.indexOf('if (before !== after) window.ptfSyncNotifyDirty(k)') > -1, 'no-op setData writes must not become unsaved changes');
+assert.ok(src.indexOf('function sameSyncJson(a, b)') > -1 && src.indexOf('if (!sameSyncJson(before, after)) window.ptfSyncNotifyDirty(k)') > -1, 'semantic no-op setData writes must not become unsaved changes');
 assert.ok(src.indexOf('window.ptfSyncPendingKeys') > -1, 'pending-key diagnostic helper missing');
 assert.ok(src.indexOf('window._ptfSyncRecoveryNoticeT = setTimeout') > -1 && src.indexOf('}, 6000)') > -1, 'startup banner must wait for a real recovery attempt');
 assert.strictEqual(src.indexOf("تغییر ذخیره‌نشده از جلسه قبل یافت شد"), -1, 'old eager hard-refresh toast must be removed');
@@ -75,6 +75,12 @@ var noOp = makeContext('admin', {}, { ptf_crm_settings: { dupCodeAck: '' } });
 noOp.ctx.setData('ptf_crm_settings', { dupCodeAck: '' });
 assert.deepStrictEqual(Array.from(noOp.ctx.ptfSyncPendingKeys()), [], 'identical boot-time settings write must not show an unsaved banner');
 assert.ok(!noOp.ctx.__scheduled, 'identical write must not schedule a push');
+/* یکسان بودن object با ترتیب property متفاوت نیز تغییر واقعی نیست. */
+var reordered = makeContext('admin', {}, { ptf_crm_settings: { alpha: 1, beta: { x: 2, y: 3 } } });
+reordered.ctx.setData('ptf_crm_settings', { beta: { y: 3, x: 2 }, alpha: 1 });
+assert.deepStrictEqual(Array.from(reordered.ctx.ptfSyncPendingKeys()), [], 'object-key reordering must not create a false unsaved banner');
+assert.ok(!reordered.ctx.__scheduled, 'object-key reordering must not schedule a push');
+
 noOp.ctx.setData('ptf_crm_settings', { dupCodeAck: 'changed' });
 assert.deepStrictEqual(Array.from(noOp.ctx.ptfSyncPendingKeys()), ['ptf_crm_settings'], 'real settings change must remain dirty');
 assert.ok(noOp.ctx.__scheduled > 0, 'real change must schedule a push');
