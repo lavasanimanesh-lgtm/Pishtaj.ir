@@ -33,6 +33,8 @@ assert.ok(sy.indexOf('function authHeaders') > -1 && sy.indexOf('X-CRM-Token') >
 assert.ok(sy.indexOf('headers: authHeaders(true)') > -1, 'پوش از همان هلپر توکن استفاده می‌کند');
 assert.ok(api.indexOf('function ptf_echo_json') > -1, 'خروجی JSON فشردهٔ API');
 assert.ok(sy.indexOf('if (startupMerged !== newStr) state.dirty[k] = true') > -1, 'استارت‌آپ فقط اختلاف واقعی را dirty می‌کند');
+assert.ok(api.indexOf("'savedKeys' => array_values(array_unique($saved_keys))") > -1, 'سرور باید ACK کلیدهای واقعاً ذخیره‌شده را برگرداند');
+assert.ok(sy.indexOf('var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys : []') > -1 && sy.indexOf('savedKeys.forEach') > -1, 'کلاینت فقط کلیدهای ACKشده را از صف dirty حذف می‌کند');
 
 assert.ok(typeof rb === 'string' && rb.indexOf('function ntfNeedsAction') > -1, 'گیت اقدام کارتابل');
 assert.ok(rb.indexOf('🔴 اقدام لازم') > -1, 'عنوان کارتابل اقدام‌محور است');

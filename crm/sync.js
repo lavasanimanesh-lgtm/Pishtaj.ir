@@ -300,7 +300,17 @@
         if (d.ok) {
           applyKrevs(d.krevs); /* v15.0 */
           var confl = d.conflicts || [];
-          keys.forEach(function (k) { if (confl.indexOf(k) < 0) delete state.dirty[k]; }); saveDirty();
+          var rejected = d.rejected || [];
+          var skipped = d.skipped || [];
+          var forbidden = d.forbidden || [];
+          /* پاسخ ok فقط یعنی درخواست پردازش شد، نه اینکه همهٔ کلیدها ذخیره شدند.
+             حذف dirty صرفاً با ACK صریح هر کلید مجاز است؛ در غیر این صورت پیام زرد
+             باید بماند تا کاربر با سبزشدن کاذب، تغییرِ نرسیده را امن تصور نکند. */
+          var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys : [];
+          savedKeys.forEach(function (k) {
+            if (keys.indexOf(k) > -1 && confl.indexOf(k) < 0 && rejected.indexOf(k) < 0 && skipped.indexOf(k) < 0 && forbidden.indexOf(k) < 0) delete state.dirty[k];
+          });
+          saveDirty();
           if (d.rev) setRev(d.rev);
           pingTabs(); /* v33.21.1: پوش موفق → تب‌های دیگر همین مرورگر فوری دلتا-پول بزنند */
           /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
@@ -321,9 +331,14 @@
             refreshCurrentPanel();
             schedulePush();
           }
-          if (d.forbidden && d.forbidden.length) { setSyncBadge('forbidden'); try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + d.forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {} }
-          else setSyncBadge('ok');
-          notifyPushWaiters(!confl.length && !(d.forbidden && d.forbidden.length), { conflicts: confl, forbidden: d.forbidden || [] });
+          if (forbidden.length) {
+            setSyncBadge('forbidden');
+            try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {}
+          } else if (rejected.length || skipped.length) {
+            setSyncBadge('warn');
+            try { if (typeof ptfToast === 'function') ptfToast('⚠️ ' + (rejected.length + skipped.length) + ' تغییر هنوز روی سرور تأیید نشده است؛ تب را نبندید و وضعیت همگام‌سازی را بررسی کنید.', 'warn'); } catch (eAck) {}
+          } else setSyncBadge('ok');
+          notifyPushWaiters(!confl.length && !forbidden.length && !rejected.length && !skipped.length, { conflicts: confl, forbidden: forbidden, rejected: rejected, skipped: skipped, savedKeys: savedKeys });
         } else {
           setSyncBadge('warn');
           /* v33.2.1 HOTFIX: اگر push ناموفق بود، هشدار واضح بده — تغییرات محلی حفظ می‌شوند */

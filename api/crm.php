@@ -1243,6 +1243,11 @@ switch($action) {
         $meta_file = $sdir . '/meta.json';
         $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : [];
         $saved = 0;
+        /* ACK per-key: کلاینت فقط کلیدی را از صف محلی حذف می‌کند که سرور صراحتاً
+           تأیید کرده است. صرف ok بودن پاسخ کافی نیست؛ ممکن است کلید به‌دلیل سپر
+           داده‌صفر، نقش، یا payload نامعتبر ذخیره نشده باشد. */
+        $saved_keys = [];
+        $skipped_keys = [];
         $dbWriteFailed = false; /* v33.22.0: شکست نوشتن DB در mode=mysql → کل پاسخ ناموفق + retry */
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $krevs = []; /* v15.0 US-384 */
@@ -1260,9 +1265,9 @@ switch($action) {
         if ($serverArchiveJson === null) $serverArchiveJson = '[]';
         $incomingArchiveJson = isset($j['data']['ptf_crm_deleted_archive']) && is_string($j['data']['ptf_crm_deleted_archive']) ? $j['data']['ptf_crm_deleted_archive'] : '[]';
         foreach ($j['data'] as $k => $v) {
-            if (!in_array($k, $allowed_keys, true)) continue;
+            if (!in_array($k, $allowed_keys, true)) { $skipped_keys[] = $k; continue; }
             if (!in_array($k, $role_sync_keys, true)) { $forbidden_keys[] = $k; continue; }
-            if (!is_string($v) || strlen($v) > 8 * 1048576) continue;
+            if (!is_string($v) || strlen($v) > 8 * 1048576) { $skipped_keys[] = $k; continue; }
             $v = sync_apply_tombstones($k, $v, $serverArchiveJson, $incomingArchiveJson);
             /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: do not accept a stale client
                payload that increases duplicate offer lines. Existing corrupted
@@ -1311,6 +1316,7 @@ switch($action) {
             if (!sync_key_write($sdir, $k, $v, $curRev + 1)) { $dbWriteFailed = true; break; }
             $meta[$k] = ['rev' => $curRev + 1, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
             $krevs[$k] = $curRev + 1;
+            $saved_keys[] = $k;
             $saved++;
         }
         if (!empty($dbWriteFailed)) {
@@ -1322,9 +1328,9 @@ switch($action) {
         $meta['_global'] = ['rev' => ($meta['_global']['rev'] ?? 0) + 1, 't' => date('Y-m-d H:i:s')];
         file_put_contents($meta_file, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
         if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
-        echo json_encode(['ok' => true, 'saved' => $saved, 'rev' => $meta['_global']['rev'], 'rejected' => $rejected,
-            'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
-            'conflicts' => $conflicts, 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 */
+        echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $meta['_global']['rev'], 'rejected' => array_values(array_unique($rejected)),
+            'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
+            'conflicts' => $conflicts, 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK */
         break;
 
     case 'data_pull':
