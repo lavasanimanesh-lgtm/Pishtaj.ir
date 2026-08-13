@@ -67,7 +67,7 @@ assert.strictEqual(removed.files.length, 0);
 assert.deepStrictEqual(Array.from(removed._deletedFileKeys), ['supplier/invoice.jpg']);
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.ok(/^v34\.4\.(?:3[8-9]|[4-9]\d|\d{3,})$/.test(version), 'release must retain or advance the v34.4.38 supplier attachment baseline');
+assert.ok(/^v34\.(?:4\.(?:3[8-9]|[4-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(version), 'release must retain or advance the v34.4.38 supplier attachment baseline');
 var current = version.slice(1);
 ['crm/index.html','crm/sw.js','crm/manifest.json','crm/clear-cache.html','crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');

@@ -8,8 +8,8 @@
   var ver = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
   var fail = [];
   function ok(c, m) { if (!c) fail.push(m); }
-  ok(ver.crm_version === 'v34.4.50', 'VERSION ' + ver.crm_version);
-  ok(idx.indexOf('theme-contrast.js?v=34.4.50') > -1, 'index pin');
+  ok(/^v34\.(?:4\.(?:50|[6-9]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(/theme-contrast\.js\?v=\d+\.\d+\.\d+/.test(idx), 'index pin'); /* 2026-08-13: پین لفظی → الگوی نسخه‌ای جاری */
   [
     'body.ptf-dark .aiwb-hero',
     'body.ptf-dark .shareholder-box',

@@ -12,7 +12,7 @@
   var dq = read('crm/data-quality.js');
   var ox = read('crm/opex.js');
   var ver = JSON.parse(read('VERSION.json'));
-  ok(/^v34\.4\.(5[4-9]|[6-9]\d)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
+  ok(/^v34\.(?:4\.((5[4-9]|[6-9]\d))|[5-9]\.\d+|\d{2,}\.\d+\.\d+)/.test(ver.crm_version), 'VERSION ' + ver.crm_version);
   ok(idx.indexOf("PTF_CRM_RELEASE = '") > -1, 'index release');
   ok(idx.indexOf('finance-write-guard.js?v=') > -1, 'guard pinned');
   ok(guard.indexOf('window.ptfFinanceAssertWritable') > -1, 'write gateway');

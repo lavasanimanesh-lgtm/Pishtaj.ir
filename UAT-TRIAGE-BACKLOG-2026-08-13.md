@@ -1,19 +1,11 @@
-# بک‌لاگ تریاژ سوئیت UAT — باقیمانده (2026-08-13، به‌روزشده)
+# بک‌لاگ تریاژ سوئیت UAT — باقیمانده (2026-08-13، به‌روزشدهٔ نهایی جلسه)
 
-**مبنا:** اجرای کامل `node _tools/run-full-regression.js` — 385 تستر: 290 سبز / 95 قرمز / ۰ کرش
+**مبنا:** اجرای کامل `node _tools/run-full-regression.js` — 381 تستر: 312 سبز / 69 قرمز
 **روش پردازش (هر ردیف):** اجرای تستر → مقایسه با ماژول متناظر → یکی از: (الف) به‌روزرسانی قرارداد، (ب) آرشیو با یادداشت، (ج) فیکس محصول.
-**اولویت:** ردیف‌های غیرتاریخی (v3x) اول — احتمال فیکس محصول واقعی بیشتر است.
 
 | تستر | شکست | خلاصهٔ شکست | تاریخی؟ |
 |---|---|---|---|
-| tester191-stock-rename.js | 2 | عنوان پنل و breadcrumb  | هدر ماژول و دکمه ثبت  | خیر |
-| tester196-parallel-offers.js | 1 | فهرست TO: دکمه «+CO گزینه ۲» به‌جای قفل مرده  | خیر |
-| tester203-myday-dedup.js | 1 | فقط اعلان actionable مستقیم کاربر به روز من افزوده می‌شود  | خیر |
-| tester203-v3300-finance-hub-toolbar.js | 1 | دکمه‌های پرداخت مستقیم/شارژ/ارجاع دوره داخل همان تولبار هستند  | خیر |
-| tester208-v3301-petty-period-report.js | 1 | دکمه‌های گزارش در renderPeriods (بازه/ماه) و تولبار هست  | خیر |
 | tester209-v3301-petty-combined-pdf.js | 2 | چیدمان ۳-در-صفحه: کلاس rcpt + ۳ تصویر + grid سه‌ستونه  | تبدیل به JPEG: فراخوانی endpoint سرور (با mock fetch)  | خیر |
-| tester212-v3304-petty-period-range.js | 2 | هزینهٔ مستقیم: «پرداخت مستقیم از تنخواه» دارد  | files با ids دوره فقط رسید همان دوره را برمی‌گرداند (PTY-2)  | خیر |
-| tester215-duplicate-growth-myday-dismiss.js | 1 | ptfSmartMerge برای RFQ/Offer دیگر no-collapse نیست و canonical merge می‌کند  | خیر |
 | tester215-v3305-cheque-module.js | 1 | مبلغ به حروف + تاریخ به حروف + فونت‌ها + قرمز در ماژول چاپ  | خیر |
 | tester254-advanced-cv-finalization-backlog-doc.js | 2 | PTF-MASTER-HANDOVER نسخه v31.7.97 را ثبت کرده است  | handover فایل‌ها و محدودیت‌های جدید را ثبت کرده است  | خیر |
 | tester261-advanced-cv-gtm-sales-plan.js | 1 | handover نسخه v31.7.97 را ثبت کرده است  | خیر |
@@ -23,31 +15,12 @@
 | tester276-semantic-icons-fiscal-dark.js | 2 | عنوان مرکز دانش آیکون کتاب SVG دارد، نه KC/emoji  | renderer واقعی kcIcon SVG می‌سازد  | خیر |
 | tester280-settings-semantic-icons.js | 1 | financial offers always show health check  | خیر |
 | tester291-hub-clean.js | 1 | finHubOrder شامل opexBox/slLiquidity/همه باکس‌هاست  | خیر |
-| tester300-delta-poll.js | 2 | krevs برای هر دو پول عادی و forceFull ارسال می‌شود (v34.5.2: کلیدهای تازه دوباره دانلود نمی‌شوند)  | نسخهٔ فعلی همگام: index.html + sw.js + clear-cache.html + ن | خیر |
 | tester300-v34.0.4-alpha-phase1-fixes.js | 3 | VERSION.json/index.html/sw.js هم‌نسخه نسخهٔ جاری هستند  | دکمهٔ وصول و تابع هم‌نام‌اند  | مسیر نسبی ../api درست شد  | خیر |
 | tester301-v34.0.5-alpha-fiscal-phase2.js | 2 | lockstep نسخهٔ جاری  | سلکتور سال (بدون input دستی سال)  | خیر |
-| tester302-v34.0.6-alpha-deploy-hygiene.js | 0 |  | خیر |
 | tester307-v34.0.11-alpha-quality-links.js | 1 | action اصلاح فاکتور خرید (slInvoiceEdit) در qualityRefsHtml هست  | خیر |
 | tester316-v34.4.12-opex-attachments.js | 1 | پیوست هزینهٔ لینک‌شده به پرونده در costEvent هم کپی می‌شود  | خیر |
-| tester329-v34.4.35-staging-rca.js | 0 |  | خیر |
-| tester330-v34.4.36-inline-attachment-view.js | 0 |  | خیر |
-| tester332-v34.4.38-supplier-ledger-attachment-persistence.js | 0 | : exit 1 | خیر |
-| tester335-v34.4.41-semantic-pdf-default-filenames.js | 0 |  | خیر |
-| tester337-v34.4.43-supplier-rfq-search-duplicate-guard.js | 0 | xit 1 | خیر |
-| tester338-v34.4.44-inline-pdf-single-ledger-rfq-card.js | 0 | t 1 | خیر |
-| tester339-v34.4.45-rfq-card-metadata-without-item-preview.js | 0 | : exit 1 | خیر |
 | tester34-claims.js | 1 | US-110/111: دکمه‌ها در پرونده وصل شدند (توابع مرده بودند)  | خیر |
-| tester344-v34.4.50-dark-module-css.js | 0 |  | خیر |
-| tester348-v34.4.54-finance-workflow-p0p2.js | 0 |  | خیر |
-| tester349-v34.4.55-finance-workflow-p3.js | 0 |  | خیر |
-| tester350-v34.4.56-finance-workflow-p4.js | 0 |  | خیر |
-| tester351-v34.4.57-finance-workflow-p5.js | 0 |  | خیر |
-| tester352-v34.4.58-finance-workflow-p6.js | 0 |  | خیر |
-| tester353-v34.4.59-finance-workflow-p7.js | 0 |  | خیر |
-| tester354-v34.4.60-finance-workflow-p8.js | 0 |  | خیر |
-| tester355-v34.4.61-petty-report-sort-files.js | 0 |  | خیر |
 | tester356-v34.4.62-petty-pdf-treasury.js | 0 |  | خیر |
-| tester372-v34.4.78-rfq-view-salesfile.js | 0 |  | خیر |
 | tester387-v34.4.94-rfq-no-offer-filter.js | 0 |  | خیر |
 | tester398-v34.5.7-migrate-prod-lock.js | 0 |  | خیر |
 | tester5-site.js | 1 | SW ثبت می‌شود (shell.js)  | خیر |

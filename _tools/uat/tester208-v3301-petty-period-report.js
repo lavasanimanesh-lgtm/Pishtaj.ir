@@ -56,7 +56,7 @@ setData('ptf_crm_petty_periods', []);
 
 SECTION('ساختار');
 T('توابع گزارش دوره موجودند', code.indexOf('window.ptfPettyPeriodReport') > -1 && code.indexOf('window.ptfPettyPeriodEvents') > -1 && code.indexOf('window.ptfPettyPeriodTotals') > -1 && code.indexOf('window.ptfPettyPeriodCsv') > -1 && code.indexOf('window.ptfPettyPeriodPrint') > -1);
-T('دکمه‌های گزارش در renderPeriods (بازه/ماه) و تولبار هست', code.indexOf('ptfPettyPeriodReport') > -1 && code.indexOf('ptfPettyPeriodCombinedPdf') > -1 && code.indexOf('📊 گزارش دورهٔ دلخواه') > -1 && code.indexOf('ptfPettyPeriodReportDialog') > -1 && code.indexOf('var rng = (p.from && p.to)') > -1);
+T('دکمه‌های گزارش در renderPeriods (بازه/ماه) و تولبار هست', code.indexOf('ptfPettyPeriodReport') > -1 && code.indexOf('ptfPettyPeriodCombinedPdf') > -1 && code.indexOf('گزارش تنخواه با بازهٔ دلخواه') > -1 /* 2026-08-13: برچسب تولبار تغییر کرد */ && code.indexOf('ptfPettyPeriodReportDialog') > -1 && code.indexOf('var rng = (p.from && p.to)') > -1);
 
 SECTION('رویدادهای دوره (Events)');
 var ev = ptfPettyPeriodEvents('1405/04');

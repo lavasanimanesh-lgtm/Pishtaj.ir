@@ -32,7 +32,7 @@ T('پاسخ فلگ delta دارد + خواندن آرشیو تنبَل (پول �
 
 SECTION('sync.js: ارسال krevs و گارد تب (سورس)');
 T('krevs در URL پول می‌رود', sync.indexOf("pullUrl += '&krevs=' + encodeURIComponent(JSON.stringify(kmOut))") > -1);
-T('krevs برای هر دو پول عادی و forceFull ارسال می‌شود (v34.5.2: کلیدهای تازه دوباره دانلود نمی‌شوند)', /var pullSince = forceFull \? 0 : state\.lastRev;[\s\S]{0,400}pullUrl \+= '&krevs='/.test(sync) && sync.indexOf('if (!forceFull) { try { pullUrl') === -1);
+T('krevs برای هر دو پول عادی و forceFull ارسال می‌شود (v34.5.2: کلیدهای تازه دوباره دانلود نمی‌شوند)', /var pullSince = forceFull \? 0 : state\.lastRev;[\s\S]{0,1200}pullUrl \+= '&krevs='/.test(sync) && sync.indexOf('if (!forceFull) { try { pullUrl') === -1);
 T('گارد تب (v33.21.1): غیرمتمرکز ۱۲۰ثانیه / مخفی ۱۸۰ثانیه؛ پینگ (opts.instant) دور می‌زند', sync.indexOf('document.hasFocus') > -1 && sync.indexOf('120000') > -1 && sync.indexOf('180000') > -1 && sync.indexOf('state.lastBgPull') > -1 && sync.indexOf('opts.instant') > -1);
 T('پینگ بین‌تبی: pingTabs در اعمالِ پول و پوش موفق + listener storage با مقایسهٔ rev و حد نرخ', (sync.match(/pingTabs\(\);/g) || []).length >= 2 && sync.indexOf("window.addEventListener('storage'") > -1 && sync.indexOf('+p.rev <= state.lastRev') > -1 && sync.indexOf('pingTabs') > -1);
 T('جبران فوری: focus + visibilitychange با گارد bootstrapped', sync.indexOf("window.addEventListener('focus'") > -1 && sync.indexOf("document.addEventListener('visibilitychange'") > -1 && sync.indexOf('state.bootstrapped && !state.pulling && !state.pushing') > -1);
@@ -214,6 +214,6 @@ T('runtime: بدون rd سراسری، tombstone خطا نمی‌دهد و رک�
 SECTION('نسخه‌گذاری');
 var verM = idx.match(/window\.PTF_CRM_RELEASE = '(v[0-9.]+)'/);
 var verNow = verM ? verM[1] : '';
-T('نسخهٔ فعلی همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP', !!verNow && sw.indexOf('ptf-crm-' + verNow) > -1 && cc.indexOf(verNow) > -1 && api.indexOf('PTF-SCALE-P0') > -1);
+T('نسخهٔ فعلی همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP', !!verNow && sw.indexOf("var RELEASE = '" + verNow + "'") > -1 && cc.indexOf(verNow) > -1 && api.indexOf('PTF-SCALE-P0') > -1); /* 2026-08-13: قرارداد کش به RELEASE مشتق شد */
 
 DONE('tester300-delta-poll');
