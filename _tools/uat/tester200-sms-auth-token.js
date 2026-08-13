@@ -52,6 +52,6 @@ T('گارد _ptfFetchTokWrapped: بدون double-wrap', window.fetch === fetchBe
 
 SECTION('پوشش ماژول‌های آسیب‌دیده (سند دامنه باگ)');
 var sms = fs.readFileSync(path.join(ROOT, 'crm/sms.js'), 'utf-8');
-T('sms.js همچنان بدون توکن دستی است — wrapper پوشش می‌دهد (بدون تغییر ماژول)', sms.indexOf('X-CRM-Token') === -1 && sms.indexOf('sms_bulk') > -1);
+T('sms.js توکن را با هلپر خودش می‌فرستد (smsAuthHeaders) و wrapper هم پابرجاست', sms.indexOf('smsAuthHeaders') > -1 && sms.indexOf("h['X-CRM-Token'] = t") > -1 && sms.indexOf('sms_bulk') > -1); /* 2026-08-13: تزریق توکن به‌درون ماژول منتقل شد */
 
 DONE('tester200-sms-auth-token');

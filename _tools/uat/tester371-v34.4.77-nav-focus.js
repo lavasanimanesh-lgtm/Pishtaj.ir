@@ -26,7 +26,7 @@ var idx = fs.readFileSync(path.join(root, 'crm/index.html'), 'utf8');
 ok(idx.indexOf('nav-focus.js') > -1, 'index loads nav-focus');
 
 var ver = JSON.parse(fs.readFileSync(path.join(root, 'VERSION.json'), 'utf8'));
-ok(ver.crm_version === 'v34.4.77', 'version 34.4.77');
+ok(/^v34\.(?:4\.(?:77|[89]\d|\d{3,})|[5-9]\.\d+|\d{2,}\.\d+\.\d+)$/.test(ver.crm_version), 'version baseline'); /* 2026-08-13: پین لفظی → حفظ/پیشروی خط مبنا */
 
 if (fails.length) {
   console.error('FAIL\n' + fails.join('\n'));

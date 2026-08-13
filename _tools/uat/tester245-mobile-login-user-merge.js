@@ -14,7 +14,7 @@ T('helper هر سه منبع users/crm_users/sync را merge می‌کند', api
 T('merge passhash موجود را هنگام رکورد safe/stale حفظ می‌کند', api.indexOf("if (empty($next['passhash']) && !empty($prev['passhash']))") > -1);
 T('auth_login از منبع merged استفاده می‌کند نه اولین منبع non-empty', /case 'auth_login':[\s\S]*?foreach \(load_all_crm_users_sources\(\) as \$u\)/.test(api));
 var usersGetBlock = (api.match(/case 'users_get':[\s\S]*?break;/) || [''])[0];
-T('users_get از منبع merged استفاده می‌کند و همچنان passhash برنمی‌گرداند', usersGetBlock.indexOf('$all_users = load_all_crm_users_sources();') > -1 && usersGetBlock.indexOf("'username' => $u['username']") > -1 && usersGetBlock.indexOf("'email'    => $u['email']") > -1 && usersGetBlock.indexOf("'passhash' =>") === -1 && usersGetBlock.indexOf('passhash =>') === -1);
+T('users_get از منبع merged استفاده می‌کند و همچنان passhash برنمی‌گرداند', usersGetBlock.indexOf('$all_users = load_all_crm_users_sources();') > -1 && /'username'\s*=>\s*\$u\['username'\]/.test(usersGetBlock) && usersGetBlock.indexOf("'passhash' =>") === -1 && usersGetBlock.indexOf('passhash =>') === -1); /* 2026-08-13: فیلدهای امن با ?? و email شرطی-احراز بازنویسی شد */
 T('users_sync برای بازیابی هش، existing users را از همه منابع می‌خواند', /case 'users_sync':[\s\S]*?\$existing_srv = load_all_crm_users_sources\(\);/.test(api));
 
 SECTION('Client mobile login fallback');
