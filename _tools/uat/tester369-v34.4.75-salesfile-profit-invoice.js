@@ -7,13 +7,17 @@ var root = path.join(__dirname, '../..');
 function read(p) { return fs.readFileSync(path.join(root, p), 'utf8'); }
 function fail(m) { console.log('FAIL ' + m); process.exit(1); }
 var ver = JSON.parse(read('VERSION.json'));
-if (ver.crm_version !== 'v34.4.75') fail('VERSION ' + ver.crm_version);
+/* 2026-08-13: پین لفظی v34.4.75 → قرارداد «حفظ یا پیشروی خط مبنا» (الگوی tester340) */
+var vm3 = String(ver.crm_version || '').match(/^v(\d+)\.(\d+)\.(\d+)$/);
+if (!vm3) fail('VERSION ' + ver.crm_version);
+if (+vm3[1] < 34 || (+vm3[1] === 34 && (+vm3[2] < 4 || (+vm3[2] === 4 && +vm3[3] < 75)))) fail('VERSION ' + ver.crm_version);
 var fx = read('crm/fx.js');
-var sf = read('crm/salesfiles.js');
 if (fx.indexOf('تا صدور فاکتور فروش') < 0) fail('no invoice gate');
 if (fx.indexOf('جمع پیشنهاد مالی (فاکتور هنوز ثبت نشده)') >= 0) fail('CO fallback still present');
-if (sf.indexOf('isAdvanceCost') < 0) fail('advance filter');
-if (sf.indexOf('خرید تأمین') < 0) fail('buy breakdown');
+/* 2026-08-13: دو چک UI منسوخ حذف شد — v34.5.8 (SALESFILE-PROFIT-GONE)
+   نمایش سود از پروندهٔ فروش برداشته شد؛ بنابراین isAdvanceCost و «خرید تأمین»
+   دیگر در salesfiles.js وجود ندارند (تستر343 همین حذف را پاس می‌کند).
+   گیت موتور سود (فاکتور فروش/فاکتور خرید) دست‌نخورده است و پایین تست می‌شود. */
 
 function runProfit(store) {
   var ctx = {
