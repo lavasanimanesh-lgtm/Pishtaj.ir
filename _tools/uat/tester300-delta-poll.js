@@ -31,8 +31,8 @@ T('سازگاری عقب: فیلتر فقط وقتی krevs ارسال شده (ب
 T('پاسخ فلگ delta دارد + خواندن آرشیو تنبَل (پول بدون‌تغییر دیسک را نمی‌خواند)', api.indexOf("'delta' => ($krevs !== null)") > -1 && api.indexOf('$serverArchiveJson = null;') > -1 && api.indexOf('if ($serverArchiveJson === null)') > -1);
 
 SECTION('sync.js: ارسال krevs و گارد تب (سورس)');
-T('krevs در URL پول می‌رود', sync.indexOf("'&krevs=' + encodeURIComponent(JSON.stringify(krevs()))") > -1);
-T('krevs فقط برای پول عادی است — forceFull (بوت/بازسازی) since=0 و بدون krevs', /var pullSince = forceFull \? 0 : state\.lastRev;[\s\S]{0,400}if \(!forceFull\) \{ try \{ pullUrl \+= '&krevs='/.test(sync));
+T('krevs در URL پول می‌رود', sync.indexOf("pullUrl += '&krevs=' + encodeURIComponent(JSON.stringify(kmOut))") > -1);
+T('krevs برای هر دو پول عادی و forceFull ارسال می‌شود (v34.5.2: کلیدهای تازه دوباره دانلود نمی‌شوند)', /var pullSince = forceFull \? 0 : state\.lastRev;[\s\S]{0,400}pullUrl \+= '&krevs='/.test(sync) && sync.indexOf('if (!forceFull) { try { pullUrl') === -1);
 T('گارد تب (v33.21.1): غیرمتمرکز ۱۲۰ثانیه / مخفی ۱۸۰ثانیه؛ پینگ (opts.instant) دور می‌زند', sync.indexOf('document.hasFocus') > -1 && sync.indexOf('120000') > -1 && sync.indexOf('180000') > -1 && sync.indexOf('state.lastBgPull') > -1 && sync.indexOf('opts.instant') > -1);
 T('پینگ بین‌تبی: pingTabs در اعمالِ پول و پوش موفق + listener storage با مقایسهٔ rev و حد نرخ', (sync.match(/pingTabs\(\);/g) || []).length >= 2 && sync.indexOf("window.addEventListener('storage'") > -1 && sync.indexOf('+p.rev <= state.lastRev') > -1 && sync.indexOf('pingTabs') > -1);
 T('جبران فوری: focus + visibilitychange با گارد bootstrapped', sync.indexOf("window.addEventListener('focus'") > -1 && sync.indexOf("document.addEventListener('visibilitychange'") > -1 && sync.indexOf('state.bootstrapped && !state.pulling && !state.pushing') > -1);
@@ -92,7 +92,7 @@ function urlParam(url, name) {
 }
 
 SECTION('sync.js (runtime): pullCheck');
-var s1 = mkSyncSandbox({ store: { ptf_crm_token: 'tok', ptf_sync_rev: '4', ptf_sync_krevs: '{"ptf_crm_leads":5,"ptf_crm_customers":3}' } });
+var s1 = mkSyncSandbox({ store: { ptf_crm_token: 'tok', ptf_sync_rev: '4', ptf_sync_krevs: '{"ptf_crm_leads":5,"ptf_crm_customers":3}', ptf_crm_leads: '[{"id":"L1"}]', ptf_crm_customers: '[{"id":"C9"}]' } });
 s1.sandbox.__pullCheck();
 var kr1 = urlParam(s1.calls[0] || '', 'krevs');
 T('پول عادی: since=۴ و krevs همان نقشهٔ ذخیره‌شده است', s1.calls.length === 1 && urlParam(s1.calls[0], 'since') === '4' && kr1 !== null && JSON.parse(decodeURIComponent(kr1)).ptf_crm_leads === 5 && JSON.parse(decodeURIComponent(kr1)).ptf_crm_customers === 3);
@@ -109,9 +109,9 @@ s3.sandbox.__pullCheck();
 s3.sandbox.__pullCheck();
 T('تب غیرمتمرکز (دیده‌شده): اولین پول می‌رود ولی دومی در پنجرهٔ ۱۲۰ثانیه دفع می‌شود', s3.calls.length === 1);
 
-var s4 = mkSyncSandbox({ store: { ptf_crm_token: 'tok', ptf_sync_rev: '4', ptf_sync_krevs: '{"ptf_crm_leads":5}' }, response: { ok: true, rev: 2, delta: false, data: {}, meta: { _global: { rev: 2 } } } });
+var s4 = mkSyncSandbox({ store: { ptf_crm_token: 'tok', ptf_sync_rev: '4', ptf_sync_krevs: '{"ptf_crm_leads":5}', ptf_crm_leads: '[{"id":"L1"}]' }, response: { ok: true, rev: 2, delta: false, data: {}, meta: { _global: { rev: 2 } } } });
 s4.sandbox.__pullCheck(null, true);
-T('forceFull: since=0 و بدون krevs (اسنп‌شات کامل بوت — همان رفتار قدیمی)', s4.calls.length === 1 && urlParam(s4.calls[0], 'since') === '0' && urlParam(s4.calls[0], 'krevs') === null);
+T('forceFull: since=0 و krevs همراه می‌رود (v34.5.2)', s4.calls.length === 1 && urlParam(s4.calls[0], 'since') === '0' && JSON.parse(decodeURIComponent(urlParam(s4.calls[0], 'krevs') || '{}')).ptf_crm_leads === 5);
 
 var deltaResp = {
   ok: true, rev: 7, delta: true,
@@ -212,7 +212,7 @@ try {
 T('runtime: بدون rd سراسری، tombstone خطا نمی‌دهد و رکورد حذف‌شده فیلتر می‌شود', tombOk && Array.isArray(tombOut) && tombOut.length === 1 && tombOut[0].id === 'L-OK');
 
 SECTION('نسخه‌گذاری');
-var verM = idx.match(/window\.VER = '(v[0-9.]+)'/);
+var verM = idx.match(/window\.PTF_CRM_RELEASE = '(v[0-9.]+)'/);
 var verNow = verM ? verM[1] : '';
 T('نسخهٔ فعلی همگام: index.html + sw.js + clear-cache.html + نشان PTF-SCALE-P0 در PHP', !!verNow && sw.indexOf('ptf-crm-' + verNow) > -1 && cc.indexOf(verNow) > -1 && api.indexOf('PTF-SCALE-P0') > -1);
 

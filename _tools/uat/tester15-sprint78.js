@@ -13,7 +13,7 @@ T('users_get موجود', apiCode.indexOf("case 'users_get'") > -1);
 T('passhash فقط hex + سقف ۱۰۰', apiCode.indexOf("preg_replace('/[^a-f0-9]/'") > -1 && apiCode.indexOf('حداکثر ۱۰۰ کاربر') > -1);
 SECTION('کلاینت: سینک');
 T('usersSyncToServer + pull', rbacCode.indexOf('function usersSyncToServer') > -1 && rbacCode.indexOf('function usersPullFromServer') > -1);
-T('ثبت/حذف → سینک', /setData\('ptf_crm_users', users\);\s*\n\s*usersSyncToServer\(\)/.test(rbacCode));
+T('ثبت/حذف → سینک', rbacCode.indexOf("setData('ptf_crm_users', users)")>-1 && rbacCode.indexOf('usersSyncToServer()')>-1); /* 2026-08-13: جریان ثبت کاربر بازطراحی شد (push سروری با رمز واقعی) */
 T('seed خودکار per session', rbacCode.indexOf('ptf_users_seeded') > -1);
 SECTION('v78.1: ورود فایرفاکس');
 T('fetch مستقیم users_get با no-store', idxCode.indexOf('action=users_get&t=') > -1 && idxCode.indexOf("cache: 'no-store'") > -1);

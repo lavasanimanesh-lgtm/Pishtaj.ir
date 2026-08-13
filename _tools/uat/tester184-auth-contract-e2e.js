@@ -19,7 +19,7 @@ T('verify_request از auth_verify_token (JWT) استفاده می‌کند نه
   !/function verify_request\(\)[\s\S]{0,1200}hash_hmac\('sha256',\s*\$_SERVER\['REMOTE_ADDR'\]/.test(api));
 T('users_get در public_actions است (لاگین قبل از وجود توکن)',
   /\$public_actions\s*=\s*\[[^\]]*'users_get'/.test(api));
-T('data_rev در public_actions است', /\$public_actions\s*=\s*\[[^\]]*'data_rev'/.test(api));
+T('data_rev دیگر عمومی نیست — endpoint محافظت‌شده است (v34.5.2: حذف hop و یک رفت‌وبرگشت)', /case 'data_rev':\s*\n\s*verify_request\(\);/.test(api));
 T('bridge.js هدر X-CRM-Token می‌فرستد', /X-CRM-Token/.test(bridge));
 T('sync.js هدر X-CRM-Token می‌فرستد', /X-CRM-Token/.test(sync));
 T('auth_login از sync directory هم می‌خواند', /sync\/ptf_crm_users\.json/.test(api));
@@ -51,9 +51,9 @@ if (!phpBin) {
       var up = false;
       for (var i = 0; i < 20 && !up; i++) {
         await new Promise(function (r) { setTimeout(r, 250); });
-        try { var r0 = await fetch(B + '?action=data_rev'); up = r0.status === 200; } catch (e) {}
+        try { var r0 = await fetch(B + '?action=users_get'); up = r0.status === 200; } catch (e) {}
       }
-      T('سرور PHP بالا آمد و data_rev بدون توکن 200 است', up);
+      T('سرور PHP بالا آمد و users_get بدون توکن 200 است', up);
 
       var rNoTok = await fetch(B + '?action=data_pull');
       var jNoTok = await rNoTok.json().catch(function () { return {}; });

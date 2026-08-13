@@ -17,7 +17,7 @@ T('فقط درخواست‌های api/crm.php دستکاری می‌شوند', /
 T('توکن موجود بازنویسی نمی‌شود (احترام به هدر صریح ماژول‌ها)', /!h\['X-CRM-Token'\] && !h\['x-crm-token'\]/.test(uk) && /!h\.has\('X-CRM-Token'\)/.test(uk));
 T('پشتیبانی از هر دو شکل headers (object و Headers)', /instanceof Headers/.test(uk));
 T('ui-kit.js اول از همه ماژول‌ها لود می‌شود (پوشش کامل)', (function () {
-  var scripts = idx.match(/<script src="[^"]+\.js\?v=/g) || [];
+  var scripts = idx.match(/<script[^>]*src="[^"]+\.js\?v=/g) || [];
   return scripts.length && scripts[0].indexOf('ui-kit.js') > -1;
 })());
 
