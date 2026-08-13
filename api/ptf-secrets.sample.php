@@ -29,4 +29,8 @@ return [
     // Key for server-only dangerous maintenance actions, min 32 random chars.
     // This key must never be sent by browser JavaScript.
     'sensitive_action_key' => 'CHANGE_ME_RANDOM_SENSITIVE_ACTION_KEY_64_CHARS',
+
+    // Production lock for /api/migrate.php. Leave empty. Set to 1 only for the
+    // official MySQL switch, then remove it. Staging is never locked.
+    'migrate_allow' => '',
 ];

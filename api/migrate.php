@@ -19,9 +19,36 @@
 if (php_sapi_name() === 'cli') { echo "این فایل فقط از مرورگر اجرا می‌شود.\n"; exit; }
 
 require_once __DIR__ . '/db-lib.php';
+require_once __DIR__ . '/secrets.php';
 
 header('Content-Type: text/html; charset=utf-8');
 header('X-Robots-Tag: noindex');
+header('Cache-Control: no-store');
+
+/* v34.5.7: روی پروداکشن قفل است تا سوییچ رسمی MySQL.
+   استیجینگ آزاد است. برای باز کردن پروداکشن یکی از این دو:
+     • در ptf-secrets.php مقدار migrate_allow را 1 کنید
+     • فایل ptf-migrate.unlock را کنار همان سکرت (خارج از webroot) بسازید
+   بعد از سوییچ، هر دو را بردارید. */
+function ptf_migrate_unlocked() {
+    $flag = strtolower((string)load_ptf_secret('migrate_allow', ''));
+    if (in_array($flag, ['1', 'yes', 'true', 'on'], true)) return true;
+    foreach (ptf_secret_config_paths() as $sec) {
+        $unlock = dirname($sec) . DIRECTORY_SEPARATOR . 'ptf-migrate.unlock';
+        if (is_file($unlock) && is_readable($unlock)) return true;
+    }
+    return false;
+}
+if (ptf_runtime_environment() === 'production' && !ptf_migrate_unlocked()) {
+    http_response_code(403);
+    echo '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>مهاجرت قفل است</title></head><body style="font-family:Tahoma,sans-serif;background:#f1f5f9;margin:0;padding:24px">';
+    echo '<div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #fecaca;border-radius:16px;padding:22px 26px">';
+    echo '<h1 style="font-size:18px;color:#991b1b;margin:0 0 10px">migrate.php روی پروداکشن قفل است</h1>';
+    echo '<p style="font-size:14px;color:#334155;line-height:1.9">این ویزارد تا سوییچ رسمی MySQL روی pishtaj.ir اجرا نمی‌شود. آزمایش روی <b>staging.pishtaj.ir</b> آزاد است.</p>';
+    echo '<p style="font-size:13px;color:#64748b;line-height:1.8">برای باز کردن موقت پروداکشن: فایل <span style="direction:ltr">ptf-migrate.unlock</span> را کنار <span style="direction:ltr">ptf-secrets.php</span> (خارج از webroot) بسازید، یا در همان فایل سکرت <span style="direction:ltr">migrate_allow = 1</span> بگذارید. بعد از سوییچ هر دو را حذف کنید.</p>';
+    echo '</div></body></html>';
+    exit;
+}
 
 $data_dir = __DIR__ . '/../crm/data';
 if (!is_dir($data_dir)) { @mkdir($data_dir, 0755, true); }

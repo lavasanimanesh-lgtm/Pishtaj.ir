@@ -1,5 +1,5 @@
 diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
-index 6817d26..8dc5630 100644
+index 6817d26..cf39f43 100644
 --- a/.github/workflows/deploy-production.yml
 +++ b/.github/workflows/deploy-production.yml
 @@ -81,6 +81,14 @@ jobs:
@@ -17,6 +17,15 @@ index 6817d26..8dc5630 100644
        - name: Deploy via FTP
          uses: SamKirkland/FTP-Deploy-Action@v4.3.5
          with:
+@@ -105,6 +113,8 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/migrate.php
++            api/data-health-check.php
+ 
+       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
 diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
 index df419b5..03b3ce9 100644
 --- a/.github/workflows/deploy-staging.yml

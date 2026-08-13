@@ -23,7 +23,8 @@ var SUITE = [
   { g: 'مالی', f: '_tools/uat/tester381-v34.4.87-fiscal-call-credit.js' },
   { g: 'مالی', f: '_tools/uat/tester384-v34.4.90-opex-cheque.js' },
   { g: 'مالی', f: '_tools/uat/tester396-v34.5.6-ci-gate-contracts.js' },
-  { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' }
+  { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
+  { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
 
 var SYNTAX = [
