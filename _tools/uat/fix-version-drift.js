@@ -61,7 +61,11 @@ var rules = [
   /* مقایسهٔ کش با vm[1] در tester301-سبک */
   { id: 'R-P vmsw',   re: /sw\.indexOf\('ptf-crm-' \+ vm\[1\]\)/g, rep: "sw.indexOf(\"var RELEASE = '\" + vm[1] + \"'\")" },
   /* اعلان قدیمی کش بدون کوتیشن انتهایی (موج سوم) */
-  { id: 'R-Q cacheNQ', re: /\/var CACHE = 'ptf-crm-v\\d\+\(\?:\\\.\\d\+\)\+\/\.test\(([^)]*)\)/g, rep: function (m, arg) { return "/var RELEASE = 'v\\d+(?:\\.\\d+)+'/.test(" + arg + ")"; } }
+  { id: 'R-Q cacheNQ', re: /\/var CACHE = 'ptf-crm-v\\d\+\(\?:\\\.\\d\+\)\+\/\.test\(([^)]*)\)/g, rep: function (m, arg) { return "/var RELEASE = 'v\\d+(?:\\.\\d+)+'/.test(" + arg + ")"; } },
+  /* اعلان قدیمی کش با گروه در match (بدون کوتیشن انتهایی) */
+  { id: 'R-S cacheG', re: /\/var CACHE = 'ptf-crm-v\(\[0-9\.\]\+\)'\//g, rep: "/var RELEASE = 'v([0-9.]+)'/" },
+  /* رشتهٔ لفظی کامل کش نسخه‌دار در indexOf (مثل uat-scenarios) */
+  { id: 'R-T cacheL', re: /\.indexOf\("var CACHE = 'ptf-crm-v[^"]*"\)/g, rep: ".indexOf(\"var RELEASE = '\")" }
 ];
 
 var files = fs.readdirSync(DIR).filter(function (f) {

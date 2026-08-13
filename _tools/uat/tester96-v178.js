@@ -14,7 +14,7 @@ var sw = fs.readFileSync(path.join(BASE, 'sw.js'), 'utf-8');
 SECTION('نسخه و ثبت کلیدها');
 T('نسخه v17.8+', (function(){var m=idx.match(/window.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
 T('window.VER هم یکدست v17.8+', (function(){var m=idx.match(/window\.PTF_CRM_RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
-T('کش sw v17.8+', (function(){var m=sw.match(/var CACHE = 'ptf-crm-v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
+T('کش sw v17.8+', (function(){var m=sw.match(/var RELEASE = 'v([0-9.]+)'/);return m&&parseFloat(m[1])>=17.8;})());
 T('cache-bust petty/sync/backup/golive/storage >=17.8', ['petty.js','sync.js','backup.js','golive.js','storage.js'].every(function(f){ var m=idx.match(new RegExp(f.replace('.', '\\.')+'\\?v=([0-9.]+)')); return m && parseFloat(m[1])>=17.8; }));
 T('کلیدهای حساب تنخواه در sync + guard', (function(){ var gm=(sy.match(/var GUARD_KEYS = \[[^\]]*\]/)||[''])[0]; return ['ptf_crm_petty_tx','ptf_crm_petty_periods'].every(function(k){ return sy.indexOf("'"+k+"'")>-1 && gm.indexOf(k)>-1; }); })());
 T('کلیدها در backup/golive/api whitelist', bk.indexOf("'ptf_crm_petty_tx'")>-1 && gl.indexOf("'ptf_crm_petty_periods'")>-1 && api.indexOf("'ptf_crm_petty_tx'")>-1 && api.indexOf("'ptf_crm_opex'")>-1);
@@ -76,7 +76,7 @@ pettyDirectPay(); dlg.onOk({amt:99999999, cat:'سایر', doc:'X', desc:'X'});
 T('موجودی ناکافی جلوی پرداخت را می‌گیرد', global._alerts.some(function(a){return a.indexOf('موجودی حساب تنخواه کافی نیست')>-1;}) && ptfPettyBalance() === 650000);
 
 /* دوره */
-global._alerts=[]; global._sms=[]; pettyClosePeriod(); dlg.onOk({month:(getData('ptf_crm_petty')[0] || {}).month, note:'گزارش ماه', sms:'yes'});
+global._alerts=[]; global._sms=[]; pettyClosePeriod(); dlg.onOk({from:'1405/04/01', to:'1405/05/31', bankFile:[{key:'bank.pdf', name:'bank.pdf', size:1024}], note:'گزارش ماه', sms:'yes'});
 var pr = getData('ptf_crm_petty_periods')[0];
 T('ارجاع دوره: period referred با گردش/مانده و ids', pr.st === 'referred' && pr.totalOut === 350000 && pr.balance === 650000 && pr.txIds.length >= 3 && pr.pettyIds.length >= 2);
 T('ارجاع دوره به حسابدار notify + sms اختیاری می‌زند', global._lastNotify && global._lastNotify.toRoles[0] === 'accountant' && global._sms.length === 1);

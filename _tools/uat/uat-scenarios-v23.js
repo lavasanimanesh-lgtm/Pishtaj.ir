@@ -106,7 +106,7 @@ T('getState مقدار پیش‌فرض mine برمی‌گرداند', (function(
 
 /* سناریو ۵: Service Worker SHELL و regex isShell */
 SECTION('سناریو ۵: Service Worker');
-T('sw.js CACHE = ptf-crm-v21.0', sw.indexOf("var CACHE = 'ptf-crm-v21.0'") > -1);
+T('sw.js قرارداد RELEASE نسخه‌دار (v21.0+)', sw.indexOf("var RELEASE = '") > -1);
 T('sw.js SHELL شامل my-customers-filter', sw.indexOf("'./my-customers-filter.js'") > -1);
 T('sw.js SHELL شامل ai-workbench', sw.indexOf("'./ai-workbench.js'") > -1);
 T('sw.js SHELL شامل xlsx.min.js', sw.indexOf("'./xlsx.min.js'") > -1);

@@ -49,6 +49,14 @@ global.ptfToast = function () {};
   ok = ex('window.ptfFaMonthNow', /window\.ptfFaMonthNow = function[\s\S]*?\n  \};/) && ok;
   ok = ex('function normMonth', /function normMonth\(m\) \{[\s\S]*?\n  \}/) && ok;
   ok = ex('window.ptfOpexSum', /window\.ptfOpexSum = function[\s\S]*?\n    return out;\n  \};/) && ok;
+  ok = ex('function oRows', /function oRows\(\) \{[\s\S]*?\n  \}/) && ok; /* 2026-08-13: ptfOpexSum به oRows خصوصی وابسته است */
+  ok = ex('function opexEnsureRowIds', /function opexEnsureRowIds\(list\) \{[\s\S]*?\n  \}/) && ok; /* v34.4.46: مهاجرت شناسهٔ ردیف داخل oRows */
+  global.OPEX_ROW_ID = '_opexRowId'; /* v34.4.46: ثابت IIFE ماژول */
+  ok = ex('function opexNewRowId', /function opexNewRowId\(\) \{[\s\S]*?\n  \}/) && ok;
+  global.opexRowSeq = 0; /* شمارندهٔ IIFE ماژول */
+  global.K = 'ptf_crm_opex'; /* ثابت کلید ذخیرهٔ IIFE ماژول */
+  ok = ex('function opexNextCode', /function opexNextCode\(list\) \{[\s\S]*?\n  \}/) && ok;
+  global.genCode = function (p) { return p + '-' + (++global._sq9 || (global._sq9 = 1)); }; /* وابستهٔ opexNextCode */
   ok = ex('function tpls', /function tpls\(\) \{[\s\S]*?\n  \}/) && ok;
   ok = ex('function saveTpls', /function saveTpls\(list\) \{[\s\S]*?\n  \}/) && ok;
   ok = ex('window.ptfOpexPendingTpls', /window\.ptfOpexPendingTpls = function[\s\S]*?\n  \};/) && ok;
