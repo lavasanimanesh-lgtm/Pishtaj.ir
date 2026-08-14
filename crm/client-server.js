@@ -150,7 +150,7 @@
       if (window.__ptfBKeys) return window.__ptfBKeys;
       /* سعی می‌کنیم از state/sync.js لیست را بگیریم — fallback: کلیدهای معروف */
       if (window._ptfSyncKeys) { window.__ptfBKeys = window._ptfSyncKeys.slice(); return window.__ptfBKeys; }
-      var known = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_surplus','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_treasury_calls','ptf_crm_bank_recon'];
+      var known = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_surplus','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_treasury_calls','ptf_crm_bank_recon'];
       window.__ptfBKeys = known;
       return known;
     } catch (e) { return []; }
@@ -278,13 +278,23 @@
   /* ---------- صف آفلاین ---------- */
   function queueKey() { return 'ptf_b_queue'; }
   function queueRead() { try { return JSON.parse(localStorage.getItem(queueKey()) || '{}'); } catch (e) { return {}; } }
-  function queueWrite(q) { try { localStorage.setItem(queueKey(), JSON.stringify(q)); } catch (e) {} }
+  function queueWrite(q) {
+    try {
+      var raw = JSON.stringify(q);
+      if (typeof ptfStorageSafeSetItem === 'function') return ptfStorageSafeSetItem(queueKey(), raw, { noWarn: true }) !== false;
+      return localStorage.setItem(queueKey(), raw) !== false;
+    } catch (e) { return false; }
+  }
   function queueAdd(k) {
-    var q = queueRead(); q[k] = (q[k] || 0) + 1; queueWrite(q);
+    var q = queueRead(); q[k] = (q[k] || 0) + 1;
+    /* صف آفلاین، write-ahead record است. اگر پایدار نشود نباید caller تصور کند
+       داده قابل بازیابی است؛ خطا به setData برمی‌گردد. */
+    if (!queueWrite(q)) return false;
     try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(k); } catch (e) {}
+    return true;
   }
   function queueClear(keys) {
-    var q = queueRead(); (keys || []).forEach(function (k) { delete q[k]; }); queueWrite(q);
+    var q = queueRead(); (keys || []).forEach(function (k) { delete q[k]; }); return queueWrite(q);
   }
 
   /* ---------- v33.19.0: ارسال دسته‌ای (هر بار حداکثر ۲۰ کلید) ----------
@@ -340,13 +350,20 @@
   /* ---------- هم‌گرایی یک‌باره (تأیید کاربر) ---------- */
   function flushRequired() { try { return localStorage.getItem(flushKey()) !== '1'; } catch (e) { return false; } }
   function markFlushed() { try { localStorage.setItem(flushKey(), '1'); } catch (e) {} }
-  window.ptfBFinalize = function () {
-    /* هم‌گرایی یک‌باره: دادهٔ محلی → سرور (با تأیید کاربر) */
+  window.ptfBFinalize = function (opts) {
+    opts = opts || {};
+    /* هم‌گرایی یک‌باره: دادهٔ محلی → سرور. در حالت خودکار فقط دستگاه تازه
+       (بدون payload کسب‌وکاری) مجاز است؛ دادهٔ موجود هرگز بدون تأیید overwrite نمی‌شود. */
     if (flushRequired()) {
       var keys = bKeys();
       var payload = {};
       keys.forEach(function (k) { var v = localGet(k); if (v !== null) payload[k] = v; });
       if (Object.keys(payload).length) {
+        if (opts.auto) {
+          /* هرگز payload موجود را در auto-mode به سرور نمی‌فرستیم. این guard حتی اگر
+             caller اشتباه کند، جلوی seed/merge خاموش روی دستگاه قدیمی را می‌گیرد. */
+          return { ok: false, reason: 'local_data_requires_review' };
+        }
         var ok = confirm('🌐 هم‌گرایی داده با سرور\n\nدادهٔ محلی مرورگر شما یک‌بار به سرور منتقل می‌شود تا با دیتابیس یکپارچه شود (localStorage پس از آن فقط کش می‌شود).\n\nادامه می‌دهید؟');
         if (!ok) { alert('می‌توانید بعداً از «تنظیمات → هم‌گرایی داده» این کار را انجام دهید.'); return; }
         /* v33.18.0: فلگ را قبل از ارسال ست می‌کنیم تا در همان session دوباره نپرسد؛
@@ -375,6 +392,38 @@
   window.ptfBConfirmFlush = function () {
     try { localStorage.removeItem(flushKey()); localStorage.removeItem(syncedKey()); } catch (e) {}
     window.ptfBFinalize();
+  };
+
+  /* کاربران جدید نباید تنظیمات را بدانند. فقط در دستگاه واقعاً تازه (هیچ key
+     کسب‌وکاری محلی و هیچ صفی ندارد) فاز B بی‌صدا فعال می‌شود؛ در هر حالت مبهم
+     هیچ داده‌ای push/merge/پاک نمی‌شود و Sync استاندارد همچنان محافظت می‌کند. */
+  function hasLocalBusinessPayload() {
+    var ignore = { ptf_crm_settings: 1, ptf_crm_audit: 1, ptf_crm_notifs: 1, ptf_crm_notifprefs: 1, ptf_crm_sendqueue: 1 };
+    try {
+      return bKeys().some(function (k) {
+        if (ignore[k]) return false;
+        var raw = localGet(k);
+        if (!raw || raw === '[]' || raw === '{}' || raw === 'null') return false;
+        try { var v = JSON.parse(raw); return Array.isArray(v) ? v.length > 0 : !!(v && typeof v === 'object' && Object.keys(v).length); }
+        catch (e) { return raw.length > 2; }
+      });
+    } catch (e2) { return true; } /* عدم قطعیت = محافظه‌کاری */
+  }
+  window.ptfBAutoBootstrap = function () {
+    try {
+      var u = (typeof curSession === 'function' ? curSession() : {}) || {};
+      if (!u.user) return { ok: false, reason: 'no_session' };
+      if (getFlag()) {
+        if (flushRequired() && !hasLocalBusinessPayload()) window.ptfBFinalize({ auto: true });
+        return { ok: true, enabled: true, reason: 'already_enabled' };
+      }
+      if (hasLocalBusinessPayload() || Object.keys(queueRead()).length) return { ok: false, reason: 'existing_local_data' };
+      localStorage.setItem(flagKey(), '1');
+      hook();
+      window.ptfBFinalize({ auto: true });
+      try { if (typeof addLog === 'function') addLog('حالت سرور-محور برای دستگاه تازه به‌صورت خودکار فعال شد'); } catch (eL) {}
+      return { ok: true, enabled: true, reason: 'fresh_device' };
+    } catch (e) { return { ok: false, reason: 'error' }; }
   };
 
   /* ---------- v33.19.0: پاک‌سازی امن کش محلی ----------
@@ -460,17 +509,30 @@
         if (!getFlag()) return _set(k, d);
         if (!bKeys().indexOf) return _set(k, d);
         if (bKeys().indexOf(k) === -1) return _set(k, d);
+        /* audit داخلی در نقش محدود محلی می‌ماند و sync.js آن را dirty نمی‌کند؛
+           آن را مثل دادهٔ کسب‌وکاریِ نقش‌ممنوع block نکنید. */
+        if (k !== 'ptf_crm_audit' && typeof window.ptfSyncCanWriteKey === 'function' && !window.ptfSyncCanWriteKey(k)) {
+          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'نقش فعلی اجازهٔ ثبت/همگام‌سازی این بخش را ندارد');
+          return false;
+        }
         var s = JSON.stringify(d);
         cache[k] = { t: Date.now(), v: s };
         /* v33.20.0: کلید سنگین → حافظهٔ نشست + IndexedDB (نه localStorage) تا سقف ۵MB لمس نشود */
+        var localOk = true;
         if (window.ptfBMirrorActive() && heavyList(k, s)) {
           idbKnown[k] = 1; idbMem[k] = s;
+          /* IDB asynchronous است؛ تا وقتی ACK سرور نیامده، queue پایدار localStorage
+             مانع از گم‌شدن تغییر در crash/refresh می‌شود. */
           try { window.ptfStorageIdbSet(idbPrefix() + k, s, function () {}); } catch (eI) {}
           localDel(k);
         } else {
-          localSet(k, s);
+          localOk = localSet(k, s) !== false;
         }
-        queueAdd(k);
+        if (!localOk || !queueAdd(k)) {
+          delete cache[k];
+          if (typeof window.ptfSyncNotifyWriteFailure === 'function') window.ptfSyncNotifyWriteFailure(k, 'صف آفلاین یا حافظهٔ مرورگر پایدار نشد');
+          return false;
+        }
         if (pushTimer) clearTimeout(pushTimer);
         pushTimer = setTimeout(function () { window.ptfBFlushQueue(function () {}); }, 4000);
         try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(k); } catch (e) {}
@@ -506,9 +568,22 @@
     tries++;
     if (hook() || tries > 40) {
       clearInterval(t);
-      try { if (getFlag() && flushRequired()) window.ptfBFinalize(); } catch (e) {}
+      /* راه‌اندازی بدون تنظیمات برای دستگاه تازه؛ دستگاه دارای دادهٔ محلی عمداً
+         وارد مسیر خودکار destructive نمی‌شود. */
+      try { window.ptfBAutoBootstrap(); } catch (e) {}
+      try { if (typeof window.ptfStorageRequestPersistentAuto === 'function') window.ptfStorageRequestPersistentAuto(); } catch (ePst) {}
       /* v33.20.0: مهاجرت/پرکردن حافظهٔ کلیدهای سنگین (فقط فاز فعال + هم‌گرایی موفق + IDB) */
       try { window.ptfBIdbPreload(function () {}); } catch (eP) {}
     }
   }, 300);
+  /* ورود کاربر ممکن است بعد از پایان interval بوت رخ دهد؛ پس auto bootstrap را
+     یک‌بار پس از showCrm هم اجرا می‌کنیم تا کاربر تازه هیچ تنظیمی لازم نداشته باشد. */
+  var _ptfBShowCrm = window.showCrm;
+  if (_ptfBShowCrm && !window._ptfBAutoShowHooked) {
+    window._ptfBAutoShowHooked = true;
+    window.showCrm = function () {
+      _ptfBShowCrm.apply(this, arguments);
+      setTimeout(function () { try { window.ptfBAutoBootstrap(); } catch (e) {} }, 900);
+    };
+  }
 })();

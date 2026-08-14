@@ -2438,7 +2438,10 @@ function offerSave() {
       try { audit('کالاها', 'همگام‌سازی از پیشنهاد ' + o.no + ': ' + _msg.join('، '), o.no); } catch (eAu) {}
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
-  setData('ptf_crm_offers', offers);
+  if (setData('ptf_crm_offers', offers) === false) {
+    alert('⛔ پیشنهاد روی حافظهٔ پایدار این دستگاه ذخیره نشد. تب را نبندید؛ فضای مرورگر/دسترسی را بررسی و دوباره ثبت کنید.');
+    return;
+  }
   /* ثبت پیشنهاد مالی، ارجاع باز «صدور پیشنهاد مالی» همین درخواست را حل می‌کند. */
   try { if (o.inqNo && typeof window.ptfResolveRfqReferral === 'function') { if (o.kind === 'CO' || o.kind === 'TC') window.ptfResolveRfqReferral(o.inqNo, 'create_offer'); else if (o.kind === 'TO') window.ptfResolveRfqReferral(o.inqNo, 'create_technical_offer'); } } catch (eResolveRef) {}
   /*
@@ -2466,8 +2469,9 @@ function offerSave() {
     }
   } catch (eSms) {}
   var _editLbl = idx > -1 ? (madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';
-  addLog('پیشنهاد ' + o.no + _editLbl + ' شد');
-  if (typeof ptfToast === 'function') ptfToast('💾 پیشنهاد ' + o.no + ' ذخیره شد', 'ok');
+  addLog('پیشنهاد ' + o.no + _editLbl + ' شد (در انتظار تأیید سرور)');
+  if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: 'ptf_crm_offers', id: o.no, label: 'پیشنهاد' });
+  else if (typeof ptfToast === 'function') ptfToast('🟡 پیشنهاد ' + o.no + ' روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
   } catch (eSave) {
     try { console.error('offerSave error', eSave); } catch (e0) {}
     alert('⛔ خطا در ذخیره پیشنهاد: ' + (eSave && eSave.message ? eSave.message : eSave));
@@ -2734,7 +2738,9 @@ function showCustModal(cd) {
           var un = u.username || u.user || '';
           if (!un) return;
           var rl = u.roleId || u.role || '';
-          if (['sales','commercial','ceo','chairman','admin'].indexOf(rl) < 0 && rl) return;
+          /* مالک پورسانت ممکن است هر کاربر عملیاتی باشد؛ فهرست را بر اساس نقش
+             محدود نکنید. مدیر انتخاب می‌کند آیا این مشتری به فروش، خرید، حسابداری
+             یا کاربر دیگری تعلق دارد. */
           opts += '<option value="' + escP(un) + '"' + (owner === un ? ' selected' : '') + '>' + escP(u.name || u.nm || un) + (rl ? ' (' + rl + ')' : '') + '</option>';
         });
       } catch (eO) {}
@@ -2744,10 +2750,10 @@ function showCustModal(cd) {
           var uo = (getData('ptf_crm_users')||[]).filter(function(x){return (x.username||x.user)===owner;})[0];
           if (uo) label = uo.name || uo.nm || owner;
         } catch (eL) {}
-        return '<div class="fld"><label>👤 کارشناس فروش مسئول</label><input type="text" value="' + escP(label) + '" readonly style="background:#f1f5f9;color:#475569" title="تغییر مالک فقط توسط مدیران ارشد">' +
+        return '<div class="fld"><label>👤 کارشناس مسئول / مالک پورسانت</label><input type="text" value="' + escP(label) + '" readonly style="background:#f1f5f9;color:#475569" title="تغییر مالک فقط توسط مدیران ارشد">' +
           (c && c.crBy ? '<small style="color:#94a3b8;font-size:11px">ثبت‌کننده اولیه: ' + escP(c.crBy) + (c.crAt ? ' — ' + escP(c.crAt) : '') + '</small>' : '') + '</div>';
       }
-      return '<div class="fr"><div class="fld"><label>👤 کارشناس فروش مسئول</label><select id="nC2Owner">' + opts + '</select>' +
+      return '<div class="fr"><div class="fld"><label>👤 کارشناس مسئول / مالک پورسانت</label><select id="nC2Owner">' + opts + '</select>' +
         (c && c.crBy ? '<small style="color:#94a3b8;font-size:11px">ثبت‌کننده: ' + escP(c.crBy) + (c.crAt ? ' — ' + escP(c.crAt) : '') + '</small>' : '') +
         '</div><div class="fld"><small style="color:#94a3b8;font-size:11px;display:block;padding-top:26px">تغییر مالک فقط برای admin/chairman/ceo/commercial — با audit</small></div></div>';
     })() +

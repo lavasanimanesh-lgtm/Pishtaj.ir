@@ -16,7 +16,7 @@
     'ptf_crm_invoices', 'ptf_crm_notifs', 'ptf_crm_sendqueue', 'ptf_crm_audit',
     'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
-    'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports',
+    'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records',
     'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_fin_events', 'ptf_crm_bank_recon', 'ptf_crm_treasury_calls'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
@@ -30,7 +30,7 @@
   var SYNC_ROLE_KEYS = {
     sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
     buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon'],
+    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_commission_records'],
     collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars']
   };
   function syncAllowedKey(k) {
@@ -78,7 +78,11 @@
     bootstrapped: false, /* v15.0 (US-384): تا سینک اولیه کامل نشده، push ممنوع — جلوی ارسال داده کهنه هنگام رفرش */
     initialReconcile: false, /* v31.7.2: local records created before sync.js must be merged, not overwritten */
     lastBgPull: 0, /* v33.21.x: آخرین پول مسیر آهسته (غیرمتمرکز ۱۲۰ثانیه / مخفی ۱۸۰ثانیه) */
-    lastPingPull: 0 /* v33.21.1: آخرین پول فوریِ برگرفته از پینگ بین‌تبی (حد نرخ ۵ثانیه) */
+    lastPingPull: 0, /* v33.21.1: آخرین پول فوریِ برگرفته از پینگ بین‌تبی (حد نرخ ۵ثانیه) */
+    /* نوشتنی که حتی در مرورگر پایدار نشده، نباید با badge سبز/پیام موفقیت پنهان شود.
+       این وضعیت عمداً جدا از dirty است: dirty = در انتظار ACK سرور؛ writeFailure =
+       همان دستگاه حتی نتوانسته نسخهٔ قابل بازیابی بسازد. */
+    writeFailures: {}
   };
 
   function setRev(r) { state.lastRev = r; localStorage.setItem('ptf_sync_rev', String(r)); }
@@ -97,6 +101,20 @@
   }
 
   function saveDirty() { try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(state.dirty)); } catch (e) {} }
+  /* قرارداد عمومی برای فرم‌ها: قبل از باز کردن عملیات حساس نیز می‌توانند همین
+     گارد را بخوانند؛ اما wrapper setData پایین آخرین سد سراسری است. */
+  window.ptfSyncCanWriteKey = function (k) { return SYNC_KEYS.indexOf(k) < 0 || syncAllowedKey(k); };
+  window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
+  window.ptfSyncWriteFailures = function () { return Object.keys(state.writeFailures); };
+  function noteWriteFailure(k, reason) {
+    state.writeFailures[k] = String(reason || 'ذخیرهٔ پایدار مرورگر ناموفق بود');
+    try { setSyncBadge('writefail'); } catch (eB) {}
+    try {
+      if (typeof ptfToast === 'function') ptfToast('⛔ تغییر در «' + String(k).replace('ptf_crm_', '') + '» حتی روی این دستگاه پایدار نشد؛ ثبت را تکرار کنید و تب را نبندید. علت: ' + state.writeFailures[k], 'warn');
+    } catch (eT) {}
+  }
+  function clearWriteFailure(k) { if (state.writeFailures[k]) delete state.writeFailures[k]; }
+  window.ptfSyncNotifyWriteFailure = noteWriteFailure;
   var pushWaiters = [];
   function notifyPushWaiters(ok, extra) {
     var w = pushWaiters.splice(0);
@@ -118,18 +136,53 @@
       schedulePush();
     }
   };
-  window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
 
+  /* یکسان‌بودن داده باید معنایی باشد، نه صرفاً برابر بودن رشته JSON. بعضی migrationها
+     یا فرم‌ها همان object را با ترتیب property متفاوت دوباره می‌نویسند؛ مقایسهٔ رشته‌ای
+     آن را «تغییر جدید» می‌دید، push می‌کرد و پس از refresh بنر زرد دائمی می‌ساخت.
+     ترتیب آرایه عمداً حفظ می‌شود، چون در رکوردهای CRM می‌تواند معنا داشته باشد. */
+  function sameSyncJson(a, b) {
+    if (a === b) return true;
+    try {
+      function normalize(v) {
+        if (!v || typeof v !== 'object') return v;
+        if (Array.isArray(v)) return v.map(normalize);
+        var out = {};
+        Object.keys(v).sort().forEach(function (key) { out[key] = normalize(v[key]); });
+        return out;
+      }
+      return JSON.stringify(normalize(JSON.parse(a))) === JSON.stringify(normalize(JSON.parse(b)));
+    } catch (e) { return false; }
+  }
   var _setData = window.setData;
   window.setData = function (k, d) {
+    /* آخرین سد سراسری: هیچ فرم نباید بتواند دادهٔ یک کلید Sync را با نقش
+       نامجاز فقط محلی بنویسد و بعد پیام «ثبت شد» نشان دهد. */
+    /* audit یک log داخلی و غیرکسب‌وکاری است: نقش محدود آن را محلی ثبت می‌کند،
+       اما ptfSyncNotifyDirty طبق گارد اختصاصی آن را به سرور نمی‌فرستد. جلوگیری
+       از write محلی audit باعث بنر قرمز کاذب بعد از هر عملیات می‌شد. */
+    if (SYNC_KEYS.indexOf(k) > -1 && k !== 'ptf_crm_audit' && !syncAllowedKey(k)) {
+      noteWriteFailure(k, 'نقش فعلی اجازهٔ ثبت/همگام‌سازی این بخش را ندارد');
+      return false;
+    }
     /* چند migration/repair در boot همان مقدار قبلی را دوباره setData می‌کنند
-       (نمونه قطعی: ptfDupAckSet('') روی ptf_crm_settings). نسخهٔ قبلی حتی برای
-       write کاملاً یکسان dirty می‌ساخت؛ اگر کاربر hard refresh می‌کرد، beacon بدون
-       فرصت/مجوز کافی می‌ماند و نشست بعدی بنر کاذب نشان می‌داد. فقط تغییر واقعی dirty است. */
+       (نمونه قطعی: ptfDupAckSet("") روی ptf_crm_settings). فقط تغییر واقعی dirty است. */
     var before = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
-    var saveResult = _setData(k, d);
+    var saveResult;
+    try { saveResult = _setData(k, d); }
+    catch (eWrite) {
+      noteWriteFailure(k, (eWrite && eWrite.message) || 'خطای نوشتن در حافظهٔ مرورگر');
+      return false;
+    }
     var after = SYNC_KEYS.indexOf(k) > -1 ? rd(k) : null;
-    if (before !== after) window.ptfSyncNotifyDirty(k);
+    /* storage-quota و فاز B در خطای پایدارسازی false برمی‌گردانند. اگر نویسندهٔ
+       قدیمی undefined برگرداند، فقط تفاوت واقعی before/after ملاک است. */
+    if (saveResult === false) {
+      noteWriteFailure(k, 'فضای مرورگر یا صف آفلاین نتوانست تغییر را پایدار کند');
+      return false;
+    }
+    clearWriteFailure(k);
+    if (!sameSyncJson(before, after)) window.ptfSyncNotifyDirty(k);
     return saveResult;
   };
 
@@ -285,7 +338,17 @@
         if (d.ok) {
           applyKrevs(d.krevs); /* v15.0 */
           var confl = d.conflicts || [];
-          keys.forEach(function (k) { if (confl.indexOf(k) < 0) delete state.dirty[k]; }); saveDirty();
+          var rejected = d.rejected || [];
+          var skipped = d.skipped || [];
+          var forbidden = d.forbidden || [];
+          /* پاسخ ok فقط یعنی درخواست پردازش شد، نه اینکه همهٔ کلیدها ذخیره شدند.
+             حذف dirty صرفاً با ACK صریح هر کلید مجاز است؛ در غیر این صورت پیام زرد
+             باید بماند تا کاربر با سبزشدن کاذب، تغییرِ نرسیده را امن تصور نکند. */
+          var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys : [];
+          savedKeys.forEach(function (k) {
+            if (keys.indexOf(k) > -1 && confl.indexOf(k) < 0 && rejected.indexOf(k) < 0 && skipped.indexOf(k) < 0 && forbidden.indexOf(k) < 0) delete state.dirty[k];
+          });
+          saveDirty();
           if (d.rev) setRev(d.rev);
           pingTabs(); /* v33.21.1: پوش موفق → تب‌های دیگر همین مرورگر فوری دلتا-پول بزنند */
           /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
@@ -306,9 +369,14 @@
             refreshCurrentPanel();
             schedulePush();
           }
-          if (d.forbidden && d.forbidden.length) { setSyncBadge('forbidden'); try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + d.forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {} }
-          else setSyncBadge('ok');
-          notifyPushWaiters(!confl.length && !(d.forbidden && d.forbidden.length), { conflicts: confl, forbidden: d.forbidden || [] });
+          if (forbidden.length) {
+            setSyncBadge('forbidden');
+            try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {}
+          } else if (rejected.length || skipped.length) {
+            setSyncBadge('warn');
+            try { if (typeof ptfToast === 'function') ptfToast('⚠️ ' + (rejected.length + skipped.length) + ' تغییر هنوز روی سرور تأیید نشده است؛ تب را نبندید و وضعیت همگام‌سازی را بررسی کنید.', 'warn'); } catch (eAck) {}
+          } else setSyncBadge('ok');
+          notifyPushWaiters(!confl.length && !forbidden.length && !rejected.length && !skipped.length, { conflicts: confl, forbidden: forbidden, rejected: rejected, skipped: skipped, savedKeys: savedKeys });
         } else {
           setSyncBadge('warn');
           /* v33.2.1 HOTFIX: اگر push ناموفق بود، هشدار واضح بده — تغییرات محلی حفظ می‌شوند */
@@ -341,12 +409,43 @@
     pushDirty();
   };
   window.ptfConfirmCloudSave = function (localMsg) {
+    /* سازگاری عقب‌رو با string؛ فرم‌های جدید key/id/label می‌دهند تا رسید دقیق
+       همان رکورد را نمایش دهیم. */
+    if (localMsg && typeof localMsg === 'object') {
+      window.ptfSyncTrackRecordSave(localMsg);
+      return;
+    }
     if (typeof ptfToast === 'function') ptfToast((localMsg || 'روی این دستگاه ذخیره شد') + ' — در حال ارسال به سرور…', 'info');
     window.ptfSyncFlushNow(function (ok) {
       if (typeof ptfToast !== 'function') return;
       if (ok) ptfToast('روی سرور هم ثبت شد. در دستگاه دیگر بعد از تازه‌سازی دیده می‌شود.', 'ok');
       else ptfToast('هنوز به سرور نرسید. تب را نبندید تا نوار زرد پایین صفحه خاموش و نشانگر همگام سبز شود.', 'warn');
     });
+  };
+
+  /* رسید قابل‌فهم برای فرم‌های اصلی: ثبت محلی را با «تأیید سرور» یکی نکنید.
+     کلید یک store کامل است، بنابراین ACK همان key یعنی رکوردی که همین لحظه داخل
+     snapshot آن قرار گرفته نیز روی سرور نوشته شده است. */
+  window.ptfSyncTrackRecordSave = function (opts) {
+    opts = opts || {};
+    var key = String(opts.key || '');
+    var label = String(opts.label || 'رکورد');
+    var id = String(opts.id || '');
+    if (!key) return;
+    try { if (typeof ptfToast === 'function') ptfToast('🟡 ' + label + (id ? ' «' + id + '»' : '') + ' روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info'); } catch (eT) {}
+    function finish(ok, extra) {
+      extra = extra || {};
+      var ack = (extra.savedKeys || []).indexOf(key) > -1 || (!!extra.empty && Object.keys(state.dirty).indexOf(key) < 0);
+      if (ok && ack) {
+        try { if (typeof ptfToast === 'function') ptfToast('🟢 ' + label + (id ? ' «' + id + '»' : '') + ' روی سرور تأیید شد.', 'ok'); } catch (eOk) {}
+      } else {
+        try { if (typeof ptfToast === 'function') ptfToast('🟡 ' + label + (id ? ' «' + id + '»' : '') + ' هنوز تأیید سرور ندارد؛ تب را نبندید.', 'warn'); } catch (eWarn) {}
+      }
+    }
+    /* push در حال اجرا باشد: callback همان push جاری نیست؛ یک تلاش کوتاه بعدی
+       رسید را به ACK واقعی وصل می‌کند. */
+    if (state.pushing) { setTimeout(function () { window.ptfSyncTrackRecordSave(opts); }, 700); return; }
+    window.ptfSyncFlushNow(finish);
   };
 
   /* ---------- pull دوره‌ای ---------- */
@@ -643,7 +742,8 @@
       ok: ['🟢', 'همگام با سرور'],
       warn: ['🟡', 'در حال تلاش مجدد...'],
       offline: ['🔴', 'آفلاین — تغییرات محلی ذخیره و بعداً ارسال می‌شود'],
-      forbidden: ['🟠', 'برخی بخش‌ها برای نقش فعلی قابل sync نیستند']
+      forbidden: ['🟠', 'برخی بخش‌ها برای نقش فعلی قابل sync نیستند'],
+      writefail: ['🔴', 'ثبت پایدار روی این دستگاه ناموفق بوده است']
     };
     var x = map[st] || map.ok;
     el.textContent = x[0];
@@ -652,8 +752,14 @@
     var banner = document.getElementById('ptfUnsavedBanner');
     if (banner) {
       var dirtyCount = Object.keys(state.dirty).length;
-      if (dirtyCount > 0) {
+      var failedKeys = Object.keys(state.writeFailures);
+      if (failedKeys.length > 0) {
         banner.style.display = 'flex';
+        banner.style.background = '#dc2626'; banner.style.color = '#fff';
+        banner.innerHTML = '<span style="flex:1">🔴 ' + failedKeys.length + ' تغییر حتی در حافظهٔ پایدار این دستگاه ذخیره نشد — تب را نبندید؛ فضا/دسترسی را بررسی و ثبت را دوباره انجام دهید. (' + failedKeys.map(function (k) { return k.replace('ptf_crm_', ''); }).join('، ') + ')</span>';
+      } else if (dirtyCount > 0) {
+        banner.style.display = 'flex';
+        banner.style.background = '#f59e0b'; banner.style.color = '#1e293b';
         var msg = st === 'forbidden'
           ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد')
           : st === 'offline'
@@ -1260,8 +1366,21 @@
           if ((item.repeat || 1) > (ex.repeat || 1)) { ex.repeat = item.repeat; ex.lastT = item.lastT || ex.lastT; ex.lastISO = item.lastISO || ex.lastISO; }
         });
         var nOut = Object.keys(nMap).map(function (k2) { return nMap[k2]; });
-        nOut.sort(function (a, b) { return String(b.iso || '').localeCompare(String(a.iso || '')); });
-        return JSON.stringify(nOut);
+        /* نسخه‌های قدیمی یا event-poll ممکن است برای یک ارجاع پایدار cd جدید
+           ساخته باشند. در merge، referral با dkey یکسان باید یک کار بماند؛
+           readBy/done اتحاد می‌شود و زمان ایجاد نخستین ارجاع حفظ می‌گردد. */
+        var byTask = {}, nDedup = [];
+        nOut.forEach(function (item) {
+          var dk = String(item && item.dkey || '');
+          var isReferral = item && item.kind === 'referral' && /^referral\|/.test(dk);
+          if (!isReferral || !byTask[dk]) { if (isReferral) byTask[dk] = item; nDedup.push(item); return; }
+          var keep = byTask[dk], rb2 = {};
+          (keep.readBy || []).concat(item.readBy || []).forEach(function (u) { if (u) rb2[u] = 1; });
+          keep.readBy = Object.keys(rb2); keep.done = !!(keep.done || item.done);
+          if (String(item.iso || '') && (!keep.iso || String(item.iso) < String(keep.iso))) { keep.t = item.t; keep.iso = item.iso; }
+        });
+        nDedup.sort(function (a, b) { return String(b.iso || '').localeCompare(String(a.iso || '')); });
+        return JSON.stringify(nDedup);
       }
 
       if (key === 'ptf_crm_fiscal_snapshots') {

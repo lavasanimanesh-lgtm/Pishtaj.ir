@@ -716,7 +716,8 @@
       var m = document.getElementById('chFormDlg'); if (m) m.remove();
       if (typeof renderReminders === 'function') try { renderReminders(); } catch (e) {}
       refreshBox();
-      if (typeof ptfToast === 'function') ptfToast(found ? '✅ چک ذخیره شد' : '✅ چک ثبت شد', 'ok');
+      if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: rec.direction === 'received' ? 'ptf_crm_cheques_received' : 'ptf_crm_cheques_issued', id: rec.cd, label: 'چک' });
+      else if (typeof ptfToast === 'function') ptfToast('🟡 چک روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
     } catch (eSave) {
       try { console.error('chSaveForm', eSave); } catch (e0) {}
       alert('⛔ خطا در ذخیره چک: ' + (eSave && eSave.message ? eSave.message : eSave));
@@ -877,15 +878,24 @@
     { id: 'sup-rfq', aud: 'تامین‌کننده', title: 'استعلام قیمت', body: 'جناب {نام} وقت بخیر؛ خواهشمند است قیمت و زمان تحویل اقلام فهرست پیوست را به شرکت پیشرو تجهیز فرتاک اعلام بفرمایید. با تشکر' },
     { id: 'sup-follow', aud: 'تامین‌کننده', title: 'پیگیری پاسخ استعلام', body: 'جناب {نام} وقت بخیر؛ پیرو استعلام ارسالی، خواهشمند است در صورت آماده بودن پیشنهاد قیمت، اعلام بفرمایید. سپاس از همکاری شما' },
     { id: 'sup-order', aud: 'تامین‌کننده', title: 'ابلاغ سفارش', body: 'جناب {نام} وقت بخیر؛ بدینوسیله سفارش اقلام مطابق پیش‌فاکتور مورد تایید ابلاغ می‌گردد. لطفاً برنامه تحویل را اعلام بفرمایید.' },
+    { id: 'staff-meeting', aud: 'پرسنل', title: 'دعوت به جلسه', body: 'همکار گرامی {نام}؛ لطفاً در زمان اعلام‌شده برای جلسه حاضر باشید. با سپاس.' },
+    { id: 'staff-task', aud: 'پرسنل', title: 'یادآور اقدام کاری', body: 'همکار گرامی {نام}؛ لطفاً اقدام ارجاع‌شده در CRM را بررسی و نتیجه را ثبت کنید. با سپاس.' },
+    { id: 'staff-notice', aud: 'پرسنل', title: 'اطلاع‌رسانی داخلی', body: 'همکار گرامی {نام}؛ این پیام جهت اطلاع شما از طرف مدیریت شرکت ارسال شده است.' },
     { id: 'gen-greet', aud: 'سایر', title: 'تبریک عمومی', body: 'جناب {نام} وقت بخیر؛ از طرف شرکت پیشرو تجهیز فرتاک بهترین آرزوها را برای شما و مجموعه محترمتان داریم.' },
     { id: 'gen-meeting', aud: 'سایر', title: 'هماهنگی جلسه', body: 'جناب {نام} وقت بخیر؛ خواهشمند است در خصوص زمان جلسه پیشنهادی اعلام نظر بفرمایید. با احترام — پیشرو تجهیز فرتاک' }
   ];
   function tplAll() {
     try {
       var saved = JSON.parse(localStorage.getItem(TPL_KEY) || 'null');
-      return (saved && saved.length) ? saved : TPL_DEFAULTS.slice();
+      saved = Array.isArray(saved) ? saved : [];
+      /* قالب‌های سیستمی جدید (از جمله پرسنل) حتی اگر دفترچهٔ قالب قدیمی قبلاً
+         ذخیره شده باشد در دسترس می‌مانند؛ custom هم بدون حذف حفظ می‌شود. */
+      var byId = {}; saved.forEach(function (t) { if (t && t.id) byId[t.id] = t; });
+      TPL_DEFAULTS.forEach(function (t) { if (!byId[t.id]) saved.push(t); });
+      return saved;
     } catch (e) { return TPL_DEFAULTS.slice(); }
   }
+  window.ptfMsgTplSaveAll = function (list) { setData(TPL_KEY, Array.isArray(list) ? list : []); };
   window.ptfMsgTpls = tplAll;
   /* رندر متن با متغیر */
   window.ptfTplRender = function (tpl, name) {

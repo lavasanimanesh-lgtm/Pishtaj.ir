@@ -353,14 +353,14 @@ $SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','sav
    allowed to see. All four senior CRM roles (admin/chairman/ceo/commercial) keep
    the full company dataset. Destructive operations remain separately guarded. */
 function sync_all_keys() {
-    return ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_fin_events','ptf_crm_bank_recon'];
+    return ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_treasury_calls'];
 }
 function sync_allowed_keys_for_role($role) {
     $role = preg_replace('/[^a-z0-9]/', '', strtolower(trim((string)$role)));
     $all = sync_all_keys();
     if (in_array($role, ['admin','chairman','ceo','commercial'], true) || strpos($role, 'commercial') !== false || strpos($role, 'manager') !== false) return $all;
     $crm = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'];
-    $accountant = ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon'];
+    $accountant = ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_commission_records'];
     $collector = ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars'];
     if ($role === 'accountant') return $accountant;
     if ($role === 'collector') return $collector;
@@ -851,7 +851,12 @@ switch($action) {
         $sent = 0; $failed = 0;
         $lastErr = '';
         foreach ($recipients as $r) {
-            $mob = preg_replace('/\D/', '', $r['mob'] ?? '');
+            /* مرورگر/بک‌آپ قدیمی ممکن است موبایل را با ارقام فارسی/عربی بفرستد.
+               transport باید هر دو را بپذیرد؛ در غیر این صورت preg_replace همه رقم‌ها
+               را حذف و صف پیامک بی‌دلیل نامعتبر می‌شد. */
+            $rawMob = strtr((string)($r['mob'] ?? ''), ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
+            $mob = preg_replace('/\D/', '', $rawMob);
+            if (preg_match('/^9\d{9}$/', $mob)) $mob = '0' . $mob;
             if (!preg_match('/^09\d{9}$/', $mob)) { $failed++; $lastErr = 'شماره گیرنده نامعتبر: ' . $mob; continue; }
             $body = str_replace('{نام}', $r['nm'] ?? '', $text) . $suffix;
             $e = null;
@@ -1243,6 +1248,11 @@ switch($action) {
         $meta_file = $sdir . '/meta.json';
         $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : [];
         $saved = 0;
+        /* ACK per-key: کلاینت فقط کلیدی را از صف محلی حذف می‌کند که سرور صراحتاً
+           تأیید کرده است. صرف ok بودن پاسخ کافی نیست؛ ممکن است کلید به‌دلیل سپر
+           داده‌صفر، نقش، یا payload نامعتبر ذخیره نشده باشد. */
+        $saved_keys = [];
+        $skipped_keys = [];
         $dbWriteFailed = false; /* v33.22.0: شکست نوشتن DB در mode=mysql → کل پاسخ ناموفق + retry */
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $krevs = []; /* v15.0 US-384 */
@@ -1260,9 +1270,9 @@ switch($action) {
         if ($serverArchiveJson === null) $serverArchiveJson = '[]';
         $incomingArchiveJson = isset($j['data']['ptf_crm_deleted_archive']) && is_string($j['data']['ptf_crm_deleted_archive']) ? $j['data']['ptf_crm_deleted_archive'] : '[]';
         foreach ($j['data'] as $k => $v) {
-            if (!in_array($k, $allowed_keys, true)) continue;
+            if (!in_array($k, $allowed_keys, true)) { $skipped_keys[] = $k; continue; }
             if (!in_array($k, $role_sync_keys, true)) { $forbidden_keys[] = $k; continue; }
-            if (!is_string($v) || strlen($v) > 8 * 1048576) continue;
+            if (!is_string($v) || strlen($v) > 8 * 1048576) { $skipped_keys[] = $k; continue; }
             $v = sync_apply_tombstones($k, $v, $serverArchiveJson, $incomingArchiveJson);
             /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: do not accept a stale client
                payload that increases duplicate offer lines. Existing corrupted
@@ -1311,6 +1321,7 @@ switch($action) {
             if (!sync_key_write($sdir, $k, $v, $curRev + 1)) { $dbWriteFailed = true; break; }
             $meta[$k] = ['rev' => $curRev + 1, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
             $krevs[$k] = $curRev + 1;
+            $saved_keys[] = $k;
             $saved++;
         }
         if (!empty($dbWriteFailed)) {
@@ -1322,9 +1333,9 @@ switch($action) {
         $meta['_global'] = ['rev' => ($meta['_global']['rev'] ?? 0) + 1, 't' => date('Y-m-d H:i:s')];
         file_put_contents($meta_file, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
         if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
-        echo json_encode(['ok' => true, 'saved' => $saved, 'rev' => $meta['_global']['rev'], 'rejected' => $rejected,
-            'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
-            'conflicts' => $conflicts, 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 */
+        echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $meta['_global']['rev'], 'rejected' => array_values(array_unique($rejected)),
+            'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
+            'conflicts' => $conflicts, 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK */
         break;
 
     case 'data_pull':

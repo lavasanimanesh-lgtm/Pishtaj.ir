@@ -332,14 +332,15 @@
       okText: 'ثبت و پیوست مدرک',
       onOk: function (v) {
         var rec = { cd: genCode('PTY'), amt: toNum(v.amt), cat: v.cat, rfq: v.rfq, dealRef: v.dealRef||'', desc: v.desc, by: userName(), t: faDateTime(), iso: isoNow(), month: faMonthNow(), st: 'open', files: [] };
-        var all = getData(PETTY_KEY); all.unshift(rec); setData(PETTY_KEY, all);
+        var all = getData(PETTY_KEY); all.unshift(rec);
+        if (setData(PETTY_KEY, all) === false) { alert('⛔ هزینه روی حافظهٔ پایدار این دستگاه ذخیره نشد؛ تب را نبندید و پس از رفع خطا دوباره ثبت کنید.'); return; }
         // v30.5: اگر به پرونده لینک شد، costEvents بساز تا در سود پروژه بیاید ولی دوباره‌شماری نشود
         if(rec.dealRef){
           try { window.ptfPettyUpdateDealLink(rec, rec.dealRef, ''); } catch (e) {}
         }
         audit('تنخواه', 'ثبت هزینه/مطالبه تنخواه ' + money(rec.amt) + ' — ' + v.cat + (rec.dealRef?' [لینک پرونده '+rec.dealRef+']':''), rec.cd);
         renderPetty(); afterAddUpload(rec);
-        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('هزینه روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('هزینه ثبت شد', 'ok');
+        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave({ key: PETTY_KEY, id: rec.cd, label: 'هزینه تنخواه' }); else if (typeof ptfToast === 'function') ptfToast('🟡 هزینه روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
       }
     });
   };
@@ -1734,7 +1735,10 @@
         /* v24.8 BUG-126-01: پیش‌فرض نرخ/مانده/نحوه — فراخوانی برنامه‌ای فقط با how هم کار کند */
         v = v || {};
         if (!v.how) v.how = 'حواله';
-        var rate = toNum(v.rate) || toNum(typeof liveRate === 'function' ? liveRate(cur) : 0) || +a.rate || 110000;
+        /* وقتی کاربر نرخ تازه وارد نکرده، نرخ ثبت‌شده در خود پیش‌پرداخت
+           مبنای سازگار وصول است؛ نرخ live جدید می‌تواند مبلغ معادل را از
+           ماندهٔ قراردادی بزرگ‌تر نشان دهد و وصول کامل را بی‌دلیل رد کند. */
+        var rate = toNum(v.rate) || +a.rate || toNum(typeof liveRate === 'function' ? liveRate(cur) : 0) || 110000;
         var amt = toNum(v.amt), pct = toNum(v.pct);
         var remainDoc = +a.remainDocAmt || +a.docAmt || 0;
         var remainAmt = +a.remainAmt || +a.amt || 0;
@@ -1745,7 +1749,11 @@
         else docAmt = rate ? +(amt / rate).toFixed(2) : 0;
         if (!amt || amt <= 0) { alert('مبلغ وصولی نامعتبر است'); return; }
         if (!docAmt || docAmt <= 0) { docAmt = rate ? +(amt / rate).toFixed(2) : amt; }
-        if (amt > (+a.remainAmt || 0) + 1) { alert('مبلغ از مانده پیش‌پرداخت بیشتر است'); return; }
+        /* باقی‌ماندهٔ رکوردهای ساختاریافتهٔ قدیمی ممکن است هنوز توسط normalize
+           روی فیلد advance بازنویسی نشده باشد. در آن حالت خود مبلغ پیش‌پرداخت
+           سقف وصول اول است؛ صفر فرض‌کردنش، وصول کامل ارزی را نادرست رد می‌کرد. */
+        var maxAmt = +a.remainAmt || +a.amt || 0;
+        if (amt > maxAmt + 1) { alert('مبلغ از مانده پیش‌پرداخت بیشتر است'); return; }
         o.advance.payments = Array.isArray(o.advance.payments) ? o.advance.payments : [];
         o.advance.payments.push({ cd: genCode('ADP'), amt: amt, docAmt: docAmt, rate: rate, rateType: v.rtype || 'agreed', how: v.how, note: v.note || '', t: faDateTime(), by: userName() });
         var ax = ptfAdvanceNormalize(o);

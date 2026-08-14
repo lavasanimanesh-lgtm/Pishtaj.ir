@@ -16,6 +16,7 @@
   var CATS = [
     { id: 'cust', lb: '🤝 مشتریان' },
     { id: 'sup', lb: '🏭 تامین‌کنندگان' },
+    { id: 'staff', lb: '👥 پرسنل' },
     { id: 'other', lb: '👥 سایرین' }
   ];
 
@@ -114,6 +115,14 @@
     }
     collect('ptf_crm_customers', 'cust');
     collect('ptf_crm_suppliers', 'sup');
+    /* پرسنل از کاربران CRM: فقط شماره همراه معتبر، با نام و نقش جهت پیام داخلی. */
+    getData('ptf_crm_users').forEach(function (u) {
+      if (!u) return;
+      var un = u.username || u.user || '';
+      var nm = u.name || u.nm || un;
+      var ent = u.roleId || u.role || 'پرسنل';
+      pushMob(b, manualMobs, u.mobile || u.mob || u.phone || '', nm, 'staff', ent);
+    });
     saveBook(b);
     return b.length;
   };
@@ -192,10 +201,39 @@
       '<div id="smsStatusBox" style="margin-bottom:10px"></div>' +
       '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="smsTabs"></div>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:8px 14px;margin-bottom:10px;font-size:12px;color:#0c4a6e">' +
-      'ℹ️ مخاطبین ایمپورت اکسل/دستی در تب «سایرین» ثبت می‌شوند. رکوردهای سینک خودکار از <b>موبایل‌های فارسی/لاتین</b> مشتریان و تامین‌کنندگان (اشخاص، coTels، phones) استخراج می‌شوند — v21.3. فقط شماره همراه 09xxxxxxxxx وارد دفترچه می‌شود (تلفن ثابت وارد نمی‌شود).</div>' +
+      'ℹ️ مخاطبین ایمپورت اکسل/دستی در تب «سایرین» ثبت می‌شوند. تب «پرسنل» از کاربران CRM و تب‌های مشتری/تأمین‌کننده از شماره‌های همراه رکوردهای اصلی ساخته می‌شوند. فقط شماره همراه 09xxxxxxxxx وارد دفترچه می‌شود (تلفن ثابت وارد نمی‌شود).</div>' +
       '<div id="smsBookWrap"></div>' +
       '<div id="smsSendBox" style="margin-top:14px"></div>';
   };
+
+  /* دفترچه در داده یک رکورد به‌ازای هر شماره نگه می‌دارد تا ارسال گروهی و Sync
+     شماره‌های مستقل از دست نروند. اما در UI، یک شخصِ واحد نباید به‌ازای هر
+     شماره چند بار دیده شود؛ هویت نمایشی = دسته + شرکت/وابستگی + نام نرمال. */
+  function smsBookDisplayGroups(rows) {
+    var map = {}, out = [];
+    function norm(v) { return String(v || '').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    (rows || []).forEach(function (r) {
+      if (!r) return;
+      var key = [r.cat || '', norm(r.ent), norm(r.nm)].join('|');
+      if (!map[key]) { map[key] = { nm: r.nm || '—', ent: r.ent || '', cat: r.cat || '', rows: [] }; out.push(map[key]); }
+      /* سپر دادهٔ آلودهٔ قدیمی: یک شماره یکسان در یک گروه فقط یک‌بار نمایش یابد. */
+      if (!map[key].rows.some(function (x) { return x.mob === r.mob; })) map[key].rows.push(r);
+    });
+    return out;
+  }
+  /* بعضی WebViewها مقدار checkbox را به رشته «false» عبور می‌دهند؛ شرط ساده
+     if(on) آن رشته را truthy می‌داند و تیک دیگر هرگز برداشته نمی‌شود. */
+  function smsChecked(on) { return on === true || on === 1 || on === 'true' || on === '1'; }
+  window.smsToggleGroup = function (ids, on) {
+    var checked = smsChecked(on);
+    (ids || []).forEach(function (cd) { if (checked) _selected[cd] = true; else delete _selected[cd]; });
+    renderSmsPanel();
+  };
+  /* شناسه‌ها کد CRM هستند و جداکننده | در آن‌ها مجاز نیست. استفاده از CSV سبک
+     در handlerهای inline از serialization آرایه/HTML entity جلوگیری می‌کند؛ همان
+     علت رایج «تیک می‌خورد ولی برداشته نمی‌شود» در مرورگرهای مختلف. */
+  window.smsToggleGroupCsv = function (csv, on) { window.smsToggleGroup(String(csv || '').split('|').filter(Boolean), on); };
+  window.smsMoveGroupCsv = function (csv, cat) { window.smsMoveGroup(String(csv || '').split('|').filter(Boolean), cat); };
 
   window.renderSmsPanel = function () {
     var tabsEl = document.getElementById('smsTabs');
@@ -211,18 +249,29 @@
     if (tabsEl.innerHTML !== tabsHtml) tabsEl.innerHTML = tabsHtml;
 
     var list = b.filter(function (r) { return r.cat === _smsTab; });
+    /* ریشه BUG-SMS-SELECT-ALL-001: پس از انتخاب همه، render دوباره مربع بالایی
+       را همیشه خالی می‌ساخت. کلیک بعدی عملاً دوباره «انتخاب» بود نه «برداشتن».
+       وضعیت checkbox باید از همان state شماره‌ها خوانده شود. */
+    var allTabSelected = list.length > 0 && list.every(function (r) { return !!_selected[r.cd]; });
     var h = '<div class="tb2"><table><thead><tr>' +
-      '<th style="width:36px"><input type="checkbox" id="smsSelAll" onchange="smsToggleAll(this.checked)"></th>' +
+      '<th style="width:36px"><input type="checkbox" id="smsSelAll" ' + (allTabSelected ? 'checked ' : '') + 'onchange="smsToggleAll(this.checked)"></th>' +
       '<th>نام و نام خانوادگی</th><th>شماره همراه</th><th>وابسته به</th><th>منبع</th><th>عملیات</th></tr></thead><tbody>';
-    list.forEach(function (r) {
-      var moveOpts = CATS.filter(function (c) { return c.id !== r.cat; }).map(function (c) {
-        return '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" title="انتقال به ' + c.lb + '" onclick="smsMove(\'' + r.cd + '\',\'' + c.id + '\')">↔ ' + c.lb.split(' ')[1] + '</button>';
+    var groups = smsBookDisplayGroups(list);
+    groups.forEach(function (g) {
+      var ids = g.rows.map(function (r) { return r.cd; });
+      var idsCsv = ids.join('|');
+      var allSelected = ids.length && ids.every(function (id) { return !!_selected[id]; });
+      var phones = g.rows.map(function (r) {
+        return '<label style="display:block;white-space:nowrap"><input type="checkbox" ' + (_selected[r.cd] ? 'checked' : '') + ' onchange="smsToggle(\'' + r.cd + '\',this.checked)"> <b dir="ltr">' + escP(r.mob) + '</b></label>';
+      }).join('');
+      var sources = g.rows.map(function (r) { return r.src === 'auto' ? 'سینک خودکار' : r.src === 'xls' ? 'اکسل' : 'دستی'; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join('، ');
+      var moveOpts = CATS.filter(function (c) { return c.id !== g.cat; }).map(function (c) {
+        return '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" title="انتقال همه شماره‌های این شخص به ' + c.lb + '" onclick="smsMoveGroupCsv(\'' + idsCsv + '\',\'' + c.id + '\')">↔ ' + c.lb.split(' ')[1] + '</button>';
       }).join(' ');
-      h += '<tr><td><input type="checkbox" ' + (_selected[r.cd] ? 'checked' : '') + ' onchange="smsToggle(\'' + r.cd + '\',this.checked)"></td>' +
-        '<td>' + escP(r.nm || '—') + '</td><td style="direction:ltr"><b>' + escP(r.mob) + '</b></td>' +
-        '<td style="font-size:12px;color:#64748b">' + escP(r.ent || '—') + '</td>' +
-        '<td style="font-size:11px">' + (r.src === 'auto' ? '<span class="bd" style="background:#e0f2fe;color:#0369a1">سینک خودکار</span>' : r.src === 'xls' ? '<span class="bd" style="background:#fef3c7;color:#b45309">اکسل</span>' : '<span class="bd" style="background:#f1f5f9;color:#475569">دستی</span>') + '</td>' +
-        '<td>' + moveOpts + (r.src !== 'auto' ? ' <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="smsDel(\'' + r.cd + '\')">🗑️</button>' : '') + '</td></tr>';
+      h += '<tr><td><input type="checkbox" ' + (allSelected ? 'checked' : '') + ' onchange="smsToggleGroupCsv(\'' + idsCsv + '\',this.checked)"></td>' +
+        '<td><b>' + escP(g.nm || '—') + '</b>' + (g.rows.length > 1 ? '<br><small style="color:#64748b">' + g.rows.length + ' شماره</small>' : '') + '</td><td style="direction:ltr">' + phones + '</td>' +
+        '<td style="font-size:12px;color:#64748b">' + escP(g.ent || '—') + '</td><td style="font-size:11px">' + escP(sources) + '</td>' +
+        '<td>' + moveOpts + '</td></tr>';
     });
     var bw = document.getElementById('smsBookWrap');
     var bwHtml = h + '</tbody></table></div>' +
@@ -233,18 +282,27 @@
   };
 
   window.smsSetTab = function (t) { _smsTab = t; renderSmsPanel(); };
-  window.smsToggle = function (cd, on) { if (on) _selected[cd] = true; else delete _selected[cd]; renderSmsSendBox(); };
+  window.smsToggle = function (cd, on) {
+    if (smsChecked(on)) _selected[cd] = true; else delete _selected[cd];
+    /* وضعیت تیک گروه و «همه مخاطبان» باید از state بازخوانی شود، نه از DOM قدیمی. */
+    renderSmsPanel();
+  };
   window.smsToggleAll = function (on) {
+    var checked = smsChecked(on);
     book().filter(function (r) { return r.cat === _smsTab; }).forEach(function (r) {
-      if (on) _selected[r.cd] = true; else delete _selected[r.cd];
+      if (checked) _selected[r.cd] = true; else delete _selected[r.cd];
     });
     renderSmsPanel();
   };
   window.smsMove = function (cd, cat) {
-    var b = book();
-    b.forEach(function (r) { if (r.cd === cd) { r.cat = cat; r.src = r.src === 'auto' ? 'moved' : r.src; } });
+    window.smsMoveGroup([cd], cat);
+  };
+  window.smsMoveGroup = function (ids, cat) {
+    var wanted = {}; (ids || []).forEach(function (id) { wanted[id] = true; });
+    var b = book(), count = 0;
+    b.forEach(function (r) { if (wanted[r.cd]) { r.cat = cat; r.src = r.src === 'auto' ? 'moved' : r.src; count++; } });
     saveBook(b);
-    audit('پیامک', 'انتقال مخاطب به دسته ' + cat, cd);
+    audit('پیامک', 'انتقال ' + count + ' شماره مخاطب به دسته ' + cat, (ids || []).join(','));
     renderSmsPanel();
   };
   window.smsDel = function (cd) {
@@ -327,6 +385,38 @@
     renderSmsPanel();
   };
 
+  function smsAudForCat(cat) { return cat === 'cust' ? 'مشتری' : cat === 'sup' ? 'تامین‌کننده' : cat === 'staff' ? 'پرسنل' : 'سایر'; }
+  function smsTemplatesForCurrent() {
+    var aud = smsAudForCat(_smsTab);
+    try { return typeof window.ptfMsgTpls === 'function' ? window.ptfMsgTpls().filter(function (t) { return t && (t.aud === aud || t.aud === 'همه'); }) : []; } catch (e) { return []; }
+  }
+  window.smsApplyTemplate = function (id) {
+    var t = smsTemplatesForCurrent().filter(function (x) { return x.id === id; })[0];
+    var el = document.getElementById('smsText'); if (t && el) el.value = t.body || '';
+  };
+  window.smsTemplateManager = function () {
+    var aud = smsAudForCat(_smsTab), all = (typeof window.ptfMsgTpls === 'function' ? window.ptfMsgTpls() : []);
+    var rows = all.filter(function (t) { return t && t.aud === aud; }).map(function (t) { return '<div style="border:1px solid var(--brd);border-radius:9px;padding:8px;margin:6px 0"><b>' + escP(t.title) + '</b><br><small>' + escP(t.body) + '</small>' + (t.custom ? ' <button class="bt bt-o" style="padding:2px 7px;font-size:10px;color:#dc2626" onclick="smsTemplateDelete(\'' + t.id + '\')">حذف</button>' : '') + '</div>'; }).join('') || '<small style="color:#94a3b8">قالبی برای این دسته نیست.</small>';
+    var html = '<div class="md-b" style="display:grid;z-index:2500" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px;max-height:90vh;overflow:auto"><h3>📝 قالب‌های پیام — ' + escP(aud) + '</h3><div class="fld"><label>عنوان قالب *</label><input id="smsTplTitle"></div><div class="fld"><label>متن قالب *</label><textarea id="smsTplBody" rows="4" placeholder="سلام {نام} ..."></textarea><small>متغیر {نام} هنگام ارسال برای هر شماره جایگزین می‌شود.</small></div><button class="bt" onclick="smsTemplateSave(\'' + aud + '\')">+ ذخیره قالب جدید</button><div style="margin-top:12px">' + rows + '</div><div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="hideModal()">بستن</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.smsTemplateSave = function (aud) {
+    var title = ((document.getElementById('smsTplTitle') || {}).value || '').trim();
+    var body = ((document.getElementById('smsTplBody') || {}).value || '').trim();
+    if (!title || !body) { alert('عنوان و متن قالب الزامی است'); return; }
+    var all = (typeof window.ptfMsgTpls === 'function' ? window.ptfMsgTpls() : []).slice();
+    all.unshift({ id: 'sms-custom-' + Date.now(), aud: aud, title: title, body: body, custom: true, t: faDateTime(), by: curSession().name });
+    if (typeof window.ptfMsgTplSaveAll === 'function') window.ptfMsgTplSaveAll(all); else setData('ptf_crm_msgtpls', all);
+    try { audit('پیامک', 'ثبت قالب پیام ' + title + ' برای ' + aud, ''); } catch (e) {}
+    hideModal(); renderSmsSendBox();
+  };
+  window.smsTemplateDelete = function (id) {
+    if (!confirm('قالب سفارشی حذف شود؟')) return;
+    var all = (typeof window.ptfMsgTpls === 'function' ? window.ptfMsgTpls() : []).filter(function (t) { return t.id !== id; });
+    if (typeof window.ptfMsgTplSaveAll === 'function') window.ptfMsgTplSaveAll(all); else setData('ptf_crm_msgtpls', all);
+    hideModal(); smsTemplateManager();
+  };
+
   window.renderSmsSendBox = function () {
     var el = document.getElementById('smsSendBox');
     if (!el) return;
@@ -336,9 +426,11 @@
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
       '<button class="bt bt-o" style="font-size:12px" onclick="smsPickCat(\'cust\',true)">+ همه مشتریان</button>' +
       '<button class="bt bt-o" style="font-size:12px" onclick="smsPickCat(\'sup\',true)">+ همه تامین‌کنندگان</button>' +
+      '<button class="bt bt-o" style="font-size:12px" onclick="smsPickCat(\'staff\',true)">+ همه پرسنل</button>' +
       '<button class="bt bt-o" style="font-size:12px" onclick="smsPickCat(\'other\',true)">+ همه سایرین</button>' +
-      '<button class="bt bt-o" style="font-size:12px" onclick="smsPickCat(\'all\',true)">+ هر سه دسته</button>' +
+      '<button class="bt bt-o" style="font-size:12px" onclick="smsPickCat(\'all\',true)">+ همه دسته‌ها</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#dc2626" onclick="smsPickCat(\'all\',false)">✕ پاک کردن انتخاب</button></div>' +
+      '<div class="fr"><div class="fld"><label>متن آماده برای ' + escP(smsAudForCat(_smsTab)) + '</label><select id="smsTplSelect" onchange="smsApplyTemplate(this.value)"><option value="">— انتخاب متن آماده —</option>' + smsTemplatesForCurrent().map(function (t) { return '<option value="' + escP(t.id) + '">' + escP(t.title) + '</option>'; }).join('') + '</select></div><div class="fld" style="display:flex;align-items:end"><button class="bt bt-o" style="font-size:12px" onclick="smsTemplateManager()">📝 مدیریت قالب‌ها</button></div></div>' +
       '<textarea id="smsText" rows="3" placeholder="متن پیامک... (متغیرها: {نام} = نام مخاطب)" style="width:100%;padding:10px;border:1px solid var(--brd);border-radius:10px;font-family:inherit;font-size:13px"></textarea>' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;flex-wrap:wrap;gap:8px">' +
       '<small style="color:#94a3b8">«لغو11» خودکار به انتهای پیامک تبلیغاتی اضافه می‌شود</small>' +
@@ -351,7 +443,10 @@
     if (!sel.length) { alert('حداقل یک گیرنده انتخاب کنید'); return; }
     if (!txt) { alert('متن پیامک را بنویسید'); return; }
     if (!confirm('تایید ارسال:\n\nگیرندگان: ' + sel.length + ' نفر\nمتن: ' + txt.slice(0, 120) + (txt.length > 120 ? '…' : '') + '\n\nارسال شود؟')) return;
-    var recipients = sel.map(function (r) { return { nm: r.nm, mob: r.mob }; });
+    /* حتی اگر دادهٔ قدیمی با ارقام فارسی از Sync/بک‌آپ برگشته باشد، transport
+       فقط شماره canonical لاتین می‌بیند. */
+    var recipients = sel.map(function (r) { return { nm: r.nm, mob: normMob(r.mob) }; }).filter(function (r) { return !!r.mob; });
+    if (recipients.length !== sel.length) { alert('یک یا چند شماره انتخاب‌شده نامعتبر است؛ شماره‌ها را در دفترچه اصلاح کنید.'); return; }
     var fd = new FormData();
     fd.append('recipients', JSON.stringify(recipients));
     fd.append('text', txt);
@@ -436,19 +531,33 @@
     if (!items.length) { alert('صفی وجود ندارد'); return; }
     var done = 0;
     items.forEach(function (it) {
+      var recipients = (it.recipients || []).map(function (r) { return { nm: r.nm || '', mob: normMob(r.mob) }; }).filter(function (r) { return !!r.mob; });
+      if (!recipients.length) {
+        it.lastError = 'شماره گیرنده نامعتبر است';
+        it.lastTry = faDateTime();
+        setData('ptf_crm_sendqueue', q);
+        smsRenderStatus(true);
+        return;
+      }
       var fd = new FormData();
-      fd.append('recipients', JSON.stringify(it.recipients));
+      fd.append('recipients', JSON.stringify(recipients));
       fd.append('text', it.text);
       fd.append('by', it.by || '');
       fetch(API + '?action=sms_bulk', { method: 'POST', headers: smsAuthHeaders(false), body: fd })
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d.ok && d.sent != null) {
-            it.st = 'sent';
-            done++;
-            setData('ptf_crm_sendqueue', q);
-            smsRenderStatus();
+          /* قبلاً ok+sent=0 نیز sent علامت می‌خورد و صف ظاهراً خالی می‌شد، در حالی
+             که هیچ پیامکی ارسال نشده بود. فقط تحویل کامل همه گیرندگان صف را می‌بندد. */
+          if (d && d.ok && (+d.sent || 0) === recipients.length && !(+d.failed || 0)) {
+            it.st = 'sent'; it.lastError = ''; done++;
+          } else {
+            it.st = 'queued'; it.lastError = (d && (d.reason || d.error)) || 'ارسال کامل انجام نشد'; it.lastTry = faDateTime();
           }
+          setData('ptf_crm_sendqueue', q);
+          smsRenderStatus(true);
+        }).catch(function () {
+          it.st = 'queued'; it.lastError = 'عدم دسترسی به سرور پیامک'; it.lastTry = faDateTime();
+          setData('ptf_crm_sendqueue', q); smsRenderStatus(true);
         });
     });
   };
@@ -614,6 +723,15 @@
       window.saveSup2 = function (cd) {
         _ss(cd);
         try { if (window._ptfSyncBootstrapped !== false) smsBookSyncAll(); } catch (e) {}
+      };
+      ok = true;
+    }
+    if (typeof window.saveUser2 === 'function') {
+      var _su = window.saveUser2;
+      window.saveUser2 = function () {
+        var r = _su.apply(this, arguments);
+        try { if (window._ptfSyncBootstrapped !== false) smsBookSyncAll(); } catch (e) {}
+        return r;
       };
       ok = true;
     }

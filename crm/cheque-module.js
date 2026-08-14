@@ -16,7 +16,7 @@
   var K_LEGACY = 'ptf_crm_cheques';
 
   function read(key) { var v = getData(key); return Array.isArray(v) ? v : []; }
-  function write(key, l) { setData(key, l); }
+  function write(key, l) { return setData(key, l); }
   function me() { try { return curSession() || {}; } catch (e) { return {}; } }
 
   /* ---------- خواندن ---------- */
@@ -69,7 +69,8 @@
         : 'company';
     }
     var key = rec.direction === 'received' ? K_RECEIVED : K_ISSUED;
-    var l = read(key); l.unshift(rec); write(key, l);
+    var l = read(key); l.unshift(rec);
+    if (write(key, l) === false) return { ok: false, why: 'local_write', error: 'چک در حافظهٔ پایدار این دستگاه ذخیره نشد' };
     /* CHQ-V2: اثر مالی به محض ثبت — اگر طرف/فاکتور مشخص باشد (ضمانت هرگز اثر مالی ندارد).
        v33.10.0 (منطق نقدی مصوب کارفرما): چک وارده «درآمد واقعی» نیست تا وقتی وصول نشود —
        اثر مالی (payment روی فاکتور مشتری) فقط هنگام «وصول» (ptfChequeCollect) ساخته می‌شود. */
@@ -81,7 +82,8 @@
       rec.financial = { ok: false, why: 'received_pending_collect' };
       rec.pendingFinancial = true;
     }
-    write(key, l);
+    if (write(key, l) === false) return { ok: false, why: 'local_write', error: 'اثر مالی چک در حافظهٔ پایدار این دستگاه ذخیره نشد' };
+    if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: key, id: rec.cd, label: 'چک' });
     return rec;
   };
 
