@@ -102,20 +102,43 @@
     return out;
   }
 
-  function costSum(list) { return (Array.isArray(list) ? list : []).reduce(function (s, x) { return s + (+x.amt || +x.amount || 0); }, 0); }
   function findDealForFiscal(p) {
     var keys = [p && p.cd, p && p.no, p && p.inqNo, p && p.offerNo].filter(Boolean);
     return (getData('ptf_crm_deals') || []).filter(function (d) {
       return keys.indexOf(d.cd) > -1 || keys.indexOf(d.inqNo) > -1 || keys.indexOf(d.wonOffer) > -1 || keys.indexOf(d.offerNo) > -1;
     })[0] || null;
   }
-  function fiscalDirectProjectCosts(p) {
+  function fiscalDirectProjectCosts(p, r) {
     var d = findDealForFiscal(p);
-    var dealCosts = costSum(d && d.costEvents);
-    var projectCosts = costSum(p && p.costEvents) + costSum(p && p.postArchiveCosts);
-    /* P0-3 FIX: قبلاً Math.max بود که هزینه‌های کوچک‌تر را نادیده می‌گرفت.
-       هزینه‌های پرونده و پروژه باید جمع شوند (هر دو منبع هزینه هستند، نه جایگزین). */
-    return (dealCosts || 0) + (projectCosts || 0);
+    var manual = []
+      .concat((d && d.costEvents) || [])
+      .concat((p && p.costEvents) || [])
+      .concat((p && p.postArchiveCosts) || []);
+    /* v34.5.38 (ابلاغ کارفرما — «امکان دوباره‌شماری به هیچ عنوان نباشد»):
+       مبنای هزینهٔ خرید واقعی فقط «فاکتور خرید تأمین‌کننده» (buyIrr) است. هر هزینهٔ
+       دستی/پسابایگانی که صریحاً به یکی از همان فاکتورها لینک شده باشد (refInvoiceCd /
+       supplierInvoiceCd / coveredByInvoiceCd / sourcePurchaseCd / legacyPayableCds)،
+       اینجا رد می‌شود تا همان ریال دوباره از سود کسر نشود. هزینهٔ بدون لینک = هزینهٔ
+       غیرخرید مستقیم و یک‌بار (dedup با cd) شمارش می‌شود. */
+    var invCds = {}, srcPc = {}, legPc = {};
+    if (r && r.buyInvoiceCds) r.buyInvoiceCds.forEach(function (c) { if (c != null) invCds[String(c)] = 1; });
+    if (r && r.buySourcePurchaseCds) r.buySourcePurchaseCds.forEach(function (c) { if (c != null) srcPc[String(c)] = 1; });
+    if (r && r.buyLegacyPayableCds) r.buyLegacyPayableCds.forEach(function (c) { if (c != null) legPc[String(c)] = 1; });
+    var seen = {}, total = 0;
+    manual.forEach(function (c) {
+      if (!c) return;
+      var refs = [c.refInvoiceCd, c.supplierInvoiceCd, c.coveredByInvoiceCd, c.sourcePurchaseCd].filter(Boolean);
+      var linked = refs.some(function (k) { return invCds[k] || srcPc[k] || legPc[k]; });
+      if (!linked && Array.isArray(c.legacyPayableCds)) {
+        linked = c.legacyPayableCds.some(function (k) { return legPc[k]; });
+      }
+      if (linked) return; /* پوشش‌داده‌شده توسط فاکتور خرید — مجدد کسر نمی‌شود */
+      var key = c.cd || (String(c.t || '') + '|' + String(c.desc || '') + '|' + (+c.amt || 0));
+      if (seen[key]) return;
+      seen[key] = 1;
+      total += (+c.amt || +c.amount || 0);
+    });
+    return total;
   }
   function fiscalPettyStandalone(year) {
     var out = { total: 0, count: 0, pending: 0, pendingCount: 0, rows: [] };
@@ -164,7 +187,7 @@
     cand.items.forEach(function (p) {
       var loss = lossTotal(p);
       var r = (typeof ptfProjectProfitIRR === 'function') ? ptfProjectProfitIRR(p) : { ok: false, warnings: ['موتور سود بارگذاری نشده'] };
-      var directCosts = fiscalDirectProjectCosts(p);
+      var directCosts = fiscalDirectProjectCosts(p, r);
       if (r && r.profit != null && directCosts > (+r.projectCostIrr || 0)) {
         var missingCost = directCosts - (+r.projectCostIrr || 0);
         r.projectCostIrr = directCosts;

@@ -234,7 +234,7 @@ function prjRenderCosts(no) {
              '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="prjPostCostUpload(\'' + ptfOnClickArg(no) + '\',\'' + ptfOnClickArg(c.cd) + '\')">📎</button> ' +
              '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="prjPostCostDel(\'' + ptfOnClickArg(no) + '\',\'' + ptfOnClickArg(c.cd) + '\')">🗑️</button>';
     }
-    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap"><span><b>' + (+c.amt || 0).toLocaleString('fa-IR') + ' ریال</b> — ' + escP(labels[c.cat] || c.cat || 'هزینه') + ' — ' + escP(c.desc || '') + (post ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9">پسابایگانی</span>' : '') + ' <small style="color:#94a3b8">(' + escP(c.t || '') + ' — ' + escP(c.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap">' + acts + '</span></div>';
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap"><span><b>' + (+c.amt || 0).toLocaleString('fa-IR') + ' ریال</b> — ' + escP(labels[c.cat] || c.cat || 'هزینه') + ' — ' + escP(c.desc || '') + (post ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9">پسابایگانی</span>' : '') + (c.refInvoiceCd ? ' <span class="bd" style="background:#ecfdf5;color:#065f46" title="این هزینه به فاکتور خرید لینک است و از سود مجدد کسر نمی‌شود">🔗 لینک به فاکتور خرید ' + escP(c.refInvoiceCd) + '</span>' : '') + ' <small style="color:#94a3b8">(' + escP(c.t || '') + ' — ' + escP(c.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap">' + acts + '</span></div>';
   }).join('');
   var tools = '';
   if (p.state === 'archived' && ptfArcDocAllowed() && p.closeKind !== 'lost') {
@@ -252,6 +252,22 @@ function prjSetState(no, st) {
   audit('پرونده پروژه', 'تغییر وضعیت ' + no + ' → ' + st, no);
 }
 
+/* v34.5.38 ضد دوباره‌شماری: فاکتورهای خرید تأمین‌کنندهٔ لینک‌شده به این پرونده
+   (همان ملاک موتور سود fx.js: legacyPayableCds→payable.inqNo، itemLinks، یا inqNo/offerNo مستقیم). */
+function prjSupplierInvoices(p) {
+  if (!p) return [];
+  var projKeys = [p.inqNo, p.offerNo, p.wonOffer, p.no, p.cd].concat(p.offerNos || []).filter(Boolean);
+  var sf = {};
+  try { sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sf || Array.isArray(sf)) sf = {}; } catch (e) { sf = {}; }
+  var payables = getData('ptf_crm_payables') || [];
+  return (sf.invoices || []).filter(function (i) {
+    if (!i || i.status === 'void' || i.isCover === true) return false;
+    var viaLegacy = (i.legacyPayableCds || []).some(function (cd) { var p2 = payables.filter(function (x) { return x.cd === cd; })[0]; return p2 && projKeys.indexOf(p2.inqNo) > -1; });
+    var viaItems = (i.itemLinks || []).some(function (l) { return projKeys.indexOf(l.offerNo) > -1 || projKeys.indexOf(l.inqNo) > -1; });
+    var viaDirect = projKeys.indexOf(i.inqNo) > -1 || projKeys.indexOf(i.offerNo) > -1;
+    return viaLegacy || viaItems || viaDirect;
+  });
+}
 window.prjPostCostOpen = function (no, costCd) {
   var p = getData('ptf_crm_projects').filter(function (x) { return x.no === no; })[0];
   if (!p) return;
@@ -259,17 +275,27 @@ window.prjPostCostOpen = function (no, costCd) {
   var all = prjAllCosts(p);
   var old = costCd ? (all.filter(function (x) { return x.cd === costCd; })[0] || null) : null;
   var labels = prjCostLabels();
-  ptfDialog({ title: (old ? '✏️ اصلاح' : '➕ ثبت') + ' هزینه گارانتی/پسابایگانی', body: 'برای هزینه‌های گارانتی، خدمات پس از تحویل، اصلاح، تعویض و سایر هزینه‌های پسابایگانی استفاده می‌شود. همه تغییرات در رد تغییرات پرونده ثبت می‌گردد.', fields: [
+  /* v34.5.38 ضد دوباره‌شماری: فاکتورهای خریدِ لینک‌شده به همین پرونده — اگر هزینهٔ
+     پسابایگانی همان تأمین مجددِ ثبت‌شده به‌صورت فاکتور خرید باشد، باید به آن لینک شود
+     تا موتور سود آن را دوباره کسر نکند. */
+  var supInvs = prjSupplierInvoices(p);
+  var prevRef = old ? (old.refInvoiceCd || '') : '';
+  var invOpts = '<option value="">— هزینهٔ غیرخرید (بدون فاکتور خرید) —</option>' + supInvs.map(function (i) {
+    return '<option value="' + escP(i.cd) + '"' + (i.cd === prevRef ? ' selected' : '') + '>' + escP(i.no || i.cd) + ' — ' + (+i.amount || 0).toLocaleString('fa-IR') + ' ' + escP(i.cur || 'IRR') + '</option>';
+  }).join('');
+  ptfDialog({ title: (old ? '✏️ اصلاح' : '➕ ثبت') + ' هزینه گارانتی/پسابایگانی', body: 'برای هزینه‌های گارانتی، خدمات پس از تحویل، اصلاح، تعویض و سایر هزینه‌های پسابایگانی استفاده می‌شود. همه تغییرات در رد تغییرات پرونده ثبت می‌گردد.' + (supInvs.length ? '<br><b style="color:#b45309">⚠️ اگر این هزینه همان «تأمین مجدد کالا» است که قبلاً به‌صورت فاکتور خرید ثبت شده، حتماً آن را در «فاکتور خرید مرتبط» انتخاب کنید تا دوباره‌شماری نشود؛ در غیر این صورت تأمین مجدد را به‌جای اینجا به‌صورت فاکتور خرید تأمین‌کننده ثبت کنید.</b>' : ''), fields: [
     { id: 'amt', label: 'مبلغ هزینه (ریال)', type: 'number', required: true, dir: 'ltr', value: old ? old.amt : '' },
     { id: 'cat', label: 'نوع هزینه', type: 'select', value: old ? old.cat : 'warranty', options: [{v:'warranty',lb:labels.warranty},{v:'service',lb:labels.service},{v:'repair',lb:labels.repair},{v:'logistics',lb:labels.logistics},{v:'other',lb:labels.other}] },
+    { id: 'refInvoiceCd', label: 'فاکتور خرید مرتبط (ضد دوباره‌شماری)', type: 'select', optionsHtml: invOpts, value: old ? (old.refInvoiceCd || '') : '' },
     { id: 'desc', label: 'شرح هزینه', type: 'textarea', rows: 2, required: true, value: old ? old.desc : '' }
   ], okText: (old ? 'ذخیره اصلاح' : 'ثبت هزینه'), onOk: function (v) {
+    if (v.cat === 'repair' && supInvs.length && !v.refInvoiceCd && !confirm('⚠️ «اصلاح/تعویض» با وجود فاکتور خریدِ لینک‌شده ثبت می‌شود اما به هیچ فاکتوری لینک نشده است.\n\nاگر این هزینه همان تأمین مجدد کالا (دارای فاکتور خرید) است، «لغو» کنید و فاکتور خرید مرتبط را انتخاب کنید؛ در غیر این صورت همان مبلغ هم از فاکتور خرید و هم اینجا از سود کسر می‌شود (دوباره‌شماری).\n\nادامه می‌دهید؟')) return;
     var prjs = getData('ptf_crm_projects');
     var pp = prjs.filter(function (x) { return x.no === no; })[0]; if (!pp) return;
     pp.postArchiveCosts = pp.postArchiveCosts || [];
     var ev = old || { cd: genCode('PAC'), postArchive: true, by: curSession().name, t: faDateTime(), files: [] };
     var prevAmt = +ev.amt || 0;
-    ev.amt = +v.amt || 0; ev.cat = v.cat; ev.desc = v.desc; ev.postArchive = true; ev.updatedBy = curSession().name; ev.updatedT = faDateTime();
+    ev.amt = +v.amt || 0; ev.cat = v.cat; ev.desc = v.desc; ev.postArchive = true; ev.refInvoiceCd = v.refInvoiceCd || ''; ev.updatedBy = curSession().name; ev.updatedT = faDateTime();
     if (old) {
       var replaced = false;
       pp.postArchiveCosts = pp.postArchiveCosts.map(function (x) { if (x.cd === ev.cd) { replaced = true; return ev; } return x; });

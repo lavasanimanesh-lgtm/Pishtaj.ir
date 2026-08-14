@@ -156,6 +156,9 @@
       sellIrr: 0, sellSrc: '', sellCur: 'IRR',
       sellFxTotal: 0, sellFxPaid: 0, sellFxRemain: 0, sellAvgRate: 0,
       buyIrr: 0, buyItems: 0, buyPendingFx: [], buyUnmatched: [], /* خریدهای ارزی بدون نرخ / بدون provenance */
+      /* v34.5.38 ضد دوباره‌شماری: شناسه‌های فاکتور خریدِ شمارش‌شده را برای لایهٔ سود
+         برمی‌گردانیم تا هزینه‌ی دستی/پسابایگانیِ لینک‌شده به همان فاکتور، دوباره کسر نشود. */
+      buyInvoiceCds: [], buySourcePurchaseCds: [], buyLegacyPayableCds: [],
       profit: null, pct: null
     };
     if (!prj) { res.ok = false; return res; }
@@ -255,6 +258,10 @@
       var viaDirect = projKeys.indexOf(i.inqNo) > -1 || projKeys.indexOf(i.offerNo) > -1;
       if (!(viaLegacy || viaItems || viaDirect)) return;
       var amt = (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
+      /* provenance ضد دوباره‌شماری — حتی فاکتور پوششی هم ثبت می‌شود تا لینک دستی به آن رد شود */
+      if (i.cd != null) res.buyInvoiceCds.push(i.cd);
+      if (i.sourcePurchaseCd != null) res.buySourcePurchaseCds.push(i.sourcePurchaseCd);
+      (i.legacyPayableCds || []).forEach(function (lc) { if (lc != null) res.buyLegacyPayableCds.push(lc); });
       if (i.isCover === true) {
         var comm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0) : Math.round(amt * (+i.coverCommissionPct || 0) / 100);
         var vat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0) : Math.round(amt * (+i.coverVatPct || 0) / 100);
