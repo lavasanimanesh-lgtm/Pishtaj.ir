@@ -32,6 +32,8 @@ var commission = read('crm/commission.js');
 var financeHub = read('crm/financehub.js');
 assert.ok(commission.indexOf('دوره شمسی') > -1 && commission.indexOf('ptfJToISO') > -1, 'پورسانت دوره شمسی و تبدیل یکپارچه دارد');
 assert.ok(financeHub.indexOf("btn('commission', 'پورسانت فروش'") > -1 && financeHub.indexOf("show('commissionBox', t === 'commission')") > -1, 'پورسانت تب واقعی هاب مالی است، نه دکمهٔ شناور');
+assert.ok(commission.indexOf('function commissionSettingsHtml()') > -1 && commission.indexOf('cmSetPct_') > -1 && commission.indexOf('تنظیم درصد تمام کاربران فقط در این بخش') > -1, 'درصد تمام کاربران فقط در تنظیمات قابل تغییر است');
+assert.ok(commission.indexOf("'<details id=\"cmConfig\"") === -1, 'تنظیم درصد داخل تب پورسانت نمایش داده نمی‌شود');
 var treasury = read('crm/treasury.js'), workcap = read('crm/working-capital.js');
 assert.ok(commission.indexOf("var REC_KEY = 'ptf_crm_commission_records'") > -1 && commission.indexOf('ptfCommissionApproveCycle') > -1 && commission.indexOf('ptfCommissionPay') > -1, 'چرخه تصویب و پرداخت پورسانت دفتر مستقل دارد');
 assert.ok(commission.indexOf("cat: 'پورسانت فروش کارکنان'") > -1 && commission.indexOf('commissionApprovalCd') > -1, 'تصویب پورسانت هزینه غیررسمی قابل ردیابی می‌سازد');

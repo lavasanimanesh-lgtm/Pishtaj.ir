@@ -21,7 +21,7 @@
     return { basis: c.basis === 'won' ? 'won' : 'collected', defaultPct: Math.max(0, Math.min(50, num(c.defaultPct == null ? 1 : c.defaultPct))), byUser: c.byUser || {} };
   }
   function userPct(u) { var c = cfg(); return c.byUser[u] != null && c.byUser[u] !== '' ? Math.max(0, Math.min(50, num(c.byUser[u]))) : c.defaultPct; }
-  function users() { return data('ptf_crm_users').filter(function (u) { var r = u.roleId || u.role || ''; return u && (['sales', 'commercial', 'ceo', 'chairman', 'admin'].indexOf(r) > -1 || !r); }); }
+  function users() { return data('ptf_crm_users').filter(function (u) { return u && (u.username || u.user); }); }
   function userLabel(u) { var hit = users().filter(function (x) { return (x.username || x.user) === u; })[0]; return hit ? (hit.name || hit.nm || u) : (u || 'بدون مالک'); }
   function faMonth() {
     try { if (typeof faMonthNow === 'function') return String(faMonthNow()); } catch (e) {}
@@ -157,10 +157,36 @@
     return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف، دوره شمسی و محاسبه از وصولی واقعی یا CO برنده</small></div><div class="cm-controls"><div class="fld"><label>دوره شمسی</label><input id="cmMonth" value="' + esc(month) + '" placeholder="1405/05" inputmode="numeric"></div><div class="fld"><label>مبنا</label><select id="cmBasis"><option value="collected"' + (basis === 'collected' ? ' selected' : '') + '>وصولی واقعی</option><option value="won"' + (basis === 'won' ? ' selected' : '') + '>CO برنده</option></select></div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
       '<div class="cm-kpis"><div class="cm-kpi"><small>مبنای محاسبه</small><b>' + money(res.totalBase) + '</b></div><div class="cm-kpi"><small>جمع پورسانت پیشنهادی</small><b style="color:#0e7490">' + money(res.totalCommission) + '</b></div><div class="cm-kpi"><small>کارشناسان دارای رکورد</small><b>' + res.rows.filter(function (r) { return r.user !== '_unassigned'; }).length.toLocaleString('fa-IR') + '</b></div></div>' +
       (unassigned ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:12px;color:#92400e">⚠️ ' + money(unassigned.base) + ' مبنای پورسانت مالک مشخص ندارد؛ مالک مشتری یا صادرکننده پیشنهاد را اصلاح کنید.</div>' : '') +
-      '<div id="cmRows">' + reportRows(res) + '</div>' + obligationsHtml() + '<details id="cmConfig" style="margin-top:12px"><summary style="cursor:pointer;font-weight:800">⚙️ قواعد و درصدهای پورسانت</summary><div style="margin-top:10px"><div class="cm-controls"><div class="fld"><label>درصد پیش‌فرض</label><input id="cmDefPct" value="' + c.defaultPct + '" inputmode="decimal"></div><button class="bt" onclick="ptfCommissionSaveCfg()">ذخیره قواعد</button></div><div class="tb2" style="margin-top:8px"><table><thead><tr><th>کارشناس</th><th>درصد اختصاصی</th></tr></thead><tbody>' + (configRows(c) || '<tr><td colspan="2">کاربر فروش یافت نشد</td></tr>') + '</tbody></table></div></div></details></section>';
+      '<div id="cmRows">' + reportRows(res) + '</div>' + obligationsHtml() + '</section>';
   };
   window.ptfCommissionRefresh = function () { window._cmMonth = normMonth((document.getElementById('cmMonth') || {}).value); window._cmBasis = (document.getElementById('cmBasis') || {}).value === 'won' ? 'won' : 'collected'; var old = document.getElementById('commissionBox'); if (old) old.outerHTML = window.ptfCommissionHtml(); if (typeof window.finHubOrder === 'function') window.finHubOrder(); };
-  window.ptfCommissionSaveCfg = function () { if (!isSenior()) { alert('⛔ فقط مدیران ارشد'); return; } var s = settings(), by = {}; users().forEach(function (u) { var id = u.username || u.user || '', el = document.getElementById('cmPct_' + id); if (id && el && String(el.value).trim() !== '') by[id] = Math.max(0, Math.min(50, num(el.value))); }); s.commission = { basis: (document.getElementById('cmBasis') || {}).value === 'won' ? 'won' : 'collected', defaultPct: Math.max(0, Math.min(50, num((document.getElementById('cmDefPct') || {}).value || 1))), byUser: by }; if (saveSettings(s) === false) { alert('⛔ تنظیمات پورسانت ذخیره نشد.'); return; } try { audit('پورسانت', 'ذخیره قواعد پورسانت فروش', 'commission'); } catch (e) {} if (typeof ptfSyncTrackRecordSave === 'function') ptfSyncTrackRecordSave({ key: KEY, id: 'commission', label: 'قواعد پورسانت' }); window._cmBasis = s.commission.basis; ptfCommissionRefresh(); };
+  window.ptfCommissionSaveCfg = function () {
+    if (!isSenior()) { alert('⛔ فقط مدیران ارشد'); return; }
+    var s = settings(), by = {};
+    users().forEach(function (u) { var id = u.username || u.user || '', el = document.getElementById('cmSetPct_' + id) || document.getElementById('cmPct_' + id); if (id && el && String(el.value).trim() !== '') by[id] = Math.max(0, Math.min(50, num(el.value))); });
+    var basisEl = document.getElementById('cmSetBasis') || document.getElementById('cmBasis');
+    var defEl = document.getElementById('cmSetDefPct') || document.getElementById('cmDefPct');
+    s.commission = { basis: (basisEl || {}).value === 'won' ? 'won' : 'collected', defaultPct: Math.max(0, Math.min(50, num((defEl || {}).value || 1))), byUser: by };
+    if (saveSettings(s) === false) { alert('⛔ تنظیمات پورسانت ذخیره نشد.'); return; }
+    try { audit('پورسانت', 'ذخیره قواعد پورسانت فروش برای همه کاربران', 'commission'); } catch (e) {}
+    if (typeof ptfSyncTrackRecordSave === 'function') ptfSyncTrackRecordSave({ key: KEY, id: 'commission', label: 'قواعد پورسانت' });
+    ptfCommissionRefresh();
+  };
+  function commissionSettingsHtml() {
+    if (!isSenior()) return '';
+    var c = cfg();
+    return '<section id="cmSettingsBox" style="margin-top:14px;padding:14px;border:1px solid var(--brd);border-radius:14px;background:var(--crd,#fff)"><h4 style="margin:0 0 5px">💸 قواعد پورسانت فروش</h4><small style="color:#64748b">تنظیم درصد تمام کاربران فقط در این بخش انجام می‌شود. تب پورسانت صرفاً محاسبه، تصویب و پرداخت است.</small><div class="fr" style="margin-top:10px"><div class="fld"><label>مبنای پیش‌فرض</label><select id="cmSetBasis"><option value="collected"' + (c.basis === 'collected' ? ' selected' : '') + '>وصولی واقعی</option><option value="won"' + (c.basis === 'won' ? ' selected' : '') + '>CO برنده</option></select></div><div class="fld"><label>درصد پیش‌فرض</label><input id="cmSetDefPct" value="' + c.defaultPct + '" inputmode="decimal" style="direction:ltr"></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>کاربر</th><th>نقش</th><th>درصد اختصاصی</th></tr></thead><tbody>' + users().map(function (u) { var id = u.username || u.user, pct = c.byUser[id] == null ? '' : c.byUser[id]; return '<tr><td>' + esc(u.name || u.nm || id) + '<small style="color:#64748b"> ' + esc(id) + '</small></td><td>' + esc(u.roleId || u.role || '—') + '</td><td><input id="cmSetPct_' + esc(id) + '" value="' + esc(pct) + '" placeholder="' + c.defaultPct + '" inputmode="decimal" style="width:80px;direction:ltr"></td></tr>'; }).join('') + '</tbody></table></div><button class="bt" style="margin-top:10px" onclick="ptfCommissionSaveCfg()">💾 ذخیره قواعد پورسانت</button></section>';
+  }
+  function hookSettings() {
+    if (window._cmSettingsHooked || typeof window.buildSettings !== 'function') return false;
+    window._cmSettingsHooked = true;
+    var old = window.buildSettings;
+    window.buildSettings = function () { return old() + commissionSettingsHtml(); };
+    return true;
+  }
+  var cmTry = 0, cmTimer = setInterval(function () { cmTry++; if (hookSettings() || cmTry > 60) clearInterval(cmTimer); }, 300);
+  hookSettings();
+
   window.ptfCommissionPrint = function () { var box = document.getElementById('commissionBox'); if (!box) return; if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش پورسانت فروش', '<div dir="rtl" style="font-family:Tahoma;padding:20px"><h2>گزارش پورسانت فروش</h2>' + box.innerHTML + '</div>', 'commission-' + normMonth(window._cmMonth || faMonth()).replace('/','-')); return; } window.print(); };
   /* API قدیمی ptfCommissionReport و hook buildSettings بازنشسته‌اند؛ گزارش اکنون
      فقط داخل هاب مالی یکپارچه نمایش داده می‌شود، نه مودال جدا با تقویم میلادی. */
