@@ -126,16 +126,27 @@
     return true;
   }
 
-  /* ---------- دفترچه تلفن پیامکی: نمایش/ذخیره فارسی ---------- */
+  /* ---------- دفترچه تلفن پیامکی: ذخیرهٔ canonical لاتین، نمایش فارسی در UI ----------
+     API پیامک فقط 09xxxxxxxxx لاتین می‌پذیرد. تبدیل قبلی به ارقام فارسی باعث می‌شد
+     سرور PHP با preg_replace شماره را خالی ببیند؛ سپس صف به‌اشتباه «sent» می‌شد. */
+  function smsCanonicalMobile(raw) {
+    var s = toEnDigits(raw).replace(/[^\d+]/g, '');
+    if (/^\+98/.test(s)) s = '0' + s.slice(3);
+    else if (/^0098/.test(s)) s = '0' + s.slice(4);
+    else if (/^98\d{10}$/.test(s)) s = '0' + s.slice(2);
+    else if (/^9\d{9}$/.test(s)) s = '0' + s;
+    return /^09\d{9}$/.test(s) ? s : '';
+  }
   function hookSmsBook() {
     if (window._pfBookHooked) return false;
     window._pfBookHooked = true;
-    /* نرمال‌سازی یک‌باره دفترچه موجود */
+    /* نرمال‌سازی یک‌بارهٔ رکوردهای قدیمی؛ داده داخلی لاتین است و renderer SMS
+       در صورت نیاز با CSS/فونت نمایش می‌دهد، نه با تغییر خود شماره. */
     try {
       var b = getData('ptf_crm_smsbook');
       var ch = false;
       b.forEach(function (r) {
-        if (r.mob) { var n = ptfPhoneNorm(r.mob, 'fa'); if (n !== r.mob) { r.mob = n; ch = true; } }
+        if (r.mob) { var n = smsCanonicalMobile(r.mob); if (n && n !== r.mob) { r.mob = n; ch = true; } }
       });
       if (ch) setData('ptf_crm_smsbook', b);
     } catch (e) {}

@@ -3,6 +3,8 @@ var fs = require('fs');
 var assert = require('assert');
 var sms = fs.readFileSync('crm/sms.js', 'utf8');
 var cheques = fs.readFileSync('crm/cheques.js', 'utf8');
+var phonefmt = fs.readFileSync('crm/phonefmt.js', 'utf8');
+var api = fs.readFileSync('api/crm.php', 'utf8');
 assert.ok(sms.indexOf("{ id: 'staff', lb: '👥 پرسنل' }") > -1, 'staff tab missing');
 assert.ok(sms.indexOf("pushMob(b, manualMobs, u.mobile || u.mob || u.phone || '', nm, 'staff', ent)") > -1, 'staff tab must sync from CRM users');
 assert.ok(sms.indexOf('smsTemplatesForCurrent') > -1 && sms.indexOf('smsTemplateManager') > -1 && sms.indexOf('smsTemplateSave') > -1, 'per-category templates and custom template manager missing');
@@ -12,4 +14,7 @@ assert.ok(cheques.indexOf('window.ptfMsgTplSaveAll') > -1, 'template persistence
 assert.ok(sms.indexOf('window.smsToggleGroupCsv') > -1 && sms.indexOf('smsMoveGroupCsv') > -1, 'group contact checkbox must use stable CSV ids');
 assert.ok(sms.indexOf("function smsChecked(on)") > -1 && sms.indexOf("on === 'false'") === -1, 'checkbox false must not be treated as truthy');
 assert.ok(sms.indexOf('var allTabSelected = list.length > 0') > -1 && sms.indexOf("(allTabSelected ? 'checked ' : '')") > -1, 'select-all checkbox must retain checked state after re-render');
+assert.ok(phonefmt.indexOf('function smsCanonicalMobile') > -1 && phonefmt.indexOf("ptfPhoneNorm(r.mob, 'fa')") === -1, 'SMS book must persist canonical Latin mobile numbers');
+assert.ok(sms.indexOf('recipients.length !== sel.length') > -1 && sms.indexOf('(+d.sent || 0) === recipients.length') > -1, 'bulk/queue sending must normalize recipients and retain failed queue items');
+assert.ok(api.indexOf('$rawMob = strtr') > -1 && api.indexOf("'۰'=>'0'") > -1, 'server must accept Persian/Arabic digits');
 console.log('PASS tester402 sms-staff-templates');

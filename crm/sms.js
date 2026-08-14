@@ -443,7 +443,10 @@
     if (!sel.length) { alert('حداقل یک گیرنده انتخاب کنید'); return; }
     if (!txt) { alert('متن پیامک را بنویسید'); return; }
     if (!confirm('تایید ارسال:\n\nگیرندگان: ' + sel.length + ' نفر\nمتن: ' + txt.slice(0, 120) + (txt.length > 120 ? '…' : '') + '\n\nارسال شود؟')) return;
-    var recipients = sel.map(function (r) { return { nm: r.nm, mob: r.mob }; });
+    /* حتی اگر دادهٔ قدیمی با ارقام فارسی از Sync/بک‌آپ برگشته باشد، transport
+       فقط شماره canonical لاتین می‌بیند. */
+    var recipients = sel.map(function (r) { return { nm: r.nm, mob: normMob(r.mob) }; }).filter(function (r) { return !!r.mob; });
+    if (recipients.length !== sel.length) { alert('یک یا چند شماره انتخاب‌شده نامعتبر است؛ شماره‌ها را در دفترچه اصلاح کنید.'); return; }
     var fd = new FormData();
     fd.append('recipients', JSON.stringify(recipients));
     fd.append('text', txt);
@@ -528,19 +531,33 @@
     if (!items.length) { alert('صفی وجود ندارد'); return; }
     var done = 0;
     items.forEach(function (it) {
+      var recipients = (it.recipients || []).map(function (r) { return { nm: r.nm || '', mob: normMob(r.mob) }; }).filter(function (r) { return !!r.mob; });
+      if (!recipients.length) {
+        it.lastError = 'شماره گیرنده نامعتبر است';
+        it.lastTry = faDateTime();
+        setData('ptf_crm_sendqueue', q);
+        smsRenderStatus(true);
+        return;
+      }
       var fd = new FormData();
-      fd.append('recipients', JSON.stringify(it.recipients));
+      fd.append('recipients', JSON.stringify(recipients));
       fd.append('text', it.text);
       fd.append('by', it.by || '');
       fetch(API + '?action=sms_bulk', { method: 'POST', headers: smsAuthHeaders(false), body: fd })
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (d.ok && d.sent != null) {
-            it.st = 'sent';
-            done++;
-            setData('ptf_crm_sendqueue', q);
-            smsRenderStatus();
+          /* قبلاً ok+sent=0 نیز sent علامت می‌خورد و صف ظاهراً خالی می‌شد، در حالی
+             که هیچ پیامکی ارسال نشده بود. فقط تحویل کامل همه گیرندگان صف را می‌بندد. */
+          if (d && d.ok && (+d.sent || 0) === recipients.length && !(+d.failed || 0)) {
+            it.st = 'sent'; it.lastError = ''; done++;
+          } else {
+            it.st = 'queued'; it.lastError = (d && (d.reason || d.error)) || 'ارسال کامل انجام نشد'; it.lastTry = faDateTime();
           }
+          setData('ptf_crm_sendqueue', q);
+          smsRenderStatus(true);
+        }).catch(function () {
+          it.st = 'queued'; it.lastError = 'عدم دسترسی به سرور پیامک'; it.lastTry = faDateTime();
+          setData('ptf_crm_sendqueue', q); smsRenderStatus(true);
         });
     });
   };
