@@ -11,4 +11,5 @@ assert.ok(cheques.indexOf("aud: 'پرسنل'") > -1 && cheques.indexOf('staff-me
 assert.ok(cheques.indexOf('window.ptfMsgTplSaveAll') > -1, 'template persistence missing');
 assert.ok(sms.indexOf('window.smsToggleGroupCsv') > -1 && sms.indexOf('smsMoveGroupCsv') > -1, 'group contact checkbox must use stable CSV ids');
 assert.ok(sms.indexOf("function smsChecked(on)") > -1 && sms.indexOf("on === 'false'") === -1, 'checkbox false must not be treated as truthy');
+assert.ok(sms.indexOf('var allTabSelected = list.length > 0') > -1 && sms.indexOf("(allTabSelected ? 'checked ' : '')") > -1, 'select-all checkbox must retain checked state after re-render');
 console.log('PASS tester402 sms-staff-templates');

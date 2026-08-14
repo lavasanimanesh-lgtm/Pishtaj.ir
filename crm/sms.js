@@ -249,8 +249,12 @@
     if (tabsEl.innerHTML !== tabsHtml) tabsEl.innerHTML = tabsHtml;
 
     var list = b.filter(function (r) { return r.cat === _smsTab; });
+    /* ریشه BUG-SMS-SELECT-ALL-001: پس از انتخاب همه، render دوباره مربع بالایی
+       را همیشه خالی می‌ساخت. کلیک بعدی عملاً دوباره «انتخاب» بود نه «برداشتن».
+       وضعیت checkbox باید از همان state شماره‌ها خوانده شود. */
+    var allTabSelected = list.length > 0 && list.every(function (r) { return !!_selected[r.cd]; });
     var h = '<div class="tb2"><table><thead><tr>' +
-      '<th style="width:36px"><input type="checkbox" id="smsSelAll" onchange="smsToggleAll(this.checked)"></th>' +
+      '<th style="width:36px"><input type="checkbox" id="smsSelAll" ' + (allTabSelected ? 'checked ' : '') + 'onchange="smsToggleAll(this.checked)"></th>' +
       '<th>نام و نام خانوادگی</th><th>شماره همراه</th><th>وابسته به</th><th>منبع</th><th>عملیات</th></tr></thead><tbody>';
     var groups = smsBookDisplayGroups(list);
     groups.forEach(function (g) {
