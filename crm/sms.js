@@ -197,6 +197,26 @@
       '<div id="smsSendBox" style="margin-top:14px"></div>';
   };
 
+  /* دفترچه در داده یک رکورد به‌ازای هر شماره نگه می‌دارد تا ارسال گروهی و Sync
+     شماره‌های مستقل از دست نروند. اما در UI، یک شخصِ واحد نباید به‌ازای هر
+     شماره چند بار دیده شود؛ هویت نمایشی = دسته + شرکت/وابستگی + نام نرمال. */
+  function smsBookDisplayGroups(rows) {
+    var map = {}, out = [];
+    function norm(v) { return String(v || '').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim().toLowerCase(); }
+    (rows || []).forEach(function (r) {
+      if (!r) return;
+      var key = [r.cat || '', norm(r.ent), norm(r.nm)].join('|');
+      if (!map[key]) { map[key] = { nm: r.nm || '—', ent: r.ent || '', cat: r.cat || '', rows: [] }; out.push(map[key]); }
+      /* سپر دادهٔ آلودهٔ قدیمی: یک شماره یکسان در یک گروه فقط یک‌بار نمایش یابد. */
+      if (!map[key].rows.some(function (x) { return x.mob === r.mob; })) map[key].rows.push(r);
+    });
+    return out;
+  }
+  window.smsToggleGroup = function (ids, on) {
+    (ids || []).forEach(function (cd) { if (on) _selected[cd] = true; else delete _selected[cd]; });
+    renderSmsPanel();
+  };
+
   window.renderSmsPanel = function () {
     var tabsEl = document.getElementById('smsTabs');
     if (!tabsEl) return;
@@ -214,15 +234,21 @@
     var h = '<div class="tb2"><table><thead><tr>' +
       '<th style="width:36px"><input type="checkbox" id="smsSelAll" onchange="smsToggleAll(this.checked)"></th>' +
       '<th>نام و نام خانوادگی</th><th>شماره همراه</th><th>وابسته به</th><th>منبع</th><th>عملیات</th></tr></thead><tbody>';
-    list.forEach(function (r) {
-      var moveOpts = CATS.filter(function (c) { return c.id !== r.cat; }).map(function (c) {
-        return '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" title="انتقال به ' + c.lb + '" onclick="smsMove(\'' + r.cd + '\',\'' + c.id + '\')">↔ ' + c.lb.split(' ')[1] + '</button>';
+    var groups = smsBookDisplayGroups(list);
+    groups.forEach(function (g) {
+      var ids = g.rows.map(function (r) { return r.cd; });
+      var allSelected = ids.length && ids.every(function (id) { return !!_selected[id]; });
+      var phones = g.rows.map(function (r) {
+        return '<label style="display:block;white-space:nowrap"><input type="checkbox" ' + (_selected[r.cd] ? 'checked' : '') + ' onchange="smsToggle(\'' + r.cd + '\',this.checked)"> <b dir="ltr">' + escP(r.mob) + '</b></label>';
+      }).join('');
+      var sources = g.rows.map(function (r) { return r.src === 'auto' ? 'سینک خودکار' : r.src === 'xls' ? 'اکسل' : 'دستی'; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join('، ');
+      var moveOpts = CATS.filter(function (c) { return c.id !== g.cat; }).map(function (c) {
+        return '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" title="انتقال همه شماره‌های این شخص به ' + c.lb + '" onclick="smsMoveGroup(' + JSON.stringify(ids).replace(/"/g, '&quot;') + ',\'' + c.id + '\')">↔ ' + c.lb.split(' ')[1] + '</button>';
       }).join(' ');
-      h += '<tr><td><input type="checkbox" ' + (_selected[r.cd] ? 'checked' : '') + ' onchange="smsToggle(\'' + r.cd + '\',this.checked)"></td>' +
-        '<td>' + escP(r.nm || '—') + '</td><td style="direction:ltr"><b>' + escP(r.mob) + '</b></td>' +
-        '<td style="font-size:12px;color:#64748b">' + escP(r.ent || '—') + '</td>' +
-        '<td style="font-size:11px">' + (r.src === 'auto' ? '<span class="bd" style="background:#e0f2fe;color:#0369a1">سینک خودکار</span>' : r.src === 'xls' ? '<span class="bd" style="background:#fef3c7;color:#b45309">اکسل</span>' : '<span class="bd" style="background:#f1f5f9;color:#475569">دستی</span>') + '</td>' +
-        '<td>' + moveOpts + (r.src !== 'auto' ? ' <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="smsDel(\'' + r.cd + '\')">🗑️</button>' : '') + '</td></tr>';
+      h += '<tr><td><input type="checkbox" ' + (allSelected ? 'checked' : '') + ' onchange="smsToggleGroup(' + JSON.stringify(ids).replace(/"/g, '&quot;') + ',this.checked)"></td>' +
+        '<td><b>' + escP(g.nm || '—') + '</b>' + (g.rows.length > 1 ? '<br><small style="color:#64748b">' + g.rows.length + ' شماره</small>' : '') + '</td><td style="direction:ltr">' + phones + '</td>' +
+        '<td style="font-size:12px;color:#64748b">' + escP(g.ent || '—') + '</td><td style="font-size:11px">' + escP(sources) + '</td>' +
+        '<td>' + moveOpts + '</td></tr>';
     });
     var bw = document.getElementById('smsBookWrap');
     var bwHtml = h + '</tbody></table></div>' +
@@ -241,10 +267,14 @@
     renderSmsPanel();
   };
   window.smsMove = function (cd, cat) {
-    var b = book();
-    b.forEach(function (r) { if (r.cd === cd) { r.cat = cat; r.src = r.src === 'auto' ? 'moved' : r.src; } });
+    window.smsMoveGroup([cd], cat);
+  };
+  window.smsMoveGroup = function (ids, cat) {
+    var wanted = {}; (ids || []).forEach(function (id) { wanted[id] = true; });
+    var b = book(), count = 0;
+    b.forEach(function (r) { if (wanted[r.cd]) { r.cat = cat; r.src = r.src === 'auto' ? 'moved' : r.src; count++; } });
     saveBook(b);
-    audit('پیامک', 'انتقال مخاطب به دسته ' + cat, cd);
+    audit('پیامک', 'انتقال ' + count + ' شماره مخاطب به دسته ' + cat, (ids || []).join(','));
     renderSmsPanel();
   };
   window.smsDel = function (cd) {
