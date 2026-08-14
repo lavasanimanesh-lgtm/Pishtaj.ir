@@ -2738,7 +2738,9 @@ function showCustModal(cd) {
           var un = u.username || u.user || '';
           if (!un) return;
           var rl = u.roleId || u.role || '';
-          if (['sales','commercial','ceo','chairman','admin'].indexOf(rl) < 0 && rl) return;
+          /* مالک پورسانت ممکن است هر کاربر عملیاتی باشد؛ فهرست را بر اساس نقش
+             محدود نکنید. مدیر انتخاب می‌کند آیا این مشتری به فروش، خرید، حسابداری
+             یا کاربر دیگری تعلق دارد. */
           opts += '<option value="' + escP(un) + '"' + (owner === un ? ' selected' : '') + '>' + escP(u.name || u.nm || un) + (rl ? ' (' + rl + ')' : '') + '</option>';
         });
       } catch (eO) {}
@@ -2748,10 +2750,10 @@ function showCustModal(cd) {
           var uo = (getData('ptf_crm_users')||[]).filter(function(x){return (x.username||x.user)===owner;})[0];
           if (uo) label = uo.name || uo.nm || owner;
         } catch (eL) {}
-        return '<div class="fld"><label>👤 کارشناس فروش مسئول</label><input type="text" value="' + escP(label) + '" readonly style="background:#f1f5f9;color:#475569" title="تغییر مالک فقط توسط مدیران ارشد">' +
+        return '<div class="fld"><label>👤 کارشناس مسئول / مالک پورسانت</label><input type="text" value="' + escP(label) + '" readonly style="background:#f1f5f9;color:#475569" title="تغییر مالک فقط توسط مدیران ارشد">' +
           (c && c.crBy ? '<small style="color:#94a3b8;font-size:11px">ثبت‌کننده اولیه: ' + escP(c.crBy) + (c.crAt ? ' — ' + escP(c.crAt) : '') + '</small>' : '') + '</div>';
       }
-      return '<div class="fr"><div class="fld"><label>👤 کارشناس فروش مسئول</label><select id="nC2Owner">' + opts + '</select>' +
+      return '<div class="fr"><div class="fld"><label>👤 کارشناس مسئول / مالک پورسانت</label><select id="nC2Owner">' + opts + '</select>' +
         (c && c.crBy ? '<small style="color:#94a3b8;font-size:11px">ثبت‌کننده: ' + escP(c.crBy) + (c.crAt ? ' — ' + escP(c.crAt) : '') + '</small>' : '') +
         '</div><div class="fld"><small style="color:#94a3b8;font-size:11px;display:block;padding-top:26px">تغییر مالک فقط برای admin/chairman/ceo/commercial — با audit</small></div></div>';
     })() +

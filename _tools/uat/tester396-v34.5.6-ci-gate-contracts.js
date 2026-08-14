@@ -46,6 +46,8 @@ assert.ok(sy.indexOf('if (startupMerged !== newStr) state.dirty[k] = true') > -1
 assert.ok(sy.indexOf('window.ptfSyncTrackRecordSave') > -1 && sy.indexOf('در انتظار تأیید سرور') > -1, 'رسید فرم باید ثبت محلی را از تأیید سرور جدا کند');
 assert.ok(read('crm/offers.js').indexOf("ptfSyncTrackRecordSave({ key: 'ptf_crm_offers'") > -1, 'پیشنهاد رسید تأیید سرور دارد');
 assert.ok(read('crm/bridge.js').indexOf("ptfSyncTrackRecordSave({ key: 'ptf_crm_rfqs'") > -1, 'درخواست رسید تأیید سرور دارد');
+var offersUi = read('crm/offers.js');
+assert.ok(offersUi.indexOf('کارشناس مسئول / مالک پورسانت') > -1 && offersUi.indexOf('مدیر انتخاب می‌کند آیا این مشتری') > -1, 'مالک مشتری/پورسانت در فرم مشتری با فهرست همه کاربران قابل انتخاب است');
 assert.ok(petty.indexOf("ptfConfirmCloudSave({ key: PETTY_KEY") > -1, 'هزینه تنخواه رسید تأیید سرور دارد');
 assert.ok(sf.indexOf("ptfSyncTrackRecordSave({ key: KEY, id: inv.cd") > -1 && sf.indexOf("ptfSyncTrackRecordSave({ key: KEY, id: rec.cd") > -1, 'فاکتور و پرداخت تأمین رسید تأیید سرور دارند');
 assert.ok(read('crm/cheque-module.js').indexOf("ptfSyncTrackRecordSave({ key: key, id: rec.cd") > -1, 'چک رسید تأیید سرور دارد');
