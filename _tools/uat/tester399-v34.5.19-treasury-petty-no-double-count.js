@@ -31,9 +31,11 @@ assert.strictEqual(c1.outflow, 1000000, 'شارژ تنخواه یک‌بار خ�
 assert.strictEqual(ctx.window.ptfTreasuryCrmMoves().filter(function (m) { return m.src === 'شارژ تنخواه'; }).length, 1, 'یک حرکت شارژ ثبت می‌شود');
 assert.strictEqual(ctx.window.ptfTreasuryCrmMoves().filter(function (m) { return /تسویه تنخواه/.test(m.src || ''); }).length, 0, 'تسویه از مانده تنخواه خروجی بانک نیست');
 
-/* پرداخت مستقیم از بانک/تنخواه، انتقال شارژ نیست و فقط یک‌بار خروجی مستقل دارد. */
+/* پرداخت مستقیم نیز از مانده تنخواه انجام می‌شود (ensureBalance در petty.js)،
+   پس خروجی جدید بانک نیست و نباید کنار شارژ جمع شود. */
 ctx.setData('ptf_crm_petty_tx', ctx.getData('ptf_crm_petty_tx').concat([{ cd: 'PTX-DIRECT', type: 'direct', amt: 50000, ref: 'PTY-2', t: '2026-08-03', st: 'posted' }]));
 ctx.setData('ptf_crm_petty', ctx.getData('ptf_crm_petty').concat([{ cd: 'PTY-2', amt: 50000, st: 'settled', payMode: 'direct', t: '2026-08-03' }]));
 var c2 = ctx.window.ptfTreasuryDerivedCash();
-assert.strictEqual(c2.outflow, 1050000, 'پرداخت مستقیم فقط یک خروجی مستقل به بانک اضافه می‌کند');
+assert.strictEqual(c2.outflow, 1000000, 'پرداخت مستقیم از مانده تنخواه نباید خروجی بانک دوم بسازد');
+assert.strictEqual(ctx.window.ptfTreasuryCrmMoves().filter(function (m) { return /پرداخت مستقیم تنخواه/.test(m.src || ''); }).length, 0, 'پرداخت مستقیم در خزانه بانک نمایش داده نمی‌شود');
 console.log('PASS tester399 treasury-petty-no-double-count');

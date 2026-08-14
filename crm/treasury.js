@@ -1,5 +1,6 @@
-/* PTF CRM — v34.4.83 خزانه نقدی
-   ورودی = وصولی واقعی. خروجی = هزینه/خرید/شارژ تنخواه/چک سررسید/برداشت/فراخوان. */
+/* PTF CRM — خزانه/بانک
+   ورودی = وصولی واقعی. خروجی بانک = خرید/شارژ تنخواه/چک سررسید/برداشت/فراخوان.
+   هزینه و پرداخت مستقیمِ انجام‌شده از مانده تنخواه انتقال بانکی تازه نیستند. */
 (function () {
   'use strict';
   var KEY = 'ptf_crm_bank_recon';
@@ -161,22 +162,24 @@
       });
     });
 
+    /* خزانهٔ این تب = گردش بانک/صندوق مرکزی، نه گردش داخلی تنخواه.
+       charge تنها انتقال بانک → تنخواه است. settle و direct هر دو از ماندهٔ
+       همان تنخواه خرج می‌شوند (direct هم با ensureBalance مجاز می‌شود)، پس اگر
+       اینجا بیایند شارژ یک‌بار و مصرف همان شارژ بار دوم جمع می‌شود. */
     get('ptf_crm_petty_tx').filter(active).forEach(function (tx) {
       var kind = txt(tx.kind || tx.type || '');
-      if (kind !== 'charge' && kind !== 'direct' && kind.indexOf('شارژ') < 0) return;
-      if (kind.indexOf('settle') > -1 || kind.indexOf('تسویه') > -1) return;
+      if (kind !== 'charge' && kind.indexOf('شارژ') < 0) return;
       var amt = num(tx.amt || tx.amount);
       if (!amt) return;
-      var isCharge = kind === 'charge' || kind.indexOf('شارژ') > -1;
       pushMove(out, {
-        key: 'petty:' + (tx.cd || tx.id || ''),
+        key: 'petty-charge:' + (tx.cd || tx.id || ''),
         cd: tx.cd || '',
         dir: 'out',
         amount: amt,
         dateISO: isoOf(tx),
         dateFa: faOf(tx),
-        src: isCharge ? 'شارژ تنخواه' : 'پرداخت مستقیم تنخواه',
-        label: (isCharge ? 'شارژ تنخواه ' : 'پرداخت مستقیم تنخواه ') + (tx.cd || '')
+        src: 'شارژ تنخواه',
+        label: 'شارژ تنخواه ' + (tx.cd || '')
       });
     });
 
