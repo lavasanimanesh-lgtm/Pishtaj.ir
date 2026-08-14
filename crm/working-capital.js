@@ -116,7 +116,7 @@
     var cfg = config(), today = isoToday(), asOf = cfg.endISO && cfg.endISO < today ? cfg.endISO : today;
     var start = cfg.startISO || normalYearBounds(cfg.fiscalYear).startISO;
     var opening = openingTotals(cfg.fiscalYear);
-    var src = { receivable: 0, supplierLiability: 0, supplierCredit: 0, companyCheque: 0 };
+    var src = { receivable: 0, supplierLiability: 0, supplierCredit: 0, companyCheque: 0, commissionLiability: 0 };
     /* v34.0.10-alpha: تفکیک سال جاری / سال‌های قبل برای reconciliation بدهی تأمین‌کننده */
     var recSup = { opening: +opening.supplier_liability || 0, invoicesThis: 0, invoicesPrior: 0, paysThis: 0, paysPrior: 0, adjustments: 0 };
     var moves = { customerInvoices: 0, customerReceipts: 0, supplierInvoices: 0, supplierPayments: 0, companyCheques: 0 };
@@ -222,14 +222,24 @@
       } catch (eSl) {}
     }
 
+    /* بدهی پورسانت: تصویب دوره هزینه را شناسایی می‌کند؛ پرداخت‌های ثبت‌شده فقط مانده
+       را کم می‌کنند. این بدهی با تأمین‌کننده یا چک شرکتی قاطی نمی‌شود. */
+    try {
+      var cmRows = arr(getData('ptf_crm_commission_records'));
+      var paidByApproval = {};
+      cmRows.filter(function (r) { return r && r.kind === 'payment' && r.status === 'posted'; }).forEach(function (r) { paidByApproval[r.approvalCd] = (paidByApproval[r.approvalCd] || 0) + (+r.amount || 0); });
+      cmRows.filter(function (r) { return r && r.kind === 'approval' && r.status === 'approved'; }).forEach(function (r) { src.commissionLiability += Math.max(0, (+r.amount || 0) - (+paidByApproval[r.cd] || 0)); });
+    } catch (eCm) {}
+
     var total = {
       receivable: src.receivable + opening.receivable,
       supplierLiability: src.supplierLiability + opening.supplier_liability,
       supplierCredit: src.supplierCredit + opening.supplier_credit,
       companyCheque: src.companyCheque + opening.company_cheque,
+      commissionLiability: src.commissionLiability,
       cashBank: opening.cash_bank
     };
-    total.netWorkingCapital = total.receivable + total.cashBank - total.supplierLiability + total.supplierCredit - total.companyCheque;
+    total.netWorkingCapital = total.receivable + total.cashBank - total.supplierLiability - total.commissionLiability + total.supplierCredit - total.companyCheque;
     return { schema: 281, cfg: cfg, asOf: asOf, asOfFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(asOf) : asOf, opening: opening, source: src, total: total, moves: moves, counts: counts, issues: issues, openingEntries: openingEntries(cfg.fiscalYear),
       coverCommission: src.coverCommission || 0, coverVat: src.coverVat || 0, coverCount: src.coverCount || 0,
       legacyUnlinked: src.legacyUnlinked || 0, legacyUnlinkedCount: src.legacyUnlinkedCount || 0,
@@ -261,13 +271,14 @@
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;flex-wrap:wrap"><div><h4 style="margin:0">📊 گزارش تجمیعی وضعیت مالی و سرمایه در گردش</h4><small style="color:#64748b">شامل رسمی و غیررسمی با هم — برای تراز جداگانه به تب «تراز رسمی/غیررسمی» مراجعه کنید. سال مالی ' + esc(c.fiscalYear) + ' | از ' + esc(c.startFa) + ' تا ' + esc(c.endFa) + ' | وضعیت تا ' + esc(d.asOfFa) + '</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="fcConfigOpen()">⚙️ تنظیم سال مالی</button><button class="bt bt-o" onclick="fcOpeningOpen()">🏁 ثبت مانده افتتاحیه</button><button class="bt bt-o" onclick="wcPrint()">🖨 پیش‌نمایش/چاپ</button><button class="bt bt-o" onclick="wcCsv()">📥 CSV</button></div></div>' +
       '<div style="background:var(--crd,#fff);border:1px solid var(--brd,#bfdbfe);border-radius:10px;padding:9px 11px;margin:10px 0;color:var(--tx,#1e3a8a);font-size:12px;line-height:1.8"><b>روش محاسبه:</b> مانده‌ها مستقیماً از فاکتورهای مشتری، زیر‌دفتر تأمین‌کننده (فاکتور خرید) و چک‌های با مالکیت صریح «شرکت» خوانده می‌شوند. <b>فاکتور صوری/پوششی خرید واقعی نیست</b> — فقط کارمزد فاکتورساز در بدهی لحاظ و اعتبار ارزش‌افزوده جدا نشان داده می‌شود. تعهدِ خریدِ legacy (بدون فاکتور) از مبلغ بدهی حذف شده (فقط گزارش). «مانده افتتاحیه» فقط برای اسناد/مانده‌هایی است که در این منابع وجود ندارند؛ ورود تکراری آن باعث دوباره‌شماری می‌شود. این گزارش هیچ سند عملیاتی را تغییر نمی‌دهد و جایگزین دفترکل یا گردش بانکی نیست.</div>' +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr));margin-top:10px">' +
-      card(t.receivable, 'مطالبات باز مشتریان', '#b45309') + card(t.supplierLiability, 'بدهی باز تأمین‌کنندگان', '#dc2626') + card(t.supplierCredit, 'اعتبار نزد تأمین‌کنندگان', '#059669') + card(t.companyCheque, 'چک‌های شرکتی باز', '#7c3aed') + card(t.cashBank, 'وجه نقد/بانکِ افتتاحیه', '#0369a1') + card(t.netWorkingCapital, 'خالص سرمایه در گردش ثبتی', t.netWorkingCapital >= 0 ? '#059669' : '#dc2626') +
+      card(t.receivable, 'مطالبات باز مشتریان', '#b45309') + card(t.supplierLiability, 'بدهی باز تأمین‌کنندگان', '#dc2626') + card(t.commissionLiability, 'بدهی پورسانت فروش', '#b45309') + card(t.supplierCredit, 'اعتبار نزد تأمین‌کنندگان', '#059669') + card(t.companyCheque, 'چک‌های شرکتی باز', '#7c3aed') + card(t.cashBank, 'وجه نقد/بانکِ افتتاحیه', '#0369a1') + card(t.netWorkingCapital, 'خالص سرمایه در گردش ثبتی', t.netWorkingCapital >= 0 ? '#059669' : '#dc2626') +
       '</div>' +
       '<div class="tb2" style="margin-top:12px"><table><thead><tr><th>سرفصل</th><th>مانده افتتاحیه دستی</th><th>مانده از اسناد فعال</th><th>مانده گزارش</th><th>منبع</th></tr></thead><tbody>' +
       '<tr><td>مطالبات مشتریان</td><td>' + money(o.receivable) + '</td><td>' + money(s.receivable) + '</td><td><b>' + money(t.receivable) + '</b></td><td>فاکتورهای مشتری − وصولی‌ها</td></tr>' +
       '<tr><td>بدهی تأمین‌کنندگان</td><td>' + money(o.supplier_liability) + '</td><td>' + money(s.supplierLiability) + '</td><td><b>' + money(t.supplierLiability) + '</b></td><td>فاکتور خرید (واقعی + کارمزد پوششی) + اصلاحیات</td></tr>' +
       (d.coverCommission ? '<tr><td>کارمزد فاکتورهای صوری/پوششی</td><td>—</td><td>' + money(d.coverCommission) + '</td><td><b>' + money(d.coverCommission) + '</b></td><td>بدهیِ نقدی واقعی فاکتور پوششی (در بدهی تأمین لحاظ شده)</td></tr><tr><td>اعتبار ارزش‌افزودهٔ پوششی (منفعت)</td><td>—</td><td>' + money(d.coverVat) + '</td><td><b>' + money(d.coverVat) + '</b></td><td>منفعت — نقد نیست؛ در بدهی محاسبه نشده</td></tr>' : '') +
       (d.legacyUnlinked ? '<tr><td>تعهد خرید legacy بدون فاکتور</td><td>—</td><td>' + money(d.legacyUnlinked) + '</td><td><b>' + money(d.legacyUnlinked) + '</b></td><td>گزارشی فقط — در بدهی لحاظ نمی‌شود (مبنای تعهد فاکتور خرید است)</td></tr>' : '') +
+      '<tr><td>بدهی پورسانت فروش کارکنان</td><td>—</td><td>' + money(s.commissionLiability || 0) + '</td><td><b>' + money(t.commissionLiability || 0) + '</b></td><td>دوره‌های تصویب‌شده − پرداخت‌های بانکی پورسانت</td></tr>' +
       '<tr><td>اعتبار تأمین‌کنندگان</td><td>' + money(o.supplier_credit) + '</td><td>' + money(s.supplierCredit) + '</td><td><b>' + money(t.supplierCredit) + '</b></td><td>پرداخت بدون تخصیص + اصلاحیات منفی</td></tr>' +
       '<tr><td>چک شرکتی باز</td><td>' + money(o.company_cheque) + '</td><td>' + money(s.companyCheque) + '</td><td><b>' + money(t.companyCheque) + '</b></td><td>فقط ownership=company و status=open</td></tr>' +
       '<tr><td>وجه نقد/بانک</td><td>' + money(o.cash_bank) + '</td><td>—</td><td><b>' + money(t.cashBank) + '</b></td><td>فقط افتتاحیهٔ دستی؛ گردش بانکی در CRM موجود نیست</td></tr>' +

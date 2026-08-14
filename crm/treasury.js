@@ -183,6 +183,14 @@
       });
     });
 
+    /* پرداخت پورسانت بانک: هزینه قبلاً در زمان تصویب داخل OPEX ثبت شده است؛
+       اینجا فقط حرکت نقدیِ تسویه بدهی را ثبت می‌کنیم. */
+    get('ptf_crm_commission_records').forEach(function (r) {
+      if (!r || r.kind !== 'payment' || r.status !== 'posted' || txt(r.method) !== 'bank') return;
+      var amt = num(r.amount); if (!amt) return;
+      pushMove(out, { key: 'commission-pay:' + (r.cd || ''), cd: r.cd || '', dir: 'out', amount: amt, dateISO: r.dateISO || isoOf(r), dateFa: r.dateFa || faOf(r), src: 'پرداخت پورسانت فروش', label: 'پرداخت پورسانت ' + (r.userLabel || r.user || '') + (r.doc ? ' — ' + r.doc : '') });
+    });
+
     chequeList('ptf_crm_cheques_received').filter(active).forEach(function (ch) {
       if (!chequeCollected(ch)) return;
       var amt = num(ch.amt || ch.amount);

@@ -32,6 +32,10 @@ var commission = read('crm/commission.js');
 var financeHub = read('crm/financehub.js');
 assert.ok(commission.indexOf('دوره شمسی') > -1 && commission.indexOf('ptfJToISO') > -1, 'پورسانت دوره شمسی و تبدیل یکپارچه دارد');
 assert.ok(financeHub.indexOf("btn('commission', 'پورسانت فروش'") > -1 && financeHub.indexOf("show('commissionBox', t === 'commission')") > -1, 'پورسانت تب واقعی هاب مالی است، نه دکمهٔ شناور');
+var treasury = read('crm/treasury.js'), workcap = read('crm/working-capital.js');
+assert.ok(commission.indexOf("var REC_KEY = 'ptf_crm_commission_records'") > -1 && commission.indexOf('ptfCommissionApproveCycle') > -1 && commission.indexOf('ptfCommissionPay') > -1, 'چرخه تصویب و پرداخت پورسانت دفتر مستقل دارد');
+assert.ok(commission.indexOf("cat: 'پورسانت فروش کارکنان'") > -1 && commission.indexOf('commissionApprovalCd') > -1, 'تصویب پورسانت هزینه غیررسمی قابل ردیابی می‌سازد');
+assert.ok(treasury.indexOf("src: 'پرداخت پورسانت فروش'") > -1 && workcap.indexOf('commissionLiability') > -1, 'پرداخت پورسانت خروج بانک و بدهی آن در تراز منعکس می‌شود');
 
 assert.ok(sy.indexOf('function authHeaders') > -1 && sy.indexOf('X-CRM-Token') > -1, 'سینک توکن می‌فرستد');
 assert.ok(sy.indexOf('headers: authHeaders(true)') > -1, 'پوش از همان هلپر توکن استفاده می‌کند');
