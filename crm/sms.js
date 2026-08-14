@@ -221,14 +221,18 @@
     });
     return out;
   }
+  /* بعضی WebViewها مقدار checkbox را به رشته «false» عبور می‌دهند؛ شرط ساده
+     if(on) آن رشته را truthy می‌داند و تیک دیگر هرگز برداشته نمی‌شود. */
+  function smsChecked(on) { return on === true || on === 1 || on === 'true' || on === '1'; }
   window.smsToggleGroup = function (ids, on) {
-    (ids || []).forEach(function (cd) { if (on) _selected[cd] = true; else delete _selected[cd]; });
+    var checked = smsChecked(on);
+    (ids || []).forEach(function (cd) { if (checked) _selected[cd] = true; else delete _selected[cd]; });
     renderSmsPanel();
   };
   /* شناسه‌ها کد CRM هستند و جداکننده | در آن‌ها مجاز نیست. استفاده از CSV سبک
      در handlerهای inline از serialization آرایه/HTML entity جلوگیری می‌کند؛ همان
      علت رایج «تیک می‌خورد ولی برداشته نمی‌شود» در مرورگرهای مختلف. */
-  window.smsToggleGroupCsv = function (csv, on) { window.smsToggleGroup(String(csv || '').split('|').filter(Boolean), !!on); };
+  window.smsToggleGroupCsv = function (csv, on) { window.smsToggleGroup(String(csv || '').split('|').filter(Boolean), on); };
   window.smsMoveGroupCsv = function (csv, cat) { window.smsMoveGroup(String(csv || '').split('|').filter(Boolean), cat); };
 
   window.renderSmsPanel = function () {
@@ -275,13 +279,14 @@
 
   window.smsSetTab = function (t) { _smsTab = t; renderSmsPanel(); };
   window.smsToggle = function (cd, on) {
-    if (on) _selected[cd] = true; else delete _selected[cd];
+    if (smsChecked(on)) _selected[cd] = true; else delete _selected[cd];
     /* وضعیت تیک گروه و «همه مخاطبان» باید از state بازخوانی شود، نه از DOM قدیمی. */
     renderSmsPanel();
   };
   window.smsToggleAll = function (on) {
+    var checked = smsChecked(on);
     book().filter(function (r) { return r.cat === _smsTab; }).forEach(function (r) {
-      if (on) _selected[r.cd] = true; else delete _selected[r.cd];
+      if (checked) _selected[r.cd] = true; else delete _selected[r.cd];
     });
     renderSmsPanel();
   };

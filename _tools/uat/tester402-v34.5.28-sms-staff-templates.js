@@ -10,4 +10,5 @@ assert.ok(sms.indexOf('همه پرسنل') > -1 && sms.indexOf("id: 'staff'") > 
 assert.ok(cheques.indexOf("aud: 'پرسنل'") > -1 && cheques.indexOf('staff-meeting') > -1 && cheques.indexOf('staff-task') > -1, 'staff default templates missing');
 assert.ok(cheques.indexOf('window.ptfMsgTplSaveAll') > -1, 'template persistence missing');
 assert.ok(sms.indexOf('window.smsToggleGroupCsv') > -1 && sms.indexOf('smsMoveGroupCsv') > -1, 'group contact checkbox must use stable CSV ids');
+assert.ok(sms.indexOf("function smsChecked(on)") > -1 && sms.indexOf("on === 'false'") === -1, 'checkbox false must not be treated as truthy');
 console.log('PASS tester402 sms-staff-templates');
