@@ -225,6 +225,11 @@
     (ids || []).forEach(function (cd) { if (on) _selected[cd] = true; else delete _selected[cd]; });
     renderSmsPanel();
   };
+  /* شناسه‌ها کد CRM هستند و جداکننده | در آن‌ها مجاز نیست. استفاده از CSV سبک
+     در handlerهای inline از serialization آرایه/HTML entity جلوگیری می‌کند؛ همان
+     علت رایج «تیک می‌خورد ولی برداشته نمی‌شود» در مرورگرهای مختلف. */
+  window.smsToggleGroupCsv = function (csv, on) { window.smsToggleGroup(String(csv || '').split('|').filter(Boolean), !!on); };
+  window.smsMoveGroupCsv = function (csv, cat) { window.smsMoveGroup(String(csv || '').split('|').filter(Boolean), cat); };
 
   window.renderSmsPanel = function () {
     var tabsEl = document.getElementById('smsTabs');
@@ -246,15 +251,16 @@
     var groups = smsBookDisplayGroups(list);
     groups.forEach(function (g) {
       var ids = g.rows.map(function (r) { return r.cd; });
+      var idsCsv = ids.join('|');
       var allSelected = ids.length && ids.every(function (id) { return !!_selected[id]; });
       var phones = g.rows.map(function (r) {
         return '<label style="display:block;white-space:nowrap"><input type="checkbox" ' + (_selected[r.cd] ? 'checked' : '') + ' onchange="smsToggle(\'' + r.cd + '\',this.checked)"> <b dir="ltr">' + escP(r.mob) + '</b></label>';
       }).join('');
       var sources = g.rows.map(function (r) { return r.src === 'auto' ? 'سینک خودکار' : r.src === 'xls' ? 'اکسل' : 'دستی'; }).filter(function (x, i, a) { return a.indexOf(x) === i; }).join('، ');
       var moveOpts = CATS.filter(function (c) { return c.id !== g.cat; }).map(function (c) {
-        return '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" title="انتقال همه شماره‌های این شخص به ' + c.lb + '" onclick="smsMoveGroup(' + JSON.stringify(ids).replace(/"/g, '&quot;') + ',\'' + c.id + '\')">↔ ' + c.lb.split(' ')[1] + '</button>';
+        return '<button class="bt bt-o" style="padding:3px 8px;font-size:11px" title="انتقال همه شماره‌های این شخص به ' + c.lb + '" onclick="smsMoveGroupCsv(\'' + idsCsv + '\',\'' + c.id + '\')">↔ ' + c.lb.split(' ')[1] + '</button>';
       }).join(' ');
-      h += '<tr><td><input type="checkbox" ' + (allSelected ? 'checked' : '') + ' onchange="smsToggleGroup(' + JSON.stringify(ids).replace(/"/g, '&quot;') + ',this.checked)"></td>' +
+      h += '<tr><td><input type="checkbox" ' + (allSelected ? 'checked' : '') + ' onchange="smsToggleGroupCsv(\'' + idsCsv + '\',this.checked)"></td>' +
         '<td><b>' + escP(g.nm || '—') + '</b>' + (g.rows.length > 1 ? '<br><small style="color:#64748b">' + g.rows.length + ' شماره</small>' : '') + '</td><td style="direction:ltr">' + phones + '</td>' +
         '<td style="font-size:12px;color:#64748b">' + escP(g.ent || '—') + '</td><td style="font-size:11px">' + escP(sources) + '</td>' +
         '<td>' + moveOpts + '</td></tr>';
@@ -268,7 +274,11 @@
   };
 
   window.smsSetTab = function (t) { _smsTab = t; renderSmsPanel(); };
-  window.smsToggle = function (cd, on) { if (on) _selected[cd] = true; else delete _selected[cd]; renderSmsSendBox(); };
+  window.smsToggle = function (cd, on) {
+    if (on) _selected[cd] = true; else delete _selected[cd];
+    /* وضعیت تیک گروه و «همه مخاطبان» باید از state بازخوانی شود، نه از DOM قدیمی. */
+    renderSmsPanel();
+  };
   window.smsToggleAll = function (on) {
     book().filter(function (r) { return r.cat === _smsTab; }).forEach(function (r) {
       if (on) _selected[r.cd] = true; else delete _selected[r.cd];
