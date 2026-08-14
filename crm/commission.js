@@ -18,7 +18,9 @@
   function saveSettings(s) { return setData(KEY, s); }
   function cfg() {
     var st = settings(); var c = st.commission || {};
-    return { basis: c.basis === 'won' ? 'won' : 'collected', defaultPct: Math.max(0, Math.min(50, num(c.defaultPct == null ? 1 : c.defaultPct))), byUser: c.byUser || {} };
+    /* v34.5.35 (ابلاغ کارفرما): مبنای «CO برنده» حذف شد — فقط «وصولی واقعی» پس از
+       تسویه کامل پرونده. فیلد legacy c.basis بی‌اثر نگه داشته می‌شود. */
+    return { defaultPct: Math.max(0, Math.min(50, num(c.defaultPct == null ? 1 : c.defaultPct))), byUser: c.byUser || {} };
   }
   function userPct(u) { var c = cfg(); return c.byUser[u] != null && c.byUser[u] !== '' ? Math.max(0, Math.min(50, num(c.byUser[u]))) : c.defaultPct; }
   function users() { return data('ptf_crm_users').filter(function (u) { return u && (u.username || u.user); }); }
@@ -53,40 +55,74 @@
     return { month: month, start: start, end: end };
   }
   function inBounds(v, b) { var iso = toIso(v); return !!(iso && b.start && b.end && iso >= b.start && iso < b.end); }
-  function offerTotal(o) { return (o && o.items || []).reduce(function (s, it) { return s + num(it.qty) * num(it.price); }, 0); }
   function ownerOf(o) {
     if (!o) return '';
     var c = data('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd || (o.buyerCo && (x.co === o.buyerCo || x.coEn === o.buyerCo)); })[0];
     return (c && (c.owner || c.crBy)) || o.owner || o.issuedBy || o.crBy || '';
   }
   function activePayment(p) { return !!p && p.status !== 'void' && p.status !== 'reversal' && !p.voided; }
+  function payAmt(p) { return num(p.amountIrr || p.amt || p.amount); }
+  function payWhen(p, inv) { return p.dateISO || p.iso || p.date || p.t || inv.issueDate || inv.date || inv.t || ''; }
 
   window.ptfCommissionCalc = function (opts) {
-    opts = opts || {}; var c = cfg(), basis = opts.basis || c.basis, b = bounds(opts.month || opts.period || faMonth()), only = opts.user || '', map = {};
+    opts = opts || {};
+    var c = cfg();
+    var b = bounds(opts.month || opts.period || faMonth());
+    var only = opts.user || '';
+    var map = {};
     function row(u) { u = u || '_unassigned'; if (!map[u]) map[u] = { user: u, label: userLabel(u === '_unassigned' ? '' : u), pct: userPct(u === '_unassigned' ? '' : u), base: 0, lines: [] }; return map[u]; }
-    if (basis === 'won') {
-      data('ptf_crm_offers').forEach(function (o) {
-        if (!o || o.kind === 'TO' || o.st !== 'won') return;
-        var when = o.wonAt || o.dateEn || o.t || ''; if (!inBounds(when, b)) return;
-        var u = ownerOf(o); if (only && u !== only) return;
-        var amount = offerTotal(o); if (!amount) return;
-        var r = row(u); r.base += amount; r.lines.push({ type: 'won', ref: o.no || '', buyer: o.buyerCo || '', amount: amount, date: when });
-      });
-    } else {
-      var offers = {}; data('ptf_crm_offers').forEach(function (o) { if (o && o.no) offers[o.no] = o; });
-      data('ptf_crm_invoices').forEach(function (inv) {
-        if (!inv || inv.status === 'void') return;
-        var o = offers[inv.offerNo] || {}, u = ownerOf(o); if (only && u !== only) return;
-        (inv.payments || []).concat(inv.pays || []).filter(activePayment).forEach(function (p, i) {
-          var when = p.dateISO || p.iso || p.date || p.t || inv.issueDate || inv.date || inv.t || '';
-          if (!inBounds(when, b)) return;
-          var amount = num(p.amountIrr || p.amt || p.amount); if (!amount) return;
-          var r = row(u); r.base += amount; r.lines.push({ type: 'receipt', ref: inv.no || inv.cd || '', offer: inv.offerNo || '', buyer: o.buyerCo || '', amount: amount, date: when, paymentId: p.cd || i });
-        });
-      });
+
+    /* v34.5.35 (ابلاغ کارفرما): پورسانت فقط پس از تسویه کامل «کل پرونده» آزاد می‌شود.
+       - مبنا = مبلغ کل فاکتورهای پرونده، نه وصولی‌های پراکنده.
+       - ماه انتساب = ماه ثبت آخرین وصولی تکمیل‌کننده (ماه تسویه کامل).
+       - فاکتور یتیم (بدون پرونده) از محاسبه حذف می‌شود (تصمیم کارفرما).
+       - مبنای «CO برنده» حذف شده است. */
+    var offersByNo = {};
+    data('ptf_crm_offers').forEach(function (o) { if (o && o.no) offersByNo[o.no] = o; });
+    var deals = data('ptf_crm_deals');
+
+    function dealOf(inv) {
+      var o = offersByNo[inv.offerNo] || {};
+      var d = deals.filter(function (x) {
+        return x && ((o.no && (x.wonOffer === o.no || x.offerNo === o.no)) || (o.inqNo && x.inqNo === o.inqNo));
+      })[0];
+      if (d) return d;
+      d = deals.filter(function (x) { return x && x.cd && (inv.dealCd === x.cd || inv.dealRef === x.cd || inv.projectCd === x.cd); })[0];
+      if (d) return d;
+      if (inv.inqNo) d = deals.filter(function (x) { return x && x.inqNo === inv.inqNo; })[0];
+      return d || null;
     }
+
+    var groups = {};
+    data('ptf_crm_invoices').forEach(function (inv) {
+      if (!inv || inv.status === 'void') return;
+      var d = dealOf(inv);
+      if (!d) return; /* فاکتور بدون پرونده = از محاسبه حذف */
+      var o = offersByNo[inv.offerNo] || {};
+      var g = groups[d.cd] || (groups[d.cd] = { deal: d, owner: ownerOf(o), invoices: [] });
+      g.invoices.push(inv);
+    });
+
+    Object.keys(groups).forEach(function (key) {
+      var g = groups[key];
+      if (!g.invoices.length) return;
+      var allPaid = true, lastWhen = '', base = 0;
+      g.invoices.forEach(function (inv) {
+        var pays = (inv.payments || []).concat(inv.pays || []).filter(activePayment);
+        var paid = pays.reduce(function (s, p) { return s + payAmt(p); }, 0);
+        if (inv.amount - paid > 0.5) { allPaid = false; return; }
+        base += inv.amount;
+        pays.forEach(function (p) { var iso = toIso(payWhen(p, inv)); if (iso > lastWhen) lastWhen = iso; });
+      });
+      if (!allPaid || base <= 0) return;
+      if (!inBounds(lastWhen, b)) return;
+      var r = row(g.owner);
+      r.base += base;
+      r.lines.push({ type: 'settled', ref: g.deal.inqNo || g.deal.cd || '', offer: g.deal.wonOffer || '', buyer: g.deal.buyerCo || '', amount: base, date: lastWhen });
+    });
+
     var rows = Object.keys(map).map(function (k) { var r = map[k]; r.commission = Math.round(r.base * r.pct / 100); return r; }).filter(function (r) { return r.base > 0 || r.user === '_unassigned'; }).sort(function (a, b2) { return b2.commission - a.commission; });
-    return { basis: basis, period: b, rows: rows, totalBase: rows.reduce(function (s, r) { return s + r.base; }, 0), totalCommission: rows.reduce(function (s, r) { return s + r.commission; }, 0), cfg: c };
+    return { basis: 'collected', period: b, rows: rows, totalBase: rows.reduce(function (s, r) { return s + r.base; }, 0), totalCommission: rows.reduce(function (s, r) { return s + r.commission; }, 0), cfg: c };
   };
 
   /* ---------- چرخه مالی پورسانت ----------
@@ -110,7 +146,7 @@
   window.ptfCommissionApproveCycle = function () {
     if (!isSenior()) { alert('⛔ فقط مدیران ارشد می‌توانند دوره پورسانت را تصویب کنند.'); return; }
     var month = normMonth((document.getElementById('cmMonth') || {}).value || window._cmMonth || faMonth());
-    var basis = (document.getElementById('cmBasis') || {}).value === 'won' ? 'won' : 'collected';
+    var basis = 'collected';
     var cycle = month + '|' + basis;
     var old = records().filter(function (r) { return activeApproval(r) && r.cycle === cycle; });
     if (old.length) { alert('این دوره قبلاً تصویب شده است. برای اصلاح از ابطال/سند اصلاحی استفاده کنید.'); return; }
@@ -128,7 +164,7 @@
     if (!made.length || saveRecords(list) === false) { alert('⛔ تصویب دوره روی حافظهٔ پایدار ذخیره نشد؛ هیچ موفقیتی اعلام نمی‌شود.'); return; }
     try { audit('پورسانت', 'تصویب دوره ' + month + ' — ' + made.length + ' کارشناس / ' + money(made.reduce(function (s, r) { return s + r.amount; }, 0)), cycle); } catch (e) {}
     if (typeof ptfSyncTrackRecordSave === 'function') ptfSyncTrackRecordSave({ key: REC_KEY, id: cycle, label: 'تصویب دوره پورسانت' });
-    window._cmMonth = month; window._cmBasis = basis; ptfCommissionRefresh();
+    window._cmMonth = month; ptfCommissionRefresh();
   };
   window.ptfCommissionPay = function (cd) {
     if (!isSenior()) { alert('⛔ فقط مدیران ارشد می‌توانند پرداخت پورسانت ثبت کنند.'); return; }
@@ -152,21 +188,20 @@
   }
   window.ptfCommissionHtml = function () {
     if (!isSenior()) return '';
-    styleOnce(); var c = cfg(), month = normMonth(window._cmMonth || faMonth()), basis = window._cmBasis || c.basis, res = window.ptfCommissionCalc({ month: month, basis: basis });
+    styleOnce(); var c = cfg(), month = normMonth(window._cmMonth || faMonth()), res = window.ptfCommissionCalc({ month: month });
     var unassigned = res.rows.filter(function (r) { return r.user === '_unassigned' && r.base > 0; })[0];
-    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف، دوره شمسی و محاسبه از وصولی واقعی یا CO برنده</small></div><div class="cm-controls"><div class="fld"><label>دوره شمسی</label><input id="cmMonth" value="' + esc(month) + '" placeholder="1405/05" inputmode="numeric"></div><div class="fld"><label>مبنا</label><select id="cmBasis"><option value="collected"' + (basis === 'collected' ? ' selected' : '') + '>وصولی واقعی</option><option value="won"' + (basis === 'won' ? ' selected' : '') + '>CO برنده</option></select></div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
+    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: وصولی واقعی — فقط پس از تسویه کامل پرونده</small></div><div class="cm-controls"><div class="fld"><label>دوره شمسی</label><input id="cmMonth" value="' + esc(month) + '" placeholder="1405/05" inputmode="numeric"></div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
       '<div class="cm-kpis"><div class="cm-kpi"><small>مبنای محاسبه</small><b>' + money(res.totalBase) + '</b></div><div class="cm-kpi"><small>جمع پورسانت پیشنهادی</small><b style="color:#0e7490">' + money(res.totalCommission) + '</b></div><div class="cm-kpi"><small>کارشناسان دارای رکورد</small><b>' + res.rows.filter(function (r) { return r.user !== '_unassigned'; }).length.toLocaleString('fa-IR') + '</b></div></div>' +
       (unassigned ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:12px;color:#92400e">⚠️ ' + money(unassigned.base) + ' مبنای پورسانت مالک مشخص ندارد؛ مالک مشتری یا صادرکننده پیشنهاد را اصلاح کنید.</div>' : '') +
       '<div id="cmRows">' + reportRows(res) + '</div>' + obligationsHtml() + '</section>';
   };
-  window.ptfCommissionRefresh = function () { window._cmMonth = normMonth((document.getElementById('cmMonth') || {}).value); window._cmBasis = (document.getElementById('cmBasis') || {}).value === 'won' ? 'won' : 'collected'; var old = document.getElementById('commissionBox'); if (old) old.outerHTML = window.ptfCommissionHtml(); if (typeof window.finHubOrder === 'function') window.finHubOrder(); };
+  window.ptfCommissionRefresh = function () { window._cmMonth = normMonth((document.getElementById('cmMonth') || {}).value); var old = document.getElementById('commissionBox'); if (old) old.outerHTML = window.ptfCommissionHtml(); if (typeof window.finHubOrder === 'function') window.finHubOrder(); };
   window.ptfCommissionSaveCfg = function () {
     if (!isSenior()) { alert('⛔ فقط مدیران ارشد'); return; }
     var s = settings(), by = {};
     users().forEach(function (u) { var id = u.username || u.user || '', el = document.getElementById('cmSetPct_' + id) || document.getElementById('cmPct_' + id); if (id && el && String(el.value).trim() !== '') by[id] = Math.max(0, Math.min(50, num(el.value))); });
-    var basisEl = document.getElementById('cmSetBasis') || document.getElementById('cmBasis');
     var defEl = document.getElementById('cmSetDefPct') || document.getElementById('cmDefPct');
-    s.commission = { basis: (basisEl || {}).value === 'won' ? 'won' : 'collected', defaultPct: Math.max(0, Math.min(50, num((defEl || {}).value || 1))), byUser: by };
+    s.commission = { defaultPct: Math.max(0, Math.min(50, num((defEl || {}).value || 1))), byUser: by };
     if (saveSettings(s) === false) { alert('⛔ تنظیمات پورسانت ذخیره نشد.'); return; }
     try { audit('پورسانت', 'ذخیره قواعد پورسانت فروش برای همه کاربران', 'commission'); } catch (e) {}
     if (typeof ptfSyncTrackRecordSave === 'function') ptfSyncTrackRecordSave({ key: KEY, id: 'commission', label: 'قواعد پورسانت' });
@@ -175,7 +210,7 @@
   function commissionSettingsHtml() {
     if (!isSenior()) return '';
     var c = cfg();
-    return '<section id="cmSettingsBox" style="margin-top:14px;padding:14px;border:1px solid var(--brd);border-radius:14px;background:var(--crd,#fff)"><h4 style="margin:0 0 5px">💸 قواعد پورسانت فروش</h4><small style="color:#64748b">تنظیم درصد تمام کاربران فقط در این بخش انجام می‌شود. تب پورسانت صرفاً محاسبه، تصویب و پرداخت است.</small><div class="fr" style="margin-top:10px"><div class="fld"><label>مبنای پیش‌فرض</label><select id="cmSetBasis"><option value="collected"' + (c.basis === 'collected' ? ' selected' : '') + '>وصولی واقعی</option><option value="won"' + (c.basis === 'won' ? ' selected' : '') + '>CO برنده</option></select></div><div class="fld"><label>درصد پیش‌فرض</label><input id="cmSetDefPct" value="' + c.defaultPct + '" inputmode="decimal" style="direction:ltr"></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>کاربر</th><th>نقش</th><th>درصد اختصاصی</th></tr></thead><tbody>' + users().map(function (u) { var id = u.username || u.user, pct = c.byUser[id] == null ? '' : c.byUser[id]; return '<tr><td>' + esc(u.name || u.nm || id) + '<small style="color:#64748b"> ' + esc(id) + '</small></td><td>' + esc(u.roleId || u.role || '—') + '</td><td><input id="cmSetPct_' + esc(id) + '" value="' + esc(pct) + '" placeholder="' + c.defaultPct + '" inputmode="decimal" style="width:80px;direction:ltr"></td></tr>'; }).join('') + '</tbody></table></div><button class="bt" style="margin-top:10px" onclick="ptfCommissionSaveCfg()">💾 ذخیره قواعد پورسانت</button></section>';
+    return '<section id="cmSettingsBox" style="margin-top:14px;padding:14px;border:1px solid var(--brd);border-radius:14px;background:var(--crd,#fff)"><h4 style="margin:0 0 5px">💸 قواعد پورسانت فروش</h4><small style="color:#64748b">تنظیم درصد تمام کاربران فقط در این بخش انجام می‌شود. پورسانت فقط از وصولی واقعی و پس از تسویه کامل پرونده محاسبه می‌شود.</small><div class="fr" style="margin-top:10px"><div class="fld"><label>درصد پیش‌فرض</label><input id="cmSetDefPct" value="' + c.defaultPct + '" inputmode="decimal" style="direction:ltr"></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>کاربر</th><th>نقش</th><th>درصد اختصاصی</th></tr></thead><tbody>' + users().map(function (u) { var id = u.username || u.user, pct = c.byUser[id] == null ? '' : c.byUser[id]; return '<tr><td>' + esc(u.name || u.nm || id) + '<small style="color:#64748b"> ' + esc(id) + '</small></td><td>' + esc(u.roleId || u.role || '—') + '</td><td><input id="cmSetPct_' + esc(id) + '" value="' + esc(pct) + '" placeholder="' + c.defaultPct + '" inputmode="decimal" style="width:80px;direction:ltr"></td></tr>'; }).join('') + '</tbody></table></div><button class="bt" style="margin-top:10px" onclick="ptfCommissionSaveCfg()">💾 ذخیره قواعد پورسانت</button></section>';
   }
   function hookSettings() {
     if (window._cmSettingsHooked || typeof window.buildSettings !== 'function') return false;

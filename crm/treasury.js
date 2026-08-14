@@ -82,7 +82,30 @@
 
     get('ptf_crm_offers').forEach(function (o) {
       if (!o || !o.advance) return;
-      arr(o.advance.payments).forEach(function (p, i) {
+      var pays = arr(o.advance.payments);
+      /* BUGFIX (پیش‌پرداخت ارزی/ریالی در بانک و خزانه نمی‌نشست):
+         پیش‌پرداختِ «پرداخت کامل/نقدی ۱۰۰٪» (cashFull) در petty.js بدون رکورد وصول
+         در payments[] ذخیره می‌شود (paid=true و cashFull=true ولی payments خالی است).
+         خزانه فقط payments[] را می‌خواند و این پولِ واقعیِ وصول‌شده را نمی‌دید؛
+         در نتیجه پیش‌پرداخت در «بانک/خزانه» نمی‌نشست و گردش نقدی ناقص می‌شد.
+         اینجا از مبلغ خودِ پیش‌پرداخت (amt = معادل ریالی وصول‌شده) یک حرکت وصول می‌سازیم. */
+      if (!pays.length && (o.advance.cashFull || o.advance.paid)) {
+        var fullAmt = num(o.advance.amt || o.advance.amount);
+        if (fullAmt) {
+          pushMove(out, {
+            key: 'advfull:' + (o.no || o.cd || ''),
+            cd: o.cd || o.no || '',
+            dir: 'in',
+            amount: fullAmt,
+            dateISO: isoOf(o.advance) || isoOf(o),
+            dateFa: faOf(o.advance) || faOf(o),
+            src: 'وصولی پیش‌پرداخت',
+            label: 'وصولی پیش‌پرداخت ' + (o.no || '') + (o.buyerCo ? ' — ' + o.buyerCo : '') + ' (پرداخت کامل/نقدی)'
+          });
+        }
+        return;
+      }
+      pays.forEach(function (p, i) {
         if (!active(p) || p.voided || p.status === 'reversal') return;
         var amt = num(p.amt || p.amount);
         if (!amt) return;
