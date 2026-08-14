@@ -25,6 +25,7 @@ var SUITE = [
   { g: 'مالی', f: '_tools/uat/tester396-v34.5.6-ci-gate-contracts.js' },
   { g: 'مالی', f: '_tools/uat/tester340-v34.4.46-opex-row-identity-collapsed-docs.js' },
   { g: 'مالی', f: '_tools/uat/tester399-v34.5.19-treasury-petty-no-double-count.js' },
+  { g: 'مالی', f: '_tools/uat/tester132-v216.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];

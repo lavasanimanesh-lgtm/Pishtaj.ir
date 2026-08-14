@@ -57,7 +57,7 @@
     if (!canHub()) return '';
     return '<div id="finHubBar" class="fin-hub-bar">' +
       '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی، گزارش تجمیعی و تراز رسمی/غیررسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
-      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('treasury', 'خزانه/بانک', 'treasury') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
+      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('treasury', 'خزانه/بانک', 'treasury') + btn('commission', 'پورسانت فروش', 'report') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
   }
   window.finHubSet = function (id) { window._finHubTab = id || 'petty'; finHubApply(); };
   window.finHubApply = function () {
@@ -94,6 +94,7 @@
     show('ledgerReportBox', t === 'ledger');
     show('treasuryBox', t === 'treasury');
     if (t === 'treasury' && typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+    show('commissionBox', t === 'commission');
     show('qualityBox', t === 'quality');
     show('chequeBox', t === 'cheque');
     var old = document.getElementById('finHubBar');
@@ -110,7 +111,7 @@
       if (!panels || !barEl) return;
       var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
         'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
-        'ledgerReportBox', 'treasuryBox', 'qualityBox', 'chequeBox'];
+        'ledgerReportBox', 'treasuryBox', 'commissionBox', 'qualityBox', 'chequeBox'];
       ids.forEach(function (id) {
         var el = document.getElementById(id);
         if (el && el.parentNode === panels) panels.appendChild(el);
@@ -122,7 +123,7 @@
     if (window._finHubHooked || typeof window.buildPetty !== 'function') return false;
     window._finHubHooked = true;
     var _bp = window.buildPetty;
-    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof window.ptfTreasuryHtml === 'function' ? window.ptfTreasuryHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : ''); };
+    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof window.ptfTreasuryHtml === 'function' ? window.ptfTreasuryHtml() : '') + (typeof window.ptfCommissionHtml === 'function' ? window.ptfCommissionHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : ''); };
     var _rp = window.renderPetty;
     if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); window.finHubOrder(); } catch (e) {} };
     return true;

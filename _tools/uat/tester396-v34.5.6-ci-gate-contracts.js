@@ -28,6 +28,10 @@ assert.ok(fiscal.indexOf('window.ptfFiscalYearLocked') > -1, 'قفل سال ما
 assert.ok(opex.indexOf('ptfFinanceAssertWritable') > -1, 'opex از گارد می‌نویسد');
 assert.ok(petty.indexOf('isFiscalLocked') > -1 && petty.indexOf('سال مالی') > -1, 'تنخواه قفل سال دارد');
 assert.ok(sf.indexOf('سال مالی قفل') > -1 || sf.indexOf('ptfFiscalYearLocked') > -1, 'فاکتور تامین قفل سال دارد');
+var commission = read('crm/commission.js');
+var financeHub = read('crm/financehub.js');
+assert.ok(commission.indexOf('دوره شمسی') > -1 && commission.indexOf('ptfJToISO') > -1, 'پورسانت دوره شمسی و تبدیل یکپارچه دارد');
+assert.ok(financeHub.indexOf("btn('commission', 'پورسانت فروش'") > -1 && financeHub.indexOf("show('commissionBox', t === 'commission')") > -1, 'پورسانت تب واقعی هاب مالی است، نه دکمهٔ شناور');
 
 assert.ok(sy.indexOf('function authHeaders') > -1 && sy.indexOf('X-CRM-Token') > -1, 'سینک توکن می‌فرستد');
 assert.ok(sy.indexOf('headers: authHeaders(true)') > -1, 'پوش از همان هلپر توکن استفاده می‌کند');
