@@ -82,7 +82,30 @@
 
     get('ptf_crm_offers').forEach(function (o) {
       if (!o || !o.advance) return;
-      arr(o.advance.payments).forEach(function (p, i) {
+      var pays = arr(o.advance.payments);
+      /* BUGFIX (پیش‌پرداخت ارزی/ریالی در بانک و خزانه نمی‌نشست):
+         پیش‌پرداختِ «پرداخت کامل/نقدی ۱۰۰٪» (cashFull) در petty.js بدون رکورد وصول
+         در payments[] ذخیره می‌شود (paid=true و cashFull=true ولی payments خالی است).
+         خزانه فقط payments[] را می‌خواند و این پولِ واقعیِ وصول‌شده را نمی‌دید؛
+         در نتیجه پیش‌پرداخت در «بانک/خزانه» نمی‌نشست و گردش نقدی ناقص می‌شد.
+         اینجا از مبلغ خودِ پیش‌پرداخت (amt = معادل ریالی وصول‌شده) یک حرکت وصول می‌سازیم. */
+      if (!pays.length && (o.advance.cashFull || o.advance.paid)) {
+        var fullAmt = num(o.advance.amt || o.advance.amount);
+        if (fullAmt) {
+          pushMove(out, {
+            key: 'advfull:' + (o.no || o.cd || ''),
+            cd: o.cd || o.no || '',
+            dir: 'in',
+            amount: fullAmt,
+            dateISO: isoOf(o.advance) || isoOf(o),
+            dateFa: faOf(o.advance) || faOf(o),
+            src: 'وصولی پیش‌پرداخت',
+            label: 'وصولی پیش‌پرداخت ' + (o.no || '') + (o.buyerCo ? ' — ' + o.buyerCo : '') + ' (پرداخت کامل/نقدی)'
+          });
+        }
+        return;
+      }
+      pays.forEach(function (p, i) {
         if (!active(p) || p.voided || p.status === 'reversal') return;
         var amt = num(p.amt || p.amount);
         if (!amt) return;
@@ -366,6 +389,29 @@
     if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     return true;
   };
+  /* v34.5.37: تغییر خزانه‌دار — قبلاً فقط در حالت «خزانه‌دار تعیین‌نشده» انتخابگر بود؛
+     حالا مدیران ارشد می‌توانند خزانه‌دار فعلی را هم عوض کنند (custodian را روی سهامدار
+     دیگری می‌گذارد و قبلی را برمی‌دارد). */
+  window.ptfTreasuryCustodianPicker = function () {
+    if (!chairCan()) { alert('⛔ فقط مدیران ارشد'); return; }
+    var shs = get('ptf_crm_shareholders').filter(function (s) { return s && s.active !== false; });
+    if (!shs.length) { alert('سهامدار فعالی ثبت نشده است.'); return; }
+    var cur = window.ptfTreasuryCustodianSh();
+    var opts = shs.map(function (s) { return '<option value="' + esc(s.cd) + '"' + (cur && s.cd === cur.cd ? ' selected' : '') + '>' + esc(s.name) + (cur && s.cd === cur.cd ? ' (خزانه‌دار فعلی)' : '') + '</option>'; }).join('');
+    ptfDialog({
+      title: '🧑‍💼 انتخاب / تغییر خزانه‌دار شرکت',
+      body: 'خزانه‌دار تنها کسی است که به حساب شرکت دسترسی دارد (معمولاً رییس هیات مدیره). تزریق از حساب شخصی او «طلب او از شرکت» است نه سود.' + (cur ? '<br>خزانه‌دار فعلی: <b>' + esc(cur.name) + '</b>' : ''),
+      fields: [{ id: 'sh', label: 'سهامدار خزانه‌دار *', type: 'select', optionsHtml: opts, required: true }],
+      okText: 'ثبت خزانه‌دار',
+      onOk: function (v) {
+        if (!v.sh) { alert('سهامدار را انتخاب کنید'); return; }
+        if (!window.ptfTreasurySetCustodian(v.sh)) { alert('ثبت خزانه‌دار ناموفق بود'); return; }
+        try { audit('خزانه', 'تغییر/تعیین خزانه‌دار شرکت به ' + (get('ptf_crm_shareholders').filter(function (s) { return s.cd === v.sh; })[0] || {}).name, v.sh); } catch (eA) {}
+        if (typeof ptfToast === 'function') ptfToast('خزانه‌دار ثبت شد', 'ok');
+        if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+      }
+    });
+  };
   window.ptfTreasuryChairPosition = function () {
     var cash = window.ptfTreasuryDerivedCash();
     var sh = window.ptfTreasuryCustodianSh();
@@ -477,7 +523,8 @@
       (pos.hint ? '<div style="margin-top:6px;font-size:12px;color:#991b1b">' + esc(pos.hint) + '</div>' : '') +
       (chairCan() ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">' +
         '<button type="button" class="bt" onclick="ptfTreasuryChairIn()">تزریق از حساب شخصی</button>' +
-        '<button type="button" class="bt bt-o" onclick="ptfTreasuryChairOut()">تسویه طلب رییس</button></div>' : '') +
+        '<button type="button" class="bt bt-o" onclick="ptfTreasuryChairOut()">تسویه طلب رییس</button>' +
+        '<button type="button" class="bt bt-o" onclick="ptfTreasuryCustodianPicker()">🧑‍💼 تغییر خزانه‌دار</button></div>' : '') +
       '</div>';
   }
 
