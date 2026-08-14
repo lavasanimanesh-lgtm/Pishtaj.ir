@@ -1,0 +1,12 @@
+'use strict';
+var fs = require('fs');
+var assert = require('assert');
+var sms = fs.readFileSync('crm/sms.js', 'utf8');
+var cheques = fs.readFileSync('crm/cheques.js', 'utf8');
+assert.ok(sms.indexOf("{ id: 'staff', lb: '👥 پرسنل' }") > -1, 'staff tab missing');
+assert.ok(sms.indexOf("pushMob(b, manualMobs, u.mobile || u.mob || u.phone || '', nm, 'staff', ent)") > -1, 'staff tab must sync from CRM users');
+assert.ok(sms.indexOf('smsTemplatesForCurrent') > -1 && sms.indexOf('smsTemplateManager') > -1 && sms.indexOf('smsTemplateSave') > -1, 'per-category templates and custom template manager missing');
+assert.ok(sms.indexOf('همه پرسنل') > -1 && sms.indexOf("id: 'staff'") > -1, 'select all staff action missing');
+assert.ok(cheques.indexOf("aud: 'پرسنل'") > -1 && cheques.indexOf('staff-meeting') > -1 && cheques.indexOf('staff-task') > -1, 'staff default templates missing');
+assert.ok(cheques.indexOf('window.ptfMsgTplSaveAll') > -1, 'template persistence missing');
+console.log('PASS tester402 sms-staff-templates');

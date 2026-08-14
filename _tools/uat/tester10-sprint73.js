@@ -139,7 +139,7 @@ setData('ptf_crm_smsbook', [
 global._selTest = {};
 smsPickCat('cust', true);
 T('انتخاب دسته‌ای «همه مشتریان»', smsCode.indexOf("همه مشتریان") > -1 && smsCode.indexOf('smsPickCat') > -1);
-T('انتخاب هر سه دسته', smsCode.indexOf('هر سه دسته') > -1);
+T('انتخاب همه دسته‌ها (مشتری/تأمین‌کننده/پرسنل/سایرین)', smsCode.indexOf('همه دسته‌ها') > -1 && smsCode.indexOf("id: 'staff'") > -1);
 T('انتخاب دلخواه با تیک', smsCode.indexOf('smsToggle') > -1);
 T('تایید قبل از ارسال', smsCode.indexOf('تایید ارسال') > -1);
 T('متغیر {نام} در متن', apiCode.indexOf("str_replace('{نام}'") > -1);

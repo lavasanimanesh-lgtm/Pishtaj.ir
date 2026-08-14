@@ -28,6 +28,7 @@ var SUITE = [
   { g: 'مالی', f: '_tools/uat/tester132-v216.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
+  { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
