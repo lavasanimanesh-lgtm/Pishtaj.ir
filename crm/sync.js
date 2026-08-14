@@ -1366,8 +1366,21 @@
           if ((item.repeat || 1) > (ex.repeat || 1)) { ex.repeat = item.repeat; ex.lastT = item.lastT || ex.lastT; ex.lastISO = item.lastISO || ex.lastISO; }
         });
         var nOut = Object.keys(nMap).map(function (k2) { return nMap[k2]; });
-        nOut.sort(function (a, b) { return String(b.iso || '').localeCompare(String(a.iso || '')); });
-        return JSON.stringify(nOut);
+        /* نسخه‌های قدیمی یا event-poll ممکن است برای یک ارجاع پایدار cd جدید
+           ساخته باشند. در merge، referral با dkey یکسان باید یک کار بماند؛
+           readBy/done اتحاد می‌شود و زمان ایجاد نخستین ارجاع حفظ می‌گردد. */
+        var byTask = {}, nDedup = [];
+        nOut.forEach(function (item) {
+          var dk = String(item && item.dkey || '');
+          var isReferral = item && item.kind === 'referral' && /^referral\|/.test(dk);
+          if (!isReferral || !byTask[dk]) { if (isReferral) byTask[dk] = item; nDedup.push(item); return; }
+          var keep = byTask[dk], rb2 = {};
+          (keep.readBy || []).concat(item.readBy || []).forEach(function (u) { if (u) rb2[u] = 1; });
+          keep.readBy = Object.keys(rb2); keep.done = !!(keep.done || item.done);
+          if (String(item.iso || '') && (!keep.iso || String(item.iso) < String(keep.iso))) { keep.t = item.t; keep.iso = item.iso; }
+        });
+        nDedup.sort(function (a, b) { return String(b.iso || '').localeCompare(String(a.iso || '')); });
+        return JSON.stringify(nDedup);
       }
 
       if (key === 'ptf_crm_fiscal_snapshots') {

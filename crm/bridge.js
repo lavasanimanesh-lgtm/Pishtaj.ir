@@ -93,6 +93,15 @@
       return null;
     }
     var notifs = getData('ptf_crm_notifs');
+    /* رویداد سرور فقط کانال لحظه‌ای است، نه مجوز ساختن کارتابل تازه. خودِ
+       saveReferral از قبل همان ارجاع را با dkey پایدار ذخیره می‌کند. اگر poll
+       پس از refresh همان event را دوباره ببیند، ایجاد رکورد جدید تاریخ آن را
+       «امروز» می‌کرد و readBy کاربر را دور می‌زد. */
+    var stableKey = opt.dkey || '';
+    if (stableKey) {
+      var prior = notifs.filter(function (n) { return n && n.dkey === stableKey && !n.done; })[0];
+      if (prior) return prior;
+    }
     var rec = {
       cd: genCode('NTF'), t: faDateTime(), iso: new Date().toISOString(),
       from: opt.from || 'سیستم', fromRole: opt.fromRole || '',
@@ -101,7 +110,7 @@
       channels: ['cart'], link: opt.link || null,
       readBy: [], actionable: true, done: false,
       remCd: opt.remCd || null, refCd: opt.refCd || null, taskType: opt.taskType || null,
-      dkey: opt.dkey || null
+      dkey: stableKey || null
     };
     notifs.unshift(rec);
     if (notifs.length > 1000) notifs = notifs.slice(0, 1000);

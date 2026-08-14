@@ -66,5 +66,8 @@ assert.ok(br.indexOf("kind: 'offer_wait'") === -1, 'اعلان انتظار پی
 assert.ok(br.indexOf("kind: 'co_expiry'") === -1, 'انقضای CO کارتابل را پر نمی‌کند');
 assert.ok(br.indexOf("toRoles: assignee.length ? [] : ['admin', 'chairman', 'ceo', 'commercial']") > -1,
   'مهلت بدون مسئول فقط به ارشد می‌رود');
+assert.ok(br.indexOf('var stableKey = opt.dkey') > -1 && br.indexOf('n.dkey === stableKey && !n.done') > -1, 'event-poll ارجاع با dkey پایدار کارت تازه نمی‌سازد');
+assert.ok(rb.indexOf('var persistentTask') > -1 && rb.indexOf('readBy را دور بزند') > -1, 'ارجاع خوانده‌شده با event تکراری تاریخ امروز نمی‌گیرد');
+assert.ok(sy.indexOf('var byTask = {}, nDedup = []') > -1 && sy.indexOf('referral با dkey یکسان باید یک کار بماند') > -1, 'merge سینک ارجاع‌های تکراری قدیمی را یکی می‌کند');
 
 console.log('PASS tester396 ci-gate-contracts');

@@ -122,7 +122,12 @@ function notify(opt) {
     if (!dn || dn.done) continue;
     var dnk = dn.dkey || (String(dn.title || '') + '|' + String(dn.body || '') + '|' +
       (dn.toRoles || []).join(',') + '|' + (dn.toUsers || []).join(','));
-    if (dnk === dkey && (dn.readBy || []).length === 0) {
+    /* ارجاع یک task پایدار است، نه خبر تازه. حتی اگر کاربر آن را خوانده باشد
+       یا poll/event پس از refresh دوباره اجرا شود، dkey یکسان نباید کارت تازه
+       با تاریخ امروز بسازد و readBy را دور بزند. اعلان‌های دوره‌ای دیگر فقط تا
+       زمان خوانده‌نشدن همان رفتار تکرار قبلی را حفظ می‌کنند. */
+    var persistentTask = (opt.kind === 'referral' && /^referral\|/.test(String(dkey)));
+    if (dnk === dkey && ((dn.readBy || []).length === 0 || persistentTask)) {
       dn.repeat = (dn.repeat || 1) + 1;
       dn.lastT = faDateTime(); dn.lastISO = new Date().toISOString();
       /* v33.4.1: اگر dkey صریح داده شده (مثلاً یادآور روزانه چک با شمارش روز تغییرپذیر)،
