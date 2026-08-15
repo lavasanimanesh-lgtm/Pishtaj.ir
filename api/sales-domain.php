@@ -277,6 +277,101 @@ function sd_append_command(array &$commands, string $key, string $action, array 
     if (count($commands) > 1000) $commands = array_slice($commands, -1000);
 }
 
+/* Guided duplicate-case repair. The plan is intentionally descriptive and the commit
+   merges evidence into a user-selected canonical case; no record is guessed or silently
+   discarded. All related financial projections are re-pointed in the same transaction. */
+function sd_case_offer_linked(array $case, array $offer): bool {
+    $no = (string)($offer['no'] ?? '');
+    $oid = (string)($offer['_id'] ?? '');
+    return ($no !== '' && ((string)($case['wonOffer'] ?? '') === $no || (string)($case['offerNo'] ?? '') === $no))
+        || ($oid !== '' && (string)($case['rootOfferId'] ?? '') === $oid);
+}
+function sd_case_aliases(array $case): array {
+    return array_values(array_unique(array_filter([(string)($case['_id'] ?? ''), (string)($case['cd'] ?? '')])));
+}
+function sd_case_array_evidence(array $case): array {
+    $out = [];
+    foreach ($case as $key => $value) {
+        if (!is_array($value) || $key === 'linkedOffers' || count($value) === 0) continue;
+        $out[(string)$key] = count($value);
+    }
+    ksort($out);
+    return $out;
+}
+function sd_case_related_summary(array $case, array $invoices, array $receipts, array $allocations, array $attachments, array $linkedCollections=[]): array {
+    $aliases = sd_case_aliases($case); $out = ['invoices'=>0,'receipts'=>0,'allocations'=>0,'attachments'=>0];
+    foreach ($invoices as $row) if (is_array($row) && sd_active($row) && in_array((string)($row['caseId'] ?? ''), $aliases, true)) $out['invoices']++;
+    foreach ($receipts as $row) if (is_array($row) && sd_active($row) && in_array((string)($row['caseId'] ?? ''), $aliases, true)) $out['receipts']++;
+    foreach ($allocations as $row) if (is_array($row) && sd_active($row) && in_array((string)($row['caseId'] ?? ''), $aliases, true)) $out['allocations']++;
+    foreach ($attachments as $row) if (is_array($row) && sd_active($row) && in_array((string)($row['ownerId'] ?? ''), $aliases, true)) $out['attachments']++;
+    foreach($linkedCollections as $name=>$spec){$out[(string)$name]=0;$field=(string)($spec['field']??'');foreach(($spec['rows']??[])as $row)if(is_array($row)&&$field!==''&&in_array((string)($row[$field]??''),$aliases,true))$out[(string)$name]++;}
+    return $out;
+}
+function sd_duplicate_case_plan_data(array $offers, array $cases, array $invoices, array $receipts, array $allocations, array $attachments, string $no, array $linkedCollections=[]): array {
+    $hits = [];
+    foreach ($offers as $offer) if (is_array($offer) && (string)($offer['no'] ?? '') === $no) $hits[] = $offer;
+    if (count($hits) !== 1) return ['offerNo'=>$no,'offerCount'=>count($hits),'candidates'=>[],'planHash'=>'','error'=>count($hits) ? 'duplicate_offer_no' : 'offer_not_found'];
+    $offer = $hits[0]; $candidates = []; $signature = ['offer'=>[$offer['_id']??'', $offer['no']??'', $offer['st']??''], 'cases'=>[]];
+    foreach ($cases as $case) {
+        if (!is_array($case) || !sd_active($case) || !sd_case_offer_linked($case, $offer)) continue;
+        $id = (string)($case['_id'] ?? $case['cd'] ?? '');
+        $evidence = sd_case_array_evidence($case);
+        $related = sd_case_related_summary($case, $invoices, $receipts, $allocations, $attachments, $linkedCollections);
+        $evidenceTotal = array_sum($evidence); $relatedTotal = array_sum($related);
+        $candidates[] = [
+            'id'=>$id, 'cd'=>(string)($case['cd']??''), 'inqNo'=>(string)($case['inqNo']??''),
+            'buyerCo'=>(string)($case['buyerCo']??''), 'buyerCd'=>(string)($case['buyerCd']??''),
+            'currency'=>(string)($case['currency']??''), 'status'=>(string)($case['status']??$case['st']??''),
+            'createdAt'=>(string)($case['wonAtISO']??$case['createdAtISO']??$case['t']??''),
+            'evidence'=>$evidence, 'related'=>$related, 'evidenceTotal'=>$evidenceTotal,
+            'relatedTotal'=>$relatedTotal, 'safeEmpty'=>($evidenceTotal===0 && $relatedTotal===0),
+            'recordHash'=>hash('sha256', json_encode($case, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))
+        ];
+        $signature['cases'][] = [$id, $candidates[count($candidates)-1]['recordHash'], $related];
+    }
+    usort($candidates, function($a,$b){ return strcmp((string)$a['id'], (string)$b['id']); });
+    sort($signature['cases']);
+    $recommended = '';
+    if (count($candidates) === 2 && $candidates[0]['safeEmpty'] !== $candidates[1]['safeEmpty']) $recommended = $candidates[0]['safeEmpty'] ? $candidates[1]['id'] : $candidates[0]['id'];
+    return ['offerNo'=>$no,'offerCount'=>1,'offerId'=>$offer['_id']??'','candidateCount'=>count($candidates),'candidates'=>$candidates,
+        'recommendedKeepId'=>$recommended,'planHash'=>hash('sha256', json_encode($signature, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))];
+}
+function sd_array_is_list_compat(array $value): bool {
+    $i = 0; foreach ($value as $key => $_) { if ($key !== $i++) return false; } return true;
+}
+function sd_merge_row_fingerprint($row): string {
+    if(is_array($row)){foreach(['_id','id','cd','eventCd','opexRowId','pettyCd','key','objectKey']as $key)if(isset($row[$key])&&trim((string)$row[$key])!=='')return $key.':'.trim((string)$row[$key]);}
+    return 'json:'.hash('sha256',json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+}
+function sd_merge_case_value($keep, $source, string $path, array &$conflicts) {
+    if (is_array($keep) && is_array($source)) {
+        if (sd_array_is_list_compat($keep) && sd_array_is_list_compat($source)) {
+            $positions=[];foreach($keep as $idx=>$row)$positions[sd_merge_row_fingerprint($row)]=$idx;
+            foreach($source as $row){$fp=sd_merge_row_fingerprint($row);if(!array_key_exists($fp,$positions)){$positions[$fp]=count($keep);$keep[]=$row;}else{$idx=$positions[$fp];$keep[$idx]=sd_merge_case_value($keep[$idx],$row,$path.'['.$fp.']',$conflicts);}}
+            return $keep;
+        }
+        foreach ($source as $key => $value) {
+            $next = $path === '' ? (string)$key : $path . '.' . $key;
+            if (!array_key_exists($key, $keep)) $keep[$key] = $value;
+            else $keep[$key] = sd_merge_case_value($keep[$key], $value, $next, $conflicts);
+        }
+        return $keep;
+    }
+    $missing = $keep === null || $keep === '';
+    if ($missing) return $source;
+    if ($source !== null && $source !== '' && $keep !== $source && count($conflicts) < 100) $conflicts[] = $path;
+    return $keep;
+}
+function sd_merge_case_records(array $keep, array $source, array &$conflicts): array {
+    $protected = ['_id','cd','rootOfferId','wonOffer','offerNo','inqNo','buyerCd','buyerCo','currency','contractAmount','status','st'];
+    foreach ($source as $key => $value) {
+        if (in_array((string)$key, $protected, true)) continue;
+        if (!array_key_exists($key, $keep)) $keep[$key] = $value;
+        else $keep[$key] = sd_merge_case_value($keep[$key], $value, (string)$key, $conflicts);
+    }
+    return $keep;
+}
+
 function sd_migration_report(): array {
     $offers=sd_read('ptf_crm_offers'); $cases=sd_read('ptf_crm_deals');
     $invoices=sd_read('ptf_crm_invoices'); $receipts=sd_read('ptf_crm_case_receipts');
@@ -313,9 +408,16 @@ function sd_migration_report(): array {
     return ['issues'=>$issues,'safeReceiptCandidates'=>$safe,'counts'=>['offers'=>count($offers),'cases'=>count($cases),'invoices'=>count($invoices),'receipts'=>count($receipts)]];
 }
 
-$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run'], true);
+$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan'], true);
 if ($readOnly) {
     if ($action === 'migration_dry_run') { sd_require_role(SD_ADMIN_ROLES); sd_out(['ok'=>true,'report'=>sd_migration_report(),'version'=>'34.6.0']); }
+    if ($action === 'duplicate_case_plan') {
+        sd_require_role(SD_OFFER_REPAIR_ROLES);
+        $no = sd_text($body['offerNo'] ?? '', 100);
+        if ($no === '') sd_out(['ok'=>false,'error'=>'offer_number_required'],422);
+        $linked=['petty'=>['rows'=>sd_read('ptf_crm_petty'),'field'=>'dealRef'],'opex'=>['rows'=>sd_read('ptf_crm_opex'),'field'=>'dealRef'],'issuedCheques'=>['rows'=>sd_read('ptf_crm_cheques_issued'),'field'=>'dealCd'],'receivedCheques'=>['rows'=>sd_read('ptf_crm_cheques_received'),'field'=>'dealCd'],'salesReturns'=>['rows'=>sd_read('ptf_crm_sales_returns'),'field'=>'dealCd']];
+        sd_out(['ok'=>true,'plan'=>sd_duplicate_case_plan_data(sd_read('ptf_crm_offers'),sd_read('ptf_crm_deals'),sd_read('ptf_crm_invoices'),sd_read('ptf_crm_case_receipts'),sd_read('ptf_crm_receipt_allocations'),sd_read('ptf_crm_fin_attachments'),$no,$linked)]);
+    }
     sd_require_role(SD_FIN_ROLES);
     if ($action === 'health') {
         $d = sd_snapshot();
@@ -342,6 +444,9 @@ try {
     $deleted = sd_read('ptf_crm_deleted_archive');
     $snaps = sd_read('ptf_crm_fiscal_snapshots');
     $commands = sd_read('ptf_crm_sales_commands');
+    /* Cross-case links outside the financial core are loaded only for the rare merge command. */
+    $petty=[];$opex=[];$issuedCheques=[];$receivedCheques=[];$salesReturns=[];
+    if($action==='duplicate_case_merge'){$petty=sd_read('ptf_crm_petty');$opex=sd_read('ptf_crm_opex');$issuedCheques=sd_read('ptf_crm_cheques_issued');$receivedCheques=sd_read('ptf_crm_cheques_received');$salesReturns=sd_read('ptf_crm_sales_returns');}
     $idem = sd_text($body['idempotencyKey'] ?? '', 120);
     $old = sd_idempotency($commands, $idem);
     if ($old) {
@@ -490,6 +595,49 @@ try {
         if($deleteIt){$deleted[]=['id'=>$no,'kind'=>'OFFER','label'=>($offer['kind']??'CO').' — '.($offer['buyerCo']??''),'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$offer]; array_splice($offers,$oi,1);}
         else{$offer['st']=$offer['priorStatus']??'sent';$offer['status']=$offer['st'];$offer['winRevokedAt']=sd_now();$offer['winRevokedBy']=$user;$offer['winRevokedReason']=$reason;if(isset($offer['wonRevisionSnapshot']))$offer['revokedWinSnapshot']=$offer['wonRevisionSnapshot'];unset($offer['wonAt'],$offer['wonAtISO'],$offer['wonBy'],$offer['wonRevisionSnapshot'],$offer['invRef'],$offer['amendmentOfCaseId']);$offers[$oi]=$offer;}
         $changes=['ptf_crm_offers'=>$offers,'ptf_crm_corrections'=>$corrections,'ptf_crm_deleted_archive'=>$deleted];$result=['deleted'=>$deleteIt,'offerNo'=>$no];
+    }
+    elseif ($action === 'duplicate_case_merge') {
+        sd_require_role(SD_OFFER_REPAIR_ROLES);
+        $no=sd_text($body['offerNo']??'',100);$keepRequested=sd_text($body['keepCaseId']??'',120);$removeRequested=sd_text($body['removeCaseId']??'',120);
+        $reason=sd_text($body['reason']??'',500);$planHash=sd_text($body['planHash']??'',100);
+        if(($body['confirm']??'')!=='PTF-DUPLICATE-CASE-MERGE')sd_out(['ok'=>false,'error'=>'merge_confirmation_required'],422);
+        if($no===''||$keepRequested===''||$removeRequested===''||$keepRequested===$removeRequested)sd_out(['ok'=>false,'error'=>'case_selection_required'],422);
+        if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $linked=['petty'=>['rows'=>$petty,'field'=>'dealRef'],'opex'=>['rows'=>$opex,'field'=>'dealRef'],'issuedCheques'=>['rows'=>$issuedCheques,'field'=>'dealCd'],'receivedCheques'=>['rows'=>$receivedCheques,'field'=>'dealCd'],'salesReturns'=>['rows'=>$salesReturns,'field'=>'dealCd']];
+        $plan=sd_duplicate_case_plan_data($offers,$cases,$invoices,$receipts,$allocations,$attachments,$no,$linked);
+        if(($plan['candidateCount']??0)<2)sd_out(['ok'=>false,'error'=>'duplicate_case_not_found','candidateCount'=>$plan['candidateCount']??0],409);
+        if($planHash===''||!hash_equals((string)$plan['planHash'],$planHash))sd_out(['ok'=>false,'error'=>'duplicate_case_plan_stale','plan'=>$plan],409);
+        $keepIndex=-1;$removeIndex=-1;
+        foreach($cases as $i=>$case){if(!is_array($case))continue;$aliases=sd_case_aliases($case);if(in_array($keepRequested,$aliases,true))$keepIndex=$i;if(in_array($removeRequested,$aliases,true))$removeIndex=$i;}
+        if($keepIndex<0||$removeIndex<0||$keepIndex===$removeIndex)sd_out(['ok'=>false,'error'=>'selected_case_not_found'],404);
+        $keepBefore=$cases[$keepIndex];$source=$cases[$removeIndex];
+        $offer=null;foreach($offers as $row)if(is_array($row)&&(string)($row['no']??'')===$no){$offer=$row;break;}
+        if(!$offer||!sd_case_offer_linked($keepBefore,$offer)||!sd_case_offer_linked($source,$offer))sd_out(['ok'=>false,'error'=>'case_offer_link_changed'],409);
+        foreach(['inqNo','buyerCd','currency']as $identityKey){$a=sd_identity($keepBefore[$identityKey]??'');$b=sd_identity($source[$identityKey]??'');if($a!==''&&$b!==''&&$a!==$b)sd_out(['ok'=>false,'error'=>'case_identity_conflict','field'=>$identityKey,'keep'=>$keepBefore[$identityKey]??'','remove'=>$source[$identityKey]??''],409);}
+        $sourceAliases=sd_case_aliases($source);$conflicts=[];$keep=sd_merge_case_records($keepBefore,$source,$conflicts);
+        $keepId=sd_case_id($keep);$keepCd=(string)($keep['cd']??$keepId);$keep['rootOfferId']=!empty($offer['_id'])?$offer['_id']:($keep['rootOfferId']??'');$keep['wonOffer']=$no;
+        $keep['mergedFromCaseIds']=array_values(array_unique(array_merge(is_array($keep['mergedFromCaseIds']??null)?$keep['mergedFromCaseIds']:[],$sourceAliases)));
+        $keep['mergedCaseHistory']=is_array($keep['mergedCaseHistory']??null)?$keep['mergedCaseHistory']:[];
+        $keep['mergedCaseHistory'][]=['sourceCaseId'=>$removeRequested,'sourceCd'=>$source['cd']??'','mergedAt'=>sd_now(),'mergedBy'=>$user,'reason'=>$reason,'sourceSnapshotHash'=>hash('sha256',json_encode($source,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))];
+        $keep['updatedAtISO']=sd_now();$keep['updatedBy']=$user;
+        $moved=['invoices'=>0,'receipts'=>0,'allocations'=>0,'attachments'=>0,'petty'=>0,'opex'=>0,'issuedCheques'=>0,'receivedCheques'=>0,'salesReturns'=>0];
+        foreach($invoices as &$row)if(is_array($row)&&in_array((string)($row['caseId']??''),$sourceAliases,true)){$row['caseId']=$keepId;$moved['invoices']++;}unset($row);
+        foreach($receipts as &$row)if(is_array($row)&&in_array((string)($row['caseId']??''),$sourceAliases,true)){$row['caseId']=$keepId;$moved['receipts']++;}unset($row);
+        foreach($allocations as &$row)if(is_array($row)&&in_array((string)($row['caseId']??''),$sourceAliases,true)){$row['caseId']=$keepId;$moved['allocations']++;}unset($row);
+        foreach($attachments as &$row)if(is_array($row)&&in_array((string)($row['ownerId']??''),$sourceAliases,true)){$row['ownerId']=$keepId;$moved['attachments']++;}unset($row);
+        foreach($petty as &$row)if(is_array($row)&&in_array((string)($row['dealRef']??''),$sourceAliases,true)){$row['dealRef']=$keepCd;$moved['petty']++;}unset($row);
+        foreach($opex as &$row)if(is_array($row)&&in_array((string)($row['dealRef']??''),$sourceAliases,true)){$row['dealRef']=$keepCd;$moved['opex']++;}unset($row);
+        foreach($issuedCheques as &$row)if(is_array($row)&&in_array((string)($row['dealCd']??''),$sourceAliases,true)){$row['dealCd']=$keepCd;$moved['issuedCheques']++;}unset($row);
+        foreach($receivedCheques as &$row)if(is_array($row)&&in_array((string)($row['dealCd']??''),$sourceAliases,true)){$row['dealCd']=$keepCd;$moved['receivedCheques']++;}unset($row);
+        foreach($salesReturns as &$row)if(is_array($row)&&in_array((string)($row['dealCd']??''),$sourceAliases,true)){$row['dealCd']=$keepCd;$moved['salesReturns']++;}unset($row);
+        foreach($offers as &$row)if(is_array($row)){foreach(['caseId','salesCaseId','amendmentOfCaseId']as $field)if(in_array((string)($row[$field]??''),$sourceAliases,true))$row[$field]=$keepId;if(isset($row['invRef'])&&is_array($row['invRef'])&&in_array((string)($row['invRef']['caseId']??''),$sourceAliases,true))$row['invRef']['caseId']=$keepId;}unset($row);
+        $cases[$keepIndex]=$keep;array_splice($cases,$removeIndex,1);
+        sd_rebuild_allocations($keepId,$receipts,$invoices,$allocations);
+        foreach($findings as &$finding)if(is_array($finding)&&($finding['ruleId']??'')==='duplicate_case'&&(($finding['evidence']['ref']??'')===$no||($finding['offerNo']??'')===$no)&&($finding['status']??'open')==='open'){$finding['status']='resolved';$finding['resolvedAt']=sd_now();$finding['resolvedBy']=$user;$finding['resolution']='merged_into_'.$keepId;}unset($finding);
+        $deleted[]=['id'=>$removeRequested,'kind'=>'CASE_MERGED','label'=>'ادغام پرونده تکراری '.$removeRequested.' در '.$keepId,'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$source,'retainedCaseId'=>$keepId];
+        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'case','entityId'=>$keepId,'kind'=>'merge_duplicate_case','beforeSnapshot'=>$keepBefore,'sourceSnapshot'=>$source,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'conflictPaths'=>$conflicts,'movedReferences'=>$moved];
+        $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_fin_findings'=>$findings,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_petty'=>$petty,'ptf_crm_opex'=>$opex,'ptf_crm_cheques_issued'=>$issuedCheques,'ptf_crm_cheques_received'=>$receivedCheques,'ptf_crm_sales_returns'=>$salesReturns];
+        $result=['offerNo'=>$no,'keptCaseId'=>$keepId,'mergedCaseId'=>$removeRequested,'remainingCandidates'=>max(0,(int)($plan['candidateCount']??2)-1),'movedReferences'=>$moved,'conflictPaths'=>$conflicts];
     }
     elseif ($action === 'admin_delete_plan' || $action === 'admin_delete_commit') {
         sd_require_role(SD_ADMIN_ROLES);

@@ -195,6 +195,67 @@
     als.forEach(function(a){if(!a||!active(a))return;var receipt=rs.filter(function(r){return receiptId(r)===a.receiptId;})[0],inv=invs.filter(function(i){return invoiceId(i)===a.invoiceId;})[0];if(!receipt||!active(receipt)||!inv||!active(inv))out.push({id:'orphan-allocation:'+String(a._id||a.cd),severity:'critical',type:'orphan_allocation',label:'تخصیص فعال با مبدأ ابطال/مفقود'});});
     return out;
   };
+
+  /* راهنمای گام‌به‌گام یافته‌ها: هر ردیف باید هم «چرا» را توضیح دهد، هم شواهد
+     واقعی را نشان دهد و فقط در پایان یک فرمان کنترل‌شدهٔ سرور پیشنهاد کند. */
+  function findingById(id){return window.ptfSalesIntegrityScan().filter(function(x){return x.id===id;})[0]||null;}
+  function localCaseByCandidate(c){return data('ptf_crm_deals').filter(function(x){return x&&[String(x._id||''),String(x.cd||'')].indexOf(String(c.id||c.cd||''))>-1;})[0]||null;}
+  function caseStageInfo(c){var local=localCaseByCandidate(c),n=0,label='مرحله نامشخص';try{if(local&&typeof window.sfStageOf==='function')n=window.sfStageOf(local);if(local&&typeof window.sfStageLabel==='function')label=window.sfStageLabel(local)||label;}catch(e){}return{record:local,stage:n,label:label};}
+  function evidenceText(c){
+    var labels={docs:'مدارک',shipEvents:'رویدادهای ارسال/تحویل',timeline:'تاریخچه',awardDocs:'مدارک ابلاغ',files:'فایل‌ها',invoices:'فاکتور',receipts:'دریافت قطعی',allocations:'تخصیص',attachments:'ضمیمه مالی',petty:'تنخواه مرتبط',opex:'هزینه جاری مرتبط',issuedCheques:'چک صادره مرتبط',receivedCheques:'چک وارده مرتبط',salesReturns:'مرجوعی فروش مرتبط'};
+    var parts=[];Object.keys(c.evidence||{}).forEach(function(k){parts.push((labels[k]||k)+': '+c.evidence[k]);});
+    Object.keys(c.related||{}).forEach(function(k){if(+c.related[k])parts.push((labels[k]||k)+': '+c.related[k]);});
+    return parts.length?parts.join('، '):'هیچ شاهد آرایه‌ای یا وابستگی مالی ثبت نشده';
+  }
+  function closeFindingGuide(){document.querySelectorAll('#ptfSalesFindingGuide').forEach(function(x){x.remove();});}
+  function insertFindingGuide(body,title){
+    closeFindingGuide();
+    var html='<div class="md-b" id="ptfSalesFindingGuide" style="display:grid;z-index:3600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:980px;max-height:94vh;overflow:auto"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3 style="margin:0">🧭 '+esc(title)+'</h3><button class="bt bt-o" onclick="closeFindingGuide()">✕</button></div>'+body+'</div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend',html);
+  }
+  window.closeFindingGuide=closeFindingGuide;
+  function genericFindingGuide(f){
+    var defs={
+      orphan_won:['پیشنهاد برنده است اما هیچ پرونده فعالی به آن متصل نیست.','شماره پیشنهاد و مشتری را کنترل کنید.','مطمئن شوید پرونده در بایگانی یا دستگاه دیگر وجود ندارد.','اگر واقعاً پرونده‌ای تشکیل نشده، «بازگرداندن کنترل‌شده» را بزنید؛ پیشنهاد حذف نمی‌شود.'],
+      duplicate_offer:['بیش از یک رکورد با یک شماره پیشنهاد وجود دارد؛ سیستم اجازه حدس‌زدن رکورد صحیح را ندارد.','تاریخ، مشتری، اقلام و شناسه داخلی هر نسخه را مقایسه کنید.','رکورد دارای پرونده/فاکتور/دریافت را بدون بررسی حذف نکنید.','پس از تعیین رکورد اصلی، حذف یا ادغام باید با پیش‌بررسی وابستگی و ثبت دلیل انجام شود.'],
+      synthetic_advance:['علامت paid/cashFull بدون رویداد دریافت واقعی پیدا شده است.','رسید بانکی و پرونده فروش را بررسی کنید.','اگر دریافت واقعی بوده، آن را از «دریافت و حساب پرونده» ثبت کنید.','اگر فقط شرط پرداخت بوده، هیچ اثر مالی نسازید؛ این هشدار یادآور پاک‌سازی metadata قدیمی است.'],
+      missing_invoice_attachment:['فاکتور رسمی فعال حداقل یک فایل معتبر حسابداری یا مودیان ندارد.','فاکتور را در ماژول فاکتورها باز کنید.','تصویر یا PDF معتبر را مشاهده و بارگذاری کنید.','در صورت جایگزینی، دلیل را ثبت کنید؛ ضمیمه رسمی مستقل حذف نمی‌شود.'],
+      orphan_allocation:['یک تخصیص مالی به دریافت یا فاکتور فعال متصل نیست.','شناسه دریافت و فاکتور را در گردش حساب بررسی کنید.','هیچ مبلغی را دستی تکرار نکنید.','اصلاح باید با بازسازی تخصیص‌های همان پرونده و حفظ سابقه انجام شود.']
+    };
+    var steps=defs[f.type]||['این یافته نیازمند بررسی داده‌های مبدأ است.','رکوردهای مرتبط را باز و شناسه‌ها را مقایسه کنید.','قبل از هر اقدام از وابستگی مالی/عملیاتی مطمئن شوید.','فقط از اقدام کنترل‌شده همان ردیف استفاده کنید.'];
+    var action=f.type==='orphan_won'&&canRepairOfferWin()?'<button class="bt" onclick="closeFindingGuide();ptfRevokeOfferWin(\''+arg(f.offerNo)+'\')">بازگرداندن کنترل‌شده پیشنهاد</button>':'';
+    return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px;margin-top:12px"><b>یافته:</b> '+esc(f.label)+'</div><ol style="line-height:2.1;margin:12px 20px">'+steps.map(function(s){return'<li>'+esc(s)+'</li>';}).join('')+'</ol><div style="display:flex;justify-content:flex-end;gap:8px"><button class="bt bt-o" onclick="closeFindingGuide()">فعلاً فقط بررسی می‌کنم</button>'+action+'</div>';
+  }
+  function duplicateCaseGuide(f,plan){
+    var candidates=plan.candidates||[],localStages=candidates.map(caseStageInfo);
+    var visible=candidates.filter(function(c,i){return String(c.status||'').toLowerCase()!=='archived'&&localStages[i].stage!==12;});
+    var reviewHint='سیستم به‌جای شما پرونده اصلی را حدس نمی‌زند.';
+    if(plan.recommendedKeepId)reviewHint='یک پرونده فاقد هرگونه شاهد است؛ پرونده پیشنهادی برای نگهداری: '+plan.recommendedKeepId;
+    else if(visible.length===1)reviewHint='فقط یک پرونده فعال دیده می‌شود؛ پرونده دیگر احتمالاً بایگانی/پنهان است. معمولاً پرونده فعال گزینه نگهداری است، اما جزئیات هر دو را بازبینی کنید.';
+    else {var ranked=candidates.map(function(c,i){return{id:c.id,stage:localStages[i].stage,status:c.status};}).filter(function(x){return x.stage>0&&x.stage<12;}).sort(function(a,b){return b.stage-a.stage;});if(ranked.length>1&&ranked[0].stage>ranked[1].stage)reviewHint='برای بررسی اولیه، پرونده مرحله بالاتر ('+ranked[0].stage+') با شناسه '+ranked[0].id+' گزینه منطقی‌تری برای نگهداری است؛ ادغام، شواهد یکتای پرونده دیگر را نیز منتقل می‌کند.';}
+    var cards=candidates.map(function(c,i){var si=localStages[i],hidden=String(c.status||'').toLowerCase()==='archived'||si.stage===12,open=si.record&&si.record.cd?'<button class="bt bt-o" style="font-size:11px" onclick="closeFindingGuide();ptfGoSalesFile(\''+arg(si.record.cd)+'\')">بازکردن پرونده</button>':'';return '<div style="border:2px solid '+(hidden?'#cbd5e1':'#93c5fd')+';border-radius:12px;padding:10px;background:'+(hidden?'#f8fafc':'#fff')+'"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b dir="ltr">'+esc(c.id||c.cd)+'</b>'+open+'</div><div style="margin-top:6px"><b>'+esc(si.label)+'</b>'+(si.stage?' ('+si.stage+'/12)':'')+(hidden?' — <span style="color:#b45309">بایگانی/پنهان</span>':'')+'</div><div style="font-size:12px;color:#475569;line-height:1.9">درخواست: '+esc(c.inqNo||'—')+'<br>مشتری: '+esc(c.buyerCo||'—')+'<br>وضعیت ذخیره‌شده: '+esc(c.status||'—')+'<br>تاریخ: '+esc(c.createdAt||'—')+'<br>شواهد: '+esc(evidenceText(c))+'</div></div>';}).join('');
+    if(candidates.length<2)return '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:12px;padding:12px;margin-top:12px"><b>سرور اکنون فقط '+candidates.length+' پرونده مرتبط می‌بیند.</b><br>این حالت معمولاً از کش محلی قدیمی ناشی می‌شود. ابتدا داده سرور را دریافت و دوباره بررسی کنید.</div><div style="margin-top:10px;text-align:left"><button class="bt" onclick="closeFindingGuide();ptfSyncPullNow(function(){if(typeof renderOffers===\'function\')renderOffers();})">دریافت مجدد داده سرور</button></div>';
+    var opts='<option value="">— انتخاب کنید —</option>'+candidates.map(function(c){return'<option value="'+esc(c.id)+'"'+(plan.recommendedKeepId===c.id?' selected':'')+'>'+esc(c.id)+' — '+esc(c.inqNo||'')+'</option>';}).join('');
+    return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px;margin-top:12px"><b>چرا این هشدار آمده؟</b><br>در داده سرور '+candidates.length+' رکورد فعال از طریق شماره پیشنهاد یا شناسه ریشه به <span dir="ltr">'+esc(f.offerNo)+'</span> متصل‌اند. حتی پرونده بایگانی‌شده یا پنهان نیز برای جلوگیری از دوباره‌کاری شمرده می‌شود.</div><h4>گام ۱ — هر دو پرونده را مقایسه کنید</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">'+cards+'</div><div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin-top:10px"><b>راهنمای انتخاب:</b> '+esc(reviewHint)+'</div><h4>گام ۲ — پرونده اصلی و پرونده تکراری را صریح انتخاب کنید</h4><div class="fr"><div class="fld"><label>پرونده‌ای که باقی می‌ماند *</label><select id="dupKeep" onchange="ptfDuplicateCaseKeepChanged()">'+opts+'</select></div><div class="fld"><label>پرونده‌ای که داخل پرونده اصلی ادغام می‌شود *</label><select id="dupRemove">'+opts.replace(' selected','')+'</select></div></div><div style="background:#ecfdf5;border:1px solid #86efac;border-radius:10px;padding:9px;font-size:12px;line-height:1.9"><b>این عملیات حذف خام نیست:</b> رویدادها، مدارک و تاریخچه یکتا با هم ادغام می‌شوند؛ فاکتور، دریافت، تخصیص، ضمیمه مالی، تنخواه، هزینه جاری، چک و مرجوعی به پرونده اصلی منتقل می‌شوند؛ snapshot کامل پرونده ادغام‌شده در بایگانی حسابرسی باقی می‌ماند. در تعارض فیلدهای متنی، مقدار پرونده‌ای که نگه می‌دارید مقدم است.</div><h4>گام ۳ — دلیل و تایید نهایی</h4><div class="fld"><label>دلیل ادغام *</label><textarea id="dupReason" rows="2" placeholder="مثلاً: پرونده تکراری ناشی از ثبت دوباره برد؛ پرونده مرحله ۶ نگهداری شد"></textarea></div><div class="fld"><label>برای تایید، کلمه «ادغام» را وارد کنید *</label><input id="dupConfirm" autocomplete="off"></div><div style="display:flex;justify-content:flex-end;gap:8px"><button class="bt bt-o" onclick="closeFindingGuide()">انصراف بدون تغییر</button><button class="bt" id="dupMergeBtn" onclick="ptfDuplicateCaseMergeCommit(\''+arg(f.offerNo)+'\',\''+arg(plan.planHash)+'\')">پیش‌بررسی نهایی و ادغام کنترل‌شده</button></div>';
+  }
+  window.ptfDuplicateCaseKeepChanged=function(){var k=(document.getElementById('dupKeep')||{}).value,r=document.getElementById('dupRemove');if(!r)return;var opts=Array.prototype.slice.call(r.options).filter(function(o){return o.value&&o.value!==k;});if(opts.length===1)r.value=opts[0].value;};
+  window.ptfDuplicateCaseMergeCommit=function(no,planHash){
+    if(!canRepairOfferWin()){alert('فقط ادمین یا رئیس هیئت‌مدیره مجاز است');return;}
+    var keep=(document.getElementById('dupKeep')||{}).value||'',remove=(document.getElementById('dupRemove')||{}).value||'',reason=((document.getElementById('dupReason')||{}).value||'').trim(),confirmWord=((document.getElementById('dupConfirm')||{}).value||'').trim();
+    if(!keep||!remove||keep===remove){alert('پرونده اصلی و پرونده تکراری را جداگانه انتخاب کنید');return;}if(!reason){alert('دلیل ادغام الزامی است');return;}if(confirmWord!=='ادغام'){alert('برای جلوگیری از اشتباه، کلمه «ادغام» را دقیق وارد کنید');return;}
+    var btn=document.getElementById('dupMergeBtn');if(btn){btn.disabled=true;btn.textContent='در حال پیش‌بررسی و ثبت اتمیک…';}
+    api('duplicate_case_merge',{offerNo:no,keepCaseId:keep,removeCaseId:remove,reason:reason,planHash:planHash,confirm:'PTF-DUPLICATE-CASE-MERGE',idempotencyKey:'MERGE-DUP-CASE|'+no+'|'+keep+'|'+remove+'|'+String(planHash).slice(0,16)})
+      .then(function(d){var r=d.result||{},m=r.movedReferences||{};closeFindingGuide();toast('پرونده‌ها بدون حذف شواهد ادغام شدند؛ '+Object.keys(m).reduce(function(s,k){return s+(+m[k]||0);},0)+' ارجاع مرتبط منتقل شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof renderDeals==='function')renderDeals();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();})
+      .catch(function(e){var map={duplicate_case_plan_stale:'داده از زمان بازکردن راهنما تغییر کرده است؛ راهنما را ببندید و دوباره باز کنید.',case_identity_conflict:'هویت دو پرونده متفاوت است؛ ادغام خودکار متوقف شد تا پرونده اشتباه ترکیب نشود.',duplicate_case_not_found:'سرور دیگر دو پرونده مرتبط نمی‌بیند؛ ابتدا همگام‌سازی کنید.'};alert('⛔ '+(map[e.message]||e.message));if(btn){btn.disabled=false;btn.textContent='پیش‌بررسی نهایی و ادغام کنترل‌شده';}});
+  };
+  window.ptfSalesFindingGuideOpen=function(id){
+    var f=findingById(id);if(!f){alert('این یافته پس از تازه‌سازی دیگر وجود ندارد');return;}
+    if(f.type!=='duplicate_case'){insertFindingGuide(genericFindingGuide(f),'راهنمای بررسی و رفع یافته');return;}
+    if(!canRepairOfferWin()){insertFindingGuide(genericFindingGuide(f)+'<div style="color:#b45309;margin-top:8px">نمایش جزئیات و ادغام پرونده فقط برای ادمین یا رئیس هیئت‌مدیره مجاز است.</div>','راهنمای پرونده تکراری');return;}
+    insertFindingGuide('<div style="padding:24px;text-align:center">در حال دریافت پیش‌بررسی بدون تغییر از سرور…</div>','راهنمای پرونده تکراری');
+    api('duplicate_case_plan',{offerNo:f.offerNo}).then(function(d){insertFindingGuide(duplicateCaseGuide(f,d.plan||{}),'رفع گام‌به‌گام پرونده‌های تکراری — '+f.offerNo);}).catch(function(e){insertFindingGuide('<div style="background:#fee2e2;color:#991b1b;border-radius:10px;padding:12px;margin-top:12px">پیش‌بررسی سرور دریافت نشد: '+esc(e.message)+'</div>','راهنمای پرونده تکراری');});
+  };
+
   /* اصلاح برد فقط از مرز فرمان سرور انجام می‌شود؛ مسیر قدیمی backup.js که localStorage
      و projects قدیمی را مستقیم تغییر می‌داد، در داده واقعی می‌توانست deal را یتیم کند. */
   window.ptfRevokeOfferWin=function(no){
@@ -221,9 +282,10 @@
     if(!f.length)return '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px;margin:8px 0;color:#065f46">✅ یکپارچگی فروش تا وصول تأیید شد.'+adminAction+'</div>';
     var roleNote=!canRepairOfferWin()?'<div style="font-size:11px;color:#9a3412;margin-top:5px">اصلاح برد فقط برای ادمین یا رئیس هیئت‌مدیره فعال است؛ نقش فعلی: '+esc(role()||'نامشخص')+'</div>':'';
     return '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin:8px 0"><b style="color:#9a3412">⚠️ '+f.length+' یافته فروش تا وصول</b>'+adminAction+roleNote+f.map(function(x){
+      var guide=' <button class="bt bt-o" style="font-size:11px;color:#1d4ed8;border-color:#93c5fd" onclick="ptfSalesFindingGuideOpen(\''+arg(x.id)+'\')">🧭 راهنمای بررسی و رفع</button>';
       var revoke=x.type==='orphan_won'&&canRepairOfferWin()?' <button class="bt bt-o" style="font-size:11px;color:#b45309" onclick="ptfRevokeOfferWin(\''+arg(x.offerNo)+'\')">بازگرداندن کنترل‌شده به وضعیت قبل</button>':'';
       var remove=x.type==='orphan_won'&&role()==='admin'?' <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfRepairOrphanOffer(\''+arg(x.offerNo)+'\')">لغو برد و حذف پیشنهاد</button>':'';
-      return '<div style="padding:6px 0;border-bottom:1px dashed #fed7aa">'+esc(x.label)+revoke+remove+'</div>';
+      return '<div style="padding:7px 0;border-bottom:1px dashed #fed7aa;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="margin-left:auto">'+esc(x.label)+'</span>'+guide+revoke+remove+'</div>';
     }).join('')+'</div>';
   };
 
