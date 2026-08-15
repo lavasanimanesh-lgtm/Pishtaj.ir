@@ -14,6 +14,31 @@
   function canRestoreBackup() { try { return ['admin','chairman'].indexOf(curRole()) > -1; } catch (e) { return false; } }
   window.ptfCanRestoreBackup = canRestoreBackup;
 
+  /* جلوگیری از بسته شدن آکاردئون تنظیمات هنگام کلیک روی دکمه‌های بک‌آپ/بازگردانی.
+     شاخه‌ی settings پنل به <details>/<summary> تبدیل می‌شود و کلیک این دکمه‌ها
+     پیش از رسیدن به هندلر، toggle بخش را فعال می‌کرد و دکمه عملاً بی‌اثر می‌شد. */
+  try {
+    if (!window.__ptfBackupClickGuard) {
+      window.__ptfBackupClickGuard = true;
+      var BACKUP_HANDLER_RE = /ptf(BackupNow|BackupDownload|DownloadMonthly|RestorePick|ServerBackups|RestoreServer|BackupServerCheck|DuplicateRepairOpen)\s*\(/;
+      function isBackupAction(btn) {
+        if (!btn || btn.nodeType !== 1) return false;
+        if (btn.closest('.md, .md-b, #ptfServerBackupsDlg, #ptfArchivePurgeDlg')) return false;
+        var oc = btn.getAttribute('onclick') || '';
+        return BACKUP_HANDLER_RE.test(oc);
+      }
+      function guard(ev) {
+        var t = ev.target;
+        if (!t || t.nodeType !== 1) return;
+        var btn = t.closest && t.closest('button');
+        if (isBackupAction(btn)) ev.stopPropagation();
+      }
+      /* capture phase: قبل از هندلر toggle مرورگر روی <summary>/<details> */
+      document.addEventListener('click', guard, true);
+      document.addEventListener('mousedown', guard, true);
+    }
+  } catch (eG) {}
+
   /* ============ US-146: جمع‌آوری کل داده‌ها ============ */
   /* v33.13.0 (F0-5): ptf_storage_queue (صف موقت آپلود فایل‌ها) از بکاپ حذف شد —
      حجیم و موقتی است و فایل‌ها در ابری/IndexedDB جدا نگهداری می‌شوند. */
