@@ -105,19 +105,29 @@
   /* ============ US-196 فاز۲: اتصال LLM (llm.php) ============ */
   var LLM_API = '../api/llm.php';
   var _llmOk = null, _llmOkAt = 0;
+  /* ptfApiAuthHeaders در build واقعی تعریف نشده بود و fallback قبلی درخواست‌های
+     llm.php/attachment-read.php را بدون JWT می‌فرستاد؛ نتیجه 401 برای «برخی فایل‌ها»
+     و مخفی ماندن دکمه AI بود. این helper مستقل همیشه توکن نشست را می‌فرستد. */
+  function irAuthHeaders(json) {
+    if (typeof ptfStorageAuthHeaders === 'function') return ptfStorageAuthHeaders(!!json);
+    var h = json ? { 'Content-Type': 'application/json' } : {};
+    try { var token = localStorage.getItem('ptf_crm_token'); if (token) h['X-CRM-Token'] = token; } catch (e) {}
+    return h;
+  }
   window.ptfLlmStatus = function (cb) {
     // v88: کش فقط ۲ دقیقه — تا «سبز شدن تنظیمات» سریع در دکمه‌ها اثر کند
     if (_llmOk !== null && Date.now() - _llmOkAt < 120000) { cb(_llmOk); return; }
-    fetch(LLM_API + '?action=status', { headers: (typeof ptfApiAuthHeaders==='function'?ptfApiAuthHeaders(false):{}) }).then(function (r) { return r.json(); })
-      .then(function (d) { _llmOk = !!d.ok; _llmOkAt = Date.now(); cb(_llmOk); })
+    fetch(LLM_API + '?action=status', { headers: irAuthHeaders(false) }).then(function (r) {
+      return r.text().then(function (txt) { var d = {}; try { d = JSON.parse(txt); } catch (e) {} if (!r.ok) throw new Error(d.error || ('HTTP ' + r.status)); return d; });
+    }).then(function (d) { _llmOk = !!d.ok; _llmOkAt = Date.now(); cb(_llmOk); })
       .catch(function () { _llmOk = false; _llmOkAt = Date.now(); cb(false); });
   };
   function llmPost(action, body, cb) {
     fetch(LLM_API + '?action=' + action, {
-      method: 'POST', headers: (typeof ptfApiAuthHeaders==='function'?ptfApiAuthHeaders(true):{ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(body)
-    }).then(function (r) { return r.json(); }).then(cb)
-      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به سرور' }); });
+      method: 'POST', headers: irAuthHeaders(true), body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.text().then(function (txt) { var d = {}; try { d = JSON.parse(txt); } catch (e) { d = { ok: false, error: 'پاسخ نامعتبر سرور AI' }; } if (!r.ok && !d.error) d.error = 'HTTP ' + r.status; return d; });
+    }).then(cb).catch(function (e) { cb({ ok: false, error: (e && e.message) || 'عدم دسترسی به سرور' }); });
   }
 
   // ترجمه فنی (برای فرم TO/CO و هر جای دیگر)
@@ -127,35 +137,16 @@
 
   /* ---------- OCR فایل استعلام در ویزارد 📖 ---------- */
   window.irOcrFile = function (inp) {
-    var f = inp.files[0];
-    if (!f) return;
-    if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(f.type)) { alert('فقط عکس (jpg/png) یا PDF'); return; }
-    if (f.size > 6 * 1048576) { alert('حداکثر ~۶ مگابایت — عکس را فشرده کنید'); return; }
-    var rd = new FileReader();
-    rd.onload = function () {
-      var b64 = String(rd.result).split(',')[1];
-      if (typeof ptfToast === 'function') ptfToast('🤖 در حال خواندن فایل با هوش مصنوعی... (تا ۱ دقیقه)', 'ok');
-      llmPost('ocr', { mime: f.type, b64: b64 }, function (d) {
-        if (!d.ok) { alert('❌ ' + (d.error || 'خطا در OCR')); return; }
-        var rows = (d.data && d.data.rows) || [];
-        if (!rows.length) { alert('هیچ قلمی در فایل تشخیص داده نشد'); return; }
-        rows.forEach(function (r) {
-          _ir.rows.push({
-            tp: r.tp || ptfDetectType((r.nm || '') + ' ' + (r.spec || '')),
-            nm: r.nm || '', un: r.un || 'عدد', qty: +r.qty || 1, spec: r.spec || '',
-            brand: r.brand || '', model: r.model || ''
-          });
-        });
-        if (_ir.rows.length > 1 && !_ir.rows[0].nm) _ir.rows.shift();
-        if (typeof window.ptfAutoRegisterSummaryProducts === 'function' && _ir.inqNo) {
-          window.ptfAutoRegisterSummaryProducts(_ir.inqNo, _ir.rows);
-        }
-        irRerender();
-        alert('🤖 ' + rows.length + ' قلم با هوش مصنوعی خوانده شد (همراه با تفکیک برند و مدل).\n\n⚠️ حتماً بازبینی کنید — پس از تایید نهایی، اقلام خلاصه در کالاها نیز ثبت می‌شوند.');
-        audit('استعلامات', 'OCR هوشمند فایل استعلام ' + _ir.inqNo, rows.length + ' قلم');
-      });
-    };
-    rd.readAsDataURL(f);
+    var f = inp.files[0]; if (!f) return;
+    if (typeof ptfToast === 'function') ptfToast('🤖 در حال خواندن فایل با هوش مصنوعی... (ممکن است تا یک دقیقه طول بکشد)', 'info');
+    window.ptfExtractRfqFileWithAi(f, function (err, result) {
+      if (err) { alert('❌ خواندن فایل ناموفق بود:\n' + err.message + '\n\nمی‌توانید از «ورود اکسل با راهنما»، پرامپت آماده یا ورود دستی استفاده کنید.'); return; }
+      result.rows.forEach(function (row) { _ir.rows.push(row); });
+      if (_ir.rows.length > 1 && !_ir.rows[0].nm) _ir.rows.shift();
+      irRerender();
+      alert('🤖 ' + result.rows.length + ' قلم با هوش مصنوعی خوانده شد.\n\n⚠️ حتماً همه ردیف‌ها را بازبینی و سپس ذخیره کنید.');
+      try { audit('استعلامات', 'خواندن هوشمند فایل دستگاه برای ' + _ir.inqNo, result.rows.length + ' قلم'); } catch (e) {}
+    });
     inp.value = '';
   };
 
@@ -176,9 +167,10 @@
   }
   function irAiKind(file) {
     var ext = irFileExt(file && file.name);
-    if (['pdf', 'jpg', 'jpeg', 'png', 'webp'].indexOf(ext) > -1) return 'vision';
-    if (['xlsx', 'xls'].indexOf(ext) > -1) return 'sheet';
-    if (['docx', 'csv', 'txt', 'md'].indexOf(ext) > -1) return 'text';
+    var mime = String((file && (file.contentType || file.mimeType || file.type)) || '').toLowerCase();
+    if (['pdf', 'jpg', 'jpeg', 'png', 'webp'].indexOf(ext) > -1 || ['application/pdf','image/jpeg','image/png','image/webp'].indexOf(mime) > -1) return 'vision';
+    if (['xlsx', 'xls'].indexOf(ext) > -1 || /spreadsheet|excel/.test(mime)) return 'sheet';
+    if (['docx', 'csv', 'txt', 'md'].indexOf(ext) > -1 || /^text\//.test(mime)) return 'text';
     return '';
   }
   function irAiKindLabel(kind) {
@@ -205,7 +197,7 @@
   }
   function irFetchStoredBlob(file, cb) {
     if (!file || !file.key) { cb(new Error('این پیوست هنوز در صف محلی است یا کلید فضای ابری ندارد')); return; }
-    fetch(STORAGE_API + '?action=presign_get', { method: 'POST', headers: (typeof ptfApiAuthHeaders==='function'?ptfApiAuthHeaders(true):{ 'Content-Type': 'application/json' }), body: JSON.stringify({ key: file.key }) })
+    fetch(STORAGE_API + '?action=presign_get', { method: 'POST', headers: irAuthHeaders(true), body: JSON.stringify({ key: file.key }) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.ok || !d.url) throw new Error(d.error || 'لینک خواندن فایل دریافت نشد');
@@ -220,7 +212,7 @@
   }
   function irReadAttachmentText(file, cb) {
     if (!file || !file.key) { cb(new Error('این پیوست کلید فضای ابری ندارد')); return; }
-    fetch('../api/attachment-read.php', { method: 'POST', headers: (typeof ptfApiAuthHeaders==='function'?ptfApiAuthHeaders(true):{ 'Content-Type': 'application/json' }), body: JSON.stringify({ key: file.key, name: file.name }) })
+    fetch('../api/attachment-read.php', { method: 'POST', headers: irAuthHeaders(true), body: JSON.stringify({ key: file.key, name: file.name }) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.ok || !String(d.text || '').trim()) throw new Error(d.error || 'متن قابل خواندن از فایل دریافت نشد');
@@ -230,7 +222,7 @@
   }
   function irReadAttachmentBase64(file, cb) {
     if (!file || !file.key) { cb(new Error('این پیوست کلید فضای ابری ندارد')); return; }
-    fetch('../api/attachment-read.php', { method: 'POST', headers: (typeof ptfApiAuthHeaders==='function'?ptfApiAuthHeaders(true):{ 'Content-Type': 'application/json' }), body: JSON.stringify({ key: file.key, name: file.name, mode: 'base64' }) })
+    fetch('../api/attachment-read.php', { method: 'POST', headers: irAuthHeaders(true), body: JSON.stringify({ key: file.key, name: file.name, mode: 'base64' }) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.ok || !d.b64) throw new Error(d.error || 'دادهٔ فایل برای AI دریافت نشد');
@@ -263,19 +255,68 @@
     };
     rd.readAsArrayBuffer(blob);
   }
-  function irAppendAiRows(data, sourceName) {
-    var rows = (data && data.rows) || [];
-    var added = 0;
-    rows.forEach(function (row) {
+  function irNormalizeAiRows(data, sourceName) {
+    var out = [];
+    ((data && data.rows) || []).forEach(function (row) {
       var name = String(row.nm || row.name || '').trim();
       var spec = String(row.spec || row.st || '').trim();
       if (!name && spec.length < 3) return;
-      _ir.rows.push({ tp: row.tp || ptfDetectType(name + ' ' + spec), nm: name || spec, un: row.un || row.unit || 'عدد', qty: +row.qty || 1, spec: spec, brand: row.brand || '', model: row.model || '', aiSource: sourceName || '' });
-      added++;
+      out.push({ tp: row.tp || ptfDetectType(name + ' ' + spec), nm: name || spec, un: row.un || row.unit || 'عدد', qty: +row.qty || 1, spec: spec, brand: row.brand || '', model: row.model || '', aiSource: sourceName || '' });
     });
-    if (_ir.rows.length > 1 && !_ir.rows[0].nm) _ir.rows.shift();
-    return added;
+    return out;
   }
+  function irAppendAiRows(data, sourceName) {
+    var rows = irNormalizeAiRows(data, sourceName);
+    rows.forEach(function (row) { _ir.rows.push(row); });
+    if (_ir.rows.length > 1 && !_ir.rows[0].nm) _ir.rows.shift();
+    return rows.length;
+  }
+
+  /* API واحد خواندن فایل از دستگاه برای درخواست فروش و درخواست تامین.
+     MIME بعضی مرورگرها خالی/octet-stream است؛ نوع واقعی از پسوند نرمال می‌شود. */
+  window.ptfExtractRfqFileWithAi = function (file, cb) {
+    if (!file) { cb(new Error('فایلی انتخاب نشده است')); return; }
+    var ext = irFileExt(file.name);
+    var source = { name: file.name || 'file' };
+    function doneFromResponse(d) {
+      if (!d || !d.ok) { cb(new Error((d && d.error) || 'خواندن فایل با AI ناموفق بود')); return; }
+      var rows = irNormalizeAiRows(d.data, source.name);
+      if (!rows.length) { cb(new Error('AI هیچ قلم قابل ثبت از این فایل تشخیص نداد')); return; }
+      cb(null, { rows: rows, meta: d.data || {}, sourceName: source.name });
+    }
+    if (['pdf', 'jpg', 'jpeg', 'png', 'webp'].indexOf(ext) > -1) {
+      if (+file.size > 6 * 1048576) { cb(new Error('حجم PDF/تصویر برای AI بیش از ۶ مگابایت است؛ فایل را فشرده یا از اکسل راهنمادار استفاده کنید')); return; }
+      var mimeMap = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+      var visionReader = new FileReader();
+      visionReader.onerror = function () { cb(new Error('خواندن فایل از دستگاه ناموفق بود')); };
+      visionReader.onload = function () {
+        var b64 = String(visionReader.result || '').split(',')[1] || '';
+        if (!b64) { cb(new Error('داده فایل برای AI خالی است')); return; }
+        llmPost('ocr', { mime: mimeMap[ext] || file.type || 'application/octet-stream', b64: b64 }, doneFromResponse);
+      };
+      visionReader.readAsDataURL(file);
+      return;
+    }
+    if (['xlsx', 'xls'].indexOf(ext) > -1) {
+      irSpreadsheetToText(file, source, function (err, text) {
+        if (err) { cb(err); return; }
+        llmPost('ocr_text', { text: String(text).slice(0, 24000), sourceName: source.name }, doneFromResponse);
+      });
+      return;
+    }
+    if (['csv', 'txt', 'md'].indexOf(ext) > -1) {
+      var textReader = new FileReader();
+      textReader.onerror = function () { cb(new Error('خواندن فایل متنی ناموفق بود')); };
+      textReader.onload = function () {
+        var text = String(textReader.result || '').trim();
+        if (!text) { cb(new Error('فایل متنی خالی است')); return; }
+        llmPost('ocr_text', { text: text.slice(0, 24000), sourceName: source.name }, doneFromResponse);
+      };
+      textReader.readAsText(file, 'utf-8');
+      return;
+    }
+    cb(new Error('فرمت «' + (ext || 'نامشخص') + '» برای خواندن مستقیم AI پشتیبانی نمی‌شود؛ PDF، تصویر، Excel، CSV یا TXT انتخاب کنید'));
+  };
   function irAiReadText(text, file, cb) {
     text = String(text || '').trim();
     if (!text) { cb(new Error('متن قابل خواندن برای AI خالی است')); return; }
@@ -607,7 +648,7 @@
 
   window.ptfDownloadStoredFile = function(key, fname) {
     if (!key) return;
-    fetch(STORAGE_API + '?action=presign_get', { method: 'POST', headers: (typeof ptfApiAuthHeaders==='function'?ptfApiAuthHeaders(true):{ 'Content-Type': 'application/json' }), body: JSON.stringify({ key: key }) })
+    fetch(STORAGE_API + '?action=presign_get', { method: 'POST', headers: irAuthHeaders(true), body: JSON.stringify({ key: key }) })
       .then(function(r){ return r.json(); })
       .then(function(d){
         if (d.ok && d.url) {
@@ -763,11 +804,10 @@
       var v = String((o && (o.inqNo || o.srcRfq || '')) || '').trim();
       return !!v && aliasesForOffer.indexOf(v) > -1;
     });
-    if (hasOffer) {
-      alert('مشخصات اصلی به دلیل صدور پیشنهاد فنی/مالی قفل شده است.\nشما می‌توانید اطلاعات تکمیلی (کاتالوگ/دیتاشیت) را از بخش پیوست‌ها مدیریت کنید.');
-      ptfManageInqAttachments(cd);
-      return;
-    }
+    /* پس از صدور پیشنهاد، هویت مشتری/موضوع قفل می‌ماند اما خطای انسانی اقلام باید
+       قابل اصلاح باشد. پیشنهادهای صادرشده snapshot مستقل‌اند و با این اصلاح تغییر نمی‌کنند. */
+    window._inqEditHasOffer = hasOffer;
+    window._inqEditCd = cd;
     var items = irItemsForRfq(r, cd);
     if (!items.length) {
       var rds = getData('ptf_crm_inqreads').filter(function(x){ return x.cd === cd || x.inqNo === cd; })[0];
@@ -787,13 +827,18 @@
           '<td><input type="text" value="' + escP(it.tp||'') + '" oninput="_inqEditItems['+idx+'].tp=this.value" style="width:82px;padding:4px;border:1px solid #cbd5e1;border-radius:4px"></td>' +
           '<td><input type="text" value="' + escP(it.brand||it.br||'') + '" oninput="_inqEditItems['+idx+'].brand=this.value" style="width:82px;padding:4px;border:1px solid #cbd5e1;border-radius:4px"></td>' +
           '<td><input type="text" value="' + escP(it.model||it.md||'') + '" oninput="_inqEditItems['+idx+'].model=this.value" style="width:82px;padding:4px;border:1px solid #cbd5e1;border-radius:4px"></td>' +
-          '<td><button type="button" onclick="_inqEditItems.splice('+idx+',1); ptfRefreshInqEditItems();" style="border:0;background:none;color:#dc2626">✕</button></td></tr>';
+          '<td style="white-space:nowrap"><button type="button" class="bt bt-o" onclick="ptfDuplicateInqEditRow('+idx+')" style="padding:2px 5px;font-size:10px;color:#0e7490" title="کپی ردیف">＋ کپی</button> <button type="button" class="bt bt-o" onclick="_inqEditItems.splice('+idx+',1);if(!_inqEditItems.length)_inqEditItems.push({nm:\'\',st:\'\',qty:1,un:\'عدد\'});ptfRefreshInqEditItems();" style="padding:2px 5px;font-size:10px;color:#dc2626" title="حذف ردیف">🗑 حذف</button></td></tr>';
       }).join('');
     };
 
     window.ptfRefreshInqEditItems = function() {
       var tb = document.getElementById('inqEditTbBody');
       if (tb) tb.innerHTML = renderItemsRows();
+    };
+    window.ptfDuplicateInqEditRow = function (idx) {
+      if (!window._inqEditItems[idx]) return;
+      window._inqEditItems.splice(idx + 1, 0, JSON.parse(JSON.stringify(window._inqEditItems[idx])));
+      window.ptfRefreshInqEditItems();
     };
 
     var custs = getData('ptf_crm_customers');
@@ -802,17 +847,21 @@
     var html = '<div class="md-b" id="ptfInqEditMd" style="display:grid;z-index:' + ((typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2000) : 2000) + '" onclick="if(event.target===this)this.remove()">' +
       '<div class="md" style="max-width:820px;max-height:94vh;overflow:auto">' +
       '<h3>✏️ ویرایش استعلام و اقلام — ' + escP(cd) + '</h3>' +
+      (hasOffer ? '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:8px 10px;font-size:12px;color:#9a3412">🔒 برای حفظ اسناد صادرشده، مشتری و موضوع قفل‌اند؛ اقلام درخواست قابل اصلاح هستند و پیشنهادهای قبلی تغییر نمی‌کنند.</div>' : '') +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">' +
-      '<div><label style="font-size:12px;color:#475569">مشتری / شرکت</label><select id="inqEdCust" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px">' + custOpts + '</select></div>' +
-      '<div><label style="font-size:12px;color:#475569">موضوع درخواست</label><input type="text" id="inqEdSubj" value="' + escP(r.subj||r.ca||'') + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px"></div></div>' +
+      '<div><label style="font-size:12px;color:#475569">مشتری / شرکت</label><select id="inqEdCust"' + (hasOffer ? ' disabled' : '') + ' style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px">' + custOpts + '</select></div>' +
+      '<div><label style="font-size:12px;color:#475569">موضوع درخواست</label><input type="text" id="inqEdSubj"' + (hasOffer ? ' disabled' : '') + ' value="' + escP(r.subj||r.ca||'') + '" style="width:100%;padding:6px;border:1px solid #cbd5e1;border-radius:6px"></div></div>' +
       '<h4 style="margin:14px 0 6px">اقلام درخواستی</h4>' +
       '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
       '<button type="button" class="bt bt-o" style="font-size:11px" onclick="_inqEditItems.push({nm:\'\',st:\'\',qty:1,un:\'عدد\'}); ptfRefreshInqEditItems();">+ افزودن ردیف</button>' +
-      '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:11px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'inqEdXlsInp\');else document.getElementById(\'inqEdXlsInp\').click()">ورود اکسل</button>' +
+      '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:11px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'inqEdXlsInp\');else document.getElementById(\'inqEdXlsInp\').click()">📥 ورود اکسل با راهنما</button>' +
+      '<button type="button" class="bt bt-o" style="font-size:11px;color:#6d28d9;border-color:#ddd6fe" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'inqEdXlsInp\')">🤖 پرامپت آماده تبدیل فایل</button>' +
+      '<button type="button" class="bt bt-o" style="font-size:11px;color:#0e7490;border-color:#bae6fd" onclick="document.getElementById(\'inqEdAiInp\').click()">🤖 خواندن فایل با AI</button>' +
       '<button type="button" class="bt bt-o" style="font-size:11px;color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadInqItemsTemplate()">دانلود نمونه CSV</button>' +
       '<input type="file" id="inqEdXlsInp" accept=".xlsx,.xls,.csv" style="display:none" onchange="ptfImportInqEditXls(\'' + ptfOnClickArg(cd) + '\',this)">' +
+      '<input type="file" id="inqEdAiInp" accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.txt,.md" style="display:none" onchange="ptfReadInqEditFileAi(\'' + ptfOnClickArg(cd) + '\',this)">' +
       '</div>' +
-      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:#f1f5f9"><tr><th>#</th><th>شرح کالا</th><th>مشخصات فنی</th><th>تعداد</th><th>واحد</th><th>نوع</th><th>برند</th><th>مدل</th><th></th></tr></thead>' +
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:#f1f5f9"><tr><th>#</th><th>شرح کالا</th><th>مشخصات فنی</th><th>تعداد</th><th>واحد</th><th>نوع</th><th>برند</th><th>مدل</th><th>عملیات ردیف</th></tr></thead>' +
       '<tbody id="inqEditTbBody">' + renderItemsRows() + '</tbody></table></div>' +
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">' +
       '<button type="button" class="bt bt-o" onclick="document.getElementById(\'ptfInqEditMd\').remove()">انصراف</button>' +
@@ -821,16 +870,31 @@
     document.body.insertAdjacentHTML('beforeend', html);
   };
 
+  window.ptfReadInqEditFileAi = function (cd, inp) {
+    var f = (inp.files || [])[0]; if (!f) return;
+    if (typeof ptfToast === 'function') ptfToast('🤖 در حال خواندن «' + f.name + '» و استخراج اقلام...', 'info');
+    window.ptfExtractRfqFileWithAi(f, function (err, result) {
+      if (err) { alert('❌ AI فایل را نخواند:\n' + err.message + '\n\nاز «ورود اکسل با راهنما»، پرامپت آماده یا افزودن ردیف استفاده کنید.'); return; }
+      if (window._inqEditCd !== cd || !document.getElementById('ptfInqEditMd')) { if (typeof ptfToast === 'function') ptfToast('خواندن فایل پایان یافت ولی پنجره همان درخواست بسته شده است؛ دوباره فایل را انتخاب کنید.', 'warn'); return; }
+      window._inqEditItems = window._inqEditItems || [];
+      result.rows.forEach(function (row) { window._inqEditItems.push({ nm: row.nm, st: row.spec, qty: row.qty, un: row.un, tp: row.tp, brand: row.brand, model: row.model, aiSource: result.sourceName }); });
+      if (window._inqEditItems.length > 1 && !String(window._inqEditItems[0].nm || '').trim()) window._inqEditItems.shift();
+      ptfRefreshInqEditItems();
+      if (typeof ptfToast === 'function') ptfToast('✅ ' + result.rows.length + ' قلم از فایل برای بازبینی اضافه شد؛ دکمه ذخیره را بزنید.', 'ok');
+    });
+    inp.value = '';
+  };
+
   window.ptfSaveFullInqEdit = function(cd) {
     var rfqs = getData('ptf_crm_rfqs');
     var r = rfqs.filter(function(x){ return x.cd === cd; })[0];
     if (!r) return;
     var selCust = document.getElementById('inqEdCust');
-    if (selCust && selCust.value) {
+    if (!window._inqEditHasOffer && selCust && selCust.value) {
       var cObj = getData('ptf_crm_customers').filter(function(x){ return x.cd === selCust.value; })[0];
       if (cObj) { r.custCd = cObj.cd; r.co = cObj.co; }
     }
-    r.subj = (document.getElementById('inqEdSubj')||{}).value || r.subj;
+    if (!window._inqEditHasOffer) r.subj = (document.getElementById('inqEdSubj')||{}).value || r.subj;
 
     /* منبع واحد و canonical: r.items + ptf_crm_inqitems با inqNo=کد داخلی RFQ. */
     var aliases = irRfqAliases(r, cd);
@@ -872,6 +936,7 @@
     }
 
     var m = document.getElementById('ptfInqEditMd'); if (m) m.remove();
+    window._inqEditHasOffer = false; window._inqEditCd = '';
     if (typeof renderRfq === 'function') renderRfq();
     if (typeof ptfToast === 'function') ptfToast('✅ استعلام و اقلام ذخیره شد' + (addedProds ? ' + ' + addedProds + ' کالای جدید با کد یکتا در فهرست کالا ثبت شد' : ''), 'ok');
   };
@@ -881,7 +946,9 @@
     var rd = new FileReader();
     rd.onload = function() {
       try {
-        var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+        if (typeof XLSX === 'undefined') throw new Error('کتابخانه Excel بارگذاری نشده؛ صفحه را بازخوانی کنید');
+        var isCsv = /\.csv$/i.test(f.name || '');
+        var wb = isCsv ? XLSX.read(String(rd.result || '').replace(/^\uFEFF/, ''), { type: 'string' }) : XLSX.read(new Uint8Array(rd.result), { type: 'array' });
         var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
         var added = 0;
         rows.forEach(function(c, idx){
@@ -895,7 +962,7 @@
         alert('✅ ' + added + ' ردیف از فایل اکسل وارد جدول اقلام استعلام شد. جهت تایید نهایی دکمه ذخیره را بزنید.');
       } catch(e) { alert('خطا در خواندن فایل اکسل: ' + e.message); }
     };
-    rd.readAsArrayBuffer(f);
+    if (/\.csv$/i.test(f.name || '')) rd.readAsText(f, 'utf-8'); else rd.readAsArrayBuffer(f);
     inp.value = '';
   };
 
@@ -942,12 +1009,13 @@
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
       '<button class="bt bt-o" style="font-size:12px" onclick="irAdd()">+ ردیف</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#7c3aed" onclick="irDetectAll()">🎯 تشخیص خودکار تایپ همه ردیف‌ها</button>' +
-      '<button class="bt bt-o" style="font-size:12px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'irXls\');else document.getElementById(\'irXls\').click()">ورود اکسل</button>' +
+      '<button class="bt bt-o" style="font-size:12px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'irXls\');else document.getElementById(\'irXls\').click()">📥 ورود اکسل با راهنما</button>' +
+      '<button class="bt bt-o" style="font-size:12px;color:#6d28d9;border-color:#ddd6fe" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'irXls\')">🤖 پرامپت آماده تبدیل فایل</button>' +
       '<button class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#bae6fd" onclick="ptfDownloadInqItemsTemplate()">دانلود نمونه CSV</button>' +
       '<input type="file" id="irXls" accept=".xlsx,.xls,.csv" style="display:none" onchange="irImportXls(this)">' +
       '<button class="bt llm-only" style="font-size:12px;background:#0e7490;display:none" onclick="irAiReadCurrentAttachments()">🤖 خواندن ضمیمه‌های درخواست با AI</button>' +
-      '<button class="bt bt-o llm-only" style="font-size:12px;color:#0e7490;display:none" onclick="document.getElementById(\'irOcr\').click()">🤖 انتخاب فایل از دستگاه (PDF/عکس)</button>' +
-      '<input type="file" id="irOcr" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none" onchange="irOcrFile(this)"></div>' +
+      '<button class="bt bt-o llm-only" style="font-size:12px;color:#0e7490;display:none" onclick="document.getElementById(\'irOcr\').click()">🤖 خواندن فایل از دستگاه با AI</button>' +
+      '<input type="file" id="irOcr" accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.txt,.md" style="display:none" onchange="irOcrFile(this)"></div>' +
       '<div id="irAiAttachmentStatus" style="margin-bottom:8px"></div>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead style="background:#f1f5f9">' +
       '<tr><th>#</th><th>تایپ 🎯</th><th style="min-width:180px">شرح کالا</th><th style="min-width:140px">مشخصات/استاندارد</th><th>تعداد</th><th>واحد</th><th></th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>' +
@@ -981,14 +1049,11 @@
     rd.onload = function () {
       var rows = [];
       try {
-        if (/\.csv$/i.test(f.name)) {
-          rows = String(rd.result).replace(/^\uFEFF/, '').split(/\r?\n/).filter(function (l) { return l.trim(); })
-            .map(function (l) { return l.split(','); });
-        } else {
-          var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' });
-          rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
-        }
-      } catch (e) { alert('خطا در خواندن فایل'); return; }
+        if (typeof XLSX === 'undefined') throw new Error('کتابخانه Excel بارگذاری نشده');
+        var isCsv = /\.csv$/i.test(f.name || '');
+        var wb = isCsv ? XLSX.read(String(rd.result || '').replace(/^\uFEFF/, ''), { type: 'string' }) : XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+      } catch (e) { alert('خطا در خواندن فایل: ' + e.message); return; }
       var added = 0;
       rows.forEach(function (c, idx) {
         var item = irXlsRowToItem(c, idx);

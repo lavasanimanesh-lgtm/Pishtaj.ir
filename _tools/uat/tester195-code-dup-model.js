@@ -44,7 +44,7 @@ T('وقتی همه تلاش‌ها تکراری است → ثبت مسدود م�
 SECTION('BUG-RFQS-MODEL-001: ستون Model در PDF استعلام تامین');
 T('جدول PDF ستون Model دارد (شرطی — فقط وقتی قلمی مدل دارد)', rq.indexOf('BUG-RFQS-MODEL-001') > -1 && /_hasModel \? '<th style="width:12%">Model<\/th>' : ''/.test(rq));
 T('سلول model در ردیف‌ها رندر می‌شود', /_hasModel\?'<td class="spec" dir="ltr">'\+escP\(it\.model\|\|'—'\)/.test(rq));
-T('ویرایشگر اقلام استعلام ستون «مدل» قابل‌ویرایش دارد', rq.indexOf('<th style="min-width:90px">مدل</th>') > -1 && /_stU\(' \+ i \+ ',\\'model\\'/.test(rq));
+T('ویرایشگر اقلام استعلام ستون «مدل/پارت‌نامبر» قابل‌ویرایش دارد', rq.indexOf('مدل / پارت‌نامبر') > -1 && /_stU\(' \+ i \+ ',\\'model\\'/.test(rq));
 T('model از ماژول کالا همچنان mapping می‌شود (x.md → model)', /model: x\.md \|\| ''/.test(rq) || /model: p\.md \|\| ''/.test(rq));
 
 SECTION('رفتاری: رندر PDF با و بدون مدل');

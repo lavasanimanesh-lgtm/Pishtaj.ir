@@ -19,7 +19,7 @@ SECTION('US-404 فاز ۲ (کد): اسناد چهارگانه');
 T('sfDocsOf: گروه چهارم supply (استعلام‌های تامین rfqsmart)', sf.indexOf("misc: r.docs || [], supply: []") > -1 && sf.indexOf("getData('ptf_crm_rfqsmart').filter") > -1);
 T('تطبیق با هر دو شناسه درخواست (US-386)', sf.indexOf('aliases.indexOf(q.srcRfq) > -1') > -1 && sf.indexOf('if (rfq) { if (aliases.indexOf(rfq.cd) < 0) aliases.push(rfq.cd);') > -1);
 T('کشو: بخش استعلام تامین با دکمه کارت رهگیری (rfqsOpen موجود)', sf.indexOf('استعلام تامین (') > -1 && sf.indexOf("rfqsOpen(\\'' + escP(q2.no)") > -1);
-T('شمارنده اسناد شامل supply', sf.indexOf('+ (d.supply || []).length; /* v17.1') > -1);
+T('شمارنده اسناد شامل supply و رویدادهای تخصصی است', sf.indexOf('+ (d.supply || []).length') > -1 && sf.indexOf('+ (r.shipEvents || []).length') > -1);
 T('آمار بایگانی شامل supply', sf.indexOf('supply: (d.supply || []).length') > -1);
 T('پیام خالی کشو supply-آگاه', sf.indexOf('!(d.supply || []).length)') > -1);
 T('لحظه برد: docsSummary + audit سه‌بخشی + confirm با ریز اسناد', of.indexOf('rec.docsSummary = { attachments: added, offers: nOff, supply: nSup') > -1 && of.indexOf('پرونده فروش با اسناد کامل تشکیل شد') > -1);

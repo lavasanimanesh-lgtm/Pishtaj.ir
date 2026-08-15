@@ -60,9 +60,9 @@ T('فایل بدون هدر هم خوانده می‌شود', items2.length === 
 var items3 = rfqsParseRows([['Item Description', 'Spec', 'Qty', 'Unit'], ['Flange WN 4in', 'A105 CL300', '8', 'PCS']]);
 T('هدر انگلیسی تشخیص داده می‌شود', items3.length === 1 && items3[0].name === 'Flange WN 4in');
 
-SECTION('AC1: PDF/عکس → مسیر بازبینی دستی');
-T('پیام راهنمای PDF/عکس (بدون کلید LLM)', code.indexOf('نیاز به خواندن ماشینی') > -1 && code.indexOf('فرم سریع') > -1);
-T('فایل مرجع آپلود و ذخیره می‌شود', code.indexOf("uploadFile(f, 'rfqsmart'") > -1);
+SECTION('AC1: PDF/عکس → خواندن AI با fallback انسانی');
+T('PDF/عکس با AI خوانده و در شکست مسیر Excel/پرامپت/دستی اعلام می‌شود', code.indexOf('ptfExtractRfqFileWithAi') > -1 && code.indexOf('از Excel راهنمادار، پرامپت آماده یا ورود دستی استفاده کنید') > -1);
+T('فایل مرجع مستقل از نتیجه AI آپلود و ذخیره می‌شود', code.indexOf("uploadFile(f, 'rfqsmart'") > -1 && code.indexOf('attachments') > -1);
 
 SECTION('AC2: اکسل پاک — بدون داده کارفرما');
 setData('ptf_crm_rfqsmart', [{ no: 'PTF-RFQS-1405-001', items: [{ name: 'Valve', spec: 'API', qty: 2, unit: 'No' }], targets: [], deadline: '48 ساعت' }]);

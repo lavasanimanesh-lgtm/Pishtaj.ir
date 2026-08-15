@@ -25,8 +25,8 @@
     return '';
   }
 
-  function rfqsSerial() {
-    var list = getData('ptf_crm_rfqsmart');
+  function rfqsSerial(list) {
+    list = Array.isArray(list) ? list : getData('ptf_crm_rfqsmart');
     var max = 0;
     var yr = faYear();
     list.forEach(function (r) { var m = (r.no || '').match(new RegExp('^PTF-RFQS-' + yr + '-(\\d+)$')); if (m && +m[1] > max) max = +m[1]; });
@@ -166,11 +166,12 @@
          همچنان در index جست‌وجو حضور دارد. */
       return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
         '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
-        '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.duplicateOf ? ' <span class="bd" style="background:#fff7ed;color:#c2410c" title="با تایید کاربر در کنار درخواست قبلی ثبت شده">تکرارِ ' + escP(r.duplicateOf) + '</span>' : '') + (sourceMeta ? '<div style="font-size:11.5px;color:#0e7490;margin-top:3px">🔗 ' + escP(sourceMeta) + '</div>' : '') +
+        '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.duplicateOf ? ' <span class="bd" style="background:#fff7ed;color:#c2410c" title="با تایید کاربر در کنار درخواست قبلی ثبت شده">تکرارِ ' + escP(r.duplicateOf) + '</span>' : '') + (r.needsResend ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">⚠️ اقلام اصلاح شد — نیاز به ارسال مجدد</span>' : '') + (sourceMeta ? '<div style="font-size:11.5px;color:#0e7490;margin-top:3px">🔗 ' + escP(sourceMeta) + '</div>' : '') +
         '<div style="font-size:11.5px;color:#64748b;margin-top:2px">' + (r.items || []).length + ' قلم | ' + (r.targets || []).length + ' تامین‌کننده | پاسخ: ' + resp + ' | ' + escP(r.t || '') + ' | ' + (STL[r.st] || '') + '</div></div>' +
         '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
         '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff;font-weight:bold" onclick="rfqsToggleAccordion(\'' + ptfOnClickArg(r.no) + '\')">🔻 تخصیص و استعلام کشویی (بدون مودال)</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsOpen(\'' + ptfOnClickArg(r.no) + '\')">📂 باز کردن</button>' +
+        '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="rfqsEditItems(\'' + ptfOnClickArg(r.no) + '\')">✏️ ویرایش اقلام</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsPrintPreview(\'' + ptfOnClickArg(r.no) + '\',null)">🖨️ PDF</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#059669" onclick="rfqsShareToMessenger(\'' + ptfOnClickArg(r.no) + '\',null)">📤 پیام‌رسان</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#0e7490" onclick="rfqsPrintPickSupplier(\'' + ptfOnClickArg(r.no) + '\')">🖨 اختصاصی</button>' +
@@ -491,7 +492,8 @@
     var list = getData('ptf_crm_rfqsmart');
     var r = list.filter(function(x){ return x.no === no; })[0];
     if (!r) return;
-    r.st = 'sent';
+    r.st = 'sent'; r.needsResend = false;
+    (r.targets || []).forEach(function (t) { delete t.itemsChangedAfterSend; });
     r.priceCompareActive = true;
     setData('ptf_crm_rfqsmart', list);
     if (r.srcRfq) {
@@ -626,32 +628,60 @@
 
   /* ============ گام ۱: منبع اقلام ============ */
   window.rfqsNew = function (sourceNo) {
-    var sourceParent = rfqsSourceRecord(sourceNo), selectedSource = sourceParent ? sourceParent.cd : (sourceNo || '');
-    _st = { no: rfqsSerial(), items: [], targets: [], st: 'draft', t: faDateTime(), by: curSession().name, deadline: '', srcRfq: selectedSource };
-    /* مسیرهای ورودی از پرونده/خرید واقعی نیز دقیقاً همان تصمیم تکراری را می‌گیرند. */
-    if (selectedSource && !rfqsGuardDuplicateSource(selectedSource, _st.no, null)) return;
-    var rfqs = getData('ptf_crm_rfqs');
-    var rfqOpts = '<option value="">— بدون اتصال —</option>' + rfqs.slice(0, 80).map(function (r) {
-      var clientNo = r.inqNo && r.inqNo !== r.cd ? (' | شماره کارفرما: ' + r.inqNo) : '';
-      var existingN = window.ptfRfqsExistingForSource(r.cd, '').length;
-      return '<option value="' + escP(r.cd) + '"' + (selectedSource === r.cd ? ' selected' : '') + '>' + escP(r.cd + clientNo + ' — ' + (r.co || '')) + (existingN ? (' — ⚠️ ' + existingN + ' تامین ثبت‌شده') : '') + '</option>';
-    }).join('');
-    var iq = getData('ptf_crm_inqitems');
-    var inqNos = {};
-    iq.forEach(function (x) { inqNos[x.inqNo] = (inqNos[x.inqNo] || 0) + 1; });
-    var inqOpts = Object.keys(inqNos).map(function (k) { return '<option value="' + escP(k) + '">' + escP(k) + ' (' + inqNos[k] + ' قلم)</option>'; }).join('');
+    /* پنجره فوراً نمایش داده می‌شود و ساخت optionهای حجیم به task بعدی می‌رود؛
+       نسخه قبلی پیش از نمایش modal برای هر RFQ دوباره کل دیتاست را می‌خواند (N+1). */
+    var old = document.getElementById('rqsNewModal'); if (old) old.remove();
+    var openToken = 'RQS-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+    var shell = '<div class="md-b" id="rqsNewModal" data-rqs-open="' + openToken + '" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:680px"><h3>🛒 درخواست تامین جدید</h3><div id="rqsNewLoading" style="padding:24px;text-align:center;color:#0e7490">⏳ در حال آماده‌سازی فرم…</div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', shell);
 
-    var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:640px">' +
-      '<h3>🛒 درخواست تامین — گام ۱: اقلام از کجا بیایند؟</h3>' +
-      '<div class="fld"><label>اتصال به درخواست مشتری (اختیاری — برای رهگیری)</label><select id="rqsSrc" onchange="rfqsSyncSrcInqUI()">' + rfqOpts + '</select></div>' +
-      '<div style="display:grid;gap:8px;margin:10px 0">' +
-      '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="rfqsFromFile()">📎 <b>خواندن از فایل پیوست</b> — اکسل/CSV مستقیم خوانده می‌شود؛ PDF و عکس به بازبینی سریع می‌رود<input type="file" id="rqsFile" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.zip" style="display:none" onchange="rfqsHandleFile(this)"></button>' +
-      (inqOpts ? '<div style="display:flex;gap:6px;align-items:center"><select id="rqsInq" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 اقلام</button></div>' : '') +
-      '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="rfqsManual()">✍️ <b>ورود دستی اقلام</b> — فرم سریع چندردیفی</button>' +
-      '</div>' +
-      '<div style="display:flex;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button></div></div></div>';
-    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
-    try { if (typeof rfqsSyncSrcInqUI === 'function') rfqsSyncSrcInqUI(); } catch (e0) {}
+    setTimeout(function () {
+      var modal = document.getElementById('rqsNewModal'); if (!modal || modal.getAttribute('data-rqs-open') !== openToken) return;
+      var smartList = getData('ptf_crm_rfqsmart') || [];
+      var rfqs = getData('ptf_crm_rfqs') || [];
+      var iq = getData('ptf_crm_inqitems') || [];
+      var parentByAlias = {};
+      rfqs.forEach(function (r) { if (r.cd) parentByAlias[r.cd] = r; if (r.inqNo) parentByAlias[r.inqNo] = r; });
+      var sourceParent = parentByAlias[sourceNo] || null;
+      var selectedSource = sourceParent ? sourceParent.cd : (sourceNo || '');
+      _st = { no: rfqsSerial(smartList), items: [], targets: [], st: 'draft', t: faDateTime(), by: curSession().name, deadline: '', srcRfq: selectedSource };
+      /* مسیرهای ورودی از پرونده/خرید واقعی نیز دقیقاً همان تصمیم تکراری را می‌گیرند. */
+      if (selectedSource && !rfqsGuardDuplicateSource(selectedSource, _st.no, modal)) return;
+
+      /* شمارش تامین‌های قبلی با یک پیمایش؛ حذف N+1 ناشی از ptfRfqsExistingForSource داخل map. */
+      var existingByAlias = {};
+      smartList.forEach(function (row) {
+        if (!row || !row.srcRfq) return;
+        var p = parentByAlias[row.srcRfq];
+        var aliases = [row.srcRfq, p && p.cd, p && p.inqNo].filter(Boolean);
+        var seen = {};
+        aliases.forEach(function (a) { if (!seen[a]) { seen[a] = true; existingByAlias[a] = (existingByAlias[a] || 0) + 1; } });
+      });
+      var rfqOpts = '<option value="">— بدون اتصال —</option>' + rfqs.slice(0, 120).map(function (r) {
+        var clientNo = r.inqNo && r.inqNo !== r.cd ? (' | شماره کارفرما: ' + r.inqNo) : '';
+        var existingN = Math.max(existingByAlias[r.cd] || 0, existingByAlias[r.inqNo] || 0);
+        return '<option value="' + escP(r.cd) + '"' + (selectedSource === r.cd ? ' selected' : '') + '>' + escP(r.cd + clientNo + ' — ' + (r.co || '')) + (existingN ? (' — ⚠️ ' + existingN + ' تامین ثبت‌شده') : '') + '</option>';
+      }).join('');
+      var inqNos = {};
+      iq.forEach(function (x) { if (x && x.inqNo) inqNos[x.inqNo] = (inqNos[x.inqNo] || 0) + 1; });
+      rfqs.forEach(function (r) { if (r && r.cd && Array.isArray(r.items) && r.items.length && !inqNos[r.cd]) inqNos[r.cd] = r.items.length; });
+      var inqOpts = Object.keys(inqNos).map(function (k) { return '<option value="' + escP(k) + '"' + (selectedSource === k ? ' selected' : '') + '>' + escP(k) + ' (' + inqNos[k] + ' قلم)</option>'; }).join('');
+
+      modal.querySelector('.md').innerHTML = '<h3>🛒 درخواست تامین — گام ۱: ورود اقلام</h3>' +
+        '<div class="fld"><label>اتصال به درخواست مشتری (اختیاری — برای رهگیری)</label><select id="rqsSrc" onchange="rfqsSyncSrcInqUI()">' + rfqOpts + '</select></div>' +
+        '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;font-size:12px;color:#0c4a6e;margin:8px 0">یکی از روش‌های زیر را انتخاب کنید. در گام بعد همه اقلام قابل ویرایش، افزودن و حذف ردیف هستند.</div>' +
+        '<div style="display:grid;gap:8px;margin:10px 0">' +
+        (inqOpts ? '<div style="display:flex;gap:6px;align-items:center"><select id="rqsInq" aria-label="انتخاب اقلام درخواست فروش" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 وارد کردن اقلام درخواست</button></div>' : '') +
+        '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'rqsFile\');else rfqsFromFile()">📊 <b>ورود فایل Excel / CSV با راهنما</b> — ستون‌ها و نمونه استاندارد نمایش داده می‌شود</button>' +
+        '<button class="bt bt-o" style="text-align:right;padding:12px;color:#0e7490;border-color:#bae6fd" onclick="document.getElementById(\'rqsAiFile\').click()">🤖 <b>خواندن فایل با هوش مصنوعی</b> — PDF، تصویر، Excel، CSV یا متن</button>' +
+        '<button class="bt bt-o" style="text-align:right;padding:12px;color:#6d28d9;border-color:#ddd6fe" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'rqsFile\')">📋 <b>راهنما و پرامپت آماده AI</b> — تبدیل فایل نامنظم به اکسل قابل ورود</button>' +
+        '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="rfqsManual()">✍️ <b>ورود و ویرایش دستی اقلام</b> — افزودن/حذف ردیف و اصلاح تمام ستون‌ها</button>' +
+        '<input type="file" id="rqsFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="rfqsHandleFile(this)">' +
+        '<input type="file" id="rqsAiFile" accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.txt,.md" style="display:none" onchange="rfqsReadFileAi(this)">' +
+        '</div>' +
+        '<div style="display:flex;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button></div>';
+      try { rfqsSyncSrcInqUI(); } catch (e0) {}
+    }, 0);
   };
 
   /* v21.9 US-454: همگام‌سازی rqsSrc (اتصال درخواست) با rqsInq (اقلام) + قفل */
@@ -704,48 +734,90 @@
     inq.title = 'قفل‌شده بر اساس «اتصال به درخواست مشتری» — برای تغییر، اتصال بالا را عوض کنید';
   };
 
-  window.rfqsFromFile = function () { document.getElementById('rqsFile').click(); };
+  window.rfqsFromFile = function () { var el = document.getElementById('rqsFile'); if (el) el.click(); };
+
+  function rfqsReadSpreadsheet(file, cb) {
+    if (typeof XLSX === 'undefined') { cb(new Error('کتابخانه Excel بارگذاری نشده؛ صفحه را بازخوانی کنید')); return; }
+    var rd = new FileReader();
+    rd.onerror = function () { cb(new Error('خواندن فایل از دستگاه ناموفق بود')); };
+    rd.onload = function () {
+      try {
+        var isCsv = /\.csv$/i.test(file.name || '');
+        var wb = isCsv ? XLSX.read(String(rd.result || '').replace(/^\uFEFF/, ''), { type: 'string' }) : XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+        if (!wb.SheetNames || !wb.SheetNames.length) throw new Error('شیت قابل خواندن پیدا نشد');
+        var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' })
+          .map(function (row) { return (row || []).map(function (cell) { return String(cell == null ? '' : cell).trim(); }); });
+        var items = rfqsParseRows(rows);
+        if (!items.length) throw new Error('هیچ ردیف کالای معتبر پیدا نشد؛ ساختار ستون‌ها را با راهنما تطبیق دهید');
+        cb(null, items);
+      } catch (e) { cb(e instanceof Error ? e : new Error('پردازش فایل ناموفق بود')); }
+    };
+    if (/\.csv$/i.test(file.name || '')) rd.readAsText(file, 'utf-8'); else rd.readAsArrayBuffer(file);
+  }
+
+  function rfqsMergeItems(items, append) {
+    _st.items = (_st.items || []).filter(function (x) { return String((x && x.name) || '').trim(); });
+    if (!append) _st.items = [];
+    (items || []).forEach(function (item) { _st.items.push(item); });
+  }
 
   window.rfqsHandleFile = function (inp) {
-    var f = inp.files[0];
-    if (!f) return;
+    var f = (inp.files || [])[0]; if (!f) return;
     var srcEl = document.getElementById('rqsSrc');
-    rfqsSetStateSource((srcEl || { value: '' }).value);
+    rfqsSetStateSource((_st && _st.srcRfq) || (srcEl || { value: '' }).value);
     if (!rfqsGuardDuplicateSource(_st.srcRfq, _st.no, srcEl)) { inp.value = ''; return; }
-    var name = f.name.toLowerCase();
-    if (/\.(xlsx|xls|csv)$/.test(name)) {
-      // AC1: اکسل/CSV — خواندن مستقیم با تشخیص ستون
-      var rd = new FileReader();
-      rd.onload = function () {
-        var rows = [];
-        try {
-          if (/\.csv$/.test(name)) {
-            rows = String(rd.result).replace(/^\uFEFF/, '').split(/\r?\n/).filter(function (l) { return l.trim(); })
-              .map(function (l) { return l.split(',').map(function (c) { return c.replace(/^"|"$/g, '').trim(); }); });
-          } else {
-            var wb = XLSX.read(new Uint8Array(rd.result), { type: 'array' });
-            rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' })
-              .map(function (r) { return r.map(function (c) { return String(c == null ? '' : c).trim(); }); });
-          }
-        } catch (e) { alert('خطا در خواندن فایل: ' + e.message); return; }
-        _st.items = rfqsParseRows(rows);
-        hideModal();
-        rfqsReviewItems();
-      };
-      if (/\.csv$/.test(name)) rd.readAsText(f, 'utf-8'); else rd.readAsArrayBuffer(f);
-    } else {
-      // AC1: PDF/عکس/zip — بدون کلید LLM → صف بازبینی دستی با فرم سریع
-      hideModal();
-      alert('📄 این نوع فایل (PDF/عکس) نیاز به خواندن ماشینی دارد.\n\n' +
-        'تا فعال‌سازی کلید هوش مصنوعی تصویری، فایل را باز کنید و اقلام را در «فرم سریع» وارد نمایید — فایل هم به‌عنوان پیوست مرجع در استعلام ذخیره می‌شود.');
-      if (typeof uploadFile === 'function') {
-        uploadFile(f, 'rfqsmart', function (res) {
-          if (res && res.ok && res.key) _st.attach = { name: res.name, key: res.key };
-          else alert('⚠️ فایل روی فضای ابری ذخیره نشد و به استعلام افزوده نشد: ' + ((res || {}).error || 'خطای نامشخص'));
-        });
-      }
-      rfqsManual();
+    rfqsReadSpreadsheet(f, function (err, items) {
+      if (err) { alert('❌ ورود Excel/CSV ناموفق بود:\n' + err.message); return; }
+      rfqsMergeItems(items, false);
+      var modal = document.getElementById('rqsNewModal'); if (modal) modal.remove();
+      rfqsReviewItems();
+      if (typeof ptfToast === 'function') ptfToast('✅ ' + items.length + ' ردیف از ' + f.name + ' وارد شد؛ همه ردیف‌ها قابل ویرایش‌اند.', 'ok');
+    });
+    inp.value = '';
+  };
+
+  window.rfqsImportMoreFile = function (inp) {
+    var f = (inp.files || [])[0]; if (!f) return;
+    rfqsReadSpreadsheet(f, function (err, items) {
+      if (err) { alert('❌ ورود Excel/CSV ناموفق بود:\n' + err.message); return; }
+      rfqsMergeItems(items, true); rfqsRenderRows();
+      if (typeof ptfToast === 'function') ptfToast('✅ ' + items.length + ' ردیف جدید به جدول اضافه شد.', 'ok');
+    });
+    inp.value = '';
+  };
+
+  window.rfqsReadFileAi = function (inp) {
+    var f = (inp.files || [])[0]; if (!f) return;
+    if (typeof window.ptfExtractRfqFileWithAi !== 'function') { alert('ماژول خواندن فایل AI بارگذاری نشده؛ صفحه را بازخوانی کنید.'); return; }
+    var srcEl = document.getElementById('rqsSrc');
+    if (srcEl) {
+      rfqsSetStateSource(srcEl.value || '');
+      if (!rfqsGuardDuplicateSource(_st.srcRfq, _st.no, srcEl)) { inp.value = ''; return; }
     }
+    var stateNo = _st && _st.no;
+    /* فایل ورودی به‌عنوان مرجع روی درخواست تامین نگه داشته می‌شود؛ استخراج AI و
+       آپلود مستقل‌اند تا شکست یکی دیگری را از بین نبرد. */
+    if (typeof uploadFile === 'function') uploadFile(f, 'rfqsmart', function (res) {
+      if (!res || !res.ok || !res.key) { if (typeof ptfToast === 'function') ptfToast('⚠️ خواندن AI ادامه دارد ولی ذخیره فایل مرجع ناموفق بود: ' + ((res || {}).error || ''), 'warn'); return; }
+      var ref = { name: res.name || f.name, key: res.key, size: f.size || 0, t: faDateTime(), by: curSession().name };
+      if (_st && _st.no === stateNo) {
+        _st.attachments = _st.attachments || [];
+        if (!_st.attachments.some(function (x) { return x.key === ref.key; })) _st.attachments.push(ref);
+        _st.attach = _st.attach || ref; /* سازگاری رکوردهای قدیمی */
+      }
+      var saved = getData('ptf_crm_rfqsmart') || [], hit = saved.filter(function (x) { return x.no === stateNo; })[0];
+      if (hit) { hit.attachments = hit.attachments || []; if (!hit.attachments.some(function (x) { return x.key === ref.key; })) hit.attachments.push(ref); hit.attach = hit.attach || ref; setData('ptf_crm_rfqsmart', saved); }
+    });
+    if (typeof ptfToast === 'function') ptfToast('🤖 در حال خواندن «' + f.name + '» و استخراج اقلام...', 'info');
+    window.ptfExtractRfqFileWithAi(f, function (err, result) {
+      if (err) { alert('❌ AI فایل را نخواند:\n' + err.message + '\n\nاز Excel راهنمادار، پرامپت آماده یا ورود دستی استفاده کنید.'); return; }
+      if (!_st || _st.no !== stateNo) { if (typeof ptfToast === 'function') ptfToast('خواندن فایل پایان یافت ولی درخواست تامین دیگری باز شده است؛ فایل را دوباره انتخاب کنید.', 'warn'); return; }
+      var items = result.rows.map(function (row) { return { name: row.nm, spec: row.spec, qty: row.qty, unit: row.un, type: row.tp, brand: row.brand, model: row.model, aiSource: result.sourceName }; });
+      rfqsMergeItems(items, true);
+      var newModal = document.getElementById('rqsNewModal');
+      if (newModal) { newModal.remove(); rfqsReviewItems(); } else rfqsRenderRows();
+      if (typeof ptfToast === 'function') ptfToast('✅ ' + items.length + ' قلم با AI اضافه شد؛ قبل از ادامه بازبینی کنید.', 'ok');
+    });
     inp.value = '';
   };
 
@@ -759,23 +831,31 @@
       return -1;
     }
     var map = {
-      name: find(['شرح', 'نام', 'کالا', 'item', 'desc', 'name', 'material']),
+      name: find(['شرح', 'نام کالا', 'کالا', 'item', 'desc', 'name', 'material']),
       spec: find(['مشخصات', 'استاندارد', 'spec', 'standard', 'grade', 'سایز', 'size']),
       qty: find(['تعداد', 'مقدار', 'qty', 'quantity', 'q\'ty']),
-      unit: find(['واحد', 'unit', 'uom'])
+      unit: find(['واحد', 'unit', 'uom']),
+      type: find(['نوع', 'خانواده', 'type', 'family']),
+      brand: find(['برند', 'سازنده', 'brand', 'make', 'manufacturer']),
+      model: find(['مدل', 'پارت', 'part no', 'part number', 'model'])
     };
     var hasHeader = map.name > -1 || map.qty > -1;
     var body = hasHeader ? rows.slice(1) : rows;
-    if (!hasHeader) map = { name: 0, spec: 1, qty: 2, unit: 3 };
+    if (!hasHeader) map = { name: 0, spec: 1, qty: 2, unit: 3, type: 4, brand: 5, model: 6 };
     var items = [];
     body.forEach(function (r) {
       var nm = map.name > -1 ? (r[map.name] || '') : (r[0] || '');
       if (!String(nm).trim()) return;
+      var rawQty = map.qty > -1 ? r[map.qty] : 1;
+      var qty = typeof ptfNum === 'function' ? ptfNum(rawQty) : (+String(rawQty == null ? '' : rawQty).replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}).replace(/[^\d.\-]/g, '') || 1);
       items.push({
         name: String(nm).trim(),
         spec: map.spec > -1 ? String(r[map.spec] || '').trim() : '',
-        qty: map.qty > -1 ? (+String(r[map.qty]).replace(/[^\d.]/g, '') || 1) : 1,
-        unit: map.unit > -1 ? (String(r[map.unit] || '').trim() || 'عدد') : 'عدد'
+        qty: qty > 0 ? qty : 1,
+        unit: map.unit > -1 ? (String(r[map.unit] || '').trim() || 'عدد') : 'عدد',
+        type: map.type > -1 ? String(r[map.type] || '').trim() : '',
+        brand: map.brand > -1 ? String(r[map.brand] || '').trim() : '',
+        model: map.model > -1 ? String(r[map.model] || '').trim() : ''
       });
     });
     return items;
@@ -796,7 +876,12 @@
     /* اقلام با همه aliasهای شماره درخواست */
     var aliases = (typeof ptfInqAliases === 'function') ? ptfInqAliases(no) : [no];
     _st.items = getData('ptf_crm_inqitems').filter(function (x) { return aliases.indexOf(x.inqNo) > -1; })
-      .map(function (x) { return { name: x.en || x.nm, spec: x.st || '', qty: x.qty || 1, unit: x.un || 'عدد', brand: x.br || '', model: x.md || '', pcode: x.cd || '' }; });
+      .map(function (x) { return { name: x.en || x.nm, spec: x.st || x.spec || '', qty: x.qty || 1, unit: x.un || x.unit || 'عدد', type: x.tp || '', brand: x.brand || x.br || '', model: x.model || x.md || '', pcode: x.cd || '' }; });
+    if (!_st.items.length) {
+      var parent = (getData('ptf_crm_rfqs') || []).filter(function (x) { return aliases.indexOf(x.cd) > -1 || aliases.indexOf(x.inqNo) > -1; })[0];
+      _st.items = ((parent && parent.items) || []).map(function (x) { return { name: x.en || x.nm || x.name || '', spec: x.st || x.spec || '', qty: x.qty || 1, unit: x.un || x.unit || 'عدد', type: x.tp || '', brand: x.brand || x.br || '', model: x.model || x.md || '', pcode: x.cd || '' }; });
+    }
+    if (!_st.items.length) { alert('برای این درخواست هنوز قلمی ثبت نشده است؛ از Excel، AI یا ورود دستی استفاده کنید.'); return; }
     hideModal();
     rfqsReviewItems();
   };
@@ -805,9 +890,22 @@
     var srcEl = document.getElementById('rqsSrc');
     rfqsSetStateSource(_st.srcRfq || (srcEl || { value: '' }).value);
     if (!rfqsGuardDuplicateSource(_st.srcRfq, _st.no, srcEl)) return;
-    if (!_st.items.length) _st.items = [{ name: '', spec: '', qty: 1, unit: 'عدد' }];
-    var mds = document.querySelectorAll('.md-b');
-    for (var _mi = mds.length - 1; _mi >= 0; _mi--) { if ((mds[_mi].style || {}).display !== 'none') { mds[_mi].remove(); break; } } /* v16.2 BUG-017 */
+    if (!_st.items.length) _st.items = [{ name: '', spec: '', qty: 1, unit: 'عدد', brand: '', model: '' }];
+    var modal = document.getElementById('rqsNewModal'); if (modal) modal.remove();
+    rfqsReviewItems();
+  };
+
+  window.rfqsEditItems = function (no) {
+    var record = (getData('ptf_crm_rfqsmart') || []).filter(function (x) { return x.no === no; })[0];
+    if (!record) { alert('درخواست تامین پیدا نشد'); return; }
+    if (record.st === 'sent' && !confirm('این درخواست قبلاً ارسال شده است. اصلاح اقلام، PDF و استعلام بعدی را تغییر می‌دهد ولی سابقه ارسال حفظ می‌شود. ادامه می‌دهید؟')) return;
+    _st = JSON.parse(JSON.stringify(record));
+    _st.items = _st.items || [];
+    _st.targets = _st.targets || [];
+    _st._editing = true;
+    _st._originalStatus = record.st || 'draft';
+    _st._originalTargets = JSON.parse(JSON.stringify(_st.targets));
+    document.querySelectorAll('.md-b').forEach(function (m) { if (m.id === 'rqsNewModal' || (m.hasAttribute && m.hasAttribute('data-rfqs-detail'))) m.remove(); });
     rfqsReviewItems();
   };
 
@@ -831,11 +929,16 @@
       '<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:8px 12px;font-size:12px;color:#854d0e;margin-bottom:8px">' +
       '🔒 محرمانگی: در فرم و اکسل ارسالی به تامین‌کننده فقط شرح/مشخصات/تعداد/واحد می‌رود — <b>هیچ نام یا اطلاعاتی از کارفرما درج نمی‌شود.</b></div>' +
       '<div id="rqsItemsWrap"></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
-      '<button type="button" class="bt bt-o" style="font-size:12px" onclick="rfqsAddRow()">+ ردیف دستی</button>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px;background:#f8fafc;border:1px solid var(--brd);border-radius:10px">' +
+      '<button type="button" class="bt bt-o" style="font-size:12px" onclick="rfqsAddRow()">➕ افزودن ردیف جدید</button>' +
+      '<button type="button" class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'rqsMoreXls\');else document.getElementById(\'rqsMoreXls\').click()">📊 افزودن از Excel با راهنما</button>' +
+      '<button type="button" class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#bae6fd" onclick="document.getElementById(\'rqsMoreAi\').click()">🤖 افزودن با خواندن فایل AI</button>' +
+      '<button type="button" class="bt bt-o" style="font-size:12px;color:#6d28d9;border-color:#ddd6fe" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'rqsMoreXls\')">📋 راهنما / پرامپت آماده</button>' +
       '<button type="button" class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="rfqsOpenProductPicker()">📦 افزودن از ماژول کالا</button>' +
+      '<input type="file" id="rqsMoreXls" accept=".xlsx,.xls,.csv" style="display:none" onchange="rfqsImportMoreFile(this)">' +
+      '<input type="file" id="rqsMoreAi" accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.txt,.md" style="display:none" onchange="rfqsReadFileAi(this)">' +
       '</div>' +
-      '<div class="fr" style="margin-top:12px"><div class="fld"><label>مهلت پاسخ تامین‌کننده</label><select id="rqsDl"><option value="24 ساعت">۲۴ ساعت</option><option value="48 ساعت" selected>۴۸ ساعت</option><option value="72 ساعت">۷۲ ساعت</option><option value="1 هفته">۱ هفته</option></select></div><div class="fld"></div></div>' +
+      '<div class="fr" style="margin-top:12px"><div class="fld"><label>مهلت پاسخ تامین‌کننده</label><select id="rqsDl"><option value="24 ساعت"' + (_st.deadline === '24 ساعت' ? ' selected' : '') + '>۲۴ ساعت</option><option value="48 ساعت"' + (!_st.deadline || _st.deadline === '48 ساعت' ? ' selected' : '') + '>۴۸ ساعت</option><option value="72 ساعت"' + (_st.deadline === '72 ساعت' ? ' selected' : '') + '>۷۲ ساعت</option><option value="1 هفته"' + (_st.deadline === '1 هفته' ? ' selected' : '') + '>۱ هفته</option></select></div><div class="fld"></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))this.closest(\'.md-b\').remove()">انصراف</button>' +
       '<button class="bt" onclick="rfqsToTargets()">ادامه: انتخاب تامین‌کنندگان ←</button></div></div></div>';
@@ -846,21 +949,23 @@
   window.rfqsRenderRows = function () {
     var el = document.getElementById('rqsItemsWrap');
     if (!el) return;
-    var h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead style="background:#f1f5f9"><tr><th>#</th><th style="min-width:180px">شرح کالا</th><th style="min-width:90px">مدل</th><th style="min-width:140px">مشخصات فنی</th><th>تعداد</th><th>واحد</th><th></th></tr></thead><tbody>';
+    var h = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead style="background:#f1f5f9"><tr><th>#</th><th style="min-width:180px">شرح کالا</th><th style="min-width:90px">برند</th><th style="min-width:100px">مدل / پارت‌نامبر</th><th style="min-width:160px">مشخصات فنی</th><th>تعداد</th><th>واحد</th><th>عملیات ردیف</th></tr></thead><tbody>';
     _st.items.forEach(function (it, i) {
       h += '<tr><td>' + (i + 1) + '</td>' +
-        '<td><input type="text" value="' + escP(it.name) + '" oninput="_stU(' + i + ',\'name\',this.value)" style="width:100%;padding:5px;border:1px solid var(--brd);border-radius:6px"></td>' +
-        '<td><input type="text" value="' + escP(it.model || '') + '" oninput="_stU(' + i + ',\'model\',this.value)" style="width:100%;padding:5px;border:1px solid var(--brd);border-radius:6px;direction:ltr"></td>' + /* v31.7.20 BUG-RFQS-MODEL-001 */
-        '<td><input type="text" value="' + escP(it.spec) + '" oninput="_stU(' + i + ',\'spec\',this.value)" style="width:100%;padding:5px;border:1px solid var(--brd);border-radius:6px;direction:ltr"></td>' +
-        '<td><input type="number" value="' + (it.qty || 1) + '" oninput="_stU(' + i + ',\'qty\',this.value)" style="width:64px;padding:5px;border:1px solid var(--brd);border-radius:6px"></td>' +
-        '<td><input type="text" value="' + escP(it.unit) + '" oninput="_stU(' + i + ',\'unit\',this.value)" style="width:64px;padding:5px;border:1px solid var(--brd);border-radius:6px"></td>' +
-        '<td><button type="button" onclick="rfqsDelRow(' + i + ')" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></td></tr>';
+        '<td><input aria-label="شرح کالای ردیف ' + (i + 1) + '" type="text" value="' + escP(it.name) + '" oninput="_stU(' + i + ',\'name\',this.value)" style="width:100%;padding:5px;border:1px solid var(--brd);border-radius:6px"></td>' +
+        '<td><input aria-label="برند ردیف ' + (i + 1) + '" type="text" value="' + escP(it.brand || '') + '" oninput="_stU(' + i + ',\'brand\',this.value)" style="width:90px;padding:5px;border:1px solid var(--brd);border-radius:6px;direction:ltr"></td>' +
+        '<td><input aria-label="مدل ردیف ' + (i + 1) + '" type="text" value="' + escP(it.model || '') + '" oninput="_stU(' + i + ',\'model\',this.value)" style="width:100%;padding:5px;border:1px solid var(--brd);border-radius:6px;direction:ltr"></td>' +
+        '<td><input aria-label="مشخصات فنی ردیف ' + (i + 1) + '" type="text" value="' + escP(it.spec) + '" oninput="_stU(' + i + ',\'spec\',this.value)" style="width:100%;padding:5px;border:1px solid var(--brd);border-radius:6px;direction:ltr"></td>' +
+        '<td><input aria-label="تعداد ردیف ' + (i + 1) + '" type="number" value="' + (it.qty || 1) + '" oninput="_stU(' + i + ',\'qty\',this.value)" style="width:64px;padding:5px;border:1px solid var(--brd);border-radius:6px"></td>' +
+        '<td><input aria-label="واحد ردیف ' + (i + 1) + '" type="text" value="' + escP(it.unit) + '" oninput="_stU(' + i + ',\'unit\',this.value)" style="width:64px;padding:5px;border:1px solid var(--brd);border-radius:6px"></td>' +
+        '<td style="white-space:nowrap"><button type="button" class="bt bt-o" onclick="rfqsDuplicateRow(' + i + ')" style="padding:2px 6px;font-size:10.5px;color:#0e7490" title="کپی این ردیف">＋ کپی</button> <button type="button" class="bt bt-o" onclick="rfqsDelRow(' + i + ')" style="padding:2px 6px;font-size:10.5px;color:#dc2626" title="حذف این ردیف">🗑 حذف</button></td></tr>';
     });
-    el.innerHTML = h + '</tbody></table>';
+    el.innerHTML = h + '</tbody></table></div>';
   };
   window._stU = function (i, f, v) { _st.items[i][f] = f === 'qty' ? (+v || 1) : v; };
-  window.rfqsAddRow = function () { _st.items.push({ name: '', spec: '', qty: 1, unit: 'عدد' }); rfqsRenderRows(); };
-  window.rfqsDelRow = function (i) { _st.items.splice(i, 1); rfqsRenderRows(); };
+  window.rfqsAddRow = function () { _st.items.push({ name: '', spec: '', qty: 1, unit: 'عدد', brand: '', model: '' }); rfqsRenderRows(); };
+  window.rfqsDuplicateRow = function (i) { if (!_st.items[i]) return; var copy = JSON.parse(JSON.stringify(_st.items[i])); _st.items.splice(i + 1, 0, copy); rfqsRenderRows(); };
+  window.rfqsDelRow = function (i) { _st.items.splice(i, 1); if (!_st.items.length) _st.items.push({ name: '', spec: '', qty: 1, unit: 'عدد', brand: '', model: '' }); rfqsRenderRows(); };
 
   /* v21.9 US-454: افزودن از ماژول کالا به اقلام درخواست تامین */
   window.rfqsOpenProductPicker = function () {
@@ -1092,16 +1197,18 @@
 
     var ranked = rfqsScoreSuppliers(_st.items);
     var top5 = {};
-    ranked.slice(0, 5).forEach(function (r) { top5[r.cd] = true; });
+    if (!_st._editing) ranked.slice(0, 5).forEach(function (r) { top5[r.cd] = true; });
     _st._ranked = ranked;
     _st._sel = top5;
+    /* هنگام اصلاح فقط تامین‌کنندگان قبلی پیش‌تیک می‌مانند؛ پیشنهاد top-5 نباید ناخواسته اضافه شود. */
+    (_st._originalTargets || _st.targets || []).forEach(function (t) { if (t && t.cd) _st._sel[t.cd] = true; });
     _st._tgQ = '';
     _st._tgOtherOpen = false;
     /* v21.7 US-452: اخیر همین درخواست — نمایش + پیش‌تیک (قابل تغییر) */
     var recent = [];
     try { recent = ptfRfqsRecentSuppliers(_st.srcRfq, _st.no) || []; } catch (eR) { recent = []; }
     _st._recent = recent;
-    recent.forEach(function (r) {
+    if (!_st._editing) recent.forEach(function (r) {
       var key = r.cd || '';
       if (!key && r.co) {
         var hit = ranked.filter(function (x) { return x.co === r.co; })[0];
@@ -1112,7 +1219,7 @@
 
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this&&confirm(\'بستن؟\'))this.remove()"><div class="md" style="max-width:760px;max-height:92vh;overflow:auto">' +
       '<h3>🤖 گام ۳: انتخاب تامین‌کنندگان</h3>' +
-      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">💡 ۵ پیشنهاد برتر خودکار تیک خورده‌اند و قابل تغییر هستند. جستجوی زنده دوزبانه + بخش «تامین‌کنندگان اخیر همین درخواست» (v21.7 US-452).</div>' +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:8px">' + (_st._editing ? '💡 تامین‌کنندگان قبلی تیک خورده و قابل تغییرند؛ تامین‌کننده جدید فقط با انتخاب شما اضافه می‌شود.' : '💡 ۵ پیشنهاد برتر خودکار تیک خورده‌اند و قابل تغییر هستند.') + ' جستجوی زنده دوزبانه + بخش «تامین‌کنندگان اخیر همین درخواست».</div>' +
       '<div id="rqsTgChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:8px"></div>' +
       '<input type="search" id="rqsTgQ" placeholder="🔍 جستجو: نام، برند، تجهیز، زمینه… (زیمنس = Siemens)" ' +
       'oninput="rfqsSetSearch(this.value)" style="width:100%;padding:10px 12px;border:1px solid var(--brd);border-radius:12px;font-size:13px;margin-bottom:10px;box-sizing:border-box">' +
@@ -1254,18 +1361,30 @@
     /* گارد نهایی race-safe: اگر از زمان گام اول دستگاه/کاربر دیگری برای همین درخواست
        رکورد ساخته باشد، دوباره تصمیم صریح می‌گیریم؛ «انصراف» قبلی را باز می‌کند. */
     if (idx === -1 && _st.srcRfq && !rfqsGuardDuplicateSource(_st.srcRfq, _st.no, document.getElementById('rqsTgList'))) return;
-    var targets = _st._ranked.filter(function (r) { return _st._sel[r.cd]; })
-      .map(function (r) { return { cd: r.cd, co: r.co, ph: r.ph, email: r.email, st: 'pending', sends: [] }; });
+    var originalTargets = _st._originalTargets || _st.targets || [];
+    var targets = _st._ranked.filter(function (r) { return _st._sel[r.cd]; }).map(function (r) {
+      var oldTarget = originalTargets.filter(function (x) { return x && x.cd === r.cd; })[0];
+      if (oldTarget) { oldTarget.co = r.co; oldTarget.ph = r.ph; oldTarget.email = r.email; return oldTarget; }
+      return { cd: r.cd, co: r.co, ph: r.ph, email: r.email, st: 'pending', sends: [] };
+    });
     if (!targets.length) { alert('حداقل یک تامین‌کننده انتخاب کنید'); return; }
+    var wasEditing = !!_st._editing;
+    var originalStatus = _st._originalStatus || _st.st || 'draft';
     _st.targets = targets;
+    if (wasEditing && ['sent', 'done'].indexOf(originalStatus) > -1) {
+      _st.priorStatusBeforeItemEdit = originalStatus;
+      _st.st = 'draft'; _st.needsResend = true; _st.itemsRevision = (+_st.itemsRevision || 1) + 1;
+      _st.targets.forEach(function (t) { if ((t.sends || []).length || t.st === 'replied') t.itemsChangedAfterSend = true; });
+    }
+    _st.updatedAt = faDateTime(); _st.updatedBy = curSession().name;
     /* v16.5 (US-399 AC4): یادگیری از اصلاح کاربر — انتخاب دستی خارج از پیشنهاد برند → افزودن تخصص با تایید */
     if (typeof ptfSupSpecLearn === 'function') { try { ptfSupSpecLearn(_st.items, targets, _st._ranked); } catch (eL) {} }
-    delete _st._ranked; delete _st._sel; delete _st._duplicateApprovedSource;
+    delete _st._ranked; delete _st._sel; delete _st._duplicateApprovedSource; delete _st._originalTargets; delete _st._originalStatus; delete _st._editing; delete _st._recent; delete _st._tgQ; delete _st._tgOtherOpen;
     if (idx > -1) list[idx] = _st; else list.unshift(_st);
     setData('ptf_crm_rfqsmart', list);
     /* ساخت استعلام تامین برای RFQ ارجاع‌شده، کار «استعلام قیمت از تامین‌کننده» را می‌بندد. */
     try { if (_st.srcRfq && typeof window.ptfResolveRfqReferral === 'function') window.ptfResolveRfqReferral(_st.srcRfq, 'create_supplier_rfq'); } catch (eResolveTask) {}
-    audit('استعلام هوشمند', 'ثبت ' + _st.no + ' با ' + _st.items.length + ' قلم و ' + targets.length + ' تامین‌کننده', _st.no);
+    audit('استعلام هوشمند', (wasEditing ? 'اصلاح اقلام ' : 'ثبت ') + _st.no + ' با ' + _st.items.length + ' قلم و ' + targets.length + ' تامین‌کننده', _st.no);
     var mds = document.querySelectorAll('.md-b');
     for (var _mi = mds.length - 1; _mi >= 0; _mi--) { if ((mds[_mi].style || {}).display !== 'none') { mds[_mi].remove(); break; } } /* v16.2 BUG-017 */
     renderRfqSmart();
@@ -1276,6 +1395,8 @@
   window.rfqsOpen = function (no) {
     var r = getData('ptf_crm_rfqsmart').filter(function (x) { return x.no === no; })[0];
     if (!r) return;
+    var refs = (r.attachments || []).slice(); if (r.attach && r.attach.key && !refs.some(function (x) { return x.key === r.attach.key; })) refs.push(r.attach);
+    var referenceFiles = refs.map(function (f) { return '<button class="bt bt-o" style="font-size:11px;color:#0e7490" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">📎 ' + escP(f.name || 'فایل مرجع') + '</button>'; }).join(' ');
     var itemsRows = (r.items || []).map(function (it, i) {
       return '<tr><td>' + (i + 1) + '</td><td>' + escP(it.name) + '</td><td style="direction:ltr">' + escP(it.spec || '—') + '</td><td>' + it.qty + '</td><td>' + escP(it.unit) + '</td></tr>';
     }).join('');
@@ -1296,12 +1417,14 @@
         '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626" onclick="rfqsDecline(\'' + ptfOnClickArg(r.no) + '\',' + i + ')">رد کرد</button>' +
         '</span></div></div>';
     }).join('');
-    var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:94vh;overflow:auto">' +
+    var html = '<div class="md-b" data-rfqs-detail="' + escP(r.no) + '" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:820px;max-height:94vh;overflow:auto">' +
       '<h3>🤖 ' + escP(r.no) + ' <small style="color:#94a3b8">مهلت پاسخ: ' + escP(r.deadline || '—') + (r.srcRfq ? ' | درخواست: ' + escP(r.srcRfq) : '') + '</small></h3>' +
+      (referenceFiles ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"><b style="font-size:12px">فایل مرجع:</b> ' + referenceFiles + '</div>' : '') +
       '<h4 style="margin:10px 0 6px;font-size:13.5px">📦 اقلام (' + (r.items || []).length + ')</h4>' +
       '<div class="tb2"><table><thead><tr><th>#</th><th>شرح</th><th>مشخصات</th><th>تعداد</th><th>واحد</th></tr></thead><tbody>' + itemsRows + '</tbody></table></div>' +
       '<h4 style="margin:14px 0 6px;font-size:13.5px">🏭 تامین‌کنندگان و ارسال <small style="color:#94a3b8">(هیچ ارسالی خودکار نیست — با کلیک شما انجام می‌شود)</small></h4>' + tgRows +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">' +
+      '<button class="bt bt-o" style="color:#7c3aed;border-color:#ddd6fe" onclick="rfqsEditItems(\'' + ptfOnClickArg(r.no) + '\')">✏️ ویرایش / افزودن / حذف اقلام</button>' +
       '<button class="bt bt-o" onclick="rfqsXls(\'' + ptfOnClickArg(r.no) + '\')">⬇️ اکسل پاک</button>' +
       '<button class="bt bt-o" onclick="rfqsPrintPreview(\'' + ptfOnClickArg(r.no) + '\',null)">🖨️ PDF عمومی (افقی)</button>' +
       '<button class="bt bt-o" style="color:#0e7490" onclick="rfqsPrintPickSupplier(\'' + ptfOnClickArg(r.no) + '\')">🖨 PDF اختصاصی تامین‌کننده</button>' +
@@ -1315,7 +1438,7 @@
     if (!r || !r.targets[ti]) return;
     r.targets[ti].sends = r.targets[ti].sends || [];
     r.targets[ti].sends.push({ ch: ch, t: faDateTime(), by: curSession().name });
-    r.st = 'sent';
+    r.st = 'sent'; r.needsResend = false; delete r.targets[ti].itemsChangedAfterSend;
     setData('ptf_crm_rfqsmart', list);
     audit('استعلام هوشمند', 'ارسال ' + ch + ' به ' + r.targets[ti].co, no);
     setTimeout(function () {
