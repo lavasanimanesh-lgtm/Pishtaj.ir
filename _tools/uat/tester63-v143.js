@@ -25,7 +25,7 @@ T('سینک tst برای گردش کار', of.indexOf("o.tst = st === 'approved'
 T('wfToResponse: st شش‌وضعیتی سینک می‌شود', wf.indexOf("if (v.resp === 'approved') o2.st = 'approved';") > -1 && wf.indexOf("else if (v.resp === 'rejected') o2.st = 'rejected';") > -1);
 T('wfCompute هر دو st/tst را می‌فهمد', wf.indexOf("lastTo.tst === 'rejected' || lastTo.st === 'rejected'") > -1);
 T('wfRefresh بعد از تغییر وضعیت TO', of.indexOf("wfRefresh(o.inqNo, 'وضعیت TO: ' + st)") > -1);
-T('قفل برنده CO/TC پابرجا (رگرسیون US-141)', of.indexOf('وضعیت برنده قفل است و قابل بازگشت نیست') > -1);
+T('قفل برنده CO/TC پابرجا و بازگشت فقط کنترل‌شده است (رگرسیون US-141)', of.indexOf('وضعیت برنده قفل است؛ بازگشت فقط با نقش مجاز و پیش‌بررسی وابستگی‌های سرور انجام می‌شود') > -1);
 
 SECTION('US-367: رفتار اجرایی با داده واقعی');
 global.ptfSetOffState = function (v) { global._offState = v; return v; };

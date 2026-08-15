@@ -12,7 +12,7 @@ var trackPage = fs.readFileSync(path.join(ROOT, 'tracking/index.html'), 'utf-8')
 
 SECTION('زنجیره ثبت: سایت → سرور');
 T('فرم سایت به add_rfq_site پست می‌کند', rfqPage.indexOf('action=add_rfq_site') > -1);
-T('کد رهگیری واقعی سرورساز (PTF-RFQ-{سال}-NNNN اتمیک)', api.indexOf("'PTF-RFQ-' . fa_year() . '-' . str_pad(next_seq('rfq_site')") > -1);
+T('کد رهگیری تصادفی امن و سرورساز است', api.indexOf("public_tracking_code('RFQ')") > -1 && api.indexOf('random_int(0, $max)') > -1 && api.indexOf("$alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'") > -1);
 T('کپچا اجباری + rate-limit عمومی 10/ساعت', api.indexOf("'add_rfq_site' => 10") > -1);
 T('کد به کاربر نمایش + لینک مستقیم رهگیری', rfqPage.indexOf('trackCode') > -1 && rfqPage.indexOf('tracking/?code=') > -1);
 T('رویداد لحظه‌ای برای ادمین push می‌شود', api.indexOf("push_event_rec('rfq_site'") > -1);

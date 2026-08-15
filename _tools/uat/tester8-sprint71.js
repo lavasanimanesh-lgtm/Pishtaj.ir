@@ -106,28 +106,23 @@ T('اعتبارسنجی فایل (app=PTF-CRM)', bakCode.indexOf("j.app !== 'PTF
 T('فهرست بک‌آپ‌های سرور + بازگردانی از آن', bakCode.indexOf('ptfServerBackups') > -1 && bakCode.indexOf('ptfRestoreServer') > -1);
 
 SECTION('US-147: اختیارات ادمین');
-// adminUnwin: برنده → بازگشت + حذف پرونده
-setData('ptf_crm_offers', [{ no: 'PTF-CO-1405-060', kind: 'CO', st: 'won', wonBy: 'x', wonAt: 't', invRef: { by: 'y' }, items: [] }]);
-setData('ptf_crm_projects', [{ no: 'PTF-PRJ-1405-009', offerNo: 'PTF-CO-1405-060', auto: true, docs: [], timeline: [] }]);
-global._curRole = 'chairman';
-global._lastAlert = '';
+// v34.7.6: بازگشت برد دیگر در backup/localStorage انجام نمی‌شود و فقط به فرمان کنترل‌شده سرور واگذار می‌شود.
+setData('ptf_crm_offers', [{ no: 'PTF-CO-1405-060', kind: 'CO', st: 'won', wonBy: 'x', wonAt: 't', items: [] }]);
+setData('ptf_crm_projects', [{ no: 'PTF-PRJ-1405-009', offerNo: 'PTF-CO-1405-060', auto: true }]);
+global._revokeNo = '';
+global.ptfRevokeOfferWin = function (no) { global._revokeNo = no; };
 adminUnwin('PTF-CO-1405-060');
-T('غیرادمین نمی‌تواند بازگرداند (حتی رییس)', getData('ptf_crm_offers')[0].st === 'won' && String(global._lastAlert).indexOf('فقط ادمین') > -1);
-global._curRole = 'admin';
-global._confirmAns = true;
-adminUnwin('PTF-CO-1405-060');
-var o = getData('ptf_crm_offers')[0];
-T('ادمین بازگرداند: وضعیت sent شد', o.st === 'sent');
-T('قفل‌ها پاک شدند (wonAt/wonBy/invRef)', !o.wonAt && !o.wonBy && !o.invRef);
-T('پرونده خودکار حذف شد (AC2)', getData('ptf_crm_projects').length === 0);
-T('هشدار شامل حذف پرونده بود', String(global._lastConfirm).indexOf('پرونده خودکار') > -1);
-T('در audit ثبت شد', getData('ptf_crm_audit').some(function (a) { return a.a.indexOf('بازگشت از وضعیت برنده') > -1; }));
-// adminDelOffer
-setData('ptf_crm_offers', [{ no: 'PTF-CO-1405-061', kind: 'CO', st: 'won', items: [] }]);
-setData('ptf_crm_projects', [{ no: 'PRJ-X', offerNo: 'PTF-CO-1405-061' }]);
-adminDelOffer('PTF-CO-1405-061');
-T('حذف ادمینی پیشنهاد قفل + پرونده', getData('ptf_crm_offers').length === 0 && getData('ptf_crm_projects').length === 0);
-T('دکمه‌های ادمین در رندر تزریق می‌شوند', bakCode.indexOf('adm-unwin') > -1);
+T('alias قدیمی adminUnwin به موتور کنترل‌شده واگذار می‌شود', global._revokeNo === 'PTF-CO-1405-060');
+T('backup.js دیگر وضعیت پیشنهاد را مستقیم تغییر نمی‌دهد', getData('ptf_crm_offers')[0].st === 'won');
+T('backup.js دیگر پرونده را مستقیم حذف نمی‌کند', getData('ptf_crm_projects').length === 1);
+T('دکمه بازگشت در رندر اصلی پیشنهاد تعریف شده', offCode.indexOf('data-offer-action="unwin"') > -1 && offCode.indexOf('ptfRevokeOfferWin') > -1);
+T('دکمه برای ادمین و رئیس هیئت‌مدیره مجاز است', offCode.indexOf("['admin', 'chairman'].indexOf(curRole())") > -1);
+global._hardDelete = null;
+global.ptfAdminHardDelete = function (type, id) { global._hardDelete = [type, id]; };
+adminDelOffer('PTF-CO-1405-060');
+T('حذف قدیمی نیز به حذف اتمیک سرور واگذار می‌شود', global._hardDelete && global._hardDelete[0] === 'offer' && global._hardDelete[1] === 'PTF-CO-1405-060');
+T('هیچ setData مستقیم در تابع adminUnwin باقی نمانده', /window\.adminUnwin[\s\S]{0,500}setData\(/.test(bakCode) === false);
+T('تزریق دیرهنگام renderOffers از backup.js حذف شده', bakCode.indexOf('var _renderOffers = window.renderOffers') === -1);
 
 SECTION('US-148: مهر و امضای سراسری');
 T('حذف پس‌زمینه خودکار (لومینانس + محو نرم)', letCode.indexOf('lum > 235') > -1 && letCode.indexOf('d[i + 3] = 0') > -1);

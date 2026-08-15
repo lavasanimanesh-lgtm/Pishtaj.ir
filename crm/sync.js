@@ -1024,23 +1024,36 @@
     return out;
   }
   window.ptfApplyDeletionTombstones = function (key, jsonStr, extraArchiveStr) {
-    if (key === 'ptf_crm_deleted_archive') return jsonStr;
+    if (key === 'ptf_crm_deleted_archive') {
+      var aliases={};ptfReadArchive(extraArchiveStr).forEach(function(d){if(d&&String(d.kind||'').toLowerCase()==='archive_purge')(d.aliases||[]).forEach(function(a){a=String(a||'').trim();if(a.length>=6)aliases[a]=true;});});
+      var aliasList=Object.keys(aliases);if(!aliasList.length)return jsonStr;try{var rows=JSON.parse(jsonStr||'[]');if(!Array.isArray(rows))return jsonStr;return JSON.stringify(rows.filter(function(row){if(!row||typeof row!=='object')return false;if(String(row.kind||'').toLowerCase()==='archive_purge')return true;var encoded=JSON.stringify(row);return!aliasList.some(function(a){return encoded.indexOf(a)>-1;});}));}catch(e){return jsonStr;}
+    }
     var kinds = ptfArchiveKindsForKey(key);
-    if (!kinds.length) return jsonStr;
     var kindSet = {}; kinds.forEach(function (k) { kindSet[String(k).toLowerCase()] = true; });
-    var ids = {};
+    var ids = {}, purgeAliases = {};
     ptfReadArchive(extraArchiveStr).forEach(function (d) {
       if (!d || typeof d !== 'object') return;
       var kind = String(d.kind || '').toLowerCase();
+      if (kind === 'archive_purge' && d.identities && Array.isArray(d.identities[key])) {
+        d.identities[key].forEach(function (purgedId) { purgedId=String(purgedId||'').trim(); if(purgedId)ids[purgedId]=true; });
+        (d.aliases||[]).forEach(function(alias){alias=String(alias||'').trim();if(alias.length>=6)purgeAliases[alias]=true;});
+      }
       if (!kindSet[kind]) return;
       var id = String(d.id || d.no || d.cd || '').trim();
       if (id) ids[id] = true;
     });
-    if (!Object.keys(ids).length) return jsonStr;
+    if (!Object.keys(ids).length && !Object.keys(purgeAliases).length) return jsonStr;
     try {
       var arr = JSON.parse(jsonStr || '[]');
+      if (!arr || typeof arr !== 'object') return jsonStr;
+      if(key==='ptf_crm_supplier_finance'&&!Array.isArray(arr)){
+        ['invoices','payments','adjustments'].forEach(function(bucket){if(!Array.isArray(arr[bucket]))return;arr[bucket]=arr[bucket].filter(function(r){var id=String((r&&(r.cd||r._id))||'').trim();return!id||!ids[id];});});
+        (arr.payments||[]).forEach(function(payment){if(Array.isArray(payment.allocations))payment.allocations=payment.allocations.filter(function(a){return!ids[String((a&&a.invoiceCd)||'').trim()];});});
+        return JSON.stringify(arr);
+      }
       if (!Array.isArray(arr)) return jsonStr;
-      var filtered = arr.filter(function (r) { var id = ptfRecordIdentityForKey(key, r); return !id || !ids[id]; });
+      var purgeAliasList=Object.keys(purgeAliases);
+      var filtered = arr.filter(function (r) { var id = ptfRecordIdentityForKey(key, r); if(id&&ids[id])return false;var encoded='';try{encoded=JSON.stringify(r||{});}catch(e){}return !purgeAliasList.some(function(alias){return encoded.indexOf(alias)>-1;}); });
       return JSON.stringify(filtered);
     } catch (e) { return jsonStr; }
   };
