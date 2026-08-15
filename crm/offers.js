@@ -176,7 +176,7 @@ function offerValidState(o) {
 // US-148: آیا کاربر جاری پروفایل امضا دارد؟
 function mySigReady() {
   try {
-    var p = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[curSession().user];
+    var p = typeof window.ptfSigProfileFor === 'function' ? window.ptfSigProfileFor(curSession().user) : ((getData('ptf_crm_sigprofiles') || {})[curSession().user]);
     return !!(p && (p.sig || p.stamp));
   } catch (e) { return false; }
 }
@@ -206,7 +206,7 @@ function myEnName() {
   var u = getData('ptf_crm_users').filter(function (x) { return x.username === s.user; })[0];
   if (u && u.nameEn) return u.nameEn;
   try {
-    var p = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[s.user];
+    var p = typeof window.ptfSigProfileFor === 'function' ? window.ptfSigProfileFor(s.user) : ((getData('ptf_crm_sigprofiles') || {})[s.user]);
     if (p && p.nmEn) return p.nmEn;
   } catch (e) {}
   if (typeof ptfNameToEn === 'function' && s.name) {
@@ -2564,8 +2564,8 @@ function offerPrintObj(o) {
   var sigImgs = '';
   if (isCO || o.useSig) {
     try {
-      var profs = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}');
-      var sp = profs[o.signAs || o.issuedBy || (typeof curSession === 'function' ? curSession().user : '')] || {}; /* v13.1: امضای نیابتی */
+      var sigUser = o.signAs || o.issuedBy || (typeof curSession === 'function' ? curSession().user : '');
+      var sp = typeof window.ptfSigProfileFor === 'function' ? (window.ptfSigProfileFor(sigUser) || {}) : ((getData('ptf_crm_sigprofiles') || {})[sigUser] || {}); /* v13.1: امضای نیابتی */
       if (isCO && o.useSig === false) sp = {}; // CO با تیک برداشته → بدون امضا
       if (sp.sig) sigImgs += '<img src="' + sp.sig + '" style="max-height:52px;max-width:150px;margin:0 4px">';
       if (sp.stamp) sigImgs += '<img src="' + sp.stamp + '" style="max-height:64px;max-width:110px;margin:0 4px;opacity:.9">';

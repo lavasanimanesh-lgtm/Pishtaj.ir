@@ -262,7 +262,7 @@ function ctEdit(no) {
 // US-148: پروفایل امضای کاربر جاری برای قرارداد
 function ctSigReady() {
   try {
-    var p = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[curSession().user];
+    var p = typeof window.ptfSigProfileFor === 'function' ? window.ptfSigProfileFor(curSession().user) : ((getData('ptf_crm_sigprofiles') || {})[curSession().user]);
     return !!(p && (p.sig || p.stamp));
   } catch (e) { return false; }
 }
@@ -294,7 +294,8 @@ function ctSigBlock(c, isEn) {
   var imgs = '';
   if (c.useSig) {
     try {
-      var sp = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[c.sigUser || curSession().user] || {};
+      var sigUser = c.sigUser || curSession().user;
+      var sp = typeof window.ptfSigProfileFor === 'function' ? (window.ptfSigProfileFor(sigUser) || {}) : ((getData('ptf_crm_sigprofiles') || {})[sigUser] || {});
       if (sp.sig) imgs += '<img src="' + sp.sig + '" style="max-height:16mm;max-width:40mm;margin:0 1mm">';
       if (sp.stamp) imgs += '<img src="' + sp.stamp + '" style="max-height:20mm;max-width:30mm;margin:0 1mm;opacity:.92">';
     } catch (e) {}

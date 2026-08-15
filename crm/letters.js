@@ -13,7 +13,7 @@ function letSignerEn(l) {
     var users = getData('ptf_crm_users');
     var u = users.filter(function (x) { return x.username === l.signer; })[0];
     if (u && u.nameEn) return u.nameEn;
-    var sp = (typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer] || {};
+    var sp = (typeof sigProfileFor === 'function' ? sigProfileFor(l.signer) : ((typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer] || {})) || {};
     if (sp.nmEn) return sp.nmEn;
   } catch (e) {}
   return l.signerNmEn || l.signerNm || '';
@@ -111,8 +111,61 @@ function letExtract(subject, body) {
 }
 
 /* ---------- پروفایل امضا (AC2) ---------- */
-function sigProfiles() { return JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}'); }
-function mySigProfile() { return sigProfiles()[curSession().user] || null; }
+/* ریشه باگ تکرار درخواست امضا: client-server کلیدهای سنگین (تصویر امضا) را از
+   localStorage به IDB منتقل می‌کند، ولی این ماژول همچنان مستقیم localStorage را
+   می‌خواند و بعد از migration پروفایل را خالی می‌دید. خواندن از getData منبع واحد است؛
+   mirror بازیابی فقط در شکست sync/IDB از درخواست دوباره تصویر جلوگیری می‌کند. */
+function sigRecoveryKey(user) { return 'ptf_sig_profile_recovery_v1_' + String(user || '').trim().toLowerCase(); }
+function sigProfileMap() {
+  var map = null;
+  try { map = typeof getData === 'function' ? getData('ptf_crm_sigprofiles') : null; } catch (e) {}
+  if (!map || Array.isArray(map) || typeof map !== 'object') {
+    try { map = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}'); } catch (e2) { map = {}; }
+  }
+  return (!map || Array.isArray(map) || typeof map !== 'object') ? {} : map;
+}
+function sigUserAliases(user) {
+  var out = [], seen = {};
+  function add(v) { v = String(v || '').trim(); if (v && !seen[v.toLowerCase()]) { seen[v.toLowerCase()] = true; out.push(v); } }
+  add(user);
+  try {
+    var ses = curSession() || {}; if (!user || user === ses.user) { add(ses.user); add(ses.username); }
+    (getData('ptf_crm_users') || []).forEach(function (u) {
+      if (!u) return;
+      if (String(u.username || '').toLowerCase() === String(user || ses.user || '').toLowerCase() || String(u.user || '').toLowerCase() === String(user || ses.user || '').toLowerCase()) { add(u.username); add(u.user); }
+    });
+  } catch (e) {}
+  return out;
+}
+function sigProfileFor(user) {
+  var map = sigProfileMap(), aliases = sigUserAliases(user), found = null, foundKey = '';
+  aliases.some(function (a) {
+    if (map[a]) { found = map[a]; foundKey = a; return true; }
+    var key = Object.keys(map).filter(function (k) { return k.toLowerCase() === a.toLowerCase(); })[0];
+    if (key) { found = map[key]; foundKey = key; return true; }
+    return false;
+  });
+  var canonical = aliases[0] || String(user || '');
+  var recovery = null;
+  try { recovery = JSON.parse(localStorage.getItem(sigRecoveryKey(canonical)) || 'null'); } catch (eR) {}
+  var foundAt = String((found && found.updatedAtISO) || ''), recoveryAt = String((recovery && recovery.updatedAtISO) || '');
+  if (recovery && recovery.sig && (!found || !found.sig || recoveryAt > foundAt)) {
+    found = recovery;
+    /* فقط یک‌بار نسخه بازیابی معتبر را به منبع اصلی برمی‌گردانیم. */
+    if (!window._ptfSigRecoveryRepaired) {
+      window._ptfSigRecoveryRepaired = true;
+      map[canonical] = recovery;
+      try { setData('ptf_crm_sigprofiles', map); } catch (eSet) {}
+    }
+  } else if (found && found.sig) {
+    try { localStorage.setItem(sigRecoveryKey(canonical), JSON.stringify(found)); } catch (eMir) {}
+  }
+  return found || null;
+}
+function sigProfiles() { return sigProfileMap(); }
+function mySigProfile() { return sigProfileFor((curSession() || {}).user); }
+window.ptfSigProfiles = sigProfileMap;
+window.ptfSigProfileFor = sigProfileFor;
 
 function showSigProfile() {
   var p = mySigProfile() || {};
@@ -151,44 +204,58 @@ function _imgToDataUrl(file, maxW, cb) {
       ctx.putImageData(im, 0, 0);
     } catch (e) { /* در صورت خطای canvas، تصویر اصلی حفظ می‌شود */ }
     URL.revokeObjectURL(url);
-    cb(cv.toDataURL('image/png'));
+    cb(cv.toDataURL('image/png'), null);
   };
+  img.onerror = function () { try { URL.revokeObjectURL(url); } catch (e) {} cb('', new Error('خواندن تصویر ناموفق بود')); };
   img.src = url;
 }
 
 function saveSigProfile() {
-  var profiles = sigProfiles();
-  var me = curSession().user;
-  var p = profiles[me] || {};
+  var profiles = sigProfileMap();
+  var me = String((curSession() || {}).user || '').trim();
+  if (!me) { alert('نشست کاربر معتبر نیست؛ دوباره وارد شوید.'); return; }
+  var p = sigProfileFor(me) || profiles[me] || {};
   p.nm = document.getElementById('sgNm').value.trim();
   p.role = document.getElementById('sgRole').value.trim();
   var fs = document.getElementById('sgSig').files[0];
   var fst = document.getElementById('sgStamp').files[0];
-  var pending = (fs ? 1 : 0) + (fst ? 1 : 0);
+  var pending = (fs ? 1 : 0) + (fst ? 1 : 0), errors = [];
   function done() {
     p.updatedAtISO = new Date().toISOString();
+    p.ownerUser = me;
+    p.schemaVersion = 2;
     profiles[me] = p;
-    /* setData به‌جای localStorage مستقیم: تغییر باید وارد صف sync شود تا پروفایل
-       امضا روی موبایل/دستگاه‌های دیگر هم باقی بماند. */
-    setData('ptf_crm_sigprofiles', profiles);
+    var saved = setData('ptf_crm_sigprofiles', profiles);
+    if (saved === false) { alert('⛔ ذخیره پروفایل امضا روی این دستگاه انجام نشد؛ ظرفیت/دسترسی ذخیره‌سازی را بررسی کنید.'); return; }
+    /* mirror مستقل از IDB: اگر migration یا pull موقتاً map را خالی دید، تصویر دوباره خواسته نمی‌شود. */
+    try { localStorage.setItem(sigRecoveryKey(me), JSON.stringify(p)); } catch (eMir) {}
     hideModal();
-    audit('مکاتبات', 'به‌روزرسانی پروفایل امضا', me);
-    alert('✅ پروفایل امضا ذخیره شد');
+    audit('مکاتبات', 'به‌روزرسانی پروفایل امضا نسخه ۲', me);
+    if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: 'ptf_crm_sigprofiles', id: me, label: 'پروفایل امضا' });
+    else if (typeof window.ptfConfirmCloudSave === 'function') window.ptfConfirmCloudSave('پروفایل امضا روی این دستگاه ذخیره شد');
+    alert((p.sig ? '✅ پروفایل و تصویر امضا ماندگار شد.' : '✅ مشخصات پروفایل ذخیره شد.') + (errors.length ? '\n\n⚠️ ' + errors.join('\n') : ''));
+  }
+  function complete(field, data, err) {
+    if (data) p[field] = data;
+    else if (err) errors.push((field === 'sig' ? 'تصویر امضا' : 'تصویر مهر') + ': ' + err.message + (p[field] ? ' — نسخه قبلی حفظ شد.' : ''));
+    pending--;
+    if (pending === 0) done();
   }
   if (!pending) { done(); return; }
-  if (fs) _imgToDataUrl(fs, 400, function (d) { p.sig = d; if (--pending === 0) done(); });
-  if (fst) _imgToDataUrl(fst, 420, function (d) { p.stamp = d; if (--pending === 0) done(); });
+  if (fs) _imgToDataUrl(fs, 400, function (d, err) { complete('sig', d, err); });
+  if (fst) _imgToDataUrl(fst, 420, function (d, err) { complete('stamp', d, err); });
 }
 
 /* ---------- پنل مکاتبات ---------- */
 function buildLetters() {
+  var savedSig = mySigProfile();
   return '<div class="ph"><h3>✉️ مکاتبات (اندیکاتور)</h3>' +
     '<div class="sb2">' +
     '<input type="text" id="ltSrch" placeholder="جستجو: شماره، موضوع، کلیدواژه..." oninput="renderLetters()">' +
     '<select id="ltFk" onchange="renderLetters()" style="padding:9px;border:1px solid var(--brd);border-radius:10px"><option value="">همه</option><option value="OUT">صادره</option><option value="IN">وارده</option></select>' +
     '<button class="bt" onclick="showLetterModal()">+ نامه صادره</button>' +
     '<button class="bt" style="background:#0e7490" onclick="showInboundModal()">+ ثبت نامه وارده</button>' +
-    '<button class="bt bt-o" onclick="showSigProfile()">✍️ امضای من</button>' +
+    '<button class="bt bt-o" onclick="showSigProfile()">✍️ امضای من' + (savedSig && savedSig.sig ? ' ✓ ذخیره‌شده' : '') + '</button>' +
     '</div></div><div id="ltWrap"></div>';
 }
 
@@ -221,8 +288,8 @@ function renderLetters() {
       /* v12.5 (US-308): پیش‌نویس‌های دستیار (src=ai-workbench) هم قابل ویرایش‌اند — نامه‌های قدیمی دستیار kind/author نداشتند */
       (((l.kind === 'OUT' && l.author === curSession().user) || l.src === 'ai-workbench') && (l.st === 'draft' || l.st === 'rejected') ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="showLetterModal(\'' + l.cd + '\')">✏️</button> ' : '') +
       (canSign ? '<button class="bt" style="padding:3px 8px;font-size:11.5px;background:#10b981" onclick="letSign(\'' + l.cd + '\')">✅ امضا</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letReject(\'' + l.cd + '\')">رد</button> ' : '') +
-      (l.st === 'signed' || l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',false)">🖨️ PDF</button> ' : '') +
-      (l.kind === 'OUT' && l.st !== 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',true)">👁️</button> ' : '') +
+      (l.st === 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#059669" onclick="letPrint(\'' + l.cd + '\',false,true)" title="خروجی با مهر و امضای ثبت‌شده">🖨 با امضای دیجیتال</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#7c3aed" onclick="letPrint(\'' + l.cd + '\',false,false)" title="خروجی بدون تصویر امضا برای امضای دستی">🖨 بدون امضا / چاپ فیزیکی</button> ' : (l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',false,false)">🖨 PDF</button> ' : '')) +
+      (l.kind === 'OUT' && l.st !== 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',true,false)">👁️ پیش‌نمایش بدون امضا</button> ' : '') +
       '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letDel(\'' + l.cd + '\')">🗑️</button>' +
       '</td></tr>';
   });
@@ -575,13 +642,17 @@ function saveInbound() {
 }
 
 /* ---------- چاپ روی سربرگ (قالب تاییدشده کارفرما) ---------- */
-function letPrint(cd, isPreview) {
+function letPrint(cd, isPreview, includeDigitalSignature) {
   var l = getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0];
   if (!l) return;
-  letPrintObj(l, isPreview);
+  if (includeDigitalSignature == null) includeDigitalSignature = !isPreview;
+  letPrintObj(l, isPreview, includeDigitalSignature);
 }
+window.letPrint = letPrint;
 
 function letPrintObj(l, isPreview) {
+  var includeDigitalSignature = arguments.length > 2 ? arguments[2] : !isPreview;
+  if (includeDigitalSignature == null) includeDigitalSignature = !isPreview;
   var isEn = l.lang === 'en';
   var s = l.style || {};
   var fs = s.fs || letAutoSize(l.body);           // عادی ۱۴ — حداقل ۱۲
@@ -589,8 +660,11 @@ function letPrintObj(l, isPreview) {
   var align = s.align || (isEn ? 'left' : 'right');
   var font = isEn ? LETTER_FONT_EN : LETTER_FONT_FA;
   var dir = isEn ? 'ltr' : 'rtl';
-  /* نامهٔ امضاشده snapshot دارد تا تغییر/همگام‌سازی بعدی پروفایل، امضای سند تاریخی را پاک نکند. */
-  var sigP = l.st === 'signed' ? (l.signatureSnapshot || sigProfiles()[l.signer] || {}) : {};
+  /* نامهٔ امضاشده snapshot دارد تا تغییر پروفایل، سند تاریخی را عوض نکند؛ حالت
+     بدون امضا همان نامه قطعی را فقط بدون تصاویر مهر/امضا برای چاپ فیزیکی می‌سازد. */
+  var signerProfile = (typeof sigProfileFor === 'function' ? sigProfileFor(l.signer || (curSession() || {}).user) : ((typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer || (curSession() || {}).user] || {})) || {};
+  var sigP = (l.st === 'signed' && includeDigitalSignature) ? (l.signatureSnapshot || signerProfile) : {};
+  var physicalMode = l.st === 'signed' && !includeDigitalSignature;
   var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + escP(l.no || 'پیش‌نمایش') + '</title><style>' +
     '@page{size:A4 portrait;margin:0}' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
@@ -669,10 +743,11 @@ function letPrintObj(l, isPreview) {
     '<div class="sig"><div class="sigbox">' +
     '<div class="salute">' + (isEn ? 'Yours Sincerely,' : 'با تجدید احترام') + '</div>' +
     /* v93: نامه EN → نام و سمت امضاکننده به انگلیسی */
-    '<div class="nm">' + escP(isEn ? letSignerEn(l) : (l.signerNm || (sigProfiles()[curSession().user] || {}).nm || curSession().name || '')) + '</div>' +
-    '<div class="rl">' + escP(isEn ? (l.signerRoleEn || letRoleEn(l)) : (l.signerRole || (sigProfiles()[curSession().user] || {}).role || '')) + '</div>' +
+    '<div class="nm">' + escP(isEn ? letSignerEn(l) : (l.signerNm || signerProfile.nm || (curSession() || {}).name || '')) + '</div>' +
+    '<div class="rl">' + escP(isEn ? (l.signerRoleEn || letRoleEn(l)) : (l.signerRole || signerProfile.role || '')) + '</div>' +
     (sigP.sig ? '<img class="s" src="' + sigP.sig + '" alt="امضا">' : '') +
     (sigP.stamp ? '<img class="st" src="' + sigP.stamp + '" alt="مهر">' : '') +
+    (physicalMode ? '<div style="height:24mm;border-bottom:1px dotted #94a3b8;margin:3mm 5mm 0;color:#64748b;font-size:9pt;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2mm">' + (isEn ? 'Physical signature & stamp' : 'محل مهر و امضای فیزیکی') + '</div>' : '') +
     '</div></div></div>' +
     '<div class="ft">' +
     // v85.2: فوتر مطابق زبان سربرگ
@@ -687,7 +762,8 @@ function letPrintObj(l, isPreview) {
     '</div>' +
     '<div class="bar-bot"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>' +
     '</body></html>';
-  if (typeof ptfPreviewPrintableDoc === 'function') ptfPreviewPrintableDoc((isEn ? 'Letter' : 'نامه') + ' — ' + escP(l.no || 'preview'), fullHtml, l.no || 'letter');
+  var outputMode = physicalMode ? (isEn ? 'unsigned-physical' : 'بدون-امضا') : (includeDigitalSignature && l.st === 'signed' ? (isEn ? 'digitally-signed' : 'با-امضا') : 'preview');
+  if (typeof ptfPreviewPrintableDoc === 'function') ptfPreviewPrintableDoc((isEn ? 'Letter' : 'نامه') + ' — ' + escP(l.no || 'preview') + (physicalMode ? (isEn ? ' — without digital signature' : ' — بدون امضای دیجیتال') : ''), fullHtml, (l.no || 'letter') + '-' + outputMode);
   else {
     var w = window.open('', '_blank');
     w.document.write(fullHtml);

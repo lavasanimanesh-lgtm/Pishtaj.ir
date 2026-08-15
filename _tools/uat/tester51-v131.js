@@ -28,7 +28,7 @@ T('فقط chairman و admin', of.indexOf("r === 'chairman' || r === 'admin'") > 
 T('گزینه‌های نیابت: یوسفی و کریمی', of.indexOf("{ u: 'yousefi', lb: 'عباس یوسفی' }") > -1 && of.indexOf("{ u: 'karimi', lb: 'شیوا کریمی' }") > -1);
 T('کشوی انتخاب امضا در فرم پیشنهاد', of.indexOf('id="ofSignAs"') > -1 && of.indexOf('ptfSignAsOptions(o.signAs)') > -1);
 T('ذخیره signAs در هر دو مسیر', (of.match(/o\.signAs = _sa\.value/g) || []).length >= 2);
-T('قالب داخلی از signAs می‌خواند', of.indexOf('profs[o.signAs || o.issuedBy') > -1);
+T('قالب داخلی از signAs و accessor پایدار امضا می‌خواند', of.indexOf('o.signAs || o.issuedBy') > -1 && of.indexOf('ptfSigProfileFor') > -1);
 T('قالب‌های چاپ ۵گانه از signAs می‌خوانند', op.indexOf('o.signAs || o.issuedBy') > -1);
 T('برای سایر نقش‌ها کشو ظاهر نمی‌شود', of.indexOf("ptfCanDelegateSig() ? '<select id=\"ofSignAs\"") > -1);
 DONE('tester51-v131');

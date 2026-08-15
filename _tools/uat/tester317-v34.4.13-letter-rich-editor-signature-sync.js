@@ -19,6 +19,6 @@ SECTION('ماندگاری مهر و امضا بین دستگاه‌ها');
 T('ذخیره پروفایل امضا از setData استفاده می‌کند تا sync شود', lt.indexOf("setData('ptf_crm_sigprofiles', profiles)") > -1);
 T('هر پروفایل امضا timestamp دارد', lt.indexOf('p.updatedAtISO = new Date().toISOString()') > -1);
 T('sync برای sigprofiles ادغام per-user و timestamp دارد', sy.indexOf("key === 'ptf_crm_sigprofiles'") > -1 && sy.indexOf('updatedAtISO') > -1);
-T('نامهٔ امضاشده snapshot مهر/امضا می‌گیرد و چاپ از snapshot استفاده می‌کند', lt.indexOf('l.signatureSnapshot = { sig: p.sig') > -1 && lt.indexOf('l.signatureSnapshot || sigProfiles()') > -1);
+T('نامهٔ امضاشده snapshot مهر/امضا می‌گیرد و چاپ امضادار از snapshot پایدار استفاده می‌کند', lt.indexOf('l.signatureSnapshot = { sig: p.sig') > -1 && lt.indexOf('l.signatureSnapshot || signerProfile') > -1 && lt.indexOf('includeDigitalSignature') > -1);
 
 DONE('tester317-v34.4.13-letter-rich-editor-signature-sync');

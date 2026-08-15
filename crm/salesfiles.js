@@ -959,7 +959,7 @@
     d.letters.forEach(function (l) {
       var letterEdit = (l.kind === 'OUT' && (l.st === 'draft' || l.st === 'rejected')) ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#0e7490" onclick="event.stopPropagation();showLetterModal(\'' + ptfOnClickArg(l.cd) + '\')">✏️ اصلاح</button> ' : '';
       h += row('✉️', escP(l.no || l.cd) + ' — ' + escP(l.subject || '-') + ' <small style="color:#64748b">(' + escP(l.st || '') + ')</small>',
-        (l.st === 'signed' || l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();letPrint(\'' + ptfOnClickArg(l.cd) + '\',false)">👁</button> ' : '') + letterEdit + '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#dc2626" onclick="event.stopPropagation();letDel(\'' + ptfOnClickArg(l.cd) + '\')">🗑 حذف</button>');
+        (l.st === 'signed' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#059669" onclick="event.stopPropagation();letPrint(\'' + ptfOnClickArg(l.cd) + '\',false,true)">با امضا</button> <button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#7c3aed" onclick="event.stopPropagation();letPrint(\'' + ptfOnClickArg(l.cd) + '\',false,false)">بدون امضا</button> ' : (l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();letPrint(\'' + ptfOnClickArg(l.cd) + '\',false,false)">👁</button> ' : '')) + letterEdit + '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#dc2626" onclick="event.stopPropagation();letDel(\'' + ptfOnClickArg(l.cd) + '\')">🗑 حذف</button>');
     });
     d.invoices.forEach(function (i) {
       var act = '';

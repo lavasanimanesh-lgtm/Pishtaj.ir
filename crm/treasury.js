@@ -344,6 +344,74 @@
     return { opening: opening, inflow: inn, outflow: out, derived: opening + inn - out };
   };
 
+  /* گزارش بازه‌ای خزانه: فیلتر تاریخ/جهت/منبع روی همان دفتر نقدی مشتق‌شده؛
+     هیچ داده‌ای ایجاد یا اصلاح نمی‌کند. */
+  window._ptfTreasuryFilter = window._ptfTreasuryFilter || { from: '', to: '', dir: 'all', src: 'all' };
+  function treasuryDateIso(value) {
+    var s = String(value || '').trim();
+    if (/^20\d{2}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    if (/^1[34]\d{2}[\/-]\d{1,2}[\/-]\d{1,2}/.test(s) && typeof ptfJToISO === 'function') {
+      try { return ptfJToISO(s) || ''; } catch (e) { return ''; }
+    }
+    return '';
+  }
+  function treasuryMoveIso(m) { return treasuryDateIso(m && (m.dateISO || m.dateFa)); }
+  window.ptfTreasuryPeriodData = function (filter) {
+    filter = filter || window._ptfTreasuryFilter || {};
+    var from = treasuryDateIso(filter.from), to = treasuryDateIso(filter.to);
+    var undated = 0;
+    var moves = window.ptfTreasuryCrmMoves().filter(function (m) {
+      if (filter.dir && filter.dir !== 'all' && m.dir !== filter.dir) return false;
+      if (filter.src && filter.src !== 'all' && String(m.src || '') !== String(filter.src)) return false;
+      var iso = treasuryMoveIso(m);
+      if ((from || to) && !iso) { undated++; return false; }
+      return (!from || iso >= from) && (!to || iso <= to);
+    });
+    var inn = 0, out = 0;
+    moves.forEach(function (m) { if (m.dir === 'in') inn += num(m.amount); else out += num(m.amount); });
+    return { filter: { from: filter.from || '', to: filter.to || '', dir: filter.dir || 'all', src: filter.src || 'all' }, fromISO: from, toISO: to, moves: moves, inflow: inn, outflow: out, net: inn - out, count: moves.length, undated: undated };
+  };
+  function treasuryFilterFromUi() {
+    if (!document.getElementById('trDir')) return window._ptfTreasuryFilter || { from:'', to:'', dir:'all', src:'all' };
+    return { from: ((document.getElementById('trFrom') || {}).value || '').trim(), to: ((document.getElementById('trTo') || {}).value || '').trim(), dir: (document.getElementById('trDir') || {}).value || 'all', src: (document.getElementById('trSrc') || {}).value || 'all' };
+  }
+  function treasuryValidatedPeriod(candidate) {
+    var d = window.ptfTreasuryPeriodData(candidate);
+    if ((candidate.from && !d.fromISO) || (candidate.to && !d.toISO)) { alert('فرمت تاریخ معتبر نیست؛ تاریخ شمسی مثل 1405/05/01 یا میلادی YYYY-MM-DD وارد کنید.'); return null; }
+    if (d.fromISO && d.toISO && d.fromISO > d.toISO) { alert('تاریخ شروع نمی‌تواند بعد از تاریخ پایان باشد.'); return null; }
+    return d;
+  }
+  window.ptfTreasuryApplyFilter = function () {
+    var candidate = treasuryFilterFromUi();
+    if (!treasuryValidatedPeriod(candidate)) return;
+    window._ptfTreasuryFilter = candidate;
+    window.ptfTreasuryRender();
+  };
+  window.ptfTreasuryResetFilter = function () { window._ptfTreasuryFilter = { from: '', to: '', dir: 'all', src: 'all' }; window.ptfTreasuryRender(); };
+  function treasuryCsvCell(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+  window.ptfTreasuryPeriodCsv = function () {
+    var candidate = treasuryFilterFromUi(), d = treasuryValidatedPeriod(candidate); if (!d) return;
+    window._ptfTreasuryFilter = candidate;
+    var rows = [['تاریخ','منبع','شرح','جهت','مبلغ ریال','شناسه']].concat(d.moves.map(function (m) { return [m.dateFa || m.dateISO || '', m.src || '', m.label || '', m.dir === 'in' ? 'ورودی' : 'خروجی', num(m.amount), m.cd || m.key || '']; }));
+    rows.push([], ['جمع ورودی','','','',d.inflow,''], ['جمع خروجی','','','',d.outflow,''], ['خالص دوره','','','',d.net,'']);
+    var csv = '\uFEFF' + rows.map(function (r) { return r.map(treasuryCsvCell).join(','); }).join('\r\n');
+    var a = document.createElement('a'), objectUrl = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.href = objectUrl;
+    a.download = 'treasury-' + (d.fromISO || 'all') + '-to-' + (d.toISO || 'all') + '-' + (d.filter.dir || 'all') + '.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { try { URL.revokeObjectURL(objectUrl); } catch (e) {} }, 1000);
+  };
+  window.ptfTreasuryPeriodReportHtml = function () {
+    var d = window.ptfTreasuryPeriodData();
+    var rows = d.moves.map(function (m, i) { return '<tr><td>' + (i + 1) + '</td><td>' + esc(m.dateFa || m.dateISO || '') + '</td><td>' + esc(m.src || '') + '</td><td>' + esc(m.label || '') + '</td><td>' + (m.dir === 'in' ? 'ورودی' : 'خروجی') + '</td><td>' + money(m.amount) + '</td></tr>'; }).join('');
+    var period = (d.filter.from || 'ابتدا') + ' تا ' + (d.filter.to || 'امروز');
+    return '<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:10mm}body{font-family:Tahoma,Vazirmatn,sans-serif;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #94a3b8;padding:6px;text-align:right}th{background:#e2e8f0}.k{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}.k b{border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px}</style></head><body><h2>گزارش گردش خزانه — ' + esc(period) + '</h2><p>فیلتر: ' + esc(d.filter.dir === 'in' ? 'فقط ورودی' : d.filter.dir === 'out' ? 'فقط خروجی' : 'ورودی و خروجی') + (d.filter.src !== 'all' ? ' | منبع: ' + esc(d.filter.src) : '') + '</p><div class="k"><b>جمع ورودی: ' + money(d.inflow) + '</b><b>جمع خروجی: ' + money(d.outflow) + '</b><b>خالص دوره: ' + money(d.net) + '</b><b>تعداد: ' + d.count + '</b></div><table><thead><tr><th>#</th><th>تاریخ</th><th>منبع</th><th>شرح</th><th>جهت</th><th>مبلغ</th></tr></thead><tbody>' + (rows || '<tr><td colspan="6">گردشی در این فیلتر نیست</td></tr>') + '</tbody></table></body></html>';
+  };
+  window.ptfTreasuryPeriodPrint = function () {
+    var candidate = treasuryFilterFromUi(), d = treasuryValidatedPeriod(candidate); if (!d) return;
+    window._ptfTreasuryFilter = candidate;
+    var html = window.ptfTreasuryPeriodReportHtml();
+    if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش دوره‌ای خزانه', html, 'treasury-' + (d.fromISO || 'all') + '-' + (d.toISO || 'all')); return; }
+    var w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); w.print(); }
+  };
 
   function nmNorm(s) {
     return String(s || '').replace(/\s+/g, ' ').trim();
@@ -604,8 +672,8 @@
     return '<div id="treasuryBox" class="pn" style="display:none;margin-top:12px;padding:14px;border:1px solid #bae6fd;border-radius:16px;background:#f0f9ff">' +
       '<div class="treasury-head"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start"><div><h4 style="margin:0 0 6px">خزانه نقدی شرکت</h4>' +
       '<small style="color:#0369a1;display:block;margin-bottom:10px;line-height:1.8">مانده صندوق = نقد شرکت نزد رییس. تزریق شخصی رییس طلب اوست، نه سود. فاکتور و تهاتر وارد صندوق نمی‌شوند.</small></div>' +
-      '<button type="button" class="bt bt-o" onclick="ptfTreasuryPrint()">🖨 پیش‌نمایش/چاپ</button></div></div>' +
-      '<div id="treasuryKpi"></div><div id="treasuryFocus"></div><div id="treasuryMoves"></div></div>';
+      '<button type="button" class="bt bt-o" onclick="ptfTreasuryPrint()">🖨 گزارش کامل خزانه</button></div></div>' +
+      '<div id="treasuryKpi"></div><div id="treasuryFocus"></div><div id="treasuryFilters"></div><div id="treasuryPeriodKpi"></div><div id="treasuryMoves"></div></div>';
   };
 
   window.ptfTreasuryRender = function () {
@@ -621,13 +689,28 @@
         '<div class="sc"><b>' + money(c.derived) + '</b><span>مانده صندوق</span></div></div>' +
         chairPanelHtml();
     }
+    var allMoves = window.ptfTreasuryCrmMoves();
+    var filter = window._ptfTreasuryFilter || { from:'', to:'', dir:'all', src:'all' };
+    var periodData = window.ptfTreasuryPeriodData(filter);
+    var sources = {};
+    allMoves.forEach(function (m) { if (m.src) sources[m.src] = true; });
+    var flt = document.getElementById('treasuryFilters');
+    if (flt) flt.innerHTML = '<div style="background:#fff;border:1px solid #bae6fd;border-radius:12px;padding:10px 12px;margin:10px 0"><b style="display:block;margin-bottom:7px">🔎 گزارش و خروجی دوره‌ای خزانه</b><div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end">' +
+      '<label style="font-size:11.5px">از تاریخ<br><input id="trFrom" value="' + esc(filter.from || '') + '" placeholder="1405/01/01" style="width:125px;padding:7px;border:1px solid #cbd5e1;border-radius:8px;direction:ltr"></label>' +
+      '<label style="font-size:11.5px">تا تاریخ<br><input id="trTo" value="' + esc(filter.to || '') + '" placeholder="1405/12/29" style="width:125px;padding:7px;border:1px solid #cbd5e1;border-radius:8px;direction:ltr"></label>' +
+      '<label style="font-size:11.5px">نوع گردش<br><select id="trDir" style="padding:7px;border:1px solid #cbd5e1;border-radius:8px"><option value="all"' + (filter.dir==='all'?' selected':'') + '>همه ورودی و خروجی</option><option value="in"' + (filter.dir==='in'?' selected':'') + '>فقط ورودی‌ها</option><option value="out"' + (filter.dir==='out'?' selected':'') + '>فقط خروجی‌ها</option></select></label>' +
+      '<label style="font-size:11.5px">منبع<br><select id="trSrc" style="max-width:220px;padding:7px;border:1px solid #cbd5e1;border-radius:8px"><option value="all">همه منابع</option>' + Object.keys(sources).sort().map(function (s) { return '<option value="' + esc(s) + '"' + (filter.src===s?' selected':'') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>' +
+      '<button class="bt" onclick="ptfTreasuryApplyFilter()">اعمال فیلتر</button><button class="bt bt-o" onclick="ptfTreasuryResetFilter()">پاک کردن</button><button class="bt bt-o" style="color:#059669" onclick="ptfTreasuryPeriodCsv()">⬇ Excel/CSV</button><button class="bt bt-o" style="color:#7c3aed" onclick="ptfTreasuryPeriodPrint()">🖨 PDF/چاپ دوره</button></div>' +
+      (periodData.undated ? '<small style="display:block;margin-top:6px;color:#b45309">⚠️ ' + periodData.undated + ' گردش بدون تاریخ از بازه تاریخی کنار گذاشته شد.</small>' : '') + '</div>';
+    var pk = document.getElementById('treasuryPeriodKpi');
+    if (pk) pk.innerHTML = '<div class="sr" style="margin:8px 0"><div class="sc"><b style="color:#059669">' + money(periodData.inflow) + '</b><span>جمع ورودی فیلتر</span></div><div class="sc"><b style="color:#dc2626">' + money(periodData.outflow) + '</b><span>جمع خروجی فیلتر</span></div><div class="sc"><b style="color:' + (periodData.net>=0?'#0e7490':'#b91c1c') + '">' + money(periodData.net) + '</b><span>خالص دوره</span></div><div class="sc"><b>' + periodData.count.toLocaleString('fa-IR') + '</b><span>تعداد گردش</span></div></div>';
     var mv = document.getElementById('treasuryMoves');
     if (mv) {
-      var moves = window.ptfTreasuryCrmMoves();
-      mv.innerHTML = '<h5>گردش نقدی (وصولی ≠ فاکتور)</h5><div class="tb2"><table><thead><tr><th>تاریخ</th><th>منبع</th><th>شرح</th><th>جهت</th><th>مبلغ</th></tr></thead><tbody>' +
+      var moves = periodData.moves;
+      mv.innerHTML = '<h5>گردش نقدی فیلترشده (وصولی ≠ فاکتور)</h5><div class="tb2"><table><thead><tr><th>تاریخ</th><th>منبع</th><th>شرح</th><th>جهت</th><th>مبلغ</th></tr></thead><tbody>' +
         (moves.map(function (m) {
           return '<tr><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.src || '') + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td></tr>';
-        }).join('') || '<tr><td colspan="5">گردش نقدی ثبت نشده</td></tr>') +
+        }).join('') || '<tr><td colspan="5">در این بازه و فیلتر، گردش نقدی ثبت نشده است.</td></tr>') +
         '</tbody></table></div>';
     }
   };

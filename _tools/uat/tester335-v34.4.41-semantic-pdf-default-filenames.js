@@ -45,7 +45,7 @@ assert.ok(preview.indexOf('نام پیش‌فرض PDF:') > -1 && preview.indexOf
 /* Priority document contracts requested by the user. */
 assert.ok(preview.indexOf('ptfOfferPdfFileName(o)') > -1 && offers.indexOf('ptfOfferPdfFileName(o)') > -1, 'all offer print paths must include offer/customer-request naming');
 assert.ok(rfq.indexOf("r.no + (tgt && tgt.co ? ('__' + tgt.co) : '')") > -1, 'supplier RFQ output must start with supplier-request number');
-assert.ok(letters.indexOf("fullHtml, l.no || 'letter'") > -1, 'letter output must use letter number');
+assert.ok(letters.indexOf("(l.no || 'letter') + '-' + outputMode") > -1, 'letter output must start with letter number and distinguish signed/unsigned mode');
 assert.ok(contracts.indexOf("fullHtml, c.no") > -1, 'contract output must use contract number');
 assert.ok(docsx.indexOf("fullHtml, rec.no") > -1, 'official sales document output must use document number');
 assert.ok(cheques.indexOf("var chequeFileName = 'CHQ-'") > -1 && chequePrint.indexOf("var chequeTitle = 'CHQ-'") > -1, 'cheque PDF/print paths must use cheque identifiers');

@@ -32,6 +32,7 @@ var SUITE = [
   { g: 'پرونده/مدارک', f: '_tools/uat/tester405-v34.7.0-case-document-lifecycle.js' },
   { g: 'فروش/تأمین/AI', f: '_tools/uat/tester406-v34.7.1-rfq-item-entry-ai.js' },
   { g: 'تأمین/تنخواه/پرونده', f: '_tools/uat/tester407-v34.7.2-rfqs-petty-doc-projection.js' },
+  { g: 'مکاتبات/خزانه', f: '_tools/uat/tester408-v34.7.3-signature-treasury-period.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
@@ -45,7 +46,8 @@ var SYNTAX = [
   'crm/opex.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
   'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js',
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
-  'crm/buycompare.js', 'crm/letters.js'
+  'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
+  'crm/contracts.js', 'crm/docsx.js'
 ];
 
 function failCount(out) {
