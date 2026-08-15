@@ -22,7 +22,7 @@ T('event tracking پایه برای submit success/fail وجود دارد', idx.
 
 SECTION('قرارداد backend حفظ شده است');
 T('add_rfq_site public و rate-limited است', api.indexOf("'add_rfq_site'") > -1 && api.indexOf("'add_rfq_site' => 10") > -1);
-T('add_rfq_site کد سرورساز PTF-RFQ-{سال}-NNNN می‌دهد', api.indexOf("'PTF-RFQ-' . fa_year() . '-' . str_pad(next_seq('rfq_site')") > -1);
+T('add_rfq_site کد تصادفی امن و سرورساز می‌دهد', api.indexOf("public_tracking_code('RFQ')") > -1 && api.indexOf('random_int(0, $max)') > -1 && api.indexOf("$alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'") > -1);
 T('add_rfq_site کپچا را require می‌کند', /case 'add_rfq_site':[\s\S]{0,120}require_captcha\(\)/.test(api));
 
 DONE('tester207-home-rfq-real-chain');

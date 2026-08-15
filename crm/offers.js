@@ -522,6 +522,9 @@ function renderOffers() {
   };
   var h = '';
   var _canSeeMargin = false; try { _canSeeMargin = !!(roleDef() || {}).buyPrice; } catch (eRM) {} /* v31.7.13: حاشیه کل فقط برای نقش دارای قیمت خرید */
+  /* دکمه اصلاح برد بخشی از رندر اصلی است، نه تزریق دیرهنگام backup.js؛ به این
+     ترتیب production/staging و desktop/mobile قرارداد یکسان دارند. */
+  var _canRepairWin = false; try { _canRepairWin = ['admin', 'chairman'].indexOf(curRole()) > -1; } catch (eRW) {}
   offers.forEach(function(o) {
     var total = (o.kind === 'CO' || o.kind === 'TC') ? o.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0) : 0; /* v17.4 US-416: TC هم مبلغ دارد */
     /* v31.7.13 US-OFF-MARGIN: بج حاشیه سود کلی صورت در همان ردیف */
@@ -549,7 +552,7 @@ function renderOffers() {
     } else {
       // US-141 AC2 (فقط CO/TC): برنده = قفل؛ کنترل وضعیت به بج تبدیل می‌شود
       stCell = isWon
-        ? '<span class="bd" style="background:#d1fae5;color:#065f46" title="وضعیت برنده قفل است و قابل بازگشت نیست">🏆 برنده 🔒</span>'
+        ? '<span class="bd" style="background:#d1fae5;color:#065f46" title="وضعیت برنده قفل است؛ بازگشت فقط با نقش مجاز و پیش‌بررسی وابستگی‌های سرور انجام می‌شود">🏆 برنده 🔒</span>'
         : '<select onchange="offerSetSt(\'' + o.no + '\',this.value,this)" style="padding:4px;border:1px solid var(--brd);border-radius:8px;font-size:12px">' +
           Object.keys(ST).map(function(k){ return '<option value="'+k+'"'+(o.st===k?' selected':'')+'>'+ST[k]+'</option>'; }).join('') + '</select>';
     }
@@ -607,6 +610,7 @@ function renderOffers() {
       '<td>' + stCell + invBadge + '</td>' +
       '<td>' + (isWon ? '<span class="bd" style="background:#f5f3ff;color:#6d28d9;font-size:11px" title="پیشنهاد برنده قفل است؛ ادامه از پرونده فروش">🔒 برنده</span> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerEdit(\''+o.no+'\')" title="ویرایش پیش‌فاکتور">✏️</button> ') +
       (isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfGoSalesFileForOffer(\''+o.no+'\')" title="مشاهده پرونده فروش">📁</button> ' : '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0e7490;border-color:#bae6fd" onclick="offerReviseClone(\''+o.no+'\')" title="ایجاد نگارش جدید (Revise)">📑</button> ') +
+      (isWon && _canRepairWin ? '<button class="bt bt-o adm-unwin" data-offer-action="unwin" style="width:32px;height:32px;padding:0;font-size:13px;color:#dc2626;border-color:#fecaca" onclick="ptfRevokeOfferWin(\''+ptfOnClickArg(o.no)+'\')" title="بازگرداندن کنترل‌شده از برنده؛ فقط پس از پیش‌بررسی وابستگی‌های سرور">⏪</button> ' : '') +
       '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerQuickPreview(\''+o.no+'\')" title="نمایش سریع اقلام">👁️</button> ' +
       '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px" onclick="offerPrint(\''+o.no+'\')" title="قالب‌های چاپ و دانلود سند">🖨️</button> ' +
       ((o.kind === 'CO' || o.kind === 'TC') && isWon ? '<button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#d97706;border-color:#f59e0b" onclick="unofficialInvoicePrint(\''+o.no+'\')" title="صدور صورتحساب پرداخت (غیررسمی)">🧾</button> ' : '') +
