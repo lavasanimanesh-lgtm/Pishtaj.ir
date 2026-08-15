@@ -1,8 +1,8 @@
 {
-  "date": "2026-08-15T05:44:21.317Z",
-  "version": "v34.6.0",
-  "testers_total": 386,
-  "files_pass": 328,
+  "date": "2026-08-15T07:17:05.286Z",
+  "version": "v34.6.1",
+  "testers_total": 387,
+  "files_pass": 329,
   "files_fail": 58,
   "checks_pass": 5717,
   "checks_fail": 130,

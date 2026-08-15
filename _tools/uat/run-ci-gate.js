@@ -28,6 +28,7 @@ var SUITE = [
   /* tester132-v216 قرارداد منسوخ «پورسانت هنگام برد» را می‌سنجد؛ از v34.5.35
      مبنا تسویه کامل پرونده است و نگه‌داشتن آن در gate، شکست کاذب می‌ساخت. */
   { g: 'مالی/فروش', f: '_tools/uat/tester403-v35-sales-to-cash.js' },
+  { g: 'مالی/تأمین', f: '_tools/uat/tester404-v34.6.1-supplier-cash-ledger.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },

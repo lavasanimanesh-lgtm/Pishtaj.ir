@@ -364,7 +364,9 @@ function sync_allowed_keys_for_role($role) {
     $collector = ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars'];
     if ($role === 'accountant') return $accountant;
     if ($role === 'collector') return $collector;
-    if ($role === 'buyer') return array_values(array_unique(array_merge($crm, ['ptf_crm_buycmp'])));
+    /* v34.6.1: کارشناس خرید فقط زیر‌دفتر تأمین/تعهد خرید را علاوه بر داده CRM
+       می‌گیرد تا خرید نقدی را با فاکتور و پرداخت تخصیص‌یافته ثبت کند. */
+    if ($role === 'buyer') return array_values(array_unique(array_merge($crm, ['ptf_crm_buycmp','ptf_crm_supplier_finance','ptf_crm_payables'])));
     return $crm; // sales and unknown roles get CRM-only sync, never finance keys
 }
 /* v31.7.97 BUG-SYNC-TOMBSTONE-001: server-side deletion tombstones.
