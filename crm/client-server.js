@@ -96,6 +96,45 @@
     try { if (localStorage.getItem(k) !== null) localStorage.removeItem(k); } catch (e) {}
     return true;
   };
+
+  /* v34.7.14 — projection قطعیِ یک فرمان سرور باید هر سه نمای خواندن را با هم
+     عوض کند: cache سی‌ثانیه‌ای getData، آینهٔ IDB/حافظه و localStorage. مسیر قبلی
+     sync.js فقط آینهٔ پایدار را می‌نوشت؛ در فاز B، getData تا ۳۰ ثانیه همان آرایهٔ
+     قدیمی (مثلاً دو پرونده قبل از ادغام) را از closure cache پس می‌داد. این تابع
+     عمداً setData/queueAdd را دور می‌زند چون داده قبلاً روی سرور commit شده است. */
+  window.ptfBApplyServerProjection = function (k, value, rev) {
+    try {
+      var str = typeof value === 'string' ? value : JSON.stringify(value);
+      var incomingRev = +rev || 0;
+      var revs = bPullRevs();
+      var knownRev = +revs[k] || 0;
+      /* پاسخ دیررس یک فرمان نباید projection جدیدتری را که pull دیده بازنویسی کند. */
+      if (incomingRev && knownRev > incomingRev) return false;
+
+      var stored = false;
+      if (window.ptfBMirrorActive() && heavyList(k, str)) {
+        idbKnown[k] = 1;
+        idbMem[k] = str;
+        try { window.ptfStorageIdbSet(idbPrefix() + k, str, function () {}); } catch (eI) {}
+        localDel(k);
+        stored = true;
+      } else stored = localSet(k, str) !== false;
+      if (!stored) { delete cache[k]; return false; }
+
+      cache[k] = { t: Date.now(), v: str, rev: incomingRev || knownRev };
+      if (incomingRev > knownRev) {
+        revs[k] = incomingRev;
+        localStorage.setItem('ptf_sync_krevs', JSON.stringify(revs));
+      }
+      /* rev سراسری فقط پس از موفقیت همهٔ کلیدهای یک projection در sales-domain
+         پذیرفته می‌شود؛ ارتقای آن در این تابع per-key می‌توانست شکست نوشتن کلید
+         بعدی را پشت پاسخ fresh پنهان کند. */
+      return true;
+    } catch (e) {
+      try { delete cache[k]; } catch (e2) {}
+      return false;
+    }
+  };
   /* خوانندهٔ آینه برای sync.js: رشته از حافظه — شبیه localStorage.getItem (null = نسخه‌ای در دست نیست) */
   window.ptfBRead = function (k) {
     if (!window.ptfBMirrorActive()) return null;
@@ -186,11 +225,17 @@
     try {
       if (meta) {
         var m = bPullRevs();
-        Object.keys(meta).forEach(function (k) { if (k !== '_global' && meta[k] && meta[k].rev != null) m[k] = +meta[k].rev || 0; });
+        /* Revisionها watermark هستند و هرگز نباید با پاسخ دیررس عقب بروند. */
+        Object.keys(meta).forEach(function (k) {
+          if (k === '_global' || !meta[k] || meta[k].rev == null) return;
+          var incoming = +meta[k].rev || 0;
+          if (incoming > (+m[k] || 0)) m[k] = incoming;
+        });
         localStorage.setItem('ptf_sync_krevs', JSON.stringify(m));
       }
       var gr = +globalRev || 0;
-      if (gr > 0) localStorage.setItem('ptf_sync_rev', String(gr));
+      var currentGlobal = parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10) || 0;
+      if (gr > currentGlobal) localStorage.setItem('ptf_sync_rev', String(gr));
     } catch (e) {}
   }
   function bPullSince() { try { return parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10) || 0; } catch (e) { return 0; } }
@@ -216,10 +261,15 @@
       try {
         if (d && d.ok && d.data) {
           var t = Date.now();
+          var knownRevs = bPullRevs();
           Object.keys(d.data).forEach(function (k) {
             if (typeof d.data[k] !== 'string') return;
+            var incomingRev = +(((d.meta || {})[k] || {}).rev) || 0;
+            /* یک sharedPull قدیمی ممکن است بعد از فرمان اتمیک برگردد؛ در آن حالت
+               نه cache و نه آینهٔ قطعیِ فرمان جدیدتر را عقب می‌بریم. */
+            if (incomingRev && (+knownRevs[k] || 0) > incomingRev) return;
             var v = d.data[k];
-            cache[k] = { t: t, v: v };
+            cache[k] = { t: t, v: v, rev: incomingRev };
             if (!(window.ptfBMirror && window.ptfBMirror(k, v))) localSet(k, v);
           });
         }

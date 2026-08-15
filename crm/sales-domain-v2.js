@@ -30,30 +30,40 @@
   function invoiceId(i) { return String((i && (i._id || i.cd)) || ''); }
   function authHeaders() { var h = {'Content-Type':'application/json'}; try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function toast(msg, kind) { if (typeof ptfToast === 'function') ptfToast(msg, kind || 'info'); else if (kind === 'warn') alert(msg); }
-  function applyProjection(d) {
+  function applyProjection(d, serverRev) {
+    var touched = 0, expected = 0;
     Object.keys(d || {}).forEach(function (k) {
       if (k === 'ptf_crm_sales_commands') return; /* server journal is not a browser editing surface */
+      expected++;
       try {
-        if (typeof window.ptfSyncApplyServerProjection === 'function') window.ptfSyncApplyServerProjection(k, d[k]);
-        else localStorage.setItem(k, JSON.stringify(d[k]));
+        var ok;
+        if (typeof window.ptfSyncApplyServerProjection === 'function') ok = window.ptfSyncApplyServerProjection(k, d[k], serverRev);
+        else { localStorage.setItem(k, JSON.stringify(d[k])); ok = true; }
+        if (ok !== false) touched++;
       } catch (e) { console.error('sales-v2 projection', k, e); }
     });
-    /* v34.7.13: بعد از ادغام کنترل‌شدهٔ پرونده‌های تکراری، یک pull فوری بزن
-       تا مطمئن شویم دادهٔ نهایی سرور (شامل آرایهٔ fin_findings با یافته‌های
-       resolve‌شده) بدون باقی‌مانده از کش قدیمی محلی بارگذاری می‌شود. این کار
-       مانع از زنده‌شدن پرونده‌های ادغام‌شده توسط smart-merge می‌شود. */
-    try {
-      if (typeof window.ptfSyncPullNow === 'function') window.ptfSyncPullNow(function () {
-        if (typeof window.ptfSalesIntegrityScan === 'function') window.ptfSalesIntegrityScan();
-      });
-    } catch (eP) {}
+    /* global rev فقط وقتی جلو می‌رود که هیچ کلید projection شکست نخورده باشد؛
+       در شکست جزئی، pull با rev قبلی همان کلید را دوباره دریافت می‌کند. */
+    if (expected > 0 && touched === expected && typeof window.ptfSyncAcceptServerRevision === 'function') {
+      try { window.ptfSyncAcceptServerRevision(serverRev); } catch (eRev) {}
+    }
+    /* v34.7.14: projection با rev دقیق ابتدا روی cache فاز B اعمال می‌شود، سپس
+       pull نهایی را واقعاً تا پایان انتظار می‌کشیم. handler موفقیت و renderها دیگر
+       جلوتر از همگام‌سازی اجرا نمی‌شوند. شکست pull، commit موفق سرور را شکست‌خورده
+       اعلام نمی‌کند؛ projection پاسخ همچنان منبع نمایش فوری است. */
+    return new Promise(function (resolve) {
+      if (!touched || typeof window.ptfSyncPullNow !== 'function') { resolve({ ok: true, skipped: true }); return; }
+      try {
+        window.ptfSyncPullNow(function (result) { resolve(result || { ok: true }); });
+      } catch (eP) { resolve({ ok: false, reason: 'pull_exception' }); }
+    });
   }
   function api(action, payload) {
     payload = payload || {};
     if (!payload.idempotencyKey) payload.idempotencyKey = nowId(action.toUpperCase());
     return fetch(API + '?action=' + encodeURIComponent(action), { method:'POST', headers:authHeaders(), body:JSON.stringify(payload) })
       .then(function (r) { return r.text().then(function (txt) { var d; try { d=JSON.parse(txt); } catch(e){ throw new Error('پاسخ نامعتبر سرور: ' + txt.slice(0,160)); } if (!r.ok || !d.ok) { var er = new Error(d.error || ('HTTP '+r.status)); er.payload=d; throw er; } return d; }); })
-      .then(function (d) { applyProjection(d.data || {}); return d; });
+      .then(function (d) { return applyProjection(d.data || {}, d.rev).then(function () { return d; }); });
   }
   window.ptfSalesDomainApi = api;
 

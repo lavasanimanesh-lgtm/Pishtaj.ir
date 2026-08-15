@@ -245,30 +245,46 @@
     try { return localStorage.getItem(k); } catch (e) { return null; }
   }
   function wr(k, s) {
-    try { if (typeof window.ptfBMirror === 'function' && window.ptfBMirror(k, s)) return; } catch (e) {}
-    try { localStorage.setItem(k, s); } catch (e) {}
+    /* همهٔ writeهای داخلی sync (pull/merge/projection) باید cache خواندن فاز B را
+       نیز عوض کنند؛ این مسیر setData و صف push را عمداً فعال نمی‌کند. */
+    try {
+      if (typeof window.ptfBApplyServerProjection === 'function') return window.ptfBApplyServerProjection(k, s, 0);
+      if (typeof window.ptfBMirror === 'function' && window.ptfBMirror(k, s)) return true;
+    } catch (e) {}
+    try { localStorage.setItem(k, s); return true; } catch (e2) { return false; }
   }
   /* v35: پاسخ یک فرمان اتمیک sales-domain قبلاً روی سرور commit شده است؛ اعمال
-     Projection آن روی cache نباید دوباره dirty/push شود و با نسخه خودش تعارض بسازد. */
-  window.ptfSyncApplyServerProjection = function (k, value) {
+     Projection آن روی cache نباید دوباره dirty/push شود و با نسخه خودش تعارض بسازد.
+     v34.7.14: rev دقیق پاسخ و cache فاز B نیز بخشی از همین قرارداد اتمیک هستند. */
+  window.ptfSyncApplyServerProjection = function (k, value, serverRev) {
     try {
-      wr(k, typeof value === 'string' ? value : JSON.stringify(value));
-      /* پس از اعمال projection سرور (مثل ادغام پرونده تکراری)، rev هر کلید را
-         نیز به‌روز کن تا pull دلتا آن کلید را دوباره برنگرداند. بدون این،
-         krevs محلی قدیمی می‌ماند و pull بعدی می‌تواند نسخه قدیمی (مثلاً دو پرونده
-         قبل از ادغام) را دوباره بیاورد و با smart merge آن را زنده کند. */
-      try {
-        var m = krevs();
-        var cur = +m[k] || 0;
-        /* سرور در sd_meta_commit هر کلید تغییرکرده را روی rev جدید می‌گذارد؛
-           ما اینجا فقط یک کفِ مطمئن می‌گذاریم: برابر یا بزرگ‌تر از آخرین
-           مقداری که خودمان از سرور دیده‌ایم. عدد واقعی در اولین pull بعدی
-           تصحیح می‌شود. */
-        var floor = +(state.lastRev || 0);
-        if (floor > cur) { m[k] = floor; saveKrevs(m); }
-      } catch (eK) {}
+      var serialized = typeof value === 'string' ? value : JSON.stringify(value);
+      var incomingRev = +serverRev || 0;
+      var m = krevs();
+      var cur = +m[k] || 0;
+      /* پاسخ دیررس فرمان قدیمی حق بازنویسی projection جدیدتری را که pull دیده ندارد. */
+      if (incomingRev && cur > incomingRev) return false;
+
+      var applied;
+      if (typeof window.ptfBApplyServerProjection === 'function') {
+        applied = window.ptfBApplyServerProjection(k, serialized, incomingRev);
+      } else applied = wr(k, serialized);
+      if (applied === false) return false;
+
+      /* برخلاف v34.7.13، از کف global قدیمی استفاده نمی‌کنیم؛ خود rev فرمان،
+         watermark دقیق همهٔ کلیدهای commitشده است. */
+      if (incomingRev > cur) {
+        m[k] = incomingRev;
+        saveKrevs(m);
+      }
       return true;
     } catch (e) { return false; }
+  };
+  /* rev سراسری فقط بعد از اعمال موفق همهٔ کلیدهای projection پذیرفته می‌شود. */
+  window.ptfSyncAcceptServerRevision = function (serverRev) {
+    var incomingRev = +serverRev || 0;
+    if (incomingRev > state.lastRev) setRev(incomingRev);
+    return state.lastRev;
   };
 
   /* v31.6.24 BUG-SYNC-AUTH-RACE: a stale/expired token used to make
