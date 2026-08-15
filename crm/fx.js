@@ -88,10 +88,22 @@
     var totalFx = o ? (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : 0;
     var paidIrr = 0, paidFx = 0;
     ((inv.pays || []).concat(inv.payments || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true})).forEach(function (p) {
+      if (window.PTF_SALES_DOMAIN_V2 && (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled)) return;
       paidIrr += +p.amt || 0;
       if (p.fx && p.fx.fxAmt) paidFx += +p.fx.fxAmt;
       else if (p.fx && p.fx.rate) paidFx += (+p.amt || 0) / (+p.fx.rate || 1);
     });
+    /* v35: معادل ارزی هر Receipt Snapshot است؛ سهم تخصیص‌یافته به این فاکتور
+       با همان نرخ تاریخی نمایش داده می‌شود، اما مطالبات نهایی فقط ریالی است. */
+    try {
+      var invId = String(inv._id || inv.cd || ''), receipts = {};
+      (getData('ptf_crm_case_receipts') || []).forEach(function (r) { if (r && r.status === 'posted' && !r.voided) receipts[String(r._id || r.cd || '')] = r; });
+      (getData('ptf_crm_receipt_allocations') || []).forEach(function (a) {
+        if (!a || a.invoiceId !== invId || a.status === 'void' || a.status === 'replaced' || a.status === 'deleted') return;
+        var r = receipts[String(a.receiptId || '')] || {}, amt = +a.amountIRR || 0, rate = +r.fxRate || 0;
+        paidIrr += amt; if (rate > 0) paidFx += amt / rate;
+      });
+    } catch (eV2) {}
     return {
       cur: cur, totalFx: totalFx, paidIrr: paidIrr,
       paidFx: +paidFx.toFixed(2),
@@ -218,7 +230,7 @@
         var totalFx = offer ? (offer.items || []).reduce(function (s2, it) { return s2 + (+it.qty || 0) * (+it.price || 0); }, 0) : 0;
         var paidIrr = 0, paidFx = 0;
         invs.forEach(function (inv) {
-          var pays = (inv.pays || []).concat(inv.payments || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function () { return true; });
+          var pays = (inv.pays || []).concat(inv.payments || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function () { return true; }).filter(function (p) { return !(window.PTF_SALES_DOMAIN_V2 && (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled)); });
           pays.forEach(function (pp) {
             var amt = +pp.amt || 0;
             if (!amt) return;
@@ -226,6 +238,16 @@
             if (pp.fx && (+pp.fx.fxAmt || +pp.fx.rate)) paidFx += (+pp.fx.fxAmt) || (amt / (+pp.fx.rate));
           });
         });
+        try {
+          var invIds = {}, receiptMap = {};
+          invs.forEach(function (iv) { invIds[String(iv._id || iv.cd || '')] = true; });
+          (getData('ptf_crm_case_receipts') || []).forEach(function (r) { if (r && r.status === 'posted' && !r.voided) receiptMap[String(r._id || r.cd || '')] = r; });
+          (getData('ptf_crm_receipt_allocations') || []).forEach(function (a) {
+            if (!a || !invIds[String(a.invoiceId || '')] || a.status === 'void' || a.status === 'replaced' || a.status === 'deleted') return;
+            var r = receiptMap[String(a.receiptId || '')] || {}, amt = +a.amountIRR || 0, rate = +r.fxRate || 0;
+            paidIrr += amt; if (rate > 0) paidFx += amt / rate;
+          });
+        } catch (eAlloc) {}
         res.sellFxTotal = totalFx;
         res.sellFxPaid = +paidFx.toFixed(2);
         res.sellFxRemain = +(totalFx - paidFx).toFixed(2);

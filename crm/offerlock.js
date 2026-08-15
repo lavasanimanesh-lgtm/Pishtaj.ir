@@ -368,19 +368,21 @@
   window.rfqShowFiles = function (cd) {
     var r = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
-    var GROUPS = { inq: '📄 فایل استعلام', ds: '📑 دیتاشیت', img: '🖼 عکس کالا', dwg: '📐 نقشه', oth: '📎 سایر' };
+    var GROUPS = { inq: '📄 فایل استعلام', ds: '📑 دیتاشیت', img: '🖼 عکس کالا', dwg: '📐 نقشه', oth: '📎 سایر', cat: '📚 کاتالوگ', legacy: '📦 قدیمی / سایت', root: '📎 سایر' };
+    var rows = typeof window.ptfRfqAttachmentRows === 'function' ? window.ptfRfqAttachmentRows(r) : [];
+    var byGroup = {};
+    rows.forEach(function (x) { var g = GROUPS[x.cat] ? x.cat : 'legacy'; (byGroup[g] = byGroup[g] || []).push(x.file || {}); });
     var h = '', n = 0;
-    Object.keys(GROUPS).forEach(function (g) {
-      var fl = (r.files && r.files[g]) || [];
-      if (!fl.length) return;
-      h += '<div style="font-weight:800;font-size:12.5px;margin:10px 0 6px">' + GROUPS[g] + ' (' + fl.length + ')</div>';
+    Object.keys(byGroup).forEach(function (g) {
+      var fl = byGroup[g]; if (!fl.length) return;
+      h += '<div style="font-weight:800;font-size:12.5px;margin:10px 0 6px">' + (GROUPS[g] || GROUPS.legacy) + ' (' + fl.length + ')</div>';
       fl.forEach(function (f) {
         n++;
+        var action = f.key && !f.legacyHost
+          ? '<button class="bt" style="font-size:11px;padding:4px 12px" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">مشاهده / دانلود</button>'
+          : (f.url && /^(https?:\/\/|blob:|data:image\/|data:application\/pdf)/i.test(f.url) ? '<a class="bt bt-o" target="_blank" rel="noopener" href="' + escP(f.url) + '">مشاهده</a>' : '<small style="color:#d97706">مرجع قدیمی / در صف انتقال</small>');
         h += '<div style="display:flex;justify-content:space-between;align-items:center;border:1px solid var(--brd);border-radius:9px;padding:6px 10px;margin-bottom:5px;font-size:12px">' +
-          '<span>' + escP(f.name || 'فایل') + ' <small style="color:#94a3b8">' + escP(f.t || '') + '</small></span>' +
-          (f.key
-            ? '<button class="bt" style="font-size:11px;padding:4px 12px" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">مشاهده / دانلود</button>'
-            : '<small style="color:#d97706">🕓 در صف آپلود ابری (پس از اتصال آروان باز می‌شود)</small>') + '</div>';
+          '<span>' + escP(f.name || 'فایل') + ' <small style="color:#94a3b8">' + escP(f.t || '') + '</small></span>' + action + '</div>';
       });
     });
     var html = '<div class="md-b" style="display:grid;z-index:1500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px;max-height:92vh;overflow:auto">' +
@@ -438,7 +440,7 @@
         if (!r) return;
         var tds = tr.querySelectorAll('td');
         var h = '';
-        var cnt = r.files ? Object.keys(r.files).reduce(function (s, g) { return s + ((r.files[g] || []).length); }, 0) : 0;
+        var cnt = typeof window.ptfRfqAttachmentCount === 'function' ? window.ptfRfqAttachmentCount(r) : 0;
         if (cnt) h += ' <button class="ba rfq-att-btn" data-rfq-action="rfqShowFiles" title="مشاهده پیوست‌ها" aria-label="مشاهده پیوست‌های درخواست" onclick="rfqShowFiles(\'' + ptfOnClickArg(cd) + '\')">📎</button>';
         h += r.inqText
           ? ' <button class="ba rfq-att-btn" data-rfq-action="rfqShowText" style="color:#0e7490" title="مشاهده استعلام متنی" aria-label="مشاهده متن استعلام" onclick="rfqShowText(\'' + ptfOnClickArg(cd) + '\')">📝</button>'

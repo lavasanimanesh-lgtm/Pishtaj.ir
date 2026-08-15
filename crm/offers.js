@@ -176,7 +176,7 @@ function offerValidState(o) {
 // US-148: آیا کاربر جاری پروفایل امضا دارد؟
 function mySigReady() {
   try {
-    var p = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[curSession().user];
+    var p = typeof window.ptfSigProfileFor === 'function' ? window.ptfSigProfileFor(curSession().user) : ((getData('ptf_crm_sigprofiles') || {})[curSession().user]);
     return !!(p && (p.sig || p.stamp));
   } catch (e) { return false; }
 }
@@ -206,7 +206,7 @@ function myEnName() {
   var u = getData('ptf_crm_users').filter(function (x) { return x.username === s.user; })[0];
   if (u && u.nameEn) return u.nameEn;
   try {
-    var p = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}')[s.user];
+    var p = typeof window.ptfSigProfileFor === 'function' ? window.ptfSigProfileFor(s.user) : ((getData('ptf_crm_sigprofiles') || {})[s.user]);
     if (p && p.nmEn) return p.nmEn;
   } catch (e) {}
   if (typeof ptfNameToEn === 'function' && s.name) {
@@ -616,6 +616,7 @@ function renderOffers() {
       ((o.kind === 'CO' || o.kind === 'TC') ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#0f766e" title="بررسی سلامت و پیش‌نمایش اقلام" onclick="ptfOfferIntegrityDialog(\''+o.no+'\')">🔎</button>' : '') +
       ((o.rialOf ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#b45309;border-color:#fcd34d" onclick="ptfOfferRialTermsOpen(\''+o.no+'\')" title="پیش‌نمایش/ویرایش شرایط و ضوابط نسخه ریالی">🔧</button> <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="offerQuickPreview(\''+o.rialOf+'\')" title="دیدن پیشنهاد ارزی قبلی">👁 ارزی</button> ' : '') +
        ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf && !isWon && (o.currency && o.currency !== 'IRR') && !(typeof window.ptfRialCompanionOf === 'function' && window.ptfRialCompanionOf(o.no)) ? ' <button class="bt" style="width:32px;height:32px;padding:0;font-size:12px;background:#0e7490;color:#fff" onclick="ptfOfferRialConvertOpenByNo(\''+o.no+'\')" title="تبدیل به پیشنهاد ریالی">💱</button> ' : '')) +
+      ((!isWon && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf) ? ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:12px;color:#9a3412;border-color:#fdba74" onclick="ptfMarkOfferAmendment(\''+o.no+'\')" title="علامت‌گذاری به‌عنوان متمم مستقل یک پرونده موجود">➕</button>' : '') +
       (isWon ? '' : ' <button class="bt bt-o" style="width:32px;height:32px;padding:0;font-size:13px;color:#dc2626" onclick="offerDel(\''+o.no+'\')" title="حذف">🗑️</button>') + '</td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">پیشنهادی در این تب ثبت نشده</td></tr>';
@@ -1201,9 +1202,9 @@ window.ptfCustOpenBalance = function (custCd) {
   offers.forEach(function (o) { if (o.buyerCd === custCd && (o.kind === 'CO' || o.kind === 'TC')) myCOs[o.no] = 1; });
   var open = 0, cnt = 0;
   invs.forEach(function (inv) {
-    if (!myCOs[inv.offerNo]) return;
+    if (!myCOs[inv.offerNo] || inv.status === 'void' || inv.st === 'void' || inv.status === 'superseded') return;
     var payRows = (inv.payments || []).concat(inv.pays || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true});
-    var paid = payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
     var remain = Math.max(0, (+inv.amount || 0) - paid);
     if (remain > 0) { open += remain; cnt++; }
   });
@@ -2286,18 +2287,9 @@ function offerSave() {
   var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === o.buyerCd; })[0];
   if (c) o.buyerCo = c.coEn || c.co;
 
-  // Automatic winning of complementary/alternative offers (فاکتورهای متمم)
-  if (o.kind === 'CO' || o.kind === 'TC') {
-    var parentNo = o.altOf || o.srcToNo;
-    if (parentNo) {
-      var allOffers = getData('ptf_crm_offers');
-      var parentOffer = allOffers.filter(function(x) { return x.no === parentNo; })[0];
-      if (parentOffer && (parentOffer.st === 'won' || parentOffer.status === 'won')) {
-        o.st = 'won';
-        o.status = 'won';
-      }
-    }
-  }
+  /* v35: پیشنهاد متمم/جایگزین یک سند مستقل است. برنده‌بودن سند والد هرگز
+     وضعیت این پیشنهاد را خودکار تغییر نمی‌دهد؛ برد باید صریح و سروری باشد و کاربر
+     همان لحظه اتصال به پرونده قبلی یا تشکیل پرونده مستقل را انتخاب کند. */
 
   /* v14.6: هشدار عبور از سقف اعتبار — مانده باز + مبلغ CO جدید */
   if ((o.kind === 'CO' || o.kind === 'TC') && c && +c.creditLimit > 0 && typeof ptfCustOpenBalance === 'function') {
@@ -2348,6 +2340,18 @@ function offerSave() {
     var forceRev = !!(saveIdentity && saveIdentity.explicitRevision);
     madeRevision = !!forceRev;
     o.rev = madeRevision ? ((prev.rev || 0) + 1) : (prev.rev || 0);
+    /* v35: هر Revision یک Snapshot تغییرناپذیر دارد؛ شماره تجاری ثابت می‌ماند. */
+    var _revHist = Array.isArray(prev.revisionHistory) ? prev.revisionHistory.slice() : [];
+    if (madeRevision) {
+      var _prevSnap = JSON.parse(JSON.stringify(prev));
+      delete _prevSnap.revisionHistory; delete _prevSnap.editHistory;
+      _revHist.push({ rev: +prev.rev || 0, at: new Date().toISOString(), by: (curSession() || {}).name || '', snapshot: _prevSnap });
+    }
+    o.revisionHistory = _revHist;
+    if (!madeRevision) {
+      o.editHistory = Array.isArray(prev.editHistory) ? prev.editHistory.slice(-19) : [];
+      o.editHistory.push({ at: new Date().toISOString(), by: (curSession() || {}).name || '', rev: +prev.rev || 0, reason: 'اصلاح پیش از برد' });
+    }
     delete o._baseNo; delete o._origNo; delete o.baseNo;
     /* direct edit intentionally keeps the previous status and revision number;
        only the explicit «نگارش جدید» button is allowed to increase Rev. */
@@ -2560,8 +2564,8 @@ function offerPrintObj(o) {
   var sigImgs = '';
   if (isCO || o.useSig) {
     try {
-      var profs = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}');
-      var sp = profs[o.signAs || o.issuedBy || (typeof curSession === 'function' ? curSession().user : '')] || {}; /* v13.1: امضای نیابتی */
+      var sigUser = o.signAs || o.issuedBy || (typeof curSession === 'function' ? curSession().user : '');
+      var sp = typeof window.ptfSigProfileFor === 'function' ? (window.ptfSigProfileFor(sigUser) || {}) : ((getData('ptf_crm_sigprofiles') || {})[sigUser] || {}); /* v13.1: امضای نیابتی */
       if (isCO && o.useSig === false) sp = {}; // CO با تیک برداشته → بدون امضا
       if (sp.sig) sigImgs += '<img src="' + sp.sig + '" style="max-height:52px;max-width:150px;margin:0 4px">';
       if (sp.stamp) sigImgs += '<img src="' + sp.stamp + '" style="max-height:64px;max-width:110px;margin:0 4px;opacity:.9">';

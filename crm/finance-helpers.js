@@ -103,9 +103,12 @@
     var useAmountIrr = !!opts.useAmountIrr;
     var rows = (inv.payments || []).concat(inv.pays || []);
     if (activeOnly) rows = rows.filter(isPaymentActive);
-    return rows.reduce(function (s, p) {
+    var legacy = rows.reduce(function (s, p) {
+      /* v35: fromAdvance فقط Projection میراثی است؛ Receipt پرونده منبع واحد است. */
+      if (p && window.PTF_SALES_DOMAIN_V2 && (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled)) return s;
       return s + (useAmountIrr ? paymentAmtIrr(p) : (+p.amt || 0));
     }, 0);
+    return legacy + (+inv.allocatedBase || 0) + (+inv.allocatedVat || 0);
   }
 
   /**

@@ -80,6 +80,14 @@
     var offersByNo = {};
     data('ptf_crm_offers').forEach(function (o) { if (o && o.no) offersByNo[o.no] = o; });
     var deals = data('ptf_crm_deals');
+    /* v35: دریافت پرونده و تخصیص FIFO خارج از payments[] فاکتور نگهداری می‌شود. */
+    var caseReceiptsById = {}, invoiceAllocations = {};
+    data('ptf_crm_case_receipts').forEach(function (r) { if (r && r.status === 'posted' && !r.voided) caseReceiptsById[String(r._id || r.cd || '')] = r; });
+    data('ptf_crm_receipt_allocations').forEach(function (a) {
+      if (!a || a.status === 'void' || a.status === 'replaced' || a.status === 'deleted') return;
+      var k = String(a.invoiceId || ''); if (!k) return;
+      (invoiceAllocations[k] = invoiceAllocations[k] || []).push(a);
+    });
 
     function dealOf(inv) {
       var o = offersByNo[inv.offerNo] || {};
@@ -108,11 +116,14 @@
       if (!g.invoices.length) return;
       var allPaid = true, lastWhen = '', base = 0;
       g.invoices.forEach(function (inv) {
-        var pays = (inv.payments || []).concat(inv.pays || []).filter(activePayment);
+        var pays = (inv.payments || []).concat(inv.pays || []).filter(window.PTF && PTF.isPaymentActive ? PTF.isPaymentActive : activePayment).filter(function (p) { return !(window.PTF_SALES_DOMAIN_V2 && (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled)); });
         var paid = pays.reduce(function (s, p) { return s + payAmt(p); }, 0);
+        var v2Allocs = invoiceAllocations[String(inv._id || inv.cd || '')] || [];
+        paid += v2Allocs.reduce(function (s, a) { return s + (+a.amountIRR || 0); }, 0);
         if (inv.amount - paid > 0.5) { allPaid = false; return; }
         base += inv.amount;
         pays.forEach(function (p) { var iso = toIso(payWhen(p, inv)); if (iso > lastWhen) lastWhen = iso; });
+        v2Allocs.forEach(function (a) { var r = caseReceiptsById[String(a.receiptId || '')] || {}; var iso = toIso(r.receivedAt || r.dateISO || r.t || ''); if (iso > lastWhen) lastWhen = iso; });
       });
       if (!allPaid || base <= 0) return;
       if (!inBounds(lastWhen, b)) return;

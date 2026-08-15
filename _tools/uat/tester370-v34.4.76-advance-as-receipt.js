@@ -9,8 +9,10 @@ var vm4 = String(ver.crm_version).match(/^v(\d+)\.(\d+)\.(\d+)$/);
 if (!vm4 || +vm4[1] < 34 || (+vm4[1] === 34 && +vm4[2] < 4) || (+vm4[1] === 34 && +vm4[2] === 4 && +vm4[3] < 76)) fail('VERSION ' + ver.crm_version);
 var sf = read('crm/salesfiles.js');
 var bc = read('crm/buycompare.js');
-if (sf.indexOf('پیش‌دریافت مشتری (وصولی)') < 0) fail('salesfile label');
-if (sf.indexOf('وصولی ') < 0) fail('received as receipt');
-if (bc.indexOf('پیش‌دریافت') < 0) fail('buycompare label');
-if (bc.indexOf('پیش‌دریافت وصولی') < 0) fail('buycompare status');
-console.log('PASS tester370 advance-as-receipt');
+/* v34.7: عنوان/دکمه میراثی پیش‌دریافت دیگر سطح عملیاتی نیست؛ Receipt پرونده منبع واحد است. */
+if (sf.indexOf('دریافت قطعی مشتری') < 0 || sf.indexOf('پیش‌دریافت مشتری (وصولی)') > -1) fail('salesfile receipt label');
+if (sf.indexOf('دریافت قطعی') < 0 || sf.indexOf("ptf_crm_case_receipts") < 0) fail('v35 received as case receipt');
+if (/rbAction\('advance'[\s\S]{0,240}ptfAdvanceOpen/.test(bc)) fail('buycompare legacy advance action');
+if (bc.indexOf("ptf_crm_case_receipts") < 0 || bc.indexOf('دریافت قطعی') < 0) fail('buycompare uses case receipts');
+if (read('crm/treasury.js').indexOf("get('ptf_crm_case_receipts')") < 0) fail('treasury uses case receipts');
+console.log('PASS tester370 advance-as-case-receipt');

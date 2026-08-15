@@ -395,9 +395,8 @@
     var sigImgs = '';
     if (o.kind === 'CO' || o.useSig) {
       try {
-        var profs = JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}');
         var userKey = o.signAs || o.issuedBy || (typeof curSession === 'function' ? curSession().user : 'admin'); /* v13.1 US-321: امضای نیابتی رییس */
-        var sp = profs[userKey] || {};
+        var sp = typeof window.ptfSigProfileFor === 'function' ? (window.ptfSigProfileFor(userKey) || {}) : ((getData('ptf_crm_sigprofiles') || {})[userKey] || {});
         if (o.kind === 'CO' && o.useSig === false) sp = {};
         if (o.useSig || o.kind === 'CO') {
           var stampUrl = sp.stamp || '../assets/images/ptf-logo.png';

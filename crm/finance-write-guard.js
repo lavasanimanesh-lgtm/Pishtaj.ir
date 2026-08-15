@@ -115,7 +115,7 @@
       desc: '[تنخواه] ' + (rec.desc || rec.cat || ''),
       by: rec.by || '',
       t: rec.t || when,
-      files: (rec.files || []).slice(),
+      files: (typeof window.ptfPettyRecordFiles === 'function' ? window.ptfPettyRecordFiles(rec) : (rec.files || [])).slice(),
       fromPetty: true,
       pettyCd: rec.cd
     };

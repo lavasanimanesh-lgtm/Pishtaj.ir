@@ -97,7 +97,11 @@
   }
   function unpaidCustomer(inv) {
     var total = +inv.amountIrr || +inv.amount || 0;
-    var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv, { activeOnly: true, useAmountIrr: true }) : arr(inv.payments).concat(arr(inv.pays)).filter(active).reduce(function (s, p) { return s + (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amountIrr || +p.amt || +p.amount || 0)); }, 0);
+    var paidLegacy = arr(inv.payments).concat(arr(inv.pays)).filter(active).reduce(function (s, p) {
+      return s + ((p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled) ? 0 : (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amountIrr || +p.amt || +p.amount || 0)));
+    }, 0);
+    /* v35: تخصیص Receipt پرونده Projection مستقل فاکتور است. */
+    var paid = paidLegacy + (+inv.allocatedBase || 0) + (+inv.allocatedVat || 0);
     return Math.max(0, total - paid);
   }
   function supplierInvoicePaid(inv, pays) {
@@ -116,7 +120,7 @@
     var cfg = config(), today = isoToday(), asOf = cfg.endISO && cfg.endISO < today ? cfg.endISO : today;
     var start = cfg.startISO || normalYearBounds(cfg.fiscalYear).startISO;
     var opening = openingTotals(cfg.fiscalYear);
-    var src = { receivable: 0, supplierLiability: 0, supplierCredit: 0, companyCheque: 0, commissionLiability: 0 };
+    var src = { receivable: 0, customerCredit: 0, supplierLiability: 0, supplierCredit: 0, companyCheque: 0, commissionLiability: 0 };
     /* v34.0.10-alpha: تفکیک سال جاری / سال‌های قبل برای reconciliation بدهی تأمین‌کننده */
     var recSup = { opening: +opening.supplier_liability || 0, invoicesThis: 0, invoicesPrior: 0, paysThis: 0, paysPrior: 0, adjustments: 0 };
     var moves = { customerInvoices: 0, customerReceipts: 0, supplierInvoices: 0, supplierPayments: 0, companyCheques: 0 };
@@ -137,11 +141,22 @@
       /* A dated invoice after the report date does not exist in this report yet. */
       if (inPeriod(iso, start, asOf)) { moves.customerInvoices += (+inv.amountIrr || +inv.amount || 0); counts.customerInvoices++; }
       arr(inv.payments).concat(arr(inv.pays)).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : active).forEach(function (p) {
+        if (window.PTF_SALES_DOMAIN_V2 && p.fromAdvance) return;
         var pi = dateOf(p, ['dateISO', 'date', 't', 'paidAt']);
         var pa = +p.amountIrr || +p.amt || +p.amount || 0;
         if (!pi) pushIssue(issues, 'customerPaymentDate', pa, inv.no || inv.cd);
         else if (inPeriod(pi, start, asOf)) moves.customerReceipts += pa;
       });
+    });
+    /* v35: Receipt قطعی پرونده، گردش نقدی مستقل از زمان صدور فاکتور است. */
+    arr(getData('ptf_crm_case_receipts')).filter(function (r) { return r && r.status === 'posted' && !r.voided; }).forEach(function (r) {
+      var ri = dateOf(r, ['receivedAt', 'dateISO', 'date', 't']);
+      var ra = +r.amountIRR || +r.amt || 0;
+      if (!ri) pushIssue(issues, 'customerPaymentDate', ra, r._id || r.cd);
+      else {
+        if (inPeriod(ri, start, asOf)) moves.customerReceipts += ra;
+        if (inAsOf(ri, asOf)) src.customerCredit += (+r.creditRemainIRR || 0);
+      }
     });
 
     sfInvs.filter(active).forEach(function (inv) {
@@ -233,13 +248,14 @@
 
     var total = {
       receivable: src.receivable + opening.receivable,
+      customerCredit: src.customerCredit,
       supplierLiability: src.supplierLiability + opening.supplier_liability,
       supplierCredit: src.supplierCredit + opening.supplier_credit,
       companyCheque: src.companyCheque + opening.company_cheque,
       commissionLiability: src.commissionLiability,
       cashBank: opening.cash_bank
     };
-    total.netWorkingCapital = total.receivable + total.cashBank - total.supplierLiability - total.commissionLiability + total.supplierCredit - total.companyCheque;
+    total.netWorkingCapital = total.receivable + total.cashBank - total.customerCredit - total.supplierLiability - total.commissionLiability + total.supplierCredit - total.companyCheque;
     return { schema: 281, cfg: cfg, asOf: asOf, asOfFa: typeof ptfISOToJ === 'function' ? ptfISOToJ(asOf) : asOf, opening: opening, source: src, total: total, moves: moves, counts: counts, issues: issues, openingEntries: openingEntries(cfg.fiscalYear),
       coverCommission: src.coverCommission || 0, coverVat: src.coverVat || 0, coverCount: src.coverCount || 0,
       legacyUnlinked: src.legacyUnlinked || 0, legacyUnlinkedCount: src.legacyUnlinkedCount || 0,
@@ -271,10 +287,11 @@
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:9px;flex-wrap:wrap"><div><h4 style="margin:0">📊 گزارش تجمیعی وضعیت مالی و سرمایه در گردش</h4><small style="color:#64748b">شامل رسمی و غیررسمی با هم — برای تراز جداگانه به تب «تراز رسمی/غیررسمی» مراجعه کنید. سال مالی ' + esc(c.fiscalYear) + ' | از ' + esc(c.startFa) + ' تا ' + esc(c.endFa) + ' | وضعیت تا ' + esc(d.asOfFa) + '</small></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="fcConfigOpen()">⚙️ تنظیم سال مالی</button><button class="bt bt-o" onclick="fcOpeningOpen()">🏁 ثبت مانده افتتاحیه</button><button class="bt bt-o" onclick="wcPrint()">🖨 پیش‌نمایش/چاپ</button><button class="bt bt-o" onclick="wcCsv()">📥 CSV</button></div></div>' +
       '<div style="background:var(--crd,#fff);border:1px solid var(--brd,#bfdbfe);border-radius:10px;padding:9px 11px;margin:10px 0;color:var(--tx,#1e3a8a);font-size:12px;line-height:1.8"><b>روش محاسبه:</b> مانده‌ها مستقیماً از فاکتورهای مشتری، زیر‌دفتر تأمین‌کننده (فاکتور خرید) و چک‌های با مالکیت صریح «شرکت» خوانده می‌شوند. <b>فاکتور صوری/پوششی خرید واقعی نیست</b> — فقط کارمزد فاکتورساز در بدهی لحاظ و اعتبار ارزش‌افزوده جدا نشان داده می‌شود. تعهدِ خریدِ legacy (بدون فاکتور) از مبلغ بدهی حذف شده (فقط گزارش). «مانده افتتاحیه» فقط برای اسناد/مانده‌هایی است که در این منابع وجود ندارند؛ ورود تکراری آن باعث دوباره‌شماری می‌شود. این گزارش هیچ سند عملیاتی را تغییر نمی‌دهد و جایگزین دفترکل یا گردش بانکی نیست.</div>' +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(165px,1fr));margin-top:10px">' +
-      card(t.receivable, 'مطالبات باز مشتریان', '#b45309') + card(t.supplierLiability, 'بدهی باز تأمین‌کنندگان', '#dc2626') + card(t.commissionLiability, 'بدهی پورسانت فروش', '#b45309') + card(t.supplierCredit, 'اعتبار نزد تأمین‌کنندگان', '#059669') + card(t.companyCheque, 'چک‌های شرکتی باز', '#7c3aed') + card(t.cashBank, 'وجه نقد/بانکِ افتتاحیه', '#0369a1') + card(t.netWorkingCapital, 'خالص سرمایه در گردش ثبتی', t.netWorkingCapital >= 0 ? '#059669' : '#dc2626') +
+      card(t.receivable, 'مطالبات باز مشتریان', '#b45309') + card(t.customerCredit, 'بستانکاری پرونده‌های مشتری', '#047857') + card(t.supplierLiability, 'بدهی باز تأمین‌کنندگان', '#dc2626') + card(t.commissionLiability, 'بدهی پورسانت فروش', '#b45309') + card(t.supplierCredit, 'اعتبار نزد تأمین‌کنندگان', '#059669') + card(t.companyCheque, 'چک‌های شرکتی باز', '#7c3aed') + card(t.cashBank, 'وجه نقد/بانکِ افتتاحیه', '#0369a1') + card(t.netWorkingCapital, 'خالص سرمایه در گردش ثبتی', t.netWorkingCapital >= 0 ? '#059669' : '#dc2626') +
       '</div>' +
       '<div class="tb2" style="margin-top:12px"><table><thead><tr><th>سرفصل</th><th>مانده افتتاحیه دستی</th><th>مانده از اسناد فعال</th><th>مانده گزارش</th><th>منبع</th></tr></thead><tbody>' +
-      '<tr><td>مطالبات مشتریان</td><td>' + money(o.receivable) + '</td><td>' + money(s.receivable) + '</td><td><b>' + money(t.receivable) + '</b></td><td>فاکتورهای مشتری − وصولی‌ها</td></tr>' +
+      '<tr><td>مطالبات مشتریان</td><td>' + money(o.receivable) + '</td><td>' + money(s.receivable) + '</td><td><b>' + money(t.receivable) + '</b></td><td>فاکتورهای مشتری − تخصیص دریافت‌ها</td></tr>' +
+      '<tr><td>بستانکاری پرونده‌های مشتری</td><td>—</td><td>' + money(s.customerCredit) + '</td><td><b>' + money(t.customerCredit) + '</b></td><td>دریافت قطعی تخصیص‌نیافته همان پرونده</td></tr>' +
       '<tr><td>بدهی تأمین‌کنندگان</td><td>' + money(o.supplier_liability) + '</td><td>' + money(s.supplierLiability) + '</td><td><b>' + money(t.supplierLiability) + '</b></td><td>فاکتور خرید (واقعی + کارمزد پوششی) + اصلاحیات</td></tr>' +
       (d.coverCommission ? '<tr><td>کارمزد فاکتورهای صوری/پوششی</td><td>—</td><td>' + money(d.coverCommission) + '</td><td><b>' + money(d.coverCommission) + '</b></td><td>بدهیِ نقدی واقعی فاکتور پوششی (در بدهی تأمین لحاظ شده)</td></tr><tr><td>اعتبار ارزش‌افزودهٔ پوششی (منفعت)</td><td>—</td><td>' + money(d.coverVat) + '</td><td><b>' + money(d.coverVat) + '</b></td><td>منفعت — نقد نیست؛ در بدهی محاسبه نشده</td></tr>' : '') +
       (d.legacyUnlinked ? '<tr><td>تعهد خرید legacy بدون فاکتور</td><td>—</td><td>' + money(d.legacyUnlinked) + '</td><td><b>' + money(d.legacyUnlinked) + '</b></td><td>گزارشی فقط — در بدهی لحاظ نمی‌شود (مبنای تعهد فاکتور خرید است)</td></tr>' : '') +
@@ -338,12 +355,12 @@
   window.wcReportHtml = function (d) {
     d = d || window.ptfFinanceOfficialData(); var c = d.cfg, t = d.total, s = d.source, o = d.opening;
     function row(a, b) { return '<tr><td>' + a + '</td><td>' + b + '</td></tr>'; }
-    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش تجمیعی وضعیت مالی</title><style>body{font-family:Tahoma,Vazirmatn,sans-serif;color:#111;padding:22px;direction:rtl}h1{font-size:19px;margin:0 0 5px}h2{font-size:15px;margin:22px 0 7px}p{font-size:12px;line-height:1.8}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}td,th{border:1px solid #94a3b8;padding:7px;text-align:right}th{background:#e2e8f0}.total{font-size:15px;font-weight:bold;background:#f0fdf4}.warn{background:#fff7ed;border:1px solid #fed7aa;padding:9px;border-radius:7px;font-size:11.5px}</style></head><body><h1>گزارش تجمیعی وضعیت مالی و سرمایه در گردش</h1><p>سال مالی: <b>' + esc(c.fiscalYear) + '</b> | بازه: ' + esc(c.startFa) + ' تا ' + esc(c.endFa) + ' | وضعیت تا: ' + esc(d.asOfFa) + '</p><p>این گزارش شامل مبالغ رسمی و غیررسمی با هم است (برای تراز جداگانه به گزارش «تراز رسمی/غیررسمی» مراجعه کنید) و فقط از داده‌های ثبت‌شده در CRM تهیه شده؛ دفترکل قانونی یا صورت جریان نقدی بانکی نیست. مانده افتتاحیه فقط برای ارقام فاقد سند عملیاتی در سامانه افزوده شده است.</p><h2>مانده‌های گزارش</h2><table><thead><tr><th>سرفصل</th><th>افتتاحیه دستی</th><th>اسناد فعال</th><th>جمع گزارش</th></tr></thead><tbody>' + row('مطالبات مشتریان', money(o.receivable) + ' + ' + money(s.receivable) + ' = <b>' + money(t.receivable) + '</b>') + row('بدهی تأمین‌کنندگان', money(o.supplier_liability) + ' + ' + money(s.supplierLiability) + ' = <b>' + money(t.supplierLiability) + '</b>') + row('اعتبار نزد تأمین‌کنندگان', money(o.supplier_credit) + ' + ' + money(s.supplierCredit) + ' = <b>' + money(t.supplierCredit) + '</b>') + row('چک‌های شرکتی باز', money(o.company_cheque) + ' + ' + money(s.companyCheque) + ' = <b>' + money(t.companyCheque) + '</b>') + row('وجه نقد/بانک افتتاحیه', money(o.cash_bank) + ' = <b>' + money(t.cashBank) + '</b>') + '<tr class="total"><td>خالص سرمایه در گردش ثبتی</td><td colspan="3">' + money(t.netWorkingCapital) + '</td></tr></tbody></table><h2>گردش ثبت‌شده در سال</h2><table><tbody>' + row('فاکتور مشتری صادرشده', money(d.moves.customerInvoices)) + row('وصولی مشتری', money(d.moves.customerReceipts)) + row('فاکتور تأمین‌کننده', money(d.moves.supplierInvoices)) + row('پرداخت تأمین‌کننده', money(d.moves.supplierPayments)) + row('چک شرکتی صادرشده', money(d.moves.companyCheques)) + '</tbody></table><h2>مانده‌های افتتاحیه قابل ردیابی</h2><table><thead><tr><th>شناسه</th><th>سرفصل</th><th>مبلغ</th><th>شرح/مبنا</th></tr></thead><tbody>' + arr(d.openingEntries).map(function (r) { return '<tr><td>' + esc(r.cd) + '</td><td>' + esc(CATEGORY[r.category] || r.category) + '</td><td>' + money(r.amountIrr) + '</td><td>' + esc(r.note || '') + '</td></tr>'; }).join('') + (d.openingEntries.length ? '' : '<tr><td colspan="4">موردی ثبت نشده است</td></tr>') + '</tbody></table></body></html>';
+    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارش تجمیعی وضعیت مالی</title><style>body{font-family:Tahoma,Vazirmatn,sans-serif;color:#111;padding:22px;direction:rtl}h1{font-size:19px;margin:0 0 5px}h2{font-size:15px;margin:22px 0 7px}p{font-size:12px;line-height:1.8}table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}td,th{border:1px solid #94a3b8;padding:7px;text-align:right}th{background:#e2e8f0}.total{font-size:15px;font-weight:bold;background:#f0fdf4}.warn{background:#fff7ed;border:1px solid #fed7aa;padding:9px;border-radius:7px;font-size:11.5px}</style></head><body><h1>گزارش تجمیعی وضعیت مالی و سرمایه در گردش</h1><p>سال مالی: <b>' + esc(c.fiscalYear) + '</b> | بازه: ' + esc(c.startFa) + ' تا ' + esc(c.endFa) + ' | وضعیت تا: ' + esc(d.asOfFa) + '</p><p>این گزارش شامل مبالغ رسمی و غیررسمی با هم است (برای تراز جداگانه به گزارش «تراز رسمی/غیررسمی» مراجعه کنید) و فقط از داده‌های ثبت‌شده در CRM تهیه شده؛ دفترکل قانونی یا صورت جریان نقدی بانکی نیست. مانده افتتاحیه فقط برای ارقام فاقد سند عملیاتی در سامانه افزوده شده است.</p><h2>مانده‌های گزارش</h2><table><thead><tr><th>سرفصل</th><th>افتتاحیه دستی</th><th>اسناد فعال</th><th>جمع گزارش</th></tr></thead><tbody>' + row('مطالبات مشتریان', money(o.receivable) + ' + ' + money(s.receivable) + ' = <b>' + money(t.receivable) + '</b>') + row('بستانکاری پرونده‌های مشتری', money(t.customerCredit)) + row('بدهی تأمین‌کنندگان', money(o.supplier_liability) + ' + ' + money(s.supplierLiability) + ' = <b>' + money(t.supplierLiability) + '</b>') + row('اعتبار نزد تأمین‌کنندگان', money(o.supplier_credit) + ' + ' + money(s.supplierCredit) + ' = <b>' + money(t.supplierCredit) + '</b>') + row('چک‌های شرکتی باز', money(o.company_cheque) + ' + ' + money(s.companyCheque) + ' = <b>' + money(t.companyCheque) + '</b>') + row('وجه نقد/بانک افتتاحیه', money(o.cash_bank) + ' = <b>' + money(t.cashBank) + '</b>') + '<tr class="total"><td>خالص سرمایه در گردش ثبتی</td><td colspan="3">' + money(t.netWorkingCapital) + '</td></tr></tbody></table><h2>گردش ثبت‌شده در سال</h2><table><tbody>' + row('فاکتور مشتری صادرشده', money(d.moves.customerInvoices)) + row('وصولی مشتری', money(d.moves.customerReceipts)) + row('فاکتور تأمین‌کننده', money(d.moves.supplierInvoices)) + row('پرداخت تأمین‌کننده', money(d.moves.supplierPayments)) + row('چک شرکتی صادرشده', money(d.moves.companyCheques)) + '</tbody></table><h2>مانده‌های افتتاحیه قابل ردیابی</h2><table><thead><tr><th>شناسه</th><th>سرفصل</th><th>مبلغ</th><th>شرح/مبنا</th></tr></thead><tbody>' + arr(d.openingEntries).map(function (r) { return '<tr><td>' + esc(r.cd) + '</td><td>' + esc(CATEGORY[r.category] || r.category) + '</td><td>' + money(r.amountIrr) + '</td><td>' + esc(r.note || '') + '</td></tr>'; }).join('') + (d.openingEntries.length ? '' : '<tr><td colspan="4">موردی ثبت نشده است</td></tr>') + '</tbody></table></body></html>';
   };
   window.wcPrint = function () { var d = window.ptfFinanceOfficialData(), h = window.wcReportHtml(d); if (typeof ptfPreviewPrintableDoc === 'function') { ptfPreviewPrintableDoc('گزارش تجمیعی وضعیت مالی — ' + d.cfg.fiscalYear, h, 'official-financial-position-' + d.cfg.fiscalYear); return; } alert('پیش‌نمایش داخلی در این نسخه بارگذاری نشده است.'); };
   window.wcCsv = function () {
     var d = window.ptfFinanceOfficialData(), t = d.total, o = d.opening, s = d.source;
-    var rows = [['گزارش تجمیعی وضعیت مالی', d.cfg.fiscalYear], ['بازه', d.cfg.startFa + ' تا ' + d.cfg.endFa], ['وضعیت تا', d.asOfFa], [], ['سرفصل', 'افتتاحیه دستی', 'اسناد فعال', 'جمع گزارش'], ['مطالبات مشتریان', o.receivable, s.receivable, t.receivable], ['بدهی تأمین‌کنندگان', o.supplier_liability, s.supplierLiability, t.supplierLiability], ['اعتبار نزد تأمین‌کنندگان', o.supplier_credit, s.supplierCredit, t.supplierCredit], ['چک‌های شرکتی باز', o.company_cheque, s.companyCheque, t.companyCheque], ['وجه نقد/بانک افتتاحیه', o.cash_bank, 0, t.cashBank], ['خالص سرمایه در گردش ثبتی', '', '', t.netWorkingCapital], [], ['گردش ثبت‌شده در سال', 'مبلغ'], ['فاکتور مشتری صادرشده', d.moves.customerInvoices], ['وصولی مشتری', d.moves.customerReceipts], ['فاکتور تأمین‌کننده', d.moves.supplierInvoices], ['پرداخت تأمین‌کننده', d.moves.supplierPayments], ['چک شرکتی صادرشده', d.moves.companyCheques]];
+    var rows = [['گزارش تجمیعی وضعیت مالی', d.cfg.fiscalYear], ['بازه', d.cfg.startFa + ' تا ' + d.cfg.endFa], ['وضعیت تا', d.asOfFa], [], ['سرفصل', 'افتتاحیه دستی', 'اسناد فعال', 'جمع گزارش'], ['مطالبات مشتریان', o.receivable, s.receivable, t.receivable], ['بستانکاری پرونده‌های مشتری', 0, s.customerCredit, t.customerCredit], ['بدهی تأمین‌کنندگان', o.supplier_liability, s.supplierLiability, t.supplierLiability], ['اعتبار نزد تأمین‌کنندگان', o.supplier_credit, s.supplierCredit, t.supplierCredit], ['چک‌های شرکتی باز', o.company_cheque, s.companyCheque, t.companyCheque], ['وجه نقد/بانک افتتاحیه', o.cash_bank, 0, t.cashBank], ['خالص سرمایه در گردش ثبتی', '', '', t.netWorkingCapital], [], ['گردش ثبت‌شده در سال', 'مبلغ'], ['فاکتور مشتری صادرشده', d.moves.customerInvoices], ['وصولی مشتری', d.moves.customerReceipts], ['فاکتور تأمین‌کننده', d.moves.supplierInvoices], ['پرداخت تأمین‌کننده', d.moves.supplierPayments], ['چک شرکتی صادرشده', d.moves.companyCheques]];
     var csv = '\uFEFF' + rows.map(function (r) { return r.map(function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }).join(','); }).join('\r\n');
     try { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = 'official-financial-position-' + d.cfg.fiscalYear + '.csv'; a.click(); auditSafe('خروجی CSV گزارش تجمیعی مالی سال ' + d.cfg.fiscalYear, ''); } catch (e) {}
     return csv;

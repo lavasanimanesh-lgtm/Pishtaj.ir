@@ -173,7 +173,7 @@
       var cd = (first.textContent || '').trim().split(/\s+/)[0];
       if (!cd || !/^CUST|^C-/.test(cd)) return;
       var show = !!allowed[cd];
-      tr.style.display = show ? '' : 'none';
+      if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(tr, show); else { tr.classList.toggle('ptf-filter-hidden', !show); tr.hidden = !show; tr.style.display = show ? '' : 'none'; }
       if (show) visible++;
     });
     var d = document.getElementById('dCust');

@@ -20,7 +20,7 @@ T('قلم بدون شرح نادیده گرفته می‌شود', br.indexOf("va
 T('مسیر قبلی (US-326: ورود بعدی اقلام) پابرجا', br.indexOf('ptfOpenFullInqEditor(cd);') > -1);
 
 SECTION('مشکل ۲: دیدن ضمایم پس از ثبت (رفرنس کاربران)');
-T('بج «📎 n ضمیمه» روی ردیف فهرست درخواست‌ها', br.indexOf('ضمیمه</span>') > -1 && br.indexOf('nAtt += (r.files[k2] || []).length;') > -1);
+T('بج یکسان «📎 n ضمیمه / بدون ضمیمه» از projection جدید و legacy', br.indexOf('ptfRfqAttachmentCount') > -1 && br.indexOf("nAtt + ' ضمیمه") > -1 && br.indexOf('بدون ضمیمه') > -1);
 T('کلیک بج = باز شدن مودال ضمایم', br.indexOf("onclick=\"event.stopPropagation();ptfManageInqAttachments(") > -1);
 T('بخش ضمایم داخل مودال ✏️ ویرایش درخواست', br.indexOf('📎 ضمایم درخواست (') > -1 && br.indexOf('＋ افزودن / مدیریت') > -1);
 T('مشاهده/دانلود مستقیم هر فایل در مودال ویرایش', br.indexOf('👁 مشاهده</a>') > -1 && br.indexOf('⬇️ دانلود</a>') > -1);

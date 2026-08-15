@@ -15,12 +15,12 @@ T('cache-bust salesfiles >= 19.2', (function () { var m = idx.match(/salesfiles\
 SECTION('US-433 — ساختار کد: مراحل ۱۲گانه مشتق');
 T('PTF_SF_STAGES دقیقا ۱۲ مرحله بک‌لاگ R12', (function () { var m = sf.match(/window\.PTF_SF_STAGES = \[([\s\S]*?)\];/); return m && (m[1].match(/\{ id: \d+/g) || []).length === 12 && m[1].indexOf('ابلاغ سفارش') > -1 && m[1].indexOf('بایگانی‌شده') > -1; })());
 T('وضعیت مشتق است نه فیلد آزاد (sfStageOf از سیگنال‌های واقعی)', sf.indexOf('window.sfStageOf') > -1 && sf.indexOf('function up(n) { if (n > st) st = n; }') > -1);
-T('هم‌راستایی با وضعیت درخواست st8/st9/st6/st7 (منبع واحد v17.3)', sf.indexOf("if (rfq.st === 'st8') up(3);") > -1 && sf.indexOf("else if (rfq.st === 'st9') up(4);") > -1 && sf.indexOf("else if (rfq.st === 'st7') up(7);") > -1);
+T('هم‌راستایی st8/st9 و پذیرش st6/st7 فقط با شاهد مدیریت‌شده', sf.indexOf("if (rfq.st === 'st8') up(3);") > -1 && sf.indexOf("else if (rfq.st === 'st9') up(4);") > -1 && sf.indexOf("rfq.st === 'st6' && (!managedEvidence || hasPrepEvidence)") > -1 && sf.indexOf("rfq.st === 'st7' && (!managedEvidence || hasDeliveryEvidence)") > -1);
 T('فاکتور: ارجاع→۸، ثبت→۹، مانده→۱۰، تسویه→۱۱', sf.indexOf('if (wo && wo.invRef) up(8);') > -1 && sf.indexOf('up(remain > 0.5 ? 10 : 11);') > -1);
 T('گذار درخواست فقط از مسیر واحد ptfRfqSetStatus (sfRfqAlign)', sf.indexOf('window.sfRfqAlign') > -1 && sf.indexOf("ptfRfqSetStatus(rfq.cd, targetSt, txt)") > -1);
-T('عقب‌گرد ساختاری ممنوع: ترتیب از آرایه PTF_RFQ_STATUSES + ci >= ti رد', sf.indexOf('var ci = order.indexOf(rfq.st), ti = order.indexOf(targetSt);') > -1 && sf.indexOf("rfq.st === 'stX' || ti < 0 || ci >= ti") > -1);
+T('ثبت شاهد فقط رو به جلو است: ترتیب از آرایه PTF_RFQ_STATUSES + ci >= ti رد', sf.indexOf('var ci = order.indexOf(rfq.st), ti = order.indexOf(targetSt);') > -1 && sf.indexOf("rfq.st === 'stX' || ti < 0 || ci >= ti") > -1);
 T('استپر ۱۲خانه در کشو + بج مرحله در سطر فهرست', sf.indexOf('🧭 مرحله پرونده:') > -1 && sf.indexOf('var stgBadge = stgN') > -1);
-T('نمایش «دستی نیست»', sf.indexOf('دستی و قابل عقب‌گرد نیست') > -1);
+T('نمایش قاعده بازمحاسبه مرحله از شاهد و جلوگیری از عقب‌گرد با شاهد بعدی', sf.indexOf('مرحله از شواهد واقعی محاسبه می‌شود') > -1 && sf.indexOf('وجود شاهد تکمیل‌شدهٔ بعدی مانع عقب‌گرد است') > -1);
 
 SECTION('US-434 فاز ۲ — ساختار کد: ارسال/تحویل داخل پرونده');
 T('سه رویداد: پکینگ/بارنامه/تحویل کارفرما', sf.indexOf('SF_SHIP_TYPES') > -1 && sf.indexOf("{ id: 'packing'") > -1 && sf.indexOf("{ id: 'shipdoc'") > -1 && sf.indexOf("{ id: 'delivered'") > -1);

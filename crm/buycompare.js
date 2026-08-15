@@ -304,6 +304,26 @@
   function rbFindDeal(inqNo) {
     return getData('ptf_crm_deals').filter(function (d) { return d.inqNo === inqNo || d.offerNo === inqNo || d.wonOffer === inqNo; })[0];
   }
+  function rbSupplierIdentity(name) {
+    if (typeof window.slResolveSupplierByName === 'function') return window.slResolveSupplierByName(name);
+    var norm = function(v){return typeof dedupNorm==='function'?dedupNorm(v):String(v||'').trim().toLowerCase();}, key=norm(name);
+    var rows=getData('ptf_crm_suppliers').filter(function(s){return key&&(norm(s.co)===key||norm(s.name)===key||norm(s.coEn)===key);});
+    return rows.length===1?{ok:true,supplier:rows[0]}:{ok:false,why:rows.length?'ambiguous':'missing',count:rows.length};
+  }
+  function rbRequireCashSupplier(name, pay) {
+    if ((pay || 'cash') !== 'cash') return { ok: true, supplier: null };
+    var r=rbSupplierIdentity(name);
+    if(!r.ok) alert('⛔ خرید نقدی باید به یک تأمین‌کننده یکتای ثبت‌شده متصل شود.\nنام «'+name+'» '+(r.why==='ambiguous'?'چند تطبیق دارد':'در فهرست تأمین‌کنندگان یافت نشد')+'. ابتدا رکورد تأمین‌کننده را اصلاح/ثبت کنید.');
+    return r;
+  }
+  function rbPostCashSupplierLedger(c, purchase, item) {
+    if (!purchase || purchase.pay !== 'cash') return { ok: true, skipped: true };
+    if (typeof window.slImportRealPurchase !== 'function') return { ok: false, why: 'module' };
+    var amount=(+purchase.price||0)*(+purchase.qty||+item.qty||1);
+    var res=window.slImportRealPurchase({purchaseCd:purchase.cd,supplierCd:purchase.supplierCd,supName:purchase.sup,amount:amount,unitPrice:+purchase.price||0,qty:+purchase.qty||+item.qty||1,item:item.nm||item.name||item.desc||'',pay:'cash',files:purchase.files||[],sourceCurrency:purchase.srcCur||'',sourceUnitPrice:+purchase.priceFx||0,sourceFxRate:+purchase.rate||0,dateFa:purchase.t||faDate(),dateISO:new Date().toISOString().slice(0,10)});
+    if(res&&res.ok){purchase.supplierInvoiceCd=res.invoice&&res.invoice.cd||'';purchase.supplierPaymentCd=res.payment&&res.payment.cd||'';purchase.financeLinked=true;}
+    return res||{ok:false,why:'unknown'};
+  }
   function rbDeleteCloudKeys(keys) {
     keys = (keys || []).filter(Boolean);
     if (!keys.length) return;
@@ -323,6 +343,7 @@
       var c = list.filter(function (x) { return x.id === cmpId; })[0]; if (!c) return;
       var pu = (c.purchases || []).filter(function (p) { return p.cd === pcd || p.idx === idx; })[0]; if (!pu) return;
       pu.files = pu.files || []; pu.files.push(f); cmpSave(list);
+      if (typeof window.slAttachRealPurchaseReceipt === 'function') window.slAttachRealPurchaseReceipt(pu.cd, f);
       var d = rbFindDeal(c.inqNo);
       if (d) {
         d.docs = d.docs || [];
@@ -432,7 +453,14 @@
     var cur = shared.cur || 'IRR';
     var rate = +shared.rate || 0;
     if (cur !== 'IRR' && !rate) return { ok: false, why: 'rate' }; /* تسعیر الزامی — US-412 */
-    var done = 0, skipped = 0, total = 0;
+    var supplierMap = {}, supplierInvalid = '', _requireCashSupplier = typeof rbRequireCashSupplier === 'function' ? rbRequireCashSupplier : function(){ return {ok:true,supplier:{cd:''}}; };
+    (rows || []).forEach(function (rw) {
+      var price = (typeof ptfNum === 'function') ? ptfNum(rw.price) : (+String(rw.price || '').replace(/[^\d.-]/g, '') || 0), name=String(rw.sup||'').trim();
+      if (!price || !name || (rw.pay || 'cash') !== 'cash' || supplierMap[name]) return;
+      var resolved=_requireCashSupplier(name,'cash'); if(!resolved.ok)supplierInvalid=name; else supplierMap[name]=resolved.supplier;
+    });
+    if (supplierInvalid) return { ok:false, why:'supplier_identity', supplier:supplierInvalid };
+    var done = 0, skipped = 0, total = 0, newPurchases = [];
     (rows || []).forEach(function (rw) {
       var idx = +rw.idx;
       var price = (typeof ptfNum === 'function') ? ptfNum(rw.price) : (+String(rw.price || '').replace(/[^\d.-]/g, '') || 0);
@@ -444,13 +472,23 @@
       var pcd = genCode('PUR');
       c2.purchases = c2.purchases || [];
       var srcItem = (c2.items || [])[idx] || {};
-      c2.purchases.push({ cd: pcd, idx: idx, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: sup, price: buyPrice, cur: 'IRR', srcCur: cur !== 'IRR' ? cur : '', priceFx: priceFx, rate: cur !== 'IRR' ? rate : 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '', manual: true, bulk: true, t: faDate(), by: curSession().name, files: [] });
-      /* خرید واقعی فقط operational است؛ تعهد یا فاکتور تأمین‌کننده اینجا ساخته نمی‌شود. */
+      var purchase={ cd: pcd, idx: idx, qty: +srcItem.qty || 1, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: sup, supplierCd: supplierMap[sup] ? supplierMap[sup].cd : '', price: buyPrice, cur: 'IRR', srcCur: cur !== 'IRR' ? cur : '', priceFx: priceFx, rate: cur !== 'IRR' ? rate : 0, pay: rw.pay || 'cash', dueISO: shared.dueISO || '', dueNote: '', manual: true, bulk: true, t: faDate(), by: curSession().name, files: [] };
+      c2.purchases.push(purchase); newPurchases.push(purchase);
+      /* خرید نقدی پس از ذخیره operational، با سند+پرداخت به زیر‌دفتر منتقل می‌شود. */
       total += buyPrice * (+(c2.items[idx] || {}).qty || 1);
       done++;
     });
     if (done) {
       cmpSave(list);
+      var linkedCash=[], financeFailed=false;
+      newPurchases.forEach(function(p){if(p.pay!=='cash'||financeFailed)return;var fr=typeof rbPostCashSupplierLedger==='function'?rbPostCashSupplierLedger(c2,p,(c2.items||[])[p.idx]||{}):{ok:true,skipped:true};if(!fr.ok)financeFailed=true;else linkedCash.push(p.cd);});
+      if(financeFailed){
+        c2.purchases=(c2.purchases||[]).filter(function(p){return !newPurchases.some(function(n){return n.cd===p.cd;});});
+        linkedCash.forEach(function(cd){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(cd,'بازگشت ثبت گروهی ناموفق');});
+        cmpSave(list); alert('⛔ ثبت گروهی بازگردانده شد چون گردش یکی از خریدهای نقدی ثبت نشد.');
+        return {ok:false,why:'supplier_finance'};
+      }
+      cmpSave(list); /* شناسه فاکتور/پرداخت ایجادشده روی purchase نیز پایدار شود */
       if (typeof ptfRealBuyEnsureStatus === 'function') ptfRealBuyEnsureStatus(c2.inqNo); /* BUG-029: گذار st8 */
       try { audit('قیمت خرید', 'ثبت گروهی خرید واقعی (US-441): ' + done + ' قلم — جمع ' + total.toLocaleString('fa-IR') + ' ریال' + (cur !== 'IRR' ? ' (تسعیر ' + cur + '×' + rate.toLocaleString('fa-IR') + ')' : '') + ' — ' + c2.inqNo, c2.id); } catch (e) {}
       if (typeof notify === 'function') { try { notify({ toRoles: SENIOR_ROLES, title: '🛒 ثبت گروهی خرید: ' + done + ' قلم درخواست ' + c2.inqNo + ' — جمع ' + total.toLocaleString('fa-IR') + ' ریال', kind: 'buyq', channels: ['cart'], link: { panel: 'deals' } }); } catch (e2) {} }
@@ -654,10 +692,15 @@
     st.rows.forEach(function (r) { qty += +r.qty || 0; });
     if (qty <= 0 || qty > required) { alert('مجموع مقدار lotها باید بیشتر از صفر و حداکثر ' + required + ' باشد.'); return; }
     if (st.rows.some(function (r) { return !String(r.sup || '').trim() || !(+r.qty > 0) || !(+r.price > 0) || (r.cur !== 'IRR' && !(+r.rate > 0)); })) { alert('تامین‌کننده، مقدار و قیمت واحد الزامی است؛ برای ارز خارجی نرخ تسعیر نیز لازم است.'); return; }
+    var supplierMap={},invalid=false,_requireCashSupplier=typeof rbRequireCashSupplier==='function'?rbRequireCashSupplier:function(){return{ok:true,supplier:{cd:''}};};st.rows.forEach(function(r){var z=_requireCashSupplier(String(r.sup).trim(),'cash');if(!z.ok)invalid=true;else supplierMap[String(r.sup).trim()]=z.supplier;});if(invalid)return;
     var list = cmpAll(), c = list.filter(function (x) { return x.id === st.id; })[0]; if (!c) return;
+    var oldPurchases=(c.purchases||[]).filter(function(p){return +p.idx===+st.idx;}),newPurchases=[];
     c.purchases = (c.purchases || []).filter(function (p) { return +p.idx !== +st.idx; });
-    st.rows.forEach(function (r) { var priceFx = r.cur === 'IRR' ? 0 : +r.price, buyPrice = r.cur === 'IRR' ? +r.price : Math.round(+r.price * (+r.rate || 0)); c.purchases.push({ cd: genCode('PUR'), idx: st.idx, qty: +r.qty, sourceItemKey: item.sourceItemKey || '', sup: String(r.sup).trim(), price: buyPrice, cur: 'IRR', srcCur: r.cur !== 'IRR' ? r.cur : '', priceFx: priceFx, rate: r.cur !== 'IRR' ? (+r.rate || 0) : 0, pay: 'cash', t: faDate(), by: curSession().name, splitLot: true, files: [] }); });
-    cmpSave(list); try { audit('قیمت خرید', 'تقسیم خرید قلم ' + (item.nm || '') + ' بین ' + st.rows.length + ' تامین‌کننده', c.inqNo); } catch (e) {}
+    st.rows.forEach(function (r) { var supName=String(r.sup).trim(),priceFx = r.cur === 'IRR' ? 0 : +r.price, buyPrice = r.cur === 'IRR' ? +r.price : Math.round(+r.price * (+r.rate || 0));var p={ cd: genCode('PUR'), idx: st.idx, qty: +r.qty, sourceItemKey: item.sourceItemKey || '', sup: supName, supplierCd:supplierMap[supName].cd, price: buyPrice, cur: 'IRR', srcCur: r.cur !== 'IRR' ? r.cur : '', priceFx: priceFx, rate: r.cur !== 'IRR' ? (+r.rate || 0) : 0, pay: 'cash', t: faDate(), by: curSession().name, splitLot: true, files: [] };c.purchases.push(p);newPurchases.push(p); });
+    cmpSave(list);
+    var linked=[],failed=false;newPurchases.forEach(function(p){if(failed)return;var fr=typeof rbPostCashSupplierLedger==='function'?rbPostCashSupplierLedger(c,p,item):{ok:true,skipped:true};if(!fr.ok)failed=true;else linked.push(p.cd);});
+    if(failed){c.purchases=(c.purchases||[]).filter(function(p){return !newPurchases.some(function(n){return n.cd===p.cd;});}).concat(oldPurchases);linked.forEach(function(cd){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(cd,'بازگشت تقسیم خرید ناموفق');});cmpSave(list);alert('⛔ تقسیم خرید بازگردانده شد چون گردش تأمین‌کننده کامل ثبت نشد.');return;}
+    oldPurchases.forEach(function(p){if(typeof window.slVoidRealPurchaseFinance==='function')window.slVoidRealPurchaseFinance(p.cd,'جایگزینی تقسیم خرید');});cmpSave(list); try { audit('قیمت خرید', 'تقسیم خرید قلم ' + (item.nm || '') + ' بین ' + st.rows.length + ' تامین‌کننده', c.inqNo); } catch (e) {}
     var dlg = document.getElementById('cmpSplitDlg'); if (dlg) dlg.remove();
     var baseDlg = document.getElementById('cmpModal_' + c.id); if (baseDlg) baseDlg.remove();
     window._cmpSplitState = null;
@@ -768,16 +811,29 @@
           priceFx = buyPrice;
           buyPrice = Math.round(priceFx * buyRate); /* معادل ریالی = قیمت خرید واقعی */
         }
+        var supIdentity = typeof rbRequireCashSupplier === 'function' ? rbRequireCashSupplier(supName, v.pay || 'cash') : { ok:true, supplier:{cd:''} };
+        if (!supIdentity.ok) return;
+        var oldPurchases = (c2.purchases || []).filter(function (p) { return p.idx === idx; });
         c2.purchases = (c2.purchases || []).filter(function (p) { return p.idx !== idx; });
         var pcd = genCode('PUR');
         var srcItem = (c2.items || [])[idx] || {};
-        c2.purchases.push({ cd: pcd, idx: idx, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: supName, price: buyPrice, cur: 'IRR', srcCur: buyCur !== 'IRR' ? buyCur : '', priceFx: priceFx, rate: buyCur !== 'IRR' ? buyRate : 0, pay: v.pay || 'cash', dueISO: v.dueISO || '', dueNote: v.dueNote || '', manual: v.sup === '__manual__', t: faDate(), by: curSession().name, files: [] });
+        var purchase = { cd: pcd, idx: idx, qty: +srcItem.qty || 1, sourcePcode: srcItem.pcode || srcItem.prodCd || '', sourceItemKey: srcItem.sourceItemKey || (typeof window.ptfProcLineKey === 'function' ? window.ptfProcLineKey(srcItem) : ''), sup: supName, supplierCd: supIdentity.supplier ? supIdentity.supplier.cd : '', price: buyPrice, cur: 'IRR', srcCur: buyCur !== 'IRR' ? buyCur : '', priceFx: priceFx, rate: buyCur !== 'IRR' ? buyRate : 0, pay: v.pay || 'cash', dueISO: v.dueISO || '', dueNote: v.dueNote || '', manual: v.sup === '__manual__', t: faDate(), by: curSession().name, files: [] };
+        c2.purchases.push(purchase);
+        cmpSave(list);
+        var financeResult = typeof rbPostCashSupplierLedger === 'function' ? rbPostCashSupplierLedger(c2, purchase, srcItem) : {ok:true,skipped:true};
+        if (!financeResult.ok && purchase.pay === 'cash') {
+          c2.purchases = c2.purchases.filter(function (p) { return p.cd !== pcd; }).concat(oldPurchases);
+          cmpSave(list);
+          alert('⛔ ثبت خرید نقدی به‌علت ثبت‌نشدن گردش تأمین‌کننده بازگردانده شد. صفحه را تازه و دوباره تلاش کنید.');
+          return;
+        }
+        oldPurchases.forEach(function (p) { if (p.cd !== pcd && typeof window.slVoidRealPurchaseFinance === 'function') window.slVoidRealPurchaseFinance(p.cd, 'جایگزینی خرید واقعی'); });
         cmpSave(list);
         /* v18.9 BUG-029: هر خرید واقعی موفق باید وضعیت درخواست را به «در حال تامین» ببرد؛ مستقل از باز بودن حالت realbuy */
         if (typeof ptfRealBuyEnsureStatus === 'function') ptfRealBuyEnsureStatus(c2.inqNo);
         /* v16.6 (US-400): ثبت بستانکاری تامین‌کننده — نقدی = تسویه فوری؛ غیرنقدی = باز تا ثبت پرداخت‌های مرحله‌ای
            v17.2: مبلغ = معادل ریالی قطعی (تسعیرشده) — بدهی ارزی بی‌نرخ دیگر پیش نمی‌آید */
-        /* خرید واقعی فقط operational است؛ تعهد یا فاکتور تأمین‌کننده اینجا ساخته نمی‌شود. */
+        /* خرید نقدی در زیر‌دفتر تأمین با فاکتور و پرداخت کامل ثبت شد؛ خرید اعتباری همچنان از مسیر مالی تأمین تعیین تکلیف می‌شود. */
         // ثبت در buyquotes قدیمی هم برای گزارش‌های موجود
         var bq = getData('ptf_crm_buyquotes');
         bq.unshift({ cd: genCode('BQ'), ref: c2.inqNo, sup: supName, desc: (c2.items[idx] || {}).nm || '', price: buyPrice, note: 'خرید واقعی' + (priceFx ? ' (تسعیر ' + priceFx.toLocaleString('en-US') + ' ' + (c2.purchases[c2.purchases.length-1].srcCur || '') + ' × ' + buyRate.toLocaleString('fa-IR') + ')' : ''), t: faDate(), by: curSession().name });
@@ -889,11 +945,9 @@
         if (!host || document.getElementById('rbBox_' + deal.cd) || document.getElementById('sfRealBuyBtn_' + deal.cd)) return;
         var st = ptfRealBuyStatus(deal.inqNo);
         var adv = ''; try {
-          var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === deal.wonOffer; })[0];
-          if (wo && typeof ptfAdvanceNormalize === 'function') {
-            var aa = ptfAdvanceNormalize(wo);
-            if (aa && aa.mode && aa.mode !== 'none') adv = ' | پیش‌دریافت وصولی: ' + (+aa.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال';
-          }
+          var dealId = String(deal._id || deal.cd || '');
+          var received = (getData('ptf_crm_case_receipts') || []).filter(function (x) { return x && x.caseId === dealId && x.status === 'posted' && !x.voided; }).reduce(function (s, x) { return s + (+x.amountIRR || +x.amt || 0); }, 0);
+          if (received) adv = ' | دریافت قطعی: ' + received.toLocaleString('fa-IR') + ' ریال';
         } catch (eAdv) {}
         var costs = (deal.costEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0);
         var costTxt = costs ? ' | هزینه‌های مستقیم: ' + costs.toLocaleString('fa-IR') + ' ریال' : '';
@@ -912,7 +966,6 @@
           '<div class="sf-real-buy-copy"><div class="sf-real-buy-heading"><span class="sf-real-buy-heading-icon" aria-hidden="true">🛒</span><span><b>خرید واقعی اقلام</b><small>پس از برد؛ جدا از قیمت استعلامی</small></span></div><div class="sf-real-buy-status">' + lb + adv + costTxt + '</div></div>' +
           '<div class="sf-real-buy-actions" role="group" aria-label="عملیات خرید واقعی پرونده ' + escP(deal.inqNo) + '">' +
           rbAction('open', '🛍', 'خرید', 'ثبت یا پیگیری خرید واقعی اقلام پرونده', 'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')', true) +
-          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? rbAction('advance', '💰', 'پیش‌دریافت', 'ثبت یا اصلاح پیش‌دریافت مشتری (وصولی)', 'event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')') : '') +
           rbAction('inquiry', '🤖', 'استعلام مجدد', 'ثبت استعلام تامین جدید برای این پرونده', 'event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
           rbAction('cost', '➕', 'هزینه پرونده', 'ثبت هزینهٔ مستقیم برای پرونده', 'event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
           '</div></section>');

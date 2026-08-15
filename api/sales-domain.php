@@ -1,0 +1,610 @@
+<?php
+/**
+ * PTF CRM — Sales-to-Cash Domain API v35
+ * Server-authoritative command boundary for offer award, sales cases, receipts,
+ * official invoice registration/correction/void, allocations and financial attachments.
+ *
+ * The existing deployment stores synchronized collections as JSON (optionally mirrored
+ * to MySQL). This endpoint serializes all cross-collection commands under one lock,
+ * writes temp files before rename, keeps a command journal/idempotency key, and returns
+ * compatible projections to clients. It deliberately never infers cash from offer terms.
+ */
+declare(strict_types=1);
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/db-lib.php';
+
+function sd_out(array $payload, int $status = 200): void {
+    http_response_code($status);
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
+$identity = auth_verify_token(auth_get_header_token());
+if (!$identity) sd_out(['ok' => false, 'error' => 'authentication_required', 'needLogin' => true], 401);
+$role = strtolower(trim((string)($identity['role'] ?? '')));
+$user = trim((string)($identity['user'] ?? ''));
+$raw = file_get_contents('php://input');
+if (strlen((string)$raw) > 4 * 1048576) sd_out(['ok'=>false,'error'=>'payload_too_large'],413);
+$body = json_decode((string)$raw, true);
+if (!is_array($body)) $body = [];
+$action = trim((string)($_GET['action'] ?? $body['action'] ?? 'snapshot'));
+
+const SD_FIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'accountant'];
+const SD_WIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
+const SD_RFQ_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
+const SD_ADMIN_ROLES = ['admin'];
+const SD_KEYS = [
+    'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
+    'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments',
+    'ptf_crm_corrections', 'ptf_crm_fin_findings', 'ptf_crm_deleted_archive',
+    'ptf_crm_fiscal_snapshots', 'ptf_crm_sales_commands'
+];
+
+function sd_require_role(array $roles): void {
+    global $role;
+    if (!in_array($role, $roles, true)) sd_out(['ok' => false, 'error' => 'permission_denied'], 403);
+}
+function sd_now(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
+function sd_uuid(string $prefix): string {
+    try { $rnd = bin2hex(random_bytes(16)); }
+    catch (Throwable $e) { $rnd = hash('sha256', uniqid('', true) . mt_rand()); }
+    return $prefix . '-' . substr($rnd, 0, 8) . '-' . substr($rnd, 8, 4) . '-' . substr($rnd, 12, 4) . '-' . substr($rnd, 16, 12);
+}
+function sd_text($value, int $max = 500): string {
+    $s = trim((string)$value);
+    if (function_exists('mb_substr')) return mb_substr($s, 0, $max, 'UTF-8');
+    return substr($s, 0, $max);
+}
+function sd_identity($value): string {
+    $s=strtr(trim((string)$value),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
+    return strtoupper((string)preg_replace('/[\s\x{200c}\x{200e}\x{200f}]+/u','',$s));
+}
+function sd_num($value): float {
+    if (is_int($value) || is_float($value)) return is_finite((float)$value) ? (float)$value : 0.0;
+    $s = strtr((string)$value, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
+    $s = preg_replace('/[^0-9.\-]/', '', $s);
+    return is_numeric($s) ? (float)$s : 0.0;
+}
+function sd_active(array $r): bool {
+    $st = strtolower((string)($r['status'] ?? $r['st'] ?? ''));
+    return !in_array($st, ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'], true)
+        && empty($r['voided']) && empty($r['deleted']);
+}
+function sd_date_key($value): string {
+    $s=strtr(trim((string)$value),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
+    if(preg_match('/((?:13|14|20)\d{2})[\/-](\d{1,2})[\/-](\d{1,2})/',$s,$m))return sprintf('%04d-%02d-%02d',(int)$m[1],(int)$m[2],(int)$m[3]);
+    return '';
+}
+function sd_year($value): string {
+    $s = strtr((string)$value, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
+    return preg_match('/(13|14)\d{2}/', $s, $m) ? $m[0] : '';
+}
+function sd_is_locked(array $snaps, string $date): bool {
+    $year = sd_year($date);
+    if ($year === '') return false;
+    foreach ($snaps as $s) {
+        if (is_array($s) && !empty($s['locked']) && (string)($s['year'] ?? '') === $year) return true;
+    }
+    return false;
+}
+function sd_invalidate_period(array &$snaps, string $date, string $by, string $reason): string {
+    $year=sd_year($date); if($year==='')return '';
+    foreach($snaps as &$s){if(!is_array($s)||(string)($s['year']??'')!==$year||empty($s['locked']))continue;$s['locked']=false;$s['invalidated']=true;$s['invalidatedAt']=sd_now();$s['invalidatedBy']=$by;$s['invalidateReason']=$reason;}unset($s);
+    return $year;
+}
+function sd_sync_dir(): string {
+    $d = __DIR__ . '/../crm/data/sync';
+    if (!is_dir($d)) @mkdir($d, 0750, true);
+    return $d;
+}
+function sd_read(string $key): array {
+    $file = sd_sync_dir() . '/' . $key . '.json';
+    $value = null;
+    try { $value = ptf_db_read_fresh($key, $file); } catch (Throwable $e) { $value = null; }
+    if ($value === null && is_file($file)) $value = @file_get_contents($file);
+    if ($value === null) {
+        $legacy = __DIR__ . '/../crm/data/' . $key . '.json';
+        if (is_file($legacy)) $value = @file_get_contents($legacy);
+    }
+    $decoded = json_decode((string)$value, true);
+    return is_array($decoded) ? $decoded : [];
+}
+function sd_offer_id(array &$offer): string {
+    if (empty($offer['_id'])) $offer['_id'] = sd_uuid('OFR');
+    return (string)$offer['_id'];
+}
+function sd_case_id(array &$case): string {
+    if (empty($case['_id'])) $case['_id'] = sd_uuid('CASE');
+    return (string)$case['_id'];
+}
+function sd_case_match(array $case, string $id): bool {
+    return $id !== '' && ((string)($case['_id'] ?? '') === $id || (string)($case['cd'] ?? '') === $id);
+}
+function sd_find_case_index(array $cases, string $id): int {
+    foreach ($cases as $i => $case) if (is_array($case) && sd_case_match($case, $id)) return (int)$i;
+    return -1;
+}
+function sd_offer_total(array $offer): float {
+    $sum = 0.0;
+    foreach (($offer['items'] ?? []) as $it) if (is_array($it)) $sum += sd_num($it['qty'] ?? 0) * sd_num($it['price'] ?? 0);
+    return $sum;
+}
+function sd_file_ok(array $file): bool {
+    $key = trim((string)($file['key'] ?? ''));
+    $name = strtolower(trim((string)($file['name'] ?? $key)));
+    $type = strtolower(trim((string)($file['contentType'] ?? $file['mimeType'] ?? '')));
+    if ($key === '') return false;
+    $extOk = (bool)preg_match('/\.(jpg|jpeg|png|webp|pdf)(?:$|[?#])/i', $name);
+    $mimeOk = $type === '' || strpos($type, 'image/') === 0 || $type === 'application/pdf';
+    return $extOk && $mimeOk;
+}
+function sd_invoice_files_ok(array $files): bool {
+    foreach ($files as $f) {
+        if (!is_array($f) || !sd_file_ok($f)) continue;
+        $cat = (string)($f['category'] ?? '');
+        if (in_array($cat, ['accounting_official_invoice', 'modian_tax_invoice'], true)
+            && !empty($f['readVerified'])
+            && !in_array((string)($f['status'] ?? 'active'), ['replaced', 'deleted', 'rejected'], true)) return true;
+    }
+    return false;
+}
+function sd_vat(float $base, float $pct): int { return (int)round($base * $pct / 100, 0, PHP_ROUND_HALF_UP); }
+
+/** Rebuild deterministic FIFO allocations for every active invoice/receipt in a case. */
+function sd_rebuild_allocations(string $caseId, array &$receipts, array &$invoices, array &$allocations): void {
+    $history = [];
+    foreach ($allocations as $a) {
+        if (is_array($a) && (string)($a['caseId'] ?? '') === $caseId && sd_active($a)) {
+            $a['status'] = 'replaced'; $a['replacedAt'] = sd_now(); $history[] = $a;
+        }
+    }
+    $allocations = array_values(array_filter($allocations, function ($a) use ($caseId) {
+        return !is_array($a) || (string)($a['caseId'] ?? '') !== $caseId;
+    }));
+    if ($history) {
+        foreach ($history as $h) $allocations[] = $h;
+    }
+    $invoiceIdx = [];
+    foreach ($invoices as $i => &$inv) {
+        if (!is_array($inv) || (string)($inv['caseId'] ?? '') !== $caseId || !sd_active($inv)) continue;
+        $inv['allocatedBase'] = 0; $inv['allocatedVat'] = 0;
+        $invoiceIdx[] = $i;
+    }
+    unset($inv);
+    usort($invoiceIdx, function ($a, $b) use ($invoices) {
+        return strcmp((string)($invoices[$a]['invDate'] ?? $invoices[$a]['issueDate'] ?? $invoices[$a]['t'] ?? ''), (string)($invoices[$b]['invDate'] ?? $invoices[$b]['issueDate'] ?? $invoices[$b]['t'] ?? ''));
+    });
+    $receiptIdx = [];
+    foreach ($receipts as $i => &$r) {
+        if (!is_array($r) || (string)($r['caseId'] ?? '') !== $caseId || !sd_active($r) || (string)($r['status'] ?? '') !== 'posted') continue;
+        $r['allocatedIRR'] = 0; $r['creditRemainIRR'] = (int)round(sd_num($r['amountIRR'] ?? $r['amt'] ?? 0));
+        $receiptIdx[] = $i;
+    }
+    unset($r);
+    usort($receiptIdx, function ($a, $b) use ($receipts) {
+        return strcmp((string)($receipts[$a]['receivedAt'] ?? $receipts[$a]['dateISO'] ?? $receipts[$a]['t'] ?? ''), (string)($receipts[$b]['receivedAt'] ?? $receipts[$b]['dateISO'] ?? $receipts[$b]['t'] ?? ''));
+    });
+    foreach ($receiptIdx as $ri) {
+        $available = (int)round(sd_num($receipts[$ri]['amountIRR'] ?? 0));
+        $allowVat = (string)($receipts[$ri]['timing'] ?? 'pre_invoice') === 'post_invoice';
+        foreach ($invoiceIdx as $ii) {
+            if ($available <= 0) break;
+            $base = (int)round(sd_num($invoices[$ii]['base'] ?? $invoices[$ii]['baseAmountIRR'] ?? 0));
+            $baseRoom = max(0, $base - (int)($invoices[$ii]['allocatedBase'] ?? 0));
+            if ($baseRoom > 0) {
+                $take = min($available, $baseRoom);
+                $allocations[] = ['_id'=>sd_uuid('ALLOC'),'caseId'=>$caseId,'receiptId'=>$receipts[$ri]['_id'],'invoiceId'=>$invoices[$ii]['_id'],'component'=>'base','amountIRR'=>$take,'status'=>'active','allocatedAt'=>sd_now()];
+                $invoices[$ii]['allocatedBase'] += $take; $receipts[$ri]['allocatedIRR'] += $take; $available -= $take;
+            }
+            if ($available > 0 && $allowVat) {
+                $vat = (int)round(sd_num($invoices[$ii]['vat'] ?? $invoices[$ii]['vatAmountIRR'] ?? 0));
+                $vatRoom = max(0, $vat - (int)($invoices[$ii]['allocatedVat'] ?? 0));
+                if ($vatRoom > 0) {
+                    $take = min($available, $vatRoom);
+                    $allocations[] = ['_id'=>sd_uuid('ALLOC'),'caseId'=>$caseId,'receiptId'=>$receipts[$ri]['_id'],'invoiceId'=>$invoices[$ii]['_id'],'component'=>'vat','amountIRR'=>$take,'status'=>'active','allocatedAt'=>sd_now()];
+                    $invoices[$ii]['allocatedVat'] += $take; $receipts[$ri]['allocatedIRR'] += $take; $available -= $take;
+                }
+            }
+        }
+        $receipts[$ri]['creditRemainIRR'] = $available;
+    }
+    foreach ($invoiceIdx as $ii) {
+        $base = (int)round(sd_num($invoices[$ii]['base'] ?? 0));
+        $vat = (int)round(sd_num($invoices[$ii]['vat'] ?? 0));
+        $invoices[$ii]['openBaseIRR'] = max(0, $base - (int)($invoices[$ii]['allocatedBase'] ?? 0));
+        $invoices[$ii]['openVatIRR'] = max(0, $vat - (int)($invoices[$ii]['allocatedVat'] ?? 0));
+        $invoices[$ii]['openAmountIRR'] = $invoices[$ii]['openBaseIRR'] + $invoices[$ii]['openVatIRR'];
+    }
+}
+
+function sd_snapshot(array $keys = SD_KEYS): array {
+    $out = [];
+    foreach ($keys as $key) $out[$key] = sd_read($key);
+    return $out;
+}
+function sd_meta_commit(array $changes): int {
+    $dir = sd_sync_dir();
+    $metaFile = $dir . '/meta.json';
+    $meta = is_file($metaFile) ? json_decode((string)@file_get_contents($metaFile), true) : [];
+    if (!is_array($meta)) $meta = [];
+    $rev = (int)($meta['_global']['rev'] ?? 0) + 1;
+    $now = sd_now();
+    foreach ($changes as $key => $_) $meta[$key] = ['rev'=>$rev,'t'=>$now,'by'=>'sales-domain-v35'];
+    $meta['_global'] = ['rev'=>$rev,'t'=>$now];
+    $tmp = $metaFile . '.tmp.' . bin2hex(random_bytes(4));
+    file_put_contents($tmp, json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT), LOCK_EX);
+    rename($tmp, $metaFile);
+    return $rev;
+}
+function sd_commit(array $changes): int {
+    $dir = sd_sync_dir();
+    $temps = [];
+    foreach ($changes as $key => $value) {
+        $json = json_encode(array_values($value), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($json === false) throw new RuntimeException('json_encode_failed:' . $key);
+        $tmp = $dir . '/' . $key . '.json.tmp.' . bin2hex(random_bytes(4));
+        if (file_put_contents($tmp, $json, LOCK_EX) === false) throw new RuntimeException('write_failed:' . $key);
+        $temps[$key] = [$tmp, $json];
+    }
+    /* Publish every projection while meta still has the old rev; data_pull therefore
+       cannot observe a new revision until all files are in place. */
+    foreach ($temps as $key => $pair) {
+        $dest = $dir . '/' . $key . '.json';
+        if (!rename($pair[0], $dest)) throw new RuntimeException('rename_failed:' . $key);
+    }
+    $rev = sd_meta_commit($changes);
+    foreach ($temps as $key => $pair) {
+        try { ptf_db_write_rev($key, $pair[1], $rev); } catch (Throwable $e) { /* warm mirror; file remains authoritative fallback */ }
+    }
+    return $rev;
+}
+function sd_result_data(array $changes): array {
+    $out = [];
+    foreach ($changes as $key => $value) $out[$key] = array_values($value);
+    return $out;
+}
+function sd_idempotency(array $commands, string $key): ?array {
+    if ($key === '') return null;
+    foreach ($commands as $cmd) if (is_array($cmd) && (string)($cmd['key'] ?? '') === $key && (string)($cmd['status'] ?? '') === 'committed') return $cmd;
+    return null;
+}
+function sd_append_command(array &$commands, string $key, string $action, array $result): void {
+    $commands[] = ['_id'=>sd_uuid('CMD'),'key'=>$key,'action'=>$action,'status'=>'committed','at'=>sd_now(),'result'=>$result];
+    if (count($commands) > 1000) $commands = array_slice($commands, -1000);
+}
+
+function sd_migration_report(): array {
+    $offers=sd_read('ptf_crm_offers'); $cases=sd_read('ptf_crm_deals');
+    $invoices=sd_read('ptf_crm_invoices'); $receipts=sd_read('ptf_crm_case_receipts');
+    $byNo=[]; $issues=[]; $safe=[];
+    foreach($offers as $o) if(is_array($o)&&!empty($o['no'])) $byNo[(string)$o['no']][]=$o;
+    foreach($byNo as $no=>$rows) if(count($rows)>1) $issues[]=['type'=>'duplicate_offer','severity'=>'critical','ref'=>$no,'count'=>count($rows)];
+    foreach($offers as $o) {
+        if(!is_array($o)) continue;
+        $no=(string)($o['no']??''); $matchingCases=[];
+        foreach($cases as $c) {
+            if(!is_array($c)||!sd_active($c)) continue;
+            if((string)($c['wonOffer']??'')===$no || (!empty($o['_id']) && (string)($c['rootOfferId']??'')===(string)$o['_id'])) $matchingCases[]=$c;
+        }
+        if(($o['st']??'')==='won'&&!$matchingCases) $issues[]=['type'=>'orphan_won','severity'=>'critical','ref'=>$no];
+        if(count($matchingCases)>1) $issues[]=['type'=>'duplicate_case','severity'=>'critical','ref'=>$no,'count'=>count($matchingCases)];
+        $pays=is_array($o['advance']['payments']??null)?$o['advance']['payments']:[];
+        if(!$pays&&!empty($o['advance'])&&(!empty($o['advance']['cashFull'])||!empty($o['advance']['paid']))) $issues[]=['type'=>'inferred_cash','severity'=>'critical','ref'=>$no,'amount'=>sd_num($o['advance']['amt']??0)];
+        if(count($byNo[$no]??[])===1&&count($matchingCases)===1) {
+            foreach($pays as $p) {
+                if(!is_array($p)||sd_num($p['amt']??0)<=0||preg_match('/چک|cheque/i',(string)($p['how']??''))) continue;
+                $legacyRef=(string)($p['cd']??''); $exists=false;
+                foreach($receipts as $r) if(is_array($r)&&$legacyRef!==''&&(string)($r['legacyPaymentRef']??'')===$legacyRef){$exists=true;break;}
+                if(!$exists) $safe[]=['offerNo'=>$no,'caseId'=>$matchingCases[0]['_id']??$matchingCases[0]['cd']??'','paymentRef'=>$legacyRef,'amount'=>(int)round(sd_num($p['amt']??0)),'date'=>$p['t']??'','method'=>$p['how']??''];
+            }
+        }
+    }
+    foreach($invoices as $i) {
+        if(!is_array($i))continue;
+        if(sd_active($i)&&empty($i['isUnofficial'])&&!sd_invoice_files_ok(is_array($i['files']??null)?$i['files']:[])) $issues[]=['type'=>'missing_official_attachment','severity'=>'high','ref'=>$i['no']??$i['cd']??''];
+        $caseId=(string)($i['caseId']??'');if($caseId===''){ $hits=[];foreach($cases as $c)if(is_array($c)&&sd_active($c)&&((string)($c['wonOffer']??'')===(string)($i['offerNo']??'')||(string)($c['offerNo']??'')===(string)($i['offerNo']??'')))$hits[]=$c;if(count($hits)===1)$caseId=(string)($hits[0]['_id']??$hits[0]['cd']??''); }
+        if($caseId==='')continue;
+        foreach(array_merge($i['payments']??[],$i['pays']??[])as $p){if(!is_array($p)||!sd_active($p)||!empty($p['fromAdvance'])||sd_num($p['amt']??$p['amount']??0)<=0||preg_match('/چک|cheque/i',(string)($p['how']??'')))continue;$ref=(string)($p['cd']??'');$exists=false;foreach($receipts as $r)if(is_array($r)&&$ref!==''&&(string)($r['legacyPaymentRef']??'')===$ref){$exists=true;break;}if(!$exists)$safe[]=['sourceType'=>'invoice','invoiceId'=>$i['_id']??$i['cd']??'','offerNo'=>$i['offerNo']??'','caseId'=>$caseId,'paymentRef'=>$ref,'amount'=>(int)round(sd_num($p['amt']??$p['amount']??0)),'date'=>$p['t']??$i['invDate']??'','method'=>$p['how']??''];}
+    }
+    return ['issues'=>$issues,'safeReceiptCandidates'=>$safe,'counts'=>['offers'=>count($offers),'cases'=>count($cases),'invoices'=>count($invoices),'receipts'=>count($receipts)]];
+}
+
+$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run'], true);
+if ($readOnly) {
+    if ($action === 'migration_dry_run') { sd_require_role(SD_ADMIN_ROLES); sd_out(['ok'=>true,'report'=>sd_migration_report(),'version'=>'34.6.0']); }
+    sd_require_role(SD_FIN_ROLES);
+    if ($action === 'health') {
+        $d = sd_snapshot();
+        sd_out(['ok'=>true,'counts'=>array_map('count', $d),'migration'=>sd_migration_report(),'version'=>'34.6.0']);
+    }
+    sd_out(['ok'=>true,'data'=>sd_snapshot(),'version'=>'34.6.0']);
+}
+
+/* Shared with crm.php data_push so a legacy client cannot interleave a whole-array
+   write between the command's cross-collection projections. */
+$lockPath = sd_sync_dir() . '/meta.json.lock';
+$lock = fopen($lockPath, 'c+');
+if (!$lock || !flock($lock, LOCK_EX)) sd_out(['ok'=>false,'error'=>'lock_unavailable'], 503);
+try {
+    $offers = sd_read('ptf_crm_offers');
+    $cases = sd_read('ptf_crm_deals');
+    $rfqs = sd_read('ptf_crm_rfqs');
+    $invoices = sd_read('ptf_crm_invoices');
+    $receipts = sd_read('ptf_crm_case_receipts');
+    $allocations = sd_read('ptf_crm_receipt_allocations');
+    $attachments = sd_read('ptf_crm_fin_attachments');
+    $corrections = sd_read('ptf_crm_corrections');
+    $findings = sd_read('ptf_crm_fin_findings');
+    $deleted = sd_read('ptf_crm_deleted_archive');
+    $snaps = sd_read('ptf_crm_fiscal_snapshots');
+    $commands = sd_read('ptf_crm_sales_commands');
+    $idem = sd_text($body['idempotencyKey'] ?? '', 120);
+    $old = sd_idempotency($commands, $idem);
+    if ($old) {
+        $keys = is_array($old['result']['keys'] ?? null) ? $old['result']['keys'] : [];
+        sd_out(['ok'=>true,'idempotent'=>true,'result'=>$old['result'],'data'=>sd_snapshot($keys)]);
+    }
+    $changes = [];
+    $result = [];
+
+    if ($action === 'rfq_attachment_add' || $action === 'rfq_attachment_remove' || $action === 'rfq_attachment_replace') {
+        sd_require_role(SD_RFQ_ROLES);
+        $rfqId = sd_text($body['rfqId'] ?? '', 160);
+        $category = sd_text($body['category'] ?? '', 20);
+        $allowedCategories = ['inq', 'ds', 'img', 'dwg', 'oth', 'cat'];
+        if ($rfqId === '' || !in_array($category, $allowedCategories, true)) sd_out(['ok'=>false,'error'=>'invalid_rfq_attachment_target'],422);
+        $ri = -1;
+        foreach ($rfqs as $i => $rq) {
+            if (!is_array($rq)) continue;
+            if ((string)($rq['_id'] ?? '') === $rfqId || (string)($rq['cd'] ?? '') === $rfqId) { $ri = (int)$i; break; }
+        }
+        if ($ri < 0) sd_out(['ok'=>false,'error'=>'rfq_not_found'],404);
+        if (!isset($rfqs[$ri]['files']) || !is_array($rfqs[$ri]['files'])) $rfqs[$ri]['files'] = [];
+        if (!isset($rfqs[$ri]['files'][$category]) || !is_array($rfqs[$ri]['files'][$category])) $rfqs[$ri]['files'][$category] = [];
+        $list =& $rfqs[$ri]['files'][$category];
+        $attachmentId = sd_text($body['attachmentId'] ?? '', 120);
+        $ai = -1;
+        if ($attachmentId !== '') foreach ($list as $i => $f) {
+            if (!is_array($f)) continue;
+            if ((string)($f['_id'] ?? '') === $attachmentId || (string)($f['key'] ?? '') === $attachmentId) { $ai = (int)$i; break; }
+        }
+        if ($action === 'rfq_attachment_add' || $action === 'rfq_attachment_replace') {
+            $incoming = is_array($body['file'] ?? null) ? $body['file'] : [];
+            $key = sd_text($incoming['key'] ?? '', 1000);
+            if ($key === '' || strpos($key, 'rfqatt/') !== 0 || strpos($key, '..') !== false) sd_out(['ok'=>false,'error'=>'invalid_rfq_attachment_file'],422);
+            foreach ($list as $existing) if (is_array($existing) && (string)($existing['key'] ?? '') === $key) {
+                $result=['attachmentId'=>$existing['_id']??$key,'rfqId'=>$rfqId,'category'=>$category,'duplicate'=>true];
+                $changes=['ptf_crm_rfqs'=>$rfqs];
+                break;
+            }
+            if (!$changes) {
+                $record = [
+                    '_id'=>sd_uuid('RFQATT'), 'name'=>sd_text($incoming['name'] ?? 'file', 255),
+                    'key'=>$key, 'size'=>(int)max(0, sd_num($incoming['size'] ?? 0)),
+                    'mode'=>sd_text($incoming['mode'] ?? 'cloud', 30), 'contentType'=>sd_text($incoming['contentType'] ?? '', 120),
+                    't'=>sd_text($incoming['t'] ?? sd_now(), 80), 'uploadedAtISO'=>sd_now(), 'uploadedBy'=>$user,
+                    'version'=>1, 'status'=>'active'
+                ];
+                if ($action === 'rfq_attachment_replace') {
+                    if ($ai < 0) sd_out(['ok'=>false,'error'=>'rfq_attachment_not_found'],404);
+                    $oldFile = $list[$ai];
+                    $record['version'] = (int)($oldFile['version'] ?? 1) + 1;
+                    $record['replacesAttachmentId'] = $oldFile['_id'] ?? $oldFile['key'] ?? '';
+                    if (!isset($rfqs[$ri]['fileHistory']) || !is_array($rfqs[$ri]['fileHistory'])) $rfqs[$ri]['fileHistory'] = [];
+                    $oldFile['status'] = 'replaced'; $oldFile['replacedAtISO'] = sd_now(); $oldFile['replacedBy'] = $user;
+                    $rfqs[$ri]['fileHistory'][] = $oldFile;
+                    $list[$ai] = $record;
+                } else $list[] = $record;
+                $result=['attachmentId'=>$record['_id'],'rfqId'=>$rfqId,'category'=>$category,'replaced'=>$record['replacesAttachmentId']??''];
+                $changes=['ptf_crm_rfqs'=>$rfqs];
+            }
+        } else {
+            if ($ai < 0) sd_out(['ok'=>false,'error'=>'rfq_attachment_not_found'],404);
+            $removed = $list[$ai];
+            if (!isset($rfqs[$ri]['fileHistory']) || !is_array($rfqs[$ri]['fileHistory'])) $rfqs[$ri]['fileHistory'] = [];
+            $removed['status']='deleted'; $removed['deletedAtISO']=sd_now(); $removed['deletedBy']=$user;
+            $rfqs[$ri]['fileHistory'][]=$removed;
+            array_splice($list,$ai,1);
+            $result=['removedAttachmentId'=>$removed['_id']??$removed['key']??'','removedKey'=>$removed['key']??'','rfqId'=>$rfqId,'category'=>$category];
+            $changes=['ptf_crm_rfqs'=>$rfqs];
+        }
+        unset($list);
+    }
+    elseif ($action === 'register_offer') {
+        sd_require_role(SD_WIN_ROLES);
+        $incoming=is_array($body['offer']??null)?$body['offer']:[];$no=sd_text($incoming['no']??'',100);if($no==='')sd_out(['ok'=>false,'error'=>'offer_number_required'],422);
+        $incomingId=sd_text($incoming['_id']??'',100);$idIndex=-1;$noIndexes=[];foreach($offers as $i=>$o)if(is_array($o)){if($incomingId!==''&&(string)($o['_id']??'')===$incomingId)$idIndex=$i;if((string)($o['no']??'')===$no)$noIndexes[]=$i;}
+        if(count($noIndexes)>1)sd_out(['ok'=>false,'error'=>'duplicate_offer_no','count'=>count($noIndexes)],409);
+        if(count($noIndexes)===1&&$idIndex<0&&$incomingId!==''&&$noIndexes[0]!==$idIndex)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
+        $target=$idIndex>=0?$idIndex:(count($noIndexes)===1?$noIndexes[0]:-1);if($target>=0&&($offers[$target]['st']??'')==='won'&&json_encode($offers[$target])!==json_encode($incoming))sd_out(['ok'=>false,'error'=>'won_offer_locked'],409);
+        if(empty($incoming['_id']))$incoming['_id']=$target>=0?($offers[$target]['_id']??sd_uuid('OFR')):sd_uuid('OFR');$incoming['updatedAtISO']=$incoming['updatedAtISO']??sd_now();$incoming['serverRegisteredAt']=sd_now();$incoming['serverRegisteredBy']=$user;
+        if($target>=0)$offers[$target]=$incoming;else array_unshift($offers,$incoming);$changes=['ptf_crm_offers'=>$offers];$result=['offerId'=>$incoming['_id'],'offerNo'=>$no,'created'=>$target<0];
+    }
+    elseif ($action === 'mark_amendment') {
+        sd_require_role(SD_WIN_ROLES);
+        $no=sd_text($body['offerNo']??'',100);$parentNo=sd_text($body['parentOfferNo']??'',100);$oi=-1;$pi=-1;
+        foreach($offers as $i=>$o)if(is_array($o)){if((string)($o['no']??'')===$no){if($oi>=0)sd_out(['ok'=>false,'error'=>'duplicate_offer_no'],409);$oi=$i;}if((string)($o['no']??'')===$parentNo)$pi=$i;}
+        if($oi<0||$pi<0)sd_out(['ok'=>false,'error'=>'offer_or_parent_not_found'],404);$offer=$offers[$oi];$parent=$offers[$pi];
+        if(($parent['st']??'')!=='won')sd_out(['ok'=>false,'error'=>'parent_not_won'],422);
+        if((string)($offer['buyerCd']??'')!==(string)($parent['buyerCd']??'')||strtoupper((string)($offer['currency']??'IRR'))!==strtoupper((string)($parent['currency']??'IRR')))sd_out(['ok'=>false,'error'=>'amendment_customer_or_currency_mismatch'],422);
+        $offerId=sd_offer_id($offer);$parentId=sd_offer_id($parent);$offer['isAmendment']=true;$offer['amendmentOf']=$parentNo;$offer['amendmentOfOfferId']=$parentId;$offer['amendmentMarkedAt']=sd_now();$offer['amendmentMarkedBy']=$user;$offers[$oi]=$offer;$offers[$pi]=$parent;
+        $changes=['ptf_crm_offers'=>$offers];$result=['offerId'=>$offerId,'parentOfferId'=>$parentId];
+    }
+    elseif ($action === 'win_offer') {
+        sd_require_role(SD_WIN_ROLES);
+        $no = sd_text($body['offerNo'] ?? '', 100);
+        $id = sd_text($body['offerId'] ?? '', 100);
+        $hits = [];
+        foreach ($offers as $i => $o) if (is_array($o) && (($id !== '' && (string)($o['_id'] ?? '') === $id) || ($id === '' && (string)($o['no'] ?? '') === $no))) $hits[] = $i;
+        if (count($hits) !== 1) sd_out(['ok'=>false,'error'=>count($hits) ? 'duplicate_offer_no' : 'offer_not_found','count'=>count($hits)], 409);
+        $oi = $hits[0]; $offer = $offers[$oi];
+        if (($offer['kind'] ?? '') === 'TO') sd_out(['ok'=>false,'error'=>'technical_offer_cannot_win'], 422);
+        $offerId = sd_offer_id($offer);
+        $attachCaseId = sd_text($body['attachCaseId'] ?? '', 100);
+        $existing = [];
+        foreach ($cases as $i => $case) if (is_array($case) && sd_active($case) && ((string)($case['rootOfferId'] ?? '') === $offerId || (string)($case['wonOffer'] ?? '') === (string)($offer['no'] ?? ''))) $existing[] = $i;
+        if (count($existing) > 1) sd_out(['ok'=>false,'error'=>'duplicate_sales_cases','caseIds'=>array_map(function($i)use($cases){return $cases[$i]['_id']??$cases[$i]['cd']??'';},$existing)],409);
+        $offer['priorStatus'] = $offer['priorStatus'] ?? ($offer['st'] ?? 'sent');
+        $offer['st'] = 'won'; $offer['status'] = 'won'; $offer['wonAtISO'] = sd_now(); $offer['wonBy'] = $user;
+        $offer['wonRevisionSnapshot'] = ['rev'=>(int)($offer['rev']??0),'lockedAt'=>sd_now(),'lockedBy'=>$user,'items'=>$offer['items']??[],'terms'=>$offer['terms']??[],'currency'=>$offer['currency']??'IRR','total'=>sd_offer_total($offer)];
+        if ($attachCaseId !== '') {
+            $ci = sd_find_case_index($cases, $attachCaseId);
+            if ($ci < 0) sd_out(['ok'=>false,'error'=>'target_case_not_found'],404);
+            $case = $cases[$ci]; sd_case_id($case);
+            if ((string)($case['buyerCd'] ?? '') !== (string)($offer['buyerCd'] ?? '') || strtoupper((string)($case['currency'] ?? 'IRR')) !== strtoupper((string)($offer['currency'] ?? 'IRR'))) sd_out(['ok'=>false,'error'=>'amendment_customer_or_currency_mismatch'],422);
+            $case['linkedOffers'] = is_array($case['linkedOffers'] ?? null) ? $case['linkedOffers'] : [];
+            foreach ($case['linkedOffers'] as $linked) if ((string)($linked['offerId'] ?? '') === $offerId) sd_out(['ok'=>true,'idempotent'=>true,'case'=>$case]);
+            $case['linkedOffers'][] = ['offerId'=>$offerId,'offerNo'=>$offer['no'],'relationType'=>'amendment','effectiveAt'=>sd_now(),'linkedBy'=>$user,'amount'=>sd_offer_total($offer)];
+            $case['contractAmount'] = sd_num($case['contractAmount'] ?? 0) + sd_offer_total($offer);
+            $case['updatedAtISO'] = sd_now(); $offer['amendmentOfCaseId'] = $case['_id'];
+            $cases[$ci] = $case; $result['caseId'] = $case['_id']; $result['amendment'] = true;
+        } elseif (count($existing) === 1) {
+            $ci = $existing[0]; $case = $cases[$ci]; sd_case_id($case); $cases[$ci] = $case; $result['caseId'] = $case['_id']; $result['existing'] = true;
+        } else {
+            $case = ['_id'=>sd_uuid('CASE'),'cd'=>sd_uuid('DEAL'),'rootOfferId'=>$offerId,'wonOffer'=>$offer['no'],'inqNo'=>$offer['inqNo']??$offer['no'],'buyerCd'=>$offer['buyerCd']??'','buyerCo'=>$offer['buyerCo']??'','currency'=>$offer['currency']??'IRR','contractAmount'=>sd_offer_total($offer),'linkedOffers'=>[['offerId'=>$offerId,'offerNo'=>$offer['no'],'relationType'=>'root','effectiveAt'=>sd_now(),'linkedBy'=>$user,'amount'=>sd_offer_total($offer)]],'docs'=>[],'st'=>'open','status'=>'active','t'=>sd_now(),'wonAtISO'=>sd_now(),'by'=>$user];
+            array_unshift($cases, $case); $result['caseId'] = $case['_id']; $result['created'] = true;
+        }
+        $offers[$oi] = $offer; $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases];
+    }
+    elseif ($action === 'revoke_orphan_delete') {
+        sd_require_role(SD_ADMIN_ROLES);
+        $no = sd_text($body['offerNo'] ?? '', 100); $oi = -1;
+        foreach ($offers as $i=>$o) if (is_array($o)&&(string)($o['no']??'')===$no){ if($oi>=0)sd_out(['ok'=>false,'error'=>'duplicate_offer_no'],409); $oi=$i; }
+        if ($oi < 0) sd_out(['ok'=>false,'error'=>'offer_not_found'],404);
+        $offer = $offers[$oi]; $deps=[];
+        foreach($cases as $c)if(is_array($c)&&sd_active($c)&&((string)($c['wonOffer']??'')===$no||(string)($c['rootOfferId']??'')===(string)($offer['_id']??'')))$deps[]=['type'=>'case','id'=>$c['_id']??$c['cd']??''];
+        foreach($invoices as $inv)if(is_array($inv)&&sd_active($inv)&&(string)($inv['offerNo']??'')===$no)$deps[]=['type'=>'invoice','id'=>$inv['_id']??$inv['cd']??''];
+        if($deps)sd_out(['ok'=>false,'error'=>'dependencies_exist','dependencies'=>$deps],409);
+        $reason=sd_text($body['reason']??'',500); if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $deleteIt=!empty($body['delete']);
+        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'offer','entityId'=>$offer['_id']??$no,'kind'=>'revoke_orphan_win','beforeSnapshot'=>$offer,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+        if($deleteIt){$deleted[]=['id'=>$no,'kind'=>'OFFER','label'=>($offer['kind']??'CO').' — '.($offer['buyerCo']??''),'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$offer]; array_splice($offers,$oi,1);}
+        else{$offer['st']=$offer['priorStatus']??'sent';$offer['status']=$offer['st'];$offer['winRevokedAt']=sd_now();$offer['winRevokedBy']=$user;$offer['winRevokedReason']=$reason;unset($offer['wonAt'],$offer['wonAtISO'],$offer['wonBy']);$offers[$oi]=$offer;}
+        $changes=['ptf_crm_offers'=>$offers,'ptf_crm_corrections'=>$corrections,'ptf_crm_deleted_archive'=>$deleted];$result=['deleted'=>$deleteIt,'offerNo'=>$no];
+    }
+    elseif ($action === 'admin_delete_plan' || $action === 'admin_delete_commit') {
+        sd_require_role(SD_ADMIN_ROLES);
+        $entityType=sd_text($body['entityType']??'',40);$entityId=sd_text($body['entityId']??'',120);if($entityType===''||$entityId==='')sd_out(['ok'=>false,'error'=>'entity_required'],422);
+        $deps=[];$target=null;$targetIndex=-1;
+        if($entityType==='invoice'){foreach($invoices as $i=>$x)if(is_array($x)&&((string)($x['_id']??'')===$entityId||(string)($x['cd']??'')===$entityId)){$target=$x;$targetIndex=$i;break;}foreach($allocations as $x)if(is_array($x)&&sd_active($x)&&(string)($x['invoiceId']??'')===$entityId)$deps[]=['type'=>'allocation','id'=>$x['_id']??'','amount'=>$x['amountIRR']??0];}
+        elseif($entityType==='receipt'){foreach($receipts as $i=>$x)if(is_array($x)&&((string)($x['_id']??'')===$entityId||(string)($x['cd']??'')===$entityId)){$target=$x;$targetIndex=$i;break;}foreach($allocations as $x)if(is_array($x)&&sd_active($x)&&(string)($x['receiptId']??'')===$entityId)$deps[]=['type'=>'allocation','id'=>$x['_id']??'','amount'=>$x['amountIRR']??0];}
+        elseif($entityType==='case'){foreach($cases as $i=>$x)if(is_array($x)&&sd_case_match($x,$entityId)){$target=$x;$targetIndex=$i;break;}foreach($receipts as $x)if(is_array($x)&&sd_active($x)&&(string)($x['caseId']??'')===$entityId)$deps[]=['type'=>'receipt','id'=>$x['_id']??$x['cd']??'','amount'=>$x['amountIRR']??0];foreach($invoices as $x)if(is_array($x)&&sd_active($x)&&(string)($x['caseId']??'')===$entityId)$deps[]=['type'=>'invoice','id'=>$x['_id']??$x['cd']??'','amount'=>$x['amount']??0];}
+        elseif($entityType==='offer'){foreach($offers as $i=>$x)if(is_array($x)&&((string)($x['_id']??'')===$entityId||(string)($x['no']??'')===$entityId)){$target=$x;$targetIndex=$i;break;}if($target)foreach($cases as $x)if(is_array($x)&&sd_active($x)&&((string)($x['rootOfferId']??'')===(string)($target['_id']??'')||(string)($x['wonOffer']??'')===(string)($target['no']??'')))$deps[]=['type'=>'case','id'=>$x['_id']??$x['cd']??''];}
+        else sd_out(['ok'=>false,'error'=>'unsupported_entity'],422);
+        if(!$target)sd_out(['ok'=>false,'error'=>'entity_not_found'],404);
+        $ownerIds=[$entityId];foreach($deps as $d)if(in_array((string)($d['type']??''),['invoice','receipt','case'],true))$ownerIds[]=(string)($d['id']??'');foreach($attachments as $a)if(is_array($a)&&sd_active($a)&&in_array((string)($a['ownerId']??''),$ownerIds,true))$deps[]=['type'=>'attachment','id'=>$a['_id']??'','name'=>$a['name']??$a['objectKey']??''];
+        if($action==='admin_delete_plan'){@flock($lock,LOCK_UN);@fclose($lock);sd_out(['ok'=>true,'plan'=>['entityType'=>$entityType,'entityId'=>$entityId,'target'=>$target,'dependencies'=>$deps,'requiresCascade'=>count($deps)>0,'periodLocked'=>sd_is_locked($snaps,(string)($target['invDate']??$target['receivedAt']??$target['t']??''))]]);}
+        if(($body['confirm']??'')!=='PTF-ADMIN-HARD-DELETE')sd_out(['ok'=>false,'error'=>'delete_confirmation_required'],422);if($deps&&empty($body['cascade']))sd_out(['ok'=>false,'error'=>'dependencies_require_explicit_cascade','dependencies'=>$deps],409);$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $date=(string)($target['invDate']??$target['receivedAt']??$target['t']??'');$invalidYear=sd_invalidate_period($snaps,$date,$user,'حذف ادمین: '.$reason);$touched=[];
+        $deleted[]=['id'=>$entityId,'kind'=>strtoupper($entityType),'label'=>$target['no']??$target['cd']??$entityId,'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$target,'dependencies'=>$deps,'periodInvalidated'=>$invalidYear];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>$entityType,'entityId'=>$entityId,'kind'=>'admin_hard_delete','beforeSnapshot'=>$target,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+        if($entityType==='invoice'){$touched[(string)($target['caseId']??'')]=true;array_splice($invoices,$targetIndex,1);$allocations=array_values(array_filter($allocations,function($x)use($entityId){return !is_array($x)||(string)($x['invoiceId']??'')!==$entityId;}));}
+        elseif($entityType==='receipt'){$touched[(string)($target['caseId']??'')]=true;array_splice($receipts,$targetIndex,1);$allocations=array_values(array_filter($allocations,function($x)use($entityId){return !is_array($x)||(string)($x['receiptId']??'')!==$entityId;}));}
+        elseif($entityType==='case'){$caseKey=sd_case_id($target);array_splice($cases,$targetIndex,1);if(!empty($body['cascade'])){$invoices=array_values(array_filter($invoices,function($x)use($caseKey){return !is_array($x)||(string)($x['caseId']??'')!==$caseKey;}));$receipts=array_values(array_filter($receipts,function($x)use($caseKey){return !is_array($x)||(string)($x['caseId']??'')!==$caseKey;}));$allocations=array_values(array_filter($allocations,function($x)use($caseKey){return !is_array($x)||(string)($x['caseId']??'')!==$caseKey;}));}}
+        elseif($entityType==='offer'){array_splice($offers,$targetIndex,1);if(!empty($body['cascade'])){foreach($deps as $d){if(($d['type']??'')!=='case')continue;$dc=(string)($d['id']??'');$cases=array_values(array_filter($cases,function($x)use($dc){return !is_array($x)||!sd_case_match($x,$dc);}));}}}
+        $cascadeOwnerIds=[$entityId];if(!empty($body['cascade']))foreach($deps as $d)if(in_array((string)($d['type']??''),['invoice','receipt','case'],true))$cascadeOwnerIds[]=(string)($d['id']??'');foreach($attachments as &$a)if(is_array($a)&&sd_active($a)&&in_array((string)($a['ownerId']??''),$cascadeOwnerIds,true)){$a['status']='deleted';$a['deletedAt']=sd_now();$a['deletedBy']=$user;$a['deleteReason']='حذف مالک: '.$reason;}unset($a);
+        foreach(array_keys($touched)as $tc)if($tc!=='')sd_rebuild_allocations($tc,$receipts,$invoices,$allocations);
+        $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_fiscal_snapshots'=>$snaps];$result=['deleted'=>true,'entityType'=>$entityType,'entityId'=>$entityId,'dependenciesRemoved'=>count($deps),'invalidatedYear'=>$invalidYear];
+    }
+    elseif ($action === 'post_receipt') {
+        sd_require_role(SD_FIN_ROLES);
+        $caseId=sd_text($body['caseId']??'',100);$ci=sd_find_case_index($cases,$caseId);if($ci<0)sd_out(['ok'=>false,'error'=>'case_not_found'],404);
+        $case=$cases[$ci];sd_case_id($case);$caseId=$case['_id'];
+        $amount=(int)round(sd_num($body['amountIRR']??0));if($amount<=0||$amount>9000000000000000)sd_out(['ok'=>false,'error'=>'invalid_amount'],422);
+        $method=sd_text($body['method']??'',50);if($method==='')sd_out(['ok'=>false,'error'=>'method_required'],422);if(preg_match('/چک|cheque/i',$method))sd_out(['ok'=>false,'error'=>'cheque_requires_collection'],422);
+        $receivedAt=sd_text($body['receivedAt']??sd_now(),40);if(sd_is_locked($snaps,$receivedAt))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year($receivedAt)],409);
+        $account=sd_text($body['destinationAccount']??'',150);if($account==='')sd_out(['ok'=>false,'error'=>'destination_account_required'],422);
+        $cur=strtoupper((string)($case['currency']??'IRR'));$rate=0.0;$covered=0.0;
+        if($cur!=='IRR'){$rate=sd_num($body['fxRate']??0);$source=sd_text($body['fxRateSource']??'',200);if($rate<=0||$source==='')sd_out(['ok'=>false,'error'=>'fx_rate_and_source_required'],422);$covered=round($amount/$rate,4);}else{$source='';}
+        $hasInvoice=false;$receiptDateKey=sd_date_key($receivedAt);foreach($invoices as $inv)if(is_array($inv)&&sd_active($inv)&&(string)($inv['caseId']??'')===$caseId){$invDateKey=sd_date_key($inv['invDate']??$inv['issueDate']??'');if($receiptDateKey===''||$invDateKey===''||substr($receiptDateKey,0,2)!==substr($invDateKey,0,2)||$invDateKey<=$receiptDateKey){$hasInvoice=true;break;}}
+        $receipt=['_id'=>sd_uuid('RCPT'),'cd'=>sd_uuid('RPAY'),'caseId'=>$caseId,'customerId'=>$case['buyerCd']??'','buyerCo'=>$case['buyerCo']??'','amountIRR'=>$amount,'amt'=>$amount,'receivedAt'=>$receivedAt,'dateISO'=>$receivedAt,'method'=>$method,'how'=>$method,'destinationAccount'=>$account,'referenceNo'=>sd_text($body['referenceNo']??'',120),'note'=>sd_text($body['note']??'',1000),'status'=>'posted','timing'=>$hasInvoice?'post_invoice':'pre_invoice','currency'=>$cur,'fxRate'=>$rate,'fxRateSource'=>$source,'coveredFxAmount'=>$covered,'files'=>is_array($body['files']??null)?$body['files']:[],'createdBy'=>$user,'createdAt'=>sd_now()];
+        array_unshift($receipts,$receipt);sd_rebuild_allocations($caseId,$receipts,$invoices,$allocations);
+        $changes=['ptf_crm_case_receipts'=>$receipts,'ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations];$result=['receiptId'=>$receipt['_id'],'caseId'=>$caseId];
+    }
+    elseif ($action === 'correct_receipt' || $action === 'void_receipt') {
+        sd_require_role(SD_FIN_ROLES);
+        $rid=sd_text($body['receiptId']??'',100);$ri=-1;foreach($receipts as $i=>$r)if(is_array($r)&&((string)($r['_id']??'')===$rid||(string)($r['cd']??'')===$rid)){$ri=$i;break;}if($ri<0)sd_out(['ok'=>false,'error'=>'receipt_not_found'],404);
+        $oldReceipt=$receipts[$ri];$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);if(sd_is_locked($snaps,(string)($oldReceipt['receivedAt']??'')))sd_out(['ok'=>false,'error'=>'fiscal_period_locked'],409);
+        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'receipt','entityId'=>$oldReceipt['_id'],'kind'=>$action,'beforeSnapshot'=>$oldReceipt,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+        $oldReceipt['status']='void';$oldReceipt['voidedAt']=sd_now();$oldReceipt['voidedBy']=$user;$oldReceipt['voidReason']=$reason;$receipts[$ri]=$oldReceipt;
+        if($action==='correct_receipt'){
+            $new=$oldReceipt;$new['_id']=sd_uuid('RCPT');$new['cd']=sd_uuid('RPAY');$new['status']='posted';$new['correctsReceiptId']=$oldReceipt['_id'];unset($new['voidedAt'],$new['voidedBy'],$new['voidReason']);$new['amountIRR']=(int)round(sd_num($body['amountIRR']??$oldReceipt['amountIRR']));$new['amt']=$new['amountIRR'];$new['receivedAt']=sd_text($body['receivedAt']??$oldReceipt['receivedAt'],40);$new['method']=sd_text($body['method']??$oldReceipt['method'],50);$new['how']=$new['method'];$new['destinationAccount']=sd_text($body['destinationAccount']??$oldReceipt['destinationAccount'],150);if($new['amountIRR']<=0||$new['destinationAccount']==='')sd_out(['ok'=>false,'error'=>'invalid_correction'],422);if(($new['currency']??'IRR')!=='IRR'){$new['fxRate']=sd_num($body['fxRate']??$oldReceipt['fxRate']);$new['fxRateSource']=sd_text($body['fxRateSource']??$oldReceipt['fxRateSource'],200);if($new['fxRate']<=0||$new['fxRateSource']==='')sd_out(['ok'=>false,'error'=>'fx_rate_and_source_required'],422);$new['coveredFxAmount']=round($new['amountIRR']/$new['fxRate'],4);}$new['timing']='pre_invoice';$rdk=sd_date_key($new['receivedAt']);foreach($invoices as $iv)if(is_array($iv)&&sd_active($iv)&&(string)($iv['caseId']??'')===(string)$new['caseId']){$idk=sd_date_key($iv['invDate']??$iv['issueDate']??'');if($rdk===''||$idk===''||substr($rdk,0,2)!==substr($idk,0,2)||$idk<=$rdk){$new['timing']='post_invoice';break;}}array_unshift($receipts,$new);$result['replacementReceiptId']=$new['_id'];
+        }
+        sd_rebuild_allocations((string)$oldReceipt['caseId'],$receipts,$invoices,$allocations);$changes=['ptf_crm_case_receipts'=>$receipts,'ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_corrections'=>$corrections];$result['receiptId']=$oldReceipt['_id'];
+    }
+    elseif ($action === 'register_unofficial_invoice') {
+        sd_require_role(SD_FIN_ROLES);
+        $incoming=is_array($body['invoice']??null)?$body['invoice']:[];$caseId=sd_text($incoming['caseId']??'',100);$ci=sd_find_case_index($cases,$caseId);if($ci<0)sd_out(['ok'=>false,'error'=>'case_not_found'],404);$case=$cases[$ci];sd_case_id($case);$caseId=$case['_id'];$amount=(int)round(sd_num($incoming['amount']??0));if($amount<=0||$amount>9000000000000000)sd_out(['ok'=>false,'error'=>'invalid_amount'],422);$date=sd_text($incoming['invDate']??$incoming['t']??'',40);if($date===''||sd_is_locked($snaps,$date))sd_out(['ok'=>false,'error'=>$date===''?'issue_date_required':'fiscal_period_locked'],409);$cd=sd_text($incoming['cd']??'',120);if($cd==='')$cd=sd_uuid('UNINV');$idx=-1;foreach($invoices as $i=>$iv)if(is_array($iv)&&(string)($iv['cd']??'')===$cd){$idx=$i;break;}$record=$incoming;$record['_id']=$idx>=0?($invoices[$idx]['_id']??sd_uuid('INV')):($record['_id']??sd_uuid('INV'));$record['cd']=$cd;$record['caseId']=$caseId;$record['customerId']=$case['buyerCd']??'';$record['buyerCo']=$case['buyerCo']??($record['buyerCo']??'');$record['base']=(int)round(sd_num($record['base']??$amount));$record['vat']=0;$record['vatPercent']=0;$record['amount']=$amount;$record['isUnofficial']=true;$record['isOfficial']=false;$record['status']='active';$record['updatedAtISO']=sd_now();$record['updatedBy']=$user;if($idx>=0)$invoices[$idx]=$record;else array_unshift($invoices,$record);sd_rebuild_allocations($caseId,$receipts,$invoices,$allocations);$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations];$result=['invoiceId'=>$record['_id'],'created'=>$idx<0,'unofficial'=>true];
+    }
+    elseif ($action === 'register_invoice' || $action === 'correct_invoice') {
+        sd_require_role(SD_FIN_ROLES);
+        $caseId=sd_text($body['caseId']??'',100);$ci=sd_find_case_index($cases,$caseId);if($ci<0)sd_out(['ok'=>false,'error'=>'case_not_found'],404);$case=$cases[$ci];sd_case_id($case);$caseId=$case['_id'];
+        $invoiceId=sd_text($body['invoiceId']??'',100);$ii=-1;if($action==='correct_invoice')foreach($invoices as $i=>$inv)if(is_array($inv)&&((string)($inv['_id']??'')===$invoiceId||(string)($inv['cd']??'')===$invoiceId)){$ii=$i;break;}if($action==='correct_invoice'&&$ii<0)sd_out(['ok'=>false,'error'=>'invoice_not_found'],404);
+        $replaceUnofficialId=sd_text($body['replacesUnofficialInvoiceId']??'',100);$replaceUnofficialIdx=-1;if($replaceUnofficialId!==''){foreach($invoices as $i=>$inv)if(is_array($inv)&&((string)($inv['_id']??'')===$replaceUnofficialId||(string)($inv['cd']??'')===$replaceUnofficialId)){$replaceUnofficialIdx=$i;break;}if($replaceUnofficialIdx<0||empty($invoices[$replaceUnofficialIdx]['isUnofficial'])||!sd_active($invoices[$replaceUnofficialIdx]))sd_out(['ok'=>false,'error'=>'invalid_unofficial_replacement'],422);foreach(array_merge($invoices[$replaceUnofficialIdx]['payments']??[],$invoices[$replaceUnofficialIdx]['pays']??[])as $lp){if(!is_array($lp)||!sd_active($lp)||!empty($lp['fromAdvance'])||sd_num($lp['amt']??$lp['amount']??0)<=0)continue;$lref=(string)($lp['cd']??'');$mapped=false;foreach($receipts as $rr)if(is_array($rr)&&$lref!==''&&(string)($rr['legacyPaymentRef']??'')===$lref){$mapped=true;break;}if(!$mapped)sd_out(['ok'=>false,'error'=>'unofficial_payments_require_review','paymentRef'=>$lref],409);}}
+        $no=sd_text($body['invoiceNo']??'',120);$taxUid=sd_text($body['taxUid']??'',160);if($no===''||$taxUid==='')sd_out(['ok'=>false,'error'=>'invoice_no_and_tax_uid_required'],422);
+        foreach($invoices as $i=>$inv)if(is_array($inv)&&$i!==$ii&&sd_active($inv)&&(sd_identity($inv['no']??'')===sd_identity($no)||sd_identity($inv['taxUid']??'')===sd_identity($taxUid)))sd_out(['ok'=>false,'error'=>'duplicate_invoice_identity'],409);
+        $base=(int)round(sd_num($body['baseAmountIRR']??0));$pct=sd_num($body['vatPercent']??-1);if($base<=0||$base>9000000000000000||$pct<0||$pct>100)sd_out(['ok'=>false,'error'=>'invalid_invoice_amount_or_vat'],422);$vat=sd_vat($base,$pct);$total=$base+$vat;
+        $invDate=sd_text($body['issueDate']??'',40);if($invDate===''||sd_is_locked($snaps,$invDate))sd_out(['ok'=>false,'error'=>$invDate===''?'issue_date_required':'fiscal_period_locked','year'=>sd_year($invDate)],409);
+        $files=is_array($body['files']??null)?$body['files']:[];if($ii>=0&&(!$files))$files=is_array($invoices[$ii]['files']??null)?$invoices[$ii]['files']:[];foreach($files as &$f){if(!isset($f['_id']))$f['_id']=sd_uuid('ATT');$f['status']=$f['status']??'active';$f['version']=$f['version']??1;}unset($f);if(!sd_invoice_files_ok($files))sd_out(['ok'=>false,'error'=>'required_official_attachment_missing'],422);
+        $offerNo=sd_text($body['offerNo']??($case['wonOffer']??''),100);
+        $coverageMode=sd_text($body['coverageMode']??'amount',30);$coverage=is_array($body['coverage']??null)?$body['coverage']:[];
+        if($coverageMode==='amount'){
+            $first=$coverage[0]??[];if(!is_array($first)||trim((string)($first['note']??''))==='')sd_out(['ok'=>false,'error'=>'amount_coverage_note_required'],422);
+        }elseif($coverageMode==='lines'){
+            if(!$coverage)sd_out(['ok'=>false,'error'=>'line_coverage_required'],422);
+            $allowedOffers=[];foreach(($case['linkedOffers']??[])as $l)if(is_array($l)){$allowedOffers[(string)($l['offerId']??'')]=true;$allowedOffers[(string)($l['offerNo']??'')]=true;}$allowedOffers[(string)($case['rootOfferId']??'')]=true;$allowedOffers[(string)($case['wonOffer']??'')]=true;
+            $maxByLine=[];foreach($offers as $of){if(!is_array($of))continue;$oid=(string)($of['_id']??$of['no']??'');$ono=(string)($of['no']??'');if(empty($allowedOffers[$oid])&&empty($allowedOffers[$ono]))continue;foreach(($of['items']??[])as $idx=>$it)if(is_array($it)){$line=(string)($it['lineId']??$it['sourceItemKey']??$idx);$maxByLine[$oid.'|'.$line]=sd_num($it['qty']??0);$maxByLine[$ono.'|'.$line]=sd_num($it['qty']??0);}}
+            $used=[];foreach($invoices as $idx=>$other){if($idx===$ii||$idx===$replaceUnofficialIdx||!is_array($other)||!sd_active($other)||(string)($other['caseId']??'')!==$caseId)continue;foreach(($other['coverage']??[])as $cv)if(is_array($cv)&&($cv['mode']??'')==='line')$used[(string)($cv['lineKey']??'')]=($used[(string)($cv['lineKey']??'')]??0)+sd_num($cv['qty']??0);}
+            foreach($coverage as $cv){if(!is_array($cv)||($cv['mode']??'')!=='line')sd_out(['ok'=>false,'error'=>'invalid_line_coverage'],422);$key=(string)($cv['lineKey']??'');$qty=sd_num($cv['qty']??0);if($qty<=0||!array_key_exists($key,$maxByLine)||$qty+($used[$key]??0)>$maxByLine[$key]+0.00001)sd_out(['ok'=>false,'error'=>'invoice_line_over_coverage','lineKey'=>$key,'max'=>$maxByLine[$key]??0,'used'=>$used[$key]??0],422);}
+        }else sd_out(['ok'=>false,'error'=>'invalid_coverage_mode'],422);
+        $record=['_id'=>$ii>=0?($invoices[$ii]['_id']??sd_uuid('INV')):sd_uuid('INV'),'cd'=>$ii>=0?($invoices[$ii]['cd']??sd_uuid('INV')):sd_uuid('INV'),'caseId'=>$caseId,'customerId'=>$case['buyerCd']??'','buyerCo'=>$case['buyerCo']??'','offerNo'=>$offerNo,'no'=>$no,'accountingInvoiceNo'=>$no,'taxUid'=>$taxUid,'modianReference'=>sd_text($body['modianReference']??'',160),'invDate'=>$invDate,'issueDate'=>$invDate,'base'=>$base,'baseAmountIRR'=>$base,'vatPercent'=>$pct,'vat'=>$vat,'vatAmountIRR'=>$vat,'amount'=>$total,'totalAmountIRR'=>$total,'coverageMode'=>$coverageMode,'coverage'=>$coverage,'replacesUnofficialInvoiceId'=>$replaceUnofficialId,'files'=>$files,'ocrOverrideReason'=>sd_text($body['ocrOverrideReason']??'',1000),'status'=>'active','isOfficial'=>true,'isUnofficial'=>false,'t'=>$ii>=0?($invoices[$ii]['t']??sd_now()):sd_now(),'by'=>$ii>=0?($invoices[$ii]['by']??$user):$user,'updatedAtISO'=>sd_now(),'updatedBy'=>$user];
+        if($ii>=0){$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$oldInv=$invoices[$ii];$record['correctionVersion']=(int)($oldInv['correctionVersion']??0)+1;$record['payments']=$oldInv['payments']??[];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'official_invoice','entityId'=>$record['_id'],'kind'=>'data_entry_correction','beforeSnapshot'=>$oldInv,'afterSnapshot'=>$record,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$invoices[$ii]=$record;$result['corrected']=true;}
+        else{array_unshift($invoices,$record);$result['created']=true;}
+        if($replaceUnofficialIdx>=0){
+            /* array_unshift moved the old index by one for a newly registered official invoice. */
+            $actualIdx=$ii>=0?$replaceUnofficialIdx:$replaceUnofficialIdx+1;
+            if(isset($invoices[$actualIdx])){$invoices[$actualIdx]['status']='superseded';$invoices[$actualIdx]['supersededAt']=sd_now();$invoices[$actualIdx]['supersededByInvoiceId']=$record['_id'];$result['supersededUnofficialInvoiceId']=$invoices[$actualIdx]['_id']??$invoices[$actualIdx]['cd']??'';}
+        }
+        foreach($files as $f){$exists=false;foreach($attachments as $a)if(is_array($a)&&(string)($a['_id']??'')===(string)$f['_id']){$exists=true;break;}if(!$exists)$attachments[]=['_id'=>$f['_id'],'ownerType'=>'official_invoice','ownerId'=>$record['_id'],'category'=>$f['category'],'version'=>$f['version'],'objectKey'=>$f['key'],'name'=>$f['name']??'','mimeType'=>$f['contentType']??'','size'=>$f['size']??0,'status'=>$f['status'],'uploadedBy'=>$user,'uploadedAt'=>sd_now()];}
+        sd_rebuild_allocations($caseId,$receipts,$invoices,$allocations);$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];$result['invoiceId']=$record['_id'];$result['vat']=$vat;$result['total']=$total;
+    }
+    elseif ($action === 'void_invoice') {
+        sd_require_role(SD_FIN_ROLES);$id=sd_text($body['invoiceId']??'',100);$ii=-1;foreach($invoices as $i=>$inv)if(is_array($inv)&&((string)($inv['_id']??'')===$id||(string)($inv['cd']??'')===$id)){$ii=$i;break;}if($ii<0)sd_out(['ok'=>false,'error'=>'invoice_not_found'],404);$inv=$invoices[$ii];if(!sd_active($inv))sd_out(['ok'=>false,'error'=>'already_void'],409);if(sd_is_locked($snaps,(string)($inv['invDate']??'')))sd_out(['ok'=>false,'error'=>'fiscal_period_locked'],409);$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'official_invoice','entityId'=>$inv['_id'],'kind'=>'legal_void','beforeSnapshot'=>$inv,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$inv['status']='void';$inv['voidAt']=sd_now();$inv['voidBy']=$user;$inv['voidReason']=$reason;$invoices[$ii]=$inv;sd_rebuild_allocations((string)$inv['caseId'],$receipts,$invoices,$allocations);$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_corrections'=>$corrections];$result=['invoiceId'=>$inv['_id'],'voided'=>true];
+    }
+    elseif ($action === 'replace_invoice_attachment') {
+        sd_require_role(SD_FIN_ROLES);$invoiceId=sd_text($body['invoiceId']??'',100);$oldId=sd_text($body['attachmentId']??'',100);$ii=-1;foreach($invoices as $i=>$inv)if(is_array($inv)&&((string)($inv['_id']??'')===$invoiceId||(string)($inv['cd']??'')===$invoiceId)){$ii=$i;break;}if($ii<0)sd_out(['ok'=>false,'error'=>'invoice_not_found'],404);$file=is_array($body['file']??null)?$body['file']:[];if(!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_file'],422);$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$found=false;$oldVersion=0;foreach(($invoices[$ii]['files']??[])as &$f)if((string)($f['_id']??'')===$oldId){$f['status']='replaced';$f['replacedAt']=sd_now();$f['replaceReason']=$reason;$oldVersion=(int)($f['version']??1);$found=true;break;}unset($f);if(!$found)sd_out(['ok'=>false,'error'=>'attachment_not_found'],404);$file['_id']=sd_uuid('ATT');$file['version']=$oldVersion+1;$file['status']='active';$file['replacesAttachmentId']=$oldId;$file['category']=$file['category']??'accounting_official_invoice';$invoices[$ii]['files'][]=$file;if(!sd_invoice_files_ok($invoices[$ii]['files']))sd_out(['ok'=>false,'error'=>'required_official_attachment_missing'],422);foreach($attachments as &$a)if((string)($a['_id']??'')===$oldId){$a['status']='replaced';$a['replacedAt']=sd_now();$a['replaceReason']=$reason;}unset($a);$attachments[]=['_id'=>$file['_id'],'ownerType'=>'official_invoice','ownerId'=>$invoices[$ii]['_id'],'category'=>$file['category'],'version'=>$file['version'],'objectKey'=>$file['key'],'name'=>$file['name']??'','mimeType'=>$file['contentType']??'','size'=>$file['size']??0,'status'=>'active','replacesAttachmentId'=>$oldId,'uploadedBy'=>$user,'uploadedAt'=>sd_now()];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$oldId,'kind'=>'replace','afterSnapshot'=>$file,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];$result=['attachmentId'=>$file['_id'],'replaced'=>$oldId];
+    }
+    elseif ($action === 'migration_apply_safe') {
+        sd_require_role(SD_ADMIN_ROLES);
+        if (($body['confirm'] ?? '') !== 'PTF-SALES-V35-MIGRATE') sd_out(['ok'=>false,'error'=>'migration_confirmation_required'],422);
+        /* Stable IDs are safe metadata; ambiguous business records are never merged. */
+        foreach($offers as &$o)if(is_array($o))sd_offer_id($o);unset($o);
+        foreach($cases as &$c)if(is_array($c))sd_case_id($c);unset($c);
+        foreach($invoices as &$i)if(is_array($i)){if(empty($i['_id']))$i['_id']=sd_uuid('INV');if(empty($i['caseId'])){foreach($cases as $c)if(is_array($c)&&((string)($c['wonOffer']??'')===(string)($i['offerNo']??'')||(string)($c['offerNo']??'')===(string)($i['offerNo']??''))){$i['caseId']=$c['_id'];$i['customerId']=$c['buyerCd']??'';$i['buyerCo']=$i['buyerCo']??($c['buyerCo']??'');break;}}}unset($i);
+        $offerCount=[];foreach($offers as $o)if(is_array($o)&&!empty($o['no']))$offerCount[(string)$o['no']]=($offerCount[(string)$o['no']]??0)+1;
+        $touched=[];$migrated=0;
+        foreach($offers as &$o){if(!is_array($o))continue;$no=(string)($o['no']??'');if(($offerCount[$no]??0)!==1)continue;$matches=[];foreach($cases as $c)if(is_array($c)&&sd_active($c)&&((string)($c['wonOffer']??'')===$no||(string)($c['rootOfferId']??'')===(string)($o['_id']??'')))$matches[]=$c;if(count($matches)!==1)continue;$case=$matches[0];$caseId=(string)$case['_id'];$pays=is_array($o['advance']['payments']??null)?$o['advance']['payments']:[];foreach($pays as $p){if(!is_array($p))continue;$amt=(int)round(sd_num($p['amt']??0));$method=(string)($p['how']??'');if($amt<=0||preg_match('/چک|cheque/i',$method))continue;$legacyRef=(string)($p['cd']??'');$exists=false;foreach($receipts as $r)if(is_array($r)&&$legacyRef!==''&&(string)($r['legacyPaymentRef']??'')===$legacyRef){$exists=true;break;}if($exists)continue;$hasInvoice=false;foreach($invoices as $inv)if(is_array($inv)&&sd_active($inv)&&(string)($inv['caseId']??'')===$caseId){$hasInvoice=true;break;}$cur=strtoupper((string)($case['currency']??$o['currency']??'IRR'));$rate=sd_num($p['rate']??$o['advance']['rate']??0);$receipts[]=['_id'=>sd_uuid('RCPT'),'cd'=>sd_uuid('RPAY'),'caseId'=>$caseId,'customerId'=>$case['buyerCd']??$o['buyerCd']??'','buyerCo'=>$case['buyerCo']??$o['buyerCo']??'','amountIRR'=>$amt,'amt'=>$amt,'receivedAt'=>$p['t']??$o['advance']['t']??sd_now(),'dateISO'=>$p['t']??'','method'=>$method?:'legacy_confirmed','how'=>$method?:'legacy_confirmed','destinationAccount'=>'legacy-migration','referenceNo'=>$legacyRef,'note'=>'مهاجرت وصول واقعی payments[]؛ paid/cashFull بدون رویداد منتقل نشده است','status'=>'posted','timing'=>$hasInvoice?'post_invoice':'pre_invoice','currency'=>$cur,'fxRate'=>$rate,'fxRateSource'=>$rate>0?'legacy snapshot':'','coveredFxAmount'=>($cur!=='IRR'&&$rate>0)?round($amt/$rate,4):0,'legacyPaymentRef'=>$legacyRef,'migratedAt'=>sd_now(),'createdBy'=>$user,'createdAt'=>sd_now()];$touched[$caseId]=true;$migrated++;}if(isset($o['advance'])&&is_array($o['advance']))$o['advance']['migrationV35']=['at'=>sd_now(),'actualPaymentsMigrated'=>$migrated,'inferredCashIgnored'=>empty($pays)&&(!empty($o['advance']['cashFull'])||!empty($o['advance']['paid']))];}unset($o);
+        /* Real legacy invoice payments are migrated as case receipts; synthetic
+           fromAdvance and cheques are deliberately excluded. */
+        foreach($invoices as &$legacyInv){if(!is_array($legacyInv))continue;$legacyCaseId=(string)($legacyInv['caseId']??'');$legacyCase=null;if($legacyCaseId!==''){foreach($cases as $c)if(is_array($c)&&sd_case_match($c,$legacyCaseId)){$legacyCase=$c;break;}}if(!$legacyCase){$hits=[];foreach($cases as $c)if(is_array($c)&&sd_active($c)&&((string)($c['wonOffer']??'')===(string)($legacyInv['offerNo']??'')||(string)($c['offerNo']??'')===(string)($legacyInv['offerNo']??'')))$hits[]=$c;if(count($hits)===1){$legacyCase=$hits[0];$legacyCaseId=(string)($legacyCase['_id']??$legacyCase['cd']??'');$legacyInv['caseId']=$legacyCaseId;}}if(!$legacyCase||$legacyCaseId==='')continue;foreach(array_merge($legacyInv['payments']??[],$legacyInv['pays']??[])as $p){if(!is_array($p)||!sd_active($p)||!empty($p['fromAdvance'])||sd_num($p['amt']??$p['amount']??0)<=0||preg_match('/چک|cheque/i',(string)($p['how']??'')))continue;$ref=(string)($p['cd']??'');$exists=false;foreach($receipts as $r)if(is_array($r)&&$ref!==''&&(string)($r['legacyPaymentRef']??'')===$ref){$exists=true;break;}if($exists)continue;$amt=(int)round(sd_num($p['amt']??$p['amount']??0));$receipts[]=['_id'=>sd_uuid('RCPT'),'cd'=>sd_uuid('RPAY'),'caseId'=>$legacyCaseId,'customerId'=>$legacyCase['buyerCd']??'','buyerCo'=>$legacyCase['buyerCo']??$legacyInv['buyerCo']??'','amountIRR'=>$amt,'amt'=>$amt,'receivedAt'=>$p['t']??$legacyInv['invDate']??sd_now(),'method'=>$p['how']??'legacy_confirmed','how'=>$p['how']??'legacy_confirmed','destinationAccount'=>'legacy-migration','referenceNo'=>$ref,'note'=>'مهاجرت وصول واقعی فاکتور legacy','status'=>'posted','timing'=>'post_invoice','currency'=>$legacyCase['currency']??'IRR','fxRate'=>$p['fx']['rate']??0,'fxRateSource'=>!empty($p['fx']['rate'])?'legacy snapshot':'','coveredFxAmount'=>$p['fx']['fxAmt']??0,'legacyPaymentRef'=>$ref,'migratedAt'=>sd_now(),'createdBy'=>$user,'createdAt'=>sd_now()];$newReceiptId=$receipts[count($receipts)-1]['_id'];foreach(['payments','pays']as $pk)if(isset($legacyInv[$pk])&&is_array($legacyInv[$pk]))foreach($legacyInv[$pk]as &$origPay)if(is_array($origPay)&&(string)($origPay['cd']??'')===$ref){$origPay['migratedToReceiptId']=$newReceiptId;$origPay['financialProjectionDisabled']=true;}unset($origPay);$touched[$legacyCaseId]=true;$migrated++;}}unset($legacyInv);
+        foreach(array_keys($touched) as $tc)sd_rebuild_allocations($tc,$receipts,$invoices,$allocations);
+        $report=sd_migration_report();foreach($report['issues'] as $issue)$findings[]=['_id'=>sd_uuid('FIND'),'ruleId'=>$issue['type'],'severity'=>$issue['severity'],'evidence'=>$issue,'status'=>'open','createdAt'=>sd_now(),'modelVersion'=>'deterministic-v35'];
+        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'migration','entityId'=>'sales-v35','kind'=>'safe_migration','reason'=>'انتقال فقط payments[] واقعی و بدون حدس','correctedBy'=>$user,'correctedAt'=>sd_now(),'migratedReceipts'=>$migrated];
+        $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_findings'=>$findings,'ptf_crm_corrections'=>$corrections];$result=['migratedReceipts'=>$migrated,'touchedCases'=>count($touched),'ambiguousIssues'=>count($report['issues'])];
+    }
+    elseif ($action === 'attachment_add' || $action === 'attachment_replace' || $action === 'attachment_delete') {
+        sd_require_role(SD_FIN_ROLES);$ownerType=sd_text($body['ownerType']??'',60);$ownerId=sd_text($body['ownerId']??'',100);if($ownerType===''||$ownerId==='')sd_out(['ok'=>false,'error'=>'owner_required'],422);$reason=sd_text($body['reason']??'',500);
+        if($action==='attachment_add'){$file=is_array($body['file']??null)?$body['file']:[];if(!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_file'],422);$rec=['_id'=>sd_uuid('ATT'),'ownerType'=>$ownerType,'ownerId'=>$ownerId,'category'=>sd_text($body['category']??'supporting_document',80),'version'=>1,'objectKey'=>$file['key'],'name'=>$file['name']??'','mimeType'=>$file['contentType']??'','size'=>$file['size']??0,'status'=>'active','uploadedBy'=>$user,'uploadedAt'=>sd_now()];$attachments[]=$rec;$result=['attachmentId'=>$rec['_id']];}
+        else{$id=sd_text($body['attachmentId']??'',100);$ai=-1;foreach($attachments as $i=>$a)if(is_array($a)&&(string)($a['_id']??'')===$id){$ai=$i;break;}if($ai<0)sd_out(['ok'=>false,'error'=>'attachment_not_found'],404);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);if($action==='attachment_delete'){$attachments[$ai]['status']='deleted';$attachments[$ai]['deletedAt']=sd_now();$attachments[$ai]['deletedBy']=$user;$attachments[$ai]['deleteReason']=$reason;$result=['deleted'=>$id];}else{$file=is_array($body['file']??null)?$body['file']:[];if(!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_file'],422);$oldA=$attachments[$ai];$attachments[$ai]['status']='replaced';$newA=['_id'=>sd_uuid('ATT'),'ownerType'=>$oldA['ownerType'],'ownerId'=>$oldA['ownerId'],'category'=>$oldA['category'],'version'=>(int)($oldA['version']??1)+1,'objectKey'=>$file['key'],'name'=>$file['name']??'','mimeType'=>$file['contentType']??'','size'=>$file['size']??0,'status'=>'active','replacesAttachmentId'=>$id,'uploadedBy'=>$user,'uploadedAt'=>sd_now()];$attachments[]=$newA;$result=['attachmentId'=>$newA['_id'],'replaced'=>$id];}}
+        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$result['attachmentId']??$result['deleted']??'','kind'=>$action,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'ownerType'=>$ownerType,'ownerId'=>$ownerId];
+        $changes=['ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];
+    }
+    else sd_out(['ok'=>false,'error'=>'unknown_action'],404);
+
+    $result['keys']=array_keys($changes);sd_append_command($commands,$idem,$action,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($changes)]);
+} catch (Throwable $e) {
+    if (is_resource($lock)) { @flock($lock, LOCK_UN); @fclose($lock); }
+    sd_out(['ok'=>false,'error'=>'command_failed','detail'=>$e->getMessage()],500);
+}
