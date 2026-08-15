@@ -92,7 +92,11 @@
   function caseBelongsToOffer(c,o){
     if(!c||!o||!active(c))return false;
     var oid=String(o._id||''),root=String(c.rootOfferId||'');
-    if(oid&&root)return oid===root; /* شناسه ریشه مقدم است؛ fallback شماره حق غلبه ندارد. */
+    if(oid&&root){
+      if(oid===root)return true;
+      /* v34.7.15: rootOfferId کهنه/بازتولیدشده به wonOffer/offerNo fallback می‌کند تا با سرور
+         (sd_case_offer_linked) هم‌خوان بماند؛ ایمنی با بررسی هویت پایین حفظ می‌شود. */
+    }
     var caseNo=String(c.wonOffer||c.offerNo||''),offerNo=String(o.no||'');
     if(!caseNo||!offerNo||caseNo!==offerNo)return false;
     var pairs=[['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']];

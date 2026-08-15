@@ -291,7 +291,13 @@ function sd_append_command(array &$commands, string $key, string $action, array 
    discarded. All related financial projections are re-pointed in the same transaction. */
 function sd_case_offer_linked(array $case, array $offer): bool {
     $no=(string)($offer['no']??'');$oid=(string)($offer['_id']??'');$root=(string)($case['rootOfferId']??'');
-    if($oid!==''&&$root!=='')return hash_equals($oid,$root); /* root ID authoritative */
+    if($oid!==''&&$root!==''){
+        if(hash_equals($oid,$root))return true;
+        /* v34.7.15: rootOfferId کهنه/بازتولیدشده (با _id فعلی پیشنهاد نمی‌خواند) نباید
+           پرونده را بی‌صدا از کاندیدهای ادغام حذف کند؛ به شناسهٔ متنی wonOffer/offerNo
+           fallback می‌کنیم. ایمنی همچنان با گارد هویت commit (case_identity_conflict) و
+           بررسی case_offer_link_changed حفظ می‌شود. */
+    }
     $caseNo=(string)($case['wonOffer']??$case['offerNo']??'');if($no===''||$caseNo===''||$caseNo!==$no)return false;
     foreach(['inqNo','buyerCd','currency']as $field){$a=sd_identity($case[$field]??'');$b=sd_identity($offer[$field]??'');if($a!==''&&$b!==''&&$a!==$b)return false;}
     if(sd_identity($case['buyerCd']??'')===''&&sd_identity($offer['buyerCd']??'')===''){$a=sd_identity($case['buyerCo']??'');$b=sd_identity($offer['buyerCo']??'');if($a!==''&&$b!==''&&$a!==$b)return false;}
@@ -318,6 +324,24 @@ function sd_case_related_summary(array $case, array $invoices, array $receipts, 
     foreach($linkedCollections as $name=>$spec){$out[(string)$name]=0;$field=(string)($spec['field']??'');foreach(($spec['rows']??[])as $row)if(is_array($row)&&$field!==''&&in_array((string)($row[$field]??''),$aliases,true))$out[(string)$name]++;}
     return $out;
 }
+/* v34.7.15: نرمال‌سازی قطعی برای هش — ترتیب کلیدهای associative نباید هش plan را عوض کند.
+   بازسریالیز JSON (push دستگاه دیگر، مهاجرت/repair) می‌تواند کلیدها را با ترتیب متفاوت بنویسد
+   بدون آنکه دادهٔ تجاری تغییر کند؛ این نرمال‌سازی آن «تغییر کاذب» را از planHash حذف می‌کند. */
+function sd_norm_for_hash($v) {
+    if (!is_array($v)) return $v;
+    $isList = true; $i = 0;
+    foreach ($v as $k => $_) { if ($k !== $i++) { $isList = false; break; } }
+    if ($isList) {
+        $out = [];
+        foreach ($v as $x) $out[] = sd_norm_for_hash($x);
+        return $out;
+    }
+    ksort($v);
+    $out = [];
+    foreach ($v as $k => $x) $out[$k] = sd_norm_for_hash($x);
+    return $out;
+}
+
 function sd_duplicate_case_plan_data(array $offers, array $cases, array $invoices, array $receipts, array $allocations, array $attachments, string $no, array $linkedCollections=[]): array {
     $hits = [];
     foreach ($offers as $offer) if (is_array($offer) && (string)($offer['no'] ?? '') === $no) $hits[] = $offer;
@@ -336,7 +360,7 @@ function sd_duplicate_case_plan_data(array $offers, array $cases, array $invoice
             'createdAt'=>(string)($case['wonAtISO']??$case['createdAtISO']??$case['t']??''),
             'evidence'=>$evidence, 'related'=>$related, 'evidenceTotal'=>$evidenceTotal,
             'relatedTotal'=>$relatedTotal, 'safeEmpty'=>($evidenceTotal===0 && $relatedTotal===0),
-            'recordHash'=>hash('sha256', json_encode($case, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))
+            'recordHash'=>hash('sha256', json_encode(sd_norm_for_hash($case), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))
         ];
         $signature['cases'][] = [$id, $candidates[count($candidates)-1]['recordHash'], $related];
     }
