@@ -82,6 +82,7 @@ sandbox.globalThis = sandbox;
 vm.createContext(sandbox);
 
 function load(rel) { vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8'), sandbox, { filename: rel }); }
+load('crm/metrics-shared.js');
 load('crm/management-intelligence.js');
 load('crm/analyzer.js');
 
@@ -111,8 +112,8 @@ line(JSON.stringify(mi.risks));
 line('');
 line('=== خلاصه سنجه‌های مورد اعتراض ===');
 const c1 = mi.customers[0];
-line('نرخ برد نمایش‌داده‌شده برای مشتری: ' + c1.winRate + '٪  (برد=' + c1.won + ' | باخت=' + c1.lost +
+line('نرخ برد اصلی (از کل پیشنهادها): ' + c1.winRate + '٪  (برد=' + c1.won + ' | باخت=' + c1.lost +
      ' | کل پیشنهاد=' + c1.offers + ' | باز=' + (c1.offers - c1.won - c1.lost) + ')');
-line('نرخ برد صحیح بر مبنای کل پیشنهادهای صادرشده: ' + Math.round(c1.won * 1000 / c1.offers) / 10 + '٪');
-line('ارزش برد گزارش‌شده (جمع بدون تبدیل ارز، برچسب «ریال»): ' + c1.wonValue.toLocaleString('en-US'));
-line('نکته: ۱۲٬۰۰۰ یورو با ۱٬۰۰۰٬۰۰۰٬۰۰۰ ریال در یک جمع نشسته است.');
+line('نرخ برد کمکی (فقط نتایج ثبت‌شده): ' + c1.winRateDecided + '٪ | پوشش: ' + c1.coverage + '٪');
+line('ارزش برد (ریال نرمال‌شده): ' + c1.wonValue.toLocaleString('en-US') + ' | اسناد ارزی بدون نرخ مرجع: ' + c1.fxGaps);
+line('پرتفوی: ' + JSON.stringify(mi.portfolio));

@@ -13,24 +13,32 @@ function _daysBetween(iso1, iso2) {
   try { return Math.max(0, Math.round((new Date(iso2) - new Date(iso1)) / 864e5)); } catch (e) { return 0; }
 }
 
-/* ---------- ۱. تحلیل قیف پیشنهادها (TO/CO) ---------- */
+/* ---------- ۱. تحلیل قیف پیشنهادها (TO/CO) ----------
+   v34.7.17 (F-01/F-04/F-06 — گزارش ARENA-DECISION-SUPPORT-ANALYZER-DEEP-REVIEW-2026-08-15):
+   • مخرج نرخ برد دیگر «فقط بسته‌شده‌ها» نیست. سه سنجهٔ صریح برمی‌گردد:
+       winRateAll     = برد / کل پیشنهادهای صادرشده   ← عدد اصلی داشبورد
+       winRateDecided = برد / (برد+باخت)               ← عدد کمکی، با برچسب صریح
+       coverage       = (برد+باخت) / کل                ← پوشش تعیین تکلیف
+   • ارزش بردها به ریال نرمال می‌شود؛ اسناد ارزی بدون نرخ مرجع کنار گذاشته و شمرده می‌شوند.
+   • TC (فنی-مالی) مانند تصمیم‌یار و نمودار حاشیه در قیف مالی لحاظ می‌شود (رفع ناسازگاری تعریف).
+   • winRate قدیمی برای سازگاری عقب‌رو حفظ شده اما دیگر مبنای هیچ تصمیمی نیست. */
 function anlOfferFunnel() {
   var offers = getData('ptf_crm_offers');
+  var M = (window.PTF || {}).metrics;
   /* US-FX2RIAL: «نسخه همراه ریالی» (rialOf) سند ارائه به کارفرماست، نه فرصت مستقل —
      در قیف/آمار به‌عنوان پیشنهاد در جریان شمرده نشود تا بردِ قبلی دوشمار نشود. */
-  var cos = offers.filter(function (o) { return o.kind === 'CO' && !o.rialOf; });
-  var draft = cos.filter(function (o) { return o.st === 'draft'; }).length;
-  var sent = cos.filter(function (o) { return o.st === 'sent'; }).length;
-  var won = cos.filter(function (o) { return o.st === 'won'; }).length;
-  var lost = cos.filter(function (o) { return o.st === 'lost'; }).length;
-  var closed = won + lost;
-  var winRate = closed ? Math.round(won * 100 / closed) : null;
-  var totalWonValue = 0;
-  cos.filter(function (o) { return o.st === 'won'; }).forEach(function (o) {
-    totalWonValue += (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
-  });
-  return { total: cos.length, draft: draft, sent: sent, won: won, lost: lost, winRate: winRate, wonValue: totalWonValue,
-    tos: offers.filter(function (o) { return o.kind === 'TO'; }).length };
+  var cos = offers.filter(function (o) { return M ? M.isCommercial(o) : ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf); });
+  var s = M ? M.winStats(cos) : _anlWinStatsFallback(cos);
+  return {
+    total: s.issued, draft: s.draft, sent: s.sent, won: s.won, lost: s.lost,
+    open: s.open, expired: s.expired, decided: s.decided,
+    winRateAll: s.winRateAll, winRateDecided: s.winRateDecided, coverage: s.coverage,
+    reliable: s.reliable, sample: s.sample, fxGaps: s.fxGaps,
+    wonValue: s.wonValueIRR, openValue: s.openValueIRR,
+    /* سازگاری عقب‌رو (فقط برای مصرف‌کنندگان قدیمی) */
+    winRate: s.winRateDecided,
+    tos: offers.filter(function (o) { return o.kind === 'TO'; }).length
+  };
 }
 
 /* ---------- v31.7.13 US-OFF-MARGIN-ANL: احتمال برد بر حسب حاشیه سود کلی ----------
@@ -77,6 +85,37 @@ function anlMarginWinCurve() {
   return { buckets: buckets, usable: usable, skipped: skipped, closedTotal: closed.length, best: best };
 }
 window.anlMarginWinCurve = anlMarginWinCurve;
+
+/* fallback هم‌رفتار با crm/metrics-shared.js — اگر لایهٔ سنجه بارگذاری نشده باشد،
+   تحلیلگر نباید صفر یا عدد متورم بدهد. تعریف‌ها دقیقاً همان قرارداد v34.7.17 است. */
+function _anlWinStatsFallback(cos) {
+  var today = new Date().toISOString().slice(0, 10);
+  var s = { issued: 0, won: 0, lost: 0, decided: 0, open: 0, expired: 0, draft: 0, sent: 0,
+    wonValueIRR: 0, openValueIRR: 0, fxGaps: 0 };
+  (cos || []).forEach(function (o) {
+    s.issued++;
+    var raw = (o.items || []).reduce(function (a, it) { return a + (+it.qty || 0) * (+it.price || 0); }, 0);
+    var rate = (!o.currency || o.currency === 'IRR') ? 1 : (+o.fxRateRef || (o.fxConvert && +o.fxConvert.rate) || 0);
+    var irr = rate ? Math.round(raw * rate) : 0;
+    if (!rate) s.fxGaps++;
+    if (o.st === 'draft') s.draft++;
+    if (o.st === 'sent') s.sent++;
+    if (o.st === 'won') { s.won++; s.wonValueIRR += irr; }
+    else if (o.st === 'lost') { s.lost++; }
+    else {
+      s.open++; s.openValueIRR += irr;
+      var v = String(o.validUntil || '').slice(0, 10);
+      if (v && v < today) s.expired++;
+    }
+  });
+  s.decided = s.won + s.lost;
+  s.winRateAll = s.issued >= 3 ? Math.round(s.won * 1000 / s.issued) / 10 : null;
+  s.winRateDecided = s.decided >= 3 ? Math.round(s.won * 1000 / s.decided) / 10 : null;
+  s.coverage = s.issued ? Math.round(s.decided * 1000 / s.issued) / 10 : null;
+  s.sample = s.issued;
+  s.reliable = s.issued >= 3 && s.coverage != null && s.coverage >= 60;
+  return s;
+}
 
 /* ---------- ۲. تحلیل لیدها ---------- */
 function anlLeads() {
@@ -127,23 +166,33 @@ function anlScoreLead(l) {
   return Math.min(100, score);
 }
 
-/* ---------- ۴. پیش‌بینی درآمد (AC1 — میانگین متحرک ساده) ---------- */
+/* ---------- ۴. پیش‌بینی درآمد (AC1 — میانگین متحرک ساده) ----------
+   v34.7.17 (F-02/F-05): ضریب احتمال دیگر از نرخ بردِ متورم گرفته نمی‌شود؛ برآورد هموارشدهٔ
+   بیزی روی «کل پیشنهادهای صادرشده» با سقف محافظه‌کارانه. وصول از منبع واحد مالی خوانده می‌شود. */
 function anlForecast() {
   // از فاکتورها (وصولی‌ها) و CO های برنده
+  var M = (window.PTF || {}).metrics;
   var invs = getData('ptf_crm_invoices');
-  var totalInvoiced = invs.reduce(function (s, i) { return s + (+i.amount || 0); }, 0);
-  var totalPaid = 0;
-  invs.forEach(function (i) { ((i.payments || []).concat(i.pays || [])).forEach(function (p) { totalPaid += +p.amt || 0; }); });
+  var totalInvoiced = 0, totalPaid = 0;
+  invs.forEach(function (i) {
+    if (M) { totalInvoiced += M.invoiceBilledIRR(i); totalPaid += M.invoiceCollectedIRR(i); return; }
+    totalInvoiced += (+i.amount || 0);
+    ((i.payments || []).concat(i.pays || [])).forEach(function (p) { totalPaid += +p.amt || 0; });
+  });
   var openRecv = Math.max(0, totalInvoiced - totalPaid);
   var f = anlOfferFunnel();
-  // پایپ‌لاین وزنی: sent با احتمال winRate (یا ۳۰٪ پیش‌فرض) — بدون نسخه همراه ریالی (US-FX2RIAL)
-  var sentValue = 0;
-  getData('ptf_crm_offers').filter(function (o) { return o.kind === 'CO' && o.st === 'sent' && !o.rialOf; }).forEach(function (o) {
+  // پایپ‌لاین وزنی: ارزش پیشنهادهای باز (ارسالی) × احتمال برد هموارشده — بدون نسخه همراه ریالی (US-FX2RIAL)
+  var sentValue = 0, sentFxGaps = 0;
+  getData('ptf_crm_offers').filter(function (o) {
+    return o.st === 'sent' && (M ? M.isCommercial(o) : ((o.kind === 'CO' || o.kind === 'TC') && !o.rialOf));
+  }).forEach(function (o) {
+    if (M) { var t = M.offerTotalIRR(o); if (t.ok) sentValue += t.irr; else sentFxGaps++; return; }
     sentValue += (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
   });
-  var p = f.winRate != null ? f.winRate / 100 : 0.3;
+  var p = M ? M.pWin(f.won, f.total) : ((f.won + 1.5) / (f.total + 5));
   return { invoiced: totalInvoiced, paid: totalPaid, openRecv: openRecv,
-    pipeline: sentValue, weighted: Math.round(sentValue * p), winP: Math.round(p * 100) };
+    pipeline: sentValue, pipelineFxGaps: sentFxGaps,
+    weighted: Math.round(sentValue * p), winP: Math.round(p * 1000) / 10 };
 }
 
 /* ---------- ۵. پیشنهادات عملیاتی (AC2) ---------- */
@@ -166,9 +215,11 @@ function anlSuggestions() {
       out.push({ p: 1, icon: '📄', tx: 'پیشنهاد ' + o.no + ' (' + (o.buyerCo || '') + ') ' + _daysBetween(o.dateEn, today) + ' روز بدون تعیین تکلیف — پیگیری کنید', act: { panel: 'off' } });
   });
 
-  // فاکتورهای وصول‌نشده
+  // فاکتورهای وصول‌نشده (v34.7.17 — F-05: از منبع واحد مالی و بدون فاکتور ابطالی)
+  var _M = (window.PTF || {}).metrics;
   getData('ptf_crm_invoices').forEach(function (i) {
-    var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    if (_M && !_M.invoiceActive(i)) return;
+    var paid = _M ? _M.invoiceCollectedIRR(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
     if (paid < i.amount)
       out.push({ p: 2, icon: '💰', tx: 'فاکتور ' + i.no + ': ' + Math.round((i.amount - paid)).toLocaleString('fa-IR') + ' ریال وصول‌نشده', act: { panel: 'recv' } });
   });
@@ -200,10 +251,17 @@ function anlSuggestions() {
   var pend = getData('ptf_crm_letters').filter(function (l) { return l.st === 'pending'; }).length;
   if (pend) out.push({ p: 2, icon: '✍️', tx: pend + ' نامه در انتظار امضاست', act: { panel: 'let' } });
 
+  /* v34.7.17 (F-01): پوشش پایین تعیین تکلیف، اتکاپذیری نرخ برد را از بین می‌برد */
+  try {
+    var _f = anlOfferFunnel();
+    if (_f.open >= 3 && _f.coverage != null && _f.coverage < 60)
+      out.push({ p: 1, icon: '📊', tx: _f.open + ' پیشنهاد بدون ثبت برد/باخت' + (_f.expired ? ' (' + _f.expired + ' مورد منقضی)' : '') +
+        ' — تا تعیین تکلیف نشوند، نرخ برد و پیش‌بینی درآمد قابل استناد نیست', act: { panel: 'off' } });
+  } catch (eCov) {}
+
   out.sort(function (a, b) { return a.p - b.p; });
   return out.slice(0, 12);
 }
-
 /* ---------- UI پنل تحلیلگر ---------- */
 function buildAnalyzer() {
   return '<div class="ph"><h3>📊 تحلیلگر هوشمند</h3>' +
@@ -224,23 +282,43 @@ function renderAnalyzer() {
   var fc = anlForecast();
   var sugg = anlSuggestions();
 
-  // کارت‌های کلیدی
+  // کارت‌های کلیدی (v34.7.17 — F-01/F-08: عدد اصلی = نرخ برد از کل آفرها + حجم نمونه و پوشش)
+  var wrPrimary = f.winRateAll != null ? f.winRateAll + '٪' : '—';
+  var wrSub = 'نرخ برد (از کل ' + f.total + ' پیشنهاد)';
+  var covWarn = (f.coverage != null && f.coverage < 60 && f.open > 0);
   var h = '<div class="sr" style="grid-template-columns:repeat(4,1fr)">' +
-    '<div class="sc"><b>' + (f.winRate != null ? f.winRate + '٪' : '—') + '</b><span>نرخ برد پیشنهادها (CO)</span></div>' +
-    '<div class="sc"><b>' + (ld.rate != null ? ld.rate + '٪' : '—') + '</b><span>نرخ تبدیل لیدها</span></div>' +
-    '<div class="sc"><b>' + (ld.avgDays != null ? ld.avgDays + ' روز' : '—') + '</b><span>میانگین زمان تبدیل لید</span></div>' +
+    '<div class="sc"><b>' + wrPrimary + '</b><span>' + wrSub + (f.sample < 3 ? ' — نمونه ناکافی' : ' — ' + f.won + ' از ' + f.total) + '</span></div>' +
+    '<div class="sc"><b>' + (f.winRateDecided != null ? f.winRateDecided + '٪' : '—') + '</b><span>نرخ برد در بین نتایج ثبت‌شده (' + f.won + '/' + f.decided + ')</span></div>' +
+    '<div class="sc"><b' + (covWarn ? ' style="color:#b45309"' : '') + '>' + (f.coverage != null ? f.coverage + '٪' : '—') + '</b><span>پوشش تعیین تکلیف — ' + f.open + ' پیشنهاد بی‌تکلیف</span></div>' +
     '<div class="sc"><b style="color:#dc2626">' + fc.openRecv.toLocaleString('fa-IR') + '</b><span>مطالبات باز (ریال)</span></div>' +
+    '</div>';
+  if (covWarn) {
+    h += '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:12.5px;color:#92400e">' +
+      '⚠️ <b>هشدار اتکاپذیری:</b> ' + f.open + ' پیشنهاد هنوز برد/باخت آن ثبت نشده' + (f.expired ? ' (' + f.expired + ' مورد از تاریخ اعتبار گذشته)' : '') +
+      ' — «نرخ برد در بین نتایج ثبت‌شده» با این پوشش (' + f.coverage + '٪) قابل استناد نیست. مبنای تصمیم، عدد کارت اول است.</div>';
+  }
+  if (f.fxGaps) {
+    h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:9px 12px;margin-bottom:12px;font-size:12.5px;color:#1e40af">' +
+      'ℹ️ ' + f.fxGaps + ' پیشنهاد ارزی نرخ مرجع تبدیل ندارد و مبلغ آن در جمع‌های ریالی <b>وارد نشده</b> است (به‌جای جمع‌شدن خام با ریال). برای کامل‌شدن ارقام، نرخ مرجع سند را ثبت کنید.</div>';
+  }
+  /* کارت‌های لید (پیش از v34.7.17 در ردیف اول بودند؛ جای آن‌ها را سنجه‌های اتکاپذیری نرخ برد گرفت) */
+  h += '<div class="sr" style="grid-template-columns:repeat(3,1fr)">' +
+    '<div class="sc"><b>' + (ld.rate != null ? ld.rate + '٪' : '—') + '</b><span>نرخ تبدیل لیدها (' + ld.won + '/' + ld.total + ')</span></div>' +
+    '<div class="sc"><b>' + (ld.avgDays != null ? ld.avgDays + ' روز' : '—') + '</b><span>میانگین زمان تبدیل لید</span></div>' +
+    '<div class="sc"><b style="color:#047857">' + f.wonValue.toLocaleString('fa-IR') + '</b><span>ارزش بردها (ریال نرمال‌شده)</span></div>' +
     '</div>';
 
   // قیف پیشنهادها
   var maxF = Math.max(f.draft, f.sent, f.won, f.lost, 1);
   h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px">' +
-    '<h4 style="margin:0 0 10px;font-size:13.5px">📄 قیف پیشنهادهای مالی (CO) — کل: ' + f.total + ' | TO: ' + f.tos + '</h4>' +
+    '<h4 style="margin:0 0 10px;font-size:13.5px">📄 قیف پیشنهادهای مالی (CO/TC) — کل: ' + f.total + ' | TO: ' + f.tos + '</h4>' +
     [['پیش‌نویس', f.draft, '#94a3b8'], ['ارسال‌شده', f.sent, '#0ea5e9'], ['برنده 🏆', f.won, '#10b981'], ['بازنده', f.lost, '#ef4444']].map(function (r) {
       return '<div style="display:grid;grid-template-columns:80px 1fr 40px;gap:8px;align-items:center;margin-bottom:6px;font-size:12.5px">' +
         '<span>' + r[0] + '</span>' + _bar(r[1] * 100 / maxF, r[2]) + '<b>' + r[1] + '</b></div>';
     }).join('') +
-    (f.won ? '<div style="font-size:12px;color:#047857;margin-top:6px">ارزش کل بردها: ' + f.wonValue.toLocaleString('fa-IR') + ' ریال</div>' : '') +
+    '<div style="font-size:12px;color:#64748b;margin-top:6px">بی‌تکلیف (بدون برد/باخت): <b>' + f.open + '</b>' +
+      (f.expired ? ' — از این تعداد <b style="color:#b45309">' + f.expired + '</b> مورد از تاریخ اعتبار گذشته است' : '') + '</div>' +
+    (f.won ? '<div style="font-size:12px;color:#047857;margin-top:6px">ارزش کل بردها (نرمال‌شده به ریال): ' + f.wonValue.toLocaleString('fa-IR') + ' ریال</div>' : '') +
     '</div>';
 
   /* v31.7.13 US-OFF-MARGIN-ANL: نمودار احتمال برد بر حسب حاشیه سود کلی */
@@ -269,7 +347,9 @@ function renderAnalyzer() {
     '<div style="background:#ecfdf5;border-radius:10px;padding:10px"><b style="display:block;font-size:15px;color:#047857">' + fc.paid.toLocaleString('fa-IR') + '</b>وصول شده</div>' +
     '<div style="background:#eff6ff;border-radius:10px;padding:10px"><b style="display:block;font-size:15px;color:#1d4ed8">' + fc.pipeline.toLocaleString('fa-IR') + '</b>پایپ‌لاین (COهای ارسالی)</div>' +
     '<div style="background:#fdf4ff;border-radius:10px;padding:10px"><b style="display:block;font-size:15px;color:#a21caf">' + fc.weighted.toLocaleString('fa-IR') + '</b>پیش‌بینی وزنی (احتمال ' + fc.winP + '٪)</div>' +
-    '</div></div>';
+    '</div>' +
+    '<div style="font-size:11px;color:#64748b;margin-top:8px">ضریب احتمال از برآورد هموارشده روی کل پیشنهادهای صادرشده به‌دست می‌آید (نه از نرخ بردِ نتایج ثبت‌شده) و سقف محافظه‌کارانهٔ ۷۰٪ دارد؛ به همین دلیل با نمونهٔ کم به ۱۰۰٪ نمی‌رسد.' +
+    (fc.pipelineFxGaps ? ' — ' + fc.pipelineFxGaps + ' پیشنهاد ارزی بدون نرخ مرجع از پایپ‌لاین کنار گذاشته شد.' : '') + '</div></div>';
 
   // منابع لید
   if (ld.total) {
@@ -322,8 +402,14 @@ function anlExportReport() {
     '<h1>گزارش تحلیلی CRM — پیشرو تجهیز فرتاک</h1>' +
     '<div style="color:#666;font-size:11px">تاریخ گزارش: ' + faDateTime() + ' | تهیه: ' + escP(curSession().name || '') + '</div>' +
     '<h2>قیف پیشنهادها</h2><table>' +
-    row('کل پیشنهادهای مالی (CO)', f.total) + row('برنده', f.won) + row('بازنده', f.lost) +
-    row('نرخ برد', f.winRate != null ? f.winRate + '٪' : '—') + row('ارزش بردها (ریال)', f.wonValue.toLocaleString('fa-IR')) + '</table>' +
+    row('کل پیشنهادهای مالی (CO/TC)', f.total) + row('برنده', f.won) + row('بازنده', f.lost) +
+    row('بی‌تکلیف (بدون برد/باخت)', f.open + (f.expired ? ' (از این تعداد ' + f.expired + ' منقضی)' : '')) +
+    row('نرخ برد — از کل پیشنهادها', f.winRateAll != null ? f.winRateAll + '٪ (' + f.won + ' از ' + f.total + ')' : '— (نمونه ناکافی)') +
+    row('نرخ برد — در بین نتایج ثبت‌شده', f.winRateDecided != null ? f.winRateDecided + '٪ (' + f.won + ' از ' + f.decided + ')' : '— (نمونه ناکافی)') +
+    row('پوشش تعیین تکلیف', f.coverage != null ? f.coverage + '٪' : '—') +
+    row('ارزش بردها (ریال نرمال‌شده)', f.wonValue.toLocaleString('fa-IR')) + '</table>' +
+    (f.coverage != null && f.coverage < 60 && f.open ? '<div style="color:#92400e;font-size:11px;margin-top:5px">⚠️ با پوشش ' + f.coverage + '٪، «نرخ برد در بین نتایج ثبت‌شده» قابل استناد نیست؛ مبنای گزارش، نرخ برد از کل پیشنهادهاست.</div>' : '') +
+    (f.fxGaps ? '<div style="color:#1e40af;font-size:11px;margin-top:4px">ℹ️ ' + f.fxGaps + ' پیشنهاد ارزی بدون نرخ مرجع، از جمع‌های ریالی کنار گذاشته شد.</div>' : '') +
     '<h2>لیدها</h2><table>' +
     row('کل لیدها', ld.total) + row('تبدیل‌شده', ld.won) + row('نرخ تبدیل', ld.rate != null ? ld.rate + '٪' : '—') +
     row('میانگین زمان تبدیل', ld.avgDays != null ? ld.avgDays + ' روز' : '—') + row('بهترین منبع', ld.bestSrc || '—') + '</table>' +

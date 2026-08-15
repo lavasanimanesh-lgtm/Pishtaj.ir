@@ -9,35 +9,64 @@
   function n(v) { return +v || 0; }
   function esc(v) { return typeof escP === 'function' ? escP(v == null ? '' : v) : String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function money(v) { return n(v).toLocaleString('fa-IR') + ' ریال'; }
-  function offerTotal(o) { return (o.items || []).reduce(function (s, it) { return s + n(it.qty) * n(it.price); }, 0); }
-  function keyOf(o) { return String(o.buyerCd || o.buyerCo || o.co || o.custCd || 'نامشخص').trim() || 'نامشخص'; }
-  function labelOf(o) { return o.buyerCo || o.co || o.buyerCd || o.custCd || 'نامشخص'; }
+  /* v34.7.17 — لایهٔ سنجهٔ مشترک (crm/metrics-shared.js):
+     F-03 هویت واحد مشتری | F-04 نرمال‌سازی ارز | F-05 وصول از منبع واحد مالی */
+  function MX() { return (window.PTF || {}).metrics || null; }
+  function offerTotalIRR(o) {
+    var M = MX();
+    if (M) return M.offerTotalIRR(o);
+    var raw = (o.items || []).reduce(function (s, it) { return s + n(it.qty) * n(it.price); }, 0);
+    return { irr: raw, ok: !o.currency || o.currency === 'IRR', raw: raw, currency: o.currency || 'IRR' };
+  }
+  function idOf(rec) {
+    var M = MX();
+    if (M) return M.resolveCustomer(rec);
+    var cd = String(rec.buyerCd || rec.custCd || '').trim();
+    var label = String(rec.buyerCo || rec.co || rec.company || '').trim();
+    return { key: cd || label || 'نامشخص', label: label || cd || 'نامشخص', resolved: !!cd };
+  }
+  function newCustomer(id) {
+    return { key:id.key, name:id.label || id.key, resolved:id.resolved, rfqs:0, offers:0, won:0, lost:0, open:0, expired:0,
+      offered:0, wonValue:0, fxGaps:0, invoices:0, billed:0, paid:0 };
+  }
+  function pct1(a, b) { return b ? Math.round(a * 1000 / b) / 10 : null; }
 
   /* خروجی تنها از داده‌های قطعی CRM ساخته می‌شود؛ هیچ توصیه‌ای بدون شواهد عددی نیست. */
   window.ptfManagementIntelligence = function () {
-    var offers = list('ptf_crm_offers').filter(function (o) { return o && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf; });
+    var M = MX();
+    var offers = list('ptf_crm_offers').filter(function (o) { return M ? M.isCommercial(o) : (o && (o.kind === 'CO' || o.kind === 'TC') && !o.rialOf); });
     var rfqs = list('ptf_crm_rfqs'), invoices = list('ptf_crm_invoices'), buyquotes = list('ptf_crm_buyquotes'), smartRfqs = list('ptf_crm_rfqsmart');
     var customers = {}, products = {}, suppliers = {}, projects = [];
 
     offers.forEach(function (o) {
-      var k = keyOf(o), c = customers[k] || (customers[k] = { key:k, name:labelOf(o), rfqs:0, offers:0, won:0, lost:0, offered:0, wonValue:0, invoices:0, billed:0, paid:0 });
-      c.offers++; c.offered += offerTotal(o);
-      if (o.st === 'won') { c.won++; c.wonValue += offerTotal(o); }
-      if (o.st === 'lost') c.lost++;
+      var id = idOf(o), c = customers[id.key] || (customers[id.key] = newCustomer(id));
+      if (!c.resolved && id.resolved) { c.resolved = true; }
+      if (!c.name || c.name === 'نامشخص') c.name = id.label || c.name;
+      var t = offerTotalIRR(o);
+      c.offers++;
+      if (t.ok) c.offered += t.irr; else c.fxGaps++;
+      if (o.st === 'won') { c.won++; if (t.ok) c.wonValue += t.irr; }
+      else if (o.st === 'lost') c.lost++;
+      else { c.open++; if (M && M.isExpired(o)) c.expired++; }
+      /* سهم ریالی هر قلم با همان نرخ سند (اگر نرخ مرجع نداشت، فقط تعداد شمرده می‌شود) */
+      var rate = t.raw ? (t.ok ? t.irr / t.raw : 0) : 0;
       (o.items || []).forEach(function (it) {
         var pk = String(it.pcode || it.prodCd || it.name || it.desc || 'نامشخص').trim(), p = products[pk] || (products[pk] = { key:pk, name:it.name || it.desc || pk, quotes:0, won:0, qty:0, value:0, wonValue:0 });
-        p.quotes++; p.qty += n(it.qty); p.value += n(it.qty) * n(it.price);
-        if (o.st === 'won') { p.won++; p.wonValue += n(it.qty) * n(it.price); }
+        var lineIRR = Math.round(n(it.qty) * n(it.price) * rate);
+        p.quotes++; p.qty += n(it.qty); p.value += lineIRR;
+        if (o.st === 'won') { p.won++; p.wonValue += lineIRR; }
       });
     });
     rfqs.forEach(function (r) {
-      var k = String(r.custCd || r.co || r.company || 'نامشخص').trim() || 'نامشخص', c = customers[k] || (customers[k] = { key:k, name:r.co || r.company || k, rfqs:0, offers:0, won:0, lost:0, offered:0, wonValue:0, invoices:0, billed:0, paid:0 });
+      var id = idOf(r), c = customers[id.key] || (customers[id.key] = newCustomer(id));
       c.rfqs++;
     });
     invoices.forEach(function (i) {
-      var k = String(i.buyerCd || i.buyerCo || 'نامشخص').trim() || 'نامشخص', c = customers[k] || (customers[k] = { key:k, name:i.buyerCo || k, rfqs:0, offers:0, won:0, lost:0, offered:0, wonValue:0, invoices:0, billed:0, paid:0 });
-      var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s, p) { return s + n(p.amt); }, 0);
-      c.invoices++; c.billed += n(i.amount); c.paid += paid;
+      if (M && !M.invoiceActive(i)) return; /* F-05: فاکتور ابطال‌شده در «فاکتورشده» نمی‌نشیند */
+      var id = idOf(i), c = customers[id.key] || (customers[id.key] = newCustomer(id));
+      c.invoices++;
+      c.billed += M ? M.invoiceBilledIRR(i) : n(i.amount);
+      c.paid += M ? M.invoiceCollectedIRR(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (s, p) { return s + n(p.amt); }, 0);
     });
     buyquotes.forEach(function (b) {
       var k = String(b.sup || b.supplier || 'نامشخص').trim() || 'نامشخص', s = suppliers[k] || (suppliers[k] = { key:k, name:k, quotes:0, purchases:0, value:0 });
@@ -61,27 +90,45 @@
     });
 
     var customerRows = Object.keys(customers).map(function (k) {
-      var c = customers[k], closed = c.won + c.lost;
-      c.winRate = closed ? Math.round(c.won * 1000 / closed) / 10 : null;
-      c.collectionRate = c.billed ? Math.round(c.paid * 1000 / c.billed) / 10 : null;
+      var c = customers[k], decided = c.won + c.lost;
+      /* v34.7.17 (F-01/F-08): سه سنجهٔ صریح به‌جای یک نرخ بردِ متورم.
+         winRate = برد از کل پیشنهادهای صادرشده (عدد اصلی، مصوب کارفرما)
+         winRateDecided = برد در بین نتایج ثبت‌شده (کمکی)
+         coverage = پوشش تعیین تکلیف؛ زیر ۳ نمونه هیچ درصدی نمایش داده نمی‌شود. */
+      c.decided = decided;
+      c.winRate = c.offers >= 3 ? pct1(c.won, c.offers) : null;
+      c.winRateDecided = decided >= 3 ? pct1(c.won, decided) : null;
+      c.coverage = pct1(decided, c.offers);
+      c.collectionRate = c.billed ? pct1(c.paid, c.billed) : null;
       c.control = c.rfqs >= 3 && c.offers >= 2 && c.won === 0;
       c.strategic = c.wonValue > 0 || c.paid > 0;
-      /* سلامت مشتری یک رتبه‌بندی کمکی است، نه قضاوت قطعی: برد/وصول/کف داده وزن دارد. */
+      /* سلامت مشتری یک رتبه‌بندی کمکی است، نه قضاوت قطعی: برد/وصول/کف داده وزن دارد.
+         v34.7.17: مبنا نرخ بردِ واقعی (از کل پیشنهادها) است و پوشش پایین امتیاز را کم می‌کند. */
       var hs=50;
       if(c.winRate != null) hs += Math.min(20, c.winRate/5);
       if(c.collectionRate != null) hs += Math.max(-25, Math.min(20,(c.collectionRate-50)/2.5));
       if(c.control) hs -= 20;
+      if(c.coverage != null && c.coverage < 40 && c.offers >= 3) hs -= 5; /* دادهٔ ناقص = اطمینان کمتر */
       c.healthScore=Math.max(0,Math.min(100,Math.round(hs)));
-      c.healthLabel=c.healthScore>=70?'مناسب':c.healthScore>=45?'نیازمند پیگیری':'نیازمند کنترل';
+      c.healthLabel=(!c.control&&c.offers<3&&c.invoices===0)?'دادهٔ ناکافی':c.healthScore>=70?'مناسب':c.healthScore>=45?'نیازمند پیگیری':'نیازمند کنترل';
       return c;
     }).sort(function (a,b) { return (b.wonValue + b.paid + b.offered) - (a.wonValue + a.paid + a.offered); });
     var productRows = Object.keys(products).map(function (k) { return products[k]; }).sort(function(a,b){return b.wonValue-a.wonValue || b.value-a.value;});
     var supplierRows = Object.keys(suppliers).map(function(k){var sp=suppliers[k];sp.responseRate=sp.invited?Math.round(sp.replied*1000/sp.invited)/10:null;sp.healthScore=Math.max(0,Math.min(100,Math.round((sp.responseRate==null?45:sp.responseRate*.6)+Math.min(35,sp.purchases*12)+Math.min(15,sp.quotes*2))));return sp;}).sort(function(a,b){return b.purchases-a.purchases || b.quotes-a.quotes;});
+    var totalOpen=0, totalExpired=0, totalIssued=0, totalWon=0, totalFxGaps=0;
+    customerRows.forEach(function(c){ totalOpen+=c.open; totalExpired+=c.expired; totalIssued+=c.offers; totalWon+=c.won; totalFxGaps+=c.fxGaps; });
+    var portfolio={ issued:totalIssued, won:totalWon, open:totalOpen, expired:totalExpired,
+      winRateAll:totalIssued>=3?pct1(totalWon,totalIssued):null, coverage:pct1(totalIssued-totalOpen,totalIssued) };
     var dataQuality={
       offersMissingBuyer:offers.filter(function(o){return !o.buyerCd&&!o.buyerCo;}).length,
       lostWithoutReason:offers.filter(function(o){return o.st==='lost'&&!String(o.lostWhy||'').trim();}).length,
-      rfqWithoutOwner:rfqs.filter(function(r){return r && !r.assignee && r.st!=='st7';}).length,
-      supplierNoResponse:supplierRows.filter(function(sp){return sp.invited>=3 && sp.responseRate!=null && sp.responseRate<30;}).length
+      rfqWithoutOwner:rfqs.filter(function(r){return r && !r.assignee && !r.owner && r.st!=='st7';}).length,
+      supplierNoResponse:supplierRows.filter(function(sp){return sp.invited>=3 && sp.responseRate!=null && sp.responseRate<30;}).length,
+      /* v34.7.17 */
+      offersUndecided:totalOpen,
+      offersExpiredUndecided:totalExpired,
+      offersFxNoRate:totalFxGaps,
+      customersUnresolved:customerRows.filter(function(c){return !c.resolved;}).length
     };
     var insights = [];
     var highEffort = customerRows.filter(function(c){return c.control;});
@@ -92,18 +139,29 @@
     if (supplierRows[0]) insights.push({ level:'info', title:'تأمین‌کننده فعال', text: supplierRows[0].name + ' با ' + supplierRows[0].quotes + ' رکورد قیمت و ' + supplierRows[0].purchases + ' خرید واقعی ثبت‌شده، فعال‌ترین منبع داده است.' });
     if (projects.length) insights.push({ level:'risk', title:'ریسک‌های عملیاتی پرونده', text: projects.slice(0,3).map(function(p){return p.no + (p.overdue ? ' (تاخیر تحویل)' : '') + (p.qcBad ? ' (عدم انطباق QC)' : '');}).join('، ') + ' نیازمند بازبینی مدیریتی هستند.' });
     if(dataQuality.lostWithoutReason||dataQuality.offersMissingBuyer||dataQuality.rfqWithoutOwner) insights.push({level:'warn',title:'شکاف کیفیت داده',text:'پیشنهاد بی‌مشتری: '+dataQuality.offersMissingBuyer+' | باخت بدون دلیل: '+dataQuality.lostWithoutReason+' | RFQ بدون مسئول: '+dataQuality.rfqWithoutOwner+' — تکمیل این موارد دقت تصمیم‌یار را افزایش می‌دهد.'});
+    /* v34.7.17 (F-01/F-04): اتکاپذیری سنجه‌ها صریح گزارش می‌شود */
+    if(portfolio.coverage!=null && portfolio.coverage<60 && portfolio.open>=3) insights.push({level:'warn',title:'نرخ برد هنوز قابل استناد نیست',text:portfolio.open+' پیشنهاد بدون ثبت برد/باخت باقی مانده'+(portfolio.expired?' که '+portfolio.expired+' مورد از تاریخ اعتبار گذشته است':'')+' (پوشش تعیین تکلیف: '+portfolio.coverage+'٪). نرخ برد سازمان بر مبنای کل پیشنهادها '+(portfolio.winRateAll==null?'—':portfolio.winRateAll+'٪')+' است؛ عددی که فقط نتایج ثبت‌شده را ببیند به‌شدت خوش‌بینانه می‌شود.'});
+    if(dataQuality.offersFxNoRate) insights.push({level:'warn',title:'اسناد ارزی بدون نرخ مرجع',text:dataQuality.offersFxNoRate+' پیشنهاد ارزی نرخ مرجع تبدیل ندارد؛ مبلغ آن‌ها در جمع‌های ریالی این گزارش وارد نشده است تا ارز و ریال با هم جمع نشوند.'});
+    if(dataQuality.customersUnresolved) insights.push({level:'info',title:'مشتری بدون کد یکتا',text:dataQuality.customersUnresolved+' مشتری فقط با نام ثبت شده و به کد مشتری نگاشت نشد؛ تا زمان تخصیص کد، آمار آن‌ها ممکن است کامل نباشد.'});
     if (!insights.length) insights.push({ level:'info', title:'داده کافی نیست', text:'برای تصمیم‌یار مدیریت، ثبت وضعیت برد/باخت، خرید واقعی، فاکتور و وصول را کامل‌تر کنید.' });
-    return { at:new Date().toISOString(), customers:customerRows, products:productRows, suppliers:supplierRows, risks:projects, insights:insights, dataQuality:dataQuality,
+    return { at:new Date().toISOString(), customers:customerRows, products:productRows, suppliers:supplierRows, risks:projects, insights:insights, dataQuality:dataQuality, portfolio:portfolio,
       totals:{ customers:customerRows.length, products:productRows.length, suppliers:supplierRows.length, projectsAtRisk:projects.length } };
   };
 
   function insightHtml(i) { var c=i.level==='risk'?'#dc2626':i.level==='warn'?'#b45309':i.level==='good'?'#047857':'#0369a1'; return '<div style="border-right:4px solid '+c+';background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;margin-bottom:7px"><b style="color:'+c+'">'+esc(i.title)+'</b><div style="font-size:12px;color:#475569;margin-top:3px">'+esc(i.text)+'</div></div>'; }
+  function winCell(r) {
+    /* v34.7.17: درصد بدون مخرج نمایش داده نمی‌شود؛ نرخ نتایج ثبت‌شده فقط به‌عنوان عدد کمکی */
+    if (r.winRate == null && r.winRateDecided == null) return '<span title="نمونه کمتر از ۳ پیشنهاد">—</span>';
+    var main = r.winRate == null ? '—' : r.winRate + '٪';
+    var sub = r.won + '/' + r.offers + (r.open ? ' | ' + r.open + ' بی‌تکلیف' : '');
+    return '<b>' + main + '</b><div style="font-size:10px;color:#64748b">' + sub + '</div>';
+  }
   function miniRows(rows, type) {
     return rows.slice(0,8).map(function(r){
-      if(type==='customer') return '<tr><td>'+esc(r.name)+'</td><td>'+r.rfqs+'</td><td>'+r.offers+'</td><td>'+r.won+'</td><td>'+ (r.winRate==null?'—':r.winRate+'٪')+'</td><td>'+money(r.wonValue)+'</td><td>'+ (r.collectionRate==null?'—':r.collectionRate+'٪')+'</td><td>'+r.healthScore+' / '+esc(r.healthLabel||'—')+'</td></tr>';
+      if(type==='customer') return '<tr><td>'+esc(r.name)+(r.resolved===false?' <small style="color:#b45309" title="بدون کد مشتری">⚠</small>':'')+'</td><td>'+r.rfqs+'</td><td>'+r.offers+'</td><td>'+r.won+'</td><td>'+winCell(r)+'</td><td>'+money(r.wonValue)+'</td><td>'+ (r.collectionRate==null?'—':r.collectionRate+'٪')+'</td><td>'+r.healthScore+' / '+esc(r.healthLabel||'—')+'</td></tr>';
       if(type==='product') return '<tr><td>'+esc(r.name)+'</td><td>'+r.quotes+'</td><td>'+r.won+'</td><td>'+money(r.wonValue)+'</td></tr>';
       return '<tr><td>'+esc(r.name)+'</td><td>'+r.quotes+'</td><td>'+r.purchases+'</td><td>'+ (r.responseRate==null?'—':r.responseRate+'٪')+'</td><td>'+money(r.value)+'</td></tr>';
-    }).join('') || '<tr><td colspan="7">داده کافی نیست</td></tr>';
+    }).join('') || '<tr><td colspan="8">داده کافی نیست</td></tr>';
   }
   var ACTION_KEY = 'ptf_crm_management_actions';
   function actions() { return list(ACTION_KEY); }
@@ -176,9 +234,9 @@
   };
   window.ptfManagementReportPdf = function(cd) {
     var r=cd?reports().filter(function(x){return x.cd===cd;})[0]:null, d=(r&&r.snapshot)?r.snapshot:window.ptfManagementAiSnapshot();
-    var customers=(d.customers||[]).slice(0,10).map(function(c){return '<tr><td>'+esc(c.name)+'</td><td>'+c.rfqs+'</td><td>'+c.offers+'</td><td>'+c.won+'</td><td>'+(c.winRate==null?'—':c.winRate+'٪')+'</td><td>'+money(c.wonValue)+'</td></tr>';}).join('')||'<tr><td colspan="6">داده کافی نیست</td></tr>';
+    var customers=(d.customers||[]).slice(0,10).map(function(c){return '<tr><td>'+esc(c.name)+'</td><td>'+c.rfqs+'</td><td>'+c.offers+'</td><td>'+c.won+'</td><td>'+n(c.open)+'</td><td>'+(c.winRate==null?'—':c.winRate+'٪ ('+c.won+'/'+c.offers+')')+'</td><td>'+money(c.wonValue)+'</td></tr>';}).join('')||'<tr><td colspan="7">داده کافی نیست</td></tr>';
     var insights=(d.insights||[]).map(function(i){return '<li><b>'+esc(i.title)+':</b> '+esc(i.text)+'</li>';}).join('');
-    var html='<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4;margin:14mm}body{font-family:Vazirmatn,Tahoma,sans-serif;color:#1e293b;font-size:12px}h1{color:#0e7490;border-bottom:2px solid #0e7490;padding-bottom:7px}h2{font-size:15px;margin-top:18px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #cbd5e1;padding:6px;text-align:right}th{background:#f1f5f9}</style></head><body><h1>گزارش مدیریتی '+(r&&r.kind==='monthly'?'ماهانه':'هفتگی')+'</h1><p>دوره: '+esc((r&&r.period)||reportPeriod('weekly'))+' | تاریخ تولید: '+esc((r&&r.t)||(typeof faDateTime==='function'?faDateTime():''))+'</p><h2>خلاصه و اقدام‌های پیشنهادی</h2><ol>'+insights+'</ol><h2>مشتریان کلیدی</h2><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th></tr></thead><tbody>'+customers+'</tbody></table><h2>کیفیت داده</h2><p>پیشنهاد بی‌مشتری: '+n((d.dataQuality||{}).offersMissingBuyer)+' | باخت بدون دلیل: '+n((d.dataQuality||{}).lostWithoutReason)+' | RFQ بدون مسئول: '+n((d.dataQuality||{}).rfqWithoutOwner)+'</p><p style="color:#64748b">این گزارش مبتنی بر snapshot داده‌های ثبت‌شده CRM است و هر تصمیم نیازمند تایید مدیریت است.</p></body></html>';
+    var html='<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4;margin:14mm}body{font-family:Vazirmatn,Tahoma,sans-serif;color:#1e293b;font-size:12px}h1{color:#0e7490;border-bottom:2px solid #0e7490;padding-bottom:7px}h2{font-size:15px;margin-top:18px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #cbd5e1;padding:6px;text-align:right}th{background:#f1f5f9}</style></head><body><h1>گزارش مدیریتی '+(r&&r.kind==='monthly'?'ماهانه':'هفتگی')+'</h1><p>دوره: '+esc((r&&r.period)||reportPeriod('weekly'))+' | تاریخ تولید: '+esc((r&&r.t)||(typeof faDateTime==='function'?faDateTime():''))+'</p><h2>خلاصه و اقدام‌های پیشنهادی</h2><ol>'+insights+'</ol><h2>مشتریان کلیدی</h2><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>بی‌تکلیف</th><th>نرخ برد (از کل)</th><th>ارزش برد</th></tr></thead><tbody>'+customers+'</tbody></table><h2>کیفیت داده</h2><p>پیشنهاد بی‌مشتری: '+n((d.dataQuality||{}).offersMissingBuyer)+' | باخت بدون دلیل: '+n((d.dataQuality||{}).lostWithoutReason)+' | RFQ بدون مسئول: '+n((d.dataQuality||{}).rfqWithoutOwner)+' | پیشنهاد بی‌تکلیف: '+n((d.dataQuality||{}).offersUndecided)+' | ارزی بدون نرخ مرجع: '+n((d.dataQuality||{}).offersFxNoRate)+'</p><p style="font-size:11px;color:#64748b">تعریف سنجه: «نرخ برد» = برد تقسیم بر کل پیشنهادهای صادرشده. مبالغ به ریال نرمال شده‌اند و اسناد ارزی بدون نرخ مرجع در جمع‌ها وارد نشده‌اند. وصول از منبع واحد مالی خوانده می‌شود.</p><p style="color:#64748b">این گزارش مبتنی بر snapshot داده‌های ثبت‌شده CRM است و هر تصمیم نیازمند تایید مدیریت است.</p></body></html>';
     if(typeof ptfPreviewPrintableDoc==='function')ptfPreviewPrintableDoc('گزارش مدیریتی',html,'management-'+((r&&r.kind)||'weekly'));else{var w=window.open('','_blank');w.document.write(html);w.document.close();}
   };
   window.ptfManagementReportScheduleOpen = function() {
@@ -203,10 +261,10 @@
   /* حداقل داده لازم برای AI: فقط top rows و KPI؛ نه متن آزاد، اطلاعات تماس یا فایل‌ها. */
   window.ptfManagementAiSnapshot = function () {
     var d = window.ptfManagementIntelligence();
-    function customer(c) { return { name:c.name, rfqs:c.rfqs, offers:c.offers, won:c.won, lost:c.lost, winRate:c.winRate, wonValue:c.wonValue, billed:c.billed, paid:c.paid, collectionRate:c.collectionRate, healthScore:c.healthScore, healthLabel:c.healthLabel, control:c.control }; }
+    function customer(c) { return { name:c.name, rfqs:c.rfqs, offers:c.offers, won:c.won, lost:c.lost, open:c.open, expired:c.expired, winRate:c.winRate, winRateBasis:'won/issued', winRateDecided:c.winRateDecided, coverage:c.coverage, wonValue:c.wonValue, wonValueCurrency:'IRR', billed:c.billed, paid:c.paid, collectionRate:c.collectionRate, healthScore:c.healthScore, healthLabel:c.healthLabel, control:c.control, identityResolved:c.resolved!==false }; }
     function product(p) { return { name:p.name, quotes:p.quotes, won:p.won, qty:p.qty, wonValue:p.wonValue }; }
     function supplier(x) { return { name:x.name, quotes:x.quotes, purchases:x.purchases, invited:x.invited||0, replied:x.replied||0, responseRate:x.responseRate, healthScore:x.healthScore, value:x.value }; }
-    return { generatedAt:d.at, totals:d.totals, insights:d.insights, dataQuality:d.dataQuality, customers:d.customers.slice(0,12).map(customer), products:d.products.slice(0,12).map(product), suppliers:d.suppliers.slice(0,12).map(supplier), risks:d.risks.slice(0,10) };
+    return { generatedAt:d.at, totals:d.totals, portfolio:d.portfolio, metricContract:{ winRate:'won/issued (کل پیشنهادهای صادرشده)', winRateDecided:'won/(won+lost)', currency:'IRR normalized; اسناد ارزی بدون نرخ مرجع کنار گذاشته شده‌اند', collected:'PTF.invPaidSum (بدون فاکتور/پرداخت ابطالی و بدون دوباره‌شماری Receipt)' }, insights:d.insights, dataQuality:d.dataQuality, customers:d.customers.slice(0,12).map(customer), products:d.products.slice(0,12).map(product), suppliers:d.suppliers.slice(0,12).map(supplier), risks:d.risks.slice(0,10) };
   };
   function aiCard(row, color) { return '<div style="border-right:4px solid '+color+';background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px 11px;margin:7px 0"><b>'+esc(row.title||'—')+'</b><div style="font-size:12px;color:#475569;margin-top:3px">'+esc(row.why||row.evidence||'')+'</div>'+(row.action||row.mitigation?'<div style="font-size:12px;color:#0f766e;margin-top:4px"><b>اقدام انسانی:</b> '+esc(row.action||row.mitigation)+'</div>':'')+(row.priority?'<small style="color:#64748b">اولویت: '+esc(row.priority)+' | اطمینان: '+esc(row.confidence||'—')+'</small>':'')+'</div>'; }
   window.ptfManagementAiInterpret = function () {
@@ -234,12 +292,12 @@
     /* مشتری/سود/وصول دادهٔ مدیریتی است؛ فقط نقش‌های ارشد یا مالی. */
     try { if (typeof isSenior === 'function' && !isSenior() && !((roleDef() || {}).finance)) { alert('⛔ گزارش تصمیم‌یار مدیریت فقط برای نقش‌های ارشد و مالی مجاز است.'); return; } } catch (eRole) {}
     var d = window.ptfManagementIntelligence();
-    var html='<div class="md-b" id="mgmtInsightDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1100px;width:96vw;max-height:92vh;overflow:auto"><h3>🧠 تصمیم‌یار مدیریت فروش — فاز داده‌محور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:10px">این گزارش از داده‌های ثبت‌شده CRM ساخته شده و هنوز اقدام خودکار انجام نمی‌دهد. هر توصیه نیازمند تایید مدیر است.</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px"><div class="sc"><b>'+d.totals.customers+'</b><span>مشتری دارای داده</span></div><div class="sc"><b>'+d.totals.products+'</b><span>کالا/قلم</span></div><div class="sc"><b>'+d.totals.suppliers+'</b><span>تأمین‌کننده دارای قیمت</span></div><div class="sc"><b style="color:#dc2626">'+d.totals.projectsAtRisk+'</b><span>پرونده نیازمند بررسی</span></div></div><h4>اقدامات و بینش‌های مدیریتی</h4>'+d.insights.map(function(i){return insightHtml(i)+'<button class="bt bt-o" style="font-size:11px;padding:3px 8px;margin:-4px 0 7px" onclick="ptfManagementActionOpen(\''+jsArg(i.title)+'\',\''+jsArg(i.text)+'\',\''+jsArg(i.text)+'\')">📌 تبدیل به اقدام</button>';}).join('')+'<h4>مشتریان</h4><div class="tb2"><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th><th>وصول</th><th>سلامت</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table></div><h4>کالاهای پرارزش</h4><div class="tb2"><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table></div><h4>تأمین‌کنندگان</h4><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>پاسخ</th><th>ارزش قیمت ثبت‌شده</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table></div><h4 style="margin-top:16px">اقدام‌های مدیریتی باز</h4><div id="mgmtActionsBox">'+actionListHtml(true)+'</div><h4 style="margin-top:16px">گزارش‌های دوره‌ای</h4><div id="mgmtReportHistory">'+reportHistoryHtml()+'</div><div id="mgmtAiOut" style="margin-top:14px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfManagementReportGenerate(&quot;weekly&quot;)">🗓️ گزارش هفتگی</button><button class="bt bt-o" onclick="ptfManagementReportGenerate(&quot;monthly&quot;)">📅 گزارش ماهانه</button><button class="bt bt-o" onclick="ptfManagementReportScheduleOpen()">⚙️ برنامه گزارش</button><button class="bt bt-o" onclick="ptfManagementActionCenterOpen()">📌 مرکز اقدام‌ها</button><button class="bt" id="mgmtAiBtn" style="background:#7c3aed" onclick="ptfManagementAiInterpret()">✨ تفسیر AI</button><button class="bt bt-o" onclick="ptfManagementInsightsPdf()">🖨️ PDF مدیریتی</button><button class="bt bt-o" onclick="navigator.clipboard.writeText(JSON.stringify(ptfManagementAiSnapshot()))">📋 کپی دادهٔ خلاصه</button><button class="bt" onclick="document.getElementById(\'mgmtInsightDlg\').remove()">بستن</button></div></div></div>';
+    var html='<div class="md-b" id="mgmtInsightDlg" style="display:grid;z-index:3000" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:1100px;width:96vw;max-height:92vh;overflow:auto"><h3>🧠 تصمیم‌یار مدیریت فروش — فاز داده‌محور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:10px">این گزارش از داده‌های ثبت‌شده CRM ساخته شده و هنوز اقدام خودکار انجام نمی‌دهد. هر توصیه نیازمند تایید مدیر است.</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px"><div class="sc"><b>'+d.totals.customers+'</b><span>مشتری دارای داده</span></div><div class="sc"><b>'+d.totals.products+'</b><span>کالا/قلم</span></div><div class="sc"><b>'+d.totals.suppliers+'</b><span>تأمین‌کننده دارای قیمت</span></div><div class="sc"><b style="color:#dc2626">'+d.totals.projectsAtRisk+'</b><span>پرونده نیازمند بررسی</span></div></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px"><div class="sc"><b>'+(d.portfolio.winRateAll==null?'—':d.portfolio.winRateAll+'٪')+'</b><span>نرخ برد سازمان (از کل '+d.portfolio.issued+' پیشنهاد)</span></div><div class="sc"><b'+(d.portfolio.coverage!=null&&d.portfolio.coverage<60?' style="color:#b45309"':'')+'>'+(d.portfolio.coverage==null?'—':d.portfolio.coverage+'٪')+'</b><span>پوشش تعیین تکلیف</span></div><div class="sc"><b'+(d.portfolio.open?' style="color:#b45309"':'')+'>'+d.portfolio.open+'</b><span>پیشنهاد بی‌تکلیف'+(d.portfolio.expired?' ('+d.portfolio.expired+' منقضی)':'')+'</span></div></div>'+(d.portfolio.coverage!=null&&d.portfolio.coverage<60&&d.portfolio.open>=3?'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:8px 11px;margin-bottom:10px;font-size:12px;color:#92400e">⚠️ ستون «نرخ برد» بر مبنای <b>کل پیشنهادهای صادرشده</b> است. عددی که فقط نتایج ثبت‌شده را می‌دید (روش قبل از v34.7.17) با این پوشش به‌شدت خوش‌بینانه می‌شد.</div>':'')+'<h4>اقدامات و بینش‌های مدیریتی</h4>'+d.insights.map(function(i){return insightHtml(i)+'<button class="bt bt-o" style="font-size:11px;padding:3px 8px;margin:-4px 0 7px" onclick="ptfManagementActionOpen(\''+jsArg(i.title)+'\',\''+jsArg(i.text)+'\',\''+jsArg(i.text)+'\')">📌 تبدیل به اقدام</button>';}).join('')+'<h4>مشتریان</h4><div class="tb2"><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد (از کل)</th><th>ارزش برد</th><th>وصول</th><th>سلامت</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table></div><h4>کالاهای پرارزش</h4><div class="tb2"><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table></div><h4>تأمین‌کنندگان</h4><div class="tb2"><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>پاسخ</th><th>ارزش قیمت ثبت‌شده</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table></div><h4 style="margin-top:16px">اقدام‌های مدیریتی باز</h4><div id="mgmtActionsBox">'+actionListHtml(true)+'</div><h4 style="margin-top:16px">گزارش‌های دوره‌ای</h4><div id="mgmtReportHistory">'+reportHistoryHtml()+'</div><div id="mgmtAiOut" style="margin-top:14px"></div><div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfManagementReportGenerate(&quot;weekly&quot;)">🗓️ گزارش هفتگی</button><button class="bt bt-o" onclick="ptfManagementReportGenerate(&quot;monthly&quot;)">📅 گزارش ماهانه</button><button class="bt bt-o" onclick="ptfManagementReportScheduleOpen()">⚙️ برنامه گزارش</button><button class="bt bt-o" onclick="ptfManagementActionCenterOpen()">📌 مرکز اقدام‌ها</button><button class="bt" id="mgmtAiBtn" style="background:#7c3aed" onclick="ptfManagementAiInterpret()">✨ تفسیر AI</button><button class="bt bt-o" onclick="ptfManagementInsightsPdf()">🖨️ PDF مدیریتی</button><button class="bt bt-o" onclick="navigator.clipboard.writeText(JSON.stringify(ptfManagementAiSnapshot()))">📋 کپی دادهٔ خلاصه</button><button class="bt" onclick="document.getElementById(\'mgmtInsightDlg\').remove()">بستن</button></div></div></div>';
     (document.getElementById('panels')||document.body).insertAdjacentHTML('beforeend',html);
   };
   window.ptfManagementInsightsPdf = function () {
     var d=window.ptfManagementIntelligence(), rows=function(a){return a.map(function(i){return '<li><b>'+esc(i.title)+':</b> '+esc(i.text)+'</li>';}).join('');};
-    var html='<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4;margin:14mm}body{font-family:Vazirmatn,Tahoma,sans-serif;color:#1e293b;font-size:12px}h1{color:#0e7490;border-bottom:2px solid #0e7490;padding-bottom:7px}h2{font-size:15px;margin-top:18px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #cbd5e1;padding:6px;text-align:right}th{background:#f1f5f9}</style></head><body><h1>گزارش تصمیم‌یار مدیریت فروش</h1><p>تاریخ: '+esc(typeof faDateTime==='function'?faDateTime():d.at)+' | تهیه‌کننده: '+esc((typeof curSession==='function'?curSession().name:''))+'</p><h2>بینش‌ها و اقدامات پیشنهادی</h2><ol>'+rows(d.insights)+'</ol><h2>مشتریان</h2><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد</th><th>ارزش برد</th><th>وصول</th><th>سلامت</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table><h2>کالاهای پرارزش</h2><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table><h2>تأمین‌کنندگان</h2><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>ارزش قیمت</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table><p style="margin-top:20px;color:#64748b">محدودیت: این گزارش فقط از داده‌های ثبت‌شده CRM استفاده می‌کند و جایگزین تایید مدیریتی، مالی یا فنی نیست.</p></body></html>';
+    var html='<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>@page{size:A4;margin:14mm}body{font-family:Vazirmatn,Tahoma,sans-serif;color:#1e293b;font-size:12px}h1{color:#0e7490;border-bottom:2px solid #0e7490;padding-bottom:7px}h2{font-size:15px;margin-top:18px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #cbd5e1;padding:6px;text-align:right}th{background:#f1f5f9}</style></head><body><h1>گزارش تصمیم‌یار مدیریت فروش</h1><p>تاریخ: '+esc(typeof faDateTime==='function'?faDateTime():d.at)+' | تهیه‌کننده: '+esc((typeof curSession==='function'?curSession().name:''))+'</p><h2>بینش‌ها و اقدامات پیشنهادی</h2><ol>'+rows(d.insights)+'</ol><h2>مشتریان</h2><table><thead><tr><th>مشتری</th><th>RFQ</th><th>CO</th><th>برد</th><th>نرخ برد (از کل)</th><th>ارزش برد</th><th>وصول</th><th>سلامت</th></tr></thead><tbody>'+miniRows(d.customers,'customer')+'</tbody></table><h2>کالاهای پرارزش</h2><table><thead><tr><th>کالا</th><th>پیشنهاد</th><th>برد</th><th>ارزش برد</th></tr></thead><tbody>'+miniRows(d.products,'product')+'</tbody></table><h2>تأمین‌کنندگان</h2><table><thead><tr><th>تأمین‌کننده</th><th>رکورد قیمت</th><th>خرید واقعی</th><th>ارزش قیمت</th></tr></thead><tbody>'+miniRows(d.suppliers,'supplier')+'</tbody></table><p style="margin-top:20px;color:#64748b">محدودیت: این گزارش فقط از داده‌های ثبت‌شده CRM استفاده می‌کند و جایگزین تایید مدیریتی، مالی یا فنی نیست.</p></body></html>';
     if(typeof ptfPreviewPrintableDoc==='function') ptfPreviewPrintableDoc('گزارش تصمیم‌یار مدیریت',html,'management-intelligence'); else {var w=window.open('','_blank');w.document.write(html);w.document.close();}
     try{audit('تصمیم‌یار مدیریت','تولید PDF گزارش مدیریت','');}catch(e){}
   };
