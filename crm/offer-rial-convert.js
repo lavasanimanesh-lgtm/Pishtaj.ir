@@ -683,7 +683,7 @@
     if (META[known]) return known;
     var on = btn.getAttribute('onclick') || '';
     var title = btn.getAttribute('title') || '';
-    if (/adminUnwin\s*\(|ptfRevokeOfferWin\s*\(/.test(on)) return 'unwin';
+    if (/adminUnwin\s*\(/.test(on)) return 'unwin';
     if (/adminDelOffer\s*\(|offerDel\s*\(/.test(on)) return 'del';
     if (/offerEdit\s*\(/.test(on)) return 'edit';
     if (/ptfGoSalesFileForOffer\s*\(/.test(on)) return 'salesFile';

@@ -34,10 +34,7 @@ function curSession() {
 function curRole() {
   var s = curSession();
   if (s.user === 'admin') return 'admin';
-  /* نشست‌های قدیمی فقط role داشتند؛ افتادن خاموش به sales باعث می‌شد ابزارهای
-     اصلاح مجاز در production پنهان شوند، در حالی که نشست تازه staging roleId داشت. */
-  var id = String(s.roleId || s.role || '').toLowerCase().trim();
-  return id && ROLES[id] ? id : 'sales';
+  return s.roleId && ROLES[s.roleId] ? s.roleId : 'sales';
 }
 function roleDef() { return ROLES[curRole()] || ROLES.sales; }
 function isSenior() { return SENIOR_ROLES.indexOf(curRole()) > -1; }

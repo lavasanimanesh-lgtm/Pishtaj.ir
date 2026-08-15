@@ -699,25 +699,66 @@
     };
   }
 
-  /* ============ US-147: اختیارات اصلاح برد ============ */
-  /* alias سازگاری: از این پس هیچ بردی در backup.js و localStorage دست‌کاری نمی‌شود؛
-     فرمان کنترل‌شده sales-domain وابستگی‌ها را روی سرور بررسی و audit می‌کند. */
+  /* ============ US-147: اختیارات ادمین ============ */
+  // AC1/AC2: بازگشت CO برنده به وضعیت قبل + حذف پرونده خودکار
   window.adminUnwin = function (no) {
-    if (typeof window.ptfRevokeOfferWin !== 'function') {
-      alert('⛔ موتور اصلاح کنترل‌شده هنوز بارگذاری نشده است؛ صفحه را تازه‌سازی کنید.');
-      return;
+    if (curRole() !== 'admin') { alert('⛔ فقط ادمین می‌تواند وضعیت «برنده» را بازگرداند'); return; }
+    var offers = getData('ptf_crm_offers');
+    var o = offers.filter(function (x) { return x.no === no; })[0];
+    if (!o || o.st !== 'won') return;
+    var prj = getData('ptf_crm_projects').filter(function (p) { return p.offerNo === no; })[0];
+    var msg = '⚠️ بازگشت ' + no + ' از وضعیت «برنده»:\n' +
+      '• وضعیت به «ارسال‌شده» برمی‌گردد و قفل باز می‌شود\n' +
+      (prj ? '• پرونده خودکار ' + prj.no + (prj.auto ? '' : ' (دستی!)') + ' به همراه مدارک سیستمی آن حذف می‌شود\n' : '') +
+      (o.invRef ? '• ارجاع فاکتور این CO نیز لغو می‌شود\n' : '') +
+      '\nادامه می‌دهید؟';
+    if (!confirm(msg)) return;
+    o.st = 'sent';
+    delete o.wonAt; delete o.wonBy; delete o.invRef;
+    setData('ptf_crm_offers', offers);
+    if (prj) {
+      setData('ptf_crm_projects', getData('ptf_crm_projects').filter(function (p) { return p.no !== prj.no; }));
+      audit('پرونده پروژه', 'حذف پرونده ' + prj.no + ' در پی بازگشت از برنده (ادمین)', prj.no);
     }
-    return window.ptfRevokeOfferWin(no);
+    audit('پیشنهادها', 'بازگشت از وضعیت برنده توسط ادمین', no);
+    addLog('⏪ ' + no + ' از برنده بازگردانده شد (ادمین)');
+    if (typeof notify === 'function') notify({ toRoles: SENIOR_ROLES, title: '⏪ پیشنهاد ' + no + ' توسط ادمین از وضعیت برنده بازگردانده شد' + (prj ? ' و پرونده ' + prj.no + ' حذف شد' : ''), kind: 'admin', channels: ['cart'], link: { panel: 'off' } });
+    renderOffers();
+  };
+
+  // AC3: حذف ادمینی رکوردهای قفل‌شده — دکمه در رندر پیشنهادها اضافه می‌شود
+  var _renderOffers = window.renderOffers;
+  window.renderOffers = function () {
+    _renderOffers();
+    if (curRole() !== 'admin') return;
+    // افزودن دکمه بازگشت/حذف برای ردیف‌های برنده (بعد از رندر پایه)
+    var tb = document.getElementById('oTb');
+    if (!tb) return;
+    var offers = getData('ptf_crm_offers');
+    var rows = tb.querySelectorAll('tr');
+    rows.forEach(function (tr) {
+      var noCell = tr.querySelector('td strong');
+      if (!noCell) return;
+      var no = noCell.textContent.trim();
+      var o = offers.filter(function (x) { return x.no === no; })[0];
+      if (o && o.st === 'won' && !tr.querySelector('.adm-unwin')) {
+        var td = tr.querySelectorAll('td');
+        var last = td[td.length - 1];
+        last.insertAdjacentHTML('beforeend',
+          ' <button class="bt bt-o adm-unwin" data-offer-action="unwin" style="padding:4px 9px;font-size:12px;color:#dc2626" title="فقط ادمین: بازگشت از برنده + حذف پرونده خودکار" aria-label="بازگردانی پیشنهاد از برنده" onclick="adminUnwin(\'' + ptfOnClickArg(no) + '\')">⏪</button>' +
+          ' <button class="bt bt-o adm-unwin" data-offer-action="del" style="padding:4px 9px;font-size:12px;color:#dc2626" title="حذف ادمینی پیشنهاد" aria-label="حذف ادمینی پیشنهاد" onclick="adminDelOffer(\'' + ptfOnClickArg(no) + '\')">🗑️</button>');
+      }
+    });
   };
 
   window.adminDelOffer = function (no) {
-    if (typeof window.ptfAdminHardDelete !== 'function') {
-      alert('⛔ موتور حذف کنترل‌شده هنوز بارگذاری نشده است؛ صفحه را تازه‌سازی کنید.');
-      return;
-    }
-    return window.ptfAdminHardDelete('offer', no, function () {
-      if (typeof renderOffers === 'function') renderOffers();
-    });
+    if (curRole() !== 'admin') { alert('⛔ فقط ادمین'); return; }
+    if (!confirm('⚠️ حذف ادمینی پیشنهاد قفل‌شده ' + no + '؟\nپرونده خودکار مرتبط نیز حذف می‌شود.')) return;
+    var prj = getData('ptf_crm_projects').filter(function (p) { return p.offerNo === no; })[0];
+    if (prj) setData('ptf_crm_projects', getData('ptf_crm_projects').filter(function (p) { return p.no !== prj.no; }));
+    setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return o.no !== no; }));
+    audit('پیشنهادها', 'حذف ادمینی پیشنهاد برنده' + (prj ? ' + پرونده ' + prj.no : ''), no);
+    renderOffers();
   };
 
   /* ============ شروع ============ */
