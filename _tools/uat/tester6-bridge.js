@@ -214,9 +214,9 @@ T('اکشن track (رهگیری دوبخشی)', apiCode.indexOf("case 'track'") 
 T('اکشن get_inbox', apiCode.indexOf("case 'get_inbox'") > -1);
 T('اکشن set_status با گارد نقش ارشد', apiCode.indexOf("'set_status'=>'approve_write'") > -1);
 T('اکشن‌های رویداد (push_event/get_events)', apiCode.indexOf("case 'push_event'") > -1 && apiCode.indexOf("case 'get_events'") > -1);
-T('شماره یکتای ترتیبی (next_seq)', apiCode.indexOf('function next_seq') > -1);
-T('شماره‌گذاری PTF-VEN-{سال}', apiCode.indexOf("'PTF-VEN-' . fa_year()") > -1);
-T('شماره‌گذاری PTF-RFQ-{سال}', apiCode.indexOf("'PTF-RFQ-' . fa_year()") > -1);
+T('مولد کد عمومی از تصادف امن random_int استفاده می‌کند', apiCode.indexOf('function public_tracking_code') > -1 && apiCode.indexOf('random_int(0, $max)') > -1 && apiCode.indexOf("$alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'") > -1);
+T('ثبت تامین‌کننده کد تصادفی PTF-VEN می‌گیرد', apiCode.indexOf("public_tracking_code('VEN')") > -1);
+T('ثبت استعلام کد تصادفی PTF-RFQ می‌گیرد', (apiCode.match(/public_tracking_code\('RFQ'\)/g) || []).length >= 2);
 T('پیوست: فرمت‌های مجاز شامل zip و عکس', apiCode.indexOf("'zip'") > -1 && apiCode.indexOf("'jpg'") > -1);
 T('پوشه آپلود محافظت‌شده (.htaccess)', apiCode.indexOf('Deny from all') > -1);
 T('پاکسازی ورودی (strip_tags)', apiCode.indexOf('strip_tags') > -1);

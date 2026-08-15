@@ -200,16 +200,17 @@
         '<td><span class="bd" style="background:#fee2e2;color:#b91c1c">' + escP(x.reason||'-') + '</span></td>' +
         '<td style="font-size:11.5px;color:#64748b">' + escP(x.note||'—') + '</td>' +
         '<td>👤 ' + escP(x.by||'-') + '</td>' +
-        '<td style="font-size:11px;direction:ltr">' + escP(x.t||'-') + '</td>' +
-        '<td><button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" title="حذف دائم از بایگانی" onclick="ptfPurgeArchiveItem(' + i + ')">✕</button></td></tr>';
+        '<td style="font-size:11px;direction:ltr">' + escP(x.t||x.iso||'-') + '</td>' +
+        '<td>' + (x.kind === 'archive_purge' ? '<span class="bd" style="background:#f1f5f9;color:#475569" title="این tombstone حداقلی مانع بازگشت داده حذف‌شده از دستگاه قدیمی است و اطلاعات مالی ندارد">🔒 نگهبان عدم بازگشت</span>' : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" title="حذف دائم از بایگانی" onclick="ptfPurgeArchiveItem(' + i + ')">✕</button>') + '</td></tr>';
     });
     h += '</tbody></table></div>';
     el.innerHTML = h;
   };
 
   window.ptfPurgeArchiveItem = function (idx) {
-    if (!confirm('آیا این رکورد از بایگانی آماری مدیریت نیز حذف شود؟')) return;
     var arc = getData('ptf_crm_deleted_archive');
+    if (arc[idx] && arc[idx].kind === 'archive_purge') { alert('این tombstone حداقلی قابل حذف نیست؛ برای جلوگیری از بازگشت پرونده پاک‌شده از کش دستگاه‌های قدیمی لازم است و در گزارش مالی اثری ندارد.'); return; }
+    if (!confirm('آیا این رکورد از بایگانی آماری مدیریت نیز حذف شود؟')) return;
     arc.splice(idx, 1);
     setData('ptf_crm_deleted_archive', arc);
     renderDeletedArchive();

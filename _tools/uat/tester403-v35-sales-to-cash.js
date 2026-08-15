@@ -7,7 +7,7 @@ var api=read('api/sales-domain.php'), core=read('crm/sales-domain-v2.js'), inv=r
 var tr=read('crm/treasury.js'), petty=read('crm/petty.js'), offers=read('crm/offers.js'), idx=read('crm/index.html'), sw=read('crm/sw.js'), sync=read('crm/sync.js');
 
 /* Server command boundary */
-['register_offer','register_unofficial_invoice','win_offer','mark_amendment','revoke_orphan_delete','post_receipt','correct_receipt','void_receipt','register_invoice','correct_invoice','void_invoice','replace_invoice_attachment','admin_delete_plan','admin_delete_commit','migration_dry_run','migration_apply_safe'].forEach(function(a){assert.ok(api.indexOf("'"+a+"'")>-1,'missing API command '+a);});
+['register_offer','register_unofficial_invoice','win_offer','mark_amendment','revoke_orphan_delete','duplicate_case_plan','duplicate_case_merge','archived_case_purge_plan','archived_case_purge_commit','post_receipt','correct_receipt','void_receipt','register_invoice','correct_invoice','void_invoice','replace_invoice_attachment','admin_delete_plan','admin_delete_commit','migration_dry_run','migration_apply_safe'].forEach(function(a){assert.ok(api.indexOf("'"+a+"'")>-1,'missing API command '+a);});
 assert.ok(api.indexOf('flock($lock, LOCK_EX)')>-1,'cross-collection lock');
 assert.ok(api.indexOf('sd_idempotency')>-1&&api.indexOf('ptf_crm_sales_commands')>-1,'idempotency journal');
 assert.ok(api.indexOf("'rootOfferId'")>-1&&api.indexOf("'wonRevisionSnapshot'")>-1,'stable award identity/snapshot');
@@ -22,7 +22,7 @@ assert.ok(api.indexOf('admin_delete_plan')>-1&&api.indexOf('sd_invalidate_period
 assert.ok(api.indexOf('register_unofficial_invoice')>-1&&api.indexOf('supersededByInvoiceId')>-1,'unofficial invoice server command and official replacement');
 
 /* Client wiring and cache contract */
-assert.ok(idx.indexOf('sales-domain-v2.js?v=34.7.4')>-1&&idx.indexOf('official-invoice-v2.js?v=34.7.4')>-1,'v35 scripts wired');
+assert.ok(idx.indexOf('sales-domain-v2.js?v=34.7.8')>-1&&idx.indexOf('official-invoice-v2.js?v=34.7.8')>-1,'v35 scripts wired');
 assert.ok(idx.indexOf('sales-domain-v2.js')<idx.indexOf('official-invoice-v2.js'),'domain loads before invoice UI');
 assert.ok(sw.indexOf("'./sales-domain-v2.js' + ASSET_QUERY")>-1&&sw.indexOf("'./official-invoice-v2.js' + ASSET_QUERY")>-1,'PWA shell');
 ['ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings'].forEach(function(k){assert.ok(sync.indexOf(k)>-1,'sync key '+k);});
