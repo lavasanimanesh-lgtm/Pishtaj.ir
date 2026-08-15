@@ -182,14 +182,14 @@
     return ext === 'pdf' ? 'application/pdf' : ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
   }
   function irAllRequestAttachments(r) {
-    var out = [];
-    Object.keys((r && r.files) || {}).forEach(function (cat) {
-      ((r.files && r.files[cat]) || []).forEach(function (file, index) {
-        if (!file || !file.name) return;
-        out.push({ cat: cat, catLabel: IR_ATT_CATS[cat] || cat, index: index, file: file, kind: irAiKind(file) });
-      });
+    var rows = typeof window.ptfRfqAttachmentRows === 'function' ? window.ptfRfqAttachmentRows(r) : [];
+    if (!rows.length && r && r.files) {
+      Object.keys(r.files).forEach(function (cat) { (Array.isArray(r.files[cat]) ? r.files[cat] : []).forEach(function (file) { rows.push({ cat: cat, source: 'files.' + cat, file: file }); }); });
+    }
+    return rows.map(function (row, index) {
+      var cat = row.cat === 'root' ? 'legacy' : (row.cat || 'legacy'), file = row.file || {};
+      return { cat: cat, catLabel: IR_ATT_CATS[cat] || (cat === 'legacy' ? 'پیوست قدیمی / سایت' : cat), index: index, source: row.source || '', file: file, kind: irAiKind(file) };
     });
-    return out;
   }
   function irAiSetStatus(html) {
     var el = document.getElementById('irAiAttachmentStatus');
@@ -663,8 +663,10 @@
     var r = rfqs.filter(function(x){ return x.cd === cd; })[0];
     if (!r) return;
     r.files = r.files || {};
+    var projectedAttachments = typeof window.ptfRfqAttachmentRows === 'function' ? window.ptfRfqAttachmentRows(r) : [];
+    var legacyAttachments = projectedAttachments.filter(function (x) { return !/^files\.(inq|ds|img|dwg|oth|cat)(?:\[|\.|$)/.test(String(x.source || '')); });
     var renderFileList = function(catKey, catName) {
-      var arr = r.files[catKey] || [];
+      var arr = Array.isArray(r.files[catKey]) ? r.files[catKey] : [];
       var items = arr.map(function(f, idx){
         return '<div style="display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:6px 10px;border-radius:8px;border:1px solid #cbd5e1;margin-bottom:4px;font-size:12px">' +
           '<span>📄 ' + escP(f.name) + ' <small style="color:#64748b">(' + (f.t||'') + ')</small></span>' +
@@ -677,6 +679,13 @@
         '<div style="margin-top:4px">' + (items || '<small style="color:#94a3b8">هیچ فایلی پیوست نشده</small>') + '</div>' +
         '<div style="margin-top:6px"><input type="file" id="attInp_' + catKey + '" style="display:none" onchange="ptfHandleInqAttUpload(\'' + ptfOnClickArg(cd) + '\',\'' + catKey + '\',this)"><label for="attInp_' + catKey + '" class="bt bt-o" style="font-size:11px;padding:3px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:4px">+ 📎 انتخاب و آپلود فایل</label></div></div>';
     };
+    var legacyHtml = legacyAttachments.length ? '<div style="margin-bottom:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px"><b style="color:#92400e;font-size:13px">📦 ضمائم قدیمی / ثبت‌شده از سایت (' + legacyAttachments.length + ')</b>' + legacyAttachments.map(function (row) {
+      var f = row.file || {}, action = '';
+      if (f.key && !f.legacyHost) action = '<button class="bt bt-o" style="font-size:11px" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">مشاهده</button>';
+      else if (f.url && /^(https?:\/\/|blob:|data:image\/|data:application\/pdf)/i.test(f.url)) action = '<a class="bt bt-o" style="font-size:11px;text-decoration:none" target="_blank" rel="noopener" href="' + escP(f.url) + '">مشاهده</a>';
+      else action = '<small style="color:#b45309">مرجع قدیمی؛ فایل ابری قابل بازکردن نیست</small>';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px dashed #fed7aa"><span>📎 ' + escP(f.name || 'پیوست') + '</span>' + action + '</div>';
+    }).join('') + '</div>' : '';
     var html = '<div class="md-b" id="ptfAttModal" style="display:grid;z-index:' + ((typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2000) : 2000) + '" onclick="if(event.target===this)this.remove()">' +
       '<div class="md" style="max-width:680px;max-height:92vh;overflow:auto">' +
       '<h3>📎 مدیریت پیوست‌های فنی استعلام — ' + escP(cd) + '</h3>' +
@@ -687,7 +696,7 @@
       renderFileList('img', '🖼 عکس کالا') +
       renderFileList('dwg', '📐 نقشه‌های مهندسی (Drawings)') +
       renderFileList('oth', '📎 سایر مدارک') +
-      ((r.files['cat'] || []).length ? renderFileList('cat', '📚 کاتالوگ‌های سازنده (قدیمی)') : '') +
+      ((Array.isArray(r.files['cat']) && r.files['cat'].length) ? renderFileList('cat', '📚 کاتالوگ‌های سازنده (قدیمی)') : '') + legacyHtml +
       '<div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="bt" onclick="document.getElementById(\'ptfAttModal\').remove()">بستن</button></div></div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
     try { var _am = document.getElementById('ptfAttModal'); if (_am && window.ptfElevateModal) window.ptfElevateModal(_am); } catch (eA) {}

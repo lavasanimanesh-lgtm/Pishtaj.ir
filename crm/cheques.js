@@ -1018,7 +1018,8 @@
           var c = items.filter(function (x) { return x.cd === cd; })[0];
           if (!c) return;
           var org = c.origin || 'داخلی';
-          tr.style.display = org === t ? '' : 'none';
+          var show = org === t;
+          if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(tr, show); else { tr.classList.toggle('ptf-filter-hidden', !show); tr.hidden = !show; tr.style.display = show ? '' : 'none'; }
         });
       } catch (e) {}
     };
