@@ -10,7 +10,7 @@ if (!vm4 || +vm4[1] < 34 || (+vm4[1] === 34 && +vm4[2] < 4) || (+vm4[1] === 34 &
 var sf = read('crm/salesfiles.js');
 var bc = read('crm/buycompare.js');
 if (sf.indexOf('پیش‌دریافت مشتری (وصولی)') < 0) fail('salesfile label');
-if (sf.indexOf('وصولی ') < 0) fail('received as receipt');
-if (bc.indexOf('پیش‌دریافت') < 0) fail('buycompare label');
-if (bc.indexOf('پیش‌دریافت وصولی') < 0) fail('buycompare status');
+if (sf.indexOf('دریافت قطعی') < 0 || sf.indexOf("ptf_crm_case_receipts") < 0) fail('v35 received as case receipt');
+if (bc.indexOf('پیش‌دریافت') < 0) fail('buycompare legacy label');
+if (read('crm/treasury.js').indexOf("get('ptf_crm_case_receipts')") < 0) fail('treasury uses case receipts');
 console.log('PASS tester370 advance-as-receipt');

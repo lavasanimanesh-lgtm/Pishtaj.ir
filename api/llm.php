@@ -379,6 +379,18 @@ switch ($action) {
 
 
 
+    case 'invoice_ocr':
+        $b64 = $in['b64'] ?? '';
+        $mime = $in['mime'] ?? '';
+        $okMime = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+        if (!$b64 || !in_array($mime, $okMime, true)) { echo json_encode(['ok' => false, 'error' => 'فایل فاکتور نامعتبر است']); exit; }
+        if (strlen($b64) > 8 * 1048576) { echo json_encode(['ok' => false, 'error' => 'فایل بزرگتر از ~۶MB — فشرده کنید']); exit; }
+        $sys = 'You are a cautious OCR engine for an Iranian official accounting or Modian tax invoice. Return ONLY valid JSON: '
+             . '{"invoiceNo":"accounting invoice number","taxUid":"unique tax/Modian id","date":"printed date","customer":"customer name","baseAmountIRR":0,"vatPercent":0,"vatAmountIRR":0,"totalAmountIRR":0,"confidence":0}. '
+             . 'All money values MUST be Rial; if the document explicitly uses Toman convert by multiplying by 10. Do not infer or invent obscured values. Use 0 or empty string when unreadable.';
+        out_json(llm_call($cfg, $sys, 'Extract official invoice identity and totals for a human-reviewed consistency warning.', $b64, $mime, 3000));
+        break;
+
     case 'cheque':
         $text = trim($in['text'] ?? '');
         $b64 = $in['b64'] ?? '';

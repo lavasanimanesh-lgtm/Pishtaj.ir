@@ -80,46 +80,24 @@
   window.ptfTreasuryCrmMoves = function () {
     var out = [];
 
-    get('ptf_crm_offers').forEach(function (o) {
-      if (!o || !o.advance) return;
-      var pays = arr(o.advance.payments);
-      /* BUGFIX (پیش‌پرداخت ارزی/ریالی در بانک و خزانه نمی‌نشست):
-         پیش‌پرداختِ «پرداخت کامل/نقدی ۱۰۰٪» (cashFull) در petty.js بدون رکورد وصول
-         در payments[] ذخیره می‌شود (paid=true و cashFull=true ولی payments خالی است).
-         خزانه فقط payments[] را می‌خواند و این پولِ واقعیِ وصول‌شده را نمی‌دید؛
-         در نتیجه پیش‌پرداخت در «بانک/خزانه» نمی‌نشست و گردش نقدی ناقص می‌شد.
-         اینجا از مبلغ خودِ پیش‌پرداخت (amt = معادل ریالی وصول‌شده) یک حرکت وصول می‌سازیم. */
-      if (!pays.length && (o.advance.cashFull || o.advance.paid)) {
-        var fullAmt = num(o.advance.amt || o.advance.amount);
-        if (fullAmt) {
-          pushMove(out, {
-            key: 'advfull:' + (o.no || o.cd || ''),
-            cd: o.cd || o.no || '',
-            dir: 'in',
-            amount: fullAmt,
-            dateISO: isoOf(o.advance) || isoOf(o),
-            dateFa: faOf(o.advance) || faOf(o),
-            src: 'وصولی پیش‌پرداخت',
-            label: 'وصولی پیش‌پرداخت ' + (o.no || '') + (o.buyerCo ? ' — ' + o.buyerCo : '') + ' (پرداخت کامل/نقدی)'
-          });
-        }
-        return;
-      }
-      pays.forEach(function (p, i) {
-        if (!active(p) || p.voided || p.status === 'reversal') return;
-        var amt = num(p.amt || p.amount);
-        if (!amt) return;
-        if (payIsCheque(p)) return;
-        pushMove(out, {
-          key: 'advpay:' + (o.no || o.cd || '') + ':' + (p.cd || i),
-          cd: p.cd || o.no || '',
-          dir: 'in',
-          amount: amt,
-          dateISO: isoOf(p) || isoOf(o),
-          dateFa: faOf(p) || faOf(o),
-          src: 'وصولی پیش‌پرداخت',
-          label: 'وصولی پیش‌پرداخت ' + (o.no || '') + (o.buyerCo ? ' — ' + o.buyerCo : '')
-        });
+    /* v35 — منبع واحد وجه ورودی پرونده: Receipt قطعی.
+       شرایط پیشنهاد، paid/cashFull و درصد پیش‌پرداخت هرگز رویداد پول نیستند.
+       این تغییر هم اتصال اشتباه رکوردهای هم‌شماره را می‌بندد و هم داده آزمایشی
+       قدیمی را از مانده جاری خارج می‌کند. */
+    get('ptf_crm_case_receipts').forEach(function (r) {
+      if (!r || !active(r) || String(r.status || '') !== 'posted') return;
+      if (payIsCheque(r)) return; /* چک فقط پس از collect به Receipt بانکی تبدیل می‌شود */
+      var amt = num(r.amountIRR || r.amt || r.amount);
+      if (!amt) return;
+      pushMove(out, {
+        key: 'casereceipt:' + (r._id || r.cd || ''),
+        cd: r._id || r.cd || '',
+        dir: 'in',
+        amount: amt,
+        dateISO: String(r.receivedAt || r.dateISO || r.t || '').slice(0, 10),
+        dateFa: r.dateFa || r.receivedAt || r.t || '',
+        src: 'دریافت قطعی پرونده',
+        label: 'دریافت پرونده ' + (r.caseId || '') + (r.buyerCo ? ' — ' + r.buyerCo : '') + (r.referenceNo ? ' — پیگیری ' + r.referenceNo : '')
       });
     });
 
@@ -128,7 +106,7 @@
         if (!active(p) || p.voided || p.status === 'reversal') return;
         var amt = num(p.amt || p.amount || p.amountIrr);
         if (!amt) return;
-        if (p.fromAdvance) return;
+        if (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled) return;
         if (payIsCheque(p)) return;
         pushMove(out, {
           key: 'invpay:' + (inv.cd || inv.id || '') + ':' + (p.cd || p.id || i),
@@ -311,6 +289,19 @@
       });
     });
 
+    /* v35: مانده افتتاحیه دوره فقط با حرکات همان بازه جمع می‌شود؛ حرکات قبل از
+       افتتاحیه (از جمله داده آزمایشی/سال قبل) دوباره وارد مانده جاری نمی‌شوند. */
+    try {
+      var fp = (typeof window.ptfFinanceOfficialData === 'function') ? window.ptfFinanceOfficialData() : null;
+      var start = fp && fp.cfg && fp.cfg.startISO, end = fp && fp.cfg && fp.cfg.endISO;
+      if (start || end) out = out.filter(function (m) {
+        var ds = String(m.dateISO || m.dateFa || '').trim(), iso = '';
+        if (/^20\d{2}-\d{2}-\d{2}/.test(ds)) iso = ds.slice(0, 10);
+        else if (/^1[34]\d{2}[\/-]\d{1,2}[\/-]\d{1,2}/.test(ds) && typeof ptfJToISO === 'function') iso = ptfJToISO(ds) || '';
+        if (!iso) return true; /* رکورد بی‌تاریخ حذف پنهان نمی‌شود؛ کیفیت داده آن را گزارش می‌کند */
+        return (!start || iso >= start) && (!end || iso <= end);
+      });
+    } catch (eScope) {}
     return out.sort(function (a, b) { return String(b.dateISO || '').localeCompare(String(a.dateISO || '')); });
   };
 

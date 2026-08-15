@@ -18,11 +18,15 @@
       if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) { if (i.isUnofficial) return false; }
       var o = offers.filter(function (x) { return x.no === i.offerNo; })[0] || {};
       var invoiceCustomerName = normalizeName(i.buyerCo || o.buyerCo);
-      return (i.buyerCd || o.buyerCd) === cd || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
+      return (i.customerId || i.buyerCd || o.buyerCd) === cd || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
     });
   }
   function paid(i) {
-    return (i.payments || []).concat(i.pays || []).filter(active).reduce(function (s, p) { return s + (+p.amt || +p.amount || 0); }, 0);
+    var legacy = (i.payments || []).concat(i.pays || []).filter(active).reduce(function (s, p) {
+      return s + ((p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled) ? 0 : (+p.amt || +p.amount || 0));
+    }, 0);
+    /* v35: تخصیص Receipt پرونده رابطه مستقل است و روی فاکتور Projection می‌شود. */
+    return legacy + (+i.allocatedBase || 0) + (+i.allocatedVat || 0);
   }
   /* ---------- مرجوعی فروش — تطبیق مقاوم با فاکتور (v33.12.0)
      ریشهٔ «اعتبار مشتری از بین رفته»: مرجوعی‌های قدیمی/ثبت‌شده از مسیرهای دیگر
@@ -58,7 +62,16 @@
   }
   function returnedAmount(invoice) { return salesReturnsForInvoice(invoice).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0); }
   function creditAmountForInvoice(invoice) { return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0)); }
-  function creditForCustomer(cd) { return invs(cd).reduce(function (s, i) { return s + creditAmountForInvoice(i); }, 0); }
+  function creditForCustomer(cd) {
+    var legacy = invs(cd).reduce(function (s, i) { return s + creditAmountForInvoice(i); }, 0);
+    var cases = {};
+    (getData('ptf_crm_deals') || []).forEach(function (d) { if (d && d.buyerCd === cd) cases[String(d._id || d.cd || '')] = true; });
+    var caseCredit = (getData('ptf_crm_case_receipts') || []).reduce(function (s, r) {
+      if (!r || r.status !== 'posted' || r.voided || (r.customerId !== cd && !cases[String(r.caseId || '')])) return s;
+      return s + (+r.creditRemainIRR || 0);
+    }, 0);
+    return legacy + caseCredit;
+  }
   function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i)); }, 0); }
   function accountPosition(cd) {
     var open = bal(cd), credit = creditForCustomer(cd);
@@ -329,6 +342,22 @@
         if (cfRowPass(rrow, f)) out.push(rrow);
       });
     });
+    /* v35: دریافت قطعی پرونده یک بستانکار مستقل در دفتر مشتری است؛ تخصیص FIFO
+       فقط مانده فاکتور را کم می‌کند و ردیف نقدی دوم تولید نمی‌کند. */
+    try {
+      var customerCases = {};
+      (getData('ptf_crm_deals') || []).forEach(function (d) {
+        if (!d) return;
+        if (d.buyerCd === cd) customerCases[String(d._id || d.cd || '')] = true;
+      });
+      (getData('ptf_crm_case_receipts') || []).forEach(function (p) {
+        if (!p || p.status !== 'posted' || p.voided) return;
+        if (p.customerId !== cd && !customerCases[String(p.caseId || '')]) return;
+        var amt = +p.amountIRR || +p.amt || 0;
+        var prow = { date: p.receivedAt || p.dateISO || p.t || '', iso: cfIso(p.receivedAt || p.dateISO || p.t || ''), type: 'دریافت قطعی پرونده', no: p._id || p.cd || '', ref: p.referenceNo || p.method || '', debit: 0, credit: amt, cur: 'IRR', status: 'payment', note: p.note || '', files: (p.files || []).slice(), link: { kind: 'case-receipt', cd: p._id || p.cd || '', caseId: p.caseId || '' } };
+        if (cfRowPass(prow, f)) out.push(prow);
+      });
+    } catch (eCaseReceipt) {}
     /* CHQ-MOD-001: چک‌های وارده از این مشتری در گردش (بستانکار = مبلغ چک؛ تا وصول اثر نقدی ندارد) */
     try {
       var receivedChq = (typeof window.ptfChequeReceived === 'function') ? window.ptfChequeReceived() : [];
@@ -425,8 +454,13 @@
     if (w) w.style.display = (h === 'چک') ? '' : 'none';
   };
   window.cfReceiptOpen = function (invCd) {
-    var inv = getData('ptf_crm_invoices').filter(function (i) { return i.cd === invCd; })[0];
+    var inv = getData('ptf_crm_invoices').filter(function (i) { return i.cd === invCd || i._id === invCd; })[0];
     if (!inv) return;
+    if (window.PTF_SALES_DOMAIN_V2 && inv.caseId) {
+      alert('دریافت از پرونده ثبت می‌شود و سیستم آن را FIFO به فاکتورهای باز تخصیص می‌دهد.');
+      if (typeof window.ptfCaseFinanceOpen === 'function') window.ptfCaseFinanceOpen(inv.caseId);
+      return;
+    }
     var ofr = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {};
     var remain = Math.max(0, (+inv.amount || 0) - paid(inv) - returnedAmount(inv));
     if (remain <= 0.5) { alert('این فاکتور تسویه شده است.'); return; }

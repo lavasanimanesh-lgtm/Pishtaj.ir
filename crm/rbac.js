@@ -935,7 +935,7 @@ function buildReceivables() {
 function renderReceivables() {
   var el = document.getElementById('rcWrap');
   if (!el) return;
-  var invs = getData('ptf_crm_invoices');
+  var invs = getData('ptf_crm_invoices').filter(function (i) { return i && i.status !== 'void' && i.st !== 'void' && i.void !== true && i.status !== 'superseded'; });
   if (!ptfCanSeeLedger('unofficial')) {
     invs = invs.filter(function (i) { return !i.isUnofficial; });
   }
@@ -943,8 +943,8 @@ function renderReceivables() {
   var h = '';
   var totalOpen = 0;
   invs.forEach(function (inv) {
-    var payRows = (inv.payments || []).concat(inv.pays || []);
-    var paid = payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+    var payRows = (inv.payments || []).concat(inv.pays || []).filter(function (p) { return !(window.PTF_SALES_DOMAIN_V2 && p && (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled)); });
+    var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
     var remain = Math.max(0, inv.amount - paid);
     var pct = inv.amount ? Math.min(100, Math.round(paid * 100 / inv.amount)) : 0;
     var o = offers.filter(function (x) { return x.no === inv.offerNo; })[0] || {};
@@ -977,7 +977,7 @@ function renderReceivables() {
       '<div style="font-size:11.5px;color:#64748b">مبلغ فاکتور: ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال | وصولی: ' + paid.toLocaleString('fa-IR') + ' ریال | <b style="color:' + (remain ? '#dc2626' : '#10b981') + '">مانده: ' + remain.toLocaleString('fa-IR') + ' ریال</b>' + ((((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR')) ? ' <span style="color:#0e7490">| سند مبنا: ' + escP(o.currency || inv.offerCurrency) + ' اما فاکتور ریالی ملاک وصول است</span>' : '') + '</div>' + fxInfo + '<div style="margin-top:5px">' + dueBadge + '</div>' +
       contact + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:5px">' +
-      (remain > 0 ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showPayModal(\'' + inv.cd + '\')">+ ثبت وصولی</button>' : '<span class="bd b-st4">✔ تسویه کامل</span>') +
+      (remain > 0 ? (window.PTF_SALES_DOMAIN_V2 && inv.caseId ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="ptfCaseFinanceOpen(\'' + ptfOnClickArg(inv.caseId) + '\')">+ دریافت از پرونده</button>' : '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showPayModal(\'' + inv.cd + '\')">+ ثبت وصولی</button>') : '<span class="bd b-st4">✔ تسویه کامل</span>') +
       '</div></div>' +
       (payRows.length ? '<div style="margin-top:6px;font-size:11.5px;color:#475569">' + payRows.map(function (p, pi) {
         var payLabel = p.status === 'reversal' ? '↩ ابطال وصولی' : (p.voided ? '⛔ وصولی ابطال‌شده' : (p.how || (p.fx ? 'تسعیر ارزی' : '-')));
@@ -988,12 +988,17 @@ function renderReceivables() {
       '</div>';
   });
   var totalOverdue = 0;
-  invs.forEach(function(x){ var _p = ((x.payments||[]).concat(x.pays||[])).reduce(function(s,p){return s+(+p.amt||0);},0); if (x.amount-_p > 0 && x.dueISO && x.dueISO < new Date().toISOString().slice(0,10)) totalOverdue += (x.amount-_p); });
+  invs.forEach(function(x){ var _p = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(x) : ((x.payments||[]).concat(x.pays||[])).reduce(function(s,p){return s+(+p.amt||0);},0); if (x.amount-_p > 0 && x.dueISO && x.dueISO < new Date().toISOString().slice(0,10)) totalOverdue += (x.amount-_p); });
   var head = '<div style="background:#fff8f5;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>جمع مطالبات باز: <b style="color:#dc2626">' + totalOpen.toLocaleString('fa-IR') + ' ریال</b></span>' + (totalOverdue ? '<span style="color:#b91c1c;font-weight:bold">🔴 سررسید گذشته: ' + totalOverdue.toLocaleString('fa-IR') + ' ریال</span>' : '') + '</div>';
   el.innerHTML = (invs.length ? head : '') + (h || '<div style="text-align:center;color:#94a3b8;padding:24px">فاکتوری ثبت نشده</div>');
 }
 function showPayModal(invCd) {
-  var inv = getData('ptf_crm_invoices').filter(function (i) { return i.cd === invCd; })[0] || {};
+  var inv = getData('ptf_crm_invoices').filter(function (i) { return i.cd === invCd || i._id === invCd; })[0] || {};
+  if (window.PTF_SALES_DOMAIN_V2 && inv.caseId) {
+    alert('در معماری یکپارچه، دریافت روی شناسه پرونده ثبت و سپس FIFO به فاکتور تخصیص می‌یابد.');
+    if (typeof window.ptfCaseFinanceOpen === 'function') window.ptfCaseFinanceOpen(inv.caseId);
+    return;
+  }
   var ofr = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {};
   var invCur = ofr.currency || inv.offerCurrency || 'IRR';
   var fxMsg = (invCur && invCur !== 'IRR') ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:7px 11px;font-size:11.5px;color:#1e40af;margin-bottom:8px">💱 این درخواست ماهیتاً ' + escP(invCur) + ' داشته، اما بعد از صدور فاکتور <b>ملاک وصول = مبلغ ریالی فاکتور</b> است.</div>' : '';

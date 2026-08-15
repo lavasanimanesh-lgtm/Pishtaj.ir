@@ -1603,6 +1603,13 @@
   };
 
   window.ptfAdvanceOpen = function (no) {
+    /* v35: شرایط پرداخت پیشنهاد رویداد مالی نیست. دریافت واقعی فقط پس از تشکیل
+       پرونده و از هاب «دریافت و حساب پرونده» ثبت می‌شود. */
+    if (window.PTF_SALES_DOMAIN_V2) {
+      alert('در معماری یکپارچه، پیشنهاد فقط شرایط تجاری را نگه می‌دارد و پیش‌پرداخت روی پیشنهاد ثبت نمی‌شود.\nدریافت واقعی را پس از برد از داخل پرونده فروش ثبت کنید.');
+      if (typeof window.ptfGoSalesFileForOffer === 'function') window.ptfGoSalesFileForOffer(no);
+      return;
+    }
     var offers = getData('ptf_crm_offers');
     var o = offers.filter(function (x) { return x.no === no; })[0];
     if (!o) return;
@@ -1674,7 +1681,7 @@
       try {
         var st = window._offState || {};
         var o = getData('ptf_crm_offers').filter(function (x) { return x.no === st.no; })[0];
-        if (o && (o.kind === 'CO' || o.kind === 'TC') && !o.advance && !o.advanceAsked) {
+        if (!window.PTF_SALES_DOMAIN_V2 && o && (o.kind === 'CO' || o.kind === 'TC') && !o.advance && !o.advanceAsked) {
           o.advanceAsked = true;
           var list = getData('ptf_crm_offers');
           list = list.map(function (x) { return x.no === o.no ? o : x; });
@@ -1701,6 +1708,9 @@
   if (typeof _renderRecv === 'function') {
     window.renderReceivables = function () {
       _renderRecv();
+      /* v35: legacy offer.advance فقط برای گزارش مهاجرت می‌ماند و دیگر در UI
+         مطالبات/خزانه مسیر عملیاتی ایجاد نمی‌کند. */
+      if (window.PTF_SALES_DOMAIN_V2) return;
       var el = document.getElementById('rcWrap'); if (!el) return;
       var invOfferNos = {};
       (getData('ptf_crm_invoices') || []).forEach(function (iv) { if (iv && iv.offerNo) invOfferNos[iv.offerNo] = 1; });
@@ -1717,6 +1727,11 @@
     };
   }
   window.advancePaid = function (no) {
+    if (window.PTF_SALES_DOMAIN_V2) {
+      alert('ثبت وصول روی شماره پیشنهاد غیرفعال است تا تشابه شماره نتواند پول را به رکورد دیگری متصل کند.\nوصول را از داخل پرونده فروش ثبت کنید.');
+      if (typeof window.ptfGoSalesFileForOffer === 'function') window.ptfGoSalesFileForOffer(no);
+      return;
+    }
     var offers = getData('ptf_crm_offers'); var o = offers.filter(function (x) { return x.no === no; })[0];
     if (o && o.rialOf) { alert('🔒 این سند «نسخه ریالی» پیشنهاد ارزی ' + o.rialOf + ' است — وصول پیش‌پرداخت فقط روی پیشنهاد ارزی مبدأ ثبت می‌شود (US-FX2RIAL).'); return; }
     var hasInv = (getData('ptf_crm_invoices') || []).some(function (iv) { return iv.offerNo === no; });

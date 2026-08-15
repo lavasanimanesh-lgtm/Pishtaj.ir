@@ -25,7 +25,9 @@ var SUITE = [
   { g: 'مالی', f: '_tools/uat/tester396-v34.5.6-ci-gate-contracts.js' },
   { g: 'مالی', f: '_tools/uat/tester340-v34.4.46-opex-row-identity-collapsed-docs.js' },
   { g: 'مالی', f: '_tools/uat/tester399-v34.5.19-treasury-petty-no-double-count.js' },
-  { g: 'مالی', f: '_tools/uat/tester132-v216.js' },
+  /* tester132-v216 قرارداد منسوخ «پورسانت هنگام برد» را می‌سنجد؛ از v34.5.35
+     مبنا تسویه کامل پرونده است و نگه‌داشتن آن در gate، شکست کاذب می‌ساخت. */
+  { g: 'مالی/فروش', f: '_tools/uat/tester403-v35-sales-to-cash.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
@@ -36,7 +38,8 @@ var SUITE = [
 var SYNTAX = [
   'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js',
   'crm/finance-write-guard.js', 'crm/fiscal.js', 'crm/supplier-finance.js',
-  'crm/opex.js', 'crm/cheques.js'
+  'crm/opex.js', 'crm/cheques.js', 'crm/treasury.js',
+  'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js'
 ];
 
 function failCount(out) {

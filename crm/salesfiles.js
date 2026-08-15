@@ -113,7 +113,7 @@
       return l.prjNo === 'SF:' + r.inqNo || l.inqNo === r.inqNo;
     });
     var offNos = offers.map(function (o) { return o.no; });
-    out.invoices = getData('ptf_crm_invoices').filter(function (i) { return offNos.indexOf(i.offerNo) > -1; });
+    out.invoices = getData('ptf_crm_invoices').filter(function (i) { return offNos.indexOf(i.offerNo) > -1 && i.status !== 'void' && i.st !== 'void' && i.status !== 'superseded' && i.void !== true; });
     /* v17.1 (US-404 فاز ۲ — تکمیل اسناد چهارگانه): استعلام‌های تامین مرتبط (rfqsmart)
        با هر دو شناسه درخواست (کد سیستمی + شماره کارفرما — US-386) */
     try {
@@ -265,7 +265,7 @@
       if (d.invoices.length) {
         up(9);
         var remain = d.invoices.reduce(function (s2, i) {
-          var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s3, pp) { return s3 + (+pp.amt || 0); }, 0);
+          var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (s3, pp) { return s3 + (+pp.amt || 0); }, 0);
           return s2 + Math.max(0, (+i.amount || 0) - paid);
         }, 0);
         up(remain > 0.5 ? 10 : 11);
@@ -641,17 +641,18 @@
 
   /* ---------- کشوی اسناد ---------- */
   function sfFinancialStrip(r, d) {
-    var advTxt = '—', advState = '#64748b';
+    var advTxt = 'هنوز دریافت قطعی ثبت نشده', advState = '#b45309';
     try {
-      var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === r.wonOffer; })[0];
-      if (wo && typeof ptfAdvanceNormalize === 'function') {
-        var a = ptfAdvanceNormalize(wo);
-        if (a && a.mode && a.mode !== 'none') {
-          var recv = +a.receivedAmt || 0, claim = +a.amt || 0;
-          advTxt = (recv ? ('وصولی ' + recv.toLocaleString('fa-IR') + ' ریال') : 'هنوز وصول نشده') +
-            (claim ? ' از مطالبه ' + claim.toLocaleString('fa-IR') : '');
-          advState = recv > 0 ? '#059669' : '#b45309';
-        }
+      /* v35: فقط Receipt قطعیِ متصل به شناسه پرونده؛ advance پیشنهاد منبع پول نیست. */
+      var _caseId = String(r._id || r.cd || '');
+      var _receipts = (getData('ptf_crm_case_receipts') || []).filter(function (x) {
+        return x && x.caseId === _caseId && x.status === 'posted' && !x.voided;
+      });
+      var recv = _receipts.reduce(function (s, x) { return s + (+x.amountIRR || +x.amt || 0); }, 0);
+      var credit = _receipts.reduce(function (s, x) { return s + (+x.creditRemainIRR || 0); }, 0);
+      if (recv > 0) {
+        advTxt = recv.toLocaleString('fa-IR') + ' ریال دریافت قطعی' + (credit > 0 ? ' — بستانکاری: ' + credit.toLocaleString('fa-IR') : '');
+        advState = '#059669';
       }
     } catch (e) {}
     var rb = (typeof ptfRealBuyStatus === 'function') ? ptfRealBuyStatus(r.inqNo) : { total: 0, done: 0, has: false };
@@ -660,7 +661,7 @@
     }).reduce(function (s, x) { return s + (+x.amt || 0); }, 0);
     var invCount = (d.invoices || []).length;
     var openAmt = (d.invoices || []).reduce(function (s, i) {
-      var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
+      var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (z, p) { return z + (+p.amt || 0); }, 0);
       return s + Math.max(0, (+i.amount || 0) - paid);
     }, 0);
     var au = (typeof sfCloseAudit === 'function') ? sfCloseAudit(r) : { blockers: [], warns: [] };
@@ -866,6 +867,14 @@
     })();
     /* v34.2.0: عملیات نسخهٔ ریالی فقط برای پیشنهاد ارزی برنده ظاهر می‌شود. */
     postActions += '<span class="sf-post-award-rial">' + ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') + '</span>';
+    /* v35: دریافت و حساب مشتری فقط روی شناسهٔ پرونده انجام می‌شود؛ شمارهٔ پیشنهاد
+       دیگر کلید اتصال مالی نیست. این action هاب یکپارچه دریافت/بستانکاری/فاکتور را باز می‌کند. */
+    if (r.wonOffer) {
+      postActions += postAction(
+        'case-finance', '💳', 'دریافت و حساب پرونده', 'ثبت دریافت قطعی و مشاهده بستانکاری/مطالبات همین پرونده',
+        'ptfCaseFinanceOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { primary: true, meta: 'خزانه و مشتری' }
+      );
+    }
     postActions += postAction(
       'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',
       'ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'زیان پروژه' }
@@ -1012,10 +1021,10 @@
     }
     /* ② تسویه کامل (AC1) — blocker نرم: در مودال قابل رفع با تسویه خودکار */
     out.openInvs = d.invoices.filter(function (i) {
-      var paid = ((i.payments || []).concat(i.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
+      var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
       return i.amount - paid > 0.5;
     });
-    out.remainSum = out.openInvs.reduce(function (s2, i) { return s2 + (i.amount - ((i.payments || []).concat(i.pays || [])).reduce(function (s3, pp) { return s3 + (+pp.amt || 0); }, 0)); }, 0);
+    out.remainSum = out.openInvs.reduce(function (s2, i) { var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(i) : ((i.payments || []).concat(i.pays || [])).reduce(function (s3, pp) { return s3 + (+pp.amt || 0); }, 0); return s2 + (i.amount - paid); }, 0);
     if (out.openInvs.length) out.warns.push({ id: 'recv', lb: '💰 ' + out.openInvs.length + ' فاکتور با مانده وصول‌نشده ' + out.remainSum.toLocaleString('fa-IR') + ' ریال — در گام بعد انتخاب می‌کنید: تسویه‌شده ثبت شود یا باز بماند' });
     /* ③ پوشش خرید واقعی پرونده */
     try {
@@ -1074,7 +1083,7 @@
       au.openInvs.forEach(function (i) {
         var iv = invsAll.filter(function (x) { return x.cd === i.cd; })[0];
         if (!iv) return;
-        var paid = ((iv.payments || []).concat(iv.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
+        var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(iv) : ((iv.payments || []).concat(iv.pays || [])).reduce(function (s2, pp) { return s2 + (+pp.amt || 0); }, 0);
         var receiptCd = genCode('RPAY');
         iv.payments = iv.payments || [];
         iv.payments.push({ 
@@ -1314,6 +1323,7 @@
       }
     }
     var au = sfCloseAudit(r);
+    if (window.PTF_SALES_DOMAIN_V2 && au.openInvs.length) { alert('⛔ پرونده دارای مطالبات باز است. معماری یکپارچه اجازه ساخت وصولی مصنوعی هنگام مختومه را نمی‌دهد؛ ابتدا دریافت واقعی را از «دریافت و حساب پرونده» ثبت کنید.'); return; }
     if (au.openInvs.length && !settle) { alert('⛔ با مطالبات باز نمی‌توان مختومه کرد — یا تیک تسویه را بزنید یا ابتدا وصولی‌ها را ثبت کنید.'); return; }
     if (!confirm('🏁 تایید نهایی مختومه پرونده «' + (r.inqNo || cd) + '»:\n\nپایان پروژه و تسویه کامل — کل پرونده با تمام اسناد به «بایگانی» منتقل می‌شود.\n\nادامه می‌دهید؟')) return;
     var ok = sfCloseSettledCommit(cd, settle, settleReason);

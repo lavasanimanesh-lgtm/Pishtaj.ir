@@ -96,6 +96,7 @@
     if (t === 'treasury' && typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     show('commissionBox', t === 'commission');
     show('qualityBox', t === 'quality');
+    show('salesIntegrityQuality', t === 'quality');
     show('chequeBox', t === 'cheque');
     var old = document.getElementById('finHubBar');
     if (old) old.outerHTML = bar();
@@ -111,7 +112,7 @@
       if (!panels || !barEl) return;
       var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
         'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
-        'ledgerReportBox', 'treasuryBox', 'commissionBox', 'qualityBox', 'chequeBox'];
+        'ledgerReportBox', 'treasuryBox', 'commissionBox', 'qualityBox', 'salesIntegrityQuality', 'chequeBox'];
       ids.forEach(function (id) {
         var el = document.getElementById(id);
         if (el && el.parentNode === panels) panels.appendChild(el);

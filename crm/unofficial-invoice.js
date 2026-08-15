@@ -636,7 +636,7 @@
     // محاسبه زنده و رسمی پیش‌پرداخت وصول‌شده از بخش مطالبات (که ریالی است)
     var advPayIrr = 0;
     try {
-      var _a = (o && typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(o) : null;
+      var _a = (!window.PTF_SALES_DOMAIN_V2 && o && typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(o) : null;
       if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
         advPayIrr = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
       }
@@ -651,10 +651,15 @@
     var netPayableIrr = Math.round(netPayableOriginal * currentRate);
     var amountIrr = advPayIrr + netPayableIrr; // ارزش کل فاکتور دفتری به ریال
 
+    // شناسه پرونده منبع اتصال مالی است؛ شماره پیشنهاد فقط مرجع نمایشی است.
+    var _salesCase = (getData('ptf_crm_deals') || []).filter(function (d) { return d && (d.wonOffer === o.no || (o._id && d.rootOfferId === o._id)); })[0] || null;
+    if (newInv && _salesCase) { newInv.caseId = _salesCase._id || _salesCase.cd || ''; newInv.customerId = _salesCase.buyerCd || o.buyerCd || ''; setData('ptf_crm_invoices', invs); }
     // ذخیره فاکتور در مطالبات کلاینت در صورتی که ثبت نشده باشد
     if (!newInv) {
       newInv = {
         cd: invoiceCd,
+        caseId: _salesCase ? (_salesCase._id || _salesCase.cd || '') : '',
+        customerId: (_salesCase && _salesCase.buyerCd) || o.buyerCd || '',
         no: invoiceNo,
         offerNo: o.no,
         amount: amountIrr, // مبلغ دفتری به ریال متناسب با تورم
@@ -696,6 +701,15 @@
 
       invs.unshift(newInv);
       setData('ptf_crm_invoices', invs);
+      if (window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
+        window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd })
+          .then(function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
+          .catch(function (e) {
+            var rollback = (getData('ptf_crm_invoices') || []).filter(function (x) { return x.cd !== newInv.cd; });
+            if (typeof window.ptfSyncApplyServerProjection === 'function') window.ptfSyncApplyServerProjection('ptf_crm_invoices', rollback); else setData('ptf_crm_invoices', rollback);
+            alert('⛔ ثبت سروری صورتحساب غیررسمی ناموفق بود و رکورد محلی بازگردانده شد: ' + e.message);
+          });
+      }
 
       // ثبت رویداد در تایم‌لاین پرونده فروش جهت هماهنگی با تیم کارشناسان
       try {
