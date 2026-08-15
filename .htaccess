@@ -1,6 +1,13 @@
 # PTF v33.0.0 — production/staging public-root baseline
 Options -Indexes
 
+# ------------------------------------------------------------------
+# SEO-2026-08: صفحه ۴۰۴ سفارشی
+# پیش از این، آدرس‌های نامعتبر صفحه پیش‌فرض آپاچی را برمی‌گرداندند که
+# هم تجربه کاربری بدی داشت و هم بودجه خزش (Crawl Budget) را هدر می‌داد.
+# ------------------------------------------------------------------
+ErrorDocument 404 /404.html
+
 <FilesMatch "^(?!manifest\.json$).*\.(?:json|log|zip|gz|bak|sql|md)$">
   Require all denied
 </FilesMatch>
@@ -340,3 +347,12 @@ RewriteRule "^knowledge-center/z-bdd0a52f\.html$" "/knowledge-center/kc-steel-pl
 RewriteRule "^knowledge-center/z-d0063fcd\.html$" "/knowledge-center/kc-steel-beam-rebar-specifications.html" [R=301,L]
 RewriteRule "^knowledge-center/z-ef76567b\.html$" "/knowledge-center/kc-energy-management-oil-gas.html" [R=301,L]
 RewriteRule "^knowledge-center/z-fe99473f\.html$" "/knowledge-center/kc-flare-burner-equipment.html" [R=301,L]
+
+# ------------------------------------------------------------------
+# SEO-2026-08: یکسان‌سازی آدرس‌ها (URL Canonicalization)
+# جلوگیری از محتوای تکراری با هدایت /path/index.html به /path/
+# و حذف اسلش انتهایی تکراری. تگ canonical به‌تنهایی کافی نیست؛
+# ریدایرکت ۳۰۱ سیگنال قطعی به گوگل می‌دهد و اعتبار را متمرکز می‌کند.
+# ------------------------------------------------------------------
+RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.html[\s?] [NC]
+RewriteRule ^(.*/)?index\.html$ /%1 [R=301,L]
