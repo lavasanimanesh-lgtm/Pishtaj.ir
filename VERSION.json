@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.7.14",
-  "last_stable_tag": "v2026.08.15-2108",
+  "crm_version": "v34.7.16",
+  "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-16",
-  "updated_by": "Arena Agent (v34.7.14 duplicate-case projection/cache fix)"
+  "updated_by": "Arena Agent (v34.7.16 duplicate-case identity gate pre-commit + pull before plan)"
 }
