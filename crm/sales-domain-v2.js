@@ -38,6 +38,15 @@
         else localStorage.setItem(k, JSON.stringify(d[k]));
       } catch (e) { console.error('sales-v2 projection', k, e); }
     });
+    /* v34.7.13: بعد از ادغام کنترل‌شدهٔ پرونده‌های تکراری، یک pull فوری بزن
+       تا مطمئن شویم دادهٔ نهایی سرور (شامل آرایهٔ fin_findings با یافته‌های
+       resolve‌شده) بدون باقی‌مانده از کش قدیمی محلی بارگذاری می‌شود. این کار
+       مانع از زنده‌شدن پرونده‌های ادغام‌شده توسط smart-merge می‌شود. */
+    try {
+      if (typeof window.ptfSyncPullNow === 'function') window.ptfSyncPullNow(function () {
+        if (typeof window.ptfSalesIntegrityScan === 'function') window.ptfSalesIntegrityScan();
+      });
+    } catch (eP) {}
   }
   function api(action, payload) {
     payload = payload || {};
