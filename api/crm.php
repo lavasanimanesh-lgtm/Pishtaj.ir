@@ -437,25 +437,37 @@ function sync_decode_archive($json) {
     return is_array($a) ? $a : [];
 }
 function sync_apply_tombstones($key, $json, $serverArchiveJson = '', $incomingArchiveJson = '') {
-    if ($key === 'ptf_crm_deleted_archive') return $json;
+    if ($key === 'ptf_crm_deleted_archive') {
+        $purgeAliases=[];foreach(array_merge(sync_decode_archive($serverArchiveJson),sync_decode_archive($incomingArchiveJson))as $d)if(is_array($d)&&strtolower((string)($d['kind']??''))==='archive_purge')foreach(($d['aliases']??[])as $alias){$alias=trim((string)$alias);if(strlen($alias)>=6)$purgeAliases[$alias]=true;}
+        if(!$purgeAliases)return$json;$rows=sync_decode_archive($json);$out=[];foreach($rows as $row){if(!is_array($row))continue;if(strtolower((string)($row['kind']??''))==='archive_purge'){$out[]=$row;continue;}$encoded=json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$purged=false;foreach($purgeAliases as $alias=>$_)if(strpos((string)$encoded,(string)$alias)!==false){$purged=true;break;}if(!$purged)$out[]=$row;}return json_encode(array_values($out),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    }
     $kinds = sync_tombstone_kinds_for_key($key);
-    if (!$kinds) return $json;
     $kindSet = array_fill_keys(array_map('strtolower', $kinds), true);
-    $ids = [];
+    $ids = []; $purgeAliases = [];
     foreach (array_merge(sync_decode_archive($serverArchiveJson), sync_decode_archive($incomingArchiveJson)) as $d) {
         if (!is_array($d)) continue;
         $kind = strtolower((string)($d['kind'] ?? ''));
+        if ($kind === 'archive_purge' && is_array($d['identities'][$key] ?? null)) {
+            foreach ($d['identities'][$key] as $purgedId) { $purgedId=trim((string)$purgedId); if($purgedId!=='')$ids[$purgedId]=true; }
+            if (is_array($d['aliases'] ?? null)) foreach ($d['aliases'] as $alias) { $alias=trim((string)$alias); if(strlen($alias)>=6)$purgeAliases[$alias]=true; }
+        }
         if (!isset($kindSet[$kind])) continue;
         $id = trim((string)($d['id'] ?? $d['no'] ?? $d['cd'] ?? ''));
         if ($id !== '') $ids[$id] = true;
     }
-    if (!$ids) return $json;
+    if (!$ids && !$purgeAliases) return $json;
     $arr = json_decode((string)$json, true);
     if (!is_array($arr)) return $json;
+    if ($key === 'ptf_crm_supplier_finance' && (isset($arr['invoices']) || isset($arr['payments']) || isset($arr['schema']))) {
+        foreach(['invoices','payments','adjustments']as $bucket){if(!is_array($arr[$bucket]??null))continue;$arr[$bucket]=array_values(array_filter($arr[$bucket],function($r)use($ids){if(!is_array($r))return true;$id=trim((string)($r['cd']??$r['_id']??''));return$id===''||!isset($ids[$id]);}));}
+        foreach($arr['payments']??[]as &$payment)if(is_array($payment)&&is_array($payment['allocations']??null))$payment['allocations']=array_values(array_filter($payment['allocations'],function($a)use($ids){return!is_array($a)||!isset($ids[trim((string)($a['invoiceCd']??''))]);}));unset($payment);
+        return json_encode($arr,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    }
     $out = [];
     foreach ($arr as $r) {
-        $id = sync_record_id_for_key($key, $r);
-        if ($id === '' || !isset($ids[$id])) $out[] = $r;
+        $id = sync_record_id_for_key($key, $r); $purged = ($id !== '' && isset($ids[$id]));
+        if (!$purged && $purgeAliases && is_array($r)) { $encoded=json_encode($r,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); foreach($purgeAliases as $alias=>$_)if(strpos((string)$encoded,(string)$alias)!==false){$purged=true;break;} }
+        if (!$purged) $out[] = $r;
     }
     return json_encode(array_values($out), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }

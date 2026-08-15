@@ -240,11 +240,15 @@ function sd_meta_commit(array $changes): int {
     rename($tmp, $metaFile);
     return $rev;
 }
+function sd_projection_value(string $key,array $value) {
+    /* supplier_finance is an object envelope; domain collections are lists. */
+    return $key==='ptf_crm_supplier_finance'?$value:array_values($value);
+}
 function sd_commit(array $changes): int {
     $dir = sd_sync_dir();
     $temps = [];
     foreach ($changes as $key => $value) {
-        $json = json_encode(array_values($value), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $json = json_encode(sd_projection_value((string)$key,$value), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         if ($json === false) throw new RuntimeException('json_encode_failed:' . $key);
         $tmp = $dir . '/' . $key . '.json.tmp.' . bin2hex(random_bytes(4));
         if (file_put_contents($tmp, $json, LOCK_EX) === false) throw new RuntimeException('write_failed:' . $key);
@@ -264,7 +268,7 @@ function sd_commit(array $changes): int {
 }
 function sd_result_data(array $changes): array {
     $out = [];
-    foreach ($changes as $key => $value) $out[$key] = array_values($value);
+    foreach ($changes as $key => $value) $out[$key] = sd_projection_value((string)$key,$value);
     return $out;
 }
 function sd_idempotency(array $commands, string $key): ?array {
@@ -372,6 +376,93 @@ function sd_merge_case_records(array $keep, array $source, array &$conflicts): a
     return $keep;
 }
 
+/* Permanent purge of an explicitly selected archived test case. Shared master data
+   (customers/products/suppliers) is never part of this graph. The only retained data is
+   a minimal identity tombstone so stale clients cannot resurrect retired business codes. */
+function sd_purge_collection_keys(): array {
+    return ['ptf_crm_projects','ptf_crm_deals','ptf_crm_offers','ptf_crm_rfqs','ptf_crm_surplus','ptf_crm_invoices','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_petty','ptf_crm_opex','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_sales_returns','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_inqitems','ptf_crm_payables','ptf_crm_buyquotes','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_deleted_archive'];
+}
+function sd_purge_load_collections(): array { $out=[]; foreach(sd_purge_collection_keys() as $key)$out[$key]=sd_read($key); $out['ptf_crm_supplier_finance']=sd_read('ptf_crm_supplier_finance'); return $out; }
+function sd_purge_record_id(string $key, array $row): string {
+    if($key==='ptf_crm_offers')return trim((string)($row['no']??$row['cd']??$row['id']??''));
+    return trim((string)($row['_id']??$row['cd']??$row['no']??$row['id']??$row['code']??$row['invoiceCd']??''));
+}
+function sd_purge_fingerprint(string $key, array $row): string {
+    $id=sd_purge_record_id($key,$row);if($id!=='')return'id:'.$id;
+    return'hash:'.hash('sha256',json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+}
+function sd_purge_add(array &$set,$value): void { $v=trim((string)$value);if($v!=='')$set[$v]=true; }
+function sd_purge_field_match(array $row,array $fields,array $set): bool { foreach($fields as $field){$v=trim((string)($row[$field]??''));if($v!==''&&isset($set[$v]))return true;}return false; }
+function sd_purge_recursive_exact($value,array $set): bool {
+    if(is_array($value)){foreach($value as $v)if(sd_purge_recursive_exact($v,$set))return true;return false;}
+    if(!is_scalar($value))return false;$text=trim((string)$value);if(isset($set[$text]))return true;
+    foreach($set as $alias=>$_)if(strlen((string)$alias)>=6&&strpos($text,(string)$alias)!==false)return true;
+    return false;
+}
+function sd_collect_cloud_keys($value,array &$out,string $field=''): void {
+    if(!is_array($value))return;
+    foreach($value as $key=>$next){$name=is_string($key)?$key:$field;if(is_array($next)){sd_collect_cloud_keys($next,$out,$name);continue;}if(!is_string($next)||trim($next)===''||strpos($next,'data:')===0)continue;if(in_array($name,['key','objectKey','storageKey','fileKey','archiveKey'],true)){ $candidate=ltrim(trim($next),'/'); if(strpos($candidate,'/')!==false&&strpos($candidate,'..')===false&&strlen($candidate)<=500)$out[$candidate]=true; }}
+}
+function sd_archive_purge_plan_data(string $projectNo,array $collections): array {
+    $projects=$collections['ptf_crm_projects']??[];$targets=[];foreach($projects as $row)if(is_array($row)&&((string)($row['no']??'')===$projectNo||(string)($row['cd']??'')===$projectNo))$targets[]=$row;
+    if(count($targets)!==1)return['projectNo'=>$projectNo,'error'=>count($targets)?'duplicate_archived_project':'archived_project_not_found','projectCount'=>count($targets),'counts'=>[],'cloudKeys'=>[],'planHash'=>''];
+    $project=$targets[0];if((string)($project['state']??'')!=='archived')return['projectNo'=>$projectNo,'error'=>'project_not_archived','counts'=>[],'cloudKeys'=>[],'planHash'=>''];
+    $offerNos=[];$offerIds=[];$inqNos=[];$caseIds=[];$projectIds=[];
+    foreach([$project['no']??'',$project['cd']??'',$project['dealCd']??'']as $v)sd_purge_add($projectIds,$v);
+    foreach(array_merge([$project['offerNo']??'',$project['wonOffer']??''],is_array($project['offerNos']??null)?$project['offerNos']:[])as $v)sd_purge_add($offerNos,$v);
+    sd_purge_add($inqNos,$project['inqNo']??'');
+    for($round=0;$round<3;$round++){
+        foreach(($collections['ptf_crm_offers']??[])as $row)if(is_array($row)&&(isset($offerNos[(string)($row['no']??'')])||isset($inqNos[(string)($row['inqNo']??'')])||isset($inqNos[(string)($row['srcRfq']??'')]))){sd_purge_add($offerNos,$row['no']??'');sd_purge_add($offerIds,$row['_id']??'');sd_purge_add($inqNos,$row['inqNo']??'');sd_purge_add($inqNos,$row['srcRfq']??'');}
+        foreach(($collections['ptf_crm_deals']??[])as $row)if(is_array($row)&&(sd_purge_field_match($row,['_id','cd'],$projectIds)||sd_purge_field_match($row,['wonOffer','offerNo'],$offerNos)||sd_purge_field_match($row,['rootOfferId'],$offerIds)||sd_purge_field_match($row,['inqNo'],$inqNos))){sd_purge_add($caseIds,$row['_id']??'');sd_purge_add($caseIds,$row['cd']??'');sd_purge_add($projectIds,$row['cd']??'');sd_purge_add($offerNos,$row['wonOffer']??'');sd_purge_add($offerNos,$row['offerNo']??'');sd_purge_add($offerIds,$row['rootOfferId']??'');sd_purge_add($inqNos,$row['inqNo']??'');}
+    }
+    $matches=[];$matchedRows=[];$idsForTombstone=[];
+    $addMatch=function(string $key,array $row)use(&$matches,&$matchedRows,&$idsForTombstone){$fp=sd_purge_fingerprint($key,$row);$matches[$key][$fp]=hash('sha256',json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));$matchedRows[]=$row;$id=sd_purge_record_id($key,$row);if($id!=='')$idsForTombstone[$key][$id]=true;};
+    foreach($projects as $row)if(is_array($row)&&(((string)($row['no']??'')===$projectNo||(string)($row['cd']??'')===$projectNo)||sd_purge_field_match($row,['dealCd'],$projectIds+$caseIds)||sd_purge_field_match($row,['offerNo','wonOffer'],$offerNos)||sd_purge_field_match($row,['inqNo'],$inqNos)))$addMatch('ptf_crm_projects',$row);
+    foreach(($collections['ptf_crm_deals']??[])as $row)if(is_array($row)&&(sd_purge_field_match($row,['_id','cd'],$caseIds)||sd_purge_field_match($row,['wonOffer','offerNo'],$offerNos)||sd_purge_field_match($row,['rootOfferId'],$offerIds)||sd_purge_field_match($row,['inqNo'],$inqNos)))$addMatch('ptf_crm_deals',$row);
+    foreach(($collections['ptf_crm_offers']??[])as $row)if(is_array($row)&&(sd_purge_field_match($row,['no'],$offerNos)||sd_purge_field_match($row,['_id'],$offerIds)||sd_purge_field_match($row,['inqNo','srcRfq'],$inqNos)))$addMatch('ptf_crm_offers',$row);
+    foreach(($collections['ptf_crm_rfqs']??[])as $row)if(is_array($row)&&sd_purge_field_match($row,['_id','cd','inqNo'],$inqNos))$addMatch('ptf_crm_rfqs',$row);
+    $blockers=[];foreach(($collections['ptf_crm_surplus']??[])as $row)if(is_array($row)){$linked=sd_purge_field_match($row,['sourceDealCd'],$projectIds+$caseIds+$offerNos+$inqNos);foreach(array_merge($row['reservations']??[],$row['saleRefs']??[])as $ref)if(is_array($ref)&&isset($offerNos[(string)($ref['offerNo']??'')]))$linked=true;if(!$linked)continue;$foreign=[];foreach(array_merge($row['reservations']??[],$row['saleRefs']??[])as $ref)if(is_array($ref)){$_no=trim((string)($ref['offerNo']??''));if($_no!==''&&!isset($offerNos[$_no]))$foreign[$_no]=true;}if($foreign){$blockers[]=['type'=>'shared_inventory','id'=>$row['cd']??'','otherOffers'=>array_keys($foreign)];continue;}$addMatch('ptf_crm_surplus',$row);}
+    $invoiceIds=[];foreach(($collections['ptf_crm_invoices']??[])as $row)if(is_array($row)&&(sd_purge_field_match($row,['offerNo'],$offerNos)||sd_purge_field_match($row,['caseId'],$caseIds))){$addMatch('ptf_crm_invoices',$row);sd_purge_add($invoiceIds,$row['_id']??$row['cd']??'');}
+    $receiptIds=[];foreach(($collections['ptf_crm_case_receipts']??[])as $row)if(is_array($row)&&sd_purge_field_match($row,['caseId'],$caseIds)){$addMatch('ptf_crm_case_receipts',$row);sd_purge_add($receiptIds,$row['_id']??$row['cd']??'');}
+    $ownerIds=$caseIds+$invoiceIds+$receiptIds;
+    foreach(($collections['ptf_crm_receipt_allocations']??[])as $row)if(is_array($row)&&(sd_purge_field_match($row,['caseId'],$caseIds)||sd_purge_field_match($row,['invoiceId'],$invoiceIds)||sd_purge_field_match($row,['receiptId'],$receiptIds)))$addMatch('ptf_crm_receipt_allocations',$row);
+    foreach(($collections['ptf_crm_fin_attachments']??[])as $row)if(is_array($row)&&sd_purge_field_match($row,['ownerId'],$ownerIds))$addMatch('ptf_crm_fin_attachments',$row);
+    $rules=[
+      'ptf_crm_petty'=>[['dealRef'],$projectIds+$caseIds], 'ptf_crm_opex'=>[['dealRef'],$projectIds+$caseIds],
+      'ptf_crm_cheques_issued'=>[['dealCd'],$projectIds+$caseIds+$offerNos+$inqNos], 'ptf_crm_cheques_received'=>[['dealCd'],$projectIds+$caseIds+$offerNos+$inqNos],
+      'ptf_crm_sales_returns'=>[['dealCd','offerNo'],$projectIds+$caseIds+$offerNos], 'ptf_crm_packinglists'=>[['offerNo'],$offerNos],
+      'ptf_crm_letters'=>[['prjNo','projectNo','dealCd','offerNo','inqNo','ref'],$projectIds+$caseIds+$offerNos+$inqNos],
+      'ptf_crm_contracts'=>[['prjNo','projectNo','dealCd','offerNo','inqNo','ref'],$projectIds+$caseIds+$offerNos+$inqNos],
+      'ptf_crm_rfqsmart'=>[['srcRfq','inqNo','offerNo'],$inqNos+$offerNos], 'ptf_crm_buycmp'=>[['inqNo','sourceOfferNo'],$inqNos+$offerNos],
+      'ptf_crm_inqreads'=>[['inqNo','cd'],$inqNos], 'ptf_crm_inqitems'=>[['inqNo'],$inqNos], 'ptf_crm_payables'=>[['inqNo','offerNo'],$inqNos+$offerNos],
+      'ptf_crm_buyquotes'=>[['ref','inqNo','offerNo'],$inqNos+$offerNos]
+    ];
+    foreach($rules as $key=>$spec)foreach(($collections[$key]??[])as $row)if(is_array($row)&&sd_purge_field_match($row,$spec[0],$spec[1]))$addMatch($key,$row);
+    /* Supplier ledger is an object envelope. Delete only invoices/payments exclusively
+       tied to this test case; a shared payment keeps its real allocations. */
+    $purchaseIds=[];foreach(($collections['ptf_crm_buycmp']??[])as $cmp)if(is_array($cmp)&&sd_purge_field_match($cmp,['inqNo','sourceOfferNo'],$inqNos+$offerNos))foreach(($cmp['purchases']??[])as $purchase)if(is_array($purchase)){sd_purge_add($purchaseIds,$purchase['cd']??'');sd_purge_add($purchaseIds,$purchase['id']??'');}
+    $payableIds=[];foreach(($collections['ptf_crm_payables']??[])as $row)if(is_array($row)&&sd_purge_field_match($row,['inqNo','offerNo'],$inqNos+$offerNos))sd_purge_add($payableIds,$row['cd']??$row['_id']??'');
+    $sf=$collections['ptf_crm_supplier_finance']??[];$sfInvoiceIds=[];$sfDeletePayments=[];$sfTrimPayments=[];$sfRows=[];
+    foreach(($sf['invoices']??[])as $row)if(is_array($row)){ $legacy=false;foreach(($row['legacyPayableCds']??[])as $legacyCd)if(isset($payableIds[(string)$legacyCd])){$legacy=true;break;} if(sd_purge_field_match($row,['inqNo','offerNo'],$inqNos+$offerNos)||sd_purge_field_match($row,['sourcePurchaseCd'],$purchaseIds)||$legacy){$id=trim((string)($row['cd']??$row['_id']??''));if($id!=='')$sfInvoiceIds[$id]=true;$sfRows[]=$row;} }
+    foreach(($sf['payments']??[])as $row)if(is_array($row)){ $id=trim((string)($row['cd']??$row['_id']??''));$sourceMatch=sd_purge_field_match($row,['sourcePurchaseCd'],$purchaseIds);$matched=0;$unmatched=0;foreach(($row['allocations']??[])as $allocation){if(is_array($allocation)&&isset($sfInvoiceIds[(string)($allocation['invoiceCd']??'')]))$matched++;else$unmatched++;}if(($sourceMatch||$matched>0)&&$unmatched===0){if($id!=='')$sfDeletePayments[$id]=true;$sfRows[]=$row;}elseif($matched>0&&$id!=='')$sfTrimPayments[$id]=true; }
+    $allAliases=$projectIds+$caseIds+$offerNos+$offerIds+$inqNos+$invoiceIds+$receiptIds+$purchaseIds+$sfInvoiceIds;
+    foreach(['ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_deleted_archive']as $key)foreach(($collections[$key]??[])as $row)if(is_array($row)&&sd_purge_recursive_exact($row,$allAliases))$addMatch($key,$row);
+    foreach($sfRows as $row)$matchedRows[]=$row;
+    $cloud=[];foreach($matchedRows as $row)sd_collect_cloud_keys($row,$cloud);$cloudKeys=array_keys($cloud);sort($cloudKeys);
+    $counts=[];$samples=[];$signature=[];foreach($matches as $key=>$fps){$counts[$key]=count($fps);$samples[$key]=array_slice(array_keys($idsForTombstone[$key]??[]),0,5);$signature[$key]=[];foreach($fps as $fp=>$rowHash)$signature[$key][]=$fp.':'.$rowHash;sort($signature[$key]);}
+    if($sfInvoiceIds){$counts['ptf_crm_supplier_finance_invoices']=count($sfInvoiceIds);$samples['ptf_crm_supplier_finance_invoices']=array_slice(array_keys($sfInvoiceIds),0,5);$signature['ptf_crm_supplier_finance_invoices']=array_keys($sfInvoiceIds);}
+    if($sfDeletePayments){$counts['ptf_crm_supplier_finance_payments']=count($sfDeletePayments);$samples['ptf_crm_supplier_finance_payments']=array_slice(array_keys($sfDeletePayments),0,5);$signature['ptf_crm_supplier_finance_payments']=array_keys($sfDeletePayments);}
+    if($sfTrimPayments){$counts['ptf_crm_supplier_finance_allocations']=count($sfTrimPayments);$samples['ptf_crm_supplier_finance_allocations']=array_slice(array_keys($sfTrimPayments),0,5);$signature['ptf_crm_supplier_finance_allocations']=array_keys($sfTrimPayments);}
+    if($sfRows){$signature['ptf_crm_supplier_finance_state']=array_map(function($row){return hash('sha256',json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));},$sfRows);sort($signature['ptf_crm_supplier_finance_state']);}
+    ksort($counts);ksort($signature);
+    $identityMap=[];foreach($idsForTombstone as $key=>$set)$identityMap[$key]=array_keys($set);$identityMap['ptf_crm_supplier_finance']=array_values(array_unique(array_merge(array_keys($sfInvoiceIds),array_keys($sfDeletePayments))));
+    $years=[];foreach($matchedRows as $row){foreach(['closedAt','t','wonAt','wonAtISO','createdAt','createdAtISO','invDate','receivedAt','dateISO','iso','date']as $field){$y=sd_year($row[$field]??'');if($y!=='')$years[$y]=true;}}
+    $keysDigest=hash('sha256',json_encode($cloudKeys,JSON_UNESCAPED_SLASHES));
+    $planHash=hash('sha256',json_encode(['project'=>$projectNo,'records'=>$signature,'cloud'=>$keysDigest],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+    return['projectNo'=>$projectNo,'error'=>$blockers?'shared_inventory_dependency':'','blockers'=>$blockers,'counts'=>$counts,'samples'=>$samples,'recordCount'=>array_sum($counts),'cloudKeys'=>$cloudKeys,'cloudCount'=>count($cloudKeys),'keysDigest'=>$keysDigest,'years'=>array_keys($years),'planHash'=>$planHash,'_matches'=>$matches,'_identities'=>$identityMap,'_supplierFinance'=>['invoiceIds'=>array_keys($sfInvoiceIds),'deletePaymentIds'=>array_keys($sfDeletePayments),'trimPaymentIds'=>array_keys($sfTrimPayments)]];
+}
+function sd_purge_receipt_path(string $planHash): string { $dir=dirname(sd_sync_dir()).'/purge-receipts';if(!is_dir($dir))@mkdir($dir,0750,true);return$dir.'/'.preg_replace('/[^a-f0-9]/','',strtolower($planHash)).'.json'; }
+
 function sd_migration_report(): array {
     $offers=sd_read('ptf_crm_offers'); $cases=sd_read('ptf_crm_deals');
     $invoices=sd_read('ptf_crm_invoices'); $receipts=sd_read('ptf_crm_case_receipts');
@@ -408,9 +499,15 @@ function sd_migration_report(): array {
     return ['issues'=>$issues,'safeReceiptCandidates'=>$safe,'counts'=>['offers'=>count($offers),'cases'=>count($cases),'invoices'=>count($invoices),'receipts'=>count($receipts)]];
 }
 
-$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan'], true);
+$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan', 'archived_case_purge_plan'], true);
 if ($readOnly) {
     if ($action === 'migration_dry_run') { sd_require_role(SD_ADMIN_ROLES); sd_out(['ok'=>true,'report'=>sd_migration_report(),'version'=>'34.6.0']); }
+    if ($action === 'archived_case_purge_plan') {
+        sd_require_role(SD_OFFER_REPAIR_ROLES);
+        $projectNo=sd_text($body['projectNo']??'',160);if($projectNo==='')sd_out(['ok'=>false,'error'=>'project_number_required'],422);
+        $plan=sd_archive_purge_plan_data($projectNo,sd_purge_load_collections());unset($plan['_matches'],$plan['_identities'],$plan['_supplierFinance']);
+        sd_out(['ok'=>true,'plan'=>$plan]);
+    }
     if ($action === 'duplicate_case_plan') {
         sd_require_role(SD_OFFER_REPAIR_ROLES);
         $no = sd_text($body['offerNo'] ?? '', 100);
@@ -638,6 +735,29 @@ try {
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'case','entityId'=>$keepId,'kind'=>'merge_duplicate_case','beforeSnapshot'=>$keepBefore,'sourceSnapshot'=>$source,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'conflictPaths'=>$conflicts,'movedReferences'=>$moved];
         $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_fin_findings'=>$findings,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_petty'=>$petty,'ptf_crm_opex'=>$opex,'ptf_crm_cheques_issued'=>$issuedCheques,'ptf_crm_cheques_received'=>$receivedCheques,'ptf_crm_sales_returns'=>$salesReturns];
         $result=['offerNo'=>$no,'keptCaseId'=>$keepId,'mergedCaseId'=>$removeRequested,'remainingCandidates'=>max(0,(int)($plan['candidateCount']??2)-1),'movedReferences'=>$moved,'conflictPaths'=>$conflicts];
+    }
+    elseif ($action === 'archived_case_purge_commit') {
+        sd_require_role(SD_OFFER_REPAIR_ROLES);
+        $projectNo=sd_text($body['projectNo']??'',160);$typed=sd_text($body['typedProjectNo']??'',160);$reason=sd_text($body['reason']??'',500);$planHash=sd_text($body['planHash']??'',100);
+        if(($body['confirm']??'')!=='PTF-PURGE-ARCHIVED-TEST-CASE'||empty($body['testDataConfirmed']))sd_out(['ok'=>false,'error'=>'purge_confirmation_required'],422);
+        if($projectNo===''||$typed!==$projectNo)sd_out(['ok'=>false,'error'=>'project_number_confirmation_mismatch'],422);
+        if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $purgeCollections=sd_purge_load_collections();$plan=sd_archive_purge_plan_data($projectNo,$purgeCollections);
+        if(!empty($plan['error']))sd_out(['ok'=>false,'error'=>$plan['error']],409);
+        if($planHash===''||!hash_equals((string)$plan['planHash'],$planHash))sd_out(['ok'=>false,'error'=>'archive_purge_plan_stale','planHash'=>$plan['planHash']],409);
+        if(($plan['cloudCount']??0)>0){$receiptPath=sd_purge_receipt_path($planHash);$receipt=is_file($receiptPath)?json_decode((string)file_get_contents($receiptPath),true):null;if(!is_array($receipt)||empty($receipt['ok'])||!hash_equals((string)($receipt['planHash']??''),$planHash)||!hash_equals((string)($receipt['keysDigest']??''),(string)$plan['keysDigest'])||(string)($receipt['user']??'')!==$user||time()-(int)($receipt['ts']??0)>3600)sd_out(['ok'=>false,'error'=>'cloud_purge_receipt_required'],409);}
+        $changes=[];$removedCounts=[];
+        foreach(($plan['_matches']??[])as $key=>$fps){$set=$fps;$before=$purgeCollections[$key]??[];$after=array_values(array_filter($before,function($row)use($key,$set){return!is_array($row)||!isset($set[sd_purge_fingerprint($key,$row)]);}));$removedCounts[$key]=count($before)-count($after);$purgeCollections[$key]=$after;$changes[$key]=$after;}
+        $sf=$purgeCollections['ptf_crm_supplier_finance']??[];$sfPlan=$plan['_supplierFinance']??[];$sfInvSet=array_fill_keys($sfPlan['invoiceIds']??[],true);$sfPaySet=array_fill_keys($sfPlan['deletePaymentIds']??[],true);
+        if($sfInvSet||$sfPaySet||!empty($sfPlan['trimPaymentIds'])){$beforeInv=count($sf['invoices']??[]);$beforePay=count($sf['payments']??[]);$sf['invoices']=array_values(array_filter($sf['invoices']??[],function($row)use($sfInvSet){$id=(string)($row['cd']??$row['_id']??'');return!isset($sfInvSet[$id]);}));$sf['payments']=array_values(array_filter($sf['payments']??[],function($row)use($sfPaySet){$id=(string)($row['cd']??$row['_id']??'');return!isset($sfPaySet[$id]);}));foreach($sf['payments']as &$payment)if(is_array($payment)&&is_array($payment['allocations']??null)){$payment['allocations']=array_values(array_filter($payment['allocations'],function($a)use($sfInvSet){return!is_array($a)||!isset($sfInvSet[(string)($a['invoiceCd']??'')]);}));$payment['unallocated']=(+($payment['amount']??0))-array_reduce($payment['allocations'],function($sum,$a){return$sum+(+($a['amount']??0));},0);}unset($payment);$removedCounts['ptf_crm_supplier_finance_invoices']=$beforeInv-count($sf['invoices']);$removedCounts['ptf_crm_supplier_finance_payments']=$beforePay-count($sf['payments']);$changes['ptf_crm_supplier_finance']=$sf;}
+        $fiscalYears=array_fill_keys(array_map('strval',$plan['years']??[]),true);$beforeSnaps=count($snaps);$purgeIdentities=$plan['_identities']??[];$snapIds=[];
+        $snaps=array_values(array_filter($snaps,function($snap)use($fiscalYears,&$snapIds){if(!is_array($snap))return true;$year=(string)($snap['year']??$snap['refYear']??'');if($year!==''&&isset($fiscalYears[$year])){$id=trim((string)($snap['_id']??$snap['cd']??$snap['id']??''));if($id!=='')$snapIds[$id]=true;return false;}return true;}));
+        if($snapIds)$purgeIdentities['ptf_crm_fiscal_snapshots']=array_keys($snapIds);$removedCounts['ptf_crm_fiscal_snapshots']=$beforeSnaps-count($snaps);$changes['ptf_crm_fiscal_snapshots']=$snaps;
+        $archive=$purgeCollections['ptf_crm_deleted_archive']??[];$purgeAliases=[];foreach($purgeIdentities as $ids)foreach($ids as $id)if(strlen((string)$id)>=6)$purgeAliases[(string)$id]=true;
+        $archive[]=['id'=>$projectNo,'kind'=>'archive_purge','purged'=>true,'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'t'=>sd_now(),'identities'=>$purgeIdentities,'aliases'=>array_keys($purgeAliases),'identityHash'=>hash('sha256',json_encode($purgeIdentities,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)),'cloudObjectsDeleted'=>(int)($plan['cloudCount']??0),'recordCount'=>(int)($plan['recordCount']??0)];
+        $changes['ptf_crm_deleted_archive']=$archive;
+        if(isset($receiptPath)&&is_file($receiptPath))@unlink($receiptPath);
+        $result=['projectNo'=>$projectNo,'purged'=>true,'removedCounts'=>$removedCounts,'recordCount'=>(int)($plan['recordCount']??0),'cloudObjectsDeleted'=>(int)($plan['cloudCount']??0),'resetFiscalYears'=>array_keys($fiscalYears)];
     }
     elseif ($action === 'admin_delete_plan' || $action === 'admin_delete_commit') {
         sd_require_role(SD_ADMIN_ROLES);
