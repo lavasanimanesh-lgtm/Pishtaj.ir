@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.7.17",
+  "crm_version": "v34.7.18",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-16",
-  "updated_by": "Arena Agent (v34.7.17 decision-support metrics integrity — win-rate denominator, FX normalization, single financial source, customer identity)"
+  "updated_by": "Arena Agent (v34.7.18 AR receipt integrity — receivables/customer-ledger/case single source)"
 }

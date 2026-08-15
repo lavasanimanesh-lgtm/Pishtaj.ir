@@ -947,8 +947,14 @@ function renderReceivables() {
   var totalOpen = 0;
   invs.forEach(function (inv) {
     var payRows = (inv.payments || []).concat(inv.pays || []).filter(function (p) { return !(window.PTF_SALES_DOMAIN_V2 && p && (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled)); });
-    var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
-    var remain = Math.max(0, inv.amount - paid);
+    /* v34.7.18 (AR-INTEGRITY فاز ۳): مانده از منبع واحد PTF.ar می‌آید؛ شامل دریافت‌های پرونده‌ای
+       که پیش از این به‌دلیل نبود caseId یا تخصیص‌نیافتنِ ارزش‌افزوده از فاکتور کسر نمی‌شدند. */
+    var arState = (window.PTF && PTF.ar && typeof PTF.ar.invoiceState === 'function') ? (function () { try { return PTF.ar.invoiceState(inv); } catch (eAr) { return null; } })() : null;
+    var paid = arState ? arState.paid : ((window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : payRows.reduce(function (s, p) { return s + (+p.amt || 0); }, 0));
+    var remain = arState ? arState.open : Math.max(0, inv.amount - paid);
+    var arBadge = '';
+    if (arState && arState.stale) arBadge += '<span class="bd" style="background:#fef3c7;color:#92400e" title="تخصیص سرور روی این دستگاه هنوز همگام نشده؛ عدد نمایش‌داده‌شده از بازسازی محلی است">⏳ در انتظار همگام‌سازی</span> ';
+    if (arState && !String(inv.caseId || '').trim()) arBadge += '<span class="bd" style="background:#e0f2fe;color:#0369a1" title="این فاکتور شناسهٔ پرونده ندارد؛ از گزارش تسویه قابل اتصال است">🔗 بدون پرونده</span> ';
     var pct = inv.amount ? Math.min(100, Math.round(paid * 100 / inv.amount)) : 0;
     var o = offers.filter(function (x) { return x.no === inv.offerNo; })[0] || {};
     var fxInfo = '';
@@ -977,7 +983,7 @@ function renderReceivables() {
       '<div style="margin:6px 0;background:#f1f5f9;border-radius:8px;height:16px;position:relative;overflow:hidden">' +
       '<div style="position:absolute;right:0;top:0;bottom:0;width:' + pct + '%;background:linear-gradient(90deg,#10b981,#34d399)"></div>' +
       '<span style="position:absolute;inset:0;display:grid;place-items:center;font-size:10.5px;font-weight:bold">' + pct + '٪ وصول شد</span></div>' +
-      '<div style="font-size:11.5px;color:#64748b">مبلغ فاکتور: ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال | وصولی: ' + paid.toLocaleString('fa-IR') + ' ریال | <b style="color:' + (remain ? '#dc2626' : '#10b981') + '">مانده: ' + remain.toLocaleString('fa-IR') + ' ریال</b>' + ((((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR')) ? ' <span style="color:#0e7490">| سند مبنا: ' + escP(o.currency || inv.offerCurrency) + ' اما فاکتور ریالی ملاک وصول است</span>' : '') + '</div>' + fxInfo + '<div style="margin-top:5px">' + dueBadge + '</div>' +
+      '<div style="font-size:11.5px;color:#64748b">مبلغ فاکتور: ' + (+inv.amount).toLocaleString('fa-IR') + ' ریال | وصولی: ' + paid.toLocaleString('fa-IR') + ' ریال | <b style="color:' + (remain ? '#dc2626' : '#10b981') + '">مانده: ' + remain.toLocaleString('fa-IR') + ' ریال</b>' + ((((o.currency || inv.offerCurrency) && (o.currency || inv.offerCurrency) !== 'IRR')) ? ' <span style="color:#0e7490">| سند مبنا: ' + escP(o.currency || inv.offerCurrency) + ' اما فاکتور ریالی ملاک وصول است</span>' : '') + '</div>' + fxInfo + '<div style="margin-top:5px">' + arBadge + dueBadge + '</div>' +
       contact + '</div>' +
       '<div style="display:flex;flex-direction:column;gap:5px">' +
       (remain > 0 ? (window.PTF_SALES_DOMAIN_V2 && inv.caseId ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="ptfCaseFinanceOpen(\'' + ptfOnClickArg(inv.caseId) + '\')">+ دریافت از پرونده</button>' : '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showPayModal(\'' + inv.cd + '\')">+ ثبت وصولی</button>') : '<span class="bd b-st4">✔ تسویه کامل</span>') +
@@ -991,8 +997,12 @@ function renderReceivables() {
       '</div>';
   });
   var totalOverdue = 0;
-  invs.forEach(function(x){ var _p = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(x) : ((x.payments||[]).concat(x.pays||[])).reduce(function(s,p){return s+(+p.amt||0);},0); if (x.amount-_p > 0 && x.dueISO && x.dueISO < new Date().toISOString().slice(0,10)) totalOverdue += (x.amount-_p); });
-  var head = '<div style="background:#fff8f5;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>جمع مطالبات باز: <b style="color:#dc2626">' + totalOpen.toLocaleString('fa-IR') + ' ریال</b></span>' + (totalOverdue ? '<span style="color:#b91c1c;font-weight:bold">🔴 سررسید گذشته: ' + totalOverdue.toLocaleString('fa-IR') + ' ریال</span>' : '') + '</div>';
+  invs.forEach(function(x){
+    var _st = (window.PTF && PTF.ar && typeof PTF.ar.invoiceState === 'function') ? (function(){ try { return PTF.ar.invoiceState(x); } catch (e) { return null; } })() : null;
+    var _open = _st ? _st.open : Math.max(0, (+x.amount || 0) - ((window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(x) : ((x.payments||[]).concat(x.pays||[])).reduce(function(s,p){return s+(+p.amt||0);},0)));
+    if (_open > 0 && x.dueISO && x.dueISO < new Date().toISOString().slice(0,10)) totalOverdue += _open;
+  });
+  var head = '<div style="background:#fff8f5;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;margin-bottom:10px;font-size:13.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><span>جمع مطالبات باز: <b style="color:#dc2626">' + totalOpen.toLocaleString('fa-IR') + ' ریال</b>' + (typeof window.ptfArReconcileOpen === 'function' ? ' <button class="bt bt-o" style="padding:2px 8px;font-size:11px" onclick="ptfArReconcileOpen()">🧮 تسویه و مغایرت</button>' : '') + '</span>' + (totalOverdue ? '<span style="color:#b91c1c;font-weight:bold">🔴 سررسید گذشته: ' + totalOverdue.toLocaleString('fa-IR') + ' ریال</span>' : '') + '</div>';
   el.innerHTML = (invs.length ? head : '') + (h || '<div style="text-align:center;color:#94a3b8;padding:24px">فاکتوری ثبت نشده</div>');
 }
 function showPayModal(invCd) {
@@ -1032,7 +1042,7 @@ function savePay(invCd) {
   var paid = window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
   if (paid + amt > inv.amount) { alert('مبلغ از مانده فاکتور بیشتر است (مانده: ' + (inv.amount - paid).toLocaleString('fa-IR') + ')'); return; }
   inv.payments = inv.payments || [];
-  var payRec = { cd: genCode('RPAY'), amt: amt, how: document.getElementById('nPayHow').value, t: faDate(), by: curSession().name, status: 'posted' };
+  var payRec = { cd: genCode('RPAY'), amt: amt, how: document.getElementById('nPayHow').value, t: faDate(), by: curSession().name, status: 'posted', sourcePath: 'legacy_receivables' };
   /* CHQ-MOD-001 (گام ۴): اگر روش «چک» است، چک وارده ساخته و به وصولی لینک می‌شود */
   if (payRec.how === 'چک' && typeof window.ptfChequeCreate === 'function') {
     var chNo = ((document.getElementById('nPayChNo') || {}).value || '').trim();

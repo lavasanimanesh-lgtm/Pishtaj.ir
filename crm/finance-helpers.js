@@ -99,6 +99,13 @@
   function invPaidSum(inv, opts) {
     if (!inv) return 0;
     opts = opts || {};
+    /* v34.7.18 (AR-INTEGRITY فاز ۳): منبع واحد مانده، لایهٔ PTF.ar است. اگر بارگذاری شده
+       باشد و پروجکشن تخصیصِ سرور روی این دستگاه کهنه باشد، همان الگوریتم FIFO سرور محلی
+       بازسازی می‌شود تا پولِ دریافت‌شده «ناپدید» نشود. رفتار پیش‌فرض (جمع پرداخت میراثی +
+       تخصیص) دقیقاً حفظ شده است. opts.legacyOnly برای مصرف‌کنندگان قدیمی باقی می‌ماند. */
+    if (!opts.legacyOnly && window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try { return window.PTF.ar.invoiceState(inv).paid; } catch (eAr) { /* fallback زیر */ }
+    }
     var activeOnly = opts.activeOnly !== false;
     var useAmountIrr = !!opts.useAmountIrr;
     var rows = (inv.payments || []).concat(inv.pays || []);

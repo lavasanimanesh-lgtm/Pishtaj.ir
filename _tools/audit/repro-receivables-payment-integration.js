@@ -23,7 +23,36 @@ function sdActive(x) {
   return !!x && ['void', 'voided', 'deleted', 'cancelled', 'replaced', 'superseded'].indexOf(st) < 0 && !x.voided && !x.deleted;
 }
 function num(v) { return +v || 0; }
-function sdRebuildAllocations(caseId, receipts, invoices, allocations) {
+function sdInvoiceCaps(inv) {
+  const base = Math.round(num(inv.base != null ? inv.base : inv.baseAmountIRR));
+  const vat = Math.round(num(inv.vat != null ? inv.vat : inv.vatAmountIRR));
+  let amount = Math.round(num(inv.amount != null ? inv.amount : inv.totalAmountIRR));
+  if (amount <= 0) amount = base + vat;
+  const vatCap = Math.max(0, Math.min(vat, amount));
+  return { amount, base: Math.max(0, amount - vatCap), vat: vatCap };
+}
+function sdBindOrphanInvoices(caseId, cases, invoices) {
+  const c = (cases || []).filter((x) => String(x._id || x.cd || '') === caseId)[0];
+  if (!c) return 0;
+  const nos = {};
+  [c.wonOffer, c.offerNo].forEach((x) => { const v = String(x || '').trim(); if (v) nos[v] = true; });
+  (c.linkedOffers || []).forEach((l) => { const v = String((l && l.offerNo) || '').trim(); if (v) nos[v] = true; });
+  if (!Object.keys(nos).length) return 0;
+  for (const other of (cases || [])) {
+    if (!other || String(other._id || other.cd || '') === caseId || !sdActive(other)) continue;
+    for (const x of [other.wonOffer, other.offerNo]) if (String(x || '').trim() && nos[String(x).trim()]) return 0;
+  }
+  let bound = 0;
+  invoices.forEach((inv) => {
+    if (!sdActive(inv) || String(inv.caseId || '').trim()) return;
+    const ono = String(inv.offerNo || '').trim();
+    if (!ono || !nos[ono]) return;
+    inv.caseId = caseId; inv.caseBoundBy = 'auto-unique-offer'; bound++;
+  });
+  return bound;
+}
+function sdRebuildAllocations(caseId, receipts, invoices, allocations, cases) {
+  if (cases) sdBindOrphanInvoices(caseId, cases, invoices);
   allocations.length = 0;
   const invoiceIdx = [];
   invoices.forEach((inv, i) => {
@@ -39,34 +68,33 @@ function sdRebuildAllocations(caseId, receipts, invoices, allocations) {
   });
   receiptIdx.forEach((ri) => {
     let available = Math.round(num(receipts[ri].amountIRR));
-    /* ← قاعدهٔ حساس: VAT فقط وقتی تخصیص می‌گیرد که timing برابر post_invoice باشد */
-    const allowVat = String(receipts[ri].timing || 'pre_invoice') === 'post_invoice';
+    let timingIsPost = false;
     invoiceIdx.forEach((ii) => {
       if (available <= 0) return;
-      const base = Math.round(num(invoices[ii].base || invoices[ii].baseAmountIRR));
-      const baseRoom = Math.max(0, base - num(invoices[ii].allocatedBase));
+      const caps = sdInvoiceCaps(invoices[ii]);
+      const issued = String(invoices[ii].invDate || invoices[ii].issueDate || invoices[ii].t || '') !== '' || caps.amount > 0;
+      const baseRoom = Math.max(0, caps.base - num(invoices[ii].allocatedBase));
       if (baseRoom > 0) {
         const take = Math.min(available, baseRoom);
         allocations.push({ caseId, receiptId: receipts[ri]._id, invoiceId: invoices[ii]._id, component: 'base', amountIRR: take, status: 'active' });
-        invoices[ii].allocatedBase += take; receipts[ri].allocatedIRR += take; available -= take;
+        invoices[ii].allocatedBase += take; receipts[ri].allocatedIRR += take; available -= take; timingIsPost = true;
       }
-      if (available > 0 && allowVat) {
-        const vat = Math.round(num(invoices[ii].vat || invoices[ii].vatAmountIRR));
-        const vatRoom = Math.max(0, vat - num(invoices[ii].allocatedVat));
+      if (available > 0 && issued) {
+        const vatRoom = Math.max(0, caps.vat - num(invoices[ii].allocatedVat));
         if (vatRoom > 0) {
           const take = Math.min(available, vatRoom);
           allocations.push({ caseId, receiptId: receipts[ri]._id, invoiceId: invoices[ii]._id, component: 'vat', amountIRR: take, status: 'active' });
-          invoices[ii].allocatedVat += take; receipts[ri].allocatedIRR += take; available -= take;
+          invoices[ii].allocatedVat += take; receipts[ri].allocatedIRR += take; available -= take; timingIsPost = true;
         }
       }
     });
     receipts[ri].creditRemainIRR = available;
+    if (timingIsPost) receipts[ri].timing = 'post_invoice';
   });
   invoiceIdx.forEach((ii) => {
-    const base = Math.round(num(invoices[ii].base));
-    const vat = Math.round(num(invoices[ii].vat));
-    invoices[ii].openBaseIRR = Math.max(0, base - num(invoices[ii].allocatedBase));
-    invoices[ii].openVatIRR = Math.max(0, vat - num(invoices[ii].allocatedVat));
+    const caps = sdInvoiceCaps(invoices[ii]);
+    invoices[ii].openBaseIRR = Math.max(0, caps.base - num(invoices[ii].allocatedBase));
+    invoices[ii].openVatIRR = Math.max(0, caps.vat - num(invoices[ii].allocatedVat));
     invoices[ii].openAmountIRR = invoices[ii].openBaseIRR + invoices[ii].openVatIRR;
   });
 }
@@ -90,7 +118,7 @@ function clientViews(db) {
   };
   sandbox.window = sandbox; sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
-  ['crm/finance-helpers.js', 'crm/customer-finance.js'].forEach((rel) => {
+  ['crm/finance-helpers.js', 'crm/ar-reconcile.js', 'crm/customer-finance.js'].forEach((rel) => {
     vm.runInContext(fs.readFileSync(path.join(ROOT, rel), 'utf8'), sandbox, { filename: rel });
   });
   return sandbox;
@@ -113,14 +141,15 @@ function report(title, db, custCd, caseId) {
   const row = (s.cfAccountRows('') || []).filter((r) => r.cd === custCd)[0] || {};
   const audit = s.cfCreditAudit(custCd);
 
-  /* نمای ۳ — «پرونده» (crm/sales-domain-v2.js: caseTotals) */
+  /* نمای ۳ — «پرونده»: از v34.7.18 پنجرهٔ مالی پرونده هم از همان منبع واحد PTF.ar می‌خواند
+     (crm/sales-domain-v2.js → caseTotals → PTF.ar.caseState). */
   const rs = receipts.filter((r) => r.caseId === caseId && sdActive(r) && r.status === 'posted');
-  const ins = invoices.filter((i) => i.caseId === caseId && sdActive(i));
-  const caseView = {
+  const arCase = (s.PTF && s.PTF.ar) ? s.PTF.ar.caseState({ _id: caseId, cd: caseId }) : null;
+  const caseView = arCase ? { received: arCase.received, allocated: arCase.allocated, credit: arCase.credit, open: arCase.open } : {
     received: rs.reduce((a, r) => a + num(r.amountIRR || r.amt), 0),
     allocated: rs.reduce((a, r) => a + num(r.allocatedIRR), 0),
     credit: rs.reduce((a, r) => a + num(r.creditRemainIRR), 0),
-    open: ins.reduce((a, i) => a + (i.openAmountIRR != null ? num(i.openAmountIRR) : Math.max(0, num(i.amount) - num(i.allocatedBase) - num(i.allocatedVat))), 0)
+    open: invoices.filter((i) => i.caseId === caseId && sdActive(i)).reduce((a, i) => a + (i.openAmountIRR != null ? num(i.openAmountIRR) : Math.max(0, num(i.amount) - num(i.allocatedBase) - num(i.allocatedVat))), 0)
   };
 
   /* نمای ۲ب — گردش حساب مشتری (cfLedgerRows): مدل «نقدی» — فاکتور بدهکار، رسید بستانکار */
@@ -153,10 +182,11 @@ function report(title, db, custCd, caseId) {
   const invoices = [{ _id: 'INV-1', cd: 'INV-1', no: '1001', caseId, customerId: 'CU-1', buyerCo: 'شرکت الف',
     base: 1000000000, vat: 90000000, amount: 1090000000, invDate: '2026-06-01', status: 'active', payments: [] }];
   const allocations = [];
-  sdRebuildAllocations(caseId, receipts, invoices, allocations);
+  const cases = [{ _id: caseId, cd: caseId, buyerCd: 'CU-1', buyerCo: 'شرکت الف', wonOffer: 'OF-1' }];
+  sdRebuildAllocations(caseId, receipts, invoices, allocations, cases);
   report('سناریو ۱ — مشتری کل فاکتور (۱٬۰۹۰م) را پیش از صدور فاکتور پرداخت کرده', {
     ptf_crm_invoices: invoices, ptf_crm_case_receipts: receipts, ptf_crm_receipt_allocations: allocations,
-    ptf_crm_customers: [{ cd: 'CU-1', co: 'شرکت الف' }], ptf_crm_deals: [{ _id: caseId, cd: caseId, buyerCd: 'CU-1', buyerCo: 'شرکت الف' }],
+    ptf_crm_customers: [{ cd: 'CU-1', co: 'شرکت الف' }], ptf_crm_deals: cases,
     ptf_crm_offers: [], ptf_crm_sales_returns: []
   }, 'CU-1', caseId);
 })();
@@ -167,13 +197,14 @@ function report(title, db, custCd, caseId) {
   const receipts = [{ _id: 'RCPT-2', caseId, customerId: 'CU-2', amountIRR: 500000000, amt: 500000000,
     receivedAt: '2026-06-10', method: 'bank_transfer', status: 'posted', timing: 'post_invoice' }];
   /* فاکتور غیررسمی که هنگام صدور، پرونده‌اش پیدا نشده و caseId خالی مانده است */
-  const invoices = [{ _id: 'INV-2', cd: 'INV-2', no: '2002', caseId: '', customerId: 'CU-2', buyerCd: 'CU-2', buyerCo: 'شرکت ب',
+  const invoices = [{ _id: 'INV-2', cd: 'INV-2', no: '2002', caseId: '', offerNo: 'OF-2', customerId: 'CU-2', buyerCd: 'CU-2', buyerCo: 'شرکت ب',
     base: 1200000000, vat: 0, amount: 1200000000, invDate: '2026-06-01', status: 'active', isUnofficial: true, payments: [] }];
   const allocations = [];
-  sdRebuildAllocations(caseId, receipts, invoices, allocations);
+  const cases = [{ _id: caseId, cd: caseId, buyerCd: 'CU-2', buyerCo: 'شرکت ب', wonOffer: 'OF-2' }];
+  sdRebuildAllocations(caseId, receipts, invoices, allocations, cases);
   report('سناریو ۲ — دریافت روی پرونده ثبت شده ولی فاکتور caseId ندارد', {
     ptf_crm_invoices: invoices, ptf_crm_case_receipts: receipts, ptf_crm_receipt_allocations: allocations,
-    ptf_crm_customers: [{ cd: 'CU-2', co: 'شرکت ب' }], ptf_crm_deals: [{ _id: caseId, cd: caseId, buyerCd: 'CU-2', buyerCo: 'شرکت ب' }],
+    ptf_crm_customers: [{ cd: 'CU-2', co: 'شرکت ب' }], ptf_crm_deals: cases,
     ptf_crm_offers: [], ptf_crm_sales_returns: []
   }, 'CU-2', caseId);
 })();
@@ -192,7 +223,7 @@ function report(title, db, custCd, caseId) {
   /* عمداً rebuild اجرا نمی‌شود تا وضعیت «پروجکشن نرسیده» بازتولید شود */
   report('سناریو ۳ — پرداخت میراثی مهاجرت‌شده ولی تخصیص روی دستگاه اعمال نشده', {
     ptf_crm_invoices: invoices, ptf_crm_case_receipts: receipts, ptf_crm_receipt_allocations: allocations,
-    ptf_crm_customers: [{ cd: 'CU-3', co: 'شرکت ج' }], ptf_crm_deals: [{ _id: caseId, cd: caseId, buyerCd: 'CU-3', buyerCo: 'شرکت ج' }],
+    ptf_crm_customers: [{ cd: 'CU-3', co: 'شرکت ج' }], ptf_crm_deals: [{ _id: caseId, cd: caseId, buyerCd: 'CU-3', buyerCo: 'شرکت ج', wonOffer: 'OF-3' }],
     ptf_crm_offers: [], ptf_crm_sales_returns: []
   }, 'CU-3', caseId);
 })();
@@ -206,10 +237,11 @@ function report(title, db, custCd, caseId) {
   const invoices = [{ _id: 'INV-4', cd: 'INV-4', no: '4004', caseId, customerId: 'CU-4', buyerCd: 'CU-4', buyerCo: 'شرکت د',
     base: 1000000000, vat: 0, amount: 900000000, discount: 100000000, invDate: '2026-06-01', status: 'active', isUnofficial: true, payments: [] }];
   const allocations = [];
-  sdRebuildAllocations(caseId, receipts, invoices, allocations);
+  const cases = [{ _id: caseId, cd: caseId, buyerCd: 'CU-4', buyerCo: 'شرکت د', wonOffer: 'OF-4' }];
+  sdRebuildAllocations(caseId, receipts, invoices, allocations, cases);
   report('سناریو ۴ — فاکتور غیررسمی با تخفیف (base=۱٬۰۰۰م ولی amount=۹۰۰م) و پرداخت کامل', {
     ptf_crm_invoices: invoices, ptf_crm_case_receipts: receipts, ptf_crm_receipt_allocations: allocations,
-    ptf_crm_customers: [{ cd: 'CU-4', co: 'شرکت د' }], ptf_crm_deals: [{ _id: caseId, cd: caseId, buyerCd: 'CU-4', buyerCo: 'شرکت د' }],
+    ptf_crm_customers: [{ cd: 'CU-4', co: 'شرکت د' }], ptf_crm_deals: cases,
     ptf_crm_offers: [], ptf_crm_sales_returns: []
   }, 'CU-4', caseId);
 })();
@@ -226,10 +258,11 @@ function report(title, db, custCd, caseId) {
       base: 1000000000, vat: 90000000, amount: 1090000000, invDate: '2026-06-01', status: 'active', isOfficial: true, payments: [] }
   ];
   const allocations = [];
-  sdRebuildAllocations(caseId, receipts, invoices, allocations);
+  const cases = [{ _id: caseId, cd: caseId, buyerCd: 'CU-5', buyerCo: 'شرکت ه', wonOffer: 'OF-5' }];
+  sdRebuildAllocations(caseId, receipts, invoices, allocations, cases);
   report('سناریو ۵ — صورتحساب غیررسمی «superseded» هنوز در حساب مشتری بدهی می‌سازد', {
     ptf_crm_invoices: invoices, ptf_crm_case_receipts: receipts, ptf_crm_receipt_allocations: allocations,
-    ptf_crm_customers: [{ cd: 'CU-5', co: 'شرکت ه' }], ptf_crm_deals: [{ _id: caseId, cd: caseId, buyerCd: 'CU-5', buyerCo: 'شرکت ه' }],
+    ptf_crm_customers: [{ cd: 'CU-5', co: 'شرکت ه' }], ptf_crm_deals: cases,
     ptf_crm_offers: [], ptf_crm_sales_returns: []
   }, 'CU-5', caseId);
 })();

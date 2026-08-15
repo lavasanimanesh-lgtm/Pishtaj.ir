@@ -51,6 +51,8 @@
        pull نهایی را واقعاً تا پایان انتظار می‌کشیم. handler موفقیت و renderها دیگر
        جلوتر از همگام‌سازی اجرا نمی‌شوند. شکست pull، commit موفق سرور را شکست‌خورده
        اعلام نمی‌کند؛ projection پاسخ همچنان منبع نمایش فوری است. */
+    /* v34.7.18: هر پروجکشن تازه، کش محاسبهٔ مطالبات را باطل می‌کند تا نماها بلافاصله هم‌خوان شوند. */
+    try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArInv) {}
     return new Promise(function (resolve) {
       if (!touched || typeof window.ptfSyncPullNow !== 'function') { resolve({ ok: true, skipped: true }); return; }
       try {
@@ -164,7 +166,17 @@
     var ins=caseInvoices(caseId(c)).filter(active);
     var received=rs.reduce(function(s,r){return s+(+r.amountIRR||+r.amt||0);},0);
     var allocated=rs.reduce(function(s,r){return s+(+r.allocatedIRR||0);},0);
-    var open=ins.reduce(function(s,i){return s+(i.openAmountIRR!=null?+i.openAmountIRR:Math.max(0,(+i.amount||0)-(+i.allocatedBase||0)-(+i.allocatedVat||0)));},0);
+    /* v34.7.18 (AR-INTEGRITY فاز ۳): مانده از منبع واحد PTF.ar خوانده می‌شود تا پنجرهٔ پرونده،
+       پنل مطالبات و حساب مشتری همیشه یک عدد بدهند (قبلاً فقط openAmountIRR سرور ملاک بود و اگر
+       تخصیص انجام/همگام نشده بود، پرونده و مطالبات دو رقم متفاوت نشان می‌دادند). */
+    var arCore=(window.PTF||{}).ar;
+    var open=ins.reduce(function(s,i){
+      if(arCore&&typeof arCore.invoiceState==='function'){try{return s+arCore.invoiceState(i).open;}catch(eAr){}}
+      return s+(i.openAmountIRR!=null?+i.openAmountIRR:Math.max(0,(+i.amount||0)-(+i.allocatedBase||0)-(+i.allocatedVat||0)));
+    },0);
+    if(arCore&&typeof arCore.caseState==='function'){
+      try{var st=arCore.caseState(c);return {received:st.received,allocated:st.allocated,credit:st.credit,open:st.open,receipts:rs,invoices:st.invoices.length?st.invoices:ins};}catch(eSt){}
+    }
     return {received:received,allocated:allocated,credit:Math.max(0,received-allocated),open:open,receipts:rs,invoices:ins};
   }
   window.ptfCaseFinanceOpen = function (id) {
@@ -188,6 +200,12 @@
       '<div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend',html);
   };
+  function customerCaseOptions(c,currentId){
+    var cd=String((c&&c.buyerCd)||'');
+    var all=data('ptf_crm_deals').filter(function(x){return x&&active(x)&&(String(x.buyerCd||'')===cd||caseId(x)===currentId);});
+    if(!all.length)all=[c];
+    return all.map(function(x){var id=caseId(x);return '<option value="'+esc(id)+'"'+(id===currentId?' selected':'')+'>'+esc((x.inqNo||x.wonOffer||id)+(x.buyerCo?' — '+x.buyerCo:''))+'</option>';}).join('');
+  }
   window.ptfReceiptOpen = function (cid, existing) {
     if(!canFinance()){alert('⛔ فقط کاربران مالی مجازند');return;}
     var c=findCase(cid);if(!c)return;var fx=(c.currency||'IRR')!=='IRR';
@@ -200,9 +218,14 @@
       {id:'rate',label:fx?'نرخ ارز روز دریافت (ریال per '+c.currency+') *':'نرخ ارز (برای پرونده ریالی خالی)',type:'number',dir:'ltr',value:existing?existing.fxRate:''},
       {id:'rateSource',label:fx?'منبع/توضیح نرخ *':'منبع نرخ',value:existing?existing.fxRateSource:''},
       {id:'note',label:'توضیح',type:'textarea',rows:2,value:existing?existing.note:''}
-    ].concat(existing?[{id:'reason',label:'دلیل اصلاح *',type:'textarea',required:true,rows:2}]:[]),okText:existing?'ثبت اصلاحیه':'ثبت دریافت',onOk:function(v){
+    ].concat(existing?[
+      /* v34.7.18 (AR-INTEGRITY فاز ۲ / R7): انتقال بستانکاری به پروندهٔ دیگرِ همان مشتری.
+         مسیر رسمی «اصلاح» استفاده می‌شود (سند ابطال + سند جدید)؛ هیچ رکورد پولی حذف نمی‌شود. */
+      {id:'targetCase',label:'پروندهٔ مقصد (برای انتقال بستانکاری)',type:'select',value:caseId(c),optionsHtml:customerCaseOptions(c,caseId(c))},
+      {id:'reason',label:'دلیل اصلاح *',type:'textarea',required:true,rows:2}
+    ]:[]),okText:existing?'ثبت اصلاحیه':'ثبت دریافت',onOk:function(v){
       var payload={caseId:caseId(c),amountIRR:num(v.amt),receivedAt:v.date,method:v.method,destinationAccount:v.account,referenceNo:v.ref,note:v.note,fxRate:num(v.rate),fxRateSource:v.rateSource};
-      if(existing){payload.receiptId=receiptId(existing);payload.reason=v.reason;}
+      if(existing){payload.receiptId=receiptId(existing);payload.reason=v.reason;if(v.targetCase&&v.targetCase!==caseId(c))payload.caseId=v.targetCase;}
       api(existing?'correct_receipt':'post_receipt',payload).then(function(){toast(existing?'دریافت با سند معکوس اصلاح شد':'دریافت قطعی ثبت شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(caseId(c));if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();}).catch(function(e){var map={fiscal_period_locked:'دوره مالی قفل است',fx_rate_and_source_required:'نرخ و منبع نرخ الزامی است',cheque_requires_collection:'چک باید ابتدا در ماژول چک وصول شود'};alert('⛔ '+(map[e.message]||e.message));});
     }});
   };

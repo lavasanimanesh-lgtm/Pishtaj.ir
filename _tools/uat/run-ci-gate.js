@@ -45,6 +45,9 @@ var SUITE = [
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
+  /* v34.7.17/18 — یکپارچگی سنجه‌های تصمیم‌یار و یکپارچگی وصولی (مطالبات/حساب مشتری/پرونده) */
+  { g: 'مالی/مطالبات', f: '_tools/uat/tester421-v34.7.18-ar-receipt-integrity.js' },
+  { g: 'تحلیل/تصمیم‌یار', f: '_tools/uat/tester420-v34.7.17-decision-support-metrics.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
@@ -53,7 +56,9 @@ var SYNTAX = [
   'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js', 'crm/client-server.js',
   'crm/finance-write-guard.js', 'crm/fiscal.js', 'crm/supplier-finance.js',
   'crm/opex.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
-  'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js',
+  'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js', 'crm/ar-reconcile.js',
+  'crm/metrics-shared.js', 'crm/analyzer.js', 'crm/management-intelligence.js',
+  'crm/customer-finance.js', 'crm/finance-helpers.js', 'crm/cheque-module.js', 'crm/data-quality.js',
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
   'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
   'crm/contracts.js', 'crm/docsx.js', 'crm/bridge.js', 'crm/offerlock.js',

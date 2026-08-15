@@ -6,7 +6,15 @@
 (function () {
   'use strict';
   function m(v) { return (+v || 0).toLocaleString('fa-IR'); }
-  function active(v) { return v && v.status !== 'void' && v.st !== 'void' && v.void !== true; }
+  /* v34.7.18 (AR-INTEGRITY فاز ۱ / R8): تعریف «رکورد فعال» با پنل مطالبات و سرور یکی شد.
+     پیش از این، فاکتور «superseded» (صورتحساب غیررسمیِ جایگزین‌شده با فاکتور رسمی) در این
+     صفحه دوباره بدهی می‌ساخت و بدهی مشتری تقریباً دو برابر دیده می‌شد. */
+  function active(v) {
+    if (!v) return false;
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.activeInvoice === 'function') return window.PTF.ar.activeInvoice(v);
+    var st = String(v.status || v.st || '').toLowerCase();
+    return ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'].indexOf(st) < 0 && v.void !== true && v.voided !== true;
+  }
   function cust(cd) { return getData('ptf_crm_customers').filter(function (c) { return c.cd === cd; })[0]; }
   function nameOf(c) { return (c && (c.co || c.name || c.cd)) || ''; }
   function invs(cd) {
@@ -24,7 +32,13 @@
   function isMigratedLegacyPayment(p) { return !!(p && (p.migratedToReceiptId || p.financialProjectionDisabled)); }
   window.cfIsMigratedLegacyPayment = isMigratedLegacyPayment;
   function paid(i) {
-    var legacy = (i.payments || []).concat(i.pays || []).filter(active).reduce(function (s, p) {
+    /* v34.7.18 (فاز ۳): منبع واحد مانده = PTF.ar (شامل بازسازی محلی تخصیص وقتی پروجکشن
+       سرور نرسیده باشد). فرمول قبلی به‌عنوان fallback دست‌نخورده باقی مانده است. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try { return window.PTF.ar.invoiceState(i).paid; } catch (eAr) {}
+    }
+    var payActive = (window.PTF && typeof window.PTF.isPaymentActive === 'function') ? window.PTF.isPaymentActive : active;
+    var legacy = (i.payments || []).concat(i.pays || []).filter(payActive).reduce(function (s, p) {
       return s + ((p.fromAdvance || isMigratedLegacyPayment(p)) ? 0 : (+p.amt || +p.amount || 0));
     }, 0);
     /* v35: تخصیص Receipt پرونده رابطه مستقل است و روی فاکتور Projection می‌شود. */
