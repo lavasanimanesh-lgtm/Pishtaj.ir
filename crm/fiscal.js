@@ -83,14 +83,25 @@
   function srcDate(o) { return o.closedAt || o.t || o.wonAt || o.createdAt || o.iso || o.date || ''; }
   function invDate(inv) { return inv.t || inv.date || inv.createdAt || inv.iso || inv.issueDate || ''; }
 
+  function fiscalCaseMatchesOffer(d,o) {
+    if(!d||!o)return false;
+    if(typeof window.ptfCaseBelongsToOffer==='function')return window.ptfCaseBelongsToOffer(d,o);
+    var oid=String(o._id||''),root=String(d.rootOfferId||'');if(oid&&root)return oid===root;
+    if(String(d.wonOffer||d.offerNo||'')!==String(o.no||''))return false;
+    function n(v){return String(v||'').replace(/[\u200c\u200e\u200f\s]+/g,'').toUpperCase();}
+    if([['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']].some(function(p){return n(d[p[0]])&&n(o[p[1]])&&n(d[p[0]])!==n(o[p[1]]);}))return false;
+    return !(!n(d.buyerCd)&&!n(o.buyerCd)&&n(d.buyerCo)&&n(o.buyerCo)&&n(d.buyerCo)!==n(o.buyerCo));
+  }
   function collectCandidates(year) {
     var out = { items: [], undated: [] };
-    /* v35: پرونده‌های legacy با cd متفاوت ولی یک پیشنهاد برنده نباید سود را دو بار
-       بسازند. مورد مبهم از محاسبه کنار گذاشته و برای ادغام کنترل‌شده گزارش می‌شود. */
-    var _dealIdentityCount = {};
+    /* v35: فقط پرونده‌هایی تکراری‌اند که علاوه بر شماره، هویت درخواست/مشتری/ارز
+       سازگار دارند. تشابه تصادفی شماره دیگر پرونده واقعی را آلوده نمی‌کند. */
+    var _dealIdentityCount = {}, _offersByNo = {};
+    (getData('ptf_crm_offers')||[]).forEach(function(o){if(o&&o.no)_offersByNo[o.no]=o;});
     (getData('ptf_crm_deals') || []).forEach(function (d) {
       if (!d || !d.wonOffer || d.st === 'archived') return;
-      var k = String(d.rootOfferId || d.wonOffer || '');
+      var o=_offersByNo[d.wonOffer]||null;if(!o||!fiscalCaseMatchesOffer(d,o))return;
+      var k = String(o._id || o.no || '');
       if (k) _dealIdentityCount[k] = (_dealIdentityCount[k] || 0) + 1;
     });
     getData('ptf_crm_projects').forEach(function (p) {
@@ -102,7 +113,8 @@
     });
     getData('ptf_crm_deals').forEach(function (d) {
       if (!d.wonOffer || d.st === 'archived') return;
-      var _identity = String(d.rootOfferId || d.wonOffer || '');
+      var _offerForDeal=_offersByNo[d.wonOffer]||null;
+      var _identity=_offerForDeal&&fiscalCaseMatchesOffer(d,_offerForDeal)?String(_offerForDeal._id||_offerForDeal.no||''):'';
       if (_identity && (_dealIdentityCount[_identity] || 0) > 1) {
         out.undated.push({ no: d.cd || d.inqNo, buyerCo: d.buyerCo || '', kind: 'duplicate-deal', reason: 'پرونده تکراری برای پیشنهاد ' + d.wonOffer + ' — تا ادغام کنترل‌شده از سود حذف شد', date: srcDate(d) || '' });
         return;

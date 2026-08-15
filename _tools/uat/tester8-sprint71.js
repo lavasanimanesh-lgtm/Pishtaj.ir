@@ -98,7 +98,7 @@ T('زمان‌بندی ساعتی (۳۶۰۰۰۰۰ms)', bakCode.indexOf('3600000'
 T('باکس بک‌آپ به تنظیمات اضافه شد', buildSettings().indexOf('بک‌آپ و بازگردانی') > -1);
 
 SECTION('US-146 AC4: بازگردانی');
-T('بازگردانی فقط ادمین', bakCode.indexOf("curRole() !== 'admin'") > -1 && bakCode.indexOf('بازگردانی اطلاعات فقط توسط ادمین') > -1);
+T('بازگردانی فقط ادمین/رئیس هیئت‌مدیره', bakCode.indexOf("['admin','chairman'].indexOf(curRole())") > -1 && bakCode.indexOf('بازگردانی اطلاعات فقط توسط ادمین یا رئیس هیئت‌مدیره') > -1);
 T('پیش‌نمایش با تاریخ و تعداد رکورد', bakCode.indexOf('پیش‌نمایش بازگردانی') > -1 && bakCode.indexOf('j.counts') > -1);
 T('تایید دومرحله‌ای (تایپ «بازگردانی»)', bakCode.indexOf("word !== 'بازگردانی'") > -1);
 T('بک‌آپ اضطراری قبل از جایگزینی (AC5)', bakCode.indexOf('ptf_backup_prerestore') > -1);
