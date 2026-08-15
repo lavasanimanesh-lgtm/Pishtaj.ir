@@ -85,6 +85,14 @@
 
   function collectCandidates(year) {
     var out = { items: [], undated: [] };
+    /* v35: پرونده‌های legacy با cd متفاوت ولی یک پیشنهاد برنده نباید سود را دو بار
+       بسازند. مورد مبهم از محاسبه کنار گذاشته و برای ادغام کنترل‌شده گزارش می‌شود. */
+    var _dealIdentityCount = {};
+    (getData('ptf_crm_deals') || []).forEach(function (d) {
+      if (!d || !d.wonOffer || d.st === 'archived') return;
+      var k = String(d.rootOfferId || d.wonOffer || '');
+      if (k) _dealIdentityCount[k] = (_dealIdentityCount[k] || 0) + 1;
+    });
     getData('ptf_crm_projects').forEach(function (p) {
       if (!(p.closeKind === 'settled' || p.offerNo || lossTotal(p))) return;
       var ds = srcDate(p), y = yearOf(ds);
@@ -94,6 +102,11 @@
     });
     getData('ptf_crm_deals').forEach(function (d) {
       if (!d.wonOffer || d.st === 'archived') return;
+      var _identity = String(d.rootOfferId || d.wonOffer || '');
+      if (_identity && (_dealIdentityCount[_identity] || 0) > 1) {
+        out.undated.push({ no: d.cd || d.inqNo, buyerCo: d.buyerCo || '', kind: 'duplicate-deal', reason: 'پرونده تکراری برای پیشنهاد ' + d.wonOffer + ' — تا ادغام کنترل‌شده از سود حذف شد', date: srcDate(d) || '' });
+        return;
+      }
       var ds = srcDate(d), y = yearOf(ds);
       if (!y) { out.undated.push({ no: d.no || d.cd || d.inqNo, buyerCo: d.buyerCo || '', kind: 'deal', reason: 'پرونده فروش برنده بدون تاریخ شناسایی سال مالی', date: ds || '' }); return; }
       if (String(y) !== String(year)) return;
@@ -321,12 +334,22 @@
       if (!inv || inv.status === 'void' || inv.st === 'void' || inv.void === true) return;
       (inv.payments || []).concat(inv.pays || []).filter(window.PTF && window.PTF.isPaymentActive ? window.PTF.isPaymentActive : function(){return true}).forEach(function (p) {
         if (!p || p.status === 'void') return;
+        /* v35: پیش‌دریافت از Receipt پرونده می‌آید؛ fromAdvance میراثی یک Projection
+           فاکتور است و شمردن آن، دریافت را با تاریخ صدور فاکتور دوباره ثبت می‌کند. */
+        if (p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled) return;
         var amt = +p.amt || +p.amount || 0; if (!amt) return;
         var iso = cashIsoOf(p.dateISO || p.date || p.t || p.paidAt || inv.t);
         if (!cashInRange(iso, start, end)) return;
         if (p.chequeCd) { if (receivedSt[p.chequeCd] === 'cleared') receipts += amt; else chqPending += amt; }
         else receipts += amt;
       });
+    });
+    /* v35: دریافت قطعی پرونده قبل/بعد از فاکتور، منبع واحد وجه نقد است. */
+    (getData('ptf_crm_case_receipts') || []).forEach(function (r) {
+      if (!r || r.status !== 'posted' || r.voided) return;
+      var amt = +r.amountIRR || +r.amt || 0; if (!amt) return;
+      var iso = cashIsoOf(r.receivedAt || r.dateISO || r.t);
+      if (cashInRange(iso, start, end)) receipts += amt;
     });
     /* خروجی‌های دوره (بدون دوباره‌شماری) */
     var out = { supplierInvoices: 0, unallocatedPayments: 0, independentCheques: 0, opex: +d.opexTotal || 0, petty: +d.pettyStandaloneTotal || 0, coverCommission: 0, coverVat: 0, coverNetBenefit: 0, coverCount: 0 };

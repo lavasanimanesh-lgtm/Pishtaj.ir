@@ -841,6 +841,43 @@
       '<tbody id="rTb"></tbody></table></div>';
   };
 
+  /* projection واحد ضمائم درخواست برای داده‌های جدید و legacy.
+     پیش‌تر badge فقط r.files{category:[]} را می‌شمرد و attachment/file/docs سایت یا
+     آرایه‌های قدیمی هیچ نشانه‌ای نداشتند. */
+  window.ptfRfqAttachmentRows = function (r) {
+    var out = [], seen = {}, known = ['files','file','attachments','attachment','docs','documents','inqFile','rfqFile','requestFile'];
+    function add(raw, cat, source) {
+      if (raw == null || raw === '') return;
+      if (Array.isArray(raw)) { raw.forEach(function (x, i) { add(x, cat, source + '[' + i + ']'); }); return; }
+      if (typeof raw === 'string') {
+        var s = raw.trim(); if (!s) return;
+        if (s.charAt(0) === '[' || s.charAt(0) === '{') { try { add(JSON.parse(s), cat, source); return; } catch (eJson) {} }
+        raw = /^(data:|blob:|https?:\/\/)/i.test(s) ? { url: s, name: s.split('/').pop() || 'پیوست قدیمی' } : { key: s, name: s.split('/').pop() || 'پیوست قدیمی', legacyHost: true };
+      }
+      if (!raw || typeof raw !== 'object') return;
+      var key = raw.key || raw.objectKey || raw.storageKey || raw.fileKey || raw.path || '';
+      var url = raw.url || raw.src || raw.dataUrl || raw.downloadUrl || '';
+      var name = raw.name || raw.fileName || raw.filename || raw.originalName || raw.title || (key ? String(key).split('/').pop() : 'پیوست');
+      var fileish = !!(key || url || raw.name || raw.fileName || raw.filename);
+      if (fileish) {
+        var id = String(key || url || '') || (String(name) + '|' + String(raw.size || ''));
+        if (!seen[id]) {
+          seen[id] = true;
+          var f = {}; Object.keys(raw).forEach(function (k) { f[k] = raw[k]; });
+          f.key = key; f.url = url; f.name = name; f.size = +raw.size || 0;
+          out.push({ cat: cat || 'legacy', source: source || 'legacy', file: f });
+        }
+        return;
+      }
+      Object.keys(raw).forEach(function (k) { add(raw[k], cat === 'root' ? k : (cat || k), source + '.' + k); });
+    }
+    if (!r) return out;
+    add(r.files, 'root', 'files');
+    ['file','attachments','attachment','docs','documents','inqFile','rfqFile','requestFile'].forEach(function (k) { if (r[k] != null) add(r[k], 'legacy', k); });
+    return out;
+  };
+  window.ptfRfqAttachmentCount = function (r) { return window.ptfRfqAttachmentRows(r).length; };
+
   window.ptfRfqOfferInqSet = function (offers) {
     var set = {};
     (offers || getData('ptf_crm_offers') || []).forEach(function (o) {
@@ -894,7 +931,8 @@
       if (ofFlt === 'none' && has) ok = false;
       if (ofFlt === 'has' && !has) ok = false;
       if (q && (tr.getAttribute('data-search') || '').indexOf(q) < 0) ok = false;
-      tr.style.display = ok ? '' : 'none';
+      if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(tr, ok);
+      else { tr.classList.toggle('ptf-filter-hidden', !ok); tr.hidden = !ok; tr.style.display = ok ? '' : 'none'; }
       if (ok) vis++;
     });
     rfqPaintOfferChips(ofFlt, noneN, hasN);
@@ -905,9 +943,9 @@
         empty.innerHTML = '<td colspan="7" style="text-align:center;color:#94a3b8;padding:22px"></td>';
         tb.appendChild(empty);
       }
-      empty.style.display = '';
+      if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(empty, true); else { empty.classList.remove('ptf-filter-hidden'); empty.hidden = false; }
       empty.querySelector('td').textContent = ofFlt === 'none' ? 'درخواستی بدون پیشنهاد نیست' : (q || ofFlt ? 'موردی با این فیلتر نیست' : 'استعلامی ثبت نشده');
-    } else if (empty) empty.style.display = 'none';
+    } else if (empty) { if (typeof window.ptfSetRowVisible === 'function') window.ptfSetRowVisible(empty, false); else { empty.classList.add('ptf-filter-hidden'); empty.hidden = true; } }
     return true;
   };
   window.ptfRfqOfferFlt = function (v) {
@@ -1000,8 +1038,10 @@
       var wlBadge = wl === 'won' ? ' <span class="bd" style="background:#d1fae5;color:#065f46">🏆 برنده</span>' : wl === 'lost' ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">❌ بازنده</span>' : '';
       /* v15.7 (US-388 ②): بج شمار ضمایم — کلیک = مشاهده/دانلود (رفرنس کاربران) */
       var nAtt = 0;
-      try { Object.keys(r.files || {}).forEach(function (k2) { nAtt += (r.files[k2] || []).length; }); } catch (eAt) {}
-      var attBadge = nAtt ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;cursor:pointer" title="مشاهده و دانلود ضمایم" onclick="event.stopPropagation();ptfManageInqAttachments(\'' + ptfOnClickArg(r.cd) + '\')">📎 ' + nAtt + ' ضمیمه</span>' : '';
+      try { nAtt = typeof window.ptfRfqAttachmentCount === 'function' ? window.ptfRfqAttachmentCount(r) : 0; } catch (eAt) {}
+      var attBadge = nAtt
+        ? ' <span class="bd rfq-attachment-badge has-files" role="button" tabindex="0" style="background:#ede9fe;color:#6d28d9;cursor:pointer" title="مشاهده و مدیریت ' + nAtt + ' ضمیمه" onclick="event.stopPropagation();ptfManageInqAttachments(\'' + ptfOnClickArg(r.cd) + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();ptfManageInqAttachments(\'' + ptfOnClickArg(r.cd) + '\')}">📎 ' + nAtt + ' ضمیمه</span>'
+        : ' <span class="bd rfq-attachment-badge no-files" style="background:#f1f5f9;color:#94a3b8" title="این درخواست ضمیمه ندارد">📎 بدون ضمیمه</span>';
       var rowBg = wl === 'won' ? '#ecfdf5' : wl === 'lost' ? '#fef2f2' : (due && due.bg ? due.bg : '');
       /* v21.5 US-411ف1: نمایش ثبت‌کننده زیر کد درخواست */
       var crLine = '';
@@ -1046,7 +1086,9 @@
       '<h4 style="margin:0 0 10px;font-size:13.5px;color:#1d4ed8">🌐 استعلام‌های ثبت‌شده از سایت — در انتظار تایید مدیران (' + pend.length + ')</h4>' +
       '<div class="tb2"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>تماس</th><th>حوزه</th><th>شرح</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>';
     pend.forEach(function (r) {
-      h += '<tr><td><b>' + escP(r.code) + '</b>' + (r.attachment ? ' <span class="bd" style="background:#f0f9ff;color:#0369a1">📎 پیوست</span>' : '') + '</td><td>' + escP(r.company) + '<br><small style="color:#94a3b8">' + escP(r.contact || '') + '</small></td>' +
+      var pendingAtt = typeof window.ptfRfqAttachmentCount === 'function' ? window.ptfRfqAttachmentCount(r) : (r.attachment ? 1 : 0);
+      var pendingAttBadge = pendingAtt ? '<span class="bd" style="background:#ede9fe;color:#6d28d9">📎 ' + pendingAtt + ' ضمیمه</span>' : '<span class="bd" style="background:#f1f5f9;color:#94a3b8">📎 بدون ضمیمه</span>';
+      h += '<tr><td><b>' + escP(r.code) + '</b> ' + pendingAttBadge + '</td><td>' + escP(r.company) + '<br><small style="color:#94a3b8">' + escP(r.contact || '') + '</small></td>' +
         '<td style="direction:ltr;font-size:12px">' + escP(r.phone || '-') + '</td><td style="font-size:11px">' + escP(r.category || '-') + '</td>' +
         '<td style="font-size:11px;max-width:220px">' + escP((r.message || '').slice(0, 120)) + '</td><td style="font-size:11px">' + escP(r.date || '-') + '</td><td>' +
         /* v14.7 (US-380 AC1): جزئیات کامل — همه فیلدهای فرم سایت + پیوست */

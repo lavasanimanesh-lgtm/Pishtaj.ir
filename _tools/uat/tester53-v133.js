@@ -26,7 +26,7 @@ T('audit تسویه خودکار', sf.indexOf('تسویه خودکار') > -1);
 
 SECTION('US-325: پیوست‌های زمان ثبت استعلام قابل مشاهده');
 T('ریشه رفع شد: دسته‌ها با کلیدهای فرم ثبت (img/oth) یکسان شد', iq.indexOf("renderFileList('img', '🖼 عکس کالا')") > -1 && iq.indexOf("renderFileList('oth', '📎 سایر مدارک')") > -1);
-T('دسته cat قدیمی فقط اگر داده دارد', iq.indexOf("(r.files['cat'] || []).length ? renderFileList('cat'") > -1);
+T('دسته cat قدیمی فقط اگر آرایه و دارای داده است', iq.indexOf("Array.isArray(r.files['cat']) && r.files['cat'].length") > -1 && iq.indexOf("renderFileList('cat'") > -1);
 T('مشاهده/دانلود/حذف هر پیوست موجود بود و ماند', iq.indexOf('ptfDelInqAtt') > -1 && iq.indexOf('ptfDownloadStoredFile') > -1);
 
 SECTION('US-326: اقلام درخواست — اختیاری + تایید ورود به کالاها');

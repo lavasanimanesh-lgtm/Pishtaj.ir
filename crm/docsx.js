@@ -323,7 +323,7 @@
         rec.items.map(function (row, i) { return '<tr><td style="border:1px solid #94a3b8;padding:1.6mm;text-align:center">' + (i + 1) + '</td>' + row.map(function (c) { return '<td style="border:1px solid #94a3b8;padding:1.6mm">' + escP(c) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
     }
     var sigP = {};
-    try { sigP = (JSON.parse(localStorage.getItem('ptf_crm_sigprofiles') || '{}') || {})[(curSession()||{}).user || ''] || {}; } catch(e) {}
+    try { var su = (curSession()||{}).user || ''; sigP = typeof window.ptfSigProfileFor === 'function' ? (window.ptfSigProfileFor(su) || {}) : ((getData('ptf_crm_sigprofiles') || {})[su] || {}); } catch(e) {}
     var sigHtml = '<div style="margin-top:14mm;display:flex;justify-content:flex-end"><div style="min-width:60mm;text-align:center;color:#4b5057;font-size:10pt">' +
       '<div style="min-height:32mm;position:relative">' +
       (sigP.stamp ? '<img src="' + sigP.stamp + '" style="position:absolute;left:50%;transform:translateX(-50%);top:2mm;max-height:28mm;opacity:.9;mix-blend-mode:multiply">' : '') +

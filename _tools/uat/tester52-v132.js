@@ -20,14 +20,14 @@ T('پیشنهادها زنده با آخرین رویژن', sf.indexOf('آخری
 T('نامه‌های مرتبط (SF: یا inqNo)', sf.indexOf("l.prjNo === 'SF:' + r.inqNo") > -1);
 T('فاکتورهای مرتبط از offerNo', sf.indexOf('offNos.indexOf(i.offerNo) > -1') > -1);
 T('افزودن سند از بیرون (آپلود)', sf.indexOf('attachUploadWidget') > -1 && sf.indexOf('sfAddMisc') > -1);
-T('حذف سند متفرقه + پاکسازی ابری', sf.indexOf('sfDelMisc') > -1 && sf.indexOf('sfDeleteCloud([doc.key])') > -1);
+T('حذف سند متفرقه فقط پس از تأیید پاکسازی ابری', sf.indexOf('sfDelMisc') > -1 && sf.indexOf('sfDeleteCloudThen([doc.key]') > -1 && sf.indexOf('sfDelMiscCommit') > -1);
 T('نامه: گزینه پرونده فروش در کشوی لینک', sf.indexOf("'SF:' + r.inqNo") > -1 && sf.indexOf('_sfLetterHooked') > -1);
 
 SECTION('مختومه‌سازی دومسیره');
 T('تشخیص فاکتور ثبت‌شده', sf.indexOf('function sfHasInvoice') > -1);
 T('مسیر با فاکتور: پایان پروژه و تسویه کامل + انتقال کامل ضمایم', sf.indexOf('پایان پروژه و تسویه کامل') > -1 && sf.indexOf("sfArchive(r, 'settled', true)") > -1);
 T('مسیر بدون فاکتور: دلیل + پیشنهاد دانلود + هشدار حذف', sf.indexOf('عدم برنده شدن') > -1 && sf.indexOf('دانلود اسناد قبل از مختومه') > -1 && sf.indexOf('هشدار نهایی') > -1);
-T('حذف اسناد متفرقه از فضای ابری (delete_batch)', sf.indexOf('delete_batch') > -1);
+T('حذف اسناد متفرقه از فضای ابری با action محدود پرونده', sf.indexOf('delete_case_document') > -1 && sf.indexOf('ptfStorageAuthHeaders') > -1);
 T('متادیتا برای آمار می‌ماند (purged)', sf.indexOf('purged: true') > -1);
 T('انتقال به بایگانی با آمار مدیریتی', sf.indexOf("state: 'archived'") > -1 && sf.indexOf('stats: {') > -1 && sf.indexOf('totalCO') > -1);
 T('حذف رکورد از پرونده‌های فروش پس از انتقال', sf.indexOf('x.cd !== r.cd') > -1);

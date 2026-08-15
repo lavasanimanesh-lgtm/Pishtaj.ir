@@ -27,7 +27,7 @@ T('ورود دستی: نام تامین‌کننده الزامی', bc.indexOf('
 T('تسعیر ارزی الزامی — بدون confirm دورزدنی', bc.indexOf('بدون «نرخ تسعیر» ثبت نمی‌شود (US-412)') > -1 && bc.indexOf('بدون نرخ پرداخت ریالی ثبت می') === -1);
 T('معادل تومانی = قیمت خرید واقعی (priceFx/rate رهگیری)', bc.indexOf('buyPrice = Math.round(priceFx * buyRate);') > -1 && bc.indexOf("cur: 'IRR', srcCur:") > -1);
 T('پیشنهاد نرخ زنده آزاد/سنا (فقط راهنما)', bc.indexOf('window._ptfFxLive && window._ptfFxLive.rates') > -1 && bc.indexOf('نرخ زنده: دلار آزاد') > -1);
-T('خرید واقعی دیگر تعهد/فاکتور خودکار نمی‌سازد', bc.indexOf('ptfPayableUpsert') < 0 && bc.indexOf('slImportRealPurchase') < 0);
+T('خرید نقدی واقعی، بدون تعهد باز، سند خرید+پرداخت صفرکننده در زیر‌دفتر می‌سازد', bc.indexOf('ptfPayableUpsert') < 0 && bc.indexOf('rbPostCashSupplierLedger') > -1 && bc.indexOf('slImportRealPurchase') > -1);
 T('پیش‌اتصال/تضمین st8 با خرید واقعی پابرجاست', bc.indexOf('ptfRealBuyEnsureStatus') > -1 && bc.indexOf("ptfRfqSetStatus(r.cd, 'st8'") > -1);
 
 SECTION('رفتاری: تسعیر و منابع قیمت');
