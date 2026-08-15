@@ -388,7 +388,7 @@
       fields: [
         { id: 'amt', label: 'مبلغ (ریال)', type: 'number', required: true, dir: 'ltr' },
         { id: 'cat', label: 'نوع هزینه', type: 'select', options: CATS.map(function (c) { return { v: c, lb: c }; }) },
-        { id: 'rfq', label: 'مربوط به درخواست/پرونده (اختیاری)', placeholder: 'مثال: PTF-RFQ-1405-0012', dir: 'ltr' },
+        { id: 'rfq', label: 'مربوط به درخواست/پرونده (اختیاری)', placeholder: 'مثال: PTF-RFQ-7K3MW-P9X2R', dir: 'ltr' },
         { id: 'dealRef', label: 'مربوط به کدام پرونده فروش؟ (اختیاری)', type: 'select', optionsHtml: dealOpts,
           onchange: 'try{var s=document.getElementById("ptyDealSummarySlot");if(s)s.innerHTML=ptfPettyDealSummary(this.value);}catch(e){}' },
         { id: 'desc', label: 'توضیح', type: 'textarea', rows: 2, required: true,
@@ -503,7 +503,7 @@
       fields: [
         { id: 'amt', label: 'مبلغ (ریال)', type: 'number', value: r.amt, required: true, dir: 'ltr' },
         { id: 'cat', label: 'نوع هزینه', type: 'select', value: r.cat, options: CATS.map(function (c) { return { v: c, lb: c }; }) },
-        { id: 'rfq', label: 'مربوط به درخواست/پرونده (اختیاری)', value: r.rfq || '', placeholder: 'مثال: PTF-RFQ-1405-0012', dir: 'ltr' },
+        { id: 'rfq', label: 'مربوط به درخواست/پرونده (اختیاری)', value: r.rfq || '', placeholder: 'مثال: PTF-RFQ-7K3MW-P9X2R', dir: 'ltr' },
         { id: 'dealRef', label: 'مربوط به کدام پرونده فروش؟ (اختیاری)', type: 'select', optionsHtml: dealOpts,
           onchange: 'try{var s=document.getElementById("ptyDealSummarySlot");if(s)s.innerHTML=ptfPettyDealSummary(this.value);}catch(e){}' },
         { id: 'desc', label: 'توضیح', type: 'textarea', rows: 2, value: r.desc || '', required: true }

@@ -707,22 +707,26 @@ function load_all_crm_users_sources() {
     return array_values($by);
 }
 
-// شمارنده یکتای ترتیبی (US-133 AC2: شماره یکتا برای هر ثبت‌نام/استعلام سایت)
-function next_seq($key) {
-    global $data_dir;
-    $file = "$data_dir/counters.json";
-    $c = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: []) : [];
-    $c[$key] = ($c[$key] ?? 0) + 1;
-    file_put_contents($file, json_encode($c), LOCK_EX);
-    return $c[$key];
-}
-
-// سال شمسی جاری (تقریب کافی برای شماره‌گذاری: از فروردین = ۲۱ مارس)
-function fa_year() {
-    $gy = (int)date('Y'); $gm = (int)date('n'); $gd = (int)date('j');
-    $jy = $gy - 621;
-    if ($gm < 3 || ($gm === 3 && $gd < 21)) $jy--;
-    return $jy;
+/* کد رهگیری عمومی غیرقابل‌حدس: ۱۰ نویسه از الفبای بدون 0/O/1/I (~۵۰ بیت entropy).
+   prefix فقط نوع پرونده را مشخص می‌کند؛ هیچ سال/ترتیب/تعداد ثبت‌نام از کد نشت نمی‌کند.
+   داده‌های ترتیبی قبلی همچنان در track قابل جستجو باقی می‌مانند. */
+function public_tracking_code($kind) {
+    $kind = strtoupper(trim((string)$kind));
+    if (!in_array($kind, ['RFQ', 'VEN'], true)) throw new InvalidArgumentException('tracking_kind');
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    $used = [];
+    foreach (array_merge(load_data('rfqs'), load_data('suppliers')) as $row) {
+        $old = strtoupper(trim((string)($row['code'] ?? '')));
+        if ($old !== '') $used[$old] = true;
+    }
+    $max = strlen($alphabet) - 1;
+    for ($attempt = 0; $attempt < 20; $attempt++) {
+        $token = '';
+        for ($i = 0; $i < 10; $i++) $token .= $alphabet[random_int(0, $max)];
+        $code = 'PTF-' . $kind . '-' . substr($token, 0, 5) . '-' . substr($token, 5, 5);
+        if (!isset($used[$code])) return $code;
+    }
+    throw new RuntimeException('tracking_code_generation_failed');
 }
 
 function clean($v, $max = 500) {
@@ -959,10 +963,11 @@ switch($action) {
     case 'add_rfq_site':
         verify_request();
         require_captcha(); // US-149 AC1
+        try { $code = public_tracking_code('RFQ'); }
+        catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
         $attachmentError = '';
         $attachment = save_attachment('attachment', 'rfq', $attachmentError);
         if ($attachmentError) { http_response_code(503); echo json_encode(['ok' => false, 'error' => 'attachment_cloud', 'message' => $attachmentError], JSON_UNESCAPED_UNICODE); break; }
-        $code = 'PTF-RFQ-' . fa_year() . '-' . str_pad(next_seq('rfq_site'), 4, '0', STR_PAD_LEFT);
         $rfqs = load_data('rfqs');
         $rfqs[] = [
             'code' => $code,
@@ -992,8 +997,10 @@ switch($action) {
         verify_request();
         require_captcha(); // US-149 AC1
         $rfqs = load_data('rfqs');
+        try { $code = public_tracking_code('RFQ'); }
+        catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
         $rfqs[] = [
-            'code' => clean($_POST['code'] ?? ('RFQ-' . rand(10000, 99999))),
+            'code' => $code,
             'company' => clean($_POST['company'] ?? ''),
             'contact' => clean($_POST['contact'] ?? ''),
             'category' => clean($_POST['category'] ?? ''),
@@ -1002,7 +1009,7 @@ switch($action) {
             'date' => date('Y/m/d')
         ];
         save_data('rfqs', $rfqs);
-        echo json_encode(['ok' => true]);
+        echo json_encode(['ok' => true, 'code' => $code], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'update_rfq':
@@ -1032,13 +1039,14 @@ switch($action) {
                 exit;
             }
         }
+        try { $code = public_tracking_code('VEN'); }
+        catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
         $attachmentError = '';
         $attachment = save_attachment('attachment', 'ven', $attachmentError);
         /* فایل کاتالوگ اختیاری است؛ اختلال فضای ابری نباید ثبت‌نامِ تاییدشده را
            متوقف یا کد رهگیری را حذف کند. خطا به کاربر برگردانده می‌شود تا فایل را
            بعداً ارسال کند، اما مشخصات تامین‌کننده در CRM ثبت می‌ماند. */
         $attachmentWarning = $attachmentError ? ('ثبت‌نام انجام شد، اما پیوست ذخیره نشد: ' . $attachmentError) : '';
-        $code = 'PTF-VEN-' . fa_year() . '-' . str_pad(next_seq('supplier'), 4, '0', STR_PAD_LEFT);
         $suppliers = load_data('suppliers');
         $suppliers[] = [
             'code' => $code,
