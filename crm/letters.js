@@ -518,10 +518,17 @@ function letReject(cd) {
 function letDel(cd) {
   var l = getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0];
   if (l && (l.st === 'signed' || l.st === 'registered') && !isSenior()) { alert('نامه ثبت‌شده را فقط نقش ارشد می‌تواند حذف کند'); return; }
-  if (!confirm('حذف شود؟')) return;
+  var reason = prompt('دلیل حذف نامه را وارد کنید (برای سابقه حسابرسی الزامی است):', 'ثبت اشتباه');
+  if (reason === null) return;
+  if (!reason.trim()) { alert('دلیل حذف الزامی است'); return; }
+  if (!confirm('نامه «' + ((l && (l.no || l.subject)) || cd) + '» حذف شود؟')) return;
+  var archive = getData('ptf_crm_deleted_archive');
+  archive.push({ id: cd, kind: 'LETTER', label: (l && (l.no || l.subject)) || cd, reason: reason.trim(), by: curSession().name, iso: new Date().toISOString(), snapshot: l || null });
+  setData('ptf_crm_deleted_archive', archive);
   setData('ptf_crm_letters', getData('ptf_crm_letters').filter(function (x) { return x.cd !== cd; }));
-  audit('مکاتبات', 'حذف نامه', cd);
+  audit('مکاتبات', 'حذف کنترل‌شده نامه — دلیل: ' + reason.trim(), cd);
   renderLetters();
+  if (typeof renderDeals === 'function') renderDeals();
 }
 
 /* ---------- نامه وارده (AC4) ---------- */

@@ -38,6 +38,8 @@ $storageDangerRoles = ['admin', 'chairman'];
 $storageDangerActions = ['delete', 'delete_batch', 'archive_zip', 'backup_prune'];
 $storageFinancialRoles = ['admin', 'chairman', 'ceo', 'commercial', 'accountant'];
 $storageFinancialActions = ['delete_financial'];
+$storageRecordRoles = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
+$storageRecordActions = ['delete_case_document', 'delete_rfq_attachment'];
 $storageBackupActions = ['presign_put_backup'];
 /* عملیات مخرب → فقط admin/chairman؛ عملیات بک‌آپ نوشتنی → نقش‌های ارشد؛
    خواندن/پیش‌نمایش/آپلود ضمیمه → همهٔ نقش‌های احرازشده. */
@@ -45,6 +47,8 @@ if (in_array($action, $storageDangerActions, true)) {
     $storageAllowedRoles = $storageDangerRoles;
 } elseif (in_array($action, $storageFinancialActions, true)) {
     $storageAllowedRoles = $storageFinancialRoles;
+} elseif (in_array($action, $storageRecordActions, true)) {
+    $storageAllowedRoles = $storageRecordRoles;
 } elseif (in_array($action, $storageBackupActions, true)) {
     $storageAllowedRoles = $storageSeniorRoles;
 } else {
@@ -386,6 +390,23 @@ switch ($action) {
         $ok = in_array((int)$r['code'], [200, 204], true);
         if (!$ok) http_response_code(($r['code'] >= 400 && $r['code'] < 600) ? (int)$r['code'] : 502);
         echo json_encode(['ok' => $ok, 'http' => $r['code'], 'error' => $ok ? null : ('حذف سند مالی از فضای ابری ناموفق بود' . ($r['err'] ? ': ' . $r['err'] : ''))]);
+        break;
+
+    case 'delete_case_document':
+    case 'delete_rfq_attachment':
+        $key = ltrim((string)($in['key'] ?? ''), '/');
+        $valid = $action === 'delete_rfq_attachment'
+            ? preg_match('#^rfqatt/#', $key)
+            : preg_match('#^(?:salesfiles(?:-ship|-qc)?|project-cost)/#', $key);
+        if (!$key || !$valid || strpos($key, '..') !== false) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'error' => 'record_document_key_required']); break;
+        }
+        $uri = '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($key));
+        $r = s3_request($cfg, 'DELETE', $uri);
+        $ok = in_array((int)$r['code'], [200, 204], true);
+        if (!$ok) http_response_code(($r['code'] >= 400 && $r['code'] < 600) ? (int)$r['code'] : 502);
+        echo json_encode(['ok' => $ok, 'http' => $r['code'], 'error' => $ok ? null : ('حذف مدرک عملیاتی از فضای ابری ناموفق بود' . ($r['err'] ? ': ' . $r['err'] : ''))]);
         break;
 
     case 'delete':

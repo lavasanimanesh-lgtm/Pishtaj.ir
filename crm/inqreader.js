@@ -629,7 +629,8 @@
           '<span>📄 ' + escP(f.name) + ' <small style="color:#64748b">(' + (f.t||'') + ')</small></span>' +
           '<div style="display:flex;gap:4px">' +
           (f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490;text-decoration:none">👁️ مشاهده</a> <a href="javascript:void(0)" onclick="ptfDownloadStoredFile(\'' + ptfOnClickArg(f.key) + '\',\'' + ptfOnClickArg(f.name) + '\')" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#059669;text-decoration:none">⬇️ دانلود</a>' : '<span style="color:#94a3b8">صف محلی</span>') +
-          '<button onclick="ptfDelInqAtt(\'' + ptfOnClickArg(cd) + '\',\'' + catKey + '\',' + idx + ')" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></div></div>';
+          '<input type="file" id="attRep_' + catKey + '_' + idx + '" style="display:none" onchange="ptfReplaceInqAtt(\'' + ptfOnClickArg(cd) + '\',\'' + catKey + '\',' + idx + ',this)"><label for="attRep_' + catKey + '_' + idx + '" class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#7c3aed;cursor:pointer">♻️ جایگزینی</label>' +
+          '<button onclick="ptfDelInqAtt(\'' + ptfOnClickArg(cd) + '\',\'' + catKey + '\',' + idx + ')" style="border:0;background:none;color:#dc2626;cursor:pointer" title="حذف از سرور و فضای ابری">✕</button></div></div>';
       }).join('');
       return '<div style="margin-bottom:12px"><b style="color:#1e293b;font-size:13px">' + catName + ' (' + arr.length + ')</b>' +
         '<div style="margin-top:4px">' + (items || '<small style="color:#94a3b8">هیچ فایلی پیوست نشده</small>') + '</div>' +
@@ -651,34 +652,101 @@
     try { var _am = document.getElementById('ptfAttModal'); if (_am && window.ptfElevateModal) window.ptfElevateModal(_am); } catch (eA) {}
   };
 
+  function ptfInqAttachmentError(err) {
+    var code = String((err && err.payload && err.payload.error) || (err && err.message) || 'server_unavailable');
+    var map = {
+      permission_denied: 'نقش کاربری شما مجوز مدیریت پیوست این درخواست را ندارد.',
+      rfq_not_found: 'درخواست روی سرور پیدا نشد؛ ابتدا صفحه را همگام‌سازی/بازخوانی کنید.',
+      rfq_attachment_not_found: 'این پیوست قبلاً حذف یا جایگزین شده است؛ فهرست را بازخوانی کنید.',
+      invalid_rfq_attachment_file: 'کلید فایل آپلودشده معتبر نیست.',
+      payload_too_large: 'اطلاعات ارسالی بیش از سقف سرور است.',
+      lock_unavailable: 'سرور در حال ثبت عملیات دیگری است؛ چند لحظه بعد دوباره تلاش کنید.'
+    };
+    return map[code] || ('ذخیره قطعی روی سرور ناموفق بود (' + code + ').');
+  }
+
+  function ptfInqAttachmentCommand(action, payload) {
+    if (typeof window.ptfSalesDomainApi !== 'function') return Promise.reject(new Error('ماژول ثبت قطعی سرور بارگذاری نشده است؛ صفحه را بازخوانی کنید.'));
+    return window.ptfSalesDomainApi(action, payload);
+  }
+
+  function ptfInqDeleteCloud(key) {
+    if (!key) return Promise.resolve({ ok: true });
+    return fetch(STORAGE_API + '?action=delete_rfq_attachment', {
+      method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : (function(){ var h={'Content-Type':'application/json'}; try { var t=localStorage.getItem('ptf_crm_token'); if(t)h['X-CRM-Token']=t; } catch(e){} return h; })()),
+      body: JSON.stringify({ key: key })
+    }).then(function(r){ return r.text().then(function(txt){ var d = {}; try { d = JSON.parse(txt); } catch(e) {} if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status)); return d; }); });
+  }
+
+  function ptfInqAttachmentRefresh(cd) {
+    var m = document.getElementById('ptfAttModal'); if (m) m.remove();
+    ptfManageInqAttachments(cd);
+  }
+
   window.ptfHandleInqAttUpload = function(cd, catKey, inp) {
     var f = inp.files[0]; if (!f) return;
-    if (typeof uploadFile === 'function') {
-      if (typeof ptfToast === 'function') ptfToast('⏳ در حال آپلود فایل پیوست...', 'info');
-      uploadFile(f, 'rfqatt', function(res){
-        if (!res || !res.ok || !res.key) { if (typeof ptfToast === 'function') ptfToast('⛔ پیوست ذخیره نشد: ' + ((res || {}).error || 'فضای ابری در دسترس نیست'), 'err'); return; }
-        var rfqs = getData('ptf_crm_rfqs');
-        var r = rfqs.filter(function(x){ return x.cd === cd; })[0];
-        if (!r) return;
-        r.files = r.files || {}; r.files[catKey] = r.files[catKey] || [];
-        r.files[catKey].push({ name: res.name || f.name, key: res.key || null, size: f.size, mode: res.mode, t: faDateTime() });
-        setData('ptf_crm_rfqs', rfqs);
-        var m = document.getElementById('ptfAttModal'); if (m) m.remove();
-        ptfManageInqAttachments(cd);
-        if (typeof ptfToast === 'function') ptfToast('✅ پیوست با موفقیت اضافه شد', 'ok');
-      });
-    }
+    if (typeof uploadFile !== 'function') { if (typeof ptfToast === 'function') ptfToast('⛔ ماژول آپلود در دسترس نیست', 'err'); return; }
+    if (typeof ptfToast === 'function') ptfToast('⏳ در حال آپلود و ثبت قطعی پیوست...', 'info');
+    uploadFile(f, 'rfqatt', function(res){
+      if (!res || !res.ok || !res.key) { if (typeof ptfToast === 'function') ptfToast('⛔ پیوست آپلود نشد: ' + ((res || {}).error || 'فضای ابری در دسترس نیست'), 'err'); return; }
+      var fileMeta = { name: res.name || f.name, key: res.key, size: f.size, mode: res.mode, contentType: f.type || '', t: typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString() };
+      ptfInqAttachmentCommand('rfq_attachment_add', { rfqId: cd, category: catKey, file: fileMeta })
+        .then(function(){
+          ptfInqAttachmentRefresh(cd);
+          if (typeof ptfToast === 'function') ptfToast('✅ پیوست روی سرور ثبت و تأیید شد', 'ok');
+        })
+        .catch(function(err){
+          /* آپلود بدون metadata نباید فایل یتیم بسازد؛ نتیجه پاک‌سازی هم صریح گزارش می‌شود. */
+          ptfInqDeleteCloud(res.key).then(function(){
+            if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err) + ' فایل آپلودشده پاک‌سازی شد.', 'err');
+          }).catch(function(cleanErr){
+            if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err) + ' پاک‌سازی فایل یتیم نیز ناموفق بود: ' + cleanErr.message, 'err');
+          });
+        });
+    });
+  };
+
+  window.ptfReplaceInqAtt = function(cd, catKey, idx, inp) {
+    var f = inp.files[0]; if (!f || typeof uploadFile !== 'function') return;
+    var rfqs = getData('ptf_crm_rfqs');
+    var r = rfqs.filter(function(x){ return x.cd === cd || x._id === cd || x.inqNo === cd; })[0];
+    var oldFile = r && r.files && r.files[catKey] && r.files[catKey][idx];
+    if (!oldFile) { if (typeof ptfToast === 'function') ptfToast('⛔ پیوست قبلی پیدا نشد؛ فهرست را بازخوانی کنید', 'err'); return; }
+    if (typeof ptfToast === 'function') ptfToast('⏳ در حال آپلود نسخه جایگزین...', 'info');
+    uploadFile(f, 'rfqatt', function(res){
+      if (!res || !res.ok || !res.key) { if (typeof ptfToast === 'function') ptfToast('⛔ فایل جایگزین آپلود نشد: ' + ((res || {}).error || ''), 'err'); return; }
+      var fileMeta = { name: res.name || f.name, key: res.key, size: f.size, mode: res.mode, contentType: f.type || '', t: typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString() };
+      ptfInqAttachmentCommand('rfq_attachment_replace', { rfqId: cd, category: catKey, attachmentId: oldFile._id || oldFile.key, file: fileMeta })
+        .then(function(){
+          return ptfInqDeleteCloud(oldFile.key).then(function(){ return true; }).catch(function(){ return false; });
+        })
+        .then(function(cleaned){
+          ptfInqAttachmentRefresh(cd);
+          if (typeof ptfToast === 'function') ptfToast(cleaned ? '✅ نسخه جایگزین روی سرور ثبت و فایل قدیمی پاک شد' : '⚠️ نسخه جدید ثبت شد؛ پاک‌سازی فایل قدیمی فضای ابری نیاز به بررسی دارد.', cleaned ? 'ok' : 'warn');
+        })
+        .catch(function(err){
+          ptfInqDeleteCloud(res.key).catch(function(){});
+          if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err), 'err');
+        });
+    });
   };
 
   window.ptfDelInqAtt = function(cd, catKey, idx) {
-    if (!confirm('فایل پیوست حذف شود؟')) return;
+    if (!confirm('فایل پیوست از درخواست و فضای ابری حذف شود؟ سابقه حذف برای حسابرسی نگه‌داری می‌شود.')) return;
     var rfqs = getData('ptf_crm_rfqs');
-    var r = rfqs.filter(function(x){ return x.cd === cd; })[0];
-    if (!r || !r.files || !r.files[catKey]) return;
-    r.files[catKey].splice(idx, 1);
-    setData('ptf_crm_rfqs', rfqs);
-    var m = document.getElementById('ptfAttModal'); if (m) m.remove();
-    ptfManageInqAttachments(cd);
+    var r = rfqs.filter(function(x){ return x.cd === cd || x._id === cd || x.inqNo === cd; })[0];
+    var file = r && r.files && r.files[catKey] && r.files[catKey][idx];
+    if (!file) return;
+    if (typeof ptfToast === 'function') ptfToast('⏳ در حال ثبت حذف روی سرور...', 'info');
+    ptfInqAttachmentCommand('rfq_attachment_remove', { rfqId: cd, category: catKey, attachmentId: file._id || file.key })
+      .then(function(){
+        return ptfInqDeleteCloud(file.key).then(function(){ return { cloud: true }; }).catch(function(err){ return { cloud: false, error: err.message }; });
+      })
+      .then(function(res){
+        ptfInqAttachmentRefresh(cd);
+        if (typeof ptfToast === 'function') ptfToast(res.cloud ? '✅ حذف پیوست روی سرور و فضای ابری تأیید شد' : '⚠️ حذف از درخواست ثبت شد، اما پاک‌سازی فایل ابری ناموفق بود: ' + res.error, res.cloud ? 'ok' : 'warn');
+      })
+      .catch(function(err){ if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err), 'err'); });
   };
 
   window.ptfOpenFullInqEditor = function(cd) {

@@ -34,6 +34,7 @@ $action = trim((string)($_GET['action'] ?? $body['action'] ?? 'snapshot'));
 
 const SD_FIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'accountant'];
 const SD_WIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
+const SD_RFQ_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
 const SD_ADMIN_ROLES = ['admin'];
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -349,7 +350,70 @@ try {
     $changes = [];
     $result = [];
 
-    if ($action === 'register_offer') {
+    if ($action === 'rfq_attachment_add' || $action === 'rfq_attachment_remove' || $action === 'rfq_attachment_replace') {
+        sd_require_role(SD_RFQ_ROLES);
+        $rfqId = sd_text($body['rfqId'] ?? '', 160);
+        $category = sd_text($body['category'] ?? '', 20);
+        $allowedCategories = ['inq', 'ds', 'img', 'dwg', 'oth', 'cat'];
+        if ($rfqId === '' || !in_array($category, $allowedCategories, true)) sd_out(['ok'=>false,'error'=>'invalid_rfq_attachment_target'],422);
+        $ri = -1;
+        foreach ($rfqs as $i => $rq) {
+            if (!is_array($rq)) continue;
+            if ((string)($rq['_id'] ?? '') === $rfqId || (string)($rq['cd'] ?? '') === $rfqId) { $ri = (int)$i; break; }
+        }
+        if ($ri < 0) sd_out(['ok'=>false,'error'=>'rfq_not_found'],404);
+        if (!isset($rfqs[$ri]['files']) || !is_array($rfqs[$ri]['files'])) $rfqs[$ri]['files'] = [];
+        if (!isset($rfqs[$ri]['files'][$category]) || !is_array($rfqs[$ri]['files'][$category])) $rfqs[$ri]['files'][$category] = [];
+        $list =& $rfqs[$ri]['files'][$category];
+        $attachmentId = sd_text($body['attachmentId'] ?? '', 120);
+        $ai = -1;
+        if ($attachmentId !== '') foreach ($list as $i => $f) {
+            if (!is_array($f)) continue;
+            if ((string)($f['_id'] ?? '') === $attachmentId || (string)($f['key'] ?? '') === $attachmentId) { $ai = (int)$i; break; }
+        }
+        if ($action === 'rfq_attachment_add' || $action === 'rfq_attachment_replace') {
+            $incoming = is_array($body['file'] ?? null) ? $body['file'] : [];
+            $key = sd_text($incoming['key'] ?? '', 1000);
+            if ($key === '' || strpos($key, 'rfqatt/') !== 0 || strpos($key, '..') !== false) sd_out(['ok'=>false,'error'=>'invalid_rfq_attachment_file'],422);
+            foreach ($list as $existing) if (is_array($existing) && (string)($existing['key'] ?? '') === $key) {
+                $result=['attachmentId'=>$existing['_id']??$key,'rfqId'=>$rfqId,'category'=>$category,'duplicate'=>true];
+                $changes=['ptf_crm_rfqs'=>$rfqs];
+                break;
+            }
+            if (!$changes) {
+                $record = [
+                    '_id'=>sd_uuid('RFQATT'), 'name'=>sd_text($incoming['name'] ?? 'file', 255),
+                    'key'=>$key, 'size'=>(int)max(0, sd_num($incoming['size'] ?? 0)),
+                    'mode'=>sd_text($incoming['mode'] ?? 'cloud', 30), 'contentType'=>sd_text($incoming['contentType'] ?? '', 120),
+                    't'=>sd_text($incoming['t'] ?? sd_now(), 80), 'uploadedAtISO'=>sd_now(), 'uploadedBy'=>$user,
+                    'version'=>1, 'status'=>'active'
+                ];
+                if ($action === 'rfq_attachment_replace') {
+                    if ($ai < 0) sd_out(['ok'=>false,'error'=>'rfq_attachment_not_found'],404);
+                    $oldFile = $list[$ai];
+                    $record['version'] = (int)($oldFile['version'] ?? 1) + 1;
+                    $record['replacesAttachmentId'] = $oldFile['_id'] ?? $oldFile['key'] ?? '';
+                    if (!isset($rfqs[$ri]['fileHistory']) || !is_array($rfqs[$ri]['fileHistory'])) $rfqs[$ri]['fileHistory'] = [];
+                    $oldFile['status'] = 'replaced'; $oldFile['replacedAtISO'] = sd_now(); $oldFile['replacedBy'] = $user;
+                    $rfqs[$ri]['fileHistory'][] = $oldFile;
+                    $list[$ai] = $record;
+                } else $list[] = $record;
+                $result=['attachmentId'=>$record['_id'],'rfqId'=>$rfqId,'category'=>$category,'replaced'=>$record['replacesAttachmentId']??''];
+                $changes=['ptf_crm_rfqs'=>$rfqs];
+            }
+        } else {
+            if ($ai < 0) sd_out(['ok'=>false,'error'=>'rfq_attachment_not_found'],404);
+            $removed = $list[$ai];
+            if (!isset($rfqs[$ri]['fileHistory']) || !is_array($rfqs[$ri]['fileHistory'])) $rfqs[$ri]['fileHistory'] = [];
+            $removed['status']='deleted'; $removed['deletedAtISO']=sd_now(); $removed['deletedBy']=$user;
+            $rfqs[$ri]['fileHistory'][]=$removed;
+            array_splice($list,$ai,1);
+            $result=['removedAttachmentId'=>$removed['_id']??$removed['key']??'','removedKey'=>$removed['key']??'','rfqId'=>$rfqId,'category'=>$category];
+            $changes=['ptf_crm_rfqs'=>$rfqs];
+        }
+        unset($list);
+    }
+    elseif ($action === 'register_offer') {
         sd_require_role(SD_WIN_ROLES);
         $incoming=is_array($body['offer']??null)?$body['offer']:[];$no=sd_text($incoming['no']??'',100);if($no==='')sd_out(['ok'=>false,'error'=>'offer_number_required'],422);
         $incomingId=sd_text($incoming['_id']??'',100);$idIndex=-1;$noIndexes=[];foreach($offers as $i=>$o)if(is_array($o)){if($incomingId!==''&&(string)($o['_id']??'')===$incomingId)$idIndex=$i;if((string)($o['no']??'')===$no)$noIndexes[]=$i;}

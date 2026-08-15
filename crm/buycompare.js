@@ -945,11 +945,9 @@
         if (!host || document.getElementById('rbBox_' + deal.cd) || document.getElementById('sfRealBuyBtn_' + deal.cd)) return;
         var st = ptfRealBuyStatus(deal.inqNo);
         var adv = ''; try {
-          var wo = getData('ptf_crm_offers').filter(function (o) { return o.no === deal.wonOffer; })[0];
-          if (wo && typeof ptfAdvanceNormalize === 'function') {
-            var aa = ptfAdvanceNormalize(wo);
-            if (aa && aa.mode && aa.mode !== 'none') adv = ' | پیش‌دریافت وصولی: ' + (+aa.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال';
-          }
+          var dealId = String(deal._id || deal.cd || '');
+          var received = (getData('ptf_crm_case_receipts') || []).filter(function (x) { return x && x.caseId === dealId && x.status === 'posted' && !x.voided; }).reduce(function (s, x) { return s + (+x.amountIRR || +x.amt || 0); }, 0);
+          if (received) adv = ' | دریافت قطعی: ' + received.toLocaleString('fa-IR') + ' ریال';
         } catch (eAdv) {}
         var costs = (deal.costEvents || []).reduce(function(s,x){return s+(+x.amt||0);},0);
         var costTxt = costs ? ' | هزینه‌های مستقیم: ' + costs.toLocaleString('fa-IR') + ' ریال' : '';
@@ -968,7 +966,6 @@
           '<div class="sf-real-buy-copy"><div class="sf-real-buy-heading"><span class="sf-real-buy-heading-icon" aria-hidden="true">🛒</span><span><b>خرید واقعی اقلام</b><small>پس از برد؛ جدا از قیمت استعلامی</small></span></div><div class="sf-real-buy-status">' + lb + adv + costTxt + '</div></div>' +
           '<div class="sf-real-buy-actions" role="group" aria-label="عملیات خرید واقعی پرونده ' + escP(deal.inqNo) + '">' +
           rbAction('open', '🛍', 'خرید', 'ثبت یا پیگیری خرید واقعی اقلام پرونده', 'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')', true) +
-          ((deal.wonOffer && typeof ptfAdvanceOpen === 'function') ? rbAction('advance', '💰', 'پیش‌دریافت', 'ثبت یا اصلاح پیش‌دریافت مشتری (وصولی)', 'event.stopPropagation();ptfAdvanceOpen(\'' + ptfOnClickArg(deal.wonOffer) + '\')') : '') +
           rbAction('inquiry', '🤖', 'استعلام مجدد', 'ثبت استعلام تامین جدید برای این پرونده', 'event.stopPropagation();ptfRealBuyNewInquiry(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
           rbAction('cost', '➕', 'هزینه پرونده', 'ثبت هزینهٔ مستقیم برای پرونده', 'event.stopPropagation();ptfProjectCostOpen(\'' + ptfOnClickArg(deal.inqNo) + '\')') +
           '</div></section>');
