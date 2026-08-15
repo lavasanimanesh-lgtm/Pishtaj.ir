@@ -29,9 +29,9 @@
   document.addEventListener('click', function (ev) {
     var t = ev.target;
     if (!t || t.nodeType !== 1) return;
-    /* بستن مودال با کلیک روی backdrop خودش (رفتار پیشین) */
-    var b = t.closest && t.closest('.md-b');
-    if (b && ev.target === b) b.remove();
+    /* وقتی روی پس‌زمینه کلیک شد (همان المان .md-b) آن را ببند؛
+       کلیک روی دکمه‌ها/محتوای درون مودال نباید باعث بسته‌شدن شود. */
+    if (t.classList && t.classList.contains('md-b')) t.remove();
   });
   document.addEventListener('keydown', function (ev) {
     if (ev.key === 'Escape') {
