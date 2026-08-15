@@ -40,7 +40,7 @@ var SUITE = [
   { g: 'بایگانی/سال مالی', f: '_tools/uat/tester413-v34.7.8-archived-test-purge.js' },
   { g: 'بایگانی/پرونده فعال', f: '_tools/uat/tester414-v34.7.9-shared-archive-preserve.js' },
   { g: 'موبایل/حساب مشتری', f: '_tools/uat/tester415-v34.7.10-mobile-customer-integrity.js' },
-  { g: 'بحران/بازیابی', f: '_tools/uat/tester416-v34.7.12-backup-disaster-recovery.js' },
+  { g: 'بحران/بازیابی', f: '_tools/uat/tester416-v34.7.13-backup-disaster-recovery.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },

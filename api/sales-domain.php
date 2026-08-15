@@ -746,11 +746,18 @@ try {
         foreach($salesReturns as &$row)if(is_array($row)&&in_array((string)($row['dealCd']??''),$sourceAliases,true)){$row['dealCd']=$keepCd;$moved['salesReturns']++;}unset($row);
         foreach($offers as &$row)if(is_array($row)){foreach(['caseId','salesCaseId','amendmentOfCaseId']as $field)if(in_array((string)($row[$field]??''),$sourceAliases,true))$row[$field]=$keepId;if(isset($row['invRef'])&&is_array($row['invRef'])&&in_array((string)($row['invRef']['caseId']??''),$sourceAliases,true))$row['invRef']['caseId']=$keepId;}unset($row);
         $cases[$keepIndex]=$keep;array_splice($cases,$removeIndex,1);
+        /* ادغام همچنین رکورد پروژه (projects) را که با cd پرونده مبدأ شناسایی
+           می‌شود به شناسه‌های پرونده مقصد بازنشانی می‌کند، وگرنه UI «پرونده‌های
+           فروش» همچنان دو رکورد نشان می‌داد. */
+        $projects=sd_read('ptf_crm_projects');
+        foreach($projects as &$prow)if(is_array($prow)){
+            foreach(['cd','dealCd','projectNo']as $pf){if(in_array((string)($prow[$pf]??''),$sourceAliases,true)){$prow[$pf]=$keepCd;if(isset($prow['mergedFromCd'])){$mfc=is_array($prow['mergedFromCd'])?$prow['mergedFromCd']:[$prow['mergedFromCd']];$prow['mergedFromCd']=array_values(array_unique(array_merge($mfc,$sourceAliases)));}else $prow['mergedFromCd']=$sourceAliases;$prow['mergedAt']=sd_now();$prow['mergedBy']=$user;}}
+        }unset($prow);
         sd_rebuild_allocations($keepId,$receipts,$invoices,$allocations);
         foreach($findings as &$finding)if(is_array($finding)&&($finding['ruleId']??'')==='duplicate_case'&&(($finding['evidence']['ref']??'')===$no||($finding['offerNo']??'')===$no)&&($finding['status']??'open')==='open'){$finding['status']='resolved';$finding['resolvedAt']=sd_now();$finding['resolvedBy']=$user;$finding['resolution']='merged_into_'.$keepId;}unset($finding);
         $deleted[]=['id'=>$removeRequested,'kind'=>'CASE_MERGED','label'=>'ادغام پرونده تکراری '.$removeRequested.' در '.$keepId,'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$source,'retainedCaseId'=>$keepId];
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'case','entityId'=>$keepId,'kind'=>'merge_duplicate_case','beforeSnapshot'=>$keepBefore,'sourceSnapshot'=>$source,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'conflictPaths'=>$conflicts,'movedReferences'=>$moved];
-        $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_fin_findings'=>$findings,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_petty'=>$petty,'ptf_crm_opex'=>$opex,'ptf_crm_cheques_issued'=>$issuedCheques,'ptf_crm_cheques_received'=>$receivedCheques,'ptf_crm_sales_returns'=>$salesReturns];
+        $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_projects'=>$projects,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_fin_findings'=>$findings,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_petty'=>$petty,'ptf_crm_opex'=>$opex,'ptf_crm_cheques_issued'=>$issuedCheques,'ptf_crm_cheques_received'=>$receivedCheques,'ptf_crm_sales_returns'=>$salesReturns];
         $result=['offerNo'=>$no,'keptCaseId'=>$keepId,'mergedCaseId'=>$removeRequested,'remainingCandidates'=>max(0,(int)($plan['candidateCount']??2)-1),'movedReferences'=>$moved,'conflictPaths'=>$conflicts];
     }
     elseif ($action === 'archived_case_purge_commit') {

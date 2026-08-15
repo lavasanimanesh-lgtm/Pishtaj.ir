@@ -251,8 +251,24 @@
   /* v35: پاسخ یک فرمان اتمیک sales-domain قبلاً روی سرور commit شده است؛ اعمال
      Projection آن روی cache نباید دوباره dirty/push شود و با نسخه خودش تعارض بسازد. */
   window.ptfSyncApplyServerProjection = function (k, value) {
-    try { wr(k, typeof value === 'string' ? value : JSON.stringify(value)); return true; }
-    catch (e) { return false; }
+    try {
+      wr(k, typeof value === 'string' ? value : JSON.stringify(value));
+      /* پس از اعمال projection سرور (مثل ادغام پرونده تکراری)، rev هر کلید را
+         نیز به‌روز کن تا pull دلتا آن کلید را دوباره برنگرداند. بدون این،
+         krevs محلی قدیمی می‌ماند و pull بعدی می‌تواند نسخه قدیمی (مثلاً دو پرونده
+         قبل از ادغام) را دوباره بیاورد و با smart merge آن را زنده کند. */
+      try {
+        var m = krevs();
+        var cur = +m[k] || 0;
+        /* سرور در sd_meta_commit هر کلید تغییرکرده را روی rev جدید می‌گذارد؛
+           ما اینجا فقط یک کفِ مطمئن می‌گذاریم: برابر یا بزرگ‌تر از آخرین
+           مقداری که خودمان از سرور دیده‌ایم. عدد واقعی در اولین pull بعدی
+           تصحیح می‌شود. */
+        var floor = +(state.lastRev || 0);
+        if (floor > cur) { m[k] = floor; saveKrevs(m); }
+      } catch (eK) {}
+      return true;
+    } catch (e) { return false; }
   };
 
   /* v31.6.24 BUG-SYNC-AUTH-RACE: a stale/expired token used to make
