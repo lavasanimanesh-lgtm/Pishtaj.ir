@@ -57,7 +57,7 @@ T('دکمهٔ «PDF تلفیقی» در renderPeriods هست', code.indexOf('�
 
 SECTION('شناسهٔ «سند N»');
 var id1 = ptfPettyNextPetId(), id2 = ptfPettyNextPetId();
-T('شناسه‌ها پشت‌سرهم (سند ۱، سند ۲)', id1 === 'سند 1' && id2 === 'سند 2');
+T('شناسه‌ها پس از بیشترین سند موجود و بدون تکرار ساخته می‌شوند', id1 === 'سند 4' && id2 === 'سند 5');
 
 SECTION('جمع‌آوری فایل‌های دوره (ptfPettyPeriodFiles)');
 var files = ptfPettyPeriodFiles('1405/04');

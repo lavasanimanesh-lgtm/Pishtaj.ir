@@ -1036,12 +1036,23 @@
     /* v34.0.0-alpha (F4-5): نمایش متمایز هزینه‌های لینک‌شده از تنخواه
        - هزینهٔ مستقیم پرونده: دکمه‌های ✏️📎🗑 (همان قبل)
        - هزینهٔ لینک‌شده از تنخواه (fromPetty): فقط دکمهٔ 🏦 (رفتن به تنخواه) + 🗑 (حذف لینک) */
-    var pjPettyLinkedCds = (r.costEvents || []).filter(function (x) { return x.pettyCd || x.fromPetty; }).map(function (x) { return x.pettyCd || x.cd; });
+    /* سند هزینه لینک‌شده snapshot نیست: هر بار از رکورد زنده تنخواه خوانده می‌شود تا
+       فایلی که بعداً در تنخواه افزوده/حذف شده فوراً در پرونده هم دیده شود. رکوردهای
+       قدیمی دارای dealRef که costEvent آن‌ها جا افتاده نیز به‌صورت projection نمایش داده می‌شوند. */
+    var pjPettyByCd = {}, pjPettyAll = getData('ptf_crm_petty') || [];
+    pjPettyAll.forEach(function (p) { if (p && p.cd) pjPettyByCd[p.cd] = p; });
+    var pjCostEvents = (r.costEvents || []).slice();
+    pjPettyAll.forEach(function (p) {
+      if (!p || p.st === 'void' || p.dealRef !== r.cd) return;
+      if (pjCostEvents.some(function (ce) { return (ce.pettyCd || (ce.fromPetty && ce.cd)) === p.cd; })) return;
+      pjCostEvents.push({ cd: p.cd, pettyCd: p.cd, fromPetty: true, amt: p.amt, desc: '[تنخواه] ' + (p.desc || p.cat || ''), t: p.t, by: p.by, files: [] });
+    });
+    var pjPettyLinkedCds = pjCostEvents.filter(function (x) { return x.pettyCd || x.fromPetty; }).map(function (x) { return x.pettyCd || x.cd; });
     /* v34.0.0-alpha (F4-5) FIX: هزینه‌های تنخواه لینک‌نشده به این پرونده
        = همهٔ هزینه‌های فعال (st !== 'void' && st !== 'settled'?) که dealRef خالی/متفاوت دارند
        و هنوز در costEvents این پرونده نیستند.
        الگو از petty.js#ptfPettyRelatedCosts گرفته شده ولی فیلتر معکوس شده. */
-    var pjPettyUnlinkedAvailable = (getData('ptf_crm_petty') || []).filter(function (p) {
+    var pjPettyUnlinkedAvailable = pjPettyAll.filter(function (p) {
       if (p.st === 'void') return false;
       /* هزینه‌ای که dealRef دارد (به هر پرونده‌ای) → لینک‌شده → از لیست حذف */
       if (p.dealRef) return false;
@@ -1049,17 +1060,27 @@
       return pjPettyLinkedCds.indexOf(p.cd) === -1;
     });
     h += '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>➕ هزینه‌های مستقیم پرونده</b>' +
-      ((r.costEvents && r.costEvents.length)
-        ? (r.costEvents.map(function (ce) {
-            var files = (ce.files || []).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>' : ''; }).join(' ');
+      (pjCostEvents.length
+        ? (pjCostEvents.map(function (ce) {
             var isPetty = ce.pettyCd || ce.fromPetty;
             var pettyCd = ce.pettyCd || ce.cd;
+            var livePetty = isPetty ? pjPettyByCd[pettyCd] : null;
+            var fileRows = livePetty && typeof window.ptfPettyRecordFiles === 'function' ? window.ptfPettyRecordFiles(livePetty) : ((livePetty && livePetty.files) || ce.files || []);
+            var files = fileRows.map(function (f) {
+              if (f.key) return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name || 'سند') + '</a>';
+              if (f.url && typeof window.ptfPettyOpenLegacyUrl === 'function') return '<a href="javascript:void(0)" onclick="ptfPettyOpenLegacyUrl(\'' + ptfOnClickArg(f.url) + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name || 'سند قدیمی') + '</a>';
+              return '';
+            }).filter(Boolean).join(' ');
+            var viewAmt = +(livePetty ? livePetty.amt : ce.amt) || 0;
+            var viewDesc = livePetty ? ('[تنخواه] ' + (livePetty.desc || livePetty.cat || '')) : (ce.desc || '');
+            var viewT = livePetty ? (livePetty.t || ce.t || '') : (ce.t || '');
+            var viewBy = livePetty ? (livePetty.by || ce.by || '') : (ce.by || '');
             var tagBtn = isPetty ? '<span style="background:#dbeafe;color:#1e40af;padding:2px 7px;border-radius:6px;font-size:10.5px;margin-left:6px">🔗 از تنخواه</span>' : '';
             /* هزینهٔ مستقیم: ✏️📎🗑 / هزینهٔ تنخواه: 🏦 (رفتن به ماژول تنخواه) + 🗑 (حذف لینک) */
             var actions = isPetty
-              ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0d9488" onclick="ptfDealGoPetty(\'' + ptfOnClickArg(pettyCd) + '\')" title="مشاهده در ماژول تنخواه">🏦</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(ce.cd) + '\',\'' + ptfOnClickArg(pettyCd) + '\')" title="حذف لینک از تنخواه">🗑️</button>'
+              ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0d9488" onclick="ptfDealGoPetty(\'' + ptfOnClickArg(pettyCd) + '\')" title="مشاهده در ماژول تنخواه">🏦</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="if(typeof ptfPettyFilesUi===\'function\')ptfPettyFilesUi(\'' + ptfOnClickArg(pettyCd) + '\')" title="مشاهده/افزودن اسناد زنده تنخواه">📎 اسناد (' + fileRows.length + ')</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(ce.cd) + '\',\'' + ptfOnClickArg(pettyCd) + '\')" title="حذف لینک از تنخواه">🗑️</button>'
               : '<button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#0e7490" onclick="ptfProjectCostOpen(\'' + ptfOnClickArg(r.inqNo || '') + '\',\'' + ptfOnClickArg(ce.cd) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#7c3aed" onclick="ptfProjectCostUpload(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(ce.cd) + '\')">📎</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11px;color:#dc2626" onclick="ptfDealRemoveCost(\'' + ptfOnClickArg(r.cd) + '\',\'' + ptfOnClickArg(ce.cd) + '\',\'' + ptfOnClickArg(ce.pettyCd || '') + '\')" title="حذف هزینه">🗑️</button>';
-            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap;align-items:center"><span><b>' + (+ce.amt || 0).toLocaleString('fa-IR') + ' ریال</b> ' + tagBtn + ' — ' + escP(ce.desc || '') + ' <small style="color:#94a3b8">(' + escP(ce.t || '') + ' — ' + escP(ce.by || '') + ')</small>' + (files ? '<br><small>' + files + '</small>' : '') + '</span><span style="white-space:nowrap">' + actions + '</span></div>';
+            return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px dashed #fdba74;flex-wrap:wrap;align-items:center"><span><b>' + viewAmt.toLocaleString('fa-IR') + ' ریال</b> ' + tagBtn + ' — ' + escP(viewDesc) + ' <small style="color:#94a3b8">(' + escP(viewT) + ' — ' + escP(viewBy) + ')</small>' + (files ? '<br><small>' + files + '</small>' : (isPetty ? '<br><small style="color:#94a3b8">هنوز سندی برای این هزینه ثبت نشده است.</small>' : '')) + '</span><span style="white-space:nowrap">' + actions + '</span></div>';
           }).join(''))
         : '<div style="padding:6px 0;color:#94a3b8">هنوز هزینه مستقیمی برای این پرونده ثبت نشده است.</div>') +
       /* v34.0.0-alpha (F4-5): دکمهٔ «افزودن از تنخواه» — لیست هزینه‌های لینک‌نشده تنخواه به این پرونده */

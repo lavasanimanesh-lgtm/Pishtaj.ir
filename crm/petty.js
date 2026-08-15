@@ -119,7 +119,7 @@
     var periods = prAll().slice(0, 8);
     if (!periods.length && !isTreasurer() && !isAccountant()) { el.innerHTML = ''; return; }
     var rows = periods.map(function (p) {
-      var files = (p.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')">📎' + escP(f.name || 'فایل') + '</a>'; }).join(' ');
+      var files = (typeof window.ptfPettyRecordFiles === 'function' ? window.ptfPettyRecordFiles(p) : (p.files || [])).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')">📎' + escP(f.name || 'فایل') + '</a>' : (f.url ? '<a href="javascript:void(0)" onclick="ptfPettyOpenLegacyUrl(\'' + ptfOnClickArg(f.url) + '\')">📎' + escP(f.name || 'سند قدیمی') + '</a>' : ''); }).join(' ');
       /* UR-11: دوره‌های جدید بازه [from,to] دارند؛ قدیمی‌ها فقط month (سازگاری) */
       var rng = (p.from && p.to) ? ('از ' + p.from + ' تا ' + p.to) : ('ماه ' + (p.month || '-'));
       var arg = (p.from && p.to) ? (escP(p.from) + '|' + escP(p.to)) : escP(p.month || '');
@@ -169,7 +169,7 @@
       }
     }
     el.innerHTML = list.map(function (x) {
-      var files = (x.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490">📎' + escP(f.name) + '</a>'; }).join(' ');
+      var files = (typeof window.ptfPettyRecordFiles === 'function' ? window.ptfPettyRecordFiles(x) : (x.files || [])).map(function (f) { return f.key ? '<a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="color:#0e7490">📎' + escP(f.name || 'فایل') + '</a>' : (f.url ? '<a href="javascript:void(0)" onclick="ptfPettyOpenLegacyUrl(\'' + ptfOnClickArg(f.url) + '\')" style="color:#0e7490">📎' + escP(f.name || 'سند قدیمی') + '</a>' : ''); }).join(' ');
       var isVoid = x.st === 'void';
       var canEdit = !isVoid && ((x.by === me.name) || canAll());
       var acts = '';
@@ -193,6 +193,65 @@
     }).join('') || '<div style="text-align:center;color:#94a3b8;padding:22px">هزینه‌ای ثبت نشده</div>';
   };
 
+  /* نرمال‌ساز اسناد قدیمی تنخواه. در نسخه‌های مختلف فایل به صورت files[]، file،
+     docs، attachments، receipt، کلید رشته‌ای، URL/DataURL یا نام‌های متفاوت key
+     ذخیره شده است. همه مصرف‌کننده‌ها باید فقط از این projection بخوانند. */
+  window.ptfPettyRecordFiles = function (record) {
+    var out = [], seen = {}, visited = [];
+    var containers = ['files','file','docs','documents','attachments','attachment','receipts','receiptFiles','receipt','receiptImage','images','image','photos','photo','bankFile','bankFiles','settleFiles','settlementFiles','proofs','proof','uploads'];
+    function looksLikeFileString(s) { return /^(data:|blob:|https?:\/\/)/i.test(s) || /^(petty|petty-period|uploads?|documents?|receipts?)\//i.test(s) || /\.(jpe?g|jfif|png|gif|webp|bmp|svg|avif|tiff?|pdf|heic|heif|docx?|xlsx?|csv)(?:$|[?#])/i.test(s); }
+    function add(raw, hint) {
+      if (raw == null || raw === '') return;
+      if (Array.isArray(raw)) { raw.forEach(function (x) { add(x, hint); }); return; }
+      if (typeof raw === 'string') {
+        var s = raw.trim(); if (!s) return;
+        if ((s.charAt(0) === '[' || s.charAt(0) === '{')) { try { add(JSON.parse(s), hint); return; } catch (eJson) {} }
+        if (!looksLikeFileString(s)) return;
+        raw = /^(data:|blob:|https?:\/\/)/i.test(s) ? { url: s, name: hint || '' } : { key: s, name: hint || s.split('/').pop() };
+      }
+      if (!raw || typeof raw !== 'object') return;
+      if (visited.indexOf(raw) > -1) return;
+      visited.push(raw);
+      var key = raw.key || raw.objectKey || raw.storageKey || raw.s3Key || raw.fileKey || raw.docKey || raw.receiptKey || raw.path || raw.filePath || '';
+      var url = raw.url || raw.src || raw.dataUrl || raw.dataURL || raw.previewUrl || raw.thumbUrl || raw.blobUrl || raw.receiptUrl || raw.docUrl || (typeof raw.thumbnail === 'string' ? raw.thumbnail : '') || (typeof raw.thumb === 'string' ? raw.thumb : '') || (typeof raw.preview === 'string' ? raw.preview : '');
+      var b64 = raw.b64 || raw.base64 || '';
+      var mime = raw.contentType || raw.mimeType || raw.mime || raw.type || '';
+      if (!url && typeof raw.data === 'string' && /^(data:|blob:|https?:\/\/)/i.test(raw.data)) url = raw.data;
+      if (!url && typeof raw.content === 'string' && /^data:/i.test(raw.content)) url = raw.content;
+      if (!url && b64) url = String(b64).indexOf('data:') === 0 ? b64 : ('data:' + (mime || 'application/octet-stream') + ';base64,' + b64);
+      var name = raw.name || raw.fileName || raw.filename || raw.originalName || raw.title || hint || (key ? String(key).split('/').pop() : '');
+      if (!key && !url && containers.indexOf(hint) > -1) {
+        Object.keys(raw).forEach(function (k) { if (containers.indexOf(k) < 0) add(raw[k], hint); });
+      }
+      if (key || url) {
+        var id = String(key || url || '') || (String(name) + '|' + String(raw.size || ''));
+        if (!seen[id]) {
+          seen[id] = true;
+          var f = {};
+          Object.keys(raw).forEach(function (k) { f[k] = raw[k]; });
+          f.key = String(key || ''); f.url = String(url || ''); f.name = String(name || key || 'سند');
+          f.contentType = f.contentType || mime || ''; f.petId = f.petId || raw.documentId || raw.docId || '';
+          out.push(f);
+        }
+      }
+      containers.forEach(function (k) { if (raw[k] != null && raw[k] !== raw) add(raw[k], k); });
+    }
+    add(record, 'سند');
+    return out;
+  };
+  window.ptfPettyOpenLegacyUrl = function (url) {
+    url = String(url || '');
+    if (!/^(data:(?:image\/|application\/(?:pdf|octet-stream|msword|vnd\.[^;,]+)|text\/csv)|blob:|https?:\/\/)/i.test(url)) { alert('نشانی سند قدیمی معتبر نیست'); return; }
+    window.open(url, '_blank', 'noopener');
+  };
+
+  function ptfPettySyncLinkedDeal(rec, tx) {
+    if (!rec || !rec.dealRef || typeof window.ptfPettyUpdateDealLink !== 'function') return;
+    try { window.ptfPettyUpdateDealLink(rec, rec.dealRef, rec.dealRef); } catch (e) { console.warn('petty linked deal document sync:', e); }
+    try { if (typeof renderDeals === 'function') renderDeals(); } catch (eR) {}
+    try { if (typeof audit === 'function') audit('تنخواه', tx || 'همگام‌سازی سند هزینه لینک‌شده با پرونده', rec.cd || ''); } catch (eA) {}
+  }
+
   function afterAddUpload(rec) {
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:440px">' +
       '<h3>📎 پیوست رسید/فاکتور پرداخت</h3><div id="ptyUp"></div>' +
@@ -208,7 +267,13 @@
           if (!f.petId) f.petId = window.ptfPettyNextPetId();
           r.petId = r.petId || f.petId;
           r.files.push(f); setData(PETTY_KEY, a);
+          ptfPettySyncLinkedDeal(r, 'افزودن سند هزینه تنخواه لینک‌شده به پرونده');
         }
+      }, function (key) {
+        var a = getData(PETTY_KEY); var r = a.filter(function (x) { return x.cd === rec.cd; })[0]; if (!r) return;
+        r.files = (r.files || []).filter(function (f) { return f && f.key !== key; });
+        r._deletedFileKeys = (r._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
+        setData(PETTY_KEY, a); ptfPettySyncLinkedDeal(r, 'حذف سند تازه‌افزوده‌شده هزینه تنخواه از پرونده');
       });
     }
   }
@@ -517,11 +582,12 @@
       return;
     }
     var z = (typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2750) : 2750;
-    var rows = (r.files || []).map(function (f) {
+    var rows = window.ptfPettyRecordFiles(r).map(function (f) {
       var key = String(f.key || '').replace(/[\\']/g, '');
+      var open = key ? 'openStoredFile(\'' + key + '\')' : ('ptfPettyOpenLegacyUrl(\'' + ptfOnClickArg(f.url || '') + '\')');
       return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed var(--brd);flex-wrap:wrap">' +
-        '<a href="javascript:void(0)" onclick="openStoredFile(\'' + key + '\')" style="color:#0e7490;flex:1;min-width:120px">📎 ' + escP(f.name || 'فایل') + '</a>' +
-        '<button class="ba" style="color:#dc2626" onclick="pettyRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕ حذف</button></div>';
+        '<a href="javascript:void(0)" onclick="' + open + '" style="color:#0e7490;flex:1;min-width:120px">📎 ' + escP(f.name || 'فایل') + '</a>' +
+        (key ? '<button class="ba" style="color:#dc2626" onclick="pettyRemoveFile(\'' + ptfOnClickArg(cd) + '\',\'' + key + '\')">✕ حذف</button>' : '<small style="color:#94a3b8">سند قدیمی</small>') + '</div>';
     }).join('') || '<div style="color:#94a3b8;font-size:12px;padding:6px 0">سندی ثبت نشده است.</div>';
     var html = '<div class="md-b" id="ptfPettyFilesDlg" style="display:grid;z-index:' + z + '" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px">' +
       '<h3>📎 اسناد هزینهٔ تنخواه — ' + escP(r.cat || '') + ' ' + money(r.amt) + '</h3>' + rows +
@@ -532,8 +598,14 @@
     try { if (typeof attachUploadWidget === 'function') attachUploadWidget('ptyFilesUp', 'petty/' + cd, function (f) {
       var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
       rr.files = rr.files || []; rr.files.push(f); rr.updatedAtISO = new Date().toISOString(); rr.updatedBy = userName(); setData(PETTY_KEY, a);
+      ptfPettySyncLinkedDeal(rr, 'افزودن سند جدید تنخواه و نمایش آن در پرونده لینک‌شده');
       if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('سند روی این دستگاه افزوده شد'); else if (typeof ptfToast === 'function') ptfToast('سند افزوده شد', 'ok');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
+    }, function (key) {
+      var a = getData(PETTY_KEY); var rr = a.filter(function (x) { return x.cd === cd; })[0]; if (!rr) return;
+      rr.files = (rr.files || []).filter(function (f) { return f && f.key !== key; });
+      rr._deletedFileKeys = (rr._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
+      setData(PETTY_KEY, a); ptfPettySyncLinkedDeal(rr, 'حذف سند تازه‌افزوده‌شده و به‌روزرسانی پرونده لینک‌شده');
     }); } catch (eU) {}
     /* CHQ-DOC-002: اگر سندی از دستگاه/کاربر دیگر تازه ثبت شده و هنوز به این مرورگر
        نرسیده، یک pull فوری بزن و اگر تعداد اسناد واقعاً تغییر کرد، مودال را خودکار
@@ -541,7 +613,7 @@
     if (typeof window.ptfAttachRefreshOnOpen === 'function') {
       window.ptfAttachRefreshOnOpen('ptfPettyFilesDlg', function () {
         var rr = (getData(PETTY_KEY) || []).filter(function (x) { return x.cd === cd; })[0];
-        return (rr && rr.files || []).map(function (f) { return f.key; });
+        return window.ptfPettyRecordFiles(rr || {}).map(function (f) { return f.key || f.url || f.name; });
       }, function () { window.ptfPettyFilesUi(cd); });
     }
   };
@@ -556,6 +628,7 @@
       r._deletedFileKeys = (r._deletedFileKeys || []).concat([key]).filter(function (v, i, all) { return v && all.indexOf(v) === i; });
       r.updatedAtISO = new Date().toISOString(); r.updatedBy = userName();
       setData(PETTY_KEY, a);
+      ptfPettySyncLinkedDeal(r, 'حذف سند تنخواه و به‌روزرسانی پرونده لینک‌شده');
       if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('حذف سند روی این دستگاه ثبت شد'); else if (typeof ptfToast === 'function') ptfToast('سند از رکورد و فضای ابری حذف شد', 'warn');
       var d = document.getElementById('ptfPettyFilesDlg'); if (d) d.remove(); window.ptfPettyFilesUi(cd);
     });
@@ -968,15 +1041,17 @@
   }
   function ptfPettyFetchFileBytes(f) {
     return new Promise(function (resolve) {
-      if (!f || !f.key) return resolve(null);
-      fetch('../api/attachment-read.php', {
-        method: 'POST', headers: ptfStorageAuthHeaders(true),
-        body: JSON.stringify({ key: f.key, name: f.key || f.name || '', mode: 'inline' })
-      }).then(function (r) {
-        if (!r.ok) throw new Error('read');
-        return r.arrayBuffer();
-      }).then(function (buf) { resolve(new Uint8Array(buf)); })
-        .catch(function () { resolve(null); });
+      if (!f) return resolve(null);
+      var req;
+      if (f.key) {
+        req = fetch('../api/attachment-read.php', {
+          method: 'POST', headers: ptfStorageAuthHeaders(true),
+          body: JSON.stringify({ key: f.key, name: f.name || f.key || '', mode: 'inline' })
+        });
+      } else if (f.url && /^(data:|blob:|https?:\/\/)/i.test(String(f.url))) req = fetch(f.url);
+      else return resolve(null);
+      req.then(function (r) { if (!r.ok) throw new Error('read'); return r.arrayBuffer(); })
+        .then(function (buf) { resolve(new Uint8Array(buf)); }).catch(function () { resolve(null); });
     });
   }
   /* v34.4.73: دکمهٔ فیش‌های پیوست = ZIP همهٔ اسناد ردیف‌های همین گزارش */
@@ -985,8 +1060,8 @@
     var argPair = ptfPettyArgPair(arg);
     var files = window.ptfPettyPeriodFiles(argPair[0], argPair[1]);
     var periodRec = window.ptfPettyFindPeriodRec(argPair[0], argPair[1]);
-    var bank = ((periodRec && periodRec.files) || []).map(function (f) {
-      return { key: f.key || '', name: f.name || f.key || 'bank', bank: true };
+    var bank = window.ptfPettyRecordFiles(periodRec || {}).map(function (f) {
+      f.bank = true; f.name = f.name || f.key || 'bank'; return f;
     });
     var all = files.concat(bank);
     if (!all.length) {
@@ -1091,7 +1166,16 @@
   /* ============ UR-10: PDF تلفیقی دورهٔ تنخواه (گزارش + ضمائم + رسیدها با شناسهٔ ردیف) ============ */
   /* کلید پیوند شناسهٔ رسید: petId در متادیتای فایل رکورد ذخیره می‌شود (توسط رکورد ابزار پیوست). */
   window._ptfPettyPetId = 0;
-  window.ptfPettyNextPetId = function () { return 'سند ' + (++window._ptfPettyPetId); };
+  window.ptfPettyNextPetId = function () {
+    var max = +window._ptfPettyPetId || 0;
+    try {
+      (getData(PETTY_KEY) || []).concat(txAll()).concat(prAll()).forEach(function (r) {
+        window.ptfPettyRecordFiles(r).forEach(function (f) { var m = String(f.petId || '').match(/(\d+)/); if (m && +m[1] > max) max = +m[1]; });
+      });
+    } catch (e) {}
+    window._ptfPettyPetId = max + 1;
+    return 'سند ' + window._ptfPettyPetId;
+  };
 
   /* پی‌دی‌اف تلفیقی: صفحه‌های زیر را می‌سازد (هر صفحه در چاپ/PDF جدا می‌شود):
      ۱) صفحهٔ ۱: گزارش دوره (جدول ردیف‌ها + جمع‌ها + نحوهٔ پرداخت)
@@ -1129,14 +1213,15 @@
     extra = extra || {};
     var n = String(name || extra.name || extra.key || '').toLowerCase();
     var key = String(extra.key || '').toLowerCase();
-    var ct = String(extra.contentType || extra.type || extra.mime || '').toLowerCase();
+    var ct = String(extra.contentType || extra.mimeType || extra.type || extra.mime || '').toLowerCase();
     var url = String(extra.url || '');
     var blob = extra.blobType ? String(extra.blobType).toLowerCase() : '';
     function hit(s) {
       s = String(s || '');
-      if (/\.(jpe?g|png|gif|webp|bmp|svg)(?:$|[?#])/.test(s) || /image\/(jpeg|jpg|png|gif|webp|bmp|svg)/.test(s)) return 'image';
+      if (/\.(jpe?g|jfif|png|gif|webp|bmp|svg|avif)(?:$|[?#])/.test(s) || /image\/(jpeg|jpg|png|gif|webp|bmp|svg|avif)/.test(s)) return 'image';
       if (/\.pdf(?:$|[?#])/.test(s) || s.indexOf('application/pdf') > -1) return 'pdf';
       if (/\.(heic|heif|heics)(?:$|[?#])/.test(s) || s.indexOf('image/heic') > -1 || s.indexOf('image/heif') > -1) return 'heic';
+      if (/\.(docx?|xlsx?|csv|rtf|odt|ods)(?:$|[?#])/.test(s) || /(wordprocessingml|spreadsheetml|msword|ms-excel|text\/csv)/.test(s)) return 'office';
       return '';
     }
     return hit(n) || hit(key) || hit(ct) || hit(blob) || hit(url.slice(0, 64)) || 'other';
@@ -1171,8 +1256,7 @@
   window.ptfPettyResolveUrl = function (f) { return ptfPettyResolveUrl(f); };
   function ptfPettyResolveUrl(f) {
     return new Promise(function (resolve) {
-      if (!f || !f.key) return resolve(f && f.url ? f.url : '');
-      if (f.url && String(f.url).indexOf('data:image/') === 0) return resolve(f.url);
+      if (!f) return resolve('');
       function asDataUrl(blob) {
         return new Promise(function (ok, bad) {
           var fr = new FileReader();
@@ -1181,6 +1265,17 @@
           fr.readAsDataURL(blob);
         });
       }
+      if (!f.key) {
+        var legacyUrl = String(f.url || '');
+        if (!legacyUrl || legacyUrl.indexOf('data:') === 0) return resolve(legacyUrl);
+        if (/^(blob:|https?:\/\/)/i.test(legacyUrl)) {
+          fetch(legacyUrl).then(function (r) { if (!r.ok && !/^blob:/i.test(legacyUrl)) throw new Error('legacy-read'); return r.blob(); })
+            .then(asDataUrl).then(resolve).catch(function () { resolve(legacyUrl); });
+          return;
+        }
+        return resolve('');
+      }
+      if (f.url && String(f.url).indexOf('data:') === 0) return resolve(f.url);
       function fallbackPresign() {
         try {
           fetch(STORAGE_API + '?action=presign_get', {
@@ -1218,7 +1313,9 @@
     var kind = window.ptfPettyFileKind(f.name || f.key || '', f);
     var url = String(f.url || '').replace(/"/g, '&quot;');
     var inner;
-    var openBtn = (f.key && typeof openStoredFile === 'function') ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>' : '';
+    var openBtn = (f.key && typeof openStoredFile === 'function')
+      ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن فایل</a></div>'
+      : (f.url ? '<div style="margin-top:4px"><a href="javascript:void(0)" onclick="ptfPettyOpenLegacyUrl(\'' + ptfOnClickArg(f.url) + '\')" style="font-size:10px;color:#0e7490">↗ باز کردن سند قدیمی</a></div>' : '');
 
     if (!url && f.key) {
       /* FIX v2: حتی اگر URL نیست، یک placeholder زیبا نمایش بده (نه حذف فایل) */
@@ -1304,13 +1401,18 @@
     var out = [], seen = {};
     function pushRec(r, kind) {
       if (!r) return;
-      var petId = r.petId || ((r.files || []).length ? (r.files[0].petId || '') : '');
-      (r.files || []).forEach(function (f, fi) {
+      var normalized = window.ptfPettyRecordFiles(r);
+      var petId = r.petId || (normalized.length ? (normalized[0].petId || '') : '');
+      normalized.forEach(function (f, fi) {
         if (!f) return;
-        var k = String(f.key || '') || (String(r.cd || '') + '|' + fi + '|' + String(f.name || ''));
+        var k = String(f.key || f.url || '') || (String(r.cd || '') + '|' + fi + '|' + String(f.name || ''));
         if (seen[k]) return;
         seen[k] = 1;
-        out.push({ key: f.key || '', name: f.name || f.key || ('سند ' + (fi + 1)), url: f.url || '', petId: f.petId || petId || '', cd: r.cd, kind: kind, record: r });
+        var row = {};
+        Object.keys(f).forEach(function (key) { row[key] = f[key]; });
+        row.key = f.key || ''; row.name = f.name || f.key || ('سند ' + (fi + 1)); row.url = f.url || '';
+        row.petId = f.petId || petId || ''; row.cd = r.cd; row.kind = kind; row.record = r;
+        out.push(row);
       });
     }
     var idList = [];
@@ -1333,6 +1435,9 @@
     var d = window.ptfPettyPeriodData(a, b);
     (d.petty || []).forEach(function (r) { pushRec(r, 'petty'); });
     (d.tx || []).forEach(function (r) { pushRec(r, 'tx'); });
+    var usedIds = {}, nextId = 1;
+    out.forEach(function (f) { if (f.petId) usedIds[f.petId] = true; });
+    out.forEach(function (f) { if (!f.petId) { while (usedIds['سند ' + nextId]) nextId++; f.petId = 'سند ' + nextId; usedIds[f.petId] = true; nextId++; } });
     return out;
   };
 
@@ -1369,7 +1474,7 @@
     var periodRec = window.ptfPettyFindPeriodRec(a, b);
     var ids = periodRec ? (periodRec.pettyIds || []).concat(periodRec.txIds || []) : null;
     var files = window.ptfPettyPeriodFiles(a, b, ids);
-    var periodFiles = (periodRec && periodRec.files) || [];
+    var periodFiles = window.ptfPettyRecordFiles(periodRec || {}).map(function (f) { f.bank = true; return f; });
     /* BUG-PDF-ATTACH: اول URL همهٔ ضمائم (عکس/PDF) از storage گرفته می‌شود، بعد HTML ساخته و چاپ می‌شود */
     var all = files.concat(periodFiles);
     var jobs = all.map(function (f) {

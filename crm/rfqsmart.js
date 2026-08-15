@@ -164,11 +164,11 @@
       /* v34.4.45: فقط پیش‌نمایش نام کالا حذف شده است. مشخصات منبع، شماره درخواست
          کارفرما و نام کارفرما مانند v34.4.43 روی کارت باقی می‌مانند؛ اطلاعات کالا نیز
          همچنان در index جست‌وجو حضور دارد. */
-      return '<div style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
-        '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">' +
-        '<div style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.duplicateOf ? ' <span class="bd" style="background:#fff7ed;color:#c2410c" title="با تایید کاربر در کنار درخواست قبلی ثبت شده">تکرارِ ' + escP(r.duplicateOf) + '</span>' : '') + (r.needsResend ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">⚠️ اقلام اصلاح شد — نیاز به ارسال مجدد</span>' : '') + (sourceMeta ? '<div style="font-size:11.5px;color:#0e7490;margin-top:3px">🔗 ' + escP(sourceMeta) + '</div>' : '') +
-        '<div style="font-size:11.5px;color:#64748b;margin-top:2px">' + (r.items || []).length + ' قلم | ' + (r.targets || []).length + ' تامین‌کننده | پاسخ: ' + resp + ' | ' + escP(r.t || '') + ' | ' + (STL[r.st] || '') + '</div></div>' +
-        '<div style="display:flex;gap:5px;flex-wrap:wrap">' +
+      return '<div class="rfqs-list-card" style="background:#fff;border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:8px">' +
+        '<div class="rfqs-list-head">' +
+        '<div class="rfqs-list-copy" style="font-size:13px"><b dir="ltr">' + escP(r.no) + '</b>' + (r.duplicateOf ? ' <span class="bd" style="background:#fff7ed;color:#c2410c" title="با تایید کاربر در کنار درخواست قبلی ثبت شده">تکرارِ ' + escP(r.duplicateOf) + '</span>' : '') + (r.needsResend ? ' <span class="bd" style="background:#fee2e2;color:#b91c1c">⚠️ اقلام اصلاح شد — نیاز به ارسال مجدد</span>' : '') + (sourceMeta ? '<div class="rfqs-list-source" title="' + escP(sourceMeta) + '">🔗 ' + escP(sourceMeta) + '</div>' : '') +
+        '<div class="rfqs-list-meta">' + (r.items || []).length + ' قلم | ' + (r.targets || []).length + ' تامین‌کننده | پاسخ: ' + resp + ' | ' + escP(r.t || '') + ' | ' + (STL[r.st] || '') + '</div></div>' +
+        '<div class="rfqs-list-actions">' +
         '<button class="bt" style="padding:5px 11px;font-size:12px;background:#0e7490;color:#fff;font-weight:bold" onclick="rfqsToggleAccordion(\'' + ptfOnClickArg(r.no) + '\')">🔻 تخصیص و استعلام کشویی (بدون مودال)</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px" onclick="rfqsOpen(\'' + ptfOnClickArg(r.no) + '\')">📂 باز کردن</button>' +
         '<button class="bt bt-o" style="padding:4px 9px;font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="rfqsEditItems(\'' + ptfOnClickArg(r.no) + '\')">✏️ ویرایش اقلام</button>' +

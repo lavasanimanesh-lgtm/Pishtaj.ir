@@ -31,6 +31,7 @@ var SUITE = [
   { g: 'مالی/تأمین', f: '_tools/uat/tester404-v34.6.1-supplier-cash-ledger.js' },
   { g: 'پرونده/مدارک', f: '_tools/uat/tester405-v34.7.0-case-document-lifecycle.js' },
   { g: 'فروش/تأمین/AI', f: '_tools/uat/tester406-v34.7.1-rfq-item-entry-ai.js' },
+  { g: 'تأمین/تنخواه/پرونده', f: '_tools/uat/tester407-v34.7.2-rfqs-petty-doc-projection.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
@@ -41,7 +42,7 @@ var SUITE = [
 var SYNTAX = [
   'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js',
   'crm/finance-write-guard.js', 'crm/fiscal.js', 'crm/supplier-finance.js',
-  'crm/opex.js', 'crm/cheques.js', 'crm/treasury.js',
+  'crm/opex.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
   'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js',
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
   'crm/buycompare.js', 'crm/letters.js'
