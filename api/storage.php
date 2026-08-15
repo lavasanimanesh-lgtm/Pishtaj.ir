@@ -450,31 +450,19 @@ switch ($action) {
         /* v15.1 (BUG-015): ریشه خطای «حذف دسته‌جمعی» — این بلوک تابع clean() را صدا می‌زد که در
            storage.php تعریف نشده (فقط در crm.php هست) → Fatal Error سروری → پاسخ غیر JSON → خطای کلاینت.
            پاکسازی کلید حالا محلی و امن انجام می‌شود؛ شاخه مرده verify_request (تعریف‌نشده در این فایل) هم حذف شد. */
-        $keys = $in['keys'] ?? ($_POST['keys'] ?? []);
+        $raw = file_get_contents('php://input');
+        $j = json_decode($raw, true);
+        $keys = $j['keys'] ?? ($_POST['keys'] ?? []);
         if (!is_array($keys)) { echo json_encode(['ok' => false, 'error' => 'invalid keys']); break; }
-        $cleanKeys = [];
-        foreach ($keys as $k) {
-            $k = trim((string)$k);
-            $k = ltrim($k, '/');
-            if ($k === '' || strlen($k) > 500 || strpos($k, '..') !== false) continue;
-            $cleanKeys[$k] = true;
-        }
-        $keys = array_keys($cleanKeys); sort($keys);
         if (count($keys) > 2000) $keys = array_slice($keys, 0, 2000); /* سقف ایمنی */
         $deleted = 0; $failed = 0;
         foreach ($keys as $k) {
+            $k = trim((string)$k);
+            if ($k === '' || strlen($k) > 500 || strpos($k, '..') !== false) continue;
             $r = s3_request($cfg, 'DELETE', '/' . $cfg['bucket'] . '/' . str_replace('%2F', '/', rawurlencode($k)));
             if ($r['code'] >= 200 && $r['code'] < 300) $deleted++; else $failed++;
         }
-        $receiptWritten=false;$planHash=strtolower(trim((string)($in['planHash']??'')));$purpose=(string)($in['purpose']??'');
-        if($purpose==='archived_case_purge'&&$failed===0&&preg_match('/^[a-f0-9]{64}$/',$planHash)){
-            $keysDigest=hash('sha256',json_encode($keys,JSON_UNESCAPED_SLASHES));
-            if(hash_equals((string)($in['keysDigest']??''),$keysDigest)){
-                $dir=__DIR__.'/../crm/data/purge-receipts';if(!is_dir($dir))@mkdir($dir,0750,true);
-                if(is_dir($dir)){@file_put_contents($dir.'/.htaccess',"Deny from all\n");$receipt=['ok'=>true,'purpose'=>$purpose,'planHash'=>$planHash,'keysDigest'=>$keysDigest,'user'=>(string)($storageIdentity['user']??''),'role'=>$storageRole,'ts'=>time(),'deleted'=>$deleted];$receiptWritten=@file_put_contents($dir.'/'.$planHash.'.json',json_encode($receipt,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES),LOCK_EX)!==false;}
-            }
-        }
-        echo json_encode(['ok' => $purpose==='archived_case_purge'?($failed===0):true, 'deleted' => $deleted, 'failed' => $failed, 'total' => count($keys), 'purgeReceipt' => $receiptWritten],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+        echo json_encode(['ok' => true, 'deleted' => $deleted, 'failed' => $failed, 'total' => count($keys)]);
         break;
 
     /* ---------- US-177: میزان فضای اشغال‌شده ابری (جمع کل با صفحه‌بندی) ---------- */

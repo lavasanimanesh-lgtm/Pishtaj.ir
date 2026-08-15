@@ -34,10 +34,6 @@ var SUITE = [
   { g: 'تأمین/تنخواه/پرونده', f: '_tools/uat/tester407-v34.7.2-rfqs-petty-doc-projection.js' },
   { g: 'مکاتبات/خزانه', f: '_tools/uat/tester408-v34.7.3-signature-treasury-period.js' },
   { g: 'درخواست/موبایل', f: '_tools/uat/tester409-v34.7.4-rfq-mobile-parity.js' },
-  { g: 'سایت/رهگیری', f: '_tools/uat/tester410-v34.7.5-random-public-tracking.js' },
-  { g: 'پیشنهاد/یکپارچگی', f: '_tools/uat/tester411-v34.7.6-winner-repair-parity.js' },
-  { g: 'کیفیت داده/پرونده', f: '_tools/uat/tester412-v34.7.7-guided-case-dedup.js' },
-  { g: 'بایگانی/سال مالی', f: '_tools/uat/tester413-v34.7.8-archived-test-purge.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
@@ -53,7 +49,7 @@ var SYNTAX = [
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
   'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
   'crm/contracts.js', 'crm/docsx.js', 'crm/bridge.js', 'crm/offerlock.js',
-  'crm/projects.js', 'crm/reports.js', 'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'
+  'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'
 ];
 
 function failCount(out) {

@@ -437,37 +437,25 @@ function sync_decode_archive($json) {
     return is_array($a) ? $a : [];
 }
 function sync_apply_tombstones($key, $json, $serverArchiveJson = '', $incomingArchiveJson = '') {
-    if ($key === 'ptf_crm_deleted_archive') {
-        $purgeAliases=[];foreach(array_merge(sync_decode_archive($serverArchiveJson),sync_decode_archive($incomingArchiveJson))as $d)if(is_array($d)&&strtolower((string)($d['kind']??''))==='archive_purge')foreach(($d['aliases']??[])as $alias){$alias=trim((string)$alias);if(strlen($alias)>=6)$purgeAliases[$alias]=true;}
-        if(!$purgeAliases)return$json;$rows=sync_decode_archive($json);$out=[];foreach($rows as $row){if(!is_array($row))continue;if(strtolower((string)($row['kind']??''))==='archive_purge'){$out[]=$row;continue;}$encoded=json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);$purged=false;foreach($purgeAliases as $alias=>$_)if(strpos((string)$encoded,(string)$alias)!==false){$purged=true;break;}if(!$purged)$out[]=$row;}return json_encode(array_values($out),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-    }
+    if ($key === 'ptf_crm_deleted_archive') return $json;
     $kinds = sync_tombstone_kinds_for_key($key);
+    if (!$kinds) return $json;
     $kindSet = array_fill_keys(array_map('strtolower', $kinds), true);
-    $ids = []; $purgeAliases = [];
+    $ids = [];
     foreach (array_merge(sync_decode_archive($serverArchiveJson), sync_decode_archive($incomingArchiveJson)) as $d) {
         if (!is_array($d)) continue;
         $kind = strtolower((string)($d['kind'] ?? ''));
-        if ($kind === 'archive_purge' && is_array($d['identities'][$key] ?? null)) {
-            foreach ($d['identities'][$key] as $purgedId) { $purgedId=trim((string)$purgedId); if($purgedId!=='')$ids[$purgedId]=true; }
-            if (is_array($d['aliases'] ?? null)) foreach ($d['aliases'] as $alias) { $alias=trim((string)$alias); if(strlen($alias)>=6)$purgeAliases[$alias]=true; }
-        }
         if (!isset($kindSet[$kind])) continue;
         $id = trim((string)($d['id'] ?? $d['no'] ?? $d['cd'] ?? ''));
         if ($id !== '') $ids[$id] = true;
     }
-    if (!$ids && !$purgeAliases) return $json;
+    if (!$ids) return $json;
     $arr = json_decode((string)$json, true);
     if (!is_array($arr)) return $json;
-    if ($key === 'ptf_crm_supplier_finance' && (isset($arr['invoices']) || isset($arr['payments']) || isset($arr['schema']))) {
-        foreach(['invoices','payments','adjustments']as $bucket){if(!is_array($arr[$bucket]??null))continue;$arr[$bucket]=array_values(array_filter($arr[$bucket],function($r)use($ids){if(!is_array($r))return true;$id=trim((string)($r['cd']??$r['_id']??''));return$id===''||!isset($ids[$id]);}));}
-        foreach($arr['payments']??[]as &$payment)if(is_array($payment)&&is_array($payment['allocations']??null))$payment['allocations']=array_values(array_filter($payment['allocations'],function($a)use($ids){return!is_array($a)||!isset($ids[trim((string)($a['invoiceCd']??''))]);}));unset($payment);
-        return json_encode($arr,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
-    }
     $out = [];
     foreach ($arr as $r) {
-        $id = sync_record_id_for_key($key, $r); $purged = ($id !== '' && isset($ids[$id]));
-        if (!$purged && $purgeAliases && is_array($r)) { $encoded=json_encode($r,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); foreach($purgeAliases as $alias=>$_)if(strpos((string)$encoded,(string)$alias)!==false){$purged=true;break;} }
-        if (!$purged) $out[] = $r;
+        $id = sync_record_id_for_key($key, $r);
+        if ($id === '' || !isset($ids[$id])) $out[] = $r;
     }
     return json_encode(array_values($out), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
@@ -719,26 +707,22 @@ function load_all_crm_users_sources() {
     return array_values($by);
 }
 
-/* کد رهگیری عمومی غیرقابل‌حدس: ۱۰ نویسه از الفبای بدون 0/O/1/I (~۵۰ بیت entropy).
-   prefix فقط نوع پرونده را مشخص می‌کند؛ هیچ سال/ترتیب/تعداد ثبت‌نام از کد نشت نمی‌کند.
-   داده‌های ترتیبی قبلی همچنان در track قابل جستجو باقی می‌مانند. */
-function public_tracking_code($kind) {
-    $kind = strtoupper(trim((string)$kind));
-    if (!in_array($kind, ['RFQ', 'VEN'], true)) throw new InvalidArgumentException('tracking_kind');
-    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    $used = [];
-    foreach (array_merge(load_data('rfqs'), load_data('suppliers')) as $row) {
-        $old = strtoupper(trim((string)($row['code'] ?? '')));
-        if ($old !== '') $used[$old] = true;
-    }
-    $max = strlen($alphabet) - 1;
-    for ($attempt = 0; $attempt < 20; $attempt++) {
-        $token = '';
-        for ($i = 0; $i < 10; $i++) $token .= $alphabet[random_int(0, $max)];
-        $code = 'PTF-' . $kind . '-' . substr($token, 0, 5) . '-' . substr($token, 5, 5);
-        if (!isset($used[$code])) return $code;
-    }
-    throw new RuntimeException('tracking_code_generation_failed');
+// شمارنده یکتای ترتیبی (US-133 AC2: شماره یکتا برای هر ثبت‌نام/استعلام سایت)
+function next_seq($key) {
+    global $data_dir;
+    $file = "$data_dir/counters.json";
+    $c = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: []) : [];
+    $c[$key] = ($c[$key] ?? 0) + 1;
+    file_put_contents($file, json_encode($c), LOCK_EX);
+    return $c[$key];
+}
+
+// سال شمسی جاری (تقریب کافی برای شماره‌گذاری: از فروردین = ۲۱ مارس)
+function fa_year() {
+    $gy = (int)date('Y'); $gm = (int)date('n'); $gd = (int)date('j');
+    $jy = $gy - 621;
+    if ($gm < 3 || ($gm === 3 && $gd < 21)) $jy--;
+    return $jy;
 }
 
 function clean($v, $max = 500) {
@@ -975,11 +959,10 @@ switch($action) {
     case 'add_rfq_site':
         verify_request();
         require_captcha(); // US-149 AC1
-        try { $code = public_tracking_code('RFQ'); }
-        catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
         $attachmentError = '';
         $attachment = save_attachment('attachment', 'rfq', $attachmentError);
         if ($attachmentError) { http_response_code(503); echo json_encode(['ok' => false, 'error' => 'attachment_cloud', 'message' => $attachmentError], JSON_UNESCAPED_UNICODE); break; }
+        $code = 'PTF-RFQ-' . fa_year() . '-' . str_pad(next_seq('rfq_site'), 4, '0', STR_PAD_LEFT);
         $rfqs = load_data('rfqs');
         $rfqs[] = [
             'code' => $code,
@@ -1009,10 +992,8 @@ switch($action) {
         verify_request();
         require_captcha(); // US-149 AC1
         $rfqs = load_data('rfqs');
-        try { $code = public_tracking_code('RFQ'); }
-        catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
         $rfqs[] = [
-            'code' => $code,
+            'code' => clean($_POST['code'] ?? ('RFQ-' . rand(10000, 99999))),
             'company' => clean($_POST['company'] ?? ''),
             'contact' => clean($_POST['contact'] ?? ''),
             'category' => clean($_POST['category'] ?? ''),
@@ -1021,7 +1002,7 @@ switch($action) {
             'date' => date('Y/m/d')
         ];
         save_data('rfqs', $rfqs);
-        echo json_encode(['ok' => true, 'code' => $code], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true]);
         break;
 
     case 'update_rfq':
@@ -1051,14 +1032,13 @@ switch($action) {
                 exit;
             }
         }
-        try { $code = public_tracking_code('VEN'); }
-        catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
         $attachmentError = '';
         $attachment = save_attachment('attachment', 'ven', $attachmentError);
         /* فایل کاتالوگ اختیاری است؛ اختلال فضای ابری نباید ثبت‌نامِ تاییدشده را
            متوقف یا کد رهگیری را حذف کند. خطا به کاربر برگردانده می‌شود تا فایل را
            بعداً ارسال کند، اما مشخصات تامین‌کننده در CRM ثبت می‌ماند. */
         $attachmentWarning = $attachmentError ? ('ثبت‌نام انجام شد، اما پیوست ذخیره نشد: ' . $attachmentError) : '';
+        $code = 'PTF-VEN-' . fa_year() . '-' . str_pad(next_seq('supplier'), 4, '0', STR_PAD_LEFT);
         $suppliers = load_data('suppliers');
         $suppliers[] = [
             'code' => $code,
