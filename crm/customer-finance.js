@@ -21,9 +21,11 @@
       return (i.customerId || i.buyerCd || o.buyerCd) === cd || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
     });
   }
+  function isMigratedLegacyPayment(p) { return !!(p && (p.migratedToReceiptId || p.financialProjectionDisabled)); }
+  window.cfIsMigratedLegacyPayment = isMigratedLegacyPayment;
   function paid(i) {
     var legacy = (i.payments || []).concat(i.pays || []).filter(active).reduce(function (s, p) {
-      return s + ((p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled) ? 0 : (+p.amt || +p.amount || 0));
+      return s + ((p.fromAdvance || isMigratedLegacyPayment(p)) ? 0 : (+p.amt || +p.amount || 0));
     }, 0);
     /* v35: تخصیص Receipt پرونده رابطه مستقل است و روی فاکتور Projection می‌شود. */
     return legacy + (+i.allocatedBase || 0) + (+i.allocatedVat || 0);
@@ -73,6 +75,10 @@
     return legacy + caseCredit;
   }
   function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i)); }, 0); }
+  window.cfMigratedReceiptPairs=function(cd){
+    var receipts=getData('ptf_crm_case_receipts')||[],byId={},byLegacy={};receipts.forEach(function(r){if(!r)return;byId[String(r._id||r.cd||'')]=r;if(r.legacyPaymentRef)byLegacy[String(r.legacyPaymentRef)]=r;});
+    var out=[];invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(p){if(!isMigratedLegacyPayment(p))return;var receipt=byId[String(p.migratedToReceiptId||'')]||byLegacy[String(p.cd||'')];out.push({invoiceCd:inv.cd,legacyPaymentCd:p.cd||'',receiptId:receipt?String(receipt._id||receipt.cd||''):'',ok:!!(receipt&&receipt.status==='posted'&&!receipt.voided),amount:+p.amt||+p.amount||0});});});return out;
+  };
   function accountPosition(cd) {
     var open = bal(cd), credit = creditForCustomer(cd);
     /* BUG-2026-08-01-001: مقادیر ناخالص (باز و اعتبار) و خالص هر دو برگردانده می‌شوند —
@@ -124,6 +130,8 @@
   try { window.cfRepairReturnLinks(); } catch (eR) {}
 
   function norm(v) { return String(v || '').trim().toLowerCase(); }
+  function accountIsOpen(r){return !!r&&(Math.abs(+r.balance||0)>0.000001||Math.abs(+r.credit||0)>0.000001);}
+  window.cfAccountIsOpen=accountIsOpen;
 
   /* Useful to UI and deterministic tests; it never writes to localStorage. */
   window.cfAccountRows = function (query) {
@@ -134,7 +142,7 @@
     }).filter(function (r) {
       return !q || norm(r.co).indexOf(q) > -1 || norm(r.cd).indexOf(q) > -1;
     }).sort(function (a, b) {
-      var aOpen = Math.abs(a.balance) > 0.000001, bOpen = Math.abs(b.balance) > 0.000001;
+      var aOpen = accountIsOpen(a), bOpen = accountIsOpen(b);
       if (aOpen !== bOpen) return aOpen ? -1 : 1; /* non-zero accounts always first */
       if (aOpen && Math.abs(a.balance) !== Math.abs(b.balance)) return Math.abs(b.balance) - Math.abs(a.balance);
       return String(a.co).localeCompare(String(b.co), 'fa');
@@ -328,7 +336,9 @@
       var row = { date: i.invDate || i.t || '', iso: iso, type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: +i.amount || 0, credit: 0, cur: 'IRR', status: remain > 0.5 ? 'open' : 'settled', files: (i.files || []).slice(), link: { kind: 'invoice', cd: i.cd } };
       if (cfRowPass(row, f)) out.push(row);
       (i.payments || []).concat(i.pays || []).forEach(function (p) {
-        if (!p || p.status === 'void') return;
+        /* payment قدیمی پس از مهاجرت فقط metadata منبع است؛ Receipt قطعی پایین‌تر
+           همان پول را نمایش می‌دهد. نمایش دوباره این ردیف، مانده گردش را دوبار کم می‌کرد. */
+        if (!p || p.status === 'void' || isMigratedLegacyPayment(p)) return;
         var amt = +p.amt || +p.amount || 0;
         var isReversal = p.status === 'reversal';
         var isVoided = p.voided;
@@ -345,16 +355,19 @@
     /* v35: دریافت قطعی پرونده یک بستانکار مستقل در دفتر مشتری است؛ تخصیص FIFO
        فقط مانده فاکتور را کم می‌کند و ردیف نقدی دوم تولید نمی‌کند. */
     try {
-      var customerCases = {};
+      var customerCases = {}, migratedSources = {};
       (getData('ptf_crm_deals') || []).forEach(function (d) {
         if (!d) return;
         if (d.buyerCd === cd) customerCases[String(d._id || d.cd || '')] = true;
       });
+      invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(lp){if(!isMigratedLegacyPayment(lp))return;var rid=String(lp.migratedToReceiptId||'');var legacy=String(lp.cd||'');if(rid)migratedSources[rid]=legacy;if(legacy)migratedSources['legacy:'+legacy]=legacy;});});
       (getData('ptf_crm_case_receipts') || []).forEach(function (p) {
         if (!p || p.status !== 'posted' || p.voided) return;
         if (p.customerId !== cd && !customerCases[String(p.caseId || '')]) return;
-        var amt = +p.amountIRR || +p.amt || 0;
-        var prow = { date: p.receivedAt || p.dateISO || p.t || '', iso: cfIso(p.receivedAt || p.dateISO || p.t || ''), type: 'دریافت قطعی پرونده', no: p._id || p.cd || '', ref: p.referenceNo || p.method || '', debit: 0, credit: amt, cur: 'IRR', status: 'payment', note: p.note || '', files: (p.files || []).slice(), link: { kind: 'case-receipt', cd: p._id || p.cd || '', caseId: p.caseId || '' } };
+        var amt = +p.amountIRR || +p.amt || 0, receiptId = String(p._id || p.cd || '');
+        var legacySource = String(p.legacyPaymentRef || migratedSources[receiptId] || '');
+        var migrationNote = legacySource ? ('مهاجرت‌شده از وصولی ' + legacySource + '؛ ردیف قدیمی برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود.') : '';
+        var prow = { date: p.receivedAt || p.dateISO || p.t || '', iso: cfIso(p.receivedAt || p.dateISO || p.t || ''), type: legacySource ? 'دریافت قطعی پرونده (مهاجرت‌شده)' : 'دریافت قطعی پرونده', no: receiptId, ref: p.referenceNo || p.method || '', debit: 0, credit: amt, cur: 'IRR', status: 'payment', note: [p.note || '', migrationNote].filter(Boolean).join(' — '), files: (p.files || []).slice(), link: { kind: 'case-receipt', cd: receiptId, caseId: p.caseId || '', customerCd: cd, migratedFrom: legacySource } };
         if (cfRowPass(prow, f)) out.push(prow);
       });
     } catch (eCaseReceipt) {}
@@ -620,8 +633,12 @@
           (e.status === 'open' ? ' <button class="ba" style="color:#047857" title="ثبت وصولی" onclick="cfReceiptOpen(\'' + ptfOnClickArg(e.link.cd) + '\')">＋ وصولی</button>' : '');
       } else if (e.link && e.link.kind === 'payment' && !e.voided) {
         act = '<button class="ba" title="افزودن سند" onclick="cfReceiptAddFile(\'' + ptfOnClickArg(e.link.invoiceCd) + '\',\'' + ptfOnClickArg(e.link.cd) + '\')">📎</button>' +
-          ' <button class="ba" style="color:#dc2626" title="ابطال وصولی" onclick="cfReceiptVoid(\'' + ptfOnClickArg(e.link.invoiceCd) + '\',\'' + ptfOnClickArg(e.link.cd) + '\')">ابطال</button>' +
+          ' <button class="ba" style="color:#dc2626" title="ابطال وصولی" onclick="cfReceiptVoid(\'' + ptfOnClickArg(e.link.invoiceCd) + '\',\'' + ptfOnClickArg(e.link.cd) + '\')">⛔ ابطال</button>' +
           ' <button class="ba" style="color:#dc2626" title="حذف وصولی" onclick="cfReceiptDelete(\'' + ptfOnClickArg(e.link.invoiceCd) + '\',\'' + ptfOnClickArg(e.link.cd) + '\')">🗑 حذف</button>';
+      } else if (e.link && e.link.kind === 'case-receipt' && !e.voided) {
+        act = '<button class="ba" title="اسناد دریافت قطعی" onclick="ptfFinAttachOpen(\'receipt\',\'' + ptfOnClickArg(e.link.cd) + '\')">📎</button>' +
+          ' <button class="ba" style="color:#dc2626" title="ابطال دریافت قطعی" onclick="cfCaseReceiptVoid(\'' + ptfOnClickArg(e.link.cd) + '\',\'' + ptfOnClickArg(e.link.customerCd || '') + '\')">⛔ ابطال</button>' +
+          ((typeof curRole === 'function' && curRole() === 'admin') ? ' <button class="ba" style="color:#991b1b" title="حذف قطعی دریافت" onclick="cfCaseReceiptDelete(\'' + ptfOnClickArg(e.link.cd) + '\',\'' + ptfOnClickArg(e.link.customerCd || '') + '\')">🗑 حذف</button>' : '');
       } else if (e.link && e.link.kind === 'return') {
         var rtn = (getData('ptf_crm_sales_returns') || []).filter(function (r) { return r.cd === e.link.cd; })[0];
         if (rtn && rtn.disposition === 'stock' && rtn.stockStatus === 'pending_product_definition') act = '<button class="ba" style="color:#b45309" onclick="cfSalesReturnStockRetry(\'' + ptfOnClickArg(e.link.cd) + '\')">📦 تکمیل موجودی</button>';
@@ -629,6 +646,19 @@
       return '<tr><td>' + escP(e.date || '—') + '</td><td>' + escP(e.type) + '</td><td>' + displayRef + '</td><td>' + (e.debit ? m(e.debit) : '—') + '</td><td>' + (e.credit ? m(e.credit) : '—') + '</td><td><b>' + m(e.balance) + '</b></td><td>' + act + '</td></tr>';
     }).join('');
   }
+  window.cfCaseReceiptVoid = function (receiptId, customerCd) {
+    var reason = prompt('دلیل ابطال دریافت قطعی را وارد کنید:', 'ثبت تکراری / اشتباه در دریافت');
+    if (reason === null || !reason.trim()) return;
+    if (typeof window.ptfSalesDomainApi !== 'function') { alert('موتور مالی سرور در دسترس نیست'); return; }
+    window.ptfSalesDomainApi('void_receipt', { receiptId: receiptId, reason: reason.trim(), idempotencyKey: 'CF-VOID-RCPT|' + receiptId })
+      .then(function () { var dlg=document.getElementById('cfAccountDlg');if(dlg)dlg.remove();if(typeof ptfToast==='function')ptfToast('دریافت قطعی ابطال و مانده بازسازی شد','warn');cfOpen(customerCd); })
+      .catch(function(e){alert('⛔ ابطال دریافت انجام نشد: '+e.message);});
+  };
+  window.cfCaseReceiptDelete = function (receiptId, customerCd) {
+    if (typeof curRole !== 'function' || curRole() !== 'admin') { alert('حذف قطعی دریافت فقط برای ادمین مجاز است'); return; }
+    if (typeof window.ptfAdminHardDelete !== 'function') { alert('موتور حذف کنترل‌شده در دسترس نیست'); return; }
+    window.ptfAdminHardDelete('receipt', receiptId, function(){var dlg=document.getElementById('cfAccountDlg');if(dlg)dlg.remove();cfOpen(customerCd);});
+  };
   window.cfLedgerApply = function (cd) { var m = document.getElementById('cfAccountDlg'); if (m) m.remove(); cfOpen(cd, cfFiltersFromDom()); };
   window.cfOpen = function (cd, filters) {
     /* Account dialogs are singleton: refresh in place, never stack overlays. */
@@ -636,7 +666,7 @@
     var c = cust(cd); if (!c) return;
     var f = filters || {};
     var rows = cfLedgerRows(cd, f);
-    var pos = accountPosition(cd);
+    var pos = accountPosition(cd), migratedPairs = window.cfMigratedReceiptPairs(cd);
     var fromHtml = typeof ptfDatePicker === 'function' ? ptfDatePicker('cfFfrom', f.from || '', '1405/01/01') : '<input id="cfFfrom" value="' + escP(f.from || '') + '" placeholder="1405/01/01">';
     var toHtml = typeof ptfDatePicker === 'function' ? ptfDatePicker('cfFto', f.to || '', '1405/12/29') : '<input id="cfFto" value="' + escP(f.to || '') + '" placeholder="1405/12/29">';
     var statusHtml = '<select id="cfFstatus"><option value="all">همه</option><option value="open"' + (f.status === 'open' ? ' selected' : '') + '>فاکتور باز</option><option value="settled"' + (f.status === 'settled' ? ' selected' : '') + '>فاکتور تسویه</option><option value="payment"' + (f.status === 'payment' ? ' selected' : '') + '>وصولی</option><option value="return"' + (f.status === 'return' ? ' selected' : '') + '>مرجوعی</option><option value="cheque"' + (f.status === 'cheque' ? ' selected' : '') + '>چک وارده</option></select>';
@@ -645,14 +675,15 @@
       'مطالبات باز (ناخالص): <b>' + m(pos.balance) + ' ریال</b>' +
       (pos.credit ? ' | اعتبار نزد مشتری (ناخالص): <b style="color:#047857">' + m(pos.credit) + ' ریال</b>' : '') +
       '<br><small style="color:#475569">' + (pos.netCredit ? 'وضعیت خالص: <b style="color:#047857">' + m(pos.netCredit) + ' ریال بستانکار</b>' : 'وضعیت خالص: <b style="color:#b45309">' + m(pos.net) + ' ریال بدهکار</b>') + '</small></div>' +
+      (migratedPairs.length ? '<div style="margin-top:8px;padding:8px 10px;border:1px solid '+(migratedPairs.some(function(x){return !x.ok;})?'#fdba74':'#86efac')+';border-radius:10px;background:'+(migratedPairs.some(function(x){return !x.ok;})?'#fff7ed':'#ecfdf5')+';font-size:11.5px;line-height:1.8"><b>🔄 تطبیق مهاجرت وصولی:</b> '+migratedPairs.length.toLocaleString('fa-IR')+' وصولی قدیمی به دریافت قطعی تبدیل شده است. فقط ردیف «دریافت قطعی» اثر مالی دارد و ردیف قدیمی دوباره محاسبه نمی‌شود.'+(migratedPairs.some(function(x){return !x.ok;})?' <b style="color:#b45309">برای یک ردیف، دریافت قطعی متناظر پیدا نشد؛ کیفیت داده را بررسی کنید.</b>':'')+'</div>' : '') +
       '<div class="fr" style="margin-top:8px"><div class="fld"><label>از تاریخ (شمسی)</label>' + fromHtml + '</div><div class="fld"><label>تا تاریخ (شمسی)</label>' + toHtml + '</div></div>' +
       '<div class="fr"><div class="fld"><label>وضعیت</label>' + statusHtml + '</div><div class="fld"><label>جستجوی سند/مرجع</label><input id="cfFref" value="' + escP(f.ref || '') + '" placeholder="شماره فاکتور / وصولی"></div></div>' +
-      '<div style="display:flex;gap:7px;justify-content:flex-end;margin-bottom:9px;flex-wrap:wrap"><button class="bt bt-o" onclick="cfLedgerApply(\'' + ptfOnClickArg(cd) + '\')">اعمال فیلتر</button><button class="bt bt-o" style="background:#0e7490;color:#fff" onclick="cfLedgerPrint(\'' + ptfOnClickArg(cd) + '\')">🖨 PDF/چاپ</button><button class="bt bt-o" onclick="cfLedgerCsv(\'' + ptfOnClickArg(cd) + '\')">📥 CSV</button><button class="bt" onclick="cfReceiptPick(\'' + ptfOnClickArg(cd) + '\')">＋ ثبت وصولی</button></div>' +
+      '<div class="cf-ledger-toolbar" style="display:flex;gap:7px;justify-content:flex-end;margin-bottom:9px;flex-wrap:wrap"><button class="bt bt-o" onclick="cfLedgerApply(\'' + ptfOnClickArg(cd) + '\')">🔎 اعمال فیلتر</button><button class="bt bt-o" style="background:#0e7490;color:#fff" onclick="cfLedgerPrint(\'' + ptfOnClickArg(cd) + '\')">🖨 PDF/چاپ</button><button class="bt bt-o" onclick="cfLedgerCsv(\'' + ptfOnClickArg(cd) + '\')">📥 CSV</button><button class="bt" onclick="cfReceiptPick(\'' + ptfOnClickArg(cd) + '\')">💵 ثبت وصولی</button></div>' +
       '<div class="tb2"><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده جاری</th><th>عملیات</th></tr></thead><tbody>' +
       (cfLedgerTable(rows) || '<tr><td colspan="7">گردشی مطابق فیلتر نیست</td></tr>') +
       cfClaimAsOfHtml(rows, (typeof ptfISOToJ === 'function' && f.to ? ptfISOToJ(f.to) : (typeof ptfTodayJ === 'function' ? ptfTodayJ() : ''))) +
       '</tbody></table></div>' +
-      '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+      '<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">✕ بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', h);
   };
 
@@ -662,27 +693,29 @@
   };
   window.cfFinanceRowsHtml = function () {
     var q = String(window._cfSearch || ''), all = window.cfAccountRows(''), rows = window.cfAccountRows(q);
-    var openN = all.filter(function (r) { return Math.abs(r.balance) > 0.000001; }).length;
+    var openN = all.filter(accountIsOpen).length;
     /* UR-2026-08-01-07: سورت ستون‌ها (مشتری/مطالبات/اعتبار) */
     if (window.ptfRegisterSortable) window.ptfRegisterSortable('cf', {
       getters: { co: function (r) { return r.co || ''; }, balance: function (r) { return r.balance; }, credit: function (r) { return r.credit; } },
       render: window.cfFinanceRowsRender
     });
     rows = (typeof window.ptfSorted === 'function') ? window.ptfSorted('cf', rows) : rows;
+    /* حساب باز همیشه بالاست؛ sort انتخابی فقط ترتیب داخل گروه باز/بسته را تعیین می‌کند. */
+    rows = rows.filter(accountIsOpen).concat(rows.filter(function(r){return !accountIsOpen(r);}));
     var table = rows.map(function (r) {
-      var open = Math.abs(r.balance) > 0.000001;
+      var open = accountIsOpen(r);
       return '<tr' + (open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(r.co || r.cd) + '</b><br><small style="color:#94a3b8;direction:ltr">' + escP(r.cd || '') + '</small></td><td style="font-weight:' + (open ? '900' : '400') + ';color:' + (open ? '#b45309' : '#64748b') + '">' + m(r.balance) + ' ریال</td><td style="color:#047857">' + (r.credit ? m(r.credit) + ' ریال' : '—') + '</td><td><button class="ba" onclick="cfOpen(\'' + ptfOnClickArg(r.cd) + '\')">📘 حساب</button></td></tr>';
     }).join('');
     return table || '<tr><td colspan="4">موردی مطابق جست‌وجو نیست</td></tr>';
   };
   window.cfFinanceHtml = function () {
     var q = String(window._cfSearch || ''), all = window.cfAccountRows(''), rows = window.cfAccountRows(q);
-    var openN = all.filter(function (r) { return Math.abs(r.balance) > 0.000001; }).length;
+    var openN = all.filter(accountIsOpen).length;
     var table = rows.map(function (r) {
-      var open = Math.abs(r.balance) > 0.000001;
+      var open = accountIsOpen(r);
       return '<tr' + (open ? '' : ' style="color:#64748b"') + '><td><b>' + escP(r.co || r.cd) + '</b><br><small style="color:#94a3b8;direction:ltr">' + escP(r.cd || '') + '</small></td><td style="font-weight:' + (open ? '900' : '400') + ';color:' + (open ? '#b45309' : '#64748b') + '">' + m(r.balance) + ' ریال</td><td style="color:#047857">' + (r.credit ? m(r.credit) + ' ریال' : '—') + '</td><td><button class="ba" onclick="cfOpen(\'' + ptfOnClickArg(r.cd) + '\')">📘 حساب</button></td></tr>';
     }).join('');
-    return '<div id="cfFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">📘 حساب مشتریان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب با مانده غیرصفر، ابتدا نمایش داده می‌شود.</small></div><input id="cfSearch" value="' + escP(q) + '" oninput="cfFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد مشتری" style="min-width:230px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr>' +
+    return '<div id="cfFinanceHubBox" style="display:none;background:var(--crd);border:1px solid var(--brd);border-radius:14px;padding:12px;margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div><h4 style="margin:0">📘 حساب مشتریان</h4><small style="color:#64748b">' + openN.toLocaleString('fa-IR') + ' حساب باز یا دارای اعتبار، ابتدا نمایش داده می‌شود.</small></div><input id="cfSearch" value="' + escP(q) + '" oninput="cfFinanceSearch(this.value)" placeholder="جست‌وجوی نام یا کد مشتری" style="min-width:230px;direction:rtl"></div><div class="tb2" style="margin-top:10px"><table><thead><tr>' +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'co', 'مشتری') : '<th>مشتری</th>') +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'balance', 'مطالبات باز') : '<th>مطالبات باز</th>') +
       (typeof window.ptfSortHeader === 'function' ? window.ptfSortHeader('cf', 'credit', 'اعتبار نزد مشتری') : '<th>اعتبار نزد مشتری</th>') + '<th></th>' +

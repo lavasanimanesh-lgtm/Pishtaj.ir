@@ -142,7 +142,7 @@
       '<div class="sb2"><button class="bt" onclick="rfqsNew()">+ تامین جدید</button></div></div>' +
       '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:#0c4a6e">' +
       'ℹ️ چرخه: پیوست/اقلام درخواست مشتری ← استخراج و پاکسازی (بدون نام و اطلاعات کارفرما) ← پیشنهاد بهترین تامین‌کنندگان ← فرم استعلام PDF ← ارسال ایمیل/واتساپ ← رهگیری پاسخ‌ها</div>' +
-      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">' +
+      '<div class="rfqs-list-toolbar" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">' +
       '<input type="search" id="rfqsSearch" value="' + escP(window._rfqsListSearch || '') + '" placeholder="🔍 جستجو: شماره درخواست تامین، RFQ داخلی، شماره درخواست کارفرما، کالا، شرکت یا تامین‌کننده…" oninput="rfqsSetListSearch(this.value)" style="flex:1;min-width:260px;padding:9px 12px;border:1.5px solid var(--brd);border-radius:10px;font-family:inherit">' +
       '<span id="rfqsSearchCount" style="font-size:11.5px;color:#64748b"></span>' +
       '<button type="button" class="bt bt-o" style="padding:7px 10px;font-size:11.5px" onclick="rfqsClearListSearch()">پاک کردن</button></div>' +
@@ -295,7 +295,7 @@
           var fastest = sortedDel[0];
           deliverySummary = '<div style="background:#e0f2fe;border:1px solid #7dd3fc;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
             + '<span>⚡ <b>سریع‌ترین میانگین تحویل:</b> '+escP(fastest.co)+' — '+fastest.avg+' روز (از '+fastest.cnt+' قلم) — بقیه: '+sortedDel.map(function(x){ return escP(x.co)+': '+x.avg+' روز'; }).join(' | ')+'</span>'
-            + '<span style="display:flex;gap:6px"><button class="bt bt-o" style="font-size:11px;padding:4px 10px;background:#dbeafe" onclick="rfqsHighlightFastest(\''+ptfOnClickArg(no)+'\')">🔍 نمایش سریع‌ترین</button>'
+            + '<span class="rfqs-price-actions" style="display:flex;gap:6px"><button class="bt bt-o" style="font-size:11px;padding:4px 10px;background:#dbeafe" onclick="rfqsHighlightFastest(\''+ptfOnClickArg(no)+'\')">🔍 نمایش سریع‌ترین</button>'
             + '<button class="bt bt-o" style="font-size:11px;padding:4px 10px;background:#d1fae5" onclick="rfqsSelectCheapest(\''+ptfOnClickArg(no)+'\')">💰 انتخاب ارزان‌ترین</button></span></div>';
         }
       } catch(e){}
@@ -312,7 +312,7 @@
     el.innerHTML = '<div style="background:#fcfcfc;border:1px solid #e2e8f0;border-radius:10px;padding:12px">' +
       '<h4 style="margin:0 0 8px">📦 تخصیص اقلام استعلام به تامین‌کنندگان مرتبط</h4>' +
       '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead style="background:#f1f5f9"><tr><th>#</th><th>شرح کالا</th><th>مقدار</th><th>تامین‌کنندگان اختصاص‌یافته</th></tr></thead><tbody>' + itemsRows + '</tbody></table></div>' +
-      '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap">' +
+      '<div class="rfqs-accordion-actions" style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap">' +
       '<button type="button" class="bt" style="background:#7c3aed;color:#fff;font-size:12px" onclick="rfqsGenDedicatedPdfs(\'' + ptfOnClickArg(no) + '\')">🖨️ تولید PDF اختصاصی هر تامین‌کننده (بدون ذخیره ابری)</button>' +
       (!isSent ? '<button type="button" class="bt" style="background:#059669;color:#fff;font-size:12.5px;font-weight:bold" onclick="rfqsMarkSentLive(\'' + ptfOnClickArg(no) + '\')">📤 ارسال به تامین‌کنندگان انجام شد (فعال‌سازی جدول ثبت قیمت)</button>' : '<span style="color:#059669;font-weight:bold">✅ ارسال‌شده (جدول مقایسه قیمت فعال است)</span>') +
       '</div>' + priceCompTable + '</div>';
@@ -671,7 +671,7 @@
         '<div class="fld"><label>اتصال به درخواست مشتری (اختیاری — برای رهگیری)</label><select id="rqsSrc" onchange="rfqsSyncSrcInqUI()">' + rfqOpts + '</select></div>' +
         '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;font-size:12px;color:#0c4a6e;margin:8px 0">یکی از روش‌های زیر را انتخاب کنید. در گام بعد همه اقلام قابل ویرایش، افزودن و حذف ردیف هستند.</div>' +
         '<div style="display:grid;gap:8px;margin:10px 0">' +
-        (inqOpts ? '<div style="display:flex;gap:6px;align-items:center"><select id="rqsInq" aria-label="انتخاب اقلام درخواست فروش" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 وارد کردن اقلام درخواست</button></div>' : '') +
+        (inqOpts ? '<div class="rfqs-import-row" style="display:flex;gap:6px;align-items:center"><select id="rqsInq" aria-label="انتخاب اقلام درخواست فروش" style="flex:1;padding:9px;border:1px solid var(--brd);border-radius:10px">' + inqOpts + '</select><button class="bt bt-o" onclick="rfqsFromInq()">📥 وارد کردن اقلام درخواست</button></div>' : '') +
         '<button class="bt bt-o" style="text-align:right;padding:12px" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'rqsFile\');else rfqsFromFile()">📊 <b>ورود فایل Excel / CSV با راهنما</b> — ستون‌ها و نمونه استاندارد نمایش داده می‌شود</button>' +
         '<button class="bt bt-o" style="text-align:right;padding:12px;color:#0e7490;border-color:#bae6fd" onclick="document.getElementById(\'rqsAiFile\').click()">🤖 <b>خواندن فایل با هوش مصنوعی</b> — PDF، تصویر، Excel، CSV یا متن</button>' +
         '<button class="bt bt-o" style="text-align:right;padding:12px;color:#6d28d9;border-color:#ddd6fe" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'rqsFile\')">📋 <b>راهنما و پرامپت آماده AI</b> — تبدیل فایل نامنظم به اکسل قابل ورود</button>' +
@@ -929,7 +929,7 @@
       '<div style="background:#fef9c3;border:1px solid #fde047;border-radius:10px;padding:8px 12px;font-size:12px;color:#854d0e;margin-bottom:8px">' +
       '🔒 محرمانگی: در فرم و اکسل ارسالی به تامین‌کننده فقط شرح/مشخصات/تعداد/واحد می‌رود — <b>هیچ نام یا اطلاعاتی از کارفرما درج نمی‌شود.</b></div>' +
       '<div id="rqsItemsWrap"></div>' +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px;background:#f8fafc;border:1px solid var(--brd);border-radius:10px">' +
+      '<div class="rfqs-step-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;padding:8px;background:#f8fafc;border:1px solid var(--brd);border-radius:10px">' +
       '<button type="button" class="bt bt-o" style="font-size:12px" onclick="rfqsAddRow()">➕ افزودن ردیف جدید</button>' +
       '<button type="button" class="bt bt-o" style="font-size:12px;color:#7c3aed;border-color:#ddd6fe" onclick="if(typeof ptfShowExcelGuidelineModal===\'function\')ptfShowExcelGuidelineModal(\'INQ\',\'rqsMoreXls\');else document.getElementById(\'rqsMoreXls\').click()">📊 افزودن از Excel با راهنما</button>' +
       '<button type="button" class="bt bt-o" style="font-size:12px;color:#0e7490;border-color:#bae6fd" onclick="document.getElementById(\'rqsMoreAi\').click()">🤖 افزودن با خواندن فایل AI</button>' +
@@ -939,7 +939,7 @@
       '<input type="file" id="rqsMoreAi" accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,.csv,.txt,.md" style="display:none" onchange="rfqsReadFileAi(this)">' +
       '</div>' +
       '<div class="fr" style="margin-top:12px"><div class="fld"><label>مهلت پاسخ تامین‌کننده</label><select id="rqsDl"><option value="24 ساعت"' + (_st.deadline === '24 ساعت' ? ' selected' : '') + '>۲۴ ساعت</option><option value="48 ساعت"' + (!_st.deadline || _st.deadline === '48 ساعت' ? ' selected' : '') + '>۴۸ ساعت</option><option value="72 ساعت"' + (_st.deadline === '72 ساعت' ? ' selected' : '') + '>۷۲ ساعت</option><option value="1 هفته"' + (_st.deadline === '1 هفته' ? ' selected' : '') + '>۱ هفته</option></select></div><div class="fld"></div></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
+      '<div class="rfqs-step-footer" style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">' +
       '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))this.closest(\'.md-b\').remove()">انصراف</button>' +
       '<button class="bt" onclick="rfqsToTargets()">ادامه: انتخاب تامین‌کنندگان ←</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);

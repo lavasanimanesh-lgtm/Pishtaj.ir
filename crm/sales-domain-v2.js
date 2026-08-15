@@ -69,11 +69,22 @@
   }
 
   function findOffer(no) { return data('ptf_crm_offers').filter(function (o) { return o && o.no === no; })[0] || null; }
+  function identity(v){return String(v||'').replace(/[\u200c\u200e\u200f\s]+/g,'').toUpperCase();}
+  function caseBelongsToOffer(c,o){
+    if(!c||!o||!active(c))return false;
+    var oid=String(o._id||''),root=String(c.rootOfferId||'');
+    if(oid&&root)return oid===root; /* شناسه ریشه مقدم است؛ fallback شماره حق غلبه ندارد. */
+    var caseNo=String(c.wonOffer||c.offerNo||''),offerNo=String(o.no||'');
+    if(!caseNo||!offerNo||caseNo!==offerNo)return false;
+    var pairs=[['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']];
+    for(var i=0;i<pairs.length;i++){var a=identity(c[pairs[i][0]]),b=identity(o[pairs[i][1]]);if(a&&b&&a!==b)return false;}
+    if(!identity(c.buyerCd)&&!identity(o.buyerCd)){var cc=identity(c.buyerCo),oc=identity(o.buyerCo);if(cc&&oc&&cc!==oc)return false;}
+    return true;
+  }
+  window.ptfCaseBelongsToOffer=caseBelongsToOffer;
   function casesForOffer(o) {
     if (!o) return [];
-    return data('ptf_crm_deals').filter(function (c) {
-      return c && active(c) && ((o._id && c.rootOfferId === o._id) || c.wonOffer === o.no || c.offerNo === o.no);
-    });
+    return data('ptf_crm_deals').filter(function (c) { return caseBelongsToOffer(c,o); });
   }
   function findCase(id) { return data('ptf_crm_deals').filter(function (c) { return caseId(c) === String(id); })[0] || null; }
   function caseByOffer(no) { var o=findOffer(no); return casesForOffer(o)[0] || null; }

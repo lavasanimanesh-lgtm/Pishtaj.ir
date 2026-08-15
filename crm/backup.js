@@ -11,6 +11,8 @@
     try { h['X-CRM-Role'] = curRole(); var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
     return h;
   }
+  function canRestoreBackup() { try { return ['admin','chairman'].indexOf(curRole()) > -1; } catch (e) { return false; } }
+  window.ptfCanRestoreBackup = canRestoreBackup;
 
   /* ============ US-146: جمع‌آوری کل داده‌ها ============ */
   /* v33.13.0 (F0-5): ptf_storage_queue (صف موقت آپلود فایل‌ها) از بکاپ حذف شد —
@@ -75,7 +77,16 @@
     var to = null;
     if (ctrl) { to = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, timeoutMs || 20000); }
     return fetch(url, Object.assign({}, opts || {}, ctrl ? { signal: ctrl.signal } : {}))
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (r && typeof r.text === 'function') return r.text().then(function (txt) {
+          var d = null; try { d = JSON.parse(txt); } catch (e) { throw new Error('پاسخ نامعتبر بک‌آپ (HTTP ' + r.status + '): ' + txt.slice(0, 180)); }
+          if (d && typeof d === 'object') d._httpStatus = r.status;
+          return d;
+        });
+        /* سازگاری با WebView/تسترهای قدیمی که فقط response.json دارند. */
+        if (r && typeof r.json === 'function') return r.json().then(function(d){if(d&&typeof d==='object')d._httpStatus=r.status||200;return d;});
+        throw new Error('پاسخ خالی بک‌آپ');
+      })
       .finally(function () { if (to) clearTimeout(to); });
   }
   function backupStoreLocalFallback(payload, raw) {
@@ -389,7 +400,7 @@
 
   /* ============ AC4: بازگردانی از فایل بک‌آپ (فقط ادمین) ============ */
   window.ptfRestorePick = function () {
-    if (curRole() !== 'admin') { alert('⛔ بازگردانی اطلاعات فقط توسط ادمین ممکن است'); return; }
+    if (!canRestoreBackup()) { alert('⛔ بازگردانی اطلاعات فقط توسط ادمین یا رئیس هیئت‌مدیره ممکن است'); return; }
     var inp = document.createElement('input');
     inp.type = 'file';
     inp.accept = '.json,application/json';
@@ -409,12 +420,15 @@
   };
 
   function showRestorePreview(j) {
+    function backupRows(key){try{var v=JSON.parse((j.data||{})[key]||'[]');return Array.isArray(v)?v:[];}catch(e){return[];}}
+    var dealCount=backupRows('ptf_crm_deals').length,projectCount=backupRows('ptf_crm_projects').length,offerCount=backupRows('ptf_crm_offers').length;
     var rows = Object.keys(j.counts || {}).map(function (k) {
       var lb = k.replace('ptf_crm_', '').replace('ptf_storage_', 'storage-');
       return '<tr><td style="font-size:11.5px;direction:ltr">' + escP(lb) + '</td><td>' + j.counts[k] + '</td></tr>';
     }).join('');
     var html = '<div class="md-b" style="display:grid;z-index:70" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px;max-height:90vh;overflow:auto">' +
       '<h3>⏪ پیش‌نمایش بازگردانی</h3>' +
+      '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:12px;padding:9px 12px;font-size:12px;margin-bottom:9px"><b>نسخه انتخابی:</b> ' + escP(j.tFa || j.t || 'بدون تاریخ') + '<br>پرونده فعال: <b>' + dealCount.toLocaleString('fa-IR') + '</b> | بایگانی: <b>' + projectCount.toLocaleString('fa-IR') + '</b> | پیشنهاد: <b>' + offerCount.toLocaleString('fa-IR') + '</b></div>' +
       '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px 14px;font-size:12.5px;color:#b91c1c;margin-bottom:10px">' +
       '⚠️ با بازگردانی، <b>تمام داده‌های فعلی جایگزین</b> می‌شوند و هر تغییری بعد از تاریخ این بک‌آپ از بین می‌رود.<br>' +
       'قبل از جایگزینی، یک بک‌آپ اضطراری خودکار از وضعیت فعلی گرفته می‌شود.</div>' +
@@ -447,7 +461,9 @@
         });
       } else localStorage.setItem('ptf_backup_prerestore', curRaw);
     } catch (e) {}
-    pushBackup(false, function () {
+    /* وضعیت فعلی در ptf_backup_prerestore ذخیره شد؛ هنگام حادثه نباید با ارسال
+       همان وضعیت خراب، hourly/daily سالم سرور را درست قبل از restore بازنویسی کنیم. */
+    (function () {
       /* v33.13.0 (F0-2 — فوریت): بازگردانی با گارد ظرفیت.
          - ابتدا کلیدهای موقت/کش پاک می‌شوند تا فضا آزاد شود.
          - هر کلید با ptfStorageSafeSetItem نوشته می‌شود (در خطای Quota تلاش می‌کند فضا آزاد کند).
@@ -457,6 +473,9 @@
          همه‌چیز به حالت قبل برمی‌گردد (دادهٔ قبلی هرگز نیمه‌کاره نمی‌ماند). */
       var prev = {};
       DATA_KEYS.forEach(function (k) { try { prev[k] = localStorage.getItem(k); } catch (eP) { prev[k] = undefined; } });
+      function restorePreviousLocal() {
+        DATA_KEYS.forEach(function (k) { try { var old=prev[k]; if(old===null||old===undefined)localStorage.removeItem(k); else if(typeof ptfStorageSafeSetItem==='function')ptfStorageSafeSetItem(k,old,{noWarn:true}); else localStorage.setItem(k,old); } catch(e){} });
+      }
       var failedKeys = [];
       DATA_KEYS.forEach(function (k) {
         try { localStorage.removeItem(k); } catch (eR) {}
@@ -510,22 +529,23 @@
         })
           .then(function (d) {
             if (d && d.needLogin && attempt === 0 && typeof window.ptfSyncRefreshAuth === 'function') {
-              window.ptfSyncRefreshAuth(function (ok) { if (ok) tryPushServer(1); else finishReload(true); });
+              window.ptfSyncRefreshAuth(function (ok) { if (ok) tryPushServer(1); else { restorePreviousLocal(); alert('⛔ نشست سرور تمدید نشد؛ بازگردانی انجام نشد و داده قبل از عملیات حفظ شد.'); } });
               return;
             }
+            if (!d || !d.ok) throw new Error((d && d.error) || 'server_restore_rejected');
             try {
-              if (d && d.rev) localStorage.setItem('ptf_sync_rev', String(d.rev));
-              if (d && d.krevs) localStorage.setItem('ptf_sync_krevs', JSON.stringify(d.krevs));
+              if (d.rev) localStorage.setItem('ptf_sync_rev', String(d.rev));
+              if (d.krevs) localStorage.setItem('ptf_sync_krevs', JSON.stringify(d.krevs));
             } catch (e2) {}
             finishReload(false);
           })
-          .catch(function () { finishReload(true); });
+          .catch(function (e) { restorePreviousLocal(); alert('⛔ بازگردانی روی سرور ثبت نشد؛ داده محلی به وضعیت قبل برگشت.\n' + (e && e.message ? e.message : 'خطای سرور')); });
       };
       tryPushServer(0);
-    });
+    })();
   }
 
-  /* ============ AC3: باکس بک‌آپ در تنظیمات ============ */
+  /* ============ AC3 / US-282: باکس بک‌آپ چرخشی در تنظیمات ============ */
   function backupBoxHtml() {
     var last = null;
     try { last = JSON.parse(localStorage.getItem('ptf_backup_last') || 'null'); } catch (e) {}
@@ -549,32 +569,32 @@
   }
 
   window.ptfServerBackups = function () {
+    document.querySelectorAll('#ptfServerBackupsDlg').forEach(function(x){x.remove();});
+    var loading='<div class="md-b" id="ptfServerBackupsDlg" style="display:grid;z-index:3700"><div class="md" style="max-width:620px"><h3>📂 بک‌آپ‌های سرور</h3><div id="ptfServerBackupsBody" style="padding:22px;text-align:center">در حال دریافت فهرست از سرور…</div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend',loading);
     backupFetch(API + '?action=list_backups', { headers: ptfBackupAuthHeaders(false) })
       .then(function (d) {
-        if (!d.ok) { alert('خطا در دریافت فهرست'); return; }
+        if (!d || !d.ok) throw new Error((d&&d.error)||'خطا در دریافت فهرست');
         var list = (d.backups || []).map(function (b) {
-          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid var(--brd);border-radius:9px;margin-bottom:5px;font-size:12px">' +
-            '<span style="direction:ltr">' + escP(b.name) + ' <small style="color:#94a3b8">(' + Math.round(b.size / 1024) + 'KB — ' + escP(b.t) + ')</small></span>' +
-            (curRole() === 'admin' ? '<button class="bt bt-o" style="padding:3px 9px;font-size:11px" onclick="ptfRestoreServer(\'' + ptfOnClickArg(b.name) + '\')">⏪ بازگردانی</button>' : '') + '</div>';
+          return '<div class="server-backup-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;border:1px solid var(--brd);border-radius:9px;margin-bottom:6px;font-size:12px">' +
+            '<span style="direction:ltr;min-width:0;overflow-wrap:anywhere">' + escP(b.name) + ' <small style="color:#94a3b8">(' + Math.round(b.size / 1024) + 'KB — ' + escP(b.t) + ')</small></span>' +
+            (canRestoreBackup() ? '<button class="bt bt-o" style="padding:5px 9px;font-size:11px;flex:none" onclick="ptfRestoreServer(\'' + ptfOnClickArg(b.name) + '\')">⏪ بازگردانی</button>' : '<small style="color:#b45309">فقط ادمین/رئیس</small>') + '</div>';
         }).join('') || '<div style="color:#94a3b8;text-align:center;padding:14px;font-size:12.5px">بک‌آپی روی سرور نیست</div>';
-        var html = '<div class="md-b" style="display:grid;z-index:70" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
-          '<h3>📂 بک‌آپ‌های سرور</h3><div style="font-size:11.5px;color:#64748b;margin-bottom:8px">hourly-latest = آخرین ساعتی | daily-… = ۳ روز اخیر | weekly-latest = هفتگی | monthly-latest = ماهانه (چرخشی US-282 — پسوند .gz یعنی فشرده؛ بازگردانی/دانلود خودکار بازش می‌کند)</div>' + list +
-          '<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
-        document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+        var body=document.getElementById('ptfServerBackupsBody');if(body)body.innerHTML='<div style="font-size:11.5px;color:#64748b;margin-bottom:8px">جدیدترین نسخه بالاست. برای حادثه حذف، نسخه‌ای را انتخاب کنید که زمان آن دقیقاً قبل از حذف بوده است؛ hourly-latest ممکن است بعد از حادثه بازنویسی شده باشد.</div>'+list+'<div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="bt bt-o" onclick="document.getElementById(\'ptfServerBackupsDlg\').remove()">✕ بستن</button></div>';
       })
-      .catch(function () { alert('سرور در دسترس نیست'); });
+      .catch(function (e) { var body=document.getElementById('ptfServerBackupsBody');if(body)body.innerHTML='<div style="color:#b91c1c">⛔ '+escP(e&&e.message?e.message:'سرور در دسترس نیست')+'</div><button class="bt bt-o" style="margin-top:8px" onclick="ptfServerBackups()">🔄 تلاش دوباره</button>'; });
   };
 
   window.ptfRestoreServer = function (name) {
-    if (curRole() !== 'admin') { alert('⛔ فقط ادمین'); return; }
+    if (!canRestoreBackup()) { alert('⛔ بازگردانی فقط برای ادمین یا رئیس هیئت‌مدیره مجاز است'); return; }
     backupFetch(API + '?action=get_backup&name=' + encodeURIComponent(name), { headers: ptfBackupAuthHeaders(false) })
       .then(function (j) {
+        if (j && j.ok === false) { alert('⛔ دریافت بک‌آپ رد شد: ' + (j.error || 'خطای دسترسی')); return; }
         if (!j || j.app !== 'PTF-CRM') { alert('فایل بک‌آپ معتبر نیست'); return; }
-        var mds = document.querySelectorAll('.md-b');
-        for (var _mi = mds.length - 1; _mi >= 0; _mi--) { if ((mds[_mi].style || {}).display !== 'none') { mds[_mi].remove(); break; } } /* v16.2 BUG-017 */
+        var listDlg=document.getElementById('ptfServerBackupsDlg');if(listDlg)listDlg.remove();
         showRestorePreview(j);
       })
-      .catch(function () { alert('خطا در دریافت فایل'); });
+      .catch(function (e) { alert('⛔ خطا در دریافت فایل بک‌آپ: ' + (e && e.message ? e.message : 'نامشخص')); });
   };
 
   /* ============ v31.7.50 STORAGE-QUOTA-FOUNDATION-001: سنجه/هشدار/پاک‌سازی امن ============ */
