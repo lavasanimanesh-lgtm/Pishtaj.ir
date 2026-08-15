@@ -14,30 +14,33 @@
   function canRestoreBackup() { try { return ['admin','chairman'].indexOf(curRole()) > -1; } catch (e) { return false; } }
   window.ptfCanRestoreBackup = canRestoreBackup;
 
-  /* جلوگیری از بسته شدن آکاردئون تنظیمات هنگام کلیک روی دکمه‌های بک‌آپ/بازگردانی.
-     شاخه‌ی settings پنل به <details>/<summary> تبدیل می‌شود و کلیک این دکمه‌ها
-     پیش از رسیدن به هندلر، toggle بخش را فعال می‌کرد و دکمه عملاً بی‌اثر می‌شد. */
-  try {
-    if (!window.__ptfBackupClickGuard) {
-      window.__ptfBackupClickGuard = true;
-      var BACKUP_HANDLER_RE = /ptf(BackupNow|BackupDownload|DownloadMonthly|RestorePick|ServerBackups|RestoreServer|BackupServerCheck|DuplicateRepairOpen)\s*\(/;
-      function isBackupAction(btn) {
-        if (!btn || btn.nodeType !== 1) return false;
-        if (btn.closest('.md, .md-b, #ptfServerBackupsDlg, #ptfArchivePurgeDlg')) return false;
-        var oc = btn.getAttribute('onclick') || '';
-        return BACKUP_HANDLER_RE.test(oc);
-      }
-      function guard(ev) {
-        var t = ev.target;
-        if (!t || t.nodeType !== 1) return;
-        var btn = t.closest && t.closest('button');
-        if (isBackupAction(btn)) ev.stopPropagation();
-      }
-      /* capture phase: قبل از هندلر toggle مرورگر روی <summary>/<details> */
-      document.addEventListener('click', guard, true);
-      document.addEventListener('mousedown', guard, true);
+  function mountModal(html) {
+    /* مهم: مودال‌ها را به document.body اضافه می‌کنیم نه #panels.
+       settings-accordion.js یک MutationObserver روی #panels دارد که هنگام
+       افزوده‌شدن فرزند، کل پنل تنظیمات را rebuild می‌کند و این کار هم
+       آکاردئون را می‌بندد و هم مودال را از DOM پاک می‌کرد (باگ «فقط منو
+       بسته می‌شود و هیچ اتفاقی نمی‌افتد»). */
+    var host = document.body || document.getElementById('panels');
+    var wrap = document.createElement('div');
+    wrap.setAttribute('data-ptf-modal-host', '1');
+    wrap.innerHTML = html;
+    while (wrap.firstChild) host.appendChild(wrap.firstChild);
+  }
+  document.addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (!t || t.nodeType !== 1) return;
+    /* بستن مودال با کلیک روی backdrop خودش (رفتار پیشین) */
+    var b = t.closest && t.closest('.md-b');
+    if (b && ev.target === b) b.remove();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Escape') {
+      var open = document.querySelectorAll('.md-b');
+      if (open.length) open[open.length - 1].remove();
     }
-  } catch (eG) {}
+  });
+
+
 
   /* ============ US-146: جمع‌آوری کل داده‌ها ============ */
   /* v33.13.0 (F0-5): ptf_storage_queue (صف موقت آپلود فایل‌ها) از بکاپ حذف شد —
@@ -462,7 +465,7 @@
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
       '<button class="bt" style="background:#dc2626" id="restoreGo">⏪ تایید و بازگردانی</button></div></div></div>';
-    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    mountModal(html);
     document.getElementById('restoreGo').onclick = function () {
       // تایید دومرحله‌ای (AC4)
       var word = prompt('برای تایید نهایی، کلمه «بازگردانی» را تایپ کنید:');
@@ -596,7 +599,7 @@
   window.ptfServerBackups = function () {
     document.querySelectorAll('#ptfServerBackupsDlg').forEach(function(x){x.remove();});
     var loading='<div class="md-b" id="ptfServerBackupsDlg" style="display:grid;z-index:3700"><div class="md" style="max-width:620px"><h3>📂 بک‌آپ‌های سرور</h3><div id="ptfServerBackupsBody" style="padding:22px;text-align:center">در حال دریافت فهرست از سرور…</div></div></div>';
-    document.getElementById('panels').insertAdjacentHTML('beforeend',loading);
+    mountModal(loading);
     backupFetch(API + '?action=list_backups', { headers: ptfBackupAuthHeaders(false) })
       .then(function (d) {
         if (!d || !d.ok) throw new Error((d&&d.error)||'خطا در دریافت فهرست');
