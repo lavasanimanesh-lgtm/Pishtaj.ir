@@ -34,6 +34,7 @@ $action = trim((string)($_GET['action'] ?? $body['action'] ?? 'snapshot'));
 
 const SD_FIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'accountant'];
 const SD_WIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
+const SD_OFFER_REPAIR_ROLES = ['admin', 'chairman'];
 const SD_RFQ_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
 const SD_ADMIN_ROLES = ['admin'];
 const SD_KEYS = [
@@ -470,19 +471,24 @@ try {
         $offers[$oi] = $offer; $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases];
     }
     elseif ($action === 'revoke_orphan_delete') {
-        sd_require_role(SD_ADMIN_ROLES);
+        /* بازگردانی برد یتیم برای ادمین و رئیس هیئت‌مدیره مجاز است؛ حذف قطعی
+           پیشنهاد همچنان فقط در اختیار ادمین باقی می‌ماند. */
+        sd_require_role(SD_OFFER_REPAIR_ROLES);
         $no = sd_text($body['offerNo'] ?? '', 100); $oi = -1;
         foreach ($offers as $i=>$o) if (is_array($o)&&(string)($o['no']??'')===$no){ if($oi>=0)sd_out(['ok'=>false,'error'=>'duplicate_offer_no'],409); $oi=$i; }
         if ($oi < 0) sd_out(['ok'=>false,'error'=>'offer_not_found'],404);
-        $offer = $offers[$oi]; $deps=[];
+        $offer = $offers[$oi];
+        if (($offer['st'] ?? '') !== 'won') sd_out(['ok'=>false,'error'=>'offer_not_won'],422);
+        $deps=[];
         foreach($cases as $c)if(is_array($c)&&sd_active($c)&&((string)($c['wonOffer']??'')===$no||(string)($c['rootOfferId']??'')===(string)($offer['_id']??'')))$deps[]=['type'=>'case','id'=>$c['_id']??$c['cd']??''];
         foreach($invoices as $inv)if(is_array($inv)&&sd_active($inv)&&(string)($inv['offerNo']??'')===$no)$deps[]=['type'=>'invoice','id'=>$inv['_id']??$inv['cd']??''];
         if($deps)sd_out(['ok'=>false,'error'=>'dependencies_exist','dependencies'=>$deps],409);
         $reason=sd_text($body['reason']??'',500); if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
         $deleteIt=!empty($body['delete']);
+        if($deleteIt && $role !== 'admin') sd_out(['ok'=>false,'error'=>'delete_requires_admin'],403);
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'offer','entityId'=>$offer['_id']??$no,'kind'=>'revoke_orphan_win','beforeSnapshot'=>$offer,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
         if($deleteIt){$deleted[]=['id'=>$no,'kind'=>'OFFER','label'=>($offer['kind']??'CO').' — '.($offer['buyerCo']??''),'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$offer]; array_splice($offers,$oi,1);}
-        else{$offer['st']=$offer['priorStatus']??'sent';$offer['status']=$offer['st'];$offer['winRevokedAt']=sd_now();$offer['winRevokedBy']=$user;$offer['winRevokedReason']=$reason;unset($offer['wonAt'],$offer['wonAtISO'],$offer['wonBy']);$offers[$oi]=$offer;}
+        else{$offer['st']=$offer['priorStatus']??'sent';$offer['status']=$offer['st'];$offer['winRevokedAt']=sd_now();$offer['winRevokedBy']=$user;$offer['winRevokedReason']=$reason;if(isset($offer['wonRevisionSnapshot']))$offer['revokedWinSnapshot']=$offer['wonRevisionSnapshot'];unset($offer['wonAt'],$offer['wonAtISO'],$offer['wonBy'],$offer['wonRevisionSnapshot'],$offer['invRef'],$offer['amendmentOfCaseId']);$offers[$oi]=$offer;}
         $changes=['ptf_crm_offers'=>$offers,'ptf_crm_corrections'=>$corrections,'ptf_crm_deleted_archive'=>$deleted];$result=['deleted'=>$deleteIt,'offerNo'=>$no];
     }
     elseif ($action === 'admin_delete_plan' || $action === 'admin_delete_commit') {

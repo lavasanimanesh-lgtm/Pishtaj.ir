@@ -10,12 +10,15 @@
   var API = '../api/sales-domain.php';
   var FIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'accountant'];
   var WIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
+  var OFFER_REPAIR_ROLES = ['admin', 'chairman'];
 
   function arr(v) { return Array.isArray(v) ? v : []; }
   function data(k) { try { var v = getData(k); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
   function role() { try { return String(curRole() || '').toLowerCase(); } catch (e) { return ''; } }
   function canFinance() { return FIN_ROLES.indexOf(role()) > -1; }
   function canWin() { return WIN_ROLES.indexOf(role()) > -1; }
+  function canRepairOfferWin() { return OFFER_REPAIR_ROLES.indexOf(role()) > -1; }
+  window.ptfCanRepairOfferWin = canRepairOfferWin;
   function esc(v) { return typeof escP === 'function' ? escP(v) : String(v == null ? '' : v).replace(/[&<>"']/g, function (x) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[x]; }); }
   function arg(v) { return typeof ptfOnClickArg === 'function' ? ptfOnClickArg(v) : String(v == null ? '' : v).replace(/[\\']/g, ''); }
   function num(v) { return typeof ptfNum === 'function' ? ptfNum(v) : (+String(v == null ? '' : v).replace(/[۰-۹]/g, function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d);}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d);}).replace(/[^\d.-]/g, '') || 0); }
@@ -192,13 +195,37 @@
     als.forEach(function(a){if(!a||!active(a))return;var receipt=rs.filter(function(r){return receiptId(r)===a.receiptId;})[0],inv=invs.filter(function(i){return invoiceId(i)===a.invoiceId;})[0];if(!receipt||!active(receipt)||!inv||!active(inv))out.push({id:'orphan-allocation:'+String(a._id||a.cd),severity:'critical',type:'orphan_allocation',label:'تخصیص فعال با مبدأ ابطال/مفقود'});});
     return out;
   };
-  window.ptfRepairOrphanOffer=function(no){if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}var reason=prompt('برد این پیشنهاد لغو و خود پیشنهاد حذف شود. دلیل:','برد اشتباه و پرونده تشکیل نشده');if(reason===null||!reason.trim())return;if(!confirm('⚠️ پس از پیش‌بررسی سرور، برد لغو و پیشنهاد با Tombstone حذف شود؟'))return;api('revoke_orphan_delete',{offerNo:no,delete:true,reason:reason.trim()}).then(function(){toast('برد یتیم لغو و پیشنهاد حذف شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();}).catch(function(e){if(e.payload&&e.payload.dependencies)alert('⛔ وابستگی وجود دارد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n'));else alert('⛔ '+e.message);});};
+  /* اصلاح برد فقط از مرز فرمان سرور انجام می‌شود؛ مسیر قدیمی backup.js که localStorage
+     و projects قدیمی را مستقیم تغییر می‌داد، در داده واقعی می‌توانست deal را یتیم کند. */
+  window.ptfRevokeOfferWin=function(no){
+    if(!canRepairOfferWin()){alert('فقط ادمین یا رئیس هیئت‌مدیره مجاز به بازگرداندن برد است');return;}
+    var reason=prompt('دلیل بازگرداندن پیشنهاد برنده به وضعیت قبل:','برد اشتباه / نیاز به اصلاح پیشنهاد');
+    if(reason===null||!reason.trim())return;
+    if(!confirm('⚠️ سرور ابتدا پرونده، فاکتور و سایر وابستگی‌ها را بررسی می‌کند. فقط برد بدون وابستگی بازگردانده می‌شود. ادامه می‌دهید؟'))return;
+    api('revoke_orphan_delete',{offerNo:no,delete:false,reason:reason.trim(),idempotencyKey:'REVOKE-WIN|'+no+'|'+Date.now()})
+      .then(function(){toast('برد کنترل‌شده لغو و پیشنهاد به وضعیت قبل بازگردانده شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();})
+      .catch(function(e){
+        if(e.payload&&e.payload.dependencies)alert('⛔ این پیشنهاد وابستگی عملیاتی دارد و بازگشت خودکار متوقف شد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n')+'\n\nابتدا وابستگی‌ها را از پرونده مربوط بررسی و اصلاح کنید.');
+        else alert('⛔ '+e.message);
+      });
+  };
+  window.ptfRepairOrphanOffer=function(no){if(role()!=='admin'){alert('حذف پیشنهاد فقط برای ادمین مجاز است');return;}var reason=prompt('برد این پیشنهاد لغو و خود پیشنهاد حذف شود. دلیل:','برد اشتباه و پرونده تشکیل نشده');if(reason===null||!reason.trim())return;if(!confirm('⚠️ پس از پیش‌بررسی سرور، برد لغو و پیشنهاد با Tombstone حذف شود؟'))return;api('revoke_orphan_delete',{offerNo:no,delete:true,reason:reason.trim()}).then(function(){toast('برد یتیم لغو و پیشنهاد حذف شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();}).catch(function(e){if(e.payload&&e.payload.dependencies)alert('⛔ وابستگی وجود دارد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n'));else alert('⛔ '+e.message);});};
   window.ptfSalesMigrationOpen=function(){
     if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}
     api('migration_dry_run',{idempotencyKey:'DRYRUN|'+Date.now()}).then(function(d){var r=d.report||{},issues=r.issues||[],safe=r.safeReceiptCandidates||[];document.querySelectorAll('#ptfSalesMigrationDlg').forEach(function(x){x.remove();});var html='<div class="md-b" id="ptfSalesMigrationDlg" style="display:grid;z-index:3500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:94vh;overflow:auto"><h3>مهاجرت کنترل‌شده فروش تا وصول v35</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px;font-size:12px">فقط payments[] واقعی، غیرچکی و دارای پرونده یکتا منتقل می‌شود. paid/cashFull بدون رویداد و همه موارد مبهم هیچ اثر مالی نمی‌گیرند.</div><div class="sr" style="margin:9px 0"><div class="sc"><b>'+safe.length+'</b><span>وصول قابل مهاجرت امن</span></div><div class="sc"><b>'+issues.length+'</b><span>مورد مبهم/نیازمند بررسی</span></div></div><h4>موارد مبهم</h4><div style="font-size:12px">'+(issues.map(function(x){return'<div style="padding:4px;border-bottom:1px dashed var(--brd)">'+esc(x.type)+' — '+esc(x.ref||'')+(x.amount?' — '+money(x.amount):'')+'</div>';}).join('')||'موردی نیست')+'</div><h4>وصول‌های امن پیشنهادی</h4><div style="font-size:12px">'+(safe.map(function(x){return'<div style="padding:4px;border-bottom:1px dashed var(--brd)">'+esc(x.offerNo)+' — '+money(x.amount)+' — '+esc(x.paymentRef||'')+'</div>';}).join('')||'موردی نیست')+'</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" '+(safe.length?'':'disabled')+' onclick="ptfSalesMigrationCommit()">بک‌آپ را تأیید می‌کنم — اجرای موارد امن</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);}).catch(function(e){alert('⛔ گزارش مهاجرت دریافت نشد: '+e.message);});
   };
   window.ptfSalesMigrationCommit=function(){if(!confirm('فقط موارد بدون ابهام مهاجرت شوند؟ موارد مشکوک دست‌نخورده و در کیفیت داده باقی می‌مانند.'))return;api('migration_apply_safe',{confirm:'PTF-SALES-V35-MIGRATE',idempotencyKey:'MIGRATE-SALES-V35'}).then(function(d){toast((d.result||{}).migratedReceipts+' وصول واقعی مهاجرت شد؛ موارد مبهم دست‌نخورده ماند','ok');document.querySelectorAll('#ptfSalesMigrationDlg').forEach(function(x){x.remove();});if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();}).catch(function(e){alert('⛔ مهاجرت متوقف شد: '+e.message);});};
-  window.ptfSalesIntegrityHtml=function(){var f=window.ptfSalesIntegrityScan(),adminAction=role()==='admin'?'<button class="bt bt-o" style="font-size:11px;margin-right:6px" onclick="ptfSalesMigrationOpen()">گزارش و مهاجرت کنترل‌شده</button>':'';if(!f.length)return '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px;margin:8px 0;color:#065f46">✅ یکپارچگی فروش تا وصول تأیید شد.'+adminAction+'</div>';return '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin:8px 0"><b style="color:#9a3412">⚠️ '+f.length+' یافته فروش تا وصول</b>'+adminAction+f.map(function(x){return '<div style="padding:6px 0;border-bottom:1px dashed #fed7aa">'+esc(x.label)+(x.type==='orphan_won'&&role()==='admin'?' <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfRepairOrphanOffer(\''+arg(x.offerNo)+'\')">لغو برد و حذف کنترل‌شده</button>':'')+'</div>';}).join('')+'</div>';};
+  window.ptfSalesIntegrityHtml=function(){
+    var f=window.ptfSalesIntegrityScan();
+    var adminAction=role()==='admin'?'<button class="bt bt-o" style="font-size:11px;margin-right:6px" onclick="ptfSalesMigrationOpen()">گزارش و مهاجرت کنترل‌شده</button>':'';
+    if(!f.length)return '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:8px;margin:8px 0;color:#065f46">✅ یکپارچگی فروش تا وصول تأیید شد.'+adminAction+'</div>';
+    var roleNote=!canRepairOfferWin()?'<div style="font-size:11px;color:#9a3412;margin-top:5px">اصلاح برد فقط برای ادمین یا رئیس هیئت‌مدیره فعال است؛ نقش فعلی: '+esc(role()||'نامشخص')+'</div>':'';
+    return '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin:8px 0"><b style="color:#9a3412">⚠️ '+f.length+' یافته فروش تا وصول</b>'+adminAction+roleNote+f.map(function(x){
+      var revoke=x.type==='orphan_won'&&canRepairOfferWin()?' <button class="bt bt-o" style="font-size:11px;color:#b45309" onclick="ptfRevokeOfferWin(\''+arg(x.offerNo)+'\')">بازگرداندن کنترل‌شده به وضعیت قبل</button>':'';
+      var remove=x.type==='orphan_won'&&role()==='admin'?' <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfRepairOrphanOffer(\''+arg(x.offerNo)+'\')">لغو برد و حذف پیشنهاد</button>':'';
+      return '<div style="padding:6px 0;border-bottom:1px dashed #fed7aa">'+esc(x.label)+revoke+remove+'</div>';
+    }).join('')+'</div>';
+  };
 
   function hookQuality(){if(window._salesV2QualityHook||typeof window.ptfDataQualityHtml!=='function')return false;window._salesV2QualityHook=true;var old=window.ptfDataQualityHtml;window.ptfDataQualityHtml=function(){return old()+'<div id="salesIntegrityQuality">'+window.ptfSalesIntegrityHtml()+'</div>';};var oldRender=window.ptfDataQualityRender;if(typeof oldRender==='function')window.ptfDataQualityRender=function(){oldRender.apply(this,arguments);var el=document.getElementById('salesIntegrityQuality');if(el)el.innerHTML=window.ptfSalesIntegrityHtml();};return true;}
   function hookOfferRender(){if(window._salesV2OfferRenderHook||typeof window.renderOffers!=='function')return false;window._salesV2OfferRenderHook=true;var old=window.renderOffers;window.renderOffers=function(){old.apply(this,arguments);var host=document.getElementById('oTb');if(!host)return;var findings=window.ptfSalesIntegrityScan().filter(function(x){return x.type==='orphan_won'||x.type==='duplicate_offer'||x.type==='duplicate_case';});var oldBox=document.getElementById('ptfOfferIntegrity');if(oldBox)oldBox.remove();if(findings.length)host.insertAdjacentHTML('beforebegin','<div id="ptfOfferIntegrity">'+window.ptfSalesIntegrityHtml()+'</div>');};return true;}

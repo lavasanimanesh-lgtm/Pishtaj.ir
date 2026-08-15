@@ -35,6 +35,7 @@ var SUITE = [
   { g: 'مکاتبات/خزانه', f: '_tools/uat/tester408-v34.7.3-signature-treasury-period.js' },
   { g: 'درخواست/موبایل', f: '_tools/uat/tester409-v34.7.4-rfq-mobile-parity.js' },
   { g: 'سایت/رهگیری', f: '_tools/uat/tester410-v34.7.5-random-public-tracking.js' },
+  { g: 'پیشنهاد/یکپارچگی', f: '_tools/uat/tester411-v34.7.6-winner-repair-parity.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
