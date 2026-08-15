@@ -22,7 +22,7 @@ T('offers.js (US-364 v14.2) از قبل امن بود', fs.readFileSync(path.joi
 
 SECTION('حذف «آخرین مودال»: فقط visible');
 T('rfqsmart.js: پاکسازی‌ها فقط visible یا modal هدف‌دار هستند', (rq.match(/\(mds\[_m[ij]\]\.style \|\| \{\}\)\.display !== 'none'/g) || []).length >= 4 && rq.indexOf("document.getElementById('rqsNewModal')") > -1 && rq.indexOf("hasAttribute('data-rfqs-detail')") > -1);
-T('backup.js: نقطه بازگردانی سروری', bk.indexOf("_mi >= 0") > -1 && bk.indexOf('v16.2 BUG-017') > -1);
+T('backup.js: بازگردانی فقط modal هدف‌دار خودش را می‌بندد', bk.indexOf("getElementById('ptfServerBackupsDlg')") > -1 && bk.indexOf('listDlg.remove()') > -1);
 T('cheques.js تزریق روی آخرین visible', ch.indexOf("if (!_pb || _pb.style.display !== 'none') { md = mds[_mv]; break; }") > -1);
 T('offerlock.js تنظیم عرض روی آخرین visible', ol.indexOf("if (!_pb || _pb.style.display !== 'none') { md = mds[_mv]; break; }") > -1);
 

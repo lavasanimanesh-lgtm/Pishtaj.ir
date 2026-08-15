@@ -1237,6 +1237,7 @@ switch($action) {
                 $out[] = ['name' => basename($f), 'size' => filesize($f), 't' => date('Y-m-d H:i:s', filemtime($f))];
             }
         }
+        usort($out, function($a,$b){ return strcmp((string)($b['t']??''),(string)($a['t']??'')); });
         echo json_encode(['ok' => true, 'backups' => $out], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -1283,7 +1284,8 @@ switch($action) {
         $rejected = []; /* v14.7 US-382 */
         $conflicts = []; $conflictData = []; $krevs = []; /* v15.0 US-384 */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
-        $restore = !empty($j['restore']); /* v15.0 (US-384): بازگردانی بک‌آپ توسط ادمین — سرور باید هم‌راستا شود */
+        $restore = !empty($j['restore']); /* بازگردانی کامل سرور */
+        if ($restore && !in_array($client_role, ['admin','chairman'], true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'restore_permission_denied']); break; }
         $base = (isset($j['base']) && is_array($j['base'])) ? $j['base'] : null; /* v15.0: نسخه‌ای که کلاینت از هر کلید می‌شناسد */
         /* ===== v31.7.3 BUG-AUDIT-001-SYNC-RACE: flock برای meta.json =====
            جلوگیری از race condition بین دو data_push همزمان. بدون flock:
@@ -1299,11 +1301,13 @@ switch($action) {
             if (!in_array($k, $allowed_keys, true)) { $skipped_keys[] = $k; continue; }
             if (!in_array($k, $role_sync_keys, true)) { $forbidden_keys[] = $k; continue; }
             if (!is_string($v) || strlen($v) > 8 * 1048576) { $skipped_keys[] = $k; continue; }
-            $v = sync_apply_tombstones($k, $v, $serverArchiveJson, $incomingArchiveJson);
+            /* Restore تاییدشده باید snapshot انتخابی را authoritative کند؛ tombstone جدیدتر
+               سرور نباید رکوردهای همان بک‌آپ را دوباره حذف کند. */
+            $v = sync_apply_tombstones($k, $v, $restore ? '' : $serverArchiveJson, $incomingArchiveJson);
             /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: do not accept a stale client
                payload that increases duplicate offer lines. Existing corrupted
                records are deliberately not auto-mutated here; repair is explicit. */
-            if ($k === 'ptf_crm_offers') {
+            if (!$restore && $k === 'ptf_crm_offers') {
                 /* v33.22.0: مسیر یکپارچه (mysql → DB) */
                 $serverOffersJson = sync_key_read($sdir, 'ptf_crm_offers');
                 if ($serverOffersJson === null) $serverOffersJson = '[]';

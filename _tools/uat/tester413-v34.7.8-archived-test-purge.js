@@ -11,7 +11,7 @@ var p=0,f=0;function T(n,c,d){if(c){p++;console.log('PASS',n);}else{f++;console.
 
 T('plan و commit مستقل برای purge بایگانی تعریف شده',api.indexOf("'archived_case_purge_plan'")>-1&&api.indexOf("$action === 'archived_case_purge_commit'")>-1);
 T('مجوز دقیق purge فقط admin/chairman است',api.indexOf('sd_require_role(SD_OFFER_REPAIR_ROLES)')>-1&&api.indexOf("const SD_OFFER_REPAIR_ROLES = ['admin', 'chairman'];")>-1);
-T('فقط پرونده state=archived پذیرفته می‌شود',plan.indexOf("project_not_archived")>-1&&plan.indexOf("['state']??'')!=='archived'")>-1);
+T('فقط state=archived پذیرفته و پرونده فعال مشترک به shell-only تبدیل می‌شود',plan.indexOf("project_not_archived")>-1&&plan.indexOf("['state']??'')!=='archived'")>-1&&plan.indexOf("'mode'=>'archive_shell_only'")>-1&&plan.indexOf('sharedActiveCases')>-1);
 T('master data مشترک عمداً در دامنه purge نیست',plan.indexOf('ptf_crm_customers')===-1&&plan.indexOf('ptf_crm_products')===-1&&plan.indexOf('ptf_crm_suppliers')===-1);
 T('graph فروش درخواست پیشنهاد پرونده و مالی را پوشش می‌دهد',plan.indexOf('ptf_crm_projects')>-1&&plan.indexOf('ptf_crm_deals')>-1&&plan.indexOf('ptf_crm_offers')>-1&&plan.indexOf('ptf_crm_rfqs')>-1&&plan.indexOf('ptf_crm_invoices')>-1&&plan.indexOf('ptf_crm_case_receipts')>-1);
 T('graph اسناد، موجودی و عملیات جانبی را با گارد اشتراک پوشش می‌دهد',plan.indexOf('ptf_crm_packinglists')>-1&&plan.indexOf('ptf_crm_letters')>-1&&plan.indexOf('ptf_crm_contracts')>-1&&plan.indexOf('ptf_crm_buycmp')>-1&&plan.indexOf('ptf_crm_petty')>-1&&plan.indexOf('ptf_crm_opex')>-1&&plan.indexOf('ptf_crm_surplus')>-1&&plan.indexOf('shared_inventory_dependency')>-1);
@@ -27,7 +27,7 @@ T('snapshot کامل نگهداری نمی‌شود و tombstone فقط شناس
 T('snapshot سال مالی متاثر حذف می‌شود تا گزارش پاک دوباره ساخته شود',commit.indexOf("$changes['ptf_crm_fiscal_snapshots']=$snaps")>-1&&commit.indexOf('resetFiscalYears')>-1&&commit.indexOf("$snap['year']")>-1);
 
 T('UI دکمه purge را فقط روی archived و نقش مجاز نشان می‌دهد',projects.indexOf("p.state === 'archived' && ptfArchivePurgeAllowed()")>-1&&projects.indexOf('حذف قطعی داده آزمایشی')>-1);
-T('ویزارد تعداد رکورد/فایل/سال و عدم حذف master را توضیح می‌دهد',projects.indexOf('جمع رکورد:')>-1&&projects.indexOf('فایل ابری:')>-1&&projects.indexOf('مشتریان، کالاها و تامین‌کنندگان مشترک حذف نمی‌شوند')>-1);
+T('ویزارد دامنه و حالت حفظ پرونده فعال را شفاف توضیح می‌دهد',projects.indexOf('جمع رکورد:')>-1&&projects.indexOf('فایل ابری:')>-1&&projects.indexOf('مشتریان، کالاها و تامین‌کنندگان مشترک حذف نمی‌شوند')>-1&&projects.indexOf('حذف محدود به نسخه بایگانی است')>-1&&projects.indexOf('پرونده فعال باید حفظ شود')>-1);
 T('دو checkbox و تایپ شماره پرونده قبل از حذف الزامی‌اند',projects.indexOf('arcPurgeTest')>-1&&projects.indexOf('arcPurgeNoRecovery')>-1&&projects.indexOf('arcPurgeTyped')>-1&&projects.indexOf('typed!==no')>-1);
 T('کلاینت plan را درست پیش از حذف cloud دوباره اعتبارسنجی می‌کند',projects.indexOf("ptfArchivePurgeApi('archived_case_purge_plan'")>-1&&projects.indexOf('latest.planHash!==planHash')>-1);
 T('پس از purge گزارش سال مالی دوباره رندر می‌شود',projects.indexOf("typeof ptfFiscalRender==='function'")>-1);

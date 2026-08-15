@@ -22,7 +22,7 @@ assert.ok(api.indexOf('admin_delete_plan')>-1&&api.indexOf('sd_invalidate_period
 assert.ok(api.indexOf('register_unofficial_invoice')>-1&&api.indexOf('supersededByInvoiceId')>-1,'unofficial invoice server command and official replacement');
 
 /* Client wiring and cache contract */
-assert.ok(idx.indexOf('sales-domain-v2.js?v=34.7.8')>-1&&idx.indexOf('official-invoice-v2.js?v=34.7.8')>-1,'v35 scripts wired');
+assert.ok(idx.indexOf('sales-domain-v2.js?v=34.7.12')>-1&&idx.indexOf('official-invoice-v2.js?v=34.7.12')>-1,'v35 scripts wired');
 assert.ok(idx.indexOf('sales-domain-v2.js')<idx.indexOf('official-invoice-v2.js'),'domain loads before invoice UI');
 assert.ok(sw.indexOf("'./sales-domain-v2.js' + ASSET_QUERY")>-1&&sw.indexOf("'./official-invoice-v2.js' + ASSET_QUERY")>-1,'PWA shell');
 ['ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings'].forEach(function(k){assert.ok(sync.indexOf(k)>-1,'sync key '+k);});
