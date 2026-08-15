@@ -63,6 +63,22 @@ function sd_identity($value): string {
     $s=strtr(trim((string)$value),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
     return strtoupper((string)preg_replace('/[\s\x{200c}\x{200e}\x{200f}]+/u','',$s));
 }
+/* v34.7.16: تعارض هویت بین دو پرونده برای ادغام — همان قاعده‌ای که commit اعمال می‌کند.
+   fallback buyerCo وقتی buyerCd هر دو خالی است (هماهنگ با sd_case_offer_linked) تا دو مشتریِ
+   متفاوت که فقط با نام ثبت شده‌اند از ادغام اشتباه مصون بمانند. خروجی = نام فیلد متعارض یا ''. */
+function sd_case_identity_conflict(array $a, array $b): string {
+    foreach (['inqNo','buyerCd','currency'] as $identityKey) {
+        $av = sd_identity($a[$identityKey] ?? '');
+        $bv = sd_identity($b[$identityKey] ?? '');
+        if ($av !== '' && $bv !== '' && $av !== $bv) return $identityKey;
+    }
+    if (sd_identity($a['buyerCd'] ?? '') === '' && sd_identity($b['buyerCd'] ?? '') === '') {
+        $av = sd_identity($a['buyerCo'] ?? '');
+        $bv = sd_identity($b['buyerCo'] ?? '');
+        if ($av !== '' && $bv !== '' && $av !== $bv) return 'buyerCo';
+    }
+    return '';
+}
 function sd_num($value): float {
     if (is_int($value) || is_float($value)) return is_finite((float)$value) ? (float)$value : 0.0;
     $s = strtr((string)$value, ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
@@ -368,8 +384,19 @@ function sd_duplicate_case_plan_data(array $offers, array $cases, array $invoice
     sort($signature['cases']);
     $recommended = '';
     if (count($candidates) === 2 && $candidates[0]['safeEmpty'] !== $candidates[1]['safeEmpty']) $recommended = $candidates[0]['safeEmpty'] ? $candidates[1]['id'] : $candidates[0]['id'];
+    /* v34.7.16: mergeability هویتی را از پیش محاسبه می‌کنیم تا UI پیش از commit آگاه شود،
+       نه اینکه کاربر فقط هنگام commit با case_identity_conflict روبرو شود. */
+    $mergeable = true; $conflictField = '';
+    $cn = count($candidates);
+    for ($i = 0; $i < $cn; $i++) {
+        for ($j = $i + 1; $j < $cn; $j++) {
+            $cf = sd_case_identity_conflict($candidates[$i], $candidates[$j]);
+            if ($cf !== '') { $mergeable = false; $conflictField = $cf; break 2; }
+        }
+    }
     return ['offerNo'=>$no,'offerCount'=>1,'offerId'=>$offer['_id']??'','candidateCount'=>count($candidates),'candidates'=>$candidates,
-        'recommendedKeepId'=>$recommended,'planHash'=>hash('sha256', json_encode($signature, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))];
+        'recommendedKeepId'=>$recommended,'mergeable'=>$mergeable,'conflictField'=>$conflictField,
+        'planHash'=>hash('sha256', json_encode($signature, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES))];
 }
 function sd_array_is_list_compat(array $value): bool {
     $i = 0; foreach ($value as $key => $_) { if ($key !== $i++) return false; } return true;
@@ -758,7 +785,8 @@ try {
         $keepBefore=$cases[$keepIndex];$source=$cases[$removeIndex];
         $offer=null;foreach($offers as $row)if(is_array($row)&&(string)($row['no']??'')===$no){$offer=$row;break;}
         if(!$offer||!sd_case_offer_linked($keepBefore,$offer)||!sd_case_offer_linked($source,$offer))sd_out(['ok'=>false,'error'=>'case_offer_link_changed'],409);
-        foreach(['inqNo','buyerCd','currency']as $identityKey){$a=sd_identity($keepBefore[$identityKey]??'');$b=sd_identity($source[$identityKey]??'');if($a!==''&&$b!==''&&$a!==$b)sd_out(['ok'=>false,'error'=>'case_identity_conflict','field'=>$identityKey,'keep'=>$keepBefore[$identityKey]??'','remove'=>$source[$identityKey]??''],409);}
+        $identityConflictField=sd_case_identity_conflict($keepBefore,$source);
+        if($identityConflictField!=='')sd_out(['ok'=>false,'error'=>'case_identity_conflict','field'=>$identityConflictField,'keep'=>$keepBefore[$identityConflictField]??'','remove'=>$source[$identityConflictField]??''],409);
         $sourceAliases=sd_case_aliases($source);$conflicts=[];$keep=sd_merge_case_records($keepBefore,$source,$conflicts);
         $keepId=sd_case_id($keep);$keepCd=(string)($keep['cd']??$keepId);$keep['rootOfferId']=!empty($offer['_id'])?$offer['_id']:($keep['rootOfferId']??'');$keep['wonOffer']=$no;
         $keep['mergedFromCaseIds']=array_values(array_unique(array_merge(is_array($keep['mergedFromCaseIds']??null)?$keep['mergedFromCaseIds']:[],$sourceAliases)));

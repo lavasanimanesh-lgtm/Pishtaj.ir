@@ -272,9 +272,25 @@
     var opts='<option value="">— انتخاب کنید —</option>'+candidates.map(function(c){return'<option value="'+esc(c.id)+'"'+(plan.recommendedKeepId===c.id?' selected':'')+'>'+esc(c.id)+' — '+esc(c.inqNo||'')+'</option>';}).join('');
     return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px;margin-top:12px"><b>چرا این هشدار آمده؟</b><br>در داده سرور '+candidates.length+' رکورد فعال از طریق شماره پیشنهاد یا شناسه ریشه به <span dir="ltr">'+esc(f.offerNo)+'</span> متصل‌اند. حتی پرونده بایگانی‌شده یا پنهان نیز برای جلوگیری از دوباره‌کاری شمرده می‌شود.</div><h4>گام ۱ — هر دو پرونده را مقایسه کنید</h4><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">'+cards+'</div><div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;margin-top:10px"><b>راهنمای انتخاب:</b> '+esc(reviewHint)+'</div><h4>گام ۲ — پرونده اصلی و پرونده تکراری را صریح انتخاب کنید</h4><div class="fr"><div class="fld"><label>پرونده‌ای که باقی می‌ماند *</label><select id="dupKeep" onchange="ptfDuplicateCaseKeepChanged()">'+opts+'</select></div><div class="fld"><label>پرونده‌ای که داخل پرونده اصلی ادغام می‌شود *</label><select id="dupRemove">'+opts.replace(' selected','')+'</select></div></div><div style="background:#ecfdf5;border:1px solid #86efac;border-radius:10px;padding:9px;font-size:12px;line-height:1.9"><b>این عملیات حذف خام نیست:</b> رویدادها، مدارک و تاریخچه یکتا با هم ادغام می‌شوند؛ فاکتور، دریافت، تخصیص، ضمیمه مالی، تنخواه، هزینه جاری، چک و مرجوعی به پرونده اصلی منتقل می‌شوند؛ snapshot کامل پرونده ادغام‌شده در بایگانی حسابرسی باقی می‌ماند. در تعارض فیلدهای متنی، مقدار پرونده‌ای که نگه می‌دارید مقدم است.</div><h4>گام ۳ — دلیل و تایید نهایی</h4><div class="fld"><label>دلیل ادغام *</label><textarea id="dupReason" rows="2" placeholder="مثلاً: پرونده تکراری ناشی از ثبت دوباره برد؛ پرونده مرحله ۶ نگهداری شد"></textarea></div><div class="fld"><label>برای تایید، کلمه «ادغام» را وارد کنید *</label><input id="dupConfirm" autocomplete="off"></div><div style="display:flex;justify-content:flex-end;gap:8px"><button class="bt bt-o" onclick="closeFindingGuide()">انصراف بدون تغییر</button><button class="bt" id="dupMergeBtn" onclick="ptfDuplicateCaseMergeCommit(\''+arg(f.offerNo)+'\',\''+arg(plan.planHash)+'\')">پیش‌بررسی نهایی و ادغام کنترل‌شده</button></div>';
   }
+  /* v34.7.16: وقتی سرور در plan اعلام کند که هویت دو پرونده ناسازگار است، به‌جای اینکه
+     کاربر فقط هنگام commit با case_identity_conflict مواجه شود، دکمه را مسدود و علت را
+     صریح نشان می‌دهیم. commit همچنان با گارد سرور fail-closed محافظت می‌شود. */
+  window.ptfDuplicateCaseMergeBlocked=function(field){
+    var btn=document.getElementById('dupMergeBtn');
+    var fieldLabel={inqNo:'درخواست',buyerCd:'کد مشتری',buyerCo:'نام مشتری',currency:'ارز'}[field]||field||'هویت';
+    if(btn){btn.disabled=true;btn.textContent='ادغام مسدود است';}
+    var guide=document.getElementById('ptfSalesFindingGuide');
+    if(guide){
+      var slot=document.createElement('div');
+      slot.style.cssText='background:#fee2e2;color:#991b1b;border-radius:10px;padding:10px;margin-top:12px;font-size:12px;line-height:1.9';
+      slot.textContent='⛔ این دو پرونده از نظر '+fieldLabel+' یکسان نیستند؛ ادغام خودکار برای جلوگیری از ترکیب پروندهٔ اشتباه مسدود شد. ابتدا دادهٔ '+fieldLabel+' را در پرونده‌ها اصلاح کنید، سپس دوباره بررسی کنید.';
+      guide.insertBefore(slot,guide.firstChild);
+    }
+  };
   window.ptfDuplicateCaseKeepChanged=function(){var k=(document.getElementById('dupKeep')||{}).value,r=document.getElementById('dupRemove');if(!r)return;var opts=Array.prototype.slice.call(r.options).filter(function(o){return o.value&&o.value!==k;});if(opts.length===1)r.value=opts[0].value;};
   window.ptfDuplicateCaseMergeCommit=function(no,planHash){
     if(!canRepairOfferWin()){alert('فقط ادمین یا رئیس هیئت‌مدیره مجاز است');return;}
+    var _dupBtn=document.getElementById('dupMergeBtn');if(_dupBtn&&_dupBtn.disabled){alert('⛔ ادغام این دو پرونده به دلیل ناسازگاری هویت مسدود است.');return;}
     var keep=(document.getElementById('dupKeep')||{}).value||'',remove=(document.getElementById('dupRemove')||{}).value||'',reason=((document.getElementById('dupReason')||{}).value||'').trim(),confirmWord=((document.getElementById('dupConfirm')||{}).value||'').trim();
     if(!keep||!remove||keep===remove){alert('پرونده اصلی و پرونده تکراری را جداگانه انتخاب کنید');return;}if(!reason){alert('دلیل ادغام الزامی است');return;}if(confirmWord!=='ادغام'){alert('برای جلوگیری از اشتباه، کلمه «ادغام» را دقیق وارد کنید');return;}
     var btn=document.getElementById('dupMergeBtn');if(btn){btn.disabled=true;btn.textContent='در حال پیش‌بررسی و ثبت اتمیک…';}
@@ -287,7 +303,19 @@
     if(f.type!=='duplicate_case'){insertFindingGuide(genericFindingGuide(f),'راهنمای بررسی و رفع یافته');return;}
     if(!canRepairOfferWin()){insertFindingGuide(genericFindingGuide(f)+'<div style="color:#b45309;margin-top:8px">نمایش جزئیات و ادغام پرونده فقط برای ادمین یا رئیس هیئت‌مدیره مجاز است.</div>','راهنمای پرونده تکراری');return;}
     insertFindingGuide('<div style="padding:24px;text-align:center">در حال دریافت پیش‌بررسی بدون تغییر از سرور…</div>','راهنمای پرونده تکراری');
-    api('duplicate_case_plan',{offerNo:f.offerNo}).then(function(d){insertFindingGuide(duplicateCaseGuide(f,d.plan||{}),'رفع گام‌به‌گام پرونده‌های تکراری — '+f.offerNo);}).catch(function(e){insertFindingGuide('<div style="background:#fee2e2;color:#991b1b;border-radius:10px;padding:12px;margin-top:12px">پیش‌بررسی سرور دریافت نشد: '+esc(e.message)+'</div>','راهنمای پرونده تکراری');});
+    var openPlan=function(){
+      api('duplicate_case_plan',{offerNo:f.offerNo}).then(function(d){
+        var plan=d.plan||{};
+        insertFindingGuide(duplicateCaseGuide(f,plan),'رفع گام‌به‌گام پرونده‌های تکراری — '+f.offerNo);
+        /* v34.7.16: اگر سرور دو پرونده را از نظر هویت ناسازگار اعلام کرد، پیش از commit
+           دکمه را مسدود و علت را صریح نشان می‌دهیم؛ گارد سرور همچنان fail-closed می‌ماند. */
+        if(plan.mergeable===false)window.ptfDuplicateCaseMergeBlocked(plan.conflictField||'');
+      }).catch(function(e){insertFindingGuide('<div style="background:#fee2e2;color:#991b1b;border-radius:10px;padding:12px;margin-top:12px">پیش‌بررسی سرور دریافت نشد: '+esc(e.message)+'</div>','راهنمای پرونده تکراری');});
+    };
+    /* v34.7.16: پیش از plan، یک pull فقط‌خواندنی می‌زنیم تا یافته/کش محلی با دادهٔ سرور هم‌راستا
+       شود؛ در غیر این صورت ممکن است ادغام روی داده‌ای که سرور دیگر آن را ندارد اجرا شود. */
+    if(typeof window.ptfSyncPullNow==='function')window.ptfSyncPullNow(function(){openPlan();});
+    else openPlan();
   };
 
   /* اصلاح برد فقط از مرز فرمان سرور انجام می‌شود؛ مسیر قدیمی backup.js که localStorage
