@@ -37,6 +37,7 @@ var SUITE = [
   { g: 'سایت/رهگیری', f: '_tools/uat/tester410-v34.7.5-random-public-tracking.js' },
   { g: 'پیشنهاد/یکپارچگی', f: '_tools/uat/tester411-v34.7.6-winner-repair-parity.js' },
   { g: 'کیفیت داده/پرونده', f: '_tools/uat/tester412-v34.7.7-guided-case-dedup.js' },
+  { g: 'کیفیت داده/کش', f: '_tools/uat/tester417-v34.7.14-duplicate-case-projection-cache.js' },
   { g: 'بایگانی/سال مالی', f: '_tools/uat/tester413-v34.7.8-archived-test-purge.js' },
   { g: 'بایگانی/پرونده فعال', f: '_tools/uat/tester414-v34.7.9-shared-archive-preserve.js' },
   { g: 'موبایل/حساب مشتری', f: '_tools/uat/tester415-v34.7.10-mobile-customer-integrity.js' },
@@ -49,7 +50,7 @@ var SUITE = [
 ];
 
 var SYNTAX = [
-  'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js',
+  'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js', 'crm/client-server.js',
   'crm/finance-write-guard.js', 'crm/fiscal.js', 'crm/supplier-finance.js',
   'crm/opex.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
   'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js',

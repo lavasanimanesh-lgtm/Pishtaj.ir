@@ -101,6 +101,11 @@ function sd_sync_dir(): string {
     if (!is_dir($d)) @mkdir($d, 0750, true);
     return $d;
 }
+function sd_current_rev(): int {
+    $metaFile = sd_sync_dir() . '/meta.json';
+    $meta = is_file($metaFile) ? json_decode((string)@file_get_contents($metaFile), true) : [];
+    return is_array($meta) ? (int)($meta['_global']['rev'] ?? 0) : 0;
+}
 function sd_read(string $key): array {
     $file = sd_sync_dir() . '/' . $key . '.json';
     $value = null;
@@ -565,7 +570,9 @@ try {
     $old = sd_idempotency($commands, $idem);
     if ($old) {
         $keys = is_array($old['result']['keys'] ?? null) ? $old['result']['keys'] : [];
-        sd_out(['ok'=>true,'idempotent'=>true,'result'=>$old['result'],'data'=>sd_snapshot($keys)]);
+        /* retry همان command نیز projection جاری را با watermark دقیق می‌گیرد؛ بدون
+           rev، کلاینت ناچار بود آن را روی نسخهٔ نامعلوم cache اعمال کند. */
+        sd_out(['ok'=>true,'idempotent'=>true,'rev'=>sd_current_rev(),'result'=>$old['result'],'data'=>sd_snapshot($keys)]);
     }
     $changes = [];
     $result = [];
