@@ -195,9 +195,18 @@
   window.ptfAdminHardDelete=function(type,id,onDone){if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}api('admin_delete_plan',{entityType:type,entityId:id,idempotencyKey:'DELETE-PLAN|'+type+'|'+id+'|'+Date.now()}).then(function(d){var p=d.plan||{},deps=p.dependencies||[],lines=deps.map(function(x){return x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n');/* AW-03 (v34.7.22): وابستگی‌های خارج از دامنه (چک/خرید/تعهد/مرجوعی/بارنامه/پروژه) فقط اطلاع‌رسانی می‌شوند؛ حذف آن‌ها را پاک نمی‌کند. */var adv=p.advisoryDependencies||[],advTxt=adv.length?('\n\n⚠️ اقلام مرتبط که با این حذف پاک نمی‌شوند و ممکن است یتیم بمانند ('+adv.length+' مورد):\n'+adv.slice(0,12).map(function(x){return '• '+x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n')+(adv.length>12?'\n… و '+(adv.length-12)+' مورد دیگر':'')):'';if(!confirm('پیش‌بررسی حذف '+type+':\n'+(lines||'بدون وابستگی')+advTxt+(p.periodLocked?'\n\n⚠️ دوره مالی قفل است و با حذف، Snapshot نامعتبر و دوره باز می‌شود.':'')+'\n\nادامه؟'))return;var reason=prompt('دلیل حذف قطعی ادمین:','اشتباه ثبت/رکورد تکراری');if(reason===null||!reason.trim())return;return api('admin_delete_commit',{entityType:type,entityId:id,cascade:deps.length>0,confirm:'PTF-ADMIN-HARD-DELETE',reason:reason.trim(),idempotencyKey:'HARD-DELETE|'+type+'|'+id}).then(function(r){toast('حذف اتمیک انجام و Tombstone ثبت شد'+((r.result||{}).invalidatedYear?'؛ دوره '+r.result.invalidatedYear+' باز شد':''),'warn');if(typeof onDone==='function')onDone(r);});}).catch(function(e){alert('⛔ حذف انجام نشد: '+e.message);});};
 
   /* ----- Case financial workspace ----- */
-  function caseReceipts(id) { return data('ptf_crm_case_receipts').filter(function (r) { return r && r.caseId === id; }); }
-  function caseInvoices(id) { return data('ptf_crm_invoices').filter(function (i) { return i && i.caseId === id; }); }
-  function activeAllocations(id) { return data('ptf_crm_receipt_allocations').filter(function (a) { return a && a.caseId === id && active(a); }); }
+  /* ممیزی v34.7.26: رکوردهای قدیمی ممکن است caseId را با `cd` پرونده ذخیره کرده باشند در
+     حالی که کلید نمایش `_id||cd` است؛ نتیجه «ناپدید شدن» رسید/فاکتور در پنجرهٔ پرونده بود.
+     نام‌های مستعار فقط از خود رکورد پرونده گرفته می‌شوند (بدون حدس). */
+  function caseAliases(id) {
+    var out = {}; var key = String(id || ''); if (key) out[key] = true;
+    var c = data('ptf_crm_deals').filter(function (x) { return x && (String(x._id || '') === key || String(x.cd || '') === key); })[0];
+    if (c) { [c._id, c.cd].forEach(function (a) { var k = String(a || ''); if (k) out[k] = true; }); }
+    return out;
+  }
+  function caseReceipts(id) { var al = caseAliases(id); return data('ptf_crm_case_receipts').filter(function (r) { return r && al[String(r.caseId || '')]; }); }
+  function caseInvoices(id) { var al = caseAliases(id); return data('ptf_crm_invoices').filter(function (i) { return i && al[String(i.caseId || '')]; }); }
+  function activeAllocations(id) { var al = caseAliases(id); return data('ptf_crm_receipt_allocations').filter(function (a) { return a && al[String(a.caseId || '')] && active(a); }); }
   function caseTotals(c) {
     var rs=caseReceipts(caseId(c)).filter(function(r){return active(r)&&r.status==='posted';});
     var ins=caseInvoices(caseId(c)).filter(active);

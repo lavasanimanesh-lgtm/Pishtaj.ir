@@ -147,6 +147,24 @@ invoices.forEach(function (i) {
   });
 });
 
+/* ---------- E: caseId ذخیره‌شده با «نام مستعار» پرونده (ممیزی v34.7.27) ---------- */
+report.E = [];
+(function () {
+  var alias = {};
+  cases.forEach(function (c) {
+    if (!c) return; var canon = idOf(c); if (!canon) return;
+    [c._id, c.cd].forEach(function (a) { var k = S(a); if (k && k !== canon) alias[k] = canon; });
+  });
+  function scan(rows, kind) {
+    rows.forEach(function (r) {
+      if (!r) return;
+      var k = S(r.caseId);
+      if (k && alias[k]) report.E.push({ kind: kind, id: idOf(r), storedCaseId: k, canonicalCaseId: alias[k], amount: +r.amountIRR || +r.amt || +r.amount || 0 });
+    });
+  }
+  scan(receipts, 'receipt'); scan(invoices, 'invoice'); scan(db.ptf_crm_receipt_allocations, 'allocation');
+})();
+
 if (asJson) { console.log(JSON.stringify(report, null, 2)); process.exit(0); }
 
 function h(t) { console.log('\n' + t + '\n' + '─'.repeat(t.length)); }
@@ -182,6 +200,11 @@ report.C.forEach(function (x) { console.log('🔴 ' + x.names.join(' / ') + ' �
 h('D) پیشنهاد بدون شماره (تطبیق undefined===undefined)');
 if (!report.D.length) console.log('موردی یافت نشد. ✅');
 report.D.forEach(function (x) { console.log('🔴 ' + x.count + ' پیشنهاد بدون شماره | ' + x.invoicesWithoutOfferNo + ' فاکتور بدون offerNo\n  ' + x.note); });
+
+h('E) رکوردهایی که caseId را با نام مستعار پرونده ذخیره کرده‌اند');
+if (!report.E.length) console.log('موردی یافت نشد. ✅');
+report.E.slice(0, 20).forEach(function (x) { console.log('🟡 ' + x.kind + ' ' + x.id + ' — ' + money(x.amount) + ' ریال | ذخیره‌شده: ' + x.storedCaseId + ' ⇒ متعارف: ' + x.canonicalCaseId); });
+if (report.E.length) console.log('   (از v34.7.27 این‌ها در محاسبه دیده می‌شوند؛ یکسان‌سازی رکورد اختیاری و در گام پاکسازی است.)');
 
 h('ردیف‌های پیش‌پرداخت (fromAdvance) و تطابق مالکیت');
 var mism = report.advanceRows.filter(function (r) { return r.mismatch; });

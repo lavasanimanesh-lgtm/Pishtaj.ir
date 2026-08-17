@@ -84,6 +84,22 @@
     return { caseId: '', bound: hits.length ? 'ambiguous' : 'none' };
   }
 
+  /* ---------- شناسهٔ متعارف پرونده (ممیزی v34.7.26) ----------
+     رکوردهای قدیمی گاهی caseId را با `cd` پرونده ذخیره کرده‌اند در حالی که همان پرونده
+     `_id` سروری هم دارد؛ چون همه‌جا کلید گروه‌بندی `_id||cd` است، رسید و فاکتورِ یک پرونده
+     در دو سطل جدا می‌افتادند و تخصیص هرگز انجام نمی‌شد («پول دیده نمی‌شود»).
+     این نگاشت فقط نام‌های مستعارِ اثبات‌شدهٔ یک رکورد را به شناسهٔ متعارف همان رکورد
+     ترجمه می‌کند؛ هیچ حدسی زده نمی‌شود و چیزی نوشته نمی‌شود. */
+  function caseAliasMap(cases) {
+    var map = {};
+    (cases || []).forEach(function (c) {
+      if (!c) return;
+      var canon = idOf(c); if (!canon) return;
+      [c._id, c.cd].forEach(function (a) { var k = String(a || ''); if (k) map[k] = canon; });
+    });
+    return map;
+  }
+
   /* ---------- بازسازی محلی تخصیص FIFO (آینهٔ sd_rebuild_allocations) ----------
      فقط محاسبه در حافظه؛ خروجی نقشهٔ invoiceKey → {base, vat} و بستانکاری هر رسید. */
   function computeAllocations(scope) {
@@ -91,17 +107,20 @@
     var invoices = (scope && scope.invoices) || list('ptf_crm_invoices');
     var receipts = (scope && scope.receipts) || list('ptf_crm_case_receipts');
     var byCaseInv = {}, byCaseRcp = {}, invAlloc = {}, rcpCredit = {}, binding = {};
+    var alias = caseAliasMap(cases);
+    function canon(id) { var k = String(id || ''); return alias[k] || k; }
 
     invoices.forEach(function (i) {
       if (!activeInvoice(i)) return;
       var r = resolveCaseIdOfInvoice(i, cases);
+      r = { caseId: canon(r.caseId), bound: r.bound };
       binding[idOf(i)] = r;
       if (!r.caseId) return;
       (byCaseInv[r.caseId] = byCaseInv[r.caseId] || []).push(i);
     });
     receipts.forEach(function (r) {
       if (!activeReceipt(r)) return;
-      var cid = String(r.caseId || '');
+      var cid = canon(r.caseId);
       if (!cid) return;
       (byCaseRcp[cid] = byCaseRcp[cid] || []).push(r);
     });
@@ -206,7 +225,9 @@
   /* ---------- وضعیت پرونده ---------- */
   function caseState(caseRec) {
     var snap = snapshot(), cid = idOf(caseRec);
-    var receipts = list('ptf_crm_case_receipts').filter(function (r) { return activeReceipt(r) && String(r.caseId || '') === cid; });
+    /* ممیزی v34.7.26: رسیدی که با نام مستعار دیگرِ همین پرونده ذخیره شده هم دیده می‌شود. */
+    var aliases = {}; [caseRec && caseRec._id, caseRec && caseRec.cd].forEach(function (a) { var k = String(a || ''); if (k) aliases[k] = true; });
+    var receipts = list('ptf_crm_case_receipts').filter(function (r) { return activeReceipt(r) && aliases[String(r.caseId || '')]; });
     var invoices = list('ptf_crm_invoices').filter(function (i) { return activeInvoice(i) && (snap.binding[idOf(i)] || {}).caseId === cid; });
     var received = receipts.reduce(function (s, r) { return s + n(r.amountIRR || r.amt); }, 0);
     var credit = receipts.reduce(function (s, r) {

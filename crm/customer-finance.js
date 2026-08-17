@@ -28,20 +28,26 @@
     var no = String(offerNo == null ? '' : offerNo); if (!no) return null;
     return (offers || getData('ptf_crm_offers')).filter(function (x) { return x && String(x.no || '') === no; })[0] || null;
   };
-  function cfNameIsUnique(nameKey) {
-    if (!nameKey) return false;
-    var hits = {};
+  /* یک‌بار در هر فراخوانی invs ساخته می‌شود (نه به‌ازای هر نام) تا پیمایش تکراری فهرست
+     مشتریان روی حساب‌های پرتعداد هزینه‌ساز نشود. */
+  function cfNameOwners() {
+    var map = {};
     (getData('ptf_crm_customers') || []).forEach(function (c) {
       if (!c) return;
-      [c.co || c.name, c.coEn].filter(Boolean).forEach(function (n) { if (cfNormalizeName(n) === nameKey) hits[String(c.cd || '')] = true; });
+      [c.co || c.name, c.coEn].filter(Boolean).forEach(function (n) {
+        var k = cfNormalizeName(n); if (!k) return;
+        map[k] = map[k] || {};
+        map[k][String(c.cd || '')] = true;
+      });
     });
-    return Object.keys(hits).length === 1;
+    return map;
   }
   function invs(cd) {
     var offers = getData('ptf_crm_offers'), customer = cust(cd);
     var normalizeName = cfNormalizeName;
+    var nameOwners = cfNameOwners();
     var customerNames = [customer && (customer.co || customer.name), customer && customer.coEn].filter(Boolean).map(normalizeName)
-      .filter(function (n) { return cfNameIsUnique(n); });
+      .filter(function (n) { return n && Object.keys(nameOwners[n] || {}).length === 1; });
     return getData('ptf_crm_invoices').filter(function (i) {
       if (!active(i)) return false;
       if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) { if (i.isUnofficial) return false; }

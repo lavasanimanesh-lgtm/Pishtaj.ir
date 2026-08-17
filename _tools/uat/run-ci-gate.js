@@ -54,6 +54,9 @@ var SUITE = [
   { g: 'تحلیل/تکمیل تصمیم‌یار', f: '_tools/uat/tester427-v34.7.24-analytics-completion.js' },
   { g: 'مالی/مطالبات', f: '_tools/uat/tester421-v34.7.18-ar-receipt-integrity.js' },
   { g: 'تحلیل/تصمیم‌یار', f: '_tools/uat/tester420-v34.7.17-decision-support-metrics.js' },
+  { g: 'پرونده/اکشن فاکتور', f: '_tools/uat/tester428-v34.7.26-salesfile-invoice-actions.js' },
+  { g: 'مالی/نشت بین‌مشتری', f: '_tools/uat/tester429-v34.7.26-cross-customer-advance-leak.js' },
+  { g: 'مالی/شناسهٔ متعارف پرونده', f: '_tools/uat/tester430-v34.7.27-case-id-alias.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
@@ -69,7 +72,7 @@ var SYNTAX = [
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
   'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
   'crm/contracts.js', 'crm/docsx.js', 'crm/bridge.js', 'crm/offerlock.js',
-  'crm/projects.js', 'crm/reports.js', 'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'
+  'crm/projects.js', 'crm/reports.js', 'crm/sync.js', 'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'
 ];
 
 function failCount(out) {
