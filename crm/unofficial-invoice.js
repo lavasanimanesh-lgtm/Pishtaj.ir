@@ -1214,13 +1214,83 @@ window.unofficialInvoiceCollectOffers = function (deal) {
   };
 };
 
+/* ========================================================================
+   v34.7.29 — «قیمت پیش‌فرض پیش‌فاکتور = قیمت پیشنهاد(های) مالی پرونده»
+   ------------------------------------------------------------------------
+   ریشهٔ باگ: هر ردیف قیمتش را فقط از «همان پیشنهادی که از آن آمده» می‌گرفت.
+   پس اگر پیشنهاد انتخاب‌شده فنی بود (TO) یا قلمی در CO قیمت داشت ولی در پیشنهاد
+   مبدأ نداشت، قیمت پیش‌فرض صفر می‌شد؛ در حالت تجمیعی هم نتیجه به «ترتیب» پیشنهادها
+   وابسته بود: اگر TO زودتر می‌آمد، ردیفِ بی‌قیمت آن برنده می‌شد و قیمت CO دور ریخته
+   می‌شد. ردیف‌های صفر هم موقع صدور بی‌صدا حذف می‌شدند (فیلتر price > 0).
+   قاعدهٔ جدید (خواستهٔ کارفرما): قیمت پیش‌فرض هر قلم = قیمت همان قلم در پیشنهاد مالی
+   پرونده (CO، و اگر نبود TC). قیمت خودِ پیشنهاد همیشه اولویت دارد؛ «دفتر قیمت» فقط
+   جای خالی را پر می‌کند و هرگز قیمت واقعی را بازنویسی نمی‌کند. کاربر همچنان می‌تواند
+   هر ردیف را دستی ویرایش کند. ======================================================================== */
+
+/* کلید تطبیق قلم: کد کالا، سپس نام، سپس شرح (نرمال‌شده). */
+window.unofficialInvoiceItemKey = function (it, offerNo, idx) {
+  function norm(v) { return String(v == null ? '' : v).replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); }
+  var pc = norm(it && (it.pcode || it.prodCd || it.productCd));
+  if (pc) return 'P:' + pc;
+  var nm = norm(it && (it.name || it.desc));
+  if (nm) return 'N:' + nm;
+  return 'X:' + String(offerNo || '') + '|' + idx;
+};
+
+/* دفتر قیمت پرونده: فقط از پیشنهادهای مالی (CO سپس TC) ساخته می‌شود.
+   ارز هر قیمت هم نگه داشته می‌شود تا قیمت با ارز متفاوت بی‌صدا جایگزین نشود. */
+window.unofficialInvoicePriceBook = function (offers, preferredNo) {
+  var book = {};
+  /* اولویت مرجع قیمت: پیشنهاد برندهٔ پرونده ← CO برنده ← سایر CO ← TC.
+     (پیشنهاد باخته/قدیمی نباید قیمت پیشنهاد برنده را کنار بزند.) */
+  function rank(o) {
+    var won = String(o.st || '') === 'won';
+    if (preferredNo && String(o.no || '') === String(preferredNo)) return 0;
+    if (o.kind === 'CO') return won ? 1 : 2;
+    if (o.kind === 'TC') return won ? 3 : 4;
+    return 9;
+  }
+  var ranked = (offers || []).filter(function (o) { return o && (o.items || []).length; })
+    .map(function (o, i) { return { o: o, i: i, r: rank(o) }; })
+    .sort(function (a, b) { return a.r - b.r || a.i - b.i; })
+    .map(function (x) { return x.o; });
+  ranked.forEach(function (o) {
+    if (o.kind !== 'CO' && o.kind !== 'TC') return;   /* فقط پیشنهاد مالی مرجع قیمت است */
+    (o.items || []).forEach(function (it, idx) {
+      var price = +it.price || 0; if (price <= 0) return;
+      var key = window.unofficialInvoiceItemKey(it, o.no, idx);
+      if (book[key]) return;                           /* اولین (CO با اولویت) برنده است */
+      book[key] = { price: price, currency: o.currency || 'IRR', offerNo: o.no || '', kind: o.kind || '' };
+    });
+  });
+  return book;
+};
+
+/* پرکردن قیمت خالی یک ردیف از دفتر قیمت — بدون بازنویسی قیمت واقعی و بدون مخلوط‌کردن ارز. */
+function unInvApplyPriceBook(line, it, offer, book, idx) {
+  if (!book || (+line.price || 0) > 0) return line;
+  var hit = book[window.unofficialInvoiceItemKey(it, offer && offer.no, idx)];
+  if (!hit) return line;
+  var lineCur = (offer && offer.currency) || 'IRR';
+  if (String(hit.currency || 'IRR') !== String(lineCur)) {
+    line.priceNeedsAttention = true;                   /* ارز ناهمخوان: عمداً پر نمی‌شود */
+    return line;
+  }
+  line.price = hit.price;
+  line.lineTotal = (+line.qty || 0) * hit.price;
+  line.priceFromOffer = hit.offerNo;                   /* شفافیت: قیمت از کدام پیشنهاد آمد */
+  line.priceDefaulted = true;
+  return line;
+}
+window.unofficialInvoiceApplyPriceBook = unInvApplyPriceBook;
+
 // ===== Helper: عکس‌برداری از اقلام یک پیشنهاد (deep-clone قلم‌به‌قلم) =====
-window.unofficialInvoiceSnapshotLines = function (offer) {
+window.unofficialInvoiceSnapshotLines = function (offer, priceBook) {
   if (!offer || !offer.items) return [];
   return (offer.items || []).map(function (it, idx) {
     var qty = +it.qty || 0;
     var price = +it.price || 0;
-    return {
+    var line = {
       idx: idx,
       name: it.name || '',
       desc: it.desc || '',
@@ -1234,29 +1304,43 @@ window.unofficialInvoiceSnapshotLines = function (offer) {
       fromOffer: offer.no || '',
       fromKind: offer.kind || ''
     };
+    return unInvApplyPriceBook(line, it, offer, priceBook, idx);
   });
 };
 
 // ===== Helper: ترکیب اقلام از چند پیشنهاد (برای حالت تجمیعی) =====
-window.unofficialInvoiceConsolidateLines = function (selectedOffers, priceSourceOffer) {
+window.unofficialInvoiceConsolidateLines = function (selectedOffers, priceSourceOffer, priceBook) {
   var lines = [];
   var seen = {};
+  /* v34.7.29: اگر دفتر قیمت داده نشود، از خود پیشنهادهای انتخاب‌شده ساخته می‌شود تا
+     رفتار پیش‌فرض همیشه «قیمت پیشنهاد مالی» باشد، حتی در فراخوان‌های قدیمی. */
+  var book = priceBook || window.unofficialInvoicePriceBook(
+    (selectedOffers || []).concat(priceSourceOffer ? [priceSourceOffer] : []),
+    priceSourceOffer && priceSourceOffer.no
+  );
   (selectedOffers || []).forEach(function (o) {
     if (!o || !o.items) return;
     o.items.forEach(function (it, idx) {
-      var key = String(it.pcode || it.name || it.desc || (o.no + '|' + idx));
-      if (seen[key]) return;
-      seen[key] = true;
+      var key = window.unofficialInvoiceItemKey(it, o.no, idx);
       var qty = +it.qty || 0;
       var price = +it.price || 0;
-      // پیش‌فرض قیمت از خود پیشنهاد مبدأ؛ اگر CO وجود دارد، بعداً کاربر می‌تواند ویرایش کند.
-      // هیچ «price copying» خودکار بین پیشنهادها؛ کاربر در دیالوگ اصلاح می‌کند.
-      lines.push({
+      var prev = seen[key];
+      if (prev) {
+        /* v34.7.29: تکرار قلم دیگر «اولین برنده» نیست؛ ردیفِ دارای قیمت واقعی برنده است.
+           پیش از این اگر پیشنهاد فنی زودتر می‌آمد، قیمت CO دور ریخته می‌شد. */
+        if ((+prev.price || 0) <= 0 && price > 0) {
+          prev.price = price; prev.priceOrig = price; prev.lineTotal = (+prev.qty || 0) * price;
+          prev.fromOffer = o.no || prev.fromOffer; prev.fromKind = o.kind || prev.fromKind;
+          prev.priceDefaulted = false; prev.priceNeedsAttention = false;
+        }
+        return;
+      }
+      var line = {
         idx: idx,
         name: it.name || '',
         desc: it.desc || '',
         unit: it.unit || '',
-        pcode: it.pcode || '',
+        pcode: it.pcode || it.prodCd || it.productCd || '',
         qtyOrig: qty,
         priceOrig: price,
         qty: qty,
@@ -1264,8 +1348,16 @@ window.unofficialInvoiceConsolidateLines = function (selectedOffers, priceSource
         lineTotal: qty * price,
         fromOffer: o.no || '',
         fromKind: o.kind || ''
-      });
+      };
+      seen[key] = line;
+      lines.push(line);
     });
+  });
+  /* پرکردن جای خالی قیمت‌ها از پیشنهاد مالی پرونده (پس از ادغام، تا ترتیب اثری نداشته باشد) */
+  lines.forEach(function (ln) {
+    unInvApplyPriceBook(ln, { pcode: ln.pcode, name: ln.name, desc: ln.desc },
+      { no: ln.fromOffer, currency: (selectedOffers || []).filter(function (o) { return o && o.no === ln.fromOffer; })[0] &&
+        (selectedOffers.filter(function (o) { return o && o.no === ln.fromOffer; })[0].currency || 'IRR') || 'IRR' }, book, ln.idx);
   });
   return lines;
 };
@@ -1313,7 +1405,10 @@ window.unofficialInvoiceBuilderOpen = function (dealCd) {
   document.querySelectorAll('#unInvBuilderDlg').forEach(function (el) { el.remove(); });
 
   var _co = collected.priceSourceOffer;
-  var initialLines = window.unofficialInvoiceSnapshotLines(_co);
+  /* v34.7.29: دفتر قیمت پرونده یک‌بار از پیشنهادهای مالی ساخته می‌شود و در هر دو حالت
+     (تک‌پیشنهاد/تجمیعی) مبنای پیش‌فرض قیمت است. */
+  var _priceBook = window.unofficialInvoicePriceBook(collected.offers, _deal.wonOffer || (_co && _co.no) || '');
+  var initialLines = window.unofficialInvoiceSnapshotLines(_co, _priceBook);
 
   // ذخیره حالت سراسری
   _unInvState = {
@@ -1322,6 +1417,7 @@ window.unofficialInvoiceBuilderOpen = function (dealCd) {
     mode: 'single',
     selectedOfferNos: _co ? [_co.no] : [collected.offers[0].no],
     lines: initialLines,
+    priceBook: _priceBook,
     cCurrency: (_co && _co.currency) ? _co.currency : 'IRR',
     cRate: (_co && +_co.fxRateRef) > 0 ? (+_co.fxRateRef) : 1
   };
@@ -1437,7 +1533,11 @@ window.buildUnInvBuilderRows = function (lines) {
     ln._pid = pid;
     return '<tr data-row-id="' + pid + '" data-from-offer="' + escP(ln.fromOffer || '') + '" class="un-row" style="border-bottom:1px solid #f1f5f9;">' +
       '<td style="padding:4px;text-align:center;"><button type="button" class="ba" style="color:#dc2626;padding:1px 5px;font-size:11px;" onclick="unofficialInvoiceBuilderRemoveRow(\'' + pid + '\')">حذف</button></td>' +
-      '<td style="padding:4px;font-size:10.5px;color:#475569;text-align:center;" dir="ltr">' + escP(ln.fromOffer || '—') + '<br><small style="color:#94a3b8;">' + escP(ln.fromKind || '') + '</small></td>' +
+      /* v34.7.29: منشأ قیمت شفاف است — اگر قیمت از پیشنهاد مالی دیگری پیش‌فرض شده، همان‌جا دیده می‌شود. */
+      '<td style="padding:4px;font-size:10.5px;color:#475569;text-align:center;" dir="ltr">' + escP(ln.fromOffer || '—') + '<br><small style="color:#94a3b8;">' + escP(ln.fromKind || '') + '</small>' +
+        (ln.priceDefaulted && ln.priceFromOffer ? '<br><small style="color:#0e7490;">قیمت از ' + escP(ln.priceFromOffer) + '</small>' : '') +
+        (ln.priceNeedsAttention ? '<br><small style="color:#b45309;">ارز پیشنهاد مالی متفاوت است — قیمت را دستی وارد کنید</small>' : '') +
+      '</td>' +
       '<td style="padding:4px;font-size:12px;"><b>' + escP(ln.name || '—') + '</b>' + (ln.desc && ln.desc !== ln.name ? '<br><small style="color:#94a3b8;">' + escP(ln.desc) + '</small>' : '') + '</td>' +
       '<td style="padding:4px;text-align:center;font-size:11px;">' + escP(unitFaFn(ln.unit)) + '</td>' +
       '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="qty" data-pid="' + pid + '" value="' + (+ln.qty || 0) + '" style="direction:ltr;padding:4px;width:70px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
@@ -1490,7 +1590,7 @@ window.reloadUnInvBuilderFromSelection = function (_dlg) {
     var _singleOffer = _unInvState.collected.offers.filter(function (o) { return o.no === _singleNo; })[0]
       || _unInvState.collected.priceSourceOffer
       || _unInvState.collected.offers[0];
-    __lines = window.unofficialInvoiceSnapshotLines(_singleOffer);
+    __lines = window.unofficialInvoiceSnapshotLines(_singleOffer, _unInvState.priceBook);
     _unInvState.selectedOfferNos = [_singleOffer.no];
   } else {
     var _checkedNos = Array.from(_dlg.querySelectorAll('.un-offer-row-chk:checked')).map(function (c) { return c.getAttribute('data-offer'); });
@@ -1500,7 +1600,7 @@ window.reloadUnInvBuilderFromSelection = function (_dlg) {
     }
     _unInvState.selectedOfferNos = _checkedNos;
     var _sel = _unInvState.collected.offers.filter(function (o) { return _checkedNos.indexOf(o.no) >= 0; });
-    __lines = window.unofficialInvoiceConsolidateLines(_sel, _unInvState.collected.priceSourceOffer);
+    __lines = window.unofficialInvoiceConsolidateLines(_sel, _unInvState.collected.priceSourceOffer, _unInvState.priceBook);
   }
   _unInvState.lines = __lines;
   var _tbody = _dlg.querySelector('#unRowsTbody');
@@ -1611,6 +1711,17 @@ window.unofficialInvoiceBuilderSubmit = function () {
   if (!validRows.length) {
     if (typeof alert === 'function') alert('⛔ حداقل یک قلم با تعداد و قیمت واحد بزرگ\u200cتر از صفر لازم است.');
     return;
+  }
+  /* v34.7.29: ردیف بدون قیمت دیگر بی‌صدا حذف نمی‌شود؛ چون قیمت پیش‌فرض از پیشنهاد مالی
+     پرونده پر می‌شود، ماندنِ صفر یعنی آن قلم در هیچ پیشنهاد مالی‌ای قیمت ندارد و کاربر
+     باید آگاهانه تصمیم بگیرد. */
+  var _zeroRows = _unInvState.lines.filter(function (l) { return (+l.qty || 0) > 0 && (+l.price || 0) <= 0; });
+  if (_zeroRows.length) {
+    var _names = _zeroRows.slice(0, 8).map(function (l) { return '• ' + (l.name || l.desc || '—'); }).join('\n');
+    var _msg = '⚠ ' + _zeroRows.length + ' قلم قیمت ندارد (در هیچ پیشنهاد مالی این پرونده قیمتی برایشان ثبت نشده):\n' +
+      _names + (_zeroRows.length > 8 ? '\n…' : '') +
+      '\n\nاین اقلام در پیش‌فاکتور درج نمی‌شوند. ادامه می‌دهید؟';
+    if (typeof confirm === 'function' && !confirm(_msg)) return;
   }
   var _linesWithTotal = _unInvState.lines.filter(function (l) {
     return (+l.qty || 0) > 0 && (+l.price || 0) > 0;

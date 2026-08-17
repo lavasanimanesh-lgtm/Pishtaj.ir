@@ -57,6 +57,7 @@ var SUITE = [
   { g: 'پرونده/اکشن فاکتور', f: '_tools/uat/tester428-v34.7.26-salesfile-invoice-actions.js' },
   { g: 'مالی/نشت بین‌مشتری', f: '_tools/uat/tester429-v34.7.26-cross-customer-advance-leak.js' },
   { g: 'مالی/شناسهٔ متعارف پرونده', f: '_tools/uat/tester430-v34.7.27-case-id-alias.js' },
+  { g: 'پرونده/پیش‌فاکتور', f: '_tools/uat/tester432-v34.7.29-proforma-price-defaults.js' },
   { g: 'معماری/پیشگیری', f: '_tools/uat/tester431-v34.7.28-architecture-guardrails.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
