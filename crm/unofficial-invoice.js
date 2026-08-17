@@ -1941,29 +1941,136 @@ window.unofficialInvoicePrintCases = function (ctx) {
   // مجوز: فقط نقش‌های ارشد (admin/chairman/ceo/commercial) یا نقش حسابدار.
   // سازگاری: PTF_SALES_DOMAIN_V2 فعال → علاوه بر محلی، فراخوان سرور ptfSalesDomainApi('void_unofficial_invoice', ...) در مسیر بعدی.
   // ========================================================================
+  /* INV-01 (v34.7.23 / فاز E): گاردهای مشترک ابطال — دقیقاً همان قواعد مسیر legacy
+     (نقش، وجود رکورد، فقط غیررسمی، ابطال‌نشده، سال مالی باز، دلیل و تأیید کاربر).
+     تنها یک بار نوشته شده تا مسیر سروری و مسیر legacy هرگز از هم واگرا نشوند. */
+  window.ptfUnofficialInvoiceVoidLocalGuards = function (invCd, onConfirmed) {
+    try {
+      var _role = (typeof curRole === 'function') ? curRole() : '';
+      var _isSnr = (typeof isSenior === 'function') && isSenior();
+      if (!_isSnr && _role !== 'accountant') {
+        if (typeof alert === 'function') alert('⛔ ابطال فاکتور غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+        return { ok: false, why: 'role' };
+      }
+    } catch (eRole) {}
+    var _inv = (getData('ptf_crm_invoices') || []).filter(function (x) { return x && (x.cd === invCd || x._id === invCd); })[0];
+    if (!_inv) { if (typeof alert === 'function') alert('⛔ فاکتور یافت نشد'); return { ok: false, why: 'not_found' }; }
+    if (!_inv.isUnofficial) { if (typeof alert === 'function') alert('⛔ این فاکتور رسمی است؛ ابطال آن از مسیر فاکتورهای رسمی انجام می‌شود'); return { ok: false, why: 'not_unofficial' }; }
+    if (_inv.status === 'void' || _inv.st === 'void' || _inv.voided === true) { if (typeof alert === 'function') alert('این فاکتور قبلاً ابطال شده است'); return { ok: false, why: 'already_void' }; }
+    var _invYear = '';
+    try {
+      var _invDateStr = String(_inv.invDate || _inv.t || '');
+      _invYear = (typeof ptfFiscalYearOf === 'function') ? ptfFiscalYearOf(_invDateStr) : ((_invDateStr.match(/(13|14)\d{2}/) || [])[0] || '');
+    } catch (eY) {}
+    if (_invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(_invYear)) {
+      if (typeof alert === 'function') alert('🔒 سال مالی ' + _invYear + ' قفل است؛ ابطال مجاز نیست. ابتدا دوره بازگشایی شود.');
+      return { ok: false, why: 'locked', year: _invYear };
+    }
+    var _reason = 'ابطال سیستمی (بدون UI)';
+    if (typeof prompt === 'function' && typeof confirm === 'function') {
+      var _rsn = prompt('دلیل ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» را وارد کنید:', 'اشتباه در صدور');
+      if (_rsn === null) return { ok: false, why: 'canceled' };
+      _reason = String(_rsn || '').trim();
+      if (!_reason) { if (typeof alert === 'function') alert('⛔ دلیل ابطال الزامی است'); return { ok: false, why: 'no_reason' }; }
+      if (!confirm('🗑 تأیید نهایی ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» :\n\n' +
+        '• رکورد فاکتور ابطال می‌شود (مطالبه از مانده مشتری حذف می‌شود)\n' +
+        '• مرجوعی‌های متصل باطل می‌شوند\n' +
+        '• تخصیص دریافت‌های پرونده آزاد و به بستانکاری همان پرونده برمی‌گردد\n' +
+        '• ضمیمهٔ فایل از پرونده جدا می‌شود\n\n' +
+        '⚠️ وصولی‌های واقعی و چک‌های متصل حذف/ابطال خودکار نمی‌شوند.\n\nادامه می‌دهید؟')) return { ok: false, why: 'canceled' };
+    }
+    return onConfirmed(_inv, _reason);
+  };
+
+  /* INV-01: آثار غیرمالی پس از تأیید سرور — ابطال مرجوعی متصل، جداکردن ضمیمه از
+     پرونده و ثبت timeline. هیچ‌کدام تخصیص/بستانکاری را دست نمی‌زنند (کار سرور است). */
+  window.ptfUnofficialInvoiceVoidAfterEffects = function (inv, reason) {
+    var _now = (typeof faDateTime === 'function') ? faDateTime() : '';
+    var _me = (typeof curSession === 'function' ? (curSession().name || '?') : '?');
+    var voidedReturns = 0, removedFiles = 0;
+    try {
+      var _rets = getData('ptf_crm_sales_returns') || [], _chg = false;
+      _rets.forEach(function (r) {
+        if (!r || r.status === 'void') return;
+        if (String(r.invoiceCd || '') !== String(inv.cd || '')) return;
+        r.status = 'void'; r.voidAt = _now; r.voidBy = _me; r.voidReason = reason; voidedReturns++; _chg = true;
+      });
+      if (_chg) setData('ptf_crm_sales_returns', _rets);
+    } catch (eR) {}
+    try {
+      if ((inv.files || []).length && inv.caseId) {
+        var _deals0 = getData('ptf_crm_deals') || [];
+        var _d0 = _deals0.filter(function (x) { return x && String(x._id || x.cd) === String(inv.caseId); })[0];
+        if (_d0) {
+          (inv.files || []).forEach(function (f) {
+            if (!f || !f.key) return;
+            var before = (_d0.docs || []).length;
+            _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
+            if ((_d0.docs || []).length !== before) removedFiles++;
+          });
+          setData('ptf_crm_deals', _deals0);
+        }
+      }
+    } catch (eF) {}
+    try {
+      if (inv.caseId) {
+        var _deals = getData('ptf_crm_deals') || [];
+        var _d = _deals.filter(function (x) { return x && String(x._id || x.cd) === String(inv.caseId); })[0];
+        if (_d) {
+          _d.timeline = _d.timeline || [];
+          _d.timeline.push({ t: _now, by: _me,
+            tx: '🗑 ابطال سروری صورتحساب غیررسمی ' + (inv.no || inv.cd) +
+                ' — دلیل: ' + reason + ' | مرجوعی ابطال‌شده: ' + voidedReturns + ' | ضمیمهٔ جداشده: ' + removedFiles +
+                ' | وصولی‌ها و چک‌های واقعی دست‌نخورده ماندند (بستانکاری پرونده)' });
+          setData('ptf_crm_deals', _deals);
+        }
+      }
+    } catch (eT) {}
+    return { voidedReturns: voidedReturns, removedFiles: removedFiles };
+  };
+
   window.ptfUnofficialInvoiceVoid = function (invCd) {
-    /* ── گارد ۰ (AR-01 / v34.7.19 — ایمنی داده) ────────────────────────────
-       چرا این گارد اضافه شد: در معماری Sales-Domain v35، تخصیص‌ها روی سرور و با
-       schema {invoiceId, amountIRR} ساخته می‌شوند، اما مرحلهٔ ۳ همین تابع با کلیدهای
-       {invoiceCd, amount} می‌گردد. نتیجه: هیچ تخصیصی reversed نمی‌شود، ولی حلقهٔ
-       بازسازی creditRemainIRR (مرحلهٔ ۳.۲) روی «همهٔ رسیدهای posted کل سیستم»
-       اجرا می‌شد و بستانکاری تمام پرونده‌ها را برابر کل مبلغ رسید می‌کرد؛ یعنی یک
-       کلیک، دادهٔ مالی همهٔ مشتریان را خراب می‌کرد.
-       تا آماده‌شدن endpoint سروری void_unofficial_invoice (فاز E)، این مسیر در حالت
-       v35 fail-closed است. مسیر legacy (بدون PTF_SALES_DOMAIN_V2) دست‌نخورده می‌ماند.
-       مرجع: ARENA-INDEPENDENT-VERIFICATION-AWARD-CHANGE-2026-08-17.md (یافتهٔ N1)
-             PLAN-REMAINING-FIXES-PHASED-2026-08-17.md (گام A1) */
-    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2
-        && typeof window.ptfUnofficialInvoiceVoidServer !== 'function') {
-      if (typeof alert === 'function') alert(
-        '⛔ ابطال صورتحساب غیررسمی در معماری فعلی باید از مسیر سرور انجام شود.\n\n' +
-        'مسیر محلی موقتاً غیرفعال است چون تخصیص‌های سروری را نادیده می‌گیرد و بستانکاری ' +
-        'سایر پرونده‌ها را هم خراب می‌کند.\n\n' +
-        'راه فعلی: تبدیل به فاکتور رسمی از مسیر «ثبت فاکتور رسمی» با انتخاب همین صورتحساب ' +
-        'به‌عنوان سند مبدأ (superseded می‌شود و تخصیص‌ها سروری بازسازی می‌شوند).'
-      );
-      try { if (typeof audit === 'function') audit('صورتحساب غیررسمی', 'تلاش برای ابطال محلی مسدود شد (AR-01) — ' + String(invCd || ''), String(invCd || '')); } catch (eA0) {}
-      return { ok: false, why: 'server_endpoint_required' };
+    /* ── مسیر v35 (INV-01 / v34.7.23 — فاز E) ─────────────────────────────
+       گارد موقت فاز A (fail-closed) اکنون جای خود را به مسیر سروری واقعی داده است.
+       در معماری v35، ابطال یک فرمان اتمیک سروری است: سند void می‌شود، تخصیص‌های همان
+       پرونده با قواعد قطعی بازسازی می‌شوند و مبلغ آزادشده به بستانکاری همان پرونده
+       برمی‌گردد؛ هیچ رسیدی حذف نمی‌شود. بلوک نوشتنِ مالیِ محلی (که schema سروری را
+       نمی‌شناخت و بستانکاری را خراب می‌کرد) در این مسیر اصلاً اجرا نمی‌شود.
+       آثار غیرمالی — ابطال مرجوعی‌های متصل، جداکردن ضمیمه از پرونده و timeline —
+       فقط پس از تأیید سرور اجرا می‌شوند.
+       مسیر legacy (بدون PTF_SALES_DOMAIN_V2) دست‌نخورده باقی مانده است. */
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2) {
+      if (typeof window.ptfUnofficialInvoiceVoidServer !== 'function') {
+        if (typeof alert === 'function') alert(
+          '⛔ ابطال صورتحساب غیررسمی از مسیر سرور انجام می‌شود، اما ماژول دامنهٔ فروش بارگذاری نشده است.\n\n' +
+          'صفحه را تازه کنید؛ در صورت تکرار، با پشتیبانی تماس بگیرید.'
+        );
+        return { ok: false, why: 'server_module_missing' };
+      }
+      return window.ptfUnofficialInvoiceVoidLocalGuards(invCd, function (_inv2, _reason2) {
+        return window.ptfUnofficialInvoiceVoidServer(_inv2._id || _inv2.cd, _reason2)
+          .then(function (res) {
+            /* آثار غیرمالی — فقط پس از تأیید سرور */
+            try { window.ptfUnofficialInvoiceVoidAfterEffects(_inv2, _reason2); } catch (eAf) {}
+            try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eAr2) {}
+            try { if (typeof audit === 'function') audit('فاکتور غیررسمی', 'ابطال سروری صورتحساب ' + (_inv2.no || _inv2.cd) + ' — دلیل: ' + _reason2, String(_inv2.cd || '')); } catch (eAu2) {}
+            if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی ابطال شد؛ مطالبه حذف و مبلغ آزادشده به بستانکاری پرونده برگشت.', 'ok');
+            if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR1) {} }
+            if (typeof renderReceivables === 'function') { try { renderReceivables(); } catch (eR2) {} }
+            return { ok: true, server: true, result: res };
+          })
+          .catch(function (e) {
+            var map = {
+              permission_denied: 'نقش فعلی مجاز به ابطال نیست',
+              already_void: 'این فاکتور قبلاً ابطال شده است',
+              fiscal_period_locked: 'سال مالی قفل است؛ ابتدا باید بازگشایی شود',
+              official_invoice_requires_void_invoice: 'این سند رسمی است و باید از مسیر ابطال فاکتور رسمی باطل شود',
+              invoice_not_found: 'فاکتور روی سرور پیدا نشد'
+            };
+            if (typeof alert === 'function') alert('⛔ ابطال انجام نشد و هیچ تغییری ثبت نشد: ' + (map[e.message] || e.message));
+            return { ok: false, why: e.message };
+          });
+      });
     }
 
     // ── گارد ۱: نقش مجاز (senior یا accountant) ─────────────────────────

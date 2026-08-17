@@ -269,6 +269,20 @@
   window.ptfReceiptCorrectOpen = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(r)window.ptfReceiptOpen(r.caseId,r); };
   window.ptfReceiptVoid = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(!r)return;var reason=prompt('دلیل ابطال دریافت:', 'اشتباه ثبت');if(reason===null||!reason.trim())return;api('void_receipt',{receiptId:id,reason:reason.trim()}).then(function(){toast('دریافت ابطال و اثر خزانه/تخصیص بازسازی شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(r.caseId);if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();}).catch(function(e){alert('⛔ '+e.message);}); };
 
+  /* ----- INV-01 (v34.7.23 / فاز E): ابطال سروری صورتحساب غیررسمی -----
+     مسیر واحد و اتمیک: سرور سند را void می‌کند، تخصیص‌های همان پرونده را با قواعد قطعی
+     بازسازی می‌کند و مبلغ آزادشده به بستانکاری همان پرونده برمی‌گردد. رسید هرگز حذف نمی‌شود.
+     آثار غیرمالیِ محلی (ابطال مرجوعی‌های متصل، جداکردن ضمیمه از پرونده، timeline) پس از
+     تأیید سرور و توسط ماژول غیررسمی انجام می‌شوند. */
+  window.ptfUnofficialInvoiceVoidServer = function (invoiceId, reason) {
+    if (!canFinance()) return Promise.reject(new Error('permission_denied'));
+    return api('void_unofficial_invoice', {
+      invoiceId: String(invoiceId || ''),
+      reason: String(reason || ''),
+      idempotencyKey: 'VOID-UNOFFICIAL|' + String(invoiceId || '') + '|' + String(reason || '').slice(0, 40)
+    }).then(function (d) { return (d && d.result) || {}; });
+  };
+
   /* ----- Universal financial attachment manager for non-mandatory records. ----- */
   function ownerAttachments(type,id){return data('ptf_crm_fin_attachments').filter(function(a){return a&&a.ownerType===type&&a.ownerId===id&&active(a);});}
   window.ptfFinAttachOpen=function(type,id){

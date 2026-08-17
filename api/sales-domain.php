@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.22';
+const SD_SERVICE_VERSION = '34.7.23';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1065,6 +1065,36 @@ try {
     }
     elseif ($action === 'void_invoice') {
         sd_require_role(SD_FIN_ROLES);$id=sd_text($body['invoiceId']??'',100);$ii=-1;foreach($invoices as $i=>$inv)if(is_array($inv)&&((string)($inv['_id']??'')===$id||(string)($inv['cd']??'')===$id)){$ii=$i;break;}if($ii<0)sd_out(['ok'=>false,'error'=>'invoice_not_found'],404);$inv=$invoices[$ii];if(!sd_active($inv))sd_out(['ok'=>false,'error'=>'already_void'],409);if(sd_is_locked($snaps,(string)($inv['invDate']??'')))sd_out(['ok'=>false,'error'=>'fiscal_period_locked'],409);$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'official_invoice','entityId'=>$inv['_id'],'kind'=>'legal_void','beforeSnapshot'=>$inv,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$inv['status']='void';$inv['voidAt']=sd_now();$inv['voidBy']=$user;$inv['voidReason']=$reason;$invoices[$ii]=$inv;sd_rebuild_allocations((string)$inv['caseId'],$receipts,$invoices,$allocations,$cases);$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_corrections'=>$corrections];$result=['invoiceId'=>$inv['_id'],'voided'=>true];
+    }
+    elseif ($action === 'void_unofficial_invoice') {
+        /* INV-01 (v34.7.23 / فاز E): ابطال سروری صورتحساب غیررسمی.
+           تا پیش از این فقط مسیر محلی وجود داشت و چون تخصیص‌های سروری را نمی‌شناخت،
+           هم اثر مالی واقعی نمی‌گذاشت و هم بستانکاری رسیدها را خراب می‌کرد (AR-01).
+           این فرمان دقیقاً قرینهٔ void_invoice است اما مخصوص اسناد غیررسمی:
+             • رسیدها هرگز حذف نمی‌شوند؛ فقط تخصیص با قواعد قطعی بازسازی می‌شود.
+             • مبلغ آزادشده به‌صورت creditRemainIRR همان پرونده باقی می‌ماند.
+             • سند حذف نمی‌شود؛ status=void با دلیل/کاربر/زمان و correction ثبت می‌گردد.
+           مرجع: گزارش تلفیقی §۷.۲ | PLAN-REMAINING-FIXES-PHASED-2026-08-17.md (گام E1) */
+        sd_require_role(SD_FIN_ROLES);
+        $id = sd_text($body['invoiceId'] ?? '', 120);
+        $ii = -1;
+        foreach ($invoices as $i => $inv) if (is_array($inv) && ((string)($inv['_id'] ?? '') === $id || (string)($inv['cd'] ?? '') === $id)) { $ii = $i; break; }
+        if ($ii < 0) sd_out(['ok'=>false,'error'=>'invoice_not_found'], 404);
+        $inv = $invoices[$ii];
+        if (empty($inv['isUnofficial'])) sd_out(['ok'=>false,'error'=>'official_invoice_requires_void_invoice'], 422);
+        if (!sd_active($inv)) sd_out(['ok'=>false,'error'=>'already_void','status'=>(string)($inv['status'] ?? '')], 409);
+        if (sd_is_locked($snaps, (string)($inv['invDate'] ?? $inv['t'] ?? ''))) sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year((string)($inv['invDate'] ?? $inv['t'] ?? ''))], 409);
+        $reason = sd_text($body['reason'] ?? '', 500);
+        if ($reason === '') sd_out(['ok'=>false,'error'=>'reason_required'], 422);
+        $corrections[] = ['_id'=>sd_uuid('COR'),'entityType'=>'unofficial_invoice','entityId'=>$inv['_id'] ?? $inv['cd'] ?? '','kind'=>'void','beforeSnapshot'=>$inv,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+        $inv['status'] = 'void'; $inv['st'] = 'void'; $inv['voidAt'] = sd_now(); $inv['voidBy'] = $user; $inv['voidReason'] = $reason;
+        $invoices[$ii] = $inv;
+        $caseId = (string)($inv['caseId'] ?? '');
+        if ($caseId !== '') sd_rebuild_allocations($caseId, $receipts, $invoices, $allocations, $cases);
+        $freed = 0;
+        foreach ($receipts as $r) if (is_array($r) && (string)($r['caseId'] ?? '') === $caseId && sd_active($r) && (string)($r['status'] ?? '') === 'posted') $freed += (int)($r['creditRemainIRR'] ?? 0);
+        $changes = ['ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_corrections'=>$corrections];
+        $result = ['invoiceId'=>$inv['_id'] ?? $inv['cd'] ?? '','voided'=>true,'caseId'=>$caseId,'caseCreditIRR'=>$freed];
     }
     elseif ($action === 'replace_invoice_attachment') {
         sd_require_role(SD_FIN_ROLES);$invoiceId=sd_text($body['invoiceId']??'',100);$oldId=sd_text($body['attachmentId']??'',100);$ii=-1;foreach($invoices as $i=>$inv)if(is_array($inv)&&((string)($inv['_id']??'')===$invoiceId||(string)($inv['cd']??'')===$invoiceId)){$ii=$i;break;}if($ii<0)sd_out(['ok'=>false,'error'=>'invoice_not_found'],404);$file=is_array($body['file']??null)?$body['file']:[];if(!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_file'],422);$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$found=false;$oldVersion=0;foreach(($invoices[$ii]['files']??[])as &$f)if((string)($f['_id']??'')===$oldId){$f['status']='replaced';$f['replacedAt']=sd_now();$f['replaceReason']=$reason;$oldVersion=(int)($f['version']??1);$found=true;break;}unset($f);if(!$found)sd_out(['ok'=>false,'error'=>'attachment_not_found'],404);$file['_id']=sd_uuid('ATT');$file['version']=$oldVersion+1;$file['status']='active';$file['replacesAttachmentId']=$oldId;$file['category']=$file['category']??'accounting_official_invoice';$invoices[$ii]['files'][]=$file;if(!sd_invoice_files_ok($invoices[$ii]['files']))sd_out(['ok'=>false,'error'=>'required_official_attachment_missing'],422);foreach($attachments as &$a)if((string)($a['_id']??'')===$oldId){$a['status']='replaced';$a['replacedAt']=sd_now();$a['replaceReason']=$reason;}unset($a);$attachments[]=['_id'=>$file['_id'],'ownerType'=>'official_invoice','ownerId'=>$invoices[$ii]['_id'],'category'=>$file['category'],'version'=>$file['version'],'objectKey'=>$file['key'],'name'=>$file['name']??'','mimeType'=>$file['contentType']??'','size'=>$file['size']??0,'status'=>'active','replacesAttachmentId'=>$oldId,'uploadedBy'=>$user,'uploadedAt'=>sd_now()];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$oldId,'kind'=>'replace','afterSnapshot'=>$file,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];$result=['attachmentId'=>$file['_id'],'replaced'=>$oldId];

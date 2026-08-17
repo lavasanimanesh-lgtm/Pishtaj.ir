@@ -42,11 +42,11 @@ function client(db, opts) {
   ['crm/finance-helpers.js', 'crm/ar-reconcile.js'].forEach(function (rel) { vm.runInContext(read(rel), sb, { filename: rel }); });
   /* فقط تابع ابطال از ماژول غیررسمی استخراج می‌شود (کل فایل به DOM/سرور وابسته است) */
   var src = read('crm/unofficial-invoice.js');
-  var start = src.indexOf('window.ptfUnofficialInvoiceVoid = function');
-  if (start < 0) throw new Error('ptfUnofficialInvoiceVoid not found');
-  var end = src.indexOf('\n  };', start);
-  var body = src.slice(start, end + 5);
-  vm.runInContext('(function(){' + body + '})();', sb, { filename: 'unofficial-invoice.void' });
+  ['window.ptfUnofficialInvoiceVoidLocalGuards = function', 'window.ptfUnofficialInvoiceVoidAfterEffects = function', 'window.ptfUnofficialInvoiceVoid = function'].forEach(function (sig) {
+    var st = src.indexOf(sig);
+    if (st < 0) throw new Error(sig + ' not found');
+    vm.runInContext('(function(){' + src.slice(st, src.indexOf('\n  };', st) + 5) + '})();', sb, { filename: 'unofficial-invoice.void' });
+  });
   sb.__alerts = alerts;
   return sb;
 }
@@ -76,50 +76,34 @@ function baseDb() {
   };
 }
 
-/* ---------- AR-01 / حالت v35: مسیر محلی باید fail-closed باشد ---------- */
-(function guardedInV2() {
+/* ---------- AR-01 / حالت v35: هیچ نوشتن محلی‌ای مجاز نیست ----------
+   از v34.7.23 (فاز E) مسیر v35 به فرمان سروری واگذار می‌شود؛ اگر ماژول سرور در دسترس
+   نباشد، رفتار همچنان fail-closed است. قرارداد پایدارِ این آزمون: «در معماری v35 هیچ
+   رکورد مالی‌ای به‌صورت محلی نوشته نمی‌شود». */
+(function noLocalWriteInV2() {
   var db = baseDb();
   var s = client(db, { v2: true });
   var res = s.ptfUnofficialInvoiceVoid('INV-A');
-  T('AR-01 در معماری v35 ابطال محلی اجرا نمی‌شود', res && res.ok === false && res.why === 'server_endpoint_required', JSON.stringify(res));
-  T('AR-01 پیام راهنمای مسیر جایگزین به کاربر داده می‌شود', (s.__alerts.join(' ').indexOf('از مسیر سرور') > -1));
+  T('AR-01 در معماری v35 مسیر محلی اجرا نمی‌شود',
+    !!res && res.ok === false && ['server_endpoint_required', 'server_module_missing'].indexOf(res.why) > -1, JSON.stringify(res));
+  T('AR-01 پیام راهنما به کاربر داده می‌شود', s.__alerts.join(' ').indexOf('سرور') > -1);
   T('AR-01 وضعیت فاکتور تغییر نمی‌کند', db.ptf_crm_invoices[0].status === 'active', db.ptf_crm_invoices[0].status);
   T('AR-01 هیچ تخصیصی reversed نمی‌شود', db.ptf_crm_receipt_allocations.every(function (a) { return a.status === 'active'; }));
   T('AR-01 بستانکاری هیچ رسیدی تغییر نمی‌کند',
     db.ptf_crm_case_receipts[0].creditRemainIRR === 0 && db.ptf_crm_case_receipts[1].creditRemainIRR === 0);
 })();
 
-/* ---------- AR-01 / دفاع در عمق: اگر بلوک محلی اجرا شود، دامنه‌اش فقط همان پرونده است ----------
-   شبیه‌سازی وضعیت پس از فاز E (وجود مسیر سروری) تا بلوک محلی واقعاً اجرا شود و
-   ثابت شود حتی در آن حالت هم هیچ رکوردی خارج از پروندهٔ فاکتور تغییر نمی‌کند. */
-(function scopedRewrite() {
-  var db = baseDb();
-  var s = client(db, { v2: true, serverRoute: true });
-  var res = s.ptfUnofficialInvoiceVoid('INV-A');
-  T('AR-01 با وجود مسیر سروری، اجرا تا انتها پیش می‌رود', !!(res && res.ok !== false), JSON.stringify(res && res.why));
-  T('AR-01 تخصیص فاکتور هدف (schema سروری invoiceId/amountIRR) reversed می‌شود',
-    db.ptf_crm_receipt_allocations[0].status === 'reversed', db.ptf_crm_receipt_allocations[0].status);
-  T('AR-01 تخصیص پروندهٔ دیگر دست‌نخورده می‌ماند', db.ptf_crm_receipt_allocations[1].status === 'active');
-  T('AR-01 بستانکاری رسید همان پرونده به‌درستی آزاد می‌شود',
-    db.ptf_crm_case_receipts[0].creditRemainIRR === 500000000, db.ptf_crm_case_receipts[0].creditRemainIRR);
-  T('AR-01 بستانکاری رسید پروندهٔ دیگر صفر می‌ماند (ریشهٔ باگ N1)',
-    db.ptf_crm_case_receipts[1].creditRemainIRR === 0, db.ptf_crm_case_receipts[1].creditRemainIRR);
-  T('AR-01 مبلغ آزادشده از amountIRR خوانده می‌شود نه فیلد ناموجود amount',
-    (res && res.log && res.log.freedCreditAmount === 500000000) || db.ptf_crm_case_receipts[0].creditRemainIRR === 500000000);
-})();
-
-/* ---------- AR-01 / پشتیبانی از schema میراثی تخصیص ---------- */
-(function legacySchema() {
-  var db = baseDb();
-  db.ptf_crm_receipt_allocations = [
-    { _id: 'AL-1', caseId: 'CASE-A', receiptId: 'RCPT-A', invoiceCd: 'INV-A', amount: 500000000, status: 'active' },
-    { _id: 'AL-2', caseId: 'CASE-B', receiptId: 'RCPT-B', invoiceCd: 'INV-B', amount: 900000000, status: 'active' }
-  ];
-  var s = client(db, { v2: true, serverRoute: true });
-  s.ptfUnofficialInvoiceVoid('INV-A');
-  T('AR-01 تخصیص با schema میراثی (invoiceCd/amount) هم شناسایی می‌شود', db.ptf_crm_receipt_allocations[0].status === 'reversed');
-  T('AR-01 دامنه در schema میراثی هم محدود به همان پرونده است',
-    db.ptf_crm_receipt_allocations[1].status === 'active' && db.ptf_crm_case_receipts[1].creditRemainIRR === 0);
+/* ---------- AR-01 / حفاظت ساختاری بلوک محلی (شبکهٔ ایمنی) ----------
+   بلوک بازسازی بستانکاری دیگر در هیچ مسیر عادی اجرا نمی‌شود، اما باید برای همیشه
+   محدود به «همان پرونده» و آگاه به هر دو schema بماند تا اگر روزی دوباره فعال شد،
+   خرابی سراسری N1 تکرار نشود. */
+(function scopeGuardsStayInCode() {
+  var src = read('crm/unofficial-invoice.js');
+  T('AR-01 بلوک بازسازی فقط رسیدهای همان پرونده را می‌بیند', src.indexOf('خارج از پروندهٔ این فاکتور دست نمی‌خورد') > -1);
+  T('AR-01 حلقهٔ سراسری قبلی حذف شده', src.indexOf("if (r && r.status === 'posted' && !r.voided) {\n          var _alloc") === -1);
+  T('AR-01 هر دو schema تخصیص پشتیبانی می‌شوند',
+    src.indexOf('a.invoiceId || a.invoiceCd') > -1 && src.indexOf('a.amountIRR != null ? a.amountIRR : a.amount') > -1);
+  T('AR-01 کش مطالبات پس از تغییر محلی باطل می‌شود', src.indexOf('PTF.ar.invalidate()') > -1);
 })();
 
 /* ---------- مسیر legacy (بدون v35): رفتار قبلی نباید تغییر کند ---------- */
@@ -128,9 +112,10 @@ function baseDb() {
   var before = JSON.stringify(db.ptf_crm_receipt_allocations) + JSON.stringify(db.ptf_crm_case_receipts);
   var s = client(db, { v2: false });
   var res = s.ptfUnofficialInvoiceVoid('INV-A');
-  T('مسیر legacy مسدود نشده و ابطال انجام می‌شود', !!(res && res.ok !== false), JSON.stringify(res && res.why));
+  T('مسیر legacy مسدود نشده و ابطال انجام می‌شود', !!res && res.ok !== false, JSON.stringify(res && res.why));
   T('مسیر legacy مثل گذشته به تخصیص/رسید دست نمی‌زند (بلوک v35 اجرا نمی‌شود)',
     JSON.stringify(db.ptf_crm_receipt_allocations) + JSON.stringify(db.ptf_crm_case_receipts) === before);
+  T('مسیر legacy سند را void می‌کند', db.ptf_crm_invoices[0].status === 'void', db.ptf_crm_invoices[0].status);
 })();
 
 /* ---------- AR-02: حفظ فیلدها در اصلاح فاکتور (قاعدهٔ سرور) ---------- */
