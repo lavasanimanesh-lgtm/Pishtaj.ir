@@ -131,6 +131,43 @@
       var parentCase = parentNo ? caseByOffer(parentNo) : null;
       if (parentCase && confirm('این پیشنهاد به‌عنوان متمم برنده به پرونده «' + (parentCase.inqNo || parentCase.wonOffer || caseId(parentCase)) + '» متصل شود؟\n\nلغو = تشکیل پرونده مستقل')) attachCaseId = caseId(parentCase);
     }
+    /* AW-02 (v34.7.22): هشدار پروندهٔ موازی.
+       ریشه: سرور فقط پرونده‌ای را «مرتبط» می‌داند که rootOfferId/wonOffer/offerNo آن با همین
+       پیشنهاد بخورد. اگر کاربر یک CO جایگزین/موازی برای همان استعلام و همان مشتری بسازد و
+       آن را بدون علامت متمم برنده کند، سرور بی‌صدا پروندهٔ دوم مستقل می‌ساخت و از آن پس
+       مطالبات/وصولی/آمار روی دو پرونده پخش می‌شد. دیالوگ اتصال قبلاً فقط برای پیشنهادهای
+       علامت‌خوردهٔ متمم ظاهر می‌شد. اکنون قبل از ساخت پروندهٔ دوم، انتخاب صریح گرفته می‌شود.
+       مرجع: بررسی مستقل N5 | گام D2 نقشهٔ فازبندی */
+    if (!attachCaseId) {
+      var _sibs = data('ptf_crm_deals').filter(function (c) {
+        if (!c || !active(c)) return false;
+        if (caseBelongsToOffer(c, o)) return false;                       /* پروندهٔ خودِ همین پیشنهاد */
+        var sameInq = identity(c.inqNo) && identity(o.inqNo) && identity(c.inqNo) === identity(o.inqNo);
+        if (!sameInq) return false;
+        var cb = identity(c.buyerCd), ob = identity(o.buyerCd);
+        if (cb && ob && cb !== ob) return false;
+        if (!cb && !ob) { var cc = identity(c.buyerCo), oc = identity(o.buyerCo); if (cc && oc && cc !== oc) return false; }
+        var cCur = String(c.currency || 'IRR').toUpperCase(), oCur = String(o.currency || 'IRR').toUpperCase();
+        return cCur === oCur;
+      });
+      if (_sibs.length === 1) {
+        var _sib = _sibs[0];
+        var _lbl = (_sib.inqNo || _sib.wonOffer || caseId(_sib)) + (_sib.buyerCo ? ' — ' + _sib.buyerCo : '');
+        var _ans = confirm('⚠️ برای همین درخواست و همین مشتری، پروندهٔ فعال «' + _lbl + '» وجود دارد.\n\n' +
+          'تأیید = اتصال این پیشنهاد به همان پرونده به‌عنوان متمم (مبلغ به قرارداد همان پرونده اضافه می‌شود)\n' +
+          'لغو = ادامه با تشکیل پروندهٔ دوم مستقل');
+        if (_ans) attachCaseId = caseId(_sib);
+        else if (!confirm('🔀 پروندهٔ دوم مستقل برای همان درخواست ساخته می‌شود.\n\n' +
+          'از این پس مطالبات، وصولی و آمار روی دو پرونده پخش می‌شود و ادغام بعدی نیازمند مسیر «پروندهٔ تکراری» است.\n\nمطمئن هستید؟')) {
+          if (selEl) selEl.value = o.st || 'sent';
+          return;
+        }
+      } else if (_sibs.length > 1) {
+        alert('⛔ بیش از یک پروندهٔ فعال برای همین درخواست و مشتری وجود دارد. ابتدا از مسیر «پروندهٔ تکراری» تعیین‌تکلیف شود؛ هیچ پروندهٔ جدیدی حدس زده نمی‌شود.');
+        if (selEl) selEl.value = o.st || 'sent';
+        return;
+      }
+    }
     if (!confirm('🏆 ثبت قطعی برد پیشنهاد ' + no + '\n\nبرد و تشکیل/اتصال پرونده در یک فرمان سروری انجام می‌شود و پیشنهاد پس از آن قفل خواهد شد. ادامه می‌دهید؟')) { if(selEl)selEl.value=o.st||'sent'; return; }
     if (selEl) selEl.disabled = true;
     toast('در حال ثبت اتمیک برد و پرونده…', 'info');
@@ -155,7 +192,7 @@
 
   window.ptfMarkOfferAmendment=function(no){var o=findOffer(no);if(!o)return;var parents=data('ptf_crm_offers').filter(function(x){return x&&x.no!==no&&x.st==='won'&&!x.rialOf&&x.buyerCd===o.buyerCd&&String(x.currency||'IRR')===String(o.currency||'IRR')&&casesForOffer(x).length===1;});if(!parents.length){alert('برای همین مشتری و ارز، پیشنهاد برنده دارای پرونده یافت نشد.');return;}var hint=parents.map(function(x){return x.no+' — '+(x.buyerCo||'');}).join('\n');var parent=prompt('شماره پیشنهاد پایه برنده را وارد کنید:\n'+hint,parents[0].no);if(parent===null)return;parent=parent.trim();if(!parents.some(function(x){return x.no===parent;})){alert('پیشنهاد پایه معتبر نیست');return;}api('mark_amendment',{offerNo:no,parentOfferNo:parent}).then(function(){toast('پیشنهاد به‌عنوان متمم مستقل علامت‌گذاری شد؛ هنگام برد اتصال یا پرونده مستقل انتخاب می‌شود','ok');if(typeof renderOffers==='function')renderOffers();}).catch(function(e){alert('⛔ '+e.message);});};
 
-  window.ptfAdminHardDelete=function(type,id,onDone){if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}api('admin_delete_plan',{entityType:type,entityId:id,idempotencyKey:'DELETE-PLAN|'+type+'|'+id+'|'+Date.now()}).then(function(d){var p=d.plan||{},deps=p.dependencies||[],lines=deps.map(function(x){return x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n');if(!confirm('پیش‌بررسی حذف '+type+':\n'+(lines||'بدون وابستگی')+(p.periodLocked?'\n\n⚠️ دوره مالی قفل است و با حذف، Snapshot نامعتبر و دوره باز می‌شود.':'')+'\n\nادامه؟'))return;var reason=prompt('دلیل حذف قطعی ادمین:','اشتباه ثبت/رکورد تکراری');if(reason===null||!reason.trim())return;return api('admin_delete_commit',{entityType:type,entityId:id,cascade:deps.length>0,confirm:'PTF-ADMIN-HARD-DELETE',reason:reason.trim(),idempotencyKey:'HARD-DELETE|'+type+'|'+id}).then(function(r){toast('حذف اتمیک انجام و Tombstone ثبت شد'+((r.result||{}).invalidatedYear?'؛ دوره '+r.result.invalidatedYear+' باز شد':''),'warn');if(typeof onDone==='function')onDone(r);});}).catch(function(e){alert('⛔ حذف انجام نشد: '+e.message);});};
+  window.ptfAdminHardDelete=function(type,id,onDone){if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}api('admin_delete_plan',{entityType:type,entityId:id,idempotencyKey:'DELETE-PLAN|'+type+'|'+id+'|'+Date.now()}).then(function(d){var p=d.plan||{},deps=p.dependencies||[],lines=deps.map(function(x){return x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n');/* AW-03 (v34.7.22): وابستگی‌های خارج از دامنه (چک/خرید/تعهد/مرجوعی/بارنامه/پروژه) فقط اطلاع‌رسانی می‌شوند؛ حذف آن‌ها را پاک نمی‌کند. */var adv=p.advisoryDependencies||[],advTxt=adv.length?('\n\n⚠️ اقلام مرتبط که با این حذف پاک نمی‌شوند و ممکن است یتیم بمانند ('+adv.length+' مورد):\n'+adv.slice(0,12).map(function(x){return '• '+x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n')+(adv.length>12?'\n… و '+(adv.length-12)+' مورد دیگر':'')):'';if(!confirm('پیش‌بررسی حذف '+type+':\n'+(lines||'بدون وابستگی')+advTxt+(p.periodLocked?'\n\n⚠️ دوره مالی قفل است و با حذف، Snapshot نامعتبر و دوره باز می‌شود.':'')+'\n\nادامه؟'))return;var reason=prompt('دلیل حذف قطعی ادمین:','اشتباه ثبت/رکورد تکراری');if(reason===null||!reason.trim())return;return api('admin_delete_commit',{entityType:type,entityId:id,cascade:deps.length>0,confirm:'PTF-ADMIN-HARD-DELETE',reason:reason.trim(),idempotencyKey:'HARD-DELETE|'+type+'|'+id}).then(function(r){toast('حذف اتمیک انجام و Tombstone ثبت شد'+((r.result||{}).invalidatedYear?'؛ دوره '+r.result.invalidatedYear+' باز شد':''),'warn');if(typeof onDone==='function')onDone(r);});}).catch(function(e){alert('⛔ حذف انجام نشد: '+e.message);});};
 
   /* ----- Case financial workspace ----- */
   function caseReceipts(id) { return data('ptf_crm_case_receipts').filter(function (r) { return r && r.caseId === id; }); }

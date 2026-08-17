@@ -49,6 +49,7 @@ var SUITE = [
   { g: 'مالی/ایمنی داده', f: '_tools/uat/tester422-v34.7.19-ar-data-safety.js' },
   { g: 'مالی/صدور غیررسمی', f: '_tools/uat/tester423-v34.7.20-unofficial-issue-path.js' },
   { g: 'مالی/چرخهٔ عمر و مرجوعی', f: '_tools/uat/tester424-v34.7.21-lifecycle-returns.js' },
+  { g: 'فروش/گاردهای برد', f: '_tools/uat/tester425-v34.7.22-award-guards.js' },
   { g: 'مالی/مطالبات', f: '_tools/uat/tester421-v34.7.18-ar-receipt-integrity.js' },
   { g: 'تحلیل/تصمیم‌یار', f: '_tools/uat/tester420-v34.7.17-decision-support-metrics.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },

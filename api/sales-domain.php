@@ -37,6 +37,11 @@ const SD_WIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
 const SD_OFFER_REPAIR_ROLES = ['admin', 'chairman'];
 const SD_RFQ_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
 const SD_ADMIN_ROLES = ['admin'];
+/* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
+   window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
+   ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
+const SD_SERVICE_VERSION = '34.7.22';
+
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
     'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments',
@@ -656,7 +661,7 @@ function sd_migration_report(): array {
 
 $readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan', 'archived_case_purge_plan'], true);
 if ($readOnly) {
-    if ($action === 'migration_dry_run') { sd_require_role(SD_ADMIN_ROLES); sd_out(['ok'=>true,'report'=>sd_migration_report(),'version'=>'34.6.0']); }
+    if ($action === 'migration_dry_run') { sd_require_role(SD_ADMIN_ROLES); sd_out(['ok'=>true,'report'=>sd_migration_report(),'version'=>SD_SERVICE_VERSION]); }
     if ($action === 'archived_case_purge_plan') {
         sd_require_role(SD_OFFER_REPAIR_ROLES);
         $projectNo=sd_text($body['projectNo']??'',160);if($projectNo==='')sd_out(['ok'=>false,'error'=>'project_number_required'],422);
@@ -673,9 +678,9 @@ if ($readOnly) {
     sd_require_role(SD_FIN_ROLES);
     if ($action === 'health') {
         $d = sd_snapshot();
-        sd_out(['ok'=>true,'counts'=>array_map('count', $d),'migration'=>sd_migration_report(),'version'=>'34.6.0']);
+        sd_out(['ok'=>true,'counts'=>array_map('count', $d),'migration'=>sd_migration_report(),'version'=>SD_SERVICE_VERSION]);
     }
-    sd_out(['ok'=>true,'data'=>sd_snapshot(),'version'=>'34.6.0']);
+    sd_out(['ok'=>true,'data'=>sd_snapshot(),'version'=>SD_SERVICE_VERSION]);
 }
 
 /* Shared with crm.php data_push so a legacy client cannot interleave a whole-array
@@ -790,6 +795,12 @@ try {
         if($oi<0||$pi<0)sd_out(['ok'=>false,'error'=>'offer_or_parent_not_found'],404);$offer=$offers[$oi];$parent=$offers[$pi];
         if(($parent['st']??'')!=='won')sd_out(['ok'=>false,'error'=>'parent_not_won'],422);
         if((string)($offer['buyerCd']??'')!==(string)($parent['buyerCd']??'')||strtoupper((string)($offer['currency']??'IRR'))!==strtoupper((string)($parent['currency']??'IRR')))sd_out(['ok'=>false,'error'=>'amendment_customer_or_currency_mismatch'],422);
+        /* AW-01 (v34.7.22): متمم فقط دلتای مثبت است. sd_num علامت منفی را نگه می‌دارد و
+           فرم پیشنهاد هم محدودیت علامت ندارد، بنابراین یک offer با جمع صفر/منفی می‌توانست
+           به‌طور مکانیکی contractAmount پرونده را کم کند — بدون نوع متمم، بدون دلیل/تأیید و
+           بدون لغو خطوط قبلی. کاهش قراردادی باید در فاکتور/اصلاحیه منعکس شود، نه در متمم.
+           مرجع: گزارش تلفیقی §۵.۳ | گام D1 نقشهٔ فازبندی */
+        if(sd_offer_total($offer)<=0)sd_out(['ok'=>false,'error'=>'invalid_amendment_amount','total'=>sd_offer_total($offer)],422);
         $offerId=sd_offer_id($offer);$parentId=sd_offer_id($parent);$offer['isAmendment']=true;$offer['amendmentOf']=$parentNo;$offer['amendmentOfOfferId']=$parentId;$offer['amendmentMarkedAt']=sd_now();$offer['amendmentMarkedBy']=$user;$offers[$oi]=$offer;$offers[$pi]=$parent;
         $changes=['ptf_crm_offers'=>$offers];$result=['offerId'=>$offerId,'parentOfferId'=>$parentId];
     }
@@ -815,6 +826,8 @@ try {
             if ($ci < 0) sd_out(['ok'=>false,'error'=>'target_case_not_found'],404);
             $case = $cases[$ci]; sd_case_id($case);
             if ((string)($case['buyerCd'] ?? '') !== (string)($offer['buyerCd'] ?? '') || strtoupper((string)($case['currency'] ?? 'IRR')) !== strtoupper((string)($offer['currency'] ?? 'IRR'))) sd_out(['ok'=>false,'error'=>'amendment_customer_or_currency_mismatch'],422);
+            /* AW-01 (v34.7.22): همان قاعده در لحظهٔ اتصال متمم به پرونده هم اعمال می‌شود. */
+            if (sd_offer_total($offer) <= 0) sd_out(['ok'=>false,'error'=>'invalid_amendment_amount','total'=>sd_offer_total($offer)],422);
             $case['linkedOffers'] = is_array($case['linkedOffers'] ?? null) ? $case['linkedOffers'] : [];
             foreach ($case['linkedOffers'] as $linked) if ((string)($linked['offerId'] ?? '') === $offerId) sd_out(['ok'=>true,'idempotent'=>true,'case'=>$case]);
             $case['linkedOffers'][] = ['offerId'=>$offerId,'offerNo'=>$offer['no'],'relationType'=>'amendment','effectiveAt'=>sd_now(),'linkedBy'=>$user,'amount'=>sd_offer_total($offer)];
@@ -935,7 +948,28 @@ try {
         else sd_out(['ok'=>false,'error'=>'unsupported_entity'],422);
         if(!$target)sd_out(['ok'=>false,'error'=>'entity_not_found'],404);
         $ownerIds=[$entityId];foreach($deps as $d)if(in_array((string)($d['type']??''),['invoice','receipt','case'],true))$ownerIds[]=(string)($d['id']??'');foreach($attachments as $a)if(is_array($a)&&sd_active($a)&&in_array((string)($a['ownerId']??''),$ownerIds,true))$deps[]=['type'=>'attachment','id'=>$a['_id']??'','name'=>$a['name']??$a['objectKey']??''];
-        if($action==='admin_delete_plan'){@flock($lock,LOCK_UN);@fclose($lock);sd_out(['ok'=>true,'plan'=>['entityType'=>$entityType,'entityId'=>$entityId,'target'=>$target,'dependencies'=>$deps,'requiresCascade'=>count($deps)>0,'periodLocked'=>sd_is_locked($snaps,(string)($target['invDate']??$target['receivedAt']??$target['t']??''))]]);}
+        /* AW-03 (v34.7.22): کشف وابستگی‌های خارج از دامنهٔ Sales-Domain — فقط «گزارش» برای
+           پیش‌بررسی حذف. پیش از این plan فقط فاکتور/رسید/تخصیص/ضمیمه را می‌دید و ادمین بدون
+           اطلاع از چک، خرید واقعی، تعهد خرید، مرجوعی، بارنامه و QC تصمیم می‌گرفت؛ نتیجه‌اش
+           می‌توانست رکورد یتیم باشد. رفتار commit تغییر نکرده: این اقلام cascade نمی‌شوند و
+           فقط با پرچم advisory در پاسخ می‌آیند تا کاربر آگاهانه تصمیم بگیرد.
+           مرجع: گزارش تلفیقی §۱۱.۲ | گام D3 نقشهٔ فازبندی */
+        $advisory=[];
+        if($entityType==='case'||$entityType==='invoice'){
+            $caseKeys=[];$invKeys=[];$offerNos=[];
+            if($entityType==='case'){$caseKeys[(string)($target['_id']??'')]=true;$caseKeys[(string)($target['cd']??'')]=true;foreach([$target['wonOffer']??'',$target['offerNo']??'']as $ono)if(trim((string)$ono)!=='')$offerNos[trim((string)$ono)]=true;foreach($invoices as $x)if(is_array($x)&&in_array((string)($x['caseId']??''),array_keys($caseKeys),true)){$invKeys[(string)($x['_id']??'')]=true;$invKeys[(string)($x['cd']??'')]=true;if(trim((string)($x['offerNo']??''))!=='')$offerNos[trim((string)$x['offerNo'])]=true;}}
+            else{$invKeys[(string)($target['_id']??'')]=true;$invKeys[(string)($target['cd']??'')]=true;if(trim((string)($target['offerNo']??''))!=='')$offerNos[trim((string)$target['offerNo'])]=true;$caseKeys[(string)($target['caseId']??'')]=true;}
+            unset($caseKeys[''],$invKeys[''],$offerNos['']);
+            $scan=function(string $key,callable $match,string $type)use(&$advisory){foreach(sd_read($key) as $row){if(!is_array($row))continue;if($match($row))$advisory[]=['type'=>$type,'id'=>(string)($row['_id']??$row['cd']??$row['no']??''),'amount'=>(float)sd_num($row['amt']??$row['amount']??$row['totalAmount']??0)];}};
+            $scan('ptf_crm_cheques_received',function($r)use($invKeys,$caseKeys){return isset($invKeys[(string)($r['sourceInvoiceCd']??'')])||isset($invKeys[(string)($r['invoiceCd']??'')])||isset($caseKeys[(string)($r['caseId']??'')]);},'cheque_received');
+            $scan('ptf_crm_cheques_issued',function($r)use($caseKeys){return isset($caseKeys[(string)($r['caseId']??'')]);},'cheque_issued');
+            $scan('ptf_crm_sales_returns',function($r)use($invKeys,$offerNos){return isset($invKeys[(string)($r['invoiceCd']??'')])||isset($offerNos[trim((string)($r['offerNo']??''))]);},'sales_return');
+            $scan('ptf_crm_buycmp',function($r)use($offerNos){return isset($offerNos[trim((string)($r['sourceOfferNo']??''))]);},'purchase_compare');
+            $scan('ptf_crm_payables',function($r)use($offerNos){return isset($offerNos[trim((string)($r['offerNo']??''))]);},'payable');
+            $scan('ptf_crm_packinglists',function($r)use($offerNos){return isset($offerNos[trim((string)($r['offerNo']??''))]);},'packing_list');
+            $scan('ptf_crm_projects',function($r)use($offerNos){return isset($offerNos[trim((string)($r['offerNo']??''))]);},'project');
+        }
+        if($action==='admin_delete_plan'){@flock($lock,LOCK_UN);@fclose($lock);sd_out(['ok'=>true,'plan'=>['entityType'=>$entityType,'entityId'=>$entityId,'target'=>$target,'dependencies'=>$deps,'advisoryDependencies'=>$advisory,'advisoryNote'=>$advisory?'این اقلام با حذف پاک نمی‌شوند و ممکن است یتیم بمانند؛ پیش از حذف تعیین‌تکلیف شوند.':'','requiresCascade'=>count($deps)>0,'periodLocked'=>sd_is_locked($snaps,(string)($target['invDate']??$target['receivedAt']??$target['t']??''))]]);}
         if(($body['confirm']??'')!=='PTF-ADMIN-HARD-DELETE')sd_out(['ok'=>false,'error'=>'delete_confirmation_required'],422);if($deps&&empty($body['cascade']))sd_out(['ok'=>false,'error'=>'dependencies_require_explicit_cascade','dependencies'=>$deps],409);$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
         $date=(string)($target['invDate']??$target['receivedAt']??$target['t']??'');$invalidYear=sd_invalidate_period($snaps,$date,$user,'حذف ادمین: '.$reason);$touched=[];
         $deleted[]=['id'=>$entityId,'kind'=>strtoupper($entityType),'label'=>$target['no']??$target['cd']??$entityId,'reason'=>$reason,'by'=>$user,'iso'=>sd_now(),'snapshot'=>$target,'dependencies'=>$deps,'periodInvalidated'=>$invalidYear];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>$entityType,'entityId'=>$entityId,'kind'=>'admin_hard_delete','beforeSnapshot'=>$target,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
