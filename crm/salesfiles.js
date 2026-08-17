@@ -1196,6 +1196,24 @@
       /* UI-01 (v34.7.20): شناسهٔ سروری پرونده اولویت دارد؛ گیرنده هر دو شناسه را می‌پذیرد. */
       'sfUnofficialInvoiceNew(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'پرونده' }
     );
+    /* P4–P6 (v34.7.31): بازرسی قلم‌به‌قلم، بازنگری سند برد و گزارش آن — همگی از خود پرونده.
+       مرجع: ASSESSMENT-AWARD-REVISION-AND-REF-PRICE-2026-08-17.md بند ۳ */
+    if (r.wonOffer) {
+      postActions += postAction(
+        'inspection-items', '🔬', 'بازرسی قلم‌به‌قلم', 'ثبت اقلام مردود بازرسی و سرنوشت آن‌ها (انبار / عودت به فروشنده / دوباره‌کاری / اسقاط)',
+        'ptfCaseInspectionOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'اقلام مردود' }
+      );
+      postActions += postAction(
+        'award-revise', '✏️', 'بازنگری سند برد', 'حذف اقلام مردود یا ثبت قیمت جدید — سند برد قبلی بایگانی و سند جایگزین ثبت می‌شود',
+        'ptfAwardReviseOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'سند جایگزین' }
+      );
+      if ((r.awardRevisions || []).length || (r.inspections || []).length) {
+        postActions += postAction(
+          'award-report', '📑', 'گزارش بازنگری', 'گزارش بازنگری سند برد و سرنوشت اقلام مردود (چاپ + CSV)',
+          'ptfAwardRevisionReport(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'گزارش' }
+        );
+      }
+    }
     postActions += postAction(
       'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',
       'ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'زیان پروژه' }

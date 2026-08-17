@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.30';
+const SD_SERVICE_VERSION = '34.7.31';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -842,6 +842,112 @@ try {
         }
         $offers[$oi] = $offer; $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases];
     }
+    elseif ($action === 'revise_award') {
+        /* P5 (v34.7.31) — بازنگری سند برد از پروندهٔ فروش.
+           سناریوی کارفرما: پس از برد، در بازرسی بعضی اقلام مردود می‌شوند و بعضی اقلام با
+           قیمت جدید پیش‌فاکتور می‌شوند. تا امروز سند برد قفل بود و «متمم» فقط دلتای مثبت
+           می‌پذیرفت؛ تنها راه، دور زدن سیستم بود.
+           قواعد قطعی این فرمان:
+             • سند برد قبلی حذف نمی‌شود: با supersededByOfferId بایگانی و قابل استناد می‌ماند.
+             • یک «سند برد جایگزین» ساخته می‌شود (revisionOf + revisionSeq) و پرونده به آن می‌چسبد.
+             • مبلغ مؤثر قرارداد از روی همان اقلام جدید بازمحاسبه می‌شود.
+             • تصمیم کارفرما (۱۴۰۵/۰۵/۲۶): اگر فاکتور رسمی فعال برای پرونده صادر شده باشد،
+               «کاهش» مبلغ مسدود است (مغایرت مالیاتی) — پیام صریح، نه تغییر بی‌صدا.
+             • دلیل اجباری + correction + بازسازی تخصیص‌ها در همان تراکنش. */
+        sd_require_role(SD_WIN_ROLES);
+        $caseId = sd_text($body['caseId'] ?? '', 100);
+        $reason = sd_text($body['reason'] ?? '', 500);
+        if ($reason === '') sd_out(['ok'=>false,'error'=>'reason_required'], 422);
+        $ci = sd_find_case_index($cases, $caseId);
+        if ($ci < 0) sd_out(['ok'=>false,'error'=>'case_not_found'], 404);
+        $case = $cases[$ci]; sd_case_id($case);
+        $lines = is_array($body['lines'] ?? null) ? $body['lines'] : [];
+        if (!$lines) sd_out(['ok'=>false,'error'=>'lines_required'], 422);
+
+        $parentNo = trim((string)($case['wonOffer'] ?? ''));
+        $pi = -1;
+        foreach ($offers as $i => $o) if (is_array($o) && $parentNo !== '' && (string)($o['no'] ?? '') === $parentNo) { $pi = $i; break; }
+        if ($pi < 0) sd_out(['ok'=>false,'error'=>'award_offer_not_found','wonOffer'=>$parentNo], 404);
+        $parent = $offers[$pi];
+
+        $newItems = [];
+        foreach ($lines as $ln) {
+            if (!is_array($ln)) continue;
+            $qty = sd_num($ln['qty'] ?? 0); $price = sd_num($ln['price'] ?? 0);
+            if ($qty <= 0 || $price < 0) continue;
+            $newItems[] = [
+                'name'=>sd_text($ln['name'] ?? '', 300), 'desc'=>sd_text($ln['desc'] ?? '', 500),
+                'model'=>sd_text($ln['model'] ?? '', 200), 'unit'=>sd_text($ln['unit'] ?? '', 60),
+                'pcode'=>sd_text($ln['pcode'] ?? '', 100), 'brand'=>sd_text($ln['brand'] ?? '', 200),
+                'qty'=>$qty, 'price'=>$price
+            ];
+        }
+        if (!$newItems) sd_out(['ok'=>false,'error'=>'no_valid_line'], 422);
+
+        $oldTotal = sd_offer_total($parent);
+        $newTotal = 0.0; foreach ($newItems as $it) $newTotal += $it['qty'] * $it['price'];
+        if ($newTotal <= 0) sd_out(['ok'=>false,'error'=>'invalid_revised_amount','total'=>$newTotal], 422);
+
+        /* گارد فاکتور رسمی (تصمیم کارفرما): کاهش زیر مبلغ فاکتورشده مسدود است */
+        $invoicedIrr = 0; $invoicedCount = 0;
+        foreach ($invoices as $inv) {
+            if (!is_array($inv) || !sd_active($inv)) continue;
+            if (!sd_case_match($case, (string)($inv['caseId'] ?? '')) && (string)($inv['caseId'] ?? '') !== (string)($case['_id'] ?? '')) continue;
+            if (!empty($inv['isUnofficial'])) continue;
+            $invoicedCount++; $invoicedIrr += (int)round(sd_num($inv['amount'] ?? 0));
+        }
+        if ($invoicedCount > 0 && $newTotal < $oldTotal) {
+            sd_out(['ok'=>false,'error'=>'official_invoice_blocks_decrease','invoices'=>$invoicedCount,
+                'invoicedAmount'=>$invoicedIrr,'oldTotal'=>$oldTotal,'newTotal'=>$newTotal], 409);
+        }
+
+        $seq = (int)($parent['revisionSeq'] ?? 0) + 1;
+        $newNo = (string)($body['newOfferNo'] ?? '');
+        if ($newNo === '') $newNo = $parentNo . '-R' . $seq;
+        foreach ($offers as $o) if (is_array($o) && (string)($o['no'] ?? '') === $newNo) sd_out(['ok'=>false,'error'=>'revision_no_exists','no'=>$newNo], 409);
+
+        $revision = $parent;
+        $revision['_id'] = sd_uuid('OFFER');
+        $revision['no'] = $newNo;
+        $revision['items'] = $newItems;
+        $revision['st'] = 'won'; $revision['status'] = 'won';
+        $revision['wonAtISO'] = sd_now(); $revision['wonBy'] = $user;
+        $revision['revisionOf'] = $parentNo;
+        $revision['revisionOfOfferId'] = sd_offer_id($parent);
+        $revision['revisionSeq'] = $seq;
+        $revision['revisionReason'] = $reason;
+        $revision['revisedAt'] = sd_now(); $revision['revisedBy'] = $user;
+        $revision['wonRevisionSnapshot'] = ['rev'=>$seq,'lockedAt'=>sd_now(),'lockedBy'=>$user,'items'=>$newItems,'terms'=>$parent['terms'] ?? [],'currency'=>$parent['currency'] ?? 'IRR'];
+        unset($revision['invRef']);
+        array_unshift($offers, $revision);
+
+        $parent['supersededByOfferId'] = $revision['_id'];
+        $parent['supersededByOfferNo'] = $newNo;
+        $parent['supersededAt'] = sd_now();
+        $parent['status'] = 'superseded'; $parent['st'] = 'superseded';
+        $offers[$pi + 1] = $parent;   /* index shifted by unshift */
+
+        $case['wonOffer'] = $newNo;
+        $case['rootOfferId'] = $revision['_id'];
+        $case['contractAmount'] = $newTotal;
+        $case['effectiveContractAmount'] = $newTotal;
+        $case['awardRevisions'] = is_array($case['awardRevisions'] ?? null) ? $case['awardRevisions'] : [];
+        $case['awardRevisions'][] = ['seq'=>$seq,'fromOfferNo'=>$parentNo,'toOfferNo'=>$newNo,
+            'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,
+            'reason'=>$reason,'at'=>sd_now(),'by'=>$user];
+        $case['updatedAtISO'] = sd_now();
+        $cases[$ci] = $case;
+
+        $corrections[] = ['_id'=>sd_uuid('COR'),'entityType'=>'award','entityId'=>(string)$case['_id'],
+            'kind'=>'revise_award','reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),
+            'fromOfferNo'=>$parentNo,'toOfferNo'=>$newNo,'oldAmount'=>$oldTotal,'newAmount'=>$newTotal];
+
+        sd_rebuild_allocations((string)$case['_id'], $receipts, $invoices, $allocations, $cases);
+        $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,
+            'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_corrections'=>$corrections];
+        $result = ['caseId'=>(string)$case['_id'],'revisionOfferNo'=>$newNo,'revisionOfferId'=>$revision['_id'],
+            'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,'seq'=>$seq];
+    }
     elseif ($action === 'revoke_orphan_delete') {
         /* بازگردانی برد یتیم برای ادمین و رئیس هیئت‌مدیره مجاز است؛ حذف قطعی
            پیشنهاد همچنان فقط در اختیار ادمین باقی می‌ماند. */
@@ -1105,7 +1211,7 @@ try {
         /* Stable IDs are safe metadata; ambiguous business records are never merged. */
         foreach($offers as &$o)if(is_array($o))sd_offer_id($o);unset($o);
         foreach($cases as &$c)if(is_array($c))sd_case_id($c);unset($c);
-        /* v34.7.30 (S3/F2-A — نشت بین‌مشتری): تطبیق فاکتور با پرونده هرگز نباید با مقدار تهی
+        /* v34.7.31 (S3/F2-A — نشت بین‌مشتری): تطبیق فاکتور با پرونده هرگز نباید با مقدار تهی
            انجام شود. الگوی قبلی ''===''  را می‌پذیرفت، پس هر فاکتور بدون offerNo به اولین
            پروندهٔ بدون wonOffer (متعلق به هر مشتری دیگری) می‌چسبید و customerId آن روی رکورد
            نوشته می‌شد. علاوه بر گارد تهی، تطبیق باید یکتا باشد؛ در غیر این صورت انتساب انجام
