@@ -48,6 +48,7 @@ var SUITE = [
   /* v34.7.17/18 — یکپارچگی سنجه‌های تصمیم‌یار و یکپارچگی وصولی (مطالبات/حساب مشتری/پرونده) */
   { g: 'مالی/ایمنی داده', f: '_tools/uat/tester422-v34.7.19-ar-data-safety.js' },
   { g: 'مالی/صدور غیررسمی', f: '_tools/uat/tester423-v34.7.20-unofficial-issue-path.js' },
+  { g: 'مالی/چرخهٔ عمر و مرجوعی', f: '_tools/uat/tester424-v34.7.21-lifecycle-returns.js' },
   { g: 'مالی/مطالبات', f: '_tools/uat/tester421-v34.7.18-ar-receipt-integrity.js' },
   { g: 'تحلیل/تصمیم‌یار', f: '_tools/uat/tester420-v34.7.17-decision-support-metrics.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
@@ -61,7 +62,7 @@ var SYNTAX = [
   'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js', 'crm/ar-reconcile.js',
   'crm/metrics-shared.js', 'crm/analyzer.js', 'crm/management-intelligence.js',
   'crm/customer-finance.js', 'crm/finance-helpers.js', 'crm/cheque-module.js', 'crm/data-quality.js',
-  'crm/unofficial-invoice.js',
+  'crm/unofficial-invoice.js', 'crm/commission.js', 'crm/working-capital.js', 'crm/fx.js',
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
   'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
   'crm/contracts.js', 'crm/docsx.js', 'crm/bridge.js', 'crm/offerlock.js',

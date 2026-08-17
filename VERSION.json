@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.7.20",
+  "crm_version": "v34.7.21",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-16",
-  "updated_by": "Arena Agent (v34.7.20 phase B — unofficial invoice issue path: case-id matching, real re-issue persistence, duplicate guard cleanup)"
+  "updated_by": "Arena Agent (v34.7.21 phase C — unified invoice lifecycle + sales returns in profit/commission/working-capital/fiscal)"
 }

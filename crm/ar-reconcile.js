@@ -141,6 +141,42 @@
   }
   function invalidate() { _cache = null; _cacheAt = 0; }
 
+  /* ---------- مرجوعی فروش (LC-02) — منبع واحد ----------
+     همان قاعدهٔ مقاوم customer-finance.js (نسخهٔ v33.12.0) این‌جا متمرکز شده تا سود،
+     پورسانت، سرمایه در گردش و سال مالی هم بتوانند بدون تکرار منطق از آن استفاده کنند.
+     قواعد (بدون دوباره‌شماری):
+       ۱) اگر مرجوعی invoiceCd دارد → فقط با همان فاکتور تطبیق می‌خورد.
+       ۲) اگر ندارد: ابتدا invoiceNo، سپس offerNo — و offerNo فقط وقتی معتبر است که
+          همان پیشنهاد دقیقاً یک فاکتور فعال داشته باشد (یکتایی). */
+  function invoiceOfOfferUnique(offerNo) {
+    if (!offerNo) return null;
+    var hits = list('ptf_crm_invoices').filter(function (i) { return activeInvoice(i) && String(i.offerNo || '') === String(offerNo); });
+    return hits.length === 1 ? hits[0] : null;
+  }
+  function salesReturnsForInvoice(inv) {
+    if (!inv) return [];
+    var cd = inv.cd, no = inv.no, offerNo = inv.offerNo;
+    return list('ptf_crm_sales_returns').filter(function (r) {
+      if (!r || statusOf(r) === 'void') return false;
+      if (cd && r.invoiceCd && String(r.invoiceCd) === String(cd)) return true;
+      if (r.invoiceCd) return false;
+      if (no && r.invoiceNo && String(r.invoiceNo) === String(no)) return true;
+      if (offerNo && r.offerNo && String(r.offerNo) === String(offerNo)) {
+        var single = invoiceOfOfferUnique(offerNo);
+        return !!single && String(single.cd) === String(cd);
+      }
+      return false;
+    });
+  }
+  function returnedAmountIRR(inv) {
+    return salesReturnsForInvoice(inv).reduce(function (s, r) { return s + n(r.totalAmount); }, 0);
+  }
+  /** خالص فاکتور پس از مرجوعی — مبنای واحد سود/پورسانت/سرمایه در گردش/سال مالی */
+  function invoiceNetAfterReturnsIRR(inv) {
+    var caps = invoiceCaps(inv);
+    return Math.max(0, caps.amount - returnedAmountIRR(inv));
+  }
+
   /* ---------- وضعیت یک فاکتور — تنها مرجع «مانده» ---------- */
   function invoiceState(inv, snap) {
     snap = snap || snapshot();
@@ -223,7 +259,10 @@
     stale_allocation: 'تخصیص کهنه/نرسیده روی این دستگاه',
     superseded_counted: 'صورتحساب جایگزین‌شده که هنوز در حساب مشتری بدهی می‌سازد',
     unapplied_credit: 'بستانکاری تخصیص‌نیافته در کنار مطالبهٔ باز همان مشتری',
-    possible_double_money: 'احتمال ثبت دوبارهٔ یک پول (وصولی میراثی + رسید هم‌مبلغ)'
+    possible_double_money: 'احتمال ثبت دوبارهٔ یک پول (وصولی میراثی + رسید هم‌مبلغ)',
+    /* LC-03 (v34.7.21) */
+    superseded_in_reports: 'سند جایگزین‌شده که هنوز در گزارش‌های مالی وزن دارد',
+    return_not_applied: 'مرجوعی فروش ثبت‌شده که در مبلغ خالص سند اثر نکرده است'
   };
   function reconcile() {
     invalidate();
@@ -263,6 +302,23 @@
         if (twin) push('possible_double_money', 'high', key, 'مبلغ ' + amt.toLocaleString('fa-IR') + ' هم به‌صورت وصولی فاکتور و هم رسید پرونده ثبت شده است', amt, { receiptId: idOf(twin) });
       });
     });
+    /* LC-03: سند جایگزین‌شده و مرجوعی‌های اثرنکرده */
+    invoices.forEach(function (inv) {
+      if (!inv) return;
+      var key = idOf(inv), st = statusOf(inv);
+      if ((st === 'superseded' || st === 'replaced') && legacyPaidIRR(inv) > 0)
+        push('superseded_in_reports', 'medium', key, 'سند جایگزین‌شدهٔ ' + (inv.no || key) + ' وصولی ثبت‌شده دارد؛ باید در پورسانت/سرمایه در گردش/سال مالی کنار گذاشته شود', legacyPaidIRR(inv));
+      if (!activeInvoice(inv)) return;
+      var ret = returnedAmountIRR(inv);
+      if (ret > 0) {
+        var net = invoiceNetAfterReturnsIRR(inv);
+        if (net + ret - invoiceCaps(inv).amount !== 0)
+          push('return_not_applied', 'medium', key, 'محاسبهٔ خالص فاکتور ' + (inv.no || key) + ' با مرجوعی ثبت‌شده هم‌خوان نیست', ret);
+        else if (ret > invoiceState(inv, snap).paid && invoiceState(inv, snap).open === 0)
+          push('return_not_applied', 'low', key, 'فاکتور ' + (inv.no || key) + ' مرجوعی دارد و مانده‌اش صفر است؛ اضافه‌پرداخت باید به‌عنوان اعتبار مشتری تعیین‌تکلیف شود', ret);
+      }
+    });
+
     /* بستانکاری بلااستفاده در کنار مطالبهٔ باز همان مشتری */
     var byCustomer = {};
     receipts.forEach(function (r) {
@@ -289,6 +345,8 @@
     invoiceCaps: invoiceCaps, legacyPaidIRR: legacyPaidIRR,
     computeAllocations: computeAllocations, snapshot: snapshot, invalidate: invalidate,
     invoiceState: invoiceState, invoicePaidIRR: invoicePaidIRR, invoiceOpenIRR: invoiceOpenIRR,
+    salesReturnsForInvoice: salesReturnsForInvoice, returnedAmountIRR: returnedAmountIRR,
+    invoiceNetAfterReturnsIRR: invoiceNetAfterReturnsIRR,
     caseState: caseState, customerInvoices: customerInvoices, customerPosition: customerPosition,
     resolveCaseIdOfInvoice: resolveCaseIdOfInvoice, reconcile: reconcile, CATEGORIES: CATEGORIES
   };
