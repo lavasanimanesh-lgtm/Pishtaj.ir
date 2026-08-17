@@ -116,9 +116,30 @@
       byReason[k].items.push(p.inqNo || p.no);
     });
     var total = wins.length + losses.length;
+    /* AN-02 (v34.7.24): هم‌ترازی تعریف با لایهٔ سنجهٔ واحد.
+       این گزارش «پرونده‌های مختومهٔ بایگانی» را می‌شمارد؛ پس مخرجش ذاتاً «تعیین‌تکلیف‌شده‌ها»
+       است. تا امروز همین عدد بدون هیچ برچسبی «نرخ برد» نامیده می‌شد و کنار نرخ برد تحلیلگر
+       (که از کل پیشنهادهای صادرشده حساب می‌شود) دو عدد متفاوت با یک نام دیده می‌شد.
+       اکنون: نام صریح + حجم نمونه + همان قاعدهٔ «زیر ۳ نمونه درصد نده» لایهٔ مشترک. */
+    var _mx = (window.PTF || {}).metrics;
+    var MIN_SAMPLE = 3;
+    var _rate = total ? Math.round(wins.length * 1000 / total) / 10 : null;
     return {
       wins: wins.length, losses: losses.length, total: total,
+      sample: total, reliable: total >= MIN_SAMPLE,
+      winRateBasis: 'decided-archived-cases',
+      winRateLabel: 'نرخ برد پرونده‌های مختومه',
+      winRateDecided: total >= MIN_SAMPLE ? _rate : null,
+      /* سازگاری عقب‌رو: مصرف‌کنندگان قدیمی همان عدد صحیح قبلی را می‌گیرند */
       winRate: total ? Math.round(wins.length * 100 / total) : 0,
+      orgWinRateAll: (function () {
+        /* سنجهٔ سازمانی (برد از کل پیشنهادهای صادرشده) برای مقایسهٔ کنار هم */
+        try {
+          if (!_mx || typeof _mx.winStats !== 'function') return null;
+          var st = _mx.winStats(getData('ptf_crm_offers') || []);
+          return st.winRateAll;
+        } catch (e) { return null; }
+      })(),
       wonValue: wins.reduce(function (s, p) { return s + (+((p.stats || {}).totalCO) || 0); }, 0),
       lostValue: losses.reduce(function (s, p) { return s + (+((p.stats || {}).totalCO) || 0); }, 0),
       byReason: byReason,
@@ -152,7 +173,8 @@
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px">' +
       '<div class="sc" style="border-color:#a7f3d0"><b style="-webkit-text-fill-color:#059669">' + s.wins + '</b><span>🏆 پرونده برنده</span></div>' +
       '<div class="sc" style="border-color:#fecaca"><b style="-webkit-text-fill-color:#dc2626">' + s.losses + '</b><span>🚫 پرونده باخته</span></div>' +
-      '<div class="sc"><b>' + s.winRate + '٪</b><span>📈 نرخ برد (Win Rate)</span></div>' +
+      '<div class="sc"><b>' + (s.winRateDecided == null ? '—' : s.winRateDecided + '٪') + '</b><span>📈 ' + escP(s.winRateLabel) + ' (' + s.wins + ' از ' + s.total + ')' + (s.reliable ? '' : ' — نمونه ناکافی') + '</span></div>' +
+      (s.orgWinRateAll == null ? '' : '<div class="sc"><b>' + s.orgWinRateAll + '٪</b><span>📊 نرخ برد سازمان (از کل پیشنهادهای صادرشده)</span></div>') +
       '<div class="sc"><b style="font-size:16px;-webkit-text-fill-color:#059669">' + s.wonValue.toLocaleString('fa-IR') + '</b><span>ارزش بردها (ریال)</span></div>' +
       '<div class="sc"><b style="font-size:16px;-webkit-text-fill-color:#dc2626">' + s.lostValue.toLocaleString('fa-IR') + '</b><span>ارزش ازدست‌رفته (ریال)</span></div>' +
       '</div>' +

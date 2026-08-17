@@ -45,6 +45,22 @@ var SUITE = [
   { g: 'کیفیت محصول', f: '_tools/uat/tester400-v34.5.26-user-guide.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester401-v34.5.27-sms-book-grouping.js' },
   { g: 'کیفیت محصول', f: '_tools/uat/tester402-v34.5.28-sms-staff-templates.js' },
+  /* v34.7.17/18 — یکپارچگی سنجه‌های تصمیم‌یار و یکپارچگی وصولی (مطالبات/حساب مشتری/پرونده) */
+  { g: 'مالی/ایمنی داده', f: '_tools/uat/tester422-v34.7.19-ar-data-safety.js' },
+  { g: 'مالی/صدور غیررسمی', f: '_tools/uat/tester423-v34.7.20-unofficial-issue-path.js' },
+  { g: 'مالی/چرخهٔ عمر و مرجوعی', f: '_tools/uat/tester424-v34.7.21-lifecycle-returns.js' },
+  { g: 'فروش/گاردهای برد', f: '_tools/uat/tester425-v34.7.22-award-guards.js' },
+  { g: 'مالی/ابطال سروری غیررسمی', f: '_tools/uat/tester426-v34.7.23-unofficial-void-server.js' },
+  { g: 'تحلیل/تکمیل تصمیم‌یار', f: '_tools/uat/tester427-v34.7.24-analytics-completion.js' },
+  { g: 'مالی/مطالبات', f: '_tools/uat/tester421-v34.7.18-ar-receipt-integrity.js' },
+  { g: 'تحلیل/تصمیم‌یار', f: '_tools/uat/tester420-v34.7.17-decision-support-metrics.js' },
+  { g: 'پرونده/اکشن فاکتور', f: '_tools/uat/tester428-v34.7.26-salesfile-invoice-actions.js' },
+  { g: 'مالی/نشت بین‌مشتری', f: '_tools/uat/tester429-v34.7.26-cross-customer-advance-leak.js' },
+  { g: 'مالی/شناسهٔ متعارف پرونده', f: '_tools/uat/tester430-v34.7.27-case-id-alias.js' },
+  { g: 'پرونده/پیش‌فاکتور', f: '_tools/uat/tester432-v34.7.29-proforma-price-defaults.js' },
+  { g: 'پیشنهاد/اقلام درخواست و نرخ مرجع', f: '_tools/uat/tester433-v34.7.30-inq-items-and-ref-price.js' },
+  { g: 'پرونده/بازنگری سند برد', f: '_tools/uat/tester434-v34.7.31-award-revision.js' },
+  { g: 'معماری/پیشگیری', f: '_tools/uat/tester431-v34.7.28-architecture-guardrails.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
@@ -53,11 +69,14 @@ var SYNTAX = [
   'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js', 'crm/client-server.js',
   'crm/finance-write-guard.js', 'crm/fiscal.js', 'crm/supplier-finance.js',
   'crm/opex.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
-  'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js',
+  'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js', 'crm/ar-reconcile.js', 'crm/case-revision.js', 'crm/surplus.js',
+  'crm/metrics-shared.js', 'crm/analyzer.js', 'crm/management-intelligence.js',
+  'crm/customer-finance.js', 'crm/finance-helpers.js', 'crm/insights.js', 'crm/cheque-module.js', 'crm/data-quality.js',
+  'crm/unofficial-invoice.js', 'crm/commission.js', 'crm/working-capital.js', 'crm/fx.js',
   'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
   'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
   'crm/contracts.js', 'crm/docsx.js', 'crm/bridge.js', 'crm/offerlock.js',
-  'crm/projects.js', 'crm/reports.js', 'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'
+  'crm/projects.js', 'crm/reports.js', 'crm/sync.js', 'crm/storage.js', 'crm/procurement-link.js', 'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'
 ];
 
 function failCount(out) {
@@ -74,6 +93,14 @@ function looksPassed(out) {
   if (/PASS\s+\d+\s+FAIL\s+0/.test(out)) return true;
   if (/^PASS\b/m.test(out) && !/^FAIL\b/m.test(out)) return true;
   return false;
+}
+
+function archGuard() {
+  /* نگهبان معماری (v34.7.28): جلوگیری از بازگشت خانواده‌های باگ شناخته‌شده.
+     مبنا در _tools/arch/arch-baseline.json است؛ فقط «تخلف جدید» گیت را می‌شکند. */
+  var r = require('child_process').spawnSync(process.execPath, [path.join(ROOT, '_tools/arch/arch-guard.js'), '--quiet'], { encoding: 'utf8' });
+  var out = (r.stdout || '') + (r.stderr || '');
+  return { ok: r.status === 0, out: out };
 }
 
 function syntaxCheck() {
@@ -125,6 +152,11 @@ if (syn.length) {
 } else {
   console.log('  ✔ ' + SYNTAX.length + ' crm files');
 }
+
+console.log('── نگهبان معماری ──');
+var ag = archGuard();
+ag.out.split('\n').filter(function (l) { return l.trim(); }).forEach(function (l) { console.log('  ' + l); });
+if (!ag.ok) failed.push('arch-guard');
 
 console.log('── php -l ──');
 var phpLint = phpLintCheck();

@@ -277,6 +277,15 @@
         m[k] = incomingRev;
         saveKrevs(m);
       }
+      /* v34.7.26 (ممیزی شاخه): هر projection پذیرفته‌شده روی کلیدهای مالی، کش محاسبهٔ
+         مطالبات را باطل می‌کند. بدون این خط، تا ۱٫۵ ثانیه ممکن بود نماها عدد قبلی را
+         نشان دهند (خودترمیم، ولی در لحظهٔ پس از همگام‌سازی گیج‌کننده بود). */
+      try {
+        if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function' &&
+            ['ptf_crm_invoices', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_deals', 'ptf_crm_sales_returns'].indexOf(k) > -1) {
+          window.PTF.ar.invalidate();
+        }
+      } catch (eArInv) {}
       return true;
     } catch (e) { return false; }
   };

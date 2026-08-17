@@ -51,6 +51,8 @@
        pull نهایی را واقعاً تا پایان انتظار می‌کشیم. handler موفقیت و renderها دیگر
        جلوتر از همگام‌سازی اجرا نمی‌شوند. شکست pull، commit موفق سرور را شکست‌خورده
        اعلام نمی‌کند؛ projection پاسخ همچنان منبع نمایش فوری است. */
+    /* v34.7.18: هر پروجکشن تازه، کش محاسبهٔ مطالبات را باطل می‌کند تا نماها بلافاصله هم‌خوان شوند. */
+    try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArInv) {}
     return new Promise(function (resolve) {
       if (!touched || typeof window.ptfSyncPullNow !== 'function') { resolve({ ok: true, skipped: true }); return; }
       try {
@@ -129,6 +131,43 @@
       var parentCase = parentNo ? caseByOffer(parentNo) : null;
       if (parentCase && confirm('این پیشنهاد به‌عنوان متمم برنده به پرونده «' + (parentCase.inqNo || parentCase.wonOffer || caseId(parentCase)) + '» متصل شود؟\n\nلغو = تشکیل پرونده مستقل')) attachCaseId = caseId(parentCase);
     }
+    /* AW-02 (v34.7.22): هشدار پروندهٔ موازی.
+       ریشه: سرور فقط پرونده‌ای را «مرتبط» می‌داند که rootOfferId/wonOffer/offerNo آن با همین
+       پیشنهاد بخورد. اگر کاربر یک CO جایگزین/موازی برای همان استعلام و همان مشتری بسازد و
+       آن را بدون علامت متمم برنده کند، سرور بی‌صدا پروندهٔ دوم مستقل می‌ساخت و از آن پس
+       مطالبات/وصولی/آمار روی دو پرونده پخش می‌شد. دیالوگ اتصال قبلاً فقط برای پیشنهادهای
+       علامت‌خوردهٔ متمم ظاهر می‌شد. اکنون قبل از ساخت پروندهٔ دوم، انتخاب صریح گرفته می‌شود.
+       مرجع: بررسی مستقل N5 | گام D2 نقشهٔ فازبندی */
+    if (!attachCaseId) {
+      var _sibs = data('ptf_crm_deals').filter(function (c) {
+        if (!c || !active(c)) return false;
+        if (caseBelongsToOffer(c, o)) return false;                       /* پروندهٔ خودِ همین پیشنهاد */
+        var sameInq = identity(c.inqNo) && identity(o.inqNo) && identity(c.inqNo) === identity(o.inqNo);
+        if (!sameInq) return false;
+        var cb = identity(c.buyerCd), ob = identity(o.buyerCd);
+        if (cb && ob && cb !== ob) return false;
+        if (!cb && !ob) { var cc = identity(c.buyerCo), oc = identity(o.buyerCo); if (cc && oc && cc !== oc) return false; }
+        var cCur = String(c.currency || 'IRR').toUpperCase(), oCur = String(o.currency || 'IRR').toUpperCase();
+        return cCur === oCur;
+      });
+      if (_sibs.length === 1) {
+        var _sib = _sibs[0];
+        var _lbl = (_sib.inqNo || _sib.wonOffer || caseId(_sib)) + (_sib.buyerCo ? ' — ' + _sib.buyerCo : '');
+        var _ans = confirm('⚠️ برای همین درخواست و همین مشتری، پروندهٔ فعال «' + _lbl + '» وجود دارد.\n\n' +
+          'تأیید = اتصال این پیشنهاد به همان پرونده به‌عنوان متمم (مبلغ به قرارداد همان پرونده اضافه می‌شود)\n' +
+          'لغو = ادامه با تشکیل پروندهٔ دوم مستقل');
+        if (_ans) attachCaseId = caseId(_sib);
+        else if (!confirm('🔀 پروندهٔ دوم مستقل برای همان درخواست ساخته می‌شود.\n\n' +
+          'از این پس مطالبات، وصولی و آمار روی دو پرونده پخش می‌شود و ادغام بعدی نیازمند مسیر «پروندهٔ تکراری» است.\n\nمطمئن هستید؟')) {
+          if (selEl) selEl.value = o.st || 'sent';
+          return;
+        }
+      } else if (_sibs.length > 1) {
+        alert('⛔ بیش از یک پروندهٔ فعال برای همین درخواست و مشتری وجود دارد. ابتدا از مسیر «پروندهٔ تکراری» تعیین‌تکلیف شود؛ هیچ پروندهٔ جدیدی حدس زده نمی‌شود.');
+        if (selEl) selEl.value = o.st || 'sent';
+        return;
+      }
+    }
     if (!confirm('🏆 ثبت قطعی برد پیشنهاد ' + no + '\n\nبرد و تشکیل/اتصال پرونده در یک فرمان سروری انجام می‌شود و پیشنهاد پس از آن قفل خواهد شد. ادامه می‌دهید؟')) { if(selEl)selEl.value=o.st||'sent'; return; }
     if (selEl) selEl.disabled = true;
     toast('در حال ثبت اتمیک برد و پرونده…', 'info');
@@ -153,18 +192,37 @@
 
   window.ptfMarkOfferAmendment=function(no){var o=findOffer(no);if(!o)return;var parents=data('ptf_crm_offers').filter(function(x){return x&&x.no!==no&&x.st==='won'&&!x.rialOf&&x.buyerCd===o.buyerCd&&String(x.currency||'IRR')===String(o.currency||'IRR')&&casesForOffer(x).length===1;});if(!parents.length){alert('برای همین مشتری و ارز، پیشنهاد برنده دارای پرونده یافت نشد.');return;}var hint=parents.map(function(x){return x.no+' — '+(x.buyerCo||'');}).join('\n');var parent=prompt('شماره پیشنهاد پایه برنده را وارد کنید:\n'+hint,parents[0].no);if(parent===null)return;parent=parent.trim();if(!parents.some(function(x){return x.no===parent;})){alert('پیشنهاد پایه معتبر نیست');return;}api('mark_amendment',{offerNo:no,parentOfferNo:parent}).then(function(){toast('پیشنهاد به‌عنوان متمم مستقل علامت‌گذاری شد؛ هنگام برد اتصال یا پرونده مستقل انتخاب می‌شود','ok');if(typeof renderOffers==='function')renderOffers();}).catch(function(e){alert('⛔ '+e.message);});};
 
-  window.ptfAdminHardDelete=function(type,id,onDone){if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}api('admin_delete_plan',{entityType:type,entityId:id,idempotencyKey:'DELETE-PLAN|'+type+'|'+id+'|'+Date.now()}).then(function(d){var p=d.plan||{},deps=p.dependencies||[],lines=deps.map(function(x){return x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n');if(!confirm('پیش‌بررسی حذف '+type+':\n'+(lines||'بدون وابستگی')+(p.periodLocked?'\n\n⚠️ دوره مالی قفل است و با حذف، Snapshot نامعتبر و دوره باز می‌شود.':'')+'\n\nادامه؟'))return;var reason=prompt('دلیل حذف قطعی ادمین:','اشتباه ثبت/رکورد تکراری');if(reason===null||!reason.trim())return;return api('admin_delete_commit',{entityType:type,entityId:id,cascade:deps.length>0,confirm:'PTF-ADMIN-HARD-DELETE',reason:reason.trim(),idempotencyKey:'HARD-DELETE|'+type+'|'+id}).then(function(r){toast('حذف اتمیک انجام و Tombstone ثبت شد'+((r.result||{}).invalidatedYear?'؛ دوره '+r.result.invalidatedYear+' باز شد':''),'warn');if(typeof onDone==='function')onDone(r);});}).catch(function(e){alert('⛔ حذف انجام نشد: '+e.message);});};
+  window.ptfAdminHardDelete=function(type,id,onDone){if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}api('admin_delete_plan',{entityType:type,entityId:id,idempotencyKey:'DELETE-PLAN|'+type+'|'+id+'|'+Date.now()}).then(function(d){var p=d.plan||{},deps=p.dependencies||[],lines=deps.map(function(x){return x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n');/* AW-03 (v34.7.22): وابستگی‌های خارج از دامنه (چک/خرید/تعهد/مرجوعی/بارنامه/پروژه) فقط اطلاع‌رسانی می‌شوند؛ حذف آن‌ها را پاک نمی‌کند. */var adv=p.advisoryDependencies||[],advTxt=adv.length?('\n\n⚠️ اقلام مرتبط که با این حذف پاک نمی‌شوند و ممکن است یتیم بمانند ('+adv.length+' مورد):\n'+adv.slice(0,12).map(function(x){return '• '+x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n')+(adv.length>12?'\n… و '+(adv.length-12)+' مورد دیگر':'')):'';if(!confirm('پیش‌بررسی حذف '+type+':\n'+(lines||'بدون وابستگی')+advTxt+(p.periodLocked?'\n\n⚠️ دوره مالی قفل است و با حذف، Snapshot نامعتبر و دوره باز می‌شود.':'')+'\n\nادامه؟'))return;var reason=prompt('دلیل حذف قطعی ادمین:','اشتباه ثبت/رکورد تکراری');if(reason===null||!reason.trim())return;return api('admin_delete_commit',{entityType:type,entityId:id,cascade:deps.length>0,confirm:'PTF-ADMIN-HARD-DELETE',reason:reason.trim(),idempotencyKey:'HARD-DELETE|'+type+'|'+id}).then(function(r){toast('حذف اتمیک انجام و Tombstone ثبت شد'+((r.result||{}).invalidatedYear?'؛ دوره '+r.result.invalidatedYear+' باز شد':''),'warn');if(typeof onDone==='function')onDone(r);});}).catch(function(e){alert('⛔ حذف انجام نشد: '+e.message);});};
 
   /* ----- Case financial workspace ----- */
-  function caseReceipts(id) { return data('ptf_crm_case_receipts').filter(function (r) { return r && r.caseId === id; }); }
-  function caseInvoices(id) { return data('ptf_crm_invoices').filter(function (i) { return i && i.caseId === id; }); }
-  function activeAllocations(id) { return data('ptf_crm_receipt_allocations').filter(function (a) { return a && a.caseId === id && active(a); }); }
+  /* ممیزی v34.7.26: رکوردهای قدیمی ممکن است caseId را با `cd` پرونده ذخیره کرده باشند در
+     حالی که کلید نمایش `_id||cd` است؛ نتیجه «ناپدید شدن» رسید/فاکتور در پنجرهٔ پرونده بود.
+     نام‌های مستعار فقط از خود رکورد پرونده گرفته می‌شوند (بدون حدس). */
+  function caseAliases(id) {
+    var out = {}; var key = String(id || ''); if (key) out[key] = true;
+    var c = data('ptf_crm_deals').filter(function (x) { return x && (String(x._id || '') === key || String(x.cd || '') === key); })[0];
+    if (c) { [c._id, c.cd].forEach(function (a) { var k = String(a || ''); if (k) out[k] = true; }); }
+    return out;
+  }
+  function caseReceipts(id) { var al = caseAliases(id); return data('ptf_crm_case_receipts').filter(function (r) { return r && al[String(r.caseId || '')]; }); }
+  function caseInvoices(id) { var al = caseAliases(id); return data('ptf_crm_invoices').filter(function (i) { return i && al[String(i.caseId || '')]; }); }
+  function activeAllocations(id) { var al = caseAliases(id); return data('ptf_crm_receipt_allocations').filter(function (a) { return a && al[String(a.caseId || '')] && active(a); }); }
   function caseTotals(c) {
     var rs=caseReceipts(caseId(c)).filter(function(r){return active(r)&&r.status==='posted';});
     var ins=caseInvoices(caseId(c)).filter(active);
     var received=rs.reduce(function(s,r){return s+(+r.amountIRR||+r.amt||0);},0);
     var allocated=rs.reduce(function(s,r){return s+(+r.allocatedIRR||0);},0);
-    var open=ins.reduce(function(s,i){return s+(i.openAmountIRR!=null?+i.openAmountIRR:Math.max(0,(+i.amount||0)-(+i.allocatedBase||0)-(+i.allocatedVat||0)));},0);
+    /* v34.7.18 (AR-INTEGRITY فاز ۳): مانده از منبع واحد PTF.ar خوانده می‌شود تا پنجرهٔ پرونده،
+       پنل مطالبات و حساب مشتری همیشه یک عدد بدهند (قبلاً فقط openAmountIRR سرور ملاک بود و اگر
+       تخصیص انجام/همگام نشده بود، پرونده و مطالبات دو رقم متفاوت نشان می‌دادند). */
+    var arCore=(window.PTF||{}).ar;
+    var open=ins.reduce(function(s,i){
+      if(arCore&&typeof arCore.invoiceState==='function'){try{return s+arCore.invoiceState(i).open;}catch(eAr){}}
+      return s+(i.openAmountIRR!=null?+i.openAmountIRR:Math.max(0,(+i.amount||0)-(+i.allocatedBase||0)-(+i.allocatedVat||0)));
+    },0);
+    if(arCore&&typeof arCore.caseState==='function'){
+      try{var st=arCore.caseState(c);return {received:st.received,allocated:st.allocated,credit:st.credit,open:st.open,receipts:rs,invoices:st.invoices.length?st.invoices:ins};}catch(eSt){}
+    }
     return {received:received,allocated:allocated,credit:Math.max(0,received-allocated),open:open,receipts:rs,invoices:ins};
   }
   window.ptfCaseFinanceOpen = function (id) {
@@ -188,6 +246,12 @@
       '<div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend',html);
   };
+  function customerCaseOptions(c,currentId){
+    var cd=String((c&&c.buyerCd)||'');
+    var all=data('ptf_crm_deals').filter(function(x){return x&&active(x)&&(String(x.buyerCd||'')===cd||caseId(x)===currentId);});
+    if(!all.length)all=[c];
+    return all.map(function(x){var id=caseId(x);return '<option value="'+esc(id)+'"'+(id===currentId?' selected':'')+'>'+esc((x.inqNo||x.wonOffer||id)+(x.buyerCo?' — '+x.buyerCo:''))+'</option>';}).join('');
+  }
   window.ptfReceiptOpen = function (cid, existing) {
     if(!canFinance()){alert('⛔ فقط کاربران مالی مجازند');return;}
     var c=findCase(cid);if(!c)return;var fx=(c.currency||'IRR')!=='IRR';
@@ -200,14 +264,33 @@
       {id:'rate',label:fx?'نرخ ارز روز دریافت (ریال per '+c.currency+') *':'نرخ ارز (برای پرونده ریالی خالی)',type:'number',dir:'ltr',value:existing?existing.fxRate:''},
       {id:'rateSource',label:fx?'منبع/توضیح نرخ *':'منبع نرخ',value:existing?existing.fxRateSource:''},
       {id:'note',label:'توضیح',type:'textarea',rows:2,value:existing?existing.note:''}
-    ].concat(existing?[{id:'reason',label:'دلیل اصلاح *',type:'textarea',required:true,rows:2}]:[]),okText:existing?'ثبت اصلاحیه':'ثبت دریافت',onOk:function(v){
+    ].concat(existing?[
+      /* v34.7.18 (AR-INTEGRITY فاز ۲ / R7): انتقال بستانکاری به پروندهٔ دیگرِ همان مشتری.
+         مسیر رسمی «اصلاح» استفاده می‌شود (سند ابطال + سند جدید)؛ هیچ رکورد پولی حذف نمی‌شود. */
+      {id:'targetCase',label:'پروندهٔ مقصد (برای انتقال بستانکاری)',type:'select',value:caseId(c),optionsHtml:customerCaseOptions(c,caseId(c))},
+      {id:'reason',label:'دلیل اصلاح *',type:'textarea',required:true,rows:2}
+    ]:[]),okText:existing?'ثبت اصلاحیه':'ثبت دریافت',onOk:function(v){
       var payload={caseId:caseId(c),amountIRR:num(v.amt),receivedAt:v.date,method:v.method,destinationAccount:v.account,referenceNo:v.ref,note:v.note,fxRate:num(v.rate),fxRateSource:v.rateSource};
-      if(existing){payload.receiptId=receiptId(existing);payload.reason=v.reason;}
+      if(existing){payload.receiptId=receiptId(existing);payload.reason=v.reason;if(v.targetCase&&v.targetCase!==caseId(c))payload.caseId=v.targetCase;}
       api(existing?'correct_receipt':'post_receipt',payload).then(function(){toast(existing?'دریافت با سند معکوس اصلاح شد':'دریافت قطعی ثبت شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(caseId(c));if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();}).catch(function(e){var map={fiscal_period_locked:'دوره مالی قفل است',fx_rate_and_source_required:'نرخ و منبع نرخ الزامی است',cheque_requires_collection:'چک باید ابتدا در ماژول چک وصول شود'};alert('⛔ '+(map[e.message]||e.message));});
     }});
   };
   window.ptfReceiptCorrectOpen = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(r)window.ptfReceiptOpen(r.caseId,r); };
   window.ptfReceiptVoid = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(!r)return;var reason=prompt('دلیل ابطال دریافت:', 'اشتباه ثبت');if(reason===null||!reason.trim())return;api('void_receipt',{receiptId:id,reason:reason.trim()}).then(function(){toast('دریافت ابطال و اثر خزانه/تخصیص بازسازی شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(r.caseId);if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();}).catch(function(e){alert('⛔ '+e.message);}); };
+
+  /* ----- INV-01 (v34.7.23 / فاز E): ابطال سروری صورتحساب غیررسمی -----
+     مسیر واحد و اتمیک: سرور سند را void می‌کند، تخصیص‌های همان پرونده را با قواعد قطعی
+     بازسازی می‌کند و مبلغ آزادشده به بستانکاری همان پرونده برمی‌گردد. رسید هرگز حذف نمی‌شود.
+     آثار غیرمالیِ محلی (ابطال مرجوعی‌های متصل، جداکردن ضمیمه از پرونده، timeline) پس از
+     تأیید سرور و توسط ماژول غیررسمی انجام می‌شوند. */
+  window.ptfUnofficialInvoiceVoidServer = function (invoiceId, reason) {
+    if (!canFinance()) return Promise.reject(new Error('permission_denied'));
+    return api('void_unofficial_invoice', {
+      invoiceId: String(invoiceId || ''),
+      reason: String(reason || ''),
+      idempotencyKey: 'VOID-UNOFFICIAL|' + String(invoiceId || '') + '|' + String(reason || '').slice(0, 40)
+    }).then(function (d) { return (d && d.result) || {}; });
+  };
 
   /* ----- Universal financial attachment manager for non-mandatory records. ----- */
   function ownerAttachments(type,id){return data('ptf_crm_fin_attachments').filter(function(a){return a&&a.ownerType===type&&a.ownerId===id&&active(a);});}

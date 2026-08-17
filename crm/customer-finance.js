@@ -6,17 +6,52 @@
 (function () {
   'use strict';
   function m(v) { return (+v || 0).toLocaleString('fa-IR'); }
-  function active(v) { return v && v.status !== 'void' && v.st !== 'void' && v.void !== true; }
+  /* v34.7.18 (AR-INTEGRITY فاز ۱ / R8): تعریف «رکورد فعال» با پنل مطالبات و سرور یکی شد.
+     پیش از این، فاکتور «superseded» (صورتحساب غیررسمیِ جایگزین‌شده با فاکتور رسمی) در این
+     صفحه دوباره بدهی می‌ساخت و بدهی مشتری تقریباً دو برابر دیده می‌شد. */
+  function active(v) {
+    if (!v) return false;
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.activeInvoice === 'function') return window.PTF.ar.activeInvoice(v);
+    var st = String(v.status || v.st || '').toLowerCase();
+    return ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'].indexOf(st) < 0 && v.void !== true && v.voided !== true;
+  }
   function cust(cd) { return getData('ptf_crm_customers').filter(function (c) { return c.cd === cd; })[0]; }
   function nameOf(c) { return (c && (c.co || c.name || c.cd)) || ''; }
+  /* v34.7.26 (S3 / نشت بین‌مشتری): دو گارد اضافه شد و بقیهٔ رفتار دست‌نخورده ماند.
+     F2-D — یافتن پیشنهاد فقط با شمارهٔ ناتهی (قبلاً x.no===i.offerNo با دو مقدار
+            undefined/'' صادق می‌شد و buyerCd یک پیشنهاد بی‌ربط خوانده می‌شد).
+     F2-C — تطبیق مبتنی بر نام شرکت فقط وقتی مجاز است که آن نام نرمال‌شده به یک و
+            تنها یک رکورد مشتری برسد؛ با مشتریان هم‌نام (رکورد تکراری) فاکتورهای یکی
+            در حساب دیگری دیده می‌شد. مرجع: ASSESSMENT-SALESFILE-3ISSUES-2026-08-17.md §۳ */
+  function cfNormalizeName(v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); }
+  window.cfFindOfferByNo = function (offerNo, offers) {
+    var no = String(offerNo == null ? '' : offerNo); if (!no) return null;
+    return (offers || getData('ptf_crm_offers')).filter(function (x) { return x && String(x.no || '') === no; })[0] || null;
+  };
+  /* یک‌بار در هر فراخوانی invs ساخته می‌شود (نه به‌ازای هر نام) تا پیمایش تکراری فهرست
+     مشتریان روی حساب‌های پرتعداد هزینه‌ساز نشود. */
+  function cfNameOwners() {
+    var map = {};
+    (getData('ptf_crm_customers') || []).forEach(function (c) {
+      if (!c) return;
+      [c.co || c.name, c.coEn].filter(Boolean).forEach(function (n) {
+        var k = cfNormalizeName(n); if (!k) return;
+        map[k] = map[k] || {};
+        map[k][String(c.cd || '')] = true;
+      });
+    });
+    return map;
+  }
   function invs(cd) {
     var offers = getData('ptf_crm_offers'), customer = cust(cd);
-    var normalizeName = function (v) { return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); };
-    var customerNames = [customer && (customer.co || customer.name), customer && customer.coEn].filter(Boolean).map(normalizeName);
+    var normalizeName = cfNormalizeName;
+    var nameOwners = cfNameOwners();
+    var customerNames = [customer && (customer.co || customer.name), customer && customer.coEn].filter(Boolean).map(normalizeName)
+      .filter(function (n) { return n && Object.keys(nameOwners[n] || {}).length === 1; });
     return getData('ptf_crm_invoices').filter(function (i) {
       if (!active(i)) return false;
       if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) { if (i.isUnofficial) return false; }
-      var o = offers.filter(function (x) { return x.no === i.offerNo; })[0] || {};
+      var o = window.cfFindOfferByNo(i.offerNo, offers) || {};
       var invoiceCustomerName = normalizeName(i.buyerCo || o.buyerCo);
       return (i.customerId || i.buyerCd || o.buyerCd) === cd || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
     });
@@ -24,7 +59,13 @@
   function isMigratedLegacyPayment(p) { return !!(p && (p.migratedToReceiptId || p.financialProjectionDisabled)); }
   window.cfIsMigratedLegacyPayment = isMigratedLegacyPayment;
   function paid(i) {
-    var legacy = (i.payments || []).concat(i.pays || []).filter(active).reduce(function (s, p) {
+    /* v34.7.18 (فاز ۳): منبع واحد مانده = PTF.ar (شامل بازسازی محلی تخصیص وقتی پروجکشن
+       سرور نرسیده باشد). فرمول قبلی به‌عنوان fallback دست‌نخورده باقی مانده است. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try { return window.PTF.ar.invoiceState(i).paid; } catch (eAr) {}
+    }
+    var payActive = (window.PTF && typeof window.PTF.isPaymentActive === 'function') ? window.PTF.isPaymentActive : active;
+    var legacy = (i.payments || []).concat(i.pays || []).filter(payActive).reduce(function (s, p) {
       return s + ((p.fromAdvance || isMigratedLegacyPayment(p)) ? 0 : (+p.amt || +p.amount || 0));
     }, 0);
     /* v35: تخصیص Receipt پرونده رابطه مستقل است و روی فاکتور Projection می‌شود. */
@@ -66,10 +107,15 @@
   function creditAmountForInvoice(invoice) { return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0)); }
   function creditForCustomer(cd) {
     var legacy = invs(cd).reduce(function (s, i) { return s + creditAmountForInvoice(i); }, 0);
+    /* v34.7.26 (S3/F2-B): کلید تهی هرگز وارد نقشه نمی‌شود؛ قبلاً یک پروندهٔ بدون _id و cd
+       کلید '' را true می‌کرد و هر رسیدِ بدون caseId (حتی از مشتری دیگر) در بستانکاری این
+       مشتری شمرده می‌شد. رسید بدون caseId فقط با customerId صریح پذیرفته می‌شود. */
     var cases = {};
-    (getData('ptf_crm_deals') || []).forEach(function (d) { if (d && d.buyerCd === cd) cases[String(d._id || d.cd || '')] = true; });
+    (getData('ptf_crm_deals') || []).forEach(function (d) { if (!d || d.buyerCd !== cd) return; var k = String(d._id || d.cd || ''); if (k) cases[k] = true; });
     var caseCredit = (getData('ptf_crm_case_receipts') || []).reduce(function (s, r) {
-      if (!r || r.status !== 'posted' || r.voided || (r.customerId !== cd && !cases[String(r.caseId || '')])) return s;
+      if (!r || r.status !== 'posted' || r.voided) return s;
+      var rk = String(r.caseId || '');
+      if (r.customerId !== cd && !(rk && cases[rk])) return s;
       return s + (+r.creditRemainIRR || 0);
     }, 0);
     return legacy + caseCredit;
@@ -357,13 +403,15 @@
     try {
       var customerCases = {}, migratedSources = {};
       (getData('ptf_crm_deals') || []).forEach(function (d) {
-        if (!d) return;
-        if (d.buyerCd === cd) customerCases[String(d._id || d.cd || '')] = true;
+        if (!d || d.buyerCd !== cd) return;
+        /* v34.7.26 (S3/F2-B): کلید تهی وارد نقشه نمی‌شود (نشت رسیدهای بدون caseId). */
+        var ck = String(d._id || d.cd || ''); if (ck) customerCases[ck] = true;
       });
       invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(lp){if(!isMigratedLegacyPayment(lp))return;var rid=String(lp.migratedToReceiptId||'');var legacy=String(lp.cd||'');if(rid)migratedSources[rid]=legacy;if(legacy)migratedSources['legacy:'+legacy]=legacy;});});
       (getData('ptf_crm_case_receipts') || []).forEach(function (p) {
         if (!p || p.status !== 'posted' || p.voided) return;
-        if (p.customerId !== cd && !customerCases[String(p.caseId || '')]) return;
+        var pk = String(p.caseId || '');
+        if (p.customerId !== cd && !(pk && customerCases[pk])) return;
         var amt = +p.amountIRR || +p.amt || 0, receiptId = String(p._id || p.cd || '');
         var legacySource = String(p.legacyPaymentRef || migratedSources[receiptId] || '');
         var migrationNote = legacySource ? ('مهاجرت‌شده از وصولی ' + legacySource + '؛ ردیف قدیمی برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود.') : '';

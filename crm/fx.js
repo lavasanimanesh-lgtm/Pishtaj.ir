@@ -215,11 +215,17 @@
        تا صدور فاکتور فروش سود اعلام نمی‌شود. وصولی/پیش‌پرداخت فروش نیست. */
     function invoiceNetIrr(inv) {
       if (!inv) return 0;
+      /* LC-01 (v34.7.21): سند غیرفعال (void/superseded/replaced) فروش نمی‌سازد. */
+      if (window.PTF && window.PTF.ar && typeof window.PTF.ar.activeInvoice === 'function' && !window.PTF.ar.activeInvoice(inv)) return 0;
       var amt = +inv.amount || 0;
       if (!amt) amt = (+inv.base || 0) + (+inv.vat || 0);
       var disc = +inv.discount || 0;
       /* اگر تخفیف جداست و هنوز از مبلغ کم نشده */
       if (disc > 0 && amt >= disc && Math.abs(amt - ((+inv.base || 0) + (+inv.vat || 0))) < 1) amt = amt - disc;
+      /* LC-02 (v34.7.21): مرجوعی فروش از فروشِ شناسایی‌شده کسر می‌شود (تصویب کارفرما ۱۴۰۵/۰۵/۲۶)؛
+         پیش از این سود پروژه با کالای برگشت‌خورده متورم می‌ماند. */
+      var returned = (window.PTF && window.PTF.ar && typeof window.PTF.ar.returnedAmountIRR === 'function') ? window.PTF.ar.returnedAmountIRR(inv) : 0;
+      amt = amt - returned;
       return amt > 0 ? amt : 0;
     }
     var invSum = invs.reduce(function (s2, v) { return s2 + invoiceNetIrr(v); }, 0);

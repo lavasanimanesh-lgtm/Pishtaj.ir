@@ -9,7 +9,7 @@ console.log('🧑‍💼 TESTER-1: چرخه کامل کسب‌وکار');
 loadFns('offers.js', ['offerSerial', 'numToWords']);
 loadFns('projects.js', ['plRemaining', 'plSerial', 'prjSerial']);
 loadFns('leads.js', ['gDateToFa', 'todayISO']);
-loadFns('analyzer.js', ['anlOfferFunnel', 'anlForecast', '_daysBetween']);
+loadFns('analyzer.js', ['anlOfferFunnel', 'anlForecast', '_daysBetween', '_anlWinStatsFallback']);
 
 SECTION('۱. ثبت لید و تبدیل به مشتری');
 setData('ptf_crm_leads', [{ cd:'LEAD-1', co:'پالایش پارس', person:'مهندس اکبری', mob:'0912', stage:'new', firstISO:'2026-06-01', hist:[], val:2e9, src:'وب‌سایت', ind:'نفت و گاز' }]);
@@ -79,8 +79,11 @@ T('تسویه کامل', paid === total);
 
 SECTION('۶. تحلیلگر روی داده واقعی چرخه');
 var f = anlOfferFunnel();
-T('قیف: ۱ برنده، winRate=100', f.won===1 && f.winRate===100);
-T('ارزش برد = مبلغ CO', f.wonValue===total);
+/* v34.7.17: نرخ برد با نمونهٔ کمتر از ۳ پیشنهاد نمایش داده نمی‌شود (F-08) و مخرج «کل پیشنهادهای
+   صادرشده» است (F-01)؛ در این سناریو تنها CO موجود برنده است، پس پوشش ۱۰۰٪ و بی‌تکلیف صفر است. */
+T('قیف: ۱ برنده، بدون پیشنهاد بی‌تکلیف، پوشش ۱۰۰٪', f.won===1 && f.open===0 && f.coverage===100);
+T('نرخ برد با نمونهٔ ۱ نمایش داده نمی‌شود', f.winRateAll===null && f.winRateDecided===null);
+T('ارزش برد = مبلغ CO (ریالی)', f.wonValue===total);
 var fc = anlForecast();
 T('مطالبات باز = 0 (تسویه شد)', fc.openRecv===0);
 DONE('TESTER-1 (E2E Flow)');

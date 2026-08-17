@@ -96,13 +96,19 @@
     return o;
   }
   function unpaidCustomer(inv) {
+    /* LC-01/LC-02 (v34.7.21): سند غیرفعال (void/superseded) مطالبه نمی‌سازد و مرجوعی فروش
+       از مبلغ باز کسر می‌شود — هم‌راستا با حساب مشتری و پنل مطالبات. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.activeInvoice === 'function' && !window.PTF.ar.activeInvoice(inv)) return 0;
     var total = +inv.amountIrr || +inv.amount || 0;
+    var returned = (window.PTF && window.PTF.ar && typeof window.PTF.ar.returnedAmountIRR === 'function') ? window.PTF.ar.returnedAmountIRR(inv) : 0;
     var paidLegacy = arr(inv.payments).concat(arr(inv.pays)).filter(active).reduce(function (s, p) {
       return s + ((p.fromAdvance || p.migratedToReceiptId || p.financialProjectionDisabled) ? 0 : (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amountIrr || +p.amt || +p.amount || 0)));
     }, 0);
     /* v35: تخصیص Receipt پرونده Projection مستقل فاکتور است. */
-    var paid = paidLegacy + (+inv.allocatedBase || 0) + (+inv.allocatedVat || 0);
-    return Math.max(0, total - paid);
+    var paid = (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function')
+      ? (function () { try { return window.PTF.ar.invoiceState(inv).paid; } catch (eAr) { return paidLegacy + (+inv.allocatedBase || 0) + (+inv.allocatedVat || 0); } })()
+      : (paidLegacy + (+inv.allocatedBase || 0) + (+inv.allocatedVat || 0));
+    return Math.max(0, total - paid - returned);
   }
   function supplierInvoicePaid(inv, pays) {
     return arr(pays).filter(active).reduce(function (s, p) {

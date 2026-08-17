@@ -903,7 +903,11 @@ window.ptfAutoRegisterSummaryProducts = function(inqNo, rows) {
     prods.push({
       cd: cd, nm: concise, en: '', ca: (typeof ptfNormCat === 'function' ? ptfNormCat(r.tp) : (r.tp || 'سایر')), /* v15.9 US-389 */
       st: r.spec || r.desc || desc, br: r.brand || '', md: r.model || r.md || '', /* v15.9: مدل */
-      un: r.un || r.unit || 'عدد', pr: 0,
+      /* FC-4 (v34.7.30): اگر قلم درخواست نرخ مرجع دارد، کالای خودکار هم با همان نرخ ساخته
+         می‌شود (پیش‌تر همیشه pr:0 بود و مرجع خرید در پیشنهاد صفر می‌ماند). */
+      un: r.un || r.unit || 'عدد', pr: +r.refPrice || 0, prCur: r.refCur || 'IRR',
+      refPriceAt: (+r.refPrice > 0 ? (r.refAt || (typeof faDate === 'function' ? faDate() : '')) : ''),
+      refPriceSrc: (+r.refPrice > 0 ? ('نرخ مرجع قلم درخواست ' + inqNo) : ''),
       ds: 'خلاصه اتوماتیک از استعلام ' + inqNo, srcInq: inqNo, tp: r.tp || 'Other', ts: new Date().toISOString()
     });
     added++;
