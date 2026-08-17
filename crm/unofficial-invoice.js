@@ -1171,6 +1171,284 @@
     };
   }
 
+  // ========================================================================
+  // ARENA-2026-08-17 / گام ۱ طرح جداسازی: ابطال ریشه‌کن فاکتور غیررسمی
+  // الزام ۴ (ریشه‌کن: تمام آثار متصل به فاکتور پاک/باطل می‌شوند)
+  // الزام ۵ (حفاظتی: وصولی‌های مندرج و چک‌های متصل حذف/ابطال خودکار نمی‌شوند)
+  // راهکار: cascade ۵ مرحله‌ای + بستانکاری‌سازی خودکار مبلغ آزادشده از FIFO
+  // طراحی: فقط برای غیررسمی‌ها؛ فاکتور رسمی از مسیر ptfInvoiceVoid سرور-محور رسمی عبور می‌کند
+  // مجوز: فقط نقش‌های ارشد (admin/chairman/ceo/commercial) یا نقش حسابدار.
+  // سازگاری: PTF_SALES_DOMAIN_V2 فعال → علاوه بر محلی، فراخوان سرور ptfSalesDomainApi('void_unofficial_invoice', ...) در مسیر بعدی.
+  // ========================================================================
+  window.ptfUnofficialInvoiceVoid = function (invCd) {
+    // ── گارد ۱: نقش مجاز (senior یا accountant) ─────────────────────────
+    try {
+      var _role = (typeof curRole === 'function') ? curRole() : '';
+      var _isSnr = (typeof isSenior === 'function') && isSenior();
+      if (!_isSnr && _role !== 'accountant') {
+        if (typeof alert === 'function') alert('⛔ ابطال فاکتور غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+        return { ok: false, why: 'role' };
+      }
+    } catch (eRole) {}
+
+    // ── گارد ۲: وجود رکورد ────────────────────────────────────────────────
+    var _invs = getData('ptf_crm_invoices');
+    var _inv = (_invs || []).filter(function (x) { return x && x.cd === invCd; })[0];
+    if (!_inv) {
+      if (typeof alert === 'function') alert('⛔ فاکتور یافت نشد');
+      return { ok: false, why: 'not_found' };
+    }
+
+    // ── گارد ۳: فقط غیررسمی (رسمی → مسیر سرور-محور) ───────────────────────
+    if (!_inv.isUnofficial) {
+      if (typeof alert === 'function') alert('⛔ این فاکتور رسمی است؛ ابطال رسمی از مسیر سرور (ptfInvoiceVoid) انجام شود');
+      return { ok: false, why: 'not_unofficial' };
+    }
+
+    // ── گارد ۴: قبلاً ابطال نشده باشد ────────────────────────────────────
+    if (_inv.status === 'void' || _inv.st === 'void' || _inv.voided === true) {
+      if (typeof alert === 'function') alert('این فاکتور قبلاً ابطال شده است');
+      return { ok: false, why: 'already_void' };
+    }
+
+    // ── گارد ۵: سال مالی قفل نباشد ───────────────────────────────────────
+    var _invYear = '';
+    try {
+      var _invDateStr = String(_inv.invDate || _inv.t || '');
+      if (typeof ptfFiscalYearOf === 'function') {
+        _invYear = ptfFiscalYearOf(_invDateStr);
+      } else {
+        var _ym = _invDateStr.match(/(13|14)\d{2}/);
+        _invYear = _ym ? _ym[0] : '';
+      }
+    } catch (eY) {}
+    if (_invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(_invYear)) {
+      if (typeof alert === 'function') alert('🔒 سال مالی ' + _invYear + ' قفل است؛ ابطال مجاز نیست. از سند اصلاحی سال مالی استفاده کنید.');
+      return { ok: false, why: 'locked', year: _invYear };
+    }
+
+    // ── گارد ۶: تأیید کاربر + دلیل اجباری ─────────────────────────────────
+    var _reason = 'ابطال سیستمی (بدون UI)';
+    if (typeof prompt === 'function' && typeof confirm === 'function') {
+      var _rsn = prompt('دلیل ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» را وارد کنید:', 'اشتباه ثبت / مغایرت');
+      if (_rsn === null) return { ok: false, why: 'canceled' };
+      _reason = String(_rsn || '').trim();
+      if (!_reason) {
+        if (typeof alert === 'function') alert('⛔ دلیل ابطال الزامی است');
+        return { ok: false, why: 'no_reason' };
+      }
+      var _confirmMsg = '🗑 تأیید نهایی ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» :\n\n' +
+        '• رکورد فاکتور ابطال می‌شود (مطالبه از مانده مشتری حذف می‌شود)\n' +
+        '• مرجوعی‌های متصل از اعتبار مشتری کاسته می‌شود\n' +
+        '• تخصیص‌های دریافت پرونده به این فاکتور آزاد می‌شود (→ بستانکاری/FIFO)\n' +
+        '• ضمینه فایل از پرونده جدا می‌شود\n\n' +
+        '⚠️ وصولی‌های واقعی مندرج در فاکتور و چک‌های متصل حذف/ابطال خودکار نمی‌شوند (الزام ۵).\n\n' +
+        'ادامه می‌دهید؟';
+      if (!confirm(_confirmMsg)) return { ok: false, why: 'canceled' };
+    }
+
+    var _myName = curSession().name || '?';
+    var _now = faDateTime();
+
+    // ── ساختار لاگ cascade ───────────────────────────────────────────────
+    var _log = {
+      preservedPayments: [],     // وصولی‌های محفوظ (الزام ۵)
+      chequeAudited: [],          // چک‌های متصل — فقط audit
+      reversedAllocations: [],    // تخصیص‌های FIFO آزادشده
+      freedCreditAmount: 0,        // مجموع مبلغ آزادشده (→ بستانکاری مشتری)
+      voidedReturns: [],          // مرجوعی‌های ابطال‌شده
+      removedFiles: []             // فایل‌های ضمیمه‌ای جدا‌شده
+    };
+
+    // ═══ مرحله ۱: وصولی‌های مندرج — فقط audit (الزام ۵) ════════════════
+    (_inv.payments || []).forEach(function (p) {
+      if (!p) return;
+      if (p.fromAdvance) return;          // پیش‌پرداخت علی‌الحساب: بخشی از خود فاکتور
+      if (p.status === 'reversal') return; // قبلاً ابطال شده
+      _log.preservedPayments.push({
+        cd: p.cd || '',
+        amt: +p.amt || 0,
+        how: p.how || '',
+        t: p.t || '',
+        prescribedAction: 'retain-as-customer-credit-or-fifo'
+      });
+    });
+
+    // ═══ مرحله ۲: چک‌های متصل — فقط audit (الزام ۵) ════════════════════
+    function _readAllCheques() {
+      var _all = [];
+      try { _all = _all.concat(getData('ptf_crm_cheques_received') || []); } catch (eR) {}
+      try { _all = _all.concat(getData('ptf_crm_cheques_issued') || []); } catch (eI) {}
+      try { _all = _all.concat(getData('ptf_crm_cheques') || []); } catch (eL) {}
+      return _all;
+    }
+    var _chequeSeen = {};
+    function _noteChequeAudit(_c) {
+      if (!_c || !_c.cd) return;
+      if (_chequeSeen[_c.cd]) return;
+      _chequeSeen[_c.cd] = true;
+      _log.chequeAudited.push({
+        chequeCd: _c.cd,
+        currentSt: _c.st,
+        action: 'audit-only',
+        note: 'ابطال فقط از ماژول چک (cheque-module.js#ptfChequeVoid) قابل انجام است'
+      });
+    }
+    // ۲.۱) از طریق pay.chequeCd
+    (_inv.payments || []).forEach(function (p) {
+      if (!p || !p.chequeCd) return;
+      var _c = _readAllCheques().filter(function (x) { return x && x.cd === p.chequeCd; })[0];
+      if (_c) _noteChequeAudit(_c);
+    });
+    // ۲.۲) از طریق sourceInvoiceCd / invoiceCd مستقیم
+    _readAllCheques().forEach(function (c) {
+      if (c && (c.sourceInvoiceCd === _inv.cd || c.invoiceCd === _inv.cd)) _noteChequeAudit(c);
+    });
+
+    // ═══ مرحله ۳: تخصیص‌های FIFO مرتبط — ابطال + بستانکاری‌سازی ═══════
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2) {
+      var _allocs = getData('ptf_crm_receipt_allocations') || [];
+      _allocs.forEach(function (a) {
+        if (a && a.invoiceCd === _inv.cd && a.status !== 'reversed') {
+          var _freed = +a.amount || 0;
+          a.status = 'reversed';
+          a.reversedAt = _now;
+          a.reversedBy = _myName;
+          a.reversalReason = _reason;
+          a.invoiceCd_atVoid = _inv.cd; // برای audit
+          _log.reversedAllocations.push({
+            id: a._id || a.cd,
+            receiptId: a.receiptId,
+            receiptCd: a.receiptCd,
+            amount: _freed
+          });
+          _log.freedCreditAmount += _freed;
+        }
+      });
+      setData('ptf_crm_receipt_allocations', _allocs);
+
+      // ۳.۲) بازسازی creditRemainIRR روی receiptهای آزادشده
+      // پس از ابطال تخصیص، هر receipt ممکن است «سهم آزاد» داشته باشد که به
+      // بستانکاری مشتری تبدیل می‌شود. این مقدار به عنوان creditRemainIRR ذخیره می‌شود.
+      var _recs = getData('ptf_crm_case_receipts') || [];
+      var _stillAllocated = {};
+      (getData('ptf_crm_receipt_allocations') || []).forEach(function (a2) {
+        if (a2.status !== 'reversed' && a2.receiptId) {
+          _stillAllocated[a2.receiptId] = (_stillAllocated[a2.receiptId] || 0) + (+a2.amount || 0);
+        }
+      });
+      var _recChanged = false;
+      _recs.forEach(function (r) {
+        if (r && r.status === 'posted' && !r.voided) {
+          var _alloc = _stillAllocated[r._id || r.cd] || 0;
+          var _newCredit = Math.max(0, (+r.amountIRR || +r.amt || 0) - _alloc);
+          if ((+r.creditRemainIRR || 0) !== _newCredit) {
+            r.creditRemainIRR = _newCredit;
+            _recChanged = true;
+          }
+        }
+      });
+      if (_recChanged) setData('ptf_crm_case_receipts', _recs);
+    }
+
+    // ═══ مرحله ۴: مرجوعی‌های متصل — ابطال (اینها سند صوری متصل‌اند) ═
+    var _rets = getData('ptf_crm_sales_returns') || [];
+    _rets.forEach(function (r) {
+      if (!r) return;
+      if (r.invoiceCd !== _inv.cd) return;
+      if (r.status === 'void') return;
+      r.status = 'void';
+      r.voidAt = _now;
+      r.voidBy = _myName;
+      r.voidReason = _reason;
+      _log.voidedReturns.push({ cd: r.cd, amount: r.totalAmount });
+    });
+    setData('ptf_crm_sales_returns', _rets);
+
+    // ═══ مرحله ۵: جدا کردن فایل‌های ضمیمه از پرونده (نه حذف فیزیکی) ═
+    if ((_inv.files || []).length && _inv.caseId) {
+      var _deals0 = getData('ptf_crm_deals') || [];
+      var _d0 = _deals0.filter(function (x) { return x && String(x._id || x.cd) === String(_inv.caseId); })[0];
+      if (_d0) {
+        (_inv.files || []).forEach(function (f) {
+          if (!f || !f.key) return;
+          _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
+          _log.removedFiles.push(f.key);
+        });
+        setData('ptf_crm_deals', _deals0);
+      }
+    }
+
+    // ═══ علامت‌گذاری خود فاکتور (رکورد اصلی حذف نمی‌شود ولی void می‌شود) ═
+    _inv.status = 'void';
+    _inv.st = 'void';
+    _inv.voidAt = _now;
+    _inv.voidBy = _myName;
+    _inv.voidReason = _reason;
+    _inv.voidCascadeLog = _log;       // برای audit trail یکپارچه
+
+    // ── timeline پرونده (گزارش دقیق آنچه ابطال شد + آنچه محفوظ ماند) ─
+    if (_inv.caseId) {
+      var _deals = getData('ptf_crm_deals') || [];
+      var _d = _deals.filter(function (x) { return x && String(x._id || x.cd) === String(_inv.caseId); })[0];
+      if (_d) {
+        _d.timeline = _d.timeline || [];
+        var _preservedAmt = _log.preservedPayments.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+        _d.timeline.push({
+          t: _now,
+          by: _myName,
+          tx: '🗑 ابطال ریشه‌کن فاکتور غیررسمی ' + _inv.no +
+             ' — ابطال شد: ' + _log.voidedReturns.length + ' مرجوعی / ' +
+             _log.reversedAllocations.length + ' تخصیص (بستانکاری‌سازی ' +
+             _log.freedCreditAmount.toLocaleString('fa-IR') + ' ریال); ' +
+             'محفوظ ماند: ' + _log.preservedPayments.length + ' وصولی واقعی (به‌مبلغ ' +
+             _preservedAmt.toLocaleString('fa-IR') + ' ریال — به‌عنوان بستانکاری یا FIFO); ' +
+             'چک (فقط audit): ' + _log.chequeAudited.length + ' مورد'
+        });
+        setData('ptf_crm_deals', _deals);
+      }
+    }
+
+    // ── setData نهایی + audit ────────────────────────────────────────────
+    setData('ptf_crm_invoices', _invs);
+    try {
+      audit('فاکتور غیررسمی',
+        'ابطال ریشه‌کن فاکتور ' + _inv.no + ' — مبلغ فاکتور: ' +
+        (+_inv.amount || 0).toLocaleString('fa-IR') + ' ریال — دلیل: ' + _reason + ' — ' +
+        'وصولی محفوظ: ' + _log.preservedPayments.length + ' / ' +
+        'تخصیص آزادشده: ' + _log.reversedAllocations.length + ' (بستانکاری: ' +
+        _log.freedCreditAmount.toLocaleString('fa-IR') + ' ریال) / ' +
+        'مرجوعی ابطال‌شده: ' + _log.voidedReturns.length + ' / ' +
+        'چک (فقط audit): ' + _log.chequeAudited.length,
+        _inv.cd);
+    } catch (eA) {}
+
+    // ── رندر مجدد پنل‌های وابسته ─────────────────────────────────────────
+    try { if (typeof window.renderDeals === 'function') window.renderDeals(); } catch (e1) {}
+    try { if (typeof window.renderReceivables === 'function') window.renderReceivables(); } catch (e2) {}
+    try {
+      if (typeof ptfToast === 'function') {
+        ptfToast(
+          'فاکتور غیررسمی ابطال شد. ' +
+          _log.preservedPayments.length + ' وصولی محفوظ ماند (الزام ۵ — به‌عنوان بستانکاری/FIFO). ' +
+          _log.freedCreditAmount.toLocaleString('fa-IR') + ' ریال بستانکاری آزاد شد.' +
+          (_log.chequeAudited.length ? ' ' + _log.chequeAudited.length + ' چک متصل برای ابطال صریح به ماژول چک ارجاع شد.' : ''),
+          'ok'
+        );
+      }
+    } catch (eT) {}
+
+    // ── (پس از اجرای محلی، در مرحلهٔ سروری) هماهنگی سرور PTF_SALES_DOMAIN_V2 ─
+    // TODO: در آینده اگر endpoint سروری void_unofficial_invoice اضافه شد، این‌جا صدا زده شود:
+    // if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 &&
+    //     typeof window.ptfSalesDomainApi === 'function') {
+    //   window.ptfSalesDomainApi('void_unofficial_invoice', { invoiceId: _inv.cd, reason: _reason, cascadeLog: _log })
+    //     .catch(function (e) { ... });
+    // }
+
+    return { ok: true, cascadeLog: _log, voidedAt: _now };
+  };
+
   // اجرای پاک‌سازی خودکار در لود اسکریپت
   try {
     cleanUpDoubleInvoices();
