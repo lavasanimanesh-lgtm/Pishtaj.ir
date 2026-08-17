@@ -645,3 +645,68 @@ postAction(
 - `crm/index.html` (ترتیب بارگذاری اسکریپت‌ها)
 - `crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md`
 - `crm/ANALYSIS-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE1.md`
+
+
+---
+
+## 10. وضعیت اجرا — گام 2 (الزام‌های 1 و 3 تأیید و تحویل شده — 1405/05/26)
+
+### تغییرات اعمال‌شده
+
+**الف) `crm/unofficial-invoice.js` (+697 خط):**
+
+15 تابع جدید اضافه شد (بلاک قبل از `ptfUnofficialInvoiceVoid`):
+
+- **Helperها:**
+  - `unofficialInvoiceCollectOffers(deal)` → `{offers, priceSourceOffer, hasFinancialOffer}` با اولویت CO برای مبدأ قیمت
+  - `unofficialInvoiceSnapshotLines(offer)` → آرایه اقلام deep-clone با `qtyOrig`/`priceOrig`/`qty`/`price`/`_pid`/`fromOffer`/`fromKind`
+  - `unofficialInvoiceConsolidateLines(selected, srcOffer)` → ترکیب بدون تکرار (بر اساس `pcode || name || desc`) برای چند پیشنهاد
+- **رندر:**
+  - `buildUnInvBuilderRows(lines)` → HTML ردیف‌های جدول (input با `data-fld` و `data-pid`)
+  - `buildUnInvBuilderHtml(st)` → کل HTML دیالوگ شامل:
+    - mode toggle (تک / تجمیعی)
+    - offers selector (radio در تک، checkbox در تجمیعی)
+    - جدول اقلام قابل ویرایش (تعداد، قیمت واحد، دکمه حذف هر ردیف)
+    - دکمه‌های `+ افزودن قلم سفارشی` و `♻️ بازنشانی از پیشنهاد`
+    - فیلدهای تخفیف (مبلغ یا درصد)، شماره حساب، نرخ تسعیر
+    - باکس نتیجه زنده (جمع + تخفیف + خالص + تبدیل ریالی برای ارزی)
+- **کنترل:**
+  - `bindUnInvBuilderHandlers` / `applyUnInvBuilderMode` / `reloadUnInvBuilderFromSelection` → رویدادهای reactive mode/offer/checkbox
+  - `unofficialInvoiceBuilderRecalc` → محاسبه زنده با debounce ذاتی (از input رویداد)
+  - `unofficialInvoiceBuilderRemoveRow` / `AddCustomRow` / `ResetFromOffer` / `Submit` → اکشن‌های ردیف
+  - `unofficialInvoiceBuilderOpen(dealCd)` → باز کردن دیالوگ با guard نقش و مرحله (≥7)
+- **پرینتر سفارشی:**
+  - `unofficialInvoicePrintCases(ctx)` → dispatcher نهایی که:
+    - `syntheticOffer.items = ctx.linesSnapshot` (بدون تغییر تابع رسمی)
+    - محاسبه totals از snapshot، حفظ الگوریتم تخفیف/پیش‌پرداخت/تسعیر
+    - ذخیره رکورد فاکتور با فیلدهای جدید: `invoiceKind` ('single'|'consolidated'), `sourceOfferNo`, `consolidatedFromOffers`, `overridedFromOffer: true`, `linesSnapshot`
+    - شناسه صورتحساب تجمیعی: `UN-INV-CONSOLIDATED-<dealCd>-<YYYYMMDDHHmm>`
+    - ثبت در timeline پرونده با توضیح ` (تجمیعی از N پیشنهاد)` در حالت تجمیعی
+
+**ب) `crm/salesfiles.js` (+23 خط):**
+
+- افزودن `window.sfUnofficialInvoiceNew(dealCd)` بعد از `function sfHasInvoice(r)` — guard نقش + dispatcher به `unofficialInvoiceBuilderOpen`.
+- افزودن `postAction('unofficial-invoice', '🧾', 'صورتحساب غیررسمی', ... 'sfUnofficialInvoiceNew(...)', { meta: 'پرونده' })` در کشوی پرونده (`sfDrawerHtml`) قبل از اکشن‌های 'loss' و 'close' (همیشه فعال، نه فقط برای پرونده‌هایی که `wonOffer` دارند).
+
+### قابلیت تأییدکننده
+
+1. در پرونده فروش (مرحله ≥7)، دکمه 🧾 صورتحساب غیررسمی نمایش داده می‌شود.
+2. کلیک → دیالوگ با دو حالت (تک‌پیشنهاد / تجمیعی چند پیشنهاد) باز می‌شود.
+3. در حالت تک: یک پیشنهاد انتخاب، اقلام از آن لود می‌شوند.
+4. در حالت تجمیعی: چک‌باکس‌ها برای انتخاب چند پیشنهاد، اقلام ترکیبی لود می‌شوند.
+5. **ویرایش قیمت**: هر سلول تعداد/قیمت قابل ویرایش است؛ جمع کل و تخفیف به‌صورت زنده به‌روز می‌شوند.
+6. **+ افزودن قلم سفارشی**: ردیف جدید با مقادیر پیش‌فرض.
+7. **♻️ بازنشانی**: اقلام به حالت اولیه از پیشنهاد برمی‌گردند.
+8. **تأیید**: رکورد فاکتور در `ptf_crm_invoices` با فیلدهای `invoiceKind`/`sourceOfferNo`/`consolidatedFromOffers`/`linesSnapshot` ذخیره می‌شود، در timeline پرونده ثبت می‌شود، و فایل PDF HTML پیش‌نمایش داده می‌شود.
+
+### تست‌های انجام‌شده
+
+- ✅ اعتبارسنجی نحوی JS هر دو فایل (Node syntax check)
+- ✅ Smoke test منطق: `unofficialInvoiceSnapshotLines` (2 آیتم، جمع درست) و `unofficialInvoiceConsolidateLines` (A,B,C با حذف تکراری) تأیید شد
+- ✅ هماهنگی با توابع Step 1 (ptfUnofficialInvoiceVoid همچنان فعال)
+
+### محدودیت‌های فعلی
+
+- **بدون سرور:** همه چیز در لایه client (مشابه رسمی). TODO در انتهای `unofficialInvoicePrintCases` برای endpoint سروری `register_unofficial_invoice` با consolidated context (مرتبط با گام 4).
+- **مرحله ≥7:** هم ارسال فاکتور رسمی و هم فاکتور غیررسمی نیاز به مرحلهٔ پس از تحویل کارفرما دارند.
+- **محاسبه ریالی**: برای اسناد ارزی، جمع نهایی محاسبه‌شده با نرخ روز صدور — تطابق با رفتار قبلی.
