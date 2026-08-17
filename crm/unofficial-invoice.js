@@ -1330,7 +1330,7 @@ window.unofficialInvoiceBuilderOpen = function (dealCd) {
   _dlg.id = 'unInvBuilderDlg';
   _dlg.className = 'md-b';
   _dlg.style.cssText = 'display:grid;z-index:2800;';
-  _dlg.setAttribute('data-deal-cd', _deal.cd || _deal._id || '');
+  _dlg.setAttribute('data-deal-cd', (window.PTF && typeof window.PTF.id === 'function') ? window.PTF.id(_deal) : (_deal._id || _deal.cd || '')); /* v34.7.28: شناسهٔ متعارف */
   _dlg.onclick = function (e) { if (e.target === _dlg) _dlg.remove(); };
   _dlg.innerHTML = buildUnInvBuilderHtml(_unInvState);
   document.body.appendChild(_dlg);
@@ -1664,7 +1664,8 @@ window.unofficialInvoiceBuilderSubmit = function () {
     discountInput: _discInput,
     bankAccount: _bankInput,
     currentRate: _rate,
-    dealCd: _unInvState.deal.cd || _unInvState.deal._id || ''
+    /* v34.7.28: شناسهٔ متعارف (قرارداد PTF.id) — پیش‌تر cd اول بود و با مصرف‌کننده‌های _id-اول نمی‌خواند. */
+    dealCd: (window.PTF && typeof window.PTF.id === 'function') ? window.PTF.id(_unInvState.deal) : (_unInvState.deal._id || _unInvState.deal.cd || '')
   });
 };
 
@@ -1764,7 +1765,11 @@ window.unofficialInvoicePrintCases = function (ctx) {
 
   // پیدا کردن پروندهٔ فروش برای اتصال
   var _salesCase = (getData('ptf_crm_deals') || []).filter(function (d) {
-    return d && (d.wonOffer === _co.no || (_co._id && d.rootOfferId === _co._id) || (d.cd || d._id) === ctx.dealCd);
+    /* v34.7.28: تطبیق با همهٔ نام‌های مستعار رکورد (PTF.sameEntity) به‌جای ترتیب دلخواه. */
+    var sameCase = (window.PTF && typeof window.PTF.sameEntity === 'function')
+      ? window.PTF.sameEntity(d, ctx.dealCd)
+      : (String(d && (d._id || d.cd) || '') === String(ctx.dealCd || '') && !!ctx.dealCd);
+    return d && (d.wonOffer === _co.no || (_co._id && d.rootOfferId === _co._id) || sameCase);
   })[0] || null;
 
   // ذخیره رکورد فاکتور
@@ -1899,8 +1904,13 @@ window.unofficialInvoicePrintCases = function (ctx) {
   // ثبت در timeline پرونده
   try {
     var _deals = getData('ptf_crm_deals');
+    /* v34.7.28: جست‌وجوی پرونده با همهٔ نام‌های مستعار؛ پیش‌تر اگر caseId خالی بود و
+       fallback به ctx.dealCd می‌رسید، رکورد پیدا نمی‌شد و رویداد timeline بی‌صدا ثبت نمی‌شد. */
+    var _needleCase = String((newInv && newInv.caseId) || (existing && existing.caseId) || (ctx.dealCd || ''));
     var _dTarget = _deals.filter(function (x) {
-      return x && (String(x._id || x.cd || '') === String((newInv && newInv.caseId) || (existing && existing.caseId) || (ctx.dealCd || '')));
+      return x && ((window.PTF && typeof window.PTF.sameEntity === 'function')
+        ? window.PTF.sameEntity(x, _needleCase)
+        : (!!_needleCase && (String(x._id || '') === _needleCase || String(x.cd || '') === _needleCase)));
     })[0];
     if (_dTarget) {
       _dTarget.timeline = _dTarget.timeline || [];

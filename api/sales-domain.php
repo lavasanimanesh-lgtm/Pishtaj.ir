@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.27';
+const SD_SERVICE_VERSION = '34.7.28';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1105,7 +1105,7 @@ try {
         /* Stable IDs are safe metadata; ambiguous business records are never merged. */
         foreach($offers as &$o)if(is_array($o))sd_offer_id($o);unset($o);
         foreach($cases as &$c)if(is_array($c))sd_case_id($c);unset($c);
-        /* v34.7.27 (S3/F2-A — نشت بین‌مشتری): تطبیق فاکتور با پرونده هرگز نباید با مقدار تهی
+        /* v34.7.28 (S3/F2-A — نشت بین‌مشتری): تطبیق فاکتور با پرونده هرگز نباید با مقدار تهی
            انجام شود. الگوی قبلی ''===''  را می‌پذیرفت، پس هر فاکتور بدون offerNo به اولین
            پروندهٔ بدون wonOffer (متعلق به هر مشتری دیگری) می‌چسبید و customerId آن روی رکورد
            نوشته می‌شد. علاوه بر گارد تهی، تطبیق باید یکتا باشد؛ در غیر این صورت انتساب انجام

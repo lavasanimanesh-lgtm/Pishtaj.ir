@@ -57,6 +57,7 @@ var SUITE = [
   { g: 'پرونده/اکشن فاکتور', f: '_tools/uat/tester428-v34.7.26-salesfile-invoice-actions.js' },
   { g: 'مالی/نشت بین‌مشتری', f: '_tools/uat/tester429-v34.7.26-cross-customer-advance-leak.js' },
   { g: 'مالی/شناسهٔ متعارف پرونده', f: '_tools/uat/tester430-v34.7.27-case-id-alias.js' },
+  { g: 'معماری/پیشگیری', f: '_tools/uat/tester431-v34.7.28-architecture-guardrails.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
@@ -89,6 +90,14 @@ function looksPassed(out) {
   if (/PASS\s+\d+\s+FAIL\s+0/.test(out)) return true;
   if (/^PASS\b/m.test(out) && !/^FAIL\b/m.test(out)) return true;
   return false;
+}
+
+function archGuard() {
+  /* نگهبان معماری (v34.7.28): جلوگیری از بازگشت خانواده‌های باگ شناخته‌شده.
+     مبنا در _tools/arch/arch-baseline.json است؛ فقط «تخلف جدید» گیت را می‌شکند. */
+  var r = require('child_process').spawnSync(process.execPath, [path.join(ROOT, '_tools/arch/arch-guard.js'), '--quiet'], { encoding: 'utf8' });
+  var out = (r.stdout || '') + (r.stderr || '');
+  return { ok: r.status === 0, out: out };
 }
 
 function syntaxCheck() {
@@ -140,6 +149,11 @@ if (syn.length) {
 } else {
   console.log('  ✔ ' + SYNTAX.length + ' crm files');
 }
+
+console.log('── نگهبان معماری ──');
+var ag = archGuard();
+ag.out.split('\n').filter(function (l) { return l.trim(); }).forEach(function (l) { console.log('  ' + l); });
+if (!ag.ok) failed.push('arch-guard');
 
 console.log('── php -l ──');
 var phpLint = phpLintCheck();
