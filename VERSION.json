@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.7.25",
+  "crm_version": "v34.7.26",
   "last_stable_tag": "v2026.08.16-0100",
-  "last_updated": "2026-08-16",
-  "updated_by": "Arena Agent (v34.7.25 phase H — UAT suite runner + documented test-debt quarantine; zero real failures)"
+  "last_updated": "2026-08-17",
+  "updated_by": "Arena Agent (v34.7.26 S1–S3+S5 — رفع باگ ابطال/اصلاح فاکتور از کشوی پروندهٔ فروش، بستن چهار مسیر نشت پیش‌پرداخت بین مشتریان، حذف تکرار دکمه‌ها)"
 }

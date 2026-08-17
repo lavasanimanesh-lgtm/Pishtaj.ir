@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.25';
+const SD_SERVICE_VERSION = '34.7.26';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1105,7 +1105,28 @@ try {
         /* Stable IDs are safe metadata; ambiguous business records are never merged. */
         foreach($offers as &$o)if(is_array($o))sd_offer_id($o);unset($o);
         foreach($cases as &$c)if(is_array($c))sd_case_id($c);unset($c);
-        foreach($invoices as &$i)if(is_array($i)){if(empty($i['_id']))$i['_id']=sd_uuid('INV');if(empty($i['caseId'])){foreach($cases as $c)if(is_array($c)&&((string)($c['wonOffer']??'')===(string)($i['offerNo']??'')||(string)($c['offerNo']??'')===(string)($i['offerNo']??''))){$i['caseId']=$c['_id'];$i['customerId']=$c['buyerCd']??'';$i['buyerCo']=$i['buyerCo']??($c['buyerCo']??'');break;}}}unset($i);
+        /* v34.7.26 (S3/F2-A — نشت بین‌مشتری): تطبیق فاکتور با پرونده هرگز نباید با مقدار تهی
+           انجام شود. الگوی قبلی ''===''  را می‌پذیرفت، پس هر فاکتور بدون offerNo به اولین
+           پروندهٔ بدون wonOffer (متعلق به هر مشتری دیگری) می‌چسبید و customerId آن روی رکورد
+           نوشته می‌شد. علاوه بر گارد تهی، تطبیق باید یکتا باشد؛ در غیر این صورت انتساب انجام
+           نمی‌شود و یک finding برای بررسی انسانی ثبت می‌گردد. */
+        $ambiguousInvoiceBinds=[];
+        foreach($invoices as &$i)if(is_array($i)){
+            if(empty($i['_id']))$i['_id']=sd_uuid('INV');
+            if(!empty($i['caseId']))continue;
+            $offerNo=trim((string)($i['offerNo']??''));
+            if($offerNo==='')continue;
+            $matches=[];
+            foreach($cases as $c){
+                if(!is_array($c))continue;
+                $caseNo=trim((string)($c['wonOffer']??''));if($caseNo==='')$caseNo=trim((string)($c['offerNo']??''));
+                if($caseNo!==''&&$caseNo===$offerNo)$matches[]=$c;
+            }
+            if(count($matches)!==1){if($matches)$ambiguousInvoiceBinds[]=['invoiceId'=>(string)$i['_id'],'offerNo'=>$offerNo,'candidates'=>count($matches)];continue;}
+            $c=$matches[0];
+            $i['caseId']=$c['_id'];$i['customerId']=$c['buyerCd']??'';$i['buyerCo']=$i['buyerCo']??($c['buyerCo']??'');
+        }unset($i);
+        foreach($ambiguousInvoiceBinds as $amb)$findings[]=['_id'=>sd_uuid('FIND'),'ruleId'=>'invoice_case_bind_ambiguous','severity'=>'warning','evidence'=>$amb,'status'=>'open','createdAt'=>sd_now(),'modelVersion'=>'deterministic-v35'];
         $offerCount=[];foreach($offers as $o)if(is_array($o)&&!empty($o['no']))$offerCount[(string)$o['no']]=($offerCount[(string)$o['no']]??0)+1;
         $touched=[];$migrated=0;
         foreach($offers as &$o){if(!is_array($o))continue;$no=(string)($o['no']??'');if(($offerCount[$no]??0)!==1)continue;$matches=[];foreach($cases as $c)if(is_array($c)&&sd_active($c)&&sd_case_offer_linked($c,$o))$matches[]=$c;if(count($matches)!==1)continue;$case=$matches[0];$caseId=(string)$case['_id'];$pays=is_array($o['advance']['payments']??null)?$o['advance']['payments']:[];foreach($pays as $p){if(!is_array($p))continue;$amt=(int)round(sd_num($p['amt']??0));$method=(string)($p['how']??'');if($amt<=0||preg_match('/چک|cheque/i',$method))continue;$legacyRef=(string)($p['cd']??'');$exists=false;foreach($receipts as $r)if(is_array($r)&&$legacyRef!==''&&(string)($r['legacyPaymentRef']??'')===$legacyRef){$exists=true;break;}if($exists)continue;$hasInvoice=false;foreach($invoices as $inv)if(is_array($inv)&&sd_active($inv)&&(string)($inv['caseId']??'')===$caseId){$hasInvoice=true;break;}$cur=strtoupper((string)($case['currency']??$o['currency']??'IRR'));$rate=sd_num($p['rate']??$o['advance']['rate']??0);$receipts[]=['_id'=>sd_uuid('RCPT'),'cd'=>sd_uuid('RPAY'),'caseId'=>$caseId,'customerId'=>$case['buyerCd']??$o['buyerCd']??'','buyerCo'=>$case['buyerCo']??$o['buyerCo']??'','amountIRR'=>$amt,'amt'=>$amt,'receivedAt'=>$p['t']??$o['advance']['t']??sd_now(),'dateISO'=>$p['t']??'','method'=>$method?:'legacy_confirmed','how'=>$method?:'legacy_confirmed','destinationAccount'=>'legacy-migration','referenceNo'=>$legacyRef,'note'=>'مهاجرت وصول واقعی payments[]؛ paid/cashFull بدون رویداد منتقل نشده است','status'=>'posted','timing'=>$hasInvoice?'post_invoice':'pre_invoice','currency'=>$cur,'fxRate'=>$rate,'fxRateSource'=>$rate>0?'legacy snapshot':'','coveredFxAmount'=>($cur!=='IRR'&&$rate>0)?round($amt/$rate,4):0,'legacyPaymentRef'=>$legacyRef,'migratedAt'=>sd_now(),'createdBy'=>$user,'createdAt'=>sd_now()];$touched[$caseId]=true;$migrated++;}if(isset($o['advance'])&&is_array($o['advance']))$o['advance']['migrationV35']=['at'=>sd_now(),'actualPaymentsMigrated'=>$migrated,'inferredCashIgnored'=>empty($pays)&&(!empty($o['advance']['cashFull'])||!empty($o['advance']['paid']))];}unset($o);

@@ -223,13 +223,17 @@
     var offers = list('ptf_crm_offers');
     var cases = list('ptf_crm_deals');
     var myCases = {};
-    cases.forEach(function (c) { if (c && String(c.buyerCd || '') === String(cd)) myCases[idOf(c)] = true; });
+    /* v34.7.26 (S3/F2-B): کلید تهی وارد نقشه نمی‌شود؛ پروندهٔ بدون _id/cd نباید باعث شود
+       هر رکورد بدون caseId به این مشتری نسبت داده شود. */
+    cases.forEach(function (c) { if (!c || String(c.buyerCd || '') !== String(cd)) return; var k = idOf(c); if (k) myCases[k] = true; });
     return list('ptf_crm_invoices').filter(function (i) {
       if (!activeInvoice(i)) return false;
       if (String(i.customerId || i.buyerCd || '') === String(cd)) return true;
       var b = (snap.binding[idOf(i)] || {}).caseId;
       if (b && myCases[b]) return true;
-      var o = offers.filter(function (x) { return x && x.no === i.offerNo; })[0];
+      /* v34.7.26 (S3/F2-D): تطبیق پیشنهاد فقط با شمارهٔ ناتهی (پیش‌تر ''==='' مالکیت را جابه‌جا می‌کرد). */
+      var ino = String(i.offerNo || ''); if (!ino) return false;
+      var o = offers.filter(function (x) { return x && String(x.no || '') === ino; })[0];
       return !!(o && String(o.buyerCd || '') === String(cd));
     });
   }
@@ -239,10 +243,11 @@
     var billed = 0, paid = 0, open = 0;
     invoices.forEach(function (i) { var st = invoiceState(i, snap); billed += st.billed; paid += st.paid; open += st.open; });
     var myCases = {};
-    list('ptf_crm_deals').forEach(function (c) { if (c && String(c.buyerCd || '') === String(cd)) myCases[idOf(c)] = true; });
+    list('ptf_crm_deals').forEach(function (c) { if (!c || String(c.buyerCd || '') !== String(cd)) return; var k = idOf(c); if (k) myCases[k] = true; });
     var credit = list('ptf_crm_case_receipts').reduce(function (s, r) {
       if (!activeReceipt(r)) return s;
-      if (String(r.customerId || '') !== String(cd) && !myCases[String(r.caseId || '')]) return s;
+      var rk = String(r.caseId || '');
+      if (String(r.customerId || '') !== String(cd) && !(rk && myCases[rk])) return s;
       var localCredit = snap.rcpCredit[idOf(r)];
       return s + (localCredit == null ? n(r.creditRemainIRR) : localCredit);
     }, 0);

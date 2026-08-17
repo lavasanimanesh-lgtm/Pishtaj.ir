@@ -28,6 +28,11 @@ var ROLES = {
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
 var SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
 
+/* v34.7.26 (S3/F2-D — نشت بین‌مشتری): یافتن پیشنهاد با شماره باید شمارهٔ ناتهی بخواهد.
+   الگوی قبلی `x.no === offerNo` وقتی هر دو undefined/'' بودند صادق می‌شد و اولین
+   پیشنهاد بی‌شماره (متعلق به هر مشتری دیگری) انتخاب می‌شد؛ از روی همان، buyerCd و
+   حتی advance خوانده و روی فاکتور اعمال می‌شد.
+   مرجع: ASSESSMENT-SALESFILE-3ISSUES-2026-08-17.md §۳ مسیر D */
 function curSession() {
   try { return JSON.parse(localStorage.getItem('ptf_crm_session')) || {}; } catch (e) { return {}; }
 }
@@ -631,7 +636,7 @@ function saveBuyQ() {
 function refToInvoice(offerNo) {
   if (!isSenior()) { alert('فقط نقش‌های ارشد می‌توانند برای صدور فاکتور ارجاع دهند'); return; }
   var offers = getData('ptf_crm_offers');
-  var o = offers.filter(function (x) { return x.no === offerNo; })[0];
+  var o = String(offerNo || '') ? offers.filter(function (x) { return x && String(x.no || '') === String(offerNo); })[0] : null; /* v34.7.26 (S3/F2-D): گارد شمارهٔ تهی */
   if (!o) return;
   if (o.kind !== 'CO') { alert('فقط پیشنهاد مالی (CO) قابل ارجاع برای فاکتور است'); return; }
   // v18.9 (US-431 فاز۱): پس از برد و تشکیل پرونده فروش، ارجاع فاکتور از ماژول پیشنهادها ممنوع است.
@@ -717,7 +722,7 @@ function renderInvoices() {
       (!inv ? '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\')">+ ثبت فاکتور صادره</button>' : '') +
       /* فاز ۲ / گام ۷: ویرایش/ابطال فاکتور فروش رسمی — فقط پیش از اولین وصولی، فقط نقش‌های ارشد */
       (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="showInvModal(\'' + o.no + '\',\'' + ptfOnClickArg(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ویرایش') + '">✏️ ویرایش</button>' : '') +
-      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + ptfOnClickArg(inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
+      (inv && isSenior() ? '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626;border-color:#fecaca" onclick="ptfInvoiceVoid(\'' + ptfOnClickArg(inv._id || inv.cd) + '\')" title="' + (invPaidSum > 0 ? 'دارای وصولی — از سند اصلاحی استفاده کنید' : 'ابطال') + '">🗑 ابطال</button>' : '') +
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';
@@ -740,7 +745,7 @@ function showInvModal(offerNo, editCd) {
   }
   var _advTxt = '';
   try {
-    var _o = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
+    var _o = (String(offerNo || '') ? getData('ptf_crm_offers').filter(function (x) { return x && String(x.no || '') === String(offerNo); })[0] : null);
     if (_o && typeof ptfAdvanceNormalize === 'function') {
       var _a = ptfAdvanceNormalize(_o);
       if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) _advTxt = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:7px 11px;font-size:11.5px;color:#92400e;margin-bottom:8px">💰 این پیشنهاد پیش‌پرداخت ' + (typeof ptfAdvanceLabel === 'function' ? ptfAdvanceLabel(_o) : '') + ' دارد — ' + (_a.cashFull ? 'پرداخت کامل/نقدی: فاکتور تسویه‌شده ثبت می‌شود (US-436)' : _a.paid ? 'مبلغ وصول‌شده خودکار از مانده مطالبات کسر می‌شود (US-436)' : 'هنوز وصول نشده — کل مبلغ به مطالبات می‌رود') + '</div>';
@@ -806,7 +811,7 @@ function saveInv(offerNo) {
      اشتباه بدون هیچ هشداری ثبت و بعداً وارد داشبورد موازنه فصلی هم شده و
      محاسبات مالیاتی را کاملاً منحرف کرده بود. */
   try {
-    var _fxOfferForSanity = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
+    var _fxOfferForSanity = (String(offerNo || '') ? getData('ptf_crm_offers').filter(function (x) { return x && String(x.no || '') === String(offerNo); })[0] : null);
     var _fxSanity = (typeof window.ptfLedgerOfficialFxSanity === 'function') ? window.ptfLedgerOfficialFxSanity(_fxOfferForSanity, grand) : { applicable: false, ok: true };
     /* v34.0.8-alpha (فاز ۴ — مورد C تأییدشده): اصل بر صحت فاکتور است و «مغایرت پیشنهاد و فاکتور
        معنا ندارد»؛ پیشنهاد فقط مبنای صدور فاکتور است. پس این فقط یک اطلاع‌رسانیِ غیربلوکه‌کننده است
@@ -847,7 +852,7 @@ function saveInv(offerNo) {
     return;
   }
 
-  var _offerMeta = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0] || {};
+  var _offerMeta = (String(offerNo || '') ? getData('ptf_crm_offers').filter(function (x) { return x && String(x.no || '') === String(offerNo); })[0] : null) || {};
   /* v31.7.3 BUG-AUDIT-002-FINANCIAL-CODEGEN: فاکتور با کد TMP ذخیره نمی‌شود —
      شماره رسمی فقط از سرور. اگر pool خالی باشد، کاربر باید refresh/ورود مجدد کند. */
   var _newInvCd = genCode('INV');
@@ -869,7 +874,7 @@ function saveInv(offerNo) {
     files: files, file: files.length ? files[0].name : '', t: faDate(), by: curSession().name, payments: [] };
   /* v19.3 (US-436 AC5/AC6): پیش‌پرداخت ساختاریافته (v18.2) — نقدی/کامل=تسویه فوری؛ وصول‌شده=کسر خودکار از مطالبات */
   try {
-    var _oAdv = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
+    var _oAdv = (String(offerNo || '') ? getData('ptf_crm_offers').filter(function (x) { return x && String(x.no || '') === String(offerNo); })[0] : null);
     var _a = (_oAdv && typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(_oAdv) : null;
     if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
       var received = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
@@ -918,7 +923,7 @@ function saveInv(offerNo) {
   hideModal(); renderInvoices();
   audit('فاکتور', 'ثبت فاکتور ' + no + ' برای ' + offerNo, no);
   // US-150 AC6: پیامک «انجام شد» به ارجاع‌دهنده
-  var refOffer = getData('ptf_crm_offers').filter(function (x) { return x.no === offerNo; })[0];
+  var refOffer = (String(offerNo || '') ? getData('ptf_crm_offers').filter(function (x) { return x && String(x.no || '') === String(offerNo); })[0] : null);
   if (refOffer && refOffer.invRef && typeof smsSendSingle === 'function' && confirm('📱 پیامک اطلاع «فاکتور صادر شد» برای ارجاع‌دهنده (' + refOffer.invRef.by + ') ارسال شود؟')) {
     var refMob = typeof smsUserMobileByName === 'function' ? smsUserMobileByName(refOffer.invRef.by) : '';
     if (refMob) {
@@ -1117,7 +1122,11 @@ window.ptfInvoicePayVoidPrompt = function (invCd, payRef) {
    ردپای audit حفظ می‌شود اما در همه‌ی گزارش‌ها/لیست‌ها (renderInvoices،
    renderReceivables، customer-finance.js، fiscal.js، working-capital.js،
    commission.js، ...) فیلتر می‌شود چون همگی status!=='void' را چک می‌کنند. */
-window.ptfInvoiceVoid = function (invCd) {
+/* v34.7.26 (S1/F1-5): این تعریف از v35 هرگز اجرا نمی‌شود — crm/official-invoice-v2.js
+   (که در index.html بعد از rbac.js بارگذاری می‌شود) window.ptfInvoiceVoid را بازنویسی
+   می‌کند. برای رفع ابهام «کدام تابع اجرا می‌شود» نام آن به Legacy تغییر کرد؛ هیچ
+   فراخوان زنده‌ای به آن وجود ندارد و رفتار سامانه تغییر نمی‌کند. */
+window.ptfInvoiceVoidLegacy = function (invCd) {
   if (!isSenior()) { alert('⛔ ابطال فاکتور فروش رسمی فقط برای مدیران ارشد مجاز است'); return; }
   var invs = getData('ptf_crm_invoices');
   var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
