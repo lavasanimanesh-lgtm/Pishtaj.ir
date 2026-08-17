@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.31';
+const SD_SERVICE_VERSION = '34.7.32';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -837,7 +837,7 @@ try {
         } elseif (count($existing) === 1) {
             $ci = $existing[0]; $case = $cases[$ci]; sd_case_id($case); $cases[$ci] = $case; $result['caseId'] = $case['_id']; $result['existing'] = true;
         } else {
-            $case = ['_id'=>sd_uuid('CASE'),'cd'=>sd_uuid('DEAL'),'rootOfferId'=>$offerId,'wonOffer'=>$offer['no'],'inqNo'=>$offer['inqNo']??$offer['no'],'buyerCd'=>$offer['buyerCd']??'','buyerCo'=>$offer['buyerCo']??'','currency'=>$offer['currency']??'IRR','contractAmount'=>sd_offer_total($offer),'linkedOffers'=>[['offerId'=>$offerId,'offerNo'=>$offer['no'],'relationType'=>'root','effectiveAt'=>sd_now(),'linkedBy'=>$user,'amount'=>sd_offer_total($offer)]],'docs'=>[],'st'=>'open','status'=>'active','t'=>sd_now(),'wonAtISO'=>sd_now(),'by'=>$user];
+            $case = ['_id'=>sd_uuid('CASE'),'cd'=>sd_uuid('DEAL'),'rootOfferId'=>$offerId,'wonOffer'=>$offer['no'],'inqNo'=>$offer['inqNo']??$offer['no'],'buyerCd'=>$offer['buyerCd']??'','buyerCo'=>$offer['buyerCo']??'','currency'=>$offer['currency']??'IRR','contractAmount'=>sd_offer_total($offer),'linkedOffers'=>[['offerId'=>$offerId,'offerNo'=>$offer['no'],'relationType'=>'root','effectiveAt'=>sd_now(),'linkedBy'=>$user,'amount'=>sd_offer_total($offer)]],'docs'=>[],'awardDocs'=>[['kind'=>'won_snapshot','offerId'=>$offerId,'offerNo'=>$offer['no'],'at'=>sd_now(),'by'=>$user,'total'=>sd_offer_total($offer),'source'=>'win_offer']],'st'=>'open','status'=>'active','t'=>sd_now(),'wonAtISO'=>sd_now(),'by'=>$user];
             array_unshift($cases, $case); $result['caseId'] = $case['_id']; $result['created'] = true;
         }
         $offers[$oi] = $offer; $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases];

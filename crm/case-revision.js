@@ -175,14 +175,54 @@
         lines: retLines.map(function (l) { return { name: l.name, pcode: l.pcode, qty: l.dispositionQty, unitCost: l.unitCost, note: l.note }; })
       };
       prs.unshift(pr);
-      setData('ptf_crm_purchase_returns', prs);
       out.supplierReturn = retLines.length; out.returnValue = value;
-      if (value > 0) W.ptfSupplierReturnCredit(pr);
+      if (value > 0) {
+        var fin = W.ptfSupplierReturnCredit(pr);
+        if (fin && fin.ok) { pr.financePaymentCd = fin.paymentCd || ''; pr.allocatedToInvoices = fin.allocated || []; pr.unallocated = +fin.unallocated || 0; }
+      }
+      setData('ptf_crm_purchase_returns', prs);
     }
     return out;
   };
 
-  /* سند بستانکار در حساب تأمین‌کننده (کاهش بدهی ما) — علامت منفی طبق قرارداد supplier-finance */
+  /* P7 (v34.7.32): تخصیص FIFO بستانکاری عودت به فاکتورهای خرید باز همان تأمین‌کننده.
+     یک پرداخت تهاتری ثبت می‌شود (نه سند اصلاحی جدا) تا ماندهٔ فاکتور خرید واقعاً کم شود
+     و اعتبار باقیمانده مثل سایر پرداخت‌ها در unallocated بماند — بدون دوباره‌شماری. */
+  W.ptfSupplierOpenPurchaseInvoices = function (supCd, cur, d) {
+    d = d || {};
+    var invs = Array.isArray(d.invoices) ? d.invoices : [];
+    var pays = Array.isArray(d.payments) ? d.payments : [];
+    function paidOf(inv) {
+      return pays.filter(function (p) { return p && p.status !== 'void'; }).reduce(function (sum, p) {
+        return sum + (p.allocations || []).filter(function (a) { return a && a.invoiceCd === inv.cd; })
+          .reduce(function (s, a) { return s + (+a.amount || 0); }, 0);
+      }, 0);
+    }
+    return invs.filter(function (i) {
+      if (!i || i.status === 'void' || i.isCover === true) return false;
+      if (String(i.supplierCd || '') !== String(supCd || '')) return false;
+      if (String(i.cur || 'IRR') !== String(cur || 'IRR')) return false;
+      return Math.max(0, (+i.amount || 0) - paidOf(i)) > 0;
+    }).map(function (i) {
+      return { inv: i, remain: Math.max(0, (+i.amount || 0) - paidOf(i)) };
+    }).sort(function (a, b) {
+      return String(a.inv.dateISO || a.inv.dateFa || '').localeCompare(String(b.inv.dateISO || b.inv.dateFa || ''));
+    });
+  };
+
+  W.ptfSupplierReturnAllocateFifo = function (amount, openRows) {
+    var left = Math.max(0, +amount || 0), alloc = [];
+    (openRows || []).forEach(function (row) {
+      if (left <= 0) return;
+      var take = Math.min(left, +row.remain || 0);
+      if (take <= 0) return;
+      alloc.push({ invoiceCd: row.inv.cd, invoiceNo: row.inv.no || '', amount: take });
+      left -= take;
+    });
+    return { allocations: alloc, unallocated: left };
+  };
+
+  /* سند بستانکار در حساب تأمین‌کننده = پرداخت تهاتری + تخصیص FIFO به فاکتور خرید (P7) */
   W.ptfSupplierReturnCredit = function (pr) {
     try {
       var KEY = 'ptf_crm_supplier_finance';
@@ -193,17 +233,22 @@
       d.adjustments = Array.isArray(d.adjustments) ? d.adjustments : [];
       var iso = ''; try { iso = (typeof ptfJToISO === 'function') ? ptfJToISO(pr.at) : ''; } catch (e2) {}
       if (!iso) { try { iso = new Date().toISOString().slice(0, 10); } catch (e3) { iso = ''; } }
-      d.adjustments.unshift({
-        cd: (typeof genCode === 'function' ? genCode('ADJ') : 'ADJ-' + Date.now()),
-        supplierCd: pr.supplierCd, amount: -Math.abs(+pr.amount || 0), cur: pr.cur || 'IRR',
-        kind: 'purchase_return', status: 'posted', dateISO: iso, dateFa: pr.at,
-        by: pr.by || who(), sourceReturnCd: pr.cd, caseId: pr.caseId || '',
-        note: 'مرجوعی خرید (اقلام مردود بازرسی) — پرونده ' + (pr.inqNo || pr.caseId || '') + ' | سند ' + pr.cd
-      });
+      var amt = Math.abs(+pr.amount || 0);
+      var cur = pr.cur || 'IRR';
+      var fifo = W.ptfSupplierReturnAllocateFifo(amt, W.ptfSupplierOpenPurchaseInvoices(pr.supplierCd, cur, d));
+      var payCd = (typeof genCode === 'function' ? genCode('SFPAY') : 'SFPAY-' + Date.now());
+      var pay = {
+        cd: payCd, supplierCd: pr.supplierCd, supName: '', dateISO: iso, dateFa: pr.at || '',
+        cur: cur, rate: 1, amount: amt, amountIrr: amt, method: 'purchase_return',
+        note: 'تهاتر مرجوعی خرید (اقلام مردود بازرسی) — پرونده ' + (pr.inqNo || pr.caseId || '') + ' | سند ' + pr.cd,
+        allocations: fifo.allocations, unallocated: fifo.unallocated, status: 'posted',
+        sourceReturnCd: pr.cd, caseId: pr.caseId || '', t: nowFa(), by: pr.by || who()
+      };
+      d.payments.unshift(pay);
       if (typeof setData === 'function') setData(KEY, d); else localStorage.setItem(KEY, JSON.stringify(d));
-      try { if (typeof audit === 'function') audit('حساب تامین', 'سند بستانکار مرجوعی خرید ' + money(pr.amount) + ' ریال — ' + pr.cd, pr.supplierCd); } catch (eA) {}
-      return true;
-    } catch (e) { try { console.error('ptfSupplierReturnCredit', e); } catch (e4) {} return false; }
+      try { if (typeof audit === 'function') audit('حساب تامین', 'تهاتر مرجوعی خرید ' + money(pr.amount) + ' ریال — تخصیص به ' + fifo.allocations.length + ' فاکتور، اعتبار باقی ' + money(fifo.unallocated) + ' — ' + pr.cd, pr.supplierCd); } catch (eA) {}
+      return { ok: true, paymentCd: payCd, allocated: fifo.allocations, unallocated: fifo.unallocated };
+    } catch (e) { try { console.error('ptfSupplierReturnCredit', e); } catch (e4) {} return { ok: false }; }
   };
 
   /* ---------------- P5: بازنگری سند برد ---------------- */
