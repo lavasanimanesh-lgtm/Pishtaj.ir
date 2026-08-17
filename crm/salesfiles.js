@@ -1183,7 +1183,7 @@
     postActions += postAction(
       'unofficial-invoice', '🧾', 'صورتحساب غیررسمی',
       'صدور صورتحساب پرداخت غیررسمی برای هر پیشنهاد متصل (تک یا تجمیعی). پیش‌فرض قیمت = CO.',
-      'sfUnofficialInvoiceNew(\'" + ptfOnClickArg(r.cd) + "\')', { meta: 'پرونده' }
+      'sfUnofficialInvoiceNew(\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'پرونده' }
     );
     postActions += postAction(
       'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',
