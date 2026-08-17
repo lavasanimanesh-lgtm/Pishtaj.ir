@@ -1005,7 +1005,21 @@ try {
             foreach($coverage as $cv){if(!is_array($cv)||($cv['mode']??'')!=='line')sd_out(['ok'=>false,'error'=>'invalid_line_coverage'],422);$key=(string)($cv['lineKey']??'');$qty=sd_num($cv['qty']??0);if($qty<=0||!array_key_exists($key,$maxByLine)||$qty+($used[$key]??0)>$maxByLine[$key]+0.00001)sd_out(['ok'=>false,'error'=>'invoice_line_over_coverage','lineKey'=>$key,'max'=>$maxByLine[$key]??0,'used'=>$used[$key]??0],422);}
         }else sd_out(['ok'=>false,'error'=>'invalid_coverage_mode'],422);
         $record=['_id'=>$ii>=0?($invoices[$ii]['_id']??sd_uuid('INV')):sd_uuid('INV'),'cd'=>$ii>=0?($invoices[$ii]['cd']??sd_uuid('INV')):sd_uuid('INV'),'caseId'=>$caseId,'customerId'=>$case['buyerCd']??'','buyerCo'=>$case['buyerCo']??'','offerNo'=>$offerNo,'no'=>$no,'accountingInvoiceNo'=>$no,'taxUid'=>$taxUid,'modianReference'=>sd_text($body['modianReference']??'',160),'invDate'=>$invDate,'issueDate'=>$invDate,'base'=>$base,'baseAmountIRR'=>$base,'vatPercent'=>$pct,'vat'=>$vat,'vatAmountIRR'=>$vat,'amount'=>$total,'totalAmountIRR'=>$total,'coverageMode'=>$coverageMode,'coverage'=>$coverage,'replacesUnofficialInvoiceId'=>$replaceUnofficialId,'files'=>$files,'ocrOverrideReason'=>sd_text($body['ocrOverrideReason']??'',1000),'status'=>'active','isOfficial'=>true,'isUnofficial'=>false,'t'=>$ii>=0?($invoices[$ii]['t']??sd_now()):sd_now(),'by'=>$ii>=0?($invoices[$ii]['by']??$user):$user,'updatedAtISO'=>sd_now(),'updatedBy'=>$user];
-        if($ii>=0){$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$oldInv=$invoices[$ii];$record['correctionVersion']=(int)($oldInv['correctionVersion']??0)+1;$record['payments']=$oldInv['payments']??[];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'official_invoice','entityId'=>$record['_id'],'kind'=>'data_entry_correction','beforeSnapshot'=>$oldInv,'afterSnapshot'=>$record,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$invoices[$ii]=$record;$result['corrected']=true;}
+        if($ii>=0){$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$oldInv=$invoices[$ii];
+            /* AR-02 (v34.7.19) — گارد مکمل: اصلاح فقط روی سند فعال. پیش از این، اصلاحِ یک فاکتور
+               ابطال‌شده/جایگزین‌شده آن را بی‌صدا به active بازمی‌گرداند؛ با ادغام رکورد قبلی، این
+               مسیر می‌توانست نشانه‌های چرخهٔ عمر (voidAt/supersededBy) را هم با خود بیاورد.
+               UI هم دکمهٔ «اصلاح» را برای سند غیرفعال نشان نمی‌دهد؛ پس این گارد fail-closed است. */
+            if(!sd_active($oldInv))sd_out(['ok'=>false,'error'=>'invoice_not_active','status'=>(string)($oldInv['status']??'')],409);
+            /* AR-02 (v34.7.19): پیش از این، رکورد اصلاح‌شده از صفر ساخته می‌شد و هر فیلدی خارج از
+               فهرست ثابت بالا بی‌صدا حذف می‌شد: pays (وصولی میراثی)، dueISO/dueFa (سررسید وصول)،
+               contactReq/contactApproved (گردش دسترسی تماس)، offerCurrency/offerFxBasis/offerFxRateRef
+               (فرادادهٔ ارزی) و advApplied. حذف pays یعنی پولِ ثبت‌شده از مانده ناپدید می‌شد.
+               اکنون رکورد قبلی مبنا قرار می‌گیرد و فقط فیلدهای محاسبه‌شدهٔ همین فرمان بازنویسی می‌شوند.
+               allocated*/open* بلافاصله با sd_rebuild_allocations بازتولید می‌شوند و اثری از رکورد کهنه نمی‌ماند.
+               مرجع: ARENA-INDEPENDENT-VERIFICATION-AWARD-CHANGE-2026-08-17.md (N2) | گام A2 نقشهٔ فازبندی */
+            $record=array_merge($oldInv,$record);
+            $record['correctionVersion']=(int)($oldInv['correctionVersion']??0)+1;$record['payments']=$oldInv['payments']??[];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'official_invoice','entityId'=>$record['_id'],'kind'=>'data_entry_correction','beforeSnapshot'=>$oldInv,'afterSnapshot'=>$record,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$invoices[$ii]=$record;$result['corrected']=true;}
         else{array_unshift($invoices,$record);$result['created']=true;}
         if($replaceUnofficialIdx>=0){
             /* array_unshift moved the old index by one for a newly registered official invoice. */

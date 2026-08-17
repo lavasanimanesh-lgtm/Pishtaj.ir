@@ -1878,6 +1878,30 @@ window.unofficialInvoicePrintCases = function (ctx) {
   // سازگاری: PTF_SALES_DOMAIN_V2 فعال → علاوه بر محلی، فراخوان سرور ptfSalesDomainApi('void_unofficial_invoice', ...) در مسیر بعدی.
   // ========================================================================
   window.ptfUnofficialInvoiceVoid = function (invCd) {
+    /* ── گارد ۰ (AR-01 / v34.7.19 — ایمنی داده) ────────────────────────────
+       چرا این گارد اضافه شد: در معماری Sales-Domain v35، تخصیص‌ها روی سرور و با
+       schema {invoiceId, amountIRR} ساخته می‌شوند، اما مرحلهٔ ۳ همین تابع با کلیدهای
+       {invoiceCd, amount} می‌گردد. نتیجه: هیچ تخصیصی reversed نمی‌شود، ولی حلقهٔ
+       بازسازی creditRemainIRR (مرحلهٔ ۳.۲) روی «همهٔ رسیدهای posted کل سیستم»
+       اجرا می‌شد و بستانکاری تمام پرونده‌ها را برابر کل مبلغ رسید می‌کرد؛ یعنی یک
+       کلیک، دادهٔ مالی همهٔ مشتریان را خراب می‌کرد.
+       تا آماده‌شدن endpoint سروری void_unofficial_invoice (فاز E)، این مسیر در حالت
+       v35 fail-closed است. مسیر legacy (بدون PTF_SALES_DOMAIN_V2) دست‌نخورده می‌ماند.
+       مرجع: ARENA-INDEPENDENT-VERIFICATION-AWARD-CHANGE-2026-08-17.md (یافتهٔ N1)
+             PLAN-REMAINING-FIXES-PHASED-2026-08-17.md (گام A1) */
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2
+        && typeof window.ptfUnofficialInvoiceVoidServer !== 'function') {
+      if (typeof alert === 'function') alert(
+        '⛔ ابطال صورتحساب غیررسمی در معماری فعلی باید از مسیر سرور انجام شود.\n\n' +
+        'مسیر محلی موقتاً غیرفعال است چون تخصیص‌های سروری را نادیده می‌گیرد و بستانکاری ' +
+        'سایر پرونده‌ها را هم خراب می‌کند.\n\n' +
+        'راه فعلی: تبدیل به فاکتور رسمی از مسیر «ثبت فاکتور رسمی» با انتخاب همین صورتحساب ' +
+        'به‌عنوان سند مبدأ (superseded می‌شود و تخصیص‌ها سروری بازسازی می‌شوند).'
+      );
+      try { if (typeof audit === 'function') audit('صورتحساب غیررسمی', 'تلاش برای ابطال محلی مسدود شد (AR-01) — ' + String(invCd || ''), String(invCd || '')); } catch (eA0) {}
+      return { ok: false, why: 'server_endpoint_required' };
+    }
+
     // ── گارد ۱: نقش مجاز (senior یا accountant) ─────────────────────────
     try {
       var _role = (typeof curRole === 'function') ? curRole() : '';
@@ -2004,10 +2028,18 @@ window.unofficialInvoicePrintCases = function (ctx) {
 
     // ═══ مرحله ۳: تخصیص‌های FIFO مرتبط — ابطال + بستانکاری‌سازی ═══════
     if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2) {
+      /* AR-01 (v34.7.19) — دفاع در عمق: حتی اگر گارد ۰ برداشته/دور زده شود، دامنهٔ این
+         بلوک نباید از پروندهٔ همین فاکتور فراتر برود و باید هر دو schema را بشناسد:
+           سرور v35 → { invoiceId, amountIRR }        کلاینت legacy → { invoiceCd, amount } */
+      var _allocInvoiceId = function (a) { return String((a && (a.invoiceId || a.invoiceCd)) || ''); };
+      var _allocAmount = function (a) { return +((a && (a.amountIRR != null ? a.amountIRR : a.amount)) || 0) || 0; };
+      var _invKeys = {};
+      [_inv._id, _inv.cd].forEach(function (k) { if (k) _invKeys[String(k)] = true; });
+      var _caseKey = String(_inv.caseId || '');
       var _allocs = getData('ptf_crm_receipt_allocations') || [];
       _allocs.forEach(function (a) {
-        if (a && a.invoiceCd === _inv.cd && a.status !== 'reversed') {
-          var _freed = +a.amount || 0;
+        if (a && _invKeys[_allocInvoiceId(a)] && a.status !== 'reversed') {
+          var _freed = _allocAmount(a);
           a.status = 'reversed';
           a.reversedAt = _now;
           a.reversedBy = _myName;
@@ -2024,28 +2056,30 @@ window.unofficialInvoicePrintCases = function (ctx) {
       });
       setData('ptf_crm_receipt_allocations', _allocs);
 
-      // ۳.۲) بازسازی creditRemainIRR روی receiptهای آزادشده
+      // ۳.۲) بازسازی creditRemainIRR فقط روی رسیدهای «همین پرونده»
       // پس از ابطال تخصیص، هر receipt ممکن است «سهم آزاد» داشته باشد که به
       // بستانکاری مشتری تبدیل می‌شود. این مقدار به عنوان creditRemainIRR ذخیره می‌شود.
+      // AR-01: پیش از v34.7.19 این حلقه روی کل رسیدهای سیستم اجرا می‌شد.
       var _recs = getData('ptf_crm_case_receipts') || [];
       var _stillAllocated = {};
       (getData('ptf_crm_receipt_allocations') || []).forEach(function (a2) {
-        if (a2.status !== 'reversed' && a2.receiptId) {
-          _stillAllocated[a2.receiptId] = (_stillAllocated[a2.receiptId] || 0) + (+a2.amount || 0);
+        if (a2 && a2.status !== 'reversed' && a2.receiptId) {
+          _stillAllocated[a2.receiptId] = (_stillAllocated[a2.receiptId] || 0) + _allocAmount(a2);
         }
       });
       var _recChanged = false;
       _recs.forEach(function (r) {
-        if (r && r.status === 'posted' && !r.voided) {
-          var _alloc = _stillAllocated[r._id || r.cd] || 0;
-          var _newCredit = Math.max(0, (+r.amountIRR || +r.amt || 0) - _alloc);
-          if ((+r.creditRemainIRR || 0) !== _newCredit) {
-            r.creditRemainIRR = _newCredit;
-            _recChanged = true;
-          }
+        if (!r || r.status !== 'posted' || r.voided) return;
+        if (!_caseKey || String(r.caseId || '') !== _caseKey) return; /* خارج از پروندهٔ این فاکتور دست نمی‌خورد */
+        var _alloc = _stillAllocated[r._id || r.cd] || 0;
+        var _newCredit = Math.max(0, (+r.amountIRR || +r.amt || 0) - _alloc);
+        if ((+r.creditRemainIRR || 0) !== _newCredit) {
+          r.creditRemainIRR = _newCredit;
+          _recChanged = true;
         }
       });
       if (_recChanged) setData('ptf_crm_case_receipts', _recs);
+      try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArInv) {}
     }
 
     // ═══ مرحله ۴: مرجوعی‌های متصل — ابطال (اینها سند صوری متصل‌اند) ═
