@@ -1093,7 +1093,11 @@ function offerForm() {
     '<div class="fr">' +
     // US-175 AC1: فقط انتخاب از شماره‌های ثبت‌شده در «استعلامات» / اقلام درخواست
     '<div class="fld"><label>شماره درخواست کارفرما * — فقط از استعلام‌های ثبت‌شده</label><select id="ofInq" style="direction:ltr" onchange="offerPickInq(this.value)"' + (typeof ptfInqNoOptions === 'function' ? '>' + ptfInqNoOptions(o.inqNo) : '>') + '</select>' +
-    '<small style="color:#94a3b8;font-size:11px">شماره‌ای در فهرست نیست؟ ابتدا در بخش «استعلامات» ثبتش کنید.</small></div>' +
+    '<small style="color:#94a3b8;font-size:11px">شماره‌ای در فهرست نیست؟ ابتدا در بخش «استعلامات» ثبتش کنید.</small>' +
+    /* FC-7 (v34.7.30 — تصمیم کارفرما): نرخ مرجع ویرایش‌شده همیشه روی «قلم درخواست» می‌نشیند؛
+       نشستن روی «بانک کالا» فقط با همین تیک صریح انجام می‌شود. */
+    '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#5b21b6;margin-top:4px" title="در صورت تیک، نرخ مرجع ویرایش‌شدهٔ اقلام روی نرخ مرجع کالا در بانک کالا هم ثبت می‌شود">' +
+    '<input type="checkbox" id="ofRefToCatalog"> نرخ مرجع اصلاح‌شده در بانک کالا هم ثبت شود</label></div>' +
     '<div class="fld"><label>تاریخ سند (شمسی) — ذخیره سیستمی به میلادی</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofDateJ', (o.dateEn || new Date().toISOString().slice(0, 10))) : '<input type="text" id="ofDateJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.dateEn || new Date().toISOString().slice(0, 10)) : (o.dateEn || ''))) + '">') + '</div>' +
     '</div>' +
     // US-157 AC1: اعتبار پیشنهاد (برای مالی و فنی-مالی)
@@ -1269,6 +1273,16 @@ window.ptfInqAliases = function (v) {
 // US-209 & US-235: قفل دوطرفه + پیشنهاد جامع فنی-مالی (TC)
 window.offerPickInq = function(inqNo) {
   _offState.inqNo = inqNo;
+  /* FB-3 (v34.7.30): انتخاب درخواست = بارگذاری خودکار اقلام همان درخواست.
+     پیش از این کاربر باید دکمهٔ جداگانه می‌زد و آن مسیر (به‌دلیل FB-1/FB-2) بی‌اثر بود.
+     فقط وقتی جدول اقلام هنوز خالی است بارگذاری خودکار انجام می‌شود تا کار کاربر پاک نشود؛
+     در غیر این‌صورت دکمهٔ 🗂 با همان منطق ضدتکرار در اختیار اوست. */
+  try {
+    if (inqNo && typeof window.offLoadInqItems === 'function') {
+      var _busy = (_offState.items || []).some(function (it) { return typeof offRowIsEmpty === 'function' ? !offRowIsEmpty(it) : false; });
+      if (!_busy) window.offLoadInqItems(inqNo);
+    }
+  } catch (eAuto) {}
   var buyerSel = document.getElementById('ofBuyer');
   if (!buyerSel) return;
   if (!inqNo) {
@@ -1542,6 +1556,76 @@ window.ptfOfferIntegrityApply = function (no) {
 };
 
 // ---- US-124 AC2: بارگذاری اقلام درخواست از ایمپورت‌های قبلی ----
+/* ============================================================================
+   FB-2 / FC-2 (v34.7.30) — حل واحد «درخواست» و اقلام آن
+   ریشهٔ باگ: کشویی فرم پیشنهاد مقدارش «کد سیستمی RFQ» است (dedup.js: ptfKnownInqList)
+   ولی اقلام در ptf_crm_inqitems با «شمارهٔ درخواست کارفرما» (inqNo) ذخیره می‌شوند و
+   شرط قبلی `r.cd === inq` کد خود قلم (IQI-…) را می‌سنجید. نتیجه: «اقلامی یافت نشد».
+   قاعده: همهٔ نام‌های مستعار یک درخواست (cd و inqNo) با هم دیده می‌شوند — هم‌راستا با
+   قرارداد هویت رکورد (ARCHITECTURE-GUARDRAILS.md).
+   ========================================================================== */
+window.ptfResolveInqRequest = function (key) {
+  var k = String(key == null ? '' : key).trim();
+  var out = { key: k, rfq: null, aliases: [], rows: [], source: '' };
+  if (!k) return out;
+  var rfq = (getData('ptf_crm_rfqs') || []).filter(function (r) {
+    return r && (String(r.cd || '') === k || String(r.inqNo || '') === k);
+  })[0] || null;
+  out.rfq = rfq;
+  var als = {};
+  [k, rfq && rfq.cd, rfq && rfq.inqNo].forEach(function (v) { var x = String(v || '').trim(); if (x) als[x] = true; });
+  out.aliases = Object.keys(als);
+  function hit(v) { return !!als[String(v || '').trim()]; }
+  var rows = (getData('ptf_crm_inqitems') || []).filter(function (r) { return r && hit(r.inqNo); });
+  if (rows.length) out.source = 'inqitems';
+  if (!rows.length) {
+    var rd = (getData('ptf_crm_inqreads') || []).filter(function (r) { return r && (hit(r.inqNo) || hit(r.cd)); })[0];
+    if (rd && (rd.rows || []).length) { rows = rd.rows; out.source = 'inqreads'; }
+  }
+  if (!rows.length && rfq && (rfq.items || []).length) { rows = rfq.items; out.source = 'rfq.items'; }
+  out.rows = rows || [];
+  return out;
+};
+
+/* FC-2 (v34.7.30) — نرخ مرجع مؤثر یک قلم: زنجیرهٔ قطعی و قابل توضیح.
+   ۱) نرخ دستی همان قلم در پیشنهاد  ۲) نرخ مرجع قلم درخواست  ۳) بهترین قیمت استعلام تامین
+   ۴) نرخ مرجع بانک کالا. خروجی: {price, cur, src, at, from} — نبود مرجع ⇒ price=0 */
+window.ptfItemRefPrice = function (item, opt) {
+  opt = opt || {};
+  var res = { price: 0, cur: 'IRR', src: '', at: '', from: '' };
+  if (!item) return res;
+  if (item.refPriceEdited && +item.refPrice > 0) {
+    return { price: +item.refPrice, cur: item.refCur || 'IRR', src: 'offer', at: item.refAt || '', from: 'دستی در پیشنهاد' };
+  }
+  /* ۲) قلم درخواست */
+  try {
+    var reqRows = opt.reqRows;
+    if (!reqRows && opt.inqNo && typeof window.ptfResolveInqRequest === 'function') reqRows = window.ptfResolveInqRequest(opt.inqNo).rows;
+    if (reqRows && reqRows.length && typeof window.ptfResolveProcurementLine === 'function') {
+      var m = window.ptfResolveProcurementLine(item, reqRows);
+      if (m.ok && +m.item.refPrice > 0) {
+        return { price: +m.item.refPrice, cur: m.item.refCur || 'IRR', src: 'request', at: m.item.refAt || '', from: 'قلم درخواست' };
+      }
+    }
+  } catch (e1) {}
+  /* ۳) استعلام تامین */
+  try {
+    var best = (typeof window.ptfOfferBestBuyRef === 'function') ? +window.ptfOfferBestBuyRef(item) || 0 : 0;
+    if (best > 0) return { price: best, cur: opt.quoteCur || 'IRR', src: 'rfqsmart', at: '', from: 'استعلام تامین' };
+  } catch (e2) {}
+  /* ۴) بانک کالا */
+  try {
+    var prods = getData('ptf_crm_products') || [];
+    if (prods.length && typeof window.ptfResolveProcurementLine === 'function') {
+      var pm = window.ptfResolveProcurementLine(item, prods);
+      if (pm.ok && +pm.item.pr > 0) {
+        return { price: +pm.item.pr, cur: pm.item.prCur || 'IRR', src: 'catalog', at: pm.item.refPriceAt || '', from: 'بانک کالا' };
+      }
+    }
+  } catch (e3) {}
+  return res;
+};
+
 function offLoadInqItems(pickedInq) {
   /* US-303: pickedInq از دیالوگ انتخاب می‌آید؛ وگرنه شماره انتخاب‌شده فرم */
   var inq = pickedInq || (document.getElementById('ofInq') || {}).value || _offState.inqNo || '';
@@ -1570,16 +1654,14 @@ function offLoadInqItems(pickedInq) {
     document.body.insertAdjacentHTML('beforeend', pick);
     return;
   }
-  var rows = getData('ptf_crm_inqitems').filter(function (r) { return r.inqNo === inq || r.cd === inq; });
+  /* FB-2 (v34.7.30): حل درخواست با همهٔ نام‌های مستعار (کد سیستمی RFQ + شمارهٔ کارفرما) */
+  var _resolved = window.ptfResolveInqRequest(inq);
+  var rows = _resolved.rows;
   if (!rows.length) {
-    var reads = getData('ptf_crm_inqreads').filter(function (r) { return r.inqNo === inq || r.cd === inq; })[0];
-    if (reads && reads.rows && reads.rows.length) rows = reads.rows;
+    /* FB-4: پیام دقیق به‌جای سکوت یا باز شدن دوبارهٔ فهرست */
+    alert('برای درخواست «' + inq + '» هیچ قلمی ثبت نشده است.\n\nاقلام را از یکی از این مسیرها وارد کنید:\n• استعلامات ← ویرایش استعلام و اقلام\n• درخواست تامین ← ثبت اقلام\nسپس دوباره همین دکمه را بزنید.');
+    return;
   }
-  if (!rows.length) {
-    var rfq = getData('ptf_crm_rfqs').filter(function (r) { return r.inqNo === inq || r.cd === inq; })[0];
-    if (rfq && rfq.items && rfq.items.length) rows = rfq.items;
-  }
-  if (!rows.length) { alert('اقلامی برای درخواست «' + inq + '» یافت نشد.'); return; }
   window.ptfAutoRegisterSummaryProducts(inq, rows);
   var existing = {};
   (_offState.items || []).forEach(function (it) { if (!offRowIsEmpty(it)) existing[offItemKey(it)] = true; });
@@ -1588,13 +1670,28 @@ function offLoadInqItems(pickedInq) {
     var item = {
       name: r.nm || r.name || r.en || '',
       desc: r.st || r.spec || r.desc || r.nm || '',
-      model: r.model || '',
+      model: r.model || r.md || '',
       qty: r.qty || 1,
-      unit: r.un || r.unit || 'NO',
+      /* FC-3 (v34.7.30): واحد باید همان واحد قلم درخواست بماند. مقدار ثابت قبلی 'NO'
+         با واحد فارسی منبع ناسازگار بود و در procurement-link امتیاز تطبیق را صفر می‌کرد
+         (unit mismatch ⇒ score = 0) ⇒ هیچ نرخ مرجعی پیدا نمی‌شد. */
+      unit: r.un || r.unit || 'عدد',
       brand: r.brand || '',
       dlv: '', price: 0,
+      /* FC-2: هویت قلم حفظ می‌شود تا مرجع خرید/کاتالوگ قابل تطبیق باشد */
+      pcode: r.pcode || r.prodCd || r.productCd || '',
+      sourceItemKey: (typeof window.ptfProcLineKey === 'function') ? window.ptfProcLineKey(r) : '',
       sourceInq: inq
     };
+    /* FC-2: نرخ مرجع مؤثر از زنجیرهٔ قطعی (قلم درخواست ← استعلام تامین ← بانک کالا) */
+    try {
+      var _ref = window.ptfItemRefPrice(item, { inqNo: inq, reqRows: rows });
+      if (_ref && _ref.price > 0) {
+        item.refPrice = _ref.price; item.refCur = _ref.cur;
+        item.refSrc = _ref.src; item.refAt = _ref.at || '';
+        item.refFrom = _ref.from;
+      }
+    } catch (eRef) {}
     window.ptfIntelligentParseItem(item);
     var key = offItemKey(item);
     if (existing[key]) { skipped++; return; }
@@ -1615,7 +1712,10 @@ function offLoadInqItems(pickedInq) {
     inqEl.value = inq;
   }
   offRenderItems();
-  alert('✅ ' + added + ' قلم از درخواست ' + inq + ' بارگذاری شد' + (skipped ? ' — ' + skipped + ' قلم تکراری رد شد' : '') + '\nبرند و قیمت را در همین جدول تکمیل کنید.');
+  var _withRef = 0; (_offState.items || []).forEach(function (x) { if (+x.refPrice > 0) _withRef++; });
+  alert('✅ ' + added + ' قلم از درخواست ' + inq + ' بارگذاری شد' + (skipped ? ' — ' + skipped + ' قلم تکراری رد شد' : '') +
+    (_withRef ? '\n💰 نرخ مرجع ' + _withRef + ' قلم از ' + (_resolved.source === 'inqitems' ? 'اقلام درخواست' : 'منابع پرونده') + ' بارگذاری شد.' : '\nℹ️ برای این اقلام نرخ مرجعی ثبت نشده است (اقلام درخواست / استعلام تامین / بانک کالا).') +
+    '\nبرند و قیمت فروش را در همین جدول تکمیل کنید.');
 }
 
 // ---- اقلام ----
@@ -1696,7 +1796,18 @@ function ptfOfferBestBuyRef(it) {
   try {
     var st = window._offState || {};
     if (!best && st.inqNo && typeof window.ptfResolveProcurementAcross === 'function') {
-      var rfqs = getData('ptf_crm_rfqsmart').filter(function (r) { return r && (r.srcRfq === st.inqNo || r.no === st.inqNo); });
+      /* FC-5 (v34.7.30): استعلام تامین ممکن است با «کد سیستمی RFQ» ساخته شده باشد و
+         پیشنهاد «شمارهٔ کارفرما» را داشته باشد (یا برعکس). تطبیق تک‌کلیدی قبلی در این حالت
+         خالی برمی‌گشت و bestBuyPrice هرگز خوانده نمی‌شد. */
+      var _als = {}; _als[String(st.inqNo)] = true;
+      try {
+        if (typeof window.ptfResolveInqRequest === 'function') {
+          (window.ptfResolveInqRequest(st.inqNo).aliases || []).forEach(function (a) { if (a) _als[a] = true; });
+        }
+      } catch (eAls) {}
+      var rfqs = getData('ptf_crm_rfqsmart').filter(function (r) {
+        return r && (_als[String(r.srcRfq || '')] || _als[String(r.no || '')] || _als[String(r.inqNo || '')]);
+      });
       var link = window.ptfResolveProcurementAcross(it, rfqs, { offerNo: st.no });
       if (link.ok && link.line && link.line.item) best = +link.line.item.bestBuyPrice || 0;
     }
@@ -2212,6 +2323,87 @@ function offerPreview() {
 }
 
 // ---- ذخیره ----
+/* ============================================================================
+   FC-6 / FC-7 (v34.7.30) — نوشتن بازگشتی نرخ مرجع
+   خواستهٔ کارفرما: «در صورت تغییر نرخ در پیشنهاد، نرخ مرجع قبلی به مقدار جدید تغییر کند».
+   قواعد ایمنی:
+     • فقط قلم‌هایی که کاربر صراحتاً نرخ مرجعشان را در پیشنهاد ویرایش کرده (refPriceEdited)
+     • تطبیق قلم فقط با قاعدهٔ یکتای procurement-link (کد کالا/شناسهٔ پایدار/نام+مدل+واحد)
+     • مقدار قبلی حذف نمی‌شود؛ در refHistory با شمارهٔ پیشنهاد، کاربر و تاریخ می‌ماند
+     • بانک کالا فقط با تیک صریح کاربر به‌روز می‌شود (تصمیم کارفرما ۱۴۰۵/۰۵/۲۶)
+   ========================================================================== */
+window.ptfSyncRefPriceBack = function (offer, opt) {
+  opt = opt || {};
+  var out = { request: 0, catalog: 0, skipped: 0 };
+  try {
+    if (!offer || !Array.isArray(offer.items)) return out;
+    var edited = offer.items.filter(function (it) { return it && it.refPriceEdited && +it.refPrice > 0; });
+    if (!edited.length) return out;
+    var now = (typeof faDate === 'function') ? faDate() : '';
+    var who = (typeof curSession === 'function' ? (curSession().name || '') : '');
+    var resolved = (typeof window.ptfResolveInqRequest === 'function') ? window.ptfResolveInqRequest(offer.inqNo) : { rows: [], source: '' };
+
+    function stamp(target, price, cur) {
+      var prev = +target.refPrice || 0;
+      if (prev === price && String(target.refCur || 'IRR') === String(cur)) return false;
+      target.refHistory = Array.isArray(target.refHistory) ? target.refHistory : [];
+      if (prev > 0) target.refHistory.push({ price: prev, cur: target.refCur || 'IRR', src: target.refSrc || '', at: target.refAt || '', by: target.refBy || '' });
+      if (target.refHistory.length > 20) target.refHistory = target.refHistory.slice(-20);
+      target.refPrice = price; target.refCur = cur; target.refSrc = 'offer';
+      target.refAt = now; target.refBy = who; target.refOfferNo = offer.no || '';
+      return true;
+    }
+
+    /* ۱) قلم درخواست — منبع اصلی نرخ مرجع */
+    if (resolved.source === 'inqitems') {
+      var all = getData('ptf_crm_inqitems') || [], touched = 0;
+      edited.forEach(function (it) {
+        var m = (typeof window.ptfResolveProcurementLine === 'function') ? window.ptfResolveProcurementLine(it, resolved.rows) : { ok: false };
+        if (!m.ok) { out.skipped++; return; }
+        var target = null;
+        for (var i = 0; i < all.length; i++) if (all[i] === m.item) { target = all[i]; break; }
+        if (!target) { out.skipped++; return; }
+        if (stamp(target, +it.refPrice, it.refCur || offer.currency || 'IRR')) touched++;
+      });
+      if (touched) { setData('ptf_crm_inqitems', all); out.request = touched; }
+    } else if (resolved.source === 'rfq.items' && resolved.rfq) {
+      var rfqs = getData('ptf_crm_rfqs') || [], rec = null, t2 = 0;
+      for (var j = 0; j < rfqs.length; j++) if (rfqs[j] && String(rfqs[j].cd || '') === String(resolved.rfq.cd || '')) { rec = rfqs[j]; break; }
+      if (rec && Array.isArray(rec.items)) {
+        edited.forEach(function (it) {
+          var m2 = (typeof window.ptfResolveProcurementLine === 'function') ? window.ptfResolveProcurementLine(it, rec.items) : { ok: false };
+          if (!m2.ok) { out.skipped++; return; }
+          if (stamp(m2.item, +it.refPrice, it.refCur || offer.currency || 'IRR')) t2++;
+        });
+        if (t2) { setData('ptf_crm_rfqs', rfqs); out.request = t2; }
+      }
+    }
+
+    /* ۲) بانک کالا — فقط با تیک صریح (FC-7) */
+    if (opt.toCatalog) {
+      var prods = getData('ptf_crm_products') || [], t3 = 0;
+      edited.forEach(function (it) {
+        var pm = (typeof window.ptfResolveProcurementLine === 'function') ? window.ptfResolveProcurementLine(it, prods) : { ok: false };
+        if (!pm.ok) { out.skipped++; return; }
+        var p = pm.item, price = +it.refPrice, cur = it.refCur || offer.currency || 'IRR';
+        if (+p.pr === price && String(p.prCur || 'IRR') === String(cur)) return;
+        p.prHistory = Array.isArray(p.prHistory) ? p.prHistory : [];
+        if (+p.pr > 0) p.prHistory.push({ pr: +p.pr, cur: p.prCur || 'IRR', at: p.refPriceAt || '', src: p.refPriceSrc || '' });
+        p.pr = price; p.prCur = cur; p.refPriceAt = now;
+        p.refPriceSrc = 'نرخ مرجع پیشنهاد ' + (offer.no || '') + ' — ' + who;
+        t3++;
+      });
+      if (t3) { setData('ptf_crm_products', prods); out.catalog = t3; }
+    }
+
+    if ((out.request || out.catalog) && typeof audit === 'function') {
+      audit('نرخ مرجع', 'به‌روزرسانی نرخ مرجع از پیشنهاد ' + (offer.no || '') +
+        ' — اقلام درخواست: ' + out.request + (out.catalog ? ' | بانک کالا: ' + out.catalog : ''), offer.no || '');
+    }
+  } catch (e) { try { console.error('ptfSyncRefPriceBack', e); } catch (e2) {} }
+  return out;
+};
+
 function offerSave() {
   try {
   var o = window._offState || _offState;
@@ -2443,6 +2635,15 @@ function offerSave() {
      پیشین باعث می‌شد دیالوگ پیامک بسته شود و فرم پیشنهاد پشت آن باز بماند.
   */
   try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
+  /* FC-6/FC-7 (v34.7.30): پس از ذخیرهٔ موفق، نرخ مرجع ویرایش‌شده به قلم درخواست
+     (و در صورت تیک کاربر، به بانک کالا) برمی‌گردد — با تاریخچه و ردپا. */
+  try {
+    var _toCat = !!(document.getElementById('ofRefToCatalog') || {}).checked;
+    var _rb = window.ptfSyncRefPriceBack(o, { toCatalog: _toCat });
+    if ((_rb.request || _rb.catalog) && typeof ptfToast === 'function') {
+      ptfToast('💰 نرخ مرجع به‌روز شد — اقلام درخواست: ' + _rb.request + (_rb.catalog ? ' | بانک کالا: ' + _rb.catalog : ''), 'ok');
+    }
+  } catch (eRb) {}
   hideModal(); renderOffers();
   /* ===== v34.4.9 BUG-OFFER-MODAL-001: اطلاع‌رسانی پیامکی پس از بستن فرم ===== */
   try {

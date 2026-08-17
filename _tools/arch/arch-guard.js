@@ -158,6 +158,50 @@ var versionReport = (function ruleA6() {
   });
 })();
 
+/* ---------- A8: وصلهٔ زنجیره‌ای که آرگومان را منتقل نمی‌کند ----------
+   ریشهٔ باگ v34.7.30 (بارگذاری اقلام درخواست): وصلهٔ inqreader تابع را با امضای بدون
+   پارامتر بازنویسی و نسخهٔ قبلی را بدون آرگومان صدا می‌زد ⇒ شمارهٔ انتخاب‌شدهٔ کاربر
+   بی‌صدا دور ریخته می‌شد. */
+(function ruleA8() {
+  var files = crmFiles();
+  /* بیشترین تعداد پارامتر شناخته‌شده برای هر نام سراسری */
+  var arity = {};
+  files.forEach(function (f) {
+    var s = codeOnly(read('crm/' + f));
+    [/function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)/g, /window\.([A-Za-z_$][\w$]*)\s*=\s*function\s*\(([^)]*)\)/g].forEach(function (re) {
+      var m; while ((m = re.exec(s))) {
+        var n = m[1], ps = m[2].trim() ? m[2].split(',').length : 0;
+        if (arity[n] == null || ps > arity[n]) arity[n] = ps;
+      }
+    });
+  });
+  files.forEach(function (f) {
+    var s = codeOnly(read('crm/' + f));
+    /* هم `var x = window.f;` و هم `x = window.f;` (متغیر از قبل تعریف‌شده) */
+    var re = /(?:(?:var|let)\s+)?([A-Za-z_$][\w$]*)\s*=\s*window\.([A-Za-z_$][\w$]*)\s*;/g, m;
+    while ((m = re.exec(s))) {
+      var holder = m[1], name = m[2];
+      var region = s.slice(m.index, m.index + 3000);
+      if (region.indexOf('window.' + name + ' =') < 0) continue;        /* وصله‌ای در کار نیست */
+      if (new RegExp('\\b' + holder + '\\.(apply|call)\\s*\\(').test(region)) continue;  /* درست: انتقال آرگومان */
+      if (!new RegExp('\\b' + holder + '\\s*\\(\\s*\\)').test(region)) continue;        /* بدون فراخوان تهی */
+      if ((arity[name] || 0) === 0) continue;                            /* تابع اصلاً پارامتر ندارد */
+      add('A8', f + ' → ' + name + ' (پارامتر: ' + arity[name] + ')');
+    }
+  });
+})();
+
+/* ---------- A9: تعریف تکراری یک نام سراسری داخل «یک فایل» ----------
+   (A1 فقط تکرار بین فایل‌ها را می‌دید؛ کپی‌شدن یک بلوک در همان فایل هم همان تلهٔ
+   «کدام نسخه اجرا می‌شود» را می‌سازد.) */
+(function ruleA9() {
+  crmFiles().forEach(function (f) {
+    var s = codeOnly(read('crm/' + f)), seen = {}, re = /window\.([A-Za-z_$][\w$]*)\s*=\s*function/g, m;
+    while ((m = re.exec(s))) seen[m[1]] = (seen[m[1]] || 0) + 1;
+    Object.keys(seen).forEach(function (n) { if (seen[n] > 1) add('A9', f + ' → ' + n + ' ×' + seen[n]); });
+  });
+})();
+
 /* ---------- مقایسه با مبنا ---------- */
 var RULES = {
   A1: { blocking: true, title: 'بازنویسی خاموش تابع سراسری (نسخهٔ قبلی بدون زنجیره دور ریخته می‌شود)' },
@@ -166,7 +210,9 @@ var RULES = {
   A4: { blocking: true, title: 'دکمهٔ مرده: هندلر onclick بدون تعریف' },
   A5: { blocking: true, title: 'خرابی انکدینگ فارسی (U+FFFD)' },
   A6: { blocking: true, title: 'ناهماهنگی نسخه در نقاط رسمی' },
-  A7: { blocking: false, title: 'شکست خاموش در اکشن کاربر (بدون هیچ پیام/توست)' }
+  A7: { blocking: false, title: 'شکست خاموش در اکشن کاربر (بدون هیچ پیام/توست)' },
+  A8: { blocking: true, title: 'وصلهٔ زنجیره‌ای بدون انتقال آرگومان (apply(this, arguments))' },
+  A9: { blocking: true, title: 'تعریف تکراری یک نام سراسری در همان فایل' }
 };
 var current = {};
 Object.keys(RULES).forEach(function (r) { current[r] = (findings[r] || []).slice().sort(); });

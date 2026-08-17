@@ -17,7 +17,25 @@
   function nameOf(it) { return norm(first(it, ['name', 'nm', 'en', 'item'])); }
   function specOf(it) { return norm(first(it, ['spec', 'st', 'desc', 'detail'])); }
   function modelOf(it) { return norm(first(it, ['model', 'md'])); }
-  function unitOf(it) { return norm(first(it, ['unit', 'un'])); }
+  /* FC-3 (v34.7.30): واحدها بین ماژول‌ها هم‌ارز ولی نانویس‌اند («عدد» در اقلام درخواست،
+     'NO' در فرم پیشنهاد). چون در تطبیق نام‌محور، اختلاف واحد امتیاز را صفر می‌کند، همان
+     ناسازگاری نگارشی باعث می‌شد نرخ مرجع هیچ‌وقت پیدا نشود. این نگاشت فقط هم‌ارزهای
+     قطعی را یکی می‌کند و هیچ واحد متفاوتی را یکسان نمی‌شمارد. */
+  var UNIT_ALIAS = {
+    'no': 'ea', 'nos': 'ea', 'pc': 'ea', 'pcs': 'ea', 'piece': 'ea', 'pieces': 'ea', 'ea': 'ea', 'each': 'ea',
+    'عدد': 'ea', 'دستگاه': 'ea', 'قطعه': 'ea',
+    'set': 'set', 'sets': 'set', 'ست': 'set',
+    'm': 'm', 'mtr': 'm', 'meter': 'm', 'metre': 'm', 'متر': 'm',
+    'kg': 'kg', 'kgs': 'kg', 'کیلوگرم': 'kg', 'کیلو': 'kg',
+    'lt': 'lt', 'liter': 'lt', 'litre': 'lt', 'لیتر': 'lt',
+    'box': 'box', 'جعبه': 'box', 'کارتن': 'box',
+    'roll': 'roll', 'رول': 'roll', 'شاخه': 'bar', 'bar': 'bar', 'branch': 'bar'
+  };
+  function unitOf(it) {
+    var u = norm(first(it, ['unit', 'un']));
+    return UNIT_ALIAS[u] || u;
+  }
+  window.ptfNormUnit = unitOf;
 
   /* Deterministic signature for new source records. It is not a database key and
      does not mutate legacy data; a pcode remains the strongest identity. */
