@@ -1183,7 +1183,8 @@
     postActions += postAction(
       'unofficial-invoice', '🧾', 'صورتحساب غیررسمی',
       'صدور صورتحساب پرداخت غیررسمی برای هر پیشنهاد متصل (تک یا تجمیعی). پیش‌فرض قیمت = CO.',
-      'sfUnofficialInvoiceNew(\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'پرونده' }
+      /* UI-01 (v34.7.20): شناسهٔ سروری پرونده اولویت دارد؛ گیرنده هر دو شناسه را می‌پذیرد. */
+      'sfUnofficialInvoiceNew(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'پرونده' }
     );
     postActions += postAction(
       'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',

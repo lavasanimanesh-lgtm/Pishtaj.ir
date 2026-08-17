@@ -497,29 +497,14 @@ function renderOffers() {
      پیش‌نویس → ثبت‌شده → ارسال‌شده → تاییدشده | عدم تایید (بسته؛ به CO نمی‌رسد) | درخواست اصلاح */
   var ST_TO = { draft: '📝 پیش‌نویس', registered: '📋 ثبت‌شده', sent: '📤 ارسال‌شده', approved: '✅ تاییدشده', rejected: '⛔ عدم تایید', revise: '✏️ درخواست اصلاح' };
   window.PTF_ST_TO = ST_TO;
-  /* BUG-TO-SAVE-282: نگاشت نرم وضعیت TO در helper سراسری واحد انجام می‌شود؛
-     هم رندر و هم ذخیره/Revision دقیقاً از همان منطق استفاده می‌کنند. */
-  function offerPostAwardLocked(o) {
-    if (!o || o.kind === 'TO' || o.st !== 'won') return false;
-    try { return getData('ptf_crm_deals').some(function (d) { return d.wonOffer === o.no || d.offerNo === o.no || (o.inqNo && d.inqNo === o.inqNo); }); } catch(e) { return true; }
-  }
-  window.ptfOfferPostAwardLocked = offerPostAwardLocked;
-  window.ptfGoSalesFileForOffer = function (no) {
-    var dealCd = '';
-    try {
-      var deals = getData('ptf_crm_deals') || [];
-      var oo = (getData('ptf_crm_offers') || []).filter(function (x) { return x.no === no; })[0];
-      var hit = deals.filter(function (d) {
-        return d.wonOffer === no || d.offerNo === no || (oo && oo.inqNo && d.inqNo === oo.inqNo);
-      })[0];
-      if (hit) dealCd = hit.cd;
-    } catch (eF) {}
-    if (dealCd && typeof window.ptfGoSalesFile === 'function') window.ptfGoSalesFile(dealCd);
-    else {
-      try { if (typeof goPanelByName === 'function') goPanelByName('deals'); else if (typeof goPanel === 'function') goPanel('deals'); } catch(e) {}
-    }
-    if (typeof ptfToast === 'function') ptfToast('ادامه فرایند پیشنهاد برنده فقط از پرونده فروش انجام می‌شود', 'info');
-  };
+  /* UI-03 (v34.7.20): تعریف تکراری `offerPostAwardLocked` از این‌جا حذف شد.
+     پیش از این، همین تابع هم در سطح ماژول (بالای همین فایل) و هم این‌جا داخل renderOffers
+     تعریف شده بود و هر بار رندر، `window.ptfOfferPostAwardLocked` دوباره ست می‌شد. بدنه‌ها
+     یکسان بودند، پس رفتار امروز درست بود؛ ولی هر اصلاح آیندهٔ فقط‌یکی‌از‌آن‌ها به‌صورت خاموش
+     بی‌اثر می‌شد. تعریف واحد اکنون در سطح ماژول است و همین‌جا هم در دسترس است.
+     مرجع: ARENA-INDEPENDENT-VERIFICATION-AWARD-CHANGE-2026-08-17.md (یافتهٔ N3) | گام B3 */
+  /* UI-03 (v34.7.20): تعریف تکراری `window.ptfGoSalesFileForOffer` هم از همین‌جا حذف شد؛
+     نسخهٔ واحد آن در سطح ماژول (کنار offerPostAwardLocked) تعریف شده و رفتار یکسان دارد. */
   var h = '';
   var _canSeeMargin = false; try { _canSeeMargin = !!(roleDef() || {}).buyPrice; } catch (eRM) {} /* v31.7.13: حاشیه کل فقط برای نقش دارای قیمت خرید */
   /* دکمه اصلاح برد بخشی از رندر اصلی است، نه تزریق دیرهنگام backup.js؛ به این

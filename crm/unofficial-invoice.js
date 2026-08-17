@@ -1282,8 +1282,17 @@ window.unofficialInvoiceBuilderOpen = function (dealCd) {
     if (typeof alert === 'function') alert('⛔ صدور صورتحساب غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
     return;
   }
+  /* UI-01 (v34.7.20): تطبیق متقارن شناسهٔ پرونده.
+     ریشهٔ باگ: پرونده دو شناسه دارد — `_id` سروری و `cd` محلی. فراخوان کشوی پرونده
+     (`crm/salesfiles.js`) مقدار `r.cd` می‌فرستاد ولی این‌جا اول `_id` خوانده و با ورودی
+     مقایسه می‌شد؛ برای هر پرونده‌ای که شناسهٔ سروری گرفته بود (عملاً همهٔ پرونده‌های v35)
+     تطبیق شکست می‌خورد و پیام «پرونده فروش یافت نشد» ظاهر می‌شد و دیالوگ صدور باز نمی‌شد.
+     اکنون هر دو شناسه مستقل بررسی می‌شوند تا هر دو مسیر فراخوان (قدیمی و جدید) کار کنند.
+     مرجع: ARENA-RCA-UNOFFICIAL-INVOICE-CASE-NOT-FOUND-2026-08-17.md | گام B1 نقشهٔ فازبندی */
+  var _needle = String(dealCd || '').trim();
   var _deal = (getData('ptf_crm_deals') || []).filter(function (x) {
-    return x && String(x._id || x.cd || '') === String(dealCd || '');
+    if (!x || !_needle) return false;
+    return String(x._id || '') === _needle || String(x.cd || '') === _needle;
   })[0];
   if (!_deal) {
     if (typeof alert === 'function') alert('⛔ پرونده فروش یافت نشد');
@@ -1761,12 +1770,67 @@ window.unofficialInvoicePrintCases = function (ctx) {
   // ذخیره رکورد فاکتور
   var newInv = null;
   if (existing && !ctx.isConsolidated) {
-    // حالت بازنویسی (مانند رفتار قبلی برای primary)
-    _salesCase = _salesCase; // no-op (for lint)
-    existing.caseId = (_salesCase ? (_salesCase._id || _salesCase.cd || '') : '');
-    existing.customerId = ((_salesCase && _salesCase.buyerCd) || _co.buyerCd || '');
+    /* UI-02 (v34.7.20): بازنویسی واقعی صورتحساب موجود.
+       ریشهٔ باگ: این شاخه فقط `caseId/customerId` را به‌روز می‌کرد (و دوبار هم ذخیره می‌کرد)،
+       اما مبلغ، تخفیف، snapshot اقلام و نرخ ارز دست‌نخورده می‌ماند؛ کاربر «صدور مجدد» می‌زد،
+       پیام موفقیت می‌گرفت و رکورد قدیمی سرِ جایش بود. اکنون محتوای مالی واقعاً به‌روز می‌شود.
+       عمداً دست‌نخورده: `cd` و `no` (هویت سند)، `invDate/t` (سال مالی و ترتیب تخصیص FIFO)
+       و `payments` (به‌جز ردیف پیش‌پرداخت که هم‌راستا می‌شود).
+       مرجع: بررسی مستقل N4 + گزارش تلفیقی §۷.۴ | گام B2 نقشهٔ فازبندی */
+    var _before = JSON.parse(JSON.stringify(existing));
+    existing.caseId = (_salesCase ? (_salesCase._id || _salesCase.cd || '') : (existing.caseId || ''));
+    existing.customerId = ((_salesCase && _salesCase.buyerCd) || _co.buyerCd || existing.customerId || '');
+    existing.offerNo = _co.no || existing.offerNo || '';
+    existing.buyerCo = _co.buyerCo || existing.buyerCo || '';
+    existing.amount = amountIrr;
+    existing.base = totalIrr;
+    existing.vat = 0;
+    existing.discount = discountIrr;
+    existing.discountLabel = discountLabel;
+    existing.discountInput = ctx.discountInput || '';
+    existing.offerCurrency = _co.currency || 'IRR';
+    existing.offerFxBasis = _co.fxBasis || '';
+    existing.offerFxRateRef = currentRate;
+    existing.bankAccount = ctx.bankAccount || existing.bankAccount || '';
+    existing.invoiceKind = 'single';
+    existing.sourceOfferNo = _co.no || '';
+    existing.overridedFromOffer = true;
+    existing.linesSnapshot = ctx.linesSnapshot;
+    existing.isUnofficial = true;
+    existing.status = existing.status || 'active';
+    existing.reissuedAt = faDateTime();
+    existing.reissuedBy = curSession().name || '?';
+    /* ردیف پیش‌پرداخت با مبلغ جدید هم‌راستا می‌شود (نه اضافه‌شدن ردیف دوم) */
+    existing.payments = Array.isArray(existing.payments) ? existing.payments : [];
+    var _advCd = 'RP-ADV-' + (_co.no || '');
+    var _advRow = existing.payments.filter(function (p) { return p && p.fromAdvance && String(p.cd || '') === _advCd; })[0];
+    if (_advRow) {
+      _advRow.amt = advPayIrr; _advRow.amountIrr = advPayIrr;
+      _advRow.fx = { fxAmt: advPayOriginal, rate: advRate };
+      _advRow.t = faDate(); _advRow.by = curSession().name;
+    } else if (advPayIrr > 0) {
+      existing.payments.push({ cd: _advCd, amt: advPayIrr, amountIrr: advPayIrr,
+        fx: { fxAmt: advPayOriginal, rate: advRate },
+        how: 'کسر مبالغ وصول\u200cشده پیش\u200cپرداخت (غیررسمی)',
+        t: faDate(), by: curSession().name, fromAdvance: true });
+    }
+    existing.advApplied = advPayIrr;
     setData('ptf_crm_invoices', invs);
-    setData('ptf_crm_invoices', invs);
+    try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArI) {}
+    try { if (typeof audit === 'function') audit('صورتحساب غیررسمی', 'بازنویسی صورتحساب ' + (existing.no || existing.cd) + ' — مبلغ جدید ' + amountIrr.toLocaleString('fa-IR') + ' ریال', String(existing.cd || '')); } catch (eAu) {}
+    /* هم‌راستایی با سرور: همان فرمان ثبت، با کلید یکتای همین سند (سرور با cd به‌روزرسانی می‌کند) */
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
+      window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: existing, idempotencyKey: 'UNOFFICIAL-REISSUE|' + existing.cd + '|' + amountIrr })
+        .then(function () { if (typeof ptfToast === 'function') ptfToast('بازنویسی صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
+        .catch(function (e) {
+          var _cur = getData('ptf_crm_invoices') || [];
+          var _idx = -1;
+          _cur.forEach(function (x, i) { if (x && x.cd === _before.cd) _idx = i; });
+          if (_idx > -1) { _cur[_idx] = _before; setData('ptf_crm_invoices', _cur); }
+          try { if (window.PTF && window.PTF.ar) window.PTF.ar.invalidate(); } catch (eR) {}
+          if (typeof alert === 'function') alert('⛔ بازنویسی سروری صورتحساب ناموفق بود و نسخهٔ قبلی بازگردانده شد: ' + e.message);
+        });
+    }
   } else {
     newInv = {
       cd: invoiceCd,

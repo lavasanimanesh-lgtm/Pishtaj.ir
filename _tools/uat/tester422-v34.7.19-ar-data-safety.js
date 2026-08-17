@@ -166,7 +166,8 @@ function baseDb() {
       cc = read('crm/clear-cache.html'), ver = read('VERSION.json');
   var m = idx.match(/window\.PTF_CRM_RELEASE\s*=\s*'([^']+)'/);
   var v = m ? m[1] : '';
-  T('نسخهٔ index.html معتبر است', /^v34\.7\.19$/.test(v), v);
+  /* قرارداد نسخه «هم‌راستایی» است نه یک عدد ثابت؛ پین‌کردن عدد باعث شکست کاذب در نسخهٔ بعد می‌شد. */
+  T('نسخهٔ index.html قالب معتبر دارد', /^v\d+\.\d+\.\d+$/.test(v), v);
   T('sw.js با همان نسخه هم‌راستاست', sw.indexOf("var RELEASE = '" + v + "'") > -1 && sw.indexOf("ptf-crm-" + v) > -1);
   T('manifest/clear-cache/VERSION.json هم‌راستا هستند',
     man.indexOf('"version": "' + v.slice(1) + '"') > -1 && cc.indexOf(v) > -1 && ver.indexOf('"crm_version": "' + v + '"') > -1);
