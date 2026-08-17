@@ -213,15 +213,16 @@
       c.collectionRate = c.billed ? pct1(c.paid, c.billed) : null;
       c.control = c.rfqs >= 3 && c.offers >= 2 && c.won === 0;
       c.strategic = c.wonValue > 0 || c.paid > 0;
-      /* سلامت مشتری یک رتبه‌بندی کمکی است، نه قضاوت قطعی: برد/وصول/کف داده وزن دارد.
-         v34.7.17: مبنا نرخ بردِ واقعی (از کل پیشنهادها) است و پوشش پایین امتیاز را کم می‌کند. */
-      var hs=50;
-      if(c.winRate != null) hs += Math.min(20, c.winRate/5);
-      if(c.collectionRate != null) hs += Math.max(-25, Math.min(20,(c.collectionRate-50)/2.5));
-      if(c.control) hs -= 20;
-      if(c.coverage != null && c.coverage < 40 && c.offers >= 3) hs -= 5; /* دادهٔ ناقص = اطمینان کمتر */
+      /* سلامت مشتری رتبه‌بندی کمکی است. AN-04 (v34.7.33 — مصوب کارفرما):
+         پایه ۴۵ تا مشتری متوسط «سالم» دیده نشود؛ برد تا +۲۵؛ وصول حول ۵۵٪ متقارن ±۲۰؛
+         جریمهٔ کنترل ۲۲ و پوشش ناقص ۸. آستانه: ۷۲ مناسب / ۴۸ پیگیری. */
+      var hs=45;
+      if(c.winRate != null) hs += Math.min(25, c.winRate*0.25);
+      if(c.collectionRate != null) hs += Math.max(-20, Math.min(20,(c.collectionRate-55)/2));
+      if(c.control) hs -= 22;
+      if(c.coverage != null && c.coverage < 40 && c.offers >= 3) hs -= 8;
       c.healthScore=Math.max(0,Math.min(100,Math.round(hs)));
-      c.healthLabel=(!c.control&&c.offers<3&&c.invoices===0)?'دادهٔ ناکافی':c.healthScore>=70?'مناسب':c.healthScore>=45?'نیازمند پیگیری':'نیازمند کنترل';
+      c.healthLabel=(!c.control&&c.offers<3&&c.invoices===0)?'دادهٔ ناکافی':c.healthScore>=72?'مناسب':c.healthScore>=48?'نیازمند پیگیری':'نیازمند کنترل';
       return c;
     }).sort(function (a,b) { return (b.wonValue + b.paid + b.offered) - (a.wonValue + a.paid + a.offered); });
     var productRows = Object.keys(products).map(function (k) { return products[k]; }).sort(function(a,b){return b.wonValue-a.wonValue || b.value-a.value;});
@@ -286,7 +287,7 @@
       customers:customerRows, products:productRows, suppliers:supplierRows, risks:projects, riskCounts:riskCounts,
       insights:insights, dataQuality:dataQuality, portfolio:portfolio,
       /* AN-04: فرمول امتیاز سلامت صریح گزارش می‌شود تا «عدد جادویی» نماند (وزن‌ها تغییر نکرده‌اند). */
-      healthModel:{ base:50, winRateWeight:'min(20, نرخ برد ÷ ۵)', collectionWeight:'کران‌دار (نرخ وصول − ۵۰) ÷ ۲٫۵ در بازهٔ −۲۵ تا +۲۰', controlPenalty:-20, lowCoveragePenalty:-5, note:'رتبه‌بندی کمکی است، نه قضاوت قطعی؛ کالیبراسیون نیازمند تصویب کارفرماست.' },
+      healthModel:{ version:'v34.7.33', calibrated:true, base:45, winRateWeight:'min(25, نرخ برد × ۰٫۲۵)', collectionWeight:'کران‌دار (نرخ وصول − ۵۵) ÷ ۲ در بازهٔ −۲۰ تا +۲۰', controlPenalty:-22, lowCoveragePenalty:-8, bands:{good:72,watch:48}, note:'رتبه‌بندی کمکی است، نه قضاوت قطعی. وزن‌ها مصوب کارفرما (۱۴۰۵/۰۵/۲۶) با پایهٔ پایین‌تر تا امتیاز پیش‌فرض خوش‌بینانه نباشد.' },
       totals:{ customers:customerRows.length, products:productRows.length, suppliers:supplierRows.length, projectsAtRisk:projects.length } };
   };
 

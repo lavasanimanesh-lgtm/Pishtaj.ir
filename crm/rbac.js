@@ -1042,12 +1042,45 @@ function savePay(invCd) {
   var invs = getData('ptf_crm_invoices');
   var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
   if (!inv) return;
+  /* ARCH-02 (v34.7.33 — مصوب کارفرما): وصول نقد/حواله روی فاکتورِ متصل به پرونده
+     دیگر payments[] محلی نمی‌نویسد؛ فرمان سروری post_receipt منبع واحد پول است.
+     چک عمداً همین‌جا می‌ماند تا ماژول چک سند مستقل بسازد (cheque_requires_collection). */
   var invYear = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(inv.invDate || inv.dateISO || inv.t || '') : ((String(inv.invDate || inv.dateISO || inv.t || '').match(/(13|14)\d{2}/) || [])[0] || '');
   if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) { alert('🔒 سال مالی ' + invYear + ' قفل است؛ ثبت وصولی مستقیم در آن سال مجاز نیست.'); return; }
   var paid = window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
   if (paid + amt > inv.amount) { alert('مبلغ از مانده فاکتور بیشتر است (مانده: ' + (inv.amount - paid).toLocaleString('fa-IR') + ')'); return; }
+  var howSel = ((document.getElementById('nPayHow') || {}).value || 'حواله بانکی');
+  if (howSel !== 'چک' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
+    var cid = String(inv.caseId || '').trim();
+    if (!cid) {
+      var ono = String(inv.offerNo || '').trim();
+      if (ono) {
+        var hits = (getData('ptf_crm_deals') || []).filter(function (c) {
+          return c && (String(c.wonOffer || '') === ono || String(c.offerNo || '') === ono);
+        });
+        if (hits.length === 1) cid = String(hits[0]._id || hits[0].cd || '');
+      }
+    }
+    if (cid) {
+      window.ptfSalesDomainApi('post_receipt', {
+        caseId: cid, amountIRR: amt, method: howSel,
+        destinationAccount: 'حساب جاری — ثبت از مطالبات',
+        receivedAt: (typeof faDate === 'function' ? faDate() : ''),
+        note: 'ARCH-02: وصول از مسیر مطالبات — فاکتور ' + (inv.no || inv.cd || ''),
+        idempotencyKey: 'SAVEPAY|' + String(inv.cd || invCd) + '|' + amt + '|' + Date.now()
+      }).then(function () {
+        try { hideModal(); } catch (eH) {}
+        try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eI) {}
+        try { renderReceivables(); } catch (eR) {}
+        if (typeof ptfToast === 'function') ptfToast('دریافت روی پرونده ثبت و به فاکتور تخصیص داده شد', 'ok');
+      }).catch(function (e) {
+        alert('⛔ ثبت سروری وصولی ناموفق بود و چیزی نوشته نشد: ' + ((e && e.message) || e));
+      });
+      return;
+    }
+  }
   inv.payments = inv.payments || [];
-  var payRec = { cd: genCode('RPAY'), amt: amt, how: document.getElementById('nPayHow').value, t: faDate(), by: curSession().name, status: 'posted', sourcePath: 'legacy_receivables' };
+  var payRec = { cd: genCode('RPAY'), amt: amt, how: howSel, t: faDate(), by: curSession().name, status: 'posted', sourcePath: 'legacy_receivables' };
   /* CHQ-MOD-001 (گام ۴): اگر روش «چک» است، چک وارده ساخته و به وصولی لینک می‌شود */
   if (payRec.how === 'چک' && typeof window.ptfChequeCreate === 'function') {
     var chNo = ((document.getElementById('nPayChNo') || {}).value || '').trim();
@@ -1394,6 +1427,29 @@ function applyRbac() {
 })();
 
 
+window.ptfSetInvoiceDue = function (invCd) {
+  var invs = getData('ptf_crm_invoices');
+  var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
+  if (!inv) return;
+  ptfDialog({
+    title: '📅 تعیین تاریخ سررسید وصول مطالبات — فاکتور ' + escP(inv.no),
+    fields: [
+      { id: 'dueFa', label: 'تاریخ سررسید (شمسی) *', type: 'text', value: inv.dueFa || '', placeholder: 'مثلا: 1405/05/15', dir: 'ltr', required: true },
+      { id: 'dueISO', label: 'تاریخ میلادی معادل (اختیاری)', type: 'date', value: inv.dueISO || '', dir: 'ltr' }
+    ],
+    okText: 'ثبت سررسید',
+    onOk: function (v) {
+      var dueFa = (v.dueFa || '').trim();
+      if (!dueFa) { alert('تاریخ سررسید الزامی است'); return; }
+      inv.dueFa = dueFa;
+      inv.dueISO = (v.dueISO || '').trim() || (typeof ptfJToISO === 'function' ? ptfJToISO(dueFa) : '');
+      setData('ptf_crm_invoices', invs);
+      audit('مطالبات', 'ثبت سررسید وصول فاکتور ' + inv.no + ' برای تاریخ ' + dueFa, inv.cd);
+      if (typeof ptfToast === 'function') ptfToast('📅 تاریخ سررسید وصول مطالبات ثبت شد', 'ok');
+      renderReceivables();
+    }
+  });
+};
 window.ptfSetInvoiceDue = function (invCd) {
   var invs = getData('ptf_crm_invoices');
   var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
