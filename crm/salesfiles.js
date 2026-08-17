@@ -131,6 +131,23 @@
     return out;
   }
   function sfHasInvoice(r) { return sfDocsOf(r).invoices.length > 0; }
+  // ARENA-2026-08-17 / گام ۲: دسترسی به دیالوگ صدور فاکتور غیررسمی (تک + تجمیعی)
+  // مسیریابی فرایندی و چکید دسترسی به سایر پیشنهادهای متصل به پرونده
+  window.sfUnofficialInvoiceNew = function (dealCd) {
+    if (typeof window.unofficialInvoiceBuilderOpen !== 'function') {
+      if (typeof alert === 'function') alert('⛔ ماژول صدور فاکتور غیررسمی بارگذاری نشده است (crm/unofficial-invoice.js).');
+      return;
+    }
+    // گارد نقش: فقط senior یا accountant
+    var _role = (typeof curRole === 'function') ? curRole() : '';
+    var _isSnr = (typeof isSenior === 'function') && isSenior();
+    if (!_isSnr && _role !== 'accountant') {
+      if (typeof alert === 'function') alert('⛔ صدور صورتحساب غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+      return;
+    }
+    window.unofficialInvoiceBuilderOpen(dealCd);
+  };
+
 
   /* v34.5.4: نمایش سود/حاشیه پرونده فروش حذف شد.
      عدد قبلی گمراه‌کننده بود (خرید لینک‌نشده = سود متورم). موتور سال مالی دست نخورده می‌ماند. */
@@ -964,7 +981,8 @@
     d.invoices.forEach(function (i) {
       var act = '';
       if (i.isUnofficial) {
-        act = '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#d97706;border-color:#f59e0b" onclick="event.stopPropagation();unofficialInvoicePrint(\'' + ptfOnClickArg(i.offerNo) + '\')">👁 نمایش/چاپ</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();showInvModal(\'' + ptfOnClickArg(i.offerNo) + '\',\'' + ptfOnClickArg(i.cd || i._id) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();ptfInvoiceVoid(\'' + ptfOnClickArg(i.cd || i._id) + '\')">🗑 ابطال</button>';
+        // ARENA-2026-08-17 / گام ۱ (فاز ابطال ریشه‌کن): ابطال غیررسمی از مسیر ریشه‌کن جدید (نه مسیر سرور-محور رسمی).
+        act = '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#d97706;border-color:#f59e0b" onclick="event.stopPropagation();unofficialInvoicePrint(\'' + ptfOnClickArg(i.offerNo) + '\')">👁 نمایش/چاپ</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();showInvModal(\'' + ptfOnClickArg(i.offerNo) + '\',\'' + ptfOnClickArg(i.cd || i._id) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();ptfUnofficialInvoiceVoid(\'' + ptfOnClickArg(i.cd || i._id) + '\')">🗑 ابطال ریشه‌کن</button>';
       } else {
         act = (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' ') + ' <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();showInvModal(\'' + ptfOnClickArg(i.offerNo) + '\',\'' + ptfOnClickArg(i.cd || i._id) + '\')">✏️ اصلاح سندی</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();ptfInvoiceVoid(\'' + ptfOnClickArg(i.cd || i._id) + '\')">🗑 ابطال کنترل‌شده</button><small style="display:block;color:#64748b">ضمیمه رسمی حذف مستقل ندارد؛ فقط جایگزینی نسخه‌دار در اصلاح فاکتور.</small>';
       }
@@ -1161,6 +1179,12 @@
         'ptfCaseFinanceOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { primary: true, meta: 'خزانه و مشتری' }
       );
     }
+    // ARENA-2026-08-17 / گام ۲: دکمهٔ صدور فاکتور غیررسمی (تک‌پیشنهاد + تجمیعی) — برای تمام پیشنهادهای متصل
+    postActions += postAction(
+      'unofficial-invoice', '🧾', 'صورتحساب غیررسمی',
+      'صدور صورتحساب پرداخت غیررسمی برای هر پیشنهاد متصل (تک یا تجمیعی). پیش‌فرض قیمت = CO.',
+      'sfUnofficialInvoiceNew(\'" + ptfOnClickArg(r.cd) + "\')', { meta: 'پرونده' }
+    );
     postActions += postAction(
       'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',
       'ptfLossOpen(\'deal\',\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'زیان پروژه' }
