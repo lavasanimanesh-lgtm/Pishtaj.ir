@@ -134,6 +134,34 @@
     return s;
   }
 
+  /* ---------- AN-03 (v34.7.24): سنجه در سطح «فرصت» ----------
+     واحد تحلیل پیش‌فرض سیستم «سند» است؛ چند پیشنهاد موازی برای یک استعلام مخرج را
+     متورم می‌کند. این تابع همان آمار را در سطح فرصت (کلید inqNo) می‌دهد:
+     فرصت برنده = حداقل یک سند برنده | فرصت باخته = همهٔ اسناد بسته و بدون برد. */
+  function opportunityStats(offers, opts) {
+    opts = opts || {};
+    var minSample = opts.minSample == null ? 3 : opts.minSample;
+    var map = {};
+    (offers || []).forEach(function (o) {
+      if (!isCommercial(o)) return;
+      var key = String((o && (o.inqNo || o.no)) || '').trim() || 'نامشخص';
+      var x = map[key] || (map[key] = { key: key, offers: 0, won: 0, lost: 0, open: 0 });
+      x.offers++;
+      if (isWon(o)) x.won++; else if (isLost(o)) x.lost++; else x.open++;
+    });
+    var keys = Object.keys(map), won = 0, decided = 0, open = 0;
+    keys.forEach(function (k) {
+      var x = map[k];
+      if (x.won > 0) { won++; decided++; }
+      else if (x.open === 0 && x.lost > 0) decided++;
+      else open++;
+    });
+    return { total: keys.length, won: won, lost: decided - won, decided: decided, open: open,
+      winRateAll: keys.length >= minSample ? pct1(won, keys.length) : null,
+      winRateDecided: decided >= minSample ? pct1(won, decided) : null,
+      coverage: pct1(decided, keys.length), sample: keys.length, byKey: map };
+  }
+
   /* ---------- F-02: احتمال برد برای پایپ‌لاین ---------- */
   /**
    * برآورد هموارشدهٔ بیزی: نمونهٔ کوچک نباید ضریب ۱ یا ۰ بسازد.
@@ -179,6 +207,7 @@
     isCommercial: isCommercial,
     isWon: isWon, isLost: isLost, isDecided: isDecided, isExpired: isExpired,
     winStats: winStats,
+    opportunityStats: opportunityStats,
     pWin: pWin,
     pct1: pct1,
     invoiceActive: invoiceActive,

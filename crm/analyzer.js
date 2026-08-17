@@ -308,6 +308,22 @@ function renderAnalyzer() {
     '<div class="sc"><b style="color:#047857">' + f.wonValue.toLocaleString('fa-IR') + '</b><span>ارزش بردها (ریال نرمال‌شده)</span></div>' +
     '</div>';
 
+  /* AN-03 (v34.7.24): سنجهٔ سطح فرصت کنار سنجهٔ سند — چند پیشنهاد موازی برای یک استعلام
+     نباید مخرج را متورم کند. سنجهٔ سند برای مقایسه و سازگاری حفظ شده است. */
+  try {
+    var _M = (window.PTF || {}).metrics;
+    if (_M && typeof _M.opportunityStats === 'function') {
+      var op = _M.opportunityStats(getData('ptf_crm_offers'));
+      h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:12px;margin-bottom:12px">' +
+        '<h4 style="margin:0 0 8px;font-size:13.5px">🎯 نرخ برد در سطح «فرصت» (هر استعلام = یک فرصت)</h4>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;font-size:12.5px">' +
+        '<div style="background:#f8fafc;border-radius:10px;padding:9px"><b style="display:block;font-size:15px">' + (op.winRateAll == null ? '—' : op.winRateAll + '٪') + '</b>نرخ برد فرصت‌ها (' + op.won + ' از ' + op.total + ')</div>' +
+        '<div style="background:#f8fafc;border-radius:10px;padding:9px"><b style="display:block;font-size:15px">' + op.open + '</b>فرصت باز</div>' +
+        '<div style="background:#f8fafc;border-radius:10px;padding:9px"><b style="display:block;font-size:15px">' + (op.coverage == null ? '—' : op.coverage + '٪') + '</b>پوشش تعیین تکلیف فرصت‌ها</div>' +
+        '</div><div style="font-size:11px;color:#64748b;margin-top:7px">اختلاف این عدد با نرخ برد سطح سند یعنی برای بعضی استعلام‌ها بیش از یک پیشنهاد صادر شده است.</div></div>';
+    }
+  } catch (eOp) {}
+
   // قیف پیشنهادها
   var maxF = Math.max(f.draft, f.sent, f.won, f.lost, 1);
   h += '<div style="background:#fff;border:1px solid var(--brd);border-radius:14px;padding:14px;margin-bottom:12px">' +
