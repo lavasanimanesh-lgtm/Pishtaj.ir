@@ -1171,6 +1171,703 @@
     };
   }
 
+function appendStep2() {
+  // body intentionally blank — placeholder while awaiting next write
+}
+
+/* ========================================================================
+   ARENA-2026-08-17 / گام ۲ و ۳: صدور/ویرایش قیمت قلم‌به‌قلم + حالت تجمیعی چند پیشنهاد
+   — الزام ۱ (پیش‌فرض قیمت = CO)، الزام ۳ (صدور در پرونده، تک‌پیشنهاد + تجمیعی)
+   — طراحی: دیالوگ یکپارچه با جدول اقلام قابل ویرایش (تعداد، قیمت واحد، حذف، افزودن سفارشی)
+   — سپس فراخوان unofficialInvoicePrintCases برای صدور نهایی
+   — مجوز: senior یا accountant؛ پرونده در مرحله ≥ ۷ (پس از تحویل کارفرما)
+   ======================================================================== */
+
+// ===== Helper: گردآوری پیشنهادهای متصل + انتخاب مبدأ قیمت =====
+window.unofficialInvoiceCollectOffers = function (deal) {
+  if (!deal) return { offers: [], priceSourceOffer: null, hasFinancialOffer: false };
+  var offers = [];
+  if (typeof window.ptfSalesFileOffers === 'function') {
+    offers = window.ptfSalesFileOffers(deal) || [];
+  }
+  offers = (offers || []).filter(function (o) {
+    return o && o.no && (o.items || []).length;
+  });
+  // مبدأ قیمت: اولویت با CO (پیشنهاد مالی). اگر نبود، TC یا TO یا اولین پیشنهاد.
+  var priceSourceOffer = null;
+  for (var i = 0; i < offers.length; i++) {
+    if (offers[i].kind === 'CO') { priceSourceOffer = offers[i]; break; }
+  }
+  if (!priceSourceOffer) {
+    for (var j = 0; j < offers.length; j++) {
+      if (offers[j].kind === 'TC') { priceSourceOffer = offers[j]; break; }
+    }
+  }
+  if (!priceSourceOffer && offers.length) priceSourceOffer = offers[0];
+
+  var hasFinancialOffer = !!offers.filter(function (o) { return o.kind === 'CO'; })[0];
+
+  return {
+    offers: offers,
+    priceSourceOffer: priceSourceOffer,
+    hasFinancialOffer: hasFinancialOffer
+  };
+};
+
+// ===== Helper: عکس‌برداری از اقلام یک پیشنهاد (deep-clone قلم‌به‌قلم) =====
+window.unofficialInvoiceSnapshotLines = function (offer) {
+  if (!offer || !offer.items) return [];
+  return (offer.items || []).map(function (it, idx) {
+    var qty = +it.qty || 0;
+    var price = +it.price || 0;
+    return {
+      idx: idx,
+      name: it.name || '',
+      desc: it.desc || '',
+      unit: it.unit || '',
+      pcode: it.pcode || it.prodCd || it.productCd || '',
+      qtyOrig: qty,
+      priceOrig: price,
+      qty: qty,
+      price: price,
+      lineTotal: qty * price,
+      fromOffer: offer.no || '',
+      fromKind: offer.kind || ''
+    };
+  });
+};
+
+// ===== Helper: ترکیب اقلام از چند پیشنهاد (برای حالت تجمیعی) =====
+window.unofficialInvoiceConsolidateLines = function (selectedOffers, priceSourceOffer) {
+  var lines = [];
+  var seen = {};
+  (selectedOffers || []).forEach(function (o) {
+    if (!o || !o.items) return;
+    o.items.forEach(function (it, idx) {
+      var key = String(it.pcode || it.name || it.desc || (o.no + '|' + idx));
+      if (seen[key]) return;
+      seen[key] = true;
+      var qty = +it.qty || 0;
+      var price = +it.price || 0;
+      // پیش‌فرض قیمت از خود پیشنهاد مبدأ؛ اگر CO وجود دارد، بعداً کاربر می‌تواند ویرایش کند.
+      // هیچ «price copying» خودکار بین پیشنهادها؛ کاربر در دیالوگ اصلاح می‌کند.
+      lines.push({
+        idx: idx,
+        name: it.name || '',
+        desc: it.desc || '',
+        unit: it.unit || '',
+        pcode: it.pcode || '',
+        qtyOrig: qty,
+        priceOrig: price,
+        qty: qty,
+        price: price,
+        lineTotal: qty * price,
+        fromOffer: o.no || '',
+        fromKind: o.kind || ''
+      });
+    });
+  });
+  return lines;
+};
+
+// ===== حالت سراسری دیالوگ (برای توابع کنترلی) =====
+var _unInvState = null;
+
+// ===== باز کردن دیالوگ سازندهٔ فاکتور =====
+window.unofficialInvoiceBuilderOpen = function (dealCd) {
+  // گارد نقش
+  var _role = (typeof curRole === 'function') ? curRole() : '';
+  var _isSnr = (typeof isSenior === 'function') && isSenior();
+  if (!_isSnr && _role !== 'accountant') {
+    if (typeof alert === 'function') alert('⛔ صدور صورتحساب غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+    return;
+  }
+  var _deal = (getData('ptf_crm_deals') || []).filter(function (x) {
+    return x && String(x._id || x.cd || '') === String(dealCd || '');
+  })[0];
+  if (!_deal) {
+    if (typeof alert === 'function') alert('⛔ پرونده فروش یافت نشد');
+    return;
+  }
+  var _stg = (typeof sfStageOf === 'function') ? sfStageOf(_deal) : 0;
+  if (_stg < 7) {
+    if (typeof alert === 'function') alert('🔒 صدور صورتحساب غیررسمی پس از تحویل کارفرما فعال می\u200cشود (مرحلهٔ فعلی: ' + _stg + ' از ۱۲).');
+    return;
+  }
+  var collected = window.unofficialInvoiceCollectOffers(_deal);
+  if (!collected.offers.length) {
+    if (typeof alert === 'function') alert('⛔ هیچ پیشنهاد دارای اقلام به این پرونده متصل نیست.');
+    return;
+  }
+
+  // حذف دیالوگ قبلی اگر باز باشد
+  document.querySelectorAll('#unInvBuilderDlg').forEach(function (el) { el.remove(); });
+
+  var _co = collected.priceSourceOffer;
+  var initialLines = window.unofficialInvoiceSnapshotLines(_co);
+
+  // ذخیره حالت سراسری
+  _unInvState = {
+    deal: _deal,
+    collected: collected,
+    mode: 'single',
+    selectedOfferNos: _co ? [_co.no] : [collected.offers[0].no],
+    lines: initialLines,
+    cCurrency: (_co && _co.currency) ? _co.currency : 'IRR',
+    cRate: (_co && +_co.fxRateRef) > 0 ? (+_co.fxRateRef) : 1
+  };
+
+  var _dlg = document.createElement('div');
+  _dlg.id = 'unInvBuilderDlg';
+  _dlg.className = 'md-b';
+  _dlg.style.cssText = 'display:grid;z-index:2800;';
+  _dlg.setAttribute('data-deal-cd', _deal.cd || _deal._id || '');
+  _dlg.onclick = function (e) { if (e.target === _dlg) _dlg.remove(); };
+  _dlg.innerHTML = buildUnInvBuilderHtml(_unInvState);
+  document.body.appendChild(_dlg);
+  bindUnInvBuilderHandlers(_dlg);
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== ساخت HTML داخلی دیالوگ =====
+window.buildUnInvBuilderHtml = function (st) {
+  var kindLabels = { CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی', TO: 'پیشنهاد فنی' };
+  var _co = st.collected.priceSourceOffer;
+  var _coKindLabel = kindLabels[_co ? _co.kind : ''] || '—';
+
+  var _coWarn = '';
+  if (!st.collected.hasFinancialOffer && _co && _co.kind !== 'CO') {
+    _coWarn = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 11px;margin-bottom:10px;font-size:11.5px;color:#92400e;">' +
+      '⚠️ پیشنهاد مالی (CO) در پرونده یافت نشد (یا فاقد اقلام است). قیمت\u200cهای پیش\u200cفرض از همین پیشنهاد لود شده\u200cاند. توصیه می\u200cشود ابتدا یک CO با قیمت\u200cهای واقعی ثبت کنید.</div>';
+  }
+
+  // چک‌باکس‌های پیشنهاد برای انتخاب در حالت تجمیعی
+  var _offersCheckHtml = st.collected.offers.map(function (o) {
+    var kindBadge = '<span class="bd" style="background:#dbeafe;color:#1e40af;border-radius:6px;padding:1px 6px;font-size:10.5px;">' + escP(kindLabels[o.kind] || o.kind) + '</span>';
+    var coBadge = (o.kind === 'CO') ? ' <span class="bd" style="background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 6px;font-size:10.5px;">⭐ مبدأ قیمت</span>' : '';
+    var checkedFlag = (st.selectedOfferNos.indexOf(o.no) >= 0) ? ' checked' : '';
+    return '<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px dashed #e2e8f0;cursor:pointer;font-size:12.5px;">' +
+      '<input type="checkbox" class="un-offer-row-chk" data-offer="' + escP(o.no) + '"' + checkedFlag + '>' +
+      '<b dir="ltr" style="font-size:12px;">' + escP(o.no) + '</b> ' + kindBadge + coBadge +
+      ' <span style="color:#94a3b8;font-size:11px;">(' + ((o.items || []).length) + ' قلم)</span></label>';
+  }).join('');
+
+  function unitFa(u) {
+    if (typeof window.translateUnitFa === 'function') return window.translateUnitFa(u);
+    return String(u || 'عدد');
+  }
+
+  var _rows = buildUnInvBuilderRows(st.lines);
+
+  var _html = '' +
+    '<div class="md" style="max-width:940px;max-height:94vh;overflow:auto;">' +
+    '<h3 style="margin:0 0 10px;color:#1e293b;font-size:15.5px;">🧾 صدور صورتحساب پرداخت غیررسمی — ' + escP(st.deal.inqNo || st.deal.cd) + '</h3>' +
+    '<div style="font-size:11.5px;color:#475569;margin-bottom:8px;">پیشنهاد مبدأ قیمت: <b>' + escP(_co ? _co.no : '—') + '</b> ' +
+      '<span class="bd" style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:6px;font-size:10px;">⭐ CO مرجع</span>' +
+      ' <span style="color:#94a3b8;">(' + escP(_coKindLabel) + ')</span></div>' +
+    _coWarn +
+    '<div class="fr" style="margin-bottom:10px;gap:14px;align-items:center;background:#f8fafc;padding:8px 12px;border-radius:10px;">' +
+      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="single" checked> ◯ تک\u200cپیشنهاد</label>' +
+      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="consolidated"> ◯ تجمیعی چند پیشنهاد</label>' +
+      '<span style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:2px 8px;color:#475569;font-size:11px;">📑 ' + st.collected.offers.length + ' پیشنهاد متصل</span>' +
+    '</div>' +
+    '<div id="unSingleBox">' +
+      '<div class="fld"><label>پیشنهاد مبدأ (پیش\u200cفرض = اولین CO)</label><select id="unSingleOffer" style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:8px;">' +
+      st.collected.offers.map(function (o) {
+        var sel = (o.no === _co.no) ? ' selected' : '';
+        return '<option value="' + escP(o.no) + '"' + sel + '>' + escP(o.no) + ' — ' + escP(kindLabels[o.kind] || o.kind) + ' (' + ((o.items || []).length) + ' قلم)</option>';
+      }).join('') +
+      '</select></div>' +
+    '</div>' +
+    '<div id="unConsolidatedBox" style="display:none;">' +
+      '<div class="fld"><label>پیشنهادهای انتخاب\u200cشده (✓ برای تجمیع علامت بزنید)</label>' +
+      '<div class="tb2" style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:4px 8px;max-height:130px;overflow:auto;">' + _offersCheckHtml + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="fld" style="margin-top:10px;"><label>🛒 اقلام فاکتور (پیش\u200cفرض از <b>' + escP(_co ? _co.no : '—') + '</b> · قیمت هر قلم قابل ویرایش)</label>' +
+      '<div style="max-height:380px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">' +
+      '<table style="width:100%;font-size:12.5px;border-collapse:collapse;">' +
+      '<thead><tr style="background:#334155;color:#fff;">' +
+      '<th style="padding:7px;font-size:11.5px;width:6%;">عملیات</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:14%;">منبع</th>' +
+      '<th style="padding:7px;font-size:11.5px;">شرح</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:9%;">واحد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:10%;">تعداد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:18%;">قیمت واحد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:15%;">قیمت کل</th>' +
+      '</tr></thead>' +
+      '<tbody id="unRowsTbody">' + _rows + '</tbody>' +
+      '</table>' +
+      '</div>' +
+      '<div style="margin-top:7px;display:flex;gap:7px;flex-wrap:wrap;">' +
+      '<button type="button" class="bt bt-o" onclick="unofficialInvoiceBuilderAddCustomRow()">\uff0b افزودن قلم سفارشی</button>' +
+      '<button type="button" class="bt bt-o" onclick="unofficialInvoiceBuilderResetFromOffer()">♻️ بازنشانی از پیشنهاد</button>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
+      '<div class="fld"><label>تخفیف اختیاری (مبلغ یا درصد)</label><input id="unDiscInput" type="text" placeholder="مثال: 5% یا 500000" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' +
+      '<div class="fld"><label>شماره حساب / شبا (اختیاری)</label><input id="unBankInput" type="text" placeholder="مثال: IR..."></div>' +
+      (st.cCurrency !== 'IRR' ?
+        '<div class="fld"><label>نرخ تسعیر روز صدور (ریال/' + escP(st.cCurrency) + ')</label><input id="unRateInput" type="number" dir="ltr" value="' + st.cRate + '" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' :
+        '<div></div>'
+      ) +
+    '</div>' +
+    '<div id="unResultBox" style="margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px;font-size:13px;color:#166534;line-height:1.7;"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+    '<button class="bt bt-o" onclick="document.getElementById(\'unInvBuilderDlg\').remove()">❌ انصراف</button>' +
+    '<button class="bt" style="background:#0e7490;color:#fff;font-weight:800;" onclick="unofficialInvoiceBuilderSubmit()">✅ تأیید و صدور</button>' +
+    '</div>' +
+    '</div>';
+  return _html;
+};
+
+window.buildUnInvBuilderRows = function (lines) {
+  var unitFaFn = typeof window.translateUnitFa === 'function' ? window.translateUnitFa : function (u) { return String(u || 'عدد'); };
+  return (lines || []).map(function (ln) {
+    var pid = 'un-row-' + (ln.idx) + '-' + Math.random().toString(36).slice(2, 7);
+    ln._pid = pid;
+    return '<tr data-row-id="' + pid + '" data-from-offer="' + escP(ln.fromOffer || '') + '" class="un-row" style="border-bottom:1px solid #f1f5f9;">' +
+      '<td style="padding:4px;text-align:center;"><button type="button" class="ba" style="color:#dc2626;padding:1px 5px;font-size:11px;" onclick="unofficialInvoiceBuilderRemoveRow(\'' + pid + '\')">حذف</button></td>' +
+      '<td style="padding:4px;font-size:10.5px;color:#475569;text-align:center;" dir="ltr">' + escP(ln.fromOffer || '—') + '<br><small style="color:#94a3b8;">' + escP(ln.fromKind || '') + '</small></td>' +
+      '<td style="padding:4px;font-size:12px;"><b>' + escP(ln.name || '—') + '</b>' + (ln.desc && ln.desc !== ln.name ? '<br><small style="color:#94a3b8;">' + escP(ln.desc) + '</small>' : '') + '</td>' +
+      '<td style="padding:4px;text-align:center;font-size:11px;">' + escP(unitFaFn(ln.unit)) + '</td>' +
+      '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="qty" data-pid="' + pid + '" value="' + (+ln.qty || 0) + '" style="direction:ltr;padding:4px;width:70px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
+      '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="price" data-pid="' + pid + '" value="' + (+ln.price || 0) + '" style="direction:ltr;padding:4px;width:150px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
+      '<td style="padding:4px;text-align:left;direction:ltr;" class="row-total" data-pid="' + pid + '">' + ((+ln.qty || 0) * (+ln.price || 0)).toLocaleString('en-US') + '</td>' +
+      '</tr>';
+  }).join('');
+};
+
+// ===== اتصال event handlers =====
+window.bindUnInvBuilderHandlers = function (_dlg) {
+  // mode change
+  _dlg.querySelectorAll('input[name="unMode"]').forEach(function (inp) {
+    inp.onchange = function () {
+      applyUnInvBuilderMode(_dlg);
+      window.unofficialInvoiceBuilderRecalc();
+    };
+  });
+  // single-offer change -> reload
+  var _singleSel = _dlg.querySelector('#unSingleOffer');
+  if (_singleSel) _singleSel.onchange = function () { reloadUnInvBuilderFromSelection(_dlg); };
+  // checkbox change -> reload
+  _dlg.querySelectorAll('.un-offer-row-chk').forEach(function (chk) {
+    chk.onchange = function () { reloadUnInvBuilderFromSelection(_dlg); };
+  });
+  // initial mode apply
+  applyUnInvBuilderMode(_dlg);
+};
+
+window.applyUnInvBuilderMode = function (_dlg) {
+  var _mode = 'single';
+  _dlg.querySelectorAll('input[name="unMode"]').forEach(function (inp) {
+    if (inp.checked) _mode = inp.value;
+  });
+  _unInvState.mode = _mode;
+  if (_mode === 'consolidated') {
+    _dlg.querySelector('#unSingleBox').style.display = 'none';
+    _dlg.querySelector('#unConsolidatedBox').style.display = '';
+  } else {
+    _dlg.querySelector('#unSingleBox').style.display = '';
+    _dlg.querySelector('#unConsolidatedBox').style.display = 'none';
+  }
+};
+
+window.reloadUnInvBuilderFromSelection = function (_dlg) {
+  var _mode = _unInvState.mode;
+  var __lines = [];
+  if (_mode === 'single') {
+    var _singleNo = _dlg.querySelector('#unSingleOffer').value;
+    var _singleOffer = _unInvState.collected.offers.filter(function (o) { return o.no === _singleNo; })[0]
+      || _unInvState.collected.priceSourceOffer
+      || _unInvState.collected.offers[0];
+    __lines = window.unofficialInvoiceSnapshotLines(_singleOffer);
+    _unInvState.selectedOfferNos = [_singleOffer.no];
+  } else {
+    var _checkedNos = Array.from(_dlg.querySelectorAll('.un-offer-row-chk:checked')).map(function (c) { return c.getAttribute('data-offer'); });
+    if (!_checkedNos.length) {
+      // پیشنهاد مبدأ به\u200cطور پیش\u200cفرض انتخاب\u200cشده باقی بماند
+      _checkedNos = [_unInvState.collected.priceSourceOffer.no];
+    }
+    _unInvState.selectedOfferNos = _checkedNos;
+    var _sel = _unInvState.collected.offers.filter(function (o) { return _checkedNos.indexOf(o.no) >= 0; });
+    __lines = window.unofficialInvoiceConsolidateLines(_sel, _unInvState.collected.priceSourceOffer);
+  }
+  _unInvState.lines = __lines;
+  var _tbody = _dlg.querySelector('#unRowsTbody');
+  _tbody.innerHTML = window.buildUnInvBuilderRows(__lines);
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== محاسبهٔ زندهٔ جمع کل + تخفیف + نمایش در result box =====
+window.unofficialInvoiceBuilderRecalc = function () {
+  if (!_unInvState) return;
+  var _dlg = document.getElementById('unInvBuilderDlg');
+  if (!_dlg) return;
+  var total = 0;
+  _dlg.querySelectorAll('#unRowsTbody tr').forEach(function (tr) {
+    var pid = tr.getAttribute('data-row-id');
+    var qtyEl = _dlg.querySelector('input[data-fld="qty"][data-pid="' + pid + '"]');
+    var prEl = _dlg.querySelector('input[data-fld="price"][data-pid="' + pid + '"]');
+    var q = qtyEl ? (+qtyEl.value || 0) : 0;
+    var p = prEl ? (+prEl.value || 0) : 0;
+    var rowTotal = q * p;
+    var trTotalEl = _dlg.querySelector('.row-total[data-pid="' + pid + '"]');
+    if (trTotalEl) trTotalEl.textContent = rowTotal.toLocaleString('en-US');
+    total += rowTotal;
+    // update state
+    var ln = _unInvState.lines.filter(function (l) { return l._pid === pid; })[0];
+    if (ln) { ln.qty = q; ln.price = p; ln.lineTotal = rowTotal; }
+  });
+
+  var _discInput = (_dlg.querySelector('#unDiscInput') || {}).value || '';
+  var _discVal = 0; var _discPct = null;
+  if (_discInput.trim()) {
+    var _clean = _discInput.replace(/[٪%]/g, '');
+    if (_discInput.indexOf('%') >= 0 || _discInput.indexOf('٪') >= 0) {
+      _discPct = parseFloat(_clean) || 0;
+      _discVal = Math.round(total * _discPct / 100);
+    } else {
+      _discVal = parseFloat(_clean.replace(/,/g, '')) || 0;
+    }
+  }
+  var _net = Math.max(0, total - _discVal);
+
+  var _cur = _unInvState.cCurrency;
+  var _rateEl = _dlg.querySelector('#unRateInput');
+  var _rate = _rateEl ? (+_rateEl.value || _unInvState.cRate) : _unInvState.cRate;
+  var _totalIrr = _cur === 'IRR' ? total : Math.round(total * _rate);
+  var _discIrr = _cur === 'IRR' ? _discVal : Math.round(_discVal * _rate);
+  var _netIrr = _cur === 'IRR' ? _net : Math.round(_net * _rate);
+
+  var _rateHtml = (_cur !== 'IRR') ? ' | <small style="color:#0e7490;">نرخ تسعیر: ' + _rate.toLocaleString('fa-IR') + ' ریال/' + escP(_cur) + ' ⇒ مبلغ ریالی: ' + _totalIrr.toLocaleString('fa-IR') + ' ریال</small>' : '';
+
+  _dlg.querySelector('#unResultBox').innerHTML =
+    '<b>📊 جمع کل اقلام (به ارز سند):</b> ' + total.toLocaleString('en-US') + ' ' + escP(_cur) + _rateHtml +
+    '<br><b>🏷️ تخفیف:</b> ' + (_discVal ? _discVal.toLocaleString('en-US') + ' ' + escP(_cur) + (_discPct !== null ? ' (' + _discPct.toLocaleString('en-US') + '٪)' : '') : '—') +
+    '<br><b>✅ خالص قابل پرداخت (به ارز سند):</b> ' + (_cur === 'IRR' ? '' : '').toString() + _net.toLocaleString('en-US') + ' ' + escP(_cur) +
+    (_cur !== 'IRR' ? ' ⇒ ' + _netIrr.toLocaleString('fa-IR') + ' ریال' : '');
+};
+
+// ===== حذف یک قلم =====
+window.unofficialInvoiceBuilderRemoveRow = function (pid) {
+  if (!_unInvState) return;
+  _unInvState.lines = _unInvState.lines.filter(function (l) { return l._pid !== pid; });
+  var _tr = document.querySelector('#unInvBuilderDlg tr[data-row-id="' + pid + '"]');
+  if (_tr) _tr.remove();
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== افزودن قلم سفارشی =====
+window.unofficialInvoiceBuilderAddCustomRow = function () {
+  if (!_unInvState) return;
+  var newLine = {
+    idx: 'cu-' + Math.random().toString(36).slice(2, 6),
+    name: 'قلم سفارشی',
+    desc: '',
+    unit: 'NO',
+    pcode: '',
+    qtyOrig: 1,
+    priceOrig: 0,
+    qty: 1,
+    price: 0,
+    lineTotal: 0,
+    fromOffer: _unInvState.collected.priceSourceOffer ? _unInvState.collected.priceSourceOffer.no : '—',
+    fromKind: 'CUSTOM',
+    custom: true
+  };
+  _unInvState.lines.push(newLine);
+  var _tbody = document.getElementById('unRowsTbody');
+  _tbody.insertAdjacentHTML('beforeend', window.buildUnInvBuilderRows([newLine]));
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== بازنشانی از پیشنهاد =====
+window.unofficialInvoiceBuilderResetFromOffer = function () {
+  var _dlg = document.getElementById('unInvBuilderDlg');
+  if (!_dlg) return;
+  if (!confirm('اقلام به مقادیر پیش\u200cفرض پیشنهاد(های) انتخاب\u200cشده بازنشانی شوند؟')) return;
+  reloadUnInvBuilderFromSelection(_dlg);
+};
+
+// ===== تأیید و صدور =====
+window.unofficialInvoiceBuilderSubmit = function () {
+  if (!_unInvState) return;
+  var _dlg = document.getElementById('unInvBuilderDlg');
+  if (!_dlg) return;
+  // اعتبارسنجی: حداقل یک قلم با مبلغ > 0
+  var validRows = _unInvState.lines.filter(function (l) {
+    return (+l.qty || 0) > 0 && (+l.price || 0) > 0;
+  });
+  if (!validRows.length) {
+    if (typeof alert === 'function') alert('⛔ حداقل یک قلم با تعداد و قیمت واحد بزرگ\u200cتر از صفر لازم است.');
+    return;
+  }
+  var _linesWithTotal = _unInvState.lines.filter(function (l) {
+    return (+l.qty || 0) > 0 && (+l.price || 0) > 0;
+  });
+
+  // جمع\u200cآوری ورودی\u200cها
+  var _discInput = (_dlg.querySelector('#unDiscInput') || {}).value || '';
+  var _bankInput = (_dlg.querySelector('#unBankInput') || {}).value || '';
+  var _rateEl = _dlg.querySelector('#unRateInput');
+  var _rate = _rateEl ? (+_rateEl.value || _unInvState.cRate) : _unInvState.cRate;
+
+  // ساخت consolidated meta اگر تجمیعی
+  var consolidatedMeta = null;
+  if (_unInvState.mode === 'consolidated') {
+    var _allSelNos = _unInvState.selectedOfferNos;
+    var _byNo = {};
+    _unInvState.collected.offers.forEach(function (o) { _byNo[o.no] = o; });
+    consolidatedMeta = _allSelNos.map(function (no) {
+      var o = _byNo[no];
+      var _shareItems = _linesWithTotal.filter(function (l) { return l.fromOffer === no; });
+      var _shareIrr = _shareItems.reduce(function (s, l) { return s + (l.qty * l.price); }, 0);
+      return {
+        offerNo: no,
+        kind: o ? o.kind : '?',
+        itemsCount: _shareItems.length,
+        totalIrr: _shareIrr,
+        sharePct: 0
+      };
+    });
+    var _grandTotal = consolidatedMeta.reduce(function (s, m) { return s + m.totalIrr; }, 0) || 1;
+    consolidatedMeta.forEach(function (m) { m.sharePct = Math.round((m.totalIrr * 1000 / _grandTotal)) / 10; });
+  }
+
+  // پیشنهاد مبدأ (CO) برای رسم سند
+  var primaryOffer = _unInvState.collected.priceSourceOffer;
+  if (_unInvState.mode === 'single') {
+    var _singleOfferNo = _dlg.querySelector('#unSingleOffer').value;
+    primaryOffer = _unInvState.collected.offers.filter(function (o) { return o.no === _singleOfferNo; })[0] || primaryOffer;
+  }
+
+  // بستن دیالوگ
+  _dlg.remove();
+
+  // فراخوان تابع صدور سفارشی
+  window.unofficialInvoicePrintCases({
+    primaryOffer: primaryOffer,
+    offerNos: _unInvState.selectedOfferNos.slice(),
+    isConsolidated: _unInvState.mode === 'consolidated',
+    consolidatedFromOffers: consolidatedMeta,
+    linesSnapshot: _linesWithTotal,
+    discountInput: _discInput,
+    bankAccount: _bankInput,
+    currentRate: _rate,
+    dealCd: _unInvState.deal.cd || _unInvState.deal._id || ''
+  });
+};
+
+// ===== پرینتر سفارشی: صدور با snapshot از پیش ویرایش\u200cشده =====
+window.unofficialInvoicePrintCases = function (ctx) {
+  if (!ctx || !ctx.primaryOffer || !ctx.linesSnapshot || !ctx.linesSnapshot.length) {
+    if (typeof alert === 'function') alert('⛔ اطلاعات صدور ناقص است.');
+    return;
+  }
+  // تمیزسازی دوبارشماری\u200cها (همان رفتار unofficialInvoicePrint)
+  if (typeof window.ptfUnofficialInvoiceVoid === 'function') {
+    // no direct cleanUpDoubleInvoices from outside — call it via context
+  }
+  if (typeof window.cleanUpDoubleInvoices === 'function') { /*lint*/ }
+  // call via un-inv-invoice internal cleanUpDoubleInvoices only if visible
+  try {
+    var ev = new Function('try { cleanUpDoubleInvoices(); } catch(e) {}');
+    // NOTE: cleanUpDoubleInvoices is in IIFE-private scope in unofficial-invoice.js;
+    // we rely on the existing call at module-load, plus what `unofficialInvoicePrint` already does:
+  } catch (e){}
+
+  var primaryOffer = ctx.primaryOffer;
+  var _co = primaryOffer;
+  // ساخت نمونه offer جایگزین با items = snapshot (برای استفاده در generateUnofficialInvoiceHtml)
+  var _syntheticOffer = Object.assign({}, _co, { items: ctx.linesSnapshot });
+
+  // محاسبه کل اقلام
+  var total = ctx.linesSnapshot.reduce(function (s, ln) { return s + (+ln.qty || 0) * (+ln.price || 0); }, 0);
+
+  // پردازش تخفیف
+  var discountVal = 0, discountLabel = 'تخفیف توافقی';
+  var _di = (ctx.discountInput || '').trim();
+  if (_di) {
+    var _clean = _di.replace(/[٪%]/g, '');
+    if (_di.indexOf('%') >= 0 || _di.indexOf('٪') >= 0) {
+      var pct = parseFloat(_clean) || 0;
+      discountVal = Math.round(total * pct / 100);
+      discountLabel = 'تخفیف توافقی (' + pct + '٪)';
+    } else {
+      discountVal = parseFloat(_clean.replace(/,/g, '')) || 0;
+    }
+  }
+  var currentRate = ctx.currentRate || _co.fxRateRef || 1;
+
+  // محاسبه پیش\u200cپرداخت
+  var advPayIrr = 0, _a = null;
+  try {
+    _a = (typeof ptfAdvanceNormalize === 'function' && !window.PTF_SALES_DOMAIN_V2) ? ptfAdvanceNormalize(_co) : null;
+    if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
+      advPayIrr = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
+    }
+  } catch (eAdv) {}
+  var advRate = _co.advance && _co.advance.rate ? +_co.advance.rate : currentRate;
+
+  // گارد سال مالی قفل
+  var invYear = String(_co.dateFa || '').split('/')[0];
+  if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) {
+    if (typeof alert === 'function') alert('🔒 خطا: سال مالی ' + invYear + ' قفل است. صدور در سال مالی قفل شده مجاز نیست.');
+    return;
+  }
+
+  // ساخت invoiceNo + invoiceCd برای حالت تجمیعی
+  var invoiceCd, invoiceNo;
+  if (ctx.isConsolidated) {
+    var _ts = new Date();
+    var _stamp = _ts.getFullYear() +
+      String(_ts.getMonth() + 1).padStart(2, '0') +
+      String(_ts.getDate()).padStart(2, '0') +
+      String(_ts.getHours()).padStart(2, '0') +
+      String(_ts.getMinutes()).padStart(2, '0');
+    invoiceCd = 'UN-INV-CONSOLIDATED-' + (ctx.dealCd || 'X') + '-' + _stamp;
+    invoiceNo = 'INV-CONSOLIDATED-' + _stamp;
+    var _primaryRef = String(_co.no || '').replace(/^PTF-/, '');
+    _syntheticOffer.no = 'PTF-' + _primaryRef + '-CONSOLIDATED';  // شماره نمایشی برای سند
+  } else {
+    invoiceNo = String(_co.no || '').replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
+    invoiceCd = 'UN-INV-' + (_co.no || '');
+  }
+
+  // پیدا کردن فاکتور موجود برای همان primary offer (در حالت تک)
+  var invs = getData('ptf_crm_invoices') || [];
+  var existing = null;
+  if (!ctx.isConsolidated) {
+    existing = invs.filter(function (x) {
+      return x && (x.cd === invoiceCd || (x.offerNo === _co.no && x.isUnofficial && x.status !== 'void'));
+    })[0];
+  }
+
+  // تبدیل\u200cهای ریالی
+  var totalIrr = _co.currency === 'IRR' || !_co.currency ? total : Math.round(total * currentRate);
+  var discountIrr = _co.currency === 'IRR' || !_co.currency ? discountVal : Math.round(discountVal * currentRate);
+
+  var advPayOriginal = _co.currency === 'IRR' || !_co.currency ? advPayIrr : (advRate > 0 ? (advPayIrr / advRate) : advPayIrr);
+  var netPayableOriginal = Math.max(0, total - discountVal - advPayOriginal);
+  var netPayableIrr = Math.round(netPayableOriginal * currentRate);
+  var amountIrr = advPayIrr + netPayableIrr;
+
+  // پیدا کردن پروندهٔ فروش برای اتصال
+  var _salesCase = (getData('ptf_crm_deals') || []).filter(function (d) {
+    return d && (d.wonOffer === _co.no || (_co._id && d.rootOfferId === _co._id) || (d.cd || d._id) === ctx.dealCd);
+  })[0] || null;
+
+  // ذخیره رکورد فاکتور
+  var newInv = null;
+  if (existing && !ctx.isConsolidated) {
+    // حالت بازنویسی (مانند رفتار قبلی برای primary)
+    _salesCase = _salesCase; // no-op (for lint)
+    existing.caseId = (_salesCase ? (_salesCase._id || _salesCase.cd || '') : '');
+    existing.customerId = ((_salesCase && _salesCase.buyerCd) || _co.buyerCd || '');
+    setData('ptf_crm_invoices', invs);
+    setData('ptf_crm_invoices', invs);
+  } else {
+    newInv = {
+      cd: invoiceCd,
+      caseId: (_salesCase ? (_salesCase._id || _salesCase.cd || '') : ''),
+      customerId: ((_salesCase && _salesCase.buyerCd) || _co.buyerCd || ''),
+      no: invoiceNo,
+      offerNo: _co.no || '',
+      amount: amountIrr,
+      base: totalIrr,
+      vat: 0,
+      discount: discountIrr,
+      discountLabel: discountLabel,
+      discountInput: ctx.discountInput || '',
+      invDate: faDate(),
+      t: faDate(),
+      buyerCo: _co.buyerCo || '',
+      offerCurrency: _co.currency || 'IRR',
+      offerFxBasis: _co.fxBasis || '',
+      offerFxRateRef: currentRate,
+      payments: [],
+      isUnofficial: true,
+      bankAccount: ctx.bankAccount || '',
+      by: curSession().name || '?',
+      status: 'active',
+      // فیلدهای جدید (الزام ۱ و ۳)
+      invoiceKind: ctx.isConsolidated ? 'consolidated' : 'single',
+      sourceOfferNo: (_co.no || ''),
+      consolidatedFromOffers: ctx.consolidatedFromOffers || null,
+      overridedFromOffer: true,
+      linesSnapshot: ctx.linesSnapshot
+    };
+
+    if (advPayIrr > 0) {
+      newInv.payments.push({
+        cd: 'RP-ADV-' + (_co.no || ''),
+        amt: advPayIrr,
+        amountIrr: advPayIrr,
+        fx: { fxAmt: advPayOriginal, rate: advRate },
+        how: 'کسر مبالغ وصول\u200cشده پیش\u200cپرداخت (غیررسمی)',
+        t: faDate(),
+        by: curSession().name,
+        fromAdvance: true
+      });
+      newInv.advApplied = advPayIrr;
+    }
+
+    // پاکسازی فاکتور قبلی همان primary offer (در حالت تک) — همان رفتار unofficialInvoicePrint
+    if (!ctx.isConsolidated && existing) {
+      invs = invs.filter(function (x) { return x && x.cd !== existing.cd && !(x.offerNo === _co.no && x.isUnofficial && x.status !== 'void'); });
+    }
+    invs.unshift(newInv);
+    setData('ptf_crm_invoices', invs);
+
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
+      window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd })
+        .then(function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
+        .catch(function (e) {
+          var rollback = (getData('ptf_crm_invoices') || []).filter(function (x) { return x.cd !== newInv.cd; });
+          if (typeof window.ptfSyncApplyServerProjection === 'function') window.ptfSyncApplyServerProjection('ptf_crm_invoices', rollback);
+          else setData('ptf_crm_invoices', rollback);
+          if (typeof alert === 'function') alert('⛔ ثبت سروری صورتحساب غیررسمی ناموفق بود و رکورد محلی بازگردانده شد: ' + e.message);
+        });
+    }
+  }
+
+  // ثبت در timeline پرونده
+  try {
+    var _deals = getData('ptf_crm_deals');
+    var _dTarget = _deals.filter(function (x) {
+      return x && (String(x._id || x.cd || '') === String((newInv && newInv.caseId) || (existing && existing.caseId) || (ctx.dealCd || '')));
+    })[0];
+    if (_dTarget) {
+      _dTarget.timeline = _dTarget.timeline || [];
+      _dTarget.timeline.push({
+        t: faDateTime(),
+        by: curSession().name || '?',
+        tx: '🧾 صورتحساب پرداخت غیررسمی ' + invoiceNo +
+           ' صادر شد — مبلغ کل دفتری ' + amountIrr.toLocaleString('fa-IR') + ' ریال' +
+           (ctx.isConsolidated ? ' (تجمیعی از ' + ctx.offerNos.length + ' پیشنهاد)' : '') +
+           (discountVal > 0 ? ' | تخفیف: ' + discountVal.toLocaleString('en-US') + ' ' + (primaryOffer.currency || 'IRR') : '') +
+           (advPayIrr > 0 ? ' | کسر پیش\u200cپرداخت: ' + advPayIrr.toLocaleString('fa-IR') + ' ریال' : '')
+      });
+      setData('ptf_crm_deals', _deals);
+    }
+  } catch (eD) {}
+
+  if (typeof ptfToast === 'function') {
+    ptfToast('صورتحساب ' + (ctx.isConsolidated ? 'تجمیعی ' : '') + 'با موفقیت صادر و در مطالبات هاب مالی ثبت گردید.', 'ok');
+  }
+
+  // رندر HTML و نمایش
+  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', advPayIrr, discountVal, discountLabel, currentRate, advRate);
+  if (typeof window.ptfPreviewPrintableDoc === 'function') {
+    window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceCd);
+  } else {
+    var w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); }
+  }
+};
+
+
   // ========================================================================
   // ARENA-2026-08-17 / گام ۱ طرح جداسازی: ابطال ریشه‌کن فاکتور غیررسمی
   // الزام ۴ (ریشه‌کن: تمام آثار متصل به فاکتور پاک/باطل می‌شوند)
