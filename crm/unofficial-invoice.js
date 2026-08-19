@@ -2461,13 +2461,8 @@ window.unofficialInvoicePrintCases = function (ctx) {
       }
     } catch (eT) {}
 
-    // ── (پس از اجرای محلی، در مرحلهٔ سروری) هماهنگی سرور PTF_SALES_DOMAIN_V2 ─
-    // TODO: در آینده اگر endpoint سروری void_unofficial_invoice اضافه شد، این‌جا صدا زده شود:
-    // if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 &&
-    //     typeof window.ptfSalesDomainApi === 'function') {
-    //   window.ptfSalesDomainApi('void_unofficial_invoice', { invoiceId: _inv.cd, reason: _reason, cascadeLog: _log })
-    //     .catch(function (e) { ... });
-    // }
+    /* مسیر V2 از ابتدای همین تابع به ptfUnofficialInvoiceVoidServer می‌رود.
+       این بلوک فقط legacy (بدون PTF_SALES_DOMAIN_V2) است و عمداً سرور را صدا نمی‌زند. */
 
     return { ok: true, cascadeLog: _log, voidedAt: _now };
   };

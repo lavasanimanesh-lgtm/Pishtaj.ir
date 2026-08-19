@@ -4,7 +4,7 @@
      AN-01 بازهٔ زمانی واقعی برای گزارش‌های دوره‌ای
      AN-02 هم‌ترازی تعریف نرخ برد در insights.js
      AN-03 سنجه در سطح «فرصت»
-     AN-04 شفاف‌سازی فرمول امتیاز سلامت (وزن‌ها بدون تغییر — کالیبراسیون نیازمند تصویب)
+     AN-04 کالیبراسیون امتیاز سلامت (مصوب کارفرما v34.7.33)
      AN-05 بازتعریف «پروندهٔ نیازمند بررسی» به سه دستهٔ معنادار
      AN-06 «خرید واقعی» از منبع ساختاریافته به‌جای Regex
      AN-07 گیت دفتر رسمی/غیررسمی روی snapshot ارسالی به AI
@@ -171,9 +171,9 @@ function baseDb() {
 (function healthTransparency() {
   var db = baseDb(), s = client(db);
   var d = s.ptfManagementIntelligence();
-  T('AN-04 فرمول امتیاز سلامت در خروجی مستند شده', !!d.healthModel && d.healthModel.base === 50 && !!d.healthModel.note);
-  T('AN-04 وزن‌ها بدون تصویب کارفرما تغییر نکرده‌اند',
-    read('crm/management-intelligence.js').indexOf('hs += Math.min(20, c.winRate/5)') > -1);
+  T('AN-04 فرمول امتیاز سلامت در خروجی مستند شده', !!d.healthModel && d.healthModel.base === 45 && d.healthModel.calibrated === true && !!d.healthModel.note);
+  T('AN-04 وزن‌های مصوب اعمال شده',
+    read('crm/management-intelligence.js').indexOf('hs += Math.min(25, c.winRate*0.25)') > -1);
   T('AN-04 مدل سلامت در snapshot ارسالی به AI هم می‌آید', !!s.ptfManagementAiSnapshot().healthModel);
 })();
 

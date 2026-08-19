@@ -379,7 +379,7 @@
     invs(cd).forEach(function (i) {
       var iso = cfIso(i.invDate || i.t || '');
       var remain = Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i));
-      var row = { date: i.invDate || i.t || '', iso: iso, type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: +i.amount || 0, credit: 0, cur: 'IRR', status: remain > 0.5 ? 'open' : 'settled', files: (i.files || []).slice(), link: { kind: 'invoice', cd: i.cd } };
+      var row = { date: i.invDate || i.t || '', iso: iso, type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: +i.amount || 0, credit: 0, cur: 'IRR', status: remain > 0.5 ? 'open' : 'settled', files: cfMergeOwnerFiles(i.files, 'invoice', i.cd || i._id), link: { kind: 'invoice', cd: i.cd } };
       if (cfRowPass(row, f)) out.push(row);
       (i.payments || []).concat(i.pays || []).forEach(function (p) {
         /* payment قدیمی پس از مهاجرت فقط metadata منبع است؛ Receipt قطعی پایین‌تر
@@ -389,7 +389,7 @@
         var isReversal = p.status === 'reversal';
         var isVoided = p.voided;
         var type = isReversal ? 'ابطال وصولی' : (isVoided ? 'وصولی (ابطال‌شده)' : 'وصولی');
-        var prow = { date: p.dateFa || p.date || p.t || '', iso: cfIso(p.dateFa || p.date || p.t || ''), type: type, no: p.cd || '', ref: p.how || '', debit: isReversal ? Math.abs(amt) : 0, credit: isReversal ? 0 : amt, cur: 'IRR', status: 'payment', note: p.note || '', files: (p.files || []).slice(), voided: isVoided || isReversal, link: { kind: 'payment', cd: p.cd || '', invoiceCd: i.cd } };
+        var prow = { date: p.dateFa || p.date || p.t || '', iso: cfIso(p.dateFa || p.date || p.t || ''), type: type, no: p.cd || '', ref: p.how || '', debit: isReversal ? Math.abs(amt) : 0, credit: isReversal ? 0 : amt, cur: 'IRR', status: 'payment', note: p.note || '', files: cfMergeOwnerFiles(p.files, 'payment', p.cd), voided: isVoided || isReversal, link: { kind: 'payment', cd: p.cd || '', invoiceCd: i.cd } };
         if (cfRowPass(prow, f)) out.push(prow);
       });
       salesReturnsForInvoice(i).forEach(function (r) {
@@ -415,7 +415,7 @@
         var amt = +p.amountIRR || +p.amt || 0, receiptId = String(p._id || p.cd || '');
         var legacySource = String(p.legacyPaymentRef || migratedSources[receiptId] || '');
         var migrationNote = legacySource ? ('مهاجرت‌شده از وصولی ' + legacySource + '؛ ردیف قدیمی برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود.') : '';
-        var prow = { date: p.receivedAt || p.dateISO || p.t || '', iso: cfIso(p.receivedAt || p.dateISO || p.t || ''), type: legacySource ? 'دریافت قطعی پرونده (مهاجرت‌شده)' : 'دریافت قطعی پرونده', no: receiptId, ref: p.referenceNo || p.method || '', debit: 0, credit: amt, cur: 'IRR', status: 'payment', note: [p.note || '', migrationNote].filter(Boolean).join(' — '), files: (p.files || []).slice(), link: { kind: 'case-receipt', cd: receiptId, caseId: p.caseId || '', customerCd: cd, migratedFrom: legacySource } };
+        var prow = { date: p.receivedAt || p.dateISO || p.t || '', iso: cfIso(p.receivedAt || p.dateISO || p.t || ''), type: legacySource ? 'دریافت قطعی پرونده (مهاجرت‌شده)' : 'دریافت قطعی پرونده', no: receiptId, ref: p.referenceNo || p.method || '', debit: 0, credit: amt, cur: 'IRR', status: 'payment', note: [p.note || '', migrationNote].filter(Boolean).join(' — '), files: cfMergeOwnerFiles(p.files, 'receipt', receiptId), link: { kind: 'case-receipt', cd: receiptId, caseId: p.caseId || '', customerCd: cd, migratedFrom: legacySource } };
         if (cfRowPass(prow, f)) out.push(prow);
       });
     } catch (eCaseReceipt) {}
@@ -435,7 +435,34 @@
     return out;
   };
   /* ---------- اسناد/ضمیمه روی فاکتور و وصولی (persist همان لحظه) ---------- */
+  function cfFileKey(f) {
+    return (typeof window.ptfFileStorageKey === 'function') ? window.ptfFileStorageKey(f) : String((f && f.key) || '');
+  }
+  function cfMergeOwnerFiles(localFiles, ownerType, ownerId) {
+    var out = [], seen = {};
+    function push(f) {
+      var rec = (typeof window.ptfNormalizeFileRec === 'function') ? window.ptfNormalizeFileRec(f) : (f && f.key ? f : null);
+      if (!rec || !rec.key || seen[rec.key]) return;
+      seen[rec.key] = true;
+      out.push(rec);
+    }
+    (localFiles || []).forEach(push);
+    try {
+      var id = String(ownerId || '');
+      if (id) {
+        (getData('ptf_crm_fin_attachments') || []).forEach(function (a) {
+          if (!a || String(a.ownerType || '') !== String(ownerType || '')) return;
+          if (String(a.ownerId || '') !== id) return;
+          var st = String(a.status || a.st || '').toLowerCase();
+          if (['void', 'voided', 'deleted', 'cancelled', 'replaced', 'superseded'].indexOf(st) > -1 || a.voided || a.deleted) return;
+          push({ key: a.objectKey || a.key, name: a.name || a.fileName || a.objectKey, size: a.size });
+        });
+      }
+    } catch (eAtt) {}
+    return out;
+  }
   window.cfPersistFile = function (kind, invCd, payCd, f) {
+    f = (typeof window.ptfNormalizeFileRec === 'function') ? window.ptfNormalizeFileRec(f) : f;
     if (!f || !f.key) return { ok: false, why: 'input' };
     var invs = getData('ptf_crm_invoices');
     var inv = invs.filter(function (i) { return i.cd === invCd; })[0];

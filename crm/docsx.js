@@ -97,7 +97,8 @@
   function docxUsedRefs(d, typeId, ignoreCd) {
     var used = {};
     (d.docsx || []).forEach(function (x) {
-      if (x.type !== typeId || x.cd === ignoreCd) return;
+      if (!x || x.type !== typeId || x.cd === ignoreCd) return;
+      if (x.status === 'void' || x.voided) return;
       (x.refs || []).forEach(function (r) { used[r] = 1; });
     });
     return used;
@@ -204,6 +205,46 @@
     return rec;
   };
 
+  /* ابطال سند رسمی: رکورد می‌ماند؛ پوشش اقلام آزاد می‌شود. PL رویداد packing هم‌شماره را هم حذف کنترل‌شده می‌کند. */
+  window.ptfDocxVoid = function (dealCd, recCd, reason) {
+    reason = String(reason || '').trim();
+    if (!reason) return { ok: false, why: 'reason_required' };
+    var deals = dealsAll();
+    var d = deals.filter(function (x) { return x.cd === dealCd || x._id === dealCd; })[0];
+    if (!d) return { ok: false, why: 'deal_not_found' };
+    var rec = (d.docsx || []).filter(function (x) { return x.cd === recCd; })[0];
+    if (!rec) return { ok: false, why: 'doc_not_found' };
+    if (rec.status === 'void' || rec.voided) return { ok: false, why: 'already_void' };
+    rec.status = 'void'; rec.voided = true; rec.voidAt = faDateTime(); rec.voidBy = curSession().name; rec.voidReason = reason;
+    d.timeline = d.timeline || [];
+    d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 ابطال سند رسمی ' + rec.no + ' — ' + reason });
+    d.documentAudit = d.documentAudit || [];
+    d.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'void', kind: 'docsx', ref: rec.cd, reason: reason, before: { no: rec.no, type: rec.type } });
+    setData('ptf_crm_deals', deals);
+    var packing = null;
+    if (rec.type === 'PL' && typeof sfShipDeleteCommit === 'function') {
+      var se = (d.shipEvents || []).filter(function (x) { return x && x.type === 'packing' && x.no === rec.no && x.status !== 'void'; })[0];
+      if (se) packing = sfShipDeleteCommit(d.cd, se.cd, 'ابطال سند رسمی ' + rec.no + ' — ' + reason);
+    }
+    try { audit('پرونده‌های فروش', 'ابطال سند رسمی ' + rec.no + ' (' + rec.type + ') — ' + reason, d.cd); } catch (eA) {}
+    return { ok: true, rec: rec, packing: packing };
+  };
+  window.ptfDocxVoidAsk = function (dealCd, recCd) {
+    var reason = prompt('دلیل ابطال این سند رسمی (الزامی — سند حذف فیزیکی نمی‌شود):', 'ثبت اشتباه / تغییر سفارش');
+    if (reason === null) return;
+    reason = String(reason).trim();
+    if (!reason) { alert('⛔ دلیل ابطال الزامی است'); return; }
+    if (!confirm('سند رسمی باطل شود؟\nپکینگ‌لیست رسمی، رویداد packing هم‌شماره را هم از گردش پرونده برمی‌دارد.')) return;
+    var res = window.ptfDocxVoid(dealCd, recCd, reason);
+    if (!res || !res.ok) {
+      var m = { reason_required: 'دلیل الزامی است', deal_not_found: 'پرونده یافت نشد', doc_not_found: 'سند یافت نشد', already_void: 'این سند قبلاً باطل شده است' };
+      alert('⛔ ' + (m[res && res.why] || (res && res.why) || 'ابطال انجام نشد'));
+      return;
+    }
+    if (typeof ptfToast === 'function') ptfToast('سند رسمی باطل شد' + (res.packing ? ' — رویداد پکینگ مرتبط هم حذف شد' : ''), 'warn');
+    if (typeof renderDeals === 'function') renderDeals();
+  };
+
   /* ---------- فرم‌ساز سبک ---------- */
   window.ptfDocxOpen = function (dealCd, typeId, recCd) {
     var tp = typeOf(typeId);
@@ -239,7 +280,7 @@
         preloadRows = pre.map(function (x) { return x.row; });
         refs = pre.map(function (x) { return x.ref; });
         if (!preloadRows.length) {
-          var prevDocs = (d.docsx || []).filter(function (x) { return x.type === typeId; });
+          var prevDocs = (d.docsx || []).filter(function (x) { return x.type === typeId && x.status !== 'void' && !x.voided; });
           if (prevDocs.length) {
             alert('برای این نوع سند، همه اقلام قبلاً استفاده شده‌اند. اگر نیاز به اصلاح دارید، همان سند قبلی را ویرایش کنید.');
             ptfDocxOpen(dealCd, typeId, prevDocs[0].cd);
@@ -382,19 +423,21 @@
         if (!window._sfOpen) return;
         var d = dealsAll().filter(function (x) { return x.cd === window._sfOpen; })[0];
         if (!d || !d.wonOffer) return;
-        var host = document.querySelector('[id="sfUp_' + d.cd + '"]');
+        var host = document.getElementById('dxHost_' + d.cd) || document.querySelector('[id="sfUp_' + d.cd + '"]');
         if (!host || document.getElementById('dxBox_' + d.cd)) return;
         var list = (d.docsx || []).map(function (x) {
           var tp = typeOf(x.type) || {};
           var kind = String(x.type || 'doc').toLowerCase();
+          var dead = x.status === 'void' || x.voided;
           var printAction = dxRowAction('view', '👁', 'نمایش', 'نمایش یا چاپ سند رسمی ' + (x.no || ''), 'event.stopPropagation();ptfDocxPrint(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.cd) + '\')');
-          var editAction = dxRowAction('edit', '✏️', 'اصلاح', 'اصلاح سند رسمی ' + (x.no || ''), 'event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.type) + '\',\'' + ptfOnClickArg(x.cd) + '\')');
-          return '<div class="sf-docx-existing-row sf-docx-existing-' + kind + '"><div class="sf-docx-existing-copy">' + (DX_ICON[x.type] || '📄') + ' ' + (DX_LABEL[x.type] || tp.lb || x.type) + ' — <b dir="ltr">' + escP(x.no) + '</b> <small>(' + escP(x.t || '') + ' — ' + escP(x.by || '') + ')</small></div><div class="sf-docx-row-actions" role="group" aria-label="عملیات سند ' + escP(x.no || '') + '">' + printAction + editAction + '</div></div>';
+          var editAction = dead ? '' : dxRowAction('edit', '✏️', 'اصلاح', 'اصلاح سند رسمی ' + (x.no || ''), 'event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.type) + '\',\'' + ptfOnClickArg(x.cd) + '\')');
+          var voidAction = dead ? '' : dxRowAction('void', '🗑', 'ابطال', 'ابطال سند رسمی ' + (x.no || ''), 'event.stopPropagation();ptfDocxVoidAsk(\'' + ptfOnClickArg(d.cd) + '\',\'' + ptfOnClickArg(x.cd) + '\')');
+          return '<div class="sf-docx-existing-row sf-docx-existing-' + kind + (dead ? ' is-void' : '') + '"><div class="sf-docx-existing-copy">' + (DX_ICON[x.type] || '📄') + ' ' + (DX_LABEL[x.type] || tp.lb || x.type) + ' — <b dir="ltr">' + escP(x.no) + '</b>' + (dead ? ' <small style="color:#b91c1c">باطل</small>' : '') + ' <small>(' + escP(x.t || '') + ' — ' + escP(x.by || '') + ')</small></div><div class="sf-docx-row-actions" role="group" aria-label="عملیات سند ' + escP(x.no || '') + '">' + printAction + editAction + voidAction + '</div></div>';
         }).join('');
         var createActions = PTF_DOCX_TYPES.map(function (tp) {
           return dxAction('new-' + String(tp.id).toLowerCase(), DX_ICON[tp.id] || '📄', DX_LABEL[tp.id] || tp.lb || tp.id, 'ثبت سند رسمی ' + (DX_LABEL[tp.id] || tp.lb || tp.id), 'event.stopPropagation();ptfDocxOpen(\'' + ptfOnClickArg(d.cd) + '\',\'' + tp.id + '\')');
         }).join('');
-        host.closest('div').insertAdjacentHTML('beforebegin',
+        (host.id && host.id.indexOf('dxHost_') === 0 ? host : host.closest('div')).insertAdjacentHTML(host.id && host.id.indexOf('dxHost_') === 0 ? 'beforeend' : 'beforebegin',
           '<section id="dxBox_' + escP(d.cd) + '" class="sf-docx-summary" onclick="event.stopPropagation()">' +
           '<div class="sf-docx-heading"><span class="sf-docx-heading-icon" aria-hidden="true">📄</span><span><b>اسناد رسمی قالب شرکت</b><small>ایجاد، مشاهده و اصلاح اسناد رسمی پرونده</small></span></div>' +
           '<div class="sf-docx-actions" role="group" aria-label="ثبت سند رسمی پرونده ' + escP(d.inqNo || d.cd) + '">' + createActions + '</div>' +

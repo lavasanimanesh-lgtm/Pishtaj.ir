@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.31';
+const SD_SERVICE_VERSION = '34.7.36';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -837,7 +837,7 @@ try {
         } elseif (count($existing) === 1) {
             $ci = $existing[0]; $case = $cases[$ci]; sd_case_id($case); $cases[$ci] = $case; $result['caseId'] = $case['_id']; $result['existing'] = true;
         } else {
-            $case = ['_id'=>sd_uuid('CASE'),'cd'=>sd_uuid('DEAL'),'rootOfferId'=>$offerId,'wonOffer'=>$offer['no'],'inqNo'=>$offer['inqNo']??$offer['no'],'buyerCd'=>$offer['buyerCd']??'','buyerCo'=>$offer['buyerCo']??'','currency'=>$offer['currency']??'IRR','contractAmount'=>sd_offer_total($offer),'linkedOffers'=>[['offerId'=>$offerId,'offerNo'=>$offer['no'],'relationType'=>'root','effectiveAt'=>sd_now(),'linkedBy'=>$user,'amount'=>sd_offer_total($offer)]],'docs'=>[],'st'=>'open','status'=>'active','t'=>sd_now(),'wonAtISO'=>sd_now(),'by'=>$user];
+            $case = ['_id'=>sd_uuid('CASE'),'cd'=>sd_uuid('DEAL'),'rootOfferId'=>$offerId,'wonOffer'=>$offer['no'],'inqNo'=>$offer['inqNo']??$offer['no'],'buyerCd'=>$offer['buyerCd']??'','buyerCo'=>$offer['buyerCo']??'','currency'=>$offer['currency']??'IRR','contractAmount'=>sd_offer_total($offer),'linkedOffers'=>[['offerId'=>$offerId,'offerNo'=>$offer['no'],'relationType'=>'root','effectiveAt'=>sd_now(),'linkedBy'=>$user,'amount'=>sd_offer_total($offer)]],'docs'=>[],'awardDocs'=>[['kind'=>'won_snapshot','offerId'=>$offerId,'offerNo'=>$offer['no'],'at'=>sd_now(),'by'=>$user,'total'=>sd_offer_total($offer),'source'=>'win_offer']],'st'=>'open','status'=>'active','t'=>sd_now(),'wonAtISO'=>sd_now(),'by'=>$user];
             array_unshift($cases, $case); $result['caseId'] = $case['_id']; $result['created'] = true;
         }
         $offers[$oi] = $offer; $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases];
@@ -875,12 +875,17 @@ try {
             if (!is_array($ln)) continue;
             $qty = sd_num($ln['qty'] ?? 0); $price = sd_num($ln['price'] ?? 0);
             if ($qty <= 0 || $price < 0) continue;
-            $newItems[] = [
+            $row = [
                 'name'=>sd_text($ln['name'] ?? '', 300), 'desc'=>sd_text($ln['desc'] ?? '', 500),
                 'model'=>sd_text($ln['model'] ?? '', 200), 'unit'=>sd_text($ln['unit'] ?? '', 60),
                 'pcode'=>sd_text($ln['pcode'] ?? '', 100), 'brand'=>sd_text($ln['brand'] ?? '', 200),
                 'qty'=>$qty, 'price'=>$price
             ];
+            $lineId = sd_text($ln['lineId'] ?? '', 120);
+            if ($lineId !== '') $row['lineId'] = $lineId;
+            $srcKey = sd_text($ln['sourceItemKey'] ?? '', 200);
+            if ($srcKey !== '') $row['sourceItemKey'] = $srcKey;
+            $newItems[] = $row;
         }
         if (!$newItems) sd_out(['ok'=>false,'error'=>'no_valid_line'], 422);
 
@@ -888,65 +893,109 @@ try {
         $newTotal = 0.0; foreach ($newItems as $it) $newTotal += $it['qty'] * $it['price'];
         if ($newTotal <= 0) sd_out(['ok'=>false,'error'=>'invalid_revised_amount','total'=>$newTotal], 422);
 
-        /* گارد فاکتور رسمی (تصمیم کارفرما): کاهش زیر مبلغ فاکتورشده مسدود است */
-        $invoicedIrr = 0; $invoicedCount = 0;
-        foreach ($invoices as $inv) {
+        $voidInvoices = !empty($body['voidInvoices']);
+        if ($voidInvoices) sd_require_role(SD_FIN_ROLES);
+
+        $activeCaseInvoices = [];
+        foreach ($invoices as $ii => $inv) {
             if (!is_array($inv) || !sd_active($inv)) continue;
-            if (!sd_case_match($case, (string)($inv['caseId'] ?? '')) && (string)($inv['caseId'] ?? '') !== (string)($case['_id'] ?? '')) continue;
-            if (!empty($inv['isUnofficial'])) continue;
-            $invoicedCount++; $invoicedIrr += (int)round(sd_num($inv['amount'] ?? 0));
+            $cid = (string)($inv['caseId'] ?? '');
+            if ($cid === '' || (!sd_case_match($case, $cid) && $cid !== (string)($case['_id'] ?? '') && $cid !== (string)($case['cd'] ?? ''))) continue;
+            if (!empty($inv['isConsolidated']) && is_array($inv['offerNos'] ?? null) && count($inv['offerNos']) > 1) {
+                sd_out(['ok'=>false,'error'=>'consolidated_invoice_blocks_revision','invoiceId'=>$inv['_id'] ?? $inv['cd'] ?? ''], 409);
+            }
+            $activeCaseInvoices[] = $ii;
         }
-        if ($invoicedCount > 0 && $newTotal < $oldTotal) {
-            sd_out(['ok'=>false,'error'=>'official_invoice_blocks_decrease','invoices'=>$invoicedCount,
+        $officialCount = 0; $invoicedIrr = 0;
+        foreach ($activeCaseInvoices as $ii) {
+            $inv = $invoices[$ii];
+            if (empty($inv['isUnofficial'])) { $officialCount++; $invoicedIrr += (int)round(sd_num($inv['amount'] ?? 0)); }
+        }
+        if (!$voidInvoices && $officialCount > 0 && $newTotal < $oldTotal) {
+            sd_out(['ok'=>false,'error'=>'official_invoice_blocks_decrease','invoices'=>$officialCount,
                 'invoicedAmount'=>$invoicedIrr,'oldTotal'=>$oldTotal,'newTotal'=>$newTotal], 409);
         }
 
-        $seq = (int)($parent['revisionSeq'] ?? 0) + 1;
-        $newNo = (string)($body['newOfferNo'] ?? '');
-        if ($newNo === '') $newNo = $parentNo . '-R' . $seq;
-        foreach ($offers as $o) if (is_array($o) && (string)($o['no'] ?? '') === $newNo) sd_out(['ok'=>false,'error'=>'revision_no_exists','no'=>$newNo], 409);
+        $voidedIds = [];
+        if ($voidInvoices) {
+            foreach ($activeCaseInvoices as $ii) {
+                $inv = $invoices[$ii];
+                if (sd_is_locked($snaps, (string)($inv['invDate'] ?? $inv['t'] ?? ''))) {
+                    sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year((string)($inv['invDate'] ?? $inv['t'] ?? '')),'invoiceId'=>$inv['_id'] ?? ''], 409);
+                }
+                $kind = empty($inv['isUnofficial']) ? 'legal_void' : 'void';
+                $corrections[] = ['_id'=>sd_uuid('COR'),'entityType'=>empty($inv['isUnofficial'])?'official_invoice':'unofficial_invoice',
+                    'entityId'=>$inv['_id'] ?? $inv['cd'] ?? '','kind'=>$kind,'beforeSnapshot'=>$inv,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+                $inv['status'] = 'void'; $inv['st'] = 'void'; $inv['voidAt'] = sd_now(); $inv['voidBy'] = $user; $inv['voidReason'] = $reason;
+                $invoices[$ii] = $inv;
+                $voidedIds[] = $inv['_id'] ?? $inv['cd'] ?? '';
+            }
+        }
 
-        $revision = $parent;
-        $revision['_id'] = sd_uuid('OFFER');
-        $revision['no'] = $newNo;
-        $revision['items'] = $newItems;
-        $revision['st'] = 'won'; $revision['status'] = 'won';
-        $revision['wonAtISO'] = sd_now(); $revision['wonBy'] = $user;
-        $revision['revisionOf'] = $parentNo;
-        $revision['revisionOfOfferId'] = sd_offer_id($parent);
-        $revision['revisionSeq'] = $seq;
-        $revision['revisionReason'] = $reason;
-        $revision['revisedAt'] = sd_now(); $revision['revisedBy'] = $user;
-        $revision['wonRevisionSnapshot'] = ['rev'=>$seq,'lockedAt'=>sd_now(),'lockedBy'=>$user,'items'=>$newItems,'terms'=>$parent['terms'] ?? [],'currency'=>$parent['currency'] ?? 'IRR'];
-        unset($revision['invRef']);
-        array_unshift($offers, $revision);
+        $seq = (int)($parent['revisionSeq'] ?? $parent['rev'] ?? 0) + 1;
+        $hist = is_array($parent['revisionHistory'] ?? null) ? $parent['revisionHistory'] : [];
+        $prevSnap = $parent;
+        unset($prevSnap['revisionHistory'], $prevSnap['editHistory']);
+        $hist[] = ['rev'=>(int)($parent['rev'] ?? 0), 'at'=>sd_now(), 'by'=>$user, 'snapshot'=>$prevSnap];
+        $parent['revisionHistory'] = $hist;
+        $parent['items'] = $newItems;
+        $parent['rev'] = $seq;
+        $parent['revisionSeq'] = $seq;
+        $parent['revisionReason'] = $reason;
+        $parent['revisedAt'] = sd_now(); $parent['revisedBy'] = $user;
+        $parent['st'] = 'won'; $parent['status'] = 'won';
+        $parent['wonRevisionSnapshot'] = ['rev'=>$seq,'lockedAt'=>sd_now(),'lockedBy'=>$user,'items'=>$newItems,'terms'=>$parent['terms'] ?? [],'currency'=>$parent['currency'] ?? 'IRR','total'=>$newTotal];
+        unset($parent['invRef']);
+        $offers[$pi] = $parent;
+        foreach ($offers as $oi => $oo) {
+            if (!is_array($oo) || (string)($oo['rialOf'] ?? '') !== $parentNo) continue;
+            $oo['staleAwardRev'] = $seq;
+            $oo['staleAwardAt'] = sd_now();
+            $offers[$oi] = $oo;
+        }
 
-        $parent['supersededByOfferId'] = $revision['_id'];
-        $parent['supersededByOfferNo'] = $newNo;
-        $parent['supersededAt'] = sd_now();
-        $parent['status'] = 'superseded'; $parent['st'] = 'superseded';
-        $offers[$pi + 1] = $parent;   /* index shifted by unshift */
+        $amendSum = 0.0;
+        foreach (($case['linkedOffers'] ?? []) as $lnk) {
+            if (!is_array($lnk) || (string)($lnk['relationType'] ?? '') !== 'amendment') continue;
+            $amendSum += sd_num($lnk['amount'] ?? 0);
+        }
+        $effective = $newTotal + $amendSum;
 
-        $case['wonOffer'] = $newNo;
-        $case['rootOfferId'] = $revision['_id'];
-        $case['contractAmount'] = $newTotal;
-        $case['effectiveContractAmount'] = $newTotal;
+        $awardDocs = is_array($case['awardDocs'] ?? null) ? $case['awardDocs'] : [];
+        $keptTech = [];
+        foreach ($awardDocs as $ad) {
+            if (!is_array($ad)) continue;
+            if (($ad['role'] ?? '') === 'technical' || ($ad['kind'] ?? '') === 'TO') {
+                $tno = (string)($ad['no'] ?? '');
+                $src = (string)($parent['srcToNo'] ?? '');
+                $co = (string)(($ad['snap']['coNo'] ?? ''));
+                if (($src !== '' && $tno === $src) || $co === $parentNo) $keptTech[] = $ad;
+            }
+        }
+        array_unshift($keptTech, ['kind'=>$parent['kind'] ?? 'CO','no'=>$parentNo,'rev'=>$seq,'role'=>'commercial','t'=>sd_now(),'by'=>$user,'source'=>'revise_award','snap'=>$parent]);
+        $case['awardDocs'] = $keptTech;
+        $case['wonOffer'] = $parentNo;
+        $case['rootOfferId'] = sd_offer_id($parent);
+        $case['contractAmount'] = $effective;
+        $case['effectiveContractAmount'] = $effective;
         $case['awardRevisions'] = is_array($case['awardRevisions'] ?? null) ? $case['awardRevisions'] : [];
-        $case['awardRevisions'][] = ['seq'=>$seq,'fromOfferNo'=>$parentNo,'toOfferNo'=>$newNo,
-            'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,
+        $case['awardRevisions'][] = ['seq'=>$seq,'fromOfferNo'=>$parentNo,'toOfferNo'=>$parentNo,
+            'fromRev'=>$seq - 1,'toRev'=>$seq,'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,
+            'amendmentSum'=>$amendSum,'effectiveAmount'=>$effective,'voidedInvoices'=>$voidedIds,
             'reason'=>$reason,'at'=>sd_now(),'by'=>$user];
         $case['updatedAtISO'] = sd_now();
         $cases[$ci] = $case;
 
         $corrections[] = ['_id'=>sd_uuid('COR'),'entityType'=>'award','entityId'=>(string)$case['_id'],
             'kind'=>'revise_award','reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),
-            'fromOfferNo'=>$parentNo,'toOfferNo'=>$newNo,'oldAmount'=>$oldTotal,'newAmount'=>$newTotal];
+            'fromOfferNo'=>$parentNo,'toOfferNo'=>$parentNo,'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'voidedInvoices'=>$voidedIds];
 
         sd_rebuild_allocations((string)$case['_id'], $receipts, $invoices, $allocations, $cases);
         $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,
             'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_corrections'=>$corrections];
-        $result = ['caseId'=>(string)$case['_id'],'revisionOfferNo'=>$newNo,'revisionOfferId'=>$revision['_id'],
-            'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,'seq'=>$seq];
+        $result = ['caseId'=>(string)$case['_id'],'revisionOfferNo'=>$parentNo,'revisionOfferId'=>$parent['_id'] ?? '',
+            'sameOffer'=>true,'rev'=>$seq,'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,
+            'effectiveAmount'=>$effective,'seq'=>$seq,'voidedInvoiceIds'=>$voidedIds];
     }
     elseif ($action === 'revoke_orphan_delete') {
         /* بازگردانی برد یتیم برای ادمین و رئیس هیئت‌مدیره مجاز است؛ حذف قطعی

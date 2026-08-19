@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+'use strict';
+/* v34.7.33 — H1 گیت workflow + AN-04 کالیبراسیون سلامت + ARCH-02 مسیر savePay → post_receipt */
+var fs = require('fs'), path = require('path');
+var ROOT = path.resolve(__dirname, '../..');
+var p = 0, f = 0;
+function T(n, c, d) { if (c) { p++; console.log('PASS', n); } else { f++; console.error('FAIL', n, d === undefined ? '' : d); } }
+function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
+
+(function h1() {
+  var php = read('.github/workflows/php.yml');
+  var st = read('.github/workflows/deploy-staging.yml');
+  var pr = read('.github/workflows/deploy-production.yml');
+  T('H1 php.yml دیگر composer validate نیست', php.indexOf('composer validate --strict') < 0 && php.indexOf('find api crm -name') > -1);
+  T('H1 php.yml گیت UAT را اجرا می‌کند', php.indexOf('run-ci-gate.js') > -1);
+  T('H1 استیجینگ قبل از FTP گیت دارد', st.indexOf('run-ci-gate.js') > -1 && st.indexOf('Setup Node') > -1);
+  T('H1 پروداکشن قبل از FTP گیت دارد', pr.indexOf('run-ci-gate.js') > -1);
+  T('H1 migrate.php از پروداکشن exclude شده', pr.indexOf('api/migrate.php') > -1);
+})();
+
+(function an04() {
+  var src = read('crm/management-intelligence.js');
+  T('AN-04 پایه ۴۵ است', /var hs=45;/.test(src));
+  T('AN-04 آستانه مناسب ۷۲ است', src.indexOf('c.healthScore>=72') > -1);
+  T('AN-04 مدل calibrated در خروجی است', src.indexOf('calibrated:true') > -1 && src.indexOf("version:'v34.7.33'") > -1);
+})();
+
+(function arch02() {
+  var rb = read('crm/rbac.js');
+  T('ARCH-02 savePay نقد/حواله را به post_receipt می‌فرستد', rb.indexOf("ptfSalesDomainApi('post_receipt'") > -1 && rb.indexOf('ARCH-02') > -1);
+  T('ARCH-02 چک از این مسیر رد نمی‌شود', rb.indexOf("howSel !== 'چک'") > -1);
+  T('ARCH-02 بدون پرونده یکتا به مسیر legacy برمی‌گردد', rb.indexOf('hits.length === 1') > -1);
+})();
+
+console.log('\n— tester436 (H1 / AN-04 / ARCH-02) —');
+console.log('PASS: ' + p + ' | FAIL: ' + f);
+process.exit(f ? 1 : 0);

@@ -87,11 +87,12 @@ function baseDb() {
   T('P4 ارزش مرجوعی درست محاسبه می‌شود (۲ × ۵۰۰٬۰۰۰)', pr.amount === 1000000, pr.amount);
 
   var sf = JSON.parse(s._store['ptf_crm_supplier_finance'] || '{}');
-  var adj = (sf.adjustments || [])[0];
-  T('P4 اثر مالی فوری: سند اصلاحی در حساب تأمین‌کننده ثبت می‌شود (تصمیم کارفرما)',
-    !!adj && adj.supplierCd === 'SUP-1' && adj.kind === 'purchase_return', JSON.stringify(adj));
-  T('P4 علامت مبلغ «بستانکار» است (کاهش بدهی ما)', adj && adj.amount === -1000000, adj && adj.amount);
-  T('P4 سند اصلاحی به سند مرجوعی و پرونده لینک است', adj && adj.sourceReturnCd === pr.cd && adj.caseId === 'CASE-1');
+  var pay = (sf.payments || [])[0];
+  T('P4 اثر مالی فوری: پرداخت تهاتری در حساب تأمین‌کننده ثبت می‌شود (تصمیم کارفرما + P7)',
+    !!pay && pay.supplierCd === 'SUP-1' && pay.method === 'purchase_return', JSON.stringify(pay));
+  T('P4 مبلغ تهاتر برابر ارزش مرجوعی است', pay && pay.amount === 1000000, pay && pay.amount);
+  T('P4 پرداخت به سند مرجوعی و پرونده لینک است', pay && pay.sourceReturnCd === pr.cd && pay.caseId === 'CASE-1');
+  T('P4 بدون فاکتور خرید باز، کل مبلغ اعتبار تخصیص‌نیافته می‌ماند', pay && pay.unallocated === 1000000 && (pay.allocations || []).length === 0);
   T('P4 رویداد حسابرسی برای حساب تامین ثبت می‌شود', s._log.audits.some(function (x) { return x.indexOf('حساب تامین') === 0; }), JSON.stringify(s._log.audits));
 
   /* دوباره‌کاری/اسقاط هیچ اثر مالی/انباری ندارند */
@@ -123,14 +124,14 @@ function baseDb() {
   var php = read('api/sales-domain.php');
   T('P5 فرمان revise_award در سرور تعریف شده', /elseif \(\$action === 'revise_award'\)/.test(php));
   T('P5 نقش‌محور + دلیل اجباری', /revise_award[\s\S]{0,900}sd_require_role\(SD_WIN_ROLES\)[\s\S]{0,400}reason_required/.test(php));
-  T('P5 سند برد قبلی حذف نمی‌شود؛ superseded می‌شود',
-    /supersededByOfferId/.test(php) && /\$parent\['status'\] = 'superseded'/.test(php));
-  T('P5 سند جایگزین با revisionOf/revisionSeq ساخته می‌شود', /revisionOf/.test(php) && /revisionSeq/.test(php));
+  T('P5 رویژن همان شماره را نگه می‌دارد (sameOffer)', /'sameOffer'=>true/.test(php) && /\$parent\['rev'\] = \$seq/.test(php));
+  T('P5 تاریخچه revisionHistory روی همان سند نوشته می‌شود', /revisionHistory/.test(php));
   T('P5 مبلغ مؤثر قرارداد به‌روز می‌شود', /effectiveContractAmount/.test(php) && /awardRevisions/.test(php));
   T('P5 گارد فاکتور رسمی برای کاهش (تصمیم کارفرما)', /official_invoice_blocks_decrease/.test(php));
+  T('P5 ابطال فاکتور اختیاری در همان فرمان', /voidInvoices/.test(php) && /voidedInvoiceIds/.test(php));
   T('P5 correction ثبت و تخصیص‌ها بازسازی می‌شوند',
-    /'kind'=>'revise_award'/.test(php) && /revise_award[\s\S]{0,6000}sd_rebuild_allocations/.test(php));
-  T('P5 شمارهٔ تکراری سند جایگزین رد می‌شود', /revision_no_exists/.test(php));
+    /'kind'=>'revise_award'/.test(php) && /revise_award[\s\S]{0,8000}sd_rebuild_allocations/.test(php));
+  T('P5 awardDocs جاری بازنویسی می‌شود', /\$case\['awardDocs'\] = \$keptTech/.test(php));
 })();
 
 /* ---------- P6: گزارش ---------- */
