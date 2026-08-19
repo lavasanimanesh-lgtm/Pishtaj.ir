@@ -21,11 +21,12 @@
 
    قرارداد مبنا (baseline): بدهی موجود مسدودکننده نیست، اما «افزایش» آن مسدود است.
    ===================================================================== */
-var fs = require('fs'), path = require('path');
+var fs = require('fs'), path = require('path'), crypto = require('crypto');
 var ROOT = path.resolve(__dirname, '../..');
 var BASELINE = path.join(__dirname, 'arch-baseline.json');
 var writeBaseline = process.argv.indexOf('--baseline') > -1;
 var quiet = process.argv.indexOf('--quiet') > -1;
+var selfTest = process.argv.indexOf('--self-test') > -1;
 
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 function crmFiles() { return fs.readdirSync(path.join(ROOT, 'crm')).filter(function (f) { return /\.js$/.test(f); }); }
@@ -33,6 +34,34 @@ function crmFiles() { return fs.readdirSync(path.join(ROOT, 'crm')).filter(funct
 function codeOnly(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, function (m) { return m.replace(/[^\n]/g, ' '); })
             .split('\n').map(function (l) { return l.replace(/\/\/.*$/, ''); }).join('\n');
+}
+/* v34.7.40: امضای baseline نباید به شمارهٔ خط وابسته باشد؛ درج یک توضیح/تابع در
+   بالای فایل قبلاً ده‌ها «تخلف جدید» و «بدهی رفع‌شده» کاذب می‌ساخت. hash از کد
+   نرمال‌شده پایدار است و مقایسهٔ multiset همچنان تکرار همان الگو را تشخیص می‌دهد. */
+function sourceSignature(file, kind, line) {
+  var normalized = String(line || '').replace(/\s+/g, ' ').trim();
+  var hash = crypto.createHash('sha256').update(normalized).digest('hex').slice(0, 12);
+  var preview = normalized.length > 96 ? normalized.slice(0, 93) + '…' : normalized;
+  return file + ' (' + kind + ') [' + hash + '] ' + preview;
+}
+function multisetDiff(left, right) {
+  var counts = {};
+  (right || []).forEach(function (x) { counts[x] = (counts[x] || 0) + 1; });
+  var out = [];
+  (left || []).forEach(function (x) {
+    if (counts[x]) counts[x]--;
+    else out.push(x);
+  });
+  return out;
+}
+if (selfTest) {
+  var a = sourceSignature('x.js', 'cd-first', 'var id = r.cd || r._id;');
+  var b = sourceSignature('x.js', 'cd-first', '  var   id = r.cd  ||  r._id;  ');
+  if (a !== b) throw new Error('source_signature_not_whitespace_stable');
+  if (multisetDiff(['same', 'same'], ['same']).length !== 1) throw new Error('multiset_does_not_detect_duplicate');
+  if (multisetDiff(['same'], ['same']).length !== 0) throw new Error('multiset_false_positive');
+  console.log('PASS arch-guard self-test: stable source signatures + duplicate-sensitive baseline');
+  process.exit(0);
 }
 function loadOrder() {
   var html = read('crm/index.html'), out = [], re = /<script[^>]*src="([a-zA-Z0-9_\-.]+\.js)\?v=/g, m;
@@ -65,8 +94,8 @@ function add(rule, sig) { (findings[rule] = findings[rule] || []).push(sig); }
 (function ruleA2() {
   crmFiles().forEach(function (f) {
     var lines = codeOnly(read('crm/' + f)).split('\n');
-    lines.forEach(function (ln, i) {
-      if (/\.cd\s*\|\|\s*[A-Za-z_$][\w$]*\._id/.test(ln)) add('A2', f + ':' + (i + 1));
+    lines.forEach(function (ln) {
+      if (/\.cd\s*\|\|\s*[A-Za-z_$][\w$]*\._id/.test(ln)) add('A2', sourceSignature(f, 'cd-first', ln));
     });
   });
 })();
@@ -75,11 +104,11 @@ function add(rule, sig) { (findings[rule] = findings[rule] || []).push(sig); }
 (function ruleA3() {
   crmFiles().forEach(function (f) {
     var lines = codeOnly(read('crm/' + f)).split('\n');
-    lines.forEach(function (ln, i) {
+    lines.forEach(function (ln) {
       /* کلید تهی وارد نقشه: map[String(x._id || x.cd || '')] = true */
-      if (/\[\s*String\([^)]*\|\|\s*''\s*\)\s*\]\s*=\s*(true|1)\b/.test(ln)) add('A3', f + ':' + (i + 1) + ' (empty-map-key)');
+      if (/\[\s*String\([^)]*\|\|\s*''\s*\)\s*\]\s*=\s*(true|1)\b/.test(ln)) add('A3', sourceSignature(f, 'empty-map-key', ln));
       /* مقایسهٔ دو فیلد که هر دو می‌توانند تهی/undefined باشند، بدون گارد */
-      if (/return\s+x\.no\s*===\s*\w+;/.test(ln) || /\bx\.no\s*===\s*(i|inv|invoice)\.offerNo\b/.test(ln)) add('A3', f + ':' + (i + 1) + ' (empty-equality)');
+      if (/return\s+x\.no\s*===\s*\w+;/.test(ln) || /\bx\.no\s*===\s*(i|inv|invoice)\.offerNo\b/.test(ln)) add('A3', sourceSignature(f, 'empty-equality', ln));
     });
   });
 })();
@@ -218,18 +247,19 @@ var current = {};
 Object.keys(RULES).forEach(function (r) { current[r] = (findings[r] || []).slice().sort(); });
 
 if (writeBaseline) {
-  fs.writeFileSync(BASELINE, JSON.stringify({ note: 'بدهی معماریِ پذیرفته‌شده در لحظهٔ ثبت؛ افزایش هر فهرست ⇒ شکست گیت.', version: versionReport, rules: current }, null, 1) + '\n');
+  fs.writeFileSync(BASELINE, JSON.stringify({ note: 'بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.', signatureFormat: 'source-sha256-12-v2', version: versionReport, rules: current }, null, 1) + '\n');
   console.log('مبنا ثبت شد: ' + path.relative(ROOT, BASELINE));
   Object.keys(current).forEach(function (r) { console.log('  ' + r + ': ' + current[r].length); });
   process.exit(0);
 }
 
-var base = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')).rules || {} : {};
+var baselineDoc = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : {};
+var base = baselineDoc.rules || {};
 var newIssues = [], fixed = [];
 Object.keys(RULES).forEach(function (r) {
   var b = base[r] || [];
-  current[r].forEach(function (sig) { if (b.indexOf(sig) < 0) newIssues.push({ rule: r, sig: sig, blocking: RULES[r].blocking }); });
-  b.forEach(function (sig) { if (current[r].indexOf(sig) < 0) fixed.push(r + ': ' + sig); });
+  multisetDiff(current[r], b).forEach(function (sig) { newIssues.push({ rule: r, sig: sig, blocking: RULES[r].blocking }); });
+  multisetDiff(b, current[r]).forEach(function (sig) { fixed.push(r + ': ' + sig); });
 });
 
 console.log('نگهبان معماری — نسخهٔ ' + versionReport);

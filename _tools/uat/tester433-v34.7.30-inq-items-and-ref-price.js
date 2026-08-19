@@ -170,7 +170,7 @@ function baseDb() {
 
 /* ---------- بررسی ایستا: اتصال‌ها ---------- */
 (function statics() {
-  var off = read('crm/offers.js'), inq = read('crm/inqreader.js'), br = read('crm/bridge.js'), st = read('crm/storage.js');
+  var off = read('crm/offers.js'), domain = read('crm/sales-domain-v2.js'), inq = read('crm/inqreader.js'), br = read('crm/bridge.js'), st = read('crm/storage.js');
   T('FB-1 وصلهٔ inqreader آرگومان‌ها را عبور می‌دهد',
     /window\.offLoadInqItems = function \(pickedInq\)/.test(inq) && /_offLoadOld\.apply\(this, arguments\)/.test(inq));
   T('FB-2 لودر از حل‌کنندهٔ واحد استفاده می‌کند و تطبیق قدیمی حذف شده',
@@ -186,7 +186,10 @@ function baseDb() {
   T('FC-4 کالای خودکار نرخ مرجع قلم درخواست را می‌گیرد', /pr: \+r\.refPrice \|\| 0/.test(st));
   T('FC-5 پل استعلام تامین با نام‌های مستعار درخواست کار می‌کند', /_als\[String\(r\.srcRfq/.test(off));
   T('FC-7 تیک «ثبت در بانک کالا» در فرم پیشنهاد هست', off.indexOf('id="ofRefToCatalog"') > -1);
-  T('FC-6 فراخوان نوشتن بازگشتی پس از ذخیرهٔ موفق انجام می‌شود', /ptfSyncRefPriceBack\(o, \{ toCatalog: _toCat \}\)/.test(off));
+  var postAckHelper = off.indexOf('window.ptfOfferAfterServerCommit = function');
+  T('FC-6 فراخوان نوشتن بازگشتی فقط پس از ACK موفق سرور انجام می‌شود',
+    postAckHelper > -1 && off.indexOf('window.ptfSyncRefPriceBack(o, { toCatalog: toCatalog })', postAckHelper) > postAckHelper &&
+    /register_offer[\s\S]{0,2600}ptfOfferAfterServerCommit\(canonical/.test(domain));
 })();
 
 console.log('\n— tester433 (P1–P3: بارگذاری اقلام درخواست + زنجیرهٔ نرخ مرجع) —');

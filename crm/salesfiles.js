@@ -51,23 +51,22 @@
      «پرونده فروش = ابلاغ سفارش (CO برنده)» — تنها نقطه ساخت: autoCreateProjectFromCO (ptfSF_ensure).
      قبل از برد، درخواست در تب «🎯 فرصت‌های فعال» (oppo.js) رهگیری می‌شود.
      hook حفظ شد فقط برای به‌روزرسانی buyerCo رکورد موجود (بدون ساخت). */
+  window.ptfSalesFileOfferAfterServerCommit = function (saved) {
+    try {
+      if (!saved || !saved.inqNo || !saved.buyerCo) return false;
+      var list = sfAll();
+      var r = list.filter(function (x) { return x.inqNo === saved.inqNo; })[0];
+      if (r && !r.buyerCo) { r.buyerCo = saved.buyerCo; sfSave(list); return true; }
+    } catch (e) {}
+    return false;
+  };
   function hookOfferSave() {
     if (window._sfOfferHooked || typeof window.offerSave !== 'function') return false;
     window._sfOfferHooked = true;
     var _os = window.offerSave;
     window.offerSave = function () {
-      _os.apply(this, arguments);
-      try {
-        var st = window._offState || {};
-        if (st.no && st.inqNo) {
-          var saved = getData('ptf_crm_offers').filter(function (o) { return o.no === st.no; })[0];
-          if (saved && saved.buyerCo) {
-            var list = sfAll();
-            var r = list.filter(function (x) { return x.inqNo === saved.inqNo; })[0];
-            if (r && !r.buyerCo) { r.buyerCo = saved.buyerCo; sfSave(list); }
-          }
-        }
-      } catch (e) {}
+      /* نتیجه باید تا orchestrator حفظ شود؛ اثر پرونده فقط post-ACK اجرا می‌شود. */
+      return _os.apply(this, arguments);
     };
     return true;
   }
@@ -155,26 +154,60 @@
   /* ===== v19.1: اسناد قطعی برد — snapshot تغییرناپذیر پیشنهاد مالی برنده + آخرین فنی مرتبط.
      ساخت اصلی: لحظه برد در autoCreateProjectFromCO (offers.js). این تابع مهاجرت نرم پرونده‌های
      قدیمی برد‌شده (قبل از v19.1) است: یک‌بار از پیشنهاد زنده snapshot می‌سازد. ===== */
+  /* فنی مرتبط فقط با لینک صریح — نه «هر TO با همان inqNo» (نشت بین پرونده‌های هم‌استعلام). */
+  window.ptfAwardRelatedTo = function (offer, all) {
+    if (!offer) return null;
+    all = all || getData('ptf_crm_offers') || [];
+    if (offer.srcToNo) {
+      var bySrc = all.filter(function (x) { return x && x.no === offer.srcToNo; })[0];
+      if (bySrc) return bySrc;
+    }
+    return all.filter(function (x) { return x && x.kind === 'TO' && x.coNo === offer.no; })
+      .sort(function (a, b) { return (b.rev || 0) - (a.rev || 0); })[0] || null;
+  };
+  window.ptfAwardDocsDisplay = function (r, docs) {
+    docs = docs || (r && r.awardDocs) || [];
+    var won = r && r.wonOffer ? String(r.wonOffer) : '';
+    var offer = null;
+    try { offer = (getData('ptf_crm_offers') || []).filter(function (x) { return x && x.no === won; })[0]; } catch (e) {}
+    var toNo = offer && offer.srcToNo ? String(offer.srcToNo) : '';
+    return docs.filter(function (d) {
+      if (!d) return false;
+      var no = String(d.no || d.offerNo || '');
+      if (d.role === 'technical' || d.kind === 'TO') {
+        if (toNo && no === toNo) return true;
+        if (offer && d.snap && d.snap.coNo === offer.no) return true;
+        return no && offer && (d.snap && d.snap.coNo === won);
+      }
+      if (!won) return true;
+      return no === won || d.kind === 'won_snapshot';
+    });
+  };
   window.sfAwardEnsure = function (r) {
     if (!r || !r.wonOffer) return (r && r.awardDocs) || [];
-    if (r.awardDocs && r.awardDocs.length) return r.awardDocs;
+    var existing = r.awardDocs || [];
+    var hasCommercialSnap = existing.some(function (d) {
+      return d && d.snap && (d.role === 'commercial' || d.kind === 'CO' || d.kind === 'TC' || d.kind === 'won_snapshot');
+    });
+    if (existing.length && hasCommercialSnap) return window.ptfAwardDocsDisplay(r, existing);
     try {
       var all = getData('ptf_crm_offers');
       var o = all.filter(function (x) { return x.no === r.wonOffer; })[0];
-      if (!o) return [];
-      var docs = [{ kind: o.kind, no: o.no, rev: o.rev || 0, role: 'commercial', t: faDateTime(), by: curSession().name, migrated: true, snap: JSON.parse(JSON.stringify(o)) }];
-      var to = null;
-      if (o.srcToNo) to = all.filter(function (x) { return x.no === o.srcToNo; })[0];
-      if (!to) to = all.filter(function (x) { return x.kind === 'TO' && (x.coNo === o.no || (o.inqNo && x.inqNo === o.inqNo)); }).sort(function (a, b) { return (b.rev || 0) - (a.rev || 0); })[0];
-      if (to) docs.push({ kind: 'TO', no: to.no, rev: to.rev || 0, role: 'technical', t: faDateTime(), by: curSession().name, migrated: true, snap: JSON.parse(JSON.stringify(to)) });
+      if (!o) return window.ptfAwardDocsDisplay(r, existing);
+      var docs = existing.filter(function (d) { return d && d.role === 'technical'; });
+      docs.unshift({ kind: o.kind, no: o.no, rev: o.rev || 0, role: 'commercial', t: faDateTime(), by: curSession().name, migrated: true, snap: JSON.parse(JSON.stringify(o)) });
+      var to = typeof window.ptfAwardRelatedTo === 'function' ? window.ptfAwardRelatedTo(o, all) : null;
+      if (to && !docs.some(function (d) { return d && d.no === to.no; })) {
+        docs.push({ kind: 'TO', no: to.no, rev: to.rev || 0, role: 'technical', t: faDateTime(), by: curSession().name, migrated: true, snap: JSON.parse(JSON.stringify(to)) });
+      }
       var list = sfAll();
-      var rec = list.filter(function (x) { return x.cd === r.cd; })[0];
+      var rec = list.filter(function (x) { return x.cd === r.cd || (r._id && x._id === r._id); })[0];
       if (rec) {
         rec.awardDocs = docs; sfSave(list); r.awardDocs = docs;
         try { audit('پرونده‌های فروش', 'US-432 (مهاجرت نرم): snapshot اسناد قطعی برد پرونده ' + (r.inqNo || r.cd) + ' ساخته شد', r.cd); } catch (e2) {}
       }
-      return docs;
-    } catch (e) { return r.awardDocs || []; }
+      return window.ptfAwardDocsDisplay(r, docs);
+    } catch (e) { return window.ptfAwardDocsDisplay(r, r.awardDocs || []); }
   };
   /* AC4: چاپ/PDF سند برد از snapshot — حتی اگر پیشنهاد بعدا از ماژول پیشنهادها حذف شده باشد */
   window.sfAwardPrint = function (cd, no) {
@@ -901,6 +934,22 @@
     el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پرونده‌ای نیست — با ثبت «🏆 برنده» روی پیشنهاد مالی (ابلاغ سفارش)، خودکار ساخته می‌شود. درخواست‌های در جریان را در تب «🎯 فرصت‌های فعال» ببینید.</div>';
   };
 
+
+  window.sfDrawerSetPane = function (cd, pane, ev) {
+    if (ev && ev.stopPropagation) ev.stopPropagation();
+    window._sfDrawerPane = pane || 'sum';
+    var root = document.getElementById('sfDrawer-' + cd);
+    if (!root) { if (typeof renderDeals === 'function') renderDeals(); return; }
+    root.querySelectorAll('[data-sf-pane]').forEach(function (el) {
+      el.style.display = el.getAttribute('data-sf-pane') === pane ? '' : 'none';
+    });
+    root.querySelectorAll('[data-sf-pane-btn]').forEach(function (b) {
+      var on = b.getAttribute('data-sf-pane-btn') === pane;
+      b.style.background = on ? '#0e7490' : '#f1f5f9';
+      b.style.color = on ? '#fff' : '#334155';
+      b.style.borderColor = on ? '#0e7490' : '';
+    });
+  };
   window.sfToggle = function (cd) {
     window._sfOpen = window._sfOpen === cd ? null : cd;
     renderDeals();
@@ -958,7 +1007,17 @@
         '<span class="sf-post-award-icon" aria-hidden="true">' + icon + '</span>' +
         '<span class="sf-post-award-copy"><span class="sf-post-award-label">' + label + '</span>' + meta + '</span></button>';
     }
-    var h = '<div style="padding:4px 14px 12px;border-top:1px solid var(--brd)">' + sfFinancialStrip(r, d);
+    var pane = window._sfDrawerPane || 'sum';
+    function paneBtn(id, lb) {
+      var on = pane === id;
+      return '<button type="button" data-sf-pane-btn="' + id + '" class="bt bt-o" style="flex:1;min-width:90px;padding:7px 8px;font-size:12px;font-weight:800;border-radius:9px;' +
+        (on ? 'background:#0e7490;color:#fff;border-color:#0e7490' : 'background:#f1f5f9;color:#334155') +
+        '" onclick="sfDrawerSetPane(\'' + ptfOnClickArg(r.cd) + '\',\'' + id + '\',event)">' + lb + '</button>';
+    }
+    var h = '<div id="sfDrawer-' + escP(r.cd) + '" style="padding:4px 14px 12px;border-top:1px solid var(--brd)">' + sfFinancialStrip(r, d) +
+      '<div role="tablist" aria-label="بخش‌های پرونده" style="display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 10px">' +
+      paneBtn('sum', '🧭 خلاصه') + paneBtn('docs', '📄 اسناد') + paneBtn('ops', '🧰 عملیات') + '</div>' +
+      '<div data-sf-pane="docs" style="display:' + (pane === 'docs' ? '' : 'none') + '">';
     var KINDS = { TO: 'پیشنهاد فنی', CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی' };
     d.offers.forEach(function (o) {
       var offerLocked = o.no === r.wonOffer || o.st === 'won';
@@ -998,6 +1057,7 @@
     });
     if (!d.offers.length && !d.letters.length && !d.invoices.length && !d.misc.length && !(d.supply || []).length)
       h += '<div style="color:#94a3b8;font-size:12px;padding:8px 0">سندی منضم نشده</div>';
+    h += '<span id="dxHost_' + escP(r.cd) + '"></span></div><div data-sf-pane="sum" style="display:' + (pane === 'sum' ? '' : 'none') + '">';
     /* v19.2: استپر مراحل ۱۲گانه پرونده — فقط نمایش؛ منبع واحد sfStageOf */
     if (r.wonOffer && typeof sfStageOf === 'function') {
       var _stg = sfStageOf(r);
@@ -1012,6 +1072,7 @@
         (_guide ? '<div style="background:#fff;border:1px solid #7dd3fc;border-radius:10px;padding:8px 10px;margin-top:8px;color:#0c4a6e"><b>🎯 کار لازم برای مرحله بعد' + (_nextLb ? ' — ' + escP(_nextLb) : '') + ':</b><div style="margin-top:3px;font-size:12px">' + escP(_guide.task) + '</div>' + (_guide.evidence ? '<small style="display:block;margin-top:3px;color:#64748b">شاهد لازم: ' + escP(_guide.evidence) + '</small>' : '') + (_guide.button && _guide.onclick ? '<button class="bt" style="margin-top:7px;padding:5px 11px;font-size:11.5px" onclick="event.stopPropagation();' + _guide.onclick + '">' + _guide.button + '</button>' : '') + '</div>' : '') +
         '<div style="color:#64748b;margin-top:6px">مرحله از شواهد واقعی محاسبه می‌شود. اصلاح/حذف شاهد، مرحله را دوباره محاسبه می‌کند؛ وجود شاهد تکمیل‌شدهٔ بعدی مانع عقب‌گرد است.</div></div>';
     }
+    h += '</div><div data-sf-pane="docs" style="display:' + (pane === 'docs' ? '' : 'none') + '">';
     /* v19.2 (US-434 فاز ۲): سوابق ارسال/تحویل */
     if (r.shipEvents && r.shipEvents.length) {
       h += '<div style="background:#fef9c3;border:1px solid #fde047;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>🚚 ارسال و تحویل</b>';
@@ -1024,6 +1085,7 @@
       });
       h += '</div>';
     }
+    h += '</div><div data-sf-pane="sum" style="display:' + (pane === 'sum' ? '' : 'none') + '">';
     /* v19.1: باکس اسناد قطعی برد — snapshot لحظه ابلاغ سفارش */
     if (r.wonOffer) {
       var awd = (typeof sfAwardEnsure === 'function') ? sfAwardEnsure(r) : (r.awardDocs || []);
@@ -1038,6 +1100,7 @@
         h += '</div>';
       }
     }
+    h += '</div><div data-sf-pane=\"docs\" style=\"display:' + (pane === 'docs' ? '' : 'none') + '\">';
     /* v19.1 (US-434 فاز ۱): رکوردهای کنترل کیفیت/بازرسی داخل پرونده */
     if (r.qcEvents && r.qcEvents.length) {
       h += '<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:8px 12px;margin-top:8px;font-size:12.5px" onclick="event.stopPropagation()"><b>🔬 کنترل کیفیت / بازرسی</b>';
@@ -1051,6 +1114,7 @@
       });
       h += '</div>';
     }
+    h += '</div><div data-sf-pane="ops" style="display:' + (pane === 'ops' ? '' : 'none') + '">';
     /* v34.0.0-alpha (F4-5): نمایش متمایز هزینه‌های لینک‌شده از تنخواه
        - هزینهٔ مستقیم پرونده: دکمه‌های ✏️📎🗑 (همان قبل)
        - هزینهٔ لینک‌شده از تنخواه (fromPetty): فقط دکمهٔ 🏦 (رفتن به تنخواه) + 🗑 (حذف لینک) */
@@ -1109,6 +1173,7 @@
           '</div>'
         : '') +
       '</div>';
+    h += '</div><div data-sf-pane="sum" style="display:' + (pane === 'sum' ? '' : 'none') + '">';
     try {
       if (r.wonOffer && typeof ptfDocxCoverage === 'function') {
         var _plCov = ptfDocxCoverage(r, 'PL'), _inCov = ptfDocxCoverage(r, 'IN');
@@ -1116,6 +1181,7 @@
         if (_inCov.total) h += '<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:10px;padding:7px 11px;margin-top:6px;font-size:11.5px;color:#0f766e" onclick="event.stopPropagation()">🔬 پوشش نوت بازرسی رسمی: <b>' + _inCov.used + ' / ' + _inCov.total + '</b>' + (_inCov.remain ? ' — باقیمانده: ' + _inCov.remain + ' قلم' : ' — کامل ✅') + '</div>';
       }
     } catch (eCov) {}
+    h += '</div><div data-sf-pane="ops" style="display:' + (pane === 'ops' ? '' : 'none') + '">';
     var postActions = '';
     /* v34.7.26 (S5 — یک اکشن = یک محل): «خرید واقعی» مالک واحد دارد = بلوک تخصصی
        «🛒 خرید واقعی اقلام» که buycompare.js داخل همین کشو تزریق می‌کند و علاوه بر دکمه،
@@ -1204,7 +1270,7 @@
         'ptfCaseInspectionOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'اقلام مردود' }
       );
       postActions += postAction(
-        'award-revise', '✏️', 'بازنگری سند برد', 'حذف اقلام مردود یا ثبت قیمت جدید — سند برد قبلی بایگانی و سند جایگزین ثبت می‌شود',
+        'award-revise', '✏️', 'رویژن پیشنهاد برنده', 'افزودن/حذف قلم و تغییر قیمت روی همان شماره — فاکتور با تأیید باطل می‌شود',
         'ptfAwardReviseOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'سند جایگزین' }
       );
       if ((r.awardRevisions || []).length || (r.inspections || []).length) {
@@ -2049,3 +2115,4 @@
   var htr2 = 0;
   var ht2 = setInterval(function () { htr2++; if (hookLetterModal() || htr2 > 50) clearInterval(ht2); }, 400);
 })();
+;

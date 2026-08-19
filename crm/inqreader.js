@@ -715,9 +715,13 @@
     return map[code] || ('ذخیره قطعی روی سرور ناموفق بود (' + code + ').');
   }
 
-  function ptfInqAttachmentCommand(action, payload) {
-    if (typeof window.ptfSalesDomainApi !== 'function') return Promise.reject(new Error('ماژول ثبت قطعی سرور بارگذاری نشده است؛ صفحه را بازخوانی کنید.'));
-    return window.ptfSalesDomainApi(action, payload);
+  function ptfInqAttachmentCommand(action, payload, handlers) {
+    if (typeof window.ptfSalesDomainCommand !== 'function') {
+      var e=new Error('ماژول ثبت قطعی سرور بارگذاری نشده است؛ صفحه را بازخوانی کنید.');
+      if(handlers&&typeof handlers.onReject==='function')handlers.onReject(e);
+      return Promise.resolve({state:'rejected',error:e});
+    }
+    return window.ptfSalesDomainCommand(action, payload, handlers||{});
   }
 
   function ptfInqDeleteCloud(key) {
@@ -740,19 +744,19 @@
     uploadFile(f, 'rfqatt', function(res){
       if (!res || !res.ok || !res.key) { if (typeof ptfToast === 'function') ptfToast('⛔ پیوست آپلود نشد: ' + ((res || {}).error || 'فضای ابری در دسترس نیست'), 'err'); return; }
       var fileMeta = { name: res.name || f.name, key: res.key, size: f.size, mode: res.mode, contentType: f.type || '', t: typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString() };
-      ptfInqAttachmentCommand('rfq_attachment_add', { rfqId: cd, category: catKey, file: fileMeta })
-        .then(function(){
+      ptfInqAttachmentCommand('rfq_attachment_add', { rfqId: cd, category: catKey, file: fileMeta },{
+        onAck:function(){
           ptfInqAttachmentRefresh(cd);
           if (typeof ptfToast === 'function') ptfToast('✅ پیوست روی سرور ثبت و تأیید شد', 'ok');
-        })
-        .catch(function(err){
-          /* آپلود بدون metadata نباید فایل یتیم بسازد؛ نتیجه پاک‌سازی هم صریح گزارش می‌شود. */
+        },onReject:function(err){
+          /* فقط رد قطعی metadata اجازه پاک‌سازی فایل تازه را می‌دهد. */
           ptfInqDeleteCloud(res.key).then(function(){
             if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err) + ' فایل آپلودشده پاک‌سازی شد.', 'err');
           }).catch(function(cleanErr){
             if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err) + ' پاک‌سازی فایل یتیم نیز ناموفق بود: ' + cleanErr.message, 'err');
           });
-        });
+        },onUncertain:function(err){if(typeof ptfToast==='function')ptfToast('⚠️ نتیجه ثبت پیوست نامشخص است؛ فایل برای بازیابی پاک نشد. شناسه: '+err.operationId,'warn');}
+      });
     });
   };
 
@@ -766,18 +770,16 @@
     uploadFile(f, 'rfqatt', function(res){
       if (!res || !res.ok || !res.key) { if (typeof ptfToast === 'function') ptfToast('⛔ فایل جایگزین آپلود نشد: ' + ((res || {}).error || ''), 'err'); return; }
       var fileMeta = { name: res.name || f.name, key: res.key, size: f.size, mode: res.mode, contentType: f.type || '', t: typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString() };
-      ptfInqAttachmentCommand('rfq_attachment_replace', { rfqId: cd, category: catKey, attachmentId: oldFile._id || oldFile.key, file: fileMeta })
-        .then(function(){
-          return ptfInqDeleteCloud(oldFile.key).then(function(){ return true; }).catch(function(){ return false; });
-        })
-        .then(function(cleaned){
-          ptfInqAttachmentRefresh(cd);
-          if (typeof ptfToast === 'function') ptfToast(cleaned ? '✅ نسخه جایگزین روی سرور ثبت و فایل قدیمی پاک شد' : '⚠️ نسخه جدید ثبت شد؛ پاک‌سازی فایل قدیمی فضای ابری نیاز به بررسی دارد.', cleaned ? 'ok' : 'warn');
-        })
-        .catch(function(err){
+      ptfInqAttachmentCommand('rfq_attachment_replace', { rfqId: cd, category: catKey, attachmentId: oldFile._id || oldFile.key, file: fileMeta },{
+        onAck:function(){
+          return ptfInqDeleteCloud(oldFile.key).then(function(){
+            ptfInqAttachmentRefresh(cd);if(typeof ptfToast==='function')ptfToast('✅ نسخه جایگزین روی سرور ثبت و فایل قدیمی پاک شد','ok');
+          }).catch(function(err){ptfInqAttachmentRefresh(cd);if(typeof ptfToast==='function')ptfToast('⚠️ نسخه جدید ثبت شد؛ پاک‌سازی فایل قدیمی نیاز به بررسی دارد: '+err.message,'warn');});
+        },onReject:function(err){
           ptfInqDeleteCloud(res.key).catch(function(){});
           if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err), 'err');
-        });
+        },onUncertain:function(err){if(typeof ptfToast==='function')ptfToast('⚠️ نتیجه جایگزینی نامشخص است؛ هیچ‌یک از فایل‌ها پاک نشد. شناسه: '+err.operationId,'warn');}
+      });
     });
   };
 
@@ -788,15 +790,11 @@
     var file = r && r.files && r.files[catKey] && r.files[catKey][idx];
     if (!file) return;
     if (typeof ptfToast === 'function') ptfToast('⏳ در حال ثبت حذف روی سرور...', 'info');
-    ptfInqAttachmentCommand('rfq_attachment_remove', { rfqId: cd, category: catKey, attachmentId: file._id || file.key })
-      .then(function(){
-        return ptfInqDeleteCloud(file.key).then(function(){ return { cloud: true }; }).catch(function(err){ return { cloud: false, error: err.message }; });
-      })
-      .then(function(res){
-        ptfInqAttachmentRefresh(cd);
-        if (typeof ptfToast === 'function') ptfToast(res.cloud ? '✅ حذف پیوست روی سرور و فضای ابری تأیید شد' : '⚠️ حذف از درخواست ثبت شد، اما پاک‌سازی فایل ابری ناموفق بود: ' + res.error, res.cloud ? 'ok' : 'warn');
-      })
-      .catch(function(err){ if (typeof ptfToast === 'function') ptfToast('⛔ ' + ptfInqAttachmentError(err), 'err'); });
+    ptfInqAttachmentCommand('rfq_attachment_remove', { rfqId: cd, category: catKey, attachmentId: file._id || file.key },{
+      onAck:function(){return ptfInqDeleteCloud(file.key).then(function(){ptfInqAttachmentRefresh(cd);if(typeof ptfToast==='function')ptfToast('✅ حذف پیوست روی سرور و فضای ابری تأیید شد','ok');}).catch(function(err){ptfInqAttachmentRefresh(cd);if(typeof ptfToast==='function')ptfToast('⚠️ حذف از درخواست ثبت شد، اما پاک‌سازی فایل ابری ناموفق بود: '+err.message,'warn');});},
+      onReject:function(err){if(typeof ptfToast==='function')ptfToast('⛔ '+ptfInqAttachmentError(err),'err');},
+      onUncertain:function(err){if(typeof ptfToast==='function')ptfToast('⚠️ نتیجه حذف پیوست نامشخص است؛ فایل ابری عمداً پاک نشد. شناسه: '+err.operationId,'warn');}
+    });
   };
 
   window.ptfOpenFullInqEditor = function(cd) {

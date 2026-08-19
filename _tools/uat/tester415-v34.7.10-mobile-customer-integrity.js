@@ -14,7 +14,7 @@ T('جدول‌های تامین فقط داخل wrapper خود scroll افقی �
 
 T('دکمه‌های اصلی حساب مشتری همگی icon دارند',['🔎 اعمال فیلتر','🖨 PDF/چاپ','📥 CSV','💵 ثبت وصولی','✕ بستن'].every(function(x){return cf.indexOf(x)>-1;}));
 T('ابطال وصولی و دریافت قطعی icon صریح دارند',cf.indexOf('⛔ ابطال</button>')>-1&&cf.indexOf('cfCaseReceiptVoid')>-1);
-T('دریافت قطعی از داخل گردش قابل ابطال و برای admin قابل حذف است',cf.indexOf("ptfSalesDomainApi('void_receipt'")>-1&&cf.indexOf("ptfAdminHardDelete('receipt'")>-1);
+T('دریافت قطعی از داخل گردش قابل ابطال و برای admin قابل حذف است',cf.indexOf("ptfSalesDomainCommand('void_receipt'")>-1&&cf.indexOf("ptfAdminHardDelete('receipt'")>-1);
 T('toolbar حساب مشتری در موبایل grid و بدون overflow است',idx.indexOf('#cfAccountDlg .cf-ledger-toolbar')>-1&&idx.indexOf('#cfAccountDlg .tb2')>-1);
 T('حساب باز شامل مطالبه یا اعتبار است',cf.indexOf('function accountIsOpen')>-1&&cf.indexOf('Math.abs(+r.credit||0)')>-1);
 T('بعد از sort نیز گروه حساب باز دوباره در بالا تثبیت می‌شود',cf.indexOf('rows = rows.filter(accountIsOpen).concat')>-1);
@@ -23,7 +23,7 @@ T('payment مهاجرت‌شده در paid و ledger هر دو یکسان حذف
 T('ردیف canonical منبع وصولی مهاجرت را توضیح می‌دهد',cf.indexOf('دریافت قطعی پرونده (مهاجرت‌شده)')>-1&&cf.indexOf('برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود')>-1);
 T('پنل تطبیق تعداد pairهای مهاجرت را شفاف می‌کند',cf.indexOf('cfMigratedReceiptPairs')>-1&&cf.indexOf('تطبیق مهاجرت وصولی')>-1);
 
-T('client تطبیق پرونده را با root ID authoritative انجام می‌دهد',core.indexOf('function caseBelongsToOffer')>-1&&core.indexOf('if(oid&&root)return oid===root')>-1);
+T('client تطبیق پرونده را با root ID و fallback هویت تجاری امن انجام می‌دهد',core.indexOf('function caseBelongsToOffer')>-1&&core.indexOf('if(oid===root)return true')>-1&&core.indexOf("var pairs=[['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']]")>-1);
 T('client تعارض inq/customer/currency را duplicate نمی‌داند',core.indexOf("var pairs=[['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']]")>-1);
 T('server همان قرارداد identity-safe را دارد',api.indexOf('function sd_case_offer_linked')>-1&&api.indexOf("foreach(['inqNo','buyerCd','currency']")>-1&&api.indexOf('hash_equals($oid,$root)')>-1);
 T('گزارش سال مالی نیز helper identity-safe دارد',fiscal.indexOf('function fiscalCaseMatchesOffer')>-1&&fiscal.indexOf('ptfCaseBelongsToOffer')>-1);
