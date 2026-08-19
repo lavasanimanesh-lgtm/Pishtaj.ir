@@ -3,6 +3,11 @@
 /* v34.7.39 — offer registration ACK and RFQ workflow are one server transaction. */
 var fs=require('fs'),vm=require('vm'),assert=require('assert');
 var workflow=fs.readFileSync('crm/workflow.js','utf8');
+var petty=fs.readFileSync('crm/petty.js','utf8');
+var pettyStart=petty.indexOf('  var _offerSaveAdv = window.offerSave;');
+var pettyEnd=petty.indexOf('  var _setSt = window.offerSetSt;',pettyStart);
+assert.ok(pettyStart>-1&&pettyEnd>pettyStart,'real petty offerSave wrapper is available to the end-to-end harness');
+var pettyOfferWrapper=petty.slice(pettyStart,pettyEnd);
 var sales=fs.readFileSync('crm/sales-domain-v2.js','utf8');
 var sync=fs.readFileSync('crm/sync.js','utf8');
 var offersSrc=fs.readFileSync('crm/offers.js','utf8');
@@ -43,7 +48,11 @@ function makeCtx(mode){
   ctx.window=ctx;
   ctx._offState={no:'PTF-CO-1405-9999',kind:'CO',inqNo:'RFQ-1',buyerCd:'C-1',buyerCo:'Customer',items:[{name:'X',qty:1,price:100}],st:'draft',updatedAtISO:'2026-08-19T08:00:00.000Z'};
   ctx.offerSave=function(){var a=ctx.getData('ptf_crm_offers');a.unshift(JSON.parse(JSON.stringify(ctx._offState)));ctx.setData('ptf_crm_offers',a);var p=ctx.getData('ptf_crm_products');p.push({cd:'P-COMMAND',nm:'X'});ctx.setData('ptf_crm_products',p);return{ok:true,offerNo:ctx._offState.no,updatedAtISO:ctx._offState.updatedAtISO,idx:-1,madeRevision:false,productSyncNotes:['1 کالای فرمان']};};
-  vm.createContext(ctx);vm.runInContext(workflow,ctx,{filename:'workflow.js'});vm.runInContext(sales,ctx,{filename:'sales-domain-v2.js'});
+  vm.createContext(ctx);
+  /* Reproduce the production load-order regression: receipt must survive the real
+     petty.js wrapper before workflow and sales-domain-v2 wrap the save symbol. */
+  vm.runInContext(pettyOfferWrapper,ctx,{filename:'petty-offer-save-wrapper.js'});
+  vm.runInContext(workflow,ctx,{filename:'workflow.js'});vm.runInContext(sales,ctx,{filename:'sales-domain-v2.js'});
   function takeDeferred(index){var d=index==null?deferred.filter(function(x){return !x.used;})[0]:deferred[index];if(!d)throw new Error('no_pending_fetch');d.used=true;return d;}
   return{ctx:ctx,ls:ls,requests:requests,alerts:alerts,post:post,held:held,released:released,acked:acked,btn:btn,deferred:deferred,resolve:function(v,i){takeDeferred(i).resolve(v);},reject:function(e,i){takeDeferred(i).reject(e);}};
 }

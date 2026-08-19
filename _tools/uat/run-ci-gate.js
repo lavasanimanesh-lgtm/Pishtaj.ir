@@ -39,6 +39,7 @@ var SUITE = [
   { g: 'پیشنهاد/موبایل/ACK', f: '_tools/uat/tester442-v34.7.39-offer-ack-workflow.js' },
   { g: 'پیشنهاد/قطعیت نتیجه ثبت', f: '_tools/uat/tester445-v34.7.42-offer-commit-certainty.js' },
   { g: 'فرمان‌های مالی/قطعیت عمومی', f: '_tools/uat/tester446-v34.7.43-command-commit-certainty.js' },
+  { g: 'پیشنهاد/دکمه ذخیره مودال', f: '_tools/uat/tester447-v34.7.44-offer-save-button-return.js' },
   { g: 'کیفیت داده/پرونده', f: '_tools/uat/tester412-v34.7.7-guided-case-dedup.js' },
   { g: 'کیفیت داده/کش', f: '_tools/uat/tester417-v34.7.14-duplicate-case-projection-cache.js' },
   { g: 'بایگانی/سال مالی', f: '_tools/uat/tester413-v34.7.8-archived-test-purge.js' },
