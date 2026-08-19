@@ -346,12 +346,19 @@
         "url": "https://pishtaj.ir/",
         "name": "پیشرو تجهیز فرتاک | Pishro Tajhiz Fartak",
         "description": "تامین تخصصی تجهیزات صنعتی برای پروژه‌های نفت، گاز، پتروشیمی، فولاد و نیروگاهی",
-        "inLanguage": "fa-IR"
+        "inLanguage": "fa-IR",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://pishtaj.ir/search/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
     }
 ]
   </script>
+<link rel="stylesheet" href="assets/css/discover.css" />
 </head>
 <body>
+<a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
   <div class="preloader" id="preloader" aria-hidden="true"><img width="54" height="54" loading="lazy" src="assets/images/ptf-logo.png" alt="" style="object-fit:contain"></div>
 
   <header class="site-header" id="top">
@@ -370,7 +377,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <section class="hero" id="home">
       
       <div class="slider" id="heroSlider">
@@ -908,5 +915,6 @@
   })();
   </script>
 <script src="assets/js/ptf-metrics.js" defer></script>
+<script src="assets/js/ptf-discover.js" defer></script>
 </body>
 </html>
