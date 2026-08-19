@@ -44,8 +44,10 @@
 .rel-item span{font-size:12px;color:#64748b}
 @media(max-width:700px){.article-content{padding:24px}.related-articles{grid-template-columns:1fr}}
 .faq-list{display:grid;gap:10px;margin:10px 0}.faq-list details{border:1px solid #e8e8ec;border-radius:14px;background:#fafafa;padding:13px}.faq-list summary{cursor:pointer;font-weight:800;color:#30333a}.faq-list p{margin:10px 0 0}</style>
+<link rel="stylesheet" href="../assets/css/discover.css" />
 </head>
 <body>
+<a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
 <header class="site-header scrolled"><div class="container nav-wrap">
 <a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
 <button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
@@ -55,6 +57,8 @@
 <a class="header-call" href="tel:02146087679">021-46087679</a>
 <a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none;transition:.2s" onmouseover="this.style.background='var(--red)';this.style.color='#fff'" onmouseout="this.style.background='#e2e8f0';this.style.color='#334155'">🇬🇧 EN</a>
 </div></header>
+<nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="yes"><div class="container"><ol><li><a href="/">خانه</a></li><li><a href="/knowledge-center/">مرکز دانش</a></li><li><span aria-current="page">راهنمای کامل شیرهای دوغاب (Slurry Valves)</span></li></ol></div></nav>
+
 <section class="article-hero">
 <div class="container">
 <span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">شیرآلات صنعتی</span>
@@ -169,5 +173,6 @@
 <script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}var h=document.querySelector('.site-header');if(h){window.addEventListener('scroll',function(){h.classList.toggle('scrolled',window.scrollY>28)})}})();</script>
 <script src="../assets/js/ptf-chat.js" defer></script>
 <script src="../assets/js/ptf-metrics.js" defer></script>
+<script src="../assets/js/ptf-discover.js" defer></script>
 </body>
 </html>

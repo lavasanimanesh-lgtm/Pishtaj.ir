@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>جستجوی سایت | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="جستجو در صفحات تامین تجهیزات صنعتی، مقایسه‌های فنی، مرکز دانش و وبلاگ پیشرو تجهیز فرتاک." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/search/" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<link rel="stylesheet" href="../assets/css/discover.css" />
+</head>
+<body>
+<a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav"><a href="../">خانه</a><a href="../about/">درباره ما</a><a href="../services/">خدمات</a><a href="../knowledge-center/">مرکز دانش</a><a href="../comparisons/">مقایسه‌ها</a><a href="../blog/">وبلاگ</a><a href="../rfq/">استعلام</a></nav>
+</div></header>
+<nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="yes"><div class="container"><ol>
+<li><a href="/">خانه</a></li>
+<li><span aria-current="page">جستجو</span></li>
+</ol></div></nav>
+<main id="main-content" class="container">
+  <div class="ptf-search-page">
+    <h1>جستجوی سایت</h1>
+<<<<<<< HEAD
+    <p class="lead">عنوان و توضیح صفحات تامین، محصولات، مقایسه‌های فنی، مرکز دانش و وبلاگ پیشرو تجهیز فرتاک را جستجو کنید. برای استعلام خرید از نتیجه به صفحهٔ تجهیز بروید یا مستقیم <a href="../rfq/">RFQ</a> ثبت کنید.</p>
+=======
+    <p class="lead">عنوان و توضیح صفحات تامین، محصولات، مقایسه‌ها، مرکز دانش و وبلاگ را جستجو کنید.</p>
+>>>>>>> 64171ea7b82dbcc1af890d073e5eae6ad6eaf047
+    <form id="qform" role="search">
+      <label class="visually-hidden" for="q">عبارت جستجو</label>
+      <input id="q" name="q" type="search" placeholder="مثلاً A106، فلنج WN، Rosemount، VFD…" autocomplete="off" />
+    </form>
+    <p class="ptf-search-meta" id="meta"></p>
+    <div class="ptf-search-hits" id="hits"></div>
+  </div>
+</main>
+<script src="../assets/js/main.js"></script>
+<script src="../assets/js/ptf-discover.js"></script>
+<script>
+(function(){
+  var idx=[], ready=false;
+  var qEl=document.getElementById('q');
+  var hits=document.getElementById('hits');
+  var meta=document.getElementById('meta');
+  fetch('../assets/data/search-index.json').then(function(r){return r.json()}).then(function(d){
+    idx=d; ready=true; run(new URLSearchParams(location.search).get('q')||'');
+  }).catch(function(){ meta.textContent='فهرست جستجو بارگذاری نشد.'; });
+  function norm(s){return String(s||'').toLowerCase().replace(/ي/g,'ی').replace(/ك/g,'ک');}
+  function run(q){
+    qEl.value=q||'';
+    if(!ready){ meta.textContent='در حال بارگذاری فهرست…'; return; }
+    q=norm(q).trim();
+    if(q.length<2){ hits.innerHTML=''; meta.textContent='حداقل دو نویسه وارد کنید. '+idx.length+' صفحه در فهرست است.'; return; }
+    var parts=q.split(/\s+/).filter(Boolean);
+    var found=idx.filter(function(it){
+      var hay=norm(it.t+' '+it.d+' '+it.u);
+      return parts.every(function(p){return hay.indexOf(p)!==-1;});
+    }).slice(0,40);
+    meta.textContent=found.length+' نتیجه';
+    hits.innerHTML=found.map(function(it){
+      return '<a href="'+it.u+'"><b>'+it.t+'</b><span>'+(it.d||it.u)+'</span></a>';
+    }).join('')||'<p>نتیجه‌ای پیدا نشد.</p>';
+  }
+  document.getElementById('qform').addEventListener('submit', function(e){
+    e.preventDefault();
+    var q=qEl.value.trim();
+    history.replaceState(null,'','?q='+encodeURIComponent(q));
+    run(q);
+  });
+  qEl.addEventListener('input', function(){ run(qEl.value); });
+  var init=new URLSearchParams(location.search).get('q');
+  if(init) qEl.value=init;
+})();
+</script>
+</body>
+</html>

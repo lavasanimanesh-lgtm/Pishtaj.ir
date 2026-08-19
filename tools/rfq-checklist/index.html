@@ -61,8 +61,10 @@
 .rq-btn.ghost{background:#fff;color:#ef4b1a;border:2px solid #ef4b1a}
 @media(max-width:700px){.rq-cat{flex:1 1 100%}}
 </style>
+<link rel="stylesheet" href="../../assets/css/discover.css" />
 </head>
 <body class="rq">
+<a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
 <header class="site-header scrolled"><div class="container nav-wrap">
 <a class="brand" href="../../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
 <button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
@@ -71,6 +73,8 @@
 </nav>
 <a class="header-call" href="tel:02146087679">021-46087679</a>
 </div></header>
+<nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="yes"><div class="container"><ol><li><a href="/">خانه</a></li><li><a href="/tools/">ابزارها</a></li><li><span aria-current="page">rfq checklist</span></li></ol></div></nav>
+
 
 <section class="rq-hero"><div class="container">
 <h1>چک‌لیست استعلام تجهیزات صنعتی (RFQ)</h1>
@@ -198,5 +202,6 @@ document.getElementById('copy').addEventListener('click', function(){
 // menu toggle
 (function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});}})();
 </script>
+<script src="../../assets/js/ptf-discover.js" defer></script>
 </body>
 </html>

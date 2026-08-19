@@ -46,92 +46,14 @@
   <link rel="preload" href="assets/images/brands/petro-jam.png" as="image">
   <link rel="preload" href="assets/images/brands/petro-maroun.png" as="image">
   <link rel="stylesheet" href="assets/css/style.css" />
+<link rel="stylesheet" href="assets/css/home.css" />
 
-<style id="ptf-v321-icon-polish">
-/* v32.1 — homepage/mobile scientific icon sizing (no oversized decorative icons) */
-.ptf-ico{
-  display:inline-grid; place-items:center;
-  width:var(--ico,40px); height:var(--ico,40px);
-  border-radius:12px; flex:0 0 auto;
-  background:linear-gradient(135deg,rgba(14,116,144,.10),rgba(15,39,68,.06));
-  color:#0e7490; border:1px solid rgba(14,116,144,.14);
-}
-.ptf-ico svg{ width:calc(var(--ico,40px) * .52); height:calc(var(--ico,40px) * .52); display:block; }
-.ptf-ico.lg{ --ico:44px; border-radius:13px; }
-.ptf-ico.md{ --ico:36px; border-radius:11px; }
-.ptf-ico.sm{ --ico:30px; border-radius:9px; }
-.ptf-ico.warn{ color:#c2410c; background:linear-gradient(135deg,rgba(239,75,26,.10),rgba(247,148,0,.08)); border-color:rgba(239,75,26,.16); }
-@media (max-width:700px){
-  .ptf-ico.lg{ --ico:38px; }
-  .ptf-ico.md{ --ico:32px; }
-  .ptf-ico.sm{ --ico:28px; }
-  /* prevent raw font-size:40px icon wrappers from dominating mobile */
-  .ptf-mobile-ico-fix > span[style*="font-size:40px"],
-  .ptf-mobile-ico-fix span[style*="font-size:40px"]{
-    font-size:0 !important; line-height:0 !important;
-  }
-  .ptf-mobile-ico-fix > span[style*="font-size:40px"] svg,
-  .ptf-mobile-ico-fix span[style*="font-size:40px"] svg{
-    width:22px !important; height:22px !important;
-  }
-  .about-metrics .ptf-ico, .stats-row .ptf-ico{ --ico:36px; }
-}
-</style>
-
-<style>
-/* CRM & Form fixes */
-#contactForm input, #contactForm textarea, #contactForm select {
-  background: #f8fafc !important;
-  border: 2px solid #cbd5e1 !important;
-  color: #1e293b !important;
-  padding: 12px 15px !important;
-  border-radius: 12px !important;
-  font-family: inherit !important;
-  font-size: 14px !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-}
-#contactForm input:focus, #contactForm textarea:focus, #contactForm select:focus {
-  border-color: #ef4b1a !important;
-  box-shadow: 0 0 0 4px rgba(239,75,26,.1) !important;
-  outline: none !important;
-}
-#contactForm label { color: #ef4b1a !important; font-weight: 900 !important; font-size: 13.5px !important; }
-#contactForm input::placeholder, #contactForm textarea::placeholder { color: #94a3b8 !important; }
-</style>
-  <style>
-/* Sprint 32 — Brand Logo Replacement */
-.brand-logo { width: 100%; height: 100%; object-fit: contain; padding: 8px; transition: transform .25s ease; }
-.brand-panel a:hover .brand-logo { transform: scale(1.08); }
-.brand-panel a { display: grid; place-items: center; width: 100%; height: 100%; text-decoration: none; }
-.marquee-logo { display: block; height: 40px; width: auto; margin: 0 auto; }
-.logo-track span { min-width: 148px; text-align: center; border-radius: 17px; background: transparent; border: 1px solid rgba(255,255,255,.12); padding: 8px 12px; display: inline-flex; align-items: center; justify-content: center; height: 56px; }
-@media (max-width: 768px) {
-  .brand-logo { padding: 4px; }
-  .brand-panel { grid-template-columns: repeat(3, 1fr) !important; gap: 8px !important; }
-  .brand-panel a { min-height: 72px; }
-}
-@media (max-width: 440px) {
-  .brand-panel { grid-template-columns: repeat(2, 1fr) !important; }
-}
-
-@media(max-width:700px){
-  section.about .reveal > [style*="display:grid"][style*="grid-template-columns"]{
-    grid-template-columns:1fr !important;
-  }
-  section.about .reveal > [style*="display:grid"] img{
-    width:140px !important;
-    margin:0 auto;
-  }
-}
-</style>
-
-  <script type="application/ld+json">
+<script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": ["Organization", "LocalBusiness"],
+        "@type": "Organization",
         "@id": "https://pishtaj.ir/#organization",
         "name": "شرکت پیشرو تجهیز فرتاک",
         "alternateName": "Pishro Tajhiz Fartak",
@@ -146,21 +68,6 @@
           {"@type": "EducationalOccupationalCredential", "credentialCategory": "certification", "name": "ISO 10002:2018 — Customer Complaints Handling", "recognizedBy": {"@type": "Organization", "name": "GQS Germany"}},
           {"@type": "EducationalOccupationalCredential", "credentialCategory": "certification", "name": "ISO 10004:2018 — Customer Satisfaction Monitoring", "recognizedBy": {"@type": "Organization", "name": "GQS Germany"}}
         ],
-        "knowsAbout": [
-          "Industrial Piping",
-          "Valves",
-          "Instrumentation",
-          "Electrical Equipment",
-          "Pumps",
-          "Oil & Gas Procurement",
-          "تامین تجهیزات پایپینگ",
-          "تامین تجهیزات برق صنعتی",
-          "تامین تجهیزات ابزار دقیق",
-          "تامین ولو صنعتی",
-          "تامین فلنج و فیتینگ",
-          "تجهیزات نفت و گاز",
-          "تجهیزات پتروشیمی"
-        ],
         "slogan": "تامین تخصصی تجهیزات صنعتی پروژه‌های نفت، گاز، پتروشیمی و نیروگاهی",
         "telephone": "+982146087679",
         "email": "Info@pishrotajheez.ir",
@@ -172,6 +79,13 @@
           "streetAddress": "بلوار کوهک، مجتمع تجاری اداری طوبی، بلوک A اداری، طبقه ۱۶"
         },
         "areaServed": "IR",
+        "priceRange": "$$",
+        "openingHoursSpecification": [{
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Saturday"],
+          "opens": "09:00",
+          "closes": "17:00"
+        }],
         "hasOfferCatalog": {
           "@type": "OfferCatalog",
           "name": "سبد خدمات و تجهیزات قابل تامین پیشرو تجهیز فرتاک",
@@ -180,17 +94,17 @@
               "@type": "OfferCatalog",
               "name": "تجهیزات پایپینگ و شیرآلات صنعتی",
               "itemListElement": [
-                {"@type": "Offer", "itemOffered": {"@type": "Product", "name": "لوله مانیسمان و درزدار کربن استیل و استینلس استیل"}},
-                {"@type": "Offer", "itemOffered": {"@type": "Product", "name": "شیرآلات صنعتی Gate, Globe, Ball, Check Valve"}},
-                {"@type": "Offer", "itemOffered": {"@type": "Product", "name": "فلنج‌های صنعتی گلودار و اسلیپ‌آن ASME B16.5"}}
+                {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "تامین لوله مانیسمان و درزدار کربن استیل و استینلس استیل"}},
+                {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "تامین شیرآلات صنعتی Gate, Globe, Ball, Check Valve"}},
+                {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "تامین فلنج‌های صنعتی گلودار و اسلیپ‌آن ASME B16.5"}}
               ]
             },
             {
               "@type": "OfferCatalog",
               "name": "تجهیزات ابزار دقیق و کنترل فرایند",
               "itemListElement": [
-                {"@type": "Offer", "itemOffered": {"@type": "Product", "name": "ترانسمیترهای فشار و دما Rosemount و WIKA"}},
-                {"@type": "Offer", "itemOffered": {"@type": "Product", "name": "فلومترها و سطح‌سنج‌های Endress+Hauser و Krohne"}}
+                {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "تامین ترانسمیترهای فشار و دما Rosemount و WIKA"}},
+                {"@type": "Offer", "itemOffered": {"@type": "Service", "name": "تامین فلومترها و سطح‌سنج‌های Endress+Hauser و Krohne"}}
               ]
             }
           ]
@@ -246,6 +160,34 @@
         {
           "@type": "Question",
           "name": "آیا امکان بازرسی و تست کالا قبل از تحویل وجود دارد؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "بله، ما بازرسی توسط شرکت‌های بازرسی شخص ثالث TPI (مثل Bureau Veritas، SGS، DNV) را پشتیبانی می‌کنیم. همچنین می‌توانید از کارخانه سازنده بازدید (FAT / Source Inspection) انجام دهید. هزینه بازرسی بسته به درخواست شما متفاوت است."
+          }
+        }
+      ]
+    }
+    ]
+  }
+  </script>
+
+  <script defer>
+  /* Sprint 33 — Performance: WebP + Lazy Loading */
+  (function(){
+    // Detect WebP support
+    var w = window, d = document;
+    var hasWebP = false;
+    var webpImg = new Image();
+    webpImg.onload = function(){ hasWebP = true; applyOptimizations(); };
+    webpImg.onerror = function(){ applyOptimizations(); };
+    webpImg.src = 'data:image/webp;base64,UklGRi4AAABXRUJQVlA4TCEAAAAvAUAAEB8wAiMwAgSSNtse/cXjxyCCmrYNWPwmHRsB7wEA';
+    
+    function applyOptimizations(){
+      // Replace images with WebP versions if supported
+      if(hasWebP){
+        d.querySelectorAll('img[src*=".jpeg"], img[src*=".jpg"], img[src*=".png"]').forEach(function(img){
+          var src = img.getAttribute('src');
+      name": "آیا امکان بازرسی و تست کالا قبل از تحویل وجود دارد؟",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "بله، ما بازرسی توسط شرکت‌های بازرسی شخص ثالث TPI (مثل Bureau Veritas، SGS، DNV) را پشتیبانی می‌کنیم. همچنین می‌توانید از کارخانه سازنده بازدید (FAT / Source Inspection) انجام دهید. هزینه بازرسی بسته به درخواست شما متفاوت است."
@@ -339,12 +281,19 @@
         "url": "https://pishtaj.ir/",
         "name": "پیشرو تجهیز فرتاک | Pishro Tajhiz Fartak",
         "description": "تامین تخصصی تجهیزات صنعتی برای پروژه‌های نفت، گاز، پتروشیمی، فولاد و نیروگاهی",
-        "inLanguage": "fa-IR"
+        "inLanguage": "fa-IR",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://pishtaj.ir/search/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
     }
 ]
   </script>
+<link rel="stylesheet" href="assets/css/discover.css" />
 </head>
 <body>
+<a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
   <div class="preloader" id="preloader" aria-hidden="true"><img width="54" height="54" loading="lazy" src="assets/images/ptf-logo.png" alt="" style="object-fit:contain"></div>
 
   <header class="site-header" id="top">
@@ -363,7 +312,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <section class="hero" id="home">
       
       <div class="slider" id="heroSlider">
@@ -491,8 +440,8 @@
       <div class="container about-grid">
         <div class="about-images reveal">
           
-          <img class="main-img" src="assets/images/real/closeup-pump.jpg" alt="پمپ سانتریفیوژ فرایندی روی شاسی همراه الکتروموتور" loading="lazy" decoding="async" width="1408" height="768">
-          <img class="float-img" src="assets/images/real/closeup-instrumentation.jpg" alt="ترانسمیتر فشار و گیج‌های ابزار دقیق روی خط فرایندی" loading="lazy" decoding="async" width="1376" height="768">
+          <picture><source type="image/webp" srcset="assets/images/real/webp/closeup-pump.webp"><img class="main-img" src="assets/images/real/closeup-pump.jpg" alt="پمپ سانتریفیوژ فرایندی روی شاسی همراه الکتروموتور" loading="lazy" decoding="async" width="1408" height="768" data-webp="1"></picture>
+          <picture><source type="image/webp" srcset="assets/images/real/webp/closeup-instrumentation.webp"><img class="float-img" src="assets/images/real/closeup-instrumentation.jpg" alt="ترانسمیتر فشار و گیج‌های ابزار دقیق روی خط فرایندی" loading="lazy" decoding="async" width="1376" height="768" data-webp="1"></picture>
         </div>
         <div class="section-copy reveal">
           <span class="kicker">درباره پیشرو تجهیز فرتاک</span>
@@ -536,12 +485,12 @@
         <div class="section-head reveal"><span class="kicker">حوزه‌های تامین</span><h2>سه مسیر تخصصی تامین برای نیازهای کلیدی پروژه</h2><p>ساختار خدمات شرکت بر پایه اقلام پرکاربرد و حساس پروژه‌های فرایندی، انرژی و صنایع مادر طراحی شده است. پیشرو تجهیز فرتاک به‌عنوان <a href="suppliers/" style="color:var(--red);font-weight:900">تامین‌کننده تجهیزات صنعتی</a>، در حوزه‌های <a href="suppliers/piping-supplier.html" style="color:var(--red);font-weight:900">پایپینگ</a>، <a href="suppliers/instrumentation-supplier.html" style="color:var(--red);font-weight:900">ابزار دقیق</a>، <a href="suppliers/valve-supplier.html" style="color:var(--red);font-weight:900">شیرآلات صنعتی</a>، <a href="suppliers/electrical-supplier.html" style="color:var(--red);font-weight:900">برق صنعتی</a> و <a href="suppliers/petrochemical-equipment-supplier.html" style="color:var(--red);font-weight:900">تجهیزات پتروشیمی</a> فعالیت تخصصی دارد.</p></div>
         <div class="service-cards">
           
-          <article class="service-card reveal"><div class="card-img"><img src="assets/images/real/piping-flanges.jpeg" alt="تجهیزات پایپینگ، لوله و فلنج صنعتی" loading="lazy" decoding="async" width="1672" height="941"></div><div class="card-body"><span>پایپینگ</span><h3>لوله، فلنج، فیتینگ، ولو و گسکت</h3><p>تامین یکپارچه اقلام پایپینگ شامل لوله، فیتینگ، فلنج، شیرآلات صنعتی، گسکت و متعلقات برای خطوط فرایندی.</p><ul><li>Pipe / Fitting / Flange</li><li>Valve / Strainer / Gasket</li><li>Special Items & Project Packages</li></ul><a class="text-link" href="services/piping-equipment/">جزئیات تامین پایپینگ ←</a></div></article>
-          <article class="service-card reveal"><div class="card-img"><img src="assets/images/real/electrical-switchgear.jpeg" alt="تجهیزات برق صنعتی و سوئیچگیر زیمنس" loading="lazy" decoding="async" width="1672" height="941"></div><div class="card-body"><span>برق صنعتی</span><h3>توزیع، کنترل، حفاظت و اتوماسیون</h3><p>تامین تجهیزات برق فشار ضعیف و متوسط، کلید و حفاظت، اتوماسیون، کابل و متعلقات برای تابلو، سایت و واحدهای صنعتی.</p><ul><li>Switchgear & Protection</li><li>Automation & Control</li><li>Cable, Gland & Accessories</li></ul><a class="text-link" href="services/electrical-equipment/">جزئیات برق صنعتی ←</a></div></article>
-          <article class="service-card reveal"><div class="card-img"><img src="assets/images/real/instrumentation-equipment.jpeg" alt="ابزار دقیق و ترانسمیتر فشار روزمونت Rosemount" loading="lazy" decoding="async" width="1672" height="941"></div><div class="card-body"><span>ابزار دقیق</span><h3>اندازه‌گیری، کنترل و پایش فرایند</h3><p>تامین تجهیزات اندازه‌گیری فشار، دما، فلو، سطح، آنالایزرها، پوزیشنرها و تجهیزات کنترلی متناسب با شرایط عملیاتی.</p><ul><li>Transmitter / Gauge / Sensor</li><li>Flow, Level, Pressure, Temperature</li><li>Control & Monitoring Items</li></ul><a class="text-link" href="services/instrumentation-equipment/">جزئیات ابزار دقیق ←</a></div></article>
-          <article class="service-card reveal"><div class="card-img"><img src="assets/images/real/pumps-industrial.jpeg" alt="پمپ سانتریفیوژ صنعتی استاندارد API 610" loading="lazy" decoding="async" width="1672" height="941"></div><div class="card-body"><span>پمپ صنعتی</span><h3>پمپ، قطعات یدکی و تجهیزات انتقال سیال</h3><p>تامین پمپ سانتریفیوژ، دوزینگ پمپ، پمپ انتقال، پمپ طبقاتی و قطعات یدکی بر اساس دیتاشیت پروژه.</p><ul><li>Centrifugal / Dosing Pump</li><li>Mechanical Seal / Spare Parts</li><li>Process & Utility Services</li></ul><a class="text-link" href="services/pumps/">جزئیات پمپ صنعتی ←</a></div></article>
-          <article class="service-card reveal"><div class="card-img"><img src="assets/images/real/compressors-industrial.jpeg" alt="کمپرسور اسکرو صنعتی اطلس کوپکو GA160 VSD+" loading="lazy" decoding="async" width="1672" height="941"></div><div class="card-body"><span>کمپرسور</span><h3>کمپرسور صنعتی و تجهیزات هوای فشرده</h3><p>تامین کمپرسور اسکرو، رفت و برگشتی، سانتریفیوژ، درایر، فیلتر، مخزن و قطعات یدکی مرتبط.</p><ul><li>Screw / Reciprocating / Centrifugal</li><li>Air Dryer / Filter / Receiver</li><li>Spare Parts & Service Kits</li></ul><a class="text-link" href="services/compressors/">جزئیات کمپرسور صنعتی ←</a></div></article>
-          <article class="service-card reveal"><div class="card-img"><img src="assets/images/real/boilers-generic.jpeg" alt="بویلر صنعتی و تجهیزات سیستم بخار" loading="lazy" decoding="async" width="1672" height="941"></div><div class="card-body"><span>بویلر و بخار</span><h3>بویلر، تجهیزات بخار و سیستم‌های حرارتی</h3><p>تامین بویلر صنعتی، مشعل، شیرآلات بخار، تله بخار، کنترلر و تجهیزات جانبی سیستم بخار.</p><ul><li>Boiler / Burner</li><li>Steam Trap / PRV / Safety Valve</li><li>Feed Water & Condensate Items</li></ul><a class="text-link" href="services/boilers/">جزئیات بویلر و بخار ←</a></div></article>
+          <article class="service-card reveal"><div class="card-img"><picture><source type="image/webp" srcset="assets/images/real/webp/piping-flanges.webp"><img src="assets/images/real/piping-flanges.jpeg" alt="تجهیزات پایپینگ، لوله و فلنج صنعتی" loading="lazy" decoding="async" width="1672" height="941" data-webp="1"></picture></div><div class="card-body"><span>پایپینگ</span><h3>لوله، فلنج، فیتینگ، ولو و گسکت</h3><p>تامین یکپارچه اقلام پایپینگ شامل لوله، فیتینگ، فلنج، شیرآلات صنعتی، گسکت و متعلقات برای خطوط فرایندی.</p><ul><li>Pipe / Fitting / Flange</li><li>Valve / Strainer / Gasket</li><li>Special Items & Project Packages</li></ul><a class="text-link" href="services/piping-equipment/">جزئیات تامین پایپینگ ←</a></div></article>
+          <article class="service-card reveal"><div class="card-img"><picture><source type="image/webp" srcset="assets/images/real/webp/electrical-switchgear.webp"><img src="assets/images/real/electrical-switchgear.jpeg" alt="تجهیزات برق صنعتی و سوئیچگیر زیمنس" loading="lazy" decoding="async" width="1672" height="941" data-webp="1"></picture></div><div class="card-body"><span>برق صنعتی</span><h3>توزیع، کنترل، حفاظت و اتوماسیون</h3><p>تامین تجهیزات برق فشار ضعیف و متوسط، کلید و حفاظت، اتوماسیون، کابل و متعلقات برای تابلو، سایت و واحدهای صنعتی.</p><ul><li>Switchgear & Protection</li><li>Automation & Control</li><li>Cable, Gland & Accessories</li></ul><a class="text-link" href="services/electrical-equipment/">جزئیات برق صنعتی ←</a></div></article>
+          <article class="service-card reveal"><div class="card-img"><picture><source type="image/webp" srcset="assets/images/real/webp/instrumentation-equipment.webp"><img src="assets/images/real/instrumentation-equipment.jpeg" alt="ابزار دقیق و ترانسمیتر فشار روزمونت Rosemount" loading="lazy" decoding="async" width="1672" height="941" data-webp="1"></picture></div><div class="card-body"><span>ابزار دقیق</span><h3>اندازه‌گیری، کنترل و پایش فرایند</h3><p>تامین تجهیزات اندازه‌گیری فشار، دما، فلو، سطح، آنالایزرها، پوزیشنرها و تجهیزات کنترلی متناسب با شرایط عملیاتی.</p><ul><li>Transmitter / Gauge / Sensor</li><li>Flow, Level, Pressure, Temperature</li><li>Control & Monitoring Items</li></ul><a class="text-link" href="services/instrumentation-equipment/">جزئیات ابزار دقیق ←</a></div></article>
+          <article class="service-card reveal"><div class="card-img"><picture><source type="image/webp" srcset="assets/images/real/webp/pumps-industrial.webp"><img src="assets/images/real/pumps-industrial.jpeg" alt="پمپ سانتریفیوژ صنعتی استاندارد API 610" loading="lazy" decoding="async" width="1672" height="941" data-webp="1"></picture></div><div class="card-body"><span>پمپ صنعتی</span><h3>پمپ، قطعات یدکی و تجهیزات انتقال سیال</h3><p>تامین پمپ سانتریفیوژ، دوزینگ پمپ، پمپ انتقال، پمپ طبقاتی و قطعات یدکی بر اساس دیتاشیت پروژه.</p><ul><li>Centrifugal / Dosing Pump</li><li>Mechanical Seal / Spare Parts</li><li>Process & Utility Services</li></ul><a class="text-link" href="services/pumps/">جزئیات پمپ صنعتی ←</a></div></article>
+          <article class="service-card reveal"><div class="card-img"><picture><source type="image/webp" srcset="assets/images/real/webp/compressors-industrial.webp"><img src="assets/images/real/compressors-industrial.jpeg" alt="کمپرسور اسکرو صنعتی اطلس کوپکو GA160 VSD+" loading="lazy" decoding="async" width="1672" height="941" data-webp="1"></picture></div><div class="card-body"><span>کمپرسور</span><h3>کمپرسور صنعتی و تجهیزات هوای فشرده</h3><p>تامین کمپرسور اسکرو، رفت و برگشتی، سانتریفیوژ، درایر، فیلتر، مخزن و قطعات یدکی مرتبط.</p><ul><li>Screw / Reciprocating / Centrifugal</li><li>Air Dryer / Filter / Receiver</li><li>Spare Parts & Service Kits</li></ul><a class="text-link" href="services/compressors/">جزئیات کمپرسور صنعتی ←</a></div></article>
+          <article class="service-card reveal"><div class="card-img"><picture><source type="image/webp" srcset="assets/images/real/webp/boilers-generic.webp"><img src="assets/images/real/boilers-generic.jpeg" alt="بویلر صنعتی و تجهیزات سیستم بخار" loading="lazy" decoding="async" width="1672" height="941" data-webp="1"></picture></div><div class="card-body"><span>بویلر و بخار</span><h3>بویلر، تجهیزات بخار و سیستم‌های حرارتی</h3><p>تامین بویلر صنعتی، مشعل، شیرآلات بخار، تله بخار، کنترلر و تجهیزات جانبی سیستم بخار.</p><ul><li>Boiler / Burner</li><li>Steam Trap / PRV / Safety Valve</li><li>Feed Water & Condensate Items</li></ul><a class="text-link" href="services/boilers/">جزئیات بویلر و بخار ←</a></div></article>
         </div>
       </div>
     </section>
@@ -672,7 +621,7 @@
           <span class="kicker" style="background:rgba(239,75,26,.1); color:var(--red); padding:6px 16px; border-radius:999px; font-weight:900;">امور قراردادها و بازرگانی</span>
           <h2 style="font-size:32px; margin:15px 0; color:#1e293b; letter-spacing:-.8px;">ارتباط با واحد بازرگانی و ارسال استعلام (RFQ)</h2>
           <p style="color:#64748b; font-size:15px; line-height:1.9;">برای دریافت پیشنهاد فنی-مالی رسمی، دیتاشیت یا لیست اقلام (MTO) خود را ارسال فرمایید. کارشناسان مهندسی فروش پیشرو تجهیز فرتاک در کوتاه‌ترین زمان جهت اعلام شرایط تامین با شما تماس خواهند گرفت.</p>
-          <img src="assets/images/real/office-commercial-engineer.jpg" alt="کارشناس بازرگانی پیشرو تجهیز فرتاک در حال پیگیری استعلام مشتری" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.1);margin:20px 0 5px" loading="lazy" decoding="async" width="1408" height="768">
+          <picture><source type="image/webp" srcset="assets/images/real/webp/office-commercial-engineer.webp"><img src="assets/images/real/office-commercial-engineer.jpg" alt="کارشناس بازرگانی پیشرو تجهیز فرتاک در حال پیگیری استعلام مشتری" style="width:100%;height:auto;border-radius:20px;box-shadow:0 14px 35px rgba(0,0,0,.1);margin:20px 0 5px" loading="lazy" decoding="async" width="1408" height="768" data-webp="1"></picture>
           
           <div style="margin:25px 0; display:flex; gap:12px; flex-wrap:wrap;">
             <a href="rfq/" class="btn btn-primary" style="padding:14px 28px; font-size:15px; border-radius:16px;">ورود به سامانه استعلام چندمرحله‌ای ←</a>
@@ -901,5 +850,6 @@
   })();
   </script>
 <script src="assets/js/ptf-metrics.js" defer></script>
+<script src="assets/js/ptf-discover.js" defer></script>
 </body>
 </html>
