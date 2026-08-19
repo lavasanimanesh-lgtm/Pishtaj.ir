@@ -1171,6 +1171,1307 @@
     };
   }
 
+function appendStep2() {
+  // body intentionally blank — placeholder while awaiting next write
+}
+
+/* ========================================================================
+   ARENA-2026-08-17 / گام ۲ و ۳: صدور/ویرایش قیمت قلم‌به‌قلم + حالت تجمیعی چند پیشنهاد
+   — الزام ۱ (پیش‌فرض قیمت = CO)، الزام ۳ (صدور در پرونده، تک‌پیشنهاد + تجمیعی)
+   — طراحی: دیالوگ یکپارچه با جدول اقلام قابل ویرایش (تعداد، قیمت واحد، حذف، افزودن سفارشی)
+   — سپس فراخوان unofficialInvoicePrintCases برای صدور نهایی
+   — مجوز: senior یا accountant؛ پرونده در مرحله ≥ ۷ (پس از تحویل کارفرما)
+   ======================================================================== */
+
+// ===== Helper: گردآوری پیشنهادهای متصل + انتخاب مبدأ قیمت =====
+window.unofficialInvoiceCollectOffers = function (deal) {
+  if (!deal) return { offers: [], priceSourceOffer: null, hasFinancialOffer: false };
+  var offers = [];
+  if (typeof window.ptfSalesFileOffers === 'function') {
+    offers = window.ptfSalesFileOffers(deal) || [];
+  }
+  offers = (offers || []).filter(function (o) {
+    return o && o.no && (o.items || []).length;
+  });
+  // مبدأ قیمت: اولویت با CO (پیشنهاد مالی). اگر نبود، TC یا TO یا اولین پیشنهاد.
+  var priceSourceOffer = null;
+  for (var i = 0; i < offers.length; i++) {
+    if (offers[i].kind === 'CO') { priceSourceOffer = offers[i]; break; }
+  }
+  if (!priceSourceOffer) {
+    for (var j = 0; j < offers.length; j++) {
+      if (offers[j].kind === 'TC') { priceSourceOffer = offers[j]; break; }
+    }
+  }
+  if (!priceSourceOffer && offers.length) priceSourceOffer = offers[0];
+
+  var hasFinancialOffer = !!offers.filter(function (o) { return o.kind === 'CO'; })[0];
+
+  return {
+    offers: offers,
+    priceSourceOffer: priceSourceOffer,
+    hasFinancialOffer: hasFinancialOffer
+  };
+};
+
+/* ========================================================================
+   v34.7.29 — «قیمت پیش‌فرض پیش‌فاکتور = قیمت پیشنهاد(های) مالی پرونده»
+   ------------------------------------------------------------------------
+   ریشهٔ باگ: هر ردیف قیمتش را فقط از «همان پیشنهادی که از آن آمده» می‌گرفت.
+   پس اگر پیشنهاد انتخاب‌شده فنی بود (TO) یا قلمی در CO قیمت داشت ولی در پیشنهاد
+   مبدأ نداشت، قیمت پیش‌فرض صفر می‌شد؛ در حالت تجمیعی هم نتیجه به «ترتیب» پیشنهادها
+   وابسته بود: اگر TO زودتر می‌آمد، ردیفِ بی‌قیمت آن برنده می‌شد و قیمت CO دور ریخته
+   می‌شد. ردیف‌های صفر هم موقع صدور بی‌صدا حذف می‌شدند (فیلتر price > 0).
+   قاعدهٔ جدید (خواستهٔ کارفرما): قیمت پیش‌فرض هر قلم = قیمت همان قلم در پیشنهاد مالی
+   پرونده (CO، و اگر نبود TC). قیمت خودِ پیشنهاد همیشه اولویت دارد؛ «دفتر قیمت» فقط
+   جای خالی را پر می‌کند و هرگز قیمت واقعی را بازنویسی نمی‌کند. کاربر همچنان می‌تواند
+   هر ردیف را دستی ویرایش کند. ======================================================================== */
+
+/* کلید تطبیق قلم: کد کالا، سپس نام، سپس شرح (نرمال‌شده). */
+window.unofficialInvoiceItemKey = function (it, offerNo, idx) {
+  function norm(v) { return String(v == null ? '' : v).replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase(); }
+  var pc = norm(it && (it.pcode || it.prodCd || it.productCd));
+  if (pc) return 'P:' + pc;
+  var nm = norm(it && (it.name || it.desc));
+  if (nm) return 'N:' + nm;
+  return 'X:' + String(offerNo || '') + '|' + idx;
+};
+
+/* دفتر قیمت پرونده: فقط از پیشنهادهای مالی (CO سپس TC) ساخته می‌شود.
+   ارز هر قیمت هم نگه داشته می‌شود تا قیمت با ارز متفاوت بی‌صدا جایگزین نشود. */
+window.unofficialInvoicePriceBook = function (offers, preferredNo) {
+  var book = {};
+  /* اولویت مرجع قیمت: پیشنهاد برندهٔ پرونده ← CO برنده ← سایر CO ← TC.
+     (پیشنهاد باخته/قدیمی نباید قیمت پیشنهاد برنده را کنار بزند.) */
+  function rank(o) {
+    var won = String(o.st || '') === 'won';
+    if (preferredNo && String(o.no || '') === String(preferredNo)) return 0;
+    if (o.kind === 'CO') return won ? 1 : 2;
+    if (o.kind === 'TC') return won ? 3 : 4;
+    return 9;
+  }
+  var ranked = (offers || []).filter(function (o) { return o && (o.items || []).length; })
+    .map(function (o, i) { return { o: o, i: i, r: rank(o) }; })
+    .sort(function (a, b) { return a.r - b.r || a.i - b.i; })
+    .map(function (x) { return x.o; });
+  ranked.forEach(function (o) {
+    if (o.kind !== 'CO' && o.kind !== 'TC') return;   /* فقط پیشنهاد مالی مرجع قیمت است */
+    (o.items || []).forEach(function (it, idx) {
+      var price = +it.price || 0; if (price <= 0) return;
+      var key = window.unofficialInvoiceItemKey(it, o.no, idx);
+      if (book[key]) return;                           /* اولین (CO با اولویت) برنده است */
+      book[key] = { price: price, currency: o.currency || 'IRR', offerNo: o.no || '', kind: o.kind || '' };
+    });
+  });
+  return book;
+};
+
+/* پرکردن قیمت خالی یک ردیف از دفتر قیمت — بدون بازنویسی قیمت واقعی و بدون مخلوط‌کردن ارز. */
+function unInvApplyPriceBook(line, it, offer, book, idx) {
+  if (!book || (+line.price || 0) > 0) return line;
+  var hit = book[window.unofficialInvoiceItemKey(it, offer && offer.no, idx)];
+  if (!hit) return line;
+  var lineCur = (offer && offer.currency) || 'IRR';
+  if (String(hit.currency || 'IRR') !== String(lineCur)) {
+    line.priceNeedsAttention = true;                   /* ارز ناهمخوان: عمداً پر نمی‌شود */
+    return line;
+  }
+  line.price = hit.price;
+  line.lineTotal = (+line.qty || 0) * hit.price;
+  line.priceFromOffer = hit.offerNo;                   /* شفافیت: قیمت از کدام پیشنهاد آمد */
+  line.priceDefaulted = true;
+  return line;
+}
+window.unofficialInvoiceApplyPriceBook = unInvApplyPriceBook;
+
+// ===== Helper: عکس‌برداری از اقلام یک پیشنهاد (deep-clone قلم‌به‌قلم) =====
+window.unofficialInvoiceSnapshotLines = function (offer, priceBook) {
+  if (!offer || !offer.items) return [];
+  return (offer.items || []).map(function (it, idx) {
+    var qty = +it.qty || 0;
+    var price = +it.price || 0;
+    var line = {
+      idx: idx,
+      name: it.name || '',
+      desc: it.desc || '',
+      unit: it.unit || '',
+      pcode: it.pcode || it.prodCd || it.productCd || '',
+      qtyOrig: qty,
+      priceOrig: price,
+      qty: qty,
+      price: price,
+      lineTotal: qty * price,
+      fromOffer: offer.no || '',
+      fromKind: offer.kind || ''
+    };
+    return unInvApplyPriceBook(line, it, offer, priceBook, idx);
+  });
+};
+
+// ===== Helper: ترکیب اقلام از چند پیشنهاد (برای حالت تجمیعی) =====
+window.unofficialInvoiceConsolidateLines = function (selectedOffers, priceSourceOffer, priceBook) {
+  var lines = [];
+  var seen = {};
+  /* v34.7.29: اگر دفتر قیمت داده نشود، از خود پیشنهادهای انتخاب‌شده ساخته می‌شود تا
+     رفتار پیش‌فرض همیشه «قیمت پیشنهاد مالی» باشد، حتی در فراخوان‌های قدیمی. */
+  var book = priceBook || window.unofficialInvoicePriceBook(
+    (selectedOffers || []).concat(priceSourceOffer ? [priceSourceOffer] : []),
+    priceSourceOffer && priceSourceOffer.no
+  );
+  (selectedOffers || []).forEach(function (o) {
+    if (!o || !o.items) return;
+    o.items.forEach(function (it, idx) {
+      var key = window.unofficialInvoiceItemKey(it, o.no, idx);
+      var qty = +it.qty || 0;
+      var price = +it.price || 0;
+      var prev = seen[key];
+      if (prev) {
+        /* v34.7.29: تکرار قلم دیگر «اولین برنده» نیست؛ ردیفِ دارای قیمت واقعی برنده است.
+           پیش از این اگر پیشنهاد فنی زودتر می‌آمد، قیمت CO دور ریخته می‌شد. */
+        if ((+prev.price || 0) <= 0 && price > 0) {
+          prev.price = price; prev.priceOrig = price; prev.lineTotal = (+prev.qty || 0) * price;
+          prev.fromOffer = o.no || prev.fromOffer; prev.fromKind = o.kind || prev.fromKind;
+          prev.priceDefaulted = false; prev.priceNeedsAttention = false;
+        }
+        return;
+      }
+      var line = {
+        idx: idx,
+        name: it.name || '',
+        desc: it.desc || '',
+        unit: it.unit || '',
+        pcode: it.pcode || it.prodCd || it.productCd || '',
+        qtyOrig: qty,
+        priceOrig: price,
+        qty: qty,
+        price: price,
+        lineTotal: qty * price,
+        fromOffer: o.no || '',
+        fromKind: o.kind || ''
+      };
+      seen[key] = line;
+      lines.push(line);
+    });
+  });
+  /* پرکردن جای خالی قیمت‌ها از پیشنهاد مالی پرونده (پس از ادغام، تا ترتیب اثری نداشته باشد) */
+  lines.forEach(function (ln) {
+    unInvApplyPriceBook(ln, { pcode: ln.pcode, name: ln.name, desc: ln.desc },
+      { no: ln.fromOffer, currency: (selectedOffers || []).filter(function (o) { return o && o.no === ln.fromOffer; })[0] &&
+        (selectedOffers.filter(function (o) { return o && o.no === ln.fromOffer; })[0].currency || 'IRR') || 'IRR' }, book, ln.idx);
+  });
+  return lines;
+};
+
+// ===== حالت سراسری دیالوگ (برای توابع کنترلی) =====
+var _unInvState = null;
+
+// ===== باز کردن دیالوگ سازندهٔ فاکتور =====
+window.unofficialInvoiceBuilderOpen = function (dealCd) {
+  // گارد نقش
+  var _role = (typeof curRole === 'function') ? curRole() : '';
+  var _isSnr = (typeof isSenior === 'function') && isSenior();
+  if (!_isSnr && _role !== 'accountant') {
+    if (typeof alert === 'function') alert('⛔ صدور صورتحساب غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+    return;
+  }
+  /* UI-01 (v34.7.20): تطبیق متقارن شناسهٔ پرونده.
+     ریشهٔ باگ: پرونده دو شناسه دارد — `_id` سروری و `cd` محلی. فراخوان کشوی پرونده
+     (`crm/salesfiles.js`) مقدار `r.cd` می‌فرستاد ولی این‌جا اول `_id` خوانده و با ورودی
+     مقایسه می‌شد؛ برای هر پرونده‌ای که شناسهٔ سروری گرفته بود (عملاً همهٔ پرونده‌های v35)
+     تطبیق شکست می‌خورد و پیام «پرونده فروش یافت نشد» ظاهر می‌شد و دیالوگ صدور باز نمی‌شد.
+     اکنون هر دو شناسه مستقل بررسی می‌شوند تا هر دو مسیر فراخوان (قدیمی و جدید) کار کنند.
+     مرجع: ARENA-RCA-UNOFFICIAL-INVOICE-CASE-NOT-FOUND-2026-08-17.md | گام B1 نقشهٔ فازبندی */
+  var _needle = String(dealCd || '').trim();
+  var _deal = (getData('ptf_crm_deals') || []).filter(function (x) {
+    if (!x || !_needle) return false;
+    return String(x._id || '') === _needle || String(x.cd || '') === _needle;
+  })[0];
+  if (!_deal) {
+    if (typeof alert === 'function') alert('⛔ پرونده فروش یافت نشد');
+    return;
+  }
+  var _stg = (typeof sfStageOf === 'function') ? sfStageOf(_deal) : 0;
+  if (_stg < 7) {
+    if (typeof alert === 'function') alert('🔒 صدور صورتحساب غیررسمی پس از تحویل کارفرما فعال می\u200cشود (مرحلهٔ فعلی: ' + _stg + ' از ۱۲).');
+    return;
+  }
+  var collected = window.unofficialInvoiceCollectOffers(_deal);
+  if (!collected.offers.length) {
+    if (typeof alert === 'function') alert('⛔ هیچ پیشنهاد دارای اقلام به این پرونده متصل نیست.');
+    return;
+  }
+
+  // حذف دیالوگ قبلی اگر باز باشد
+  document.querySelectorAll('#unInvBuilderDlg').forEach(function (el) { el.remove(); });
+
+  var _co = collected.priceSourceOffer;
+  /* v34.7.29: دفتر قیمت پرونده یک‌بار از پیشنهادهای مالی ساخته می‌شود و در هر دو حالت
+     (تک‌پیشنهاد/تجمیعی) مبنای پیش‌فرض قیمت است. */
+  var _priceBook = window.unofficialInvoicePriceBook(collected.offers, _deal.wonOffer || (_co && _co.no) || '');
+  var initialLines = window.unofficialInvoiceSnapshotLines(_co, _priceBook);
+
+  // ذخیره حالت سراسری
+  _unInvState = {
+    deal: _deal,
+    collected: collected,
+    mode: 'single',
+    selectedOfferNos: _co ? [_co.no] : [collected.offers[0].no],
+    lines: initialLines,
+    priceBook: _priceBook,
+    cCurrency: (_co && _co.currency) ? _co.currency : 'IRR',
+    cRate: (_co && +_co.fxRateRef) > 0 ? (+_co.fxRateRef) : 1
+  };
+
+  var _dlg = document.createElement('div');
+  _dlg.id = 'unInvBuilderDlg';
+  _dlg.className = 'md-b';
+  _dlg.style.cssText = 'display:grid;z-index:2800;';
+  _dlg.setAttribute('data-deal-cd', (window.PTF && typeof window.PTF.id === 'function') ? window.PTF.id(_deal) : (_deal._id || _deal.cd || '')); /* v34.7.28: شناسهٔ متعارف */
+  _dlg.onclick = function (e) { if (e.target === _dlg) _dlg.remove(); };
+  _dlg.innerHTML = buildUnInvBuilderHtml(_unInvState);
+  document.body.appendChild(_dlg);
+  bindUnInvBuilderHandlers(_dlg);
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== ساخت HTML داخلی دیالوگ =====
+window.buildUnInvBuilderHtml = function (st) {
+  var kindLabels = { CO: 'پیشنهاد مالی', TC: 'پیشنهاد فنی-مالی', TO: 'پیشنهاد فنی' };
+  var _co = st.collected.priceSourceOffer;
+  var _coKindLabel = kindLabels[_co ? _co.kind : ''] || '—';
+
+  var _coWarn = '';
+  if (!st.collected.hasFinancialOffer && _co && _co.kind !== 'CO') {
+    _coWarn = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:8px 11px;margin-bottom:10px;font-size:11.5px;color:#92400e;">' +
+      '⚠️ پیشنهاد مالی (CO) در پرونده یافت نشد (یا فاقد اقلام است). قیمت\u200cهای پیش\u200cفرض از همین پیشنهاد لود شده\u200cاند. توصیه می\u200cشود ابتدا یک CO با قیمت\u200cهای واقعی ثبت کنید.</div>';
+  }
+
+  // چک‌باکس‌های پیشنهاد برای انتخاب در حالت تجمیعی
+  var _offersCheckHtml = st.collected.offers.map(function (o) {
+    var kindBadge = '<span class="bd" style="background:#dbeafe;color:#1e40af;border-radius:6px;padding:1px 6px;font-size:10.5px;">' + escP(kindLabels[o.kind] || o.kind) + '</span>';
+    var coBadge = (o.kind === 'CO') ? ' <span class="bd" style="background:#fef3c7;color:#92400e;border-radius:6px;padding:1px 6px;font-size:10.5px;">⭐ مبدأ قیمت</span>' : '';
+    var checkedFlag = (st.selectedOfferNos.indexOf(o.no) >= 0) ? ' checked' : '';
+    return '<label style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px dashed #e2e8f0;cursor:pointer;font-size:12.5px;">' +
+      '<input type="checkbox" class="un-offer-row-chk" data-offer="' + escP(o.no) + '"' + checkedFlag + '>' +
+      '<b dir="ltr" style="font-size:12px;">' + escP(o.no) + '</b> ' + kindBadge + coBadge +
+      ' <span style="color:#94a3b8;font-size:11px;">(' + ((o.items || []).length) + ' قلم)</span></label>';
+  }).join('');
+
+  function unitFa(u) {
+    if (typeof window.translateUnitFa === 'function') return window.translateUnitFa(u);
+    return String(u || 'عدد');
+  }
+
+  var _rows = buildUnInvBuilderRows(st.lines);
+
+  var _html = '' +
+    '<div class="md" style="max-width:940px;max-height:94vh;overflow:auto;">' +
+    '<h3 style="margin:0 0 10px;color:#1e293b;font-size:15.5px;">🧾 صدور صورتحساب پرداخت غیررسمی — ' + escP(st.deal.inqNo || st.deal.cd) + '</h3>' +
+    '<div style="font-size:11.5px;color:#475569;margin-bottom:8px;">پیشنهاد مبدأ قیمت: <b>' + escP(_co ? _co.no : '—') + '</b> ' +
+      '<span class="bd" style="background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:6px;font-size:10px;">⭐ CO مرجع</span>' +
+      ' <span style="color:#94a3b8;">(' + escP(_coKindLabel) + ')</span></div>' +
+    _coWarn +
+    '<div class="fr" style="margin-bottom:10px;gap:14px;align-items:center;background:#f8fafc;padding:8px 12px;border-radius:10px;">' +
+      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="single" checked> ◯ تک\u200cپیشنهاد</label>' +
+      '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;font-weight:800;cursor:pointer;"><input type="radio" name="unMode" value="consolidated"> ◯ تجمیعی چند پیشنهاد</label>' +
+      '<span style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:2px 8px;color:#475569;font-size:11px;">📑 ' + st.collected.offers.length + ' پیشنهاد متصل</span>' +
+    '</div>' +
+    '<div id="unSingleBox">' +
+      '<div class="fld"><label>پیشنهاد مبدأ (پیش\u200cفرض = اولین CO)</label><select id="unSingleOffer" style="width:100%;padding:7px;border:1px solid #cbd5e1;border-radius:8px;">' +
+      st.collected.offers.map(function (o) {
+        var sel = (o.no === _co.no) ? ' selected' : '';
+        return '<option value="' + escP(o.no) + '"' + sel + '>' + escP(o.no) + ' — ' + escP(kindLabels[o.kind] || o.kind) + ' (' + ((o.items || []).length) + ' قلم)</option>';
+      }).join('') +
+      '</select></div>' +
+    '</div>' +
+    '<div id="unConsolidatedBox" style="display:none;">' +
+      '<div class="fld"><label>پیشنهادهای انتخاب\u200cشده (✓ برای تجمیع علامت بزنید)</label>' +
+      '<div class="tb2" style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:4px 8px;max-height:130px;overflow:auto;">' + _offersCheckHtml + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="fld" style="margin-top:10px;"><label>🛒 اقلام فاکتور (پیش\u200cفرض از <b>' + escP(_co ? _co.no : '—') + '</b> · قیمت هر قلم قابل ویرایش)</label>' +
+      '<div style="max-height:380px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;">' +
+      '<table style="width:100%;font-size:12.5px;border-collapse:collapse;">' +
+      '<thead><tr style="background:#334155;color:#fff;">' +
+      '<th style="padding:7px;font-size:11.5px;width:6%;">عملیات</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:14%;">منبع</th>' +
+      '<th style="padding:7px;font-size:11.5px;">شرح</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:9%;">واحد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:10%;">تعداد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:18%;">قیمت واحد</th>' +
+      '<th style="padding:7px;font-size:11.5px;width:15%;">قیمت کل</th>' +
+      '</tr></thead>' +
+      '<tbody id="unRowsTbody">' + _rows + '</tbody>' +
+      '</table>' +
+      '</div>' +
+      '<div style="margin-top:7px;display:flex;gap:7px;flex-wrap:wrap;">' +
+      '<button type="button" class="bt bt-o" onclick="unofficialInvoiceBuilderAddCustomRow()">\uff0b افزودن قلم سفارشی</button>' +
+      '<button type="button" class="bt bt-o" onclick="unofficialInvoiceBuilderResetFromOffer()">♻️ بازنشانی از پیشنهاد</button>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">' +
+      '<div class="fld"><label>تخفیف اختیاری (مبلغ یا درصد)</label><input id="unDiscInput" type="text" placeholder="مثال: 5% یا 500000" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' +
+      '<div class="fld"><label>شماره حساب / شبا (اختیاری)</label><input id="unBankInput" type="text" placeholder="مثال: IR..."></div>' +
+      (st.cCurrency !== 'IRR' ?
+        '<div class="fld"><label>نرخ تسعیر روز صدور (ریال/' + escP(st.cCurrency) + ')</label><input id="unRateInput" type="number" dir="ltr" value="' + st.cRate + '" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' :
+        '<div></div>'
+      ) +
+    '</div>' +
+    '<div id="unResultBox" style="margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px;font-size:13px;color:#166534;line-height:1.7;"></div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+    '<button class="bt bt-o" onclick="document.getElementById(\'unInvBuilderDlg\').remove()">❌ انصراف</button>' +
+    '<button class="bt" style="background:#0e7490;color:#fff;font-weight:800;" onclick="unofficialInvoiceBuilderSubmit()">✅ تأیید و صدور</button>' +
+    '</div>' +
+    '</div>';
+  return _html;
+};
+
+window.buildUnInvBuilderRows = function (lines) {
+  var unitFaFn = typeof window.translateUnitFa === 'function' ? window.translateUnitFa : function (u) { return String(u || 'عدد'); };
+  return (lines || []).map(function (ln) {
+    var pid = 'un-row-' + (ln.idx) + '-' + Math.random().toString(36).slice(2, 7);
+    ln._pid = pid;
+    return '<tr data-row-id="' + pid + '" data-from-offer="' + escP(ln.fromOffer || '') + '" class="un-row" style="border-bottom:1px solid #f1f5f9;">' +
+      '<td style="padding:4px;text-align:center;"><button type="button" class="ba" style="color:#dc2626;padding:1px 5px;font-size:11px;" onclick="unofficialInvoiceBuilderRemoveRow(\'' + pid + '\')">حذف</button></td>' +
+      /* v34.7.29: منشأ قیمت شفاف است — اگر قیمت از پیشنهاد مالی دیگری پیش‌فرض شده، همان‌جا دیده می‌شود. */
+      '<td style="padding:4px;font-size:10.5px;color:#475569;text-align:center;" dir="ltr">' + escP(ln.fromOffer || '—') + '<br><small style="color:#94a3b8;">' + escP(ln.fromKind || '') + '</small>' +
+        (ln.priceDefaulted && ln.priceFromOffer ? '<br><small style="color:#0e7490;">قیمت از ' + escP(ln.priceFromOffer) + '</small>' : '') +
+        (ln.priceNeedsAttention ? '<br><small style="color:#b45309;">ارز پیشنهاد مالی متفاوت است — قیمت را دستی وارد کنید</small>' : '') +
+      '</td>' +
+      '<td style="padding:4px;font-size:12px;"><b>' + escP(ln.name || '—') + '</b>' + (ln.desc && ln.desc !== ln.name ? '<br><small style="color:#94a3b8;">' + escP(ln.desc) + '</small>' : '') + '</td>' +
+      '<td style="padding:4px;text-align:center;font-size:11px;">' + escP(unitFaFn(ln.unit)) + '</td>' +
+      '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="qty" data-pid="' + pid + '" value="' + (+ln.qty || 0) + '" style="direction:ltr;padding:4px;width:70px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
+      '<td style="padding:4px;text-align:center;"><input type="number" min="0" step="any" data-fld="price" data-pid="' + pid + '" value="' + (+ln.price || 0) + '" style="direction:ltr;padding:4px;width:150px;border:1px solid #cbd5e1;border-radius:6px;text-align:center;" oninput="unofficialInvoiceBuilderRecalc()"></td>' +
+      '<td style="padding:4px;text-align:left;direction:ltr;" class="row-total" data-pid="' + pid + '">' + ((+ln.qty || 0) * (+ln.price || 0)).toLocaleString('en-US') + '</td>' +
+      '</tr>';
+  }).join('');
+};
+
+// ===== اتصال event handlers =====
+window.bindUnInvBuilderHandlers = function (_dlg) {
+  // mode change
+  _dlg.querySelectorAll('input[name="unMode"]').forEach(function (inp) {
+    inp.onchange = function () {
+      applyUnInvBuilderMode(_dlg);
+      window.unofficialInvoiceBuilderRecalc();
+    };
+  });
+  // single-offer change -> reload
+  var _singleSel = _dlg.querySelector('#unSingleOffer');
+  if (_singleSel) _singleSel.onchange = function () { reloadUnInvBuilderFromSelection(_dlg); };
+  // checkbox change -> reload
+  _dlg.querySelectorAll('.un-offer-row-chk').forEach(function (chk) {
+    chk.onchange = function () { reloadUnInvBuilderFromSelection(_dlg); };
+  });
+  // initial mode apply
+  applyUnInvBuilderMode(_dlg);
+};
+
+window.applyUnInvBuilderMode = function (_dlg) {
+  var _mode = 'single';
+  _dlg.querySelectorAll('input[name="unMode"]').forEach(function (inp) {
+    if (inp.checked) _mode = inp.value;
+  });
+  _unInvState.mode = _mode;
+  if (_mode === 'consolidated') {
+    _dlg.querySelector('#unSingleBox').style.display = 'none';
+    _dlg.querySelector('#unConsolidatedBox').style.display = '';
+  } else {
+    _dlg.querySelector('#unSingleBox').style.display = '';
+    _dlg.querySelector('#unConsolidatedBox').style.display = 'none';
+  }
+};
+
+window.reloadUnInvBuilderFromSelection = function (_dlg) {
+  var _mode = _unInvState.mode;
+  var __lines = [];
+  if (_mode === 'single') {
+    var _singleNo = _dlg.querySelector('#unSingleOffer').value;
+    var _singleOffer = _unInvState.collected.offers.filter(function (o) { return o.no === _singleNo; })[0]
+      || _unInvState.collected.priceSourceOffer
+      || _unInvState.collected.offers[0];
+    __lines = window.unofficialInvoiceSnapshotLines(_singleOffer, _unInvState.priceBook);
+    _unInvState.selectedOfferNos = [_singleOffer.no];
+  } else {
+    var _checkedNos = Array.from(_dlg.querySelectorAll('.un-offer-row-chk:checked')).map(function (c) { return c.getAttribute('data-offer'); });
+    if (!_checkedNos.length) {
+      // پیشنهاد مبدأ به\u200cطور پیش\u200cفرض انتخاب\u200cشده باقی بماند
+      _checkedNos = [_unInvState.collected.priceSourceOffer.no];
+    }
+    _unInvState.selectedOfferNos = _checkedNos;
+    var _sel = _unInvState.collected.offers.filter(function (o) { return _checkedNos.indexOf(o.no) >= 0; });
+    __lines = window.unofficialInvoiceConsolidateLines(_sel, _unInvState.collected.priceSourceOffer, _unInvState.priceBook);
+  }
+  _unInvState.lines = __lines;
+  var _tbody = _dlg.querySelector('#unRowsTbody');
+  _tbody.innerHTML = window.buildUnInvBuilderRows(__lines);
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== محاسبهٔ زندهٔ جمع کل + تخفیف + نمایش در result box =====
+window.unofficialInvoiceBuilderRecalc = function () {
+  if (!_unInvState) return;
+  var _dlg = document.getElementById('unInvBuilderDlg');
+  if (!_dlg) return;
+  var total = 0;
+  _dlg.querySelectorAll('#unRowsTbody tr').forEach(function (tr) {
+    var pid = tr.getAttribute('data-row-id');
+    var qtyEl = _dlg.querySelector('input[data-fld="qty"][data-pid="' + pid + '"]');
+    var prEl = _dlg.querySelector('input[data-fld="price"][data-pid="' + pid + '"]');
+    var q = qtyEl ? (+qtyEl.value || 0) : 0;
+    var p = prEl ? (+prEl.value || 0) : 0;
+    var rowTotal = q * p;
+    var trTotalEl = _dlg.querySelector('.row-total[data-pid="' + pid + '"]');
+    if (trTotalEl) trTotalEl.textContent = rowTotal.toLocaleString('en-US');
+    total += rowTotal;
+    // update state
+    var ln = _unInvState.lines.filter(function (l) { return l._pid === pid; })[0];
+    if (ln) { ln.qty = q; ln.price = p; ln.lineTotal = rowTotal; }
+  });
+
+  var _discInput = (_dlg.querySelector('#unDiscInput') || {}).value || '';
+  var _discVal = 0; var _discPct = null;
+  if (_discInput.trim()) {
+    var _clean = _discInput.replace(/[٪%]/g, '');
+    if (_discInput.indexOf('%') >= 0 || _discInput.indexOf('٪') >= 0) {
+      _discPct = parseFloat(_clean) || 0;
+      _discVal = Math.round(total * _discPct / 100);
+    } else {
+      _discVal = parseFloat(_clean.replace(/,/g, '')) || 0;
+    }
+  }
+  var _net = Math.max(0, total - _discVal);
+
+  var _cur = _unInvState.cCurrency;
+  var _rateEl = _dlg.querySelector('#unRateInput');
+  var _rate = _rateEl ? (+_rateEl.value || _unInvState.cRate) : _unInvState.cRate;
+  var _totalIrr = _cur === 'IRR' ? total : Math.round(total * _rate);
+  var _discIrr = _cur === 'IRR' ? _discVal : Math.round(_discVal * _rate);
+  var _netIrr = _cur === 'IRR' ? _net : Math.round(_net * _rate);
+
+  var _rateHtml = (_cur !== 'IRR') ? ' | <small style="color:#0e7490;">نرخ تسعیر: ' + _rate.toLocaleString('fa-IR') + ' ریال/' + escP(_cur) + ' ⇒ مبلغ ریالی: ' + _totalIrr.toLocaleString('fa-IR') + ' ریال</small>' : '';
+
+  _dlg.querySelector('#unResultBox').innerHTML =
+    '<b>📊 جمع کل اقلام (به ارز سند):</b> ' + total.toLocaleString('en-US') + ' ' + escP(_cur) + _rateHtml +
+    '<br><b>🏷️ تخفیف:</b> ' + (_discVal ? _discVal.toLocaleString('en-US') + ' ' + escP(_cur) + (_discPct !== null ? ' (' + _discPct.toLocaleString('en-US') + '٪)' : '') : '—') +
+    '<br><b>✅ خالص قابل پرداخت (به ارز سند):</b> ' + (_cur === 'IRR' ? '' : '').toString() + _net.toLocaleString('en-US') + ' ' + escP(_cur) +
+    (_cur !== 'IRR' ? ' ⇒ ' + _netIrr.toLocaleString('fa-IR') + ' ریال' : '');
+};
+
+// ===== حذف یک قلم =====
+window.unofficialInvoiceBuilderRemoveRow = function (pid) {
+  if (!_unInvState) return;
+  _unInvState.lines = _unInvState.lines.filter(function (l) { return l._pid !== pid; });
+  var _tr = document.querySelector('#unInvBuilderDlg tr[data-row-id="' + pid + '"]');
+  if (_tr) _tr.remove();
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== افزودن قلم سفارشی =====
+window.unofficialInvoiceBuilderAddCustomRow = function () {
+  if (!_unInvState) return;
+  var newLine = {
+    idx: 'cu-' + Math.random().toString(36).slice(2, 6),
+    name: 'قلم سفارشی',
+    desc: '',
+    unit: 'NO',
+    pcode: '',
+    qtyOrig: 1,
+    priceOrig: 0,
+    qty: 1,
+    price: 0,
+    lineTotal: 0,
+    fromOffer: _unInvState.collected.priceSourceOffer ? _unInvState.collected.priceSourceOffer.no : '—',
+    fromKind: 'CUSTOM',
+    custom: true
+  };
+  _unInvState.lines.push(newLine);
+  var _tbody = document.getElementById('unRowsTbody');
+  _tbody.insertAdjacentHTML('beforeend', window.buildUnInvBuilderRows([newLine]));
+  window.unofficialInvoiceBuilderRecalc();
+};
+
+// ===== بازنشانی از پیشنهاد =====
+window.unofficialInvoiceBuilderResetFromOffer = function () {
+  var _dlg = document.getElementById('unInvBuilderDlg');
+  if (!_dlg) return;
+  if (!confirm('اقلام به مقادیر پیش\u200cفرض پیشنهاد(های) انتخاب\u200cشده بازنشانی شوند؟')) return;
+  reloadUnInvBuilderFromSelection(_dlg);
+};
+
+// ===== تأیید و صدور =====
+window.unofficialInvoiceBuilderSubmit = function () {
+  if (!_unInvState) return;
+  var _dlg = document.getElementById('unInvBuilderDlg');
+  if (!_dlg) return;
+  // اعتبارسنجی: حداقل یک قلم با مبلغ > 0
+  var validRows = _unInvState.lines.filter(function (l) {
+    return (+l.qty || 0) > 0 && (+l.price || 0) > 0;
+  });
+  if (!validRows.length) {
+    if (typeof alert === 'function') alert('⛔ حداقل یک قلم با تعداد و قیمت واحد بزرگ\u200cتر از صفر لازم است.');
+    return;
+  }
+  /* v34.7.29: ردیف بدون قیمت دیگر بی‌صدا حذف نمی‌شود؛ چون قیمت پیش‌فرض از پیشنهاد مالی
+     پرونده پر می‌شود، ماندنِ صفر یعنی آن قلم در هیچ پیشنهاد مالی‌ای قیمت ندارد و کاربر
+     باید آگاهانه تصمیم بگیرد. */
+  var _zeroRows = _unInvState.lines.filter(function (l) { return (+l.qty || 0) > 0 && (+l.price || 0) <= 0; });
+  if (_zeroRows.length) {
+    var _names = _zeroRows.slice(0, 8).map(function (l) { return '• ' + (l.name || l.desc || '—'); }).join('\n');
+    var _msg = '⚠ ' + _zeroRows.length + ' قلم قیمت ندارد (در هیچ پیشنهاد مالی این پرونده قیمتی برایشان ثبت نشده):\n' +
+      _names + (_zeroRows.length > 8 ? '\n…' : '') +
+      '\n\nاین اقلام در پیش‌فاکتور درج نمی‌شوند. ادامه می‌دهید؟';
+    if (typeof confirm === 'function' && !confirm(_msg)) return;
+  }
+  var _linesWithTotal = _unInvState.lines.filter(function (l) {
+    return (+l.qty || 0) > 0 && (+l.price || 0) > 0;
+  });
+
+  // جمع\u200cآوری ورودی\u200cها
+  var _discInput = (_dlg.querySelector('#unDiscInput') || {}).value || '';
+  var _bankInput = (_dlg.querySelector('#unBankInput') || {}).value || '';
+  var _rateEl = _dlg.querySelector('#unRateInput');
+  var _rate = _rateEl ? (+_rateEl.value || _unInvState.cRate) : _unInvState.cRate;
+
+  // ساخت consolidated meta اگر تجمیعی
+  var consolidatedMeta = null;
+  if (_unInvState.mode === 'consolidated') {
+    var _allSelNos = _unInvState.selectedOfferNos;
+    var _byNo = {};
+    _unInvState.collected.offers.forEach(function (o) { _byNo[o.no] = o; });
+    consolidatedMeta = _allSelNos.map(function (no) {
+      var o = _byNo[no];
+      var _shareItems = _linesWithTotal.filter(function (l) { return l.fromOffer === no; });
+      var _shareIrr = _shareItems.reduce(function (s, l) { return s + (l.qty * l.price); }, 0);
+      return {
+        offerNo: no,
+        kind: o ? o.kind : '?',
+        itemsCount: _shareItems.length,
+        totalIrr: _shareIrr,
+        sharePct: 0
+      };
+    });
+    var _grandTotal = consolidatedMeta.reduce(function (s, m) { return s + m.totalIrr; }, 0) || 1;
+    consolidatedMeta.forEach(function (m) { m.sharePct = Math.round((m.totalIrr * 1000 / _grandTotal)) / 10; });
+  }
+
+  // پیشنهاد مبدأ (CO) برای رسم سند
+  var primaryOffer = _unInvState.collected.priceSourceOffer;
+  if (_unInvState.mode === 'single') {
+    var _singleOfferNo = _dlg.querySelector('#unSingleOffer').value;
+    primaryOffer = _unInvState.collected.offers.filter(function (o) { return o.no === _singleOfferNo; })[0] || primaryOffer;
+  }
+
+  // بستن دیالوگ
+  _dlg.remove();
+
+  // فراخوان تابع صدور سفارشی
+  window.unofficialInvoicePrintCases({
+    primaryOffer: primaryOffer,
+    offerNos: _unInvState.selectedOfferNos.slice(),
+    isConsolidated: _unInvState.mode === 'consolidated',
+    consolidatedFromOffers: consolidatedMeta,
+    linesSnapshot: _linesWithTotal,
+    discountInput: _discInput,
+    bankAccount: _bankInput,
+    currentRate: _rate,
+    /* v34.7.28: شناسهٔ متعارف (قرارداد PTF.id) — پیش‌تر cd اول بود و با مصرف‌کننده‌های _id-اول نمی‌خواند. */
+    dealCd: (window.PTF && typeof window.PTF.id === 'function') ? window.PTF.id(_unInvState.deal) : (_unInvState.deal._id || _unInvState.deal.cd || '')
+  });
+};
+
+// ===== پرینتر سفارشی: صدور با snapshot از پیش ویرایش\u200cشده =====
+window.unofficialInvoicePrintCases = function (ctx) {
+  if (!ctx || !ctx.primaryOffer || !ctx.linesSnapshot || !ctx.linesSnapshot.length) {
+    if (typeof alert === 'function') alert('⛔ اطلاعات صدور ناقص است.');
+    return;
+  }
+  // تمیزسازی دوبارشماری\u200cها (همان رفتار unofficialInvoicePrint)
+  if (typeof window.ptfUnofficialInvoiceVoid === 'function') {
+    // no direct cleanUpDoubleInvoices from outside — call it via context
+  }
+  if (typeof window.cleanUpDoubleInvoices === 'function') { /*lint*/ }
+  // call via un-inv-invoice internal cleanUpDoubleInvoices only if visible
+  try {
+    var ev = new Function('try { cleanUpDoubleInvoices(); } catch(e) {}');
+    // NOTE: cleanUpDoubleInvoices is in IIFE-private scope in unofficial-invoice.js;
+    // we rely on the existing call at module-load, plus what `unofficialInvoicePrint` already does:
+  } catch (e){}
+
+  var primaryOffer = ctx.primaryOffer;
+  var _co = primaryOffer;
+  // ساخت نمونه offer جایگزین با items = snapshot (برای استفاده در generateUnofficialInvoiceHtml)
+  var _syntheticOffer = Object.assign({}, _co, { items: ctx.linesSnapshot });
+
+  // محاسبه کل اقلام
+  var total = ctx.linesSnapshot.reduce(function (s, ln) { return s + (+ln.qty || 0) * (+ln.price || 0); }, 0);
+
+  // پردازش تخفیف
+  var discountVal = 0, discountLabel = 'تخفیف توافقی';
+  var _di = (ctx.discountInput || '').trim();
+  if (_di) {
+    var _clean = _di.replace(/[٪%]/g, '');
+    if (_di.indexOf('%') >= 0 || _di.indexOf('٪') >= 0) {
+      var pct = parseFloat(_clean) || 0;
+      discountVal = Math.round(total * pct / 100);
+      discountLabel = 'تخفیف توافقی (' + pct + '٪)';
+    } else {
+      discountVal = parseFloat(_clean.replace(/,/g, '')) || 0;
+    }
+  }
+  var currentRate = ctx.currentRate || _co.fxRateRef || 1;
+
+  // محاسبه پیش\u200cپرداخت
+  var advPayIrr = 0, _a = null;
+  try {
+    _a = (typeof ptfAdvanceNormalize === 'function' && !window.PTF_SALES_DOMAIN_V2) ? ptfAdvanceNormalize(_co) : null;
+    if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
+      advPayIrr = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
+    }
+  } catch (eAdv) {}
+  var advRate = _co.advance && _co.advance.rate ? +_co.advance.rate : currentRate;
+
+  // گارد سال مالی قفل
+  var invYear = String(_co.dateFa || '').split('/')[0];
+  if (invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(invYear)) {
+    if (typeof alert === 'function') alert('🔒 خطا: سال مالی ' + invYear + ' قفل است. صدور در سال مالی قفل شده مجاز نیست.');
+    return;
+  }
+
+  // ساخت invoiceNo + invoiceCd برای حالت تجمیعی
+  var invoiceCd, invoiceNo;
+  if (ctx.isConsolidated) {
+    var _ts = new Date();
+    var _stamp = _ts.getFullYear() +
+      String(_ts.getMonth() + 1).padStart(2, '0') +
+      String(_ts.getDate()).padStart(2, '0') +
+      String(_ts.getHours()).padStart(2, '0') +
+      String(_ts.getMinutes()).padStart(2, '0');
+    invoiceCd = 'UN-INV-CONSOLIDATED-' + (ctx.dealCd || 'X') + '-' + _stamp;
+    invoiceNo = 'INV-CONSOLIDATED-' + _stamp;
+    var _primaryRef = String(_co.no || '').replace(/^PTF-/, '');
+    _syntheticOffer.no = 'PTF-' + _primaryRef + '-CONSOLIDATED';  // شماره نمایشی برای سند
+  } else {
+    invoiceNo = String(_co.no || '').replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
+    invoiceCd = 'UN-INV-' + (_co.no || '');
+  }
+
+  // پیدا کردن فاکتور موجود برای همان primary offer (در حالت تک)
+  var invs = getData('ptf_crm_invoices') || [];
+  var existing = null;
+  if (!ctx.isConsolidated) {
+    existing = invs.filter(function (x) {
+      return x && (x.cd === invoiceCd || (x.offerNo === _co.no && x.isUnofficial && x.status !== 'void'));
+    })[0];
+  }
+
+  // تبدیل\u200cهای ریالی
+  var totalIrr = _co.currency === 'IRR' || !_co.currency ? total : Math.round(total * currentRate);
+  var discountIrr = _co.currency === 'IRR' || !_co.currency ? discountVal : Math.round(discountVal * currentRate);
+
+  var advPayOriginal = _co.currency === 'IRR' || !_co.currency ? advPayIrr : (advRate > 0 ? (advPayIrr / advRate) : advPayIrr);
+  var netPayableOriginal = Math.max(0, total - discountVal - advPayOriginal);
+  var netPayableIrr = Math.round(netPayableOriginal * currentRate);
+  var amountIrr = advPayIrr + netPayableIrr;
+
+  // پیدا کردن پروندهٔ فروش برای اتصال
+  var _salesCase = (getData('ptf_crm_deals') || []).filter(function (d) {
+    /* v34.7.28: تطبیق با همهٔ نام‌های مستعار رکورد (PTF.sameEntity) به‌جای ترتیب دلخواه. */
+    var sameCase = (window.PTF && typeof window.PTF.sameEntity === 'function')
+      ? window.PTF.sameEntity(d, ctx.dealCd)
+      : (String(d && (d._id || d.cd) || '') === String(ctx.dealCd || '') && !!ctx.dealCd);
+    return d && (d.wonOffer === _co.no || (_co._id && d.rootOfferId === _co._id) || sameCase);
+  })[0] || null;
+
+  // ذخیره رکورد فاکتور
+  var newInv = null;
+  if (existing && !ctx.isConsolidated) {
+    /* UI-02 (v34.7.20): بازنویسی واقعی صورتحساب موجود.
+       ریشهٔ باگ: این شاخه فقط `caseId/customerId` را به‌روز می‌کرد (و دوبار هم ذخیره می‌کرد)،
+       اما مبلغ، تخفیف، snapshot اقلام و نرخ ارز دست‌نخورده می‌ماند؛ کاربر «صدور مجدد» می‌زد،
+       پیام موفقیت می‌گرفت و رکورد قدیمی سرِ جایش بود. اکنون محتوای مالی واقعاً به‌روز می‌شود.
+       عمداً دست‌نخورده: `cd` و `no` (هویت سند)، `invDate/t` (سال مالی و ترتیب تخصیص FIFO)
+       و `payments` (به‌جز ردیف پیش‌پرداخت که هم‌راستا می‌شود).
+       مرجع: بررسی مستقل N4 + گزارش تلفیقی §۷.۴ | گام B2 نقشهٔ فازبندی */
+    var _before = JSON.parse(JSON.stringify(existing));
+    existing.caseId = (_salesCase ? (_salesCase._id || _salesCase.cd || '') : (existing.caseId || ''));
+    existing.customerId = ((_salesCase && _salesCase.buyerCd) || _co.buyerCd || existing.customerId || '');
+    existing.offerNo = _co.no || existing.offerNo || '';
+    existing.buyerCo = _co.buyerCo || existing.buyerCo || '';
+    existing.amount = amountIrr;
+    existing.base = totalIrr;
+    existing.vat = 0;
+    existing.discount = discountIrr;
+    existing.discountLabel = discountLabel;
+    existing.discountInput = ctx.discountInput || '';
+    existing.offerCurrency = _co.currency || 'IRR';
+    existing.offerFxBasis = _co.fxBasis || '';
+    existing.offerFxRateRef = currentRate;
+    existing.bankAccount = ctx.bankAccount || existing.bankAccount || '';
+    existing.invoiceKind = 'single';
+    existing.sourceOfferNo = _co.no || '';
+    existing.overridedFromOffer = true;
+    existing.linesSnapshot = ctx.linesSnapshot;
+    existing.isUnofficial = true;
+    existing.status = existing.status || 'active';
+    existing.reissuedAt = faDateTime();
+    existing.reissuedBy = curSession().name || '?';
+    /* ردیف پیش‌پرداخت با مبلغ جدید هم‌راستا می‌شود (نه اضافه‌شدن ردیف دوم) */
+    existing.payments = Array.isArray(existing.payments) ? existing.payments : [];
+    var _advCd = 'RP-ADV-' + (_co.no || '');
+    var _advRow = existing.payments.filter(function (p) { return p && p.fromAdvance && String(p.cd || '') === _advCd; })[0];
+    if (_advRow) {
+      _advRow.amt = advPayIrr; _advRow.amountIrr = advPayIrr;
+      _advRow.fx = { fxAmt: advPayOriginal, rate: advRate };
+      _advRow.t = faDate(); _advRow.by = curSession().name;
+    } else if (advPayIrr > 0) {
+      existing.payments.push({ cd: _advCd, amt: advPayIrr, amountIrr: advPayIrr,
+        fx: { fxAmt: advPayOriginal, rate: advRate },
+        how: 'کسر مبالغ وصول\u200cشده پیش\u200cپرداخت (غیررسمی)',
+        t: faDate(), by: curSession().name, fromAdvance: true });
+    }
+    existing.advApplied = advPayIrr;
+    setData('ptf_crm_invoices', invs);
+    try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArI) {}
+    try { if (typeof audit === 'function') audit('صورتحساب غیررسمی', 'بازنویسی صورتحساب ' + (existing.no || existing.cd) + ' — مبلغ جدید ' + amountIrr.toLocaleString('fa-IR') + ' ریال', String(existing.cd || '')); } catch (eAu) {}
+    /* هم‌راستایی با سرور: همان فرمان ثبت، با کلید یکتای همین سند (سرور با cd به‌روزرسانی می‌کند) */
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
+      window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: existing, idempotencyKey: 'UNOFFICIAL-REISSUE|' + existing.cd + '|' + amountIrr })
+        .then(function () { if (typeof ptfToast === 'function') ptfToast('بازنویسی صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
+        .catch(function (e) {
+          var _cur = getData('ptf_crm_invoices') || [];
+          var _idx = -1;
+          _cur.forEach(function (x, i) { if (x && x.cd === _before.cd) _idx = i; });
+          if (_idx > -1) { _cur[_idx] = _before; setData('ptf_crm_invoices', _cur); }
+          try { if (window.PTF && window.PTF.ar) window.PTF.ar.invalidate(); } catch (eR) {}
+          if (typeof alert === 'function') alert('⛔ بازنویسی سروری صورتحساب ناموفق بود و نسخهٔ قبلی بازگردانده شد: ' + e.message);
+        });
+    }
+  } else {
+    newInv = {
+      cd: invoiceCd,
+      caseId: (_salesCase ? (_salesCase._id || _salesCase.cd || '') : ''),
+      customerId: ((_salesCase && _salesCase.buyerCd) || _co.buyerCd || ''),
+      no: invoiceNo,
+      offerNo: _co.no || '',
+      amount: amountIrr,
+      base: totalIrr,
+      vat: 0,
+      discount: discountIrr,
+      discountLabel: discountLabel,
+      discountInput: ctx.discountInput || '',
+      invDate: faDate(),
+      t: faDate(),
+      buyerCo: _co.buyerCo || '',
+      offerCurrency: _co.currency || 'IRR',
+      offerFxBasis: _co.fxBasis || '',
+      offerFxRateRef: currentRate,
+      payments: [],
+      isUnofficial: true,
+      bankAccount: ctx.bankAccount || '',
+      by: curSession().name || '?',
+      status: 'active',
+      // فیلدهای جدید (الزام ۱ و ۳)
+      invoiceKind: ctx.isConsolidated ? 'consolidated' : 'single',
+      sourceOfferNo: (_co.no || ''),
+      consolidatedFromOffers: ctx.consolidatedFromOffers || null,
+      overridedFromOffer: true,
+      linesSnapshot: ctx.linesSnapshot
+    };
+
+    if (advPayIrr > 0) {
+      newInv.payments.push({
+        cd: 'RP-ADV-' + (_co.no || ''),
+        amt: advPayIrr,
+        amountIrr: advPayIrr,
+        fx: { fxAmt: advPayOriginal, rate: advRate },
+        how: 'کسر مبالغ وصول\u200cشده پیش\u200cپرداخت (غیررسمی)',
+        t: faDate(),
+        by: curSession().name,
+        fromAdvance: true
+      });
+      newInv.advApplied = advPayIrr;
+    }
+
+    // پاکسازی فاکتور قبلی همان primary offer (در حالت تک) — همان رفتار unofficialInvoicePrint
+    if (!ctx.isConsolidated && existing) {
+      invs = invs.filter(function (x) { return x && x.cd !== existing.cd && !(x.offerNo === _co.no && x.isUnofficial && x.status !== 'void'); });
+    }
+    invs.unshift(newInv);
+    setData('ptf_crm_invoices', invs);
+
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
+      window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd })
+        .then(function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
+        .catch(function (e) {
+          var rollback = (getData('ptf_crm_invoices') || []).filter(function (x) { return x.cd !== newInv.cd; });
+          if (typeof window.ptfSyncApplyServerProjection === 'function') window.ptfSyncApplyServerProjection('ptf_crm_invoices', rollback);
+          else setData('ptf_crm_invoices', rollback);
+          if (typeof alert === 'function') alert('⛔ ثبت سروری صورتحساب غیررسمی ناموفق بود و رکورد محلی بازگردانده شد: ' + e.message);
+        });
+    }
+  }
+
+  // ثبت در timeline پرونده
+  try {
+    var _deals = getData('ptf_crm_deals');
+    /* v34.7.28: جست‌وجوی پرونده با همهٔ نام‌های مستعار؛ پیش‌تر اگر caseId خالی بود و
+       fallback به ctx.dealCd می‌رسید، رکورد پیدا نمی‌شد و رویداد timeline بی‌صدا ثبت نمی‌شد. */
+    var _needleCase = String((newInv && newInv.caseId) || (existing && existing.caseId) || (ctx.dealCd || ''));
+    var _dTarget = _deals.filter(function (x) {
+      return x && ((window.PTF && typeof window.PTF.sameEntity === 'function')
+        ? window.PTF.sameEntity(x, _needleCase)
+        : (!!_needleCase && (String(x._id || '') === _needleCase || String(x.cd || '') === _needleCase)));
+    })[0];
+    if (_dTarget) {
+      _dTarget.timeline = _dTarget.timeline || [];
+      _dTarget.timeline.push({
+        t: faDateTime(),
+        by: curSession().name || '?',
+        tx: '🧾 صورتحساب پرداخت غیررسمی ' + invoiceNo +
+           ' صادر شد — مبلغ کل دفتری ' + amountIrr.toLocaleString('fa-IR') + ' ریال' +
+           (ctx.isConsolidated ? ' (تجمیعی از ' + ctx.offerNos.length + ' پیشنهاد)' : '') +
+           (discountVal > 0 ? ' | تخفیف: ' + discountVal.toLocaleString('en-US') + ' ' + (primaryOffer.currency || 'IRR') : '') +
+           (advPayIrr > 0 ? ' | کسر پیش\u200cپرداخت: ' + advPayIrr.toLocaleString('fa-IR') + ' ریال' : '')
+      });
+      setData('ptf_crm_deals', _deals);
+    }
+  } catch (eD) {}
+
+  if (typeof ptfToast === 'function') {
+    ptfToast('صورتحساب ' + (ctx.isConsolidated ? 'تجمیعی ' : '') + 'با موفقیت صادر و در مطالبات هاب مالی ثبت گردید.', 'ok');
+  }
+
+  // رندر HTML و نمایش
+  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', advPayIrr, discountVal, discountLabel, currentRate, advRate);
+  if (typeof window.ptfPreviewPrintableDoc === 'function') {
+    window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceCd);
+  } else {
+    var w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); }
+  }
+};
+
+
+  // ========================================================================
+  // ARENA-2026-08-17 / گام ۱ طرح جداسازی: ابطال ریشه‌کن فاکتور غیررسمی
+  // الزام ۴ (ریشه‌کن: تمام آثار متصل به فاکتور پاک/باطل می‌شوند)
+  // الزام ۵ (حفاظتی: وصولی‌های مندرج و چک‌های متصل حذف/ابطال خودکار نمی‌شوند)
+  // راهکار: cascade ۵ مرحله‌ای + بستانکاری‌سازی خودکار مبلغ آزادشده از FIFO
+  // طراحی: فقط برای غیررسمی‌ها؛ فاکتور رسمی از مسیر ptfInvoiceVoid سرور-محور رسمی عبور می‌کند
+  // مجوز: فقط نقش‌های ارشد (admin/chairman/ceo/commercial) یا نقش حسابدار.
+  // سازگاری: PTF_SALES_DOMAIN_V2 فعال → علاوه بر محلی، فراخوان سرور ptfSalesDomainApi('void_unofficial_invoice', ...) در مسیر بعدی.
+  // ========================================================================
+  /* INV-01 (v34.7.23 / فاز E): گاردهای مشترک ابطال — دقیقاً همان قواعد مسیر legacy
+     (نقش، وجود رکورد، فقط غیررسمی، ابطال‌نشده، سال مالی باز، دلیل و تأیید کاربر).
+     تنها یک بار نوشته شده تا مسیر سروری و مسیر legacy هرگز از هم واگرا نشوند. */
+  window.ptfUnofficialInvoiceVoidLocalGuards = function (invCd, onConfirmed) {
+    try {
+      var _role = (typeof curRole === 'function') ? curRole() : '';
+      var _isSnr = (typeof isSenior === 'function') && isSenior();
+      if (!_isSnr && _role !== 'accountant') {
+        if (typeof alert === 'function') alert('⛔ ابطال فاکتور غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+        return { ok: false, why: 'role' };
+      }
+    } catch (eRole) {}
+    var _inv = (getData('ptf_crm_invoices') || []).filter(function (x) { return x && (x.cd === invCd || x._id === invCd); })[0];
+    if (!_inv) { if (typeof alert === 'function') alert('⛔ فاکتور یافت نشد'); return { ok: false, why: 'not_found' }; }
+    if (!_inv.isUnofficial) { if (typeof alert === 'function') alert('⛔ این فاکتور رسمی است؛ ابطال آن از مسیر فاکتورهای رسمی انجام می‌شود'); return { ok: false, why: 'not_unofficial' }; }
+    if (_inv.status === 'void' || _inv.st === 'void' || _inv.voided === true) { if (typeof alert === 'function') alert('این فاکتور قبلاً ابطال شده است'); return { ok: false, why: 'already_void' }; }
+    var _invYear = '';
+    try {
+      var _invDateStr = String(_inv.invDate || _inv.t || '');
+      _invYear = (typeof ptfFiscalYearOf === 'function') ? ptfFiscalYearOf(_invDateStr) : ((_invDateStr.match(/(13|14)\d{2}/) || [])[0] || '');
+    } catch (eY) {}
+    if (_invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(_invYear)) {
+      if (typeof alert === 'function') alert('🔒 سال مالی ' + _invYear + ' قفل است؛ ابطال مجاز نیست. ابتدا دوره بازگشایی شود.');
+      return { ok: false, why: 'locked', year: _invYear };
+    }
+    var _reason = 'ابطال سیستمی (بدون UI)';
+    if (typeof prompt === 'function' && typeof confirm === 'function') {
+      var _rsn = prompt('دلیل ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» را وارد کنید:', 'اشتباه در صدور');
+      if (_rsn === null) return { ok: false, why: 'canceled' };
+      _reason = String(_rsn || '').trim();
+      if (!_reason) { if (typeof alert === 'function') alert('⛔ دلیل ابطال الزامی است'); return { ok: false, why: 'no_reason' }; }
+      if (!confirm('🗑 تأیید نهایی ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» :\n\n' +
+        '• رکورد فاکتور ابطال می‌شود (مطالبه از مانده مشتری حذف می‌شود)\n' +
+        '• مرجوعی‌های متصل باطل می‌شوند\n' +
+        '• تخصیص دریافت‌های پرونده آزاد و به بستانکاری همان پرونده برمی‌گردد\n' +
+        '• ضمیمهٔ فایل از پرونده جدا می‌شود\n\n' +
+        '⚠️ وصولی‌های واقعی و چک‌های متصل حذف/ابطال خودکار نمی‌شوند.\n\nادامه می‌دهید؟')) return { ok: false, why: 'canceled' };
+    }
+    return onConfirmed(_inv, _reason);
+  };
+
+  /* INV-01: آثار غیرمالی پس از تأیید سرور — ابطال مرجوعی متصل، جداکردن ضمیمه از
+     پرونده و ثبت timeline. هیچ‌کدام تخصیص/بستانکاری را دست نمی‌زنند (کار سرور است). */
+  window.ptfUnofficialInvoiceVoidAfterEffects = function (inv, reason) {
+    var _now = (typeof faDateTime === 'function') ? faDateTime() : '';
+    var _me = (typeof curSession === 'function' ? (curSession().name || '?') : '?');
+    var voidedReturns = 0, removedFiles = 0;
+    try {
+      var _rets = getData('ptf_crm_sales_returns') || [], _chg = false;
+      _rets.forEach(function (r) {
+        if (!r || r.status === 'void') return;
+        if (String(r.invoiceCd || '') !== String(inv.cd || '')) return;
+        r.status = 'void'; r.voidAt = _now; r.voidBy = _me; r.voidReason = reason; voidedReturns++; _chg = true;
+      });
+      if (_chg) setData('ptf_crm_sales_returns', _rets);
+    } catch (eR) {}
+    try {
+      if ((inv.files || []).length && inv.caseId) {
+        var _deals0 = getData('ptf_crm_deals') || [];
+        var _d0 = _deals0.filter(function (x) { return x && String(x._id || x.cd) === String(inv.caseId); })[0];
+        if (_d0) {
+          (inv.files || []).forEach(function (f) {
+            if (!f || !f.key) return;
+            var before = (_d0.docs || []).length;
+            _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
+            if ((_d0.docs || []).length !== before) removedFiles++;
+          });
+          setData('ptf_crm_deals', _deals0);
+        }
+      }
+    } catch (eF) {}
+    try {
+      if (inv.caseId) {
+        var _deals = getData('ptf_crm_deals') || [];
+        var _d = _deals.filter(function (x) { return x && String(x._id || x.cd) === String(inv.caseId); })[0];
+        if (_d) {
+          _d.timeline = _d.timeline || [];
+          _d.timeline.push({ t: _now, by: _me,
+            tx: '🗑 ابطال سروری صورتحساب غیررسمی ' + (inv.no || inv.cd) +
+                ' — دلیل: ' + reason + ' | مرجوعی ابطال‌شده: ' + voidedReturns + ' | ضمیمهٔ جداشده: ' + removedFiles +
+                ' | وصولی‌ها و چک‌های واقعی دست‌نخورده ماندند (بستانکاری پرونده)' });
+          setData('ptf_crm_deals', _deals);
+        }
+      }
+    } catch (eT) {}
+    return { voidedReturns: voidedReturns, removedFiles: removedFiles };
+  };
+
+  window.ptfUnofficialInvoiceVoid = function (invCd) {
+    /* ── مسیر v35 (INV-01 / v34.7.23 — فاز E) ─────────────────────────────
+       گارد موقت فاز A (fail-closed) اکنون جای خود را به مسیر سروری واقعی داده است.
+       در معماری v35، ابطال یک فرمان اتمیک سروری است: سند void می‌شود، تخصیص‌های همان
+       پرونده با قواعد قطعی بازسازی می‌شوند و مبلغ آزادشده به بستانکاری همان پرونده
+       برمی‌گردد؛ هیچ رسیدی حذف نمی‌شود. بلوک نوشتنِ مالیِ محلی (که schema سروری را
+       نمی‌شناخت و بستانکاری را خراب می‌کرد) در این مسیر اصلاً اجرا نمی‌شود.
+       آثار غیرمالی — ابطال مرجوعی‌های متصل، جداکردن ضمیمه از پرونده و timeline —
+       فقط پس از تأیید سرور اجرا می‌شوند.
+       مسیر legacy (بدون PTF_SALES_DOMAIN_V2) دست‌نخورده باقی مانده است. */
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2) {
+      if (typeof window.ptfUnofficialInvoiceVoidServer !== 'function') {
+        if (typeof alert === 'function') alert(
+          '⛔ ابطال صورتحساب غیررسمی از مسیر سرور انجام می‌شود، اما ماژول دامنهٔ فروش بارگذاری نشده است.\n\n' +
+          'صفحه را تازه کنید؛ در صورت تکرار، با پشتیبانی تماس بگیرید.'
+        );
+        return { ok: false, why: 'server_module_missing' };
+      }
+      return window.ptfUnofficialInvoiceVoidLocalGuards(invCd, function (_inv2, _reason2) {
+        return window.ptfUnofficialInvoiceVoidServer(_inv2._id || _inv2.cd, _reason2)
+          .then(function (res) {
+            /* آثار غیرمالی — فقط پس از تأیید سرور */
+            try { window.ptfUnofficialInvoiceVoidAfterEffects(_inv2, _reason2); } catch (eAf) {}
+            try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eAr2) {}
+            try { if (typeof audit === 'function') audit('فاکتور غیررسمی', 'ابطال سروری صورتحساب ' + (_inv2.no || _inv2.cd) + ' — دلیل: ' + _reason2, String(_inv2.cd || '')); } catch (eAu2) {}
+            if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی ابطال شد؛ مطالبه حذف و مبلغ آزادشده به بستانکاری پرونده برگشت.', 'ok');
+            if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR1) {} }
+            if (typeof renderReceivables === 'function') { try { renderReceivables(); } catch (eR2) {} }
+            return { ok: true, server: true, result: res };
+          })
+          .catch(function (e) {
+            var map = {
+              permission_denied: 'نقش فعلی مجاز به ابطال نیست',
+              already_void: 'این فاکتور قبلاً ابطال شده است',
+              fiscal_period_locked: 'سال مالی قفل است؛ ابتدا باید بازگشایی شود',
+              official_invoice_requires_void_invoice: 'این سند رسمی است و باید از مسیر ابطال فاکتور رسمی باطل شود',
+              invoice_not_found: 'فاکتور روی سرور پیدا نشد'
+            };
+            if (typeof alert === 'function') alert('⛔ ابطال انجام نشد و هیچ تغییری ثبت نشد: ' + (map[e.message] || e.message));
+            return { ok: false, why: e.message };
+          });
+      });
+    }
+
+    // ── گارد ۱: نقش مجاز (senior یا accountant) ─────────────────────────
+    try {
+      var _role = (typeof curRole === 'function') ? curRole() : '';
+      var _isSnr = (typeof isSenior === 'function') && isSenior();
+      if (!_isSnr && _role !== 'accountant') {
+        if (typeof alert === 'function') alert('⛔ ابطال فاکتور غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+        return { ok: false, why: 'role' };
+      }
+    } catch (eRole) {}
+
+    // ── گارد ۲: وجود رکورد ────────────────────────────────────────────────
+    var _invs = getData('ptf_crm_invoices');
+    var _inv = (_invs || []).filter(function (x) { return x && x.cd === invCd; })[0];
+    if (!_inv) {
+      if (typeof alert === 'function') alert('⛔ فاکتور یافت نشد');
+      return { ok: false, why: 'not_found' };
+    }
+
+    // ── گارد ۳: فقط غیررسمی (رسمی → مسیر سرور-محور) ───────────────────────
+    if (!_inv.isUnofficial) {
+      if (typeof alert === 'function') alert('⛔ این فاکتور رسمی است؛ ابطال رسمی از مسیر سرور (ptfInvoiceVoid) انجام شود');
+      return { ok: false, why: 'not_unofficial' };
+    }
+
+    // ── گارد ۴: قبلاً ابطال نشده باشد ────────────────────────────────────
+    if (_inv.status === 'void' || _inv.st === 'void' || _inv.voided === true) {
+      if (typeof alert === 'function') alert('این فاکتور قبلاً ابطال شده است');
+      return { ok: false, why: 'already_void' };
+    }
+
+    // ── گارد ۵: سال مالی قفل نباشد ───────────────────────────────────────
+    var _invYear = '';
+    try {
+      var _invDateStr = String(_inv.invDate || _inv.t || '');
+      if (typeof ptfFiscalYearOf === 'function') {
+        _invYear = ptfFiscalYearOf(_invDateStr);
+      } else {
+        var _ym = _invDateStr.match(/(13|14)\d{2}/);
+        _invYear = _ym ? _ym[0] : '';
+      }
+    } catch (eY) {}
+    if (_invYear && typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(_invYear)) {
+      if (typeof alert === 'function') alert('🔒 سال مالی ' + _invYear + ' قفل است؛ ابطال مجاز نیست. از سند اصلاحی سال مالی استفاده کنید.');
+      return { ok: false, why: 'locked', year: _invYear };
+    }
+
+    // ── گارد ۶: تأیید کاربر + دلیل اجباری ─────────────────────────────────
+    var _reason = 'ابطال سیستمی (بدون UI)';
+    if (typeof prompt === 'function' && typeof confirm === 'function') {
+      var _rsn = prompt('دلیل ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» را وارد کنید:', 'اشتباه ثبت / مغایرت');
+      if (_rsn === null) return { ok: false, why: 'canceled' };
+      _reason = String(_rsn || '').trim();
+      if (!_reason) {
+        if (typeof alert === 'function') alert('⛔ دلیل ابطال الزامی است');
+        return { ok: false, why: 'no_reason' };
+      }
+      var _confirmMsg = '🗑 تأیید نهایی ابطال فاکتور غیررسمی «' + (_inv.no || _inv.cd) + '» :\n\n' +
+        '• رکورد فاکتور ابطال می‌شود (مطالبه از مانده مشتری حذف می‌شود)\n' +
+        '• مرجوعی‌های متصل از اعتبار مشتری کاسته می‌شود\n' +
+        '• تخصیص‌های دریافت پرونده به این فاکتور آزاد می‌شود (→ بستانکاری/FIFO)\n' +
+        '• ضمینه فایل از پرونده جدا می‌شود\n\n' +
+        '⚠️ وصولی‌های واقعی مندرج در فاکتور و چک‌های متصل حذف/ابطال خودکار نمی‌شوند (الزام ۵).\n\n' +
+        'ادامه می‌دهید؟';
+      if (!confirm(_confirmMsg)) return { ok: false, why: 'canceled' };
+    }
+
+    var _myName = curSession().name || '?';
+    var _now = faDateTime();
+
+    // ── ساختار لاگ cascade ───────────────────────────────────────────────
+    var _log = {
+      preservedPayments: [],     // وصولی‌های محفوظ (الزام ۵)
+      chequeAudited: [],          // چک‌های متصل — فقط audit
+      reversedAllocations: [],    // تخصیص‌های FIFO آزادشده
+      freedCreditAmount: 0,        // مجموع مبلغ آزادشده (→ بستانکاری مشتری)
+      voidedReturns: [],          // مرجوعی‌های ابطال‌شده
+      removedFiles: []             // فایل‌های ضمیمه‌ای جدا‌شده
+    };
+
+    // ═══ مرحله ۱: وصولی‌های مندرج — فقط audit (الزام ۵) ════════════════
+    (_inv.payments || []).forEach(function (p) {
+      if (!p) return;
+      if (p.fromAdvance) return;          // پیش‌پرداخت علی‌الحساب: بخشی از خود فاکتور
+      if (p.status === 'reversal') return; // قبلاً ابطال شده
+      _log.preservedPayments.push({
+        cd: p.cd || '',
+        amt: +p.amt || 0,
+        how: p.how || '',
+        t: p.t || '',
+        prescribedAction: 'retain-as-customer-credit-or-fifo'
+      });
+    });
+
+    // ═══ مرحله ۲: چک‌های متصل — فقط audit (الزام ۵) ════════════════════
+    function _readAllCheques() {
+      var _all = [];
+      try { _all = _all.concat(getData('ptf_crm_cheques_received') || []); } catch (eR) {}
+      try { _all = _all.concat(getData('ptf_crm_cheques_issued') || []); } catch (eI) {}
+      try { _all = _all.concat(getData('ptf_crm_cheques') || []); } catch (eL) {}
+      return _all;
+    }
+    var _chequeSeen = {};
+    function _noteChequeAudit(_c) {
+      if (!_c || !_c.cd) return;
+      if (_chequeSeen[_c.cd]) return;
+      _chequeSeen[_c.cd] = true;
+      _log.chequeAudited.push({
+        chequeCd: _c.cd,
+        currentSt: _c.st,
+        action: 'audit-only',
+        note: 'ابطال فقط از ماژول چک (cheque-module.js#ptfChequeVoid) قابل انجام است'
+      });
+    }
+    // ۲.۱) از طریق pay.chequeCd
+    (_inv.payments || []).forEach(function (p) {
+      if (!p || !p.chequeCd) return;
+      var _c = _readAllCheques().filter(function (x) { return x && x.cd === p.chequeCd; })[0];
+      if (_c) _noteChequeAudit(_c);
+    });
+    // ۲.۲) از طریق sourceInvoiceCd / invoiceCd مستقیم
+    _readAllCheques().forEach(function (c) {
+      if (c && (c.sourceInvoiceCd === _inv.cd || c.invoiceCd === _inv.cd)) _noteChequeAudit(c);
+    });
+
+    // ═══ مرحله ۳: تخصیص‌های FIFO مرتبط — ابطال + بستانکاری‌سازی ═══════
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2) {
+      /* AR-01 (v34.7.19) — دفاع در عمق: حتی اگر گارد ۰ برداشته/دور زده شود، دامنهٔ این
+         بلوک نباید از پروندهٔ همین فاکتور فراتر برود و باید هر دو schema را بشناسد:
+           سرور v35 → { invoiceId, amountIRR }        کلاینت legacy → { invoiceCd, amount } */
+      var _allocInvoiceId = function (a) { return String((a && (a.invoiceId || a.invoiceCd)) || ''); };
+      var _allocAmount = function (a) { return +((a && (a.amountIRR != null ? a.amountIRR : a.amount)) || 0) || 0; };
+      var _invKeys = {};
+      [_inv._id, _inv.cd].forEach(function (k) { if (k) _invKeys[String(k)] = true; });
+      var _caseKey = String(_inv.caseId || '');
+      var _allocs = getData('ptf_crm_receipt_allocations') || [];
+      _allocs.forEach(function (a) {
+        if (a && _invKeys[_allocInvoiceId(a)] && a.status !== 'reversed') {
+          var _freed = _allocAmount(a);
+          a.status = 'reversed';
+          a.reversedAt = _now;
+          a.reversedBy = _myName;
+          a.reversalReason = _reason;
+          a.invoiceCd_atVoid = _inv.cd; // برای audit
+          _log.reversedAllocations.push({
+            id: a._id || a.cd,
+            receiptId: a.receiptId,
+            receiptCd: a.receiptCd,
+            amount: _freed
+          });
+          _log.freedCreditAmount += _freed;
+        }
+      });
+      setData('ptf_crm_receipt_allocations', _allocs);
+
+      // ۳.۲) بازسازی creditRemainIRR فقط روی رسیدهای «همین پرونده»
+      // پس از ابطال تخصیص، هر receipt ممکن است «سهم آزاد» داشته باشد که به
+      // بستانکاری مشتری تبدیل می‌شود. این مقدار به عنوان creditRemainIRR ذخیره می‌شود.
+      // AR-01: پیش از v34.7.19 این حلقه روی کل رسیدهای سیستم اجرا می‌شد.
+      var _recs = getData('ptf_crm_case_receipts') || [];
+      var _stillAllocated = {};
+      (getData('ptf_crm_receipt_allocations') || []).forEach(function (a2) {
+        if (a2 && a2.status !== 'reversed' && a2.receiptId) {
+          _stillAllocated[a2.receiptId] = (_stillAllocated[a2.receiptId] || 0) + _allocAmount(a2);
+        }
+      });
+      var _recChanged = false;
+      _recs.forEach(function (r) {
+        if (!r || r.status !== 'posted' || r.voided) return;
+        if (!_caseKey || String(r.caseId || '') !== _caseKey) return; /* خارج از پروندهٔ این فاکتور دست نمی‌خورد */
+        var _alloc = _stillAllocated[r._id || r.cd] || 0;
+        var _newCredit = Math.max(0, (+r.amountIRR || +r.amt || 0) - _alloc);
+        if ((+r.creditRemainIRR || 0) !== _newCredit) {
+          r.creditRemainIRR = _newCredit;
+          _recChanged = true;
+        }
+      });
+      if (_recChanged) setData('ptf_crm_case_receipts', _recs);
+      try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArInv) {}
+    }
+
+    // ═══ مرحله ۴: مرجوعی‌های متصل — ابطال (اینها سند صوری متصل‌اند) ═
+    var _rets = getData('ptf_crm_sales_returns') || [];
+    _rets.forEach(function (r) {
+      if (!r) return;
+      if (r.invoiceCd !== _inv.cd) return;
+      if (r.status === 'void') return;
+      r.status = 'void';
+      r.voidAt = _now;
+      r.voidBy = _myName;
+      r.voidReason = _reason;
+      _log.voidedReturns.push({ cd: r.cd, amount: r.totalAmount });
+    });
+    setData('ptf_crm_sales_returns', _rets);
+
+    // ═══ مرحله ۵: جدا کردن فایل‌های ضمیمه از پرونده (نه حذف فیزیکی) ═
+    if ((_inv.files || []).length && _inv.caseId) {
+      var _deals0 = getData('ptf_crm_deals') || [];
+      var _d0 = _deals0.filter(function (x) { return x && String(x._id || x.cd) === String(_inv.caseId); })[0];
+      if (_d0) {
+        (_inv.files || []).forEach(function (f) {
+          if (!f || !f.key) return;
+          _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
+          _log.removedFiles.push(f.key);
+        });
+        setData('ptf_crm_deals', _deals0);
+      }
+    }
+
+    // ═══ علامت‌گذاری خود فاکتور (رکورد اصلی حذف نمی‌شود ولی void می‌شود) ═
+    _inv.status = 'void';
+    _inv.st = 'void';
+    _inv.voidAt = _now;
+    _inv.voidBy = _myName;
+    _inv.voidReason = _reason;
+    _inv.voidCascadeLog = _log;       // برای audit trail یکپارچه
+
+    // ── timeline پرونده (گزارش دقیق آنچه ابطال شد + آنچه محفوظ ماند) ─
+    if (_inv.caseId) {
+      var _deals = getData('ptf_crm_deals') || [];
+      var _d = _deals.filter(function (x) { return x && String(x._id || x.cd) === String(_inv.caseId); })[0];
+      if (_d) {
+        _d.timeline = _d.timeline || [];
+        var _preservedAmt = _log.preservedPayments.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
+        _d.timeline.push({
+          t: _now,
+          by: _myName,
+          tx: '🗑 ابطال ریشه‌کن فاکتور غیررسمی ' + _inv.no +
+             ' — ابطال شد: ' + _log.voidedReturns.length + ' مرجوعی / ' +
+             _log.reversedAllocations.length + ' تخصیص (بستانکاری‌سازی ' +
+             _log.freedCreditAmount.toLocaleString('fa-IR') + ' ریال); ' +
+             'محفوظ ماند: ' + _log.preservedPayments.length + ' وصولی واقعی (به‌مبلغ ' +
+             _preservedAmt.toLocaleString('fa-IR') + ' ریال — به‌عنوان بستانکاری یا FIFO); ' +
+             'چک (فقط audit): ' + _log.chequeAudited.length + ' مورد'
+        });
+        setData('ptf_crm_deals', _deals);
+      }
+    }
+
+    // ── setData نهایی + audit ────────────────────────────────────────────
+    setData('ptf_crm_invoices', _invs);
+    try {
+      audit('فاکتور غیررسمی',
+        'ابطال ریشه‌کن فاکتور ' + _inv.no + ' — مبلغ فاکتور: ' +
+        (+_inv.amount || 0).toLocaleString('fa-IR') + ' ریال — دلیل: ' + _reason + ' — ' +
+        'وصولی محفوظ: ' + _log.preservedPayments.length + ' / ' +
+        'تخصیص آزادشده: ' + _log.reversedAllocations.length + ' (بستانکاری: ' +
+        _log.freedCreditAmount.toLocaleString('fa-IR') + ' ریال) / ' +
+        'مرجوعی ابطال‌شده: ' + _log.voidedReturns.length + ' / ' +
+        'چک (فقط audit): ' + _log.chequeAudited.length,
+        _inv.cd);
+    } catch (eA) {}
+
+    // ── رندر مجدد پنل‌های وابسته ─────────────────────────────────────────
+    try { if (typeof window.renderDeals === 'function') window.renderDeals(); } catch (e1) {}
+    try { if (typeof window.renderReceivables === 'function') window.renderReceivables(); } catch (e2) {}
+    try {
+      if (typeof ptfToast === 'function') {
+        ptfToast(
+          'فاکتور غیررسمی ابطال شد. ' +
+          _log.preservedPayments.length + ' وصولی محفوظ ماند (الزام ۵ — به‌عنوان بستانکاری/FIFO). ' +
+          _log.freedCreditAmount.toLocaleString('fa-IR') + ' ریال بستانکاری آزاد شد.' +
+          (_log.chequeAudited.length ? ' ' + _log.chequeAudited.length + ' چک متصل برای ابطال صریح به ماژول چک ارجاع شد.' : ''),
+          'ok'
+        );
+      }
+    } catch (eT) {}
+
+    // ── (پس از اجرای محلی، در مرحلهٔ سروری) هماهنگی سرور PTF_SALES_DOMAIN_V2 ─
+    // TODO: در آینده اگر endpoint سروری void_unofficial_invoice اضافه شد، این‌جا صدا زده شود:
+    // if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 &&
+    //     typeof window.ptfSalesDomainApi === 'function') {
+    //   window.ptfSalesDomainApi('void_unofficial_invoice', { invoiceId: _inv.cd, reason: _reason, cascadeLog: _log })
+    //     .catch(function (e) { ... });
+    // }
+
+    return { ok: true, cascadeLog: _log, voidedAt: _now };
+  };
+
   // اجرای پاک‌سازی خودکار در لود اسکریپت
   try {
     cleanUpDoubleInvoices();

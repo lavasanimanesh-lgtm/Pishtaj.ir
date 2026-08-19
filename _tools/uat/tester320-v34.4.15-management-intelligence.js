@@ -16,15 +16,29 @@ T('AI فقط snapshot کمینه دریافت می‌کند و خروجی قاب
 T('endpoint AI فقط برای نقش‌های ارشد و با guard حجم snapshot فعال است', llm.indexOf("case 'management_insight':") > -1 && llm.indexOf("['admin','chairman','ceo','commercial']") > -1 && llm.indexOf('snapshot بیش از حد بزرگ است') > -1);
 T('دکمه تصمیم‌یار در تحلیلگر قرار دارد', an.indexOf('ptfManagementInsightsOpen()') > -1);
 T('ماژول در index و service worker لود می‌شود', idx.indexOf('management-intelligence.js?v=') > -1 && sw.indexOf("'./management-intelligence.js'") > -1);
+T('لایهٔ سنجهٔ مشترک v34.7.17 پیش از ماژول بارگذاری می‌شود', idx.indexOf('metrics-shared.js') > -1 && idx.indexOf('metrics-shared.js') < idx.indexOf('management-intelligence.js?v='));
 
 SECTION('رفتاری: داده مشتری، کالا و تامین‌کننده');
+/* v34.7.17: به‌جای eval توابع داخلی (که با استخراج لایهٔ سنجهٔ مشترک تغییر کردند)،
+   ماژول واقعی در یک sandbox با همان store هارنس اجرا می‌شود. */
 global.window = global;
-['list','n','offerTotal','keyOf','labelOf'].forEach(function (name) {
-  var m = mi.match(new RegExp('function ' + name + '\\([^)]*\\) \\{[\\s\\S]*?\\n  \\}'));
-  if (!m) throw new Error(name + ' not found');
-  eval.call(global, m[0].replace('function ' + name, 'global.' + name + ' = function'));
+var vm = require('vm');
+var _sb = {
+  console: console, setTimeout: function () { return 0; }, JSON: JSON, Math: Math, Date: Date,
+  document: { getElementById: function () { return null; }, querySelectorAll: function () { return []; }, body: { insertAdjacentHTML: function () {} } },
+  fetch: function () { return Promise.reject(new Error('offline')); },
+  getData: global.getData, setData: global.setData, escP: global.escP,
+  faDate: global.faDate, faDateTime: global.faDateTime,
+  curSession: function () { return { user: 'u', name: 'کاربر' }; },
+  roleDef: function () { return { finance: true }; }, isSenior: function () { return true; },
+  genCode: global.genCode, audit: function () {}, addLog: function () {}, notify: function () {}, alert: function () {}, PTF: {}
+};
+_sb.window = _sb; _sb.globalThis = _sb;
+vm.createContext(_sb);
+['metrics-shared.js', 'management-intelligence.js'].forEach(function (fn) {
+  vm.runInContext(fs.readFileSync(path.join(BASE, fn), 'utf8'), _sb, { filename: fn });
 });
-eval(mi.match(/window\.ptfManagementIntelligence = function \(\) \{[\s\S]*?\n  \};/)[0]);
+global.ptfManagementIntelligence = _sb.ptfManagementIntelligence;
 setData('ptf_crm_offers', [
  {kind:'CO',buyerCd:'C1',buyerCo:'مشتری راهبردی',st:'won',items:[{name:'Valve',qty:2,price:100}]},
  {kind:'CO',buyerCd:'C2',buyerCo:'مشتری نیازمند کنترل',st:'lost',items:[{name:'Gasket',qty:4,price:20}]},

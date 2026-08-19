@@ -1,0 +1,301 @@
+{
+ "note": "فهرست قرنطینهٔ بدهی تست — این تسترها حذف یا سبز اعلام نمی‌شوند؛ فقط از گیت قرمز جدا می‌شوند تا شکست واقعی گم نشود. هر ورودی باید دلیل و تاریخ داشته باشد و با اصلاح تستر از این فهرست خارج شود.",
+ "contract": "run-all.js: هر شکست خارج از این فهرست ⇒ خروجی ۱ (گیت قرمز). هر ورودی این فهرست که سبز شود، هشدار خروج می‌گیرد.",
+ "quarantined": {
+  "_tools/uat/tester103-v186.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester104-v187.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester105-v189.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester106-v190.js": {
+   "category": "rbac-changed",
+   "reason": "ماتریس نقش‌ها بعداً بازنگری شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester107-v191.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester109-v193.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester110-v194.js": {
+   "category": "policy-changed",
+   "reason": "قرارداد کسب‌وکاری بعداً با تصویب تغییر کرده (مثلاً مبنای پورسانت v34.5.35 و سود v34.5.38)",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester111-v195.js": {
+   "category": "policy-changed",
+   "reason": "قرارداد کسب‌وکاری بعداً با تصویب تغییر کرده (مثلاً مبنای پورسانت v34.5.35 و سود v34.5.38)",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester113-v197.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester114-v198.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester119-v203.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester120-v204.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester122-v206.js": {
+   "category": "rbac-changed",
+   "reason": "ماتریس نقش‌ها بعداً بازنگری شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester124-v21.js": {
+   "category": "version-pin",
+   "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester132-v216.js": {
+   "category": "policy-changed",
+   "reason": "قرارداد کسب‌وکاری بعداً با تصویب تغییر کرده (مثلاً مبنای پورسانت v34.5.35 و سود v34.5.38)",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester139-v258-llm.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester143-v262-supplier-finance.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester145-v264-cheque-transfer.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester209-v3301-petty-combined-pdf.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester215-v3305-cheque-module.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester254-advanced-cv-finalization-backlog-doc.js": {
+   "category": "version-pin",
+   "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester261-advanced-cv-gtm-sales-plan.js": {
+   "category": "version-pin",
+   "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester262-control-valve-dedicated-seo-landing.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester275-fiscal-profit-and-minimal-icons.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester276-semantic-icons-fiscal-dark.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester291-hub-clean.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester35-sprint122.js": {
+   "category": "policy-changed",
+   "reason": "قرارداد کسب‌وکاری بعداً با تصویب تغییر کرده (مثلاً مبنای پورسانت v34.5.35 و سود v34.5.38)",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester40-v1225.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester41-v1230.js": {
+   "category": "version-pin",
+   "reason": "پین شمارهٔ نسخه/کش که در نسخه‌های بعد عمداً تغییر کرده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester415-v34.7.10-mobile-customer-integrity.js": {
+   "category": "known-open",
+   "reason": "یافتهٔ باز واقعی: تطبیق پرونده با rootOfferId پس از fallback نسخهٔ v34.7.15 — در فاز G بازبینی می‌شود",
+   "since": "2026-08-13"
+  },
+  "_tools/uat/tester51-v131.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester52-v132.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester53-v133.js": {
+   "category": "policy-changed",
+   "reason": "قرارداد کسب‌وکاری بعداً با تصویب تغییر کرده (مثلاً مبنای پورسانت v34.5.35 و سود v34.5.38)",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester54-v134.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester55-v135.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester57-v137.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester58-v138.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester59-v139.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester60-v140.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester63-v143.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester65-v145.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester66-v146.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester67-v147.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester68-v148.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester7-sprint70.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester70-v150.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester73-v153.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester8-sprint71.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester81-v163.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester82-v164.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester83-v165.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester86-v168.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester89-v171.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester9-sprint72.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester90-v172.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester95-v177.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester96-v178.js": {
+   "category": "flow-changed",
+   "reason": "گردش کار مربوطه در نسخه‌های بعد بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester97-v179.js": {
+   "category": "ui-string-pin",
+   "reason": "پین رشته/markup رابط کاربری که بعداً بازطراحی شده است",
+   "since": "2026-08-17"
+  },
+  "_tools/uat/tester403-v35-sales-to-cash.js": {
+   "category": "known-open",
+   "reason": "ادعای قدیمی معماری v35؛ نیازمند بازنویسی در فاز G",
+   "since": "2026-08-13"
+  }
+ }
+}

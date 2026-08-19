@@ -1237,13 +1237,19 @@
   function patchOffLoad() {
     if (_offLoadOld || typeof window.offLoadInqItems !== 'function') return false;
     _offLoadOld = window.offLoadInqItems;
-    window.offLoadInqItems = function () {
+    /* FB-1 (v34.7.30): این وصله آرگومان را دور می‌ریخت. دیالوگ انتخاب درخواست، شماره را
+       با آرگومان می‌فرستد (offers.js: offLoadInqItems('RFQ-…')) ولی امضای بدون پارامتر و
+       فراخوان بدون آرگومانِ زیر، آن را حذف می‌کرد؛ تابع اصلی دوباره «شماره‌ای ندارم» می‌دید
+       و همان فهرست را باز می‌کرد ⇒ «انتخاب می‌کنم، هیچ اتفاقی نمی‌افتد».
+       قاعدهٔ معماری: هر وصلهٔ زنجیره‌ای باید apply(this, arguments) کند (نگهبان A8).
+       مرجع: ASSESSMENT-AWARD-REVISION-AND-REF-PRICE-2026-08-17.md §۱ */
+    window.offLoadInqItems = function (pickedInq) {
       var before = _offState.items.length;
-      _offLoadOld();
+      var _ret = _offLoadOld.apply(this, arguments);
       // اگر اقلام تایپ دارند، ستون Type به extraCols اضافه و مقادیر پر شود
       try {
         var iq = getData('ptf_crm_inqitems').filter(function (r) { return r.inqNo === _offState.inqNo && r.tp; });
-        if (!iq.length) return;
+        if (!iq.length) return _ret;
         _offState.extraCols = _offState.extraCols || [];
         if (_offState.extraCols.indexOf('Type') < 0) _offState.extraCols.unshift('Type');
         _offState.items.forEach(function (it, i) {
@@ -1253,6 +1259,7 @@
         });
         if (typeof offRenderItems === 'function') offRenderItems();
       } catch (e) {}
+      return _ret;
     };
     return true;
   }

@@ -33,5 +33,10 @@ T('prompt متنی حذف شد → دیالوگ انتخابی', of.indexOf("pro
 T('دیالوگ: تعداد قلم هر درخواست', of.indexOf("groups[k] + ' قلم</span>") > -1);
 T('پیام راهنمای سه‌مسیره وقتی اقلام نیست', of.indexOf('دستیار → خواندن فایل استعلام') > -1);
 T('offLoadInqItems پارامتر pickedInq', of.indexOf('function offLoadInqItems(pickedInq)') > -1);
-T('سه منبع اقلام (inqitems/inqreads/rfqs.items) پابرجا', of.indexOf("getData('ptf_crm_inqitems').filter") > -1 && of.indexOf("getData('ptf_crm_inqreads').filter") > -1 && of.indexOf('rfq.items') > -1);
+/* v34.7.30: قرارداد به‌جای متن. سه منبع اقلام همچنان خوانده می‌شوند، اما از تابع واحد
+   ptfResolveInqRequest (FB-2) — نه با سه فیلتر درون‌خطی در offLoadInqItems. رفتار سه منبع
+   در tester433 به‌صورت رفتاری آزموده می‌شود. */
+T('سه منبع اقلام (inqitems/inqreads/rfqs.items) پابرجا',
+  of.indexOf('ptf_crm_inqitems') > -1 && of.indexOf('ptf_crm_inqreads') > -1 && of.indexOf('rfq.items') > -1 &&
+  of.indexOf('window.ptfResolveInqRequest = function') > -1);
 DONE('tester44-v124');

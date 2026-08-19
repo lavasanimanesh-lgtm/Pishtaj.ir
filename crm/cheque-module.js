@@ -339,7 +339,7 @@
     var remain = (+inv.amount || 0) - paid;
     if (c.amt > remain + 0.5) return { ok: false, why: 'over_remain' };
     inv.payments = inv.payments || [];
-    var payRec = { cd: genCode('RPAY'), amt: +c.amt || 0, how: 'چک وارده ' + (c.sayad || c.no || c.cd || ''), t: faDateL(), by: me().name, chequeCd: c.cd, status: 'posted' };
+    var payRec = { cd: genCode('RPAY'), amt: +c.amt || 0, how: 'چک وارده ' + (c.sayad || c.no || c.cd || ''), t: faDateL(), by: me().name, chequeCd: c.cd, status: 'posted', sourcePath: 'cheque_module' };
     inv.payments.push(payRec);
     setData('ptf_crm_invoices', invs);
     return { ok: true, applied: 'invoice', invoiceCd: c.sourceInvoiceCd, paymentCd: payRec.cd };
@@ -466,13 +466,33 @@
   };
   /* معکوس: وارده برگشتی → حذف payment چک از فاکتور */
   window.ptfChequeReverseReceived = function (cd, reason) {
+    /* v34.7.18 (AR-INTEGRITY فاز ۲ / R10): برگشت/ابطال چک دیگر رکورد وصولی را «حذف فیزیکی»
+       نمی‌کند — چون هم تاریخچه از بین می‌رفت و هم هیچ ردی برای ممیزی نمی‌ماند. اکنون رکورد
+       با voided/status=void و دلیل علامت می‌خورد؛ اثر مالی آن دقیقاً مثل قبل صفر می‌شود
+       (PTF.isPaymentActive و PTF.ar هر دو رکورد ابطالی را نمی‌شمارند). */
     var invs = getData('ptf_crm_invoices') || [], changed = false;
     invs.forEach(function (inv) {
-      var before = (inv.payments || []).length;
-      inv.payments = (inv.payments || []).filter(function (p) { return p.chequeCd !== cd; });
-      if ((inv.payments || []).length !== before) changed = true;
+      (inv.payments || []).forEach(function (p) {
+        if (!p || p.chequeCd !== cd || p.voided === true || p.status === 'void') return;
+        p.voided = true; p.status = 'void';
+        p.voidReason = String(reason || 'برگشت/ابطال چک وارده');
+        p.voidedAt = faDateTimeL(); p.voidedBy = (me().name || '');
+        changed = true;
+      });
+      /* رکوردهای legacy که در ساختار pays نشسته‌اند نیز به همین شکل غیرفعال می‌شوند */
+      (inv.pays || []).forEach(function (p) {
+        if (!p || p.chequeCd !== cd || p.voided === true || p.status === 'void') return;
+        p.voided = true; p.status = 'void';
+        p.voidReason = String(reason || 'برگشت/ابطال چک وارده');
+        p.voidedAt = faDateTimeL(); p.voidedBy = (me().name || '');
+        changed = true;
+      });
     });
-    if (changed) setData('ptf_crm_invoices', invs);
+    if (changed) {
+      setData('ptf_crm_invoices', invs);
+      try { if (window.PTF && window.PTF.ar) window.PTF.ar.invalidate(); } catch (eAr) {}
+      try { if (typeof audit === 'function') audit('چک', 'ابطال اثر مالی چک وارده ' + cd + ' روی فاکتور (بدون حذف رکورد)', String(cd)); } catch (eA) {}
+    }
     return changed;
   };
   /* معکوس: صادره ابطال → void payment چک در supplier-finance */

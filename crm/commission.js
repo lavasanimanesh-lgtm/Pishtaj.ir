@@ -103,7 +103,13 @@
 
     var groups = {};
     data('ptf_crm_invoices').forEach(function (inv) {
-      if (!inv || inv.status === 'void') return;
+      /* LC-01 (v34.7.21): تعریف واحد «سند فعال» — فاکتور superseded (صورتحساب غیررسمیِ
+         جایگزین‌شده با فاکتور رسمی) نباید در مبنای پورسانت بماند؛ در غیر این صورت همان فروش
+         دوبار پورسانت می‌گرفت. fallback رفتار قبلی حفظ شده است. */
+      if (!inv) return;
+      var _liveInv = (window.PTF && window.PTF.ar && typeof window.PTF.ar.activeInvoice === 'function')
+        ? window.PTF.ar.activeInvoice(inv) : (inv.status !== 'void');
+      if (!_liveInv) return;
       var d = dealOf(inv);
       if (!d) return; /* فاکتور بدون پرونده = از محاسبه حذف */
       var o = offersByNo[inv.offerNo] || {};
@@ -121,7 +127,11 @@
         var v2Allocs = invoiceAllocations[String(inv._id || inv.cd || '')] || [];
         paid += v2Allocs.reduce(function (s, a) { return s + (+a.amountIRR || 0); }, 0);
         if (inv.amount - paid > 0.5) { allPaid = false; return; }
-        base += inv.amount;
+        /* LC-02 (v34.7.21): مبنای پورسانت = مبلغ خالص پس از مرجوعی فروش (تصویب کارفرما ۱۴۰۵/۰۵/۲۶).
+           پیش از این، کالای برگشتی از مبنا کسر نمی‌شد و پورسانتِ فروشِ برگشت‌خورده پرداخت می‌شد. */
+        var _netBase = (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceNetAfterReturnsIRR === 'function')
+          ? window.PTF.ar.invoiceNetAfterReturnsIRR(inv) : (+inv.amount || 0);
+        base += _netBase;
         pays.forEach(function (p) { var iso = toIso(payWhen(p, inv)); if (iso > lastWhen) lastWhen = iso; });
         v2Allocs.forEach(function (a) { var r = caseReceiptsById[String(a.receiptId || '')] || {}; var iso = toIso(r.receivedAt || r.dateISO || r.t || ''); if (iso > lastWhen) lastWhen = iso; });
       });

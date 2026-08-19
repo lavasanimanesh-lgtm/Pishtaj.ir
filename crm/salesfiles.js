@@ -131,6 +131,23 @@
     return out;
   }
   function sfHasInvoice(r) { return sfDocsOf(r).invoices.length > 0; }
+  // ARENA-2026-08-17 / گام ۲: دسترسی به دیالوگ صدور فاکتور غیررسمی (تک + تجمیعی)
+  // مسیریابی فرایندی و چکید دسترسی به سایر پیشنهادهای متصل به پرونده
+  window.sfUnofficialInvoiceNew = function (dealCd) {
+    if (typeof window.unofficialInvoiceBuilderOpen !== 'function') {
+      if (typeof alert === 'function') alert('⛔ ماژول صدور فاکتور غیررسمی بارگذاری نشده است (crm/unofficial-invoice.js).');
+      return;
+    }
+    // گارد نقش: فقط senior یا accountant
+    var _role = (typeof curRole === 'function') ? curRole() : '';
+    var _isSnr = (typeof isSenior === 'function') && isSenior();
+    if (!_isSnr && _role !== 'accountant') {
+      if (typeof alert === 'function') alert('⛔ صدور صورتحساب غیررسمی فقط برای مدیران ارشد یا حسابدار مجاز است');
+      return;
+    }
+    window.unofficialInvoiceBuilderOpen(dealCd);
+  };
+
 
   /* v34.5.4: نمایش سود/حاشیه پرونده فروش حذف شد.
      عدد قبلی گمراه‌کننده بود (خرید لینک‌نشده = سود متورم). موتور سال مالی دست نخورده می‌ماند. */
@@ -964,9 +981,10 @@
     d.invoices.forEach(function (i) {
       var act = '';
       if (i.isUnofficial) {
-        act = '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#d97706;border-color:#f59e0b" onclick="event.stopPropagation();unofficialInvoicePrint(\'' + ptfOnClickArg(i.offerNo) + '\')">👁 نمایش/چاپ</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();showInvModal(\'' + ptfOnClickArg(i.offerNo) + '\',\'' + ptfOnClickArg(i.cd || i._id) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();ptfInvoiceVoid(\'' + ptfOnClickArg(i.cd || i._id) + '\')">🗑 ابطال</button>';
+        // ARENA-2026-08-17 / گام ۱ (فاز ابطال ریشه‌کن): ابطال غیررسمی از مسیر ریشه‌کن جدید (نه مسیر سرور-محور رسمی).
+        act = '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#d97706;border-color:#f59e0b" onclick="event.stopPropagation();unofficialInvoicePrint(\'' + ptfOnClickArg(i.offerNo) + '\')">👁 نمایش/چاپ</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();sfUnofficialInvoiceNew(\'' + ptfOnClickArg(r._id || r.cd) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();ptfUnofficialInvoiceVoid(\'' + ptfOnClickArg(i._id || i.cd) + '\')">🗑 ابطال ریشه‌کن</button>';
       } else {
-        act = (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' ') + ' <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();showInvModal(\'' + ptfOnClickArg(i.offerNo) + '\',\'' + ptfOnClickArg(i.cd || i._id) + '\')">✏️ اصلاح سندی</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();ptfInvoiceVoid(\'' + ptfOnClickArg(i.cd || i._id) + '\')">🗑 ابطال کنترل‌شده</button><small style="display:block;color:#64748b">ضمیمه رسمی حذف مستقل ندارد؛ فقط جایگزینی نسخه‌دار در اصلاح فاکتور.</small>';
+        act = (i.files || []).map(function (f) { return '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(f.key || '') + '\')" style="color:#0e7490;font-size:11.5px">📎' + escP(f.name) + '</a>'; }).join(' ') + ' <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();showInvModal(\'' + ptfOnClickArg(i.offerNo) + '\',\'' + ptfOnClickArg(i._id || i.cd) + '\')">✏️ اصلاح سندی</button> <button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#dc2626" onclick="event.stopPropagation();ptfInvoiceVoid(\'' + ptfOnClickArg(i._id || i.cd) + '\')">🗑 ابطال کنترل‌شده</button><small style="display:block;color:#64748b">ضمیمه رسمی حذف مستقل ندارد؛ فقط جایگزینی نسخه‌دار در اصلاح فاکتور.</small>';
       }
       h += row('🧾', (i.isUnofficial ? 'فاکتور غیررسمی ' : 'فاکتور ') + escP(i.no) + ' — ' + (+i.amount).toLocaleString('fa-IR') + ' ریال — ' + escP(i.t || ''), act);
     });
@@ -1099,7 +1117,12 @@
       }
     } catch (eCov) {}
     var postActions = '';
-    if (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function') {
+    /* v34.7.26 (S5 — یک اکشن = یک محل): «خرید واقعی» مالک واحد دارد = بلوک تخصصی
+       «🛒 خرید واقعی اقلام» که buycompare.js داخل همین کشو تزریق می‌کند و علاوه بر دکمه،
+       وضعیت اقلام و مبالغ را هم نشان می‌دهد. این کاشی فقط به‌عنوان fallback می‌ماند: اگر آن
+       ماژول بارگذاری/هوک نشده باشد، کاربر بدون مسیر نماند.
+       مرجع: ASSESSMENT-SALESFILE-3ISSUES-2026-08-17.md §۲-۳ (تصمیم کارفرما: بلوک‌های تخصصی مالک باشند) */
+    if (r.wonOffer && r.inqNo && typeof ptfRealBuyOpen === 'function' && !window._rbDealsHooked) {
       postActions += postAction(
         'real-buy', '🛍', 'خرید واقعی', 'ثبت یا پیگیری خرید واقعی اقلام این پرونده',
         'event.stopPropagation();ptfRealBuyOpen(\'' + ptfOnClickArg(r.inqNo) + '\')',
@@ -1118,16 +1141,21 @@
         'qc', '🔬', 'کنترل کیفیت', 'ثبت یا مشاهده نتیجهٔ QC / بازرسی',
         'sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'QC / بازرسی' }
       );
+      /* v34.7.26 (S5): اسناد رسمی قالب شرکت (PL/IN/IB/MOM) مالک واحد دارند = بلوک
+         «📄 اسناد رسمی قالب شرکت» (docsx.js) که هم ایجاد و هم نمایش/اصلاح را دارد.
+         این دو کاشی فقط زمانی رندر می‌شوند که آن بلوک در دسترس نباشد (fallback). */
+      if (!window._dxDealsHooked) {
+        postActions += postAction(
+          'inspection-note', '📄', 'نوت بازرسی', 'صدور یا مشاهده نوت بازرسی رسمی',
+          'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')', { meta: 'سند رسمی' }
+        );
+        postActions += postAction(
+          'packing-list', '🧰', 'پکینگ‌لیست رسمی', 'صدور یا مشاهده پکینگ‌لیست رسمی',
+          'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')', { meta: 'سند رسمی' }
+        );
+      }
       postActions += postAction(
-        'inspection-note', '📄', 'نوت بازرسی', 'صدور یا مشاهده نوت بازرسی رسمی',
-        'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'IN\')', { meta: 'سند رسمی' }
-      );
-      postActions += postAction(
-        'packing-list', '🧰', 'پکینگ‌لیست رسمی', 'صدور یا مشاهده پکینگ‌لیست رسمی',
-        'ptfDocxOpen(\'' + ptfOnClickArg(r.cd) + '\',\'PL\')', { meta: 'سند رسمی' }
-      );
-      postActions += postAction(
-        'packing-event', '📦', 'ثبت رویداد پکینگ', 'ثبت شماره/تاریخ پکینگ و پیوست مدرک در گردش پرونده',
+        'packing-event', '📦', 'رویداد پکینگ (گردش‌کار)', 'ثبت شماره/تاریخ پکینگ و پیوست مدرک در گردش پرونده — با «پکینگ‌لیست رسمی» که سند قالب شرکت است اشتباه نشود',
         'sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'packing\')', { meta: 'شاهد مرحله ارسال' }
       );
       postActions += postAction(
@@ -1160,6 +1188,31 @@
         'case-finance', '💳', 'دریافت و حساب پرونده', 'ثبت دریافت قطعی و مشاهده بستانکاری/مطالبات همین پرونده',
         'ptfCaseFinanceOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { primary: true, meta: 'خزانه و مشتری' }
       );
+    }
+    // ARENA-2026-08-17 / گام ۲: دکمهٔ صدور فاکتور غیررسمی (تک‌پیشنهاد + تجمیعی) — برای تمام پیشنهادهای متصل
+    postActions += postAction(
+      'unofficial-invoice', '🧾', 'صورتحساب غیررسمی',
+      'صدور صورتحساب پرداخت غیررسمی برای هر پیشنهاد متصل (تک یا تجمیعی). پیش‌فرض قیمت = CO.',
+      /* UI-01 (v34.7.20): شناسهٔ سروری پرونده اولویت دارد؛ گیرنده هر دو شناسه را می‌پذیرد. */
+      'sfUnofficialInvoiceNew(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'پرونده' }
+    );
+    /* P4–P6 (v34.7.31): بازرسی قلم‌به‌قلم، بازنگری سند برد و گزارش آن — همگی از خود پرونده.
+       مرجع: ASSESSMENT-AWARD-REVISION-AND-REF-PRICE-2026-08-17.md بند ۳ */
+    if (r.wonOffer) {
+      postActions += postAction(
+        'inspection-items', '🔬', 'بازرسی قلم‌به‌قلم', 'ثبت اقلام مردود بازرسی و سرنوشت آن‌ها (انبار / عودت به فروشنده / دوباره‌کاری / اسقاط)',
+        'ptfCaseInspectionOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'اقلام مردود' }
+      );
+      postActions += postAction(
+        'award-revise', '✏️', 'بازنگری سند برد', 'حذف اقلام مردود یا ثبت قیمت جدید — سند برد قبلی بایگانی و سند جایگزین ثبت می‌شود',
+        'ptfAwardReviseOpen(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'سند جایگزین' }
+      );
+      if ((r.awardRevisions || []).length || (r.inspections || []).length) {
+        postActions += postAction(
+          'award-report', '📑', 'گزارش بازنگری', 'گزارش بازنگری سند برد و سرنوشت اقلام مردود (چاپ + CSV)',
+          'ptfAwardRevisionReport(\'' + ptfOnClickArg(r._id || r.cd) + '\')', { meta: 'گزارش' }
+        );
+      }
     }
     postActions += postAction(
       'loss', '💥', 'ثبت زیان', 'ثبت زیان پروژه',

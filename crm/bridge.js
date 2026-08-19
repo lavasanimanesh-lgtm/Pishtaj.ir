@@ -1312,6 +1312,8 @@
       '<input type="number" data-f="qty" placeholder="تعداد" value="' + escP(v.qty || 1) + '" min="0" step="any" style="width:76px;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr;font-size:12.5px">' +
       '<select data-f="un" style="width:86px;padding:7px;border:1px solid var(--brd);border-radius:8px;font-size:12px"><option>عدد</option><option>شاخه</option><option>متر</option><option>کیلوگرم</option><option>ست</option><option>بسته</option></select>' +
       '<input type="text" data-f="st" placeholder="استاندارد/مشخصه (اختیاری)" value="' + escP(v.st || '') + '" style="flex:1;min-width:110px;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr;font-size:12px">' +
+      /* FC-1 (v34.7.30): نرخ مرجع خرید همین‌جا هنگام ثبت درخواست */
+      '<input type="number" min="0" step="any" data-f="ref" placeholder="نرخ مرجع" value="' + escP(v.refPrice || '') + '" style="width:104px;padding:7px;border:1px solid #ddd6fe;border-radius:8px;direction:ltr;font-size:12px" title="نرخ مرجع خرید — در پیشنهاد به‌عنوان مرجع نمایش داده می‌شود">' +
       '<button type="button" onclick="this.parentElement.remove()" style="border:0;background:none;color:#dc2626;cursor:pointer;font-size:15px" title="حذف ردیف">✕</button>';
     wrap.appendChild(row);
   };
@@ -1325,6 +1327,13 @@
       var nm = g('nm');
       if (!nm) return;
       var rec = { inqNo: cd, cd: genCode('IQI'), nm: nm, en: '', qty: +g('qty') || 1, un: g('un') || 'عدد', st: g('st'), t: new Date().toLocaleDateString('fa-IR') };
+      var _rf = +g('ref') || 0;   /* FC-1 (v34.7.30) */
+      if (_rf > 0) {
+        rec.refPrice = _rf; rec.refCur = 'IRR'; rec.refSrc = 'manual';
+        rec.refAt = (typeof faDate === 'function') ? faDate() : rec.t;
+        rec.refBy = (typeof curSession === 'function' ? (curSession().name || '') : '');
+        rec.refHistory = [{ price: _rf, cur: 'IRR', src: 'manual', at: rec.refAt, by: rec.refBy }];
+      }
       iq.push(rec);
       out.push(rec);
     });
@@ -1616,6 +1625,10 @@
       '<div class="fld"><label>تعداد</label><input type="number" id="nIqQty" value="1"></div></div>' +
       '<div class="fr"><div class="fld"><label>واحد</label><select id="nIqUn"><option>عدد</option><option>شاخه</option><option>متر</option><option>کیلوگرم</option><option>ست</option><option>بسته</option></select></div>' +
       '<div class="fld"><label>استاندارد / مشخصه</label><input type="text" id="nIqSt" style="direction:ltr"></div></div>' +
+      /* FC-1 (v34.7.30): نرخ مرجع خرید روی خود قلم درخواست — همان عددی که در پیشنهاد
+         به‌عنوان «مرجع» دیده می‌شود و با تغییر در پیشنهاد به‌روز خواهد شد. */
+      '<div class="fr"><div class="fld"><label>نرخ مرجع خرید (اختیاری)</label><input type="number" min="0" step="any" id="nIqRef" style="direction:ltr" placeholder="مثلاً 2500000"></div>' +
+      '<div class="fld"><label>ارز نرخ مرجع</label><select id="nIqRefCur" style="direction:ltr"><option value="IRR">IRR (ریال)</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="AED">AED</option><option value="CNY">CNY</option></select></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button><button class="bt" onclick="saveInqItem()">ثبت قلم</button></div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
@@ -1627,14 +1640,24 @@
     var iq = getData('ptf_crm_inqitems');
     // US-174: قلم تکراری در همان شماره درخواست
     if (typeof ptfDupBlock === 'function' && ptfDupBlock('inqitem', { inqNo: no, nm: nm }, null)) return;
-    iq.push({
+    /* FC-1 (v34.7.30): نرخ مرجع + ارز + ردپای منبع/زمان/کاربر روی قلم درخواست */
+    var _ref = +((document.getElementById('nIqRef') || {}).value) || 0;
+    var _refCur = ((document.getElementById('nIqRefCur') || {}).value) || 'IRR';
+    var _rec = {
       inqNo: no, cd: genCode('IQI'), nm: nm,
       en: document.getElementById('nIqEn').value.trim(),
       qty: +document.getElementById('nIqQty').value || 1,
       un: document.getElementById('nIqUn').value,
       st: document.getElementById('nIqSt').value.trim(),
       t: new Date().toLocaleDateString('fa-IR')
-    });
+    };
+    if (_ref > 0) {
+      _rec.refPrice = _ref; _rec.refCur = _refCur; _rec.refSrc = 'manual';
+      _rec.refAt = (typeof faDate === 'function') ? faDate() : _rec.t;
+      _rec.refBy = (typeof curSession === 'function' ? (curSession().name || '') : '');
+      _rec.refHistory = [{ price: _ref, cur: _refCur, src: 'manual', at: _rec.refAt, by: _rec.refBy }];
+    }
+    iq.push(_rec);
     setData('ptf_crm_inqitems', iq);
     hideModal();
     if (typeof renderInquiries === 'function') renderInquiries();

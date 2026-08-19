@@ -99,6 +99,13 @@
   function invPaidSum(inv, opts) {
     if (!inv) return 0;
     opts = opts || {};
+    /* v34.7.18 (AR-INTEGRITY فاز ۳): منبع واحد مانده، لایهٔ PTF.ar است. اگر بارگذاری شده
+       باشد و پروجکشن تخصیصِ سرور روی این دستگاه کهنه باشد، همان الگوریتم FIFO سرور محلی
+       بازسازی می‌شود تا پولِ دریافت‌شده «ناپدید» نشود. رفتار پیش‌فرض (جمع پرداخت میراثی +
+       تخصیص) دقیقاً حفظ شده است. opts.legacyOnly برای مصرف‌کنندگان قدیمی باقی می‌ماند. */
+    if (!opts.legacyOnly && window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try { return window.PTF.ar.invoiceState(inv).paid; } catch (eAr) { /* fallback زیر */ }
+    }
     var activeOnly = opts.activeOnly !== false;
     var useAmountIrr = !!opts.useAmountIrr;
     var rows = (inv.payments || []).concat(inv.pays || []);
@@ -221,8 +228,49 @@
     return true;
   }
 
+  /* ============================================================
+     قرارداد هویت رکورد (v34.7.28) — ریشهٔ دو خانوادهٔ باگ اخیر
+     ------------------------------------------------------------
+     هر رکورد دامنه ممکن است دو شناسه داشته باشد: `_id` (سروری) و `cd` (میراثی).
+     تا امروز هر ماژول ترتیب دلخواه خودش را داشت (`cd || _id` در برابر `_id || cd`)
+     و همین ناسازگاری دو بار به باگ واقعی رسید:
+       • دکمهٔ «ابطال کنترل‌شده» بی‌صدا کار نمی‌کرد (v34.7.26 / S1)
+       • رسید و فاکتور یک پرونده در دو سطل می‌افتادند و پول دیده نمی‌شد (v34.7.27 / AUDIT-1)
+     از این پس **تنها قرارداد مجاز** این چهار تابع است:
+       PTF.id(x)              شناسهٔ متعارف = _id || cd  (رشته؛ تهی = '')
+       PTF.aliases(x)         همهٔ شناسه‌های همان رکورد  ['_id','cd']
+       PTF.sameEntity(a, b)   آیا این شناسه/رکورد به همان رکورد اشاره می‌کند؟
+       PTF.findById(list, id) یافتن رکورد با هر یک از شناسه‌هایش (تهی هرگز تطبیق نمی‌کند)
+     قاعدهٔ طلایی: «نوشتن با شناسهٔ متعارف، خواندن با همهٔ نام‌های مستعار».
+     ============================================================ */
+  function entityId(x) { return String((x && (x._id || x.cd)) || ''); }
+  function entityAliases(x) {
+    var out = [];
+    [x && x._id, x && x.cd].forEach(function (v) { var k = String(v || ''); if (k && out.indexOf(k) < 0) out.push(k); });
+    return out;
+  }
+  function sameEntity(a, b) {
+    /* هر طرف می‌تواند رکورد باشد یا رشتهٔ شناسه؛ تطبیق با مقدار تهی هرگز صادق نیست. */
+    var A = (a && typeof a === 'object') ? entityAliases(a) : (String(a || '') ? [String(a)] : []);
+    var B = (b && typeof b === 'object') ? entityAliases(b) : (String(b || '') ? [String(b)] : []);
+    if (!A.length || !B.length) return false;
+    for (var i = 0; i < A.length; i++) if (B.indexOf(A[i]) > -1) return true;
+    return false;
+  }
+  function findById(list, id) {
+    var key = String(id || ''); if (!key || !list || !list.length) return null;
+    /* اولویت با شناسهٔ متعارف تا در دادهٔ دوگانه رکورد درست انتخاب شود. */
+    for (var i = 0; i < list.length; i++) if (list[i] && String(list[i]._id || '') === key) return list[i];
+    for (var j = 0; j < list.length; j++) if (list[j] && String(list[j].cd || '') === key) return list[j];
+    return null;
+  }
+
   /* ============ expose ============ */
   window.PTF = window.PTF || {};
+  window.PTF.id = entityId;
+  window.PTF.aliases = entityAliases;
+  window.PTF.sameEntity = sameEntity;
+  window.PTF.findById = findById;
   window.PTF.toFaEnNum = toFaEnNum;
   window.PTF.isPaymentVoided = isPaymentVoided;
   window.PTF.isPaymentActive = isPaymentActive;
