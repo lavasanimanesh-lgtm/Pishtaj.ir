@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>مقایسه فلومتر مغناطیسی (Magmeter) و کوریولیس (Coriolis) | دقت و کاربرد</title>
+<meta name="description" content="تفاوت فلومتر مغناطیسی (الکترومغناطیسی) و کوریولیس؛ مقایسه دقت، افت فشار، نیاز به رسانایی سیال، قابلیت اندازه‌گیری جرمی و انتخاب در پروژه." />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+<meta name="theme-color" content="#ef4b1a" />
+<link rel="canonical" href="https://pishtaj.ir/comparisons/magmeter-vs-coriolis-flowmeter.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/comparisons/magmeter-vs-coriolis-flowmeter.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/comparisons/magmeter-vs-coriolis-flowmeter.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="مقایسه فلومتر مغناطیسی (Magmeter) و کوریولیس (Coriolis) | دقت و کاربرد" />
+<meta property="og:description" content="تفاوت فلومتر مغناطیسی (الکترومغناطیسی) و کوریولیس؛ مقایسه دقت، افت فشار، نیاز به رسانایی سیال، قابلیت اندازه‌گیری جرمی و انتخاب در پروژه." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/comparisons/magmeter-vs-coriolis-flowmeter.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/real/real-hero-energy-plant.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="مقایسه فلومتر مغناطیسی (Magmeter) و کوریولیس (Coriolis) | دقت و کاربرد" />
+<meta name="twitter:description" content="تفاوت فلومتر مغناطیسی (الکترومغناطیسی) و کوریولیس؛ مقایسه دقت، افت فشار، نیاز به رسانایی سیال، قابلیت اندازه‌گیری جرمی و انتخاب در پروژه." />
+<meta name="twitter:image" content="https://pishtaj.ir/assets/images/real/real-hero-energy-plant.jpg" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<style>
+:root{--red:#ef4b1a;--orange:#f79400;--line:#e2e8f0;--shadow:0 18px 48px rgba(15,23,42,.08)}
+.cmp-wrap{max-width:960px;margin:130px auto 70px;background:#fff;border-radius:32px;border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
+.cmp-hero{background:linear-gradient(135deg,#151517,#2d2d31);color:#fff;padding:46px 38px;border-bottom:4px solid var(--red);position:relative}
+.cmp-hero:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 15% 20%,rgba(239,75,26,.32),transparent 45%)}
+.cmp-hero .crumb{position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.7);margin-bottom:10px}
+.cmp-hero .crumb a{color:#ffbd52;text-decoration:none}
+.cmp-hero h1{position:relative;z-index:1;font-size:clamp(24px,3.4vw,36px);margin:0 0 10px;line-height:1.35;font-weight:900}
+.cmp-hero p{position:relative;z-index:1;color:rgba(255,255,255,.85);margin:0;font-size:15.5px;max-width:760px;line-height:1.9}
+.cmp-body{padding:40px 42px}
+.cmp-body h2{color:var(--red);font-size:22px;margin:34px 0 12px;font-weight:900;border-right:4px solid var(--orange);padding-right:12px}
+.cmp-body h3{color:#0f2744;font-size:18px;margin:22px 0 8px}
+.cmp-body p{font-size:15.5px;line-height:2;color:#334155;margin:0 0 14px}
+.cmp-body ul,.cmp-body ol{line-height:2;color:#334155;font-size:15px;padding-right:22px}
+.cmp-body li{margin-bottom:6px}
+.cmp-body b,.cmp-body strong{color:#0f2744}
+.table-container{overflow-x:auto;margin:22px 0;border:1px solid var(--line);border-radius:18px}
+table.cmp{width:100%;border-collapse:collapse;text-align:right;background:#fff;min-width:560px}
+table.cmp th{background:#f1f5f9;padding:14px;font-size:14px;color:#0f2744;border-bottom:2px solid var(--line);font-weight:900}
+table.cmp td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:14px;color:#475569;vertical-align:top}
+table.cmp tr:nth-child(even) td{background:#fafcff}
+.vs-cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
+.vs-card{border:1px solid var(--line);border-radius:20px;padding:22px;background:#f8fafc}
+.vs-card h3{margin-top:0;color:var(--red)}
+.vs-card.alt{background:#fff7ed;border-color:#fed7aa}
+.cmp-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 18px;color:#7c2d12;font-size:14.5px;line-height:1.95;margin:18px 0}
+.decision{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #86efac;border-radius:20px;padding:22px 24px;margin:24px 0}
+.decision h3{color:#065f46;margin-top:0}
+.faq details{border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:10px;background:#fff}
+.faq summary{font-weight:900;color:#0f2744;cursor:pointer;font-size:15.5px}
+.faq details[open] summary{margin-bottom:8px}
+.faq p{margin:8px 0 0}
+.cta-box{background:linear-gradient(135deg,var(--red),var(--orange));color:#fff;border-radius:24px;padding:32px;text-align:center;margin-top:36px}
+.cta-box h3{color:#fff;margin:0 0 8px;font-size:21px}
+.cta-box p{color:rgba(255,255,255,.92);font-size:14.5px;margin:0 0 18px}
+.cta-box a{display:inline-block;background:#1e293b;color:#fff;padding:13px 28px;border-radius:14px;font-weight:900;text-decoration:none;margin:4px}
+.related{margin-top:28px;padding:22px;border:1px dashed #cbd5e1;border-radius:18px;background:#f8fafc}
+.related h3{margin:0 0 10px;color:#0f2744}
+.related a{display:inline-block;margin:4px 0 4px 8px;color:#0e7490;font-weight:900;text-decoration:none}
+@media(max-width:760px){.cmp-wrap{margin:105px 15px 40px}.cmp-body{padding:28px 20px}.cmp-hero{padding:34px 22px}.vs-cards{grid-template-columns:1fr}}
+</style>
+<script type="application/ld+json">[{"@context": "https://schema.org", "@type": "Article", "headline": "مقایسه فلومتر مغناطیسی (Magmeter) و کوریولیس (Coriolis) | دقت و کاربرد", "description": "تفاوت فلومتر مغناطیسی (الکترومغناطیسی) و کوریولیس؛ مقایسه دقت، افت فشار، نیاز به رسانایی سیال، قابلیت اندازه‌گیری جرمی و انتخاب در پروژه.", "inLanguage": "fa-IR", "author": {"@type": "Organization", "name": "پیشرو تجهیز فرتاک"}, "publisher": {"@type": "Organization", "name": "پیشرو تجهیز فرتاک", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/comparisons/magmeter-vs-coriolis-flowmeter.html"}, "datePublished": "2026-08-19", "dateModified": "2026-08-19"},{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مقایسه‌های فنی", "item": "https://pishtaj.ir/comparisons/"}, {"@type": "ListItem", "position": 3, "name": "Magmeter در برابر Coriolis", "item": "https://pishtaj.ir/comparisons/magmeter-vs-coriolis-flowmeter.html"}]},{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "آیا Magmeter می‌تواند دبی روغن یا گاز را اندازه بگیرد؟", "acceptedAnswer": {"@type": "Answer", "text": "خیر. Magmeter فقط برای سیالات رسانا (هدایت الکتریکی معمولاً حداقل ۵ میکروزیمنس/سانتی‌متر) کار می‌کند. هیدروکربن‌ها، گازها و بخار رسانا نیستند و باید از کوریولیس، اورفیس، التراسونیک یا توربینی استفاده کرد."}}, {"@type": "Question", "name": "آیا کوریولیس افت فشار زیادی ایجاد می‌کند؟", "acceptedAnswer": {"@type": "Answer", "text": "بله، به‌دلیل لوله‌های لرزان و مسیر U/خمیده، کوریولیس افت فشار بیشتری نسبت به Magmeter (که عملاً بدون مانع است) دارد. این افت در سایزینگ پمپ و انرژی باید لحاظ شود."}}, {"@type": "Question", "name": "کدام برای کاربردهای پایپینگ تجاری (Custody Transfer) مناسب است؟", "acceptedAnswer": {"@type": "Answer", "text": "کوریولیس به‌دلیل دقت جرمی بالا (تا ۰٫۱٪) و قابلیت اندازه‌گیری هم‌زمان دانسیته، گزینه استاندارد برای Custody Transfer و Batch در مایعات است. Magmeter برای کاربردهای فرایندی با سیالات رسانا و دقت ۰٫۲ تا ۰٫۵٪ استفاده می‌شود."}}, {"@type": "Question", "name": "Magmeter به نصب لوله مستقیم (Straight Run) نیاز دارد؟", "acceptedAnswer": {"@type": "Answer", "text": "بسیار کم. در مقایسه با اورفیس، Magmeter حساسیت کمی به پروفایل جریان دارد، اما رعایت چند قطر لوله مستقیم بالا و پایین برای بیشترین دقت توصیه می‌شود."}}]}]</script>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../about/">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../knowledge-center/">مرکز دانش</a><a href="../blog/">وبلاگ</a><a href="./" class="active">مقایسه‌ها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+</div></header>
+
+<main class="cmp-wrap">
+  <div class="cmp-hero">
+    <div class="crumb"><a href="../">خانه</a> › <a href="./">مقایسه‌های فنی</a> › <span>Magmeter در برابر Coriolis</span></div>
+    <h1>مقایسه فلومتر مغناطیسی (Magmeter) و کوریولیس (Coriolis) | دقت و کاربرد</h1>
+    <p>تفاوت فلومتر مغناطیسی (الکترومغناطیسی) و کوریولیس؛ مقایسه دقت، افت فشار، نیاز به رسانایی سیال، قابلیت اندازه‌گیری جرمی و انتخاب در پروژه.</p>
+  </div>
+  <article class="cmp-body">
+    
+<h2>Magmeter (فلومتر مغناطیسی) چیست؟</h2>
+<p><b>Magmeter</b> یا فلومتر الکترومغناطیسی بر اساس قانون القای فارادی کار می‌کند: یک سیال رسانا از میان میدان مغناطیسی عبور می‌کند و ولتاژ القایی متناسب با سرعت جریان تولید می‌شود. چون هیچ مانع مکانیکی در مسیر سیال نیست، <b>افت فشار تقریباً صفر</b> است، با ذرات و لجن مشکلی ندارد و برای آب، فاضلاب، اسید/باز، دوغاب و سیالات خورندهٔ رسانا بسیار مناسب است.</p>
+
+<h2>فلومتر کوریولیس (Coriolis) چیست؟</h2>
+<p><b>Coriolis Flowmeter</b> با لرزاندن یک یا دو لوله جریان، نیروی کوریولیس ناشی از عبور جرم را اندازه می‌گیرد و <b>دبی جرمی مستقیم</b> و دانسیته را با دقت بسیار بالا خروجی می‌دهد. کوریولیس به رسانایی، ویسکوزیته یا پروفایل جریان حساس نیست و می‌تواند مایع، گاز و حتی سیالات دوفازی را (با احتیاط) اندازه بگیرد.</p>
+
+<div class="vs-cards">
+<div class="vs-card"><h3>Magmeter</h3><p>بدون قطعه متحرک، افت فشار صفر، ارزان‌تر. فقط سیالات رسانا. خروجی حجمی.</p></div>
+<div class="vs-card alt"><h3>Coriolis</h3><p>دبی جرمی مستقیم، دقت بالا و دانسیته هم‌زمان. برای هر سیال، اما گران‌تر با افت فشار.</p></div>
+</div>
+
+<h2>جدول مقایسه فنی Magmeter و Coriolis</h2>
+<div class="table-container"><table class="cmp">
+<thead><tr><th>مشخصه</th><th>Magmeter</th><th>Coriolis</th></tr></thead>
+<tbody>
+<tr><td>اصل اندازه‌گیری</td><td>القای الکترومغناطیسی (فارادی)</td><td>نیروی کوریولیس (جرم)</td></tr>
+<tr><td>کمیت خروجی</td><td>دبی حجمی</td><td>دبی جرمی + دانسیته (+ دما)</td></tr>
+<tr><td>رسانایی سیال</td><td>الزامی (حدود ≥ ۵ µS/cm)</td><td>الزامی نیست</td></tr>
+<tr><td>دقت متداول</td><td>۰٫۲٪ تا ۰٫۵٪ مقدار</td><td>۰٫۱٪ تا ۰٫۲٪ مقدار</td></tr>
+<tr><td>گاز/بخار/هیدروکربن</td><td>اندازه نمی‌گیرد</td><td>قابل اندازه‌گیری</td></tr>
+<tr><td>افت فشار</td><td>تقریباً صفر</td><td>دارد (مهم در سایز بزرگ)</td></tr>
+<tr><td>قطعات متحرک</td><td>ندارد</td><td>ندارد (لوله می‌لرزد)</td></tr>
+<tr><td>نیاز به Straight Run</td><td>کم</td><td>بسیار کم</td></tr>
+<tr><td>هزینه نسبی</td><td>پایین‌تر</td><td>بسیار بالاتر (مخصوصاً سایز بزرگ)</td></tr>
+</tbody></table></div>
+
+<h2>راهنمای انتخاب بر اساس کاربرد</h2>
+<ul>
+<li><b>آب، فاضلاب، پساب صنعتی، اسید/باز رقیق، دوغاب معدنی</b> → Magmeter بهترین انتخاب است؛ اقتصادی و بدون گرفتگی.</li>
+<li><b>پایپینگ تجاری (Custody Transfer)، بچینگ شیمیایی، تزریق مواد، کنترل دقیق جرمی</b> → کوریولیس به‌دلیل دقت جرمی و دانسیته.</li>
+<li><b>هیدروکربن‌ها، نفت خام، LPG، گازهای فرایندی</b> → کوریولیس (یا اورفیس/التراسونیک)؛ Magmeter کار نمی‌کند.</li>
+<li><b>سایزهای بزرگ (۱۲ اینچ به بالا)</b> → هزینه کوریولیس به‌سرعت بالا می‌رود؛ برای مایع رسانا Magmeter و برای گاز/بخار اورفیس یا التراسونیک اقتصادی‌تر است.</li>
+</ul>
+
+<h2>نکات نصب و نگه‌داری</h2>
+<p>Magmeter باید در مسیری نصب شود که لوله همواره <b>پر</b> باشد (نصب در نقطهٔ پایین خط یا لولهٔ عمودی صعودی توصیه می‌شود). الکترودها باید با سیال تماس داشته باشند و در سیالات با پوشش‌دادگی (مانند چربی) گاه الکترود تمیزکننده لازم است. در کوریولیس، مهم‌ترین نکته <b>حذف تنش مکانیکی</b> از لوله‌های اطراف، مهار مناسب و در سرویس مایع اطمینان از نبود گاز محبوس (Entrained Gas) است؛ حباب گاز می‌تواند دقت را به‌شدت پایین بیاورد.</p>
+<div class="cmp-note"><b>نکته فنی:</b> کوریولیس می‌تواند به‌عنوان دانسیته‌متر هم عمل کند؛ این ویژگی در کاربردهایی مانند تشخیص اختلاط (Interface Detection) در خطوط چندفرآورده یا کنترل غلظت بسیار ارزشمند است.</div>
+
+<div class="decision">
+<h3>جمع‌بندی</h3>
+<ul>
+<li>اگر سیال رسانا، کاربرد فرایندی، و افت فشار صفر مهم است → <b>Magmeter</b>.</li>
+<li>اگر دبی جرمی، دقت بالا، دانسیته یا سیال غیررسانا/گاز دارید → <b>Coriolis</b>.</li>
+<li>برای سایز بزرگ و بودجهٔ محدود، گزینه‌های مکمل (اورفیس، التراسونیک، توربینی) را هم بررسی کنید.</li>
+</ul>
+</div>
+
+    <div data-deep2="yes">
+
+<h2>مقایسه با سایر فناوری‌ها و ملاحظات نصب</h2>
+<p>در تصمیم بین Magmeter و کوریولیس، بد نیست آن‌ها را در کنار اورفیس/DP، التراسونیک و Vortex هم ببینید. <b>اورفیس/DP</b> برای گاز، بخار و مایعات در لوله‌کشی‌های بزرگ اقتصادی است اما افت فشار دائمی، قطعات متحرک و دقت وابسته به پروفایل جریان دارد. <b>التراسونیک (Clamp-on)</b> برای اندازه‌گیری بدون تماس و رتروفیت خطوط بزرگ عالی است اما دقت در حضور گاز/ذرات افت می‌کند. <b>Vortex</b> برای بخار، گاز و مایعات تمیز با رینولدز بالا کار می‌کند. Magmeter در مایعات رسانا، کوریولیس در مایعات/گاز با نیاز به دبی جرمی برنده است؛ در خطوط بخار هیچ‌کدام گزینه اول نیستند.</p>
+<p>در نصب Magmeter به <b>الکترودهای زمین (Grounding Ring)</b> در لوله‌های پلاستیکی یا آستری‌دار نیاز است؛ در غیر این صورت نویز الکتریکی اندازه‌گیری را خراب می‌کند. همچنین در سیالات با چربی یا رسوب، گاه الکترود PTFE تمیزشونده یا مدل با تمیزکردن اولتراسونیک لازم است. در کوریولیس باید به <b>جهت نصب</b> (تخلیه هوای محبوس در مایع، تخلیه میعان در گاز) و <b>تنش مکانیکی</b> از لوله‌های اطراف توجه ویژه شود. کوریولیس‌های بزرگ به فونداسیون مناسب و مهار درست نیاز دارند؛ وزن بالا در سایز ۶ اینچ به بالا هزینه نصب را بالا می‌برد.</p>
+
+<h2>چک‌لیست انتخاب و RFQ فلومتر</h2>
+<ul>
+<li><b>نوع سیال:</b> مایع/گاز/بخار، رسانایی، ویسکوزیته، وجود ذرات/گاز.</li>
+<li><b>دبی نرمال/حداکثر/حداقل</b> و دانسیته (برای کوریولیس) یا رسانایی (برای Magmeter).</li>
+<li><b>دما و فشار طراحی/عملیاتی</b> و کلاس فشار خط.</li>
+<li><b>قطر لوله و استاندارد فلنج</b> (ASME، EN، DIN).</li>
+<li><b>دقت مورد نیاز</b> (٪ Reading یا Full Scale) و آیا Custody Transfer است.</li>
+<li><b>خروجی:</b> 4-20mA/HART، پالس، FOUNDATION Fieldbus، PROFIBUS یا Modbus/Ethernet.</li>
+<li><b>جنس بدنه و لاینر/دیافراگم</b> بر اساس خوردگی سیال.</li>
+<li><b>تاییدیه‌های منطقه خطر</b> (ATEX/IECEx) و کلاس حفاظت (IP66/67).</li>
+<li><b>گواهی کالیبراسیون</b> قابل ردیابی (ISO 17025) و طول کابل و الکترونیک ریموت/اینتیگرال.</li>
+</ul>
+<div class="cmp-note"><b>توصیه مهندسی:</b> برای پروسه‌ای که بعداً ممکن است نوع سیال تغییر کند یا کنترل دقیق جرم لازم باشد، کوریولیس انعطاف بیشتری می‌دهد؛ برای آب، پساب و اسید با حجم بالا، Magmeter اقتصادی‌ترین انتخاب است.</div>
+
+</div>
+<h2>پرسش‌های متداول</h2>
+    <div class="faq"><details><summary>آیا Magmeter می‌تواند دبی روغن یا گاز را اندازه بگیرد؟</summary><p>خیر. Magmeter فقط برای سیالات رسانا (هدایت الکتریکی معمولاً حداقل ۵ میکروزیمنس/سانتی‌متر) کار می‌کند. هیدروکربن‌ها، گازها و بخار رسانا نیستند و باید از کوریولیس، اورفیس، التراسونیک یا توربینی استفاده کرد.</p></details>
+<details><summary>آیا کوریولیس افت فشار زیادی ایجاد می‌کند؟</summary><p>بله، به‌دلیل لوله‌های لرزان و مسیر U/خمیده، کوریولیس افت فشار بیشتری نسبت به Magmeter (که عملاً بدون مانع است) دارد. این افت در سایزینگ پمپ و انرژی باید لحاظ شود.</p></details>
+<details><summary>کدام برای کاربردهای پایپینگ تجاری (Custody Transfer) مناسب است؟</summary><p>کوریولیس به‌دلیل دقت جرمی بالا (تا ۰٫۱٪) و قابلیت اندازه‌گیری هم‌زمان دانسیته، گزینه استاندارد برای Custody Transfer و Batch در مایعات است. Magmeter برای کاربردهای فرایندی با سیالات رسانا و دقت ۰٫۲ تا ۰٫۵٪ استفاده می‌شود.</p></details>
+<details><summary>Magmeter به نصب لوله مستقیم (Straight Run) نیاز دارد؟</summary><p>بسیار کم. در مقایسه با اورفیس، Magmeter حساسیت کمی به پروفایل جریان دارد، اما رعایت چند قطر لوله مستقیم بالا و پایین برای بیشترین دقت توصیه می‌شود.</p></details></div>
+    <div class="cta-box">
+      <h3>نیاز به استعلام یا مشاوره فنی دارید؟</h3>
+      <p>مشخصات فنی پروژه (استاندارد، سایز، کلاس، کمیت) را ثبت کنید تا کارشناسان مهندسی فروش پیشنهاد فنی-تجاری دهند.</p>
+      <a href="../rfq/?cat=inst&subject=استعلام فلومتر Magmeter یا Coriolis">ثبت استعلام در سامانه RFQ ←</a>
+      <a href="tel:02146087679" style="background:#fff;color:#1e293b">تماس با ۰۲۱-۴۶۰۸۷۶۷۹</a>
+    </div>
+    <div class="related"><h3>مطالب مرتبط</h3><a href="../knowledge-center/magmeter.html">راهنمای فلومتر مغناطیسی</a> <a href="../services/products/coriolis-flowmeter.html">تامین فلومتر کوریولیس</a> <a href="../suppliers/instrumentation-supplier.html">تامین‌کننده ابزار دقیق</a></div>
+  </article>
+</main>
+
+
+<div class="related" style="max-width:960px;margin:0 auto 50px;padding:0 20px">
+<div style="background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px">
+<h3 style="margin:0 0 10px;color:#0f2744">صفحات مرتبط</h3>
+<p style="margin:0;line-height:2.1">
+<a href="../suppliers/" style="color:#0e7490;font-weight:900">هاب تامین‌کنندگان</a> ·
+<a href="../suppliers/piping-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده پایپینگ</a> ·
+<a href="../suppliers/valve-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده شیرآلات</a> ·
+<a href="../suppliers/instrumentation-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده ابزار دقیق</a> ·
+<a href="../suppliers/electrical-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده برق صنعتی</a> ·
+<a href="../suppliers/pump-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده پمپ</a> ·
+<a href="../rfq/" style="color:#ef4b1a;font-weight:900">سامانه استعلام RFQ</a>
+</p>
+</div>
+</div>
+
+
+<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 2rem;border-top:4px solid var(--red)">
+<div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:13px;color:#94a3b8">
+<span>© 2026 Pishro Tajhiz Fartak. | <a href="../sitemap.html" style="color:#94a3b8">نقشه سایت</a></span>
+<a href="../crm/" style="color:#e2e8f0;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px">ورود همکاران (CRM)</a>
+</div>
+</footer>
+<script src="../assets/js/main.js"></script>
+<script src="../assets/js/ptf-guard.js"></script>
+</body>
+</html>
