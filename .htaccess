@@ -1,6 +1,9 @@
 # PTF v33.0.0 — production/staging public-root baseline
 Options -Indexes
 
+# SEO: custom 404 page
+ErrorDocument 404 /404.html
+
 <FilesMatch "^(?!manifest\.json$).*\.(?:json|log|zip|gz|bak|sql|md)$">
   Require all denied
 </FilesMatch>
