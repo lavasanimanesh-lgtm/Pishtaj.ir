@@ -85,6 +85,14 @@ function harness(){
   recovered.pending[2].resolve(response(200,{ok:true,committed:true,operationId:'OP-RECOVERED',commandAction:'revise_award',rev:9,result:{revisionOfferNo:'CO-1',rev:2}}));
   assert.strictEqual((await recoveredPromise).state,'acked');assert.strictEqual(recoveredAck,1,'durable compact receipt resolves ACK exactly once');
 
+  /* A successful owner-bound status lookup that finds no journal receipt is a
+     definitive non-commit after WAL recovery, not an uncertain outcome. */
+  var absent=harness(),absentReject=0,absentUncertain=0;
+  var absentPromise=absent.ctx.ptfSalesDomainCommand('revise_award',{caseId:'C1',idempotencyKey:'OP-NOT-COMMITTED'},{onReject:function(e){absentReject++;assert.strictEqual(e.message,'command_not_committed');},onUncertain:function(){absentUncertain++;}});
+  absent.pending[0].reject(new Error('response_lost_1'));await tick();await tick();absent.pending[1].reject(new Error('response_lost_2'));await tick();await tick();
+  absent.pending[2].resolve(response(200,{ok:true,committed:false,operationId:'OP-NOT-COMMITTED',commandAction:'revise_award'}));
+  assert.strictEqual((await absentPromise).state,'rejected');assert.strictEqual(absentReject,1);assert.strictEqual(absentUncertain,0);
+
   /* If both mutation responses and the status lookup are unavailable, preserve intent
      and never run definitive rollback. */
   var unknown=harness(),rollback=0,uncertain=0;

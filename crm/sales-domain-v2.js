@@ -107,8 +107,10 @@
   }
   function recoverCommandReceipt(action,payload,lastError) {
     return compactCommandStatus(action,payload).then(function(status){
-      if(!status||status.committed!==true)throw lastError;
-      return syncAfterCompactReceipt(status);
+      if(status&&status.committed===true)return syncAfterCompactReceipt(status);
+      /* command_status زیر lock و بعد از WAL recovery پاسخ داده است؛ «یافت نشد»
+         در این نقطه عدم commit قطعی است، نه outcome نامشخص. */
+      var notCommitted=new Error('command_not_committed');notCommitted.status=409;notCommitted.definitiveNoCommit=true;notCommitted.operationId=payload&&payload.idempotencyKey;notCommitted.commandAction=action;throw notCommitted;
     },function(statusError){
       try{lastError.commandStatusError=String((statusError&&statusError.message)||statusError||'');}catch(ignore){}
       throw lastError;
@@ -129,6 +131,7 @@
       return apiAttempt(action,payload).then(null,function(replayError){
         if(commandErrorIsAmbiguous(replayError)&&!actionIsReadOnly(action)){
           return recoverCommandReceipt(action,payload,replayError).then(null,function(finalError){
+            if(finalError&&finalError.definitiveNoCommit)throw finalError;
             finalError.commitOutcome='uncertain';finalError.operationId=payload.idempotencyKey;finalError.commandAction=action;
             persistCommandDiagnostic('uncertain',action,payload,finalError);
             throw finalError;
@@ -192,7 +195,11 @@
     try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(String(key||'').indexOf('ptf_sales_command_uncertain_')!==0)continue;var d=JSON.parse(localStorage.getItem(key)||'{}');if(d&&d.action&&d.operationId)rows.push({key:key,d:d});}}catch(e){return Promise.resolve([]);}
     return Promise.all(rows.slice(-12).map(function(row){
       return window.ptfSalesDomainCommandStatus(row.d.action,row.d.operationId).then(function(status){
-        if(!status||status.committed!==true)return{committed:false,operationId:row.d.operationId};
+        if(!status||status.committed!==true){
+          try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_not_committed_'+String(row.d.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'),JSON.stringify({action:row.d.action,operationId:row.d.operationId,at:new Date().toISOString()}));}catch(ignoreMissing){}
+          try{toast('⚠️ رسید سرور تأیید کرد فرمان '+row.d.operationId+' ثبت نشده است؛ فرم را دوباره باز و ثبت کنید.','warn');}catch(ignoreMissingToast){}
+          return{committed:false,definitive:true,operationId:row.d.operationId};
+        }
         try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_recovered_'+String(row.d.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'),JSON.stringify({action:row.d.action,operationId:row.d.operationId,at:new Date().toISOString(),result:status.result||{}}));}catch(ignore){}
         try{toast('✅ نتیجه قطعی فرمان '+row.d.operationId+' از رسید سرور بازیابی شد.','ok');}catch(ignoreToast){}
         return{committed:true,operationId:row.d.operationId,result:status.result||{}};

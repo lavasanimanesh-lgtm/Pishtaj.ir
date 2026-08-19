@@ -41,5 +41,6 @@ assert.ok(statusBlock.indexOf('flock($receiptLock,LOCK_EX)')>-1&&statusBlock.ind
 var resultDataBlock=server.slice(server.indexOf('function sd_result_data'),server.indexOf('function sd_command_request_hash'));
 assert.ok(resultDataBlock.indexOf("ptf_crm_sales_commands') continue")>-1,'full server journal is never downloaded in mutation projections');
 assert.ok(sales.indexOf('recoverCommandReceipt(action,payload,replayError)')>-1&&sales.indexOf('receipt.compactReceipt=true')>-1,'client checks durable receipt before declaring uncertainty');
+assert.ok(sales.indexOf("new Error('command_not_committed')")>-1&&sales.indexOf('definitiveNoCommit')>-1,'authoritative committed:false becomes definitive rejection');
 assert.ok(sales.indexOf('ptfRecoverUncertainSalesCommands')>-1&&index.indexOf('window.ptfRecoverUncertainSalesCommands()')>-1,'persisted uncertain operation is checked after authenticated CRM boot without mutation replay');
 console.log('PASS tester448-v34.7.45: full offer-form revision + metadata parity + compact receipt recovery');
