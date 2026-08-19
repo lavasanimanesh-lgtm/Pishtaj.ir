@@ -56,6 +56,13 @@
 .faq-item h4{margin:0 0 6px;color:#1e293b;font-size:15px}
 .faq-item p{margin:0;color:#64748b;font-size:14px}
 @media(max-width:800px){.svc-grid{grid-template-columns:1fr}.svc-content{padding:24px}.trust-row{grid-template-columns:repeat(2,1fr)}}
+
+.deep-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;line-height:1.7}
+.deep-table th,.deep-table td{border:1px solid #e2e8f0;padding:10px 12px;text-align:right;vertical-align:top}
+.deep-table th{background:#f1f5f9;color:#0f2744;font-weight:900}
+.deep-table tr:nth-child(even) td{background:#fafcff}
+.deep-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;color:#7c2d12;font-size:13.5px;line-height:1.9;margin:14px 0}
+@media(max-width:700px){.deep-table{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -95,6 +102,35 @@
 
 <h2>صنایع تحت پوشش</h2>
 <div class="svc-grid"><div class="svc-card"><h4>پتروشیمی</h4><p>هوای ابزار دقیق</p></div><div class="svc-card"><h4>فولاد</h4><p>هوای فرایندی</p></div><div class="svc-card"><h4>نیروگاهی</h4><p>هوای ابزار</p></div><div class="svc-card"><h4>غذایی و دارویی</h4><p>هوای Oil-Free</p></div></div>
+
+
+<section data-deep-section="compressor" class="deep-section">
+<h2>جدول انتخاب نوع کمپرسور بر اساس فشار و دبی</h2>
+<p>انتخاب نوع کمپرسور تابعی از دبی حجمی، نسبت فشار، ماهیت گاز و این‌که کاربرد هوای فشرده است یا گاز فرایندی است. جدول راهنمای شروع:</p>
+<table class="deep-table">
+<thead><tr><th>نوع کمپرسور</th><th>بازه دبی/فشار</th><th>کاربرد صنعتی</th><th>استاندارد مرجع</th></tr></thead>
+<tbody>
+<tr><td>اسکرو روغنی (Oil-Injected)</td><td>تا ~۴۰ bar، دبی متوسط</td><td>هوای ابزار، نیوماتیک کارخانه</td><td>ISO 1217، API برای مدل‌های گازی</td></tr>
+<tr><td>اسکرو خشک (Oil-Free)</td><td>تا ~۱۰ bar</td><td>هوای فشرده بدون روغن (غذا/دارو/الکترونیک)</td><td>ISO 8573-1 Class 0</td></tr>
+<tr><td>رفت‌وبرگشتی (Reciprocating)</td><td>فشار بالا تا ۳۵۰+ bar</td><td>گاز فرایندی، تزریق، CNG، هیدروژن</td><td>API 618</td></tr>
+<tr><td>سانتریفیوژ</td><td>دبی بسیار بالا، فشار متوسط</td><td>هوای احتراق توربین، گاز فرایندی پتروشیمی</td><td>API 617</td></tr>
+<tr><td>دم‌نده (Blower/Lobe)</td><td>فشار پایین، دبی بالا</td><td>هوا‌دهی تصفیه، انتقال پنوماتیک</td><td>API 673 (فن/بلوور)</td></tr>
+</tbody>
+</table>
+<p class="deep-note"><b>نکته فنی:</b> کمپرسورهای Oil-Free نباید با کمپرسورهای روغنی که فیلتر Coalescing دارند اشتباه گرفته شوند. در Class 0 (ISO 8573-1) حتی روغن روان‌کاری نباید با هوای فشرده تماس داشته باشد؛ کاتالوگ باید کلاس خلوص را تضمین کند.</p>
+
+<h2>راهنمای تامین سیستم هوای فشرده (Air Compressor Package)</h2>
+<p>یک ایستگاه هوای فشرده فقط کمپرسور نیست؛ پکیج کامل شامل درایر، فیلتر، مخزن و لوله‌کشی است. هزینه برق در طول عمر، تا ۷۰٪ کل هزینهٔ مالکیت است:</p>
+<ul>
+<li><b>نوع درایر:</b> Refrigerated برای نقطهٔ شبنم +۳°C (عمومی)؛ Desiccant (Heatless/Heated) برای نقطهٔ شبنم -۴۰°C یا پایین‌تر (ابزار دقیق، مناطق سرد).</li>
+<li><b>فیلتراسیون بر اساس ISO 8573-1:</b> پیش‌فیلتر (ذرات)، فیلتر روغن (Coalescing)، فیلتر کربن فعال (بو/بخار روغن)؛ افت فشار هر فیلتر در مصرف برق اثر مستقیم دارد.</li>
+<li><b>مخزن هوای فشرده (Receiver):</b> حجم برابر ~۱۰٪ ظرفیت دبی کمپرسور (FAD) به‌عنوان شروع؛ برای سیکل‌های بار نوسانی بزرگ‌تر.</li>
+<li><b>کنترلر و VSD:</b> در دبی متغیر، کمپرسور با Variable Speed Drive بسته به Load درصد قابل‌توجهی برق صرفه‌جویی می‌کند؛ اما باید با ساعات کار و دبی متوسط هم‌خوان باشد.</li>
+<li><b>تهویه و حرارت بازیافتی:</b> هر مترمکعب هوای خنک مناسب در اتاق کمپرسور لازم است؛ Heat Recovery برای پیش‌گرمایش آب یا فضا می‌تواند بخشی از انرژی را بازگرداند.</li>
+<li><b>مستندات پکیج:</b> گواهی ASME/PED برای مخازن تحت فشار، ITP، گزارش تست عملکرد، P&amp;ID پکیج.</li>
+</ul>
+<p><b>در RFQ کمپرسور قید کنید:</b> دبی مورد نیاز (FAD در Nm³/min)، فشار کاری، دمای محیط، رطوبت نسبی، کلاس خلوص هوای فشرده (ISO 8573-1)، تعداد ساعات کار سالانه و این‌که پکیج شامل چه اجزایی است.</p>
+</section>
 
 <h2>راهنماهای مرتبط</h2>
 <ul><li><a href="../services/products/screw-compressor.html">کمپرسور اسکرو</a></li><li><a href="../knowledge-center/kc-api-617.html">استاندارد API 617</a></li><li><a href="../blog/compressors-air-systems/">تجهیزات هوای فشرده</a></li><li><a href="../services/products/industrial-fan-blower.html">فن و بلوور</a></li></ul>
