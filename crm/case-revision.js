@@ -298,7 +298,7 @@
     if(!dlg){W._ptfAwardRevisionContext=null;alert('⛔ فرم رویژن ساخته نشد؛ صفحه را تازه‌سازی کنید.');return;}
     dlg.id='ptfReviseDlg';dlg.style.zIndex='2950';dlg.setAttribute('data-operation-id',operationId);dlg.setAttribute('data-expected-rev',ctx.expectedRev);dlg.setAttribute('data-offer-id',ctx.expectedOfferId);dlg.setAttribute('data-currency',ctx.currency);dlg.setAttribute('onclick','if(event.target===this)ptfAwardRevisionCancel()');
     var title=dlg.querySelector('h3');if(title)title.innerHTML='✏️ رویژن پیشنهاد برنده — '+title.innerHTML;
-    var banner='<div id="ptfRevIdentityNotice" style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;font-size:12px;color:#9a3412;margin-bottom:9px">رویژن روی <b dir="ltr">'+esc(ctx.offerNo)+'</b> و همان شناسه ثبت می‌شود. فرم زیر دقیقاً فرم پیشنهاد مالی است؛ کالا، اقلام درخواست، نرخ مرجع، حاشیه سود، شرایط و پیش‌نمایش قابل استفاده‌اند. هویت مشتری، درخواست و ارز پس از تشکیل پرونده قفل است.</div>';
+    var banner='<div id="ptfRevIdentityNotice" style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;font-size:12px;color:#9a3412;margin-bottom:9px">رویژن روی <b dir="ltr">'+esc(ctx.offerNo)+'</b> و همان شناسه ثبت می‌شود. فرم زیر دقیقاً فرم پیشنهاد مالی است؛ کالا، اقلام درخواست، بارگذاری از درخواست دیگر، نرخ مرجع، حاشیه سود، شرایط و پیش‌نمایش قابل استفاده‌اند. هویت مشتری، درخواست و ارز پس از تشکیل پرونده قفل است.</div>';
     if(title)title.insertAdjacentHTML('afterend',banner);
     var save=dlg.querySelector('#offSaveBtn');
     if(!save){W._ptfAwardRevisionContext=null;dlg.remove();alert('⛔ دکمهٔ ثبت فرم رویژن پیدا نشد.');return;}

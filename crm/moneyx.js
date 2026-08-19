@@ -65,15 +65,32 @@
     return h;
   }
   function updateHint(el) {
-    if (el.getAttribute('data-nohint') != null) return;
+    if (el.getAttribute('data-nohint') != null && el.getAttribute('data-words') == null) return;
     var n = ptfNum(el.value);
     var h = hintFor(el);
-    if (n >= 1000) {
+    var always = el.getAttribute('data-words') != null;
+    if (n && (n >= 1000 || always)) {
       var unit = el.getAttribute('data-unit') || 'ریال';
       h.textContent = '✍️ ' + ptfNumWordsFa(n) + ' ' + unit;
       h.style.display = '';
     } else { h.textContent = ''; h.style.display = 'none'; }
   }
+
+  /* پس از رندر داینامیک جدول پیشنهاد: کاما + مبلغ به حروف بدون نیاز به فوکوس کاربر */
+  window.ptfMoneyRefresh = function (root) {
+    function one(el) {
+      if (!el || !el.getAttribute || el.getAttribute('data-money') == null) return;
+      reformat(el);
+      updateHint(el);
+    }
+    if (root && root.nodeType === 1 && root.getAttribute && root.getAttribute('data-money') != null) {
+      one(root);
+      return;
+    }
+    var scope = (root && root.querySelectorAll) ? root : document;
+    var list = scope.querySelectorAll ? scope.querySelectorAll('[data-money]') : [];
+    for (var i = 0; i < list.length; i++) one(list[i]);
+  };
 
   /* ---------- تبدیل ارقام دوجهته (v33.9.0 — مصوب کارفرما):
      «فیلدهای مبلغ باید اعداد فارسی و انگلیسی را بپذیرند و در نهایت اگر جایی لازم است
