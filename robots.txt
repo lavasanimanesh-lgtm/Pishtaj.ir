@@ -1,10 +1,39 @@
 # robots.txt for pishtaj.ir
+# پیشرو تجهیز فرتاک — تامین‌کننده تجهیزات صنعتی
+
 User-agent: *
 Allow: /
 
-# Disallow admin/crm areas
+# Admin / application areas (not for indexing)
 Disallow: /crm/
 Disallow: /api/
+Disallow: /_tools/
+Disallow: /_audit/
+Disallow: /_human_test/
+Disallow: /_personas/
+Disallow: /docs-deploy/
+Disallow: /ptf-snapshots/
+Disallow: /.well-known/
+
+# Avoid indexing parameterised duplicates of the RFQ form
+Disallow: /rfq/?*
+
+# Explicitly welcome the main crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# AI / answer engines — allow (brand visibility in LLM answers)
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
 
 # Sitemap
 Sitemap: https://pishtaj.ir/sitemap-index.xml
