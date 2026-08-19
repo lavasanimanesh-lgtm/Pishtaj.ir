@@ -282,7 +282,13 @@
         '</tr>';
     }).join('');
     var oldTotal = aw.items.reduce(function (s, it) { return s + it.qty * it.price; }, 0);
-    var html = '<div class="md-b" id="ptfReviseDlg" style="display:grid;z-index:2950" onclick="if(event.target===this)this.remove()">' +
+    /* v34.7.41: intent از لحظهٔ بازشدن دیالوگ ثابت می‌ماند. retry همان پنجره
+       همان operationId را می‌فرستد و expectedRev جلوی overwrite هم‌زمان را می‌گیرد. */
+    var offerIdentity = String(aw.offer._id || aw.offer.no || '');
+    var expectedRev = +aw.offer.rev || 0;
+    var operationId = 'REV-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
+    var revisionCurrency = String(aw.offer.currency || c.currency || 'IRR').toUpperCase();
+    var html = '<div class="md-b" id="ptfReviseDlg" data-operation-id="' + esc(operationId) + '" data-expected-rev="' + expectedRev + '" data-offer-id="' + esc(offerIdentity) + '" data-currency="' + esc(revisionCurrency) + '" style="display:grid;z-index:2950" onclick="if(event.target===this)this.remove()">' +
       '<div class="md" style="max-width:980px;max-height:92vh;overflow:auto">' +
       '<h3>✏️ بازنگری سند برد — ' + esc(c.inqNo || idOf(c)) + '</h3>' +
       '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:8px;font-size:12px;color:#9a3412;margin-bottom:8px">' +
@@ -298,7 +304,7 @@
       '<textarea id="ptfRevReason" rows="2" placeholder="مثلاً: رد شدن ۳ عدد شیر توپی در بازرسی و توافق قیمت جدید برای اقلام باقی‌مانده"></textarea></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">' +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#7c3aed;color:#fff;font-weight:800" onclick="ptfAwardReviseSubmit(\'' + arg(idOf(c)) + '\')">ثبت رویژن پیشنهاد برنده</button></div>' +
+      '<button class="bt" id="ptfRevSubmitBtn" style="background:#7c3aed;color:#fff;font-weight:800" onclick="ptfAwardReviseSubmit(\'' + arg(idOf(c)) + '\')">ثبت رویژن پیشنهاد برنده</button></div>' +
       '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     W.ptfAwardRevisePreview();
@@ -337,17 +343,22 @@
       if (oldQty && qty !== oldQty) repriced++;
     });
     var delta = newTotal - oldTotal;
-    box.innerHTML = '<b>مبلغ فعلی سند برد:</b> ' + money(oldTotal) + ' ریال &nbsp;|&nbsp; ' +
-      '<b>مبلغ جدید:</b> ' + money(newTotal) + ' ریال &nbsp;|&nbsp; ' +
-      '<b style="color:' + (delta < 0 ? '#b91c1c' : delta > 0 ? '#047857' : '#475569') + '">دلتا: ' + (delta > 0 ? '+' : '') + money(delta) + ' ریال</b>' +
+    var currency = String(dlg.getAttribute('data-currency') || 'IRR').toUpperCase();
+    var currencyLabel = currency === 'IRR' ? 'ریال' : currency;
+    box.innerHTML = '<b>مبلغ فعلی سند برد:</b> ' + money(oldTotal) + ' ' + esc(currencyLabel) + ' &nbsp;|&nbsp; ' +
+      '<b>مبلغ جدید:</b> ' + money(newTotal) + ' ' + esc(currencyLabel) + ' &nbsp;|&nbsp; ' +
+      '<b style="color:' + (delta < 0 ? '#b91c1c' : delta > 0 ? '#047857' : '#475569') + '">دلتا: ' + (delta > 0 ? '+' : '') + money(delta) + ' ' + esc(currencyLabel) + '</b>' +
       '<div style="color:#64748b;margin-top:4px">اقلام باقی‌مانده: ' + kept + ' | حذف‌شده: ' + removed + '</div>';
   };
 
   W.ptfAwardReviseSubmit = function (caseId) {
-    var dlg = document.getElementById('ptfReviseDlg'); if (!dlg) return;
+    var dlg = document.getElementById('ptfReviseDlg');
+    if (!dlg) { alert('⛔ پنجرهٔ رویژن باز نیست؛ دوباره از پرونده باز کنید.'); return; }
+    if (dlg.getAttribute('data-in-flight') === '1') { toast('رویژن قبلی هنوز در انتظار پاسخ سرور است.', 'warn'); return; }
     if (!canRevise()) { alert('⛔ مجاز نیستید'); return; }
     var c = findCase(caseId); if (!c) { alert('⛔ پرونده یافت نشد'); return; }
     var aw = awardLines(c);
+    if (!aw.offer) { alert('⛔ پیشنهاد برنده دیگر در cache موجود نیست؛ داده را تازه‌سازی و فرم را دوباره باز کنید.'); return; }
     var reason = String((dlg.querySelector('#ptfRevReason') || {}).value || '').trim();
     if (!reason) { alert('⛔ دلیل بازنگری الزامی است'); return; }
     var voidInv = !!(dlg.querySelector('#ptfRevVoidInv') || {}).checked;
@@ -362,32 +373,50 @@
       var nameEl = tr.querySelector('[data-f="name"]');
       var name = nameEl ? String(nameEl.value || '').trim() : (src.name || '');
       if (!name) return;
-      lines.push({ name: name, desc: src.desc || '', model: src.model || '', unit: src.unit || '',
+      var line = { name: name, desc: src.desc || '', model: src.model || '', unit: src.unit || '',
         pcode: src.pcode || '', brand: src.brand || '', qty: qty, price: price,
-        lineId: src.lineId || '', sourceItemKey: src.sourceItemKey || '' });
+        lineId: src.lineId || '', sourceItemKey: src.sourceItemKey || '' };
+      if (tr.getAttribute('data-new') !== '1') line.sourceIndex = i;
+      lines.push(line);
     });
     if (!lines.length) { alert('⛔ حداقل یک قلم با تعداد بزرگ‌تر از صفر باید باقی بماند.'); return; }
     var oldTotal = aw.items.reduce(function (s, it) { return s + it.qty * it.price; }, 0);
     var newTotal = lines.reduce(function (s, it) { return s + it.qty * it.price; }, 0);
-    var msgC = 'رویژن پیشنهاد برنده ' + (aw.offer.no || '') + ' با مبلغ ' + money(newTotal) + ' ریال ثبت شود؟\n\nمبلغ فعلی: ' + money(oldTotal) + ' ریال\nدلتا: ' + money(newTotal - oldTotal) + ' ریال';
+    var currency = String(dlg.getAttribute('data-currency') || aw.offer.currency || 'IRR').toUpperCase();
+    var currencyLabel = currency === 'IRR' ? 'ریال' : currency;
+    var msgC = 'رویژن پیشنهاد برنده ' + (aw.offer.no || '') + ' با مبلغ ' + money(newTotal) + ' ' + currencyLabel + ' ثبت شود؟\n\nمبلغ فعلی: ' + money(oldTotal) + ' ' + currencyLabel + '\nدلتا: ' + money(newTotal - oldTotal) + ' ' + currencyLabel;
     if (voidInv) msgC += '\n\nفاکتورهای فعال این پرونده باطل می‌شوند؛ رسیدها می‌مانند.';
     if (!confirm(msgC)) return;
     if (typeof W.ptfSalesDomainApi !== 'function') { alert('⛔ ماژول سرور فروش بارگذاری نشده است؛ بازنگری سند برد فقط از مسیر سرور انجام می‌شود.'); return; }
+    var operationId = String(dlg.getAttribute('data-operation-id') || '');
+    var expectedOfferId = String(dlg.getAttribute('data-offer-id') || '');
+    var expectedRev = +(dlg.getAttribute('data-expected-rev') || 0);
+    if (!operationId || !expectedOfferId) { alert('⛔ شناسهٔ امن رویژن موجود نیست؛ فرم را ببندید و دوباره باز کنید.'); return; }
+    var submitBtn = dlg.querySelector('#ptfRevSubmitBtn');
+    dlg.setAttribute('data-in-flight', '1');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ در انتظار تأیید سرور…'; }
     W.ptfSalesDomainApi('revise_award', {
       caseId: idOf(c), reason: reason, lines: lines, voidInvoices: voidInv,
-      idempotencyKey: 'REVISE-AWARD|' + idOf(c) + '|' + newTotal + '|' + Date.now()
+      expectedOfferId: expectedOfferId, expectedRev: expectedRev, idempotencyKey: operationId
     }).then(function (d) {
       var r = (d && d.result) || {};
       dlg.remove();
-      toast('✅ رویژن ' + (r.revisionOfferNo || '') + (r.rev ? ' Rev.' + r.rev : '') + ' ثبت شد — مبلغ: ' + money(r.effectiveAmount || r.newAmount || newTotal) + ' ریال', 'ok');
+      toast('✅ رویژن ' + (r.revisionOfferNo || '') + (r.rev ? ' Rev.' + r.rev : '') + ' ثبت شد — مبلغ: ' + money(r.effectiveAmount || r.newAmount || newTotal) + ' ' + currencyLabel, 'ok');
       if (typeof renderDeals === 'function') renderDeals();
       if (typeof renderOffers === 'function') renderOffers();
     }).catch(function (e) {
       var msg = (e && e.message) ? e.message : String(e || '');
+      var stale = msg.indexOf('award_revision_conflict') > -1 || msg.indexOf('award_offer_identity_conflict') > -1 || msg.indexOf('duplicate_sales_cases') > -1 || msg.indexOf('duplicate_offer_no') > -1;
+      dlg.removeAttribute('data-in-flight');
+      if (submitBtn) { submitBtn.disabled = !!stale; submitBtn.textContent = stale ? 'نیاز به بازکردن مجدد فرم' : 'ثبت رویژن پیشنهاد برنده'; }
       if (msg.indexOf('official_invoice_blocks_decrease') > -1) {
         alert('⛔ برای این پرونده فاکتور رسمی صادر شده است؛ کاهش مبلغ سند برد مسدود است.\n\nمسیر درست: ابطال/اصلاحیهٔ فاکتور رسمی، سپس بازنگری سند برد.');
+      } else if (stale) {
+        alert('⛔ از زمان بازشدن فرم، پیشنهاد یا پرونده روی دستگاه دیگری تغییر کرده است. برای جلوگیری از بازنویسی تغییرات همکار، ثبت متوقف شد.\n\nداده را دریافت کنید و فرم رویژن را دوباره باز کنید.');
+      } else if (msg.indexOf('revision_precondition_required') > -1) {
+        alert('⛔ نسخهٔ صفحه قدیمی است؛ صفحه را آنلاین تازه‌سازی و فرم رویژن را دوباره باز کنید.');
       } else {
-        alert('⛔ بازنگری سند برد انجام نشد: ' + msg);
+        alert('⛔ بازنگری سند برد انجام نشد: ' + msg + '\n\nدر خطای ارتباط، همین پنجره را نبندید و دوباره ثبت را بزنید؛ operationId ثابت مانع رویژن تکراری می‌شود.');
       }
     });
   };

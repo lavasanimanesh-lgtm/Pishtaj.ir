@@ -11,8 +11,8 @@ var transport=fs.readFileSync('api/crm.php','utf8');
 
 assert.ok(api.indexOf("$changes=['ptf_crm_offers'=>$offers];if(!empty($wfResult['found']))$changes['ptf_crm_rfqs']=$rfqs")>-1,'register_offer must commit offer + RFQ projection together');
 assert.ok(api.indexOf('sd_apply_offer_workflow($rfqs,$offers')>-1,'server workflow projection');
-assert.ok(api.indexOf("$createIntent=!empty($body['createIntent'])")>-1&&api.indexOf("if($createIntent&&$incomingId===''&&count($noIndexes)>0)")>-1,'a concurrent owner of a newly reserved number is never overwritten');
-assert.ok(api.indexOf("unset($incoming['_serverState'],$incoming['_serverOpId'],$incoming['_serverError'])")>-1,'local command markers stripped server-side');
+assert.ok(api.indexOf("$createIntent=!empty($body['createIntent'])")>-1&&/if\(\$createIntent&&\$incomingId===''&&count\(\$noIndexes\)>0&&!\$crashRecovery\)/.test(api),'a concurrent owner is never overwritten; only the exact stamped operation may recover');
+assert.ok(api.indexOf("unset($incoming['_serverState'],$incoming['_serverOpId'],$incoming['_serverError']")>-1&&api.indexOf("$incoming['serverOperationId']=$idem")>-1,'local command markers are stripped and replaced by a server-issued operation receipt');
 assert.ok(transport.indexOf('sync_offers_payload_has_unregistered_new')>-1,'generic data_push rejects unregistered offers');
 assert.ok(/if\(!isset\(\$serverNos\[\$no\]\)\)return true/.test(transport) && transport.indexOf("&&empty($offer['serverRegisteredAt'])")<0,'generic data_push trusts only the server snapshot, never a spoofed client stamp');
 assert.ok(sync.indexOf('ptfSyncHoldCommandKeys')>-1&&sync.indexOf('syncKeyHeld(k)')>-1&&sync.indexOf('var heldMerged = window.ptfSmartMerge')>-1,'sync command hold blocks generic push and merges catch-up pulls');
@@ -24,9 +24,9 @@ function storage(seed){var d=Object.assign({},seed||{});return{_d:d,getItem:func
 function tick(){return new Promise(function(r){setImmediate(r);});}
 function makeCtx(mode){
   var ls=storage({ptf_crm_token:'tok',ptf_crm_offers:'[]',ptf_crm_rfqs:JSON.stringify([{cd:'RFQ-1',inqNo:'RFQ-1',wf:'WF10',st:'st1',stxt:'📥 دریافت اولیه'}]),ptf_crm_products:'[]',ptf_crm_inqitems:'[]',ptf_crm_notifs:'[]'});
-  var fetchResolve=null,fetchReject=null,requests=[],alerts=[],post=[],held=[],released=[],acked=[];
+  var deferred=[],requests=[],alerts=[],post=[],held=[],released=[],acked=[];
   var btn={disabled:false,textContent:'💾 ذخیره'};
-  var ctx={window:null,console:console,JSON:JSON,Math:Math,Date:Date,Promise:Promise,Array:Array,Object:Object,String:String,Number:Number,RegExp:RegExp,Error:Error,
+  var ctx={window:null,console:{log:function(){},error:function(){},warn:function(){}},JSON:JSON,Math:Math,Date:Date,Promise:Promise,Array:Array,Object:Object,String:String,Number:Number,RegExp:RegExp,Error:Error,
     localStorage:ls,
     getData:function(k){try{return JSON.parse(ls.getItem(k)||'[]');}catch(e){return[];}},
     setData:function(k,v){ls.setItem(k,JSON.stringify(v));return true;},
@@ -38,13 +38,14 @@ function makeCtx(mode){
     ptfSyncPendingKeys:function(){return[];},ptfSyncHoldCommandKeys:function(k){held.push(k.slice());},ptfSyncReleaseCommandKeys:function(k){released.push(k.slice());},ptfSyncAcknowledgeCommandKeys:function(k){acked.push(k.slice());},ptfSyncNotifyDirty:function(){},
     ptfSyncApplyServerProjection:function(k,v){ls.setItem(k,JSON.stringify(v));return true;},ptfSyncAcceptServerRevision:function(){},ptfSyncPullNow:function(cb){cb({ok:true});},
     ptfOfferAfterServerCommit:function(o,m){post.push({offer:o,meta:m});},
-    fetch:function(url,opt){requests.push({url:url,body:JSON.parse(opt.body)});if(mode==='manual')return new Promise(function(resolve,reject){fetchResolve=resolve;fetchReject=reject;});return Promise.resolve({ok:false,status:422,text:function(){return Promise.resolve(JSON.stringify({ok:false,error:'duplicate_offer_no'}));}});}
+    fetch:function(url,opt){requests.push({url:url,body:JSON.parse(opt.body)});if(mode==='manual')return new Promise(function(resolve,reject){deferred.push({resolve:resolve,reject:reject,used:false});});return Promise.resolve({ok:false,status:422,text:function(){return Promise.resolve(JSON.stringify({ok:false,error:'duplicate_offer_no'}));}});}
   };
   ctx.window=ctx;
   ctx._offState={no:'PTF-CO-1405-9999',kind:'CO',inqNo:'RFQ-1',buyerCd:'C-1',buyerCo:'Customer',items:[{name:'X',qty:1,price:100}],st:'draft',updatedAtISO:'2026-08-19T08:00:00.000Z'};
   ctx.offerSave=function(){var a=ctx.getData('ptf_crm_offers');a.unshift(JSON.parse(JSON.stringify(ctx._offState)));ctx.setData('ptf_crm_offers',a);var p=ctx.getData('ptf_crm_products');p.push({cd:'P-COMMAND',nm:'X'});ctx.setData('ptf_crm_products',p);return{ok:true,offerNo:ctx._offState.no,updatedAtISO:ctx._offState.updatedAtISO,idx:-1,madeRevision:false,productSyncNotes:['1 کالای فرمان']};};
   vm.createContext(ctx);vm.runInContext(workflow,ctx,{filename:'workflow.js'});vm.runInContext(sales,ctx,{filename:'sales-domain-v2.js'});
-  return{ctx:ctx,ls:ls,requests:requests,alerts:alerts,post:post,held:held,released:released,acked:acked,btn:btn,resolve:function(v){fetchResolve(v);},reject:function(e){fetchReject(e);}};
+  function takeDeferred(index){var d=index==null?deferred.filter(function(x){return !x.used;})[0]:deferred[index];if(!d)throw new Error('no_pending_fetch');d.used=true;return d;}
+  return{ctx:ctx,ls:ls,requests:requests,alerts:alerts,post:post,held:held,released:released,acked:acked,btn:btn,deferred:deferred,resolve:function(v,i){takeDeferred(i).resolve(v);},reject:function(e,i){takeDeferred(i).reject(e);}};
 }
 
 (async function(){
@@ -71,6 +72,18 @@ function makeCtx(mode){
   ok.ctx.wfRefresh('RFQ-1',{reason:'offer_delete'});
   assert.strictEqual(ok.ctx.getData('ptf_crm_rfqs')[0].wf,'WF10','deleting the final authoritative offer returns its RFQ to WF10');
 
+  /* A UI/post-ACK exception must never be reclassified as a server rejection. */
+  var postFail=makeCtx('manual'),postFailSave=postFail.ctx.offerSave();
+  postFail.ctx.ptfOfferAfterServerCommit=function(){throw new Error('simulated_post_ack_render_failure');};
+  var postFailKey=postFail.requests[0].body.idempotencyKey;
+  var postFailCanonical=Object.assign({},canonical,{serverOperationId:postFailKey});
+  postFail.resolve({ok:true,status:200,text:function(){return Promise.resolve(JSON.stringify({ok:true,rev:45,result:{offerId:'OFR-1',wf:'WF50'},data:{ptf_crm_offers:[postFailCanonical],ptf_crm_rfqs:[rfq]}}));}});
+  await postFailSave.promise;
+  assert.strictEqual(postFail.ctx.getData('ptf_crm_offers')[0].serverOperationId,postFailKey,'post-ACK failure keeps canonical offer projection');
+  assert.strictEqual(postFail.ctx.getData('ptf_crm_rfqs')[0].wf,'WF50','post-ACK failure keeps canonical RFQ workflow');
+  assert.ok(!postFail.alerts.some(function(x){return x.indexOf('سرور ثبت پیشنهاد را نپذیرفت')>-1;}),'post-ACK error never shows false rejection');
+  assert.ok(postFail.ls.getItem('ptf_offer_post_ack_warning_'+canonical.no),'post-ACK diagnostic is persisted without rollback');
+
   var bad=makeCtx('reject');
   var rejected=bad.ctx.offerSave();
   await assert.rejects(rejected.promise,/duplicate_offer_no/);
@@ -87,24 +100,44 @@ function makeCtx(mode){
   var cp=concurrent.ctx.getData('ptf_crm_products');cp.push({cd:'P-OTHER-TAB',nm:'Independent'});concurrent.ctx.setData('ptf_crm_products',cp);
   var co=concurrent.ctx.getData('ptf_crm_offers');co.push({no:'PTF-CO-OTHER',inqNo:'RFQ-OTHER',serverRegisteredAt:'2026-08-19T08:00:02Z'});concurrent.ctx.setData('ptf_crm_offers',co);
   concurrent.reject(new Error('late_mobile_failure'));
-  await assert.rejects(concurrentSave.promise,/late_mobile_failure/);
+  await tick(); await tick();
+  assert.strictEqual(concurrent.requests.length,2,'ambiguous transport failure is replayed automatically');
+  concurrent.reject(new Error('late_mobile_failure_retry'));
+  await assert.rejects(concurrentSave.promise,/late_mobile_failure_retry/);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(concurrent.ctx.getData('ptf_crm_products'))),[{cd:'P-OTHER-TAB',nm:'Independent'}],'three-way compensation preserves another tab and removes command product');
   assert.deepStrictEqual(JSON.parse(JSON.stringify(concurrent.ctx.getData('ptf_crm_offers'))),[{no:'PTF-CO-OTHER',inqNo:'RFQ-OTHER',serverRegisteredAt:'2026-08-19T08:00:02Z'}],'three-way compensation never rolls back the whole offer collection');
+  var uncertainDraft=JSON.parse(concurrent.ls.getItem('ptf_autodraft_offer_CO'));
+  assert.strictEqual(uncertainDraft._serverState,'uncertain','two transport failures are outcome-unknown, not a server rejection');
+  assert.ok(concurrent.alerts.some(function(x){return x.indexOf('نتیجه هنوز نامشخص')>-1;})&&!concurrent.alerts.some(function(x){return x.indexOf('سرور ثبت پیشنهاد را نپذیرفت')>-1;}),'unknown outcome has its own truthful message');
 
-  /* Server committed but the mobile response was lost: retry must replay the same operation. */
+  /* Server committed but the mobile response was lost: the same operation is replayed automatically. */
   var lost=makeCtx('manual');
   var firstLost=lost.ctx.offerSave(),firstKey=lost.requests[0].body.idempotencyKey;
   lost.reject(new Error('mobile_response_lost_after_commit'));
-  await assert.rejects(firstLost.promise,/mobile_response_lost_after_commit/);
-  var retained=JSON.parse(lost.ls.getItem('ptf_autodraft_offer_CO'));
-  assert.strictEqual(retained._serverOpId,firstKey,'unknown-outcome operation id retained in autodraft');
-  assert.strictEqual(lost.ctx.getData('ptf_crm_offers').length,0,'lost response does not leave a publishable local offer');
-  var retry=lost.ctx.offerSave();
-  assert.strictEqual(lost.requests[1].body.idempotencyKey,firstKey,'retry reconciles with the exact same idempotency key');
-  lost.resolve({ok:true,status:200,text:function(){return Promise.resolve(JSON.stringify({ok:true,rev:44,result:{offerId:'OFR-1',wf:'WF50'},data:{ptf_crm_offers:[canonical],ptf_crm_rfqs:[rfq]}}));}});
-  await retry.promise;
+  await tick(); await tick();
+  assert.strictEqual(lost.requests.length,2,'lost response triggers one automatic replay');
+  assert.strictEqual(lost.requests[1].body.idempotencyKey,firstKey,'automatic replay uses the exact same idempotency key');
+  var replayCanonical=Object.assign({},canonical,{serverOperationId:firstKey});
+  lost.resolve({ok:true,status:200,text:function(){return Promise.resolve(JSON.stringify({ok:true,idempotent:true,rev:44,result:{offerId:'OFR-1',wf:'WF50'},data:{ptf_crm_offers:[replayCanonical],ptf_crm_rfqs:[rfq]}}));}});
+  await firstLost.promise;
   assert.strictEqual(lost.post.length,1,'idempotent replay runs post-ACK effects exactly once in this client');
   assert.strictEqual(lost.ctx.getData('ptf_crm_rfqs')[0].wf,'WF50','replayed ACK reconciles both device projections');
+  assert.ok(!lost.alerts.some(function(x){return x.indexOf('سرور ثبت پیشنهاد را نپذیرفت')>-1;}),'lost response never produces a false server-rejection message');
+
+  /* User edited before reconciliation: payload-mismatch still resolves the prior committed operation. */
+  var mismatch=makeCtx('manual'),mismatchKey='';
+  mismatch.ctx.ptfSyncPullNow=function(cb){
+    var stamped=Object.assign({},canonical,{serverOperationId:mismatchKey});
+    mismatch.ctx.setData('ptf_crm_offers',[stamped]);mismatch.ctx.setData('ptf_crm_rfqs',[rfq]);cb({ok:true});
+  };
+  var mismatchSave=mismatch.ctx.offerSave();mismatchKey=mismatch.requests[0].body.idempotencyKey;
+  var mismatchResponse={ok:false,status:409,text:function(){return Promise.resolve(JSON.stringify({ok:false,error:'idempotency_key_payload_mismatch'}));}};
+  mismatch.resolve(mismatchResponse);await tick();await tick();
+  assert.strictEqual(mismatch.requests.length,2,'payload mismatch enters one exact replay before pull reconciliation');
+  mismatch.resolve(mismatchResponse);
+  await mismatchSave.promise;
+  assert.strictEqual(mismatch.ctx.getData('ptf_crm_offers')[0].serverOperationId,mismatchKey,'prior committed operation is recovered by its server stamp');
+  assert.ok(!mismatch.alerts.some(function(x){return x.indexOf('سرور ثبت پیشنهاد را نپذیرفت')>-1;}),'payload mismatch after prior commit is not misreported as rejection');
 
   /* RFQ merge transition timestamp outranks stale wfLog completeness. */
   var mergeLs=storage(),mctx={window:null,console:console,localStorage:mergeLs,setData:function(){return true;},getData:function(){return[];},curRole:function(){return'sales';},curSession:function(){return{user:'sales'};},document:{getElementById:function(){return null;},querySelector:function(){return null;},querySelectorAll:function(){return[];},addEventListener:function(){},hidden:true,hasFocus:function(){return true;},documentElement:{style:{setProperty:function(){}}}},navigator:{},location:{},setInterval:function(){return 1;},clearInterval:function(){},setTimeout:function(){return 1;},clearTimeout:function(){},fetch:function(){return new Promise(function(){});},alert:function(){},addEventListener:function(){},Promise:Promise,Date:Date,JSON:JSON,Math:Math,Object:Object,Array:Array,String:String,Number:Number,RegExp:RegExp,Error:Error};mctx.window=mctx;vm.createContext(mctx);vm.runInContext(sync,mctx,{filename:'sync.js'});

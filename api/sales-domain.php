@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.40';
+const SD_SERVICE_VERSION = '34.7.42';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -159,7 +159,7 @@ function sd_offer_total(array $offer): float {
     foreach (($offer['items'] ?? []) as $it) if (is_array($it)) $sum += sd_num($it['qty'] ?? 0) * sd_num($it['price'] ?? 0);
     return $sum;
 }
-/* v34.7.40 — workflow درخواست read-model همان commit ثبت پیشنهاد است. */
+/* v34.7.39 — workflow درخواست read-model همان commit ثبت پیشنهاد است. */
 function sd_rfq_matches_inquiry(array $rfq, string $inqNo): bool {
     return $inqNo !== '' && ((string)($rfq['cd'] ?? '') === $inqNo || (string)($rfq['inqNo'] ?? '') === $inqNo);
 }
@@ -410,13 +410,25 @@ function sd_result_data(array $changes): array {
     foreach ($changes as $key => $value) $out[$key] = sd_projection_value((string)$key,$value);
     return $out;
 }
-function sd_idempotency(array $commands, string $key): ?array {
+function sd_command_request_hash(string $action, array $body): string {
+    unset($body['idempotencyKey'], $body['action']);
+    return hash('sha256', $action . "\n" . json_encode(sd_norm_for_hash($body), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+function sd_idempotency(array $commands, string $key, string $action, string $requestHash): ?array {
+    global $user;
     if ($key === '') return null;
-    foreach ($commands as $cmd) if (is_array($cmd) && (string)($cmd['key'] ?? '') === $key && (string)($cmd['status'] ?? '') === 'committed') return $cmd;
+    foreach ($commands as $cmd) {
+        if (!is_array($cmd) || (string)($cmd['key'] ?? '') !== $key || (string)($cmd['status'] ?? '') !== 'committed') continue;
+        if ((string)($cmd['action'] ?? '') !== '' && (string)$cmd['action'] !== $action) sd_out(['ok'=>false,'error'=>'idempotency_key_action_mismatch'],409);
+        if ((string)($cmd['requestHash'] ?? '') !== '' && !hash_equals((string)$cmd['requestHash'], $requestHash)) sd_out(['ok'=>false,'error'=>'idempotency_key_payload_mismatch'],409);
+        if ((string)($cmd['by'] ?? '') !== '' && !hash_equals((string)$cmd['by'], (string)$user)) sd_out(['ok'=>false,'error'=>'idempotency_key_owner_mismatch'],403);
+        return $cmd;
+    }
     return null;
 }
-function sd_append_command(array &$commands, string $key, string $action, array $result): void {
-    $commands[] = ['_id'=>sd_uuid('CMD'),'key'=>$key,'action'=>$action,'status'=>'committed','at'=>sd_now(),'result'=>$result];
+function sd_append_command(array &$commands, string $key, string $action, string $requestHash, array $result): void {
+    global $user;
+    $commands[] = ['_id'=>sd_uuid('CMD'),'key'=>$key,'action'=>$action,'requestHash'=>$requestHash,'status'=>'committed','at'=>sd_now(),'by'=>$user,'result'=>$result];
     if (count($commands) > 1000) $commands = array_slice($commands, -1000);
 }
 
@@ -736,7 +748,8 @@ try {
     $petty=[];$opex=[];$issuedCheques=[];$receivedCheques=[];$salesReturns=[];
     if($action==='duplicate_case_merge'){$petty=sd_read('ptf_crm_petty');$opex=sd_read('ptf_crm_opex');$issuedCheques=sd_read('ptf_crm_cheques_issued');$receivedCheques=sd_read('ptf_crm_cheques_received');$salesReturns=sd_read('ptf_crm_sales_returns');}
     $idem = sd_text($body['idempotencyKey'] ?? '', 120);
-    $old = sd_idempotency($commands, $idem);
+    $requestHash = sd_command_request_hash($action, $body);
+    $old = sd_idempotency($commands, $idem, $action, $requestHash);
     if ($old) {
         $keys = is_array($old['result']['keys'] ?? null) ? $old['result']['keys'] : [];
         /* retry همان command نیز projection جاری را با watermark دقیق می‌گیرد؛ بدون
@@ -811,15 +824,22 @@ try {
     }
     elseif ($action === 'register_offer') {
         sd_require_role(SD_WIN_ROLES);
+        if ($idem === '') sd_out(['ok'=>false,'error'=>'operation_id_required'],428);
         $incoming=is_array($body['offer']??null)?$body['offer']:[];$no=sd_text($incoming['no']??'',100);if($no==='')sd_out(['ok'=>false,'error'=>'offer_number_required'],422);
-        /* فیلدهای وضعیت محلی هرگز وارد projection authoritative نمی‌شوند. */
-        unset($incoming['_serverState'],$incoming['_serverOpId'],$incoming['_serverError']);
+        /* v34.7.42: receipt فرمان فقط با مهر خود سرور معتبر است. کلاینت نه می‌تواند
+           serverOperationId را spoof کند و نه timestamp ثبت قبلی را بازپخش کند. */
+        unset($incoming['_serverState'],$incoming['_serverOpId'],$incoming['_serverError'],$incoming['serverOperationId'],$incoming['serverRequestHash'],$incoming['serverRegisteredAt'],$incoming['serverRegisteredBy']);
         $incomingId=sd_text($incoming['_id']??'',100);$createIntent=!empty($body['createIntent']);$idIndex=-1;$noIndexes=[];foreach($offers as $i=>$o)if(is_array($o)){if($incomingId!==''&&(string)($o['_id']??'')===$incomingId)$idIndex=$i;if((string)($o['no']??'')===$no)$noIndexes[]=$i;}
-        if($createIntent&&$incomingId===''&&count($noIndexes)>0)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
         if(count($noIndexes)>1)sd_out(['ok'=>false,'error'=>'duplicate_offer_no','count'=>count($noIndexes)],409);
-        if(count($noIndexes)===1&&$idIndex<0&&$incomingId!==''&&$noIndexes[0]!==$idIndex)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
-        $target=$idIndex>=0?$idIndex:(count($noIndexes)===1?$noIndexes[0]:-1);if($target>=0&&($offers[$target]['st']??'')==='won'&&json_encode($offers[$target])!==json_encode($incoming))sd_out(['ok'=>false,'error'=>'won_offer_locked'],409);
-        if(empty($incoming['_id']))$incoming['_id']=$target>=0?($offers[$target]['_id']??sd_uuid('OFR')):sd_uuid('OFR');$incoming['updatedAtISO']=$incoming['updatedAtISO']??sd_now();$incoming['serverRegisteredAt']=sd_now();$incoming['serverRegisteredBy']=$user;
+        /* اگر process بین rename پروجکشن offer و journal قطع شده باشد، replay دقیق
+           با مهر operation+request همان commit نیمه‌منتشر را کامل می‌کند؛ شمارهٔ متعلق
+           به فرمان دیگری همچنان conflict است. */
+        $crashRecovery=false;
+        if(count($noIndexes)===1){$existingForRecovery=$offers[$noIndexes[0]];$crashRecovery=(string)($existingForRecovery['serverOperationId']??'')===$idem&&(string)($existingForRecovery['serverRequestHash']??'')===$requestHash;}
+        if($createIntent&&$incomingId===''&&count($noIndexes)>0&&!$crashRecovery)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
+        if(count($noIndexes)===1&&$idIndex<0&&$incomingId!==''&&$noIndexes[0]!==$idIndex&&!$crashRecovery)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
+        $target=$crashRecovery?$noIndexes[0]:($idIndex>=0?$idIndex:(count($noIndexes)===1?$noIndexes[0]:-1));if($target>=0&&($offers[$target]['st']??'')==='won'&&!$crashRecovery&&json_encode($offers[$target])!==json_encode($incoming))sd_out(['ok'=>false,'error'=>'won_offer_locked'],409);
+        if(empty($incoming['_id']))$incoming['_id']=$target>=0?($offers[$target]['_id']??sd_uuid('OFR')):sd_uuid('OFR');$incoming['updatedAtISO']=$incoming['updatedAtISO']??sd_now();$incoming['serverRegisteredAt']=sd_now();$incoming['serverRegisteredBy']=$user;$incoming['serverOperationId']=$idem;$incoming['serverRequestHash']=$requestHash;
         if($target>=0)$offers[$target]=$incoming;else array_unshift($offers,$incoming);
         /* لینک TO→CO نیز بخشی از همین snapshot است؛ generic sync دیگر مسئول آن نیست. */
         if(strtoupper((string)($incoming['kind']??''))==='CO'&&!empty($incoming['srcToNo']))foreach($offers as &$sourceTo)if(is_array($sourceTo)&&(string)($sourceTo['no']??'')===(string)$incoming['srcToNo']&&empty($sourceTo['coNo'])){$sourceTo['coNo']=$no;break;}unset($sourceTo);
@@ -830,7 +850,7 @@ try {
         if($rfqIndex<0&&$inqNo!==''&&is_array($body['rfq']??null)){$candidate=$body['rfq'];if(sd_rfq_matches_inquiry($candidate,$inqNo)){array_unshift($rfqs,$candidate);$rfqIndex=0;}}
         $wfResult=sd_apply_offer_workflow($rfqs,$offers,$inqNo,$user,(strtoupper((string)($incoming['kind']??''))==='TO'?'صدور پیشنهاد فنی ':'صدور پیشنهاد مالی ').$no);
         $changes=['ptf_crm_offers'=>$offers];if(!empty($wfResult['found']))$changes['ptf_crm_rfqs']=$rfqs;
-        $result=['offerId'=>$incoming['_id'],'offerNo'=>$no,'created'=>$target<0,'rfqId'=>$wfResult['rfqId']??'','wf'=>$wfResult['wf']??''];
+        $result=['offerId'=>$incoming['_id'],'offerNo'=>$no,'created'=>$target<0,'recoveredPartialCommit'=>$crashRecovery,'rfqId'=>$wfResult['rfqId']??'','wf'=>$wfResult['wf']??''];
     }
     elseif ($action === 'mark_amendment') {
         sd_require_role(SD_WIN_ROLES);
@@ -887,49 +907,107 @@ try {
         $offers[$oi] = $offer; $changes = ['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases];
     }
     elseif ($action === 'revise_award') {
-        /* P5 (v34.7.31) — بازنگری سند برد از پروندهٔ فروش.
-           سناریوی کارفرما: پس از برد، در بازرسی بعضی اقلام مردود می‌شوند و بعضی اقلام با
-           قیمت جدید پیش‌فاکتور می‌شوند. تا امروز سند برد قفل بود و «متمم» فقط دلتای مثبت
-           می‌پذیرفت؛ تنها راه، دور زدن سیستم بود.
-           قواعد قطعی این فرمان:
-             • سند برد قبلی حذف نمی‌شود: با supersededByOfferId بایگانی و قابل استناد می‌ماند.
-             • یک «سند برد جایگزین» ساخته می‌شود (revisionOf + revisionSeq) و پرونده به آن می‌چسبد.
-             • مبلغ مؤثر قرارداد از روی همان اقلام جدید بازمحاسبه می‌شود.
-             • تصمیم کارفرما (۱۴۰۵/۰۵/۲۶): اگر فاکتور رسمی فعال برای پرونده صادر شده باشد،
-               «کاهش» مبلغ مسدود است (مغایرت مالیاتی) — پیام صریح، نه تغییر بی‌صدا.
-             • دلیل اجباری + correction + بازسازی تخصیص‌ها در همان تراکنش. */
+        /* P5 / v34.7.41 — رویژن همان پیشنهاد برنده از پروندهٔ فروش.
+           شماره و _id پیشنهاد ثابت می‌ماند؛ snapshot قبلی در revisionHistory و correction
+           حفظ می‌شود و rev افزایش می‌یابد. مبلغ مؤثر = ریشهٔ رویژن‌شده + متمم‌ها.
+           precondition هویت/Rev، پروندهٔ یکتا، کلید idempotency پایدار، دلیل اجباری و
+           بازسازی تخصیص‌ها مانع overwrite هم‌زمان و ثبت دوباره پس از پاسخ گم‌شده‌اند.
+           اگر فاکتور رسمی فعال باشد، کاهش بدون ابطال همچنان مسدود است. */
         sd_require_role(SD_WIN_ROLES);
         $caseId = sd_text($body['caseId'] ?? '', 100);
         $reason = sd_text($body['reason'] ?? '', 500);
         if ($reason === '') sd_out(['ok'=>false,'error'=>'reason_required'], 422);
+        /* v34.7.41: رویژن مالی بدون کلید پایدار یا precondition مجاز نیست. کلاینت
+           قدیمی باید refresh شود؛ پذیرفتن درخواست بدون expectedRev یعنی امکان
+           overwrite رویژن کاربر دیگر و retry با یک Rev اضافه. */
+        if ($idem === '' || !array_key_exists('expectedRev', $body) || sd_text($body['expectedOfferId'] ?? '', 120) === '') {
+            sd_out(['ok'=>false,'error'=>'revision_precondition_required'], 428);
+        }
         $ci = sd_find_case_index($cases, $caseId);
         if ($ci < 0) sd_out(['ok'=>false,'error'=>'case_not_found'], 404);
         $case = $cases[$ci]; sd_case_id($case);
+        if (!sd_active($case)) sd_out(['ok'=>false,'error'=>'sales_case_not_active'], 409);
         $lines = is_array($body['lines'] ?? null) ? $body['lines'] : [];
         if (!$lines) sd_out(['ok'=>false,'error'=>'lines_required'], 422);
 
         $parentNo = trim((string)($case['wonOffer'] ?? ''));
-        $pi = -1;
-        foreach ($offers as $i => $o) if (is_array($o) && $parentNo !== '' && (string)($o['no'] ?? '') === $parentNo) { $pi = $i; break; }
-        if ($pi < 0) sd_out(['ok'=>false,'error'=>'award_offer_not_found','wonOffer'=>$parentNo], 404);
-        $parent = $offers[$pi];
+        $parentHits = [];
+        foreach ($offers as $i => $o) if (is_array($o) && $parentNo !== '' && (string)($o['no'] ?? '') === $parentNo) $parentHits[] = (int)$i;
+        if (count($parentHits) !== 1) {
+            sd_out(['ok'=>false,'error'=>count($parentHits) ? 'duplicate_offer_no' : 'award_offer_not_found','wonOffer'=>$parentNo,'count'=>count($parentHits)], count($parentHits) ? 409 : 404);
+        }
+        $pi = $parentHits[0]; $parent = $offers[$pi];
+        $parentIdentity = trim((string)($parent['_id'] ?? '')); if ($parentIdentity === '') $parentIdentity = $parentNo;
+        $expectedOfferId = sd_text($body['expectedOfferId'] ?? '', 120);
+        if ($parentIdentity === '' || !hash_equals($parentIdentity, $expectedOfferId)) {
+            sd_out(['ok'=>false,'error'=>'award_offer_identity_conflict','expectedOfferId'=>$expectedOfferId,'currentOfferId'=>$parentIdentity], 409);
+        }
+        $parentStatus = trim((string)($parent['st'] ?? '')); if ($parentStatus === '') $parentStatus = trim((string)($parent['status'] ?? ''));
+        if ($parentStatus !== 'won') sd_out(['ok'=>false,'error'=>'award_offer_not_won'], 409);
+        if (!sd_case_offer_linked($case, $parent)) sd_out(['ok'=>false,'error'=>'case_award_identity_conflict'], 409);
+        $linkedCaseIds = [];
+        foreach ($cases as $candidate) if (is_array($candidate) && sd_active($candidate) && sd_case_offer_linked($candidate, $parent)) {
+            $linkedCaseIds[] = (string)($candidate['_id'] ?? $candidate['cd'] ?? '');
+        }
+        if (count($linkedCaseIds) !== 1) sd_out(['ok'=>false,'error'=>'duplicate_sales_cases','caseIds'=>$linkedCaseIds], 409);
+        $currentRev = (int)($parent['rev'] ?? 0);
+        $rawExpectedRev = $body['expectedRev'];
+        if (!(is_int($rawExpectedRev) || (is_string($rawExpectedRev) && ctype_digit($rawExpectedRev)))) {
+            sd_out(['ok'=>false,'error'=>'invalid_expected_revision'], 422);
+        }
+        $expectedRev = (int)$rawExpectedRev;
+        if ($expectedRev < 0) sd_out(['ok'=>false,'error'=>'invalid_expected_revision'], 422);
+        if ($expectedRev !== $currentRev) {
+            sd_out(['ok'=>false,'error'=>'award_revision_conflict','expectedRev'=>$expectedRev,'currentRev'=>$currentRev,'offerId'=>$parentIdentity], 409);
+        }
 
-        $newItems = [];
+        /* متادیتای سطر موجود (نرخ مرجع، منبع درخواست، زمان تحویل و …) هنگام
+           تغییر qty/price نباید حذف شود. تطبیق به‌ترتیب lineId، sourceItemKey و
+           sourceIndex انجام و برای هر سطر جدید lineId سروری یکتا ساخته می‌شود. */
+        $oldItems = is_array($parent['items'] ?? null) ? $parent['items'] : [];
+        $oldByLineId = []; $sourceCounts = []; $oldBySource = [];
+        foreach ($oldItems as $oldIndex => $oldItem) {
+            if (!is_array($oldItem)) continue;
+            $oldLineId = sd_text($oldItem['lineId'] ?? '', 120);
+            if ($oldLineId !== '') {
+                if (isset($oldByLineId[$oldLineId])) sd_out(['ok'=>false,'error'=>'duplicate_existing_line_id','lineId'=>$oldLineId], 409);
+                $oldByLineId[$oldLineId] = (int)$oldIndex;
+            }
+            $oldSource = sd_text($oldItem['sourceItemKey'] ?? '', 200);
+            if ($oldSource !== '') { $sourceCounts[$oldSource] = ($sourceCounts[$oldSource] ?? 0) + 1; $oldBySource[$oldSource] = (int)$oldIndex; }
+        }
+        $newItems = []; $usedOld = []; $usedLineIds = [];
         foreach ($lines as $ln) {
             if (!is_array($ln)) continue;
             $qty = sd_num($ln['qty'] ?? 0); $price = sd_num($ln['price'] ?? 0);
             if ($qty <= 0 || $price < 0) continue;
-            $row = [
-                'name'=>sd_text($ln['name'] ?? '', 300), 'desc'=>sd_text($ln['desc'] ?? '', 500),
-                'model'=>sd_text($ln['model'] ?? '', 200), 'unit'=>sd_text($ln['unit'] ?? '', 60),
-                'pcode'=>sd_text($ln['pcode'] ?? '', 100), 'brand'=>sd_text($ln['brand'] ?? '', 200),
-                'qty'=>$qty, 'price'=>$price
-            ];
-            $lineId = sd_text($ln['lineId'] ?? '', 120);
-            if ($lineId !== '') $row['lineId'] = $lineId;
-            $srcKey = sd_text($ln['sourceItemKey'] ?? '', 200);
-            if ($srcKey !== '') $row['sourceItemKey'] = $srcKey;
-            $newItems[] = $row;
+            $incomingLineId = sd_text($ln['lineId'] ?? '', 120);
+            $incomingSource = sd_text($ln['sourceItemKey'] ?? '', 200);
+            if ($incomingLineId !== '' && !isset($oldByLineId[$incomingLineId])) {
+                sd_out(['ok'=>false,'error'=>'unknown_revision_line_id','lineId'=>$incomingLineId], 409);
+            }
+            $oldIndex = -1;
+            if ($incomingLineId !== '' && isset($oldByLineId[$incomingLineId])) $oldIndex = $oldByLineId[$incomingLineId];
+            elseif ($incomingSource !== '' && ($sourceCounts[$incomingSource] ?? 0) === 1) $oldIndex = $oldBySource[$incomingSource];
+            elseif (isset($ln['sourceIndex']) && is_numeric($ln['sourceIndex'])) {
+                $candidateIndex = (int)$ln['sourceIndex'];
+                if ($candidateIndex >= 0 && $candidateIndex < count($oldItems)) $oldIndex = $candidateIndex;
+            }
+            if ($oldIndex >= 0 && isset($usedOld[$oldIndex])) sd_out(['ok'=>false,'error'=>'duplicate_revision_source_line','sourceIndex'=>$oldIndex], 422);
+            $base = ($oldIndex >= 0 && is_array($oldItems[$oldIndex] ?? null)) ? $oldItems[$oldIndex] : [];
+            $lineId = sd_text($base['lineId'] ?? $incomingLineId, 120);
+            if ($lineId === '') $lineId = sd_uuid('LINE');
+            if (isset($usedLineIds[$lineId])) sd_out(['ok'=>false,'error'=>'duplicate_revision_line_id','lineId'=>$lineId], 422);
+            $name = sd_text($ln['name'] ?? ($base['name'] ?? ''), 300);
+            if ($name === '') continue;
+            $row = $base;
+            $row['name']=$name; $row['desc']=sd_text($ln['desc'] ?? ($base['desc'] ?? ''),500);
+            $row['model']=sd_text($ln['model'] ?? ($base['model'] ?? ''),200); $row['unit']=sd_text($ln['unit'] ?? ($base['unit'] ?? ''),60);
+            $row['pcode']=sd_text($ln['pcode'] ?? ($base['pcode'] ?? ''),100); $row['brand']=sd_text($ln['brand'] ?? ($base['brand'] ?? ''),200);
+            $row['qty']=$qty; $row['price']=$price; $row['lineId']=$lineId;
+            if ($incomingSource !== '') $row['sourceItemKey'] = $incomingSource;
+            if ($oldIndex >= 0) $usedOld[$oldIndex] = true;
+            $usedLineIds[$lineId] = true; $newItems[] = $row;
         }
         if (!$newItems) sd_out(['ok'=>false,'error'=>'no_valid_line'], 422);
 
@@ -976,11 +1054,11 @@ try {
             }
         }
 
-        $seq = (int)($parent['revisionSeq'] ?? $parent['rev'] ?? 0) + 1;
+        $seq = max((int)($parent['revisionSeq'] ?? 0), $currentRev) + 1;
         $hist = is_array($parent['revisionHistory'] ?? null) ? $parent['revisionHistory'] : [];
         $prevSnap = $parent;
         unset($prevSnap['revisionHistory'], $prevSnap['editHistory']);
-        $hist[] = ['rev'=>(int)($parent['rev'] ?? 0), 'at'=>sd_now(), 'by'=>$user, 'snapshot'=>$prevSnap];
+        $hist[] = ['rev'=>$currentRev, 'at'=>sd_now(), 'by'=>$user, 'snapshot'=>$prevSnap];
         $parent['revisionHistory'] = $hist;
         $parent['items'] = $newItems;
         $parent['rev'] = $seq;
@@ -999,10 +1077,17 @@ try {
         }
 
         $amendSum = 0.0;
-        foreach (($case['linkedOffers'] ?? []) as $lnk) {
-            if (!is_array($lnk) || (string)($lnk['relationType'] ?? '') !== 'amendment') continue;
-            $amendSum += sd_num($lnk['amount'] ?? 0);
+        $case['linkedOffers'] = is_array($case['linkedOffers'] ?? null) ? $case['linkedOffers'] : [];
+        foreach ($case['linkedOffers'] as &$lnk) {
+            if (!is_array($lnk)) continue;
+            $relation = (string)($lnk['relationType'] ?? '');
+            $linkedId = (string)($lnk['offerId'] ?? ''); $linkedNo = (string)($lnk['offerNo'] ?? '');
+            if ($relation === 'root' && (($linkedId !== '' && $linkedId === $parentIdentity) || $linkedNo === $parentNo)) {
+                $lnk['amount'] = $newTotal; $lnk['offerId'] = $parentIdentity; $lnk['offerNo'] = $parentNo;
+                $lnk['revisionSeq'] = $seq; $lnk['revisedAt'] = sd_now();
+            } elseif ($relation === 'amendment') $amendSum += sd_num($lnk['amount'] ?? 0);
         }
+        unset($lnk);
         $effective = $newTotal + $amendSum;
 
         $awardDocs = is_array($case['awardDocs'] ?? null) ? $case['awardDocs'] : [];
@@ -1024,7 +1109,7 @@ try {
         $case['effectiveContractAmount'] = $effective;
         $case['awardRevisions'] = is_array($case['awardRevisions'] ?? null) ? $case['awardRevisions'] : [];
         $case['awardRevisions'][] = ['seq'=>$seq,'fromOfferNo'=>$parentNo,'toOfferNo'=>$parentNo,
-            'fromRev'=>$seq - 1,'toRev'=>$seq,'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,
+            'fromRev'=>$currentRev,'toRev'=>$seq,'oldAmount'=>$oldTotal,'newAmount'=>$newTotal,'delta'=>$newTotal - $oldTotal,
             'amendmentSum'=>$amendSum,'effectiveAmount'=>$effective,'voidedInvoices'=>$voidedIds,
             'reason'=>$reason,'at'=>sd_now(),'by'=>$user];
         $case['updatedAtISO'] = sd_now();
@@ -1351,7 +1436,7 @@ try {
     /* v34.7.18 (فاز ۱ / R9): نتیجهٔ تسویهٔ آخرین بازسازی همراه پاسخ برمی‌گردد تا کلاینت و آزمون‌ها
        بتوانند نقض اتحادها را بلافاصله ببینند. صرفاً گزارشی است و مسیر نوشتن را تغییر نمی‌دهد. */
     if(isset($GLOBALS['sd_last_reconcile']))$result['reconcile']=$GLOBALS['sd_last_reconcile'];
-    $result['keys']=array_keys($changes);sd_append_command($commands,$idem,$action,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($changes)]);
+    $result['keys']=array_keys($changes);sd_append_command($commands,$idem,$action,$requestHash,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($changes)]);
 } catch (Throwable $e) {
     if (is_resource($lock)) { @flock($lock, LOCK_UN); @fclose($lock); }
     sd_out(['ok'=>false,'error'=>'command_failed','detail'=>$e->getMessage()],500);

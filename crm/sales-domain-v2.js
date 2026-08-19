@@ -166,6 +166,50 @@
       if(!sameValue(before[k],after[k])&&typeof window.ptfSyncNotifyDirty==='function')window.ptfSyncNotifyDirty(k);
     });
   }
+  /* v34.7.42 — مرز ACK و post-ACK باید در promise هم مرز واقعی باشد. در نسخهٔ قبل
+     هر exception رندر/توست/side-effect وارد catch شبکه می‌شد، projection قطعی را
+     rollback می‌کرد و پیام کاذب «سرور نپذیرفت» می‌داد؛ بعد pull همان رکورد را برمی‌گرداند. */
+  function offerSafeStep(warnings,label,fn) {
+    try { return fn(); }
+    catch (e) {
+      warnings.push(label+': '+String((e&&e.message)||e||'unknown'));
+      try { console.error('offer post-ACK '+label,e); } catch (ignore) {}
+      return undefined;
+    }
+  }
+  function offerErrorIsDefinitive(e) {
+    var status=+(e&&e.status)||0,msg=String((e&&e.message)||'');
+    /* payload mismatch با همان operationId معمولاً یعنی تلاش قبلی commit شده و کاربر
+       پیش از reconciliation فرم را تغییر داده؛ ابتدا receipt همان عملیات را پیدا کن. */
+    if(msg==='idempotency_key_payload_mismatch')return false;
+    return status>=400&&status<500&&status!==408;
+  }
+  function offerServerReceipt(payloadOffer,operationId) {
+    function inspect() {
+      var canonical=data('ptf_crm_offers').filter(function(o){
+        return o&&o.no===payloadOffer.no&&String(o.serverOperationId||'')===String(operationId||'');
+      })[0]||null;
+      if(!canonical)return null;
+      var rfq=rfqForOffer(canonical),workflowOk=!canonical.inqNo||!!rfq;
+      if(workflowOk&&rfq&&typeof window.wfCompute==='function') {
+        try { workflowOk=String(rfq.wf||'')===String(window.wfCompute(rfq)||''); } catch(eWf) { workflowOk=false; }
+      }
+      return workflowOk?canonical:null;
+    }
+    return new Promise(function(resolve){
+      if(typeof window.ptfSyncPullNow!=='function'){resolve(inspect());return;}
+      var done=false,timer=null;
+      function finish(){if(done)return;done=true;if(timer)try{clearTimeout(timer);}catch(eT){}resolve(inspect());}
+      try {
+        timer=setTimeout(finish,5000);
+        window.ptfSyncPullNow(function(){finish();});
+      } catch(ePull) { finish(); }
+    });
+  }
+  function saveOfferAckWarning(no,operationId,warnings) {
+    if(!warnings.length)return;
+    try { localStorage.setItem('ptf_offer_post_ack_warning_'+String(no||''),JSON.stringify({operationId:operationId,at:new Date().toISOString(),warnings:warnings})); } catch(e) {}
+  }
   var legacyOfferSave = window.offerSave;
   if (typeof legacyOfferSave === 'function') {
     window.offerSave = function () {
@@ -207,25 +251,47 @@
       /* operation id از لحظهٔ اولین تلاش در state/autodraft پایدار می‌ماند؛ timestamp
          در retry تغییر می‌کند و هرگز نباید کلید reconciliation پاسخ گم‌شده باشد. */
       var idem=st._serverOpId;
-      var command=api('register_offer',{offer:payloadOffer,rfq:clone(rfqForOffer(saved)),createIntent:ret.idx<0,idempotencyKey:idem})
-        .then(function(d){
-          if(typeof window.ptfSyncAcknowledgeCommandKeys==='function')window.ptfSyncAcknowledgeCommandKeys(['ptf_crm_offers','ptf_crm_rfqs']);
-          releaseOfferCommand(); markChangedSideEffects(before,after);
-          window._ptfOfferCommandInFlight=false; delete st._serverState; delete st._serverOpId;
+      var registerPayload={offer:payloadOffer,rfq:clone(rfqForOffer(saved)),createIntent:ret.idx<0,idempotencyKey:idem};
+      function registerAttempt(){return api('register_offer',registerPayload);}
+      /* خطای 4xx پاسخ قطعی رد است. خطای transport/5xx نتیجهٔ نامعلوم دارد: همان
+         operationId یک بار خودکار replay می‌شود؛ اگر پاسخ دوم هم گم شد، pull با
+         serverOperationId دقیق بررسی می‌کند. at-least-once transport + exactly-once command. */
+      var receipt=registerAttempt().catch(function(firstError){
+        if(offerErrorIsDefinitive(firstError)){firstError._ptfDefinitive=true;throw firstError;}
+        return registerAttempt().catch(function(retryError){
+          return offerServerReceipt(payloadOffer,idem).then(function(canonicalReceipt){
+            if(canonicalReceipt)return{ok:true,reconciled:true,result:{offerId:canonicalReceipt._id||'',wf:(rfqForOffer(canonicalReceipt)||{}).wf||''},data:{}};
+            if(offerErrorIsDefinitive(retryError)){retryError._ptfDefinitive=true;throw retryError;}
+            retryError._ptfOutcomeUnknown=true;retryError._ptfFirstError=firstError;throw retryError;
+          });
+        });
+      });
+      /* onRejected آرگومان دومِ then است، نه catch بعد از onAck. بنابراین هیچ خطای
+         UI/post-ACK هرگز به‌عنوان «رد سرور» طبقه‌بندی یا rollback نمی‌شود. */
+      var command=receipt.then(function(d){
+          var warnings=[];
+          offerSafeStep(warnings,'ack-sync',function(){if(typeof window.ptfSyncAcknowledgeCommandKeys==='function')window.ptfSyncAcknowledgeCommandKeys(['ptf_crm_offers','ptf_crm_rfqs']);});
+          offerSafeStep(warnings,'release-hold',function(){releaseOfferCommand();});
+          offerSafeStep(warnings,'side-projection-dirty',function(){markChangedSideEffects(before,after);});
+          window._ptfOfferCommandInFlight=false; delete st._serverState; delete st._serverOpId; delete st._serverError;
           var canonical=data('ptf_crm_offers').filter(function(o){return o&&o.no===payloadOffer.no;})[0]||payloadOffer;
-          if(typeof window.ptfOfferAfterServerCommit==='function')window.ptfOfferAfterServerCommit(canonical,{idx:ret.idx,madeRevision:ret.madeRevision,productSyncNotes:ret.productSyncNotes||[],toCatalog:!!ret.toCatalog,serverConfirmed:true});
-          offerButtonBusy(false);
-          toast('پیشنهاد «'+payloadOffer.no+'» و وضعیت درخواست در یک تراکنش سرور تأیید شد.', 'ok');
-          try{if(typeof renderRfq==='function')renderRfq();}catch(eR){}
+          offerSafeStep(warnings,'post-commit-effects',function(){if(typeof window.ptfOfferAfterServerCommit==='function')window.ptfOfferAfterServerCommit(canonical,{idx:ret.idx,madeRevision:ret.madeRevision,productSyncNotes:ret.productSyncNotes||[],toCatalog:!!ret.toCatalog,serverConfirmed:true,operationId:idem});});
+          offerSafeStep(warnings,'button-ready',function(){offerButtonBusy(false);});
+          offerSafeStep(warnings,'success-toast',function(){toast('پیشنهاد «'+payloadOffer.no+'» و وضعیت درخواست در یک تراکنش سرور تأیید شد'+(d&&d.reconciled?' (بازیابی پاسخ)':'')+'.', 'ok');});
+          offerSafeStep(warnings,'render',function(){if(typeof renderOffers==='function')renderOffers();if(typeof renderRfq==='function')renderRfq();});
+          saveOfferAckWarning(payloadOffer.no,idem,warnings);
+          if(warnings.length)offerSafeStep([], 'warning-toast',function(){toast('ثبت سرور قطعی است؛ فقط '+warnings.length+' اثر نمایشی/جانبی نیازمند تازه‌سازی صفحه است.','warn');});
           return d;
-        })
-        .catch(function(e){
-          restoreOfferSnapshots(before,after); releaseOfferCommand();
-          window._ptfOfferCommandInFlight=false; st._serverState='rejected'; st._serverError=e.message||'register_offer_failed';
+        },function(e){
+          var uncertain=!!(e&&e._ptfOutcomeUnknown),warnings=[];
+          offerSafeStep(warnings,'rollback-local',function(){restoreOfferSnapshots(before,after);});
+          offerSafeStep(warnings,'release-hold',function(){releaseOfferCommand();});
+          window._ptfOfferCommandInFlight=false; st._serverState=uncertain?'uncertain':'rejected'; st._serverError=e.message||'register_offer_failed';
           try{localStorage.setItem('ptf_autodraft_offer_'+(st.kind||'CO'),JSON.stringify(st));}catch(eD){}
-          offerButtonBusy(false);
-          alert('⛔ پیشنهاد روی سرور تأیید نشد؛ وضعیت درخواست تغییر نکرد و متن فرم به‌عنوان پیش‌نویس حفظ شد.\n\nعلت: '+(e.message||'خطای ارتباط با سرور'));
-          try{if(typeof renderOffers==='function')renderOffers();if(typeof renderRfq==='function')renderRfq();}catch(eR2){}
+          offerSafeStep(warnings,'button-ready',function(){offerButtonBusy(false);});
+          if(uncertain)offerSafeStep(warnings,'uncertain-alert',function(){alert('⚠️ پاسخ قطعی ثبت از سرور دریافت نشد. سیستم همان operationId را دوباره بررسی کرد اما نتیجه هنوز نامشخص است.\n\nوضعیت درخواست محلی جلو نرفت و پیش‌نویس محفوظ است. پس از برقراری ارتباط دوباره «ذخیره» را بزنید؛ اگر سرور قبلاً ثبت کرده باشد، همان نتیجه بازیابی می‌شود و رکورد تکراری ساخته نمی‌شود.');});
+          else offerSafeStep(warnings,'reject-alert',function(){alert('⛔ سرور ثبت پیشنهاد را نپذیرفت؛ وضعیت درخواست تغییر نکرد و متن فرم به‌عنوان پیش‌نویس حفظ شد.\n\nعلت: '+(e.message||'خطای ثبت'))});
+          offerSafeStep(warnings,'render',function(){if(typeof renderOffers==='function')renderOffers();if(typeof renderRfq==='function')renderRfq();});
           throw e;
         });
       /* inline handler Promise را مصرف نمی‌کند؛ catch نهایی مانع unhandled rejection است. */
