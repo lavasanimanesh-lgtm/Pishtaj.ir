@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>مقایسه VFD و Soft Starter برای موتور الکتریکی | انتخاب بر اساس بار</title>
+<meta name="description" content="تفاوت درایو فرکانس متغیر (VFD) و سافت استارتر؛ مقایسه کنترل سرعت، کاهش جریان هجومی، صرفه انرژی، هزینه و کاربرد در فن/پمپ/نوار نقاله." />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+<meta name="theme-color" content="#ef4b1a" />
+<link rel="canonical" href="https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="مقایسه VFD و Soft Starter برای موتور الکتریکی | انتخاب بر اساس بار" />
+<meta property="og:description" content="تفاوت درایو فرکانس متغیر (VFD) و سافت استارتر؛ مقایسه کنترل سرعت، کاهش جریان هجومی، صرفه انرژی، هزینه و کاربرد در فن/پمپ/نوار نقاله." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/real/real-hero-energy-plant.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="مقایسه VFD و Soft Starter برای موتور الکتریکی | انتخاب بر اساس بار" />
+<meta name="twitter:description" content="تفاوت درایو فرکانس متغیر (VFD) و سافت استارتر؛ مقایسه کنترل سرعت، کاهش جریان هجومی، صرفه انرژی، هزینه و کاربرد در فن/پمپ/نوار نقاله." />
+<meta name="twitter:image" content="https://pishtaj.ir/assets/images/real/real-hero-energy-plant.jpg" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<style>
+:root{--red:#ef4b1a;--orange:#f79400;--line:#e2e8f0;--shadow:0 18px 48px rgba(15,23,42,.08)}
+.cmp-wrap{max-width:960px;margin:130px auto 70px;background:#fff;border-radius:32px;border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
+.cmp-hero{background:linear-gradient(135deg,#151517,#2d2d31);color:#fff;padding:46px 38px;border-bottom:4px solid var(--red);position:relative}
+.cmp-hero:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 15% 20%,rgba(239,75,26,.32),transparent 45%)}
+.cmp-hero .crumb{position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.7);margin-bottom:10px}
+.cmp-hero .crumb a{color:#ffbd52;text-decoration:none}
+.cmp-hero h1{position:relative;z-index:1;font-size:clamp(24px,3.4vw,36px);margin:0 0 10px;line-height:1.35;font-weight:900}
+.cmp-hero p{position:relative;z-index:1;color:rgba(255,255,255,.85);margin:0;font-size:15.5px;max-width:760px;line-height:1.9}
+.cmp-body{padding:40px 42px}
+.cmp-body h2{color:var(--red);font-size:22px;margin:34px 0 12px;font-weight:900;border-right:4px solid var(--orange);padding-right:12px}
+.cmp-body h3{color:#0f2744;font-size:18px;margin:22px 0 8px}
+.cmp-body p{font-size:15.5px;line-height:2;color:#334155;margin:0 0 14px}
+.cmp-body ul,.cmp-body ol{line-height:2;color:#334155;font-size:15px;padding-right:22px}
+.cmp-body li{margin-bottom:6px}
+.cmp-body b,.cmp-body strong{color:#0f2744}
+.table-container{overflow-x:auto;margin:22px 0;border:1px solid var(--line);border-radius:18px}
+table.cmp{width:100%;border-collapse:collapse;text-align:right;background:#fff;min-width:560px}
+table.cmp th{background:#f1f5f9;padding:14px;font-size:14px;color:#0f2744;border-bottom:2px solid var(--line);font-weight:900}
+table.cmp td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:14px;color:#475569;vertical-align:top}
+table.cmp tr:nth-child(even) td{background:#fafcff}
+.vs-cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
+.vs-card{border:1px solid var(--line);border-radius:20px;padding:22px;background:#f8fafc}
+.vs-card h3{margin-top:0;color:var(--red)}
+.vs-card.alt{background:#fff7ed;border-color:#fed7aa}
+.cmp-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 18px;color:#7c2d12;font-size:14.5px;line-height:1.95;margin:18px 0}
+.decision{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #86efac;border-radius:20px;padding:22px 24px;margin:24px 0}
+.decision h3{color:#065f46;margin-top:0}
+.faq details{border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:10px;background:#fff}
+.faq summary{font-weight:900;color:#0f2744;cursor:pointer;font-size:15.5px}
+.faq details[open] summary{margin-bottom:8px}
+.faq p{margin:8px 0 0}
+.cta-box{background:linear-gradient(135deg,var(--red),var(--orange));color:#fff;border-radius:24px;padding:32px;text-align:center;margin-top:36px}
+.cta-box h3{color:#fff;margin:0 0 8px;font-size:21px}
+.cta-box p{color:rgba(255,255,255,.92);font-size:14.5px;margin:0 0 18px}
+.cta-box a{display:inline-block;background:#1e293b;color:#fff;padding:13px 28px;border-radius:14px;font-weight:900;text-decoration:none;margin:4px}
+.related{margin-top:28px;padding:22px;border:1px dashed #cbd5e1;border-radius:18px;background:#f8fafc}
+.related h3{margin:0 0 10px;color:#0f2744}
+.related a{display:inline-block;margin:4px 0 4px 8px;color:#0e7490;font-weight:900;text-decoration:none}
+@media(max-width:760px){.cmp-wrap{margin:105px 15px 40px}.cmp-body{padding:28px 20px}.cmp-hero{padding:34px 22px}.vs-cards{grid-template-columns:1fr}}
+</style>
+<script type="application/ld+json">[{"@context": "https://schema.org", "@type": "Article", "headline": "مقایسه VFD و Soft Starter برای موتور الکتریکی | انتخاب بر اساس بار", "description": "تفاوت درایو فرکانس متغیر (VFD) و سافت استارتر؛ مقایسه کنترل سرعت، کاهش جریان هجومی، صرفه انرژی، هزینه و کاربرد در فن/پمپ/نوار نقاله.", "inLanguage": "fa-IR", "author": {"@type": "Organization", "name": "پیشرو تجهیز فرتاک"}, "publisher": {"@type": "Organization", "name": "پیشرو تجهیز فرتاک", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html"}, "datePublished": "2026-08-19", "dateModified": "2026-08-19"},{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مقایسه‌های فنی", "item": "https://pishtaj.ir/comparisons/"}, {"@type": "ListItem", "position": 3, "name": "VFD در برابر Soft Starter", "item": "https://pishtaj.ir/comparisons/vfd-vs-soft-starter.html"}]},{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "آیا Soft Starter می‌تواند سرعت موتور را تنظیم کند؟", "acceptedAnswer": {"@type": "Answer", "text": "خیر. Soft Starter فقط ولتاژ راه‌اندازی را به‌تدریج افزایش می‌دهد تا جریان هجومی و ضربه مکانیکی کم شود؛ موتور پس از راه‌اندازی به سرعت نامی می‌رسد و در همان سرعت کار می‌کند."}}, {"@type": "Question", "name": "VFD چطور باعث صرفه‌جویی انرژی می‌شود؟", "acceptedAnswer": {"@type": "Answer", "text": "در بارهای گشتاور متغیر مربعی (فن و پمپ)، طبق قانون affinity، توان با مکعب سرعت متناسب است. کاهش حتی ۲۰٪ سرعت می‌تواند مصرف انرژی را حدود ۵۰٪ کاهش دهد. VFD تنها راه رسیدن به این صرفه‌جویی است."}}, {"@type": "Question", "name": "کدام برای پمپ آب مناسب‌تر است؟", "acceptedAnswer": {"@type": "Answer", "text": "اگر فقط به راه‌اندازی نرم و ثابت بودن دبی نیاز دارید Soft Starter کافی است. اگر می‌خواهید دبی/فشار را با حلقه کنترل تنظیم کنید یا صرفه‌جویی انرژی مهم است VFD انتخاب بهتری است."}}, {"@type": "Question", "name": "آیا VFD به موتور و کابل آسیب می‌زند؟", "acceptedAnswer": {"@type": "Answer", "text": "خروجی VFD حاوی پالس‌های ولتاژ با dv/dt بالاست که در کابل‌های بلند می‌تواند به عایق موتور فشار بیاورد. استفاده از موتور Inverter-Duty، چوک خروجی و کابل VFD با شیلد مناسب این ریسک را کنترل می‌کند."}}]}]</script>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../about/">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../knowledge-center/">مرکز دانش</a><a href="../blog/">وبلاگ</a><a href="./" class="active">مقایسه‌ها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+</div></header>
+
+<main class="cmp-wrap">
+  <div class="cmp-hero">
+    <div class="crumb"><a href="../">خانه</a> › <a href="./">مقایسه‌های فنی</a> › <span>VFD در برابر Soft Starter</span></div>
+    <h1>مقایسه VFD و Soft Starter برای موتور الکتریکی | انتخاب بر اساس بار</h1>
+    <p>تفاوت درایو فرکانس متغیر (VFD) و سافت استارتر؛ مقایسه کنترل سرعت، کاهش جریان هجومی، صرفه انرژی، هزینه و کاربرد در فن/پمپ/نوار نقاله.</p>
+  </div>
+  <article class="cmp-body">
+    
+<h2>VFD چیست؟</h2>
+<p><b>VFD (Variable Frequency Drive)</b> یا درایو فرکانس متغیر، با تغییر هم‌زمان ولتاژ و فرکانس تغذیه موتور القایی، سرعت آن را به‌طور پیوسته کنترل می‌کند. این یعنی می‌توانید موتور را راه‌اندازی نرم کنید، سرعت را روی هر مقداری نگه دارید، شتاب را کنترل کنید و در بارهای فن/پمپ به صرفه‌جویی چشمگیر انرژی برسید.</p>
+
+<h2>Soft Starter چیست؟</h2>
+<p><b>Soft Starter</b> فقط در لحظهٔ راه‌اندازی وارد عمل می‌شود؛ با کنترل زاویهٔ آتش تریستورها، ولتاژ را به‌تدریج روی موتور افزایش می‌دهد تا <b>جریان هجومی (Inrush Current)</b> و ضربه مکانیکی استارت کم شود. پس از رسیدن موتور به سرعت نامی، معمولاً یک کنتاکتور بای‌پس وارد مدار می‌شود و Soft Starter از مسیر خارج می‌شود.</p>
+
+<div class="vs-cards">
+<div class="vs-card"><h3>VFD</h3><p>کنترل پیوسته سرعت، صرفه‌جویی انرژی، قابلیت‌های حفاظتی کامل. گران‌تر، با هارمونیک.</p></div>
+<div class="vs-card alt"><h3>Soft Starter</h3><p>فقط راه‌اندازی و توقف نرم، ساده و ارزان‌تر. بدون کنترل سرعت در حین کار.</p></div>
+</div>
+
+<h2>جدول مقایسه VFD و Soft Starter</h2>
+<div class="table-container"><table class="cmp">
+<thead><tr><th>مشخصه</th><th>VFD</th><th>Soft Starter</th></tr></thead>
+<tbody>
+<tr><td>کنترل سرعت</td><td>پیوسته (۰ تا ۱۰۰٪ و بالاتر)</td><td>ندارد (سرعت نامی)</td></tr>
+<tr><td>کاهش جریان راه‌اندازی</td><td>بسیار خوب (تا ۱–۱٫۵ برابر In)</td><td>خوب (تا ۳–۴ برابر In)</td></tr>
+<tr><td>کنترل شتاب/کاهش سرعت</td><td>کامل</td><td>فقط Ramp راه‌اندازی/توقف</td></tr>
+<tr><td>صرفه‌جویی انرژی در فن/پمپ</td><td>بسیار بالا (تا ۵۰٪)</td><td>ناچیز</td></tr>
+<tr><td>حفاظت موتور</td><td>کامل (OL، OC، OV، UV، Ground)</td><td>محدودتر</td></tr>
+<tr><td>هارمونیک/کیفیت توان</td><td>نیاز به چوک/فیلتر در صورت نیاز</td><td>هارمونیک فقط در استارت</td></tr>
+<tr><td>هزینه نسبی</td><td>بالاتر</td><td>پایین‌تر</td></tr>
+<tr><td>ابعاد و اتلاف حرارت</td><td>بزرگ‌تر، نیاز به تهویه</td><td>کوچک‌تر</td></tr>
+</tbody></table></div>
+
+<h2>انتخاب بر اساس نوع بار</h2>
+<ul>
+<li><b>فن‌ها و پمپ‌های گریز از مرکز با نیاز به دبی متغیر</b> → VFD به‌دلیل صرفه‌جویی انرژی و کنترل فشار/دبی.</li>
+<li><b>نوار نقاله، آسیاب، میکسر با گشتاور راه‌اندازی بالا</b> → VFD برای کنترل گشتاور و شتاب؛ Soft Starter فقط اگر سرعت ثابت است.</li>
+<li><b>پمپ‌های آبرسانی با فشار ثابت و دبی متغیر</b> → VFD با حلقه PID.</li>
+<li><b>موتورهایی که فقط استارت نرم می‌خواهند و سرعت ثابت دارند</b> (کمپرسورهای اسکرو با کنترل داخلی، فن‌های ثابت) → Soft Starter اقتصادی‌تر است.</li>
+</ul>
+
+<h2>نکات فنی در نصب و بهره‌برداری</h2>
+<p>برای VFD باید <b>هارمونیک شبکه</b> را با چوک ورودی یا فیلتر THDi کنترل کرد، کابل موتور از نوع VFD با شیلد مناسب باشد و موتورها رده Inverter-Duty (عایق تقویت‌شده برای dv/dt بالا) انتخاب شوند. در کابل‌های بلند، dv/dt فیلتر یا سینوس فیلتر لازم است. Soft Starter به این ملاحظات حساس نیست و در کابل‌های بلند هم مشکلی ایجاد نمی‌کند.</p>
+<div class="cmp-note"><b>نکته فنی:</b> یک راه‌حل میانه برای بارهای بزرگ، VFD برای یک موتور و Soft Starter برای بقیه است؛ با کنترل‌کننده منطقی (PLC) می‌توان از یک VFD به‌صورت Sequential برای چند موتور استفاده کرد و هزینه را پایین آورد.</div>
+
+<div class="decision">
+<h3>جمع‌بندی</h3>
+<ul>
+<li>اگر کنترل سرعت یا صرفه‌جویی انرژی واقعی می‌خواهید → <b>VFD</b>.</li>
+<li>اگر فقط ضربه استارت و جریان هجومی مهم است و سرعت ثابت است → <b>Soft Starter</b>.</li>
+<li>در شک بین این دو، هزینه انرژی در طول عمر موتور را محاسبه کنید؛ VFD معمولاً در کمتر از ۱ تا ۲ سال بازگشت سرمایه دارد.</li>
+</ul>
+</div>
+
+    <div data-deep2="yes">
+
+<h2>هارمونیک، کیفیت توان و الزامات شبکه</h2>
+<p>مهم‌ترین چالش فنی در استفاده از VFD، تولید <b>هارمونیک جریان</b> است که می‌تواند به افزایش تلفات ترانس/کابل، تداخل با تجهیزات حساس و گرم شدن موتور منجر شود. میزان هارمونیک به معماری VFD بستگی دارد: ورودی ۶-پالس ساده THDi حدود ۳۰–۴۰٪ دارد؛ با چوک AC/DC به ۳۵–۴۰٪ و با فیلتر هارمونیک یا درایو ۱۲-پالس/Active Front End می‌توان THDi را به زیر ۵٪ رساند. برای جلوگیری از آسیب به موتور، <b>پالس‌های ولتاژ با dv/dt بالا</b> در کابل‌های بلند باید با چوک خروجی یا dv/dt فیلتر/سینوس فیلتر کنترل شوند. Soft Starter چون پس از راه‌اندازی بای‌پس می‌شود، هارمونیک دائمی ندارد و فقط در چند ثانیه استارت روی شبکه اثر می‌گذارد.</p>
+<p>در سیستم‌های دارای ژنراتور اضطراری (Diesel Generator)، VFD باید با امپدانس گذرای ژنراتور هماهنگ شود؛ درایو می‌تواند در لحظه استارت یا ریکاوری پس از قطع، افت ولتاژ شدید ایجاد کند. محاسبه اندازه ژنراتور با درنظرگرفتن ضریب توان غیرخطی VFD ضروری است. برای EMC، کابل موتور شیلددار مخصوص VFD، اتصال شیلد به ارت در دو طرف (با رعایت حلقه زمین)، و جداسازی فیزیکی کابل کنترل از کابل قدرت رعایت شود.</p>
+
+<h2>چک‌لیست RFQ درایو و سافت استارتر</h2>
+<ul>
+<li><b>نوع بار:</b> گشتاور ثابت (نوار نقاله، میکسر) یا گشتاور متغیر مربعی (فن/پمپ).</li>
+<li><b>توان، ولتاژ و جریان نامی موتور</b> و سرویس کار (S1/S4…).</li>
+<li><b>گشتاور راه‌اندازی مورد نیاز</b> (درصد گشتاور نامی) و زمان رمپ.</li>
+<li><b>کنترل:</b> V/Hz، Sensorless Vector، Closed-Loop Vector با انکودر.</li>
+<li><b>ورودی/خروجی و پروتکل:</b> Modbus RTU/TCP، PROFIBUS، PROFINET، Ethernet/IP.</li>
+<li><b>چوک/فیلتر:</b> چوک ورودی، خروجی، dv/dt یا سینوس فیلتر، EMC فیلتر.</li>
+<li><b>حفاظت‌ها:</b> اضافه‌بار، اتصال کوتاه، زمین، Under/Over Voltage، Stall، PTC موتور.</li>
+<li><b>محیط:</b> دمای کار، ارتفاع، IP کابینت، تهویه و کولینگ.</li>
+<li><b>کلاس بهره‌وری انرژی</b> و IES برای VFD (IEC 61800-9).</li>
+</ul>
+<div class="cmp-note"><b>نکته بازگشت سرمایه:</b> در فن/پمپی که به‌طور میانگین زیر ۸۰٪ سرعت کار می‌کند، VFD معمولاً در کمتر از ۱٫۵ سال از محل صرفه‌جویی برق هزینه‌اش را برمی‌گرداند. Soft Starter این صرفه‌جویی را ندارد.</div>
+
+</div>
+<h2>پرسش‌های متداول</h2>
+    <div class="faq"><details><summary>آیا Soft Starter می‌تواند سرعت موتور را تنظیم کند؟</summary><p>خیر. Soft Starter فقط ولتاژ راه‌اندازی را به‌تدریج افزایش می‌دهد تا جریان هجومی و ضربه مکانیکی کم شود؛ موتور پس از راه‌اندازی به سرعت نامی می‌رسد و در همان سرعت کار می‌کند.</p></details>
+<details><summary>VFD چطور باعث صرفه‌جویی انرژی می‌شود؟</summary><p>در بارهای گشتاور متغیر مربعی (فن و پمپ)، طبق قانون affinity، توان با مکعب سرعت متناسب است. کاهش حتی ۲۰٪ سرعت می‌تواند مصرف انرژی را حدود ۵۰٪ کاهش دهد. VFD تنها راه رسیدن به این صرفه‌جویی است.</p></details>
+<details><summary>کدام برای پمپ آب مناسب‌تر است؟</summary><p>اگر فقط به راه‌اندازی نرم و ثابت بودن دبی نیاز دارید Soft Starter کافی است. اگر می‌خواهید دبی/فشار را با حلقه کنترل تنظیم کنید یا صرفه‌جویی انرژی مهم است VFD انتخاب بهتری است.</p></details>
+<details><summary>آیا VFD به موتور و کابل آسیب می‌زند؟</summary><p>خروجی VFD حاوی پالس‌های ولتاژ با dv/dt بالاست که در کابل‌های بلند می‌تواند به عایق موتور فشار بیاورد. استفاده از موتور Inverter-Duty، چوک خروجی و کابل VFD با شیلد مناسب این ریسک را کنترل می‌کند.</p></details></div>
+    <div class="cta-box">
+      <h3>نیاز به استعلام یا مشاوره فنی دارید؟</h3>
+      <p>مشخصات فنی پروژه (استاندارد، سایز، کلاس، کمیت) را ثبت کنید تا کارشناسان مهندسی فروش پیشنهاد فنی-تجاری دهند.</p>
+      <a href="../rfq/?cat=elect&subject=استعلام VFD یا Soft Starter">ثبت استعلام در سامانه RFQ ←</a>
+      <a href="tel:02146087679" style="background:#fff;color:#1e293b">تماس با ۰۲۱-۴۶۰۸۷۶۷۹</a>
+    </div>
+    <div class="related"><h3>مطالب مرتبط</h3><a href="../knowledge-center/vfd-variable-frequency-drive-guide.html">راهنمای VFD صنعتی</a> <a href="../knowledge-center/soft-starter-guide.html">راهنمای Soft Starter</a> <a href="../services/products/vfd-soft-starter.html">محصولات VFD و سافت استارتر</a></div>
+  </article>
+</main>
+
+
+<div class="related" style="max-width:960px;margin:0 auto 50px;padding:0 20px">
+<div style="background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px">
+<h3 style="margin:0 0 10px;color:#0f2744">صفحات مرتبط</h3>
+<p style="margin:0;line-height:2.1">
+<a href="../suppliers/" style="color:#0e7490;font-weight:900">هاب تامین‌کنندگان</a> ·
+<a href="../suppliers/piping-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده پایپینگ</a> ·
+<a href="../suppliers/valve-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده شیرآلات</a> ·
+<a href="../suppliers/instrumentation-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده ابزار دقیق</a> ·
+<a href="../suppliers/electrical-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده برق صنعتی</a> ·
+<a href="../suppliers/pump-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده پمپ</a> ·
+<a href="../rfq/" style="color:#ef4b1a;font-weight:900">سامانه استعلام RFQ</a>
+</p>
+</div>
+</div>
+
+
+<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 2rem;border-top:4px solid var(--red)">
+<div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:13px;color:#94a3b8">
+<span>© 2026 Pishro Tajhiz Fartak. | <a href="../sitemap.html" style="color:#94a3b8">نقشه سایت</a></span>
+<a href="../crm/" style="color:#e2e8f0;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px">ورود همکاران (CRM)</a>
+</div>
+</footer>
+<script src="../assets/js/main.js"></script>
+<script src="../assets/js/ptf-guard.js"></script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>مقایسه ترانسمیتر Rosemount و Yokogawa | دقت، اکوسیستم و سرویس</title>
+<meta name="description" content="تفاوت ترانسمیتر فشار/دما Rosemount (امرسون) و Yokogawa؛ مقایسه دقت، پایداری، پروتکل، اکوسیستم DCS، قطعات یدکی و انتخاب در پروژه." />
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+<meta name="theme-color" content="#ef4b1a" />
+<link rel="canonical" href="https://pishtaj.ir/comparisons/rosemount-vs-yokogawa-transmitter.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/comparisons/rosemount-vs-yokogawa-transmitter.html" />
+<link rel="alternate" hreflang="x-default" href="https://pishtaj.ir/comparisons/rosemount-vs-yokogawa-transmitter.html" />
+<meta property="og:locale" content="fa_IR" />
+<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />
+<meta property="og:title" content="مقایسه ترانسمیتر Rosemount و Yokogawa | دقت، اکوسیستم و سرویس" />
+<meta property="og:description" content="تفاوت ترانسمیتر فشار/دما Rosemount (امرسون) و Yokogawa؛ مقایسه دقت، پایداری، پروتکل، اکوسیستم DCS، قطعات یدکی و انتخاب در پروژه." />
+<meta property="og:type" content="article" />
+<meta property="og:url" content="https://pishtaj.ir/comparisons/rosemount-vs-yokogawa-transmitter.html" />
+<meta property="og:image" content="https://pishtaj.ir/assets/images/real/real-hero-energy-plant.jpg" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="مقایسه ترانسمیتر Rosemount و Yokogawa | دقت، اکوسیستم و سرویس" />
+<meta name="twitter:description" content="تفاوت ترانسمیتر فشار/دما Rosemount (امرسون) و Yokogawa؛ مقایسه دقت، پایداری، پروتکل، اکوسیستم DCS، قطعات یدکی و انتخاب در پروژه." />
+<meta name="twitter:image" content="https://pishtaj.ir/assets/images/real/real-hero-energy-plant.jpg" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<style>
+:root{--red:#ef4b1a;--orange:#f79400;--line:#e2e8f0;--shadow:0 18px 48px rgba(15,23,42,.08)}
+.cmp-wrap{max-width:960px;margin:130px auto 70px;background:#fff;border-radius:32px;border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
+.cmp-hero{background:linear-gradient(135deg,#151517,#2d2d31);color:#fff;padding:46px 38px;border-bottom:4px solid var(--red);position:relative}
+.cmp-hero:before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 15% 20%,rgba(239,75,26,.32),transparent 45%)}
+.cmp-hero .crumb{position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.7);margin-bottom:10px}
+.cmp-hero .crumb a{color:#ffbd52;text-decoration:none}
+.cmp-hero h1{position:relative;z-index:1;font-size:clamp(24px,3.4vw,36px);margin:0 0 10px;line-height:1.35;font-weight:900}
+.cmp-hero p{position:relative;z-index:1;color:rgba(255,255,255,.85);margin:0;font-size:15.5px;max-width:760px;line-height:1.9}
+.cmp-body{padding:40px 42px}
+.cmp-body h2{color:var(--red);font-size:22px;margin:34px 0 12px;font-weight:900;border-right:4px solid var(--orange);padding-right:12px}
+.cmp-body h3{color:#0f2744;font-size:18px;margin:22px 0 8px}
+.cmp-body p{font-size:15.5px;line-height:2;color:#334155;margin:0 0 14px}
+.cmp-body ul,.cmp-body ol{line-height:2;color:#334155;font-size:15px;padding-right:22px}
+.cmp-body li{margin-bottom:6px}
+.cmp-body b,.cmp-body strong{color:#0f2744}
+.table-container{overflow-x:auto;margin:22px 0;border:1px solid var(--line);border-radius:18px}
+table.cmp{width:100%;border-collapse:collapse;text-align:right;background:#fff;min-width:560px}
+table.cmp th{background:#f1f5f9;padding:14px;font-size:14px;color:#0f2744;border-bottom:2px solid var(--line);font-weight:900}
+table.cmp td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:14px;color:#475569;vertical-align:top}
+table.cmp tr:nth-child(even) td{background:#fafcff}
+.vs-cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
+.vs-card{border:1px solid var(--line);border-radius:20px;padding:22px;background:#f8fafc}
+.vs-card h3{margin-top:0;color:var(--red)}
+.vs-card.alt{background:#fff7ed;border-color:#fed7aa}
+.cmp-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px 18px;color:#7c2d12;font-size:14.5px;line-height:1.95;margin:18px 0}
+.decision{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #86efac;border-radius:20px;padding:22px 24px;margin:24px 0}
+.decision h3{color:#065f46;margin-top:0}
+.faq details{border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:10px;background:#fff}
+.faq summary{font-weight:900;color:#0f2744;cursor:pointer;font-size:15.5px}
+.faq details[open] summary{margin-bottom:8px}
+.faq p{margin:8px 0 0}
+.cta-box{background:linear-gradient(135deg,var(--red),var(--orange));color:#fff;border-radius:24px;padding:32px;text-align:center;margin-top:36px}
+.cta-box h3{color:#fff;margin:0 0 8px;font-size:21px}
+.cta-box p{color:rgba(255,255,255,.92);font-size:14.5px;margin:0 0 18px}
+.cta-box a{display:inline-block;background:#1e293b;color:#fff;padding:13px 28px;border-radius:14px;font-weight:900;text-decoration:none;margin:4px}
+.related{margin-top:28px;padding:22px;border:1px dashed #cbd5e1;border-radius:18px;background:#f8fafc}
+.related h3{margin:0 0 10px;color:#0f2744}
+.related a{display:inline-block;margin:4px 0 4px 8px;color:#0e7490;font-weight:900;text-decoration:none}
+@media(max-width:760px){.cmp-wrap{margin:105px 15px 40px}.cmp-body{padding:28px 20px}.cmp-hero{padding:34px 22px}.vs-cards{grid-template-columns:1fr}}
+</style>
+<script type="application/ld+json">[{"@context": "https://schema.org", "@type": "Article", "headline": "مقایسه ترانسمیتر Rosemount و Yokogawa | دقت، اکوسیستم و سرویس", "description": "تفاوت ترانسمیتر فشار/دما Rosemount (امرسون) و Yokogawa؛ مقایسه دقت، پایداری، پروتکل، اکوسیستم DCS، قطعات یدکی و انتخاب در پروژه.", "inLanguage": "fa-IR", "author": {"@type": "Organization", "name": "پیشرو تجهیز فرتاک"}, "publisher": {"@type": "Organization", "name": "پیشرو تجهیز فرتاک", "logo": {"@type": "ImageObject", "url": "https://pishtaj.ir/assets/images/ptf-logo.png"}}, "mainEntityOfPage": {"@type": "WebPage", "@id": "https://pishtaj.ir/comparisons/rosemount-vs-yokogawa-transmitter.html"}, "datePublished": "2026-08-19", "dateModified": "2026-08-19"},{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "خانه", "item": "https://pishtaj.ir/"}, {"@type": "ListItem", "position": 2, "name": "مقایسه‌های فنی", "item": "https://pishtaj.ir/comparisons/"}, {"@type": "ListItem", "position": 3, "name": "Rosemount در برابر Yokogawa", "item": "https://pishtaj.ir/comparisons/rosemount-vs-yokogawa-transmitter.html"}]},{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "آیا Rosemount و Yokogawa با هم قابل تعویض هستند؟", "acceptedAnswer": {"@type": "Answer", "text": "هر دو از پروتکل‌های استاندارد 4-20mA/HART پشتیبانی می‌کنند و در حلقهٔ ۴–۲۰ میلی‌آمپر از نظر الکتریکی جایگزین می‌شوند، اما در حالت دیجیتال (FOUNDATION Fieldbus، PROFIBUS) و در ادغام با DCS بومی، تفاوت‌هایی در Device Description و مدیریت Asset وجود دارد."}}, {"@type": "Question", "name": "کدام دقت بالاتری دارد؟", "acceptedAnswer": {"@type": "Answer", "text": "هر دو در ردهٔ بهترین‌های بازار هستند؛ Rosemount سری 3051S و Yokogawa EJX-A هر دو دقت پایه حدود ۰٫۰۲۵٪ تا ۰٫۰۴٪ اسپن دارند. انتخاب بیشتر به سرویس، شرایط محیطی و اکوسیستم کنترل پروژه بستگی دارد."}}, {"@type": "Question", "name": "در ایران سرویس و قطعه کدام بهتر است؟", "acceptedAnswer": {"@type": "Answer", "text": "این به تامین‌کننده و موجودی انبار منطقه بستگی دارد؛ هر دو برند شبکه نمایندگی دارند. در تامین پروژه‌ای، داشتن گارانتی اصالت، کالیبراسیون قابل ردیابی و تامین قطعه مهم‌تر از برند است."}}, {"@type": "Question", "name": "کدام برای سرویس‌های خورنده مناسب‌تر است؟", "acceptedAnswer": {"@type": "Answer", "text": "هر دو متریال‌های بدنه و دیافراگم (316L، Hastelloy C، Monel، Tantalum و …) را ارائه می‌دهند؛ انتخاب بر اساس سیال و دما در دیتاشیت هر دو برند تعیین می‌شود، نه برند به‌تنهایی."}}]}]</script>
+</head>
+<body>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><a href="../about/">درباره ما</a><a href="../services/">خدمات</a><a href="../industries/">صنایع</a><a href="../knowledge-center/">مرکز دانش</a><a href="../blog/">وبلاگ</a><a href="./" class="active">مقایسه‌ها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+</div></header>
+
+<main class="cmp-wrap">
+  <div class="cmp-hero">
+    <div class="crumb"><a href="../">خانه</a> › <a href="./">مقایسه‌های فنی</a> › <span>Rosemount در برابر Yokogawa</span></div>
+    <h1>مقایسه ترانسمیتر Rosemount و Yokogawa | دقت، اکوسیستم و سرویس</h1>
+    <p>تفاوت ترانسمیتر فشار/دما Rosemount (امرسون) و Yokogawa؛ مقایسه دقت، پایداری، پروتکل، اکوسیستم DCS، قطعات یدکی و انتخاب در پروژه.</p>
+  </div>
+  <article class="cmp-body">
+    
+<h2>Rosemount چیست؟</h2>
+<p><b>Rosemount</b> برند زیرمجموعهٔ <b>امرسون (Emerson)</b> است که از مشهورترین سازندگان ترانسمیتر فشار، دما، فلو و سطح جهان است. مدل‌های Rosemount 3051 و 3051S سال‌هاست در پروژه‌های نفت، گاز، پتروشیمی و نیروگاهی ایران استفاده می‌شوند. اکوسیستم نرم‌افزاری امرسون (AMS Device Manager، DeltaV) مدیریت Asset و کالیبراسیون را یکپارچه می‌کند.</p>
+
+<h2>Yokogawa چیست؟</h2>
+<p><b>Yokogawa</b> شرکت ژاپنی سازندهٔ ترانسمیترهای سری <b>EJX/EJA-A</b> و سیستم کنترل <b>CENTUM VP</b> است که به پایداری بلندمدت، کیفیت ساخت و عملکرد در شرایط سخت معروف است. اکوسیستم یوکُگاوا به‌خصوص در پتروشیمی و نیروگاه‌های بزرگ آسیا سهم بالایی دارد.</p>
+
+<div class="vs-cards">
+<div class="vs-card"><h3>Rosemount</h3><p>امرسون، سری 3051، اکوسیستم DeltaV/AMS، سهم بازار بالا در ایران.</p></div>
+<div class="vs-card alt"><h3>Yokogawa</h3><p>ژاپنی، سری EJX، پایداری بلندمدت، DCS CENTUM VP و یکپارچگی با آن.</p></div>
+</div>
+
+<h2>جدول مقایسه فنی و عملیاتی</h2>
+<div class="table-container"><table class="cmp">
+<thead><tr><th>مشخصه</th><th>Rosemount (3051S)</th><th>Yokogawa (EJX-A)</th></tr></thead>
+<tbody>
+<tr><td>دقت پایه فشار</td><td>تا ۰٫۰۲۵٪ اسپن</td><td>تا ۰٫۰۲۵–۰٫۰۴٪ اسپن</td></tr>
+<tr><td>پایداری بلندمدت</td><td>بسیار خوب</td><td>بسیار خوب (شهرت بالا)</td></tr>
+<tr><td>پروتکل‌ها</td><td>4-20mA/HART، FF، PROFIBUS، WirelessHART</td><td>4-20mA/HART، FF، PROFIBUS</td></tr>
+<tr><td>سیستم کنترل بومی</td><td>DeltaV (امرسون)</td><td>CENTUM VP (یوکُگاوا)</td></tr>
+<tr><td>مدیریت دستگاه</td><td>AMS Device Manager</td><td>PRM (Plant Resource Manager)</td></tr>
+<tr><td>زمان پاسخ</td><td>بسیار سریع</td><td>سریع</td></tr>
+<tr><td>گستره متریال</td><td>وسیع (316L، HC، Monel، Tantalum)</td><td>وسیع (مشابه)</td></tr>
+<tr><td>بی‌سیم</td><td>WirelessHART (THUM/سری بی‌سیم)</td><td>محدودتر</td></tr>
+</tbody></table></div>
+
+<h2>انتخاب بر اساس سیستم کنترل و سرویس</h2>
+<ul>
+<li>اگر DCS پروژه <b>DeltaV امرسون</b> است، Rosemount یکپارچگی بهتر، HART/FF پیکربندی ساده‌تر و مدیریت Asset قوی‌تر دارد.</li>
+<li>اگر DCS پروژه <b>CENTUM VP یوکُگاوا</b> است، EJX به‌صورت بومی بهتر تست و یکپارچه می‌شود.</li>
+<li>برای سرویس‌های ایمنی (SIS)، هر دو مدل‌های با گواهی SIL (IEC 61508) ارائه می‌دهند؛ باید سطح SIL حلقه را مبنای انتخاب قرار داد.</li>
+<li>در سرویس با رنج‌بندی گسترده (Turndown)، Rosemount 3051S به‌خاطر رنج قابل تنظیم بالا و یوکُگاوا EJX هر دو گزینه‌های قوی هستند.</li>
+</ul>
+
+<h2>نکات تامین و اصالت کالا</h2>
+<p>در بازار ایران، کالای تقلبی (Counterfeit) و بازسازی‌شده (Refurbished) در هر دو برند دیده می‌شود. هنگام تامین این موارد را الزام کنید:</p>
+<ul>
+<li>خرید از کانال رسمی یا تامین‌کننده با سابقه قابل استعلام.</li>
+<li>گواهی کالیبراسیون کارخانه با شماره سریال قابل ردیابی.</li>
+<li>بسته‌بندی اصلی و پلمپ سازنده.</li>
+<li>بررسی مهر/حک شماره سریال روی بدنه و تطبیق با دیتاشیت و Certificate.</li>
+</ul>
+<div class="cmp-note"><b>نکته فنی:</b> در خرید، به‌جای تعصب روی برند، مشخصات فنی عملکردی (Range، Accuracy، Stability، دمای کاری، متریال Diaphragm Seal، کلاس حفاظت و SIL) را به‌صورت عملکردی بنویسید تا هر دو برند بتوانند پیشنهاد بدهند و قیمت رقابتی شود.</div>
+
+<div class="decision">
+<h3>جمع‌بندی</h3>
+<ul>
+<li>هر دو برند در سطح جهانی معتبرند؛ انتخاب بیشتر به <b>اکوسیستم DCS</b> پروژه و شرایط تامین محلی بستگی دارد.</li>
+<li>برای پروژه‌های جدید، استاندارد کردن یک برند در کل فاز، نگه‌داری و کالیبراسیون را ساده می‌کند.</li>
+<li>اصالت کالا، کالیبراسیون و تامین قطعه مهم‌تر از بحث برند است.</li>
+</ul>
+</div>
+
+    <div data-deep2="yes">
+
+<h2>هزینهٔ مالکیت، کالیبراسیون و چرخه عمر</h2>
+<p>وقتی صحبت از ترانسمیتر فشار/دما در سطح رزمونت و یوکُگاوا می‌شود، قیمت خرید تنها بخش کوچکی از هزینهٔ کل عمر (Total Cost of Ownership) است. <b>پایداری بلندمدت</b> تعیین‌کننده است: یک ترانسمیتر با Drift سالانه ۰٫۰۲٪ اسپن به‌مراتب کمتر به کالیبراسیون مجدد نیاز دارد تا مدل ارزان‌تر با Drift ده برابر. این یعنی هزینهٔ نیروی انسانی کمتر برای کالیبراسیون میدانی، توقف کمتر و اعتماد بالاتر به دادهٔ کنترل. هر دو سازنده پایداری ۱۰ ساله یا بیشتر را در مدل‌های رده‌بالا تبلیغ می‌کنند، اما دقت واقعی میدانی به نصب، دمای فرایند، Overpressure و رطوبت بستگی دارد.</p>
+<p>نکته دیگر <b>یکپارچگی با سیستم Asset Management</b> است. اگر DCS امرسون دارید، Rosemount در AMS به‌صورت بومی تست‌های تشخیصی، Configuration و کالیبراسیون را ساده می‌کند. در DCS CENTUM، یوکُگاوا با PRM به‌خوبی یکپارچه می‌شود. البته با HART، هر ترانسمیتر به هر DCS وصل می‌شود؛ تفاوت در تجربهٔ کاربر، نگه‌داری پیشگویانه و مدیریت دارایی است. در سرویس‌های ایمنی (SIS)، گواهی <b>SIL</b> و ارزیابی FMEDA برای محاسبهٔ PFDavg و تست اثبات (Proof Test) دوره‌ای برای هر دو برند ضروری است.</p>
+
+<h2>چک‌لیست RFQ ترانسمیتر فشار/دما</h2>
+<ul>
+<li><b>نوع اندازه‌گیری:</b> Gauge/Absolute/Differential، فشار، دما، فلو با DP.</li>
+<li><b>رنج (URL/URV/LRL/LRV)</b> و استاتیک فشار کاری.</li>
+<li><b>دقت و پایداری</b> در دمای کاری (نه فقط در اتاق).</li>
+<li><b>متریال ترانسمیتر/دیافراگم</b> (316L، Hastelloy C، Monel، Tantalum) و نوع سیل/کاپیلاری.</li>
+<li><b>خروجی/پروتکل:</b> 4-20mA/HART، FOUNDATION Fieldbus، PROFIBUS PA، WirelessHART.</li>
+<li><b>تاییدیه منطقه خطر</b> (ATEX/IECEx) و SIL برای SIS.</li>
+<li><b>کلاس حفاظت و نمایشگر</b> (LCD محلی، دکمه‌ها).</li>
+<li><b>گواهی کالیبراسیون</b> کارخانه با شماره سریال قابل ردیابی.</li>
+<li><b>قطعات یدکی و ساپورت محلی</b> و مدت گارانتی.</li>
+</ul>
+<div class="cmp-note"><b>توصیه تامین:</b> مشخصات را عملکردی بنویسید تا رقابت سالم باشد، اما از طرف دیگر، برای یکدست شدن کارخانه و کاهش هزینهٔ آموزش/یدکی، می‌توان یک برند را در کل فاز استاندارد کرد. مشروط بر اینکه قیمت در فضای رقابتی تعیین شود.</div>
+
+</div>
+<h2>پرسش‌های متداول</h2>
+    <div class="faq"><details><summary>آیا Rosemount و Yokogawa با هم قابل تعویض هستند؟</summary><p>هر دو از پروتکل‌های استاندارد 4-20mA/HART پشتیبانی می‌کنند و در حلقهٔ ۴–۲۰ میلی‌آمپر از نظر الکتریکی جایگزین می‌شوند، اما در حالت دیجیتال (FOUNDATION Fieldbus، PROFIBUS) و در ادغام با DCS بومی، تفاوت‌هایی در Device Description و مدیریت Asset وجود دارد.</p></details>
+<details><summary>کدام دقت بالاتری دارد؟</summary><p>هر دو در ردهٔ بهترین‌های بازار هستند؛ Rosemount سری 3051S و Yokogawa EJX-A هر دو دقت پایه حدود ۰٫۰۲۵٪ تا ۰٫۰۴٪ اسپن دارند. انتخاب بیشتر به سرویس، شرایط محیطی و اکوسیستم کنترل پروژه بستگی دارد.</p></details>
+<details><summary>در ایران سرویس و قطعه کدام بهتر است؟</summary><p>این به تامین‌کننده و موجودی انبار منطقه بستگی دارد؛ هر دو برند شبکه نمایندگی دارند. در تامین پروژه‌ای، داشتن گارانتی اصالت، کالیبراسیون قابل ردیابی و تامین قطعه مهم‌تر از برند است.</p></details>
+<details><summary>کدام برای سرویس‌های خورنده مناسب‌تر است؟</summary><p>هر دو متریال‌های بدنه و دیافراگم (316L، Hastelloy C، Monel، Tantalum و …) را ارائه می‌دهند؛ انتخاب بر اساس سیال و دما در دیتاشیت هر دو برند تعیین می‌شود، نه برند به‌تنهایی.</p></details></div>
+    <div class="cta-box">
+      <h3>نیاز به استعلام یا مشاوره فنی دارید؟</h3>
+      <p>مشخصات فنی پروژه (استاندارد، سایز، کلاس، کمیت) را ثبت کنید تا کارشناسان مهندسی فروش پیشنهاد فنی-تجاری دهند.</p>
+      <a href="../rfq/?cat=inst&subject=استعلام ترانسمیتر Rosemount یا Yokogawa">ثبت استعلام در سامانه RFQ ←</a>
+      <a href="tel:02146087679" style="background:#fff;color:#1e293b">تماس با ۰۲۱-۴۶۰۸۷۶۷۹</a>
+    </div>
+    <div class="related"><h3>مطالب مرتبط</h3><a href="../knowledge-center/rosemount-vs-yokogawa-comparison.html">مقایسه در مرکز دانش</a> <a href="../services/products/rosemount-3051.html">ترانسمیتر Rosemount 3051</a> <a href="../services/products/pressure-transmitter.html">تامین ترانسمیتر فشار</a></div>
+  </article>
+</main>
+
+
+<div class="related" style="max-width:960px;margin:0 auto 50px;padding:0 20px">
+<div style="background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px">
+<h3 style="margin:0 0 10px;color:#0f2744">صفحات مرتبط</h3>
+<p style="margin:0;line-height:2.1">
+<a href="../suppliers/" style="color:#0e7490;font-weight:900">هاب تامین‌کنندگان</a> ·
+<a href="../suppliers/piping-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده پایپینگ</a> ·
+<a href="../suppliers/valve-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده شیرآلات</a> ·
+<a href="../suppliers/instrumentation-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده ابزار دقیق</a> ·
+<a href="../suppliers/electrical-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده برق صنعتی</a> ·
+<a href="../suppliers/pump-supplier.html" style="color:#0e7490;font-weight:900">تامین‌کننده پمپ</a> ·
+<a href="../rfq/" style="color:#ef4b1a;font-weight:900">سامانه استعلام RFQ</a>
+</p>
+</div>
+</div>
+
+
+<footer class="footer" style="background:#111113;color:#cbd5e1;padding:3rem 0 2rem;border-top:4px solid var(--red)">
+<div class="container" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:13px;color:#94a3b8">
+<span>© 2026 Pishro Tajhiz Fartak. | <a href="../sitemap.html" style="color:#94a3b8">نقشه سایت</a></span>
+<a href="../crm/" style="color:#e2e8f0;font-weight:800;text-decoration:none;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 14px">ورود همکاران (CRM)</a>
+</div>
+</footer>
+<script src="../assets/js/main.js"></script>
+<script src="../assets/js/ptf-guard.js"></script>
+</body>
+</html>
