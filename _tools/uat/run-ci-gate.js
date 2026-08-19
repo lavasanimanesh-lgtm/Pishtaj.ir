@@ -63,6 +63,7 @@ var SUITE = [
   { g: 'پرونده/بازنگری سند برد', f: '_tools/uat/tester434-v34.7.31-award-revision.js' },
   { g: 'تأمین/P7 و پاکسازی S4', f: '_tools/uat/tester435-v34.7.32-p7-s4-awarddocs.js' },
   { g: 'کیفیت/H1 AN-04 ARCH-02', f: '_tools/uat/tester436-v34.7.33-h1-an04-arch02.js' },
+  { g: 'استقرار/نگهبان معماری', f: '_tools/uat/tester443-v34.7.40-deploy-architecture-gate.js' },
   { g: 'معماری/پیشگیری', f: '_tools/uat/tester431-v34.7.28-architecture-guardrails.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
   { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }

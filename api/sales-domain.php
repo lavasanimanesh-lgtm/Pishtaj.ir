@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.39';
+const SD_SERVICE_VERSION = '34.7.40';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -159,7 +159,7 @@ function sd_offer_total(array $offer): float {
     foreach (($offer['items'] ?? []) as $it) if (is_array($it)) $sum += sd_num($it['qty'] ?? 0) * sd_num($it['price'] ?? 0);
     return $sum;
 }
-/* v34.7.39 — workflow درخواست read-model همان commit ثبت پیشنهاد است. */
+/* v34.7.40 — workflow درخواست read-model همان commit ثبت پیشنهاد است. */
 function sd_rfq_matches_inquiry(array $rfq, string $inqNo): bool {
     return $inqNo !== '' && ((string)($rfq['cd'] ?? '') === $inqNo || (string)($rfq['inqNo'] ?? '') === $inqNo);
 }

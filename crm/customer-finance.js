@@ -379,7 +379,7 @@
     invs(cd).forEach(function (i) {
       var iso = cfIso(i.invDate || i.t || '');
       var remain = Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i));
-      var row = { date: i.invDate || i.t || '', iso: iso, type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: +i.amount || 0, credit: 0, cur: 'IRR', status: remain > 0.5 ? 'open' : 'settled', files: cfMergeOwnerFiles(i.files, 'invoice', i.cd || i._id), link: { kind: 'invoice', cd: i.cd } };
+      var row = { date: i.invDate || i.t || '', iso: iso, type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: +i.amount || 0, credit: 0, cur: 'IRR', status: remain > 0.5 ? 'open' : 'settled', files: cfMergeOwnerFiles(i.files, 'invoice', i._id || i.cd), link: { kind: 'invoice', cd: i.cd } };
       if (cfRowPass(row, f)) out.push(row);
       (i.payments || []).concat(i.pays || []).forEach(function (p) {
         /* payment قدیمی پس از مهاجرت فقط metadata منبع است؛ Receipt قطعی پایین‌تر

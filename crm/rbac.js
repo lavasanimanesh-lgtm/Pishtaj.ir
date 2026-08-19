@@ -1450,26 +1450,3 @@ window.ptfSetInvoiceDue = function (invCd) {
     }
   });
 };
-window.ptfSetInvoiceDue = function (invCd) {
-  var invs = getData('ptf_crm_invoices');
-  var inv = invs.filter(function (i) { return i.cd === invCd; })[0];
-  if (!inv) return;
-  ptfDialog({
-    title: '📅 تعیین تاریخ سررسید وصول مطالبات — فاکتور ' + escP(inv.no),
-    fields: [
-      { id: 'dueFa', label: 'تاریخ سررسید (شمسی) *', type: 'text', value: inv.dueFa || '', placeholder: 'مثلا: 1405/05/15', dir: 'ltr', required: true },
-      { id: 'dueISO', label: 'تاریخ میلادی معادل (اختیاری)', type: 'date', value: inv.dueISO || '', dir: 'ltr' }
-    ],
-    okText: 'ثبت سررسید',
-    onOk: function (v) {
-      var dueFa = (v.dueFa || '').trim();
-      if (!dueFa) { alert('تاریخ سررسید الزامی است'); return; }
-      inv.dueFa = dueFa;
-      inv.dueISO = (v.dueISO || '').trim() || (typeof ptfJToISO === 'function' ? ptfJToISO(dueFa) : '');
-      setData('ptf_crm_invoices', invs);
-      audit('مطالبات', 'ثبت سررسید وصول فاکتور ' + inv.no + ' برای تاریخ ' + dueFa, inv.cd);
-      if (typeof ptfToast === 'function') ptfToast('📅 تاریخ سررسید وصول مطالبات ثبت شد', 'ok');
-      renderReceivables();
-    }
-  });
-};
