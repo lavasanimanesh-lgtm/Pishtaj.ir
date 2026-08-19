@@ -4,6 +4,9 @@ Options -Indexes
 # SEO: custom 404 page
 ErrorDocument 404 /404.html
 
+# SEO: canonical supplier hub (legacy /tamin-tajhizat/ -> /suppliers/)
+RewriteRule ^tamin-tajhizat/?$ /suppliers/ [R=301,L]
+
 <FilesMatch "^(?!manifest\.json$).*\.(?:json|log|zip|gz|bak|sql|md)$">
   Require all denied
 </FilesMatch>
