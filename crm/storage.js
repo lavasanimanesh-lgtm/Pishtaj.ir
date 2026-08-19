@@ -700,7 +700,33 @@ window.ptfRasterizeCloudFile = function (f, maxPages) {
     }).then(apply).catch(function () { f.convertError = 'convert_failed'; resolve(f); });
   });
 };
+/* v34.7.38: کلید ابری در مسیرهای مختلف با نام‌های متفاوت ذخیره می‌شود
+   (key / objectKey / fileKey / …). بدون این نرمال‌سازی، گردش حساب «N سند»
+   نشان می‌دهد ولی دکمهٔ مشاهده ساخته نمی‌شود. */
+window.ptfFileStorageKey = function (f) {
+  if (f == null) return '';
+  if (typeof f === 'string') return String(f).trim();
+  if (typeof f !== 'object') return '';
+  return String(
+    f.key || f.objectKey || f.storageKey || f.s3Key || f.fileKey ||
+    f.docKey || f.receiptKey || f.path || f.filePath || ''
+  ).trim();
+};
+window.ptfNormalizeFileRec = function (f) {
+  if (!f || typeof f !== 'object') return null;
+  var key = window.ptfFileStorageKey(f);
+  if (!key) return null;
+  var out = {};
+  Object.keys(f).forEach(function (k) { out[k] = f[k]; });
+  out.key = key;
+  out.name = f.name || f.fileName || f.originalName || (key.split('/').pop() || 'سند');
+  return out;
+};
 function openStoredFile(key, nameHint) {
+  if (key && typeof key === 'object') {
+    nameHint = nameHint || key.name || key.fileName;
+    key = window.ptfFileStorageKey(key);
+  }
   if (!key) { alert('این فایل هنوز به فضای ابری منتقل نشده'); return; }
   var name = nameHint || (String(key).split('/').pop() || key);
   if (typeof ptfToast === 'function') ptfToast('⏳ در حال آماده‌سازی نمایش سند…', 'info');

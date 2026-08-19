@@ -7,8 +7,14 @@
   'use strict';
   var KEY = 'ptf_crm_supplier_finance';
   function data() {
-    try { var d = JSON.parse(localStorage.getItem(KEY) || '{}'); return d && !Array.isArray(d) ? Object.assign({ schema: 1, invoices: [], payments: [] }, d) : { schema: 1, invoices: [], payments: [] }; }
-    catch (e) { return { schema: 1, invoices: [], payments: [] }; }
+    var d = null;
+    try {
+      if (typeof getData === 'function') d = getData(KEY);
+      else d = JSON.parse(localStorage.getItem(KEY) || '{}');
+    } catch (e) { d = null; }
+    return d && typeof d === 'object' && !Array.isArray(d)
+      ? Object.assign({ schema: 1, invoices: [], payments: [] }, d)
+      : { schema: 1, invoices: [], payments: [] };
   }
   function save(d) { d = d || { schema: 1, invoices: [], payments: [] }; d.schema = 1; d.invoices = d.invoices || []; d.payments = d.payments || []; return setData(KEY, d); }
   /* v34.4.38: metadata سندِ آپلودشده باید مستقل از دکمهٔ «ذخیره فرم» و همان
@@ -18,12 +24,16 @@
     return rows.filter(function (x) { return x.cd === cd; })[0] || null;
   }
   window.slPersistFile = function (kind, cd, f) {
-    if (!f || !f.key || (kind !== 'invoice' && kind !== 'payment')) return { ok: false, why: 'input' };
+    var rec = (typeof window.ptfNormalizeFileRec === 'function') ? window.ptfNormalizeFileRec(f) : (f && f.key ? f : null);
+    if (!rec || !rec.key || (kind !== 'invoice' && kind !== 'payment')) return { ok: false, why: 'input' };
     var d = data(), r = fileRecord(kind, cd, d);
     if (!r) return { ok: false, why: 'record' };
     r.files = r.files || [];
-    if (!r.files.some(function (x) { return x && x.key === f.key; })) r.files.push(f);
-    r._deletedFileKeys = (r._deletedFileKeys || []).filter(function (key) { return key !== f.key; });
+    if (!r.files.some(function (x) {
+      var xk = (typeof window.ptfFileStorageKey === 'function') ? window.ptfFileStorageKey(x) : (x && x.key);
+      return xk && xk === rec.key;
+    })) r.files.push(rec);
+    r._deletedFileKeys = (r._deletedFileKeys || []).filter(function (key) { return key !== rec.key; });
     r.updatedAtISO = new Date().toISOString();
     try { r.updatedBy = curSession().name; } catch (eBy) {}
     save(d);
@@ -168,8 +178,7 @@
       '<div class="fr"><div class="fld"><label>شماره فاکتور *</label><input id="slInvNo" style="direction:ltr"></div><div class="fld"><label>تاریخ فاکتور *</label><input id="slInvDate" value="' + (typeof ptfTodayJ === 'function' ? ptfTodayJ() : '') + '" placeholder="1405/04/22" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>ارز *</label><select id="slInvCur" onchange="document.getElementById(\'slInvRateWrap\').style.display=this.value===\'IRR\'?\'none\':\'\'"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option><option value="AED">درهم (AED)</option><option value="GBP">پوند (GBP)</option></select></div><div class="fld"><label>مبلغ فاکتور *</label><input id="slInvAmt" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div></div>' +
       '<div class="fld" id="slInvRateWrap" style="display:none"><label>نرخ تسعیر (ریال به‌ازای هر واحد ارز) *</label><input id="slInvRate" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div>' +
-      '<div class="fr"><div class="fld"><label>نوع فاکتور *</label><select id="slInvType" onchange="slInvTypeChanged()"><option value="unofficial">غیررسمی (بدون کد اقتصادی)</option><option value="official">رسمی (ارزش افزوده/کد اقتصادی)</option></select></div><div class="fld"><label>یادداشت / شرح</label><input id="slInvNote"></div></div>' +
-      '<div class="fld" id="slInvVatWrap" style="display:none"><label>ارزش‌افزوده (٪)</label><input id="slInvVatPct" type="number" value="10" min="0" max="100" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()"><small id="slInvVatSum" style="color:#0e7490;display:block;margin-top:4px"></small></div>' +
+      '<div class="fr"><div class="fld"><label>نوع فاکتور *</label><select id="slInvType" onchange="slInvTypeChanged()"><option value="unofficial">غیررسمی (بدون کد اقتصادی)</option><option value="official">رسمی (ارزش افزوده/کد اقتصادی)</option></select></div><div class="fld"><label>یادداشت / شرح</label><input id="slInvNote"></radius:8px;direction:ltr" oninput="slInvCalcLive()"><small id="slInvVatSum" style="color:#0e7490;display:block;margin-top:4px"></small></div>' +
       coverHtml +
       '<div class="fld"><label>اتصال اختیاری به تعهدهای خرید واقعی</label><div style="border:1px solid var(--brd);border-radius:10px;padding:7px 10px;max-height:150px;overflow:auto">' + legacyHtml + '</div></div>' +
       '<div class="fld"><label>تصویر/فایل فاکتور (اختیاری)</label><div id="slInvFileWrap"></div></div>' +
@@ -580,7 +589,7 @@
     return '<div class="sl-ledger-files" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-top:5px;border-top:1px dashed var(--brd)">' +
       '<small style="color:#64748b">📎 ' + files.length.toLocaleString('fa-IR') + ' سند:</small>' +
       files.map(function (f, idx) {
-        var key = String((f && f.key) || '');
+        var key = String((typeof window.ptfFileStorageKey === 'function' ? window.ptfFileStorageKey(f) : (f && f.key)) || '');
         if (!key) return '';
         var name = String((f && f.name) || ('سند ' + (idx + 1)));
         var remove = '';
@@ -1076,6 +1085,7 @@
     return { ok: true, changed: changed };
   };
   window.slAttachRealPurchaseReceipt = function (purchaseCd, f) {
+    f = (typeof window.ptfNormalizeFileRec === 'function') ? window.ptfNormalizeFileRec(f) : f;
     if (!purchaseCd || !f || !f.key) return false;
     var d=data(), p=(d.payments||[]).filter(function(x){return x.sourcePurchaseCd===purchaseCd&&x.status!=='void';})[0];
     if(!p)return false; p.files=p.files||[]; if(!p.files.some(function(x){return x.key===f.key;}))p.files.push(f); save(d); return true;
@@ -1182,6 +1192,11 @@
     });
     var report = { readOnly: true, operationalPurchaseCount: purchases.length, operationalPurchases: purchases, explicitAutoInvoiceCount: explicitAutoInvoices.length, explicitAutoInvoices: explicitAutoInvoices, orphanAutoInvoices: explicitAutoInvoices.filter(function (i) { return !i.existsInBuycmp; }), explicitAutoPaymentCount: explicitAutoPayments.length, explicitAutoPayments: explicitAutoPayments, candidateLegacyPayablesCount: candidates.length, candidateLegacyPayables: candidates, unlinkedLegacyPayablesCount: unlinkedLegacy.length, unlinkedLegacyPayables: unlinkedLegacy, note: 'این گزارش فقط خواند؛ هیچ رکوردی را تغییر نداد.' };
     console.table({ operationalPurchases: report.operationalPurchaseCount, autoInvoices: report.explicitAutoInvoiceCount, orphanAutoInvoices: report.orphanAutoInvoices.length, autoPayments: report.explicitAutoPaymentCount, candidateLegacyPayables: report.candidateLegacyPayablesCount, unlinkedLegacyPayables: report.unlinkedLegacyPayablesCount });
+    console.log(JSON.stringify(report, null, 2));
+    return report;
+  };
+})();
+ndidateLegacyPayablesCount, unlinkedLegacyPayables: report.unlinkedLegacyPayablesCount });
     console.log(JSON.stringify(report, null, 2));
     return report;
   };

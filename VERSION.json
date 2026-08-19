@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.7.33",
+  "crm_version": "v34.7.38",
   "last_stable_tag": "v2026.08.16-0100",
-  "last_updated": "2026-08-17",
-  "updated_by": "Arena Agent (v34.7.33 H1 گیت CI در workflow + AN-04 کالیبراسیون سلامت + ARCH-02 وصول مطالبات به post_receipt)"
+  "last_updated": "2026-08-19",
+  "updated_by": "Arena Agent (v34.7.38 مشاهده ضمیمه گردش حساب تأمین/مشتری)"
 }
