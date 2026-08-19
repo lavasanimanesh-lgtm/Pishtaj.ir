@@ -131,7 +131,7 @@
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": ["Organization", "LocalBusiness"],
+        "@type": "Organization",
         "@id": "https://pishtaj.ir/#organization",
         "name": "شرکت پیشرو تجهیز فرتاک",
         "alternateName": "Pishro Tajhiz Fartak",
@@ -145,21 +145,6 @@
           {"@type": "EducationalOccupationalCredential", "credentialCategory": "certification", "name": "ISO 9001:2015 — Quality Management System", "recognizedBy": {"@type": "Organization", "name": "GQS Germany"}},
           {"@type": "EducationalOccupationalCredential", "credentialCategory": "certification", "name": "ISO 10002:2018 — Customer Complaints Handling", "recognizedBy": {"@type": "Organization", "name": "GQS Germany"}},
           {"@type": "EducationalOccupationalCredential", "credentialCategory": "certification", "name": "ISO 10004:2018 — Customer Satisfaction Monitoring", "recognizedBy": {"@type": "Organization", "name": "GQS Germany"}}
-        ],
-        "knowsAbout": [
-          "Industrial Piping",
-          "Valves",
-          "Instrumentation",
-          "Electrical Equipment",
-          "Pumps",
-          "Oil & Gas Procurement",
-          "تامین تجهیزات پایپینگ",
-          "تامین تجهیزات برق صنعتی",
-          "تامین تجهیزات ابزار دقیق",
-          "تامین ولو صنعتی",
-          "تامین فلنج و فیتینگ",
-          "تجهیزات نفت و گاز",
-          "تجهیزات پتروشیمی"
         ],
         "slogan": "تامین تخصصی تجهیزات صنعتی پروژه‌های نفت، گاز، پتروشیمی و نیروگاهی",
         "telephone": "+982146087679",
@@ -253,6 +238,34 @@
         {
           "@type": "Question",
           "name": "آیا امکان بازرسی و تست کالا قبل از تحویل وجود دارد؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "بله، ما بازرسی توسط شرکت‌های بازرسی شخص ثالث TPI (مثل Bureau Veritas، SGS، DNV) را پشتیبانی می‌کنیم. همچنین می‌توانید از کارخانه سازنده بازدید (FAT / Source Inspection) انجام دهید. هزینه بازرسی بسته به درخواست شما متفاوت است."
+          }
+        }
+      ]
+    }
+    ]
+  }
+  </script>
+
+  <script defer>
+  /* Sprint 33 — Performance: WebP + Lazy Loading */
+  (function(){
+    // Detect WebP support
+    var w = window, d = document;
+    var hasWebP = false;
+    var webpImg = new Image();
+    webpImg.onload = function(){ hasWebP = true; applyOptimizations(); };
+    webpImg.onerror = function(){ applyOptimizations(); };
+    webpImg.src = 'data:image/webp;base64,UklGRi4AAABXRUJQVlA4TCEAAAAvAUAAEB8wAiMwAgSSNtse/cXjxyCCmrYNWPwmHRsB7wEA';
+    
+    function applyOptimizations(){
+      // Replace images with WebP versions if supported
+      if(hasWebP){
+        d.querySelectorAll('img[src*=".jpeg"], img[src*=".jpg"], img[src*=".png"]').forEach(function(img){
+          var src = img.getAttribute('src');
+      name": "آیا امکان بازرسی و تست کالا قبل از تحویل وجود دارد؟",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "بله، ما بازرسی توسط شرکت‌های بازرسی شخص ثالث TPI (مثل Bureau Veritas، SGS، DNV) را پشتیبانی می‌کنیم. همچنین می‌توانید از کارخانه سازنده بازدید (FAT / Source Inspection) انجام دهید. هزینه بازرسی بسته به درخواست شما متفاوت است."
