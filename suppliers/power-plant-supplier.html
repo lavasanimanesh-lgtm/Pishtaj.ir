@@ -56,6 +56,13 @@
 .faq-item h4{margin:0 0 6px;color:#1e293b;font-size:15px}
 .faq-item p{margin:0;color:#64748b;font-size:14px}
 @media(max-width:800px){.svc-grid{grid-template-columns:1fr}.svc-content{padding:24px}.trust-row{grid-template-columns:repeat(2,1fr)}}
+
+.deep-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;line-height:1.7}
+.deep-table th,.deep-table td{border:1px solid #e2e8f0;padding:10px 12px;text-align:right;vertical-align:top}
+.deep-table th{background:#f1f5f9;color:#0f2744;font-weight:900}
+.deep-table tr:nth-child(even) td{background:#fafcff}
+.deep-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;color:#7c2d12;font-size:13.5px;line-height:1.9;margin:14px 0}
+@media(max-width:700px){.deep-table{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -95,6 +102,35 @@
 
 <h2>صنایع تحت پوشش</h2>
 <div class="svc-grid"><div class="svc-card"><h4>نیروگاه حرارتی</h4><p>بویلر و سیکل بخار</p></div><div class="svc-card"><h4>نیروگاه گازی</h4><p>توربین و متعلقات</p></div><div class="svc-card"><h4>سیکل ترکیبی</h4><p>HRSG و توربین بخار</p></div><div class="svc-card"><h4>تجدیدپذیر</h4><p>تجهیزات سولار و بادی</p></div></div>
+
+
+<section data-deep-section="power-plant" class="deep-section">
+<h2>جدول تجهیزات کلیدی نیروگاه بر اساس نوع سیکل</h2>
+<p>الزامات تجهیزات بسته به این‌که نیروگاه بخار (Rankine)، گازی (Brayton) یا سیکل ترکیبی باشد متفاوت است. جدول زیر نقشهٔ تامین BOP و کمکی:</p>
+<table class="deep-table">
+<thead><tr><th>بخش نیروگاه</th><th>تجهیز/سیستم کلیدی</th><th>استاندارد/الزام</th><th>نکته تامین</th></tr></thead>
+<tbody>
+<tr><td>بویلر/بخار</td><td>لوله‌های آلیاژی بویلر، Economizer، Superheater</td><td>ASTM A335 P11/P22/P91، ASME Sec I</td><td>کنترل ضخامت، PWHT، تست ضربه</td></tr>
+<tr><td>توربین و ژنراتور</td><td>سیستم روغن‌کاری، Seal Oil، Gland Steam</td><td>API 614 (Lube Oil)</td><td>فیلتراسیون روغن، خنک‌کاری</td></tr>
+<tr><td>سیستم خنک‌کننده</td><td>پمپ‌های گردشی CW، Cooling Tower، Valve</td><td>ASTM A106، AWWA</td><td>متریال دریایی در مناطق ساحلی</td></tr>
+<tr><td>تجهیزات MV/HV</td><td>تابلو MV، VCB، ترانسفورماتور، باسداکت</td><td>IEC 62271، IEC 60076</td><td>FAT، تست پذیرش کارخانه</td></tr>
+<tr><td>ابزار دقیق و کنترل</td><td>ترانسمیتر، DCS، CEMS</td><td>IEC 61508 (SIL)، NEMA</td><td>گزارش کالیبراسیون، تست حلقه</td></tr>
+</tbody>
+</table>
+<p class="deep-note"><b>نکته فنی:</b> در نیروگاه‌های سیکل ترکیبی با HRSG، تیوب‌های فین‌دار (Finned Tubes) و میتریال‌های آلیاژی برای دمای بالا (P91 در بخش داغ) رایج‌اند. هرگونه تعویض با گرید پایین‌تر، عمر مفید HRSG را به‌شدت کم می‌کند.</p>
+
+<h2>راهنمای تامین تجهیزات برق MV و ابزار دقیق نیروگاه</h2>
+<p>تامین تجهیزات الکتریکی و ابزار دقیق در نیروگاه، مستلزم انطباق با استانداردهای بین‌المللی و FAT است؛ این تجهیزات گران‌قیمت و Long-Lead هستند:</p>
+<ul>
+<li><b>کلید قدرت (VCB/ACB):</b> رنج ولتاژ و جریان، ظرفیت قطع (Breaking Capacity در kA)، چرخهٔ کاری و کلاس حفاظت IP را قید کنید. وکیوم برای سطوح MV (۱۲ تا ۳۶ کیلوولت) رایج‌تر است.</li>
+<li><b>ترانسفورماتور:</b> قدرت (MVA)، نسبت ولتاژ، گروه اتصال (Vector Group)، امپدانس درصد، سطح اتصال کوتاه، نوع خنک‌کاری (ONAN/ONAF).</li>
+<li><b>کابل MV:</b> کابل تک‌رشته XLPE با زره، عایق متناسب با سطح ولتاژ و سیستم Earthing؛ کابل کنترل و ابزار دقیق با Shield برای جلوگیری از نویز.</li>
+<li><b>سیستم کنترل و DCS:</b> کارت‌های کنترل، کنترلرهای ریداندنت، منبع تغذیه ریداندنت، و الزام SIL برای حلقه‌های SIS (Safety Instrumented System) طبق IEC 61511.</li>
+<li><b>ترانسمیتر و المنت:</b> کالیبراسیون قابل ردیابی (NIST/ISO 17025)، دیتاشیت کامل، گواهی و تست حلقه (Loop Check).</li>
+<li><b>FAT/SAT:</b> برای تابلوهای MV و سیستم DCS، FAT در کارخانه و SAT در سایت جزء الزامات پذیرش است.</li>
+</ul>
+<p><b>در RFQ قید کنید:</b> نقشه‌های Single Line، درجه حفاظت محیط، ارتفاع از سطح دریا، دمای حدی، و این‌که تجهیز باید با کدام سیستم‌های موجود از نظر پروتکل (Modbus/Profibus/HART) صحبت کند.</p>
+</section>
 
 <h2>راهنماهای مرتبط</h2>
 <ul><li><a href="../industries/power-plant/">تامین تجهیزات نیروگاهی</a></li><li><a href="../services/products/fire-tube-boiler.html">بویلر Fire Tube</a></li><li><a href="../knowledge-center/kc-api-617.html">کمپرسور API 617</a></li><li><a href="../services/products/valve-actuator.html">اکچویتور شیرآلات</a></li></ul>

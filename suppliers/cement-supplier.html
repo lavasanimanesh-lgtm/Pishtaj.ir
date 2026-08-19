@@ -56,6 +56,13 @@
 .faq-item h4{margin:0 0 6px;color:#1e293b;font-size:15px}
 .faq-item p{margin:0;color:#64748b;font-size:14px}
 @media(max-width:800px){.svc-grid{grid-template-columns:1fr}.svc-content{padding:24px}.trust-row{grid-template-columns:repeat(2,1fr)}}
+
+.deep-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;line-height:1.7}
+.deep-table th,.deep-table td{border:1px solid #e2e8f0;padding:10px 12px;text-align:right;vertical-align:top}
+.deep-table th{background:#f1f5f9;color:#0f2744;font-weight:900}
+.deep-table tr:nth-child(even) td{background:#fafcff}
+.deep-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;color:#7c2d12;font-size:13.5px;line-height:1.9;margin:14px 0}
+@media(max-width:700px){.deep-table{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -95,6 +102,34 @@
 
 <h2>صنایع تحت پوشش</h2>
 <div class="svc-grid"><div class="svc-card"><h4>سیمان خاکستری</h4><p>کوره و آسیاب</p></div><div class="svc-card"><h4>سیمان سفید</h4><p>فرایند خاص</p></div><div class="svc-card"><h4>آهک و گچ</h4><p>کوره و تجهیزات</p></div><div class="svc-card"><h4>بتن آماده</h4><p>تجهیزات انتقال</p></div></div>
+
+
+<section data-deep-section="cement" class="deep-section">
+<h2>جدول الزامات تجهیزات کارخانه سیمان بر اساس واحد</h2>
+<p>مهم‌ترین دشمن تجهیزات در کارخانهٔ سیمان، ذرات سایندهٔ سیلیس و کلینکر است که هم به‌صورت سایش مکانیکی و هم با نفوذ به آب‌بندها عمل می‌کند. جدول الزامات بر اساس واحد:</p>
+<table class="deep-table">
+<thead><tr><th>واحد</th><th>تجهیز کلیدی</th><th>عامل تخریب</th><th>الزام طراحی</th></tr></thead>
+<tbody>
+<tr><td>سنگ‌شکن و آسیاب مواد</td><td>فن‌های پروسس، پمپ هیدرولیک</td><td>گرد و غبار بسیار سنگین، سایش</td><td>پروانه با لایه Hardfacing، آب‌بند لابیرنتی</td></tr>
+<tr><td>پری‌هیتر و کورهٔ دوار</td><td>فن ID/Kiln، گیربکس صنعتی، یاتاقان</td><td>دما و بار بالا، لرزش مداوم</td><td>روان‌کاری روغنی، سیستم خنک‌کاری، مانیتورینگ ارتعاش</td></tr>
+<tr><td>خنک‌کنندهٔ کلینکر (Grate Cooler)</td><td>فن‌های خنک‌کننده، شیرآلات دما بالا</td><td>کلینکر داغ، بار حرارتی متغیر</td><td>متالورژی چدن یا آلیاژ دما بالا، فونداسیون سنگین</td></tr>
+<tr><td>آسیاب سیمان</td><td>الکتروموتور MV، درایو (VFD)</td><td>راه‌اندازی سیکلی، گشتاور بالا</td><td>درایو با Vector Control، کابل مخصوص VFD</td></tr>
+<tr><td>سیلو و بارگیرخانه</td><td>فیلتر بگ‌هاوس، شیر دیورتر، اسکروکانوایر</td><td>سایش، تمیزکاری هوای فشرده</td><td>لاینر ضد سایش، Actuator با گشتاور کافی</td></tr>
+</tbody>
+</table>
+<p class="deep-note"><b>نکته فنی:</b> گیربکس‌های کوره و آسیاب سیمان باید روغن معدنی Industrial Gear با گرانروی مناسب (معمولاً ISO VG 220–460) و سیستم فیلتراسیون مستقل داشته باشند؛ بیش از نیمی از خرابی‌های زودرس گیربکس به آلودگی روغن برمی‌گردد.</p>
+
+<h2>راهنمای تامین فن، درایو و کابل برای کارخانهٔ سیمان</h2>
+<p>در سیمان، فن و درایو قلب مصرف انرژی‌اند (تا ۶۰٪ برق کارخانه). انتخاب نادرست، هم عمر تجهیز و هم هزینهٔ انرژی را بالا می‌برد:</p>
+<ul>
+<li><b>فن‌های سانتریفیوژ:</b> کلاس روتور بر اساس دما و سایش انتخاب شود؛ پروانه با پوشش Tungsten Carbide یا Hardox برای مسیر گاز غبارآلود.</li>
+<li><b>الکتروموتور:</b> راندمان IE3/IE4 برای کاهش مصرف، کلاس عایق F با温升 B، درجه حفاظت IP55 به بالا. در محیط بیرون، سایبان و هیتر ضد میعان.</li>
+<li><b>VFD و Soft Starter:</b> برای فن‌های بزرگ، VFD با دیود چاپر یا AFE متناسب با طول کابل؛ چوک ورودی و خروجی برای کنترل هارمونیک و امواج ضربه‌ای روی عایق موتور.</li>
+<li><b>کابل VFD:</b> کابل‌های XLPE با شیلد مسی دوگانه (مثل VFD cable XLPE) برای جلوگیری از تخلیهٔ جزئی و آسیب عایق موتور.</li>
+<li><b>اتوماسیون و ابزار دقیق:</b> سنسورهای ارتعاش و دما روی یاتاقان گیربکس و موتور مسیر بحرانی‌ترین پایش پیشگویانه (PdM) است.</li>
+</ul>
+<p><b>در RFQ فن و درایو قید کنید:</b> دبی و فشار استاتیک نقطهٔ کار، دمای گاز، غلظت غبار، ارتفاع از سطح دریا (تاثیر بر دانسیته هوا)، و این‌که موتور برای VFD آماده باشد.</p>
+</section>
 
 <h2>راهنماهای مرتبط</h2>
 <ul><li><a href="../industries/cement/">تامین تجهیزات صنعت سیمان</a></li><li><a href="../knowledge-center/kc-cement-kiln-refractory-lining-guide.html">نسوز کوره سیمان</a></li><li><a href="../services/products/industrial-fan-blower.html">فن و بلوور</a></li><li><a href="../services/products/vfd-soft-starter.html">درایو VFD</a></li></ul>
