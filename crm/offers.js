@@ -424,7 +424,7 @@ window.ptfToStMigrate = toStMigrate;
 /* v18.9 (US-431 فاز۱): بعد از تشکیل پرونده فروش، پیشنهاد برنده فقط read-only است */
 function offerPostAwardLocked(o) {
   if (!o || o.kind === 'TO' || o.st !== 'won') return false;
-  try { return getData('ptf_crm_deals').some(function (d) { return d.wonOffer === o.no || d.offerNo === o.no || (o.inqNo && d.inqNo === o.inqNo); }); } catch(e) { return true; }
+  try { return getData('ptf_crm_deals').some(function (d) { return d && (d.wonOffer === o.no || d.offerNo === o.no); }); } catch(e) { return true; }
 }
 window.ptfOfferPostAwardLocked = offerPostAwardLocked;
 window.ptfGoSalesFileForOffer = function (no) {
@@ -815,8 +815,11 @@ function autoCreateProjectFromCO(o) {
       rec.awardDocs = [{ kind: o.kind, no: o.no, rev: o.rev || 0, role: 'commercial', t: faDateTime(), by: curSession().name, snap: JSON.parse(JSON.stringify(o)) }];
       var _allOff = getData('ptf_crm_offers');
       var _toRel = null;
-      if (o.srcToNo) _toRel = _allOff.filter(function (x) { return x.no === o.srcToNo; })[0];
-      if (!_toRel) _toRel = _allOff.filter(function (x) { return x.kind === 'TO' && (x.coNo === o.no || (o.inqNo && x.inqNo === o.inqNo)); }).sort(function (a, b) { return (b.rev || 0) - (a.rev || 0); })[0];
+      if (typeof window.ptfAwardRelatedTo === 'function') _toRel = window.ptfAwardRelatedTo(o, _allOff);
+      else {
+        if (o.srcToNo) _toRel = _allOff.filter(function (x) { return x.no === o.srcToNo; })[0];
+        if (!_toRel) _toRel = _allOff.filter(function (x) { return x.kind === 'TO' && x.coNo === o.no; }).sort(function (a, b) { return (b.rev || 0) - (a.rev || 0); })[0];
+      }
       if (_toRel) rec.awardDocs.push({ kind: 'TO', no: _toRel.no, rev: _toRel.rev || 0, role: 'technical', t: faDateTime(), by: curSession().name, snap: JSON.parse(JSON.stringify(_toRel)) });
     } catch (eAw) {}
     setData('ptf_crm_deals', deals);

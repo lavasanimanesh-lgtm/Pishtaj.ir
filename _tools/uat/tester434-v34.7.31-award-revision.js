@@ -124,14 +124,14 @@ function baseDb() {
   var php = read('api/sales-domain.php');
   T('P5 فرمان revise_award در سرور تعریف شده', /elseif \(\$action === 'revise_award'\)/.test(php));
   T('P5 نقش‌محور + دلیل اجباری', /revise_award[\s\S]{0,900}sd_require_role\(SD_WIN_ROLES\)[\s\S]{0,400}reason_required/.test(php));
-  T('P5 سند برد قبلی حذف نمی‌شود؛ superseded می‌شود',
-    /supersededByOfferId/.test(php) && /\$parent\['status'\] = 'superseded'/.test(php));
-  T('P5 سند جایگزین با revisionOf/revisionSeq ساخته می‌شود', /revisionOf/.test(php) && /revisionSeq/.test(php));
+  T('P5 رویژن همان شماره را نگه می‌دارد (sameOffer)', /'sameOffer'=>true/.test(php) && /\$parent\['rev'\] = \$seq/.test(php));
+  T('P5 تاریخچه revisionHistory روی همان سند نوشته می‌شود', /revisionHistory/.test(php));
   T('P5 مبلغ مؤثر قرارداد به‌روز می‌شود', /effectiveContractAmount/.test(php) && /awardRevisions/.test(php));
   T('P5 گارد فاکتور رسمی برای کاهش (تصمیم کارفرما)', /official_invoice_blocks_decrease/.test(php));
+  T('P5 ابطال فاکتور اختیاری در همان فرمان', /voidInvoices/.test(php) && /voidedInvoiceIds/.test(php));
   T('P5 correction ثبت و تخصیص‌ها بازسازی می‌شوند',
-    /'kind'=>'revise_award'/.test(php) && /revise_award[\s\S]{0,6000}sd_rebuild_allocations/.test(php));
-  T('P5 شمارهٔ تکراری سند جایگزین رد می‌شود', /revision_no_exists/.test(php));
+    /'kind'=>'revise_award'/.test(php) && /revise_award[\s\S]{0,8000}sd_rebuild_allocations/.test(php));
+  T('P5 awardDocs جاری بازنویسی می‌شود', /\$case\['awardDocs'\] = \$keptTech/.test(php));
 })();
 
 /* ---------- P6: گزارش ---------- */
