@@ -18,7 +18,7 @@ T('سرور: متمم در مبلغ مؤثر', /relationType/.test(php) && /amen
 T('سرور: lineId حفظ می‌شود', /lineId/.test(php));
 T('سرور: تجمیعی مسدود', /consolidated_invoice_blocks_revision/.test(php));
 T('UI: افزودن قلم', /ptfAwardReviseAddLine/.test(rev));
-T('UI: تیک ابطال فاکتور', /ptfRevVoidInv/.test(rev) && /voidInvoices: voidInv/.test(rev));
+T('UI: تیک ابطال فاکتور', /ptfRevVoidInv/.test(rev) && /voidInvoices\s*:\s*voidInv/.test(rev));
 T('UI: هنوز فقط revise_award سرور', /ptfSalesDomainCommand\('revise_award'/.test(rev));
 T('نشت: sfAwardEnsure دیگر inqNo برای TO ندارد',
   /ptfAwardRelatedTo/.test(sf) && !/x\.inqNo === o\.inqNo/.test(sf.match(/window\.sfAwardEnsure[\s\S]{0,1800}/)[0]));

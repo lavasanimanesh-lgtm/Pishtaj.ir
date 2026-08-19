@@ -23,12 +23,12 @@ assert.ok(/\$lnk\['amount'\] = \$newTotal/.test(server)&&/\$lnk\['revisionSeq'\]
 assert.ok(/max\(\(int\)\(\$parent\['revisionSeq'\]/.test(server)&&/'fromRev'=>\$currentRev/.test(server),'revision sequence cannot move backwards');
 
 assert.ok(/data-operation-id/.test(js)&&/data-expected-rev/.test(js)&&/data-offer-id/.test(js),'dialog snapshots a stable operation intent');
-assert.ok(/data-in-flight/.test(submit)&&/submitBtn\.disabled = true/.test(submit),'double submit is blocked while the command is running');
-assert.ok(/idempotencyKey: operationId/.test(submit)&&!/idempotencyKey:[^\n]*Date\.now/.test(submit),'retry reuses the dialog operation ID');
-assert.ok(/expectedOfferId: expectedOfferId, expectedRev: expectedRev/.test(submit),'client sends optimistic concurrency preconditions');
-assert.ok(/line\.sourceIndex = i/.test(submit),'legacy lines without IDs retain a server-verifiable source index');
+assert.ok(/data-in-flight/.test(submit)&&/submitBtn\.disabled\s*=\s*true/.test(submit),'double submit is blocked while the command is running');
+assert.ok(/idempotencyKey\s*:\s*ctx\.operationId/.test(submit)&&!/idempotencyKey:[^\n]*Date\.now/.test(submit),'retry reuses the dialog operation ID');
+assert.ok(/expectedOfferId\s*:\s*ctx\.expectedOfferId/.test(submit)&&/expectedRev\s*:\s*ctx\.expectedRev/.test(submit),'client sends optimistic concurrency preconditions');
+assert.ok(/line\.sourceIndex\s*=\s*sourceIndex/.test(submit),'legacy lines without IDs retain their original server-verifiable source index');
 assert.ok(/award_revision_conflict/.test(submit)&&/دستگاه دیگری تغییر کرده/.test(submit),'user gets an explicit stale-write explanation');
-assert.ok(/onUncertain/.test(submit)&&/پنجره و operationId حفظ شد/.test(submit)&&/بررسی نتیجه \/ تلاش مجدد/.test(submit),'lost-response retry preserves the exact operation intent');
-assert.ok(/data-currency/.test(js)&&/currencyLabel/.test(submit),'foreign-currency revisions are not mislabeled as IRR');
+assert.ok(/onUncertain/.test(submit)&&/ctx\.pendingPayload/.test(submit)&&/operationId حفظ شد/.test(submit)&&/بررسی رسید قطعی \/ تلاش همان فرمان/.test(submit),'lost-response retry freezes and reuses the exact operation intent');
+assert.ok(/data-currency/.test(js)&&/ctx\.currency==='IRR'\?'ریال':ctx\.currency/.test(submit),'foreign-currency revisions are not mislabeled as IRR');
 
 console.log('PASS tester444-v34.7.41: award revision is idempotent, concurrency-safe, and metadata-preserving');

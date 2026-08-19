@@ -858,7 +858,15 @@ function offerNew(kind) {
 
 function ptfTriggerAutoDraftSave() {
   if (_offState && _offState.kind) {
-    try { localStorage.setItem('ptf_autodraft_offer_' + _offState.kind, JSON.stringify(_offState)); } catch(e){}
+    try {
+      /* v34.7.45: فرم رویژن از offerForm مشترک استفاده می‌کند، اما draft آن نباید
+         جای draft «پیشنهاد مالی جدید» را بگیرد و بعداً به‌اشتباه restore شود. */
+      var revCtx = window._ptfAwardRevisionContext;
+      var key = revCtx && revCtx.operationId
+        ? ('ptf_autodraft_award_revision_' + String(revCtx.operationId).replace(/[^A-Za-z0-9_.|:-]/g, '_'))
+        : ('ptf_autodraft_offer_' + _offState.kind);
+      localStorage.setItem(key, JSON.stringify(_offState));
+    } catch(e){}
   }
 }
 

@@ -75,13 +75,24 @@ function harness(){
   bad.pending[0].resolve(response(422,{ok:false,error:'invalid_amount'}));
   assert.strictEqual((await badPromise).state,'rejected');assert.strictEqual(bad.requests.length,1);assert.strictEqual(badReject,1);assert.strictEqual(badUncertain,0);
 
-  /* Two ambiguous responses preserve intent and never run definitive rollback. */
+  /* Two ambiguous mutation responses first query the compact durable receipt. */
+  var recovered=harness(),recoveredAck=0;
+  var recoveredPromise=recovered.ctx.ptfSalesDomainCommand('revise_award',{caseId:'C1',idempotencyKey:'OP-RECOVERED'},{onAck:function(d){recoveredAck++;assert.strictEqual(d.compactReceipt,true);}});
+  recovered.pending[0].reject(new Error('large_response_lost_1'));await tick();await tick();
+  recovered.pending[1].reject(new Error('large_response_lost_2'));await tick();await tick();
+  assert.strictEqual(recovered.requests.length,3,'two mutation attempts are followed by one compact receipt lookup');
+  assert.ok(recovered.requests[2].url.indexOf('action=command_status')>-1&&recovered.requests[2].body.operationId==='OP-RECOVERED','status lookup is bound to operation id');
+  recovered.pending[2].resolve(response(200,{ok:true,committed:true,operationId:'OP-RECOVERED',commandAction:'revise_award',rev:9,result:{revisionOfferNo:'CO-1',rev:2}}));
+  assert.strictEqual((await recoveredPromise).state,'acked');assert.strictEqual(recoveredAck,1,'durable compact receipt resolves ACK exactly once');
+
+  /* If both mutation responses and the status lookup are unavailable, preserve intent
+     and never run definitive rollback. */
   var unknown=harness(),rollback=0,uncertain=0;
   var unknownPromise=unknown.ctx.ptfSalesDomainCommand('register_invoice',{idempotencyKey:'OP-UNKNOWN'},{onReject:function(){rollback++;},onUncertain:function(e){uncertain++;assert.strictEqual(e.operationId,'OP-UNKNOWN');}});
-  unknown.pending[0].reject(new Error('offline_1'));await tick();await tick();unknown.pending[1].reject(new Error('offline_2'));
+  unknown.pending[0].reject(new Error('offline_1'));await tick();await tick();unknown.pending[1].reject(new Error('offline_2'));await tick();await tick();unknown.pending[2].reject(new Error('status_offline'));
   var unknownResult=await unknownPromise;
-  assert.strictEqual(unknownResult.state,'uncertain');assert.strictEqual(rollback,0);assert.strictEqual(uncertain,1);
+  assert.strictEqual(unknownResult.state,'uncertain');assert.strictEqual(unknown.requests.length,3);assert.strictEqual(rollback,0);assert.strictEqual(uncertain,1);
   assert.ok(Object.keys(unknown.ls.d).some(function(k){return k.indexOf('ptf_sales_command_uncertain_OP-UNKNOWN')===0;}),'unknown outcome diagnostic persisted');
 
-  console.log('PASS tester446-v34.7.43: generic command certainty + durable WAL + safe side effects');
+  console.log('PASS tester446-v34.7.43: generic command certainty + durable WAL + compact receipt recovery');
 })().catch(function(e){console.error(e&&e.stack||e);process.exitCode=1;});

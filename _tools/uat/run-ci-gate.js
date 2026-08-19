@@ -68,6 +68,7 @@ var SUITE = [
   { g: 'کیفیت/H1 AN-04 ARCH-02', f: '_tools/uat/tester436-v34.7.33-h1-an04-arch02.js' },
   { g: 'پرونده/رویژن پیشنهاد برنده', f: '_tools/uat/tester437-v34.7.34-won-offer-revision.js' },
   { g: 'پرونده/رویژن هم‌زمان و retry', f: '_tools/uat/tester444-v34.7.41-award-revision-concurrency.js' },
+  { g: 'پرونده/برابری فرم کامل رویژن', f: '_tools/uat/tester448-v34.7.45-award-revision-offer-form.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

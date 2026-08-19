@@ -116,7 +116,7 @@ function baseDb() {
   T('P5 گارد نقش برای بازنگری وجود دارد', /canRevise\(\)/.test(read('crm/case-revision.js')));
   var src = read('crm/case-revision.js');
   T('P5 بازنگری فقط از مسیر سرور انجام می‌شود', /ptfSalesDomainCommand\('revise_award'/.test(src) && src.indexOf('فقط از مسیر سرور انجام می‌شود') > -1);
-  T('P5 دلیل بازنگری اجباری است', /دلیل بازنگری الزامی است/.test(src));
+  T('P5 دلیل بازنگری اجباری است', /دلیل (?:بازنگری|رویژن) الزامی است/.test(src));
   T('P5 پیام مسدودی فاکتور رسمی برای کاربر ترجمه شده', src.indexOf('official_invoice_blocks_decrease') > -1 && src.indexOf('کاهش مبلغ سند برد مسدود است') > -1);
 })();
 

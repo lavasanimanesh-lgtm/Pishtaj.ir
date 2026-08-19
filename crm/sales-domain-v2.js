@@ -82,7 +82,38 @@
     if(s>=400&&s<500&&s!==408&&s!==425&&s!==429)return false;
     return !s || s===408 || s===425 || s===429 || s>=500 || !!(e&&e.responseInvalid);
   }
-  function actionIsReadOnly(action){return['snapshot','health','migration_dry_run','duplicate_case_plan','archived_case_purge_plan','admin_delete_plan'].indexOf(action)>-1;}
+  function actionIsReadOnly(action){return['snapshot','health','migration_dry_run','duplicate_case_plan','archived_case_purge_plan','admin_delete_plan','command_status'].indexOf(action)>-1;}
+  /* v34.7.45: after two ambiguous mutation responses, query the durable command
+     journal through a compact endpoint. This avoids a false `uncertain` when the
+     mutation committed but its large full-projection response was lost twice. */
+  function compactCommandStatus(action,payload) {
+    var operationId=String((payload&&payload.idempotencyKey)||'');
+    return fetch(API+'?action=command_status',{method:'POST',headers:authHeaders(),body:JSON.stringify({operationId:operationId,commandAction:action})})
+      .then(function(r){return r.text().then(function(txt){
+        var d;try{d=JSON.parse(txt);}catch(e){var invalid=new Error('پاسخ نامعتبر بازیابی رسید');invalid.status=r.status;invalid.responseInvalid=true;throw invalid;}
+        if(!r.ok||!d.ok){var er=new Error(d.error||('HTTP '+r.status));er.status=r.status;er.payload=d;throw er;}
+        return d;
+      });});
+  }
+  function syncAfterCompactReceipt(receipt) {
+    receipt=receipt||{};receipt.reconciled=true;receipt.compactReceipt=true;
+    return new Promise(function(resolve){
+      if(typeof window.ptfSyncPullNow!=='function'){resolve(receipt);return;}
+      var done=false,timer=null;
+      function finish(result){if(done)return;done=true;if(timer)try{clearTimeout(timer);}catch(ignore){}receipt.syncResult=result||{ok:true};resolve(receipt);}
+      try{timer=setTimeout(function(){finish({ok:false,reason:'pull_timeout_after_compact_receipt'});},5000);window.ptfSyncPullNow(function(result){finish(result);});}
+      catch(e){finish({ok:false,reason:'pull_exception_after_compact_receipt'});}
+    });
+  }
+  function recoverCommandReceipt(action,payload,lastError) {
+    return compactCommandStatus(action,payload).then(function(status){
+      if(!status||status.committed!==true)throw lastError;
+      return syncAfterCompactReceipt(status);
+    },function(statusError){
+      try{lastError.commandStatusError=String((statusError&&statusError.message)||statusError||'');}catch(ignore){}
+      throw lastError;
+    });
+  }
   function persistCommandDiagnostic(kind,action,payload,e) {
     var op=String((payload&&payload.idempotencyKey)||'unknown'),key='ptf_sales_command_'+kind+'_'+op.replace(/[^A-Za-z0-9_.|:-]/g,'_').slice(0,160);
     try { localStorage.setItem(key,JSON.stringify({kind:kind,action:action,operationId:op,message:String((e&&e.message)||e||''),at:new Date().toISOString()})); } catch(ignore){}
@@ -97,8 +128,11 @@
       if(!commandErrorIsAmbiguous(e))throw e;
       return apiAttempt(action,payload).then(null,function(replayError){
         if(commandErrorIsAmbiguous(replayError)&&!actionIsReadOnly(action)){
-          replayError.commitOutcome='uncertain';replayError.operationId=payload.idempotencyKey;replayError.commandAction=action;
-          persistCommandDiagnostic('uncertain',action,payload,replayError);
+          return recoverCommandReceipt(action,payload,replayError).then(null,function(finalError){
+            finalError.commitOutcome='uncertain';finalError.operationId=payload.idempotencyKey;finalError.commandAction=action;
+            persistCommandDiagnostic('uncertain',action,payload,finalError);
+            throw finalError;
+          });
         }
         throw replayError;
       });
@@ -147,6 +181,24 @@
   window.ptfSalesDomainApi = api;
   window.ptfSalesDomainCommand = command;
   window.ptfSalesCommandErrorIsAmbiguous = commandErrorIsAmbiguous;
+  window.ptfSalesDomainCommandStatus = function(action,operationId){
+    return compactCommandStatus(action,{idempotencyKey:operationId}).then(function(status){return status&&status.committed===true?syncAfterCompactReceipt(status):status;});
+  };
+  /* Persisted uncertain diagnostics survive refresh. After authenticated CRM boot this
+     helper checks only the durable journal (never resubmits a mutation), pulls the
+     committed projection, and clears the warning if its ACK is authoritative. */
+  window.ptfRecoverUncertainSalesCommands = function(){
+    var rows=[];
+    try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(String(key||'').indexOf('ptf_sales_command_uncertain_')!==0)continue;var d=JSON.parse(localStorage.getItem(key)||'{}');if(d&&d.action&&d.operationId)rows.push({key:key,d:d});}}catch(e){return Promise.resolve([]);}
+    return Promise.all(rows.slice(-12).map(function(row){
+      return window.ptfSalesDomainCommandStatus(row.d.action,row.d.operationId).then(function(status){
+        if(!status||status.committed!==true)return{committed:false,operationId:row.d.operationId};
+        try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_recovered_'+String(row.d.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'),JSON.stringify({action:row.d.action,operationId:row.d.operationId,at:new Date().toISOString(),result:status.result||{}}));}catch(ignore){}
+        try{toast('✅ نتیجه قطعی فرمان '+row.d.operationId+' از رسید سرور بازیابی شد.','ok');}catch(ignoreToast){}
+        return{committed:true,operationId:row.d.operationId,result:status.result||{}};
+      },function(){return{committed:false,operationId:row.d.operationId};});
+    }));
+  };
 
   /* v34.7.39 — ثبت پیشنهاد یک command واقعی است، نه local save + دو push موازی.
      تا پایان ACK، همه projectionهای درگیر از data_push عمومی hold می‌شوند و هیچ

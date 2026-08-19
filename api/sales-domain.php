@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.44';
+const SD_SERVICE_VERSION = '34.7.45';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -454,7 +454,13 @@ function sd_commit(array $changes, array $context): int {
 }
 function sd_result_data(array $changes): array {
     $out = [];
-    foreach ($changes as $key => $value) $out[$key] = sd_projection_value((string)$key,$value);
+    /* Journal برای اثبات/بازیابی سرور است و هرگز surface ویرایش مرورگر نیست.
+       فرستادن تا ۱۰۰۰ receipt کامل در پاسخ هر mutation، پاسخ رویژن را بی‌دلیل
+       بزرگ و مستعد قطع transport می‌کرد؛ command_status رسید لازم را فشرده می‌دهد. */
+    foreach ($changes as $key => $value) {
+        if ((string)$key === 'ptf_crm_sales_commands') continue;
+        $out[$key] = sd_projection_value((string)$key,$value);
+    }
     return $out;
 }
 function sd_command_request_hash(string $action, array $body): string {
@@ -749,8 +755,31 @@ function sd_migration_report(): array {
     return ['issues'=>$issues,'safeReceiptCandidates'=>$safe,'counts'=>['offers'=>count($offers),'cases'=>count($cases),'invoices'=>count($invoices),'receipts'=>count($receipts)]];
 }
 
-$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan', 'archived_case_purge_plan'], true);
+$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan', 'archived_case_purge_plan', 'command_status'], true);
 if ($readOnly) {
+    /* v34.7.45: compact authoritative receipt lookup. A large command may commit but
+       lose its projection response in transport; replaying the same large response is
+       not proof that it failed. The owner can recover the durable journal receipt by
+       operation/action without downloading every changed collection again. */
+    if ($action === 'command_status') {
+        $operationId=sd_text($body['operationId']??'',120);$commandAction=sd_text($body['commandAction']??'',80);
+        if($operationId===''||$commandAction==='')sd_out(['ok'=>false,'error'=>'command_status_identity_required'],422);
+        /* وضعیت فقط پس از تکمیل WAL زیر همان lock قطعی است؛ read بدون recovery ممکن
+           بود درست در فاصلهٔ crash، یک commit موجود را «یافت نشد» گزارش کند. */
+        $receiptLockPath=sd_sync_dir().'/meta.json.lock';$receiptLock=fopen($receiptLockPath,'c+');
+        if(!$receiptLock||!flock($receiptLock,LOCK_EX))sd_out(['ok'=>false,'error'=>'lock_unavailable'],503);
+        try{sd_recover_pending_transactions();$commands=sd_read('ptf_crm_sales_commands');}
+        catch(Throwable $receiptError){@flock($receiptLock,LOCK_UN);@fclose($receiptLock);sd_out(['ok'=>false,'error'=>'command_status_recovery_failed'],500);}
+        @flock($receiptLock,LOCK_UN);@fclose($receiptLock);
+        foreach($commands as $cmd){
+            if(!is_array($cmd)||(string)($cmd['key']??'')!==$operationId||(string)($cmd['status']??'')!=='committed')continue;
+            if((string)($cmd['by']??'')!==''&&!hash_equals((string)$cmd['by'],(string)$user))sd_out(['ok'=>false,'error'=>'idempotency_key_owner_mismatch'],403);
+            if((string)($cmd['action']??'')!==$commandAction)sd_out(['ok'=>false,'error'=>'idempotency_key_action_mismatch'],409);
+            sd_out(['ok'=>true,'committed'=>true,'operationId'=>$operationId,'commandAction'=>$commandAction,
+                'rev'=>sd_current_rev(),'result'=>is_array($cmd['result']??null)?$cmd['result']:[],'version'=>SD_SERVICE_VERSION]);
+        }
+        sd_out(['ok'=>true,'committed'=>false,'operationId'=>$operationId,'commandAction'=>$commandAction,'version'=>SD_SERVICE_VERSION]);
+    }
     if ($action === 'migration_dry_run') { sd_require_role(SD_ADMIN_ROLES); sd_out(['ok'=>true,'report'=>sd_migration_report(),'version'=>SD_SERVICE_VERSION]); }
     if ($action === 'archived_case_purge_plan') {
         sd_require_role(SD_OFFER_REPAIR_ROLES);
@@ -1013,6 +1042,29 @@ try {
             sd_out(['ok'=>false,'error'=>'award_revision_conflict','expectedRev'=>$expectedRev,'currentRev'=>$currentRev,'offerId'=>$parentIdentity], 409);
         }
 
+        /* v34.7.45: رویژن از همان فرم کامل پیشنهاد مالی می‌آید. هویت قراردادی
+           (مشتری/درخواست/ارز) پس از تشکیل پرونده قابل جابه‌جایی نیست، ولی سایر
+           مشخصات سند و شرایط باید همراه اقلام در همان تراکنش رویژن ثبت شوند. */
+        $document = is_array($body['offerDocument'] ?? null) ? $body['offerDocument'] : [];
+        foreach (['buyerCd','inqNo'] as $identityField) {
+            $incomingIdentity=sd_identity($document[$identityField]??'');$currentIdentity=sd_identity($parent[$identityField]??'');
+            if($incomingIdentity!==''&&$incomingIdentity!==$currentIdentity)sd_out(['ok'=>false,'error'=>'award_revision_identity_change_forbidden','field'=>$identityField],409);
+        }
+        $documentCurrency=strtoupper(sd_text($document['currency']??'',10));
+        if($documentCurrency!==''&&$documentCurrency!==strtoupper((string)($parent['currency']??'IRR')))sd_out(['ok'=>false,'error'=>'award_revision_identity_change_forbidden','field'=>'currency'],409);
+        $documentPatch=[];
+        foreach(['dateEn','dateFa','validUntil','sellerContact','buyerContact','buyerTel','printAs','signAs','fxBasis'] as $field) {
+            if(array_key_exists($field,$document))$documentPatch[$field]=sd_text($document[$field],$field==='buyerTel'?100:200);
+        }
+        if(array_key_exists('useSig',$document))$documentPatch['useSig']=!empty($document['useSig']);
+        if(array_key_exists('fxRateRef',$document))$documentPatch['fxRateRef']=sd_num($document['fxRateRef']);
+        if(array_key_exists('terms',$document)&&is_array($document['terms'])){
+            $documentPatch['terms']=[];foreach(array_slice($document['terms'],0,100)as $term){$term=sd_text($term,2000);if($term!=='')$documentPatch['terms'][]=$term;}
+        }
+        if(array_key_exists('extraCols',$document)&&is_array($document['extraCols'])){
+            $documentPatch['extraCols']=[];foreach(array_slice($document['extraCols'],0,99)as $col){$col=sd_text($col,120);if($col!==''&&!in_array($col,$documentPatch['extraCols'],true))$documentPatch['extraCols'][]=$col;}
+        }
+
         /* متادیتای سطر موجود (نرخ مرجع، منبع درخواست، زمان تحویل و …) هنگام
            تغییر qty/price نباید حذف شود. تطبیق به‌ترتیب lineId، sourceItemKey و
            sourceIndex انجام و برای هر سطر جدید lineId سروری یکتا ساخته می‌شود. */
@@ -1056,6 +1108,12 @@ try {
             $row['name']=$name; $row['desc']=sd_text($ln['desc'] ?? ($base['desc'] ?? ''),500);
             $row['model']=sd_text($ln['model'] ?? ($base['model'] ?? ''),200); $row['unit']=sd_text($ln['unit'] ?? ($base['unit'] ?? ''),60);
             $row['pcode']=sd_text($ln['pcode'] ?? ($base['pcode'] ?? ''),100); $row['brand']=sd_text($ln['brand'] ?? ($base['brand'] ?? ''),200);
+            /* فرم مالی کامل metadata نرخ مرجع، حاشیه، تحویل و ستون‌های تکمیلی را
+               نیز می‌فرستد. سطر تازه نباید پس از ACK به نسخهٔ کم‌فیلد تبدیل شود. */
+            foreach(['prodCd','dlv','refCur','refSrc','refAt','refFrom','sourceInq','spec']as $field){if(array_key_exists($field,$ln))$row[$field]=sd_text($ln[$field],300);}
+            foreach(['refPrice','refBuyPrice','marginPct','profitMarginPct']as $field){if(array_key_exists($field,$ln))$row[$field]=sd_num($ln[$field]);}
+            if(array_key_exists('refPriceEdited',$ln))$row['refPriceEdited']=!empty($ln['refPriceEdited']);
+            if(array_key_exists('extra',$ln)&&is_array($ln['extra'])){$row['extra']=[];foreach(array_slice($ln['extra'],0,99,true)as $key=>$value){$key=sd_text($key,120);if($key!=='')$row['extra'][$key]=sd_text($value,500);}}
             $row['qty']=$qty; $row['price']=$price; $row['lineId']=$lineId;
             if ($incomingSource !== '') $row['sourceItemKey'] = $incomingSource;
             if ($oldIndex >= 0) $usedOld[$oldIndex] = true;
@@ -1112,6 +1170,7 @@ try {
         unset($prevSnap['revisionHistory'], $prevSnap['editHistory']);
         $hist[] = ['rev'=>$currentRev, 'at'=>sd_now(), 'by'=>$user, 'snapshot'=>$prevSnap];
         $parent['revisionHistory'] = $hist;
+        foreach($documentPatch as $field=>$value)$parent[$field]=$value;
         $parent['items'] = $newItems;
         $parent['rev'] = $seq;
         $parent['revisionSeq'] = $seq;
