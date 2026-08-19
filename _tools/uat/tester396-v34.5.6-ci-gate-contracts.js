@@ -44,7 +44,8 @@ assert.ok(sy.indexOf('headers: authHeaders(true)') > -1, 'پوش از همان �
 assert.ok(api.indexOf('function ptf_echo_json') > -1, 'خروجی JSON فشردهٔ API');
 assert.ok(sy.indexOf('if (startupMerged !== newStr) state.dirty[k] = true') > -1, 'استارت‌آپ فقط اختلاف واقعی را dirty می‌کند');
 assert.ok(sy.indexOf('window.ptfSyncTrackRecordSave') > -1 && sy.indexOf('در انتظار تأیید سرور') > -1, 'رسید فرم باید ثبت محلی را از تأیید سرور جدا کند');
-assert.ok(read('crm/offers.js').indexOf("ptfSyncTrackRecordSave({ key: 'ptf_crm_offers'") > -1, 'پیشنهاد رسید تأیید سرور دارد');
+var offerDomain = read('crm/sales-domain-v2.js'), offerUi = read('crm/offers.js');
+assert.ok(offerDomain.indexOf("api('register_offer'") > -1 && offerDomain.indexOf('serverConfirmed:true') > -1 && offerUi.indexOf('meta.serverConfirmed !== true') > -1, 'پیشنهاد فقط با ACK فرمان دامنه رسید تأیید سرور دارد');
 assert.ok(read('crm/bridge.js').indexOf("ptfSyncTrackRecordSave({ key: 'ptf_crm_rfqs'") > -1, 'درخواست رسید تأیید سرور دارد');
 var offersUi = read('crm/offers.js');
 assert.ok(offersUi.indexOf('کارشناس مسئول / مالک پورسانت') > -1 && offersUi.indexOf('مدیر انتخاب می‌کند آیا این مشتری') > -1, 'مالک مشتری/پورسانت در فرم مشتری با فهرست همه کاربران قابل انتخاب است');

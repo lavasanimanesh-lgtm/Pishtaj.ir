@@ -42,11 +42,10 @@
         if (ok !== false) touched++;
       } catch (e) { console.error('sales-v2 projection', k, e); }
     });
-    /* global rev فقط وقتی جلو می‌رود که هیچ کلید projection شکست نخورده باشد؛
-       در شکست جزئی، pull با rev قبلی همان کلید را دوباره دریافت می‌کند. */
-    if (expected > 0 && touched === expected && typeof window.ptfSyncAcceptServerRevision === 'function') {
-      try { window.ptfSyncAcceptServerRevision(serverRev); } catch (eRev) {}
-    }
+    var projectionComplete = expected > 0 && touched === expected;
+    /* v34.7.39: global rev پیش از catch-up pull جلو نمی‌رود. اگر دستگاه تغییر یک
+       کلید دیگر را ندیده باشد، پذیرش زودهنگام rev فرمان باعث fresh کاذب و حذف آن
+       تغییر بین‌دستگاهی می‌شود. per-key revهای projection همین حالا ثبت شده‌اند. */
     /* v34.7.14: projection با rev دقیق ابتدا روی cache فاز B اعمال می‌شود، سپس
        pull نهایی را واقعاً تا پایان انتظار می‌کشیم. handler موفقیت و renderها دیگر
        جلوتر از همگام‌سازی اجرا نمی‌شوند. شکست pull، commit موفق سرور را شکست‌خورده
@@ -54,9 +53,16 @@
     /* v34.7.18: هر پروجکشن تازه، کش محاسبهٔ مطالبات را باطل می‌کند تا نماها بلافاصله هم‌خوان شوند. */
     try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArInv) {}
     return new Promise(function (resolve) {
-      if (!touched || typeof window.ptfSyncPullNow !== 'function') { resolve({ ok: true, skipped: true }); return; }
+      if (!touched || typeof window.ptfSyncPullNow !== 'function') {
+        if (projectionComplete && typeof window.ptfSyncAcceptServerRevision === 'function') try { window.ptfSyncAcceptServerRevision(serverRev); } catch (eRevNoPull) {}
+        resolve({ ok: true, skipped: true }); return;
+      }
       try {
-        window.ptfSyncPullNow(function (result) { resolve(result || { ok: true }); });
+        window.ptfSyncPullNow(function (result) {
+          result=result||{ok:true};
+          if (result.ok!==false&&projectionComplete&&typeof window.ptfSyncAcceptServerRevision==='function') try { window.ptfSyncAcceptServerRevision(serverRev); } catch (eRev) {}
+          resolve(result);
+        });
       } catch (eP) { resolve({ ok: false, reason: 'pull_exception' }); }
     });
   }
@@ -64,28 +70,167 @@
     payload = payload || {};
     if (!payload.idempotencyKey) payload.idempotencyKey = nowId(action.toUpperCase());
     return fetch(API + '?action=' + encodeURIComponent(action), { method:'POST', headers:authHeaders(), body:JSON.stringify(payload) })
-      .then(function (r) { return r.text().then(function (txt) { var d; try { d=JSON.parse(txt); } catch(e){ throw new Error('پاسخ نامعتبر سرور: ' + txt.slice(0,160)); } if (!r.ok || !d.ok) { var er = new Error(d.error || ('HTTP '+r.status)); er.payload=d; throw er; } return d; }); })
+      .then(function (r) { return r.text().then(function (txt) {
+        var d;
+        try { d=JSON.parse(txt); }
+        catch(e){ var invalid = new Error('پاسخ نامعتبر سرور: ' + txt.slice(0,160)); invalid.status = r.status; throw invalid; }
+        if (!r.ok || !d.ok) { var er = new Error(d.error || ('HTTP '+r.status)); er.payload=d; er.status=r.status; throw er; }
+        return d;
+      }); })
       .then(function (d) { return applyProjection(d.data || {}, d.rev).then(function () { return d; }); });
   }
   window.ptfSalesDomainApi = api;
 
-  /* Official offer identity is acknowledged by the server. Legacy form rendering remains,
-     but a rejected unique-number/write acknowledgement restores the pre-save projection. */
+  /* v34.7.39 — ثبت پیشنهاد یک command واقعی است، نه local save + دو push موازی.
+     تا پایان ACK، همه projectionهای درگیر از data_push عمومی hold می‌شوند و هیچ
+     وضعیت/ارجاع/SMS «صادر شد» تولید نمی‌شود. */
+  var OFFER_COMMAND_KEYS = ['ptf_crm_offers','ptf_crm_rfqs','ptf_crm_products','ptf_crm_inqitems','ptf_crm_notifs'];
+  function clone(v) { try { return JSON.parse(JSON.stringify(v)); } catch (e) { return v; } }
+  function keySnapshot(k) { try { return clone(getData(k)); } catch (e) { return []; } }
+  function sameValue(a,b) { try { return JSON.stringify(a) === JSON.stringify(b); } catch (e) { return false; } }
+  function offerButtonBusy(busy) {
+    try {
+      var b=document.getElementById('offSaveBtn'); if(!b)return;
+      b.disabled=!!busy; b.textContent=busy?'⏳ در حال تأیید سرور…':'💾 ذخیره';
+    } catch(e){}
+  }
+  function holdOfferCommand() { if(typeof window.ptfSyncHoldCommandKeys==='function')window.ptfSyncHoldCommandKeys(OFFER_COMMAND_KEYS); }
+  function releaseOfferCommand() { if(typeof window.ptfSyncReleaseCommandKeys==='function')window.ptfSyncReleaseCommandKeys(OFFER_COMMAND_KEYS); }
+  function applyLocalProjection(k,v) {
+    if(typeof window.ptfSyncApplyServerProjection==='function')return window.ptfSyncApplyServerProjection(k,v);
+    try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}
+  }
+  function commandRecordId(k,r) {
+    if(!r||typeof r!=='object')return'';
+    if(k==='ptf_crm_offers')return r.no?String(r.no):String(r._id||'');
+    if(k==='ptf_crm_rfqs')return String(r._id||r.cd||r.inqNo||'');
+    if(k==='ptf_crm_products')return String(r._id||r.cd||'');
+    if(k==='ptf_crm_inqitems'){var parent=String(r.inqNo||r.rfqNo||''),item=String(r.pcode||r.prodCd||r.name||'');return String(r._id||r.cd||r.lineId||(parent||item?parent+'|'+item:''));}
+    return String(r._id||r.cd||r.id||r.dkey||'');
+  }
+  function rollbackChangedFields(beforeRec,afterRec,currentRec) {
+    var out=clone(currentRec),keys={};
+    Object.keys(beforeRec||{}).concat(Object.keys(afterRec||{})).forEach(function(x){keys[x]=1;});
+    Object.keys(keys).forEach(function(field){
+      var had=Object.prototype.hasOwnProperty.call(beforeRec||{},field);
+      if(!sameValue((beforeRec||{})[field],(afterRec||{})[field])&&sameValue((currentRec||{})[field],(afterRec||{})[field])) {
+        if(had)out[field]=clone(beforeRec[field]);else delete out[field];
+      }
+    });
+    return out;
+  }
+  function compensateCollection(k,beforeRows,afterRows,currentRows) {
+    if(!Array.isArray(beforeRows)||!Array.isArray(afterRows)||!Array.isArray(currentRows))return currentRows;
+    var bm={},am={},cm={};
+    beforeRows.forEach(function(r){var id=commandRecordId(k,r);if(id)bm[id]=r;});
+    afterRows.forEach(function(r){var id=commandRecordId(k,r);if(id)am[id]=r;});
+    currentRows.forEach(function(r){var id=commandRecordId(k,r);if(id)cm[id]=r;});
+    var out=[];
+    currentRows.forEach(function(cur){
+      var id=commandRecordId(k,cur),b=id?bm[id]:null,a=id?am[id]:null;
+      if(!id||!a||sameValue(b,a)){out.push(cur);return;}
+      if(!b){
+        /* رکورد کاملاً ساختهٔ command است. offer بدون ACK حذف می‌شود؛ canonical
+           سرور در پاسخ گم‌شده/دستگاه دیگر با serverRegisteredAt حفظ می‌شود. */
+        if(k==='ptf_crm_offers') { if(cur.serverRegisteredAt&&!cur._serverState)out.push(cur); }
+        else if(!sameValue(cur,a))out.push(cur);
+        return;
+      }
+      /* projection clean سرور را هرگز با snapshot قدیمی rollback نکن. */
+      if(k==='ptf_crm_offers'&&cur.serverRegisteredAt&&!cur._serverState&&(!a.serverRegisteredAt||cur.serverRegisteredAt!==a.serverRegisteredAt)){out.push(cur);return;}
+      out.push(sameValue(cur,a)?clone(b):rollbackChangedFields(b,a,cur));
+    });
+    /* اگر command رکوردی را حذف کرده بود و تغییر هم‌زمانی جایگزینش نکرده، برگردان. */
+    beforeRows.forEach(function(b){var id=commandRecordId(k,b);if(id&&!am[id]&&!cm[id])out.push(clone(b));});
+    return out;
+  }
+  function restoreOfferSnapshots(before,after) {
+    OFFER_COMMAND_KEYS.forEach(function(k){
+      var cur=keySnapshot(k);
+      /* fast path + جبران سه‌طرفهٔ رکورد/فیلد: پاسخ دیررس نه کل collection
+         تغییرکردهٔ تب دیگر را پاک می‌کند و نه projection خود command را جا می‌گذارد. */
+      if(sameValue(cur,after[k]))applyLocalProjection(k,before[k]);
+      else {
+        var repaired=compensateCollection(k,before[k],after[k],cur);
+        if(!sameValue(repaired,cur))applyLocalProjection(k,repaired);
+      }
+    });
+  }
+  function rfqForOffer(o) {
+    if(!o||!o.inqNo)return null;
+    return data('ptf_crm_rfqs').filter(function(r){return r&&(r.cd===o.inqNo||r.inqNo===o.inqNo);})[0]||null;
+  }
+  function markChangedSideEffects(before,after) {
+    ['ptf_crm_products','ptf_crm_inqitems','ptf_crm_notifs'].forEach(function(k){
+      /* فقط delta خود command dirty می‌شود؛ catch-up دستگاه دیگر نباید echo شود. */
+      if(!sameValue(before[k],after[k])&&typeof window.ptfSyncNotifyDirty==='function')window.ptfSyncNotifyDirty(k);
+    });
+  }
   var legacyOfferSave = window.offerSave;
   if (typeof legacyOfferSave === 'function') {
     window.offerSave = function () {
-      var before = JSON.parse(JSON.stringify(data('ptf_crm_offers'))), ret = legacyOfferSave.apply(this, arguments);
-      var st = window._offState || {}, saved = data('ptf_crm_offers').filter(function (o) { return o && o.no === st.no; })[0];
-      if (!saved) return ret;
-      api('register_offer', { offer:saved, idempotencyKey:'OFFER-SAVE|' + saved.no + '|' + (saved.updatedAtISO || Date.now()) })
-        .then(function () { toast('پیشنهاد با شناسه یکتا توسط سرور تأیید شد', 'ok'); })
-        .catch(function (e) {
-          if (typeof window.ptfSyncApplyServerProjection === 'function') window.ptfSyncApplyServerProjection('ptf_crm_offers', before);
-          else localStorage.setItem('ptf_crm_offers', JSON.stringify(before));
-          alert('⛔ سرور ثبت پیشنهاد را نپذیرفت و تغییر محلی بازگردانده شد: ' + e.message);
-          if (typeof renderOffers === 'function') renderOffers();
+      if (window._ptfOfferCommandInFlight) { toast('ثبت پیشنهاد قبلی هنوز در انتظار پاسخ سرور است.', 'warn'); return {ok:false,busy:true}; }
+      var pending = typeof window.ptfSyncPendingKeys==='function' ? window.ptfSyncPendingKeys() : [];
+      var blockers = pending.filter(function(k){return OFFER_COMMAND_KEYS.indexOf(k)>-1;});
+      if (blockers.length) {
+        toast('ابتدا همگام‌سازی تغییرات قبلی کامل شود؛ سپس دوباره ذخیره را بزنید.', 'warn');
+        if(typeof window.ptfSyncFlushNow==='function')window.ptfSyncFlushNow(function(){});
+        return {ok:false,pendingSync:true};
+      }
+      var before={}; OFFER_COMMAND_KEYS.forEach(function(k){before[k]=keySnapshot(k);});
+      var st=window._offState||{}, previousOpId=st._serverOpId||'';
+      st._serverState='sending'; st._serverOpId=previousOpId||nowId('OFFER-SAVE');
+      window._ptfOfferCommandInFlight=true;
+      window.PTF_OFFER_COMMAND_SAVE_ACTIVE=true;
+      offerButtonBusy(true); holdOfferCommand();
+      var ret;
+      try { ret=legacyOfferSave.apply(this,arguments); }
+      finally { window.PTF_OFFER_COMMAND_SAVE_ACTIVE=false; }
+      if(!ret||!ret.ok){
+        var failedAfter={}; OFFER_COMMAND_KEYS.forEach(function(k){failedAfter[k]=keySnapshot(k);});
+        restoreOfferSnapshots(before,failedAfter);
+        delete st._serverState; if(!previousOpId)delete st._serverOpId;
+        releaseOfferCommand(); window._ptfOfferCommandInFlight=false; offerButtonBusy(false);
+        return ret;
+      }
+      var saved=data('ptf_crm_offers').filter(function(o){return o&&o.no===ret.offerNo&&o.updatedAtISO===ret.updatedAtISO;})[0];
+      if(!saved){
+        var missingAfter={}; OFFER_COMMAND_KEYS.forEach(function(k){missingAfter[k]=keySnapshot(k);});
+        restoreOfferSnapshots(before,missingAfter);
+        delete st._serverState; if(!previousOpId)delete st._serverOpId;
+        releaseOfferCommand(); window._ptfOfferCommandInFlight=false; offerButtonBusy(false);
+        alert('⛔ نسخه‌ای که باید برای سرور ارسال شود پیدا نشد؛ فرم باز مانده است و هیچ وضعیت صدوری ثبت نشد.');
+        return {ok:false,reason:'saved_offer_not_found'};
+      }
+      var after={}; OFFER_COMMAND_KEYS.forEach(function(k){after[k]=keySnapshot(k);});
+      var payloadOffer=clone(saved); delete payloadOffer._serverState; delete payloadOffer._serverOpId; delete payloadOffer._serverError;
+      /* operation id از لحظهٔ اولین تلاش در state/autodraft پایدار می‌ماند؛ timestamp
+         در retry تغییر می‌کند و هرگز نباید کلید reconciliation پاسخ گم‌شده باشد. */
+      var idem=st._serverOpId;
+      var command=api('register_offer',{offer:payloadOffer,rfq:clone(rfqForOffer(saved)),createIntent:ret.idx<0,idempotencyKey:idem})
+        .then(function(d){
+          if(typeof window.ptfSyncAcknowledgeCommandKeys==='function')window.ptfSyncAcknowledgeCommandKeys(['ptf_crm_offers','ptf_crm_rfqs']);
+          releaseOfferCommand(); markChangedSideEffects(before,after);
+          window._ptfOfferCommandInFlight=false; delete st._serverState; delete st._serverOpId;
+          var canonical=data('ptf_crm_offers').filter(function(o){return o&&o.no===payloadOffer.no;})[0]||payloadOffer;
+          if(typeof window.ptfOfferAfterServerCommit==='function')window.ptfOfferAfterServerCommit(canonical,{idx:ret.idx,madeRevision:ret.madeRevision,productSyncNotes:ret.productSyncNotes||[],toCatalog:!!ret.toCatalog,serverConfirmed:true});
+          offerButtonBusy(false);
+          toast('پیشنهاد «'+payloadOffer.no+'» و وضعیت درخواست در یک تراکنش سرور تأیید شد.', 'ok');
+          try{if(typeof renderRfq==='function')renderRfq();}catch(eR){}
+          return d;
+        })
+        .catch(function(e){
+          restoreOfferSnapshots(before,after); releaseOfferCommand();
+          window._ptfOfferCommandInFlight=false; st._serverState='rejected'; st._serverError=e.message||'register_offer_failed';
+          try{localStorage.setItem('ptf_autodraft_offer_'+(st.kind||'CO'),JSON.stringify(st));}catch(eD){}
+          offerButtonBusy(false);
+          alert('⛔ پیشنهاد روی سرور تأیید نشد؛ وضعیت درخواست تغییر نکرد و متن فرم به‌عنوان پیش‌نویس حفظ شد.\n\nعلت: '+(e.message||'خطای ارتباط با سرور'));
+          try{if(typeof renderOffers==='function')renderOffers();if(typeof renderRfq==='function')renderRfq();}catch(eR2){}
+          throw e;
         });
-      return ret;
+      /* inline handler Promise را مصرف نمی‌کند؛ catch نهایی مانع unhandled rejection است. */
+      command.catch(function(){});
+      return {ok:true,pendingServer:true,offerNo:payloadOffer.no,promise:command};
     };
   }
 

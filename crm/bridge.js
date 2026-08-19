@@ -522,7 +522,7 @@
   window.editRfq = function (cd) {
     var r = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === cd; })[0];
     if (!r) return;
-    var wf = r.wf || (typeof wfCompute === 'function' ? wfCompute(r) : 'inq');
+    var wf = (typeof wfCompute === 'function' ? wfCompute(r) : '') || r.wf || 'inq';
     var WF_MAP = (typeof WF !== 'undefined' ? WF : {});
     var wfInfo = WF_MAP[wf] || { lb: 'دریافت اولیه', cl: '#e2e8f0' };
     var log = (r.wfLog || []).slice().reverse().map(function (e) {

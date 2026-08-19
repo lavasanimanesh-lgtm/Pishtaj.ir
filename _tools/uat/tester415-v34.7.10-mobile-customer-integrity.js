@@ -23,7 +23,7 @@ T('payment مهاجرت‌شده در paid و ledger هر دو یکسان حذف
 T('ردیف canonical منبع وصولی مهاجرت را توضیح می‌دهد',cf.indexOf('دریافت قطعی پرونده (مهاجرت‌شده)')>-1&&cf.indexOf('برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود')>-1);
 T('پنل تطبیق تعداد pairهای مهاجرت را شفاف می‌کند',cf.indexOf('cfMigratedReceiptPairs')>-1&&cf.indexOf('تطبیق مهاجرت وصولی')>-1);
 
-T('client تطبیق پرونده را با root ID authoritative انجام می‌دهد',core.indexOf('function caseBelongsToOffer')>-1&&core.indexOf('if(oid&&root)return oid===root')>-1);
+T('client تطبیق پرونده را با root ID و fallback هویت تجاری امن انجام می‌دهد',core.indexOf('function caseBelongsToOffer')>-1&&core.indexOf('if(oid===root)return true')>-1&&core.indexOf("var pairs=[['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']]")>-1);
 T('client تعارض inq/customer/currency را duplicate نمی‌داند',core.indexOf("var pairs=[['inqNo','inqNo'],['buyerCd','buyerCd'],['currency','currency']]")>-1);
 T('server همان قرارداد identity-safe را دارد',api.indexOf('function sd_case_offer_linked')>-1&&api.indexOf("foreach(['inqNo','buyerCd','currency']")>-1&&api.indexOf('hash_equals($oid,$root)')>-1);
 T('گزارش سال مالی نیز helper identity-safe دارد',fiscal.indexOf('function fiscalCaseMatchesOffer')>-1&&fiscal.indexOf('ptfCaseBelongsToOffer')>-1);

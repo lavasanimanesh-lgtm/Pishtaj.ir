@@ -36,6 +36,7 @@ var SUITE = [
   { g: 'درخواست/موبایل', f: '_tools/uat/tester409-v34.7.4-rfq-mobile-parity.js' },
   { g: 'سایت/رهگیری', f: '_tools/uat/tester410-v34.7.5-random-public-tracking.js' },
   { g: 'پیشنهاد/یکپارچگی', f: '_tools/uat/tester411-v34.7.6-winner-repair-parity.js' },
+  { g: 'پیشنهاد/موبایل/ACK', f: '_tools/uat/tester442-v34.7.39-offer-ack-workflow.js' },
   { g: 'کیفیت داده/پرونده', f: '_tools/uat/tester412-v34.7.7-guided-case-dedup.js' },
   { g: 'کیفیت داده/کش', f: '_tools/uat/tester417-v34.7.14-duplicate-case-projection-cache.js' },
   { g: 'بایگانی/سال مالی', f: '_tools/uat/tester413-v34.7.8-archived-test-purge.js' },

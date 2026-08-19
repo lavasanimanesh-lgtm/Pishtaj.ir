@@ -1196,8 +1196,3 @@
     return report;
   };
 })();
-ndidateLegacyPayablesCount, unlinkedLegacyPayables: report.unlinkedLegacyPayablesCount });
-    console.log(JSON.stringify(report, null, 2));
-    return report;
-  };
-})();

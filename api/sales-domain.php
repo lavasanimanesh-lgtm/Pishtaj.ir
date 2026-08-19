@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.36';
+const SD_SERVICE_VERSION = '34.7.39';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -158,6 +158,37 @@ function sd_offer_total(array $offer): float {
     $sum = 0.0;
     foreach (($offer['items'] ?? []) as $it) if (is_array($it)) $sum += sd_num($it['qty'] ?? 0) * sd_num($it['price'] ?? 0);
     return $sum;
+}
+/* v34.7.39 — workflow درخواست read-model همان commit ثبت پیشنهاد است. */
+function sd_rfq_matches_inquiry(array $rfq, string $inqNo): bool {
+    return $inqNo !== '' && ((string)($rfq['cd'] ?? '') === $inqNo || (string)($rfq['inqNo'] ?? '') === $inqNo);
+}
+function sd_workflow_label(string $wf): string {
+    $labels=['WF10'=>'📥 دریافت اولیه','WF20'=>'🔧 پیشنهاد فنی صادر شد','WF30'=>'⏳ منتظر پاسخ کارفرما (فنی)','WF35'=>'✏️ در حال صدور پیشنهاد اصلاحی (فنی)','WF40'=>'💰 منتظر صدور پیشنهاد مالی','WF50'=>'💵 پیشنهاد مالی صادر شد','WF55'=>'✏️ در حال اصلاح پیشنهاد مالی','WF60'=>'⏳ منتظر پاسخ کارفرما (مالی)','WF70'=>'🏗 در حال تامین','WF90'=>'🗂 بایگانی — عدم تایید فنی','WF91'=>'🗂 بایگانی — بازنده مالی'];
+    return $labels[$wf] ?? $wf;
+}
+function sd_workflow_for_inquiry(string $inqNo, array $offers): string {
+    $lastCo=null;$lastTo=null;
+    foreach($offers as $offer){
+        if(!is_array($offer)||(string)($offer['inqNo']??'')!==$inqNo)continue;
+        $kind=strtoupper((string)($offer['kind']??''));
+        if($lastCo===null&&in_array($kind,['CO','TC'],true))$lastCo=$offer;
+        if($lastTo===null&&$kind==='TO')$lastTo=$offer;
+    }
+    if($lastCo!==null){$st=(string)($lastCo['st']??'draft');if($st==='won')return'WF70';if($st==='lost')return'WF91';if($st==='revise')return'WF55';if($st==='sent')return'WF60';return'WF50';}
+    if($lastTo!==null){$st=(string)($lastTo['tst']??$lastTo['st']??'draft');if($st==='rejected'||$st==='lost')return'WF90';if($st==='approved'||$st==='won')return'WF40';if($st==='revise')return'WF35';if($st==='sent')return'WF30';return'WF20';}
+    return'WF10';
+}
+function sd_apply_offer_workflow(array &$rfqs,array $offers,string $inqNo,string $user,string $event): array {
+    if($inqNo==='')return ['found'=>false,'wf'=>''];
+    foreach($rfqs as &$rfq){
+        if(!is_array($rfq)||!sd_rfq_matches_inquiry($rfq,$inqNo))continue;
+        $wf=sd_workflow_for_inquiry($inqNo,$offers);$changed=(string)($rfq['wf']??'')!==$wf;
+        $rfq['wf']=$wf;$rfq['stxt']=sd_workflow_label($wf);$rfq['wfUpdatedAtISO']=sd_now();
+        if($changed){if(!isset($rfq['wfLog'])||!is_array($rfq['wfLog']))$rfq['wfLog']=[];$rfq['wfLog'][]=['t'=>sd_now(),'by'=>$user,'wf'=>$wf,'ev'=>$event];}
+        $id=(string)($rfq['_id']??$rfq['cd']??'');unset($rfq);return ['found'=>true,'rfqId'=>$id,'wf'=>$wf,'changed'=>$changed];
+    }unset($rfq);
+    return ['found'=>false,'wf'=>''];
 }
 function sd_file_ok(array $file): bool {
     $key = trim((string)($file['key'] ?? ''));
@@ -781,12 +812,25 @@ try {
     elseif ($action === 'register_offer') {
         sd_require_role(SD_WIN_ROLES);
         $incoming=is_array($body['offer']??null)?$body['offer']:[];$no=sd_text($incoming['no']??'',100);if($no==='')sd_out(['ok'=>false,'error'=>'offer_number_required'],422);
-        $incomingId=sd_text($incoming['_id']??'',100);$idIndex=-1;$noIndexes=[];foreach($offers as $i=>$o)if(is_array($o)){if($incomingId!==''&&(string)($o['_id']??'')===$incomingId)$idIndex=$i;if((string)($o['no']??'')===$no)$noIndexes[]=$i;}
+        /* فیلدهای وضعیت محلی هرگز وارد projection authoritative نمی‌شوند. */
+        unset($incoming['_serverState'],$incoming['_serverOpId'],$incoming['_serverError']);
+        $incomingId=sd_text($incoming['_id']??'',100);$createIntent=!empty($body['createIntent']);$idIndex=-1;$noIndexes=[];foreach($offers as $i=>$o)if(is_array($o)){if($incomingId!==''&&(string)($o['_id']??'')===$incomingId)$idIndex=$i;if((string)($o['no']??'')===$no)$noIndexes[]=$i;}
+        if($createIntent&&$incomingId===''&&count($noIndexes)>0)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
         if(count($noIndexes)>1)sd_out(['ok'=>false,'error'=>'duplicate_offer_no','count'=>count($noIndexes)],409);
         if(count($noIndexes)===1&&$idIndex<0&&$incomingId!==''&&$noIndexes[0]!==$idIndex)sd_out(['ok'=>false,'error'=>'offer_number_owned_by_another_record'],409);
         $target=$idIndex>=0?$idIndex:(count($noIndexes)===1?$noIndexes[0]:-1);if($target>=0&&($offers[$target]['st']??'')==='won'&&json_encode($offers[$target])!==json_encode($incoming))sd_out(['ok'=>false,'error'=>'won_offer_locked'],409);
         if(empty($incoming['_id']))$incoming['_id']=$target>=0?($offers[$target]['_id']??sd_uuid('OFR')):sd_uuid('OFR');$incoming['updatedAtISO']=$incoming['updatedAtISO']??sd_now();$incoming['serverRegisteredAt']=sd_now();$incoming['serverRegisteredBy']=$user;
-        if($target>=0)$offers[$target]=$incoming;else array_unshift($offers,$incoming);$changes=['ptf_crm_offers'=>$offers];$result=['offerId'=>$incoming['_id'],'offerNo'=>$no,'created'=>$target<0];
+        if($target>=0)$offers[$target]=$incoming;else array_unshift($offers,$incoming);
+        /* لینک TO→CO نیز بخشی از همین snapshot است؛ generic sync دیگر مسئول آن نیست. */
+        if(strtoupper((string)($incoming['kind']??''))==='CO'&&!empty($incoming['srcToNo']))foreach($offers as &$sourceTo)if(is_array($sourceTo)&&(string)($sourceTo['no']??'')===(string)$incoming['srcToNo']&&empty($sourceTo['coNo'])){$sourceTo['coNo']=$no;break;}unset($sourceTo);
+        $inqNo=sd_text($incoming['inqNo']??'',160);
+        $rfqIndex=-1;foreach($rfqs as $i=>$rfq)if(is_array($rfq)&&sd_rfq_matches_inquiry($rfq,$inqNo)){$rfqIndex=(int)$i;break;}
+        /* فرم می‌تواند برای شمارهٔ دستی RFQ یک رکورد حداقلی ساخته باشد؛ همان candidate
+           فقط وقتی هویت آن دقیقاً با inqNo فرمان می‌خواند، داخل همین commit پذیرفته می‌شود. */
+        if($rfqIndex<0&&$inqNo!==''&&is_array($body['rfq']??null)){$candidate=$body['rfq'];if(sd_rfq_matches_inquiry($candidate,$inqNo)){array_unshift($rfqs,$candidate);$rfqIndex=0;}}
+        $wfResult=sd_apply_offer_workflow($rfqs,$offers,$inqNo,$user,(strtoupper((string)($incoming['kind']??''))==='TO'?'صدور پیشنهاد فنی ':'صدور پیشنهاد مالی ').$no);
+        $changes=['ptf_crm_offers'=>$offers];if(!empty($wfResult['found']))$changes['ptf_crm_rfqs']=$rfqs;
+        $result=['offerId'=>$incoming['_id'],'offerNo'=>$no,'created'=>$target<0,'rfqId'=>$wfResult['rfqId']??'','wf'=>$wfResult['wf']??''];
     }
     elseif ($action === 'mark_amendment') {
         sd_require_role(SD_WIN_ROLES);
@@ -1205,7 +1249,7 @@ try {
                contactReq/contactApproved (گردش دسترسی تماس)، offerCurrency/offerFxBasis/offerFxRateRef
                (فرادادهٔ ارزی) و advApplied. حذف pays یعنی پولِ ثبت‌شده از مانده ناپدید می‌شد.
                اکنون رکورد قبلی مبنا قرار می‌گیرد و فقط فیلدهای محاسبه‌شدهٔ همین فرمان بازنویسی می‌شوند.
-               allocated*/open* بلافاصله با sd_rebuild_allocations بازتولید می‌شوند و اثری از رکورد کهنه نمی‌ماند.
+               فیلدهای محاسباتی allocated و open بلافاصله با sd_rebuild_allocations بازتولید می‌شوند و اثری از رکورد کهنه نمی‌ماند.
                مرجع: ARENA-INDEPENDENT-VERIFICATION-AWARD-CHANGE-2026-08-17.md (N2) | گام A2 نقشهٔ فازبندی */
             $record=array_merge($oldInv,$record);
             $record['correctionVersion']=(int)($oldInv['correctionVersion']??0)+1;$record['payments']=$oldInv['payments']??[];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'official_invoice','entityId'=>$record['_id'],'kind'=>'data_entry_correction','beforeSnapshot'=>$oldInv,'afterSnapshot'=>$record,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$invoices[$ii]=$record;$result['corrected']=true;}

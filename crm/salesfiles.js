@@ -51,23 +51,22 @@
      «پرونده فروش = ابلاغ سفارش (CO برنده)» — تنها نقطه ساخت: autoCreateProjectFromCO (ptfSF_ensure).
      قبل از برد، درخواست در تب «🎯 فرصت‌های فعال» (oppo.js) رهگیری می‌شود.
      hook حفظ شد فقط برای به‌روزرسانی buyerCo رکورد موجود (بدون ساخت). */
+  window.ptfSalesFileOfferAfterServerCommit = function (saved) {
+    try {
+      if (!saved || !saved.inqNo || !saved.buyerCo) return false;
+      var list = sfAll();
+      var r = list.filter(function (x) { return x.inqNo === saved.inqNo; })[0];
+      if (r && !r.buyerCo) { r.buyerCo = saved.buyerCo; sfSave(list); return true; }
+    } catch (e) {}
+    return false;
+  };
   function hookOfferSave() {
     if (window._sfOfferHooked || typeof window.offerSave !== 'function') return false;
     window._sfOfferHooked = true;
     var _os = window.offerSave;
     window.offerSave = function () {
-      _os.apply(this, arguments);
-      try {
-        var st = window._offState || {};
-        if (st.no && st.inqNo) {
-          var saved = getData('ptf_crm_offers').filter(function (o) { return o.no === st.no; })[0];
-          if (saved && saved.buyerCo) {
-            var list = sfAll();
-            var r = list.filter(function (x) { return x.inqNo === saved.inqNo; })[0];
-            if (r && !r.buyerCo) { r.buyerCo = saved.buyerCo; sfSave(list); }
-          }
-        }
-      } catch (e) {}
+      /* نتیجه باید تا orchestrator حفظ شود؛ اثر پرونده فقط post-ACK اجرا می‌شود. */
+      return _os.apply(this, arguments);
     };
     return true;
   }

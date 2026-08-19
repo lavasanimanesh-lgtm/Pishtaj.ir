@@ -982,7 +982,7 @@ function ptfOfferDelDo(no) {
   renderOffers();
   if (typeof renderRfq === 'function') renderRfq();
   addLog('پیشنهاد ' + no + ' حذف شد');
-  if (typeof wfRefresh === 'function') try { wfRefresh(); } catch (eWf) {}
+  if (typeof wfRefresh === 'function' && target && target.inqNo) try { wfRefresh(target.inqNo, 'حذف پیشنهاد ' + no); } catch (eWf) {}
 }
 
 
@@ -2407,8 +2407,64 @@ window.ptfSyncRefPriceBack = function (offer, opt) {
   return out;
 };
 
+/* v34.7.39: همهٔ آثار «صدور قطعی» فقط پس از ACK فرمان register_offer اجرا می‌شوند؛
+   مسیر fallback محلی عمداً وجود ندارد. */
+window.ptfOfferAfterServerCommit = function (o, meta) {
+  meta = meta || {};
+  /* fail-closed: هیچ caller قدیمی/مستقیمی بدون receipt قطعی سرور حق اجرای
+     referral، پاک‌سازی draft، SMS یا log «صادر شد» را ندارد. */
+  if (!o || meta.serverConfirmed !== true) return { ok: false, reason: 'server_ack_required' };
+  try {
+    if (o.inqNo && typeof window.ptfResolveRfqReferral === 'function') {
+      if (o.kind === 'CO' || o.kind === 'TC') window.ptfResolveRfqReferral(o.inqNo, 'create_offer');
+      else if (o.kind === 'TO') window.ptfResolveRfqReferral(o.inqNo, 'create_technical_offer');
+    }
+  } catch (eResolveRef) {}
+  try { if (typeof window.ptfSalesFileOfferAfterServerCommit === 'function') window.ptfSalesFileOfferAfterServerCommit(o); } catch (eSalesFile) {}
+  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch (eDraft) {}
+  try {
+    var toCatalog = !!meta.toCatalog;
+    var rb = window.ptfSyncRefPriceBack(o, { toCatalog: toCatalog });
+    if ((rb.request || rb.catalog) && typeof ptfToast === 'function') {
+      ptfToast('💰 نرخ مرجع به‌روز شد — اقلام درخواست: ' + rb.request + (rb.catalog ? ' | بانک کالا: ' + rb.catalog : ''), 'ok');
+    }
+  } catch (eRb) {}
+  try {
+    var productNotes = Array.isArray(meta.productSyncNotes) ? meta.productSyncNotes.filter(Boolean) : [];
+    if (productNotes.length) {
+      if (typeof ptfToast === 'function') ptfToast('📦 ' + productNotes.join(' | '), 'ok');
+      if (typeof audit === 'function') audit('کالاها', 'همگام‌سازی تأییدشده از پیشنهاد ' + o.no + ': ' + productNotes.join('، '), o.no);
+      if (typeof addLog === 'function') addLog('📦 همگام‌سازی دایرکتوری کالا پس از تأیید پیشنهاد ' + o.no);
+    }
+  } catch (eProductEffects) {}
+  try { hideModal(); } catch (eHide) {}
+  try { renderOffers(); } catch (eRender) {}
+  try {
+    if ((o.kind === 'CO' || o.kind === 'TC') && o.buyerCd && typeof window.ptfSmsNotifyDialog === 'function') {
+      var cust = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0];
+      if (cust) {
+        var inqRef = o.inqNo ? (' (درخواست ' + o.inqNo + ')') : '';
+        var totalAmt = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+        var amtStr = totalAmt ? ('\nمبلغ کل: ' + totalAmt.toLocaleString('fa-IR') + ' ' + (o.currency === 'EUR' ? 'یورو' : o.currency === 'USD' ? 'دلار' : 'ریال')) : '';
+        var smsText = 'پیشرو تجهیز فرتاک\nپیشنهاد مالی ' + (o.no || '') + inqRef + ' صادر شد.' + amtStr + '\n' +
+          (o.validUntil ? 'اعتبار: ' + o.validUntil + '\n' : '') + 'جهت بررسی با کارشناس فروش تماس بگیرید.\n021-46087679\npishtaj.ir';
+        window.ptfSmsNotifyDialog(cust, smsText, 'صدور پیشنهاد مالی ' + o.no);
+      }
+    }
+  } catch (eSms) {}
+  var editLbl = meta.idx > -1 ? (meta.madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';
+  try { addLog('پیشنهاد ' + o.no + editLbl + ' شد (تأیید سرور)'); } catch (eLog) {}
+  return { ok: true };
+};
+
 function offerSave() {
   try {
+  /* sales-domain-v2 باید این تابع legacy را داخل command فعال کند. اگر asset یا
+     wrapper بارگذاری نشده باشد، local-only save به‌جای fallback ناامن متوقف می‌شود. */
+  if (!window.PTF_OFFER_COMMAND_SAVE_ACTIVE) {
+    alert('⛔ سرویس ثبت اتمیک پیشنهاد آماده نیست؛ صفحه را آنلاین تازه‌سازی کنید. هیچ پیشنهادی یا وضعیت درخواستی ذخیره نشد.');
+    return { ok: false, reason: 'offer_command_unavailable' };
+  }
   var o = window._offState || _offState;
   if (!o) { alert('⛔ اطلاعات پیشنهاد در حافظه یافت نشد — فرم را ببندید و دوباره باز کنید'); return; }
   /* v31.6.27 CODEGEN-OFFER-SERVER: official TO/CO/TC numbers must come
@@ -2481,7 +2537,7 @@ function offerSave() {
     var _newTotal = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
     if (_bal.open + _newTotal > +c.creditLimit) {
       if (!confirm('⛔ هشدار سقف اعتبار مشتری\n\nمانده مطالبات باز: ' + _bal.open.toLocaleString('fa-IR') + ' ریال\nمبلغ این پیشنهاد: ' + _newTotal.toLocaleString('fa-IR') + ' ریال\nجمع: ' + (_bal.open + _newTotal).toLocaleString('fa-IR') + ' ریال\nسقف اعتبار: ' + (+c.creditLimit).toLocaleString('fa-IR') + ' ریال\n\nجمع از سقف اعتبار تعیین‌شده عبور می‌کند. با مسئولیت خود ادامه می‌دهید؟')) return;
-      try { audit('پیشنهادها', 'صدور ' + o.no + ' با عبور از سقف اعتبار مشتری ' + (c.co || '') + ' (مانده ' + _bal.open + ' + جدید ' + _newTotal + ' > سقف ' + c.creditLimit + ')', o.no); } catch (eCL) {}
+      try { audit('پیشنهادها', 'تلاش ثبت ' + o.no + ' با تأیید عبور از سقف اعتبار مشتری ' + (c.co || '') + ' (مانده ' + _bal.open + ' + جدید ' + _newTotal + ' > سقف ' + c.creditLimit + ')', o.no); } catch (eCL) {}
     }
   }
   o.extraCols = _offState.extraCols || [];
@@ -2548,7 +2604,9 @@ function offerSave() {
   if (o.kind === 'CO' && o.srcToNo) {
     offers.forEach(function (x) { if (x.no === o.srcToNo && (!x.coNo || !offers.some(function(y){ return y.no === x.coNo; }))) x.coNo = o.no; });
   }
-  // US-214: همگام‌سازی مستقیم و آنی مشخصات با دایرکتوری کالا در هنگام صدور پیش‌فاکتور (CO)
+  var productSyncNotes = [];
+  var _toCatalogRequested = !!(document.getElementById('ofRefToCatalog') || {}).checked;
+  // US-214: همگام‌سازی مستقیم مشخصات با دایرکتوری کالا؛ پیام/audit آن فقط post-ACK صادر می‌شود.
   if (o.kind === 'CO') {
     var prods = getData('ptf_crm_products');
     var prodsChanged = false;
@@ -2557,19 +2615,21 @@ function offerSave() {
       if (!desc) return;
       var p = prods.filter(function(x){ return (it.prodCd && x.cd === it.prodCd) || x.nm === desc; })[0];
       if (p) {
+        var catalogRecordChanged = false;
         if (it.desc && p.st !== it.desc) {
           p.history = p.history || [];
           p.history.push({ t: faDate(), note: 'به‌روزرسانی مشخصات از پیش‌فاکتور ' + o.no });
           p.st = it.desc;
-          prodsChanged = true;
+          prodsChanged = true; catalogRecordChanged = true;
         }
-        if (it.model && p.model !== it.model) { p.model = it.model; prodsChanged = true; }
-        if (it.brand && p.br !== it.brand) { p.br = it.brand; prodsChanged = true; }
+        if (it.model && p.model !== it.model) { p.model = it.model; prodsChanged = true; catalogRecordChanged = true; }
+        if (it.brand && p.br !== it.brand) { p.br = it.brand; prodsChanged = true; catalogRecordChanged = true; }
+        if (catalogRecordChanged) p.ts = new Date().toISOString();
       }
     });
     if (prodsChanged) {
       setData('ptf_crm_products', prods);
-      if (typeof addLog === 'function') addLog('📦 مشخصات دایرکتوری کالا بر اساس پیش‌فاکتور ' + o.no + ' همگام‌سازی شد');
+      productSyncNotes.push('مشخصات دایرکتوری کالا بر اساس پیش‌فاکتور همگام‌سازی شد');
     }
   }
   /* ===== v31.7.12 US-OFF-REF: همگام‌سازی نرخ مرجع و ثبت خودکار کالاهای دستی/اکسلی ===== */
@@ -2591,16 +2651,17 @@ function offerSave() {
       if (!p && typeof dedupNorm === 'function') p = _prods2.filter(function (x) { return dedupNorm(x.nm) === dedupNorm(nm); })[0];
       if (p) {
         /* write-back نرخ مرجع ویرایش‌شده در فرم → ماژول کالا (فقط تغییر واقعی + history) */
-        if (it.refPriceEdited && +it.refPrice > 0 && +p.pr !== +it.refPrice) {
+        if (_toCatalogRequested && it.refPriceEdited && +it.refPrice > 0 && +p.pr !== +it.refPrice) {
           p.history = p.history || [];
           p.history.push({ t: (typeof faDate === 'function' ? faDate() : ''), note: 'به‌روزرسانی نرخ مرجع از پیشنهاد ' + o.no + ': ' + (+p.pr || 0).toLocaleString('en-US') + ' → ' + (+it.refPrice).toLocaleString('en-US') });
           p.pr = +it.refPrice;
           p.refPriceAt = (typeof faDate === 'function' ? faDate() : '');
           p.refPriceSrc = 'پیشنهاد ' + o.no;
+          p.ts = new Date().toISOString();
           _pChanged = true; _refSynced++;
         }
-      } else {
-        /* کالای دستی/اکسلی که در ماژول کالا نیست → ثبت خودکار با مارک مخفی منبع (در صورت نبود تکراری) */
+      } else if (_toCatalogRequested) {
+        /* کالای دستی/اکسلی فقط با تیک صریح بانک کالا ثبت می‌شود. */
         var dup = (typeof ptfCheckDup === 'function') ? ptfCheckDup('product', { nm: nm }, null) : [];
         if (!dup.length) {
           var _cd2 = (typeof prodAutoCode === 'function') ? prodAutoCode() : 'P-' + (1000 + _prods2.length + 1);
@@ -2622,56 +2683,18 @@ function offerSave() {
       var _msg = [];
       if (_refSynced) _msg.push(_refSynced + ' نرخ مرجع در ماژول کالا به‌روز شد');
       if (_pAdded) _msg.push(_pAdded + ' کالای جدید با مارک منبع ' + o.no + ' ثبت شد');
-      if (typeof ptfToast === 'function') ptfToast('📦 ' + _msg.join(' | '), 'ok');
-      try { audit('کالاها', 'همگام‌سازی از پیشنهاد ' + o.no + ': ' + _msg.join('، '), o.no); } catch (eAu) {}
+      productSyncNotes = productSyncNotes.concat(_msg);
     }
   } catch (eProdSync) { try { console.error('prod sync from offer', eProdSync); } catch (e0) {} }
   if (setData('ptf_crm_offers', offers) === false) {
     alert('⛔ پیشنهاد روی حافظهٔ پایدار این دستگاه ذخیره نشد. تب را نبندید؛ فضای مرورگر/دسترسی را بررسی و دوباره ثبت کنید.');
     return;
   }
-  /* ثبت پیشنهاد مالی، ارجاع باز «صدور پیشنهاد مالی» همین درخواست را حل می‌کند. */
-  try { if (o.inqNo && typeof window.ptfResolveRfqReferral === 'function') { if (o.kind === 'CO' || o.kind === 'TC') window.ptfResolveRfqReferral(o.inqNo, 'create_offer'); else if (o.kind === 'TO') window.ptfResolveRfqReferral(o.inqNo, 'create_technical_offer'); } } catch (eResolveRef) {}
-  /*
-     اول خودِ فرم پیشنهاد را ببند. ptfSmsNotifyDialog یک .md-b جدید به انتهای DOM
-     اضافه می‌کند و hideModal() همیشه آخرین modal قابل‌مشاهده را می‌بندد. ترتیب
-     پیشین باعث می‌شد دیالوگ پیامک بسته شود و فرم پیشنهاد پشت آن باز بماند.
-  */
-  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch(e){}
-  /* FC-6/FC-7 (v34.7.30): پس از ذخیرهٔ موفق، نرخ مرجع ویرایش‌شده به قلم درخواست
-     (و در صورت تیک کاربر، به بانک کالا) برمی‌گردد — با تاریخچه و ردپا. */
-  try {
-    var _toCat = !!(document.getElementById('ofRefToCatalog') || {}).checked;
-    var _rb = window.ptfSyncRefPriceBack(o, { toCatalog: _toCat });
-    if ((_rb.request || _rb.catalog) && typeof ptfToast === 'function') {
-      ptfToast('💰 نرخ مرجع به‌روز شد — اقلام درخواست: ' + _rb.request + (_rb.catalog ? ' | بانک کالا: ' + _rb.catalog : ''), 'ok');
-    }
-  } catch (eRb) {}
-  hideModal(); renderOffers();
-  /* ===== v34.4.9 BUG-OFFER-MODAL-001: اطلاع‌رسانی پیامکی پس از بستن فرم ===== */
-  try {
-    if ((o.kind === 'CO' || o.kind === 'TC') && o.buyerCd && typeof window.ptfSmsNotifyDialog === 'function') {
-      var _cust = getData('ptf_crm_customers').filter(function (x) { return x.cd === o.buyerCd; })[0];
-      if (_cust) {
-        var _inqRef = (o.inqNo || '') ? (' (درخواست ' + o.inqNo + ')') : '';
-        var _totalAmt = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
-        var _amtStr = _totalAmt ? ('\nمبلغ کل: ' + _totalAmt.toLocaleString('fa-IR') + ' ' + (o.currency === 'EUR' ? 'یورو' : o.currency === 'USD' ? 'دلار' : 'ریال')) : '';
-        var _coSmsTxt = 'پیشرو تجهیز فرتاک\n' +
-          'پیشنهاد مالی ' + (o.no || '') + _inqRef + ' صادر شد.' + _amtStr + '\n' +
-          (o.validUntil ? 'اعتبار: ' + o.validUntil + '\n' : '') +
-          'جهت بررسی با کارشناس فروش تماس بگیرید.\n' +
-          '021-46087679\npishtaj.ir';
-        window.ptfSmsNotifyDialog(_cust, _coSmsTxt, 'صدور پیشنهاد مالی ' + o.no);
-      }
-    }
-  } catch (eSms) {}
-  var _editLbl = idx > -1 ? (madeRevision ? ' ویرایش (Rev.' + o.rev + ')' : ' اصلاح شد (بدون رویژن جدید)') : ' صادر';
-  addLog('پیشنهاد ' + o.no + _editLbl + ' شد (در انتظار تأیید سرور)');
-  if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: 'ptf_crm_offers', id: o.no, label: 'پیشنهاد' });
-  else if (typeof ptfToast === 'function') ptfToast('🟡 پیشنهاد ' + o.no + ' روی این دستگاه ثبت شد؛ در انتظار تأیید سرور…', 'info');
+  return { ok: true, offerNo: o.no, updatedAtISO: o.updatedAtISO, idx: idx, madeRevision: madeRevision, commandManaged: true, productSyncNotes: productSyncNotes, toCatalog: _toCatalogRequested };
   } catch (eSave) {
     try { console.error('offerSave error', eSave); } catch (e0) {}
     alert('⛔ خطا در ذخیره پیشنهاد: ' + (eSave && eSave.message ? eSave.message : eSave));
+    return { ok: false, error: eSave && eSave.message ? eSave.message : String(eSave || 'save_failed') };
   }
 }
 window.offerSave = offerSave;

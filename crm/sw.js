@@ -1,8 +1,8 @@
 /* PTF CRM — Service Worker (MOB-009 release cache contract) */
 /* `RELEASE` باید با window.PTF_CRM_RELEASE، VERSION.json و query تمام scriptها یکی باشد. */
-var RELEASE = 'v34.7.38';
-var ASSET_VERSION = '34.7.38';
-var CACHE = 'ptf-crm-v34.7.38';
+var RELEASE = 'v34.7.39';
+var ASSET_VERSION = '34.7.39';
+var CACHE = 'ptf-crm-v34.7.39';
 var ASSET_QUERY = '?v=' + ASSET_VERSION;
 
 /* همهٔ entryهای JS دقیقاً با URLهای queryدار index.html precache می‌شوند؛
@@ -18,6 +18,7 @@ var SHELL = [
   './metrics-shared.js' + ASSET_QUERY,
   './ar-reconcile.js' + ASSET_QUERY,
   './finance-core.js' + ASSET_QUERY,
+  './finance-write-guard.js' + ASSET_QUERY,
   './date-kit.js' + ASSET_QUERY,
   './dialogx.js' + ASSET_QUERY,
   './dedup.js' + ASSET_QUERY,
@@ -110,6 +111,7 @@ var SHELL = [
   './nav-focus.js' + ASSET_QUERY,
   './sales-domain-v2.js' + ASSET_QUERY,
   './official-invoice-v2.js' + ASSET_QUERY,
+  './case-revision.js' + ASSET_QUERY,
   '../assets/images/favicon/favicon-192.png',
   '../assets/images/favicon/favicon-512.png',
   '../assets/images/ptf-logo.png',
