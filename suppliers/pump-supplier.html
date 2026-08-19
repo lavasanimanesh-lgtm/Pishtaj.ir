@@ -56,6 +56,13 @@
 .faq-item h4{margin:0 0 6px;color:#1e293b;font-size:15px}
 .faq-item p{margin:0;color:#64748b;font-size:14px}
 @media(max-width:800px){.svc-grid{grid-template-columns:1fr}.svc-content{padding:24px}.trust-row{grid-template-columns:repeat(2,1fr)}}
+
+.deep-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;line-height:1.7}
+.deep-table th,.deep-table td{border:1px solid #e2e8f0;padding:10px 12px;text-align:right;vertical-align:top}
+.deep-table th{background:#f1f5f9;color:#0f2744;font-weight:900}
+.deep-table tr:nth-child(even) td{background:#fafcff}
+.deep-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;color:#7c2d12;font-size:13.5px;line-height:1.9;margin:14px 0}
+@media(max-width:700px){.deep-table{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -95,6 +102,41 @@
 
 <h2>صنایع تحت پوشش</h2>
 <div class="svc-grid"><div class="svc-card"><h4>نفت و گاز</h4><p>انتقال و تزریق</p></div><div class="svc-card"><h4>پتروشیمی</h4><p>سیالات فرایندی</p></div><div class="svc-card"><h4>نیروگاهی</h4><p>Boiler Feed و Cooling</p></div><div class="svc-card"><h4>آب و فاضلاب</h4><p>انتقال و تصفیه</p></div></div>
+
+
+<section data-deep-section="pump" class="deep-section">
+<h2>جدول انتخاب پمپ بر اساس استاندارد و نوع سرویس</h2>
+<p>انتخاب پمپ اشتباه، یکی از پرهزینه‌ترین خطاهای تامین در پروژه‌های فرایندی است. جدول زیر راهنمای شروع بر اساس نوع سرویس و استاندارد است:</p>
+<table class="deep-table">
+<thead><tr><th>نوع پمپ / سرویس</th><th>استاندارد مرجع</th><th>کاربرد صنعتی</th><th>الزام کلیدی</th></tr></thead>
+<tbody>
+<tr><td>پمپ سانتریفیوژ فرایندی</td><td>API 610 (OH2/BB1/BB2/VS)</td><td>نفت، گاز، پتروشیمی، پالایش</td><td>طراحی Heavy-Duty، MTC، منحنی عملکرد</td></tr>
+<tr><td>پمپ سانتریفیوژ عمومی</td><td>ANSI/ASME B73.1 / ISO 5199</td><td>آب، مواد شیمیایی خفیف</td><td>مقرون‌به‌صرفه، برای سرویس غیربحرانی</td></tr>
+<tr><td>پمپ جابه‌جایی مثبت (دنده‌ای/پیچی)</td><td>API 676</td><td>روغن داغ، ویسکوزیته بالا</td><td>تناسب با گرانروی، PSV داخلی</td></tr>
+<tr><td>پمپ دوزینگ (Metering)</td><td>API 675</td><td>تزریق مواد شیمیایی، کنترل دقیق</td><td>دبی قابل تنظیم، دقت ±۱٪</td></tr>
+<tr><td>پمپ گریز از مرکز معلق (Submersible)</td><td>NEMA/IEC</td><td>آب‌کش، فاضلاب، زهکش</td><td>آب‌بند مکانیکی دوقلو، خنک‌کاری</td></tr>
+</tbody>
+</table>
+<p class="deep-note"><b>نکته فنی:</b> در سرویس ویسکوزیتهٔ بالا (روغن داغ، قیر، پلیمر) بازده پمپ سانتریفیوژ به‌شدت افت می‌کند و منحنی کارخانه که با آب تست شده، نیاز به اصلاح ویسکوزیته دارد؛ این رایج‌ترین خطا در انتخاب است.</p>
+
+<h2>راهنمای انتخاب سیل مکانیکی و سیال کمکی (Flush Plan)</h2>
+<p>بیش از ۷۰٪ از خرابی‌های پمپ‌های سانتریفیوژ از ناحیهٔ سیل مکانیکی است. انتخاب صحیح سیل و Plan به شرایط سیال بستگی دارد:</p>
+<ul>
+<li><b>سیل فنری (Component) در برابر کارتریجی (Cartridge):</b> برای پروژه‌های فرایندی و سرویس بحرانی، کارتریجی به‌دلیل نصب مطمئن و تنظیم از پیش‌شده ارجح است.</li>
+<li><b>آرایش سیل:</b> Single برای سیالات تمیز؛ Double/Tandem برای سیالات سمی، فرار یا خطرناک (با سیال بافر).</li>
+<li><b>API 682 Flush Plan:</b>
+  <ul>
+    <li><b>Plan 11:</b> فلاش از تخلیه به سیل — رایج برای آب و سیالات تمیز.</li>
+    <li><b>Plan 21/23:</b> با خنک‌کننده — برای سیالات داغ.</li>
+    <li><b>Plan 32:</b> فلاش تمیز خارجی — برای سیالات کثیف/ساینده.</li>
+    <li><b>Plan 53/54:</b> سیل دوقلو با سیال بافر تحت فشار — برای سیالات خطرناک.</li>
+  </ul>
+</li>
+<li><b>متریال Faces:</b> Carbon vs Silicon Carbide در برابر SiC برای سرویس‌های ساینده؛ تنگستن کارباید برای بار سنگین.</li>
+<li><b>NPSH و کاویتاسیون:</b> NPSH Available باید حداقل ۱ متر از NPSH Required بیشتر باشد؛ در غیر این صورت عمر پمپ و سیل به‌شدت کاهش می‌یابد.</li>
+</ul>
+<p><b>برای RFQ پمپ قید کنید:</b> دبی (نرمال/حداکثر/حداقل)، هد، گرانروی و دانسیته سیال، دمای کار، فشار مکش و تخلیه، NPSH موجود، وجود ذرات/گاز، و الزام استاندارد (API 610 یا ANSI).</p>
+</section>
 
 <h2>راهنماهای مرتبط</h2>
 <ul><li><a href="../services/products/api-610-centrifugal-pump.html">پمپ سانتریفیوژ API 610</a></li><li><a href="../services/products/mechanical-seal.html">مکانیکال سیل</a></li><li><a href="../knowledge-center/kc-api-610.html">استاندارد API 610</a></li><li><a href="../blog/pumps-procurement-guide/">راهنمای تامین پمپ</a></li></ul>

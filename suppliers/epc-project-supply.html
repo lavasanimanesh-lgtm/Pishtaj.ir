@@ -56,6 +56,13 @@
 .faq-item h4{margin:0 0 6px;color:#1e293b;font-size:15px}
 .faq-item p{margin:0;color:#64748b;font-size:14px}
 @media(max-width:800px){.svc-grid{grid-template-columns:1fr}.svc-content{padding:24px}.trust-row{grid-template-columns:repeat(2,1fr)}}
+
+.deep-table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;line-height:1.7}
+.deep-table th,.deep-table td{border:1px solid #e2e8f0;padding:10px 12px;text-align:right;vertical-align:top}
+.deep-table th{background:#f1f5f9;color:#0f2744;font-weight:900}
+.deep-table tr:nth-child(even) td{background:#fafcff}
+.deep-note{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;color:#7c2d12;font-size:13.5px;line-height:1.9;margin:14px 0}
+@media(max-width:700px){.deep-table{display:block;overflow-x:auto}}
 </style>
 </head>
 <body>
@@ -95,6 +102,37 @@
 
 <h2>صنایع تحت پوشش</h2>
 <div class="svc-grid"><div class="svc-card"><h4>نفت و گاز</h4><p>پروژه‌های پالایشگاهی</p></div><div class="svc-card"><h4>پتروشیمی</h4><p>واحدهای الفین و پلیمر</p></div><div class="svc-card"><h4>نیروگاهی</h4><p>پروژه‌های سیکل ترکیبی</p></div><div class="svc-card"><h4>زیرساخت</h4><p>تاسیسات صنعتی</p></div></div>
+
+
+<section data-deep-section="epc" class="deep-section">
+<h2>جدول مراحل تامین کالای EPC از RFQ تا تحویل در سایت</h2>
+<p>در پروژه‌های EPC، تامین صرفاً خرید نیست؛ یک فرایند مهندسی-بازرگانی-لجستیکی است که باید با برنامهٔ کلی پروژه هم‌زمان شود. مراحل و کنترل‌های کلیدی:</p>
+<table class="deep-table">
+<thead><tr><th>مرحله</th><th>فعالیت</th><th>خروجی/مدرک</th><th>ریسک اصلی</th></tr></thead>
+<tbody>
+<tr><td>۱. مهندسی و MTO</td><td>تطبیق Spec، MTO و Vendor List کارفرما</td><td>RFQ Pack، Technical Bid Enquiry</td><td>نواقص Spec که دیر کشف می‌شود</td></tr>
+<tr><td>۲. استعلام و TBE</td><td>دریافت پیشنهاد، ارزیابی فنی (TBE) و تجاری</td><td>Technical Bid Evaluation، جدول مقایسه</td><td>پیشنهادهای غیرقابل مقایسه</td></tr>
+<tr><td>۳. سفارش (PO)</td><td>مذاکره، صدور PO و ضمانت‌نامه‌ها</td><td>PO، Advance Payment Bond</td><td>شرایط پرداخت و جریمه تاخیر</td></tr>
+<tr><td>۴. مهندسی کارخانه</td><td>بازبینی نقشه/دیتاشیت سازنده، تایید کارفرما</td><td>نقشه‌های Approved</td><td>تاخیر در تایید مدارک</td></tr>
+<tr><td>۵. ساخت و بازرسی</td><td>تولید، ITP، TPI، FAT</td><td>MTC، گزارش تست، COC</td><td>عدم انطباق با استاندارد</td></tr>
+<tr><td>۶. حمل و تحویل</td><td>بسته‌بندی، حمل، بیمه، ترخیص</td><td>B/L، Packing List، گواهی مبدا</td><td>تاخیر لجستیک و گمرک</td></tr>
+<tr><td>۷. تحویل در سایت</td><td>باز کردن بسته‌بندی، SAT، نصب</td><td>گزارش تحویل سایت، Punch List</td><td>آسیب حمل، نقص مدارک</td></tr>
+</tbody>
+</table>
+<p class="deep-note"><b>نکته فنی:</b> در پروژه‌های EPC، زمان تدارک واقعی (Actual Lead Time) جمع زمان ساخت + زمان تایید مدارک + زمان تست + زمان حمل و ترخیص است. گاه زمان تایید مدارک یا حمل از زمان ساخت بیشتر می‌شود؛ این موارد باید در Critical Path Method (CPM) پروژه دیده شوند.</p>
+
+<h2>راهنمای مدیریت انحراف (Deviation) و تغییرات سفارش (Change Order)</h2>
+<p>بخش بزرگی از اختلافات قراردادی EPC به انحرافات فنی و تغییرات سفارش برمی‌گردد. مدیریت شفاف آن از ادعاهای بعدی جلوگیری می‌کند:</p>
+<ul>
+<li><b>Technical Deviation List:</b> هر انحراف پیشنهاد فروشنده از Spec کارفرما (مثلاً برند دیگر، گرید متریال متفاوت، استاندارد جایگزین) باید در فهرستی جداگانه و صریح ثبت و توسط کارفرما تایید شود.</li>
+<li><b>Commercial Deviation:</b> انحراف از شرایط پرداخت، گارانتی، جریمه تاخیر یا بسته‌بندی نیز باید شفاف باشد.</li>
+<li><b>Change Order:</b> هر تغییری که بعد از PO از سوی کارفرما یا تیم مهندسی اعمال می‌شود، باید با تغییر قیمت و زمان تحویل مستند شود — قبل از اجرا، نه بعد از آن.</li>
+<li><b>Vendor Approval (VAR):</b> اگر پیشنهاد از برندی خارج از Vendor List است، درخواست تایید کتبی (VAR) باید پیش از سفارش کامل شود.</li>
+<li><b>مدارک نهایی (Final Documentation):</b> قبل از پرداخت نهایی، O&amp;M Manual، As-Built Drawings، MTC، گواهی کالیبراسیون و لیست قطعات یدکی تحویل شود.</li>
+<li><b>گارانتی و Performance Test:</b> دوره گارانتی از زمان تحویل در سایت یا راه‌اندازی محاسبه می‌شود؛ تست عملکرد (Performance Test) معیار پذیرش نهایی است.</li>
+</ul>
+<p><b>برای شروع تامین EPC:</b> MTO تاییدشده، Spec، Vendor List کارفرما، برنامه زمان‌بندی کلی و شرایط پرداخت/گارانتی را به همراه RFQ ارائه دهید تا ارزیابی فنی و تجاری قابل اتکا باشد.</p>
+</section>
 
 <h2>راهنماهای مرتبط</h2>
 <ul><li><a href="../services/procurement-logistics.html">مدیریت زنجیره تامین</a></li><li><a href="../blog/rfq-industrial-equipment/">راهنمای RFQ تجهیزات</a></li><li><a href="../knowledge-center/kc-project-management-equipment-supply.html">مدیریت پروژه تامین</a></li><li><a href="../suppliers/">تامین‌کنندگان تجهیزات صنعتی</a></li></ul>
