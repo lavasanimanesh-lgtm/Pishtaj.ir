@@ -98,11 +98,12 @@ function storage(seed) {
   var request = ctx.ptfSalesDomainApi('duplicate_case_merge', { idempotencyKey: 'TEST-MERGE' }).then(function () { resolved = true; });
   await new Promise(function (r) { setImmediate(r); });
   assert.strictEqual(passedRev, 77, 'sales API must pass exact response rev into projection apply');
-  assert.strictEqual(acceptedRev, 77, 'global rev must be accepted after all projection keys apply');
+  assert.strictEqual(acceptedRev, 0, 'global rev must wait so catch-up pull can see changes to other keys');
   assert.strictEqual(typeof pendingPull, 'function', 'post-command pull must be requested');
   assert.strictEqual(resolved, false, 'command promise/render path must wait for final pull callback');
   pendingPull({ ok: true, rev: 77 });
   await request;
+  assert.strictEqual(acceptedRev, 77, 'global rev advances only after successful catch-up pull');
   assert.strictEqual(resolved, true, 'command promise must resolve after final pull');
 
   /* Partial persistence failure: never advance global rev before recovery pull. */

@@ -56,7 +56,9 @@
   function offersOf(r) {
     if (!r) return [];
     return getData('ptf_crm_offers').filter(function (o) {
-      return o.inqNo && (o.inqNo === r.inqNo || o.inqNo === r.cd);
+      /* v34.7.39: پیش‌نویس command که هنوز ACK سرور ندارد «صادرشده» نیست. */
+      var confirmed = o && o._serverState !== 'pending' && o._serverState !== 'sending' && o._serverState !== 'rejected';
+      return confirmed && o.inqNo && (o.inqNo === r.inqNo || o.inqNo === r.cd);
     });
   }
 
@@ -115,8 +117,13 @@
   var _save = window.offerSave;
   if (typeof _save === 'function') {
     window.offerSave = function () {
-      _save();
-      try { if (_offState && _offState.inqNo) wfRefresh(_offState.inqNo, (_offState.kind === 'TO' ? 'صدور پیشنهاد فنی ' : 'صدور پیشنهاد مالی ') + _offState.no); } catch (e) {}
+      var result = _save.apply(this, arguments);
+      /* در مسیر v35، خود register_offer وضعیت RFQ و wfLog را در همان commit
+         سروری می‌نویسد. فقط fallback قدیمیِ بدون command اجازه refresh محلی دارد. */
+      if (!window.PTF_OFFER_COMMAND_SAVE_ACTIVE && result && result.ok) {
+        try { if (_offState && _offState.inqNo) wfRefresh(_offState.inqNo, (_offState.kind === 'TO' ? 'صدور پیشنهاد فنی ' : 'صدور پیشنهاد مالی ') + _offState.no); } catch (e) {}
+      }
+      return result;
     };
   }
   // ۲) تغییر وضعیت پیشنهاد (ارسال/برنده/بازنده) → wfRefresh
@@ -189,7 +196,7 @@
       window.editRfq = function (cd) {
         var r = getData('ptf_crm_rfqs').filter(function (x) { return x.cd === cd; })[0];
         if (!r) return;
-        var wf = r.wf || wfCompute(r);
+        var wf = wfCompute(r) || r.wf;
         var log = (r.wfLog || []).slice().reverse().map(function (e) {
           return '<div style="border-right:2px solid var(--brd);padding:3px 10px 3px 0;margin-bottom:4px;font-size:12px"><span style="color:#94a3b8">' + escP(e.t) + ' — ' + escP(e.by || '') + '</span> ' + escP((WF[e.wf] || {}).lb || e.wf) + (e.ev ? ' <small style="color:#64748b">(' + escP(e.ev) + ')</small>' : '') + '</div>';
         }).join('') || '<div style="color:#94a3b8;font-size:12px">رویدادی ثبت نشده</div>';
@@ -275,7 +282,9 @@
           if (!strong) return;
           var r = rfqs.filter(function (x) { return x.cd === strong.textContent.trim(); })[0];
           if (!r) return;
-          var wf = r.wf || wfCompute(r);
+          /* نمایش نیز باید از projectionهای موجود self-heal شود؛ wf ذخیره‌شدهٔ
+             قدیمی حق ندارد نبودن پیشنهاد authoritative را پنهان کند. */
+          var wf = wfCompute(r) || r.wf;
           var bd = tr.querySelector('.bd');
           if (bd) { bd.textContent = (WF[wf] || {}).lb || ''; bd.setAttribute('style', 'background:' + (WF[wf] || {}).cl); }
           tr.setAttribute('data-wf', '1');

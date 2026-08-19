@@ -1782,7 +1782,11 @@
   if (typeof _offerSaveAdv === 'function' && !window._advOfferSaveHooked) {
     window._advOfferSaveHooked = true;
     window.offerSave = function () {
-      _offerSaveAdv.apply(this, arguments);
+      /* v34.7.44: این wrapper باید receipt تابع زیرین را تا orchestrator ثبت اتمیک
+         برگرداند. حذف return باعث می‌شد legacy save واقعاً اجرا شود اما
+         sales-domain-v2 نتیجه را undefined ببیند، rollback کند و دکمه ظاهراً هیچ
+         واکنشی نداشته باشد. */
+      var saveResult = _offerSaveAdv.apply(this, arguments);
       try {
         var st = window._offState || {};
         var o = getData('ptf_crm_offers').filter(function (x) { return x.no === st.no; })[0];
@@ -1794,6 +1798,7 @@
           setTimeout(function () { if (confirm('برای این پیشنهاد پیش‌پرداخت/شرایط پرداخت ساختاریافته ثبت شود؟')) ptfAdvanceOpen(o.no); }, 120);
         }
       } catch (e) {}
+      return saveResult;
     };
   }
 

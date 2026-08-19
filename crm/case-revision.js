@@ -57,8 +57,12 @@
     var snap = (o && o.wonRevisionSnapshot && Array.isArray(o.wonRevisionSnapshot.items) && o.wonRevisionSnapshot.items.length)
       ? o.wonRevisionSnapshot.items : ((o && o.items) || []);
     return { offer: o, items: snap.map(function (it, i) {
-      return { i: i, name: it.name || '', desc: it.desc || '', model: it.model || '', unit: it.unit || '',
-        pcode: it.pcode || '', brand: it.brand || '', qty: +it.qty || 0, price: +it.price || 0 };
+      /* v34.7.45: فرم رویژن همان مدل کامل قلم پیشنهاد مالی را مصرف می‌کند؛
+         projection کم‌فیلد قبلی نرخ مرجع، حاشیه، ستون‌های اضافه و زمان تحویل را حذف می‌کرد. */
+      var row;try{row=JSON.parse(JSON.stringify(it||{}));}catch(e){row=Object.assign({},it||{});}
+      row.i=i;row._revisionSourceIndex=i;row.name=row.name||'';row.desc=row.desc||'';row.model=row.model||'';
+      row.unit=row.unit||'NO';row.pcode=row.pcode||'';row.brand=row.brand||'';row.qty=+row.qty||0;row.price=+row.price||0;
+      row.lineId=row.lineId||'';row.sourceItemKey=row.sourceItemKey||'';return row;
     }) };
   }
   W.ptfCaseAwardLines = awardLines;
@@ -175,14 +179,54 @@
         lines: retLines.map(function (l) { return { name: l.name, pcode: l.pcode, qty: l.dispositionQty, unitCost: l.unitCost, note: l.note }; })
       };
       prs.unshift(pr);
-      setData('ptf_crm_purchase_returns', prs);
       out.supplierReturn = retLines.length; out.returnValue = value;
-      if (value > 0) W.ptfSupplierReturnCredit(pr);
+      if (value > 0) {
+        var fin = W.ptfSupplierReturnCredit(pr);
+        if (fin && fin.ok) { pr.financePaymentCd = fin.paymentCd || ''; pr.allocatedToInvoices = fin.allocated || []; pr.unallocated = +fin.unallocated || 0; }
+      }
+      setData('ptf_crm_purchase_returns', prs);
     }
     return out;
   };
 
-  /* سند بستانکار در حساب تأمین‌کننده (کاهش بدهی ما) — علامت منفی طبق قرارداد supplier-finance */
+  /* P7 (v34.7.32): تخصیص FIFO بستانکاری عودت به فاکتورهای خرید باز همان تأمین‌کننده.
+     یک پرداخت تهاتری ثبت می‌شود (نه سند اصلاحی جدا) تا ماندهٔ فاکتور خرید واقعاً کم شود
+     و اعتبار باقیمانده مثل سایر پرداخت‌ها در unallocated بماند — بدون دوباره‌شماری. */
+  W.ptfSupplierOpenPurchaseInvoices = function (supCd, cur, d) {
+    d = d || {};
+    var invs = Array.isArray(d.invoices) ? d.invoices : [];
+    var pays = Array.isArray(d.payments) ? d.payments : [];
+    function paidOf(inv) {
+      return pays.filter(function (p) { return p && p.status !== 'void'; }).reduce(function (sum, p) {
+        return sum + (p.allocations || []).filter(function (a) { return a && a.invoiceCd === inv.cd; })
+          .reduce(function (s, a) { return s + (+a.amount || 0); }, 0);
+      }, 0);
+    }
+    return invs.filter(function (i) {
+      if (!i || i.status === 'void' || i.isCover === true) return false;
+      if (String(i.supplierCd || '') !== String(supCd || '')) return false;
+      if (String(i.cur || 'IRR') !== String(cur || 'IRR')) return false;
+      return Math.max(0, (+i.amount || 0) - paidOf(i)) > 0;
+    }).map(function (i) {
+      return { inv: i, remain: Math.max(0, (+i.amount || 0) - paidOf(i)) };
+    }).sort(function (a, b) {
+      return String(a.inv.dateISO || a.inv.dateFa || '').localeCompare(String(b.inv.dateISO || b.inv.dateFa || ''));
+    });
+  };
+
+  W.ptfSupplierReturnAllocateFifo = function (amount, openRows) {
+    var left = Math.max(0, +amount || 0), alloc = [];
+    (openRows || []).forEach(function (row) {
+      if (left <= 0) return;
+      var take = Math.min(left, +row.remain || 0);
+      if (take <= 0) return;
+      alloc.push({ invoiceCd: row.inv.cd, invoiceNo: row.inv.no || '', amount: take });
+      left -= take;
+    });
+    return { allocations: alloc, unallocated: left };
+  };
+
+  /* سند بستانکار در حساب تأمین‌کننده = پرداخت تهاتری + تخصیص FIFO به فاکتور خرید (P7) */
   W.ptfSupplierReturnCredit = function (pr) {
     try {
       var KEY = 'ptf_crm_supplier_finance';
@@ -193,130 +237,167 @@
       d.adjustments = Array.isArray(d.adjustments) ? d.adjustments : [];
       var iso = ''; try { iso = (typeof ptfJToISO === 'function') ? ptfJToISO(pr.at) : ''; } catch (e2) {}
       if (!iso) { try { iso = new Date().toISOString().slice(0, 10); } catch (e3) { iso = ''; } }
-      d.adjustments.unshift({
-        cd: (typeof genCode === 'function' ? genCode('ADJ') : 'ADJ-' + Date.now()),
-        supplierCd: pr.supplierCd, amount: -Math.abs(+pr.amount || 0), cur: pr.cur || 'IRR',
-        kind: 'purchase_return', status: 'posted', dateISO: iso, dateFa: pr.at,
-        by: pr.by || who(), sourceReturnCd: pr.cd, caseId: pr.caseId || '',
-        note: 'مرجوعی خرید (اقلام مردود بازرسی) — پرونده ' + (pr.inqNo || pr.caseId || '') + ' | سند ' + pr.cd
-      });
+      var amt = Math.abs(+pr.amount || 0);
+      var cur = pr.cur || 'IRR';
+      var fifo = W.ptfSupplierReturnAllocateFifo(amt, W.ptfSupplierOpenPurchaseInvoices(pr.supplierCd, cur, d));
+      var payCd = (typeof genCode === 'function' ? genCode('SFPAY') : 'SFPAY-' + Date.now());
+      var pay = {
+        cd: payCd, supplierCd: pr.supplierCd, supName: '', dateISO: iso, dateFa: pr.at || '',
+        cur: cur, rate: 1, amount: amt, amountIrr: amt, method: 'purchase_return',
+        note: 'تهاتر مرجوعی خرید (اقلام مردود بازرسی) — پرونده ' + (pr.inqNo || pr.caseId || '') + ' | سند ' + pr.cd,
+        allocations: fifo.allocations, unallocated: fifo.unallocated, status: 'posted',
+        sourceReturnCd: pr.cd, caseId: pr.caseId || '', t: nowFa(), by: pr.by || who()
+      };
+      d.payments.unshift(pay);
       if (typeof setData === 'function') setData(KEY, d); else localStorage.setItem(KEY, JSON.stringify(d));
-      try { if (typeof audit === 'function') audit('حساب تامین', 'سند بستانکار مرجوعی خرید ' + money(pr.amount) + ' ریال — ' + pr.cd, pr.supplierCd); } catch (eA) {}
-      return true;
-    } catch (e) { try { console.error('ptfSupplierReturnCredit', e); } catch (e4) {} return false; }
+      try { if (typeof audit === 'function') audit('حساب تامین', 'تهاتر مرجوعی خرید ' + money(pr.amount) + ' ریال — تخصیص به ' + fifo.allocations.length + ' فاکتور، اعتبار باقی ' + money(fifo.unallocated) + ' — ' + pr.cd, pr.supplierCd); } catch (eA) {}
+      return { ok: true, paymentCd: payCd, allocated: fifo.allocations, unallocated: fifo.unallocated };
+    } catch (e) { try { console.error('ptfSupplierReturnCredit', e); } catch (e4) {} return { ok: false }; }
   };
 
   /* ---------------- P5: بازنگری سند برد ---------------- */
+  function revisionCopy(v) { try { return JSON.parse(JSON.stringify(v)); } catch (e) { return Object.assign({}, v || {}); } }
+  function revisionContext() { return W._ptfAwardRevisionContext || null; }
+  function revisionDraftKey(ctx){return ctx&&ctx.operationId?'ptf_autodraft_award_revision_'+String(ctx.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'):'';}
+  function clearRevisionDraft(ctx){var key=revisionDraftKey(ctx);if(key)try{localStorage.removeItem(key);}catch(e){}}
+  function lockRevisionIdentityFields() {
+    var ctx=revisionContext(),dlg=document.getElementById('ptfReviseDlg');if(!ctx||!dlg)return;
+    ['ofBuyer','ofInq','ofCurrency'].forEach(function(id){var el=document.getElementById(id);if(!el)return;el.disabled=true;el.setAttribute('aria-disabled','true');el.title='هویت قراردادی پس از تشکیل پرونده در رویژن قابل تغییر نیست';el.style.background='#f1f5f9';});
+  }
+  function setRevisionControlsLocked(locked, keepSubmit) {
+    var dlg=document.getElementById('ptfReviseDlg');if(!dlg)return;
+    dlg.querySelectorAll('input,select,textarea,button').forEach(function(el){
+      if(keepSubmit&&el.id==='offSaveBtn')return;
+      if(el.getAttribute('data-revision-cancel')==='1')return;
+      el.disabled=!!locked;
+    });
+    if(!locked)lockRevisionIdentityFields();
+  }
+
+  /* v34.7.45: رویژن دیگر یک جدول کوچک موازی نیست. همان offerForm مالی، همان
+     state، رندر اقلام، کاتالوگ، بارگذاری درخواست، نرخ مرجع، حاشیه، Excel، پیش‌نمایش
+     و Terms استفاده می‌شود؛ فقط submit آن به revise_award اتمیک متصل است. */
   W.ptfAwardReviseOpen = function (caseId) {
     if (!canRevise()) { alert('⛔ بازنگری سند برد فقط برای مدیران ارشد/تجاری مجاز است'); return; }
-    var c = findCase(caseId);
-    if (!c) { alert('⛔ پروندهٔ فروش یافت نشد'); return; }
-    var aw = awardLines(c);
-    if (!aw.offer) { alert('⛔ سند برد این پرونده پیدا نشد (wonOffer: ' + (c.wonOffer || '—') + ')'); return; }
-    if (!aw.items.length) { alert('⛔ سند برد قلمی ندارد'); return; }
-    /* پیش‌پرکردن با آخرین بازرسی: تعداد پذیرفته‌شده جای تعداد اولیه می‌نشیند */
-    var insp = (c.inspections || [])[0];
-    var rejByKey = {};
-    if (insp) (insp.lines || []).forEach(function (l) { rejByKey[String(l.itemKey || l.pcode || l.name)] = +l.qtyRejected || 0; });
+    var c=findCase(caseId);if(!c){alert('⛔ پروندهٔ فروش یافت نشد');return;}
+    var aw=awardLines(c);if(!aw.offer){alert('⛔ سند برد این پرونده پیدا نشد (wonOffer: '+(c.wonOffer||'—')+')');return;}
+    if(typeof W.offerForm!=='function'||typeof W.ptfSetOffState!=='function'){alert('⛔ فرم کامل پیشنهاد مالی بارگذاری نشده است؛ صفحه را آنلاین تازه‌سازی کنید.');return;}
 
-    document.querySelectorAll('#ptfReviseDlg').forEach(function (x) { x.remove(); });
-    var rows = aw.items.map(function (it, i) {
-      var key = (typeof W.ptfProcLineKey === 'function') ? W.ptfProcLineKey(it) : (it.pcode || it.name);
-      var rej = +rejByKey[String(key)] || 0;
-      var keepQty = Math.max(0, it.qty - rej);
-      return '<tr data-i="' + i + '">' +
-        '<td style="padding:4px;text-align:center"><input type="checkbox" data-f="keep" ' + (keepQty > 0 ? 'checked' : '') + '></td>' +
-        '<td style="padding:4px;font-size:12px"><b>' + esc(it.name || '—') + '</b>' + (it.desc && it.desc !== it.name ? '<br><small style="color:#94a3b8">' + esc(it.desc) + '</small>' : '') +
-          (rej ? '<br><small style="color:#b45309">مردود بازرسی: ' + money(rej) + '</small>' : '') + '</td>' +
-        '<td style="padding:4px;text-align:center;font-size:12px;color:#64748b">' + money(it.qty) + '</td>' +
-        '<td style="padding:4px"><input type="number" min="0" step="any" data-f="qty" value="' + keepQty + '" style="width:82px;padding:4px;border:1px solid var(--brd);border-radius:7px;direction:ltr" oninput="ptfAwardRevisePreview()"></td>' +
-        '<td style="padding:4px;text-align:center;font-size:12px;color:#64748b">' + money(it.price) + '</td>' +
-        '<td style="padding:4px"><input type="number" min="0" step="any" data-f="price" value="' + it.price + '" style="width:120px;padding:4px;border:1px solid #ddd6fe;border-radius:7px;direction:ltr" oninput="ptfAwardRevisePreview()"></td>' +
-        '<td style="padding:4px;text-align:left;direction:ltr;font-size:12px" class="ptfRevRowTotal">' + money(keepQty * it.price) + '</td>' +
-        '</tr>';
-    }).join('');
-    var oldTotal = aw.items.reduce(function (s, it) { return s + it.qty * it.price; }, 0);
-    var html = '<div class="md-b" id="ptfReviseDlg" style="display:grid;z-index:2950" onclick="if(event.target===this)this.remove()">' +
-      '<div class="md" style="max-width:980px;max-height:92vh;overflow:auto">' +
-      '<h3>✏️ بازنگری سند برد — ' + esc(c.inqNo || idOf(c)) + '</h3>' +
-      '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:8px;font-size:12px;color:#9a3412;margin-bottom:8px">' +
-      'سند برد فعلی <b>' + esc(aw.offer.no) + '</b> حذف نمی‌شود؛ بایگانی می‌شود و یک «سند برد جایگزین» با اقلام و قیمت‌های جدید ساخته می‌شود. ' +
-      'اگر برای این پرونده فاکتور رسمی صادر شده باشد، کاهش مبلغ مسدود است.</div>' +
-      '<div class="tb2"><table><thead><tr><th>حفظ</th><th>قلم</th><th>تعداد قبلی</th><th>تعداد جدید</th><th>قیمت قبلی</th><th>قیمت جدید</th><th>جمع</th></tr></thead>' +
-      '<tbody id="ptfRevBody">' + rows + '</tbody></table></div>' +
-      '<div id="ptfRevPreview" data-old="' + oldTotal + '" style="margin-top:10px;background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:9px;font-size:12.5px"></div>' +
-      '<div class="fld" style="margin-top:8px"><label>دلیل بازنگری * (در سند اصلاحی ثبت می‌شود)</label>' +
-      '<textarea id="ptfRevReason" rows="2" placeholder="مثلاً: رد شدن ۳ عدد شیر توپی در بازرسی و توافق قیمت جدید برای اقلام باقی‌مانده"></textarea></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">' +
-      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button>' +
-      '<button class="bt" style="background:#7c3aed;color:#fff;font-weight:800" onclick="ptfAwardReviseSubmit(\'' + arg(idOf(c)) + '\')">ثبت سند برد جدید</button></div>' +
-      '</div></div>';
-    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
-    W.ptfAwardRevisePreview();
+    var original=revisionCopy(aw.offer),items=aw.items.length?aw.items:[{name:'',qty:1,price:0,unit:'NO',_revisionSourceIndex:-1}];
+    /* سازگاری با رفتار قبلی: آخرین بازرسی فقط مقدار پذیرفته‌شده را به‌عنوان پیش‌فرض
+       پیشنهاد می‌کند؛ کاربر در همان جدول کامل مالی می‌تواند آن را تغییر دهد. */
+    var insp=(c.inspections||[])[0],rejByKey={};
+    if(insp)(insp.lines||[]).forEach(function(l){rejByKey[String(l.itemKey||l.pcode||l.name)]=+l.qtyRejected||0;});
+    items=items.map(function(it){var row=revisionCopy(it),key=(typeof W.ptfProcLineKey==='function')?W.ptfProcLineKey(row):(row.pcode||row.name),rej=+rejByKey[String(key)]||0;row.qty=Math.max(0,(+row.qty||0)-rej);return row;});
+    var draft=revisionCopy(original);draft.items=items;draft.terms=Array.isArray(original.terms)?revisionCopy(original.terms):[];draft.extraCols=Array.isArray(original.extraCols)?original.extraCols.slice():[];draft.st='won';draft.status='won';draft.editMode='award_revision';
+    var operationId='REV-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
+    var ctx={caseId:idOf(c),operationId:operationId,expectedRev:+original.rev||0,expectedOfferId:String(original._id||original.no||''),currency:String(original.currency||c.currency||'IRR').toUpperCase(),offerNo:String(original.no||''),oldTotal:aw.items.reduce(function(sum,it){return sum+(+it.qty||0)*(+it.price||0);},0),originalOffer:original,pendingPayload:null};
+    W._ptfAwardRevisionContext=ctx;W.ptfSetOffState(draft);W.offerForm();
+
+    var wrap=document.getElementById('offItemsWrap'),dlg=wrap&&wrap.closest?wrap.closest('.md-b'):null;
+    if(!dlg){W._ptfAwardRevisionContext=null;alert('⛔ فرم رویژن ساخته نشد؛ صفحه را تازه‌سازی کنید.');return;}
+    dlg.id='ptfReviseDlg';dlg.style.zIndex='2950';dlg.setAttribute('data-operation-id',operationId);dlg.setAttribute('data-expected-rev',ctx.expectedRev);dlg.setAttribute('data-offer-id',ctx.expectedOfferId);dlg.setAttribute('data-currency',ctx.currency);dlg.setAttribute('onclick','if(event.target===this)ptfAwardRevisionCancel()');
+    var title=dlg.querySelector('h3');if(title)title.innerHTML='✏️ رویژن پیشنهاد برنده — '+title.innerHTML;
+    var banner='<div id="ptfRevIdentityNotice" style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:9px;font-size:12px;color:#9a3412;margin-bottom:9px">رویژن روی <b dir="ltr">'+esc(ctx.offerNo)+'</b> و همان شناسه ثبت می‌شود. فرم زیر دقیقاً فرم پیشنهاد مالی است؛ کالا، اقلام درخواست، نرخ مرجع، حاشیه سود، شرایط و پیش‌نمایش قابل استفاده‌اند. هویت مشتری، درخواست و ارز پس از تشکیل پرونده قفل است.</div>';
+    if(title)title.insertAdjacentHTML('afterend',banner);
+    var save=dlg.querySelector('#offSaveBtn');
+    if(!save){W._ptfAwardRevisionContext=null;dlg.remove();alert('⛔ دکمهٔ ثبت فرم رویژن پیدا نشد.');return;}
+    var actions=save.parentElement&&save.parentElement.parentElement;
+    var special='<div id="ptfRevCommitFields" style="margin-top:12px"><div id="ptfRevPreview" style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:9px;font-size:12.5px"></div><label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:12.5px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px"><input type="checkbox" id="ptfRevVoidInv"> <span>فاکتورهای فعال این پرونده باطل شوند و مطالبه بازسازی شود.</span></label><div class="fld" style="margin-top:8px"><label>دلیل رویژن * (در سند اصلاحی ثبت می‌شود)</label><textarea id="ptfRevReason" rows="2" placeholder="علت تغییر اقلام، قیمت، نرخ مرجع یا شرایط را ثبت کنید"></textarea></div></div>';
+    if(actions)actions.insertAdjacentHTML('beforebegin',special);
+    save.setAttribute('onclick','window.ptfAwardReviseSubmit(\''+arg(ctx.caseId)+'\')');save.textContent='ثبت رویژن پیشنهاد برنده';
+    var actionButtons=actions?actions.querySelectorAll('button'):[];
+    if(actionButtons.length){actionButtons[0].setAttribute('onclick','ptfAwardRevisionCancel()');actionButtons[0].setAttribute('data-revision-cancel','1');}
+    try{dlg.addEventListener('input',function(){W.ptfAwardRevisePreview();});}catch(eBind){}
+    lockRevisionIdentityFields();setTimeout(lockRevisionIdentityFields,120);W.ptfAwardRevisePreview();
+  };
+
+  W.ptfAwardRevisionCancel = function () {
+    var ctx=revisionContext(),dlg=document.getElementById('ptfReviseDlg');
+    if(dlg&&dlg.getAttribute('data-in-flight')==='1'){toast('فرمان رویژن هنوز در انتظار پاسخ سرور است.','warn');return;}
+    clearRevisionDraft(ctx);if(dlg)dlg.remove();if(ctx===W._ptfAwardRevisionContext)W._ptfAwardRevisionContext=null;
+  };
+
+  W.ptfAwardReviseAddLine = function () {
+    if(typeof W.offAddItem==='function')W.offAddItem({name:'',desc:'',model:'',qty:1,unit:'NO',brand:'',dlv:'',price:0});
   };
 
   W.ptfAwardRevisePreview = function () {
-    var dlg = document.getElementById('ptfReviseDlg'); if (!dlg) return;
-    var box = dlg.querySelector('#ptfRevPreview'); if (!box) return;
-    var oldTotal = +box.getAttribute('data-old') || 0, newTotal = 0, kept = 0, removed = 0, repriced = 0;
-    dlg.querySelectorAll('#ptfRevBody tr').forEach(function (tr) {
-      var keep = (tr.querySelector('[data-f="keep"]') || {}).checked;
-      var qty = +((tr.querySelector('[data-f="qty"]') || {}).value) || 0;
-      var price = +((tr.querySelector('[data-f="price"]') || {}).value) || 0;
-      var tds = tr.querySelectorAll('td');
-      var oldQty = +String((tds[2] || {}).textContent || '').replace(/[^\d.]/g, function (m) { return ''; }) || 0;
-      var cell = tr.querySelector('.ptfRevRowTotal');
-      var rowTotal = (keep && qty > 0) ? qty * price : 0;
-      if (cell) cell.textContent = money(rowTotal);
-      if (!keep || qty <= 0) { removed++; return; }
-      kept++; newTotal += rowTotal;
-      if (oldQty && qty !== oldQty) repriced++;
-    });
-    var delta = newTotal - oldTotal;
-    box.innerHTML = '<b>مبلغ فعلی سند برد:</b> ' + money(oldTotal) + ' ریال &nbsp;|&nbsp; ' +
-      '<b>مبلغ جدید:</b> ' + money(newTotal) + ' ریال &nbsp;|&nbsp; ' +
-      '<b style="color:' + (delta < 0 ? '#b91c1c' : delta > 0 ? '#047857' : '#475569') + '">دلتا: ' + (delta > 0 ? '+' : '') + money(delta) + ' ریال</b>' +
-      '<div style="color:#64748b;margin-top:4px">اقلام باقی‌مانده: ' + kept + ' | حذف‌شده: ' + removed + '</div>';
+    var ctx=revisionContext(),box=document.getElementById('ptfRevPreview'),o=W._offState;if(!ctx||!box||!o)return;
+    var items=Array.isArray(o.items)?o.items:[],newTotal=items.reduce(function(sum,it){return sum+(+it.qty||0)*(+it.price||0);},0),delta=newTotal-ctx.oldTotal,label=ctx.currency==='IRR'?'ریال':ctx.currency;
+    box.innerHTML='<b>مبلغ فعلی سند برد:</b> '+money(ctx.oldTotal)+' '+esc(label)+' &nbsp;|&nbsp; <b>مبلغ رویژن:</b> '+money(newTotal)+' '+esc(label)+' &nbsp;|&nbsp; <b style="color:'+(delta<0?'#b91c1c':delta>0?'#047857':'#475569')+'">دلتا: '+(delta>0?'+':'')+money(delta)+' '+esc(label)+'</b><div style="color:#64748b;margin-top:4px">تعداد اقلام رویژن: '+items.length+' | شماره و هویت پیشنهاد ثابت می‌ماند.</div>';
   };
 
   W.ptfAwardReviseSubmit = function (caseId) {
-    var dlg = document.getElementById('ptfReviseDlg'); if (!dlg) return;
-    if (!canRevise()) { alert('⛔ مجاز نیستید'); return; }
-    var c = findCase(caseId); if (!c) { alert('⛔ پرونده یافت نشد'); return; }
-    var aw = awardLines(c);
-    var reason = String((dlg.querySelector('#ptfRevReason') || {}).value || '').trim();
-    if (!reason) { alert('⛔ دلیل بازنگری الزامی است'); return; }
-    var lines = [];
-    dlg.querySelectorAll('#ptfRevBody tr').forEach(function (tr) {
-      var i = +tr.getAttribute('data-i'); var src = aw.items[i]; if (!src) return;
-      if (!(tr.querySelector('[data-f="keep"]') || {}).checked) return;
-      var qty = +((tr.querySelector('[data-f="qty"]') || {}).value) || 0;
-      var price = +((tr.querySelector('[data-f="price"]') || {}).value) || 0;
-      if (qty <= 0) return;
-      lines.push({ name: src.name, desc: src.desc, model: src.model, unit: src.unit, pcode: src.pcode, brand: src.brand, qty: qty, price: price });
-    });
-    if (!lines.length) { alert('⛔ حداقل یک قلم با تعداد بزرگ‌تر از صفر باید باقی بماند.'); return; }
-    var oldTotal = aw.items.reduce(function (s, it) { return s + it.qty * it.price; }, 0);
-    var newTotal = lines.reduce(function (s, it) { return s + it.qty * it.price; }, 0);
-    if (!confirm('سند برد ' + (aw.offer.no || '') + ' بایگانی و سند جدید با مبلغ ' + money(newTotal) + ' ریال ثبت شود؟\n\nمبلغ فعلی: ' + money(oldTotal) + ' ریال\nدلتا: ' + money(newTotal - oldTotal) + ' ریال')) return;
-    if (typeof W.ptfSalesDomainApi !== 'function') { alert('⛔ ماژول سرور فروش بارگذاری نشده است؛ بازنگری سند برد فقط از مسیر سرور انجام می‌شود.'); return; }
-    W.ptfSalesDomainApi('revise_award', {
-      caseId: idOf(c), reason: reason, lines: lines,
-      idempotencyKey: 'REVISE-AWARD|' + idOf(c) + '|' + newTotal + '|' + Date.now()
-    }).then(function (d) {
-      var r = (d && d.result) || {};
-      dlg.remove();
-      toast('✅ سند برد جدید ' + (r.revisionOfferNo || '') + ' ثبت شد — مبلغ مؤثر: ' + money(r.newAmount || newTotal) + ' ریال', 'ok');
-      if (typeof renderDeals === 'function') renderDeals();
-      if (typeof renderOffers === 'function') renderOffers();
-    }).catch(function (e) {
-      var msg = (e && e.message) ? e.message : String(e || '');
-      if (msg.indexOf('official_invoice_blocks_decrease') > -1) {
-        alert('⛔ برای این پرونده فاکتور رسمی صادر شده است؛ کاهش مبلغ سند برد مسدود است.\n\nمسیر درست: ابطال/اصلاحیهٔ فاکتور رسمی، سپس بازنگری سند برد.');
-      } else {
-        alert('⛔ بازنگری سند برد انجام نشد: ' + msg);
-      }
-    });
+    var dlg=document.getElementById('ptfReviseDlg'),ctx=revisionContext();
+    if(!dlg||!ctx){alert('⛔ پنجرهٔ رویژن باز نیست؛ دوباره از پرونده باز کنید.');return;}
+    if(String(ctx.caseId)!==String(caseId)){alert('⛔ هویت پروندهٔ فرم رویژن تغییر کرده است؛ فرم را ببندید و دوباره باز کنید.');return;}
+    if(dlg.getAttribute('data-in-flight')==='1'){toast('رویژن قبلی هنوز در انتظار پاسخ سرور است.','warn');return;}
+    if(!canRevise()){alert('⛔ مجاز نیستید');return;}
+    var c=findCase(caseId),aw=c?awardLines(c):null;if(!c||!aw||!aw.offer){alert('⛔ پیشنهاد برنده دیگر در cache موجود نیست؛ داده را تازه‌سازی و فرم را دوباره باز کنید.');return;}
+    if(typeof W.ptfSalesDomainCommand!=='function'){alert('⛔ ماژول سرور فروش بارگذاری نشده است؛ رویژن فقط از مسیر سرور انجام می‌شود.');return;}
+
+    var payload=ctx.pendingPayload;
+    if(!payload){
+      var o=W._offState;if(!o||!Array.isArray(o.items)){alert('⛔ state فرم مالی در دسترس نیست؛ فرم را دوباره باز کنید.');return;}
+      var reason=String((dlg.querySelector('#ptfRevReason')||{}).value||'').trim();if(!reason){alert('⛔ دلیل رویژن الزامی است');return;}
+      /* کنترل‌های غیر-live همان offerSave اصلی از DOM به state منتقل می‌شوند. */
+      var buyer=document.getElementById('ofBuyer'),inq=document.getElementById('ofInq'),cur=document.getElementById('ofCurrency');
+      o.buyerCd=buyer?buyer.value:(o.buyerCd||'');o.inqNo=inq?String(inq.value||'').trim():(o.inqNo||'');o.currency=String(cur?cur.value:(o.currency||ctx.currency)).toUpperCase();
+      o.dateEn=(typeof W.ptfJToISO==='function'?W.ptfJToISO(((document.getElementById('ofDateJ')||{}).value||'')):'')||o.dateEn||new Date().toISOString().slice(0,10);
+      if(o.kind==='CO'||o.kind==='TC')o.validUntil=(typeof W.ptfJToISO==='function'?W.ptfJToISO(((document.getElementById('ofValidJ')||{}).value||'')):'')||o.validUntil||'';
+      o.printAs=((document.getElementById('ofPrintAs')||{}).value)||o.printAs||'CO';o.useSig=!!(document.getElementById('ofUseSig')||{}).checked;
+      var signAs=document.getElementById('ofSignAs');if(signAs&&signAs.value)o.signAs=signAs.value;
+      var fxBasis=document.getElementById('ofFxBasis'),fxRate=document.getElementById('ofFxRate');
+      o.fxBasis=fxBasis?fxBasis.value:(o.fxBasis||'');o.fxRateRef=fxRate?((typeof W.ptfNum==='function')?W.ptfNum(fxRate.value):(+String(fxRate.value||'').replace(/[^\d.-]/g,'')||0)):(+o.fxRateRef||0);
+      if(o.currency!=='IRR'&&(!o.fxBasis||!(+o.fxRateRef>0))){alert('⛔ برای پیشنهاد ارزی، مبنا و نرخ مرجع ارز به ریال الزامی است.');return;}
+      if(String(o.buyerCd||'')!==String(ctx.originalOffer.buyerCd||'')||String(o.inqNo||'')!==String(ctx.originalOffer.inqNo||'')||o.currency!==ctx.currency){alert('⛔ هویت مشتری، درخواست یا ارز پیشنهاد برنده در رویژن قابل تغییر نیست. فرم را دوباره باز کنید.');return;}
+      if(typeof W.offValidateItems==='function'){var validation=W.offValidateItems();if(validation){alert('⛔ '+validation);return;}}
+      if(typeof W.offDedupeOfferItems==='function'){var ded=W.offDedupeOfferItems(o.items||[]);if(ded&&ded.removed){o.items=ded.items;if(typeof W.offRenderItems==='function')W.offRenderItems();toast('🧹 '+ded.removed+' ردیف تکراری حذف شد','warn');}}
+      if(!o.items.length){alert('⛔ حداقل یک قلم لازم است');return;}
+      var lines=o.items.map(function(item){
+        var line=revisionCopy(item);
+        if(!String(line.unit||'').trim())line.unit='NO';if(typeof W.ptfOfferUnitEn==='function')line.unit=W.ptfOfferUnitEn(line.unit);
+        /* مقدار نمایشی نرخ مرجع ممکن است از resolver کاتالوگ آمده باشد ولی هنوز در
+           state قلم materialize نشده باشد؛ قبل از command آن را صریح ثبت می‌کنیم. */
+        if(!(+line.refPrice>0)&&typeof W.ptfItemRefPrice==='function'){
+          try{var ref=W.ptfItemRefPrice(line,{inqNo:o.inqNo});if(ref&&+ref.price>0){line.refPrice=+ref.price;line.refCur=ref.cur||'IRR';line.refSrc=ref.src||'';line.refAt=ref.at||'';line.refFrom=ref.from||'';}}catch(eRef){}
+        }
+        var sourceIndex=+line._revisionSourceIndex;if(sourceIndex>=0)line.sourceIndex=sourceIndex;
+        delete line.i;delete line._revisionSourceIndex;return line;
+      }).filter(function(line){return String(line.name||'').trim()&&+line.qty>0;});
+      if(!lines.length){alert('⛔ حداقل یک قلم معتبر با تعداد بزرگ‌تر از صفر لازم است.');return;}
+      var newTotal=lines.reduce(function(sum,it){return sum+(+it.qty||0)*(+it.price||0);},0);if(!(newTotal>0)){alert('⛔ مبلغ کل رویژن باید بزرگ‌تر از صفر باشد.');return;}
+      var voidInv=!!(dlg.querySelector('#ptfRevVoidInv')||{}).checked,label=ctx.currency==='IRR'?'ریال':ctx.currency;
+      var msg='رویژن پیشنهاد برنده '+ctx.offerNo+' با مبلغ '+money(newTotal)+' '+label+' ثبت شود؟\n\nمبلغ فعلی: '+money(ctx.oldTotal)+' '+label+'\nدلتا: '+money(newTotal-ctx.oldTotal)+' '+label;
+      if(voidInv)msg+='\n\nفاکتورهای فعال این پرونده باطل می‌شوند؛ رسیدها می‌مانند.';if(!confirm(msg))return;
+      payload={caseId:ctx.caseId,reason:reason,lines:lines,voidInvoices:voidInv,expectedOfferId:ctx.expectedOfferId,expectedRev:ctx.expectedRev,idempotencyKey:ctx.operationId,toCatalog:!!(document.getElementById('ofRefToCatalog')||{}).checked,
+        offerDocument:{buyerCd:o.buyerCd||'',inqNo:o.inqNo||'',currency:o.currency||ctx.currency,dateEn:o.dateEn||'',dateFa:o.dateFa||'',validUntil:o.validUntil||'',sellerContact:o.sellerContact||'',buyerContact:o.buyerContact||'',buyerTel:o.buyerTel||'',printAs:o.printAs||'',useSig:!!o.useSig,signAs:o.signAs||'',fxBasis:o.fxBasis||'',fxRateRef:+o.fxRateRef||0,terms:Array.isArray(o.terms)?revisionCopy(o.terms):[],extraCols:Array.isArray(o.extraCols)?o.extraCols.slice():[]}};
+      ctx.pendingPayload=revisionCopy(payload);
+    }
+
+    var submitBtn=dlg.querySelector('#offSaveBtn');dlg.setAttribute('data-in-flight','1');setRevisionControlsLocked(true,true);
+    if(submitBtn){submitBtn.disabled=true;submitBtn.textContent='⏳ در انتظار تأیید سرور…';}
+    return W.ptfSalesDomainCommand('revise_award',payload,{onAck:function(d){
+      var r=(d&&d.result)||{},canonical=list('ptf_crm_offers').filter(function(x){return x&&String(x.no||'')===ctx.offerNo;})[0]||W._offState;
+      try{if(typeof W.ptfSyncRefPriceBack==='function'){var rb=W.ptfSyncRefPriceBack(canonical,{toCatalog:!!payload.toCatalog});if(rb.request||rb.catalog)toast('💰 نرخ مرجع به‌روز شد — اقلام درخواست: '+rb.request+(rb.catalog?' | بانک کالا: '+rb.catalog:''),'ok');}}catch(eBack){}
+      clearRevisionDraft(ctx);dlg.remove();W._ptfAwardRevisionContext=null;
+      toast('✅ رویژن '+(r.revisionOfferNo||ctx.offerNo)+(r.rev?' Rev.'+r.rev:'')+' ثبت شد — مبلغ: '+money(r.effectiveAmount||r.newAmount||0)+' '+(ctx.currency==='IRR'?'ریال':ctx.currency)+(d&&d.compactReceipt?' (بازیابی رسید قطعی)':''),'ok');
+      if(typeof W.renderDeals==='function')W.renderDeals();if(typeof W.renderOffers==='function')W.renderOffers();
+    },onReject:function(e){
+      var msg=(e&&e.message)?e.message:String(e||''),stale=msg.indexOf('award_revision_conflict')>-1||msg.indexOf('award_offer_identity_conflict')>-1||msg.indexOf('duplicate_sales_cases')>-1||msg.indexOf('duplicate_offer_no')>-1;
+      ctx.pendingPayload=null;dlg.removeAttribute('data-in-flight');setRevisionControlsLocked(false,false);
+      if(submitBtn){submitBtn.disabled=!!stale;submitBtn.textContent=stale?'نیاز به بازکردن مجدد فرم':'ثبت رویژن پیشنهاد برنده';}
+      if(msg.indexOf('official_invoice_blocks_decrease')>-1)alert('⛔ برای این پرونده فاکتور رسمی صادر شده است؛ کاهش مبلغ سند برد مسدود است.\n\nمسیر درست: ابطال/اصلاحیهٔ فاکتور رسمی، سپس رویژن.');
+      else if(stale)alert('⛔ از زمان بازشدن فرم، پیشنهاد یا پرونده روی دستگاه دیگری تغییر کرده است. داده را دریافت و فرم رویژن را دوباره باز کنید.');
+      else if(msg.indexOf('revision_precondition_required')>-1)alert('⛔ نسخهٔ صفحه قدیمی است؛ صفحه را آنلاین تازه‌سازی و فرم را دوباره باز کنید.');
+      else if(msg.indexOf('award_revision_identity_change_forbidden')>-1)alert('⛔ هویت قراردادی مشتری/درخواست/ارز پس از تشکیل پرونده قابل تغییر نیست.');
+      else alert('⛔ رویژن پیشنهاد برنده انجام نشد: '+msg);
+    },onUncertain:function(e){
+      dlg.removeAttribute('data-in-flight');setRevisionControlsLocked(true,true);
+      if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='بررسی رسید قطعی / تلاش همان فرمان';}
+      alert('⚠️ نتیجه رویژن هنوز نامشخص است. فرم برای جلوگیری از تغییر payload قفل و operationId حفظ شد؛ همین دکمه فقط رسید همان فرمان را بازیابی می‌کند. شناسه پیگیری: '+e.operationId);
+    }});
   };
 
   /* ---------------- P6: گزارش بازنگری و سرنوشت اقلام ---------------- */

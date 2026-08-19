@@ -43,6 +43,7 @@ function client(db, opts) {
     attachUploadWidget: function () {},
     renderInvoices: function () {},
     ptfSalesDomainApi: function (a, payload) { log.api.push({ action: a, payload: payload }); return Promise.resolve({ ok: true }); },
+    ptfSalesDomainCommand: function (a, payload, h) { log.api.push({ action: a, payload: payload }); return Promise.resolve({ ok: true }).then(function(d){ if(h&&h.onAck)h.onAck(d); return {state:'acked',response:d}; }); },
     fetch: function () { return Promise.reject(new Error('offline')); },
     PTF_SALES_DOMAIN_V2: true, PTF: {}
   };

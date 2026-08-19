@@ -27,7 +27,7 @@ T('نمای موبایل action جدید بازگشت را تشخیص می‌د�
   mobile.indexOf('ptfRevokeOfferWin\\s*\\(')>-1 && mobile.indexOf("unwin:       { label: 'بازگردانی از برنده'")>-1);
 
 T('بازگشت فقط برای رکورد واقعاً برنده، از فرمان اتمیک سرور و با دلیل انجام می‌شود',
-  core.indexOf("api('revoke_orphan_delete',{offerNo:no,delete:false,reason:reason.trim()")>-1 && revokeApi.indexOf("offer_not_won")>-1 && revokeApi.indexOf("reason_required")>-1);
+  core.indexOf("command('revoke_orphan_delete',{offerNo:no,delete:false,reason:reason.trim()")>-1 && revokeApi.indexOf("offer_not_won")>-1 && revokeApi.indexOf("reason_required")>-1);
 T('وابستگی پرونده یا فاکتور بازگشت خودکار را fail-closed می‌کند',
   revokeApi.indexOf("dependencies_exist")>-1 && revokeApi.indexOf("'type'=>'case'")>-1 && revokeApi.indexOf("'type'=>'invoice'")>-1);
 T('اصلاح سروری projection پیشنهاد و correction audit را با هم commit می‌کند',

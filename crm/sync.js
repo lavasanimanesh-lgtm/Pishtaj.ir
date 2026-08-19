@@ -101,6 +101,32 @@
   }
 
   function saveDirty() { try { localStorage.setItem('ptf_sync_dirty', JSON.stringify(state.dirty)); } catch (e) {} }
+  /* v34.7.39 — فرمان‌های دامنه باید تا ACK سرور، کلیدهای projection خود را از
+     مسیر عمومی whole-array sync جدا نگه دارند. وگرنه همان رکورد پیش از
+     register_offer از data_push عبور می‌کند و boundary سروری عملاً دور زده می‌شود. */
+  var commandHeldKeys = {};
+  function syncKeyHeld(k) { return (+commandHeldKeys[k] || 0) > 0; }
+  window.ptfSyncHoldCommandKeys = function (keys) {
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      if (SYNC_KEYS.indexOf(k) > -1) commandHeldKeys[k] = (+commandHeldKeys[k] || 0) + 1;
+    });
+  };
+  window.ptfSyncReleaseCommandKeys = function (keys) {
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      if (!commandHeldKeys[k]) return;
+      commandHeldKeys[k]--;
+      if (commandHeldKeys[k] <= 0) delete commandHeldKeys[k];
+    });
+    if (Object.keys(state.dirty).some(function (k) { return !syncKeyHeld(k); })) schedulePush();
+  };
+  window.ptfSyncAcknowledgeCommandKeys = function (keys) {
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      delete state.dirty[k];
+      clearWriteFailure(k);
+    });
+    saveDirty();
+  };
+  window.ptfSyncCommandKeyHeld = syncKeyHeld;
   /* قرارداد عمومی برای فرم‌ها: قبل از باز کردن عملیات حساس نیز می‌توانند همین
      گارد را بخوانند؛ اما wrapper setData پایین آخرین سد سراسری است. */
   window.ptfSyncCanWriteKey = function (k) { return SYNC_KEYS.indexOf(k) < 0 || syncAllowedKey(k); };
@@ -124,6 +150,9 @@
   /* ---------- رهگیری تغییرات: wrap setData ---------- */
   window.ptfSyncNotifyDirty = function (k) {
     if (SYNC_KEYS.indexOf(k) > -1 && !state.pulling) {
+      /* projection یک فرمان درحال اجرا نباید هم‌زمان وارد data_push عمومی شود؛
+         ACK یا rollback همان فرمان تکلیف آن را تعیین می‌کند. */
+      if (syncKeyHeld(k)) return;
       /* کلیدی که سرور برای نقش فعلی نمی‌پذیرد نباید «تغییر ذخیره‌نشده» محسوب شود؛
          به‌ویژه audit داخلیِ خود sync نباید dirty را پس از پاکسازی دوباره بسازد. */
       if (k === 'ptf_crm_audit' && !syncAllowedKey(k)) {
@@ -328,7 +357,7 @@
     });
   }
   function pushDirty() {
-    var keys = Object.keys(state.dirty);
+    var keys = Object.keys(state.dirty).filter(function (k) { return !syncKeyHeld(k); });
     var forbiddenLocal = keys.filter(function (k) { return !syncAllowedKey(k); });
     forbiddenLocal.forEach(function (k) { delete state.dirty[k]; });
     if (forbiddenLocal.length) { saveDirty(); setSyncBadge('forbidden'); try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقش در sync ارسال نشد: ' + forbiddenLocal.join('، '), 'SYNC-RBAC'); } catch (eF) {} }
@@ -594,6 +623,17 @@
           var curStr = rd(k);
           var newStr = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, d.data[k], (d.data || {})['ptf_crm_deleted_archive']) : d.data[k];
           if (curStr === newStr) return;
+          /* command-held side projection (مثلاً catalog پیشنهاد) هنوز عمداً dirty
+             نشده است. catch-up pull باید آن را با تغییر دستگاه دیگر merge کند، نه
+             اینکه چون state.dirty=false است کورکورانه overwrite کند. */
+          if (syncKeyHeld(k) && curStr && typeof window.ptfSmartMerge === 'function') {
+            try {
+              var heldMerged = window.ptfSmartMerge(k, curStr, newStr);
+              if (typeof window.ptfApplyDeletionTombstones === 'function') heldMerged = window.ptfApplyDeletionTombstones(k, heldMerged, (d.data || {})['ptf_crm_deleted_archive']);
+              if (heldMerged && heldMerged !== curStr) { wr(k, heldMerged); applied++; }
+            } catch (eHeldMerge) {}
+            return;
+          }
           /* v31.7.2 BUG-SYNC-LOCAL-LOSS: records created before sync.js
              loaded cannot be marked dirty by the wrapper. During the first
              authoritative pull, merge the local/server arrays before any
@@ -933,7 +973,7 @@
     }
     // هنگام بستن صفحه، push معلق را بفرست
     window.addEventListener('beforeunload', function (ev) {
-      var keys = Object.keys(state.dirty);
+      var keys = Object.keys(state.dirty).filter(function (k) { return !syncKeyHeld(k); });
       if (!keys.length) return;
       try { ev.preventDefault(); ev.returnValue = ''; } catch (eU) {}
       var data = {};
@@ -1088,7 +1128,7 @@
       var arr = JSON.parse(jsonStr || '[]');
       if (!arr || typeof arr !== 'object') return jsonStr;
       if(key==='ptf_crm_supplier_finance'&&!Array.isArray(arr)){
-        ['invoices','payments','adjustments'].forEach(function(bucket){if(!Array.isArray(arr[bucket]))return;arr[bucket]=arr[bucket].filter(function(r){var id=String((r&&(r.cd||r._id))||'').trim();return!id||!ids[id];});});
+        ['invoices','payments','adjustments'].forEach(function(bucket){if(!Array.isArray(arr[bucket]))return;arr[bucket]=arr[bucket].filter(function(r){var id=String((r&&(r._id||r.cd))||'').trim();return!id||!ids[id];});});
         (arr.payments||[]).forEach(function(payment){if(Array.isArray(payment.allocations))payment.allocations=payment.allocations.filter(function(a){return!ids[String((a&&a.invoiceCd)||'').trim()];});});
         return JSON.stringify(arr);
       }
@@ -1109,7 +1149,7 @@
     var map = { won: 90, approved: 80, sent: 70, registered: 60, revise: 50, draft: 30, pending: 20, lost: 10, rejected: 5 };
     return map[st] || 0;
   }
-  function ptfRecTimestamp(r) { return String((r && (r.updatedAtISO || r.updatedAt || r.iso || r.ts || r.t || r.dateEn || r.dueISO || r.dt || r.dateFa)) || ''); }
+  function ptfRecTimestamp(r) { return String((r && (r.wfUpdatedAtISO || r.updatedAtISO || r.updatedAt || r.iso || r.ts || r.t || r.dateEn || r.dueISO || r.dt || r.dateFa)) || ''); }
   function ptfRecCompleteness(r) {
     var n = 0;
     if (!r || typeof r !== 'object') return 0;
@@ -1179,10 +1219,34 @@
     return out;
   }
   function ptfMergeBusinessRecord(key, a, b, code) {
-    var winner = (typeof window.ptfFinanceVoidWins === 'function' && (key === 'ptf_crm_invoices' || key.indexOf('cheque') > -1))
+    var winner, authoritativeOfferReplay = false;
+    var markerA = !!(a && (a._serverState || a._serverOpId));
+    var markerB = !!(b && (b._serverState || b._serverOpId));
+    if (key === 'ptf_crm_offers' && markerA !== markerB && ((markerA ? b : a) || {}).serverRegisteredAt) {
+      /* ویرایش pending یک offer قدیمی نیز serverRegisteredAt قبلی را دارد؛ نسخهٔ
+         clean سرور باید marker و فیلدهای پاسخ‌نامعلوم را کنار بزند. */
+      winner = markerA ? b : a;
+      authoritativeOfferReplay = true;
+    } else if (key === 'ptf_crm_offers' && !!(a && a.serverRegisteredAt) !== !!(b && b.serverRegisteredAt)) {
+      /* دو دستگاه/پاسخ گم‌شده: projection ثبت‌شدهٔ سرور باید عیناً بر نسخهٔ
+         local sending/rejected همان شماره مقدم باشد. merge فیلدی marker محلی را
+         دوباره روی canonical می‌نشاند و offer تأییدشده را pending جلوه می‌داد. */
+      winner = (a && a.serverRegisteredAt) ? a : b;
+      authoritativeOfferReplay = true;
+    } else if (key === 'ptf_crm_rfqs' && String((a && a.wfUpdatedAtISO) || '') !== String((b && b.wfUpdatedAtISO) || '')) {
+      /* workflow یک transition نسخه‌دار است؛ طول wfLog/کامل‌بودن رکورد نباید
+         WF50 کهنه را بر اصلاح authoritative جدیدتر مقدم کند. */
+      winner = String((b && b.wfUpdatedAtISO) || '') > String((a && a.wfUpdatedAtISO) || '') ? b : a;
+    } else winner = (typeof window.ptfFinanceVoidWins === 'function' && (key === 'ptf_crm_invoices' || key.indexOf('cheque') > -1))
       ? (window.ptfFinanceVoidWins(a, b) || ptfPreferRecord(a, b))
       : ptfPreferRecord(a, b);
     var loser = winner === a ? b : a;
+    if (authoritativeOfferReplay) {
+      var canonicalOffer = ptfMergePlainObject(winner, {});
+      delete canonicalOffer._serverState; delete canonicalOffer._serverOpId; delete canonicalOffer._serverError;
+      canonicalOffer.no = code;
+      return canonicalOffer;
+    }
     var out = ptfMergeAttachmentFields(ptfMergePlainObject(winner, loser), winner, loser);
     if (key === 'ptf_crm_offers') {
       var clean = ptfNormalizeOfferSnapshot(winner.items || []);

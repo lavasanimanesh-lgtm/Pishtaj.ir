@@ -431,6 +431,22 @@ function sync_offers_payload_introduces_duplicates($incomingJson, $serverJson) {
     if (!is_array($incoming)) return false;
     return sync_offer_duplicate_count($incoming) > sync_offer_duplicate_count(is_array($server) ? $server : []);
 }
+/* v34.7.39: data_push عمومی حق ایجاد پیشنهاد تازه یا انتشار draft فرمان را ندارد.
+   رکورد تازه باید ابتدا از register_offer شناسه/مهر سرور بگیرد. */
+function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson) {
+    $incoming=json_decode((string)$incomingJson,true);$server=json_decode((string)$serverJson,true);
+    if(!is_array($incoming))return true;if(!is_array($server))$server=[];
+    $serverNos=[];foreach($server as $offer)if(is_array($offer)&&trim((string)($offer['no']??''))!=='')$serverNos[trim((string)$offer['no'])]=true;
+    $seen=[];
+    foreach($incoming as $offer){
+        if(!is_array($offer))continue;$no=trim((string)($offer['no']??''));if($no==='')continue;
+        if(isset($seen[$no]))return true;$seen[$no]=true;
+        if(isset($offer['_serverState'])||isset($offer['_serverOpId']))return true;
+        /* فقط snapshot فعلی سرور authoritative است؛ مهر client قابل جعل است. */
+        if(!isset($serverNos[$no]))return true;
+    }
+    return false;
+}
 
 function sync_decode_archive($json) {
     $a = json_decode((string)$json, true);
@@ -1292,7 +1308,24 @@ switch($action) {
            Device A و B هر دو meta را rev=5 می‌خوانند → هر دو rev=6 می‌نویسند → lost update.
            با flock: دومی منتظر می‌ماند تا اولی تمام شود و rev واقعی را می‌بیند. */
         $metaLock = @fopen($meta_file . '.lock', 'c+');
-        if ($metaLock) { @flock($metaLock, LOCK_EX); /* re-read meta under lock */ $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : []; }
+        if (!$metaLock || !@flock($metaLock, LOCK_EX)) {
+            if ($metaLock) @fclose($metaLock);
+            http_response_code(503);
+            echo json_encode(['ok'=>false,'error'=>'sync_lock_unavailable','needRetry'=>true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        /* re-read meta only after the shared lock is definitely held */
+        $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : [];
+        /* v34.7.43: اگر process فرمان فروش پس از انتشار بخشی از projectionها قطع شده
+           باشد، WAL باید ابتدا توسط همان sales-domain و زیر همین lock بازیابی شود.
+           data_push عمومی حق ندارد snapshot کامل دیگری را روی تراکنش نیمه‌تمام بنویسد. */
+        $pendingSalesTx = glob($sdir . '/.sales-tx-*.json') ?: [];
+        if ($pendingSalesTx) {
+            if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
+            http_response_code(503);
+            echo json_encode(['ok'=>false,'error'=>'pending_sales_transaction_recovery','needRetry'=>true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         /* v33.22.0: خواندن از مسیر یکپارچه (در mode=mysql از دیتابیس) */
         $serverArchiveJson = sync_key_read($sdir, 'ptf_crm_deleted_archive');
         if ($serverArchiveJson === null) $serverArchiveJson = '[]';
@@ -1311,7 +1344,7 @@ switch($action) {
                 /* v33.22.0: مسیر یکپارچه (mysql → DB) */
                 $serverOffersJson = sync_key_read($sdir, 'ptf_crm_offers');
                 if ($serverOffersJson === null) $serverOffersJson = '[]';
-                if (sync_offers_payload_introduces_duplicates($v, $serverOffersJson)) {
+                if (sync_offers_payload_introduces_duplicates($v, $serverOffersJson) || sync_offers_payload_has_unregistered_new($v, $serverOffersJson)) {
                     $rejected[] = $k;
                     $conflicts[] = $k;
                     $conflictData[$k] = $serverOffersJson;
