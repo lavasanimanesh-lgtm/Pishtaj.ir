@@ -701,14 +701,15 @@
 
       invs.unshift(newInv);
       setData('ptf_crm_invoices', invs);
-      if (window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
-        window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd })
-          .then(function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
-          .catch(function (e) {
+      if (window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainCommand === 'function') {
+        window.ptfSalesDomainCommand('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd },{
+          onAck:function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); },
+          onReject:function (e) {
             var rollback = (getData('ptf_crm_invoices') || []).filter(function (x) { return x.cd !== newInv.cd; });
             if (typeof window.ptfSyncApplyServerProjection === 'function') window.ptfSyncApplyServerProjection('ptf_crm_invoices', rollback); else setData('ptf_crm_invoices', rollback);
-            alert('⛔ ثبت سروری صورتحساب غیررسمی ناموفق بود و رکورد محلی بازگردانده شد: ' + e.message);
-          });
+            alert('⛔ ثبت سروری صورتحساب غیررسمی رد شد و رکورد محلی بازگردانده شد: ' + e.message);
+          },onUncertain:function(e){alert('⚠️ نتیجه ثبت صورتحساب هنوز نامشخص است؛ رکورد محلی برای بازیابی حفظ شد. شناسه پیگیری: '+e.operationId);}
+        });
       }
 
       // ثبت رویداد در تایم‌لاین پرونده فروش جهت هماهنگی با تیم کارشناسان
@@ -1935,17 +1936,18 @@ window.unofficialInvoicePrintCases = function (ctx) {
     try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArI) {}
     try { if (typeof audit === 'function') audit('صورتحساب غیررسمی', 'بازنویسی صورتحساب ' + (existing.no || existing.cd) + ' — مبلغ جدید ' + amountIrr.toLocaleString('fa-IR') + ' ریال', String(existing.cd || '')); } catch (eAu) {}
     /* هم‌راستایی با سرور: همان فرمان ثبت، با کلید یکتای همین سند (سرور با cd به‌روزرسانی می‌کند) */
-    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
-      window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: existing, idempotencyKey: 'UNOFFICIAL-REISSUE|' + existing.cd + '|' + amountIrr })
-        .then(function () { if (typeof ptfToast === 'function') ptfToast('بازنویسی صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
-        .catch(function (e) {
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainCommand === 'function') {
+      window.ptfSalesDomainCommand('register_unofficial_invoice', { invoice: existing, idempotencyKey: 'UNOFFICIAL-REISSUE|' + existing.cd + '|' + amountIrr },{
+        onAck:function () { if (typeof ptfToast === 'function') ptfToast('بازنویسی صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); },
+        onReject:function (e) {
           var _cur = getData('ptf_crm_invoices') || [];
           var _idx = -1;
           _cur.forEach(function (x, i) { if (x && x.cd === _before.cd) _idx = i; });
           if (_idx > -1) { _cur[_idx] = _before; setData('ptf_crm_invoices', _cur); }
           try { if (window.PTF && window.PTF.ar) window.PTF.ar.invalidate(); } catch (eR) {}
-          if (typeof alert === 'function') alert('⛔ بازنویسی سروری صورتحساب ناموفق بود و نسخهٔ قبلی بازگردانده شد: ' + e.message);
-        });
+          if (typeof alert === 'function') alert('⛔ بازنویسی سروری صورتحساب رد شد و نسخهٔ قبلی بازگردانده شد: ' + e.message);
+        },onUncertain:function(e){if(typeof alert==='function')alert('⚠️ نتیجه بازنویسی صورتحساب نامشخص است؛ نسخه محلی فعلی حفظ شد. شناسه پیگیری: '+e.operationId);}
+      });
     }
   } else {
     newInv = {
@@ -2000,15 +2002,16 @@ window.unofficialInvoicePrintCases = function (ctx) {
     invs.unshift(newInv);
     setData('ptf_crm_invoices', invs);
 
-    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
-      window.ptfSalesDomainApi('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd })
-        .then(function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); })
-        .catch(function (e) {
+    if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainCommand === 'function') {
+      window.ptfSalesDomainCommand('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd },{
+        onAck:function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); },
+        onReject:function (e) {
           var rollback = (getData('ptf_crm_invoices') || []).filter(function (x) { return x.cd !== newInv.cd; });
           if (typeof window.ptfSyncApplyServerProjection === 'function') window.ptfSyncApplyServerProjection('ptf_crm_invoices', rollback);
           else setData('ptf_crm_invoices', rollback);
-          if (typeof alert === 'function') alert('⛔ ثبت سروری صورتحساب غیررسمی ناموفق بود و رکورد محلی بازگردانده شد: ' + e.message);
-        });
+          if (typeof alert === 'function') alert('⛔ ثبت سروری صورتحساب غیررسمی رد شد و رکورد محلی بازگردانده شد: ' + e.message);
+        },onUncertain:function(e){if(typeof alert==='function')alert('⚠️ نتیجه ثبت صورتحساب نامشخص است؛ رکورد محلی برای بازیابی حفظ شد. شناسه پیگیری: '+e.operationId);}
+      });
     }
   }
 
@@ -2175,12 +2178,15 @@ window.unofficialInvoicePrintCases = function (ctx) {
             try { window.ptfUnofficialInvoiceVoidAfterEffects(_inv2, _reason2); } catch (eAf) {}
             try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eAr2) {}
             try { if (typeof audit === 'function') audit('فاکتور غیررسمی', 'ابطال سروری صورتحساب ' + (_inv2.no || _inv2.cd) + ' — دلیل: ' + _reason2, String(_inv2.cd || '')); } catch (eAu2) {}
-            if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی ابطال شد؛ مطالبه حذف و مبلغ آزادشده به بستانکاری پرونده برگشت.', 'ok');
+            try { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی ابطال شد؛ مطالبه حذف و مبلغ آزادشده به بستانکاری پرونده برگشت.', 'ok'); } catch(eToast){}
             if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR1) {} }
             if (typeof renderReceivables === 'function') { try { renderReceivables(); } catch (eR2) {} }
             return { ok: true, server: true, result: res };
-          })
-          .catch(function (e) {
+          },function (e) {
+            if(e&&e.commitOutcome==='uncertain'){
+              if(typeof alert==='function')alert('⚠️ نتیجه ابطال صورتحساب هنوز نامشخص است؛ هیچ اثر جانبی محلی اجرا نشد. شناسه پیگیری: '+e.operationId);
+              return{ok:false,why:'uncertain',operationId:e.operationId};
+            }
             var map = {
               permission_denied: 'نقش فعلی مجاز به ابطال نیست',
               already_void: 'این فاکتور قبلاً ابطال شده است',

@@ -14,7 +14,7 @@ T('جدول‌های تامین فقط داخل wrapper خود scroll افقی �
 
 T('دکمه‌های اصلی حساب مشتری همگی icon دارند',['🔎 اعمال فیلتر','🖨 PDF/چاپ','📥 CSV','💵 ثبت وصولی','✕ بستن'].every(function(x){return cf.indexOf(x)>-1;}));
 T('ابطال وصولی و دریافت قطعی icon صریح دارند',cf.indexOf('⛔ ابطال</button>')>-1&&cf.indexOf('cfCaseReceiptVoid')>-1);
-T('دریافت قطعی از داخل گردش قابل ابطال و برای admin قابل حذف است',cf.indexOf("ptfSalesDomainApi('void_receipt'")>-1&&cf.indexOf("ptfAdminHardDelete('receipt'")>-1);
+T('دریافت قطعی از داخل گردش قابل ابطال و برای admin قابل حذف است',cf.indexOf("ptfSalesDomainCommand('void_receipt'")>-1&&cf.indexOf("ptfAdminHardDelete('receipt'")>-1);
 T('toolbar حساب مشتری در موبایل grid و بدون overflow است',idx.indexOf('#cfAccountDlg .cf-ledger-toolbar')>-1&&idx.indexOf('#cfAccountDlg .tb2')>-1);
 T('حساب باز شامل مطالبه یا اعتبار است',cf.indexOf('function accountIsOpen')>-1&&cf.indexOf('Math.abs(+r.credit||0)')>-1);
 T('بعد از sort نیز گروه حساب باز دوباره در بالا تثبیت می‌شود',cf.indexOf('rows = rows.filter(accountIsOpen).concat')>-1);

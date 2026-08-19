@@ -66,20 +66,87 @@
       } catch (eP) { resolve({ ok: false, reason: 'pull_exception' }); }
     });
   }
-  function api(action, payload) {
-    payload = payload || {};
-    if (!payload.idempotencyKey) payload.idempotencyKey = nowId(action.toUpperCase());
+  function apiAttempt(action, payload) {
     return fetch(API + '?action=' + encodeURIComponent(action), { method:'POST', headers:authHeaders(), body:JSON.stringify(payload) })
       .then(function (r) { return r.text().then(function (txt) {
         var d;
         try { d=JSON.parse(txt); }
-        catch(e){ var invalid = new Error('پاسخ نامعتبر سرور: ' + txt.slice(0,160)); invalid.status = r.status; throw invalid; }
+        catch(e){ var invalid = new Error('پاسخ نامعتبر سرور: ' + txt.slice(0,160)); invalid.status = r.status; invalid.responseInvalid = true; throw invalid; }
         if (!r.ok || !d.ok) { var er = new Error(d.error || ('HTTP '+r.status)); er.payload=d; er.status=r.status; throw er; }
         return d;
       }); })
       .then(function (d) { return applyProjection(d.data || {}, d.rev).then(function () { return d; }); });
   }
+  function commandErrorIsAmbiguous(e) {
+    var s=+(e&&e.status||0);
+    if(s>=400&&s<500&&s!==408&&s!==425&&s!==429)return false;
+    return !s || s===408 || s===425 || s===429 || s>=500 || !!(e&&e.responseInvalid);
+  }
+  function actionIsReadOnly(action){return['snapshot','health','migration_dry_run','duplicate_case_plan','archived_case_purge_plan','admin_delete_plan'].indexOf(action)>-1;}
+  function persistCommandDiagnostic(kind,action,payload,e) {
+    var op=String((payload&&payload.idempotencyKey)||'unknown'),key='ptf_sales_command_'+kind+'_'+op.replace(/[^A-Za-z0-9_.|:-]/g,'_').slice(0,160);
+    try { localStorage.setItem(key,JSON.stringify({kind:kind,action:action,operationId:op,message:String((e&&e.message)||e||''),at:new Date().toISOString()})); } catch(ignore){}
+    return key;
+  }
+  function api(action, payload, options) {
+    payload = payload || {}; options=options||{};
+    if (!payload.idempotencyKey) payload.idempotencyKey = nowId(action.toUpperCase());
+    var first=apiAttempt(action,payload);
+    if(options.autoReplay===false)return first;
+    return first.then(null,function(e){
+      if(!commandErrorIsAmbiguous(e))throw e;
+      return apiAttempt(action,payload).then(null,function(replayError){
+        if(commandErrorIsAmbiguous(replayError)&&!actionIsReadOnly(action)){
+          replayError.commitOutcome='uncertain';replayError.operationId=payload.idempotencyKey;replayError.commandAction=action;
+          persistCommandDiagnostic('uncertain',action,payload,replayError);
+        }
+        throw replayError;
+      });
+    });
+  }
+  function postAckWarning(action,payload,e) {
+    persistCommandDiagnostic('post_ack_warning',action,payload,e);
+    try { console.error('sales command post-ACK effect',action,payload&&payload.idempotencyKey,e); } catch(ignore){}
+    try { toast('ثبت سرور قطعی است؛ فقط تازه‌سازی نمایش کامل نشد. صفحه را تازه‌سازی کنید.','warn'); } catch(ignoreToast){}
+  }
+  function lifecycleEffectWarning(action,payload,phase,e){
+    if(phase==='acked')return postAckWarning(action,payload,e);
+    persistCommandDiagnostic(phase+'_handler_warning',action,payload,e);
+    try{console.error('sales command lifecycle effect',phase,action,payload&&payload.idempotencyKey,e);}catch(ignore){}
+  }
+  function safeCommandEffect(action,payload,fn,arg,phase) {
+    if(typeof fn!=='function')return;
+    try {
+      var out=fn(arg);
+      if(out&&typeof out.then==='function')out.then(null,function(e){lifecycleEffectWarning(action,payload,phase,e);});
+    } catch(e){lifecycleEffectWarning(action,payload,phase,e);}
+  }
+  /* v34.7.43: one command lifecycle for every mutating sales/finance action.
+     Rejection is delivered only for a definitive server response. Two ambiguous
+     responses preserve intent as `uncertain`; ACK effects are isolated and can never
+     trigger rollback, cloud-file deletion, or a false «ثبت نشد» message. */
+  function command(action,payload,handlers) {
+    payload=payload||{};handlers=handlers||{};
+    if(!payload.idempotencyKey)payload.idempotencyKey=nowId(action.toUpperCase());
+    return api(action,payload,handlers.apiOptions).then(function(d){
+      safeCommandEffect(action,payload,handlers.onAck,d,'acked');
+      safeCommandEffect(action,payload,handlers.onFinally,{state:'acked',response:d},'acked');
+      return{state:'acked',response:d,operationId:payload.idempotencyKey};
+    },function(e){
+      if(e&&e.commitOutcome==='uncertain'){
+        if(typeof handlers.onUncertain==='function')safeCommandEffect(action,payload,handlers.onUncertain,e,'uncertain');
+        else try{alert('⚠️ پاسخ سرور دریافت نشد و نتیجه هنوز نامشخص است. عملیات را دوباره از مسیر دیگری ثبت نکنید؛ شناسه پیگیری: '+payload.idempotencyKey);}catch(ignoreAlert){}
+        safeCommandEffect(action,payload,handlers.onFinally,{state:'uncertain',error:e},'uncertain');
+        return{state:'uncertain',error:e,operationId:payload.idempotencyKey};
+      }
+      safeCommandEffect(action,payload,handlers.onReject,e,'rejected');
+      safeCommandEffect(action,payload,handlers.onFinally,{state:'rejected',error:e},'rejected');
+      return{state:'rejected',error:e,operationId:payload.idempotencyKey};
+    });
+  }
   window.ptfSalesDomainApi = api;
+  window.ptfSalesDomainCommand = command;
+  window.ptfSalesCommandErrorIsAmbiguous = commandErrorIsAmbiguous;
 
   /* v34.7.39 — ثبت پیشنهاد یک command واقعی است، نه local save + دو push موازی.
      تا پایان ACK، همه projectionهای درگیر از data_push عمومی hold می‌شوند و هیچ
@@ -252,7 +319,9 @@
          در retry تغییر می‌کند و هرگز نباید کلید reconciliation پاسخ گم‌شده باشد. */
       var idem=st._serverOpId;
       var registerPayload={offer:payloadOffer,rfq:clone(rfqForOffer(saved)),createIntent:ret.idx<0,idempotencyKey:idem};
-      function registerAttempt(){return api('register_offer',registerPayload);}
+      /* register_offer has its richer receipt/pull reconciliation below; suppress the
+         generic replay so this operation still performs exactly one controlled replay. */
+      function registerAttempt(){return api('register_offer',registerPayload,{autoReplay:false});}
       /* خطای 4xx پاسخ قطعی رد است. خطای transport/5xx نتیجهٔ نامعلوم دارد: همان
          operationId یک بار خودکار replay می‌شود؛ اگر پاسخ دوم هم گم شد، pull با
          serverOperationId دقیق بررسی می‌کند. at-least-once transport + exactly-once command. */
@@ -382,17 +451,19 @@
     if (!confirm('🏆 ثبت قطعی برد پیشنهاد ' + no + '\n\nبرد و تشکیل/اتصال پرونده در یک فرمان سروری انجام می‌شود و پیشنهاد پس از آن قفل خواهد شد. ادامه می‌دهید؟')) { if(selEl)selEl.value=o.st||'sent'; return; }
     if (selEl) selEl.disabled = true;
     toast('در حال ثبت اتمیک برد و پرونده…', 'info');
-    api('win_offer', { offerNo:no, offerId:o._id || '', attachCaseId:attachCaseId, idempotencyKey:'WIN|' + (o._id || no) })
-      .then(function (d) {
+    command('win_offer', { offerNo:no, offerId:o._id || '', attachCaseId:attachCaseId, idempotencyKey:'WIN|' + (o._id || no) }, {
+      onAck:function (d) {
         toast(d.result && d.result.amendment ? 'متمم به پرونده متصل شد' : 'پیشنهاد برنده و پرونده یکتا ثبت شد', 'ok');
         try { audit('فروش', 'ثبت اتمیک برد و پرونده ' + no, (d.result||{}).caseId || no); } catch(e) {}
         if (typeof renderOffers === 'function') renderOffers();
         if (typeof renderDeals === 'function') renderDeals();
-      }).catch(function (e) {
+      },onReject:function (e) {
         if (selEl) selEl.value = o.st || 'sent';
         var map={duplicate_offer_no:'شماره پیشنهاد تکراری است',duplicate_sales_cases:'پرونده فروش تکراری شناسایی شد',amendment_customer_or_currency_mismatch:'مشتری یا ارز متمم با پرونده مقصد یکسان نیست'};
         alert('⛔ برد ثبت نشد و وضعیت قبلی حفظ شد:\n' + (map[e.message] || e.message));
-      }).then(function(){if(selEl)selEl.disabled=false;});
+      },onUncertain:function(e){alert('⚠️ نتیجه ثبت برد هنوز نامشخص است. وضعیت قبلی را انتخاب نکنید؛ داده را همگام کنید. شناسه پیگیری: '+e.operationId);},
+      onFinally:function(){if(selEl)selEl.disabled=false;}
+    });
   };
   if (typeof legacySetStatus === 'function') {
     window.offerSetSt = function (no, st, selEl) {
@@ -401,9 +472,22 @@
     };
   }
 
-  window.ptfMarkOfferAmendment=function(no){var o=findOffer(no);if(!o)return;var parents=data('ptf_crm_offers').filter(function(x){return x&&x.no!==no&&x.st==='won'&&!x.rialOf&&x.buyerCd===o.buyerCd&&String(x.currency||'IRR')===String(o.currency||'IRR')&&casesForOffer(x).length===1;});if(!parents.length){alert('برای همین مشتری و ارز، پیشنهاد برنده دارای پرونده یافت نشد.');return;}var hint=parents.map(function(x){return x.no+' — '+(x.buyerCo||'');}).join('\n');var parent=prompt('شماره پیشنهاد پایه برنده را وارد کنید:\n'+hint,parents[0].no);if(parent===null)return;parent=parent.trim();if(!parents.some(function(x){return x.no===parent;})){alert('پیشنهاد پایه معتبر نیست');return;}api('mark_amendment',{offerNo:no,parentOfferNo:parent}).then(function(){toast('پیشنهاد به‌عنوان متمم مستقل علامت‌گذاری شد؛ هنگام برد اتصال یا پرونده مستقل انتخاب می‌شود','ok');if(typeof renderOffers==='function')renderOffers();}).catch(function(e){alert('⛔ '+e.message);});};
+  window.ptfMarkOfferAmendment=function(no){var o=findOffer(no);if(!o)return;var parents=data('ptf_crm_offers').filter(function(x){return x&&x.no!==no&&x.st==='won'&&!x.rialOf&&identity(o.buyerCd)!==''&&identity(x.buyerCd)===identity(o.buyerCd)&&String(x.currency||'IRR')===String(o.currency||'IRR')&&casesForOffer(x).length===1;});if(!parents.length){alert('برای همین مشتری و ارز، پیشنهاد برنده دارای پرونده یافت نشد.');return;}var hint=parents.map(function(x){return x.no+' — '+(x.buyerCo||'');}).join('\n');var parent=prompt('شماره پیشنهاد پایه برنده را وارد کنید:\n'+hint,parents[0].no);if(parent===null)return;parent=parent.trim();if(!parents.some(function(x){return parent!==''&&String(x.no||'')===parent;})){alert('پیشنهاد پایه معتبر نیست');return;}command('mark_amendment',{offerNo:no,parentOfferNo:parent},{onAck:function(){toast('پیشنهاد به‌عنوان متمم مستقل علامت‌گذاری شد؛ هنگام برد اتصال یا پرونده مستقل انتخاب می‌شود','ok');if(typeof renderOffers==='function')renderOffers();},onReject:function(e){alert('⛔ '+e.message);}});};
 
-  window.ptfAdminHardDelete=function(type,id,onDone){if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}api('admin_delete_plan',{entityType:type,entityId:id,idempotencyKey:'DELETE-PLAN|'+type+'|'+id+'|'+Date.now()}).then(function(d){var p=d.plan||{},deps=p.dependencies||[],lines=deps.map(function(x){return x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n');/* AW-03 (v34.7.22): وابستگی‌های خارج از دامنه (چک/خرید/تعهد/مرجوعی/بارنامه/پروژه) فقط اطلاع‌رسانی می‌شوند؛ حذف آن‌ها را پاک نمی‌کند. */var adv=p.advisoryDependencies||[],advTxt=adv.length?('\n\n⚠️ اقلام مرتبط که با این حذف پاک نمی‌شوند و ممکن است یتیم بمانند ('+adv.length+' مورد):\n'+adv.slice(0,12).map(function(x){return '• '+x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n')+(adv.length>12?'\n… و '+(adv.length-12)+' مورد دیگر':'')):'';if(!confirm('پیش‌بررسی حذف '+type+':\n'+(lines||'بدون وابستگی')+advTxt+(p.periodLocked?'\n\n⚠️ دوره مالی قفل است و با حذف، Snapshot نامعتبر و دوره باز می‌شود.':'')+'\n\nادامه؟'))return;var reason=prompt('دلیل حذف قطعی ادمین:','اشتباه ثبت/رکورد تکراری');if(reason===null||!reason.trim())return;return api('admin_delete_commit',{entityType:type,entityId:id,cascade:deps.length>0,confirm:'PTF-ADMIN-HARD-DELETE',reason:reason.trim(),idempotencyKey:'HARD-DELETE|'+type+'|'+id}).then(function(r){toast('حذف اتمیک انجام و Tombstone ثبت شد'+((r.result||{}).invalidatedYear?'؛ دوره '+r.result.invalidatedYear+' باز شد':''),'warn');if(typeof onDone==='function')onDone(r);});}).catch(function(e){alert('⛔ حذف انجام نشد: '+e.message);});};
+  window.ptfAdminHardDelete=function(type,id,onDone){
+    if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}
+    api('admin_delete_plan',{entityType:type,entityId:id,idempotencyKey:'DELETE-PLAN|'+type+'|'+id+'|'+Date.now()}).then(function(d){
+      var p=d.plan||{},deps=p.dependencies||[],lines=deps.map(function(x){return x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n');
+      /* AW-03: وابستگی‌های خارج از دامنه فقط اطلاع‌رسانی می‌شوند. */
+      var adv=p.advisoryDependencies||[],advTxt=adv.length?('\n\n⚠️ اقلام مرتبط که با این حذف پاک نمی‌شوند و ممکن است یتیم بمانند ('+adv.length+' مورد):\n'+adv.slice(0,12).map(function(x){return '• '+x.type+' '+(x.id||'')+(x.amount?' — '+money(x.amount):'');}).join('\n')+(adv.length>12?'\n… و '+(adv.length-12)+' مورد دیگر':'')):'';
+      if(!confirm('پیش‌بررسی حذف '+type+':\n'+(lines||'بدون وابستگی')+advTxt+(p.periodLocked?'\n\n⚠️ دوره مالی قفل است و با حذف، Snapshot نامعتبر و دوره باز می‌شود.':'')+'\n\nادامه؟'))return;
+      var reason=prompt('دلیل حذف قطعی ادمین:','اشتباه ثبت/رکورد تکراری');if(reason===null||!reason.trim())return;
+      command('admin_delete_commit',{entityType:type,entityId:id,cascade:deps.length>0,confirm:'PTF-ADMIN-HARD-DELETE',reason:reason.trim(),idempotencyKey:'HARD-DELETE|'+type+'|'+id},{
+        onAck:function(r){toast('حذف اتمیک انجام و Tombstone ثبت شد'+((r.result||{}).invalidatedYear?'؛ دوره '+r.result.invalidatedYear+' باز شد':''),'warn');if(typeof onDone==='function')onDone(r);},
+        onReject:function(e){alert('⛔ حذف انجام نشد: '+e.message);}
+      });
+    },function(e){alert('⛔ پیش‌بررسی حذف دریافت نشد: '+e.message);});
+  };
 
   /* ----- Case financial workspace ----- */
   /* ممیزی v34.7.26: رکوردهای قدیمی ممکن است caseId را با `cd` پرونده ذخیره کرده باشند در
@@ -483,11 +567,11 @@
     ]:[]),okText:existing?'ثبت اصلاحیه':'ثبت دریافت',onOk:function(v){
       var payload={caseId:caseId(c),amountIRR:num(v.amt),receivedAt:v.date,method:v.method,destinationAccount:v.account,referenceNo:v.ref,note:v.note,fxRate:num(v.rate),fxRateSource:v.rateSource};
       if(existing){payload.receiptId=receiptId(existing);payload.reason=v.reason;if(v.targetCase&&v.targetCase!==caseId(c))payload.caseId=v.targetCase;}
-      api(existing?'correct_receipt':'post_receipt',payload).then(function(){toast(existing?'دریافت با سند معکوس اصلاح شد':'دریافت قطعی ثبت شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(caseId(c));if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();}).catch(function(e){var map={fiscal_period_locked:'دوره مالی قفل است',fx_rate_and_source_required:'نرخ و منبع نرخ الزامی است',cheque_requires_collection:'چک باید ابتدا در ماژول چک وصول شود'};alert('⛔ '+(map[e.message]||e.message));});
+      command(existing?'correct_receipt':'post_receipt',payload,{onAck:function(){toast(existing?'دریافت با سند معکوس اصلاح شد':'دریافت قطعی ثبت شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(caseId(c));if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();},onReject:function(e){var map={fiscal_period_locked:'دوره مالی قفل است',fx_rate_and_source_required:'نرخ و منبع نرخ الزامی است',cheque_requires_collection:'چک باید ابتدا در ماژول چک وصول شود'};alert('⛔ '+(map[e.message]||e.message));}});
     }});
   };
   window.ptfReceiptCorrectOpen = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(r)window.ptfReceiptOpen(r.caseId,r); };
-  window.ptfReceiptVoid = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(!r)return;var reason=prompt('دلیل ابطال دریافت:', 'اشتباه ثبت');if(reason===null||!reason.trim())return;api('void_receipt',{receiptId:id,reason:reason.trim()}).then(function(){toast('دریافت ابطال و اثر خزانه/تخصیص بازسازی شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(r.caseId);if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();}).catch(function(e){alert('⛔ '+e.message);}); };
+  window.ptfReceiptVoid = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(!r)return;var reason=prompt('دلیل ابطال دریافت:', 'اشتباه ثبت');if(reason===null||!reason.trim())return;command('void_receipt',{receiptId:id,reason:reason.trim()},{onAck:function(){toast('دریافت ابطال و اثر خزانه/تخصیص بازسازی شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(r.caseId);if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();},onReject:function(e){alert('⛔ '+e.message);}}); };
 
   /* ----- INV-01 (v34.7.23 / فاز E): ابطال سروری صورتحساب غیررسمی -----
      مسیر واحد و اتمیک: سرور سند را void می‌کند، تخصیص‌های همان پرونده را با قواعد قطعی
@@ -508,11 +592,11 @@
   window.ptfFinAttachOpen=function(type,id){
     if(!id)return;document.querySelectorAll('#ptfFinAttachDlg').forEach(function(x){x.remove();});var rows=ownerAttachments(type,id).map(function(a){return '<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed var(--brd)"><span>📎 '+esc(a.name||a.objectKey)+'<br><small>'+esc(a.category||'سند مالی')+' — '+esc(a.uploadedAt||'')+'</small></span><span><button class="bt bt-o" style="font-size:11px" onclick="openStoredFile(\''+arg(a.objectKey)+'\',\''+arg(a.name||'')+'\')">مشاهده</button> '+(canFinance()?'<button class="bt bt-o" style="font-size:11px" onclick="ptfFinAttachReplace(\''+arg(a._id)+'\',\''+arg(type)+'\',\''+arg(id)+'\')">اصلاح/جایگزینی</button> <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfFinAttachDelete(\''+arg(a._id)+'\',\''+arg(type)+'\',\''+arg(id)+'\')">حذف</button>':'')+'</span></div>';}).join('')||'<div style="color:#94a3b8">سندی ثبت نشده است.</div>';
     var html='<div class="md-b" id="ptfFinAttachDlg" style="display:grid;z-index:3100" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:620px"><h3>📎 اسناد مالی رکورد</h3>'+rows+(canFinance()?'<div class="fld"><label>نوع/شرح سند</label><input id="ptfFinAttCat" value="supporting_document"></div><div id="ptfFinAttUp" style="border:1px dashed var(--brd);border-radius:10px;padding:8px"></div>':'')+'<div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);
-    if(canFinance()&&typeof attachUploadWidget==='function')attachUploadWidget('ptfFinAttUp','financial/'+type+'/'+id,function(f){var cat=((document.getElementById('ptfFinAttCat')||{}).value||'supporting_document').trim();api('attachment_add',{ownerType:type,ownerId:id,category:cat,file:f}).then(function(){toast('سند به خود رکورد متصل شد','ok');window.ptfFinAttachOpen(type,id);}).catch(function(e){deleteFinancialObject(f.key,function(){});alert('⛔ اتصال سند ناموفق بود و فایل موقت پاک شد: '+e.message);});});
+    if(canFinance()&&typeof attachUploadWidget==='function')attachUploadWidget('ptfFinAttUp','financial/'+type+'/'+id,function(f){var cat=((document.getElementById('ptfFinAttCat')||{}).value||'supporting_document').trim();command('attachment_add',{ownerType:type,ownerId:id,category:cat,file:f},{onAck:function(){toast('سند به خود رکورد متصل شد','ok');window.ptfFinAttachOpen(type,id);},onReject:function(e){deleteFinancialObject(f.key,function(){});alert('⛔ اتصال سند رد شد و فایل موقت پاک شد: '+e.message);},onUncertain:function(e){alert('⚠️ نتیجه اتصال سند نامشخص است؛ فایل برای بازیابی پاک نشد. شناسه پیگیری: '+e.operationId);}});});
   };
-  window.ptfFinAttachReplace=function(attId,type,id){var reason=prompt('دلیل اصلاح/جایگزینی سند:','فایل صحیح جایگزین می‌شود');if(reason===null||!reason.trim())return;document.querySelectorAll('#ptfFinReplaceDlg').forEach(function(x){x.remove();});var html='<div class="md-b" id="ptfFinReplaceDlg" style="display:grid;z-index:3400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px"><h3>جایگزینی نسخه‌دار سند مالی</h3><div id="ptfFinReplaceUp" style="border:1px dashed var(--brd);border-radius:9px;padding:8px"></div><button class="bt bt-o" style="margin-top:8px" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);if(typeof attachUploadWidget==='function')attachUploadWidget('ptfFinReplaceUp','financial/'+type+'/'+id+'/replacements',function(f){api('attachment_replace',{attachmentId:attId,ownerType:type,ownerId:id,reason:reason.trim(),file:f}).then(function(){toast('نسخه جدید فعال و نسخه قبل در تاریخچه نگهداری شد','ok');document.querySelectorAll('#ptfFinReplaceDlg').forEach(function(x){x.remove();});window.ptfFinAttachOpen(type,id);}).catch(function(e){deleteFinancialObject(f.key,function(){});alert('⛔ جایگزینی انجام نشد؛ نسخه قبلی فعال ماند و فایل موقت پاک شد: '+e.message);});});};
+  window.ptfFinAttachReplace=function(attId,type,id){var reason=prompt('دلیل اصلاح/جایگزینی سند:','فایل صحیح جایگزین می‌شود');if(reason===null||!reason.trim())return;document.querySelectorAll('#ptfFinReplaceDlg').forEach(function(x){x.remove();});var html='<div class="md-b" id="ptfFinReplaceDlg" style="display:grid;z-index:3400" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px"><h3>جایگزینی نسخه‌دار سند مالی</h3><div id="ptfFinReplaceUp" style="border:1px dashed var(--brd);border-radius:9px;padding:8px"></div><button class="bt bt-o" style="margin-top:8px" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);if(typeof attachUploadWidget==='function')attachUploadWidget('ptfFinReplaceUp','financial/'+type+'/'+id+'/replacements',function(f){command('attachment_replace',{attachmentId:attId,ownerType:type,ownerId:id,reason:reason.trim(),file:f},{onAck:function(){toast('نسخه جدید فعال و نسخه قبل در تاریخچه نگهداری شد','ok');document.querySelectorAll('#ptfFinReplaceDlg').forEach(function(x){x.remove();});window.ptfFinAttachOpen(type,id);},onReject:function(e){deleteFinancialObject(f.key,function(){});alert('⛔ جایگزینی رد شد؛ نسخه قبلی فعال ماند و فایل موقت پاک شد: '+e.message);},onUncertain:function(e){alert('⚠️ نتیجه جایگزینی نامشخص است؛ فایل جدید برای reconciliation پاک نشد. شناسه پیگیری: '+e.operationId);}});});};
   function deleteFinancialObject(key,cb){fetch('../api/storage.php?action=delete_financial',{method:'POST',headers:authHeaders(),body:JSON.stringify({key:key})}).then(function(r){return r.json().then(function(d){if(!r.ok||!d.ok)throw new Error(d.error||('HTTP '+r.status));return d;});}).then(function(d){cb({ok:true,data:d});}).catch(function(e){cb({ok:false,error:e.message||'حذف ابری ناموفق'});});}
-  window.ptfFinAttachDelete=function(attId,type,id){var reason=prompt('دلیل حذف سند مالی:','فایل اشتباه');if(reason===null||!reason.trim())return;var a=data('ptf_crm_fin_attachments').filter(function(x){return x&&x._id===attId;})[0];if(!a)return;if(!confirm('فایل از فضای ابری و رکورد مالی حذف شود؟ Metadata حسابرسی باقی می‌ماند.'))return;deleteFinancialObject(a.objectKey,function(res){if(!res.ok){alert('⛔ فایل ابری حذف نشد و رکورد دست‌نخورده ماند: '+res.error);return;}api('attachment_delete',{attachmentId:attId,ownerType:type,ownerId:id,reason:reason.trim()}).then(function(){toast('فایل ابری حذف و Tombstone مالی ثبت شد','warn');window.ptfFinAttachOpen(type,id);}).catch(function(e){alert('⛔ فایل ابری حذف شد ولی ثبت Tombstone خطا داد؛ فوراً کیفیت داده را بررسی کنید: '+e.message);});});};
+  window.ptfFinAttachDelete=function(attId,type,id){var reason=prompt('دلیل حذف سند مالی:','فایل اشتباه');if(reason===null||!reason.trim())return;var a=data('ptf_crm_fin_attachments').filter(function(x){return x&&x._id===attId;})[0];if(!a)return;if(!confirm('ابتدا حذف رکورد مالی روی سرور قطعی و سپس فایل ابری پاک شود؟ Metadata حسابرسی باقی می‌ماند.'))return;command('attachment_delete',{attachmentId:attId,ownerType:type,ownerId:id,reason:reason.trim()},{onAck:function(){deleteFinancialObject(a.objectKey,function(res){toast(res.ok?'Tombstone مالی ثبت و فایل ابری حذف شد':'Tombstone مالی ثبت شد؛ پاک‌سازی فایل ابری نیاز به بررسی دارد: '+res.error,res.ok?'warn':'warn');window.ptfFinAttachOpen(type,id);});},onReject:function(e){alert('⛔ حذف سند رد شد و فایل ابری دست‌نخورده ماند: '+e.message);},onUncertain:function(e){alert('⚠️ نتیجه حذف سند نامشخص است؛ فایل ابری عمداً پاک نشد. شناسه پیگیری: '+e.operationId);}});};
 
   /* ----- Read-only deterministic integrity engine + reviewed repair. ----- */
   window.ptfSalesIntegrityScan=function(){
@@ -588,9 +672,11 @@
     var keep=(document.getElementById('dupKeep')||{}).value||'',remove=(document.getElementById('dupRemove')||{}).value||'',reason=((document.getElementById('dupReason')||{}).value||'').trim(),confirmWord=((document.getElementById('dupConfirm')||{}).value||'').trim();
     if(!keep||!remove||keep===remove){alert('پرونده اصلی و پرونده تکراری را جداگانه انتخاب کنید');return;}if(!reason){alert('دلیل ادغام الزامی است');return;}if(confirmWord!=='ادغام'){alert('برای جلوگیری از اشتباه، کلمه «ادغام» را دقیق وارد کنید');return;}
     var btn=document.getElementById('dupMergeBtn');if(btn){btn.disabled=true;btn.textContent='در حال پیش‌بررسی و ثبت اتمیک…';}
-    api('duplicate_case_merge',{offerNo:no,keepCaseId:keep,removeCaseId:remove,reason:reason,planHash:planHash,confirm:'PTF-DUPLICATE-CASE-MERGE',idempotencyKey:'MERGE-DUP-CASE|'+no+'|'+keep+'|'+remove+'|'+String(planHash).slice(0,16)})
-      .then(function(d){var r=d.result||{},m=r.movedReferences||{};closeFindingGuide();toast('پرونده‌ها بدون حذف شواهد ادغام شدند؛ '+Object.keys(m).reduce(function(s,k){return s+(+m[k]||0);},0)+' ارجاع مرتبط منتقل شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof renderDeals==='function')renderDeals();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();})
-      .catch(function(e){var map={duplicate_case_plan_stale:'داده از زمان بازکردن راهنما تغییر کرده است؛ راهنما را ببندید و دوباره باز کنید.',case_identity_conflict:'هویت دو پرونده متفاوت است؛ ادغام خودکار متوقف شد تا پرونده اشتباه ترکیب نشود.',duplicate_case_not_found:'سرور دیگر دو پرونده مرتبط نمی‌بیند؛ ابتدا همگام‌سازی کنید.'};alert('⛔ '+(map[e.message]||e.message));if(btn){btn.disabled=false;btn.textContent='پیش‌بررسی نهایی و ادغام کنترل‌شده';}});
+    command('duplicate_case_merge',{offerNo:no,keepCaseId:keep,removeCaseId:remove,reason:reason,planHash:planHash,confirm:'PTF-DUPLICATE-CASE-MERGE',idempotencyKey:'MERGE-DUP-CASE|'+no+'|'+keep+'|'+remove+'|'+String(planHash).slice(0,16)},{
+      onAck:function(d){var r=d.result||{},m=r.movedReferences||{};closeFindingGuide();toast('پرونده‌ها بدون حذف شواهد ادغام شدند؛ '+Object.keys(m).reduce(function(s,k){return s+(+m[k]||0);},0)+' ارجاع مرتبط منتقل شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof renderDeals==='function')renderDeals();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();},
+      onReject:function(e){var map={duplicate_case_plan_stale:'داده از زمان بازکردن راهنما تغییر کرده است؛ راهنما را ببندید و دوباره باز کنید.',case_identity_conflict:'هویت دو پرونده متفاوت است؛ ادغام خودکار متوقف شد تا پرونده اشتباه ترکیب نشود.',duplicate_case_not_found:'سرور دیگر دو پرونده مرتبط نمی‌بیند؛ ابتدا همگام‌سازی کنید.'};alert('⛔ '+(map[e.message]||e.message));},
+      onFinally:function(outcome){if(outcome.state!=='acked'&&btn){btn.disabled=false;btn.textContent='پیش‌بررسی نهایی و ادغام کنترل‌شده';}}
+    });
   };
   window.ptfSalesFindingGuideOpen=function(id){
     var f=findingById(id);if(!f){alert('این یافته پس از تازه‌سازی دیگر وجود ندارد');return;}
@@ -619,19 +705,17 @@
     var reason=prompt('دلیل بازگرداندن پیشنهاد برنده به وضعیت قبل:','برد اشتباه / نیاز به اصلاح پیشنهاد');
     if(reason===null||!reason.trim())return;
     if(!confirm('⚠️ سرور ابتدا پرونده، فاکتور و سایر وابستگی‌ها را بررسی می‌کند. فقط برد بدون وابستگی بازگردانده می‌شود. ادامه می‌دهید؟'))return;
-    api('revoke_orphan_delete',{offerNo:no,delete:false,reason:reason.trim(),idempotencyKey:'REVOKE-WIN|'+no+'|'+Date.now()})
-      .then(function(){toast('برد کنترل‌شده لغو و پیشنهاد به وضعیت قبل بازگردانده شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();})
-      .catch(function(e){
-        if(e.payload&&e.payload.dependencies)alert('⛔ این پیشنهاد وابستگی عملیاتی دارد و بازگشت خودکار متوقف شد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n')+'\n\nابتدا وابستگی‌ها را از پرونده مربوط بررسی و اصلاح کنید.');
-        else alert('⛔ '+e.message);
-      });
+    command('revoke_orphan_delete',{offerNo:no,delete:false,reason:reason.trim(),idempotencyKey:'REVOKE-WIN|'+no+'|'+Date.now()},{
+      onAck:function(){toast('برد کنترل‌شده لغو و پیشنهاد به وضعیت قبل بازگردانده شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();},
+      onReject:function(e){if(e.payload&&e.payload.dependencies)alert('⛔ این پیشنهاد وابستگی عملیاتی دارد و بازگشت خودکار متوقف شد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n')+'\n\nابتدا وابستگی‌ها را از پرونده مربوط بررسی و اصلاح کنید.');else alert('⛔ '+e.message);}
+    });
   };
-  window.ptfRepairOrphanOffer=function(no){if(role()!=='admin'){alert('حذف پیشنهاد فقط برای ادمین مجاز است');return;}var reason=prompt('برد این پیشنهاد لغو و خود پیشنهاد حذف شود. دلیل:','برد اشتباه و پرونده تشکیل نشده');if(reason===null||!reason.trim())return;if(!confirm('⚠️ پس از پیش‌بررسی سرور، برد لغو و پیشنهاد با Tombstone حذف شود؟'))return;api('revoke_orphan_delete',{offerNo:no,delete:true,reason:reason.trim()}).then(function(){toast('برد یتیم لغو و پیشنهاد حذف شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();}).catch(function(e){if(e.payload&&e.payload.dependencies)alert('⛔ وابستگی وجود دارد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n'));else alert('⛔ '+e.message);});};
+  window.ptfRepairOrphanOffer=function(no){if(role()!=='admin'){alert('حذف پیشنهاد فقط برای ادمین مجاز است');return;}var reason=prompt('برد این پیشنهاد لغو و خود پیشنهاد حذف شود. دلیل:','برد اشتباه و پرونده تشکیل نشده');if(reason===null||!reason.trim())return;if(!confirm('⚠️ پس از پیش‌بررسی سرور، برد لغو و پیشنهاد با Tombstone حذف شود؟'))return;command('revoke_orphan_delete',{offerNo:no,delete:true,reason:reason.trim()},{onAck:function(){toast('برد یتیم لغو و پیشنهاد حذف شد','ok');if(typeof renderOffers==='function')renderOffers();if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();},onReject:function(e){if(e.payload&&e.payload.dependencies)alert('⛔ وابستگی وجود دارد:\n'+e.payload.dependencies.map(function(x){return x.type+' '+x.id;}).join('\n'));else alert('⛔ '+e.message);}});};
   window.ptfSalesMigrationOpen=function(){
     if(role()!=='admin'){alert('فقط ادمین مجاز است');return;}
     api('migration_dry_run',{idempotencyKey:'DRYRUN|'+Date.now()}).then(function(d){var r=d.report||{},issues=r.issues||[],safe=r.safeReceiptCandidates||[];document.querySelectorAll('#ptfSalesMigrationDlg').forEach(function(x){x.remove();});var html='<div class="md-b" id="ptfSalesMigrationDlg" style="display:grid;z-index:3500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:900px;max-height:94vh;overflow:auto"><h3>مهاجرت کنترل‌شده فروش تا وصول v35</h3><div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px;font-size:12px">فقط payments[] واقعی، غیرچکی و دارای پرونده یکتا منتقل می‌شود. paid/cashFull بدون رویداد و همه موارد مبهم هیچ اثر مالی نمی‌گیرند.</div><div class="sr" style="margin:9px 0"><div class="sc"><b>'+safe.length+'</b><span>وصول قابل مهاجرت امن</span></div><div class="sc"><b>'+issues.length+'</b><span>مورد مبهم/نیازمند بررسی</span></div></div><h4>موارد مبهم</h4><div style="font-size:12px">'+(issues.map(function(x){return'<div style="padding:4px;border-bottom:1px dashed var(--brd)">'+esc(x.type)+' — '+esc(x.ref||'')+(x.amount?' — '+money(x.amount):'')+'</div>';}).join('')||'موردی نیست')+'</div><h4>وصول‌های امن پیشنهادی</h4><div style="font-size:12px">'+(safe.map(function(x){return'<div style="padding:4px;border-bottom:1px dashed var(--brd)">'+esc(x.offerNo)+' — '+money(x.amount)+' — '+esc(x.paymentRef||'')+'</div>';}).join('')||'موردی نیست')+'</div><div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button><button class="bt" '+(safe.length?'':'disabled')+' onclick="ptfSalesMigrationCommit()">بک‌آپ را تأیید می‌کنم — اجرای موارد امن</button></div></div></div>';document.getElementById('panels').insertAdjacentHTML('beforeend',html);}).catch(function(e){alert('⛔ گزارش مهاجرت دریافت نشد: '+e.message);});
   };
-  window.ptfSalesMigrationCommit=function(){if(!confirm('فقط موارد بدون ابهام مهاجرت شوند؟ موارد مشکوک دست‌نخورده و در کیفیت داده باقی می‌مانند.'))return;api('migration_apply_safe',{confirm:'PTF-SALES-V35-MIGRATE',idempotencyKey:'MIGRATE-SALES-V35'}).then(function(d){toast((d.result||{}).migratedReceipts+' وصول واقعی مهاجرت شد؛ موارد مبهم دست‌نخورده ماند','ok');document.querySelectorAll('#ptfSalesMigrationDlg').forEach(function(x){x.remove();});if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();}).catch(function(e){alert('⛔ مهاجرت متوقف شد: '+e.message);});};
+  window.ptfSalesMigrationCommit=function(){if(!confirm('فقط موارد بدون ابهام مهاجرت شوند؟ موارد مشکوک دست‌نخورده و در کیفیت داده باقی می‌مانند.'))return;command('migration_apply_safe',{confirm:'PTF-SALES-V35-MIGRATE',idempotencyKey:'MIGRATE-SALES-V35'},{onAck:function(d){toast((d.result||{}).migratedReceipts+' وصول واقعی مهاجرت شد؛ موارد مبهم دست‌نخورده ماند','ok');document.querySelectorAll('#ptfSalesMigrationDlg').forEach(function(x){x.remove();});if(typeof ptfDataQualityRender==='function')ptfDataQualityRender();},onReject:function(e){alert('⛔ مهاجرت متوقف شد: '+e.message);}});};
   window.ptfSalesIntegrityHtml=function(){
     var f=window.ptfSalesIntegrityScan();
     var adminAction=role()==='admin'?'<button class="bt bt-o" style="font-size:11px;margin-right:6px" onclick="ptfSalesMigrationOpen()">گزارش و مهاجرت کنترل‌شده</button>':'';

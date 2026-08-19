@@ -724,10 +724,11 @@
   window.cfCaseReceiptVoid = function (receiptId, customerCd) {
     var reason = prompt('دلیل ابطال دریافت قطعی را وارد کنید:', 'ثبت تکراری / اشتباه در دریافت');
     if (reason === null || !reason.trim()) return;
-    if (typeof window.ptfSalesDomainApi !== 'function') { alert('موتور مالی سرور در دسترس نیست'); return; }
-    window.ptfSalesDomainApi('void_receipt', { receiptId: receiptId, reason: reason.trim(), idempotencyKey: 'CF-VOID-RCPT|' + receiptId })
-      .then(function () { var dlg=document.getElementById('cfAccountDlg');if(dlg)dlg.remove();if(typeof ptfToast==='function')ptfToast('دریافت قطعی ابطال و مانده بازسازی شد','warn');cfOpen(customerCd); })
-      .catch(function(e){alert('⛔ ابطال دریافت انجام نشد: '+e.message);});
+    if (typeof window.ptfSalesDomainCommand !== 'function') { alert('موتور مالی سرور در دسترس نیست'); return; }
+    window.ptfSalesDomainCommand('void_receipt', { receiptId: receiptId, reason: reason.trim(), idempotencyKey: 'CF-VOID-RCPT|' + receiptId },{
+      onAck:function () { var dlg=document.getElementById('cfAccountDlg');if(dlg)dlg.remove();if(typeof ptfToast==='function')ptfToast('دریافت قطعی ابطال و مانده بازسازی شد','warn');cfOpen(customerCd); },
+      onReject:function(e){alert('⛔ ابطال دریافت انجام نشد: '+e.message);}
+    });
   };
   window.cfCaseReceiptDelete = function (receiptId, customerCd) {
     if (typeof curRole !== 'function' || curRole() !== 'admin') { alert('حذف قطعی دریافت فقط برای ادمین مجاز است'); return; }

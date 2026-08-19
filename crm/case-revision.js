@@ -387,7 +387,7 @@
     var msgC = 'رویژن پیشنهاد برنده ' + (aw.offer.no || '') + ' با مبلغ ' + money(newTotal) + ' ' + currencyLabel + ' ثبت شود؟\n\nمبلغ فعلی: ' + money(oldTotal) + ' ' + currencyLabel + '\nدلتا: ' + money(newTotal - oldTotal) + ' ' + currencyLabel;
     if (voidInv) msgC += '\n\nفاکتورهای فعال این پرونده باطل می‌شوند؛ رسیدها می‌مانند.';
     if (!confirm(msgC)) return;
-    if (typeof W.ptfSalesDomainApi !== 'function') { alert('⛔ ماژول سرور فروش بارگذاری نشده است؛ بازنگری سند برد فقط از مسیر سرور انجام می‌شود.'); return; }
+    if (typeof W.ptfSalesDomainApi !== 'function' || typeof W.ptfSalesDomainCommand !== 'function') { alert('⛔ ماژول سرور فروش بارگذاری نشده است؛ بازنگری سند برد فقط از مسیر سرور انجام می‌شود.'); return; }
     var operationId = String(dlg.getAttribute('data-operation-id') || '');
     var expectedOfferId = String(dlg.getAttribute('data-offer-id') || '');
     var expectedRev = +(dlg.getAttribute('data-expected-rev') || 0);
@@ -395,16 +395,16 @@
     var submitBtn = dlg.querySelector('#ptfRevSubmitBtn');
     dlg.setAttribute('data-in-flight', '1');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ در انتظار تأیید سرور…'; }
-    W.ptfSalesDomainApi('revise_award', {
+    W.ptfSalesDomainCommand('revise_award', {
       caseId: idOf(c), reason: reason, lines: lines, voidInvoices: voidInv,
       expectedOfferId: expectedOfferId, expectedRev: expectedRev, idempotencyKey: operationId
-    }).then(function (d) {
+    },{onAck:function (d) {
       var r = (d && d.result) || {};
       dlg.remove();
       toast('✅ رویژن ' + (r.revisionOfferNo || '') + (r.rev ? ' Rev.' + r.rev : '') + ' ثبت شد — مبلغ: ' + money(r.effectiveAmount || r.newAmount || newTotal) + ' ' + currencyLabel, 'ok');
       if (typeof renderDeals === 'function') renderDeals();
       if (typeof renderOffers === 'function') renderOffers();
-    }).catch(function (e) {
+    },onReject:function (e) {
       var msg = (e && e.message) ? e.message : String(e || '');
       var stale = msg.indexOf('award_revision_conflict') > -1 || msg.indexOf('award_offer_identity_conflict') > -1 || msg.indexOf('duplicate_sales_cases') > -1 || msg.indexOf('duplicate_offer_no') > -1;
       dlg.removeAttribute('data-in-flight');
@@ -416,9 +416,13 @@
       } else if (msg.indexOf('revision_precondition_required') > -1) {
         alert('⛔ نسخهٔ صفحه قدیمی است؛ صفحه را آنلاین تازه‌سازی و فرم رویژن را دوباره باز کنید.');
       } else {
-        alert('⛔ بازنگری سند برد انجام نشد: ' + msg + '\n\nدر خطای ارتباط، همین پنجره را نبندید و دوباره ثبت را بزنید؛ operationId ثابت مانع رویژن تکراری می‌شود.');
+        alert('⛔ بازنگری سند برد انجام نشد: ' + msg);
       }
-    });
+    },onUncertain:function(e){
+      dlg.removeAttribute('data-in-flight');
+      if(submitBtn){submitBtn.disabled=false;submitBtn.textContent='بررسی نتیجه / تلاش مجدد';}
+      alert('⚠️ نتیجه رویژن هنوز نامشخص است. پنجره و operationId حفظ شد؛ همین دکمه نتیجه همان فرمان را بازیابی می‌کند. شناسه پیگیری: '+e.operationId);
+    }});
   };
 
   /* ---------------- P6: گزارش بازنگری و سرنوشت اقلام ---------------- */

@@ -1308,7 +1308,24 @@ switch($action) {
            Device A و B هر دو meta را rev=5 می‌خوانند → هر دو rev=6 می‌نویسند → lost update.
            با flock: دومی منتظر می‌ماند تا اولی تمام شود و rev واقعی را می‌بیند. */
         $metaLock = @fopen($meta_file . '.lock', 'c+');
-        if ($metaLock) { @flock($metaLock, LOCK_EX); /* re-read meta under lock */ $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : []; }
+        if (!$metaLock || !@flock($metaLock, LOCK_EX)) {
+            if ($metaLock) @fclose($metaLock);
+            http_response_code(503);
+            echo json_encode(['ok'=>false,'error'=>'sync_lock_unavailable','needRetry'=>true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        /* re-read meta only after the shared lock is definitely held */
+        $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : [];
+        /* v34.7.43: اگر process فرمان فروش پس از انتشار بخشی از projectionها قطع شده
+           باشد، WAL باید ابتدا توسط همان sales-domain و زیر همین lock بازیابی شود.
+           data_push عمومی حق ندارد snapshot کامل دیگری را روی تراکنش نیمه‌تمام بنویسد. */
+        $pendingSalesTx = glob($sdir . '/.sales-tx-*.json') ?: [];
+        if ($pendingSalesTx) {
+            if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
+            http_response_code(503);
+            echo json_encode(['ok'=>false,'error'=>'pending_sales_transaction_recovery','needRetry'=>true], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         /* v33.22.0: خواندن از مسیر یکپارچه (در mode=mysql از دیتابیس) */
         $serverArchiveJson = sync_key_read($sdir, 'ptf_crm_deleted_archive');
         if ($serverArchiveJson === null) $serverArchiveJson = '[]';

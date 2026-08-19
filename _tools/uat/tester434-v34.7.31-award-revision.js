@@ -42,6 +42,7 @@ function client(db, opts) {
     audit: function (a, b) { log.audits.push(a + '|' + b); },
     ptfSurplusAdd: function (pcode, qty, loc, dealCd, note) { log.surplus.push({ pcode: pcode, qty: qty, dealCd: dealCd, note: note }); return { cd: 'SURP-T', prodCd: pcode, qty: qty }; },
     ptfSalesDomainApi: function (a, payload) { log.api.push({ action: a, payload: payload }); return Promise.resolve({ ok: true, result: { revisionOfferNo: 'X-R1', newAmount: 1 } }); },
+    ptfSalesDomainCommand: function (a, payload, h) { log.api.push({ action: a, payload: payload }); var d={ok:true,result:{revisionOfferNo:'X-R1',newAmount:1}}; return Promise.resolve().then(function(){if(h&&h.onAck)h.onAck(d);return{state:'acked',response:d};}); },
     renderDeals: function () {}, renderOffers: function () {},
     window: null
   };
@@ -114,7 +115,7 @@ function baseDb() {
   T('P5 اقلام سند برد از پرونده خوانده می‌شوند', aw.items.length === 2 && aw.offer.no === 'PTF-CO-500');
   T('P5 گارد نقش برای بازنگری وجود دارد', /canRevise\(\)/.test(read('crm/case-revision.js')));
   var src = read('crm/case-revision.js');
-  T('P5 بازنگری فقط از مسیر سرور انجام می‌شود', /ptfSalesDomainApi\('revise_award'/.test(src) && src.indexOf('فقط از مسیر سرور انجام می‌شود') > -1);
+  T('P5 بازنگری فقط از مسیر سرور انجام می‌شود', /ptfSalesDomainCommand\('revise_award'/.test(src) && src.indexOf('فقط از مسیر سرور انجام می‌شود') > -1);
   T('P5 دلیل بازنگری اجباری است', /دلیل بازنگری الزامی است/.test(src));
   T('P5 پیام مسدودی فاکتور رسمی برای کاربر ترجمه شده', src.indexOf('official_invoice_blocks_decrease') > -1 && src.indexOf('کاهش مبلغ سند برد مسدود است') > -1);
 })();

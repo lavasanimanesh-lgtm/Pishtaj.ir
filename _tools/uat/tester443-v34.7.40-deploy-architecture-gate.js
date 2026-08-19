@@ -38,7 +38,7 @@ try {
   fs.writeFileSync(target,src.replace(match[0],match[0]+'\n'+match[0]));
   var duplicated=cp.spawnSync(process.execPath,[path.join(tmp,'_tools/arch/arch-guard.js'),'--quiet'],{cwd:tmp,encoding:'utf8'});
   assert.notStrictEqual(duplicated.status,0,'multiset comparison accepted a duplicate signature');
-  assert.ok(/A3[^\n]*106\/105/.test(duplicated.stdout),'duplicate was not reported as A3 106/105:\n'+duplicated.stdout+duplicated.stderr);
+  assert.ok(/❌ A3: archive\.js/.test(duplicated.stdout)&&/ARCH GUARD: FAIL/.test(duplicated.stdout),'duplicate signature was not reported as a new blocking A3 finding:\n'+duplicated.stdout+duplicated.stderr);
 } finally { fs.rmSync(tmp,{recursive:true,force:true}); }
 
 assert.strictEqual((read('crm/rbac.js').match(/window\.ptfSetInvoiceDue\s*=\s*function/g)||[]).length,1,'invoice due-date action has one owner');

@@ -28,7 +28,7 @@ assert.ok(/idempotencyKey: operationId/.test(submit)&&!/idempotencyKey:[^\n]*Dat
 assert.ok(/expectedOfferId: expectedOfferId, expectedRev: expectedRev/.test(submit),'client sends optimistic concurrency preconditions');
 assert.ok(/line\.sourceIndex = i/.test(submit),'legacy lines without IDs retain a server-verifiable source index');
 assert.ok(/award_revision_conflict/.test(submit)&&/دستگاه دیگری تغییر کرده/.test(submit),'user gets an explicit stale-write explanation');
-assert.ok(/همین پنجره را نبندید و دوباره ثبت را بزنید/.test(submit),'lost-response retry guidance is explicit');
+assert.ok(/onUncertain/.test(submit)&&/پنجره و operationId حفظ شد/.test(submit)&&/بررسی نتیجه \/ تلاش مجدد/.test(submit),'lost-response retry preserves the exact operation intent');
 assert.ok(/data-currency/.test(js)&&/currencyLabel/.test(submit),'foreign-currency revisions are not mislabeled as IRR');
 
 console.log('PASS tester444-v34.7.41: award revision is idempotent, concurrency-safe, and metadata-preserving');

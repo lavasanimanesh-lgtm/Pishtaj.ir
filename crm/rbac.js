@@ -1050,7 +1050,7 @@ function savePay(invCd) {
   var paid = window.PTF && PTF.invPaidSum ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
   if (paid + amt > inv.amount) { alert('مبلغ از مانده فاکتور بیشتر است (مانده: ' + (inv.amount - paid).toLocaleString('fa-IR') + ')'); return; }
   var howSel = ((document.getElementById('nPayHow') || {}).value || 'حواله بانکی');
-  if (howSel !== 'چک' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainApi === 'function') {
+  if (howSel !== 'چک' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainCommand === 'function') {
     var cid = String(inv.caseId || '').trim();
     if (!cid) {
       var ono = String(inv.offerNo || '').trim();
@@ -1062,20 +1062,20 @@ function savePay(invCd) {
       }
     }
     if (cid) {
-      window.ptfSalesDomainApi('post_receipt', {
+      window.ptfSalesDomainCommand('post_receipt', {
         caseId: cid, amountIRR: amt, method: howSel,
         destinationAccount: 'حساب جاری — ثبت از مطالبات',
         receivedAt: (typeof faDate === 'function' ? faDate() : ''),
         note: 'ARCH-02: وصول از مسیر مطالبات — فاکتور ' + (inv.no || inv.cd || ''),
         idempotencyKey: 'SAVEPAY|' + String(inv.cd || invCd) + '|' + amt + '|' + Date.now()
-      }).then(function () {
+      },{onAck:function () {
         try { hideModal(); } catch (eH) {}
         try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eI) {}
         try { renderReceivables(); } catch (eR) {}
         if (typeof ptfToast === 'function') ptfToast('دریافت روی پرونده ثبت و به فاکتور تخصیص داده شد', 'ok');
-      }).catch(function (e) {
-        alert('⛔ ثبت سروری وصولی ناموفق بود و چیزی نوشته نشد: ' + ((e && e.message) || e));
-      });
+      },onReject:function (e) {
+        alert('⛔ ثبت سروری وصولی رد شد و چیزی نوشته نشد: ' + ((e && e.message) || e));
+      }});
       return;
     }
   }

@@ -37,7 +37,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
 (function arch02() {
   var rb = read('crm/rbac.js');
-  T('ARCH-02 savePay نقد/حواله را به post_receipt می‌فرستد', rb.indexOf("ptfSalesDomainApi('post_receipt'") > -1 && rb.indexOf('ARCH-02') > -1);
+  T('ARCH-02 savePay نقد/حواله را به post_receipt می‌فرستد', rb.indexOf("ptfSalesDomainCommand('post_receipt'") > -1 && rb.indexOf('ARCH-02') > -1);
   T('ARCH-02 چک از این مسیر رد نمی‌شود', rb.indexOf("howSel !== 'چک'") > -1);
   T('ARCH-02 بدون پرونده یکتا به مسیر legacy برمی‌گردد', rb.indexOf('hits.length === 1') > -1);
 })();

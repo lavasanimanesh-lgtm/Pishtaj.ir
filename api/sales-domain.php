@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.42';
+const SD_SERVICE_VERSION = '34.7.43';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -383,7 +383,11 @@ function sd_projection_value(string $key,array $value) {
     /* supplier_finance is an object envelope; domain collections are lists. */
     return $key==='ptf_crm_supplier_finance'?$value:array_values($value);
 }
-function sd_commit(array $changes): int {
+/* v34.7.43 — durable write-ahead transaction for every sales-domain command.
+   A process can die between projection renames. The WAL contains the complete final
+   projections (including the committed command receipt) before the first rename, so
+   the next command can finish the exact transaction instead of executing it twice. */
+function sd_publish_changes(array $changes): int {
     $dir = sd_sync_dir();
     $temps = [];
     foreach ($changes as $key => $value) {
@@ -403,6 +407,49 @@ function sd_commit(array $changes): int {
     foreach ($temps as $key => $pair) {
         try { ptf_db_write_rev($key, $pair[1], $rev); } catch (Throwable $e) { /* warm mirror; file remains authoritative fallback */ }
     }
+    return $rev;
+}
+function sd_pending_transaction_files(): array {
+    $files = glob(sd_sync_dir() . '/.sales-tx-*.json') ?: [];
+    sort($files, SORT_STRING);
+    return $files;
+}
+function sd_recover_pending_transactions(): int {
+    $recovered = 0;
+    foreach (sd_pending_transaction_files() as $file) {
+        $record = json_decode((string)@file_get_contents($file), true);
+        if (!is_array($record) || (int)($record['version'] ?? 0) !== 1 || !is_array($record['changes'] ?? null)) {
+            throw new RuntimeException('invalid_sales_transaction_wal');
+        }
+        $changes = $record['changes'];
+        $encoded = json_encode($changes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $expected = (string)($record['changesHash'] ?? '');
+        if ($encoded === false || $expected === '' || !hash_equals($expected, hash('sha256', $encoded))) {
+            throw new RuntimeException('sales_transaction_wal_hash_mismatch');
+        }
+        sd_publish_changes($changes);
+        if (!@unlink($file)) throw new RuntimeException('sales_transaction_wal_cleanup_failed');
+        $recovered++;
+    }
+    return $recovered;
+}
+function sd_commit(array $changes, array $context): int {
+    $dir = sd_sync_dir();
+    $encoded = json_encode($changes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($encoded === false) throw new RuntimeException('transaction_json_encode_failed');
+    $fingerprint = hash('sha256', (string)($context['key'] ?? '') . "\n" . (string)($context['action'] ?? '') . "\n" . (string)($context['requestHash'] ?? ''));
+    $wal = $dir . '/.sales-tx-' . substr($fingerprint, 0, 32) . '.json';
+    $tmp = $wal . '.tmp.' . bin2hex(random_bytes(4));
+    $record = [
+        'version'=>1,'operationId'=>(string)($context['key'] ?? ''),'action'=>(string)($context['action'] ?? ''),
+        'requestHash'=>(string)($context['requestHash'] ?? ''),'owner'=>(string)($context['owner'] ?? ''),
+        'createdAt'=>sd_now(),'changesHash'=>hash('sha256', $encoded),'changes'=>$changes
+    ];
+    $walJson = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($walJson === false || file_put_contents($tmp, $walJson, LOCK_EX) === false) throw new RuntimeException('transaction_wal_write_failed');
+    if (!rename($tmp, $wal)) throw new RuntimeException('transaction_wal_publish_failed');
+    $rev = sd_publish_changes($changes);
+    if (!@unlink($wal)) throw new RuntimeException('transaction_wal_cleanup_failed');
     return $rev;
 }
 function sd_result_data(array $changes): array {
@@ -732,6 +779,10 @@ $lockPath = sd_sync_dir() . '/meta.json.lock';
 $lock = fopen($lockPath, 'c+');
 if (!$lock || !flock($lock, LOCK_EX)) sd_out(['ok'=>false,'error'=>'lock_unavailable'], 503);
 try {
+    /* Complete a crash-interrupted command before reading any projection. The WAL
+       already contains its exact command receipt, therefore the replay below returns
+       the prior ACK and never executes the business mutation a second time. */
+    sd_recover_pending_transactions();
     $offers = sd_read('ptf_crm_offers');
     $cases = sd_read('ptf_crm_deals');
     $rfqs = sd_read('ptf_crm_rfqs');
@@ -748,6 +799,7 @@ try {
     $petty=[];$opex=[];$issuedCheques=[];$receivedCheques=[];$salesReturns=[];
     if($action==='duplicate_case_merge'){$petty=sd_read('ptf_crm_petty');$opex=sd_read('ptf_crm_opex');$issuedCheques=sd_read('ptf_crm_cheques_issued');$receivedCheques=sd_read('ptf_crm_cheques_received');$salesReturns=sd_read('ptf_crm_sales_returns');}
     $idem = sd_text($body['idempotencyKey'] ?? '', 120);
+    if ($idem === '') sd_out(['ok'=>false,'error'=>'idempotency_key_required'],422);
     $requestHash = sd_command_request_hash($action, $body);
     $old = sd_idempotency($commands, $idem, $action, $requestHash);
     if ($old) {
@@ -1436,7 +1488,7 @@ try {
     /* v34.7.18 (فاز ۱ / R9): نتیجهٔ تسویهٔ آخرین بازسازی همراه پاسخ برمی‌گردد تا کلاینت و آزمون‌ها
        بتوانند نقض اتحادها را بلافاصله ببینند. صرفاً گزارشی است و مسیر نوشتن را تغییر نمی‌دهد. */
     if(isset($GLOBALS['sd_last_reconcile']))$result['reconcile']=$GLOBALS['sd_last_reconcile'];
-    $result['keys']=array_keys($changes);sd_append_command($commands,$idem,$action,$requestHash,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($changes)]);
+    $result['keys']=array_keys($changes);sd_append_command($commands,$idem,$action,$requestHash,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes,['key'=>$idem,'action'=>$action,'requestHash'=>$requestHash,'owner'=>$user]);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($changes)]);
 } catch (Throwable $e) {
     if (is_resource($lock)) { @flock($lock, LOCK_UN); @fclose($lock); }
     sd_out(['ok'=>false,'error'=>'command_failed','detail'=>$e->getMessage()],500);
