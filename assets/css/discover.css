@@ -31,3 +31,21 @@
   .nav-drop{display:grid;justify-items:stretch}
   .nav-drop-menu{position:static;display:flex;box-shadow:none;border:0;padding:0 8px 4px;background:transparent;min-width:0}
 }
+/* Products mega menu: category = submenu, items = direct product links */
+.nav-drop.nav-products{position:static}
+.nav-products .nav-mega{position:absolute;top:100%;right:16px;left:16px;z-index:95;width:auto;max-width:1180px;margin:0 auto;display:none;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 12px;padding:16px 18px 12px;border-radius:18px;background:#fff;border:1px solid var(--line,#e2e8f0);box-shadow:0 18px 48px rgba(15,23,42,.16);max-height:min(72vh,560px);overflow:auto}
+.nav-products:hover>.nav-mega,.nav-products:focus-within>.nav-mega{display:grid}
+.nav-mega-col{min-width:0;display:flex;flex-direction:column;gap:1px}
+.nav-mega-head{display:block;font-size:12px!important;font-weight:900!important;color:#ef4b1a!important;padding:4px 8px!important;margin:0 0 4px;white-space:nowrap!important}
+.main-nav .nav-mega a{white-space:normal!important;font-size:12.5px!important;font-weight:700!important;padding:4px 8px!important;line-height:1.45!important;border-radius:8px!important;color:#334155!important;display:block;text-align:right}
+.main-nav .nav-mega a:hover{background:rgba(239,75,26,.1)!important;color:#ef4b1a!important}
+.main-nav .nav-mega-all{grid-column:1/-1;text-align:center;font-weight:900!important;color:#0e7490!important;margin-top:6px;border-top:1px solid #e2e8f0;padding-top:10px!important}
+@media(max-width:850px){
+  .nav-drop.nav-products{position:relative;display:grid;justify-items:stretch}
+  .nav-products .nav-mega{position:static;display:grid;grid-template-columns:1fr 1fr;max-height:none;box-shadow:none;border:0;padding:6px 8px 10px;overflow:visible;left:auto;right:auto;width:auto;margin:0}
+}
+.ptf-search-form{display:flex;gap:10px;align-items:stretch}
+.ptf-search-form input[type="search"]{flex:1;width:auto!important;min-width:0}
+.ptf-search-form button{flex:0 0 auto;padding:12px 22px;border:0;border-radius:14px;background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;font-weight:900;font-size:15px;cursor:pointer}
+.ptf-search-form button:hover{filter:brightness(1.05)}
+@media(max-width:560px){.ptf-search-form{flex-direction:column}.ptf-search-form button{width:100%}}

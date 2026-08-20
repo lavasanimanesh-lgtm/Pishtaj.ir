@@ -76,6 +76,19 @@
 @media(max-width:600px){.brand-panel a{min-height:58px!important;height:58px!important;padding:6px!important}.brand-panel a .brand-logo{height:36px!important;max-height:36px!important;width:112px!important}}
 
 /* Horizontal-scroll guard: animated marquee tracks and wide media must never expand the document canvas. */
+/* Captcha «من ربات نیستم» — one compact row (not 3 stacked lines) */
+.ptf-captcha-host,.ptf-captcha-host.field{display:block;margin-bottom:8px}
+.ptf-captcha-wrap{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;gap:10px!important}
+.ptf-captcha-wrap>label,.ptf-captcha-label{display:inline-flex!important;flex-direction:row!important;align-items:center!important;gap:8px!important;margin:0!important;width:auto!important;white-space:nowrap!important;color:#334155!important}
+.field .ptf-captcha-wrap input[type="checkbox"],
+.ptf-captcha-wrap input[type="checkbox"],
+.ptf-captcha-chk{width:18px!important;height:18px!important;min-width:18px!important;flex:0 0 18px!important;padding:0!important;margin:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.field .ptf-captcha-wrap input[type="text"],
+.ptf-captcha-wrap input.ptf-captcha-answer,
+.ptf-captcha-answer{width:74px!important;min-width:74px!important;max-width:74px!important;flex:0 0 74px!important;padding:8px!important}
+.ptf-captcha-box{flex-wrap:nowrap!important;align-items:center!important;white-space:nowrap}
+@media(max-width:420px){.ptf-captcha-wrap{flex-wrap:wrap!important}}
+
 html,body{max-width:100%;overflow-x:hidden}
 @supports (overflow:clip){html,body{overflow-x:clip}}
 main,.section,.container,.client-showcase,.brand-marquee-section,.marquee-shell{max-width:100%;min-width:0}
