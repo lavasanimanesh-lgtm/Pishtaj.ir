@@ -1103,8 +1103,8 @@ function offerForm() {
     '<div id="ofCreditBox"></div>' + /* v14.6 US-352: مانده باز + سقف اعتبار مشتری */
     '<div class="fr">' +
     // US-175 AC1: فقط انتخاب از شماره‌های ثبت‌شده در «استعلامات» / اقلام درخواست
-    '<div class="fld"><label>شماره درخواست کارفرما * — فقط از استعلام‌های ثبت‌شده</label><select id="ofInq" style="direction:ltr" onchange="offerPickInq(this.value)"' + (typeof ptfInqNoOptions === 'function' ? '>' + ptfInqNoOptions(o.inqNo) : '>') + '</select>' +
-    '<small style="color:#94a3b8;font-size:11px">شماره‌ای در فهرست نیست؟ ابتدا در بخش «استعلامات» ثبتش کنید.</small>' +
+    '<div class="fld"><label>شماره درخواست کارفرما * — فقط از استعلام‌های ثبت‌شده</label><select id="ofInq" style="direction:ltr" onchange="offerPickInq(this.value)"' + (typeof ptfInqNoOptions === 'function' ? '>' + ptfInqNoOptions(o.inqNo, o.buyerCd) : '>') + '</select>' +
+    '<small style="color:#94a3b8;font-size:11px">فقط درخواست‌های کارفرمای انتخاب‌شده. شماره‌ای نیست؟ ابتدا در «استعلامات» ثبتش کنید.</small>' +
     /* FC-7 (v34.7.30 — تصمیم کارفرما): نرخ مرجع ویرایش‌شده همیشه روی «قلم درخواست» می‌نشیند؛
        نشستن روی «بانک کالا» فقط با همین تیک صریح انجام می‌شود. */
     '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#5b21b6;margin-top:4px" title="در صورت تیک، نرخ مرجع ویرایش‌شدهٔ اقلام روی نرخ مرجع کالا در بانک کالا هم ثبت می‌شود">' +
@@ -1236,6 +1236,7 @@ function offerPickBuyer(cd, keep) {
   var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === cd; })[0];
   _offState.buyerCd = cd;
   try { ptfRenderCreditBox(cd); } catch (eCB) {} /* v14.6 US-352 */
+  try { if (typeof window.offRefreshInqOptions === 'function') window.offRefreshInqOptions(cd, keep); } catch (eInqRef) {}
   var sel = document.getElementById('ofContact');
   if (!c) { if (sel) sel.innerHTML = '<option>—</option>'; return; }
   _offState.buyerCo = c.coEn || c.co;
@@ -1267,6 +1268,24 @@ function offerPickBuyer(cd, keep) {
 /* v15.4 (US-386 — کیس استادی کارفرما): هر درخواست دو شناسه دارد (کد سیستمی r.cd + شماره کارفرما r.inqNo).
    TO ممکن است با یکی ثبت شده باشد و کاربر در فرم CO دیگری را انتخاب کند → مقایسه exact شکست می‌خورد
    و پیغام غلط «پیشنهاد فنی ثبت نشده» می‌آمد. این تابع همه نام‌های مستعار یک شماره را برمی‌گرداند. */
+window.offRefreshInqOptions = function (buyerCd, keepCur) {
+  var inqEl = (typeof offEl === 'function') ? offEl('ofInq') : document.getElementById('ofInq');
+  if (!inqEl || String(inqEl.tagName || '').toUpperCase() !== 'SELECT') return;
+  var cur = String(inqEl.value || (_offState && _offState.inqNo) || '').trim();
+  var belongs = !cur || (typeof window.ptfInqBelongsToCustomer !== 'function') || window.ptfInqBelongsToCustomer(cur, buyerCd);
+  var keepVal = (keepCur || belongs) ? cur : '';
+  if (typeof ptfInqNoOptions === 'function') inqEl.innerHTML = ptfInqNoOptions(keepVal, buyerCd || '');
+  if (keepVal) {
+    inqEl.value = keepVal;
+    if (inqEl.value !== keepVal) {
+      var opt = document.createElement('option');
+      opt.value = keepVal; opt.textContent = keepVal + ' (سند)'; opt.selected = true;
+      inqEl.appendChild(opt); inqEl.value = keepVal;
+    }
+  }
+  if (_offState && !keepCur && !belongs) _offState.inqNo = inqEl.value || '';
+};
+
 window.ptfInqAliases = function (v) {
   var out = [];
   if (v) out.push(v);
@@ -1667,6 +1686,8 @@ window.offPrintAmount = function (v, cur) {
 /* فهرست درخواست‌های دارای اقلام — هر درخواست یک‌بار (cd سیستمی)، بدون تکرار alias */
 window.offListLoadableInquiries = function (opt) {
   opt = opt || {};
+  var buyerCd = (opt.buyerCd != null) ? String(opt.buyerCd).trim() : '';
+  var filterBuyer = Object.prototype.hasOwnProperty.call(opt, 'buyerCd');
   var exclude = {};
   (opt.exclude || []).forEach(function (k) {
     k = String(k || '').trim();
@@ -1688,6 +1709,13 @@ window.offListLoadableInquiries = function (opt) {
     (resolved.aliases || []).forEach(function (a) { if (a) seen[String(a)] = true; });
     seen[key] = true;
     if (exclude[key]) return;
+    if (filterBuyer) {
+      var rfqHit = resolved.rfq || null;
+      if (typeof window.ptfInqBelongsToCustomer === 'function') {
+        if (!window.ptfInqBelongsToCustomer(rfqHit || key, buyerCd)) return;
+      } else if (buyerCd && rfqHit && rfqHit.custCd && String(rfqHit.custCd) !== buyerCd) return;
+      else if (filterBuyer && !buyerCd) return;
+    }
     var n = (resolved.rows || []).length;
     if (!n) return;
     var rfq = resolved.rfq || {};
@@ -1788,24 +1816,26 @@ function offLoadInqItems(pickedInq, opt) {
   var inq = pickedInq || (document.getElementById('ofInq') || {}).value || _offState.inqNo || '';
   inq = String(inq).trim();
   if (!inq) {
-    var iq = getData('ptf_crm_inqitems');
-    var groups = {};
-    iq.forEach(function (r) { groups[r.inqNo] = (groups[r.inqNo] || 0) + 1; });
-    getData('ptf_crm_inqreads').forEach(function(r){ if (r.rows && r.rows.length) groups[r.inqNo || r.cd] = (groups[r.inqNo || r.cd] || 0) + r.rows.length; });
-    getData('ptf_crm_rfqs').forEach(function(r){ if (r.items && r.items.length) groups[r.inqNo || r.cd] = (groups[r.inqNo || r.cd] || 0) + r.items.length; });
-    var keys = Object.keys(groups);
-    if (!keys.length) {
-      /* US-303: راهنمای شفاف — اقلام درخواست باید هنگام ثبت استعلام وارد شده باشد */
-      alert('هیچ درخواستی با اقلام ثبت‌شده وجود ندارد.\n\nاقلام درخواست را از یکی از این مسیرها وارد کنید:\n• استعلامات → دکمه «اقلام» روی ردیف درخواست (دستی یا اکسل)\n• هنگام ثبت استعلام جدید (پنجره اقلام خودکار باز می\u200cشود)\n• دستیار → خواندن فایل استعلام');
+    var buyerCdPick = String((_offState && _offState.buyerCd) || (document.getElementById('ofBuyer') || {}).value || '').trim();
+    if (!buyerCdPick) {
+      alert('ابتدا کارفرما را از منوی کشویی انتخاب کنید تا فقط درخواست‌های همان مشتری فهرست شوند.');
       return;
     }
-    /* US-303: انتخاب از فهرست به\u200cجای prompt متنی */
+    var loadable = (typeof window.offListLoadableInquiries === 'function')
+      ? window.offListLoadableInquiries({ buyerCd: buyerCdPick })
+      : [];
+    if (!loadable.length) {
+      /* US-303: راهنمای شفاف — اقلام درخواست باید هنگام ثبت استعلام وارد شده باشد */
+      alert('برای این کارفرما درخواستی با اقلام ثبت‌شده وجود ندارد.\n\nاقلام درخواست را از یکی از این مسیرها وارد کنید:\n• استعلامات → دکمه «اقلام» روی ردیف درخواست (دستی یا اکسل)\n• هنگام ثبت استعلام جدید (پنجره اقلام خودکار باز می‌شود)\n• دستیار → خواندن فایل استعلام');
+      return;
+    }
+    /* US-303: انتخاب از فهرست به‌جای prompt متنی — فقط درخواست‌های همین کارفرما */
     var pick = '<div class="md-b" id="offInqPick" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
-      '<h3>🗂 انتخاب درخواست</h3>' +
-      keys.map(function (k) {
+      '<h3>🗂 انتخاب درخواست همین کارفرما</h3>' +
+      loadable.map(function (g) {
         return '<button type="button" class="bt bt-o" style="width:100%;justify-content:space-between;display:flex;margin-bottom:6px" ' +
-          'onclick="document.getElementById(\'offInqPick\').remove();offLoadInqItems(\'' + ptfOnClickArg(k) + '\')">' +
-          '<span style="direction:ltr">' + escP(k) + '</span><span style="color:#7c3aed;font-weight:800">' + groups[k] + ' قلم</span></button>';
+          'onclick="document.getElementById(\'offInqPick\').remove();offLoadInqItems(\'' + ptfOnClickArg(g.key) + '\')">' +
+          '<span style="direction:ltr">' + escP(g.label || g.key) + '</span><span style="color:#7c3aed;font-weight:800">' + g.count + ' قلم</span></button>';
       }).join('') +
       '<div style="text-align:left;margin-top:6px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div></div>';
     document.body.insertAdjacentHTML('beforeend', pick);
@@ -1832,9 +1862,14 @@ window.offLoadInqItems = offLoadInqItems;
 window.offLoadOtherInqItems = function () {
   if (!window._offState) { alert('⛔ فرم پیشنهاد باز نیست'); return; }
   var current = (_offState.inqNo || (document.getElementById('ofInq') || {}).value || '').trim();
-  var list = window.offListLoadableInquiries({ exclude: current ? [current] : [] });
+  var buyerCd = String(_offState.buyerCd || (document.getElementById('ofBuyer') || {}).value || '').trim();
+  if (!buyerCd) {
+    alert('ابتدا کارفرما را از منوی کشویی انتخاب کنید تا فقط درخواست‌های همان مشتری فهرست شوند.');
+    return;
+  }
+  var list = window.offListLoadableInquiries({ exclude: current ? [current] : [], buyerCd: buyerCd });
   if (!list.length) {
-    alert('درخواست دیگری با اقلام ثبت‌شده پیدا نشد.\n\nابتدا اقلام درخواست مبدأ را در «استعلامات» وارد کنید، سپس دوباره این دکمه را بزنید.');
+    alert('برای این کارفرما درخواست دیگری با اقلام ثبت‌شده پیدا نشد.\n\nابتدا اقلام درخواست مبدأ را در «استعلامات» وارد کنید، سپس دوباره این دکمه را بزنید.');
     return;
   }
   var old = document.getElementById('offOtherInqDlg');
@@ -1848,7 +1883,7 @@ window.offLoadOtherInqItems = function () {
   }).join('');
   var html = '<div class="md-b" id="offOtherInqDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px;max-height:90vh;overflow:auto">' +
     '<h3>📂 افزودن اقلام از درخواست دیگر</h3>' +
-    '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;margin-bottom:10px">شماره درخواست این پیشنهاد <b>تغییر نمی‌کند</b>. اقلام انتخاب‌شده به جدول فعلی اضافه می‌شوند (تکراری‌ها رد می‌شوند).</div>' +
+    '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;margin-bottom:10px">فقط درخواست‌های <b>همین کارفرما</b> دیده می‌شوند. شماره درخواست این پیشنهاد <b>تغییر نمی‌کند</b>. اقلام انتخاب‌شده به جدول فعلی اضافه می‌شوند (تکراری‌ها رد می‌شوند).</div>' +
     (current ? '<div style="font-size:12px;color:#64748b;margin-bottom:8px">درخواست فعلی پیشنهاد: <b dir="ltr">' + escP(current) + '</b></div>' : '') +
     '<input type="search" id="offOtherInqSrch" placeholder="جستجوی شماره / کارفرما..." oninput="offFilterOtherInqList(this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;margin-bottom:10px">' +
     '<div id="offOtherInqList">' + rows + '</div>' +

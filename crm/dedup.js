@@ -218,6 +218,35 @@ function ptfKnownInqList() {
   return list;
 }
 
+/* v34.7.48: درخواست متعلق به کارفرمای فرم پیشنهاد است؟
+   ۱) custCd رکورد استعلام  ۲) نام شرکت استعلام با نام/نام انگلیسی مشتری (اسناد قدیمی بدون custCd) */
+function ptfInqBelongsToCustomer(inqOrRfq, buyerCd) {
+  buyerCd = String(buyerCd == null ? '' : buyerCd).trim();
+  if (!buyerCd) return false;
+  var rfq = inqOrRfq;
+  if (!rfq || typeof rfq === 'string') {
+    var key = String(inqOrRfq == null ? '' : inqOrRfq).trim();
+    if (!key) return false;
+    rfq = (getData('ptf_crm_rfqs') || []).filter(function (r) {
+      return r && (String(r.cd || '') === key || String(r.inqNo || '') === key);
+    })[0] || null;
+  }
+  if (!rfq) return false;
+  if (rfq.custCd && String(rfq.custCd) === buyerCd) return true;
+  var c = (getData('ptf_crm_customers') || []).filter(function (x) { return x && x.cd === buyerCd; })[0];
+  if (!c) return false;
+  var co = String(rfq.co || '').trim();
+  if (!co) return false;
+  var names = [c.co, c.coEn, c.cd].filter(Boolean);
+  if (names.indexOf(co) > -1) return true;
+  if (typeof dedupNorm === 'function') {
+    var nco = dedupNorm(co);
+    return names.some(function (n) { return n && dedupNorm(n) === nco; });
+  }
+  return false;
+}
+window.ptfInqBelongsToCustomer = ptfInqBelongsToCustomer;
+
 /* v31.7.27 US-INQ-ONE-OPTION: شماره درخواست کارفرما برای چاپ —
    ورودی هر شناسه (cd سیستمی یا inqNo)، خروجی شماره کارفرما اگر ثبت شده؛ وگرنه همان ورودی. */
 function ptfInqClientNo(v) {
@@ -231,11 +260,21 @@ function ptfInqClientNo(v) {
 window.ptfInqClientNo = ptfInqClientNo;
 
 // HTML گزینه‌های کشویی Inquiry No — مقدار فعلی سند قدیمی حفظ می‌شود (AC4)
-function ptfInqNoOptions(cur) {
+function ptfInqNoOptions(cur, buyerCd) {
   var list = ptfKnownInqList();
+  /* v34.7.48: آرگومان دوم اختیاری. بدون آن همهٔ درخواست‌ها (سازگاری tester18/202). */
+  if (arguments.length >= 2) {
+    if (buyerCd && typeof ptfInqBelongsToCustomer === 'function') {
+      list = list.filter(function (o) { return ptfInqBelongsToCustomer(o.v, buyerCd); });
+    } else {
+      list = [];
+    }
+  }
   var has = list.some(function (o) { return o.v === cur; });
   if (cur && !has) list.unshift({ v: cur, lb: cur + ' (سند قدیمی)' });
-  var h = '<option value="">— انتخاب شماره درخواست ثبت‌شده —</option>';
+  var hint = '— انتخاب شماره درخواست ثبت‌شده —';
+  if (arguments.length >= 2) hint = buyerCd ? '— انتخاب شماره درخواست همین کارفرما —' : '— ابتدا کارفرما را انتخاب کنید —';
+  var h = '<option value="">' + hint + '</option>';
   list.forEach(function (o) {
     h += '<option value="' + escP(o.v) + '"' + (cur === o.v ? ' selected' : '') + '>' + escP(o.lb) + '</option>';
   });
