@@ -1071,8 +1071,9 @@ function offerForm() {
     if (c.cd) label = label + '  ·  ' + c.cd;
     custOpts += '<option value="' + escP(c.cd) + '"' + (o.buyerCd === c.cd ? ' selected' : '') + '>' + escP(label) + '</option>';
   });
-  /* MOB-041: امضا پیش‌تر پس از چندین بخش فرم قرار داشت و در mobile خارج از دید می‌ماند.
-     بلوک مستقل زیر عنوان/قالب چاپ می‌آید تا پیش از ورود اقلام، کامل دیده و خوانده شود. */
+  /* MOB-041 + v34.7.57: کارت امضا پیش از «اقلام» می‌آید تا در موبایل کامل دیده شود؛
+     از v34.7.57 پس از فیلدهای هویت سند (کارفرما/درخواست/تاریخ) قرار می‌گیرد تا ترتیب
+     پرکردن فرم طبیعی باشد — همچنان قبل از ورود اقلام و در دید. */
   var signatureHtml = '<section class="offer-signature-card" aria-labelledby="offSignatureTitle"><div class="offer-signature-head"><span class="offer-signature-icon" aria-hidden="true">✍️</span><span><b id="offSignatureTitle">مهر و امضا</b><small>امضای انتخابی فقط هنگام پیش‌نمایش/صدور روی سند درج می‌شود.</small></span></div>' +
     '<label class="offer-signature-toggle"><input type="checkbox" id="ofUseSig"' + (o.useSig ? ' checked' : '') + (mySigReady() || ptfCanDelegateSig() ? '' : ' disabled') + '><span>درج مهر و امضا روی سند</span>' +
     (mySigReady() || ptfCanDelegateSig() ? '' : '<small>ابتدا در مکاتبات → «امضای من» پروفایل امضا را ثبت کنید.</small>') + '</label>' +
@@ -1083,9 +1084,8 @@ function offerForm() {
     ' — <span style="direction:ltr;display:inline-block">' + escP(o.no) + '</span>' +
     (o.buyerCo || o.buyerCd ? ' <small style="font-weight:700;color:#0e7490;font-size:12px">| 🏢 ' + escP(o.buyerCo || o.buyerCd) + (o.buyerCd ? ' <span dir="ltr" style="opacity:.75">(' + escP(o.buyerCd) + ')</span>' : '') + '</small>' : '') +
     '</h3>' +
-    /* v20.1: TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ */
-    (o.kind !== 'TO' ? '<div class="fld offer-print-layout" style="max-width:340px"><label>🖨 قالب چاپ سند</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' : '') +
-    signatureHtml +
+    /* v34.7.57: نظم بصری فرم — اول هویت سند (کارفرما/درخواست/تاریخ)، بعد تنظیمات چاپ و
+       اعتبار در یک ردیف متوازن، بعد امضا (طبق MOB-041 همچنان پیش از اقلام)، بعد اقلام. */
     '<div class="fr">' +
     '<div class="fld"><label>کارفرما (خریدار) *</label><select id="ofBuyer" onchange="offerPickBuyer(this.value)">' + custOpts + '</select>' +
     '<div id="ofBuyerChip" style="margin-top:8px;padding:8px 10px;border-radius:12px;background:#f8fafc;border:1px solid var(--brd);font-size:12.5px;line-height:1.6">' +
@@ -1111,24 +1111,32 @@ function offerForm() {
     '<input type="checkbox" id="ofRefToCatalog"> نرخ مرجع اصلاح‌شده در بانک کالا هم ثبت شود</label></div>' +
     '<div class="fld"><label>تاریخ سند (شمسی) — ذخیره سیستمی به میلادی</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofDateJ', (o.dateEn || new Date().toISOString().slice(0, 10))) : '<input type="text" id="ofDateJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.dateEn || new Date().toISOString().slice(0, 10)) : (o.dateEn || ''))) + '">') + '</div>' +
     '</div>' +
-    // US-157 AC1: اعتبار پیشنهاد (برای مالی و فنی-مالی)
-    (o.kind !== 'TO' ? '<div class="fr"><div class="fld"><label>اعتبار پیشنهاد تا (شمسی) — یادآور خودکار ۳ روز قبل</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofValidJ', (o.validUntil || defaultValidity(o.dateEn))) : '<input type="text" id="ofValidJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.validUntil || defaultValidity(o.dateEn)) : (o.validUntil || ''))) + '">') + '</div><div class="fld"></div></div>' : '') +
+    /* v20.1: TC در CO ادغام شد — تفاوت فقط قالب/عنوان چاپ.
+       v34.7.57: قالب چاپ + اعتبار پیشنهاد (US-157) در یک ردیف متوازن (قبلاً ستون خالی داشت). */
+    (o.kind !== 'TO'
+      ? '<div class="fr">' +
+        '<div class="fld offer-print-layout"><label>🖨 قالب چاپ سند</label><select id="ofPrintAs"><option value="CO"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'CO' ? ' selected' : '') + '>💰 Commercial Offer (مالی)</option><option value="TC"' + ((o.printAs || (o.kind === 'TC' ? 'TC' : 'CO')) === 'TC' ? ' selected' : '') + '>🤝 Techno-Commercial Offer (فنی-مالی)</option></select></div>' +
+        '<div class="fld"><label>اعتبار پیشنهاد تا (شمسی) — یادآور خودکار ۳ روز قبل</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('ofValidJ', (o.validUntil || defaultValidity(o.dateEn))) : '<input type="text" id="ofValidJ" style="direction:ltr;color:#0e7490" value="' + escP((typeof ptfISOToJ==='function' ? ptfISOToJ(o.validUntil || defaultValidity(o.dateEn)) : (o.validUntil || ''))) + '">') + '</div>' +
+        '</div>'
+      : '') +
     '<div class="fr offer-seller-row">' +
     // Contact Person = اختصاری انگلیسی کاربر جاری — غیرقابل تغییر
     '<div class="fld offer-seller-field"><label>رابط فروشنده — روی سند: Contact Person (کاربر جاری — قفل 🔒)</label><input type="text" id="ofSeller" value="' + escP(myEnName()) + '" readonly style="direction:ltr;background:#f1f5f9;color:#475569;cursor:not-allowed"></div>' +
     '</div>' +
-    '<h4 style="margin:14px 0 8px">اقلام</h4>' +
-    '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
+    signatureHtml +
+    '<h4 class="offer-sec-title">📦 اقلام</h4>' +
+    '<div class="offer-items-toolbar">' +
     '<button type="button" id="offInqBtn" class="bt" style="font-size:12px;background:#7c3aed" onclick="offLoadInqItems()">🗂 بارگذاری از درخواست</button>' +
     '<button type="button" id="offOtherInqBtn" class="bt" style="font-size:12px;background:#0f766e" title="اقلام یک درخواست دیگر را به همین پیشنهاد اضافه می‌کند؛ شماره درخواست فعلی تغییر نمی‌کند" onclick="offLoadOtherInqItems()">📂 بارگذاری از درخواست دیگر</button>' +
-    '<button type="button" class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="offOpenProductMultiPicker()">+ از ماژول کالا (انتخاب چندگانه)</button>' +
+    '<span class="offer-toolbar-sep" aria-hidden="true"></span>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="offOpenProductMultiPicker()">➕ از ماژول کالا</button>' +
     '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل</button>' +
-    '<button type="button" class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="offPriceXlsOpen()" title="نرخ مرجع و قیمت واحد اقلام فعلی را از فایل اکسل پر می‌کند — برای فهرست‌های بلند">💰 قیمت از اکسل</button>' +
-    '<button type="button" class="bt bt-o" style="font-size:11.5px;color:#475569" onclick="offShowAdvCols()">⛭ ستون‌های تکمیلی ستون‌ها</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px" onclick="offPriceXlsOpen()" title="نرخ مرجع و قیمت واحد اقلام فعلی را از فایل اکسل پر می‌کند — برای فهرست‌های بلند">💰 قیمت از اکسل</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px;margin-inline-start:auto" onclick="offShowAdvCols()">⛭ ستون‌های تکمیلی</button>' +
     '<input type="file" id="offXls" accept=".csv,.xlsx,.xls" style="display:none" onchange="offImportFile(this)">' +
     '</div>' +
     '<div id="offItemsWrap" style="overflow-x:auto"></div>' +
-    '<h4 style="margin:14px 0 8px">شرایط و ضوابط (Terms &amp; Conditions)</h4>' +
+    '<h4 class="offer-sec-title">📜 شرایط و ضوابط (Terms &amp; Conditions)</h4>' +
     '<div id="offTermsWrap"></div>' +
     '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
     '<select id="offTcLib" style="flex:1;padding:7px;border:1px solid var(--brd);border-radius:8px;direction:ltr;font-size:12px">' +
@@ -1137,9 +1145,11 @@ function offerForm() {
     '<button type="button" class="bt bt-o" style="font-size:12px" onclick="offAddTermLib()">+ از کتابخانه</button>' +
     '<button type="button" class="bt bt-o" style="font-size:12px" onclick="offAddTerm(\'\')">+ بند دلخواه</button>' +
     '</div>' +
-    '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:18px;flex-wrap:wrap">' +
-    '<div></div>' +
-    '<div style="display:flex;gap:8px">' +
+    /* v34.7.57: فوتر چسبان — در فهرست‌های بلند دکمه ذخیره همیشه در دید است.
+       قرارداد case-revision حفظ شده: h3 عنوان، #offSaveBtn داخل گروه دکمه‌ها،
+       والدِ والد = کانتینر اکشن‌ها و دکمهٔ اول همان «انصراف» است. */
+    '<div class="offer-form-footer">' +
+    '<div class="offer-footer-btns">' +
     '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
     '<button class="bt bt-o" onclick="offerPreview()">👁️ پیش‌نمایش</button>' +
     '<button type="button" class="bt" id="offSaveBtn" onclick="window.offerSave()">💾 ذخیره</button>' +
@@ -1389,7 +1399,7 @@ function offerPickContact(idx) {
 var MAX_EXTRA_COLS = 99; // US-183: بدون محدودیت (فونت پلکانی کوچک می‌شود)
 window.offShowAdvCols = function() {
   var html = '<div class="md-b" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:480px">' +
-    '<h3>⛭ ستون‌های تکمیلی ستون‌ها</h3>' +
+    '<h3>⛭ ستون‌های تکمیلی</h3>' +
     '<p style="font-size:12.5px;color:#475569">شما می‌توانید ستون‌های دلخواه (مانند Country of Origin، Warranty و غیره) به جدول اقلام اضافه کنید. توجه: افزودن ستون‌های متعدد باعث کوچک شدن پلکانی فونت چاپ سند می‌شود.</p>' +
     '<div style="display:flex;gap:8px;margin-top:14px">' +
     '<button type="button" class="bt" onclick="offAddColumn();this.closest(\'.md-b\').remove()">＋ افزودن ستون جدید</button>' +

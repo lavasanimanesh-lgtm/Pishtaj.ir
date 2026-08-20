@@ -40,6 +40,7 @@ node _tools/arch/arch-guard.js        # باید PASS باشد
 | v34.7.54 | 🔧 هات‌فیکس: رفع تخلف A2 (`ptfHarvestFileKeys` — ترتیب `_id \|\| cd`) و سبز شدن گیت ۷۳/۰ | tester457 |
 | v34.7.55 | 🔧 اسکیمای کامل JobPosting (datePosted/validThrough/employmentType/identifier/directApply + baseSalary اختیاری) — رفع خطای قرمز GSC | tester458 |
 | v34.7.56 | 🐛 رفع حذف کاذب اقلام هم‌محتوا در بارگذاری از درخواست (BUG-OFFER-DUP-SKIP-267، هر ۳ لایه dedup) + «💰 قیمت از اکسل» برای نرخ مرجع/قیمت واحد | tester459 |
+| v34.7.57 | 🎨 نظم بصری فرم پیشنهاد: ترتیب طبیعی فیلدها، ردیف متوازن چاپ/اعتبار، نوار ابزار یکدست، فوتر چسبان، رفع غلط تایپی | tester460 |
 
 ---
 
