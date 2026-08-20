@@ -1123,6 +1123,7 @@ function offerForm() {
     '<button type="button" id="offOtherInqBtn" class="bt" style="font-size:12px;background:#0f766e" title="اقلام یک درخواست دیگر را به همین پیشنهاد اضافه می‌کند؛ شماره درخواست فعلی تغییر نمی‌کند" onclick="offLoadOtherInqItems()">📂 بارگذاری از درخواست دیگر</button>' +
     '<button type="button" class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="offOpenProductMultiPicker()">+ از ماژول کالا (انتخاب چندگانه)</button>' +
     '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fcd34d" onclick="offPriceXlsOpen()" title="نرخ مرجع و قیمت واحد اقلام فعلی را از فایل اکسل پر می‌کند — برای فهرست‌های بلند">💰 قیمت از اکسل</button>' +
     '<button type="button" class="bt bt-o" style="font-size:11.5px;color:#475569" onclick="offShowAdvCols()">⛭ ستون‌های تکمیلی ستون‌ها</button>' +
     '<input type="file" id="offXls" accept=".csv,.xlsx,.xls" style="display:none" onchange="offImportFile(this)">' +
     '</div>' +
@@ -1510,6 +1511,12 @@ function offDedupeOfferItems(items) {
     var key = offItemKey(it);
     var empty = !it.pcode && !String(it.name || '').trim() && !String(it.desc || '').trim() && !String(it.model || '').trim();
     if (!key || empty) { out.push(it); return; }
+    /* v34.7.56 (BUG-OFFER-DUP-SKIP-267): ردیف‌های هم‌محتوا ولی با هویت خط متمایز
+       (id ذخیره‌شده یا مبدأ+نوبت تکرار) مشروع‌اند و نباید هنگام ذخیره حذف شوند.
+       فقط تکرارهای واقعاً بی‌هویتِ هم‌محتوا (دستی/legacy) مثل قبل جمع می‌شوند. */
+    var ident = it.id ? 'id:' + it.id
+      : ((it.sourceInq && it.sourceItemKey) ? 'src:' + it.sourceInq + '|' + it.sourceItemKey + '|' + (+it.dupOrdinal || 0) : 'manual');
+    key = key + '||' + ident;
     var prevIdx = seen[key];
     if (prevIdx == null) { seen[key] = out.length; out.push(it); return; }
     var prev = out[prevIdx];
@@ -1774,17 +1781,44 @@ window.offAppendInqRows = function (inq, rows, opt) {
   if (typeof window.ptfAutoRegisterSummaryProducts === 'function') {
     try { window.ptfAutoRegisterSummaryProducts(inq, rows); } catch (eReg) {}
   }
-  var existing = {};
+  /* v34.7.56 (BUG-OFFER-DUP-SKIP-267): تشخیص تکراری هویت‌محور به‌جای محتوامحور.
+     یک درخواست واقعی می‌تواند چند ردیف با نام/شرح/تعداد یکسان داشته باشد (مثلاً برای
+     ساب‌پروژه/تگ‌های مختلف)؛ آن‌ها قلم تکراری نیستند. «تکراری» یعنی همان ردیفِ مبدأ
+     (sourceInq + sourceItemKey + نوبت تکرار) قبلاً به این پیشنهاد اضافه شده باشد —
+     مثل دوبار زدن دکمه بارگذاری. برای پیشنهادهای قدیمی بدون هویت مبدأ، امضای محتوایی
+     به‌عنوان fallback مصرف می‌شود تا بارگذاری مجدد دوبله نسازد. */
+  var srcCount = {};  /* هویت مبدأ ← تعداد موجود در پیشنهاد */
+  var sigCount = {};  /* امضای محتوایی ردیف‌های بدون هویت مبدأ (legacy/دستی) */
   (_offState.items || []).forEach(function (it) {
-    if (typeof offRowIsEmpty === 'function' ? !offRowIsEmpty(it) : (it && (it.name || it.desc))) existing[offItemKey(it)] = true;
+    var nonEmpty = typeof offRowIsEmpty === 'function' ? !offRowIsEmpty(it) : (it && (it.name || it.desc));
+    if (!nonEmpty) return;
+    if (it.sourceInq && it.sourceItemKey) {
+      var b0 = it.sourceInq + '|' + it.sourceItemKey;
+      srcCount[b0] = (srcCount[b0] || 0) + 1;
+    } else {
+      var s0 = offItemKey(it);
+      sigCount[s0] = (sigCount[s0] || 0) + 1;
+    }
   });
+  var seenBatch = {};
   var added = 0, skipped = 0;
   rows.forEach(function (r) {
     var item = window.offBuildItemFromInqRow(r, inq);
-    var key = offItemKey(item);
-    if (existing[key]) { skipped++; return; }
-    existing[key] = true;
-    if (typeof offSmartInsert === 'function') offSmartInsert(item);
+    var base = (item.sourceInq && item.sourceItemKey) ? item.sourceInq + '|' + item.sourceItemKey : '';
+    if (base) {
+      var have = srcCount[base] || 0;
+      var seen = seenBatch[base] || 0;
+      seenBatch[base] = seen + 1;
+      if (seen < have) { skipped++; return; } /* همین ردیف مبدأ قبلاً در پیشنهاد هست */
+      var sigL = offItemKey(item);
+      if (!have && sigCount[sigL] > 0) { sigCount[sigL]--; skipped++; return; } /* تطبیق با ردیف legacy بدون هویت */
+      item.dupOrdinal = seen; /* تفکیک ردیف‌های هم‌محتوای یک درخواست برای dedupe ذخیره */
+    } else {
+      var sig2 = offItemKey(item);
+      if (sigCount[sig2] > 0) { skipped++; return; }
+      sigCount[sig2] = 1;
+    }
+    if (typeof offSmartInsert === 'function') offSmartInsert(item, true);
     else { _offState.items = _offState.items || []; _offState.items.push(item); }
     added++;
   });
@@ -1946,14 +1980,18 @@ window.offLoadOtherInqApply = function (inq) {
 window.offRowIsEmpty = function (it) {
   return !it.pcode && !String(it.name || '').trim() && !String(it.desc || '').trim() && !String(it.model || '').trim();
 };
-window.offSmartInsert = function (item) {
+window.offSmartInsert = function (item, force) {
   if (!window._offState) return;
   if (!_offState.items) _offState.items = [];
   function _fallbackKey(x) { return [String((x&&x.pcode)||''), String((x&&x.name)||''), String((x&&x.desc)||''), String((x&&x.model)||''), String((x&&x.brand)||''), String(+(x&&x.qty)||1), String((x&&x.unit)||'NO')].join('|').toLowerCase().replace(/\s+/g, ' ').trim(); }
   var _keyFn = (typeof window.offItemKey === 'function') ? window.offItemKey : _fallbackKey;
   var key = _keyFn(item);
-  for (var e = 0; e < _offState.items.length; e++) {
-    if (!offRowIsEmpty(_offState.items[e]) && _keyFn(_offState.items[e]) === key) return e;
+  /* v34.7.56: force = تصمیم تکراری‌بودن قبلاً با هویت مبدأ گرفته شده (offAppendInqRows)؛
+     ردیف هم‌محتوای مشروع از یک درخواست نباید این‌جا بی‌صدا حذف شود. */
+  if (!force) {
+    for (var e = 0; e < _offState.items.length; e++) {
+      if (!offRowIsEmpty(_offState.items[e]) && _keyFn(_offState.items[e]) === key) return e;
+    }
   }
   for (var i = 0; i < _offState.items.length; i++) {
     if (offRowIsEmpty(_offState.items[i])) { _offState.items[i] = item; return i; }
@@ -2458,6 +2496,146 @@ function offImportRows(allRows) {
     offRenderItems();
     alert('✅ ' + added + ' ردیف از فایل اضافه شد');
 }
+
+/* ==== v34.7.56: ورود قیمت (نرخ مرجع / قیمت واحد) از اکسل برای اقلام موجود ====
+   برای فهرست‌های بلند (مثلاً ۲۶۷ ردیف): قالب با اقلام فعلی دانلود می‌شود، قیمت‌ها در
+   اکسل پر و برگردانده می‌شوند. اقلام جدید نمی‌سازد — فقط قیمت ردیف‌های موجود را پر می‌کند.
+   تطبیق: ۱) شماره ردیف قالب  ۲) کد کالا  ۳) نام+مدل (به ترتیب رخداد). */
+window.offPriceXlsOpen = function () {
+  if (!window._offState || !(_offState.items || []).filter(function (x) { return !offRowIsEmpty(x); }).length) {
+    alert('ابتدا اقلام را بارگذاری کنید (بارگذاری از درخواست / ورود اکسل)؛ بعد قیمت‌ها را از فایل بدهید.');
+    return;
+  }
+  var html = '<div class="md-b" id="offPriceXlsModal" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
+    '<h3>💰 ورود قیمت از اکسل</h3>' +
+    '<ol style="font-size:13px;line-height:2;padding-right:18px;margin:8px 0">' +
+    '<li>قالب را دانلود کنید — همهٔ اقلام فعلی با شماره ردیف داخل آن است.</li>' +
+    '<li>ستون «نرخ مرجع» و/یا «قیمت واحد» را به ریال پر کنید (ارقام فارسی و جداکننده مشکلی ندارد؛ خالی = بدون تغییر).</li>' +
+    '<li>همان فایل را این‌جا بدهید.</li></ol>' +
+    '<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:8px 12px;font-size:12px;color:#92400e;margin-bottom:10px">ستون «ردیف» را تغییر ندهید — مبنای تطبیق است. اگر فایل از جای دیگری می‌آید، وجود ستون «کد کالا» یا «نام کالا» برای تطبیق کافی است.</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button type="button" class="bt bt-o" style="color:#047857;border-color:#a7f3d0" onclick="offPriceXlsTemplate()">⬇️ دانلود قالب با اقلام فعلی</button>' +
+    '<button type="button" class="bt" style="background:#b45309" onclick="document.getElementById(\'offPriceXlsFile\').click()">📂 انتخاب فایل قیمت</button>' +
+    '<input type="file" id="offPriceXlsFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="offPriceXlsImport(this)">' +
+    '</div>' +
+    '<div style="text-align:left;margin-top:12px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div>' +
+    '</div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.offPriceXlsTemplate = function () {
+  if (typeof XLSX === 'undefined') { alert('کتابخانه اکسل هنوز بارگذاری نشده؛ چند لحظه بعد دوباره بزنید.'); return; }
+  var aoa = [['ردیف', 'کد کالا', 'نام کالا', 'شرح', 'مدل', 'تعداد', 'واحد', 'نرخ مرجع (ریال)', 'قیمت واحد (ریال)']];
+  (_offState.items || []).forEach(function (it, i) {
+    if (offRowIsEmpty(it)) return;
+    aoa.push([i + 1, it.pcode || '', it.name || '', it.desc || '', it.model || '', +it.qty || 1, it.unit || '',
+      +it.refPrice > 0 ? +it.refPrice : '', +it.price > 0 ? +it.price : '']);
+  });
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 6 }, { wch: 14 }, { wch: 32 }, { wch: 32 }, { wch: 14 }, { wch: 8 }, { wch: 8 }, { wch: 18 }, { wch: 18 }];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Prices');
+  XLSX.writeFile(wb, 'PTF-Prices-' + ((_offState.no || 'offer').replace(/[^\w\-]/g, '_')) + '.xlsx');
+};
+
+window.offPriceXlsImport = function (inp) {
+  var f = inp.files && inp.files[0];
+  if (!f) return;
+  inp.value = '';
+  var isCsv = /\.csv$/i.test(f.name);
+  if (!isCsv && typeof XLSX === 'undefined') { alert('کتابخانه اکسل هنوز بارگذاری نشده؛ چند لحظه بعد دوباره تلاش کنید.'); return; }
+  var rd = new FileReader();
+  rd.onload = function () {
+    try {
+      var wb = isCsv && typeof XLSX !== 'undefined'
+        ? XLSX.read(String(rd.result || '').replace(/^\uFEFF/, ''), { type: 'string' })
+        : XLSX.read(new Uint8Array(rd.result), { type: 'array' });
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+      offPriceXlsApply(rows.map(function (r) { return (r || []).map(function (c) { return String(c == null ? '' : c).trim(); }); }));
+    } catch (e) { alert('خطا در خواندن فایل: ' + (e && e.message || e)); }
+  };
+  if (isCsv && typeof XLSX !== 'undefined') rd.readAsText(f, 'utf-8'); else rd.readAsArrayBuffer(f);
+};
+
+function offPriceXlsApply(allRows) {
+  allRows = allRows || [];
+  /* پیدا کردن ردیف سرستون: اولین ردیفی که «نرخ مرجع» یا «قیمت» دارد */
+  var headIdx = -1, head = [];
+  for (var h = 0; h < Math.min(allRows.length, 10); h++) {
+    var joined = (allRows[h] || []).join('|');
+    if (/نرخ\s*مرجع|قیمت|price|ref/i.test(joined)) { headIdx = h; head = allRows[h].map(function (x) { return String(x).toLowerCase(); }); break; }
+  }
+  if (headIdx < 0) { alert('سرستون پیدا نشد. فایل باید ستون «نرخ مرجع» یا «قیمت واحد» داشته باشد (قالب را دانلود کنید).'); return; }
+  function findCol(res, avoid) {
+    for (var i = 0; i < head.length; i++) {
+      if (avoid && avoid.test(head[i])) continue;
+      if (res.test(head[i])) return i;
+    }
+    return -1;
+  }
+  var cRow = findCol(/^ردیف|^row|^#$/i);
+  var cCode = findCol(/کد|code/i);
+  var cName = findCol(/نام|name|شرح کالا/i);
+  var cRef = findCol(/نرخ\s*مرجع|مرجع|ref/i);
+  var cPrice = findCol(/قیمت\s*واحد|قیمت\s*فروش|unit\s*price|^price/i, /نرخ|مرجع|ref/i);
+  if (cPrice < 0) cPrice = findCol(/^قیمت/i, /نرخ|مرجع|ref/i);
+  if (cRef < 0 && cPrice < 0) { alert('ستون «نرخ مرجع» یا «قیمت واحد» در فایل نیست.'); return; }
+  var items = _offState.items || [];
+  /* اشاره‌گر رخداد برای تطبیق کد/نام تکراری به ترتیب */
+  var usedIdx = {};
+  function nextByPredicate(pred) {
+    for (var i = 0; i < items.length; i++) {
+      if (usedIdx[i]) continue;
+      if (!offRowIsEmpty(items[i]) && pred(items[i])) return i;
+    }
+    return -1;
+  }
+  var refN = 0, priceN = 0, matched = 0, misses = [];
+  for (var r = headIdx + 1; r < allRows.length; r++) {
+    var row = allRows[r] || [];
+    var refV = cRef > -1 ? window.offParseMoney(row[cRef]) : 0;
+    var priceV = cPrice > -1 ? window.offParseMoney(row[cPrice]) : 0;
+    if (!(refV > 0) && !(priceV > 0)) continue; /* ردیف بدون قیمت = بدون تغییر */
+    var ti = -1;
+    var rowNo = cRow > -1 ? Math.floor(window.offParseMoney(row[cRow])) : 0;
+    if (rowNo >= 1 && rowNo <= items.length && !usedIdx[rowNo - 1] && !offRowIsEmpty(items[rowNo - 1])) ti = rowNo - 1;
+    if (ti < 0 && cCode > -1 && String(row[cCode] || '').trim()) {
+      var codeV = String(row[cCode]).trim().toLowerCase();
+      ti = nextByPredicate(function (it) { return String(it.pcode || '').trim().toLowerCase() === codeV; });
+    }
+    if (ti < 0 && cName > -1 && String(row[cName] || '').trim()) {
+      var nameV = offNormLine(row[cName]);
+      ti = nextByPredicate(function (it) { return offNormLine(it.name || '') === nameV || offNormLine(it.desc || '') === nameV; });
+    }
+    if (ti < 0) { misses.push(rowNo > 0 ? ('ردیف ' + rowNo) : (String(row[cName > -1 ? cName : 0] || '').slice(0, 30) || ('سطر ' + (r + 1)))); continue; }
+    usedIdx[ti] = true;
+    matched++;
+    var it2 = items[ti];
+    if (refV > 0) {
+      it2.refPrice = refV;
+      it2.refPriceEdited = true;
+      it2.refCur = it2.refCur || 'IRR';
+      it2.refSrc = 'excel';
+      refN++;
+    }
+    if (priceV > 0) {
+      it2.price = priceV;
+      priceN++;
+    }
+    /* هم‌راستایی درصد سود مثل offUpdRefPrice/offUpdItem */
+    if (+it2.refPrice > 0 && +it2.price > 0) it2.marginPct = Math.round(((+it2.price / +it2.refPrice) - 1) * 1000) / 10;
+    else if (refV > 0 && !(+it2.price > 0) && typeof it2.marginPct === 'number') it2.price = Math.round(refV * (1 + it2.marginPct / 100));
+  }
+  if (typeof offRenderItems === 'function') offRenderItems();
+  if (typeof ptfTriggerAutoDraftSave === 'function') { try { ptfTriggerAutoDraftSave(); } catch (eDs) {} }
+  var md = document.getElementById('offPriceXlsModal');
+  if (md && matched) md.remove();
+  alert('💰 ورود قیمت از اکسل:\n' +
+    '✅ ' + matched + ' ردیف تطبیق داده شد (' + refN + ' نرخ مرجع، ' + priceN + ' قیمت واحد)' +
+    (misses.length ? '\n⚠️ ' + misses.length + ' سطر تطبیق نشد: ' + misses.slice(0, 8).join('، ') + (misses.length > 8 ? ' …' : '') : '') +
+    '\nجدول را بازبینی و سپس ذخیره کنید.');
+}
+window.offPriceXlsApply = offPriceXlsApply;
 
 // ---- Terms ----
 // US-142 AC6: بند انتخاب‌شده از کتابخانه قفل می‌شود (انتخاب تکراری ممنوع؛ با حذف بند آزاد می‌شود)

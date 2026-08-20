@@ -12,7 +12,7 @@ var sw = fs.readFileSync(path.join(ROOT, 'crm/sw.js'), 'utf-8');
 SECTION('Offer duplicate item root fix');
 T('نسخه BUG-OFFER-DUP-ITEMS-001 در offers ثبت شده است', offers.indexOf('BUG-OFFER-DUP-ITEMS-001') > -1);
 T('کلید پایدار خط پیشنهاد و dedupe مرکزی وجود دارد', ['function offItemKey','function offDedupeOfferItems','window.offItemKey','window.offDedupeOfferItems'].every(function (x) { return offers.indexOf(x) > -1; }));
-T('offLoadInqItems قبل از درج، existing key می‌سازد و تکراری را skip می‌کند', offers.indexOf('var existing = {};') > -1 && offers.indexOf('existing[offItemKey(it)] = true') > -1 && offers.indexOf('if (existing[key]) { skipped++; return; }') > -1);
+T('offAppendInqRows تکراری را با هویت مبدأ تشخیص می‌دهد نه محتوا (v34.7.56 BUG-OFFER-DUP-SKIP-267)', offers.indexOf('BUG-OFFER-DUP-SKIP-267') > -1 && offers.indexOf('var srcCount = {}') > -1 && offers.indexOf('var sigCount = {}') > -1 && offers.indexOf('item.dupOrdinal = seen') > -1 && offers.indexOf('if (seen < have) { skipped++; return; }') > -1);
 T('پیام بارگذاری از درخواست تعداد added/skipped را نشان می‌دهد', offers.indexOf("' قلم از درخواست '") > -1 && offers.indexOf("' قلم تکراری رد شد'") > -1);
 T('offSmartInsert خودش idempotent شده است', offers.indexOf('_keyFn(_offState.items[e]) === key') > -1 && offers.indexOf('return e;') > -1);
 T('offAddItem فقط یک بار insert می‌کند و مسیر smart دارد', (offers.match(/function offAddItem\(pre\)[\s\S]{0,260}_offState\.items\.push/g) || []).length <= 1 && offers.indexOf('function offAddItem(pre)') > -1 && offers.indexOf('window.offSmartInsert(item)') > -1);
@@ -22,6 +22,8 @@ SECTION('Runtime duplicate behavior');
 var start = offers.indexOf('// ---- v31.7.97 BUG-OFFER-DUP-ITEMS-001');
 var end = offers.indexOf('function prodSrchRender()', start);
 var code = offers.slice(start, end)
+  .replace(/typeof offRowIsEmpty/g, 'typeof window.offRowIsEmpty')
+  .replace(/typeof offSmartInsert/g, 'typeof window.offSmartInsert')
   .replace(/offRowIsEmpty\(/g, 'window.offRowIsEmpty(')
   .replace(/offSmartInsert\(/g, 'window.offSmartInsert(');
 var data = {
