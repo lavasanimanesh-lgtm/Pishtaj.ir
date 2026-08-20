@@ -74,6 +74,7 @@ var SUITE = [
   { g: 'پیشنهاد/کادر فشرده موجودی انبار', f: '_tools/uat/tester451-v34.7.49-offer-surplus-compact-hint.js' },
   { g: 'سایت/فرصت شغلی', f: '_tools/uat/tester452-v34.7.50-careers-site-crm.js' },
   { g: 'سایت/فرصت شغلی', f: '_tools/uat/tester453-v34.7.51-careers-publish-ai-content.js' },
+  { g: 'سایت/فرصت شغلی', f: '_tools/uat/tester454-v34.7.51-careers-resume-attach-status.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

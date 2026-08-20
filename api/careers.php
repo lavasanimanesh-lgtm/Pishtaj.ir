@@ -262,7 +262,7 @@ function careers_job_html($job) {
             . '<div class="grid-2"><div class="field"><label for="jobEdu">مدرک تحصیلی *</label><select id="jobEdu" name="education" required>' . careers_edu_opts() . '</select></div>'
             . '<div class="field"><label for="jobExp">سابقه کاری مرتبط *</label><select id="jobExp" name="experience" required>' . careers_exp_opts() . '</select></div></div>'
             . '<div class="field"><label for="jobSal">حقوق درخواستی (تومان ماهانه) *</label><select id="jobSal" name="salary" required>' . careers_sal_opts() . '</select></div>'
-            . '<div class="field"><label for="jobResume">فایل رزومه (PDF تا ۵MB) *</label><input id="jobResume" name="resume" type="file" accept="application/pdf,.pdf" required></div>'
+            . '<div class="field"><label for="jobResume">فایل رزومه (PDF تا ۵MB) *</label><input id="jobResume" name="resume" type="file" accept="application/pdf,.pdf" required><div id="jobResumeBox" class="job-resume-box" role="status" aria-live="polite">هنوز فایلی انتخاب نشده است. پس از انتخاب، نام فایل اینجا نمایش داده می‌شود.</div></div>'
             . '<div class="field" id="jobCaptcha"></div><div class="field" id="jobOtp"></div>'
             . '<div class="form-status" id="jobStatus" role="status"></div>'
             . '<button type="submit" class="btn" id="jobSubmit">ارسال درخواست</button>'
@@ -306,6 +306,7 @@ function careers_job_html($job) {
 .job-apply .field{margin-bottom:14px}
 .job-apply label{display:block;font-weight:900;font-size:13.5px;margin-bottom:6px}
 .job-apply input,.job-apply select{width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:12px;font:inherit}
+.job-resume-box{margin-top:8px;border:1.5px dashed #cbd5e1;border-radius:14px;padding:12px 14px;background:#f8fafc;color:#475569;font-size:13.5px;line-height:1.75;font-weight:800}
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .btn{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;border:0;border-radius:12px;padding:12px 22px;font:inherit;font-weight:900;cursor:pointer}
 .form-status{margin:10px 0;font-weight:800;min-height:1.4em}
@@ -338,7 +339,7 @@ function careers_job_html($job) {
 </main>
 <script>(function(){var t=document.getElementById("menuToggle"),n=document.getElementById("mainNav");if(t&&n){t.addEventListener("click",function(){n.classList.toggle("open")});n.querySelectorAll("a").forEach(function(a){a.addEventListener("click",function(){n.classList.remove("open")})})}})();</script>
 <script src="' . $pfx . 'assets/js/ptf-guard.js"></script>
-<script src="' . $pfx . 'assets/js/ptf-careers-apply.js"></script>
+<script src="' . $pfx . 'assets/js/ptf-careers-apply.js?v=34.7.51u"></script>
 <script src="' . $pfx . 'assets/js/ptf-chat.js" defer></script>
 <script src="' . $pfx . 'assets/js/ptf-metrics.js" defer></script>
 <script src="' . $pfx . 'assets/js/ptf-discover.js" defer></script>
@@ -512,7 +513,7 @@ switch ($action) {
         ];
         $apps[] = $rec;
         if (!careers_write($APPS_FILE, $apps)) jerr('ذخیره درخواست ناموفق بود', 500);
-        jok(['id' => $rec['id'], 'message' => 'درخواست شما ثبت شد.']);
+        jok(['id' => $rec['id'], 'message' => 'رزومه با موفقیت پیوست شد و درخواست شما ثبت گردید.']);
         break;
 
     case 'list_jobs':
