@@ -41,15 +41,18 @@
 (function(){
   var el = document.getElementById('careersEnList');
   if (!el) return;
-  fetch('../careers/status.json', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+  function paint(d){
     var jobs = (d && d.jobs) || [];
     if (!jobs.length) { el.innerHTML = '<p>There are currently no open positions.</p>'; return; }
     el.className = 'job-grid';
     el.innerHTML = jobs.map(function(j){
-      var t = j.titleEn || j.titleFa || '';
-      return '<a class="job-card" href="../careers/' + String(j.slug||'').replace(/[^a-z0-9\-]/g,'') + '/#en"><h3>' + String(t).replace(/</g,'') + '</h3></a>';
+      var title = j.titleEn || j.titleFa || '';
+      return '<a class="job-card" href="../careers/' + String(j.slug||'').replace(/[^a-z0-9\-]/g,'') + '/#en"><h3>' + String(title).replace(/</g,'') + '</h3></a>';
     }).join('');
-  }).catch(function(){});
+  }
+  fetch('../api/careers.php?action=published', { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : Promise.reject(); }).then(paint).catch(function(){
+    fetch('../careers/status.json', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(paint).catch(function(){});
+  });
 })();
 </script>
 <script src="../assets/js/ptf-metrics.js" defer></script>

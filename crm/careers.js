@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — v34.7.50 فرصت شغلی
+   PTF CRM — v34.7.51 فرصت شغلی
    دسترسی: فقط admin / chairman / ceo
    ===================================================================== */
 (function () {
@@ -35,9 +35,19 @@
     { v: '15_20', lb: '۱۵ تا ۲۰ میلیون' }, { v: '20_25', lb: '۲۰ تا ۲۵ میلیون' },
     { v: '25_30', lb: '۲۵ تا ۳۰ میلیون' }, { v: 'gt30', lb: 'مثبت ۳۰ میلیون' }, { v: 'other', lb: 'سایر' }
   ];
+  var TITLE_PRESETS = [
+    { fa: 'کارشناس فروش', en: 'Sales Expert', slug: 'sales-expert' },
+    { fa: 'مدیر فروش', en: 'Sales Manager', slug: 'sales-manager' },
+    { fa: 'حسابدار', en: 'Accountant', slug: 'accountant' },
+    { fa: 'مدیر مالی', en: 'Finance Manager', slug: 'finance-manager' },
+    { fa: 'کارشناس مهندسی', en: 'Engineering Expert', slug: 'engineering-expert' }
+  ];
   function lbOf(list, v) {
     for (var i = 0; i < list.length; i++) if (list[i].v === v) return list[i].lb;
     return v || '-';
+  }
+  function slugify(s) {
+    return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
   }
 
   var _tab = 'jobs';
@@ -92,21 +102,105 @@
   window.jobsAdd = function () { jobsForm(null); };
   window.jobsEdit = function (i) { jobsForm(_jobs[i] || null); };
 
+  window.jobsTitlePick = function () {
+    var sel = document.getElementById('cjTitlePick');
+    var i = sel ? +sel.value : -1;
+    var custom = i < 0;
+    var box = document.getElementById('cjCustomHint');
+    if (box) box.style.display = custom ? '' : 'none';
+    if (custom || !TITLE_PRESETS[i]) return;
+    var p = TITLE_PRESETS[i];
+    var fa = document.getElementById('cjTitleFa');
+    var en = document.getElementById('cjTitleEn');
+    var slug = document.getElementById('cjSlug');
+    if (fa) fa.value = p.fa;
+    if (en) en.value = p.en;
+    if (slug && !slug.readOnly) slug.value = p.slug;
+  };
+  window.jobsSlugFromEn = function () {
+    var slug = document.getElementById('cjSlug');
+    var en = document.getElementById('cjTitleEn');
+    if (!slug || slug.readOnly || !en) return;
+    if (slug.value && slug.getAttribute('data-touched') === '1') return;
+    slug.value = slugify(en.value);
+  };
+
   function jobsForm(j) {
     j = j || { slug: '', titleFa: '', titleEn: '', bodyFa: '', bodyEn: '', dept: '', location: '', published: true };
+    var opts = '<option value="-1">سایر — عنوان را خودتان بنویسید</option>' + TITLE_PRESETS.map(function (p, i) {
+      var on = j.titleFa === p.fa || j.titleEn === p.en;
+      return '<option value="' + i + '"' + (on ? ' selected' : '') + '>' + escP(p.fa) + ' / ' + escP(p.en) + '</option>';
+    }).join('');
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:720px;max-height:94vh;overflow:auto">' +
       '<h3>' + (j.slug ? '✏️ ویرایش آگهی' : '💼 آگهی جدید') + '</h3>' +
+      '<div class="fld"><label>عنوان شغل</label><select id="cjTitlePick" onchange="jobsTitlePick()">' + opts + '</select>' +
+      '<small id="cjCustomHint" style="color:#64748b;display:block;margin-top:4px">برای عنوان‌های دیگر (مثلاً کارشناس بازرگانی) فیلدهای زیر را پر کنید.</small></div>' +
       '<div class="fr"><div class="fld"><label>عنوان فارسی *</label><input type="text" id="cjTitleFa" value="' + escP(j.titleFa) + '"></div>' +
-      '<div class="fld"><label>عنوان انگلیسی *</label><input type="text" id="cjTitleEn" value="' + escP(j.titleEn) + '" style="direction:ltr"></div></div>' +
-      '<div class="fr"><div class="fld"><label>نامک انگلیسی (slug) *</label><input type="text" id="cjSlug" value="' + escP(j.slug) + '" ' + (j.slug ? 'readonly style="background:#f1f5f9;direction:ltr"' : 'placeholder="sales-expert" style="direction:ltr"') + '></div>' +
+      '<div class="fld"><label>عنوان انگلیسی *</label><input type="text" id="cjTitleEn" value="' + escP(j.titleEn) + '" style="direction:ltr" oninput="jobsSlugFromEn()"></div></div>' +
+      '<div class="fr"><div class="fld"><label>نامک انگلیسی (slug)</label><input type="text" id="cjSlug" value="' + escP(j.slug) + '" ' + (j.slug ? 'readonly style="background:#f1f5f9;direction:ltr"' : 'placeholder="sales-expert" style="direction:ltr" oninput="this.setAttribute(\'data-touched\',\'1\')"') + '><small style="color:#94a3b8">اگر خالی بماند از عنوان انگلیسی ساخته می‌شود.</small></div>' +
       '<div class="fld"><label>واحد / محل (اختیاری)</label><input type="text" id="cjDept" value="' + escP(j.dept || '') + '" placeholder="واحد بازرگانی"><input type="text" id="cjLoc" value="' + escP(j.location || '') + '" placeholder="تهران" style="margin-top:6px"></div></div>' +
+      '<div class="fld"><label>نکات برای هوش مصنوعی (اختیاری)</label><textarea id="cjAiNotes" rows="2" placeholder="مثلاً: تمام‌وقت، تهران، تسلط به اکسل، سابقه فروش صنعتی"></textarea></div>' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 10px">' +
+      '<button type="button" class="bt" id="cjAiBtn" style="background:#7c3aed" onclick="jobsAiDraft()">🤖 نوشتن شرح فارسی و انگلیسی</button>' +
+      '<small style="color:#64748b">متن پیشنهادی را بازبینی کنید و بعد انتشار بزنید.</small></div>' +
+      '<div id="cjAiSt" style="font-size:12px;min-height:1.2em;margin-bottom:8px"></div>' +
       '<div class="fld"><label>شرح فارسی *</label><textarea id="cjBodyFa" rows="6">' + escP(j.bodyFa || '') + '</textarea></div>' +
       '<div class="fld"><label>شرح انگلیسی *</label><textarea id="cjBodyEn" rows="6" style="direction:ltr">' + escP(j.bodyEn || '') + '</textarea></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
       '<button class="bt" onclick="jobsSave()">🚀 انتشار / ذخیره</button></div>' +
       '<small style="color:#94a3b8;display:block;margin-top:6px">برداشتن آگهی فقط انتشار را می‌بندد؛ تاریخچه رزومه‌ها حفظ می‌شود و بعد از ۶ ماه پاک می‌شود.</small></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    if (!j.slug) {
+      var pick = document.getElementById('cjTitlePick');
+      if (pick) pick.value = '-1';
+    }
   }
+
+  window.jobsAiDraft = function () {
+    var titleFa = (document.getElementById('cjTitleFa') || {}).value.trim();
+    var titleEn = (document.getElementById('cjTitleEn') || {}).value.trim();
+    if (!titleFa) { alert('ابتدا عنوان شغل را از فهرست انتخاب کنید یا بنویسید'); return; }
+    var st = document.getElementById('cjAiSt');
+    var btn = document.getElementById('cjAiBtn');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ در حال نوشتن شرح دوزبانه…</span>';
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ در حال نوشتن…'; }
+    var headers = jobsAuthHeaders();
+    headers['Content-Type'] = 'application/json';
+    fetch('../api/llm.php?action=jobdesc', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        titleFa: titleFa,
+        titleEn: titleEn,
+        dept: (document.getElementById('cjDept') || {}).value.trim(),
+        location: (document.getElementById('cjLoc') || {}).value.trim(),
+        notes: (document.getElementById('cjAiNotes') || {}).value.trim()
+      })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (btn) { btn.disabled = false; btn.textContent = '🤖 نوشتن شرح فارسی و انگلیسی'; }
+      if (!d.ok || !d.data) {
+        if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>';
+        return;
+      }
+      var fa = d.data.bodyFa || '';
+      var en = d.data.bodyEn || '';
+      var curFa = (document.getElementById('cjBodyFa') || {}).value.trim();
+      if (curFa && !confirm('شرح پیشنهادی جایگزین متن فعلی شود؟')) {
+        if (st) st.textContent = 'شرح فعلی حفظ شد.';
+        return;
+      }
+      if (d.data.titleEn && !(document.getElementById('cjTitleEn') || {}).value.trim()) document.getElementById('cjTitleEn').value = d.data.titleEn;
+      document.getElementById('cjBodyFa').value = fa;
+      document.getElementById('cjBodyEn').value = en;
+      var slugEl = document.getElementById('cjSlug');
+      if (slugEl && !slugEl.readOnly && !slugEl.value && d.data.slug) slugEl.value = slugify(d.data.slug);
+      else if (slugEl && !slugEl.readOnly && !slugEl.value) jobsSlugFromEn();
+      if (st) st.innerHTML = '<span style="color:#047857">✅ شرح پیشنهادی آمد — بازبینی کنید و اگر تأیید است انتشار را بزنید.</span>';
+    }).catch(function () {
+      if (btn) { btn.disabled = false; btn.textContent = '🤖 نوشتن شرح فارسی و انگلیسی'; }
+      if (st) st.innerHTML = '<span style="color:#dc2626">❌ خطای اتصال به هوش مصنوعی</span>';
+    });
+  };
 
   window.jobsSave = function () {
     var rec = {
@@ -119,10 +213,13 @@
       location: document.getElementById('cjLoc').value.trim(),
       published: '1'
     };
-    if (!rec.titleFa || !rec.titleEn || !rec.slug || !rec.bodyFa || !rec.bodyEn) { alert('عنوان، نامک و متن فارسی و انگلیسی الزامی است'); return; }
+    if (!rec.slug) rec.slug = slugify(rec.titleEn);
+    if (!rec.titleFa || !rec.titleEn || !rec.bodyFa || !rec.bodyEn) { alert('عنوان و متن فارسی و انگلیسی الزامی است'); return; }
+    if (!rec.slug) { alert('نامک انگلیسی ساخته نشد — عنوان انگلیسی را با حروف لاتین بنویسید'); return; }
     api('save_job', rec, function (d) {
       if (d.ok) {
-        alert('✅ آگهی روی سایت منتشر شد:\npishtaj.ir/' + d.url);
+        var extra = (d.warnings && d.warnings.length) ? '\n\nتوجه: ' + d.warnings.join(' — ') : '';
+        alert('✅ آگهی روی سایت منتشر شد:\npishtaj.ir/' + d.url + extra);
         if (typeof audit === 'function') audit('فرصت شغلی', 'انتشار آگهی ' + rec.titleFa, rec.slug);
         hideModal();
         renderJobs();

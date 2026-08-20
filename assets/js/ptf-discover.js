@@ -24,26 +24,32 @@
     var nav = document.getElementById("mainNav");
     if (!nav) return;
     if ((document.documentElement.lang || "").toLowerCase().indexOf("en") === 0) return;
-    fetch(prefix() + "careers/status.json", { cache: "no-store" })
-      .then(function (r) { return r.ok ? r.json() : { count: 0 }; })
-      .then(function (d) {
-        var existing = nav.querySelector(".nav-careers");
-        var count = d && d.count ? +d.count : 0;
-        if (count < 1) {
-          if (existing) existing.remove();
-          return;
-        }
-        if (existing) {
-          existing.href = prefix() + "careers/";
-          return;
-        }
-        var a = document.createElement("a");
-        a.className = "nav-careers";
-        a.href = prefix() + "careers/";
-        a.textContent = "فرصت شغلی";
-        insertBeforeContact(nav, a);
-      })
-      .catch(function () {});
+    function apply(d) {
+      var existing = nav.querySelector(".nav-careers");
+      var count = d && d.count ? +d.count : 0;
+      if (count < 1) {
+        if (existing) existing.remove();
+        return;
+      }
+      if (existing) {
+        existing.href = prefix() + "careers/";
+        return;
+      }
+      var a = document.createElement("a");
+      a.className = "nav-careers";
+      a.href = prefix() + "careers/";
+      a.textContent = "فرصت شغلی";
+      insertBeforeContact(nav, a);
+    }
+    fetch(prefix() + "api/careers.php?action=published", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(apply)
+      .catch(function () {
+        fetch(prefix() + "careers/status.json", { cache: "no-store" })
+          .then(function (r) { return r.ok ? r.json() : { count: 0 }; })
+          .then(apply)
+          .catch(function () {});
+      });
   }
   function boot() { ensureSearchLink(); ensureCareersLink(); }
   if (document.readyState === "loading") {

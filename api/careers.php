@@ -4,10 +4,6 @@
  * عمومی: published, apply
  * CRM (admin/chairman/ceo): list_jobs, save_job, close_job, reopen_job, list_apps, get_app, purge_old
  */
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-header('Cache-Control: no-store');
-
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/storage-lib.php';
 
@@ -42,7 +38,6 @@ $SAL = [
     'other' => 'سایر',
 ];
 
-$action = $_REQUEST['action'] ?? '';
 $PUBLIC = ['published', 'apply'];
 
 function jerr($m, $code = 400) {
@@ -94,9 +89,14 @@ function careers_digits($s) {
     return preg_replace('/\D/', '', str_replace($fa, $en, (string)$s));
 }
 function careers_slug($s) {
-    $s = strtolower(preg_replace('/[^a-z0-9\-]/', '', (string)$s));
+    $s = strtolower(preg_replace('/[^a-z0-9\-]+/', '-', (string)$s));
     $s = preg_replace('/-+/', '-', $s);
     return trim($s, '-');
+}
+function careers_slug_from_title($en, $fa = '') {
+    $s = careers_slug($en);
+    if ($s === '') $s = 'job-' . substr(sha1((string)$fa . '|' . (string)$en), 0, 8);
+    return substr($s, 0, 80);
 }
 
 $CAPTCHA_SECRET = load_ptf_secret('captcha_key', '');
@@ -420,6 +420,16 @@ function careers_publish_public() {
     careers_replace_marker($ROOT . '/en/careers.html', '<!--PTF_CAREERS_LIST-->', '<!--/PTF_CAREERS_LIST-->', careers_en_inner($jobs));
 }
 
+if (defined('PTF_CAREERS_LIB') && PTF_CAREERS_LIB) {
+    return;
+}
+
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+header('Cache-Control: no-store');
+
+$action = $_REQUEST['action'] ?? '';
+
 if (!in_array($action, $PUBLIC, true)) {
     careers_auth();
 }
@@ -510,14 +520,15 @@ switch ($action) {
         break;
 
     case 'save_job':
-        $slug = careers_slug($_POST['slug'] ?? '');
-        if (!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug) || strlen($slug) > 80) jerr('نامک انگلیسی نامعتبر است');
         $titleFa = careers_clean($_POST['titleFa'] ?? '', 180);
         $titleEn = careers_clean($_POST['titleEn'] ?? '', 180);
         $bodyFa = careers_clean($_POST['bodyFa'] ?? '', 20000);
         $bodyEn = careers_clean($_POST['bodyEn'] ?? '', 20000);
         if ($titleFa === '' || $titleEn === '' || $bodyFa === '' || $bodyEn === '') jerr('عنوان و متن فارسی و انگلیسی الزامی است');
         $jobs = careers_read($JOBS_FILE);
+        $slug = careers_slug($_POST['slug'] ?? '');
+        if ($slug === '') $slug = careers_slug_from_title($titleEn, $titleFa);
+        if (!preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $slug) || strlen($slug) > 80) jerr('نامک انگلیسی نامعتبر است');
         $found = false;
         $now = date('c');
         $published = !isset($_POST['published']) || $_POST['published'] === '1' || $_POST['published'] === 'true';
@@ -536,6 +547,10 @@ switch ($action) {
         }
         unset($j);
         if (!$found) {
+            $base = $slug; $n = 2;
+            $taken = [];
+            foreach ($jobs as $ex) $taken[$ex['slug'] ?? ''] = true;
+            while (isset($taken[$slug]) && $n < 50) { $slug = $base . '-' . $n; $n++; }
             $job = [
                 'slug' => $slug, 'titleFa' => $titleFa, 'titleEn' => $titleEn,
                 'bodyFa' => $bodyFa, 'bodyEn' => $bodyEn,
@@ -546,12 +561,13 @@ switch ($action) {
             $jobs[] = $job;
         }
         if (!careers_save_jobs($jobs)) jerr('ذخیره آگهی ناموفق بود');
+        $warn = [];
         $w = careers_write_job_page($job);
-        if ($w !== true) jerr($w);
+        if ($w !== true) $warn[] = $w;
         $url = 'https://pishtaj.ir/careers/' . $slug . '/';
         if (!empty($job['published'])) careers_sitemap_add($url); else careers_sitemap_remove($url);
         careers_publish_public();
-        jok(['slug' => $slug, 'url' => 'careers/' . $slug . '/']);
+        jok(['slug' => $slug, 'url' => 'careers/' . $slug . '/', 'warnings' => $warn]);
         break;
 
     case 'close_job':

@@ -46,14 +46,17 @@
 (function(){
   var el = document.getElementById('careersList');
   if (!el) return;
-  fetch('status.json', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+  function paint(d){
     var jobs = (d && d.jobs) || [];
     if (!jobs.length) { el.innerHTML = '<p class="careers-empty">در حال حاضر فرصت شغلی فعال نیست.</p>'; return; }
     el.className = 'job-grid';
     el.innerHTML = jobs.map(function(j){
       return '<a class="job-card" href="' + String(j.slug||'').replace(/[^a-z0-9\-]/g,'') + '/"><h3>' + String(j.titleFa||'').replace(/</g,'') + '</h3></a>';
     }).join('');
-  }).catch(function(){});
+  }
+  fetch('../api/careers.php?action=published', { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : Promise.reject(); }).then(paint).catch(function(){
+    fetch('status.json', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(paint).catch(function(){});
+  });
 })();
 </script>
 <script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}})();</script>
