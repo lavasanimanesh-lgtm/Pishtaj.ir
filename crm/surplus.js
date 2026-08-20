@@ -270,10 +270,59 @@ window.ptfSurplusAddDialog = function(){
   var deals=(getData('ptf_crm_deals')||[]).concat(getData('ptf_crm_projects')||[]).slice(0,100), dealOpts='<option value="">— بدون منبع - مازاد قدیمی —</option>'+deals.map(function(d){return '<option value="'+escP(d.cd||d.inqNo)+'">'+escP((d.inqNo||d.cd)+' - '+(d.buyerCo||''))+'</option>';}).join('');
   ptfDialog({title:'🏬 ثبت موجودی انبار',fields:[{id:'prodCd',label:'کالا (از کاتالوگ)',type:'select',optionsHtml:prodOpts},{id:'qty',label:'تعداد',type:'number',value:1,required:true},{id:'location',label:'محل نگهداری',value:'کارگاه',required:true},{id:'sourceDealCd',label:'منبع پرونده/بایگانی (اختیاری)',type:'select',optionsHtml:dealOpts},{id:'note',label:'یادداشت',type:'textarea',rows:2,value:'موجودی انبار'}],okText:'ثبت موجودی',onOk:function(v){if(!ptfSurplusAdd(v.prodCd,v.qty,v.location,v.sourceDealCd,v.note)){alert('کالا و تعداد معتبر الزامی است');return;} renderSurplus();if(typeof ptfToast==='function')ptfToast('موجودی انبار ثبت شد','ok');}});
 };
+/* v34.7.49: کادر سبز مودال پیشنهاد دیگر نام کالاها را ردیف نمی‌کند.
+   خلاصهٔ یک‌خطی (تعداد قلم/واحد) همیشه جمع‌وجور می‌ماند؛ فهرست فقط با «مشاهده» و اسکرول باز می‌شود. */
+window.ptfOfferSurplusBanner = function () {
+  var box = document.getElementById('offItemsWrap');
+  if (!box) return;
+  var old = document.getElementById('offSurplusHint');
+  if (old) old.remove();
+  var avail = all().filter(function (s) { return activeQty(s) > 0; });
+  if (!avail.length) return;
+  var lots = avail.length, qty = 0;
+  avail.forEach(function (s) { qty += activeQty(s); });
+  var html = '<div id="offSurplusHint" style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">' +
+    '<span>📦 موجودی انبار: <b>' + lots + '</b> قلم قابل استفاده <small style="color:#047857">(' + qty + ' واحد)</small></span>' +
+    '<button type="button" class="bt bt-o" id="offSurplusHintBtn" style="font-size:11px;padding:3px 10px" onclick="ptfOfferSurplusHintToggle()">مشاهده فهرست</button>' +
+    '</div><div id="offSurplusHintList" style="display:none;margin-top:8px"></div></div>';
+  box.insertAdjacentHTML('beforebegin', html);
+};
+window.ptfOfferSurplusHintFilter = function (q) {
+  q = String(q || '').trim().toLowerCase();
+  document.querySelectorAll('#offSurplusHintRows .off-surplus-row').forEach(function (row) {
+    var hay = String(row.getAttribute('data-q') || '');
+    row.style.display = !q || hay.indexOf(q) > -1 ? '' : 'none';
+  });
+};
+window.ptfOfferSurplusHintToggle = function () {
+  var el = document.getElementById('offSurplusHintList');
+  var btn = document.getElementById('offSurplusHintBtn');
+  if (!el) return;
+  if (el.style.display === 'none') {
+    var avail = all().filter(function (s) { return activeQty(s) > 0; });
+    var rows = avail.map(function (s) {
+      var hay = ((s.prodName || '') + ' ' + (s.prodCd || '') + ' ' + (s.location || '')).toLowerCase();
+      return '<div class="off-surplus-row" data-q="' + escP(hay) + '" style="display:flex;justify-content:space-between;gap:8px;padding:5px 2px;border-bottom:1px dashed #bbf7d0;font-size:12px">' +
+        '<span><b>' + escP(s.prodName || s.prodCd) + '</b> <small style="color:#64748b">' + escP(s.prodCd || '') + (s.location ? ' · ' + escP(s.location) : '') + '</small></span>' +
+        '<b style="color:#047857;white-space:nowrap">' + activeQty(s) + '</b></div>';
+    }).join('');
+    el.innerHTML = '<input type="search" id="offSurplusHintSrch" placeholder="جستجوی کالا / کد / محل..." oninput="ptfOfferSurplusHintFilter(this.value)" style="width:100%;padding:6px 8px;border:1px solid var(--brd);border-radius:8px;margin-bottom:6px">' +
+      '<div id="offSurplusHintRows" style="max-height:180px;overflow:auto;border:1px solid #a7f3d0;border-radius:8px;padding:4px 8px">' + rows + '</div>';
+    el.style.display = '';
+    if (btn) btn.textContent = 'بستن فهرست';
+  } else {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    if (btn) btn.textContent = 'مشاهده فهرست';
+  }
+};
 (function hookOfferNew(){
-  if(typeof window.offerNew!=='function'||window._surplusHooked)return;
-  window._surplusHooked=true; var orig=window.offerNew;
-  window.offerNew=function(kind){ orig(kind); try{ var avail=all().filter(function(s){return activeQty(s)>0;}); var box=document.getElementById('offItemsWrap'); if(!box||!avail.length)return; var html='<div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px">📦 <b>مازاد موجود:</b> '+avail.slice(0,5).map(function(s){return escP(s.prodName)+' - '+activeQty(s)+' عدد ('+escP(s.location)+')';}).join(' | ')+' — برای انتخاب دقیق از ماژول موجودی انبار استفاده کنید</div>'; box.insertAdjacentHTML('beforebegin',html); }catch(e){} };
+  if(window._surplusHooked)return;
+  window._surplusHooked=true;
+  if(typeof window.offerForm!=='function')return;
+  var _of=window.offerForm;
+  window.offerForm=function(){ _of.apply(this,arguments); try{ window.ptfOfferSurplusBanner(); }catch(e){} };
 })();
 /* offerSetSt از offers.js قبل از این فایل در runtime حاضر است؛ wrapperهای بعدی
    workflow/petty/archive نیز به original زنجیره‌ای خودشان صدا می‌زنند. */

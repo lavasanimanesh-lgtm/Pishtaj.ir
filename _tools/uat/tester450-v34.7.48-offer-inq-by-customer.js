@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.48 — در مودال پیشنهاد، کشویی درخواست و «بارگذاری از درخواست دیگر»
+/* v34.7.49 — در مودال پیشنهاد، کشویی درخواست و «بارگذاری از درخواست دیگر»
    فقط درخواست‌های کارفرمای انتخاب‌شده را نشان می‌دهند. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
@@ -12,7 +12,7 @@ var dd = read('crm/dedup.js');
 var off = read('crm/offers.js');
 var ver = JSON.parse(read('VERSION.json'));
 
-T('VERSION.json = v34.7.48', ver.crm_version === 'v34.7.48', ver.crm_version);
+T('VERSION.json = v34.7.49', ver.crm_version === 'v34.7.49', ver.crm_version);
 T('امضای ptfKnownInqList() بدون پارامتر مانده (tester202)', /function ptfKnownInqList\(\) \{/.test(dd));
 T('ptfInqBelongsToCustomer تعریف شده', /function ptfInqBelongsToCustomer\(inqOrRfq, buyerCd\)/.test(dd));
 T('ptfInqNoOptions آرگومان buyerCd دارد', /function ptfInqNoOptions\(cur, buyerCd\)/.test(dd));
@@ -86,7 +86,7 @@ function engine() {
   T('بدون buyerCd در opt همه برمی‌گردند (سازگاری)', s.offListLoadableInquiries({}).some(function (x) { return x.key === 'RFQ-B1'; }) && s.offListLoadableInquiries({}).some(function (x) { return x.key === 'RFQ-A1'; }));
 })();
 
-console.log('\n— tester450 (v34.7.48: فیلتر درخواست مودال بر حسب کارفرما) —');
+console.log('\n— tester450 (v34.7.49: فیلتر درخواست مودال بر حسب کارفرما) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
 

@@ -71,6 +71,7 @@ var SUITE = [
   { g: 'پرونده/برابری فرم کامل رویژن', f: '_tools/uat/tester448-v34.7.45-award-revision-offer-form.js' },
   { g: 'پیشنهاد/درخواست دیگر و مبالغ', f: '_tools/uat/tester449-v34.7.47-offer-other-inq-and-money.js' },
   { g: 'پیشنهاد/فیلتر درخواست بر حسب کارفرما', f: '_tools/uat/tester450-v34.7.48-offer-inq-by-customer.js' },
+  { g: 'پیشنهاد/کادر فشرده موجودی انبار', f: '_tools/uat/tester451-v34.7.49-offer-surplus-compact-hint.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
