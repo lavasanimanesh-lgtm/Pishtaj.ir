@@ -1,0 +1,4 @@
+# فهرست جستجوی عمومی سایت — استثنای مسدودسازی JSON سراسری ریشه
+<Files "search-index.json">
+  Require all granted
+</Files>

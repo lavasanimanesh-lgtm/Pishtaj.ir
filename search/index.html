@@ -9,7 +9,7 @@
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://pishtaj.ir/search/" />
 <link rel="stylesheet" href="../assets/css/style.css" />
-<link rel="stylesheet" href="../assets/css/discover.css?v=20260820n" />
+<link rel="stylesheet" href="../assets/css/discover.css?v=20260820p" />
 </head>
 <body>
 <a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
@@ -36,7 +36,7 @@
   </div>
 </main>
 <script src="../assets/js/main.js"></script>
-<script src="../assets/js/ptf-discover.js?v=20260820n"></script>
+<script src="../assets/js/ptf-discover.js?v=20260820p"></script>
 <script>
 (function(){
   var idx=[], ready=false;
@@ -44,21 +44,33 @@
   var hits=document.getElementById('hits');
   var meta=document.getElementById('meta');
   function esc(s){
-    return String(s||'').replace(/[&<>"']/g, function(c){
-      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
-    });
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
   function skipItem(it){
     var u=String(it && it.u || '');
     var t=String(it && it.t || '');
     if (/\/404\.html$/i.test(u) || u==='/404.html') return true;
-    if (/صفحه پیدا نشد|404/.test(t) && /404/.test(u)) return true;
+    if (/صفحه پیدا نشد/.test(t)) return true;
     return false;
   }
-  fetch('../assets/data/search-index.json').then(function(r){return r.json()}).then(function(d){
-    idx=(d||[]).filter(function(it){ return !skipItem(it); });
-    ready=true; run(new URLSearchParams(location.search).get('q')||'');
-  }).catch(function(){ meta.textContent='فهرست جستجو بارگذاری نشد.'; });
+  function loadIndex(url){
+    return fetch(url, { cache: 'no-store' }).then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    });
+  }
+  meta.textContent='در حال بارگذاری فهرست…';
+  loadIndex('/assets/data/search-index.json').catch(function(){
+    return loadIndex('../assets/data/search-index.json');
+  }).then(function(d){
+    var list = Array.isArray(d) ? d : (d && (d.items || d.list) || []);
+    idx=list.filter(function(it){ return !skipItem(it); });
+    ready=true;
+    run(qEl.value || new URLSearchParams(location.search).get('q') || '');
+  }).catch(function(){
+    ready=false;
+    meta.textContent='فهرست جستجو بارگذاری نشد. اگر این پیام ماند، دسترسی فایل JSON را بررسی کنید.';
+  });
   function norm(s){return String(s||'').toLowerCase().replace(/ي/g,'ی').replace(/ك/g,'ک');}
   function score(it, parts){
     var t=norm(it.t), d=norm(it.d), u=norm(it.u), s=0;
@@ -75,7 +87,7 @@
     return s;
   }
   function run(q){
-    qEl.value=q||'';
+    if(qEl && q) qEl.value=q;
     if(!ready){ meta.textContent='در حال بارگذاری فهرست…'; return; }
     q=norm(q).trim();
     if(q.length<2){ hits.innerHTML=''; meta.textContent='حداقل دو نویسه وارد کنید. '+idx.length+' صفحه در فهرست است.'; return; }
