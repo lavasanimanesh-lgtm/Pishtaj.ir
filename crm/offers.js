@@ -1152,6 +1152,7 @@ function offerForm() {
     '<div class="offer-footer-btns">' +
     '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
     '<button class="bt bt-o" onclick="offerPreview()">👁️ پیش‌نمایش</button>' +
+    '<button type="button" class="bt bt-o" style="color:#047857;border-color:#6ee7b7" onclick="offerPrintCurrent()" title="خروجی رسمی بدون watermark پیش‌نمایش — از وضعیت فعلی فرم">🖨 چاپ / PDF رسمی</button>' +
     '<button type="button" class="bt" id="offSaveBtn" onclick="window.offerSave()">💾 ذخیره</button>' +
     '</div></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
@@ -2722,26 +2723,49 @@ function offRenderTerms() {
 }
 
 // ---- پیش‌نمایش (بدون ذخیره) ----
-function offerPreview() {
+/* v34.7.58 OFFICIAL-OFFER-OUTPUT-001 (بازپیاده‌سازی PR #57 روی main):
+   ساخت سند از وضعیت فعلی فرم، جدا از مسیر پیش‌نمایش — بدون ذخیره و بدون mutation اضافه. */
+function offMaterializeCurrentDocument() {
   var o = _offState;
   o.buyerCd = (document.getElementById('ofBuyer')||{}).value || o.buyerCd;
   o.inqNo = (document.getElementById('ofInq')||{}).value || '';
   o.dateEn = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofDateJ')||{}).value || '')) : '') || o.dateEn || new Date().toISOString().slice(0, 10); /* v22 audited: انتخاب شمسی، ذخیره ISO */
+  if (o.kind === 'CO' || o.kind === 'TC') o.validUntil = (typeof ptfJToISO==='function' ? ptfJToISO(((document.getElementById('ofValidJ')||{}).value || '')) : '') || o.validUntil || defaultValidity(o.dateEn);
   o.sellerContact = ((document.getElementById('ofSeller')||{}).value || '').trim();
-  // US-148 AC3: پیش‌نمایش با مهر و امضا قبل از ثبت نهایی
+  if (o.kind !== 'TO') o.printAs = ((document.getElementById('ofPrintAs') || {}).value) || o.printAs || (o.kind === 'TC' ? 'TC' : 'CO');
+  // US-148 AC3: مهر و امضا پیش از ثبت نهایی هم روی خروجی اعمال می‌شود
   o.useSig = !!(document.getElementById('ofUseSig') || {}).checked;
   var _sa = document.getElementById('ofSignAs'); if (_sa && _sa.value) o.signAs = _sa.value; /* v13.1 US-321 */
   if (!o.issuedBy) o.issuedBy = curSession().user;
   var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === o.buyerCd; })[0];
   if (c) o.buyerCo = c.coEn || c.co;
-  // ذخیره موقت در حافظه و چاپ همان
-  var offers = getData('ptf_crm_offers');
-  var saved = offers.filter(function(x){ return x.no === o.no; })[0];
+  return o;
+}
+
+function offerPreview() {
+  var o = offMaterializeCurrentDocument();
+  /* پیش‌نمایش عمداً می‌تواند watermark داخلی PREVIEW داشته باشد. */
   var tmpKey = '_preview_' + o.no;
   localStorage.setItem(tmpKey, JSON.stringify(o));
   offerPrintObj(o);
   localStorage.removeItem(tmpKey);
 }
+
+/* v34.7.58 OFFICIAL-OFFER-OUTPUT-001: خروجی قابل ارسال مستقیماً با isPreview=false
+   ساخته می‌شود؛ نه watermark «PREVIEW» دارد و نه کاربر برای رسیدن به PDF رسمی
+   مجبور است از پیش‌نمایش داخلی عبور کند. */
+function offerPrintCurrent() {
+  var o = offMaterializeCurrentDocument();
+  var tpl = localStorage.getItem('ptf_offer_tpl') || 'letterhead';
+  if (typeof window.offerPrintTpl === 'function') {
+    window.offerPrintTpl(o, tpl, false);
+    return;
+  }
+  /* fallback قدیمی فقط انتخاب‌گر قالب را باز می‌کند؛ ذخیره/رویژن انجام نمی‌دهد. */
+  if (typeof window.offerPickTemplate === 'function') window.offerPickTemplate(o);
+  else offerPrintObj(o);
+}
+window.offerPrintCurrent = offerPrintCurrent;
 
 // ---- ذخیره ----
 /* ============================================================================
