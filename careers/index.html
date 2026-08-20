@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png"><link rel="icon" type="image/png" sizes="96x96" href="../assets/images/favicon/favicon-96.png"><link rel="icon" type="image/png" sizes="192x192" href="../assets/images/favicon/favicon-192.png"><link rel="apple-touch-icon" sizes="180x180" href="../assets/images/favicon/apple-touch-icon.png"><link rel="shortcut icon" href="../favicon.ico">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>فرصت شغلی | پیشرو تجهیز فرتاک</title>
+<meta name="description" content="فرصت‌های شغلی شرکت پیشرو تجهیز فرتاک — ارسال رزومه PDF برای آگهی‌های منتشرشده." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/careers/" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/careers/" />
+<link rel="alternate" hreflang="en" href="https://pishtaj.ir/en/careers.html" />
+<meta property="og:locale" content="fa_IR" /><meta property="og:site_name" content="پیشرو تجهیز فرتاک" /><meta property="og:title" content="فرصت شغلی" /><meta property="og:type" content="website" /><meta property="og:url" content="https://pishtaj.ir/careers/" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<link rel="stylesheet" href="../assets/css/discover.css" />
+<style>
+.job-hero{background:linear-gradient(135deg,#151517,#2d2d31);min-height:240px;display:flex;align-items:center;padding:145px 0 50px;color:#fff}
+.job-wrap{max-width:900px;margin:0 auto;padding:32px 20px 70px}
+.job-grid{display:grid;gap:14px}
+.job-card{display:block;background:#fff;border:1px solid var(--line,#e2e8f0);border-radius:18px;padding:18px 20px;text-decoration:none;color:#1e293b;box-shadow:0 8px 20px rgba(0,0,0,.04)}
+.job-card:hover{border-color:rgba(239,75,26,.3);transform:translateY(-2px)}
+.job-card h3{margin:0 0 6px;font-size:17px}
+.careers-empty{background:#fff;border:1px dashed #cbd5e1;border-radius:16px;padding:22px;color:#64748b;font-weight:800;text-align:center}
+</style>
+</head>
+<body>
+<a class="ptf-skip" href="#main-content">رفتن به محتوا</a>
+<header class="site-header scrolled"><div class="container nav-wrap">
+<a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو شرکت پیشرو تجهیز فرتاک" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
+<button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
+<nav class="main-nav" id="mainNav" aria-label="منوی اصلی">
+<a href="../">خانه</a><span class="nav-drop"><a href="../#about" aria-haspopup="true">درباره ما</a><span class="nav-drop-menu"><a href="../news/">اخبار</a><a href="../blog/">وبلاگ</a></span></span><a href="../services/">خدمات</a><a href="../services/products/">محصولات</a><a href="../industries/">صنایع</a><a href="../projects/">پروژه‌ها</a><a href="../knowledge-center/">مرکز دانش</a><a href="../tools/">ابزارها</a><a href="../rfq/">استعلام</a><a href="../#contact">تماس</a><a href="../en/" class="lang-switch-mobile">🇬🇧 English</a>
+</nav>
+<a class="header-call" href="tel:02146087679">021-46087679</a>
+<a href="../en/" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none">🇬🇧 EN</a>
+</div></header>
+<nav class="ptf-bc" aria-label="مسیر صفحه"><div class="container"><ol><li><a href="/">خانه</a></li><li><span aria-current="page">فرصت شغلی</span></li></ol></div></nav>
+<section class="job-hero"><div class="container"><h1>فرصت شغلی</h1><p>آگهی‌های منتشرشده شرکت پیشرو تجهیز فرتاک. فرم درخواست فقط روی صفحه همان آگهی است.</p></div></section>
+<main id="main-content" class="job-wrap">
+<!--PTF_CAREERS_LIST-->
+<div id="careersList"><p class="careers-empty">در حال حاضر فرصت شغلی فعال نیست.</p></div>
+<!--/PTF_CAREERS_LIST-->
+<p style="margin-top:18px;font-size:13px;color:#64748b">English listing: <a href="../en/careers.html">Open positions</a></p>
+</main>
+<script>
+(function(){
+  var el = document.getElementById('careersList');
+  if (!el) return;
+  fetch('status.json', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+    var jobs = (d && d.jobs) || [];
+    if (!jobs.length) { el.innerHTML = '<p class="careers-empty">در حال حاضر فرصت شغلی فعال نیست.</p>'; return; }
+    el.className = 'job-grid';
+    el.innerHTML = jobs.map(function(j){
+      return '<a class="job-card" href="' + String(j.slug||'').replace(/[^a-z0-9\-]/g,'') + '/"><h3>' + String(j.titleFa||'').replace(/</g,'') + '</h3></a>';
+    }).join('');
+  }).catch(function(){});
+})();
+</script>
+<script>(function(){var t=document.getElementById('menuToggle'),n=document.getElementById('mainNav');if(t&&n){t.addEventListener('click',function(){n.classList.toggle('open')});n.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){n.classList.remove('open')})})}})();</script>
+<script src="../assets/js/ptf-chat.js" defer></script>
+<script src="../assets/js/ptf-metrics.js" defer></script>
+<script src="../assets/js/ptf-discover.js" defer></script>
+</body>
+</html>

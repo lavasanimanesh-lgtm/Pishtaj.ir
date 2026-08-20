@@ -10,11 +10,10 @@
    ===================================================================== */
 (function () {
   'use strict';
-  var API = (location.pathname.indexOf('/', 1) > -1 && location.pathname.split('/').length > 2 && location.pathname !== '/' && !/^\/index/.test(location.pathname))
-    ? '../api/crm.php' : 'api/crm.php';
-  // تشخیص سطح مسیر ساده‌تر: بر اساس وجود پوشه
-  if (/\/(rfq|supplier|tracking|assistant|tools|blog|news|about|services|industries|projects|knowledge-center|catalog|logistics|quality|en)\//.test(location.pathname)) API = '../api/crm.php';
-  else API = 'api/crm.php';
+  var parts = location.pathname.replace(/\/index\.html$/, '/').split('/').filter(Boolean);
+  if (/\.html$/.test(parts[parts.length - 1] || '')) parts.pop();
+  var depth = parts.length;
+  var API = (depth ? new Array(depth + 1).join('../') : '') + 'api/crm.php';
 
   var state = { token: '', answer: '', solved: false };
 

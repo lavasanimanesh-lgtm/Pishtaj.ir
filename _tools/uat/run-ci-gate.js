@@ -72,6 +72,7 @@ var SUITE = [
   { g: 'پیشنهاد/درخواست دیگر و مبالغ', f: '_tools/uat/tester449-v34.7.47-offer-other-inq-and-money.js' },
   { g: 'پیشنهاد/فیلتر درخواست بر حسب کارفرما', f: '_tools/uat/tester450-v34.7.48-offer-inq-by-customer.js' },
   { g: 'پیشنهاد/کادر فشرده موجودی انبار', f: '_tools/uat/tester451-v34.7.49-offer-surplus-compact-hint.js' },
+  { g: 'سایت/فرصت شغلی', f: '_tools/uat/tester452-v34.7.50-careers-site-crm.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
@@ -89,7 +90,7 @@ var SYNTAX = [
   'crm/metrics-shared.js', 'crm/analyzer.js', 'crm/management-intelligence.js',
   'crm/customer-finance.js', 'crm/finance-helpers.js', 'crm/insights.js', 'crm/cheque-module.js', 'crm/data-quality.js',
   'crm/unofficial-invoice.js', 'crm/commission.js', 'crm/working-capital.js', 'crm/fx.js',
-  'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js',
+  'crm/salesfiles.js', 'crm/inqreader.js', 'crm/rfqsmart.js', 'crm/user-guide.js', 'crm/careers.js',
   'crm/buycompare.js', 'crm/letters.js', 'crm/offers.js', 'crm/offers-pro.js',
   'crm/contracts.js', 'crm/docsx.js', 'crm/bridge.js', 'crm/offerlock.js',
   'crm/projects.js', 'crm/reports.js', 'crm/sync.js', 'crm/storage.js', 'crm/procurement-link.js', 'crm/mobile-table-labels.js', 'crm/my-customers-filter.js'

@@ -6,6 +6,11 @@
     if (/\.html$/.test(parts[parts.length - 1])) parts.pop();
     return parts.map(function () { return ".."; }).join("/") + (parts.length ? "/" : "");
   }
+  function insertBeforeContact(nav, node) {
+    var before = nav.querySelector('a[href*="#contact"]') || nav.querySelector(".nav-search") || nav.querySelector(".lang-switch-mobile");
+    if (before) nav.insertBefore(node, before);
+    else nav.appendChild(node);
+  }
   function ensureSearchLink() {
     var nav = document.getElementById("mainNav");
     if (!nav || nav.querySelector(".nav-search")) return;
@@ -15,9 +20,35 @@
     a.textContent = "جستجو";
     nav.appendChild(a);
   }
+  function ensureCareersLink() {
+    var nav = document.getElementById("mainNav");
+    if (!nav) return;
+    if ((document.documentElement.lang || "").toLowerCase().indexOf("en") === 0) return;
+    fetch(prefix() + "careers/status.json", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : { count: 0 }; })
+      .then(function (d) {
+        var existing = nav.querySelector(".nav-careers");
+        var count = d && d.count ? +d.count : 0;
+        if (count < 1) {
+          if (existing) existing.remove();
+          return;
+        }
+        if (existing) {
+          existing.href = prefix() + "careers/";
+          return;
+        }
+        var a = document.createElement("a");
+        a.className = "nav-careers";
+        a.href = prefix() + "careers/";
+        a.textContent = "فرصت شغلی";
+        insertBeforeContact(nav, a);
+      })
+      .catch(function () {});
+  }
+  function boot() { ensureSearchLink(); ensureCareersLink(); }
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", ensureSearchLink);
+    document.addEventListener("DOMContentLoaded", boot);
   } else {
-    ensureSearchLink();
+    boot();
   }
 })();

@@ -9,7 +9,7 @@
   if ('serviceWorker' in navigator) {
     /* MOB-009: URL version باعث می‌شود مرورگر حتی زیر cache header طولانی،
        worker تازهٔ همان release را بررسی و نصب کند. */
-    var release = window.PTF_CRM_RELEASE || window.VER || 'v34.7.49';
+    var release = window.PTF_CRM_RELEASE || window.VER || 'v34.7.50';
     navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(release), { scope: './' }).catch(function () {});
   }
 
@@ -94,7 +94,7 @@
     { id: 'g-goods', lb: '📦 کالا و اسناد', items: ['prod', 'surplus', 'chqprint', 'prj', 'let', 'cnt'] }, /* v33.6.0 CHQ-PRINT: «چاپ چک فیزیکی» به گروه کالا و اسناد اضافه شد */
     { id: 'g-fin', lb: '💰 مالی', items: ['inv', 'recv', 'petty', 'anl'] }, // v14.0 BUG-014: fin قدیمی هم حذف (v13.9: orders)
     { id: 'g-me', lb: '👤 شخصی', items: ['rem'] },
-    { id: 'g-sys', lb: '⚙️ سیستم', items: ['sms', 'cms', 'rep', 'users', 'set'] }
+    { id: 'g-sys', lb: '⚙️ سیستم', items: ['sms', 'cms', 'jobs', 'rep', 'users', 'set'] }
   ];
   window.PTF_NAV_GROUPS = GROUPS; /* v16.4 (US-361): منبع واحد گروه‌بندی برای تور آموزشی هماهنگ با آکاردئون */
 
