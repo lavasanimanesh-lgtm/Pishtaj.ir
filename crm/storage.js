@@ -848,7 +848,7 @@ function ptfHarvestFileKeys() {
       return;
     }
     if (typeof obj !== 'object') return;
-    var id = recId || obj.cd || obj._id || obj.no || obj.id || '';
+    var id = recId || obj._id || obj.cd || obj.no || obj.id || ''; /* v34.7.54: قرارداد PTF.id — ترتیب `_id || cd` (رفع تخلف A2) */
     var label = recLabel || obj.co || obj.nm || obj.name || obj.no || id;
     var keys = [obj.key, obj.objectKey, obj.storageKey, obj.s3Key, obj.fileKey, obj.docKey, obj.receiptKey, obj.sourceKey, obj.imgKey, obj.archiveKey];
     keys.forEach(function (k) {
