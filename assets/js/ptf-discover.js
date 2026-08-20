@@ -148,9 +148,15 @@
     var s = document.createElement("style");
     s.id = "ptf-mega-css";
     s.textContent =
-      ".nav-drop.nav-products{position:static}" +
-      ".nav-products .nav-mega{position:absolute;top:100%;right:16px;left:16px;z-index:95;width:auto;max-width:1180px;margin:0 auto;display:none;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 12px;padding:16px 18px 12px;border-radius:18px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 18px 48px rgba(15,23,42,.16);max-height:min(72vh,560px);overflow:auto}" +
-      ".nav-products:hover>.nav-mega,.nav-products:focus-within>.nav-mega{display:grid}" +
+      "@media(min-width:851px){" +
+      ".site-header .nav-wrap{align-items:stretch}" +
+      ".site-header .header-call,.site-header .lang-switch-desktop,.site-header .menu-toggle{align-self:center}" +
+      ".site-header .main-nav{align-self:stretch;align-items:stretch}" +
+      ".site-header .main-nav>a,.site-header .main-nav>.nav-drop{display:flex;align-items:center}" +
+      ".nav-drop.nav-products{position:relative}" +
+      ".nav-products .nav-mega{position:fixed;top:84px;right:16px;left:16px;z-index:95;width:auto;max-width:1180px;margin:0 auto;display:none;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px 12px;padding:16px 18px 12px;border-radius:18px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 18px 48px rgba(15,23,42,.16);max-height:min(72vh,560px);overflow:auto}" +
+      ".nav-products:hover>.nav-mega,.nav-products:focus-within>.nav-mega,.nav-products.is-open>.nav-mega{display:grid}" +
+      "}" +
       ".nav-mega-col{min-width:0;display:flex;flex-direction:column;gap:1px}" +
       ".nav-mega-head{display:block;font-size:12px!important;font-weight:900!important;color:#ef4b1a!important;padding:4px 8px!important;margin:0 0 4px;white-space:nowrap!important}" +
       ".main-nav .nav-mega a{white-space:normal!important;font-size:12.5px!important;font-weight:700!important;padding:4px 8px!important;line-height:1.45!important;border-radius:8px!important;color:#334155!important;display:block;text-align:right}" +
@@ -202,20 +208,50 @@
     return null;
   }
 
+  function bindProductsHover() {
+    var wraps = document.querySelectorAll(".nav-products");
+    for (var i = 0; i < wraps.length; i++) {
+      (function (wrap) {
+        if (wrap.getAttribute("data-mega-bound")) return;
+        wrap.setAttribute("data-mega-bound", "1");
+        var hideTimer = null;
+        function open() {
+          clearTimeout(hideTimer);
+          wrap.classList.add("is-open");
+        }
+        function closeSoon() {
+          clearTimeout(hideTimer);
+          hideTimer = setTimeout(function () {
+            wrap.classList.remove("is-open");
+          }, 320);
+        }
+        wrap.addEventListener("mouseenter", open);
+        wrap.addEventListener("mouseleave", closeSoon);
+        wrap.addEventListener("focusin", open);
+        wrap.addEventListener("focusout", function (e) {
+          if (!wrap.contains(e.relatedTarget)) closeSoon();
+        });
+      })(wraps[i]);
+    }
+  }
+
   function ensureProductsMenu() {
     var nav = document.getElementById("mainNav");
     if (!nav) return;
     if ((document.documentElement.lang || "").toLowerCase().indexOf("en") === 0) return;
     ensureMegaCss();
-    if (nav.querySelector(".nav-products")) return;
-    var a = findProductsAnchor(nav);
-    if (!a) return;
-    var wrap = document.createElement("span");
-    wrap.className = "nav-drop nav-products";
-    a.setAttribute("aria-haspopup", "true");
-    nav.insertBefore(wrap, a);
-    wrap.appendChild(a);
-    wrap.appendChild(buildMega(prefix()));
+    if (!nav.querySelector(".nav-products")) {
+      var a = findProductsAnchor(nav);
+      if (a) {
+        var wrap = document.createElement("span");
+        wrap.className = "nav-drop nav-products";
+        a.setAttribute("aria-haspopup", "true");
+        nav.insertBefore(wrap, a);
+        wrap.appendChild(a);
+        wrap.appendChild(buildMega(prefix()));
+      }
+    }
+    bindProductsHover();
   }
 
   function boot() {
