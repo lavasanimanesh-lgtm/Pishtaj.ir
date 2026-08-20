@@ -78,6 +78,7 @@ var SUITE = [
   { g: 'ابر/پیوست', f: '_tools/uat/tester455-v34.7.52-cloud-key-audit-webp.js' },
   { g: 'ابر/پیوست', f: '_tools/uat/tester456-v34.7.53-cloud-key-remap-b.js' },
   { g: 'معماری/قرارداد شناسه', f: '_tools/uat/tester457-v34.7.54-arch-id-order.js' },
+  { g: 'سایت/فرصت شغلی', f: '_tools/uat/tester458-v34.7.55-jobposting-schema.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

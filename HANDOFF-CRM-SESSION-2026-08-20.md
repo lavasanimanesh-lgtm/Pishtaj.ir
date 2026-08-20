@@ -38,6 +38,7 @@ node _tools/arch/arch-guard.js        # باید PASS باشد
 | v34.7.52 | فشرده‌سازی WebP/JPEG (کوچک‌ترین معتبر) + گزارش فقط‌خواندنی کلید ابری (رده‌های A/B/C/E/F + CSV) | tester455 |
 | v34.7.53 | remap دستی گروه B — فقط metadata محلی، تأیید ارشد، بدون DELETE، مسدود روی truncated | tester456 |
 | v34.7.54 | 🔧 هات‌فیکس: رفع تخلف A2 (`ptfHarvestFileKeys` — ترتیب `_id \|\| cd`) و سبز شدن گیت ۷۳/۰ | tester457 |
+| v34.7.55 | 🔧 اسکیمای کامل JobPosting (datePosted/validThrough/employmentType/identifier/directApply + baseSalary اختیاری) — رفع خطای قرمز GSC | tester458 |
 
 ---
 
@@ -67,6 +68,9 @@ node _tools/arch/arch-guard.js        # باید PASS باشد
 
 ### ج) راه‌اندازی عملیاتی «فرصت شغلی»
 
+- **پس از merge نسخهٔ v34.7.55:** آگهی موجود را در CRM دوباره «انتشار / ذخیره» کنید تا
+  صفحهٔ استاتیک با اسکیمای جدید JobPosting بازتولید شود؛ سپس در GSC مجدداً Test Live
+  URL و Request Indexing بزنید.
 - انتشار اولین آگهی از CRM (تا آن زمان دکمهٔ منو ظاهر نمی‌شود — عمدی).
 - `llm-config.php` معتبر روی سرور برای «شرح با هوش مصنوعی».
 - پیکربندی SMS برای OTP متقاضی.
