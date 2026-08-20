@@ -19,9 +19,12 @@
   };
   // فرمت عدد بر اساس ارز: ریال بدون اعشار، ارزی با ۲ رقم اعشار
   window.offerFmtMoney = function (v, cur) {
-    v = +v || 0;
-    if (!cur || cur.id === 'IRR') return v.toLocaleString('en-US');
-    return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    v = (typeof window.offParseMoney === 'function') ? window.offParseMoney(v)
+      : ((typeof ptfNum === 'function') ? ptfNum(v) : +v || 0);
+    var s = (!cur || cur.id === 'IRR')
+      ? v.toLocaleString('en-US')
+      : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (typeof ptfEnDigits === 'function') ? ptfEnDigits(s) : s;
   };
 
   // تزریق فیلد ارز به فرم‌های مالی: بعد از باز شدن فرم صدا زده می‌شود

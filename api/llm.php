@@ -627,6 +627,29 @@ switch ($action) {
         out_json(llm_call($cfg, $sys, $text, null, null, 3200));
         break;
 
+    case 'jobdesc':
+        if (!in_array($llmRole, ['admin', 'chairman', 'ceo'], true)) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $titleFa = trim((string)($in['titleFa'] ?? ''));
+        $titleEn = trim((string)($in['titleEn'] ?? ''));
+        $dept = trim((string)($in['dept'] ?? ''));
+        $loc = trim((string)($in['location'] ?? ''));
+        $notes = trim((string)($in['notes'] ?? ''));
+        if ($titleFa === '' || mb_strlen($titleFa) > 180) { echo json_encode(['ok' => false, 'error' => 'عنوان فارسی نامعتبر است']); exit; }
+        $sys = 'You write bilingual job postings for شرکت پیشرو تجهیز فرتاک (Pishro Tajhiz Fartak), an Iranian industrial equipment supplier for oil, gas, petrochemical, steel and power projects. '
+             . 'Write a professional job description the hiring manager will review before publishing. '
+             . 'Do not invent salary, headcount, or fake benefits. Do not mention SEO. '
+             . 'Persian body: 4-7 short paragraphs covering company context, responsibilities, requirements, and that the candidate should submit a PDF resume on the same job page. '
+             . 'English body: equivalent professional English, not a word-for-word calque. '
+             . 'slug: lowercase english kebab-case from the English title. '
+             . 'Reply ONLY valid JSON: {"titleEn":"...","bodyFa":"...","bodyEn":"...","slug":"..."}';
+        $user = "titleFa: $titleFa\ntitleEn: $titleEn\ndept: $dept\nlocation: $loc\nnotes: $notes";
+        out_json(llm_call($cfg, $sys, $user, null, null, 2500));
+        break;
+
     default:
         echo json_encode(['ok' => false, 'error' => 'action نامعتبر']);
 }

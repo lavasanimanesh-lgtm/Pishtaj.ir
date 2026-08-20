@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/images/favicon/favicon-32.png">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Careers | Pishro Tajhiz Fartak</title>
+<meta name="description" content="Open positions at Pishro Tajhiz Fartak. Applications are submitted on each job page." />
+<meta name="robots" content="index, follow" />
+<link rel="canonical" href="https://pishtaj.ir/en/careers.html" />
+<link rel="alternate" hreflang="en" href="https://pishtaj.ir/en/careers.html" />
+<link rel="alternate" hreflang="fa-IR" href="https://pishtaj.ir/careers/" />
+<link rel="stylesheet" href="../assets/css/style.css" />
+<link rel="stylesheet" href="../assets/css/discover.css" />
+<style>
+.job-hero{background:linear-gradient(135deg,#151517,#2d2d31);padding:145px 0 50px;color:#fff}
+.job-wrap{max-width:860px;margin:0 auto;padding:32px 20px 70px}
+.job-grid{display:grid;gap:14px}
+.job-card{display:block;background:#fff;border:1px solid var(--line,#e2e8f0);border-radius:18px;padding:18px 20px;text-decoration:none;color:#1e293b}
+.job-card h3{margin:0;font-size:17px}
+</style>
+</head>
+<body>
+<header class="site-header scrolled">
+<div class="container nav-wrap">
+<a class="brand" href="../en/"><img src="../assets/images/ptf-logo.png" alt="PTF Logo" width="66" height="66" loading="lazy"><span><b>Pishro Tajhiz Fartak</b><small>Industrial Equipment Supplier</small></span></a>
+<nav class="main-nav">
+<a href="../en/">Home</a><a href="../en/services.html">Services</a><a href="../en/about.html">About</a><a href="../en/projects.html">Projects</a><a href="../rfq/">RFQ</a><a href="../#contact">Contact</a>
+<a href="../" class="lang-switch-mobile">🇮🇷 فارسی / Persian</a></nav>
+<a class="header-call" href="tel:02146087679">+98 21 46087679</a>
+<a href="../" class="lang-switch-desktop" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border-radius:999px;background:#e2e8f0;color:#334155;font-weight:900;font-size:12px;text-decoration:none">🇮🇷 فارسی</a>
+</div>
+</header>
+<section class="job-hero"><div class="container"><h1>Careers</h1><p>Open positions. Apply on the bilingual job page (English section via #en). The application form is in Persian.</p></div></section>
+<main class="job-wrap">
+<!--PTF_CAREERS_LIST-->
+<div id="careersEnList"><p>There are currently no open positions.</p></div>
+<!--/PTF_CAREERS_LIST-->
+</main>
+<script>
+(function(){
+  var el = document.getElementById('careersEnList');
+  if (!el) return;
+  function paint(d){
+    var jobs = (d && d.jobs) || [];
+    if (!jobs.length) { el.innerHTML = '<p>There are currently no open positions.</p>'; return; }
+    el.className = 'job-grid';
+    el.innerHTML = jobs.map(function(j){
+      var title = j.titleEn || j.titleFa || '';
+      return '<a class="job-card" href="../careers/' + String(j.slug||'').replace(/[^a-z0-9\-]/g,'') + '/#en"><h3>' + String(title).replace(/</g,'') + '</h3></a>';
+    }).join('');
+  }
+  fetch('../api/careers.php?action=published', { cache: 'no-store' }).then(function(r){ return r.ok ? r.json() : Promise.reject(); }).then(paint).catch(function(){
+    fetch('../careers/status.json', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(paint).catch(function(){});
+  });
+})();
+</script>
+<script src="../assets/js/ptf-metrics.js" defer></script>
+<script src="../assets/js/ptf-discover.js" defer></script>
+</body>
+</html>

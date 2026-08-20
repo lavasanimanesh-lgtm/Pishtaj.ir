@@ -165,16 +165,23 @@ function ptfRenderCloudUsage(force) {
 // دیالوگ جزئیات فضای ابری (از آیکون ☁️ نوار بالا)
 function ptfCloudDialog() {
   ptfCloudUsage(function (d) {
+    var role = '';
+    try { role = String(curRole()).toLowerCase(); } catch (eR) {}
+    var auditBtn = ['admin', 'chairman', 'ceo'].indexOf(role) > -1
+      ? '<br><button type="button" class="bt bt-o" style="margin-top:10px;font-size:12px" onclick="if(typeof ptfCloudKeyAudit===\'function\')ptfCloudKeyAudit()">📋 گزارش کلیدهای ابری (بدون حذف)</button>'
+      : '';
     var body = d.ok
       ? 'فضای اشغال‌شده: <b>' + fmtSizeH(d.bytes) + '</b><br>تعداد فایل‌ها: <b>' + d.count + '</b><br>صندوقچه: <span style="direction:ltr;display:inline-block">' + escP(d.bucket || '') + '</span>' +
-        '<br><small style="color:#94a3b8">برای آزادسازی فضا: پرونده‌های تمام‌شده را از ماژول «پرونده‌های پروژه» بایگانی/پاکسازی کنید.</small>'
-      : '<span style="color:#d97706">خطا: ' + escP(d.error || '') + '</span>';
+        '<br><small style="color:#94a3b8">برای آزادسازی فضا: پرونده‌های تمام‌شده را از ماژول «پرونده‌های پروژه» بایگانی/پاکسازی کنید.</small>' + auditBtn
+      : '<span style="color:#d97706">خطا: ' + escP(d.error || '') + '</span>' + auditBtn;
     if (typeof ptfDialog === 'function') ptfDialog({ title: '☁️ وضعیت فضای ابری', body: body, okText: 'بستن' });
     else alert(body.replace(/<[^>]+>/g, ''));
   }, true);
 }
 
-/* ---------- فشرده‌سازی تصویر سمت کلاینت (AC4) ---------- */
+/* ---------- فشرده‌سازی تصویر سمت کلاینت (AC4 / v34.7.52) ----------
+   WebP اگر مرورگر نسازد یا از اصل بزرگ‌تر باشد، JPEG فشرده جایگزین می‌شود.
+   کوچک‌ترین گزینهٔ معتبر انتخاب می‌شود؛ SVG و غیرتصویر دست‌نخورده می‌مانند. */
 function compressImage(file, cb) {
   if (!/^image\//.test(file.type) || file.type === 'image/svg+xml') { cb(file, null); return; }
   var img = new Image();
@@ -186,13 +193,25 @@ function compressImage(file, cb) {
     var cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
     cv.getContext('2d').drawImage(img, 0, 0, w, h);
-    cv.toBlob(function (blob) {
+    function pickBest(webp, jpeg) {
       URL.revokeObjectURL(url);
-      if (blob && blob.size < file.size) {
-        var nf = new File([blob], file.name.replace(/\.\w+$/, '.webp'), { type: 'image/webp' });
-        cb(nf, { before: file.size, after: blob.size });
-      } else cb(file, null);
-    }, 'image/webp', 0.8);
+      var opts = [{ size: file.size, keep: true }];
+      if (webp && webp.size > 0) opts.push({ blob: webp, size: webp.size, ext: '.webp', mime: 'image/webp', label: 'WebP' });
+      if (jpeg && jpeg.size > 0) opts.push({ blob: jpeg, size: jpeg.size, ext: '.jpg', mime: 'image/jpeg', label: 'JPEG' });
+      opts.sort(function (a, b) { return a.size - b.size; });
+      var best = opts[0];
+      if (!best || best.keep || !best.blob) { cb(file, null); return; }
+      var base = String(file.name || 'image').replace(/\.[^.]+$/, '');
+      var nf = new File([best.blob], base + best.ext, { type: best.mime });
+      cb(nf, { before: file.size, after: best.size, format: best.label });
+    }
+    try {
+      cv.toBlob(function (webp) {
+        try {
+          cv.toBlob(function (jpeg) { pickBest(webp, jpeg); }, 'image/jpeg', 0.82);
+        } catch (eJpeg) { pickBest(webp, null); }
+      }, 'image/webp', 0.8);
+    } catch (eWebp) { pickBest(null, null); }
   };
   img.onerror = function () { URL.revokeObjectURL(url); cb(file, null); };
   img.src = url;
@@ -217,7 +236,7 @@ function uploadFile(file, folder, cb, progressCb) {
   if (file.size > maxMb * 1048576) { finish({ ok: false, error: 'حجم فایل بیش از ' + maxMb + 'MB است' }); return; }
 
   compressImage(file, function (finalFile, compInfo) {
-    var note = compInfo ? 'فشرده: ' + fmtSize(compInfo.before) + ' → ' + fmtSize(compInfo.after) : '';
+    var note = compInfo ? ('فشرده: ' + fmtSize(compInfo.before) + ' → ' + fmtSize(compInfo.after) + (compInfo.format ? ' (' + compInfo.format + ')' : '')) : '';
 
     // درخواست لینک آپلود از سرور
     fetch(STORAGE_API + '?action=presign_put', {
@@ -745,8 +764,8 @@ function openStoredFile(key, nameHint) {
           else window.open(d.url, '_blank');
         });
       } else if (d.error === 'file_not_found') {
-        if (typeof ptfToast === 'function') ptfToast('⚠️ فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.', 'warn');
-        else alert('فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — لطفاً سند را دوباره آپلود کنید.');
+        if (typeof ptfToast === 'function') ptfToast('⚠️ فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — سند در باکت فعلی نیست. لطفاً سند را دوباره آپلود کنید.', 'warn');
+        else alert('فایل در فضای ابری یافت نشد (کلید قدیمی/مهاجرت‌نشده) — سند در باکت فعلی نیست. لطفاً سند را دوباره آپلود کنید.');
       } else alert('خطا در دریافت لینک: ' + (d.error || ''));
     })
     .catch(function () { alert('عدم دسترسی به سرور'); });
@@ -793,6 +812,301 @@ window.ptfAttachRefreshOnOpen = function (dlgId, getSignature, reopenFn) {
 };
 
 
+
+
+/* v34.7.52/v34.7.53: گزارش کلیدهای CRM در برابر list فضای ابری.
+   DELETE هرگز از این مسیر زده نمی‌شود. remap گروه B فقط با تأیید دستی است. */
+function ptfLooksLikeStorageKey(k) {
+  k = String(k || '').trim();
+  if (!k || k.length < 4 || k.length > 500) return false;
+  if (k.indexOf('data:') === 0 || k.indexOf('blob:') === 0 || /^https?:/i.test(k)) return false;
+  if (k.indexOf('..') !== -1) return false;
+  return /[\/.]/.test(k);
+}
+function ptfHarvestFileKeys() {
+  var rows = [];
+  var seen = {};
+  function add(store, recId, recLabel, key, name, extra) {
+    key = String(key || '').trim();
+    if (!ptfLooksLikeStorageKey(key)) return;
+    var sig = store + '|' + recId + '|' + key;
+    if (seen[sig]) return;
+    seen[sig] = 1;
+    rows.push({
+      store: store,
+      recId: recId || '',
+      recLabel: recLabel || '',
+      key: key,
+      name: name || (key.split('/').pop() || 'سند'),
+      archiveKey: (extra && extra.archiveKey) || ''
+    });
+  }
+  function harvest(store, recId, recLabel, obj, depth) {
+    if (!obj || depth > 8) return;
+    if (Array.isArray(obj)) {
+      obj.forEach(function (x) { harvest(store, recId, recLabel, x, depth + 1); });
+      return;
+    }
+    if (typeof obj !== 'object') return;
+    var id = recId || obj.cd || obj._id || obj.no || obj.id || '';
+    var label = recLabel || obj.co || obj.nm || obj.name || obj.no || id;
+    var keys = [obj.key, obj.objectKey, obj.storageKey, obj.s3Key, obj.fileKey, obj.docKey, obj.receiptKey, obj.sourceKey, obj.imgKey, obj.archiveKey];
+    keys.forEach(function (k) {
+      if (typeof k === 'string') add(store, id, label, k, obj.name || obj.fileName || obj.originalName || '', { archiveKey: obj.archiveKey || '' });
+    });
+    Object.keys(obj).forEach(function (k) {
+      if (typeof obj[k] === 'object' && obj[k]) harvest(store, id, label, obj[k], depth + 1);
+    });
+  }
+  var storeKeys = {};
+  try {
+    for (var si = 0; si < localStorage.length; si++) {
+      var sk = localStorage.key(si);
+      if (sk && sk.indexOf('ptf_crm_') === 0) storeKeys[sk] = true;
+    }
+  } catch (eLs) {}
+  Object.keys(storeKeys).forEach(function (k) {
+    try {
+      var data = typeof getData === 'function' ? getData(k) : JSON.parse(localStorage.getItem(k) || 'null');
+      harvest(k, '', '', data, 0);
+    } catch (eH) {}
+  });
+  return rows;
+}
+function ptfClassifyCloudKeys(crmRows, s3Files) {
+  var s3 = {};
+  (s3Files || []).forEach(function (f) {
+    var k = f && (f.key || f.name);
+    if (k) s3[k] = f;
+  });
+  var byBase = {};
+  Object.keys(s3).forEach(function (k) {
+    var b = k.split('/').pop();
+    if (!byBase[b]) byBase[b] = [];
+    byBase[b].push(k);
+  });
+  var counts = { A: 0, B: 0, C: 0, E: 0, F: 0 };
+  var report = (crmRows || []).map(function (row) {
+    var key = row.key;
+    if (key.indexOf('data:') === 0) { counts.F++; return Object.assign({ cls: 'F', note: 'داده محلی', match: '' }, row); }
+    if (s3[key]) { counts.A++; return Object.assign({ cls: 'A', note: 'موجود در ابر', match: key }, row); }
+    if (row.archiveKey && s3[row.archiveKey]) { counts.C++; return Object.assign({ cls: 'C', note: 'اصل در zip بایگانی', match: row.archiveKey }, row); }
+    if (key.indexOf('archives/') === 0 && s3[key]) { counts.C++; return Object.assign({ cls: 'C', note: 'فایل zip بایگانی', match: key }, row); }
+    var crmFlat = key.replace(/\//g, '');
+    var stripHits = Object.keys(s3).filter(function (k) { return k.replace(/\//g, '') === crmFlat && k !== key; });
+    if (stripHits.length === 1) { counts.B++; return Object.assign({ cls: 'B', note: 'تطبیق کلید بدون اسلش', match: stripHits[0], how: 'slash' }, row); }
+    var base = key.split('/').pop();
+    var cands = byBase[base] || [];
+    if (cands.length === 1) { counts.B++; return Object.assign({ cls: 'B', note: 'تطبیق نام فایل یکتا', match: cands[0], how: 'base' }, row); }
+    counts.E++;
+    return Object.assign({ cls: 'E', note: 'در باکت فعلی نیست', match: '' }, row);
+  });
+  return { report: report, counts: counts };
+}
+function ptfCloudKeyAudit() {
+  var role = '';
+  try { role = String(curRole()).toLowerCase(); } catch (e) {}
+  if (['admin', 'chairman', 'ceo'].indexOf(role) < 0) {
+    alert('این گزارش فقط برای نقش‌های ارشد است');
+    return;
+  }
+  if (typeof ptfToast === 'function') ptfToast('⏳ در حال تهیه گزارش کلیدها (بدون حذف)…', 'info');
+  var crmRows = ptfHarvestFileKeys();
+  fetch(STORAGE_API + '?action=list', {
+    method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ prefix: '' })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d || !d.ok) throw new Error((d && (d.error || d.http)) || 'list failed');
+    var classified = ptfClassifyCloudKeys(crmRows, d.files || []);
+    var c = classified.counts;
+    var truncated = d.truncated ? '<div style="background:#fff7ed;border:1px solid #fed7aa;padding:8px;border-radius:10px;margin:8px 0;color:#9a3412;font-size:12.5px">⚠️ فهرست S3 ناقص برگشت؛ ردهٔ E ممکن است بیش‌برآورد باشد. دوباره تلاش کنید.</div>' : '';
+    var rowsHtml = classified.report.slice(0, 80).map(function (row) {
+      var color = row.cls === 'A' ? '#065f46' : row.cls === 'B' ? '#1d4ed8' : row.cls === 'C' ? '#7c3aed' : row.cls === 'E' ? '#b91c1c' : '#64748b';
+      return '<tr style="border-bottom:1px dashed var(--brd)"><td style="color:' + color + ';font-weight:900">' + row.cls + '</td><td style="font-size:11px">' + escP(row.store.replace('ptf_crm_', '')) + '</td><td style="font-size:11px">' + escP(row.recId || row.recLabel || '') + '</td><td dir="ltr" style="font-size:11px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + escP(row.key) + '">' + escP(row.key) + '</td><td style="font-size:11px">' + escP(row.note) + '</td></tr>';
+    }).join('');
+    document.querySelectorAll('#ptfKeyAuditDlg').forEach(function (x) { x.remove(); });
+    var html = '<div class="md-b" id="ptfKeyAuditDlg" style="display:grid;z-index:3600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:920px;max-height:92vh;overflow:auto">' +
+      '<h3>📋 گزارش کلیدهای ابری — بدون حذف</h3>' +
+      '<div style="font-size:13px;line-height:1.9">کلیدهای CRM: <b>' + crmRows.length + '</b> — objectهای list: <b>' + (d.files || []).length + '</b></div>' +
+      '<div class="sr" style="margin:10px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">' +
+      '<div class="sc"><b>' + c.A + '</b><span>A موجود</span></div>' +
+      '<div class="sc"><b>' + c.B + '</b><span>B قابل remap</span></div>' +
+      '<div class="sc"><b>' + c.C + '</b><span>C بایگانی</span></div>' +
+      '<div class="sc"><b>' + c.E + '</b><span>E از دست رفته</span></div></div>' + truncated +
+      '<p style="font-size:12.5px;color:#64748b">گروه E بایت در باکت فعلی ندارد و باید دوباره آپلود شود. گروه B فقط با تأیید دستی remap می‌شود — هیچ فایلی از باکت حذف نمی‌شود.</p>' +
+      '<div style="overflow:auto;max-height:46vh"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th>کد</th><th>ماژول</th><th>رکورد</th><th>کلید</th><th>وضعیت</th></tr></thead><tbody>' + (rowsHtml || '<tr><td colspan="5">کلیدی یافت نشد</td></tr>') + '</tbody></table></div>' +
+      '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">' +
+      ((c.B > 0 && !d.truncated) ? '<button type="button" class="bt" style="background:#1d4ed8;color:#fff" onclick="ptfConfirmCloudKeyRemap()">🔗 اعمال remap گروه B (بدون حذف فایل)</button>' : '') +
+      (d.truncated ? '<span style="font-size:12px;color:#9a3412;align-self:center">remap تا فهرست کامل S3 غیرفعال است</span>' : '') +
+      '<button type="button" class="bt bt-o" onclick="ptfDownloadKeyAuditCsv()">⬇️ CSV</button>' +
+      '<button type="button" class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    window._ptfKeyAuditRows = classified.report;
+    window._ptfKeyAuditTruncated = !!d.truncated;
+    try { if (typeof audit === 'function') audit('فضای ابری', 'گزارش تشخیصی کلیدها A' + c.A + '/B' + c.B + '/C' + c.C + '/E' + c.E, ''); } catch (eA) {}
+  }).catch(function (e) {
+    alert('⛔ گزارش کلیدها تهیه نشد: ' + ((e && e.message) || 'خطای اتصال'));
+  });
+}
+function ptfDownloadKeyAuditCsv() {
+  var rows = window._ptfKeyAuditRows || [];
+  var lines = ['cls,store,recId,key,match,note,name'];
+  rows.forEach(function (r) {
+    function q(s) { return '"' + String(s || '').replace(/"/g, '""') + '"'; }
+    lines.push([r.cls, r.store, r.recId, r.key, r.match, r.note, r.name].map(q).join(','));
+  });
+  var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ptf-cloud-key-audit.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* v34.7.53: remap گروه B — فقط metadata محلی CRM، بدون DELETE ابری.
+   فیلد archiveKey و کلیدهای archives/ دست نمی‌خورند. */
+var PTF_CLOUD_REMAP_FIELDS = ['key', 'objectKey', 'storageKey', 's3Key', 'fileKey', 'docKey', 'receiptKey', 'sourceKey', 'imgKey'];
+function ptfPlanCloudKeyRemap(rows, truncated) {
+  var out = { ok: true, maps: [], skipped: [], error: '' };
+  if (truncated) {
+    out.ok = false;
+    out.error = 'truncated';
+    return out;
+  }
+  var byFrom = {};
+  var conflict = {};
+  (rows || []).forEach(function (r) {
+    if (!r || r.cls !== 'B') return;
+    var from = String(r.key || '').trim();
+    var to = String(r.match || '').trim();
+    if (!from || !to || from === to) {
+      out.skipped.push({ key: from, reason: 'no_match' });
+      return;
+    }
+    if (!ptfLooksLikeStorageKey(from) || !ptfLooksLikeStorageKey(to)) {
+      out.skipped.push({ key: from, reason: 'invalid' });
+      return;
+    }
+    if (from.indexOf('archives/') === 0 || to.indexOf('archives/') === 0) {
+      out.skipped.push({ key: from, reason: 'archive' });
+      return;
+    }
+    if (conflict[from]) return;
+    if (byFrom[from] && byFrom[from] !== to) {
+      conflict[from] = true;
+      delete byFrom[from];
+      out.skipped.push({ key: from, reason: 'conflict' });
+      return;
+    }
+    byFrom[from] = to;
+  });
+  var fromSet = {};
+  Object.keys(byFrom).forEach(function (k) { fromSet[k] = true; });
+  Object.keys(byFrom).forEach(function (k) {
+    if (fromSet[byFrom[k]]) {
+      out.skipped.push({ key: k, reason: 'chain' });
+      return;
+    }
+    out.maps.push({ from: k, to: byFrom[k] });
+  });
+  return out;
+}
+function ptfRemapCloudKeyFields(obj, fromKey, toKey, depth) {
+  if (!obj || depth > 8) return 0;
+  var n = 0;
+  if (Array.isArray(obj)) {
+    obj.forEach(function (x) { n += ptfRemapCloudKeyFields(x, fromKey, toKey, depth + 1); });
+    return n;
+  }
+  if (typeof obj !== 'object') return 0;
+  PTF_CLOUD_REMAP_FIELDS.forEach(function (f) {
+    if (typeof obj[f] === 'string' && obj[f] === fromKey) {
+      obj[f] = toKey;
+      n++;
+    }
+  });
+  Object.keys(obj).forEach(function (k) {
+    if (k === 'archiveKey') return;
+    if (typeof obj[k] === 'object' && obj[k]) n += ptfRemapCloudKeyFields(obj[k], fromKey, toKey, depth + 1);
+  });
+  return n;
+}
+function ptfApplyCloudKeyRemap(opts) {
+  opts = opts || {};
+  var role = '';
+  try { role = String(curRole()).toLowerCase(); } catch (eR) {}
+  if (['admin', 'chairman', 'ceo'].indexOf(role) < 0) return { ok: false, error: 'role', applied: 0, fields: 0 };
+  var truncated = opts.truncated != null ? !!opts.truncated : !!window._ptfKeyAuditTruncated;
+  var rows = opts.rows || window._ptfKeyAuditRows || [];
+  var plan = ptfPlanCloudKeyRemap(rows, truncated);
+  if (!plan.ok) return { ok: false, error: plan.error, applied: 0, fields: 0, maps: [] };
+  if (!opts.confirmed) return { ok: false, error: 'confirm_required', applied: 0, fields: 0, maps: plan.maps };
+  var fieldHits = 0;
+  var storeHits = 0;
+  var storeKeys = {};
+  try {
+    for (var si = 0; si < localStorage.length; si++) {
+      var sk = localStorage.key(si);
+      if (sk && sk.indexOf('ptf_crm_') === 0) storeKeys[sk] = true;
+    }
+  } catch (eLs) {}
+  Object.keys(storeKeys).forEach(function (store) {
+    var data;
+    try {
+      data = typeof getData === 'function' ? getData(store) : JSON.parse(localStorage.getItem(store) || 'null');
+    } catch (eH) { return; }
+    if (!data) return;
+    var n = 0;
+    plan.maps.forEach(function (m) { n += ptfRemapCloudKeyFields(data, m.from, m.to, 0); });
+    if (!n) return;
+    try {
+      if (typeof setData === 'function') setData(store, data);
+      else localStorage.setItem(store, JSON.stringify(data));
+      storeHits++;
+      fieldHits += n;
+    } catch (eS) {}
+  });
+  try { if (typeof audit === 'function') audit('فضای ابری', 'remap گروه B: ' + plan.maps.length + ' کلید / ' + fieldHits + ' فیلد در ' + storeHits + ' مخزن — بدون حذف فایل', ''); } catch (eA) {}
+  return { ok: true, applied: plan.maps.length, fields: fieldHits, stores: storeHits, maps: plan.maps, skipped: plan.skipped };
+}
+function ptfConfirmCloudKeyRemap() {
+  var role = '';
+  try { role = String(curRole()).toLowerCase(); } catch (eR) {}
+  if (['admin', 'chairman', 'ceo'].indexOf(role) < 0) {
+    alert('این remap فقط برای نقش‌های ارشد است');
+    return;
+  }
+  if (window._ptfKeyAuditTruncated) {
+    alert('فهرست S3 ناقص است؛ remap گروه B انجام نشد. گزارش را دوباره بگیرید.');
+    return;
+  }
+  var plan = ptfPlanCloudKeyRemap(window._ptfKeyAuditRows || [], !!window._ptfKeyAuditTruncated);
+  if (!plan.ok) {
+    alert('remap گروه B ممکن نیست: ' + (plan.error || ''));
+    return;
+  }
+  if (!plan.maps.length) {
+    alert('هیچ کلید گروه B برای remap نماند');
+    return;
+  }
+  var sample = plan.maps.slice(0, 8).map(function (m) { return m.from + ' → ' + m.to; }).join('\n');
+  if (!confirm('تعداد ' + plan.maps.length + ' کلید CRM به کلید موجود در باکت به‌روز می‌شود.\nهیچ فایلی از فضای ابری حذف نمی‌شود.\n\nنمونه:\n' + sample + '\n\nادامه؟')) return;
+  var res = ptfApplyCloudKeyRemap({ confirmed: true });
+  if (!res.ok) {
+    alert('⛔ remap انجام نشد: ' + (res.error || ''));
+    return;
+  }
+  if (typeof ptfToast === 'function') ptfToast('✅ remap گروه B: ' + res.applied + ' کلید / ' + res.fields + ' فیلد — بدون حذف فایل', 'ok');
+  else alert('remap گروه B انجام شد: ' + res.applied + ' کلید');
+  if (typeof ptfCloudKeyAudit === 'function') ptfCloudKeyAudit();
+}
+window.ptfLooksLikeStorageKey = ptfLooksLikeStorageKey;
+window.ptfHarvestFileKeys = ptfHarvestFileKeys;
+window.ptfClassifyCloudKeys = ptfClassifyCloudKeys;
+window.ptfCloudKeyAudit = ptfCloudKeyAudit;
+window.ptfDownloadKeyAuditCsv = ptfDownloadKeyAuditCsv;
+window.ptfPlanCloudKeyRemap = ptfPlanCloudKeyRemap;
+window.ptfRemapCloudKeyFields = ptfRemapCloudKeyFields;
+window.ptfApplyCloudKeyRemap = ptfApplyCloudKeyRemap;
+window.ptfConfirmCloudKeyRemap = ptfConfirmCloudKeyRemap;
 
 /* ---------- ویجت آپلود چندمنظوره ---------- */
 // attachUploadWidget(containerId, folder, onDone(fileRec))

@@ -1,0 +1,7 @@
+# فهرست عمومی آگهی‌ها بدون PII — استثنای JSON سراسری ریشه
+<Files "status.json">
+  Require all granted
+</Files>
+<Files "view.php">
+  Require all granted
+</Files>

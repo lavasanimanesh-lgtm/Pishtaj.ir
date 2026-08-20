@@ -10,11 +10,10 @@
    ===================================================================== */
 (function () {
   'use strict';
-  var API = (location.pathname.indexOf('/', 1) > -1 && location.pathname.split('/').length > 2 && location.pathname !== '/' && !/^\/index/.test(location.pathname))
-    ? '../api/crm.php' : 'api/crm.php';
-  // تشخیص سطح مسیر ساده‌تر: بر اساس وجود پوشه
-  if (/\/(rfq|supplier|tracking|assistant|tools|blog|news|about|services|industries|projects|knowledge-center|catalog|logistics|quality|en)\//.test(location.pathname)) API = '../api/crm.php';
-  else API = 'api/crm.php';
+  var parts = location.pathname.replace(/\/index\.html$/, '/').split('/').filter(Boolean);
+  if (/\.html$/.test(parts[parts.length - 1] || '')) parts.pop();
+  var depth = parts.length;
+  var API = (depth ? new Array(depth + 1).join('../') : '') + 'api/crm.php';
 
   var state = { token: '', answer: '', solved: false };
 
@@ -22,13 +21,14 @@
   window.ptfCaptchaMount = function (id) {
     var c = document.getElementById(id);
     if (!c) return;
+    c.classList.add('ptf-captcha-host');
     c.innerHTML =
-      '<div style="border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 16px;background:#f8fafc;display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-      '<label style="display:flex;align-items:center;gap:9px;cursor:pointer;font-weight:800;font-size:14px;color:#334155;margin:0">' +
-      '<input type="checkbox" id="' + id + '_chk" style="width:20px;height:20px;accent-color:#ef4b1a"> من ربات نیستم</label>' +
-      '<span id="' + id + '_box" style="display:none;align-items:center;gap:8px">' +
+      '<div class="ptf-captcha-wrap" style="border:1.5px solid #e2e8f0;border-radius:14px;padding:10px 14px;background:#f8fafc;display:flex;align-items:center;gap:10px;flex-wrap:nowrap;flex-direction:row">' +
+      '<label class="ptf-captcha-label" style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:800;font-size:14px;color:#334155;margin:0;white-space:nowrap;width:auto">' +
+      '<input type="checkbox" id="' + id + '_chk" class="ptf-captcha-chk" style="width:18px;height:18px;flex:0 0 18px;accent-color:#ef4b1a"> من ربات نیستم</label>' +
+      '<span id="' + id + '_box" class="ptf-captcha-box" style="display:none;align-items:center;gap:8px;flex-wrap:nowrap;white-space:nowrap">' +
       '<span id="' + id + '_q" style="font-weight:900;color:#ef4b1a;font-size:15px;direction:ltr"></span>' +
-      '<input type="text" id="' + id + '_a" inputmode="numeric" autocomplete="off" placeholder="جواب" style="width:74px;padding:8px;border:1.5px solid #e2e8f0;border-radius:10px;text-align:center;font-weight:900;font-size:15px">' +
+      '<input type="text" id="' + id + '_a" class="ptf-captcha-answer" inputmode="numeric" autocomplete="off" placeholder="جواب" style="width:74px;padding:8px;border:1.5px solid #e2e8f0;border-radius:10px;text-align:center;font-weight:900;font-size:15px">' +
       '<span id="' + id + '_ok" style="display:none;color:#059669;font-weight:900">✔</span></span>' +
       '<span id="' + id + '_err" style="display:none;color:#dc2626;font-size:12px;font-weight:800">خطا در دریافت کپچا — دوباره تیک بزنید</span></div>';
     var chk = document.getElementById(id + '_chk');

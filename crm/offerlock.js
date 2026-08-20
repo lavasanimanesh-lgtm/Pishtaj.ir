@@ -204,10 +204,12 @@
     var canMargin = isCO && _prodsRef.length > 0;
     _offState.items.forEach(function (it, i) {
       var inp = function (f, type, step, ro) {
-        var moneyAttr = f === 'price' ? ' data-money="1" data-nohint="1" inputmode="numeric" autocomplete="off"' : '';
+        var unitWord = (cur && cur.id === 'EUR') ? 'یورو' : (cur && cur.id === 'USD') ? 'دلار' : 'ریال';
+        var moneyAttr = f === 'price' ? ' data-money="1" data-words="1" data-unit="' + unitWord + '" inputmode="numeric" autocomplete="off"' : '';
         var inputType = f === 'price' ? 'text' : (type || 'text');
+        var shown = (f === 'price' && it[f]) ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(it[f], cur) : it[f]) : (it[f] == null ? '' : it[f]);
         return '<input type="' + inputType + '"' + (step ? ' step="' + step + '"' : '') + (ro ? ' readonly' : '') + moneyAttr +
-          ' id="off_' + f + '_' + i + '" value="' + escP(it[f]) + '" oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;direction:ltr;font-size:12.5px' + (ro ? ';background:#f1f5f9;color:#475569;cursor:not-allowed' : '') + '">';
+          ' id="off_' + f + '_' + i + '" value="' + escP(shown) + '" oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:6px;direction:ltr;font-size:12.5px' + (ro ? ';background:#f1f5f9;color:#475569;cursor:not-allowed' : '') + '">';
       };
       var locked = !!it.pcode;
       // US-201: سلول کد — جستجو یا نشان کد قفل‌شده
@@ -259,19 +261,19 @@
       }
       var marginPct = (typeof it.marginPct === 'number') ? it.marginPct : (rowRefPrice > 0 && +it.price > 0 ? Math.round(((+it.price / rowRefPrice) - 1) * 1000) / 10 : '');
       var marginCells = canMargin
-        ? '<td style="background:#fcfaff"><input type="number" id="offRef' + i + '" value="' + (rowRefPrice || '') + '" oninput="offUpdRefPrice(' + i + ',this.value)" placeholder="نرخ مرجع" style="width:100px;direction:ltr;background:#f5f3ff;border:1px solid #ddd6fe;font-weight:bold;color:#5b21b6;padding:5px;border-radius:6px"></td>' +
+        ? '<td style="background:#fcfaff"><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="offRef' + i + '" value="' + escP(rowRefPrice ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(rowRefPrice, cur) : rowRefPrice) : '') + '" oninput="offUpdRefPrice(' + i + ',this.value)" placeholder="نرخ مرجع" style="width:112px;direction:ltr;background:#f5f3ff;border:1px solid #ddd6fe;font-weight:bold;color:#5b21b6;padding:5px;border-radius:6px"></td>' +
           '<td style="background:#fffef0"><input type="number" id="offMg' + i + '" value="' + marginPct + '" oninput="offUpdMarginPct(' + i + ',this.value)" placeholder="30%" style="width:58px;direction:ltr;background:#fefce8;border:1px solid #fde047;font-weight:bold;color:#b45309;padding:5px;border-radius:6px"></td>'
         : '';
       /* v14.2 US-366: دکمه ➕ افزودن ردیف در ابتدای ردیف (سمت راست RTL) — دستور کارفرما */
       rows += '<tr><td style="white-space:nowrap" data-noix>' + (i === 0 ? '<button type="button" onclick="offAddItem()" title="افزودن ردیف" style="border:0;background:#059669;color:#fff;border-radius:7px;width:22px;height:22px;cursor:pointer;font-weight:900">＋</button> ' : '') + '<button type="button" onclick="offDelItem(' + i + ')" title="حذف ردیف" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></td><td>' + (i + 1) + '</td>' + codeCell + tds + ecCells +
         (isCO
-          ? marginCells + '<td>' + inp('price', 'number', cur.id === 'IRR' ? '1' : '0.01') + refHtml + '</td><td id="offRT' + i + '" style="white-space:nowrap;font-size:12px">' + offerFmtMoney((+it.qty || 0) * (+it.price || 0), cur) + '</td>' /* v17.0 US-409: id ردیفی برای به‌روزرسانی لحظه‌ای */
+          ? marginCells + '<td>' + inp('price', 'number', cur.id === 'IRR' ? '1' : '0.01') + refHtml + '</td><td id="offRT' + i + '" class="off-money-total" style="white-space:nowrap;font-size:12px;font-variant-numeric:tabular-nums">' + ((typeof window.offPrintAmount === 'function') ? window.offPrintAmount((+it.qty || 0) * (+it.price || 0), cur) : offerFmtMoney((+it.qty || 0) * (+it.price || 0), cur)) + '</td>' /* v17.0 US-409 + v34.7.47 کاما انگلیسی */
           : '') + '</tr>';
     });
     var totalRow = '';
     if (isCO) {
       var total = _offState.items.reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
-      totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (4 + cols.length + ec.length + (canMargin ? 2 : 0)) + '" style="text-align:left">GRAND TOTAL (' + cur.id + ')</td><td id="offGT" style="white-space:nowrap">' + offerFmtMoney(total, cur) + '</td></tr>'; /* v14.2 US-366 */
+      totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (4 + cols.length + ec.length + (canMargin ? 2 : 0)) + '" style="text-align:left">GRAND TOTAL (' + cur.id + ')</td><td id="offGT" style="white-space:nowrap">' + ((typeof window.offPrintAmount === 'function') ? window.offPrintAmount(total, cur) : offerFmtMoney(total, cur)) + '</td></tr>'; /* v14.2 US-366 + v34.7.47 */
     }
     var hidden = _offState.hiddenCols || [];
     var restoreBar = hidden.length
@@ -286,6 +288,9 @@
       '<div style="font-size:11px;color:#0c4a6e;background:#f0f9ff;border-radius:8px;padding:5px 10px;margin-bottom:6px">🔒 کالا فقط از ماژول کالا انتخاب می‌شود (کد/شرح را تایپ کنید) — کد کالا در خروجی PDF درج نمی‌شود. عرض ستون‌ها با درگ لبه سرستون قابل تغییر است.</div>' +
       '<table style="width:100%;border-collapse:collapse;font-size:12.5px;table-layout:auto"><thead style="background:#f1f5f9">' + head + '</thead><tbody>' + rows + totalRow + '</tbody></table>' +
       (_offState.items.length ? '' : '<div style="color:#94a3b8;text-align:center;padding:14px;font-size:12px">ردیفی ثبت نشده — «+ ردیف دستی» و سپس کد/شرح کالا را جستجو کنید</div>');
+    if (typeof ptfMoneyRefresh === 'function') {
+      try { ptfMoneyRefresh(el); } catch (eMoney) {}
+    }
   };
 
   /* ---------- US-202: فرم عریض ---------- */

@@ -1103,8 +1103,8 @@ function offerForm() {
     '<div id="ofCreditBox"></div>' + /* v14.6 US-352: مانده باز + سقف اعتبار مشتری */
     '<div class="fr">' +
     // US-175 AC1: فقط انتخاب از شماره‌های ثبت‌شده در «استعلامات» / اقلام درخواست
-    '<div class="fld"><label>شماره درخواست کارفرما * — فقط از استعلام‌های ثبت‌شده</label><select id="ofInq" style="direction:ltr" onchange="offerPickInq(this.value)"' + (typeof ptfInqNoOptions === 'function' ? '>' + ptfInqNoOptions(o.inqNo) : '>') + '</select>' +
-    '<small style="color:#94a3b8;font-size:11px">شماره‌ای در فهرست نیست؟ ابتدا در بخش «استعلامات» ثبتش کنید.</small>' +
+    '<div class="fld"><label>شماره درخواست کارفرما * — فقط از استعلام‌های ثبت‌شده</label><select id="ofInq" style="direction:ltr" onchange="offerPickInq(this.value)"' + (typeof ptfInqNoOptions === 'function' ? '>' + ptfInqNoOptions(o.inqNo, o.buyerCd) : '>') + '</select>' +
+    '<small style="color:#94a3b8;font-size:11px">فقط درخواست‌های کارفرمای انتخاب‌شده. شماره‌ای نیست؟ ابتدا در «استعلامات» ثبتش کنید.</small>' +
     /* FC-7 (v34.7.30 — تصمیم کارفرما): نرخ مرجع ویرایش‌شده همیشه روی «قلم درخواست» می‌نشیند؛
        نشستن روی «بانک کالا» فقط با همین تیک صریح انجام می‌شود. */
     '<label style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#5b21b6;margin-top:4px" title="در صورت تیک، نرخ مرجع ویرایش‌شدهٔ اقلام روی نرخ مرجع کالا در بانک کالا هم ثبت می‌شود">' +
@@ -1120,7 +1120,7 @@ function offerForm() {
     '<h4 style="margin:14px 0 8px">اقلام</h4>' +
     '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap">' +
     '<button type="button" id="offInqBtn" class="bt" style="font-size:12px;background:#7c3aed" onclick="offLoadInqItems()">🗂 بارگذاری از درخواست</button>' +
-    
+    '<button type="button" id="offOtherInqBtn" class="bt" style="font-size:12px;background:#0f766e" title="اقلام یک درخواست دیگر را به همین پیشنهاد اضافه می‌کند؛ شماره درخواست فعلی تغییر نمی‌کند" onclick="offLoadOtherInqItems()">📂 بارگذاری از درخواست دیگر</button>' +
     '<button type="button" class="bt bt-o" style="font-size:12px;color:#059669;border-color:#a7f3d0" onclick="offOpenProductMultiPicker()">+ از ماژول کالا (انتخاب چندگانه)</button>' +
     '<button type="button" class="bt bt-o" style="font-size:12px" onclick="ptfShowExcelGuidelineModal(\'OFFER\', \'offXls\')">📥 ورود اکسل</button>' +
     '<button type="button" class="bt bt-o" style="font-size:11.5px;color:#475569" onclick="offShowAdvCols()">⛭ ستون‌های تکمیلی ستون‌ها</button>' +
@@ -1236,6 +1236,7 @@ function offerPickBuyer(cd, keep) {
   var c = getData('ptf_crm_customers').filter(function(x){ return x.cd === cd; })[0];
   _offState.buyerCd = cd;
   try { ptfRenderCreditBox(cd); } catch (eCB) {} /* v14.6 US-352 */
+  try { if (typeof window.offRefreshInqOptions === 'function') window.offRefreshInqOptions(cd, keep); } catch (eInqRef) {}
   var sel = document.getElementById('ofContact');
   if (!c) { if (sel) sel.innerHTML = '<option>—</option>'; return; }
   _offState.buyerCo = c.coEn || c.co;
@@ -1267,6 +1268,24 @@ function offerPickBuyer(cd, keep) {
 /* v15.4 (US-386 — کیس استادی کارفرما): هر درخواست دو شناسه دارد (کد سیستمی r.cd + شماره کارفرما r.inqNo).
    TO ممکن است با یکی ثبت شده باشد و کاربر در فرم CO دیگری را انتخاب کند → مقایسه exact شکست می‌خورد
    و پیغام غلط «پیشنهاد فنی ثبت نشده» می‌آمد. این تابع همه نام‌های مستعار یک شماره را برمی‌گرداند. */
+window.offRefreshInqOptions = function (buyerCd, keepCur) {
+  var inqEl = (typeof offEl === 'function') ? offEl('ofInq') : document.getElementById('ofInq');
+  if (!inqEl || String(inqEl.tagName || '').toUpperCase() !== 'SELECT') return;
+  var cur = String(inqEl.value || (_offState && _offState.inqNo) || '').trim();
+  var belongs = !cur || (typeof window.ptfInqBelongsToCustomer !== 'function') || window.ptfInqBelongsToCustomer(cur, buyerCd);
+  var keepVal = (keepCur || belongs) ? cur : '';
+  if (typeof ptfInqNoOptions === 'function') inqEl.innerHTML = ptfInqNoOptions(keepVal, buyerCd || '');
+  if (keepVal) {
+    inqEl.value = keepVal;
+    if (inqEl.value !== keepVal) {
+      var opt = document.createElement('option');
+      opt.value = keepVal; opt.textContent = keepVal + ' (سند)'; opt.selected = true;
+      inqEl.appendChild(opt); inqEl.value = keepVal;
+    }
+  }
+  if (_offState && !keepCur && !belongs) _offState.inqNo = inqEl.value || '';
+};
+
 window.ptfInqAliases = function (v) {
   var out = [];
   if (v) out.push(v);
@@ -1637,29 +1656,186 @@ window.ptfItemRefPrice = function (item, opt) {
   return res;
 };
 
-function offLoadInqItems(pickedInq) {
-  /* US-303: pickedInq از دیالوگ انتخاب می‌آید؛ وگرنه شماره انتخاب‌شده فرم */
+/* v34.7.47: پارس امن مبلغ (ارقام فارسی/عربی + جداکننده هزارگان) — منبع واحد فرم پیشنهاد */
+window.offParseMoney = function (v) {
+  if (typeof ptfNum === 'function') return ptfNum(v);
+  return +String(v == null ? '' : v)
+    .replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); })
+    .replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); })
+    .replace(/[^\d.-]/g, '') || 0;
+};
+window.offMoneyText = function (v, cur) {
+  var n = window.offParseMoney(v);
+  if (typeof offerFmtMoney === 'function') {
+    return offerFmtMoney(n, cur || (typeof offerCurrency === 'function' && window._offState ? offerCurrency(window._offState) : { id: 'IRR' }));
+  }
+  return n ? n.toLocaleString('en-US') : '';
+};
+window.offPriceWordsText = function (v, cur) {
+  var n = Math.round(window.offParseMoney(v));
+  if (!n) return '';
+  var unit = (cur && cur.id === 'EUR') ? 'یورو' : (cur && cur.id === 'USD') ? 'دلار' : 'ریال';
+  if (typeof ptfNumWordsFa !== 'function') return '';
+  return '✍️ ' + ptfNumWordsFa(n) + ' ' + unit;
+};
+window.offPrintAmount = function (v, cur) {
+  var s = window.offMoneyText(v, cur);
+  return (typeof ptfEnDigits === 'function') ? ptfEnDigits(s) : s;
+};
+
+/* فهرست درخواست‌های دارای اقلام — هر درخواست یک‌بار (cd سیستمی)، بدون تکرار alias */
+window.offListLoadableInquiries = function (opt) {
+  opt = opt || {};
+  var buyerCd = (opt.buyerCd != null) ? String(opt.buyerCd).trim() : '';
+  var filterBuyer = Object.prototype.hasOwnProperty.call(opt, 'buyerCd');
+  var exclude = {};
+  (opt.exclude || []).forEach(function (k) {
+    k = String(k || '').trim();
+    if (!k) return;
+    exclude[k] = true;
+    try {
+      if (typeof window.ptfResolveInqRequest === 'function') {
+        (window.ptfResolveInqRequest(k).aliases || []).forEach(function (a) { if (a) exclude[String(a)] = true; });
+      }
+    } catch (eEx) {}
+  });
+  var seen = {}, out = [];
+  function push(key, buyer) {
+    key = String(key || '').trim();
+    if (!key || seen[key] || exclude[key]) return;
+    var resolved = (typeof window.ptfResolveInqRequest === 'function')
+      ? window.ptfResolveInqRequest(key)
+      : { rows: [], aliases: [key] };
+    (resolved.aliases || []).forEach(function (a) { if (a) seen[String(a)] = true; });
+    seen[key] = true;
+    if (exclude[key]) return;
+    if (filterBuyer) {
+      var rfqHit = resolved.rfq || null;
+      if (typeof window.ptfInqBelongsToCustomer === 'function') {
+        if (!window.ptfInqBelongsToCustomer(rfqHit || key, buyerCd)) return;
+      } else if (buyerCd && rfqHit && rfqHit.custCd && String(rfqHit.custCd) !== buyerCd) return;
+      else if (filterBuyer && !buyerCd) return;
+    }
+    var n = (resolved.rows || []).length;
+    if (!n) return;
+    var rfq = resolved.rfq || {};
+    var clientNo = rfq.inqNo && rfq.inqNo !== key ? rfq.inqNo : '';
+    out.push({
+      key: key,
+      label: key + (clientNo ? ' ⇐ ' + clientNo : ''),
+      buyer: buyer || rfq.co || '',
+      count: n,
+      rows: resolved.rows
+    });
+  }
+  (getData('ptf_crm_rfqs') || []).forEach(function (r) {
+    if (!r) return;
+    push(r.cd || r.inqNo, r.co || '');
+  });
+  (getData('ptf_crm_inqitems') || []).forEach(function (r) { if (r && r.inqNo) push(r.inqNo, ''); });
+  (getData('ptf_crm_inqreads') || []).forEach(function (r) {
+    if (r && (r.inqNo || r.cd) && (r.rows || []).length) push(r.inqNo || r.cd, '');
+  });
+  out.sort(function (a, b) { return String(b.key).localeCompare(String(a.key)); });
+  return out;
+};
+
+window.offBuildItemFromInqRow = function (r, inq) {
+  r = r || {};
+  var item = {
+    name: r.nm || r.name || r.en || '',
+    desc: r.st || r.spec || r.desc || r.nm || '',
+    model: r.model || r.md || '',
+    qty: r.qty || 1,
+    unit: r.un || r.unit || 'عدد',
+    brand: r.brand || '',
+    dlv: '', price: 0,
+    pcode: r.pcode || r.prodCd || r.productCd || '',
+    sourceItemKey: (typeof window.ptfProcLineKey === 'function') ? window.ptfProcLineKey(r) : '',
+    sourceInq: inq
+  };
+  if (r.tp) { item.extra = item.extra || {}; item.extra.Type = r.tp; }
+  try {
+    var _ref = window.ptfItemRefPrice(item, { inqNo: inq, reqRows: [r] });
+    if (_ref && _ref.price > 0) {
+      item.refPrice = _ref.price; item.refCur = _ref.cur;
+      item.refSrc = _ref.src; item.refAt = _ref.at || '';
+      item.refFrom = _ref.from;
+    }
+  } catch (eRef) {}
+  if (typeof window.ptfIntelligentParseItem === 'function') window.ptfIntelligentParseItem(item);
+  return item;
+};
+
+window.offAppendInqRows = function (inq, rows, opt) {
+  opt = opt || {};
+  rows = Array.isArray(rows) ? rows : [];
+  if (!window._offState) return { added: 0, skipped: 0, withRef: 0 };
+  if (typeof window.ptfAutoRegisterSummaryProducts === 'function') {
+    try { window.ptfAutoRegisterSummaryProducts(inq, rows); } catch (eReg) {}
+  }
+  var existing = {};
+  (_offState.items || []).forEach(function (it) {
+    if (typeof offRowIsEmpty === 'function' ? !offRowIsEmpty(it) : (it && (it.name || it.desc))) existing[offItemKey(it)] = true;
+  });
+  var added = 0, skipped = 0;
+  rows.forEach(function (r) {
+    var item = window.offBuildItemFromInqRow(r, inq);
+    var key = offItemKey(item);
+    if (existing[key]) { skipped++; return; }
+    existing[key] = true;
+    if (typeof offSmartInsert === 'function') offSmartInsert(item);
+    else { _offState.items = _offState.items || []; _offState.items.push(item); }
+    added++;
+  });
+  if (!opt.keepInq) {
+    _offState.inqNo = inq;
+    var inqEl = document.getElementById('ofInq');
+    if (inqEl && !inqEl.value) {
+      var hasOpt = false;
+      for (var oi = 0; oi < (inqEl.options || []).length; oi++) if (inqEl.options[oi].value === inq) hasOpt = true;
+      if (!hasOpt && inqEl.tagName === 'SELECT') {
+        var op = document.createElement('option'); op.value = inq; op.textContent = inq + ' (اقلام ایمپورت‌شده)';
+        inqEl.appendChild(op);
+      }
+      inqEl.value = inq;
+    }
+  }
+  if (typeof offRenderItems === 'function') offRenderItems();
+  var withRef = 0;
+  (_offState.items || []).forEach(function (x) { if (+x.refPrice > 0) withRef++; });
+  return { added: added, skipped: skipped, withRef: withRef };
+};
+
+function offLoadInqItems(pickedInq, opt) {
+  /* US-303: pickedInq از دیالوگ انتخاب می‌آید؛ وگرنه شماره انتخاب‌شده فرم
+     v34.7.47: opt.keepInq = افزودن از درخواست دیگر بدون تغییر شماره این پیشنهاد */
+  opt = opt || {};
+  if (opt === true) opt = { keepInq: true };
+  if (opt.keepInq && !pickedInq) { window.offLoadOtherInqItems(); return; }
   var inq = pickedInq || (document.getElementById('ofInq') || {}).value || _offState.inqNo || '';
   inq = String(inq).trim();
   if (!inq) {
-    var iq = getData('ptf_crm_inqitems');
-    var groups = {};
-    iq.forEach(function (r) { groups[r.inqNo] = (groups[r.inqNo] || 0) + 1; });
-    getData('ptf_crm_inqreads').forEach(function(r){ if (r.rows && r.rows.length) groups[r.inqNo || r.cd] = (groups[r.inqNo || r.cd] || 0) + r.rows.length; });
-    getData('ptf_crm_rfqs').forEach(function(r){ if (r.items && r.items.length) groups[r.inqNo || r.cd] = (groups[r.inqNo || r.cd] || 0) + r.items.length; });
-    var keys = Object.keys(groups);
-    if (!keys.length) {
-      /* US-303: راهنمای شفاف — اقلام درخواست باید هنگام ثبت استعلام وارد شده باشد */
-      alert('هیچ درخواستی با اقلام ثبت‌شده وجود ندارد.\n\nاقلام درخواست را از یکی از این مسیرها وارد کنید:\n• استعلامات → دکمه «اقلام» روی ردیف درخواست (دستی یا اکسل)\n• هنگام ثبت استعلام جدید (پنجره اقلام خودکار باز می\u200cشود)\n• دستیار → خواندن فایل استعلام');
+    var buyerCdPick = String((_offState && _offState.buyerCd) || (document.getElementById('ofBuyer') || {}).value || '').trim();
+    if (!buyerCdPick) {
+      alert('ابتدا کارفرما را از منوی کشویی انتخاب کنید تا فقط درخواست‌های همان مشتری فهرست شوند.');
       return;
     }
-    /* US-303: انتخاب از فهرست به\u200cجای prompt متنی */
+    var loadable = (typeof window.offListLoadableInquiries === 'function')
+      ? window.offListLoadableInquiries({ buyerCd: buyerCdPick })
+      : [];
+    if (!loadable.length) {
+      /* US-303: راهنمای شفاف — اقلام درخواست باید هنگام ثبت استعلام وارد شده باشد */
+      alert('برای این کارفرما درخواستی با اقلام ثبت‌شده وجود ندارد.\n\nاقلام درخواست را از یکی از این مسیرها وارد کنید:\n• استعلامات → دکمه «اقلام» روی ردیف درخواست (دستی یا اکسل)\n• هنگام ثبت استعلام جدید (پنجره اقلام خودکار باز می‌شود)\n• دستیار → خواندن فایل استعلام');
+      return;
+    }
+    /* US-303: انتخاب از فهرست به‌جای prompt متنی — فقط درخواست‌های همین کارفرما */
     var pick = '<div class="md-b" id="offInqPick" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:460px">' +
-      '<h3>🗂 انتخاب درخواست</h3>' +
-      keys.map(function (k) {
+      '<h3>🗂 انتخاب درخواست همین کارفرما</h3>' +
+      loadable.map(function (g) {
         return '<button type="button" class="bt bt-o" style="width:100%;justify-content:space-between;display:flex;margin-bottom:6px" ' +
-          'onclick="document.getElementById(\'offInqPick\').remove();offLoadInqItems(\'' + ptfOnClickArg(k) + '\')">' +
-          '<span style="direction:ltr">' + escP(k) + '</span><span style="color:#7c3aed;font-weight:800">' + groups[k] + ' قلم</span></button>';
+          'onclick="document.getElementById(\'offInqPick\').remove();offLoadInqItems(\'' + ptfOnClickArg(g.key) + '\')">' +
+          '<span style="direction:ltr">' + escP(g.label || g.key) + '</span><span style="color:#7c3aed;font-weight:800">' + g.count + ' قلم</span></button>';
       }).join('') +
       '<div style="text-align:left;margin-top:6px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div></div>';
     document.body.insertAdjacentHTML('beforeend', pick);
@@ -1667,67 +1843,102 @@ function offLoadInqItems(pickedInq) {
   }
   /* FB-2 (v34.7.30): حل درخواست با همهٔ نام‌های مستعار (کد سیستمی RFQ + شمارهٔ کارفرما) */
   var _resolved = window.ptfResolveInqRequest(inq);
-  var rows = _resolved.rows;
+  var rows = (opt.rows && opt.rows.length) ? opt.rows : _resolved.rows;
   if (!rows.length) {
     /* FB-4: پیام دقیق به‌جای سکوت یا باز شدن دوبارهٔ فهرست */
     alert('برای درخواست «' + inq + '» هیچ قلمی ثبت نشده است.\n\nاقلام را از یکی از این مسیرها وارد کنید:\n• استعلامات ← ویرایش استعلام و اقلام\n• درخواست تامین ← ثبت اقلام\nسپس دوباره همین دکمه را بزنید.');
     return;
   }
-  window.ptfAutoRegisterSummaryProducts(inq, rows);
-  var existing = {};
-  (_offState.items || []).forEach(function (it) { if (!offRowIsEmpty(it)) existing[offItemKey(it)] = true; });
-  var added = 0, skipped = 0;
-  rows.forEach(function (r) {
-    var item = {
-      name: r.nm || r.name || r.en || '',
-      desc: r.st || r.spec || r.desc || r.nm || '',
-      model: r.model || r.md || '',
-      qty: r.qty || 1,
-      /* FC-3 (v34.7.30): واحد باید همان واحد قلم درخواست بماند. مقدار ثابت قبلی 'NO'
-         با واحد فارسی منبع ناسازگار بود و در procurement-link امتیاز تطبیق را صفر می‌کرد
-         (unit mismatch ⇒ score = 0) ⇒ هیچ نرخ مرجعی پیدا نمی‌شد. */
-      unit: r.un || r.unit || 'عدد',
-      brand: r.brand || '',
-      dlv: '', price: 0,
-      /* FC-2: هویت قلم حفظ می‌شود تا مرجع خرید/کاتالوگ قابل تطبیق باشد */
-      pcode: r.pcode || r.prodCd || r.productCd || '',
-      sourceItemKey: (typeof window.ptfProcLineKey === 'function') ? window.ptfProcLineKey(r) : '',
-      sourceInq: inq
-    };
-    /* FC-2: نرخ مرجع مؤثر از زنجیرهٔ قطعی (قلم درخواست ← استعلام تامین ← بانک کالا) */
-    try {
-      var _ref = window.ptfItemRefPrice(item, { inqNo: inq, reqRows: rows });
-      if (_ref && _ref.price > 0) {
-        item.refPrice = _ref.price; item.refCur = _ref.cur;
-        item.refSrc = _ref.src; item.refAt = _ref.at || '';
-        item.refFrom = _ref.from;
-      }
-    } catch (eRef) {}
-    window.ptfIntelligentParseItem(item);
-    var key = offItemKey(item);
-    if (existing[key]) { skipped++; return; }
-    existing[key] = true;
-    offSmartInsert(item); /* v12.6 US-310 */
-    added++;
-  });
-  _offState.inqNo = inq;
-  var inqEl = document.getElementById('ofInq');
-  if (inqEl && !inqEl.value) {
-    // US-175: فیلد حالا کشویی است — اگر گزینه موجود نبود (اقلام ایمپورت‌شده)، اضافه شود
-    var hasOpt = false;
-    for (var oi = 0; oi < (inqEl.options || []).length; oi++) if (inqEl.options[oi].value === inq) hasOpt = true;
-    if (!hasOpt && inqEl.tagName === 'SELECT') {
-      var op = document.createElement('option'); op.value = inq; op.textContent = inq + ' (اقلام ایمپورت‌شده)';
-      inqEl.appendChild(op);
-    }
-    inqEl.value = inq;
-  }
-  offRenderItems();
-  var _withRef = 0; (_offState.items || []).forEach(function (x) { if (+x.refPrice > 0) _withRef++; });
-  alert('✅ ' + added + ' قلم از درخواست ' + inq + ' بارگذاری شد' + (skipped ? ' — ' + skipped + ' قلم تکراری رد شد' : '') +
+  var result = window.offAppendInqRows(inq, rows, opt);
+  var added = result.added, skipped = result.skipped, _withRef = result.withRef;
+  var keepNote = opt.keepInq ? '\n📌 شماره درخواست این پیشنهاد تغییر نکرد.' : '';
+  alert('✅ ' + added + ' قلم از درخواست ' + inq + (opt.keepInq ? ' به پیشنهاد افزوده شد' : ' بارگذاری شد') + (skipped ? ' — ' + skipped + ' قلم تکراری رد شد' : '') +
     (_withRef ? '\n💰 نرخ مرجع ' + _withRef + ' قلم از ' + (_resolved.source === 'inqitems' ? 'اقلام درخواست' : 'منابع پرونده') + ' بارگذاری شد.' : '\nℹ️ برای این اقلام نرخ مرجعی ثبت نشده است (اقلام درخواست / استعلام تامین / بانک کالا).') +
-    '\nبرند و قیمت فروش را در همین جدول تکمیل کنید.');
+    keepNote + '\nبرند و قیمت فروش را در همین جدول تکمیل کنید.');
 }
+window.offLoadInqItems = offLoadInqItems;
+
+/* v34.7.47: بارگذاری اقلام از درخواست دیگر — بدون تغییر شماره درخواست فعلی */
+window.offLoadOtherInqItems = function () {
+  if (!window._offState) { alert('⛔ فرم پیشنهاد باز نیست'); return; }
+  var current = (_offState.inqNo || (document.getElementById('ofInq') || {}).value || '').trim();
+  var buyerCd = String(_offState.buyerCd || (document.getElementById('ofBuyer') || {}).value || '').trim();
+  if (!buyerCd) {
+    alert('ابتدا کارفرما را از منوی کشویی انتخاب کنید تا فقط درخواست‌های همان مشتری فهرست شوند.');
+    return;
+  }
+  var list = window.offListLoadableInquiries({ exclude: current ? [current] : [], buyerCd: buyerCd });
+  if (!list.length) {
+    alert('برای این کارفرما درخواست دیگری با اقلام ثبت‌شده پیدا نشد.\n\nابتدا اقلام درخواست مبدأ را در «استعلامات» وارد کنید، سپس دوباره این دکمه را بزنید.');
+    return;
+  }
+  var old = document.getElementById('offOtherInqDlg');
+  if (old) old.remove();
+  var rows = list.map(function (g) {
+    return '<button type="button" class="bt bt-o off-other-inq-btn" data-inq="' + escP(g.key) + '" style="width:100%;justify-content:space-between;display:flex;margin-bottom:6px;align-items:center;gap:8px" ' +
+      'onclick="offLoadOtherInqReview(\'' + ptfOnClickArg(g.key) + '\')">' +
+      '<span style="text-align:right"><b dir="ltr">' + escP(g.label) + '</b>' +
+      (g.buyer ? '<br><small style="color:#64748b">' + escP(g.buyer) + '</small>' : '') + '</span>' +
+      '<span style="color:#0f766e;font-weight:800;white-space:nowrap">' + g.count + ' قلم</span></button>';
+  }).join('');
+  var html = '<div class="md-b" id="offOtherInqDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px;max-height:90vh;overflow:auto">' +
+    '<h3>📂 افزودن اقلام از درخواست دیگر</h3>' +
+    '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:8px 12px;font-size:12px;color:#065f46;margin-bottom:10px">فقط درخواست‌های <b>همین کارفرما</b> دیده می‌شوند. شماره درخواست این پیشنهاد <b>تغییر نمی‌کند</b>. اقلام انتخاب‌شده به جدول فعلی اضافه می‌شوند (تکراری‌ها رد می‌شوند).</div>' +
+    (current ? '<div style="font-size:12px;color:#64748b;margin-bottom:8px">درخواست فعلی پیشنهاد: <b dir="ltr">' + escP(current) + '</b></div>' : '') +
+    '<input type="search" id="offOtherInqSrch" placeholder="جستجوی شماره / کارفرما..." oninput="offFilterOtherInqList(this.value)" style="width:100%;padding:8px 10px;border:1px solid var(--brd);border-radius:10px;margin-bottom:10px">' +
+    '<div id="offOtherInqList">' + rows + '</div>' +
+    '<div style="text-align:left;margin-top:8px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+window.offFilterOtherInqList = function (q) {
+  q = String(q || '').trim().toLowerCase();
+  document.querySelectorAll('#offOtherInqList .off-other-inq-btn').forEach(function (b) {
+    var hay = (b.textContent || '').toLowerCase();
+    b.style.display = !q || hay.indexOf(q) > -1 ? '' : 'none';
+  });
+};
+window.offLoadOtherInqReview = function (inq) {
+  inq = String(inq || '').trim();
+  var resolved = (typeof window.ptfResolveInqRequest === 'function') ? window.ptfResolveInqRequest(inq) : { rows: [] };
+  var rows = resolved.rows || [];
+  if (!rows.length) { alert('برای این درخواست قلمی ثبت نشده است.'); return; }
+  var dlg = document.getElementById('offOtherInqDlg');
+  if (dlg) dlg.remove();
+  window._offOtherInqPick = { inq: inq, rows: rows };
+  var body = rows.map(function (r, i) {
+    var nm = r.nm || r.name || r.en || '—';
+    var spec = r.st || r.spec || r.desc || '';
+    return '<label style="display:flex;gap:8px;align-items:flex-start;padding:8px 6px;border-bottom:1px dashed var(--brd);cursor:pointer">' +
+      '<input type="checkbox" class="off-other-inq-row" value="' + i + '" checked style="margin-top:3px">' +
+      '<span style="flex:1"><b>' + escP(nm) + '</b>' +
+      (spec && spec !== nm ? '<br><small style="color:#64748b">' + escP(spec) + '</small>' : '') +
+      '<br><small style="color:#0f766e">' + escP(r.qty || 1) + ' ' + escP(r.un || r.unit || 'عدد') + '</small></span></label>';
+  }).join('');
+  var html = '<div class="md-b" id="offOtherInqDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px;max-height:90vh;overflow:auto">' +
+    '<h3>📂 انتخاب اقلام — <span dir="ltr">' + escP(inq) + '</span></h3>' +
+    '<div style="display:flex;gap:8px;margin-bottom:8px">' +
+    '<button type="button" class="bt bt-o" style="font-size:11.5px" onclick="document.querySelectorAll(\'#offOtherInqDlg .off-other-inq-row\').forEach(function(c){c.checked=true})">☑ همه</button>' +
+    '<button type="button" class="bt bt-o" style="font-size:11.5px" onclick="document.querySelectorAll(\'#offOtherInqDlg .off-other-inq-row\').forEach(function(c){c.checked=false})">☐ هیچ‌کدام</button></div>' +
+    '<div style="max-height:50vh;overflow:auto;border:1px solid var(--brd);border-radius:10px;padding:4px 10px">' + body + '</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+    '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove();offLoadOtherInqItems()">بازگشت</button>' +
+    '<button class="bt" style="background:#0f766e;color:#fff" onclick="offLoadOtherInqApply(\'' + ptfOnClickArg(inq) + '\')">➕ افزودن اقلام انتخاب‌شده</button></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+};
+window.offLoadOtherInqApply = function (inq) {
+  var pick = window._offOtherInqPick || {};
+  var srcRows = pick.rows || ((typeof window.ptfResolveInqRequest === 'function') ? window.ptfResolveInqRequest(inq).rows : []);
+  var selected = [];
+  document.querySelectorAll('#offOtherInqDlg .off-other-inq-row:checked').forEach(function (el) {
+    var row = srcRows[+el.value];
+    if (row) selected.push(row);
+  });
+  var dlg = document.getElementById('offOtherInqDlg');
+  if (dlg) dlg.remove();
+  window._offOtherInqPick = null;
+  if (!selected.length) { alert('حداقل یک قلم را تیک بزنید.'); return; }
+  window.offLoadInqItems(inq, { keepInq: true, rows: selected });
+};
 
 // ---- اقلام ----
 /* v12.6 (US-310): درج هوشمند — کالای جدید در اولین ردیف خالی می‌نشیند، نه انتهای لیست.
@@ -1856,7 +2067,7 @@ function ptfOfferOverallMargin(o) {
 }
 window.ptfOfferOverallMargin = ptfOfferOverallMargin;
 function offUpdItem(i, f, v) {
-  _offState.items[i][f] = (f === 'qty' || f === 'price') ? ((typeof ptfNum === 'function') ? ptfNum(v) : +String(v).replace(/[^\d.-]/g, '') || 0) : v; /* v19.6 US-438: پشتیبانی کاما */
+  _offState.items[i][f] = (f === 'qty' || f === 'price') ? ((typeof window.offParseMoney === 'function') ? window.offParseMoney(v) : ((typeof ptfNum === 'function') ? ptfNum(v) : +String(v).replace(/[^\d.-]/g, '') || 0)) : v; /* v19.6 US-438 + v34.7.47 ارقام فارسی */
   /* v17.0 (US-409 — گزارش کارفرما): TC هم مالی است؛ جمع ردیف + جمع کل هر دو لحظه‌ای — بدون رندر کامل (فوکوس نمی‌پرد) */
   if ((_offState.kind === 'CO' || _offState.kind === 'TC') && (f === 'qty' || f === 'price')) offRenderTotals(i);
   ptfTriggerAutoDraftSave();
@@ -1896,7 +2107,7 @@ window.offUpdRefPrice = function (i, val) {
   var o = window._offState;
   if (!o || !o.items || !o.items[i]) return;
   var it = o.items[i];
-  it.refPrice = +val || 0;
+  it.refPrice = (typeof window.offParseMoney === 'function') ? window.offParseMoney(val) : ((typeof ptfNum === 'function') ? ptfNum(val) : +String(val==null?'':val).replace(/[^\d.-]/g,'') || 0);
   it.refPriceEdited = true; /* v31.7.12: با ذخیره، روی نرخ مرجع کالا در ماژول کالا هم می‌نشیند */
   if (it.refPrice > 0 && typeof it.marginPct === 'number') {
     it.price = Math.round(it.refPrice * (1 + it.marginPct / 100));
@@ -1959,7 +2170,7 @@ window.offUpdRefPrice = function (i, val) {
   var o = window._offState;
   if (!o || !o.items || !o.items[i]) return;
   var it = o.items[i];
-  it.refPrice = +val || 0;
+  it.refPrice = (typeof window.offParseMoney === 'function') ? window.offParseMoney(val) : ((typeof ptfNum === 'function') ? ptfNum(val) : +String(val==null?'':val).replace(/[^\d.-]/g,'') || 0);
   it.refPriceEdited = true; /* v31.7.12: با ذخیره، روی نرخ مرجع کالا در ماژول کالا هم می‌نشیند */
   if (it.refPrice > 0 && typeof it.marginPct === 'number') {
     it.price = Math.round(it.refPrice * (1 + it.marginPct / 100));
@@ -2001,9 +2212,10 @@ function offRenderItems() {
   var rows = '';
   _offState.items.forEach(function(it, i) {
     var inp = function(f, w, type) {
-      var moneyAttr = f === 'price' ? ' data-money="1" data-nohint="1" inputmode="numeric" autocomplete="off"' : '';
+      var moneyAttr = f === 'price' ? ' id="off_price_' + i + '" data-money="1" data-words="1" data-unit="ریال" inputmode="numeric" autocomplete="off"' : '';
       var inputType = f === 'price' ? 'text' : (type || 'text');
-      return '<input type="' + inputType + '" value="' + escP(it[f]||'') + '"' + moneyAttr + ' oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:' + w + ';padding:5px;border:1px solid var(--brd);border-radius:6px;direction:' + ((type==='number' || f==='price')?'ltr':'') + ';font-size:12px">';
+      var shown = (f === 'price' && it[f]) ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(it[f]) : it[f]) : (it[f]||'');
+      return '<input type="' + inputType + '" value="' + escP(shown) + '"' + moneyAttr + ' oninput="offUpdItem(' + i + ',\'' + f + '\',this.value)" style="width:' + w + ';padding:5px;border:1px solid var(--brd);border-radius:6px;direction:' + ((type==='number' || f==='price')?'ltr':'') + ';font-size:12px">';
     };
     var ecCells = ec.map(function(c){
       return '<td><input type="text" value="' + escP((it.extra||{})[c]||'') + '" oninput="offUpdExtra(' + i + ',\'' + ptfOnClickArg(c) + '\',this.value)" style="width:76px;padding:5px;border:1px solid var(--brd);border-radius:6px;font-size:12px"></td>';
@@ -2035,9 +2247,9 @@ function offRenderItems() {
       rows += '<tr><td>' + (i + 1) + '</td><td>' + inp('name', '100%') + '</td><td>' + inp('desc', '100%') + '</td>' +
         '<td>' + inp('model', '86px') + '</td>' +
         '<td>' + inp('qty', '54px', 'number') + '</td><td>' + inp('unit', '50px') + '</td><td>' + inp('brand', '86px') + '</td>' + ecCells +
-        '<td style="background:#fcfaff"><input type="number" id="offRef' + i + '" value="' + (_refP || '') + '" oninput="offUpdRefPrice(' + i + ',this.value)" placeholder="نرخ مرجع" style="width:100px;direction:ltr;background:#f5f3ff;border:1px solid #ddd6fe;font-weight:bold;color:#5b21b6;padding:5px;border-radius:6px"></td>' +
+        '<td style="background:#fcfaff"><input type="text" inputmode="numeric" data-money="1" data-nohint="1" autocomplete="off" id="offRef' + i + '" value="' + escP(_refP ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(_refP) : _refP) : '') + '" oninput="offUpdRefPrice(' + i + ',this.value)" placeholder="نرخ مرجع" style="width:110px;direction:ltr;background:#f5f3ff;border:1px solid #ddd6fe;font-weight:bold;color:#5b21b6;padding:5px;border-radius:6px"></td>' +
         '<td style="background:#fffef0"><input type="number" id="offMg' + i + '" value="' + (_mPct) + '" oninput="offUpdMarginPct(' + i + ',this.value)" placeholder="30%" style="width:55px;direction:ltr;background:#fefce8;border:1px solid #fde047;font-weight:bold;color:#b45309;padding:5px;border-radius:6px"></td>' +
-        '<td>' + inp('price', '92px', 'number') + bestBuyHtml + (_refP > 0 ? '<small style="display:block;color:#b45309;margin-top:2px">📈 حاشیه فعلی: ' + escP(_mPct === '' ? '—' : _mPct) + '٪</small>' : '') + '</td><td id="offRT' + i + '" style="white-space:nowrap;font-size:12px;font-weight:bold">' + ((+it.qty||0)*(+it.price||0)).toLocaleString('en-US') + '</td>' +
+        '<td>' + inp('price', '92px', 'number') + bestBuyHtml + (_refP > 0 ? '<small style="display:block;color:#b45309;margin-top:2px">📈 حاشیه فعلی: ' + escP(_mPct === '' ? '—' : _mPct) + '٪</small>' : '') + '</td><td id="offRT' + i + '" class="off-money-total" style="white-space:nowrap;font-size:12px;font-weight:bold;font-variant-numeric:tabular-nums">' + ((typeof window.offPrintAmount === 'function') ? window.offPrintAmount((+it.qty||0)*(+it.price||0)) : ((+it.qty||0)*(+it.price||0)).toLocaleString('en-US')) + '</td>' +
         '<td><button type="button" onclick="offDelItem(' + i + ')" style="border:0;background:none;color:#dc2626;cursor:pointer">✕</button></td></tr>';
     } else {
       rows += '<tr><td>' + (i + 1) + '</td><td>' + inp('name', '100%') + '</td><td>' + inp('desc', '100%') + '</td>' +
@@ -2049,7 +2261,7 @@ function offRenderItems() {
   var totalRow = '';
   if (isCO) {
     var total = _offState.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0);
-    totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (8 + ec.length) + '" style="direction:ltr">GRAND TOTAL</td><td id="offGT" style="white-space:nowrap">' + total.toLocaleString('en-US') + '</td><td></td></tr>';
+    totalRow = '<tr style="font-weight:bold;background:#fff8f5"><td colspan="' + (8 + ec.length) + '" style="direction:ltr">GRAND TOTAL</td><td id="offGT" style="white-space:nowrap">' + ((typeof window.offPrintAmount === 'function') ? window.offPrintAmount(total) : total.toLocaleString('en-US')) + '</td><td></td></tr>';
   }
 
   var globalMarginBar = isCO ? '<div style="display:flex;justify-content:space-between;align-items:center;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:10px 14px;margin-bottom:10px;flex-wrap:wrap;gap:10px">' +
@@ -2059,6 +2271,9 @@ function offRenderItems() {
 
   el.innerHTML = globalMarginBar + '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead style="background:#f1f5f9">' + head + '</thead><tbody>' + rows + totalRow + '</tbody></table>' +
     (_offState.items.length ? '' : '<div style="color:#94a3b8;text-align:center;padding:14px;font-size:12px">ردیفی ثبت نشده</div>');
+  if (typeof ptfMoneyRefresh === 'function') {
+    try { ptfMoneyRefresh(el); } catch (eMoneyFb) {}
+  }
 }
 
 window.offSetRefPrice = function(i, v) {
@@ -2131,14 +2346,19 @@ window.offApplyProfitMarginToRow = function(i, basePrice, pct) {
    الگو همان v17.0 US-409 است که برای qty/price حل شده بود؛ حالا ref/margin هم. */
 function offSyncRowInputs(i, src) {
   var it = (_offState.items || [])[i]; if (!it) return;
+  function setMoney(id, v) {
+    var el = document.getElementById(id);
+    if (!el || el === document.activeElement) return;
+    el.value = v ? ((typeof window.offMoneyText === 'function') ? window.offMoneyText(v) : v) : '';
+    if (typeof ptfMoneyRefresh === 'function') ptfMoneyRefresh(el);
+  }
   function setV(id, v) {
     var el = document.getElementById(id);
     if (el && el !== document.activeElement) el.value = (v == null ? '' : v);
   }
-  if (src !== 'ref') setV('offRef' + i, it.refPrice || '');
+  if (src !== 'ref') setMoney('offRef' + i, it.refPrice || '');
   if (src !== 'margin') setV('offMg' + i, (typeof it.marginPct === 'number' ? it.marginPct : ''));
-  setV('off_price_' + i, it.price || '');
-  /* فرم offerlock (فرم فعال) input قیمت با data-money دارد — با کلاس ردیف id ندارد؛ از offRenderTotals برای جمع‌ها استفاده می‌شود */
+  setMoney('off_price_' + i, it.price || '');
   if (typeof offRenderTotals === 'function') offRenderTotals(i);
   if (typeof ptfTriggerAutoDraftSave === 'function') ptfTriggerAutoDraftSave();
 }
@@ -2147,7 +2367,7 @@ window.offSyncRowInputs = offSyncRowInputs;
 function offRenderTotals(rowIdx) {
   /* v17.0 (US-409): فرمت ارز-آگاه (US-366) — قبلا toLocaleString ساده بود و با GT فرم فعال ناهماهنگ می‌شد */
   var cur = (typeof offerCurrency === 'function') ? offerCurrency(_offState) : null;
-  var fmt = function (v) { return (typeof offerFmtMoney === 'function') ? offerFmtMoney(v, cur) : (+v || 0).toLocaleString('en-US'); };
+  var fmt = function (v) { return (typeof window.offPrintAmount === 'function') ? window.offPrintAmount(v, cur) : ((typeof offerFmtMoney === 'function') ? offerFmtMoney(v, cur) : (+v || 0).toLocaleString('en-US')); };
   /* جمع ردیف تغییرکرده — سلول id ردیفی (offerlock v17.0)؛ اگر نبود (فرم قدیمی) فقط GT */
   if (rowIdx != null) {
     var rt = document.getElementById('offRT' + rowIdx);
@@ -2155,6 +2375,8 @@ function offRenderTotals(rowIdx) {
       var it = _offState.items[rowIdx] || {};
       rt.textContent = fmt((+it.qty || 0) * (+it.price || 0));
     }
+    var priceEl = document.getElementById('off_price_' + rowIdx);
+    if (priceEl && typeof ptfMoneyRefresh === 'function') ptfMoneyRefresh(priceEl);
   }
   var el = document.getElementById('offGT');
   if (el) {
@@ -2750,6 +2972,14 @@ function offerPrintObj(o) {
   var title = _pAs === 'TC' ? 'Techno-Commercial Offer' : (o.kind === 'TO' ? 'Technical Offer' : 'Commercial Offer');
   var pdfFileName = typeof ptfOfferPdfFileName === 'function' ? ptfOfferPdfFileName(o) : o.no;
   var total = o.items.reduce(function(s, it){ return s + (+it.qty||0)*(+it.price||0); }, 0);
+  var printCur = (typeof offerCurrency === 'function') ? offerCurrency(o) : { id: o.currency || 'IRR' };
+  var moneyPrint = function (v) {
+    if (typeof window.offPrintAmount === 'function') return window.offPrintAmount(v, printCur);
+    if (typeof offerFmtMoney === 'function') return offerFmtMoney(v, printCur);
+    var n = (typeof window.offParseMoney === 'function') ? window.offParseMoney(v) : (+v || 0);
+    var s = n.toLocaleString('en-US');
+    return (typeof ptfEnDigits === 'function') ? ptfEnDigits(s) : s;
+  };
   var pageCount = Math.max(1, Math.ceil(o.items.length / (isCO ? 8 : 5)));
 
   // ---- جدول اقلام: ستون‌ها مطابق فرمت رسمی شرکت ----
@@ -2766,7 +2996,7 @@ function offerPrintObj(o) {
     if (isCO) {
       var full = nm + (it.desc && it.name ? '<div class="idesc">' + escP(it.desc) + '</div>' : '');
       tbody += '<tr><td>' + (i+1) + '</td><td class="lft"><b>' + full + '</b></td><td>' + escP((typeof ptfOfferUnitEn==='function'?ptfOfferUnitEn(it.unit): (it.unit||'NO'))) + '</td><td>' + (it.qty||0) + '</td><td>' + escP(it.brand||'—') + '</td><td>' + escP(it.model||'—') + '</td>' + ecTd +
-        '<td class="num">' + (+it.price).toLocaleString('en-US') + '</td><td class="num">' + ((+it.qty||0)*(+it.price||0)).toLocaleString('en-US') + '</td></tr>';
+        '<td class="num">' + moneyPrint(it.price) + '</td><td class="num">' + moneyPrint((+it.qty||0)*(+it.price||0)) + '</td></tr>';
     } else {
       tbody += '<tr><td>' + (i+1) + '</td><td class="lft"><b>' + nm + '</b></td><td>' + escP((typeof ptfOfferUnitEn==='function'?ptfOfferUnitEn(it.unit): (it.unit||'NO'))) + '</td><td>' + (it.qty||0) + '</td><td>' + escP(it.brand||'—') + '</td><td>' + escP(it.model||'—') + '</td>' + ecTd +
         '<td class="lft desc">' + escP(it.desc||'').replace(/;\s*/g, '<br>') + (it.dlv ? '<br><i>Delivery: ' + escP(it.dlv) + '</i>' : '') + '</td></tr>';
@@ -2774,7 +3004,7 @@ function offerPrintObj(o) {
   });
   if (isCO) {
     tbody += '<tr class="total"><td colspan="' + (8 + ec.length) + '" class="lft"><b>Total</b> &nbsp;<span class="words">' + numToWords(total) + ' Iranian Rials</span></td>' +
-      '<td colspan="2" class="num big">' + total.toLocaleString('en-US') + ' IRR</td></tr>';
+      '<td colspan="2" class="num big">' + moneyPrint(total) + ' IRR</td></tr>';
   }
 
   var _termsArr = (o.terms || []).slice();

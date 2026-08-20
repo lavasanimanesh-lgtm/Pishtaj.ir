@@ -9,14 +9,14 @@
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://pishtaj.ir/search/" />
 <link rel="stylesheet" href="../assets/css/style.css" />
-<link rel="stylesheet" href="../assets/css/discover.css" />
+<link rel="stylesheet" href="../assets/css/discover.css?v=20260820p" />
 </head>
 <body>
 <a class="ptf-skip" href="#main-content" data-ptf-skip="yes">رفتن به محتوا</a>
 <header class="site-header scrolled"><div class="container nav-wrap">
 <a class="brand" href="../" aria-label="پیشرو تجهیز فرتاک"><img width="54" height="54" loading="lazy" src="../assets/images/ptf-logo.png" alt="لوگو" style="object-fit:contain"><span><b>پیشرو تجهیز فرتاک</b><small>Pishro Tajhiz Fartak</small></span></a>
 <button class="menu-toggle" id="menuToggle" aria-label="باز کردن منو"><span></span><span></span><span></span></button>
-<nav class="main-nav" id="mainNav"><a href="../">خانه</a><a href="../about/">درباره ما</a><a href="../services/">خدمات</a><a href="../knowledge-center/">مرکز دانش</a><a href="../comparisons/">مقایسه‌ها</a><a href="../blog/">وبلاگ</a><a href="../rfq/">استعلام</a></nav>
+<nav class="main-nav" id="mainNav"><a href="../">خانه</a><span class="nav-drop"><a href="../about/" aria-haspopup="true">درباره ما</a><span class="nav-drop-menu"><a href="../news/">اخبار</a><a href="../blog/">وبلاگ</a></span></span><a href="../services/">خدمات</a><a href="../services/products/">محصولات</a><a href="../knowledge-center/">مرکز دانش</a><a href="../comparisons/">مقایسه‌ها</a><a href="../rfq/">استعلام</a></nav>
 </div></header>
 <nav class="ptf-bc" aria-label="مسیر صفحه" data-ptf-bc="yes"><div class="container"><ol>
 <li><a href="/">خانه</a></li>
@@ -25,44 +25,79 @@
 <main id="main-content" class="container">
   <div class="ptf-search-page">
     <h1>جستجوی سایت</h1>
-<<<<<<< HEAD
     <p class="lead">عنوان و توضیح صفحات تامین، محصولات، مقایسه‌های فنی، مرکز دانش و وبلاگ پیشرو تجهیز فرتاک را جستجو کنید. برای استعلام خرید از نتیجه به صفحهٔ تجهیز بروید یا مستقیم <a href="../rfq/">RFQ</a> ثبت کنید.</p>
-=======
-    <p class="lead">عنوان و توضیح صفحات تامین، محصولات، مقایسه‌ها، مرکز دانش و وبلاگ را جستجو کنید.</p>
->>>>>>> 64171ea7b82dbcc1af890d073e5eae6ad6eaf047
-    <form id="qform" role="search">
+    <form id="qform" class="ptf-search-form" role="search">
       <label class="visually-hidden" for="q">عبارت جستجو</label>
       <input id="q" name="q" type="search" placeholder="مثلاً A106، فلنج WN، Rosemount، VFD…" autocomplete="off" />
+      <button type="submit">جستجو</button>
     </form>
     <p class="ptf-search-meta" id="meta"></p>
     <div class="ptf-search-hits" id="hits"></div>
   </div>
 </main>
 <script src="../assets/js/main.js"></script>
-<script src="../assets/js/ptf-discover.js"></script>
+<script src="../assets/js/ptf-discover.js?v=20260820p"></script>
 <script>
 (function(){
   var idx=[], ready=false;
   var qEl=document.getElementById('q');
   var hits=document.getElementById('hits');
   var meta=document.getElementById('meta');
-  fetch('../assets/data/search-index.json').then(function(r){return r.json()}).then(function(d){
-    idx=d; ready=true; run(new URLSearchParams(location.search).get('q')||'');
-  }).catch(function(){ meta.textContent='فهرست جستجو بارگذاری نشد.'; });
+  function esc(s){
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function skipItem(it){
+    var u=String(it && it.u || '');
+    var t=String(it && it.t || '');
+    if (/\/404\.html$/i.test(u) || u==='/404.html') return true;
+    if (/صفحه پیدا نشد/.test(t)) return true;
+    return false;
+  }
+  function loadIndex(url){
+    return fetch(url, { cache: 'no-store' }).then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      return r.json();
+    });
+  }
+  meta.textContent='در حال بارگذاری فهرست…';
+  loadIndex('/assets/data/search-index.json').catch(function(){
+    return loadIndex('../assets/data/search-index.json');
+  }).then(function(d){
+    var list = Array.isArray(d) ? d : (d && (d.items || d.list) || []);
+    idx=list.filter(function(it){ return !skipItem(it); });
+    ready=true;
+    run(qEl.value || new URLSearchParams(location.search).get('q') || '');
+  }).catch(function(){
+    ready=false;
+    meta.textContent='فهرست جستجو بارگذاری نشد. اگر این پیام ماند، دسترسی فایل JSON را بررسی کنید.';
+  });
   function norm(s){return String(s||'').toLowerCase().replace(/ي/g,'ی').replace(/ك/g,'ک');}
+  function score(it, parts){
+    var t=norm(it.t), d=norm(it.d), u=norm(it.u), s=0;
+    for (var i=0;i<parts.length;i++){
+      var p=parts[i];
+      if (t.indexOf(p)!==-1) s+=12;
+      else if (d.indexOf(p)!==-1) s+=3;
+      else if (u.indexOf(p)!==-1) s+=1;
+      else return -1;
+    }
+    var joined=parts.join(' ');
+    if (t.indexOf(joined)!==-1) s+=8;
+    if (t.indexOf(joined)===0) s+=6;
+    return s;
+  }
   function run(q){
-    qEl.value=q||'';
+    if(qEl && q) qEl.value=q;
     if(!ready){ meta.textContent='در حال بارگذاری فهرست…'; return; }
     q=norm(q).trim();
     if(q.length<2){ hits.innerHTML=''; meta.textContent='حداقل دو نویسه وارد کنید. '+idx.length+' صفحه در فهرست است.'; return; }
     var parts=q.split(/\s+/).filter(Boolean);
-    var found=idx.filter(function(it){
-      var hay=norm(it.t+' '+it.d+' '+it.u);
-      return parts.every(function(p){return hay.indexOf(p)!==-1;});
-    }).slice(0,40);
+    var found=idx.map(function(it){
+      return {it:it, s:score(it, parts)};
+    }).filter(function(x){ return x.s>=0; }).sort(function(a,b){ return b.s-a.s; }).slice(0,40).map(function(x){ return x.it; });
     meta.textContent=found.length+' نتیجه';
     hits.innerHTML=found.map(function(it){
-      return '<a href="'+it.u+'"><b>'+it.t+'</b><span>'+(it.d||it.u)+'</span></a>';
+      return '<a href="'+esc(it.u)+'"><b>'+esc(it.t)+'</b><span>'+esc(it.d||it.u)+'</span></a>';
     }).join('')||'<p>نتیجه‌ای پیدا نشد.</p>';
   }
   document.getElementById('qform').addEventListener('submit', function(e){

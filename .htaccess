@@ -34,6 +34,11 @@ RewriteCond %{HTTP:X-Forwarded-SSL} !on
 RewriteCond %{HTTP_HOST} ^(?:www\.)?pishtaj\.ir$ [NC]
 RewriteRule ^ https://pishtaj.ir%{REQUEST_URI} [R=301,L]
 
+# v34.7.51: صفحه آگهی از jobs.json اگر فایل استاتیک ساخته نشده باشد
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^careers/([a-z0-9]+(?:-[a-z0-9]+)*)/?$ /careers/view.php?slug=$1 [L,QSA]
+
 # ------------------------------------------------------------------
 # SEO-CLEANUP-2026-07: قدیمی‌ترین نسخهٔ «تخت» این صفحات با نسخهٔ
 # «پوشه‌ای» جدیدتر جایگزین شده بود ولی فایل قدیمی حذف نشده بود.

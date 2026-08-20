@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.7.46",
+ "version": "v34.7.49",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
