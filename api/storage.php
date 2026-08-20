@@ -420,10 +420,12 @@ switch ($action) {
         break;
 
     case 'list':
-        /* v34.4.47: صفحه‌بندی مثل usage تا پاک‌سازی یتیم با سقف ۱۰۰۰ فایل ناقص نباشد. */
+        /* v34.4.47: صفحه‌بندی مثل usage تا پاک‌سازی یتیم با سقف ۱۰۰۰ فایل ناقص نباشد.
+           v34.7.59: ادامهٔ صفحه‌بندی از سمت کلاینت — token ورودی پذیرفته و nextToken
+           برگردانده می‌شود تا در باکت‌های بزرگ، گزارش/remap کلید ابری مسدود نماند. */
         $prefix = $in['prefix'] ?? ($_GET['prefix'] ?? '');
+        $token = (string)($in['token'] ?? ($_GET['token'] ?? ''));
         $files = [];
-        $token = '';
         $pages = 0;
         $truncated = false;
         do {
@@ -443,7 +445,7 @@ switch ($action) {
             $pages++;
         } while ($token && $pages < 30);
         if ($token) $truncated = true;
-        echo json_encode(['ok' => true, 'files' => $files, 'pages' => $pages, 'truncated' => $truncated], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true, 'files' => $files, 'pages' => $pages, 'truncated' => $truncated, 'nextToken' => $token], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'delete_batch':

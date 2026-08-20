@@ -912,10 +912,8 @@ function ptfCloudKeyAudit() {
   }
   if (typeof ptfToast === 'function') ptfToast('⏳ در حال تهیه گزارش کلیدها (بدون حذف)…', 'info');
   var crmRows = ptfHarvestFileKeys();
-  fetch(STORAGE_API + '?action=list', {
-    method: 'POST', headers: ptfStorageAuthHeaders(true), body: JSON.stringify({ prefix: '' })
-  }).then(function (r) { return r.json(); }).then(function (d) {
-    if (!d || !d.ok) throw new Error((d && (d.error || d.http)) || 'list failed');
+  ptfListAllCloudFiles({ prefix: '' }, function (d) {
+    if (!d || !d.ok) { alert('⛔ گزارش کلیدها تهیه نشد: ' + ((d && d.error) || 'خطای اتصال')); return; }
     var classified = ptfClassifyCloudKeys(crmRows, d.files || []);
     var c = classified.counts;
     var truncated = d.truncated ? '<div style="background:#fff7ed;border:1px solid #fed7aa;padding:8px;border-radius:10px;margin:8px 0;color:#9a3412;font-size:12.5px">⚠️ فهرست S3 ناقص برگشت؛ ردهٔ E ممکن است بیش‌برآورد باشد. دوباره تلاش کنید.</div>' : '';
@@ -942,11 +940,35 @@ function ptfCloudKeyAudit() {
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
     window._ptfKeyAuditRows = classified.report;
     window._ptfKeyAuditTruncated = !!d.truncated;
-    try { if (typeof audit === 'function') audit('فضای ابری', 'گزارش تشخیصی کلیدها A' + c.A + '/B' + c.B + '/C' + c.C + '/E' + c.E, ''); } catch (eA) {}
-  }).catch(function (e) {
-    alert('⛔ گزارش کلیدها تهیه نشد: ' + ((e && e.message) || 'خطای اتصال'));
+    try { if (typeof audit === 'function') audit('فضای ابری', 'گزارش تشخیصی کلیدها A' + c.A + '/B' + c.B + '/C' + c.C + '/E' + c.E + (d.rounds > 1 ? ' (' + d.rounds + ' نوبت فهرست S3)' : ''), ''); } catch (eA) {}
   });
 }
+/* v34.7.59: دریافت فهرست کامل S3 با ادامهٔ صفحه‌بندی. هر فراخوانی سرور تا ۳۰ صفحه
+   (۳۰هزار کلید) می‌خواند و در صورت باقی‌ماندن، nextToken برمی‌گرداند؛ این حلقه تا سقف
+   ایمن ادامه می‌دهد تا گزارش/remap در باکت‌های بزرگ پشت «فهرست ناقص» مسدود نماند.
+   اگر حتی با ادامه هم به سقف برسیم، truncated=true می‌ماند و remap طبق قبل قفل است. */
+function ptfListAllCloudFiles(opts, cb) {
+  if (typeof opts === 'function') { cb = opts; opts = {}; }
+  opts = opts || {};
+  var files = [], token = '', rounds = 0, MAX_ROUNDS = 12; /* ~۳۶۰هزار کلید */
+  function step() {
+    fetch(STORAGE_API + '?action=list', {
+      method: 'POST', headers: ptfStorageAuthHeaders(true),
+      body: JSON.stringify({ prefix: opts.prefix || '', token: token })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d || !d.ok) { cb({ ok: false, error: String((d && (d.error || d.http)) || 'list failed') }); return; }
+      files = files.concat(d.files || []);
+      token = String(d.nextToken || '');
+      rounds++;
+      if (token && rounds < MAX_ROUNDS) { step(); return; }
+      /* سازگاری با سرور قدیمی (بدون nextToken): truncated سرور معتبر می‌ماند */
+      var stillTruncated = !!token || (d.nextToken === undefined && !!d.truncated);
+      cb({ ok: true, files: files, truncated: stillTruncated, rounds: rounds });
+    }).catch(function (e) { cb({ ok: false, error: String((e && e.message) || e || 'خطای اتصال') }); });
+  }
+  step();
+}
+window.ptfListAllCloudFiles = ptfListAllCloudFiles;
 function ptfDownloadKeyAuditCsv() {
   var rows = window._ptfKeyAuditRows || [];
   var lines = ['cls,store,recId,key,match,note,name'];

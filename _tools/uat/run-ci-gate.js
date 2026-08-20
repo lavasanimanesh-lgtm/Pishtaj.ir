@@ -82,6 +82,7 @@ var SUITE = [
   { g: 'پیشنهاد/اقلام و قیمت', f: '_tools/uat/tester459-v34.7.56-offer-dup-and-price-xls.js' },
   { g: 'پیشنهاد/نظم فرم', f: '_tools/uat/tester460-v34.7.57-offer-form-layout.js' },
   { g: 'پیشنهاد/خروجی رسمی', f: '_tools/uat/tester461-v34.7.58-offer-formal-output.js' },
+  { g: 'ابر/پیوست', f: '_tools/uat/tester462-v34.7.59-cloud-list-pagination.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
