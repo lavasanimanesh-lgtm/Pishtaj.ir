@@ -216,7 +216,8 @@
     var ad = (r.awardDocs || []).filter(function (d) { return d.no === no; })[0];
     if (!ad || !ad.snap) { alert('سند قطعی برد یافت نشد'); return; }
     var snap = JSON.parse(JSON.stringify(ad.snap)); /* کپی — snapshot اصلی هرگز mutate نمی‌شود */
-    if (typeof offerPrintObj === 'function') offerPrintObj(snap);
+    if (typeof offerFormalPrintObj === 'function') offerFormalPrintObj(snap); /* v34.7.58: سند برد = خروجی رسمی بدون watermark */
+    else if (typeof offerPrintObj === 'function') offerPrintObj(snap);
     else if (typeof offerPrint === 'function') offerPrint(no);
     try { audit('پرونده‌های فروش', 'چاپ/PDF سند قطعی برد ' + no + ' از پرونده ' + (r.inqNo || cd), cd); } catch (e) {}
   };
@@ -1022,7 +1023,8 @@
     d.offers.forEach(function (o) {
       var offerLocked = o.no === r.wonOffer || o.st === 'won';
       h += row('📄', '<b dir="ltr">' + escP(o.no) + '</b> — ' + (KINDS[o.kind] || o.kind) + ((typeof window.ptfRialCompanionBadge === 'function') ? ' ' + window.ptfRialCompanionBadge(o) : '') + (o.rev ? ' <span style="color:#7c3aed">(آخرین رویژن: Rev.' + o.rev + ')</span>' : '') + ' — ' + escP(o.dt || o.dateFa || '') + (offerLocked ? ' <small style="color:#92400e">🔒 سند قطعی برد</small>' : ''),
-        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();offerQuickPreview(\'' + ptfOnClickArg(o.no) + '\')">👁</button> ' +
+        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px" onclick="event.stopPropagation();offerQuickPreview(\'' + ptfOnClickArg(o.no) + '\')" title="پیش‌نمایش داخلی (با watermark)">👁 پیش‌نمایش</button> ' +
+        '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#047857;border-color:#6ee7b7" onclick="event.stopPropagation();offerFormalPrint(\'' + ptfOnClickArg(o.no) + '\')" title="خروجی رسمی قابل ارسال — بدون watermark">🖨 PDF / چاپ</button> ' +
         (offerLocked ? '<span title="سند قطعی برد تغییرناپذیر است؛ اصلاح تجاری با رویژن/متمم انجام می‌شود" style="font-size:10.5px;color:#92400e">اصلاح با رویژن/متمم</span>' : '<button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#0e7490" onclick="event.stopPropagation();offerEdit(\'' + ptfOnClickArg(o.no) + '\')">✏️ اصلاح</button> <button class="bt bt-o" style="padding:3px 9px;font-size:11.5px;color:#dc2626" onclick="event.stopPropagation();offerDel(\'' + ptfOnClickArg(o.no) + '\')">🗑 حذف</button>'));
     });
     /* v17.1 (US-404 فاز ۲): استعلام‌های تامین — رهگیری کشف قیمت داخل خود پرونده */

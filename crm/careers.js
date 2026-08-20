@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — v34.7.53 فرصت شغلی
+   PTF CRM — v34.7.59 فرصت شغلی
    دسترسی: فقط admin / chairman / ceo
    ===================================================================== */
 (function () {
@@ -127,6 +127,15 @@
 
   function jobsForm(j) {
     j = j || { slug: '', titleFa: '', titleEn: '', bodyFa: '', bodyEn: '', dept: '', location: '', published: true };
+    var EMPT = [
+      { v: 'FULL_TIME', lb: 'تمام‌وقت' }, { v: 'PART_TIME', lb: 'پاره‌وقت' },
+      { v: 'CONTRACTOR', lb: 'قراردادی / پروژه‌ای' }, { v: 'TEMPORARY', lb: 'موقت' },
+      { v: 'INTERN', lb: 'کارآموز' }, { v: 'OTHER', lb: 'سایر' }
+    ];
+    var curEmp = j.employmentType || 'FULL_TIME';
+    var empOpts = EMPT.map(function (e) {
+      return '<option value="' + e.v + '"' + (curEmp === e.v ? ' selected' : '') + '>' + escP(e.lb) + '</option>';
+    }).join('');
     var opts = '<option value="-1">سایر — عنوان را خودتان بنویسید</option>' + TITLE_PRESETS.map(function (p, i) {
       var on = j.titleFa === p.fa || j.titleEn === p.en;
       return '<option value="' + i + '"' + (on ? ' selected' : '') + '>' + escP(p.fa) + ' / ' + escP(p.en) + '</option>';
@@ -139,6 +148,8 @@
       '<div class="fld"><label>عنوان انگلیسی *</label><input type="text" id="cjTitleEn" value="' + escP(j.titleEn) + '" style="direction:ltr" oninput="jobsSlugFromEn()"></div></div>' +
       '<div class="fr"><div class="fld"><label>نامک انگلیسی (slug)</label><input type="text" id="cjSlug" value="' + escP(j.slug) + '" ' + (j.slug ? 'readonly style="background:#f1f5f9;direction:ltr"' : 'placeholder="sales-expert" style="direction:ltr" oninput="this.setAttribute(\'data-touched\',\'1\')"') + '><small style="color:#94a3b8">اگر خالی بماند از عنوان انگلیسی ساخته می‌شود.</small></div>' +
       '<div class="fld"><label>واحد / محل (اختیاری)</label><input type="text" id="cjDept" value="' + escP(j.dept || '') + '" placeholder="واحد بازرگانی"><input type="text" id="cjLoc" value="' + escP(j.location || '') + '" placeholder="تهران" style="margin-top:6px"></div></div>' +
+      '<div class="fr"><div class="fld"><label>نوع همکاری</label><select id="cjEmpType">' + empOpts + '</select><small style="color:#94a3b8">برای اسکیمای گوگل (JobPosting) استفاده می‌شود.</small></div>' +
+      '<div class="fld"><label>بازه حقوق پیشنهادی — تومان در ماه (اختیاری)</label><input type="text" id="cjSalMin" inputmode="numeric" value="' + escP(j.salaryMinToman || '') + '" placeholder="از — مثلاً 20000000"><input type="text" id="cjSalMax" inputmode="numeric" value="' + escP(j.salaryMaxToman || '') + '" placeholder="تا — مثلاً 30000000" style="margin-top:6px"><small style="color:#94a3b8">اگر خالی بماند، حقوق در اسکیمای گوگل درج نمی‌شود (فقط یک اخطار زرد اختیاری می‌ماند).</small></div></div>' +
       '<div class="fld"><label>نکات برای هوش مصنوعی (اختیاری)</label><textarea id="cjAiNotes" rows="2" placeholder="مثلاً: تمام‌وقت، تهران، تسلط به اکسل، سابقه فروش صنعتی"></textarea></div>' +
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:4px 0 10px">' +
       '<button type="button" class="bt" id="cjAiBtn" style="background:#7c3aed" onclick="jobsAiDraft()">🤖 نوشتن شرح فارسی و انگلیسی</button>' +
@@ -211,6 +222,9 @@
       bodyEn: document.getElementById('cjBodyEn').value.trim(),
       dept: document.getElementById('cjDept').value.trim(),
       location: document.getElementById('cjLoc').value.trim(),
+      employmentType: (document.getElementById('cjEmpType') || { value: 'FULL_TIME' }).value,
+      salaryMinToman: ((document.getElementById('cjSalMin') || {}).value || '').replace(/[^0-9۰-۹]/g, ''),
+      salaryMaxToman: ((document.getElementById('cjSalMax') || {}).value || '').replace(/[^0-9۰-۹]/g, ''),
       published: '1'
     };
     if (!rec.slug) rec.slug = slugify(rec.titleEn);

@@ -155,6 +155,7 @@
     'body.ptf-dark .lead-stage-empty{background:#162235!important;border-color:#40526b!important;color:#94a3b8!important}' +
 
     'body.ptf-dark .offer-form-modal .offer-signature-card{background:#1e1b4b!important;border-color:#6d28d9!important}' +
+    'body.ptf-dark .offer-form-modal .offer-form-footer,body.ptf-dark .offer-form-modal .offer-items-toolbar{background:var(--ptf-surface)!important;border-color:var(--ptf-border)!important}' +
     'body.ptf-dark .offer-signature-head{color:#ddd6fe!important}' +
     'body.ptf-dark .offer-signature-head small,body.ptf-dark .offer-signature-select{color:#d5dfed!important}' +
     'body.ptf-dark .offer-signature-toggle,body.ptf-dark .offer-signature-select select{background:#162235!important;color:#e2e8f0!important;border-color:#6d28d9!important}' +

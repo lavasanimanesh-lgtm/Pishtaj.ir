@@ -37,6 +37,8 @@ $SAL = [
     'gt30' => 'مثبت ۳۰ میلیون',
     'other' => 'سایر',
 ];
+/* v34.7.55: نوع همکاری برای اسکیمای JobPosting گوگل (whitelist) */
+$EMP_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACTOR', 'TEMPORARY', 'INTERN', 'OTHER'];
 
 $PUBLIC = ['published', 'apply'];
 
@@ -273,15 +275,45 @@ function careers_job_html($job) {
     $metaLine = careers_h(trim($dept . ($dept && $loc ? ' · ' : '') . $loc));
     $ld = '';
     if ($open) {
-        $ld = '<script type="application/ld+json">' . json_encode([
+        /* v34.7.55: فیلدهای الزامی/توصیه‌شدهٔ اسکیمای JobPosting گوگل —
+           datePosted (خطای قرمز GSC) + validThrough/employmentType/identifier/directApply (اخطارهای زرد).
+           datePosted از publishedAt (و در نبودش createdAt/updatedAt) می‌آید؛ validThrough = ۹۰ روز بعد. */
+        global $EMP_TYPES;
+        $posted = (string)($job['publishedAt'] ?? '');
+        if ($posted === '') $posted = (string)($job['createdAt'] ?? '');
+        if ($posted === '') $posted = (string)($job['updatedAt'] ?? '');
+        $postedTs = $posted !== '' ? strtotime($posted) : time();
+        if (!$postedTs) $postedTs = time();
+        $empType = strtoupper((string)($job['employmentType'] ?? ''));
+        if (!in_array($empType, $EMP_TYPES, true)) $empType = 'FULL_TIME';
+        $ldArr = [
             '@context' => 'https://schema.org',
             '@type' => 'JobPosting',
             'title' => $job['titleFa'] ?? '',
-            'description' => careers_clean($job['bodyFa'] ?? '', 400),
-            'hiringOrganization' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک', 'sameAs' => 'https://pishtaj.ir/'],
+            'description' => careers_clean($job['bodyFa'] ?? '', 5000),
+            'datePosted' => date('Y-m-d', $postedTs),
+            'validThrough' => date('c', $postedTs + 90 * 86400),
+            'employmentType' => $empType,
+            'hiringOrganization' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک', 'sameAs' => 'https://pishtaj.ir/', 'logo' => 'https://pishtaj.ir/assets/images/ptf-logo.png'],
+            'identifier' => ['@type' => 'PropertyValue', 'name' => 'پیشرو تجهیز فرتاک', 'value' => (string)($job['slug'] ?? '')],
             'jobLocation' => ['@type' => 'Place', 'address' => ['@type' => 'PostalAddress', 'addressCountry' => 'IR', 'addressLocality' => $loc ?: 'تهران']],
+            'directApply' => true,
             'url' => $url,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . '</script>';
+        ];
+        /* baseSalary فقط وقتی مدیر بازهٔ حقوق پیشنهادی را وارد کرده باشد (تومان/ماه → ریال) */
+        $salMin = (int)careers_digits($job['salaryMinToman'] ?? '');
+        $salMax = (int)careers_digits($job['salaryMaxToman'] ?? '');
+        if ($salMin > 0 || $salMax > 0) {
+            $qv = ['@type' => 'QuantitativeValue', 'unitText' => 'MONTH'];
+            if ($salMin > 0 && $salMax > 0 && $salMax >= $salMin) {
+                $qv['minValue'] = $salMin * 10;
+                $qv['maxValue'] = $salMax * 10;
+            } else {
+                $qv['value'] = ($salMin > 0 ? $salMin : $salMax) * 10;
+            }
+            $ldArr['baseSalary'] = ['@type' => 'MonetaryAmount', 'currency' => 'IRR', 'value' => $qv];
+        }
+        $ld = '<script type="application/ld+json">' . json_encode($ldArr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . '</script>';
     }
     return '<!doctype html>
 <html lang="fa" dir="rtl">
@@ -533,6 +565,11 @@ switch ($action) {
         $found = false;
         $now = date('c');
         $published = !isset($_POST['published']) || $_POST['published'] === '1' || $_POST['published'] === 'true';
+        /* v34.7.55: فیلدهای اسکیمای JobPosting */
+        $empType = strtoupper(careers_clean($_POST['employmentType'] ?? '', 20));
+        if (!in_array($empType, $EMP_TYPES, true)) $empType = 'FULL_TIME';
+        $salMin = careers_digits($_POST['salaryMinToman'] ?? '');
+        $salMax = careers_digits($_POST['salaryMaxToman'] ?? '');
         foreach ($jobs as &$j) {
             if (($j['slug'] ?? '') === $slug) {
                 $j['titleFa'] = $titleFa; $j['titleEn'] = $titleEn;
@@ -540,6 +577,10 @@ switch ($action) {
                 $j['dept'] = careers_clean($_POST['dept'] ?? '', 80);
                 $j['location'] = careers_clean($_POST['location'] ?? '', 80);
                 $j['published'] = $published;
+                $j['employmentType'] = $empType;
+                $j['salaryMinToman'] = $salMin;
+                $j['salaryMaxToman'] = $salMax;
+                if ($published && empty($j['publishedAt'])) $j['publishedAt'] = $now; /* v34.7.55: datePosted */
                 $j['updatedAt'] = $now;
                 $found = true;
                 $job = $j;
@@ -557,7 +598,11 @@ switch ($action) {
                 'bodyFa' => $bodyFa, 'bodyEn' => $bodyEn,
                 'dept' => careers_clean($_POST['dept'] ?? '', 80),
                 'location' => careers_clean($_POST['location'] ?? '', 80),
+                'employmentType' => $empType,
+                'salaryMinToman' => $salMin,
+                'salaryMaxToman' => $salMax,
                 'published' => $published, 'createdAt' => $now, 'updatedAt' => $now,
+                'publishedAt' => $published ? $now : '',
             ];
             $jobs[] = $job;
         }
@@ -579,6 +624,7 @@ switch ($action) {
         foreach ($jobs as &$j) {
             if (($j['slug'] ?? '') === $slug) {
                 $j['published'] = ($action === 'reopen_job');
+                if ($action === 'reopen_job') $j['publishedAt'] = date('c'); /* v34.7.55: انتشار مجدد = datePosted تازه */
                 $j['updatedAt'] = date('c');
                 $hit = $j;
                 break;

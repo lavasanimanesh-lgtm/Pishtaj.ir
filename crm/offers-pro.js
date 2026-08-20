@@ -832,6 +832,20 @@
     offerPrintTpl(o, tpl, true);
   };
 
+  /* v34.7.58 OFFICIAL-OFFER-OUTPUT-001: خروجی رسمیِ قابل ارسال از سند ذخیره‌شده/snapshot،
+     بدون عبور از مسیر preview و بدون watermark. */
+  window.offerFormalPrintObj = function (o) {
+    if (!o) return;
+    var tpl = localStorage.getItem('ptf_offer_tpl') || 'letterhead';
+    offerPrintTpl(o, tpl, false);
+  };
+  window.offerFormalPrint = function (no) {
+    var key = String(no || '').trim();
+    if (!key) return;
+    var o = getData('ptf_crm_offers').filter(function (x) { return x && String(x.no || '') === key; })[0];
+    if (o) window.offerFormalPrintObj(o);
+  };
+
   // offerPrint قدیمی → دیالوگ انتخاب قالب (US-185)
   window.offerPrint = function (no) { offerPickTemplate(no); };
   var _offerPrintObj = window.offerPrintObj;
