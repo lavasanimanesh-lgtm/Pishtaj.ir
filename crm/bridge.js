@@ -436,8 +436,8 @@
   /* ---- تامین‌کنندگان: بخش «ثبت‌نام‌شده از سایت» ---- */
   var _buildSup = window.buildSuppliers;
   window.buildSuppliers = function () {
-    return '<div id="supPendWrap"></div>' +
-      '<h4 style="margin:4px 0 10px;font-size:14px">✅ فهرست تامین‌کنندگان تاییدشده</h4>' + _buildSup();
+    return '<div id="supPendWrap" style="display:none"></div>' +
+      '<h4 id="supApprovedH4" style="margin:4px 0 10px;font-size:14px">✅ فهرست تامین‌کنندگان تاییدشده</h4>' + _buildSup();
   };
   var _renderSup = window.renderSuppliers;
   window.renderSuppliers = function () {
@@ -449,25 +449,67 @@
   window.renderSupPending = function () {
     var el = document.getElementById('supPendWrap');
     if (!el) return;
-    var pend = siteSuppliers().filter(function (s) { return s.status === 'pending'; });
-    var rejected = siteSuppliers().filter(function (s) { return s.status === 'rejected'; }).length;
-    if (!pend.length) {
-      el.innerHTML = '<div style="background:#f8fafc;border:1px dashed var(--brd);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12.5px;color:#64748b">🌐 ثبت‌نام جدیدی از سایت در انتظار بررسی نیست' + (rejected ? ' <small>(' + rejected + ' مورد رد شده)</small>' : '') + ' — <a href="javascript:void(0)" onclick="syncServerInbox()" style="color:#0e7490">بروزرسانی</a></div>';
-      return;
-    }
+    var all = siteSuppliers();
+    var pend = all.filter(function (s) { return s.status === 'pending'; });
+    var rejected = all.filter(function (s) { return s.status === 'rejected'; }).length;
+    /* v34.7.66: تب جداگانهٔ «درخواست‌های سایت» — فهرست کامل ثبت‌نام‌های سایت با ضمیمه */
+    var tabBtn = document.getElementById('supTabSite');
+    if (tabBtn) tabBtn.innerHTML = '🌐 درخواست‌های سایت' + (pend.length ? ' <b style="background:#fff;color:#c2410c;border-radius:8px;padding:0 7px">' + pend.length + '</b>' : '');
+    var ST = { pending: '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار بررسی</span>',
+      approved: '<span class="bd b-st4">✅ تایید شده</span>',
+      rejected: '<span class="bd" style="background:#fee2e2;color:#b91c1c">✖ رد شده</span>' };
     var h = '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:14px;margin-bottom:16px">' +
-      '<h4 style="margin:0 0 10px;font-size:13.5px;color:#c2410c">🌐 ثبت‌نام‌شده از سایت — در انتظار تایید (' + pend.length + ')</h4>' +
-      '<div class="tb2"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>مسئول</th><th>تماس</th><th>حوزه</th><th>تاریخ</th><th>عملیات</th></tr></thead><tbody>';
-    pend.forEach(function (s) {
-      h += '<tr><td><b>' + escP(s.code) + '</b></td><td>' + escP(s.company) + '</td><td>' + escP(s.name || '-') + '</td>' +
-        '<td style="direction:ltr">' + escP(s.phone || '-') + '</td><td style="font-size:11px">' + escP(s.category || '-') + '</td><td style="font-size:11px">' + escP(s.date || '-') + '</td><td>' +
-        (isSenior()
-          ? '<button class="bt" style="padding:4px 10px;font-size:12px;background:#059669" onclick="supApprove(\'' + ptfOnClickArg(s.code) + '\')">✅ تایید</button> ' +
-            '<button class="bt bt-o" style="padding:4px 10px;font-size:12px;color:#dc2626" onclick="supReject(\'' + ptfOnClickArg(s.code) + '\')">✖ رد</button>'
-          : '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>') +
-        '</td></tr>';
-    });
+      '<h4 style="margin:0 0 6px;font-size:13.5px;color:#c2410c">🌐 ثبت‌نام‌شده از سایت (' + all.length + ' — ' + pend.length + ' در انتظار' + (rejected ? '، ' + rejected + ' رد شده' : '') + ')</h4>' +
+      '<small style="color:#9a3412">برای مشاهدهٔ فایل کاتالوگ/پیوست هر ثبت‌نام، روی «👁 جزئیات» یا نشان 📎 کلیک کنید.</small>' +
+      '<div style="margin-top:8px"><a href="javascript:void(0)" onclick="syncServerInbox()" style="color:#0e7490;font-size:12px">🔄 بروزرسانی از سرور</a></div>' +
+      '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>مسئول</th><th>تماس</th><th>حوزه</th><th>وضعیت</th><th>ضمیمه</th><th>عملیات</th></tr></thead><tbody>';
+    if (!all.length) {
+      h += '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:18px">ثبت‌نامی از سایت ثبت نشده است</td></tr>';
+    } else {
+      all.forEach(function (s) {
+        var meta = siteAttachmentMeta(s.attachment);
+        var attBadge = meta
+          ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#6d28d9;border-color:#ddd6fe" title="مشاهدهٔ پیوست" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">📎 ' + escP(meta.name) + '</button>'
+          : '<span class="bd" style="background:#f1f5f9;color:#94a3b8">بدون ضمیمه</span>';
+        h += '<tr><td><b>' + escP(s.code) + '</b></td><td>' + escP(s.company) + '</td><td>' + escP(s.name || '-') + '</td>' +
+          '<td style="direction:ltr">' + escP(s.phone || '-') + '</td><td style="font-size:11px">' + escP(s.category || '-') + '</td><td style="font-size:11px">' + (ST[s.status] || '') + '</td><td>' + attBadge + '</td><td>' +
+          '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">👁 جزئیات</button> ' +
+          (s.status === 'pending' && isSenior()
+            ? '<button class="bt" style="padding:4px 9px;font-size:11.5px;background:#059669" onclick="supApprove(\'' + ptfOnClickArg(s.code) + '\')">✅ تایید</button> ' +
+              '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626" onclick="supReject(\'' + ptfOnClickArg(s.code) + '\')">✖ رد</button>'
+            : (s.status === 'pending' ? '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>' : '')) +
+          '</td></tr>';
+      });
+    }
     el.innerHTML = h + '</tbody></table></div></div>';
+  };
+
+  /* v34.7.66: جزئیات کامل ثبت‌نام تامین‌کننده سایت + نمایش/دانلود فایل پیوست */
+  window.supSiteDetail = function (code) {
+    var s = siteSuppliers().filter(function (x) { return x.code === code; })[0];
+    if (!s) { alert('ثبت‌نام موردنظر یافت نشد (بروزرسانی از سرور را بزنید)'); return; }
+    var row = function (lb, v, ltr) {
+      return '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--brd);font-size:13px"><b style="min-width:130px;color:#475569">' + lb + '</b><span style="flex:1' + (ltr ? ';direction:ltr;text-align:left' : '') + '">' + (v ? escP(v) : '<span style="color:#cbd5e1">—</span>') + '</span></div>';
+    };
+    var html = '<div class="md-b" style="display:grid;z-index:1650" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:640px;max-height:92vh;overflow:auto">' +
+      '<h3>👁 جزئیات ثبت‌نام تامین‌کننده — ' + escP(code) + '</h3>' +
+      row('🏢 نام شرکت', s.company) +
+      row('👤 مسئول', s.name) +
+      row('📞 شماره تماس', s.phone, true) +
+      row('📧 ایمیل', s.email, true) +
+      row('🗂 حوزه فعالیت', s.category) +
+      row('🏷 نوع', s.type) +
+      row('🏭 برندها', s.brands) +
+      row('🗓 تاریخ ثبت', s.date) +
+      '<div style="margin:10px 0"><b style="font-size:13px;color:#475569">📝 شرح درخواست:</b>' +
+      '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:13px;line-height:2;white-space:pre-wrap;max-height:180px;overflow:auto;margin-top:6px">' + (s.message ? escP(s.message) : '<span style="color:#cbd5e1">—</span>') + '</div></div>' +
+      siteAttachmentHtml(s.attachment) +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
+      (isSenior() && s.status === 'pending'
+        ? '<button class="bt" style="background:#059669" onclick="this.closest(\'.md-b\').remove();supApprove(\'' + ptfOnClickArg(code) + '\')">✅ تایید و ورود به فهرست</button>'
+        : '') +
+      '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 
   window.supApprove = function (code) {
@@ -476,7 +518,11 @@
     if (!confirm('تامین‌کننده «' + s.company + '» تایید و به فهرست تاییدشده اضافه شود؟')) return;
     var items = getData('ptf_crm_suppliers');
     if (!items.some(function (x) { return x.cd === code; })) {
-      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime() };
+      /* v34.7.66: حفظ پیوست ابری و متن درخواست روی رکورد تاییدشده (قبلاً حذف می‌شد) */
+      var siteAtt = siteAttachmentMeta(s.attachment);
+      var importedFiles = {};
+      if (siteAtt && siteAtt.cloud) importedFiles.oth = [{ key: siteAtt.key, name: siteAtt.name, size: siteAtt.size, mode: 'arvan', t: faDateTime(), source: 'site' }];
+      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '' };
       // US-174: هشدار تکراری بودن با فهرست تاییدشده (تصمیم نهایی با مدیر ارشد)
       if (typeof ptfCheckDup === 'function') {
         var dups = ptfCheckDup('supplier', recSup, null);
