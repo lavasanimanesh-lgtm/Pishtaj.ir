@@ -777,7 +777,9 @@ function letPrintObj(l, isPreview) {
    همهٔ صفحات، سربرگ + مهر و امضا داشته باشند.
    تکنیک صفحه‌بندی: نوارها/لوگو/فوتر/مهر position:fixed هستند (در چاپ روی هر صفحه تکرار
    می‌شوند) و جای خالی بالا/پایین هر صفحه با thead/tfoot جدول رزرو می‌شود تا متن هرگز
-   زیر سربرگ یا مهر نرود. متن با letSafeBodyHtml پاک‌سازی می‌شود ولی بازنویسی نمی‌شود. */
+   زیر سربرگ یا مهر نرود. متن با letSafeBodyHtml پاک‌سازی می‌شود ولی بازنویسی نمی‌شود.
+   v34.7.61 LETTERHEAD-PASTE-002: شمارهٔ نامه و پیوست (اختیاری) به فیلدهای سربرگ
+   (تاریـخ/شمـاره/پیوست) اضافه شد و محل مهر و امضا «تمام صفحات / فقط صفحهٔ آخر / بدون» شد. */
 window.ptfLetterheadPasteOpen = function () {
   var me = (curSession() || {}).user;
   var prof = (typeof sigProfileFor === 'function' ? sigProfileFor(me) : {}) || {};
@@ -786,19 +788,29 @@ window.ptfLetterheadPasteOpen = function () {
     : '<small style="color:#b45309">⚠️ هنوز تصویر مهر/امضا ثبت نکرده‌اید — از «✍️ امضای من» ثبت کنید؛ فعلاً سند بدون تصویر مهر ساخته می‌شود.</small>';
   var html = '<div class="md-b" id="lhpModal" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:860px;max-height:94vh;overflow:auto">' +
     '<h3>📄 متن آماده روی سربرگ</h3>' +
-    '<p style="font-size:12.5px;color:#64748b;line-height:1.9;margin:6px 0 10px">متن را در Word باز کنید، همه را کپی (Ctrl+A و Ctrl+C) و در کادر زیر Paste کنید (Ctrl+V). قالب‌بندی پایه (بولد، لیست، جدول) حفظ می‌شود و متن تغییری نمی‌کند — فقط روی سربرگ رسمی شرکت با مهر و امضا چاپ می‌شود.</p>' +
+    '<p style="font-size:12.5px;color:#64748b;line-height:1.9;margin:6px 0 10px">متن را در Word باز کنید، همه را کپی (Ctrl+A و Ctrl+C) و در کادر زیر Paste کنید (Ctrl+V). قالب‌بندی پایه (بولد، لیست، جدول) حفظ می‌شود و متن تغییری نمی‌کند — فقط روی سربرگ رسمی شرکت چاپ می‌شود. شماره، پیوست و تاریخ (اختیاری) در سربرگ درج می‌شوند؛ مهر و امضا را می‌توانید در همهٔ صفحات یا فقط صفحهٔ آخر بگذارید.</p>' +
     '<div id="lhpEditor" contenteditable="true" style="min-height:260px;max-height:46vh;overflow:auto;border:2px dashed var(--brd);border-radius:12px;padding:14px 16px;font-size:14px;line-height:2;background:#f8fafc" data-placeholder="متن Word را این‌جا Paste کنید…"></div>' +
     '<div class="fr" style="margin-top:12px">' +
     '<div class="fld"><label>زبان سند (جهت سربرگ و فونت)</label><select id="lhpLang"><option value="fa">فارسی (راست‌به‌چپ)</option><option value="en">English (LTR)</option></select></div>' +
-    '<div class="fld"><label>محل مهر و امضا</label><select id="lhpSigMode"><option value="every">پایین همهٔ صفحات</option><option value="last">فقط انتهای متن</option><option value="none">بدون مهر و امضا (فقط سربرگ)</option></select></div>' +
+    '<div class="fld"><label>شماره نامه (اختیاری — در سربرگ درج می‌شود)</label><div style="display:flex;gap:8px;align-items:center"><input id="lhpNo" style="flex:1" placeholder="مثلاً ۱۴۰۵/پ/ص/۰۰۰۹"><button type="button" class="bt bt-o" style="white-space:nowrap" onclick="ptfLetterheadNoNext()">↻ شمارهٔ بعدی</button></div></div>' +
     '</div>' +
-    '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:10px"><input type="checkbox" id="lhpDate"> درج تاریخ امروز در سربرگ (پیش‌فرض: بدون تاریخ — متن دست‌نخورده)</label>' +
+    '<div class="fld" style="margin-top:8px"><label>پیوست (اختیاری — در سربرگ درج می‌شود)</label><input id="lhpAtt" placeholder="مثلاً ۱ برگ شرح فنی"></div>' +
+    '<div class="fld" style="margin-top:8px"><label>محل مهر و امضا</label><select id="lhpSigMode"><option value="every">تمام صفحات</option><option value="last">فقط صفحهٔ آخر</option><option value="none">بدون مهر و امضا (فقط سربرگ)</option></select></div>' +
+    '<label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin:8px 0 10px"><input type="checkbox" id="lhpDate"> درج تاریخ امروز در سربرگ (پیش‌فرض: بدون تاریخ — متن دست‌نخورده)</label>' +
     sigHint +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">' +
     '<button class="bt bt-o" onclick="document.getElementById(\'lhpModal\').remove()">انصراف</button>' +
     '<button class="bt" onclick="ptfLetterheadPastePrint()">🖨 چاپ / PDF روی سربرگ</button>' +
     '</div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+};
+
+/* v34.7.61: درج شمارهٔ بعدی صادره (فارسی: ارقام فارسی؛ انگلیسی: سری میلادی PTF-OUT) */
+window.ptfLetterheadNoNext = function () {
+  var el = document.getElementById('lhpNo');
+  if (!el) return;
+  var isEn = ((document.getElementById('lhpLang') || {}).value || 'fa') === 'en';
+  el.value = isEn ? letSerial('OUT', 'en') : letFaDigits(letSerial('OUT', 'fa'));
 };
 
 window.ptfLetterheadPastePrint = function () {
@@ -810,6 +822,8 @@ window.ptfLetterheadPastePrint = function () {
   var isEn = ((document.getElementById('lhpLang') || {}).value || 'fa') === 'en';
   var sigMode = (document.getElementById('lhpSigMode') || {}).value || 'every';
   var withDate = !!(document.getElementById('lhpDate') || {}).checked;
+  var no = ((document.getElementById('lhpNo') || {}).value || '').trim();
+  var att = ((document.getElementById('lhpAtt') || {}).value || '').trim();
   var me = (curSession() || {}).user;
   var prof = (typeof sigProfileFor === 'function' ? sigProfileFor(me) : {}) || {};
   if (sigMode !== 'none' && !prof.sig && !prof.stamp) {
@@ -823,8 +837,20 @@ window.ptfLetterheadPastePrint = function () {
        (prof.stamp ? '<img class="pgs-st" src="' + prof.stamp + '" alt="مهر">' : ''))
     : '';
   /* فضای رزرو پایین: فوتر ثابت (~26mm) + در حالت هر-صفحه ارتفاع مهر */
-  var headSpace = withDate ? 46 : 40;
+  var headSpace = (withDate || no || att) ? 46 : 40;
   var footSpace = everyPage && sigImgs ? 62 : 30;
+  /* فیلدهای سربرگ: تاریخ / شماره / پیوست (همه اختیاری) */
+  var hdRows = '';
+  if (isEn) {
+    if (withDate) hdRows += '<div class="row"><span class="lb">Date:</span><b dir="ltr">' + escP(new Date().toISOString().slice(0, 10)) + '</b></div>';
+    if (no) hdRows += '<div class="row"><span class="lb">Ref No.:</span><b dir="ltr">' + escP(no) + '</b></div>';
+    if (att) hdRows += '<div class="row"><span class="lb">Encl.:</span><b>' + escP(att) + '</b></div>';
+  } else {
+    if (withDate) hdRows += '<div class="row"><span class="lb">تاریـخ :</span><b>' + letFaDigits(escP(faDate())) + '</b></div>';
+    if (no) hdRows += '<div class="row"><span class="lb">شمـاره :</span><b>' + letFaDigits(escP(no)) + '</b></div>';
+    if (att) hdRows += '<div class="row"><span class="lb">پیوست :</span><b>' + escP(att) + '</b></div>';
+  }
+  var hdFlds = hdRows ? '<div class="flds">' + hdRows + '</div>' : '';
   var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + (isEn ? 'Letterhead Document' : 'متن روی سربرگ') + '</title><style>' +
     '@page{size:A4 portrait;margin:0}' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
@@ -837,7 +863,10 @@ window.ptfLetterheadPastePrint = function () {
     /* سربرگ روی همهٔ صفحات (fixed) */
     '.hd{position:fixed;top:8mm;left:0;right:0;padding:2mm 14mm 0;display:flex;justify-content:space-between;align-items:center;direction:' + dir + ';z-index:10;background:#fff}' +
     '.hd img{height:20mm}' +
-    '.hd .flds{font-size:10.5pt;color:#4b5057;line-height:2}' +
+    '.hd .flds{font-size:10.5pt;color:#4b5057;line-height:2;text-align:' + (isEn ? 'left' : 'right') + '}' +
+    '.hd .flds .row{display:flex;align-items:baseline;gap:1.5mm;justify-content:flex-start;white-space:nowrap}' +
+    '.hd .flds .lb{min-width:' + (isEn ? '17mm' : '15mm') + '}' +
+    '.hd .flds b{color:#26282c}' +
     '.ft{position:fixed;bottom:9mm;left:0;right:0;text-align:center;font-size:9pt;color:#4b5057;line-height:1.9;font-family:Vazirmatn,Tahoma,sans-serif;z-index:10;background:#fff}' +
     '.ft .ln{display:flex;justify-content:center;align-items:center;gap:2mm;direction:rtl}.ft .en{direction:ltr;gap:8mm}.ft svg{width:3.8mm;height:3.8mm}' +
     /* مهر و امضای هر صفحه — fixed یعنی تکرار روی همهٔ صفحات چاپی */
@@ -854,7 +883,7 @@ window.ptfLetterheadPastePrint = function () {
     '.body p,.body div{margin:0 0 3mm}' +
     '.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm}.body th{background:#f1f5f9}' +
     '.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
-    '.endsig{margin:12mm 16mm 0;display:flex;justify-content:flex-end;direction:' + dir + '}' +
+    '.endsig{margin:12mm 16mm 0;display:flex;justify-content:flex-end;direction:' + dir + ';break-inside:avoid;page-break-inside:avoid}' +
     '.endsig .box{text-align:center;min-width:60mm;position:relative}' +
     '.endsig .nm{font-weight:800;font-size:13pt;position:relative;z-index:5}' +
     '.endsig .rl{font-weight:700;font-size:11pt;color:#4b5057;position:relative;z-index:5}' +
@@ -864,13 +893,7 @@ window.ptfLetterheadPastePrint = function () {
     '<div class="prnhint" style="position:fixed;top:8mm;left:0;right:0;background:#0c4a6e;color:#fff;font-family:Tahoma;font-size:12px;padding:8px 14px;text-align:center;direction:rtl;z-index:9999">⚙️ در پنجره چاپ: <b>Margins = None</b> و <b>Headers and footers = خاموش</b></div>' +
     '<style>@media print{.prnhint{display:none}}</style>' +
     '<div class="bar-top"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>' +
-    '<div class="hd"><img src="../assets/images/' + (isEn ? 'ptf-logo.png' : 'ptf-logo-full.png') + '" alt="PTF">' +
-    (withDate
-      ? '<div class="flds">' + (isEn
-          ? '<b dir="ltr">Date: ' + escP(new Date().toISOString().slice(0, 10)) + '</b>'
-          : '<b>تاریـخ : ' + letFaDigits(escP(faDate())) + '</b>') + '</div>'
-      : '') +
-    '</div>' +
+    '<div class="hd"><img src="../assets/images/' + (isEn ? 'ptf-logo.png' : 'ptf-logo-full.png') + '" alt="PTF">' + hdFlds + '</div>' +
     (everyPage && sigImgs ? '<div class="pgsig">' + sigImgs + '</div>' : '') +
     '<table class="pgt"><thead><tr><td></td></tr></thead>' +
     '<tbody><tr><td>' +
