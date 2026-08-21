@@ -23,7 +23,10 @@
     'th.col-frozen,td.col-frozen{position:sticky;right:0;background:#fff;z-index:3;box-shadow:-4px 0 6px -4px rgba(15,23,42,.15)}' +
     'thead th.col-frozen{z-index:4;background:#f1f5f9}' +
     'body.ptf-dark th.col-frozen,body.ptf-dark td.col-frozen{background:#1e293b}' +
-    '.th-pin{cursor:pointer;font-size:10px;opacity:.35;margin-right:3px}' +
+    /* v34.7.63: ادغام آیکون‌های سرستون — سنجاق فقط هنگام hover ستون یا روی ستونِ فریزشده
+       دیده می‌شود (یک سنجاق، نه یک سنجاق روی هر ستون). مرتب‌سازی با فلش واضح ↑/↓ از sortable.js. */
+    '.th-pin{cursor:pointer;font-size:10px;opacity:0;margin-right:3px;transition:opacity .15s}' +
+    'th:hover .th-pin{opacity:.55}' +
     '.th-pin:hover{opacity:1}.th-pin.on{opacity:1;color:#ef4b1a}';
   document.head.appendChild(css);
 
