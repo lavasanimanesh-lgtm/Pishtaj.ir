@@ -654,7 +654,7 @@
      قفل دولایه: ① نقش ارشد ② پرونده برنده. قفل مرحله‌ای (پس از تحویل کارفرما — مرحله ۷)
      طبق تصمیم کارفرما حذف شد؛ پس از برد، ارجاع فاکتور در هر مرحله مجاز است.
      پس از ارجاع، مرحله خودکار ۸ «در حال صدور فاکتور» می‌شود (invRef سیگنال sfStageOf است). */
-  window.sfInvoiceRefCommit = function (cd) {
+  window.sfInvoiceRefCommit = function (cd, rialBasisNo) {
     var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
     if (!r || !r.wonOffer) return { ok: false, why: 'nofile' };
     if (typeof isSenior === 'function' && !isSenior()) return { ok: false, why: 'role' };
@@ -662,22 +662,52 @@
     var o = offers.filter(function (x) { return x.no === r.wonOffer; })[0];
     if (!o) return { ok: false, why: 'nooffer' };
     if (o.invRef) return { ok: false, why: 'already' };
+    /* v34.7.76 (INV-RIAL-BASIS): مبنای ارجاع به حسابدار همیشه ریالی است.
+       ① پیشنهاد ریالی (IRR) → خود سند؛ ② پیشنهاد ارزی دارای نسخهٔ ریالی → نسخهٔ ریالی؛
+       ③ پیشنهاد ارزی بدون نسخهٔ ریالی → why='need_rial' تا UI نرخ بگیرد و نسخهٔ ریالی بسازد. */
+    var fxTotal = (o.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0);
+    var isFx = !!(o.currency && o.currency !== 'IRR');
+    var comp = null;
+    if (isFx) {
+      comp = offers.filter(function (x) { return x && (x.no === rialBasisNo || x.rialOf === o.no); })[0] || null;
+      if (!comp) return { ok: false, why: 'need_rial', offerNo: o.no, currency: o.currency, totalFx: fxTotal };
+    }
+    var rialBasis = comp ? comp.no : o.no;
+    var rialRate = comp && comp.fxConvert ? (+comp.fxConvert.rate || 0) : 0;
+    var rialTotal = comp ? (comp.items || []).reduce(function (s, it) { return s + (+it.qty || 0) * (+it.price || 0); }, 0) : fxTotal;
     /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد، نه پیشنهاد زندهٔ قابل‌تغییر */
     if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r);
-    o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer };
+    o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer, rialBasis: rialBasis, rialRate: rialRate, rialTotal: rialTotal, fxNo: isFx ? o.no : '', fxCurrency: isFx ? o.currency : '' };
     setData('ptf_crm_offers', offers);
     var list = sfAll();
     var rr = list.filter(function (x) { return x.cd === cd; })[0];
-    if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از برنده‌شدن — هر مرحله)' }); sfSave(list); }
-    try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار', cd); } catch (e) {}
+    if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از برنده‌شدن — هر مرحله)' + (comp ? ' — مبنای ریالی ' + comp.no : '') }); sfSave(list); }
+    try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار' + (comp ? ' — مبنای ریالی ' + comp.no + ' (نرخ ' + rialRate + ')' : ''), cd); } catch (e) {}
     if (typeof notify === 'function') {
-      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — پیش‌فاکتور ' + r.wonOffer + ' برای صدور فاکتور رسمی ارجاع شد', body: 'خریدار: ' + (r.buyerCo || '-') + ' — سند قطعی برد همراه همین ارجاع در پنل فاکتورها (دکمهٔ «🏆 سند برد») قابل مشاهده است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
+      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — مبنای ریالی ' + rialBasis + ' برای صدور فاکتور رسمی ارجاع شد', body: 'خریدار: ' + (r.buyerCo || '-') + (comp ? ' — پیشنهاد ارزی مبدأ: ' + o.no + ' (' + o.currency + ') با نرخ ' + (+rialRate).toLocaleString('fa-IR') + ' ریال' : '') + ' — مبنای ریالی در پنل فاکتورها قابل مشاهده است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
     }
     return { ok: true };
+  };
+  /* v34.7.76 (INV-RIAL-BASIS): موفقیت ارجاع — پیامک/توست/render (برای مسیر عادی و پس از ساخت ریالی) */
+  window.sfInvoiceRefFinish = function (cd) {
+    if (typeof ptfToast === 'function') ptfToast('🧾 برای حسابدار ارجاع شد — مرحله پرونده: در حال صدور فاکتور', 'ok');
+    /* پیامک اختیاری به حسابدار (الگوی US-150) */
+    if (typeof smsSendSingle === 'function' && confirm('📱 پیامک اطلاع‌رسانی هم برای حسابدار ارسال شود؟')) {
+      var accs = getData('ptf_crm_users').filter(function (u) { return u.roleId === 'accountant' && u.mobile; });
+      if (!accs.length) alert('⚠️ کاربری با نقش حسابدار و شماره موبایل ثبت نشده');
+      accs.forEach(function (u) {
+        smsSendSingle(u.mobile, 'حسابدار محترم شرکت پیشرو تجهیز فرتاک،\nمبنای ریالی پرونده جهت صدور فاکتور رسمی به کارتابل شما ارجاع شد.\nhttps://pishtaj.ir/crm/', function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع فاکتور ارسال شد' : 'پیامک ارجاع فاکتور در صف قرار گرفت'); });
+      });
+    }
+    if (typeof renderDeals === 'function') renderDeals();
   };
   window.sfInvoiceRef = function (cd) {
     var res = sfInvoiceRefCommit(cd);
     if (!res.ok) {
+      if (res.why === 'need_rial') {
+        sfInvoiceRefRialPrompt(cd, res.offerNo, res.currency, res.totalFx);
+        return;
+      }
       var msgs = {
         role: '⛔ فقط نقش‌های ارشد می‌توانند ارجاع فاکتور بدهند.',
         already: 'ℹ️ این پرونده قبلا برای فاکتور ارجاع شده است.',
@@ -686,16 +716,50 @@
       alert(msgs[res.why] || '⛔ ارجاع ممکن نیست');
       return;
     }
-    if (typeof ptfToast === 'function') ptfToast('🧾 برای حسابدار ارجاع شد — مرحله پرونده: در حال صدور فاکتور', 'ok');
-    /* پیامک اختیاری به حسابدار (الگوی US-150) */
-    if (typeof smsSendSingle === 'function' && confirm('📱 پیامک اطلاع‌رسانی هم برای حسابدار ارسال شود؟')) {
-      var accs = getData('ptf_crm_users').filter(function (u) { return u.roleId === 'accountant' && u.mobile; });
-      if (!accs.length) alert('⚠️ کاربری با نقش حسابدار و شماره موبایل ثبت نشده');
-      accs.forEach(function (u) {
-        smsSendSingle(u.mobile, 'حسابدار محترم شرکت پیشرو تجهیز فرتاک،\nپیش‌فاکتور پرونده جهت صدور فاکتور رسمی به کارتابل شما ارجاع شد.\nhttps://pishtaj.ir/crm/', function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع فاکتور ارسال شد' : 'پیامک ارجاع فاکتور در صف قرار گرفت'); });
-      });
+    sfInvoiceRefFinish(cd);
+  };
+  /* v34.7.76 (INV-RIAL-BASIS): ارجاع پیشنهاد ارزیِ بدون نسخهٔ ریالی — ابتدا نرخ تسعیر گرفته
+     می‌شود، نسخهٔ ریالی ساخته و سپس همان به حسابدار ارجاع می‌شود. */
+  window.sfInvoiceRefRialPrompt = function (cd, offerNo, currency, totalFx) {
+    var o = null;
+    if (offerNo) {
+      var _oList = getData('ptf_crm_offers') || [];
+      for (var _oi = 0; _oi < _oList.length; _oi++) {
+        if (_oList[_oi] && String(_oList[_oi].no) === String(offerNo)) { o = _oList[_oi]; break; }
+      }
     }
-    if (typeof renderDeals === 'function') renderDeals();
+    if (!o) { alert('پیشنهاد برنده یافت نشد'); return; }
+    var L = (window._ptfFxLive && window._ptfFxLive.rates) || {};
+    var liveRate = currency === 'USD' ? (+L.usd_free || 0) : currency === 'EUR' ? (+L.eur_free || 0) : 0;
+    var defRate = (+o.fxRateRef > 0) ? +o.fxRateRef : liveRate;
+    var dateInp = (typeof ptfDateInput === 'function')
+      ? ptfDateInput('sfIrDateJ', o.dateEn || new Date().toISOString().slice(0, 10))
+      : '<input type="text" id="sfIrDateJ" value="' + escP(o.dateEn || '') + '" style="direction:ltr">';
+    var html = '<div class="md-b" id="sfIrDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:520px">' +
+      '<h3>💱 تبدیل به ریالی و ارجاع فاکتور</h3>' +
+      '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 12px;font-size:12px;color:#0c4a6e;margin-bottom:10px">پیشنهاد ارزی <b dir="ltr">' + escP(offerNo) + '</b> (' + escP(currency) + ') نسخهٔ ریالی ندارد. برای ارجاع به حسابدار ابتدا نرخ تسعیر وارد شود تا نسخهٔ ریالی ساخته و همان ارجاع شود.</div>' +
+      '<div style="font-size:12.5px;background:#f8fafc;border:1px solid var(--brd,#e2e8f0);border-radius:10px;padding:8px 12px;margin-bottom:10px">مبلغ پیشنهاد ارزی: <b dir="ltr">' + ((+totalFx || 0).toLocaleString('en-US') + ' ' + escP(currency)) + '</b></div>' +
+      '<div class="fld"><label>نرخ تسعیر (ریال به‌ازای هر ' + escP(currency) + ') *</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="sfIrRate" value="' + (defRate ? (+defRate).toLocaleString('en-US') : '') + '" style="direction:ltr"><small style="color:#64748b">نرخ آزاد لحظه‌ای: ' + (liveRate ? (+liveRate).toLocaleString('fa-IR') + ' ریال' : 'در دسترس نیست') + '</small></div>' +
+      '<div class="fld"><label>تاریخ نسخهٔ ریالی (شمسی — پیش‌فرض: تاریخ پیشنهاد ارزی)</label>' + dateInp + '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="document.getElementById(\'sfIrDlg\').remove()">انصراف</button>' +
+      '<button class="bt" style="background:#0e7490" onclick="sfInvoiceRefRialDo(\'' + ptfOnClickArg(cd) + '\',\'' + ptfOnClickArg(offerNo) + '\')">💱 ساخت ریالی و ارجاع</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+  };
+  window.sfInvoiceRefRialDo = function (cd, offerNo) {
+    var rate = (typeof ptfNum === 'function') ? ptfNum(((document.getElementById('sfIrRate') || {}).value || '')) : 0;
+    var jRaw = ((document.getElementById('sfIrDateJ') || {}).value || '').trim();
+    var dateISO = (typeof ptfJToISO === 'function') ? ptfJToISO(jRaw) : jRaw;
+    if (!(rate > 0)) { alert('نرخ تسعیر معتبر وارد کنید'); return; }
+    if (!dateISO || !/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) { alert('تاریخ نسخهٔ ریالی را به‌صورت شمسی (مثل 1405/04/19) وارد کنید.'); return; }
+    var dlg = document.getElementById('sfIrDlg');
+    if (dlg) dlg.remove();
+    if (typeof window.ptfOfferRialConvertCommit !== 'function') { alert('ماژول تبدیل ارزی بارگذاری نشده است'); return; }
+    window.ptfOfferRialConvertCommit(offerNo, rate, dateISO, function (res) {
+      if (!res || !res.ok) { alert(typeof window.ptfOfferRialWhyFa === 'function' ? window.ptfOfferRialWhyFa(res && res.why) : ('ساخت نسخهٔ ریالی ناموفق بود')); return; }
+      var res2 = sfInvoiceRefCommit(cd, res.no);
+      if (!res2.ok) { alert('ارجاع پس از ساخت نسخهٔ ریالی ناموفق بود: ' + (res2.why || '')); return; }
+      sfInvoiceRefFinish(cd);
+    });
   };
 
   window.sfQcUpload = function (cd, qcCd) {

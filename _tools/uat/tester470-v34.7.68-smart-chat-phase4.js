@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.75 — چت هوشمند فاز ۴.
+/* v34.7.76 — چت هوشمند فاز ۴.
    قرارداد: کارت‌های غنی (مقاله/پیشرفت)، استریم پاسخ با fallback، هنداف واتس‌اپ/تلگرام،
    ثبت تحلیلی نیت، و سهمیهٔ توکن مجزا (بدون مصرف ai_quota). */
 var fs = require('fs'), path = require('path');
@@ -14,7 +14,7 @@ var chat = read('assets/js/ptf-chat.js');
 var llm = read('api/chat-llm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.75', ver.crm_version === 'v34.7.75', ver.crm_version);
+T('VERSION.json = v34.7.76', ver.crm_version === 'v34.7.76', ver.crm_version);
 
 /* کارت‌های غنی */
 T('رندر کارت مقاله', chat.indexOf("c.type === 'article'") > -1);
@@ -49,6 +49,6 @@ T('سهمیهٔ CRM مصرف نمی‌شود', !/\$quotaFile\s*=.*ai_quota/.test
 
 T('tester470 در گیت CI', gate.indexOf('tester470-v34.7.68-smart-chat-phase4.js') > -1);
 
-console.log('\n— tester470 (v34.7.75: چت فاز ۴ — کارت/استریم/هنداف/تحلیل) —');
+console.log('\n— tester470 (v34.7.76: چت فاز ۴ — کارت/استریم/هنداف/تحلیل) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
