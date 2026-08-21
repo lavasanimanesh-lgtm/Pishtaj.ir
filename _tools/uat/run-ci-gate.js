@@ -94,6 +94,7 @@ var SUITE = [
   { g: 'تامین/فایل پیوست', f: '_tools/uat/tester471-v34.7.69-sup-file-visible.js' },
   { g: 'تامین/ضدتکرار', f: '_tools/uat/tester472-v34.7.70-sup-dedup.js' },
   { g: 'تامین/دلیل-پیامک', f: '_tools/uat/tester473-v34.7.71-sup-reason-sms-resubmit.js' },
+  { g: 'پرونده/ارجاع فاکتور', f: '_tools/uat/tester474-v34.7.72-invoice-ref-stage-unlock.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
