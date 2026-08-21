@@ -478,6 +478,9 @@
             ? '<button class="bt" style="padding:4px 9px;font-size:11.5px;background:#059669" onclick="supApprove(\'' + ptfOnClickArg(s.code) + '\')">✅ تایید</button> ' +
               '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626" onclick="supReject(\'' + ptfOnClickArg(s.code) + '\')">✖ رد</button>'
             : (s.status === 'pending' ? '<span style="font-size:11px;color:#94a3b8">فقط مدیران ارشد</span>' : '')) +
+          (isSenior()
+            ? '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#dc2626;border-color:#fecaca" title="حذف ثبت‌نام سایت" onclick="supSiteDelete(\'' + ptfOnClickArg(s.code) + '\')">🗑</button>'
+            : '') +
           '</td></tr>';
       });
     }
@@ -588,6 +591,39 @@
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'رد تامین‌کننده سایت: ' + s.company + ' — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : ''), code);
     if (reopen && typeof ptfToast === 'function') ptfToast('↻ رد با امکان تکمیل مدارک ثبت شد — پیامک به تامین‌کننده ارسال می‌شود تا مدارک را تکمیل کند', 'ok');
     renderSuppliers();
+  };
+
+  /* v34.7.74 (SUP-SITE-DELETE): حذف رکورد ثبت‌نام سایت از صندوق ورودی.
+     رکورد فقط از «suppliers» سرور حذف می‌شود؛ اگر تاییدشده باشد، رکورد تاییدشدهٔ
+     فهرست اصلی (ptf_crm_suppliers) دست‌نخورده می‌ماند. پیوست ابری هم حذف نمی‌شود
+     (طبق سیاست «حذف ناخواستهٔ فایل ممنوع»). */
+  window.supSiteDelete = function (code) {
+    var s = siteSuppliers().filter(function (x) { return x.code === code; })[0];
+    if (!s) return;
+    if (!isSenior()) { alert('⛔ فقط مدیران ارشد می‌توانند ثبت‌نام سایت را حذف کنند'); return; }
+    var extra = (s.status === 'approved')
+      ? '\n\n⚠️ این ثبت‌نام تایید شده است؛ فقط رکورد ثبت‌نام سایت حذف می‌شود و تامین‌کنندهٔ تاییدشده در فهرست اصلی باقی می‌ماند.'
+      : '';
+    if (!confirm('🗑 حذف ثبت‌نام سایت «' + s.company + '» (' + code + ')?' + extra + '\n\nاین عملیات برگشت‌پذیر نیست.')) return;
+    api('del_supplier_site', { type: 'supplier', code: code, by: curSession().name }, function (d) {
+      if (d && d.ok) {
+        try {
+          var list = siteSuppliers().filter(function (x) { return x.code !== code; });
+          localStorage.setItem('ptf_site_suppliers', JSON.stringify(list));
+        } catch (e) {}
+        if (typeof audit === 'function') audit('تامین‌کنندگان', 'حذف ثبت‌نام سایت: ' + s.company + ' (' + code + ')', code);
+        if (typeof ptfToast === 'function') ptfToast('🗑 ثبت‌نام سایت «' + s.company + '» حذف شد', 'ok');
+        else alert('🗑 ثبت‌نام سایت حذف شد');
+        if (typeof renderSupPending === 'function') renderSupPending();
+        if (typeof renderSuppliers === 'function') renderSuppliers();
+        if (typeof updateInboxBadge === 'function') updateInboxBadge();
+        if (typeof syncServerInbox === 'function') syncServerInbox();
+      } else {
+        var err = '⚠️ حذف ناموفق: ' + ((d && d.error) || 'سرور در دسترس نیست');
+        if (typeof ptfToast === 'function') ptfToast(err, 'warn');
+        else alert(err);
+      }
+    });
   };
 
   /* ============ US-136: استعلامات — بازطراحی و رفع باگ ============ */

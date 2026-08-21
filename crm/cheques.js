@@ -968,6 +968,19 @@
         '<button class="bt bt-o" style="font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfSupOriginReview()" title="اصلاح رکوردهای جابه‌جاشده داخلی/خارجی (BUG-022)">🧭 بازبینی</button></div>';
       return h.replace('<div class="tb2">', tabs + '<div class="tb2">');
     };
+    /* v34.7.74: انتقال فهرست «ثبت‌نام‌شده از سایت» (supPendWrap) از بالای پنل به زیر تب‌ها.
+       پیش‌تر bridge.js این بخش را قبل از هدر/تب‌ها prepend می‌کرد و هنگام فعال‌بودن تب
+       «درخواست‌های سایت» بالای تب‌ها دیده می‌شد. حالا همان عنصر به‌صورت DOM پس از
+       تب‌ها جابه‌جا می‌شود (idempotent — اگر already بعد از تب‌ها باشد کاری نمی‌کند). */
+    function supPendBelowTabs() {
+      try {
+        var tabs = document.getElementById('supTabs');
+        var pend = document.getElementById('supPendWrap');
+        if (tabs && pend && pend.parentNode === tabs.parentNode && tabs.nextElementSibling !== pend) {
+          tabs.insertAdjacentElement('afterend', pend);
+        }
+      } catch (e) {}
+    }
     window._supTabCur = '';
     /* v19.0 (پورت BUG-022): ابزار بازبینی origin — اصلاح رکوردهای جابه‌جاشده با یک کلیک */
     window.ptfSupOriginReview = function () {
@@ -1013,6 +1026,7 @@
     };
     var _rs = window.renderSuppliers2;
     window.renderSuppliers2 = window.renderSuppliers = function () {
+      supPendBelowTabs();
       _rs();
       var t = window._supTabCur || '';
       if (!t) return;
