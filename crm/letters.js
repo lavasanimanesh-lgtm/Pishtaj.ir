@@ -7,6 +7,18 @@
 var LETTER_FONT_FA = "'Geeza Pro','Baghdad','DecoType Naskh','B Yaghut','BYaghut','B Yagut','Yaghut','Yaqut','Amiri',Vazirmatn,Tahoma,serif"; /* v97: پشتیبانی کامل مک و ویندوز از فونت رسمی یاقوت و سریف */
 var LETTER_FONT_EN = "'Segoe UI',Arial,Helvetica,sans-serif";
 
+/* v34.7.62: نگاشت توکن فونت → پشتهٔ CSS واقعی (برای ابزار قالب‌بندی و چاپ) */
+function letFontCss(t) {
+  var map = {
+    yaghut: LETTER_FONT_FA,
+    vazir: 'Vazirmatn, Tahoma, sans-serif',
+    tahoma: 'Tahoma, Arial, sans-serif',
+    arial: 'Arial, Helvetica, sans-serif',
+    times: "'Times New Roman', Times, serif"
+  };
+  return map[t] || t || '';
+}
+
 /* v87: نام انگلیسی امضاکننده (nameEn کاربر یا ترجما نام) */
 function letSignerEn(l) {
   try {
@@ -300,15 +312,40 @@ function renderLetters() {
 /* ---------- فرم نامه صادره ---------- */
 /* ---------- ویرایشگر غنی نامه (جدول و تصویر داخل متن) ---------- */
 function letEscHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+/* v34.7.62: پاک‌سازی ایمن استایل inline — فقط ویژگی‌های تایپوگرافی امن حفظ می‌شوند */
+function letSafeStyle(v) {
+  var SAFE = { color:1, 'background-color':1, 'font-family':1, 'font-size':1, 'line-height':1,
+    'text-align':1, direction:1, 'font-weight':1, 'font-style':1, 'text-decoration':1,
+    margin:1, 'margin-top':1, 'margin-right':1, 'margin-bottom':1, 'margin-left':1,
+    padding:1, 'padding-top':1, 'padding-right':1, 'padding-bottom':1, 'padding-left':1,
+    'text-indent':1, 'letter-spacing':1, 'word-spacing':1 };
+  var out = [];
+  String(v || '').split(';').forEach(function (d) {
+    var kv = d.split(':');
+    if (kv.length !== 2) return;
+    var p = kv[0].trim().toLowerCase();
+    var val = kv[1].trim();
+    if (!SAFE[p] || !val || val.length > 140) return;
+    if (/url\s*\(|expression|javascript|@import|behavior|[\<\>]/.test(val)) return;
+    out.push(p + ': ' + val);
+  });
+  return out.join('; ');
+}
 function letSafeBodyHtml(html) {
   var box = document.createElement('div');
   box.innerHTML = String(html || '');
-  var allowed = { P:1, DIV:1, BR:1, B:1, STRONG:1, I:1, EM:1, U:1, UL:1, OL:1, LI:1, TABLE:1, THEAD:1, TBODY:1, TR:1, TH:1, TD:1, IMG:1, A:1, H1:1, H2:1, H3:1, BLOCKQUOTE:1, SPAN:1 };
+  var allowed = { P:1, DIV:1, BR:1, B:1, STRONG:1, I:1, EM:1, U:1, S:1, STRIKE:1, SUB:1, SUP:1, MARK:1, HR:1, PRE:1, UL:1, OL:1, LI:1, TABLE:1, THEAD:1, TBODY:1, TR:1, TH:1, TD:1, IMG:1, A:1, H1:1, H2:1, H3:1, H4:1, BLOCKQUOTE:1, SPAN:1, FONT:1 };
   Array.prototype.slice.call(box.querySelectorAll('*')).forEach(function (el) {
     if (!allowed[el.tagName]) { el.replaceWith(document.createTextNode(el.textContent || '')); return; }
     Array.prototype.slice.call(el.attributes).forEach(function (a) {
       var n = a.name.toLowerCase(), v = a.value || '';
+      if (n === 'style') {
+        var st = letSafeStyle(v);
+        if (st) el.setAttribute('style', st); else el.removeAttribute('style');
+        return;
+      }
       var keep = n === 'colspan' || n === 'rowspan' || n === 'alt' || n === 'title' ||
+        n === 'face' || n === 'size' || n === 'color' ||
         (n === 'href' && /^(https?:|mailto:|#)/i.test(v)) ||
         (n === 'src' && (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(v) || /^https:\/\//i.test(v)));
       if (!keep) el.removeAttribute(a.name);
@@ -348,6 +385,85 @@ function letEditorInsertImageFile(f) {
 window.ptfLetEditorImage = function (inp) {
   var f = (inp.files || [])[0]; inp.value = ''; letEditorInsertImageFile(f);
 };
+
+/* ===== v34.7.62 LETTER-FORMAT-001: قالب‌بندی حرفه‌ای متن نامه =====
+   نوار ابزار غنی: فونت، اندازه، رنگ، هایلایت، بولد/ایتالیک/زیرخط/خط‌خورده، چینش،
+   فاصلهٔ خطوط، فهرست، تورفتگی، جدول و تصویر. استایل‌های inline تولیدشده از
+   letSafeBodyHtml عبور می‌کنند (فقط ویژگی‌های امن تایپوگرافی حفظ می‌شوند). */
+var _ltSelRange = null;
+function letEditorSaveSel() {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  var sel = window.getSelection();
+  if (sel && sel.rangeCount > 0 && ed.contains(sel.anchorNode)) _ltSelRange = sel.getRangeAt(0).cloneRange();
+}
+function letEditorRestoreSel() {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  if (_ltSelRange) {
+    try { var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(_ltSelRange); } catch (e) {}
+  }
+  ed.focus();
+}
+function letEditorBlockOf(node, ed) {
+  var el = node && node.nodeType === 3 ? node.parentNode : node;
+  while (el && el !== ed && !/^(P|DIV|LI|H1|H2|H3|H4|BLOCKQUOTE|TD|TH)$/.test(el.tagName)) el = el.parentNode;
+  return (el && el !== ed) ? el : null;
+}
+/* پیچیدن متن انتخاب‌شده در span با استایل (حفظ فرزندان بولد/ایتالیک) */
+function letEditorWrapSel(styleText) {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  ed.focus();
+  var sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return;
+  var range = sel.getRangeAt(0); if (range.collapsed) return;
+  var startBlock = letEditorBlockOf(range.startContainer, ed);
+  var endBlock = letEditorBlockOf(range.endContainer, ed);
+  if (!startBlock || !endBlock || startBlock !== endBlock) return; /* انتخاب چندبلوکی: فقط بلوکی پشتیبانی می‌شود */
+  var frag = range.extractContents();
+  if (!frag || !frag.firstChild) return;
+  var span = document.createElement('span');
+  span.setAttribute('style', styleText);
+  span.appendChild(frag);
+  range.insertNode(span);
+  sel.removeAllRanges();
+  var r = document.createRange(); r.selectNodeContents(span); sel.addRange(r);
+}
+/* اعمال استایل روی بلوک(های) انتخاب‌شده (چینش، فاصلهٔ خطوط) */
+function letEditorSetBlockStyle(prop, value) {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  ed.focus();
+  var sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return;
+  var range = sel.getRangeAt(0);
+  var startBlock = letEditorBlockOf(range.startContainer, ed);
+  var endBlock = letEditorBlockOf(range.endContainer, ed);
+  var el = startBlock, guard = 0;
+  while (el && guard++ < 60) {
+    if (value == null || value === '') el.style.removeProperty(prop);
+    else el.style.setProperty(prop, value);
+    if (!el.getAttribute('style')) el.removeAttribute('style');
+    if (el === endBlock) break;
+    el = el.nextElementSibling;
+  }
+}
+window.ptfLetFont = function (v) { letEditorWrapSel('font-family:' + letFontCss(v)); };
+window.ptfLetFontSize = function (v) { letEditorWrapSel('font-size:' + v + 'pt'); };
+window.ptfLetColor = function (v) { if (v) letEditorWrapSel('color:' + v); };
+window.ptfLetHilite = function (v) { letEditorWrapSel(v ? 'background-color:' + v : 'background-color:transparent'); };
+window.ptfLetLineHeight = function (v) { letEditorSetBlockStyle('line-height', v); };
+window.ptfLetAlign = function (v) { letEditorSetBlockStyle('text-align', v); };
+window.ptfLetClearFormat = function () {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  ed.focus();
+  try { document.execCommand('styleWithCSS', false, false); document.execCommand('removeFormat'); } catch (e) {}
+};
+/* همگام‌سازی زندهٔ ادیتور با تنظیمات کل نامه (فونت پایه/اندازه/فاصلهٔ خطوط) */
+window.letSyncDocFont = function () {
+  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+  var fs = (document.getElementById('ltFs') || {}).value;
+  var lh = (document.getElementById('ltLh') || {}).value;
+  var fnt = (document.getElementById('ltFont') || {}).value;
+  ed.style.fontSize = fs ? (fs + 'pt') : '';
+  ed.style.lineHeight = lh || '';
+  ed.style.fontFamily = fnt ? letFontCss(fnt) : '';
+};
 function letEditorWirePasteAndDrop(editor) {
   if (!editor || editor.dataset.richWire) return;
   editor.dataset.richWire = '1';
@@ -384,7 +500,7 @@ function showLetterModal(cd) {
       .map(function (u) { return '<option value="' + escP(u.username) + '"' + (l && l.signer === u.username ? ' selected' : '') + '>' + escP(u.name) + ' — ' + escP(u.role) + '</option>'; }).join('');
   var s = (l && l.style) || {};
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
-    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
+    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.let-editor-tools .lg{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
     '<h3>📤 نامه صادره' + (l ? ' — ویرایش' : '') + '</h3>' +
     '<div class="fr"><div class="fld"><label>زبان نامه</label><select id="ltLang"><option value="fa"' + (l && l.lang === 'fa' ? ' selected' : '') + '>فارسی</option><option value="en"' + (l && l.lang === 'en' ? ' selected' : '') + '>English</option></select></div>' +
     '<div class="fld"><label>گیرنده (شرکت/سازمان)</label><select id="ltToSel" onchange="document.getElementById(\'ltTo\').value=this.value">' + toOpts + '</select></div></div>' +
@@ -393,10 +509,32 @@ function showLetterModal(cd) {
     '<div class="fld"><label>سمت گیرنده (زیر نام چاپ می‌شود)</label><input type="text" id="ltToRole" value="' + (l ? escP(l.toRole || '') : '') + '" placeholder="مدیر محترم بازرگانی شرکت ..."></div></div>' +
     '<div class="fld"><label>موضوع *</label><input type="text" id="ltSub" value="' + (l ? escP(l.subject || '') : '') + '"></div>' +
     '<div class="fld"><label>متن نامه *</label><div class="let-editor-tools" role="toolbar" aria-label="ابزار ویرایش متن">' +
-    '<button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'bold\')"><b>Bold</b></button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'italic\')"><i>Italic</i></button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'insertUnorderedList\')">• فهرست</button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorTable()">▦ جدول</button><button type="button" class="bt bt-o" onmousedown="event.preventDefault()" onclick="ptfLetEditorImagePick()">🖼 تصویر در متن</button></div>' +
+    '<select title="فونت" onmousedown="letEditorSaveSel()" onchange="letEditorRestoreSel();ptfLetFont(this.value)"><option value="">فونت</option><option value="yaghut">یاقوت (رسمی)</option><option value="vazir">وزیرمتن</option><option value="tahoma">تاهوما</option><option value="arial">آریال</option><option value="times">تایمز</option></select>' +
+    '<select title="اندازه فونت" onmousedown="letEditorSaveSel()" onchange="letEditorRestoreSel();ptfLetFontSize(this.value)"><option value="">اندازه</option><option value="9">۹</option><option value="10">۱۰</option><option value="10.5">۱۰٫۵</option><option value="11">۱۱</option><option value="11.5">۱۱٫۵</option><option value="12">۱۲</option><option value="13">۱۳</option><option value="14">۱۴</option><option value="16">۱۶</option><option value="18">۱۸</option><option value="20">۲۰</option><option value="24">۲۴</option></select>' +
+    '<button type="button" class="bt bt-o" title="بولد" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'bold\')"><b>B</b></button>' +
+    '<button type="button" class="bt bt-o" title="ایتالیک" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'italic\')"><i>I</i></button>' +
+    '<button type="button" class="bt bt-o" title="زیرخط" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'underline\')"><u>U</u></button>' +
+    '<button type="button" class="bt bt-o" title="خط‌خورده" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'strikeThrough\')"><s>S</s></button>' +
+    '<input type="color" title="رنگ متن" value="#26282c" onmousedown="letEditorSaveSel()" onchange="letEditorRestoreSel();ptfLetColor(this.value)">' +
+    '<button type="button" class="bt bt-o" title="هایلایت زرد" onmousedown="event.preventDefault()" onclick="ptfLetHilite(\'#fff3a3\')">🖍</button>' +
+    '<button type="button" class="bt bt-o" title="هایلایت سبز" onmousedown="event.preventDefault()" onclick="ptfLetHilite(\'#c7f7d4\')">🖍 سبز</button>' +
+    '<button type="button" class="bt bt-o" title="حذف هایلایت" onmousedown="event.preventDefault()" onclick="ptfLetHilite(\'\')">✕ هایلایت</button>' +
+    '<button type="button" class="bt bt-o" title="پاک‌سازی قالب" onmousedown="event.preventDefault()" onclick="ptfLetClearFormat()">🧹</button>' +
+    '<span class="let-sep"></span>' +
+    '<button type="button" class="bt bt-o" title="راست‌چین" onmousedown="event.preventDefault()" onclick="ptfLetAlign(\'right\')">راست‌چین</button>' +
+    '<button type="button" class="bt bt-o" title="وسط‌چین" onmousedown="event.preventDefault()" onclick="ptfLetAlign(\'center\')">وسط‌چین</button>' +
+    '<button type="button" class="bt bt-o" title="چپ‌چین" onmousedown="event.preventDefault()" onclick="ptfLetAlign(\'left\')">چپ‌چین</button>' +
+    '<button type="button" class="bt bt-o" title="تراز دوطرفه" onmousedown="event.preventDefault()" onclick="ptfLetAlign(\'justify\')">دوطرفه</button>' +
+    '<select title="فاصله خطوط" onmousedown="letEditorSaveSel()" onchange="letEditorRestoreSel();ptfLetLineHeight(this.value)"><option value="">فاصله خطوط</option><option value="1.2">۱٫۲</option><option value="1.5">۱٫۵</option><option value="1.8">۱٫۸</option><option value="2">۲</option><option value="2.2">۲٫۲</option><option value="2.5">۲٫۵</option><option value="3">۳</option></select>' +
+    '<button type="button" class="bt bt-o" title="فهرست نقطه‌ای" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'insertUnorderedList\')">• فهرست</button>' +
+    '<button type="button" class="bt bt-o" title="فهرست شماره‌ای" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'insertOrderedList\')">۱. فهرست</button>' +
+    '<button type="button" class="bt bt-o" title="افزایش تورفتگی" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'indent\')">↪</button>' +
+    '<button type="button" class="bt bt-o" title="کاهش تورفتگی" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'outdent\')">↩</button>' +
+    '<button type="button" class="bt bt-o" title="درج جدول" onmousedown="event.preventDefault()" onclick="ptfLetEditorTable()">▦ جدول</button>' +
+    '<button type="button" class="bt bt-o" title="تصویر در متن" onmousedown="event.preventDefault()" onclick="ptfLetEditorImagePick()">🖼 تصویر</button></div>' +
     '<input type="file" id="ltInlineImg" accept="image/*" style="display:none" onchange="ptfLetEditorImage(this)">' +
     '<div id="ltBodyEditor" class="let-rich-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>' +
-    '<small style="color:#94a3b8">جدول را از Word/Excel در محل نشانگر Paste کنید؛ همچنین می‌توانید فایل تصویر را داخل متن Drag &amp; Drop کنید. اندازه فونت چاپ خودکار تنظیم می‌شود.</small></div>' +
+    '<small style="color:#94a3b8">متن را انتخاب کنید و با نوار ابزار بالا قالب‌بندی کنید (فونت، اندازه، رنگ، بولد، چینش، فاصلهٔ خطوط و…). برای تنظیمات کل نامه (حاشیه، فونت پایه، اندازهٔ کوچک‌تر از حد خودکار) از «تنظیمات دستی قالب» پایین استفاده کنید.</small></div>' +
     /* v31.7.22 US-LTR-IMG: تصاویر داخل متن نامه — حداکثر ۳ تصویر فشرده، بعد از متن چاپ می‌شوند */
     '<div class="fld"><label>🖼 تصاویر نامه (اختیاری — حداکثر ۳؛ بعد از متن چاپ می‌شوند)</label>' +
     '<input type="file" id="ltImgFile" accept="image/*" multiple style="display:none" onchange="ptfLtImgAdd(this)">' +
@@ -407,12 +545,20 @@ function showLetterModal(cd) {
     '<div class="fld"><label>امضاکننده</label><select id="ltSigner">' + signOpts + '</select></div></div>' +
     '<div class="fr"><div class="fld"><label style="font-size:11.5px">درج «بسمه تعالی» <input type="checkbox" id="ltBsm" ' + (!l || l.bsm !== false ? 'checked' : '') + '></label></div>' +
     '<div class="fld"><label>لینک به پرونده (اختیاری)</label><select id="ltPrj"><option value="">— بدون پرونده —</option>' + getData('ptf_crm_projects').map(function(pp){ return '<option value="' + escP(pp.no) + '"' + (l && l.prjNo === pp.no ? ' selected' : '') + '>' + escP(pp.no) + ' — ' + escP(pp.buyerCo || '') + '</option>'; }).join('') + '</select></div></div>' +
-    '<details style="margin:8px 0"><summary style="cursor:pointer;font-size:12.5px;color:#0e7490">🎛 تنظیمات دستی قالب (اختیاری)</summary>' +
-    '<div class="fr" style="margin-top:8px"><div class="fld"><label>اندازه فونت متن (خالی = خودکار)</label><select id="ltFs"><option value="">خودکار</option>' +
-    [12,12.5,13,13.5,14,15,16].map(function (f) { return '<option' + (s.fs == f ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></div>' +
-    '<div class="fld"><label>چینش متن</label><select id="ltAlign"><option value="">پیش‌فرض (فا: راست / EN: چپ)</option><option value="justify"' + (s.align === 'justify' ? ' selected' : '') + '>تراز دوطرفه</option><option value="center"' + (s.align === 'center' ? ' selected' : '') + '>وسط</option></select></div></div>' +
-    '<div class="fr"><div class="fld"><label style="font-size:12px">متن بولد <input type="checkbox" id="ltB" ' + (s.bold ? 'checked' : '') + '></label></div>' +
-    '<div class="fld"><label style="font-size:12px">متن ایتالیک <input type="checkbox" id="ltI" ' + (s.italic ? 'checked' : '') + '></label></div></div></details>' +
+    '<details style="margin:8px 0" open><summary style="cursor:pointer;font-size:12.5px;color:#0e7490">🎛 تنظیمات دستی قالب (اختیاری)</summary>' +
+    '<div class="fr" style="margin-top:8px"><div class="fld"><label>اندازه فونت متن (خالی = خودکار؛ از ۹ قابل انتخاب است)</label><select id="ltFs" onchange="letSyncDocFont()"><option value="">خودکار</option>' +
+    [9,10,10.5,11,11.5,12,12.5,13,13.5,14,15,16,18,20].map(function (f) { return '<option' + (s.fs == f ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></div>' +
+    '<div class="fld"><label>فاصله خطوط (خالی = ۲٫۱)</label><select id="ltLh" onchange="letSyncDocFont()"><option value="">خودکار</option>' +
+    [1.2,1.5,1.8,2,2.2,2.5,3].map(function (x) { return '<option' + (s.lh == x ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>' +
+    '<div class="fld"><label>فونت متن</label><select id="ltFont" onchange="letSyncDocFont()"><option value="">پیش‌فرض (یاقوت)</option><option value="vazir"' + (s.font === 'vazir' ? ' selected' : '') + '>وزیرمتن</option><option value="tahoma"' + (s.font === 'tahoma' ? ' selected' : '') + '>تاهوما</option><option value="arial"' + (s.font === 'arial' ? ' selected' : '') + '>آریال</option><option value="times"' + (s.font === 'times' ? ' selected' : '') + '>تایمز</option></select></div></div>' +
+    '<div class="fr"><div class="fld"><label>چینش متن</label><select id="ltAlign"><option value="">پیش‌فرض (فا: راست / EN: چپ)</option><option value="right"' + (s.align === 'right' ? ' selected' : '') + '>راست‌چین</option><option value="left"' + (s.align === 'left' ? ' selected' : '') + '>چپ‌چین</option><option value="center"' + (s.align === 'center' ? ' selected' : '') + '>وسط‌چین</option><option value="justify"' + (s.align === 'justify' ? ' selected' : '') + '>تراز دوطرفه</option></select></div>' +
+    '<div class="fld"><label style="font-size:12px">متن بولد <input type="checkbox" id="ltB" ' + (s.bold ? 'checked' : '') + '></label></div>' +
+    '<div class="fld"><label style="font-size:12px">متن ایتالیک <input type="checkbox" id="ltI" ' + (s.italic ? 'checked' : '') + '></label></div></div>' +
+    '<div class="fld" style="margin-top:8px"><label>حاشیه‌های صفحه (میلی‌متر — خالی = پیش‌فرض)</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">' +
+    '<div><small style="color:#94a3b8">بالا</small><input type="number" id="ltMt" min="0" max="40" value="' + (s.margin && s.margin.t !== '' && s.margin.t != null ? s.margin.t : '') + '" placeholder="8" style="width:100%"></div>' +
+    '<div><small style="color:#94a3b8">راست</small><input type="number" id="ltMr" min="0" max="40" value="' + (s.margin && s.margin.r !== '' && s.margin.r != null ? s.margin.r : '') + '" placeholder="16" style="width:100%"></div>' +
+    '<div><small style="color:#94a3b8">پایین</small><input type="number" id="ltMb" min="0" max="40" value="' + (s.margin && s.margin.b !== '' && s.margin.b != null ? s.margin.b : '') + '" placeholder="0" style="width:100%"></div>' +
+    '<div><small style="color:#94a3b8">چپ</small><input type="number" id="ltMl" min="0" max="40" value="' + (s.margin && s.margin.l !== '' && s.margin.l != null ? s.margin.l : '') + '" placeholder="16" style="width:100%"></div></div></div></details>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">' +
     '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
     '<button class="bt bt-o" onclick="letPreviewDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">👁️ پیش‌نمایش</button>' +
@@ -482,11 +628,15 @@ function _collectLetter(cd) {
   l.prjNo = document.getElementById('ltPrj').value;
   l.signer = document.getElementById('ltSigner').value;
   l.images = (window._ltImgs || []).slice(0, 3); /* v31.7.22 US-LTR-IMG */
+  function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
   l.style = {
     fs: +document.getElementById('ltFs').value || '',
+    lh: document.getElementById('ltLh').value || '',
+    font: document.getElementById('ltFont').value || '',
     align: document.getElementById('ltAlign').value,
     bold: document.getElementById('ltB').checked,
-    italic: document.getElementById('ltI').checked
+    italic: document.getElementById('ltI').checked,
+    margin: { t: _num('ltMt'), r: _num('ltMr'), b: _num('ltMb'), l: _num('ltMl') }
   };
   l.author = curSession().user;
   l.authorNm = curSession().name;
@@ -656,11 +806,19 @@ function letPrintObj(l, isPreview) {
   if (includeDigitalSignature == null) includeDigitalSignature = !isPreview;
   var isEn = l.lang === 'en';
   var s = l.style || {};
-  var fs = s.fs || letAutoSize(l.body);           // عادی ۱۴ — حداقل ۱۲
+  var fs = s.fs || letAutoSize(l.body);           // عادی ۱۴ — حداقل ۱۲ (خودکار)
   var tfs = fs + 1;                               // عناوین: یک واحد بزرگتر (AC)
   var align = s.align || (isEn ? 'left' : 'right');
   var font = isEn ? LETTER_FONT_EN : LETTER_FONT_FA;
   var dir = isEn ? 'ltr' : 'rtl';
+  /* v34.7.62: فاصلهٔ خطوط، فونت و حاشیهٔ قابل تنظیم (کل نامه) */
+  var lh = s.lh || 2.1;
+  var bodyFont = s.font ? letFontCss(s.font) : font;
+  var m = s.margin || {};
+  var mt = (m.t === '' || m.t == null) ? 8 : m.t;
+  var mr = (m.r === '' || m.r == null) ? 16 : m.r;
+  var mb = (m.b === '' || m.b == null) ? 0 : m.b;
+  var ml = (m.l === '' || m.l == null) ? 16 : m.l;
   /* نامهٔ امضاشده snapshot دارد تا تغییر پروفایل، سند تاریخی را عوض نکند؛ حالت
      بدون امضا همان نامه قطعی را فقط بدون تصاویر مهر/امضا برای چاپ فیزیکی می‌سازد. */
   var signerProfile = (typeof sigProfileFor === 'function' ? sigProfileFor(l.signer || (curSession() || {}).user) : ((typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer || (curSession() || {}).user] || {})) || {};
@@ -683,7 +841,7 @@ function letPrintObj(l, isPreview) {
     '.flds .row{display:flex;align-items:baseline;gap:1.5mm;justify-content:flex-start}' +
     '.flds .lb{white-space:nowrap;min-width:' + (isEn ? '22mm' : '16mm') + '}' +
     '.flds b{color:#26282c}' +
-    '.content{padding:8mm 16mm 0;min-height:170mm}' +
+    '.content{padding:' + mt + 'mm ' + mr + 'mm ' + mb + 'mm ' + ml + 'mm;min-height:170mm}' +
     /* v31.7.22 BUG-LTR-FONT-001 (گزارش کارفرما): بسمه تعالی/گیرنده/سمت/موضوع فونت یاقوت نداشتند.
        ریشه: فونت یاقوت وزن Bold مستقل ندارد؛ برخی مرورگرها برای weight:700 به‌جای ضخیم‌سازی
        مصنوعی همان فونت، به فونت دیگری از پشته (Tahoma بولد‌دار) می‌رفتند.
@@ -693,7 +851,8 @@ function letPrintObj(l, isPreview) {
     '.to{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:0.5mm}' +
     '.torl{font-weight:600;font-size:' + fs + 'pt;margin-bottom:2mm}' + /* v123.1: سمت گیرنده زیر نام */          /* مخاطب: بولد +۱ */
     '.sub{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:6mm}' +          /* موضوع: بولد +۱ */
-    '.body{font-size:' + fs + 'pt;line-height:2.1;text-align:' + align + ';white-space:normal;' +
+    '.body{font-size:' + fs + 'pt;line-height:' + lh + ';text-align:' + align + ';' +
+      (s.font ? 'font-family:' + bodyFont + ';' : '') + 'white-space:normal;' +
       (s.bold ? 'font-weight:700;' : '') + (s.italic ? 'font-style:italic;' : '') + '}' +
     '.body p{margin:0 0 3mm}.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm;text-align:' + align + '}.body th{background:#f1f5f9}.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
     /* v31.7.22 US-LTR-IMG: تصاویر متن نامه — وسط‌چین، متناسب صفحه، بدون شکستن وسط تصویر */
