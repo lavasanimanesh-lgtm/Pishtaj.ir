@@ -960,10 +960,11 @@
     var _bs = window.buildSuppliers;
     window.buildSuppliers = function () {
       var h = _bs();
-      var tabs = '<div style="display:flex;gap:6px;margin-bottom:10px" id="supTabs">' +
+      var tabs = '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="supTabs">' +
         '<button class="bt" id="supTabAll" style="font-size:12px" onclick="ptfSupTab(\'\')">همه</button>' +
         '<button class="bt bt-o" id="supTabIr" style="font-size:12px" onclick="ptfSupTab(\'داخلی\')">🇮🇷 داخلی</button>' +
         '<button class="bt bt-o" id="supTabFx" style="font-size:12px" onclick="ptfSupTab(\'خارجی\')">🌍 خارجی</button>' +
+        '<button class="bt bt-o" id="supTabSite" style="font-size:12px;color:#c2410c;border-color:#fdba74" onclick="ptfSupTab(\'site\')">🌐 درخواست‌های سایت</button>' +
         '<button class="bt bt-o" style="font-size:11.5px;color:#7c3aed;border-color:#ddd6fe" onclick="ptfSupOriginReview()" title="اصلاح رکوردهای جابه‌جاشده داخلی/خارجی (BUG-022)">🧭 بازبینی</button></div>';
       return h.replace('<div class="tb2">', tabs + '<div class="tb2">');
     };
@@ -995,10 +996,19 @@
     };
     window.ptfSupTab = function (t) {
       window._supTabCur = t;
-      ['supTabAll', 'supTabIr', 'supTabFx'].forEach(function (id, i2) {
+      ['supTabAll', 'supTabIr', 'supTabFx', 'supTabSite'].forEach(function (id, i2) {
         var b = document.getElementById(id);
-        if (b) b.className = ((i2 === 0 && !t) || (i2 === 1 && t === 'داخلی') || (i2 === 2 && t === 'خارجی')) ? 'bt' : 'bt bt-o';
+        if (b) b.className = ((i2 === 0 && !t) || (i2 === 1 && t === 'داخلی') || (i2 === 2 && t === 'خارجی') || (i2 === 3 && t === 'site')) ? 'bt' : 'bt bt-o';
       });
+      /* v34.7.66: تب جداگانهٔ «درخواست‌های سایت» — فقط این بخش را نشان بده و فهرست تاییدشده را پنهان کن */
+      var showSite = (t === 'site');
+      var siteEl = document.getElementById('supPendWrap');
+      var h4 = document.getElementById('supApprovedH4');
+      var tb = document.getElementById('sTb');
+      var tbl = tb ? tb.closest('.tb2') : null;
+      if (siteEl) siteEl.style.display = showSite ? '' : 'none';
+      if (h4) h4.style.display = showSite ? 'none' : '';
+      if (tbl) tbl.style.display = showSite ? 'none' : '';
       renderSuppliers();
     };
     var _rs = window.renderSuppliers2;

@@ -7,7 +7,7 @@
     return parts.map(function () { return ".."; }).join("/") + (parts.length ? "/" : "");
   }
   function insertBeforeContact(nav, node) {
-    var before = nav.querySelector('a[href*="#contact"]') || nav.querySelector(".nav-search") || nav.querySelector(".lang-switch-mobile");
+    var before = nav.querySelector('a[href*="#contact"]') || nav.querySelector(".nav-search");
     if (before) nav.insertBefore(node, before);
     else nav.appendChild(node);
   }
@@ -258,7 +258,7 @@
     var tops = [];
     nav.querySelectorAll("a").forEach(function (a) {
       if (a.closest(".nav-mega") || a.closest(".nav-drop-menu")) return;
-      if (a.classList.contains("nav-search") || a.classList.contains("lang-switch-mobile")) return;
+      if (a.classList.contains("nav-search")) return;
       a.classList.remove("active");
       tops.push(a);
     });
