@@ -345,7 +345,7 @@ function role_guard($action_key) {
     }
     return true;
 }
-$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','users_sync'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','auth_login'=>'none'];
+$SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','save_user'=>'users_write','del_user'=>'users_write','users_sync'=>'users_write','get_buyquotes'=>'buyprice_read','set_status'=>'approve_write','del_supplier_site'=>'approve_write','data_push'=>'sync_write','data_pull'=>'sync_read','auth_login'=>'none'];
 
 /* v31.6.26 BUG-SYNC-ROLE-ACL: CRM synchronization is not the same as
    finance_read/finance_write. Filter keys server-side so ordinary CRM roles
@@ -1374,6 +1374,24 @@ switch($action) {
             }
         }
         echo json_encode(['ok' => $done, 'sms' => $smsSent], JSON_UNESCAPED_UNICODE);
+        break;
+
+    // ===== v34.7.74 (SUP-SITE-DELETE): حذف رکورد ثبت‌نام تامین‌کنندهٔ سایت =====
+    case 'del_supplier_site':
+        verify_request();
+        role_guard('approve_write'); // فقط مدیران ارشد
+        $type = $_POST['type'] ?? 'supplier';
+        $code = clean($_POST['code'] ?? '', 60);
+        /* فقط صندوق ثبت‌نام سایت قابل حذف است؛ نه فهرست تاییدشدهٔ CRM */
+        $key = $type === 'supplier' ? 'suppliers' : 'rfqs';
+        $items = load_data($key);
+        $before = count($items);
+        $items = array_values(array_filter($items, function ($it) use ($code) {
+            return (($it['code'] ?? '') !== $code);
+        }));
+        $removed = count($items) < $before;
+        if ($removed) save_data($key, $items);
+        echo json_encode(['ok' => $removed, 'removed' => $removed ? 1 : 0], JSON_UNESCAPED_UNICODE);
         break;
 
     // ===== US-138: رویدادهای لحظه‌ای (پیام‌رسانی بین کاربران CRM) =====
