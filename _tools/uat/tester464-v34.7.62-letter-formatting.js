@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.74 — LETTER-FORMAT-001: قالب‌بندی حرفه‌ای متن نامه.
+/* v34.7.75 — LETTER-FORMAT-001: قالب‌بندی حرفه‌ای متن نامه.
    قرارداد: نوار ابزار غنی (فونت/اندازه/رنگ/هایلایت/بولد/ایتالیک/زیرخط/خط‌خورده/
    چینش/فاصلهٔ خطوط/فهرست/تورفتگی/جدول/تصویر) + تنظیمات کل نامه (اندازهٔ کوچک‌تر از
    ۱۲، فاصلهٔ خطوط، فونت، حاشیه) که در چاپ اعمال می‌شود؛ استایل‌های inline فقط از
@@ -18,10 +18,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.7.74', ver.crm_version === 'v34.7.74', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.7.74', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.74'") > -1);
-T('sw RELEASE = v34.7.74', sw.indexOf("RELEASE = 'v34.7.74'") > -1);
-T('letters.js cache-bust 34.7.74', /letters\.js\?v=34\.7\.74/.test(idx));
+T('VERSION.json = v34.7.75', ver.crm_version === 'v34.7.75', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.7.75', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.75'") > -1);
+T('sw RELEASE = v34.7.75', sw.indexOf("RELEASE = 'v34.7.75'") > -1);
+T('letters.js cache-bust 34.7.75', /letters\.js\?v=34\.7\.75/.test(idx));
 
 /* ---------- sanitizer امن ---------- */
 T('letSafeStyle تعریف شده', lt.indexOf('function letSafeStyle') > -1);
@@ -62,6 +62,6 @@ T('چاپ حاشیه را اعمال می‌کند', lt.indexOf("'.content{paddi
 
 T('tester464 در گیت CI', gate.indexOf('tester464-v34.7.62-letter-formatting.js') > -1);
 
-console.log('\n— tester464 (v34.7.74: قالب‌بندی حرفه‌ای نامه) —');
+console.log('\n— tester464 (v34.7.75: قالب‌بندی حرفه‌ای نامه) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

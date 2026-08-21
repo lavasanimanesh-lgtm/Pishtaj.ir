@@ -671,7 +671,7 @@
     if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از برنده‌شدن — هر مرحله)' }); sfSave(list); }
     try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار', cd); } catch (e) {}
     if (typeof notify === 'function') {
-      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — پیش‌فاکتور ' + r.wonOffer + ' برای صدور فاکتور رسمی ارجاع شد', body: 'خریدار: ' + (r.buyerCo || '-') + ' — سند قطعی برد در کارتابل ضمیمه است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
+      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — پیش‌فاکتور ' + r.wonOffer + ' برای صدور فاکتور رسمی ارجاع شد', body: 'خریدار: ' + (r.buyerCo || '-') + ' — سند قطعی برد همراه همین ارجاع در پنل فاکتورها (دکمهٔ «🏆 سند برد») قابل مشاهده است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
     }
     return { ok: true };
   };

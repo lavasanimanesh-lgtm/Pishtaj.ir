@@ -97,6 +97,7 @@ var SUITE = [
   { g: 'پرونده/ارجاع فاکتور', f: '_tools/uat/tester474-v34.7.72-invoice-ref-stage-unlock.js' },
   { g: 'کاربران/همگام‌سازی', f: '_tools/uat/tester475-v34.7.73-users-sync-button.js' },
   { g: 'تامین/حذف و تب‌های سایت', f: '_tools/uat/tester476-v34.7.74-sup-site-delete-and-tabs.js' },
+  { g: 'فاکتور/سند برد و ضمیمه', f: '_tools/uat/tester477-v34.7.75-invoice-award-ref-and-attach-later.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

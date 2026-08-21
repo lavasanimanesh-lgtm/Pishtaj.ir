@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.74';
+const SD_SERVICE_VERSION = '34.7.75';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1490,6 +1490,38 @@ try {
         foreach ($receipts as $r) if (is_array($r) && (string)($r['caseId'] ?? '') === $caseId && sd_active($r) && (string)($r['status'] ?? '') === 'posted') $freed += (int)($r['creditRemainIRR'] ?? 0);
         $changes = ['ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_corrections'=>$corrections];
         $result = ['invoiceId'=>$inv['_id'] ?? $inv['cd'] ?? '','voided'=>true,'caseId'=>$caseId,'caseCreditIRR'=>$freed];
+    }
+    elseif ($action === 'invoice_attachment_add') {
+        /* v34.7.75 (INV-ATTACH-LATER): افزودن سند فاکتور/مودیان پس از ثبت قطعی فاکتور رسمی.
+           برخلاف replace_invoice_attachment (نیازمند attachmentId موجود)، این فرمان فقط append
+           می‌کند — برای زمانی که حسابدار فاکتور را ثبت کرده و بعداً سند حسابداری یا سند
+           سامانه مودیان را ضمیمه می‌کند. رکورد در files فاکتور و آینهٔ fin_attachments هر دو
+           ثبت می‌شود و correction (بدون الزام reason) برای رد ممیزی نوشته می‌شود. */
+        sd_require_role(SD_FIN_ROLES);
+        $invoiceId = sd_text($body['invoiceId'] ?? '', 100);
+        $ii = -1;
+        foreach ($invoices as $i => $inv) if (is_array($inv) && ((string)($inv['_id'] ?? '') === $invoiceId || (string)($inv['cd'] ?? '') === $invoiceId)) { $ii = $i; break; }
+        if ($ii < 0) sd_out(['ok' => false, 'error' => 'invoice_not_found'], 404);
+        if (!sd_active($invoices[$ii])) sd_out(['ok' => false, 'error' => 'invoice_not_active', 'status' => (string)($invoices[$ii]['status'] ?? '')], 409);
+        if (sd_is_locked($snaps, (string)($invoices[$ii]['invDate'] ?? $invoices[$ii]['issueDate'] ?? ''))) sd_out(['ok' => false, 'error' => 'fiscal_period_locked'], 409);
+        $file = is_array($body['file'] ?? null) ? $body['file'] : [];
+        if (!sd_file_ok($file)) sd_out(['ok' => false, 'error' => 'invalid_file'], 422);
+        $cat = sd_text($body['category'] ?? 'accounting_official_invoice', 80);
+        if (!in_array($cat, ['accounting_official_invoice', 'modian_tax_invoice', 'supporting_document'], true)) sd_out(['ok' => false, 'error' => 'invalid_category'], 422);
+        $reason = sd_text($body['reason'] ?? '', 500);
+        $file['_id'] = sd_uuid('ATT');
+        $file['version'] = 1;
+        $file['status'] = 'active';
+        $file['category'] = $cat;
+        $file['uploadedBy'] = $user;
+        $file['uploadedAt'] = sd_now();
+        if (!is_array($invoices[$ii]['files'] ?? null)) $invoices[$ii]['files'] = [];
+        $invoices[$ii]['files'][] = $file;
+        $ownerId = (string)($invoices[$ii]['_id'] ?? $invoiceId);
+        $attachments[] = ['_id' => $file['_id'], 'ownerType' => 'official_invoice', 'ownerId' => $ownerId, 'category' => $cat, 'version' => 1, 'objectKey' => $file['key'], 'name' => $file['name'] ?? '', 'mimeType' => $file['contentType'] ?? '', 'size' => $file['size'] ?? 0, 'status' => 'active', 'uploadedBy' => $user, 'uploadedAt' => sd_now()];
+        $corrections[] = ['_id' => sd_uuid('COR'), 'entityType' => 'financial_attachment', 'entityId' => $file['_id'], 'kind' => 'add', 'reason' => $reason, 'correctedBy' => $user, 'correctedAt' => sd_now(), 'ownerType' => 'official_invoice', 'ownerId' => $ownerId];
+        $changes = ['ptf_crm_invoices' => $invoices, 'ptf_crm_fin_attachments' => $attachments, 'ptf_crm_corrections' => $corrections];
+        $result = ['attachmentId' => $file['_id'], 'category' => $cat, 'invoiceId' => $ownerId];
     }
     elseif ($action === 'replace_invoice_attachment') {
         sd_require_role(SD_FIN_ROLES);$invoiceId=sd_text($body['invoiceId']??'',100);$oldId=sd_text($body['attachmentId']??'',100);$ii=-1;foreach($invoices as $i=>$inv)if(is_array($inv)&&((string)($inv['_id']??'')===$invoiceId||(string)($inv['cd']??'')===$invoiceId)){$ii=$i;break;}if($ii<0)sd_out(['ok'=>false,'error'=>'invoice_not_found'],404);$file=is_array($body['file']??null)?$body['file']:[];if(!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_file'],422);$reason=sd_text($body['reason']??'',500);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$found=false;$oldVersion=0;foreach(($invoices[$ii]['files']??[])as &$f)if((string)($f['_id']??'')===$oldId){$f['status']='replaced';$f['replacedAt']=sd_now();$f['replaceReason']=$reason;$oldVersion=(int)($f['version']??1);$found=true;break;}unset($f);if(!$found)sd_out(['ok'=>false,'error'=>'attachment_not_found'],404);$file['_id']=sd_uuid('ATT');$file['version']=$oldVersion+1;$file['status']='active';$file['replacesAttachmentId']=$oldId;$file['category']=$file['category']??'accounting_official_invoice';$invoices[$ii]['files'][]=$file;if(!sd_invoice_files_ok($invoices[$ii]['files']))sd_out(['ok'=>false,'error'=>'required_official_attachment_missing'],422);foreach($attachments as &$a)if((string)($a['_id']??'')===$oldId){$a['status']='replaced';$a['replacedAt']=sd_now();$a['replaceReason']=$reason;}unset($a);$attachments[]=['_id'=>$file['_id'],'ownerType'=>'official_invoice','ownerId'=>$invoices[$ii]['_id'],'category'=>$file['category'],'version'=>$file['version'],'objectKey'=>$file['key'],'name'=>$file['name']??'','mimeType'=>$file['contentType']??'','size'=>$file['size']??0,'status'=>'active','replacesAttachmentId'=>$oldId,'uploadedBy'=>$user,'uploadedAt'=>sd_now()];$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$oldId,'kind'=>'replace','afterSnapshot'=>$file,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];$changes=['ptf_crm_invoices'=>$invoices,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];$result=['attachmentId'=>$file['_id'],'replaced'=>$oldId];
