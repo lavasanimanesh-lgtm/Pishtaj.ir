@@ -3711,17 +3711,63 @@ function renderSuppliers2() {
   var h = '';
   list.forEach(function(c) {
     var pp = primaryPerson(c);
+    var nFiles = ptfEntityFiles(c).length;
+    var fileBtn = nFiles
+      ? '<button class="bt bt-o entity-row-action" style="padding:4px 9px;font-size:12px;color:#6d28d9;border-color:#ddd6fe" title="فایل‌های پیوست (' + nFiles + ')" aria-label="فایل‌های پیوست" onclick="ptfSupFilesOpen(\'' + ptfOnClickArg(c.cd) + '\')">📎' + nFiles + '</button> '
+      : '';
     h += '<tr><td><strong>' + escP(c.cd) + '</strong></td><td>' + escP(c.co) +
       ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span></td>' +
       '<td>' + (pp ? escP(pp.nm) : '-') + ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-')) + '</td>' +
       '<td>' + escP(c.ca||'-') + '</td>' +
-      '<td><button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده تأمین‌کننده" aria-label="مشاهده تأمین‌کننده" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
+      '<td>' + fileBtn + '<button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده تأمین‌کننده" aria-label="مشاهده تأمین‌کننده" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
       '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش تأمین‌کننده" aria-label="ویرایش تأمین‌کننده" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
 }
+
+/* ===== v34.7.69: نمایش فایل‌های پیوست تامین‌کننده/مشتری (ثبت‌نام سایت یا دستی) ===== */
+function ptfEntityFiles(c) {
+  if (!c) return [];
+  var out = [], seen = {};
+  function add(f) {
+    if (!f) return;
+    if (Array.isArray(f)) { f.forEach(add); return; }
+    if (typeof f === 'string') {
+      if (f.charAt(0) === '[' || f.charAt(0) === '{') { try { add(JSON.parse(f)); } catch (e) {} return; }
+      f = /^(data:|blob:|https?:\/\/)/i.test(f) ? { url: f, name: f.split('/').pop() || 'پیوست' } : { key: f, name: f.split('/').pop() || 'پیوست' };
+    }
+    if (!f || typeof f !== 'object') return;
+    var key = (typeof ptfFileStorageKey === 'function') ? ptfFileStorageKey(f) : (f.key || f.objectKey || f.path || '');
+    var url = f.url || f.src || f.dataUrl || '';
+    var name = f.name || f.fileName || f.filename || f.originalName || (key ? String(key).split('/').pop() : 'فایل');
+    if (!key && !url) return;
+    var id = key || url;
+    if (seen[id]) return;
+    seen[id] = true;
+    out.push({ key: key, url: url, name: name, size: +f.size || 0 });
+  }
+  var files = c.files;
+  if (Array.isArray(files)) add(files);
+  else if (files && typeof files === 'object') Object.keys(files).forEach(function (k) { add(files[k]); });
+  return out;
+}
+
+window.ptfSupFilesOpen = function (cd) {
+  var c = getData('ptf_crm_suppliers').filter(function (x) { return x.cd === cd; })[0];
+  if (!c) return;
+  var files = ptfEntityFiles(c);
+  var rows = files.length ? files.map(function (f) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--brd);flex-wrap:wrap">' +
+      '<span style="font-size:12.5px">📎 ' + escP(f.name) + (f.size ? ' <small style="color:#94a3b8">(' + (+f.size).toLocaleString('fa-IR') + ' بایت)</small>' : '') + '</span>' +
+      '<button class="bt bt-o" style="padding:4px 10px;font-size:11.5px" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\',\'' + ptfOnClickArg(f.name) + '\')">👁 مشاهده / دانلود</button></div>';
+  }).join('') : '<div style="color:#94a3b8;padding:10px 0">فایلی ثبت نشده است.</div>';
+  var html = '<div class="md-b" style="display:grid;z-index:2500" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px;max-height:88vh;overflow:auto">' +
+    '<h3>📎 فایل‌های تامین‌کننده — ' + escP(c.co || '') + '</h3>' + rows +
+    '<div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
+  document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+};
 
 function showEntityCard(key, cd) {
   var c = getData(key).filter(function(x){ return x.cd === cd; })[0];
@@ -3739,11 +3785,18 @@ function showEntityCard(key, cd) {
       (c.venDueFa || c.venDueISO ? '<div style="margin-top:4px;font-size:11.5px;color:' + (isOv ? '#dc2626;font-weight:bold' : '#0e7490') + '">📅 سررسید پیگیری بعدی وندور: ' + escP(c.venDueFa || c.venDueISO) + (isOv ? ' (🔴 تاخیر در پیگیری — US-267)' : '') + '</div>' : '') +
       '</div>';
   }
+  var entFiles = ptfEntityFiles(c);
+  var filesBox = entFiles.length
+    ? '<h4 style="margin:12px 0 8px">📎 فایل‌های پیوست</h4>' + entFiles.map(function (f) {
+        return '<button class="bt bt-o" style="display:block;width:100%;margin-bottom:5px;font-size:12px;text-align:right;color:#6d28d9;border-color:#ddd6fe" onclick="openStoredFile(\'' + ptfOnClickArg(f.key) + '\',\'' + ptfOnClickArg(f.name) + '\')">📎 ' + escP(f.name) + (f.size ? ' <small style="color:#94a3b8">(' + (+f.size).toLocaleString('fa-IR') + ' بایت)</small>' : '') + '</button>';
+      }).join('')
+    : '';
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px;max-height:90vh;overflow:auto">' +
     '<h3>' + escP(c.co) + ' <small style="color:#94a3b8;font-size:12px">' + escP(c.cd) + '</small></h3>' + venBox +
     ((c.coTels||[]).length ? '<div style="font-size:13px;margin-bottom:4px">☎️ تلفنخانه: <a href="tel:' + escP(c.coTels[0].n) + '">' + escP(c.coTels[0].n) + '</a></div>' : '') +
     (c.coWeb ? '<div style="font-size:13px;margin-bottom:4px;direction:ltr;text-align:right">🌐 ' + escP(c.coWeb) + '</div>' : '') +
     (c.coAddr ? '<div style="font-size:13px;margin-bottom:10px">📍 ' + escP(c.coAddr) + '</div>' : '') +
+    filesBox +
     ((c.phones||[]).length ? '<h4 style="margin:10px 0 8px">📞 تلفن‌های شخص</h4>' + c.phones.map(function(p){ return '<div style="font-size:13px;margin-bottom:4px">' + (p.k === 'mob' ? '📱' : '☎️') + ' <a href="tel:' + escP(p.n) + '" style="direction:ltr">' + escP(p.n) + '</a>' + (p.lb ? ' <small style="color:#94a3b8">(' + escP(p.lb) + ')</small>' : '') + '</div>'; }).join('') : '<h4 style="margin:10px 0 8px">👥 اشخاص رابط</h4>' + contactsCardHtml(c)) +
     '<div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="hideModal()">بستن</button></div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);

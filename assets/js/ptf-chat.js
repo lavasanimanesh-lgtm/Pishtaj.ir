@@ -33,16 +33,79 @@
   // askLLM خودکار به موتور محلی KB برمی‌گردد (cb(null) → fallback).
   var LLM = { enabled: true, endpoint: BASE + 'api/chat-llm.php', timeoutMs: 12000 };
 
+  function detectLang(q) {
+    if (/[گچپژ]/.test(q)) return 'fa';
+    if (/[\u0600-\u06FF]/.test(q)) return 'ar';
+    return 'en';
+  }
+
   function askLLM(question, history, cb) {
     if (!LLM.enabled) { cb(null); return; }
     var ctrl = new AbortController();
     var to = setTimeout(function () { ctrl.abort(); }, LLM.timeoutMs);
     fetch(LLM.endpoint, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: question, h: history.slice(-6) }), signal: ctrl.signal
+      body: JSON.stringify({ q: question, h: history.slice(-6), lang: detectLang(question) }), signal: ctrl.signal
     }).then(function (r) { return r.json(); })
-      .then(function (d) { clearTimeout(to); cb(d && d.ok ? d.answer : null); })
+      .then(function (d) { clearTimeout(to); cb(d && d.ok ? d.answer : (d && d.message ? d.message : null)); })
       .catch(function () { clearTimeout(to); cb(null); }); // fallback خودکار به موتور محلی
+  }
+
+  /* ---------- v34.7.68: استریم پاسخ (SSE) با fallback خودکار به غیراستریم ---------- */
+  function askLLMStream(question, history, onToken, onDone) {
+    if (!LLM.enabled) { onDone(null, false); return; }
+    var ctrl = new AbortController();
+    var finished = false;
+    function finish(d, ok) { if (finished) return; finished = true; clearTimeout(to); onDone(d, ok); }
+    var to = setTimeout(function () { ctrl.abort(); finish(null, false); }, LLM.timeoutMs);
+    fetch(LLM.endpoint, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ q: question, h: history.slice(-6), lang: detectLang(question), stream: 1 }), signal: ctrl.signal
+    }).then(function (r) {
+      var ct = (r.headers.get('content-type') || '');
+      if (!r.ok || ct.indexOf('text/event-stream') < 0) { throw new Error('no-sse'); }
+      return r.body.getReader();
+    }).then(function (reader) {
+      var dec = new TextDecoder(); var buf = '';
+      function pump() {
+        return reader.read().then(function (rr) {
+          if (rr.done) { finish(null, false); return; }
+          buf += dec.decode(rr.value, { stream: true });
+          var idx;
+          while ((idx = buf.indexOf('\n\n')) >= 0) {
+            var block = buf.slice(0, idx); buf = buf.slice(idx + 2);
+            block.split('\n').forEach(function (line) {
+              if (line.indexOf('data: ') !== 0) return;
+              var d = line.slice(6);
+              if (d === '[DONE]') { finish(null, true); return; }
+              try {
+                var j = JSON.parse(d);
+                if (j && j.t) onToken(j.t);
+                else if (j && j.d) finish(j.d, true);
+              } catch (e) {}
+            });
+          }
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function () { finish(null, false); });
+  }
+
+  /* ---------- v34.7.67: وضعیت درخواست/سفارش داخل چت (رایگان — بدون توکن) ---------- */
+  function trackingCode(q) {
+    var m = String(q || '').toUpperCase().match(/PTF-(RFQ|VEN)-[A-Z0-9]{5}-[A-Z0-9]{5}/);
+    return m ? m[0] : null;
+  }
+  function isStatusAsk(q) {
+    var t = norm(q);
+    return /(وضعیت|رهگیر|پیگیر|سفارش|کجاست|کجای|status|track|order)/.test(t);
+  }
+  function fetchStatus(code, cb) {
+    fetch(BASE + 'api/crm.php?action=track&code=' + encodeURIComponent(code))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { cb(d); })
+      .catch(function () { cb(null); });
   }
 
   /* ---------- پایگاه دانش شرکت (AC2) ---------- */
@@ -108,6 +171,12 @@
 
   function answer(q) {
     var t = norm(q);
+    /* v34.7.67: پشتیبانی عربی (کشورهای همسایه) — بدون نیاز به توکن */
+    var isAr = /[\u0600-\u06FF]/.test(q) && !/[گچپژ]/.test(q);
+    if (isAr && /^(مرحبا|السلام|سلام عليكم|أهلا|هلا)/.test(t.trim()))
+      return { a: 'مرحباً! 👋 أنا المساعد الذكي لشركة Pishro Tajhiz Fartak. يمكنك السؤال عن توريد المعدات الصناعية (الأنابيب، الصمامات، أجهزة القياس، المعدات الكهربائية، المضخات)، طلب الأسعار، أو تتبع حالة الطلب.' };
+    if (isAr && /(شكرا|وداعا|مع السلامة)/.test(t))
+      return { a: 'على الرحب والسعة! 🙏 لطلب الأسعار يرجى التسجيل في: pishtaj.ir/rfq' };
     // سلام و خداحافظی
     if (/^(سلام|درود|hi|hello|سلام علیکم|وقت بخیر)/.test(t.trim()))
       return { a: 'سلام! 👋 من دستیار هوشمند پیشرو تجهیز فرتاک هستم.\nدرباره تامین تجهیزات (پایپینگ، شیرآلات، ابزار دقیق، برق، پمپ…)، استعلام قیمت، رهگیری پرونده یا اطلاعات شرکت بپرسید.' };
@@ -165,6 +234,22 @@
     '.ptfc-user{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff;margin-right:auto;margin-left:0;border-radius:15px 15px 4px 15px}' +
     '.ptfc-lnk{display:inline-block;margin:4px 4px 0 0;padding:6px 11px;border-radius:10px;background:rgba(239,75,26,.09);color:#c73616;font-size:12px;font-weight:800;text-decoration:none}' +
     '.ptfc-lnk:hover{background:rgba(239,75,26,.16)}' +
+    '.ptfc-cards{display:flex;flex-direction:column;gap:6px;margin-top:6px}' +
+    '.ptfc-card{display:block;border-radius:12px;padding:9px 11px;font-size:12px;line-height:1.7;text-decoration:none}' +
+    '.ptfc-card-art{background:#f1f5f9;border:1px solid #e2e8f0;color:#1e293b}' +
+    '.ptfc-card-art b{display:block;color:#0e7490;margin-bottom:2px}' +
+    '.ptfc-card-art span{color:#475569;display:block}' +
+    '.ptfc-card-art:hover{border-color:#0e7490}' +
+    '.ptfc-card-prog{background:#fff;border:1px solid #e2e8f0}' +
+    '.ptfc-prog-head{font-weight:800;color:#1e293b;margin-bottom:6px}' +
+    '.ptfc-step{position:relative;padding-right:22px;margin-bottom:5px;color:#64748b}' +
+    '.ptfc-step:before{content:"";position:absolute;right:3px;top:3px;width:11px;height:11px;border-radius:50%;background:#e2e8f0;border:2px solid #cbd5e1}' +
+    '.ptfc-step.done{color:#065f46}.ptfc-step.done:before{background:#10b981;border-color:#10b981}' +
+    '.ptfc-step.now{color:#0e7490;font-weight:800}.ptfc-step.now:before{background:#0e7490;border-color:#0e7490;box-shadow:0 0 0 4px rgba(14,116,144,.15)}' +
+    '.ptfc-handoff{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}' +
+    '.ptfc-handoff a{font-size:11px;padding:5px 9px;border-radius:9px;text-decoration:none;font-weight:800}' +
+    '.ptfc-handoff .wa{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}' +
+    '.ptfc-handoff .tg{background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd}' +
     '.ptfc-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px;background:#f7f8fa}' +
     '.ptfc-quick button{border:1px solid #e5e7eb;background:#fff;border-radius:999px;padding:6px 11px;font-size:11.5px;cursor:pointer;color:#374151;font-family:inherit}' +
     '.ptfc-quick button:hover{border-color:#ef4b1a;color:#ef4b1a}' +
@@ -283,7 +368,34 @@
 
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
-  function addBubble(who, text, links) {
+  /* ---------- v34.7.68: کارت‌های غنی (مقاله / پیشرفت سفارش) ---------- */
+  function cardHtml(c) {
+    if (!c) return '';
+    if (c.type === 'article') {
+      return '<a class="ptfc-card ptfc-card-art" href="' + esc(BASE + c.url) + '" target="_blank" rel="noopener">' +
+        '<b>📄 ' + esc(c.title) + '</b>' +
+        (c.snippet ? '<span>' + esc(c.snippet) + '</span>' : '') +
+        '</a>';
+    }
+    if (c.type === 'progress') {
+      var steps = (c.stages || []).map(function (s, i) {
+        var st = i < (c.currentIndex || 0) ? 'done' : (i === (c.currentIndex || 0) ? 'now' : 'todo');
+        return '<div class="ptfc-step ' + st + '">' + esc(s) + '</div>';
+      }).join('');
+      return '<div class="ptfc-card ptfc-card-prog"><div class="ptfc-prog-head">🛤 پیشرفت سفارش</div>' + steps + '</div>';
+    }
+    return '';
+  }
+  function addCards(el, cards) {
+    if (!cards || !cards.length) return;
+    var cw = document.createElement('div');
+    cw.className = 'ptfc-cards';
+    cards.forEach(function (c) { cw.insertAdjacentHTML('beforeend', cardHtml(c)); });
+    el.appendChild(cw);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function addBubble(who, text, links, cards) {
     var d = document.createElement('div');
     d.className = 'ptfc-m ' + (who === 'u' ? 'ptfc-user' : 'ptfc-bot');
     d.innerHTML = esc(text);
@@ -294,12 +406,21 @@
         var a = document.createElement('a');
         a.className = 'ptfc-lnk';
         a.textContent = l.lb;
-        a.href = l.url.indexOf('#') === 0 ? BASE + l.url : BASE + l.url;
+        a.href = l.url.indexOf('#') === 0 ? BASE + l.url : (l.url.indexOf('http') === 0 ? l.url : BASE + l.url);
+        a.target = l.url.indexOf('http') === 0 ? '_blank' : '_self';
         lw.appendChild(a);
       });
       d.appendChild(lw);
     }
+    addCards(d, cards);
     body.appendChild(d);
+    body.scrollTop = body.scrollHeight;
+    return d;
+  }
+  function bubbleAppendText(el, text) {
+    if (!el) return;
+    var t = esc(text);
+    el.insertAdjacentHTML('beforeend', t);
     body.scrollTop = body.scrollHeight;
   }
 
@@ -316,15 +437,52 @@
   }
 
   function botReply(q) {
-    var local = answer(q);
-    // اگر LLM فعال باشد و موتور محلی مطمئن نبود، از LLM بپرس
-    if (LLM.enabled && local.unknown) {
-      addBubble('b', 'در حال بررسی...');
-      askLLM(q, history(), function (llmAns) {
+    /* v34.7.67: اگر کد رهگیری + پرسش وضعیت بود → وضعیت واقعی (بدون مصرف توکن) */
+    var code = trackingCode(q);
+    if (code && isStatusAsk(q)) {
+      addBubble('b', 'در حال بررسی وضعیت ' + code + ' …');
+      fetchStatus(code, function (d) {
         body.removeChild(body.lastChild);
-        if (llmAns) { addBubble('b', llmAns, [{ lb: 'ثبت استعلام', url: 'rfq/' }]); saveMsg('b', llmAns); }
-        else { addBubble('b', local.a, [local.link, local.link2, local.link3]); saveMsg('b', local.a); }
+        if (!d || !d.ok) {
+          addBubble('b', 'متأسفانه کد رهگیری یافت نشد؛ لطفاً کد را بررسی کنید (مثلاً PTF-RFQ-XXXXX-XXXXX).', [{ lb: 'رهگیری آنلاین', url: 'tracking/' }]);
+          saveMsg('b', 'کد رهگیری یافت نشد');
+          return;
+        }
+        var lines = ['📦 وضعیت درخواست «' + d.code + '»: ' + (d.statusText || 'در حال بررسی')];
+        var cards = [];
+        if (d.order && d.order.stages && d.order.stages.length) {
+          cards.push({ type: 'progress', stages: d.order.stages, currentIndex: d.order.currentIndex || 0 });
+        }
+        addBubble('b', lines.join('\n'), [{ lb: 'پیگیری آنلاین', url: 'tracking/?code=' + encodeURIComponent(d.code) }], cards);
+        saveMsg('b', lines.join('\n'));
       });
+      return;
+    }
+    var local = answer(q);
+    // اگر LLM فعال باشد و موتور محلی مطمئن نبود، از LLM بپرس (استریم + fallback)
+    if (LLM.enabled && local.unknown) {
+      var bub = addBubble('b', '');
+      var gotToken = false, acc = '';
+      askLLMStream(q, history(),
+        function (token) { gotToken = true; acc += token; bubbleAppendText(bub, token); },
+        function (done, streamOk) {
+          if (streamOk && gotToken) {
+            addCards(bub, done && done.cards);
+            var lks = (done && done.cta) ? done.cta.map(function (c) { return { lb: c.label, url: c.url }; }) : [{ lb: 'ثبت استعلام', url: 'rfq/' }];
+            lks.forEach(function (l) {
+              var a = document.createElement('a'); a.className = 'ptfc-lnk'; a.textContent = l.lb; a.href = l.url; a.target = '_blank';
+              bub.appendChild(a);
+            });
+            saveMsg('b', acc);
+          } else {
+            /* fallback به مسیر غیراستریم */
+            body.removeChild(bub);
+            askLLM(q, history(), function (llmAns) {
+              if (llmAns) { addBubble('b', llmAns, [{ lb: 'ثبت استعلام', url: 'rfq/' }]); saveMsg('b', llmAns); }
+              else { addBubble('b', local.a, [local.link, local.link2, local.link3]); saveMsg('b', local.a); }
+            });
+          }
+        });
       return;
     }
     setTimeout(function () {
@@ -342,7 +500,7 @@
     botReply(text);
   }
 
-  /* ---------- ارسال به کارشناس → ثبت لید در CRM (AC5) ---------- */
+  /* ---------- ارسال به کارشناس → ثبت لید واقعی در CRM (AC5 + v34.7.67) ---------- */
   function toExpert() {
     var name = prompt('نام و نام خانوادگی شما:');
     if (!name) return;
@@ -350,21 +508,38 @@
     if (!phone) return;
     var h = history();
     var summary = h.slice(-10).map(function (m) { return (m.w === 'u' ? '👤 ' : '🤖 ') + m.t; }).join('\n').slice(0, 900);
-    try {
-      var leads = JSON.parse(localStorage.getItem('ptf_crm_leads') || '[]');
-      leads.unshift({
-        cd: 'LEAD-' + Math.floor(10000 + Math.random() * 90000),
-        co: name, person: name, tel: '', mob: phone, email: '', ind: 'سایر', src: 'وب‌سایت',
-        firstISO: new Date().toISOString().slice(0, 10),
-        firstFa: new Date().toLocaleDateString('fa-IR'),
-        val: 0, need: 'گفتگوی چت آنلاین:\n' + summary,
-        stage: 'new', hist: [{ t: new Date().toLocaleDateString('fa-IR'), k: 'ثبت', tx: 'ثبت خودکار از ویجت چت سایت' }],
-        createdFa: new Date().toLocaleDateString('fa-IR')
-      });
-      localStorage.setItem('ptf_crm_leads', JSON.stringify(leads));
-    } catch (e) {}
-    addBubble('b', 'ممنون ' + name + ' عزیز! ✅ درخواست شما ثبت شد و کارشناسان ما در اولین فرصت با شماره ' + phone + ' تماس می‌گیرند.\nاگر عجله دارید: 021-46087679');
-    saveMsg('b', 'ثبت درخواست تماس برای ' + name);
+    /* v34.7.67: ثبت روی سرور (لید واقعی CRM) — دیگر فقط localStorage نیست */
+    fetch(BASE + 'api/crm.php?action=chat_lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'name=' + encodeURIComponent(name) + '&phone=' + encodeURIComponent(phone) + '&summary=' + encodeURIComponent(summary)
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      var ok = d && d.ok;
+      var bub = addBubble('b', ok
+        ? 'ممنون ' + name + ' عزیز! ✅ درخواست شما ثبت شد و کارشناسان ما در اولین فرصت با شماره ' + phone + ' تماس می‌گیرند.\nاگر عجله دارید، از راه‌های زیر مستقیم در ارتباط باشید:'
+        : 'ثبت درخواست تماس ممکن نشد؛ لطفاً از راه‌های زیر مستقیم در ارتباط باشید:');
+      addHandoff(bub);
+      saveMsg('b', 'ثبت درخواست تماس برای ' + name + (ok ? '' : ' (ناموفق)'));
+    }).catch(function () {
+      var bub = addBubble('b', 'ثبت درخواست تماس ممکن نشد؛ لطفاً از راه‌های زیر مستقیم در ارتباط باشید:');
+      addHandoff(bub);
+      saveMsg('b', 'ثبت درخواست تماس برای ' + name + ' (ناموفق)');
+    });
+  }
+
+  /* v34.7.68: دکمه‌های گفتگوی مستقیم (واتس‌اپ / تلگرام) */
+  function addHandoff(el) {
+    if (!el) return;
+    var waText = encodeURIComponent('سلام، از چت سایت پیشرو تجهیز فرتاک پیام می‌دهم.');
+    var tgText = encodeURIComponent('سلام، از چت سایت پیشرو تجهیز فرتاک پیام می‌دهم.');
+    var w = document.createElement('div');
+    w.className = 'ptfc-handoff';
+    w.innerHTML =
+      '<a class="wa" target="_blank" rel="noopener" href="https://wa.me/989925868479?text=' + waText + '">💬 واتس‌اپ</a>' +
+      '<a class="tg" target="_blank" rel="noopener" href="https://t.me/+989925868479">✈️ تلگرام</a>' +
+      '<a class="wa" href="tel:02146087679">📞 021-46087679</a>';
+    el.appendChild(w);
+    body.scrollTop = body.scrollHeight;
   }
 
   /* ---------- رویدادها ---------- */
