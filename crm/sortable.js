@@ -47,7 +47,7 @@
   /* هدر قابل کلیک با فلش (برای جدول‌ها) */
   window.ptfSortHeader = function (listId, key, label) {
     var st = window.ptfSortState[listId] || {};
-    var arrow = st.key === key ? (st.dir === 'asc' ? ' ▲' : ' ▼') : '';
+    var arrow = st.key === key ? (st.dir === 'asc' ? ' ↑' : ' ↓') : '';
     return '<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="ptfSortClick(\'' + listId + '\',\'' + key + '\')" title="مرتب‌سازی">' + label + arrow + '</th>';
   };
 
