@@ -821,6 +821,34 @@ function migrate_legacy_password_hash($user, $plainPassword) {
     save_data('crm_users', $rows);
 }
 
+/* v34.7.70 (SUP-DEDUP-001): جلوگیری از ثبت تکراری تامین‌کننده — نرمال‌سازی سروری.
+   هم‌ارز dedupNorm/dedupNormPhone سمت کلاینت (dedup.js) برای منبع حقیقت سرور. */
+function ptf_dedup_norm($s) {
+    $s = (string)($s ?? '');
+    $fa = '۰۱۲۳۴۵۶۷۸۹'; $ar = '٠١٢٣٤٥٦٧٨٩';
+    $out = '';
+    for ($i = 0; $i < mb_strlen($s); $i++) {
+        $ch = mb_substr($s, $i, 1);
+        $fi = mb_strpos($fa, $ch); $ai = mb_strpos($ar, $ch);
+        if ($fi !== false) $ch = (string)$fi;
+        elseif ($ai !== false) $ch = (string)$ai;
+        $out .= $ch;
+    }
+    $out = str_replace(['ي','ئ','ى'], 'ی', $out);
+    $out = str_replace('ك', 'ک', $out);
+    $out = str_replace(['أ','إ','آ'], 'ا', $out);
+    $out = str_replace('ة', 'ه', $out);
+    $out = preg_replace('/[\x{200c}\x{200f}\x{200e}\x{064b}-\x{0652}]/u', '', $out);
+    $out = preg_replace('/[\s\-_.،,؛;()\/\\\\]/u', '', $out);
+    return mb_strtolower($out);
+}
+function ptf_dedup_phone($s) {
+    $d = preg_replace('/\D/', '', ptf_dedup_norm((string)($s ?? '')));
+    if (strpos($d, '0098') === 0) $d = '0' . substr($d, 4);
+    elseif (strpos($d, '98') === 0 && strlen($d) === 12) $d = '0' . substr($d, 2);
+    return $d;
+}
+
 /* پیوست فرم‌های عمومی: فقط فضای ابری.
    PHP فقط از فایل موقت upload request به S3 stream می‌کند؛ هیچ فایل پیوستی در
    crm/data/uploads یا مسیر دائمیِ هاست نوشته نمی‌شود. */
@@ -1069,6 +1097,39 @@ switch($action) {
         }
         try { $code = public_tracking_code('VEN'); }
         catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
+        /* v34.7.70 (SUP-DEDUP-001): جلوگیری از ثبت تکراری — نام شرکت یا شماره تماس
+           (نرمال‌شده) در برابر ثبت‌نام‌های سایت (pending) و فهرست تاییدشده CRM. */
+        $supCompanyRaw = clean($_POST['company'] ?? '');
+        $supNameNorm = ptf_dedup_norm($supCompanyRaw);
+        $supPhoneNorm = ptf_dedup_phone($_POST['phone'] ?? '');
+        $dupFound = null;
+        if ($supNameNorm !== '' || $supPhoneNorm !== '') {
+            foreach (array_merge(load_data('suppliers'), load_data('ptf_crm_suppliers')) as $row) {
+                if (!is_array($row)) continue;
+                $rcode = (string)($row['code'] ?? ($row['cd'] ?? ''));
+                if ($supNameNorm !== '' && ptf_dedup_norm($row['company'] ?? ($row['co'] ?? '')) === $supNameNorm) {
+                    $dupFound = ['code' => $rcode, 'co' => ($row['company'] ?? ($row['co'] ?? '')), 'why' => 'نام شرکت/فروشگاه'];
+                    break;
+                }
+                $rowPhones = [$row['phone'] ?? '', $row['ph'] ?? '', $row['mob'] ?? ''];
+                foreach ($rowPhones as $rp) {
+                    $rpN = ptf_dedup_phone($rp);
+                    if ($supPhoneNorm !== '' && $rpN !== '' && $rpN === $supPhoneNorm) {
+                        $dupFound = ['code' => $rcode, 'co' => ($row['company'] ?? ($row['co'] ?? '')), 'why' => 'شماره تماس'];
+                        break 2;
+                    }
+                }
+            }
+        }
+        if ($dupFound) {
+            echo json_encode([
+                'ok' => false, 'error' => 'duplicate',
+                'message' => 'این تامین‌کننده قبلاً با ' . $dupFound['why'] . ' در سیستم ثبت شده است' .
+                    ($dupFound['co'] ? ' («' . $dupFound['co'] . '»' . ($dupFound['code'] ? ' — ' . $dupFound['code'] : '') . ')' : '') .
+                    '. اگر رکورد متعلق به شماست، نیازی به ثبت مجدد نیست؛ کارشناسان ما با شما تماس می‌گیرند.'
+            ], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         $attachmentError = '';
         $attachment = save_attachment('attachment', 'ven', $attachmentError);
         /* فایل کاتالوگ اختیاری است؛ اختلال فضای ابری نباید ثبت‌نامِ تاییدشده را
