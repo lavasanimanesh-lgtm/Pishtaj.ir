@@ -515,14 +515,28 @@
   window.supApprove = function (code) {
     var s = siteSuppliers().filter(function (x) { return x.code === code; })[0];
     if (!s) return;
-    if (!confirm('تامین‌کننده «' + s.company + '» تایید و به فهرست تاییدشده اضافه شود؟')) return;
+    if (typeof ptfDialog === 'function') {
+      ptfDialog({
+        title: '✅ تایید تامین‌کننده — ' + s.company,
+        body: 'این ثبت‌نام تایید و به فهرست تامین‌کنندگان تاییدشده اضافه می‌شود. پیامک تایید به تامین‌کننده ارسال می‌گردد (در صورت فعال بودن پیامک).',
+        fields: [{ id: 'note', label: 'دلیل / یادداشت تایید (در سابقه ثبت می‌شود)', type: 'textarea', rows: 2, value: 'مدارک کامل — تایید شد' }],
+        okText: '✅ تایید و ثبت',
+        onOk: function (v) { supApproveCommit(code, v.note || ''); }
+      });
+      return;
+    }
+    supApproveCommit(code, 'مدارک کامل — تایید شد');
+  };
+  window.supApproveCommit = function (code, note) {
+    var s = siteSuppliers().filter(function (x) { return x.code === code; })[0];
+    if (!s) return;
     var items = getData('ptf_crm_suppliers');
     if (!items.some(function (x) { return x.cd === code; })) {
       /* v34.7.66: حفظ پیوست ابری و متن درخواست روی رکورد تاییدشده (قبلاً حذف می‌شد) */
       var siteAtt = siteAttachmentMeta(s.attachment);
       var importedFiles = {};
       if (siteAtt && siteAtt.cloud) importedFiles.oth = [{ key: siteAtt.key, name: siteAtt.name, size: siteAtt.size, mode: 'arvan', t: faDateTime(), source: 'site' }];
-      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '' };
+      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '', apprNote: note || '' };
       // US-174: هشدار تکراری بودن با فهرست تاییدشده (تصمیم نهایی با مدیر ارشد)
       if (typeof ptfCheckDup === 'function') {
         var dups = ptfCheckDup('supplier', recSup, null);
@@ -532,9 +546,10 @@
       items.unshift(recSup);
       setData('ptf_crm_suppliers', items);
     }
-    api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — به فهرست تامین‌کنندگان تاییدشده اضافه شدید', by: curSession().name }, function () { syncServerInbox(); });
-    if (typeof audit === 'function') audit('تامین‌کنندگان', 'تایید تامین‌کننده سایت: ' + s.company, code);
+    api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — به فهرست تامین‌کنندگان تاییدشده اضافه شدید', note: note || '', by: curSession().name }, function () { syncServerInbox(); });
+    if (typeof audit === 'function') audit('تامین‌کنندگان', 'تایید تامین‌کننده سایت: ' + s.company + (note ? ' — ' + note : ''), code);
     notify({ toRoles: SENIOR_ROLES, title: '✅ تامین‌کننده «' + s.company + '» (' + code + ') توسط ' + curSession().name + ' تایید شد', kind: 'supplier_ok', channels: ['cart'], link: { panel: 'sup' } });
+    if (typeof ptfToast === 'function') ptfToast('✅ تایید شد — پیامک اطلاع‌رسانی به تامین‌کننده ارسال می‌شود', 'ok');
     renderSuppliers();
     updateInboxBadge();
   };
@@ -544,22 +559,34 @@
     if (!s) return;
     if (typeof ptfDialog === 'function') {
       ptfDialog({
-        title: '✖ رد تامین‌کننده ' + s.company,
-        fields: [{ id: 'reason', label: 'دلیل رد (در رهگیری به تامین‌کننده نمایش داده می‌شود)', type: 'textarea', rows: 2, value: 'عدم تطابق با نیازمندی‌های فعلی' }],
+        title: '✖ رد تامین‌کننده — ' + s.company,
+        body: 'دلیل رد را انتخاب و در صورت نیاز توضیح دهید. با انتخاب «نقصان مدارک»، تامین‌کننده می‌تواند مدارک را تکمیل و دوباره ثبت‌نام کند.',
+        fields: [
+          { id: 'reasonType', label: 'دلیل رد *', type: 'select', value: 'mismatch', options: [
+            { v: 'mismatch', lb: 'عدم تطابق با نیازمندی‌ها' },
+            { v: 'docs', lb: 'نقصان مدارک (امکان تکمیل و ثبت مجدد)' },
+            { v: 'other', lb: 'سایر' }
+          ]},
+          { id: 'note', label: 'توضیح (در رهگیری و پیامک به تامین‌کننده نمایش داده می‌شود)', type: 'textarea', rows: 2, value: '' }
+        ],
         danger: true, okText: 'رد ثبت‌نام',
-        onOk: function (v) { supRejectCommit(code, v.reason); }
+        onOk: function (v) { supRejectCommit(code, v.reasonType || 'mismatch', v.note || ''); }
       });
       return;
     }
     var reason = prompt('دلیل رد:', 'عدم تطابق با نیازمندی‌های فعلی');
     if (reason === null) return;
-    supRejectCommit(code, reason);
+    supRejectCommit(code, 'mismatch', reason);
   };
-  window.supRejectCommit = function (code, reason) {
+  window.supRejectCommit = function (code, reasonType, note) {
     var s = siteSuppliers().filter(function (x) { return x.code === code; })[0];
     if (!s) return;
-    api('set_status', { type: 'supplier', code: code, status: 'rejected', statusText: 'رد شد' + (reason ? ' — ' + reason : ''), by: curSession().name }, function () { syncServerInbox(); });
-    if (typeof audit === 'function') audit('تامین‌کنندگان', 'رد تامین‌کننده سایت: ' + s.company, code);
+    var REASON_LB = { docs: 'نقصان مدارک', mismatch: 'عدم تطابق با نیازمندی‌ها', other: 'سایر' };
+    var reopen = reasonType === 'docs';
+    var stText = 'رد شد — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : '');
+    api('set_status', { type: 'supplier', code: code, status: 'rejected', statusText: stText, rejectType: reasonType || '', note: note || '', reopen: reopen ? 1 : 0, by: curSession().name }, function () { syncServerInbox(); });
+    if (typeof audit === 'function') audit('تامین‌کنندگان', 'رد تامین‌کننده سایت: ' + s.company + ' — ' + (REASON_LB[reasonType] || 'سایر') + (note ? ' (' + note + ')' : ''), code);
+    if (reopen && typeof ptfToast === 'function') ptfToast('↻ رد با امکان تکمیل مدارک ثبت شد — پیامک به تامین‌کننده ارسال می‌شود تا مدارک را تکمیل کند', 'ok');
     renderSuppliers();
   };
 

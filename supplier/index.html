@@ -154,6 +154,7 @@
       <div class="sup-body">
         <form id="supplierForm" action="../api/crm.php?action=add_supplier" method="post" enctype="multipart/form-data">
           <input type="hidden" name="action" value="add_supplier">
+          <input type="hidden" name="code" id="sCode" value="">
 
           <div class="grid-2">
             <div class="field"><label>نام شرکت / فروشگاه / انبار صنعتی *:</label><input type="text" name="company" id="sComp" required placeholder="مثلاً: بازرگانی / شرکت تولیدی..."></div>
@@ -265,6 +266,15 @@
   <script>
     const form = document.getElementById('supplierForm');
     const statusBox = document.getElementById('supStatus');
+
+    /* v34.7.71: تکمیل مدارک — اگر با ?code= آمده باشیم، کد رهگیری قبلی را حفظ می‌کنیم */
+    (function () {
+      try {
+        const q = new URLSearchParams(location.search);
+        const c = (q.get('code') || '').trim().toUpperCase();
+        if (c && document.getElementById('sCode')) document.getElementById('sCode').value = c;
+      } catch (e) {}
+    })();
 
     window.addEventListener('DOMContentLoaded', () => {
       if (typeof ptfCaptchaMount === 'function') {

@@ -1097,29 +1097,87 @@ switch($action) {
         }
         try { $code = public_tracking_code('VEN'); }
         catch (Throwable $e) { http_response_code(503); echo json_encode(['ok'=>false,'error'=>'tracking_code_unavailable'], JSON_UNESCAPED_UNICODE); break; }
-        /* v34.7.70 (SUP-DEDUP-001): جلوگیری از ثبت تکراری — نام شرکت یا شماره تماس
-           (نرمال‌شده) در برابر ثبت‌نام‌های سایت (pending) و فهرست تاییدشده CRM. */
+        /* v34.7.70 (SUP-DEDUP-001) + v34.7.71 (SUP-RESUBMIT-001):
+           جلوگیری از ثبت تکراری — نام شرکت یا شماره تماس (نرمال‌شده) در برابر ثبت‌نام‌های
+           سایت (pending/rejected) و فهرست تاییدشده CRM. اگر رکورد تکراری «ردشده با دلیل
+           نقصان مدارک» باشد، به‌جای بلاک، همان رکورد باز و مدارک تکمیل می‌شود. */
         $supCompanyRaw = clean($_POST['company'] ?? '');
         $supNameNorm = ptf_dedup_norm($supCompanyRaw);
         $supPhoneNorm = ptf_dedup_phone($_POST['phone'] ?? '');
         $dupFound = null;
-        if ($supNameNorm !== '' || $supPhoneNorm !== '') {
-            foreach (array_merge(load_data('suppliers'), load_data('ptf_crm_suppliers')) as $row) {
-                if (!is_array($row)) continue;
-                $rcode = (string)($row['code'] ?? ($row['cd'] ?? ''));
-                if ($supNameNorm !== '' && ptf_dedup_norm($row['company'] ?? ($row['co'] ?? '')) === $supNameNorm) {
-                    $dupFound = ['code' => $rcode, 'co' => ($row['company'] ?? ($row['co'] ?? '')), 'why' => 'نام شرکت/فروشگاه'];
+        /* v34.7.71 (SUP-RESUBMIT-001): اگر با ?code= آمده باشد و آن رکورد «ردشده + باز»
+           باشد، مستقیماً همان رکورد باز می‌شود (مستقل از تطابق نام/شماره). */
+        $resubmitCode = strtoupper(clean($_POST['code'] ?? '', 60));
+        if ($resubmitCode !== '') {
+            foreach (load_data('suppliers') as $idx => $row) {
+                if (is_array($row) && ($row['code'] ?? '') === $resubmitCode && ($row['status'] ?? '') === 'rejected' && !empty($row['reopen'])) {
+                    $dupFound = ['list'=>'suppliers','idx'=>$idx,'code'=>$resubmitCode,'co'=>($row['company'] ?? ''),'why'=>'کد رهگیری','row'=>$row];
                     break;
+                }
+            }
+        }
+        if (!$dupFound && ($supNameNorm !== '' || $supPhoneNorm !== '')) {
+            foreach (load_data('suppliers') as $idx => $row) {
+                if (!is_array($row)) continue;
+                $rcode = (string)($row['code'] ?? '');
+                if ($supNameNorm !== '' && ptf_dedup_norm($row['company'] ?? '') === $supNameNorm) {
+                    $dupFound = ['list'=>'suppliers','idx'=>$idx,'code'=>$rcode,'co'=>($row['company'] ?? ''),'why'=>'نام شرکت/فروشگاه','row'=>$row]; break;
                 }
                 $rowPhones = [$row['phone'] ?? '', $row['ph'] ?? '', $row['mob'] ?? ''];
                 foreach ($rowPhones as $rp) {
                     $rpN = ptf_dedup_phone($rp);
                     if ($supPhoneNorm !== '' && $rpN !== '' && $rpN === $supPhoneNorm) {
-                        $dupFound = ['code' => $rcode, 'co' => ($row['company'] ?? ($row['co'] ?? '')), 'why' => 'شماره تماس'];
-                        break 2;
+                        $dupFound = ['list'=>'suppliers','idx'=>$idx,'code'=>$rcode,'co'=>($row['company'] ?? ''),'why'=>'شماره تماس','row'=>$row]; break 2;
                     }
                 }
             }
+            if (!$dupFound) {
+                foreach (load_data('ptf_crm_suppliers') as $idx => $row) {
+                    if (!is_array($row)) continue;
+                    $rcode = (string)($row['cd'] ?? '');
+                    if ($supNameNorm !== '' && ptf_dedup_norm($row['co'] ?? '') === $supNameNorm) {
+                        $dupFound = ['list'=>'ptf_crm_suppliers','idx'=>$idx,'code'=>$rcode,'co'=>($row['co'] ?? ''),'why'=>'نام شرکت/فروشگاه','row'=>$row]; break;
+                    }
+                    $rowPhones = [$row['ph'] ?? '', $row['mob'] ?? '', $row['coTels'] ?? ''];
+                    foreach ($rowPhones as $rp) {
+                        if (is_array($rp)) continue;
+                        $rpN = ptf_dedup_phone($rp);
+                        if ($supPhoneNorm !== '' && $rpN !== '' && $rpN === $supPhoneNorm) {
+                            $dupFound = ['list'=>'ptf_crm_suppliers','idx'=>$idx,'code'=>$rcode,'co'=>($row['co'] ?? ''),'why'=>'شماره تماس','row'=>$row]; break 2;
+                        }
+                    }
+                }
+            }
+        }
+        $attachmentError = '';
+        $attachment = save_attachment('attachment', 'ven', $attachmentError);
+        $attachmentWarning = $attachmentError ? ('پیوست ذخیره نشد: ' . $attachmentError) : '';
+        /* v34.7.71 (SUP-RESUBMIT-001): تکمیل مدارک — رکورد ردشده با دلیل نقصان مدارک
+           به‌جای ساخت رکورد تکراری، باز می‌شود و مدارک جدید جایگزین/پیوست می‌شود. */
+        if ($dupFound && ($dupFound['row']['status'] ?? '') === 'rejected' && !empty($dupFound['row']['reopen']) && $dupFound['list'] === 'suppliers') {
+            $suppliers = load_data('suppliers');
+            $oldCode = (string)($dupFound['row']['code'] ?? $dupFound['code']);
+            $suppliers[$dupFound['idx']] = [
+                'code' => $oldCode,
+                'src' => 'site',
+                'company' => clean($_POST['company'] ?? ''),
+                'name' => clean($_POST['name'] ?? ''),
+                'phone' => clean($_POST['phone'] ?? ''),
+                'category' => clean($_POST['category'] ?? ''),
+                'type' => clean($_POST['type'] ?? ''),
+                'brands' => clean($_POST['brands'] ?? ''),
+                'email' => clean($_POST['email'] ?? ''),
+                'message' => clean($_POST['message'] ?? '', 2000),
+                'attachment' => ($attachment ?: ($dupFound['row']['attachment'] ?? null)),
+                'status' => 'pending',
+                'statusText' => 'مدارک تکمیل شد — در انتظار بررسی مجدد',
+                'date' => date('Y-m-d H:i'),
+                'approvedBy' => null
+            ];
+            save_data('suppliers', $suppliers);
+            push_event_rec('supplier_site', 'تکمیل مدارک ثبت‌نام تامین‌کننده: ' . clean($_POST['company'] ?? '') . ' (' . $oldCode . ')', ['code' => $oldCode]);
+            echo json_encode(['ok' => true, 'code' => $oldCode, 'reopened' => true, 'warning' => $attachmentWarning], JSON_UNESCAPED_UNICODE);
+            break;
         }
         if ($dupFound) {
             echo json_encode([
@@ -1130,12 +1188,6 @@ switch($action) {
             ], JSON_UNESCAPED_UNICODE);
             break;
         }
-        $attachmentError = '';
-        $attachment = save_attachment('attachment', 'ven', $attachmentError);
-        /* فایل کاتالوگ اختیاری است؛ اختلال فضای ابری نباید ثبت‌نامِ تاییدشده را
-           متوقف یا کد رهگیری را حذف کند. خطا به کاربر برگردانده می‌شود تا فایل را
-           بعداً ارسال کند، اما مشخصات تامین‌کننده در CRM ثبت می‌ماند. */
-        $attachmentWarning = $attachmentError ? ('ثبت‌نام انجام شد، اما پیوست ذخیره نشد: ' . $attachmentError) : '';
         $suppliers = load_data('suppliers');
         $suppliers[] = [
             'code' => $code,
@@ -1158,6 +1210,7 @@ switch($action) {
         push_event_rec('supplier_site', 'یک تامین‌کننده در سایت ثبت‌نام کرد و منتظر بررسی است: ' . clean($_POST['company'] ?? '') . ' (' . $code . ')', ['code' => $code]);
         echo json_encode(['ok' => true, 'code' => $code, 'warning' => $attachmentWarning], JSON_UNESCAPED_UNICODE);
         break;
+
 
     // ===== v34.7.67 (CHAT-LEAD-001): «ارسال گفتگو به کارشناس» از ویجت چت → لید واقعی CRM =====
     case 'chat_lead':
@@ -1245,6 +1298,12 @@ switch($action) {
                 $order = ['stageKey' => $cur, 'stage' => $orderStages[$cur], 'stages' => array_values($orderStages), 'currentIndex' => ($idx === false ? 0 : $idx)];
             }
         }
+        $reopen = false; $rejectType = ''; $note = '';
+        if ($type === 'supplier') {
+            $reopen = !empty($found['reopen']);
+            $rejectType = (string)($found['rejectType'] ?? '');
+            $note = (string)($found['note'] ?? '');
+        }
         echo json_encode([
             'ok' => true, 'type' => $type,
             'code' => $found['code'],
@@ -1253,7 +1312,8 @@ switch($action) {
             'status' => $found['status'] ?? '',
             'statusText' => $found['statusText'] ?? '',
             'date' => $found['date'] ?? '',
-            'order' => $order
+            'order' => $order,
+            'reopen' => $reopen, 'rejectType' => $rejectType, 'note' => $note
         ], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -1275,19 +1335,45 @@ switch($action) {
         $status = clean($_POST['status'] ?? '', 40);
         $statusText = clean($_POST['statusText'] ?? '', 200);
         $by = clean($_POST['by'] ?? '', 100);
+        $rejectType = clean($_POST['rejectType'] ?? '', 40);
+        $note = clean($_POST['note'] ?? '', 300);
+        $reopen = ($_POST['reopen'] ?? '') === '1' || ($_POST['reopen'] ?? '') === 'true';
         $key = $type === 'supplier' ? 'suppliers' : 'rfqs';
         $items = load_data($key);
         $done = false;
+        $smsPhone = ''; $smsStatus = ''; $smsRejectType = '';
         foreach ($items as &$it) {
             if (($it['code'] ?? '') === $code) {
                 $it['status'] = $status ?: $it['status'];
                 $it['statusText'] = $statusText ?: $it['statusText'];
                 if ($by) $it['approvedBy'] = $by;
+                if ($status === 'rejected') {
+                    $it['reopen'] = $reopen;
+                    $it['rejectType'] = $rejectType;
+                    if ($note !== '') $it['note'] = $note;
+                }
+                if ($status === 'approved' && $note !== '') $it['apprNote'] = $note;
+                $smsPhone = preg_replace('/\D/', '', (string)($it['phone'] ?? ($it['ph'] ?? '')));
+                $smsStatus = $status;
+                $smsRejectType = $rejectType;
                 $done = true;
             }
         }
         if ($done) save_data($key, $items);
-        echo json_encode(['ok' => $done], JSON_UNESCAPED_UNICODE);
+        /* v34.7.71 (SUP-SMS-001): پیامک ثبت/رد تامین‌کننده */
+        $smsSent = false;
+        if ($done && $type === 'supplier' && $smsPhone !== '' && sms_enabled()) {
+            if ($smsStatus === 'approved') {
+                $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nدرخواست ثبت‌نام تامین‌کنندگی شما تایید شد؛ به‌زودی کارشناسان ما با شما تماس می‌گیرند.\n021-46087679");
+            } elseif ($smsStatus === 'rejected') {
+                if ($smsRejectType === 'docs') {
+                    $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nمدارک شما ناقص است؛ لطفاً مدارک را تکمیل و دوباره از سایت ثبت‌نام کنید.\n021-46087679");
+                } else {
+                    $smsSent = sms_send($smsPhone, "پیشرو تجهیز فرتاک\nدرخواست شما در این مرحله پذیرفته نشد" . ($note ? '.\n' . mb_substr($note, 0, 120) : '.') . "\n021-46087679");
+                }
+            }
+        }
+        echo json_encode(['ok' => $done, 'sms' => $smsSent], JSON_UNESCAPED_UNICODE);
         break;
 
     // ===== US-138: رویدادهای لحظه‌ای (پیام‌رسانی بین کاربران CRM) =====
