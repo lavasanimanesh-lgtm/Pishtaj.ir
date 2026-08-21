@@ -616,7 +616,7 @@
       title: (current ? '✏️ اصلاح ' : '') + tp.lb + ' — ' + (r.inqNo || cd),
       body: current
         ? 'اصلاح با نگهداری تصویر قبل/بعد در سابقه پرونده انجام می‌شود. مرحله پرونده پس از ذخیره دوباره از شواهد واقعی محاسبه می‌شود.'
-        : (typeId === 'delivered' ? 'با ثبت تحویل، وضعیت درخواست به «✅ تحویل شده» می‌رود و مرحله پرونده «تحویل‌شده به کارفرما» می‌شود — پیش‌نیاز ارجاع فاکتور.' : 'سند در پرونده ثبت و وضعیت درخواست (در صورت عقب‌تر بودن) به «🟠 آماده‌سازی» می‌رود.'),
+        : (typeId === 'delivered' ? 'با ثبت تحویل، وضعیت درخواست به «✅ تحویل شده» می‌رود و مرحله پرونده «تحویل‌شده به کارفرما» می‌شود.' : 'سند در پرونده ثبت و وضعیت درخواست (در صورت عقب‌تر بودن) به «🟠 آماده‌سازی» می‌رود.'),
       fields: flds,
       okText: current ? 'ذخیره اصلاح' : 'ثبت در پرونده',
       onOk: function (v) {
@@ -649,16 +649,15 @@
     });
   };
 
-  /* ===== v19.3: ارجاع فاکتور رسمی — فقط از پرونده فروش و فقط پس از تحویل کارفرما =====
+  /* ===== v19.3 + v34.7.72: ارجاع فاکتور رسمی — از پرونده فروش، در هر مرحله پس از برنده‌شدن =====
      هسته برنامه‌ای قابل تست؛ خروجی {ok, why} — UI فقط wrapper.
-     قفل سه‌لایه: ① نقش ارشد ② پرونده برنده ③ مرحله >= ۷ (تحویل‌شده به کارفرما — sfStageOf مشتق v19.2).
+     قفل دولایه: ① نقش ارشد ② پرونده برنده. قفل مرحله‌ای (پس از تحویل کارفرما — مرحله ۷)
+     طبق تصمیم کارفرما حذف شد؛ پس از برد، ارجاع فاکتور در هر مرحله مجاز است.
      پس از ارجاع، مرحله خودکار ۸ «در حال صدور فاکتور» می‌شود (invRef سیگنال sfStageOf است). */
   window.sfInvoiceRefCommit = function (cd) {
     var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
     if (!r || !r.wonOffer) return { ok: false, why: 'nofile' };
     if (typeof isSenior === 'function' && !isSenior()) return { ok: false, why: 'role' };
-    var stg = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
-    if (stg < 7) return { ok: false, why: 'stage', stage: stg };
     var offers = getData('ptf_crm_offers');
     var o = offers.filter(function (x) { return x.no === r.wonOffer; })[0];
     if (!o) return { ok: false, why: 'nooffer' };
@@ -669,10 +668,10 @@
     setData('ptf_crm_offers', offers);
     var list = sfAll();
     var rr = list.filter(function (x) { return x.cd === cd; })[0];
-    if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از تحویل کارفرما — US-435)' }); sfSave(list); }
-    try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار (مرحله: تحویل‌شده به کارفرما)', cd); } catch (e) {}
+    if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از برنده‌شدن — هر مرحله)' }); sfSave(list); }
+    try { audit('پرونده‌های فروش', 'ارجاع فاکتور رسمی ' + r.wonOffer + ' از پرونده ' + (r.inqNo || cd) + ' به حسابدار', cd); } catch (e) {}
     if (typeof notify === 'function') {
-      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — پیش‌فاکتور ' + r.wonOffer + ' برای صدور فاکتور رسمی ارجاع شد (کالا تحویل کارفرما شده)', body: 'خریدار: ' + (r.buyerCo || '-') + ' — سند قطعی برد در کارتابل ضمیمه است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
+      try { notify({ toRoles: ['accountant'], title: '🧾 پرونده ' + (r.inqNo || cd) + ' — پیش‌فاکتور ' + r.wonOffer + ' برای صدور فاکتور رسمی ارجاع شد', body: 'خریدار: ' + (r.buyerCo || '-') + ' — سند قطعی برد در کارتابل ضمیمه است', kind: 'inv_ref', channels: ['cart'], link: { panel: 'inv' }, actionable: true }); } catch (e2) {}
     }
     return { ok: true };
   };
@@ -681,7 +680,6 @@
     if (!res.ok) {
       var msgs = {
         role: '⛔ فقط نقش‌های ارشد می‌توانند ارجاع فاکتور بدهند.',
-        stage: '🔒 ارجاع فاکتور قفل است — تا قبل از ثبت «🤝 تحویل کارفرما» در همین پرونده، ارجاع به حسابدار مجاز نیست.\n\nمرحله فعلی پرونده: ' + (typeof sfStageLabel === 'function' ? sfStageLabel(sfAll().filter(function (x) { return x.cd === cd; })[0]) : '') ,
         already: 'ℹ️ این پرونده قبلا برای فاکتور ارجاع شده است.',
         nofile: '⛔ پرونده برنده یافت نشد.', nooffer: '⛔ پیشنهاد برنده پرونده یافت نشد.'
       };
@@ -694,7 +692,7 @@
       var accs = getData('ptf_crm_users').filter(function (u) { return u.roleId === 'accountant' && u.mobile; });
       if (!accs.length) alert('⚠️ کاربری با نقش حسابدار و شماره موبایل ثبت نشده');
       accs.forEach(function (u) {
-        smsSendSingle(u.mobile, 'حسابدار محترم شرکت پیشرو تجهیز فرتاک،\nکالای پرونده ارجاعی به کارفرما تحویل شده و پیش‌فاکتور جهت صدور فاکتور رسمی به کارتابل شما ارجاع شد.\nhttps://pishtaj.ir/crm/', function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع فاکتور ارسال شد' : 'پیامک ارجاع فاکتور در صف قرار گرفت'); });
+        smsSendSingle(u.mobile, 'حسابدار محترم شرکت پیشرو تجهیز فرتاک،\nپیش‌فاکتور پرونده جهت صدور فاکتور رسمی به کارتابل شما ارجاع شد.\nhttps://pishtaj.ir/crm/', function (d) { addLog(d.ok && d.sent ? 'پیامک ارجاع فاکتور ارسال شد' : 'پیامک ارجاع فاکتور در صف قرار گرفت'); });
       });
     }
     if (typeof renderDeals === 'function') renderDeals();
@@ -1235,17 +1233,14 @@
         'sfShipOpen(\'' + ptfOnClickArg(r.cd) + '\',\'delivered\')', { meta: 'تحویل نهایی' }
       );
     }
-    /* v19.3: ارجاع فاکتور — فقط از پرونده؛ قفل تا تحویل کارفرما (مرحله ۷) */
+    /* v19.3 + v34.7.72: ارجاع فاکتور — از پرونده، در هر مرحله پس از برنده‌شدن */
     postActions += (function () {
       if (!r.wonOffer) return '';
       var _wo = getData('ptf_crm_offers').filter(function (x) { return x.no === r.wonOffer; })[0];
       var _hasInvD = r.inqNo ? sfHasInvoice(r) : false;
       if (_hasInvD) return '';
       if (_wo && _wo.invRef) return '<span class="bd sf-post-award-status sf-post-award-invoice-status" title="' + escP('ارجاع‌شده توسط ' + (_wo.invRef.by || '') + ' — ' + (_wo.invRef.t || '')) + '">🧾 ارجاع شد — در حال صدور فاکتور</span>';
-      var _stg7 = (typeof sfStageOf === 'function') ? sfStageOf(r) : 0;
-      return _stg7 >= 7
-        ? postAction('invoice-ref', '🧾', 'ارجاع فاکتور', 'ارجاع فاکتور رسمی به حسابدار', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { primary: true, meta: 'برای حسابدار' })
-        : postAction('invoice-ref', '🔒', 'ارجاع فاکتور', 'ارجاع فاکتور تا ثبت تحویل کارفرما قفل است', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { locked: true, meta: 'پس از تحویل' });
+      return postAction('invoice-ref', '🧾', 'ارجاع فاکتور', 'ارجاع فاکتور رسمی به حسابدار', 'sfInvoiceRef(\'' + ptfOnClickArg(r.cd) + '\')', { primary: true, meta: 'برای حسابدار' });
     })();
     /* v34.2.0: عملیات نسخهٔ ریالی فقط برای پیشنهاد ارزی برنده ظاهر می‌شود. */
     postActions += '<span class="sf-post-award-rial">' + ((typeof window.ptfOfferRialToolbarHtml === 'function') ? window.ptfOfferRialToolbarHtml(r) : '') + '</span>';
