@@ -33,16 +33,38 @@
   // askLLM خودکار به موتور محلی KB برمی‌گردد (cb(null) → fallback).
   var LLM = { enabled: true, endpoint: BASE + 'api/chat-llm.php', timeoutMs: 12000 };
 
+  function detectLang(q) {
+    if (/[گچپژ]/.test(q)) return 'fa';
+    if (/[\u0600-\u06FF]/.test(q)) return 'ar';
+    return 'en';
+  }
+
   function askLLM(question, history, cb) {
     if (!LLM.enabled) { cb(null); return; }
     var ctrl = new AbortController();
     var to = setTimeout(function () { ctrl.abort(); }, LLM.timeoutMs);
     fetch(LLM.endpoint, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ q: question, h: history.slice(-6) }), signal: ctrl.signal
+      body: JSON.stringify({ q: question, h: history.slice(-6), lang: detectLang(question) }), signal: ctrl.signal
     }).then(function (r) { return r.json(); })
-      .then(function (d) { clearTimeout(to); cb(d && d.ok ? d.answer : null); })
+      .then(function (d) { clearTimeout(to); cb(d && d.ok ? d.answer : (d && d.message ? d.message : null)); })
       .catch(function () { clearTimeout(to); cb(null); }); // fallback خودکار به موتور محلی
+  }
+
+  /* ---------- v34.7.67: وضعیت درخواست/سفارش داخل چت (رایگان — بدون توکن) ---------- */
+  function trackingCode(q) {
+    var m = String(q || '').toUpperCase().match(/PTF-(RFQ|VEN)-[A-Z0-9]{5}-[A-Z0-9]{5}/);
+    return m ? m[0] : null;
+  }
+  function isStatusAsk(q) {
+    var t = norm(q);
+    return /(وضعیت|رهگیر|پیگیر|سفارش|کجاست|کجای|status|track|order)/.test(t);
+  }
+  function fetchStatus(code, cb) {
+    fetch(BASE + 'api/crm.php?action=track&code=' + encodeURIComponent(code))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { cb(d); })
+      .catch(function () { cb(null); });
   }
 
   /* ---------- پایگاه دانش شرکت (AC2) ---------- */
@@ -108,6 +130,12 @@
 
   function answer(q) {
     var t = norm(q);
+    /* v34.7.67: پشتیبانی عربی (کشورهای همسایه) — بدون نیاز به توکن */
+    var isAr = /[\u0600-\u06FF]/.test(q) && !/[گچپژ]/.test(q);
+    if (isAr && /^(مرحبا|السلام|سلام عليكم|أهلا|هلا)/.test(t.trim()))
+      return { a: 'مرحباً! 👋 أنا المساعد الذكي لشركة Pishro Tajhiz Fartak. يمكنك السؤال عن توريد المعدات الصناعية (الأنابيب، الصمامات، أجهزة القياس، المعدات الكهربائية، المضخات)، طلب الأسعار، أو تتبع حالة الطلب.' };
+    if (isAr && /(شكرا|وداعا|مع السلامة)/.test(t))
+      return { a: 'على الرحب والسعة! 🙏 لطلب الأسعار يرجى التسجيل في: pishtaj.ir/rfq' };
     // سلام و خداحافظی
     if (/^(سلام|درود|hi|hello|سلام علیکم|وقت بخیر)/.test(t.trim()))
       return { a: 'سلام! 👋 من دستیار هوشمند پیشرو تجهیز فرتاک هستم.\nدرباره تامین تجهیزات (پایپینگ، شیرآلات، ابزار دقیق، برق، پمپ…)، استعلام قیمت، رهگیری پرونده یا اطلاعات شرکت بپرسید.' };
@@ -316,6 +344,30 @@
   }
 
   function botReply(q) {
+    /* v34.7.67: اگر کد رهگیری + پرسش وضعیت بود → وضعیت واقعی (بدون مصرف توکن) */
+    var code = trackingCode(q);
+    if (code && isStatusAsk(q)) {
+      addBubble('b', 'در حال بررسی وضعیت ' + code + ' …');
+      fetchStatus(code, function (d) {
+        body.removeChild(body.lastChild);
+        if (!d || !d.ok) {
+          addBubble('b', 'متأسفانه کد رهگیری یافت نشد؛ لطفاً کد را بررسی کنید (مثلاً PTF-RFQ-XXXXX-XXXXX).', [{ lb: 'رهگیری آنلاین', url: 'tracking/' }]);
+          saveMsg('b', 'کد رهگیری یافت نشد');
+          return;
+        }
+        var lines = ['📦 وضعیت درخواست «' + d.code + '»: ' + (d.statusText || 'در حال بررسی')];
+        if (d.order && d.order.stages && d.order.stages.length) {
+          lines.push('');
+          lines.push('🛤 مراحل سفارش:');
+          d.order.stages.forEach(function (s, i) {
+            lines.push((i <= (d.order.currentIndex || 0) ? '✅ ' : '⏳ ') + s);
+          });
+        }
+        addBubble('b', lines.join('\n'), [{ lb: 'پیگیری آنلاین', url: 'tracking/?code=' + encodeURIComponent(d.code) }]);
+        saveMsg('b', lines.join('\n'));
+      });
+      return;
+    }
     var local = answer(q);
     // اگر LLM فعال باشد و موتور محلی مطمئن نبود، از LLM بپرس
     if (LLM.enabled && local.unknown) {
@@ -342,7 +394,7 @@
     botReply(text);
   }
 
-  /* ---------- ارسال به کارشناس → ثبت لید در CRM (AC5) ---------- */
+  /* ---------- ارسال به کارشناس → ثبت لید واقعی در CRM (AC5 + v34.7.67) ---------- */
   function toExpert() {
     var name = prompt('نام و نام خانوادگی شما:');
     if (!name) return;
@@ -350,21 +402,21 @@
     if (!phone) return;
     var h = history();
     var summary = h.slice(-10).map(function (m) { return (m.w === 'u' ? '👤 ' : '🤖 ') + m.t; }).join('\n').slice(0, 900);
-    try {
-      var leads = JSON.parse(localStorage.getItem('ptf_crm_leads') || '[]');
-      leads.unshift({
-        cd: 'LEAD-' + Math.floor(10000 + Math.random() * 90000),
-        co: name, person: name, tel: '', mob: phone, email: '', ind: 'سایر', src: 'وب‌سایت',
-        firstISO: new Date().toISOString().slice(0, 10),
-        firstFa: new Date().toLocaleDateString('fa-IR'),
-        val: 0, need: 'گفتگوی چت آنلاین:\n' + summary,
-        stage: 'new', hist: [{ t: new Date().toLocaleDateString('fa-IR'), k: 'ثبت', tx: 'ثبت خودکار از ویجت چت سایت' }],
-        createdFa: new Date().toLocaleDateString('fa-IR')
-      });
-      localStorage.setItem('ptf_crm_leads', JSON.stringify(leads));
-    } catch (e) {}
-    addBubble('b', 'ممنون ' + name + ' عزیز! ✅ درخواست شما ثبت شد و کارشناسان ما در اولین فرصت با شماره ' + phone + ' تماس می‌گیرند.\nاگر عجله دارید: 021-46087679');
-    saveMsg('b', 'ثبت درخواست تماس برای ' + name);
+    /* v34.7.67: ثبت روی سرور (لید واقعی CRM) — دیگر فقط localStorage نیست */
+    fetch(BASE + 'api/crm.php?action=chat_lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'name=' + encodeURIComponent(name) + '&phone=' + encodeURIComponent(phone) + '&summary=' + encodeURIComponent(summary)
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      var ok = d && d.ok;
+      addBubble('b', ok
+        ? 'ممنون ' + name + ' عزیز! ✅ درخواست شما ثبت شد و کارشناسان ما در اولین فرصت با شماره ' + phone + ' تماس می‌گیرند.\nاگر عجله دارید: 021-46087679'
+        : 'ثبت درخواست تماس ممکن نشد؛ لطفاً مستقیم تماس بگیرید: 021-46087679');
+      saveMsg('b', 'ثبت درخواست تماس برای ' + name + (ok ? '' : ' (ناموفق)'));
+    }).catch(function () {
+      addBubble('b', 'ثبت درخواست تماس ممکن نشد؛ لطفاً مستقیم تماس بگیرید: 021-46087679');
+      saveMsg('b', 'ثبت درخواست تماس برای ' + name + ' (ناموفق)');
+    });
   }
 
   /* ---------- رویدادها ---------- */

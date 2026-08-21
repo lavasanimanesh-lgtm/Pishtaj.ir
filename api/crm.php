@@ -33,7 +33,7 @@ function verify_request() {
     // Public actions that don't need verification
     // v31.7.7 HOTFIX: Added 'users_get' — needed during login before token exists.
     // users_get only returns safe fields (no passhash) since BUG-AUDIT-004.
-    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'sms_status', 'users_get'];
+    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'sms_status', 'users_get', 'chat_lead'];
     if (in_array($action, $public_actions)) {
         return true;
     }
@@ -85,7 +85,7 @@ if (in_array($action, $SENSITIVE_ACTIONS_HMAC)) {
 
 
 // ===== US-145 AC3: rate-limit سروری روی اکشن‌های عمومی =====
-$PUBLIC_LIMITED = ['add_supplier' => 10, 'add_rfq_site' => 10, 'track' => 60];
+$PUBLIC_LIMITED = ['add_supplier' => 10, 'add_rfq_site' => 10, 'track' => 60, 'chat_lead' => 10];
 if (isset($PUBLIC_LIMITED[$action])) {
     $rl_dir = __DIR__ . '/../crm/data';
     if (!is_dir($rl_dir)) { mkdir($rl_dir, 0755, true); file_put_contents($rl_dir . '/.htaccess', "Deny from all\n"); }
@@ -1098,6 +1098,25 @@ switch($action) {
         echo json_encode(['ok' => true, 'code' => $code, 'warning' => $attachmentWarning], JSON_UNESCAPED_UNICODE);
         break;
 
+    // ===== v34.7.67 (CHAT-LEAD-001): «ارسال گفتگو به کارشناس» از ویجت چت → لید واقعی CRM =====
+    case 'chat_lead':
+        $leadName = clean($_POST['name'] ?? '', 120);
+        $leadPhone = preg_replace('/\D/', '', (string)($_POST['phone'] ?? ''));
+        $leadSummary = clean($_POST['summary'] ?? '', 1200);
+        if ($leadName === '' || $leadPhone === '') { echo json_encode(['ok' => false, 'error' => 'نام و شماره تماس الزامی است'], JSON_UNESCAPED_UNICODE); break; }
+        $leads = load_data('ptf_crm_leads');
+        $leads[] = [
+            'cd' => 'LEAD-' . strtoupper(substr(hash('sha256', uniqid('', true) . $leadPhone), 0, 8)),
+            'co' => $leadName, 'person' => $leadName, 'mob' => $leadPhone, 'tel' => '',
+            'ind' => 'سایر', 'src' => 'چت هوشمند',
+            'firstISO' => date('Y-m-d'), 'firstFa' => date('Y/m/d'),
+            'need' => 'گفتگوی چت هوشمند سایت:' . "\n" . $leadSummary,
+            'stage' => 'new', 'createdFa' => date('Y/m/d')
+        ];
+        save_data('ptf_crm_leads', $leads);
+        echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+        break;
+
     // ===== US-134: رهگیری دوبخشی (استعلام + ثبت‌نام تامین‌کننده) =====
     case 'track':
         $code = strtoupper(clean($_REQUEST['code'] ?? '', 60));
@@ -1135,6 +1154,36 @@ switch($action) {
             ];
             if (isset($pubMap[$st])) $found['statusText'] = $pubMap[$st];
         }
+        /* v34.7.67 (CHAT-PUBLIC-STATUS): وضعیت سفارش ابلاغ‌شده — فقط مرحلهٔ عمومی، بدون نشت مبلغ/نام/تاریخ مالی. */
+        $order = null;
+        if ($type === 'rfq') {
+            $wonCO = null;
+            foreach (load_data('ptf_crm_offers') as $o) {
+                if (($o['kind'] ?? '') === 'CO' && ($o['st'] ?? '') === 'won' && in_array($code, [($o['inqNo'] ?? ''), ($o['srcRfq'] ?? '')], true)) { $wonCO = $o; break; }
+            }
+            if ($wonCO) {
+                $deal = null;
+                foreach (load_data('ptf_crm_deals') as $d) {
+                    if (($d['offerNo'] ?? '') === ($wonCO['no'] ?? '')) { $deal = $d; break; }
+                }
+                $orderStages = [
+                    'won' => 'سفارش شما ابلاغ شد — در حال آماده‌سازی',
+                    'ship' => 'در حال حمل / ارسال کالا',
+                    'invoice' => 'فاکتور صادر شد — در حال تحویل / ترخیص',
+                    'settle' => 'تحویل و تسویه انجام شد — با سپاس از اعتماد شما'
+                ];
+                $cur = 'won';
+                if ($deal) {
+                    foreach ((array)($deal['events'] ?? []) as $e) {
+                        $stp = $e['step'] ?? '';
+                        if (isset($orderStages[$stp])) $cur = $stp;
+                    }
+                }
+                $keys = array_keys($orderStages);
+                $idx = array_search($cur, $keys, true);
+                $order = ['stageKey' => $cur, 'stage' => $orderStages[$cur], 'stages' => array_values($orderStages), 'currentIndex' => ($idx === false ? 0 : $idx)];
+            }
+        }
         echo json_encode([
             'ok' => true, 'type' => $type,
             'code' => $found['code'],
@@ -1142,7 +1191,8 @@ switch($action) {
             'category' => $found['category'] ?? '',
             'status' => $found['status'] ?? '',
             'statusText' => $found['statusText'] ?? '',
-            'date' => $found['date'] ?? ''
+            'date' => $found['date'] ?? '',
+            'order' => $order
         ], JSON_UNESCAPED_UNICODE);
         break;
 

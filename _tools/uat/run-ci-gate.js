@@ -89,6 +89,7 @@ var SUITE = [
   { g: 'درخواست/ضمایم', f: '_tools/uat/tester466-v34.7.64-attachment-pin-merge.js' },
   { g: 'مکاتبات/سربرگ قالب', f: '_tools/uat/tester467-v34.7.65-letterhead-formatting.js' },
   { g: 'تامین/درخواست‌های سایت', f: '_tools/uat/tester468-v34.7.66-sup-site-attachment.js' },
+  { g: 'چت هوشمند', f: '_tools/uat/tester469-v34.7.67-smart-chat.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
