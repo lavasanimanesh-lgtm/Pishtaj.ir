@@ -7,7 +7,7 @@
 var LETTER_FONT_FA = "'Geeza Pro','Baghdad','DecoType Naskh','B Yaghut','BYaghut','B Yagut','Yaghut','Yaqut','Amiri',Vazirmatn,Tahoma,serif"; /* v97: پشتیبانی کامل مک و ویندوز از فونت رسمی یاقوت و سریف */
 var LETTER_FONT_EN = "'Segoe UI',Arial,Helvetica,sans-serif";
 
-/* v34.7.64: نگاشت توکن فونت → پشتهٔ CSS واقعی (برای ابزار قالب‌بندی و چاپ) */
+/* v34.7.65: نگاشت توکن فونت → پشتهٔ CSS واقعی (برای ابزار قالب‌بندی و چاپ) */
 function letFontCss(t) {
   var map = {
     yaghut: LETTER_FONT_FA,
@@ -312,7 +312,7 @@ function renderLetters() {
 /* ---------- فرم نامه صادره ---------- */
 /* ---------- ویرایشگر غنی نامه (جدول و تصویر داخل متن) ---------- */
 function letEscHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-/* v34.7.64: پاک‌سازی ایمن استایل inline — فقط ویژگی‌های تایپوگرافی امن حفظ می‌شوند */
+/* v34.7.65: پاک‌سازی ایمن استایل inline — فقط ویژگی‌های تایپوگرافی امن حفظ می‌شوند */
 function letSafeStyle(v) {
   var SAFE = { color:1, 'background-color':1, 'font-family':1, 'font-size':1, 'line-height':1,
     'text-align':1, direction:1, 'font-weight':1, 'font-style':1, 'text-decoration':1,
@@ -353,23 +353,24 @@ function letSafeBodyHtml(html) {
   });
   return box.innerHTML;
 }
-function letEditorExec(cmd, value) {
-  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+function letEditorExec(cmd, value, editorId) {
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
   ed.focus(); try { document.execCommand(cmd, false, value || null); } catch (e) {}
 }
 window.ptfLetEditorCmd = function (cmd) { letEditorExec(cmd); };
-window.ptfLetEditorTable = function () {
-  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+function letEditorTable(editorId) {
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
   var rows = Math.max(1, Math.min(12, +(prompt('تعداد سطر جدول:', '2') || 0)));
   var cols = Math.max(1, Math.min(10, +(prompt('تعداد ستون جدول:', '2') || 0)));
   if (!rows || !cols) return;
   var h = '<table><tbody>';
   for (var r = 0; r < rows; r++) { h += '<tr>'; for (var c = 0; c < cols; c++) h += (r === 0 ? '<th>عنوان</th>' : '<td>&nbsp;</td>'); h += '</tr>'; }
   h += '</tbody></table><p><br></p>';
-  letEditorExec('insertHTML', h);
-};
+  letEditorExec('insertHTML', h, editorId);
+}
+window.ptfLetEditorTable = function () { letEditorTable(); };
 window.ptfLetEditorImagePick = function () { var i = document.getElementById('ltInlineImg'); if (i) i.click(); };
-function letEditorInsertImageFile(f) {
+function letEditorInsertImageFile(f, editorId) {
   if (!f || !/^image\//.test(f.type)) { alert('فقط فایل تصویری قابل درج است'); return; }
   var img = new Image(), url = URL.createObjectURL(f);
   img.onload = function () {
@@ -377,7 +378,7 @@ function letEditorInsertImageFile(f) {
     cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url);
     var data = cv.toDataURL('image/jpeg', .84);
     if (data.length > 450000) { alert('تصویر پس از فشرده‌سازی بزرگ است؛ تصویر کوچک‌تری انتخاب کنید.'); return; }
-    letEditorExec('insertHTML', '<img src="' + data + '" alt="تصویر نامه">');
+    letEditorExec('insertHTML', '<img src="' + data + '" alt="تصویر نامه">', editorId);
   };
   img.onerror = function () { URL.revokeObjectURL(url); alert('خواندن تصویر ناموفق بود'); };
   img.src = url;
@@ -386,18 +387,18 @@ window.ptfLetEditorImage = function (inp) {
   var f = (inp.files || [])[0]; inp.value = ''; letEditorInsertImageFile(f);
 };
 
-/* ===== v34.7.64 LETTER-FORMAT-001: قالب‌بندی حرفه‌ای متن نامه =====
+/* ===== v34.7.65 LETTER-FORMAT-001: قالب‌بندی حرفه‌ای متن نامه =====
    نوار ابزار غنی: فونت، اندازه، رنگ، هایلایت، بولد/ایتالیک/زیرخط/خط‌خورده، چینش،
    فاصلهٔ خطوط، فهرست، تورفتگی، جدول و تصویر. استایل‌های inline تولیدشده از
    letSafeBodyHtml عبور می‌کنند (فقط ویژگی‌های امن تایپوگرافی حفظ می‌شوند). */
 var _ltSelRange = null;
-function letEditorSaveSel() {
-  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+function letEditorSaveSel(editorId) {
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
   var sel = window.getSelection();
   if (sel && sel.rangeCount > 0 && ed.contains(sel.anchorNode)) _ltSelRange = sel.getRangeAt(0).cloneRange();
 }
-function letEditorRestoreSel() {
-  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+function letEditorRestoreSel(editorId) {
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
   if (_ltSelRange) {
     try { var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(_ltSelRange); } catch (e) {}
   }
@@ -409,8 +410,8 @@ function letEditorBlockOf(node, ed) {
   return (el && el !== ed) ? el : null;
 }
 /* پیچیدن متن انتخاب‌شده در span با استایل (حفظ فرزندان بولد/ایتالیک) */
-function letEditorWrapSel(styleText) {
-  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+function letEditorWrapSel(styleText, editorId) {
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
   ed.focus();
   var sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return;
   var range = sel.getRangeAt(0); if (range.collapsed) return;
@@ -427,8 +428,8 @@ function letEditorWrapSel(styleText) {
   var r = document.createRange(); r.selectNodeContents(span); sel.addRange(r);
 }
 /* اعمال استایل روی بلوک(های) انتخاب‌شده (چینش، فاصلهٔ خطوط) */
-function letEditorSetBlockStyle(prop, value) {
-  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
+function letEditorSetBlockStyle(prop, value, editorId) {
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
   ed.focus();
   var sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return;
   var range = sel.getRangeAt(0);
@@ -443,17 +444,18 @@ function letEditorSetBlockStyle(prop, value) {
     el = el.nextElementSibling;
   }
 }
+function letEditorClearFormat(editorId) {
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
+  ed.focus();
+  try { document.execCommand('styleWithCSS', false, false); document.execCommand('removeFormat'); } catch (e) {}
+}
 window.ptfLetFont = function (v) { letEditorWrapSel('font-family:' + letFontCss(v)); };
 window.ptfLetFontSize = function (v) { letEditorWrapSel('font-size:' + v + 'pt'); };
 window.ptfLetColor = function (v) { if (v) letEditorWrapSel('color:' + v); };
 window.ptfLetHilite = function (v) { letEditorWrapSel(v ? 'background-color:' + v : 'background-color:transparent'); };
 window.ptfLetLineHeight = function (v) { letEditorSetBlockStyle('line-height', v); };
 window.ptfLetAlign = function (v) { letEditorSetBlockStyle('text-align', v); };
-window.ptfLetClearFormat = function () {
-  var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
-  ed.focus();
-  try { document.execCommand('styleWithCSS', false, false); document.execCommand('removeFormat'); } catch (e) {}
-};
+window.ptfLetClearFormat = function () { letEditorClearFormat(); };
 /* همگام‌سازی زندهٔ ادیتور با تنظیمات کل نامه (فونت پایه/اندازه/فاصلهٔ خطوط) */
 window.letSyncDocFont = function () {
   var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
@@ -464,17 +466,42 @@ window.letSyncDocFont = function () {
   ed.style.lineHeight = lh || '';
   ed.style.fontFamily = fnt ? letFontCss(fnt) : '';
 };
-function letEditorWirePasteAndDrop(editor) {
+
+/* ===== v34.7.65: همان قالب‌بندی نامهٔ صادره برای «متن آماده روی سربرگ» =====
+   هندلرهای معادل برای ادیتور lhpEditor (پیشوند ptfLhp). */
+window.ptfLhpEditorCmd = function (cmd) { letEditorExec(cmd, null, 'lhpEditor'); };
+window.ptfLhpEditorTable = function () { letEditorTable('lhpEditor'); };
+window.ptfLhpEditorImagePick = function () { var i = document.getElementById('lhpInlineImg'); if (i) i.click(); };
+window.ptfLhpEditorImage = function (inp) {
+  var f = (inp.files || [])[0]; inp.value = ''; letEditorInsertImageFile(f, 'lhpEditor');
+};
+window.ptfLhpFont = function (v) { letEditorWrapSel('font-family:' + letFontCss(v), 'lhpEditor'); };
+window.ptfLhpFontSize = function (v) { letEditorWrapSel('font-size:' + v + 'pt', 'lhpEditor'); };
+window.ptfLhpColor = function (v) { if (v) letEditorWrapSel('color:' + v, 'lhpEditor'); };
+window.ptfLhpHilite = function (v) { letEditorWrapSel(v ? 'background-color:' + v : 'background-color:transparent', 'lhpEditor'); };
+window.ptfLhpLineHeight = function (v) { letEditorSetBlockStyle('line-height', v, 'lhpEditor'); };
+window.ptfLhpAlign = function (v) { letEditorSetBlockStyle('text-align', v, 'lhpEditor'); };
+window.ptfLhpClearFormat = function () { letEditorClearFormat('lhpEditor'); };
+window.lhpSyncDocFont = function () {
+  var ed = document.getElementById('lhpEditor'); if (!ed) return;
+  var fs = (document.getElementById('lhpFs') || {}).value;
+  var lh = (document.getElementById('lhpLh') || {}).value;
+  var fnt = (document.getElementById('lhpFont') || {}).value;
+  ed.style.fontSize = fs ? (fs + 'pt') : '';
+  ed.style.lineHeight = lh || '';
+  ed.style.fontFamily = fnt ? letFontCss(fnt) : '';
+};
+function letEditorWirePasteAndDrop(editor, editorId) {
   if (!editor || editor.dataset.richWire) return;
   editor.dataset.richWire = '1';
   editor.addEventListener('paste', function (ev) {
     var cb = ev.clipboardData, file = cb && Array.prototype.slice.call(cb.files || []).filter(function (f) { return /^image\//.test(f.type); })[0];
-    if (file) { ev.preventDefault(); letEditorInsertImageFile(file); return; }
+    if (file) { ev.preventDefault(); letEditorInsertImageFile(file, editorId); return; }
     /* Word/Excel معمولاً HTML table را در clipboard می‌گذارند؛ ساختار مجاز آن
        حفظ می‌شود اما style/script خارجی و ناسالم پیش از ورود حذف می‌گردد. */
     var html = cb && cb.getData && cb.getData('text/html');
     if (html && /<(table|tr|td|th|img)\b/i.test(html)) {
-      ev.preventDefault(); letEditorExec('insertHTML', letSafeBodyHtml(html));
+      ev.preventDefault(); letEditorExec('insertHTML', letSafeBodyHtml(html), editorId);
     }
   });
   editor.addEventListener('dragover', function (ev) { ev.preventDefault(); editor.classList.add('is-dragover'); });
@@ -482,9 +509,9 @@ function letEditorWirePasteAndDrop(editor) {
   editor.addEventListener('drop', function (ev) {
     ev.preventDefault(); editor.classList.remove('is-dragover');
     var files = Array.prototype.slice.call((ev.dataTransfer || {}).files || []), image = files.filter(function (f) { return /^image\//.test(f.type); })[0];
-    if (image) { letEditorInsertImageFile(image); return; }
+    if (image) { letEditorInsertImageFile(image, editorId); return; }
     var html = (ev.dataTransfer || {}).getData && ev.dataTransfer.getData('text/html');
-    if (html) letEditorExec('insertHTML', letSafeBodyHtml(html));
+    if (html) letEditorExec('insertHTML', letSafeBodyHtml(html), editorId);
   });
 }
 
@@ -811,7 +838,7 @@ function letPrintObj(l, isPreview) {
   var align = s.align || (isEn ? 'left' : 'right');
   var font = isEn ? LETTER_FONT_EN : LETTER_FONT_FA;
   var dir = isEn ? 'ltr' : 'rtl';
-  /* v34.7.64: فاصلهٔ خطوط، فونت و حاشیهٔ قابل تنظیم (کل نامه) */
+  /* v34.7.65: فاصلهٔ خطوط، فونت و حاشیهٔ قابل تنظیم (کل نامه) */
   var lh = s.lh || 2.1;
   var bodyFont = s.font ? letFontCss(s.font) : font;
   var m = s.margin || {};
@@ -945,10 +972,51 @@ window.ptfLetterheadPasteOpen = function () {
   var sigHint = (prof.sig || prof.stamp)
     ? '<small style="color:#10b981">✔ مهر/امضای پروفایل شما درج می‌شود (' + escP(prof.nm || me || '') + ')</small>'
     : '<small style="color:#b45309">⚠️ هنوز تصویر مهر/امضا ثبت نکرده‌اید — از «✍️ امضای من» ثبت کنید؛ فعلاً سند بدون تصویر مهر ساخته می‌شود.</small>';
-  var html = '<div class="md-b" id="lhpModal" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:860px;max-height:94vh;overflow:auto">' +
+  var html = '<div class="md-b" id="lhpModal" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:920px;max-height:94vh;overflow:auto">' +
+    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.lhp-editor{min-height:260px;max-height:46vh;overflow:auto;padding:12px 16px;border:1px solid var(--brd);border-radius:0 0 10px 10px;font-size:14px;line-height:2;background:#fff;outline:none}.lhp-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.lhp-editor:empty:before{content:attr(data-placeholder);color:#94a3b8}.lhp-editor p{margin:0 0 8px}.lhp-editor table{width:100%;border-collapse:collapse;margin:10px 0}.lhp-editor td,.lhp-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.lhp-editor th{background:#f1f5f9}.lhp-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto}</style>' +
     '<h3>📄 متن آماده روی سربرگ</h3>' +
-    '<p style="font-size:12.5px;color:#64748b;line-height:1.9;margin:6px 0 10px">متن را در Word باز کنید، همه را کپی (Ctrl+A و Ctrl+C) و در کادر زیر Paste کنید (Ctrl+V). قالب‌بندی پایه (بولد، لیست، جدول) حفظ می‌شود و متن تغییری نمی‌کند — فقط روی سربرگ رسمی شرکت چاپ می‌شود. شماره، پیوست و تاریخ (اختیاری) در سربرگ درج می‌شوند؛ مهر و امضا را می‌توانید در همهٔ صفحات یا فقط صفحهٔ آخر بگذارید.</p>' +
-    '<div id="lhpEditor" contenteditable="true" style="min-height:260px;max-height:46vh;overflow:auto;border:2px dashed var(--brd);border-radius:12px;padding:14px 16px;font-size:14px;line-height:2;background:#f8fafc" data-placeholder="متن Word را این‌جا Paste کنید…"></div>' +
+    '<p style="font-size:12.5px;color:#64748b;line-height:1.9;margin:6px 0 10px">متن را در Word باز کنید، همه را کپی (Ctrl+A و Ctrl+C) و در کادر زیر Paste کنید (Ctrl+V). سپس می‌توانید متن را با نوار ابزار بالا قالب‌بندی کنید (فونت، اندازه، رنگ، بولد، چینش، فاصلهٔ خطوط و…). شماره، پیوست و تاریخ (اختیاری) در سربرگ درج می‌شوند؛ مهر و امضا را می‌توانید در همهٔ صفحات یا فقط صفحهٔ آخر بگذارید.</p>' +
+    '<div class="fld" style="margin-bottom:6px"><label>متن</label>' +
+    '<div class="let-editor-tools" role="toolbar" aria-label="ابزار ویرایش متن">' +
+    '<select title="فونت" onmousedown="letEditorSaveSel(\'lhpEditor\')" onchange="letEditorRestoreSel(\'lhpEditor\');ptfLhpFont(this.value)"><option value="">فونت</option><option value="yaghut">یاقوت (رسمی)</option><option value="vazir">وزیرمتن</option><option value="tahoma">تاهوما</option><option value="arial">آریال</option><option value="times">تایمز</option></select>' +
+    '<select title="اندازه فونت" onmousedown="letEditorSaveSel(\'lhpEditor\')" onchange="letEditorRestoreSel(\'lhpEditor\');ptfLhpFontSize(this.value)"><option value="">اندازه</option><option value="9">۹</option><option value="10">۱۰</option><option value="10.5">۱۰٫۵</option><option value="11">۱۱</option><option value="11.5">۱۱٫۵</option><option value="12">۱۲</option><option value="13">۱۳</option><option value="14">۱۴</option><option value="16">۱۶</option><option value="18">۱۸</option><option value="20">۲۰</option><option value="24">۲۴</option></select>' +
+    '<button type="button" class="bt bt-o" title="بولد" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'bold\')"><b>B</b></button>' +
+    '<button type="button" class="bt bt-o" title="ایتالیک" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'italic\')"><i>I</i></button>' +
+    '<button type="button" class="bt bt-o" title="زیرخط" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'underline\')"><u>U</u></button>' +
+    '<button type="button" class="bt bt-o" title="خط‌خورده" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'strikeThrough\')"><s>S</s></button>' +
+    '<input type="color" title="رنگ متن" value="#26282c" onmousedown="letEditorSaveSel(\'lhpEditor\')" onchange="letEditorRestoreSel(\'lhpEditor\');ptfLhpColor(this.value)">' +
+    '<button type="button" class="bt bt-o" title="هایلایت زرد" onmousedown="event.preventDefault()" onclick="ptfLhpHilite(\'#fff3a3\')">🖍</button>' +
+    '<button type="button" class="bt bt-o" title="هایلایت سبز" onmousedown="event.preventDefault()" onclick="ptfLhpHilite(\'#c7f7d4\')">🖍 سبز</button>' +
+    '<button type="button" class="bt bt-o" title="حذف هایلایت" onmousedown="event.preventDefault()" onclick="ptfLhpHilite(\'\')">✕ هایلایت</button>' +
+    '<button type="button" class="bt bt-o" title="پاک‌سازی قالب" onmousedown="event.preventDefault()" onclick="ptfLhpClearFormat()">🧹</button>' +
+    '<span class="let-sep"></span>' +
+    '<button type="button" class="bt bt-o" title="راست‌چین" onmousedown="event.preventDefault()" onclick="ptfLhpAlign(\'right\')">راست‌چین</button>' +
+    '<button type="button" class="bt bt-o" title="وسط‌چین" onmousedown="event.preventDefault()" onclick="ptfLhpAlign(\'center\')">وسط‌چین</button>' +
+    '<button type="button" class="bt bt-o" title="چپ‌چین" onmousedown="event.preventDefault()" onclick="ptfLhpAlign(\'left\')">چپ‌چین</button>' +
+    '<button type="button" class="bt bt-o" title="تراز دوطرفه" onmousedown="event.preventDefault()" onclick="ptfLhpAlign(\'justify\')">دوطرفه</button>' +
+    '<select title="فاصله خطوط" onmousedown="letEditorSaveSel(\'lhpEditor\')" onchange="letEditorRestoreSel(\'lhpEditor\');ptfLhpLineHeight(this.value)"><option value="">فاصله خطوط</option><option value="1.2">۱٫۲</option><option value="1.5">۱٫۵</option><option value="1.8">۱٫۸</option><option value="2">۲</option><option value="2.2">۲٫۲</option><option value="2.5">۲٫۵</option><option value="3">۳</option></select>' +
+    '<button type="button" class="bt bt-o" title="فهرست نقطه‌ای" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'insertUnorderedList\')">• فهرست</button>' +
+    '<button type="button" class="bt bt-o" title="فهرست شماره‌ای" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'insertOrderedList\')">۱. فهرست</button>' +
+    '<button type="button" class="bt bt-o" title="افزایش تورفتگی" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'indent\')">↪</button>' +
+    '<button type="button" class="bt bt-o" title="کاهش تورفتگی" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'outdent\')">↩</button>' +
+    '<button type="button" class="bt bt-o" title="درج جدول" onmousedown="event.preventDefault()" onclick="ptfLhpEditorTable()">▦ جدول</button>' +
+    '<button type="button" class="bt bt-o" title="تصویر در متن" onmousedown="event.preventDefault()" onclick="ptfLhpEditorImagePick()">🖼 تصویر</button></div>' +
+    '<input type="file" id="lhpInlineImg" accept="image/*" style="display:none" onchange="ptfLhpEditorImage(this)">' +
+    '<div id="lhpEditor" class="lhp-editor" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="متن Word را این‌جا Paste کنید…"></div></div>' +
+    '<details style="margin:8px 0" open><summary style="cursor:pointer;font-size:12.5px;color:#0e7490">🎛 تنظیمات دستی قالب (اختیاری)</summary>' +
+    '<div class="fr" style="margin-top:8px"><div class="fld"><label>اندازه فونت متن (خالی = ۱۳)</label><select id="lhpFs" onchange="lhpSyncDocFont()"><option value="">خودکار</option>' +
+    [9,10,10.5,11,11.5,12,13,14,16,18,20].map(function (f) { return '<option>' + f + '</option>'; }).join('') + '</select></div>' +
+    '<div class="fld"><label>فاصله خطوط (خالی = ۲٫۱)</label><select id="lhpLh" onchange="lhpSyncDocFont()"><option value="">خودکار</option>' +
+    [1.2,1.5,1.8,2,2.2,2.5,3].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></div>' +
+    '<div class="fld"><label>فونت متن</label><select id="lhpFont" onchange="lhpSyncDocFont()"><option value="">پیش‌فرض (یاقوت)</option><option value="vazir">وزیرمتن</option><option value="tahoma">تاهوما</option><option value="arial">آریال</option><option value="times">تایمز</option></select></div>' +
+    '<div class="fld"><label>چینش متن</label><select id="lhpAlign"><option value="">پیش‌فرض (فا: راست / EN: چپ)</option><option value="right">راست‌چین</option><option value="left">چپ‌چین</option><option value="center">وسط‌چین</option><option value="justify">تراز دوطرفه</option></select></div></div>' +
+    '<div class="fr"><div class="fld"><label style="font-size:12px">متن بولد <input type="checkbox" id="lhpB"></label></div>' +
+    '<div class="fld"><label style="font-size:12px">متن ایتالیک <input type="checkbox" id="lhpI"></label></div></div>' +
+    '<div class="fld" style="margin-top:8px"><label>حاشیه‌های صفحه (میلی‌متر — خالی = پیش‌فرض)</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">' +
+    '<div><small style="color:#94a3b8">بالا</small><input type="number" id="lhpMt" min="0" max="40" placeholder="0" style="width:100%"></div>' +
+    '<div><small style="color:#94a3b8">راست</small><input type="number" id="lhpMr" min="0" max="40" placeholder="16" style="width:100%"></div>' +
+    '<div><small style="color:#94a3b8">پایین</small><input type="number" id="lhpMb" min="0" max="40" placeholder="0" style="width:100%"></div>' +
+    '<div><small style="color:#94a3b8">چپ</small><input type="number" id="lhpMl" min="0" max="40" placeholder="16" style="width:100%"></div></div></div></details>' +
     '<div class="fr" style="margin-top:12px">' +
     '<div class="fld"><label>زبان سند (جهت سربرگ و فونت)</label><select id="lhpLang"><option value="fa">فارسی (راست‌به‌چپ)</option><option value="en">English (LTR)</option></select></div>' +
     '<div class="fld"><label>شماره نامه (اختیاری — در سربرگ درج می‌شود)</label><div style="display:flex;gap:8px;align-items:center"><input id="lhpNo" style="flex:1" placeholder="مثلاً ۱۴۰۵/پ/ص/۰۰۰۹"><button type="button" class="bt bt-o" style="white-space:nowrap" onclick="ptfLetterheadNoNext()">↻ شمارهٔ بعدی</button></div></div>' +
@@ -962,6 +1030,8 @@ window.ptfLetterheadPasteOpen = function () {
     '<button class="bt" onclick="ptfLetterheadPastePrint()">🖨 چاپ / PDF روی سربرگ</button>' +
     '</div></div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  var editor = document.getElementById('lhpEditor');
+  if (editor) { letEditorWirePasteAndDrop(editor, 'lhpEditor'); }
 };
 
 /* v34.7.61: درج شمارهٔ بعدی صادره (فارسی: ارقام فارسی؛ انگلیسی: سری میلادی PTF-OUT) */
@@ -983,6 +1053,15 @@ window.ptfLetterheadPastePrint = function () {
   var withDate = !!(document.getElementById('lhpDate') || {}).checked;
   var no = ((document.getElementById('lhpNo') || {}).value || '').trim();
   var att = ((document.getElementById('lhpAtt') || {}).value || '').trim();
+  /* v34.7.65: تنظیمات دستی قالب (فونت/اندازه/فاصلهٔ خطوط/چینش/بولد/ایتالیک/حاشیه) */
+  var fs = ((document.getElementById('lhpFs') || {}).value || '');
+  var lh = ((document.getElementById('lhpLh') || {}).value || '');
+  var fontTok = ((document.getElementById('lhpFont') || {}).value || '');
+  var align = ((document.getElementById('lhpAlign') || {}).value || '');
+  var bold = !!((document.getElementById('lhpB') || {}).checked);
+  var italic = !!((document.getElementById('lhpI') || {}).checked);
+  function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
+  var mT = _num('lhpMt'), mR = _num('lhpMr'), mB = _num('lhpMb'), mL = _num('lhpMl');
   var me = (curSession() || {}).user;
   var prof = (typeof sigProfileFor === 'function' ? sigProfileFor(me) : {}) || {};
   if (sigMode !== 'none' && !prof.sig && !prof.stamp) {
@@ -990,6 +1069,14 @@ window.ptfLetterheadPastePrint = function () {
   }
   var dir = isEn ? 'ltr' : 'rtl';
   var font = isEn ? LETTER_FONT_EN : LETTER_FONT_FA;
+  var bodyFs = fs ? fs + 'pt' : '13pt';
+  var bodyLh = lh || 2.1;
+  var bodyFont = fontTok ? letFontCss(fontTok) : font;
+  var bodyAlign = align || (isEn ? 'left' : 'right');
+  var mt = (mT === '') ? 0 : mT;
+  var mr = (mR === '') ? 16 : mR;
+  var mb = (mB === '') ? 0 : mB;
+  var ml = (mL === '') ? 16 : mL;
   var everyPage = sigMode === 'every';
   var sigImgs = (sigMode !== 'none')
     ? ((prof.sig ? '<img class="pgs-sig" src="' + prof.sig + '" alt="امضا">' : '') +
@@ -1038,7 +1125,7 @@ window.ptfLetterheadPastePrint = function () {
     'table.pgt{width:100%;border-collapse:collapse}' +
     'table.pgt>thead td{height:' + headSpace + 'mm}' +
     'table.pgt>tfoot td{height:' + footSpace + 'mm}' +
-    '.body{padding:0 16mm;font-size:13pt;line-height:2.1;text-align:' + (isEn ? 'left' : 'right') + ';direction:' + dir + '}' +
+    '.body{padding:' + mt + 'mm ' + mr + 'mm ' + mb + 'mm ' + ml + 'mm;font-size:' + bodyFs + ';line-height:' + bodyLh + ';text-align:' + bodyAlign + ';' + (fontTok ? 'font-family:' + bodyFont + ';' : '') + (bold ? 'font-weight:700;' : '') + (italic ? 'font-style:italic;' : '') + 'direction:' + dir + '}' +
     '.body p,.body div{margin:0 0 3mm}' +
     '.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm}.body th{background:#f1f5f9}' +
     '.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
