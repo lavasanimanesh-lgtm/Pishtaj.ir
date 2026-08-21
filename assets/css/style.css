@@ -8,7 +8,7 @@
 /* Form enhancements */
 .contact-form{box-shadow:0 20px 45px rgba(0,0,0,.08)!important}
 .field label{font-size:14px!important;letter-spacing:-.2px}
-.lang-switch-mobile{display:none}@media(max-width:790px){.lang-switch-desktop{display:none!important;width:0!important;padding:0!important;margin:0!important;border:0!important;overflow:hidden!important}.lang-switch-mobile{display:block!important;background:linear-gradient(135deg,rgba(239,75,26,.10),rgba(247,148,0,.10));color:var(--red)!important;font-weight:900;text-align:center!important;border:1px dashed rgba(239,75,26,.35);border-radius:14px;margin-top:6px}}/* v31.9 — semantic minimal line icons; numbers remain metrics, never icon substitutes */
+/* v31.9 — semantic minimal line icons; numbers remain metrics, never icon substitutes */
 .ptf-line-icon{display:inline-grid;place-items:center;width:30px;height:30px;flex:0 0 30px;margin-left:8px;border-radius:10px;background:linear-gradient(135deg,rgba(239,75,26,.12),rgba(247,148,0,.12));color:var(--red);vertical-align:-9px}
 .ptf-line-icon svg{width:20px;height:20px;display:block}
 .footer .ptf-line-icon{width:22px;height:22px;flex-basis:22px;border-radius:7px;background:rgba(239,75,26,.14);color:#ffb033;vertical-align:-6px}
@@ -94,3 +94,4 @@ html,body{max-width:100%;overflow-x:hidden}
 main,.section,.container,.client-showcase,.brand-marquee-section,.marquee-shell{max-width:100%;min-width:0}
 .marquee-shell{contain:layout paint}
 .marquee-track{will-change:transform}
+@media(max-width:790px){.lang-switch{padding:6px 10px!important;font-size:11px!important}}@media(max-width:440px){.brand small{display:none}.lang-switch{padding:5px 8px!important;gap:2px!important}}
