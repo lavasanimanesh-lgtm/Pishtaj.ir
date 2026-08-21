@@ -440,20 +440,31 @@ function saveUser2() {
     fd.append('email', ml);
     fd.append('createdFa', faDate());
     fd.append('createdBy', curSession().name);
+    /* v34.7.73: نتیجهٔ موفقیت فقط پس از تأیید سرور اعلام می‌شود (نه قبل از پاسخ سینک).
+       پیش‌تر پیام «تعریف شد» بلافاصله می‌آمد و شکستِ سینک در یک alert دوم بی‌صدا می‌ماند؛
+       کاربر روی سرور نمی‌رفت و ورود از موبایل با «همگام‌سازی کاربران» گیر می‌کرد. */
+    function afterSync(d) {
+      hideModal(); renderUsers();
+      audit('کاربران', 'تعریف کاربر ' + nm + ' با نقش ' + ROLES[rl].lb, u);
+      // US-150 AC7: پیامک خودکار اطلاعات ورود به کاربر جدید
+      if (typeof smsWelcomeUser === 'function') smsWelcomeUser(nm, ROLES[rl].lb, u, p, mob);
+      if (d && d.ok) {
+        alert('✅ کاربر ' + nm + ' (' + ROLES[rl].lb + ') تعریف و با سرور همگام شد' + (typeof smsWelcomeUser === 'function' ? '\n📱 پیامک اطلاعات ورود به ' + mob + ' ارسال شد' : ''));
+      } else {
+        alert('⚠️ کاربر در این مرورگر تعریف شد اما همگام‌سازی با سرور ناموفق بود.\nاین کاربر فقط از همین مرورگر قابل ورود است (موبایل/مرورگر دیگر وارد نمی‌شود).\n\nخطا: ' + ((d && d.error) || 'سرور در دسترس نیست') + '\n\nبعداً از پنل «کاربران» دکمهٔ «🔄 همگام‌سازی کاربران» را بزنید.');
+      }
+    }
     fetch('../api/crm.php?action=add_user', { method: 'POST', headers: ptfRbacAuthHeaders(false), body: fd })
       .catch(function () { return null; })
       .then(function () {
         usersSyncToServer(function (d) {
-          if (!d || !d.ok) {
-            alert('⚠️ کاربر در این مرورگر تعریف شد اما همگام‌سازی با سرور ناموفق بود.\nاین کاربر فقط از همین مرورگر قابل ورود است.\n\nخطا: ' + ((d && d.error) || 'سرور در دسترس نیست'));
-          }
+          if (d && d.ok) { afterSync(d); return; }
+          // یک retry کوتاه برای خطای لحظه‌ای شبکه/توکن
+          setTimeout(function () {
+            usersSyncToServer(function (d2) { afterSync(d2); });
+          }, 1200);
         });
       });
-    hideModal(); renderUsers();
-    audit('کاربران', 'تعریف کاربر ' + nm + ' با نقش ' + ROLES[rl].lb, u);
-    // US-150 AC7: پیامک خودکار اطلاعات ورود به کاربر جدید
-    if (typeof smsWelcomeUser === 'function') smsWelcomeUser(nm, ROLES[rl].lb, u, p, mob);
-    alert('✅ کاربر ' + nm + ' (' + ROLES[rl].lb + ') تعریف شد' + (typeof smsWelcomeUser === 'function' ? '\n📱 پیامک اطلاعات ورود به ' + mob + ' ارسال شد' : ''));
   });
 }
 
@@ -494,6 +505,29 @@ function usersSyncToServer(cb) {
       if (typeof ptfToast === 'function') ptfToast('سرور در دسترس نیست — کاربر فعلاً فقط در این مرورگر است', 'warn');
       cb && cb({ ok: false });
     });
+}
+/* v34.7.73 (BUG-AUTH-MOBILE-USER-002): دکمهٔ واقعی «همگام‌سازی کاربران».
+   پیام خطای ورودِ موبایل کاربر را به «همگام‌سازی کاربران» ارجاع می‌داد اما چنین
+   عملی در UI وجود نداشت. این دکمه فهرست کاربران این مرورگر را به سرور می‌فرستد
+   و نتیجه (تعداد همگام‌شده + کاربران کنارگذاشته‌شده) را صریح نشان می‌دهد. */
+function ptfUsersSyncManual() {
+  if (!roleDef().users) { alert('⛔ فقط ادمین/رییس/مدیرعامل/مدیر بازرگانی می‌توانند کاربران را همگام کنند'); return; }
+  var n = getData('ptf_crm_users').length;
+  if (!n) { alert('کاربری برای همگام‌سازی در این مرورگر وجود ندارد'); return; }
+  if (typeof ptfToast === 'function') ptfToast('⏳ در حال همگام‌سازی ' + n + ' کاربر با سرور…', 'info');
+  usersSyncToServer(function (d) {
+    if (d && d.ok) {
+      var dropped = d.dropped && d.dropped.length;
+      var msg = '✅ ' + (d.count || 0) + ' کاربر با سرور همگام شد';
+      if (dropped) msg += ' — ⚠️ بدون رمز: ' + d.dropped.join('، ');
+      if (typeof ptfToast === 'function') ptfToast(msg, dropped ? 'warn' : 'ok');
+      else alert(msg);
+    } else {
+      var err = '⚠️ همگام‌سازی ناموفق: ' + ((d && d.error) || 'سرور در دسترس نیست — کاربران فقط در همین مرورگر می‌مانند');
+      if (typeof ptfToast === 'function') ptfToast(err, 'warn');
+      else alert(err);
+    }
+  });
 }
 // seed خودکار: با ورود ادمین/رییس، کاربران موجود این مرورگر یک بار به سرور منتقل می‌شوند
 (function () {
