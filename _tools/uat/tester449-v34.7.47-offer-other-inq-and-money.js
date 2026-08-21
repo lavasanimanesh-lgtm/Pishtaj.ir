@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.66 — دکمهٔ مجزای «بارگذاری از درخواست دیگر» + جداکننده هزارگان /
+/* v34.7.71 — دکمهٔ مجزای «بارگذاری از درخواست دیگر» + جداکننده هزارگان /
    مبلغ به حروف لایو + پذیرش ارقام فارسی در مودال پیشنهاد (پیشنهاد و رویژن پرونده).
    الگوهای tester433 و tester448 نباید بشکنند. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -18,9 +18,9 @@ var inq = read('crm/inqreader.js');
 var ver = JSON.parse(read('VERSION.json'));
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.7.66', ver.crm_version === 'v34.7.66', ver.crm_version);
-T('index.html PTF_CRM_RELEASE = v34.7.66', /window\.PTF_CRM_RELEASE = 'v34\.7\.66'/.test(read('crm/index.html')));
-T('sw.js RELEASE = v34.7.66', /RELEASE = 'v34\.7\.66'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.7.71', ver.crm_version === 'v34.7.71', ver.crm_version);
+T('index.html PTF_CRM_RELEASE = v34.7.71', /window\.PTF_CRM_RELEASE = 'v34\.7\.71'/.test(read('crm/index.html')));
+T('sw.js RELEASE = v34.7.71', /RELEASE = 'v34\.7\.71'/.test(read('crm/sw.js')));
 
 /* ---------- دکمه مجزا در فرم مشترک پیشنهاد/رویژن ---------- */
 T('فرم پیشنهاد دکمهٔ بارگذاری از درخواست دیگر دارد',
@@ -158,6 +158,6 @@ function sandbox() {
   T('بدون keepInq شماره state به درخواست مبدأ می‌رود', s2._state.inqNo === 'RFQ-B', s2._state.inqNo);
 })();
 
-console.log('\n— tester449 (v34.7.66: درخواست دیگر + مبالغ مودال پیشنهاد) —');
+console.log('\n— tester449 (v34.7.71: درخواست دیگر + مبالغ مودال پیشنهاد) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
