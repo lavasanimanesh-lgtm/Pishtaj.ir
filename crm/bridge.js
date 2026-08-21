@@ -1041,7 +1041,7 @@
       try { nAtt = typeof window.ptfRfqAttachmentCount === 'function' ? window.ptfRfqAttachmentCount(r) : 0; } catch (eAt) {}
       var attBadge = nAtt
         ? ' <span class="bd rfq-attachment-badge has-files" role="button" tabindex="0" style="background:#ede9fe;color:#6d28d9;cursor:pointer" title="مشاهده و مدیریت ' + nAtt + ' ضمیمه" onclick="event.stopPropagation();ptfManageInqAttachments(\'' + ptfOnClickArg(r.cd) + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();ptfManageInqAttachments(\'' + ptfOnClickArg(r.cd) + '\')}">📎 ' + nAtt + ' ضمیمه</span>'
-        : ' <span class="bd rfq-attachment-badge no-files" style="background:#f1f5f9;color:#94a3b8" title="این درخواست ضمیمه ندارد">📎 بدون ضمیمه</span>';
+        : ' <span class="bd rfq-attachment-badge no-files" role="button" tabindex="0" style="background:#f1f5f9;color:#94a3b8;cursor:pointer" title="افزودن / مدیریت ضمایم درخواست" onclick="event.stopPropagation();ptfManageInqAttachments(\'' + ptfOnClickArg(r.cd) + '\')">📎 بدون ضمیمه</span>';
       var rowBg = wl === 'won' ? '#ecfdf5' : wl === 'lost' ? '#fef2f2' : (due && due.bg ? due.bg : '');
       /* v21.5 US-411ف1: نمایش ثبت‌کننده زیر کد درخواست */
       var crLine = '';

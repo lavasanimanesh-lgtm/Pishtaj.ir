@@ -620,10 +620,6 @@
               tdEl.appendChild(document.createTextNode(' '));
               tdEl.appendChild(lockBadge);
             }
-            if (!tdEl.querySelector('[data-rfq-action="ptfManageInqAttachments"]') && tdEl.innerHTML.indexOf('ptfManageInqAttachments') === -1) {
-              tdEl.appendChild(document.createTextNode(' '));
-              tdEl.appendChild(ptfRfqActionBtn('📎 مدیریت پیوست‌ها', 'ptfManageInqAttachments', cd, 'color:#0e7490;font-weight:bold', 'inqrd-btn'));
-            }
             if (!tdEl.querySelector('[data-rfq-action="editRfq"]') && tdEl.innerHTML.indexOf('editRfq') === -1) {
               tdEl.appendChild(document.createTextNode(' '));
               tdEl.appendChild(ptfRfqActionBtn('✎ ویرایش', 'editRfq', cd, '', ''));
@@ -632,10 +628,6 @@
             if (rfqHasReadable(r) && !tdEl.querySelector('[data-rfq-action="inqReadOpen"]') && tdEl.innerHTML.indexOf('inqReadOpen') === -1) {
               tdEl.appendChild(document.createTextNode(' '));
               tdEl.appendChild(ptfRfqActionBtn('📖 خواندن فایل استعلام', 'inqReadOpen', cd, 'color:#7c3aed', 'inqrd-btn'));
-            }
-            if (!tdEl.querySelector('[data-rfq-action="ptfManageInqAttachments"]') && tdEl.innerHTML.indexOf('ptfManageInqAttachments') === -1) {
-              tdEl.appendChild(document.createTextNode(' '));
-              tdEl.appendChild(ptfRfqActionBtn('📎 پیوست‌ها', 'ptfManageInqAttachments', cd, 'color:#0e7490', ''));
             }
           }
         });

@@ -7,7 +7,7 @@
 var LETTER_FONT_FA = "'Geeza Pro','Baghdad','DecoType Naskh','B Yaghut','BYaghut','B Yagut','Yaghut','Yaqut','Amiri',Vazirmatn,Tahoma,serif"; /* v97: پشتیبانی کامل مک و ویندوز از فونت رسمی یاقوت و سریف */
 var LETTER_FONT_EN = "'Segoe UI',Arial,Helvetica,sans-serif";
 
-/* v34.7.63: نگاشت توکن فونت → پشتهٔ CSS واقعی (برای ابزار قالب‌بندی و چاپ) */
+/* v34.7.64: نگاشت توکن فونت → پشتهٔ CSS واقعی (برای ابزار قالب‌بندی و چاپ) */
 function letFontCss(t) {
   var map = {
     yaghut: LETTER_FONT_FA,
@@ -312,7 +312,7 @@ function renderLetters() {
 /* ---------- فرم نامه صادره ---------- */
 /* ---------- ویرایشگر غنی نامه (جدول و تصویر داخل متن) ---------- */
 function letEscHtml(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-/* v34.7.63: پاک‌سازی ایمن استایل inline — فقط ویژگی‌های تایپوگرافی امن حفظ می‌شوند */
+/* v34.7.64: پاک‌سازی ایمن استایل inline — فقط ویژگی‌های تایپوگرافی امن حفظ می‌شوند */
 function letSafeStyle(v) {
   var SAFE = { color:1, 'background-color':1, 'font-family':1, 'font-size':1, 'line-height':1,
     'text-align':1, direction:1, 'font-weight':1, 'font-style':1, 'text-decoration':1,
@@ -386,7 +386,7 @@ window.ptfLetEditorImage = function (inp) {
   var f = (inp.files || [])[0]; inp.value = ''; letEditorInsertImageFile(f);
 };
 
-/* ===== v34.7.63 LETTER-FORMAT-001: قالب‌بندی حرفه‌ای متن نامه =====
+/* ===== v34.7.64 LETTER-FORMAT-001: قالب‌بندی حرفه‌ای متن نامه =====
    نوار ابزار غنی: فونت، اندازه، رنگ، هایلایت، بولد/ایتالیک/زیرخط/خط‌خورده، چینش،
    فاصلهٔ خطوط، فهرست، تورفتگی، جدول و تصویر. استایل‌های inline تولیدشده از
    letSafeBodyHtml عبور می‌کنند (فقط ویژگی‌های امن تایپوگرافی حفظ می‌شوند). */
@@ -811,7 +811,7 @@ function letPrintObj(l, isPreview) {
   var align = s.align || (isEn ? 'left' : 'right');
   var font = isEn ? LETTER_FONT_EN : LETTER_FONT_FA;
   var dir = isEn ? 'ltr' : 'rtl';
-  /* v34.7.63: فاصلهٔ خطوط، فونت و حاشیهٔ قابل تنظیم (کل نامه) */
+  /* v34.7.64: فاصلهٔ خطوط، فونت و حاشیهٔ قابل تنظیم (کل نامه) */
   var lh = s.lh || 2.1;
   var bodyFont = s.font ? letFontCss(s.font) : font;
   var m = s.margin || {};
