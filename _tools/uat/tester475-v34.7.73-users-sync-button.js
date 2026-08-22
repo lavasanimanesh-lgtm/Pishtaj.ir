@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.81 — دکمهٔ واقعی «همگام‌سازی کاربران» + تأیید سروری پس از تعریف کاربر.
+/* v34.7.82 — دکمهٔ واقعی «همگام‌سازی کاربران» + تأیید سروری پس از تعریف کاربر.
    باگ: کاربرِ تعریف‌شده از دسکتاپ وارد می‌شد ولی از موبایل نه؛ پیام خطا کاربر را به
    «همگام‌سازی کاربران» ارجاع می‌داد در حالی که چنین عملی در UI وجود نداشت. ریشه:
    سینک فقط محلی/خودکار بود و نتیجهٔ تعریف کاربر پیش از پاسخ سرور «موفق» اعلام می‌شد.
@@ -17,8 +17,8 @@ var idx = read('crm/index.html');
 var rbac = read('crm/rbac.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.81', ver.crm_version === 'v34.7.81', ver.crm_version);
-T('rbac.js cache-bust 34.7.81', /rbac\.js\?v=34\.7\.81/.test(idx));
+T('VERSION.json = v34.7.82', ver.crm_version === 'v34.7.82', ver.crm_version);
+T('rbac.js cache-bust 34.7.82', /rbac\.js\?v=34\.7\.82/.test(idx));
 
 /* ① دکمهٔ واقعی همگام‌سازی کاربران */
 T('تابع ptfUsersSyncManual تعریف شد', /function ptfUsersSyncManual\(\)\s*\{/.test(rbac));
@@ -41,6 +41,6 @@ T('متن قدیمی «همگام‌سازی کاربران را اجرا کنی
 
 T('tester475 در گیت CI', gate.indexOf('tester475-v34.7.73-users-sync-button.js') > -1);
 
-console.log('\n— tester475 (v34.7.81: دکمهٔ همگام‌سازی کاربران + تأیید سروری تعریف کاربر) —');
+console.log('\n— tester475 (v34.7.82: دکمهٔ همگام‌سازی کاربران + تأیید سروری تعریف کاربر) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

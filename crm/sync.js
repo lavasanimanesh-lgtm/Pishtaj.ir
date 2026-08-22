@@ -267,6 +267,113 @@
     return h;
   }
   function hasSyncToken() { try { return !!localStorage.getItem('ptf_crm_token'); } catch (e) { return false; } }
+
+  /* ============ v34.7.82 (SYNC-DIAG-001) — خود-تشخیص همگام‌سازی ============
+     تغییر منطق نوشتن/سینک نمی‌دهد؛ فقط:
+       ۱) آخرین خطای push/pull را ثبت می‌کند (برای مشاهده در تنظیمات).
+       ۲) «تست اتصال» با اکشن محافظت‌شده data_rev انجام می‌شود تا علاوه بر رسیدن
+          به سرور، معتبر بودن نشست/توکن هم بررسی شود (users_get اکشن عمومی است و
+          با نشست منقضی هم 200 می‌گرفت — ریشهٔ پیام گمراه‌کننده «اتصال برقرار است»).
+       ۳) باکس «تشخیص همگام‌سازی» در تنظیمات نمایش داده شده و فقط‌خواندنی است. */
+  function noteSyncError(scope, status, reason, detail) {
+    try {
+      localStorage.setItem('ptf_sync_last_error', JSON.stringify({
+        t: new Date().toISOString(),
+        fa: (typeof faDateTime === 'function' ? faDateTime() : String(new Date().toLocaleString('fa-IR'))),
+        scope: scope, status: status || '', reason: reason || '',
+        detail: String((detail && ((detail.error) || (detail.reason) || '')) || detail || ''),
+        keys: Object.keys(state.dirty || {})
+      }));
+    } catch (e) {}
+  }
+  function readSyncLastError() {
+    try { return JSON.parse(localStorage.getItem('ptf_sync_last_error') || 'null'); } catch (e) { return null; }
+  }
+  window.ptfSyncLastError = readSyncLastError;
+  window.ptfSyncServerStatus = function (cb) {
+    /* اگر توکن نیست، نیازی به درخواست نیست: data_rev محافظت‌شده است و 401 می‌دهد. */
+    if (!hasSyncToken()) { if (cb) cb({ status: 'needLogin', error: 'نشست/توکن یافت نشد' }); return; }
+    var revStatusUrl = API + '?action=' + 'data_rev';
+    fetch(revStatusUrl, { headers: authHeaders(false) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok) { if (cb) cb({ status: 'online', error: '' }); return; }
+        if (d && (d.needLogin || /token|unauthorized|401/i.test(String(d.error || '')))) {
+          if (cb) cb({ status: 'needLogin', error: (d && d.error) || 'نشست منقضی' });
+          return;
+        }
+        if (cb) cb({ status: 'error', error: (d && d.error) || 'خطای سرور' });
+      })
+      .catch(function () { if (cb) cb({ status: 'offline', error: 'عدم دسترسی به سرور' }); });
+  };
+  function diagCounts() {
+    var dirty = {}, queue = {};
+    try { dirty = JSON.parse(localStorage.getItem('ptf_sync_dirty') || '{}') || {}; } catch (e) {}
+    try { queue = JSON.parse(localStorage.getItem('ptf_b_queue') || '{}') || {}; } catch (e) {}
+    var writeFail = Object.keys(state.writeFailures || {});
+    return {
+      dirty: Object.keys(dirty || {}), queue: Object.keys(queue || {}),
+      writeFailures: writeFail, hasToken: hasSyncToken()
+    };
+  }
+  window.ptfSyncDiagnosticsHtml = function () {
+    return '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">' +
+      '<h4 style="margin:0 0 8px">🔎 تشخیص همگام‌سازی</h4>' +
+      '<div id="ptfSyncDiagBody" style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:12.5px;line-height:1.9"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">' +
+      '<button class="bt" onclick="ptfSyncRunDiagnostics()">🔄 بررسی اتصال/نشست</button>' +
+      '<button class="bt bt-o" onclick="ptfSyncFlushNow(function(ok){ if(typeof ptfToast===\'function\') ptfToast(ok?\'همگام‌سازی انجام شد؛ همهٔ تغییرات ارسال شد\':\'هنوز تغییرات ارسال‌نشده در صف است؛ نوار وضعیت را ببینید\', ok?\'ok\':\'warn\'); })">⬆ تلاش مجدد ارسال</button>' +
+      '</div>';
+  };
+  window.ptfSyncDiagnosticsRefresh = function () {
+    var el = document.getElementById('ptfSyncDiagBody');
+    if (!el) return;
+    var c = diagCounts();
+    var last = readSyncLastError();
+    var statusLine = last
+      ? ('<b>آخرین خطا:</b> ' + escP(last.scope === 'push' ? 'ارسال (push)' : 'دریافت (pull)') + ' — ' +
+         escP(last.status || '') + ' ' + escP(last.reason || '') + (last.detail ? ' — ' + escP(last.detail) : '') +
+         ' <small style="color:#94a3b8">(' + escP(last.fa || last.t || '') + ')</small>')
+      : '<b>آخرین خطا:</b> <span style="color:#059669">در این نشست خطای ثبت‌شده‌ای نیست</span>';
+    var tokenLine = c.hasToken
+      ? '<span style="color:#059669">✅ توکن نشست روی این دستگاه هست</span>'
+      : '<span style="color:#b45309">⚠️ توکن نشست موجود نیست — اگر ذخیره/تغییرات رد می‌شود، دوباره وارد شوید</span>';
+    var dirtyLine = c.dirty.length
+      ? '<span style="color:#b45309">⚠️ ' + c.dirty.length + ' کلید در صف ارسال (dirty): ' + escP(c.dirty.slice(0, 8).join('، ')) + (c.dirty.length > 8 ? ' ...' : '') + '</span>'
+      : '<span style="color:#059669">✅ تغییر معلق‌ای در صف نیست</span>';
+    var queueLine = c.queue.length
+      ? '<span style="color:#b45309">⚠️ ' + c.queue.length + ' کلید در صف آفلاین (فاز B): ' + escP(c.queue.slice(0, 8).join('، ')) + '</span>'
+      : '<span style="color:#059669">🔵 صف آفلاین فاز B خالی است</span>';
+    var writeLine = c.writeFailures.length
+      ? '<span style="color:#b91c1c">🔴 ' + c.writeFailures.length + ' کلید مشکل حافظهٔ محلی؛ تب را نبندید: ' + escP(c.writeFailures.join('، ')) + '</span>'
+      : '<span style="color:#059669">✅ حافظهٔ محلی برای رکوردها در این نشست خطای ثبت نداده</span>';
+    el.innerHTML = '<div>' + tokenLine + '</div>' +
+      '<div>' + dirtyLine + '</div>' +
+      '<div>' + queueLine + '</div>' +
+      '<div>' + writeLine + '</div>' +
+      '<div style="border-top:1px dashed var(--brd);margin-top:6px;padding-top:6px">' + statusLine + '</div>';
+  };
+  window.ptfSyncRunDiagnostics = function () {
+    var el = document.getElementById('ptfSyncDiagBody');
+    if (el) el.innerHTML = '<div style="color:#0e7490">در حال بررسی اتصال و نشست…</div>';
+    window.ptfSyncServerStatus(function (r) {
+      if (r.status === 'online') noteSyncError('diag', 'ok', '', { error: '' });
+      else noteSyncError('diag', r.status || 'error', r.error || '', r);
+      /* اول وضعیت پایه را بازنویسی کن، سپس خط «نتیجهٔ بررسی» را بالای آن بگذار تا پاک نشود. */
+      if (el) window.ptfSyncDiagnosticsRefresh();
+      if (el) el.insertAdjacentHTML('afterbegin', '<div style="margin:0 0 6px;padding:6px 8px;border-radius:8px;background:' +
+        (r.status === 'online' ? '#ecfdf5' : r.status === 'needLogin' ? '#fef3c7' : r.status === 'offline' ? '#fee2e2' : '#fef3c7') + ';border:1px solid ' +
+        (r.status === 'online' ? '#a7f3d0' : r.status === 'needLogin' ? '#fde68a' : r.status === 'offline' ? '#fecaca' : '#fde68a') + '">' +
+        (r.status === 'online'
+          ? '<span style="color:#047857">✅ سرور در دسترس است و نشست/توکن معتبر است</span>'
+          : r.status === 'needLogin'
+            ? '<span style="color:#b45309">⚠️ نشست/توکن منقضی شده — دوباره وارد شوید</span>'
+            : r.status === 'offline'
+              ? '<span style="color:#b91c1c">❌ عدم دسترسی به سرور — وای‌فای/اینترنت را بررسی کنید</span>'
+              : '<span style="color:#b45309">⚠️ خطای سرور: ' + escP(r.error || 'نامشخص') + '</span>') +
+        '</div>');
+    });
+  };
   /* v33.20.0 (آینهٔ خالدار): کلیدهای سنگین فاز B در حافظه/IndexedDB نگهداری می‌شوند.
      rd/wr مسیر «رشتهٔ کلید» را از client-server.js می‌پرسند؛ fallback = localStorage مثل قبل. */
   function rd(k) {
@@ -455,6 +562,8 @@
           notifyPushWaiters(!confl.length && !forbidden.length && !rejected.length && !skipped.length, { conflicts: confl, forbidden: forbidden, rejected: rejected, skipped: skipped, savedKeys: savedKeys });
         } else {
           setSyncBadge('warn');
+          /* v34.7.82 (SYNC-DIAG-001): ثبت علت دقیق رد شدن push برای تشخیص/نمایش */
+          noteSyncError('push', d.needLogin ? 'needLogin' : (d.error === 'Forbidden: role not allowed' ? 'forbidden' : 'server'), d.error || (d.needLogin ? 'نشست منقضی' : ''), d);
           /* v33.2.1 HOTFIX: اگر push ناموفق بود، هشدار واضح بده — تغییرات محلی حفظ می‌شوند */
           if (d.needLogin) {
             refreshAuthToken();
@@ -472,6 +581,7 @@
       .catch(function () {
         state.pushing = false;
         state.online = false;
+        noteSyncError('push', 'network', '', '');
         setSyncBadge('offline');
         notifyPushWaiters(false, { reason: 'network' });
         setTimeout(schedulePush, 15000); // آفلاین: تلاش مجدد
@@ -590,10 +700,12 @@
         state.online = true;
         if (!d.ok) {
           if (d.needLogin || /token|unauthorized|401/i.test(String(d.error || ''))) {
+            noteSyncError('pull', 'needLogin', 'نشست منقضی', d);
             state.pullRequesting = false;
             retryPullAfterAuth(done, forceFull, opts);
             return;
           }
+          noteSyncError('pull', 'server', (d.error || 'server') + ' — نوار وضعیت با پیام «سرور در دسترس نیست» خودِ پول است، نه لزوماً قطع شبکه', d);
           finishPull({ ok: false, reason: d.error || 'server' });
           return;
         }
@@ -693,6 +805,7 @@
       .catch(function (err) {
         state.pulling = false;
         state.online = false;
+        noteSyncError('pull', 'network', '', err);
         setSyncBadge('offline');
         finishPull({ ok: false, reason: 'network', error: err });
       });
