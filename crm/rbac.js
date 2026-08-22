@@ -22,7 +22,7 @@ var ROLES = {
   commercial: { lb: 'مدیر بازرگانی',           users: true,  panels: '*',                                                              buyPrice: true,  sellPrice: true,  finance: true,  ledgerScope: 'all'      },
   sales:      { lb: 'کارشناس فروش',            users: false, panels: ['dash','rfq','cust','leads','rem','prod','surplus','off','cart','inqs','deals','ai'],      buyPrice: false, sellPrice: true,  finance: false, ledgerScope: 'none'     },
   buyer:      { lb: 'کارشناس خرید',            users: false, panels: ['dash','sup','prod','surplus','rem','buyq','cart','ai'],                    buyPrice: true,  sellPrice: false, finance: false, ledgerScope: 'none'     },
-  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty','chqprint','cart','ai'],                     buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
+  accountant: { lb: 'حسابدار',                 users: false, panels: ['inv','recv','petty','chqprint','cart','ai','taxret'],          buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'official' },
   collector:  { lb: 'تحصیلدار',                users: false, panels: ['recv','cart','ai'],                                             buyPrice: false, sellPrice: false, finance: false, ledgerScope: 'all'      }
 };
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
@@ -703,8 +703,8 @@ function refToInvoice(offerNo) {
 }
 
 function buildInvoices() {
-  var taxHtml = (typeof window.ptfTaxReturnsHtml === 'function') ? window.ptfTaxReturnsHtml() : '';
-  return '<div class="ph"><h3>🧾 فاکتورها (پیش‌فاکتورهای ارجاع‌شده)</h3></div><div id="invWrap"></div>' + taxHtml;
+  /* v34.7.80 (TAX-RETURNS-SEPARATION): اظهارنامه‌ها از فاکتورها جدا شد — دیگر اینجا رندر نمی‌شوند. */
+  return '<div class="ph"><h3>🧾 فاکتورها (پیش‌فاکتورهای ارجاع‌شده)</h3></div><div id="invWrap"></div>';
 }
 function renderInvoices() {
   var el = document.getElementById('invWrap');
@@ -760,9 +760,8 @@ function renderInvoices() {
       '</div></div></div>';
   });
   el.innerHTML = h || '<div style="text-align:center;color:#94a3b8;padding:24px">پیش‌فاکتور ارجاع‌شده‌ای وجود ندارد.<br><small>فقط پیش‌فاکتورهایی که نقش‌های ارشد ارجاع داده‌اند اینجا دیده می‌شوند.</small></div>';
-  if (typeof window.ptfTaxReturnsRender === 'function') {
-    window.ptfTaxReturnsRender();
-  }
+  /* v34.7.80 (TAX-RETURNS-SEPARATION): فراخوانی ptfTaxReturnsRender از اینجا حذف شد —
+     اظهارنامه‌ها در پنل مستقل «📁 اظهارنامه‌ها» (گروه کالا و اسناد) مدیریت می‌شوند. */
 }
 function showInvModal(offerNo, editCd) {
   /* v19.3 (US-436 AC2): پنجره کامل حسابدار — مبلغ، ارزش افزوده، شماره، تاریخ، PDF
