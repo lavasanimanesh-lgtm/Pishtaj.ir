@@ -16,7 +16,8 @@
   var K = 'ptf_crm_opex';
   var OPEX_ROW_ID = '_opexRowId';
   var opexRowSeq = 0;
-  window.PTF_OPEX_CATS = ['اجاره‌بها', 'حقوق و دستمزد', 'بیمه', 'مالیات', 'پذیرایی و اداری', 'پورسانت بیرونی', 'ایاب‌ذهاب و ماموریت', 'سایر'];
+  window.PTF_OPEX_CATS = ['اجاره‌بها', 'حقوق و دستمزد', 'بیمه', 'مالیات', 'پذیرایی و اداری', 'پورسانت بیرونی', 'ایاب‌ذهاب و ماموریت', 'کارمزد فاکتورساز', 'سایر'];
+  var COVER_OPEX_CAT = 'کارمزد فاکتورساز';
 
   function oAll() { return getData(K) || []; }
   function canFin() { try { return !!(roleDef() || {}).finance; } catch (e) { return false; } }
@@ -161,11 +162,152 @@
     });
     return out;
   };
-  // v30.2 FIN-WF-008: برای جلوگیری از دوباره‌شماری، fiscal فقط unlinked را می‌خواهد
+  function isCoverOpex(x) { return !!(x && (x.fromCoverInvoice || x.coverInvoiceCd)); }
+  // v30.2 FIN-WF-008: برای جلوگیری از دوباره‌شماری، fiscal فقط unlinked را می‌خواهد.
+  // کارمزد فاکتور پوششی در پنل هزینه جاری دیده می‌شود ولی در سود سال از روی خود فاکتور
+  // (coverCommission / coverNetBenefit) لحاظ می‌شود تا دوباره‌شماری نشود.
   window.ptfOpexSumFiscal = function(monthOrYear){
-    var s=window.ptfOpexSum(monthOrYear);
-    // فقط هزینه‌های مستقل از پرونده در سود سال کم می‌شود، لینک‌شده در سود پروژه کم شده
-    return { total: s.totalUnlinked, byCat: s.byCat, totalLinked: s.totalLinked, totalUnlinked: s.totalUnlinked };
+    var pre = String(monthOrYear || '');
+    var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0 };
+    oAll().forEach(function (x) {
+      if (!x || x.status === 'void' || x.st === 'void' || isCoverOpex(x)) return;
+      if (pre && String(x.month || '').indexOf(pre) !== 0) return;
+      var amt = (+x.amt || 0);
+      out.byCat[x.cat] = (out.byCat[x.cat] || 0) + amt;
+      if (x.dealRef) out.totalLinked += amt;
+      else out.totalUnlinked += amt;
+    });
+    out.total = out.totalUnlinked;
+    return out;
+  };
+  function coverOpexMonthOf(inv) {
+    var fa = String((inv && (inv.dateFa || '')) || '');
+    var mt = fa.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).match(/(\d{4})[\/\-](\d{1,2})/);
+    if (mt) return mt[1] + '/' + ('0' + mt[2]).slice(-2);
+    if (inv && inv.dateISO && typeof ptfISOToJ === 'function') {
+      var j = ptfISOToJ(inv.dateISO) || '';
+      var mt2 = String(j).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).match(/(\d{4})[\/\-](\d{1,2})/);
+      if (mt2) return mt2[1] + '/' + ('0' + mt2[2]).slice(-2);
+    }
+    if (typeof ptfFaMonthNow === 'function') return ptfFaMonthNow() || '';
+    return '';
+  }
+  function coverCommissionOf(inv) {
+    if (!inv) return 0;
+    if (inv.coverCommissionAmount != null && +inv.coverCommissionAmount > 0) return Math.round(+inv.coverCommissionAmount || 0);
+    var base = (inv.cur && inv.cur !== 'IRR') ? (+inv.amount || 0) * (+inv.rate || 0) : (+inv.amountIrr || +inv.amount || 0);
+    return Math.round(base * (+inv.coverCommissionPct || 0) / 100);
+  }
+  /* فاکتور خرید رسمی پوششی: صادرکننده مطالبه ندارد؛ فقط کارمزد فاکتورساز هزینه جاری غیررسمی است. */
+  window.ptfOpexUpsertFromCoverInvoice = function (inv) {
+    if (!inv || !inv.cd) return { ok: false, why: 'input' };
+    if (inv.isCover !== true || inv.status === 'void' || inv.st === 'void') {
+      return window.ptfOpexRemoveFromCoverInvoice(inv.cd);
+    }
+    var comm = coverCommissionOf(inv);
+    if (!(comm > 0)) return { ok: false, why: 'commission' };
+    var month = coverOpexMonthOf(inv);
+    if (!month) return { ok: false, why: 'month' };
+    var desc = 'کارمزد فاکتورساز فاکتور پوششی ' + (inv.no || inv.cd) + (inv.supName ? ' — ' + inv.supName : '');
+    var all = oRows();
+    var rec = all.filter(function (x) { return x && x.coverInvoiceCd === inv.cd && x.st !== 'void' && x.status !== 'void'; })[0];
+    var who = '';
+    try { who = (curSession() || {}).name || ''; } catch (eW) {}
+    if (rec) {
+      rec.amt = comm;
+      rec.month = month;
+      rec.desc = desc;
+      rec.cat = COVER_OPEX_CAT;
+      rec.isOfficial = false;
+      rec.fromCoverInvoice = true;
+      rec.coverSupplierCd = inv.supplierCd || rec.coverSupplierCd || '';
+      rec.updatedAtISO = new Date().toISOString();
+      rec.updatedBy = who;
+      oSave(all);
+      return { ok: true, rec: rec, updated: true };
+    }
+    rec = {
+      cd: opexNextCode(all), cat: COVER_OPEX_CAT, amt: comm, month: month, desc: desc,
+      isOfficial: false, fromCoverInvoice: true, coverInvoiceCd: inv.cd,
+      coverSupplierCd: inv.supplierCd || '', st: 'open',
+      t: (typeof faDate === 'function' ? faDate() : ''), by: who || 'سیستم'
+    };
+    rec[OPEX_ROW_ID] = opexNewRowId();
+    all.unshift(rec);
+    oSave(all);
+    try { audit('هزینه جاری', 'ثبت خودکار کارمزد فاکتورساز پوششی ' + (inv.no || inv.cd) + ' — ' + fmtT(comm) + ' ریال (' + month + ')', rec.cd); } catch (eA) {}
+    return { ok: true, rec: rec, created: true };
+  };
+  function coverOpexSettled(x) {
+    return !!(x && (x.st === 'settled' || x.chequeCd));
+  }
+  window.ptfOpexCoverIsSettled = coverOpexSettled;
+  window.ptfOpexSettleCoverCommit = function (rec, v) {
+    if (!rec || !isCoverOpex(rec)) return { ok: false, why: 'not-cover' };
+    if (rec.st === 'void' || rec.status === 'void') return { ok: false, why: 'void' };
+    if (coverOpexSettled(rec)) return { ok: false, why: 'already' };
+    var doc = String((v && v.doc) || '').trim();
+    if (!doc) return { ok: false, why: 'doc' };
+    var all = oRows();
+    var target = opexFindRow(all, rec.cd, rec[OPEX_ROW_ID], false) || rec;
+    target.st = 'settled';
+    target.settleDoc = doc;
+    target.settledBy = (v && v.by) || '';
+    try { if (!target.settledBy) target.settledBy = (curSession() || {}).name || ''; } catch (eB) {}
+    target.settledT = (typeof faDateTime === 'function' ? faDateTime() : '');
+    target.settleISO = (typeof ptfTodayISO === 'function' ? ptfTodayISO() : new Date().toISOString().slice(0, 10));
+    target.payHow = target.payHow || 'bank';
+    if (v && v.files && v.files.length) target.files = (target.files || []).concat(v.files);
+    oSave(all);
+    try { audit('هزینه جاری', 'تسویه کارمزد فاکتورساز پوششی با سند ' + doc + ' — ' + fmtT(target.amt) + ' ریال', target.cd); } catch (eA) {}
+    return { ok: true, rec: target };
+  };
+  window.ptfOpexSettleCover = function (cd, rowId) {
+    if (!canFin()) return;
+    var rec = opexFindRow(oRows(), cd, rowId, true);
+    if (!rec) return;
+    if (!isCoverOpex(rec)) { alert('تسویهٔ این مسیر فقط برای کارمزد فاکتور پوششی است.'); return; }
+    if (coverOpexSettled(rec)) { alert('این کارمزد قبلاً تسویه شده است (سند: ' + (rec.settleDoc || '-') + ').'); return; }
+    if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'تسویه کارمزد پوششی' }).ok) return;
+    if (typeof ptfDialog !== 'function') {
+      var raw = prompt('شماره/شرح سند پرداخت کارمزد فاکتورساز', '');
+      if (raw == null) return;
+      var r0 = window.ptfOpexSettleCoverCommit(rec, { doc: raw });
+      if (!r0.ok) { alert('⛔ تسویه ثبت نشد'); return; }
+      ptfOpexRender();
+      return;
+    }
+    ptfDialog({
+      title: '✔ تسویه کارمزد فاکتورساز — ' + rec.cd,
+      body: 'مبلغ: <b>' + fmtT(rec.amt) + ' ریال</b><br><small>پس از ثبت تسویه، خروج نقد از خزانه/بانک ثبت می‌شود. مدرک پرداخت را همین‌جا پیوست کنید.</small>',
+      fields: [
+        { id: 'doc', label: 'شماره/شرح سند پرداخت *', required: true, placeholder: 'مثال: حواله بانکی ۱۲۳۴۵' },
+        { id: 'files', label: 'مدرک پرداخت (رسید بانکی، فیش، تصویر چک)', type: 'upload', uploadFolder: 'opex/' + rec.cd }
+      ],
+      okText: 'ثبت تسویه',
+      onOk: function (v) {
+        var r = window.ptfOpexSettleCoverCommit(rec, v);
+        if (!r.ok) {
+          alert(r.why === 'doc' ? '⛔ شماره/شرح سند پرداخت الزامی است' : '⛔ تسویه ثبت نشد');
+          return;
+        }
+        if (typeof ptfToast === 'function') ptfToast('✅ کارمزد تسویه شد و خروج خزانه/بانک ثبت شد', 'ok');
+        ptfOpexRender();
+        try { if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender(); } catch (eT) {}
+      }
+    });
+  };
+
+  window.ptfOpexRemoveFromCoverInvoice = function (invoiceCd) {
+    if (!invoiceCd) return { ok: true, removed: 0 };
+    var all = oRows();
+    var next = all.filter(function (x) { return !(x && x.coverInvoiceCd === invoiceCd); });
+    var n = all.length - next.length;
+    if (n) {
+      oSave(next);
+      try { audit('هزینه جاری', 'حذف کارمزد فاکتورساز پوششی متصل به ' + invoiceCd, invoiceCd); } catch (eA) {}
+    }
+    return { ok: true, removed: n };
   };
 
 
@@ -341,6 +483,10 @@
     var all = oRows();
     var rec = opexFindRow(all, cd, rowId, true);
     if (!rec) return;
+    if (rec.fromCoverInvoice || rec.coverInvoiceCd) {
+      alert('این ردیف از فاکتور خرید پوششی ساخته شده است. برای حذف، همان فاکتور را در حساب تأمین‌کننده ابطال کنید.');
+      return;
+    }
     if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'حذف هزینه جاری' }).ok) return;
     // v29.3 FIN-WF-004: قفل سال مالی
     try {
@@ -367,6 +513,10 @@
     if (!canFin()) return;
     var rec = opexFindRow(oRows(), cd, rowId, true);
     if (!rec) return;
+    if (rec.fromCoverInvoice || rec.coverInvoiceCd) {
+      alert('این ردیف از فاکتور خرید پوششی ساخته شده است. مبلغ کارمزد را از همان فاکتور ویرایش کنید.');
+      return;
+    }
     rowId = rec[OPEX_ROW_ID];
     if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'ویرایش هزینه جاری' }).ok) return;
     // چک قفل سال
@@ -657,14 +807,18 @@
         '<span class="opex-row-copy"><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
         (x.dealRef ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">📁 پرونده فروش</span>' : '') +
         (x.autoApplied ? ' <span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">🤖 خودکار</span>' : '') +
+        (isCoverOpex(x) ? ' <span class="bd" style="background:#fff7ed;color:#c2410c;font-size:10px">از فاکتور پوششی</span>' : '') +
+        (coverOpexSettled(x) ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">تسویه شد</span>' : (isCoverOpex(x) ? ' <span class="bd" style="background:#fef3c7;color:#b45309;font-size:10px">در انتظار تسویه</span>' : '')) +
         (x.chequeCd ? ' <span class="bd" style="background:#fff7ed;color:#c2410c;font-size:10px">چک ' + escP(x.chequeCd) + '</span>' : '') +
         (x.desc ? ' <small style="color:#64748b">' + escP(x.desc) + '</small>' : '') +
         (x.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(x.editedAt) + '</small>' : '') +
+        (coverOpexSettled(x) && x.settleDoc ? '<br><small style="color:#059669">✔ تسویه: ' + escP(x.settledT || '') + ' — سند: ' + escP(x.settleDoc) + ' (' + escP(x.settledBy || '') + ')</small>' : '') +
         '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small></span>' +
         '<span class="opex-row-actions" role="group" aria-label="عملیات هزینه ' + escP(x.cat || '') + '">' +
         opexAction('attach', '📎', fileCount ? fileCount + ' سند' : 'سند', 'مدیریت قبض، رسید پرداخت، چک یا فاکتورهای این ردیف', 'ptfOpexAttachOpen(\'' + cdArg + '\',\'' + rowArg + '\')', false) +
-        opexAction('edit', '✏️', 'اصلاح', 'اصلاح همین ردیف هزینهٔ جاری', 'ptfOpexEdit(\'' + cdArg + '\',\'' + rowArg + '\')', false) +
-        opexAction('delete', '🗑', 'حذف', 'حذف همین ردیف هزینهٔ جاری', 'ptfOpexDel(\'' + cdArg + '\',\'' + rowArg + '\')', false) +
+        (isCoverOpex(x) && !coverOpexSettled(x) ? opexAction('settle', '✔', 'تسویه', 'تسویه کارمزد فاکتورساز و ثبت مدرک پرداخت', 'ptfOpexSettleCover(\'' + cdArg + '\',\'' + rowArg + '\')', true) : '') +
+        (isCoverOpex(x) ? '' : opexAction('edit', '✏️', 'اصلاح', 'اصلاح همین ردیف هزینهٔ جاری', 'ptfOpexEdit(\'' + cdArg + '\',\'' + rowArg + '\')', false)) +
+        (isCoverOpex(x) ? '' : opexAction('delete', '🗑', 'حذف', 'حذف همین ردیف هزینهٔ جاری', 'ptfOpexDel(\'' + cdArg + '\',\'' + rowArg + '\')', false)) +
         '</span></div>';
     }).join('');
     var tplRows = tpls().map(function (t) {

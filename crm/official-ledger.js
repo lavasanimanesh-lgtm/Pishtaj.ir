@@ -37,6 +37,16 @@
     return 'unclassified';
   };
 
+  /* ---------- طبقه‌بندی تنخواه ----------
+     تنخواه فیلد رسمی/غیررسمی ندارد؛ طبق تصمیم کارفرما همهٔ دسته‌ها
+     قابل‌قبول مالیاتی‌اند → پیش‌فرض «رسمی». فقط اگر صریحاً isOfficial=false
+     باشد غیررسمی شمرده می‌شود. */
+  window.ptfLedgerOfPetty = function (p) {
+    if (!p) return 'unclassified';
+    if (p.isOfficial === false) return 'unofficial';
+    return 'official';
+  };
+
   /* ---------- طبقه‌بندی فاکتور خرید تامین‌کننده ---------- */
   window.ptfLedgerOfSupplierInvoice = function (inv) {
     if (!inv) return 'unclassified';

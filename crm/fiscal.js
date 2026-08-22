@@ -382,7 +382,8 @@
           var cbase = (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
           var ccomm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0) : Math.round(cbase * (+i.coverCommissionPct || 0) / 100);
           var cvat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0) : Math.round(cbase * (+i.coverVatPct || 0) / 100);
-          out.coverCount++; out.coverCommission += ccomm; out.coverVat += cvat; out.coverNetBenefit += (cvat - ccomm);
+          /* کارمزد نقدی فقط پس از تسویهٔ ردیف opex شمرده می‌شود تا خروج خزانه با پرداخت واقعی یکی باشد. */
+          out.coverCount++; out.coverVat += cvat; out.coverNetBenefit += (cvat - ccomm);
           return;
         }
         out.supplierInvoices += (i.cur && i.cur !== 'IRR') ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0);
@@ -425,7 +426,17 @@
         out.independentCheques += +c.amt || 0;
       });
     } catch (eC) {}
-    /* کارمزد فاکتور پوششی خروجیِ نقدی واقعی است (نقد پرداخت می‌شود)؛ اعتبار ارزش‌افزوده نقد نیست
+    try {
+      (getData('ptf_crm_opex') || []).forEach(function (o) {
+        if (!o || o.status === 'void' || o.st === 'void') return;
+        if (!(o.fromCoverInvoice || o.coverInvoiceCd)) return;
+        if (o.st !== 'settled' && !o.chequeCd) return;
+        var iso = cashIsoOf(o.settleISO || o.settledT || o.t || o.month);
+        if (!cashInRange(iso, start, end) && fiscalYearOf(o.settleISO || o.month || o.t) !== String(year)) return;
+        out.coverCommission += (+o.amt || 0);
+      });
+    } catch (eOxCash) {}
+    /* کارمزد فاکتور پوششی خروجیِ نقدی واقعی است فقط پس از تسویه (نقد پرداخت می‌شود)؛ اعتبار ارزش‌افزوده نقد نیست
        و به موجودی/قابل تقسیم اضافه نمی‌شود — فقط در «منفعت» گزارش می‌شود. */
     /* تأمین نقدی سهامدار (واریز فراخوان / مازاد) نقد واقعی است؛ تهاتر طلب (fromCredit/noCash) نقد نیست. */
     var shareholderInject = 0;

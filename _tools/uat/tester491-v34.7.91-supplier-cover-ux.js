@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.91 — منطق فاکتور صوری/پوششی + چیدمان مودال ثبت فاکتور (SUP-VAT-002 / SUP-UX-002).
+/* v34.7.93 — منطق فاکتور صوری/پوششی + چیدمان مودال ثبت فاکتور (SUP-VAT-002 / SUP-UX-002).
    ۱) منفعت خالص پوششی (اعتبار VAT − کارمزد فاکتورساز) باید در مانده/اعتبار تأمین‌کننده دیده شود،
       نه فقط در گزارش‌های جدا.
    ۲) مودال هم‌راستا/مرتب: دکمه‌های یکدست هم‌عرض + فیلد مبلغ «بدون ارزش افزوده» + پیام کوتاه‌تر. */
@@ -15,13 +15,13 @@ var idx = read('crm/index.html');
 var sf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.91', ver.crm_version === 'v34.7.91', ver.crm_version);
-T('supplier-finance.js cache-bust 34.7.91', /supplier-finance\.js\?v=34\.7\.91/.test(idx));
+T('VERSION.json = v34.7.93', ver.crm_version === 'v34.7.93', ver.crm_version);
+T('supplier-finance.js cache-bust 34.7.93', /supplier-finance\.js\?v=34\.7\.93/.test(idx));
 
-/* ---------- SUP-VAT-002: منطق منفعت پوششی ---------- */
-T('isCover: مقدار بدهی = کارمزد − اعتبار VAT', /var comm =/.test(sf) && /var vat =/.test(sf) && /var r = comm - vat;/.test(sf));
-T('بدون تکرار invRemain برای پوششی', sf.indexOf('var rr = invRemain(i, d);') > -1);
-T('اعتبار VAT به‌جای مبلغ اسمی کسر می‌شود (فقط منفعت خالص)', /منفعت خالص پوششی/.test(sf));
+/* ---------- منطق پوششی: صادرکننده مطالبه ندارد ---------- */
+T('isCover در مانده تأمین‌کننده نادیده گرفته می‌شود', /if \(i\.isCover === true\) return;/.test(sf));
+T('مانده فاکتور پوششی صفر است', /if \(inv && inv.isCover === true\) return 0;/.test(sf));
+T('کارمزد پوششی به opex می‌رود', sf.indexOf('ptfOpexUpsertFromCoverInvoice') > -1);
 T('margin/credit روی by[c] موجود است', /credit: 0/.test(sf));
 
 /* ---------- SUP-UX-002: چیدمان ---------- */
@@ -34,6 +34,6 @@ T('décor/cover box هنوز فیلد کارمزد دارد', /id="slInvCommissi
 
 T('tester491 در گیت CI', gate.indexOf('tester491-v34.7.91-supplier-cover-ux.js') > -1);
 
-console.log('\n— tester491 (v34.7.91: منفعت پوششی + چیدمان مودال — SUP-VAT-002/SUP-UX-002) —');
+console.log('\n— tester491 (v34.7.93: منفعت پوششی + چیدمان مودال — SUP-VAT-002/SUP-UX-002) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
