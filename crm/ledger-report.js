@@ -64,35 +64,52 @@
     return out;
   }
 
+  function ledgerOfPettySafe(p) {
+    try { return typeof window.ptfLedgerOfPetty === 'function' ? window.ptfLedgerOfPetty(p) : (p && p.isOfficial === false ? 'unofficial' : 'official'); }
+    catch (e) { return 'official'; }
+  }
+
   window.ptfLedgerReportData = function () {
     var invoices = (getData('ptf_crm_invoices') || []).filter(active);
-    var opex = (getData('ptf_crm_opex') || []).filter(active);
+    var opex = (getData('ptf_crm_opex') || []).filter(function (o) {
+      return active(o) && !o.fromCoverInvoice && !o.coverInvoiceCd;
+    });
+    var petty = (getData('ptf_crm_petty') || []).filter(active);
     var sfData = (function () { try { return JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); } catch (e) { return {}; } })();
     var supplierInvoices = (sfData.invoices || []).filter(active);
 
     var salesSplit = splitSafe(invoices, ledgerOfInvoiceSafe, function (i) { return +i.amount || 0; });
     var opexSplit = splitSafe(opex, ledgerOfOpexSafe, function (o) { return +o.amt || 0; });
+    var pettySplit = splitSafe(petty, ledgerOfPettySafe, function (p) { return +p.amt || 0; });
     var purchaseSplit = splitSafe(supplierInvoices, ledgerOfSupplierInvoiceSafe, function (i) { return +i.amountIrr || +i.amount || 0; });
-    /* v34.0.8-alpha (هماهنگ با موتور سود سال مالی): خرید «واقعی» بدون مبلغ اسمی فاکتورهای
-       پوششی/صوری — فاکتور پوششی خرید واقعی نیست، فقط منفعتِ خالص (اعتبار ارزش‌افزوده − کارمزد)
-       اثر دارد. برای هماهنگی سود رسمی/غیررسمی/تجمیعی، خریدِ پوششی از کسر هزینه حذف و منفعتش
-       جدا افزوده می‌شود (مثل fiscal.js). */
+    /* خرید واقعی = رسمیِ غیرپوششی + غیررسمی. مبلغ اسمی پوششی فقط در دفتر رسمی است. */
     var realPurchaseSplit = splitSafe(supplierInvoices, ledgerOfSupplierInvoiceSafe, realPurchaseSafe);
     var coverBenefitTotal = supplierInvoices.reduce(function (s, i) { return s + coverNetBenefitSafe(i); }, 0);
     var coverCount = supplierInvoices.filter(function (i) { return i.isCover === true; }).length;
 
-    /* دفتر واقعی (بدون فاکتور پوششی) — مبلغ اسمیِ پوششی در خرید واقعی نیست */
-    var realPurchaseTotal = realPurchaseSplit.total;
+    var officialExpense = (+opexSplit.official || 0) + (+pettySplit.official || 0);
+    var unofficialExpense = (+opexSplit.unofficial || 0) + (+pettySplit.unofficial || 0);
+    var aggregateSales = (+salesSplit.official || 0) + (+salesSplit.unofficial || 0);
+    var aggregatePurchase = (+realPurchaseSplit.official || 0) + (+realPurchaseSplit.unofficial || 0);
+    var aggregateExpense = officialExpense + unofficialExpense;
 
     return {
       sales: salesSplit,
       opex: opexSplit,
+      petty: pettySplit,
       purchase: purchaseSplit,
-      /* سود بر مبنای خرید واقعی + منفعت پوششی (نه مبلغ اسمی پوششی) */
-      officialProfit: salesSplit.official - opexSplit.official - realPurchaseSplit.official + coverBenefitTotal,
-      unofficialProfit: salesSplit.unofficial - opexSplit.unofficial - realPurchaseSplit.unofficial,
-      aggregateProfit: salesSplit.total - opexSplit.total - realPurchaseSplit.total + coverBenefitTotal,
-      realPurchaseTotal: realPurchaseTotal,
+      officialExpense: officialExpense,
+      unofficialExpense: unofficialExpense,
+      /* دفتر رسمی: فروش رسمی − خرید رسمی (شامل پوششی) − هزینه رسمی (جاری + تنخواه) */
+      officialProfit: (+salesSplit.official || 0) - (+purchaseSplit.official || 0) - officialExpense,
+      unofficialProfit: (+salesSplit.unofficial || 0) - (+purchaseSplit.unofficial || 0) - unofficialExpense,
+      /* تراز تجمیعی = فعالیت حقیقی: فروش رسمی+غیررسمی، خرید غیرپوششی،
+         هزینه رسمی+غیررسمی، به‌علاوه منفعت خرید فاکتور پوششی */
+      aggregateSales: aggregateSales,
+      aggregatePurchase: aggregatePurchase,
+      aggregateExpense: aggregateExpense,
+      aggregateProfit: aggregateSales - aggregatePurchase - aggregateExpense + coverBenefitTotal,
+      realPurchaseTotal: aggregatePurchase,
       coverBenefitTotal: coverBenefitTotal,
       coverCount: coverCount
     };
@@ -118,7 +135,8 @@
       block('فروش رسمی', d.sales.official, '#059669') +
       block('خرید رسمی', d.purchase.official, '#dc2626', d.purchase.officialCount ? d.purchase.officialCount + ' فاکتور' : '') +
       block('هزینه جاری رسمی', d.opex.official, '#b45309') +
-      block('سود ناخالص رسمی', d.officialProfit, d.officialProfit >= 0 ? '#059669' : '#dc2626') +
+      (d.petty && d.petty.official ? block('تنخواه رسمی', d.petty.official, '#b45309') : '') +
+      block('سود رسمی', d.officialProfit, d.officialProfit >= 0 ? '#059669' : '#dc2626', 'فروش − خرید − هزینه رسمی') +
       '</div>' +
 
       '<h5 style="margin:16px 0 6px;font-size:13px;color:#0f172a">🗂 دفتر غیررسمی</h5>' +
@@ -126,15 +144,18 @@
       block('فروش غیررسمی', d.sales.unofficial, '#059669') +
       block('خرید غیررسمی', d.purchase.unofficial, '#dc2626', d.purchase.unofficialCount ? d.purchase.unofficialCount + ' فاکتور' : '') +
       block('هزینه جاری غیررسمی', d.opex.unofficial, '#b45309') +
-      block('سود ناخالص غیررسمی', d.unofficialProfit, d.unofficialProfit >= 0 ? '#059669' : '#dc2626') +
+      block('سود غیررسمی', d.unofficialProfit, d.unofficialProfit >= 0 ? '#059669' : '#dc2626') +
       '</div>' +
 
-      '<h5 style="margin:16px 0 6px;font-size:13px;color:#0f172a">📊 تراز تجمیعی <small style="color:#64748b;font-weight:400">(رسمی + غیررسمی + نامشخص — همان چیزی که «گزارش تجمیعی مالی» نشان می‌دهد)</small></h5>' +
+      '<style>#ledgerAggBox{background:linear-gradient(180deg,#eef2ff 0%,#e0e7ff 100%);border:1px solid #c7d2fe}body.ptf-dark #ledgerAggBox{background:linear-gradient(180deg,#1e1b4b 0%,#312e81 100%);border-color:#6366f1}body.ptf-dark #ledgerAggBox h5{color:#e0e7ff!important}body.ptf-dark #ledgerAggBox h5 small{color:#a5b4fc!important}</style>' +
+      '<div id="ledgerAggBox" style="margin-top:16px;border-radius:14px;padding:12px">' +
+      '<h5 style="margin:0 0 8px;font-size:13px;color:#312e81">📊 تراز تجمیعی <small style="color:#4338ca;font-weight:400">(فعالیت حقیقی — رسمی + غیررسمی + منفعت فاکتور پوششی)</small></h5>' +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">' +
-      block('کل فروش', d.sales.total, '#059669') +
-      block('کل خرید', d.purchase.total, '#dc2626') +
-      block('کل هزینه جاری', d.opex.total, '#b45309') +
-      block('سود ناخالص تجمیعی', d.aggregateProfit, d.aggregateProfit >= 0 ? '#059669' : '#dc2626') +
+      block('کل فروش', d.aggregateSales, '#047857', 'رسمی + غیررسمی') +
+      block('کل خرید', d.aggregatePurchase, '#b91c1c', 'رسمی غیرپوششی + غیررسمی') +
+      block('کل هزینه', d.aggregateExpense, '#c2410c', 'جاری رسمی+غیررسمی' + (d.petty && (d.petty.official || d.petty.unofficial) ? ' + تنخواه' : '')) +
+      block('منفعت خرید فاکتور پوششی', d.coverBenefitTotal, d.coverBenefitTotal >= 0 ? '#4f46e5' : '#dc2626', d.coverCount ? d.coverCount + ' فاکتور — اعتبار ارزش‌افزوده − کارمزد' : 'هنوز فاکتور پوششی ثبت نشده') +
+      block('سود تجمیعی', d.aggregateProfit, d.aggregateProfit >= 0 ? '#047857' : '#dc2626', 'فروش − خرید − هزینه + منفعت پوششی') +
       '</div>' +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:6px">' +
       (d.purchase.unclassifiedCount ? block('خرید نامشخص', d.purchase.unclassified, '#b45309', d.purchase.unclassifiedCount + ' مورد — در سود نیست') : '') +
@@ -142,6 +163,7 @@
       (d.sales.unclassifiedCount ? block('فروش نامشخص', d.sales.unclassified, '#b45309', d.sales.unclassifiedCount + ' مورد') : '') +
       '</div>' +
       unclassifiedNote(d.opex, 'هزینه جاری') + unclassifiedNote(d.purchase, 'فاکتور خرید تأمین‌کننده') +
+      '</div>' +
 
       '<h5 style="margin:16px 0 6px;font-size:13px;color:#0f172a">💰 دفتر واقعی <small style="color:#64748b;font-weight:400">(مبنای پیشنهادی تقسیم سود — رسمی+غیررسمی واقعی، بدون فاکتور پوششی/صوری)</small></h5>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:9px 11px;font-size:12px;color:#475569;margin-bottom:8px">فرمول تقسیم سود سهامداران در «سال مالی» فعلاً <b>تغییر نکرده</b> و این بخش صرفاً گزارشی است (طبق تصمیم کارفرما). خرید واقعی = خرید رسمی+غیررسمی <i>به‌جز</i> فاکتورهای پوششی/صوری؛ سود/زیان خالص فاکتورهای پوششی (اعتبار ارزش‌افزوده منهای کارمزد) جداگانه نشان داده می‌شود.</div>' +

@@ -170,9 +170,7 @@
       var irrRemain = (inv.cur || 'IRR') === 'IRR' ? nativeRemain : nativeRemain * (+inv.rate || 0);
       var iso = dateOf(inv, ['dateISO', 'date', 't']);
       if ((inv.cur || 'IRR') !== 'IRR' && !(+inv.rate || 0)) pushIssue(issues, 'supplierFxRate', 0, inv.no || inv.cd);
-      /* v34.0.8-alpha (هماهنگ با موتور سود): فاکتور صوری/پوششی خرید واقعی نیست — مبلغ اسمی و
-         اعتبار ارزش‌افزوده بدهیِ واقعی ایجاد نمی‌کنند؛ فقط «کارمزد فاکتورساز» بدهیِ نقدی واقعی است.
-         منفعت پوششی (VAT − کارمزد) جدا گزارش می‌شود. */
+      /* فاکتور پوششی مطالبه تأمین‌کننده نمی‌سازد؛ کارمزد فقط هزینه جاری است. */
       if (inv.isCover === true) {
         var cBase = amountIrr(inv);
         var cComm = (+inv.coverCommissionAmount != null && +inv.coverCommissionAmount > 0) ? (+inv.coverCommissionAmount || 0) : Math.round(cBase * (+inv.coverCommissionPct || 0) / 100);
@@ -180,10 +178,7 @@
         src.coverCommission = (src.coverCommission || 0) + cComm;
         src.coverVat = (src.coverVat || 0) + cVat;
         src.coverCount = (src.coverCount || 0) + 1;
-        if (!iso) pushIssue(issues, 'supplierInvoiceDate', cComm, inv.no || inv.cd);
-        else if (inAsOf(iso, asOf)) src.supplierLiability += cComm; /* فقط کارمزد = بدهی واقعی */
-        if (inPeriod(iso, start, asOf)) { moves.supplierInvoices += cComm; counts.supplierInvoices++; recSup.invoicesThis += cComm; }
-        else if (iso && iso <= asOf) recSup.invoicesPrior += cComm;
+        if (!iso) pushIssue(issues, 'supplierInvoiceDate', 0, inv.no || inv.cd);
         return;
       }
       if (!iso) pushIssue(issues, 'supplierInvoiceDate', irrRemain, inv.no || inv.cd);
@@ -231,7 +226,7 @@
 
     /* v34.0.8-alpha (M-B3): بازنویسی از slSupplierOpenTotalsIRR دیگر «وضعیتِ امروز» را متفاوت
        از مسیر داخلی نمی‌کند — balance() (که منبع آن است) حالا هم‌ارزِ مسیر داخلی است:
-       فاکتور پوششی فقط کارمزد و legacy از مبلغ بدهی حذف. فقط برای هم‌ارزسازی مقادیر
+       فاکتور پوششی مطالبه نمی‌سازد و legacy از مبلغ بدهی حذف است. فقط برای هم‌ارزسازی مقادیر
        supplierLiability/Credit استفاده می‌شود؛ فیلدهای پوششی/legacy از محاسبهٔ داخلی حفظ می‌شوند. */
     if (asOf === today && typeof window.slSupplierOpenTotalsIRR === 'function') {
       try {
@@ -298,8 +293,8 @@
       '<div class="tb2" style="margin-top:12px"><table><thead><tr><th>سرفصل</th><th>مانده افتتاحیه دستی</th><th>مانده از اسناد فعال</th><th>مانده گزارش</th><th>منبع</th></tr></thead><tbody>' +
       '<tr><td>مطالبات مشتریان</td><td>' + money(o.receivable) + '</td><td>' + money(s.receivable) + '</td><td><b>' + money(t.receivable) + '</b></td><td>فاکتورهای مشتری − تخصیص دریافت‌ها</td></tr>' +
       '<tr><td>بستانکاری پرونده‌های مشتری</td><td>—</td><td>' + money(s.customerCredit) + '</td><td><b>' + money(t.customerCredit) + '</b></td><td>دریافت قطعی تخصیص‌نیافته همان پرونده</td></tr>' +
-      '<tr><td>بدهی تأمین‌کنندگان</td><td>' + money(o.supplier_liability) + '</td><td>' + money(s.supplierLiability) + '</td><td><b>' + money(t.supplierLiability) + '</b></td><td>فاکتور خرید (واقعی + کارمزد پوششی) + اصلاحیات</td></tr>' +
-      (d.coverCommission ? '<tr><td>کارمزد فاکتورهای صوری/پوششی</td><td>—</td><td>' + money(d.coverCommission) + '</td><td><b>' + money(d.coverCommission) + '</b></td><td>بدهیِ نقدی واقعی فاکتور پوششی (در بدهی تأمین لحاظ شده)</td></tr><tr><td>اعتبار ارزش‌افزودهٔ پوششی (منفعت)</td><td>—</td><td>' + money(d.coverVat) + '</td><td><b>' + money(d.coverVat) + '</b></td><td>منفعت — نقد نیست؛ در بدهی محاسبه نشده</td></tr>' : '') +
+      '<tr><td>بدهی تأمین‌کنندگان</td><td>' + money(o.supplier_liability) + '</td><td>' + money(s.supplierLiability) + '</td><td><b>' + money(t.supplierLiability) + '</b></td><td>فاکتور خرید واقعی + اصلاحیات (پوششی مطالبه نمی‌سازد)</td></tr>' +
+      (d.coverCommission ? '<tr><td>کارمزد فاکتورهای صوری/پوششی</td><td>—</td><td>' + money(d.coverCommission) + '</td><td><b>' + money(d.coverCommission) + '</b></td><td>هزینه جاری — در بدهی تأمین لحاظ نمی‌شود</td></tr><tr><td>اعتبار ارزش‌افزودهٔ پوششی (منفعت)</td><td>—</td><td>' + money(d.coverVat) + '</td><td><b>' + money(d.coverVat) + '</b></td><td>منفعت — نقد نیست؛ در بدهی محاسبه نشده</td></tr>' : '') +
       (d.legacyUnlinked ? '<tr><td>تعهد خرید legacy بدون فاکتور</td><td>—</td><td>' + money(d.legacyUnlinked) + '</td><td><b>' + money(d.legacyUnlinked) + '</b></td><td>گزارشی فقط — در بدهی لحاظ نمی‌شود (مبنای تعهد فاکتور خرید است)</td></tr>' : '') +
       '<tr><td>بدهی پورسانت فروش کارکنان</td><td>—</td><td>' + money(s.commissionLiability || 0) + '</td><td><b>' + money(t.commissionLiability || 0) + '</b></td><td>دوره‌های تصویب‌شده − پرداخت‌های بانکی پورسانت</td></tr>' +
       '<tr><td>اعتبار تأمین‌کنندگان</td><td>' + money(o.supplier_credit) + '</td><td>' + money(s.supplierCredit) + '</td><td><b>' + money(t.supplierCredit) + '</b></td><td>پرداخت بدون تخصیص + اصلاحیات منفی</td></tr>' +

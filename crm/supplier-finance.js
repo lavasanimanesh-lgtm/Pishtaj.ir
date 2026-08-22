@@ -60,7 +60,10 @@
       return sum + (p.allocations || []).filter(function (a) { return a.invoiceCd === inv.cd; }).reduce(function (s, a) { return s + (+a.amount || 0); }, 0);
     }, 0);
   }
-  function invRemain(inv, d) { return Math.max(0, (+inv.amount || 0) - invPaid(inv, d)); }
+  function invRemain(inv, d) {
+    if (inv && inv.isCover === true) return 0;
+    return Math.max(0, (+inv.amount || 0) - invPaid(inv, d));
+  }
   function legacyOpen(sup) {
     return getData('ptf_crm_payables').filter(function (p) {
       return p.pay === 'credit' && !p.settled && !p.sfInvoiceCd &&
@@ -92,23 +95,9 @@
     var by = {}, linked = linkedLegacyIds(d);
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var c = i.cur || 'IRR';
-      /* v34.7.91 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
-         (اعتبار ارزش‌افزوده − کارمزد فاکتورساز) باید در مانده/اعتبار این تأمین‌کننده
-         دیده شود. پیش‌تر فقط کارمزد به بدهی اضافه می‌شد و اعتبار VAT کسر نمی‌شد؛
-         این با گزارش‌های official-ledger/working-capital/fiscal ناهماهنگ بود.
-         حالا: بدهی واقعی = کارمزد؛ و اگر اعتبار VAT بزرگ‌تر باشد به‌عنوان
-         «اعتبار/منفعت» کسر می‌شود. */
-      if (i.isCover === true) {
-        var comm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0)
-          : Math.round((i.cur && i.cur !== 'IRR' ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0)) * (+i.coverCommissionPct || 0) / 100);
-        var vat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0)
-          : Math.round((i.cur && i.cur !== 'IRR' ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0)) * (+i.coverVatPct || 0) / 100);
-        var r = comm - vat; /* منفعت خالص پوششی: اگر منفی باشد یعنی اعتبار/بدهیِ ناخالص کاهش */
-        if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0, credit: 0 };
-        by[c].amount += r; by[c].irr += (c === 'IRR') ? r : r * (+i.rate || 0); by[c].invoices++;
-        if (invoiceLinkMismatchActive(i)) by[c].warn++;
-        return;
-      }
+      /* فاکتور خرید رسمی پوششی: صادرکننده هیچ مطالبه‌ای ندارد.
+         کارمزد فاکتورساز فقط به‌عنوان هزینه جاری ثبت می‌شود. */
+      if (i.isCover === true) return;
       var rr = invRemain(i, d);
       if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0, credit: 0 };
       by[c].amount += rr; by[c].irr += c === 'IRR' ? rr : rr * (+i.rate || 0); by[c].invoices++;
@@ -200,7 +189,7 @@
       '<div class="fld" style="border:1px dashed #f59e0b;border-radius:10px;padding:9px 11px;background:#fffbeb;margin:6px 0">' +
       '<label style="display:flex;gap:7px;align-items:center;cursor:pointer;font-size:12.5px"><input type="checkbox" id="slInvCover" onchange="slInvCoverToggle()"> <b>🔖 این فاکتور، فاکتور پوششی/صوری برای پر کردن گپ ممیزی فصلی است</b></label>' +
       '<div id="slInvCoverBox" style="display:none;margin-top:9px">' +
-      '<div style="font-size:11.5px;color:#92400e;margin-bottom:8px;line-height:1.9">مبلغ اسمی فاکتور در دفتر رسمی به‌عنوان خرید لحاظ می‌شود؛ فقط کارمزد فاکتورساز نقداً پرداخت می‌شود و در «دفتر واقعی» منفعت خالص (اعتبار ارزش‌افزوده منهای کارمزد) اثر می‌گذارد.</div>' +
+      '<div style="font-size:11.5px;color:#92400e;margin-bottom:8px;line-height:1.9">مبلغ اسمی فقط در دفتر رسمی ممیزی است. صادرکننده این فاکتور هیچ مطالبه‌ای از شرکت ندارد. فقط مبلغ کارمزد فاکتورساز به‌عنوان هزینه جاری غیررسمی ثبت می‌شود.</div>' +
       '<div class="fr"><div class="fld"><label>درصد کارمزد فاکتورساز (٪) *</label><input id="slInvCommissionPct" type="number" min="0" max="100" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()"></div><div class="fld"><label>فصل مرتبط</label><select id="slInvCoverSeason"><option value="1">🌸 بهار</option><option value="2" selected>☀️ تابستان</option><option value="3">🍁 پاییز</option><option value="4">❄️ زمستان</option></select></div></div>' +
       '<div id="slInvCoverNet" style="font-size:12.5px;font-weight:800;margin:8px 0;padding:7px 10px;border-radius:8px;background:#fff"></div>' +
       '<label style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:#92400e;cursor:pointer"><input type="checkbox" id="slInvCoverConfirm" style="margin-top:2px"> <span>تایید می‌کنم این یک فاکتور پوششی/صوری داخلی است.</span></label>' +
@@ -362,6 +351,10 @@
     }
     d.invoices.unshift(inv);
     if (save(d) === false) { alert('⛔ فاکتور خرید روی حافظهٔ پایدار این دستگاه ذخیره نشد؛ تب را نبندید و پس از رفع خطا دوباره ثبت کنید.'); return; }
+    if (isCover && typeof window.ptfOpexUpsertFromCoverInvoice === 'function') {
+      try { window.ptfOpexUpsertFromCoverInvoice(inv); } catch (eOx) {}
+      try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOr) {}
+    }
     if (links.length) { var pays = getData('ptf_crm_payables'); pays.forEach(function (p) { if (links.indexOf(p.cd) > -1) p.sfInvoiceCd = inv.cd; }); if (setData('ptf_crm_payables', pays) === false) { alert('⛔ لینک تعهدهای خرید ذخیره نشد؛ تب را نبندید.'); return; } }
     try { audit('فاکتور خرید تامین', 'ثبت فاکتور ' + no + ' برای ' + sup.co + ' — ' + money(amount) + ' ' + cur + (links.length ? ' | اتصال به ' + links.length + ' تعهد خرید' : ''), inv.cd); } catch (e) {}
     var m = document.getElementById('slInvDlg'); if (m) m.remove();
@@ -385,6 +378,10 @@
     if (invPaid(inv, d) > 0) { alert('فاکتور دارای پرداخت است؛ ابتدا پرداخت‌ها را حذف کنید'); return; }
     if (!confirm('فاکتور ' + inv.no + ' ابطال شود؟')) return;
     inv.status = 'void'; inv.voidAt = faDateTime(); inv.voidBy = curSession().name; save(d);
+    if (inv.isCover === true && typeof window.ptfOpexRemoveFromCoverInvoice === 'function') {
+      try { window.ptfOpexRemoveFromCoverInvoice(inv.cd); } catch (eOxV) {}
+      try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOrV) {}
+    }
     var pays = getData('ptf_crm_payables'); pays.forEach(function (p) { if (p.sfInvoiceCd === cd) delete p.sfInvoiceCd; }); setData('ptf_crm_payables', pays);
     try { audit('فاکتور خرید تامین', 'ابطال فاکتور ' + inv.no + ' — ' + inv.supName, cd); } catch (e) {}
     var m = document.getElementById('slLedgerDlg'); if (m) m.remove(); window.slOpenLedger(inv.supplierCd);
@@ -539,7 +536,7 @@
     }
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var status = invRemain(i, d) > 0 ? 'open' : 'settled', refs = (i.legacyPayableCds || []).map(function (cd) { var p = getData('ptf_crm_payables').filter(function (x) { return x.cd === cd; })[0] || {}; return p.inqNo || cd; }).join('، ');
-      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: 'فاکتور خرید', no: i.no, ref: refs, itemCount: (i.itemLinks || []).length || (i.legacyPayableCds || []).length || 0, cur: i.cur || 'IRR', debit: +i.amount || 0, credit: 0, status: status, files: (i.files || []).slice(), link: { kind: 'invoice', cd: i.cd } });
+      if (keep(i.dateISO || '', i.cur || 'IRR', status, refs)) out.push({ date: i.dateISO || '', dateFa: i.dateFa || i.dateISO || '', type: i.isCover === true ? 'فاکتور پوششی' : 'فاکتور خرید', no: i.no, ref: refs, itemCount: (i.itemLinks || []).length || (i.legacyPayableCds || []).length || 0, cur: i.cur || 'IRR', debit: i.isCover === true ? 0 : (+i.amount || 0), credit: 0, status: status, files: (i.files || []).slice(), link: { kind: 'invoice', cd: i.cd } });
     });
     /* فاز ۲ / گام ۷ (crm/DESIGN-OFFICIAL-UNOFFICIAL-SEPARATION-PHASE2.md بند ۱۱):
        طبق تصمیم کارفرما، پرداخت ابطال‌شده باید مثل فاکتور ابطال‌شده کاملاً از
@@ -919,7 +916,18 @@
         i.no=v.no; i.dateISO=iso; i.dateFa=typeof ptfISOToJ==='function'?ptfISOToJ(iso):iso; i.amount=amt; i.amountIrr=i.cur==='IRR'?amt:Math.round(amt*(+i.rate||0)); i.note=v.note||'';
         if(v.isOfficial==='yes') i.isOfficial=true; else if(v.isOfficial==='no') i.isOfficial=false; else delete i.isOfficial;
         i.updatedAtISO = new Date().toISOString(); i.updatedBy = curSession().name;
-        save(d); try { audit('فاکتور خرید تامین','ویرایش فاکتور '+i.no+(oldOfficial!==(Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null)?' — تغییر نوع سند':''),cd); } catch(e) {}
+        if (i.isCover === true) {
+          var baseCover = +i.amountIrr || +i.amount || 0;
+          if (+i.coverCommissionPct > 0) i.coverCommissionAmount = Math.round(baseCover * (+i.coverCommissionPct) / 100);
+          if (+i.coverVatPct > 0) { i.coverVatAmount = Math.round(baseCover * (+i.coverVatPct) / 100); i.vatAmount = i.coverVatAmount; }
+          i.coverNetBenefit = (+i.coverVatAmount || 0) - (+i.coverCommissionAmount || 0);
+        }
+        save(d);
+        if (i.isCover === true && typeof window.ptfOpexUpsertFromCoverInvoice === 'function') {
+          try { window.ptfOpexUpsertFromCoverInvoice(i); } catch (eOxE) {}
+          try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOrE) {}
+        }
+        try { audit('فاکتور خرید تامین','ویرایش فاکتور '+i.no+(oldOfficial!==(Object.prototype.hasOwnProperty.call(i,'isOfficial')?i.isOfficial:null)?' — تغییر نوع سند':''),cd); } catch(e) {}
         slOpenLedger(i.supplierCd);
       }
     });
@@ -1029,7 +1037,7 @@
 
   /* Sprint 270: explicit deletion/reversal with allocation release */
   window.slPaymentDelete=function(cd){ return window.slPaymentVoid(cd); };
-  window.slInvoiceDelete=function(cd){var d=data(),i=(d.invoices||[]).filter(function(x){return x.cd===cd})[0];if(!i)return;if(!confirm('فاکتور حذف/ابطال شود؟ تخصیص‌های پرداخت آن به اعتبار تامین‌کننده تبدیل می‌شوند.'))return;(d.payments||[]).forEach(function(p){p.allocations=(p.allocations||[]).filter(function(a){return a.invoiceCd!==cd;});p.unallocated=(+p.amount||0)-(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);});i.status='void';i.voidAt=faDateTime();i.voidBy=curSession().name;var pays=getData('ptf_crm_payables');pays.forEach(function(p){if(p.sfInvoiceCd===cd)delete p.sfInvoiceCd;});setData('ptf_crm_payables',pays);save(d);if(typeof slRefreshSupplierPanel==='function')slRefreshSupplierPanel();slOpenLedger(i.supplierCd);};
+  window.slInvoiceDelete=function(cd){var d=data(),i=(d.invoices||[]).filter(function(x){return x.cd===cd})[0];if(!i)return;if(!confirm('فاکتور حذف/ابطال شود؟ تخصیص‌های پرداخت آن به اعتبار تامین‌کننده تبدیل می‌شوند.'))return;(d.payments||[]).forEach(function(p){p.allocations=(p.allocations||[]).filter(function(a){return a.invoiceCd!==cd;});p.unallocated=(+p.amount||0)-(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);});i.status='void';i.voidAt=faDateTime();i.voidBy=curSession().name;var pays=getData('ptf_crm_payables');pays.forEach(function(p){if(p.sfInvoiceCd===cd)delete p.sfInvoiceCd;});setData('ptf_crm_payables',pays);save(d);if(i.isCover===true&&typeof window.ptfOpexRemoveFromCoverInvoice==='function'){try{window.ptfOpexRemoveFromCoverInvoice(i.cd);}catch(eOxD){}try{if(typeof ptfOpexRender==='function')ptfOpexRender();}catch(eOrD){}}if(typeof slRefreshSupplierPanel==='function')slRefreshSupplierPanel();slOpenLedger(i.supplierCd);};
   /* ============ Sprint 270: visible management, Jalali filters, opening balance ============ */
   function slJalaliFilter(id, label, iso) { return typeof ptfDatePicker === 'function' ? '<label>'+label+'</label>'+ptfDatePicker(id, iso || '') : '<label>'+label+'</label><input id="'+id+'" value="'+escP(iso||'')+'" placeholder="1405/04/22">'; }
   window.slOpeningOpen=function(supCd){if(!slCanAdjust()){alert('مانده افتتاحیه فقط برای مدیران ارشد مجاز است');return;}ptfDialog({title:'🏁 ثبت مانده افتتاحیه تامین‌کننده',body:'مبلغ مثبت = بدهی اولیه ما به تامین‌کننده؛ مبلغ منفی = اعتبار اولیه شرکت نزد تامین‌کننده.',fields:[{id:'cur',label:'ارز',type:'select',options:['IRR','USD','EUR','CNY','AED','GBP']},{id:'amount',label:'مانده افتتاحیه (+ بدهی / − اعتبار)',type:'number',money:false,dir:'ltr',required:true},{id:'rate',label:'نرخ تسعیر برای ارز خارجی',type:'number',money:false,dir:'ltr'},{id:'note',label:'شرح/مبنای مانده افتتاحیه',type:'textarea',required:true}],okText:'ثبت مانده افتتاحیه',onOk:function(v){var a=+v.amount||0,c=v.cur||'IRR',r=c==='IRR'?1:(+v.rate||0);if(!a||!v.note||(c!=='IRR'&&!r)){alert('مبلغ، شرح و برای ارز خارجی نرخ الزامی است');return;}var d=data(),sup=supplier(supCd);d.adjustments=d.adjustments||[];d.adjustments.unshift({cd:genCode('SFOPEN'),supplierCd:supCd,supName:sup?sup.co:'',refYear:'opening',kind:'opening',cur:c,rate:r,amount:a,amountIrr:c==='IRR'?a:Math.round(a*r),note:v.note,dateISO:new Date().toISOString().slice(0,10),dateFa:faDate(),status:'posted',t:faDateTime(),by:curSession().name});save(d);audit('حساب تامین','ثبت مانده افتتاحیه '+(sup?sup.co:''),supCd);slOpenLedger(supCd);}});};
@@ -1044,6 +1052,13 @@
   window.slOpenLedger = function (supCd, filters) {
     /* پاک‌سازی همهٔ نمونه‌های احتمالی قدیمی، نه فقط اولین id تکراری. */
     slRemoveAllDialogs('slLedgerDlg');
+    try {
+      if (typeof window.ptfOpexUpsertFromCoverInvoice === 'function') {
+        activeInvoices(data()).filter(function (i) { return i.supplierCd === supCd && i.isCover === true; }).forEach(function (i) {
+          window.ptfOpexUpsertFromCoverInvoice(i);
+        });
+      }
+    } catch (eOxL) {}
     _slLedgerDocRefresh(supCd, filters);
     if (typeof window.ptfAttachRefreshOnOpen === 'function') {
       window.ptfAttachRefreshOnOpen('slLedgerDlg', function () {

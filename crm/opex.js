@@ -16,7 +16,8 @@
   var K = 'ptf_crm_opex';
   var OPEX_ROW_ID = '_opexRowId';
   var opexRowSeq = 0;
-  window.PTF_OPEX_CATS = ['اجاره‌بها', 'حقوق و دستمزد', 'بیمه', 'مالیات', 'پذیرایی و اداری', 'پورسانت بیرونی', 'ایاب‌ذهاب و ماموریت', 'سایر'];
+  window.PTF_OPEX_CATS = ['اجاره‌بها', 'حقوق و دستمزد', 'بیمه', 'مالیات', 'پذیرایی و اداری', 'پورسانت بیرونی', 'ایاب‌ذهاب و ماموریت', 'کارمزد فاکتورساز', 'سایر'];
+  var COVER_OPEX_CAT = 'کارمزد فاکتورساز';
 
   function oAll() { return getData(K) || []; }
   function canFin() { try { return !!(roleDef() || {}).finance; } catch (e) { return false; } }
@@ -161,11 +162,91 @@
     });
     return out;
   };
-  // v30.2 FIN-WF-008: برای جلوگیری از دوباره‌شماری، fiscal فقط unlinked را می‌خواهد
+  function isCoverOpex(x) { return !!(x && (x.fromCoverInvoice || x.coverInvoiceCd)); }
+  // v30.2 FIN-WF-008: برای جلوگیری از دوباره‌شماری، fiscal فقط unlinked را می‌خواهد.
+  // کارمزد فاکتور پوششی در پنل هزینه جاری دیده می‌شود ولی در سود سال از روی خود فاکتور
+  // (coverCommission / coverNetBenefit) لحاظ می‌شود تا دوباره‌شماری نشود.
   window.ptfOpexSumFiscal = function(monthOrYear){
-    var s=window.ptfOpexSum(monthOrYear);
-    // فقط هزینه‌های مستقل از پرونده در سود سال کم می‌شود، لینک‌شده در سود پروژه کم شده
-    return { total: s.totalUnlinked, byCat: s.byCat, totalLinked: s.totalLinked, totalUnlinked: s.totalUnlinked };
+    var pre = String(monthOrYear || '');
+    var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0 };
+    oAll().forEach(function (x) {
+      if (!x || x.status === 'void' || x.st === 'void' || isCoverOpex(x)) return;
+      if (pre && String(x.month || '').indexOf(pre) !== 0) return;
+      var amt = (+x.amt || 0);
+      out.byCat[x.cat] = (out.byCat[x.cat] || 0) + amt;
+      if (x.dealRef) out.totalLinked += amt;
+      else out.totalUnlinked += amt;
+    });
+    out.total = out.totalUnlinked;
+    return out;
+  };
+  function coverOpexMonthOf(inv) {
+    var fa = String((inv && (inv.dateFa || '')) || '');
+    var mt = fa.replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).match(/(\d{4})[\/\-](\d{1,2})/);
+    if (mt) return mt[1] + '/' + ('0' + mt[2]).slice(-2);
+    if (inv && inv.dateISO && typeof ptfISOToJ === 'function') {
+      var j = ptfISOToJ(inv.dateISO) || '';
+      var mt2 = String(j).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).match(/(\d{4})[\/\-](\d{1,2})/);
+      if (mt2) return mt2[1] + '/' + ('0' + mt2[2]).slice(-2);
+    }
+    if (typeof ptfFaMonthNow === 'function') return ptfFaMonthNow() || '';
+    return '';
+  }
+  function coverCommissionOf(inv) {
+    if (!inv) return 0;
+    if (inv.coverCommissionAmount != null && +inv.coverCommissionAmount > 0) return Math.round(+inv.coverCommissionAmount || 0);
+    var base = (inv.cur && inv.cur !== 'IRR') ? (+inv.amount || 0) * (+inv.rate || 0) : (+inv.amountIrr || +inv.amount || 0);
+    return Math.round(base * (+inv.coverCommissionPct || 0) / 100);
+  }
+  /* فاکتور خرید رسمی پوششی: صادرکننده مطالبه ندارد؛ فقط کارمزد فاکتورساز هزینه جاری غیررسمی است. */
+  window.ptfOpexUpsertFromCoverInvoice = function (inv) {
+    if (!inv || !inv.cd) return { ok: false, why: 'input' };
+    if (inv.isCover !== true || inv.status === 'void' || inv.st === 'void') {
+      return window.ptfOpexRemoveFromCoverInvoice(inv.cd);
+    }
+    var comm = coverCommissionOf(inv);
+    if (!(comm > 0)) return { ok: false, why: 'commission' };
+    var month = coverOpexMonthOf(inv);
+    if (!month) return { ok: false, why: 'month' };
+    var desc = 'کارمزد فاکتورساز فاکتور پوششی ' + (inv.no || inv.cd) + (inv.supName ? ' — ' + inv.supName : '');
+    var all = oRows();
+    var rec = all.filter(function (x) { return x && x.coverInvoiceCd === inv.cd && x.st !== 'void' && x.status !== 'void'; })[0];
+    var who = '';
+    try { who = (curSession() || {}).name || ''; } catch (eW) {}
+    if (rec) {
+      rec.amt = comm;
+      rec.month = month;
+      rec.desc = desc;
+      rec.cat = COVER_OPEX_CAT;
+      rec.isOfficial = false;
+      rec.fromCoverInvoice = true;
+      rec.coverSupplierCd = inv.supplierCd || rec.coverSupplierCd || '';
+      rec.updatedAtISO = new Date().toISOString();
+      rec.updatedBy = who;
+      oSave(all);
+      return { ok: true, rec: rec, updated: true };
+    }
+    rec = {
+      cd: opexNextCode(all), cat: COVER_OPEX_CAT, amt: comm, month: month, desc: desc,
+      isOfficial: false, fromCoverInvoice: true, coverInvoiceCd: inv.cd,
+      coverSupplierCd: inv.supplierCd || '', t: (typeof faDate === 'function' ? faDate() : ''), by: who || 'سیستم'
+    };
+    rec[OPEX_ROW_ID] = opexNewRowId();
+    all.unshift(rec);
+    oSave(all);
+    try { audit('هزینه جاری', 'ثبت خودکار کارمزد فاکتورساز پوششی ' + (inv.no || inv.cd) + ' — ' + fmtT(comm) + ' ریال (' + month + ')', rec.cd); } catch (eA) {}
+    return { ok: true, rec: rec, created: true };
+  };
+  window.ptfOpexRemoveFromCoverInvoice = function (invoiceCd) {
+    if (!invoiceCd) return { ok: true, removed: 0 };
+    var all = oRows();
+    var next = all.filter(function (x) { return !(x && x.coverInvoiceCd === invoiceCd); });
+    var n = all.length - next.length;
+    if (n) {
+      oSave(next);
+      try { audit('هزینه جاری', 'حذف کارمزد فاکتورساز پوششی متصل به ' + invoiceCd, invoiceCd); } catch (eA) {}
+    }
+    return { ok: true, removed: n };
   };
 
 
@@ -341,6 +422,10 @@
     var all = oRows();
     var rec = opexFindRow(all, cd, rowId, true);
     if (!rec) return;
+    if (rec.fromCoverInvoice || rec.coverInvoiceCd) {
+      alert('این ردیف از فاکتور خرید پوششی ساخته شده است. برای حذف، همان فاکتور را در حساب تأمین‌کننده ابطال کنید.');
+      return;
+    }
     if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'حذف هزینه جاری' }).ok) return;
     // v29.3 FIN-WF-004: قفل سال مالی
     try {
@@ -367,6 +452,10 @@
     if (!canFin()) return;
     var rec = opexFindRow(oRows(), cd, rowId, true);
     if (!rec) return;
+    if (rec.fromCoverInvoice || rec.coverInvoiceCd) {
+      alert('این ردیف از فاکتور خرید پوششی ساخته شده است. مبلغ کارمزد را از همان فاکتور ویرایش کنید.');
+      return;
+    }
     rowId = rec[OPEX_ROW_ID];
     if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'ویرایش هزینه جاری' }).ok) return;
     // چک قفل سال

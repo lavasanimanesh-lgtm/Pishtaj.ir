@@ -53,21 +53,23 @@ var A = window.ptfLedgerReportData();
 SECTION('گزارش A: تراز رسمی/غیررسمی');
 T('خرید واقعی بدون فاکتور پوششی (۲۰۰م)', A.realPurchaseTotal === 200000000);
 T('منفعت پوششی = اعتبار ارزش‌افزوده − کارمزد (۸.۵م)', A.coverBenefitTotal === 8500000);
-T('aggregateProfit = فروش − opex − خریدواقعی + منفعت پوششی (۲۵۸.۵م)', A.aggregateProfit === 258500000);
-T('مبلغ اسمی پوششی در سود کم نمی‌شود (پایین‌تر از ۱۵۰مِ قبل)', A.aggregateProfit > 200000000);
+T('سود رسمی = فروش رسمی − خرید رسمی (با پوششی) − هزینه رسمی (۷۰م)', A.officialProfit === 70000000);
+T('خرید تجمیعی پوششی ندارد (۲۰۰م)', A.aggregatePurchase === 200000000);
+T('سود تجمیعی = فروش رسمی+غیررسمی − خرید غیرپوششی − هزینه رسمی+غیررسمی + منفعت پوششی (۲۵۸.۵م)', A.aggregateProfit === 258500000);
+T('کارت مستقل منفعت پوششی در تراز تجمیعی هست', lr.indexOf('منفعت خرید فاکتور پوششی') > -1 && lr.indexOf('ledgerAggBox') > -1);
 
 /* ---- گزارش B: تجمیعی ---- */
 var B = window.ptfFinanceOfficialData();
 SECTION('گزارش B: گزارش مالی تجمیعی');
-T('بدهی تأمین‌کننده = خریدواقعی + کارمزد پوششی (۲۰۱.۵م)', B.total.supplierLiability === 201500000);
+T('بدهی تأمین‌کننده = فقط خرید واقعی (۲۰۰م) — پوششی مطالبه ندارد', B.total.supplierLiability === 200000000);
 T('کارمزد پوششی جدا قابل‌دسترس است', B.coverCommission === 1500000);
 T('منفعت ارزش‌افزودهٔ پوششی جدا است', B.coverVat === 10000000);
-T('تعهد legacy از بدهی حذف و فقط گزارش می‌شود', B.legacyUnlinked === 70000000 && B.total.supplierLiability === 201500000);
-T('legacy در supplierLiability نیست (هیچ legacyای اضافه نشده)', B.source.supplierLiability === 201500000 || B.source.legacyUnlinked === 70000000);
+T('تعهد legacy از بدهی حذف و فقط گزارش می‌شود', B.legacyUnlinked === 70000000 && B.total.supplierLiability === 200000000);
+T('legacy در supplierLiability نیست (هیچ legacyای اضافه نشده)', B.source.supplierLiability === 200000000 || B.source.legacyUnlinked === 70000000);
 
 /* ---- هماهنگی A و B ---- */
 SECTION('هماهنگی دو گزارش');
-T('بدهیB = خریدواقعیA + کارمزد پوششی', B.total.supplierLiability === (A.realPurchaseTotal + B.coverCommission));
+T('بدهیB = فقط خرید واقعی (پوششی مطالبه ندارد)', B.total.supplierLiability === A.realPurchaseTotal);
 T('منفعت پوششی در هر دو گزارش یکسان است', A.coverBenefitTotal === (B.coverVat - B.coverCommission));
 
 /* ---- بررسی سازگاری supplier-finance balance() ---- */
@@ -75,7 +77,7 @@ SECTION('هماهنگی balance() تأمین‌کننده');
 (function () {
   /* balance با فاکتور پوششی فقط کارمزد را به بدهی می‌افزاید */
   var bl = window.slSupplierOpenTotalsIRR ? window.slSupplierOpenTotalsIRR() : null;
-  T('slSupplierOpenTotalsIRR موجود و بدهی = کارمزد پوششی + خریدواقعی (فقط supplierCd منطبق)', !!bl && bl.debt === 201500000);
+  T('slSupplierOpenTotalsIRR موجود و بدهی = فقط خرید واقعی (پوششی صفر)', !!bl && bl.debt === 200000000);
 })();
 
 DONE('tester305-v34.0.9-alpha');
