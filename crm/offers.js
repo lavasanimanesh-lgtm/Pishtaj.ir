@@ -3708,7 +3708,7 @@ function renderSuppliers2() {
   if (!tb) return;
   var q = ((document.getElementById('sSrch')||{}).value || '').trim();
   var list = q ? items.filter(function(e){ return entityMatches(e, q); }) : items;
-  /* v34.7.88 (SUP-PERF-002): صفحه‌بندی فهرست تاییدشده — ۵۰ رکورد در هر گام.
+  /* v34.7.89 (SUP-PERF-002): صفحه‌بندی فهرست تاییدشده — ۵۰ رکورد در هر گام.
      در مقیاس صدها/هزاران تامین‌کننده، رندر همزمان همه‌ی ردیف‌ها باعث کندی باز شدن
      پنل و جستجو می‌شد. جستجو/تب‌ها/داده بدون تغییر می‌مانند؛ فقط دید ردیف‌ها گام‌به‌گام
      می‌شود. */

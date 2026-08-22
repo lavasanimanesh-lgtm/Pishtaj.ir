@@ -92,7 +92,7 @@
     var by = {}, linked = linkedLegacyIds(d);
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var c = i.cur || 'IRR';
-      /* v34.7.88 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
+      /* v34.7.89 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
          (اعتبار ارزش‌افزوده − کارمزد فاکتورساز) باید در مانده/اعتبار این تأمین‌کننده
          دیده شود. پیش‌تر فقط کارمزد به بدهی اضافه می‌شد و اعتبار VAT کسر نمی‌شد؛
          این با گزارش‌های official-ledger/working-capital/fiscal ناهماهنگ بود.
@@ -202,7 +202,7 @@
       '<div class="fld" id="slInvVatWrap" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:9px 11px;margin:6px 0">' +
         '<label style="font-size:12.5px;color:#065f46">💰 ارزش افزوده (VAT) — درصد *</label>' +
         '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">' +
-          '<input id="slInvVatPct" type="number" min="0" max="100" step="any" value="10" style="width:110px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()">' +
+          '<input id="slInvVatPct" type="number" min="0" max="100" step="any" value="' + (typeof window.ptfVatRateOf === 'function' ? window.ptfVatRateOf(prefill.date || date || '') : 10) + '" style="width:110px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()">' +
           '<span style="font-size:13px;font-weight:700;color:#065f46">٪</span>' +
           '<span style="font-size:11.5px;color:#065f46;flex:1;min-width:200px">مبلغ را <b>بدون ارزش افزوده</b> وارد کنید؛ ارزش افزوده و جمع خودکار محاسبه می‌شود.</span>' +
         '</div>' +
@@ -709,7 +709,7 @@
         return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>';
       }).filter(Boolean).join('');
     }
-    /* v34.7.88 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
+    /* v34.7.89 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
        قبلاً همهٔ balance ها (که روی همه فاکتور/پرداخت لوپ می‌زنند) همزمان با ساخت پنل
        محاسبه می‌شد و باز شدن تب تامین‌کنندگان را کند می‌کرد. اکنون قاب با placeholder
        ساخته می‌شود و پس از رندر پنل، جدول با slBoxRows پر می‌شود (یک‌بار). */

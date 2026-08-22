@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.88 — منطق فاکتور صوری/پوششی + چیدمان مودال ثبت فاکتور (SUP-VAT-002 / SUP-UX-002).
+/* v34.7.89 — منطق فاکتور صوری/پوششی + چیدمان مودال ثبت فاکتور (SUP-VAT-002 / SUP-UX-002).
    ۱) منفعت خالص پوششی (اعتبار VAT − کارمزد فاکتورساز) باید در مانده/اعتبار تأمین‌کننده دیده شود،
       نه فقط در گزارش‌های جدا.
    ۲) مودال هم‌راستا/مرتب: دکمه‌های یکدست هم‌عرض + فیلد مبلغ «بدون ارزش افزوده» + پیام کوتاه‌تر. */
@@ -15,8 +15,8 @@ var idx = read('crm/index.html');
 var sf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.88', ver.crm_version === 'v34.7.88', ver.crm_version);
-T('supplier-finance.js cache-bust 34.7.88', /supplier-finance\.js\?v=34\.7\.88/.test(idx));
+T('VERSION.json = v34.7.89', ver.crm_version === 'v34.7.89', ver.crm_version);
+T('supplier-finance.js cache-bust 34.7.89', /supplier-finance\.js\?v=34\.7\.89/.test(idx));
 
 /* ---------- SUP-VAT-002: منطق منفعت پوششی ---------- */
 T('isCover: مقدار بدهی = کارمزد − اعتبار VAT', /var comm =/.test(sf) && /var vat =/.test(sf) && /var r = comm - vat;/.test(sf));
@@ -32,8 +32,8 @@ T('فیلد مبلغ برچسب «بدون ارزش افزوده» دارد', sf
 T('پیام پوششی کوتاه‌تر شد', sf.indexOf('تایید می‌کنم این یک فاکتور پوششی/صوری داخلی است.') > -1);
 T('décor/cover box هنوز فیلد کارمزد دارد', /id="slInvCommissionPct"/.test(sf));
 
-T('tester491 در گیت CI', gate.indexOf('tester491-v34.7.88-supplier-cover-ux.js') > -1);
+T('tester491 در گیت CI', gate.indexOf('tester491-v34.7.89-supplier-cover-ux.js') > -1);
 
-console.log('\n— tester491 (v34.7.88: منفعت پوششی + چیدمان مودال — SUP-VAT-002/SUP-UX-002) —');
+console.log('\n— tester491 (v34.7.89: منفعت پوششی + چیدمان مودال — SUP-VAT-002/SUP-UX-002) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
