@@ -414,6 +414,15 @@
   #panels .reminders-head .reminders-action-icon { font-size: 19px !important; line-height: 1 !important; }
   #panels .reminders-head .reminders-action-label { display: block !important; max-width: 100% !important; overflow-wrap: anywhere !important; }
 
+  /* v34.7.97 (FINHUB-UX-A): کارت‌های KPI هاب مالی در موبایل — فشرده‌تر ولی خوانا.
+     در 320px کارت‌ها با minmax(140px) دو ستون در هر ردیف می‌آیند و اعداد فشرده
+     ptfMoneyCompact (مثل «۹۹۹.۹ میلیارد») در فونت 15px به‌راحتی جا می‌شوند. */
+  #panels .sr { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important; gap: 8px !important }
+  #panels .sc { padding: 10px 9px !important }
+  #panels .sc b { font-size: 15px !important; line-height: 1.3 !important }
+  #panels .sc b .unit { font-size: 58% !important }
+  #panels .sc span { font-size: 10.5px !important; line-height: 1.55 !important }
+
   /* MOB-036: tabهای هاب مالی در 320px با عرض متن چیده می‌شدند و 10 tab را
      به ردیف‌های نامتقارن و بلند تبدیل می‌کردند. grid دو ستونه، همهٔ مقصدها را
      در یک الگوی پایدار و بدون horizontal overflow نگه می‌دارد. */
@@ -1320,7 +1329,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="manifest" href="manifest.json?v=34.7.96">
+<link rel="manifest" href="manifest.json?v=34.7.97">
 <meta name="theme-color" content="#ef4b1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1394,10 +1403,19 @@ body{margin:0;background:var(--bg);color:var(--tx);direction:rtl;font-size:14px;
 .tb{background:var(--crd);padding:12px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--brd);position:sticky;top:0;z-index:40}
 .tb h2{font-size:16px;color:var(--tx);font-weight:900}
 .ca{padding:20px 24px}
-.sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
-.sc{background:var(--crd);padding:16px;border-radius:14px;border:1px solid var(--brd);min-width:0;overflow:hidden}
-.sc b{font-size:clamp(17px,1.8vw,24px);line-height:1.35;background:linear-gradient(135deg,var(--pri),var(--org));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;white-space:normal;overflow-wrap:break-word;word-break:normal;text-align:right;direction:rtl}
-.sc span{font-size:11px;color:#64748b;font-weight:900;line-height:1.8}
+/* v34.7.97 (FINHUB-UX-A): کارت KPI هاب مالی — همیشه یک خط، بدون شکستن.
+   قبلاً clamp(17,1.8vw,24) با white-space:normal اجازه می‌داد اعداد بلند
+   در کارت‌های 150px به دو خط بشکنند و ردیف کارت‌ها نامتقارن بشود. حالا:
+   - minmax سخاوتمندانه‌تر (170px پیش‌فرض)
+   - سقف فونت 19px، کف 15px (شفاف روی همه اندازه‌ها)
+   - nowrap + ellipsis: عدد بلند برش می‌خورد ولی هرگز نمی‌شکند
+   - direction:ltr روی عدد (اعداد به‌صورت طبیعی چپ به راست خوانده می‌شوند)
+   - عدد کامل روی title کارت (tooltip) برای accessibility */
+.sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.sc{background:var(--crd);padding:14px 12px;border-radius:14px;border:1px solid var(--brd);min-width:0;overflow:hidden}
+.sc b{font-size:clamp(15px,1.4vw,19px);line-height:1.35;background:linear-gradient(135deg,var(--pri),var(--org));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;direction:ltr}
+.sc b .unit{font-size:62%;color:#94a3b8;font-weight:700;margin-right:4px;-webkit-text-fill-color:#94a3b8;background:none}
+.sc span{font-size:11.5px;color:#64748b;font-weight:900;line-height:1.7;display:block;overflow-wrap:anywhere}
 .pn{background:var(--crd);border-radius:20px;border:1px solid var(--brd);padding:20px;display:none;animation:fi .2s ease}
 .pn.act{display:block}
 @keyframes fi{from{opacity:0}}
@@ -1705,6 +1723,25 @@ tr:hover td{background:#fffcfa}
 @media(max-width:900px) and (max-height:600px) and (orientation:landscape){
   #panels .leads-head{flex-direction:row!important;align-items:center!important}#panels .leads-head h3{width:auto;flex:0 0 auto}#panels .leads-head .leads-toolbar{flex:1 1 450px;grid-template-columns:minmax(0,1fr) 150px!important}#panels .leads-toolbar-actions{grid-column:1/-1;grid-template-columns:repeat(4,minmax(0,1fr))!important}#panels .leads-toolbar .leads-toolbar-action{min-height:46px!important}
   #ldWrap .lead-stage-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}#ldWrap .lead-stage-tab{min-height:55px!important;padding:6px 8px!important}#ldWrap .lead-stage-tab-copy b{font-size:10.5px}#ldWrap .lead-mobile-stage-panel{padding:9px}#ldWrap .lead-mobile-card{padding:9px}#ldWrap .lead-mobile-card-actions{grid-template-columns:repeat(2,minmax(0,1fr))}#ldWrap .lead-mobile-card-action{min-height:44px!important}
+}
+/* v34.7.97 (FINHUB-UX-A): نوار تب هاب مالی در دسکتاپ — grid یکنواخت.
+   قبلاً فقط CSS موبایل تعریف شده بود؛ در دسکتاپ ۱۳ تب flex-wrap دو-سه ردیف
+   با ارتفاع نامتقارن می‌آمدند. حالا در ≥900px یک grid تمیز با کارت‌های تب
+   عمودی (آیکون بالا، متن پایین) و hover state، و تب فعال با گرادیانت شرکت. */
+@media(min-width:900px){
+  #panels #finHubBar{max-width:100%;box-sizing:border-box}
+  #panels #finHubBar .fin-hub-layout{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+  #panels #finHubBar .fin-hub-heading{width:100%}
+  #panels #finHubBar .fin-hub-heading small{display:block;margin-top:4px;color:#64748b;line-height:1.75}
+  #panels #finHubBar .fin-hub-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;padding:12px;background:#f8fafc;border-radius:14px;border:1px solid var(--brd)}
+  body.ptf-dark #panels #finHubBar .fin-hub-tabs{background:#0f172a;border-color:#334155}
+  #panels #finHubBar .fin-hub-tab{min-height:64px;margin:0;padding:10px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:10px;background:#fff;border:1px solid var(--brd);color:#475569;font-weight:700;font-size:12px;line-height:1.35;text-align:center;cursor:pointer;box-sizing:border-box;transition:transform .15s,box-shadow .15s,color .15s,border-color .15s;overflow:hidden;white-space:normal}
+  body.ptf-dark #panels #finHubBar .fin-hub-tab{background:#1e293b;border-color:#334155;color:#cbd5e1}
+  #panels #finHubBar .fin-hub-tab:hover{border-color:var(--pri);color:var(--pri);transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  #panels #finHubBar .fin-hub-tab.active{background:linear-gradient(135deg,var(--pri),var(--org));color:#fff;border-color:transparent;box-shadow:0 3px 8px rgba(0,0,0,.15)}
+  #panels #finHubBar .fin-hub-tab .fin-hub-icon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center}
+  #panels #finHubBar .fin-hub-tab .fin-hub-icon svg{width:22px;height:22px}
+  #panels #finHubBar .fin-hub-tab-label{min-width:0;overflow-wrap:anywhere}
 }
 @media(min-width:1400px){:root{--sw:290px}.ca{padding:26px 40px}body{font-size:16.5px}.sb-i{font-size:15px;padding:12px 16px}.tb2 table{font-size:14.5px}}
 @media(max-width:900px){
@@ -2166,7 +2203,7 @@ try {
 } catch(e) {}
 
 // ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
-window.PTF_CRM_RELEASE = 'v34.7.96'; window.VER = 'v34.7.96'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
+window.PTF_CRM_RELEASE = 'v34.7.97'; window.VER = 'v34.7.97'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
 try { document.getElementById('sbVer').textContent = 'CRM ' + VER; } catch(e){} // US-297: ورژن واقعی در سایدبار
 try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' + VER; } catch(e){}
 (function () {
@@ -4033,114 +4070,114 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script defer src="ui-kit.js?v=34.7.96"></script>
+<script defer src="ui-kit.js?v=34.7.97"></script>
 <!-- MOB-008: nav shell باید پیش از ده‌ها bundle عملیاتی اجرا شود. -->
-<script defer src="mobilenav.js?v=34.7.96"></script>
-<script defer src="storage-quota.js?v=34.7.96"></script>
-<script defer src="moneyx.js?v=34.7.96"></script>
-<script defer src="finance-helpers.js?v=34.7.96"></script>
-<script defer src="metrics-shared.js?v=34.7.96"></script>
-<script defer src="ar-reconcile.js?v=34.7.96"></script>
-<script defer src="finance-core.js?v=34.7.96"></script>
-<script defer src="finance-write-guard.js?v=34.7.96"></script>
-<script defer src="date-kit.js?v=34.7.96"></script>
-<script defer src="dialogx.js?v=34.7.96"></script>
-<script defer src="dedup.js?v=34.7.96"></script>
-<script defer src="codegen.js?v=34.7.96"></script>
-<script async src="xlsx.min.js?v=34.7.96"></script>
-<script defer src="sortable.js?v=34.7.96"></script>
-<script defer src="offers.js?v=34.7.96"></script>
-<script defer src="surplus.js?v=34.7.96"></script>
-<script defer src="launcher.js?v=34.7.96"></script>
-<script defer src="leads.js?v=34.7.96"></script>
-<script defer src="storage.js?v=34.7.96"></script>
-<script defer src="rbac.js?v=34.7.96"></script>
-<script defer src="official-ledger.js?v=34.7.96"></script>
-<script defer src="projects.js?v=34.7.96"></script>
-<script defer src="letters.js?v=34.7.96"></script>
-<script defer src="draftx.js?v=34.7.96"></script>
-<script defer src="analyzer.js?v=34.7.96"></script>
-<script defer src="management-intelligence.js?v=34.7.96"></script>
-<script defer src="contracts.js?v=34.7.96"></script>
-<script defer src="shell.js?v=34.7.96"></script>
-<script defer src="bridge.js?v=34.7.96"></script>
-<script defer src="kanban.js?v=34.7.96"></script>
-<script defer src="reports.js?v=34.7.96"></script>
-<script defer src="backup.js?v=34.7.96"></script>
-<script defer src="tool-licenses.js?v=34.7.96"></script>
-<script defer src="tool-report-drafts.js?v=34.7.96"></script>
-<script defer src="tool-feedback.js?v=34.7.96"></script>
-<script defer src="sms.js?v=34.7.96"></script>
-<script defer src="rfqsmart.js?v=34.7.96"></script>
-<script defer src="cms.js?v=34.7.96"></script>
-<script defer src="careers.js?v=34.7.96"></script>
-<script defer src="perms.js?v=34.7.96"></script>
-<script defer src="petty.js?v=34.7.96"></script>
-<script defer src="opex.js?v=34.7.96"></script>
-<script defer src="shareholders.js?v=34.7.96"></script>
-<script defer src="theme.js?v=34.7.96"></script>
-<script defer src="archive.js?v=34.7.96"></script>
-<script defer src="offers-pro.js?v=34.7.96"></script>
-<script defer src="buycompare.js?v=34.7.96"></script>
-<script defer src="procurement-link.js?v=34.7.96"></script>
-<script defer src="listtools.js?v=34.7.96"></script>
-<script defer src="icons.js?v=34.7.96"></script>
-<script defer src="guards.js?v=34.7.96"></script>
-<script defer src="tables.js?v=34.7.96"></script>
-<script defer src="inqreader.js?v=34.7.96"></script>
-<script defer src="offerlock.js?v=34.7.96"></script>
-<script defer src="workflow.js?v=34.7.96"></script>
-<script defer src="fx.js?v=34.7.96"></script>
-<script defer src="modalx.js?v=34.7.96"></script>
-<script defer src="iconx.js?v=34.7.96"></script>
-<script defer src="salesfiles.js?v=34.7.96"></script>
-<script defer src="offer-rial-convert.js?v=34.7.96"></script>
-<script defer src="docsx.js?v=34.7.96"></script>
-<script defer src="oppo.js?v=34.7.96"></script>
-<script defer src="cheque-module.js?v=34.7.96"></script>
-<script defer src="cheque-panel.js?v=34.7.96"></script>
-<script defer src="cheque-print.js?v=34.7.96"></script>
-<script defer src="cheques.js?v=34.7.96"></script>
-<script defer src="messengers.js?v=34.7.96"></script>
-<script defer src="phonefmt.js?v=34.7.96"></script>
-<script defer src="tour.js?v=34.7.96"></script>
-<script defer src="ai-workbench.js?v=34.7.96"></script>
-<script defer src="golive.js?v=34.7.96"></script>
-<script defer src="custmerge.js?v=34.7.96"></script>
-<script defer src="listclean.js?v=34.7.96"></script>
-<script defer src="supspec.js?v=34.7.96"></script>
-<script defer src="scoring.js?v=34.7.96"></script>
-<script defer src="vat-shared.js?v=34.7.96"></script>
-<script defer src="vat-quarterly.js?v=34.7.96"></script>
-<script defer src="supplier-finance.js?v=34.7.96"></script>
-<script defer src="customer-finance.js?v=34.7.96"></script>
-<script defer src="working-capital.js?v=34.7.96"></script>
-<script defer src="treasury.js?v=34.7.96"></script>
-<script defer src="treasury-call.js?v=34.7.96"></script>
-<script defer src="ledger-report.js?v=34.7.96"></script>
-<script defer src="data-quality.js?v=34.7.96"></script>
-<script defer src="commission.js?v=34.7.96"></script>
+<script defer src="mobilenav.js?v=34.7.97"></script>
+<script defer src="storage-quota.js?v=34.7.97"></script>
+<script defer src="moneyx.js?v=34.7.97"></script>
+<script defer src="finance-helpers.js?v=34.7.97"></script>
+<script defer src="metrics-shared.js?v=34.7.97"></script>
+<script defer src="ar-reconcile.js?v=34.7.97"></script>
+<script defer src="finance-core.js?v=34.7.97"></script>
+<script defer src="finance-write-guard.js?v=34.7.97"></script>
+<script defer src="date-kit.js?v=34.7.97"></script>
+<script defer src="dialogx.js?v=34.7.97"></script>
+<script defer src="dedup.js?v=34.7.97"></script>
+<script defer src="codegen.js?v=34.7.97"></script>
+<script async src="xlsx.min.js?v=34.7.97"></script>
+<script defer src="sortable.js?v=34.7.97"></script>
+<script defer src="offers.js?v=34.7.97"></script>
+<script defer src="surplus.js?v=34.7.97"></script>
+<script defer src="launcher.js?v=34.7.97"></script>
+<script defer src="leads.js?v=34.7.97"></script>
+<script defer src="storage.js?v=34.7.97"></script>
+<script defer src="rbac.js?v=34.7.97"></script>
+<script defer src="official-ledger.js?v=34.7.97"></script>
+<script defer src="projects.js?v=34.7.97"></script>
+<script defer src="letters.js?v=34.7.97"></script>
+<script defer src="draftx.js?v=34.7.97"></script>
+<script defer src="analyzer.js?v=34.7.97"></script>
+<script defer src="management-intelligence.js?v=34.7.97"></script>
+<script defer src="contracts.js?v=34.7.97"></script>
+<script defer src="shell.js?v=34.7.97"></script>
+<script defer src="bridge.js?v=34.7.97"></script>
+<script defer src="kanban.js?v=34.7.97"></script>
+<script defer src="reports.js?v=34.7.97"></script>
+<script defer src="backup.js?v=34.7.97"></script>
+<script defer src="tool-licenses.js?v=34.7.97"></script>
+<script defer src="tool-report-drafts.js?v=34.7.97"></script>
+<script defer src="tool-feedback.js?v=34.7.97"></script>
+<script defer src="sms.js?v=34.7.97"></script>
+<script defer src="rfqsmart.js?v=34.7.97"></script>
+<script defer src="cms.js?v=34.7.97"></script>
+<script defer src="careers.js?v=34.7.97"></script>
+<script defer src="perms.js?v=34.7.97"></script>
+<script defer src="petty.js?v=34.7.97"></script>
+<script defer src="opex.js?v=34.7.97"></script>
+<script defer src="shareholders.js?v=34.7.97"></script>
+<script defer src="theme.js?v=34.7.97"></script>
+<script defer src="archive.js?v=34.7.97"></script>
+<script defer src="offers-pro.js?v=34.7.97"></script>
+<script defer src="buycompare.js?v=34.7.97"></script>
+<script defer src="procurement-link.js?v=34.7.97"></script>
+<script defer src="listtools.js?v=34.7.97"></script>
+<script defer src="icons.js?v=34.7.97"></script>
+<script defer src="guards.js?v=34.7.97"></script>
+<script defer src="tables.js?v=34.7.97"></script>
+<script defer src="inqreader.js?v=34.7.97"></script>
+<script defer src="offerlock.js?v=34.7.97"></script>
+<script defer src="workflow.js?v=34.7.97"></script>
+<script defer src="fx.js?v=34.7.97"></script>
+<script defer src="modalx.js?v=34.7.97"></script>
+<script defer src="iconx.js?v=34.7.97"></script>
+<script defer src="salesfiles.js?v=34.7.97"></script>
+<script defer src="offer-rial-convert.js?v=34.7.97"></script>
+<script defer src="docsx.js?v=34.7.97"></script>
+<script defer src="oppo.js?v=34.7.97"></script>
+<script defer src="cheque-module.js?v=34.7.97"></script>
+<script defer src="cheque-panel.js?v=34.7.97"></script>
+<script defer src="cheque-print.js?v=34.7.97"></script>
+<script defer src="cheques.js?v=34.7.97"></script>
+<script defer src="messengers.js?v=34.7.97"></script>
+<script defer src="phonefmt.js?v=34.7.97"></script>
+<script defer src="tour.js?v=34.7.97"></script>
+<script defer src="ai-workbench.js?v=34.7.97"></script>
+<script defer src="golive.js?v=34.7.97"></script>
+<script defer src="custmerge.js?v=34.7.97"></script>
+<script defer src="listclean.js?v=34.7.97"></script>
+<script defer src="supspec.js?v=34.7.97"></script>
+<script defer src="scoring.js?v=34.7.97"></script>
+<script defer src="vat-shared.js?v=34.7.97"></script>
+<script defer src="vat-quarterly.js?v=34.7.97"></script>
+<script defer src="supplier-finance.js?v=34.7.97"></script>
+<script defer src="customer-finance.js?v=34.7.97"></script>
+<script defer src="working-capital.js?v=34.7.97"></script>
+<script defer src="treasury.js?v=34.7.97"></script>
+<script defer src="treasury-call.js?v=34.7.97"></script>
+<script defer src="ledger-report.js?v=34.7.97"></script>
+<script defer src="data-quality.js?v=34.7.97"></script>
+<script defer src="commission.js?v=34.7.97"></script>
 
-<script defer src="my-customers-filter.js?v=34.7.96"></script>
-<script defer src="insights.js?v=34.7.96"></script>
-<script defer src="myday.js?v=34.7.96"></script>
-<script defer src="lossguard.js?v=34.7.96"></script>
-<script defer src="fiscal.js?v=34.7.96"></script>
-<script defer src="financehub.js?v=34.7.96"></script>
-<script defer src="theme-contrast.js?v=34.7.96"></script>
-<script defer src="sync.js?v=34.7.96"></script>
-<script defer src="client-server.js?v=34.7.96"></script>
-<script defer src="unofficial-invoice.js?v=34.7.96"></script>
-<script defer src="user-guide.js?v=34.7.96"></script>
-<script defer src="settings-accordion.js?v=34.7.96"></script>
-<script defer src="mobile-actions.js?v=34.7.96"></script>
-<script defer src="mobile-table-labels.js?v=34.7.96"></script>
-<script defer src="mobile-nav-state.js?v=34.7.96"></script>
-<script defer src="nav-focus.js?v=34.7.96"></script>
+<script defer src="my-customers-filter.js?v=34.7.97"></script>
+<script defer src="insights.js?v=34.7.97"></script>
+<script defer src="myday.js?v=34.7.97"></script>
+<script defer src="lossguard.js?v=34.7.97"></script>
+<script defer src="fiscal.js?v=34.7.97"></script>
+<script defer src="financehub.js?v=34.7.97"></script>
+<script defer src="theme-contrast.js?v=34.7.97"></script>
+<script defer src="sync.js?v=34.7.97"></script>
+<script defer src="client-server.js?v=34.7.97"></script>
+<script defer src="unofficial-invoice.js?v=34.7.97"></script>
+<script defer src="user-guide.js?v=34.7.97"></script>
+<script defer src="settings-accordion.js?v=34.7.97"></script>
+<script defer src="mobile-actions.js?v=34.7.97"></script>
+<script defer src="mobile-table-labels.js?v=34.7.97"></script>
+<script defer src="mobile-nav-state.js?v=34.7.97"></script>
+<script defer src="nav-focus.js?v=34.7.97"></script>
 <!-- v35: command-driven Sales-to-Cash loads last and replaces the legacy financial/write surfaces atomically. -->
-<script defer src="sales-domain-v2.js?v=34.7.96"></script>
-<script defer src="official-invoice-v2.js?v=34.7.96"></script>
-<script defer src="tax-returns.js?v=34.7.96"></script>
-<script defer src="case-revision.js?v=34.7.96"></script>
+<script defer src="sales-domain-v2.js?v=34.7.97"></script>
+<script defer src="official-invoice-v2.js?v=34.7.97"></script>
+<script defer src="tax-returns.js?v=34.7.97"></script>
+<script defer src="case-revision.js?v=34.7.97"></script>
 </body>
 </html>

@@ -52,6 +52,64 @@
     return n ? n.toLocaleString('en-US') : '';
   };
 
+  /* ---------- v34.7.97 (FINHUB-UX-A): فشرده‌سازی هوشمند اعداد بزرگ ----------
+     در کارت‌های KPI هاب مالی، اعداد بلند (مثل 999,999,999,999) یا کارت را
+     می‌شکستند یا از عرض بیرون می‌زدند. این تابع براساس بزرگی، پسوند فارسی
+     مناسب می‌گذارد و رشته‌ی کوتاه، خوانا و همیشه در یک خط برمی‌گرداند.
+
+     مثال‌ها (با تنظیم پیش‌فرض unit='ریال'):
+       999,500        → '۹۹۹,۵۰۰ ریال'
+       1,500,000      → '۱٫۵ میلیون ریال'
+       999,500,000    → '۹۹۹٫۵ میلیون ریال'
+       2,300,000,000  → '۲٫۳ میلیارد ریال'
+       999,900,000,000 → '۹۹۹٫۹ میلیارد ریال'
+       1,500,000,000,000 → '۱٬۵۰۰ میلیارد ریال'
+       12,300,000,000,000 → '۱۲٬۳۰۰ میلیارد ریال'
+     منفی و صفر و NaN هم safe. */
+  function faDigits(s) {
+    return String(s).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; });
+  }
+  function trimZero(s) {
+    /* '2.0' → '2' ولی '2.5' دست‌نخورده */
+    return String(s).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+  }
+  window.ptfMoneyCompact = function (v, unit) {
+    var n = ptfNum(v);
+    if (!isFinite(n)) return '';
+    var sign = n < 0 ? '-' : '';
+    var abs = Math.abs(n);
+    var u = (unit == null) ? 'ریال' : String(unit || '');
+    var suffix = u ? ' ' + u : '';
+    var body;
+    /* مرزها با پیش‌گرد سازگارند: اگر بیش از 999.5 میلیون شد به میلیارد ارتقا،
+       تا 999.5×۱۰⁹ به میلیارد؛ بالاتر با کامای فارسی «N میلیارد». */
+    if (abs < 1e6) {
+      body = Math.round(abs).toLocaleString('en-US');
+    } else if (abs < 999.5e6) {
+      var m = abs / 1e6;
+      body = trimZero(m.toFixed(m >= 100 ? 0 : 1)) + ' میلیون';
+    } else if (abs < 999.5e9) {
+      var b = abs / 1e9;
+      body = trimZero(b.toFixed(b >= 100 ? 0 : 1)) + ' میلیارد';
+    } else {
+      var bb = Math.round(abs / 1e9);
+      body = bb.toLocaleString('en-US') + ' میلیارد';
+    }
+    return sign + faDigits(body) + suffix;
+  };
+  /* نسخهٔ HTML با <small class="unit"> جدا — مناسب کارت‌های KPI که واحد را
+     با استایل کوچک‌تر می‌خواهیم. عدد کامل روی attribute title (tooltip) قرار
+     می‌گیرد تا اطلاعات دقیق برای accessibility و کاربر پیشرفته حفظ شود. */
+  window.ptfMoneyCompactHtml = function (v, unit) {
+    var n = ptfNum(v);
+    if (!isFinite(n)) return '';
+    var full = (unit === '') ? Math.round(n).toLocaleString('fa-IR') : Math.round(n).toLocaleString('fa-IR') + ' ' + (unit == null ? 'ریال' : unit);
+    var short = window.ptfMoneyCompact(n, '');   /* بدون واحد اصلی */
+    var u = (unit == null) ? 'ریال' : String(unit || '');
+    var unitHtml = u ? '<small class="unit" style="font-size:62%;color:#94a3b8;font-weight:700;margin-right:4px">' + u + '</small>' : '';
+    return '<span title="' + full.replace(/"/g, '&quot;') + '">' + short + unitHtml + '</span>';
+  };
+
   /* ---------- راهنمای «به حروف» زیر فیلد ---------- */
   function hintFor(el) {
     var h = el._ptfHint;
