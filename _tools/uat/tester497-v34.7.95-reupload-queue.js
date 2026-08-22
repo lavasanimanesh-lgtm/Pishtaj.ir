@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester497 — v34.7.95 (RE-UPLOAD-QUEUE-001 فاز A)
+/* tester497 — v34.7.96 (RE-UPLOAD-QUEUE-001 فاز A)
    «صف آپلود مجدد» ردهٔ E: build از خروجی audit + CSV با BOM + محدود به ردهٔ E.
    بدون تغییر منطق audit موجود. */
 
@@ -13,7 +13,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 var ver = JSON.parse(read('VERSION.json'));
 var storage = read('crm/storage.js');
 
-T('VERSION.json = v34.7.95', ver.crm_version === 'v34.7.95', ver.crm_version);
+T('VERSION.json = v34.7.96', ver.crm_version === 'v34.7.96', ver.crm_version);
 T('تابع ptfReuploadQueueBuild تعریف شده', /function\s+ptfReuploadQueueBuild\s*\(/.test(storage));
 T('تابع ptfReuploadQueueExportCsv تعریف شده', /function\s+ptfReuploadQueueExportCsv\s*\(/.test(storage));
 T('روی window expose شده', /window\.ptfReuploadQueueBuild\s*=/.test(storage) && /window\.ptfReuploadQueueExportCsv\s*=/.test(storage));
@@ -59,7 +59,7 @@ var sb = {
   ptfToast: function (msg, kind) { sb._lastToast = { msg: msg, kind: kind }; },
   alert: function () {},
   fetch: function () { return { then: function () { return { then: function () { return { catch: function () {} }; }, catch: function () {} }; } }; },
-  curRole: function () { return 'admin'; },
+  curRole: function () { return sb._role || 'admin'; },
   escP: function (v) { return String(v == null ? '' : v); }
 };
 sb.window = sb;
@@ -125,9 +125,23 @@ var qBad = sb.window.ptfReuploadQueueBuild([null, undefined, {}, { cls: 'E' }]);
 T('ردیف‌های ناقص crash نکنند', Array.isArray(qBad), qBad);
 T('ردیف {cls:"E"} با key خالی هم بدون crash خروج می‌گیرد', qBad.length === 1, qBad);
 
-/* ----- سناریو 7: تستر در گیت CI ثبت شده ----- */
+/* ----- سناریو 7: گارد نقش — کاربر با نقش پایین رد شود (v34.7.96 RE-UPLOAD-QUEUE-002) ----- */
+sb._role = 'sales';
+sb.window._ptfKeyAuditRows = rows;  /* داده معتبر هست */
+files = {};
+sb._lastToast = null;
+sb.window.ptfReuploadQueueExportCsv();
+T('گارد نقش: کاربر sales نمی‌تواند CSV بگیرد',
+  Object.keys(files).length === 0 && sb._lastToast && sb._lastToast.kind === 'err',
+  { files: files, toast: sb._lastToast });
+T('گارد نقش: پیام خطا شامل «ارشد» است',
+  sb._lastToast && sb._lastToast.msg.indexOf('ارشد') > -1,
+  sb._lastToast);
+sb._role = 'admin';  /* بازگرداندن */
+
+/* ----- سناریو 8: تستر در گیت CI ثبت شده ----- */
 T('tester497 در گیت CI ثبت شده', read('_tools/uat/run-ci-gate.js').indexOf('tester497-v34.7.95-reupload-queue.js') > -1);
 
-console.log('\n— tester497 (v34.7.95: صف آپلود مجدد ردهٔ E — RE-UPLOAD-QUEUE-001) —');
+console.log('\n— tester497 (v34.7.96: صف آپلود مجدد ردهٔ E — RE-UPLOAD-QUEUE-001) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

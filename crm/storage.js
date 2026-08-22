@@ -1030,6 +1030,16 @@ function ptfReuploadQueueBuild(rows) {
   });
 }
 function ptfReuploadQueueExportCsv() {
+  /* v34.7.96 (RE-UPLOAD-QUEUE-002): گارد نقش — همسان با ptfCloudKeyAudit.
+     دکمهٔ UI فقط برای نقش ارشد نمایش داده می‌شود، ولی از console/devtools هم
+     قابل صدا زدن است؛ لیست کلیدهای گم‌شدهٔ ابری نباید به نقش پایین leak کند. */
+  var role = '';
+  try { role = String(curRole()).toLowerCase(); } catch (eR) {}
+  if (['admin', 'chairman', 'ceo'].indexOf(role) < 0) {
+    if (typeof ptfToast === 'function') ptfToast('⛔ این گزارش فقط برای نقش‌های ارشد است', 'err');
+    else if (typeof alert === 'function') alert('این گزارش فقط برای نقش‌های ارشد است');
+    return;
+  }
   var q = ptfReuploadQueueBuild();
   if (!q.length) {
     if (typeof ptfToast === 'function') ptfToast('صف خالی است — هیچ ردیف E‌ای در گزارش نیست.', 'info');

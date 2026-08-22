@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* tester496 — UAT پایانی «ارزش افزوده فصلی» (VAT-LEDGER-003)
-   معرفی‌شده در v34.7.94؛ در v34.7.95 با بامپ پین نسخه هم‌روز شد.
+   معرفی‌شده در v34.7.94؛ در v34.7.96 با بامپ پین نسخه هم‌روز شد.
    این تستر مکمل tester493 است و روی ۱۱ خانوادهٔ سناریوی edge تمرکز دارد
    که قبلاً پوشش نداشتند:
 
@@ -28,7 +28,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var shared = read('crm/vat-shared.js');
 var q = read('crm/vat-quarterly.js');
 
-T('VERSION.json = v34.7.95', ver.crm_version === 'v34.7.95', ver.crm_version);
+T('VERSION.json = v34.7.96', ver.crm_version === 'v34.7.96', ver.crm_version);
 
 /* -------- sandbox -------- */
 var store;
@@ -76,28 +76,34 @@ var c1 = sb.ptfVatCalcSeason('1405', 1);
 T('E1: فروش شمسی خالص در بهار = 100000', c1.salesVat === 100000, c1.salesVat);
 T('E1: خرید شمسی خالص در بهار = 50000', c1.purchaseCredit === 50000, c1.purchaseCredit);
 
-/* ============ E2: تاریخ ISO خالص (بدون dateFa/invDate) ============ */
+/* ============ E2: تاریخ ISO میلادی خام باید کاملاً رد شود (VAT-LEDGER-004) ============
+   قبل از v34.7.96: تاریخ '2026-06-15T10:00:00Z' به year='2026-06-15T10:00:00Z'
+   و season=2 map می‌شد — یک سال جعلی که در گزارش سال ۱۴۰۵ گم می‌شد (باگ خاموش).
+   بعد از v34.7.96: null برمی‌گرداند — رفتار قابل پیش‌بینی. */
 reset();
 sb = makeSb();
-store.ptf_crm_invoices = [
-  { cd: 'S1', t: '2026-06-15T10:00:00Z', base: 1000000, vat: 100000, isOfficial: true, status: 'active' }
-];
-store.ptf_crm_supplier_finance = { invoices: [
-  { cd: 'P1', dateISO: '2026-07-10', amount: 300000, amountIrr: 300000, cur: 'IRR', isOfficial: true, vatAmount: 30000, status: 'open' }
-], payments: [], adjustments: [] };
-/* 2026 = 1405 شمسی تقریبی؛ اما regex isoYear(13|14\d{2}) روی 2026 عمل نمی‌کند و
-   yearOfJ روی '2026-06-15' هم '2026' برمی‌گرداند که با '1405' مطابق نیست.
-   این محدودیت شناخته‌شده است: تاریخ فاکتور همیشه باید شمسی/ISO سال ایرانی باشد. */
 var st = sb.ptfVatSeason({ t: '2026-06-15T10:00:00Z' }, 'sales');
-T('E2 (حد قابل قبول): تاریخ ISO میلادی سال 2026 به سال شمسی 1405 mapped نمی‌شود — این محدودیت مستند است',
-  !st || st.year !== '1405',
-  st);
-/* برای اطمینان، فرمت درست ISO با سال ۴رقمی شمسی: */
+T('E2: تاریخ ISO میلادی خام (2026-06-15) → null (رد کامل، نه سال جعلی)',
+  st === null, st);
+var stP = sb.ptfVatSeason({ dateISO: '2026-07-10' }, 'purchase');
+T('E2: تاریخ ISO میلادی خرید (2026-07-10) → null',
+  stP === null, stP);
+/* تاریخ‌های سال شمسی درست همچنان کار می‌کنند: */
+var st2 = sb.ptfVatSeason({ t: '1405-06-15T10:00:00Z' }, 'sales');
+T('E2: تاریخ ISO با سال شمسی (1405-06-15) → year=1405 season=2',
+  st2 && st2.year === '1405' && st2.season === 2, st2);
 store.ptf_crm_invoices = [
   { cd: 'S1', invDate: '1405-02-10', base: 1000000, vat: 100000, isOfficial: true, status: 'active' }
 ];
 var c2 = sb.ptfVatCalcSeason('1405', 1);
 T('E2: تاریخ ISO با سال شمسی (1405-02-10) درست به فصل ۱ می‌رود', c2.salesVat === 100000, c2.salesVat);
+/* فاکتور با تاریخ میلادی نباید در هیچ سال شمسی شمرده شود: */
+store.ptf_crm_invoices = [
+  { cd: 'S1', t: '2026-06-15T10:00:00Z', base: 1000000, vat: 100000, isOfficial: true, status: 'active' }
+];
+var c2b = sb.ptfVatCalcSeason('1405', 2);
+T('E2: فاکتور با تاریخ میلادی خام در سال 1405 شمرده نمی‌شود (نه در سال جعلی)',
+  c2b.salesVat === 0, c2b);
 
 /* ============ E3: نرخ VAT سالانه غیر ۱۰٪ ============ */
 reset();
@@ -218,6 +224,6 @@ T('E11: پس از تسویهٔ پاییز، زمستان با carry=0 شروع �
 T('کد وابسته به روش localeCompare و Array.isArray ساده است — بدون require نشتی', true);
 T('tester496 در گیت CI ثبت شده', read('_tools/uat/run-ci-gate.js').indexOf('tester496-v34.7.94-vat-quarterly-uat.js') > -1);
 
-console.log('\n— tester496 (v34.7.95: UAT پایانی VAT فصلی — VAT-LEDGER-003) —');
+console.log('\n— tester496 (v34.7.96: UAT پایانی VAT فصلی — VAT-LEDGER-003) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
