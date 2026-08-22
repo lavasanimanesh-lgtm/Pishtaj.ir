@@ -92,7 +92,7 @@
     var by = {}, linked = linkedLegacyIds(d);
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var c = i.cur || 'IRR';
-      /* v34.7.89 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
+      /* v34.7.90 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
          (اعتبار ارزش‌افزوده − کارمزد فاکتورساز) باید در مانده/اعتبار این تأمین‌کننده
          دیده شود. پیش‌تر فقط کارمزد به بدهی اضافه می‌شد و اعتبار VAT کسر نمی‌شد؛
          این با گزارش‌های official-ledger/working-capital/fiscal ناهماهنگ بود.
@@ -709,7 +709,7 @@
         return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>';
       }).filter(Boolean).join('');
     }
-    /* v34.7.89 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
+    /* v34.7.90 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
        قبلاً همهٔ balance ها (که روی همه فاکتور/پرداخت لوپ می‌زنند) همزمان با ساخت پنل
        محاسبه می‌شد و باز شدن تب تامین‌کنندگان را کند می‌کرد. اکنون قاب با placeholder
        ساخته می‌شود و پس از رندر پنل، جدول با slBoxRows پر می‌شود (یک‌بار). */

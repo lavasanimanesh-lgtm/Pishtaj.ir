@@ -268,7 +268,7 @@
   }
   function hasSyncToken() { try { return !!localStorage.getItem('ptf_crm_token'); } catch (e) { return false; } }
 
-  /* ============ v34.7.89 (SYNC-DIAG-001) — خود-تشخیص همگام‌سازی ============
+  /* ============ v34.7.90 (SYNC-DIAG-001) — خود-تشخیص همگام‌سازی ============
      تغییر منطق نوشتن/سینک نمی‌دهد؛ فقط:
        ۱) آخرین خطای push/pull را ثبت می‌کند (برای مشاهده در تنظیمات).
        ۲) «تست اتصال» با اکشن محافظت‌شده data_rev انجام می‌شود تا علاوه بر رسیدن
@@ -562,7 +562,7 @@
           notifyPushWaiters(!confl.length && !forbidden.length && !rejected.length && !skipped.length, { conflicts: confl, forbidden: forbidden, rejected: rejected, skipped: skipped, savedKeys: savedKeys });
         } else {
           setSyncBadge('warn');
-          /* v34.7.89 (SYNC-DIAG-001): ثبت علت دقیق رد شدن push برای تشخیص/نمایش */
+          /* v34.7.90 (SYNC-DIAG-001): ثبت علت دقیق رد شدن push برای تشخیص/نمایش */
           noteSyncError('push', d.needLogin ? 'needLogin' : (d.error === 'Forbidden: role not allowed' ? 'forbidden' : 'server'), d.error || (d.needLogin ? 'نشست منقضی' : ''), d);
           /* v33.2.1 HOTFIX: اگر push ناموفق بود، هشدار واضح بده — تغییرات محلی حفظ می‌شوند */
           if (d.needLogin) {

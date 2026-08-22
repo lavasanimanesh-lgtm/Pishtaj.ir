@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.89 — ادامهٔ صفحه‌بندی فهرست S3:
+/* v34.7.90 — ادامهٔ صفحه‌بندی فهرست S3:
    قبلاً سرور حداکثر ۳۰ صفحه می‌خواند و در باکت بزرگ فقط truncated=true برمی‌گرداند
    (بدون توکن ادامه) ⇒ گزارش کلید ابری ناقص و remap گروه B برای همیشه قفل می‌ماند.
    حالا سرور nextToken برمی‌گرداند و token ورودی می‌پذیرد؛ کلاینت با
@@ -21,10 +21,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.7.89', ver.crm_version === 'v34.7.89', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.7.89', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.89'") > -1);
-T('sw RELEASE = v34.7.89', sw.indexOf("RELEASE = 'v34.7.89'") > -1);
-T('storage.js cache-bust 34.7.89', idx.indexOf('storage.js?v=34.7.89') > -1);
+T('VERSION.json = v34.7.90', ver.crm_version === 'v34.7.90', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.7.90', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.90'") > -1);
+T('sw RELEASE = v34.7.90', sw.indexOf("RELEASE = 'v34.7.90'") > -1);
+T('storage.js cache-bust 34.7.90', idx.indexOf('storage.js?v=34.7.90') > -1);
 
 /* ---------- سرور ---------- */
 T('list توکن ورودی می‌پذیرد', php.indexOf("$token = (string)($in['token'] ?? ($_GET['token'] ?? ''))") > -1);
@@ -89,6 +89,6 @@ try {
 
 T('tester462 در گیت CI', gate.indexOf('tester462-v34.7.59-cloud-list-pagination.js') > -1);
 
-console.log('\n— tester462 (v34.7.89: ادامهٔ صفحه‌بندی فهرست S3) —');
+console.log('\n— tester462 (v34.7.90: ادامهٔ صفحه‌بندی فهرست S3) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

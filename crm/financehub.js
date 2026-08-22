@@ -82,7 +82,7 @@
     show('opexBox', t === 'opex');
     show('shareBox', t === 'share');
     show('fiscalBox', t === 'fiscal');
-    /* v34.7.89 (VAT-LEDGER-001): باکس «ارزش افزوده فصلی» + تنظیم نرخ مصوب سال.
+    /* v34.7.90 (VAT-LEDGER-001): باکس «ارزش افزوده فصلی» + تنظیم نرخ مصوب سال.
        فقط در تب جدید «ارزش افزوده» نمایش داده می‌شود و از سایر اطلاعات مالی جدا است. */
     show('vatBox', t === 'vat');
     if (t === 'vat' && typeof window.ptfVatQuarterlyRender === 'function') window.ptfVatQuarterlyRender();

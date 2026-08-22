@@ -414,7 +414,7 @@
   }
 
   /* ============ US-133: سینک صندوق سروری (تامین‌کننده + RFQ سایت) ============ */
-  var SITE_SUP_PAGE = 50; /* v34.7.89/86 (SUP-PERF-004): اندازهٔ صفحهٔ سروری صندوق سایت */
+  var SITE_SUP_PAGE = 50; /* v34.7.90/86 (SUP-PERF-004): اندازهٔ صفحهٔ سروری صندوق سایت */
   function siteSuppliers() { try { return JSON.parse(localStorage.getItem('ptf_site_suppliers') || '[]'); } catch (e) { return []; } }
   function siteRfqs() { try { return JSON.parse(localStorage.getItem('ptf_site_rfqs') || '[]'); } catch (e) { return []; } }
   function siteSupTotal() { try { var n = parseInt(localStorage.getItem('ptf_site_suppliers_total') || '0', 10); return isNaN(n) ? 0 : n; } catch (e) { return 0; } }
@@ -444,7 +444,7 @@
     try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
     /* v34.7.81 (SUP-PERF-001): کلاینت آخرین امضای صندوق را می‌فرستد؛ وقتی داده‌ها
        تغییر نکرده‌اند سرور فقط fresh برمی‌گرداند و دانلود/اجرای مجدد جدول سایت نمی‌شود.
-       v34.7.89 (SUP-PERF-005): بوت/پول فقط صفحهٔ اول (۵۰) suppliers را می‌گیرد و
+       v34.7.90 (SUP-PERF-005): بوت/پول فقط صفحهٔ اول (۵۰) suppliers را می‌گیرد و
        بقیه را با «نمایش بیشتر» از سرور لود می‌کند (لایهٔ رندر قبلاً در کلاینت صفحه‌بندی
        می‌شد؛ حالا فشرده‌سازی/دانلود هم گام‌به‌گام می‌شود). */
     var _since = '';
@@ -519,7 +519,7 @@
     var el = document.getElementById('supPendWrap');
     if (!el) return;
     var all = siteSuppliers();
-    var totalAll = siteSupTotal() || all.length; /* v34.7.89 (SUP-PERF-005): تعداد کل سروری، نه فقط لودشده */
+    var totalAll = siteSupTotal() || all.length; /* v34.7.90 (SUP-PERF-005): تعداد کل سروری، نه فقط لودشده */
     var pend = all.filter(function (s) { return s.status === 'pending'; });
     var rejected = all.filter(function (s) { return s.status === 'rejected'; }).length;
     /* v34.7.81 (SUP-PERF-001): صفحه‌بندی صندوق ثبت‌نام سایت — ساخت/رندر همزمان همهٔ
@@ -577,7 +577,7 @@
     el.innerHTML = h + '</tbody></table></div></div>';
   };
   window.supPendingMore = function () {
-    /* v34.7.89 (SUP-PERF-005): اگر هنوز کل رکوردها از سرور لود نشده، صفحهٔ بعدی را
+    /* v34.7.90 (SUP-PERF-005): اگر هنوز کل رکوردها از سرور لود نشده، صفحهٔ بعدی را
        از سرور بگیر و ادغام کن؛ سپس رندر قبلی را گام‌به‌گام نمایش بده. */
     if (siteSupTotal() > siteSuppliers().length && typeof window.syncServerInboxMore === 'function') {
       syncServerInboxMore(function () {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.89 — نظم بصری فرم پیشنهاد (فنی/مالی/فنی-مالی):
+/* v34.7.90 — نظم بصری فرم پیشنهاد (فنی/مالی/فنی-مالی):
    ترتیب طبیعی فیلدها (هویت سند → چاپ/اعتبار → امضا → اقلام)، حذف ستون خالی،
    نوار ابزار اقلام یکدست، رفع غلط تایپی، فوتر چسبان — با حفظ قراردادهای
    case-revision (h3 / #offSaveBtn / دکمهٔ اول = انصراف). */
@@ -18,10 +18,10 @@ var theme = read('crm/theme-contrast.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.7.89', ver.crm_version === 'v34.7.89', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.7.89', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.89'") > -1);
-T('sw RELEASE = v34.7.89', sw.indexOf("RELEASE = 'v34.7.89'") > -1);
-T('offers.js cache-bust 34.7.89', idx.indexOf('offers.js?v=34.7.89') > -1);
+T('VERSION.json = v34.7.90', ver.crm_version === 'v34.7.90', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.7.90', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.90'") > -1);
+T('sw RELEASE = v34.7.90', sw.indexOf("RELEASE = 'v34.7.90'") > -1);
+T('offers.js cache-bust 34.7.90', idx.indexOf('offers.js?v=34.7.90') > -1);
 
 /* ---------- ترتیب فیلدها ---------- */
 var iBuyer = off.indexOf('id="ofBuyer"');
@@ -65,6 +65,6 @@ T('tester449: هر دو دکمه بارگذاری مانده', off.indexOf('id="
 T('MOB-041: امضا همچنان قبل از اقلام', iSig > -1 && iSig < iItems);
 T('tester460 در گیت CI', gate.indexOf('tester460-v34.7.57-offer-form-layout.js') > -1);
 
-console.log('\n— tester460 (v34.7.89: نظم بصری فرم پیشنهاد) —');
+console.log('\n— tester460 (v34.7.90: نظم بصری فرم پیشنهاد) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

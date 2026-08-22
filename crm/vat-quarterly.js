@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — vat-quarterly.js — v34.7.89 (VAT-LEDGER-001)
+   PTF CRM — vat-quarterly.js — v34.7.90 (VAT-LEDGER-001)
    «ارزش افزوده فصلی» — باکس فقط‌محاسبه/نمایش در هاب مالی (تب «ارزش افزوده»)
    ---------------------------------------------------------------------
    منطق (مطابق تصمیم کارفرما):
@@ -54,7 +54,10 @@
     if (!inv) return false;
     var st = String(inv.status || inv.st || '');
     if (/void|voided|deleted|superseded|replaced/i.test(st) || inv.voided) return false;
+    /* فقط فاکتور رسمی؛ غیررسمی (حتی اگر isUnofficial تعریف نشده ولی isOfficial=false) کنار گذاشته می‌شود. */
     if (inv.isUnofficial) return false;
+    if (inv.isOfficial === false) return false;
+    if (inv.isOfficial !== true) return false;
     return true;
   }
   function activePurchase(inv) {
@@ -107,17 +110,22 @@
   function stateFor(y, s) {
     var cur = calc(y, s);
     var sett = settlementFor(y, s);
-    var prev = s === 1 ? null : calc(y, s - 1);
-    /* اعتبار مازاد فصل قبل به این فصل منتقل می‌شود (فقط اگر تسویه نشده باشد) */
+    /* اعتبار مازاد/بدهی فصل قبل (همان سال) → فصل جاری.
+       برای محاسبه زنجیره‌ای، حالت فصل قبل را با stateFor می‌گیریم تا اگر خودِ آن
+       فصل هم از فصل قبل‌تر اعتبار/بدهی منتقل کرده بود، لحاظ شود. */
+    var prev = s === 1 ? null : stateFor(y, s - 1);
     var prevCarry = 0;
-    if (prev && !settlementFor(y, s - 1)) {
-      if (prev.net < 0) prevCarry = Math.abs(prev.net);
+    var prevDue = 0;
+    if (prev && prev.settled !== true) {
+      prevCarry = prev.carryToNext || 0;
+      prevDue = prev.payable || 0;
     }
     var availableCredit = cur.purchaseCredit + prevCarry;
-    var due = Math.max(0, cur.salesVat - availableCredit);
-    var carryToNext = Math.max(0, availableCredit - cur.salesVat);
+    var availableDebt = cur.salesVat + prevDue;
+    var due = Math.max(0, availableDebt - availableCredit);
+    var carryToNext = Math.max(0, availableCredit - availableDebt);
     var payable = sett ? 0 : due; /* اگر تسویه شده → پرداختی ندارد */
-    return { cur: cur, prevCarry: prevCarry, availableCredit: availableCredit, due: due, carryToNext: carryToNext, payable: payable, settled: !!sett, settlement: sett };
+    return { cur: cur, prevCarry: prevCarry, prevDue: prevDue, availableCredit: availableCredit, availableDebt: availableDebt, due: due, carryToNext: carryToNext, payable: payable, settled: !!sett, settlement: sett };
   }
 
   function html() {
@@ -138,6 +146,15 @@
   }
 
   window.ptfVatQuarterlyHtml = html;
+
+  /* v34.7.90 (VAT-LEDGER-002): توابع خالص محاسبه را export می‌کنیم
+     تا هم تست‌های UAT بتوانند رفتار را با دادهٔ مصنوعی سنجند و هم در آینده
+     از همان منطق در گزارش‌ها استفاده شود. تغییر رفتار UI نمی‌دهد. */
+  window.ptfVatCalcSeason = calc;
+  window.ptfVatSeason = seasonOfInv;
+  window.ptfVatState = stateFor;
+  window.ptfVatSettlements = function () { return settlements(); };
+  window.ptfVatSaveSettlement = saveSettlements;
 
   window.ptfVatQuarterlyRender = function () {
     if (!can()) return;
