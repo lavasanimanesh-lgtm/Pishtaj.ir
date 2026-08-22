@@ -103,6 +103,7 @@ var SUITE = [
   { g: 'سایت/فرم تامین‌کننده', f: '_tools/uat/tester480-v34.7.78-supplier-form-symmetry.js' },
   { g: 'سایت/شرایط پرداخت تامین‌کننده', f: '_tools/uat/tester481-v34.7.79-supplier-pay-terms.js' },
   { g: 'مالی/اظهارنامه‌ها', f: '_tools/uat/tester482-v34.7.80-tax-returns-separation.js' },
+  { g: 'تامین/عملکرد', f: '_tools/uat/tester483-v34.7.81-supplier-perf.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
