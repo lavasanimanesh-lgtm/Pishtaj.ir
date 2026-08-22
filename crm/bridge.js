@@ -418,12 +418,18 @@
     // v31.7.7 HOTFIX-AUTH: Include JWT token in inbox sync.
     var _syncH = {};
     try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
-    fetch(API + '?action=get_inbox', { headers: _syncH })
+    /* v34.7.81 (SUP-PERF-001): کلاینت آخرین امضای صندوق را می‌فرستد؛ وقتی داده‌ها
+       تغییر نکرده‌اند سرور فقط fresh برمی‌گرداند و دانلود/اجرای مجدد جدول سایت نمی‌شود. */
+    var _since = '';
+    try { _since = localStorage.getItem('ptf_site_inbox_sig') || ''; } catch(eSl) {}
+    fetch(API + '?action=get_inbox&since=' + encodeURIComponent(_since), { headers: _syncH })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.ok) { cb && cb(false); return; }
+        if (d.fresh) { cb && cb(true); return; }
         localStorage.setItem('ptf_site_suppliers', JSON.stringify(d.suppliers || []));
         localStorage.setItem('ptf_site_rfqs', JSON.stringify(d.rfqs || []));
+        try { localStorage.setItem('ptf_site_inbox_sig', String(d.since || '')); } catch(eSig) {}
         if (document.getElementById('supPendWrap')) renderSupPending();
         if (document.getElementById('rfqPendWrap')) renderRfqPending();
         cb && cb(true);
@@ -470,9 +476,22 @@
     var all = siteSuppliers();
     var pend = all.filter(function (s) { return s.status === 'pending'; });
     var rejected = all.filter(function (s) { return s.status === 'rejected'; }).length;
+    /* v34.7.81 (SUP-PERF-001): صفحه‌بندی صندوق ثبت‌نام سایت — ساخت/رندر همزمان همهٔ
+       رکوردها (گرچه رکوردها کوچک‌اند) برای ده‌ها/صدها ثبت‌نام، DOM و کارت‌ها را کند می‌کرد.
+       پیش‌فرض ۵۰ رکورد؛ «نمایش بیشتر» بقیه را لود می‌کند. */
+    var per = 50;
+    var page = window._supPendingPage || 0;
+    if (page > 0 && page * per >= all.length) page = Math.max(0, Math.ceil(all.length / per) - 1);
+    var shown = all.slice(0, (page + 1) * per);
     /* v34.7.66: تب جداگانهٔ «درخواست‌های سایت» — فهرست کامل ثبت‌نام‌های سایت با ضمیمه */
     var tabBtn = document.getElementById('supTabSite');
     if (tabBtn) tabBtn.innerHTML = '🌐 درخواست‌های سایت' + (pend.length ? ' <b style="background:#fff;color:#c2410c;border-radius:8px;padding:0 7px">' + pend.length + '</b>' : '');
+    /* v34.7.81 (SUP-PERF-001): وقتی تب سایت باز نیست، بدنهٔ جدول را نساز — فقط بج
+       بالای تب به‌روز بماند و با انتخاب تب، جدول همان لحظه ساخته شود. */
+    if (el.style.display === 'none' && (window._supTabCur || '') !== 'site') {
+      window._supPendingPage = 0;
+      return;
+    }
     var ST = { pending: '<span class="bd" style="background:#fef3c7;color:#b45309">در انتظار بررسی</span>',
       approved: '<span class="bd b-st4">✅ تایید شده</span>',
       rejected: '<span class="bd" style="background:#fee2e2;color:#b91c1c">✖ رد شده</span>' };
@@ -484,7 +503,7 @@
     if (!all.length) {
       h += '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:18px">ثبت‌نامی از سایت ثبت نشده است</td></tr>';
     } else {
-      all.forEach(function (s) {
+      shown.forEach(function (s) {
         var meta = siteAttachmentMeta(s.attachment);
         var attBadge = meta
           ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#6d28d9;border-color:#ddd6fe" title="مشاهدهٔ پیوست" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">📎 ' + escP(meta.name) + '</button>'
@@ -502,8 +521,17 @@
             : '') +
           '</td></tr>';
       });
+      if (all.length > shown.length) {
+        h += '<tr><td colspan="9" style="text-align:center;padding:10px;background:#fffbeb">' +
+          '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fde68a" onclick="supPendingMore()">⬇ نمایش ' +
+          Math.min(per, all.length - shown.length) + ' مورد دیگر (' + shown.length + ' از ' + all.length + ')</button></td></tr>';
+      }
     }
     el.innerHTML = h + '</tbody></table></div></div>';
+  };
+  window.supPendingMore = function () {
+    window._supPendingPage = (window._supPendingPage || 0) + 1;
+    if (typeof renderSupPending === 'function') renderSupPending();
   };
 
   /* v34.7.66: جزئیات کامل ثبت‌نام تامین‌کننده سایت + نمایش/دانلود فایل پیوست */

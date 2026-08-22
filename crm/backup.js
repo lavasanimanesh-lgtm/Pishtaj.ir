@@ -213,8 +213,15 @@
 
   /* ============ v33.15.0 — فاز ۱: بکاپ هوشمند + بررسی اتصال سرور ============ */
 
-  /* F1-1: بررسی وضعیت اتصال/توکن سرور (پینگ سبک users_get — اکشن عمومی) */
+  /* F1-1: بررسی وضعیت اتصال/توکن سرور (پینگ سبک users_get — اکشن عمومی)
+     v34.7.82 (SYNC-DIAG-001): اگر ماژول همگام‌سازی موجود باشد، اول تست دقیق با
+     data_rev (محافظت‌شده) انجام می‌شود تا «معتبر بودن نشست» هم تأیید شود؛ در غیر
+     این صورت همان مسیر قدیمی users_get به‌عنوان fallback حفظ می‌شود. */
   window.ptfBackupServerStatus = function (cb) {
+    if (typeof window.ptfSyncServerStatus === 'function') {
+      window.ptfSyncServerStatus(cb);
+      return;
+    }
     backupFetch(API + '?action=users_get', { headers: ptfBackupAuthHeaders(false) })
       .then(function (d) {
         var st = (d && (d.ok || d.users || Array.isArray(d))) ? 'online' : (d && d.needLogin ? 'needLogin' : 'error');
@@ -739,11 +746,15 @@
     } catch (e) {}
   }
 
-  // تزریق باکس بک‌آپ و Storage Health در تنظیمات
+  // تزریق باکس بک‌آپ و Storage Health در تنظیمات (+ تشخیص همگام‌سازی v34.7.82)
   var _buildSettings = window.buildSettings;
   if (_buildSettings) {
     window.buildSettings = function () {
-      return _buildSettings() + '<div style="max-width:620px">' + backupBoxHtml() + ptfStorageMeterHtml() + '</div>';
+      var html = _buildSettings() + '<div style="max-width:620px">' + backupBoxHtml() + ptfStorageMeterHtml() +
+        (typeof window.ptfSyncDiagnosticsHtml === 'function' ? window.ptfSyncDiagnosticsHtml() : '') + '</div>';
+      /* بعد از رندر الگوی تنظیمات، باکس تشخیص با آخرین وضعیت پر می‌شود. */
+      setTimeout(function () { if (typeof window.ptfSyncDiagnosticsRefresh === 'function') window.ptfSyncDiagnosticsRefresh(); }, 50);
+      return html;
     };
   }
 
