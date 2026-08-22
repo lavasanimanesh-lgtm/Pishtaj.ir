@@ -109,6 +109,7 @@ var SUITE = [
   { g: 'ورود/نشست', f: '_tools/uat/tester486-v34.7.86-auth-token-required.js' },
   { g: 'تامین/عملکرد', f: '_tools/uat/tester487-v34.7.86-supplier-perf-followups.js' },
   { g: 'تامین/صندوق سایت', f: '_tools/uat/tester488-v34.7.86-supplier-inbox-lazy.js' },
+  { g: 'استارت سرد/لود', f: '_tools/uat/tester489-v34.7.86-load-order-audit.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
