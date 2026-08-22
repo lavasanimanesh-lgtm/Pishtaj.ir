@@ -52,54 +52,6 @@
     return n ? n.toLocaleString('en-US') : '';
   };
 
-  /* ---------- v34.7.97 (FINHUB-UX-A): فشرده‌سازی هوشمند اعداد بزرگ ----------
-     در کارت‌های KPI هاب مالی، اعداد بلند (مثل 999,999,999,999) یا کارت را
-     می‌شکستند یا از عرض بیرون می‌زدند. این تابع براساس بزرگی، پسوند فارسی
-     مناسب می‌گذارد و رشته‌ی کوتاه، خوانا و همیشه در یک خط برمی‌گرداند.
-
-     مثال‌ها (با تنظیم پیش‌فرض unit='ریال'):
-       999,500        → '۹۹۹,۵۰۰ ریال'
-       1,500,000      → '۱٫۵ میلیون ریال'
-       999,500,000    → '۹۹۹٫۵ میلیون ریال'
-       2,300,000,000  → '۲٫۳ میلیارد ریال'
-       999,900,000,000 → '۹۹۹٫۹ میلیارد ریال'
-       1,500,000,000,000 → '۱٬۵۰۰ میلیارد ریال'
-       12,300,000,000,000 → '۱۲٬۳۰۰ میلیارد ریال'
-     منفی و صفر و NaN هم safe. */
-  function faDigits(s) {
-    return String(s).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; });
-  }
-  function trimZero(s) {
-    /* '2.0' → '2' ولی '2.5' دست‌نخورده */
-    return String(s).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
-  }
-  /* v34.7.98 (FINHUB-UX-A2 بازخورد کارفرما): همیشه عدد کامل ریالی برمی‌گردد
-     (کاما فارسی، بدون فشرده‌سازی «میلیون/میلیارد»). CSS با nowrap + ellipsis
-     در کارت کوچک اعداد بلند را با … کوتاه می‌کند و tooltip روی .sc عدد کامل
-     را نگه می‌دارد. تصمیم کارفرما: نمایش کماکان به ریال. */
-  window.ptfMoneyCompact = function (v, unit) {
-    var n = ptfNum(v);
-    if (!isFinite(n)) n = 0;
-    var full = Math.round(n).toLocaleString('fa-IR');
-    var u = (unit == null) ? 'ریال' : String(unit || '');
-    return u ? full + ' ' + u : full;
-  };
-  /* نسخهٔ HTML برای کارت‌های KPI — v34.7.98 (FINHUB-UX-A2 بازخورد کارفرما):
-     همیشه عدد کامل ریالی نمایش داده می‌شود (نه فشرده «میلیون/میلیارد»)، ولی
-     با ساختار مناسب برای کارت‌های کوچک: عدد در <span dir="ltr"> با کاما فارسی،
-     واحد در <small class="unit"> جدا و کوچک‌تر. اگر عدد در کارت جا نشد،
-     CSS با nowrap + ellipsis (…) می‌کند و عدد کامل روی attr title باقی می‌ماند.
-     بدون فشرده‌سازی — تصمیم کارفرما: کماکان به ریال. */
-  window.ptfMoneyCompactHtml = function (v, unit) {
-    var n = ptfNum(v);
-    if (!isFinite(n)) n = 0;
-    var u = (unit == null) ? 'ریال' : String(unit || '');
-    var full = Math.round(n).toLocaleString('fa-IR');
-    var titleTxt = u ? full + ' ' + u : full;
-    var unitHtml = u ? '<small class="unit" style="font-size:62%;color:#94a3b8;font-weight:700;margin-right:4px;-webkit-text-fill-color:#94a3b8;background:none">' + u + '</small>' : '';
-    return '<span title="' + titleTxt.replace(/"/g, '&quot;') + '"><span dir="ltr" style="unicode-bidi:embed">' + full + '</span>' + unitHtml + '</span>';
-  };
-
   /* ---------- راهنمای «به حروف» زیر فیلد ---------- */
   function hintFor(el) {
     var h = el._ptfHint;

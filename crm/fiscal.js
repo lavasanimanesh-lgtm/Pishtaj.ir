@@ -27,13 +27,6 @@
     return a[0];
   }
   function money(v) { return (+v || 0).toLocaleString('fa-IR') + ' ریال'; }
-  /* v34.7.97 (FINHUB-UX-A): برای کارت‌های KPI از فرمت فشرده استفاده می‌شود
-     تا اعداد بلند در کارت‌های 150px نشکنند. عدد کامل روی title کارت می‌ماند. */
-  function moneyCard(v) {
-    return (typeof window.ptfMoneyCompactHtml === 'function')
-      ? window.ptfMoneyCompactHtml(v)
-      : money(v);
-  }
   function fiscalIcon(kind) {
     var p = kind === 'lock'
       ? '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/>'
@@ -592,19 +585,19 @@
       '<button class="bt" type="button" title="ثبت تقسیم سود در دفاتر سهامداران" aria-label="ثبت تقسیم سود در دفاتر سهامداران" style="font-size:12px;background:#059669" onclick="ptfFiscalDividendApply(\'' + ptfOnClickArg(String(year)) + '\',' + distPct + ')">💰 ثبت تقسیم سود در دفاتر سهامداران</button>' +
       '</span></div>' +
       (lowCash ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;color:#991b1b"><b>⚠️ نقدینگی زیر کف است</b> — موجودی نقد پایان (' + money(c.cashEnd) + ') کمتر از کف نقدینگی (' + money(c.floor) + ') است؛ تا پر شدن کف، تقسیم سود مجاز نیست.</div>' : '') +
-      '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">' +
-      '<div class="sc ptf-fiscal-kpi"><b style="color:#047857">' + moneyCard(c.receipts) + '</b><span>درآمد نقدی (وصولی‌های سال)</span></div>' +
-      ((c.shareholderInject) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#0f766e">' + moneyCard(c.shareholderInject) + '</b><span>تأمین نقد سهامدار (فراخوان)</span></div>' : '') +
-      ((c.fundCreditTotal) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#b45309">' + moneyCard(c.fundCreditTotal) + '</b><span>طلب سهامداران از صندوق (کنار گذاشته از تقسیم)</span></div>' : '') +
-      '<div class="sc ptf-fiscal-kpi"><b>' + moneyCard(c.pendingCheques) + '</b><span>چک وارده وصول‌نشده (درآمد نیست)</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b style="color:#b45309">' + moneyCard(c.outflowsTotal) + '</b><span>خروجی‌های سال (هزینه)</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b>' + moneyCard(c.netCash) + '</b><span>سود نقدی دوره</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b>' + moneyCard(c.openingCash) + '</b><span>نقد/بانک ابتدای سال (افتتاحیه)</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b style="color:' + (lowCash ? '#dc2626' : '#0369a1') + '">' + moneyCard(c.cashEnd) + '</b><span>موجودی نقد پایان سال</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b>' + moneyCard(c.floor) + '</b><span>کف نقدینگی در گردش</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b style="color:#065f46">' + moneyCard(c.overFloor) + '</b><span>مازاد بر کف (قابل برنامه‌ریزی)</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b style="color:#059669">' + moneyCard(c.distributable) + '</b><span>قابل تقسیم (' + c.distPct + '٪)</span></div>' +
-      '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + moneyCard(c.backToFloor) + '</b><span>بازگشت به کف (' + (100 - c.distPct) + '٪)</span></div>' +
+      '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">' +
+      '<div class="sc ptf-fiscal-kpi"><b style="color:#047857">' + money(c.receipts) + '</b><span>درآمد نقدی (وصولی‌های سال)</span></div>' +
+      ((c.shareholderInject) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#0f766e">' + money(c.shareholderInject) + '</b><span>تأمین نقد سهامدار (فراخوان)</span></div>' : '') +
+      ((c.fundCreditTotal) ? '<div class="sc ptf-fiscal-kpi"><b style="color:#b45309">' + money(c.fundCreditTotal) + '</b><span>طلب سهامداران از صندوق (کنار گذاشته از تقسیم)</span></div>' : '') +
+      '<div class="sc ptf-fiscal-kpi"><b>' + money(c.pendingCheques) + '</b><span>چک وارده وصول‌نشده (درآمد نیست)</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b style="color:#b45309">' + money(c.outflowsTotal) + '</b><span>خروجی‌های سال (هزینه)</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b>' + money(c.netCash) + '</b><span>سود نقدی دوره</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b>' + money(c.openingCash) + '</b><span>نقد/بانک ابتدای سال (افتتاحیه)</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b style="color:' + (lowCash ? '#dc2626' : '#0369a1') + '">' + money(c.cashEnd) + '</b><span>موجودی نقد پایان سال</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b>' + money(c.floor) + '</b><span>کف نقدینگی در گردش</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b style="color:#065f46">' + money(c.overFloor) + '</b><span>مازاد بر کف (قابل برنامه‌ریزی)</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b style="color:#059669">' + money(c.distributable) + '</b><span>قابل تقسیم (' + c.distPct + '٪)</span></div>' +
+      '<div class="sc ptf-fiscal-kpi"><b style="color:#7c3aed">' + money(c.backToFloor) + '</b><span>بازگشت به کف (' + (100 - c.distPct) + '٪)</span></div>' +
       '</div>' +
       '<div style="margin-top:8px;font-size:11.5px;color:#64748b;line-height:1.8">تفکیک خروجی‌ها: فاکتورهای خرید ' + money(c.outflows.supplierInvoices) + ' | کارمزد پوششی ' + money(c.outflows.coverCommission || 0) + ' | پرداخت بدون تخصیص ' + money(c.outflows.unallocatedPayments) + ' | چک صادرهٔ مستقل ' + money(c.outflows.independentCheques) + ' | هزینه‌های جاری ' + money(c.outflows.opex) + ' | تنخواه مستقل ' + money(c.outflows.petty) + (c.outflows.coverVat ? ' | اعتبار ارزش‌افزودهٔ پوششی (منفعت): ' + money(c.outflows.coverVat) : '') + '</div>' +
       '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>سهامدار</th><th>درصد</th><th>سهم ناخالص</th><th>علی‌الحساب/بدهی سال</th><th>مانده قابل تسویهٔ امسال</th><th>طلب صندوق</th><th>بدهی فراخوان</th><th>مانده جاری</th><th>نتیجه پس از تقسیم</th></tr></thead><tbody>' + (cashShRows || '<tr><td colspan="9">سهامداری ثبت نشده</td></tr>') + '</tbody></table></div>' +
@@ -642,9 +635,9 @@
         petty.forEach(function(p){ if(p.st!=='settled' && p.st!=='void'){ pettyPending+=(+p.amt||0); pettyPendingCnt++; } });
       } catch(e3){}
       extraCards = '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-top:10px">'
-        + '<div class="sc ptf-fiscal-kpi"><b>'+moneyCard(openChequeSum)+'</b><span>چک‌های باز شرکت ('+openChequeCnt+' فقره)</span></div>'
-        + '<div class="sc ptf-fiscal-kpi"><b>'+moneyCard(supCredit)+'</b><span>اعتبار نزد تأمین‌کنندگان</span></div>'
-        + '<div class="sc ptf-fiscal-kpi"><b>'+moneyCard(pettyPending)+'</b><span>مطالبات تنخواه تسویه‌نشده ('+pettyPendingCnt+' مورد)</span></div>'
+        + '<div class="sc ptf-fiscal-kpi"><b>'+money(openChequeSum)+'</b><span>چک‌های باز شرکت ('+openChequeCnt+' فقره)</span></div>'
+        + '<div class="sc ptf-fiscal-kpi"><b>'+money(supCredit)+'</b><span>اعتبار نزد تأمین‌کنندگان</span></div>'
+        + '<div class="sc ptf-fiscal-kpi"><b>'+money(pettyPending)+'</b><span>مطالبات تنخواه تسویه‌نشده ('+pettyPendingCnt+' مورد)</span></div>'
         + '</div>';
     } catch(eExtra){ extraCards=''; }
 

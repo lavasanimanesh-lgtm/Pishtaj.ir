@@ -580,8 +580,8 @@
       '<b style="color:#1e3a8a">حساب رییس و صندوق شرکت</b> — خزانه‌دار: ' + esc(pos.name) +
       '<div style="font-size:12px;color:#475569;line-height:1.8;margin-top:4px">پول شرکت در حسابی است که فقط رییس به آن دسترسی دارد. تزریق از جیب شخصی، طلب رییس است نه سود.</div>' +
       '<div class="sr" style="margin-top:8px">' +
-      '<div class="sc"><b style="color:' + cashCol + '">' + ((typeof window.ptfMoneyCompactHtml === 'function') ? window.ptfMoneyCompactHtml(pos.companyCash) : money(pos.companyCash)) + '</b><span>نقد شرکت نزد رییس</span></div>' +
-      '<div class="sc"><b style="color:#b45309">' + ((typeof window.ptfMoneyCompactHtml === 'function') ? window.ptfMoneyCompactHtml(pos.claim) : money(pos.claim)) + '</b><span>طلب رییس از شرکت</span></div></div>' +
+      '<div class="sc"><b style="color:' + cashCol + '">' + money(pos.companyCash) + '</b><span>نقد شرکت نزد رییس</span></div>' +
+      '<div class="sc"><b style="color:#b45309">' + money(pos.claim) + '</b><span>طلب رییس از شرکت</span></div></div>' +
       (pos.hint ? '<div style="margin-top:6px;font-size:12px;color:#991b1b">' + esc(pos.hint) + '</div>' : '') +
       (chairCan() ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">' +
         '<button type="button" class="bt" onclick="ptfTreasuryChairIn()">تزریق از حساب شخصی</button>' +
@@ -685,13 +685,11 @@
     var c = window.ptfTreasuryDerivedCash();
     var kpi = document.getElementById('treasuryKpi');
     if (kpi) {
-      /* v34.7.97 (FINHUB-UX-A): کارت‌های KPI با فرمت فشرده — عدد کامل روی title. */
-      var mc = (typeof window.ptfMoneyCompactHtml === 'function') ? window.ptfMoneyCompactHtml : money;
       kpi.innerHTML = '<div class="sr" style="margin:10px 0">' +
-        '<div class="sc"><b>' + mc(c.opening) + '</b><span>افتتاحیه</span></div>' +
-        '<div class="sc"><b>' + mc(c.inflow) + '</b><span>ورود نقد</span></div>' +
-        '<div class="sc"><b>' + mc(c.outflow) + '</b><span>خروج نقد</span></div>' +
-        '<div class="sc"><b>' + mc(c.derived) + '</b><span>مانده صندوق</span></div></div>' +
+        '<div class="sc"><b>' + money(c.opening) + '</b><span>افتتاحیه</span></div>' +
+        '<div class="sc"><b>' + money(c.inflow) + '</b><span>ورود نقد</span></div>' +
+        '<div class="sc"><b>' + money(c.outflow) + '</b><span>خروج نقد</span></div>' +
+        '<div class="sc"><b>' + money(c.derived) + '</b><span>مانده صندوق</span></div></div>' +
         chairPanelHtml();
     }
     var allMoves = window.ptfTreasuryCrmMoves();
@@ -708,11 +706,7 @@
       '<button class="bt" onclick="ptfTreasuryApplyFilter()">اعمال فیلتر</button><button class="bt bt-o" onclick="ptfTreasuryResetFilter()">پاک کردن</button><button class="bt bt-o" style="color:#059669" onclick="ptfTreasuryPeriodCsv()">⬇ Excel/CSV</button><button class="bt bt-o" style="color:#7c3aed" onclick="ptfTreasuryPeriodPrint()">🖨 PDF/چاپ دوره</button></div>' +
       (periodData.undated ? '<small style="display:block;margin-top:6px;color:#b45309">⚠️ ' + periodData.undated + ' گردش بدون تاریخ از بازه تاریخی کنار گذاشته شد.</small>' : '') + '</div>';
     var pk = document.getElementById('treasuryPeriodKpi');
-    if (pk) {
-      /* v34.7.97 (FINHUB-UX-A): kpi دوره خزانه با فرمت فشرده. */
-      var mcp = (typeof window.ptfMoneyCompactHtml === 'function') ? window.ptfMoneyCompactHtml : money;
-      pk.innerHTML = '<div class="sr" style="margin:8px 0"><div class="sc"><b style="color:#059669">' + mcp(periodData.inflow) + '</b><span>جمع ورودی فیلتر</span></div><div class="sc"><b style="color:#dc2626">' + mcp(periodData.outflow) + '</b><span>جمع خروجی فیلتر</span></div><div class="sc"><b style="color:' + (periodData.net>=0?'#0e7490':'#b91c1c') + '">' + mcp(periodData.net) + '</b><span>خالص دوره</span></div><div class="sc"><b>' + periodData.count.toLocaleString('fa-IR') + '</b><span>تعداد گردش</span></div></div>';
-    }
+    if (pk) pk.innerHTML = '<div class="sr" style="margin:8px 0"><div class="sc"><b style="color:#059669">' + money(periodData.inflow) + '</b><span>جمع ورودی فیلتر</span></div><div class="sc"><b style="color:#dc2626">' + money(periodData.outflow) + '</b><span>جمع خروجی فیلتر</span></div><div class="sc"><b style="color:' + (periodData.net>=0?'#0e7490':'#b91c1c') + '">' + money(periodData.net) + '</b><span>خالص دوره</span></div><div class="sc"><b>' + periodData.count.toLocaleString('fa-IR') + '</b><span>تعداد گردش</span></div></div>';
     var mv = document.getElementById('treasuryMoves');
     if (mv) {
       var moves = periodData.moves;

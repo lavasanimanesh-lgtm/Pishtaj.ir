@@ -263,14 +263,7 @@
       recSup: recSup };
   };
 
-  /* v34.7.97 (FINHUB-UX-A): کارت‌های KPI از ptfMoneyCompactHtml استفاده می‌کنند
-     تا اعداد بلند در کارت‌های 150-170px نشکنند. عدد کامل روی title باقی می‌ماند. */
-  function card(value, label, color) {
-    var body = (typeof window.ptfMoneyCompactHtml === 'function')
-      ? window.ptfMoneyCompactHtml(value)
-      : money(value);
-    return '<div class="sc"><b style="color:' + (color || '#0f172a') + '">' + body + '</b><span>' + label + '</span></div>';
-  }
+  function card(value, label, color) { return '<div class="sc"><b style="color:' + (color || '#0f172a') + '">' + money(value) + '</b><span>' + label + '</span></div>'; }
   function issueHtml(d) {
     var rows = Object.keys(d.issues || {}).map(function (k) {
       var x = d.issues[k], title = {

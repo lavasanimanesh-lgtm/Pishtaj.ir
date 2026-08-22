@@ -120,12 +120,8 @@
     return '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 11px;margin-top:8px;font-size:12px;color:#9a3412;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span><b>⚠️ ' + splitData.unclassifiedCount + ' مورد ' + esc(label) + '</b> (به‌مبلغ ' + money(splitData.unclassified) + ') نوع رسمی/غیررسمی‌شان مشخص نیست — برای همین «رسمی+غیررسمی» با «کل» یکی نیست و در «دفتر واقعی/سود» لحاظ نشده‌اند.</span><button class="bt bt-o" style="font-size:11.5px;color:#9a3412;border-color:#fed7aa" onclick="ptfLedgerGoQuality()">🔍 باز در کیفیت داده</button></div>';
   }
 
-  /* v34.7.97 (FINHUB-UX-A): کارت KPI با فرمت فشرده — عدد کامل روی title کارت. */
   function block(title, value, color, sub) {
-    var body = (typeof window.ptfMoneyCompactHtml === 'function')
-      ? window.ptfMoneyCompactHtml(value)
-      : money(value);
-    return '<div class="sc" style="text-align:center"><b style="color:' + color + '">' + body + '</b><span>' + esc(title) + '</span>' + (sub ? '<br><small style="color:#94a3b8">' + sub + '</small>' : '') + '</div>';
+    return '<div class="sc" style="text-align:center"><b style="color:' + color + '">' + money(value) + '</b><span>' + esc(title) + '</span>' + (sub ? '<br><small style="color:#94a3b8">' + sub + '</small>' : '') + '</div>';
   }
 
   window.ptfLedgerReportHtml = function () {
