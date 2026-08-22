@@ -46,6 +46,12 @@
       y = isoYear(d2) || yearOfJ(d2);
       m = isoMonth(d2) || monthOfJ(d2);
     }
+    /* v34.7.96 (VAT-LEDGER-004): اگر سال استخراج‌شده در بازهٔ سال شمسی معتبر
+       (13xx یا 14xx) نبود، رد کن. قبلاً تاریخ ISO میلادی خام (مثل
+       '2026-06-15T10:00:00Z') به سال جعلی و season درست map می‌شد و فاکتور
+       در گزارش ۱۴۰۵ گم می‌شد بدون هیچ warning. حالا null برمی‌گردد و فاکتور
+       در هیچ فصل شمرده نمی‌شود — رفتار قابل پیش‌بینی. */
+    if (!/^(13|14)\d{2}$/.test(String(y))) return null;
     for (var i = 0; i < SEASONS.length; i++) if (SEASONS[i].months.indexOf(m) > -1) return { year: y, season: SEASONS[i].k };
     return null;
   }
