@@ -650,6 +650,57 @@
       }).catch(function(){ alert('عدم دسترسی به سرور'); });
   };
 
+  /* v34.7.77 (RFQ-ZIP-DL): فهرست فایل‌های ابریِ قابل‌زیپ‌کردن یک درخواست
+     (فقط کلیدهای rfqatt/ و site-rfq/ — هم‌راستا با allowlist سرور). */
+  window.ptfRfqZipEntries = function (r) {
+    if (!r) return [];
+    var out = [], seen = {};
+    var rows = typeof window.ptfRfqAttachmentRows === 'function' ? window.ptfRfqAttachmentRows(r) : [];
+    rows.forEach(function (row) {
+      var f = row && row.file;
+      if (!f) return;
+      var key = String(f.key || f.objectKey || f.storageKey || '').trim();
+      if (key.indexOf('rfqatt/') !== 0 && key.indexOf('site-rfq/') !== 0) return;
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push({ key: key, name: f.name || f.fileName || f.filename || key.split('/').pop() || 'پیوست' });
+    });
+    return out;
+  };
+  window.ptfDownloadRfqZip = function (cd) {
+    var rfqs = getData('ptf_crm_rfqs');
+    var r = rfqs.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var files = window.ptfRfqZipEntries(r);
+    if (!files.length) { alert('فایل ابری قابل دانلود گروهی برای این درخواست یافت نشد.'); return; }
+    if (typeof ptfToast === 'function') ptfToast('⏳ در حال ساخت ZIP از ' + files.length + ' ضمیمه…', 'info');
+    fetch('../api/zip-attachments.php', {
+      method: 'POST',
+      headers: irAuthHeaders(true),
+      body: JSON.stringify({ files: files, base: 'RFQ-' + cd + '-ضمائم' })
+    }).then(function (resp) {
+      if (!resp.ok) {
+        return resp.text().then(function (t) {
+          var msg = '';
+          try { var d = JSON.parse(t); msg = d.error || ''; } catch (e) {}
+          if (typeof ptfToast === 'function') ptfToast('⛔ دانلود ZIP ناموفق: ' + (msg || ('HTTP ' + resp.status)), 'err');
+          else alert('⛔ دانلود ZIP ناموفق: ' + (msg || ('HTTP ' + resp.status)));
+        });
+      }
+      return resp.blob().then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'RFQ-' + cd + '-ضمائم.zip';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+        if (typeof ptfToast === 'function') ptfToast('✅ ZIP شامل ' + files.length + ' ضمیمه دانلود شد', 'ok');
+      });
+    }).catch(function () {
+      if (typeof ptfToast === 'function') ptfToast('⛔ عدم دسترسی به سرور برای ساخت ZIP', 'err');
+      else alert('⛔ عدم دسترسی به سرور برای ساخت ZIP');
+    });
+  };
+
   window.ptfManageInqAttachments = function(cd) {
     var rfqs = getData('ptf_crm_rfqs');
     var r = rfqs.filter(function(x){ return x.cd === cd; })[0];
@@ -680,8 +731,10 @@
     }).join('') + '</div>' : '';
     var html = '<div class="md-b" id="ptfAttModal" style="display:grid;z-index:' + ((typeof window.ptfTopZIndex === 'function') ? window.ptfTopZIndex(2000) : 2000) + '" onclick="if(event.target===this)this.remove()">' +
       '<div class="md" style="max-width:680px;max-height:92vh;overflow:auto">' +
-      '<h3>📎 مدیریت پیوست‌های فنی استعلام — ' + escP(cd) + '</h3>' +
-      '<p style="font-size:12px;color:#475569;margin-bottom:14px">حتی پس از صدور پیشنهاد مالی یا فنی، شما می‌توانید دیتاشیت، کاتالوگ سازنده، نقشه‌های مهندسی و سایر اسناد تکمیلی را به این استعلام اضافه یا از آن دانلود کنید.</p>' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">' +
+      '<h3 style="margin:0">📎 مدیریت پیوست‌های فنی استعلام — ' + escP(cd) + '</h3>' +
+      '<button class="bt" style="font-size:12px;background:#7c3aed;color:#fff" onclick="ptfDownloadRfqZip(\'' + ptfOnClickArg(cd) + '\')" title="دانلود همهٔ ضمایم ابری این درخواست به‌صورت یک فایل ZIP">⬇️ دانلود همه (ZIP)</button></div>' +
+      '<p style="font-size:12px;color:#475569;margin-bottom:14px">حتی پس از صدور پیشنهاد مالی یا فنی، شما می‌توانید دیتاشیت، کاتالوگ سازنده، نقشه‌های مهندسی و سایر اسناد تکمیلی را به این استعلام اضافه یا از آن دانلود کنید. برای دانلود یک‌جای ضمایم از دکمهٔ «⬇️ دانلود همه (ZIP)» استفاده کنید.</p>' +
       /* v13.3 (US-325): دسته‌ها با کلیدهای فرم ثبت (saveRfq2) یکسان شد — پیوست‌های زمان ایجاد حالا دیده می‌شوند */
       renderFileList('inq', '📥 فایل‌های اولیه استعلام') +
       renderFileList('ds', '📊 دیتاشیت‌های فنی (Datasheets)') +
