@@ -1642,7 +1642,7 @@ tr:hover td{background:#fffcfa}
 .md{background:#fff;padding:24px;border-radius:20px;width:520px;max-width:92%;max-height:90vh;overflow-y:auto}
 .md h3{font-size:17px;margin:0 0 14px;padding-bottom:12px;border-bottom:2px solid #f1f5f9}
 .md .fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-/* v34.7.95 (SUP-UX-002): مودال «ثبت فاکتور خرید» (tamin) — یکدستی دکمه‌ها و فیلدها.
+/* v34.7.93 (SUP-UX-002): مودال «ثبت فاکتور خرید» (tamin) — یکدستی دکمه‌ها و فیلدها.
    در موبایل دکمه‌ها تمام‌عرض می‌شوند ولی در دسکتاپ هم‌عرض و هم‌قد می‌مانند. */
 .md .sl-inv-footer .bt{min-height:38px;padding:7px 14px}
 .md .sl-inv-footer .bt-o{color:#0f766e;border-color:#99f6e4}
@@ -1746,7 +1746,7 @@ try {
 // نسخه امن: فقط session و کش پاک می‌شود — داده‌های CRM هرگز حذف نمی‌شوند
 function ptfSafeReset() {
   localStorage.removeItem('ptf_crm_session');
-  /* v34.7.95 (AUTH-TOKEN-REQUIRED): «رفع مشکل ورود» باید نشست و توکن را همزمان پاک کند.
+  /* v34.7.93 (AUTH-TOKEN-REQUIRED): «رفع مشکل ورود» باید نشست و توکن را همزمان پاک کند.
      پیش‌تر فقط session حذف می‌شد و توکن کهنه/نامعتبر در localStorage می‌ماند و ورود مجدد
      را گمراه می‌کرد. داده‌های CRM هرگز حذف نمی‌شوند. */
   localStorage.removeItem('ptf_crm_token');
@@ -1970,7 +1970,7 @@ async function doLogin() {
   }
 
   /* SEC-03: بلاک لاگین آفلاین ادمین کاملاً حذف شد — احراز هویت فقط از سرور */
-  /* v34.7.95 (AUTH-TOKEN-REQUIRED): ورود فقط-محلی که session بدون توکن می‌ساخت حذف شد.
+  /* v34.7.93 (AUTH-TOKEN-REQUIRED): ورود فقط-محلی که session بدون توکن می‌ساخت حذف شد.
      ریشه باگ «توکن معتبر وجود ندارد»: وقتی auth_login سرور موقتاً ناموفق بود (شبکه/429/
      رمز)، کد قبلی اگر هش محلی را داشت فقط session می‌ساخت و showCrm بلافاصله همان پیام
      گمراه‌کننده را نشان می‌داد. اکنون هر ورود باید از سرور توکن بگیرد؛ هیچ session
@@ -3193,7 +3193,7 @@ function renderSuppliers() {
   var items = getData('ptf_crm_suppliers');
   var tb = document.getElementById('sTb');
   if (!tb) return;
-  /* v34.7.95 (SUP-PERF-001): ساخت رشتهٔ جدول یک‌باره و innerHTML واحد — قبلاً در هر
+  /* v34.7.93 (SUP-PERF-001): ساخت رشتهٔ جدول یک‌باره و innerHTML واحد — قبلاً در هر
      ردیف innerHTML += می‌شد که هزینهٔ DOM/پارس مجدد جدول را برای انباشت تامین‌کنندگان
      به O(n^2) می‌رساند و جستجو/تب‌ها را کند می‌کرد. فیلتر جستجو هم همین‌جا انجام می‌شود. */
   var q = (((document.getElementById('sSrch') || {}).value) || '').trim().toLowerCase();
