@@ -16,6 +16,11 @@
       var last = +localStorage.getItem('ptf_last_activity') || Date.now();
       if (Date.now() - last > IDLE_MAX) {
         localStorage.removeItem('ptf_crm_session');
+        /* v34.7.90 (AUTH-TOKEN-REQUIRED): همراه نشست، توکن و نقش هم حذف شوند تا
+           حالت ناهماهنگ «session نیست ولی token هست» باقی نماند و ورود مجدد به
+           «توکن معتبر وجود ندارد» نخورد. */
+        localStorage.removeItem('ptf_crm_token');
+        localStorage.removeItem('ptf_crm_token_role');
         alert('⏳ نشست شما به دلیل ۸ ساعت عدم فعالیت منقضی شد.\nلطفاً دوباره وارد شوید.');
         location.reload();
       }
