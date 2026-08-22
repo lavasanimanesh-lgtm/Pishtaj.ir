@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.90 — مبنای ریالی ارجاع فاکتور به حسابدار.
+/* v34.7.91 — مبنای ریالی ارجاع فاکتور به حسابدار.
    تصمیم کارفرما: سندی که به حسابدار می‌رسد باید ریالی باشد.
    • پیشنهاد ارزیِ دارای نسخهٔ ریالی → حسابدار فقط نسخهٔ ریالی را می‌بیند.
    • پیشنهاد ارزیِ بدون نسخهٔ ریالی → هنگام ارجاع، نرخ تسعیر از کاربر پرسیده می‌شود،
@@ -18,9 +18,9 @@ var inv = read('crm/official-invoice-v2.js');
 var api = read('api/sales-domain.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.90', ver.crm_version === 'v34.7.90', ver.crm_version);
-T('salesfiles.js cache-bust 34.7.90', /salesfiles\.js\?v=34\.7\.90/.test(idx));
-T('official-invoice-v2.js cache-bust 34.7.90', /official-invoice-v2\.js\?v=34\.7\.90/.test(idx));
+T('VERSION.json = v34.7.91', ver.crm_version === 'v34.7.91', ver.crm_version);
+T('salesfiles.js cache-bust 34.7.91', /salesfiles\.js\?v=34\.7\.91/.test(idx));
+T('official-invoice-v2.js cache-bust 34.7.91', /official-invoice-v2\.js\?v=34\.7\.91/.test(idx));
 
 /* ① هستهٔ ارجاع — مبنای ریالی */
 T('why=need_rial برای ارزی بدون نسخهٔ ریالی', sf.indexOf("why: 'need_rial'") > -1);
@@ -55,6 +55,6 @@ T('فیلد rialBasisTotal در رکورد', api.indexOf("'rialBasisTotal'=>(int
 
 T('tester478 در گیت CI', gate.indexOf('tester478-v34.7.76-invoice-rial-basis.js') > -1);
 
-console.log('\n— tester478 (v34.7.90: مبنای ریالی ارجاع فاکتور به حسابدار) —');
+console.log('\n— tester478 (v34.7.91: مبنای ریالی ارجاع فاکتور به حسابدار) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

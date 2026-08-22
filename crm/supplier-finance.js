@@ -92,7 +92,7 @@
     var by = {}, linked = linkedLegacyIds(d);
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var c = i.cur || 'IRR';
-      /* v34.7.90 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
+      /* v34.7.91 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
          (اعتبار ارزش‌افزوده − کارمزد فاکتورساز) باید در مانده/اعتبار این تأمین‌کننده
          دیده شود. پیش‌تر فقط کارمزد به بدهی اضافه می‌شد و اعتبار VAT کسر نمی‌شد؛
          این با گزارش‌های official-ledger/working-capital/fiscal ناهماهنگ بود.
@@ -169,7 +169,21 @@
   window.slNewInvoice = function (supCd) {
     if (!canWrite()) { alert('⛔ دسترسی ثبت فاکتور خرید ندارید'); return; }
     if (supCd) { window.slInvoiceForm(supCd); return; }
-    ptfDialog({ title: '🧾 انتخاب تأمین‌کننده برای فاکتور خرید', fields: [{ id: 'sup', label: 'تأمین‌کننده *', type: 'select', optionsHtml: '<option value="">— انتخاب کنید —</option>' + supplierOptions(''), required: true }], okText: 'ادامه', onOk: function (v) { if (!v.sup) { alert('تأمین‌کننده را انتخاب کنید'); return; } window.slInvoiceForm(v.sup); } });
+    /* v34.7.91 (SUP-FIX-001): به‌جای ptfDialog (گاهی پنجره بسته می‌شود) یک مودال ساده
+       با فرم خودساخته باز می‌شود؛ پنجره تا زمان انتخاب تأمین‌کننده باز می‌ماند. */
+    var html = '<div class="md-b" id="slPickSupDlg" style="display:grid;z-index:2650" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:420px">' +
+      '<h3>🧾 انتخاب تأمین‌کننده</h3>' +
+      '<div class="fld"><label>تأمین‌کننده *</label><select id="slPickSup">' + supplierOptions('') + '</select></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="bt bt-o" onclick="document.getElementById(\'slPickSupDlg\').remove()">انصراف</button><button class="bt" onclick="slPickSupGo()">ادامه</button></div>' +
+      '</div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.slPickSupGo = function () {
+    var cd = ((document.getElementById('slPickSup') || {}).value) || '';
+    if (!cd) { alert('تأمین‌کننده را انتخاب کنید'); return; }
+    var dlg = document.getElementById('slPickSupDlg');
+    if (dlg) dlg.remove();
+    if (typeof window.slInvoiceForm === 'function') window.slInvoiceForm(cd);
   };
   window.slInvoiceForm = function (supCd, prefill) {
     var sup = supplier(supCd); if (!sup) { alert('تأمین‌کننده یافت نشد'); return; }
@@ -192,6 +206,10 @@
       '<label style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:#92400e;cursor:pointer"><input type="checkbox" id="slInvCoverConfirm" style="margin-top:2px"> <span>تایید می‌کنم این یک فاکتور پوششی/صوری داخلی است.</span></label>' +
       '</div></div>'
     ) : '';
+    /* v34.7.91 (SUP-FIX-002): date در این scope تعریف نمی‌شد و استفاده از آن در
+       window.ptfVatRateOf(prefill.date || date || '') باعث ReferenceError می‌شد و
+       پنجرهٔ ثبت فاکتور باز نمی‌شود/بسته می‌شد. حالا قبل از ساخت HTML تعریف می‌شود. */
+    var _vatDate = prefill.date || (typeof ptfTodayJ === 'function' ? ptfTodayJ() : '') || '';
     var html = '<div class="md-b" id="slInvDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:92vh;overflow:auto">' +
       '<h3 style="margin:0 0 6px">🧾 ثبت فاکتور خرید — ' + escP(sup.co || '') + '</h3>' +
       '<div style="font-size:12px;line-height:1.8;color:#64748b;margin-bottom:12px">فاکتور مستقل ثبت می‌شود. اتصال به تعهدهای خرید واقعی اختیاری است.</div>' +
@@ -202,7 +220,7 @@
       '<div class="fld" id="slInvVatWrap" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:9px 11px;margin:6px 0">' +
         '<label style="font-size:12.5px;color:#065f46">💰 ارزش افزوده (VAT) — درصد *</label>' +
         '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">' +
-          '<input id="slInvVatPct" type="number" min="0" max="100" step="any" value="' + (typeof window.ptfVatRateOf === 'function' ? window.ptfVatRateOf(prefill.date || date || '') : 10) + '" style="width:110px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()">' +
+          '<input id="slInvVatPct" type="number" min="0" max="100" step="any" value="' + (typeof window.ptfVatRateOf === 'function' ? window.ptfVatRateOf(_vatDate) : 10) + '" style="width:110px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()">' +
           '<span style="font-size:13px;font-weight:700;color:#065f46">٪</span>' +
           '<span style="font-size:11.5px;color:#065f46;flex:1;min-width:200px">مبلغ را <b>بدون ارزش افزوده</b> وارد کنید؛ ارزش افزوده و جمع خودکار محاسبه می‌شود.</span>' +
         '</div>' +
@@ -709,13 +727,21 @@
         return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>';
       }).filter(Boolean).join('');
     }
-    /* v34.7.90 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
-       قبلاً همهٔ balance ها (که روی همه فاکتور/پرداخت لوپ می‌زنند) همزمان با ساخت پنل
-       محاسبه می‌شد و باز شدن تب تامین‌کنندگان را کند می‌کرد. اکنون قاب با placeholder
-       ساخته می‌شود و پس از رندر پنل، جدول با slBoxRows پر می‌شود (یک‌بار). */
+    /* v34.7.91 (SUP-FIX-001): lazy-load کادر «فاکتور، حساب و پرداخت».
+       اصلاح باگ «در حال محاسبه ولی چیزی لود نمی‌شود»: قبلاً setTimeout(30ms) قبل از
+       ساخته شدن slBoxBody در DOM اجرا می‌شد و body=null بود؛ سپس _slBoxLazyDone=true
+       می‌شد و حتی رندر مجدد هم جدول را نمی‌ساخت. حالا تا پیدا شدن body چند تلاش کوتاه
+       انجام و در غیر این صورت از render suppl و goPanel هم صدا زده می‌شود. */
+    var _slBoxLazyTries = 0;
     window.ptfSlBoxLazy = function () {
       var body = document.getElementById('slBoxBody');
-      if (!body || window._slBoxLazyDone) return;
+      if (!body) {
+        if (_slBoxLazyTries < 8) {
+          _slBoxLazyTries++;
+          setTimeout(function () { if (typeof window.ptfSlBoxLazy === 'function') window.ptfSlBoxLazy(); }, 40);
+        }
+        return;
+      }
       var rows = slBoxRows();
       if (rows) body.innerHTML = rows;
       else body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">گردش حسابی برای نمایش نیست.</td></tr>';
