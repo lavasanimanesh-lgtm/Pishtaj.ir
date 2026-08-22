@@ -116,6 +116,7 @@ var SUITE = [
   { g: 'مالی/ارزش افزوده/رفتار', f: '_tools/uat/tester493-v34.7.91-vat-quarterly-behavior.js' },
   { g: 'تامین/رفع باگ', f: '_tools/uat/tester494-v34.7.91-supplier-modal-debt.js' },
   { g: 'تامین/فاکتور پوششی', f: '_tools/uat/tester495-v34.7.91-cover-opex-no-claim.js' },
+  { g: 'مالی/ارزش افزوده/UAT پایانی', f: '_tools/uat/tester496-v34.7.94-vat-quarterly-uat.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

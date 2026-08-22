@@ -3778,8 +3778,14 @@ function ptfEntityFiles(c) {
 }
 
 window.ptfSupFilesOpen = function (cd) {
+  /* v34.7.94 (A7-FIX): بازخورد صریح در شکست — نگهبان A7 (شکست خاموش) دیگر
+     تخلف نمی‌شمارد و کاربر می‌فهمد چرا پنجره باز نشد. */
   var c = getData('ptf_crm_suppliers').filter(function (x) { return x.cd === cd; })[0];
-  if (!c) return;
+  if (!c) {
+    if (typeof ptfToast === 'function') ptfToast('❌ تامین‌کننده با این کد پیدا نشد', 'err');
+    else if (typeof alert === 'function') alert('تامین‌کننده با این کد پیدا نشد');
+    return;
+  }
   var files = ptfEntityFiles(c);
   var rows = files.length ? files.map(function (f) {
     return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--brd);flex-wrap:wrap">' +

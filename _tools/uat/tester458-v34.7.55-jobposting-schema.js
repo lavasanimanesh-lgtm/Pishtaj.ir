@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.93 — اسکیمای کامل JobPosting برای رفع خطای GSC:
+/* v34.7.94 — اسکیمای کامل JobPosting برای رفع خطای GSC:
    datePosted (الزامی/قرمز) + validThrough/employmentType/identifier/directApply
    (توصیه‌شده/زرد) + baseSalary اختیاری. publishedAt در save_job/reopen_job نگه‌داری
    می‌شود تا datePosted واقعی و پایدار باشد. */
@@ -19,10 +19,10 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.7.93', ver.crm_version === 'v34.7.93', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.7.93', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.93'") > -1);
-T('sw RELEASE = v34.7.93', sw.indexOf("RELEASE = 'v34.7.93'") > -1);
-T('careers.js cache-bust 34.7.93', /careers\.js\?v=34\.7\.93/.test(idx));
+T('VERSION.json = v34.7.94', ver.crm_version === 'v34.7.94', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.7.94', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.7.94'") > -1);
+T('sw RELEASE = v34.7.94', sw.indexOf("RELEASE = 'v34.7.94'") > -1);
+T('careers.js cache-bust 34.7.94', /careers\.js\?v=34\.7\.94/.test(idx));
 
 /* ---------- فیلد الزامی: datePosted ---------- */
 T('LD شامل datePosted است', php.indexOf("'datePosted' => date('Y-m-d', $postedTs)") > -1);
@@ -60,6 +60,6 @@ T('EMP_TYPES قبل از include guard تعریف می‌شود', php.indexOf('$
 T('tester458 در گیت CI', gate.indexOf('tester458-v34.7.55-jobposting-schema.js') > -1);
 T('surplus بدون setInterval (tester171)', surplus.indexOf('setInterval') === -1);
 
-console.log('\n— tester458 (v34.7.93: اسکیمای JobPosting برای GSC) —');
+console.log('\n— tester458 (v34.7.94: اسکیمای JobPosting برای GSC) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
