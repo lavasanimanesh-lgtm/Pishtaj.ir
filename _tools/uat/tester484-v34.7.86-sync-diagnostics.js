@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.85 — خود-تشخیص همگام‌سازی (SYNC-DIAG-001).
+/* v34.7.86 — خود-تشخیص همگام‌سازی (SYNC-DIAG-001).
    بدون تغییر منطق نوشتن؛ فقط:
    - تست اتصال دقیق‌تر با data_rev (محافظت‌شده) به‌جای users_get عمومی؛
    - ثبت آخرین خطای push/pull برای نمایش؛
@@ -18,11 +18,11 @@ var sync = read('crm/sync.js');
 var bak = read('crm/backup.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.85', ver.crm_version === 'v34.7.85', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.7.85', /window\.PTF_CRM_RELEASE = 'v34\.7\.85'/.test(idx));
-T('sw.js RELEASE = v34.7.85', /RELEASE = 'v34\.7\.85'/.test(sw));
-T('sync.js cache-bust 34.7.85', /sync\.js\?v=34\.7\.85/.test(idx));
-T('backup.js cache-bust 34.7.85', /backup\.js\?v=34\.7\.85/.test(idx));
+T('VERSION.json = v34.7.86', ver.crm_version === 'v34.7.86', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.7.86', /window\.PTF_CRM_RELEASE = 'v34\.7\.86'/.test(idx));
+T('sw.js RELEASE = v34.7.86', /RELEASE = 'v34\.7\.86'/.test(sw));
+T('sync.js cache-bust 34.7.86', /sync\.js\?v=34\.7\.86/.test(idx));
+T('backup.js cache-bust 34.7.86', /backup\.js\?v=34\.7\.86/.test(idx));
 
 /* ---------- تشخیص سرور ---------- */
 T('ptfSyncServerStatus تعریف شده', /window\.ptfSyncServerStatus = function/.test(sync));
@@ -45,8 +45,8 @@ T('بررسی اتصال ابتدا ptfSyncServerStatus را صدا می‌زن�
 T('fallback users_get حفظ شده', /action=users_get/.test(bak));
 T('دکمهٔ دستی بررسی اتصال هنوز در UI نیست', bak.indexOf('onclick="ptfBackupServerCheck()"') === -1);
 
-T('tester484 در گیت CI', gate.indexOf('tester484-v34.7.85-sync-diagnostics.js') > -1);
+T('tester484 در گیت CI', gate.indexOf('tester484-v34.7.86-sync-diagnostics.js') > -1);
 
-console.log('\n— tester484 (v34.7.85: خود-تشخیص همگام‌سازی — SYNC-DIAG-001) —');
+console.log('\n— tester484 (v34.7.86: خود-تشخیص همگام‌سازی — SYNC-DIAG-001) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

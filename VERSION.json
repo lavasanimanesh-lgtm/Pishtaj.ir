@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.7.85",
+  "crm_version": "v34.7.86",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-22",
-  "updated_by": "Arena Agent (v34.7.85 ادامه بهینه‌سازی تامین‌کنندگان — lazy مالی + صفحه‌بندی اختیاری get_inbox، SUP-PERF-003/004)"
+  "updated_by": "Arena Agent (v34.7.86 فعال‌سازی صفحه‌بندی get_inbox در کلاینت + ادغام گام‌به‌گام صندوق سایت — SUP-PERF-005)"
 }

@@ -414,20 +414,48 @@
   }
 
   /* ============ US-133: سینک صندوق سروری (تامین‌کننده + RFQ سایت) ============ */
+  var SITE_SUP_PAGE = 50; /* v34.7.86/86 (SUP-PERF-004): اندازهٔ صفحهٔ سروری صندوق سایت */
+  function siteSuppliers() { try { return JSON.parse(localStorage.getItem('ptf_site_suppliers') || '[]'); } catch (e) { return []; } }
+  function siteRfqs() { try { return JSON.parse(localStorage.getItem('ptf_site_rfqs') || '[]'); } catch (e) { return []; } }
+  function siteSupTotal() { try { var n = parseInt(localStorage.getItem('ptf_site_suppliers_total') || '0', 10); return isNaN(n) ? 0 : n; } catch (e) { return 0; } }
+  function siteSupKey(s) { return String((s && (s.code || s.id || '')) || ''); }
+  function siteSupMerge(incoming, total) {
+    var base = siteSuppliers(), seen = {}, out = [];
+    base.forEach(function (s) { var k = siteSupKey(s); if (k && !seen[k]) { seen[k] = true; out.push(s); } });
+    (incoming || []).forEach(function (s) {
+      var k = siteSupKey(s);
+      if (!k) { out.push(s); return; }
+      if (seen[k]) {
+        for (var i = 0; i < out.length; i++) if (siteSupKey(out[i]) === k) { out[i] = s; break; }
+      } else {
+        seen[k] = true; out.push(s);
+      }
+    });
+    if (total > 0 && out.length > total) out = out.slice(0, total);
+    try {
+      localStorage.setItem('ptf_site_suppliers', JSON.stringify(out));
+      localStorage.setItem('ptf_site_suppliers_total', String(total > 0 ? total : out.length));
+    } catch (e) {}
+    return out;
+  }
   window.syncServerInbox = function (cb) {
     // v31.7.7 HOTFIX-AUTH: Include JWT token in inbox sync.
     var _syncH = {};
     try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
     /* v34.7.81 (SUP-PERF-001): کلاینت آخرین امضای صندوق را می‌فرستد؛ وقتی داده‌ها
-       تغییر نکرده‌اند سرور فقط fresh برمی‌گرداند و دانلود/اجرای مجدد جدول سایت نمی‌شود. */
+       تغییر نکرده‌اند سرور فقط fresh برمی‌گرداند و دانلود/اجرای مجدد جدول سایت نمی‌شود.
+       v34.7.86 (SUP-PERF-005): بوت/پول فقط صفحهٔ اول (۵۰) suppliers را می‌گیرد و
+       بقیه را با «نمایش بیشتر» از سرور لود می‌کند (لایهٔ رندر قبلاً در کلاینت صفحه‌بندی
+       می‌شد؛ حالا فشرده‌سازی/دانلود هم گام‌به‌گام می‌شود). */
     var _since = '';
     try { _since = localStorage.getItem('ptf_site_inbox_sig') || ''; } catch(eSl) {}
-    fetch(API + '?action=get_inbox&since=' + encodeURIComponent(_since), { headers: _syncH })
+    var _url = API + '?action=get_inbox&since=' + encodeURIComponent(_since) + '&limit=' + SITE_SUP_PAGE + '&offset=0';
+    fetch(_url, { headers: _syncH })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.ok) { cb && cb(false); return; }
         if (d.fresh) { cb && cb(true); return; }
-        localStorage.setItem('ptf_site_suppliers', JSON.stringify(d.suppliers || []));
+        siteSupMerge(d.suppliers || [], (d.supTotal || 0));
         localStorage.setItem('ptf_site_rfqs', JSON.stringify(d.rfqs || []));
         try { localStorage.setItem('ptf_site_inbox_sig', String(d.since || '')); } catch(eSig) {}
         if (document.getElementById('supPendWrap')) renderSupPending();
@@ -436,8 +464,25 @@
       })
       .catch(function () { cb && cb(false); });
   };
-  function siteSuppliers() { try { return JSON.parse(localStorage.getItem('ptf_site_suppliers') || '[]'); } catch (e) { return []; } }
-  function siteRfqs() { try { return JSON.parse(localStorage.getItem('ptf_site_rfqs') || '[]'); } catch (e) { return []; } }
+  /* لود صفحهٔ بعدی صندوق سایت از سرور + ادغام با کش محلی (برای «نمایش بیشتر»). */
+  window.syncServerInboxMore = function (cb) {
+    var _syncH = {};
+    try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
+    var _offset = siteSuppliers().length;
+    var _since = '';
+    try { _since = localStorage.getItem('ptf_site_inbox_sig') || ''; } catch(eSl) {}
+    var _url = API + '?action=get_inbox&since=' + encodeURIComponent(_since) + '&limit=' + SITE_SUP_PAGE + '&offset=' + _offset;
+    fetch(_url, { headers: _syncH })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { cb && cb(false); return; }
+        if (d.fresh) { cb && cb(true); return; }
+        siteSupMerge(d.suppliers || [], (d.supTotal || 0));
+        if (document.getElementById('supPendWrap')) renderSupPending();
+        cb && cb(true);
+      })
+      .catch(function () { cb && cb(false); });
+  };
 
   /* ---- تامین‌کنندگان: بخش «ثبت‌نام‌شده از سایت» ---- */
   var _buildSup = window.buildSuppliers;
@@ -474,6 +519,7 @@
     var el = document.getElementById('supPendWrap');
     if (!el) return;
     var all = siteSuppliers();
+    var totalAll = siteSupTotal() || all.length; /* v34.7.86 (SUP-PERF-005): تعداد کل سروری، نه فقط لودشده */
     var pend = all.filter(function (s) { return s.status === 'pending'; });
     var rejected = all.filter(function (s) { return s.status === 'rejected'; }).length;
     /* v34.7.81 (SUP-PERF-001): صفحه‌بندی صندوق ثبت‌نام سایت — ساخت/رندر همزمان همهٔ
@@ -496,7 +542,7 @@
       approved: '<span class="bd b-st4">✅ تایید شده</span>',
       rejected: '<span class="bd" style="background:#fee2e2;color:#b91c1c">✖ رد شده</span>' };
     var h = '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:14px;margin-bottom:16px">' +
-      '<h4 style="margin:0 0 6px;font-size:13.5px;color:#c2410c">🌐 ثبت‌نام‌شده از سایت (' + all.length + ' — ' + pend.length + ' در انتظار' + (rejected ? '، ' + rejected + ' رد شده' : '') + ')</h4>' +
+      '<h4 style="margin:0 0 6px;font-size:13.5px;color:#c2410c">🌐 ثبت‌نام‌شده از سایت (' + totalAll + ' — ' + pend.length + ' در انتظار' + (rejected ? '، ' + rejected + ' رد شده' : '') + ')</h4>' +
       '<small style="color:#9a3412">برای مشاهدهٔ فایل کاتالوگ/پیوست هر ثبت‌نام، روی «👁 جزئیات» یا نشان 📎 کلیک کنید.</small>' +
       '<div style="margin-top:8px"><a href="javascript:void(0)" onclick="syncServerInbox()" style="color:#0e7490;font-size:12px">🔄 بروزرسانی از سرور</a></div>' +
       '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>مسئول</th><th>تماس</th><th>حوزه</th><th>شرایط پرداخت</th><th>وضعیت</th><th>ضمیمه</th><th>عملیات</th></tr></thead><tbody>';
@@ -521,15 +567,25 @@
             : '') +
           '</td></tr>';
       });
-      if (all.length > shown.length) {
+      var serverMore = siteSupTotal() > all.length;
+      if (all.length > shown.length || serverMore) {
         h += '<tr><td colspan="9" style="text-align:center;padding:10px;background:#fffbeb">' +
           '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fde68a" onclick="supPendingMore()">⬇ نمایش ' +
-          Math.min(per, all.length - shown.length) + ' مورد دیگر (' + shown.length + ' از ' + all.length + ')</button></td></tr>';
+          (serverMore ? SITE_SUP_PAGE : Math.min(per, all.length - shown.length)) + ' مورد دیگر (' + shown.length + ' از ' + totalAll + ')</button></td></tr>';
       }
     }
     el.innerHTML = h + '</tbody></table></div></div>';
   };
   window.supPendingMore = function () {
+    /* v34.7.86 (SUP-PERF-005): اگر هنوز کل رکوردها از سرور لود نشده، صفحهٔ بعدی را
+       از سرور بگیر و ادغام کن؛ سپس رندر قبلی را گام‌به‌گام نمایش بده. */
+    if (siteSupTotal() > siteSuppliers().length && typeof window.syncServerInboxMore === 'function') {
+      syncServerInboxMore(function () {
+        window._supPendingPage = (window._supPendingPage || 0) + 1;
+        if (typeof renderSupPending === 'function') renderSupPending();
+      });
+      return;
+    }
     window._supPendingPage = (window._supPendingPage || 0) + 1;
     if (typeof renderSupPending === 'function') renderSupPending();
   };

@@ -1358,18 +1358,18 @@ switch($action) {
         $rfqFile = $data_dir . '/rfqs.json';
         $sig = (int)(is_file($supFile) ? @filemtime($supFile) : 0) . ':' . (int)(is_file($supFile) ? @filesize($supFile) : 0)
              . '::' . (int)(is_file($rfqFile) ? @filemtime($rfqFile) : 0) . ':' . (int)(is_file($rfqFile) ? @filesize($rfqFile) : 0);
+        /* v34.7.85 (SUP-PERF-004) + v34.7.86 (SUP-PERF-005): صفحه‌بندی اختیاری.
+           fresh فقط وقتی مجاز است که صفحه‌بندی درخواست نشده باشد؛ وگرنه درخواست
+           صفحهٔ بعدی با همان since به‌درستی دادهٔ صفحه را برمی‌گرداند. */
+        $limit = (int)($_REQUEST['limit'] ?? 0);
+        $offset = max(0, (int)($_REQUEST['offset'] ?? 0));
         $since = trim((string)($_REQUEST['since'] ?? ''));
-        if ($since !== '' && hash_equals($since, $sig)) {
+        if ($limit === 0 && $offset === 0 && $since !== '' && hash_equals($since, $sig)) {
             ptf_echo_json(['ok' => true, 'fresh' => true, 'since' => $sig]);
             break;
         }
         $allSuppliers = load_data('suppliers');
         $siteRfqs = array_values(array_filter(load_data('rfqs'), function ($r) { return ($r['src'] ?? '') === 'site'; }));
-        /* v34.7.85 (SUP-PERF-004): صفحه‌بندی اختیاری صندوق سایت. بدون پارامترها،
-           رفتار قبلی (همهٔ داده‌ها) حفظ می‌شود؛ با limit/offset فقط صفحات خواسته‌شده
-           برمی‌گردد تا کلاینت بتواند برای فهرست‌های بزرگ از سرور گام‌به‌گام بگیرد. */
-        $limit = (int)($_REQUEST['limit'] ?? 0);
-        $offset = max(0, (int)($_REQUEST['offset'] ?? 0));
         $supTotal = count($allSuppliers);
         $rfqTotal = count($siteRfqs);
         if ($limit > 0) {
