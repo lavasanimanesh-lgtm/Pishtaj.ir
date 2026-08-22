@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.99 — تب جداگانهٔ «درخواست‌های سایت» + نمایش فایل پیوست ثبت‌نام تامین‌کننده.
+/* v34.7.100 — تب جداگانهٔ «درخواست‌های سایت» + نمایش فایل پیوست ثبت‌نام تامین‌کننده.
    قرارداد: پنل تامین‌کنندگان تب «درخواست‌های سایت» دارد؛ فهرست کامل ثبت‌نام‌های سایت با
    ستون ضمیمه و دکمهٔ جزئیات؛ مودال supSiteDetail فایل ابری را نمایش می‌دهد؛ supApprove
    فایل و متن درخواست را روی رکورد تاییدشده حفظ می‌کند. */
@@ -16,9 +16,9 @@ var cheques = read('crm/cheques.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.99', ver.crm_version === 'v34.7.99', ver.crm_version);
-T('bridge.js cache-bust 34.7.99', /bridge\.js\?v=34\.7\.99/.test(idx));
-T('cheques.js cache-bust 34.7.99', /cheques\.js\?v=34\.7\.99/.test(idx));
+T('VERSION.json = v34.7.100', ver.crm_version === 'v34.7.100', ver.crm_version);
+T('bridge.js cache-bust 34.7.100', /bridge\.js\?v=34\.7\.100/.test(idx));
+T('cheques.js cache-bust 34.7.100', /cheques\.js\?v=34\.7\.100/.test(idx));
 
 /* تب جداگانه */
 T('تب «درخواست‌های سایت» در پنل تامین‌کنندگان', cheques.indexOf('id="supTabSite"') > -1 && cheques.indexOf('ptfSupTab(') > -1);
@@ -42,6 +42,6 @@ T('supApprove متن درخواست را حفظ می‌کند', bridge.indexOf('
 
 T('tester468 در گیت CI', gate.indexOf('tester468-v34.7.66-sup-site-attachment.js') > -1);
 
-console.log('\n— tester468 (v34.7.99: تب درخواست‌های سایت + فایل پیوست تامین‌کننده) —');
+console.log('\n— tester468 (v34.7.100: تب درخواست‌های سایت + فایل پیوست تامین‌کننده) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
