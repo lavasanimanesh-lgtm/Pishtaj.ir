@@ -1031,6 +1031,9 @@
     window.renderSuppliers2 = window.renderSuppliers = function () {
       supPendBelowTabs();
       _rs();
+      /* v34.7.91 (SUP-FIX-001/002): بعد از این‌که DOM table ساخته شد، جدول lazy
+         «فاکتور، حساب و پرداخت» را پر کن. «در حال محاسبه» دیگر معلق نمی‌ماند. */
+      try { if (typeof window.ptfSlBoxLazy === 'function') setTimeout(window.ptfSlBoxLazy, 0); } catch (eL) {}
       var t = window._supTabCur || '';
       if (!t) return;
       /* فیلتر پس از رندر: بر اساس فیلد origin (پیش‌فرض داخلی) */
