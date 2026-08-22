@@ -6,7 +6,7 @@
    قابل خواندن هستند؛ این endpoint برای هر کلید یک GET امضاشده می‌گیرد، بایت‌ها را
    داخل یک ZIP می‌چیند و یک‌جا stream می‌کند — کاربر لازم نیست تکتک دانلود کند.
    امنیت: احراز توکن + نقش مجاز + بررسی منشأ + allowlist سخت‌گیرانهٔ پیشوند کلید
-   (فقط rfqatt/ و site-rfq/)؛ کلید دلخواهِ مالی/پرونده از این مسیر قابل دانلود نیست.
+   (فقط rfqatt/، rfq/ و site-rfq/)؛ کلید دلخواهِ مالی/پرونده از این مسیر قابل دانلود نیست.
    ===================================================================== */
 header('X-Content-Type-Options: nosniff');
 
@@ -166,7 +166,9 @@ if (count($zFiles) > 60) {
     exit;
 }
 
-/* allowlist سخت‌گیرانهٔ پیشوند — فقط ضمایم درخواست (CRM + سایت)، نه سند مالی/پرونده */
+/* allowlist سخت‌گیرانهٔ پیشوند — فقط ضمایم درخواست (CRM + سایت)، نه سند مالی/پرونده.
+   rfqatt/ = مدیریت پیوست درخواست؛ rfq/ = فرم «ثبت درخواست جدید» (rfq/inq|ds|img|dwg|oth)؛
+   site-rfq/ = ضمیمهٔ استعلام ثبت‌شده از سایت. */
 $zEntries = [];
 $zSeen = [];
 $zTotal = 0;
@@ -174,7 +176,7 @@ $zMaxTotal = 200 * 1048576; /* سقف ایمنی ۲۰۰MB مجموع */
 foreach ($zFiles as $zF) {
     $key = ltrim(trim((string)($zF['key'] ?? '')), '/');
     if ($key === '' || strlen($key) > 500 || strpos($key, '..') !== false) continue;
-    if (!preg_match('#^(rfqatt|site-rfq)/#', $key)) continue;
+    if (!preg_match('#^(rfqatt|rfq|site-rfq)/#', $key)) continue;
     if (isset($zSeen[$key])) continue;
     $zSeen[$key] = true;
     $name = zsafe_name($zF['name'] ?? '', basename($key) ?: 'پیوست');

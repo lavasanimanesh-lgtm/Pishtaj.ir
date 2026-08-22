@@ -100,6 +100,7 @@ var SUITE = [
   { g: 'فاکتور/سند برد و ضمیمه', f: '_tools/uat/tester477-v34.7.75-invoice-award-ref-and-attach-later.js' },
   { g: 'فاکتور/مبنای ریالی', f: '_tools/uat/tester478-v34.7.76-invoice-rial-basis.js' },
   { g: 'درخواست/دانلود ZIP ضمایم', f: '_tools/uat/tester479-v34.7.77-rfq-zip-download.js' },
+  { g: 'سایت/فرم تامین‌کننده', f: '_tools/uat/tester480-v34.7.78-supplier-form-symmetry.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
