@@ -185,7 +185,23 @@
       '<div class="fr"><div class="fld"><label>شماره فاکتور *</label><input id="slInvNo" style="direction:ltr"></div><div class="fld"><label>تاریخ فاکتور *</label><input id="slInvDate" value="' + (typeof ptfTodayJ === 'function' ? ptfTodayJ() : '') + '" placeholder="1405/04/22" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>ارز *</label><select id="slInvCur" onchange="document.getElementById(\'slInvRateWrap\').style.display=this.value===\'IRR\'?\'none\':\'\'"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option><option value="AED">درهم (AED)</option><option value="GBP">پوند (GBP)</option></select></div><div class="fld"><label>مبلغ فاکتور *</label><input id="slInvAmt" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div></div>' +
       '<div class="fld" id="slInvRateWrap" style="display:none"><label>نرخ تسعیر (ریال به‌ازای هر واحد ارز) *</label><input id="slInvRate" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div>' +
-      '<div class="fr"><div class="fld"><label>نوع فاکتور *</label><select id="slInvType" onchange="slInvTypeChanged()"><option value="unofficial">غیررسمی (بدون کد اقتصادی)</option><option value="official">رسمی (ارزش افزوده/کد اقتصادی)</option></select></div><div class="fld"><label>یادداشت / شرح</label><input id="slInvNote"></radius:8px;direction:ltr" oninput="slInvCalcLive()"><small id="slInvVatSum" style="color:#0e7490;display:block;margin-top:4px"></small></div>' +
+      '<div class="fr"><div class="fld"><label>نوع فاکتور *</label><select id="slInvType" onchange="slInvTypeChanged()"><option value="unofficial">غیررسمی (بدون کد اقتصادی)</option><option value="official">رسمی (ارزش افزوده/کد اقتصادی)</option></select></div><div class="fld"><label>یادداشت / شرح</label><input id="slInvNote" style="direction:ltr" oninput="slInvCalcLive()"></div></div>' +
+      /* v34.7.87 (SUP-VAT-001): بلوک ارزش افزوده فاکتور رسمی.
+         قبلاً slInvVatWrap/slInvVatPct هرگز در HTML ساخته نمی‌شد (فقط در توابع
+         slInvTypeChanged/slInvCalcLive/slInvoiceSave ارجاع داده می‌شد)؛ بنابراین
+         فیلد درصد ارزش افزوده دقیقاً همان چیزی نبود که کاربر می‌خواست. حالا:
+         - مبلغ فاکتور باید «بدون ارزش افزوده» (خالص/پایه) وارد شود.
+         - درصد پیش‌فرض ۱۰٪ است و سیستم ارزش افزوده و جمع را خودکار نمایش/ذخیره می‌کند.
+         - فیلد فقط برای فاکتور رسمی (یا پوششی/رسمی) نمایش داده می‌شود. */
+      '<div class="fld" id="slInvVatWrap" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:9px 11px;margin-top:6px">' +
+        '<label style="font-size:12.5px;color:#065f46">💰 ارزش افزوده (VAT) — درصد *</label>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">' +
+          '<input id="slInvVatPct" type="number" min="0" max="100" step="any" value="10" style="width:110px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()">' +
+          '<span style="font-size:13px;font-weight:700;color:#065f46">٪</span>' +
+          '<span style="font-size:11.5px;color:#065f46;flex:1;min-width:200px">مبلغ فاکتور را <b>بدون ارزش افزوده</b> (خالص/پایه) وارد کنید؛ مبلغ ارزش افزوده و جمعِ با ارزش افزوده خودکار محاسبه می‌شود.</span>' +
+        '</div>' +
+        '<small id="slInvVatSum" style="color:#0e7490;display:block;margin-top:6px"></small>' +
+      '</div>' +
       coverHtml +
       '<div class="fld"><label>اتصال اختیاری به تعهدهای خرید واقعی</label><div style="border:1px solid var(--brd);border-radius:10px;padding:7px 10px;max-height:150px;overflow:auto">' + legacyHtml + '</div></div>' +
       '<div class="fld"><label>تصویر/فایل فاکتور (اختیاری)</label><div id="slInvFileWrap"></div></div>' +
@@ -684,7 +700,7 @@
         return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>';
       }).filter(Boolean).join('');
     }
-    /* v34.7.86 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
+    /* v34.7.87 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
        قبلاً همهٔ balance ها (که روی همه فاکتور/پرداخت لوپ می‌زنند) همزمان با ساخت پنل
        محاسبه می‌شد و باز شدن تب تامین‌کنندگان را کند می‌کرد. اکنون قاب با placeholder
        ساخته می‌شود و پس از رندر پنل، جدول با slBoxRows پر می‌شود (یک‌بار). */

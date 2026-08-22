@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.86 — انتقال فهرست «ثبت‌نام‌شده از سایت» به زیر تب‌ها + حذف رکورد ثبت‌نام.
+/* v34.7.87 — انتقال فهرست «ثبت‌نام‌شده از سایت» به زیر تب‌ها + حذف رکورد ثبت‌نام.
    باگ/درخواست: فهرست تامین‌کنندگان ثبت‌نام‌کرده از سایت بالای تب‌ها نمایش داده می‌شد
    و راهی برای حذف رکوردها (مثلاً ثبت‌نام اسپم/نامعتبر) وجود نداشت.
    رفع: ① جابه‌جایی DOM عنصر supPendWrap به بعد از تب‌ها (cheques.js)
@@ -18,9 +18,9 @@ var brg = read('crm/bridge.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.86', ver.crm_version === 'v34.7.86', ver.crm_version);
-T('cheques.js cache-bust 34.7.86', /cheques\.js\?v=34\.7\.86/.test(idx));
-T('bridge.js cache-bust 34.7.86', /bridge\.js\?v=34\.7\.86/.test(idx));
+T('VERSION.json = v34.7.87', ver.crm_version === 'v34.7.87', ver.crm_version);
+T('cheques.js cache-bust 34.7.87', /cheques\.js\?v=34\.7\.87/.test(idx));
+T('bridge.js cache-bust 34.7.87', /bridge\.js\?v=34\.7\.87/.test(idx));
 
 /* ① انتقال supPendWrap به زیر تب‌ها */
 T('تابع supPendBelowTabs تعریف شد', /function supPendBelowTabs\(\)\s*\{/.test(cheq));
@@ -44,6 +44,6 @@ T('فیلتر و ذخیرهٔ حذف', api.indexOf("array_values(array_filter($i
 
 T('tester476 در گیت CI', gate.indexOf('tester476-v34.7.74-sup-site-delete-and-tabs.js') > -1);
 
-console.log('\n— tester476 (v34.7.86: انتقال ثبت‌نام‌های سایت زیر تب‌ها + حذف رکورد) —');
+console.log('\n— tester476 (v34.7.87: انتقال ثبت‌نام‌های سایت زیر تب‌ها + حذف رکورد) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

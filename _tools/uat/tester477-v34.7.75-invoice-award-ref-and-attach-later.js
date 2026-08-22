@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.86 — ارجاع سند برد به حسابدار + افزودن سند فاکتور/مودیان پس از ثبت.
+/* v34.7.87 — ارجاع سند برد به حسابدار + افزودن سند فاکتور/مودیان پس از ثبت.
    درخواست: ① هنگام ارجاع فاکتور از پرونده، سند برد هم در دسترس حسابدار باشد تا بر
    اساس آن فاکتور بزند. ② پس از ثبت فاکتور، امکان افزودن سند فاکتور حسابداری یا سند
    سامانه مودیان وجود داشته باشد.
@@ -20,8 +20,8 @@ var sf = read('crm/salesfiles.js');
 var api = read('api/sales-domain.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.86', ver.crm_version === 'v34.7.86', ver.crm_version);
-T('official-invoice-v2.js cache-bust 34.7.86', /official-invoice-v2\.js\?v=34\.7\.86/.test(idx));
+T('VERSION.json = v34.7.87', ver.crm_version === 'v34.7.87', ver.crm_version);
+T('official-invoice-v2.js cache-bust 34.7.87', /official-invoice-v2\.js\?v=34\.7\.87/.test(idx));
 
 /* ① ارجاع سند برد به حسابدار */
 T('دکمهٔ سند برد در پنل فاکتورها', inv.indexOf('🏆 سند برد (PDF)') > -1);
@@ -49,6 +49,6 @@ T('correction برای رد ممیزی', /invoice_attachment_add[\s\S]*?kind'\s*
 
 T('tester477 در گیت CI', gate.indexOf('tester477-v34.7.75-invoice-award-ref-and-attach-later.js') > -1);
 
-console.log('\n— tester477 (v34.7.86: ارجاع سند برد + افزودن سند فاکتور/مودیان پس از ثبت) —');
+console.log('\n— tester477 (v34.7.87: ارجاع سند برد + افزودن سند فاکتور/مودیان پس از ثبت) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
