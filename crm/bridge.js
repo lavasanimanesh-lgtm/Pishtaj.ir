@@ -446,6 +446,24 @@
     renderSupPending();
   };
 
+  /* v34.7.79 (SUP-PAY-TERMS): برچسب و نشان امتیاز شرایط پرداخت تامین‌کننده.
+     payTerms: cash/credit | creditRange: 30/60/90/120/180/365 | payScore: 0–18 */
+  window.ptfSupPayLabel = function (s) {
+    if (!s) return '';
+    if (s.payTerms === 'cash') return '💵 نقدی';
+    if (s.payTerms === 'credit') {
+      var map = { '30': '🧾 تعهدی — تا ۱ ماهه', '60': '🧾 تعهدی — ۱ تا ۲ ماهه', '90': '🧾 تعهدی — ۲ تا ۳ ماهه', '120': '🧾 تعهدی — ۳ تا ۴ ماهه', '180': '🧾 تعهدی — ۴ تا ۶ ماهه', '365': '🧾 تعهدی — بیش از ۶ ماهه' };
+      return map[s.creditRange] || '🧾 تعهدی';
+    }
+    return '';
+  };
+  window.ptfSupPayBadge = function (s) {
+    var lb = window.ptfSupPayLabel(s);
+    if (!lb) return '';
+    var sc = (s.payScore != null && s.payScore !== '') ? +s.payScore : 0;
+    return lb + ' <span class="bd" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size:10.5px" title="امتیاز شرایط پرداخت در ارزیابی تامین‌کننده (نرم بازار ایران)">+' + sc + '</span>';
+  };
+
   window.renderSupPending = function () {
     var el = document.getElementById('supPendWrap');
     if (!el) return;
@@ -462,17 +480,18 @@
       '<h4 style="margin:0 0 6px;font-size:13.5px;color:#c2410c">🌐 ثبت‌نام‌شده از سایت (' + all.length + ' — ' + pend.length + ' در انتظار' + (rejected ? '، ' + rejected + ' رد شده' : '') + ')</h4>' +
       '<small style="color:#9a3412">برای مشاهدهٔ فایل کاتالوگ/پیوست هر ثبت‌نام، روی «👁 جزئیات» یا نشان 📎 کلیک کنید.</small>' +
       '<div style="margin-top:8px"><a href="javascript:void(0)" onclick="syncServerInbox()" style="color:#0e7490;font-size:12px">🔄 بروزرسانی از سرور</a></div>' +
-      '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>مسئول</th><th>تماس</th><th>حوزه</th><th>وضعیت</th><th>ضمیمه</th><th>عملیات</th></tr></thead><tbody>';
+      '<div class="tb2" style="margin-top:8px"><table><thead><tr><th>شماره یکتا</th><th>شرکت</th><th>مسئول</th><th>تماس</th><th>حوزه</th><th>شرایط پرداخت</th><th>وضعیت</th><th>ضمیمه</th><th>عملیات</th></tr></thead><tbody>';
     if (!all.length) {
-      h += '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:18px">ثبت‌نامی از سایت ثبت نشده است</td></tr>';
+      h += '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:18px">ثبت‌نامی از سایت ثبت نشده است</td></tr>';
     } else {
       all.forEach(function (s) {
         var meta = siteAttachmentMeta(s.attachment);
         var attBadge = meta
           ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#6d28d9;border-color:#ddd6fe" title="مشاهدهٔ پیوست" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">📎 ' + escP(meta.name) + '</button>'
           : '<span class="bd" style="background:#f1f5f9;color:#94a3b8">بدون ضمیمه</span>';
+        var payBadge = window.ptfSupPayBadge(s) || '<span style="color:#cbd5e1">—</span>';
         h += '<tr><td><b>' + escP(s.code) + '</b></td><td>' + escP(s.company) + '</td><td>' + escP(s.name || '-') + '</td>' +
-          '<td style="direction:ltr">' + escP(s.phone || '-') + '</td><td style="font-size:11px">' + escP(s.category || '-') + '</td><td style="font-size:11px">' + (ST[s.status] || '') + '</td><td>' + attBadge + '</td><td>' +
+          '<td style="direction:ltr">' + escP(s.phone || '-') + '</td><td style="font-size:11px">' + escP(s.category || '-') + '</td><td style="font-size:11px">' + payBadge + '</td><td style="font-size:11px">' + (ST[s.status] || '') + '</td><td>' + attBadge + '</td><td>' +
           '<button class="bt bt-o" style="padding:4px 9px;font-size:11.5px;color:#0e7490" onclick="supSiteDetail(\'' + ptfOnClickArg(s.code) + '\')">👁 جزئیات</button> ' +
           (s.status === 'pending' && isSenior()
             ? '<button class="bt" style="padding:4px 9px;font-size:11.5px;background:#059669" onclick="supApprove(\'' + ptfOnClickArg(s.code) + '\')">✅ تایید</button> ' +
@@ -503,6 +522,7 @@
       row('🗂 حوزه فعالیت', s.category) +
       row('🏷 نوع', s.type) +
       row('🏭 برندها', s.brands) +
+      '<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--brd);font-size:13px"><b style="min-width:130px;color:#475569">💳 شرایط پرداخت</b><span style="flex:1">' + (window.ptfSupPayBadge(s) || '<span style="color:#cbd5e1">—</span>') + '</span></div>' +
       row('🗓 تاریخ ثبت', s.date) +
       '<div style="margin:10px 0"><b style="font-size:13px;color:#475569">📝 شرح درخواست:</b>' +
       '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:12px 14px;font-size:13px;line-height:2;white-space:pre-wrap;max-height:180px;overflow:auto;margin-top:6px">' + (s.message ? escP(s.message) : '<span style="color:#cbd5e1">—</span>') + '</div></div>' +
@@ -539,7 +559,7 @@
       var siteAtt = siteAttachmentMeta(s.attachment);
       var importedFiles = {};
       if (siteAtt && siteAtt.cloud) importedFiles.oth = [{ key: siteAtt.key, name: siteAtt.name, size: siteAtt.size, mode: 'arvan', t: faDateTime(), source: 'site' }];
-      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '', apprNote: note || '' };
+      var recSup = { cd: code, co: s.company, nm: s.name, ph: s.phone, ca: s.category, brands: s.brands || '', email: s.email || '', src: 'site', approvedBy: curSession().name, approvedAt: faDateTime(), files: importedFiles, message: s.message || '', apprNote: note || '', payTerms: s.payTerms || '', creditRange: s.creditRange || '', payScore: (s.payScore != null && s.payScore !== '') ? +s.payScore : 0 };
       // US-174: هشدار تکراری بودن با فهرست تاییدشده (تصمیم نهایی با مدیر ارشد)
       if (typeof ptfCheckDup === 'function') {
         var dups = ptfCheckDup('supplier', recSup, null);

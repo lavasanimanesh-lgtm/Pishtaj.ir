@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.78 — نمایش آگهی از API، شرح هوش مصنوعی، حذف CTA تکراری بنر، محتوای پروفایل/پروژه */
+/* v34.7.79 — نمایش آگهی از API، شرح هوش مصنوعی، حذف CTA تکراری بنر، محتوای پروفایل/پروژه */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
 var p = 0, f = 0;
@@ -25,10 +25,10 @@ var projects = read('projects/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 
-T('VERSION.json = v34.7.78', ver.crm_version === 'v34.7.78', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.7.78', /window\.PTF_CRM_RELEASE = 'v34\.7\.78'/.test(idx));
-T('sw RELEASE = v34.7.78', sw.indexOf("RELEASE = 'v34.7.78'") > -1);
-T('careers.js?v=34.7.78', /careers\.js\?v=34\.7\.78/.test(idx));
+T('VERSION.json = v34.7.79', ver.crm_version === 'v34.7.79', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.7.79', /window\.PTF_CRM_RELEASE = 'v34\.7\.79'/.test(idx));
+T('sw RELEASE = v34.7.79', sw.indexOf("RELEASE = 'v34.7.79'") > -1);
+T('careers.js?v=34.7.79', /careers\.js\?v=34\.7\.79/.test(idx));
 
 T('منوی پویا از API published با fallback status.json', disc.indexOf('api/careers.php?action=published') > -1 && disc.indexOf('careers/status.json') > -1 && disc.indexOf('nav-careers') > -1);
 T('فهرست FA از API published', list.indexOf("api/careers.php?action=published") > -1 && list.indexOf('status.json') > -1);
@@ -51,6 +51,6 @@ T('tester453 در گیت CI', gate.indexOf('tester453-v34.7.51-careers-publish-a
 T('surplus بدون setInterval (tester171)', surplus.indexOf('setInterval') === -1 && surplus.indexOf('function hookOfferNew') > -1);
 T('نقش CRM careers سخت‌گیرانه مانده', php.indexOf("['admin', 'chairman', 'ceo']") > -1 && js.indexOf("var JOB_ROLES = ['admin', 'chairman', 'ceo']") > -1);
 
-console.log('\n— tester453 (v34.7.78: انتشار آگهی + شرح AI + محتوای سایت) —');
+console.log('\n— tester453 (v34.7.79: انتشار آگهی + شرح AI + محتوای سایت) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

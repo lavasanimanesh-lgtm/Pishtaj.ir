@@ -3716,7 +3716,8 @@ function renderSuppliers2() {
       ? '<button class="bt bt-o entity-row-action" style="padding:4px 9px;font-size:12px;color:#6d28d9;border-color:#ddd6fe" title="فایل‌های پیوست (' + nFiles + ')" aria-label="فایل‌های پیوست" onclick="ptfSupFilesOpen(\'' + ptfOnClickArg(c.cd) + '\')">📎' + nFiles + '</button> '
       : '';
     h += '<tr><td><strong>' + escP(c.cd) + '</strong></td><td>' + escP(c.co) +
-      ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span></td>' +
+      ' <span style="background:' + (c.kind === 'حقیقی' ? '#fef3c7;color:#b45309' : '#e0e7ff;color:#4338ca') + ';border-radius:8px;padding:1px 7px;font-size:10.5px">' + escP(c.kind || 'حقوقی') + '</span>' +
+      ((c.payTerms && typeof window.ptfSupPayBadge === 'function') ? ' ' + window.ptfSupPayBadge(c) : '') + '</td>' +
       '<td>' + (pp ? escP(pp.nm) : '-') + ((c.people||[]).length > 1 ? ' <span style="background:#f1f5f9;border-radius:8px;padding:1px 7px;font-size:11px">+' + (c.people.length - 1) + '</span>' : '') + '</td>' +
       '<td>' + (pp && pp.tels && pp.tels.length ? '<a href="' + telHref(pp.tels[0]) + '">' + escP(fmtTel(pp.tels[0])) + '</a>' : escP(c.ph||'-')) + '</td>' +
       '<td>' + escP(c.ca||'-') + '</td>' +
