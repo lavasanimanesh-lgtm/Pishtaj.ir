@@ -3708,8 +3708,21 @@ function renderSuppliers2() {
   if (!tb) return;
   var q = ((document.getElementById('sSrch')||{}).value || '').trim();
   var list = q ? items.filter(function(e){ return entityMatches(e, q); }) : items;
+  /* v34.7.83 (SUP-PERF-002): صفحه‌بندی فهرست تاییدشده — ۵۰ رکورد در هر گام.
+     در مقیاس صدها/هزاران تامین‌کننده، رندر همزمان همه‌ی ردیف‌ها باعث کندی باز شدن
+     پنل و جستجو می‌شد. جستجو/تب‌ها/داده بدون تغییر می‌مانند؛ فقط دید ردیف‌ها گام‌به‌گام
+     می‌شود. */
+  var per = 50;
+  if (q !== (window._supApprovedSearchQ || '')) {
+    window._supApprovedPage = 0;
+    window._supApprovedSearchQ = q;
+  }
+  var page = window._supApprovedPage || 0;
+  if (page > 0 && page * per >= list.length) page = Math.max(0, Math.ceil(list.length / per) - 1);
+  window._supApprovedPage = page;
+  var shown = list.slice(0, (page + 1) * per);
   var h = '';
-  list.forEach(function(c) {
+  shown.forEach(function(c) {
     var pp = primaryPerson(c);
     var nFiles = ptfEntityFiles(c).length;
     var fileBtn = nFiles
@@ -3724,9 +3737,18 @@ function renderSuppliers2() {
       '<td>' + fileBtn + '<button class="bt bt-o entity-row-action" data-entity-action="view" style="padding:4px 9px;font-size:12px" title="مشاهده تأمین‌کننده" aria-label="مشاهده تأمین‌کننده" onclick="showEntityCard(\'ptf_crm_suppliers\',\'' + ptfOnClickArg(c.cd) + '\')">👁️</button> ' +
       '<button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 9px;font-size:12px" title="ویرایش تأمین‌کننده" aria-label="ویرایش تأمین‌کننده" onclick="showSupModal2(\'' + ptfOnClickArg(c.cd) + '\')">✏️</button></td></tr>';
   });
+  if (list.length > shown.length) {
+    h += '<tr><td colspan="6" style="text-align:center;padding:10px;background:#fffbeb">' +
+      '<button class="bt bt-o" style="font-size:12px;color:#b45309;border-color:#fde68a" onclick="ptfSupApprovedMore()">⬇ نمایش ' +
+      Math.min(per, list.length - shown.length) + ' مورد دیگر (' + shown.length + ' از ' + list.length + ')</button></td></tr>';
+  }
   tb.innerHTML = h || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:22px">تامین‌کننده‌ای ثبت نشده</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
 }
+window.ptfSupApprovedMore = function () {
+  window._supApprovedPage = (window._supApprovedPage || 0) + 1;
+  if (typeof renderSuppliers2 === 'function') renderSuppliers2();
+};
 
 /* ===== v34.7.69: نمایش فایل‌های پیوست تامین‌کننده/مشتری (ثبت‌نام سایت یا دستی) ===== */
 function ptfEntityFiles(c) {
