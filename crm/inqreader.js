@@ -651,7 +651,9 @@
   };
 
   /* v34.7.77 (RFQ-ZIP-DL): فهرست فایل‌های ابریِ قابل‌زیپ‌کردن یک درخواست
-     (فقط کلیدهای rfqatt/ و site-rfq/ — هم‌راستا با allowlist سرور). */
+     (کلیدهای rfqatt/ + rfq/ (فرم ثبت درخواست) + site-rfq/ (فرم سایت) — هم‌راستا با allowlist سرور).
+     v34.7.78 (RFQ-ZIP-PREFIX): فرم «ثبت درخواست جدید» فایل‌ها را با پوشهٔ rfq/<cat> آپلود می‌کند؛
+     بدون این پیشوند، درخواست‌های دارای ضمیمهٔ زمانِ ثبت، «فایل ابری یافت نشد» می‌گرفتند. */
   window.ptfRfqZipEntries = function (r) {
     if (!r) return [];
     var out = [], seen = {};
@@ -660,7 +662,7 @@
       var f = row && row.file;
       if (!f) return;
       var key = String(f.key || f.objectKey || f.storageKey || '').trim();
-      if (key.indexOf('rfqatt/') !== 0 && key.indexOf('site-rfq/') !== 0) return;
+      if (key.indexOf('rfqatt/') !== 0 && key.indexOf('rfq/') !== 0 && key.indexOf('site-rfq/') !== 0) return;
       if (seen[key]) return;
       seen[key] = true;
       out.push({ key: key, name: f.name || f.fileName || f.filename || key.split('/').pop() || 'پیوست' });

@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.77';
+const SD_SERVICE_VERSION = '34.7.80';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1492,7 +1492,7 @@ try {
         $result = ['invoiceId'=>$inv['_id'] ?? $inv['cd'] ?? '','voided'=>true,'caseId'=>$caseId,'caseCreditIRR'=>$freed];
     }
     elseif ($action === 'invoice_attachment_add') {
-        /* v34.7.77 (INV-ATTACH-LATER): افزودن سند فاکتور/مودیان پس از ثبت قطعی فاکتور رسمی.
+        /* v34.7.80 (INV-ATTACH-LATER): افزودن سند فاکتور/مودیان پس از ثبت قطعی فاکتور رسمی.
            برخلاف replace_invoice_attachment (نیازمند attachmentId موجود)، این فرمان فقط append
            می‌کند — برای زمانی که حسابدار فاکتور را ثبت کرده و بعداً سند حسابداری یا سند
            سامانه مودیان را ضمیمه می‌کند. رکورد در files فاکتور و آینهٔ fin_attachments هر دو

@@ -1104,6 +1104,28 @@ switch($action) {
         $supCompanyRaw = clean($_POST['company'] ?? '');
         $supNameNorm = ptf_dedup_norm($supCompanyRaw);
         $supPhoneNorm = ptf_dedup_phone($_POST['phone'] ?? '');
+        /* v34.7.79 (SUP-PAY-TERMS): شرایط پرداخت — نقدی/تعهدی + بازهٔ اعتبار + امتیاز.
+           allowlist سخت‌گیرانه؛ payScore از دید جریان نقدی خریدار (نرم بازار ایران):
+           تعهدی ۱–۳ ماهه مطلوب‌ترین است؛ نقدی میانی؛ بیش از ۳ ماه ریسک نکول/تورم می‌گیرد. */
+        $supPayTerms = clean($_POST['payTerms'] ?? '', 20);
+        $supCreditRange = clean($_POST['creditRange'] ?? '', 10);
+        $supPayScore = 0;
+        if ($supPayTerms === 'cash') {
+            $supCreditRange = '';
+            $supPayScore = 10;
+        } elseif ($supPayTerms === 'credit') {
+            if (!in_array($supCreditRange, ['30', '60', '90', '120', '180', '365'], true)) {
+                http_response_code(400);
+                echo json_encode(['ok' => false, 'error' => 'invalid_pay_terms', 'message' => 'بازهٔ اعتبار انتخاب‌شده معتبر نیست.'], JSON_UNESCAPED_UNICODE);
+                break;
+            }
+            $supPayScoreMap = ['30' => 12, '60' => 15, '90' => 18, '120' => 14, '180' => 8, '365' => 2];
+            $supPayScore = $supPayScoreMap[$supCreditRange];
+        } else {
+            http_response_code(400);
+            echo json_encode(['ok' => false, 'error' => 'invalid_pay_terms', 'message' => 'روش همکاری (نقدی/تعهدی) را انتخاب کنید.'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
         $dupFound = null;
         /* v34.7.71 (SUP-RESUBMIT-001): اگر با ?code= آمده باشد و آن رکورد «ردشده + باز»
            باشد، مستقیماً همان رکورد باز می‌شود (مستقل از تطابق نام/شماره). */
@@ -1169,6 +1191,9 @@ switch($action) {
                 'email' => clean($_POST['email'] ?? ''),
                 'message' => clean($_POST['message'] ?? '', 2000),
                 'attachment' => ($attachment ?: ($dupFound['row']['attachment'] ?? null)),
+                'payTerms' => $supPayTerms,
+                'creditRange' => $supCreditRange,
+                'payScore' => $supPayScore,
                 'status' => 'pending',
                 'statusText' => 'مدارک تکمیل شد — در انتظار بررسی مجدد',
                 'date' => date('Y-m-d H:i'),
@@ -1201,6 +1226,9 @@ switch($action) {
             'email' => clean($_POST['email'] ?? ''),
             'message' => clean($_POST['message'] ?? '', 2000),
             'attachment' => $attachment,
+            'payTerms' => $supPayTerms,
+            'creditRange' => $supCreditRange,
+            'payScore' => $supPayScore,
             'status' => 'pending',
             'statusText' => 'ثبت‌نام شده — در انتظار بررسی و تایید مدیران',
             'date' => date('Y-m-d H:i'),

@@ -33,10 +33,28 @@
     .sup-header p { color: rgba(255,255,255,.88); margin: 0; font-size: 15px; }
     .sup-body { padding: 38px 40px; }
     .field { margin-bottom: 22px; }
-    .field label { display: block; font-weight: 900; font-size: 14px; margin-bottom: 8px; color: #202228; }
-    .field input, .field select, .field textarea { width: 100%; padding: 14px 16px; border: 2px solid rgba(0,0,0,.15); border-radius: 14px; font-size: 14px; background: #fff; transition: .2s; }
-    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 4px rgba(239,75,26,.15); }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .field label { display: block; font-weight: 900; font-size: 14px; line-height: 1.7; margin-bottom: 8px; color: #202228; }
+    .field input, .field select, .field textarea { width: 100%; box-sizing: border-box; padding: 13px 16px; border: 2px solid rgba(0,0,0,.15); border-radius: 14px; font-size: 14px; font-weight: 600; color: #202228; background: #fff; transition: .2s; font-family: inherit; }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 4px rgba(239,75,26,.15); background: #fff; }
+    /* v34.7.78: همراستایی ارتفاع و ظاهر فیلدهای فرم — ورودی، سلکت و فایل باید هم‌قد و هم‌رنگ باشند.
+       سلکت با global rule در style.css (appearance:auto + پس‌زمینهٔ خاکستری !important) ناهمگون بود؛
+       اینجا با انتخابگر مستقیم (.field >) فقط فیلدهای خود فرم یکدست می‌شوند و ویجت کپچا/OTP دست‌نمی‌خورند. */
+    .sup-body .field > input[type="text"],
+    .sup-body .field > input[type="tel"],
+    .sup-body .field > input[type="email"],
+    .sup-body .field > input[type="url"],
+    .sup-body .field > input[type="number"],
+    .sup-body .field > select { height: 52px; }
+    .sup-body .field > select {
+      -webkit-appearance: none !important; appearance: none !important;
+      background: #fff !important;
+      background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: left 16px center; background-size: 16px;
+      padding-left: 44px; cursor: pointer;
+    }
+    .sup-body .field > textarea { min-height: 120px; resize: vertical; }
+    .sup-body .field > input[type="file"] { height: auto; min-height: 52px; padding: 12px 16px; cursor: pointer; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
     .sup-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 35px; padding-top: 25px; border-top: 1px solid var(--line); }
     .res-box { text-align: center; padding: 25px 15px; display: none; animation: fadeIn .3s ease; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -189,9 +207,33 @@
             </div>
           </div>
 
+          <div class="grid-2">
+            <div class="field">
+              <label>روش همکاری و شرایط پرداخت *:</label>
+              <select name="payTerms" id="sPayTerms" required>
+                <option value="">انتخاب کنید...</option>
+                <option value="cash">💵 نقدی (پرداخت در محل / پیش‌پرداخت)</option>
+                <option value="credit">🧾 تعهدی (اعتباری — با بازهٔ پرداخت)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>بازهٔ اعتبار (فقط برای همکاری تعهدی):</label>
+              <select name="creditRange" id="sCreditRange" disabled>
+                <option value="">ابتدا «تعهدی» را انتخاب کنید...</option>
+                <option value="30">تا ۱ ماهه (۳۰ روز)</option>
+                <option value="60">۱ تا ۲ ماهه (۶۰ روز)</option>
+                <option value="90">۲ تا ۳ ماهه (۹۰ روز)</option>
+                <option value="120">۳ تا ۴ ماهه (۱۲۰ روز)</option>
+                <option value="180">۴ تا ۶ ماهه (۱۸۰ روز)</option>
+                <option value="365">بیش از ۶ ماهه</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-top:-12px"><small id="sPayScoreHint" style="display:block;color:#059669;font-size:12px;font-weight:800"></small></div>
+
           <div class="field"><label>برندهای قابل تامین و موجود در انبار شما:</label><input type="text" name="brands" id="sBrands" placeholder="مثلاً: Rosemount, WIKA, KITZ, Tenaris, Siemens..."></div>
 
-          <div class="field"><label>آپلود کاتالوگ شرکت یا لیست موجودی استاک (Excel/PDF):</label><input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar" style="padding:10px;"></div>
+          <div class="field"><label>آپلود کاتالوگ شرکت یا لیست موجودی استاک (Excel/PDF):</label><input type="file" name="attachment" accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"></div>
 
           <div class="field"><label>توضیحات تکمیلی (توانمندی‌های مالی، سوابق پروژه‌ای و انبارها):</label><textarea name="message" rows="3" placeholder="سوابق همکاری با پیمانکاران EPC، آدرس انبارها و توان تحویل فوری را ذکر فرمایید..."></textarea></div>
 
@@ -267,6 +309,30 @@
     const form = document.getElementById('supplierForm');
     const statusBox = document.getElementById('supStatus');
 
+    /* v34.7.79: شرایط پرداخت — نقدی/تعهدی + بازهٔ اعتبار + امتیاز زنده */
+    (function () {
+      const payTermsSel = document.getElementById('sPayTerms');
+      const creditRangeSel = document.getElementById('sCreditRange');
+      const payScoreHint = document.getElementById('sPayScoreHint');
+      if (!payTermsSel || !creditRangeSel) return;
+      const PAY_SCORE = { cash: 10, '30': 12, '60': 15, '90': 18, '120': 14, '180': 8, '365': 2 };
+      function updatePayTerms() {
+        const t = payTermsSel.value;
+        creditRangeSel.disabled = t !== 'credit';
+        if (t !== 'credit') creditRangeSel.value = '';
+        let score = null;
+        if (t === 'cash') score = PAY_SCORE.cash;
+        else if (t === 'credit' && creditRangeSel.value) score = PAY_SCORE[creditRangeSel.value] ?? 0;
+        if (payScoreHint) {
+          payScoreHint.textContent = score != null
+            ? 'امتیاز این گزینه در ارزیابی تامین‌کننده: +' + score
+            : (t === 'credit' ? 'بازهٔ اعتبار را انتخاب کنید تا امتیاز محاسبه شود.' : '');
+        }
+      }
+      payTermsSel.addEventListener('change', updatePayTerms);
+      creditRangeSel.addEventListener('change', updatePayTerms);
+    })();
+
     /* v34.7.71: تکمیل مدارک — اگر با ?code= آمده باشیم، کد رهگیری قبلی را حفظ می‌کنیم */
     (function () {
       try {
@@ -290,9 +356,21 @@
       const phone = document.getElementById('sPhone').value;
       const cat = document.getElementById('sCat').value;
       const brands = document.getElementById('sBrands').value;
+      const payTerms = document.getElementById('sPayTerms').value;
+      const creditRange = document.getElementById('sCreditRange').value;
 
       if (!comp || !phone) {
         statusBox.textContent = 'لطفاً نام شرکت و شماره تماس را وارد فرمایید.';
+        statusBox.className = 'form-status full err';
+        return;
+      }
+      if (!payTerms) {
+        statusBox.textContent = 'لطفاً روش همکاری (نقدی / تعهدی) را انتخاب فرمایید.';
+        statusBox.className = 'form-status full err';
+        return;
+      }
+      if (payTerms === 'credit' && !creditRange) {
+        statusBox.textContent = 'برای همکاری تعهدی، بازهٔ اعتبار را انتخاب فرمایید.';
         statusBox.className = 'form-status full err';
         return;
       }

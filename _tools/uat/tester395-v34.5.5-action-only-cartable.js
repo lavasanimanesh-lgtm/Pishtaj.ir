@@ -71,7 +71,7 @@ assert.ok(ctx.getData('ptf_crm_notifs').every(function (n) { return ctx.ntfNeeds
 var src = fs.readFileSync('crm/rbac.js', 'utf8');
 assert.ok(src.indexOf('🔴 اقدام لازم') > -1, 'کارتابل عنوان اقدام لازم دارد');
 assert.ok(src.indexOf('🔵 اطلاع‌رسانی') === -1, 'بخش اطلاع‌رسانی کارتابل حذف شده');
-assert.ok(src.indexOf("panels: ['inv','recv','petty','chqprint','cart','ai']") > -1, 'حسابدار کارتابل دارد');
+assert.ok(src.indexOf("panels: ['inv','recv','petty','chqprint','cart','ai','taxret']") > -1, 'حسابدار کارتابل دارد (و اظهارنامه‌ها)');
 
 var br = fs.readFileSync('crm/bridge.js', 'utf8');
 assert.ok(br.indexOf("kind: 'referral_info'") === -1, 'ارجاع عمومی ساخته نمی‌شود');

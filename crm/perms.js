@@ -12,7 +12,7 @@
     { id: 'rfq', lb: 'درخواست‌ها' }, { id: 'cust', lb: 'مشتریان' }, { id: 'leads', lb: 'لیدها' },
     { id: 'off', lb: 'پیشنهادها (TO/CO)' }, { id: 'deals', lb: 'پرونده‌های فروش' }, { id: 'inqs', lb: 'اقلام درخواست‌ها' },
     { id: 'sup', lb: 'تامین‌کنندگان' }, { id: 'rfqs', lb: 'درخواست تامین' }, { id: 'buyq', lb: 'قیمت‌های خرید' },
-    { id: 'prod', lb: 'کالاها' }, { id: 'surplus', lb: 'موجودی انبار' }, { id: 'chqprint', lb: 'چاپ چک فیزیکی' }, { id: 'prj', lb: 'بایگانی' }, { id: 'let', lb: 'مکاتبات' }, { id: 'cnt', lb: 'قراردادها' },
+    { id: 'prod', lb: 'کالاها' }, { id: 'surplus', lb: 'موجودی انبار' }, { id: 'chqprint', lb: 'چاپ چک فیزیکی' }, { id: 'prj', lb: 'بایگانی' }, { id: 'let', lb: 'مکاتبات' }, { id: 'cnt', lb: 'قراردادها' }, { id: 'taxret', lb: 'اظهارنامه‌ها' },
     { id: 'inv', lb: 'فاکتورها' }, { id: 'recv', lb: 'مطالبات' }, { id: 'orders', lb: 'سفارشات و سود' }, { id: 'petty', lb: 'هاب مالی' }, { id: 'anl', lb: 'تحلیلگر' },
     { id: 'rem', lb: 'یادآورها' }, { id: 'sms', lb: 'سامانه پیامکی' }, { id: 'cms', lb: 'مدیریت سایت' }, { id: 'rep', lb: 'گزارشات' },
     { id: 'ai', lb: 'دستیار (AI)' } /* v14.9 US-383: قابل کنترل per کاربر */
@@ -78,6 +78,7 @@
       reg('inv', '🧾 فاکتورها', window.buildInvoices || function(){return '';}, window.renderInvoices);
       reg('recv', '💰 مطالبات', window.buildReceivables || function(){return '';}, window.renderReceivables);
       reg('buyq', '🛒 قیمت‌های خرید', window.buildBuyQuotes || function(){return '';}, window.renderBuyQuotes);
+      reg('taxret', '📁 اظهارنامه‌ها', window.buildTaxReturns || function(){return '';}, window.renderTaxReturns);
     }
   }, 1200);
 
