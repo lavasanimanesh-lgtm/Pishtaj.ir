@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* tester496 — UAT پایانی «ارزش افزوده فصلی» (VAT-LEDGER-003)
-   نسخه v34.7.94.
+   نسخه v34.7.95.
    این تستر مکمل tester493 است و روی ۹ خانوادهٔ سناریوی edge تمرکز دارد که
    قبلاً پوشش نداشتند:
 
@@ -28,7 +28,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var shared = read('crm/vat-shared.js');
 var q = read('crm/vat-quarterly.js');
 
-T('VERSION.json = v34.7.94', ver.crm_version === 'v34.7.94', ver.crm_version);
+T('VERSION.json = v34.7.95', ver.crm_version === 'v34.7.95', ver.crm_version);
 
 /* -------- sandbox -------- */
 var store;
@@ -218,6 +218,6 @@ T('E11: پس از تسویهٔ پاییز، زمستان با carry=0 شروع �
 T('کد وابسته به روش localeCompare و Array.isArray ساده است — بدون require نشتی', true);
 T('tester496 در گیت CI ثبت شده', read('_tools/uat/run-ci-gate.js').indexOf('tester496-v34.7.94-vat-quarterly-uat.js') > -1);
 
-console.log('\n— tester496 (v34.7.94: UAT پایانی VAT فصلی — VAT-LEDGER-003) —');
+console.log('\n— tester496 (v34.7.95: UAT پایانی VAT فصلی — VAT-LEDGER-003) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

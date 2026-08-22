@@ -935,7 +935,8 @@ function ptfCloudKeyAudit() {
       '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">' +
       ((c.B > 0 && !d.truncated) ? '<button type="button" class="bt" style="background:#1d4ed8;color:#fff" onclick="ptfConfirmCloudKeyRemap()">🔗 اعمال remap گروه B (بدون حذف فایل)</button>' : '') +
       (d.truncated ? '<span style="font-size:12px;color:#9a3412;align-self:center">remap تا فهرست کامل S3 غیرفعال است</span>' : '') +
-      '<button type="button" class="bt bt-o" onclick="ptfDownloadKeyAuditCsv()">⬇️ CSV</button>' +
+      '<button type="button" class="bt bt-o" onclick="ptfDownloadKeyAuditCsv()">⬇️ CSV کامل</button>' +
+      ((c.E > 0) ? '<button type="button" class="bt bt-o" style="color:#b91c1c;border-color:#fecaca" title="فقط ردهٔ E — قابل استفاده برای پیگیری آپلود مجدد فایل‌های گم‌شده" onclick="ptfReuploadQueueExportCsv()">📤 صف آپلود مجدد (E)</button>' : '') +
       '<button type="button" class="bt" onclick="this.closest(\'.md-b\').remove()">بستن</button></div></div></div>';
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
     window._ptfKeyAuditRows = classified.report;
@@ -976,12 +977,82 @@ function ptfDownloadKeyAuditCsv() {
     function q(s) { return '"' + String(s || '').replace(/"/g, '""') + '"'; }
     lines.push([r.cls, r.store, r.recId, r.key, r.match, r.note, r.name].map(q).join(','));
   });
-  var blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  /* v34.7.95 (RE-UPLOAD-QUEUE-001): افزودن BOM UTF-8 برای باز شدن درست فارسی در Excel */
+  var blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'ptf-cloud-key-audit.csv';
   document.body.appendChild(a); a.click(); a.remove();
 }
+
+/* =====================================================================
+   v34.7.95 (RE-UPLOAD-QUEUE-001 — فاز A): «صف آپلود مجدد» ردهٔ E
+   ---------------------------------------------------------------------
+   ورودی: خروجی audit (window._ptfKeyAuditRows) — فقط ردهٔ E (کلید در CRM
+   هست ولی بایتی در باکت نیست).
+   خروجی این فاز: build (آرایه) + CSV مخصوص اقدام (شامل ماژول قابل خواندن،
+   نام رکورد، نام فایل تخمینی، کلید کامل، ستون خالی «اقدام کاربر» و «تاریخ»)
+   تا کاربر بتواند بیرون از CRM هم پیگیری کند.
+   فازهای بعدی (B/C) در آینده: reupload / clear / request از منبع.
+   ===================================================================== */
+function ptfReuploadQueueBuild(rows) {
+  rows = rows || window._ptfKeyAuditRows || [];
+  var moduleLabels = {
+    'ptf_crm_suppliers': 'تامین‌کننده',
+    'ptf_crm_customers': 'کارفرما',
+    'ptf_crm_offers': 'پیشنهاد',
+    'ptf_crm_inquiries': 'استعلام',
+    'ptf_crm_invoices': 'فاکتور رسمی',
+    'ptf_crm_supplier_finance': 'فاکتور خرید',
+    'ptf_crm_cheques': 'چک',
+    'ptf_crm_payables': 'حساب پرداختنی',
+    'ptf_crm_receivables': 'حساب دریافتنی',
+    'ptf_crm_cases': 'پرونده فروش',
+    'ptf_crm_leads': 'لید فروش',
+    'ptf_crm_letters': 'مکاتبات',
+    'ptf_crm_cargo': 'محموله',
+    'ptf_crm_tax_returns': 'اظهارنامه'
+  };
+  return rows.filter(function (r) { return r && r.cls === 'E'; }).map(function (r) {
+    var store = r.store || '';
+    return {
+      module: moduleLabels[store] || store.replace(/^ptf_crm_/, ''),
+      store: store,
+      recId: r.recId || '',
+      recLabel: r.recLabel || '',
+      key: r.key || '',
+      name: r.name || (r.key ? String(r.key).split('/').pop() : ''),
+      note: r.note || 'در باکت فعلی نیست',
+      action: '',
+      actionAt: '',
+      actionBy: ''
+    };
+  });
+}
+function ptfReuploadQueueExportCsv() {
+  var q = ptfReuploadQueueBuild();
+  if (!q.length) {
+    if (typeof ptfToast === 'function') ptfToast('صف خالی است — هیچ ردیف E‌ای در گزارش نیست.', 'info');
+    else if (typeof alert === 'function') alert('صف خالی است — هیچ ردیف E‌ای در گزارش نیست.');
+    return;
+  }
+  function csv(s) { return '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"'; }
+  var head = ['ماژول', 'کد رکورد', 'نام رکورد', 'نام فایل', 'کلید در باکت', 'وضعیت', 'اقدام (پر کنید)', 'تاریخ اقدام'];
+  var lines = [head.map(csv).join(',')];
+  q.forEach(function (r) {
+    lines.push([r.module, r.recId, r.recLabel, r.name, r.key, r.note, r.action, r.actionAt].map(csv).join(','));
+  });
+  /* BOM برای Excel */
+  var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ptf-reupload-queue-E.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  try { if (typeof audit === 'function') audit('فضای ابری', 'خروجی CSV صف آپلود مجدد (ردهٔ E) — ' + q.length + ' ردیف', ''); } catch (eA) {}
+  if (typeof ptfToast === 'function') ptfToast('✅ CSV صف آپلود مجدد (' + q.length + ' ردیف) دانلود شد', 'ok');
+}
+window.ptfReuploadQueueBuild = ptfReuploadQueueBuild;
+window.ptfReuploadQueueExportCsv = ptfReuploadQueueExportCsv;
 
 /* v34.7.53: remap گروه B — فقط metadata محلی CRM، بدون DELETE ابری.
    فیلد archiveKey و کلیدهای archives/ دست نمی‌خورند. */
