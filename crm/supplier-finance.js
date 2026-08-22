@@ -92,14 +92,26 @@
     var by = {}, linked = linkedLegacyIds(d);
     activeInvoices(d).filter(function (i) { return i.supplierCd === supCd; }).forEach(function (i) {
       var c = i.cur || 'IRR';
-      /* v34.0.8-alpha (هماهنگ با موتور سود): فاکتور صوری/پوششی خرید واقعی نیست — مبلغ اسمی و اعتبار
-         ارزش‌افزوده بدهیِ واقعی ایجاد نمی‌کنند؛ فقط «کارمزد فاکتورساز» بدهیِ نقدی واقعی است. */
-      var r = i.isCover === true
-        ? ((+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0)
-            : Math.round((i.cur && i.cur !== 'IRR' ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0)) * (+i.coverCommissionPct || 0) / 100))
-        : invRemain(i, d);
-      if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0 };
-      by[c].amount += r; by[c].irr += c === 'IRR' ? r : r * (+i.rate || 0); by[c].invoices++;
+      /* v34.7.88 (SUP-VAT-002): فاکتور صوری/پوششی خرید واقعی نیست، ولی «منفعت خالص»
+         (اعتبار ارزش‌افزوده − کارمزد فاکتورساز) باید در مانده/اعتبار این تأمین‌کننده
+         دیده شود. پیش‌تر فقط کارمزد به بدهی اضافه می‌شد و اعتبار VAT کسر نمی‌شد؛
+         این با گزارش‌های official-ledger/working-capital/fiscal ناهماهنگ بود.
+         حالا: بدهی واقعی = کارمزد؛ و اگر اعتبار VAT بزرگ‌تر باشد به‌عنوان
+         «اعتبار/منفعت» کسر می‌شود. */
+      if (i.isCover === true) {
+        var comm = (+i.coverCommissionAmount != null && +i.coverCommissionAmount > 0) ? (+i.coverCommissionAmount || 0)
+          : Math.round((i.cur && i.cur !== 'IRR' ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0)) * (+i.coverCommissionPct || 0) / 100);
+        var vat = (+i.coverVatAmount != null && +i.coverVatAmount > 0) ? (+i.coverVatAmount || 0)
+          : Math.round((i.cur && i.cur !== 'IRR' ? (+i.amount || 0) * (+i.rate || 0) : (+i.amount || 0)) * (+i.coverVatPct || 0) / 100);
+        var r = comm - vat; /* منفعت خالص پوششی: اگر منفی باشد یعنی اعتبار/بدهیِ ناخالص کاهش */
+        if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0, credit: 0 };
+        by[c].amount += r; by[c].irr += (c === 'IRR') ? r : r * (+i.rate || 0); by[c].invoices++;
+        if (invoiceLinkMismatchActive(i)) by[c].warn++;
+        return;
+      }
+      var rr = invRemain(i, d);
+      if (!by[c]) by[c] = { cur: c, amount: 0, irr: 0, invoices: 0, legacy: 0, warn: 0, credit: 0 };
+      by[c].amount += rr; by[c].irr += c === 'IRR' ? rr : rr * (+i.rate || 0); by[c].invoices++;
       if (invoiceLinkMismatchActive(i)) by[c].warn++;
     });
     /* v34.0.8-alpha (فاز ۳ — مورد B تأییدشده): گردش حساب تأمین‌کننده فقط بر «فاکتور خرید + ماندهٔ
@@ -171,41 +183,38 @@
        ارزش‌افزوده برای فاکتور خرید رسمی واقعی + بخش فاکتور پوششی/صوری (فقط نقش‌های ارشد). */
     var _canCover = (function () { try { return isSenior(); } catch (e) { return false; } })();
     var coverHtml = _canCover ? (
-      '<div class="fld" style="border:1px dashed #f59e0b;border-radius:10px;padding:9px 11px;background:#fffbeb;margin-top:6px">' +
+      '<div class="fld" style="border:1px dashed #f59e0b;border-radius:10px;padding:9px 11px;background:#fffbeb;margin:6px 0">' +
       '<label style="display:flex;gap:7px;align-items:center;cursor:pointer;font-size:12.5px"><input type="checkbox" id="slInvCover" onchange="slInvCoverToggle()"> <b>🔖 این فاکتور، فاکتور پوششی/صوری برای پر کردن گپ ممیزی فصلی است</b></label>' +
       '<div id="slInvCoverBox" style="display:none;margin-top:9px">' +
-      '<div style="font-size:11.5px;color:#92400e;margin-bottom:8px">مبلغ اسمی فاکتور در دفتر رسمی به‌عنوان خرید لحاظ می‌شود؛ فقط کارمزد فاکتورساز نقداً پرداخت می‌شود و در «دفتر واقعی» به‌جای مبلغ کامل، فقط سود/زیان خالص (اعتبار ارزش‌افزوده منهای کارمزد) اثر می‌گذارد.</div>' +
+      '<div style="font-size:11.5px;color:#92400e;margin-bottom:8px;line-height:1.9">مبلغ اسمی فاکتور در دفتر رسمی به‌عنوان خرید لحاظ می‌شود؛ فقط کارمزد فاکتورساز نقداً پرداخت می‌شود و در «دفتر واقعی» منفعت خالص (اعتبار ارزش‌افزوده منهای کارمزد) اثر می‌گذارد.</div>' +
       '<div class="fr"><div class="fld"><label>درصد کارمزد فاکتورساز (٪) *</label><input id="slInvCommissionPct" type="number" min="0" max="100" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()"></div><div class="fld"><label>فصل مرتبط</label><select id="slInvCoverSeason"><option value="1">🌸 بهار</option><option value="2" selected>☀️ تابستان</option><option value="3">🍁 پاییز</option><option value="4">❄️ زمستان</option></select></div></div>' +
       '<div id="slInvCoverNet" style="font-size:12.5px;font-weight:800;margin:8px 0;padding:7px 10px;border-radius:8px;background:#fff"></div>' +
-      '<label style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:#92400e;cursor:pointer"><input type="checkbox" id="slInvCoverConfirm" style="margin-top:2px"> <span>تایید می‌کنم این یک فاکتور پوششی/صوری داخلی است و صرفاً برای گزارش‌گیری مدیریتی دقیق و تعیین‌تکلیف ممیزی فصلی استفاده می‌شود.</span></label>' +
+      '<label style="display:flex;gap:7px;align-items:flex-start;font-size:11px;color:#92400e;cursor:pointer"><input type="checkbox" id="slInvCoverConfirm" style="margin-top:2px"> <span>تایید می‌کنم این یک فاکتور پوششی/صوری داخلی است.</span></label>' +
       '</div></div>'
     ) : '';
-    var html = '<div class="md-b" id="slInvDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:92vh;overflow:auto"><h3>🧾 ثبت فاکتور خرید — ' + escP(sup.co || '') + '</h3>' +
-      '<div style="font-size:12px;line-height:1.8;color:#64748b;margin-bottom:10px">فاکتور مستقل ثبت می‌شود. اتصال به تعهدهای خرید واقعی اختیاری است و فقط برای جلوگیری از دوباره‌شماری در زیر‌دفتر استفاده می‌شود.</div>' +
+    var html = '<div class="md-b" id="slInvDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:720px;max-height:92vh;overflow:auto">' +
+      '<h3 style="margin:0 0 6px">🧾 ثبت فاکتور خرید — ' + escP(sup.co || '') + '</h3>' +
+      '<div style="font-size:12px;line-height:1.8;color:#64748b;margin-bottom:12px">فاکتور مستقل ثبت می‌شود. اتصال به تعهدهای خرید واقعی اختیاری است.</div>' +
       '<div class="fr"><div class="fld"><label>شماره فاکتور *</label><input id="slInvNo" style="direction:ltr"></div><div class="fld"><label>تاریخ فاکتور *</label><input id="slInvDate" value="' + (typeof ptfTodayJ === 'function' ? ptfTodayJ() : '') + '" placeholder="1405/04/22" style="direction:ltr"></div></div>' +
-      '<div class="fr"><div class="fld"><label>ارز *</label><select id="slInvCur" onchange="document.getElementById(\'slInvRateWrap\').style.display=this.value===\'IRR\'?\'none\':\'\'"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option><option value="AED">درهم (AED)</option><option value="GBP">پوند (GBP)</option></select></div><div class="fld"><label>مبلغ فاکتور *</label><input id="slInvAmt" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div></div>' +
+      '<div class="fr"><div class="fld"><label>ارز *</label><select id="slInvCur" onchange="document.getElementById(\'slInvRateWrap\').style.display=this.value===\'IRR\'?\'none\':\'\'"><option value="IRR">ریال (IRR)</option><option value="USD">دلار (USD)</option><option value="EUR">یورو (EUR)</option><option value="CNY">یوان (CNY)</option><option value="AED">درهم (AED)</option><option value="GBP">پوند (GBP)</option></select></div><div class="fld"><label>مبلغ فاکتور (بدون ارزش افزوده) *</label><input id="slInvAmt" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div></div>' +
       '<div class="fld" id="slInvRateWrap" style="display:none"><label>نرخ تسعیر (ریال به‌ازای هر واحد ارز) *</label><input id="slInvRate" data-money="1" inputmode="numeric" style="direction:ltr" oninput="slInvCalcLive()"></div>' +
       '<div class="fr"><div class="fld"><label>نوع فاکتور *</label><select id="slInvType" onchange="slInvTypeChanged()"><option value="unofficial">غیررسمی (بدون کد اقتصادی)</option><option value="official">رسمی (ارزش افزوده/کد اقتصادی)</option></select></div><div class="fld"><label>یادداشت / شرح</label><input id="slInvNote" style="direction:ltr" oninput="slInvCalcLive()"></div></div>' +
-      /* v34.7.87 (SUP-VAT-001): بلوک ارزش افزوده فاکتور رسمی.
-         قبلاً slInvVatWrap/slInvVatPct هرگز در HTML ساخته نمی‌شد (فقط در توابع
-         slInvTypeChanged/slInvCalcLive/slInvoiceSave ارجاع داده می‌شد)؛ بنابراین
-         فیلد درصد ارزش افزوده دقیقاً همان چیزی نبود که کاربر می‌خواست. حالا:
-         - مبلغ فاکتور باید «بدون ارزش افزوده» (خالص/پایه) وارد شود.
-         - درصد پیش‌فرض ۱۰٪ است و سیستم ارزش افزوده و جمع را خودکار نمایش/ذخیره می‌کند.
-         - فیلد فقط برای فاکتور رسمی (یا پوششی/رسمی) نمایش داده می‌شود. */
-      '<div class="fld" id="slInvVatWrap" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:9px 11px;margin-top:6px">' +
+      '<div class="fld" id="slInvVatWrap" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:9px 11px;margin:6px 0">' +
         '<label style="font-size:12.5px;color:#065f46">💰 ارزش افزوده (VAT) — درصد *</label>' +
         '<div style="display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap">' +
           '<input id="slInvVatPct" type="number" min="0" max="100" step="any" value="10" style="width:110px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="slInvCalcLive()">' +
           '<span style="font-size:13px;font-weight:700;color:#065f46">٪</span>' +
-          '<span style="font-size:11.5px;color:#065f46;flex:1;min-width:200px">مبلغ فاکتور را <b>بدون ارزش افزوده</b> (خالص/پایه) وارد کنید؛ مبلغ ارزش افزوده و جمعِ با ارزش افزوده خودکار محاسبه می‌شود.</span>' +
+          '<span style="font-size:11.5px;color:#065f46;flex:1;min-width:200px">مبلغ را <b>بدون ارزش افزوده</b> وارد کنید؛ ارزش افزوده و جمع خودکار محاسبه می‌شود.</span>' +
         '</div>' +
         '<small id="slInvVatSum" style="color:#0e7490;display:block;margin-top:6px"></small>' +
       '</div>' +
       coverHtml +
-      '<div class="fld"><label>اتصال اختیاری به تعهدهای خرید واقعی</label><div style="border:1px solid var(--brd);border-radius:10px;padding:7px 10px;max-height:150px;overflow:auto">' + legacyHtml + '</div></div>' +
+      '<div class="fld"><label>اتصال اختیاری به تعهدهای خرید واقعی</label><div style="border:1px solid var(--brd);border-radius:10px;padding:7px 10px;max-height:140px;overflow:auto">' + legacyHtml + '</div></div>' +
       '<div class="fld"><label>تصویر/فایل فاکتور (اختیاری)</label><div id="slInvFileWrap"></div></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="document.getElementById(\'slInvDlg\').remove()">انصراف</button><button class="bt" onclick="slInvoiceSave(\'' + ptfOnClickArg(supCd) + '\')">💾 ثبت فاکتور</button></div></div></div>';
+      '<div class="sl-inv-footer" style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap">' +
+        '<button type="button" class="bt bt-o" style="min-width:110px" onclick="document.getElementById(\'slInvDlg\').remove()">انصراف</button>' +
+        '<button type="button" class="bt" style="min-width:130px" onclick="slInvoiceSave(\'' + ptfOnClickArg(supCd) + '\')">💾 ثبت فاکتور</button>' +
+      '</div></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
     if (typeof attachUploadWidget === 'function') attachUploadWidget('slInvFileWrap', 'supplier-invoices/' + supCd, function (f) { window._slInvFiles.push(f); });
     /* پیش‌پرکردن (برای استفاده‌ی آینده‌ی گام ۶ — دکمه‌ی ثبت مستقیم از داشبورد موازنه فصلی) */
@@ -700,7 +709,7 @@
         return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>';
       }).filter(Boolean).join('');
     }
-    /* v34.7.87 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
+    /* v34.7.88 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
        قبلاً همهٔ balance ها (که روی همه فاکتور/پرداخت لوپ می‌زنند) همزمان با ساخت پنل
        محاسبه می‌شد و باز شدن تب تامین‌کنندگان را کند می‌کرد. اکنون قاب با placeholder
        ساخته می‌شود و پس از رندر پنل، جدول با slBoxRows پر می‌شود (یک‌بار). */
