@@ -1023,6 +1023,9 @@
       if (h4) h4.style.display = showSite ? 'none' : '';
       if (tbl) tbl.style.display = showSite ? 'none' : '';
       renderSuppliers();
+      /* v34.7.81 (SUP-PERF-001): با انتخاب تب «درخواست‌های سایت» بلافاصله فهرست
+         ثبت‌نام سایت ساخته شود؛ در تب‌های دیگر renderSupPending بدنهٔ جدول را نمی‌سازد. */
+      if (showSite && typeof renderSupPending === 'function') renderSupPending();
     };
     var _rs = window.renderSuppliers2;
     window.renderSuppliers2 = window.renderSuppliers = function () {

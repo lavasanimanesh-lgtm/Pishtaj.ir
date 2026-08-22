@@ -127,7 +127,14 @@
     return Object.keys(by).map(function (k) { return by[k]; });
   }
   function balanceHtml(supCd) {
-    var b = balance(supCd); if (!b.length) return '<span style="color:#059669">مانده باز ندارد</span>';
+    return balanceHtmlFrom(balance(supCd), supCd);
+  }
+  /* v34.7.81 (SUP-PERF-001): نمایش HTML مانده از روی آرایهٔ محاسبه‌شده — در box()
+     پیش‌تر balance(s.cd) جداگانه محاسبه می‌شد و بعد balanceHtml(supCd) دوباره همان
+     محاسبهٔ سنگین را تکرار می‌کرد (و نیز در slSupplierOpenTotalsIRR). این کمک می‌کند
+     با رشد فاکتور/پرداخت تامین‌کنندگان، پنل بدون تکرار محاسبه ساخته شود. */
+  function balanceHtmlFrom(b, supCd) {
+    if (!b || !b.length) return '<span style="color:#059669">مانده باز ندارد</span>';
     return b.map(function (x) { return '<span><b style="color:#b45309">' + money(x.amount) + ' ' + escP(x.cur) + '</b>' + (x.legacy ? ' <small style="color:#64748b">(' + x.legacy + ' تعهد legacy)</small>' : '') + (x.warn ? ' <small style="color:#dc2626">⚠️ مغایرت مبلغ لینک</small> <button type="button" class="ba" style="color:#7c3aed;font-size:11px;padding:1px 6px" onclick="slAckLinkMismatch(\'' + ptfOnClickArg(supCd) + '\')">برداشتن اخطار</button>' : '') + '</span>'; }).join('<br>');
   }
   window.slSupplierOpenTotalsIRR = function () {
@@ -667,7 +674,7 @@
 
     function box() {
     if (!canSee()) return '';
-    var sups = getData('ptf_crm_suppliers'), sd=data(); var rows = sups.map(function (s) { var b = balance(s.cd), has=(sd.invoices||[]).some(function(i){return i.supplierCd===s.cd;})||(sd.payments||[]).some(function(p){return p.supplierCd===s.cd;})||legacyOpen(s).length; if (!b.length && !has) return ''; return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtml(s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>'; }).filter(Boolean).join('');
+    var sups = getData('ptf_crm_suppliers'), sd=data(); var rows = sups.map(function (s) { var b = balance(s.cd), has=(sd.invoices||[]).some(function(i){return i.supplierCd===s.cd;})||(sd.payments||[]).some(function(p){return p.supplierCd===s.cd;})||legacyOpen(s).length; if (!b.length && !has) return ''; return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>'; }).filter(Boolean).join('');
     return '<details id="slBox" open style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-bottom:14px"><summary style="cursor:pointer;font-weight:900;color:#0c4a6e">🧾 فاکتور، حساب و پرداخت تأمین‌کنندگان</summary><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><small style="color:#0369a1">فاکتور، پرداخت و چک؛ برای باز/بستن روی عنوان کلیک کنید.</small><button class="bt" onclick="slNewInvoice()">＋ فاکتور خرید</button></div>' + (rows ? '<div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') + '</details>';
   }
   var oldBuild = window.buildSuppliers;

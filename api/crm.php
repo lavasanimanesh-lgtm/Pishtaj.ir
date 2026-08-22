@@ -1346,13 +1346,29 @@ switch($action) {
         break;
 
     // ===== US-133: صندوق ورودی سرور برای CRM (merge در مرورگر ادمین) =====
+    /* v34.7.81 (SUP-PERF-001): صندوق ورودی «ثبت‌نام‌شده از سایت» هر ۴۵ ثانیه و هر بوت
+       خوانده می‌شود. دو بهینه:
+       ۱) پاسخ با ptf_echo_json ارسال می‌شود (gzip در صورت پشتیبانی مرورگر) — قبلاً
+          بدون فشرده‌سازی بود و با رشد suppliers.json حجمش روی سیم زیاد می‌شد.
+       ۲) کلاینت یک امضای ارزان (mtime+size دو فایل) می‌فرستد؛ اگر هیچ چیزی تغییر
+          نکرده باشد فقط {fresh:true} برمی‌گردد و دانلود کامل صندوق تکرار نمی‌شود. */
     case 'get_inbox':
         verify_request();
-        echo json_encode([
+        $supFile = $data_dir . '/suppliers.json';
+        $rfqFile = $data_dir . '/rfqs.json';
+        $sig = (int)(is_file($supFile) ? @filemtime($supFile) : 0) . ':' . (int)(is_file($supFile) ? @filesize($supFile) : 0)
+             . '::' . (int)(is_file($rfqFile) ? @filemtime($rfqFile) : 0) . ':' . (int)(is_file($rfqFile) ? @filesize($rfqFile) : 0);
+        $since = trim((string)($_REQUEST['since'] ?? ''));
+        if ($since !== '' && hash_equals($since, $sig)) {
+            ptf_echo_json(['ok' => true, 'fresh' => true, 'since' => $sig]);
+            break;
+        }
+        ptf_echo_json([
             'ok' => true,
+            'since' => $sig,
             'suppliers' => load_data('suppliers'),
             'rfqs' => array_values(array_filter(load_data('rfqs'), function ($r) { return ($r['src'] ?? '') === 'site'; }))
-        ], JSON_UNESCAPED_UNICODE);
+        ]);
         break;
 
     // ===== US-133: به‌روزرسانی وضعیت از CRM (تایید/رد) → بازتاب در رهگیری سایت =====

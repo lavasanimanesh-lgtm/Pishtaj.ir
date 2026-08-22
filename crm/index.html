@@ -3184,11 +3184,24 @@ function renderSuppliers() {
   var items = getData('ptf_crm_suppliers');
   var tb = document.getElementById('sTb');
   if (!tb) return;
-  tb.innerHTML = '';
-  for (var i = 0; i < items.length; i++) {
-    tb.innerHTML += '<tr><td><strong>' + items[i].cd + '</strong></td><td>' + items[i].co + '</td>' +
-      '<td>' + (items[i].nm||'-') + '</td><td>' + (items[i].ph||'-') + '</td><td>' + (items[i].ca||'-') + '</td></tr>';
+  /* v34.7.81 (SUP-PERF-001): ساخت رشتهٔ جدول یک‌باره و innerHTML واحد — قبلاً در هر
+     ردیف innerHTML += می‌شد که هزینهٔ DOM/پارس مجدد جدول را برای انباشت تامین‌کنندگان
+     به O(n^2) می‌رساند و جستجو/تب‌ها را کند می‌کرد. فیلتر جستجو هم همین‌جا انجام می‌شود. */
+  var q = (((document.getElementById('sSrch') || {}).value) || '').trim().toLowerCase();
+  var list = items;
+  if (q) {
+    list = items.filter(function (s) {
+      return ((s.cd || '') + ' ' + (s.co || '') + ' ' + (s.nm || '') + ' ' + (s.ph || '') + ' ' + (s.ca || '') + ' ' + (s.origin || '')).toLowerCase().indexOf(q) > -1;
+    });
   }
+  var h = '';
+  for (var i = 0; i < list.length; i++) {
+    var s = list[i];
+    h += '<tr><td><strong>' + escP(s.cd) + '</strong></td><td>' + escP(s.co) + '</td>' +
+      '<td>' + escP(s.nm || '-') + '</td><td style="direction:ltr">' + escP(s.ph || '-') + '</td>' +
+      '<td>' + escP(s.ca || '-') + '</td></tr>';
+  }
+  tb.innerHTML = h || '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:22px">' + (q ? 'تامین‌کننده‌ای با این جستجو یافت نشد' : 'تامین‌کننده‌ای ثبت نشده') + '</td></tr>';
   if (document.getElementById('dSup')) document.getElementById('dSup').textContent = items.length;
 }
 
