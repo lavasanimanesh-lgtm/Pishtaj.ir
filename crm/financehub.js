@@ -57,7 +57,7 @@
     if (!canHub()) return '';
     return '<div id="finHubBar" class="fin-hub-bar">' +
       '<div class="fin-hub-layout"><div class="fin-hub-heading"><b class="fin-hub-title">' + finIcon('hub') + '<span>هاب مالی مدیریتی</span></b><small>تنخواه، هزینه جاری، سهامداران، سال مالی، گزارش تجمیعی و تراز رسمی/غیررسمی — تب‌بندی شده برای کاهش شلوغی پنل</small></div>' +
-      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('treasury', 'خزانه/بانک', 'treasury') + btn('commission', 'پورسانت فروش', 'report') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
+      '<div class="fin-hub-tabs">' + btn('petty', 'تنخواه', 'petty') + btn('opex', 'هزینه جاری', 'opex') + btn('share', 'سهامداران', 'share') + btn('fiscal', 'سال مالی', 'fiscal') + btn('vat', 'ارزش افزوده', 'report') + btn('supacc', 'حساب تأمین‌کنندگان', 'supplier') + btn('custacc', 'حساب مشتریان', 'customer') + btn('workcap', 'گزارش تجمیعی مالی', 'report') + btn('ledger', 'تراز رسمی/غیررسمی', 'ledger') + btn('treasury', 'خزانه/بانک', 'treasury') + btn('commission', 'پورسانت فروش', 'report') + btn('quality', 'کیفیت داده', 'quality') + btn('cheque', '🧾 چک‌ها', 'cheque') + '</div></div></div>';
   }
   window.finHubSet = function (id) { window._finHubTab = id || 'petty'; finHubApply(); };
   window.finHubApply = function () {
@@ -82,6 +82,10 @@
     show('opexBox', t === 'opex');
     show('shareBox', t === 'share');
     show('fiscalBox', t === 'fiscal');
+    /* v34.7.90 (VAT-LEDGER-001): باکس «ارزش افزوده فصلی» + تنظیم نرخ مصوب سال.
+       فقط در تب جدید «ارزش افزوده» نمایش داده می‌شود و از سایر اطلاعات مالی جدا است. */
+    show('vatBox', t === 'vat');
+    if (t === 'vat' && typeof window.ptfVatQuarterlyRender === 'function') window.ptfVatQuarterlyRender();
     /* v33.12.0: «داشبورد برنامه‌ریزی فصلی مالیات» (ptfTaxPlannerBox) قبلاً در هیچ تبی
        مخفی نمی‌شد و در همهٔ تب‌ها دیده می‌شد → حالا فقط در تب «سال مالی». */
     show('ptfTaxPlannerBox', t === 'fiscal');
@@ -111,7 +115,7 @@
       var barEl = document.getElementById('finHubBar');
       if (!panels || !barEl) return;
       var ids = ['opexBox', 'slLiquidity', 'ptToolbar', 'ptAccount', 'ptPeriods', 'ptSummary', 'ptWrap',
-        'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
+        'shareBox', 'fiscalBox', 'ptfTaxPlannerBox', 'vatBox', 'slFinanceHubBox', 'cfFinanceHubBox', 'wcFinanceHubBox',
         'ledgerReportBox', 'treasuryBox', 'commissionBox', 'qualityBox', 'salesIntegrityQuality', 'chequeBox'];
       ids.forEach(function (id) {
         var el = document.getElementById(id);
@@ -124,7 +128,7 @@
     if (window._finHubHooked || typeof window.buildPetty !== 'function') return false;
     window._finHubHooked = true;
     var _bp = window.buildPetty;
-    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof window.ptfTreasuryHtml === 'function' ? window.ptfTreasuryHtml() : '') + (typeof window.ptfCommissionHtml === 'function' ? window.ptfCommissionHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : ''); };
+    window.buildPetty = function () { return bar() + _bp() + (typeof window.ptfLedgerReportHtml === 'function' ? window.ptfLedgerReportHtml() : '') + (typeof window.ptfTreasuryHtml === 'function' ? window.ptfTreasuryHtml() : '') + (typeof window.ptfCommissionHtml === 'function' ? window.ptfCommissionHtml() : '') + (typeof ptfDataQualityHtml === 'function' ? ptfDataQualityHtml() : '') + (typeof window.ptfChequePanelHtml === 'function' ? window.ptfChequePanelHtml() : '') + (typeof window.ptfVatQuarterlyHtml === 'function' ? window.ptfVatQuarterlyHtml() : ''); };
     var _rp = window.renderPetty;
     if (typeof _rp === 'function') window.renderPetty = function () { _rp(); try { finHubApply(); window.finHubOrder(); } catch (e) {} };
     return true;

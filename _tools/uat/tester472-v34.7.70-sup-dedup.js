@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.82 — جلوگیری سروری از ثبت تکراری تامین‌کننده.
+/* v34.7.90 — جلوگیری سروری از ثبت تکراری تامین‌کننده.
    قرارداد: add_supplier در api/crm.php نام شرکت و شماره تماس (نرمال‌شده) را در برابر
    هر دو فهرست (suppliers = pending سایت) و (ptf_crm_suppliers = تاییدشده) بررسی می‌کند؛
    در صورت تکرار ok:false + error:'duplicate' برمی‌گرداند و رکورد نمی‌سازد. */
@@ -14,7 +14,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var crm = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.7.82', ver.crm_version === 'v34.7.82', ver.crm_version);
+T('VERSION.json = v34.7.90', ver.crm_version === 'v34.7.90', ver.crm_version);
 
 /* توابع نرمال‌سازی سروری */
 T('ptf_dedup_norm تعریف شده', crm.indexOf('function ptf_dedup_norm(') > -1);
@@ -31,6 +31,6 @@ T('رکورد تکراری بلاک می‌شود و مسیر باز شدن (reo
 
 T('tester472 در گیت CI', gate.indexOf('tester472-v34.7.70-sup-dedup.js') > -1);
 
-console.log('\n— tester472 (v34.7.82: جلوگیری از ثبت تکراری تامین‌کننده) —');
+console.log('\n— tester472 (v34.7.90: جلوگیری از ثبت تکراری تامین‌کننده) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
