@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester498 — v34.7.100 (FINHUB-UX-A فاز A)
+/* tester498 — v34.7.101 (FINHUB-UX-A فاز A)
    ارزیابی UX هاب مالی — بستهٔ Quick Wins:
    (1) تابع سراسری ptfMoneyCompact با پسوندهای فارسی
    (2) تابع HTML همراه (ptfMoneyCompactHtml) با title tooltip
@@ -24,7 +24,7 @@ var ledger = read('crm/ledger-report.js');
 var treasury = read('crm/treasury.js');
 var supfin = read('crm/supplier-finance.js');
 
-T('VERSION.json = v34.7.100', ver.crm_version === 'v34.7.100', ver.crm_version);
+T('VERSION.json = v34.7.101', ver.crm_version === 'v34.7.101', ver.crm_version);
 
 /* ==== ۱) تابع ptfMoneyCompact ==== */
 T('ptfMoneyCompact در moneyx.js تعریف شده', /window\.ptfMoneyCompact\s*=/.test(moneyx));
@@ -35,7 +35,7 @@ sb.window = sb;
 vm.createContext(sb);
 vm.runInContext(moneyx, sb);
 
-/* v34.7.100 (بازخورد کارفرما): نمایش کماکان به ریال — نه فشرده. اعداد کامل با
+/* v34.7.101 (بازخورد کارفرما): نمایش کماکان به ریال — نه فشرده. اعداد کامل با
    کاما فارسی. ellipsis در CSS اگر جا نشد. */
 T('کمتر از میلیون → کامل با کاما', sb.ptfMoneyCompact(999500) === '۹۹۹٬۵۰۰ ریال', sb.ptfMoneyCompact(999500));
 T('میلیون کامل (بدون فشرده‌سازی)', sb.ptfMoneyCompact(1500000) === '۱٬۵۰۰٬۰۰۰ ریال', sb.ptfMoneyCompact(1500000));
@@ -62,25 +62,25 @@ T('HTML شامل واحد ریال', html.indexOf('>ریال<') > -1, html);
 T('CSS .sc b با white-space:nowrap', /\.sc\s+b\{[^}]*white-space:nowrap/.test(idx));
 T('CSS .sc b با text-overflow:ellipsis', /\.sc\s+b\{[^}]*text-overflow:ellipsis/.test(idx));
 T('CSS .sc b با direction:ltr (اعداد)', /\.sc\s+b\{[^}]*direction:ltr/.test(idx));
-T('CSS .sc b سقف فونت 28px (v34.7.100: درشت‌تر و خواناتر در دسکتاپ)', /\.sc\s+b\{[^}]*clamp\(20px,1\.9vw,28px\)/.test(idx));
+T('CSS .sc b سقف فونت 34px (v34.7.101: کاشی‌های تراز/گزارش‌ها خواناتر)', /\.sc\s+b\{[^}]*clamp\(24px,2\.4vw,34px\)/.test(idx));
 T('CSS .sc b font-weight 900', /\.sc\s+b\{[^}]*font-weight:900/.test(idx));
-T('CSS .sc b letter-spacing منفی برای فشردگی اعداد فارسی', /\.sc\s+b\{[^}]*letter-spacing:-0\.01em/.test(idx));
-T('CSS .sr minmax 200px (فضای کافی برای فونت 28px)', /\.sr\{[^}]*minmax\(200px,1fr\)/.test(idx));
-T('CSS .sc padding 18px 15px (تنفس بیشتر)', /\.sc\{[^}]*padding:18px 15px/.test(idx));
+T('CSS .sc b letter-spacing منفی', /\.sc\s+b\{[^}]*letter-spacing:-0\.01em/.test(idx));
+T('CSS .sr minmax 220px (فضای کافی برای فونت 34px)', /\.sr\{[^}]*minmax\(220px,1fr\)/.test(idx));
+T('CSS .sc padding 22px 18px (تنفس ماژور)', /\.sc\{[^}]*padding:22px 18px/.test(idx));
 T('CSS .sc .unit تعریف شده', /\.sc\s+b\s+\.unit\{/.test(idx));
-T('CSS .sc .unit با 55% (متناسب با عدد بسیار درشت‌تر)', /\.sc\s+b\s+\.unit\{[^}]*font-size:55%/.test(idx));
+T('CSS .sc .unit با 52% (متناسب با فونت 34px)', /\.sc\s+b\s+\.unit\{[^}]*font-size:52%/.test(idx));
 
-/* ==== ۴) CSS موبایل (v34.7.100: درشت‌تر) ==== */
+/* ==== ۴) CSS موبایل (v34.7.101: درشت‌تر) ==== */
 T('CSS موبایل: .sr minmax(160px)', idx.indexOf('minmax(160px, 1fr)') > -1);
-T('CSS موبایل: .sc b font-size 16px (v34.7.100: از 13.5 → 16px)', /#panels\s+\.sc\s+b\s*\{[^}]*font-size:\s*16px/.test(idx));
+T('CSS موبایل: .sc b font-size 16px (v34.7.101: از 13.5 → 16px)', /#panels\s+\.sc\s+b\s*\{[^}]*font-size:\s*16px/.test(idx));
 T('CSS موبایل: .sc padding 12px 10px', /#panels\s+\.sc\s+\{[^}]*padding:\s*12px 10px/.test(idx));
 
-/* ==== ۵) CSS دسکتاپ نوار تب @media(min-width:900px) — v34.7.100: chip افقی ==== */
+/* ==== ۵) CSS دسکتاپ نوار تب @media(min-width:900px) — v34.7.101: chip افقی ==== */
 T('CSS دسکتاپ: @media(min-width:900px) برای finHubBar',
   /@media\(min-width:900px\)\{[^}]*#panels\s+#finHubBar/.test(idx.replace(/\s+/g, ' ')));
-T('CSS دسکتاپ v34.7.100: fin-hub-tab افقی (flex-direction:row)',
+T('CSS دسکتاپ v34.7.101: fin-hub-tab افقی (flex-direction:row)',
   /\.fin-hub-tab\{[^}]*flex-direction:row/.test(idx.replace(/\s+/g, ' ')));
-T('CSS دسکتاپ v34.7.100: fin-hub-tab کوتاه (min-height:36px)',
+T('CSS دسکتاپ v34.7.101: fin-hub-tab کوتاه (min-height:36px)',
   /\.fin-hub-tab\{[^}]*min-height:36px/.test(idx.replace(/\s+/g, ' ')));
 T('CSS دسکتاپ: fin-hub-tab.active با گرادیانت',
   idx.indexOf('.fin-hub-tab.active{background:linear-gradient') > -1);
@@ -111,6 +111,6 @@ T('supplier-finance.js: minmax 170px برای slLiquidity',
 T('tester498 در گیت CI ثبت شده',
   read('_tools/uat/run-ci-gate.js').indexOf('tester498-v34.7.97-finhub-ux-phase-a.js') > -1);
 
-console.log('\n— tester498 (v34.7.100: هاب مالی UX فاز A) —');
+console.log('\n— tester498 (v34.7.101: هاب مالی UX فاز A) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
