@@ -84,8 +84,11 @@ setData('ptf_crm_supplier_finance', { schema: 1, invoices: [
 var netD = window.ptfFiscalData('1405');
 T('سود تعهدیِ خالص = منفعت خالص پوششی (۸.۵م) در فقدان پروژه/هزینه', netD.netProfit === 8500000 && netD.coverNetBenefit === 8500000 && netD.coverCommission === 1500000 && netD.coverVat === 10000000);
 var cashD = window.ptfFiscalCashData('1405');
-T('خروجی نقدی فقط کارمزد پوششی است (۱.۵م) نه مبلغ اسمی (۱۰۰م)', cashD.outflows.supplierInvoices === 0 && cashD.outflows.coverCommission === 1500000 && cashD.outflowsTotal === 1500000);
-T('اعتبار ارزش‌افزوده پوششی در خروجی نقدی نیست (نقد نیست)', cashD.outflows.coverVat === 10000000 && cashD.netCash === -1500000);
+T('تا تسویه کارمزد، خروجی نقدی صفر است (مبلغ اسمی هم نیست)', cashD.outflows.supplierInvoices === 0 && cashD.outflows.coverCommission === 0 && cashD.outflowsTotal === 0);
+T('اعتبار ارزش‌افزوده پوششی در خروجی نقدی نیست (نقد نیست)', cashD.outflows.coverVat === 10000000 && cashD.netCash === 0);
+setData('ptf_crm_opex', [{ cd: 'OPX-C1', amt: 1500000, fromCoverInvoice: true, coverInvoiceCd: 'SFINV-C1', st: 'settled', settleISO: '2026-06-20', month: '1405/03' }]);
+var cashSettled = window.ptfFiscalCashData('1405');
+T('پس از تسویه، خروجی نقدی فقط کارمزد پوششی است (۱.۵م)', cashSettled.outflows.coverCommission === 1500000 && cashSettled.outflowsTotal === 1500000 && cashSettled.netCash === -1500000);
 
 /* ─── رفتار: حقوق به‌عنوان مطالبه (salary_payment جدا از علی‌الحساب) ─── */
 SECTION('رفتار: حقوق=مطالبه');

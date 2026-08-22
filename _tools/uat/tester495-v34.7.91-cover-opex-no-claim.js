@@ -10,6 +10,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 var sf = read('crm/supplier-finance.js');
 var ox = read('crm/opex.js');
 var wc = read('crm/working-capital.js');
+var tr = read('crm/treasury.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 T('مانده فاکتور پوششی صفر است', /if \(inv && inv.isCover === true\) return 0;/.test(sf));
@@ -19,6 +20,9 @@ T('ابطال/حذف پوششی opex را برمی‌دارد', sf.indexOf('ptfO
 T('API ساخت کارمزد در opex هست', ox.indexOf('window.ptfOpexUpsertFromCoverInvoice') > -1);
 T('کارمزد پوششی از سود سال دوباره‌شماری نمی‌شود', /isCoverOpex\(x\)/.test(ox));
 T('گزارش تجمیعی پوششی را بدهی تأمین نمی‌کند', wc.indexOf('src.supplierLiability += cComm') === -1);
+T('خزانه کارمزد پوششی را تا تسویه خروج نمی‌کند', tr.indexOf("isCoverOpex && o.st !== 'settled'") > -1);
+T('prefill فرم فاکتور حفظ می‌شود', sf.indexOf('_slInvForm267(supCd, prefill)') > -1);
+T('متن سرمایه در گردش کارمزد را بدهی نمی‌داند', wc.indexOf('فقط کارمزد فاکتورساز در بدهی لحاظ') === -1);
 
 var store = {
   ptf_crm_opex: [],
@@ -66,6 +70,14 @@ T('صادرکننده پوششی بدهی ندارد', tot.debt === 0, tot);
 
 var fiscal = ctx.ptfOpexSumFiscal('1405');
 T('کارمزد پوششی در جمع سود سال دوباره‌شماری نمی‌شود', fiscal.total === 0, fiscal);
+
+T('قبل از تسویه، وضعیت open است', store.ptf_crm_opex[0] && store.ptf_crm_opex[0].st === 'open');
+var noDoc = ctx.ptfOpexSettleCoverCommit(store.ptf_crm_opex[0], { doc: '' });
+T('تسویه بدون مدرک رد می‌شود', !!(noDoc && noDoc.ok === false && noDoc.why === 'doc'), noDoc);
+var settled = ctx.ptfOpexSettleCoverCommit(store.ptf_crm_opex[0], { doc: 'حواله-۹۹', files: [{ key: 'k1', name: 'resid.pdf' }] });
+T('تسویه با مدرک موفق است', !!(settled && settled.ok && store.ptf_crm_opex[0].st === 'settled'), settled);
+T('سند و فایل تسویه ذخیره شد', store.ptf_crm_opex[0].settleDoc === 'حواله-۹۹' && (store.ptf_crm_opex[0].files || []).length === 1);
+T('دکمه تسویه در UI هست', ox.indexOf('ptfOpexSettleCover') > -1 && ox.indexOf('از فاکتور پوششی') > -1);
 
 var rm = ctx.ptfOpexRemoveFromCoverInvoice('SFINV-C');
 T('حذف opex متصل به فاکتور پوششی', !!(rm && rm.ok && rm.removed === 1), rm);

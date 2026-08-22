@@ -149,6 +149,9 @@
       if (!active(o) || o.st === 'void') return;
       if (o.shareholderSalary || o.shareTx) return;
       if (o.chequeCd || o.payHow === 'cheque') return;
+      var isCoverOpex = !!(o.fromCoverInvoice || o.coverInvoiceCd);
+      /* کارمزد پوششی فقط پس از تسویه (با مدرک) خروج خزانه/بانک است. */
+      if (isCoverOpex && o.st !== 'settled') return;
       var amt = num(o.amt || o.amount);
       if (!amt) return;
       pushMove(out, {
@@ -156,10 +159,10 @@
         cd: o.cd || '',
         dir: 'out',
         amount: amt,
-        dateISO: isoOf(o) || String(o.month || '').replace(/\//g, '-') ,
-        dateFa: o.month || faOf(o),
-        src: 'هزینه جاری',
-        label: 'هزینه ' + (o.cat || '') + (o.desc ? ' — ' + o.desc : '')
+        dateISO: (isCoverOpex ? (o.settleISO || isoOf(o)) : isoOf(o)) || String(o.month || '').replace(/\//g, '-') ,
+        dateFa: (isCoverOpex ? (o.settledT || o.month) : (o.month || faOf(o))),
+        src: isCoverOpex ? 'تسویه کارمزد پوششی' : 'هزینه جاری',
+        label: (isCoverOpex ? 'پرداخت کارمزد فاکتورساز' : 'هزینه ') + (o.cat || '') + (o.desc ? ' — ' + o.desc : '') + (o.settleDoc ? ' — سند ' + o.settleDoc : '')
       });
     });
 

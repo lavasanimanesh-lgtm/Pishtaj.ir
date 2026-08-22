@@ -165,11 +165,10 @@
       unclassifiedNote(d.opex, 'هزینه جاری') + unclassifiedNote(d.purchase, 'فاکتور خرید تأمین‌کننده') +
       '</div>' +
 
-      '<h5 style="margin:16px 0 6px;font-size:13px;color:#0f172a">💰 دفتر واقعی <small style="color:#64748b;font-weight:400">(مبنای پیشنهادی تقسیم سود — رسمی+غیررسمی واقعی، بدون فاکتور پوششی/صوری)</small></h5>' +
-      '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:9px 11px;font-size:12px;color:#475569;margin-bottom:8px">فرمول تقسیم سود سهامداران در «سال مالی» فعلاً <b>تغییر نکرده</b> و این بخش صرفاً گزارشی است (طبق تصمیم کارفرما). خرید واقعی = خرید رسمی+غیررسمی <i>به‌جز</i> فاکتورهای پوششی/صوری؛ سود/زیان خالص فاکتورهای پوششی (اعتبار ارزش‌افزوده منهای کارمزد) جداگانه نشان داده می‌شود.</div>' +
+      '<h5 style="margin:16px 0 6px;font-size:13px;color:#0f172a">💰 دفتر واقعی <small style="color:#64748b;font-weight:400">(خرید حقیقی بدون فاکتور پوششی)</small></h5>' +
+      '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:9px 11px;font-size:12px;color:#475569;margin-bottom:8px">فرمول تقسیم سود سهامداران در «سال مالی» فعلاً <b>تغییر نکرده</b>. منفعت فاکتور پوششی در تراز تجمیعی بالا آمده و اینجا تکرار نمی‌شود. خرید واقعی = خرید رسمی+غیررسمی <i>به‌جز</i> فاکتورهای پوششی/صوری.</div>' +
       '<div class="sr" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">' +
       block('خرید واقعی (بدون فاکتور پوششی)', d.realPurchaseTotal, '#dc2626') +
-      block('سود/زیان خالص فاکتورهای پوششی', d.coverBenefitTotal, d.coverBenefitTotal >= 0 ? '#059669' : '#dc2626', d.coverCount ? d.coverCount + ' فاکتور پوششی ثبت‌شده' : 'هنوز فاکتور پوششی ثبت نشده') +
       '</div>' +
       '</div>';
   };

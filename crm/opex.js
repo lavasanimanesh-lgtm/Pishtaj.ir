@@ -229,7 +229,8 @@
     rec = {
       cd: opexNextCode(all), cat: COVER_OPEX_CAT, amt: comm, month: month, desc: desc,
       isOfficial: false, fromCoverInvoice: true, coverInvoiceCd: inv.cd,
-      coverSupplierCd: inv.supplierCd || '', t: (typeof faDate === 'function' ? faDate() : ''), by: who || 'سیستم'
+      coverSupplierCd: inv.supplierCd || '', st: 'open',
+      t: (typeof faDate === 'function' ? faDate() : ''), by: who || 'سیستم'
     };
     rec[OPEX_ROW_ID] = opexNewRowId();
     all.unshift(rec);
@@ -237,6 +238,66 @@
     try { audit('هزینه جاری', 'ثبت خودکار کارمزد فاکتورساز پوششی ' + (inv.no || inv.cd) + ' — ' + fmtT(comm) + ' ریال (' + month + ')', rec.cd); } catch (eA) {}
     return { ok: true, rec: rec, created: true };
   };
+  function coverOpexSettled(x) {
+    return !!(x && (x.st === 'settled' || x.chequeCd));
+  }
+  window.ptfOpexCoverIsSettled = coverOpexSettled;
+  window.ptfOpexSettleCoverCommit = function (rec, v) {
+    if (!rec || !isCoverOpex(rec)) return { ok: false, why: 'not-cover' };
+    if (rec.st === 'void' || rec.status === 'void') return { ok: false, why: 'void' };
+    if (coverOpexSettled(rec)) return { ok: false, why: 'already' };
+    var doc = String((v && v.doc) || '').trim();
+    if (!doc) return { ok: false, why: 'doc' };
+    var all = oRows();
+    var target = opexFindRow(all, rec.cd, rec[OPEX_ROW_ID], false) || rec;
+    target.st = 'settled';
+    target.settleDoc = doc;
+    target.settledBy = (v && v.by) || '';
+    try { if (!target.settledBy) target.settledBy = (curSession() || {}).name || ''; } catch (eB) {}
+    target.settledT = (typeof faDateTime === 'function' ? faDateTime() : '');
+    target.settleISO = (typeof ptfTodayISO === 'function' ? ptfTodayISO() : new Date().toISOString().slice(0, 10));
+    target.payHow = target.payHow || 'bank';
+    if (v && v.files && v.files.length) target.files = (target.files || []).concat(v.files);
+    oSave(all);
+    try { audit('هزینه جاری', 'تسویه کارمزد فاکتورساز پوششی با سند ' + doc + ' — ' + fmtT(target.amt) + ' ریال', target.cd); } catch (eA) {}
+    return { ok: true, rec: target };
+  };
+  window.ptfOpexSettleCover = function (cd, rowId) {
+    if (!canFin()) return;
+    var rec = opexFindRow(oRows(), cd, rowId, true);
+    if (!rec) return;
+    if (!isCoverOpex(rec)) { alert('تسویهٔ این مسیر فقط برای کارمزد فاکتور پوششی است.'); return; }
+    if (coverOpexSettled(rec)) { alert('این کارمزد قبلاً تسویه شده است (سند: ' + (rec.settleDoc || '-') + ').'); return; }
+    if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'تسویه کارمزد پوششی' }).ok) return;
+    if (typeof ptfDialog !== 'function') {
+      var raw = prompt('شماره/شرح سند پرداخت کارمزد فاکتورساز', '');
+      if (raw == null) return;
+      var r0 = window.ptfOpexSettleCoverCommit(rec, { doc: raw });
+      if (!r0.ok) { alert('⛔ تسویه ثبت نشد'); return; }
+      ptfOpexRender();
+      return;
+    }
+    ptfDialog({
+      title: '✔ تسویه کارمزد فاکتورساز — ' + rec.cd,
+      body: 'مبلغ: <b>' + fmtT(rec.amt) + ' ریال</b><br><small>پس از ثبت تسویه، خروج نقد از خزانه/بانک ثبت می‌شود. مدرک پرداخت را همین‌جا پیوست کنید.</small>',
+      fields: [
+        { id: 'doc', label: 'شماره/شرح سند پرداخت *', required: true, placeholder: 'مثال: حواله بانکی ۱۲۳۴۵' },
+        { id: 'files', label: 'مدرک پرداخت (رسید بانکی، فیش، تصویر چک)', type: 'upload', uploadFolder: 'opex/' + rec.cd }
+      ],
+      okText: 'ثبت تسویه',
+      onOk: function (v) {
+        var r = window.ptfOpexSettleCoverCommit(rec, v);
+        if (!r.ok) {
+          alert(r.why === 'doc' ? '⛔ شماره/شرح سند پرداخت الزامی است' : '⛔ تسویه ثبت نشد');
+          return;
+        }
+        if (typeof ptfToast === 'function') ptfToast('✅ کارمزد تسویه شد و خروج خزانه/بانک ثبت شد', 'ok');
+        ptfOpexRender();
+        try { if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender(); } catch (eT) {}
+      }
+    });
+  };
+
   window.ptfOpexRemoveFromCoverInvoice = function (invoiceCd) {
     if (!invoiceCd) return { ok: true, removed: 0 };
     var all = oRows();
@@ -746,14 +807,18 @@
         '<span class="opex-row-copy"><b>' + fmtT(x.amt) + ' ریال</b> — ' + escP(x.cat) + (x.tplId ? ' <span class="bd" style="background:#ede9fe;color:#6d28d9;font-size:10px">🔁</span>' : '') +
         (x.dealRef ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">📁 پرونده فروش</span>' : '') +
         (x.autoApplied ? ' <span class="bd" style="background:#e0f2fe;color:#0369a1;font-size:10px">🤖 خودکار</span>' : '') +
+        (isCoverOpex(x) ? ' <span class="bd" style="background:#fff7ed;color:#c2410c;font-size:10px">از فاکتور پوششی</span>' : '') +
+        (coverOpexSettled(x) ? ' <span class="bd" style="background:#ecfdf5;color:#166534;font-size:10px">تسویه شد</span>' : (isCoverOpex(x) ? ' <span class="bd" style="background:#fef3c7;color:#b45309;font-size:10px">در انتظار تسویه</span>' : '')) +
         (x.chequeCd ? ' <span class="bd" style="background:#fff7ed;color:#c2410c;font-size:10px">چک ' + escP(x.chequeCd) + '</span>' : '') +
         (x.desc ? ' <small style="color:#64748b">' + escP(x.desc) + '</small>' : '') +
         (x.editedAt ? ' <small style="color:#0e7490">✏️ ویرایش: ' + escP(x.editedAt) + '</small>' : '') +
+        (coverOpexSettled(x) && x.settleDoc ? '<br><small style="color:#059669">✔ تسویه: ' + escP(x.settledT || '') + ' — سند: ' + escP(x.settleDoc) + ' (' + escP(x.settledBy || '') + ')</small>' : '') +
         '<br><small style="color:#94a3b8">' + escP(x.month) + ' | ثبت: ' + escP(x.t) + ' — ' + escP(x.by) + (x.dealRef ? ' | لینک: ' + escP(x.dealRef) : '') + '</small></span>' +
         '<span class="opex-row-actions" role="group" aria-label="عملیات هزینه ' + escP(x.cat || '') + '">' +
         opexAction('attach', '📎', fileCount ? fileCount + ' سند' : 'سند', 'مدیریت قبض، رسید پرداخت، چک یا فاکتورهای این ردیف', 'ptfOpexAttachOpen(\'' + cdArg + '\',\'' + rowArg + '\')', false) +
-        opexAction('edit', '✏️', 'اصلاح', 'اصلاح همین ردیف هزینهٔ جاری', 'ptfOpexEdit(\'' + cdArg + '\',\'' + rowArg + '\')', false) +
-        opexAction('delete', '🗑', 'حذف', 'حذف همین ردیف هزینهٔ جاری', 'ptfOpexDel(\'' + cdArg + '\',\'' + rowArg + '\')', false) +
+        (isCoverOpex(x) && !coverOpexSettled(x) ? opexAction('settle', '✔', 'تسویه', 'تسویه کارمزد فاکتورساز و ثبت مدرک پرداخت', 'ptfOpexSettleCover(\'' + cdArg + '\',\'' + rowArg + '\')', true) : '') +
+        (isCoverOpex(x) ? '' : opexAction('edit', '✏️', 'اصلاح', 'اصلاح همین ردیف هزینهٔ جاری', 'ptfOpexEdit(\'' + cdArg + '\',\'' + rowArg + '\')', false)) +
+        (isCoverOpex(x) ? '' : opexAction('delete', '🗑', 'حذف', 'حذف همین ردیف هزینهٔ جاری', 'ptfOpexDel(\'' + cdArg + '\',\'' + rowArg + '\')', false)) +
         '</span></div>';
     }).join('');
     var tplRows = tpls().map(function (t) {

@@ -891,7 +891,7 @@
   /* ============ Sprint 267: UAT corrections / editing / Jalali / instant refresh ============ */
   function slJalali(id) { var el=document.getElementById(id); if(el && typeof ptfISOToJ==='function'){ try{el.type='text';el.value=ptfISOToJ(el.value)||el.value;el.placeholder='1405/04/22';}catch(e){} } }
   var _slInvForm267=window.slInvoiceForm;
-  window.slInvoiceForm=function(supCd){_slInvForm267(supCd);slJalali('slInvDate');var l=document.querySelector('#slInvDlg label');if(l&&l.textContent.indexOf('تاریخ')>-1)l.textContent='شماره فاکتور *';var ds=document.querySelectorAll('#slInvDlg label');ds.forEach(function(x){if(x.textContent.indexOf('تاریخ فاکتور')>-1)x.textContent='تاریخ فاکتور (شمسی) *';});};
+  window.slInvoiceForm=function(supCd, prefill){_slInvForm267(supCd, prefill);slJalali('slInvDate');var l=document.querySelector('#slInvDlg label');if(l&&l.textContent.indexOf('تاریخ')>-1)l.textContent='شماره فاکتور *';var ds=document.querySelectorAll('#slInvDlg label');ds.forEach(function(x){if(x.textContent.indexOf('تاریخ فاکتور')>-1)x.textContent='تاریخ فاکتور (شمسی) *';});};
   var _slPayForm267=window.slPaymentForm;
   window.slPaymentForm=function(supCd,cur){_slPayForm267(supCd,cur);slJalali('slPayDate');slJalali('slChDue');document.querySelectorAll('#slPayDlg label').forEach(function(x){if(x.textContent.indexOf('تاریخ پرداخت')>-1)x.textContent='تاریخ پرداخت (شمسی) *';if(x.textContent.indexOf('تاریخ سررسید')>-1)x.textContent='تاریخ سررسید (شمسی) *';});};
   window.slInvoiceEdit = function (cd) {
