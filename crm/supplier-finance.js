@@ -672,11 +672,36 @@
   function slPrintRows(rows) { return rows.map(function (e) { var item = e.itemName||e.note||'', visibleRef = e.type === 'فاکتور خرید' ? supplierInvoiceSummary(e) : (e.ref || ''); return '<tr><td>' + slFaDigits(e.dateFa) + '</td><td>' + escP(e.type === 'payment' ? 'پرداخت' : e.type) + '</td><td><b>' + escP(e.no) + '</b>' + (visibleRef ? '<br><small>' + escP(visibleRef) + '</small>' : '') + (item ? '<br><small style="color:#0e7490">📦 '+escP(item)+'</small>' : '') + '</td><td>' + (e.debit ? slFaDigits(money(e.debit)) : '—') + '</td><td>' + (e.credit ? slFaDigits(money(e.credit)) : '—') + '</td><td><b>' + slFaDigits(money(e.balance)) + ' ' + slCurFa(e.cur) + '</b></td></tr>'; }).join(''); }
   window.slLedgerPrint = function (supCd) { var sup=supplier(supCd), rows=slEventRows(supCd,slFiltersFromDom()), w=window.open('','_blank'); if(!w)return; w.document.write('<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>گردش حساب '+escP(sup.co||'')+'</title><style>body{font-family:Tahoma;direction:rtl;padding:20px;color:#111}table{width:100%;border-collapse:collapse;font-size:12px}td,th{border:1px solid #aaa;padding:6px;text-align:right}th{background:#eee}@media print{button{display:none}}</style></head><body><h2>گردش حساب تأمین‌کننده — '+escP(sup.co||'')+'</h2><table><thead><tr><th>تاریخ</th><th>نوع</th><th>سند/مرجع</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead><tbody>'+slPrintRows(rows)+'</tbody></table></body></html>'); w.document.close(); w.print(); };
 
+    function slBoxRows() {
+      if (!canSee()) return '';
+      var sups = getData('ptf_crm_suppliers'), sd = data();
+      return sups.map(function (s) {
+        var b = balance(s.cd);
+        var has = (sd.invoices || []).some(function (i) { return i.supplierCd === s.cd; }) ||
+          (sd.payments || []).some(function (p) { return p.supplierCd === s.cd; }) ||
+          legacyOpen(s).length;
+        if (!b.length && !has) return '';
+        return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>';
+      }).filter(Boolean).join('');
+    }
+    /* v34.7.85 (SUP-PERF-003): lazy-load کادر «فاکتور، حساب و پرداخت».
+       قبلاً همهٔ balance ها (که روی همه فاکتور/پرداخت لوپ می‌زنند) همزمان با ساخت پنل
+       محاسبه می‌شد و باز شدن تب تامین‌کنندگان را کند می‌کرد. اکنون قاب با placeholder
+       ساخته می‌شود و پس از رندر پنل، جدول با slBoxRows پر می‌شود (یک‌بار). */
+    window.ptfSlBoxLazy = function () {
+      var body = document.getElementById('slBoxBody');
+      if (!body || window._slBoxLazyDone) return;
+      var rows = slBoxRows();
+      if (rows) body.innerHTML = rows;
+      else body.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">گردش حسابی برای نمایش نیست.</td></tr>';
+      window._slBoxLazyDone = true;
+    };
     function box() {
-    if (!canSee()) return '';
-    var sups = getData('ptf_crm_suppliers'), sd=data(); var rows = sups.map(function (s) { var b = balance(s.cd), has=(sd.invoices||[]).some(function(i){return i.supplierCd===s.cd;})||(sd.payments||[]).some(function(p){return p.supplierCd===s.cd;})||legacyOpen(s).length; if (!b.length && !has) return ''; return '<tr><td><b>' + escP(s.co || '') + '</b></td><td>' + (b.length ? balanceHtmlFrom(b, s.cd) : '<span style="color:#059669">مانده صفر / فقط تاریخچه</span>') + '</td><td><button class="ba" onclick="slOpenLedger(\'' + ptfOnClickArg(s.cd) + '\')">📒 حساب و اسناد</button></td></tr>'; }).filter(Boolean).join('');
-    return '<details id="slBox" open style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-bottom:14px"><summary style="cursor:pointer;font-weight:900;color:#0c4a6e">🧾 فاکتور، حساب و پرداخت تأمین‌کنندگان</summary><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><small style="color:#0369a1">فاکتور، پرداخت و چک؛ برای باز/بستن روی عنوان کلیک کنید.</small><button class="bt" onclick="slNewInvoice()">＋ فاکتور خرید</button></div>' + (rows ? '<div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') + '</details>';
-  }
+      if (!canSee()) return '';
+      var loading = '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:14px;font-size:12px">⏳ در حال محاسبه گردش حساب تامین‌کنندگان…</td></tr>';
+      setTimeout(function () { if (typeof window.ptfSlBoxLazy === 'function') window.ptfSlBoxLazy(); }, 30);
+      return '<details id="slBox" open style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:14px;padding:12px 14px;margin-bottom:14px"><summary style="cursor:pointer;font-weight:900;color:#0c4a6e">🧾 فاکتور، حساب و پرداخت تأمین‌کنندگان</summary><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><small style="color:#0369a1">فاکتور، پرداخت و چک؛ برای باز/بستن روی عنوان کلیک کنید.</small><button class="bt" onclick="slNewInvoice()">＋ فاکتور خرید</button></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>تأمین‌کننده</th><th>مانده</th><th></th></tr></thead><tbody id="slBoxBody">' + loading + '</tbody></table></div></details>';
+    }
   var oldBuild = window.buildSuppliers;
   if (typeof oldBuild === 'function' && !window._slHooked) { window._slHooked = true; window.buildSuppliers = function () { return box() + oldBuild(); }; }
   /* ============ Sprint 266: reconciliation + fiscal-safe adjustment ============ */

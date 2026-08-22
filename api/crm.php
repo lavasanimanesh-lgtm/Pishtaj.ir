@@ -1363,11 +1363,28 @@ switch($action) {
             ptf_echo_json(['ok' => true, 'fresh' => true, 'since' => $sig]);
             break;
         }
+        $allSuppliers = load_data('suppliers');
+        $siteRfqs = array_values(array_filter(load_data('rfqs'), function ($r) { return ($r['src'] ?? '') === 'site'; }));
+        /* v34.7.85 (SUP-PERF-004): صفحه‌بندی اختیاری صندوق سایت. بدون پارامترها،
+           رفتار قبلی (همهٔ داده‌ها) حفظ می‌شود؛ با limit/offset فقط صفحات خواسته‌شده
+           برمی‌گردد تا کلاینت بتواند برای فهرست‌های بزرگ از سرور گام‌به‌گام بگیرد. */
+        $limit = (int)($_REQUEST['limit'] ?? 0);
+        $offset = max(0, (int)($_REQUEST['offset'] ?? 0));
+        $supTotal = count($allSuppliers);
+        $rfqTotal = count($siteRfqs);
+        if ($limit > 0) {
+            $allSuppliers = array_slice($allSuppliers, $offset, $limit);
+            /* rfqs مثل قبل کامل می‌ماند؛ pagination فقط برای suppliers است. */
+        }
         ptf_echo_json([
             'ok' => true,
             'since' => $sig,
-            'suppliers' => load_data('suppliers'),
-            'rfqs' => array_values(array_filter(load_data('rfqs'), function ($r) { return ($r['src'] ?? '') === 'site'; }))
+            'suppliers' => $allSuppliers,
+            'rfqs' => $siteRfqs,
+            'limit' => $limit > 0 ? $limit : $supTotal,
+            'offset' => $offset,
+            'supTotal' => $supTotal,
+            'rfqTotal' => $rfqTotal
         ]);
         break;
 
