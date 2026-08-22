@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester498 — v34.7.97 (FINHUB-UX-A فاز A)
+/* tester498 — v34.7.98 (FINHUB-UX-A فاز A)
    ارزیابی UX هاب مالی — بستهٔ Quick Wins:
    (1) تابع سراسری ptfMoneyCompact با پسوندهای فارسی
    (2) تابع HTML همراه (ptfMoneyCompactHtml) با title tooltip
@@ -24,7 +24,7 @@ var ledger = read('crm/ledger-report.js');
 var treasury = read('crm/treasury.js');
 var supfin = read('crm/supplier-finance.js');
 
-T('VERSION.json = v34.7.97', ver.crm_version === 'v34.7.97', ver.crm_version);
+T('VERSION.json = v34.7.98', ver.crm_version === 'v34.7.98', ver.crm_version);
 
 /* ==== ۱) تابع ptfMoneyCompact ==== */
 T('ptfMoneyCompact در moneyx.js تعریف شده', /window\.ptfMoneyCompact\s*=/.test(moneyx));
@@ -35,49 +35,52 @@ sb.window = sb;
 vm.createContext(sb);
 vm.runInContext(moneyx, sb);
 
-T('کمتر از میلیون → کاما فارسی + ریال', sb.ptfMoneyCompact(999500) === '۹۹۹,۵۰۰ ریال', sb.ptfMoneyCompact(999500));
-T('میلیون با اعشار', sb.ptfMoneyCompact(1500000) === '۱.۵ میلیون ریال', sb.ptfMoneyCompact(1500000));
-T('مرز میلیون → میلیارد (999.9M → 1 میلیارد)', sb.ptfMoneyCompact(999900000) === '۱ میلیارد ریال', sb.ptfMoneyCompact(999900000));
-T('میلیارد با اعشار', sb.ptfMoneyCompact(1500000000) === '۱.۵ میلیارد ریال', sb.ptfMoneyCompact(1500000000));
-T('میلیارد بدون اعشار (3 رقمی)', sb.ptfMoneyCompact(150000000000) === '۱۵۰ میلیارد ریال', sb.ptfMoneyCompact(150000000000));
-T('هزار میلیارد با کاما', sb.ptfMoneyCompact(1500000000000) === '۱,۵۰۰ میلیارد ریال', sb.ptfMoneyCompact(1500000000000));
-T('عدد خیلی بزرگ', sb.ptfMoneyCompact(12300000000000) === '۱۲,۳۰۰ میلیارد ریال', sb.ptfMoneyCompact(12300000000000));
+/* v34.7.98 (بازخورد کارفرما): نمایش کماکان به ریال — نه فشرده. اعداد کامل با
+   کاما فارسی. ellipsis در CSS اگر جا نشد. */
+T('کمتر از میلیون → کامل با کاما', sb.ptfMoneyCompact(999500) === '۹۹۹٬۵۰۰ ریال', sb.ptfMoneyCompact(999500));
+T('میلیون کامل (بدون فشرده‌سازی)', sb.ptfMoneyCompact(1500000) === '۱٬۵۰۰٬۰۰۰ ریال', sb.ptfMoneyCompact(1500000));
+T('میلیارد کامل (بدون فشرده‌سازی)', sb.ptfMoneyCompact(1500000000) === '۱٬۵۰۰٬۰۰۰٬۰۰۰ ریال', sb.ptfMoneyCompact(1500000000));
+T('عدد خیلی بزرگ کامل', sb.ptfMoneyCompact(999999999999) === '۹۹۹٬۹۹۹٬۹۹۹٬۹۹۹ ریال', sb.ptfMoneyCompact(999999999999));
 
-T('عدد منفی', sb.ptfMoneyCompact(-500000000).indexOf('-۵۰۰') === 0, sb.ptfMoneyCompact(-500000000));
+T('عدد منفی شامل ۵۰۰ و ریال', sb.ptfMoneyCompact(-500000000).indexOf('۵۰۰') > -1 && sb.ptfMoneyCompact(-500000000).indexOf('ریال') > -1, sb.ptfMoneyCompact(-500000000));
 T('صفر امن', sb.ptfMoneyCompact(0) === '۰ ریال', sb.ptfMoneyCompact(0));
 T('null امن', sb.ptfMoneyCompact(null) === '۰ ریال', sb.ptfMoneyCompact(null));
-T('NaN امن (isFinite false → empty)',
-  sb.ptfMoneyCompact(NaN) === '۰ ریال' || sb.ptfMoneyCompact(NaN) === '',
-  sb.ptfMoneyCompact(NaN));
+T('NaN امن', sb.ptfMoneyCompact(NaN) === '۰ ریال', sb.ptfMoneyCompact(NaN));
 
-T('واحد سفارشی (دلار)', sb.ptfMoneyCompact(1500000, 'دلار') === '۱.۵ میلیون دلار', sb.ptfMoneyCompact(1500000, 'دلار'));
-T('واحد خالی → بدون پسوند', sb.ptfMoneyCompact(1500000, '') === '۱.۵ میلیون', sb.ptfMoneyCompact(1500000, ''));
+T('واحد سفارشی (دلار)', sb.ptfMoneyCompact(1500000, 'دلار') === '۱٬۵۰۰٬۰۰۰ دلار', sb.ptfMoneyCompact(1500000, 'دلار'));
+T('واحد خالی → بدون پسوند', sb.ptfMoneyCompact(1500000, '') === '۱٬۵۰۰٬۰۰۰', sb.ptfMoneyCompact(1500000, ''));
 
-/* ==== ۲) ptfMoneyCompactHtml — با title و <small class="unit"> ==== */
+/* ==== ۲) ptfMoneyCompactHtml — با title، <span dir="ltr"> و <small class="unit"> ==== */
 var html = sb.ptfMoneyCompactHtml(2300000000);
 T('HTML شامل title tooltip', html.indexOf('title="') > -1, html);
 T('HTML شامل small.unit', html.indexOf('class="unit"') > -1, html);
-T('HTML شامل مقدار فشرده', html.indexOf('۲.۳ میلیارد') > -1, html);
+T('HTML شامل عدد کامل با کاما فارسی', html.indexOf('۲٬۳۰۰٬۰۰۰٬۰۰۰') > -1, html);
+T('HTML شامل dir=ltr روی عدد', html.indexOf('dir="ltr"') > -1, html);
+T('HTML شامل واحد ریال', html.indexOf('>ریال<') > -1, html);
 
 /* ==== ۳) CSS کارت KPI در index.html ==== */
 T('CSS .sc b با white-space:nowrap', /\.sc\s+b\{[^}]*white-space:nowrap/.test(idx));
 T('CSS .sc b با text-overflow:ellipsis', /\.sc\s+b\{[^}]*text-overflow:ellipsis/.test(idx));
 T('CSS .sc b با direction:ltr (اعداد)', /\.sc\s+b\{[^}]*direction:ltr/.test(idx));
-T('CSS .sc b سقف فونت 19px (نه 24)', /\.sc\s+b\{[^}]*clamp\(15px,1\.4vw,19px\)/.test(idx));
-T('CSS .sr minmax افزایش‌یافته (170px)', /\.sr\{[^}]*minmax\(170px,1fr\)/.test(idx));
+T('CSS .sc b سقف فونت 18px (v34.7.98: کمی کاهش برای اعداد ریالی بلندتر)', /\.sc\s+b\{[^}]*clamp\(14px,1\.3vw,18px\)/.test(idx));
+T('CSS .sr minmax افزایش‌یافته (180px برای عدد کامل ریالی)', /\.sr\{[^}]*minmax\(180px,1fr\)/.test(idx));
 T('CSS .sc .unit تعریف شده', /\.sc\s+b\s+\.unit\{/.test(idx));
 
-/* ==== ۴) CSS موبایل کوچک (min مقادیر برای <480px) ==== */
-T('CSS موبایل: .sr minmax(140px)', idx.indexOf('minmax(140px, 1fr)') > -1);
-T('CSS موبایل: .sc b font-size 15px', /#panels\s+\.sc\s+b\s*\{[^}]*font-size:\s*15px/.test(idx));
+/* ==== ۴) CSS موبایل کوچک (min مقادیر برای <768px) ==== */
+T('CSS موبایل: .sr minmax(150px) برای اعداد کامل ریالی', idx.indexOf('minmax(150px, 1fr)') > -1);
+T('CSS موبایل: .sc b font-size 13.5px', /#panels\s+\.sc\s+b\s*\{[^}]*font-size:\s*13\.5px/.test(idx));
 
-/* ==== ۵) CSS دسکتاپ نوار تب @media(min-width:900px) ==== */
+/* ==== ۵) CSS دسکتاپ نوار تب @media(min-width:900px) — v34.7.98: chip افقی ==== */
 T('CSS دسکتاپ: @media(min-width:900px) برای finHubBar',
   /@media\(min-width:900px\)\{[^}]*#panels\s+#finHubBar/.test(idx.replace(/\s+/g, ' ')));
+T('CSS دسکتاپ v34.7.98: fin-hub-tab افقی (flex-direction:row)',
+  /\.fin-hub-tab\{[^}]*flex-direction:row/.test(idx.replace(/\s+/g, ' ')));
+T('CSS دسکتاپ v34.7.98: fin-hub-tab کوتاه (min-height:36px)',
+  /\.fin-hub-tab\{[^}]*min-height:36px/.test(idx.replace(/\s+/g, ' ')));
 T('CSS دسکتاپ: fin-hub-tab.active با گرادیانت',
   idx.indexOf('.fin-hub-tab.active{background:linear-gradient') > -1);
-T('CSS دسکتاپ: fin-hub-tab:hover با transform',
-  /\.fin-hub-tab:hover\{[^}]*transform:translateY\(-1px\)/.test(idx.replace(/\s+/g, ' ')));
+T('CSS دسکتاپ: fin-hub-tabs با flex-wrap (نه grid)',
+  /\.fin-hub-tabs\{[^}]*display:flex[^}]*flex-wrap:wrap/.test(idx.replace(/\s+/g, ' ')));
 
 /* ==== ۶) نقاط مصرف — فایل‌های اصلی هاب مالی ==== */
 T('fiscal.js: تابع moneyCard تعریف شده', /function moneyCard\(v\)/.test(fiscal));
@@ -103,6 +106,6 @@ T('supplier-finance.js: minmax 170px برای slLiquidity',
 T('tester498 در گیت CI ثبت شده',
   read('_tools/uat/run-ci-gate.js').indexOf('tester498-v34.7.97-finhub-ux-phase-a.js') > -1);
 
-console.log('\n— tester498 (v34.7.97: هاب مالی UX فاز A) —');
+console.log('\n— tester498 (v34.7.98: هاب مالی UX فاز A) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

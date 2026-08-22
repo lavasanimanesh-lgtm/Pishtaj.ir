@@ -73,41 +73,31 @@
     /* '2.0' → '2' ولی '2.5' دست‌نخورده */
     return String(s).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
   }
+  /* v34.7.98 (FINHUB-UX-A2 بازخورد کارفرما): همیشه عدد کامل ریالی برمی‌گردد
+     (کاما فارسی، بدون فشرده‌سازی «میلیون/میلیارد»). CSS با nowrap + ellipsis
+     در کارت کوچک اعداد بلند را با … کوتاه می‌کند و tooltip روی .sc عدد کامل
+     را نگه می‌دارد. تصمیم کارفرما: نمایش کماکان به ریال. */
   window.ptfMoneyCompact = function (v, unit) {
     var n = ptfNum(v);
-    if (!isFinite(n)) return '';
-    var sign = n < 0 ? '-' : '';
-    var abs = Math.abs(n);
+    if (!isFinite(n)) n = 0;
+    var full = Math.round(n).toLocaleString('fa-IR');
     var u = (unit == null) ? 'ریال' : String(unit || '');
-    var suffix = u ? ' ' + u : '';
-    var body;
-    /* مرزها با پیش‌گرد سازگارند: اگر بیش از 999.5 میلیون شد به میلیارد ارتقا،
-       تا 999.5×۱۰⁹ به میلیارد؛ بالاتر با کامای فارسی «N میلیارد». */
-    if (abs < 1e6) {
-      body = Math.round(abs).toLocaleString('en-US');
-    } else if (abs < 999.5e6) {
-      var m = abs / 1e6;
-      body = trimZero(m.toFixed(m >= 100 ? 0 : 1)) + ' میلیون';
-    } else if (abs < 999.5e9) {
-      var b = abs / 1e9;
-      body = trimZero(b.toFixed(b >= 100 ? 0 : 1)) + ' میلیارد';
-    } else {
-      var bb = Math.round(abs / 1e9);
-      body = bb.toLocaleString('en-US') + ' میلیارد';
-    }
-    return sign + faDigits(body) + suffix;
+    return u ? full + ' ' + u : full;
   };
-  /* نسخهٔ HTML با <small class="unit"> جدا — مناسب کارت‌های KPI که واحد را
-     با استایل کوچک‌تر می‌خواهیم. عدد کامل روی attribute title (tooltip) قرار
-     می‌گیرد تا اطلاعات دقیق برای accessibility و کاربر پیشرفته حفظ شود. */
+  /* نسخهٔ HTML برای کارت‌های KPI — v34.7.98 (FINHUB-UX-A2 بازخورد کارفرما):
+     همیشه عدد کامل ریالی نمایش داده می‌شود (نه فشرده «میلیون/میلیارد»)، ولی
+     با ساختار مناسب برای کارت‌های کوچک: عدد در <span dir="ltr"> با کاما فارسی،
+     واحد در <small class="unit"> جدا و کوچک‌تر. اگر عدد در کارت جا نشد،
+     CSS با nowrap + ellipsis (…) می‌کند و عدد کامل روی attr title باقی می‌ماند.
+     بدون فشرده‌سازی — تصمیم کارفرما: کماکان به ریال. */
   window.ptfMoneyCompactHtml = function (v, unit) {
     var n = ptfNum(v);
-    if (!isFinite(n)) return '';
-    var full = (unit === '') ? Math.round(n).toLocaleString('fa-IR') : Math.round(n).toLocaleString('fa-IR') + ' ' + (unit == null ? 'ریال' : unit);
-    var short = window.ptfMoneyCompact(n, '');   /* بدون واحد اصلی */
+    if (!isFinite(n)) n = 0;
     var u = (unit == null) ? 'ریال' : String(unit || '');
-    var unitHtml = u ? '<small class="unit" style="font-size:62%;color:#94a3b8;font-weight:700;margin-right:4px">' + u + '</small>' : '';
-    return '<span title="' + full.replace(/"/g, '&quot;') + '">' + short + unitHtml + '</span>';
+    var full = Math.round(n).toLocaleString('fa-IR');
+    var titleTxt = u ? full + ' ' + u : full;
+    var unitHtml = u ? '<small class="unit" style="font-size:62%;color:#94a3b8;font-weight:700;margin-right:4px;-webkit-text-fill-color:#94a3b8;background:none">' + u + '</small>' : '';
+    return '<span title="' + titleTxt.replace(/"/g, '&quot;') + '"><span dir="ltr" style="unicode-bidi:embed">' + full + '</span>' + unitHtml + '</span>';
   };
 
   /* ---------- راهنمای «به حروف» زیر فیلد ---------- */
