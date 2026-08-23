@@ -120,6 +120,7 @@ var SUITE = [
   { g: 'فضای ابری/صف آپلود مجدد', f: '_tools/uat/tester497-v34.7.95-reupload-queue.js' },
   { g: 'مالی/مطالبات و OPEX ماهانه', f: '_tools/uat/tester498-v34.7.98-ar-opex-reconcile.js' },
   { g: 'مالی/مالکیت وصول و حقوق سروری', f: '_tools/uat/tester499-v34.7.98-server-salary-case-owner.js' },
+  { g: 'پیشنهاد/تاریخ اعتبار مودال', f: '_tools/uat/tester500-v34.7.99-offer-validity-visible.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

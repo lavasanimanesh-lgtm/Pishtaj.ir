@@ -61,18 +61,23 @@
     var anchor = document.getElementById('ofValidJ');
     if (anchor) {
       var wrap = anchor.closest('.fr');
-      var fld = wrap ? wrap.querySelector('.fld:last-child') : null;
-      if (fld && !fld.querySelector('select')) {
-        fld.innerHTML = selHtml;
-        wrap.insertAdjacentHTML('afterend', fxRefRowHtml());
+      if (wrap) {
+        /* v34.7.99 BUG-OFFER-VALIDITY-001:
+           ردیف «قالب چاپ / اعتبار پیشنهاد» هر دو ستون واقعی دارد. منطق قدیمی
+           آخرین .fld را به خیال ستون خالی با innerHTML جایگزین می‌کرد و در نتیجه
+           خودِ #ofValidJ پس از ۵۰ms از DOM حذف می‌شد. ارز را همیشه در ردیف مستقل
+           درج می‌کنیم تا date picker، مقدار و handlerهای آن دست‌نخورده بمانند. */
+        wrap.insertAdjacentHTML('afterend', '<div class="fr offer-currency-row"><div class="fld">' + selHtml + '</div></div>' + fxRefRowHtml());
         return;
       }
     }
-    /* TC یا ساختار متفاوت: ردیف جدید بعد از ردیفِ تاریخ سند */
+    /* TC قدیمی یا ساختار متفاوت: ردیف جدید بعد از ردیفِ تاریخ سند */
     var dt = document.getElementById('ofDateJ');
     var row = dt ? dt.closest('.fr') : null;
-    if (row) row.insertAdjacentHTML('afterend', '<div class="fr"><div class="fld">' + selHtml + '</div><div class="fld"></div></div>' + fxRefRowHtml());
+    if (row) row.insertAdjacentHTML('afterend', '<div class="fr offer-currency-row"><div class="fld">' + selHtml + '</div></div>' + fxRefRowHtml());
   }
+  /* hook نام‌دار برای wrapper فرم و تست رفتاری؛ تابع idempotent است و فقط یک بار ارز را می‌افزاید. */
+  window.ptfOfferInjectCurrencyField = injectCurrencyField;
   window.offerCurChanged = function (v) {
     _offState.currency = v;
     if (v === 'IRR') {
