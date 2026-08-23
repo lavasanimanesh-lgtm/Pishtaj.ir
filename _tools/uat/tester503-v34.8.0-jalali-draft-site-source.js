@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.0 — DATE-DRAFT-SITE-001
+/* v34.8.2 — DATE-DRAFT-SITE-001
    UAT/contract test for the unified Jalali day/month/year controls, outgoing
    letter draft lifecycle, and website RFQ source identity. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -77,6 +77,8 @@ try {
   var dayJ = dk.picker('dayJ', '۱۴۰۵/۰۶/۰۲');
   T('day picker مقدار ISO اولیه را در UI شمسی نشان می‌دهد', dayIso.indexOf('value="1405/06/02"') > -1 && dayIso.indexOf('data-calendar="jalali"') > -1);
   T('day picker مقدار شمسی اولیه را نیز بدون پاک‌شدن می‌پذیرد', dayJ.indexOf('value="1405/06/02"') > -1);
+  T('پنل روز به‌صورت fixed روی viewport باز می‌شود و وارد flow صفحه نمی‌شود',
+    hasAll(dayIso, ['data-datekit-float-width="280"', 'position:fixed', 'role="dialog"']));
 
   var monthHtml = dk.monthPicker('periodM', '۱۴۰۵-۶');
   var yearHtml = dk.yearPicker('periodY', '۱۴۰۵');
@@ -84,12 +86,44 @@ try {
   var emptyYearHtml = dk.yearPicker('periodYEmpty', '', { allowEmpty: true });
   T('month picker مقدار فنی hidden لاتین و برچسب دیداری فارسی دارد', monthHtml.indexOf('type="hidden" id="periodM" value="1405/06"') > -1 && monthHtml.indexOf('شهریور ۱۴۰۵') > -1);
   T('year picker مقدار فنی hidden و جدول‌محور دارد', yearHtml.indexOf('type="hidden" id="periodY" value="1405"') > -1 && yearHtml.indexOf('ptf-period-trigger') > -1);
+  T('پنل‌های ماه و سال نیز fixed هستند و ساختار فرم را جابه‌جا نمی‌کنند',
+    hasAll(monthHtml, ['data-datekit-float-width="330"', 'position:fixed', 'role="dialog"']) && hasAll(yearHtml, ['data-datekit-float-width="330"', 'position:fixed']));
+  T('جای‌گذاری شناور با viewport، بازشدن رو به بالا و reposition اسکرول/resize را پوشش می‌دهد',
+    hasAll(dateKitSrc, ['getBoundingClientRect', 'openAbove', "addEventListener('resize', _scheduleFloatingPosition)", "addEventListener('scroll', _scheduleFloatingPosition, true)"]));
   T('حالت خالی picker دوره برچسب معنایی همه ماه‌ها/همه سال‌ها دارد', emptyMonthHtml.indexOf('همه ماه‌ها') > -1 && emptyYearHtml.indexOf('همه سال‌ها') > -1);
   T('CSS شمسی و میلادی فونت‌های مستقل دارد', styles.length === 1 && /Vazirmatn/.test(styles[0].textContent) && /ptf-date-gregorian/.test(styles[0].textContent) && /Arial/.test(styles[0].textContent));
 
-  var panel = { style: { display: 'block' }, innerHTML: '', parentElement: null };
-  var label = { textContent: '' };
-  var trigger = { setAttribute: function () {} };
+  /* runtime viewport test: trigger نزدیک پایین صفحه است؛ پنل باید بدون تغییر flow
+     بالای trigger باز و سپس با کلیک دوباره بسته شود. */
+  var floatExpanded = '';
+  var floatTrigger = {
+    setAttribute: function (k, v) { if (k === 'aria-expanded') floatExpanded = v; },
+    getBoundingClientRect: function () { return { top: 700, bottom: 730, right: 980, left: 760 }; }
+  };
+  var floatRoot = { querySelector: function (sel) { return sel === '[data-datekit-action="show"]' ? floatTrigger : null; } };
+  var floatBox = {
+    style: { display: 'none' }, innerHTML: '', parentElement: floatRoot, scrollHeight: 300, offsetHeight: 300,
+    getAttribute: function (k) { return k === 'data-datekit-float-width' ? '280' : (k === 'data-datekit-cal' ? 'floatRuntime' : ''); }
+  };
+  ids.floatRuntime = { value: '1405/06/02' }; ids.floatRuntime_cal = floatBox;
+  sb.innerWidth = 1000; sb.innerHeight = 760;
+  document.querySelectorAll = function (sel) { return sel === '[data-datekit-cal]' ? [floatBox] : []; };
+  dk.show('floatRuntime');
+  T('runtime: تقویم نزدیک پایین viewport رو به بالا و در محدوده صفحه باز می‌شود',
+    floatBox.style.display === 'block' && parseInt(floatBox.style.top, 10) < 700 && parseInt(floatBox.style.left, 10) >= 8 && floatBox.style.visibility === 'visible' && floatExpanded === 'true', floatBox.style);
+  dk.show('floatRuntime');
+  T('runtime: کلیک دوباره پنل شناور را می‌بندد و aria-expanded را برمی‌گرداند', floatBox.style.display === 'none' && floatExpanded === 'false');
+  document.querySelectorAll = function () { return []; };
+
+  var panel = {
+    style: { display: 'none' }, innerHTML: '', parentElement: null, scrollHeight: 260, offsetHeight: 260,
+    getAttribute: function (k) { return k === 'data-datekit-float-width' ? '330' : ''; }
+  };
+  var label = { textContent: '' }, periodExpanded = '';
+  var trigger = {
+    setAttribute: function (k, v) { if (k === 'aria-expanded') periodExpanded = v; },
+    getBoundingClientRect: function () { return { top: 700, bottom: 730, right: 980, left: 650 }; }
+  };
   var root = {
     attrs: { 'data-datekit-period': 'periodRuntime', 'data-datekit-period-kind': 'month', 'data-datekit-period-year': '1405', 'data-datekit-period-empty-label': 'همه ماه‌ها' },
     getAttribute: function (k) { return this.attrs[k] || ''; },
@@ -109,6 +143,7 @@ try {
     attrs['data-datekit-period-action'] = name;
     return {
       getAttribute: function (k) { return attrs[k] == null ? '' : String(attrs[k]); },
+      setAttribute: function (k, v) { attrs[k] = String(v); if (name === 'show' && k === 'aria-expanded') periodExpanded = String(v); },
       closest: function (sel) {
         if (sel === '[data-datekit-period-action]') return this;
         if (sel === '[data-datekit-period]') return root;
@@ -117,6 +152,9 @@ try {
     };
   }
   var clickHandlers = listeners.click || [];
+  clickHandlers.forEach(function (fn) { fn({ target: action('show') }); });
+  T('runtime: پنل دوره نیز روی viewport و بدون تغییر flow رو به بالا باز می‌شود',
+    panel.style.display === 'block' && parseInt(panel.style.top, 10) < 700 && panel.style.visibility === 'visible' && periodExpanded === 'true', panel.style);
   clickHandlers.forEach(function (fn) { fn({ target: action('year', { 'data-year': '1406' }) }); });
   T('month picker پس از انتخاب سال، جدول ۱۲ ماه فارسی را می‌سازد', root.attrs['data-datekit-period-year'] === '1406' && hasAll(panel.innerHTML, ['فروردین', 'شهریور', 'اسفند']));
   clickHandlers.forEach(function (fn) { fn({ target: action('month', { 'data-month': '7' }) }); });
@@ -204,6 +242,6 @@ T('هنگام approve متادیتای مبدأ سایت حفظ می‌شود', 
 T('API زمان ثبت سایت را با قالب پایدار Y-m-d H:i می‌نویسد', read('api/crm.php').indexOf("date('Y-m-d H:i')") > -1);
 
 T('tester503 در گیت CI ثبت شده است', gate.indexOf('tester503-v34.8.0-jalali-draft-site-source.js') > -1);
-console.log('\n— tester503 (v34.8.0: تاریخ شمسی، پیش‌نویس، مبدأ سایت) —');
+console.log('\n— tester503 (v34.8.2: تاریخ شمسی، پیش‌نویس، مبدأ سایت) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
