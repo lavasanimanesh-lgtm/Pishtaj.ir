@@ -64,6 +64,9 @@
     '.ptf-date-jalali,.ptf-date-jalali input,.ptf-date-jalali button,[data-calendar="jalali"]{font-family:Vazirmatn,"IRANYekan","IRANSans",Tahoma,sans-serif!important}' +
     '.ptf-date-gregorian,[data-calendar="gregorian"],input[type="date"]{font-family:Arial,"Segoe UI",sans-serif!important;font-variant-numeric:tabular-nums}' +
     '[data-datekit-cal],[data-datekit-period-panel]{direction:rtl;font-family:Vazirmatn,"IRANYekan","IRANSans",Tahoma,sans-serif!important}' +
+    /* پنل‌های روز/ماه/سال روی viewport شناورند؛ بنابراین بازشدن تقویم هیچ فضایی
+       در flow فرم، جدول یا دیالوگ اشغال نمی‌کند و چیدمان صفحه جابه‌جا نمی‌شود. */
+    '[data-datekit-cal],[data-datekit-period-panel]{position:fixed!important;margin:0!important;z-index:4300!important;box-sizing:border-box;max-height:calc(100vh - 16px);overflow:auto;overscroll-behavior:contain}' +
     '.ptf-period-trigger{width:100%;min-height:42px;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 11px;border:1.5px solid #e2e8f0;border-radius:10px;background:var(--crd,#fff);color:var(--tx,#1e293b);cursor:pointer;font:inherit}' +
     '.ptf-period-trigger:hover{border-color:#0e7490}.ptf-period-grid{display:grid;gap:6px}.ptf-period-grid.years{grid-template-columns:repeat(3,1fr)}.ptf-period-grid.months{grid-template-columns:repeat(3,1fr)}' +
     '.ptf-period-cell{border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;padding:8px 4px;cursor:pointer;font:inherit;font-size:12px}.ptf-period-cell:hover{border-color:#0e7490;background:#f0f9ff}.ptf-period-cell.is-selected{background:#0e7490;color:#fff;border-color:#0e7490}' +
@@ -270,10 +273,10 @@
     return '<div class="ptf-date-jalali" style="position:relative;display:block;width:100%" data-datekit-picker="' + escAttr(id) + '" data-calendar="jalali" lang="fa">' +
       '<input type="text" id="' + escAttr(id) + '" data-datekit-input="jalali" data-calendar="jalali" value="' + escAttr(initial) + '" placeholder="' + escAttr(ph) + '" inputmode="numeric" autocomplete="off" style="direction:ltr;color:#0e7490;width:100%;padding:9px 11px;border:1.5px solid #e2e8f0;border-radius:10px;font-family:Vazirmatn,IRANYekan,IRANSans,Tahoma,sans-serif;font-size:13.5px;box-sizing:border-box">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">' +
-        '<button type="button" data-datekit-action="show" style="background:#f8fafc;border:1px solid var(--brd);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:#0e7490">📅 انتخاب از تقویم</button>' +
+        '<button type="button" data-datekit-action="show" aria-haspopup="dialog" aria-expanded="false" style="background:#f8fafc;border:1px solid var(--brd);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:#0e7490">📅 انتخاب از تقویم</button>' +
         '<button type="button" data-datekit-action="today" style="background:#fff;border:1px dashed var(--brd);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11.5px;color:#64748b">امروز</button>' +
       '</div>' +
-      '<div id="' + escAttr(id) + '_cal" data-datekit-cal="' + escAttr(id) + '" style="display:none;position:relative;margin-top:6px;z-index:200;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px;box-shadow:0 12px 34px rgba(0,0,0,.10);width:100%;max-width:280px"></div></div>';
+      '<div id="' + escAttr(id) + '_cal" data-datekit-cal="' + escAttr(id) + '" data-datekit-float-width="280" role="dialog" aria-label="تقویم شمسی" style="display:none;position:fixed;z-index:4300;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px;box-shadow:0 12px 34px rgba(0,0,0,.16);width:280px;max-width:calc(100vw - 16px);overflow:auto"></div></div>';
   }
 
   /* ارتقای input موجود به تقویم شمسی، برای فرم‌های قدیمی که بازنویسی کامل HTML
@@ -307,12 +310,14 @@
     var controls = document.createElement('div');
     controls.style.cssText = opts.compact ? 'display:flex;justify-content:flex-end;margin-top:3px' : 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap';
     controls.innerHTML = opts.compact
-      ? '<button type="button" data-datekit-action="show" title="انتخاب تاریخ از تقویم شمسی" aria-label="انتخاب تاریخ از تقویم شمسی" style="background:#f8fafc;border:1px solid var(--brd);border-radius:7px;padding:2px 7px;cursor:pointer;font-size:12px;color:#0e7490">📅</button>'
-      : '<button type="button" data-datekit-action="show" style="background:#f8fafc;border:1px solid var(--brd);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:#0e7490">📅 انتخاب از تقویم</button><button type="button" data-datekit-action="today" style="background:#fff;border:1px dashed var(--brd);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11.5px;color:#64748b">امروز</button>';
+      ? '<button type="button" data-datekit-action="show" title="انتخاب تاریخ از تقویم شمسی" aria-label="انتخاب تاریخ از تقویم شمسی" aria-haspopup="dialog" aria-expanded="false" style="background:#f8fafc;border:1px solid var(--brd);border-radius:7px;padding:2px 7px;cursor:pointer;font-size:12px;color:#0e7490">📅</button>'
+      : '<button type="button" data-datekit-action="show" aria-haspopup="dialog" aria-expanded="false" style="background:#f8fafc;border:1px solid var(--brd);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:12px;color:#0e7490">📅 انتخاب از تقویم</button><button type="button" data-datekit-action="today" style="background:#fff;border:1px dashed var(--brd);border-radius:8px;padding:5px 10px;cursor:pointer;font-size:11.5px;color:#64748b">امروز</button>';
     root.appendChild(controls);
     var cal = document.createElement('div');
     cal.id = id + '_cal'; cal.setAttribute('data-datekit-cal', id);
-    cal.style.cssText = 'display:none;position:' + (opts.compact ? 'absolute' : 'relative') + ';' + (opts.compact ? 'top:100%;right:0;' : 'margin-top:6px;') + 'z-index:1200;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px;box-shadow:0 12px 34px rgba(0,0,0,.10);width:280px;max-width:min(280px,90vw)';
+    cal.setAttribute('data-datekit-float-width', '280');
+    cal.setAttribute('role', 'dialog'); cal.setAttribute('aria-label', 'تقویم شمسی');
+    cal.style.cssText = 'display:none;position:fixed;z-index:4300;background:#fff;border:1px solid var(--brd);border-radius:12px;padding:10px;box-shadow:0 12px 34px rgba(0,0,0,.16);width:280px;max-width:calc(100vw - 16px);overflow:auto';
     root.appendChild(cal);
     return input;
   }
@@ -332,7 +337,7 @@
     return '<div class="ptf-date-jalali" data-datekit-period="' + escAttr(id) + '" data-datekit-period-kind="' + (yearOnly ? 'year' : 'month') + '" data-datekit-period-year="' + selectedYear + '" data-datekit-period-empty-label="' + escAttr(emptyLabel) + '" data-calendar="jalali" lang="fa" style="position:relative;width:100%">' +
       '<input type="hidden" id="' + escAttr(id) + '" value="' + escAttr(selected) + '" data-calendar="jalali">' +
       '<button type="button" class="ptf-period-trigger" data-datekit-period-action="show" aria-haspopup="dialog" aria-expanded="false"><span data-datekit-period-label>' + label + '</span><span aria-hidden="true">📅</span></button>' +
-      '<div data-datekit-period-panel style="display:none;position:relative;margin-top:6px;z-index:220;background:var(--crd,#fff);border:1px solid var(--brd,#e2e8f0);border-radius:12px;padding:10px;box-shadow:0 12px 34px rgba(0,0,0,.12);width:100%;max-width:330px"></div>' +
+      '<div data-datekit-period-panel data-datekit-float-width="330" role="dialog" aria-label="انتخاب دوره شمسی" style="display:none;position:fixed;z-index:4300;background:var(--crd,#fff);border:1px solid var(--brd,#e2e8f0);border-radius:12px;padding:10px;box-shadow:0 12px 34px rgba(0,0,0,.16);width:330px;max-width:calc(100vw - 16px);overflow:auto"></div>' +
       (opts.allowEmpty ? '<button type="button" data-datekit-period-action="clear" style="margin-top:5px;background:transparent;border:0;color:#64748b;cursor:pointer;font:inherit;font-size:11px">پاک‌کردن انتخاب / همه دوره‌ها</button>' : '') +
       '</div>';
   }
@@ -364,6 +369,88 @@
       Array.apply(null, Array(12)).map(function (_, i) { var y = start + i; return '<button type="button" class="ptf-period-cell' + (String(selected).slice(0, 4) === String(y) ? ' is-selected' : '') + '" data-datekit-period-action="year" data-year="' + y + '">' + faNum(y) + '</button>'; }).join('') + '</div>';
   }
 
+  /* ===================== لایهٔ شناور تقویم =====================
+     پنل‌ها position:fixed هستند و نسبت به trigger در viewport جای‌گذاری می‌شوند؛
+     پس نه ارتفاع فرم/جدول را تغییر می‌دهند و نه با بازشدن، دیالوگ را جابه‌جا می‌کنند.
+     در پایین viewport به‌صورت خودکار رو به بالا باز می‌شوند و در عرض‌های کوچک داخل
+     حاشیهٔ امن صفحه clamp می‌شوند. */
+  function _setExpanded(root, selector, expanded) {
+    if (!root || !root.querySelector) return;
+    var trigger = root.querySelector(selector);
+    if (trigger && trigger.setAttribute) trigger.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  }
+  function _closeCalendar(box) {
+    if (!box) return;
+    box.style.display = 'none';
+    _setExpanded(box.parentElement, '[data-datekit-action="show"]', false);
+  }
+  function _closePeriodPanel(panel) {
+    if (!panel) return;
+    panel.style.display = 'none';
+    _setExpanded(panel.parentElement, '[data-datekit-period-action="show"]', false);
+  }
+  function _positionFloating(panel, anchor) {
+    if (!panel || !anchor || typeof anchor.getBoundingClientRect !== 'function') return;
+    var docEl = document.documentElement || {};
+    var viewportW = window.innerWidth || docEl.clientWidth || 1024;
+    var viewportH = window.innerHeight || docEl.clientHeight || 768;
+    var margin = 8, gap = 6;
+    var preferred = +(panel.getAttribute && panel.getAttribute('data-datekit-float-width')) || 280;
+    var width = Math.min(preferred, Math.max(160, viewportW - margin * 2));
+    panel.style.width = width + 'px';
+    panel.style.maxWidth = Math.max(160, viewportW - margin * 2) + 'px';
+    panel.style.right = 'auto';
+    panel.style.visibility = 'hidden';
+
+    var rect = anchor.getBoundingClientRect();
+    var naturalHeight = Math.min(panel.scrollHeight || panel.offsetHeight || 300, Math.max(96, viewportH - margin * 2));
+    var below = Math.max(0, viewportH - margin - rect.bottom - gap);
+    var above = Math.max(0, rect.top - margin - gap);
+    var openAbove = naturalHeight > below && above > below;
+    var available = openAbove ? above : below;
+    var maxHeight = Math.min(viewportH - margin * 2, Math.max(96, available || viewportH - margin * 2));
+    panel.style.maxHeight = Math.floor(maxHeight) + 'px';
+
+    var actualHeight = Math.min(panel.scrollHeight || panel.offsetHeight || naturalHeight, maxHeight);
+    var top = openAbove ? rect.top - gap - actualHeight : rect.bottom + gap;
+    var left = rect.right - width; /* هم‌ترازی لبهٔ راست برای UI راست‌به‌چپ */
+    top = Math.max(margin, Math.min(top, viewportH - margin - actualHeight));
+    left = Math.max(margin, Math.min(left, viewportW - margin - width));
+    panel.style.top = Math.round(top) + 'px';
+    panel.style.left = Math.round(left) + 'px';
+    panel.style.visibility = 'visible';
+  }
+  function _positionCalendar(inputId) {
+    var box = document.getElementById(inputId + '_cal');
+    var input = document.getElementById(inputId);
+    if (!box || box.style.display !== 'block') return;
+    var root = box.parentElement;
+    var trigger = root && root.querySelector ? root.querySelector('[data-datekit-action="show"]') : null;
+    _positionFloating(box, trigger || input);
+  }
+  function _positionPeriod(root) {
+    if (!root || !root.querySelector) return;
+    var panel = root.querySelector('[data-datekit-period-panel]');
+    var trigger = root.querySelector('[data-datekit-period-action="show"]');
+    if (panel && panel.style.display === 'block') _positionFloating(panel, trigger);
+  }
+  var _floatPositionQueued = false;
+  function _repositionOpenPanels() {
+    _floatPositionQueued = false;
+    document.querySelectorAll('[data-datekit-cal]').forEach(function (box) {
+      if (box.style.display === 'block') _positionCalendar(box.getAttribute('data-datekit-cal'));
+    });
+    document.querySelectorAll('[data-datekit-period]').forEach(function (root) { _positionPeriod(root); });
+  }
+  function _scheduleFloatingPosition() {
+    if (_floatPositionQueued) return;
+    _floatPositionQueued = true;
+    if (window.requestAnimationFrame) window.requestAnimationFrame(_repositionOpenPanels);
+    else _repositionOpenPanels();
+  }
+  if (window.addEventListener) window.addEventListener('resize', _scheduleFloatingPosition);
+  if (document.addEventListener) document.addEventListener('scroll', _scheduleFloatingPosition, true);
+
   function _set(inputId, j) {
     var el = document.getElementById(inputId);
     if (el) el.value = jNormalize(j) || j || '';
@@ -372,8 +459,9 @@
     var box = document.getElementById(inputId + '_cal');
     if (!box) return;
     var visible = box.style.display === 'block';
-    document.querySelectorAll('[data-datekit-cal]').forEach(function (c) { c.style.display = 'none'; });
-    if (visible) { box.style.display = 'none'; return; }
+    document.querySelectorAll('[data-datekit-cal]').forEach(_closeCalendar);
+    document.querySelectorAll('[data-datekit-period-panel]').forEach(_closePeriodPanel);
+    if (visible) return;
     var rawVal = (document.getElementById(inputId) || {}).value || '';
     var val = jNormalize(rawVal) || todayJ();
     var parts = val.split('/');
@@ -381,13 +469,15 @@
     var jm = +parts[1] || +todayJ().split('/')[1];
     _render(box, inputId, jy, jm);
     box.style.display = 'block';
+    _setExpanded(box.parentElement, '[data-datekit-action="show"]', true);
+    _positionCalendar(inputId);
   }
   function _pick(inputId, jy, jm, jd) {
     var jStr = jy + '/' + pad(jm) + '/' + pad(jd);
     var el = document.getElementById(inputId);
     if (el) el.value = jStr;
     var box = document.getElementById(inputId + '_cal');
-    if (box) box.style.display = 'none';
+    if (box) _closeCalendar(box);
     var faEl = document.getElementById(inputId + 'Fa');
     if (faEl) faEl.textContent = '✓ ' + jStr;
     var iso = jToIso(jStr);
@@ -446,6 +536,7 @@
     var box = document.getElementById(inputId + '_cal');
     if (!box) return;
     _render(box, inputId, jy, jm);
+    _positionCalendar(inputId);
   }
   function _pickToday(inputId) {
     var j = todayJ();
@@ -546,7 +637,7 @@
     var clickedRoot = e.target.closest && e.target.closest('[data-datekit-period]');
     if (!periodEl) {
       document.querySelectorAll('[data-datekit-period-panel]').forEach(function (panel) {
-        if (!clickedRoot || panel.parentElement !== clickedRoot) panel.style.display = 'none';
+        if (!clickedRoot || panel.parentElement !== clickedRoot) _closePeriodPanel(panel);
       });
       return;
     }
@@ -558,35 +649,42 @@
     if (!panel || !input) return;
     if (action === 'show') {
       var opening = panel.style.display === 'none' || !panel.style.display;
-      panel.style.display = opening ? 'block' : 'none';
-      periodEl.setAttribute('aria-expanded', opening ? 'true' : 'false');
-      if (opening) renderPeriod(root, 'years', +(root.getAttribute('data-datekit-period-year') || todayJ().slice(0, 4)));
+      document.querySelectorAll('[data-datekit-period-panel]').forEach(function (other) {
+        if (other !== panel) _closePeriodPanel(other);
+      });
+      document.querySelectorAll('[data-datekit-cal]').forEach(_closeCalendar);
+      if (!opening) { _closePeriodPanel(panel); return; }
+      renderPeriod(root, 'years', +(root.getAttribute('data-datekit-period-year') || todayJ().slice(0, 4)));
+      panel.style.display = 'block';
+      periodEl.setAttribute('aria-expanded', 'true');
+      _positionPeriod(root);
     } else if (action === 'clear') {
-      input.value = ''; periodLabel(root, ''); panel.style.display = 'none';
+      input.value = ''; periodLabel(root, ''); _closePeriodPanel(panel);
       input.dispatchEvent(new Event('change', { bubbles: true }));
     } else if (action === 'year-page') {
       var anchor = +(root.getAttribute('data-datekit-period-anchor') || todayJ().slice(0, 4));
       renderPeriod(root, 'years', anchor + (+periodEl.getAttribute('data-delta') || 0));
+      _positionPeriod(root);
     } else if (action === 'years') {
       renderPeriod(root, 'years', +(root.getAttribute('data-datekit-period-year') || todayJ().slice(0, 4)));
+      _positionPeriod(root);
     } else if (action === 'year') {
       var year = yearNormalize(periodEl.getAttribute('data-year'));
       if (!year) return;
       root.setAttribute('data-datekit-period-year', year);
       if (root.getAttribute('data-datekit-period-kind') === 'year') {
-        input.value = year; periodLabel(root, year); panel.style.display = 'none';
-        var yearTrigger = root.querySelector('[data-datekit-period-action="show"]');
-        if (yearTrigger) yearTrigger.setAttribute('aria-expanded', 'false');
+        input.value = year; periodLabel(root, year); _closePeriodPanel(panel);
         input.dispatchEvent(new Event('change', { bubbles: true }));
-      } else renderPeriod(root, 'months', +year);
+      } else {
+        renderPeriod(root, 'months', +year);
+        _positionPeriod(root);
+      }
     } else if (action === 'month') {
       var month = +periodEl.getAttribute('data-month');
       var pickedYear = yearNormalize(root.getAttribute('data-datekit-period-year'));
       if (!pickedYear || month < 1 || month > 12) return;
       var monthValue = pickedYear + '/' + pad(month);
-      input.value = monthValue; periodLabel(root, monthValue); panel.style.display = 'none';
-      var monthTrigger = root.querySelector('[data-datekit-period-action="show"]');
-      if (monthTrigger) monthTrigger.setAttribute('aria-expanded', 'false');
+      input.value = monthValue; periodLabel(root, monthValue); _closePeriodPanel(panel);
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }
   });
@@ -629,7 +727,7 @@
     var pickerEl = _resolvePickerEl(e);
     document.querySelectorAll('[data-datekit-cal]').forEach(function (c) {
       if (pickerEl && pickerEl === c.parentElement) return;  // کلیک در picker هم‌جنس → cal فعلی باز بماند
-      c.style.display = 'none';
+      _closeCalendar(c);
     });
   });
 
