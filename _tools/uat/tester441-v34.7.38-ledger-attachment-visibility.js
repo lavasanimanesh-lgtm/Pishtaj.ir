@@ -60,7 +60,11 @@ assert.ok(cf.indexOf("cfMergeOwnerFiles(i.files, 'invoice'") > -1);
 assert.ok(cf.indexOf("cfMergeOwnerFiles(p.files, 'receipt'") > -1);
 
 var version = JSON.parse(fs.readFileSync('VERSION.json', 'utf8')).crm_version;
-assert.ok(/^v34\.7\.(?:3[8-9]|[4-9]\d|\d{3,})$/.test(version), 'release must retain ledger-attachment fix');
+var semver = /^v(\d+)\.(\d+)\.(\d+)$/.exec(version);
+assert.ok(semver && (Number(semver[1]) > 34 ||
+  (Number(semver[1]) === 34 && (Number(semver[2]) > 7 ||
+    (Number(semver[2]) === 7 && Number(semver[3]) >= 38)))),
+'release must retain ledger-attachment fix');
 var current = version.slice(1);
 ['crm/index.html', 'crm/sw.js', 'crm/manifest.json', 'crm/clear-cache.html', 'crm/shell.js'].forEach(function (file) {
   assert.ok(fs.readFileSync(file, 'utf8').indexOf(current) > -1, file + ' version drift');

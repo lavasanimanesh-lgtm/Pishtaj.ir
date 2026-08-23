@@ -12,7 +12,7 @@ var dd = read('crm/dedup.js');
 var off = read('crm/offers.js');
 var ver = JSON.parse(read('VERSION.json'));
 
-T('VERSION.json = v34.7.96', ver.crm_version === 'v34.7.96', ver.crm_version);
+T('VERSION.json = v34.8.0', ver.crm_version === 'v34.8.0', ver.crm_version);
 T('امضای ptfKnownInqList() بدون پارامتر مانده (tester202)', /function ptfKnownInqList\(\) \{/.test(dd));
 T('ptfInqBelongsToCustomer تعریف شده', /function ptfInqBelongsToCustomer\(inqOrRfq, buyerCd\)/.test(dd));
 T('ptfInqNoOptions آرگومان buyerCd دارد', /function ptfInqNoOptions\(cur, buyerCd\)/.test(dd));

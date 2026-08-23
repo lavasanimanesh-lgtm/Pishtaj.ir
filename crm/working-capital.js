@@ -319,9 +319,9 @@
     if (!canManage()) { alert('⛔ تنظیم سال مالی فقط برای مدیر سیستم یا رییس هیات مدیره مجاز است.'); return; }
     var c = config();
     ptfDialog({ title: '⚙️ تنظیم سال مالی گزارش رسمی', body: 'تاریخ‌ها باید شمسی باشند. تغییر تنظیمات هیچ فاکتور، پرداخت یا چکی را جابه‌جا نمی‌کند؛ فقط بازهٔ گزارش را تعیین می‌کند.', fields: [
-      { id: 'year', label: 'نام/کد سال مالی', type: 'text', value: c.fiscalYear, required: true, dir: 'ltr', placeholder: '1405' },
-      { id: 'start', label: 'شروع سال مالی (شمسی)', type: 'text', value: c.startFa, required: true, dir: 'ltr', placeholder: '1405/01/01' },
-      { id: 'end', label: 'پایان سال مالی (شمسی)', type: 'text', value: c.endFa, required: true, dir: 'ltr', placeholder: '1405/12/29' }
+      { id: 'year', label: 'سال مالی شمسی', type: 'year', value: c.fiscalYear, required: true },
+      { id: 'start', label: 'شروع سال مالی (شمسی)', datePicker: true, value: c.startFa, required: true },
+      { id: 'end', label: 'پایان سال مالی (شمسی)', datePicker: true, value: c.endFa, required: true }
     ], okText: 'ذخیره تنظیمات', onOk: function (v) {
       var year = String(v.year || '').trim(), startFa = String(v.start || '').trim(), endFa = String(v.end || '').trim();
       var startISO = typeof ptfJToISO === 'function' ? ptfJToISO(startFa) : '', endISO = typeof ptfJToISO === 'function' ? ptfJToISO(endFa) : '';

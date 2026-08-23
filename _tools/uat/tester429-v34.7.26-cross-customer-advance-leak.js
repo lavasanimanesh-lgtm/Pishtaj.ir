@@ -131,9 +131,10 @@ function baseDb() {
   T('F2-B هیچ نقشهٔ پرونده‌ای بدون گارد کلید تهی نمانده (ar-reconcile)',
     ar.indexOf('myCases[idOf(c)] = true') < 0);
   T('F2-D الگوی ناامن یافتن پیشنهاد در rbac.js حذف شده',
-    rb.indexOf('filter(function (x) { return x.no === offerNo; })') < 0);
-  T('F2-D همهٔ مسیرهای پیشنهاد در rbac.js گارد شمارهٔ تهی دارند',
-    (rb.match(/String\(x\.no \|\| ''\) === String\(offerNo\)/g) || []).length === 6, (rb.match(/String\(x\.no \|\| ''\) === String\(offerNo\)/g) || []).length);
+    rb.indexOf('filter(function (x) { return x.no === offerNo; })') < 0 &&
+    rb.indexOf('filter(function (x) { return x.no === inv.offerNo; })') < 0);
+  T('F2-D همهٔ پنج مسیر باقی‌ماندهٔ پیشنهاد در rbac.js گارد شمارهٔ تهی دارند',
+    (rb.match(/String\(x\.no \|\| ''\) === String\(offerNo\)/g) || []).length === 5, (rb.match(/String\(x\.no \|\| ''\) === String\(offerNo\)/g) || []).length);
   T('F2-A گارد سرور: offerNo تهی هرگز به پرونده وصل نمی‌شود',
     php.indexOf("if($offerNo==='')continue;") > -1 && php.indexOf('invoice_case_bind_ambiguous') > -1);
   T('F2-A تطبیق چندگانه ⇒ انتساب انجام نمی‌شود',

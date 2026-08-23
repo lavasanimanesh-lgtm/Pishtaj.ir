@@ -51,7 +51,7 @@
       '<div><label>نوع لایسنس</label><select id="tlType"><option value="single_report">تک‌گزارش</option><option value="subscription">اشتراک</option><option value="enterprise">سازمانی</option><option value="staff_internal">پرسنل داخلی</option></select></div>' +
       '<div><label>ابزار</label><select id="tlTool"><option value="control_valve_advanced">Control Valve Advanced</option><option value="all">همه ابزارها</option><option value="piping_advanced">Piping Advanced</option><option value="pump_selection">Pump Selection</option><option value="flowmeter_orifice">Flowmeter / Orifice</option><option value="electrical_engineering">Electrical</option><option value="instrumentation">Instrumentation</option></select></div>' +
       '<div><label>سقف گزارش</label><input id="tlMax" type="number" min="1" max="9999" value="1"></div>' +
-      '<div><label>انقضا</label><input id="tlExp" type="date" value="' + todayPlus(90) + '"></div>' +
+      '<div><label>انقضا (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('tlExp', todayPlus(90)) : '<input id="tlExp" value="' + todayPlus(90) + '">') + '</div>' +
       '<div style="grid-column:1/-1"><label>یادداشت داخلی</label><input id="tlNote" placeholder="مثلاً RFQ فعال‌سازی / شماره فاکتور"></div>' +
       '</div>' +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="bt" onclick="ptfToolLicIssue()">صدور لایسنس</button><button class="bt bt-o" onclick="ptfToolLicIssueStaff()">صدور کد پرسنل داخلی</button><button class="bt bt-o" onclick="ptfToolLicLoad()">بازخوانی لیست</button></div>' +
@@ -70,10 +70,10 @@
       if (st) st.textContent = 'تعداد لایسنس‌ها: ' + (d.count || 0);
       var rows = (d.licenses || []).map(function (l) {
         var to = l.issuedTo || {};
-        return '<tr><td style="direction:ltr;text-align:left"><b>' + esc(l.licenseId) + '</b><br><small>' + esc(l.issuedAt || '') + '</small></td>' +
+        return '<tr><td style="direction:ltr;text-align:left"><b>' + esc(l.licenseId) + '</b><br><small class="ptf-date-gregorian" data-calendar="gregorian">' + esc(l.issuedAt || '') + '</small></td>' +
           '<td>' + esc(to.company || '-') + '<br><small>' + esc(to.contact || '') + '</small></td>' +
           '<td>' + toolLabel(l.tool) + '<br><small>' + typeLabel(l.type) + '</small></td>' +
-          '<td>' + (l.usedReports || 0) + ' / ' + (l.maxReports || 0) + '<br><small>' + esc(l.expiresAt || '-') + '</small></td>' +
+          '<td>' + (l.usedReports || 0) + ' / ' + (l.maxReports || 0) + '<br><small class="ptf-date-gregorian" data-calendar="gregorian">' + esc(l.expiresAt || '-') + '</small></td>' +
           '<td>' + pill(l.status) + '</td>' +
           '<td><button class="bt bt-o" style="font-size:11px;padding:4px 8px" onclick="ptfToolLicSetStatus(\'' + esc(l.licenseId) + '\',\'active\')">فعال</button> ' +
           '<button class="bt bt-o" style="font-size:11px;padding:4px 8px;color:#b45309" onclick="ptfToolLicSetStatus(\'' + esc(l.licenseId) + '\',\'suspended\')">تعلیق</button> ' +
@@ -90,7 +90,7 @@
       type: staff ? 'staff_internal' : ((document.getElementById('tlType') || {}).value || 'single_report'),
       tool: staff ? 'all' : ((document.getElementById('tlTool') || {}).value || 'control_valve_advanced'),
       maxReports: staff ? 9999 : +(((document.getElementById('tlMax') || {}).value) || 1),
-      expiresAt: staff ? '2099-12-31T23:59:59+03:30' : (((document.getElementById('tlExp') || {}).value) || todayPlus(90)) + 'T23:59:59+03:30',
+      expiresAt: staff ? '2099-12-31T23:59:59+03:30' : ((typeof ptfJToISO === 'function' ? ptfJToISO(((document.getElementById('tlExp') || {}).value) || '') : '') || ((document.getElementById('tlExp') || {}).value) || todayPlus(90)) + 'T23:59:59+03:30',
       note: ((document.getElementById('tlNote') || {}).value || '')
     };
   }

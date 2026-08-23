@@ -46,7 +46,7 @@
       fields: [
         { id: 'amt', label: 'مبلغ زیان (ریال)', type: 'number', required: true, dir: 'ltr' },
         { id: 'reason', label: 'دلیل زیان', type: 'select', options: opts },
-        { id: 'dt', label: 'تاریخ وقوع/ثبت', value: (typeof faDate === 'function' ? faDate() : ''), required: true, dir: 'ltr' },
+        { id: 'dt', label: 'تاریخ وقوع/ثبت (شمسی)', datePicker: true, value: (typeof faDate === 'function' ? faDate() : ''), required: true },
         { id: 'desc', label: 'شرح تکمیلی', type: 'textarea', rows: 2, required: true }
       ],
       okText: 'ثبت زیان', danger: true,

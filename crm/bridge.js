@@ -750,6 +750,7 @@
       (function(){
         var cr = r.crBy || '';
         var crAt = r.crAt || '';
+        if (r.src === 'site') return '<div style="font-size:12px;color:#0369a1;background:#e0f2fe;border:1px solid #bae6fd;border-radius:9px;padding:6px 9px;margin:-4px 0 10px">🌐 <b>ثبت‌شده از وب‌سایت</b>' + (r.siteSubmittedAt ? ' — ' + escP(r.siteSubmittedAt) : '') + '</div>';
         if (!cr && !crAt) return '<div style="font-size:12px;color:#94a3b8;margin:-4px 0 10px">📝 ثبت‌کننده: نامشخص (قدیمی)</div>';
         var nm = cr;
         try { var u2 = (getData('ptf_crm_users')||[]).filter(function(x){return x.username===cr||x.user===cr;})[0]; if(u2) nm=u2.name||u2.nm||cr; } catch(e){}
@@ -1259,7 +1260,10 @@
       /* v21.5 US-411ف1: نمایش ثبت‌کننده زیر کد درخواست */
       var crLine = '';
       try {
-        if (r.crBy || r.crAt) {
+        if (r.src === 'site') {
+          /* منبع سایت یک ثبت‌کنندهٔ انسانی ندارد؛ هرگز آن را legacy/نامشخص القا نکن. */
+          crLine = '<div style="font-size:10.5px;color:#0369a1;font-weight:800;margin-top:3px">🌐 ثبت‌شده از وب‌سایت' + (r.siteSubmittedAt ? ' — ' + escP(r.siteSubmittedAt) : '') + '</div>';
+        } else if (r.crBy || r.crAt) {
           var crName = userNm[r.crBy] || r.crBy || '';
           crLine = '<div style="font-size:10.5px;color:#64748b;margin-top:2px">📝 ثبت: ' + escP(crName || 'نامشخص') + (r.crAt ? ' — ' + escP(r.crAt) : '') + '</div>';
         } else {
@@ -1402,7 +1406,7 @@
       rfqs.unshift({
         cd: code, co: r.company, custCd: cust ? cust.cd : '', con: r.contact || '', ph: r.phone || '', ca: r.category || 'سایر',
         st: 'st1', stxt: 'مرحله ۱: دریافت اولیه', dt: new Date().toLocaleDateString('fa-IR'),
-        src: 'site',
+        src: 'site', siteSubmittedAt: r.date || r.createdAt || '', siteSourceCode: r.code || code,
         /* v14.7 + Sprint 283: metadata is preserved and a cloud object is added to normal CRM attachments. */
         subj: r.subject || '', inqText: r.message || '', email: r.email || '',
         msg: r.message || '', std: r.standard || '', vnd: r.vendors || '',

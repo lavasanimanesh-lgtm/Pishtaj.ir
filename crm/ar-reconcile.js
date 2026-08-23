@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — v34.7.18 — AR Reconcile Core (مطالبات: منبع واحد مانده و تسویه)
+   PTF CRM — v34.8.0 — AR Reconcile Core (مطالبات: منبع واحد مانده و تسویه)
    مرجع: ARENA-AR-RECEIPT-INTEGRATION-RCA-2026-08-16.md
 
    چرا این فایل وجود دارد:
@@ -100,15 +100,159 @@
     return map;
   }
 
+  /* ---------- مالک leak-safe پرونده/وصول ----------
+     پرونده‌های قدیمی الزاماً buyerCd ندارند. مالکیت را فقط از شواهدی می‌پذیریم که
+     به خود همان پرونده وصل‌اند: شناسهٔ صریح، پیشنهاد ریشه/برنده، فاکتور و Receipt.
+     اگر دو شناسهٔ متفاوت دیده شود هیچ‌کدام برنده نمی‌شود؛ این رفتار عمداً محافظه‌کار
+     است تا اعتبار یک مشتری به‌دلیل دادهٔ متعارض به مشتری دیگری نشت نکند. نام شرکت
+     فقط آخرین fallback است و فقط وقتی به دقیقاً یک customer یکتا برسد. */
+  function normalizePartyName(v) {
+    return String(v || '').replace(/[\u200c\u200e\u200f\s\-_.،,؛;]/g, '').toLowerCase();
+  }
+  function customerRecordId(c) { return String((c && (c._id || c.cd)) || '').trim(); }
+  /* cd قدیمی و _id سروریِ یک Customer دو مشتری نیستند. evidence ابتدا روی رکورد
+     Customer یکتا canonical می‌شود؛ در نتیجه Sync تدریجی باعث conflict کاذب یا
+     ناپدیدشدن اعتبار نمی‌شود. اگر یک alias واقعاً به چند رکورد بخورد، همهٔ مالک‌ها
+     candidate می‌مانند و resolver طبق قاعدهٔ leak-safe آن را ambiguous می‌کند. */
+  function customerCandidatesForId(value, customers) {
+    var raw = String(value || '').trim(); if (!raw) return [];
+    var found = {};
+    (customers || []).forEach(function (c) {
+      if (!c) return;
+      if (String(c._id || '').trim() !== raw && String(c.cd || '').trim() !== raw) return;
+      var canonical = customerRecordId(c); if (canonical) found[canonical] = true;
+    });
+    var ids = Object.keys(found);
+    return ids.length ? ids : [raw];
+  }
+  function sameCustomerId(left, right, customers) {
+    var a = customerCandidatesForId(left, customers), b = customerCandidatesForId(right, customers);
+    /* alias مشترک بین چند Customer خودش مبهم است و حتی با مقایسهٔ ظاهراً برابر
+       نباید حساب‌های آن رکوردها را با هم جمع کند. */
+    return a.length === 1 && b.length === 1 && a[0] === b[0];
+  }
+  function caseOfferRefs(c) {
+    var ids = {}, nos = {};
+    [c && c.rootOfferId].forEach(function (v) { v = String(v || '').trim(); if (v) ids[v] = true; });
+    [c && c.wonOffer, c && c.offerNo].forEach(function (v) { v = String(v || '').trim(); if (v) nos[v] = true; });
+    ((c && c.linkedOffers) || []).forEach(function (l) {
+      if (!l) return;
+      var id = String(l.offerId || l._id || '').trim(), no = String(l.offerNo || l.no || '').trim();
+      if (id) ids[id] = true; if (no) nos[no] = true;
+    });
+    return { ids: ids, nos: nos };
+  }
+  function offerLinkedToCase(o, refs) {
+    if (!o) return false;
+    var oid = String(o._id || o.cd || '').trim(), no = String(o.no || '').trim();
+    return !!((oid && refs.ids[oid]) || (no && refs.nos[no]));
+  }
+  function resolveCaseCustomer(caseOrId, scope) {
+    scope = scope || {};
+    var cases = Array.isArray(scope.cases) ? scope.cases : list('ptf_crm_deals');
+    var offers = Array.isArray(scope.offers) ? scope.offers : list('ptf_crm_offers');
+    var invoices = Array.isArray(scope.invoices) ? scope.invoices : list('ptf_crm_invoices');
+    var receipts = Array.isArray(scope.receipts) ? scope.receipts : list('ptf_crm_case_receipts');
+    var customers = Array.isArray(scope.customers) ? scope.customers : list('ptf_crm_customers');
+    var c = caseOrId;
+    if (!c || typeof c !== 'object') {
+      var wanted = String(caseOrId || '');
+      c = cases.filter(function (x) { return x && wanted && (String(x._id || '') === wanted || String(x.cd || '') === wanted); })[0] || null;
+    }
+    if (!c) return { status: 'unresolved', customerId: '', bound: 'case-not-found', candidates: [], evidence: {} };
+
+    var aliases = {}, candidates = {}, evidence = {}, names = {};
+    [c._id, c.cd].forEach(function (v) { v = String(v || '').trim(); if (v) aliases[v] = true; });
+    function addId(v, source) {
+      customerCandidatesForId(v, customers).forEach(function (id) {
+        candidates[id] = true; (evidence[id] = evidence[id] || []).push(source);
+      });
+    }
+    function addName(v, source) {
+      var k = normalizePartyName(v); if (!k) return;
+      (names[k] = names[k] || []).push(source);
+    }
+
+    addId(c.buyerCd, 'case'); addId(c.customerId, 'case'); addName(c.buyerCo || c.customerName, 'case');
+    var refs = caseOfferRefs(c), linkedOffers = offers.filter(function (o) { return activeRec(o) && offerLinkedToCase(o, refs); });
+    linkedOffers.forEach(function (o) { addId(o.buyerCd, 'offer'); addId(o.customerId, 'offer'); addName(o.buyerCo || o.customerName, 'offer'); });
+    invoices.forEach(function (i) {
+      if (!activeInvoice(i)) return;
+      var storedCase = aliases[String(i.caseId || '')];
+      var offerNo = String(i.offerNo || '').trim(), uniqueOfferBind = false;
+      if (!storedCase && !String(i.caseId || '').trim() && offerNo && refs.nos[offerNo]) {
+        var matchingCases = cases.filter(function (candidate) { return activeRec(candidate) && caseOfferRefs(candidate).nos[offerNo]; });
+        uniqueOfferBind = matchingCases.length === 1 && !!aliases[idOf(matchingCases[0])];
+      }
+      if (!storedCase && !uniqueOfferBind) return;
+      addId(i.customerId, 'invoice'); addId(i.buyerCd, 'invoice'); addName(i.buyerCo || i.customerName, 'invoice');
+    });
+    receipts.forEach(function (r) {
+      if (!activeReceipt(r) || !aliases[String(r.caseId || '')]) return;
+      addId(r.customerId, 'receipt'); addId(r.buyerCd, 'receipt'); addName(r.buyerCo || r.customerName, 'receipt');
+    });
+
+    var ids = Object.keys(candidates);
+    if (ids.length > 1) return { status: 'ambiguous', customerId: '', bound: 'conflicting-identifiers', candidates: ids.sort(), evidence: evidence };
+    if (ids.length === 1) {
+      var sources = evidence[ids[0]] || [], bound = sources.indexOf('case') > -1 ? 'case' : (sources.indexOf('offer') > -1 ? 'offer' : 'case-document');
+      return { status: 'resolved', customerId: ids[0], bound: bound, candidates: ids, evidence: evidence };
+    }
+
+    var nameKeys = Object.keys(names);
+    if (!nameKeys.length) return { status: 'unresolved', customerId: '', bound: 'no-evidence', candidates: [], evidence: evidence };
+    var owners = {};
+    customers.forEach(function (customer) {
+      var id = customerRecordId(customer); if (!id) return;
+      [customer.co || customer.name, customer.coEn].forEach(function (v) {
+        var k = normalizePartyName(v); if (k && names[k]) owners[id] = true;
+      });
+    });
+    var ownerIds = Object.keys(owners);
+    /* چند نام متفاوت در اسناد همان پرونده فقط وقتی قابل قبول است که هر کدام واقعاً
+       alias همان customer یکتا باشد؛ نام ناشناخته کنار نام شناخته‌شده نادیده گرفته نمی‌شود. */
+    var allNamesMappedToOnlyOwner = ownerIds.length === 1 && nameKeys.every(function (nameKey) {
+      return customers.some(function (customer) {
+        if (customerRecordId(customer) !== ownerIds[0]) return false;
+        return [customer.co || customer.name, customer.coEn].some(function (v) { return normalizePartyName(v) === nameKey; });
+      });
+    });
+    if (allNamesMappedToOnlyOwner) return { status: 'resolved', customerId: ownerIds[0], bound: 'unique-name', candidates: ownerIds, evidence: evidence };
+    if (ownerIds.length || nameKeys.length > 1) return { status: 'ambiguous', customerId: '', bound: 'ambiguous-name', candidates: ownerIds.sort(), evidence: evidence };
+    return { status: 'unresolved', customerId: '', bound: 'name-not-found', candidates: [], evidence: evidence };
+  }
+
   /* ---------- بازسازی محلی تخصیص FIFO (آینهٔ sd_rebuild_allocations) ----------
      فقط محاسبه در حافظه؛ خروجی نقشهٔ invoiceKey → {base, vat} و بستانکاری هر رسید. */
+  /* بعضی Receiptهای بسیار قدیمی هیچ‌کدام از cd/_id را ندارند. کلید '' برای همهٔ
+     آن‌ها مشترک بود و اعتبار آخرین رسید روی بقیه می‌افتاد. fingerprint فقط fallback
+     است؛ اگر دو ردیف واقعاً یکسان باشند، پایین‌تر جمع/تعداد نگه می‌داریم تا مجموع
+     اعتبارشان دقیق بماند و هیچ مبلغی به‌علت collision حذف یا دوباره‌شماری نشود. */
+  function anonymousReceiptKey(r) {
+    return JSON.stringify([
+      String((r && r.caseId) || ''), String((r && r.customerId) || ''), Math.round(n(r && (r.amountIRR || r.amt))),
+      String((r && (r.receivedAt || r.dateISO || r.t || r.dateFa)) || ''),
+      String((r && (r.referenceNo || r.refNo || r.trackingNo)) || ''),
+      String((r && (r.method || r.how || r.bankAccount || r.createdAt || r.by)) || '')
+    ]);
+  }
   function computeAllocations(scope) {
     var cases = (scope && scope.cases) || list('ptf_crm_deals');
+    var offers = (scope && scope.offers) || list('ptf_crm_offers');
+    var customers = (scope && scope.customers) || list('ptf_crm_customers');
     var invoices = (scope && scope.invoices) || list('ptf_crm_invoices');
     var receipts = (scope && scope.receipts) || list('ptf_crm_case_receipts');
-    var byCaseInv = {}, byCaseRcp = {}, invAlloc = {}, rcpCredit = {}, binding = {};
+    var byCaseInv = {}, byCaseRcp = {}, invAlloc = {}, rcpCredit = {}, rcpCreditAnon = {}, binding = {}, caseOwners = {}, caseOwnerAliases = {};
     var alias = caseAliasMap(cases);
     function canon(id) { var k = String(id || ''); return alias[k] || k; }
+
+    var ownerScope = { cases: cases, offers: offers, invoices: invoices, receipts: receipts, customers: customers };
+    cases.forEach(function (c) {
+      var cid = idOf(c); if (!cid) return;
+      var owner = resolveCaseCustomer(c, ownerScope);
+      caseOwners[cid] = owner;
+      [c._id, c.cd].forEach(function (v) { var k = String(v || ''); if (k) caseOwnerAliases[k] = owner; });
+    });
 
     invoices.forEach(function (i) {
       if (!activeInvoice(i)) return;
@@ -145,20 +289,54 @@
             if (vatRoom > 0) { var t2 = Math.min(available, vatRoom); cur.vat += t2; available -= t2; }
           }
         });
-        rcpCredit[idOf(r)] = available;
+        var receiptId = idOf(r);
+        if (receiptId) rcpCredit[receiptId] = available;
+        else {
+          var anonKey = anonymousReceiptKey(r);
+          var bucket = rcpCreditAnon[anonKey] || (rcpCreditAnon[anonKey] = { total: 0, count: 0 });
+          bucket.total += available; bucket.count++;
+        }
       });
     });
-    return { invAlloc: invAlloc, rcpCredit: rcpCredit, binding: binding };
+    return { invAlloc: invAlloc, rcpCredit: rcpCredit, rcpCreditAnon: rcpCreditAnon, binding: binding, caseOwners: caseOwners, caseOwnerAliases: caseOwnerAliases };
   }
 
-  var _cache = null, _cacheAt = 0;
+  var _cache = null, _cacheSignature = '';
+  /* TTL به‌تنهایی باعث می‌شد Sync/ویرایش همان لحظه تا ۱٫۵ ثانیه مالک قبلی را نشان دهد.
+     signature باید Offers و Customers را هم ببیند، چون هر دو در resolve مالک legacy
+     دخیل‌اند. JSON کامل عمداً انتخاب شده تا حذف رکورد یا تغییر فیلدهای nested نیز cache
+     را بی‌درنگ باطل کند؛ محاسبهٔ FIFO فقط وقتی signature واقعاً عوض شود تکرار می‌شود. */
+  function allocationSignature() {
+    try {
+      return JSON.stringify([
+        list('ptf_crm_deals'), list('ptf_crm_offers'), list('ptf_crm_customers'),
+        list('ptf_crm_invoices'), list('ptf_crm_case_receipts')
+      ]);
+    } catch (e) { return String(Date.now()) + ':' + Math.random(); }
+  }
   function snapshot(force) {
-    var now = Date.now();
-    if (!force && _cache && now - _cacheAt < 1500) return _cache;
-    _cache = computeAllocations(); _cacheAt = now;
+    var sig = allocationSignature();
+    if (!force && _cache && sig === _cacheSignature) return _cache;
+    _cache = computeAllocations(); _cacheSignature = sig;
     return _cache;
   }
-  function invalidate() { _cache = null; _cacheAt = 0; }
+  function invalidate() { _cache = null; _cacheSignature = ''; }
+  function receiptFreeCreditIRR(r, snap) {
+    snap = snap || snapshot();
+    var key = idOf(r);
+    if (key && Object.prototype.hasOwnProperty.call(snap.rcpCredit, key)) return Math.max(0, n(snap.rcpCredit[key]));
+    if (!key && r && String(r.caseId || '')) {
+      var anon = snap.rcpCreditAnon && snap.rcpCreditAnon[anonymousReceiptKey(r)];
+      /* ردیف‌های کاملاً همسان و بی‌شناسه از هم قابل تفکیک نیستند؛ سهم میانگین باعث
+         می‌شود reduce همان scope، جمع واقعی bucket را دقیقاً یک‌بار بازسازی کند. */
+      if (anon && anon.count) return Math.max(0, n(anon.total) / anon.count);
+    }
+    /* رسید customer-level/legacy که caseId ندارد اصلاً قابل تخصیص FIFO نیست؛ پس کل
+       مبلغ آن آزاد است، حتی اگر projection مشتق‌شدهٔ قدیمی صفر/ناقص مانده باشد. */
+    if (!r || !String(r.caseId || '')) return Math.max(0, n(r && (r.amountIRR || r.amt)));
+    if (r.creditRemainIRR != null && r.creditRemainIRR !== '') return Math.max(0, n(r.creditRemainIRR));
+    return Math.max(0, n(r.amountIRR || r.amt));
+  }
 
   /* ---------- مرجوعی فروش (LC-02) — منبع واحد ----------
      همان قاعدهٔ مقاوم customer-finance.js (نسخهٔ v33.12.0) این‌جا متمرکز شده تا سود،
@@ -174,15 +352,16 @@
   }
   function salesReturnsForInvoice(inv) {
     if (!inv) return [];
-    var cd = inv.cd, no = inv.no, offerNo = inv.offerNo;
+    var aliases = {}; [inv._id, inv.cd].forEach(function (v) { var k = String(v || ''); if (k) aliases[k] = true; });
+    var no = inv.no, offerNo = inv.offerNo;
     return list('ptf_crm_sales_returns').filter(function (r) {
       if (!r || statusOf(r) === 'void') return false;
-      if (cd && r.invoiceCd && String(r.invoiceCd) === String(cd)) return true;
+      if (r.invoiceCd && aliases[String(r.invoiceCd)]) return true;
       if (r.invoiceCd) return false;
       if (no && r.invoiceNo && String(r.invoiceNo) === String(no)) return true;
       if (offerNo && r.offerNo && String(r.offerNo) === String(offerNo)) {
         var single = invoiceOfOfferUnique(offerNo);
-        return !!single && String(single.cd) === String(cd);
+        return !!single && !!aliases[idOf(single)];
       }
       return false;
     });
@@ -200,6 +379,11 @@
   function invoiceState(inv, snap) {
     snap = snap || snapshot();
     var caps = invoiceCaps(inv);
+    var returnedRaw = Math.max(0, returnedAmountIRR(inv));
+    /* مرجوعی هیچ‌گاه مبلغ خالص سند را منفی نمی‌کند. مقدار خام جدا نگه داشته می‌شود
+       تا دادهٔ ناسالم (مرجوعی بیش از فاکتور) در ممیزی قابل تشخیص بماند. */
+    var returned = Math.min(caps.amount, returnedRaw);
+    var netBilled = Math.max(0, caps.amount - returned);
     var stored = { base: n(inv && inv.allocatedBase), vat: n(inv && inv.allocatedVat) };
     var local = snap.invAlloc[idOf(inv)] || { base: 0, vat: 0 };
     /* اگر پروجکشن سرور نرسیده باشد (R6)، مقدار محلی بیشتر است و همان ملاک نمایش می‌شود
@@ -207,16 +391,18 @@
     var allocated = Math.max(stored.base + stored.vat, local.base + local.vat);
     var stale = Math.abs((stored.base + stored.vat) - (local.base + local.vat)) > 1;
     var legacy = legacyPaidIRR(inv);
-    /* paid سقف‌گذاری نمی‌شود تا «اضافه‌پرداخت» مثل قبل به‌عنوان اعتبار مشتری دیده شود؛
-       فقط open کف صفر دارد (رفتار قبلی customer-finance/rbac دقیقاً همین بود). */
+    /* paid مبلغ خام تخصیص‌یافته/میراثی است و سقف‌گذاری نمی‌شود؛ applied بخشی است که
+       واقعاً سند خالص را تسویه کرده و مازاد دقیقاً یک‌بار در overPaid می‌آید. */
     var paid = legacy + allocated;
+    var applied = Math.min(netBilled, paid);
     return {
       id: idOf(inv), no: (inv && (inv.no || inv.cd)) || '', caseId: (snap.binding[idOf(inv)] || {}).caseId || String((inv && inv.caseId) || ''),
       caseBinding: (snap.binding[idOf(inv)] || {}).bound || 'stored',
-      active: activeInvoice(inv), billed: caps.amount, base: caps.base, vat: caps.vat,
+      active: activeInvoice(inv), grossBilled: caps.amount, returned: returned, returnedRaw: returnedRaw,
+      billed: netBilled, base: caps.base, vat: caps.vat,
       legacyPaid: legacy, allocatedStored: stored.base + stored.vat, allocatedLocal: local.base + local.vat,
-      allocated: allocated, paid: paid, open: Math.max(0, caps.amount - paid),
-      overPaid: Math.max(0, paid - caps.amount), stale: stale
+      allocated: allocated, paid: paid, applied: applied, open: Math.max(0, netBilled - paid),
+      overPaid: Math.max(0, paid - netBilled), stale: stale
     };
   }
   function invoicePaidIRR(inv) { return invoiceState(inv).paid; }
@@ -230,50 +416,113 @@
     var receipts = list('ptf_crm_case_receipts').filter(function (r) { return activeReceipt(r) && aliases[String(r.caseId || '')]; });
     var invoices = list('ptf_crm_invoices').filter(function (i) { return activeInvoice(i) && (snap.binding[idOf(i)] || {}).caseId === cid; });
     var received = receipts.reduce(function (s, r) { return s + n(r.amountIRR || r.amt); }, 0);
-    var credit = receipts.reduce(function (s, r) {
-      var localCredit = snap.rcpCredit[idOf(r)];
-      return s + (localCredit == null ? n(r.creditRemainIRR) : localCredit);
+    var freeReceiptCredit = receipts.reduce(function (s, r) {
+      return s + receiptFreeCreditIRR(r, snap);
     }, 0);
-    var open = invoices.reduce(function (s, i) { return s + invoiceState(i, snap).open; }, 0);
-    return { caseId: cid, received: received, allocated: Math.max(0, received - credit), credit: credit, open: open, receipts: receipts, invoices: invoices };
+    var totals = { grossBilled: 0, returned: 0, billed: 0, paid: 0, applied: 0, open: 0, overPaid: 0 };
+    invoices.forEach(function (i) {
+      var st = invoiceState(i, snap);
+      Object.keys(totals).forEach(function (k) { totals[k] += n(st[k]); });
+    });
+    var credit = freeReceiptCredit + totals.overPaid;
+    return {
+      caseId: cid, grossBilled: totals.grossBilled, returned: totals.returned, billed: totals.billed,
+      paid: totals.paid, applied: totals.applied, open: totals.open, overPaid: totals.overPaid,
+      received: received, allocated: Math.max(0, received - freeReceiptCredit),
+      freeReceiptCredit: freeReceiptCredit, credit: credit,
+      net: Math.max(0, totals.open - credit), netCredit: Math.max(0, credit - totals.open),
+      receipts: receipts, invoices: invoices
+    };
   }
 
   /* ---------- وضعیت مشتری ---------- */
+  function resolveOrphanInvoiceCustomer(i, offers, customers) {
+    var candidates = {}, names = {}, direct = String(i.customerId || i.buyerCd || '').trim();
+    function addId(v) { customerCandidatesForId(v, customers).forEach(function (id) { candidates[id] = true; }); }
+    [i.customerId, i.buyerCd].forEach(addId);
+    function addName(v) { var k = normalizePartyName(v); if (k) names[k] = true; }
+    addName(i.buyerCo || i.customerName);
+    var ino = String(i.offerNo || '').trim();
+    if (ino) (offers || []).forEach(function (o) {
+      if (!o || !activeRec(o) || String(o.no || '') !== ino) return;
+      addId(o.buyerCd); addId(o.customerId);
+      addName(o.buyerCo || o.customerName);
+    });
+    var ids = Object.keys(candidates);
+    if (ids.length === 1) return { status: 'resolved', customerId: ids[0], bound: direct ? 'invoice' : 'offer' };
+    if (ids.length > 1) return { status: 'ambiguous', customerId: '', bound: 'conflicting-identifiers' };
+    var nameKeys = Object.keys(names), owners = {};
+    (customers || []).forEach(function (c) {
+      var cid = customerRecordId(c); if (!cid) return;
+      if ([c.co || c.name, c.coEn].some(function (v) { return !!names[normalizePartyName(v)]; })) owners[cid] = true;
+    });
+    var ownerIds = Object.keys(owners);
+    var safeName = ownerIds.length === 1 && nameKeys.length && nameKeys.every(function (nameKey) {
+      return (customers || []).some(function (c) {
+        return customerRecordId(c) === ownerIds[0] && [c.co || c.name, c.coEn].some(function (v) { return normalizePartyName(v) === nameKey; });
+      });
+    });
+    return safeName ? { status: 'resolved', customerId: ownerIds[0], bound: 'unique-name' }
+      : { status: ownerIds.length || nameKeys.length > 1 ? 'ambiguous' : 'unresolved', customerId: '', bound: 'name' };
+  }
+  function invoiceOwner(i, snap, offers, customers) {
+    var b = (snap.binding[idOf(i)] || {}).caseId;
+    if (b) return snap.caseOwners[b] || snap.caseOwnerAliases[b] || { status: 'unresolved', customerId: '' };
+    return resolveOrphanInvoiceCustomer(i, offers, customers);
+  }
   function customerInvoices(cd) {
-    var snap = snapshot();
-    var offers = list('ptf_crm_offers');
-    var cases = list('ptf_crm_deals');
-    var myCases = {};
-    /* v34.7.26 (S3/F2-B): کلید تهی وارد نقشه نمی‌شود؛ پروندهٔ بدون _id/cd نباید باعث شود
-       هر رکورد بدون caseId به این مشتری نسبت داده شود. */
-    cases.forEach(function (c) { if (!c || String(c.buyerCd || '') !== String(cd)) return; var k = idOf(c); if (k) myCases[k] = true; });
+    var snap = snapshot(), wanted = String(cd || '');
+    var offers = list('ptf_crm_offers'), customers = list('ptf_crm_customers');
     return list('ptf_crm_invoices').filter(function (i) {
       if (!activeInvoice(i)) return false;
-      if (String(i.customerId || i.buyerCd || '') === String(cd)) return true;
-      var b = (snap.binding[idOf(i)] || {}).caseId;
-      if (b && myCases[b]) return true;
-      /* v34.7.26 (S3/F2-D): تطبیق پیشنهاد فقط با شمارهٔ ناتهی (پیش‌تر ''==='' مالکیت را جابه‌جا می‌کرد). */
-      var ino = String(i.offerNo || ''); if (!ino) return false;
-      var o = offers.filter(function (x) { return x && String(x.no || '') === ino; })[0];
-      return !!(o && String(o.buyerCd || '') === String(cd));
+      /* resolver پرونده خود customerId فاکتور را هم جزو evidence می‌بیند؛ در نتیجه
+         تعارض فاکتور با پیشنهاد/پرونده block می‌شود و هیچ مشتری برندهٔ حدسی نیست. */
+      var owner = invoiceOwner(i, snap, offers, customers);
+      return owner.status === 'resolved' && sameCustomerId(owner.customerId, wanted, customers);
     });
   }
-  function customerPosition(cd) {
-    var snap = snapshot();
-    var invoices = customerInvoices(cd);
-    var billed = 0, paid = 0, open = 0;
-    invoices.forEach(function (i) { var st = invoiceState(i, snap); billed += st.billed; paid += st.paid; open += st.open; });
-    var myCases = {};
-    list('ptf_crm_deals').forEach(function (c) { if (!c || String(c.buyerCd || '') !== String(cd)) return; var k = idOf(c); if (k) myCases[k] = true; });
-    var credit = list('ptf_crm_case_receipts').reduce(function (s, r) {
-      if (!activeReceipt(r)) return s;
-      var rk = String(r.caseId || '');
-      if (String(r.customerId || '') !== String(cd) && !(rk && myCases[rk])) return s;
-      var localCredit = snap.rcpCredit[idOf(r)];
-      return s + (localCredit == null ? n(r.creditRemainIRR) : localCredit);
-    }, 0);
-    return { customerCd: cd, billed: billed, paid: paid, open: open, credit: credit,
-      net: Math.max(0, open - credit), netCredit: Math.max(0, credit - open), invoices: invoices.length };
+  /**
+   * وضعیت مشتری. opts.invoices یک scope از قبل احرازشده می‌پذیرد تا UI بتواند قواعد
+   * visibility و fallback نام یکتای legacy را حفظ کند، بدون آن‌که فرمول مالی را تکرار کند.
+   */
+  function customerPosition(cd, opts) {
+    opts = opts || {};
+    var snap = snapshot(), wanted = String(cd || '');
+    var offers = list('ptf_crm_offers'), customers = list('ptf_crm_customers');
+    var invoices = Array.isArray(opts.invoices) ? opts.invoices.filter(function (i) {
+      if (!activeInvoice(i)) return false;
+      var owner = invoiceOwner(i, snap, offers, customers);
+      return owner.status === 'resolved' && sameCustomerId(owner.customerId, wanted, customers);
+    }) : customerInvoices(cd);
+    var totals = { grossBilled: 0, returned: 0, billed: 0, paid: 0, applied: 0, open: 0, overPaid: 0 };
+    invoices.forEach(function (i) {
+      var st = invoiceState(i, snap);
+      Object.keys(totals).forEach(function (k) { totals[k] += n(st[k]); });
+    });
+    var received = 0, freeReceiptCredit = 0, receiptCount = 0;
+    list('ptf_crm_case_receipts').forEach(function (r) {
+      if (!activeReceipt(r)) return;
+      var rk = String(r.caseId || ''), owner = null;
+      if (rk) owner = snap.caseOwnerAliases[rk] || snap.caseOwners[rk] || null;
+      else owner = resolveOrphanInvoiceCustomer(r, offers, customers);
+      if (!owner || owner.status !== 'resolved' || !sameCustomerId(owner.customerId, wanted, customers)) return;
+      var amount = n(r.amountIRR || r.amt);
+      received += amount;
+      freeReceiptCredit += receiptFreeCreditIRR(r, snap);
+      receiptCount++;
+    });
+    /* اعتبار آزاد Receipt و اضافه‌پرداخت فاکتور دو جزء مستقل‌اند. مبلغ تخصیص‌یافته
+       Receipt اعتبار آزاد نیست و مرجوعی/اضافه‌پرداخت نیز دوباره در Receipt شمرده نمی‌شود. */
+    var credit = freeReceiptCredit + totals.overPaid;
+    return {
+      customerCd: cd,
+      grossBilled: totals.grossBilled, returned: totals.returned, billed: totals.billed,
+      paid: totals.paid, applied: totals.applied, open: totals.open, overPaid: totals.overPaid,
+      received: received, allocated: Math.max(0, received - freeReceiptCredit),
+      freeReceiptCredit: freeReceiptCredit, credit: credit,
+      net: Math.max(0, totals.open - credit), netCredit: Math.max(0, credit - totals.open),
+      invoices: invoices.length, receipts: receiptCount
+    };
   }
 
   /* ---------- گزارش تسویه (فاز ۰) — فقط‌خواندنی ---------- */
@@ -295,6 +544,7 @@
     var snap = snapshot(true);
     var invoices = list('ptf_crm_invoices');
     var receipts = list('ptf_crm_case_receipts');
+    var offers = list('ptf_crm_offers'), customers = list('ptf_crm_customers');
     var findings = [];
     function push(cat, sev, ref, label, amount, extra) {
       findings.push(Object.assign({ category: cat, categoryLabel: CATEGORIES[cat] || cat, severity: sev, ref: ref, label: label, amount: n(amount) }, extra || {}));
@@ -349,10 +599,11 @@
     var byCustomer = {};
     receipts.forEach(function (r) {
       if (!activeReceipt(r)) return;
-      var credit = snap.rcpCredit[idOf(r)] == null ? n(r.creditRemainIRR) : snap.rcpCredit[idOf(r)];
+      var credit = receiptFreeCreditIRR(r, snap);
       if (credit <= 0) return;
-      var cd = String(r.customerId || '');
-      byCustomer[cd] = (byCustomer[cd] || 0) + credit;
+      var rk = String(r.caseId || ''), owner = rk ? (snap.caseOwnerAliases[rk] || snap.caseOwners[rk]) : resolveOrphanInvoiceCustomer(r, offers, customers);
+      var cd = owner && owner.status === 'resolved' ? String(owner.customerId || '') : '';
+      if (cd) byCustomer[cd] = (byCustomer[cd] || 0) + credit;
     });
     Object.keys(byCustomer).forEach(function (cd) {
       if (!cd) return;
@@ -366,20 +617,22 @@
   }
 
   W.PTF.ar = {
-    version: 'v34.7.18',
+    version: 'v34.8.0',
     activeInvoice: activeInvoice, activeReceipt: activeReceipt,
     invoiceCaps: invoiceCaps, legacyPaidIRR: legacyPaidIRR,
     computeAllocations: computeAllocations, snapshot: snapshot, invalidate: invalidate,
+    receiptFreeCreditIRR: receiptFreeCreditIRR,
     invoiceState: invoiceState, invoicePaidIRR: invoicePaidIRR, invoiceOpenIRR: invoiceOpenIRR,
     salesReturnsForInvoice: salesReturnsForInvoice, returnedAmountIRR: returnedAmountIRR,
     invoiceNetAfterReturnsIRR: invoiceNetAfterReturnsIRR,
     caseState: caseState, customerInvoices: customerInvoices, customerPosition: customerPosition,
-    resolveCaseIdOfInvoice: resolveCaseIdOfInvoice, reconcile: reconcile, CATEGORIES: CATEGORIES
+    resolveCaseCustomer: resolveCaseCustomer, resolveCaseIdOfInvoice: resolveCaseIdOfInvoice,
+    reconcile: reconcile, CATEGORIES: CATEGORIES
   };
 })();
 
 /* =====================================================================
-   PTF CRM — v34.7.18 — رابط کاربری گزارش تسویهٔ مطالبات (فاز ۰)
+   PTF CRM — v34.8.0 — رابط کاربری گزارش تسویهٔ مطالبات (فاز ۰)
    فقط‌خواندنی: هیچ رکوردی از این پنجره تغییر نمی‌کند مگر ابزار «اتصال به پرونده»
    که صریحاً توسط کاربر و فقط برای تطبیق یکتا اجرا می‌شود.
    ===================================================================== */

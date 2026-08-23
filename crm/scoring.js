@@ -191,7 +191,7 @@
         { id: 'pay', label: 'نحوه تسویه', type: 'select', value: p.pay || 'credit', options: [
           { v: 'credit', lb: '🧾 اعتباری / غیرنقدی (مرحله‌ای)' }, { v: 'cash', lb: '💵 نقدی (تسویه فوری)' }
         ]},
-        { id: 'dueISO', label: 'تاریخ تعهد تحویل (میلادی/شمسی)', type: 'text', value: p.dueISO || '', dir: 'ltr' },
+        { id: 'dueISO', label: 'تاریخ تعهد تحویل (شمسی)', type: 'date', value: p.dueISO || '' },
         { id: 'dueNote', label: 'یادداشت تعهد تحویل', type: 'text', value: p.dueNote || '' }
       ],
       okText: 'ذخیره تغییرات',

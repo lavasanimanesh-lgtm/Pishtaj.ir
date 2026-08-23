@@ -561,6 +561,15 @@
   };
 
   /* ---- ثبت دسته‌ای از جدول + چاپ یک‌جا (خواسته اصلی کارفرما) ---- */
+  function chEnhanceBatchDates() {
+    if (!window.DateKit || typeof DateKit.enhanceInput !== 'function') return;
+    var seq = window._chBatchDateSeq || 0;
+    document.querySelectorAll('#chBatchBody .chB_due').forEach(function (el) {
+      if (!el.id) el.id = 'chBatchDue' + (++seq);
+      DateKit.enhanceInput(el.id, { compact: true, placeholder: '۱۴۰۵/۰۴/۲۱' });
+    });
+    window._chBatchDateSeq = seq;
+  }
   window.chBatchFillOpen = function () {
     var z = (typeof ptfTopZIndex === 'function') ? ptfTopZIndex(2600) : 2600;
     var rows = '';
@@ -591,6 +600,7 @@
       '<button type="button" class="bt" onclick="chBatchCommit(true)">✅ ثبت و چاپ همه</button>' +
       '</span></div></div></div>';
     (document.body || document.getElementById('panels')).insertAdjacentHTML('beforeend', html);
+    chEnhanceBatchDates();
   };
   window.chBatchAddRows = function () {
     var tb = document.getElementById('chBatchBody'); if (!tb) return;
@@ -604,6 +614,7 @@
         '<td><input class="chB_note" type="text" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px"></td></tr>';
     }
     tb.insertAdjacentHTML('beforeend', html);
+    chEnhanceBatchDates();
   };
   function chBatchCollect() {
     var dues = document.querySelectorAll('#chBatchBody .chB_due');

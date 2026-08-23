@@ -35,7 +35,7 @@ T('CSV جمع ورودی/خروجی/خالص را در انتهای فایل م�
 /* رفتار واقعی print mode با استخراج وابستگی‌های حداقلی */
 global.curSession=function(){return{user:'u1',name:'User One'};};
 global.faDate=function(){return'1405/05/24';};global.escP=function(v){return String(v==null?'':v);};
-global.letSafeBodyHtml=function(v){return v;};global.letSignerEn=function(){return'User One';};global.letRoleEn=function(){return'Manager';};global.letFaDigits=function(v){return v;};global.letAutoSize=function(){return 14;};
+global.letSafeBodyHtml=function(v){return v;};global.letSignerEn=function(){return'User One';};global.letRoleEn=function(){return'Manager';};global.letFaDigits=function(v){return v;};global.letAutoSize=function(){return 14;};global.letEmbeddedFontCss=function(){return'';};
 global.sigProfiles=function(){return{u1:{nm:'کاربر یک',role:'مدیر',sig:'data:image/png;base64,SIG',stamp:'data:image/png;base64,STAMP'}};};
 global._printed='';global.ptfPreviewPrintableDoc=function(t,h,n){global._printed=h;global._printName=n;};
 global.LETTER_FONT_FA='Tahoma';global.LETTER_FONT_EN='Arial';

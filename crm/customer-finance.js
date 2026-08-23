@@ -15,7 +15,23 @@
     var st = String(v.status || v.st || '').toLowerCase();
     return ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'].indexOf(st) < 0 && v.void !== true && v.voided !== true;
   }
-  function cust(cd) { return getData('ptf_crm_customers').filter(function (c) { return c.cd === cd; })[0]; }
+  function cfCustomerCandidates(value) {
+    var raw = String(value || '').trim(); if (!raw) return [];
+    var found = {};
+    (getData('ptf_crm_customers') || []).forEach(function (c) {
+      if (!c || (String(c._id || '').trim() !== raw && String(c.cd || '').trim() !== raw)) return;
+      var canonical = String(c._id || c.cd || '').trim(); if (canonical) found[canonical] = true;
+    });
+    var ids = Object.keys(found);
+    return ids.length ? ids : [raw];
+  }
+  function cfSameCustomerId(left, right) {
+    var a = cfCustomerCandidates(left), b = cfCustomerCandidates(right);
+    /* alias تکراری میان چند Customer مبهم است و نباید حتی با برابری رشته‌ای باعث
+       ادغام دو دفتر مشتری شود. */
+    return a.length === 1 && b.length === 1 && a[0] === b[0];
+  }
+  function cust(cd) { return getData('ptf_crm_customers').filter(function (c) { return cfSameCustomerId(c._id || c.cd, cd); })[0]; }
   function nameOf(c) { return (c && (c.co || c.name || c.cd)) || ''; }
   /* v34.7.26 (S3 / نشت بین‌مشتری): دو گارد اضافه شد و بقیهٔ رفتار دست‌نخورده ماند.
      F2-D — یافتن پیشنهاد فقط با شمارهٔ ناتهی (قبلاً x.no===i.offerNo با دو مقدار
@@ -36,13 +52,24 @@
       if (!c) return;
       [c.co || c.name, c.coEn].filter(Boolean).forEach(function (n) {
         var k = cfNormalizeName(n); if (!k) return;
+        var ownerId = String(c._id || c.cd || ''); if (!ownerId) return;
         map[k] = map[k] || {};
-        map[k][String(c.cd || '')] = true;
+        map[k][ownerId] = true;
       });
     });
     return map;
   }
   function invs(cd) {
+    /* ownership ابتدا با resolver واحد AR تعیین می‌شود؛ فیلتر نقش فقط visibility سند
+       است و حق ندارد با ORهای legacy فاکتور مشتری دیگر را وارد/فاکتور معتبر را حذف کند. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.customerInvoices === 'function') {
+      try {
+        return window.PTF.ar.customerInvoices(cd).filter(function (i) {
+          if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) return !i.isUnofficial;
+          return true;
+        });
+      } catch (eCanonicalInvoices) {}
+    }
     var offers = getData('ptf_crm_offers'), customer = cust(cd);
     var normalizeName = cfNormalizeName;
     var nameOwners = cfNameOwners();
@@ -53,7 +80,7 @@
       if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) { if (i.isUnofficial) return false; }
       var o = window.cfFindOfferByNo(i.offerNo, offers) || {};
       var invoiceCustomerName = normalizeName(i.buyerCo || o.buyerCo);
-      return (i.customerId || i.buyerCd || o.buyerCd) === cd || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
+      return cfSameCustomerId(i.customerId || i.buyerCd || o.buyerCd, cd) || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
     });
   }
   function isMigratedLegacyPayment(p) { return !!(p && (p.migratedToReceiptId || p.financialProjectionDisabled)); }
@@ -103,19 +130,29 @@
       return false;
     });
   }
-  function returnedAmount(invoice) { return salesReturnsForInvoice(invoice).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0); }
-  function creditAmountForInvoice(invoice) { return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0)); }
+  function returnedAmount(invoice) {
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.returnedAmountIRR === 'function') {
+      try { return window.PTF.ar.returnedAmountIRR(invoice); } catch (eArReturn) {}
+    }
+    return salesReturnsForInvoice(invoice).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0);
+  }
+  function creditAmountForInvoice(invoice) {
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try { return window.PTF.ar.invoiceState(invoice).overPaid; } catch (eArCredit) {}
+    }
+    return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0));
+  }
   function creditForCustomer(cd) {
     var legacy = invs(cd).reduce(function (s, i) { return s + creditAmountForInvoice(i); }, 0);
     /* v34.7.26 (S3/F2-B): کلید تهی هرگز وارد نقشه نمی‌شود؛ قبلاً یک پروندهٔ بدون _id و cd
        کلید '' را true می‌کرد و هر رسیدِ بدون caseId (حتی از مشتری دیگر) در بستانکاری این
        مشتری شمرده می‌شد. رسید بدون caseId فقط با customerId صریح پذیرفته می‌شود. */
     var cases = {};
-    (getData('ptf_crm_deals') || []).forEach(function (d) { if (!d || d.buyerCd !== cd) return; var k = String(d._id || d.cd || ''); if (k) cases[k] = true; });
+    (getData('ptf_crm_deals') || []).forEach(function (d) { if (!d || !cfSameCustomerId(d.buyerCd, cd)) return; [d._id, d.cd].forEach(function (v) { var k = String(v || ''); if (k) cases[k] = true; }); });
     var caseCredit = (getData('ptf_crm_case_receipts') || []).reduce(function (s, r) {
       if (!r || r.status !== 'posted' || r.voided) return s;
       var rk = String(r.caseId || '');
-      if (r.customerId !== cd && !(rk && cases[rk])) return s;
+      if (!cfSameCustomerId(r.customerId, cd) && !(rk && cases[rk])) return s;
       return s + (+r.creditRemainIRR || 0);
     }, 0);
     return legacy + caseCredit;
@@ -126,9 +163,17 @@
     var out=[];invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(p){if(!isMigratedLegacyPayment(p))return;var receipt=byId[String(p.migratedToReceiptId||'')]||byLegacy[String(p.cd||'')];out.push({invoiceCd:inv.cd,legacyPaymentCd:p.cd||'',receiptId:receipt?String(receipt._id||receipt.cd||''):'',ok:!!(receipt&&receipt.status==='posted'&&!receipt.voided),amount:+p.amt||+p.amount||0});});});return out;
   };
   function accountPosition(cd) {
+    /* v34.8.0: عددهای summary فقط از قرارداد canonical مطالبات می‌آیند. خود UI هنوز
+       scope نمایش را می‌سازد تا قواعد اسناد غیررسمی و fallback نام یکتای legacy حفظ شود. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.customerPosition === 'function') {
+      try {
+        var canonical = window.PTF.ar.customerPosition(cd, { invoices: invs(cd) });
+        return { balance: canonical.open, credit: canonical.credit, net: canonical.net, netCredit: canonical.netCredit,
+          received: canonical.received, allocated: canonical.allocated, freeReceiptCredit: canonical.freeReceiptCredit, overPaid: canonical.overPaid };
+      } catch (eArPosition) {}
+    }
     var open = bal(cd), credit = creditForCustomer(cd);
-    /* BUG-2026-08-01-001: مقادیر ناخالص (باز و اعتبار) و خالص هر دو برگردانده می‌شوند —
-       قبلاً netting باعث می‌شد مشتری با باز=اعتبار (مثل ۲۰۰/۲۰۰) «۰/۰» دیده شود و هر دو مقدار پنهان شوند. */
+    /* fallback فقط برای بارگذاری ناقص نسخه‌های قدیمی؛ در بوت عادی ar-reconcile پیش از این فایل است. */
     return { balance: open, credit: credit, net: Math.max(0, open - credit), netCredit: Math.max(0, credit - open) };
   }
   /* ---------- v33.12.0: تشخیص و ترمیم اعتبار مشتری (ریشه‌یابی «اعتبار از بین رفته») ----------
@@ -403,15 +448,16 @@
     try {
       var customerCases = {}, migratedSources = {};
       (getData('ptf_crm_deals') || []).forEach(function (d) {
-        if (!d || d.buyerCd !== cd) return;
-        /* v34.7.26 (S3/F2-B): کلید تهی وارد نقشه نمی‌شود (نشت رسیدهای بدون caseId). */
-        var ck = String(d._id || d.cd || ''); if (ck) customerCases[ck] = true;
+        if (!d || !cfSameCustomerId(d.buyerCd, cd)) return;
+        /* v34.8.0: هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی همچنان برای جلوگیری
+           از نشت رسیدهای بدون caseId وارد نقشه نمی‌شود. */
+        [d._id, d.cd].forEach(function (v) { var ck = String(v || ''); if (ck) customerCases[ck] = true; });
       });
       invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(lp){if(!isMigratedLegacyPayment(lp))return;var rid=String(lp.migratedToReceiptId||'');var legacy=String(lp.cd||'');if(rid)migratedSources[rid]=legacy;if(legacy)migratedSources['legacy:'+legacy]=legacy;});});
       (getData('ptf_crm_case_receipts') || []).forEach(function (p) {
         if (!p || p.status !== 'posted' || p.voided) return;
         var pk = String(p.caseId || '');
-        if (p.customerId !== cd && !(pk && customerCases[pk])) return;
+        if (!cfSameCustomerId(p.customerId, cd) && !(pk && customerCases[pk])) return;
         var amt = +p.amountIRR || +p.amt || 0, receiptId = String(p._id || p.cd || '');
         var legacySource = String(p.legacyPaymentRef || migratedSources[receiptId] || '');
         var migrationNote = legacySource ? ('مهاجرت‌شده از وصولی ' + legacySource + '؛ ردیف قدیمی برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود.') : '';
@@ -560,7 +606,7 @@
       '<div class="fr"><div class="fld"><label>تاریخ وصول (شمسی) *</label>' + dateHtml + '</div><div class="fld"><label>مبلغ (ریال) *</label><input id="cfRecAmt" data-money="1" inputmode="numeric" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>روش</label><select id="cfRecHow" onchange="cfRecHowUi()"><option>حواله بانکی</option><option>چک</option><option>نقد</option><option>سایر</option></select></div><div class="fld"><label>یادداشت</label><input id="cfRecNote"></div></div>' +
       '<div id="cfRecChWrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-top:6px">' +
-      '<div class="fr"><div class="fld"><label>شماره / صیادی چک *</label><input id="cfRecChNo" dir="ltr" style="direction:ltr"></div><div class="fld"><label>سررسید (شمسی یا میلادی)</label><input id="cfRecChDue" dir="ltr" style="direction:ltr" placeholder="1405/06/30"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شماره / صیادی چک *</label><input id="cfRecChNo" dir="ltr" style="direction:ltr"></div><div class="fld"><label>سررسید (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('cfRecChDue', '') : '<input id="cfRecChDue" placeholder="۱۴۰۵/۰۶/۳۰">') + '</div></div>' +
       '<div class="fld"><label>بانک / شعبه</label><input id="cfRecChBank"></div>' +
       '<small style="color:#0369a1">این چک به‌عنوان «چک وارده» در ماژول چک ثبت و پیگیری می‌شود.</small></div>' +
       '<div class="fld"><label>📎 رسید / سند وصول (اختیاری)</label><div id="cfRecFileWrap" style="min-height:38px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +
