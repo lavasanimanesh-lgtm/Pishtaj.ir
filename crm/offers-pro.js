@@ -62,7 +62,7 @@
     if (anchor) {
       var wrap = anchor.closest('.fr');
       if (wrap) {
-        /* v34.7.99 BUG-OFFER-VALIDITY-001:
+        /* v34.8.0 BUG-OFFER-VALIDITY-001:
            ردیف «قالب چاپ / اعتبار پیشنهاد» هر دو ستون واقعی دارد. منطق قدیمی
            آخرین .fld را به خیال ستون خالی با innerHTML جایگزین می‌کرد و در نتیجه
            خودِ #ofValidJ پس از ۵۰ms از DOM حذف می‌شد. ارز را همیشه در ردیف مستقل

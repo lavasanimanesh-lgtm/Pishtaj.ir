@@ -1113,7 +1113,8 @@
     });
     d.misc.forEach(function (m, mi) {
       var sourceMi = (r.docs || []).indexOf(m); if (sourceMi < 0) sourceMi = mi;
-      h += row('📎', escP(m.name || '-') + ' <small style="color:#94a3b8">(' + escP(m.t || '') + ' — ' + escP(m.by || '') + ')</small>',
+      var structuredDoc = m.docType === 'order_notice' ? { icon: '📨', label: 'ابلاغ سفارش' } : (m.docType === 'contract' ? { icon: '📝', label: 'قرارداد' } : null);
+      h += row(structuredDoc ? structuredDoc.icon : '📎', (structuredDoc ? '<span class="bd" style="background:#ecfeff;color:#155e75;margin-left:5px">' + structuredDoc.label + '</span> ' : '') + escP(m.name || '-') + (m.version > 1 ? ' <small style="color:#7c3aed">نسخه ' + (+m.version) + '</small>' : '') + ' <small style="color:#94a3b8">(' + escP(m.t || '') + ' — ' + escP(m.by || '') + ')</small>',
         (m.key ? '<a href="javascript:void(0)" onclick="event.stopPropagation();openStoredFile(\'' + ptfOnClickArg(m.key) + '\')" style="color:#0e7490;font-size:11.5px">مشاهده</a> ' : '') +
         '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#0e7490" onclick="event.stopPropagation();sfEditMisc(\'' + ptfOnClickArg(r.cd) + '\',' + sourceMi + ')">✏️ نام/شرح</button> ' +
         '<button class="bt bt-o" style="padding:2px 7px;font-size:11px;color:#7c3aed" onclick="event.stopPropagation();sfReplaceMisc(\'' + ptfOnClickArg(r.cd) + '\',' + sourceMi + ')">♻️ جایگزینی</button> ' +
@@ -1267,6 +1268,18 @@
       { meta: r.dueISO ? escP(r.dueISO) : 'ثبت تاریخ' }
     );
     if (r.wonOffer) {
+      var _orderNoticeCount = (r.docs || []).filter(function (x) { return x && x.docType === 'order_notice'; }).length;
+      var _contractCount = (r.docs || []).filter(function (x) { return x && x.docType === 'contract'; }).length;
+      postActions += postAction(
+        'order-notice', '📨', 'سند ابلاغ سفارش', 'ثبت و بایگانی فایل ابلاغ سفارش پس از برد',
+        'sfPostAwardDocOpen(\'' + ptfOnClickArg(r.cd) + '\',\'order_notice\')',
+        { primary: !_orderNoticeCount, meta: _orderNoticeCount ? _orderNoticeCount + ' سند ثبت‌شده' : 'ثبت ابلاغ' }
+      );
+      postActions += postAction(
+        'contract-file', '📝', 'قرارداد', 'ثبت و بایگانی قرارداد واقعی/امضاشده پرونده',
+        'sfPostAwardDocOpen(\'' + ptfOnClickArg(r.cd) + '\',\'contract\')',
+        { primary: !_contractCount, meta: _contractCount ? _contractCount + ' سند ثبت‌شده' : 'ثبت قرارداد' }
+      );
       postActions += postAction(
         'qc', '🔬', 'کنترل کیفیت', 'ثبت یا مشاهده نتیجهٔ QC / بازرسی',
         'sfQcOpen(\'' + ptfOnClickArg(r.cd) + '\')', { meta: 'QC / بازرسی' }
@@ -1422,6 +1435,52 @@
     if (typeof ptfToast === 'function') ptfToast(r.dueISO ? 'تاریخ تحویل تعهدی ثبت شد 🚚' : 'تعهد تحویل حذف شد', 'ok');
   };
 
+  /* v34.8.0: اسناد دریافتیِ پس از برد روی همان lifecycle حسابرسی‌شدهٔ r.docs.
+     docType آن‌ها را از ضمیمه متفرقه متمایز می‌کند، بدون ساخت مخزن موازی. */
+  var SF_POST_AWARD_DOC_TYPES = {
+    order_notice: { label: 'سند ابلاغ سفارش', icon: '📨' },
+    contract: { label: 'قرارداد', icon: '📝' }
+  };
+  window.sfPostAwardDocCommit = function (cd, docType, f) {
+    var type = SF_POST_AWARD_DOC_TYPES[docType];
+    var list = sfAll();
+    var r = list.filter(function (x) { return x.cd === cd; })[0];
+    if (!type || !r || !r.wonOffer || !f || !f.name) return { ok: false, why: !r ? 'not_found' : (!r.wonOffer ? 'not_awarded' : 'invalid_document') };
+    var doc = {
+      _id: f._id || genCode('DOC'), name: f.name, key: f.key || null, size: f.size || 0,
+      t: faDate(), by: curSession().name, version: 1, status: 'active',
+      docType: docType, docTypeLabel: type.label, documentClass: 'post_award',
+      caseId: r._id || r.cd, wonOffer: r.wonOffer
+    };
+    r.docs = r.docs || []; r.docs.push(doc);
+    r.documentAudit = r.documentAudit || [];
+    r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'add', kind: docType, ref: doc._id, after: JSON.parse(JSON.stringify(doc)) });
+    r.timeline = r.timeline || [];
+    r.timeline.push({ t: faDateTime(), by: curSession().name, tx: type.icon + ' ثبت و بایگانی ' + type.label + ': ' + f.name });
+    sfSave(list);
+    try { audit('پرونده‌های فروش', 'ثبت و بایگانی ' + type.label + ' در پرونده ' + (r.inqNo || cd) + ': ' + f.name, cd); } catch (e) {}
+    if (typeof renderDeals === 'function') renderDeals();
+    return { ok: true, document: doc };
+  };
+  window.sfPostAwardDocOpen = function (cd, docType) {
+    var type = SF_POST_AWARD_DOC_TYPES[docType];
+    var r = sfAll().filter(function (x) { return x.cd === cd; })[0];
+    if (!type || !r || !r.wonOffer) { alert('ثبت این سند فقط برای پروندهٔ برنده مجاز است.'); return; }
+    if (typeof attachUploadWidget !== 'function') { alert('ماژول بارگذاری فایل در دسترس نیست.'); return; }
+    var hostId = 'sfPostAwardDocUp';
+    var html = '<div class="md-b" id="sfPostAwardDocDlg" style="display:grid;z-index:2700" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:500px">' +
+      '<h3>' + type.icon + ' ثبت و بایگانی ' + type.label + '</h3>' +
+      '<p style="font-size:12.5px;color:#475569;line-height:1.9">فایل با نوع ساختاریافته در تب «اسناد» همین پرونده نگه‌داری می‌شود. مشاهده، اصلاح مشخصات، جایگزینی نسخه‌دار و حذف کنترل‌شده با سابقهٔ حسابرسی در دسترس خواهد بود.</p>' +
+      '<div id="' + hostId + '"></div><div style="text-align:left;margin-top:10px"><button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">انصراف</button></div></div></div>';
+    (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
+    attachUploadWidget(hostId, 'salesfiles/' + cd + '/' + docType, function (f) {
+      var result = sfPostAwardDocCommit(cd, docType, f);
+      if (!result.ok) { if (f && f.key) sfDeleteCloud([f.key]); alert('ثبت سند انجام نشد.'); return; }
+      var dlg = document.getElementById('sfPostAwardDocDlg'); if (dlg) dlg.remove();
+      if (typeof ptfToast === 'function') ptfToast(type.label + ' در پرونده بایگانی شد', 'ok');
+    });
+  };
+
   window.sfAddMisc = function (cd, f) {
     var list = sfAll();
     var r = list.filter(function (x) { return x.cd === cd; })[0];
@@ -1448,7 +1507,7 @@
       onOk: function (v) {
         var list = sfAll(); var rr = list.filter(function (x) { return x.cd === cd; })[0]; var d = rr && (rr.docs || [])[mi]; if (!d) return;
         var before = JSON.parse(JSON.stringify(d)); d.name = (v.name || '').trim(); d.note = (v.note || '').trim(); d.updatedAt = faDateTime(); d.updatedBy = curSession().name;
-        rr.documentAudit = rr.documentAudit || []; rr.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'edit', kind: 'misc', ref: d._id || d.key || '', before: before, after: JSON.parse(JSON.stringify(d)) });
+        rr.documentAudit = rr.documentAudit || []; rr.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'edit', kind: d.docType || 'misc', ref: d._id || d.key || '', before: before, after: JSON.parse(JSON.stringify(d)) });
         rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '✏️ اصلاح مشخصات سند ' + (d.name || '') });
         sfSave(list); try { audit('پرونده‌های فروش', 'اصلاح مشخصات سند ' + (d.name || '') + ' در پرونده ' + (rr.inqNo || cd), cd); } catch (e) {}
         if (typeof renderDeals === 'function') renderDeals();
@@ -1466,7 +1525,7 @@
       var before = JSON.parse(JSON.stringify(doc)); var oldKey = doc.key || '';
       doc.key = newFile.key || null; doc.name = newFile.name || doc.name; doc.size = newFile.size || 0; doc._id = genCode('DOC'); doc.version = (+before.version || 1) + 1; doc.replaces = before._id || before.key || ''; doc.updatedAt = faDateTime(); doc.updatedBy = curSession().name;
       ['shipEvents', 'qcEvents', 'costEvents'].forEach(function (ek) { (r[ek] || []).forEach(function (ev) { (ev.files || []).forEach(function (f, fi) { if (oldKey && f.key === oldKey) ev.files[fi] = { _id: doc._id, key: doc.key, name: newFile.name, size: newFile.size || 0, version: doc.version, replaces: doc.replaces }; }); }); });
-      r.documentAudit = r.documentAudit || []; r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'replace-file', kind: 'misc', ref: doc._id, before: before, after: JSON.parse(JSON.stringify(doc)) });
+      r.documentAudit = r.documentAudit || []; r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'replace-file', kind: doc.docType || 'misc', ref: doc._id, before: before, after: JSON.parse(JSON.stringify(doc)) });
       r.timeline = r.timeline || []; r.timeline.push({ t: faDateTime(), by: curSession().name, tx: '♻️ جایگزینی سند ' + (before.name || '') + ' با ' + (doc.name || '') });
       sfSave(list);
       sfDeleteCloud([oldKey]).then(function (results) {
@@ -1487,7 +1546,7 @@
     /* اگر این ردیف همان فایل نمایش‌داده‌شده زیر رویداد حمل/QC است، پیوند فعال آن
        نیز حذف می‌شود؛ خود رویداد (شاهد مرحله) فقط از دکمه «حذف رویداد» حذف می‌شود. */
     ['shipEvents', 'qcEvents', 'costEvents'].forEach(function (ek) { (r[ek] || []).forEach(function (ev) { ev.files = (ev.files || []).filter(function (f) { return !doc.key || f.key !== doc.key; }); }); });
-    r.documentAudit = r.documentAudit || []; r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'delete', kind: 'misc', ref: doc._id || doc.key || '', reason: reason, before: JSON.parse(JSON.stringify(doc)) });
+    r.documentAudit = r.documentAudit || []; r.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'delete', kind: doc.docType || 'misc', ref: doc._id || doc.key || '', reason: reason, before: JSON.parse(JSON.stringify(doc)) });
     r.timeline = r.timeline || []; r.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف سند ' + (doc.name || '') + ' — دلیل: ' + reason });
     sfSave(list);
     try { audit('پرونده‌های فروش', 'حذف کنترل‌شده سند ' + (doc.name || '') + ' — ' + reason, cd); } catch (e) {}

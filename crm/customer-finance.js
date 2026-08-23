@@ -163,7 +163,7 @@
     var out=[];invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(p){if(!isMigratedLegacyPayment(p))return;var receipt=byId[String(p.migratedToReceiptId||'')]||byLegacy[String(p.cd||'')];out.push({invoiceCd:inv.cd,legacyPaymentCd:p.cd||'',receiptId:receipt?String(receipt._id||receipt.cd||''):'',ok:!!(receipt&&receipt.status==='posted'&&!receipt.voided),amount:+p.amt||+p.amount||0});});});return out;
   };
   function accountPosition(cd) {
-    /* v34.7.99: عددهای summary فقط از قرارداد canonical مطالبات می‌آیند. خود UI هنوز
+    /* v34.8.0: عددهای summary فقط از قرارداد canonical مطالبات می‌آیند. خود UI هنوز
        scope نمایش را می‌سازد تا قواعد اسناد غیررسمی و fallback نام یکتای legacy حفظ شود. */
     if (window.PTF && window.PTF.ar && typeof window.PTF.ar.customerPosition === 'function') {
       try {
@@ -449,7 +449,7 @@
       var customerCases = {}, migratedSources = {};
       (getData('ptf_crm_deals') || []).forEach(function (d) {
         if (!d || !cfSameCustomerId(d.buyerCd, cd)) return;
-        /* v34.7.99: هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی همچنان برای جلوگیری
+        /* v34.8.0: هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی همچنان برای جلوگیری
            از نشت رسیدهای بدون caseId وارد نقشه نمی‌شود. */
         [d._id, d.cd].forEach(function (v) { var ck = String(v || ''); if (ck) customerCases[ck] = true; });
       });

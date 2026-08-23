@@ -1,5 +1,5 @@
 /* =====================================================================
-   PTF CRM — v34.7.99 — AR Reconcile Core (مطالبات: منبع واحد مانده و تسویه)
+   PTF CRM — v34.8.0 — AR Reconcile Core (مطالبات: منبع واحد مانده و تسویه)
    مرجع: ARENA-AR-RECEIPT-INTEGRATION-RCA-2026-08-16.md
 
    چرا این فایل وجود دارد:
@@ -617,7 +617,7 @@
   }
 
   W.PTF.ar = {
-    version: 'v34.7.99',
+    version: 'v34.8.0',
     activeInvoice: activeInvoice, activeReceipt: activeReceipt,
     invoiceCaps: invoiceCaps, legacyPaidIRR: legacyPaidIRR,
     computeAllocations: computeAllocations, snapshot: snapshot, invalidate: invalidate,
@@ -632,7 +632,7 @@
 })();
 
 /* =====================================================================
-   PTF CRM — v34.7.99 — رابط کاربری گزارش تسویهٔ مطالبات (فاز ۰)
+   PTF CRM — v34.8.0 — رابط کاربری گزارش تسویهٔ مطالبات (فاز ۰)
    فقط‌خواندنی: هیچ رکوردی از این پنجره تغییر نمی‌کند مگر ابزار «اتصال به پرونده»
    که صریحاً توسط کاربر و فقط برای تطبیق یکتا اجرا می‌شود.
    ===================================================================== */

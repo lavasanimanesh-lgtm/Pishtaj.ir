@@ -67,7 +67,10 @@
   }
 
   // تولید سند HTML فاکتور غیر رسمی
-  function generateUnofficialInvoiceHtml(o, total, bankAccount, advPayIrr, discountVal, discountLabel, currentRate, advRate) {
+  function generateUnofficialInvoiceHtml(o, total, bankAccount, discountVal, discountLabel, currentRate) {
+    /* صورتحساب غیررسمی نیز یک سند ریالی است. اطلاعات ارزی پیشنهاد فقط برای
+       تبدیل اقلام در لحظهٔ صدور استفاده می‌شود و در مطالبات/چاپ وصول وارد نمی‌شود. */
+    var invoiceRate = (o.currency && o.currency !== 'IRR') ? Math.max(0, +currentRate || 0) : 1;
     var itemsHtml = '';
     (o.items || []).forEach(function (it, idx) {
       var rowNum = idx + 1;
@@ -84,8 +87,8 @@
       var itemTotal = qty * price;
       
       var unitFa = translateUnitFa(it.unit);
-      var formattedPrice = formatNumber(price, o.currency);
-      var formattedItemTotal = formatNumber(itemTotal, o.currency);
+      var formattedPrice = formatNumber(Math.round(price * invoiceRate), 'IRR');
+      var formattedItemTotal = formatNumber(Math.round(itemTotal * invoiceRate), 'IRR');
       
       itemsHtml += '<tr>' +
         '<td>' + toFaDigits(rowNum) + '</td>' +
@@ -97,30 +100,17 @@
         '</tr>';
     });
 
-    var currencyFa = getCurrencyFa(o.currency);
-    var formattedTotal = formatNumber(total, o.currency);
-    var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(total) : total;
+    var currencyFa = 'ریال';
+    var totalIrr = Math.round(total * invoiceRate);
+    var discountIrr = Math.round((+discountVal || 0) * invoiceRate);
+    var netPayableIrr = Math.max(0, totalIrr - discountIrr);
+    var formattedTotal = formatNumber(totalIrr, 'IRR');
+    var totalInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(totalIrr) : totalIrr;
+    var formattedDisc = formatNumber(discountIrr, 'IRR');
+    var discInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(discountIrr) : discountIrr;
+    var formattedNet = formatNumber(netPayableIrr, 'IRR');
+    var netInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(netPayableIrr) : netPayableIrr;
 
-    // متغیرهای تخفیف
-    var formattedDisc = formatNumber(discountVal, o.currency);
-    var discInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(discountVal) : discountVal;
-
-    // محاسبه نرخ تسعیر پیش‌فاکتور جهت تبدیل مبالغ ریالی پیش‌پرداخت به ارز سند
-    var rate = 1;
-    if (o.currency && o.currency !== 'IRR') {
-      rate = +o.fxRateRef || 1;
-    }
-    
-    // تبدیل پیش‌پرداخت ریالی به ارز سند جهت کسر صحیح از مقادیر ارزی سند چاپی
-    var advPayOriginal = o.currency === 'IRR' || !o.currency ? advPayIrr : (advRate > 0 ? (advPayIrr / advRate) : advPayIrr);
-    var formattedAdv = formatNumber(advPayOriginal, o.currency);
-    var advInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(advPayOriginal) : advPayOriginal;
-
-    // محاسبه خالص نهایی قابل پرداخت به ارز سند
-    var netPayable = Math.max(0, total - discountVal - advPayOriginal);
-    var formattedNet = formatNumber(netPayable, o.currency);
-    var netInWords = window.ptfNumWordsFa ? window.ptfNumWordsFa(netPayable) : netPayable;
-    
     // تبدیل شناسه پیش‌فاکتور به شماره سند متمایز (INV)
     var invoiceNo = String(o.no).replace(/PTF-CO-/i, 'INV-').replace(/PTF-TC-/i, 'INV-');
 
@@ -141,20 +131,6 @@
         '</div>';
     }
 
-    // تولید جزئیات نرخ تسعیر در چاپ برای شفافیت ممیزی و تورم
-    var rateDetailsHtml = '';
-    if (o.currency && o.currency !== 'IRR') {
-      var remainRials = Math.round(netPayable * currentRate);
-      rateDetailsHtml = '<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px 15px; margin-top:15px; font-size:12.5px; color:#334155; line-height:1.6">' +
-        '📝 <b>گزارش تسعیر موازنه ارز و ریال (حسابداری تعهدی):</b><br>' +
-        '• ارزش کل پیش‌فاکتور: <b>' + total.toLocaleString('en-US') + ' ' + o.currency + '</b><br>' +
-        (discountVal > 0 ? '• تخفیف اعمال شده: <b>' + discountVal.toLocaleString('en-US') + ' ' + o.currency + '</b><br>' : '') +
-        (advPayIrr > 0 ? '• پیش‌پرداخت وصول‌شده: <b>' + advPayIrr.toLocaleString('fa-IR') + ' ریال</b> (تسعیرشده با نرخ روز واریز: <b>' + advRate.toLocaleString('fa-IR') + ' ریال</b> ≈ <b>' + advPayOriginal.toLocaleString('en-US') + ' ' + o.currency + '</b>)<br>' : '') +
-        '• خالص بدهی باقیمانده به ارز: <b>' + netPayable.toLocaleString('en-US') + ' ' + o.currency + '</b><br>' +
-        '• نرخ تسعیر روز صدور صورتحساب: <b>' + currentRate.toLocaleString('fa-IR') + ' ریال به‌ازای هر ' + o.currency + '</b><br>' +
-        '• <b>مبلغ خالص قابل پرداخت امروز به ریال: <span style="color:#16a34a">' + remainRials.toLocaleString('fa-IR') + ' ریال</span></b>' +
-        '</div>';
-    }
 
     return '<!DOCTYPE html>' +
       '<html lang="fa" dir="rtl">' +
@@ -453,31 +429,19 @@
       '            <span>' + formattedDisc + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' : '') +
-      (advPayOriginal > 0 ?
-      '        <tr class="totals-row" style="background-color: #fffbeb !important;">' +
-      '          <td colspan="4" class="totals-label-words" style="color: #b45309;">' +
-      '            کسر پیش‌پرداخت وصول‌شده (به حروف): ' +
-      '            <span class="totals-value-words" style="color: #b45309;">' + advInWords + ' ' + currencyFa + '</span>' +
-      '          </td>' +
-      '          <td colspan="2" class="totals-label-num" style="color: #b45309; border-top: 1px solid #fde68a !important;">' +
-      '            مبلغ پیش‌پرداخت: ' +
-      '            <span>' + formattedAdv + '</span> ' + currencyFa +
-      '          </td>' +
-      '        </tr>' : '') +
-      ((advPayOriginal > 0 || discountVal > 0) ?
+      (discountVal > 0 ?
       '        <tr class="totals-row" style="background-color: #f0fdf4 !important; font-size: 15px;">' +
       '          <td colspan="4" class="totals-label-words" style="color: #15803d; padding: 18px 12px !important;">' +
-      '            <strong>باقی‌مانده خالص قابل پرداخت (به حروف):</strong> ' +
+      '            <strong>مبلغ نهایی صورتحساب پس از تخفیف (به حروف):</strong> ' +
       '            <span class="totals-value-words" style="color: #15803d; font-size: 15px;">' + netInWords + ' ' + currencyFa + '</span>' +
       '          </td>' +
       '          <td colspan="2" class="totals-label-num" style="color: #15803d; font-size: 16px; border-top: 2px solid #16a34a !important; padding: 18px 12px !important;">' +
-      '            <strong>خالص قابل پرداخت:</strong> ' +
+      '            <strong>مبلغ نهایی صورتحساب:</strong> ' +
       '            <span>' + formattedNet + '</span> ' + currencyFa +
       '          </td>' +
       '        </tr>' : '') +
       '      </tbody>' +
       '    </table>' +
-      rateDetailsHtml +
       bankHtml +
       '    <div class="bill-footer">' +
       '      <div class="signature-block">' +
@@ -571,9 +535,6 @@
     }
     var currentRate = rate;
 
-    // محاسبه نرخ روز واریز پیش‌پرداخت (از روی ثبت های پیشین در CO)
-    var advRate = o.advance && o.advance.rate ? +o.advance.rate : rate;
-
     if (existing) {
       var action = confirm('یک صورتحساب پرداخت برای این پیش‌فاکتور قبلاً در سیستم ثبت شده است.\n\n- جهت نمایش و چاپ مجدد همان سند قبلی (با حفظ تخفیف و مشخصات قبلی)، دکمه OK را بزنید.\n\n- جهت اعمال مابه‌التفاوت، تغییر شماره حساب، تغییر تخفیف یا حذف کامل صورتحساب، دکمه Cancel را بزنید.');
       if (action) {
@@ -593,7 +554,7 @@
         if (discountInput === null) return; // لغو عملیات
 
         if (o.currency && o.currency !== 'IRR') {
-          rateInput = prompt('نرخ تسعیر روز صدور فاکتور (ریال به‌ازای هر ' + o.currency + ') را وارد کنید:', existing.offerFxRateRef || rate);
+          rateInput = prompt('نرخ تبدیل پیشنهاد ' + o.currency + ' به صورتحساب ریالی را وارد کنید:', existing.offerFxRateRef || rate);
           if (rateInput === null) return;
           currentRate = parseFloat(rateInput) || rate;
         }
@@ -608,7 +569,7 @@
       if (discountInput === null) return; // لغو عملیات
 
       if (o.currency && o.currency !== 'IRR') {
-        rateInput = prompt('نرخ تسعیر روز صدور فاکتور (ریال به‌ازای هر ' + o.currency + ') را وارد کنید:', rate);
+        rateInput = prompt('نرخ تبدیل پیشنهاد ' + o.currency + ' به صورتحساب ریالی را وارد کنید:', rate);
         if (rateInput === null) return;
         currentRate = parseFloat(rateInput) || rate;
       }
@@ -633,23 +594,9 @@
     var totalIrr = o.currency === 'IRR' || !o.currency ? total : Math.round(total * currentRate);
     var discountIrr = o.currency === 'IRR' || !o.currency ? discountVal : Math.round(discountVal * currentRate);
 
-    // محاسبه زنده و رسمی پیش‌پرداخت وصول‌شده از بخش مطالبات (که ریالی است)
-    var advPayIrr = 0;
-    try {
-      var _a = (!window.PTF_SALES_DOMAIN_V2 && o && typeof ptfAdvanceNormalize === 'function') ? ptfAdvanceNormalize(o) : null;
-      if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
-        advPayIrr = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
-      }
-    } catch (eAdv) {}
-
-    // تبدیل پیش‌پرداخت ریالی به ارز سند بر اساس نرخ واریز پیش‌پرداخت
-    var advPayOriginal = o.currency === 'IRR' || !o.currency ? advPayIrr : (advRate > 0 ? (advPayIrr / advRate) : advPayIrr);
-
-    // محاسبه بدهی نهایی ریالی با فرمول تورم‌پویا:
-    // (کل ارز - تخفیف ارز - معادل ارز پیش پرداخت در زمان واریز) * نرخ تسعیر روز صدور + مبلغ ریالی پیش پرداخت
-    var netPayableOriginal = Math.max(0, total - discountVal - advPayOriginal);
-    var netPayableIrr = Math.round(netPayableOriginal * currentRate);
-    var amountIrr = advPayIrr + netPayableIrr; // ارزش کل فاکتور دفتری به ریال
+    /* مبلغ قطعی صورتحساب فقط معادل ریالی اقلام منهای تخفیف است.
+       شرط پیش‌پرداخت پیشنهاد در مبلغ فاکتور یا وصول آن هیچ اثری ندارد. */
+    var amountIrr = Math.max(0, totalIrr - discountIrr);
 
     // شناسه پرونده منبع اتصال مالی است؛ شماره پیشنهاد فقط مرجع نمایشی است.
     var _salesCase = (getData('ptf_crm_deals') || []).filter(function (d) { return d && (d.wonOffer === o.no || (o._id && d.rootOfferId === o._id)); })[0] || null;
@@ -662,7 +609,7 @@
         customerId: (_salesCase && _salesCase.buyerCd) || o.buyerCd || '',
         no: invoiceNo,
         offerNo: o.no,
-        amount: amountIrr, // مبلغ دفتری به ریال متناسب با تورم
+        amount: amountIrr, // معادل ریالی اقلام منهای تخفیف
         base: totalIrr,
         vat: 0,
         discount: discountIrr,
@@ -673,31 +620,14 @@
         buyerCo: o.buyerCo || '',
         offerCurrency: o.currency || 'IRR',
         offerFxBasis: o.fxBasis || '',
-        offerFxRateRef: currentRate, // نرخ روز صدور
-        payments: [],
+        offerFxRateRef: currentRate, // lineage تبدیل پیشنهاد ارزی به فاکتور ریالی
         isUnofficial: true,
         bankAccount: bankAccount,
         by: curSession().name,
         status: 'active'
       };
 
-      // اتصال خودکار پیش‌پرداخت به عنوان وصولی فاکتور غیررسمی (به ریال) با ساختار دقیق ارزی fx جهت عدم نشت در پترن‌های حسابداری
-      if (advPayIrr > 0) {
-        newInv.payments.push({
-          cd: 'RP-ADV-' + o.no,
-          amt: advPayIrr,
-          amountIrr: advPayIrr,
-          fx: {
-            fxAmt: advPayOriginal,
-            rate: advRate
-          },
-          how: 'کسر مبالغ وصول‌شده پیش‌پرداخت (غیررسمی)',
-          t: faDate(),
-          by: curSession().name,
-          fromAdvance: true
-        });
-        newInv.advApplied = advPayIrr;
-      }
+      // وصول فقط از Receipt ریالی پرونده می‌آید؛ فاکتور payment مصنوعی نمی‌سازد.
 
       invs.unshift(newInv);
       setData('ptf_crm_invoices', invs);
@@ -721,7 +651,7 @@
           _d.timeline.push({
             t: faDateTime(),
             by: curSession().name,
-            tx: '🧾 صورتحساب پرداخت ' + invoiceNo + ' به مبلغ کل دفتری ' + amountIrr.toLocaleString('fa-IR') + ' ریال صادر شد.' + (discountVal > 0 ? ' (تخفیف: ' + discountVal.toLocaleString('en-US') + ' ' + o.currency + ')' : '') + (advPayIrr > 0 ? ' — کسر پیش‌پرداخت: ' + advPayIrr.toLocaleString('fa-IR') + ' ریال' : '')
+            tx: '🧾 صورتحساب پرداخت ' + invoiceNo + ' به مبلغ ' + amountIrr.toLocaleString('fa-IR') + ' ریال صادر شد.' + (discountIrr > 0 ? ' (تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال)' : '')
           });
           setData('ptf_crm_deals', _deals);
         }
@@ -732,7 +662,7 @@
       }
     }
 
-    var html = generateUnofficialInvoiceHtml(o, total, bankAccount, advPayIrr, discountVal, discountLabel, currentRate, advRate);
+    var html = generateUnofficialInvoiceHtml(o, total, bankAccount, discountVal, discountLabel, currentRate);
 
     if (typeof window.ptfPreviewPrintableDoc === 'function') {
       window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceNo);
@@ -1361,7 +1291,7 @@ window.buildUnInvBuilderHtml = function (st) {
       '<div class="fld"><label>تخفیف اختیاری (مبلغ یا درصد)</label><input id="unDiscInput" type="text" placeholder="مثال: 5% یا 500000" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' +
       '<div class="fld"><label>شماره حساب / شبا (اختیاری)</label><input id="unBankInput" type="text" placeholder="مثال: IR..."></div>' +
       (st.cCurrency !== 'IRR' ?
-        '<div class="fld"><label>نرخ تسعیر روز صدور (ریال/' + escP(st.cCurrency) + ')</label><input id="unRateInput" type="number" dir="ltr" value="' + st.cRate + '" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' :
+        '<div class="fld"><label>نرخ تبدیل پیشنهاد به صورتحساب ریالی (ریال/' + escP(st.cCurrency) + ')</label><input id="unRateInput" type="number" dir="ltr" value="' + st.cRate + '" oninput="unofficialInvoiceBuilderRecalc()" style="direction:ltr;"></div>' :
         '<div></div>'
       ) +
     '</div>' +
@@ -1497,13 +1427,10 @@ window.unofficialInvoiceBuilderRecalc = function () {
   var _discIrr = _cur === 'IRR' ? _discVal : Math.round(_discVal * _rate);
   var _netIrr = _cur === 'IRR' ? _net : Math.round(_net * _rate);
 
-  var _rateHtml = (_cur !== 'IRR') ? ' | <small style="color:#0e7490;">نرخ تسعیر: ' + _rate.toLocaleString('fa-IR') + ' ریال/' + escP(_cur) + ' ⇒ مبلغ ریالی: ' + _totalIrr.toLocaleString('fa-IR') + ' ریال</small>' : '';
-
   _dlg.querySelector('#unResultBox').innerHTML =
-    '<b>📊 جمع کل اقلام (به ارز سند):</b> ' + total.toLocaleString('en-US') + ' ' + escP(_cur) + _rateHtml +
-    '<br><b>🏷️ تخفیف:</b> ' + (_discVal ? _discVal.toLocaleString('en-US') + ' ' + escP(_cur) + (_discPct !== null ? ' (' + _discPct.toLocaleString('en-US') + '٪)' : '') : '—') +
-    '<br><b>✅ خالص قابل پرداخت (به ارز سند):</b> ' + (_cur === 'IRR' ? '' : '').toString() + _net.toLocaleString('en-US') + ' ' + escP(_cur) +
-    (_cur !== 'IRR' ? ' ⇒ ' + _netIrr.toLocaleString('fa-IR') + ' ریال' : '');
+    '<b>📊 جمع کل ریالی صورتحساب:</b> ' + _totalIrr.toLocaleString('fa-IR') + ' ریال' +
+    '<br><b>🏷️ تخفیف ریالی:</b> ' + (_discIrr ? _discIrr.toLocaleString('fa-IR') + ' ریال' + (_discPct !== null ? ' (' + _discPct.toLocaleString('fa-IR') + '٪)' : '') : '—') +
+    '<br><b>✅ مبلغ نهایی ریالی صورتحساب:</b> ' + _netIrr.toLocaleString('fa-IR') + ' ریال';
 };
 
 // ===== حذف یک قلم =====
@@ -1669,15 +1596,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
   }
   var currentRate = ctx.currentRate || _co.fxRateRef || 1;
 
-  // محاسبه پیش\u200cپرداخت
-  var advPayIrr = 0, _a = null;
-  try {
-    _a = (typeof ptfAdvanceNormalize === 'function' && !window.PTF_SALES_DOMAIN_V2) ? ptfAdvanceNormalize(_co) : null;
-    if (_a && _a.mode !== 'none' && (+_a.amt || 0) > 0) {
-      advPayIrr = Math.round(+(_a.receivedAmt != null ? _a.receivedAmt : (_a.paid || _a.cashFull ? _a.amt : 0)) || 0);
-    }
-  } catch (eAdv) {}
-  var advRate = _co.advance && _co.advance.rate ? +_co.advance.rate : currentRate;
+  /* شرط پیش‌پرداخت پیشنهاد در صدور/وصول فاکتور اثر مالی ندارد. */
 
   // گارد سال مالی قفل
   var invYear = String(_co.dateFa || '').split('/')[0];
@@ -1717,10 +1636,8 @@ window.unofficialInvoicePrintCases = function (ctx) {
   var totalIrr = _co.currency === 'IRR' || !_co.currency ? total : Math.round(total * currentRate);
   var discountIrr = _co.currency === 'IRR' || !_co.currency ? discountVal : Math.round(discountVal * currentRate);
 
-  var advPayOriginal = _co.currency === 'IRR' || !_co.currency ? advPayIrr : (advRate > 0 ? (advPayIrr / advRate) : advPayIrr);
-  var netPayableOriginal = Math.max(0, total - discountVal - advPayOriginal);
-  var netPayableIrr = Math.round(netPayableOriginal * currentRate);
-  var amountIrr = advPayIrr + netPayableIrr;
+  /* مبلغ فاکتور از وصول مستقل است: معادل ریالی اقلام منهای تخفیف ریالی. */
+  var amountIrr = Math.max(0, totalIrr - discountIrr);
 
   // پیدا کردن پروندهٔ فروش برای اتصال
   var _salesCase = (getData('ptf_crm_deals') || []).filter(function (d) {
@@ -1734,13 +1651,8 @@ window.unofficialInvoicePrintCases = function (ctx) {
   // ذخیره رکورد فاکتور
   var newInv = null;
   if (existing && !ctx.isConsolidated) {
-    /* UI-02 (v34.7.20): بازنویسی واقعی صورتحساب موجود.
-       ریشهٔ باگ: این شاخه فقط `caseId/customerId` را به‌روز می‌کرد (و دوبار هم ذخیره می‌کرد)،
-       اما مبلغ، تخفیف، snapshot اقلام و نرخ ارز دست‌نخورده می‌ماند؛ کاربر «صدور مجدد» می‌زد،
-       پیام موفقیت می‌گرفت و رکورد قدیمی سرِ جایش بود. اکنون محتوای مالی واقعاً به‌روز می‌شود.
-       عمداً دست‌نخورده: `cd` و `no` (هویت سند)، `invDate/t` (سال مالی و ترتیب تخصیص FIFO)
-       و `payments` (به‌جز ردیف پیش‌پرداخت که هم‌راستا می‌شود).
-       مرجع: بررسی مستقل N4 + گزارش تلفیقی §۷.۴ | گام B2 نقشهٔ فازبندی */
+    /* بازنویسی، هویت و تاریخ سند را حفظ و محتوای ریالی آن را به‌روز می‌کند.
+       دریافت واقعی legacy حفظ می‌شود؛ ردیف مصنوعی پیش‌پرداخت نسخه‌های قدیمی پاک می‌شود. */
     var _before = JSON.parse(JSON.stringify(existing));
     existing.caseId = (_salesCase ? (_salesCase._id || _salesCase.cd || '') : (existing.caseId || ''));
     existing.customerId = ((_salesCase && _salesCase.buyerCd) || _co.buyerCd || existing.customerId || '');
@@ -1764,21 +1676,10 @@ window.unofficialInvoicePrintCases = function (ctx) {
     existing.status = existing.status || 'active';
     existing.reissuedAt = faDateTime();
     existing.reissuedBy = curSession().name || '?';
-    /* ردیف پیش‌پرداخت با مبلغ جدید هم‌راستا می‌شود (نه اضافه‌شدن ردیف دوم) */
-    existing.payments = Array.isArray(existing.payments) ? existing.payments : [];
-    var _advCd = 'RP-ADV-' + (_co.no || '');
-    var _advRow = existing.payments.filter(function (p) { return p && p.fromAdvance && String(p.cd || '') === _advCd; })[0];
-    if (_advRow) {
-      _advRow.amt = advPayIrr; _advRow.amountIrr = advPayIrr;
-      _advRow.fx = { fxAmt: advPayOriginal, rate: advRate };
-      _advRow.t = faDate(); _advRow.by = curSession().name;
-    } else if (advPayIrr > 0) {
-      existing.payments.push({ cd: _advCd, amt: advPayIrr, amountIrr: advPayIrr,
-        fx: { fxAmt: advPayOriginal, rate: advRate },
-        how: 'کسر مبالغ وصول\u200cشده پیش\u200cپرداخت (غیررسمی)',
-        t: faDate(), by: curSession().name, fromAdvance: true });
-    }
-    existing.advApplied = advPayIrr;
+    existing.payments = (Array.isArray(existing.payments) ? existing.payments : []).filter(function (p) {
+      return !(p && (p.fromAdvance || /^RP-ADV-/.test(String(p.cd || ''))));
+    });
+    delete existing.advApplied;
     setData('ptf_crm_invoices', invs);
     try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArI) {}
     try { if (typeof audit === 'function') audit('صورتحساب غیررسمی', 'بازنویسی صورتحساب ' + (existing.no || existing.cd) + ' — مبلغ جدید ' + amountIrr.toLocaleString('fa-IR') + ' ریال', String(existing.cd || '')); } catch (eAu) {}
@@ -1815,7 +1716,6 @@ window.unofficialInvoicePrintCases = function (ctx) {
       offerCurrency: _co.currency || 'IRR',
       offerFxBasis: _co.fxBasis || '',
       offerFxRateRef: currentRate,
-      payments: [],
       isUnofficial: true,
       bankAccount: ctx.bankAccount || '',
       by: curSession().name || '?',
@@ -1828,19 +1728,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
       linesSnapshot: ctx.linesSnapshot
     };
 
-    if (advPayIrr > 0) {
-      newInv.payments.push({
-        cd: 'RP-ADV-' + (_co.no || ''),
-        amt: advPayIrr,
-        amountIrr: advPayIrr,
-        fx: { fxAmt: advPayOriginal, rate: advRate },
-        how: 'کسر مبالغ وصول\u200cشده پیش\u200cپرداخت (غیررسمی)',
-        t: faDate(),
-        by: curSession().name,
-        fromAdvance: true
-      });
-      newInv.advApplied = advPayIrr;
-    }
+    // دریافت‌های قطعی فقط در دفتر Receipt ریالی پرونده ثبت می‌شوند.
 
     // پاکسازی فاکتور قبلی همان primary offer (در حالت تک) — همان رفتار unofficialInvoicePrint
     if (!ctx.isConsolidated && existing) {
@@ -1879,10 +1767,9 @@ window.unofficialInvoicePrintCases = function (ctx) {
         t: faDateTime(),
         by: curSession().name || '?',
         tx: '🧾 صورتحساب پرداخت غیررسمی ' + invoiceNo +
-           ' صادر شد — مبلغ کل دفتری ' + amountIrr.toLocaleString('fa-IR') + ' ریال' +
+           ' صادر شد — مبلغ ' + amountIrr.toLocaleString('fa-IR') + ' ریال' +
            (ctx.isConsolidated ? ' (تجمیعی از ' + ctx.offerNos.length + ' پیشنهاد)' : '') +
-           (discountVal > 0 ? ' | تخفیف: ' + discountVal.toLocaleString('en-US') + ' ' + (primaryOffer.currency || 'IRR') : '') +
-           (advPayIrr > 0 ? ' | کسر پیش\u200cپرداخت: ' + advPayIrr.toLocaleString('fa-IR') + ' ریال' : '')
+           (discountIrr > 0 ? ' | تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال' : '')
       });
       setData('ptf_crm_deals', _deals);
     }
@@ -1893,7 +1780,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
   }
 
   // رندر HTML و نمایش
-  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', advPayIrr, discountVal, discountLabel, currentRate, advRate);
+  var html = generateUnofficialInvoiceHtml(_syntheticOffer, total, ctx.bankAccount || '', discountVal, discountLabel, currentRate);
   if (typeof window.ptfPreviewPrintableDoc === 'function') {
     window.ptfPreviewPrintableDoc('صورتحساب پرداخت — ' + invoiceNo, html, 'unofficial-invoice-' + invoiceCd);
   } else {

@@ -154,10 +154,9 @@
   }
 
   /* ---------- بلوک «مبنای ارزی» برای نسخه ریالی (US-FX2RIAL) ----------
-     پیش‌پرداخت/فاکتور واقعی روی پیشنهاد ارزی مبدأ می‌ماند؛ این بلوک صرفاً
-     «مبنای ارزی» (نرخ مبدأ، مبلغ ارزی، درصد و مبلغ وصول‌شدهٔ پیش‌پرداخت) را
-     روی نسخه ریالی نگه می‌دارد تا در صورت تغییر نرخ، مبلغ واقعی وصول‌شده
-     (که با نرخ قدیم دریافت شده) گم نشود. */
+     این بلوک فقط اطلاعات تجاری پیشنهاد مبدأ (نرخ، مبلغ ارزی و شرط پیش‌پرداخت)
+     را برای بازسازی نسخهٔ ریالی نگه می‌دارد. وصول، مانده و درصد وصول فقط از
+     فاکتور و Receipt ریالی محاسبه می‌شوند و نباید وارد metadata پیشنهاد شوند. */
   function fxBasisOf(o) {
     var adv = (o && o.advance) || null;
     var a = null;
@@ -167,16 +166,12 @@
       originalFxTotal: fxTotal(o),
       currency: (o && o.currency) || 'IRR',
       advancePct: (a && a.pct != null) ? Math.round(+a.pct) : ((adv && +adv.pct) || 0),
-      advanceDocAmt: (a && +a.docAmt) || ((adv && +adv.docAmt) || 0),
-      advanceReceivedIrr: (a && +a.receivedAmt) || 0,
-      advanceReceivedDoc: (a && +a.receivedDocAmt) || 0
+      advanceDocAmt: (a && +a.docAmt) || ((adv && +adv.docAmt) || 0)
     };
   }
 
-  /* بند شرایط پرداخت نسخه ریالی: از دادهٔ پیش‌پرداختِ پیشنهاد ارزی مبدأ ساخته می‌شود
-     (بدون کپی خود advance — کپی آن در مطالبات مطالبه تکراری می‌سازد). مبلغ ریالی با
-     «نرخِ ثبت‌شدهٔ پیش‌پرداخت» و مبلغِ واقعیِ وصول‌شده، و «مبنای ارزی» را صریح نشان می‌دهد
-     تا تغییر نرخِ تبدیل، درصد/مبلغ واقعی پرداخت‌شده را تحریف نکند. */
+  /* بند شرایط پرداخت نسخه ریالی از شرط تجاری پیشنهاد ارزی مبدأ ساخته می‌شود.
+     این بند فقط مبلغ/درصد قراردادی را تبدیل می‌کند و هیچ وصولی را نمایش یا محاسبه نمی‌کند. */
   function buildAdvanceTerm(o) {
     try {
       var adv = (o && o.advance) || null;
@@ -189,19 +184,13 @@
       var advRate = (+adv.rate > 0) ? +adv.rate : ((a && +a.rate) || 0); /* نرخِ ثبت پیش‌پرداخت، نه نرخ تبدیل */
       var docAmt = (a && +a.docAmt) || (+adv.docAmt) || 0;
       var irrAmt = (a && +a.amt) || (docAmt && advRate ? Math.round(docAmt * advRate) : (totalFx * pct / 100 * (advRate || 1)));
-      var receivedIrr = (a && +a.receivedAmt) || 0;
-      var receivedDoc = (a && +a.receivedDocAmt) || 0;
       var full = adv.mode === 'full' || adv.cashFull || pct >= 100 || (a && a.cashFull);
       var s = 'Payment Terms: ';
       if (full) s += '100% full payment — total ' + fmtIrr(irrAmt || (totalFx * advRate)) + ' IRR';
       else s += (pct > 0 ? pct + '% ' : '') + 'advance payment' + (irrAmt ? ' (= ' + fmtIrr(irrAmt) + ' IRR)' : '') + ', balance before delivery';
-      /* مبنای ارزی (نرخِ مبدأ) — فقط اگر ارزی و دادهٔ ارزی موجود باشد */
+      /* مبنای ارزی شرط پرداخت — فقط اگر پیشنهاد ارزی و دادهٔ ارزی موجود باشد. */
       if (cur !== 'IRR') {
         s += ' — FX basis: ' + fmtIrr(docAmt || (totalFx * pct / 100)) + ' ' + cur + (advRate ? ' @ ' + fmtIrr(advRate) + ' IRR' : '');
-      }
-      /* مبلغ واقعیِ وصول‌شده — با نرخ قدیم دریافت شده؛ باید صریح بماند */
-      if (receivedIrr > 0) {
-        s += ' — ' + fmtIrr(receivedIrr) + ' IRR already received' + (receivedDoc ? ' (' + fmtIrr(receivedDoc) + ' ' + cur + ')' : '');
       }
       return s + '.';
     } catch (e) { return null; }
@@ -252,8 +241,8 @@
     var liveRate = src.currency === 'USD' ? (+L.usd_free || 0) : src.currency === 'EUR' ? (+L.eur_free || 0) : 0;
     var totalFx = fxTotal(src);
     var _b = fxBasisOf(src);
-    var fxNote = (_b.advanceReceivedIrr > 0 || _b.advancePct > 0)
-      ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:5px 9px;font-size:11px;color:#166534;margin-top:4px">💰 مبنای ارزی محفوظ: نرخ مبدأ <b>' + (+_b.originalRate).toLocaleString('fa-IR') + '</b> ریال — ' + (_b.advancePct ? 'پیش‌پرداخت ' + _b.advancePct + '٪' : '') + (_b.advanceReceivedIrr > 0 ? ' — وصول‌شدهٔ واقعی: <b>' + (+_b.advanceReceivedIrr).toLocaleString('fa-IR') + ' ریال</b>' + (_b.advanceReceivedDoc ? ' (' + (+_b.advanceReceivedDoc).toLocaleString('en-US') + ' ' + escP(src.currency) + ')' : '') : '') + ' (تغییر نرخِ تبدیل، مبلغ واقعی وصول‌شده را عوض نمی‌کند)</div>'
+    var fxNote = _b.advancePct > 0
+      ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:5px 9px;font-size:11px;color:#166534;margin-top:4px">💰 شرط تجاری پیشنهاد مبدأ: پیش‌پرداخت <b>' + _b.advancePct + '٪</b>' + (_b.advanceDocAmt ? ' — ' + (+_b.advanceDocAmt).toLocaleString('en-US') + ' ' + escP(src.currency) : '') + '. وصول و مانده فقط در حساب ریالی فاکتور نگهداری می‌شود.</div>'
       : '';
     var html = '<div class="md-b" id="sfRcTermsDlg" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:800px">' +
       '<h3>🔧 شرایط و ضوابط نسخه ریالی — <span dir="ltr">' + escP(comp.no) + '</span></h3>' +
@@ -347,13 +336,13 @@
     comp.fxConvert.rate = rate;
     comp.fxConvert.totalIrr = totalIrr;
     comp.fxConvert.termsRewritten = comp.terms.length;
-    /* مبنای ارزی دست‌نخورده بماند (نرخ مبدأ/مبلغ ارزی/مبلغ وصول‌شده‌ٔ واقعی — US-FX2RIAL)؛
-       فقط در صورت نبود، یک‌بار از مبدأ پر شود. */
-    if (!comp.fxConvert.originalRate) { var _fb = fxBasisOf(src); comp.fxConvert.originalRate = _fb.originalRate; comp.fxConvert.originalFxTotal = _fb.originalFxTotal; comp.fxConvert.srcCurrency = _fb.currency; comp.fxConvert.advancePct = _fb.advancePct; comp.fxConvert.advanceDocAmt = _fb.advanceDocAmt; comp.fxConvert.advanceReceivedIrr = _fb.advanceReceivedIrr; comp.fxConvert.advanceReceivedDoc = _fb.advanceReceivedDoc; }
-    /* درصد وصول‌شده با مبلغ واقعی (دریافت‌شده با نرخ قدیم) بر کل جدید — تحریف نشود */
-    if (comp.fxConvert.advanceReceivedIrr > 0 && totalIrr > 0) {
-      comp.fxConvert.advanceReceivedPctOfNew = Math.round(comp.fxConvert.advanceReceivedIrr * 10000 / totalIrr) / 100;
-    } else { comp.fxConvert.advanceReceivedPctOfNew = 0; }
+    /* مبنای تجاری پیشنهاد (نرخ/مبلغ ارزی و شرط پیش‌پرداخت) دست‌نخورده بماند؛
+       وصول و درصد وصول به metadata پیشنهاد تعلق ندارند. */
+    if (!comp.fxConvert.originalRate) { var _fb = fxBasisOf(src); comp.fxConvert.originalRate = _fb.originalRate; comp.fxConvert.originalFxTotal = _fb.originalFxTotal; comp.fxConvert.srcCurrency = _fb.currency; comp.fxConvert.advancePct = _fb.advancePct; comp.fxConvert.advanceDocAmt = _fb.advanceDocAmt; }
+    /* نسخه‌های قدیمی ممکن است snapshot وصول ارزی داشته باشند؛ هنگام اصلاح پاک شوند. */
+    delete comp.fxConvert.advanceReceivedIrr;
+    delete comp.fxConvert.advanceReceivedDoc;
+    delete comp.fxConvert.advanceReceivedPctOfNew;
     comp.currency = 'IRR';
     comp.updatedAtISO = new Date().toISOString();
     setData(OFFERS_KEY, offers);
@@ -413,17 +402,16 @@
       var termsConv = convertTermsArr(o.terms || [], o.currency, rate);
       var advTerm = buildAdvanceTerm(o);
       if (advTerm) { termsConv.terms.unshift(advTerm); termsConv.changed++; }
-      var _fxBasis = fxBasisOf(o); /* مبنای ارزی/پیش‌پرداخت واقعی سند مبدأ — برای محفوظ ماندن پس از ریالی‌شدن */
+      var _fxBasis = fxBasisOf(o); /* مبنای تجاری پیشنهاد مبدأ — بدون اطلاعات وصول */
       var comp = {
         no: newNo, kind: 'CO', rev: 0, editMode: 'new',
         /* وضعیت: ارسال‌شده — نسخه ریالی هرگز برنده/بازنده نمی‌شود (هوک offerSetSt) */
         st: 'sent',
         rialOf: o.no,
         fxConvert: { from: o.no, cur: o.currency, rate: rate, totalFx: totalFx, totalIrr: totalIrr, dateISO: dateISO, termsRewritten: termsConv.changed || 0, at: (typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString()), by: curName(),
-          /* مبنای ارزی (نرخ مبدأ، مبلغ ارزی، درصد و مبلغ وصول‌شدهٔ پیش‌پرداخت) — US-FX2RIAL */
+          /* مبنای تجاری ارزی و شرط پیش‌پرداخت؛ وصول فقط در Receipt ریالی نگهداری می‌شود. */
           originalRate: _fxBasis.originalRate, originalFxTotal: _fxBasis.originalFxTotal, srcCurrency: _fxBasis.currency,
-          advancePct: _fxBasis.advancePct, advanceDocAmt: _fxBasis.advanceDocAmt,
-          advanceReceivedIrr: _fxBasis.advanceReceivedIrr, advanceReceivedDoc: _fxBasis.advanceReceivedDoc },
+          advancePct: _fxBasis.advancePct, advanceDocAmt: _fxBasis.advanceDocAmt },
         currency: 'IRR', fxBasis: '', fxRateRef: 0,
         dateEn: dateISO,
         dateFa: (typeof ptfISOToJ === 'function' ? ptfISOToJ(dateISO) : dateISO),

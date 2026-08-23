@@ -581,18 +581,17 @@
   }
   window.ptfCaseFinanceOpen = function (id) {
     var c=findCase(id); if(!c){alert('پرونده یافت نشد');return;}
-    var t=caseTotals(c), cid=caseId(c), cur=c.currency||'IRR';
+    var t=caseTotals(c), cid=caseId(c);
     var receipts=t.receipts.map(function(r){
-      var fx=(r.currency&&r.currency!=='IRR')?' <small style="color:#0e7490">('+(+r.coveredFxAmount||0).toLocaleString('en-US')+' '+esc(r.currency)+' @ '+(+r.fxRate||0).toLocaleString('fa-IR')+')</small>':'';
       var acts=canFinance()?'<button class="bt bt-o" style="font-size:11px" onclick="ptfReceiptCorrectOpen(\''+arg(receiptId(r))+'\')">اصلاح</button> <button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfReceiptVoid(\''+arg(receiptId(r))+'\')">ابطال</button> ':'';
       if(role()==='admin')acts+='<button class="bt bt-o" style="font-size:11px;color:#b91c1c" onclick="ptfAdminHardDelete(\'receipt\',\''+arg(receiptId(r))+'\',function(){document.querySelectorAll(\'#ptfCaseFinanceDlg\').forEach(function(x){x.remove();});ptfCaseFinanceOpen(\''+arg(cid)+'\');})">حذف قطعی</button> ';
       acts+='<button class="bt bt-o" style="font-size:11px" onclick="ptfFinAttachOpen(\'receipt\',\''+arg(receiptId(r))+'\')">📎 اسناد</button>';
-      return '<tr><td>'+esc(r.receivedAt||r.dateISO||'')+'</td><td>'+esc(r.method||r.how||'')+'</td><td>'+money(r.amountIRR||r.amt)+fx+'</td><td>'+money(r.creditRemainIRR||0)+'</td><td>'+acts+'</td></tr>';
+      return '<tr><td>'+esc(r.receivedAt||r.dateISO||'')+'</td><td>'+esc(r.method||r.how||'')+'</td><td>'+money(r.amountIRR||r.amt)+'</td><td>'+money(r.creditRemainIRR||0)+'</td><td>'+acts+'</td></tr>';
     }).join('')||'<tr><td colspan="5">دریافتی قطعی ثبت نشده است.</td></tr>';
     var invoices=t.invoices.map(function(i){return '<tr><td>'+esc(i.no||i.cd)+'</td><td>'+esc(i.invDate||'')+'</td><td>'+money(i.base||0)+'</td><td>'+money(i.vat||0)+'</td><td>'+money(i.openAmountIRR!=null?i.openAmountIRR:i.amount||0)+'</td></tr>';}).join('')||'<tr><td colspan="5">فاکتور فعالی ثبت نشده است.</td></tr>';
     document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});
     var html='<div class="md-b" id="ptfCaseFinanceDlg" style="display:grid;z-index:2900" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:980px;max-height:92vh;overflow:auto">'+
-      '<h3>💳 دریافت و حساب پرونده — '+esc(c.inqNo||c.wonOffer||cid)+'</h3><div style="font-size:12px;color:#64748b">مشتری: <b>'+esc(c.buyerCo||'')+'</b> | ارز قرارداد: <b>'+esc(cur)+'</b> | دریافت فقط رویداد قطعی مالی است؛ شرایط پیشنهاد اثر خزانه ندارد.</div>'+
+      '<h3>💳 دریافت و حساب پرونده — '+esc(c.inqNo||c.wonOffer||cid)+'</h3><div style="font-size:12px;color:#64748b">مشتری: <b>'+esc(c.buyerCo||'')+'</b> | مبنای مطالبات و تمام دریافت‌ها: <b>مبلغ ریالی فاکتور</b>.</div>'+
       '<div class="sr" style="margin:10px 0"><div class="sc"><b>'+money(t.received)+'</b><span>کل دریافت قطعی</span></div><div class="sc"><b>'+money(t.allocated)+'</b><span>تخصیص به فاکتور</span></div><div class="sc"><b>'+money(t.credit)+'</b><span>بستانکاری پرونده</span></div><div class="sc"><b>'+money(t.open)+'</b><span>مطالبات باز</span></div></div>'+
       (canFinance()?'<button class="bt" onclick="ptfReceiptOpen(\''+arg(cid)+'\')">+ ثبت دریافت قطعی</button> ':'')+(role()==='admin'?'<button class="bt bt-o" style="color:#b91c1c" onclick="ptfAdminHardDelete(\'case\',\''+arg(cid)+'\',function(){document.querySelectorAll(\'#ptfCaseFinanceDlg\').forEach(function(x){x.remove();});if(typeof renderDeals===\'function\')renderDeals();})">حذف قطعی پرونده</button> ':'')+'<button class="bt bt-o" onclick="ptfFinAttachOpen(\'sales_case\',\''+arg(cid)+'\')">📎 اسناد مالی پرونده</button>'+
       '<h4>دریافت‌ها</h4><div class="tb2"><table><thead><tr><th>تاریخ</th><th>روش</th><th>مبلغ</th><th>بستانکاری باقیمانده</th><th>عملیات</th></tr></thead><tbody>'+receipts+'</tbody></table></div>'+
@@ -608,15 +607,13 @@
   }
   window.ptfReceiptOpen = function (cid, existing) {
     if(!canFinance()){alert('⛔ فقط کاربران مالی مجازند');return;}
-    var c=findCase(cid);if(!c)return;var fx=(c.currency||'IRR')!=='IRR';
-    ptfDialog({title:(existing?'اصلاح':'ثبت')+' دریافت قطعی — '+(c.inqNo||c.wonOffer||''),body:'همه مبالغ به ریال هستند. چک از ماژول چک ثبت و فقط پس از وصول به دریافت قطعی تبدیل می‌شود.',fields:[
+    var c=findCase(cid);if(!c)return;
+    ptfDialog({title:(existing?'اصلاح':'ثبت')+' دریافت قطعی ریالی — '+(c.inqNo||c.wonOffer||''),body:'مبنای مطالبات مبلغ ریالی فاکتور است و تمام دریافت‌ها فقط به ریال ثبت می‌شوند. چک از ماژول چک ثبت و فقط پس از وصول به دریافت قطعی تبدیل می‌شود.',fields:[
       {id:'amt',label:'مبلغ دریافتی (ریال) *',type:'number',required:true,dir:'ltr',value:existing?existing.amountIRR:''},
       {id:'date',label:'تاریخ دریافت *',value:existing?existing.receivedAt:(typeof faDate==='function'?faDate():'')},
       {id:'method',label:'روش دریافت *',type:'select',value:existing?existing.method:'bank_transfer',options:[{v:'bank_transfer',lb:'حواله بانکی'},{v:'cash',lb:'نقد'}]},
       {id:'account',label:'حساب/صندوق مقصد *',required:true,value:existing?existing.destinationAccount:''},
       {id:'ref',label:'شماره مرجع/پیگیری',value:existing?existing.referenceNo:''},
-      {id:'rate',label:fx?'نرخ ارز روز دریافت (ریال per '+c.currency+') *':'نرخ ارز (برای پرونده ریالی خالی)',type:'number',dir:'ltr',value:existing?existing.fxRate:''},
-      {id:'rateSource',label:fx?'منبع/توضیح نرخ *':'منبع نرخ',value:existing?existing.fxRateSource:''},
       {id:'note',label:'توضیح',type:'textarea',rows:2,value:existing?existing.note:''}
     ].concat(existing?[
       /* v34.7.18 (AR-INTEGRITY فاز ۲ / R7): انتقال بستانکاری به پروندهٔ دیگرِ همان مشتری.
@@ -624,9 +621,9 @@
       {id:'targetCase',label:'پروندهٔ مقصد (برای انتقال بستانکاری)',type:'select',value:caseId(c),optionsHtml:customerCaseOptions(c,caseId(c))},
       {id:'reason',label:'دلیل اصلاح *',type:'textarea',required:true,rows:2}
     ]:[]),okText:existing?'ثبت اصلاحیه':'ثبت دریافت',onOk:function(v){
-      var payload={caseId:caseId(c),amountIRR:num(v.amt),receivedAt:v.date,method:v.method,destinationAccount:v.account,referenceNo:v.ref,note:v.note,fxRate:num(v.rate),fxRateSource:v.rateSource};
+      var payload={caseId:caseId(c),amountIRR:num(v.amt),receivedAt:v.date,method:v.method,destinationAccount:v.account,referenceNo:v.ref,note:v.note};
       if(existing){payload.receiptId=receiptId(existing);payload.reason=v.reason;if(v.targetCase&&v.targetCase!==caseId(c))payload.caseId=v.targetCase;}
-      command(existing?'correct_receipt':'post_receipt',payload,{onAck:function(){toast(existing?'دریافت با سند معکوس اصلاح شد':'دریافت قطعی ثبت شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(caseId(c));if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();},onReject:function(e){var map={fiscal_period_locked:'دوره مالی قفل است',fx_rate_and_source_required:'نرخ و منبع نرخ الزامی است',cheque_requires_collection:'چک باید ابتدا در ماژول چک وصول شود'};alert('⛔ '+(map[e.message]||e.message));}});
+      command(existing?'correct_receipt':'post_receipt',payload,{onAck:function(){toast(existing?'دریافت با سند معکوس اصلاح شد':'دریافت قطعی ریالی ثبت شد','ok');document.querySelectorAll('#ptfCaseFinanceDlg').forEach(function(x){x.remove();});window.ptfCaseFinanceOpen(caseId(c));if(typeof ptfTreasuryRender==='function')ptfTreasuryRender();},onReject:function(e){var map={fiscal_period_locked:'دوره مالی قفل است',cheque_requires_collection:'چک باید ابتدا در ماژول چک وصول شود'};alert('⛔ '+(map[e.message]||e.message));}});
     }});
   };
   window.ptfReceiptCorrectOpen = function (id) { var r=data('ptf_crm_case_receipts').filter(function(x){return receiptId(x)===String(id);})[0];if(r)window.ptfReceiptOpen(r.caseId,r); };
