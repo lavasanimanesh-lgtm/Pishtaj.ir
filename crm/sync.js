@@ -64,6 +64,21 @@
     return clean;
   }
   window._ptfSyncBootstrapped = false; /* v16.7 BUG-018: فلگ عمومی برای ماژول‌هایی که rebuild خودکار دارند (sms) */
+  /* readiness مالی فقط بعد از پاسخ موفق pull اعلام می‌شود؛ bootstrapped ممکن است در
+     مسیر خطا نیز برای سازگاری ماژول‌های قدیمی true شود و معیار امنی نیست. */
+  window._ptfSyncSnapshotReady = false;
+  function announceSnapshotReady(result) {
+    if (!result || result.ok === false) return false;
+    window._ptfSyncSnapshotReady = true;
+    try {
+      var detail = { ok: true, rev: result.rev, applied: +result.applied || 0, fresh: !!result.fresh };
+      var ev;
+      if (typeof window.CustomEvent === 'function') ev = new window.CustomEvent('ptf:sync-ready', { detail: detail });
+      else if (document && typeof document.createEvent === 'function') { ev = document.createEvent('CustomEvent'); ev.initCustomEvent('ptf:sync-ready', false, false, detail); }
+      if (ev && typeof window.dispatchEvent === 'function') window.dispatchEvent(ev);
+    } catch (eReady) {}
+    return true;
+  }
   var state = {
     dirty: loadPersistedDirty(),  // کلید معتبر، بدون audit غیرقابل‌ارسال؛ v34.4.42 ضد بنر کاذب
     pushTimer: null,
@@ -692,7 +707,11 @@
     state.pullRequesting = true;
     function finishPull(result) {
       state.pullRequesting = false;
-      if (done) done(result || { ok: true });
+      result = result || { ok: true };
+      /* پس از bootstrap، هر pull موفق snapshot-ready را دوباره اعلام می‌کند تا
+         expected setهای تازه‌رسیده (قالب/سهامدار) نیز entity-level reconcile شوند. */
+      if (state.bootstrapped && result.ok !== false) announceSnapshotReady(result);
+      if (done) done(result);
     }
     fetch(pullUrl, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
@@ -1001,8 +1020,10 @@
     /* v34.5.2: یک رفت‌وبرگشت به‌جای data_rev + snapshot کامل.
        pull با since=0 و krevs محلی: کلیدهای تازه فقط دلتا؛ سرور خالی (rev=0/fresh) → seed. */
     if (!hasSyncToken()) {
-      retryPullAfterAuth(function () {
+      retryPullAfterAuth(function (res) {
         state.bootstrapped = true; window._ptfSyncBootstrapped = true;
+        /* خطای auth/network هرگز readiness کاذب تولید نمی‌کند. */
+        if (res && res.ok !== false) announceSnapshotReady(res);
       }, true);
       return;
     }
@@ -1014,6 +1035,7 @@
         if (res && res.reason === 'network') setSyncBadge('offline');
         return;
       }
+      announceSnapshotReady(res);
       var serverEmpty = !!(res.fresh && !(+res.rev));
       if (serverEmpty) {
         var hasData = SYNC_KEYS.some(function (k) { return (rd(k) || '[]').length > 10; });

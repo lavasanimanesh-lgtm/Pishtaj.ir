@@ -1,13 +1,13 @@
 /* =====================================================================
-   PTF CRM — opex.js — v17.7 — US-418 (کیس R9 — فاز ۱ خانواده مالی)
+   PTF CRM — opex.js — US-418 + v34.7.97 monthly reconcile
    هزینه‌های جاری شرکت: اجاره، حقوق/دستمزد، بیمه، مالیات، پذیرایی/اداری،
    پورسانت بیرونی، ایاب‌ذهاب/ماموریت، سایر — ماهانه (شمسی) + تکرارشونده.
    اصول:
    - جای نمایش: داخل پنل «تنخواه گردان» (تنخواه = زیرمجموعه هزینه‌ها — مصوبه R9)
      با hook — بدون شکستن petty؛ فقط نقش‌های دارای finance می‌بینند.
-   - کلید جدید ptf_crm_opex (سینک + بک‌آپ + سپر داده‌صفر v16.7).
-   - هزینه تکرارشونده (اجاره/حقوق): یک‌بار تعریف در settings.opexTpl؛
-     هر ماه «پیشنهاد ثبت» با تایید کاربر — هیچ ثبت خودکار بی‌صدا (قاعده ایمنی).
+   - کلید ptf_crm_opex سینک و بک‌آپ می‌شود و سپر داده‌صفر v16.7 را دارد.
+   - هزینه تکرارشونده یک‌بار در settings.opexTpl تعریف می‌شود؛ از v34.7.97 پس از
+     snapshot موفق Sync به‌صورت idempotent reconcile می‌شود. اقدام دستی fallback است.
    - مصرف‌کننده آینده: US-420 (داشبورد سال مالی) — جمع per ماه/دسته/سال از همین کلید.
    ===================================================================== */
 (function () {
@@ -313,13 +313,28 @@
 
   /* ---------- قالب‌های تکرارشونده (settings.opexTpl — سینک‌شونده) ---------- */
   function tpls() {
-    try { return (JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}').opexTpl) || []; } catch (e) { return []; }
+    try {
+      var st = typeof getData === 'function' ? getData('ptf_crm_settings') : null;
+      if (!st || Array.isArray(st) || typeof st !== 'object') st = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}');
+      return Array.isArray(st.opexTpl) ? st.opexTpl : [];
+    } catch (e) { return []; }
   }
   function saveTpls(list) {
     var st = {};
-    try { st = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}'); } catch (e) {}
+    try { st = typeof getData === 'function' ? getData('ptf_crm_settings') : {}; } catch (e) {}
+    if (!st || Array.isArray(st) || typeof st !== 'object') st = {};
     st.opexTpl = list;
     setData('ptf_crm_settings', st);
+  }
+  function recurringKeyForTpl(t, month) { return 'opex-template:' + String((t && t.id) || '') + ':' + String(month || ''); }
+  function stableRecurringCode(prefix, key) {
+    var a = 5381, b = 52711, s = String(key || '');
+    for (var i = 0; i < s.length; i++) { a = ((a * 33) ^ s.charCodeAt(i)) >>> 0; b = ((b * 31) + s.charCodeAt(i)) >>> 0; }
+    return prefix + '-' + ('00000000' + a.toString(16)).slice(-8).toUpperCase() + ('00000000' + b.toString(16)).slice(-8).toUpperCase();
+  }
+  function recurringRowActive(x) {
+    var st = String((x && (x.status || x.st)) || '').toLowerCase();
+    return !!x && ['void', 'voided', 'cancelled', 'deleted'].indexOf(st) < 0 && !x.voided && !x.deleted;
   }
   /* قالب‌هایی که برای ماه جاری هنوز ثبت نشده‌اند */
   window.ptfOpexPendingTpls = function (month) {
@@ -327,7 +342,8 @@
     if (!m) return [];
     var list = oAll();
     return tpls().filter(function (t) {
-      return !list.some(function (x) { return x.tplId === t.id && x.month === m; });
+      var key = recurringKeyForTpl(t, m);
+      return !list.some(function (x) { return recurringRowActive(x) && (x.recurringKey === key || (x.tplId === t.id && x.month === m)); });
     });
   };
 
@@ -635,63 +651,141 @@
     ptfOpexRender();
   };
 
-  /* ============ v33.7.0: اعمال خودکار هزینه‌های تکرارشونده با شروع ماه جدید ============
-     مصوب کارفرما ۱۴۰۵/۰۸/۱۱: «حقوق سهامداران و اجاره و سایر هزینه‌های تکرارشونده با
-     تعویض ماه باید خودکار اعمال شوند و نیازی به دخالت کاربر نداشته باشند.»
-     - حقوق سهامداران موظف: فقط نقش‌های ارشد (محرمانه) — از ensureSalaryTxForMonth
-       (shareholders.js) استفاده می‌شود تا یکسان با دکمهٔ دستی باشد.
-     - قالب‌های تکرارشونده (opexTpl: اجاره و…): فقط نقش‌های مالی.
-     - یک‌بار در هر ماه (flag ptf_auto_recurring_last) + ثبت کامل در audit. */
+  /* ============ v34.7.97: reconcile نتیجه‌محور هزینه‌های تکرارشونده ============
+     این تابع در هر اجرا expected set ماه را از snapshot فعلی می‌سازد و با domain key
+     پایدار upsert می‌کند. فلگ باینری قدیمی عمداً معیار skip نیست: اجرای ناقص یا snapshot
+     سرد نباید کل ماه را قفل کند. اجرای خودکار فقط پس از رویداد readiness سینک پایین‌تر است. */
   window.ptfAutoApplyRecurring = function () {
     var m = ptfFaMonthNow();
-    if (!m) return { ok: false, why: 'no_month' };
-    var out = { month: m, salaries: 0, tpls: 0, skipped: 0, errors: [] };
-    var last = '';
-    try { last = localStorage.getItem('ptf_auto_recurring_last') || ''; } catch (eL) {}
+    if (!m) return { ok: false, complete: false, why: 'no_month' };
+    var out = {
+      ok: true, complete: false, month: m, salaries: 0, tpls: 0, repaired: 0, skipped: 0,
+      expected: { salaries: [], tpls: [] }, present: { salaries: [], tpls: [] },
+      missing: [], blocked: [], errors: []
+    };
     var canSenior = (function () { try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; } })();
-    var fullRun = canFin() && canSenior;
-    /* اگر این ماه قبلاً اجرای کامل شده → هیچ */
-    if (last === m && fullRun) return { ok: true, month: m, already: true, salaries: 0, tpls: 0 };
-    /* ① حقوق سهامداران موظف (فقط ارشد — محرمانه) */
-    if (canSenior && typeof window.ptfShareEnsureSalary === 'function') {
+    var canFinance = false;
+    try { canFinance = !!canFin(); } catch (eFin) {}
+    if (!canSenior && !canFinance) return Object.assign(out, { ok: false, why: 'permission' });
+    var yearLocked = false;
+    try { yearLocked = typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(String(m).split('/')[0]); } catch (eLock) {}
+
+    var expectedShares = [];
+    if (canSenior) {
       try {
-        var yearLocked = (function (mm) {
-          try { return typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(String(mm).split('/')[0]); } catch (e) { return false; }
-        })(m);
-        if (!yearLocked) {
-          var shs = getData('ptf_crm_shareholders') || [];
-          shs.filter(function (s) { return s && s.active !== false && s.duty && (+s.salary || 0) > 0; }).forEach(function (s) {
-            var r = window.ptfShareEnsureSalary(s, m);
-            if (r.created || r.changed) out.salaries++;
-            else out.skipped++;
-          });
-        }
-      } catch (eS) { out.errors.push('salary:' + String(eS)); }
-    }
-    /* ② قالب‌های تکرارشونده (فقط مالی) */
-    if (canFin()) {
-      try {
-        var list = oRows();
-        tpls().forEach(function (t) {
-          if (list.some(function (x) { return x.tplId === t.id && x.month === m; })) { out.skipped++; return; }
-          var isOfficial = Object.prototype.hasOwnProperty.call(t, 'isOfficial') ? (t.isOfficial === true) : null;
-          var autoRec = { cd: opexNextCode(list), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDateTime(), by: 'سیستم (خودکار ماهانه)', isOfficial: isOfficial, autoApplied: true };
-          autoRec[OPEX_ROW_ID] = opexNewRowId();
-          list.unshift(autoRec);
-          out.tpls++;
+        expectedShares = (getData('ptf_crm_shareholders') || []).filter(function (s) {
+          return s && s.cd && s.active !== false && s.duty && (+s.salary || 0) > 0;
         });
-        if (out.tpls) oSave(list);
-      } catch (eT) { out.errors.push('tpl:' + String(eT)); }
+        out.expected.salaries = expectedShares.map(function (s) { return 'salary:' + String(s.cd) + ':' + m; });
+        if (yearLocked) out.blocked.push({ kind: 'salary', reason: 'fiscal_year_locked', count: expectedShares.length });
+        else if (typeof window.ptfShareEnsureSalary !== 'function') out.errors.push('salary:module_not_ready');
+        else expectedShares.forEach(function (s) {
+          try {
+            var r = window.ptfShareEnsureSalary(s, m) || {};
+            if (r.created || r.changed || r.opexCreated) out.salaries++;
+            else out.skipped++;
+          } catch (eEntity) { out.errors.push('salary:' + String(s.cd) + ':' + String(eEntity)); }
+        });
+      } catch (eS) { out.errors.push('salary_snapshot:' + String(eS)); }
     }
-    /* flag فقط وقتی ست می‌شود که حداقل بخش مجاز اجرا شده باشد (تا مدیر بعداً حقوق را بگیرد) */
-    if (canSenior || canFin()) {
-      try { localStorage.setItem('ptf_auto_recurring_last', m); } catch (eF) {}
+
+    var expectedTpls = [];
+    if (canFinance) {
+      try {
+        expectedTpls = tpls().filter(function (t) {
+          if (t && t.id) return true;
+          out.errors.push('tpl:missing_id');
+          return false;
+        });
+        out.expected.tpls = expectedTpls.map(function (t) { return recurringKeyForTpl(t, m); });
+        if (yearLocked) out.blocked.push({ kind: 'tpl', reason: 'fiscal_year_locked', count: expectedTpls.length });
+        else {
+          var rows = oRows(), rowsChanged = false;
+          expectedTpls.forEach(function (t) {
+            var key = recurringKeyForTpl(t, m);
+            var exists = rows.filter(function (x) { return recurringRowActive(x) && (x.recurringKey === key || (x.tplId === t.id && x.month === m)); })[0];
+            if (exists) {
+              if (!exists.recurringKey) { exists.recurringKey = key; rowsChanged = true; out.repaired++; }
+              out.skipped++;
+              return;
+            }
+            var stableCd = stableRecurringCode('OPX-REC', key);
+            var collision = rows.some(function (x) { return x && x.cd === stableCd && x.recurringKey !== key; });
+            if (collision) { out.errors.push('tpl:' + String(t.id) + ':stable_id_collision'); return; }
+            var isOfficial = Object.prototype.hasOwnProperty.call(t, 'isOfficial') ? (t.isOfficial === true) : null;
+            var autoRec = {
+              cd: stableCd, cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id,
+              recurringKey: key, t: faDateTime(), by: 'سیستم (خودکار ماهانه)',
+              isOfficial: isOfficial, autoApplied: true
+            };
+            /* هویت فنی ردیف هم مانند cd قطعی است تا ارجاع چک/خزانه در race دو دستگاه
+               با انتخاب تصادفی یکی از row idها شکسته نشود. */
+            autoRec[OPEX_ROW_ID] = stableRecurringCode('OPXR-REC', key);
+            rows.unshift(autoRec); rowsChanged = true; out.tpls++;
+          });
+          if (rowsChanged) oSave(rows);
+        }
+      } catch (eT) { out.errors.push('tpl_snapshot:' + String(eT)); }
     }
+
+    /* manifest نتیجه از دادهٔ واقعاً ذخیره‌شده ساخته می‌شود؛ نه از این‌که loop اجرا شده است. */
+    if (!yearLocked && canSenior) {
+      var txRows = [], salaryOpex = [];
+      try { txRows = getData('ptf_crm_sharetx') || []; salaryOpex = oRows(); } catch (eReadSalary) { out.errors.push('salary_verify:' + String(eReadSalary)); }
+      out.expected.salaries.forEach(function (key) {
+        var tx = txRows.filter(function (x) { return x && x.recurringKey === key; })[0];
+        var ox = salaryOpex.filter(function (x) { return recurringRowActive(x) && x.recurringKey === key && (!tx || x.shareTx === tx.cd); })[0];
+        if (tx && ox) out.present.salaries.push(key); else out.missing.push({ kind: 'salary', key: key, tx: !!tx, opex: !!ox });
+      });
+    }
+    if (!yearLocked && canFinance) {
+      var finalRows = [];
+      try { finalRows = oRows(); } catch (eReadTpl) { out.errors.push('tpl_verify:' + String(eReadTpl)); }
+      out.expected.tpls.forEach(function (key) {
+        if (finalRows.some(function (x) { return recurringRowActive(x) && x.recurringKey === key; })) out.present.tpls.push(key);
+        else out.missing.push({ kind: 'tpl', key: key });
+      });
+    }
+    out.complete = out.errors.length === 0 && out.missing.length === 0;
+    out.ok = out.complete;
     try {
-      if (out.salaries || out.tpls) audit('هزینه جاری', 'اعمال خودکار تکرارشونده‌های ماه ' + m + ' — حقوق: ' + out.salaries + ' / قالب‌ها: ' + out.tpls + (out.errors.length ? ' | خطا: ' + out.errors.join('؛ ') : ''), 'auto-recurring');
+      if (out.salaries || out.tpls || out.repaired || out.errors.length || out.missing.length) {
+        audit('هزینه جاری', 'تطبیق خودکار تکرارشونده‌های ماه ' + m + ' — حقوق: ' + out.salaries + ' / قالب‌ها: ' + out.tpls + ' / ترمیم: ' + out.repaired + (out.complete ? ' — کامل' : ' — ناقص') + (out.errors.length ? ' | خطا: ' + out.errors.join('؛ ') : ''), 'auto-recurring');
+      }
     } catch (eA) {}
     return out;
   };
+
+  /* اتوماسیون startup: readiness باید از sync موفق بیاید، نه از timer ترتیب scriptها. */
+  var recurringRetryTimer = null;
+  function runRecurringAfterSync(attempt) {
+    if (!window._ptfSyncSnapshotReady) return;
+    /* هر snapshot موفق دوباره verify می‌شود؛ signature صرف expected set کافی نیست،
+       چون ممکن است یکی از دو نیمهٔ حقوق یا ردیف قالب از دستگاه دیگری حذف شده باشد. */
+    var result = null;
+    try { result = window.ptfAutoApplyRecurring(); } catch (eRun) { result = { complete: false, errors: [String(eRun)] }; }
+    if (result && result.complete) {
+      if (recurringRetryTimer) { clearTimeout(recurringRetryTimer); recurringRetryTimer = null; }
+      if (result.salaries || result.tpls || result.repaired) {
+        if (typeof ptfToast === 'function') ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + result.month + ' تطبیق شد (حقوق: ' + result.salaries + ' — قالب‌ها: ' + result.tpls + ')', 'ok');
+        try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eRender) {}
+      }
+      return;
+    }
+    /* نقش فاقد دسترسی expected set مالی ندارد؛ retry تنها برای اجرای ناقص مجاز است. */
+    if (result && result.why === 'permission') return;
+    attempt = +attempt || 0;
+    if (attempt < 4 && typeof setTimeout === 'function') {
+      if (recurringRetryTimer) clearTimeout(recurringRetryTimer);
+      recurringRetryTimer = setTimeout(function () { recurringRetryTimer = null; runRecurringAfterSync(attempt + 1); }, 1500 * (attempt + 1));
+    }
+  }
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('ptf:sync-ready', function (ev) {
+      if (!ev || !ev.detail || ev.detail.ok !== false) runRecurringAfterSync(0);
+    });
+  }
+  if (window._ptfSyncSnapshotReady && typeof setTimeout === 'function') setTimeout(function () { runRecurringAfterSync(0); }, 0);
 
   window.ptfOpexTemplates = function () { return tpls(); };
   window.ptfOpexUnlinkedForCheque = function () {
@@ -865,17 +959,10 @@
     tries++;
     var done = hookPetty();
     if (done || tries > 50) {
+      /* فقط UI را hook کن؛ reconcile مالی منتظر snapshot موفق Sync است. */
       clearInterval(t);
-      /* v33.7.0: اعمال خودکار تکرارشونده‌های ماه جدید (یک‌بار در ماه) */
-      try {
-        if ((canFin() || (function () { try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; } })())) {
-          var ar = window.ptfAutoApplyRecurring();
-          if (ar && (ar.salaries || ar.tpls) && typeof ptfToast === 'function') {
-            ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + ar.month + ' خودکار ثبت شد (حقوق: ' + ar.salaries + ' — قالب‌ها: ' + ar.tpls + ')', 'ok');
-          }
-          if (done) { try { ptfOpexRender(); } catch (eR) {} }
-        }
-      } catch (eA) {}
     }
   }, 350);
+  /* اگر تب در عبور از مرز ماه باز بماند، پس از readiness ماه تازه نیز reconcile می‌شود. */
+  setInterval(function () { if (window._ptfSyncSnapshotReady) runRecurringAfterSync(0); }, 30 * 60 * 1000);
 })();

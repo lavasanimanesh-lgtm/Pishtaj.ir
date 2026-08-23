@@ -25,6 +25,14 @@
   function nm() { return (curSession() || {}).name || (curSession() || {}).user || ''; }
   function n(v) { return +String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^\d.-]/g, '') || 0; }
   function money(v) { return (+v || 0).toLocaleString('fa-IR') + ' ریال'; }
+  /* شناسهٔ پایدار برای upsertهای ماهانه: دو دستگاه برای یک حقوق، cd یکسان می‌سازند و
+     smart-merge به‌جای دو ردیف، همان domain entity را ادغام می‌کند. */
+  function stableRecurringCode(prefix, key) {
+    var a = 5381, b = 52711, s = String(key || '');
+    for (var i = 0; i < s.length; i++) { a = ((a * 33) ^ s.charCodeAt(i)) >>> 0; b = ((b * 31) + s.charCodeAt(i)) >>> 0; }
+    return prefix + '-' + ('00000000' + a.toString(16)).slice(-8).toUpperCase() + ('00000000' + b.toString(16)).slice(-8).toUpperCase();
+  }
+  function salaryRecurringKey(sh, month) { return 'salary:' + String((sh && sh.cd) || '') + ':' + String(month || ''); }
   function faMonthNow() { try { return new Intl.DateTimeFormat('fa-IR-u-nu-latn', { year: 'numeric', month: '2-digit' }).format(new Date()).replace(/\s/g, '').replace('-', '/'); } catch (e) { return (typeof faDate === 'function' ? faDate().slice(0, 7) : ''); } }
   function normMonth(m) { return String(m || '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/-/g, '/').replace(/\s/g, '').replace(/^(\d{4})\/(\d)$/, '$1/0$2'); }
   function shareYearLocked(month) {
@@ -44,26 +52,35 @@
     month = normMonth(month) || faMonthNow();
     var out = { found: false, changed: false, created: false, removed: false, txCd: '', opexCreated: false };
     if (!sh || sh.active === false) return out;
+    var recurringKey = salaryRecurringKey(sh, month);
     var txs = txAll();
-    var hit = txs.filter(function (x) { return x.type === 'salary' && x.shCd === sh.cd && x.month === month; })[0];
+    var hit = txs.filter(function (x) { return x && (x.recurringKey === recurringKey || (x.type === 'salary' && x.shCd === sh.cd && x.month === month)); })[0];
     /* v34.0.0-alpha (F4-7): اطمینان از وجود opex متناظر — اگر hit پیدا شد ولی ox
        پیدا نشد (مثلاً opex قبلاً حذف شده)، opex ایجاد می‌شود. قبلاً فقط
        در صورت تغییر مبلغ، opex آپدیت می‌شد و اگر ox نبود، چیزی ایجاد نمی‌شد
        → حقوق سهامدار در opex ثبت نمی‌شد و در محاسبات سال مالی لحاظ نمی‌شد. */
     function ensureOpex(cd) {
       var opx = oAll();
-      var exists = opx.filter(function (o) { return o.shareTx === cd; })[0];
+      var exists = opx.filter(function (o) { return o && (o.shareTx === cd || o.recurringKey === recurringKey); })[0];
       if (!exists) {
-        opx.unshift({ cd: genCode('OPX'), cat: 'حقوق و دستمزد', amt: +sh.salary || 0, month: month, desc: 'حقوق موظف سهامدار: ' + sh.name, t: faDateTime(), by: nm(), shareTx: cd, shareholderSalary: true });
+        opx.unshift({ cd: stableRecurringCode('OPX-SAL', recurringKey), _opexRowId: stableRecurringCode('OPXR-SAL', recurringKey), cat: 'حقوق و دستمزد', amt: +sh.salary || 0, month: month, desc: 'حقوق موظف سهامدار: ' + sh.name, t: faDateTime(), by: nm(), shareTx: cd, shareholderSalary: true, recurringKey: recurringKey });
         oSave(opx);
         out.opexCreated = true;
         return true;
       }
+      /* رکورد legacy را بدون تغییر cd به قرارداد domain-key جدید ارتقا بده. */
+      var repaired = false;
+      if (!exists.recurringKey) { exists.recurringKey = recurringKey; repaired = true; }
+      /* اگر نیمهٔ transaction حذف و دوباره ساخته شده باشد، لینک قدیمیِ OPEX باید
+         به transaction قطعیِ فعلی برگردد؛ صرفاً non-empty بودن shareTx کافی نیست. */
+      if (exists.shareTx !== cd) { exists.shareTx = cd; repaired = true; }
+      if (repaired) oSave(opx);
       return false;
     }
     if (sh.duty && (+sh.salary || 0) > 0) {
       if (hit) {
         out.found = true; out.txCd = hit.cd;
+        if (!hit.recurringKey) { hit.recurringKey = recurringKey; txSave(txs); }
         if ((+hit.amt || 0) !== (+sh.salary || 0)) {
           hit.amt = +sh.salary || 0;
           hit.desc = 'حقوق موظف ماه ' + month;
@@ -71,10 +88,11 @@
           txSave(txs);
           /* v34.0.0-alpha (F4-7): آپدیت opex اگر وجود داشت، یا ایجاد اگر نبود */
           var opxChg = oAll();
-          var oxChg = opxChg.filter(function (o) { return o.shareTx === hit.cd; })[0];
+          var oxChg = opxChg.filter(function (o) { return o && (o.shareTx === hit.cd || o.recurringKey === recurringKey); })[0];
           if (oxChg) {
             oxChg.amt = +sh.salary || 0; oxChg.month = month;
             oxChg.desc = 'حقوق موظف سهامدار: ' + sh.name;
+            oxChg.recurringKey = recurringKey; oxChg.shareTx = hit.cd;
             oxChg.updatedT = faDateTime(); oxChg.updatedBy = nm();
             oSave(opxChg);
           } else {
@@ -88,7 +106,9 @@
         }
         return out;
       }
-      var tx = addTx('salary', sh, sh.salary, 'حقوق موظف ماه ' + month, { month: month });
+      var tx = addTx('salary', sh, sh.salary, 'حقوق موظف ماه ' + month, {
+        cd: stableRecurringCode('SHT-SAL', recurringKey), month: month, recurringKey: recurringKey
+      });
       ensureOpex(tx.cd);
       out.created = true; out.txCd = tx.cd;
       return out;
@@ -98,7 +118,7 @@
       txs = txs.filter(function (x) { return x.cd !== hit.cd; });
       txSave(txs);
       var opx3 = oAll();
-      opx3 = opx3.filter(function (o) { return o.shareTx !== hit.cd; });
+      opx3 = opx3.filter(function (o) { return o.shareTx !== hit.cd && o.recurringKey !== recurringKey; });
       oSave(opx3);
       out.removed = true; out.txCd = hit.cd;
     }

@@ -103,15 +103,25 @@
       return false;
     });
   }
-  function returnedAmount(invoice) { return salesReturnsForInvoice(invoice).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0); }
-  function creditAmountForInvoice(invoice) { return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0)); }
+  function returnedAmount(invoice) {
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.returnedAmountIRR === 'function') {
+      try { return window.PTF.ar.returnedAmountIRR(invoice); } catch (eArReturn) {}
+    }
+    return salesReturnsForInvoice(invoice).reduce(function (s, r) { return s + (+r.totalAmount || 0); }, 0);
+  }
+  function creditAmountForInvoice(invoice) {
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try { return window.PTF.ar.invoiceState(invoice).overPaid; } catch (eArCredit) {}
+    }
+    return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0));
+  }
   function creditForCustomer(cd) {
     var legacy = invs(cd).reduce(function (s, i) { return s + creditAmountForInvoice(i); }, 0);
     /* v34.7.26 (S3/F2-B): کلید تهی هرگز وارد نقشه نمی‌شود؛ قبلاً یک پروندهٔ بدون _id و cd
        کلید '' را true می‌کرد و هر رسیدِ بدون caseId (حتی از مشتری دیگر) در بستانکاری این
        مشتری شمرده می‌شد. رسید بدون caseId فقط با customerId صریح پذیرفته می‌شود. */
     var cases = {};
-    (getData('ptf_crm_deals') || []).forEach(function (d) { if (!d || d.buyerCd !== cd) return; var k = String(d._id || d.cd || ''); if (k) cases[k] = true; });
+    (getData('ptf_crm_deals') || []).forEach(function (d) { if (!d || d.buyerCd !== cd) return; [d._id, d.cd].forEach(function (v) { var k = String(v || ''); if (k) cases[k] = true; }); });
     var caseCredit = (getData('ptf_crm_case_receipts') || []).reduce(function (s, r) {
       if (!r || r.status !== 'posted' || r.voided) return s;
       var rk = String(r.caseId || '');
@@ -126,9 +136,17 @@
     var out=[];invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(p){if(!isMigratedLegacyPayment(p))return;var receipt=byId[String(p.migratedToReceiptId||'')]||byLegacy[String(p.cd||'')];out.push({invoiceCd:inv.cd,legacyPaymentCd:p.cd||'',receiptId:receipt?String(receipt._id||receipt.cd||''):'',ok:!!(receipt&&receipt.status==='posted'&&!receipt.voided),amount:+p.amt||+p.amount||0});});});return out;
   };
   function accountPosition(cd) {
+    /* v34.7.97: عددهای summary فقط از قرارداد canonical مطالبات می‌آیند. خود UI هنوز
+       scope نمایش را می‌سازد تا قواعد اسناد غیررسمی و fallback نام یکتای legacy حفظ شود. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.customerPosition === 'function') {
+      try {
+        var canonical = window.PTF.ar.customerPosition(cd, { invoices: invs(cd) });
+        return { balance: canonical.open, credit: canonical.credit, net: canonical.net, netCredit: canonical.netCredit,
+          received: canonical.received, allocated: canonical.allocated, freeReceiptCredit: canonical.freeReceiptCredit, overPaid: canonical.overPaid };
+      } catch (eArPosition) {}
+    }
     var open = bal(cd), credit = creditForCustomer(cd);
-    /* BUG-2026-08-01-001: مقادیر ناخالص (باز و اعتبار) و خالص هر دو برگردانده می‌شوند —
-       قبلاً netting باعث می‌شد مشتری با باز=اعتبار (مثل ۲۰۰/۲۰۰) «۰/۰» دیده شود و هر دو مقدار پنهان شوند. */
+    /* fallback فقط برای بارگذاری ناقص نسخه‌های قدیمی؛ در بوت عادی ar-reconcile پیش از این فایل است. */
     return { balance: open, credit: credit, net: Math.max(0, open - credit), netCredit: Math.max(0, credit - open) };
   }
   /* ---------- v33.12.0: تشخیص و ترمیم اعتبار مشتری (ریشه‌یابی «اعتبار از بین رفته») ----------
@@ -404,8 +422,9 @@
       var customerCases = {}, migratedSources = {};
       (getData('ptf_crm_deals') || []).forEach(function (d) {
         if (!d || d.buyerCd !== cd) return;
-        /* v34.7.26 (S3/F2-B): کلید تهی وارد نقشه نمی‌شود (نشت رسیدهای بدون caseId). */
-        var ck = String(d._id || d.cd || ''); if (ck) customerCases[ck] = true;
+        /* v34.7.97: هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی همچنان برای جلوگیری
+           از نشت رسیدهای بدون caseId وارد نقشه نمی‌شود. */
+        [d._id, d.cd].forEach(function (v) { var ck = String(v || ''); if (ck) customerCases[ck] = true; });
       });
       invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(lp){if(!isMigratedLegacyPayment(lp))return;var rid=String(lp.migratedToReceiptId||'');var legacy=String(lp.cd||'');if(rid)migratedSources[rid]=legacy;if(legacy)migratedSources['legacy:'+legacy]=legacy;});});
       (getData('ptf_crm_case_receipts') || []).forEach(function (p) {
