@@ -123,6 +123,7 @@ var SUITE = [
   { g: 'پیشنهاد/تاریخ اعتبار مودال', f: '_tools/uat/tester500-v34.7.99-offer-validity-visible.js' },
   { g: 'مالی/مطالبات صرفاً ریالی', f: '_tools/uat/tester501-v34.8.0-ar-rial-only.js' },
   { g: 'مکاتبات/پرونده برنده/OPEX', f: '_tools/uat/tester502-v34.8.0-letters-award-opex.js' },
+  { g: 'تاریخ شمسی/پیش‌نویس/RFQ سایت', f: '_tools/uat/tester503-v34.8.0-jalali-draft-site-source.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

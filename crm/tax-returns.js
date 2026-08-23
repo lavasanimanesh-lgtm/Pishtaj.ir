@@ -106,9 +106,8 @@
     if (ys.indexOf(cur) === -1) ys.unshift(cur);
     if (!state.year || ys.indexOf(state.year) === -1) state.year = ys[0];
 
-    var sel = '<div class="fld" style="max-width:220px"><label>سال مالی (برای ارزش افزوده فصلی)</label><select onchange="ptfTaxReturnsYear(this.value)">' +
-      ys.map(function (y) { return '<option value="' + y + '"' + (y === state.year ? ' selected' : '') + '>' + fa(y) + '</option>'; }).join('') +
-      '</select></div>';
+    var sel = '<div class="fld" style="max-width:240px"><label>سال مالی شمسی (برای ارزش افزوده فصلی)</label>' +
+      (window.DateKit && DateKit.yearPicker ? DateKit.yearPicker('taxReturnsYear', state.year) : '<select id="taxReturnsYear">' + ys.map(function (y) { return '<option value="' + y + '"' + (y === state.year ? ' selected' : '') + '>' + fa(y) + '</option>'; }).join('') + '</select>') + '</div>';
 
     var h = sel + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px">';
     SEASONS.forEach(function (s) {
@@ -134,6 +133,12 @@
     state.year = String(y || '');
     window.renderTaxReturns();
   };
+  if (!window._ptfTaxReturnsYearHooked && typeof document !== 'undefined' && document.addEventListener) {
+    window._ptfTaxReturnsYearHooked = true;
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'taxReturnsYear') window.ptfTaxReturnsYear(e.target.value);
+    });
+  }
 
   window.buildTaxReturns = function () { return baseHtml(); };
 
@@ -159,7 +164,7 @@
           { v: 'performance', lb: '💼 اظهارنامه عملکرد سالانه' },
           { v: 'vat', lb: '🧾 اظهارنامه ارزش افزوده فصلی' }
         ]},
-        { id: 'year', label: 'سال مالی (شمسی)', type: 'number', money: false, value: defaultYear, required: true, dir: 'ltr' },
+        { id: 'year', label: 'سال مالی (شمسی)', type: 'year', value: defaultYear, required: true },
         { id: 'season', label: 'فصل (فقط ارزش افزوده)', type: 'select', value: season || 'بهار', options: [
           { v: 'بهار', lb: '🌸 بهار' }, { v: 'تابستان', lb: '☀️ تابستان' },
           { v: 'پاییز', lb: '🍁 پاییز' }, { v: 'زمستان', lb: '❄️ زمستان' }

@@ -3436,7 +3436,7 @@ function showCustModal(cd) {
       '<option value="approved"' + (c && c.venSt === 'approved' ? ' selected' : '') + '>🏆 ۵. تاییدشده / عضو رسمی وندور لیست (AVL)</option>' +
       '<option value="rejected"' + (c && c.venSt === 'rejected' ? ' selected' : '') + '>🔴 ۶. ردشده توسط کارفرما / نیازمند رفع نقص</option></select></div>' +
     '<div class="fld"><label>شماره وندور (در صورت تایید)</label><input type="text" id="nC2VenNo" value="' + (c ? escP(c.venNo||'') : '') + '" style="direction:ltr" placeholder="مثلا: AVL-9088"></div></div>' +
-    '<div class="fr"><div class="fld"><label>تاریخ سررسید پیگیری بعدی وندور (میلادی/شمسی)</label><input type="text" id="nC2VenDue" value="' + (c ? escP(c.venDueFa || c.venDueISO || '') : '') + '" placeholder="مثلا: 1405/05/10" style="direction:ltr"></div>' +
+    '<div class="fr"><div class="fld"><label>تاریخ سررسید پیگیری بعدی وندور (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('nC2VenDue', c ? (c.venDueFa || c.venDueISO || '') : '') : '<input type="text" id="nC2VenDue" value="' + (c ? escP(c.venDueFa || c.venDueISO || '') : '') + '">') + '</div>' +
     '<div class="fld"><label>یادداشت آخرین اقدام / پرونده وندور</label><input type="text" id="nC2VenNote" value="' + (c ? escP(c.venNote||'') : '') + '" placeholder="مثلا: رزومه به ایمیل کمیته فنی نفت ارسال شد"></div></div>' +
     '<div class="fr"><div class="fld"><label>تلفنخانه شرکت</label><input type="text" id="nC2Tel" value="' + (c && (c.coTels||[])[0] ? escP(c.coTels[0].n) : '') + '" placeholder="مثال: 021-88000000" style="direction:ltr"></div>' +
     '<div class="fld"><label>وب‌سایت / ایمیل عمومی</label><input type="text" id="nC2Web" value="' + (c ? escP(c.coWeb || c.coMail || '') : '') + '" style="direction:ltr"></div></div>' +
@@ -3870,7 +3870,7 @@ window.ptfCustVendorFollowup = function (cd) {
         { v: 'approved', lb: '🏆 ۵. تاییدشده / عضو رسمی وندور لیست (AVL)' }, { v: 'rejected', lb: '🔴 ۶. ردشده توسط کارفرما / نیازمند رفع نقص' }
       ]},
       { id: 'venNo', label: 'شماره وندور (در صورت تایید)', type: 'text', value: c.venNo || '', dir: 'ltr' },
-      { id: 'venDue', label: 'تاریخ سررسید پیگیری بعدی (شمسی/میلادی)', type: 'text', value: c.venDueFa || c.venDueISO || '', placeholder: '1405/05/15', dir: 'ltr' },
+      { id: 'venDue', label: 'تاریخ سررسید پیگیری بعدی (شمسی)', datePicker: true, value: c.venDueFa || c.venDueISO || '' },
       { id: 'venNote', label: 'شرح آخرین اقدام انجام‌شده *', type: 'text', value: c.venNote || '', placeholder: 'مثلا: اسناد ارزیابی مالی و فنی به کارشناس کمیته تحویل داده شد', required: true }
     ],
     okText: 'ثبت اقدام و یادآور',

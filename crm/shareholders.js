@@ -284,6 +284,12 @@
     return '<button type="button" class="bt' + (primary ? '' : ' bt-o') + ' shareholder-action shareholder-' + kind + '" data-share-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
       '<span class="shareholder-action-icon" aria-hidden="true">' + icon + '</span><span class="shareholder-action-label">' + label + '</span></button>';
   }
+  if (!window._ptfShareMonthPickerHooked && typeof document !== 'undefined' && document.addEventListener) {
+    window._ptfShareMonthPickerHooked = true;
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'shareholderMonth') window._shareMonth = normMonth(e.target.value) || faMonthNow();
+    });
+  }
   window.ptfShareRender = function () {
     var el = document.getElementById('shareBox'); if (!el) return;
     if (!canShare()) { el.innerHTML = ''; return; }
@@ -309,9 +315,9 @@
     }).join('');
     var warn = Math.round(totalPct * 100) / 100 === 100 ? '<span style="color:#059669">جمع سهام فعال: ۱۰۰٪ ✅</span>' : '<span style="color:#dc2626">جمع سهام فعال: ' + totalPct + '٪ — باید به ۱۰۰٪ برسد</span>';
     el.innerHTML = '<div class="shareholder-box">' +
-      '<div class="shareholder-box-head"><div><b>👥 سهامداران، حقوق موظف و علی‌الحساب</b><br><small>' + warn + '</small></div><div class="shareholder-head-tools"><input class="shareholder-month" value="' + escP(month) + '" onchange="window._shareMonth=this.value.trim();ptfShareRender()" style="width:92px;padding:7px;border:1px solid var(--brd);border-radius:9px;direction:ltr" aria-label="ماه حقوق سهامداران"><div class="shareholder-head-actions" role="group" aria-label="عملیات سهامداران">' +
+      '<div class="shareholder-box-head"><div><b>👥 سهامداران، حقوق موظف و علی‌الحساب</b><br><small>' + warn + '</small></div><div class="shareholder-head-tools"><div class="shareholder-month" style="min-width:190px">' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('shareholderMonth', month) : '<input id="shareholderMonth" value="' + escP(month) + '">') + '</div><div class="shareholder-head-actions" role="group" aria-label="عملیات سهامداران">' +
       shareAction('add', '➕', 'سهامدار', 'ثبت سهامدار جدید', 'ptfShareEdit()', true) +
-      shareAction('apply-salary', '📅', 'ثبت حقوق ماه', 'ثبت حقوق ماه سهامداران', 'ptfShareApplySalary(document.querySelector(\'#shareBox input\').value)', true) +
+      shareAction('apply-salary', '📅', 'ثبت حقوق ماه', 'ثبت حقوق ماه سهامداران', 'ptfShareApplySalary((document.getElementById(\'shareholderMonth\')||{}).value)', true) +
       '</div></div></div>' +
       '<div class="shareholder-list">' + (rows || '<div style="text-align:center;color:#94a3b8;padding:18px">سهامداری ثبت نشده</div>') + '</div></div>';
   };

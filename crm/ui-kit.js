@@ -82,9 +82,16 @@ window.ptfOnClickArg = function (v) {
         } else {
           inner = '<input id="ptfF' + i + '" type="text" inputmode="numeric" data-money="1"' + (f.nohint ? ' data-nohint="1"' : '') + ' value="' + v + '" placeholder="' + (f.placeholder || '') + '" autocomplete="off" spellcheck="false" style="direction:ltr' + (f.dir && f.dir !== 'ltr' ? ';direction:' + f.dir : '') + '">';
         }
-      } else if (f.datePicker && typeof window.ptfDatePicker === 'function') {
-        /* تقویم شمسی برای فیلدهای تاریخ (مثل بازهٔ تنخواه) */
-        inner = window.ptfDatePicker('ptfF' + i, '', f.placeholder || '1405/04/01');
+      } else if ((f.datePicker || (f.type === 'date' && f.gregorian !== true)) && typeof window.ptfDatePicker === 'function') {
+        /* قرارداد تاریخ دیالوگ:
+           - datePicker:true مقدار شمسی legacy را برمی‌گرداند.
+           - type:date در UI فارسی/شمسی است ولی هنگام onOk به ISO تبدیل می‌شود.
+           - gregorian:true opt-out صریح و تنها مسیر native میلادی است. */
+        inner = window.ptfDatePicker('ptfF' + i, f.value || '', f.placeholder || '۱۴۰۵/۰۴/۰۱');
+      } else if (f.type === 'month' && window.DateKit && typeof window.DateKit.monthPicker === 'function') {
+        inner = window.DateKit.monthPicker('ptfF' + i, f.value || '', { allowEmpty: !!f.allowEmpty });
+      } else if (f.type === 'year' && window.DateKit && typeof window.DateKit.yearPicker === 'function') {
+        inner = window.DateKit.yearPicker('ptfF' + i, f.value || '', { allowEmpty: !!f.allowEmpty });
       } else if (f.upload || f.type === 'upload') {
         /* آپلود فایل داخل دیالوگ (مثل پیوست گردش حساب بانک در ارجاع تنخواه) — ویجت بعد از append ساخته می‌شود */
         inner = '<div id="ptfF' + i + '" style="min-height:44px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div>';
@@ -100,12 +107,8 @@ window.ptfOnClickArg = function (v) {
       '<div class="acts"><button class="cancel">انصراف</button>' +
       '<button class="ok' + (opt.danger ? ' danger' : '') + '">' + (opt.okText || 'تایید') + '</button></div></div>';
     document.body.appendChild(b);
-    /* مقدار اولیهٔ فیلدهای تقویم (datePicker) — مقدار پیشنهادی sg در input ست می‌شود */
-    (opt.fields || []).forEach(function (f, i) {
-      if ((f.datePicker || f.type === 'date') && f.value) {
-        try { var dpInp = document.getElementById('ptfF' + i); if (dpInp) dpInp.value = String(f.value); } catch (eD) {}
-      }
-    });
+    /* مقدار اولیه داخل خود DateKit نرمال می‌شود؛ overwrite مستقیم اینجا ممنوع است چون
+       مقدار ISO را دوباره روی input شمسی می‌نوشت و ظاهر/قرارداد را ناسازگار می‌کرد. */
     /* آپلودهای داخل دیالوگ: ویجت attachUploadWidget را روی هر فیلد upload سوار کن */
     var dlgUploads = {};
     (opt.fields || []).forEach(function (f, i) {
@@ -130,6 +133,12 @@ window.ptfOnClickArg = function (v) {
         if (f.required && !val) { errEl.style.display = 'block'; valid = false; }
         else errEl.style.display = 'none';
         if (f.type === 'number') val = (typeof ptfNum === 'function') ? ptfNum(val) : (+String(val).replace(/[^\d.-]/g, '') || 0);
+        /* type:date فقط قرارداد ذخیرهٔ ISO را حفظ می‌کند؛ UI و دریافت کاربر شمسی است.
+           datePicker:true عمداً شمسی باقی می‌ماند تا callerهای قدیمی نشکنند. */
+        if (f.type === 'date' && f.gregorian !== true && !f.datePicker && val) {
+          if (window.DateKit && typeof window.DateKit.jNormalize === 'function' && window.DateKit.jNormalize(val)) val = window.DateKit.jToIso(val) || val;
+          else if (typeof window.ptfJToISO === 'function' && /^\s*(?:13|14)\d{2}[\/-]/.test(val)) val = window.ptfJToISO(val) || val;
+        }
         if (f.upload || f.type === 'upload') val = dlgUploads[f.id] || [];
         values[f.id] = val;
       });
@@ -138,10 +147,12 @@ window.ptfOnClickArg = function (v) {
       if (opt.onOk) opt.onOk(values);
     };
     // فوکوس فیلد اول + Enter=تایید
-    var first = b.querySelector('input,select,textarea');
+    var first = b.querySelector('input:not([type="hidden"]),select,textarea,button.ptf-period-trigger');
     if (first) setTimeout(function () { first.focus(); }, 60);
     b.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') b.querySelector('.ok').click();
+      /* Enter روی دکمه‌های picker باید همان picker را باز/هدایت کند، نه اینکه
+         دیالوگ را زودتر از انتخاب تاریخ submit کند. */
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'BUTTON') b.querySelector('.ok').click();
       if (e.key === 'Escape') b.remove();
     });
   };

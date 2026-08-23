@@ -777,7 +777,7 @@
         { id: 'cur', label: 'ارز خرید', type: 'select', optionsHtml: '<option value="IRR" selected>ریال (IRR)</option><option value="EUR">یورو (EUR)</option><option value="USD">دلار (USD)</option>' },
         { id: 'rate', label: 'نرخ تسعیر (ریال per واحد ارز) — برای خرید ارزی الزامی', type: 'number', dir: 'ltr' },
         /* v18.7 US-430: تاریخ تعهد تحویل تامین‌کننده — ورودی امتیازدهی کیفیت تحویل */
-        { id: 'dueISO', label: 'تاریخ تحویل تعهدشده تامین‌کننده (میلادی/اختیاری)', type: 'date', dir: 'ltr' },
+        { id: 'dueISO', label: 'تاریخ تحویل تعهدشده تأمین‌کننده (میلادی/اختیاری)', type: 'date', gregorian: true, dir: 'ltr' },
         { id: 'dueNote', label: 'یادداشت تعهد تحویل تامین‌کننده (اختیاری)', type: 'text' },
         /* v16.6 (US-400 — ابلاغ کارفرما): نحوه پرداخت — نقدی=تسویه همان لحظه؛ غیرنقدی=بستانکاری تامین‌کننده باز می‌ماند */
         { id: 'pay', label: 'نحوه پرداخت به تامین‌کننده', type: 'select', optionsHtml: '<option value="cash" selected>💵 نقدی (همین لحظه تسویه می‌شود)</option><option value="credit">🧾 غیرنقدی / اعتباری (بستانکاری باز — پرداخت مرحله‌ای)</option>' }

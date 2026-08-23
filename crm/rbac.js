@@ -804,7 +804,7 @@ function showInvModal(offerNo, editCd) {
     '<h3>🧾 ' + (editRec ? 'ویرایش فاکتور رسمی — ' + escP(editRec.no) : 'ثبت فاکتور رسمی صادره') + ' — ' + escP(offerNo) + '</h3>' +
     '<p style="font-size:12px;color:#64748b">' + (editRec ? 'فقط تا قبل از ثبت اولین وصولی قابل‌ویرایش است؛ پس از آن از سند اصلاحی سال مالی استفاده کنید.' : 'فاکتور در سیستم حسابداری صادر شده؛ مشخصات و PDF آن اینجا ثبت و مستقیم در پرونده فروش می‌نشیند (US-436).') + '</p>' + _advTxt +
     '<div class="fr"><div class="fld"><label>شماره فاکتور حسابداری *</label><input type="text" id="nInvNo" value="' + escP(editRec ? editRec.no : '') + '" style="direction:ltr"></div>' +
-    '<div class="fld"><label>تاریخ فاکتور *</label><input type="text" id="nInvDate" value="' + escP(editRec ? (editRec.invDate || faDate()) : faDate()) + '" placeholder="1405/04/21"></div></div>' +
+    '<div class="fld"><label>تاریخ فاکتور (شمسی) *</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('nInvDate', editRec ? (editRec.invDate || faDate()) : faDate()) : '<input type="text" id="nInvDate" value="' + escP(editRec ? (editRec.invDate || faDate()) : faDate()) + '">') + '</div></div>' +
     '<div class="fr"><div class="fld"><label>مبلغ فاکتور بدون ارزش افزوده (ریال) *</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvAmt" value="' + (editRec ? (+editRec.base || 0) : '') + '" style="direction:ltr" oninput="invVatCalc()"></div>' +
     '<div class="fld"><label>ارزش افزوده (ریال)</label><input type="text" inputmode="numeric" data-money="1" autocomplete="off" id="nInvVat" value="' + (editRec ? (+editRec.vat || 0) : '') + '" style="direction:ltr" oninput="invVatCalc(true)"></div></div>' +
     '<div id="nInvSum" style="font-size:12px;color:#0e7490;font-weight:800;margin-bottom:8px"></div>' +
@@ -1046,7 +1046,7 @@ function showPayModal(invCd) {
     '<div class="fld"><label>روش</label><select id="nPayHow" onchange="var w=document.getElementById(\'nPayChWrap\');if(w)w.style.display=this.value===\'چک\'?\'block\':\'none\'"><option>حواله بانکی</option><option>چک</option><option>نقد</option><option>سایر</option></select></div></div>' +
     '<div id="nPayChWrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-top:6px">' +
     '<div class="fr"><div class="fld"><label>شماره / صیادی چک *</label><input id="nPayChNo" dir="ltr" style="direction:ltr"></div>' +
-    '<div class="fld"><label>سررسید (شمسی یا میلادی)</label><input id="nPayChDue" dir="ltr" style="direction:ltr" placeholder="1405/06/30"></div></div>' +
+    '<div class="fld"><label>سررسید (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('nPayChDue', '') : '<input id="nPayChDue" placeholder="۱۴۰۵/۰۶/۳۰">') + '</div></div>' +
     '<div class="fld"><label>بانک / شعبه</label><input id="nPayChBank"></div>' +
     '<div class="fld"><label>📎 عکس/کپی چک (اختیاری)</label><div id="nPayChFileWrap" style="min-height:38px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#fff"></div></div>' +
     '<small style="color:#0369a1">این چک به‌عنوان «چک وارده» در ماژول چک ثبت و پیگیری می‌شود.</small></div>' +
@@ -1428,8 +1428,8 @@ window.ptfSetInvoiceDue = function (invCd) {
   ptfDialog({
     title: '📅 تعیین تاریخ سررسید وصول مطالبات — فاکتور ' + escP(inv.no),
     fields: [
-      { id: 'dueFa', label: 'تاریخ سررسید (شمسی) *', type: 'text', value: inv.dueFa || '', placeholder: 'مثلا: 1405/05/15', dir: 'ltr', required: true },
-      { id: 'dueISO', label: 'تاریخ میلادی معادل (اختیاری)', type: 'date', value: inv.dueISO || '', dir: 'ltr' }
+      { id: 'dueFa', label: 'تاریخ سررسید (شمسی) *', datePicker: true, value: inv.dueFa || inv.dueISO || '', required: true },
+      { id: 'dueISO', label: 'تاریخ میلادی معادل (اختیاری)', type: 'date', gregorian: true, value: inv.dueISO || '', dir: 'ltr' }
     ],
     okText: 'ثبت سررسید',
     onOk: function (v) {

@@ -639,11 +639,12 @@ function showLetterModal(cd) {
     '<div><small style="color:#94a3b8">راست</small><input type="number" id="ltMr" min="0" max="40" value="' + (s.margin && s.margin.r !== '' && s.margin.r != null ? s.margin.r : '') + '" placeholder="16" style="width:100%"></div>' +
     '<div><small style="color:#94a3b8">پایین</small><input type="number" id="ltMb" min="0" max="40" value="' + (s.margin && s.margin.b !== '' && s.margin.b != null ? s.margin.b : '') + '" placeholder="0" style="width:100%"></div>' +
     '<div><small style="color:#94a3b8">چپ</small><input type="number" id="ltMl" min="0" max="40" value="' + (s.margin && s.margin.l !== '' && s.margin.l != null ? s.margin.l : '') + '" placeholder="16" style="width:100%"></div></div></div></details>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
     '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
+    '<button class="bt bt-o" style="color:#0e7490;border-color:#0e7490" onclick="letSaveDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">💾 ثبت پیش‌نویس</button>' +
     '<button class="bt bt-o" onclick="letPreviewDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">👁️ پیش‌نمایش</button>' +
-    '<button class="bt" onclick="letSubmit(' + (l ? "'" + l.cd + "'" : 'null') + ')">✅ تایید و ثبت</button></div>' +
-    '<small style="color:#94a3b8;display:block;margin-top:6px">پیش‌نمایش را ببینید؛ اگر تایید بود «تایید و ثبت» بزنید، وگرنه از تنظیمات دستی بالا اصلاح کنید.</small>' +
+    '<button class="bt" onclick="letSubmit(' + (l ? "'" + l.cd + "'" : 'null') + ')">✅ تایید و ثبت / ارسال برای امضا</button></div>' +
+    '<small style="color:#94a3b8;display:block;margin-top:6px">«ثبت پیش‌نویس» نامه را بدون ارسال برای امضا نگه می‌دارد؛ بعداً می‌توانید آن را از فهرست دوباره باز، ویرایش و پیش‌نمایش کنید.</small>' +
     '</div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   /* v31.7.22 US-LTR-IMG */
@@ -729,6 +730,34 @@ function letPreviewDraft(cd) {
   letPrintObj(l, true);
 }
 
+/* ذخیرهٔ مستقل پیش‌نویس: این مسیر هرگز شماره قطعی، امضا، اعلان امضا یا سند
+   پرونده تولید نمی‌کند. محتوای ناقص هم عمداً قابل ذخیره است تا کاربر بتواند
+   کار را متوقف کند و بعداً از فهرست ادامه دهد. */
+function letSaveDraft(cd) {
+  var l = _collectLetter(cd);
+  var ls = getData('ptf_crm_letters');
+  var idx = -1;
+  ls.forEach(function (x, i) { if (x.cd === l.cd) idx = i; });
+  l.st = 'draft';
+  l.t = l.t || faDate();
+  l.draftUpdatedAt = (typeof faDateTime === 'function' ? faDateTime() : l.t);
+  l.draftUpdatedBy = (curSession() || {}).user || '';
+  delete l.rejectWhy;
+  delete l.signedT;
+  delete l.signatureSnapshot;
+  var ex = letExtract(l.subject || '', l.body || '');
+  l.keywords = ex.keywords; l.summary = ex.summary;
+  if (idx > -1) ls[idx] = l; else ls.unshift(l);
+  setData('ptf_crm_letters', ls);
+  try { audit('مکاتبات', (idx > -1 ? 'به‌روزرسانی' : 'ثبت') + ' پیش‌نویس نامه — ' + (l.subject || 'بدون موضوع'), l.cd); } catch (eA) {}
+  hideModal();
+  renderLetters();
+  if (typeof ptfToast === 'function') ptfToast('💾 پیش‌نویس ذخیره شد؛ از فهرست قابل بازکردن و ویرایش است', 'ok');
+  else alert('✅ پیش‌نویس ذخیره شد');
+  return l;
+}
+window.letSaveDraft = letSaveDraft;
+
 function letSubmit(cd) {
   var l = _collectLetter(cd);
   if (!l.to || !l.subject || !l.body.trim()) { alert('گیرنده، موضوع و متن الزامی است'); return; }
@@ -738,6 +767,9 @@ function letSubmit(cd) {
   var ls = getData('ptf_crm_letters');
   var idx = -1;
   ls.forEach(function (x, i) { if (x.cd === l.cd) idx = i; });
+  /* در ارسال مجدد پیش‌نویس/نامهٔ ردشده، علت رد قبلی نباید کنار وضعیت pending
+     یا signed باقی بماند. */
+  delete l.rejectWhy;
   if (l.signer === '__me__') {
     // خودامضا: شماره قطعی + امضای پروفایل خودم
     var p = mySigProfile();
@@ -834,7 +866,7 @@ function showInboundModal() {
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px;max-height:92vh;overflow:auto">' +
     '<h3>📥 ثبت نامه وارده</h3>' +
     '<div class="fr"><div class="fld"><label>فرستنده *</label><input type="text" id="inFrom"></div>' +
-    '<div class="fld"><label>تاریخ دریافت</label><input type="text" id="inT" value="' + faDate() + '"></div></div>' +
+    '<div class="fld"><label>تاریخ دریافت (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('inT', faDate(), '۱۴۰۵/۰۴/۱۹') : '<input type="text" id="inT" value="' + faDate() + '">') + '</div></div>' +
     '<div class="fld"><label>موضوع *</label><input type="text" id="inSub"></div>' +
     '<div class="fld"><label>خلاصه/متن نامه (برای جستجوی موضوعی — تایپ یا Paste کنید)</label><textarea id="inBody" rows="4"></textarea></div>' +
     '<div class="fr"><div class="fld"><label>مهلت پاسخ (شمسی/اختیاری)</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('inDueJ','') : '<input type="text" id="inDueJ" placeholder="1405/04/19" style="direction:ltr">') + '</div>' +

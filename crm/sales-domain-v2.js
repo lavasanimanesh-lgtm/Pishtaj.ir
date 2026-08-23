@@ -610,7 +610,7 @@
     var c=findCase(cid);if(!c)return;
     ptfDialog({title:(existing?'اصلاح':'ثبت')+' دریافت قطعی ریالی — '+(c.inqNo||c.wonOffer||''),body:'مبنای مطالبات مبلغ ریالی فاکتور است و تمام دریافت‌ها فقط به ریال ثبت می‌شوند. چک از ماژول چک ثبت و فقط پس از وصول به دریافت قطعی تبدیل می‌شود.',fields:[
       {id:'amt',label:'مبلغ دریافتی (ریال) *',type:'number',required:true,dir:'ltr',value:existing?existing.amountIRR:''},
-      {id:'date',label:'تاریخ دریافت *',value:existing?existing.receivedAt:(typeof faDate==='function'?faDate():'')},
+      {id:'date',label:'تاریخ دریافت (شمسی) *',datePicker:true,value:existing?existing.receivedAt:(typeof faDate==='function'?faDate():'')},
       {id:'method',label:'روش دریافت *',type:'select',value:existing?existing.method:'bank_transfer',options:[{v:'bank_transfer',lb:'حواله بانکی'},{v:'cash',lb:'نقد'}]},
       {id:'account',label:'حساب/صندوق مقصد *',required:true,value:existing?existing.destinationAccount:''},
       {id:'ref',label:'شماره مرجع/پیگیری',value:existing?existing.referenceNo:''},

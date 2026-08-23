@@ -481,7 +481,7 @@
         { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
         { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value="no" selected>غیررسمی (بدون فاکتور ممیزپسند)</option><option value="yes">رسمی (فاکتور رسمی/قابل قبول ممیز)</option>' },
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: pre.amt || '', dir: 'ltr', required: true },
-        { id: 'month', label: 'ماه شمسی *', type: 'select', optionsHtml: opexMonthOptions(pre.month || ptfFaMonthNow(), false), required: true },
+        { id: 'month', label: 'دوره ماهانه شمسی *', type: 'month', value: pre.month || ptfFaMonthNow(), required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: pre.desc || '' },
         { id: 'dealRef', label: 'مربوط به کدام درخواست/پرونده فروش؟', type: 'select', optionsHtml: dealOpts },
         { id: 'files', label: 'پیوست اسناد (قبض، رسید پرداخت، تصویر چک، فاکتور)', type: 'upload', uploadFolder: 'opex/' + draftCd },
@@ -581,7 +581,7 @@
         { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
         { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value=""' + (!Object.prototype.hasOwnProperty.call(rec, 'isOfficial') ? ' selected' : '') + '>تعیین نشده</option><option value="yes"' + (rec.isOfficial === true ? ' selected' : '') + '>رسمی / قابل قبول ممیز</option><option value="no"' + (rec.isOfficial === false ? ' selected' : '') + '>غیررسمی</option>' },
         { id: 'amt', label: 'مبلغ (ریال) *', type: 'number', value: rec.amt, dir: 'ltr', required: true },
-        { id: 'month', label: 'ماه شمسی *', type: 'select', optionsHtml: opexMonthOptions(rec.month, false), required: true },
+        { id: 'month', label: 'دوره ماهانه شمسی *', type: 'month', value: rec.month, required: true },
         { id: 'desc', label: 'شرح', type: 'text', value: rec.desc || '' },
         { id: 'dealRef', label: 'پرونده فروش', type: 'select', optionsHtml: dealOpts },
         { id: 'files', label: 'افزودن پیوست جدید (اختیاری)', type: 'upload', uploadFolder: 'opex/' + rec.cd }
@@ -922,7 +922,7 @@
       return '<button type="button" class="bt' + (primary ? '' : ' bt-o') + ' opex-fin-action opex-fin-' + kind + '" data-opex-action="' + kind + '" title="' + escP(title || label) + '" aria-label="' + escP(title || label) + '" onclick="' + onClick + '">' +
         '<span class="opex-fin-icon" aria-hidden="true">' + icon + '</span><span class="opex-fin-label">' + label + '</span></button>';
     }
-    var m = window._opexMonth || ptfFaMonthNow();
+    var m = typeof window._opexMonth === 'string' ? window._opexMonth : ptfFaMonthNow();
     var year = m ? m.split('/')[0] : '';
     var sm = ptfOpexSum(m);
     var sy = ptfOpexSum(year);
@@ -964,7 +964,7 @@
       '<div class="opex-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
       '<h4 style="margin:0;font-size:13.5px">🏢 هزینه‌های جاری شرکت (US-418)</h4>' +
       '<span class="opex-tools">' +
-      '<select class="opex-month" onchange="window._opexMonth=this.value;ptfOpexRender()" style="min-width:168px;padding:6px 8px;border:1.5px solid var(--brd);border-radius:9px;font-size:12px;background:var(--crd,#fff)" title="ماه شمسی — همه یا یک ماه" aria-label="ماه هزینه‌های جاری">' + opexMonthOptions(m, true) + '</select>' +
+      '<span class="opex-month" style="display:inline-block;min-width:190px">' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('opexMonthFilter', m, { allowEmpty: true }) : '<select id="opexMonthFilter" title="ماه شمسی — همه یا یک ماه"><option value="">همه ماه‌ها</option>' + opexMonthOptions(m, false) + '</select>') + '</span>' +
       '<span class="opex-head-actions" role="group" aria-label="عملیات هزینه جاری">' +
       opexAction('add', '➕', 'ثبت هزینه', 'ثبت هزینهٔ جاری جدید', 'ptfOpexAdd()', true) +
       (canFin() ? opexAction('rebuild', '🛠', 'بازسازی حقوق', 'برای تراکنش‌های قدیمیِ حقوق سهامدار که رکورد هزینه ندارند، ردیف حقوق و دستمزد می‌سازد', 'ptfOpexMigrateShareholders()', false) : '') +
@@ -974,6 +974,8 @@
       (chips ? '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">' + chips + '</div>' : '') +
       (rows || '<div style="color:#94a3b8;font-size:12px;padding:6px 0">هزینه‌ای برای این ماه ثبت نشده</div>') +
       (tplRows ? '<div style="margin-top:8px;font-size:11.5px;color:#64748b">قالب‌های تکرارشونده: ' + tplRows + '</div>' : '');
+    var monthFilter = document.getElementById('opexMonthFilter');
+    if (monthFilter) monthFilter.addEventListener('change', function () { window._opexMonth = this.value; ptfOpexRender(); });
   };
 
   /* ---------- hook پنل تنخواه (تنخواه = زیرمجموعه هزینه‌ها — R9) ---------- */

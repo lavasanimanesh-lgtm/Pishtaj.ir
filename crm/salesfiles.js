@@ -598,18 +598,18 @@
     var flds = [];
     if (typeId === 'packing') flds = [
       { id: 'no', label: 'شماره پکینگ لیست', type: 'text', dir: 'ltr', placeholder: 'PL-1405-001', value: current ? current.no || '' : '' },
-      { id: 'dateISO', label: 'تاریخ پکینگ (میلادی)', type: 'date', dir: 'ltr', value: current ? current.dateISO || '' : '' },
+      { id: 'dateISO', label: 'تاریخ پکینگ (میلادی)', type: 'date', gregorian: true, dir: 'ltr', value: current ? current.dateISO || '' : '' },
       { id: 'note', label: 'شرح بسته‌بندی / تعداد نگله', type: 'textarea', rows: 2, required: true, placeholder: 'مثلا: ۳ پالت چوبی — ۴۵۰ کیلوگرم', value: current ? current.note || '' : '' }
     ];
     else if (typeId === 'shipdoc') flds = [
       { id: 'no', label: 'شماره بارنامه / بیجک', type: 'text', dir: 'ltr', required: true, value: current ? current.no || '' : '' },
       { id: 'carrier', label: 'شرکت حمل / راننده', type: 'text', required: true, value: current ? current.carrier || '' : '' },
-      { id: 'dateISO', label: 'تاریخ ارسال (میلادی)', type: 'date', dir: 'ltr', value: current ? current.dateISO || '' : '' },
+      { id: 'dateISO', label: 'تاریخ ارسال (میلادی)', type: 'date', gregorian: true, dir: 'ltr', value: current ? current.dateISO || '' : '' },
       { id: 'note', label: 'توضیح (اختیاری)', type: 'textarea', rows: 2, value: current ? current.note || '' : '' }
     ];
     else flds = [
       { id: 'receiver', label: 'نام تحویل‌گیرنده کارفرما', type: 'text', required: true, value: current ? current.receiver || '' : '' },
-      { id: 'dateISO', label: 'تاریخ تحویل (میلادی)', type: 'date', dir: 'ltr', value: current ? current.dateISO || '' : '' },
+      { id: 'dateISO', label: 'تاریخ تحویل (میلادی)', type: 'date', gregorian: true, dir: 'ltr', value: current ? current.dateISO || '' : '' },
       { id: 'note', label: 'توضیح / شماره رسید تحویل (اختیاری)', type: 'textarea', rows: 2, value: current ? current.note || '' : '' }
     ];
     ptfDialog({

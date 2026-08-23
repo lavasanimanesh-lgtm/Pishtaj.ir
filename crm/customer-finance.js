@@ -606,7 +606,7 @@
       '<div class="fr"><div class="fld"><label>تاریخ وصول (شمسی) *</label>' + dateHtml + '</div><div class="fld"><label>مبلغ (ریال) *</label><input id="cfRecAmt" data-money="1" inputmode="numeric" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>روش</label><select id="cfRecHow" onchange="cfRecHowUi()"><option>حواله بانکی</option><option>چک</option><option>نقد</option><option>سایر</option></select></div><div class="fld"><label>یادداشت</label><input id="cfRecNote"></div></div>' +
       '<div id="cfRecChWrap" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;margin-top:6px">' +
-      '<div class="fr"><div class="fld"><label>شماره / صیادی چک *</label><input id="cfRecChNo" dir="ltr" style="direction:ltr"></div><div class="fld"><label>سررسید (شمسی یا میلادی)</label><input id="cfRecChDue" dir="ltr" style="direction:ltr" placeholder="1405/06/30"></div></div>' +
+      '<div class="fr"><div class="fld"><label>شماره / صیادی چک *</label><input id="cfRecChNo" dir="ltr" style="direction:ltr"></div><div class="fld"><label>سررسید (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('cfRecChDue', '') : '<input id="cfRecChDue" placeholder="۱۴۰۵/۰۶/۳۰">') + '</div></div>' +
       '<div class="fld"><label>بانک / شعبه</label><input id="cfRecChBank"></div>' +
       '<small style="color:#0369a1">این چک به‌عنوان «چک وارده» در ماژول چک ثبت و پیگیری می‌شود.</small></div>' +
       '<div class="fld"><label>📎 رسید / سند وصول (اختیاری)</label><div id="cfRecFileWrap" style="min-height:38px;border:1.5px dashed var(--brd);border-radius:10px;padding:8px;background:#f8fafc"></div></div>' +

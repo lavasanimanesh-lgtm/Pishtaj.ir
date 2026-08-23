@@ -687,7 +687,7 @@
       '  <div class="fr" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
       '    <div class="fld" style="flex:1;min-width:120px">' +
       '      <label>سال مالی</label>' +
-      '      <input id="tpYear" type="number" value="1405" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" oninput="ptfTaxPlannerLive()">' +
+      (window.DateKit && DateKit.yearPicker ? DateKit.yearPicker('tpYear', (typeof faYear === 'function' ? faYear() : '1405')) : '<select id="tpYear" onchange="ptfTaxPlannerLive()"><option value="1404">۱۴۰۴</option><option value="1405" selected>۱۴۰۵</option><option value="1406">۱۴۰۶</option></select>') +
       '    </div>' +
       '    <div class="fld" style="flex:1;min-width:120px">' +
       '      <label>فصل موازنه</label>' +
@@ -712,6 +712,12 @@
 
   /* فاز ۲ / گام ۶: محاسبه‌ی زنده با debounce کوتاه — دکمه‌ی «محاسبه» همچنان کار می‌کند */
   var _tpLiveTimer = null;
+  if (!window._ptfTaxPlannerYearHooked && typeof document !== 'undefined' && document.addEventListener) {
+    window._ptfTaxPlannerYearHooked = true;
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'tpYear') window.ptfTaxPlannerLive();
+    });
+  }
   window.ptfTaxPlannerLive = function () {
     clearTimeout(_tpLiveTimer);
     _tpLiveTimer = setTimeout(function () { try { window.ptfTaxPlannerCalculate(); } catch (e) {} }, 300);

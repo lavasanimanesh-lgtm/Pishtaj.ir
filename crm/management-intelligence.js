@@ -324,7 +324,7 @@
     var opts=users.map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name||u.username)+' — '+esc(u.role||u.roleId||'')+'</option>';}).join('');
     ptfDialog({title:'📌 تبدیل توصیه به اقدام مدیریتی',body:'این اقدام فقط پس از تایید شما ثبت می‌شود و به مسئول منتخب در کارتابل ارسال خواهد شد.',fields:[
       {id:'owner',label:'مسئول اقدام *',type:'select',optionsHtml:opts},
-      {id:'due',label:'موعد اقدام (میلادی، اختیاری)',type:'date',value:new Date(Date.now()+7*86400000).toISOString().slice(0,10)},
+      {id:'due',label:'موعد اقدام (میلادی، اختیاری)',type:'date',gregorian:true,value:new Date(Date.now()+7*86400000).toISOString().slice(0,10)},
       {id:'note',label:'یادداشت/تصمیم مدیریت',type:'textarea',rows:3,value:recommendation||''}
     ],okText:'ثبت و ارجاع اقدام',onOk:function(v){
       if(!v.owner){alert('مسئول را انتخاب کنید');return;}
