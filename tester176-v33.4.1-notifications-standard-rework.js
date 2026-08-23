@@ -328,7 +328,7 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
 (function () {
   var src = fs.readFileSync('crm/letters.js', 'utf8');
   assert.ok(src.indexOf("refCd: l.cd") > -1, 'درخواست امضا باید refCd=نامه.cd داشته باشد');
-  assert.ok(/function letSign\(cd\) \{[\s\S]{0,900}ntfResolveByRef\(l\.cd\)/.test(src), 'letSign باید درخواست امضای مرتبط را برای همه حذف کند');
+  assert.ok(/function letSign\(cd\) \{[\s\S]{0,1800}ntfResolveByRef\(l\.cd\)/.test(src), 'letSign باید پس از اعتبارسنجی نام، سمت و امضا، درخواست مرتبط را برای همه حذف کند');
   assert.ok(/function letReject\(cd\) \{[\s\S]{0,400}ntfResolveByRef\(l\.cd\)/.test(src), 'letReject باید درخواست امضای مرتبط را برای همه حذف کند');
 })();
 

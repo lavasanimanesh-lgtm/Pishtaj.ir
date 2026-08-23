@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.2 — همان قالب‌بندی نامهٔ صادره برای «متن آماده روی سربرگ».
+/* v34.8.3 — همان قالب‌بندی نامهٔ صادره برای «متن آماده روی سربرگ».
    قرارداد: نوار ابزار غنی (فونت/اندازه/رنگ/هایلایت/بولد/ایتالیک/زیرخط/خط‌خورده/
    چینش/فاصلهٔ خطوط/فهرست/تورفتگی/جدول/تصویر) + تنظیمات دستی قالب (اندازهٔ کوچک،
    فاصلهٔ خطوط، فونت، چینش، بولد/ایتالیک، حاشیه) که در خروجی چاپ اعمال می‌شود. */
@@ -16,10 +16,10 @@ var idx = read('crm/index.html');
 var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.2', ver.crm_version === 'v34.8.2', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.2', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.2'") > -1);
-T('sw RELEASE = v34.8.2', sw.indexOf("RELEASE = 'v34.8.2'") > -1);
-T('letters.js cache-bust 34.8.2', /letters\.js\?v=34\.8\.2/.test(idx));
+T('VERSION.json = v34.8.3', ver.crm_version === 'v34.8.3', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.3', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.3'") > -1);
+T('sw RELEASE = v34.8.3', sw.indexOf("RELEASE = 'v34.8.3'") > -1);
+T('letters.js cache-bust 34.8.3', /letters\.js\?v=34\.8\.3/.test(idx));
 
 /* هندلرهای سربرگ (ptfLhp*) */
 T('هندلر فونت سربرگ', lt.indexOf('window.ptfLhpFont = function') > -1);
@@ -50,12 +50,12 @@ T('چهار فیلد حاشیه (lhpMt/Mr/Mb/Ml)', lt.indexOf('id="lhpMt"') > -1
 T('چاپ اندازهٔ سربرگ را اعمال می‌کند', lt.indexOf("var bodyFs = fs ? fs + 'pt' : '13pt'") > -1);
 T('چاپ فاصلهٔ خطوط سربرگ را اعمال می‌کند', lt.indexOf('var bodyLh = lh || 2.1') > -1);
 T('چاپ فونت سربرگ را اعمال می‌کند', lt.indexOf('var bodyFont = fontTok ? letFontCss(fontTok) : font') > -1);
-T('چاپ چینش/بولد/ایتالیک سربرگ را اعمال می‌کند', lt.indexOf('var bodyAlign = align || (isEn ? \'left\' : \'right\')') > -1 && lt.indexOf("(bold ? 'font-weight:700;' : '')") > -1 && lt.indexOf("(italic ? 'font-style:italic;' : '')") > -1);
+T('چاپ چینش پیش‌فرض justify و بولد/ایتالیک سربرگ را اعمال می‌کند', lt.indexOf("var bodyAlign = align || 'justify'") > -1 && lt.indexOf("(bold ? 'font-weight:700;' : '')") > -1 && lt.indexOf("(italic ? 'font-style:italic;' : '')") > -1);
 T('چاپ حاشیهٔ سربرگ را اعمال می‌کند', lt.indexOf("'.body{padding:' + mt + 'mm ' + mr + 'mm ' + mb + 'mm ' + ml + 'mm") > -1);
 T('paste/drop سربرگ به lhpEditor وصل شد', lt.indexOf("letEditorWirePasteAndDrop(editor, 'lhpEditor')") > -1);
 
 T('tester467 در گیت CI', gate.indexOf('tester467-v34.7.65-letterhead-formatting.js') > -1);
 
-console.log('\n— tester467 (v34.8.2: قالب‌بندی متن آماده روی سربرگ) —');
+console.log('\n— tester467 (v34.8.3: قالب‌بندی متن آماده روی سربرگ) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
