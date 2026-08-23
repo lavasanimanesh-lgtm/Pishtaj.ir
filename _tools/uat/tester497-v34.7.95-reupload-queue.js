@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester497 — v34.8.0 (RE-UPLOAD-QUEUE-001 فاز A)
+/* tester497 — v34.8.1 (RE-UPLOAD-QUEUE-001 فاز A)
    «صف آپلود مجدد» ردهٔ E: build از خروجی audit + CSV با BOM + محدود به ردهٔ E.
    بدون تغییر منطق audit موجود. */
 
@@ -13,7 +13,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 var ver = JSON.parse(read('VERSION.json'));
 var storage = read('crm/storage.js');
 
-T('VERSION.json = v34.8.0', ver.crm_version === 'v34.8.0', ver.crm_version);
+T('VERSION.json = v34.8.1', ver.crm_version === 'v34.8.1', ver.crm_version);
 T('تابع ptfReuploadQueueBuild تعریف شده', /function\s+ptfReuploadQueueBuild\s*\(/.test(storage));
 T('تابع ptfReuploadQueueExportCsv تعریف شده', /function\s+ptfReuploadQueueExportCsv\s*\(/.test(storage));
 T('روی window expose شده', /window\.ptfReuploadQueueBuild\s*=/.test(storage) && /window\.ptfReuploadQueueExportCsv\s*=/.test(storage));
@@ -125,7 +125,7 @@ var qBad = sb.window.ptfReuploadQueueBuild([null, undefined, {}, { cls: 'E' }]);
 T('ردیف‌های ناقص crash نکنند', Array.isArray(qBad), qBad);
 T('ردیف {cls:"E"} با key خالی هم بدون crash خروج می‌گیرد', qBad.length === 1, qBad);
 
-/* ----- سناریو 7: گارد نقش — کاربر با نقش پایین رد شود (v34.8.0 RE-UPLOAD-QUEUE-002) ----- */
+/* ----- سناریو 7: گارد نقش — کاربر با نقش پایین رد شود (v34.8.1 RE-UPLOAD-QUEUE-002) ----- */
 sb._role = 'sales';
 sb.window._ptfKeyAuditRows = rows;  /* داده معتبر هست */
 files = {};
@@ -142,6 +142,6 @@ sb._role = 'admin';  /* بازگرداندن */
 /* ----- سناریو 8: تستر در گیت CI ثبت شده ----- */
 T('tester497 در گیت CI ثبت شده', read('_tools/uat/run-ci-gate.js').indexOf('tester497-v34.7.95-reupload-queue.js') > -1);
 
-console.log('\n— tester497 (v34.8.0: صف آپلود مجدد ردهٔ E — RE-UPLOAD-QUEUE-001) —');
+console.log('\n— tester497 (v34.8.1: صف آپلود مجدد ردهٔ E — RE-UPLOAD-QUEUE-001) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
