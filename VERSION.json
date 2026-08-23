@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.7.97",
+  "crm_version": "v34.7.98",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-23",
-  "updated_by": "Arena Agent (v34.7.97 یکپارچگی دریافت/مطالبات و reconcile قطعی OPEX ماهانه)"
+  "updated_by": "Arena Agent (v34.7.98 مالکیت قطعی دریافت مشتری و حقوق server-authoritative سهامداران موظف)"
 }

@@ -40,7 +40,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.7.97';
+const SD_SERVICE_VERSION = '34.7.98';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -58,6 +58,27 @@ function sd_uuid(string $prefix): string {
     try { $rnd = bin2hex(random_bytes(16)); }
     catch (Throwable $e) { $rnd = hash('sha256', uniqid('', true) . mt_rand()); }
     return $prefix . '-' . substr($rnd, 0, 8) . '-' . substr($rnd, 8, 4) . '-' . substr($rnd, 12, 4) . '-' . substr($rnd, 16, 12);
+}
+function sd_gregorian_to_jalali(int $gy,int $gm,int $gd): array {
+    $gdm=[0,31,59,90,120,151,181,212,243,273,304,334];
+    if($gy>1600){$jy=979;$gy-=1600;}else{$jy=0;$gy-=621;}
+    $gy2=$gm>2?$gy+1:$gy;
+    $days=365*$gy+intdiv($gy2+3,4)-intdiv($gy2+99,100)+intdiv($gy2+399,400)-80+$gd+$gdm[$gm-1];
+    $jy+=33*intdiv($days,12053);$days%=12053;$jy+=4*intdiv($days,1461);$days%=1461;
+    if($days>365){$jy+=intdiv($days-1,365);$days=($days-1)%365;}
+    if($days<186){$jm=1+intdiv($days,31);$jd=1+($days%31);}else{$jm=7+intdiv($days-186,30);$jd=1+(($days-186)%30);}
+    return [$jy,$jm,$jd];
+}
+function sd_current_jalali_month(): string {
+    $now=new DateTimeImmutable('now',new DateTimeZone('Asia/Tehran'));[$jy,$jm]=sd_gregorian_to_jalali((int)$now->format('Y'),(int)$now->format('n'),(int)$now->format('j'));
+    return sprintf('%04d/%02d',$jy,$jm);
+}
+/* معادل stableRecurringCode مرورگر. recurringKeyهای حقوق ASCII هستند؛ مسیر UTF-16
+   برای شناسه‌های قدیمی Unicode نیز خروجی charCodeAt جاوااسکریپت را حفظ می‌کند. */
+function sd_stable_recurring_code(string $prefix,string $key): string {
+    if(function_exists('mb_convert_encoding')){$raw=mb_convert_encoding($key,'UTF-16BE','UTF-8');$units=array_values(unpack('n*',$raw)?:[]);}else{$units=array_values(unpack('C*',$key)?:[]);}
+    $a=5381;$b=52711;foreach($units as $unit){$a=(($a*33)^$unit)&0xFFFFFFFF;$b=(($b*31)+$unit)&0xFFFFFFFF;}
+    return $prefix.'-'.strtoupper(sprintf('%08X%08X',$a,$b));
 }
 function sd_text($value, int $max = 500): string {
     $s = trim((string)$value);
@@ -153,6 +174,58 @@ function sd_case_match(array $case, string $id): bool {
 function sd_find_case_index(array $cases, string $id): int {
     foreach ($cases as $i => $case) if (is_array($case) && sd_case_match($case, $id)) return (int)$i;
     return -1;
+}
+/* مالک leak-safe پرونده: سرور و crm/ar-reconcile.js عمداً یک ترتیب evidence دارند.
+   هیچ شناسهٔ متعارضی با اولویت/حدس پوشانده نمی‌شود و نام فقط در حالت یکتای کامل مجاز است. */
+function sd_party_name($value): string {
+    $s = trim((string)$value);
+    $s = (string)preg_replace('/[\s\x{200c}\x{200e}\x{200f}\-_.،,؛;]+/u', '', $s);
+    return function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
+}
+function sd_customer_record_id(array $customer): string { $id=trim((string)($customer['_id']??''));return $id!==''?$id:trim((string)($customer['cd']??'')); }
+/* cd قدیمی و _id سروریِ همان Customer قبل از conflict-check به شناسهٔ متعارف
+   collapse می‌شوند. alias مشترک بین چند رکورد عمداً همهٔ candidates را نگه می‌دارد. */
+function sd_customer_candidates_for_id($value,array $customers): array {
+    $raw=trim((string)$value);if($raw==='')return [];$found=[];
+    foreach($customers as $customer){if(!is_array($customer))continue;if(trim((string)($customer['_id']??''))!==$raw&&trim((string)($customer['cd']??''))!==$raw)continue;$canonical=sd_customer_record_id($customer);if($canonical!=='')$found[$canonical]=true;}
+    return count($found)?array_keys($found):[$raw];
+}
+function sd_case_offer_refs(array $case): array {
+    $ids=[];$nos=[];
+    foreach([$case['rootOfferId']??'']as $v){$v=trim((string)$v);if($v!=='')$ids[$v]=true;}
+    foreach([$case['wonOffer']??'',$case['offerNo']??'']as $v){$v=trim((string)$v);if($v!=='')$nos[$v]=true;}
+    foreach(($case['linkedOffers']??[])as $link){if(!is_array($link))continue;$id=trim((string)($link['offerId']??$link['_id']??''));$no=trim((string)($link['offerNo']??$link['no']??''));if($id!=='')$ids[$id]=true;if($no!=='')$nos[$no]=true;}
+    return ['ids'=>$ids,'nos'=>$nos];
+}
+function sd_offer_linked_to_case(array $offer,array $refs): bool {
+    $id=trim((string)($offer['_id']??$offer['cd']??''));$no=trim((string)($offer['no']??''));
+    return ($id!==''&&isset($refs['ids'][$id]))||($no!==''&&isset($refs['nos'][$no]));
+}
+function sd_resolve_case_customer(array $case,array $cases,array $offers,array $invoices,array $receipts,array $customers): array {
+    $aliases=[];foreach([$case['_id']??'',$case['cd']??'']as $v){$v=trim((string)$v);if($v!=='')$aliases[$v]=true;}
+    $candidates=[];$evidence=[];$names=[];
+    $addId=function($value,string $source)use(&$candidates,&$evidence,$customers):void{foreach(sd_customer_candidates_for_id($value,$customers)as $id){$candidates[$id]=true;$evidence[$id]=$evidence[$id]??[];$evidence[$id][]=$source;}};
+    $addName=function($value,string $source)use(&$names):void{$name=sd_party_name($value);if($name==='')return;$names[$name]=$names[$name]??[];$names[$name][]=$source;};
+    $addId($case['buyerCd']??'','case');$addId($case['customerId']??'','case');$addName($case['buyerCo']??$case['customerName']??'','case');
+    $refs=sd_case_offer_refs($case);
+    foreach($offers as $offer){if(!is_array($offer)||!sd_active($offer)||!sd_offer_linked_to_case($offer,$refs))continue;$addId($offer['buyerCd']??'','offer');$addId($offer['customerId']??'','offer');$addName($offer['buyerCo']??$offer['customerName']??'','offer');}
+    foreach($invoices as $invoice){
+        if(!is_array($invoice)||!sd_active($invoice))continue;
+        $stored=isset($aliases[(string)($invoice['caseId']??'')]);$uniqueOfferBind=false;$offerNo=trim((string)($invoice['offerNo']??''));
+        if(!$stored&&trim((string)($invoice['caseId']??''))===''&&$offerNo!==''&&isset($refs['nos'][$offerNo])){$hits=[];foreach($cases as $candidate){if(!is_array($candidate)||!sd_active($candidate))continue;$candidateRefs=sd_case_offer_refs($candidate);if(isset($candidateRefs['nos'][$offerNo]))$hits[]=$candidate;}if(count($hits)===1){foreach([$hits[0]['_id']??'',$hits[0]['cd']??'']as $id)if($id!==''&&isset($aliases[(string)$id]))$uniqueOfferBind=true;}}
+        if(!$stored&&!$uniqueOfferBind)continue;$addId($invoice['customerId']??'','invoice');$addId($invoice['buyerCd']??'','invoice');$addName($invoice['buyerCo']??$invoice['customerName']??'','invoice');
+    }
+    foreach($receipts as $receipt){if(!is_array($receipt)||!sd_active($receipt)||(string)($receipt['status']??'')!=='posted'||!isset($aliases[(string)($receipt['caseId']??'')]))continue;$addId($receipt['customerId']??'','receipt');$addId($receipt['buyerCd']??'','receipt');$addName($receipt['buyerCo']??$receipt['customerName']??'','receipt');}
+    $ids=array_keys($candidates);sort($ids,SORT_STRING);
+    if(count($ids)>1)return ['status'=>'ambiguous','customerId'=>'','bound'=>'conflicting-identifiers','candidates'=>$ids,'evidence'=>$evidence];
+    if(count($ids)===1){$sources=$evidence[$ids[0]]??[];$bound=in_array('case',$sources,true)?'case':(in_array('offer',$sources,true)?'offer':'case-document');return ['status'=>'resolved','customerId'=>$ids[0],'bound'=>$bound,'candidates'=>$ids,'evidence'=>$evidence];}
+    $nameKeys=array_keys($names);if(!$nameKeys)return ['status'=>'unresolved','customerId'=>'','bound'=>'no-evidence','candidates'=>[],'evidence'=>$evidence];
+    $owners=[];foreach($customers as $customer){if(!is_array($customer))continue;$id=sd_customer_record_id($customer);if($id==='')continue;foreach([$customer['co']??$customer['name']??'',$customer['coEn']??'']as $value){$name=sd_party_name($value);if($name!==''&&isset($names[$name]))$owners[$id]=true;}}
+    $ownerIds=array_keys($owners);sort($ownerIds,SORT_STRING);$allMapped=count($ownerIds)===1;
+    if($allMapped)foreach($nameKeys as $nameKey){$mapped=false;foreach($customers as $customer){if(!is_array($customer)||sd_customer_record_id($customer)!==$ownerIds[0])continue;foreach([$customer['co']??$customer['name']??'',$customer['coEn']??'']as $value)if(sd_party_name($value)===$nameKey)$mapped=true;}if(!$mapped){$allMapped=false;break;}}
+    if($allMapped)return ['status'=>'resolved','customerId'=>$ownerIds[0],'bound'=>'unique-name','candidates'=>$ownerIds,'evidence'=>$evidence];
+    if($ownerIds||count($nameKeys)>1)return ['status'=>'ambiguous','customerId'=>'','bound'=>'ambiguous-name','candidates'=>$ownerIds,'evidence'=>$evidence];
+    return ['status'=>'unresolved','customerId'=>'','bound'=>'name-not-found','candidates'=>[],'evidence'=>$evidence];
 }
 function sd_offer_total(array $offer): float {
     $sum = 0.0;
@@ -256,6 +329,14 @@ function sd_bind_orphan_invoices(string $caseId, array $cases, array &$invoices)
     return $bound;
 }
 /** Rebuild deterministic FIFO allocations for every active invoice/receipt in a case. */
+/* لینک‌های cd قدیمیِ همان پرونده قبل از بازسازی به _id canonical منتقل می‌شوند؛
+   وگرنه Receipt تازه credit آزاد می‌ساخت ولی فاکتور legacy روی سطل دیگری می‌ماند. */
+function sd_canonicalize_case_links(array $case,string $caseId,array &$receipts,array &$invoices,array &$allocations): int {
+    $aliases=[];foreach([$case['_id']??'',$case['cd']??'']as $value){$id=trim((string)$value);if($id!==''&&$id!==$caseId)$aliases[$id]=true;}
+    if(!$aliases)return 0;$updated=0;
+    $canonicalize=function(array &$rows)use(&$updated,$aliases,$caseId):void{foreach($rows as &$row)if(is_array($row)&&isset($aliases[(string)($row['caseId']??'')])){$row['caseId']=$caseId;$updated++;}unset($row);};
+    $canonicalize($receipts);$canonicalize($invoices);$canonicalize($allocations);return $updated;
+}
 function sd_rebuild_allocations(string $caseId, array &$receipts, array &$invoices, array &$allocations, array $cases = []): void {
     if ($cases) sd_bind_orphan_invoices($caseId, $cases, $invoices);
     $history = [];
@@ -833,12 +914,14 @@ try {
     $old = sd_idempotency($commands, $idem, $action, $requestHash);
     if ($old) {
         $keys = is_array($old['result']['keys'] ?? null) ? $old['result']['keys'] : [];
+        if($action==='reconcile_shareholder_salaries')$keys=array_values(array_intersect($keys,['ptf_crm_opex']));
         /* retry همان command نیز projection جاری را با watermark دقیق می‌گیرد؛ بدون
            rev، کلاینت ناچار بود آن را روی نسخهٔ نامعلوم cache اعمال کند. */
         sd_out(['ok'=>true,'idempotent'=>true,'rev'=>sd_current_rev(),'result'=>$old['result'],'data'=>sd_snapshot($keys)]);
     }
     $changes = [];
     $result = [];
+    $responseChanges = null; // mutation کامل ممکن است شامل collection محرمانه باشد.
 
     if ($action === 'rfq_attachment_add' || $action === 'rfq_attachment_remove' || $action === 'rfq_attachment_replace') {
         sd_require_role(SD_RFQ_ROLES);
@@ -1376,10 +1459,51 @@ try {
         foreach(array_keys($touched)as $tc)if($tc!=='')sd_rebuild_allocations($tc,$receipts,$invoices,$allocations,$cases);
         $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_fiscal_snapshots'=>$snaps];$result=['deleted'=>true,'entityType'=>$entityType,'entityId'=>$entityId,'dependenciesRemoved'=>count($deps),'invalidatedYear'=>$invalidYear];
     }
+    elseif ($action === 'reconcile_shareholder_salaries') {
+        sd_require_role(SD_FIN_ROLES);
+        $month=str_replace('-','/',sd_identity($body['month']??''));
+        if(!preg_match('/^\d{4}\/\d{2}$/',$month)||$month!==sd_current_jalali_month())sd_out(['ok'=>false,'error'=>'current_jalali_month_required','currentMonth'=>sd_current_jalali_month()],422);
+        if(sd_is_locked($snaps,$month.'/01'))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>substr($month,0,4)],409);
+        $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');
+        $eligible=[];$createdTx=0;$createdOpex=0;$updated=0;$voided=0;$now=sd_now();
+        foreach($shareholders as $sh){
+            if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
+            $shCd=(string)$sh['cd'];$salary=(int)round(sd_num($sh['salary']));$key='salary:'.$shCd.':'.$month;$eligible[$key]=true;
+            $txHits=[];foreach($sharetx as $idx=>$tx)if(is_array($tx)&&(($tx['recurringKey']??'')===$key||(($tx['type']??'')==='salary'&&($tx['shCd']??'')===$shCd&&($tx['month']??'')===$month)))$txHits[]=(int)$idx;
+            $txIndex=$txHits[0]??-1;$txCd=sd_stable_recurring_code('SHT-SAL',$key);
+            if($txIndex<0){array_unshift($sharetx,['cd'=>$txCd,'shCd'=>$shCd,'shName'=>(string)($sh['name']??$shCd),'type'=>'salary','amt'=>$salary,'desc'=>'حقوق موظف ماه '.$month,'t'=>$now,'month'=>$month,'by'=>$user,'files'=>[],'status'=>'active','recurringKey'=>$key,'serverReconciled'=>true]);$txIndex=0;$createdTx++;}
+            else{$tx=&$sharetx[$txIndex];$legacyCd=trim((string)($tx['cd']??''));$txCd=$legacyCd!==''?$legacyCd:$txCd;$before=json_encode($tx);$tx['cd']=$txCd;$tx['shCd']=$shCd;$tx['shName']=(string)($sh['name']??$shCd);$tx['type']='salary';$tx['amt']=$salary;$tx['desc']='حقوق موظف ماه '.$month;$tx['month']=$month;$tx['recurringKey']=$key;$tx['status']='active';$tx['serverReconciled']=true;$tx['updatedT']=$now;$tx['updatedBy']=$user;unset($tx['st'],$tx['voided'],$tx['voidAt'],$tx['voidBy'],$tx['voidReason'],$tx['deleted'],$tx['deletedAt'],$tx['deletedBy'],$tx['deleteReason']);if(json_encode($tx)!==$before)$updated++;unset($tx);}
+            foreach(array_slice($txHits,1)as $duplicate){if(sd_active($sharetx[$duplicate])){$sharetx[$duplicate]['status']='void';$sharetx[$duplicate]['st']='void';$sharetx[$duplicate]['voidAt']=$now;$sharetx[$duplicate]['voidBy']=$user;$sharetx[$duplicate]['voidReason']='duplicate_salary_recurring_key';$voided++;}}
+            $oxHits=[];foreach($opex as $idx=>$ox)if(is_array($ox)&&(($ox['recurringKey']??'')===$key||(($ox['shareTx']??'')===$txCd&&!empty($ox['shareholderSalary']))))$oxHits[]=(int)$idx;
+            $oxIndex=$oxHits[0]??-1;
+            if($oxIndex<0){array_unshift($opex,['cd'=>sd_stable_recurring_code('OPX-SAL',$key),'_opexRowId'=>sd_stable_recurring_code('OPXR-SAL',$key),'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($sh['name']??$shCd),'t'=>$now,'by'=>$user,'shareTx'=>$txCd,'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true]);$createdOpex++;}
+            else{$ox=&$opex[$oxIndex];$before=json_encode($ox);if(empty($ox['cd']))$ox['cd']=sd_stable_recurring_code('OPX-SAL',$key);if(empty($ox['_opexRowId']))$ox['_opexRowId']=sd_stable_recurring_code('OPXR-SAL',$key);$ox['cat']='حقوق و دستمزد';$ox['amt']=$salary;$ox['month']=$month;$ox['desc']='حقوق موظف سهامدار: '.(string)($sh['name']??$shCd);$ox['shareTx']=$txCd;$ox['shareholderSalary']=true;$ox['recurringKey']=$key;$ox['status']='active';$ox['serverReconciled']=true;$ox['updatedT']=$now;$ox['updatedBy']=$user;unset($ox['st'],$ox['voided'],$ox['voidAt'],$ox['voidBy'],$ox['voidReason'],$ox['deleted'],$ox['deletedAt'],$ox['deletedBy'],$ox['deleteReason']);if(json_encode($ox)!==$before)$updated++;unset($ox);}
+            foreach(array_slice($oxHits,1)as $duplicate){if(sd_active($opex[$duplicate])){$opex[$duplicate]['status']='void';$opex[$duplicate]['st']='void';$opex[$duplicate]['voidAt']=$now;$opex[$duplicate]['voidBy']=$user;$opex[$duplicate]['voidReason']='duplicate_salary_recurring_key';$voided++;}}
+        }
+        /* اگر همین ماه سهامدار غیرفعال/غیرموظف یا حقوقش صفر شده، entitlement قبلی
+           به‌جای حذف فیزیکی void می‌شود تا هم جمع OPEX درست باشد و هم audit حفظ شود. */
+        foreach($sharetx as &$tx)if(is_array($tx)&&($tx['type']??'')==='salary'&&($tx['month']??'')===$month){$key=(string)($tx['recurringKey']??('salary:'.($tx['shCd']??'').':'.$month));if(!isset($eligible[$key])&&sd_active($tx)){$tx['status']='void';$tx['st']='void';$tx['voidAt']=$now;$tx['voidBy']=$user;$tx['voidReason']='shareholder_not_salary_eligible';$voided++;}}unset($tx);
+        foreach($opex as &$ox)if(is_array($ox)&&!empty($ox['shareholderSalary'])&&($ox['month']??'')===$month){$key=(string)($ox['recurringKey']??'');if(($key===''||!isset($eligible[$key]))&&sd_active($ox)){$ox['status']='void';$ox['st']='void';$ox['voidAt']=$now;$ox['voidBy']=$user;$ox['voidReason']='shareholder_not_salary_eligible';$voided++;}}unset($ox);
+        $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];
+        /* accountant مجاز به دیدن OPEX است، نه snapshot سهامداران/گردش محرمانه. */
+        $responseChanges=['ptf_crm_opex'=>$opex];
+        $result=['month'=>$month,'eligible'=>count($eligible),'createdTransactions'=>$createdTx,'createdOpex'=>$createdOpex,'updated'=>$updated,'voided'=>$voided];
+    }
     elseif ($action === 'post_receipt') {
         sd_require_role(SD_FIN_ROLES);
         $caseId=sd_text($body['caseId']??'',100);$ci=sd_find_case_index($cases,$caseId);if($ci<0)sd_out(['ok'=>false,'error'=>'case_not_found'],404);
-        $case=$cases[$ci];sd_case_id($case);$caseId=$case['_id'];
+        $case=$cases[$ci];$caseHadServerId=!empty($case['_id']);sd_case_id($case);$caseId=$case['_id'];
+        /* پرونده legacy بدون buyerCd نباید Receipt بی‌مالک بسازد. customers فقط زیر همین
+           lock و برای resolve داخلی خوانده می‌شود و وارد snapshot عمومی سرویس نمی‌شود. */
+        $customers=sd_read('ptf_crm_customers');
+        $caseOwner=sd_resolve_case_customer($case,$cases,$offers,$invoices,$receipts,$customers);
+        if(($caseOwner['status']??'')!=='resolved'||trim((string)($caseOwner['customerId']??''))==='')sd_out(['ok'=>false,'error'=>($caseOwner['status']??'')==='ambiguous'?'case_customer_ambiguous':'case_customer_unresolved','caseId'=>$caseId,'reason'=>$caseOwner['bound']??'','candidateCount'=>count($caseOwner['candidates']??[])],409);
+        $resolvedCustomerId=(string)$caseOwner['customerId'];$caseChanged=!$caseHadServerId;
+        if((string)($case['buyerCd']??'')!==$resolvedCustomerId){$case['buyerCd']=$resolvedCustomerId;$caseChanged=true;}
+        if(trim((string)($case['buyerCo']??''))===''){foreach($customers as $customer)if(is_array($customer)&&sd_customer_record_id($customer)===$resolvedCustomerId){$case['buyerCo']=(string)($customer['co']??$customer['name']??'');$caseChanged=true;break;}}
+        if($caseChanged){$case['customerResolvedBy']=$caseOwner['bound']??'';$case['customerResolvedAt']=sd_now();$case['updatedBy']=$user;$case['updatedAtISO']=sd_now();}
+        $cases[$ci]=$case;
+        $canonicalizedCaseLinks=sd_canonicalize_case_links($case,$caseId,$receipts,$invoices,$allocations);
         $amount=(int)round(sd_num($body['amountIRR']??0));if($amount<=0||$amount>9000000000000000)sd_out(['ok'=>false,'error'=>'invalid_amount'],422);
         $method=sd_text($body['method']??'',50);if($method==='')sd_out(['ok'=>false,'error'=>'method_required'],422);if(preg_match('/چک|cheque/i',$method))sd_out(['ok'=>false,'error'=>'cheque_requires_collection'],422);
         $receivedAt=sd_text($body['receivedAt']??sd_now(),40);if(sd_is_locked($snaps,$receivedAt))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year($receivedAt)],409);
@@ -1387,9 +1511,10 @@ try {
         $cur=strtoupper((string)($case['currency']??'IRR'));$rate=0.0;$covered=0.0;
         if($cur!=='IRR'){$rate=sd_num($body['fxRate']??0);$source=sd_text($body['fxRateSource']??'',200);if($rate<=0||$source==='')sd_out(['ok'=>false,'error'=>'fx_rate_and_source_required'],422);$covered=round($amount/$rate,4);}else{$source='';}
         $hasInvoice=false;$receiptDateKey=sd_date_key($receivedAt);foreach($invoices as $inv)if(is_array($inv)&&sd_active($inv)&&(string)($inv['caseId']??'')===$caseId){$invDateKey=sd_date_key($inv['invDate']??$inv['issueDate']??'');if($receiptDateKey===''||$invDateKey===''||substr($receiptDateKey,0,2)!==substr($invDateKey,0,2)||$invDateKey<=$receiptDateKey){$hasInvoice=true;break;}}
-        $receipt=['_id'=>sd_uuid('RCPT'),'cd'=>sd_uuid('RPAY'),'caseId'=>$caseId,'customerId'=>$case['buyerCd']??'','buyerCo'=>$case['buyerCo']??'','amountIRR'=>$amount,'amt'=>$amount,'receivedAt'=>$receivedAt,'dateISO'=>$receivedAt,'method'=>$method,'how'=>$method,'destinationAccount'=>$account,'referenceNo'=>sd_text($body['referenceNo']??'',120),'note'=>sd_text($body['note']??'',1000),'status'=>'posted','timing'=>$hasInvoice?'post_invoice':'pre_invoice','currency'=>$cur,'fxRate'=>$rate,'fxRateSource'=>$source,'coveredFxAmount'=>$covered,'files'=>is_array($body['files']??null)?$body['files']:[],'createdBy'=>$user,'createdAt'=>sd_now()];
+        $receipt=['_id'=>sd_uuid('RCPT'),'cd'=>sd_uuid('RPAY'),'caseId'=>$caseId,'customerId'=>$resolvedCustomerId,'buyerCo'=>$case['buyerCo']??'','amountIRR'=>$amount,'amt'=>$amount,'receivedAt'=>$receivedAt,'dateISO'=>$receivedAt,'method'=>$method,'how'=>$method,'destinationAccount'=>$account,'referenceNo'=>sd_text($body['referenceNo']??'',120),'note'=>sd_text($body['note']??'',1000),'status'=>'posted','timing'=>$hasInvoice?'post_invoice':'pre_invoice','currency'=>$cur,'fxRate'=>$rate,'fxRateSource'=>$source,'coveredFxAmount'=>$covered,'files'=>is_array($body['files']??null)?$body['files']:[],'createdBy'=>$user,'createdAt'=>sd_now()];
         array_unshift($receipts,$receipt);sd_rebuild_allocations($caseId,$receipts,$invoices,$allocations,$cases);
-        $changes=['ptf_crm_case_receipts'=>$receipts,'ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations];$result=['receiptId'=>$receipt['_id'],'caseId'=>$caseId];
+        $changes=['ptf_crm_case_receipts'=>$receipts,'ptf_crm_invoices'=>$invoices,'ptf_crm_receipt_allocations'=>$allocations];if($caseChanged)$changes['ptf_crm_deals']=$cases;
+        $result=['receiptId'=>$receipt['_id'],'caseId'=>$caseId,'customerId'=>$resolvedCustomerId,'customerResolvedBy'=>$caseOwner['bound']??'','canonicalizedCaseLinks'=>$canonicalizedCaseLinks];
     }
     elseif ($action === 'correct_receipt' || $action === 'void_receipt') {
         sd_require_role(SD_FIN_ROLES);
@@ -1579,7 +1704,10 @@ try {
     /* v34.7.18 (فاز ۱ / R9): نتیجهٔ تسویهٔ آخرین بازسازی همراه پاسخ برمی‌گردد تا کلاینت و آزمون‌ها
        بتوانند نقض اتحادها را بلافاصله ببینند. صرفاً گزارشی است و مسیر نوشتن را تغییر نمی‌دهد. */
     if(isset($GLOBALS['sd_last_reconcile']))$result['reconcile']=$GLOBALS['sd_last_reconcile'];
-    $result['keys']=array_keys($changes);sd_append_command($commands,$idem,$action,$requestHash,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes,['key'=>$idem,'action'=>$action,'requestHash'=>$requestHash,'owner'=>$user]);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($changes)]);
+    $projectionChanges=is_array($responseChanges)?$responseChanges:$changes;
+    /* keys بخشی از receipt idempotency است؛ بنابراین باید از ابتدا role-safe ذخیره شود تا
+       replay همان فرمان هم نتواند collection محرمانه را snapshot کند. */
+    $result['keys']=array_keys($projectionChanges);sd_append_command($commands,$idem,$action,$requestHash,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes,['key'=>$idem,'action'=>$action,'requestHash'=>$requestHash,'owner'=>$user]);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($projectionChanges)]);
 } catch (Throwable $e) {
     if (is_resource($lock)) { @flock($lock, LOCK_UN); @fclose($lock); }
     sd_out(['ok'=>false,'error'=>'command_failed','detail'=>$e->getMessage()],500);

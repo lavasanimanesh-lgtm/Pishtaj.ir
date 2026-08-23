@@ -1,12 +1,12 @@
 /* =====================================================================
-   PTF CRM — opex.js — US-418 + v34.7.97 monthly reconcile
+   PTF CRM — opex.js — US-418 + v34.7.98 monthly reconcile
    هزینه‌های جاری شرکت: اجاره، حقوق/دستمزد، بیمه، مالیات، پذیرایی/اداری،
    پورسانت بیرونی، ایاب‌ذهاب/ماموریت، سایر — ماهانه (شمسی) + تکرارشونده.
    اصول:
    - جای نمایش: داخل پنل «تنخواه گردان» (تنخواه = زیرمجموعه هزینه‌ها — مصوبه R9)
      با hook — بدون شکستن petty؛ فقط نقش‌های دارای finance می‌بینند.
    - کلید ptf_crm_opex سینک و بک‌آپ می‌شود و سپر داده‌صفر v16.7 را دارد.
-   - هزینه تکرارشونده یک‌بار در settings.opexTpl تعریف می‌شود؛ از v34.7.97 پس از
+   - هزینه تکرارشونده یک‌بار در settings.opexTpl تعریف می‌شود؛ از v34.7.98 پس از
      snapshot موفق Sync به‌صورت idempotent reconcile می‌شود. اقدام دستی fallback است.
    - مصرف‌کننده آینده: US-420 (داشبورد سال مالی) — جمع per ماه/دسته/سال از همین کلید.
    ===================================================================== */
@@ -22,6 +22,15 @@
   function oAll() { return getData(K) || []; }
   function canFin() { try { return !!(roleDef() || {}).finance; } catch (e) { return false; } }
   function fmtT(v) { return (+v || 0).toLocaleString('fa-IR'); }
+  /* همهٔ مصرف‌کنندگان OPEX باید دقیقاً یک قرارداد active داشته باشند. بعضی داده‌های
+     legacy فقط status/st دارند و بعضی حذف/ابطال را با فلگ boolean ثبت کرده‌اند؛ اگر
+     هرکدام terminal باشد ردیف نباید در جمع، قالب، چک یا رندر دوباره ظاهر شود. */
+  function opexRowActive(x) {
+    if (!x || x.voided || x.deleted) return false;
+    var terminal = ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'];
+    var status = String(x.status || '').toLowerCase(), st = String(x.st || '').toLowerCase();
+    return terminal.indexOf(status) < 0 && terminal.indexOf(st) < 0;
+  }
 
   /* v34.4.46: cd در داده‌های قدیمی می‌تواند تکراری باشد و برای هویت UI کافی نیست.
      هر رکورد یک شناسهٔ فنی پایدار می‌گیرد؛ duplicate شدن خود row id هم هنگام backfill
@@ -105,7 +114,7 @@
   /* ماه شمسی جاری «1405/04» — ورودی دستی هم پذیرفته می‌شود */
   window.ptfFaMonthNow = function () {
     try {
-      var p = new Date().toLocaleDateString('fa-IR-u-nu-latn').split('/');
+      var p = new Date().toLocaleDateString('fa-IR-u-nu-latn', { timeZone: 'Asia/Tehran' }).split('/');
       return p[0] + '/' + ('0' + p[1]).slice(-2);
     } catch (e) {
       try { return faDate().split('/').slice(0, 2).join('/'); } catch (e2) { return ''; }
@@ -150,6 +159,7 @@
     var pre = String(monthOrYear || '');
     var out = { total: 0, byCat: {}, totalLinked:0, totalUnlinked:0 };
     oAll().forEach(function (x) {
+      if (!opexRowActive(x)) return;
       if (pre && String(x.month || '').indexOf(pre) !== 0) return;
       var amt=(+x.amt||0);
       out.total += amt;
@@ -170,7 +180,7 @@
     var pre = String(monthOrYear || '');
     var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0 };
     oAll().forEach(function (x) {
-      if (!x || x.status === 'void' || x.st === 'void' || isCoverOpex(x)) return;
+      if (!opexRowActive(x) || isCoverOpex(x)) return;
       if (pre && String(x.month || '').indexOf(pre) !== 0) return;
       var amt = (+x.amt || 0);
       out.byCat[x.cat] = (out.byCat[x.cat] || 0) + amt;
@@ -201,7 +211,7 @@
   /* فاکتور خرید رسمی پوششی: صادرکننده مطالبه ندارد؛ فقط کارمزد فاکتورساز هزینه جاری غیررسمی است. */
   window.ptfOpexUpsertFromCoverInvoice = function (inv) {
     if (!inv || !inv.cd) return { ok: false, why: 'input' };
-    if (inv.isCover !== true || inv.status === 'void' || inv.st === 'void') {
+    if (inv.isCover !== true || !opexRowActive(inv)) {
       return window.ptfOpexRemoveFromCoverInvoice(inv.cd);
     }
     var comm = coverCommissionOf(inv);
@@ -210,7 +220,7 @@
     if (!month) return { ok: false, why: 'month' };
     var desc = 'کارمزد فاکتورساز فاکتور پوششی ' + (inv.no || inv.cd) + (inv.supName ? ' — ' + inv.supName : '');
     var all = oRows();
-    var rec = all.filter(function (x) { return x && x.coverInvoiceCd === inv.cd && x.st !== 'void' && x.status !== 'void'; })[0];
+    var rec = all.filter(function (x) { return opexRowActive(x) && x.coverInvoiceCd === inv.cd; })[0];
     var who = '';
     try { who = (curSession() || {}).name || ''; } catch (eW) {}
     if (rec) {
@@ -244,7 +254,7 @@
   window.ptfOpexCoverIsSettled = coverOpexSettled;
   window.ptfOpexSettleCoverCommit = function (rec, v) {
     if (!rec || !isCoverOpex(rec)) return { ok: false, why: 'not-cover' };
-    if (rec.st === 'void' || rec.status === 'void') return { ok: false, why: 'void' };
+    if (!opexRowActive(rec)) return { ok: false, why: 'void' };
     if (coverOpexSettled(rec)) return { ok: false, why: 'already' };
     var doc = String((v && v.doc) || '').trim();
     if (!doc) return { ok: false, why: 'doc' };
@@ -332,10 +342,7 @@
     for (var i = 0; i < s.length; i++) { a = ((a * 33) ^ s.charCodeAt(i)) >>> 0; b = ((b * 31) + s.charCodeAt(i)) >>> 0; }
     return prefix + '-' + ('00000000' + a.toString(16)).slice(-8).toUpperCase() + ('00000000' + b.toString(16)).slice(-8).toUpperCase();
   }
-  function recurringRowActive(x) {
-    var st = String((x && (x.status || x.st)) || '').toLowerCase();
-    return !!x && ['void', 'voided', 'cancelled', 'deleted'].indexOf(st) < 0 && !x.voided && !x.deleted;
-  }
+  function recurringRowActive(x) { return opexRowActive(x); }
   /* قالب‌هایی که برای ماه جاری هنوز ثبت نشده‌اند */
   window.ptfOpexPendingTpls = function (month) {
     var m = month || ptfFaMonthNow();
@@ -651,7 +658,7 @@
     ptfOpexRender();
   };
 
-  /* ============ v34.7.97: reconcile نتیجه‌محور هزینه‌های تکرارشونده ============
+  /* ============ v34.7.98: reconcile نتیجه‌محور هزینه‌های تکرارشونده ============
      این تابع در هر اجرا expected set ماه را از snapshot فعلی می‌سازد و با domain key
      پایدار upsert می‌کند. فلگ باینری قدیمی عمداً معیار skip نیست: اجرای ناقص یا snapshot
      سرد نباید کل ماه را قفل کند. اجرای خودکار فقط پس از رویداد readiness سینک پایین‌تر است. */
@@ -663,32 +670,15 @@
       expected: { salaries: [], tpls: [] }, present: { salaries: [], tpls: [] },
       missing: [], blocked: [], errors: []
     };
-    var canSenior = (function () { try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; } })();
     var canFinance = false;
     try { canFinance = !!canFin(); } catch (eFin) {}
-    if (!canSenior && !canFinance) return Object.assign(out, { ok: false, why: 'permission' });
+    if (!canFinance) return Object.assign(out, { ok: false, why: 'permission' });
     var yearLocked = false;
     try { yearLocked = typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(String(m).split('/')[0]); } catch (eLock) {}
 
-    var expectedShares = [];
-    if (canSenior) {
-      try {
-        expectedShares = (getData('ptf_crm_shareholders') || []).filter(function (s) {
-          return s && s.cd && s.active !== false && s.duty && (+s.salary || 0) > 0;
-        });
-        out.expected.salaries = expectedShares.map(function (s) { return 'salary:' + String(s.cd) + ':' + m; });
-        if (yearLocked) out.blocked.push({ kind: 'salary', reason: 'fiscal_year_locked', count: expectedShares.length });
-        else if (typeof window.ptfShareEnsureSalary !== 'function') out.errors.push('salary:module_not_ready');
-        else expectedShares.forEach(function (s) {
-          try {
-            var r = window.ptfShareEnsureSalary(s, m) || {};
-            if (r.created || r.changed || r.opexCreated) out.salaries++;
-            else out.skipped++;
-          } catch (eEntity) { out.errors.push('salary:' + String(s.cd) + ':' + String(eEntity)); }
-        });
-      } catch (eS) { out.errors.push('salary_snapshot:' + String(eS)); }
-    }
-
+    /* حقوق در این تابع عمداً local نوشته نمی‌شود. reconcile آن پیش از این تابع با
+       فرمان اتمیک سرور انجام می‌شود تا cold snapshot یا نقش accountant نتواند expected
+       خالی را قطعی تلقی کند و projection سرور نیز با push محلی race نداشته باشد. */
     var expectedTpls = [];
     if (canFinance) {
       try {
@@ -729,15 +719,6 @@
     }
 
     /* manifest نتیجه از دادهٔ واقعاً ذخیره‌شده ساخته می‌شود؛ نه از این‌که loop اجرا شده است. */
-    if (!yearLocked && canSenior) {
-      var txRows = [], salaryOpex = [];
-      try { txRows = getData('ptf_crm_sharetx') || []; salaryOpex = oRows(); } catch (eReadSalary) { out.errors.push('salary_verify:' + String(eReadSalary)); }
-      out.expected.salaries.forEach(function (key) {
-        var tx = txRows.filter(function (x) { return x && x.recurringKey === key; })[0];
-        var ox = salaryOpex.filter(function (x) { return recurringRowActive(x) && x.recurringKey === key && (!tx || x.shareTx === tx.cd); })[0];
-        if (tx && ox) out.present.salaries.push(key); else out.missing.push({ kind: 'salary', key: key, tx: !!tx, opex: !!ox });
-      });
-    }
     if (!yearLocked && canFinance) {
       var finalRows = [];
       try { finalRows = oRows(); } catch (eReadTpl) { out.errors.push('tpl_verify:' + String(eReadTpl)); }
@@ -756,29 +737,69 @@
     return out;
   };
 
-  /* اتوماسیون startup: readiness باید از sync موفق بیاید، نه از timer ترتیب scriptها. */
-  var recurringRetryTimer = null;
+  /* اتوماسیون startup: ابتدا salary سرور ACK می‌شود و projection قطعی OPEX می‌نشیند؛
+     فقط سپس قالب‌های محلی ساخته می‌شوند. ترتیب معکوس می‌توانست پاسخ سرور را روی قالب
+     تازهٔ local بنویسد. accountant نیز فرمان را اجرا می‌کند ولی فقط OPEX را می‌گیرد. */
+  var recurringRetryTimer = null, recurringServerInFlight = false, recurringServerDoneKey = '';
+  function salaryServerRole() {
+    try { return ['admin', 'chairman', 'ceo', 'commercial', 'accountant'].indexOf(String(curRole() || '').toLowerCase()) > -1; } catch (e) { return false; }
+  }
+  function tehranDayKey() {
+    try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/\//g, '-'); }
+    catch (e) { return new Date().toISOString().slice(0, 10); }
+  }
+  function recurringUserKey() {
+    try { var s = curSession() || {}; return String(s.user || s.username || s.name || 'unknown').replace(/[^A-Za-z0-9_.@-]/g, '_').slice(0, 60); } catch (e) { return 'unknown'; }
+  }
+  function finishLocalRecurring(serverState) {
+    var local = null, allowedLocal = false;
+    try { allowedLocal = !!canFin(); } catch (eFin) {}
+    if (allowedLocal) {
+      try { local = window.ptfAutoApplyRecurring(); } catch (eRun) { local = { complete: false, errors: [String(eRun)] }; }
+    } else local = { complete: true, month: ptfFaMonthNow(), salaries: 0, tpls: 0, repaired: 0 };
+    if (local && serverState && serverState.response && serverState.response.result) {
+      local.salaries = +(serverState.response.result.createdOpex || 0) + +(serverState.response.result.updated || 0);
+    }
+    if (local && local.complete && (local.salaries || local.tpls || local.repaired)) {
+      if (typeof ptfToast === 'function') ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + local.month + ' تطبیق شد (حقوق: ' + local.salaries + ' — قالب‌ها: ' + local.tpls + ')', 'ok');
+      try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eRender) {}
+    }
+    return local;
+  }
+  function scheduleRecurringRetry(attempt) {
+    attempt = +attempt || 0;
+    if (attempt >= 4 || typeof setTimeout !== 'function') return;
+    if (recurringRetryTimer) clearTimeout(recurringRetryTimer);
+    recurringRetryTimer = setTimeout(function () { recurringRetryTimer = null; runRecurringAfterSync(attempt + 1); }, 1500 * (attempt + 1));
+  }
   function runRecurringAfterSync(attempt) {
-    if (!window._ptfSyncSnapshotReady) return;
-    /* هر snapshot موفق دوباره verify می‌شود؛ signature صرف expected set کافی نیست،
-       چون ممکن است یکی از دو نیمهٔ حقوق یا ردیف قالب از دستگاه دیگری حذف شده باشد. */
-    var result = null;
-    try { result = window.ptfAutoApplyRecurring(); } catch (eRun) { result = { complete: false, errors: [String(eRun)] }; }
-    if (result && result.complete) {
-      if (recurringRetryTimer) { clearTimeout(recurringRetryTimer); recurringRetryTimer = null; }
-      if (result.salaries || result.tpls || result.repaired) {
-        if (typeof ptfToast === 'function') ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + result.month + ' تطبیق شد (حقوق: ' + result.salaries + ' — قالب‌ها: ' + result.tpls + ')', 'ok');
-        try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eRender) {}
-      }
+    if (!window._ptfSyncSnapshotReady || recurringServerInFlight || !salaryServerRole()) return;
+    var month = ptfFaMonthNow();
+    if (!month) { scheduleRecurringRetry(attempt); return; }
+    var runKey = month + '|' + recurringUserKey() + '|' + tehranDayKey();
+    if (recurringServerDoneKey === runKey) { finishLocalRecurring(null); return; }
+    if (typeof window.ptfSalesDomainCommand !== 'function') { scheduleRecurringRetry(attempt); return; }
+    recurringServerInFlight = true;
+    var commandPromise;
+    try {
+      commandPromise = window.ptfSalesDomainCommand('reconcile_shareholder_salaries', {
+        month: month, idempotencyKey: 'SALARY-REC|' + runKey
+      }, { apiOptions: { autoReplay: true } });
+      if (!commandPromise || typeof commandPromise.then !== 'function') throw new Error('salary_command_promise_required');
+    } catch (eCommand) {
+      recurringServerInFlight = false;
+      scheduleRecurringRetry(attempt);
       return;
     }
-    /* نقش فاقد دسترسی expected set مالی ندارد؛ retry تنها برای اجرای ناقص مجاز است. */
-    if (result && result.why === 'permission') return;
-    attempt = +attempt || 0;
-    if (attempt < 4 && typeof setTimeout === 'function') {
-      if (recurringRetryTimer) clearTimeout(recurringRetryTimer);
-      recurringRetryTimer = setTimeout(function () { recurringRetryTimer = null; runRecurringAfterSync(attempt + 1); }, 1500 * (attempt + 1));
-    }
+    commandPromise.then(function (state) {
+      recurringServerInFlight = false;
+      if (state && state.state === 'acked') {
+        recurringServerDoneKey = runKey;
+        if (recurringRetryTimer) { clearTimeout(recurringRetryTimer); recurringRetryTimer = null; }
+        finishLocalRecurring(state);
+      } else if (!state || state.state === 'uncertain') scheduleRecurringRetry(attempt);
+      /* rejected قطعی (قفل سال/مجوز/ماه) با retry خودکار تکرار نمی‌شود. */
+    }, function () { recurringServerInFlight = false; scheduleRecurringRetry(attempt); });
   }
   if (typeof window.addEventListener === 'function') {
     window.addEventListener('ptf:sync-ready', function (ev) {
@@ -790,7 +811,7 @@
   window.ptfOpexTemplates = function () { return tpls(); };
   window.ptfOpexUnlinkedForCheque = function () {
     return oRows().filter(function (x) {
-      return x && !x.chequeCd && x.st !== 'void' && !x.voided;
+      return opexRowActive(x) && !x.chequeCd;
     }).sort(function (a, b) { return String(b.month || '').localeCompare(String(a.month || '')); }).slice(0, 24);
   };
   /* از ماه جاری تا ۱۲ ماه بعد (مثلاً خرداد امسال تا اردیبهشت سال بعد). ماه‌هایی که ردیف دارند نمی‌آیند. */
@@ -803,7 +824,7 @@
     var m0 = +now.split('/')[1] || 1;
     var have = {};
     oRows().forEach(function (x) {
-      if (!x || x.st === 'void') return;
+      if (!opexRowActive(x)) return;
       if (tplId && x.tplId === tplId && x.month) have[x.month] = true;
     });
     var out = [];
@@ -829,7 +850,7 @@
     items.forEach(function (it) {
       if (!it || !it.month) return;
       var tpl = it.tplId ? tpls().filter(function (x) { return x.id === it.tplId; })[0] : null;
-      if (tpl && all.some(function (x) { return x && x.tplId === tpl.id && x.month === it.month && x.st !== 'void'; })) return;
+      if (tpl && all.some(function (x) { return opexRowActive(x) && x.tplId === tpl.id && x.month === it.month; })) return;
       var rec = {
         cd: opexNextCode(all), cat: (tpl && tpl.cat) || it.cat || 'اجاره‌بها', amt: +(tpl && tpl.amt) || +it.amt || 0,
         month: it.month, desc: (tpl && tpl.desc) || it.desc || '', tplId: tpl ? tpl.id : (it.tplId || ''),
@@ -893,7 +914,7 @@
     var chips = Object.keys(sm.byCat).map(function (c) {
       return '<span style="background:#f1f5f9;border-radius:999px;padding:4px 11px;font-size:11.5px">' + escP(c) + ': <b>' + fmtT(sm.byCat[c]) + '</b> ریال</span>';
     }).join(' ');
-    var rows = oRows().filter(function (x) { return !m || x.month === m; }).map(function (x) {
+    var rows = oRows().filter(function (x) { return recurringRowActive(x) && (!m || x.month === m); }).map(function (x) {
       var cdArg = ptfOnClickArg(x.cd);
       var rowArg = ptfOnClickArg(x[OPEX_ROW_ID]);
       var fileCount = (x.files || []).length;

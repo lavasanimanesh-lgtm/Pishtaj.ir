@@ -15,7 +15,23 @@
     var st = String(v.status || v.st || '').toLowerCase();
     return ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'].indexOf(st) < 0 && v.void !== true && v.voided !== true;
   }
-  function cust(cd) { return getData('ptf_crm_customers').filter(function (c) { return c.cd === cd; })[0]; }
+  function cfCustomerCandidates(value) {
+    var raw = String(value || '').trim(); if (!raw) return [];
+    var found = {};
+    (getData('ptf_crm_customers') || []).forEach(function (c) {
+      if (!c || (String(c._id || '').trim() !== raw && String(c.cd || '').trim() !== raw)) return;
+      var canonical = String(c._id || c.cd || '').trim(); if (canonical) found[canonical] = true;
+    });
+    var ids = Object.keys(found);
+    return ids.length ? ids : [raw];
+  }
+  function cfSameCustomerId(left, right) {
+    var a = cfCustomerCandidates(left), b = cfCustomerCandidates(right);
+    /* alias تکراری میان چند Customer مبهم است و نباید حتی با برابری رشته‌ای باعث
+       ادغام دو دفتر مشتری شود. */
+    return a.length === 1 && b.length === 1 && a[0] === b[0];
+  }
+  function cust(cd) { return getData('ptf_crm_customers').filter(function (c) { return cfSameCustomerId(c._id || c.cd, cd); })[0]; }
   function nameOf(c) { return (c && (c.co || c.name || c.cd)) || ''; }
   /* v34.7.26 (S3 / نشت بین‌مشتری): دو گارد اضافه شد و بقیهٔ رفتار دست‌نخورده ماند.
      F2-D — یافتن پیشنهاد فقط با شمارهٔ ناتهی (قبلاً x.no===i.offerNo با دو مقدار
@@ -36,13 +52,24 @@
       if (!c) return;
       [c.co || c.name, c.coEn].filter(Boolean).forEach(function (n) {
         var k = cfNormalizeName(n); if (!k) return;
+        var ownerId = String(c._id || c.cd || ''); if (!ownerId) return;
         map[k] = map[k] || {};
-        map[k][String(c.cd || '')] = true;
+        map[k][ownerId] = true;
       });
     });
     return map;
   }
   function invs(cd) {
+    /* ownership ابتدا با resolver واحد AR تعیین می‌شود؛ فیلتر نقش فقط visibility سند
+       است و حق ندارد با ORهای legacy فاکتور مشتری دیگر را وارد/فاکتور معتبر را حذف کند. */
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.customerInvoices === 'function') {
+      try {
+        return window.PTF.ar.customerInvoices(cd).filter(function (i) {
+          if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) return !i.isUnofficial;
+          return true;
+        });
+      } catch (eCanonicalInvoices) {}
+    }
     var offers = getData('ptf_crm_offers'), customer = cust(cd);
     var normalizeName = cfNormalizeName;
     var nameOwners = cfNameOwners();
@@ -53,7 +80,7 @@
       if (typeof ptfCanSeeLedger === 'function' ? !ptfCanSeeLedger('unofficial') : (typeof curRole === 'function' && curRole() === 'accountant')) { if (i.isUnofficial) return false; }
       var o = window.cfFindOfferByNo(i.offerNo, offers) || {};
       var invoiceCustomerName = normalizeName(i.buyerCo || o.buyerCo);
-      return (i.customerId || i.buyerCd || o.buyerCd) === cd || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
+      return cfSameCustomerId(i.customerId || i.buyerCd || o.buyerCd, cd) || (invoiceCustomerName && customerNames.indexOf(invoiceCustomerName) > -1);
     });
   }
   function isMigratedLegacyPayment(p) { return !!(p && (p.migratedToReceiptId || p.financialProjectionDisabled)); }
@@ -121,11 +148,11 @@
        کلید '' را true می‌کرد و هر رسیدِ بدون caseId (حتی از مشتری دیگر) در بستانکاری این
        مشتری شمرده می‌شد. رسید بدون caseId فقط با customerId صریح پذیرفته می‌شود. */
     var cases = {};
-    (getData('ptf_crm_deals') || []).forEach(function (d) { if (!d || d.buyerCd !== cd) return; [d._id, d.cd].forEach(function (v) { var k = String(v || ''); if (k) cases[k] = true; }); });
+    (getData('ptf_crm_deals') || []).forEach(function (d) { if (!d || !cfSameCustomerId(d.buyerCd, cd)) return; [d._id, d.cd].forEach(function (v) { var k = String(v || ''); if (k) cases[k] = true; }); });
     var caseCredit = (getData('ptf_crm_case_receipts') || []).reduce(function (s, r) {
       if (!r || r.status !== 'posted' || r.voided) return s;
       var rk = String(r.caseId || '');
-      if (r.customerId !== cd && !(rk && cases[rk])) return s;
+      if (!cfSameCustomerId(r.customerId, cd) && !(rk && cases[rk])) return s;
       return s + (+r.creditRemainIRR || 0);
     }, 0);
     return legacy + caseCredit;
@@ -136,7 +163,7 @@
     var out=[];invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(p){if(!isMigratedLegacyPayment(p))return;var receipt=byId[String(p.migratedToReceiptId||'')]||byLegacy[String(p.cd||'')];out.push({invoiceCd:inv.cd,legacyPaymentCd:p.cd||'',receiptId:receipt?String(receipt._id||receipt.cd||''):'',ok:!!(receipt&&receipt.status==='posted'&&!receipt.voided),amount:+p.amt||+p.amount||0});});});return out;
   };
   function accountPosition(cd) {
-    /* v34.7.97: عددهای summary فقط از قرارداد canonical مطالبات می‌آیند. خود UI هنوز
+    /* v34.7.98: عددهای summary فقط از قرارداد canonical مطالبات می‌آیند. خود UI هنوز
        scope نمایش را می‌سازد تا قواعد اسناد غیررسمی و fallback نام یکتای legacy حفظ شود. */
     if (window.PTF && window.PTF.ar && typeof window.PTF.ar.customerPosition === 'function') {
       try {
@@ -421,8 +448,8 @@
     try {
       var customerCases = {}, migratedSources = {};
       (getData('ptf_crm_deals') || []).forEach(function (d) {
-        if (!d || d.buyerCd !== cd) return;
-        /* v34.7.97: هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی همچنان برای جلوگیری
+        if (!d || !cfSameCustomerId(d.buyerCd, cd)) return;
+        /* v34.7.98: هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی همچنان برای جلوگیری
            از نشت رسیدهای بدون caseId وارد نقشه نمی‌شود. */
         [d._id, d.cd].forEach(function (v) { var ck = String(v || ''); if (ck) customerCases[ck] = true; });
       });
@@ -430,7 +457,7 @@
       (getData('ptf_crm_case_receipts') || []).forEach(function (p) {
         if (!p || p.status !== 'posted' || p.voided) return;
         var pk = String(p.caseId || '');
-        if (p.customerId !== cd && !(pk && customerCases[pk])) return;
+        if (!cfSameCustomerId(p.customerId, cd) && !(pk && customerCases[pk])) return;
         var amt = +p.amountIRR || +p.amt || 0, receiptId = String(p._id || p.cd || '');
         var legacySource = String(p.legacyPaymentRef || migratedSources[receiptId] || '');
         var migrationNote = legacySource ? ('مهاجرت‌شده از وصولی ' + legacySource + '؛ ردیف قدیمی برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود.') : '';
