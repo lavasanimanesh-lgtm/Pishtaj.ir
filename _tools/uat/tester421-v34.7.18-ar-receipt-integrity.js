@@ -146,10 +146,10 @@ function client(db) {
       invDate: '2026-06-01', status: 'active', payments: [{ cd: 'P1', amt: 1100000000, how: 'حواله', status: 'posted' }] }]
   };
   var s = client(db), st = s.PTF.ar.invoiceState(db.ptf_crm_invoices[0]);
-  T('اضافه‌پرداخت همچنان به‌عنوان اعتبار قابل تشخیص است (سقف‌گذاری نشده)', st.paid === 1100000000 && st.overPaid === 100000000, st.paid + '/' + st.overPaid);
+  T('اضافه‌پرداخت نسبت به مبلغ خالص پس از مرجوعی محاسبه می‌شود', st.paid === 1100000000 && st.billed === 900000000 && st.overPaid === 200000000, st.paid + '/' + st.billed + '/' + st.overPaid);
   T('مانده منفی نمی‌شود', st.open === 0, st.open);
   var audit = s.cfCreditAudit('CU-5');
-  T('اعتبار مشتری (اضافه‌پرداخت + مرجوعی) مثل قبل محاسبه می‌شود', audit.credit === 200000000, audit.credit);
+  T('اعتبار مشتری مرجوعی را در overpayment خالص دقیقاً یک‌بار می‌شمارد', audit.credit === 200000000, audit.credit);
 })();
 
 /* ---------- ۶) مسیرهای نوشتن و رابط‌ها ---------- */

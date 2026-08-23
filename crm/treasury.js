@@ -150,8 +150,12 @@
       if (o.shareholderSalary || o.shareTx) return;
       if (o.chequeCd || o.payHow === 'cheque') return;
       var isCoverOpex = !!(o.fromCoverInvoice || o.coverInvoiceCd);
-      /* کارمزد پوششی فقط پس از تسویه (با مدرک) خروج خزانه/بانک است. */
+      var isRecurringOpex = !!o.tplId;
+      var isSettlementOpex = isCoverOpex || isRecurringOpex;
+      /* هزینهٔ تسویه‌محور فقط پس از تسویه با مدرک خروج خزانه/بانک است.
+         ردیف دارای چک بالاتر حذف شده تا وجه فقط از مسیر چک سررسیدشده خارج شود. */
       if (isCoverOpex && o.st !== 'settled') return;
+      if (isRecurringOpex && o.st !== 'settled') return;
       var amt = num(o.amt || o.amount);
       if (!amt) return;
       pushMove(out, {
@@ -159,10 +163,10 @@
         cd: o.cd || '',
         dir: 'out',
         amount: amt,
-        dateISO: (isCoverOpex ? (o.settleISO || isoOf(o)) : isoOf(o)) || String(o.month || '').replace(/\//g, '-') ,
-        dateFa: (isCoverOpex ? (o.settledT || o.month) : (o.month || faOf(o))),
-        src: isCoverOpex ? 'تسویه کارمزد پوششی' : 'هزینه جاری',
-        label: (isCoverOpex ? 'پرداخت کارمزد فاکتورساز' : 'هزینه ') + (o.cat || '') + (o.desc ? ' — ' + o.desc : '') + (o.settleDoc ? ' — سند ' + o.settleDoc : '')
+        dateISO: (isSettlementOpex ? (o.settleISO || isoOf(o)) : isoOf(o)) || String(o.month || '').replace(/\//g, '-') ,
+        dateFa: (isSettlementOpex ? (o.settledT || o.month) : (o.month || faOf(o))),
+        src: isCoverOpex ? 'تسویه کارمزد پوششی' : (isRecurringOpex ? 'تسویه هزینه تکرارشونده' : 'هزینه جاری'),
+        label: (isCoverOpex ? 'پرداخت کارمزد فاکتورساز' : (isRecurringOpex ? 'پرداخت هزینه تکرارشونده ' : 'هزینه ')) + (o.cat || '') + (o.desc ? ' — ' + o.desc : '') + (o.settleDoc ? ' — سند ' + o.settleDoc : '')
       });
     });
 
@@ -699,8 +703,8 @@
     allMoves.forEach(function (m) { if (m.src) sources[m.src] = true; });
     var flt = document.getElementById('treasuryFilters');
     if (flt) flt.innerHTML = '<div style="background:#fff;border:1px solid #bae6fd;border-radius:12px;padding:10px 12px;margin:10px 0"><b style="display:block;margin-bottom:7px">🔎 گزارش و خروجی دوره‌ای خزانه</b><div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end">' +
-      '<label style="font-size:11.5px">از تاریخ<br><input id="trFrom" value="' + esc(filter.from || '') + '" placeholder="1405/01/01" style="width:125px;padding:7px;border:1px solid #cbd5e1;border-radius:8px;direction:ltr"></label>' +
-      '<label style="font-size:11.5px">تا تاریخ<br><input id="trTo" value="' + esc(filter.to || '') + '" placeholder="1405/12/29" style="width:125px;padding:7px;border:1px solid #cbd5e1;border-radius:8px;direction:ltr"></label>' +
+      '<label style="font-size:11.5px;min-width:190px">از تاریخ (شمسی)<br>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('trFrom', filter.from || '') : '<input id="trFrom" value="' + esc(filter.from || '') + '">') + '</label>' +
+      '<label style="font-size:11.5px;min-width:190px">تا تاریخ (شمسی)<br>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('trTo', filter.to || '') : '<input id="trTo" value="' + esc(filter.to || '') + '">') + '</label>' +
       '<label style="font-size:11.5px">نوع گردش<br><select id="trDir" style="padding:7px;border:1px solid #cbd5e1;border-radius:8px"><option value="all"' + (filter.dir==='all'?' selected':'') + '>همه ورودی و خروجی</option><option value="in"' + (filter.dir==='in'?' selected':'') + '>فقط ورودی‌ها</option><option value="out"' + (filter.dir==='out'?' selected':'') + '>فقط خروجی‌ها</option></select></label>' +
       '<label style="font-size:11.5px">منبع<br><select id="trSrc" style="max-width:220px;padding:7px;border:1px solid #cbd5e1;border-radius:8px"><option value="all">همه منابع</option>' + Object.keys(sources).sort().map(function (s) { return '<option value="' + esc(s) + '"' + (filter.src===s?' selected':'') + '>' + esc(s) + '</option>'; }).join('') + '</select></label>' +
       '<button class="bt" onclick="ptfTreasuryApplyFilter()">اعمال فیلتر</button><button class="bt bt-o" onclick="ptfTreasuryResetFilter()">پاک کردن</button><button class="bt bt-o" style="color:#059669" onclick="ptfTreasuryPeriodCsv()">⬇ Excel/CSV</button><button class="bt bt-o" style="color:#7c3aed" onclick="ptfTreasuryPeriodPrint()">🖨 PDF/چاپ دوره</button></div>' +

@@ -1626,7 +1626,7 @@
     var out = Object.assign({}, a);
     out.cur = out.cur || cur;
     if (out.mode === 'no') out.mode = 'none';
-    if (out.mode === 'full') { out.pct = 100; out.docAmt = total; out.amt = cur === 'IRR' ? total : Math.round(total * (+out.rate || rate || 0)); out.cashFull = true; }
+    if (out.mode === 'full') { out.pct = 100; out.docAmt = total; out.amt = cur === 'IRR' ? total : Math.round(total * (+out.rate || rate || 0)); }
     else if (out.mode === 'pct') {
       var pct = +out.pct || +out.val || 0;
       var amt = +out.amt || 0;
@@ -1642,23 +1642,15 @@
       out.pct = total ? Math.round(out.docAmt * 10000 / total) / 100 : 0;
       if (out.pct > 100 && !out.exceptional) out.pct = 100;
     }
-    out.payments = Array.isArray(out.payments) ? out.payments.slice() : [];
-    out.receivedAmt = out.cashFull ? (+out.amt || 0) : out.payments.reduce(function (s, p) { return s + (+p.amt || 0); }, 0);
-    out.receivedDocAmt = out.cashFull ? (+out.docAmt || 0) : out.payments.reduce(function (s, p) {
-      if (p.docAmt != null) return s + (+p.docAmt || 0);
-      if (cur !== 'IRR' && +p.rate) return s + ((+p.amt || 0) / (+p.rate || 1));
-      return s + (+p.amt || 0);
-    }, 0);
-    out.remainAmt = Math.max(0, Math.round((+out.amt || 0) - (+out.receivedAmt || 0)));
-    out.remainDocAmt = Math.max(0, +(((+out.docAmt || 0) - (+out.receivedDocAmt || 0)).toFixed ? ((+out.docAmt || 0) - (+out.receivedDocAmt || 0)).toFixed(2) : ((+out.docAmt || 0) - (+out.receivedDocAmt || 0))));
-    out.receivedPct = total ? Math.round((+out.receivedDocAmt || 0) * 10000 / total) / 100 : 0;
-    out.paid = !!(out.cashFull || out.remainAmt <= 0.5 || out.remainDocAmt <= 0.01 || a.paid);
+    /* فقط شرط تجاری پیشنهاد نرمال می‌شود. وصول، مانده و وضعیت تسویه منحصراً
+       از Receipt ریالی پرونده/فاکتور می‌آیند. payments قدیمی روی پیشنهاد در
+       migration یک‌بارهٔ سرور حفظ می‌شوند، اما اینجا محاسبه یا نمایش نمی‌شوند. */
     return out;
   };
   window.ptfAdvanceLabel = function (o, opts) {
     var a = ptfAdvanceNormalize(o);
     if (!a || a.mode === 'none') return (opts && opts.en) ? 'None' : 'ندارد';
-    if (a.cashFull) return (opts && opts.en) ? 'Full / cash payment — settled' : 'پرداخت کامل/نقدی — تسویه‌شده';
+    if (a.mode === 'full' || a.cashFull) return (opts && opts.en) ? '100% payment term' : 'شرط پرداخت کامل/نقدی (۱۰۰٪)';
     var cur = offerCur(o);
     var en = !!(opts && opts.en);
     var pctN = Math.max(0, Math.min(100, +a.pct || 0));
@@ -1719,20 +1711,20 @@
     var o = offers.filter(function (x) { return x.no === no; })[0];
     if (!o) return;
     if (o.kind !== 'CO' && o.kind !== 'TC') { alert('پیش‌پرداخت فقط برای پیشنهاد مالی/فنی‌مالی کاربرد دارد'); return; }
-    /* US-FX2RIAL: نسخه ریالی (همراه) سند ارائه‌ای است — پیش‌پرداخت/مطالبه فقط روی سند ارزی مبدأ ثبت می‌شود
-       تا مطالبهٔ تکراری ایجاد نشود و مبنای ارزی/نرخ ثبت‌شدهٔ اصلی محفوظ بماند. */
+    /* US-FX2RIAL: نسخهٔ ریالی همراه، سند ارائه‌ای است؛ شرط تجاری پیش‌پرداخت فقط
+       روی پیشنهاد ارزی مبدأ نگه‌داری می‌شود تا دو تعریف قراردادی ساخته نشود. */
     if (o.rialOf) {
-      alert('🔒 این سند «نسخه ریالی» پیشنهاد ارزی ' + o.rialOf + ' است.\n\n• پیش‌پرداخت واقعی فقط روی پیشنهاد ارزی مبدأ (' + o.rialOf + ') ثبت می‌شود و نرخ/مبلغ وصولیِ آنجا محفوظ است.\n• ثبت پیش‌پرداخت روی نسخه ریالی «مطالبه تکراری» می‌سازد و مجاز نیست.\n\nبرای اصلاح پیش‌پرداخت به پیشنهاد ارزی مبدأ یا پرونده فروش مراجعه کنید.');
+      alert('🔒 این سند «نسخه ریالی» پیشنهاد ارزی ' + o.rialOf + ' است.\n\nشرط تجاری پیش‌پرداخت را فقط روی پیشنهاد ارزی مبدأ (' + o.rialOf + ') اصلاح کنید. دریافت واقعی از داخل پرونده فروش و فقط به ریال ثبت می‌شود.');
       return;
     }
     var cur = offerCur(o), total = offerTotal(o), old = ptfAdvanceNormalize(o) || {};
     var fx = cur !== 'IRR';
-    var body = 'مبلغ کل سند: <b dir="ltr">' + advMoney(total, cur) + '</b><br>درصد و مبلغ به‌صورت ساختاریافته ذخیره می‌شود و متن/مطالبات از همین داده ساخته می‌شود؛ متن آزاد مبنای محاسبه مالی نیست.' + (fx ? '<br>برای سند ارزی، نرخ تسعیر پیش‌پرداخت الزامی است.' : '') + '<div id="advLiveBox" style="margin-top:8px"></div>';
+    var body = 'مبلغ کل سند: <b dir="ltr">' + advMoney(total, cur) + '</b><br>درصد و مبلغ فقط به‌عنوان شرط تجاری پیشنهاد ذخیره می‌شود؛ این داده دریافت، مانده یا تسویه مالی ایجاد نمی‌کند.' + (fx ? '<br>برای تعیین معادل ریالی شرط تجاری سند ارزی، نرخ مرجع پیشنهاد الزامی است.' : '') + '<div id="advLiveBox" style="margin-top:8px"></div>';
     ptfDialog({
       title: '💰 پیش‌پرداخت ساختاریافته — ' + no,
       body: body,
       fields: [
-        { id: 'mode', label: 'نوع پیش‌پرداخت', type: 'select', value: old.cashFull ? 'full' : (old.mode || 'none'), options: [
+        { id: 'mode', label: 'نوع پیش‌پرداخت', type: 'select', value: (old.mode === 'full' || old.cashFull) ? 'full' : (old.mode || 'none'), options: [
           { v: 'none', lb: 'بدون پیش‌پرداخت' }, { v: 'pct', lb: 'درصدی' }, { v: 'amt', lb: 'مبلغ ثابت' }, { v: 'full', lb: 'پرداخت کامل / نقدی (۱۰۰٪)' }
         ] },
         /* BUGFIX — الگوی باگ تکرارشونده ورود عدد در برخی مودال‌ها:
@@ -1748,29 +1740,27 @@
         var mode = v.mode || 'none';
         var pct = toNum(v.pct), docAmt = toNum(v.docAmt), rate = toNum(v.rate);
         if (mode === 'none') {
-          o.advance = { mode: 'none', struct: true, paid: false, t: faDate(), by: userName(), note: v.note || '' };
+          o.advance = { mode: 'none', struct: true, t: faDate(), by: userName(), note: v.note || '' };
         } else if (mode === 'full') {
-          if (fx && !rate) { alert('نرخ تسعیر برای پرداخت کامل ارزی الزامی است'); return; }
-          o.advance = { mode: 'full', pct: 100, docAmt: total, cur: cur, rate: fx ? rate : 1, amt: fx ? Math.round(total * rate) : total, paid: true, cashFull: true, paidT: faDateTime(), paidBy: userName(), paidHow: 'پرداخت کامل/نقدی هنگام ثبت پیشنهاد', struct: true, t: faDate(), by: userName(), note: v.note || '' };
+          if (fx && !rate) { alert('نرخ مرجع برای شرط پرداخت کامل ارزی الزامی است'); return; }
+          o.advance = { mode: 'full', pct: 100, docAmt: total, cur: cur, rate: fx ? rate : 1, amt: fx ? Math.round(total * rate) : total, struct: true, t: faDate(), by: userName(), note: v.note || '' };
         } else if (mode === 'pct') {
           if (pct <= 0 || pct > 100) { alert('درصد پیش‌پرداخت باید بین ۰ تا ۱۰۰ باشد.'); return; }
           docAmt = total * pct / 100;
-          if (fx && !rate) { alert('نرخ تسعیر برای پیش‌پرداخت ارزی الزامی است'); return; }
-          o.advance = { mode: 'pct', pct: pct, docAmt: docAmt, cur: cur, rate: fx ? rate : 1, amt: fx ? Math.round(docAmt * rate) : Math.round(docAmt), paid: false, struct: true, t: faDate(), by: userName(), note: v.note || '' };
-          if (pct === 100) { o.advance.mode = 'full'; o.advance.paid = true; o.advance.cashFull = true; o.advance.paidT = faDateTime(); o.advance.paidBy = userName(); o.advance.paidHow = 'پرداخت کامل/نقدی'; }
+          if (fx && !rate) { alert('نرخ مرجع برای شرط پیش‌پرداخت ارزی الزامی است'); return; }
+          o.advance = { mode: 'pct', pct: pct, docAmt: docAmt, cur: cur, rate: fx ? rate : 1, amt: fx ? Math.round(docAmt * rate) : Math.round(docAmt), struct: true, t: faDate(), by: userName(), note: v.note || '' };
+          if (pct === 100) o.advance.mode = 'full';
         } else if (mode === 'amt') {
           if (docAmt <= 0) { alert('مبلغ پیش‌پرداخت الزامی است'); return; }
           var exceptional = docAmt > total;
           if (exceptional && !confirm('⚠️ مبلغ پیش‌پرداخت از مبلغ کل سند بیشتر است. فقط در حالت استثنایی و با ثبت audit ادامه دهید؟')) return;
-          if (fx && !rate) { alert('نرخ تسعیر برای پیش‌پرداخت ارزی الزامی است'); return; }
+          if (fx && !rate) { alert('نرخ مرجع برای شرط پیش‌پرداخت ارزی الزامی است'); return; }
           pct = total ? Math.round(docAmt * 10000 / total) / 100 : 0;
-          o.advance = { mode: 'amt', pct: pct, docAmt: docAmt, cur: cur, rate: fx ? rate : 1, amt: fx ? Math.round(docAmt * rate) : Math.round(docAmt), paid: false, exceptional: exceptional, struct: true, t: faDate(), by: userName(), note: v.note || '' };
-          if (docAmt >= total && !exceptional) { o.advance.mode = 'full'; o.advance.paid = true; o.advance.cashFull = true; o.advance.paidT = faDateTime(); o.advance.paidBy = userName(); o.advance.paidHow = 'پرداخت کامل/نقدی'; }
+          o.advance = { mode: 'amt', pct: pct, docAmt: docAmt, cur: cur, rate: fx ? rate : 1, amt: fx ? Math.round(docAmt * rate) : Math.round(docAmt), exceptional: exceptional, struct: true, t: faDate(), by: userName(), note: v.note || '' };
+          if (docAmt >= total && !exceptional) o.advance.mode = 'full';
         }
         setData('ptf_crm_offers', offers);
-        audit('پیشنهادها', 'ثبت/اصلاح پیش‌پرداخت ساختاریافته ' + no + ': ' + ptfAdvanceLabel(o), no);
-        if (typeof notify === 'function' && o.advance && o.advance.amt && !o.advance.paid) notify({ toRoles: ['admin', 'chairman', 'ceo', 'accountant'], title: '💰 مطالبه پیش‌پرداخت ' + ptfAdvanceLabel(o) + ' برای ' + no + ' (' + (o.buyerCo || '') + ') ثبت شد', kind: 'advance', channels: ['cart'], link: { panel: 'recv' } });
-        if (typeof renderReceivables === 'function') renderReceivables();
+        audit('پیشنهادها', 'ثبت/اصلاح شرط تجاری پیش‌پرداخت ' + no + ': ' + ptfAdvanceLabel(o), no);
         if (typeof renderOffers === 'function') renderOffers();
         if (typeof ptfToast === 'function') ptfToast('پیش‌پرداخت ساختاریافته ثبت شد', 'ok');
       }
@@ -1814,110 +1804,9 @@
     };
   }
 
-  var _renderRecv = window.renderReceivables;
-  if (typeof _renderRecv === 'function') {
-    window.renderReceivables = function () {
-      _renderRecv();
-      /* v35: legacy offer.advance فقط برای گزارش مهاجرت می‌ماند و دیگر در UI
-         مطالبات/خزانه مسیر عملیاتی ایجاد نمی‌کند. */
-      if (window.PTF_SALES_DOMAIN_V2) return;
-      var el = document.getElementById('rcWrap'); if (!el) return;
-      var invOfferNos = {};
-      (getData('ptf_crm_invoices') || []).forEach(function (iv) { if (iv && iv.offerNo) invOfferNos[iv.offerNo] = 1; });
-      var advs = getData('ptf_crm_offers').filter(function (o) { var a = ptfAdvanceNormalize(o); return a && a.amt && a.mode !== 'none' && !invOfferNos[o.no]; });
-      var openAdvs = advs.filter(function (o) { var a = ptfAdvanceNormalize(o); return !a.paid && (+a.remainAmt || 0) > 0; });
-      var fulls = getData('ptf_crm_offers').filter(function (o) { var a = ptfAdvanceNormalize(o); return a && a.cashFull && !invOfferNos[o.no]; });
-      if (!advs.length && !fulls.length) return;
-      var totalAdv = openAdvs.reduce(function (s, o) { return s + (ptfAdvanceNormalize(o).remainAmt || 0); }, 0);
-      var h = '<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:12px 14px;margin-bottom:10px">' +
-        '<h4 style="margin:0 0 8px;font-size:13.5px;color:#c2410c">💰 پیش‌پرداخت‌ها (' + openAdvs.length + ' مطالبه باز — جمع مانده: ' + totalAdv.toLocaleString('fa-IR') + ' ریال)</h4>' +
-        openAdvs.map(function (o) { var a = ptfAdvanceNormalize(o); var pays = (a.payments || []).map(function (p) { return '◽ ' + escP(p.t || '') + ' — ' + (+p.amt || 0).toLocaleString('fa-IR') + ' ریال' + (p.docAmt ? ' <small style="color:#0e7490">(' + (+p.docAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur || '') + ' @ ' + (+p.rate || 0).toLocaleString('fa-IR') + ')</small>' : '') + ' <a href="javascript:void(0)" onclick="advancePayDel(\'' + ptfOnClickArg(o.no) + '\',\'' + ptfOnClickArg(p.cd || '') + '\')" style="color:#dc2626">✕</a>'; }).join('<br>'); return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #fed7aa;flex-wrap:wrap"><span style="font-size:12.5px"><b>' + escP(o.buyerCo || '-') + '</b> — ' + escP(o.no) + ' — پیش‌پرداخت: <b>' + ptfAdvanceLabel(o) + '</b><br><small style="color:#166534">وصول‌شده: ' + (+a.receivedAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.receivedDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + ' | مانده: ' + (+a.remainAmt || 0).toLocaleString('fa-IR') + ' ریال' + (a.cur !== 'IRR' ? ' | ' + (+a.remainDocAmt || 0).toLocaleString('en-US') + ' ' + escP(a.cur) : '') + '</small>' + (a.note ? '<br><small style="color:#64748b">' + escP(a.note) + '</small>' : '') + (pays ? '<br><small style="color:#475569">' + pays + '</small>' : '') + '</span><span style="display:flex;gap:5px"><button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="ptfAdvanceOpen(\'' + ptfOnClickArg(o.no) + '\')">اصلاح</button><button class="bt" style="padding:4px 11px;font-size:12px;background:#059669" onclick="advancePaid(\'' + ptfOnClickArg(o.no) + '\')">+ ثبت وصول</button></span></div>'; }).join('') +
-        (fulls.length ? '<div style="margin-top:8px;font-size:12px;color:#059669">✅ پرداخت کامل/نقدی: ' + fulls.map(function (o) { return escP(o.no); }).join('، ') + '</div>' : '') + '</div>';
-      el.insertAdjacentHTML('afterbegin', h);
-    };
-  }
-  window.advancePaid = function (no) {
-    if (window.PTF_SALES_DOMAIN_V2) {
-      alert('ثبت وصول روی شماره پیشنهاد غیرفعال است تا تشابه شماره نتواند پول را به رکورد دیگری متصل کند.\nوصول را از داخل پرونده فروش ثبت کنید.');
-      if (typeof window.ptfGoSalesFileForOffer === 'function') window.ptfGoSalesFileForOffer(no);
-      return;
-    }
-    var offers = getData('ptf_crm_offers'); var o = offers.filter(function (x) { return x.no === no; })[0];
-    if (o && o.rialOf) { alert('🔒 این سند «نسخه ریالی» پیشنهاد ارزی ' + o.rialOf + ' است — وصول پیش‌پرداخت فقط روی پیشنهاد ارزی مبدأ ثبت می‌شود (US-FX2RIAL).'); return; }
-    var hasInv = (getData('ptf_crm_invoices') || []).some(function (iv) { return iv.offerNo === no; });
-    if (hasInv) { alert('برای این درخواست فاکتور صادر شده است؛ از این به بعد ملاک وصول، مبلغ فاکتور ریالی است و ثبت وصول باید در بخش مطالبات/فاکتور انجام شود.'); return; }
-    if (!o || !o.advance) return;
-    var a = ptfAdvanceNormalize(o); var cur = a.cur || offerCur(o);
-    if (cur !== 'IRR') {
-      ptfDialog({ title: '✔ ثبت وصول پیش‌پرداخت ارزی ' + no, body: 'سند ارزی است. یا «درصد از مانده پیش‌پرداخت» را وارد کنید یا مبلغ ریالی وصولی را. نرخ تسعیر روز الزامی است.', fields: [
-        { id: 'pct', label: '٪ درصد از مانده پیش‌پرداخت (اختیاری)', type: 'number', money: false, dir: 'ltr' },
-        { id: 'rtype', label: 'مبنای نرخ تسعیر', type: 'select', options: [{v:'free',lb:'آزاد'},{v:'agreed',lb:'توافقی'}] },
-        { id: 'rate', label: 'نرخ تسعیر روز (ریال per ' + cur + ') *', type: 'number', money: false, value: liveRate(cur) || '', dir: 'ltr', required: true },
-        { id: 'amt', label: 'مبلغ ریالی وصولی — خالی بگذارید تا از درصد محاسبه شود', type: 'number', money: false, dir: 'ltr' },
-        { id: 'how', label: 'نحوه دریافت (حواله/چک/...)', value: 'حواله' },
-        { id: 'note', label: 'یادداشت', type: 'textarea', rows: 2 }
-      ], okText: 'ثبت وصول', onOk: function (v) {
-        /* v24.8 BUG-126-01: پیش‌فرض نرخ/مانده/نحوه — فراخوانی برنامه‌ای فقط با how هم کار کند */
-        v = v || {};
-        if (!v.how) v.how = 'حواله';
-        /* وقتی کاربر نرخ تازه وارد نکرده، نرخ ثبت‌شده در خود پیش‌پرداخت
-           مبنای سازگار وصول است؛ نرخ live جدید می‌تواند مبلغ معادل را از
-           ماندهٔ قراردادی بزرگ‌تر نشان دهد و وصول کامل را بی‌دلیل رد کند. */
-        var rate = toNum(v.rate) || +a.rate || toNum(typeof liveRate === 'function' ? liveRate(cur) : 0) || 110000;
-        var amt = toNum(v.amt), pct = toNum(v.pct);
-        var remainDoc = +a.remainDocAmt || +a.docAmt || 0;
-        var remainAmt = +a.remainAmt || +a.amt || 0;
-        var docAmt = 0;
-        if (!amt && pct > 0 && remainDoc > 0) { docAmt = +(remainDoc * pct / 100).toFixed(2); amt = Math.round(docAmt * rate); }
-        else if (!amt && remainDoc > 0) { docAmt = remainDoc; amt = Math.round(docAmt * rate); }
-        else if (!amt && remainAmt > 0) { amt = remainAmt; docAmt = rate ? +(amt / rate).toFixed(2) : 0; }
-        else docAmt = rate ? +(amt / rate).toFixed(2) : 0;
-        if (!amt || amt <= 0) { alert('مبلغ وصولی نامعتبر است'); return; }
-        if (!docAmt || docAmt <= 0) { docAmt = rate ? +(amt / rate).toFixed(2) : amt; }
-        /* باقی‌ماندهٔ رکوردهای ساختاریافتهٔ قدیمی ممکن است هنوز توسط normalize
-           روی فیلد advance بازنویسی نشده باشد. در آن حالت خود مبلغ پیش‌پرداخت
-           سقف وصول اول است؛ صفر فرض‌کردنش، وصول کامل ارزی را نادرست رد می‌کرد. */
-        var maxAmt = +a.remainAmt || +a.amt || 0;
-        if (amt > maxAmt + 1) { alert('مبلغ از مانده پیش‌پرداخت بیشتر است'); return; }
-        o.advance.payments = Array.isArray(o.advance.payments) ? o.advance.payments : [];
-        o.advance.payments.push({ cd: genCode('ADP'), amt: amt, docAmt: docAmt, rate: rate, rateType: v.rtype || 'agreed', how: v.how, note: v.note || '', t: faDateTime(), by: userName() });
-        var ax = ptfAdvanceNormalize(o);
-        o.advance.paid = ax.paid; o.advance.paidT = ax.paid ? faDateTime() : ''; o.advance.paidBy = ax.paid ? userName() : ''; o.advance.paidHow = ax.paid ? v.how : '';
-        setData('ptf_crm_offers', offers);
-        audit('مطالبات', 'ثبت وصول پیش‌پرداخت ' + amt.toLocaleString('fa-IR') + ' ریال (معادل ' + docAmt.toLocaleString('en-US') + ' ' + cur + ')', no);
-        renderReceivables(); if (typeof ptfToast === 'function') ptfToast('وصول پیش‌پرداخت ثبت شد', 'ok');
-      } });
-      return;
-    }
-    ptfDialog({ title: '✔ ثبت وصول پیش‌پرداخت ' + no, fields: [
-      { id: 'amt', label: 'مبلغ وصولی (ریال) *', type: 'number', money: false, required: true, dir: 'ltr', value: a.remainAmt || '' },
-      { id: 'how', label: 'نحوه دریافت (حواله/چک/...)', value: 'حواله' },
-      { id: 'note', label: 'یادداشت', type: 'textarea', rows: 2 }
-    ], okText: 'ثبت وصول', onOk: function (v) {
-      v = v || {};
-      if (!v.how) v.how = 'حواله';
-      var amt = toNum(v.amt) || toNum(a.remainAmt) || 0;
-      if (!amt || amt <= 0) { alert('مبلغ وصولی نامعتبر است'); return; }
-      if (amt > (+a.remainAmt || 0) + 1) { alert('مبلغ از مانده پیش‌پرداخت بیشتر است'); return; }
-      o.advance.payments = Array.isArray(o.advance.payments) ? o.advance.payments : [];
-      o.advance.payments.push({ cd: genCode('ADP'), amt: amt, docAmt: amt, how: v.how, note: v.note || '', t: faDateTime(), by: userName() });
-      var ax = ptfAdvanceNormalize(o);
-      o.advance.paid = ax.paid; o.advance.paidT = ax.paid ? faDateTime() : ''; o.advance.paidBy = ax.paid ? userName() : ''; o.advance.paidHow = ax.paid ? v.how : '';
-      setData('ptf_crm_offers', offers);
-      audit('مطالبات', 'ثبت وصول پیش‌پرداخت ' + amt.toLocaleString('fa-IR') + ' ریال', no);
-      renderReceivables(); if (typeof ptfToast === 'function') ptfToast('وصول پیش‌پرداخت ثبت شد', 'ok');
-    } });
-  };
-  window.advancePayDel = function (no, payCd) {
-    var offers = getData('ptf_crm_offers'); var o = offers.filter(function (x) { return x.no === no; })[0]; if (!o || !o.advance) return;
-    if (!confirm('این پرداخت/وصول از پیش‌پرداخت حذف شود؟')) return;
-    o.advance.payments = (o.advance.payments || []).filter(function (p) { return p.cd !== payCd; });
-    var ax = ptfAdvanceNormalize(o);
-    o.advance.paid = ax.paid; if (!ax.paid) { o.advance.paidT = ''; o.advance.paidBy = ''; o.advance.paidHow = ''; }
-    setData('ptf_crm_offers', offers);
-    audit('مطالبات', 'حذف یک ثبت وصول از پیش‌پرداخت', no);
-    renderReceivables(); if (typeof ptfToast === 'function') ptfToast('ثبت وصول حذف شد', 'warn');
-  };
+  /* وصول پیش‌پرداخت روی پیشنهاد و wrapper قدیمیِ مطالبات حذف شده‌اند.
+     پیشنهاد فقط شرط تجاری (درصد/مبلغ/ارز مرجع) را نگه می‌دارد؛ هر دریافت واقعی
+     باید به‌صورت Receipt ریالی در پرونده ثبت و از مبلغ ریالی فاکتور کسر شود. */
 
   /* ============ روتینگ تنخواه ============ */
   var _go = window.goPanel;

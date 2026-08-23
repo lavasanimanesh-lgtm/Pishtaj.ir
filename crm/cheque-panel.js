@@ -723,7 +723,7 @@
       '<div class="fr"><div class="fld"><label>شماره برگه چک</label><input id="chE_No" value="' + escP(c.no || '') + '" style="direction:ltr"></div>' +
       '<div class="fld"><label>شناسه صیادی *</label><input id="chE_Sayad" value="' + escP(c.sayad || '') + '" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>مبلغ (ریال) *</label><input id="chE_Amt" inputmode="numeric" data-money="1" value="' + escP(c.amt != null ? String(+c.amt).toLocaleString("en-US") : '') + '" style="direction:ltr"></div>' +
-      '<div class="fld"><label>تاریخ سررسید (شمسی)</label><input id="chE_Due" value="' + escP(c.dueFa || '') + '" placeholder="1405/04/19" style="direction:ltr"></div></div>' +
+      '<div class="fld"><label>تاریخ سررسید (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('chE_Due', c.dueFa || c.dueISO || '') : '<input id="chE_Due" value="' + escP(c.dueFa || '') + '">') + '</div></div>' +
       '<div class="fr"><div class="fld"><label>ذی‌نفع *</label><input id="chE_To" value="' + escP(c.toWhom || '') + '"></div>' +
       '<div class="fld"><label>بانک</label><input id="chE_Bank" value="' + escP(c.bank || '') + '" style="direction:ltr"></div></div>' +
       '<div class="fr"><div class="fld"><label>شعبه</label><input id="chE_Branch" value="' + escP(c.branch || '') + '"></div>' +

@@ -114,7 +114,7 @@
     var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px">' +
       '<h3>' + (i > -1 ? '✏️ ویرایش خبر' : '📰 خبر جدید') + '</h3>' +
       '<div class="fld"><label>عنوان *</label><input type="text" id="cnTitle" value="' + escP(n.title) + '"></div>' +
-      '<div class="fr"><div class="fld"><label>تاریخ شمسی</label><input type="text" id="cnDate" value="' + escP(n.date) + '" style="direction:ltr"></div>' +
+      '<div class="fr"><div class="fld"><label>تاریخ شمسی</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('cnDate', n.date) : '<input type="text" id="cnDate" value="' + escP(n.date) + '" style="direction:ltr">') + '</div>' +
       '<div class="fld"><label>دسته</label><select id="cnCat" onchange="document.getElementById(\'cnTag\').value=this.options[this.selectedIndex].text">' + catOpts + '</select></div></div>' +
       '<input type="hidden" id="cnTag" value="' + escP(n.tag) + '">' +
       '<div class="fld"><label>متن خبر *</label><textarea id="cnDesc" rows="5">' + escP(n.desc) + '</textarea></div>' +

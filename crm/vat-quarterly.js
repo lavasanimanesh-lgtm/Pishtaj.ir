@@ -144,7 +144,7 @@
       '<h4 style="margin:0;font-size:14px;color:#0f172a">📊 ارزش افزوده فصلی (بدهی/اعتبار مالیاتی)</h4>' +
       '<span style="font-size:11.5px;color:#64748b">درصد مصوب سال ' + fa(y) + ': <b style="color:#c2410c">' + rate + '٪</b> — از هاب مالی.</span></div>' +
       '<div class="fr" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">' +
-      '<div class="fld" style="flex:1;min-width:120px"><label>سال مالی</label><input id="vatYear" type="number" value="' + escP(y) + '" style="width:100%;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr" onchange="ptfVatQuarterlyRender()"></div>' +
+      '<div class="fld" style="flex:1;min-width:165px"><label>سال مالی شمسی</label>' + (window.DateKit && DateKit.yearPicker ? DateKit.yearPicker('vatYear', y) : '<input id="vatYear" value="' + escP(y) + '">') + '</div>' +
       '<div class="fld" style="flex:1;min-width:200px"><label>درصد مصوب ارزش افزوده این سال</label><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><input id="vatRateInput" type="number" min="0" max="100" step="0.01" value="' + rate + '" style="width:90px;padding:6px;border:1px solid var(--brd);border-radius:8px;direction:ltr"><span style="font-weight:700">٪</span><button class="bt bt-o" style="font-size:11px;padding:3px 9px" onclick="ptfVatRateSaveYear()">ذخیره نرخ سال</button></div></div>' +
       '</div>' +
       '<div id="vatQuarterlyResults"></div></div>';
@@ -161,6 +161,12 @@
   window.ptfVatState = stateFor;
   window.ptfVatSettlements = function () { return settlements(); };
   window.ptfVatSaveSettlement = saveSettlements;
+  if (!window._ptfVatYearPickerHooked && typeof document !== 'undefined' && document.addEventListener) {
+    window._ptfVatYearPickerHooked = true;
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'vatYear') window.ptfVatQuarterlyRender();
+    });
+  }
 
   window.ptfVatQuarterlyRender = function () {
     if (!can()) return;

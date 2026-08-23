@@ -4,19 +4,39 @@
    فونت نامه: یاقوت (Yaghut) — فال‌بک وزیرمتن
    ===================================================================== */
 
-var LETTER_FONT_FA = "'Geeza Pro','Baghdad','DecoType Naskh','B Yaghut','BYaghut','B Yagut','Yaghut','Yaqut','Amiri',Vazirmatn,Tahoma,serif"; /* v97: پشتیبانی کامل مک و ویندوز از فونت رسمی یاقوت و سریف */
+var LETTER_FONT_FA = "'B Yaghut','B Yagut','BYaghut','BYagut','Yaghut','Yaqut','Geeza Pro','Baghdad','DecoType Naskh','Amiri',Vazirmatn,Tahoma,serif";
 var LETTER_FONT_EN = "'Segoe UI',Arial,Helvetica,sans-serif";
 
-/* v34.7.72: نگاشت توکن فونت → پشتهٔ CSS واقعی (برای ابزار قالب‌بندی و چاپ) */
+/* v34.8.0: فونت‌های مصوب مکاتبات. نام‌های متعدد local برای تفاوت نام‌گذاری
+   ویندوز/مک نگه داشته شده‌اند و fallback هر خانواده هم‌سبک است؛ Vazirmatn از
+   asset محلی برنامه بارگذاری می‌شود. این mapping هم در ادیتور و هم چاپ مصرف می‌شود. */
 function letFontCss(t) {
   var map = {
     yaghut: LETTER_FONT_FA,
-    vazir: 'Vazirmatn, Tahoma, sans-serif',
-    tahoma: 'Tahoma, Arial, sans-serif',
-    arial: 'Arial, Helvetica, sans-serif',
-    times: "'Times New Roman', Times, serif"
+    nazanin: "'B Nazanin','BNazanin','B-Nazanin','Nazanin','Noto Naskh Arabic','Amiri',serif",
+    vazir: "Vazirmatn,'Vazir',Tahoma,sans-serif",
+    iranyekan: "'IRANYekan','IranYekan','IRANYekanWeb','IRANYekanX','Segoe UI',Vazirmatn,Tahoma,sans-serif",
+    iransans: "'IRANSans','Iran Sans','IRANSansWeb','IRANSansX',Tahoma,Vazirmatn,Arial,sans-serif",
+    tahoma: 'Tahoma,Arial,sans-serif',
+    arial: 'Arial,Helvetica,sans-serif',
+    times: "'Times New Roman',Times,serif"
   };
   return map[t] || t || '';
+}
+function letEmbeddedFontCss() {
+  return "@font-face{font-family:Vazirmatn;src:url('../assets/fonts/Vazirmatn-Regular.woff2') format('woff2');font-weight:100 500;font-display:swap}" +
+    "@font-face{font-family:Vazirmatn;src:url('../assets/fonts/Vazirmatn-Bold.woff2') format('woff2');font-weight:600 900;font-display:swap}";
+}
+function letFontOptions(selected, placeholder) {
+  var fonts = [
+    { v: 'yaghut', l: 'بی‌یاقوت' },
+    { v: 'nazanin', l: 'بی‌نازنین' },
+    { v: 'vazir', l: 'وزیرمتن' },
+    { v: 'iranyekan', l: 'ایران‌یکان' },
+    { v: 'iransans', l: 'ایران‌سنس' }
+  ];
+  var first = '<option value="">' + (placeholder || 'فونت') + '</option>';
+  return first + fonts.map(function (f) { return '<option value="' + f.v + '"' + (selected === f.v ? ' selected' : '') + '>' + f.l + '</option>'; }).join('');
 }
 
 /* v87: نام انگلیسی امضاکننده (nameEn کاربر یا ترجما نام) */
@@ -409,23 +429,47 @@ function letEditorBlockOf(node, ed) {
   while (el && el !== ed && !/^(P|DIV|LI|H1|H2|H3|H4|BLOCKQUOTE|TD|TH)$/.test(el.tagName)) el = el.parentNode;
   return (el && el !== ed) ? el : null;
 }
-/* پیچیدن متن انتخاب‌شده در span با استایل (حفظ فرزندان بولد/ایتالیک) */
+/* پیچیدن متن انتخاب‌شده در span با استایل (حفظ فرزندان بولد/ایتالیک).
+   fallback تک‌بلوکی است؛ فونت چندبلوکی از letEditorSetFont/execCommand عبور می‌کند. */
 function letEditorWrapSel(styleText, editorId) {
-  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return;
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return false;
   ed.focus();
-  var sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return;
-  var range = sel.getRangeAt(0); if (range.collapsed) return;
+  var sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return false;
+  var range = sel.getRangeAt(0); if (range.collapsed || !ed.contains(range.commonAncestorContainer)) return false;
   var startBlock = letEditorBlockOf(range.startContainer, ed);
   var endBlock = letEditorBlockOf(range.endContainer, ed);
-  if (!startBlock || !endBlock || startBlock !== endBlock) return; /* انتخاب چندبلوکی: فقط بلوکی پشتیبانی می‌شود */
+  if (!startBlock || !endBlock || startBlock !== endBlock) return false;
   var frag = range.extractContents();
-  if (!frag || !frag.firstChild) return;
+  if (!frag || !frag.firstChild) return false;
   var span = document.createElement('span');
   span.setAttribute('style', styleText);
   span.appendChild(frag);
   range.insertNode(span);
   sel.removeAllRanges();
   var r = document.createRange(); r.selectNodeContents(span); sel.addRange(r);
+  return true;
+}
+/* fontName تنها فرمان استاندارد contenteditable است که انتخاب چند پاراگراف را بدون
+   حذف ساختار داخلی پوشش می‌دهد. در caret خالی، فونت روی بلوک جاری می‌نشیند تا
+   هم فوراً دیده شود و هم تایپ بعدی همان فونت را بگیرد. */
+function letEditorSetFont(token, editorId) {
+  var family = letFontCss(token); if (!family) return false;
+  var ed = document.getElementById(editorId || 'ltBodyEditor'); if (!ed) return false;
+  ed.focus();
+  var sel = window.getSelection(); if (!sel || sel.rangeCount === 0) return false;
+  var range = sel.getRangeAt(0);
+  if (!ed.contains(range.commonAncestorContainer)) return false;
+  if (range.collapsed) {
+    var block = letEditorBlockOf(range.startContainer, ed) || ed;
+    block.style.setProperty('font-family', family);
+    return true;
+  }
+  var applied = false;
+  try {
+    document.execCommand('styleWithCSS', false, true);
+    applied = document.execCommand('fontName', false, family) !== false;
+  } catch (e) {}
+  return applied || letEditorWrapSel('font-family:' + family, editorId);
 }
 /* اعمال استایل روی بلوک(های) انتخاب‌شده (چینش، فاصلهٔ خطوط) */
 function letEditorSetBlockStyle(prop, value, editorId) {
@@ -449,14 +493,23 @@ function letEditorClearFormat(editorId) {
   ed.focus();
   try { document.execCommand('styleWithCSS', false, false); document.execCommand('removeFormat'); } catch (e) {}
 }
-window.ptfLetFont = function (v) { letEditorWrapSel('font-family:' + letFontCss(v)); };
+window.ptfLetFont = function (v) { return letEditorSetFont(v); };
 window.ptfLetFontSize = function (v) { letEditorWrapSel('font-size:' + v + 'pt'); };
 window.ptfLetColor = function (v) { if (v) letEditorWrapSel('color:' + v); };
 window.ptfLetHilite = function (v) { letEditorWrapSel(v ? 'background-color:' + v : 'background-color:transparent'); };
 window.ptfLetLineHeight = function (v) { letEditorSetBlockStyle('line-height', v); };
 window.ptfLetAlign = function (v) { letEditorSetBlockStyle('text-align', v); };
 window.ptfLetClearFormat = function () { letEditorClearFormat(); };
-/* همگام‌سازی زندهٔ ادیتور با تنظیمات کل نامه (فونت پایه/اندازه/فاصلهٔ خطوط) */
+function letSyncEditorBaseFont(ed, token) {
+  if (!ed) return;
+  ed.style.fontFamily = token ? letFontCss(token) : '';
+  if (ed.classList) {
+    if (token) ed.classList.add('let-doc-font');
+    else ed.classList.remove('let-doc-font');
+  }
+}
+/* همگام‌سازی زندهٔ ادیتور با تنظیمات کل نامه (فونت پایه/اندازه/فاصلهٔ خطوط).
+   کلاس let-doc-font باعث می‌شود styleهای pasteشده از Word فونت کل سند را خنثی نکنند. */
 window.letSyncDocFont = function () {
   var ed = document.getElementById('ltBodyEditor'); if (!ed) return;
   var fs = (document.getElementById('ltFs') || {}).value;
@@ -464,7 +517,7 @@ window.letSyncDocFont = function () {
   var fnt = (document.getElementById('ltFont') || {}).value;
   ed.style.fontSize = fs ? (fs + 'pt') : '';
   ed.style.lineHeight = lh || '';
-  ed.style.fontFamily = fnt ? letFontCss(fnt) : '';
+  letSyncEditorBaseFont(ed, fnt);
 };
 
 /* ===== v34.7.72: همان قالب‌بندی نامهٔ صادره برای «متن آماده روی سربرگ» =====
@@ -475,7 +528,7 @@ window.ptfLhpEditorImagePick = function () { var i = document.getElementById('lh
 window.ptfLhpEditorImage = function (inp) {
   var f = (inp.files || [])[0]; inp.value = ''; letEditorInsertImageFile(f, 'lhpEditor');
 };
-window.ptfLhpFont = function (v) { letEditorWrapSel('font-family:' + letFontCss(v), 'lhpEditor'); };
+window.ptfLhpFont = function (v) { return letEditorSetFont(v, 'lhpEditor'); };
 window.ptfLhpFontSize = function (v) { letEditorWrapSel('font-size:' + v + 'pt', 'lhpEditor'); };
 window.ptfLhpColor = function (v) { if (v) letEditorWrapSel('color:' + v, 'lhpEditor'); };
 window.ptfLhpHilite = function (v) { letEditorWrapSel(v ? 'background-color:' + v : 'background-color:transparent', 'lhpEditor'); };
@@ -489,7 +542,7 @@ window.lhpSyncDocFont = function () {
   var fnt = (document.getElementById('lhpFont') || {}).value;
   ed.style.fontSize = fs ? (fs + 'pt') : '';
   ed.style.lineHeight = lh || '';
-  ed.style.fontFamily = fnt ? letFontCss(fnt) : '';
+  letSyncEditorBaseFont(ed, fnt);
 };
 function letEditorWirePasteAndDrop(editor, editorId) {
   if (!editor || editor.dataset.richWire) return;
@@ -527,7 +580,7 @@ function showLetterModal(cd) {
       .map(function (u) { return '<option value="' + escP(u.username) + '"' + (l && l.signer === u.username ? ' selected' : '') + '>' + escP(u.name) + ' — ' + escP(u.role) + '</option>'; }).join('');
   var s = (l && l.style) || {};
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
-    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.let-editor-tools .lg{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
+    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.let-editor-tools .lg{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-doc-font,.let-doc-font *{font-family:inherit!important}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
     '<h3>📤 نامه صادره' + (l ? ' — ویرایش' : '') + '</h3>' +
     '<div class="fr"><div class="fld"><label>زبان نامه</label><select id="ltLang"><option value="fa"' + (l && l.lang === 'fa' ? ' selected' : '') + '>فارسی</option><option value="en"' + (l && l.lang === 'en' ? ' selected' : '') + '>English</option></select></div>' +
     '<div class="fld"><label>گیرنده (شرکت/سازمان)</label><select id="ltToSel" onchange="document.getElementById(\'ltTo\').value=this.value">' + toOpts + '</select></div></div>' +
@@ -536,7 +589,7 @@ function showLetterModal(cd) {
     '<div class="fld"><label>سمت گیرنده (زیر نام چاپ می‌شود)</label><input type="text" id="ltToRole" value="' + (l ? escP(l.toRole || '') : '') + '" placeholder="مدیر محترم بازرگانی شرکت ..."></div></div>' +
     '<div class="fld"><label>موضوع *</label><input type="text" id="ltSub" value="' + (l ? escP(l.subject || '') : '') + '"></div>' +
     '<div class="fld"><label>متن نامه *</label><div class="let-editor-tools" role="toolbar" aria-label="ابزار ویرایش متن">' +
-    '<select title="فونت" onmousedown="letEditorSaveSel()" onchange="letEditorRestoreSel();ptfLetFont(this.value)"><option value="">فونت</option><option value="yaghut">یاقوت (رسمی)</option><option value="vazir">وزیرمتن</option><option value="tahoma">تاهوما</option><option value="arial">آریال</option><option value="times">تایمز</option></select>' +
+    '<select title="فونت" onmousedown="letEditorSaveSel()" onchange="letEditorRestoreSel();ptfLetFont(this.value)">' + letFontOptions('', 'فونت انتخاب') + '</select>' +
     '<select title="اندازه فونت" onmousedown="letEditorSaveSel()" onchange="letEditorRestoreSel();ptfLetFontSize(this.value)"><option value="">اندازه</option><option value="9">۹</option><option value="10">۱۰</option><option value="10.5">۱۰٫۵</option><option value="11">۱۱</option><option value="11.5">۱۱٫۵</option><option value="12">۱۲</option><option value="13">۱۳</option><option value="14">۱۴</option><option value="16">۱۶</option><option value="18">۱۸</option><option value="20">۲۰</option><option value="24">۲۴</option></select>' +
     '<button type="button" class="bt bt-o" title="بولد" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'bold\')"><b>B</b></button>' +
     '<button type="button" class="bt bt-o" title="ایتالیک" onmousedown="event.preventDefault()" onclick="ptfLetEditorCmd(\'italic\')"><i>I</i></button>' +
@@ -577,7 +630,7 @@ function showLetterModal(cd) {
     [9,10,10.5,11,11.5,12,12.5,13,13.5,14,15,16,18,20].map(function (f) { return '<option' + (s.fs == f ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></div>' +
     '<div class="fld"><label>فاصله خطوط (خالی = ۲٫۱)</label><select id="ltLh" onchange="letSyncDocFont()"><option value="">خودکار</option>' +
     [1.2,1.5,1.8,2,2.2,2.5,3].map(function (x) { return '<option' + (s.lh == x ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>' +
-    '<div class="fld"><label>فونت متن</label><select id="ltFont" onchange="letSyncDocFont()"><option value="">پیش‌فرض (یاقوت)</option><option value="vazir"' + (s.font === 'vazir' ? ' selected' : '') + '>وزیرمتن</option><option value="tahoma"' + (s.font === 'tahoma' ? ' selected' : '') + '>تاهوما</option><option value="arial"' + (s.font === 'arial' ? ' selected' : '') + '>آریال</option><option value="times"' + (s.font === 'times' ? ' selected' : '') + '>تایمز</option></select></div></div>' +
+    '<div class="fld"><label>فونت کل متن</label><select id="ltFont" onchange="letSyncDocFont()">' + letFontOptions(s.font || '', 'پیش‌فرض (بی‌یاقوت)') + '</select></div></div>' +
     '<div class="fr"><div class="fld"><label>چینش متن</label><select id="ltAlign"><option value="">پیش‌فرض (فا: راست / EN: چپ)</option><option value="right"' + (s.align === 'right' ? ' selected' : '') + '>راست‌چین</option><option value="left"' + (s.align === 'left' ? ' selected' : '') + '>چپ‌چین</option><option value="center"' + (s.align === 'center' ? ' selected' : '') + '>وسط‌چین</option><option value="justify"' + (s.align === 'justify' ? ' selected' : '') + '>تراز دوطرفه</option></select></div>' +
     '<div class="fld"><label style="font-size:12px">متن بولد <input type="checkbox" id="ltB" ' + (s.bold ? 'checked' : '') + '></label></div>' +
     '<div class="fld"><label style="font-size:12px">متن ایتالیک <input type="checkbox" id="ltI" ' + (s.italic ? 'checked' : '') + '></label></div></div>' +
@@ -586,17 +639,18 @@ function showLetterModal(cd) {
     '<div><small style="color:#94a3b8">راست</small><input type="number" id="ltMr" min="0" max="40" value="' + (s.margin && s.margin.r !== '' && s.margin.r != null ? s.margin.r : '') + '" placeholder="16" style="width:100%"></div>' +
     '<div><small style="color:#94a3b8">پایین</small><input type="number" id="ltMb" min="0" max="40" value="' + (s.margin && s.margin.b !== '' && s.margin.b != null ? s.margin.b : '') + '" placeholder="0" style="width:100%"></div>' +
     '<div><small style="color:#94a3b8">چپ</small><input type="number" id="ltMl" min="0" max="40" value="' + (s.margin && s.margin.l !== '' && s.margin.l != null ? s.margin.l : '') + '" placeholder="16" style="width:100%"></div></div></div></details>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;flex-wrap:wrap">' +
     '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
+    '<button class="bt bt-o" style="color:#0e7490;border-color:#0e7490" onclick="letSaveDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">💾 ثبت پیش‌نویس</button>' +
     '<button class="bt bt-o" onclick="letPreviewDraft(' + (l ? "'" + l.cd + "'" : 'null') + ')">👁️ پیش‌نمایش</button>' +
-    '<button class="bt" onclick="letSubmit(' + (l ? "'" + l.cd + "'" : 'null') + ')">✅ تایید و ثبت</button></div>' +
-    '<small style="color:#94a3b8;display:block;margin-top:6px">پیش‌نمایش را ببینید؛ اگر تایید بود «تایید و ثبت» بزنید، وگرنه از تنظیمات دستی بالا اصلاح کنید.</small>' +
+    '<button class="bt" onclick="letSubmit(' + (l ? "'" + l.cd + "'" : 'null') + ')">✅ تایید و ثبت / ارسال برای امضا</button></div>' +
+    '<small style="color:#94a3b8;display:block;margin-top:6px">«ثبت پیش‌نویس» نامه را بدون ارسال برای امضا نگه می‌دارد؛ بعداً می‌توانید آن را از فهرست دوباره باز، ویرایش و پیش‌نمایش کنید.</small>' +
     '</div></div>';
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   /* v31.7.22 US-LTR-IMG */
   window._ltImgs = (l && Array.isArray(l.images)) ? JSON.parse(JSON.stringify(l.images)) : [];
   var editor = document.getElementById('ltBodyEditor');
-  if (editor) { editor.innerHTML = letSafeBodyHtml((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>')); letEditorWirePasteAndDrop(editor); }
+  if (editor) { editor.innerHTML = letSafeBodyHtml((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>')); letEditorWirePasteAndDrop(editor); letSyncDocFont(); }
   ptfLtImgRender();
 }
 
@@ -676,6 +730,34 @@ function letPreviewDraft(cd) {
   letPrintObj(l, true);
 }
 
+/* ذخیرهٔ مستقل پیش‌نویس: این مسیر هرگز شماره قطعی، امضا، اعلان امضا یا سند
+   پرونده تولید نمی‌کند. محتوای ناقص هم عمداً قابل ذخیره است تا کاربر بتواند
+   کار را متوقف کند و بعداً از فهرست ادامه دهد. */
+function letSaveDraft(cd) {
+  var l = _collectLetter(cd);
+  var ls = getData('ptf_crm_letters');
+  var idx = -1;
+  ls.forEach(function (x, i) { if (x.cd === l.cd) idx = i; });
+  l.st = 'draft';
+  l.t = l.t || faDate();
+  l.draftUpdatedAt = (typeof faDateTime === 'function' ? faDateTime() : l.t);
+  l.draftUpdatedBy = (curSession() || {}).user || '';
+  delete l.rejectWhy;
+  delete l.signedT;
+  delete l.signatureSnapshot;
+  var ex = letExtract(l.subject || '', l.body || '');
+  l.keywords = ex.keywords; l.summary = ex.summary;
+  if (idx > -1) ls[idx] = l; else ls.unshift(l);
+  setData('ptf_crm_letters', ls);
+  try { audit('مکاتبات', (idx > -1 ? 'به‌روزرسانی' : 'ثبت') + ' پیش‌نویس نامه — ' + (l.subject || 'بدون موضوع'), l.cd); } catch (eA) {}
+  hideModal();
+  renderLetters();
+  if (typeof ptfToast === 'function') ptfToast('💾 پیش‌نویس ذخیره شد؛ از فهرست قابل بازکردن و ویرایش است', 'ok');
+  else alert('✅ پیش‌نویس ذخیره شد');
+  return l;
+}
+window.letSaveDraft = letSaveDraft;
+
 function letSubmit(cd) {
   var l = _collectLetter(cd);
   if (!l.to || !l.subject || !l.body.trim()) { alert('گیرنده، موضوع و متن الزامی است'); return; }
@@ -685,6 +767,9 @@ function letSubmit(cd) {
   var ls = getData('ptf_crm_letters');
   var idx = -1;
   ls.forEach(function (x, i) { if (x.cd === l.cd) idx = i; });
+  /* در ارسال مجدد پیش‌نویس/نامهٔ ردشده، علت رد قبلی نباید کنار وضعیت pending
+     یا signed باقی بماند. */
+  delete l.rejectWhy;
   if (l.signer === '__me__') {
     // خودامضا: شماره قطعی + امضای پروفایل خودم
     var p = mySigProfile();
@@ -781,7 +866,7 @@ function showInboundModal() {
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:560px;max-height:92vh;overflow:auto">' +
     '<h3>📥 ثبت نامه وارده</h3>' +
     '<div class="fr"><div class="fld"><label>فرستنده *</label><input type="text" id="inFrom"></div>' +
-    '<div class="fld"><label>تاریخ دریافت</label><input type="text" id="inT" value="' + faDate() + '"></div></div>' +
+    '<div class="fld"><label>تاریخ دریافت (شمسی)</label>' + (typeof ptfDatePicker === 'function' ? ptfDatePicker('inT', faDate(), '۱۴۰۵/۰۴/۱۹') : '<input type="text" id="inT" value="' + faDate() + '">') + '</div></div>' +
     '<div class="fld"><label>موضوع *</label><input type="text" id="inSub"></div>' +
     '<div class="fld"><label>خلاصه/متن نامه (برای جستجوی موضوعی — تایپ یا Paste کنید)</label><textarea id="inBody" rows="4"></textarea></div>' +
     '<div class="fr"><div class="fld"><label>مهلت پاسخ (شمسی/اختیاری)</label>' + (typeof ptfDatePicker==='function' ? ptfDatePicker('inDueJ','') : '<input type="text" id="inDueJ" placeholder="1405/04/19" style="direction:ltr">') + '</div>' +
@@ -851,7 +936,7 @@ function letPrintObj(l, isPreview) {
   var signerProfile = (typeof sigProfileFor === 'function' ? sigProfileFor(l.signer || (curSession() || {}).user) : ((typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer || (curSession() || {}).user] || {})) || {};
   var sigP = (l.st === 'signed' && includeDigitalSignature) ? (l.signatureSnapshot || signerProfile) : {};
   var physicalMode = l.st === 'signed' && !includeDigitalSignature;
-  var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + escP(l.no || 'پیش‌نمایش') + '</title><style>' +
+  var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + escP(l.no || 'پیش‌نمایش') + '</title><style>' + letEmbeddedFontCss() +
     '@page{size:A4 portrait;margin:0}' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
     'body{font-family:' + font + ';color:#26282c;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
@@ -878,9 +963,9 @@ function letPrintObj(l, isPreview) {
     '.to{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:0.5mm}' +
     '.torl{font-weight:600;font-size:' + fs + 'pt;margin-bottom:2mm}' + /* v123.1: سمت گیرنده زیر نام */          /* مخاطب: بولد +۱ */
     '.sub{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:6mm}' +          /* موضوع: بولد +۱ */
-    '.body{font-size:' + fs + 'pt;line-height:' + lh + ';text-align:' + align + ';' +
-      (s.font ? 'font-family:' + bodyFont + ';' : '') + 'white-space:normal;' +
+    '.body{font-size:' + fs + 'pt;line-height:' + lh + ';text-align:' + align + ';white-space:normal;' +
       (s.bold ? 'font-weight:700;' : '') + (s.italic ? 'font-style:italic;' : '') + '}' +
+    (s.font ? '.body,.body *{font-family:' + bodyFont + '!important}' : '') +
     '.body p{margin:0 0 3mm}.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm;text-align:' + align + '}.body th{background:#f1f5f9}.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
     /* v31.7.22 US-LTR-IMG: تصاویر متن نامه — وسط‌چین، متناسب صفحه، بدون شکستن وسط تصویر */
     '.limgs{margin-top:5mm}' +
@@ -973,12 +1058,12 @@ window.ptfLetterheadPasteOpen = function () {
     ? '<small style="color:#10b981">✔ مهر/امضای پروفایل شما درج می‌شود (' + escP(prof.nm || me || '') + ')</small>'
     : '<small style="color:#b45309">⚠️ هنوز تصویر مهر/امضا ثبت نکرده‌اید — از «✍️ امضای من» ثبت کنید؛ فعلاً سند بدون تصویر مهر ساخته می‌شود.</small>';
   var html = '<div class="md-b" id="lhpModal" style="display:grid;z-index:2600" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:920px;max-height:94vh;overflow:auto">' +
-    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.lhp-editor{min-height:260px;max-height:46vh;overflow:auto;padding:12px 16px;border:1px solid var(--brd);border-radius:0 0 10px 10px;font-size:14px;line-height:2;background:#fff;outline:none}.lhp-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.lhp-editor:empty:before{content:attr(data-placeholder);color:#94a3b8}.lhp-editor p{margin:0 0 8px}.lhp-editor table{width:100%;border-collapse:collapse;margin:10px 0}.lhp-editor td,.lhp-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.lhp-editor th{background:#f1f5f9}.lhp-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto}</style>' +
+    '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.lhp-editor{min-height:260px;max-height:46vh;overflow:auto;padding:12px 16px;border:1px solid var(--brd);border-radius:0 0 10px 10px;font-size:14px;line-height:2;background:#fff;outline:none}.lhp-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.lhp-editor:empty:before{content:attr(data-placeholder);color:#94a3b8}.let-doc-font,.let-doc-font *{font-family:inherit!important}.lhp-editor p{margin:0 0 8px}.lhp-editor table{width:100%;border-collapse:collapse;margin:10px 0}.lhp-editor td,.lhp-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.lhp-editor th{background:#f1f5f9}.lhp-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto}</style>' +
     '<h3>📄 متن آماده روی سربرگ</h3>' +
     '<p style="font-size:12.5px;color:#64748b;line-height:1.9;margin:6px 0 10px">متن را در Word باز کنید، همه را کپی (Ctrl+A و Ctrl+C) و در کادر زیر Paste کنید (Ctrl+V). سپس می‌توانید متن را با نوار ابزار بالا قالب‌بندی کنید (فونت، اندازه، رنگ، بولد، چینش، فاصلهٔ خطوط و…). شماره، پیوست و تاریخ (اختیاری) در سربرگ درج می‌شوند؛ مهر و امضا را می‌توانید در همهٔ صفحات یا فقط صفحهٔ آخر بگذارید.</p>' +
     '<div class="fld" style="margin-bottom:6px"><label>متن</label>' +
     '<div class="let-editor-tools" role="toolbar" aria-label="ابزار ویرایش متن">' +
-    '<select title="فونت" onmousedown="letEditorSaveSel(\'lhpEditor\')" onchange="letEditorRestoreSel(\'lhpEditor\');ptfLhpFont(this.value)"><option value="">فونت</option><option value="yaghut">یاقوت (رسمی)</option><option value="vazir">وزیرمتن</option><option value="tahoma">تاهوما</option><option value="arial">آریال</option><option value="times">تایمز</option></select>' +
+    '<select title="فونت" onmousedown="letEditorSaveSel(\'lhpEditor\')" onchange="letEditorRestoreSel(\'lhpEditor\');ptfLhpFont(this.value)">' + letFontOptions('', 'فونت انتخاب') + '</select>' +
     '<select title="اندازه فونت" onmousedown="letEditorSaveSel(\'lhpEditor\')" onchange="letEditorRestoreSel(\'lhpEditor\');ptfLhpFontSize(this.value)"><option value="">اندازه</option><option value="9">۹</option><option value="10">۱۰</option><option value="10.5">۱۰٫۵</option><option value="11">۱۱</option><option value="11.5">۱۱٫۵</option><option value="12">۱۲</option><option value="13">۱۳</option><option value="14">۱۴</option><option value="16">۱۶</option><option value="18">۱۸</option><option value="20">۲۰</option><option value="24">۲۴</option></select>' +
     '<button type="button" class="bt bt-o" title="بولد" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'bold\')"><b>B</b></button>' +
     '<button type="button" class="bt bt-o" title="ایتالیک" onmousedown="event.preventDefault()" onclick="ptfLhpEditorCmd(\'italic\')"><i>I</i></button>' +
@@ -1008,7 +1093,7 @@ window.ptfLetterheadPasteOpen = function () {
     [9,10,10.5,11,11.5,12,13,14,16,18,20].map(function (f) { return '<option>' + f + '</option>'; }).join('') + '</select></div>' +
     '<div class="fld"><label>فاصله خطوط (خالی = ۲٫۱)</label><select id="lhpLh" onchange="lhpSyncDocFont()"><option value="">خودکار</option>' +
     [1.2,1.5,1.8,2,2.2,2.5,3].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></div>' +
-    '<div class="fld"><label>فونت متن</label><select id="lhpFont" onchange="lhpSyncDocFont()"><option value="">پیش‌فرض (یاقوت)</option><option value="vazir">وزیرمتن</option><option value="tahoma">تاهوما</option><option value="arial">آریال</option><option value="times">تایمز</option></select></div>' +
+    '<div class="fld"><label>فونت کل متن</label><select id="lhpFont" onchange="lhpSyncDocFont()">' + letFontOptions('', 'پیش‌فرض (بی‌یاقوت)') + '</select></div>' +
     '<div class="fld"><label>چینش متن</label><select id="lhpAlign"><option value="">پیش‌فرض (فا: راست / EN: چپ)</option><option value="right">راست‌چین</option><option value="left">چپ‌چین</option><option value="center">وسط‌چین</option><option value="justify">تراز دوطرفه</option></select></div></div>' +
     '<div class="fr"><div class="fld"><label style="font-size:12px">متن بولد <input type="checkbox" id="lhpB"></label></div>' +
     '<div class="fld"><label style="font-size:12px">متن ایتالیک <input type="checkbox" id="lhpI"></label></div></div>' +
@@ -1097,7 +1182,7 @@ window.ptfLetterheadPastePrint = function () {
     if (att) hdRows += '<div class="row"><span class="lb">پیوست :</span><b>' + escP(att) + '</b></div>';
   }
   var hdFlds = hdRows ? '<div class="flds">' + hdRows + '</div>' : '';
-  var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + (isEn ? 'Letterhead Document' : 'متن روی سربرگ') + '</title><style>' +
+  var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + (isEn ? 'Letterhead Document' : 'متن روی سربرگ') + '</title><style>' + letEmbeddedFontCss() +
     '@page{size:A4 portrait;margin:0}' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
     'body{font-family:' + font + ';color:#26282c;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
@@ -1125,7 +1210,8 @@ window.ptfLetterheadPastePrint = function () {
     'table.pgt{width:100%;border-collapse:collapse}' +
     'table.pgt>thead td{height:' + headSpace + 'mm}' +
     'table.pgt>tfoot td{height:' + footSpace + 'mm}' +
-    '.body{padding:' + mt + 'mm ' + mr + 'mm ' + mb + 'mm ' + ml + 'mm;font-size:' + bodyFs + ';line-height:' + bodyLh + ';text-align:' + bodyAlign + ';' + (fontTok ? 'font-family:' + bodyFont + ';' : '') + (bold ? 'font-weight:700;' : '') + (italic ? 'font-style:italic;' : '') + 'direction:' + dir + '}' +
+    '.body{padding:' + mt + 'mm ' + mr + 'mm ' + mb + 'mm ' + ml + 'mm;font-size:' + bodyFs + ';line-height:' + bodyLh + ';text-align:' + bodyAlign + ';' + (bold ? 'font-weight:700;' : '') + (italic ? 'font-style:italic;' : '') + 'direction:' + dir + '}' +
+    (fontTok ? '.body,.body *{font-family:' + bodyFont + '!important}' : '') +
     '.body p,.body div{margin:0 0 3mm}' +
     '.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm}.body th{background:#f1f5f9}' +
     '.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +

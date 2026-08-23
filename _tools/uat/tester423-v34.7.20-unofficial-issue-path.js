@@ -66,8 +66,11 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
   });
   T('UI-02 هویت سند (cd/no) و تاریخ صدور دست‌نخورده می‌ماند',
     block.indexOf('existing.cd =') === -1 && block.indexOf('existing.no =') === -1 && block.indexOf('existing.invDate =') === -1);
-  T('UI-02 ردیف پیش‌پرداخت هم‌راستا می‌شود و ردیف دوم ساخته نمی‌شود',
-    block.indexOf('_advRow') > -1 && block.indexOf('existing.advApplied = advPayIrr;') > -1);
+  T('UI-02 دریافت واقعی حفظ و ردیف مصنوعی پیش‌پرداخت پاک می‌شود',
+    block.indexOf('existing.payments =') > -1 && block.indexOf('.filter(function (p)') > -1 &&
+    block.indexOf('p.fromAdvance') > -1 && block.indexOf('/^RP-ADV-/') > -1 && block.indexOf('delete existing.advApplied') > -1);
+  T('UI-02 هیچ وصول مصنوعی جدیدی ساخته نمی‌شود',
+    block.indexOf('payments.push') === -1 && block.indexOf('existing.advApplied =') === -1);
   T('UI-02 بازنویسی در audit ثبت می‌شود', block.indexOf("audit('صورتحساب غیررسمی', 'بازنویسی صورتحساب") > -1);
   T('UI-02 هم‌راستایی سروری با کلید idempotency اختصاصی', block.indexOf("'UNOFFICIAL-REISSUE|'") > -1);
   T('UI-02 در شکست سرور، نسخهٔ قبلی بازگردانده می‌شود', block.indexOf('_before') > -1 && block.indexOf('بازگردانده شد') > -1);
@@ -75,9 +78,12 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
   /* شبیه‌سازی رفتاری: اجرای همان انتساب‌ها روی یک رکورد واقعی */
   var existing = { cd: 'UNINV-1', no: 'U-100', caseId: '', customerId: '', amount: 500000000, base: 500000000,
-    discount: 0, invDate: '1405/03/01', t: '1405/03/01', payments: [{ cd: 'RP-ADV-OF-1', amt: 100000000, fromAdvance: true }], status: 'active' };
+    discount: 0, advApplied: 100000000, invDate: '1405/03/01', t: '1405/03/01', payments: [
+      { cd: 'RP-ADV-OF-1', amt: 100000000, fromAdvance: true },
+      { cd: 'RCPT-REAL-1', amt: 25000000, how: 'bank' }
+    ], status: 'active' };
   var sb = { existing: existing, amountIrr: 880000000, totalIrr: 1000000000, discountIrr: 120000000,
-    currentRate: 900000, advPayIrr: 100000000, advPayOriginal: 111.11, advRate: 900000,
+    currentRate: 900000,
     discountLabel: 'تخفیف مذاکره', ctx: { discountInput: '12%', linesSnapshot: [{ nm: 'قلم ۱', qty: 2 }], bankAccount: 'ملت' },
     _co: { no: 'OF-1', buyerCo: 'شرکت الف', currency: 'IRR', fxBasis: '' }, _salesCase: { _id: 'CASE-1', buyerCd: 'CU-1' },
     faDate: function () { return '1405/05/26'; }, faDateTime: function () { return '1405/05/26 10:00'; },
@@ -85,14 +91,17 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
   vm.createContext(sb);
   /* ناحیهٔ پیوستهٔ انتساب‌های واقعی از خودِ کد استخراج و اجرا می‌شود (بدون بازنویسی دستی) */
   var a0 = block.indexOf('var _before =');
-  var a1 = block.indexOf('existing.advApplied = advPayIrr;');
-  var assignments = block.slice(a0, a1 + 'existing.advApplied = advPayIrr;'.length);
+  var a1 = block.indexOf('delete existing.advApplied;');
+  var assignments = block.slice(a0, a1 + 'delete existing.advApplied;'.length);
   T('UI-02 ناحیهٔ انتساب‌ها از کد واقعی استخراج شد', a0 > -1 && a1 > a0);
   vm.runInContext('(function(){' + assignments + '})();', sb);
   T('UI-02 رفتاری: مبلغ جدید روی رکورد نشست', existing.amount === 880000000, existing.amount);
   T('UI-02 رفتاری: تخفیف و snapshot اقلام ذخیره شد', existing.discount === 120000000 && Array.isArray(existing.linesSnapshot), existing.discount);
   T('UI-02 رفتاری: شمارهٔ سند و تاریخ صدور تغییر نکرد', existing.no === 'U-100' && existing.invDate === '1405/03/01');
-  T('UI-02 رفتاری: ردیف پیش‌پرداخت یکتا ماند', existing.payments.filter(function (x) { return x.fromAdvance; }).length === 1);
+  T('UI-02 رفتاری: artifact پیش‌پرداخت حذف شد',
+    existing.payments.filter(function (x) { return x.fromAdvance || /^RP-ADV-/.test(x.cd || ''); }).length === 0 && !('advApplied' in existing));
+  T('UI-02 رفتاری: دریافت واقعی legacy حذف نشد',
+    existing.payments.length === 1 && existing.payments[0].cd === 'RCPT-REAL-1');
 })();
 
 /* ---------- UI-03: حذف تعریف‌های تکراری ---------- */

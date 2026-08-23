@@ -234,7 +234,7 @@
       fields: [
         { id: 'amt', label: 'مبلغ پرداختی (ریال)', type: 'number', value: String(remain), dir: 'ltr', required: true },
         { id: 'doc', label: 'شماره حواله / سند بانکی', required: true },
-        { id: 'date', label: 'تاریخ پرداخت (شمسی)', value: (typeof faDate === 'function' ? faDate() : ''), required: true },
+        { id: 'date', label: 'تاریخ پرداخت (شمسی)', datePicker: true, value: (typeof faDate === 'function' ? faDate() : ''), required: true },
         { id: 'files', label: 'رسید / سند تسویه (اختیاری)', type: 'upload', uploadFolder: 'commission-pay/' + ap.cd }
       ],
       okText: 'ثبت پرداخت بانکی',
@@ -279,7 +279,7 @@
     if (!isSenior()) return '';
     styleOnce(); var c = cfg(), month = normMonth(window._cmMonth || faMonth()), res = window.ptfCommissionCalc({ month: month });
     var unassigned = res.rows.filter(function (r) { return r.user === '_unassigned' && r.base > 0; })[0];
-    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: وصولی واقعی — فقط پس از تسویه کامل پرونده</small></div><div class="cm-controls"><div class="fld"><label>دوره شمسی</label><input id="cmMonth" value="' + esc(month) + '" placeholder="1405/05" inputmode="numeric"></div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
+    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: وصولی واقعی — فقط پس از تسویه کامل پرونده</small></div><div class="cm-controls"><div class="fld"><label>دوره ماهانه شمسی</label>' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('cmMonth', month) : '<input id="cmMonth" value="' + esc(month) + '" placeholder="۱۴۰۵/۰۵" inputmode="numeric">') + '</div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
       '<div class="cm-kpis"><div class="cm-kpi"><small>مبنای محاسبه</small><b>' + money(res.totalBase) + '</b></div><div class="cm-kpi"><small>جمع پورسانت پیشنهادی</small><b style="color:#0e7490">' + money(res.totalCommission) + '</b></div><div class="cm-kpi"><small>کارشناسان دارای رکورد</small><b>' + res.rows.filter(function (r) { return r.user !== '_unassigned'; }).length.toLocaleString('fa-IR') + '</b></div></div>' +
       (unassigned ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:12px;color:#92400e">⚠️ ' + money(unassigned.base) + ' مبنای پورسانت مالک مشخص ندارد؛ مالک مشتری یا صادرکننده پیشنهاد را اصلاح کنید.</div>' : '') +
       '<div id="cmRows">' + reportRows(res) + '</div>' + obligationsHtml() + '</section>';

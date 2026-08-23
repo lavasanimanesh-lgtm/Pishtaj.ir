@@ -1320,7 +1320,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="manifest" href="manifest.json?v=34.7.96">
+<link rel="manifest" href="manifest.json?v=34.8.0">
 <meta name="theme-color" content="#ef4b1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2166,7 +2166,7 @@ try {
 } catch(e) {}
 
 // ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
-window.PTF_CRM_RELEASE = 'v34.7.96'; window.VER = 'v34.7.96'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
+window.PTF_CRM_RELEASE = 'v34.8.0'; window.VER = 'v34.8.0'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
 try { document.getElementById('sbVer').textContent = 'CRM ' + VER; } catch(e){} // US-297: ورژن واقعی در سایدبار
 try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' + VER; } catch(e){}
 (function () {
@@ -2637,9 +2637,8 @@ window.ptfBinderOpenFolder = function(prjNo, folderId) {
 window.ptfCalculateNetProfit = function(prjNo) {
   var p = getData('ptf_crm_projects').filter(function(x){return x.no===prjNo;})[0];
   if (!p) return;
-  /* ===== v16.0 (US-390 — طرح مصوب تیم متخصص): موتور واحد سود ریالی (ptfProjectProfitIRR در fx.js) =====
-     پوشش کامل: فروش ریالی/ارزی (تسعیر سنا از دریافت‌ها) + خرید ریالی/ارز آزاد (نرخ پرداخت) +
-     چند فاکتور/چند خرید + رکوردهای قدیمی. هر جزء نامشخص = هشدار صریح، هرگز عدد غلط. */
+  /* موتور واحد سود ریالی (ptfProjectProfitIRR در fx.js): درآمد فقط مبلغ ریالی فاکتور فروش است؛
+     خرید ریالی/ارزی از فاکتور تأمین‌کننده محاسبه می‌شود. وصول فروش هرگز تسعیر نمی‌شود. */
   if (typeof ptfProjectProfitIRR !== 'function') { alert('ماژول ارزی بارگذاری نشده — صفحه را رفرش کنید'); return; }
   var r = ptfProjectProfitIRR(p);
   if (!r.ok) { alert(r.warnings.join('\n') || '⚠️ داده کافی برای محاسبه سود نیست.'); return; }
@@ -2650,10 +2649,6 @@ window.ptfCalculateNetProfit = function(prjNo) {
   var shipCost = recordedCosts + extraCost;
   var netProfit = r.profit - extraCost;
   var pct = r.sellIrr > 0 ? Math.round(netProfit * 100 / r.sellIrr) : 0;
-  var fxNote = '';
-  if (r.sellCur !== 'IRR') {
-    fxNote = '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 12px;font-size:12px;color:#9a3412;margin-bottom:10px">💱 سند ' + r.sellCur + ' — فروش = <b>دریافت‌های ریالی واقعی</b> (' + r.sellFxPaid.toLocaleString('en-US') + ' ' + r.sellCur + ' وصول‌شده' + (r.sellAvgRate ? ' با میانگین نرخ ' + r.sellAvgRate.toLocaleString('fa-IR') + ' ریال' : '') + ')' + (r.sellFxRemain > 0 ? ' | مانده وصول‌نشده: <b>' + r.sellFxRemain.toLocaleString('en-US') + ' ' + r.sellCur + '</b>' : '') + '</div>';
-  }
   var warnHtml = r.warnings.length
     ? '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 12px;font-size:12px;color:#b91c1c;margin-bottom:10px;line-height:1.9">' + r.warnings.map(function(w){return escP(w);}).join('<br>') + '</div>'
     : '';
@@ -2662,7 +2657,7 @@ window.ptfCalculateNetProfit = function(prjNo) {
     : '<span class="bd" style="background:#fef3c7;color:#b45309">⚠️ ناقص — اجزای نامشخص در هشدارها</span>';
   var html = '<div class="md-b" style="display:grid;z-index:1800" onclick="if(event.target===this)this.remove()"><div class="md" style="max-width:560px">' +
     '<h3>💰 محاسبه‌گر سود خالص پروژه (مدیریت) ' + reliableTag + '</h3>' +
-    fxNote + warnHtml +
+    warnHtml +
     '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;font-size:13px;color:#166534;margin-bottom:14px;line-height:2">' +
     '<b>فروش ریالی واقعی:</b> ' + r.sellIrr.toLocaleString('fa-IR') + ' ریال <small style="color:#4d7c0f">(' + escP(r.sellSrc) + ')</small><br>' +
     '<b>هزینه تأمین و خرید (ریالی‌شده):</b> ' + r.buyIrr.toLocaleString('fa-IR') + ' ریال' + (r.buyItems ? ' <small style="color:#4d7c0f">(' + r.buyItems + ' قلم)</small>' : '') + '<br>' +
@@ -4033,114 +4028,114 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script defer src="ui-kit.js?v=34.7.96"></script>
+<script defer src="ui-kit.js?v=34.8.0"></script>
 <!-- MOB-008: nav shell باید پیش از ده‌ها bundle عملیاتی اجرا شود. -->
-<script defer src="mobilenav.js?v=34.7.96"></script>
-<script defer src="storage-quota.js?v=34.7.96"></script>
-<script defer src="moneyx.js?v=34.7.96"></script>
-<script defer src="finance-helpers.js?v=34.7.96"></script>
-<script defer src="metrics-shared.js?v=34.7.96"></script>
-<script defer src="ar-reconcile.js?v=34.7.96"></script>
-<script defer src="finance-core.js?v=34.7.96"></script>
-<script defer src="finance-write-guard.js?v=34.7.96"></script>
-<script defer src="date-kit.js?v=34.7.96"></script>
-<script defer src="dialogx.js?v=34.7.96"></script>
-<script defer src="dedup.js?v=34.7.96"></script>
-<script defer src="codegen.js?v=34.7.96"></script>
-<script async src="xlsx.min.js?v=34.7.96"></script>
-<script defer src="sortable.js?v=34.7.96"></script>
-<script defer src="offers.js?v=34.7.96"></script>
-<script defer src="surplus.js?v=34.7.96"></script>
-<script defer src="launcher.js?v=34.7.96"></script>
-<script defer src="leads.js?v=34.7.96"></script>
-<script defer src="storage.js?v=34.7.96"></script>
-<script defer src="rbac.js?v=34.7.96"></script>
-<script defer src="official-ledger.js?v=34.7.96"></script>
-<script defer src="projects.js?v=34.7.96"></script>
-<script defer src="letters.js?v=34.7.96"></script>
-<script defer src="draftx.js?v=34.7.96"></script>
-<script defer src="analyzer.js?v=34.7.96"></script>
-<script defer src="management-intelligence.js?v=34.7.96"></script>
-<script defer src="contracts.js?v=34.7.96"></script>
-<script defer src="shell.js?v=34.7.96"></script>
-<script defer src="bridge.js?v=34.7.96"></script>
-<script defer src="kanban.js?v=34.7.96"></script>
-<script defer src="reports.js?v=34.7.96"></script>
-<script defer src="backup.js?v=34.7.96"></script>
-<script defer src="tool-licenses.js?v=34.7.96"></script>
-<script defer src="tool-report-drafts.js?v=34.7.96"></script>
-<script defer src="tool-feedback.js?v=34.7.96"></script>
-<script defer src="sms.js?v=34.7.96"></script>
-<script defer src="rfqsmart.js?v=34.7.96"></script>
-<script defer src="cms.js?v=34.7.96"></script>
-<script defer src="careers.js?v=34.7.96"></script>
-<script defer src="perms.js?v=34.7.96"></script>
-<script defer src="petty.js?v=34.7.96"></script>
-<script defer src="opex.js?v=34.7.96"></script>
-<script defer src="shareholders.js?v=34.7.96"></script>
-<script defer src="theme.js?v=34.7.96"></script>
-<script defer src="archive.js?v=34.7.96"></script>
-<script defer src="offers-pro.js?v=34.7.96"></script>
-<script defer src="buycompare.js?v=34.7.96"></script>
-<script defer src="procurement-link.js?v=34.7.96"></script>
-<script defer src="listtools.js?v=34.7.96"></script>
-<script defer src="icons.js?v=34.7.96"></script>
-<script defer src="guards.js?v=34.7.96"></script>
-<script defer src="tables.js?v=34.7.96"></script>
-<script defer src="inqreader.js?v=34.7.96"></script>
-<script defer src="offerlock.js?v=34.7.96"></script>
-<script defer src="workflow.js?v=34.7.96"></script>
-<script defer src="fx.js?v=34.7.96"></script>
-<script defer src="modalx.js?v=34.7.96"></script>
-<script defer src="iconx.js?v=34.7.96"></script>
-<script defer src="salesfiles.js?v=34.7.96"></script>
-<script defer src="offer-rial-convert.js?v=34.7.96"></script>
-<script defer src="docsx.js?v=34.7.96"></script>
-<script defer src="oppo.js?v=34.7.96"></script>
-<script defer src="cheque-module.js?v=34.7.96"></script>
-<script defer src="cheque-panel.js?v=34.7.96"></script>
-<script defer src="cheque-print.js?v=34.7.96"></script>
-<script defer src="cheques.js?v=34.7.96"></script>
-<script defer src="messengers.js?v=34.7.96"></script>
-<script defer src="phonefmt.js?v=34.7.96"></script>
-<script defer src="tour.js?v=34.7.96"></script>
-<script defer src="ai-workbench.js?v=34.7.96"></script>
-<script defer src="golive.js?v=34.7.96"></script>
-<script defer src="custmerge.js?v=34.7.96"></script>
-<script defer src="listclean.js?v=34.7.96"></script>
-<script defer src="supspec.js?v=34.7.96"></script>
-<script defer src="scoring.js?v=34.7.96"></script>
-<script defer src="vat-shared.js?v=34.7.96"></script>
-<script defer src="vat-quarterly.js?v=34.7.96"></script>
-<script defer src="supplier-finance.js?v=34.7.96"></script>
-<script defer src="customer-finance.js?v=34.7.96"></script>
-<script defer src="working-capital.js?v=34.7.96"></script>
-<script defer src="treasury.js?v=34.7.96"></script>
-<script defer src="treasury-call.js?v=34.7.96"></script>
-<script defer src="ledger-report.js?v=34.7.96"></script>
-<script defer src="data-quality.js?v=34.7.96"></script>
-<script defer src="commission.js?v=34.7.96"></script>
+<script defer src="mobilenav.js?v=34.8.0"></script>
+<script defer src="storage-quota.js?v=34.8.0"></script>
+<script defer src="moneyx.js?v=34.8.0"></script>
+<script defer src="finance-helpers.js?v=34.8.0"></script>
+<script defer src="metrics-shared.js?v=34.8.0"></script>
+<script defer src="ar-reconcile.js?v=34.8.0"></script>
+<script defer src="finance-core.js?v=34.8.0"></script>
+<script defer src="finance-write-guard.js?v=34.8.0"></script>
+<script defer src="date-kit.js?v=34.8.0"></script>
+<script defer src="dialogx.js?v=34.8.0"></script>
+<script defer src="dedup.js?v=34.8.0"></script>
+<script defer src="codegen.js?v=34.8.0"></script>
+<script async src="xlsx.min.js?v=34.8.0"></script>
+<script defer src="sortable.js?v=34.8.0"></script>
+<script defer src="offers.js?v=34.8.0"></script>
+<script defer src="surplus.js?v=34.8.0"></script>
+<script defer src="launcher.js?v=34.8.0"></script>
+<script defer src="leads.js?v=34.8.0"></script>
+<script defer src="storage.js?v=34.8.0"></script>
+<script defer src="rbac.js?v=34.8.0"></script>
+<script defer src="official-ledger.js?v=34.8.0"></script>
+<script defer src="projects.js?v=34.8.0"></script>
+<script defer src="letters.js?v=34.8.0"></script>
+<script defer src="draftx.js?v=34.8.0"></script>
+<script defer src="analyzer.js?v=34.8.0"></script>
+<script defer src="management-intelligence.js?v=34.8.0"></script>
+<script defer src="contracts.js?v=34.8.0"></script>
+<script defer src="shell.js?v=34.8.0"></script>
+<script defer src="bridge.js?v=34.8.0"></script>
+<script defer src="kanban.js?v=34.8.0"></script>
+<script defer src="reports.js?v=34.8.0"></script>
+<script defer src="backup.js?v=34.8.0"></script>
+<script defer src="tool-licenses.js?v=34.8.0"></script>
+<script defer src="tool-report-drafts.js?v=34.8.0"></script>
+<script defer src="tool-feedback.js?v=34.8.0"></script>
+<script defer src="sms.js?v=34.8.0"></script>
+<script defer src="rfqsmart.js?v=34.8.0"></script>
+<script defer src="cms.js?v=34.8.0"></script>
+<script defer src="careers.js?v=34.8.0"></script>
+<script defer src="perms.js?v=34.8.0"></script>
+<script defer src="petty.js?v=34.8.0"></script>
+<script defer src="opex.js?v=34.8.0"></script>
+<script defer src="shareholders.js?v=34.8.0"></script>
+<script defer src="theme.js?v=34.8.0"></script>
+<script defer src="archive.js?v=34.8.0"></script>
+<script defer src="offers-pro.js?v=34.8.0"></script>
+<script defer src="buycompare.js?v=34.8.0"></script>
+<script defer src="procurement-link.js?v=34.8.0"></script>
+<script defer src="listtools.js?v=34.8.0"></script>
+<script defer src="icons.js?v=34.8.0"></script>
+<script defer src="guards.js?v=34.8.0"></script>
+<script defer src="tables.js?v=34.8.0"></script>
+<script defer src="inqreader.js?v=34.8.0"></script>
+<script defer src="offerlock.js?v=34.8.0"></script>
+<script defer src="workflow.js?v=34.8.0"></script>
+<script defer src="fx.js?v=34.8.0"></script>
+<script defer src="modalx.js?v=34.8.0"></script>
+<script defer src="iconx.js?v=34.8.0"></script>
+<script defer src="salesfiles.js?v=34.8.0"></script>
+<script defer src="offer-rial-convert.js?v=34.8.0"></script>
+<script defer src="docsx.js?v=34.8.0"></script>
+<script defer src="oppo.js?v=34.8.0"></script>
+<script defer src="cheque-module.js?v=34.8.0"></script>
+<script defer src="cheque-panel.js?v=34.8.0"></script>
+<script defer src="cheque-print.js?v=34.8.0"></script>
+<script defer src="cheques.js?v=34.8.0"></script>
+<script defer src="messengers.js?v=34.8.0"></script>
+<script defer src="phonefmt.js?v=34.8.0"></script>
+<script defer src="tour.js?v=34.8.0"></script>
+<script defer src="ai-workbench.js?v=34.8.0"></script>
+<script defer src="golive.js?v=34.8.0"></script>
+<script defer src="custmerge.js?v=34.8.0"></script>
+<script defer src="listclean.js?v=34.8.0"></script>
+<script defer src="supspec.js?v=34.8.0"></script>
+<script defer src="scoring.js?v=34.8.0"></script>
+<script defer src="vat-shared.js?v=34.8.0"></script>
+<script defer src="vat-quarterly.js?v=34.8.0"></script>
+<script defer src="supplier-finance.js?v=34.8.0"></script>
+<script defer src="customer-finance.js?v=34.8.0"></script>
+<script defer src="working-capital.js?v=34.8.0"></script>
+<script defer src="treasury.js?v=34.8.0"></script>
+<script defer src="treasury-call.js?v=34.8.0"></script>
+<script defer src="ledger-report.js?v=34.8.0"></script>
+<script defer src="data-quality.js?v=34.8.0"></script>
+<script defer src="commission.js?v=34.8.0"></script>
 
-<script defer src="my-customers-filter.js?v=34.7.96"></script>
-<script defer src="insights.js?v=34.7.96"></script>
-<script defer src="myday.js?v=34.7.96"></script>
-<script defer src="lossguard.js?v=34.7.96"></script>
-<script defer src="fiscal.js?v=34.7.96"></script>
-<script defer src="financehub.js?v=34.7.96"></script>
-<script defer src="theme-contrast.js?v=34.7.96"></script>
-<script defer src="sync.js?v=34.7.96"></script>
-<script defer src="client-server.js?v=34.7.96"></script>
-<script defer src="unofficial-invoice.js?v=34.7.96"></script>
-<script defer src="user-guide.js?v=34.7.96"></script>
-<script defer src="settings-accordion.js?v=34.7.96"></script>
-<script defer src="mobile-actions.js?v=34.7.96"></script>
-<script defer src="mobile-table-labels.js?v=34.7.96"></script>
-<script defer src="mobile-nav-state.js?v=34.7.96"></script>
-<script defer src="nav-focus.js?v=34.7.96"></script>
+<script defer src="my-customers-filter.js?v=34.8.0"></script>
+<script defer src="insights.js?v=34.8.0"></script>
+<script defer src="myday.js?v=34.8.0"></script>
+<script defer src="lossguard.js?v=34.8.0"></script>
+<script defer src="fiscal.js?v=34.8.0"></script>
+<script defer src="financehub.js?v=34.8.0"></script>
+<script defer src="theme-contrast.js?v=34.8.0"></script>
+<script defer src="sync.js?v=34.8.0"></script>
+<script defer src="client-server.js?v=34.8.0"></script>
+<script defer src="unofficial-invoice.js?v=34.8.0"></script>
+<script defer src="user-guide.js?v=34.8.0"></script>
+<script defer src="settings-accordion.js?v=34.8.0"></script>
+<script defer src="mobile-actions.js?v=34.8.0"></script>
+<script defer src="mobile-table-labels.js?v=34.8.0"></script>
+<script defer src="mobile-nav-state.js?v=34.8.0"></script>
+<script defer src="nav-focus.js?v=34.8.0"></script>
 <!-- v35: command-driven Sales-to-Cash loads last and replaces the legacy financial/write surfaces atomically. -->
-<script defer src="sales-domain-v2.js?v=34.7.96"></script>
-<script defer src="official-invoice-v2.js?v=34.7.96"></script>
-<script defer src="tax-returns.js?v=34.7.96"></script>
-<script defer src="case-revision.js?v=34.7.96"></script>
+<script defer src="sales-domain-v2.js?v=34.8.0"></script>
+<script defer src="official-invoice-v2.js?v=34.8.0"></script>
+<script defer src="tax-returns.js?v=34.8.0"></script>
+<script defer src="case-revision.js?v=34.8.0"></script>
 </body>
 </html>

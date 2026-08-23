@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.7.33 — H1 گیت workflow + AN-04 کالیبراسیون سلامت + ARCH-02 مسیر savePay → post_receipt */
+/* v34.7.33 — H1 گیت workflow + AN-04 کالیبراسیون سلامت + ARCH-02 ثبت دریافت از حساب پرونده */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
 var p = 0, f = 0, s = 0;
@@ -37,9 +37,14 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
 (function arch02() {
   var rb = read('crm/rbac.js');
-  T('ARCH-02 savePay نقد/حواله را به post_receipt می‌فرستد', rb.indexOf("ptfSalesDomainCommand('post_receipt'") > -1 && rb.indexOf('ARCH-02') > -1);
-  T('ARCH-02 چک از این مسیر رد نمی‌شود', rb.indexOf("howSel !== 'چک'") > -1);
-  T('ARCH-02 بدون پرونده یکتا به مسیر legacy برمی‌گردد', rb.indexOf('hits.length === 1') > -1);
+  var showStart = rb.indexOf('function showPayModal('), saveStart = rb.indexOf('function savePay(', showStart);
+  var showBlock = rb.slice(showStart, saveStart), saveBlock = rb.slice(saveStart, rb.indexOf('window.ptfCanInvoicePayVoid =', saveStart));
+  T('ARCH-02 دریافت v2 به حساب پرونده هدایت می‌شود',
+    showBlock.indexOf('window.ptfCaseFinanceOpen(receiptCaseId)') > -1);
+  T('ARCH-02 ثبت مستقیم روی فاکتور در v2 fail-closed است',
+    saveBlock.indexOf('ثبت مستقیم دریافت روی فاکتور غیرفعال است') > -1 && saveBlock.indexOf('return;') > -1);
+  T('ARCH-02 rbac هیچ post_receipt مستقیم یا fallback پنهانی ندارد',
+    rb.indexOf("ptfSalesDomainCommand('post_receipt'") === -1 && saveBlock.indexOf('hits.length === 1') === -1);
 })();
 
 console.log('\n— tester436 (H1 / AN-04 / ARCH-02) —');

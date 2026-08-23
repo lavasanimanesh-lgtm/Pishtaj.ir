@@ -209,6 +209,15 @@
       '<button class="bt" style="background:#0e7490" onclick="chqPrintGo(\'single\')">🖨 چاپ روی برگه چک</button>' +
       '</div></div>';
   }
+  function enhanceMultiDates() {
+    if (!window.DateKit || typeof DateKit.enhanceInput !== 'function') return;
+    var seq = window._chqpDateSeq || 0;
+    document.querySelectorAll('#chqpMBody .chqpM_d').forEach(function (el) {
+      if (!el.id) el.id = 'chqpMultiDate' + (++seq);
+      DateKit.enhanceInput(el.id, { compact: true, placeholder: '۱۴۰۵/۰۵/۱۱' });
+    });
+    window._chqpDateSeq = seq;
+  }
   function multiFormHtml() {
     var rows = '';
     for (var i = 0; i < 5; i++) {
@@ -266,6 +275,7 @@
   };
   window.renderChequePrint = function () {
     setTimeout(function () { try { window.chqGvRender(); } catch (e) {} }, 80);
+    setTimeout(enhanceMultiDates, 0);
   };
 
   window.chqProfileOpen = function () {
@@ -309,6 +319,7 @@
         '</tr>';
     }
     tb.insertAdjacentHTML('beforeend', html);
+    enhanceMultiDates();
   };
 
   /* ---------- جمع‌آوری و اعتبارسنجی (بدون هیچ ذخیره‌سازی) ---------- */

@@ -264,7 +264,7 @@
       var inner;
       if (f.type === 'textarea') inner = '<textarea id="dxF' + i + '" rows="3" style="width:100%;padding:8px;border:1.5px solid var(--brd);border-radius:9px;font-family:inherit">' + escP(v) + '</textarea>';
       else if (f.type === 'select') inner = '<select id="dxF' + i + '" style="width:100%;padding:8px;border:1.5px solid var(--brd);border-radius:9px;font-family:inherit">' + (f.opts || []).map(function (o) { return '<option' + (o===v?' selected':'') + '>' + o + '</option>'; }).join('') + '</select>';
-      else if (f.type === 'date') inner = (typeof ptfDatePicker==='function' ? ptfDatePicker('dxF' + i, v || new Date().toISOString().slice(0,10)) : '<input type="date" id="dxF' + i + '" value="' + escP(v) + '" style="width:100%;padding:8px;border:1.5px solid var(--brd);border-radius:9px;font-family:inherit;direction:ltr">');
+      else if (f.type === 'date') inner = '<input type="date" id="dxF' + i + '" class="ptf-date-gregorian" data-calendar="gregorian" value="' + escP(v) + '" style="width:100%;padding:8px;border:1.5px solid var(--brd);border-radius:9px;direction:ltr">';
       else inner = '<input type="' + (f.type || 'text') + '" id="dxF' + i + '" value="' + escP(v) + '" style="width:100%;padding:8px;border:1.5px solid var(--brd);border-radius:9px;font-family:inherit' + (f.type === 'date' ? ';direction:ltr' : '') + '">';
       return '<div class="fld"><label>' + f.lb + (f.req ? ' *' : '') + '</label>' + inner + docxTranslateBtn(i, f) + '</div>';
     }).join('');

@@ -650,7 +650,7 @@
     return '<div id="fiscalBox" class="ptf-fiscal-shell" style="background:#f8fafc;border:1px solid var(--brd);border-radius:16px;padding:12px 14px;margin:12px 0">' +
       '<div class="ptf-fiscal-head" style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><div class="ptf-fiscal-copy"><b class="ptf-fiscal-title" style="font-size:14px;color:#0f172a">' + fiscalIcon('calendar') + ' داشبورد سال مالی و تقسیم سود</b><br><small style="color:#64748b">محرمانه — فقط مدیران ارشد (ادمین/رییس هیات مدیره/مدیرعامل/مدیر بازرگانی). مبنای محاسبه: منطق نقدی (وصولی‌ها − خروجی‌ها) و کف نقدینگی در گردش. قاعده سال: تاریخ مختومه/برد/ثبت سند.</small></div>' +
       '<div class="ptf-fiscal-toolbar" style="display:flex;gap:6px;flex-wrap:wrap">' +
-      '<label class="ptf-fiscal-control" style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:#475569;background:#fff;border:1px solid var(--brd);border-radius:9px;padding:2px 8px">📅 سال مالی: <select aria-label="انتخاب سال مالی" onchange="window._fiscalYear=this.value;ptfFiscalRender()" style="padding:5px 4px;border:none;outline:none;font-weight:700;color:#0f172a;direction:ltr">' + fiscalYearOptions(year).map(function (y) { return '<option value="' + y + '"' + (String(y) === String(year) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select></label>' /* v34.0.5-alpha (BUG-FISCAL-YEAR-UI-002): انتخاب سال فقط از منوی کشویی — ورود دستی فارسی فیلتر را می‌شکست */ +
+      '<div class="ptf-fiscal-control" style="min-width:165px;font-size:11.5px;color:#475569;background:#fff;border:1px solid var(--brd);border-radius:9px;padding:3px 7px"><span>📅 سال مالی</span>' + (window.DateKit && DateKit.yearPicker ? DateKit.yearPicker('fiscalYearPicker', year) : '<select id="fiscalYearPicker" aria-label="انتخاب سال مالی" style="padding:5px 4px;border:none;outline:none;font-weight:700;color:#0f172a">' + fiscalYearOptions(year).map(function (y) { return '<option value="' + y + '"' + (String(y) === String(year) ? ' selected' : '') + '>' + y + '</option>'; }).join('') + '</select>') + '</div>' +
       '<label class="ptf-fiscal-control" style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:#475569;background:#fff;border:1px solid var(--brd);border-radius:9px;padding:2px 8px">٪ سهم تقسیم سود: <input aria-label="درصد سهم تقسیم سود" value="' + escP(String(distPct)) + '" inputmode="numeric" onchange="ptfFiscalPctChange(this)" style="width:50px;padding:5px;border:none;outline:none;direction:ltr;text-align:center;font-weight:700;color:#0f172a"> ٪</label>' /* v34.0.5-alpha (BUG-FISCAL-PCT-003): برچسب صریح + نرمال ارقام فارسی (ptfFiscalPctChange) */ +
       '<button class="bt ptf-fiscal-action" type="button" title="قفل کردن سال مالی" aria-label="قفل کردن سال مالی" style="font-size:12px" onclick="ptfFiscalLock()">🔒 قفل سال</button>' +
       '<button class="bt bt-o ptf-fiscal-action" type="button" title="گزارش رسمی سال مالی" aria-label="گزارش رسمی سال مالی" style="font-size:12px" onclick="ptfFiscalPrint()">گزارش رسمی</button>' +
@@ -907,6 +907,15 @@
     (document.getElementById('panels') || document.body).insertAdjacentHTML('beforeend', html);
     try { audit('سال مالی', 'چاپ snapshot قفل‌شده ' + rec.cd + ' (سال ' + rec.year + ')', cd); } catch (e) {}
   };
+
+  if (!window._fiscalYearPickerHooked && typeof document !== 'undefined' && document.addEventListener) {
+    window._fiscalYearPickerHooked = true;
+    document.addEventListener('change', function (e) {
+      if (!e.target || e.target.id !== 'fiscalYearPicker') return;
+      window._fiscalYear = normFiscalYear(e.target.value);
+      ptfFiscalRender();
+    });
+  }
 
   if (!window._fiscalHooked) {
     window._fiscalHooked = true;
