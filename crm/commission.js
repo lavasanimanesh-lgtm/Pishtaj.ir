@@ -63,6 +63,32 @@
   function activePayment(p) { return !!p && p.status !== 'void' && p.status !== 'reversal' && !p.voided; }
   function payAmt(p) { return num(p.amountIrr || p.amt || p.amount); }
   function payWhen(p, inv) { return p.dateISO || p.iso || p.date || p.t || inv.issueDate || inv.date || inv.t || ''; }
+  /* مبنای پورسانت فقط مبلغ پایهٔ فاکتور است؛ VAT حتی در fallback نباید وارد شود.
+     مسیر اصلی از AR-SSOT استفاده می‌کند تا مرجوعیِ مبتنی بر مبلغ کل، به همان نسبت
+     از پایه نیز کسر شود. */
+  function commissionBaseAfterReturns(inv) {
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceBaseAfterReturnsIRR === 'function') {
+      return window.PTF.ar.invoiceBaseAfterReturnsIRR(inv);
+    }
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceCaps === 'function' && typeof window.PTF.ar.invoiceNetAfterReturnsIRR === 'function') {
+      var caps = window.PTF.ar.invoiceCaps(inv);
+      var net = window.PTF.ar.invoiceNetAfterReturnsIRR(inv);
+      return caps.amount > 0 ? Math.max(0, Math.round(caps.base * net / caps.amount)) : 0;
+    }
+    var base = num(inv && (inv.base != null ? inv.base : inv.baseAmountIRR));
+    var vat = num(inv && (inv.vat != null ? inv.vat : inv.vatAmountIRR));
+    var gross = num(inv && (inv.amount != null ? inv.amount : inv.totalAmountIRR));
+    if (gross <= 0) gross = base + vat;
+    var baseCap = Math.max(0, gross - Math.min(Math.max(0, vat), gross));
+    var invId = String(inv && (inv._id || inv.cd) || ''), invNo = String(inv && inv.no || '');
+    var returned = data('ptf_crm_sales_returns').filter(function (r) {
+      if (!r || r.status === 'void' || r.status === 'deleted' || r.voided) return false;
+      var rid = String(r.invoiceId || r.invoiceCd || ''), rno = String(r.invoiceNo || '');
+      return (!!invId && rid === invId) || (!!invNo && !rid && rno === invNo);
+    }).reduce(function (sum, r) { return sum + num(r.totalAmount); }, 0);
+    returned = Math.min(gross, Math.max(0, returned));
+    return gross > 0 ? Math.max(0, Math.round(baseCap * (gross - returned) / gross)) : 0;
+  }
 
   window.ptfCommissionCalc = function (opts) {
     opts = opts || {};
@@ -72,8 +98,9 @@
     var map = {};
     function row(u) { u = u || '_unassigned'; if (!map[u]) map[u] = { user: u, label: userLabel(u === '_unassigned' ? '' : u), pct: userPct(u === '_unassigned' ? '' : u), base: 0, lines: [] }; return map[u]; }
 
-    /* v34.5.35 (ابلاغ کارفرما): پورسانت فقط پس از تسویه کامل «کل پرونده» آزاد می‌شود.
-       - مبنا = مبلغ کل فاکتورهای پرونده، نه وصولی‌های پراکنده.
+    /* پورسانت فقط پس از تسویه کامل «کل پرونده» آزاد می‌شود.
+       - مبنا = مبلغ پایهٔ فاکتورهای پرونده، پس از مرجوعی و بدون ارزش افزوده؛
+         وصولی فقط شرط آزادسازی و تعیین ماه است، نه مبلغ مبنای پورسانت.
        - ماه انتساب = ماه ثبت آخرین وصولی تکمیل‌کننده (ماه تسویه کامل).
        - فاکتور یتیم (بدون پرونده) از محاسبه حذف می‌شود (تصمیم کارفرما).
        - مبنای «CO برنده» حذف شده است. */
@@ -127,11 +154,10 @@
         var v2Allocs = invoiceAllocations[String(inv._id || inv.cd || '')] || [];
         paid += v2Allocs.reduce(function (s, a) { return s + (+a.amountIRR || 0); }, 0);
         if (inv.amount - paid > 0.5) { allPaid = false; return; }
-        /* LC-02 (v34.7.21): مبنای پورسانت = مبلغ خالص پس از مرجوعی فروش (تصویب کارفرما ۱۴۰۵/۰۵/۲۶).
-           پیش از این، کالای برگشتی از مبنا کسر نمی‌شد و پورسانتِ فروشِ برگشت‌خورده پرداخت می‌شد. */
-        var _netBase = (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceNetAfterReturnsIRR === 'function')
-          ? window.PTF.ar.invoiceNetAfterReturnsIRR(inv) : (+inv.amount || 0);
-        base += _netBase;
+        /* مبنای عددی: پایهٔ فاکتور پس از مرجوعی و بدون VAT. شرط تسویه در بالا
+           عمداً با مبلغ کل فاکتور می‌ماند تا مالیات هم واقعاً وصول شده باشد. */
+        var _commissionBase = commissionBaseAfterReturns(inv);
+        base += _commissionBase;
         pays.forEach(function (p) { var iso = toIso(payWhen(p, inv)); if (iso > lastWhen) lastWhen = iso; });
         v2Allocs.forEach(function (a) { var r = caseReceiptsById[String(a.receiptId || '')] || {}; var iso = toIso(r.receivedAt || r.dateISO || r.t || ''); if (iso > lastWhen) lastWhen = iso; });
       });
@@ -143,7 +169,7 @@
     });
 
     var rows = Object.keys(map).map(function (k) { var r = map[k]; r.commission = Math.round(r.base * r.pct / 100); return r; }).filter(function (r) { return r.base > 0 || r.user === '_unassigned'; }).sort(function (a, b2) { return b2.commission - a.commission; });
-    return { basis: 'collected', period: b, rows: rows, totalBase: rows.reduce(function (s, r) { return s + r.base; }, 0), totalCommission: rows.reduce(function (s, r) { return s + r.commission; }, 0), cfg: c };
+    return { basis: 'collected', basisFormula: 'invoice_base_ex_vat_after_returns', period: b, rows: rows, totalBase: rows.reduce(function (s, r) { return s + r.base; }, 0), totalCommission: rows.reduce(function (s, r) { return s + r.commission; }, 0), cfg: c };
   };
 
   /* ---------- چرخه مالی پورسانت ----------
@@ -279,7 +305,7 @@
     if (!isSenior()) return '';
     styleOnce(); var c = cfg(), month = normMonth(window._cmMonth || faMonth()), res = window.ptfCommissionCalc({ month: month });
     var unassigned = res.rows.filter(function (r) { return r.user === '_unassigned' && r.base > 0; })[0];
-    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: وصولی واقعی — فقط پس از تسویه کامل پرونده</small></div><div class="cm-controls"><div class="fld"><label>دوره ماهانه شمسی</label>' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('cmMonth', month) : '<input id="cmMonth" value="' + esc(month) + '" placeholder="۱۴۰۵/۰۵" inputmode="numeric">') + '</div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
+    return '<section id="commissionBox"><div class="cm-head"><div><h4 style="margin:0">💸 پورسانت فروش</h4><small style="color:#64748b">مبنای شفاف: مبلغ پایهٔ فاکتور، بدون ارزش افزوده و پس از مرجوعی — فقط پس از تسویه کامل پرونده</small></div><div class="cm-controls"><div class="fld"><label>دوره ماهانه شمسی</label>' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('cmMonth', month) : '<input id="cmMonth" value="' + esc(month) + '" placeholder="۱۴۰۵/۰۵" inputmode="numeric">') + '</div><button class="bt bt-o" onclick="ptfCommissionRefresh()">🔄 محاسبه</button><button class="bt" onclick="ptfCommissionApproveCycle()">✅ تصویب دوره</button><button class="bt bt-o" onclick="ptfCommissionPrint()">🖨 چاپ</button></div></div>' +
       '<div class="cm-kpis"><div class="cm-kpi"><small>مبنای محاسبه</small><b>' + money(res.totalBase) + '</b></div><div class="cm-kpi"><small>جمع پورسانت پیشنهادی</small><b style="color:#0e7490">' + money(res.totalCommission) + '</b></div><div class="cm-kpi"><small>کارشناسان دارای رکورد</small><b>' + res.rows.filter(function (r) { return r.user !== '_unassigned'; }).length.toLocaleString('fa-IR') + '</b></div></div>' +
       (unassigned ? '<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:12px;color:#92400e">⚠️ ' + money(unassigned.base) + ' مبنای پورسانت مالک مشخص ندارد؛ مالک مشتری یا صادرکننده پیشنهاد را اصلاح کنید.</div>' : '') +
       '<div id="cmRows">' + reportRows(res) + '</div>' + obligationsHtml() + '</section>';
@@ -299,7 +325,7 @@
   function commissionSettingsHtml() {
     if (!isSenior()) return '';
     var c = cfg();
-    return '<section id="cmSettingsBox" style="margin-top:14px;padding:14px;border:1px solid var(--brd);border-radius:14px;background:var(--crd,#fff)"><h4 style="margin:0 0 5px">💸 قواعد پورسانت فروش</h4><small style="color:#64748b">تنظیم درصد تمام کاربران فقط در این بخش انجام می‌شود. پورسانت فقط از وصولی واقعی و پس از تسویه کامل پرونده محاسبه می‌شود.</small><div class="fr" style="margin-top:10px"><div class="fld"><label>درصد پیش‌فرض</label><input id="cmSetDefPct" value="' + c.defaultPct + '" inputmode="decimal" style="direction:ltr"></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>کاربر</th><th>نقش</th><th>درصد اختصاصی</th></tr></thead><tbody>' + users().map(function (u) { var id = u.username || u.user, pct = c.byUser[id] == null ? '' : c.byUser[id]; return '<tr><td>' + esc(u.name || u.nm || id) + '<small style="color:#64748b"> ' + esc(id) + '</small></td><td>' + esc(u.roleId || u.role || '—') + '</td><td><input id="cmSetPct_' + esc(id) + '" value="' + esc(pct) + '" placeholder="' + c.defaultPct + '" inputmode="decimal" style="width:80px;direction:ltr"></td></tr>'; }).join('') + '</tbody></table></div><button class="bt" style="margin-top:10px" onclick="ptfCommissionSaveCfg()">💾 ذخیره قواعد پورسانت</button></section>';
+    return '<section id="cmSettingsBox" style="margin-top:14px;padding:14px;border:1px solid var(--brd);border-radius:14px;background:var(--crd,#fff)"><h4 style="margin:0 0 5px">💸 قواعد پورسانت فروش</h4><small style="color:#64748b">تنظیم درصد تمام کاربران فقط در این بخش انجام می‌شود. پورسانت از مبلغ پایهٔ فاکتور، بدون ارزش افزوده و پس از مرجوعی، و فقط بعد از تسویه کامل پرونده محاسبه می‌شود.</small><div class="fr" style="margin-top:10px"><div class="fld"><label>درصد پیش‌فرض</label><input id="cmSetDefPct" value="' + c.defaultPct + '" inputmode="decimal" style="direction:ltr"></div></div><div class="tb2" style="margin-top:10px"><table><thead><tr><th>کاربر</th><th>نقش</th><th>درصد اختصاصی</th></tr></thead><tbody>' + users().map(function (u) { var id = u.username || u.user, pct = c.byUser[id] == null ? '' : c.byUser[id]; return '<tr><td>' + esc(u.name || u.nm || id) + '<small style="color:#64748b"> ' + esc(id) + '</small></td><td>' + esc(u.roleId || u.role || '—') + '</td><td><input id="cmSetPct_' + esc(id) + '" value="' + esc(pct) + '" placeholder="' + c.defaultPct + '" inputmode="decimal" style="width:80px;direction:ltr"></td></tr>'; }).join('') + '</tbody></table></div><button class="bt" style="margin-top:10px" onclick="ptfCommissionSaveCfg()">💾 ذخیره قواعد پورسانت</button></section>';
   }
   function hookSettings() {
     if (window._cmSettingsHooked || typeof window.buildSettings !== 'function') return false;

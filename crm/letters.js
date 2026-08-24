@@ -63,7 +63,7 @@ function letRoleEn(l) {
     if (role.indexOf('بازرگانی') > -1) return 'Commercial Manager';
     if (role.indexOf('تامین') > -1) return 'Procurement Specialist';
   } catch (e) {}
-  return l.signerRoleEn || 'Commercial Dept.';
+  return l.signerRoleEn || l.signerRole || 'Commercial Dept.';
 }
 
 /* ---------- شماره اندیکاتور (فقط پس از امضای نهایی) ----------
@@ -322,7 +322,7 @@ function renderLetters() {
       (((l.kind === 'OUT' && l.author === curSession().user) || l.src === 'ai-workbench') && (l.st === 'draft' || l.st === 'rejected') ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="showLetterModal(\'' + l.cd + '\')">✏️</button> ' : '') +
       (canSign ? '<button class="bt" style="padding:3px 8px;font-size:11.5px;background:#10b981" onclick="letSign(\'' + l.cd + '\')">✅ امضا</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letReject(\'' + l.cd + '\')">رد</button> ' : '') +
       (l.st === 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#059669" onclick="letPrint(\'' + l.cd + '\',false,true)" title="خروجی با مهر و امضای ثبت‌شده">🖨 با امضای دیجیتال</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#7c3aed" onclick="letPrint(\'' + l.cd + '\',false,false)" title="خروجی بدون تصویر امضا برای امضای دستی">🖨 بدون امضا / چاپ فیزیکی</button> ' : (l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',false,false)">🖨 PDF</button> ' : '')) +
-      (l.kind === 'OUT' && l.st !== 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',true,false)">👁️ پیش‌نمایش بدون امضا</button> ' : '') +
+      (l.kind === 'OUT' && l.st !== 'signed' && l.st !== 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',true,false)">👁️ پیش‌نمایش بدون امضا</button> ' : '') +
       '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letDel(\'' + l.cd + '\')">🗑️</button>' +
       '</td></tr>';
   });
@@ -515,8 +515,10 @@ window.letSyncDocFont = function () {
   var fs = (document.getElementById('ltFs') || {}).value;
   var lh = (document.getElementById('ltLh') || {}).value;
   var fnt = (document.getElementById('ltFont') || {}).value;
+  var align = (document.getElementById('ltAlign') || {}).value || 'justify';
   ed.style.fontSize = fs ? (fs + 'pt') : '';
   ed.style.lineHeight = lh || '';
+  ed.style.textAlign = align;
   letSyncEditorBaseFont(ed, fnt);
 };
 
@@ -540,8 +542,10 @@ window.lhpSyncDocFont = function () {
   var fs = (document.getElementById('lhpFs') || {}).value;
   var lh = (document.getElementById('lhpLh') || {}).value;
   var fnt = (document.getElementById('lhpFont') || {}).value;
+  var align = (document.getElementById('lhpAlign') || {}).value || 'justify';
   ed.style.fontSize = fs ? (fs + 'pt') : '';
   ed.style.lineHeight = lh || '';
+  ed.style.textAlign = align;
   letSyncEditorBaseFont(ed, fnt);
 };
 function letEditorWirePasteAndDrop(editor, editorId) {
@@ -568,6 +572,15 @@ function letEditorWirePasteAndDrop(editor, editorId) {
   });
 }
 
+window.ptfLetterSignerMode = function (value) {
+  var box = document.getElementById('ltSignerOther');
+  var custom = value === '__other__';
+  if (box) box.style.display = custom ? 'grid' : 'none';
+  ['ltSignerOtherName', 'ltSignerOtherRole'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.required = custom;
+  });
+};
+
 function showLetterModal(cd) {
   var l = cd ? getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0] : null;
   var custs = getData('ptf_crm_customers'), sups = getData('ptf_crm_suppliers');
@@ -575,9 +588,21 @@ function showLetterModal(cd) {
     custs.map(function (c) { return '<option' + (l && l.to === c.co ? ' selected' : '') + '>' + escP(c.co) + '</option>'; }).join('') +
     sups.map(function (s) { return '<option' + (l && l.to === s.co ? ' selected' : '') + '>' + escP(s.co) + '</option>'; }).join('');
   var users = getData('ptf_crm_users');
-  var signOpts = '<option value="__me__">خودم (' + escP(curSession().name) + ')</option>' +
-    users.filter(function (u) { return u.username !== curSession().user; })
-      .map(function (u) { return '<option value="' + escP(u.username) + '"' + (l && l.signer === u.username ? ' selected' : '') + '>' + escP(u.name) + ' — ' + escP(u.role) + '</option>'; }).join('');
+  var session = curSession() || {};
+  var myUser = users.filter(function (u) { return u.username === session.user; })[0] || {};
+  var myProfile = (typeof mySigProfile === 'function' ? mySigProfile() : {}) || {};
+  var knownSigner = l && users.some(function (u) { return u.username === l.signer; });
+  var customSigner = !!(l && (l.signerMode === 'other' || l.signer === '__other__' || (l.signer && l.signer !== '__me__' && !knownSigner)));
+  var ownName = myProfile.nm || session.name || myUser.name || session.user || '';
+  var ownRole = myProfile.role || myUser.role || '';
+  var signOpts = '<option value="__me__"' + (!customSigner && (!l || l.signer === '__me__' || l.signer === session.user) ? ' selected' : '') + '>خودم (' + escP(ownName) + (ownRole ? ' — ' + escP(ownRole) : '') + ')</option>' +
+    users.filter(function (u) { return u.username !== session.user; })
+      .map(function (u) {
+        var up = (typeof sigProfileFor === 'function' ? sigProfileFor(u.username) : {}) || {};
+        var un = up.nm || u.name || u.username, ur = up.role || u.role || '';
+        return '<option value="' + escP(u.username) + '"' + (!customSigner && l && l.signer === u.username ? ' selected' : '') + '>' + escP(un) + (ur ? ' — ' + escP(ur) : '') + '</option>';
+      }).join('') +
+    '<option value="__other__"' + (customSigner ? ' selected' : '') + '>سایر — نام و سمت دلخواه (امضای فیزیکی)</option>';
   var s = (l && l.style) || {};
   var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
     '<style>.let-editor-tools{display:flex;gap:5px;flex-wrap:wrap;padding:7px;background:#f8fafc;border:1px solid var(--brd);border-bottom:0;border-radius:10px 10px 0 0}.let-editor-tools .bt{padding:4px 8px;font-size:11px}.let-editor-tools select{max-width:130px;padding:3px 6px;font-size:11px;border:1px solid var(--brd);border-radius:7px;background:#fff;color:#1e293b}.let-editor-tools input[type=color]{width:26px;height:26px;padding:0;border:1px solid var(--brd);border-radius:6px;background:#fff;cursor:pointer}.let-editor-tools .let-sep{width:1px;height:20px;background:var(--brd);margin:0 2px;align-self:center}.let-editor-tools .lg{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap}.let-rich-editor{min-height:230px;padding:12px;border:1px solid var(--brd);border-radius:0 0 10px 10px;line-height:2;background:#fff;outline:none;font-size:14px}.let-rich-editor:focus{border-color:#0e7490;box-shadow:0 0 0 2px #bae6fd}.let-rich-editor.is-dragover{border:2px dashed #0e7490;background:#f0f9ff}.let-doc-font,.let-doc-font *{font-family:inherit!important}.let-rich-editor p{margin:0 0 8px}.let-rich-editor table{width:100%;border-collapse:collapse;margin:10px 0}.let-rich-editor td,.let-rich-editor th{border:1px solid #64748b;padding:6px;min-width:55px}.let-rich-editor th{background:#f1f5f9}.let-rich-editor img{display:block;max-width:100%;max-height:360px;margin:10px auto;resize:both}</style>' +
@@ -622,7 +647,8 @@ function showLetterModal(cd) {
     '<button type="button" class="bt bt-o" style="font-size:12px" onclick="document.getElementById(\'ltImgFile\').click()">📤 افزودن تصویر</button>' +
     '<small style="color:#94a3b8;display:block">تصویر خودکار فشرده می‌شود (حداکثر ۹۰۰px) — روی نامه وسط‌چین و متناسب صفحه چاپ می‌شود</small></div>' +
     '<div class="fr"><div class="fld"><label>پیوست</label><select id="ltAtt"><option' + (l && l.att === 'ندارد' ? ' selected' : '') + '>ندارد</option><option' + (l && l.att === 'دارد' ? ' selected' : '') + '>دارد</option></select></div>' +
-    '<div class="fld"><label>امضاکننده</label><select id="ltSigner">' + signOpts + '</select></div></div>' +
+    '<div class="fld"><label>امضاکننده</label><select id="ltSigner" onchange="ptfLetterSignerMode(this.value)">' + signOpts + '</select><small style="color:#64748b">نام امضاکننده همیشه همراه سمت او در خروجی درج می‌شود.</small></div></div>' +
+    '<div id="ltSignerOther" class="fr" style="display:' + (customSigner ? 'grid' : 'none') + ';background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:9px;margin:7px 0"><div class="fld"><label>نام امضاکنندهٔ دلخواه *</label><input id="ltSignerOtherName" value="' + escP(customSigner && l ? l.signerNm || '' : '') + '" placeholder="نام و نام خانوادگی"></div><div class="fld"><label>سمت امضاکنندهٔ دلخواه *</label><input id="ltSignerOtherRole" value="' + escP(customSigner && l ? l.signerRole || '' : '') + '" placeholder="مثلاً مدیرعامل"><small style="color:#92400e">این مسیر برای مهر و امضای فیزیکی ثبت می‌شود و درخواست امضای دیجیتال نمی‌فرستد.</small></div></div>' +
     '<div class="fr"><div class="fld"><label style="font-size:11.5px">درج «بسمه تعالی» <input type="checkbox" id="ltBsm" ' + (!l || l.bsm !== false ? 'checked' : '') + '></label></div>' +
     '<div class="fld"><label>لینک به پرونده (اختیاری)</label><select id="ltPrj"><option value="">— بدون پرونده —</option>' + getData('ptf_crm_projects').map(function(pp){ return '<option value="' + escP(pp.no) + '"' + (l && l.prjNo === pp.no ? ' selected' : '') + '>' + escP(pp.no) + ' — ' + escP(pp.buyerCo || '') + '</option>'; }).join('') + '</select></div></div>' +
     '<details style="margin:8px 0" open><summary style="cursor:pointer;font-size:12.5px;color:#0e7490">🎛 تنظیمات دستی قالب (اختیاری)</summary>' +
@@ -630,8 +656,10 @@ function showLetterModal(cd) {
     [9,10,10.5,11,11.5,12,12.5,13,13.5,14,15,16,18,20].map(function (f) { return '<option' + (s.fs == f ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></div>' +
     '<div class="fld"><label>فاصله خطوط (خالی = ۲٫۱)</label><select id="ltLh" onchange="letSyncDocFont()"><option value="">خودکار</option>' +
     [1.2,1.5,1.8,2,2.2,2.5,3].map(function (x) { return '<option' + (s.lh == x ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>' +
-    '<div class="fld"><label>فونت کل متن</label><select id="ltFont" onchange="letSyncDocFont()">' + letFontOptions(s.font || '', 'پیش‌فرض (بی‌یاقوت)') + '</select></div></div>' +
-    '<div class="fr"><div class="fld"><label>چینش متن</label><select id="ltAlign"><option value="">پیش‌فرض (فا: راست / EN: چپ)</option><option value="right"' + (s.align === 'right' ? ' selected' : '') + '>راست‌چین</option><option value="left"' + (s.align === 'left' ? ' selected' : '') + '>چپ‌چین</option><option value="center"' + (s.align === 'center' ? ' selected' : '') + '>وسط‌چین</option><option value="justify"' + (s.align === 'justify' ? ' selected' : '') + '>تراز دوطرفه</option></select></div>' +
+    '<div class="fld"><label>فونت کل نامه (متن، خطاب، موضوع و امضا)</label><select id="ltFont" onchange="letSyncDocFont()">' + letFontOptions(s.font || '', 'پیش‌فرض (بی‌یاقوت)') + '</select></div>' +
+    '<div class="fld"><label>اندازه فونت نام امضاکننده</label><select id="ltSignFs"><option value="">هماهنگ با متن</option>' +
+    [9,10,10.5,11,11.5,12,12.5,13,13.5,14,15,16,18,20,22,24].map(function (f) { return '<option' + (s.signFs == f ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></div></div>' +
+    '<div class="fr"><div class="fld"><label>چینش متن</label><select id="ltAlign" onchange="letSyncDocFont()"><option value="justify"' + (!s.align || s.align === 'justify' ? ' selected' : '') + '>تراز دوطرفه (پیش‌فرض)</option><option value="right"' + (s.align === 'right' ? ' selected' : '') + '>راست‌چین</option><option value="left"' + (s.align === 'left' ? ' selected' : '') + '>چپ‌چین</option><option value="center"' + (s.align === 'center' ? ' selected' : '') + '>وسط‌چین</option></select></div>' +
     '<div class="fld"><label style="font-size:12px">متن بولد <input type="checkbox" id="ltB" ' + (s.bold ? 'checked' : '') + '></label></div>' +
     '<div class="fld"><label style="font-size:12px">متن ایتالیک <input type="checkbox" id="ltI" ' + (s.italic ? 'checked' : '') + '></label></div></div>' +
     '<div class="fld" style="margin-top:8px"><label>حاشیه‌های صفحه (میلی‌متر — خالی = پیش‌فرض)</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">' +
@@ -651,6 +679,7 @@ function showLetterModal(cd) {
   window._ltImgs = (l && Array.isArray(l.images)) ? JSON.parse(JSON.stringify(l.images)) : [];
   var editor = document.getElementById('ltBodyEditor');
   if (editor) { editor.innerHTML = letSafeBodyHtml((l && l.bodyHtml) || letEscHtml((l && l.body) || '').replace(/\n/g, '<br>')); letEditorWirePasteAndDrop(editor); letSyncDocFont(); }
+  ptfLetterSignerMode((document.getElementById('ltSigner') || {}).value);
   ptfLtImgRender();
 }
 
@@ -708,13 +737,26 @@ function _collectLetter(cd) {
   l.bsm = document.getElementById('ltBsm').checked;
   l.prjNo = document.getElementById('ltPrj').value;
   l.signer = document.getElementById('ltSigner').value;
+  if (l.signer === '__other__') {
+    l.signerMode = 'other';
+    l.signerNm = ((document.getElementById('ltSignerOtherName') || {}).value || '').trim();
+    l.signerRole = ((document.getElementById('ltSignerOtherRole') || {}).value || '').trim();
+  } else {
+    delete l.signerMode;
+    var _targetSigner = l.signer === '__me__' ? (curSession() || {}).user : l.signer;
+    var _su = getData('ptf_crm_users').filter(function (u) { return u.username === _targetSigner; })[0] || {};
+    var _sp = (typeof sigProfileFor === 'function' ? sigProfileFor(_targetSigner) : (l.signer === '__me__' && typeof mySigProfile === 'function' ? mySigProfile() : {})) || {};
+    l.signerNm = _sp.nm || _su.name || (l.signer === '__me__' ? (curSession() || {}).name : l.signer) || '';
+    l.signerRole = _sp.role || _su.role || l.signerRole || '';
+  }
   l.images = (window._ltImgs || []).slice(0, 3); /* v31.7.22 US-LTR-IMG */
   function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
   l.style = {
     fs: +document.getElementById('ltFs').value || '',
     lh: document.getElementById('ltLh').value || '',
     font: document.getElementById('ltFont').value || '',
-    align: document.getElementById('ltAlign').value,
+    align: document.getElementById('ltAlign').value || 'justify',
+    signFs: +document.getElementById('ltSignFs').value || '',
     bold: document.getElementById('ltB').checked,
     italic: document.getElementById('ltI').checked,
     margin: { t: _num('ltMt'), r: _num('ltMr'), b: _num('ltMb'), l: _num('ltMl') }
@@ -724,9 +766,17 @@ function _collectLetter(cd) {
   return l;
 }
 
+function letSignerComplete(l) {
+  if (l && l.signerNm && l.signerRole) return true;
+  alert(l && l.signerMode === 'other'
+    ? 'نام و سمت امضاکنندهٔ دلخواه هر دو الزامی است.'
+    : 'نام یا سمت امضاکننده در پروفایل ثبت نشده است؛ پروفایل کاربر را تکمیل کنید یا گزینه «سایر» را برگزینید.');
+  return false;
+}
 function letPreviewDraft(cd) {
   var l = _collectLetter(cd);
   if (!l.to || !l.subject || !l.body.trim()) { alert('گیرنده، موضوع و متن الزامی است'); return; }
+  if (!letSignerComplete(l)) return;
   letPrintObj(l, true);
 }
 
@@ -761,6 +811,7 @@ window.letSaveDraft = letSaveDraft;
 function letSubmit(cd) {
   var l = _collectLetter(cd);
   if (!l.to || !l.subject || !l.body.trim()) { alert('گیرنده، موضوع و متن الزامی است'); return; }
+  if (!letSignerComplete(l)) return;
   var ex = letExtract(l.subject, l.body);
   l.keywords = ex.keywords; l.summary = ex.summary;
   l.t = faDate();
@@ -770,20 +821,32 @@ function letSubmit(cd) {
   /* در ارسال مجدد پیش‌نویس/نامهٔ ردشده، علت رد قبلی نباید کنار وضعیت pending
      یا signed باقی بماند. */
   delete l.rejectWhy;
-  if (l.signer === '__me__') {
+  if (l.signerMode === 'other') {
+    /* نام/سمت دلخواه کاربر سازمانی برای کارتابل ندارد؛ سند شماره می‌گیرد و برای
+       مهر و امضای فیزیکی ثبت می‌شود، بدون اعلان ساختگی به __other__. */
+    l.no = letSerial('OUT', l.lang);
+    l.st = 'registered';
+    l.manualSignature = true;
+    l.registeredT = faDateTime();
+    l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
+    delete l.signatureSnapshot;
+  } else if (l.signer === '__me__') {
     // خودامضا: شماره قطعی + امضای پروفایل خودم
     var p = mySigProfile();
     if (!p || !p.sig) { alert('ابتدا در «✍️ امضای من» تصویر امضای خود را ثبت کنید'); return; }
+    var selfNm = p.nm || l.signerNm, selfRole = p.role || l.signerRole;
+    if (!selfNm || !selfRole) { alert('نام و سمت امضاکننده باید در پروفایل امضا یا مشخصات کاربری تکمیل شود.'); return; }
     l.no = letSerial('OUT', l.lang);
     l.st = 'signed';
     l.signer = curSession().user;
-    l.signerNm = p.nm; l.signerRole = p.role;
-    l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: p.nm || '', role: p.role || '', at: faDateTime() };
+    l.signerNm = selfNm; l.signerRole = selfRole;
+    l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: selfNm, role: selfRole, at: faDateTime() };
     l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
   } else {
     l.st = 'pending';
     var u = getData('ptf_crm_users').filter(function (x) { return x.username === l.signer; })[0];
-    l.signerNm = u ? u.name : l.signer;
+    l.signerNm = l.signerNm || (u ? u.name : l.signer);
+    l.signerRole = l.signerRole || (u && u.role) || '';
     notify({ toUsers: [l.signer], title: '✍️ درخواست امضای نامه: ' + l.subject, body: 'نویسنده: ' + l.authorNm, kind: 'sign_req', channels: ['cart'], link: { panel: 'let' }, actionable: true, refCd: l.cd });
   }
   if (idx > -1) ls[idx] = l; else ls.unshift(l);
@@ -791,8 +854,9 @@ function letSubmit(cd) {
   // ثبت در پرونده
   if (l.prjNo) _letAttachToPrj(l);
   hideModal(); renderLetters();
-  audit('مکاتبات', (l.st === 'signed' ? 'صدور نامه ' + l.no : 'ارسال نامه برای امضای ' + l.signerNm) + ' — ' + l.subject, l.no || l.cd);
+  audit('مکاتبات', (l.st === 'signed' ? 'صدور نامه ' + l.no : (l.st === 'registered' ? 'ثبت نامه برای امضای فیزیکی ' + l.no : 'ارسال نامه برای امضای ' + l.signerNm)) + ' — ' + l.subject, l.no || l.cd);
   if (l.st === 'signed') { if (confirm('✅ نامه ' + l.no + ' صادر شد.\nخروجی PDF باز شود؟')) letPrint(l.cd, false); }
+  else if (l.st === 'registered') { if (confirm('✅ نامه ' + l.no + ' با نام و سمت دلخواه ثبت شد و برای امضای فیزیکی آماده است.\nخروجی PDF باز شود؟')) letPrint(l.cd, false, false); }
   else alert('📨 نامه در انتظار امضای ' + l.signerNm + ' — به کارتابل ایشان اعلان رفت');
 }
 
@@ -815,15 +879,18 @@ function letSign(cd) {
   if (!l || l.signer !== curSession().user) return;
   var p = mySigProfile();
   if (!p || !p.sig) { alert('ابتدا در «✍️ امضای من» تصویر امضای خود را ثبت کنید'); showSigProfile(); return; }
-  if (!confirm('نامه «' + l.subject + '» با نام و امضای شما نهایی شود؟')) return;
+  var u = getData('ptf_crm_users').filter(function (x) { return x.username === l.signer; })[0] || {};
+  var signerNm = p.nm || u.name || l.signerNm, signerRole = p.role || u.role || l.signerRole;
+  if (!signerNm || !signerRole) { alert('نام و سمت در پروفایل امضا یا مشخصات کاربری الزامی است.'); showSigProfile(); return; }
+  if (!confirm('نامه «' + l.subject + '» با نام، سمت و امضای شما نهایی شود؟')) return;
   l.no = letSerial('OUT', l.lang);
   l.st = 'signed';
-  l.signerNm = p.nm; l.signerRole = p.role;
-  l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: p.nm || '', role: p.role || '', at: faDateTime() };
+  l.signerNm = signerNm; l.signerRole = signerRole;
+  l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: signerNm, role: signerRole, at: faDateTime() };
   l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
   setData('ptf_crm_letters', ls);
-  if (l.prjNo) _letAttachToPrj(l);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(l.cd); } catch (eNR) {} /* v33.4.1: امضا شد — درخواست امضای مرتبط برای همه حذف شود */
+  if (l.prjNo) _letAttachToPrj(l);
   notify({ toUsers: [l.author], title: '✅ نامه «' + l.subject + '» امضا شد — ' + l.no, kind: 'sign_ok', channels: ['cart'], link: { panel: 'let' } });
   audit('مکاتبات', 'امضای نامه ' + l.no, l.no);
   renderLetters();
@@ -920,7 +987,9 @@ function letPrintObj(l, isPreview) {
   var s = l.style || {};
   var fs = s.fs || letAutoSize(l.body);           // عادی ۱۴ — حداقل ۱۲ (خودکار)
   var tfs = fs + 1;                               // عناوین: یک واحد بزرگتر (AC)
-  var align = s.align || (isEn ? 'left' : 'right');
+  var signerFs = Math.max(8, Math.min(30, +s.signFs || (fs + 1)));
+  var signerRoleFs = Math.max(8, signerFs - 2);
+  var align = s.align || 'justify';
   var font = isEn ? LETTER_FONT_EN : LETTER_FONT_FA;
   var dir = isEn ? 'ltr' : 'rtl';
   /* v34.7.72: فاصلهٔ خطوط، فونت و حاشیهٔ قابل تنظیم (کل نامه) */
@@ -935,7 +1004,10 @@ function letPrintObj(l, isPreview) {
      بدون امضا همان نامه قطعی را فقط بدون تصاویر مهر/امضا برای چاپ فیزیکی می‌سازد. */
   var signerProfile = (typeof sigProfileFor === 'function' ? sigProfileFor(l.signer || (curSession() || {}).user) : ((typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer || (curSession() || {}).user] || {})) || {};
   var sigP = (l.st === 'signed' && includeDigitalSignature) ? (l.signatureSnapshot || signerProfile) : {};
-  var physicalMode = l.st === 'signed' && !includeDigitalSignature;
+  var physicalMode = (l.st === 'signed' && !includeDigitalSignature) || (l.st === 'registered' && (l.signerMode === 'other' || l.manualSignature));
+  var identitySnapshot = l.signatureSnapshot || {};
+  var signerNameFa = identitySnapshot.nm || l.signerNm || signerProfile.nm || (curSession() || {}).name || '';
+  var signerRoleFa = identitySnapshot.role || l.signerRole || signerProfile.role || '';
   var fullHtml = '<!doctype html><html lang="' + (isEn ? 'en' : 'fa') + '" dir="' + dir + '"><head><meta charset="utf-8"><title>' + escP(l.no || 'پیش‌نمایش') + '</title><style>' + letEmbeddedFontCss() +
     '@page{size:A4 portrait;margin:0}' +
     '*{box-sizing:border-box;margin:0;padding:0}' +
@@ -958,12 +1030,12 @@ function letPrintObj(l, isPreview) {
        ریشه: فونت یاقوت وزن Bold مستقل ندارد؛ برخی مرورگرها برای weight:700 به‌جای ضخیم‌سازی
        مصنوعی همان فونت، به فونت دیگری از پشته (Tahoma بولد‌دار) می‌رفتند.
        رفع: font-family صریح + font-synthesis تا بولد از همان یاقوت ساخته شود. */
-    '.bsm,.to,.torl,.sub{font-family:' + font + ';font-synthesis:weight style}' +
+    '.bsm,.to,.torl,.sub,.sigbox{font-family:' + bodyFont + ';font-synthesis:weight style}' +
     '.bsm{text-align:center;font-size:' + (fs) + 'pt;margin-bottom:6mm}' +
     '.to{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:0.5mm}' +
     '.torl{font-weight:600;font-size:' + fs + 'pt;margin-bottom:2mm}' + /* v123.1: سمت گیرنده زیر نام */          /* مخاطب: بولد +۱ */
     '.sub{font-weight:700;font-size:' + tfs + 'pt;margin-bottom:6mm}' +          /* موضوع: بولد +۱ */
-    '.body{font-size:' + fs + 'pt;line-height:' + lh + ';text-align:' + align + ';white-space:normal;' +
+    '.body{font-family:' + bodyFont + ';font-size:' + fs + 'pt;line-height:' + lh + ';text-align:' + align + ';white-space:normal;' +
       (s.bold ? 'font-weight:700;' : '') + (s.italic ? 'font-style:italic;' : '') + '}' +
     (s.font ? '.body,.body *{font-family:' + bodyFont + '!important}' : '') +
     '.body p{margin:0 0 3mm}.body table{width:100%;border-collapse:collapse;margin:4mm 0;page-break-inside:avoid}.body td,.body th{border:1px solid #64748b;padding:2mm;text-align:' + align + '}.body th{background:#f1f5f9}.body img{display:block;max-width:100%;max-height:110mm;margin:4mm auto;page-break-inside:avoid}' +
@@ -975,8 +1047,8 @@ function letPrintObj(l, isPreview) {
     '.sig{margin-top:12mm;display:flex;justify-content:flex-end;direction:' + dir + '}' +
     '.sigbox{text-align:center;position:relative;min-width:60mm;padding-top:2mm}' +
     '.sigbox .salute{font-size:' + fs + 'pt;font-weight:700;margin-bottom:6mm;color:#1e293b}' +
-    '.sigbox .nm{font-weight:800;font-size:' + (fs + 1) + 'pt;position:relative;z-index:5}' +
-    '.sigbox .rl{font-weight:700;font-size:' + (fs - 1) + 'pt;color:#4b5057;position:relative;z-index:5}' +
+    '.sigbox .nm{font-weight:800;font-size:' + signerFs + 'pt;position:relative;z-index:5}' +
+    '.sigbox .rl{font-weight:700;font-size:' + signerRoleFs + 'pt;color:#4b5057;position:relative;z-index:5}' +
     '.sigbox img.s{height:25mm;width:auto;margin:-6mm auto -3mm;display:block;position:relative;z-index:4;transform:scale(1.4)}' +
     '.sigbox img.st{position:absolute;height:30mm;width:auto;top:14mm;left:50%;transform:translateX(-50%);opacity:.92;z-index:3;mix-blend-mode:multiply}' +
     '.ft{position:fixed;bottom:9mm;left:0;right:0;text-align:center;font-size:9pt;color:#4b5057;line-height:1.9;font-family:Vazirmatn,Tahoma,sans-serif}' +
@@ -1015,8 +1087,8 @@ function letPrintObj(l, isPreview) {
     '<div class="sig"><div class="sigbox">' +
     '<div class="salute">' + (isEn ? 'Yours Sincerely,' : 'با تجدید احترام') + '</div>' +
     /* v93: نامه EN → نام و سمت امضاکننده به انگلیسی */
-    '<div class="nm">' + escP(isEn ? letSignerEn(l) : (l.signerNm || signerProfile.nm || (curSession() || {}).name || '')) + '</div>' +
-    '<div class="rl">' + escP(isEn ? (l.signerRoleEn || letRoleEn(l)) : (l.signerRole || signerProfile.role || '')) + '</div>' +
+    '<div class="nm">' + escP(isEn ? letSignerEn(l) : signerNameFa) + '</div>' +
+    '<div class="rl">' + escP(isEn ? (l.signerRoleEn || letRoleEn(l)) : signerRoleFa) + '</div>' +
     (sigP.sig ? '<img class="s" src="' + sigP.sig + '" alt="امضا">' : '') +
     (sigP.stamp ? '<img class="st" src="' + sigP.stamp + '" alt="مهر">' : '') +
     (physicalMode ? '<div style="height:24mm;border-bottom:1px dotted #94a3b8;margin:3mm 5mm 0;color:#64748b;font-size:9pt;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2mm">' + (isEn ? 'Physical signature & stamp' : 'محل مهر و امضای فیزیکی') + '</div>' : '') +
@@ -1094,7 +1166,7 @@ window.ptfLetterheadPasteOpen = function () {
     '<div class="fld"><label>فاصله خطوط (خالی = ۲٫۱)</label><select id="lhpLh" onchange="lhpSyncDocFont()"><option value="">خودکار</option>' +
     [1.2,1.5,1.8,2,2.2,2.5,3].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></div>' +
     '<div class="fld"><label>فونت کل متن</label><select id="lhpFont" onchange="lhpSyncDocFont()">' + letFontOptions('', 'پیش‌فرض (بی‌یاقوت)') + '</select></div>' +
-    '<div class="fld"><label>چینش متن</label><select id="lhpAlign"><option value="">پیش‌فرض (فا: راست / EN: چپ)</option><option value="right">راست‌چین</option><option value="left">چپ‌چین</option><option value="center">وسط‌چین</option><option value="justify">تراز دوطرفه</option></select></div></div>' +
+    '<div class="fld"><label>چینش متن</label><select id="lhpAlign" onchange="lhpSyncDocFont()"><option value="justify" selected>تراز دوطرفه (پیش‌فرض)</option><option value="right">راست‌چین</option><option value="left">چپ‌چین</option><option value="center">وسط‌چین</option></select></div></div>' +
     '<div class="fr"><div class="fld"><label style="font-size:12px">متن بولد <input type="checkbox" id="lhpB"></label></div>' +
     '<div class="fld"><label style="font-size:12px">متن ایتالیک <input type="checkbox" id="lhpI"></label></div></div>' +
     '<div class="fld" style="margin-top:8px"><label>حاشیه‌های صفحه (میلی‌متر — خالی = پیش‌فرض)</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">' +
@@ -1117,6 +1189,7 @@ window.ptfLetterheadPasteOpen = function () {
   document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   var editor = document.getElementById('lhpEditor');
   if (editor) { letEditorWirePasteAndDrop(editor, 'lhpEditor'); }
+  if (typeof lhpSyncDocFont === 'function') lhpSyncDocFont();
 };
 
 /* v34.7.61: درج شمارهٔ بعدی صادره (فارسی: ارقام فارسی؛ انگلیسی: سری میلادی PTF-OUT) */
@@ -1142,7 +1215,7 @@ window.ptfLetterheadPastePrint = function () {
   var fs = ((document.getElementById('lhpFs') || {}).value || '');
   var lh = ((document.getElementById('lhpLh') || {}).value || '');
   var fontTok = ((document.getElementById('lhpFont') || {}).value || '');
-  var align = ((document.getElementById('lhpAlign') || {}).value || '');
+  var align = ((document.getElementById('lhpAlign') || {}).value || 'justify');
   var bold = !!((document.getElementById('lhpB') || {}).checked);
   var italic = !!((document.getElementById('lhpI') || {}).checked);
   function _num(id) { var v = (document.getElementById(id) || {}).value; return (v === '' ? '' : +v); }
@@ -1157,7 +1230,7 @@ window.ptfLetterheadPastePrint = function () {
   var bodyFs = fs ? fs + 'pt' : '13pt';
   var bodyLh = lh || 2.1;
   var bodyFont = fontTok ? letFontCss(fontTok) : font;
-  var bodyAlign = align || (isEn ? 'left' : 'right');
+  var bodyAlign = align || 'justify';
   var mt = (mT === '') ? 0 : mT;
   var mr = (mR === '') ? 16 : mR;
   var mb = (mB === '') ? 0 : mB;

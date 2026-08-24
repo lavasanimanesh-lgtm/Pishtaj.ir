@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.2 — LETTER-AWARD-OPEX-001
+/* v34.8.4 — LETTER-AWARD-OPEX-001
    قراردادهای رفتاری فونت مکاتبات، اسناد پس از برد، reconcile بی‌تکرار و
    تسویهٔ هزینهٔ تکرارشونده تا خروج یکتای خزانه. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -31,12 +31,12 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var version = JSON.parse(read('VERSION.json'));
 
 console.log('\n── پین نسخه و rollover ──');
-T('نسخهٔ رسمی دقیقاً v34.8.2 است', version.crm_version === 'v34.8.2', version.crm_version);
+T('نسخهٔ رسمی دقیقاً v34.8.4 است', version.crm_version === 'v34.8.4', version.crm_version);
 T('index، service worker، manifest و API هم‌نسخه‌اند',
-  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.8.2'") > -1 &&
-  read('crm/sw.js').indexOf("RELEASE = 'v34.8.2'") > -1 &&
-  JSON.parse(read('crm/manifest.json')).version === '34.8.2' &&
-  api.indexOf("SD_SERVICE_VERSION = '34.8.2'") > -1);
+  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.8.4'") > -1 &&
+  read('crm/sw.js').indexOf("RELEASE = 'v34.8.4'") > -1 &&
+  JSON.parse(read('crm/manifest.json')).version === '34.8.4' &&
+  api.indexOf("SD_SERVICE_VERSION = '34.8.4'") > -1);
 T('شمارهٔ نامعتبر v34.7.100 در نقاط رسمی باقی نمانده است',
   [read('VERSION.json'), read('crm/index.html'), read('crm/sw.js'), read('crm/manifest.json'), read('crm/clear-cache.html'), api].every(function (s) { return s.indexOf('34.7.100') === -1; }));
 
@@ -64,6 +64,115 @@ try {
 T('فونت انتخاب چندپاراگرافی با fontName روی خود انتخاب اعمال می‌شود', letters.indexOf("document.execCommand('fontName', false, family)") > -1);
 T('فونت کل سند روی ادیتور اعمال و Word inline override می‌شود', letters.indexOf("ed.style.fontFamily = token ? letFontCss(token) : ''") > -1 && letters.indexOf('.let-doc-font,.let-doc-font *{font-family:inherit!important}') > -1);
 T('CSS فونت در هر دو خروجی چاپ تزریق می‌شود', count(letters, "<style>' + letEmbeddedFontCss()") === 2);
+T('چینش پیش‌فرض فرم نامه و مسیر متن آماده هر دو justify است',
+  letters.indexOf("!s.align || s.align === 'justify'") > -1 &&
+  letters.indexOf('<option value="justify" selected>تراز دوطرفه (پیش‌فرض)</option>') > -1 &&
+  count(letters, "align || 'justify'") >= 2);
+T('فونت چاپ خطاب، سمت مخاطب، موضوع و امضا از فونت منتخب کل نامه می‌آید',
+  letters.indexOf(".bsm,.to,.torl,.sub,.sigbox{font-family:' + bodyFont") > -1);
+T('اندازهٔ مستقل نام امضاکننده در مدل و CSS چاپ مصرف می‌شود',
+  letters.indexOf("signFs: +document.getElementById('ltSignFs').value") > -1 &&
+  letters.indexOf("font-size:' + signerFs + 'pt") > -1 && letters.indexOf("font-size:' + signerRoleFs + 'pt") > -1);
+T('گزینهٔ سایر، نام و سمت اجباری و مسیر ثبت فیزیکی دارد',
+  letters.indexOf('value="__other__"') > -1 && letters.indexOf("l.st = 'registered'") > -1 &&
+  letters.indexOf('l.manualSignature = true') > -1 && letters.indexOf("delete l.signatureSnapshot") > -1);
+
+console.log('\n── مکاتبات: اجرای واقعی ثبت و چاپ ──');
+try {
+  var letterStore = { ptf_crm_letters: [], ptf_crm_users: [{ username: 'boss', name: 'نام کاربری', role: '' }], ptf_crm_sigprofiles: { boss: { nm: 'نام پروفایل', role: 'سمت پروفایل' } } };
+  var letterEls = {}, letterAlerts = [], letterNotifies = 0, letterAudits = [], letterPreviews = [];
+  function letterEl(value) {
+    return { value: value == null ? '' : String(value), checked: false, innerHTML: '', innerText: '', textContent: '', style: {},
+      addEventListener: function () {}, classList: { add: function () {}, remove: function () {} } };
+  }
+  var letterVals = {
+    ltLang: 'fa', ltPrj: '', ltTo: 'شرکت نمونه', ltToRole: 'مدیر محترم بازرگانی', ltSub: 'موضوع آزمون',
+    ltSigner: '__other__', ltSignerOtherName: 'نام دلخواه', ltSignerOtherRole: 'سمت دلخواه',
+    ltFont: 'iransans', ltFs: '14', ltSignFs: '19', ltLh: '2', ltAlign: '',
+    ltMt: '', ltMr: '', ltMb: '', ltMl: '', ltAtt: 'ندارد', ltBsm: '', ltB: '', ltI: '', ltBodyEditor: ''
+  };
+  Object.keys(letterVals).forEach(function (id) { letterEls[id] = letterEl(letterVals[id]); });
+  letterEls.ltBodyEditor.innerHTML = '<p>متن آزمایشی نامه</p>';
+  letterEls.ltBodyEditor.innerText = 'متن آزمایشی نامه';
+  var letterCtx = {
+    window: null, console: console, JSON: JSON, Math: Math, Date: Date, Intl: Intl,
+    Object: Object, Array: Array, String: String, Number: Number, RegExp: RegExp, Error: Error,
+    document: { getElementById: function (id) { return letterEls[id] || null; }, querySelectorAll: function () { return []; } },
+    getData: function (k) { return letterStore[k] === undefined ? [] : letterStore[k]; },
+    setData: function (k, v) { letterStore[k] = v; return true; },
+    curSession: function () { return { user: 'author', name: 'نویسندهٔ آزمون' }; },
+    curRole: function () { return 'admin'; }, roleDef: function () { return { panels: '*' }; },
+    genCode: function () { return 'LET-TEST'; }, faDateTime: function () { return '1405/06/02 12:00'; },
+    faDate: function () { return '1405/06/02'; }, faYear: function () { return '1405'; },
+    escP: function (v) { return String(v == null ? '' : v); }, ptfOnClickArg: function (v) { return String(v == null ? '' : v); },
+    sigProfileFor: function (user) { return user === 'boss' ? { nm: 'نام پروفایل', role: 'سمت پروفایل' } : {}; }, hideModal: function () {}, renderLetters: function () {}, goPanel: function () {},
+    audit: function () { letterAudits.push([].slice.call(arguments)); }, notify: function () { letterNotifies++; },
+    alert: function (m) { letterAlerts.push(m); }, confirm: function () { return false; },
+    ptfPreviewPrintableDoc: function () { letterPreviews.push([].slice.call(arguments)); },
+    setTimeout: function () { return 0; }, clearTimeout: function () {}, setInterval: function () { return 0; }, clearInterval: function () {},
+    FileReader: function () {}
+  };
+  letterCtx.window = letterCtx; letterCtx.globalThis = letterCtx;
+  vm.createContext(letterCtx);
+  vm.runInContext(letters, letterCtx, { filename: 'letters-runtime.js' });
+  /* sanitizer به DOM واقعی متکی است؛ این تست مدل/lifecycle/print را با HTML امن ثابت اجرا می‌کند. */
+  letterCtx.letSafeBodyHtml = function (html) { return String(html || ''); };
+  var collectedLetter = letterCtx._collectLetter(null);
+  T('مدل runtime چینش خالی را justify و فونت/اندازهٔ امضا را ذخیره می‌کند',
+    collectedLetter.style.align === 'justify' && collectedLetter.style.font === 'iransans' && collectedLetter.style.signFs === 19, collectedLetter.style);
+  T('مدل runtime نام و سمت امضاکنندهٔ سایر را با هم ذخیره می‌کند',
+    collectedLetter.signerMode === 'other' && collectedLetter.signerNm === 'نام دلخواه' && collectedLetter.signerRole === 'سمت دلخواه', collectedLetter);
+  letterEls.ltSigner.value = 'boss';
+  var profileSignerLetter = letterCtx._collectLetter(null);
+  T('نام و سمت امضاکنندهٔ سازمانی از پروفایل امضا resolve می‌شود',
+    profileSignerLetter.signerNm === 'نام پروفایل' && profileSignerLetter.signerRole === 'سمت پروفایل', profileSignerLetter);
+  letterEls.ltSigner.value = '__other__';
+  var completeAlertsBefore = letterAlerts.length;
+  collectedLetter.signerRole = '';
+  T('اعتبارسنج runtime نبود سمت امضاکننده را fail-closed رد می‌کند',
+    letterCtx.letSignerComplete(collectedLetter) === false && letterAlerts.length === completeAlertsBefore + 1);
+  letterEls.ltSignerOtherRole.value = 'سمت دلخواه';
+  letterCtx.letSubmit(null);
+  var registeredLetter = letterStore.ptf_crm_letters[0] || {};
+  T('سایر با شماره قطعی و وضعیت registered برای امضای فیزیکی ثبت می‌شود',
+    registeredLetter.st === 'registered' && !!registeredLetter.no && registeredLetter.manualSignature === true, registeredLetter);
+  T('ثبت سایر اعلان دیجیتال و snapshot امضا تولید نمی‌کند',
+    letterNotifies === 0 && !registeredLetter.signatureSnapshot && letterAudits.length === 1, { notifies: letterNotifies, letter: registeredLetter });
+  letterCtx.letPrint('LET-TEST', false, false);
+  var printedLetter = letterPreviews[0] && letterPreviews[0][1] || '';
+  T('چاپ runtime پیش‌فرض justify را اعمال می‌کند', printedLetter.indexOf('text-align:justify') > -1);
+  T('چاپ runtime فونت انتخابی را به خطاب، سمت مخاطب، موضوع و امضا می‌دهد',
+    printedLetter.indexOf('.bsm,.to,.torl,.sub,.sigbox{font-family:') > -1 && printedLetter.indexOf("'IRANSans'") > -1);
+  T('چاپ runtime اندازهٔ ۱۹ نام و اندازهٔ ۱۷ سمت امضاکننده را اعمال می‌کند',
+    printedLetter.indexOf('.sigbox .nm{font-weight:800;font-size:19pt') > -1 && printedLetter.indexOf('.sigbox .rl{font-weight:700;font-size:17pt') > -1);
+  T('چاپ runtime نام و سمت امضاکننده را همیشه کنار هم دارد',
+    printedLetter.indexOf('<div class="nm">نام دلخواه</div><div class="rl">سمت دلخواه</div>') > -1);
+
+  letterStore.ptf_crm_users.push({ username: 'author', name: 'نام کاربری امضاکننده', role: 'سمت سازمانی' });
+  letterStore.ptf_crm_sigprofiles.author = { sig: 'data:image/png;base64,AA', nm: 'نام پروفایل امضا', role: '' };
+  letterStore.ptf_crm_letters.unshift({ cd: 'LET-PENDING', kind: 'OUT', signer: 'author', signerNm: 'نام قبلی', signerRole: '',
+    author: 'writer', subject: 'نامه در انتظار', st: 'pending', lang: 'fa', style: {}, body: 'متن' });
+  var signConfirmCount = 0;
+  letterCtx.confirm = function () { signConfirmCount++; return signConfirmCount === 1; };
+  letterCtx.letSign('LET-PENDING');
+  var signedWithUserRole = letterStore.ptf_crm_letters.filter(function (x) { return x.cd === 'LET-PENDING'; })[0] || {};
+  T('امضای دیجیتال نام پروفایل و سمت سازمانی fallback را با هم snapshot می‌کند',
+    signedWithUserRole.st === 'signed' && signedWithUserRole.signerNm === 'نام پروفایل امضا' &&
+    signedWithUserRole.signerRole === 'سمت سازمانی' && (signedWithUserRole.signatureSnapshot || {}).role === 'سمت سازمانی', signedWithUserRole);
+
+  letterEls = {};
+  var lhpVals = { lhpEditor: '', lhpLang: 'fa', lhpSigMode: 'none', lhpDate: '', lhpNo: '', lhpAtt: '',
+    lhpFs: '', lhpLh: '', lhpFont: 'vazir', lhpAlign: '', lhpB: '', lhpI: '', lhpMt: '', lhpMr: '', lhpMb: '', lhpMl: '' };
+  Object.keys(lhpVals).forEach(function (id) { letterEls[id] = letterEl(lhpVals[id]); });
+  letterEls.lhpEditor.innerHTML = '<p>متن آماده</p>'; letterEls.lhpEditor.textContent = 'متن آماده';
+  letterCtx.ptfLetterheadPastePrint();
+  var printedLetterhead = letterPreviews[1] && letterPreviews[1][1] || '';
+  T('مسیر متن آمادهٔ سربرگ نیز runtime به justify fallback می‌کند', printedLetterhead.indexOf('text-align:justify') > -1);
+  T('فونت منتخب مسیر سربرگ روی کل محتوای آماده override می‌شود',
+    printedLetterhead.indexOf('.body,.body *{font-family:Vazirmatn') > -1);
+} catch (eLetterRuntime) {
+  T('اجرای رفتاری مکاتبات بدون خطا', false, eLetterRuntime && eLetterRuntime.stack || String(eLetterRuntime));
+}
 
 console.log('\n── پروندهٔ برنده: ابلاغ سفارش و قرارداد ──');
 try {
@@ -176,6 +285,6 @@ try {
 }
 
 T('tester502 در گیت CI ثبت شده است', gate.indexOf('tester502-v34.8.0-letters-award-opex.js') > -1);
-console.log('\n— tester502 (v34.8.2: مکاتبات، اسناد برنده و تسویه OPEX) —');
+console.log('\n— tester502 (v34.8.4: مکاتبات، اسناد برنده و تسویه OPEX) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);
