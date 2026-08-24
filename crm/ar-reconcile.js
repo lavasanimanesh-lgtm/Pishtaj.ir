@@ -369,10 +369,19 @@
   function returnedAmountIRR(inv) {
     return salesReturnsForInvoice(inv).reduce(function (s, r) { return s + n(r.totalAmount); }, 0);
   }
-  /** خالص فاکتور پس از مرجوعی — مبنای واحد سود/پورسانت/سرمایه در گردش/سال مالی */
+  /** خالص فاکتور پس از مرجوعی — مبنای واحد سود/سرمایه در گردش/سال مالی */
   function invoiceNetAfterReturnsIRR(inv) {
     var caps = invoiceCaps(inv);
     return Math.max(0, caps.amount - returnedAmountIRR(inv));
+  }
+  /** مبلغ پایهٔ فاکتور پس از مرجوعی، بدون ارزش افزوده.
+      مبلغ مرجوعی در مدل فعلی از مبلغ کل فاکتور (پایه + VAT) به نسبت اقلام ساخته
+      می‌شود؛ بنابراین همان نسبت از پایه کم می‌شود تا VAT هرگز وارد مبنای پورسانت نشود. */
+  function invoiceBaseAfterReturnsIRR(inv) {
+    var caps = invoiceCaps(inv);
+    if (caps.amount <= 0 || caps.base <= 0) return 0;
+    var returned = Math.min(caps.amount, Math.max(0, returnedAmountIRR(inv)));
+    return Math.max(0, Math.round(caps.base * (caps.amount - returned) / caps.amount));
   }
 
   /* ---------- وضعیت یک فاکتور — تنها مرجع «مانده» ---------- */
@@ -625,6 +634,7 @@
     invoiceState: invoiceState, invoicePaidIRR: invoicePaidIRR, invoiceOpenIRR: invoiceOpenIRR,
     salesReturnsForInvoice: salesReturnsForInvoice, returnedAmountIRR: returnedAmountIRR,
     invoiceNetAfterReturnsIRR: invoiceNetAfterReturnsIRR,
+    invoiceBaseAfterReturnsIRR: invoiceBaseAfterReturnsIRR,
     caseState: caseState, customerInvoices: customerInvoices, customerPosition: customerPosition,
     resolveCaseCustomer: resolveCaseCustomer, resolveCaseIdOfInvoice: resolveCaseIdOfInvoice,
     reconcile: reconcile, CATEGORIES: CATEGORIES

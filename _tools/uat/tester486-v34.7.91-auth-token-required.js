@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.2 — ورود اجباری با توکن سرور (AUTH-TOKEN-REQUIRED).
+/* v34.8.4 — ورود اجباری با توکن سرور (AUTH-TOKEN-REQUIRED).
    رفع ریشه‌ی «توکن معتبر وجود ندارد؛ با رمز واقعی وارد شوید» بعد از خروج/ورود مجدد:
    - مسیر ورود فقط-محلی که session بدون توکن می‌ساخت حذف شد.
    - هر پاسخ منفی مؤکد auth_login، پیام دقیق می‌دهد و session نمی‌سازد.
@@ -17,9 +17,9 @@ var idx = read('crm/index.html');
 var inq = read('crm/inqreader.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.2', ver.crm_version === 'v34.8.2', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.2', /window\.PTF_CRM_RELEASE = 'v34\.8\.2'/.test(idx));
-T('inqreader.js cache-bust 34.8.2', /inqreader\.js\?v=34\.8\.2/.test(idx));
+T('VERSION.json = v34.8.4', ver.crm_version === 'v34.8.4', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.4', /window\.PTF_CRM_RELEASE = 'v34\.8\.4'/.test(idx));
+T('inqreader.js cache-bust 34.8.4', /inqreader\.js\?v=34\.8\.4/.test(idx));
 
 /* ---------- حذف ورود فقط-محلی بدون توکن ---------- */
 T('متن قدیمیِ «ورود فقط-محلی» حذف شد', idx.indexOf("users[i].username === u && users[i].passhash && users[i].passhash === ph") < 0);
@@ -41,6 +41,6 @@ T('showCrm بدون توکن ورود را رد می‌کند', idx.indexOf("!lo
 
 T('tester486 در گیت CI', gate.indexOf('tester486-v34.7.91-auth-token-required.js') > -1);
 
-console.log('\n— tester486 (v34.8.2: ورود اجباری توکن سرور — AUTH-TOKEN-REQUIRED) —');
+console.log('\n— tester486 (v34.8.4: ورود اجباری توکن سرور — AUTH-TOKEN-REQUIRED) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

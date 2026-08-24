@@ -85,6 +85,21 @@
   }
   function isMigratedLegacyPayment(p) { return !!(p && (p.migratedToReceiptId || p.financialProjectionDisabled)); }
   window.cfIsMigratedLegacyPayment = isMigratedLegacyPayment;
+  function cfInvoiceState(i) {
+    if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
+      try {
+        var canonical = window.PTF.ar.invoiceState(i);
+        if (canonical && canonical.open != null && canonical.grossBilled != null) return canonical;
+      } catch (eArState) {}
+    }
+    var gross = +(i && (i.amount != null ? i.amount : (i.totalAmountIRR != null ? i.totalAmountIRR : i.total))) || 0;
+    var p = paid(i), ret = returnedAmount(i);
+    return { grossBilled: gross, paid: p, open: Math.max(0, gross - p - ret) };
+  }
+  function cfInvoiceGross(i) {
+    var st = cfInvoiceState(i);
+    return +(st.grossBilled != null ? st.grossBilled : (i && (i.amount != null ? i.amount : (i.totalAmountIRR != null ? i.totalAmountIRR : i.total)))) || 0;
+  }
   function paid(i) {
     /* v34.7.18 (فاز ۳): منبع واحد مانده = PTF.ar (شامل بازسازی محلی تخصیص وقتی پروجکشن
        سرور نرسیده باشد). فرمول قبلی به‌عنوان fallback دست‌نخورده باقی مانده است. */
@@ -140,7 +155,7 @@
     if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invoiceState === 'function') {
       try { return window.PTF.ar.invoiceState(invoice).overPaid; } catch (eArCredit) {}
     }
-    return Math.max(0, paid(invoice) + returnedAmount(invoice) - (+invoice.amount || 0));
+    return Math.max(0, paid(invoice) + returnedAmount(invoice) - cfInvoiceGross(invoice));
   }
   function creditForCustomer(cd) {
     var legacy = invs(cd).reduce(function (s, i) { return s + creditAmountForInvoice(i); }, 0);
@@ -157,7 +172,7 @@
     }, 0);
     return legacy + caseCredit;
   }
-  function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i)); }, 0); }
+  function bal(cd) { return invs(cd).reduce(function (s, i) { return s + Math.max(0, +cfInvoiceState(i).open || 0); }, 0); }
   window.cfMigratedReceiptPairs=function(cd){
     var receipts=getData('ptf_crm_case_receipts')||[],byId={},byLegacy={};receipts.forEach(function(r){if(!r)return;byId[String(r._id||r.cd||'')]=r;if(r.legacyPaymentRef)byLegacy[String(r.legacyPaymentRef)]=r;});
     var out=[];invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(p){if(!isMigratedLegacyPayment(p))return;var receipt=byId[String(p.migratedToReceiptId||'')]||byLegacy[String(p.cd||'')];out.push({invoiceCd:inv.cd,legacyPaymentCd:p.cd||'',receiptId:receipt?String(receipt._id||receipt.cd||''):'',ok:!!(receipt&&receipt.status==='posted'&&!receipt.voided),amount:+p.amt||+p.amount||0});});});return out;
@@ -228,8 +243,9 @@
   window.cfAccountRows = function (query) {
     var q = norm(query == null ? window._cfSearch : query);
     return getData('ptf_crm_customers').map(function (c) {
-      var pos = accountPosition(c.cd);
-      return { cd: c.cd, co: nameOf(c), balance: pos.balance, credit: pos.credit, net: pos.net, netCredit: pos.netCredit };
+      var customerId = String((c && (c._id || c.cd)) || '');
+      var pos = accountPosition(customerId);
+      return { cd: customerId, co: nameOf(c), balance: pos.balance, credit: pos.credit, net: pos.net, netCredit: pos.netCredit };
     }).filter(function (r) {
       return !q || norm(r.co).indexOf(q) > -1 || norm(r.cd).indexOf(q) > -1;
     }).sort(function (a, b) {
@@ -402,7 +418,9 @@
      - خروجی PDF با بازهٔ مشخص + مانده در تاریخ گزارش
      ===================================================================== */
   function cfIso(d) {
-    var s = String(d || '').trim();
+    var s = String(d || '').trim()
+      .replace(/[۰-۹]/g, function (x) { return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(x)); })
+      .replace(/[٠-٩]/g, function (x) { return String('٠١٢٣٤٥٦٧٨٩'.indexOf(x)); });
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
     if (typeof ptfJToISO === 'function' && /^(1[34]\d{2})[\/-]\d{1,2}[\/-]\d{1,2}/.test(s)) { try { return ptfJToISO(s) || ''; } catch (e) { return ''; } }
     return '';
@@ -421,11 +439,12 @@
   window.cfLedgerRows = function (cd, f) {
     f = f || {};
     var out = [];
-    invs(cd).forEach(function (i) {
+    var customerInvoices = invs(cd);
+    customerInvoices.forEach(function (i) {
       var iso = cfIso(i.invDate || i.t || '');
-      var remain = Math.max(0, (+i.amount || 0) - paid(i) - returnedAmount(i));
-      var row = { date: i.invDate || i.t || '', iso: iso, type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: +i.amount || 0, credit: 0, cur: 'IRR', status: remain > 0.5 ? 'open' : 'settled', files: cfMergeOwnerFiles(i.files, 'invoice', i._id || i.cd), link: { kind: 'invoice', cd: i.cd } };
-      if (cfRowPass(row, f)) out.push(row);
+      var invoiceState = cfInvoiceState(i), remain = +invoiceState.open || 0, gross = cfInvoiceGross(i);
+      var row = { date: i.invDate || i.t || '', iso: iso, type: 'فاکتور فروش' + (i.isUnofficial ? ' (غیررسمی)' : ''), no: i.no || i.cd, ref: i.offerNo || '', debit: gross, credit: 0, cur: 'IRR', status: remain > 0.5 ? 'open' : 'settled', files: cfMergeOwnerFiles(i.files, 'invoice', i._id || i.cd), link: { kind: 'invoice', cd: i.cd } };
+      out.push(row);
       (i.payments || []).concat(i.pays || []).forEach(function (p) {
         /* payment قدیمی پس از مهاجرت فقط metadata منبع است؛ Receipt قطعی پایین‌تر
            همان پول را نمایش می‌دهد. نمایش دوباره این ردیف، مانده گردش را دوبار کم می‌کرد. */
@@ -435,50 +454,95 @@
         var isVoided = p.voided;
         var type = isReversal ? 'ابطال وصولی' : (isVoided ? 'وصولی (ابطال‌شده)' : 'وصولی');
         var prow = { date: p.dateFa || p.date || p.t || '', iso: cfIso(p.dateFa || p.date || p.t || ''), type: type, no: p.cd || '', ref: p.how || '', debit: isReversal ? Math.abs(amt) : 0, credit: isReversal ? 0 : amt, cur: 'IRR', status: 'payment', note: p.note || '', files: cfMergeOwnerFiles(p.files, 'payment', p.cd), voided: isVoided || isReversal, link: { kind: 'payment', cd: p.cd || '', invoiceCd: i.cd } };
-        if (cfRowPass(prow, f)) out.push(prow);
+        out.push(prow);
       });
       salesReturnsForInvoice(i).forEach(function (r) {
         var items = (r.items || []).map(function (x) { return (x.item || 'قلم') + ' × ' + x.qty; }).join('، ');
         var rrow = { date: r.t || '', iso: cfIso(r.t || ''), type: 'مرجوعی فروش', no: r.cd || '', ref: (r.reason ? r.reason + ' — ' : '') + items, debit: 0, credit: +r.totalAmount || 0, cur: 'IRR', status: 'return', link: { kind: 'return', cd: r.cd || '' } };
-        if (cfRowPass(rrow, f)) out.push(rrow);
+        out.push(rrow);
       });
     });
     /* v35: دریافت قطعی پرونده یک بستانکار مستقل در دفتر مشتری است؛ تخصیص FIFO
        فقط مانده فاکتور را کم می‌کند و ردیف نقدی دوم تولید نمی‌کند. */
+    var customerCases = {}, migratedSources = {}, customerInvoiceAliases = {};
+    customerInvoices.forEach(function (inv) {
+      [inv && inv._id, inv && inv.cd].forEach(function (v) { var k = String(v || ''); if (k) customerInvoiceAliases[k] = true; });
+    });
+    function explicitOwnerBelongs(rec) {
+      var owners = {}, ambiguous = false;
+      [rec && rec.customerId, rec && rec.buyerCd, rec && rec.sourceCustomerCd].forEach(function (v) {
+        if (!String(v || '').trim()) return;
+        var candidates = cfCustomerCandidates(v);
+        if (candidates.length !== 1) { ambiguous = true; return; }
+        owners[candidates[0]] = true;
+      });
+      var ids = Object.keys(owners);
+      return !ambiguous && ids.length === 1 && cfSameCustomerId(ids[0], cd);
+    }
+    function uniqueSourceInvoiceBelongs(ref) {
+      ref = String(ref || ''); if (!ref) return false;
+      var matches = (getData('ptf_crm_invoices') || []).filter(function (inv) {
+        return active(inv) && (String(inv._id || '') === ref || String(inv.cd || '') === ref);
+      });
+      if (matches.length !== 1) return false;
+      return !!customerInvoiceAliases[String(matches[0]._id || '')] || !!customerInvoiceAliases[String(matches[0].cd || '')];
+    }
+    function sourceRecordBelongs(rec) {
+      var hasExplicit = [rec && rec.customerId, rec && rec.buyerCd, rec && rec.sourceCustomerCd].some(function (v) { return !!String(v || '').trim(); });
+      var invoiceRef = String((rec && (rec.sourceInvoiceCd || rec.invoiceCd)) || '').trim();
+      /* اگر هر دو شاهد وجود دارند باید هم‌جهت باشند؛ owner صریح و invoice متعارض
+         به‌جای انتخاب دلخواه یکی از آن‌ها fail-closed رد می‌شود. */
+      if (hasExplicit && !explicitOwnerBelongs(rec)) return false;
+      if (invoiceRef && !uniqueSourceInvoiceBelongs(invoiceRef)) return false;
+      return hasExplicit || !!invoiceRef;
+    }
     try {
-      var customerCases = {}, migratedSources = {};
+      var arResolver = window.PTF && window.PTF.ar && typeof window.PTF.ar.resolveCaseCustomer === 'function';
       (getData('ptf_crm_deals') || []).forEach(function (d) {
-        if (!d || !cfSameCustomerId(d.buyerCd, cd)) return;
-        /* v34.8.0: هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی همچنان برای جلوگیری
-           از نشت رسیدهای بدون caseId وارد نقشه نمی‌شود. */
+        if (!d) return;
+        var belongs = false;
+        if (arResolver) {
+          var owner = window.PTF.ar.resolveCaseCustomer(d);
+          belongs = !!owner && owner.status === 'resolved' && cfSameCustomerId(owner.customerId, cd);
+        } else belongs = cfSameCustomerId(d.buyerCd || d.customerId, cd);
+        if (!belongs) return;
+        /* هر دو alias پرونده پذیرفته می‌شود؛ کلید تهی هرگز وارد نقشه نمی‌شود. */
         [d._id, d.cd].forEach(function (v) { var ck = String(v || ''); if (ck) customerCases[ck] = true; });
       });
-      invs(cd).forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(lp){if(!isMigratedLegacyPayment(lp))return;var rid=String(lp.migratedToReceiptId||'');var legacy=String(lp.cd||'');if(rid)migratedSources[rid]=legacy;if(legacy)migratedSources['legacy:'+legacy]=legacy;});});
+      customerInvoices.forEach(function(inv){(inv.payments||[]).concat(inv.pays||[]).forEach(function(lp){if(!isMigratedLegacyPayment(lp))return;var rid=String(lp.migratedToReceiptId||'');var legacy=String(lp.cd||'');if(rid)migratedSources[rid]=legacy;if(legacy)migratedSources['legacy:'+legacy]=legacy;});});
       (getData('ptf_crm_case_receipts') || []).forEach(function (p) {
         if (!p || p.status !== 'posted' || p.voided) return;
         var pk = String(p.caseId || '');
-        if (!cfSameCustomerId(p.customerId, cd) && !(pk && customerCases[pk])) return;
+        var belongs = pk ? !!customerCases[pk] : sourceRecordBelongs(p);
+        if (!belongs) return;
         var amt = +p.amountIRR || +p.amt || 0, receiptId = String(p._id || p.cd || '');
         var legacySource = String(p.legacyPaymentRef || migratedSources[receiptId] || '');
         var migrationNote = legacySource ? ('مهاجرت‌شده از وصولی ' + legacySource + '؛ ردیف قدیمی برای جلوگیری از دوباره‌شماری نمایش داده نمی‌شود.') : '';
         var prow = { date: p.receivedAt || p.dateISO || p.t || '', iso: cfIso(p.receivedAt || p.dateISO || p.t || ''), type: legacySource ? 'دریافت قطعی پرونده (مهاجرت‌شده)' : 'دریافت قطعی پرونده', no: receiptId, ref: p.referenceNo || p.method || '', debit: 0, credit: amt, cur: 'IRR', status: 'payment', note: [p.note || '', migrationNote].filter(Boolean).join(' — '), files: cfMergeOwnerFiles(p.files, 'receipt', receiptId), link: { kind: 'case-receipt', cd: receiptId, caseId: p.caseId || '', customerCd: cd, migratedFrom: legacySource } };
-        if (cfRowPass(prow, f)) out.push(prow);
+        out.push(prow);
       });
     } catch (eCaseReceipt) {}
-    /* CHQ-MOD-001: چک‌های وارده از این مشتری در گردش (بستانکار = مبلغ چک؛ تا وصول اثر نقدی ندارد) */
+    /* چک وارده فقط با مالک صریح یا invoice یکتای همین مشتری وارد دفتر می‌شود؛
+       نبود owner دیگر به معنی «متعلق به همهٔ مشتریان» نیست. */
     try {
       var receivedChq = (typeof window.ptfChequeReceived === 'function') ? window.ptfChequeReceived() : [];
       receivedChq.forEach(function (c) {
-        if (!c || (c.sourceCustomerCd && c.sourceCustomerCd !== cd)) return;
+        if (!c || !sourceRecordBelongs(c)) return;
         if (c.st !== 'open' && c.st !== 'held' && c.st !== 'endorsed') return;
         var crow = { date: c.dueFa || c.dueISO || c.t || '', iso: cfIso(c.dueISO || c.t || ''), type: 'چک وارده (در گردش)', no: c.sayad || c.no || c.cd, ref: (c.bank || '') + (c.sourceInvoiceCd ? ' (فاکتور ' + c.sourceInvoiceCd + ')' : ''), debit: 0, credit: 0, cur: 'IRR', status: 'cheque', note: c.payerName || '', link: { kind: 'cheque', cd: c.cd || '' } };
-        if (cfRowPass(crow, f)) out.push(crow);
+        out.push(crow);
       });
     } catch (eChq) {}
     out.sort(function (a, b) { var da = a.iso || '9999-99-99', db = b.iso || '9999-99-99'; return da < db ? -1 : da > db ? 1 : 0; });
     var bal = 0;
     out.forEach(function (r) { bal += (+r.debit || 0) - (+r.credit || 0); r.balance = bal; });
-    return out;
+    var visible = out.filter(function (r) { return cfRowPass(r, f); });
+    var asOf = cfIso(f.to || ''), closing = 0;
+    /* سند بی‌تاریخ را نمی‌توان به تاریخ گزارش نسبت داد؛ در ماندهٔ جاریِ بدون
+       asOf می‌ماند، اما در ماندهٔ تاریخی حدس زده نمی‌شود. */
+    out.forEach(function (r) { if (!asOf || (r.iso && r.iso <= asOf)) closing = +r.balance || 0; });
+    visible.closingBalance = closing;
+    return visible;
   };
   /* ---------- اسناد/ضمیمه روی فاکتور و وصولی (persist همان لحظه) ---------- */
   function cfFileKey(f) {
@@ -697,8 +761,8 @@
   }
   function cfFaDigits(v) { return String(v == null ? '' : v).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[+d]; }); }
   function cfClaimAsOfHtml(rows, asOfFa) {
-    var last = 0;
-    rows.forEach(function (e) { last = +e.balance || 0; });
+    var last = (rows && rows.closingBalance != null) ? +rows.closingBalance || 0 : 0;
+    if (!rows || rows.closingBalance == null) (rows || []).forEach(function (e) { last = +e.balance || 0; });
     var label = last > 0.5 ? 'مطالبه از مشتری در تاریخ گزارش' : (last < -0.5 ? 'اعتبار مشتری نزد شرکت در تاریخ گزارش' : 'مانده مشتری در تاریخ گزارش');
     return '<tr style="background:#fef3c7;font-weight:800"><td colspan="5">' + escP(label + ' (' + (asOfFa || '') + ')') + '</td><td><b>' + cfFaDigits(m(Math.abs(last))) + ' ریال</b></td><td></td></tr>';
   }

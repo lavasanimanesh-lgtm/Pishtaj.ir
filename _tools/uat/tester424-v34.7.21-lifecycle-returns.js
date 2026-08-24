@@ -61,6 +61,12 @@ function db1() {
   T('LC-02 مرجوعی با شمارهٔ فاکتور (بدون invoiceCd) شناسایی می‌شود', ar.returnedAmountIRR(db.ptf_crm_invoices[1]) === 50000000, ar.returnedAmountIRR(db.ptf_crm_invoices[1]));
   T('LC-02 خالص فاکتور پس از مرجوعی درست است', ar.invoiceNetAfterReturnsIRR(db.ptf_crm_invoices[0]) === 800000000, ar.invoiceNetAfterReturnsIRR(db.ptf_crm_invoices[0]));
   T('LC-02 خالص هرگز منفی نمی‌شود', ar.invoiceNetAfterReturnsIRR({ cd: 'X', amount: 10, base: 10, vat: 0 }) >= 0);
+  var vatInv = { cd: 'INV-VAT', base: 1000000000, vat: 100000000, amount: 1100000000 };
+  db.ptf_crm_sales_returns.push({ cd: 'SR-VAT', invoiceCd: 'INV-VAT', totalAmount: 220000000, status: 'approved' });
+  T('مبنای پورسانت VAT را حذف و نسبت مرجوعی را فقط از پایه کسر می‌کند',
+    ar.invoiceBaseAfterReturnsIRR(vatInv) === 800000000, ar.invoiceBaseAfterReturnsIRR(vatInv));
+  T('مبنای پایه حتی با مرجوعی بیش از مبلغ فاکتور منفی نمی‌شود',
+    ar.invoiceBaseAfterReturnsIRR({ cd: 'X', amount: 10, base: 9, vat: 1 }) >= 0);
   T('LC-01 سند superseded غیرفعال شناخته می‌شود', ar.activeInvoice(db.ptf_crm_invoices[2]) === false);
 })();
 
@@ -69,8 +75,9 @@ function db1() {
   var com = read('crm/commission.js'), wc = read('crm/working-capital.js'), fis = read('crm/fiscal.js'), fx = read('crm/fx.js');
 
   T('LC-01 پورسانت از تعریف واحد سند فعال استفاده می‌کند', com.indexOf('window.PTF.ar.activeInvoice(inv)') > -1 && com.indexOf('_liveInv') > -1);
-  T('LC-02 مبنای پورسانت خالصِ پس از مرجوعی است', com.indexOf('window.PTF.ar.invoiceNetAfterReturnsIRR(inv)') > -1 && com.indexOf('base += _netBase;') > -1);
-  T('پورسانت همچنان فقط پس از تسویهٔ کامل پرونده محاسبه می‌شود (قرارداد v34.5.35 حفظ شد)',
+  T('LC-02 مبنای پورسانت پایهٔ بدون VAT پس از مرجوعی است',
+    com.indexOf('window.PTF.ar.invoiceBaseAfterReturnsIRR(inv)') > -1 && com.indexOf('base += _commissionBase;') > -1 && com.indexOf("basisFormula: 'invoice_base_ex_vat_after_returns'") > -1);
+  T('پورسانت همچنان فقط پس از تسویهٔ کامل مبلغ کل پرونده محاسبه می‌شود (قرارداد v34.5.35 حفظ شد)',
     com.indexOf('if (inv.amount - paid > 0.5) { allPaid = false; return; }') > -1);
 
   T('LC-01 سرمایه در گردش سند غیرفعال را مطالبه نمی‌شمارد', wc.indexOf('!window.PTF.ar.activeInvoice(inv)) return 0;') > -1);
@@ -94,9 +101,9 @@ function db1() {
   var db = db1(), s = arCore(db), ar = s.PTF.ar;
   var invOk = db.ptf_crm_invoices[0], invSup = db.ptf_crm_invoices[2];
 
-  /* مبنای پورسانت: فقط اسناد فعال و خالصِ پس از مرجوعی */
+  /* مبنای پورسانت: فقط اسناد فعال، پایهٔ بدون VAT و پس از مرجوعی */
   var base = 0;
-  db.ptf_crm_invoices.forEach(function (inv) { if (ar.activeInvoice(inv)) base += ar.invoiceNetAfterReturnsIRR(inv); });
+  db.ptf_crm_invoices.forEach(function (inv) { if (ar.activeInvoice(inv)) base += ar.invoiceBaseAfterReturnsIRR(inv); });
   T('مبنای پورسانت پس از فاز C درست است (۸۰۰م + ۳۵۰م)', base === 1150000000, base);
   T('سند superseded دیگر ۹۰۰م به مبنا اضافه نمی‌کند (دوبارشماری بسته شد)', base !== 2050000000);
 
@@ -104,6 +111,40 @@ function db1() {
   var openOk = Math.max(0, (+invOk.amount || 0) - ar.invoiceState(invOk).paid - ar.returnedAmountIRR(invOk));
   T('فاکتور تسویه‌شده با مرجوعی، مطالبهٔ باز نمی‌سازد', openOk === 0, openOk);
   T('سند superseded در محاسبهٔ مطالبات کنار گذاشته می‌شود', ar.activeInvoice(invSup) === false);
+})();
+
+/* ---------- رفتار واقعی موتور پورسانت: VAT خارج، مرجوعی مؤثر، تسویهٔ gross اجباری ---------- */
+(function commissionRuntime() {
+  var db = {
+    ptf_crm_customers: [{ cd: 'CU-VAT', owner: 'seller' }],
+    ptf_crm_users: [{ username: 'seller', name: 'کارشناس فروش' }],
+    ptf_crm_settings: { commission: { defaultPct: 2, byUser: {} } },
+    ptf_crm_deals: [{ cd: 'DEAL-VAT', wonOffer: 'OF-VAT', inqNo: 'RFQ-VAT', buyerCd: 'CU-VAT' }],
+    ptf_crm_offers: [{ no: 'OF-VAT', buyerCd: 'CU-VAT', st: 'won' }],
+    ptf_crm_sales_returns: [{ cd: 'SR-VAT', invoiceCd: 'INV-VAT', totalAmount: 220000000, status: 'approved' }],
+    ptf_crm_invoices: [{ _id: 'INV-VAT', cd: 'INV-VAT', status: 'active', caseId: 'DEAL-VAT', offerNo: 'OF-VAT',
+      base: 1000000000, vat: 100000000, amount: 1100000000,
+      payments: [{ cd: 'PAY-VAT', amt: 1100000000, status: 'posted', dateISO: '2026-08-24' }] }],
+    ptf_crm_case_receipts: [], ptf_crm_receipt_allocations: [], ptf_crm_commission_records: []
+  };
+  var s = arCore(db);
+  s.Intl = Intl;
+  s.setInterval = function () { return 0; };
+  s.clearInterval = function () {};
+  vm.runInContext(read('crm/commission.js'), s, { filename: 'crm/commission.js' });
+  var settled = s.ptfCommissionCalc({ month: '2026-08' });
+  T('پورسانت runtime برای فاکتور ۱٫۱ میلیاردی فقط از پایهٔ ۸۰۰ میلیونی پس از مرجوعی ساخته می‌شود',
+    settled.totalBase === 800000000 && settled.totalCommission === 16000000, settled);
+  T('خروجی موتور فرمول پایهٔ بدون VAT را برای حسابرسی اعلام می‌کند',
+    settled.basisFormula === 'invoice_base_ex_vat_after_returns', settled.basisFormula);
+  s.PTF = {}; /* شبیه‌سازی بارنشدن AR-SSOT: fallback هم نباید VAT/مرجوعی را گم کند. */
+  var fallbackSettled = s.ptfCommissionCalc({ month: '2026-08' });
+  T('fallback موتور پورسانت نیز VAT و مرجوعی را از مبنا حذف می‌کند',
+    fallbackSettled.totalBase === 800000000 && fallbackSettled.totalCommission === 16000000, fallbackSettled);
+  db.ptf_crm_invoices[0].payments[0].amt = 1000000000; /* پایه وصول شده ولی VAT هنوز کامل وصول نشده */
+  var notGrossSettled = s.ptfCommissionCalc({ month: '2026-08' });
+  T('وصول کامل پایه بدون تسویهٔ VAT پورسانت را آزاد نمی‌کند',
+    notGrossSettled.totalBase === 0 && notGrossSettled.totalCommission === 0, notGrossSettled);
 })();
 
 /* ---------- LC-03: دسته‌های جدید گزارش تسویه ---------- */

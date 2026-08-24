@@ -76,8 +76,10 @@
     out.push(rec);
   }
 
-  /* دفتر نقدی کامل: فاکتور/تعهد وارد نمی‌شود؛ فقط حرکت وجه. ضد دوباره‌شماری چک و پیش‌پرداخت. */
-  window.ptfTreasuryCrmMoves = function () {
+  /* دفتر نقدی کامل: فاکتور/تعهد وارد نمی‌شود؛ فقط حرکت وجه. ضد دوباره‌شماری چک و پیش‌پرداخت.
+     fiscalScoped=true برای ماندهٔ جاری سال مالی است؛ گزارش دوره‌ای پایین عمداً دفتر
+     all-period را می‌خواند تا بازهٔ انتخابی کاربر دوباره داخل سال مالی فعال محدود نشود. */
+  function treasuryCrmMoves(fiscalScoped) {
     var out = [];
 
     /* v35 — منبع واحد وجه ورودی پرونده: Receipt قطعی.
@@ -297,20 +299,23 @@
     });
 
     /* v35: مانده افتتاحیه دوره فقط با حرکات همان بازه جمع می‌شود؛ حرکات قبل از
-       افتتاحیه (از جمله داده آزمایشی/سال قبل) دوباره وارد مانده جاری نمی‌شوند. */
-    try {
-      var fp = (typeof window.ptfFinanceOfficialData === 'function') ? window.ptfFinanceOfficialData() : null;
-      var start = fp && fp.cfg && fp.cfg.startISO, end = fp && fp.cfg && fp.cfg.endISO;
-      if (start || end) out = out.filter(function (m) {
-        var ds = String(m.dateISO || m.dateFa || '').trim(), iso = '';
-        if (/^20\d{2}-\d{2}-\d{2}/.test(ds)) iso = ds.slice(0, 10);
-        else if (/^1[34]\d{2}[\/-]\d{1,2}[\/-]\d{1,2}/.test(ds) && typeof ptfJToISO === 'function') iso = ptfJToISO(ds) || '';
-        if (!iso) return true; /* رکورد بی‌تاریخ حذف پنهان نمی‌شود؛ کیفیت داده آن را گزارش می‌کند */
-        return (!start || iso >= start) && (!end || iso <= end);
-      });
-    } catch (eScope) {}
-    return out.sort(function (a, b) { return String(b.dateISO || '').localeCompare(String(a.dateISO || '')); });
-  };
+       افتتاحیه (از جمله داده آزمایشی/سال قبل) دوباره وارد مانده جاری نمی‌شوند.
+       این scope فقط برای داشبورد/مانده است؛ گزارش بازه‌ای دفتر all-period را می‌خواند. */
+    if (fiscalScoped !== false) {
+      try {
+        var fp = (typeof window.ptfFinanceOfficialData === 'function') ? window.ptfFinanceOfficialData() : null;
+        var start = fp && fp.cfg && fp.cfg.startISO, end = fp && fp.cfg && fp.cfg.endISO;
+        if (start || end) out = out.filter(function (m) {
+          var iso = treasuryMoveIso(m);
+          if (!iso) return true; /* رکورد بی‌تاریخ حذف پنهان نمی‌شود؛ کیفیت داده آن را گزارش می‌کند */
+          return (!start || iso >= start) && (!end || iso <= end);
+        });
+      } catch (eScope) {}
+    }
+    return out.sort(function (a, b) { return String(treasuryMoveIso(b) || b.dateISO || b.dateFa || '').localeCompare(String(treasuryMoveIso(a) || a.dateISO || a.dateFa || '')); });
+  }
+  window.ptfTreasuryCrmMoves = function () { return treasuryCrmMoves(true); };
+  window.ptfTreasuryAllPeriodMoves = function () { return treasuryCrmMoves(false); };
 
   window.ptfTreasuryOpeningCash = function () {
     var year = '';
@@ -354,20 +359,33 @@
   /* گزارش بازه‌ای خزانه: فیلتر تاریخ/جهت/منبع روی همان دفتر نقدی مشتق‌شده؛
      هیچ داده‌ای ایجاد یا اصلاح نمی‌کند. */
   window._ptfTreasuryFilter = window._ptfTreasuryFilter || { from: '', to: '', dir: 'all', src: 'all' };
+  function treasuryLatinDigits(value) {
+    return String(value == null ? '' : value)
+      .replace(/[۰-۹]/g, function (d) { return String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); })
+      .replace(/[٠-٩]/g, function (d) { return String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)); });
+  }
   function treasuryDateIso(value) {
-    var s = String(value || '').trim();
-    if (/^20\d{2}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    var s = treasuryLatinDigits(value).trim(), m;
+    if ((m = s.match(/^(20\d{2})-(\d{2})-(\d{2})/))) {
+      var y = +m[1], mo = +m[2], day = +m[3], d = new Date(Date.UTC(y, mo - 1, day));
+      if (d.getUTCFullYear() === y && d.getUTCMonth() === mo - 1 && d.getUTCDate() === day) return m[1] + '-' + m[2] + '-' + m[3];
+    }
     if (/^1[34]\d{2}[\/-]\d{1,2}[\/-]\d{1,2}/.test(s) && typeof ptfJToISO === 'function') {
       try { return ptfJToISO(s) || ''; } catch (e) { return ''; }
     }
     return '';
   }
-  function treasuryMoveIso(m) { return treasuryDateIso(m && (m.dateISO || m.dateFa)); }
+  function treasuryMoveIso(m) {
+    if (!m) return '';
+    /* dateISO دادهٔ اصلی است اما خرابی آن نباید fallback معتبر dateFa را بپوشاند. */
+    return treasuryDateIso(m.dateISO) || treasuryDateIso(m.dateFa);
+  }
   window.ptfTreasuryPeriodData = function (filter) {
     filter = filter || window._ptfTreasuryFilter || {};
     var from = treasuryDateIso(filter.from), to = treasuryDateIso(filter.to);
     var undated = 0;
-    var moves = window.ptfTreasuryCrmMoves().filter(function (m) {
+    var ledger = (typeof window.ptfTreasuryAllPeriodMoves === 'function') ? window.ptfTreasuryAllPeriodMoves() : window.ptfTreasuryCrmMoves();
+    var moves = ledger.filter(function (m) {
       if (filter.dir && filter.dir !== 'all' && m.dir !== filter.dir) return false;
       if (filter.src && filter.src !== 'all' && String(m.src || '') !== String(filter.src)) return false;
       var iso = treasuryMoveIso(m);
@@ -696,7 +714,7 @@
         '<div class="sc"><b>' + money(c.derived) + '</b><span>مانده صندوق</span></div></div>' +
         chairPanelHtml();
     }
-    var allMoves = window.ptfTreasuryCrmMoves();
+    var allMoves = (typeof window.ptfTreasuryAllPeriodMoves === 'function') ? window.ptfTreasuryAllPeriodMoves() : window.ptfTreasuryCrmMoves();
     var filter = window._ptfTreasuryFilter || { from:'', to:'', dir:'all', src:'all' };
     var periodData = window.ptfTreasuryPeriodData(filter);
     var sources = {};
