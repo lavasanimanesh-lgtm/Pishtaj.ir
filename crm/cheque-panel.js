@@ -80,6 +80,9 @@
     acts += chequeRowAction('docs', hasDocs ? '📎' : '📎', hasDocs ? 'سند (' + c.files.length + ')' : 'سند', hasDocs ? 'مشاهده/حذف عکس یا کپی چک' : 'افزودن عکس/کپی چک', 'ptfChequeFilesUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     acts += chequeRowAction('edit', '✏️', 'ویرایش', 'ویرایش چک', 'ptfChequeEditUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
     acts += chequeRowAction('delete', '🗑', 'حذف', 'حذف کامل چک و اثر مالی مرتبط', 'ptfChequeDeleteUi(\'' + ptfOnClickArg(c.cd) + '\')', false);
+    if (Array.isArray(c.pendingRecurringOpexItems) && c.pendingRecurringOpexItems.length) {
+      acts += chequeRowAction('retry-recurring', '↻', 'تلاش مجدد هزینه‌ها', 'ساخت قطعی ماه‌های هزینه که هنگام ثبت چک ناموفق ماند', 'ptfChequeRetryRecurringOpex(\'' + ptfOnClickArg(c.cd) + '\')', true);
+    }
     if (c.st === 'open' || c.st === 'transferred') {
       if (c.kind === 'guarantee') {
         /* 🏆 استرداد ضمانت: با پایان پروژه مسترد می‌شود؛ این مسیر با حذف کامل فرق دارد. */
@@ -96,6 +99,21 @@
     /* چاپ برگه از هاب مالی حذف شده و فقط در ماژول چاپ چک فیزیکی است. */
     return acts || '<span style="color:#94a3b8">—</span>';
   }
+  window.ptfChequeRetryRecurringOpex = function (cd) {
+    var cheque = typeof window.ptfChequeFind === 'function' ? window.ptfChequeFind(cd) : null;
+    var pending = cheque && Array.isArray(cheque.pendingRecurringOpexItems) ? cheque.pendingRecurringOpexItems.slice() : [];
+    if (!cheque || !pending.length || typeof window.ptfOpexCreateMonthsForCheque !== 'function') return;
+    if (!confirm('ساخت و اتصال سروری ' + pending.length + ' ماه هزینهٔ باقی‌مانده برای این چک دوباره انجام شود؟')) return;
+    if (typeof ptfToast === 'function') ptfToast('⏳ در حال تلاش مجدد روی سرور…', 'info');
+    window.ptfOpexCreateMonthsForCheque(cd, pending).then(function (made) {
+      if (!made || !made.ok) { if (typeof ptfToast === 'function') ptfToast('⚠️ تلاش مجدد انجام نشد؛ برنامه برای اقدام بعدی حفظ شد.', 'warn'); return; }
+      var ids = (cheque.opexRowIds || []).concat(made.ids || []).filter(function (id, i, all) { return id && all.indexOf(id) === i; });
+      if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(cd, { opexRowIds: ids, pendingRecurringOpexItems: [], recurringOpexScheduleStatus: 'acked' });
+      if (typeof ptfToast === 'function') ptfToast('✅ ماه‌های هزینه روی سرور ساخته و به چک متصل شدند', 'ok');
+      window.ptfChequePanelRender();
+    }).catch(function () { if (typeof ptfToast === 'function') ptfToast('⚠️ ارتباط با سرور برقرار نشد؛ برنامهٔ تلاش مجدد حفظ شد.', 'warn'); });
+  };
+
   /* v33.7.0: استرداد چک ضمانت (با پایان پروژه) */
   window.ptfChequeRetrieveUi = function (cd) {
     var c = window.ptfChequeFind(cd);
@@ -422,6 +440,8 @@
           note: note, dueISO: dueISO,
           dueFa: dueISO && typeof window.ptfISOToJ === 'function' ? window.ptfISOToJ(dueISO) : dueRaw,
           ownership: 'company', files: window._ptfChNFiles || [],
+          pendingRecurringOpexItems: opexPick.future && opexPick.future.length ? opexPick.future.slice() : undefined,
+          recurringOpexScheduleStatus: opexPick.future && opexPick.future.length ? 'pending' : undefined,
           bookCd: book ? book.cd : '', series: book ? (book.series || '') : '',
           accountNo: book ? (book.accountNo || '') : '', owner: book ? (book.owner || '') : ''
         };
@@ -430,19 +450,32 @@
         if (!saved2 || saved2.why === 'sayad_locked') { alert(saved2 && saved2.error ? saved2.error : '⛔ ثبت چک ممکن نشد'); return; }
         try { if (typeof chUpsertReminder === 'function') chUpsertReminder(saved2); } catch (eR2) {}
         var dlg2 = document.getElementById('ptfChNewDlg'); if (dlg2) dlg2.remove();
-        var linkedN = opexPick.ids.length;
-        if (opexPick.future && opexPick.future.length && typeof window.ptfOpexCreateMonthsForCheque === 'function') {
-          var made = window.ptfOpexCreateMonthsForCheque(saved2.cd, opexPick.future);
-          if (made && made.ids) {
-            opexPick.ids = (opexPick.ids || []).concat(made.ids);
-            linkedN += made.ids.length;
-          }
+        var existingIds = (opexPick.ids || []).slice();
+        if (existingIds.length && typeof window.ptfOpexLinkCheque === 'function') window.ptfOpexLinkCheque(saved2.cd, existingIds);
+        if (existingIds.length && typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(saved2.cd, { opexRowIds: existingIds.slice() });
+        function finishIssuedCheque(futureIds, failed) {
+          futureIds = Array.isArray(futureIds) ? futureIds : [];
+          var allIds = existingIds.concat(futureIds);
+          if (typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(saved2.cd, {
+            opexRowIds: allIds.length ? allIds.slice() : undefined,
+            pendingRecurringOpexItems: failed ? (opexPick.future || []).slice() : [],
+            recurringOpexScheduleStatus: failed ? 'retry_required' : 'acked'
+          });
+          if (typeof ptfToast === 'function') ptfToast(failed
+            ? '⚠️ چک ثبت شد، اما ماه‌های آینده روی سرور ساخته نشدند؛ از جزئیات چک دوباره تلاش کنید.'
+            : '✅ چک مالی صادره ثبت شد' + (allIds.length ? ' — وصل به ' + allIds.length + ' ماه هزینه (بدون دوباره‌شماری)' : ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : '')), failed ? 'warn' : 'ok');
+          try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOx) {}
+          window.ptfChequePanelRender();
         }
-        if (opexPick.ids.length && typeof window.ptfOpexLinkCheque === 'function') window.ptfOpexLinkCheque(saved2.cd, opexPick.ids);
-        if (opexPick.ids.length && typeof window.ptfChequeUpdate === 'function') window.ptfChequeUpdate(saved2.cd, { opexRowIds: opexPick.ids.slice() });
-        if (typeof ptfToast === 'function') ptfToast('✅ چک مالی صادره ثبت شد' + (linkedN ? ' — وصل به ' + linkedN + ' ماه هزینه (بدون دوباره‌شماری)' : ((saved2.financial && saved2.financial.ok) ? ' — اثر مالی روی بدهی تامین‌کننده اعمال شد' : '')), 'ok');
-        try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOx) {}
-        window.ptfChequePanelRender();
+        if (opexPick.future && opexPick.future.length) {
+          if (typeof window.ptfOpexCreateMonthsForCheque !== 'function') finishIssuedCheque([], true);
+          else {
+            if (typeof ptfToast === 'function') ptfToast('⏳ چک ثبت شد؛ در حال ثبت قطعی ماه‌های آینده روی سرور…', 'info');
+            window.ptfOpexCreateMonthsForCheque(saved2.cd, opexPick.future)
+              .then(function (made) { finishIssuedCheque(made && made.ok ? made.ids : [], !(made && made.ok)); })
+              .catch(function () { finishIssuedCheque([], true); });
+          }
+        } else finishIssuedCheque([], false);
         return;
       }
     } else {
@@ -574,7 +607,11 @@
       (hasFin ? '\\n\\nاین چک اثر مالی روی حساب تأمین‌کننده دارد — حذف آن، اثر مالی و گردش حساب را هم به‌طور کامل حذف می‌کند.' : '');
     if (!confirm(msg)) return;
     var r = (typeof window.ptfChequeDelete === 'function') ? window.ptfChequeDelete(cd) : { ok: false, why: 'no_fn' };
-    if (!r.ok) { alert('حذف نشد (' + (r.why || 'خطا') + ')'); return; }
+    if (!r.ok) {
+      if (r.why === 'linked_recurring_opex') alert('این چک به هزینهٔ تکرارشوندهٔ سروری متصل است و حذف محلی آن رابطهٔ مالی را یتیم می‌کند؛ عملیات برای حفاظت از داده انجام نشد.');
+      else alert('حذف نشد (' + (r.why || 'خطا') + ')');
+      return;
+    }
     try { if (typeof window.ptfOpexUnlinkCheque === 'function') window.ptfOpexUnlinkCheque(cd); } catch (eU) {}
     try { audit('چک‌ها', 'حذف کامل چک ' + (c.sayad || c.no || cd) + ' — مبلغ ' + money(c.amt) + (hasFin ? ' + حذف اثر مالی تأمین‌کننده' : ''), cd); } catch (eA) {}
     if (typeof ptfToast === 'function') ptfToast('🗑 چک و اثر مالی/گردش مرتبط حذف شد', 'warn');

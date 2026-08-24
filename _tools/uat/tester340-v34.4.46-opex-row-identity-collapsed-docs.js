@@ -65,6 +65,7 @@ function runtimeChecks() {
   var dialogConfig = null;
   var confirmCalls = 0;
   var warnings = [];
+  var audits = [];
 
   var panels = {
     insertAdjacentHTML: function (_position, html) {
@@ -115,8 +116,9 @@ function runtimeChecks() {
     attachUploadWidget: function (_id, _folder, cb) { uploadCallback = cb; },
     ptfToast: function (message) { warnings.push(message); },
     alert: function (message) { warnings.push(message); },
+    prompt: function () { return 'آزمون حذف صریح'; },
     confirm: function () { confirmCalls++; return true; },
-    audit: function () {},
+    audit: function () { audits.push(Array.prototype.slice.call(arguments)); },
     renderDeals: function () {},
     openStoredFile: function () {},
     STORAGE_API: '/storage',
@@ -182,23 +184,33 @@ function runtimeChecks() {
   assert.ok(firstAfterUpload.files.some(function (file) { return file.key === 'new-proof.pdf'; }), 'uploaded document must bind to the clicked row');
   assert.strictEqual(secondAfterUpload.files.some(function (file) { return file.key === 'new-proof.pdf'; }), false, 'upload must not leak to the same-code sibling row');
 
-  /* Exact delete removes one object, never every row sharing cd. */
+  /* Exact delete writes one explicit, reasoned tombstone. Merge-only sync must never
+     infer deletion from physical absence, and the same-code sibling must survive. */
   ctx.ptfOpexDel('OPX-1001', ids[1]);
-  assert.strictEqual(data.ptf_crm_opex.some(function (row) { return row._opexRowId === ids[1]; }), false, 'clicked row must be deleted');
-  assert.strictEqual(data.ptf_crm_opex.some(function (row) { return row._opexRowId === ids[0]; }), true, 'same-code sibling must survive exact delete');
-  assert.strictEqual(data.ptf_crm_deals[0].costEvents.some(function (event) { return event.opexRowId === ids[1]; }), false, 'linked event for the deleted row must be removed');
+  var deletedRow = data.ptf_crm_opex.filter(function (row) { return row._opexRowId === ids[1]; })[0];
+  assert.ok(deletedRow, 'clicked row identity must remain as a durable tombstone');
+  assert.strictEqual(deletedRow.status, 'void', 'clicked row must become terminal');
+  assert.strictEqual(deletedRow.explicitDeletion, true, 'manual deletion must be explicit');
+  assert.strictEqual(deletedRow.manualVoid, true, 'manual deletion provenance must be retained');
+  assert.strictEqual(deletedRow.voidIntent, 'explicit', 'tombstone must not look like inferred eligibility cleanup');
+  assert.strictEqual(deletedRow.voidReason, 'آزمون حذف صریح', 'deletion reason must be durable');
+  assert.ok(deletedRow.deletedAt && deletedRow.deletedBy === 'حسابدار', 'deletion actor and time must be durable');
+  assert.strictEqual(data.ptf_crm_opex.filter(function (row) { return row._opexRowId === ids[0]; })[0].status, undefined, 'same-code sibling must remain active');
+  assert.strictEqual(data.ptf_crm_deals[0].costEvents.some(function (event) { return event.opexRowId === ids[1]; }), false, 'linked event for the tombstoned row must be removed');
   assert.strictEqual(data.ptf_crm_deals[0].costEvents.some(function (event) { return event.opexRowId === ids[0]; }), true, 'same-code sibling linked event must survive delete');
+  assert.ok(audits.some(function (entry) { return String(entry[1] || '').indexOf('آزمون حذف صریح') > -1; }), 'explicit manual delete must be audited with its reason');
   dialogConfig = null;
   ctx.ptfOpexEdit('OPX-1001', ids[1]);
-  assert.strictEqual(dialogConfig, null, 'a stale exact row id must never fall back to the remaining same-code sibling');
+  assert.strictEqual(dialogConfig, null, 'a terminal exact row id must neither reopen nor fall back to its same-code sibling');
 
-  /* New record allocation scans persisted OPEX when the generic generator collides. */
+  /* New record allocation scans all persisted identities, including tombstones, when
+     the generic generator collides; no historical code can be reused. */
   dialogConfig = null;
   ctx.ptfOpexAdd();
   assert.ok(dialogConfig && typeof dialogConfig.onOk === 'function', 'new OPEX dialog must open');
   dialogConfig.onOk({ cat: 'سایر', isOfficial: 'no', amt: 400, month: '1405/04', desc: 'کد یکتا', dealRef: '', files: [], rec: 'no' });
   var codes = data.ptf_crm_opex.map(function (row) { return row.cd; });
-  assert.strictEqual(new Set(codes).size, codes.length, 'new OPEX code must not collide with persisted records');
+  assert.strictEqual(codes.filter(function (code) { return code === 'OPX-1003'; }).length, 1, 'new OPEX code must not collide with active or tombstoned persisted records');
   assert.ok(codes.indexOf('OPX-1003') > -1, 'collision-safe fallback must continue after the persisted OPX maximum');
 }
 

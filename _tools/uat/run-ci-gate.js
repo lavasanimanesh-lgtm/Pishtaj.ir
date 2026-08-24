@@ -125,6 +125,7 @@ var SUITE = [
   { g: 'مکاتبات/پرونده برنده/OPEX', f: '_tools/uat/tester502-v34.8.0-letters-award-opex.js' },
   { g: 'تاریخ شمسی/پیش‌نویس/RFQ سایت', f: '_tools/uat/tester503-v34.8.0-jalali-draft-site-source.js' },
   { g: 'مالی/خزانه و حساب مشتری', f: '_tools/uat/tester504-v34.8.4-treasury-customer-ledger.js' },
+  { g: 'مالی/معماری recurring', f: '_tools/uat/tester505-v34.8.5-recurring-race-replay.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
@@ -137,7 +138,7 @@ var SUITE = [
 var SYNTAX = [
   'crm/bridge.js', 'crm/myday.js', 'crm/rbac.js', 'crm/sync.js', 'crm/client-server.js',
   'crm/finance-write-guard.js', 'crm/fiscal.js', 'crm/supplier-finance.js',
-  'crm/opex.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
+  'crm/opex.js', 'crm/shareholders.js', 'crm/cheque-panel.js', 'crm/petty.js', 'crm/cheques.js', 'crm/treasury.js',
   'crm/sales-domain-v2.js', 'crm/official-invoice-v2.js', 'crm/ar-reconcile.js', 'crm/case-revision.js', 'crm/surplus.js',
   'crm/metrics-shared.js', 'crm/analyzer.js', 'crm/management-intelligence.js',
   'crm/customer-finance.js', 'crm/finance-helpers.js', 'crm/insights.js', 'crm/cheque-module.js', 'crm/data-quality.js',

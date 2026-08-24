@@ -6,8 +6,8 @@
    - جای نمایش: داخل پنل «تنخواه گردان» (تنخواه = زیرمجموعه هزینه‌ها — مصوبه R9)
      با hook — بدون شکستن petty؛ فقط نقش‌های دارای finance می‌بینند.
    - کلید ptf_crm_opex سینک و بک‌آپ می‌شود و سپر داده‌صفر v16.7 را دارد.
-   - هزینه تکرارشونده یک‌بار در settings.opexTpl تعریف می‌شود؛ از v34.8.0 پس از
-     snapshot موفق Sync به‌صورت idempotent reconcile می‌شود. اقدام دستی fallback است.
+   - هزینه تکرارشونده در settings.opexTpl تعریف می‌شود و فقط سرور، پس از snapshot
+     قطعی Sync، آن را idempotent materialize می‌کند؛ کلاینت صرفاً delta را merge می‌کند.
    - مصرف‌کننده آینده: US-420 (داشبورد سال مالی) — جمع per ماه/دسته/سال از همین کلید.
    ===================================================================== */
 (function () {
@@ -356,11 +356,6 @@
     setData('ptf_crm_settings', st);
   }
   function recurringKeyForTpl(t, month) { return 'opex-template:' + String((t && t.id) || '') + ':' + String(month || ''); }
-  function stableRecurringCode(prefix, key) {
-    var a = 5381, b = 52711, s = String(key || '');
-    for (var i = 0; i < s.length; i++) { a = ((a * 33) ^ s.charCodeAt(i)) >>> 0; b = ((b * 31) + s.charCodeAt(i)) >>> 0; }
-    return prefix + '-' + ('00000000' + a.toString(16)).slice(-8).toUpperCase() + ('00000000' + b.toString(16)).slice(-8).toUpperCase();
-  }
   function recurringRowActive(x) { return opexRowActive(x); }
   /* قالب‌هایی که برای ماه جاری هنوز ثبت نشده‌اند */
   window.ptfOpexPendingTpls = function (month) {
@@ -380,23 +375,18 @@
   window.ptfOpexMigrateShareholders = function () {
     if (!canFin()) { alert('⛔ هزینه‌های جاری فقط برای نقش‌های مالی (US-418)'); return; }
     if (typeof window.ptfMigrateShareholderOpex !== 'function') { alert('⚠️ ماژول سهامداران بارگذاری نشده؛ صفحه را تازه کنید.'); return; }
-    var before = (oAll() || []).length;
-    var msg = 'برای هر تراکنش «حقوق موظف» سهامدار که رکورد هزینهٔ متناظر (opex) ندارد، یک ردیف «حقوق و دستمزد» ساخته می‌شود تا در هزینه‌های جاری و محاسبات سال مالی دیده شود.\n\nادامه می‌دهید؟';
-    if (!confirm(msg)) return;
-    try {
-      var res = window.ptfMigrateShareholderOpex();
-      var added = res.created || 0;
-      if (typeof ptfToast === 'function') {
-        ptfToast(added > 0 ? '✅ ' + added + ' رکورد حقوق سهامدار به هزینه‌های جاری اضافه شد (کل: ' + res.totalOpex + ')' : (res.totalOpex > before ? 'ℹ️ مورد جدیدی نبود — رکوردهای قبلی سالم‌اند' : 'ℹ️ موردی برای بازسازی نبود (created=0, skipped=' + res.skipped + ')'), added > 0 ? 'ok' : 'info');
-      } else {
-        alert(added > 0 ? '✅ ' + added + ' رکورد حقوق سهامدار اضافه شد' : 'ℹ️ موردی برای بازسازی نبود');
-      }
-      return res;
-    } catch (e) {
-      console.error('ptfOpexMigrateShareholders:', e);
-      if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در بازسازی: ' + (e && e.message || e), 'warn');
-      return null;
-    }
+    if (!confirm('حقوق ماه جاری از snapshot قطعی سرور بازسازی/تطبیق شود؟\nاجرای خودکار هیچ tombstone صریحی را restore یا void نمی‌کند.')) return;
+    var promise;
+    try { promise = window.ptfMigrateShareholderOpex(); }
+    catch (e) { if (typeof ptfToast === 'function') ptfToast('⚠️ خطا در فرمان بازسازی: ' + String(e && e.message || e), 'warn'); return; }
+    if (!promise || typeof promise.then !== 'function') { if (typeof ptfToast === 'function') ptfToast('⚠️ پاسخ فرمان سروری نامعتبر بود', 'warn'); return; }
+    promise.then(function (state) {
+      if (state && state.state === 'acked') {
+        if (typeof ptfToast === 'function') ptfToast('✅ حقوق و هزینهٔ متناظر از snapshot سرور تطبیق شد', 'ok');
+        try { ptfOpexRender(); } catch (eRender) {}
+      } else if (state && state.state === 'rejected' && typeof ptfToast === 'function') ptfToast('⚠️ بازسازی سروری انجام نشد', 'warn');
+    });
+    return promise;
   };
 
   /* پیوست‌های هزینه جاری: قبض مالیات، رسید پرداخت، تصویر چک و … روی خود
@@ -499,22 +489,41 @@
         var finalCd = all.some(function (x) { return x && x.cd === draftCd; }) ? opexNextCode(all) : draftCd;
         var rec = { cd: finalCd, cat: v.cat, amt: amt, month: month, desc: v.desc || '', dealRef: v.dealRef || '', files: (v.files || []).slice(), t: faDate(), by: curSession().name, isOfficial: isOfficial };
         rec[OPEX_ROW_ID] = opexNewRowId();
-        if (pre.tplId) rec.tplId = pre.tplId;
-        if (v.rec === 'yes' && !pre.tplId) {
+        if (v.rec === 'yes' || pre.tplId) {
           var list = tpls();
-          var tid = 'TPL-' + Date.now();
-          list.push({ id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate(), isOfficial: isOfficial });
-          saveTpls(list);
-          rec.tplId = tid;
+          var tid = pre.tplId || ('TPL-' + Date.now());
+          var tpl = list.filter(function (x) { return x && x.id === tid; })[0];
+          if (!tpl) {
+            tpl = { id: tid, cat: v.cat, amt: amt, desc: v.desc || '', by: curSession().name, t: faDate(), isOfficial: isOfficial };
+            list.push(tpl); saveTpls(list);
+          }
+          /* No local OPEX row is inserted. After ACK, optional document/deal metadata is
+             attached to the exact server identity and remains a client-side annotation. */
+          materializeTemplateOnServer(tpl, month, { restore: true, reason: 'ثبت صریح قالب جدید ' + tid }).then(function (state) {
+            if (!state || state.state !== 'acked') {
+              alert('قالب ذخیره شد اما ردیف هزینه روی سرور ثبت نشد: ' + String((state && state.error && state.error.message) || 'نتیجه نامشخص') + '\nپس از سبز شدن همگام‌سازی، از دکمهٔ ثبت قالب دوباره تلاش کنید.');
+              ptfOpexRender(); return;
+            }
+            var rows = oRows(), key = recurringKeyForTpl(tpl, month), target = rows.filter(function (x) { return x && x.recurringKey === key && recurringRowActive(x); })[0];
+            if (target) {
+              if ((v.files || []).length) target.files = (target.files || []).concat(v.files);
+              if (v.dealRef) target.dealRef = v.dealRef;
+              oSave(rows);
+              if (target.dealRef && typeof window.ptfDealCostSync === 'function') window.ptfDealCostSync({ rec: target, source: 'opex', dealCd: target.dealRef, prevDealCd: '', by: curSession().name, addTx: '➕ لینک هزینه جاری تکرارشونده به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
+            }
+            try { audit('هزینه جاری', 'ثبت سروری ' + v.cat + ' — ' + fmtT(amt) + ' ریال (' + month + ') [تکرارشونده]' + (v.dealRef ? ' [linked-deal]' : ''), target ? target.cd : tid); } catch (eA) {}
+            if (typeof ptfToast === 'function') ptfToast('✅ قالب و هزینهٔ تکرارشونده روی سرور ثبت شد', 'ok');
+            if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR) {} }
+            ptfOpexRender();
+          });
+          return;
         }
         all.unshift(rec);
         oSave(all);
-        if (rec.dealRef && typeof window.ptfDealCostSync === 'function') {
-          window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: rec.dealRef, prevDealCd: '', by: curSession().name, addTx: '➕ لینک هزینه جاری به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
-        }
-        try { audit('هزینه جاری', 'ثبت ' + v.cat + ' — ' + fmtT(amt) + ' ریال (' + month + ')' + (rec.tplId ? ' [تکرارشونده]' : '') + (rec.dealRef ? ' [linked-deal]' : ''), rec.cd); } catch (eA) {}
+        if (rec.dealRef && typeof window.ptfDealCostSync === 'function') window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: rec.dealRef, prevDealCd: '', by: curSession().name, addTx: '➕ لینک هزینه جاری به پرونده: ' + fmtT(amt) + ' ریال — ' + (v.desc || v.cat) });
+        try { audit('هزینه جاری', 'ثبت ' + v.cat + ' — ' + fmtT(amt) + ' ریال (' + month + ')' + (rec.dealRef ? ' [linked-deal]' : ''), rec.cd); } catch (eA2) {}
         if (typeof ptfToast === 'function') ptfToast('✅ هزینه ثبت شد' + (rec.dealRef ? ' و به پرونده فروش متصل شد' : ''), 'ok');
-        if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR) {} }
+        if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR2) {} }
         ptfOpexRender();
       }
     });
@@ -524,29 +533,69 @@
     if (!canFin()) return;
     var all = oRows();
     var rec = opexFindRow(all, cd, rowId, true);
-    if (!rec) return;
+    if (!rec || !opexRowActive(rec)) return;
     if (rec.fromCoverInvoice || rec.coverInvoiceCd) {
       alert('این ردیف از فاکتور خرید پوششی ساخته شده است. برای حذف، همان فاکتور را در حساب تأمین‌کننده ابطال کنید.');
       return;
     }
     if (typeof window.ptfFinanceAssertWritable === 'function' && !window.ptfFinanceAssertWritable(rec.month, { action: 'حذف هزینه جاری' }).ok) return;
-    // v29.3 FIN-WF-004: قفل سال مالی
+    var recurring = !!(rec.recurringKey || rec.serverMaterialized || rec.shareholderSalary || rec.autoApplied || rec.tplId);
+    if (recurring) {
+      if (typeof window.ptfSalesDomainCommand !== 'function') { alert('⚠️ سرویس ابطال حسابرسی‌پذیر آماده نیست؛ برای جلوگیری از حذف ناامن، عملیات انجام نشد.'); return; }
+      var reason = prompt('دلیل ابطال هزینهٔ تکرارشونده را وارد کنید:', 'ابطال صریح توسط کاربر');
+      if (reason == null) return;
+      reason = String(reason || '').trim();
+      if (!reason) { alert('ثبت دلیل ابطال الزامی است.'); return; }
+      if (!confirm('این ردیف حذف فیزیکی نمی‌شود؛ به‌صورت سند ابطال پایدار و حسابرسی‌پذیر ثبت شود؟')) return;
+      var payload = { _opexRowId: rec[OPEX_ROW_ID] || '', recurringKey: rec.recurringKey || '', cd: rec.cd || '', reason: reason,
+        idempotencyKey: 'VOID-REC-OPEX|' + String(rec[OPEX_ROW_ID] || rec.recurringKey || rec.cd) + '|' + Date.now() };
+      var voidCommand;
+      try {
+        voidCommand = window.ptfSalesDomainCommand('void_recurring_opex', payload, { apiOptions: { autoReplay: true } });
+        if (!voidCommand || typeof voidCommand.then !== 'function') throw new Error('void_command_promise_required');
+      } catch (eCommand) {
+        alert('ابطال در سرور ثبت نشد: ' + String((eCommand && eCommand.message) || 'خطای نامشخص'));
+        return;
+      }
+      Promise.resolve(voidCommand).then(function (state) {
+        if (state && state.state === 'acked') {
+          if (typeof ptfToast === 'function') ptfToast('✅ هزینهٔ تکرارشونده با سند ابطال پایدار ثبت شد', 'ok');
+          try { ptfOpexRender(); } catch (eRender) {}
+        } else {
+          alert('ابطال در سرور ثبت نشد: ' + String((state && state.error && state.error.message) || 'خطای نامشخص'));
+        }
+      }, function (error) {
+        alert('ابطال در سرور ثبت نشد: ' + String((error && error.message) || 'خطای ارتباط با سرور'));
+      });
+      return;
+    }
+    // v29.3 FIN-WF-004: قفل سال مالی برای ردیف‌های غیرتکرارشونده
     try {
       var y = String((rec.month||'').split('/')[0]||'').trim();
       if(y){
         var snaps=getData('ptf_crm_fiscal_snapshots')||[];
-        if(snaps.some(function(s){ return String(s.year)===String(y) && s.locked; })){
+        if(snaps.some(function(snap){ return String(snap.year)===String(y) && snap.locked; })){
           alert('🔒 سال مالی '+y+' قفل است - حذف هزینه جاری در سال قفل‌شده مجاز نیست. سند اصلاحی ثبت کنید.');
           return;
         }
       }
     } catch(e){}
-    if (!confirm('🗑 حذف هزینه «' + rec.cat + ' — ' + fmtT(rec.amt) + ' ریال» (' + rec.month + ')؟')) return;
-    oSave(all.filter(function (x) { return x[OPEX_ROW_ID] !== rec[OPEX_ROW_ID]; }));
+    var deleteReason = prompt('دلیل حذف هزینه را وارد کنید:', 'حذف صریح توسط کاربر');
+    if (deleteReason == null) return;
+    deleteReason = String(deleteReason || '').trim();
+    if (!deleteReason) { alert('ثبت دلیل حذف الزامی است.'); return; }
+    if (!confirm('🗑 هزینه «' + rec.cat + ' — ' + fmtT(rec.amt) + ' ریال» (' + rec.month + ') با tombstone حسابرسی‌پذیر حذف شود؟')) return;
+    /* Full OPEX pulls are merge-only. A physical splice could neither propagate an
+       intentional deletion nor distinguish it from an incomplete snapshot. */
+    rec.status = 'void'; rec.st = 'void'; rec.voided = true; rec.deleted = true;
+    rec.explicitDeletion = true; rec.manualVoid = true; rec.voidIntent = 'explicit';
+    rec.voidReason = deleteReason; rec.deletedAt = faDateTime(); rec.deletedBy = curSession().name;
+    rec.voidedAt = rec.deletedAt; rec.voidedBy = rec.deletedBy;
+    oSave(all);
     if (rec.dealRef && typeof window.ptfDealCostSync === 'function') {
       window.ptfDealCostSync({ rec: rec, source: 'opex', dealCd: '', prevDealCd: rec.dealRef, by: curSession().name, removeTx: '🗑 حذف هزینه جاری لینک‌شده از پرونده: ' + fmtT(rec.amt) + ' ریال — ' + (rec.desc || rec.cat) });
     }
-    try { audit('هزینه جاری', 'حذف هزینه ' + rec.cat + ' ' + fmtT(rec.amt) + ' ریال (' + rec.month + ')', rec.cd); } catch (eA) {}
+    try { audit('هزینه جاری', 'حذف صریح هزینه ' + rec.cat + ' ' + fmtT(rec.amt) + ' ریال (' + rec.month + ') — دلیل: ' + deleteReason, rec.cd); } catch (eA) {}
     if (typeof renderDeals === 'function') { try { renderDeals(); } catch (eR) {} }
     ptfOpexRender();
   };
@@ -554,9 +603,18 @@
   window.ptfOpexEdit = function (cd, rowId) {
     if (!canFin()) return;
     var rec = opexFindRow(oRows(), cd, rowId, true);
-    if (!rec) return;
+    if (!rec || !opexRowActive(rec)) return;
     if (rec.fromCoverInvoice || rec.coverInvoiceCd) {
       alert('این ردیف از فاکتور خرید پوششی ساخته شده است. مبلغ کارمزد را از همان فاکتور ویرایش کنید.');
+      return;
+    }
+    if (rec.shareholderSalary || String(rec.recurringKey || '').indexOf('salary:') === 0) {
+      alert('این ردیف projection حقوق است؛ مبلغ/وضعیت را از پروندهٔ همان سهامدار اصلاح کنید تا سرور آن را تطبیق دهد.');
+      return;
+    }
+    if (rec.recurringKey || rec.serverMaterialized || rec.autoApplied || rec.tplId) {
+      if (rec.tplId && typeof window.ptfOpexEditTemplate === 'function') window.ptfOpexEditTemplate(rec.tplId, rec.month);
+      else alert('منبع قالب این ردیف پیدا نشد؛ برای جلوگیری از دو منبع حقیقت، ردیف projection به‌صورت محلی ویرایش نشد.');
       return;
     }
     rowId = rec[OPEX_ROW_ID];
@@ -642,31 +700,82 @@
     });
   };
 
+  function materializeTemplateOnServer(t, month, options) {
+    options = options || {};
+    var key = recurringKeyForTpl(t, month);
+    if (typeof window.ptfSalesDomainCommand !== 'function') return Promise.resolve({ state: 'rejected', error: new Error('recurring_server_command_unavailable') });
+    function send(resolve) {
+      try {
+        var command = window.ptfSalesDomainCommand('reconcile_recurring_opex', {
+          month: month, includeSalaries: false, explicitTemplate: true, scopeTemplate: String(t.id),
+          restoreKeys: options.restore === false ? [] : [key],
+          reason: options.reason || ('ثبت/بازسازی صریح قالب ' + String(t.id)),
+          idempotencyKey: options.idempotencyKey || ('APPLY-REC-TPL|' + String(t.id) + '|' + String(month) + '|' + Date.now())
+        }, { apiOptions: { autoReplay: true } });
+        if (!command || typeof command.then !== 'function') { resolve({ state: 'rejected', error: new Error('recurring_server_promise_required') }); return; }
+        command.then(resolve, function (error) { resolve({ state: 'rejected', error: error }); });
+      } catch (error) { resolve({ state: 'rejected', error: error }); }
+    }
+    return new Promise(function (resolve) {
+      /* Server must observe the committed template/settings snapshot; local settings
+         are never copied into a materialized OPEX row by this browser. */
+      if (typeof window.ptfSyncFlushKeysNow !== 'function') { resolve({ state: 'rejected', error: new Error('keyed_sync_barrier_unavailable') }); return; }
+      try {
+        window.ptfSyncFlushKeysNow(['ptf_crm_settings'], function (ok) {
+          if (!ok) { resolve({ state: 'rejected', error: new Error('template_snapshot_not_committed') }); return; }
+          send(resolve);
+        });
+      } catch (error) { resolve({ state: 'rejected', error: error }); }
+    });
+  }
+
+  window.ptfOpexEditTemplate = function (tid, materializeMonth) {
+    if (!canFin()) return;
+    var list = tpls(), tpl = list.filter(function (x) { return x && x.id === tid; })[0];
+    if (!tpl) { alert('قالب تکرارشونده در تنظیمات پیدا نشد.'); return; }
+    var catOpts = PTF_OPEX_CATS.map(function (c) { return '<option' + (tpl.cat === c ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+    ptfDialog({
+      title: '✏️ ویرایش منبع هزینهٔ تکرارشونده',
+      body: 'این تغییر ابتدا در تنظیمات سرور ثبت می‌شود و سپس projection ماه انتخابی بدون ساخت محلی تطبیق می‌یابد. ردیف ابطال‌شده خودکار بازیابی نمی‌شود.',
+      fields: [
+        { id: 'cat', label: 'دسته هزینه', type: 'select', optionsHtml: catOpts },
+        { id: 'isOfficial', label: 'نوع سند هزینه', type: 'select', optionsHtml: '<option value="yes"' + (tpl.isOfficial === true ? ' selected' : '') + '>رسمی</option><option value="no"' + (tpl.isOfficial !== true ? ' selected' : '') + '>غیررسمی</option>' },
+        { id: 'amt', label: 'مبلغ ماهانه (ریال) *', type: 'number', value: tpl.amt, dir: 'ltr', required: true },
+        { id: 'desc', label: 'شرح', type: 'text', value: tpl.desc || '' }
+      ],
+      okText: 'ذخیره و تطبیق سروری',
+      onOk: function (v) {
+        var amount = +v.amt || 0;
+        if (amount <= 0) { alert('⛔ مبلغ نامعتبر'); return; }
+        var before = { cat: tpl.cat, amt: tpl.amt, desc: tpl.desc, isOfficial: tpl.isOfficial };
+        tpl.cat = v.cat; tpl.amt = amount; tpl.desc = v.desc || ''; tpl.isOfficial = v.isOfficial === 'yes'; tpl.updatedAt = typeof faDateTime === 'function' ? faDateTime() : ''; tpl.updatedBy = (curSession() || {}).name || '';
+        saveTpls(list);
+        var month = normMonth(materializeMonth) || ptfFaMonthNow();
+        materializeTemplateOnServer(tpl, month, { restore: false, reason: 'ویرایش صریح منبع قالب ' + tid }).then(function (state) {
+          if (!state || state.state !== 'acked') {
+            alert('قالب محلی در صف همگام‌سازی ماند، اما تطبیق سروری انجام نشد: ' + String((state && state.error && state.error.message) || 'نتیجه نامشخص'));
+            return;
+          }
+          try { audit('هزینه جاری', 'ویرایش قالب تکرارشونده ' + tid + ' — ' + String(before.amt || 0) + ' → ' + String(amount) + ' ریال', tid); } catch (eAudit) {}
+          if (typeof ptfToast === 'function') ptfToast('✅ قالب و projection ماه ' + month + ' روی سرور تطبیق شد', 'ok');
+          ptfOpexRender();
+        });
+      }
+    });
+  };
+
   /* ثبت یک‌کلیکی قالب برای ماه جاری (با confirm — قاعده ایمنی) */
   window.ptfOpexApplyTpl = function (tid) {
     var t = tpls().filter(function (x) { return x.id === tid; })[0];
     if (!t) return;
     var m = ptfFaMonthNow();
-    if (!confirm('🔁 ثبت هزینه تکرارشونده «' + t.cat + '» ماه ' + m + '؟\n\nمبلغ: ' + fmtT(t.amt) + ' ریال' + (t.desc ? '\nشرح: ' + t.desc : ''))) return;
-    var isOfficial;
-    if (Object.prototype.hasOwnProperty.call(t, 'isOfficial')) {
-      isOfficial = t.isOfficial === true;
-    } else {
-      isOfficial = confirm('نوع سند هزینه برای «' + t.cat + '» رسمی است؟\n\nOK = رسمی / قابل قبول ممیز\nCancel = غیررسمی');
-      var templateList = tpls();
-      var template = templateList.filter(function (x) { return x.id === t.id; })[0];
-      if (template) {
-        template.isOfficial = isOfficial;
-        saveTpls(templateList);
-      }
-    }
-    var all = oRows();
-    var recurringRec = { cd: opexNextCode(all), cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id, t: faDate(), by: curSession().name, isOfficial: isOfficial };
-    recurringRec[OPEX_ROW_ID] = opexNewRowId();
-    all.unshift(recurringRec);
-    oSave(all);
-    try { audit('هزینه جاری', 'ثبت تکرارشونده ' + t.cat + ' — ' + fmtT(t.amt) + ' ریال (' + m + ')', t.id); } catch (eA) {}
-    ptfOpexRender();
+    if (!confirm('🔁 ثبت سروری هزینه تکرارشونده «' + t.cat + '» ماه ' + m + '؟\n\nمبلغ: ' + fmtT(t.amt) + ' ریال' + (t.desc ? '\nشرح: ' + t.desc : ''))) return;
+    materializeTemplateOnServer(t, m, { restore: true }).then(function (state) {
+      if (state && state.state === 'acked') {
+        if (typeof ptfToast === 'function') ptfToast('✅ قالب از snapshot سرور ثبت و تطبیق شد', 'ok');
+        try { ptfOpexRender(); } catch (eRender) {}
+      } else if (state && state.state === 'rejected') alert('ثبت سروری انجام نشد: ' + String((state.error && state.error.message) || 'خطای نامشخص'));
+    });
   };
   window.ptfOpexDelTpl = function (tid) {
     var t = tpls().filter(function (x) { return x.id === tid; })[0];
@@ -677,88 +786,35 @@
     ptfOpexRender();
   };
 
-  /* ============ v34.8.0: reconcile نتیجه‌محور هزینه‌های تکرارشونده ============
-     این تابع در هر اجرا expected set ماه را از snapshot فعلی می‌سازد و با domain key
-     پایدار upsert می‌کند. فلگ باینری قدیمی عمداً معیار skip نیست: اجرای ناقص یا snapshot
-     سرد نباید کل ماه را قفل کند. اجرای خودکار فقط پس از رویداد readiness سینک پایین‌تر است. */
+  /* v34.8.5: verifier نتیجهٔ reconcile سروری؛ عمداً read-only است. */
   window.ptfAutoApplyRecurring = function () {
     var m = ptfFaMonthNow();
     if (!m) return { ok: false, complete: false, why: 'no_month' };
-    var out = {
-      ok: true, complete: false, month: m, salaries: 0, tpls: 0, repaired: 0, skipped: 0,
-      expected: { salaries: [], tpls: [] }, present: { salaries: [], tpls: [] },
-      missing: [], blocked: [], errors: []
-    };
-    var canFinance = false;
-    try { canFinance = !!canFin(); } catch (eFin) {}
-    if (!canFinance) return Object.assign(out, { ok: false, why: 'permission' });
-    var yearLocked = false;
-    try { yearLocked = typeof ptfFiscalYearLocked === 'function' && ptfFiscalYearLocked(String(m).split('/')[0]); } catch (eLock) {}
-
-    /* حقوق در این تابع عمداً local نوشته نمی‌شود. reconcile آن پیش از این تابع با
-       فرمان اتمیک سرور انجام می‌شود تا cold snapshot یا نقش accountant نتواند expected
-       خالی را قطعی تلقی کند و projection سرور نیز با push محلی race نداشته باشد. */
-    var expectedTpls = [];
-    if (canFinance) {
-      try {
-        expectedTpls = tpls().filter(function (t) {
-          if (t && t.id) return true;
-          out.errors.push('tpl:missing_id');
-          return false;
-        });
-        out.expected.tpls = expectedTpls.map(function (t) { return recurringKeyForTpl(t, m); });
-        if (yearLocked) out.blocked.push({ kind: 'tpl', reason: 'fiscal_year_locked', count: expectedTpls.length });
-        else {
-          var rows = oRows(), rowsChanged = false;
-          expectedTpls.forEach(function (t) {
-            var key = recurringKeyForTpl(t, m);
-            var exists = rows.filter(function (x) { return recurringRowActive(x) && (x.recurringKey === key || (x.tplId === t.id && x.month === m)); })[0];
-            if (exists) {
-              if (!exists.recurringKey) { exists.recurringKey = key; rowsChanged = true; out.repaired++; }
-              out.skipped++;
-              return;
-            }
-            var stableCd = stableRecurringCode('OPX-REC', key);
-            var collision = rows.some(function (x) { return x && x.cd === stableCd && x.recurringKey !== key; });
-            if (collision) { out.errors.push('tpl:' + String(t.id) + ':stable_id_collision'); return; }
-            var isOfficial = Object.prototype.hasOwnProperty.call(t, 'isOfficial') ? (t.isOfficial === true) : null;
-            var autoRec = {
-              cd: stableCd, cat: t.cat, amt: +t.amt, month: m, desc: t.desc || '', tplId: t.id,
-              recurringKey: key, t: faDateTime(), by: 'سیستم (خودکار ماهانه)',
-              isOfficial: isOfficial, autoApplied: true
-            };
-            /* هویت فنی ردیف هم مانند cd قطعی است تا ارجاع چک/خزانه در race دو دستگاه
-               با انتخاب تصادفی یکی از row idها شکسته نشود. */
-            autoRec[OPEX_ROW_ID] = stableRecurringCode('OPXR-REC', key);
-            rows.unshift(autoRec); rowsChanged = true; out.tpls++;
-          });
-          if (rowsChanged) oSave(rows);
-        }
-      } catch (eT) { out.errors.push('tpl_snapshot:' + String(eT)); }
-    }
-
-    /* manifest نتیجه از دادهٔ واقعاً ذخیره‌شده ساخته می‌شود؛ نه از این‌که loop اجرا شده است. */
-    if (!yearLocked && canFinance) {
-      var finalRows = [];
-      try { finalRows = oRows(); } catch (eReadTpl) { out.errors.push('tpl_verify:' + String(eReadTpl)); }
-      out.expected.tpls.forEach(function (key) {
-        if (finalRows.some(function (x) { return recurringRowActive(x) && x.recurringKey === key; })) out.present.tpls.push(key);
-        else out.missing.push({ kind: 'tpl', key: key });
-      });
-    }
+    var out = { ok: true, complete: true, month: m, salaries: 0, tpls: 0, repaired: 0, skipped: 0,
+      expected: { salaries: [], tpls: [] }, present: { salaries: [], tpls: [] }, missing: [], blocked: [], errors: [] };
+    var rows = oAll();
+    /* فقط نتیجهٔ materialization سرور بررسی می‌شود؛ این تابع هیچ OPEX/حقوقی نمی‌سازد،
+       repair نمی‌کند و tombstone را زنده نمی‌کند. */
+    tpls().forEach(function (tpl) {
+      if (!tpl || !tpl.id) { out.errors.push('tpl:missing_id'); return; }
+      var key = recurringKeyForTpl(tpl, m);
+      out.expected.tpls.push(key);
+      if (rows.some(function (row) { return recurringRowActive(row) && row.recurringKey === key && row.serverMaterialized; })) out.present.tpls.push(key);
+      else out.missing.push({ kind: 'tpl', key: key });
+    });
+    rows.forEach(function (row) {
+      if (!recurringRowActive(row) || String(row.month || '') !== m || !row.serverMaterialized) return;
+      if (String(row.recurringKey || '').indexOf('salary:') === 0) out.present.salaries.push(row.recurringKey);
+    });
+    out.salaries = out.present.salaries.length;
+    out.tpls = out.present.tpls.length;
     out.complete = out.errors.length === 0 && out.missing.length === 0;
     out.ok = out.complete;
-    try {
-      if (out.salaries || out.tpls || out.repaired || out.errors.length || out.missing.length) {
-        audit('هزینه جاری', 'تطبیق خودکار تکرارشونده‌های ماه ' + m + ' — حقوق: ' + out.salaries + ' / قالب‌ها: ' + out.tpls + ' / ترمیم: ' + out.repaired + (out.complete ? ' — کامل' : ' — ناقص') + (out.errors.length ? ' | خطا: ' + out.errors.join('؛ ') : ''), 'auto-recurring');
-      }
-    } catch (eA) {}
     return out;
   };
 
-  /* اتوماسیون startup: ابتدا salary سرور ACK می‌شود و projection قطعی OPEX می‌نشیند؛
-     فقط سپس قالب‌های محلی ساخته می‌شوند. ترتیب معکوس می‌توانست پاسخ سرور را روی قالب
-     تازهٔ local بنویسد. accountant نیز فرمان را اجرا می‌کند ولی فقط OPEX را می‌گیرد. */
+  /* اتوماسیون startup: حقوق و قالب‌ها فقط در یک command سروری materialize می‌شوند.
+     کلاینت پس از ACK صرفاً envelope هویتی merge-v1 را اعمال و نتیجه را بررسی می‌کند. */
   var recurringRetryTimer = null, recurringServerInFlight = false, recurringServerDoneKey = '';
   function salaryServerRole() {
     try { return ['admin', 'chairman', 'ceo', 'commercial', 'accountant'].indexOf(String(curRole() || '').toLowerCase()) > -1; } catch (e) { return false; }
@@ -770,20 +826,28 @@
   function recurringUserKey() {
     try { var s = curSession() || {}; return String(s.user || s.username || s.name || 'unknown').replace(/[^A-Za-z0-9_.@-]/g, '_').slice(0, 60); } catch (e) { return 'unknown'; }
   }
+  function refreshRecurringFinancialViews() {
+    /* reconcile حقوق یک commit مشترک OPEX/sharetx است. پس از projection اتمیک، هر دو
+       نمای مدیریتی باید در همان tick بازخوانی شوند؛ اتکا به بازکردن دوبارهٔ تب باعث
+       می‌شد طلب repairشده با وجود ثبت سروری در رابط جاری دیده نشود. */
+    try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOpex) {}
+    try { if (typeof ptfShareRender === 'function') ptfShareRender(); } catch (eShare) {}
+    try { if (typeof ptfFiscalRender === 'function') ptfFiscalRender(); } catch (eFiscal) {}
+  }
   function finishLocalRecurring(serverState) {
-    var local = null, allowedLocal = false;
+    var local = null, allowedLocal = false, freshChanges = 0;
     try { allowedLocal = !!canFin(); } catch (eFin) {}
     if (allowedLocal) {
       try { local = window.ptfAutoApplyRecurring(); } catch (eRun) { local = { complete: false, errors: [String(eRun)] }; }
     } else local = { complete: true, month: ptfFaMonthNow(), salaries: 0, tpls: 0, repaired: 0 };
-    if (local && serverState && serverState.response && serverState.response.result) {
-      /* پاسخ replay همان idempotency key نتیجهٔ اجرای اول را حمل می‌کند؛ آن اعداد تغییر
-         تازه نیستند و نباید در هر refresh دوباره toast بسازند. */
-      local.salaries = serverState.response.idempotent === true ? 0 : (+(serverState.response.result.createdOpex || 0) + +(serverState.response.result.updated || 0));
+    refreshRecurringFinancialViews();
+    if (local && serverState && serverState.response && serverState.response.result && serverState.response.idempotent !== true) {
+      /* Presence counters are verification data, not evidence of a new mutation. Only a
+         non-replayed command with an actual server change may emit the success toast. */
+      freshChanges = +(serverState.response.result.created || 0) + +(serverState.response.result.updated || 0) + +(serverState.response.result.voided || 0);
     }
-    if (local && local.complete && (local.salaries || local.tpls || local.repaired)) {
-      if (typeof ptfToast === 'function') ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + local.month + ' تطبیق شد (حقوق: ' + local.salaries + ' — قالب‌ها: ' + local.tpls + ')', 'ok');
-      try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eRender) {}
+    if (local && local.complete && freshChanges > 0) {
+      if (typeof ptfToast === 'function') ptfToast('🔁 هزینه‌های تکرارشوندهٔ ماه ' + local.month + ' تطبیق شد (تغییرات سروری: ' + freshChanges + ' — حقوق فعال: ' + local.salaries + ' — قالب‌های فعال: ' + local.tpls + ')', 'ok');
     }
     return local;
   }
@@ -803,8 +867,8 @@
     recurringServerInFlight = true;
     var commandPromise;
     try {
-      commandPromise = window.ptfSalesDomainCommand('reconcile_shareholder_salaries', {
-        month: month, idempotencyKey: 'SALARY-REC|' + runKey
+      commandPromise = window.ptfSalesDomainCommand('reconcile_recurring_opex', {
+        month: month, idempotencyKey: 'OPEX-REC|' + runKey
       }, { apiOptions: { autoReplay: true } });
       if (!commandPromise || typeof commandPromise.then !== 'function') throw new Error('salary_command_promise_required');
     } catch (eCommand) {
@@ -862,29 +926,38 @@
     return out;
   };
   window.ptfOpexCreateMonthsForCheque = function (chequeCd, items) {
-    items = Array.isArray(items) ? items : [];
-    if (!chequeCd || !items.length) return { ok: false, ids: [] };
-    var all = oRows();
-    var ids = [];
-    var by = '';
-    try { by = (curSession() || {}).name || ''; } catch (eB) {}
-    items.forEach(function (it) {
-      if (!it || !it.month) return;
-      var tpl = it.tplId ? tpls().filter(function (x) { return x.id === it.tplId; })[0] : null;
-      if (tpl && all.some(function (x) { return opexRowActive(x) && x.tplId === tpl.id && x.month === it.month; })) return;
-      var rec = {
-        cd: opexNextCode(all), cat: (tpl && tpl.cat) || it.cat || 'اجاره‌بها', amt: +(tpl && tpl.amt) || +it.amt || 0,
-        month: it.month, desc: (tpl && tpl.desc) || it.desc || '', tplId: tpl ? tpl.id : (it.tplId || ''),
-        t: (typeof faDateTime === 'function' ? faDateTime() : ''), by: by || 'چک',
-        chequeCd: chequeCd, payHow: 'cheque', fromCheque: true
-      };
-      if (tpl && Object.prototype.hasOwnProperty.call(tpl, 'isOfficial')) rec.isOfficial = tpl.isOfficial === true;
-      rec[OPEX_ROW_ID] = opexNewRowId();
-      all.unshift(rec);
-      ids.push(rec[OPEX_ROW_ID]);
+    items = (Array.isArray(items) ? items : []).filter(function (it) { return it && it.tplId && normMonth(it.month); }).map(function (it) { return { tplId: String(it.tplId), month: normMonth(it.month) }; });
+    if (!chequeCd || !items.length) return Promise.resolve({ ok: false, ids: [], state: 'rejected', error: new Error('schedule_items_required') });
+    if (typeof window.ptfSalesDomainCommand !== 'function') return Promise.resolve({ ok: false, ids: [], state: 'rejected', error: new Error('recurring_server_command_unavailable') });
+    function scheduleIntentHash(rows) {
+      var text = rows.slice().sort(function (a, b) { return (a.tplId + '|' + a.month).localeCompare(b.tplId + '|' + b.month); }).map(function (x) { return x.tplId + '@' + x.month; }).join(';');
+      var hash = 2166136261;
+      for (var i = 0; i < text.length; i++) { hash ^= text.charCodeAt(i); hash = Math.imul(hash, 16777619); }
+      return (hash >>> 0).toString(16);
+    }
+    function send(resolve) {
+      try {
+        var command = window.ptfSalesDomainCommand('schedule_recurring_opex_cheque', {
+          chequeCd: chequeCd, items: items, reason: 'برنامه‌ریزی صریح هزینه‌های تکرارشونده برای چک ' + chequeCd,
+          idempotencyKey: 'SCHED-REC-OPEX-CHEQUE|' + String(chequeCd) + '|' + scheduleIntentHash(items)
+        }, { apiOptions: { autoReplay: true } });
+        if (!command || typeof command.then !== 'function') { resolve({ ok: false, ids: [], state: 'rejected', error: new Error('recurring_server_promise_required') }); return; }
+        command.then(function (state) {
+          var ids = state && state.response && state.response.result && Array.isArray(state.response.result.rowIds) ? state.response.result.rowIds.slice() : [];
+          resolve({ ok: !!(state && state.state === 'acked'), ids: ids, state: state && state.state, commandState: state, error: state && state.error });
+        }, function (error) { resolve({ ok: false, ids: [], state: 'rejected', error: error }); });
+      } catch (error) { resolve({ ok: false, ids: [], state: 'rejected', error: error }); }
+    }
+    return new Promise(function (resolve) {
+      /* The cheque and any template changes must be committed before the atomic command. */
+      if (typeof window.ptfSyncFlushKeysNow !== 'function') { resolve({ ok: false, ids: [], state: 'rejected', error: new Error('keyed_sync_barrier_unavailable') }); return; }
+      try {
+        window.ptfSyncFlushKeysNow(['ptf_crm_cheques_issued', 'ptf_crm_settings'], function (ok) {
+          if (!ok) { resolve({ ok: false, ids: [], state: 'rejected', error: new Error('cheque_snapshot_not_committed') }); return; }
+          send(resolve);
+        });
+      } catch (error) { resolve({ ok: false, ids: [], state: 'rejected', error: error }); }
     });
-    if (ids.length) oSave(all);
-    return { ok: !!ids.length, ids: ids };
   };
   window.ptfOpexLinkCheque = function (chequeCd, rowIds) {
     rowIds = Array.isArray(rowIds) ? rowIds : [];
@@ -958,7 +1031,7 @@
         '</span></div>';
     }).join('');
     var tplRows = tpls().map(function (t) {
-      return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + ptfOnClickArg(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
+      return '<span style="background:#ede9fe;border-radius:999px;padding:4px 11px;font-size:11.5px">🔁 ' + escP(t.cat) + ' — ' + fmtT(t.amt) + ' ریال <a href="javascript:void(0)" onclick="ptfOpexEditTemplate(\'' + ptfOnClickArg(t.id) + '\',window._opexMonth||ptfFaMonthNow())" title="ویرایش منبع قالب" style="color:#0e7490;text-decoration:none">✏️</a> <a href="javascript:void(0)" onclick="ptfOpexDelTpl(\'' + ptfOnClickArg(t.id) + '\')" style="color:#dc2626;text-decoration:none">✕</a></span>';
     }).join(' ');
     el.innerHTML =
       '<div class="opex-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">' +
