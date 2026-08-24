@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* tester496 — UAT پایانی «ارزش افزوده فصلی» (VAT-LEDGER-003)
-   معرفی‌شده در v34.7.94؛ در v34.8.3 با بامپ پین نسخه هم‌روز شد.
+   معرفی‌شده در v34.7.94؛ در v34.8.4 با بامپ پین نسخه هم‌روز شد.
    این تستر مکمل tester493 است و روی ۱۱ خانوادهٔ سناریوی edge تمرکز دارد
    که قبلاً پوشش نداشتند:
 
@@ -28,7 +28,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var shared = read('crm/vat-shared.js');
 var q = read('crm/vat-quarterly.js');
 
-T('VERSION.json = v34.8.3', ver.crm_version === 'v34.8.3', ver.crm_version);
+T('VERSION.json = v34.8.4', ver.crm_version === 'v34.8.4', ver.crm_version);
 
 /* -------- sandbox -------- */
 var store;
@@ -77,9 +77,9 @@ T('E1: فروش شمسی خالص در بهار = 100000', c1.salesVat === 10000
 T('E1: خرید شمسی خالص در بهار = 50000', c1.purchaseCredit === 50000, c1.purchaseCredit);
 
 /* ============ E2: تاریخ ISO میلادی خام باید کاملاً رد شود (VAT-LEDGER-004) ============
-   قبل از v34.8.3: تاریخ '2026-06-15T10:00:00Z' به year='2026-06-15T10:00:00Z'
+   قبل از v34.8.4: تاریخ '2026-06-15T10:00:00Z' به year='2026-06-15T10:00:00Z'
    و season=2 map می‌شد — یک سال جعلی که در گزارش سال ۱۴۰۵ گم می‌شد (باگ خاموش).
-   بعد از v34.8.3: null برمی‌گرداند — رفتار قابل پیش‌بینی. */
+   بعد از v34.8.4: null برمی‌گرداند — رفتار قابل پیش‌بینی. */
 reset();
 sb = makeSb();
 var st = sb.ptfVatSeason({ t: '2026-06-15T10:00:00Z' }, 'sales');
@@ -224,6 +224,6 @@ T('E11: پس از تسویهٔ پاییز، زمستان با carry=0 شروع �
 T('کد وابسته به روش localeCompare و Array.isArray ساده است — بدون require نشتی', true);
 T('tester496 در گیت CI ثبت شده', read('_tools/uat/run-ci-gate.js').indexOf('tester496-v34.7.94-vat-quarterly-uat.js') > -1);
 
-console.log('\n— tester496 (v34.8.3: UAT پایانی VAT فصلی — VAT-LEDGER-003) —');
+console.log('\n— tester496 (v34.8.4: UAT پایانی VAT فصلی — VAT-LEDGER-003) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

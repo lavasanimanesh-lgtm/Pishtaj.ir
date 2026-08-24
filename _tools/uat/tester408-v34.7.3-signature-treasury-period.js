@@ -50,7 +50,7 @@ T('خروجی physical تصاویر را حذف ولی محل امضای دست�
 global.window=global;global.document={getElementById:function(){return null;},createElement:function(){return{click:function(){},remove:function(){}};},body:{appendChild:function(){}}};
 global.ptfJToISO=function(s){var m={'1405/05/01':'2026-07-23','1405/05/31':'2026-08-22'};return m[s]||'';};
 try{eval.call(global,treasury);}catch(e){T('بارگذاری خزانه برای تست رفتاری',false,e.stack);}
-global.ptfTreasuryCrmMoves=function(){return[
+global.ptfTreasuryCrmMoves=global.ptfTreasuryAllPeriodMoves=function(){return[
  {cd:'I1',dir:'in',amount:100,dateISO:'2026-08-01',dateFa:'1405/05/10',src:'وصولی مشتری',label:'وصول'},
  {cd:'O1',dir:'out',amount:40,dateISO:'2026-08-02',dateFa:'1405/05/11',src:'هزینه جاری',label:'هزینه'},
  {cd:'O2',dir:'out',amount:10,dateISO:'2026-09-01',dateFa:'1405/06/10',src:'هزینه جاری',label:'خارج بازه'}
