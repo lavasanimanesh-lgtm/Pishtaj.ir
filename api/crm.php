@@ -448,6 +448,151 @@ function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson) {
     return false;
 }
 
+/* v34.8.5 — whole-array sync remains available for manual finance rows, but omission
+   is never a deletion instruction for OPEX/share transactions. Recurring salary and
+   template identities are created/voided only by sales-domain commands. This guard is
+   also applied to legacy clients that do not send a per-key base revision. */
+function sync_recurring_aliases($key, $row) {
+    if (!is_array($row)) return [];
+    $fields = $key === 'ptf_crm_opex' ? ['_opexRowId','recurringKey','cd'] : ['recurringKey','cd'];
+    $out = [];
+    foreach ($fields as $field) {
+        $value = trim((string)($row[$field] ?? ''));
+        if ($value !== '') $out[] = $field . ':' . $value;
+    }
+    return array_values(array_unique($out));
+}
+function sync_is_recurring_owned($key, $row) {
+    if (!is_array($row)) return false;
+    $recurringKey = trim((string)($row['recurringKey'] ?? ''));
+    if ($key === 'ptf_crm_sharetx') return $recurringKey !== '' || strtolower(trim((string)($row['type'] ?? ''))) === 'salary';
+    return $recurringKey !== '' || !empty($row['serverMaterialized']) || !empty($row['serverReconciled']) ||
+        !empty($row['shareholderSalary']) || !empty($row['autoApplied']) || trim((string)($row['tplId'] ?? '')) !== '';
+}
+function sync_is_terminal_recurring_row($row) {
+    if (!is_array($row)) return false;
+    $states = ['void','voided','cancelled','deleted','replaced','superseded'];
+    return in_array(strtolower(trim((string)($row['status'] ?? ''))), $states, true) ||
+        in_array(strtolower(trim((string)($row['st'] ?? ''))), $states, true) || !empty($row['voided']) || !empty($row['deleted']);
+}
+function sync_merge_server_owned_recurring_row($key, $server, $incoming, $serverIndex = -1) {
+    $merged = array_replace(is_array($server) ? $server : [], is_array($incoming) ? $incoming : []);
+    /* Client annotations (documents, the initial settlement and deal links) intentionally
+       survive; cheque linkage is protected separately below. Identity, amount, eligibility,
+       canonical metadata and tombstone state do not become writable merely because they
+       arrived inside a full browser snapshot. */
+    $core = $key === 'ptf_crm_opex'
+        ? ['_opexRowId','serverOwnedIdentity','cd','recurringKey','tplId','shareTx','shareholderSalary','cat','amt','month','desc','isOfficial','serverMaterialized','serverReconciled','autoApplied','by','t','createdAt','createdAtISO','createdT','createdBy','updatedAt','updatedAtISO','updatedT','updatedBy']
+        : ['cd','recurringKey','type','shCd','shName','amt','month','desc','serverMaterialized','serverReconciled','by','t','createdAt','createdAtISO','createdT','createdBy','updatedAt','updatedAtISO','updatedT','updatedBy'];
+    foreach ($core as $field) {
+        if (array_key_exists($field, $server)) $merged[$field] = $server[$field]; else unset($merged[$field]);
+    }
+    $terminalFields = ['status','voided','voidAt','voidedAt','voidBy','voidedBy','voidReason','deleted','deletedAt','deletedBy','deleteReason','explicitDeletion','manualVoid','voidIntent','eligibilityVoid','restoreIntent','restoredAt','restoredBy','restoreReason'];
+    foreach ($terminalFields as $field) {
+        if (array_key_exists($field, $server)) $merged[$field] = $server[$field]; else unset($merged[$field]);
+    }
+    /* A cheque relationship is authored atomically by schedule_recurring_opex_cheque.
+       Generic snapshots may neither forge it nor clear it after that command commits. */
+    $serverChequeLinked = trim((string)($server['chequeCd'] ?? '')) !== '' || !empty($server['fromCheque']) || strtolower(trim((string)($server['payHow'] ?? ''))) === 'cheque';
+    $incomingChequeLinked = trim((string)($incoming['chequeCd'] ?? '')) !== '' || !empty($incoming['fromCheque']) || strtolower(trim((string)($incoming['payHow'] ?? ''))) === 'cheque';
+    if ($serverChequeLinked || $incomingChequeLinked) {
+        foreach (['chequeCd','payHow','fromCheque'] as $field) {
+            if (array_key_exists($field, $server)) $merged[$field] = $server[$field]; else unset($merged[$field]);
+        }
+    }
+    /* `st=settled` is initially a client-authored payment annotation, but once the
+       server has accepted it a stale browser may not reopen the expense or rewrite its
+       evidence. Every lifecycle-terminal st is likewise server-owned here. */
+    $serverSettled = strtolower(trim((string)($server['st'] ?? ''))) === 'settled';
+    $incomingSettled = strtolower(trim((string)($incoming['st'] ?? ''))) === 'settled';
+    if ($serverSettled) {
+        foreach (['st','settleDoc','settledBy','settledT','settleISO','payHow','acctTx'] as $field) {
+            if (array_key_exists($field, $server)) $merged[$field] = $server[$field]; else unset($merged[$field]);
+        }
+    } elseif (sync_is_terminal_recurring_row($server)) {
+        if (array_key_exists('st', $server)) $merged['st'] = $server['st']; else unset($merged['st']);
+    } elseif (sync_is_terminal_recurring_row($incoming)) {
+        if (array_key_exists('st', $server)) $merged['st'] = $server['st']; else unset($merged['st']);
+    }
+    if ($serverSettled || $incomingSettled) {
+        /* Financial evidence is append-only during and after settlement. A stale full
+           snapshot may neither erase existing files nor block a genuinely new attachment. */
+        $evidence = []; $seenEvidence = [];
+        foreach (array_merge(is_array($server['files'] ?? null) ? $server['files'] : [], is_array($incoming['files'] ?? null) ? $incoming['files'] : []) as $file) {
+            if (!is_array($file)) continue;
+            $evidenceId = trim((string)($file['key'] ?? $file['id'] ?? ''));
+            if ($evidenceId === '') $evidenceId = hash('sha256', json_encode(sync_normalize_for_compare($file), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            if (isset($seenEvidence[$evidenceId])) continue;
+            $seenEvidence[$evidenceId] = true; $evidence[] = $file;
+        }
+        if ($evidence || array_key_exists('files', $server) || array_key_exists('files', $incoming)) $merged['files'] = $evidence;
+    }
+    /* Legacy recurring rows need a server-issued row identity. Simply stripping a
+       browser backfill would make opexEnsureRowIds generate/push a fresh random ID on
+       every render. The server index only disambiguates truly duplicate legacy rows;
+       once written, this value is preserved as ordinary server-owned identity. */
+    if ($key === 'ptf_crm_opex') {
+        if (trim((string)($merged['_opexRowId'] ?? '')) === '') {
+            $seed = trim((string)($server['recurringKey'] ?? '')) . '|' . trim((string)($server['cd'] ?? '')) . '|' . (int)$serverIndex;
+            $merged['_opexRowId'] = 'OPXR-SRV-' . strtoupper(substr(hash('sha256', $seed), 0, 24));
+        }
+        /* Marks even a preserved legacy row ID as an identity accepted by the server.
+           The projection merger may alias an uncommitted browser ID once, but must not
+           collapse two accepted duplicate rows that share recurringKey. */
+        $merged['serverOwnedIdentity'] = true;
+    }
+    return $merged;
+}
+function sync_merge_protected_finance_snapshot($key, $incomingJson, $serverJson) {
+    $incoming = json_decode((string)$incomingJson, true); $server = json_decode((string)$serverJson, true);
+    if (!is_array($incoming) || !is_array($server)) return null;
+    /* Start from server so absence preserves every row, including explicit tombstones. */
+    $out = array_values($server); $aliases = [];
+    foreach ($out as $index => $row) if (sync_is_recurring_owned($key, $row)) $out[$index] = sync_merge_server_owned_recurring_row($key, $row, $row, $index);
+    foreach ($out as $index => $row) foreach (sync_recurring_aliases($key, $row) as $alias) if (!isset($aliases[$alias])) $aliases[$alias] = (int)$index;
+    foreach ($incoming as $row) {
+        if (!is_array($row)) continue;
+        $at = -1;
+        $incomingAliases = sync_recurring_aliases($key, $row);
+        $incomingRowId = $key === 'ptf_crm_opex' ? trim((string)($row['_opexRowId'] ?? '')) : '';
+        if ($incomingRowId !== '') {
+            $rowAlias = '_opexRowId:' . $incomingRowId;
+            if (isset($aliases[$rowAlias])) $at = (int)$aliases[$rowAlias];
+            /* One-time browser-ID migration may fall back to a domain alias. Once an
+               identity has been accepted by the server, a missing exact row-ID is not
+               permission to overwrite another physical row with the same recurringKey. */
+            elseif (empty($row['serverOwnedIdentity'])) foreach ($incomingAliases as $alias) {
+                if (strpos($alias, '_opexRowId:') === 0) continue;
+                if (isset($aliases[$alias])) { $at = (int)$aliases[$alias]; break; }
+            }
+        } else foreach ($incomingAliases as $alias) if (isset($aliases[$alias])) { $at = (int)$aliases[$alias]; break; }
+        if ($at < 0) {
+            /* A new recurring identity must originate from the locked command path. */
+            if (sync_is_recurring_owned($key, $row)) continue;
+            $out[] = $row; $at = count($out) - 1;
+        } elseif (sync_is_recurring_owned($key, $out[$at]) || sync_is_recurring_owned($key, $row)) {
+            $out[$at] = sync_merge_server_owned_recurring_row($key, $out[$at], $row, $at);
+        } else {
+            $out[$at] = array_replace($out[$at], $row);
+        }
+        foreach (sync_recurring_aliases($key, $out[$at]) as $alias) if (!isset($aliases[$alias])) $aliases[$alias] = $at;
+    }
+    return json_encode(array_values($out), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+function sync_normalize_for_compare($value) {
+    if (!is_array($value)) return $value;
+    $isList = array_keys($value) === range(0, count($value) - 1);
+    if ($isList) { $out=[]; foreach($value as $item)$out[]=sync_normalize_for_compare($item); return $out; }
+    ksort($value); foreach($value as $key=>$item)$value[$key]=sync_normalize_for_compare($item); return $value;
+}
+function sync_finance_snapshot_signature($json) {
+    $rows=json_decode((string)$json,true);if(!is_array($rows))return '';$encoded=[];
+    /* Top-level row order is a presentation choice; nested arrays (e.g. files) retain
+       order. This avoids a permanent conflict loop when two browsers sort OPEX rows. */
+    foreach($rows as $row)$encoded[]=json_encode(sync_normalize_for_compare($row),JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+    sort($encoded,SORT_STRING);return hash('sha256',json_encode($encoded,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+}
+
 function sync_decode_archive($json) {
     $a = json_decode((string)$json, true);
     return is_array($a) ? $a : [];
@@ -1574,7 +1719,7 @@ switch($action) {
         $skipped_keys = [];
         $dbWriteFailed = false; /* v33.22.0: شکست نوشتن DB در mode=mysql → کل پاسخ ناموفق + retry */
         $rejected = []; /* v14.7 US-382 */
-        $conflicts = []; $conflictData = []; $krevs = []; /* v15.0 US-384 */
+        $conflicts = []; $conflictData = []; $protectedConflicts = []; $krevs = []; /* v15.0 US-384 + v34.8.5 finance protection */
         $allow_wipe = !empty($j['allow_wipe']); /* فقط مسیر Go-Live (US-377) این فلگ را می‌فرستد */
         $restore = !empty($j['restore']); /* بازگردانی کامل سرور */
         if ($restore && !in_array($client_role, ['admin','chairman'], true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'restore_permission_denied']); break; }
@@ -1634,13 +1779,42 @@ switch($action) {
                ادغام و دوباره ارسال کند — هیچ رکوردی از هیچ دستگاهی گم نمی‌شود.
                (کلاینت‌های قدیمی بدون base مثل قبل پذیرفته می‌شوند — سازگاری عقب‌رو دوره گذار) ===== */
             $curRev = (int)($meta[$k]['rev'] ?? 0);
+            $isProtectedFinanceKey = in_array($k, ['ptf_crm_opex','ptf_crm_sharetx'], true);
             if (!$restore && !$allow_wipe && $base !== null && array_key_exists($k, $base) && (int)$base[$k] < $curRev) {
                 $conflicts[] = $k;
                 /* v33.22.0: مسیر یکپارچه (mysql → DB) */
                 $cfVal = sync_key_read($sdir, $k);
-                if ($cfVal !== null) $conflictData[$k] = sync_apply_tombstones($k, $cfVal, $serverArchiveJson, $incomingArchiveJson); /* legacy UAT token: $conflictData[$k] = file_get_contents($cf); */
+                if ($isProtectedFinanceKey) {
+                    /* A stale finance writer must receive the protected merge immediately.
+                       Sending the raw server value through generic timestamp merge first can
+                       keep forged server-owned fields in the local retry for one more cycle. */
+                    $protectedConflicts[] = $k;
+                    $protectedConflictJson = sync_merge_protected_finance_snapshot($k, $v, $cfVal === null ? '[]' : $cfVal);
+                    if ($protectedConflictJson === null) {
+                        $rejected[] = $k;
+                        $protectedConflictJson = $cfVal === null ? '[]' : $cfVal;
+                    }
+                    $conflictData[$k] = sync_apply_tombstones($k, $protectedConflictJson, $serverArchiveJson, $incomingArchiveJson);
+                } elseif ($cfVal !== null) {
+                    $conflictData[$k] = sync_apply_tombstones($k, $cfVal, $serverArchiveJson, $incomingArchiveJson); /* legacy UAT token: $conflictData[$k] = file_get_contents($cf); */
+                }
                 $krevs[$k] = $curRev;
                 continue;
+            }
+            /* OPEX/sharetx use merge-on-server even when the caller is a legacy client
+               without `base`. If protection changes the submitted snapshot, return a
+               conflict instead of silently ACKing a local cache that still lacks rows. */
+            if (!$restore && !$allow_wipe && $isProtectedFinanceKey) {
+                $serverFinanceJson = sync_key_read($sdir, $k);
+                if ($serverFinanceJson === null) $serverFinanceJson = '[]';
+                $protectedFinanceJson = sync_merge_protected_finance_snapshot($k, $v, $serverFinanceJson);
+                if ($protectedFinanceJson === null) {
+                    $rejected[] = $k; $krevs[$k] = $curRev; continue;
+                }
+                if (!hash_equals(sync_finance_snapshot_signature($v), sync_finance_snapshot_signature($protectedFinanceJson))) {
+                    $conflicts[] = $k; $protectedConflicts[] = $k; $conflictData[$k] = $protectedFinanceJson; $krevs[$k] = $curRev; continue;
+                }
+                $v = $protectedFinanceJson;
             }
             /* ===== v14.7 (US-382 — سپر ضد داده‌صفر): فهرست خالی روی داده ناخالی هرگز پذیرفته نمی‌شود
                مگر با فلگ صریح allow_wipe (Go-Live) یا restore (بازگردانی ادمین). ===== */
@@ -1674,7 +1848,7 @@ switch($action) {
         if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
         echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $meta['_global']['rev'], 'rejected' => array_values(array_unique($rejected)),
             'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
-            'conflicts' => $conflicts, 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK */
+            'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK */
         break;
 
     case 'data_pull':

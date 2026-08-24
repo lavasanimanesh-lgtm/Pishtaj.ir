@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.4",
+  "crm_version": "v34.8.5",
   "last_stable_tag": "v2026.08.16-0100",
-  "last_updated": "2026-08-24",
-  "updated_by": "Arena Agent (v34.8.4 اصلاح خزانه دوره‌ای و دفتر canonical مشتری)"
+  "last_updated": "2026-08-25",
+  "updated_by": "Arena Agent (v34.8.5 ایمن‌سازی معماری هزینه‌های تکرارشونده)"
 }

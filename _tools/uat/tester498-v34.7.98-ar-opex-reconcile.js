@@ -1,4 +1,4 @@
-/* tester498 — v34.8.4
+/* tester498 — v34.8.5
  * رفع دائمی دو race مالی:
  *  1) Receipt قطعی در خزانه/AR/حساب مشتری با تفکیک received/allocated/free/overpay
  *  2) reconcile ماهانهٔ حقوق و قالب OPEX فقط پس از snapshot-ready، idempotent و legacy-safe
@@ -9,17 +9,17 @@ var fs = require('fs'), path = require('path'), vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
 function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
-SECTION('Release v34.8.4: پین‌های رسمی');
+SECTION('Release v34.8.5: پین‌های رسمی');
 (function releasePins() {
   var ver = JSON.parse(read('VERSION.json'));
   var idx = read('crm/index.html'), sw = read('crm/sw.js');
-  T('VERSION.json = v34.8.4', ver.crm_version === 'v34.8.4', ver.crm_version);
-  T('index release و cache-bust روی 34.8.4 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.4'") > -1 && idx.indexOf('?v=34.7.96') === -1);
-  T('service worker release/cache/assets روی 34.8.4 است', sw.indexOf("RELEASE = 'v34.8.4'") > -1 && sw.indexOf("ASSET_VERSION = '34.8.4'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.8.4'") > -1);
-  T('manifest.version = 34.8.4', JSON.parse(read('crm/manifest.json')).version === '34.8.4');
-  T('clear-cache روی v34.8.4 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.8.4'") > -1);
-  T('shell fallback روی v34.8.4 است', read('crm/shell.js').indexOf("'v34.8.4'") > -1);
-  T('sales-domain service روی 34.8.4 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.8.4'") > -1);
+  T('VERSION.json = v34.8.5', ver.crm_version === 'v34.8.5', ver.crm_version);
+  T('index release و cache-bust روی 34.8.5 است', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.5'") > -1 && idx.indexOf('?v=34.7.96') === -1);
+  T('service worker release/cache/assets روی 34.8.5 است', sw.indexOf("RELEASE = 'v34.8.5'") > -1 && sw.indexOf("ASSET_VERSION = '34.8.5'") > -1 && sw.indexOf("CACHE = 'ptf-crm-v34.8.5'") > -1);
+  T('manifest.version = 34.8.5', JSON.parse(read('crm/manifest.json')).version === '34.8.5');
+  T('clear-cache روی v34.8.5 است', read('crm/clear-cache.html').indexOf("window.VER = 'v34.8.5'") > -1);
+  T('shell fallback روی v34.8.5 است', read('crm/shell.js').indexOf("'v34.8.5'") > -1);
+  T('sales-domain service روی 34.8.5 است', read('api/sales-domain.php').indexOf("SD_SERVICE_VERSION = '34.8.5'") > -1);
 })();
 
 SECTION('AR: یک Receipt، یک قرارداد عددی در خزانه و حساب مشتری');
@@ -199,7 +199,7 @@ function opexContext(seed) {
 SECTION('OPEX: فرمان server-authoritative پس از Sync و projection قابل مشاهده');
 (function serverAuthoritativeColdStart() {
   var month = '1405/06';
-  var serverRows = [salaryOpex('SH1', 'اول', 100, month), salaryOpex('SH2', 'دوم', 200, month)];
+  var serverRows = [salaryOpex('SH1', 'اول', 100, month), salaryOpex('SH2', 'دوم', 200, month), { cd: 'OPX-TPL-RENT', _opexRowId: 'OPXR-TPL-RENT', cat: 'اجاره‌بها', amt: 300, month: month, tplId: 'TPL-RENT', recurringKey: 'opex-template:TPL-RENT:' + month, status: 'active', serverReconciled: true, serverMaterialized: true }];
   var c = opexContext({
     settings: { opexTpl: [{ id: 'TPL-RENT', cat: 'اجاره‌بها', amt: 300, desc: 'اجاره' }] },
     serverOpex: serverRows
@@ -212,7 +212,7 @@ SECTION('OPEX: فرمان server-authoritative پس از Sync و projection قا
   var ox = c.rows('ptf_crm_opex');
   T('پس از ACK سرور، ۲ حقوق در OPEX و ۱ قالب مالی قابل مشاهده‌اند', ox.length === 3 && ox.filter(function (x) { return x.shareholderSalary; }).length === 2 && ox.some(function (x) { return x.tplId === 'TPL-RENT'; }), JSON.stringify(ox));
   T('کلاینت دیگر sharetx/حقوق محلی نمی‌سازد', c.rows('ptf_crm_sharetx').length === 0);
-  T('فرمان با ماه تهران، idempotency قطعی و autoReplay ارسال می‌شود', c.commands.length === 1 && c.commands[0].action === 'reconcile_shareholder_salaries' && c.commands[0].body.month === month && c.commands[0].body.idempotencyKey === 'SALARY-REC|' + month + '|admin|2026-08-23' && c.commands[0].options.apiOptions.autoReplay === true, JSON.stringify(c.commands));
+  T('فرمان با ماه تهران، idempotency قطعی و autoReplay ارسال می‌شود', c.commands.length === 1 && c.commands[0].action === 'reconcile_recurring_opex' && c.commands[0].body.month === month && c.commands[0].body.idempotencyKey === 'OPEX-REC|' + month + '|admin|2026-08-23' && c.commands[0].options.apiOptions.autoReplay === true, JSON.stringify(c.commands));
   T('قالب از projection تنظیمات خوانده می‌شود، نه localStorage کهنه', ox.some(function (x) { return x.recurringKey === 'opex-template:TPL-RENT:' + month; }));
 
   var ids1 = ox.map(function (x) { return x.cd + '@' + x._opexRowId; }).sort().join('|');
@@ -266,8 +266,9 @@ SECTION('OPEX: همهٔ وضعیت‌های terminal از جمع و helperها �
   T('انتخاب هزینه برای چک terminalها را برنمی‌گرداند', c.ptfOpexUnlinkedForCheque().length === 1 && c.ptfOpexUnlinkedForCheque()[0].cd === 'ACTIVE');
   T('وجود فقط ردیف terminal مانع pending template نیست', c.ptfOpexPendingTpls('1405/06').some(function (x) { return x.id === 'TPL-X'; }));
   T('وجود فقط ردیف terminal، ماه جاری را از future-month حذف نمی‌کند', c.ptfOpexFutureMonthsForTpl('TPL-X', '1405').some(function (x) { return x.month === '1405/06'; }));
+  var beforeSchedule = JSON.stringify(c.rows('ptf_crm_opex'));
   var made = c.ptfOpexCreateMonthsForCheque('CH-1', [{ tplId: 'TPL-X', month: '1405/06' }]);
-  T('duplicate check چک، ردیف terminal را قابل جایگزینی می‌داند', made.ok === true && made.ids.length === 1 && c.rows('ptf_crm_opex').filter(function (x) { return x.tplId === 'TPL-X' && !x.status && !x.st && !x.voided && !x.deleted; }).length === 1, JSON.stringify(made));
+  T('duplicate check چک فقط Promise فرمان سروری می‌دهد و tombstone را محلی زنده نمی‌کند', made && typeof made.then === 'function' && JSON.stringify(c.rows('ptf_crm_opex')) === beforeSchedule);
 })();
 
 SECTION('Server salary contract و Sync readiness wiring');
@@ -275,10 +276,10 @@ SECTION('Server salary contract و Sync readiness wiring');
   var sync = read('crm/sync.js'), opx = read('crm/opex.js'), php = read('api/sales-domain.php');
   T('Sync فلگ snapshot-ready جدا از bootstrapped دارد', sync.indexOf('window._ptfSyncSnapshotReady = false') > -1 && sync.indexOf('announceSnapshotReady') > -1);
   T('خطای pull readiness کاذب تولید نمی‌کند', sync.indexOf("if (!result || result.ok === false) return false") > -1 && sync.indexOf("if (res && res.ok !== false) announceSnapshotReady(res)") > -1);
-  T('OPEX فقط پس از Sync موفق فرمان server-authoritative را اجرا می‌کند', opx.indexOf("addEventListener('ptf:sync-ready'") > -1 && opx.indexOf("ptfSalesDomainCommand('reconcile_shareholder_salaries'") > -1);
+  T('OPEX فقط پس از Sync موفق فرمان server-authoritative را اجرا می‌کند', opx.indexOf("addEventListener('ptf:sync-ready'") > -1 && opx.indexOf("ptfSalesDomainCommand('reconcile_recurring_opex'") > -1);
   T('فلگ ماهانهٔ legacy دیگر مبنای skip نیست', opx.indexOf("localStorage.getItem('ptf_auto_recurring_last')") === -1 && opx.indexOf("localStorage.setItem('ptf_auto_recurring_last'") === -1);
-  T('سرور sharetx را commit می‌کند ولی فقط OPEX را به accountant برمی‌گرداند', php.indexOf("$changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex]") > -1 && php.indexOf("$responseChanges=['ptf_crm_opex'=>$opex]") > -1);
-  T('reactivation شناسه خالی و markerهای void/deleted را heal می‌کند', php.indexOf("$legacyCd=trim((string)($tx['cd']??''))") > -1 && php.indexOf("$tx['deletedAt']") > -1 && php.indexOf("$ox['deletedAt']") > -1);
+  T('سرور sharetx را commit می‌کند ولی فقط OPEX را به accountant برمی‌گرداند', php.indexOf("$changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex]") > -1 && php.indexOf("$responseChanges=['ptf_crm_opex'=>[]]") > -1);
+  T('reactivation شناسه خالی و markerهای void/deleted را heal می‌کند', php.indexOf('function sd_recurring_activate') > -1 && php.indexOf("'deletedAt'") > -1 && php.indexOf("'explicitDeletion'") > -1);
 })();
 
-DONE('tester498-v34.8.4-ar-opex-reconcile');
+DONE('tester498-v34.8.5-ar-opex-reconcile');

@@ -33,6 +33,9 @@ if (!is_array($body)) $body = [];
 $action = trim((string)($_GET['action'] ?? $body['action'] ?? 'snapshot'));
 
 const SD_FIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'accountant'];
+/* پرونده و گردش سهامداران فقط برای همان نقش‌هایی projection می‌شود که رابط
+   سهامداران/سال مالی را می‌بینند؛ حسابدار همچنان فقط OPEX را دریافت می‌کند. */
+const SD_SHAREHOLDER_VIEW_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
 const SD_WIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
 const SD_OFFER_REPAIR_ROLES = ['admin', 'chairman'];
 const SD_RFQ_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
@@ -40,7 +43,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.4';
+const SD_SERVICE_VERSION = '34.8.5';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -112,9 +115,9 @@ function sd_num($value): float {
     return is_numeric($s) ? (float)$s : 0.0;
 }
 function sd_active(array $r): bool {
-    $st = strtolower((string)($r['status'] ?? $r['st'] ?? ''));
-    return !in_array($st, ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'], true)
-        && empty($r['voided']) && empty($r['deleted']);
+    $terminal=['void','voided','cancelled','deleted','replaced','superseded'];
+    $status=strtolower(trim((string)($r['status']??'')));$st=strtolower(trim((string)($r['st']??'')));
+    return !in_array($status,$terminal,true)&&!in_array($st,$terminal,true)&&empty($r['voided'])&&empty($r['deleted']);
 }
 function sd_date_key($value): string {
     $s=strtr(trim((string)$value),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);
@@ -544,6 +547,133 @@ function sd_result_data(array $changes): array {
     }
     return $out;
 }
+/* v34.8.5 — OPEX command projections are identity-scoped deltas, never replace-all
+   snapshots. A terminal row is still returned as a durable tombstone; absence from a
+   delta has no deletion meaning. The journal stores only identities and replay rebuilds
+   this envelope from current authoritative rows, so a stale response cannot resurrect
+   an old salary/template value. */
+function sd_opex_projection_identity(array $row): array {
+    return [
+        '_opexRowId'=>sd_text($row['_opexRowId']??'',160),
+        'recurringKey'=>sd_text($row['recurringKey']??'',220),
+        'cd'=>sd_text($row['cd']??'',160)
+    ];
+}
+function sd_opex_identity_present(array $identity): bool {
+    return trim((string)($identity['_opexRowId']??''))!=='' || trim((string)($identity['recurringKey']??''))!=='' || trim((string)($identity['cd']??''))!=='';
+}
+function sd_opex_identity_key(array $identity): string {
+    foreach (['_opexRowId','recurringKey','cd'] as $field) {
+        $value=trim((string)($identity[$field]??''));
+        if($value!=='')return $field.':'.$value;
+    }
+    return '';
+}
+function sd_opex_identity_matches(array $row,array $identity): bool {
+    $wantedRowId=trim((string)($identity['_opexRowId']??''));$rowId=trim((string)($row['_opexRowId']??''));
+    /* recurringKey names a domain occurrence and is intentionally shared by legacy
+       duplicates. Once both sides have physical row IDs, never let that broad alias
+       collapse a canonical active row and its durable duplicate tombstone. */
+    if($wantedRowId!==''&&$rowId!=='')return hash_equals($wantedRowId,$rowId);
+    foreach (['cd','recurringKey'] as $field) {
+        $wanted=trim((string)($identity[$field]??''));
+        if($wanted!==''&&trim((string)($row[$field]??''))===$wanted)return true;
+    }
+    return false;
+}
+function sd_ensure_recurring_opex_row_identities(array &$rows): void {
+    $used=[];
+    foreach($rows as $row)if(is_array($row)){ $id=trim((string)($row['_opexRowId']??''));if($id!=='')$used[$id]=true; }
+    foreach($rows as $index=>&$row){
+        if(!is_array($row))continue;
+        $owned=trim((string)($row['recurringKey']??''))!==''||!empty($row['serverMaterialized'])||!empty($row['shareholderSalary'])||!empty($row['autoApplied'])||trim((string)($row['tplId']??''))!=='';
+        if(!$owned)continue;
+        $row['serverOwnedIdentity']=true;
+        if(trim((string)($row['_opexRowId']??''))!=='')continue;
+        $seed=trim((string)($row['recurringKey']??'')).'|'.trim((string)($row['cd']??'')).'|'.(int)$index;
+        $id='OPXR-SRV-'.strtoupper(substr(hash('sha256',$seed),0,24));
+        $salt=0;while(isset($used[$id])){$salt++;$id='OPXR-SRV-'.strtoupper(substr(hash('sha256',$seed.'|'.$salt),0,24));}
+        $row['_opexRowId']=$id;$used[$id]=true;
+    }unset($row);
+}
+function sd_opex_projection_identities(array $rows): array {
+    $out=[];$seen=[];
+    foreach($rows as $row){
+        if(!is_array($row))continue;$identity=sd_opex_projection_identity($row);
+        if(!sd_opex_identity_present($identity))continue;$key=sd_opex_identity_key($identity);
+        if($key===''||isset($seen[$key]))continue;$seen[$key]=true;$out[]=$identity;
+    }
+    return $out;
+}
+function sd_opex_projection_envelope(array $rows,array $identities,int $revision): array {
+    $upserts=[];$tombstones=[];$emitted=[];
+    foreach($identities as $identity){
+        if(!is_array($identity)||!sd_opex_identity_present($identity))continue;
+        foreach($rows as $index=>$row){
+            if(!is_array($row)||!sd_opex_identity_matches($row,$identity)||isset($emitted[$index]))continue;
+            $emitted[$index]=true;
+            if(sd_active($row))$upserts[]=$row;
+            else $tombstones[]=$row;
+        }
+    }
+    return [
+        'mode'=>'merge-v1','collection'=>'ptf_crm_opex','identityVersion'=>'opex-v1',
+        'revision'=>$revision,'upserts'=>$upserts,'tombstones'=>$tombstones
+    ];
+}
+function sd_is_recurring_projection_action(string $action): bool {
+    return in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','schedule_recurring_opex_cheque','void_recurring_opex'],true);
+}
+function sd_recurring_sharetx_projection_allowed(string $action): bool {
+    global $role;
+    /* schedule فقط لینک چک را عوض می‌کند. reconcile/void ممکن است در همان commit
+       salary claim را بسازد، repair کند یا void کند و باید برای مدیر ارشد بی‌درنگ
+       همان projection اتمیک را برگرداند؛ نه این‌که به pull دوم وابسته بماند. */
+    return in_array($role,SD_SHAREHOLDER_VIEW_ROLES,true)
+        && in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','void_recurring_opex'],true);
+}
+function sd_recurring_projection_data(string $action,array $opex,array $identities,int $rev): array {
+    $data=['ptf_crm_opex'=>sd_opex_projection_envelope($opex,$identities,$rev)];
+    if(sd_recurring_sharetx_projection_allowed($action)){
+        /* sharetx یک projection کاملِ role-safe است. این کار شکاف نمایش بین OPEX و
+           طلب حقوق را می‌بندد، در حالی که accountant همچنان آن را دریافت نمی‌کند. */
+        $data['ptf_crm_sharetx']=sd_read('ptf_crm_sharetx');
+    }
+    return $data;
+}
+function sd_recurring_explicit_tombstone(array $row): bool {
+    return !empty($row['explicitDeletion']) || !empty($row['manualVoid']) || (string)($row['voidIntent']??'')==='explicit';
+}
+function sd_recurring_restore_requested(string $key,array $restoreKeys): bool { return $key!=='' && in_array($key,$restoreKeys,true); }
+function sd_recurring_activate(array &$row): void {
+    /* `st=settled` is a payment state, not a recurring tombstone. Reconcile clears
+       lifecycle terminal values only; otherwise a daily run would make paid OPEX look
+       unpaid again. */
+    $wasTerminal=!sd_active($row);
+    foreach(['status','st']as $field){$state=strtolower(trim((string)($row[$field]??'')));if(in_array($state,['void','voided','cancelled','deleted','replaced','superseded'],true))unset($row[$field]);}
+    foreach(['voided','voidAt','voidedAt','voidBy','voidedBy','voidReason','deleted','deletedAt','deletedBy','deleteReason','explicitDeletion','manualVoid','voidIntent','eligibilityVoid']as $field)unset($row[$field]);
+    if($wasTerminal||trim((string)($row['status']??''))==='')$row['status']='active';
+}
+function sd_recurring_void(array &$row,string $reason,string $by,string $kind='explicit'): void {
+    $now=sd_now();unset($row['restoreIntent'],$row['restoredAt'],$row['restoredBy']);$row['status']='void';$row['st']='void';$row['voided']=true;$row['voidAt']=$now;$row['voidedAt']=$now;$row['voidBy']=$by;$row['voidedBy']=$by;$row['voidReason']=$reason;$row['serverReconciled']=true;$row['updatedT']=$now;$row['updatedBy']=$by;
+    if($kind==='explicit'){$row['explicitDeletion']=true;$row['manualVoid']=true;$row['voidIntent']='explicit';unset($row['eligibilityVoid']);}elseif($kind==='eligibility'){$row['eligibilityVoid']=true;$row['voidIntent']='eligibility';unset($row['explicitDeletion'],$row['manualVoid']);}
+}
+function sd_recurring_find_indexes(array $rows,string $key,array $extraFields=[]): array {
+    $hits=[];
+    foreach($rows as $index=>$row){
+        if(!is_array($row))continue;
+        if($key!==''&&(string)($row['recurringKey']??'')===$key){$hits[]=(int)$index;continue;}
+        $allExtra=(bool)$extraFields;
+        foreach($extraFields as $field=>$value)if($value===''||(string)($row[$field]??'')!==$value){$allExtra=false;break;}
+        if($allExtra)$hits[]=(int)$index;
+    }
+    return array_values(array_unique($hits));
+}
+function sd_recurring_pick_index(array $rows,array $hits,bool $restore=false): int {
+    if($restore)foreach($hits as $index)if(isset($rows[$index])&&is_array($rows[$index])&&sd_recurring_explicit_tombstone($rows[$index]))return (int)$index;
+    foreach($hits as $index)if(isset($rows[$index])&&is_array($rows[$index])&&sd_active($rows[$index]))return (int)$index;
+    return $hits?(int)$hits[0]:-1;
+}
 function sd_command_request_hash(string $action, array $body): string {
     unset($body['idempotencyKey'], $body['action']);
     return hash('sha256', $action . "\n" . json_encode(sd_norm_for_hash($body), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
@@ -914,7 +1044,14 @@ try {
     $old = sd_idempotency($commands, $idem, $action, $requestHash);
     if ($old) {
         $keys = is_array($old['result']['keys'] ?? null) ? $old['result']['keys'] : [];
-        if($action==='reconcile_shareholder_salaries')$keys=array_values(array_intersect($keys,['ptf_crm_opex']));
+        /* Recurring replay never reuses an old full snapshot or stale payload. Only the
+           journaled identities are re-read under this lock and emitted at current rev. */
+        if(sd_is_recurring_projection_action($action)){
+            $rev=sd_current_rev();
+            $identities=is_array($old['result']['projectionIdentities']??null)?$old['result']['projectionIdentities']:[];
+            sd_out(['ok'=>true,'idempotent'=>true,'rev'=>$rev,'result'=>$old['result'],
+                'data'=>sd_recurring_projection_data($action,sd_read('ptf_crm_opex'),$identities,$rev)]);
+        }
         /* retry همان command نیز projection جاری را با watermark دقیق می‌گیرد؛ بدون
            rev، کلاینت ناچار بود آن را روی نسخهٔ نامعلوم cache اعمال کند. */
         sd_out(['ok'=>true,'idempotent'=>true,'rev'=>sd_current_rev(),'result'=>$old['result'],'data'=>sd_snapshot($keys)]);
@@ -1459,35 +1596,218 @@ try {
         foreach(array_keys($touched)as $tc)if($tc!=='')sd_rebuild_allocations($tc,$receipts,$invoices,$allocations,$cases);
         $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_fiscal_snapshots'=>$snaps];$result=['deleted'=>true,'entityType'=>$entityType,'entityId'=>$entityId,'dependenciesRemoved'=>count($deps),'invalidatedYear'=>$invalidYear];
     }
-    elseif ($action === 'reconcile_shareholder_salaries') {
+    elseif ($action === 'reconcile_shareholder_salaries' || $action === 'reconcile_recurring_opex') {
         sd_require_role(SD_FIN_ROLES);
-        $month=str_replace('-','/',sd_identity($body['month']??''));
-        if(!preg_match('/^\d{4}\/\d{2}$/',$month)||$month!==sd_current_jalali_month())sd_out(['ok'=>false,'error'=>'current_jalali_month_required','currentMonth'=>sd_current_jalali_month()],422);
-        if(sd_is_locked($snaps,$month.'/01'))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>substr($month,0,4)],409);
-        $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');
-        $eligible=[];$createdTx=0;$createdOpex=0;$updated=0;$voided=0;$now=sd_now();
-        foreach($shareholders as $sh){
+        $month=sd_text($body['month']??'',20);$currentMonth=sd_current_jalali_month();
+        $explicitEligibility=!empty($body['explicitEligibility']);
+        $includeSalaries=($body['includeSalaries']??true)!==false;
+        $includeTemplates=$action==='reconcile_recurring_opex'&&($body['includeTemplates']??true)!==false;
+        $explicitTemplate=$includeTemplates&&!empty($body['explicitTemplate']);
+        $scopeTemplate=sd_text($body['scopeTemplate']??'',160);
+        if($explicitTemplate&&$scopeTemplate==='')sd_out(['ok'=>false,'error'=>'opex_template_scope_required'],422);
+        if(!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$month))sd_out(['ok'=>false,'error'=>'invalid_jalali_month'],422);
+        if($month!==$currentMonth&&!$explicitEligibility&&!$explicitTemplate)sd_out(['ok'=>false,'error'=>'current_tehran_month_required','expected'=>$currentMonth],422);
+        if(sd_is_locked($snaps,$month))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year($month)],409);
+        $restoreKeys=[];foreach((is_array($body['restoreKeys']??null)?$body['restoreKeys']:[])as $restoreKey){$restoreKey=sd_text($restoreKey,220);if($restoreKey!==''&&!in_array($restoreKey,$restoreKeys,true))$restoreKeys[]=$restoreKey;}
+        $scopeShareholder=sd_text($body['scopeShareholder']??'',160);$explicitReason=sd_text($body['reason']??'',500);
+        if(($explicitEligibility||$explicitTemplate||count($restoreKeys)>0)&&$explicitReason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+
+        $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');sd_ensure_recurring_opex_row_identities($opex);
+        $settings=sd_read('ptf_crm_settings');$templates=is_array($settings['opexTpl']??null)?$settings['opexTpl']:[];$correctionStart=count($corrections);
+        $now=sd_now();$created=0;$updated=0;$voided=0;$conflicts=0;$suppressed=0;$invalidTemplates=0;$matchedTemplates=0;$projectionRows=[];$eligibleSalaryKeys=[];
+
+        if($includeSalaries)foreach($shareholders as $sh){
             if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
-            $shCd=(string)$sh['cd'];$salary=(int)round(sd_num($sh['salary']));$key='salary:'.$shCd.':'.$month;$eligible[$key]=true;
-            $txHits=[];foreach($sharetx as $idx=>$tx)if(is_array($tx)&&(($tx['recurringKey']??'')===$key||(($tx['type']??'')==='salary'&&($tx['shCd']??'')===$shCd&&($tx['month']??'')===$month)))$txHits[]=(int)$idx;
-            $txIndex=$txHits[0]??-1;$txCd=sd_stable_recurring_code('SHT-SAL',$key);
-            if($txIndex<0){array_unshift($sharetx,['cd'=>$txCd,'shCd'=>$shCd,'shName'=>(string)($sh['name']??$shCd),'type'=>'salary','amt'=>$salary,'desc'=>'حقوق موظف ماه '.$month,'t'=>$now,'month'=>$month,'by'=>$user,'files'=>[],'status'=>'active','recurringKey'=>$key,'serverReconciled'=>true]);$txIndex=0;$createdTx++;}
-            else{$tx=&$sharetx[$txIndex];$legacyCd=trim((string)($tx['cd']??''));$txCd=$legacyCd!==''?$legacyCd:$txCd;$before=json_encode($tx);$tx['cd']=$txCd;$tx['shCd']=$shCd;$tx['shName']=(string)($sh['name']??$shCd);$tx['type']='salary';$tx['amt']=$salary;$tx['desc']='حقوق موظف ماه '.$month;$tx['month']=$month;$tx['recurringKey']=$key;$tx['status']='active';$tx['serverReconciled']=true;unset($tx['st'],$tx['voided'],$tx['voidAt'],$tx['voidBy'],$tx['voidReason'],$tx['deleted'],$tx['deletedAt'],$tx['deletedBy'],$tx['deleteReason']);/* metadata فقط پس از تشخیص تغییر واقعی نوشته می‌شود تا refresh بعدی idempotent بماند. */if(json_encode($tx)!==$before){$tx['updatedT']=$now;$tx['updatedBy']=$user;$updated++;}unset($tx);}
-            foreach(array_slice($txHits,1)as $duplicate){if(sd_active($sharetx[$duplicate])){$sharetx[$duplicate]['status']='void';$sharetx[$duplicate]['st']='void';$sharetx[$duplicate]['voidAt']=$now;$sharetx[$duplicate]['voidBy']=$user;$sharetx[$duplicate]['voidReason']='duplicate_salary_recurring_key';$voided++;}}
-            $oxHits=[];foreach($opex as $idx=>$ox)if(is_array($ox)&&(($ox['recurringKey']??'')===$key||(($ox['shareTx']??'')===$txCd&&!empty($ox['shareholderSalary']))))$oxHits[]=(int)$idx;
-            $oxIndex=$oxHits[0]??-1;
-            if($oxIndex<0){array_unshift($opex,['cd'=>sd_stable_recurring_code('OPX-SAL',$key),'_opexRowId'=>sd_stable_recurring_code('OPXR-SAL',$key),'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($sh['name']??$shCd),'t'=>$now,'by'=>$user,'shareTx'=>$txCd,'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true]);$createdOpex++;}
-            else{$ox=&$opex[$oxIndex];$before=json_encode($ox);if(empty($ox['cd']))$ox['cd']=sd_stable_recurring_code('OPX-SAL',$key);if(empty($ox['_opexRowId']))$ox['_opexRowId']=sd_stable_recurring_code('OPXR-SAL',$key);$ox['cat']='حقوق و دستمزد';$ox['amt']=$salary;$ox['month']=$month;$ox['desc']='حقوق موظف سهامدار: '.(string)($sh['name']??$shCd);$ox['shareTx']=$txCd;$ox['shareholderSalary']=true;$ox['recurringKey']=$key;$ox['status']='active';$ox['serverReconciled']=true;unset($ox['st'],$ox['voided'],$ox['voidAt'],$ox['voidBy'],$ox['voidReason'],$ox['deleted'],$ox['deletedAt'],$ox['deletedBy'],$ox['deleteReason']);if(json_encode($ox)!==$before){$ox['updatedT']=$now;$ox['updatedBy']=$user;$updated++;}unset($ox);}
-            foreach(array_slice($oxHits,1)as $duplicate){if(sd_active($opex[$duplicate])){$opex[$duplicate]['status']='void';$opex[$duplicate]['st']='void';$opex[$duplicate]['voidAt']=$now;$opex[$duplicate]['voidBy']=$user;$opex[$duplicate]['voidReason']='duplicate_salary_recurring_key';$voided++;}}
+            $shCd=sd_text($sh['cd'],160);$salary=sd_num($sh['salary']);$key='salary:'.$shCd.':'.$month;$eligibleSalaryKeys[$key]=true;
+            $restore=sd_recurring_restore_requested($key,$restoreKeys);$txHits=sd_recurring_find_indexes($sharetx,$key,['shCd'=>$shCd,'month'=>$month]);
+            /* Legacy salary OPEX may predate recurringKey but already has a durable
+               shareTx relation. Union every matching transaction identity (not merely
+               the first duplicate) so migration cannot create another OPEX sibling. */
+            $oxHits=sd_recurring_find_indexes($opex,$key,[]);$legacyTxCds=[];
+            foreach($txHits as $legacyTxIndex){
+                $candidateCd=trim((string)($sharetx[$legacyTxIndex]['cd']??''));if($candidateCd===''||in_array($candidateCd,$legacyTxCds,true))continue;$legacyTxCds[]=$candidateCd;
+                $oxHits=array_values(array_unique(array_merge($oxHits,sd_recurring_find_indexes($opex,$key,['shareTx'=>$candidateCd,'shareholderSalary'=>true]))));
+            }
+            $hasExplicit=false;foreach($txHits as $i)if(sd_recurring_explicit_tombstone($sharetx[$i]))$hasExplicit=true;foreach($oxHits as $i)if(sd_recurring_explicit_tombstone($opex[$i]))$hasExplicit=true;
+            if($hasExplicit&&!$restore){$suppressed++;foreach($oxHits as $i)$projectionRows[]=$opex[$i];continue;}
+
+            $txCd=sd_stable_recurring_code('SHT-SAL',$key);$txIndex=sd_recurring_pick_index($sharetx,$txHits,$restore);$restoreTx=$restore&&$txIndex>=0&&sd_recurring_explicit_tombstone($sharetx[$txIndex]);
+            if($txIndex<0){
+                $sharetx[]=['cd'=>$txCd,'shCd'=>$shCd,'shName'=>(string)($sh['name']??$shCd),'type'=>'salary','amt'=>$salary,'desc'=>'حقوق موظف ماه '.$month,'month'=>$month,'t'=>$month.'/01','recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'createdT'=>$now,'createdBy'=>$user];$txIndex=count($sharetx)-1;$created++;
+            }else{
+                $beforeSnapshot=$sharetx[$txIndex];$before=json_encode($beforeSnapshot);$legacyCd=trim((string)($sharetx[$txIndex]['cd']??''));$sharetx[$txIndex]['cd']=$legacyCd!==''?$legacyCd:$txCd;$sharetx[$txIndex]['shCd']=$shCd;$sharetx[$txIndex]['shName']=(string)($sh['name']??$shCd);$sharetx[$txIndex]['type']='salary';$sharetx[$txIndex]['amt']=$salary;$sharetx[$txIndex]['desc']='حقوق موظف ماه '.$month;$sharetx[$txIndex]['month']=$month;$sharetx[$txIndex]['t']=$month.'/01';$sharetx[$txIndex]['recurringKey']=$key;$sharetx[$txIndex]['serverReconciled']=true;sd_recurring_activate($sharetx[$txIndex]);if($restoreTx){$sharetx[$txIndex]['restoreIntent']='explicit';$sharetx[$txIndex]['restoredAt']=$now;$sharetx[$txIndex]['restoredBy']=$user;}
+                if(json_encode($sharetx[$txIndex])!==$before){$sharetx[$txIndex]['updatedT']=$now;$sharetx[$txIndex]['updatedBy']=$user;$updated++;}
+                if($restoreTx)$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>$sharetx[$txIndex]['cd'],'kind'=>'explicit_restore','beforeSnapshot'=>$beforeSnapshot,'afterSnapshot'=>$sharetx[$txIndex],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+            }
+            $oxCd=sd_stable_recurring_code('OPX-SAL',$key);$rowId=sd_stable_recurring_code('OPXR-SAL',$key);$oxIndex=sd_recurring_pick_index($opex,$oxHits,$restore);$restoreOx=$restore&&$oxIndex>=0&&sd_recurring_explicit_tombstone($opex[$oxIndex]);
+            if($oxIndex<0){
+                $opex[]=['cd'=>$oxCd,'_opexRowId'=>$rowId,'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($sh['name']??$shCd),'shareTx'=>$sharetx[$txIndex]['cd'],'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'serverMaterialized'=>true,'t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];$oxIndex=count($opex)-1;$created++;
+            }else{
+                $beforeSnapshot=$opex[$oxIndex];$before=json_encode($beforeSnapshot);$legacyCd=trim((string)($opex[$oxIndex]['cd']??''));$legacyRow=trim((string)($opex[$oxIndex]['_opexRowId']??''));$opex[$oxIndex]['cd']=$legacyCd!==''?$legacyCd:$oxCd;$opex[$oxIndex]['_opexRowId']=$legacyRow!==''?$legacyRow:$rowId;$opex[$oxIndex]['cat']='حقوق و دستمزد';$opex[$oxIndex]['amt']=$salary;$opex[$oxIndex]['month']=$month;$opex[$oxIndex]['desc']='حقوق موظف سهامدار: '.(string)($sh['name']??$shCd);$opex[$oxIndex]['shareTx']=$sharetx[$txIndex]['cd'];$opex[$oxIndex]['shareholderSalary']=true;$opex[$oxIndex]['recurringKey']=$key;$opex[$oxIndex]['serverReconciled']=true;$opex[$oxIndex]['serverMaterialized']=true;$opex[$oxIndex]['t']=$month.'/01';sd_recurring_activate($opex[$oxIndex]);if($restoreOx){$opex[$oxIndex]['restoreIntent']='explicit';$opex[$oxIndex]['restoredAt']=$now;$opex[$oxIndex]['restoredBy']=$user;}
+                if(json_encode($opex[$oxIndex])!==$before){$opex[$oxIndex]['updatedAtISO']=$now;$opex[$oxIndex]['updatedBy']=$user;$updated++;}
+                if($restoreOx)$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$oxIndex]['_opexRowId']??$opex[$oxIndex]['cd'],'kind'=>'explicit_restore','beforeSnapshot'=>$beforeSnapshot,'afterSnapshot'=>$opex[$oxIndex],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+            }
+            $projectionRows[]=$opex[$oxIndex];if(count($txHits)>1||count($oxHits)>1)$conflicts++;
+            /* Destructive duplicate cleanup obeys the explicit shareholder scope too;
+               editing one shareholder must not terminal rows belonging to another. */
+            if($explicitEligibility&&($scopeShareholder===''||$scopeShareholder===$shCd)){
+                foreach($txHits as $dup)if($dup!==$txIndex&&(sd_active($sharetx[$dup])||($restore&&sd_recurring_explicit_tombstone($sharetx[$dup])))){
+                    $duplicateBefore=$sharetx[$dup];sd_recurring_void($sharetx[$dup],'رکورد تکراری حقوق — '.$explicitReason,$user,'eligibility');$voided++;
+                    $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>$sharetx[$dup]['cd']??'','kind'=>'duplicate_recurring_void','beforeSnapshot'=>$duplicateBefore,'afterSnapshot'=>$sharetx[$dup],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+                }
+                foreach($oxHits as $dup)if($dup!==$oxIndex){
+                    if(sd_active($opex[$dup])||($restore&&sd_recurring_explicit_tombstone($opex[$dup]))){
+                        $duplicateBefore=$opex[$dup];sd_recurring_void($opex[$dup],'رکورد تکراری هزینه حقوق — '.$explicitReason,$user,'eligibility');$voided++;
+                        $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$dup]['_opexRowId']??$opex[$dup]['cd']??'','kind'=>'duplicate_recurring_void','beforeSnapshot'=>$duplicateBefore,'afterSnapshot'=>$opex[$dup],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+                    }
+                    $projectionRows[]=$opex[$dup];
+                }
+            }
         }
-        /* اگر همین ماه سهامدار غیرفعال/غیرموظف یا حقوقش صفر شده، entitlement قبلی
-           به‌جای حذف فیزیکی void می‌شود تا هم جمع OPEX درست باشد و هم audit حفظ شود. */
-        foreach($sharetx as &$tx)if(is_array($tx)&&($tx['type']??'')==='salary'&&($tx['month']??'')===$month){$key=(string)($tx['recurringKey']??('salary:'.($tx['shCd']??'').':'.$month));if(!isset($eligible[$key])&&sd_active($tx)){$tx['status']='void';$tx['st']='void';$tx['voidAt']=$now;$tx['voidBy']=$user;$tx['voidReason']='shareholder_not_salary_eligible';$voided++;}}unset($tx);
-        foreach($opex as &$ox)if(is_array($ox)&&!empty($ox['shareholderSalary'])&&($ox['month']??'')===$month){$key=(string)($ox['recurringKey']??'');if(($key===''||!isset($eligible[$key]))&&sd_active($ox)){$ox['status']='void';$ox['st']='void';$ox['voidAt']=$now;$ox['voidBy']=$user;$ox['voidReason']='shareholder_not_salary_eligible';$voided++;}}unset($ox);
-        $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];
-        /* accountant مجاز به دیدن OPEX است، نه snapshot سهامداران/گردش محرمانه. */
-        $responseChanges=['ptf_crm_opex'=>$opex];
-        $result=['month'=>$month,'eligible'=>count($eligible),'createdTransactions'=>$createdTx,'createdOpex'=>$createdOpex,'updated'=>$updated,'voided'=>$voided];
+
+        /* Automatic runs never void missing eligibility. Only a confirmed explicit
+           shareholder reconcile may retire the scoped/all no-longer-eligible rows.
+           Legacy salary OPEX can lack recurringKey while still carrying shareTx; build
+           the relation before any void so a scoped edit retires both sides, not only the
+           shareholder claim. This is an identity migration, never absence inference. */
+        if($includeSalaries&&$explicitEligibility){
+            $salaryIdentityByCd=[];
+            foreach($sharetx as $salaryIdentityRow){
+                if(!is_array($salaryIdentityRow)||(string)($salaryIdentityRow['type']??'')!=='salary'||(string)($salaryIdentityRow['month']??'')!==$month)continue;
+                $identityCd=trim((string)($salaryIdentityRow['cd']??''));$identityShCd=trim((string)($salaryIdentityRow['shCd']??''));$identityKey=trim((string)($salaryIdentityRow['recurringKey']??''));
+                if($identityKey===''&&$identityShCd!=='')$identityKey='salary:'.$identityShCd.':'.$month;
+                if($identityCd!=='')$salaryIdentityByCd[$identityCd]=['shCd'=>$identityShCd,'key'=>$identityKey];
+            }
+            foreach($sharetx as &$tx){
+                if(!is_array($tx)||(string)($tx['type']??'')!=='salary'||(string)($tx['month']??'')!==$month)continue;$key=trim((string)($tx['recurringKey']??''));$shCd=trim((string)($tx['shCd']??''));if($key===''&&$shCd!=='')$key='salary:'.$shCd.':'.$month;
+                if($scopeShareholder!==''&&$shCd!==$scopeShareholder)continue;if($key!==''&&isset($eligibleSalaryKeys[$key]))continue;if(!sd_active($tx))continue;
+                $before=$tx;if($key!=='')$tx['recurringKey']=$key;sd_recurring_void($tx,'عدم احراز حقوق پس از اقدام صریح — '.$explicitReason,$user,'eligibility');$voided++;$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>$tx['cd']??'','kind'=>'eligibility_void','beforeSnapshot'=>$before,'afterSnapshot'=>$tx,'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+            }unset($tx);
+            foreach($opex as &$ox){
+                if(!is_array($ox)||empty($ox['shareholderSalary'])||(string)($ox['month']??'')!==$month)continue;$key=trim((string)($ox['recurringKey']??''));$shCd='';if(preg_match('/^salary:(.+):'.preg_quote($month,'/').'$/',$key,$m))$shCd=$m[1];
+                $shareTxCd=trim((string)($ox['shareTx']??''));if($shareTxCd!==''&&isset($salaryIdentityByCd[$shareTxCd])){$legacyIdentity=$salaryIdentityByCd[$shareTxCd];if($shCd==='')$shCd=(string)$legacyIdentity['shCd'];if($key==='')$key=(string)$legacyIdentity['key'];}
+                if($scopeShareholder!==''&&$shCd!==$scopeShareholder)continue;if($key!==''&&isset($eligibleSalaryKeys[$key]))continue;
+                if(sd_active($ox)){$before=$ox;if($key!=='')$ox['recurringKey']=$key;sd_recurring_void($ox,'عدم احراز هزینه حقوق پس از اقدام صریح — '.$explicitReason,$user,'eligibility');$voided++;$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$ox['_opexRowId']??$ox['cd']??'','kind'=>'eligibility_void','beforeSnapshot'=>$before,'afterSnapshot'=>$ox,'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];}$projectionRows[]=$ox;
+            }unset($ox);
+        }
+
+        /* Template materialization reads only the server settings snapshot. Invalid or
+           absent templates are reported, never interpreted as permission to delete. */
+        if($includeTemplates)foreach($templates as $tpl){
+            if(!is_array($tpl)){$invalidTemplates++;continue;}$tplId=sd_text($tpl['id']??'',160);$amount=sd_num($tpl['amt']??0);$cat=sd_text($tpl['cat']??'',160);if($tplId===''||$amount<=0||$cat===''){$invalidTemplates++;continue;}
+            if($scopeTemplate!==''&&$tplId!==$scopeTemplate)continue;$matchedTemplates++;
+            $key='opex-template:'.$tplId.':'.$month;$restore=sd_recurring_restore_requested($key,$restoreKeys);$hits=sd_recurring_find_indexes($opex,$key,['tplId'=>$tplId,'month'=>$month]);$hasExplicit=false;foreach($hits as $i)if(sd_recurring_explicit_tombstone($opex[$i]))$hasExplicit=true;
+            if($hasExplicit&&!$restore){$suppressed++;foreach($hits as $i)$projectionRows[]=$opex[$i];continue;}
+            $cd=sd_stable_recurring_code('OPX-TPL',$key);$rowId=sd_stable_recurring_code('OPXR-TPL',$key);$index=sd_recurring_pick_index($opex,$hits,$restore);$wasExplicit=$restore&&$index>=0&&sd_recurring_explicit_tombstone($opex[$index]);
+            if($index<0){
+                $opex[]=['cd'=>$cd,'_opexRowId'=>$rowId,'cat'=>$cat,'amt'=>$amount,'desc'=>sd_text($tpl['desc']??'',500),'month'=>$month,'tplId'=>$tplId,'recurringKey'=>$key,'isOfficial'=>!empty($tpl['isOfficial']),'autoApplied'=>true,'serverReconciled'=>true,'serverMaterialized'=>true,'status'=>'active','t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];$index=count($opex)-1;$created++;
+            }else{
+                $beforeSnapshot=$opex[$index];$before=json_encode($beforeSnapshot);$legacyCd=trim((string)($opex[$index]['cd']??''));$legacyRow=trim((string)($opex[$index]['_opexRowId']??''));$opex[$index]['cd']=$legacyCd!==''?$legacyCd:$cd;$opex[$index]['_opexRowId']=$legacyRow!==''?$legacyRow:$rowId;$opex[$index]['cat']=$cat;$opex[$index]['amt']=$amount;$opex[$index]['desc']=sd_text($tpl['desc']??'',500);$opex[$index]['month']=$month;$opex[$index]['tplId']=$tplId;$opex[$index]['recurringKey']=$key;$opex[$index]['isOfficial']=!empty($tpl['isOfficial']);$opex[$index]['autoApplied']=true;$opex[$index]['serverReconciled']=true;$opex[$index]['serverMaterialized']=true;sd_recurring_activate($opex[$index]);if($wasExplicit){$opex[$index]['restoreIntent']='explicit';$opex[$index]['restoredAt']=$now;$opex[$index]['restoredBy']=$user;}
+                if(json_encode($opex[$index])!==$before){$opex[$index]['updatedAtISO']=$now;$opex[$index]['updatedBy']=$user;$updated++;}
+                if($wasExplicit)$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$index]['_opexRowId']??$opex[$index]['cd'],'kind'=>'explicit_restore','beforeSnapshot'=>$beforeSnapshot,'afterSnapshot'=>$opex[$index],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+            }
+            $projectionRows[]=$opex[$index];if(count($hits)>1)$conflicts++;
+            if($explicitTemplate)foreach($hits as $dup)if($dup!==$index){
+                if(sd_active($opex[$dup])||($restore&&sd_recurring_explicit_tombstone($opex[$dup]))){
+                    $duplicateBefore=$opex[$dup];sd_recurring_void($opex[$dup],'رکورد تکراری قالب — '.$explicitReason,$user,'eligibility');$voided++;
+                    $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$dup]['_opexRowId']??$opex[$dup]['cd']??'','kind'=>'duplicate_recurring_void','beforeSnapshot'=>$duplicateBefore,'afterSnapshot'=>$opex[$dup],'reason'=>$explicitReason,'correctedBy'=>$user,'correctedAt'=>$now];
+                }
+                $projectionRows[]=$opex[$dup];
+            }
+        }
+        if($explicitTemplate&&$scopeTemplate!==''&&$matchedTemplates===0)sd_out(['ok'=>false,'error'=>'opex_template_not_found','templateId'=>$scopeTemplate],404);
+        sd_ensure_recurring_opex_row_identities($opex);
+        $changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];if(count($corrections)>$correctionStart)$changes['ptf_crm_corrections']=$corrections;$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];
+        $result=['month'=>$month,'created'=>$created,'updated'=>$updated,'voided'=>$voided,'conflicts'=>$conflicts,'suppressedTombstones'=>$suppressed,'invalidTemplates'=>$invalidTemplates,'includedSalaries'=>$includeSalaries,'includedTemplates'=>$includeTemplates,'scopeTemplate'=>$scopeTemplate,'mode'=>'server-authoritative-upsert','projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+    }
+    elseif ($action === 'schedule_recurring_opex_cheque') {
+        /* Explicit future-month scheduling keeps cheque UX, but materialization is still
+           server-owned. The request names templates/months only; amounts/categories are
+           read from the committed server settings snapshot under this transaction lock. */
+        sd_require_role(SD_FIN_ROLES);
+        $chequeCd=sd_text($body['chequeCd']??'',160);$items=is_array($body['items']??null)?$body['items']:[];$reason=sd_text($body['reason']??'',500);
+        if($chequeCd===''||!$items||count($items)>24)sd_out(['ok'=>false,'error'=>'invalid_recurring_cheque_schedule'],422);
+        if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);
+        $issued=sd_read('ptf_crm_cheques_issued');$cheque=null;$chequeIndex=-1;
+        foreach($issued as $candidateIndex=>$candidate)if(is_array($candidate)&&(string)($candidate['cd']??'')===$chequeCd&&sd_active($candidate)){$cheque=$candidate;$chequeIndex=(int)$candidateIndex;break;}
+        if(!$cheque||$chequeIndex<0)sd_out(['ok'=>false,'error'=>'cheque_not_committed'],409);
+        $settings=sd_read('ptf_crm_settings');$templates=is_array($settings['opexTpl']??null)?$settings['opexTpl']:[];$templateById=[];
+        foreach($templates as $tpl)if(is_array($tpl)){ $tid=sd_text($tpl['id']??'',160);if($tid!==''&&!isset($templateById[$tid]))$templateById[$tid]=$tpl; }
+        $plans=[];$seenKeys=[];$opex=sd_read('ptf_crm_opex');sd_ensure_recurring_opex_row_identities($opex);
+        /* Validate the whole schedule before mutating anything: no partial cheque plan. */
+        foreach($items as $item){
+            if(!is_array($item))sd_out(['ok'=>false,'error'=>'invalid_recurring_cheque_item'],422);
+            $tplId=sd_text($item['tplId']??'',160);$month=sd_text($item['month']??'',20);
+            if($tplId===''||!isset($templateById[$tplId])||!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$month))sd_out(['ok'=>false,'error'=>'invalid_recurring_cheque_item'],422);
+            if(sd_is_locked($snaps,$month))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year($month)],409);
+            $tpl=$templateById[$tplId];$amount=sd_num($tpl['amt']??0);$cat=sd_text($tpl['cat']??'',160);
+            if($amount<=0||$cat==='')sd_out(['ok'=>false,'error'=>'invalid_opex_template','templateId'=>$tplId],422);
+            $key='opex-template:'.$tplId.':'.$month;if(isset($seenKeys[$key]))continue;$seenKeys[$key]=true;
+            $hits=sd_recurring_find_indexes($opex,$key,['tplId'=>$tplId,'month'=>$month]);
+            foreach($hits as $hit){
+                $linked=trim((string)($opex[$hit]['chequeCd']??''));
+                if($linked!==''&&$linked!==$chequeCd)sd_out(['ok'=>false,'error'=>'opex_already_linked_to_cheque','recurringKey'=>$key,'chequeCd'=>$linked],409);
+                if(!sd_active($opex[$hit]))continue;
+                if(strtolower(trim((string)($opex[$hit]['st']??'')))==='settled'&&$linked!==$chequeCd)sd_out(['ok'=>false,'error'=>'opex_already_settled','recurringKey'=>$key],409);
+            }
+            $plans[]=['tplId'=>$tplId,'month'=>$month,'key'=>$key,'tpl'=>$tpl,'hits'=>$hits];
+        }
+        if(!$plans)sd_out(['ok'=>false,'error'=>'empty_recurring_cheque_schedule'],422);
+        $now=sd_now();$created=0;$updated=0;$restored=0;$voided=0;$projectionRows=[];$rowIds=[];$correctionStart=count($corrections);
+        foreach($plans as $plan){
+            $tplId=$plan['tplId'];$month=$plan['month'];$key=$plan['key'];$tpl=$plan['tpl'];$hits=$plan['hits'];$amount=sd_num($tpl['amt']);$cat=sd_text($tpl['cat'],160);
+            $cd=sd_stable_recurring_code('OPX-TPL',$key);$rowId=sd_stable_recurring_code('OPXR-TPL',$key);$index=sd_recurring_pick_index($opex,$hits,true);$before=$index>=0?$opex[$index]:null;$wasExplicit=$index>=0&&sd_recurring_explicit_tombstone($opex[$index]);
+            if($index<0){
+                $opex[]=['cd'=>$cd,'_opexRowId'=>$rowId,'cat'=>$cat,'amt'=>$amount,'desc'=>sd_text($tpl['desc']??'',500),'month'=>$month,'tplId'=>$tplId,'recurringKey'=>$key,'isOfficial'=>!empty($tpl['isOfficial']),'autoApplied'=>true,'serverReconciled'=>true,'serverMaterialized'=>true,'status'=>'active','t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];$index=count($opex)-1;$created++;
+            }else{
+                $beforeJson=json_encode($opex[$index]);$legacyCd=trim((string)($opex[$index]['cd']??''));$legacyRow=trim((string)($opex[$index]['_opexRowId']??''));$opex[$index]['cd']=$legacyCd!==''?$legacyCd:$cd;$opex[$index]['_opexRowId']=$legacyRow!==''?$legacyRow:$rowId;$opex[$index]['cat']=$cat;$opex[$index]['amt']=$amount;$opex[$index]['desc']=sd_text($tpl['desc']??'',500);$opex[$index]['month']=$month;$opex[$index]['tplId']=$tplId;$opex[$index]['recurringKey']=$key;$opex[$index]['isOfficial']=!empty($tpl['isOfficial']);$opex[$index]['autoApplied']=true;$opex[$index]['serverReconciled']=true;$opex[$index]['serverMaterialized']=true;sd_recurring_activate($opex[$index]);if(json_encode($opex[$index])!==$beforeJson){$opex[$index]['updatedAtISO']=$now;$opex[$index]['updatedBy']=$user;$updated++;}
+            }
+            $opex[$index]['chequeCd']=$chequeCd;$opex[$index]['payHow']='cheque';$opex[$index]['fromCheque']=true;
+            if($wasExplicit){$opex[$index]['restoreIntent']='explicit';$opex[$index]['restoredAt']=$now;$opex[$index]['restoredBy']=$user;$restored++;$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$index]['_opexRowId'],'kind'=>'explicit_restore_for_cheque','beforeSnapshot'=>$before,'afterSnapshot'=>$opex[$index],'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>$now];}
+            $projectionRows[]=$opex[$index];$rowIds[]=$opex[$index]['_opexRowId'];
+            foreach($hits as $dup)if($dup!==$index){if(sd_active($opex[$dup])||sd_recurring_explicit_tombstone($opex[$dup])){$dupBefore=$opex[$dup];sd_recurring_void($opex[$dup],'رکورد تکراری در زمان برنامه‌ریزی چک — '.$reason,$user,'eligibility');$voided++;$corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$opex[$dup]['_opexRowId']??$opex[$dup]['cd']??'','kind'=>'duplicate_recurring_void','beforeSnapshot'=>$dupBefore,'afterSnapshot'=>$opex[$dup],'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>$now];}$projectionRows[]=$opex[$dup];}
+        }
+        /* The cheque-side identity list is committed with the OPEX rows. Client UI also
+           mirrors these IDs after ACK, but a lost response can never leave the server
+           with half of the relationship. */
+        $existingChequeRows=is_array($issued[$chequeIndex]['opexRowIds']??null)?$issued[$chequeIndex]['opexRowIds']:[];
+        $issued[$chequeIndex]['opexRowIds']=array_values(array_unique(array_filter(array_merge($existingChequeRows,$rowIds),function($id){return trim((string)$id)!=='';})));
+        $issued[$chequeIndex]['pendingRecurringOpexItems']=[];$issued[$chequeIndex]['recurringOpexScheduleStatus']='acked';$issued[$chequeIndex]['updatedAtISO']=$now;$issued[$chequeIndex]['updatedBy']=$user;
+        sd_ensure_recurring_opex_row_identities($opex);
+        $changes=['ptf_crm_opex'=>$opex,'ptf_crm_cheques_issued'=>$issued];if(count($corrections)>$correctionStart)$changes['ptf_crm_corrections']=$corrections;$responseChanges=['ptf_crm_opex'=>[]];
+        $result=['chequeCd'=>$chequeCd,'rowIds'=>$rowIds,'created'=>$created,'updated'=>$updated,'restored'=>$restored,'voided'=>$voided,'projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
+    }
+    elseif ($action === 'void_recurring_opex') {
+        sd_require_role(SD_FIN_ROLES);$opex=sd_read('ptf_crm_opex');sd_ensure_recurring_opex_row_identities($opex);$sharetx=sd_read('ptf_crm_sharetx');$rowId=sd_text($body['_opexRowId']??'',160);$recurringKey=sd_text($body['recurringKey']??'',220);$cd=sd_text($body['cd']??'',160);$reason=sd_text($body['reason']??'',500);
+        if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);$rowHits=[];$keyHits=[];$cdHits=[];
+        foreach($opex as $i=>$row){if(!is_array($row))continue;if($rowId!==''&&(string)($row['_opexRowId']??'')===$rowId)$rowHits[]=(int)$i;if($recurringKey!==''&&(string)($row['recurringKey']??'')===$recurringKey)$keyHits[]=(int)$i;if($cd!==''&&(string)($row['cd']??'')===$cd)$cdHits[]=(int)$i;}
+        /* A browser may have backfilled _opexRowId locally before v34.8.5; generic sync
+           now correctly refuses to author recurring identity fields. Fall back to the
+           submitted recurringKey and allow all of its duplicates, because this command
+           explicitly voids the domain identity rather than one physical array row. */
+        if($rowHits){$rowTarget=$opex[$rowHits[0]];$rowKey=trim((string)($rowTarget['recurringKey']??''));$rowCd=trim((string)($rowTarget['cd']??''));if($recurringKey!==''&&$rowKey!==''&&!hash_equals($rowKey,$recurringKey))sd_out(['ok'=>false,'error'=>'opex_identity_mismatch'],409);if($cd!==''&&$rowCd!==''&&!hash_equals($rowCd,$cd))sd_out(['ok'=>false,'error'=>'opex_identity_mismatch'],409);}
+        $hits=$keyHits?:($rowHits?:$cdHits);if(!$hits)sd_out(['ok'=>false,'error'=>'opex_not_found'],404);$index=$hits[0];$target=$opex[$index];$targetKey=trim((string)($target['recurringKey']??''));if($targetKey!=='')$recurringKey=$targetKey;
+        if($recurringKey==='')sd_out(['ok'=>false,'error'=>'recurring_identity_required'],422);$hits=sd_recurring_find_indexes($opex,$recurringKey,[]);if(!$hits)sd_out(['ok'=>false,'error'=>'opex_not_found'],404);foreach($hits as $lockedHit)if(sd_is_locked($snaps,(string)($opex[$lockedHit]['month']??$opex[$lockedHit]['t']??'')))sd_out(['ok'=>false,'error'=>'fiscal_period_locked'],409);
+        /* Explicit deletion applies to the recurring domain identity, not just one
+           duplicate row. Otherwise an active sibling could keep the deleted expense
+           visible while its tombstone suppresses future reconciliation. */
+        $projectionRows=[];$voidedRows=0;
+        foreach($opex as &$ox){
+            if(!is_array($ox)||(string)($ox['recurringKey']??'')!==$recurringKey)continue;
+            if(sd_active($ox)||!sd_recurring_explicit_tombstone($ox)){
+                $before=$ox;sd_recurring_void($ox,$reason,$user,'explicit');$voidedRows++;
+                $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'opex','entityId'=>$ox['_opexRowId']??$ox['cd']??'','kind'=>'explicit_void','beforeSnapshot'=>$before,'afterSnapshot'=>$ox,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+            }
+            $projectionRows[]=$ox;
+        }unset($ox);
+        foreach($sharetx as &$tx){
+            if(!is_array($tx)||(string)($tx['recurringKey']??'')!==$recurringKey)continue;
+            if(sd_active($tx)||!sd_recurring_explicit_tombstone($tx)){
+                $before=$tx;sd_recurring_void($tx,$reason,$user,'explicit');
+                $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'shareholder_salary','entityId'=>$tx['cd']??'','kind'=>'explicit_void','beforeSnapshot'=>$before,'afterSnapshot'=>$tx,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now()];
+            }
+        }unset($tx);
+        $changes=['ptf_crm_opex'=>$opex,'ptf_crm_sharetx'=>$sharetx,'ptf_crm_corrections'=>$corrections];$responseChanges=['ptf_crm_opex'=>[]];if(sd_recurring_sharetx_projection_allowed($action))$responseChanges['ptf_crm_sharetx']=[];$result=['voided'=>true,'voidedRows'=>$voidedRows,'recurringKey'=>$recurringKey,'projectionMode'=>'merge-v1','projectionIdentities'=>sd_opex_projection_identities($projectionRows)];
     }
     elseif ($action === 'post_receipt') {
         sd_require_role(SD_FIN_ROLES);
@@ -1707,7 +2027,12 @@ try {
     $projectionChanges=is_array($responseChanges)?$responseChanges:$changes;
     /* keys بخشی از receipt idempotency است؛ بنابراین باید از ابتدا role-safe ذخیره شود تا
        replay همان فرمان هم نتواند collection محرمانه را snapshot کند. */
-    $result['keys']=array_keys($projectionChanges);sd_append_command($commands,$idem,$action,$requestHash,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes,['key'=>$idem,'action'=>$action,'requestHash'=>$requestHash,'owner'=>$user]);flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>sd_result_data($projectionChanges)]);
+    $result['keys']=array_keys($projectionChanges);sd_append_command($commands,$idem,$action,$requestHash,$result);$changes['ptf_crm_sales_commands']=$commands;$rev=sd_commit($changes,['key'=>$idem,'action'=>$action,'requestHash'=>$requestHash,'owner'=>$user]);
+    if(sd_is_recurring_projection_action($action)){
+        $identities=is_array($result['projectionIdentities']??null)?$result['projectionIdentities']:[];
+        $responseData=sd_recurring_projection_data($action,$opex,$identities,$rev);
+    }else{$responseData=sd_result_data($projectionChanges);}
+    flock($lock,LOCK_UN);fclose($lock);sd_out(['ok'=>true,'rev'=>$rev,'result'=>$result,'data'=>$responseData]);
 } catch (Throwable $e) {
     if (is_resource($lock)) { @flock($lock, LOCK_UN); @fclose($lock); }
     sd_out(['ok'=>false,'error'=>'command_failed','detail'=>$e->getMessage()],500);

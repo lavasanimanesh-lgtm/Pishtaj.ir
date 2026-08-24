@@ -407,14 +407,215 @@
   /* v35: پاسخ یک فرمان اتمیک sales-domain قبلاً روی سرور commit شده است؛ اعمال
      Projection آن روی cache نباید دوباره dirty/push شود و با نسخه خودش تعارض بسازد.
      v34.7.14: rev دقیق پاسخ و cache فاز B نیز بخشی از همین قرارداد اتمیک هستند. */
+  /* v34.8.5 — OPEX command responses are identity-scoped merge deltas.
+     Omission never deletes a row; _opexRowId, recurringKey, then cd are aliases. */
+  function ptfOpexIdentityValue(row, field) {
+    return row && typeof row === 'object' ? String(row[field] == null ? '' : row[field]).trim() : '';
+  }
+  function ptfOpexHasIdentity(row) {
+    return !!(ptfOpexIdentityValue(row, '_opexRowId') || ptfOpexIdentityValue(row, 'recurringKey') || ptfOpexIdentityValue(row, 'cd'));
+  }
+  function ptfProtectedFinanceAliases(key, row) {
+    /* recurringKey is a domain identity and duplicates may legitimately share it. A
+       physical row ID/code must win before that migration fallback. */
+    var fields = key === 'ptf_crm_opex' ? ['_opexRowId', 'cd', 'recurringKey'] : ['cd', 'recurringKey'];
+    return fields.map(function (field) { var value = ptfOpexIdentityValue(row, field); return value ? field + ':' + value : ''; }).filter(Boolean);
+  }
+  function ptfProtectedFinanceFind(rows, key, row) {
+    var aliases = ptfProtectedFinanceAliases(key, row);
+    /* Field-first search is significant: candidate-first would let the first sibling's
+       shared recurringKey shadow a later exact _opexRowId/cd match. */
+    for (var a = 0; a < aliases.length; a++) {
+      for (var i = 0; i < rows.length; i++) if (ptfProtectedFinanceAliases(key, rows[i]).indexOf(aliases[a]) >= 0) return i;
+    }
+    return -1;
+  }
+  /* A protection conflict is not an ordinary stale-revision conflict: the returned
+     snapshot already contains every accepted local annotation and intentionally omits
+     forged recurring identities/core fields. Begin with that protected result so it
+     converges instead of reintroducing the rejected payload forever. Fields edited
+     again while the request was in flight are preserved by a small three-way check. */
+  function ptfMergeProtectedFinanceConflict(key, currentStr, submittedStr, protectedStr) {
+    try {
+      var current = JSON.parse(currentStr || '[]'), submitted = JSON.parse(submittedStr || '[]'), protectedRows = JSON.parse(protectedStr || '[]');
+      if (!Array.isArray(current) || !Array.isArray(submitted) || !Array.isArray(protectedRows)) return protectedStr;
+      var out = protectedRows.slice();
+      current.forEach(function (localRow) {
+        if (!localRow || typeof localRow !== 'object') return;
+        var remoteAt = ptfProtectedFinanceFind(out, key, localRow);
+        var sentAt = ptfProtectedFinanceFind(submitted, key, localRow);
+        if (remoteAt < 0) {
+          /* Present in submitted but absent from protected = rejected new recurring.
+             A genuinely new edit made after this request remains queued for next push. */
+          if (sentAt < 0) out.push(localRow);
+          return;
+        }
+        var remoteRow = out[remoteAt] || {}, merged = {}, sentRow = sentAt >= 0 ? submitted[sentAt] : null;
+        /* Protected is already server+accepted-submission. Do not copy loser fields:
+           absence here is an intentional removal of a server-owned forged value. */
+        Object.keys(remoteRow).forEach(function (field) { merged[field] = remoteRow[field]; });
+        if (sentRow) {
+          var fields = {};
+          Object.keys(localRow).forEach(function (field) { fields[field] = true; });
+          Object.keys(sentRow).forEach(function (field) { fields[field] = true; });
+          Object.keys(fields).forEach(function (field) {
+            var localHas = Object.prototype.hasOwnProperty.call(localRow, field), sentHas = Object.prototype.hasOwnProperty.call(sentRow, field);
+            var changedAfterSend = localHas !== sentHas || (localHas && JSON.stringify(localRow[field]) !== JSON.stringify(sentRow[field]));
+            if (!changedAfterSend) return;
+            if (localHas) merged[field] = localRow[field]; else delete merged[field];
+          });
+        }
+        out[remoteAt] = merged;
+      });
+      return JSON.stringify(out);
+    } catch (e) { return protectedStr; }
+  }
+  window.ptfMergeProtectedFinanceConflict = ptfMergeProtectedFinanceConflict;
+  function ptfOpexExplicitTombstone(row) {
+    return !!(row && (row.explicitDeletion || row.manualVoid || String(row.voidIntent || '') === 'explicit'));
+  }
+  function ptfOpexTerminal(row) {
+    if (!row) return false;
+    var terminal = ['void', 'voided', 'cancelled', 'deleted', 'replaced', 'superseded'];
+    var status = String(row.status || '').toLowerCase(), st = String(row.st || '').toLowerCase();
+    return terminal.indexOf(status) >= 0 || terminal.indexOf(st) >= 0 || !!row.voided || !!row.deleted;
+  }
+  function ptfOpexFindIdentityIndex(rows, incoming) {
+    var incomingRowId = ptfOpexIdentityValue(incoming, '_opexRowId');
+    var i, value;
+    if (incomingRowId) {
+      for (i = 0; i < rows.length; i++) if (ptfOpexIdentityValue(rows[i], '_opexRowId') === incomingRowId) return i;
+      /* Alias an un-migrated local row to its new server ID, but never merge into a
+         sibling that already owns a different physical ID. This preserves an active
+         canonical row and its duplicate tombstone as two independently addressable rows. */
+      for (var f = 0; f < 2; f++) {
+        var field = f === 0 ? 'cd' : 'recurringKey'; value = ptfOpexIdentityValue(incoming, field);
+        if (!value) continue;
+        for (i = 0; i < rows.length; i++) {
+          var candidateId = ptfOpexIdentityValue(rows[i], '_opexRowId');
+          if ((!candidateId || !rows[i].serverOwnedIdentity) && ptfOpexIdentityValue(rows[i], field) === value) return i;
+        }
+      }
+      return -1;
+    }
+    /* Legacy snapshots without row IDs prefer cd; recurringKey is only the final
+       migration fallback because duplicate materializations share it by design. */
+    for (var legacyField = 0; legacyField < 2; legacyField++) {
+      var fieldName = legacyField === 0 ? 'cd' : 'recurringKey'; value = ptfOpexIdentityValue(incoming, fieldName);
+      if (!value) continue;
+      for (i = 0; i < rows.length; i++) if (ptfOpexIdentityValue(rows[i], fieldName) === value) return i;
+    }
+    return -1;
+  }
+  function ptfOpexMergeRecord(localRow, remoteRow, preferRemote) {
+    localRow = localRow && typeof localRow === 'object' ? localRow : {};
+    remoteRow = remoteRow && typeof remoteRow === 'object' ? remoteRow : {};
+    var winnerRemote = !!preferRemote;
+    var remoteRestore = String(remoteRow.restoreIntent || '') === 'explicit';
+    /* A pull used for ACK recovery must still accept server-owned recurring fields;
+       local-only annotations survive because the loser object is copied first. */
+    if (remoteRow.serverReconciled || remoteRow.serverMaterialized || remoteRestore) winnerRemote = true;
+    /* Automatic active materialization cannot resurrect an explicit local tombstone. */
+    if (ptfOpexExplicitTombstone(localRow) && !ptfOpexTerminal(remoteRow) && !remoteRestore) winnerRemote = false;
+    /* A server terminal row is an upserted tombstone, not an instruction to filter. */
+    if (ptfOpexTerminal(remoteRow) && (ptfOpexExplicitTombstone(remoteRow) || remoteRow.serverReconciled)) winnerRemote = true;
+    var winner = winnerRemote ? remoteRow : localRow;
+    var loser = winnerRemote ? localRow : remoteRow;
+    var merged = {};
+    Object.keys(loser).forEach(function (key) { merged[key] = loser[key]; });
+    Object.keys(winner).forEach(function (key) { merged[key] = winner[key]; });
+    /* JSON cannot carry `undefined` removals. An authoritative active/explicit-restore
+       row therefore clears stale local terminal markers after field preservation. */
+    if (winnerRemote && !ptfOpexTerminal(remoteRow)) {
+      ['voided','voidAt','voidedAt','voidBy','voidedBy','voidReason','deleted','deletedAt','deletedBy','deleteReason','explicitDeletion','manualVoid','voidIntent','eligibilityVoid'].forEach(function (key) { delete merged[key]; });
+      /* `st=settled` is an active payment state, not a tombstone. Preserve any st that
+         the authoritative row actually carries; only clear a stale local st when the
+         authoritative active row omits it. */
+      if (Object.prototype.hasOwnProperty.call(remoteRow, 'st')) merged.st = remoteRow.st; else delete merged.st;
+      merged.status = remoteRow.status || 'active';
+    }
+    return merged;
+  }
+  function ptfOpexMergeArrays(localRows, remoteRows, preferRemote) {
+    var out = Array.isArray(localRows) ? localRows.slice() : [];
+    (Array.isArray(remoteRows) ? remoteRows : []).forEach(function (remoteRow) {
+      if (!remoteRow || typeof remoteRow !== 'object' || !ptfOpexHasIdentity(remoteRow)) return;
+      var at = ptfOpexFindIdentityIndex(out, remoteRow);
+      if (at < 0) out.push(remoteRow);
+      else out[at] = ptfOpexMergeRecord(out[at], remoteRow, preferRemote);
+    });
+    return out;
+  }
+  function ptfOpexMergeStrings(localStr, remoteStr, preferRemote) {
+    try {
+      var localRows = JSON.parse(localStr || '[]'), remoteRows = JSON.parse(remoteStr || '[]');
+      if (!Array.isArray(localRows) || !Array.isArray(remoteRows)) return localStr || '[]';
+      return JSON.stringify(ptfOpexMergeArrays(localRows, remoteRows, preferRemote));
+    } catch (e) { return localStr || '[]'; }
+  }
+  function ptfOpexEnvelopeValid(key, envelope, revision) {
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) return false;
+    if (envelope.mode !== 'merge-v1' || envelope.collection !== key || envelope.identityVersion !== 'opex-v1') return false;
+    var er = Number(envelope.revision), outer = Number(revision);
+    /* Every mutating command commits at a positive revision. Missing/zero revisions
+       cannot participate in stale-response ordering and are therefore rejected. */
+    if (!isFinite(er) || !isFinite(outer) || Math.floor(er) !== er || er <= 0 || outer <= 0 || er !== outer) return false;
+    if (!Array.isArray(envelope.upserts) || !Array.isArray(envelope.tombstones)) return false;
+    var valid = true;
+    envelope.upserts.forEach(function (row) { if (!row || typeof row !== 'object' || !ptfOpexHasIdentity(row) || ptfOpexTerminal(row)) valid = false; });
+    envelope.tombstones.forEach(function (row) { if (!row || typeof row !== 'object' || !ptfOpexHasIdentity(row) || !ptfOpexTerminal(row)) valid = false; });
+    return valid;
+  }
+  function ptfOpexApplyEnvelope(localStr, envelope) {
+    var rows;
+    /* A delta cannot safely recover a malformed/unknown local snapshot. Starting from
+       [] here would make every unrelated expense disappear, so reject atomically and
+       let the catch-up pull recover the authoritative collection. */
+    try { rows = JSON.parse(localStr || '[]'); } catch (e) { return null; }
+    if (!Array.isArray(rows)) return null;
+    rows = ptfOpexMergeArrays(rows, envelope.upserts, true);
+    rows = ptfOpexMergeArrays(rows, envelope.tombstones, true);
+    return JSON.stringify(rows);
+  }
+  window.ptfOpexMergeProjection = function (localRows, envelope) {
+    var revision = Number(envelope && envelope.revision);
+    if (!ptfOpexEnvelopeValid('ptf_crm_opex', envelope, revision)) return null;
+    try { return JSON.parse(ptfOpexApplyEnvelope(JSON.stringify(Array.isArray(localRows) ? localRows : []), envelope)); } catch (e) { return null; }
+  };
+  /* ptfSmartMerge is declared in the legacy global section after this IIFE; expose the
+     closure-safe implementation explicitly instead of relying on an out-of-scope name. */
+  window.ptfOpexMergeSnapshots = function (localStr, remoteStr, preferRemote) {
+    /* Manual OPEX conflicts are resolved from sync state, never by comparing mixed
+       Gregorian/Jalali timestamp fields: clean/startup/ACK pulls prefer server fields;
+       an explicitly dirty key keeps the local edit until its conflict re-push. */
+    return ptfOpexMergeStrings(localStr, remoteStr, preferRemote === true);
+  };
+
   window.ptfSyncApplyServerProjection = function (k, value, serverRev) {
     try {
-      var serialized = typeof value === 'string' ? value : JSON.stringify(value);
       var incomingRev = +serverRev || 0;
       var m = krevs();
       var cur = +m[k] || 0;
       /* پاسخ دیررس فرمان قدیمی حق بازنویسی projection جدیدتری را که pull دیده ندارد. */
       if (incomingRev && cur > incomingRev) return false;
+      var serialized;
+      if (k === 'ptf_crm_opex') {
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          /* Envelope validation is fail-closed and atomic. */
+          if (!ptfOpexEnvelopeValid(k, value, incomingRev)) {
+            try { console.warn('[PTF Sync] rejected invalid OPEX projection envelope'); } catch (eWarn) {}
+            return false;
+          }
+          serialized = ptfOpexApplyEnvelope(rd(k) || '[]', value);
+          if (serialized === null) {
+            try { console.warn('[PTF Sync] rejected OPEX delta over malformed local snapshot'); } catch (eMalformed) {}
+            return false;
+          }
+        } else if (Array.isArray(value)) {
+          /* Compatibility for non-recurring commands: merge, never replace/delete. */
+          serialized = ptfOpexMergeStrings(rd(k) || '[]', JSON.stringify(value), true);
+        } else return false;
+      } else serialized = typeof value === 'string' ? value : JSON.stringify(value);
 
       var applied;
       if (typeof window.ptfBApplyServerProjection === 'function') {
@@ -517,10 +718,16 @@
     }
     massDropCheck(); /* v14.7 US-382 AC3 */
     state.pushing = true;
-    var data = {};
+    var data = {}, submittedLocal = {};
     keys.forEach(function (k) {
       var v = rd(k);
-      if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v;
+      if (v !== null) {
+        /* Keep the exact local generation captured for this request. If setData writes
+           the same key while fetch is in flight, this ACK must not clear that newer
+           dirty generation merely because the server accepted the older payload. */
+        submittedLocal[k] = v;
+        data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v;
+      }
     });
     /* v15.0 (US-384): مبنای نسخه هر کلید همراه push — سرور نوشتن روی نسخه جدیدتر را رد می‌کند */
     var base = {};
@@ -544,18 +751,25 @@
              باید بماند تا کاربر با سبزشدن کاذب، تغییرِ نرسیده را امن تصور نکند. */
           var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys : [];
           savedKeys.forEach(function (k) {
-            if (keys.indexOf(k) > -1 && confl.indexOf(k) < 0 && rejected.indexOf(k) < 0 && skipped.indexOf(k) < 0 && forbidden.indexOf(k) < 0) delete state.dirty[k];
+            if (keys.indexOf(k) < 0 || confl.indexOf(k) >= 0 || rejected.indexOf(k) >= 0 || skipped.indexOf(k) >= 0 || forbidden.indexOf(k) >= 0) return;
+            /* ACK belongs to submittedLocal[k], not to an edit made after fetch began. */
+            if (Object.prototype.hasOwnProperty.call(submittedLocal, k) && sameSyncJson(rd(k), submittedLocal[k])) delete state.dirty[k];
+            else state.dirty[k] = true;
           });
           saveDirty();
           if (d.rev) setRev(d.rev);
           pingTabs(); /* v33.21.1: پوش موفق → تب‌های دیگر همین مرورگر فوری دلتا-پول بزنند */
           /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
           if (confl.length) {
+            var protectedConfl = Array.isArray(d.protectedConflicts) ? d.protectedConflicts : [];
             confl.forEach(function (k) {
               try {
                 var srvStr = (d.serverData || {})[k];
                 if (typeof srvStr !== 'string') return;
-                var merged = (typeof window.ptfSmartMerge === 'function') ? window.ptfSmartMerge(k, rd(k), srvStr) : srvStr;
+                var merged;
+                if (protectedConfl.indexOf(k) >= 0 && typeof window.ptfMergeProtectedFinanceConflict === 'function') {
+                  merged = window.ptfMergeProtectedFinanceConflict(k, rd(k), data[k], srvStr);
+                } else merged = (typeof window.ptfSmartMerge === 'function') ? window.ptfSmartMerge(k, rd(k), srvStr) : srvStr;
                 if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
                 state.pulling = true; /* جلوگیری از حلقه dirty هنگام اعمال */
                 wr(k, merged);
@@ -608,6 +822,40 @@
     if (!Object.keys(state.dirty).length) { notifyPushWaiters(true, { empty: true }); return; }
     clearTimeout(state.pushTimer);
     pushDirty();
+  };
+  /* A domain command that derives rows from another store needs a stronger barrier
+     than a generic "some push completed" callback. In particular, a write may occur
+     while an older generation of that same key is already in flight. Wait until the
+     requested keys themselves have no unacknowledged generation before issuing the
+     command; never let an unrelated/in-flight ACK release this barrier. */
+  window.ptfSyncFlushKeysNow = function (requestedKeys, cb) {
+    var keys = (Array.isArray(requestedKeys) ? requestedKeys : [requestedKeys]).map(function (k) { return String(k || ''); }).filter(function (k, i, a) { return !!k && a.indexOf(k) === i; });
+    var finished = false, deadline = Date.now() + 30000;
+    function finish(ok, extra) {
+      if (finished) return;
+      finished = true;
+      if (typeof cb === 'function') { try { cb(!!ok, extra || {}); } catch (eCb) {} }
+    }
+    if (!keys.length || keys.some(function (k) { return SYNC_KEYS.indexOf(k) < 0; })) { finish(false, { reason: 'invalid-key' }); return; }
+    if (keys.some(function (k) { return !!state.dirty[k] && !syncAllowedKey(k); })) { finish(false, { reason: 'forbidden-dirty-key' }); return; }
+    function attempt() {
+      if (finished) return;
+      if (keys.some(function (k) { return !!state.writeFailures[k]; })) { finish(false, { reason: 'local-write-failure' }); return; }
+      var pending = keys.filter(function (k) { return !!state.dirty[k]; });
+      if (!pending.length) { finish(true, { keys: keys.slice(), empty: true }); return; }
+      if (Date.now() >= deadline) { finish(false, { reason: 'key-flush-timeout', keys: pending }); return; }
+      /* Do not attach to the current request: it may carry an older generation. */
+      if (state.pushing) { setTimeout(attempt, 50); return; }
+      window.ptfSyncFlushNow(function (ok, extra) {
+        var remaining = keys.filter(function (k) { return !!state.dirty[k]; });
+        if (ok && !remaining.length) { finish(true, { keys: keys.slice(), savedKeys: (extra && extra.savedKeys) || [] }); return; }
+        /* Conflict recovery creates a new dirty generation. It is safe to retry the
+           barrier, but transport/RBAC/rejection failures must stay fail-closed. */
+        if (remaining.length && extra && Array.isArray(extra.conflicts) && extra.conflicts.length && Date.now() < deadline) { setTimeout(attempt, 0); return; }
+        finish(false, extra || { reason: 'key-not-acknowledged', keys: remaining });
+      });
+    }
+    attempt();
   };
   window.ptfConfirmCloudSave = function (localMsg) {
     /* سازگاری عقب‌رو با string؛ فرم‌های جدید key/id/label می‌دهند تا رسید دقیق
@@ -759,7 +1007,7 @@
              اینکه چون state.dirty=false است کورکورانه overwrite کند. */
           if (syncKeyHeld(k) && curStr && typeof window.ptfSmartMerge === 'function') {
             try {
-              var heldMerged = window.ptfSmartMerge(k, curStr, newStr);
+              var heldMerged = window.ptfSmartMerge(k, curStr, newStr, { preferRemoteOpex: !state.dirty[k] });
               if (typeof window.ptfApplyDeletionTombstones === 'function') heldMerged = window.ptfApplyDeletionTombstones(k, heldMerged, (d.data || {})['ptf_crm_deleted_archive']);
               if (heldMerged && heldMerged !== curStr) { wr(k, heldMerged); applied++; }
             } catch (eHeldMerge) {}
@@ -771,7 +1019,7 @@
              overwrite, then push the union with per-record timestamps. */
           if (forceFull && state.initialReconcile && curStr && typeof window.ptfSmartMerge === 'function') {
             try {
-              var startupMerged = window.ptfSmartMerge(k, curStr, newStr);
+              var startupMerged = window.ptfSmartMerge(k, curStr, newStr, { preferRemoteOpex: !state.dirty[k] });
               if (typeof window.ptfApplyDeletionTombstones === 'function') startupMerged = window.ptfApplyDeletionTombstones(k, startupMerged, (d.data || {})['ptf_crm_deleted_archive']);
               if (startupMerged && startupMerged !== curStr) {
                 wr(k, startupMerged);
@@ -1433,7 +1681,7 @@
   };
 
   // Sprint 104: Smart Array Merging for concurrent users (Manager & Sales Engineer)
-  window.ptfSmartMerge = function (key, localStr, remoteStr) {
+  window.ptfSmartMerge = function (key, localStr, remoteStr, mergeOptions) {
     try {
       /* v31.7.11 BUG-AVATAR-001: عکس پروفایل حذف‌شده با رفرش برمی‌گشت.
          علت: ptf_crm_avatars آبجکت map است نه آرایه؛ مسیر عمومی merge برای
@@ -1585,6 +1833,7 @@
          (payments/pays/costEvents/timeline/lossEvents) را با ptfMergeArrayUnique واقعاً
          union می‌کند — نه جایگزین. */
        if (key === 'ptf_crm_rfqs' || key === 'ptf_crm_offers' || key === 'ptf_crm_invoices' || key === 'ptf_crm_deals' || key === 'ptf_crm_cheques_issued' || key === 'ptf_crm_cheques_received' || key === 'ptf_crm_cheque_books' || key === 'ptf_crm_petty') return ptfMergeByCodeCanonical(key, localStr, remoteStr);
+      if (key === 'ptf_crm_opex' && typeof window.ptfOpexMergeSnapshots === 'function') return window.ptfOpexMergeSnapshots(localStr, remoteStr, !!(mergeOptions && mergeOptions.preferRemoteOpex));
       var loc = JSON.parse(localStr || '[]');
       var rem = JSON.parse(remoteStr || '[]');
       if (!Array.isArray(loc) || !Array.isArray(rem)) return remoteStr;

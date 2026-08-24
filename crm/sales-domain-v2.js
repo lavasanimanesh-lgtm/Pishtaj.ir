@@ -53,7 +53,10 @@
     /* v34.7.18: هر پروجکشن تازه، کش محاسبهٔ مطالبات را باطل می‌کند تا نماها بلافاصله هم‌خوان شوند. */
     try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArInv) {}
     return new Promise(function (resolve) {
-      if (!touched || typeof window.ptfSyncPullNow !== 'function') {
+      /* A rejected delta (malformed local snapshot, stale/mismatched revision) still
+         needs a catch-up pull. Skipping here used to leave a committed salary/claim
+         invisible until an unrelated later sync. */
+      if (!expected || typeof window.ptfSyncPullNow !== 'function') {
         if (projectionComplete && typeof window.ptfSyncAcceptServerRevision === 'function') try { window.ptfSyncAcceptServerRevision(serverRev); } catch (eRevNoPull) {}
         resolve({ ok: true, skipped: true }); return;
       }

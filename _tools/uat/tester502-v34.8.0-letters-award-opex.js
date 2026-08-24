@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.4 — LETTER-AWARD-OPEX-001
+/* v34.8.5 — LETTER-AWARD-OPEX-001
    قراردادهای رفتاری فونت مکاتبات، اسناد پس از برد، reconcile بی‌تکرار و
    تسویهٔ هزینهٔ تکرارشونده تا خروج یکتای خزانه. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -31,12 +31,12 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var version = JSON.parse(read('VERSION.json'));
 
 console.log('\n── پین نسخه و rollover ──');
-T('نسخهٔ رسمی دقیقاً v34.8.4 است', version.crm_version === 'v34.8.4', version.crm_version);
+T('نسخهٔ رسمی دقیقاً v34.8.5 است', version.crm_version === 'v34.8.5', version.crm_version);
 T('index، service worker، manifest و API هم‌نسخه‌اند',
-  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.8.4'") > -1 &&
-  read('crm/sw.js').indexOf("RELEASE = 'v34.8.4'") > -1 &&
-  JSON.parse(read('crm/manifest.json')).version === '34.8.4' &&
-  api.indexOf("SD_SERVICE_VERSION = '34.8.4'") > -1);
+  read('crm/index.html').indexOf("window.PTF_CRM_RELEASE = 'v34.8.5'") > -1 &&
+  read('crm/sw.js').indexOf("RELEASE = 'v34.8.5'") > -1 &&
+  JSON.parse(read('crm/manifest.json')).version === '34.8.5' &&
+  api.indexOf("SD_SERVICE_VERSION = '34.8.5'") > -1);
 T('شمارهٔ نامعتبر v34.7.100 در نقاط رسمی باقی نمانده است',
   [read('VERSION.json'), read('crm/index.html'), read('crm/sw.js'), read('crm/manifest.json'), read('crm/clear-cache.html'), api].every(function (s) { return s.indexOf('34.7.100') === -1; }));
 
@@ -260,31 +260,31 @@ T('جدول recurring باز اکشن عمومی تسویه و اکشن سند �
   opex.indexOf("opexSettlementRequired(x) && !opexSettled(x)") > -1 && opex.indexOf("'ptfOpexSettle(\\''") > -1 && opex.indexOf("opexAction('attach', '📎'") > -1);
 
 console.log('\n── reconcile: بدون mutation و پیام تکراری ──');
-var salaryBlock = between(api, "elseif ($action === 'reconcile_shareholder_salaries')", "elseif ($action === 'post_receipt')");
+var salaryBlock = between(api, "elseif ($action === 'reconcile_shareholder_salaries' || $action === 'reconcile_recurring_opex')", "elseif ($action === 'schedule_recurring_opex_cheque')");
 T('metadata گردش حقوق فقط در صورت تغییر واقعی نوشته می‌شود',
-  salaryBlock.indexOf("if(json_encode($tx)!==$before){$tx['updatedT']=$now;$tx['updatedBy']=$user;$updated++;}") > -1);
+  salaryBlock.indexOf("if(json_encode($sharetx[$txIndex])!==$before){$sharetx[$txIndex]['updatedT']=$now;$sharetx[$txIndex]['updatedBy']=$user;$updated++;}") > -1);
 T('metadata OPEX حقوق فقط در صورت تغییر واقعی نوشته می‌شود',
-  salaryBlock.indexOf("if(json_encode($ox)!==$before){$ox['updatedT']=$now;$ox['updatedBy']=$user;$updated++;}") > -1);
+  salaryBlock.indexOf("if(json_encode($opex[$oxIndex])!==$before){$opex[$oxIndex]['updatedAtISO']=$now;$opex[$oxIndex]['updatedBy']=$user;$updated++;}") > -1);
 try {
   var toasts = [], renders = 0;
   var toastCtx = {
     window: null,
     canFin: function () { return true; },
-    ptfAutoApplyRecurring: function () { return { complete: true, month: '1405/06', salaries: 0, tpls: 0, repaired: 0 }; },
+    ptfAutoApplyRecurring: function () { return { complete: true, month: '1405/06', salaries: 2, tpls: 3, repaired: 0 }; },
     ptfToast: function (msg) { toasts.push(msg); }, ptfOpexRender: function () { renders++; }
   };
   toastCtx.window = toastCtx;
   vm.createContext(toastCtx);
-  vm.runInContext(between(opex, 'function finishLocalRecurring', 'function scheduleRecurringRetry'), toastCtx, { filename: 'opex-recurring-toast.js' });
-  toastCtx.finishLocalRecurring({ response: { idempotent: true, result: { createdOpex: 2, updated: 1 } } });
-  T('replay همان idempotency key پیام موفقیت تکراری نمی‌دهد', toasts.length === 0 && renders === 0, toasts);
-  toastCtx.finishLocalRecurring({ response: { result: { createdOpex: 2, updated: 0 } } });
-  T('تغییر واقعی تازه همچنان یک پیام و refresh می‌دهد', toasts.length === 1 && renders === 1, toasts);
+  vm.runInContext(between(opex, 'function refreshRecurringFinancialViews', 'function scheduleRecurringRetry'), toastCtx, { filename: 'opex-recurring-toast.js' });
+  toastCtx.finishLocalRecurring({ response: { idempotent: true, result: { created: 2, updated: 1 } } });
+  T('replay همان idempotency key پیام موفقیت تکراری نمی‌دهد ولی projection جاری را رندر می‌کند', toasts.length === 0 && renders === 1, toasts);
+  toastCtx.finishLocalRecurring({ response: { result: { created: 2, updated: 0 } } });
+  T('تغییر واقعی تازه همچنان یک پیام و refresh می‌دهد', toasts.length === 1 && renders === 2, toasts);
 } catch (eToast) {
   T('اجرای رفتاری ضدتکرار پیام reconcile بدون خطا', false, eToast && eToast.stack || String(eToast));
 }
 
 T('tester502 در گیت CI ثبت شده است', gate.indexOf('tester502-v34.8.0-letters-award-opex.js') > -1);
-console.log('\n— tester502 (v34.8.4: مکاتبات، اسناد برنده و تسویه OPEX) —');
+console.log('\n— tester502 (v34.8.5: مکاتبات، اسناد برنده و تسویه OPEX) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

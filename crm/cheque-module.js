@@ -579,6 +579,26 @@
     var st = chFindStore(cd);
     if (!st) return { ok: false, why: 'notfound' };
     var c = st.rec;
+    /* v34.8.5: cheque↔recurring-OPEX is server-authored. A local physical cheque
+       deletion cannot atomically clear that relationship and would leave an orphan that
+       still looks settled. Fail closed until an explicit server correction command owns
+       both sides; ordinary unlinked cheque deletion remains unchanged. */
+    var linkedOpex = false;
+    try {
+      var opexRows = getData('ptf_crm_opex');
+      if (!Array.isArray(opexRows)) throw new Error('opex_snapshot_unavailable');
+      var relationIds = Array.isArray(c.opexRowIds) ? c.opexRowIds.filter(Boolean) : [];
+      function isRecurringOpex(x) { return !!(x && (x.recurringKey || x.serverMaterialized || x.shareholderSalary || x.autoApplied || x.tplId)); }
+      /* A cheque-side row ID with no local counterpart is unknown, not evidence that it
+         is safe to delete. Fail closed only for that unknown/recurring relation; a fully
+         resolved manual OPEX keeps the legacy unlink-and-delete workflow. */
+      linkedOpex = relationIds.some(function (rowId) {
+        var row = opexRows.filter(function (x) { return x && x._opexRowId === rowId; })[0];
+        return !row || isRecurringOpex(row);
+      });
+      if (!linkedOpex) linkedOpex = opexRows.some(function (x) { return x && x.chequeCd === cd && isRecurringOpex(x); });
+    } catch (eLink) { linkedOpex = true; }
+    if (linkedOpex) return { ok: false, why: 'linked_recurring_opex' };
     /* چک صادرهٔ مالی: payment مرتبط را کامل حذف کن */
     if (c.direction === 'issued' || c.ownership === 'company') {
       var d = getData('ptf_crm_supplier_finance');

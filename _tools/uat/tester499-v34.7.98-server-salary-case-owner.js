@@ -140,13 +140,16 @@ section('Salary server command: قرارداد اتمیک، ماه تهران و
   const php = fs.readFileSync(path.join(ROOT, 'api/sales-domain.php'), 'utf8');
   const opex = fs.readFileSync(path.join(ROOT, 'crm/opex.js'), 'utf8');
   ok(php.includes("$action === 'reconcile_shareholder_salaries'") && php.includes("sd_current_jalali_month()") && php.includes("new DateTimeZone('Asia/Tehran')"), 'سرور فقط ماه جاری جلالی تهران را می‌پذیرد');
-  ok(php.includes("$changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex]") && php.includes("$responseChanges=['ptf_crm_opex'=>$opex]"), 'sharetx و OPEX یک commit دارند ولی پاسخ فقط OPEX است');
-  ok(php.includes("if($action==='reconcile_shareholder_salaries')$keys=array_values(array_intersect($keys,['ptf_crm_opex']))"), 'replay idempotency هم collection محرمانه را snapshot نمی‌کند');
+  ok(php.includes("$changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex]") && php.includes("$responseChanges=['ptf_crm_opex'=>[]]"), 'sharetx و OPEX یک commit اتمیک دارند');
+  ok(php.includes("const SD_SHAREHOLDER_VIEW_ROLES = ['admin', 'chairman', 'ceo', 'commercial']") &&
+    php.includes("$data['ptf_crm_sharetx']=sd_read('ptf_crm_sharetx')") &&
+    (php.match(/sd_recurring_projection_data\(\$action,/g) || []).length >= 2,
+    'پاسخ تازه و replay، sharetx را مستقیم فقط برای مدیران ارشد و بدون افشا به accountant برمی‌گردانند');
   ok(php.includes("sd_stable_recurring_code('SHT-SAL',$key)") && php.includes("sd_stable_recurring_code('OPX-SAL',$key)"), 'شناسه‌های transaction و OPEX روی سرور قطعی‌اند');
   ok(php.includes('sd_customer_candidates_for_id($value,$customers)') && php.includes("$case['buyerCd']=$resolvedCustomerId"), 'سرور aliasهای Customer را canonical و پروندهٔ legacy را heal می‌کند');
-  ok(opex.includes("ptfSalesDomainCommand('reconcile_shareholder_salaries'") && opex.includes("'SALARY-REC|' + runKey"), 'پس از Sync فرمان روزانهٔ server-authoritative فراخوانی می‌شود');
+  ok(opex.includes("ptfSalesDomainCommand('reconcile_recurring_opex'") && opex.includes("'OPEX-REC|' + runKey"), 'پس از Sync فرمان روزانهٔ server-authoritative فراخوانی می‌شود');
   ok(!/ptfShareEnsureSalary\(s, m\)/.test(opex), 'startup دیگر حقوق را از snapshot محلی سهامداران تولید نمی‌کند');
 }
 
-console.log(`\n=== tester499-v34.8.4-server-salary-case-owner: ${pass} PASS / ${fail} FAIL ===`);
+console.log(`\n=== tester499-v34.8.5-server-salary-case-owner: ${pass} PASS / ${fail} FAIL ===`);
 if (bugs.length) { console.log('BUGS:'); bugs.forEach(b => console.log(' • ' + b)); process.exitCode = 1; }

@@ -8,7 +8,7 @@
    ===================================================================== */
 (function () {
   'use strict';
-  var SH_KEY = 'ptf_crm_shareholders', TX_KEY = 'ptf_crm_sharetx', OPEX_KEY = 'ptf_crm_opex';
+  var SH_KEY = 'ptf_crm_shareholders', TX_KEY = 'ptf_crm_sharetx';
 
   function canShare() { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; }
   /* AUD-11 (ممیزی ۱۴۰۵/۰۵/۰۷ — crm/AUDIT-FINANCIAL-SYSTEM-2026-07-29.md، تصمیم صریح کارفرما):
@@ -19,19 +19,15 @@
   function shAll() { var a = getData(SH_KEY); return Array.isArray(a) ? a : []; }
   function shSave(a) { setData(SH_KEY, a || []); }
   function txAll() { var a = getData(TX_KEY); return Array.isArray(a) ? a : []; }
+  function shareTxActive(row) {
+    if (!row) return false;
+    var terminal = { void: 1, voided: 1, cancelled: 1, deleted: 1, replaced: 1, superseded: 1 };
+    return !terminal[String(row.status || '').toLowerCase()] && !terminal[String(row.st || '').toLowerCase()] && !row.voided && !row.deleted;
+  }
   function txSave(a) { setData(TX_KEY, a || []); }
-  function oAll() { var a = getData(OPEX_KEY); return Array.isArray(a) ? a : []; }
-  function oSave(a) { setData(OPEX_KEY, a || []); }
   function nm() { return (curSession() || {}).name || (curSession() || {}).user || ''; }
   function n(v) { return +String(v == null ? '' : v).replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/[^\d.-]/g, '') || 0; }
   function money(v) { return (+v || 0).toLocaleString('fa-IR') + ' ریال'; }
-  /* شناسهٔ پایدار برای upsertهای ماهانه: دو دستگاه برای یک حقوق، cd یکسان می‌سازند و
-     smart-merge به‌جای دو ردیف، همان domain entity را ادغام می‌کند. */
-  function stableRecurringCode(prefix, key) {
-    var a = 5381, b = 52711, s = String(key || '');
-    for (var i = 0; i < s.length; i++) { a = ((a * 33) ^ s.charCodeAt(i)) >>> 0; b = ((b * 31) + s.charCodeAt(i)) >>> 0; }
-    return prefix + '-' + ('00000000' + a.toString(16)).slice(-8).toUpperCase() + ('00000000' + b.toString(16)).slice(-8).toUpperCase();
-  }
   function salaryRecurringKey(sh, month) { return 'salary:' + String((sh && sh.cd) || '') + ':' + String(month || ''); }
   function faMonthNow() { try { return new Intl.DateTimeFormat('fa-IR-u-nu-latn', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit' }).format(new Date()).replace(/\s/g, '').replace('-', '/'); } catch (e) { return (typeof faDate === 'function' ? faDate().slice(0, 7) : ''); } }
   function normMonth(m) { return String(m || '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); }).replace(/-/g, '/').replace(/\s/g, '').replace(/^(\d{4})\/(\d)$/, '$1/0$2'); }
@@ -43,158 +39,75 @@
   }
   function activeShares() { return shAll().filter(function (s) { return s.active !== false; }); }
   function pctSum(exceptCd) { return activeShares().reduce(function (sum, s) { return sum + (s.cd === exceptCd ? 0 : (+s.pct || 0)); }, 0); }
-  /* v33.7.0 BUG-FIX (حقوق ۱۳۰ → ۹۰): سهامدار موظف جدید در ماه جاری حقوقش ثبت نمی‌شد
-     (syncSalaryTxForMonth فقط رکورد موجود را آپدیت می‌کرد و در ptfShareEdit برای
-     سهامدار جدید اصلاً صدا زده نمی‌شد). این تابع «اطمینان از وجود» است:
-     اگر tx حقوق ماه موجود نبود → ایجاد + هزینه حقوق؛ اگر بود و مبلغ فرق داشت → آپدیت.
-     خروجی: {found, changed, created, removed, txCd} */
-  function ensureSalaryTxForMonth(sh, month) {
+  /* v34.8.5: salary claim + matching OPEX are one server-owned recurring entity.
+     The browser may edit shareholder eligibility, but never creates, repairs, removes,
+     or resurrects salary/sharetx/OPEX rows from its potentially incomplete snapshot. */
+  function reconcileSalaryOnServer(month, options) {
+    options = options || {};
     month = normMonth(month) || faMonthNow();
-    var out = { found: false, changed: false, created: false, removed: false, txCd: '', opexCreated: false };
-    if (!sh || sh.active === false) return out;
-    var recurringKey = salaryRecurringKey(sh, month);
-    var txs = txAll();
-    var hit = txs.filter(function (x) { return x && (x.recurringKey === recurringKey || (x.type === 'salary' && x.shCd === sh.cd && x.month === month)); })[0];
-    /* v34.0.0-alpha (F4-7): اطمینان از وجود opex متناظر — اگر hit پیدا شد ولی ox
-       پیدا نشد (مثلاً opex قبلاً حذف شده)، opex ایجاد می‌شود. قبلاً فقط
-       در صورت تغییر مبلغ، opex آپدیت می‌شد و اگر ox نبود، چیزی ایجاد نمی‌شد
-       → حقوق سهامدار در opex ثبت نمی‌شد و در محاسبات سال مالی لحاظ نمی‌شد. */
-    function ensureOpex(cd) {
-      var opx = oAll();
-      var exists = opx.filter(function (o) { return o && (o.shareTx === cd || o.recurringKey === recurringKey); })[0];
-      if (!exists) {
-        opx.unshift({ cd: stableRecurringCode('OPX-SAL', recurringKey), _opexRowId: stableRecurringCode('OPXR-SAL', recurringKey), cat: 'حقوق و دستمزد', amt: +sh.salary || 0, month: month, desc: 'حقوق موظف سهامدار: ' + sh.name, t: faDateTime(), by: nm(), shareTx: cd, shareholderSalary: true, recurringKey: recurringKey });
-        oSave(opx);
-        out.opexCreated = true;
-        return true;
-      }
-      /* رکورد legacy را بدون تغییر cd به قرارداد domain-key جدید ارتقا بده. */
-      var repaired = false;
-      if (!exists.recurringKey) { exists.recurringKey = recurringKey; repaired = true; }
-      /* اگر نیمهٔ transaction حذف و دوباره ساخته شده باشد، لینک قدیمیِ OPEX باید
-         به transaction قطعیِ فعلی برگردد؛ صرفاً non-empty بودن shareTx کافی نیست. */
-      if (exists.shareTx !== cd) { exists.shareTx = cd; repaired = true; }
-      if (repaired) oSave(opx);
-      return false;
+    if (typeof window.ptfSalesDomainCommand !== 'function') {
+      if (typeof ptfToast === 'function') ptfToast('سرویس ثبت سروری حقوق آماده نیست؛ هیچ رکورد محلی ساخته نشد.', 'warn');
+      return Promise.resolve({ state: 'rejected', error: new Error('salary_server_command_unavailable') });
     }
-    if (sh.duty && (+sh.salary || 0) > 0) {
-      if (hit) {
-        out.found = true; out.txCd = hit.cd;
-        if (!hit.recurringKey) { hit.recurringKey = recurringKey; txSave(txs); }
-        if ((+hit.amt || 0) !== (+sh.salary || 0)) {
-          hit.amt = +sh.salary || 0;
-          hit.desc = 'حقوق موظف ماه ' + month;
-          hit.updatedT = faDateTime(); hit.updatedBy = nm();
-          txSave(txs);
-          /* v34.0.0-alpha (F4-7): آپدیت opex اگر وجود داشت، یا ایجاد اگر نبود */
-          var opxChg = oAll();
-          var oxChg = opxChg.filter(function (o) { return o && (o.shareTx === hit.cd || o.recurringKey === recurringKey); })[0];
-          if (oxChg) {
-            oxChg.amt = +sh.salary || 0; oxChg.month = month;
-            oxChg.desc = 'حقوق موظف سهامدار: ' + sh.name;
-            oxChg.recurringKey = recurringKey; oxChg.shareTx = hit.cd;
-            oxChg.updatedT = faDateTime(); oxChg.updatedBy = nm();
-            oSave(opxChg);
-          } else {
-            ensureOpex(hit.cd);
-          }
-          out.changed = true;
-        } else {
-          /* v34.0.0-alpha (F4-7): مبلغ برابر — فقط مطمئن شو opex هست
-             (اگر قبلاً حذف شده، دوباره ایجاد شود) */
-          ensureOpex(hit.cd);
-        }
-        return out;
-      }
-      var tx = addTx('salary', sh, sh.salary, 'حقوق موظف ماه ' + month, {
-        cd: stableRecurringCode('SHT-SAL', recurringKey), month: month, recurringKey: recurringKey
-      });
-      ensureOpex(tx.cd);
-      out.created = true; out.txCd = tx.cd;
-      return out;
-    }
-    /* غیرموظف/صفر شد → حذف حقوق ماه (اگر وجود داشت) */
-    if (hit) {
-      txs = txs.filter(function (x) { return x.cd !== hit.cd; });
-      txSave(txs);
-      var opx3 = oAll();
-      opx3 = opx3.filter(function (o) { return o.shareTx !== hit.cd && o.recurringKey !== recurringKey; });
-      oSave(opx3);
-      out.removed = true; out.txCd = hit.cd;
-    }
-    return out;
-  }
-  window.ptfShareEnsureSalary = ensureSalaryTxForMonth;
-
-  /* v34.0.2-alpha (F4-7 تکمیلی): مهاجرت یک‌بارهٔ «حقوق سهامدار فاقد opex».
-     قبل از فیکس F4-7، اگر هزینهٔ حقوق یک سهامدار از opex حذف می‌شد (یا هرگز
-     ساخته نمی‌شد)، فراخوانی بعدی دیگر opex نمی‌ساخت → حقوق در «هزینه‌های جاری»
-     و محاسبات سال مالی دیده نمی‌شد. فیکس کدی فقط برای ثبت‌های جدید کار می‌کند؛
-     این تابع برای رکوردهای تاریخیِ ازقبل‌خراب‌شده، به‌ازای هر tx حقوق که opex
-     متناظرش (shareTx) وجود ندارد یک opex می‌سازد.
-     از داخل اپ (دکمهٔ «🛠 بازسازی حقوق سهامدار» در پنل هزینه‌های جاری) یا
-     کنسول مرورگر قابل اجراست؛ خروجی: {created, skipped, totalOpex}. */
-  window.ptfMigrateShareholderOpex = function () {
-    var shs = shAll(), txs = txAll(), opx = oAll();
-    var opxByShareTx = {};
-    opx.forEach(function (o) { if (o.shareTx) opxByShareTx[o.shareTx] = o; });
-    var created = 0, skipped = 0, errors = [];
-    shs.filter(function (s) { return s && s.active !== false && s.duty && (+s.salary || 0) > 0; }).forEach(function (s) {
-      txs.filter(function (x) { return x.type === 'salary' && x.shCd === s.cd; }).forEach(function (x) {
-        if (opxByShareTx[x.cd]) { skipped++; return; }
-        var newOpx = {
-          cd: 'OPX-MIG-' + x.cd,
-          cat: 'حقوق و دستمزد',
-          amt: +x.amt || 0,
-          month: x.month,
-          desc: 'حقوق موظف سهامدار: ' + s.name + ' (مهاجرت F4-7)',
-          t: x.t,
-          by: x.by || 'migration-F4-7',
-          shareTx: x.cd,
-          shareholderSalary: true,
-          migrated: true
-        };
-        opx.unshift(newOpx);
-        opxByShareTx[x.cd] = newOpx;
-        created++;
-      });
+    var restoreKeys = [];
+    if (options.restore === true) activeShares().filter(function (sh) { return sh.duty && (+sh.salary || 0) > 0; }).forEach(function (sh) {
+      restoreKeys.push(salaryRecurringKey(sh, month));
     });
-    if (created > 0) {
-      oSave(opx);
-      if (typeof ptfOpexRender === 'function') { try { ptfOpexRender(); } catch (e) {} }
-      if (typeof ptfShareRender === 'function') { try { ptfShareRender(); } catch (e) {} }
+    function send(resolve) {
+      try {
+        var command = window.ptfSalesDomainCommand('reconcile_shareholder_salaries', {
+          month: month,
+          explicitEligibility: options.explicitEligibility === true,
+          scopeShareholder: options.scopeShareholder || '',
+          restoreKeys: restoreKeys,
+          reason: options.reason || 'تطبیق صریح حقوق سهامداران از رابط کاربری',
+          idempotencyKey: 'SH-SALARY|' + month + '|' + String(options.scopeShareholder || 'all') + '|' + Date.now()
+        }, { apiOptions: { autoReplay: true } });
+        if (!command || typeof command.then !== 'function') { resolve({ state: 'rejected', error: new Error('salary_server_promise_required') }); return; }
+        command.then(resolve, function (error) { resolve({ state: 'rejected', error: error }); });
+      } catch (error) { resolve({ state: 'rejected', error: error }); }
     }
-    return { created: created, skipped: skipped, totalOpex: opx.length, errors: errors };
+    return new Promise(function (resolve) {
+      if (typeof window.ptfSyncFlushKeysNow !== 'function') { resolve({ state: 'rejected', error: new Error('keyed_sync_barrier_unavailable') }); return; }
+      try {
+        window.ptfSyncFlushKeysNow(['ptf_crm_shareholders'], function (ok) {
+          if (!ok) {
+            if (typeof ptfToast === 'function') ptfToast('تغییر سهامدار هنوز به سرور نرسیده است؛ حقوق از snapshot محلی ساخته نشد.', 'warn');
+            resolve({ state: 'rejected', error: new Error('shareholder_snapshot_not_committed') });
+            return;
+          }
+          send(resolve);
+        });
+      } catch (error) { resolve({ state: 'rejected', error: error }); }
+    }).then(function (state) {
+      if (state && state.state === 'acked') {
+        try { if (typeof ptfShareRender === 'function') ptfShareRender(); } catch (eShare) {}
+        try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOpex) {}
+        try { if (typeof ptfFiscalRender === 'function') ptfFiscalRender(); } catch (eFiscal) {}
+      }
+      return state;
+    });
+  }
+  window.ptfShareEnsureSalary = function (sh, month) {
+    if (!sh || !sh.cd) return Promise.resolve({ state: 'rejected', error: new Error('shareholder_required') });
+    return reconcileSalaryOnServer(month, {
+      explicitEligibility: true,
+      scopeShareholder: sh.cd,
+      reason: 'تغییر صریح وضعیت/حقوق سهامدار ' + String(sh.cd)
+    });
   };
 
-  function syncSalaryTxForMonth(sh, month) {
-    month = normMonth(month) || faMonthNow();
-    var txs = txAll();
-    var hit = txs.filter(function (x) { return x.type === 'salary' && x.shCd === sh.cd && x.month === month; })[0];
-    if (!hit) return { found: false, changed: false };
-    var newAmt = +sh.salary || 0;
-    if ((+hit.amt || 0) === newAmt) return { found: true, changed: false, txCd: hit.cd };
-    hit.amt = newAmt;
-    hit.desc = 'حقوق موظف ماه ' + month;
-    hit.updatedT = faDateTime();
-    hit.updatedBy = nm();
-    txSave(txs);
-    var opx = oAll();
-    var ox = opx.filter(function (o) { return o.shareTx === hit.cd; })[0];
-    if (ox) {
-      ox.amt = newAmt;
-      ox.month = month;
-      ox.desc = 'حقوق موظف سهامدار: ' + sh.name;
-      ox.updatedT = faDateTime();
-      ox.updatedBy = nm();
-      oSave(opx);
-    }
-    return { found: true, changed: true, txCd: hit.cd };
-  }
+  window.ptfMigrateShareholderOpex = function () {
+    return reconcileSalaryOnServer(faMonthNow(), {
+      explicitEligibility: false,
+      reason: 'بازسازی صریح ردیف‌های حقوق جاری بدون حذف eligibility',
+      restore: false
+    });
+  };
 
   window.ptfShareholderBalance = function (cd) {
     var s = shAll().filter(function (x) { return x.cd === cd; })[0];
-    var ledger = txAll().filter(function (x) { return x && x.shCd === cd && x.status !== 'void' && !x.voided; }).reduce(function (a, x) {
+    var ledger = txAll().filter(function (x) { return x && x.shCd === cd && shareTxActive(x); }).reduce(function (a, x) {
       if (x.type === 'salary' || x.type === 'credit' || x.type === 'profit') a.credit += (+x.amt || 0);
       else if (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment') a.debit += (+x.amt || 0);
       else if (x.type === 'call_due') a.callDue += (+x.amt || 0);
@@ -344,20 +257,22 @@
         var a = shAll();
         var rec = old || { cd: genCode('SHR'), createdBy: nm(), createdT: faDateTime() };
         var prevSalary = +rec.salary || 0;
-        var prevDuty = !!rec.duty;
         rec.name = v.name; rec.pct = pct; rec.duty = v.duty === 'yes'; rec.salary = rec.duty ? n(v.salary) : 0; rec.active = v.active !== 'no'; rec.updatedBy = nm(); rec.updatedT = faDateTime();
         if (old) a = a.map(function (x) { return x.cd === rec.cd ? rec : x; }); else a.unshift(rec);
         shSave(a);
-        /* v33.7.0 BUG-FIX (ریشهٔ ۱۳۰→۹۰): برای سهامدار جدید هم حقوق ماه جاری همان‌لحظه
-           ایجاد می‌شود؛ برای تغییر حقوق/موظف → آپدیت؛ برای غیرموظف‌شدن → حذف از ماه جاری. */
-        var sync = ensureSalaryTxForMonth(rec, month);
         audit('سهامداران', (old ? 'ویرایش ' : 'ثبت ') + rec.name + ' — ' + rec.pct + '٪' + (old && prevSalary !== rec.salary ? ' | حقوق: ' + prevSalary + ' → ' + rec.salary : ''), rec.cd);
-        if (sync.changed && typeof audit === 'function') audit('سهامداران', 'به‌روزرسانی خودکار حقوق موظف ماه ' + month + ' برای ' + rec.name + ' — ' + money(rec.salary), sync.txCd || rec.cd);
-        if (sync.created && typeof audit === 'function') audit('سهامداران', 'ثبت خودکار حقوق موظف ماه ' + month + ' برای سهامدار جدید ' + rec.name + ' — ' + money(rec.salary), sync.txCd || rec.cd);
-        if (sync.removed && typeof audit === 'function') audit('سهامداران', 'حذف حقوق موظف ماه ' + month + ' — ' + rec.name + ' دیگر موظف نیست', sync.txCd || rec.cd);
-        if ((sync.changed || sync.created) && typeof ptfToast === 'function') ptfToast('حقوق ماه ' + month + ' برای ' + rec.name + ' همزمان ثبت/به‌روزرسانی شد', 'ok');
         ptfShareRender();
-        if (typeof ptfOpexRender === 'function') { try { ptfOpexRender(); } catch (e) {} }
+        reconcileSalaryOnServer(month, {
+          explicitEligibility: true,
+          scopeShareholder: rec.cd,
+          reason: 'تغییر صریح وضعیت/حقوق سهامدار ' + rec.cd
+        }).then(function (state) {
+          if (state && state.state === 'acked') {
+            if (typeof ptfToast === 'function') ptfToast('حقوق ماه ' + month + ' از snapshot قطعی سرور تطبیق شد', 'ok');
+          } else if (typeof ptfToast === 'function') {
+            ptfToast('⚠️ تغییر سهامدار ذخیره شد، اما تطبیق حقوق تأیید نشد؛ وضعیت Sync را بررسی و ثبت را دوباره اجرا کنید.', 'warn');
+          }
+        });
       }
     });
   };
@@ -366,20 +281,17 @@
     if (!canShare()) return;
     month = normMonth(month) || faMonthNow();
     if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ ثبت حقوق در آن سال مجاز نیست.'); return; }
-    var done = 0, skipped = 0, updated = 0;
-    activeShares().filter(function (s) { return s.duty && (+s.salary || 0) > 0; }).forEach(function (s) {
-      var sync = ensureSalaryTxForMonth(s, month);
-      if (sync.created) done++;
-      else if (sync.changed) updated++;
-      else skipped++;
+    if (!confirm('حقوق ماه ' + month + ' از snapshot قطعی سرور تطبیق شود؟\nاین اقدام فقط با intent صریح شما می‌تواند tombstone همان حقوق‌های واجد شرایط را بازسازی کند.')) return;
+    reconcileSalaryOnServer(month, {
+      explicitEligibility: true,
+      restore: true,
+      reason: 'ثبت/بازسازی صریح حقوق سهامداران برای ماه ' + month
+    }).then(function (state) {
+      if (state && state.state === 'acked') {
+        try { audit('سهامداران', 'تطبیق سروری حقوق موظف ماه ' + month, month); } catch (eAudit) {}
+        if (typeof ptfToast === 'function') ptfToast('حقوق ماه ' + month + ' روی سرور ثبت/تطبیق شد', 'ok');
+      } else if (state && state.state === 'rejected') alert('تطبیق حقوق روی سرور انجام نشد: ' + String((state.error && state.error.message) || 'خطای نامشخص'));
     });
-    audit('سهامداران', 'ثبت/به‌روزرسانی حقوق موظف ماه ' + month + ' — جدید: ' + done + (updated ? ' / اصلاح‌شده: ' + updated : '') + (skipped ? ' / بدون تغییر: ' + skipped : ''), month);
-    if (typeof ptfToast === 'function') {
-      if (done || updated) ptfToast('حقوق ماه ' + month + ' ثبت/به‌روزرسانی شد', 'ok');
-      else ptfToast('برای این ماه تغییری لازم نبود', 'warn');
-    }
-    if (typeof ptfOpexRender === 'function') { try { ptfOpexRender(); } catch (e) {} }
-    ptfShareRender();
   };
 
   window.ptfShareDraw = function (cd) {
@@ -437,11 +349,13 @@
     if (!canShare()) return;
     var s = shAll().filter(function (x) { return x.cd === cd; })[0]; if (!s) return;
     var rows = txAll().filter(function (x) { return x.shCd === cd; }).map(function (x) {
-      var sign = (x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due' || x.type === 'call_credit_use') ? '-' : '+';
+      var active = shareTxActive(x);
+      var sign = !active ? '' : ((x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due' || x.type === 'call_credit_use') ? '-' : '+');
       var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)', call_credit_use: 'تهاتر طلب با فراخوان', chair_in: 'تزریق شخصی رییس به صندوق', chair_out: 'تسویه طلب رییس از صندوق' }[x.type] || x.type;
+      if (!active) typeLb += ' (باطل‌شده)';
       var nFiles = (x.files || []).length;
       var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
-      return '<tr><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td></tr>';
+      return '<tr' + (!active ? ' style="opacity:.65"' : '') + '><td>' + escP(x.t || '') + '</td><td>' + escP(typeLb) + '</td><td style="direction:ltr;' + (!active ? 'text-decoration:line-through' : '') + '">' + sign + money(x.amt) + '</td><td>' + escP(x.desc || '') + '</td><td>' + docs + '</td></tr>';
     }).join('');
     var b = ptfShareholderBalance(cd);
     var oldLed = document.getElementById('shareLedgerDlg');
