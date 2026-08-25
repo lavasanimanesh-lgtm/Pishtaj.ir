@@ -8,6 +8,45 @@ var spawnSync = require('child_process').spawnSync;
 
 var ROOT = path.resolve(__dirname, '../..');
 
+/* RCA 2026-08-25: پرانتز جاافتاده در api/sales-domain.php کل API مالی استیجینگ را ۵۰۰ کرد
+   چون هیچ گیت اجراییِ php -l وجود نداشت. این بررسی بهترین‌تلاش محلی است:
+   ۱) اگر باینری php موجود باشد php -l اجرا می‌شود (قطعی)؛
+   ۲) وگرنه اگر ماژول php-parser از قبل نصب باشد (npm i php-parser) با آن lint می‌شود؛
+   ۳) وگرنه هشدار بلند — استقرار بدون این بررسی ریسک خاموشی کل api است. */
+function phpLintGate() {
+  var apiDir = path.join(ROOT, 'api');
+  var files = [];
+  try {
+    fs.readdirSync(apiDir).forEach(function (name) { if (/\.php$/.test(name)) files.push(path.join(apiDir, name)); });
+  } catch (eDir) { return; }
+  var php = spawnSync('php', ['-v'], { encoding: 'utf8' });
+  if (!php.error && php.status === 0) {
+    var bad = [];
+    files.forEach(function (f) {
+      var r = spawnSync('php', ['-l', f], { encoding: 'utf8' });
+      if (r.status !== 0) bad.push(path.basename(f) + ': ' + String(r.stdout || r.stderr || '').trim().split('\n')[0]);
+    });
+    if (bad.length) { console.log('⛔ php -l خطاها:\n  ' + bad.join('\n  ')); process.exit(1); }
+    console.log('php -l: ' + files.length + ' فایل api/*.php سالم');
+    return;
+  }
+  var parser;
+  try { parser = require('php-parser'); } catch (eRequire) {
+    console.log('⚠️  php و php-parser هر دو موجود نیستند — سینتکس api/*.php بررسی نشد!');
+    console.log('    (نصب: npm i php-parser  یا نصب php-cli؛ بدون این، استقرار PHP خراب را متوقف نمی‌کند)');
+    return;
+  }
+  var badJs = [];
+  files.forEach(function (f) {
+    try { new parser({ parser: { extractDoc: false, suppressErrors: false } }).parseCode(fs.readFileSync(f, 'utf8'), f); }
+    catch (eParse) { badJs.push(path.basename(f) + ': ' + eParse.message); }
+  });
+  if (badJs.length) { console.log('⛔ php-parser خطاها:\n  ' + badJs.join('\n  ')); process.exit(1); }
+  console.log('php-parser: ' + files.length + ' فایل api/*.php سالم');
+}
+phpLintGate();
+
+
 var SUITE = [
   { g: 'اعلان', f: '_tools/uat/tester319-v34.4.14-actionable-inbox.js' },
   { g: 'اعلان', f: '_tools/uat/tester395-v34.5.5-action-only-cartable.js' },
@@ -132,6 +171,7 @@ var SUITE = [
   { g: 'مالی/فاز چهار UI و polling', f: '_tools/uat/tester509-v34.8.8-phase04-ui-poll-safety.js' },
   { g: 'مالی/فاز پنج repair plan', f: '_tools/uat/tester510-v34.8.9-phase05-repair-plan.js' },
   { g: 'مالی/فاز شش UI و سکوت retry', f: '_tools/uat/tester511-v34.8.10-phase06-repair-ui-and-retry-quiet.js' },
+  { g: 'احراز هویت/حلقهٔ توکن', f: '_tools/uat/tester512-v34.8.6-auth-token-race.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

@@ -326,12 +326,15 @@
       ws.forEach(function (f) { try { f(d); } catch (eW) {} });
     }, bPullRevs());
   }
-  /* v33.19.0: تشخیص نشست منقضی/توکن نامعتبر (data_push توکن الزامی دارد؛ تست اتصال از users_get عمومی است و همیشه سبز می‌ماند) */
+  /* v33.19.0: تشخیص نشست منقضی/توکن نامعتبر (data_push توکن الزامی دارد؛ تست اتصال از users_get عمومی است و همیشه سبز می‌ماند)
+     v34.8.6 (AUTH-TOKEN-RACE): تشخیص قبلیِ «هر خطای حاوی کلمهٔ token» نشست سالم را
+     پاک می‌کرد (مثل token_issue_failed). فقط نشانه‌های قطعی auth را بپذیر. */
   function isNeedLogin(d, status) {
     if (status === 401) return true;
     if (!d) return false;
     if (d.needLogin === true) return true;
-    return /token|unauthorized|401/i.test(String(d.error || ''));
+    var e = String(d.error || '');
+    return e === 'authentication_required' || e === 'Authentication required' || /^invalid or expired token/i.test(e);
   }
   function serverPush(payload, cb, attempt, base) {
     attempt = attempt || 0;

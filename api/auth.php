@@ -16,6 +16,30 @@ function auth_tokens_file() {
     return $dir . '/tokens.json';
 }
 
+/* v34.8.6 AUTH-TOKEN-RACE: issuing a token was an unlocked load→modify→save cycle.
+   Two overlapping logins (several devices/users logging in around the same moment)
+   caused a lost-update: the second save wrote a snapshot taken before the first
+   token existed, silently deleting that fresh token. The user then saw
+   «توکن معتبر وجود ندارد» and every re-login could race again — self-amplifying.
+   The whole cycle now runs under an exclusive flock, same pattern as meta.json.lock. */
+function auth_tokens_lock_file() {
+    return auth_tokens_file() . '.lock';
+}
+function auth_with_tokens_lock(callable $mutator) {
+    $lock = @fopen(auth_tokens_lock_file(), 'c+');
+    if (!$lock) return false;
+    try {
+        if (!@flock($lock, LOCK_EX)) return false;
+        try {
+            return $mutator !== null ? call_user_func($mutator) : true;
+        } finally {
+            @flock($lock, LOCK_UN);
+        }
+    } finally {
+        @fclose($lock);
+    }
+}
+
 function auth_load_tokens() {
     $f = auth_tokens_file();
     if (!is_file($f)) return [];
@@ -26,7 +50,15 @@ function auth_load_tokens() {
     @flock($fp, LOCK_UN);
     fclose($fp);
     $tokens = json_decode((string)$raw, true);
-    return is_array($tokens) ? $tokens : [];
+    if (!is_array($tokens)) {
+        /* v34.8.6: a corrupt/empty tokens.json used to nuke every active session.
+           Preserve the evidence, then continue from an empty store. */
+        if (trim((string)$raw) !== '') {
+            @rename($f, $f . '.corrupt.' . date('YmdHis'));
+        }
+        return [];
+    }
+    return $tokens;
 }
 
 function auth_save_tokens($tokens) {
@@ -53,15 +85,33 @@ function auth_generate_token($username, $role) {
     $payload = trim((string)$username) . '|' . trim((string)$role) . '|' . $now . '|' . bin2hex(random_bytes(16));
     $signature = hash_hmac('sha256', $payload, $secret);
     $token = rtrim(strtr(base64_encode($payload . '|' . $signature), '+/', '-_'), '=');
-    $tokens = auth_load_tokens();
-    $tokens[$token] = [
-        'user' => trim((string)$username),
-        'role' => trim((string)$role),
-        'iat' => $now,
-        'exp' => $exp,
-        'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? '')
-    ];
-    return auth_save_tokens($tokens) ? $token : false;
+    $ok = auth_with_tokens_lock(function () use ($token, $username, $role, $now, $exp) {
+        $tokens = auth_load_tokens();
+        $tokens[$token] = [
+            'user' => trim((string)$username),
+            'role' => trim((string)$role),
+            'iat' => $now,
+            'exp' => $exp,
+            'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? '')
+        ];
+        return auth_save_tokens($tokens);
+    });
+    return $ok ? $token : false;
+}
+
+/* v34.8.6 AUTH-LOGOUT-REVOKE: logout previously left the token valid server-side
+   for up to 7 days — a shared-device account switch kept the previous account's
+   token alive in browser storage copies/backups. Logout now revokes exactly the
+   presented token (other devices of the same user keep their own tokens). */
+function auth_revoke_token($token) {
+    $token = trim((string)$token);
+    if ($token === '') return false;
+    return (bool)auth_with_tokens_lock(function () use ($token) {
+        $tokens = auth_load_tokens();
+        if (!isset($tokens[$token])) return true;
+        unset($tokens[$token]);
+        return auth_save_tokens($tokens);
+    });
 }
 
 function auth_verify_token($token) {
