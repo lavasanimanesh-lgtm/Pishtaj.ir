@@ -1,20 +1,11 @@
 /* PTF CRM — Service Worker (MOB-009 release cache contract) */
 /* `RELEASE` باید با window.PTF_CRM_RELEASE، VERSION.json و query تمام scriptها یکی باشد. */
-var RELEASE = 'v34.8.5';
-var ASSET_VERSION = '34.8.5';
-var CACHE = 'ptf-crm-v34.8.5';
+var RELEASE = 'v34.8.6';
+var ASSET_VERSION = '34.8.6';
+var CACHE = 'ptf-crm-v34.8.6';
 var ASSET_QUERY = '?v=' + ASSET_VERSION;
-/* F0-1 changed sync/client-server without changing the public release number;
-   precache those two assets under a one-time phase query so existing PWA caches
-   cannot keep the old transport after deployment. */
-var PHASE01_QUERY = '?v=' + ASSET_VERSION + '&f01=20260825';
-var PHASE02_QUERY = '?v=' + ASSET_VERSION + '&f02=20260825';
-var PHASE03_QUERY = '?v=' + ASSET_VERSION + '&f03=20260825';
-var PHASE04_QUERY = '?v=' + ASSET_VERSION + '&f04=20260825';
-var PHASE05_QUERY = '?v=' + ASSET_VERSION + '&f05=20260825';
-var PHASE06_QUERY = '?v=' + ASSET_VERSION + '&f06=20260825';
-var PHASE07_QUERY = '?v=' + ASSET_VERSION + '&f07=20260825';
-var PHASE08_QUERY = '?v=' + ASSET_VERSION + '&f08=20260825';
+/* v34.8.6: تغییرات رفتاری sync/client-server با بامپ واقعی نسخه منتشر شدند؛
+   phase-queryهای موقتی (f01…f08) حذف شدند و همهٔ entryها زیر همان ?v یکسان precache می‌شوند. */
 
 /* همهٔ entryهای JS دقیقاً با URLهای queryدار index.html precache می‌شوند؛
    بنابراین fallback آفلاین به cache key بی‌ربط بدون query نمی‌افتد. */
@@ -50,7 +41,7 @@ var SHELL = [
   './management-intelligence.js' + ASSET_QUERY,
   './contracts.js' + ASSET_QUERY,
   './shell.js' + ASSET_QUERY,
-  './bridge.js' + PHASE04_QUERY,
+  './bridge.js' + ASSET_QUERY,
   './kanban.js' + ASSET_QUERY,
   './reports.js' + ASSET_QUERY,
   './backup.js' + ASSET_QUERY,
@@ -63,9 +54,9 @@ var SHELL = [
   './careers.js' + ASSET_QUERY,
   './perms.js' + ASSET_QUERY,
   './petty.js' + ASSET_QUERY,
-  './opex.js' + PHASE06_QUERY,
-  './shareholders.js' + PHASE02_QUERY,
-  './treasury.js' + PHASE02_QUERY,
+  './opex.js' + ASSET_QUERY,
+  './shareholders.js' + ASSET_QUERY,
+  './treasury.js' + ASSET_QUERY,
   './treasury-call.js' + ASSET_QUERY,
   './theme.js' + ASSET_QUERY,
   './archive.js' + ASSET_QUERY,
@@ -98,22 +89,22 @@ var SHELL = [
   './custmerge.js' + ASSET_QUERY,
   './listclean.js' + ASSET_QUERY,
   './supspec.js' + ASSET_QUERY,
-  './scoring.js' + PHASE04_QUERY,
+  './scoring.js' + ASSET_QUERY,
   './supplier-finance.js' + ASSET_QUERY,
   './customer-finance.js' + ASSET_QUERY,
   './working-capital.js' + ASSET_QUERY,
   './ledger-report.js' + ASSET_QUERY,
-  './data-quality.js' + PHASE06_QUERY,
+  './data-quality.js' + ASSET_QUERY,
   './commission.js' + ASSET_QUERY,
   './my-customers-filter.js' + ASSET_QUERY,
   './insights.js' + ASSET_QUERY,
   './myday.js' + ASSET_QUERY,
   './lossguard.js' + ASSET_QUERY,
-  './fiscal.js' + PHASE04_QUERY,
+  './fiscal.js' + ASSET_QUERY,
   './financehub.js' + ASSET_QUERY,
   './theme-contrast.js' + ASSET_QUERY,
-  './sync.js' + PHASE01_QUERY,
-  './client-server.js' + PHASE01_QUERY,
+  './sync.js' + ASSET_QUERY,
+  './client-server.js' + ASSET_QUERY,
   './unofficial-invoice.js' + ASSET_QUERY,
   './user-guide.js' + ASSET_QUERY,
   './settings-accordion.js' + ASSET_QUERY,
@@ -121,7 +112,7 @@ var SHELL = [
   './mobile-table-labels.js' + ASSET_QUERY,
   './mobile-nav-state.js' + ASSET_QUERY,
   './nav-focus.js' + ASSET_QUERY,
-  './sales-domain-v2.js' + PHASE08_QUERY,
+  './sales-domain-v2.js' + ASSET_QUERY,
   './official-invoice-v2.js' + ASSET_QUERY,
   './case-revision.js' + ASSET_QUERY,
   '../assets/images/favicon/favicon-192.png',
