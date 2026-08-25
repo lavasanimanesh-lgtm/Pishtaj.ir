@@ -392,6 +392,11 @@ function sync_tombstone_kinds_for_key($key) {
         'ptf_crm_case_receipts' => ['receipt','case_receipt','rpay'],
         'ptf_crm_receipt_allocations' => ['allocation','receipt_allocation'],
         'ptf_crm_fin_attachments' => ['attachment','financial_attachment'],
+        /* Finance rows require explicit tombstones as well; omission from a browser
+           snapshot is never a delete for these collections. */
+        'ptf_crm_sharetx' => ['sharetx','share_transaction','shareholder_salary','chair_in','chair_out','draw','salary','salary_payment'],
+        'ptf_crm_opex' => ['opex','expense','recurring_opex','shareholder_salary'],
+        'ptf_crm_shareholders' => ['shareholder','shareholders'],
         'ptf_crm_corrections' => ['correction'],
     ];
     return $map[$key] ?? [];
@@ -454,7 +459,23 @@ function sync_offers_payload_has_unregistered_new($incomingJson, $serverJson) {
    also applied to legacy clients that do not send a per-key base revision. */
 function sync_recurring_aliases($key, $row) {
     if (!is_array($row)) return [];
-    $fields = $key === 'ptf_crm_opex' ? ['_opexRowId','recurringKey','cd'] : ['recurringKey','cd'];
+    /* Physical identity must precede the migration fallback. recurringKey is a
+       business grouping key and is intentionally non-unique when legacy/duplicate
+       rows are present (for example two salary rows for one shareholder/month). */
+    $fields = $key === 'ptf_crm_opex'
+        ? ['_opexRowId','cd','recurringKey']
+        : ['cd','recurringKey'];
+    $out = [];
+    foreach ($fields as $field) {
+        $value = trim((string)($row[$field] ?? ''));
+        if ($value !== '') $out[] = $field . ':' . $value;
+    }
+    return array_values(array_unique($out));
+}
+function sync_protected_identity_index(string $key, array $row): array {
+    if (!is_array($row)) return [];
+    /* Only an exact physical identity is safe for a normal snapshot merge. */
+    $fields = $key === 'ptf_crm_opex' ? ['_opexRowId','cd'] : ['cd'];
     $out = [];
     foreach ($fields as $field) {
         $value = trim((string)($row[$field] ?? ''));
@@ -465,6 +486,7 @@ function sync_recurring_aliases($key, $row) {
 function sync_is_recurring_owned($key, $row) {
     if (!is_array($row)) return false;
     $recurringKey = trim((string)($row['recurringKey'] ?? ''));
+    if ($key === 'ptf_crm_shareholders') return false;
     if ($key === 'ptf_crm_sharetx') return $recurringKey !== '' || strtolower(trim((string)($row['type'] ?? ''))) === 'salary';
     return $recurringKey !== '' || !empty($row['serverMaterialized']) || !empty($row['serverReconciled']) ||
         !empty($row['shareholderSalary']) || !empty($row['autoApplied']) || trim((string)($row['tplId'] ?? '')) !== '';
@@ -474,6 +496,23 @@ function sync_is_terminal_recurring_row($row) {
     $states = ['void','voided','cancelled','deleted','replaced','superseded'];
     return in_array(strtolower(trim((string)($row['status'] ?? ''))), $states, true) ||
         in_array(strtolower(trim((string)($row['st'] ?? ''))), $states, true) || !empty($row['voided']) || !empty($row['deleted']);
+}
+function sync_merge_finance_files($server, $incoming, array $merged): array {
+    $hasFiles = is_array($server['files'] ?? null) || is_array($incoming['files'] ?? null);
+    if (!$hasFiles) return $merged;
+    $files = []; $seen = [];
+    foreach (array_merge(
+        is_array($server['files'] ?? null) ? $server['files'] : [],
+        is_array($incoming['files'] ?? null) ? $incoming['files'] : []
+    ) as $file) {
+        if (!is_array($file)) continue;
+        $id = trim((string)($file['key'] ?? $file['id'] ?? ''));
+        if ($id === '') $id = hash('sha256', json_encode($file, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        if (isset($seen[$id])) continue;
+        $seen[$id] = true; $files[] = $file;
+    }
+    $merged['files'] = $files;
+    return $merged;
 }
 function sync_merge_server_owned_recurring_row($key, $server, $incoming, $serverIndex = -1) {
     $merged = array_replace(is_array($server) ? $server : [], is_array($incoming) ? $incoming : []);
@@ -514,19 +553,8 @@ function sync_merge_server_owned_recurring_row($key, $server, $incoming, $server
     } elseif (sync_is_terminal_recurring_row($incoming)) {
         if (array_key_exists('st', $server)) $merged['st'] = $server['st']; else unset($merged['st']);
     }
-    if ($serverSettled || $incomingSettled) {
-        /* Financial evidence is append-only during and after settlement. A stale full
-           snapshot may neither erase existing files nor block a genuinely new attachment. */
-        $evidence = []; $seenEvidence = [];
-        foreach (array_merge(is_array($server['files'] ?? null) ? $server['files'] : [], is_array($incoming['files'] ?? null) ? $incoming['files'] : []) as $file) {
-            if (!is_array($file)) continue;
-            $evidenceId = trim((string)($file['key'] ?? $file['id'] ?? ''));
-            if ($evidenceId === '') $evidenceId = hash('sha256', json_encode(sync_normalize_for_compare($file), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-            if (isset($seenEvidence[$evidenceId])) continue;
-            $seenEvidence[$evidenceId] = true; $evidence[] = $file;
-        }
-        if ($evidence || array_key_exists('files', $server) || array_key_exists('files', $incoming)) $merged['files'] = $evidence;
-    }
+    /* Evidence is append-only for every financial row, not only settled rows. */
+    $merged = sync_merge_finance_files($server, $incoming, $merged);
     /* Legacy recurring rows need a server-issued row identity. Simply stripping a
        browser backfill would make opexEnsureRowIds generate/push a fresh random ID on
        every render. The server index only disambiguates truly duplicate legacy rows;
@@ -546,36 +574,54 @@ function sync_merge_server_owned_recurring_row($key, $server, $incoming, $server
 function sync_merge_protected_finance_snapshot($key, $incomingJson, $serverJson) {
     $incoming = json_decode((string)$incomingJson, true); $server = json_decode((string)$serverJson, true);
     if (!is_array($incoming) || !is_array($server)) return null;
-    /* Start from server so absence preserves every row, including explicit tombstones. */
+    /* Start from server so omission is never a deletion instruction. */
     $out = array_values($server); $aliases = [];
-    foreach ($out as $index => $row) if (sync_is_recurring_owned($key, $row)) $out[$index] = sync_merge_server_owned_recurring_row($key, $row, $row, $index);
-    foreach ($out as $index => $row) foreach (sync_recurring_aliases($key, $row) as $alias) if (!isset($aliases[$alias])) $aliases[$alias] = (int)$index;
+    foreach ($out as $index => $row) {
+        if (sync_is_recurring_owned($key, $row)) $out[$index] = sync_merge_server_owned_recurring_row($key, $row, $row, $index);
+        foreach (sync_recurring_aliases($key, $out[$index]) as $alias) {
+            if (!isset($aliases[$alias])) $aliases[$alias] = [];
+            $aliases[$alias][] = (int)$index;
+        }
+    }
     foreach ($incoming as $row) {
         if (!is_array($row)) continue;
         $at = -1;
-        $incomingAliases = sync_recurring_aliases($key, $row);
-        $incomingRowId = $key === 'ptf_crm_opex' ? trim((string)($row['_opexRowId'] ?? '')) : '';
-        if ($incomingRowId !== '') {
-            $rowAlias = '_opexRowId:' . $incomingRowId;
-            if (isset($aliases[$rowAlias])) $at = (int)$aliases[$rowAlias];
-            /* One-time browser-ID migration may fall back to a domain alias. Once an
-               identity has been accepted by the server, a missing exact row-ID is not
-               permission to overwrite another physical row with the same recurringKey. */
-            elseif (empty($row['serverOwnedIdentity'])) foreach ($incomingAliases as $alias) {
-                if (strpos($alias, '_opexRowId:') === 0) continue;
-                if (isset($aliases[$alias])) { $at = (int)$aliases[$alias]; break; }
+        $physical = sync_protected_identity_index($key, $row);
+        /* A supplied physical identity is authoritative for matching. A different
+           cd/row ID must create a separate physical row, never collapse into a sibling
+           solely because recurringKey is shared. */
+        foreach ($physical as $alias) {
+            if (isset($aliases[$alias]) && count($aliases[$alias]) === 1) {
+                $at = (int)$aliases[$alias][0];
+                break;
             }
-        } else foreach ($incomingAliases as $alias) if (isset($aliases[$alias])) { $at = (int)$aliases[$alias]; break; }
+        }
+        /* Only truly legacy rows without a physical identity may use recurringKey,
+           and an ambiguous recurringKey is fail-closed (the signature then returns a
+           conflict to the client rather than choosing a row). */
+        if ($at < 0 && !$physical) {
+            foreach (sync_recurring_aliases($key, $row) as $alias) {
+                if (strpos($alias, 'recurringKey:') !== 0) continue;
+                if (isset($aliases[$alias]) && count($aliases[$alias]) === 1) {
+                    $at = (int)$aliases[$alias][0];
+                    break;
+                }
+            }
+        }
         if ($at < 0) {
-            /* A new recurring identity must originate from the locked command path. */
+            /* A new recurring identity must originate from the locked command path;
+               manual/non-recurring rows with a stable cd remain appendable. */
             if (sync_is_recurring_owned($key, $row)) continue;
             $out[] = $row; $at = count($out) - 1;
         } elseif (sync_is_recurring_owned($key, $out[$at]) || sync_is_recurring_owned($key, $row)) {
             $out[$at] = sync_merge_server_owned_recurring_row($key, $out[$at], $row, $at);
         } else {
-            $out[$at] = array_replace($out[$at], $row);
+            $out[$at] = sync_merge_finance_files($out[$at], $row, array_replace($out[$at], $row));
         }
-        foreach (sync_recurring_aliases($key, $out[$at]) as $alias) if (!isset($aliases[$alias])) $aliases[$alias] = $at;
+        foreach (sync_recurring_aliases($key, $out[$at]) as $alias) {
+            if (!isset($aliases[$alias])) $aliases[$alias] = [];
+            if (!in_array($at, $aliases[$alias], true)) $aliases[$alias][] = $at;
+        }
     }
     return json_encode(array_values($out), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
@@ -1737,6 +1783,10 @@ switch($action) {
         }
         /* re-read meta only after the shared lock is definitely held */
         $meta = file_exists($meta_file) ? (json_decode(file_get_contents($meta_file), true) ?: []) : [];
+        /* v34.8.6/F0-1: همهٔ کلیدهای موفق یک data_push یک watermark مشترک می‌گیرند.
+           پیش از این هر کلید با rev قبلی خودش +۱ نوشته می‌شد و global rev جداگانه
+           جلو می‌رفت؛ نتیجه همان ناهماهنگی مشاهده‌شده بین global و krevs کلاینت بود. */
+        $pushNextRev = (int)($meta['_global']['rev'] ?? 0) + 1;
         /* v34.7.43: اگر process فرمان فروش پس از انتشار بخشی از projectionها قطع شده
            باشد، WAL باید ابتدا توسط همان sales-domain و زیر همین lock بازیابی شود.
            data_push عمومی حق ندارد snapshot کامل دیگری را روی تراکنش نیمه‌تمام بنویسد. */
@@ -1779,7 +1829,7 @@ switch($action) {
                ادغام و دوباره ارسال کند — هیچ رکوردی از هیچ دستگاهی گم نمی‌شود.
                (کلاینت‌های قدیمی بدون base مثل قبل پذیرفته می‌شوند — سازگاری عقب‌رو دوره گذار) ===== */
             $curRev = (int)($meta[$k]['rev'] ?? 0);
-            $isProtectedFinanceKey = in_array($k, ['ptf_crm_opex','ptf_crm_sharetx'], true);
+            $isProtectedFinanceKey = in_array($k, ['ptf_crm_opex','ptf_crm_sharetx','ptf_crm_shareholders'], true);
             if (!$restore && !$allow_wipe && $base !== null && array_key_exists($k, $base) && (int)$base[$k] < $curRev) {
                 $conflicts[] = $k;
                 /* v33.22.0: مسیر یکپارچه (mysql → DB) */
@@ -1831,9 +1881,9 @@ switch($action) {
             }
             /* v33.22.0: نوشتن یکپارچه (فایل همیشه + MySQL با توجه به mode).
                در mode=mysql شکست DB یعنی منبع حقیقت ذخیره نشده → کل پاسخ ناموفق + retry کلاینت. */
-            if (!sync_key_write($sdir, $k, $v, $curRev + 1)) { $dbWriteFailed = true; break; }
-            $meta[$k] = ['rev' => $curRev + 1, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
-            $krevs[$k] = $curRev + 1;
+            if (!sync_key_write($sdir, $k, $v, $pushNextRev)) { $dbWriteFailed = true; break; }
+            $meta[$k] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s'), 'by' => clean($j['by'] ?? '', 60)];
+            $krevs[$k] = $pushNextRev;
             $saved_keys[] = $k;
             $saved++;
         }
@@ -1843,10 +1893,12 @@ switch($action) {
             echo json_encode(['ok' => false, 'error' => 'خطا در ذخیره‌سازی دیتابیس — لطفاً دوباره تلاش کنید', 'needRetry' => true], JSON_UNESCAPED_UNICODE);
             break;
         }
-        $meta['_global'] = ['rev' => ($meta['_global']['rev'] ?? 0) + 1, 't' => date('Y-m-d H:i:s')];
+        /* Do not advance the global watermark for an entirely rejected/skipped push. */
+        if ($saved > 0) $meta['_global'] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s')];
         file_put_contents($meta_file, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
         if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
-        echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $meta['_global']['rev'], 'rejected' => array_values(array_unique($rejected)),
+        $reportedRev = (int)($meta['_global']['rev'] ?? 0);
+        echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $reportedRev, 'rejected' => array_values(array_unique($rejected)),
             'skipped' => array_values(array_unique($skipped_keys)), 'forbidden' => array_values(array_unique($forbidden_keys)), 'role' => $client_role,
             'conflicts' => $conflicts, 'protectedConflicts' => array_values(array_unique($protectedConflicts)), 'serverData' => $conflictData, 'krevs' => $krevs], JSON_UNESCAPED_UNICODE); /* v14.7 US-382 + v15.0 US-384 + per-key ACK */
         break;
@@ -1859,7 +1911,14 @@ switch($action) {
         $since = (int)($_REQUEST['since'] ?? 0);
         $globalRev = $meta['_global']['rev'] ?? 0;
         // اگر کلاینت به‌روز است، فقط rev برگردان (سبک برای polling)
-        if ($since >= $globalRev) { ptf_echo_json(['ok' => true, 'rev' => $globalRev, 'fresh' => true]); break; }
+        if ($since >= $globalRev) {
+            /* Return metadata even for a fresh global response. A command response can
+               stamp a global revision into client krevs while the server's per-key
+               watermark remains lower; the client needs this authoritative map to
+               repair its cursor without downloading payloads. */
+            ptf_echo_json(['ok' => true, 'rev' => $globalRev, 'fresh' => true, 'meta' => $meta]);
+            break;
+        }
         /* ===== v33.21.0 (PTF-SCALE-P0 — سینک دلتا به‌ازای هرکلید، برای افزایش تعداد کاربران):
            کلاینت نقشهٔ rev هرکلید خود را با پارامتر krevs می‌فرستد؛ فقط کلیدهایی که روی سرور
            جدیدترند برمی‌گردند. پیش‌تر با بالارفتن rev سراسری «اسنپ‌شات کامل (~۴MB)» برای همه

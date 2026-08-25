@@ -97,10 +97,30 @@
     /* نوشتنی که حتی در مرورگر پایدار نشده، نباید با badge سبز/پیام موفقیت پنهان شود.
        این وضعیت عمداً جدا از dirty است: dirty = در انتظار ACK سرور؛ writeFailure =
        همان دستگاه حتی نتوانسته نسخهٔ قابل بازیابی بسازد. */
-    writeFailures: {}
+    writeFailures: {},
+    lastPushResult: null,
+    lastPullResult: null,
+    projectionPreserved: {}
   };
 
   function setRev(r) { state.lastRev = r; localStorage.setItem('ptf_sync_rev', String(r)); }
+  /* Apply the server's exact per-key watermark only when its global response is not
+     older than the revision already accepted by this tab. This repairs command-stamped
+     global revs without allowing a late pull to move the global cursor backwards. */
+  function applyServerMeta(meta, globalRev) {
+    var gr = +globalRev || 0;
+    var current = +state.lastRev || 0;
+    if (!gr || gr < current) return false;
+    var m = krevs();
+    Object.keys(meta || {}).forEach(function (k) {
+      if (k === '_global' || !meta[k] || meta[k].rev == null) return;
+      m[k] = +meta[k].rev || 0;
+    });
+    saveKrevs(m);
+    if (gr > current) setRev(gr);
+    return true;
+  }
+  window.ptfSyncApplyServerMeta = applyServerMeta;
 
   /* ===== v15.0 (US-384 — رفع ریشه‌ای Lost Update) =====
      نسخه per-key که این دستگاه از سرور می‌شناسد؛ با هر push به‌عنوان «مبنا» می‌رود.
@@ -141,12 +161,58 @@
     });
     saveDirty();
   };
+  /* Phase B and command projections use the same per-key ACK contract. A key is
+     cleared only when the value acknowledged by the server is still the value in
+     this tab; a newer local generation remains dirty for the next push. */
+  window.ptfSyncAcknowledgeKeys = function (keys, submitted) {
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      if (submitted && Object.prototype.hasOwnProperty.call(submitted, k) && !sameSyncJson(rd(k), submitted[k])) {
+        state.dirty[k] = true;
+        return;
+      }
+      delete state.dirty[k];
+      clearWriteFailure(k);
+    });
+    saveDirty();
+    try { setSyncBadge(Object.keys(state.dirty).length ? 'warn' : 'ok'); } catch (eBadge) {}
+  };
   window.ptfSyncCommandKeyHeld = syncKeyHeld;
   /* قرارداد عمومی برای فرم‌ها: قبل از باز کردن عملیات حساس نیز می‌توانند همین
      گارد را بخوانند؛ اما wrapper setData پایین آخرین سد سراسری است. */
   window.ptfSyncCanWriteKey = function (k) { return SYNC_KEYS.indexOf(k) < 0 || syncAllowedKey(k); };
   window.ptfSyncPendingKeys = function () { return Object.keys(state.dirty); };
+  window.ptfSyncMarkPendingKeys = function (keys) {
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      if (SYNC_KEYS.indexOf(k) > -1) state.dirty[k] = true;
+    });
+    saveDirty();
+    if (Object.keys(state.dirty).length) { try { setSyncBadge('warn'); } catch (eBadge) {} }
+  };
   window.ptfSyncWriteFailures = function () { return Object.keys(state.writeFailures); };
+  /* Read-only diagnostic baseline. It intentionally exposes counts/revisions and
+     result classes, never tokens or business payloads. */
+  window.ptfSyncDiagnosticsSnapshot = function () {
+    var dirty = Object.keys(state.dirty || {}), queue = [];
+    try { queue = Object.keys(JSON.parse(localStorage.getItem('ptf_b_queue') || '{}') || {}); } catch (eQueue) {}
+    try {
+      if (typeof window.ptfBPendingKeys === 'function') {
+        window.ptfBPendingKeys().forEach(function (k) { if (queue.indexOf(k) < 0) queue.push(k); });
+      }
+    } catch (eBQueue) {}
+    return {
+      readOnly: true,
+      phaseB: !!(typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()),
+      dirtyKeys: dirty,
+      queueKeys: queue,
+      writeFailures: Object.keys(state.writeFailures || {}),
+      localRevision: state.lastRev,
+      localKeyRevisions: krevs(),
+      lastPushResult: state.lastPushResult,
+      lastPullResult: state.lastPullResult,
+      projectionPreserved: Object.assign({}, state.projectionPreserved),
+      lastError: readSyncLastError()
+    };
+  };
   function noteWriteFailure(k, reason) {
     state.writeFailures[k] = String(reason || 'ذخیرهٔ پایدار مرورگر ناموفق بود');
     try { setSyncBadge('writefail'); } catch (eB) {}
@@ -166,8 +232,13 @@
   window.ptfSyncNotifyDirty = function (k) {
     if (SYNC_KEYS.indexOf(k) > -1 && !state.pulling) {
       /* projection یک فرمان درحال اجرا نباید هم‌زمان وارد data_push عمومی شود؛
-         ACK یا rollback همان فرمان تکلیف آن را تعیین می‌کند. */
-      if (syncKeyHeld(k)) return;
+         اما ویرایش هم‌زمان نباید ناپدید شود. باقیماندهٔ dirty پس از release ارسال می‌شود. */
+      if (syncKeyHeld(k)) {
+        state.dirty[k] = true;
+        saveDirty();
+        try { setSyncBadge('warn'); } catch (eHeldBadge) {}
+        return;
+      }
       /* کلیدی که سرور برای نقش فعلی نمی‌پذیرد نباید «تغییر ذخیره‌نشده» محسوب شود؛
          به‌ویژه audit داخلیِ خود sync نباید dirty را پس از پاکسازی دوباره بسازد. */
       if (k === 'ptf_crm_audit' && !syncAllowedKey(k)) {
@@ -176,7 +247,16 @@
       }
       state.dirty[k] = true;
       saveDirty(); // v33.2.1: persist dirty keys
-      try { setSyncBadge(_lastSyncBadge === 'ok' ? 'warn' : _lastSyncBadge); } catch (eBdg) {}
+      try { setSyncBadge('warn'); } catch (eBdg) {}
+      /* With Phase B active, client-server.js owns the transport timer/queue. Keeping
+         state.dirty for the shared banner/ACK is useful, but a second push engine is
+         not allowed to send the same generation in parallel. */
+      try {
+        if (typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()) {
+          if (typeof window.ptfBEnqueueKeys === 'function') window.ptfBEnqueueKeys([k]);
+          return;
+        }
+      } catch (ePhase) {}
       schedulePush();
     }
   };
@@ -231,6 +311,19 @@
   };
 
   function schedulePush() {
+    /* Phase B has the single transport owner. Rebuild its queue from the shared dirty
+       registry (important after refresh) and never schedule sync.js pushDirty in
+       parallel. */
+    try {
+      if (typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()) {
+        if (typeof window.ptfBEnqueueKeys === 'function') window.ptfBEnqueueKeys(Object.keys(state.dirty));
+        clearTimeout(state.pushTimer);
+        state.pushTimer = setTimeout(function () {
+          try { pushViaPhaseB(); } catch (eBFlush) {}
+        }, 500);
+        return;
+      }
+    } catch (ePhase) {}
     // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کاهش debounce برای کلیدهای بحرانی
     // کاربر می‌خواهد تغییرات مالی بلافاصله sync شوند — نه پس از ۴ ثانیه.
     // برای کلیدهای حیاتی: ۵۰۰ms debounce. برای بقیه: ۴s.
@@ -292,11 +385,15 @@
        ۳) باکس «تشخیص همگام‌سازی» در تنظیمات نمایش داده شده و فقط‌خواندنی است. */
   function noteSyncError(scope, status, reason, detail) {
     try {
+      var detailText = '';
+      if (detail && typeof detail === 'object') {
+        detailText = detail.error || detail.reason || detail.transportError || detail.detail || '';
+      } else detailText = detail == null ? '' : String(detail);
       localStorage.setItem('ptf_sync_last_error', JSON.stringify({
         t: new Date().toISOString(),
         fa: (typeof faDateTime === 'function' ? faDateTime() : String(new Date().toLocaleString('fa-IR'))),
         scope: scope, status: status || '', reason: reason || '',
-        detail: String((detail && ((detail.error) || (detail.reason) || '')) || detail || ''),
+        detail: String(detailText || ''),
         keys: Object.keys(state.dirty || {})
       }));
     } catch (e) {}
@@ -591,6 +688,70 @@
     return ptfOpexMergeStrings(localStr, remoteStr, preferRemote === true);
   };
 
+  /* v34.8.6/F0-1 — financial projection safety for sharetx/shareholders.
+     A full server projection may omit a local row that has not reached the server yet.
+     Omission is therefore not deletion: preserve the local physical identity, mark the
+     key dirty, and let the protected server merge receive it on the next push. Existing
+     rows use cd as the physical identity; recurringKey is never a substitute because it
+     is shared by duplicate/legacy salary rows. */
+  function ptfProjectionFilesUnion(a, b) {
+    var out = [], seen = {};
+    (Array.isArray(a) ? a : []).concat(Array.isArray(b) ? b : []).forEach(function (file) {
+      if (!file || typeof file !== 'object') return;
+      var id = String(file.key || file.id || '');
+      if (!id) { try { id = JSON.stringify(file); } catch (e) { id = String(out.length); } }
+      if (seen[id]) return;
+      seen[id] = true;
+      out.push(file);
+    });
+    return out;
+  }
+  function ptfMergeIdentityProjection(key, localStr, remoteStr) {
+    try {
+      var localRows = JSON.parse(localStr || '[]'), remoteRows = JSON.parse(remoteStr || '[]');
+      if (!Array.isArray(localRows) || !Array.isArray(remoteRows)) return { str: remoteStr, preserved: 0 };
+      var out = remoteRows.slice(), index = {};
+      out.forEach(function (row, at) {
+        var id = String(row && row.cd || '').trim();
+        if (id && !Object.prototype.hasOwnProperty.call(index, id)) index[id] = at;
+      });
+      var preserved = 0;
+      localRows.forEach(function (localRow) {
+        if (!localRow || typeof localRow !== 'object') return;
+        var id = String(localRow.cd || '').trim();
+        if (!id) return;
+        if (!Object.prototype.hasOwnProperty.call(index, id)) {
+          out.push(localRow);
+          index[id] = out.length - 1;
+          preserved++;
+          return;
+        }
+        var at = index[id], remoteRow = out[at] || {}, merged = {};
+        /* Remote fields win when both sides have a value; local-only fields are not
+           erased by omission (for example payment evidence or legacy annotations). */
+        Object.keys(localRow).forEach(function (field) { merged[field] = localRow[field]; });
+        Object.keys(remoteRow).forEach(function (field) { merged[field] = remoteRow[field]; });
+        if (Array.isArray(localRow.files) || Array.isArray(remoteRow.files)) merged.files = ptfProjectionFilesUnion(localRow.files, remoteRow.files);
+        out[at] = merged;
+      });
+      return { str: JSON.stringify(out), preserved: preserved };
+    } catch (e) { return { str: remoteStr, preserved: 0 }; }
+  }
+  window.ptfSyncMergeServerProjection = function (key, localStr, remoteStr) {
+    if (key !== 'ptf_crm_sharetx' && key !== 'ptf_crm_shareholders') return remoteStr;
+    var result = ptfMergeIdentityProjection(key, localStr, remoteStr);
+    if (result.preserved > 0) {
+      state.projectionPreserved[key] = (+state.projectionPreserved[key] || 0) + result.preserved;
+      state.dirty[key] = true;
+      saveDirty();
+      try { setSyncBadge('warn'); } catch (eBadge) {}
+      try {
+        if (typeof window.ptfBEnqueueKeys === 'function') window.ptfBEnqueueKeys([key]);
+        schedulePush();
+      } catch (ePreservedPush) {}
+    }
+    return result.str;
+  };
   window.ptfSyncApplyServerProjection = function (k, value, serverRev) {
     try {
       var incomingRev = +serverRev || 0;
@@ -679,7 +840,40 @@
       else setTimeout(function () { pullCheck(done, forceFull, opts); }, 1000);
     });
   }
+  function pushViaPhaseB(done) {
+    try {
+      if (typeof window.ptfBFlushQueue !== 'function') return false;
+      var dirtyKeys = Object.keys(state.dirty);
+      if (typeof window.ptfBEnqueueKeys === 'function' && !window.ptfBEnqueueKeys(dirtyKeys)) {
+        dirtyKeys.forEach(function (k) { noteWriteFailure(k, 'صف فاز B روی مرورگر پایدار نشد'); });
+        if (typeof done === 'function') done(false, { reason: 'phase-b-queue-persist-failed' });
+        return true;
+      }
+      if (state.pushing) {
+        if (typeof done === 'function') setTimeout(function () { pushViaPhaseB(done); }, 50);
+        return true;
+      }
+      state.pushing = true;
+      window.ptfBFlushQueue(function (result) {
+        state.pushing = false;
+        state.lastPushResult = result || null;
+        if (typeof done === 'function') { try { done(!!(result && result.ok), result || {}); } catch (eDone) {} }
+      });
+      return true;
+    } catch (ePhasePush) {
+      state.pushing = false;
+      state.lastPushResult = { ok: false, reason: 'phase-b-exception', error: String(ePhasePush || '') };
+      if (typeof done === 'function') done(false, state.lastPushResult);
+      return true;
+    }
+  }
   function pushDirty() {
+    try {
+      if (typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()) {
+        pushViaPhaseB();
+        return;
+      }
+    } catch (ePhase) {}
     var keys = Object.keys(state.dirty).filter(function (k) { return !syncKeyHeld(k); });
     var forbiddenLocal = keys.filter(function (k) { return !syncAllowedKey(k); });
     forbiddenLocal.forEach(function (k) { delete state.dirty[k]; });
@@ -740,6 +934,7 @@
     }).then(function (r) { return r.json(); })
       .then(function (d) {
         state.pushing = false;
+        state.lastPushResult = d || null;
         if (d.ok) {
           applyKrevs(d.krevs); /* v15.0 */
           var confl = d.conflicts || [];
@@ -749,15 +944,25 @@
           /* پاسخ ok فقط یعنی درخواست پردازش شد، نه اینکه همهٔ کلیدها ذخیره شدند.
              حذف dirty صرفاً با ACK صریح هر کلید مجاز است؛ در غیر این صورت پیام زرد
              باید بماند تا کاربر با سبزشدن کاذب، تغییرِ نرسیده را امن تصور نکند. */
-          var savedKeys = Array.isArray(d.savedKeys) ? d.savedKeys : [];
+          var hasAckList = Array.isArray(d.savedKeys);
+          var savedKeys = hasAckList ? d.savedKeys : [];
+          var unacknowledged = [];
           savedKeys.forEach(function (k) {
             if (keys.indexOf(k) < 0 || confl.indexOf(k) >= 0 || rejected.indexOf(k) >= 0 || skipped.indexOf(k) >= 0 || forbidden.indexOf(k) >= 0) return;
             /* ACK belongs to submittedLocal[k], not to an edit made after fetch began. */
             if (Object.prototype.hasOwnProperty.call(submittedLocal, k) && sameSyncJson(rd(k), submittedLocal[k])) delete state.dirty[k];
             else state.dirty[k] = true;
           });
+          keys.forEach(function (k) {
+            if (!hasAckList || (savedKeys.indexOf(k) < 0 && confl.indexOf(k) < 0 && rejected.indexOf(k) < 0 && skipped.indexOf(k) < 0 && forbidden.indexOf(k) < 0)) {
+              if (unacknowledged.indexOf(k) < 0) unacknowledged.push(k);
+              state.dirty[k] = true;
+            }
+          });
+          if (!hasAckList) noteSyncError('push', 'ack', 'savedKeys_missing', d);
           saveDirty();
-          if (d.rev) setRev(d.rev);
+          state.lastPushResult = Object.assign({}, d, { unacknowledged: unacknowledged });
+          if (+d.rev > (+state.lastRev || 0)) setRev(d.rev);
           pingTabs(); /* v33.21.1: پوش موفق → تب‌های دیگر همین مرورگر فوری دلتا-پول بزنند */
           /* v15.0 (US-384): تعارض = دستگاه دیگری زودتر نوشته → ادغام هوشمند با نسخه سرور و ارسال مجدد */
           if (confl.length) {
@@ -784,11 +989,12 @@
           if (forbidden.length) {
             setSyncBadge('forbidden');
             try { audit('سیستم', '⛔ سرور کلیدهای خارج از allowlist نقش را رد کرد: ' + forbidden.join('، '), 'SYNC-RBAC'); } catch (eF2) {}
-          } else if (rejected.length || skipped.length) {
+          } else if (rejected.length || skipped.length || unacknowledged.length) {
             setSyncBadge('warn');
-            try { if (typeof ptfToast === 'function') ptfToast('⚠️ ' + (rejected.length + skipped.length) + ' تغییر هنوز روی سرور تأیید نشده است؛ تب را نبندید و وضعیت همگام‌سازی را بررسی کنید.', 'warn'); } catch (eAck) {}
+            try { if (typeof ptfToast === 'function') ptfToast('⚠️ ' + Math.max(rejected.length + skipped.length, unacknowledged.length) + ' تغییر هنوز روی سرور تأیید نشده است؛ تب را نبندید و وضعیت همگام‌سازی را بررسی کنید.', 'warn'); } catch (eAck) {}
+            schedulePush();
           } else setSyncBadge('ok');
-          notifyPushWaiters(!confl.length && !forbidden.length && !rejected.length && !skipped.length, { conflicts: confl, forbidden: forbidden, rejected: rejected, skipped: skipped, savedKeys: savedKeys });
+          notifyPushWaiters(!confl.length && !forbidden.length && !rejected.length && !skipped.length && !unacknowledged.length, { conflicts: confl, forbidden: forbidden, rejected: rejected, skipped: skipped, savedKeys: savedKeys, unacknowledged: unacknowledged });
         } else {
           setSyncBadge('warn');
           /* v34.7.91 (SYNC-DIAG-001): ثبت علت دقیق رد شدن push برای تشخیص/نمایش */
@@ -807,10 +1013,11 @@
           notifyPushWaiters(false, { reason: d.error || 'push-fail' });
         }
       })
-      .catch(function () {
+      .catch(function (error) {
         state.pushing = false;
+        state.lastPushResult = { ok: false, reason: 'network', error: String(error || '') };
         state.online = false;
-        noteSyncError('push', 'network', '', '');
+        noteSyncError('push', 'network', '', error || '');
         setSyncBadge('offline');
         notifyPushWaiters(false, { reason: 'network' });
         setTimeout(schedulePush, 15000); // آفلاین: تلاش مجدد
@@ -818,6 +1025,15 @@
   }
 
   window.ptfSyncFlushNow = function (cb) {
+    /* Phase B owns the write transport. The public retry/barrier API stays the same,
+       but delegates to the keyed queue and returns its exact per-key ACK result. */
+    try {
+      if (typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()) {
+        if (pushViaPhaseB(function (ok, result) {
+          if (typeof cb === 'function') { try { cb(!!ok, result || {}); } catch (eBcb) {} }
+        })) return;
+      }
+    } catch (ePhaseFlush) {}
     if (typeof cb === 'function') pushWaiters.push(cb);
     if (!Object.keys(state.dirty).length) { notifyPushWaiters(true, { empty: true }); return; }
     clearTimeout(state.pushTimer);
@@ -956,6 +1172,7 @@
     function finishPull(result) {
       state.pullRequesting = false;
       result = result || { ok: true };
+      state.lastPullResult = result;
       /* پس از bootstrap، هر pull موفق snapshot-ready را دوباره اعلام می‌کند تا
          expected setهای تازه‌رسیده (قالب/سهامدار) نیز entity-level reconcile شوند. */
       if (state.bootstrapped && result.ok !== false) announceSnapshotReady(result);
@@ -976,7 +1193,12 @@
           finishPull({ ok: false, reason: d.error || 'server' });
           return;
         }
-        if (d.fresh) { setSyncBadge('ok'); finishPull({ ok: true, fresh: true, rev: d.rev }); return; }
+        if (d.fresh) {
+          applyServerMeta(d.meta, d.rev);
+          setSyncBadge('ok');
+          finishPull({ ok: true, fresh: true, rev: d.rev });
+          return;
+        }
         // سرور جلوتر است → اعمال داده‌ها
         state.pulling = true;
         /* v33.2.1: snapshot خودکار قبل از pull — اگر dirty keys هست و merge اشتباهی انجام شود،
@@ -1050,18 +1272,12 @@
           applied++;
         });
         state.pulling = false;
-        setRev(d.rev);
+        applyServerMeta(d.meta, d.rev);
         if (forceFull && typeof window.ptfAutoRepairSafeDuplicates === 'function') { try { setTimeout(window.ptfAutoRepairSafeDuplicates, 0); } catch (eRepair) {} }
         /* v15.0 (US-384): نسخه per-key سرور ثبت شود تا pushهای بعدی مبنای درست داشته باشند */
-        try {
-          var mm = d.meta || {};
-          var km2 = krevs();
-          Object.keys(mm).forEach(function (k) { if (k !== '_global' && mm[k] && mm[k].rev != null) km2[k] = +mm[k].rev || 0; });
-          saveKrevs(km2);
-        } catch (eK) {}
         if (typeof ptfUpdateGuardCounts === 'function') ptfUpdateGuardCounts(); /* v14.7 US-382: پس از pull موفق، baseline شمار رکوردها به‌روز شود */
         if (applied) {
-          setSyncBadge('ok');
+          setSyncBadge(Object.keys(state.dirty).length ? 'warn' : 'ok');
           refreshCurrentPanel();
           if (state.bootstrapped && !forceFull && typeof ptfToast === 'function') ptfToast('🔄 ' + applied + ' بخش از دستگاه دیگر به‌روز شد', 'info');
           if (typeof updateInboxBadge === 'function') updateInboxBadge();
@@ -1359,6 +1575,14 @@
       var keys = Object.keys(state.dirty).filter(function (k) { return !syncKeyHeld(k); });
       if (!keys.length) return;
       try { ev.preventDefault(); ev.returnValue = ''; } catch (eU) {}
+      /* Phase B's queue is the durable hand-off. A second unload beacon without a
+         response/ACK could race the coordinator and reintroduce a stale whole snapshot. */
+      try {
+        if (typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()) {
+          if (typeof window.ptfBEnqueueKeys === 'function') window.ptfBEnqueueKeys(keys);
+          return;
+        }
+      } catch (eBUnload) {}
       var data = {};
       keys.forEach(function (k) { var v = rd(k); if (v !== null) data[k] = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, v) : v; });
       try {
@@ -1460,6 +1684,9 @@
       ptf_crm_case_receipts: ['receipt','case_receipt','rpay'],
       ptf_crm_receipt_allocations: ['allocation','receipt_allocation'],
       ptf_crm_fin_attachments: ['attachment','financial_attachment'],
+      ptf_crm_sharetx: ['sharetx','share_transaction','shareholder_salary','chair_in','chair_out','draw','salary','salary_payment'],
+      ptf_crm_opex: ['opex','expense','recurring_opex','shareholder_salary'],
+      ptf_crm_shareholders: ['shareholder','shareholders'],
       ptf_crm_corrections: ['correction']
     };
     return map[key] || [];

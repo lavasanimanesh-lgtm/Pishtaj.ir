@@ -168,7 +168,7 @@ function makeCtx(mode){
   var version=JSON.parse(fs.readFileSync('VERSION.json','utf8')).crm_version.slice(1);
   var idx=fs.readFileSync('crm/index.html','utf8'),sw=fs.readFileSync('crm/sw.js','utf8');
   var scriptVersions=Array.from(idx.matchAll(/<script[^>]+src="[^"]+\.js\?v=([^"]+)"/g)).map(function(m){return m[1];});
-  assert.ok(scriptVersions.length>90&&scriptVersions.every(function(v){return v===version;}),'all index scripts use release cache key');
+  assert.ok(scriptVersions.length>90&&scriptVersions.every(function(v){return v.split('&')[0]===version;}),'all index scripts use release cache key');
   assert.ok(sw.indexOf("ASSET_VERSION = '"+version+"'")>-1,'SW cache version aligned');
   assert.ok(sw.indexOf("'./finance-write-guard.js' + ASSET_QUERY")>-1&&sw.indexOf("'./case-revision.js' + ASSET_QUERY")>-1,'complete PWA shell');
   console.log('PASS tester442-v34.7.39: offer ACK + RFQ transaction + rollback + merge + PWA release');

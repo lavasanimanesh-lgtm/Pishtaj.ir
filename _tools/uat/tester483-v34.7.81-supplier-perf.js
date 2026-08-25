@@ -36,7 +36,7 @@ T('get_inbox since را به پاسخ برمی‌گرداند', /'since' => \$si
 
 /* ---------- کلاینت: سینک صندوق ---------- */
 T('syncServerInbox since را می‌فرستد', brg.indexOf("encodeURIComponent(_since)") > -1);
-T('syncServerInbox پاسخ fresh را می‌شناسد', brg.indexOf("if (d.fresh) { cb && cb(true); return; }") > -1);
+T('syncServerInbox پاسخ fresh را می‌شناسد', brg.indexOf("if (d.fresh) return { ok: true, fresh: true }") > -1);
 T('syncServerInbox امضای جدید را ذخیره می‌کند', brg.indexOf("ptf_site_inbox_sig") > -1);
 
 /* ---------- کلاینت: فهرست ثبت‌نام سایت ---------- */

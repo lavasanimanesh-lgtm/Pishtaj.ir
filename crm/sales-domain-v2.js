@@ -85,7 +85,7 @@
     if(s>=400&&s<500&&s!==408&&s!==425&&s!==429)return false;
     return !s || s===408 || s===425 || s===429 || s>=500 || !!(e&&e.responseInvalid);
   }
-  function actionIsReadOnly(action){return['snapshot','health','migration_dry_run','duplicate_case_plan','archived_case_purge_plan','admin_delete_plan','command_status'].indexOf(action)>-1;}
+  function actionIsReadOnly(action){return['snapshot','health','migration_dry_run','duplicate_case_plan','archived_case_purge_plan','admin_delete_plan','command_status','finance_repair_plan'].indexOf(action)>-1;}
   /* v34.7.45: after two ambiguous mutation responses, query the durable command
      journal through a compact endpoint. This avoids a false `uncertain` when the
      mutation committed but its large full-projection response was lost twice. */
@@ -93,8 +93,8 @@
     var operationId=String((payload&&payload.idempotencyKey)||'');
     return fetch(API+'?action=command_status',{method:'POST',headers:authHeaders(),body:JSON.stringify({operationId:operationId,commandAction:action})})
       .then(function(r){return r.text().then(function(txt){
-        var d;try{d=JSON.parse(txt);}catch(e){var invalid=new Error('پاسخ نامعتبر بازیابی رسید');invalid.status=r.status;invalid.responseInvalid=true;throw invalid;}
-        if(!r.ok||!d.ok){var er=new Error(d.error||('HTTP '+r.status));er.status=r.status;er.payload=d;throw er;}
+        var d;try{d=JSON.parse(txt);}catch(e){var invalid=new Error('پاسخ نامعتبر بازیابی رسید');invalid.status=r.status;invalid.responseInvalid=true;invalid.raw=String(txt||'').slice(0,500);throw invalid;}
+        if(!r.ok||!d.ok){var er=new Error(d.error||d.detail||('HTTP '+r.status));er.status=r.status;er.detail=d.detail||'';er.payload=d;throw er;}
         return d;
       });});
   }
@@ -175,7 +175,7 @@
     },function(e){
       if(e&&e.commitOutcome==='uncertain'){
         if(typeof handlers.onUncertain==='function')safeCommandEffect(action,payload,handlers.onUncertain,e,'uncertain');
-        else try{alert('⚠️ پاسخ سرور دریافت نشد و نتیجه هنوز نامشخص است. عملیات را دوباره از مسیر دیگری ثبت نکنید؛ شناسه پیگیری: '+payload.idempotencyKey);}catch(ignoreAlert){}
+        else if(handlers.silentUncertain!==true)try{alert('⚠️ پاسخ سرور دریافت نشد و نتیجه هنوز نامشخص است. عملیات را دوباره از مسیر دیگری ثبت نکنید؛ شناسه پیگیری: '+payload.idempotencyKey);}catch(ignoreAlert){}
         safeCommandEffect(action,payload,handlers.onFinally,{state:'uncertain',error:e},'uncertain');
         return{state:'uncertain',error:e,operationId:payload.idempotencyKey};
       }
@@ -184,6 +184,180 @@
       return{state:'rejected',error:e,operationId:payload.idempotencyKey};
     });
   }
+  /* v34.8.9/F5 — read-only finance repair manifest. It calls the server dry-run
+     endpoint and never applies, restores, voids or queues any business data. */
+  window.ptfFinanceRepairPlan = function (options) {
+    options = options || {};
+    var months = Array.isArray(options.months) ? options.months.slice() : [];
+    if (!months.length) return Promise.reject(new Error('repair_scope_months_required'));
+    var payload = {
+      months: months,
+      expectedChairIn: options.expectedChairIn || {},
+      expectedDraws: Array.isArray(options.expectedDraws) ? options.expectedDraws : []
+    };
+    var controller = typeof window.AbortController === 'function' ? new window.AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, 20000) : null;
+    var request = { method: 'POST', headers: authHeaders(), body: JSON.stringify(payload) };
+    if (controller) request.signal = controller.signal;
+    function clearPlanTimer() { if (timer) { try { clearTimeout(timer); } catch (ignore) {} timer = null; } }
+    return fetch(API + '?action=finance_repair_plan', request).then(function (response) {
+      clearPlanTimer();
+      return response.text().then(function (text) {
+        var data;
+        try { data = JSON.parse(text); }
+        catch (parseError) {
+          var invalid = new Error('repair_plan_invalid_response');
+          invalid.status = response.status; invalid.raw = String(text || '').slice(0, 500);
+          throw invalid;
+        }
+        if (!response.ok || !data || !data.ok) {
+          var failure = new Error((data && (data.error || data.reason)) || ('HTTP ' + response.status));
+          failure.status = response.status; failure.payload = data; throw failure;
+        }
+        return data.data || data;
+      });
+    }, function (error) { clearPlanTimer(); throw error; });
+  };
+
+  function repairPlanClose() {
+    document.querySelectorAll('#ptfFinanceRepairPlanDlg').forEach(function (el) { el.remove(); });
+  }
+  window.ptfFinanceRepairPlanClose = repairPlanClose;
+  function repairPlanJson(value) {
+    try { return JSON.stringify(value == null ? {} : value, null, 2); }
+    catch (e) { return '{}'; }
+  }
+  function repairPlanSeverityLabel(value) {
+    return ({critical:'بحرانی',high:'زیاد',medium:'متوسط',low:'کم',info:'اطلاعاتی'})[String(value || '')] || String(value || '—');
+  }
+  function repairPlanSummaryHtml(summary) {
+    return Object.keys(summary || {}).map(function (key) {
+      return '<span style="display:inline-flex;gap:5px;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:999px;padding:5px 9px;font-size:11px"><b dir="ltr">' + esc(summary[key]) + '</b> ' + esc(key) + '</span>';
+    }).join(' ');
+  }
+  function repairPlanItemsHtml(items) {
+    if (!Array.isArray(items) || !items.length) return '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:10px;color:#065f46">✅ در محدودهٔ انتخاب‌شده موردی در manifest پیدا نشد.</div>';
+    return items.map(function (item) {
+      var evidence = repairPlanJson(item.evidence || []);
+      var proposed = repairPlanJson(item.proposed || {});
+      return '<details style="margin:7px 0;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px">' +
+        '<summary style="cursor:pointer;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>' + esc(item.kind || '—') + '</b><span style="color:#64748b">' + esc(item.identity || '') + '</span><span style="margin-right:auto;background:' + (item.severity === 'critical' ? '#fee2e2' : '#fff7ed') + ';color:' + (item.severity === 'critical' ? '#991b1b' : '#9a3412') + ';border-radius:999px;padding:2px 7px;font-size:10px">' + esc(repairPlanSeverityLabel(item.severity)) + '</span></summary>' +
+        '<div style="font-size:11.5px;line-height:1.8;color:#475569;margin-top:7px"><b>تصمیم:</b> ' + esc(item.decision || '—') + '<br><b>شناسه manifest:</b> <span dir="ltr">' + esc(item.id || '—') + '</span><br><b>شواهد:</b><pre dir="ltr" style="white-space:pre-wrap;max-height:220px;overflow:auto;background:#f8fafc;border-radius:7px;padding:7px;margin:4px 0">' + esc(evidence) + '</pre><b>اقدام پیشنهادی سیستم:</b><pre dir="ltr" style="white-space:pre-wrap;max-height:160px;overflow:auto;background:#fffbeb;border-radius:7px;padding:7px;margin:4px 0">' + esc(proposed) + '</pre></div></details>';
+    }).join('');
+  }
+  function repairPlanResultHtml(plan) {
+    var p = plan || {};
+    return '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:9px;font-size:11.5px;line-height:1.8;margin-top:10px">' +
+      '<b>manifest آماده شد — بدون mutation</b><br>نسخه: <span dir="ltr">' + esc(p.planVersion || '—') + '</span> | revision سراسری: <span dir="ltr">' + esc(p.serverGlobalRevision == null ? '—' : p.serverGlobalRevision) + '</span><br>planHash: <span dir="ltr" style="word-break:break-all">' + esc(p.planHash || '—') + '</span></div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0">' + repairPlanSummaryHtml(p.summary || {}) + '</div>' +
+      '<h4 style="margin:10px 0 6px">موارد نیازمند بررسی</h4>' + repairPlanItemsHtml(p.items || []) +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px"><button class="bt bt-o" onclick="ptfFinanceRepairPlanDownload()">⬇️ دانلود manifest</button></div>';
+  }
+  window.ptfFinanceRepairPlanDownload = function () {
+    var plan = window._ptfFinanceRepairPlanLast;
+    if (!plan) { alert('ابتدا manifest را دریافت کنید.'); return; }
+    try {
+      var blob = new Blob([repairPlanJson(plan)], { type: 'application/json;charset=utf-8' });
+      var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'finance-repair-plan-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(link); link.click(); setTimeout(function () { try { URL.revokeObjectURL(link.href); link.remove(); } catch (ignore) {} }, 500);
+    } catch (e) { alert('دانلود manifest انجام نشد: ' + String(e.message || e)); }
+  };
+  window.ptfFinanceRepairPlanRun = function () {
+    var dlg = document.getElementById('ptfFinanceRepairPlanDlg');
+    if (!dlg) return;
+    var rawMonths = String((document.getElementById('ptfRepairMonths') || {}).value || '').split(/[,،\s]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+    var months = rawMonths.filter(function (x, i) { return rawMonths.indexOf(x) === i; });
+    var chairCount = Math.max(0, parseInt((document.getElementById('ptfRepairChairCount') || {}).value || '0', 10) || 0);
+    var chairAmount = num((document.getElementById('ptfRepairChairAmount') || {}).value || 0);
+    var drawCd = String((document.getElementById('ptfRepairDrawCd') || {}).value || '').trim();
+    var drawMonth = String((document.getElementById('ptfRepairDrawMonth') || {}).value || '').trim();
+    var slot = document.getElementById('ptfFinanceRepairPlanResult');
+    var button = document.getElementById('ptfFinanceRepairPlanRunBtn');
+    if (!months.length) { if (slot) slot.innerHTML = '<div style="color:#b91c1c">ماه حداقل یک مورد لازم است.</div>'; return; }
+    if (button) { button.disabled = true; button.textContent = '⏳ در حال دریافت گزارش…'; }
+    if (slot) slot.innerHTML = '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-top:10px">در حال دریافت manifest فقط‌خواندنی…</div>';
+    window.ptfFinanceRepairPlan({
+      months: months,
+      expectedChairIn: chairCount > 0 ? { count: chairCount, amountIRR: chairAmount } : {},
+      expectedDraws: drawCd && drawMonth ? [{ cd: drawCd, expectedMonth: drawMonth }] : []
+    }).then(function (plan) {
+      window._ptfFinanceRepairPlanLast = plan;
+      if (slot) slot.innerHTML = repairPlanResultHtml(plan);
+      if (button) { button.disabled = false; button.textContent = 'دریافت manifest فقط‌خواندنی'; }
+    }).catch(function (error) {
+      if (slot) slot.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px;color:#991b1b;line-height:1.8">دریافت manifest انجام نشد.<br><b>HTTP:</b> ' + esc(error.status || '—') + '<br><b>علت:</b> ' + esc(error.message || error) + (error.raw ? '<br><pre dir="ltr" style="white-space:pre-wrap">' + esc(error.raw) + '</pre>' : '') + '</div>';
+      if (button) { button.disabled = false; button.textContent = 'تلاش دوباره برای گزارش'; }
+    });
+  };
+  window.ptfFinanceRepairPlanOpen = function () {
+    if (!canRepairOfferWin()) { alert('گزارش repair مالی فقط برای admin یا chairman در دسترس است.'); return; }
+    repairPlanClose();
+    var html = '<div class="md-b" id="ptfFinanceRepairPlanDlg" style="display:grid;z-index:4300" onclick="if(event.target===this)ptfFinanceRepairPlanClose()"><div class="md" style="max-width:980px;max-height:94vh;overflow:auto">' +
+      '<h3>📋 manifest اصلاحات مالی — فقط‌خواندنی</h3>' +
+      '<div style="background:#ecfdf5;border:1px solid #bbf7d0;border-radius:10px;padding:10px;color:#065f46;font-size:12px;line-height:1.8">این پنجره فقط دادهٔ سرور را برای بررسی جمع می‌کند. هیچ salary، draw یا chair_in ثبت نمی‌شود و هیچ رکوردی حذف، void، restore یا repair نمی‌شود.</div>' +
+      '<div class="fr" style="margin-top:12px"><div class="fld"><label>ماه‌ها، جداشده با ویرگول *</label><input id="ptfRepairMonths" value="1405/05, 1405/06" autocomplete="off" dir="ltr"></div><div class="fld"><label>تعداد مورد انتظار chair_in</label><input id="ptfRepairChairCount" type="number" min="0" value="3" dir="ltr"></div></div>' +
+      '<div class="fr"><div class="fld"><label>مبلغ هر chair_in (ریال)</label><input id="ptfRepairChairAmount" type="number" min="0" value="5000000000" dir="ltr"></div><div class="fld"><label>شناسه draw مورد بررسی</label><input id="ptfRepairDrawCd" value="SHT-1061" autocomplete="off" dir="ltr"></div></div>' +
+      '<div class="fld"><label>ماه مورد انتظار draw</label><input id="ptfRepairDrawMonth" value="1405/06" autocomplete="off" dir="ltr"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="ptfFinanceRepairPlanClose()">بستن</button><button class="bt" id="ptfFinanceRepairPlanRunBtn" onclick="ptfFinanceRepairPlanRun()">دریافت manifest فقط‌خواندنی</button></div>' +
+      '<div id="ptfFinanceRepairPlanResult"></div></div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+
+  function financeUncertainRows() {
+    var rows = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var key = localStorage.key(i);
+        if (String(key || '').indexOf('ptf_sales_command_uncertain_') !== 0) continue;
+        var value = JSON.parse(localStorage.getItem(key) || '{}');
+        if (value && value.operationId) rows.push({ key: key, value: value });
+      }
+    } catch (e) {}
+    return rows.sort(function (a, b) { return String((b.value || {}).at || '').localeCompare(String((a.value || {}).at || '')); });
+  }
+  function financeStatusMessage(status) {
+    if (!status) return 'پاسخی از سرویس وضعیت دریافت نشد.';
+    if (status.committed === true) return '✅ فرمان با همین شناسه قبلاً روی سرور commit شده است؛ فرمان جدیدی ارسال نشد. revision فعلی: ' + (status.rev == null ? '—' : status.rev);
+    if (status.committed === false) return 'ℹ️ برای این شناسه رسید commit روی سرور پیدا نشد؛ فرمان جدیدی ارسال نشد.';
+    return '⚠️ پاسخ وضعیت کامل نیست.';
+  }
+  window.ptfFinanceCommandStatusOpen = function () {
+    if (!canRepairOfferWin()) { alert('بررسی فرمان‌های مالی فقط برای admin یا chairman در دسترس است.'); return; }
+    repairPlanClose();
+    var rows = financeUncertainRows(), latest = rows.length ? rows[0].value : {};
+    var operationId = String(latest.operationId || '');
+    var action = String(latest.action || 'reconcile_recurring_opex');
+    var html = '<div class="md-b" id="ptfFinanceCommandStatusDlg" style="display:grid;z-index:4350" onclick="if(event.target===this)ptfFinanceCommandStatusClose()"><div class="md" style="max-width:720px;max-height:90vh;overflow:auto">' +
+      '<h3>🔎 بررسی رسید فرمان مالی — بدون ثبت فرمان جدید</h3>' +
+      '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px;font-size:12px;line-height:1.8">این بخش فقط وضعیت یک شناسهٔ قبلی را از journal سرور می‌خواند. دوباره‌ثبت، reconcile جدید، حذف، restore یا repair انجام نمی‌شود.</div>' +
+      '<div class="fld" style="margin-top:12px"><label>شناسهٔ پیگیری</label><input id="ptfFinanceStatusOperation" value="' + esc(operationId) + '" autocomplete="off" dir="ltr"></div>' +
+      '<div class="fld"><label>نام فرمان</label><input id="ptfFinanceStatusAction" value="' + esc(action) + '" autocomplete="off" dir="ltr"></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="ptfFinanceCommandStatusClose()">بستن</button><button class="bt" id="ptfFinanceStatusRunBtn" onclick="ptfFinanceCommandStatusRun()">بررسی وضعیت</button></div>' +
+      '<div id="ptfFinanceStatusResult" style="margin-top:10px"></div>' +
+      (rows.length ? '<h4 style="margin:12px 0 6px">فرمان‌های نامشخص ذخیره‌شده در همین مرورگر</h4><div style="font-size:11px;color:#475569;line-height:1.8">' + rows.slice(0, 12).map(function (row) { return '<button class="bt bt-o" style="font-size:10px;margin:3px" onclick="ptfFinanceCommandStatusSelect(\'' + arg(row.value.operationId) + '\',\'' + arg(row.value.action || 'reconcile_recurring_opex') + '\')">' + esc(row.value.operationId) + '</button>'; }).join('') + '</div>' : '') +
+      '</div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+  window.ptfFinanceCommandStatusClose = function () { document.querySelectorAll('#ptfFinanceCommandStatusDlg').forEach(function (el) { el.remove(); }); };
+  window.ptfFinanceCommandStatusSelect = function (operationId, action) {
+    var op = document.getElementById('ptfFinanceStatusOperation'), act = document.getElementById('ptfFinanceStatusAction');
+    if (op) op.value = operationId || ''; if (act) act.value = action || 'reconcile_recurring_opex';
+  };
+  window.ptfFinanceCommandStatusRun = function () {
+    var op = String((document.getElementById('ptfFinanceStatusOperation') || {}).value || '').trim();
+    var action = String((document.getElementById('ptfFinanceStatusAction') || {}).value || '').trim();
+    var result = document.getElementById('ptfFinanceStatusResult'), button = document.getElementById('ptfFinanceStatusRunBtn');
+    if (!op || !action) { if (result) result.innerHTML = '<div style="color:#b91c1c">شناسه و نام فرمان الزامی است.</div>'; return; }
+    if (button) { button.disabled = true; button.textContent = '⏳ در حال بررسی…'; }
+    if (result) result.innerHTML = '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:9px">در حال دریافت رسید سرور…</div>';
+    compactCommandStatus(action, { idempotencyKey: op }).then(function (status) {
+      if (result) result.innerHTML = '<div style="background:' + (status.committed === true ? '#ecfdf5' : '#fff7ed') + ';border:1px solid ' + (status.committed === true ? '#bbf7d0' : '#fed7aa') + ';border-radius:10px;padding:10px;color:' + (status.committed === true ? '#065f46' : '#9a3412') + ';line-height:1.8">' + esc(financeStatusMessage(status)) + '<pre dir="ltr" style="white-space:pre-wrap;max-height:220px;overflow:auto;background:#fff;border-radius:7px;padding:7px;margin-top:7px">' + esc(repairPlanJson(status)) + '</pre></div>';
+      if (button) { button.disabled = false; button.textContent = 'بررسی دوباره وضعیت'; }
+    }).catch(function (error) {
+      if (result) result.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px;color:#991b1b;line-height:1.8">بررسی رسید انجام نشد.<br><b>HTTP:</b> ' + esc(error.status || '—') + '<br><b>علت:</b> ' + esc(error.message || error) + (error.detail ? '<br><b>جزئیات سرور:</b> ' + esc(error.detail) : '') + (error.raw ? '<br><b>پاسخ خام سرور:</b><pre dir="ltr" style="white-space:pre-wrap;max-height:220px;overflow:auto;background:#fff;border-radius:7px;padding:7px;margin-top:7px">' + esc(error.raw) + '</pre>' : '') + '</div>';
+      if (button) { button.disabled = false; button.textContent = 'تلاش دوباره برای بررسی'; }
+    });
+  };
   window.ptfSalesDomainApi = api;
   window.ptfSalesDomainCommand = command;
   window.ptfSalesCommandErrorIsAmbiguous = commandErrorIsAmbiguous;

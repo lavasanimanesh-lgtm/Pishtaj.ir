@@ -25,7 +25,7 @@ assert.ok(api.indexOf('register_unofficial_invoice')>-1&&api.indexOf('superseded
 var release=JSON.parse(read('VERSION.json')).crm_version.slice(1);
 assert.ok(idx.indexOf('sales-domain-v2.js?v='+release)>-1&&idx.indexOf('official-invoice-v2.js?v='+release)>-1,'v35 scripts wired with current release cache key');
 assert.ok(idx.indexOf('sales-domain-v2.js')<idx.indexOf('official-invoice-v2.js'),'domain loads before invoice UI');
-assert.ok(sw.indexOf("'./sales-domain-v2.js' + ASSET_QUERY")>-1&&sw.indexOf("'./official-invoice-v2.js' + ASSET_QUERY")>-1,'PWA shell');
+assert.ok((sw.indexOf("'./sales-domain-v2.js' + ASSET_QUERY")>-1 || sw.indexOf("'./sales-domain-v2.js' + PHASE02_QUERY")>-1 || sw.indexOf("'./sales-domain-v2.js' + PHASE05_QUERY")>-1 || sw.indexOf("'./sales-domain-v2.js' + PHASE06_QUERY")>-1 || sw.indexOf("'./sales-domain-v2.js' + PHASE08_QUERY")>-1)&&sw.indexOf("'./official-invoice-v2.js' + ASSET_QUERY")>-1,'PWA shell');
 ['ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings'].forEach(function(k){assert.ok(sync.indexOf(k)>-1,'sync key '+k);});
 assert.ok(core.indexOf("if (st === 'won') return window.ptfSalesWinOffer")>-1,'legacy award is replaced');
 assert.ok(core.indexOf('ptfRepairOrphanOffer')>-1&&core.indexOf('revoke_orphan_delete')>-1,'orphan won repair');

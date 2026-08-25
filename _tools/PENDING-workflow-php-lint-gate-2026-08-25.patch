@@ -1,0 +1,63 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index 6817d26..92b1b0a 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -81,6 +81,26 @@ jobs:
+           fi
+           echo "no staging banner"
+ 
++      # گیت PHP قبل از FTP — اگر api/*.php سینتکس خراب داشته باشد، انتشار پروداکشن متوقف می‌شود
++      - name: PHP syntax lint (pre-deploy gate)
++        run: |
++          sudo apt-get update -qq >/dev/null 2>&1 || true
++          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
++          if ! command -v php >/dev/null 2>&1; then
++            echo "::error::php-cli نصب نشد؛ گیت سینتکس قابل اجرا نیست، انتشار متوقف شد"
++            exit 1
++          fi
++          fail=0
++          while IFS= read -r -d '' f; do
++            if ! php -l "$f" >/dev/null 2>&1; then
++              echo "::error file=$f::php -l شکست خورد"
++              php -l "$f" || true
++              fail=1
++            fi
++          done < <(find api -name '*.php' -print0)
++          if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
++          echo "php -l: همهٔ فایل‌های api/*.php سالم"
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index df419b5..d80c047 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -62,6 +62,27 @@ jobs:
+           rm -f _staging-banner.html
+           echo "staging banner injected"
+ 
++      # گیت PHP قبل از FTP — اگر api/*.php سینتکس خراب داشته باشد، استقرار متوقف می‌شود
++      # (RCA 2026-08-25: یک پرانتز جاافتاده در api/sales-domain.php کل API مالی استیجینگ را ۵۰۰ کرد)
++      - name: PHP syntax lint (pre-deploy gate)
++        run: |
++          sudo apt-get update -qq >/dev/null 2>&1 || true
++          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
++          if ! command -v php >/dev/null 2>&1; then
++            echo "::error::php-cli نصب نشد؛ گیت سینتکس قابل اجرا نیست، استقرار متوقف شد"
++            exit 1
++          fi
++          fail=0
++          while IFS= read -r -d '' f; do
++            if ! php -l "$f" >/dev/null 2>&1; then
++              echo "::error file=$f::php -l شکست خورد"
++              php -l "$f" || true
++              fail=1
++            fi
++          done < <(find api -name '*.php' -print0)
++          if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
++          echo "php -l: همهٔ فایل‌های api/*.php سالم"
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
