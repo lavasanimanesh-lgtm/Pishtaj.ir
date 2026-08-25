@@ -45,6 +45,6 @@ assert.strictEqual((read('crm/rbac.js').match(/window\.ptfSetInvoiceDue\s*=\s*fu
 
 var v=JSON.parse(read('VERSION.json')).crm_version.slice(1),idx=read('crm/index.html'),sw=read('crm/sw.js');
 var q=Array.from(idx.matchAll(/<script[^>]+src="[^"]+\.js\?v=([^"]+)"/g)).map(function(m){return m[1];});
-assert.ok(q.length>90&&q.every(function(x){return x===v;}),'release cache keys are aligned');
+assert.ok(q.length>90&&q.every(function(x){return x.split('&')[0]===v;}),'release cache keys are aligned');
 assert.ok(sw.indexOf("ASSET_VERSION = '"+v+"'")>-1,'service worker uses the release version');
 console.log('PASS tester443-v34.7.40: stable duplicate-sensitive architecture guard');

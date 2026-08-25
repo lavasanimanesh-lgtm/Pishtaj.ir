@@ -110,6 +110,15 @@
       var knownRev = +revs[k] || 0;
       /* پاسخ دیررس یک فرمان نباید projection جدیدتری را که pull دیده بازنویسی کند. */
       if (incomingRev && knownRev > incomingRev) return false;
+      /* A command/pull projection must not silently drop local physical financial rows
+         that have not reached the server yet. The sync module preserves such rows and
+         marks the key dirty for the protected merge path. */
+      if ((k === 'ptf_crm_sharetx' || k === 'ptf_crm_shareholders') && typeof window.ptfSyncMergeServerProjection === 'function') {
+        var currentProjection = null;
+        try { if (typeof window.ptfBRead === 'function') currentProjection = window.ptfBRead(k); } catch (eCurrentMirror) {}
+        if (currentProjection === null || currentProjection === undefined) currentProjection = localGet(k);
+        str = window.ptfSyncMergeServerProjection(k, currentProjection, str);
+      }
 
       var stored = false;
       if (window.ptfBMirrorActive() && heavyList(k, str)) {
@@ -209,7 +218,7 @@
     fetch(url, { headers: authHeaders(false) })
       .then(function (r) { return r.json(); })
       .then(function (d) { cb && cb(d); })
-      .catch(function () { cb && cb({ ok: false }); });
+      .catch(function (error) { cb && cb({ ok: false, error: 'network', transportError: String(error || '') }); });
   }
 
   /* ---------- v33.21.0: پول مشترک دلتا (رفع بحرانی‌ترین هزینهٔ پنهان مقیاس) ----------
@@ -223,23 +232,50 @@
   function bPullRevs() { try { return JSON.parse(localStorage.getItem('ptf_sync_krevs') || '{}'); } catch (e) { return {}; } }
   function bSaveRevsFromMeta(meta, globalRev) {
     try {
+      var gr = +globalRev || 0;
+      var currentGlobal = parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10) || 0;
+      var responseIsCurrentOrNewer = gr >= currentGlobal;
       if (meta) {
         var m = bPullRevs();
-        /* Revisionها watermark هستند و هرگز نباید با پاسخ دیررس عقب بروند. */
+        /* A successful pull with a current/newer global revision is authoritative for
+           the exact per-key watermarks. The old max-only rule left a client watermark
+           above server meta forever (observed: local sharetx=10480, server sharetx=10209)
+           and caused future deltas to be skipped. An older response still cannot move a
+           watermark backwards. */
         Object.keys(meta).forEach(function (k) {
           if (k === '_global' || !meta[k] || meta[k].rev == null) return;
           var incoming = +meta[k].rev || 0;
-          if (incoming > (+m[k] || 0)) m[k] = incoming;
+          if (responseIsCurrentOrNewer) m[k] = incoming;
+          else if (incoming > (+m[k] || 0)) m[k] = incoming;
         });
         localStorage.setItem('ptf_sync_krevs', JSON.stringify(m));
       }
-      var gr = +globalRev || 0;
-      var currentGlobal = parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10) || 0;
       if (gr > currentGlobal) localStorage.setItem('ptf_sync_rev', String(gr));
     } catch (e) {}
   }
   function bPullSince() { try { return parseInt(localStorage.getItem('ptf_sync_rev') || '0', 10) || 0; } catch (e) { return 0; } }
   function sharedPull(cb) {
+    /* sync.js is the single pull coordinator once loaded. Keeping a second independent
+       data_pull loop here allowed a stale B response to race the main pull. The fallback
+       below remains for isolated legacy harnesses where sync.js is not present. */
+    if (typeof window.ptfSyncPullNow === 'function') {
+      if (cb) _pullWaiters.push(cb);
+      if (_pullInflight) return;
+      _pullInflight = true;
+      try {
+        window.ptfSyncPullNow(function (d) {
+          _pullInflight = false;
+          _pullLastAt = Date.now();
+          var waiters = _pullWaiters; _pullWaiters = [];
+          waiters.forEach(function (f) { try { f(d || { ok: true }); } catch (eW) {} });
+        });
+      } catch (ePull) {
+        _pullInflight = false;
+        var failedWaiters = _pullWaiters; _pullWaiters = [];
+        failedWaiters.forEach(function (f) { try { f({ ok: false, error: 'pull_exception', transportError: String(ePull || '') }); } catch (eW2) {} });
+      }
+      return;
+    }
     if (cb) _pullWaiters.push(cb);
     if (_pullInflight) return;
     /* تب مخفی: پول لازم نیست — منتظرها خالی می‌شوند و در برگشت به فوکوس، خواندن بعدی تازه می‌کند */
@@ -256,19 +292,30 @@
     }
     _pullInflight = true; _pullLastAt = now;
     /* since واقعی → اگر همگام باشیم پاسخ fresh (~۶۰ بایت)؛ وگرنه دلتا بر اساس krevs */
-    serverPull(bPullSince(), function (d) {
+    var pullSince = bPullSince();
+    serverPull(pullSince, function (d) {
       _pullInflight = false;
       try {
         if (d && d.ok && d.data) {
           var t = Date.now();
           var knownRevs = bPullRevs();
+          var responseGlobal = +((d && d.rev) || 0);
+          var currentGlobal = bPullSince();
+          var responseIsCurrentOrNewer = responseGlobal >= currentGlobal;
           Object.keys(d.data).forEach(function (k) {
             if (typeof d.data[k] !== 'string') return;
             var incomingRev = +(((d.meta || {})[k] || {}).rev) || 0;
-            /* یک sharedPull قدیمی ممکن است بعد از فرمان اتمیک برگردد؛ در آن حالت
-               نه cache و نه آینهٔ قطعیِ فرمان جدیدتر را عقب می‌بریم. */
-            if (incomingRev && (+knownRevs[k] || 0) > incomingRev) return;
+            /* A current/newer global response may legitimately carry a lower per-key
+               watermark after metadata repair; do not reject its authoritative value
+               merely because a command had stamped the global rev into this key. */
+            if (incomingRev && (+knownRevs[k] || 0) > incomingRev && !responseIsCurrentOrNewer) return;
             var v = d.data[k];
+            if ((k === 'ptf_crm_sharetx' || k === 'ptf_crm_shareholders') && typeof window.ptfSyncMergeServerProjection === 'function') {
+              var currentProjection = null;
+              try { if (typeof window.ptfBRead === 'function') currentProjection = window.ptfBRead(k); } catch (eProjectionMirror) {}
+              if (currentProjection === null || currentProjection === undefined) currentProjection = localGet(k);
+              v = window.ptfSyncMergeServerProjection(k, currentProjection, v);
+            }
             cache[k] = { t: t, v: v, rev: incomingRev };
             if (!(window.ptfBMirror && window.ptfBMirror(k, v))) localSet(k, v);
           });
@@ -286,25 +333,37 @@
     if (d.needLogin === true) return true;
     return /token|unauthorized|401/i.test(String(d.error || ''));
   }
-  function serverPush(payload, cb, attempt) {
+  function serverPush(payload, cb, attempt, base) {
     attempt = attempt || 0;
-    fetch(API + '?action=data_push', {
-      method: 'POST', headers: authHeaders(true),
-      body: JSON.stringify({ data: payload })
-    })
+    var body = {
+      by: (function () { try { return (curSession() || {}).name || ''; } catch (e) { return ''; } }()),
+      data: payload,
+      /* Phase B used to omit base entirely, so its whole-array payload could bypass
+         the server's stale-writer conflict path. Every batch now carries the same
+         per-key baseline used by sync.js. */
+      base: base || bPullRevs()
+    };
+    var controller = null, timeout = null;
+    try { if (typeof AbortController === 'function') controller = new AbortController(); } catch (eAbort) {}
+    if (controller) timeout = setTimeout(function () { try { controller.abort(); } catch (eAbortTimer) {} }, 20000);
+    var fetchOptions = {
+      method: 'POST', headers: authHeaders(true), body: JSON.stringify(body)
+    };
+    if (controller) fetchOptions.signal = controller.signal;
+    fetch(API + '?action=data_push', fetchOptions)
       .then(function (r) {
         var st = (r && r.status) || 0;
         return r.json().then(function (d) { return { d: d, st: st }; }, function () { return { d: { ok: false, error: 'HTTP ' + st }, st: st }; });
       })
       .then(function (res) {
+        if (timeout) clearTimeout(timeout);
         var d = res.d;
-        /* v33.19.0: needLogin/401 → بازسازی نشست (ptfSyncRefreshAuth) + یک بار تلاش مجدد (الگوی backup.js F0-3).
-           اگر بازسازی نشست ممکن نبود، needLogin به بالا برمی‌گردد تا پیام دقیق «نشست منقضی» نمایش داده شود. */
+        /* v33.19.0: needLogin/401 → بازسازی نشست + یک بار تلاش مجدد. */
         if (isNeedLogin(d, res.st)) {
           d.needLogin = true;
           if (attempt === 0 && typeof window.ptfSyncRefreshAuth === 'function') {
             window.ptfSyncRefreshAuth(function (ok) {
-              if (ok) { serverPush(payload, cb, 1); return; }
+              if (ok) { serverPush(payload, cb, 1, base); return; }
               cb && cb(d);
             });
             return;
@@ -312,7 +371,10 @@
         }
         cb && cb(d);
       })
-      .catch(function () { cb && cb({ ok: false }); });
+      .catch(function (error) {
+        if (timeout) clearTimeout(timeout);
+        cb && cb({ ok: false, error: error && error.name === 'AbortError' ? 'timeout' : 'network', transportError: String(error || '') });
+      });
   }
 
   /* ---------- کش محلی ---------- */
@@ -324,6 +386,43 @@
     } catch (e) { return false; }
   }
   function localDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  /* Read the durable Phase-B mirror without ever calling getData (which can schedule
+     a pull). The synchronous path covers normal localStorage keys; the asynchronous
+     fallback covers heavy keys migrated to the IDB mirror. */
+  function bReadValueSync(k) {
+    try {
+      if (typeof window.ptfBRead === 'function') {
+        var mirrored = window.ptfBRead(k);
+        if (mirrored !== null) return String(mirrored);
+      }
+    } catch (eMirror) {}
+    return localGet(k);
+  }
+  function bReadValue(k, cb) {
+    var sync = bReadValueSync(k);
+    if (sync !== null) { cb && cb(sync, 'local'); return; }
+    var ids = ['bdata:' + k, k], index = 0;
+    function next() {
+      if (index >= ids.length || typeof window.ptfStorageIdbGet !== 'function') { cb && cb(null, 'missing'); return; }
+      var id = ids[index++], finished = false;
+      function done(value) {
+        if (finished) return;
+        finished = true;
+        if (value !== null && value !== undefined) {
+          idbKnown[k] = 1;
+          idbMem[k] = String(value);
+          cb && cb(String(value), 'idb');
+          return;
+        }
+        next();
+      }
+      try {
+        window.ptfStorageIdbGet(id, function (row) { done(row && row.value != null ? row.value : null); });
+        setTimeout(function () { done(null); }, 1500);
+      } catch (eIdb) { done(null); }
+    }
+    next();
+  }
 
   /* ---------- صف آفلاین ---------- */
   function queueKey() { return 'ptf_b_queue'; }
@@ -340,9 +439,20 @@
     /* صف آفلاین، write-ahead record است. اگر پایدار نشود نباید caller تصور کند
        داده قابل بازیابی است؛ خطا به setData برمی‌گردد. */
     if (!queueWrite(q)) return false;
-    try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(k); } catch (e) {}
     return true;
   }
+  /* Bridge for the single pending registry in sync.js. This also reconstructs a
+     missing Phase-B queue entry from persisted dirty state after a refresh, without
+     copying or rewriting the business payload. */
+  window.ptfBEnqueueKeys = function (keys) {
+    var q = queueRead();
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      if (!k || bKeys().indexOf(k) < 0) return;
+      if (!q[k]) q[k] = 1;
+    });
+    return queueWrite(q);
+  };
+  window.ptfBPendingKeys = function () { return Object.keys(queueRead()); };
   function queueClear(keys) {
     var q = queueRead(); (keys || []).forEach(function (k) { delete q[k]; }); return queueWrite(q);
   }
@@ -352,93 +462,221 @@
      → رد/تایم‌اوت سرور؛ درحالی‌که تست اتصال (users_get عمومی) سبز می‌ماند.
      شکست یک دسته → فقط همان دسته ناموفق است؛ needLogin → توقف کامل (ادامه بی‌فایده است). */
   var BATCH_SIZE = 20;
-  window.ptfBPushBatch = function (payload, cb) {
-    var keys = Object.keys(payload || {});
-    if (!keys.length) { cb && cb({ ok: true, pushed: 0, total: 0 }); return; }
+  window.ptfBPushBatch = function (payload, cb, options) {
+    options = options || {};
+    var keys = Object.keys(payload || {}).filter(function (k) {
+      try { return !(typeof window.ptfSyncCommandKeyHeld === 'function' && window.ptfSyncCommandKeyHeld(k)); } catch (e) { return true; }
+    });
+    var blocked = Object.keys(payload || {}).filter(function (k) { return keys.indexOf(k) < 0; });
+    if (!keys.length) { cb && cb({ ok: !blocked.length, pushed: 0, total: Object.keys(payload || {}).length, failed: blocked, blocked: blocked }); return; }
     var batches = [];
     for (var i = 0; i < keys.length; i += BATCH_SIZE) batches.push(keys.slice(i, i + BATCH_SIZE));
-    var done = 0, failed = [], lastError = '';
+    /* Capture one baseline for the entire batch sequence; reading krevs again between
+       chunks could make later chunks compare against a revision committed by chunk 1. */
+    var batchBase = options.base || bPullRevs();
+    var savedKeys = [], failed = blocked.slice(), rejected = [], skipped = [], forbidden = [], conflicts = [], lastError = '';
+    function addUnique(target, values) {
+      (Array.isArray(values) ? values : []).forEach(function (k) { if (target.indexOf(k) < 0) target.push(k); });
+    }
+    function finish() {
+      cb && cb({
+        ok: !failed.length && !rejected.length && !skipped.length && !forbidden.length && !conflicts.length,
+        pushed: savedKeys.length,
+        total: Object.keys(payload || {}).length,
+        savedKeys: savedKeys,
+        failed: failed,
+        rejected: rejected,
+        skipped: skipped,
+        forbidden: forbidden,
+        conflicts: conflicts,
+        blocked: blocked,
+        error: lastError
+      });
+    }
     function step(idx) {
-      if (idx >= batches.length) {
-        cb && cb({ ok: !failed.length, pushed: done, failed: failed, total: keys.length, error: lastError });
-        return;
-      }
-      var sub = {};
-      batches[idx].forEach(function (k) { sub[k] = payload[k]; });
+      if (idx >= batches.length) { finish(); return; }
+      var batchKeys = batches[idx], sub = {};
+      batchKeys.forEach(function (k) { sub[k] = payload[k]; });
+      /* Pass the stable per-key baseline for the whole batch. */
       serverPush(sub, function (d) {
-        if (d && d.ok) { done += batches[idx].length; step(idx + 1); return; }
         if (d && d.needLogin) {
-          /* نشست منقضی: باقی دسته‌ها هم شکست می‌خورند — همهٔ کلیدهای باقی‌مانده تا ورود دوباره نگه داشته می‌شوند */
-          for (var j = idx; j < batches.length; j++) failed = failed.concat(batches[j]);
-          cb && cb({ ok: false, pushed: done, failed: failed, total: keys.length, error: 'needLogin', needLogin: true });
+          for (var j = idx; j < batches.length; j++) addUnique(failed, batches[j]);
+          lastError = 'needLogin';
+          cb && cb({ ok: false, pushed: savedKeys.length, total: Object.keys(payload || {}).length, savedKeys: savedKeys, failed: failed, rejected: rejected, skipped: skipped, forbidden: forbidden, conflicts: conflicts, error: lastError, needLogin: true });
           return;
         }
-        failed = failed.concat(batches[idx]);
-        lastError = (d && d.error) || 'network';
+        if (!d || !d.ok) {
+          addUnique(failed, batchKeys);
+          lastError = (d && d.error) || 'network';
+          step(idx + 1);
+          return;
+        }
+        /* d.ok means request processing completed, not that every key was stored.
+           A missing savedKeys list is treated as an ambiguous/failed ACK. */
+        if (!Array.isArray(d.savedKeys)) {
+          addUnique(failed, batchKeys);
+          lastError = 'missing_saved_keys';
+          step(idx + 1);
+          return;
+        }
+        var dRejected = Array.isArray(d.rejected) ? d.rejected : [];
+        var dSkipped = Array.isArray(d.skipped) ? d.skipped : [];
+        var dForbidden = Array.isArray(d.forbidden) ? d.forbidden : [];
+        var dConflicts = Array.isArray(d.conflicts) ? d.conflicts : [];
+        addUnique(rejected, dRejected);
+        addUnique(skipped, dSkipped);
+        addUnique(forbidden, dForbidden);
+        addUnique(conflicts, dConflicts);
+        /* A malformed response that lists a key both saved and rejected must fail
+           closed; only the intersection-free savedKeys are eligible for queue clear. */
+        addUnique(savedKeys, d.savedKeys.filter(function (k) {
+          return batchKeys.indexOf(k) >= 0 &&
+            dRejected.indexOf(k) < 0 && dSkipped.indexOf(k) < 0 &&
+            dForbidden.indexOf(k) < 0 && dConflicts.indexOf(k) < 0;
+        }));
+        batchKeys.forEach(function (k) {
+          if (savedKeys.indexOf(k) >= 0 || rejected.indexOf(k) >= 0 || skipped.indexOf(k) >= 0 || forbidden.indexOf(k) >= 0 || conflicts.indexOf(k) >= 0) return;
+          failed.push(k);
+        });
+        if (d.error) lastError = d.error;
         step(idx + 1);
-      });
+      }, 0, batchBase);
     }
     step(0);
   };
 
+  function bSamePayload(a, b) {
+    if (a === b) return true;
+    try {
+      function normalize(value) {
+        if (!value || typeof value !== 'object') return value;
+        if (Array.isArray(value)) return value.map(normalize);
+        var out = {};
+        Object.keys(value).sort().forEach(function (key) { out[key] = normalize(value[key]); });
+        return out;
+      }
+      return JSON.stringify(normalize(JSON.parse(a))) === JSON.stringify(normalize(JSON.parse(b)));
+    } catch (e) { return false; }
+  }
+  function queueClearMatching(keys, submitted) {
+    var q = queueRead(), kept = [];
+    (keys || []).forEach(function (k) {
+      /* A newer write after the request began must keep its queue entry. */
+      var current = bReadValueSync(k);
+      if (submitted && Object.prototype.hasOwnProperty.call(submitted, k) && !bSamePayload(current, submitted[k])) kept.push(k);
+      else delete q[k];
+    });
+    var ok = queueWrite(q);
+    return { ok: ok, kept: kept };
+  }
+
+  function readQueuePayload(keys, cb) {
+    var payload = {}, missing = [], left = (keys || []).length;
+    if (!left) { cb && cb(payload, missing); return; }
+    (keys || []).forEach(function (k) {
+      bReadValue(k, function (value) {
+        if (value === null || value === undefined) missing.push(k);
+        else payload[k] = value;
+        left--;
+        if (!left) cb && cb(payload, missing);
+      });
+    });
+  }
+
   /* ---------- flush صف به سرور ---------- */
   window.ptfBFlushQueue = function (cb) {
-    var q = queueRead(); var keys = Object.keys(q);
-    if (!keys.length) { cb && cb({ ok: true, pushed: 0 }); return; }
-    var payload = {};
-    keys.forEach(function (k) { var v = localGet(k); if (v !== null) payload[k] = v; });
-    /* v33.19.0: ارسال دسته‌ای — کلیدهای موفق از صف خارج، شکست‌خورده‌ها برای تلاش مجدد می‌مانند */
-    window.ptfBPushBatch(payload, function (d) {
-      var failed = (d && d.failed) || [];
-      var okKeys = keys.filter(function (k) { return failed.indexOf(k) === -1; });
-      if (okKeys.length) queueClear(okKeys);
-      if (d && d.ok) { cb && cb({ ok: true, pushed: d.pushed }); return; }
-      cb && cb(Object.assign({ ok: false }, d));
+    var q = queueRead();
+    var allKeys = Object.keys(q);
+    var keys = allKeys.filter(function (k) {
+      try { return !(typeof window.ptfSyncCommandKeyHeld === 'function' && window.ptfSyncCommandKeyHeld(k)); } catch (e) { return true; }
+    });
+    var blocked = allKeys.filter(function (k) { return keys.indexOf(k) < 0; });
+    if (!keys.length) {
+      try { if (blocked.length && typeof window.ptfSyncMarkPendingKeys === 'function') window.ptfSyncMarkPendingKeys(blocked); } catch (eBlocked) {}
+      cb && cb({ ok: !blocked.length, pushed: 0, blocked: blocked });
+      return;
+    }
+    readQueuePayload(keys, function (payload, missing) {
+      if (missing.length) {
+        try { if (typeof window.ptfSyncMarkPendingKeys === 'function') window.ptfSyncMarkPendingKeys(missing.concat(blocked)); } catch (eMissing) {}
+        cb && cb({ ok: false, pushed: 0, failed: missing, blocked: blocked, error: 'local_payload_missing' });
+        return;
+      }
+      window.ptfBPushBatch(payload, function (d) {
+        var saved = (d && d.savedKeys) || [];
+        var clear = saved.length ? queueClearMatching(saved, payload) : { ok: true, kept: [] };
+        var kept = clear.kept || [];
+        var failed = (d && d.failed || []).slice();
+        if (!clear.ok) {
+          saved.forEach(function (k) { if (failed.indexOf(k) < 0) failed.push(k); });
+        }
+        var acked = saved.filter(function (k) { return kept.indexOf(k) < 0 && failed.indexOf(k) < 0; });
+        try { if (acked.length && typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(acked, payload); } catch (eAck) {}
+        var result = Object.assign({}, d || {}, { ok: !!(d && d.ok && clear.ok && !failed.length && !blocked.length && !kept.length), pushed: acked.length, failed: failed, blocked: blocked, pending: kept });
+        if (!clear.ok && !result.error) result.error = 'queue_persist_failed';
+        var pending = failed.concat(result.rejected || [], result.skipped || [], result.forbidden || [], result.conflicts || [], blocked, kept);
+        try { if (pending.length && typeof window.ptfSyncMarkPendingKeys === 'function') window.ptfSyncMarkPendingKeys(pending); } catch (ePending) {}
+        cb && cb(result);
+      });
     });
   };
 
   /* ---------- هم‌گرایی یک‌باره (تأیید کاربر) ---------- */
-  function flushRequired() { try { return localStorage.getItem(flushKey()) !== '1'; } catch (e) { return false; } }
+  function flushRequired() {
+    try {
+      /* v34.8.6/F0-1: old builds marked flushed before the request. Require the
+         separate successful-convergence marker too, so a pre-ACK crash cannot make
+         the one-time migration permanently look complete. */
+      return localStorage.getItem(flushKey()) !== '1' || localStorage.getItem(syncedKey()) !== '1';
+    } catch (e) { return true; }
+  }
   function markFlushed() { try { localStorage.setItem(flushKey(), '1'); } catch (e) {} }
   window.ptfBFinalize = function (opts) {
     opts = opts || {};
     /* هم‌گرایی یک‌باره: دادهٔ محلی → سرور. در حالت خودکار فقط دستگاه تازه
        (بدون payload کسب‌وکاری) مجاز است؛ دادهٔ موجود هرگز بدون تأیید overwrite نمی‌شود. */
-    if (flushRequired()) {
-      var keys = bKeys();
-      var payload = {};
-      keys.forEach(function (k) { var v = localGet(k); if (v !== null) payload[k] = v; });
-      if (Object.keys(payload).length) {
-        if (opts.auto) {
-          /* هرگز payload موجود را در auto-mode به سرور نمی‌فرستیم. این guard حتی اگر
-             caller اشتباه کند، جلوی seed/merge خاموش روی دستگاه قدیمی را می‌گیرد. */
-          return { ok: false, reason: 'local_data_requires_review' };
-        }
-        var ok = confirm('🌐 هم‌گرایی داده با سرور\n\nدادهٔ محلی مرورگر شما یک‌بار به سرور منتقل می‌شود تا با دیتابیس یکپارچه شود (localStorage پس از آن فقط کش می‌شود).\n\nادامه می‌دهید؟');
-        if (!ok) { alert('می‌توانید بعداً از «تنظیمات → هم‌گرایی داده» این کار را انجام دهید.'); return; }
-        /* v33.18.0: فلگ را قبل از ارسال ست می‌کنیم تا در همان session دوباره نپرسد؛
-           اگر push ناموفق بود، دادهٔ محلی محفوظ است و دکمهٔ «هم‌گرایی» دوباره در دسترس است. */
-        markFlushed();
-        /* v33.19.0: ارسال دسته‌ای (دستگاه‌های پرحافظه payload چندمگابایتی داشتند و یک‌جا رد می‌شدند)
-           + پیام دقیق انقضای نشست (به‌جای «سرور در دسترس نیست» که با تست اتصال سبز تناقض داشت) */
-        window.ptfBPushBatch(payload, function (d) {
-          if (d && d.ok) {
-            markSynced();
-            alert('✅ هم‌گرایی انجام شد.');
-            location.reload();
-            return;
-          }
-          if (d && d.needLogin) {
-            alert('⚠️ نشست شما منقضی شده است؛ دوباره وارد شوید، سپس هم‌گرایی را از «تنظیمات → هم‌گرایی داده» انجام دهید. دادهٔ محلی شما محفوظ است.');
-            return;
-          }
-          alert('⚠️ فقط ' + (d.pushed || 0) + ' از ' + (d.total || Object.keys(payload).length) + ' کلید هم‌گرایی شد (' + ((d && d.error) || 'network') + '). دادهٔ محلی شما محفوظ است؛ از «تنظیمات → هم‌گرایی داده» دوباره تلاش کنید.');
-        });
-      } else { markFlushed(); markSynced(); }
+    if (!flushRequired()) {
+      window.ptfBFlushQueue(function () {});
+      return;
     }
-    /* صف آفلاین را هم خالی کن */
-    window.ptfBFlushQueue(function () {});
+    /* Keep the automatic path explicitly fail-closed before any asynchronous IDB
+       read. Existing local business data always requires a human-reviewed merge. */
+    if (opts.auto && hasLocalBusinessPayload()) return { ok: false, reason: 'local_data_requires_review' };
+    var keys = bKeys();
+    /* Include the IDB mirror in the convergence payload. Missing keys are ordinary
+       absent keys; only the values that exist locally are sent. */
+    readQueuePayload(keys, function (payload) {
+      if (!Object.keys(payload).length) {
+        markFlushed();
+        markSynced();
+        window.ptfBFlushQueue(function () {});
+        return;
+      }
+      if (opts.auto) {
+        /* Never push an existing local payload in auto-mode. */
+        return { ok: false, reason: 'local_data_requires_review' };
+      }
+      var ok = confirm('🌐 هم‌گرایی داده با سرور\n\nدادهٔ محلی مرورگر شما یک‌بار به سرور منتقل می‌شود تا با دیتابیس یکپارچه شود (localStorage پس از آن فقط کش می‌شود).\n\nادامه می‌دهید؟');
+      if (!ok) { alert('می‌توانید بعداً از «تنظیمات → هم‌گرایی داده» این کار را انجام دهید.'); return; }
+      /* «flushed» فقط بعد از ACK کامل همهٔ کلیدها ثبت می‌شود. */
+      window.ptfBPushBatch(payload, function (d) {
+        if (d && d.ok) {
+          markFlushed();
+          markSynced();
+          try { if (d.savedKeys && typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(d.savedKeys, payload); } catch (eAck) {}
+          alert('✅ هم‌گرایی انجام شد.');
+          location.reload();
+          return;
+        }
+        if (d && d.needLogin) {
+          alert('⚠️ نشست شما منقضی شده است؛ دوباره وارد شوید، سپس هم‌گرایی را از «تنظیمات → هم‌گرایی داده» انجام دهید. دادهٔ محلی شما محفوظ است.');
+          return;
+        }
+        alert('⚠️ فقط ' + (d.pushed || 0) + ' از ' + (d.total || Object.keys(payload).length) + ' کلید هم‌گرایی شد (' + ((d && d.error) || 'network') + '). دادهٔ محلی شما محفوظ است؛ از «تنظیمات → هم‌گرایی داده» دوباره تلاش کنید.');
+      });
+    });
   };
+
   window.ptfBConfirmFlush = function () {
     try { localStorage.removeItem(flushKey()); localStorage.removeItem(syncedKey()); } catch (e) {}
     window.ptfBFinalize();
@@ -584,7 +822,14 @@
           return false;
         }
         if (pushTimer) clearTimeout(pushTimer);
-        pushTimer = setTimeout(function () { window.ptfBFlushQueue(function () {}); }, 4000);
+        pushTimer = setTimeout(function () {
+          /* Route the debounce through sync.js when available so pull and push share
+             one in-memory busy flag; isolated legacy harnesses keep the direct fallback. */
+          try {
+            if (typeof window.ptfSyncFlushNow === 'function') window.ptfSyncFlushNow(function () {});
+            else window.ptfBFlushQueue(function () {});
+          } catch (eFlushTimer) {}
+        }, 4000);
         try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(k); } catch (e) {}
         return true;
       } catch (e) { return _set(k, d); }

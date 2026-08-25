@@ -237,9 +237,9 @@ SECTION('OPEX: accountant، ACK و بازیابی نتیجه نامطمئن');
 
   var recovered = opexContext({ outcomes: ['uncertain', 'acked'], serverOpex: [salary] });
   recovered.emitReady();
-  T('پاسخ uncertain ثبت محلی نمی‌سازد و retry برنامه‌ریزی می‌کند', recovered.rows('ptf_crm_opex').length === 0 && recovered.commands.length === 1 && recovered.timerCount() === 1);
+  T('پاسخ uncertain ثبت محلی نمی‌سازد و retry/alert storm ایجاد نمی‌کند', recovered.rows('ptf_crm_opex').length === 0 && recovered.commands.length === 1 && recovered.timerCount() === 0 && recovered.commands[0].options.silentUncertain === true);
   recovered.runNextTimer();
-  T('retry همان idempotency key پس از ACK projection را اعمال می‌کند', recovered.commands.length === 2 && recovered.commands[0].body.idempotencyKey === recovered.commands[1].body.idempotencyKey && recovered.rows('ptf_crm_opex').length === 1, JSON.stringify(recovered.commands));
+  T('پس از uncertain همان operation در همان نشست دوباره اجرا نمی‌شود', recovered.commands.length === 1 && recovered.rows('ptf_crm_opex').length === 0, JSON.stringify(recovered.commands));
 
   var rejected = opexContext({ outcomes: ['rejected'], serverOpex: [salary] });
   rejected.emitReady();

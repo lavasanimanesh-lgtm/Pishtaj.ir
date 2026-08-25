@@ -39,7 +39,11 @@ global.fetch = function (url, opts) {
         global._pushSeq++;
         var deny = (global._pushMode === 'needLoginAll') || (global._pushMode === 'needLoginOnce' && global._pushSeq === global._needLoginSeq);
         if (deny) resolve({ json: function () { return Promise.resolve({ ok: false, needLogin: true, error: 'token required - please login again' }); } });
-        else resolve({ json: function () { return Promise.resolve({ ok: true }); } });
+        else {
+          var pushed = {};
+          try { pushed = JSON.parse(opts.body || '{}').data || {}; } catch (ePush) {}
+          resolve({ json: function () { return Promise.resolve({ ok: true, savedKeys: Object.keys(pushed), rev: global._pushSeq }); } });
+        }
       }
       else if (/data_pull/.test(url)) resolve({ json: function () { return Promise.resolve({ ok: true, fresh: true }); } });
       else resolve({ json: function () { return Promise.resolve({ ok: true }); } });
@@ -60,13 +64,14 @@ T('getData قبل از فعال‌سازی رفتار قبلی دارد', (funct
   setData('ptf_crm_settings', { a: 1 });
   return getData('ptf_crm_settings').a === 1;
 })());
-T('فعال‌سازی + پرچم + هم‌گرایی (پس از flush, پرچم flushed)', (function () {
+T('فعال‌سازی + پرچم (هم‌گرایی فقط پس از ACK کامل علامت می‌خورد)', (function () {
   localStorage.removeItem('ptf_b_phase');
   localStorage.removeItem('ptf_b_flushed_u1');
+  localStorage.removeItem('ptf_b_synced_u1');
   /* قبل از فعال‌سازی، دادهٔ محلی موجود است */
   setData('ptf_crm_settings', { a: 2 });
   ptfBEnable();
-  return localStorage.getItem('ptf_b_phase') === '1' && localStorage.getItem('ptf_b_flushed_u1') === '1';
+  return localStorage.getItem('ptf_b_phase') === '1' && localStorage.getItem('ptf_b_flushed_u1') !== '1';
 })());
 
 SECTION('صف آفلاین + flush');

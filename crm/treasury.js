@@ -513,6 +513,57 @@
   function chairCan() {
     try { return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1; } catch (e) { return false; }
   }
+  /* v34.8.6/F2 — treasury/shareholder movements use the same server command boundary
+     as salary. There is no local setData fallback: a green message is emitted only after
+     the domain command ACK and projection lifecycle complete. */
+  function treasuryCurrentMonth() {
+    try {
+      var raw = String(typeof faDate === 'function' ? faDate() : '').replace(/[۰-۹]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d); }).replace(/[٠-٩]/g, function (d) { return '٠١٢٣٤٥٦٧٨٩'.indexOf(d); });
+      var m = raw.match(/^((?:13|14)\d{2})[\/-](\d{1,2})/);
+      return m ? m[1] + '/' + ('0' + m[2]).slice(-2) : '';
+    } catch (e) { return ''; }
+  }
+  function treasuryShareCommand(action, payload, holdKeys, okText) {
+    holdKeys = Array.isArray(holdKeys) ? holdKeys.slice() : [];
+    return new Promise(function (resolve) {
+      function rejected(message) { resolve({ state: 'rejected', error: new Error(message) }); }
+      if (typeof window.ptfSalesDomainCommand !== 'function') { rejected('treasury_server_command_unavailable'); return; }
+      if (typeof window.ptfSyncFlushKeysNow !== 'function') { rejected('treasury_sync_barrier_unavailable'); return; }
+      window.ptfSyncFlushKeysNow(['ptf_crm_shareholders'], function (ok) {
+        if (!ok) { rejected('shareholder_snapshot_not_committed'); return; }
+        try { if (typeof window.ptfSyncHoldCommandKeys === 'function') window.ptfSyncHoldCommandKeys(holdKeys); } catch (eHold) {}
+        var command;
+        try { command = window.ptfSalesDomainCommand(action, payload, { apiOptions: { autoReplay: true } }); }
+        catch (error) {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease) {}
+          rejected(error && error.message || 'treasury_command_exception');
+          return;
+        }
+        if (!command || typeof command.then !== 'function') {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease2) {}
+          rejected('treasury_command_promise_required');
+          return;
+        }
+        command.then(function (state) {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease3) {}
+          if (state && state.state === 'acked') {
+            try { audit('خزانه', okText + ' ' + money((payload && payload.amountIRR) || 0), (state.response && state.response.result && state.response.result.transactionCd) || ''); } catch (eAudit) {}
+            if (typeof ptfToast === 'function') ptfToast(okText + ' روی سرور تأیید شد', 'ok');
+            if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
+            if (typeof window.ptfShareRender === 'function') window.ptfShareRender();
+          } else if (state && state.state === 'uncertain') {
+            if (typeof ptfToast === 'function') ptfToast('⚠️ نتیجه عملیات خزانه نامشخص است؛ دوباره ثبت نکنید.', 'warn');
+          } else if (state && state.state === 'rejected' && typeof ptfToast === 'function') {
+            ptfToast('⛔ عملیات خزانه ثبت نشد: ' + String((state.error && state.error.message) || 'نتیجه نامشخص'), 'warn');
+          }
+          resolve(state || { state: 'rejected', error: new Error('empty_treasury_command_result') });
+        }, function (error) {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease4) {}
+          resolve({ state: 'rejected', error: error });
+        });
+      });
+    });
+  }
   function chairLocked() {
     try {
       var y = (typeof faDate === 'function') ? String(faDate()).split('/')[0] : '';
@@ -528,13 +579,15 @@
     function go(v) {
       var amt = Math.round(num(v && v.amt));
       if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
-      if (typeof window.ptfShareAddTx === 'function') {
-        window.ptfShareAddTx('chair_in', sh, amt, String((v && v.note) || 'تزریق از حساب شخصی رییس به صندوق شرکت'), {});
-      }
-      try { if (typeof audit === 'function') audit('خزانه', 'تزریق شخصی رییس ' + money(amt), sh.cd); } catch (eA) {}
-      if (typeof ptfToast === 'function') ptfToast('تزریق ثبت شد — نقد شرکت و طلب رییس هر دو بالا رفت', 'ok');
-      if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
-      if (typeof window.ptfShareRender === 'function') window.ptfShareRender();
+      var month = treasuryCurrentMonth();
+      if (!month) { alert('ماه جاری قابل تشخیص نیست؛ عملیات متوقف شد.'); return; }
+      treasuryShareCommand('register_chair_in', {
+        shareholderCd: sh.cd,
+        amountIRR: amt,
+        month: month,
+        desc: String((v && v.note) || 'تزریق از حساب شخصی رییس به صندوق شرکت'),
+        idempotencyKey: 'TREASURY-IN|' + sh.cd + '|' + Date.now()
+      }, ['ptf_crm_sharetx'], 'تزریق شخصی رییس');
     }
     if (typeof ptfDialog === 'function') {
       ptfDialog({
@@ -563,13 +616,15 @@
       var amt = Math.round(num(v && v.amt));
       if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
       if (amt > pos.claim) { alert('بیش از طلب ثبت‌شده (' + money(pos.claim) + ') نمی‌شود تسویه کرد.'); return; }
-      if (typeof window.ptfShareAddTx === 'function') {
-        window.ptfShareAddTx('chair_out', pos.sh, amt, String((v && v.note) || 'تسویه طلب رییس از نقد شرکت'), {});
-      }
-      try { if (typeof audit === 'function') audit('خزانه', 'تسویه طلب رییس ' + money(amt), pos.sh.cd); } catch (eA) {}
-      if (typeof ptfToast === 'function') ptfToast('تسویه ثبت شد — نقد شرکت و طلب رییس هر دو کم شد', 'ok');
-      if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
-      if (typeof window.ptfShareRender === 'function') window.ptfShareRender();
+      var month = treasuryCurrentMonth();
+      if (!month) { alert('ماه جاری قابل تشخیص نیست؛ عملیات متوقف شد.'); return; }
+      treasuryShareCommand('register_chair_out', {
+        shareholderCd: pos.sh.cd,
+        amountIRR: amt,
+        month: month,
+        desc: String((v && v.note) || 'تسویه طلب رییس از نقد شرکت'),
+        idempotencyKey: 'TREASURY-OUT|' + pos.sh.cd + '|' + Date.now()
+      }, ['ptf_crm_sharetx'], 'تسویه طلب رییس');
     }
     if (typeof ptfDialog === 'function') {
       ptfDialog({

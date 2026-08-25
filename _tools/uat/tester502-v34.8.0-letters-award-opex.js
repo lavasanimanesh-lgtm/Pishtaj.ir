@@ -271,7 +271,7 @@ try {
     window: null,
     canFin: function () { return true; },
     ptfAutoApplyRecurring: function () { return { complete: true, month: '1405/06', salaries: 2, tpls: 3, repaired: 0 }; },
-    ptfToast: function (msg) { toasts.push(msg); }, ptfOpexRender: function () { renders++; }
+    ptfToast: function (msg) { toasts.push(msg); }, ptfOpexRender: function () { renders++; }, _finHubTab: 'opex'
   };
   toastCtx.window = toastCtx;
   vm.createContext(toastCtx);

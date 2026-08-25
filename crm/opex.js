@@ -173,19 +173,30 @@
     return out;
   };
   function isCoverOpex(x) { return !!(x && (x.fromCoverInvoice || x.coverInvoiceCd)); }
+  /* v34.8.7/F3: حقوق سهامدار تعهدی است؛ تا ثبت draw، OPEX آن خروج نقدی نیست.
+     shareTx/recurringKey are the durable markers. A generic manual OPEX with only
+     category «حقوق و دستمزد» is intentionally not classified as a shareholder claim. */
+  function isShareholderSalaryOpex(x) {
+    return !!(x && (x.shareholderSalary === true || x.shareTx || String(x.recurringKey || '').indexOf('salary:') === 0));
+  }
+  window.ptfIsShareholderSalaryOpex = isShareholderSalaryOpex;
   // v30.2 FIN-WF-008: برای جلوگیری از دوباره‌شماری، fiscal فقط unlinked را می‌خواهد.
   // کارمزد فاکتور پوششی در پنل هزینه جاری دیده می‌شود ولی در سود سال از روی خود فاکتور
   // (coverCommission / coverNetBenefit) لحاظ می‌شود تا دوباره‌شماری نشود.
   window.ptfOpexSumFiscal = function(monthOrYear){
     var pre = String(monthOrYear || '');
-    var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0 };
+    var out = { total: 0, byCat: {}, totalLinked: 0, totalUnlinked: 0, totalSalary: 0, totalCash: 0 };
     oAll().forEach(function (x) {
       if (!opexRowActive(x) || isCoverOpex(x)) return;
       if (pre && String(x.month || '').indexOf(pre) !== 0) return;
-      var amt = (+x.amt || 0);
+      var amt = (+x.amt || 0), salary = isShareholderSalaryOpex(x);
       out.byCat[x.cat] = (out.byCat[x.cat] || 0) + amt;
+      if (salary) out.totalSalary += amt;
       if (x.dealRef) out.totalLinked += amt;
-      else out.totalUnlinked += amt;
+      else {
+        out.totalUnlinked += amt;
+        if (!salary) out.totalCash += amt;
+      }
     });
     out.total = out.totalUnlinked;
     return out;
@@ -815,7 +826,7 @@
 
   /* اتوماسیون startup: حقوق و قالب‌ها فقط در یک command سروری materialize می‌شوند.
      کلاینت پس از ACK صرفاً envelope هویتی merge-v1 را اعمال و نتیجه را بررسی می‌کند. */
-  var recurringRetryTimer = null, recurringServerInFlight = false, recurringServerDoneKey = '';
+  var recurringRetryTimer = null, recurringServerInFlight = false, recurringServerDoneKey = '', recurringServerBlockedKey = '';
   function salaryServerRole() {
     try { return ['admin', 'chairman', 'ceo', 'commercial', 'accountant'].indexOf(String(curRole() || '').toLowerCase()) > -1; } catch (e) { return false; }
   }
@@ -827,12 +838,18 @@
     try { var s = curSession() || {}; return String(s.user || s.username || s.name || 'unknown').replace(/[^A-Za-z0-9_.@-]/g, '_').slice(0, 60); } catch (e) { return 'unknown'; }
   }
   function refreshRecurringFinancialViews() {
-    /* reconcile حقوق یک commit مشترک OPEX/sharetx است. پس از projection اتمیک، هر دو
-       نمای مدیریتی باید در همان tick بازخوانی شوند؛ اتکا به بازکردن دوبارهٔ تب باعث
-       می‌شد طلب repairشده با وجود ثبت سروری در رابط جاری دیده نشود. */
-    try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOpex) {}
-    try { if (typeof ptfShareRender === 'function') ptfShareRender(); } catch (eShare) {}
-    try { if (typeof ptfFiscalRender === 'function') ptfFiscalRender(); } catch (eFiscal) {}
+    /* Reconcile حقوق یک commit مشترک OPEX/sharetx است. فقط نمای active را refresh
+       می‌کنیم؛ رندر hidden tab در پس‌زمینه هم فرم/فیلتر کاربر را reset می‌کرد و هم
+       بعد از outerHTML ریشهٔ fiscal، visibility را از بین می‌برد. */
+    try {
+      if (document.querySelector('.md-b') || document.querySelector('.ptfdlg-b')) return;
+      var ae = document.activeElement;
+      if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'SELECT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    } catch (eEditing) {}
+    var activeTab = String(window._finHubTab || 'petty');
+    if (activeTab === 'opex') { try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOpex) {} }
+    else if (activeTab === 'share') { try { if (typeof ptfShareRender === 'function') ptfShareRender(); } catch (eShare) {} }
+    else if (activeTab === 'fiscal') { try { if (typeof ptfFiscalRender === 'function') ptfFiscalRender(); } catch (eFiscal) {} }
   }
   function finishLocalRecurring(serverState) {
     var local = null, allowedLocal = false, freshChanges = 0;
@@ -862,16 +879,21 @@
     var month = ptfFaMonthNow();
     if (!month) { scheduleRecurringRetry(attempt); return; }
     var runKey = month + '|' + recurringUserKey() + '|' + tehranDayKey();
-    if (recurringServerDoneKey === runKey) { finishLocalRecurring(null); return; }
+    if (recurringServerDoneKey === runKey || recurringServerBlockedKey === runKey) return;
     if (typeof window.ptfSalesDomainCommand !== 'function') { scheduleRecurringRetry(attempt); return; }
     recurringServerInFlight = true;
     var commandPromise;
     try {
+      /* این فرمان پس از دو تلاش و command_status نتیجهٔ نامشخص را خودش ثبت می‌کند.
+         در پس‌زمینه نباید alert تکراری یا retry زنجیره‌ای ایجاد شود؛ status همان
+         operationId باید از مسیر تشخیصی/دستی بررسی شود. */
       commandPromise = window.ptfSalesDomainCommand('reconcile_recurring_opex', {
         month: month, idempotencyKey: 'OPEX-REC|' + runKey
-      }, { apiOptions: { autoReplay: true } });
+      }, { apiOptions: { autoReplay: true }, silentUncertain: true });
       if (!commandPromise || typeof commandPromise.then !== 'function') throw new Error('salary_command_promise_required');
     } catch (eCommand) {
+      /* خطای هم‌زمان هنگام ساخت Promise با «نتیجهٔ نامشخصِ فرمان» فرق دارد؛
+         در این حالت فرمان هنوز ارسال نشده و همان retry محدود قبلی مجاز است. */
       recurringServerInFlight = false;
       scheduleRecurringRetry(attempt);
       return;
@@ -882,9 +904,18 @@
         recurringServerDoneKey = runKey;
         if (recurringRetryTimer) { clearTimeout(recurringRetryTimer); recurringRetryTimer = null; }
         finishLocalRecurring(state);
-      } else if (!state || state.state === 'uncertain') scheduleRecurringRetry(attempt);
+      } else if (!state || state.state === 'uncertain') {
+        /* نتیجهٔ نامشخص را فقط یک بار برای همین روز نگه می‌داریم. تکرار خودکار
+           فقط alert/ERR_CONNECTION_CLOSED را زیاد می‌کرد و به کاربر امکان UAT نمی‌داد. */
+        recurringServerBlockedKey = runKey;
+        if (recurringRetryTimer) { clearTimeout(recurringRetryTimer); recurringRetryTimer = null; }
+      }
       /* rejected قطعی (قفل سال/مجوز/ماه) با retry خودکار تکرار نمی‌شود. */
-    }, function () { recurringServerInFlight = false; scheduleRecurringRetry(attempt); });
+    }, function () {
+      recurringServerInFlight = false;
+      recurringServerBlockedKey = runKey;
+      if (recurringRetryTimer) { clearTimeout(recurringRetryTimer); recurringRetryTimer = null; }
+    });
   }
   if (typeof window.addEventListener === 'function') {
     window.addEventListener('ptf:sync-ready', function (ev) {

@@ -1,6 +1,7 @@
 # ارزیابی وضعیت CRM — مین در برابر استیجینگ
 
 - **تاریخ:** ۱۴۰۵/۰۶/۳ (۲۰۲۶-۰۸-۲۵)
+- **به‌روزرسانی (همان روز — پیوست RCA در بخش ۷):** ریشهٔ خطاهای ۵۰۰ استیجینگ پیدا و رفع شد: پرانتز جاافتاده در `api/sales-domain.php` (کد F5 ایجنت قبلی).
 - **نسخهٔ رسمی هر دو محیط:** `v34.8.5` (طبق VERSION.json و sw.js هر دو)
 - **مبنای بررسی:** کد `main` در `593ab72` (PR #80) و برنچ استیجینگ `arena/01a0396d-pishtaj-ir` در `0ddb4ad` (۷ کامیت، ۲۵ اوت) + بررسی زندهٔ pishtaj.ir و staging.pishtaj.ir
 - **نوع کار:** فقط ارزیابی — هیچ کدی تغییر نکرد.
@@ -124,3 +125,36 @@
 | F3 | opex.js, fiscal.js | `&f03/f06` |
 | F4 | bridge.js, fiscal.js, scoring.js, index.html | `&f04=20260825` |
 | F5–F7 | api/sales-domain.php, sales-domain-v2.js, data-quality.js | `&f05…f08` |
+
+---
+
+## ۷) پیوست RCA — خطاهای ۵۰۰ استیجینگ (۲۰۲۶-۰۸-۲۵، عصر)
+
+### نشانه‌ها (کنسول مرورگر روی استیجینگ)
+- `api/sales-domain.php?action=reconcile_recurring_opex` → **500** (×۲)
+- `api/sales-domain.php?action=command_status` → **500** (×۳)
+- هشدار DOM برای `autocomplete` روی فیلد رمز ورود
+
+### ریشهٔ تأییدشده
+`api/sales-domain.php` برنچ `arena/01a0396d-pishtaj-ir` **خطای سینتکس PHP** دارد (خط ۱۰۷۵، کد manifest تعمیر F5): در شرط `if(...)` مسیر `chair_in` یک `)` بسته کم داشت؛
+
+```
+...===$expectedAmount))$current[]=$row;     ← غلط (if( بسته نشده)
+...===$expectedAmount)))$current[]=$row;    ← درست
+```
+
+نتیجه: PHP کل فایل را parse نمی‌کند → **هر درخواستی** به `api/sales-domain.php` روی استیجینگ ۵۰۰/خالی برمی‌گردد (حتی `?action=health` بدون لاگین — در مین همان endpoint سالم JSON برمی‌گرداند). رشتهٔ کنسول دقیقاً همین است: رندر ماژول هزینه‌ها فرمان `reconcile_recurring_opex` را خودکار می‌فرستد (۵۰۰)، retry می‌کند (۵۰۰)، و سپس وضعیت فرمان را با `command_status` سه بار می‌پرسد (۵۰۰×۳).
+
+### چرا گیت‌ها نگرفتند
+- گیت CI ایجنت‌ها Node-based است و در محیط آن‌ها PHP CLI وجود ندارد → `php -l` عملاً skip شده بود (خودش در PR #80 هم اعتراف شده بود).
+- `php.yml` گیتهاب فقط روی PR به main اجرا می‌شود و فقط `composer validate` دارد (بدون lint فایلهای `api/`) و از ژوئیه fail بوده.
+
+### رفع‌های این نشست (برنچ arena/01a03ab4)
+1. **اصلاح پرانتز** در `api/sales-domain.php` — کل api/*.php با پارسر PHP معتبر شد (۲۹ فایل PARSE OK).
+2. **autocomplete ورود:** `uName` → `autocomplete="username"` و `uPass` → `autocomplete="current-password"` (رفع هشدار DOM) — روی مین هم اعمال می‌شود پس از merge.
+3. **گیت `php -l` قبل از FTP** در هر دو workflow استقرار (staging + production): اگر هر فایل `api/*.php` سینتکس خراب داشته باشد، استقرار متوقف می‌شود و دیگر API خراب به سرور نمی‌رسد.
+4. گیت CI مجدداً سبز: **127 PASS / 0 FAIL**.
+5. merge کامل کار ایجنت قبلی (۷ کامیت) + رفعها در همین برنچ و استقرار روی استیجینگ.
+
+### درس آموختهٔ فرآیندی
+هر deploy ایجنت بدون اجرای `php -l` (حتی با پارسر جایگزین Node) نباید انجام شود؛ این گیت حالا در خود workflow است و به حضور PHP در محیط ایجنت وابسته نیست.

@@ -10,6 +10,25 @@
  * compatible projections to clients. It deliberately never infers cash from offer terms.
  */
 declare(strict_types=1);
+/* v34.8.11/F7: a runtime fatal in the command-status path must not be converted by
+   the browser into an opaque HTML «invalid recovery response». Keep the endpoint's
+   error contract JSON even when PHP dies after bootstrap; the error detail is bounded
+   and an errorId is emitted for server-log correlation. */
+ob_start();
+register_shutdown_function(function (): void {
+    $last = error_get_last();
+    $fatalTypes = [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR];
+    if (!is_array($last) || !in_array((int)($last['type'] ?? 0), $fatalTypes, true)) {
+        if (ob_get_level() > 0) @ob_end_flush();
+        return;
+    }
+    $message = trim((string)($last['message'] ?? 'fatal_error'));
+    $errorId = substr(hash('sha256', $message . '|' . (string)($last['file'] ?? '') . '|' . (string)($last['line'] ?? '')), 0, 16);
+    @error_log('sales-domain-fatal ' . $errorId . ' ' . $message);
+    while (ob_get_level() > 0) @ob_end_clean();
+    http_response_code(500);
+    echo json_encode(['ok'=>false,'error'=>'sales_domain_fatal','errorId'=>$errorId,'detail'=>substr($message,0,300)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+});
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
@@ -622,7 +641,7 @@ function sd_opex_projection_envelope(array $rows,array $identities,int $revision
     ];
 }
 function sd_is_recurring_projection_action(string $action): bool {
-    return in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','schedule_recurring_opex_cheque','void_recurring_opex'],true);
+    return in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','schedule_recurring_opex_cheque','void_recurring_opex','register_shareholder_salary'],true);
 }
 function sd_recurring_sharetx_projection_allowed(string $action): bool {
     global $role;
@@ -630,7 +649,7 @@ function sd_recurring_sharetx_projection_allowed(string $action): bool {
        salary claim را بسازد، repair کند یا void کند و باید برای مدیر ارشد بی‌درنگ
        همان projection اتمیک را برگرداند؛ نه این‌که به pull دوم وابسته بماند. */
     return in_array($role,SD_SHAREHOLDER_VIEW_ROLES,true)
-        && in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','void_recurring_opex'],true);
+        && in_array($action,['reconcile_shareholder_salaries','reconcile_recurring_opex','void_recurring_opex','register_shareholder_salary'],true);
 }
 function sd_recurring_projection_data(string $action,array $opex,array $identities,int $rev): array {
     $data=['ptf_crm_opex'=>sd_opex_projection_envelope($opex,$identities,$rev)];
@@ -673,6 +692,37 @@ function sd_recurring_pick_index(array $rows,array $hits,bool $restore=false): i
     if($restore)foreach($hits as $index)if(isset($rows[$index])&&is_array($rows[$index])&&sd_recurring_explicit_tombstone($rows[$index]))return (int)$index;
     foreach($hits as $index)if(isset($rows[$index])&&is_array($rows[$index])&&sd_active($rows[$index]))return (int)$index;
     return $hits?(int)$hits[0]:-1;
+}
+/* Salary matching is type-safe. draw/salary_payment rows may share shCd/month but
+   are different business events and must never become salary candidates. */
+function sd_salary_find_indexes(array $rows,string $key,string $shCd,string $month): array {
+    $hits=[];
+    foreach($rows as $index=>$row){
+        if(!is_array($row)||strtolower(trim((string)($row['type']??'')))!=='salary')continue;
+        if($key!==''&&(string)($row['recurringKey']??'')===$key){$hits[]=(int)$index;continue;}
+        if((string)($row['shCd']??'')===$shCd&&(string)($row['month']??'')===$month)$hits[]=(int)$index;
+    }
+    return array_values(array_unique($hits));
+}
+function sd_sharetx_files($files): array {
+    if($files===null||$files===[])return[];
+    if(!is_array($files)||count($files)>20)sd_out(['ok'=>false,'error'=>'invalid_sharetx_files'],422);
+    $out=[];
+    foreach($files as $file){
+        if(!is_array($file)||!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_sharetx_file'],422);
+        $out[]=['key'=>sd_text($file['key']??'',500),'name'=>sd_text($file['name']??'',200),'contentType'=>sd_text($file['contentType']??$file['mimeType']??'',100),'size'=>max(0,(int)($file['size']??0)),'uploadedAt'=>sd_text($file['uploadedAt']??sd_now(),60)];
+    }
+    return $out;
+}
+function sd_chair_claim(array $sharetx,string $shCd): int {
+    $credit=0;$debit=0;
+    foreach($sharetx as $row){
+        if(!is_array($row)||!sd_active($row)||(string)($row['shCd']??'')!==$shCd)continue;
+        $type=strtolower(trim((string)($row['type']??'')));$amount=(int)round(sd_num($row['amt']??0));
+        if(in_array($type,['call_over','chair_in'],true))$credit+=$amount;
+        elseif(in_array($type,['call_credit_use','chair_out'],true))$debit+=$amount;
+    }
+    return max(0,$credit-$debit);
 }
 function sd_command_request_hash(string $action, array $body): string {
     unset($body['idempotencyKey'], $body['action']);
@@ -966,21 +1016,96 @@ function sd_migration_report(): array {
     return ['issues'=>$issues,'safeReceiptCandidates'=>$safe,'counts'=>['offers'=>count($offers),'cases'=>count($cases),'invoices'=>count($invoices),'receipts'=>count($receipts)]];
 }
 
-$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan', 'archived_case_purge_plan', 'command_status'], true);
+function sd_repair_row_summary(array $row): array {
+    $fields=['cd','_id','_opexRowId','shCd','shName','type','amt','month','status','st','recurringKey','shareTx','serverReconciled','serverMaterialized','shareholderSalary','t'];
+    $out=[];foreach($fields as $field)if(array_key_exists($field,$row))$out[$field]=$row[$field];return$out;
+}
+function sd_repair_months($value): array {
+    $out=[];if(!is_array($value))return$out;
+    foreach($value as $month){$month=sd_text($month,20);$month=strtr($month,['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']);$month=str_replace('-','/',$month);if(preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$month)&&!in_array($month,$out,true))$out[]=$month;}
+    sort($out,SORT_STRING);return$out;
+}
+function sd_repair_is_salary_opex(array $row): bool {
+    return !empty($row['shareholderSalary'])||trim((string)($row['shareTx']??''))!==''||strpos((string)($row['recurringKey']??''),'salary:')===0;
+}
+function sd_repair_relevant_text($row): string {
+    return is_array($row)?json_encode($row,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES):'';
+}
+/* Read-only repair manifest. It never chooses a canonical duplicate, writes a row,
+   voids anything, or appends to the correction/audit stores. */
+function sd_finance_repair_plan(array $months,array $expectedChairIn=[],array $expectedDraws=[]): array {
+    $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');$corrections=sd_read('ptf_crm_corrections');$audit=sd_read('ptf_crm_audit');$metaFile=sd_sync_dir().'/meta.json';$meta=is_file($metaFile)?(json_decode((string)@file_get_contents($metaFile),true)?:[]):[];
+    $items=[];$summary=['salaryDuplicates'=>0,'salaryTerminalExisting'=>0,'salaryMissing'=>0,'salaryOpexMismatches'=>0,'drawMonthMismatches'=>0,'chairInMissing'=>0,'orphanOpex'=>0,'unlinkedSalaryOpex'=>0,'payableDeleteAudits'=>0,'historyMatches'=>0];
+    $add=function(string $kind,string $severity,string $identity,string $decision,array $evidence=[],array $proposed=[] )use(&$items){$items[]=['id'=>'PLAN-'.strtoupper(substr(hash('sha256',$kind.'|'.$identity.'|'.count($items)),0,16)),'kind'=>$kind,'severity'=>$severity,'identity'=>$identity,'decision'=>$decision,'evidence'=>$evidence,'proposed'=>$proposed,'mutation'=>false];};
+    $salaryBy=[];$salaryCdMap=[];
+    foreach($sharetx as $row){
+        if(!is_array($row))continue;$type=strtolower(trim((string)($row['type']??'')));$month=trim((string)($row['month']??''));$shCd=trim((string)($row['shCd']??''));
+        if($type==='salary'&&$shCd!==''&&in_array($month,$months,true)){$salaryBy[$shCd][$month][]=$row;$cd=trim((string)($row['cd']??''));if($cd!=='')$salaryCdMap[$cd]=['shCd'=>$shCd,'month'=>$month,'row'=>$row];}
+    }
+    $salaryOpexBy=[];$allSalaryOpex=[];
+    foreach($opex as $row){
+        if(!is_array($row))continue;$month=trim((string)($row['month']??''));if(!in_array($month,$months,true)||!sd_repair_is_salary_opex($row))continue;
+        $allSalaryOpex[]=$row;$key=trim((string)($row['recurringKey']??''));$shCd='';if(preg_match('/^salary:([^:]+):'.preg_quote($month,'/').'$/',$key,$m))$shCd=$m[1];
+        $shareTx=trim((string)($row['shareTx']??''));if($shCd===''&&$shareTx!==''&&isset($salaryCdMap[$shareTx]))$shCd=$salaryCdMap[$shareTx]['shCd'];
+        if($shCd!=='')$salaryOpexBy[$shCd][$month][]=$row;
+    }
+    foreach($shareholders as $sh){
+        if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
+        $shCd=sd_text($sh['cd'],160);$salary=(int)round(sd_num($sh['salary']));
+        foreach($months as $month){
+            $txRows=$salaryBy[$shCd][$month]??[];$activeTx=array_values(array_filter($txRows,'sd_active'));$oxRows=$salaryOpexBy[$shCd][$month]??[];$activeOx=array_values(array_filter($oxRows,'sd_active'));$key='salary:'.$shCd.':'.$month;
+            if(count($activeTx)>1){$summary['salaryDuplicates']++;$add('salary_duplicate_active','high',$key,'requires_canonical_selection',array_map('sd_repair_row_summary',$txRows),['allowedAction'=>'select_one_canonical_salary_cd','automaticVoid'=>false]);}
+            elseif(count($activeTx)===0&&count($txRows)===0){$summary['salaryMissing']++;$add('salary_missing','high',$key,'requires_explicit_registration',[],['amountFromProfile'=>$salary,'month'=>$month,'allowedAction'=>'register_shareholder_salary','automaticRegistration'=>false]);}
+            elseif(count($activeTx)===0&&count($txRows)>0){$summary['salaryTerminalExisting']++;$add('salary_terminal_existing','high',$key,'requires_explicit_restore_decision',array_map('sd_repair_row_summary',$txRows),['automaticRestore'=>false]);}
+            if(count($activeTx)===1){$txCd=trim((string)($activeTx[0]['cd']??''));$linked=[];foreach($oxRows as $ox){if((string)($ox['shareTx']??'')===$txCd||((string)($ox['recurringKey']??'')===$key))$linked[]=$ox;}$activeLinked=array_values(array_filter($linked,'sd_active'));if(!$activeLinked){$summary['salaryOpexMismatches']++;$add('salary_opex_missing','high',$key,'requires_atomic_pair_repair',[sd_repair_row_summary($activeTx[0])],['salaryCd'=>$txCd,'amount'=>$salary,'month'=>$month,'automaticCreate'=>false]);}elseif(count($activeLinked)>1){$summary['salaryOpexMismatches']++;$add('salary_opex_duplicate','high',$key,'requires_opex_canonical_selection',array_map('sd_repair_row_summary',$activeLinked),['automaticVoid'=>false]);}}
+            if(count($activeTx)===1&&count($activeOx)>0){$txAmount=(int)round(sd_num($activeTx[0]['amt']??0));if($txAmount!==$salary){$summary['salaryOpexMismatches']++;$add('salary_profile_amount_mismatch','medium',$key,'requires_profile_history_review',[sd_repair_row_summary($activeTx[0])],['profileAmount'=>$salary,'recordAmount'=>$txAmount,'automaticRewrite'=>false]);}}
+        }
+    }
+    foreach($allSalaryOpex as $row){
+        $shareTx=trim((string)($row['shareTx']??''));$orphan=false;$reason='';
+        if($shareTx!==''&&!isset($salaryCdMap[$shareTx])){$orphan=true;$reason='shareTx_not_found_in_scoped_salary_rows';}
+        elseif($shareTx!==''&&isset($salaryCdMap[$shareTx])&&!sd_active($salaryCdMap[$shareTx]['row'])){$orphan=true;$reason='shareTx_points_to_terminal_salary';}
+        if($orphan){$summary['orphanOpex']++;$id=trim((string)($row['_opexRowId']??$row['cd']??''));$add('salary_opex_orphan','high',$id?:'unknown','requires_classification',[sd_repair_row_summary($row)],['reason'=>$reason,'automaticDelete'=>false,'automaticRelink'=>false]);}
+        elseif($shareTx===''&&strpos((string)($row['cat']??''),'حقوق')!==false&&!empty($row['month'])){$summary['unlinkedSalaryOpex']++;$id=trim((string)($row['_opexRowId']??$row['cd']??''));$add('salary_opex_unlinked','medium',$id?:'unknown','requires_classification',[sd_repair_row_summary($row)],['reason'=>'salary_like_category_without_shareholder_identity','automaticDelete'=>false,'automaticRelink'=>false]);}
+    }
+    $drawExpect=[];foreach($expectedDraws as $expected){if(!is_array($expected))continue;$cd=sd_text($expected['cd']??'',160);$month=sd_repair_months([$expected['expectedMonth']??'']);if($cd!==''&&$month)$drawExpect[$cd]=$month[0];}
+    foreach($sharetx as $row){
+        if(!is_array($row)||strtolower(trim((string)($row['type']??'')))!=='draw')continue;$cd=trim((string)($row['cd']??''));if($cd===''||!isset($drawExpect[$cd]))continue;$actual=trim((string)($row['month']??''));if($actual!==$drawExpect[$cd]){$summary['drawMonthMismatches']++;$add('draw_month_mismatch','high',$cd,'requires_explicit_month_correction',[sd_repair_row_summary($row)],['currentMonth'=>$actual,'expectedMonth'=>$drawExpect[$cd],'automaticMove'=>false]);}
+    }
+    if($expectedChairIn){$expectedCount=max(0,(int)($expectedChairIn['count']??0));$expectedAmount=(int)round(sd_num($expectedChairIn['amountIRR']??0));$current=[];foreach($sharetx as $row)if(is_array($row)&&strtolower(trim((string)($row['type']??'')))==='chair_in'&&sd_active($row)&&(!$expectedAmount||((int)round(sd_num($row['amt']??0))===$expectedAmount)))$current[]=$row;$missing=max(0,$expectedCount-count($current));if($expectedCount>0&&$missing>0){$summary['chairInMissing']=$missing;$add('chair_in_missing','critical','chair_in|'.$expectedAmount,'unrecoverable_without_external_evidence',array_map('sd_repair_row_summary',$current),['expectedCount'=>$expectedCount,'currentCount'=>count($current),'missingCount'=>$missing,'amountIRR'=>$expectedAmount,'automaticCreate'=>false,'requiredEvidence'=>['originalDate','paymentProofOrExternalLedger']]);}}
+    foreach($audit as $row){if(!is_array($row))continue;$text=sd_repair_relevant_text($row);if(strpos($text,'حذف بدهی/بستانکاری')!==false){$summary['payableDeleteAudits']++;$add('payable_delete_audit','high',trim((string)($row['ref']??''))?:'audit','requires_server_audit_review',[['t'=>$row['t']??'','user'=>$row['user']??'','module'=>$row['m']??'','action'=>$row['a']??'','ref'=>$row['ref']??'']],['automaticRestore'=>false]);}}
+    foreach($corrections as $row){if(!is_array($row))continue;$kind=(string)($row['kind']??'');if(in_array($kind,['duplicate_recurring_void','eligibility_void','explicit_restore'],true)||strpos(sd_repair_relevant_text($row),'salary:')!==false){$summary['historyMatches']++;$add('financial_correction_history','info',trim((string)($row['entityId']??$row['_id']??''))?:'correction','evidence_only',[['kind'=>$kind,'entityType'=>$row['entityType']??'','entityId'=>$row['entityId']??'','reason'=>$row['reason']??'','correctedAt'=>$row['correctedAt']??'']],['automaticReplay'=>false]);}}
+    $keyRevisions=[];foreach($meta as $key=>$value)if($key!=='_global'&&is_array($value)&&isset($value['rev']))$keyRevisions[$key]=(int)$value['rev'];ksort($keyRevisions);
+    $manifest=['scopeMonths'=>$months,'summary'=>$summary,'items'=>$items,'serverGlobalRevision'=>(int)($meta['_global']['rev']??0),'keyRevisions'=>$keyRevisions];$manifest['planHash']=hash('sha256',json_encode($manifest,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+    return ['readOnly'=>true,'mutation'=>false,'planVersion'=>'finance-repair-plan-v1','serverGlobalRevision'=>$manifest['serverGlobalRevision'],'keyRevisions'=>$keyRevisions,'scopeMonths'=>$months,'summary'=>$summary,'items'=>$items,'planHash'=>$manifest['planHash']];
+}
+
+$readOnly = in_array($action, ['snapshot', 'health', 'migration_dry_run', 'duplicate_case_plan', 'archived_case_purge_plan', 'command_status', 'finance_repair_plan'], true);
 if ($readOnly) {
     /* v34.7.45: compact authoritative receipt lookup. A large command may commit but
        lose its projection response in transport; replaying the same large response is
        not proof that it failed. The owner can recover the durable journal receipt by
        operation/action without downloading every changed collection again. */
+    if ($action === 'finance_repair_plan') {
+        sd_require_role(SD_OFFER_REPAIR_ROLES);
+        $months=sd_repair_months($body['months']??[]);if(!$months)sd_out(['ok'=>false,'error'=>'repair_scope_months_required'],422);
+        $expectedChairIn=is_array($body['expectedChairIn']??null)?$body['expectedChairIn']:[];$expectedDraws=is_array($body['expectedDraws']??null)?$body['expectedDraws']:[];
+        sd_out(['ok'=>true,'data'=>sd_finance_repair_plan($months,$expectedChairIn,$expectedDraws),'version'=>SD_SERVICE_VERSION]);
+    }
     if ($action === 'command_status') {
         $operationId=sd_text($body['operationId']??'',120);$commandAction=sd_text($body['commandAction']??'',80);
         if($operationId===''||$commandAction==='')sd_out(['ok'=>false,'error'=>'command_status_identity_required'],422);
         /* وضعیت فقط پس از تکمیل WAL زیر همان lock قطعی است؛ read بدون recovery ممکن
-           بود درست در فاصلهٔ crash، یک commit موجود را «یافت نشد» گزارش کند. */
-        $receiptLockPath=sd_sync_dir().'/meta.json.lock';$receiptLock=fopen($receiptLockPath,'c+');
-        if(!$receiptLock||!flock($receiptLock,LOCK_EX))sd_out(['ok'=>false,'error'=>'lock_unavailable'],503);
+           بود درست در فاصلهٔ crash، یک commit موجود را «یافت نشد» گزارش کند.
+           v34.8.11/F7: warningهای fopen/file operation نباید قبل از JSON روی پاسخ چاپ
+           شوند؛ آن وضعیت در مرورگر به «پاسخ نامعتبر بازیابی رسید» تبدیل می‌شد و علت
+           واقعی را پنهان می‌کرد. warning را به Throwable تبدیل و پاسخ ساختاری برمی‌گردانیم. */
+        $receiptLockPath=sd_sync_dir().'/meta.json.lock';$receiptLock=@fopen($receiptLockPath,'c+');
+        if(!$receiptLock||!@flock($receiptLock,LOCK_EX))sd_out(['ok'=>false,'error'=>'lock_unavailable'],503);
+        set_error_handler(function($severity,$message,$file,$line){if(!(error_reporting()&$severity))return false;throw new ErrorException($message,0,$severity,$file,$line);});
         try{sd_recover_pending_transactions();$commands=sd_read('ptf_crm_sales_commands');}
-        catch(Throwable $receiptError){@flock($receiptLock,LOCK_UN);@fclose($receiptLock);sd_out(['ok'=>false,'error'=>'command_status_recovery_failed'],500);}
+        catch(Throwable $receiptError){restore_error_handler();@flock($receiptLock,LOCK_UN);@fclose($receiptLock);sd_out(['ok'=>false,'error'=>'command_status_recovery_failed','detail'=>sd_text($receiptError->getMessage(),300)],500);}
+        restore_error_handler();
         @flock($receiptLock,LOCK_UN);@fclose($receiptLock);
         foreach($commands as $cmd){
             if(!is_array($cmd)||(string)($cmd['key']??'')!==$operationId||(string)($cmd['status']??'')!=='committed')continue;
@@ -1596,6 +1721,50 @@ try {
         foreach(array_keys($touched)as $tc)if($tc!=='')sd_rebuild_allocations($tc,$receipts,$invoices,$allocations,$cases);
         $changes=['ptf_crm_offers'=>$offers,'ptf_crm_deals'=>$cases,'ptf_crm_invoices'=>$invoices,'ptf_crm_case_receipts'=>$receipts,'ptf_crm_receipt_allocations'=>$allocations,'ptf_crm_fin_attachments'=>$attachments,'ptf_crm_deleted_archive'=>$deleted,'ptf_crm_corrections'=>$corrections,'ptf_crm_fiscal_snapshots'=>$snaps];$result=['deleted'=>true,'entityType'=>$entityType,'entityId'=>$entityId,'dependenciesRemoved'=>count($deps),'invalidatedYear'=>$invalidYear];
     }
+    elseif ($action === 'register_shareholder_salary') {
+        /* Explicit one-shareholder/month registration. It is deliberately not the
+           reconciliation/restore path: an existing identity is a strict no-op. */
+        sd_require_role(SD_SHAREHOLDER_VIEW_ROLES);
+        $month=sd_text($body['month']??'',20);$shCd=sd_text($body['shareholderCd']??$body['scopeShareholder']??'',160);
+        if($shCd==='')sd_out(['ok'=>false,'error'=>'shareholder_required'],422);
+        if(!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$month))sd_out(['ok'=>false,'error'=>'invalid_jalali_month'],422);
+        if(sd_is_locked($snaps,$month))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year($month)],409);
+        $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$opex=sd_read('ptf_crm_opex');
+        $shareholder=null;foreach($shareholders as $candidate)if(is_array($candidate)&&(string)($candidate['cd']??'')===$shCd){$shareholder=$candidate;break;}
+        if(!$shareholder||($shareholder['active']??true)===false||($shareholder['duty']??false)!==true||sd_num($shareholder['salary']??0)<=0)sd_out(['ok'=>false,'error'=>'salary_not_eligible'],422);
+        $salary=(int)round(sd_num($shareholder['salary']));$key='salary:'.$shCd.':'.$month;
+        $txHits=sd_salary_find_indexes($sharetx,$key,$shCd,$month);$txCds=[];foreach($txHits as $txIndex)if(trim((string)($sharetx[$txIndex]['cd']??''))!=='')$txCds[]=trim((string)$sharetx[$txIndex]['cd']);
+        $oxHits=[];foreach($opex as $oxIndex=>$ox){if(!is_array($ox)||(string)($ox['month']??'')!==$month)continue;$sameKey=(string)($ox['recurringKey']??'')===$key;$sameTx=in_array(trim((string)($ox['shareTx']??'')),$txCds,true)&&!empty($ox['shareholderSalary']);if($sameKey||$sameTx)$oxHits[]=(int)$oxIndex;}
+        if($txHits||$oxHits){
+            $rev=sd_current_rev();$projectionIdentities=[];foreach($oxHits as $oxIndex)$projectionIdentities[]=$opex[$oxIndex];
+            $result=['registered'=>false,'alreadyRegistered'=>true,'month'=>$month,'shareholderCd'=>$shCd,'recurringKey'=>$key,'amount'=>$salary,'existingSalaryRows'=>count($txHits),'existingOpexRows'=>count($oxHits),'projectionMode'=>'no-op-existing-identity'];
+            $response=sd_recurring_projection_data($action,$opex,$projectionIdentities,$rev);
+            if(is_resource($lock)){@flock($lock,LOCK_UN);@fclose($lock);}
+            sd_out(['ok'=>true,'alreadyRegistered'=>true,'rev'=>$rev,'result'=>$result,'data'=>$response]);
+        }
+        $now=sd_now();$txCd=sd_stable_recurring_code('SHT-SAL',$key);$oxCd=sd_stable_recurring_code('OPX-SAL',$key);$rowId=sd_stable_recurring_code('OPXR-SAL',$key);
+        $sharetx[]=['cd'=>$txCd,'shCd'=>$shCd,'shName'=>(string)($shareholder['name']??$shCd),'type'=>'salary','amt'=>$salary,'desc'=>'حقوق موظف ماه '.$month,'month'=>$month,'t'=>$month.'/01','recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'createdAt'=>$now,'createdBy'=>$user];
+        $opex[]=['cd'=>$oxCd,'_opexRowId'=>$rowId,'cat'=>'حقوق و دستمزد','amt'=>$salary,'month'=>$month,'desc'=>'حقوق موظف سهامدار: '.(string)($shareholder['name']??$shCd),'shareTx'=>$txCd,'shareholderSalary'=>true,'recurringKey'=>$key,'status'=>'active','serverReconciled'=>true,'serverMaterialized'=>true,'t'=>$month.'/01','createdAt'=>$now,'createdBy'=>$user];
+        $projectionRows=[$opex[count($opex)-1]];$changes=['ptf_crm_sharetx'=>$sharetx,'ptf_crm_opex'=>$opex];$responseChanges=['ptf_crm_opex'=>[],'ptf_crm_sharetx'=>[]];
+        $result=['registered'=>true,'alreadyRegistered'=>false,'month'=>$month,'shareholderCd'=>$shCd,'recurringKey'=>$key,'amount'=>$salary,'transactionCd'=>$txCd,'opexRowId'=>$rowId,'projectionMode'=>'atomic-salary-opex','projectionIdentities'=>$projectionRows];
+    }
+    elseif ($action === 'register_chair_in' || $action === 'register_shareholder_draw' || $action === 'register_chair_out') {
+        /* Chair/treasury movements are append-only domain commands. A retry with the
+           same idempotency key is replayed by the outer command journal; a new key is a
+           distinct real movement, even when amount/month are equal. */
+        sd_require_role(SD_SHAREHOLDER_VIEW_ROLES);
+        $shCd=sd_text($body['shareholderCd']??'',160);$month=sd_text($body['month']??'',20);$amount=(int)round(sd_num($body['amountIRR']??$body['amount']??0));
+        if($shCd===''||!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$month))sd_out(['ok'=>false,'error'=>'invalid_sharetx_identity'],422);
+        if($amount<=0||$amount>9000000000000000)sd_out(['ok'=>false,'error'=>'invalid_amount'],422);
+        if(sd_is_locked($snaps,$month))sd_out(['ok'=>false,'error'=>'fiscal_period_locked','year'=>sd_year($month)],409);
+        $shareholders=sd_read('ptf_crm_shareholders');$sharetx=sd_read('ptf_crm_sharetx');$shareholder=null;foreach($shareholders as $candidate)if(is_array($candidate)&&(string)($candidate['cd']??'')===$shCd){$shareholder=$candidate;break;}
+        if(!$shareholder||($shareholder['active']??true)===false)sd_out(['ok'=>false,'error'=>'shareholder_not_found'],404);
+        $type=$action==='register_chair_in'?'chair_in':($action==='register_chair_out'?'chair_out':'draw');
+        if($type==='chair_out'&&$amount>sd_chair_claim($sharetx,$shCd))sd_out(['ok'=>false,'error'=>'chair_claim_insufficient'],409);
+        $files=sd_sharetx_files($body['files']??[]);$now=sd_now();$txCd=sd_uuid('SHT');$row=['cd'=>$txCd,'shCd'=>$shCd,'shName'=>(string)($shareholder['name']??$shCd),'type'=>$type,'amt'=>$amount,'desc'=>sd_text($body['desc']??$body['note']??'',1000),'month'=>$month,'t'=>sd_text($body['t']??$month.'/01',60),'serverReconciled'=>true,'status'=>'active','createdAt'=>$now,'createdBy'=>$user,'files'=>$files];
+        if($type==='draw'){$salaryMonth=sd_text($body['salaryMonth']??'',20);if($salaryMonth!==''){if(!preg_match('/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/',$salaryMonth))sd_out(['ok'=>false,'error'=>'invalid_salary_month'],422);$row['salaryMonth']=$salaryMonth;$row['paymentFor']='salary';}}
+        $sharetx[]=$row;$changes=['ptf_crm_sharetx'=>$sharetx];$responseChanges=['ptf_crm_sharetx'=>$sharetx];$result=['registered'=>true,'type'=>$type,'transactionCd'=>$txCd,'shareholderCd'=>$shCd,'amount'=>$amount,'month'=>$month,'projectionMode'=>'atomic-sharetx'];
+    }
     elseif ($action === 'reconcile_shareholder_salaries' || $action === 'reconcile_recurring_opex') {
         sd_require_role(SD_FIN_ROLES);
         $month=sd_text($body['month']??'',20);$currentMonth=sd_current_jalali_month();
@@ -1619,7 +1788,7 @@ try {
         if($includeSalaries)foreach($shareholders as $sh){
             if(!is_array($sh)||empty($sh['cd'])||($sh['active']??true)===false||($sh['duty']??false)!==true||sd_num($sh['salary']??0)<=0)continue;
             $shCd=sd_text($sh['cd'],160);$salary=sd_num($sh['salary']);$key='salary:'.$shCd.':'.$month;$eligibleSalaryKeys[$key]=true;
-            $restore=sd_recurring_restore_requested($key,$restoreKeys);$txHits=sd_recurring_find_indexes($sharetx,$key,['shCd'=>$shCd,'month'=>$month]);
+            $restore=sd_recurring_restore_requested($key,$restoreKeys);$txHits=sd_salary_find_indexes($sharetx,$key,$shCd,$month);
             /* Legacy salary OPEX may predate recurringKey but already has a durable
                shareTx relation. Union every matching transaction identity (not merely
                the first duplicate) so migration cannot create another OPEX sibling. */
@@ -1628,8 +1797,13 @@ try {
                 $candidateCd=trim((string)($sharetx[$legacyTxIndex]['cd']??''));if($candidateCd===''||in_array($candidateCd,$legacyTxCds,true))continue;$legacyTxCds[]=$candidateCd;
                 $oxHits=array_values(array_unique(array_merge($oxHits,sd_recurring_find_indexes($opex,$key,['shareTx'=>$candidateCd,'shareholderSalary'=>true]))));
             }
-            $hasExplicit=false;foreach($txHits as $i)if(sd_recurring_explicit_tombstone($sharetx[$i]))$hasExplicit=true;foreach($oxHits as $i)if(sd_recurring_explicit_tombstone($opex[$i]))$hasExplicit=true;
-            if($hasExplicit&&!$restore){$suppressed++;foreach($oxHits as $i)$projectionRows[]=$opex[$i];continue;}
+            $hasExplicit=false;$hasTerminal=false;
+            foreach($txHits as $i){if(sd_recurring_explicit_tombstone($sharetx[$i]))$hasExplicit=true;if(!sd_active($sharetx[$i]))$hasTerminal=true;}
+            foreach($oxHits as $i){if(sd_recurring_explicit_tombstone($opex[$i]))$hasExplicit=true;if(!sd_active($opex[$i]))$hasTerminal=true;}
+            /* A terminal legacy row without explicit markers is still not permission
+               for an automatic run to resurrect it. Only an explicit restore flow may
+               reactivate a terminal identity. */
+            if(($hasExplicit||$hasTerminal)&&!$restore){$suppressed++;foreach($oxHits as $i)$projectionRows[]=$opex[$i];continue;}
 
             $txCd=sd_stable_recurring_code('SHT-SAL',$key);$txIndex=sd_recurring_pick_index($sharetx,$txHits,$restore);$restoreTx=$restore&&$txIndex>=0&&sd_recurring_explicit_tombstone($sharetx[$txIndex]);
             if($txIndex<0){

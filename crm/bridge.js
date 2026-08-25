@@ -10,6 +10,58 @@
   'use strict';
   var API = '../api/crm.php';
   var SALES_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
+  /* v34.8.8/F4 — event/inbox polling is read-only but used to overlap silently:
+     the old interval flag was cleared immediately after starting fetch. Keep one
+     request in flight, add a bounded timeout/backoff, and retain a structured local
+     transport diagnostic without touching business collections. */
+  var eventInFlight = false, eventFailCount = 0, eventRetryAt = 0;
+  var inboxInFlight = false, inboxPromise = null, inboxWaiters = [], inboxFailCount = 0, inboxRetryAt = 0;
+  var inboxMoreInFlight = false;
+  function bridgeNotePollError(scope, error) {
+    try {
+      localStorage.setItem('ptf_bridge_last_error', JSON.stringify({
+        scope: scope,
+        t: new Date().toISOString(),
+        status: error && error.status || 0,
+        reason: error && error.reason || '',
+        error: String(error && error.message || error || 'network')
+      }));
+    } catch (e) {}
+  }
+  function bridgeBackoff(failures) { return Math.min(120000, 2000 * Math.pow(2, Math.max(0, Math.min(6, failures - 1)))); }
+  function bridgeFetchJson(url, options, scope) {
+    options = options || {};
+    var controller = null, timer = null;
+    try { if (typeof AbortController === 'function') controller = new AbortController(); } catch (eAbort) {}
+    if (controller) timer = setTimeout(function () { try { controller.abort(); } catch (eAbortTimer) {} }, 20000);
+    var fetchOptions = Object.assign({}, options);
+    if (controller) fetchOptions.signal = controller.signal;
+    return fetch(url, fetchOptions).then(function (response) {
+      return response.json().then(function (data) {
+        if (response && response.ok === false) {
+          var httpError = new Error((data && (data.error || data.reason)) || ('HTTP ' + response.status));
+          httpError.status = response.status; httpError.payload = data; throw httpError;
+        }
+        if (!data || data.ok === false) {
+          var apiError = new Error((data && (data.error || data.reason)) || 'API request rejected');
+          apiError.status = response.status; apiError.payload = data; throw apiError;
+        }
+        return data;
+      });
+    }).catch(function (error) {
+      error = error || new Error('network');
+      error.reason = error.name === 'AbortError' ? 'timeout' : (error.reason || 'transport');
+      error.scope = scope || '';
+      bridgeNotePollError(scope || 'bridge', error);
+      throw error;
+    }).then(function (data) {
+      if (timer) clearTimeout(timer);
+      return data;
+    }, function (error) {
+      if (timer) clearTimeout(timer);
+      throw error;
+    });
+  }
   var RFQ_CATS = ['پایپینگ', 'شیرآلات', 'برق', 'ابزار دقیق', 'پمپ و کمپرسور', 'گسکت و آب‌بندی', 'سایر'];
   var RFQ_STATUSES = [
     { v: 'st1', t: '🔴 دریافت اولیه' },
@@ -380,14 +432,14 @@
 
   function pollEvents() {
     var s = curSession();
-    if (!s.user) return;
+    if (!s.user || eventInFlight || Date.now() < eventRetryAt) return Promise.resolve({ ok: false, skipped: eventInFlight ? 'inflight' : 'backoff' });
+    eventInFlight = true;
     // v31.7.7 HOTFIX-AUTH: Include JWT token in event polling.
     var _evtH = {};
     try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _evtH['X-CRM-Token'] = _t; } catch(e) {}
-    fetch(API + '?action=get_events&since=' + lastEvt(), { headers: _evtH })
-      .then(function (r) { return r.json(); })
+    return bridgeFetchJson(API + '?action=get_events&since=' + lastEvt(), { headers: _evtH }, 'get_events')
       .then(function (d) {
-        if (!d.ok) return;
+        eventFailCount = 0; eventRetryAt = 0;
         var newMsg = false;
         (d.events || []).forEach(function (ev) { if (processEvent(ev)) newMsg = true; });
         if (d.last) setLastEvt(d.last);
@@ -398,12 +450,22 @@
         if (newMsg) {
           ding();
           updateInboxBadge();
-          var p = document.getElementById('inboxPanel');
-          if (p && p.style.display !== 'none') renderInbox();
+          var panel = document.getElementById('inboxPanel');
+          if (panel && panel.style.display !== 'none') renderInbox();
           if (document.getElementById('ctWrap')) renderCartable();
         }
+        return d;
       })
-      .catch(function () { if (checkDueReminders()) { ding(); updateInboxBadge(); } });
+      .catch(function (error) {
+        eventFailCount++;
+        eventRetryAt = Date.now() + bridgeBackoff(eventFailCount);
+        try { if (checkDueReminders()) { ding(); updateInboxBadge(); } } catch (eReminder) {}
+        return { ok: false, error: error && error.message || 'network', retryAt: eventRetryAt };
+      })
+      .then(function (result) {
+        eventInFlight = false;
+        return result;
+      });
   }
 
   function pushEvent(kind, title, data) {
@@ -439,49 +501,76 @@
     return out;
   }
   window.syncServerInbox = function (cb) {
+    if (inboxInFlight) {
+      if (typeof cb === 'function') inboxWaiters.push(cb);
+      return inboxPromise || Promise.resolve({ ok: false, skipped: 'inflight' });
+    }
+    if (Date.now() < inboxRetryAt) {
+      if (typeof cb === 'function') cb(false);
+      return Promise.resolve({ ok: false, skipped: 'backoff', retryAt: inboxRetryAt });
+    }
+    inboxInFlight = true;
+    if (typeof cb === 'function') inboxWaiters.push(cb);
     // v31.7.7 HOTFIX-AUTH: Include JWT token in inbox sync.
     var _syncH = {};
     try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
     /* v34.7.81 (SUP-PERF-001): کلاینت آخرین امضای صندوق را می‌فرستد؛ وقتی داده‌ها
-       تغییر نکرده‌اند سرور فقط fresh برمی‌گرداند و دانلود/اجرای مجدد جدول سایت نمی‌شود.
-       v34.7.91 (SUP-PERF-005): بوت/پول فقط صفحهٔ اول (۵۰) suppliers را می‌گیرد و
-       بقیه را با «نمایش بیشتر» از سرور لود می‌کند (لایهٔ رندر قبلاً در کلاینت صفحه‌بندی
-       می‌شد؛ حالا فشرده‌سازی/دانلود هم گام‌به‌گام می‌شود). */
+       تغییر نکرده‌اند سرور فقط fresh برمی‌گردد و دانلود/اجرای مجدد جدول سایت نمی‌شود.
+       v34.7.91 (SUP-PERF-005): بوت/پول فقط صفحهٔ اول (۵۰) suppliers را می‌گیرد. */
     var _since = '';
     try { _since = localStorage.getItem('ptf_site_inbox_sig') || ''; } catch(eSl) {}
     var _url = API + '?action=get_inbox&since=' + encodeURIComponent(_since) + '&limit=' + SITE_SUP_PAGE + '&offset=0';
-    fetch(_url, { headers: _syncH })
-      .then(function (r) { return r.json(); })
+    inboxPromise = bridgeFetchJson(_url, { headers: _syncH }, 'get_inbox')
       .then(function (d) {
-        if (!d.ok) { cb && cb(false); return; }
-        if (d.fresh) { cb && cb(true); return; }
+        inboxFailCount = 0; inboxRetryAt = 0;
+        if (d.fresh) return { ok: true, fresh: true };
         siteSupMerge(d.suppliers || [], (d.supTotal || 0));
         localStorage.setItem('ptf_site_rfqs', JSON.stringify(d.rfqs || []));
         try { localStorage.setItem('ptf_site_inbox_sig', String(d.since || '')); } catch(eSig) {}
         if (document.getElementById('supPendWrap')) renderSupPending();
         if (document.getElementById('rfqPendWrap')) renderRfqPending();
-        cb && cb(true);
+        return { ok: true, fresh: false };
       })
-      .catch(function () { cb && cb(false); });
+      .catch(function (error) {
+        inboxFailCount++;
+        inboxRetryAt = Date.now() + bridgeBackoff(inboxFailCount);
+        return { ok: false, error: error && error.message || 'network', retryAt: inboxRetryAt };
+      })
+      .then(function (result) {
+        inboxInFlight = false;
+        inboxPromise = null;
+        var waiters = inboxWaiters.splice(0);
+        waiters.forEach(function (fn) { try { fn(!!(result && result.ok), result); } catch (eCb) {} });
+        return result;
+      });
+    return inboxPromise;
   };
   /* لود صفحهٔ بعدی صندوق سایت از سرور + ادغام با کش محلی (برای «نمایش بیشتر»). */
   window.syncServerInboxMore = function (cb) {
+    if (inboxMoreInFlight) return Promise.resolve({ ok: false, skipped: 'inflight' });
+    inboxMoreInFlight = true;
     var _syncH = {};
     try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
     var _offset = siteSuppliers().length;
     var _since = '';
     try { _since = localStorage.getItem('ptf_site_inbox_sig') || ''; } catch(eSl) {}
     var _url = API + '?action=get_inbox&since=' + encodeURIComponent(_since) + '&limit=' + SITE_SUP_PAGE + '&offset=' + _offset;
-    fetch(_url, { headers: _syncH })
-      .then(function (r) { return r.json(); })
+    var promise = bridgeFetchJson(_url, { headers: _syncH }, 'get_inbox_more')
       .then(function (d) {
-        if (!d.ok) { cb && cb(false); return; }
-        if (d.fresh) { cb && cb(true); return; }
+        if (d.fresh) return { ok: true, fresh: true };
         siteSupMerge(d.suppliers || [], (d.supTotal || 0));
         if (document.getElementById('supPendWrap')) renderSupPending();
-        cb && cb(true);
+        return { ok: true, fresh: false };
       })
-      .catch(function () { cb && cb(false); });
+      .catch(function (error) {
+        return { ok: false, error: error && error.message || 'network' };
+      })
+      .then(function (result) {
+        inboxMoreInFlight = false;
+        if (typeof cb === 'function') { try { cb(!!(result && result.ok), result); } catch (eCb) {} }
+        return result;
+      });
+    return promise;
   };
 
   /* ---- تامین‌کنندگان: بخش «ثبت‌نام‌شده از سایت» ---- */
@@ -1931,14 +2020,22 @@
         try { if (!localStorage.getItem('ptf_crm_token')) return; } catch (eTk) { return; }
         if (window._ptfPolling) return;
         window._ptfPolling = true;
-        try { pollEvents(); } finally { window._ptfPolling = false; }
+        try {
+          var eventRequest = pollEvents();
+          if (eventRequest && typeof eventRequest.then === 'function') eventRequest.then(function () { window._ptfPolling = false; }, function () { window._ptfPolling = false; });
+          else window._ptfPolling = false;
+        } catch (eEventPoll) { window._ptfPolling = false; }
       }, 8000);
       window._ptfSyncing = false;
       window._ptfSyncT = setInterval(function () {
         try { if (!localStorage.getItem('ptf_crm_token')) return; } catch (eTk2) { return; }
         if (window._ptfSyncing) return;
         window._ptfSyncing = true;
-        try { syncServerInbox(); } finally { window._ptfSyncing = false; }
+        try {
+          var inboxRequest = syncServerInbox();
+          if (inboxRequest && typeof inboxRequest.then === 'function') inboxRequest.then(function () { window._ptfSyncing = false; }, function () { window._ptfSyncing = false; });
+          else window._ptfSyncing = false;
+        } catch (eInboxPoll) { window._ptfSyncing = false; }
       }, 45000);
     }
   }

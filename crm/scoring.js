@@ -143,6 +143,16 @@
       (rows || '<div class="payables-empty">بدهی غیرنقدی بازی وجود ندارد — خرید نقدی همان لحظه تسویه می‌شود ✅</div>') + '</div>';
   }
 
+  /* v34.8.8/F4 — refresh the owning supplier/payables box only. `refreshBox` was a
+     private no-op inside cheques.js and therefore threw from this module after a
+     payable write, even though the write itself had already happened. */
+  function refreshPayablesBox() {
+    try {
+      var box = document.getElementById('payablesBox');
+      if (box) box.outerHTML = payablesBoxHtml();
+    } catch (e) {}
+  }
+
   /* مودال جزئیات بستانکاری‌ها + ثبت پرداخت مرحله‌ای + رویداد تحویل (یک کلیک اختیاری) */
   window.ptfPayablesOpen = function (sup) {
     if (!canSeeSup()) { alert('⛔ دسترسی ندارید'); return; }
@@ -215,7 +225,7 @@
         var md = document.querySelector('#panels .md-b:last-child');
         if (md && (md.style || {}).display !== 'none') md.remove();
         ptfPayablesOpen(p.sup);
-        refreshBox();
+        refreshPayablesBox();
       }
     });
   };
@@ -233,7 +243,7 @@
     var md = document.querySelector('#panels .md-b:last-child');
     if (md && (md.style || {}).display !== 'none') md.remove();
     ptfPayablesOpen(newList.some(function (x) { return norm(x.sup) === norm(p.sup); }) ? p.sup : '');
-    refreshBox();
+    refreshPayablesBox();
   };
 
   window.ptfPayablePay = function (cd) {
@@ -263,7 +273,7 @@
         var md = document.querySelector('#panels .md-b:last-child');
         if (md && (md.style || {}).display !== 'none') md.remove();
         ptfPayablesOpen(p2.sup);
-        refreshBox();
+        refreshPayablesBox();
         if (typeof window.slRefreshSupplierPanel === 'function') window.slRefreshSupplierPanel();
       }
     });

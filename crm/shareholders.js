@@ -45,41 +45,18 @@
   function reconcileSalaryOnServer(month, options) {
     options = options || {};
     month = normMonth(month) || faMonthNow();
-    if (typeof window.ptfSalesDomainCommand !== 'function') {
-      if (typeof ptfToast === 'function') ptfToast('سرویس ثبت سروری حقوق آماده نیست؛ هیچ رکورد محلی ساخته نشد.', 'warn');
-      return Promise.resolve({ state: 'rejected', error: new Error('salary_server_command_unavailable') });
-    }
     var restoreKeys = [];
     if (options.restore === true) activeShares().filter(function (sh) { return sh.duty && (+sh.salary || 0) > 0; }).forEach(function (sh) {
       restoreKeys.push(salaryRecurringKey(sh, month));
     });
-    function send(resolve) {
-      try {
-        var command = window.ptfSalesDomainCommand('reconcile_shareholder_salaries', {
-          month: month,
-          explicitEligibility: options.explicitEligibility === true,
-          scopeShareholder: options.scopeShareholder || '',
-          restoreKeys: restoreKeys,
-          reason: options.reason || 'تطبیق صریح حقوق سهامداران از رابط کاربری',
-          idempotencyKey: 'SH-SALARY|' + month + '|' + String(options.scopeShareholder || 'all') + '|' + Date.now()
-        }, { apiOptions: { autoReplay: true } });
-        if (!command || typeof command.then !== 'function') { resolve({ state: 'rejected', error: new Error('salary_server_promise_required') }); return; }
-        command.then(resolve, function (error) { resolve({ state: 'rejected', error: error }); });
-      } catch (error) { resolve({ state: 'rejected', error: error }); }
-    }
-    return new Promise(function (resolve) {
-      if (typeof window.ptfSyncFlushKeysNow !== 'function') { resolve({ state: 'rejected', error: new Error('keyed_sync_barrier_unavailable') }); return; }
-      try {
-        window.ptfSyncFlushKeysNow(['ptf_crm_shareholders'], function (ok) {
-          if (!ok) {
-            if (typeof ptfToast === 'function') ptfToast('تغییر سهامدار هنوز به سرور نرسیده است؛ حقوق از snapshot محلی ساخته نشد.', 'warn');
-            resolve({ state: 'rejected', error: new Error('shareholder_snapshot_not_committed') });
-            return;
-          }
-          send(resolve);
-        });
-      } catch (error) { resolve({ state: 'rejected', error: error }); }
-    }).then(function (state) {
+    return shareDomainCommand('reconcile_shareholder_salaries', {
+      month: month,
+      explicitEligibility: options.explicitEligibility === true,
+      scopeShareholder: options.scopeShareholder || '',
+      restoreKeys: restoreKeys,
+      reason: options.reason || 'تطبیق صریح حقوق سهامداران از رابط کاربری',
+      idempotencyKey: 'SH-SALARY|' + month + '|' + String(options.scopeShareholder || 'all') + '|' + Date.now()
+    }, ['ptf_crm_sharetx', 'ptf_crm_opex']).then(function (state) {
       if (state && state.state === 'acked') {
         try { if (typeof ptfShareRender === 'function') ptfShareRender(); } catch (eShare) {}
         try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOpex) {}
@@ -88,6 +65,95 @@
       return state;
     });
   }
+  /* v34.8.6/F2 — all new shareholder financial writes go through the domain command.
+     The local array is never used as a write fallback; the command owns idempotency,
+     locking and the authoritative projection. */
+  function shareDomainCommand(action, payload, holdKeys) {
+    holdKeys = Array.isArray(holdKeys) ? holdKeys.slice() : [];
+    return new Promise(function (resolve) {
+      function rejectState(message) { resolve({ state: 'rejected', error: new Error(message) }); }
+      if (typeof window.ptfSalesDomainCommand !== 'function') { rejectState('shareholder_server_command_unavailable'); return; }
+      if (typeof window.ptfSyncFlushKeysNow !== 'function') { rejectState('shareholder_sync_barrier_unavailable'); return; }
+      window.ptfSyncFlushKeysNow(['ptf_crm_shareholders'], function (ok) {
+        if (!ok) { rejectState('shareholder_snapshot_not_committed'); return; }
+        try { if (typeof window.ptfSyncHoldCommandKeys === 'function') window.ptfSyncHoldCommandKeys(holdKeys); } catch (eHold) {}
+        var command;
+        try { command = window.ptfSalesDomainCommand(action, payload, { apiOptions: { autoReplay: true } }); }
+        catch (error) {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease) {}
+          rejectState(error && error.message || 'shareholder_command_exception');
+          return;
+        }
+        if (!command || typeof command.then !== 'function') {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease2) {}
+          rejectState('shareholder_command_promise_required');
+          return;
+        }
+        command.then(function (state) {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease3) {}
+          resolve(state || { state: 'rejected', error: new Error('empty_shareholder_command_result') });
+        }, function (error) {
+          try { if (typeof window.ptfSyncReleaseCommandKeys === 'function') window.ptfSyncReleaseCommandKeys(holdKeys); } catch (eRelease4) {}
+          resolve({ state: 'rejected', error: error });
+        });
+      });
+    });
+  }
+  function shareCommandErrorText(state) {
+    return String((state && state.error && (state.error.message || state.error.error)) || 'نتیجه نامشخص');
+  }
+  function shareCommandRender() {
+    try { if (typeof ptfShareRender === 'function') ptfShareRender(); } catch (eShareRender) {}
+    try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOpexRender) {}
+  }
+  function shareDrawOnServer(sh, amount, desc, files, month, salaryMonth, operationId) {
+    var payload = {
+      shareholderCd: sh.cd,
+      amountIRR: Math.round(+amount || 0),
+      desc: String(desc || '').trim(),
+      month: month,
+      files: Array.isArray(files) ? files.slice() : [],
+      idempotencyKey: 'SH-DRAW|' + String(operationId || genCode('OP')).replace(/[^A-Za-z0-9_.|:-]/g, '_')
+    };
+    if (salaryMonth) payload.salaryMonth = salaryMonth;
+    return shareDomainCommand('register_shareholder_draw', payload, ['ptf_crm_sharetx']).then(function (state) {
+      if (state && state.state === 'acked') {
+        var result = state.response && state.response.result || {};
+        try { audit('سهامداران', (salaryMonth ? 'پرداخت حقوق با draw ' : 'ثبت برداشت/علی‌الحساب ') + money(amount) + ' برای ' + sh.name, result.transactionCd || ''); } catch (eAudit) {}
+        if (typeof ptfToast === 'function') ptfToast(salaryMonth ? 'پرداخت واقعی حقوق با draw روی سرور تأیید شد' : 'برداشت روی سرور تأیید شد', 'ok');
+        shareCommandRender();
+      } else if (state && state.state === 'uncertain') {
+        if (typeof ptfToast === 'function') ptfToast('⚠️ نتیجه ثبت برداشت نامشخص است؛ دوباره از مسیر دیگری ثبت نکنید.', 'warn');
+      } else if (state && state.state === 'rejected' && typeof ptfToast === 'function') {
+        ptfToast('⛔ ثبت برداشت انجام نشد: ' + shareCommandErrorText(state), 'warn');
+      }
+      return state;
+    });
+  }
+  function registerSalaryOnServer(sh, month, operationId) {
+    var payload = {
+      shareholderCd: sh.cd,
+      month: month,
+      idempotencyKey: 'SH-SALARY-REG|' + String(sh.cd) + '|' + String(month) + '|' + String(operationId || Date.now()).replace(/[^A-Za-z0-9_.|:-]/g, '_')
+    };
+    return shareDomainCommand('register_shareholder_salary', payload, ['ptf_crm_sharetx', 'ptf_crm_opex']).then(function (state) {
+      if (state && state.state === 'acked') {
+        var result = state.response && state.response.result || {};
+        if (typeof ptfToast === 'function') {
+          ptfToast(result.alreadyRegistered
+            ? 'حقوق ' + sh.name + ' برای ماه ' + month + ' قبلاً ثبت شده است'
+            : 'حقوق ' + sh.name + ' برای ماه ' + month + ' ثبت شد؛ فقط هزینه و مطالبه ایجاد شد', result.alreadyRegistered ? 'info' : 'ok');
+        }
+        shareCommandRender();
+      } else if (state && state.state === 'uncertain') {
+        if (typeof ptfToast === 'function') ptfToast('⚠️ نتیجه ثبت حقوق نامشخص است؛ ثبت را دوباره با کلید جدید تکرار نکنید.', 'warn');
+      } else if (state && state.state === 'rejected' && typeof ptfToast === 'function') {
+        ptfToast('⛔ ثبت حقوق انجام نشد: ' + shareCommandErrorText(state), 'warn');
+      }
+      return state;
+    });
+  }
+
   window.ptfShareEnsureSalary = function (sh, month) {
     if (!sh || !sh.cd) return Promise.resolve({ state: 'rejected', error: new Error('shareholder_required') });
     return reconcileSalaryOnServer(month, {
@@ -221,7 +287,7 @@
         '</small><br><b style="color:' + cls + '">مانده: ' + money(Math.abs(b.net)) + ' — ' + st + '</b></div>' +
         '<div class="shareholder-actions" role="group" aria-label="عملیات سهامدار ' + escP(s.name) + '">' +
         shareAction('edit', '✏️', 'ویرایش', 'ویرایش مشخصات سهامدار', 'ptfShareEdit(\'' + s.cd + '\')', false) +
-        (s.duty && (+s.salary || 0) > 0 ? shareAction('salary', '💳', 'پرداخت حقوق', 'ثبت پرداخت حقوق سهامدار', 'ptfSharePaySalary(\'' + s.cd + '\')', true) : '') +
+        (s.duty && (+s.salary || 0) > 0 ? shareAction('salary', '📅', 'ثبت حقوق', 'ثبت حقوق ماهانه به‌عنوان هزینه و مطالبه', 'ptfShareRegisterSalary(\'' + s.cd + '\')', true) : '') +
         shareAction('draw', '💸', 'علی‌الحساب', 'ثبت برداشت یا علی‌الحساب سهامدار', 'ptfShareDraw(\'' + s.cd + '\')', true) +
         shareAction('ledger', '📖', 'گردش', 'مشاهده گردش حساب سهامدار', 'ptfShareLedger(\'' + s.cd + '\')', false) +
         '</div></div></div>';
@@ -230,7 +296,6 @@
     el.innerHTML = '<div class="shareholder-box">' +
       '<div class="shareholder-box-head"><div><b>👥 سهامداران، حقوق موظف و علی‌الحساب</b><br><small>' + warn + '</small></div><div class="shareholder-head-tools"><div class="shareholder-month" style="min-width:190px">' + (window.DateKit && DateKit.monthPicker ? DateKit.monthPicker('shareholderMonth', month) : '<input id="shareholderMonth" value="' + escP(month) + '">') + '</div><div class="shareholder-head-actions" role="group" aria-label="عملیات سهامداران">' +
       shareAction('add', '➕', 'سهامدار', 'ثبت سهامدار جدید', 'ptfShareEdit()', true) +
-      shareAction('apply-salary', '📅', 'ثبت حقوق ماه', 'ثبت حقوق ماه سهامداران', 'ptfShareApplySalary((document.getElementById(\'shareholderMonth\')||{}).value)', true) +
       '</div></div></div>' +
       '<div class="shareholder-list">' + (rows || '<div style="text-align:center;color:#94a3b8;padding:18px">سهامداری ثبت نشده</div>') + '</div></div>';
   };
@@ -277,26 +342,40 @@
     });
   };
 
+  window.ptfShareRegisterSalary = function (cd) {
+    if (!canShare()) { alert('⛔ فقط مدیران ارشد'); return; }
+    var s = shAll().filter(function (x) { return x && x.cd === cd; })[0];
+    if (!s) { alert('سهامدار یافت نشد'); return; }
+    if (s.active === false || !s.duty || !(+s.salary || 0)) { alert('این سهامدار موظف نیست یا حقوقی برایش تعریف نشده است.'); return; }
+    var defaultMonth = normMonth(window._shareMonth || faMonthNow()) || faMonthNow();
+    ptfDialog({
+      title: '📅 ثبت حقوق ماهانه — ' + s.name,
+      body: 'مبلغ از پروفایل سهامدار خوانده می‌شود: <b>' + money(s.salary) + '</b> ریال.<br><small>این ثبت فقط هزینه جاری و مطالبه سهامدار ایجاد می‌کند و خروج خزانه ندارد. پرداخت واقعی بعداً با «draw» ثبت می‌شود.</small>',
+      fields: [
+        { id: 'month', label: 'ماه حقوق (YYYY/MM) *', type: 'text', value: defaultMonth, required: true, dir: 'ltr', placeholder: '1405/06' }
+      ],
+      okText: 'ثبت حقوق',
+      onOk: function (v) {
+        var month = normMonth(v.month);
+        if (!/^(13|14)\d{2}\/(0[1-9]|1[0-2])$/.test(month)) { alert('ماه نامعتبر است؛ نمونه: 1405/06'); return; }
+        if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ ثبت حقوق در آن سال مجاز نیست.'); return; }
+        var fresh = shAll().filter(function (x) { return x && x.cd === cd; })[0] || s;
+        if (fresh.active === false || !fresh.duty || !(+fresh.salary || 0)) { alert('وضعیت یا حقوق سهامدار تغییر کرده است؛ دوباره بررسی کنید.'); return; }
+        registerSalaryOnServer(fresh, month, 'DIALOG-' + Date.now().toString(36));
+      }
+    });
+  };
+
+  /* Compatibility name: the former global action was a restore/reconcile action.
+     It is intentionally no longer destructive or bulk; registration is per card. */
   window.ptfShareApplySalary = function (month) {
     if (!canShare()) return;
-    month = normMonth(month) || faMonthNow();
-    if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ ثبت حقوق در آن سال مجاز نیست.'); return; }
-    if (!confirm('حقوق ماه ' + month + ' از snapshot قطعی سرور تطبیق شود؟\nاین اقدام فقط با intent صریح شما می‌تواند tombstone همان حقوق‌های واجد شرایط را بازسازی کند.')) return;
-    reconcileSalaryOnServer(month, {
-      explicitEligibility: true,
-      restore: true,
-      reason: 'ثبت/بازسازی صریح حقوق سهامداران برای ماه ' + month
-    }).then(function (state) {
-      if (state && state.state === 'acked') {
-        try { audit('سهامداران', 'تطبیق سروری حقوق موظف ماه ' + month, month); } catch (eAudit) {}
-        if (typeof ptfToast === 'function') ptfToast('حقوق ماه ' + month + ' روی سرور ثبت/تطبیق شد', 'ok');
-      } else if (state && state.state === 'rejected') alert('تطبیق حقوق روی سرور انجام نشد: ' + String((state.error && state.error.message) || 'خطای نامشخص'));
-    });
+    alert('ثبت حقوق از دکمهٔ «ثبت حقوق» کنار هر سهامدار انجام می‌شود؛ عملیات گروهی/بازسازی خودکار اجرا نشد.');
   };
 
   window.ptfShareDraw = function (cd) {
     if (!canShare()) return;
-    var s = shAll().filter(function (x) { return x.cd === cd; })[0]; if (!s) return;
+    var s = shAll().filter(function (x) { return x && x.cd === cd; })[0]; if (!s) return;
     var draftCd = genCode('SHT');
     ptfDialog({ title: 'برداشت / علی‌الحساب — ' + s.name, fields: [
       { id: 'amt', label: 'مبلغ برداشت', type: 'number', required: true, dir: 'ltr' },
@@ -306,41 +385,32 @@
       var month = normMonth(window._shareMonth || faMonthNow()) || faMonthNow();
       if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ ثبت برداشت در آن سال مجاز نیست.'); return; }
       var amt = n(v.amt); if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
-      var tx = addTx('draw', s, amt, v.desc, { cd: draftCd, files: (v.files || []).slice() });
-      audit('سهامداران', 'ثبت برداشت/علی‌الحساب ' + money(amt) + ' برای ' + s.name + ((tx.files || []).length ? ' — ' + tx.files.length + ' سند' : ''), tx.cd);
-      if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('برداشت روی این دستگاه ثبت شد');
-      ptfShareRender();
+      shareDrawOnServer(s, amt, v.desc, v.files || [], month, '', draftCd);
     } });
   };
 
-  /* ===== v34.0.8-alpha (فاز ۲ — حقوق به‌عنوان «مطالبه» نه «علی‌الحساب سود») =====
-     پرداخت حقوق سهامدار موظف با نوع جداگانهٔ salary_payment ثبت می‌شود تا در توزیع سود
-     به‌عنوان «برداشت/علی‌الحساب» شمرده نشود و ستون «ماندهٔ قابل تسویهٔ امسال» برای سهامدار
-     موظف گمراه‌کننده نباشد. حقوق = مطالبهٔ سهامدار از شرکت (فارغ از درصد سهم) است. */
+  /* v34.8.6/F2 — پرداخت واقعی حقوق نیز draw است؛ salary_payment فقط برای legacy
+     در گزارش‌های قدیمی باقی می‌ماند و از این مسیر رکورد تازه‌ای تولید نمی‌شود. */
   window.ptfSharePaySalary = function (cd) {
     if (!canShare()) { alert('⛔ فقط مدیران ارشد'); return; }
-    var s = shAll().filter(function (x) { return x.cd === cd; })[0];
+    var s = shAll().filter(function (x) { return x && x.cd === cd; })[0];
     if (!s) { alert('سهامدار یافت نشد'); return; }
     if (!s.duty || !(+s.salary || 0)) { alert('این سهامدار موظف نیست یا حقوقی برایش تعریف نشده.'); return; }
     var month = normMonth(window._shareMonth || faMonthNow()) || faMonthNow();
     if (shareYearLocked(month)) { alert('🔒 سال مالی ' + String(month).split('/')[0] + ' قفل است؛ پرداخت حقوق در آن سال مجاز نیست.'); return; }
     var draftCd = genCode('SHT');
     ptfDialog({
-      title: '💳 پرداخت حقوق — ' + s.name,
-      body: 'حقوق ماهانهٔ موظف این سهامدار: <b>' + money(s.salary) + '</b> ریال.<br><small>این مبلغ به‌عنوان «پرداخت مطالبهٔ حقوق» ثبت می‌شود (نه علی‌الحساب سود) و در گردش حساب سهامدار اثر می‌گذارد. فیش یا تصویر چک را همین‌جا پیوست کنید.</small>',
+      title: '💳 پرداخت حقوق با draw — ' + s.name,
+      body: 'حقوق ماهانهٔ موظف این سهامدار: <b>' + money(s.salary) + '</b> ریال.<br><small>پرداخت واقعی با نوع «draw» ثبت می‌شود و خروج خزانه دارد؛ ثبت salary قبلی همچنان مطالبهٔ حقوق است.</small>',
       fields: [
         { id: 'amt', label: 'مبلغ پرداختی (ریال) *', type: 'number', value: String(+s.salary || 0), required: true, dir: 'ltr' },
         { id: 'desc', label: 'شرح/شماره سند', value: 'پرداخت حقوق موظف ' + month, required: true },
         { id: 'files', label: 'پیوست سند پرداخت (فیش واریز، تصویر چک، رسید)', type: 'upload', uploadFolder: 'sharetx/' + draftCd }
       ],
-      okText: 'ثبت پرداخت حقوق',
+      okText: 'ثبت پرداخت واقعی',
       onOk: function (v) {
         var amt = n(v.amt); if (amt <= 0) { alert('مبلغ نامعتبر است'); return; }
-        var tx = addTx('salary_payment', s, amt, String(v.desc || '').trim(), { cd: draftCd, month: month, salaryMonth: month, files: (v.files || []).slice() });
-        audit('سهامداران', 'پرداخت حقوق ' + money(amt) + ' برای ' + s.name + ' (مطالبهٔ حقوق — نه علی‌الحساب سود)' + ((tx.files || []).length ? ' — ' + tx.files.length + ' سند' : ''), tx.cd);
-        if (typeof ptfConfirmCloudSave === 'function') ptfConfirmCloudSave('پرداخت حقوق روی این دستگاه ثبت شد');
-        else if (typeof ptfToast === 'function') ptfToast('حقوق ' + s.name + ' پرداخت و به‌عنوان تسویهٔ مطالبه ثبت شد', 'ok');
-        ptfShareRender();
+        shareDrawOnServer(s, amt, String(v.desc || '').trim(), v.files || [], month, month, draftCd);
       }
     });
   };
@@ -351,7 +421,8 @@
     var rows = txAll().filter(function (x) { return x.shCd === cd; }).map(function (x) {
       var active = shareTxActive(x);
       var sign = !active ? '' : ((x.type === 'draw' || x.type === 'advance' || x.type === 'debit' || x.type === 'salary_payment' || x.type === 'call_due' || x.type === 'call_credit_use') ? '-' : '+');
-      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)', call_credit_use: 'تهاتر طلب با فراخوان', chair_in: 'تزریق شخصی رییس به صندوق', chair_out: 'تسویه طلب رییس از صندوق' }[x.type] || x.type;
+      var typeLb = { salary: 'حقوق (مطالبه)', salary_payment: 'پرداخت حقوق legacy', draw: 'برداشت/علی‌الحساب', advance: 'علی‌الحساب', debit: 'بدهی', credit: 'بستانکاری', profit: 'تقسیم سود', call_due: 'سهم فراخوان نقدینگی', call_pay: 'تأمین سهم فراخوان', call_over: 'مازاد تأمین (طلب از صندوق)', call_credit_use: 'تهاتر طلب با فراخوان', chair_in: 'تزریق شخصی رییس به صندوق', chair_out: 'تسویه طلب رییس از صندوق' }[x.type] || x.type;
+      if (x.type === 'draw' && x.paymentFor === 'salary') typeLb = 'پرداخت حقوق (draw)';
       if (!active) typeLb += ' (باطل‌شده)';
       var nFiles = (x.files || []).length;
       var docs = '<button type="button" class="bt bt-o" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();ptfShareTxAttachOpen(\'' + ptfOnClickArg(x.cd) + '\')">📎 ' + (nFiles ? (nFiles + ' سند') : 'افزودن سند') + '</button>';
