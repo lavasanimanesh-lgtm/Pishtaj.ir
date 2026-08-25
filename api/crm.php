@@ -2009,6 +2009,23 @@ switch($action) {
         break;
 
 
+    case 'auth_logout':
+        /* v34.8.6 (AUTH-LOGOUT-REVOKE): خروج، توکنِ همین نشست را روی سرور باطل می‌کند
+           (توکن سایر دستگاه‌های همان کاربر دست‌نخورده می‌ماند). همیشه ok برمی‌گرداند تا
+           خروج آفلاین هم گیر نکند. */
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['ok' => false, 'error' => 'method_not_allowed']);
+            break;
+        }
+        $logoutToken = auth_get_header_token();
+        if ($logoutToken !== '') {
+            $info = auth_verify_token($logoutToken);
+            if ($info) auth_revoke_token($logoutToken);
+        }
+        echo json_encode(['ok' => true, 'revoked' => $logoutToken !== '']);
+        break;
+
     case 'auth_login':
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
             http_response_code(405);

@@ -21,8 +21,10 @@ assert.ok(/silentUncertain: true/.test(opex), 'background recurring reconcile su
 assert.ok(/recurringServerBlockedKey/.test(opex), 'uncertain recurring command is blocked from retry storm');
 assert.ok(/quality-repair/.test(quality) && /ptfFinanceRepairPlanOpen/.test(quality), 'quality dashboard exposes repair manifest button');
 assert.ok(/quality-status/.test(quality) && /ptfFinanceCommandStatusOpen/.test(quality), 'quality dashboard exposes command status button');
-assert.ok(/f06=20260825/.test(index) && /f08=20260825/.test(index), 'phase six/eight cache-busts are present in index');
-assert.ok(/PHASE06_QUERY/.test(sw) && /PHASE08_QUERY/.test(sw) && /data-quality\.js' \+ PHASE06_QUERY/.test(sw) && /sales-domain-v2\.js' \+ PHASE08_QUERY/.test(sw), 'phase six/eight assets are precached');
+/* v34.8.6: phase-queryهای موقتی با بامپ واقعی نسخه حذف شدند؛ دارایی‌های فاز ۶/۸
+   مثل بقیه زیر ?v=34.8.6 لود و precache می‌شوند (قوی‌تر از دورزدن کش). */
+assert.ok(/data-quality\.js' \+ ASSET_QUERY/.test(sw) && /sales-domain-v2\.js' \+ ASSET_QUERY/.test(sw), 'phase six/eight assets are precached');
+assert.ok(/data-quality\.js\?v=34\.8\.6/.test(index) && /sales-domain-v2\.js\?v=34\.8\.6/.test(index), 'phase six/eight assets carry the real release version');
 console.log('  ✔ repair manifest and command status are available from the UI');
 console.log('  ✔ uncertain background reconcile no longer emits a retry/alert storm');
 console.log('PASS tester511 v34.8.10 phase06 repair UI and retry quiet');

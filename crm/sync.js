@@ -410,11 +410,13 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (d && d.ok) { if (cb) cb({ status: 'online', error: '' }); return; }
-        if (d && (d.needLogin || /token|unauthorized|401/i.test(String(d.error || '')))) {
-          if (cb) cb({ status: 'needLogin', error: (d && d.error) || 'نشست منقضی' });
+        /* v34.8.6: فقط نشانه‌های قطعی auth نشست را needLogin می‌کند (نه هر خطای حاوی «token») */
+        var _e = String((d && d.error) || '');
+        if (d && (d.needLogin === true || _e === 'authentication_required' || _e === 'Authentication required' || /^invalid or expired token/i.test(_e))) {
+          if (cb) cb({ status: 'needLogin', error: _e || 'نشست منقضی' });
           return;
         }
-        if (cb) cb({ status: 'error', error: (d && d.error) || 'خطای سرور' });
+        if (cb) cb({ status: 'error', error: _e || 'خطای سرور' });
       })
       .catch(function () { if (cb) cb({ status: 'offline', error: 'عدم دسترسی به سرور' }); });
   };
@@ -818,12 +820,20 @@
   function refreshAuthToken(cb) {
     /* v33.0.1 SEC-AUTH-REAUTH: no silent passhash login. The raw password is not
        available here and the server intentionally accepts only real login/refresh.
-       Stop 401 loops and force an explicit server-side login. */
-    try { localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
+       Stop 401 loops and force an explicit server-side login.
+       v34.8.6 (AUTH-TOKEN-RACE): token+role+session are cleared together, in one
+       synchronous block, in this single place — retryPullAfterAuth no longer deletes
+       the token by itself, so the inconsistent «session بدون token» zombie state
+       (source of the misleading «توکن معتبر وجود ندارد» screen) cannot appear. */
+    try {
+      localStorage.removeItem('ptf_crm_token');
+      localStorage.removeItem('ptf_crm_token_role');
+      localStorage.removeItem('ptf_crm_session');
+    } catch (eClear) {}
     setSyncBadge('warn');
     try { if (typeof ptfToast === 'function') ptfToast('نشست سرور منقضی شده است؛ لطفاً دوباره وارد شوید.', 'warn'); } catch (eT) {}
     setTimeout(function () {
-      try { localStorage.removeItem('ptf_crm_session'); location.href = 'index.html?reauth=' + Date.now(); } catch (eR) {}
+      try { location.href = 'index.html?reauth=' + Date.now(); } catch (eR) {}
     }, 800);
     if (cb) cb(false);
   }
@@ -832,7 +842,6 @@
     state.authWait = (state.authWait || 0) + 1;
     setSyncBadge('warn');
     if (state.authWait > 3) { if (done) done({ ok: false, reason: 'auth' }); return; }
-    try { localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
     refreshAuthToken(function (ok) {
       /* گزینهٔ instant باید در retry حفظ شود؛ نسخهٔ قبلی بعد از refresh توکن دوباره
          وارد throttle تب پس‌زمینه می‌شد و «pull فوری» تا سه دقیقه عقب می‌افتاد. */
@@ -1183,7 +1192,11 @@
       .then(function (d) {
         state.online = true;
         if (!d.ok) {
-          if (d.needLogin || /token|unauthorized|401/i.test(String(d.error || ''))) {
+          /* v34.8.6 (AUTH-TOKEN-RACE): فقط نشانه‌های قطعی auth پول را به مسیر needLogin
+             می‌برد؛ خطاهای دیگر (حتی حاوی کلمهٔ token مثل token_issue_failed) نشست را
+             نمی‌پاکند. */
+          var _pe = String(d.error || '');
+          if (d.needLogin === true || _pe === 'authentication_required' || _pe === 'Authentication required' || /^invalid or expired token/i.test(_pe)) {
             noteSyncError('pull', 'needLogin', 'نشست منقضی', d);
             state.pullRequesting = false;
             retryPullAfterAuth(done, forceFull, opts);
