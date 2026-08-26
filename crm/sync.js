@@ -143,10 +143,18 @@
   window.ptfSyncResolveProtectedConflictFromServer = function (k, serverStr, submittedStr) {
     try {
       if (typeof serverStr !== 'string' || SYNC_KEYS.indexOf(k) < 0) return false;
-      var merged = (typeof window.ptfMergeProtectedFinanceConflict === 'function')
-        ? window.ptfMergeProtectedFinanceConflict(k, rd(k), typeof submittedStr === 'string' ? submittedStr : rd(k), serverStr)
-        : serverStr;
-      if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
+      /* v34.8.11 (VERBATIM-CONVERGENCE): اگر لوکال از لحظهٔ ارسال تغییر نکرده،
+         canonical سرور عیناً پذیرفته می‌شود (بدون merge مجدد و بدون پاس tombstone —
+         سرور خودش tombstones را قبل از merge اعمال کرده). این تضمین می‌کند push
+         بعدی امضای یکسان بدهد و ACK شود؛ پاس‌های قبلی (merge سه‌طرفه/tombstone)
+         می‌توانستند تفاوت جزئی بازتولید کنند و حلقهٔ بی‌نهایت بسازند. */
+      var current = rd(k);
+      var merged;
+      if (typeof submittedStr === 'string' && sameSyncJson(current, submittedStr)) {
+        merged = serverStr;
+      } else if (typeof window.ptfMergeProtectedFinanceConflict === 'function') {
+        merged = window.ptfMergeProtectedFinanceConflict(k, current, typeof submittedStr === 'string' ? submittedStr : current, serverStr);
+      } else merged = serverStr;
       state.pulling = true; wr(k, merged); state.pulling = false;
       state.dirty[k] = true; saveDirty();
       try { setSyncBadge('warn'); } catch (eBadge2) {}
