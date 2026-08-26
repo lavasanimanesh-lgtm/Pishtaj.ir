@@ -176,6 +176,7 @@ var SUITE = [
   { g: 'حافظه/استقلال از localStorage', f: '_tools/uat/tester514-v34.8.9-storage-independence.js' },
   { g: 'مالی/نجات تعارض محافظت‌شده فاز B', f: '_tools/uat/tester515-v34.8.10-protected-conflict-rescue.js' },
   { g: 'فاز C1/تله‌متری نازک‌سازی', f: '_tools/uat/tester516-v34.8.12-phase-c1-telemetry.js' },
+  { g: 'فاز C2/فرمان عمومی موجودیت', f: '_tools/uat/tester517-v34.8.13-phase-c2-entity-commands.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

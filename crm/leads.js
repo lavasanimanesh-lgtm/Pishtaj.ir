@@ -715,8 +715,13 @@ function saveRem() {
 
 function remDone(cd) {
   var rems = getData('ptf_crm_reminders');
-  rems.forEach(function(r){ if (r.cd === cd) { r.st = 'done'; r.doneFa = faDate(); r.doneBy = currentUserName(); } });
-  setData('ptf_crm_reminders', rems);
+  var row = null;
+  rems.forEach(function(r){ if (r.cd === cd) { r.st = 'done'; r.doneFa = faDate(); r.doneBy = currentUserName(); row = r; } });
+  /* v34.8.13 (PHASE-C2 پایلوت): یادآور با فرمان اتمیک سروری ثبت می‌شود؛
+     مسیر legacy فقط وقتی فرمان در دسترس/فعال نیست. */
+  if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('ثبت «انجام شد» روی سرور قطعی نشد؛ وضعیت را بازبینی کنید', 'warn'); renderReminders(); } });
+  } else setData('ptf_crm_reminders', rems);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور انجام شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }
@@ -726,7 +731,8 @@ function remSnooze(cd) {
   var n = parseInt(d, 10);
   if (!n || n < 1) return;
   var rems = getData('ptf_crm_reminders');
-  rems.forEach(function(r) {
+  var row = null;
+  rems.forEach(function(r){
     if (r.cd === cd) {
       var nd = new Date(r.dueISO < todayISO() ? todayISO() : r.dueISO);
       nd.setDate(nd.getDate() + n);
@@ -734,15 +740,25 @@ function remSnooze(cd) {
       r.dueFa = gDateToFa(r.dueISO);
       r.msgSent = false;
       r.notifiedUsers = {};
+      row = r;
     }
   });
-  setData('ptf_crm_reminders', rems);
+  /* v34.8.13 (PHASE-C2 پایلوت): تعویق با فرمان سروری. */
+  if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('تعویق روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); renderReminders(); } });
+  } else setData('ptf_crm_reminders', rems);
   renderReminders();
 }
 
 function remDel(cd) {
   if (!confirm('یادآور حذف شود؟')) return;
-  setData('ptf_crm_reminders', getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; }));
+  /* v34.8.13 (PHASE-C2 پایلوت): حذف با فرمان سروری + tombstone (عدم زنده‌شدن روی دستگاه‌های stale). */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityDelete === 'function') {
+    window.ptfEntityDelete('ptf_crm_reminders', cd, { reason: 'حذف یادآور از UI', cb: function (st) {
+      if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('حذف روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn');
+      renderReminders();
+    } });
+  } else setData('ptf_crm_reminders', getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; }));
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور حذف شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }

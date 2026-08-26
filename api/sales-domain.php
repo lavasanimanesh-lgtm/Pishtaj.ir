@@ -62,14 +62,50 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.12';
+const SD_SERVICE_VERSION = '34.8.13';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
     'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments',
     'ptf_crm_corrections', 'ptf_crm_fin_findings', 'ptf_crm_deleted_archive',
-    'ptf_crm_fiscal_snapshots', 'ptf_crm_sales_commands'
+    'ptf_crm_fiscal_snapshots', 'ptf_crm_sales_commands',
+    'ptf_crm_reminders'
 ];
+
+/* v34.8.13 (PHASE-C2 — زیرساخت فرمان عمومی): تعمیم الگوی موفق مالی به کل CRM.
+   هر موجودیت در رجیستری: نقش‌های مجاز + فیلد هویت. فرمان‌ها از journal/idempotency/
+   WAL موجود عبور می‌کنند؛ پاسخ، projection همان مجموعه را برمی‌گرداند. کلاینت با
+   ptfBApplyServerProjection اعمال می‌کند (بدون dirty/push) = مسیر نازک واقعی.
+   فعال‌سازی تدریجی per-collection؛ غیرفعال = مسیر legacy بدون تغییر. */
+function sd_entity_registry(): array {
+    return [
+        'ptf_crm_reminders' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd',
+        ],
+    ];
+}
+function sd_entity_sanitize_row(array $row): array {
+    $out = []; $n = 0;
+    foreach ($row as $k => $v) {
+        if (!is_string($k) || $k === '' || strlen($k) > 40) continue;
+        if ($n >= 40) break;
+        if (is_bool($v)) { $out[$k] = $v; $n++; continue; }
+        if (is_int($v) || is_float($v)) { $out[$k] = $v; $n++; continue; }
+        if (is_string($v)) { $out[$k] = sd_text($v, 2000); $n++; continue; }
+        if (is_array($v)) {
+            $sub = [];
+            foreach ($v as $k2 => $v2) {
+                if (is_string($k2) && strlen($k2) <= 60 && (is_scalar($v2) || $v2 === null)) {
+                    $sub[$k2] = is_string($v2) ? sd_text($v2, 300) : (is_bool($v2) ? $v2 : ($v2 === null ? null : (int)$v2));
+                }
+                if (count($sub) >= 60) break;
+            }
+            $out[$k] = $sub; $n++; continue;
+        }
+    }
+    return $out;
+}
 
 function sd_require_role(array $roles): void {
     global $role;
@@ -2192,6 +2228,54 @@ try {
         else{$id=sd_text($body['attachmentId']??'',100);$ai=-1;foreach($attachments as $i=>$a)if(is_array($a)&&(string)($a['_id']??'')===$id){$ai=$i;break;}if($ai<0)sd_out(['ok'=>false,'error'=>'attachment_not_found'],404);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);if($action==='attachment_delete'){$attachments[$ai]['status']='deleted';$attachments[$ai]['deletedAt']=sd_now();$attachments[$ai]['deletedBy']=$user;$attachments[$ai]['deleteReason']=$reason;$result=['deleted'=>$id];}else{$file=is_array($body['file']??null)?$body['file']:[];if(!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_file'],422);$oldA=$attachments[$ai];$attachments[$ai]['status']='replaced';$newA=['_id'=>sd_uuid('ATT'),'ownerType'=>$oldA['ownerType'],'ownerId'=>$oldA['ownerId'],'category'=>$oldA['category'],'version'=>(int)($oldA['version']??1)+1,'objectKey'=>$file['key'],'name'=>$file['name']??'','mimeType'=>$file['contentType']??'','size'=>$file['size']??0,'status'=>'active','replacesAttachmentId'=>$id,'uploadedBy'=>$user,'uploadedAt'=>sd_now()];$attachments[]=$newA;$result=['attachmentId'=>$newA['_id'],'replaced'=>$id];}}
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$result['attachmentId']??$result['deleted']??'','kind'=>$action,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'ownerType'=>$ownerType,'ownerId'=>$ownerId];
         $changes=['ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];
+    }
+    elseif ($action === 'entity_upsert' || $action === 'entity_delete') {
+        /* v34.8.13 (PHASE-C2): فرمان عمومی موجودیت — سرور مالک رکورد است. */
+        $collection = sd_text($body['collection'] ?? '', 60);
+        $registry = sd_entity_registry();
+        if (!isset($registry[$collection])) sd_out(['ok'=>false,'error'=>'entity_collection_not_enabled'],404);
+        $cfg = $registry[$collection];
+        sd_require_role($cfg['roles']);
+        $idField = (string)$cfg['id'];
+        $rows = sd_read($collection);
+        if ($action === 'entity_upsert') {
+            $rec = is_array($body['record'] ?? null) ? $body['record'] : [];
+            $id = sd_text($rec[$idField] ?? '', 60);
+            if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
+            $row = sd_entity_sanitize_row($rec);
+            $row[$idField] = $id;
+            $found = -1;
+            foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }
+            $now = sd_now();
+            if ($found < 0) {
+                $row['createdAt'] = $now; $row['createdBy'] = $user;
+                $rows[] = $row; $created = true; $stored = $row;
+            } else {
+                $row['createdAt'] = (string)($rows[$found]['createdAt'] ?? $now);
+                $row['createdBy'] = (string)($rows[$found]['createdBy'] ?? $user);
+                $rows[$found] = $row; $created = false; $stored = $row;
+            }
+            $changes = [$collection => $rows];
+            $result = ['collection' => $collection, 'id' => $id, 'created' => $created, 'row' => $stored, 'mode' => 'entity-command'];
+        } else {
+            $id = sd_text($body['id'] ?? ($body['record'] ?? [])[$idField] ?? '', 60);
+            if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
+            $reason = sd_text($body['reason'] ?? 'entity_delete', 300);
+            $found = -1;
+            foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }
+            if ($found < 0) {
+                $result = ['collection' => $collection, 'id' => $id, 'deleted' => false, 'alreadyDeleted' => true, 'mode' => 'entity-command'];
+                $changes = [];
+            } else {
+                array_splice($rows, $found, 1);
+                /* tombstone عمومی با kind=archive_purge و identities — همان مکانیزم
+                   موجود client/server؛ دستگاه‌های stale رکورد را زنده نمی‌کنند. */
+                $archive = sd_read('ptf_crm_deleted_archive');
+                $archive[] = ['_id' => sd_uuid('DEL'), 'kind' => 'archive_purge', 'collection' => $collection, 'id' => $id, 'cd' => $id, 'aliases' => [$id], 'identities' => [$collection => [$id]], 'reason' => $reason, 'deletedBy' => $user, 'deletedAt' => sd_now()];
+                $changes = [$collection => $rows, 'ptf_crm_deleted_archive' => $archive];
+                $result = ['collection' => $collection, 'id' => $id, 'deleted' => true, 'mode' => 'entity-command'];
+            }
+        }
     }
     else sd_out(['ok'=>false,'error'=>'unknown_action'],404);
 
