@@ -61,7 +61,25 @@ jobs:
           done
           rm -f _staging-banner.html
           echo "staging banner injected"
-
+      # گیت PHP قبل از FTP — اگر api/*.php سینتکس خراب داشته باشد، استقرار متوقف می‌شود
+      - name: PHP syntax lint (pre-deploy gate)
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
+          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
+          if ! command -v php >/dev/null 2>&1; then
+            echo "::error::php-cli نصب نشد؛ گیت سینتکس قابل اجرا نیست، استقرار متوقف شد"
+            exit 1
+          fi
+          fail=0
+          while IFS= read -r -d '' f; do
+            if ! php -l "$f" >/dev/null 2>&1; then
+              echo "::error file=$f::php -l شکست خورد"
+              php -l "$f" || true
+              fail=1
+            fi
+          done < <(find api -name '*.php' -print0)
+          if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
+          echo "php -l: همهٔ فایل‌های api/*.php سالم"
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
