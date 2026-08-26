@@ -715,6 +715,8 @@
       if (!Object.keys(payload).length) {
         markFlushed();
         markSynced();
+        /* v34.8.9: مسیر خالی هم (دستگاه بدون دادهٔ محلی) فاز B را فعال می‌کند. */
+        try { window.ptfBEnableAfterConvergence(); } catch (eEnableEmpty) {}
         window.ptfBFlushQueue(function () {});
         return;
       }
@@ -730,7 +732,11 @@
           markFlushed();
           markSynced();
           try { if (d.savedKeys && typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(d.savedKeys, payload); } catch (eAck) {}
-          alert('✅ هم‌گرایی انجام شد.');
+          /* v34.8.9 (STORAGE-INDEPENDENCE): موفقیت همگرایی = پایان وابستگی به
+             localStorage: فاز B خودکار فعال و کلیدهای حجیم به IndexedDB تخلیه
+             می‌شوند. قبلاً پرچم روشن نمی‌شد و بن‌بست «۱۰۰٪ پر» باقی می‌ماند. */
+          try { window.ptfBEnableAfterConvergence(); } catch (eEnable) {}
+          alert('✅ هم‌گرایی انجام شد.\nحالت سرور-محور هم خودکار فعال شد: دادهٔ حجیم به IndexedDB منتقل و localStorage از این پس فقط کش سبک است.');
           location.reload();
           return;
         }
@@ -791,12 +797,24 @@
        ۴) تأیید صریح کاربر با تایپ کلمهٔ «پاک» */
   window.ptfBClearLocalCache = function () {
     if (!getFlag()) {
-      alert('⚠️ حالت سرور-محور (فاز B) فعال نیست.\nبرای امنیت داده، پاک‌سازی کش فقط در حالت سرور-محور ممکن است. ابتدا «فعال‌سازی حالت سرور-محور» را بزنید و هم‌گرایی را کامل کنید.');
+      alert('⚠️ حالت سرور-محور (فاز B) فعال نیست.\nبرای امنیت داده، پاک‌سازی کش فقط در حالت سرور-محور ممکن است. ابتدا از «تنظیمات → 🔄 هم‌گرایی دادهٔ محلی» هم‌گرایی را کامل کنید — از v34.8.9 حالت سرور-محور پس از همگرایی موفق خودکار فعال می‌شود.');
       return;
     }
     if (flushRequired() || !isSynced()) {
-      alert('⚠️ هم‌گرایی دادهٔ محلی با سرور هنوز کامل نشده است.\nابتدا از «تنظیمات → 🔄 هم‌گرایی دادهٔ محلی» هم‌گرایی را انجام دهید و موفقیت آن را ببینید؛ سپس پاک‌سازی کش را اجرا کنید.');
-      return;
+      /* v34.8.9: نشانگر همگرایی per-user بود و با تعویض اکانت، کاربر تازه گیر
+         می‌کرد در حالی که دادهٔ شرکت مشترک و از قبل روی سرور است. اگر همین دستگاه
+         با هر کاربری هم‌گرایی موفق داشته، پاک‌سازی مجاز است. */
+      var deviceSynced = false;
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var kk = localStorage.key(i);
+          if (kk && String(kk).indexOf('ptf_b_synced_') === 0 && localStorage.getItem(kk) === '1') { deviceSynced = true; break; }
+        }
+      } catch (eScan) {}
+      if (!deviceSynced) {
+        alert('⚠️ هم‌گرایی دادهٔ محلی با سرور هنوز کامل نشده است.\nابتدا از «تنظیمات → 🔄 هم‌گرایی دادهٔ محلی» هم‌گرایی را انجام دهید و موفقیت آن را ببینید؛ سپس پاک‌سازی کش را اجرا کنید.');
+        return;
+      }
     }
     var qs = queueRead();
     var qn = Object.keys(qs).length;
@@ -912,6 +930,41 @@
     window.ptfBFinalize();
     if (typeof ptfToast === 'function') ptfToast('حالت سرور-محور فعال شد — localStorage فقط کش می‌شود', 'ok');
   };
+  /* ---------- v34.8.9 (STORAGE-INDEPENDENCE) ----------
+     RCA: روی دستگاه‌های قدیمی، «هم‌گرایی» انجام می‌شد اما پرچم فاز B روشن نمی‌شد؛
+     در نتیجه آینهٔ IDB هیچ‌وقت فعال نمی‌شد، کل دیتاست در localStorage می‌ماند و
+     «پاک‌سازی کش» هم با گاردِ «حالت سرور-محور فعال نیست» رد می‌شد — بن‌بست ۱۰۰٪.
+     از این پس موفقیت همگرایی = فعال‌سازی خودکار فاز B + تخلیهٔ کلیدهای
+     کسب‌وکار از localStorage به IndexedDB (localStorage فقط کش سبک می‌ماند). */
+  window.ptfBOffloadBusinessKeysToIdb = function (opts) {
+    opts = opts || {};
+    if (!getFlag() || !isSynced() || !idbUsable()) return { ok: false, reason: 'phase_b_not_ready' };
+    if (Object.keys(queueRead()).length && !opts.force) return { ok: false, reason: 'queue_not_empty' };
+    var freed = 0, moved = 0;
+    try {
+      bKeys().forEach(function (k) {
+        try {
+          var v = localStorage.getItem(k);
+          if (v === null) return;
+          var bytes = (k.length + v.length) * 2;
+          if (bytes <= 24 * 1024) return; /* کلیدهای سبک محلی می‌مانند — بدون churn */
+          if (window.ptfBMirror(k, v)) { freed += bytes; moved++; } /* mirror خودش localStorage را حذف می‌کند */
+        } catch (eKey) {}
+      });
+    } catch (eAll) {}
+    if (moved) {
+      try { localStorage.setItem('ptf_b_offload_last', JSON.stringify({ at: new Date().toISOString(), moved: moved, freedBytes: freed })); } catch (eM) {}
+      try { if (typeof audit === 'function') audit('سیستم', '📦 تخلیهٔ امن ' + moved + ' کلید به IndexedDB — حدود ' + Math.round(freed / 1024) + ' KB از localStorage آزاد شد (داده روی سرور معتبر است)', 'STORAGE'); } catch (eA) {}
+    }
+    return { ok: true, moved: moved, freedBytes: freed };
+  };
+  window.ptfBEnableAfterConvergence = function () {
+    try { localStorage.setItem(flagKey(), '1'); } catch (e) {}
+    hook();
+    var off = window.ptfBOffloadBusinessKeysToIdb({ force: true });
+    try { if (typeof ptfToast === 'function') ptfToast('حالت سرور-محور فعال شد و دادهٔ حجیم به IndexedDB منتقل شد — وابستگی به localStorage پایان یافت' + (off && off.moved ? ' (' + off.moved + ' کلید)' : ''), 'ok'); } catch (eT) {}
+    return off;
+  };
   window.ptfBDisable = function () {
     /* v33.20.0: کلیدهای سنگینِ منتقل‌شده به حافظه/IDB را به localStorage برگردان تا حالت قدیمی سالم بماند */
     try {
@@ -935,6 +988,9 @@
       try { if (typeof window.ptfStorageRequestPersistentAuto === 'function') window.ptfStorageRequestPersistentAuto(); } catch (ePst) {}
       /* v33.20.0: مهاجرت/پرکردن حافظهٔ کلیدهای سنگین (فقط فاز فعال + هم‌گرایی موفق + IDB) */
       try { window.ptfBIdbPreload(function () {}); } catch (eP) {}
+      /* v34.8.9 (STORAGE-INDEPENDENCE): تخلیهٔ هرچه در localStorage مانده به IDB —
+         حتی کلیدهایی که مسیرهای قدیمی مستقیم نوشته‌اند. یک‌بار در هر بوت کافی است. */
+      try { window.ptfBOffloadBusinessKeysToIdb({ force: true }); } catch (eOff) {}
     }
   }, 300);
   /* ورود کاربر ممکن است بعد از پایان interval بوت رخ دهد؛ پس auto bootstrap را
