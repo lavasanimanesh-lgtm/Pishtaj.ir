@@ -121,6 +121,20 @@
     return true;
   }
   window.ptfSyncApplyServerMeta = applyServerMeta;
+  /* v34.8.7 (SHARED-KEY-CONVERGENCE): مسیر فاز B (مالک انتقال) برای کلیدهای
+     conflicted بن‌بست داشت — مقدار سرور را merge محلی می‌کنیم، dirty می‌ماند و
+     flush بعدی با base تازه ارسال می‌کند. منطق همان US-384 مسیر legacy است. */
+  window.ptfSyncResolveConflictFromServer = function (k, serverStr) {
+    try {
+      if (typeof serverStr !== 'string' || SYNC_KEYS.indexOf(k) < 0) return false;
+      var merged = (typeof window.ptfSmartMerge === 'function') ? window.ptfSmartMerge(k, rd(k), serverStr) : serverStr;
+      if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
+      state.pulling = true; wr(k, merged); state.pulling = false;
+      state.dirty[k] = true; saveDirty();
+      try { setSyncBadge('warn'); } catch (eBadge) {}
+      return true;
+    } catch (eResolve) { return false; }
+  };
 
   /* ===== v15.0 (US-384 — رفع ریشه‌ای Lost Update) =====
      نسخه per-key که این دستگاه از سرور می‌شناسد؛ با هر push به‌عنوان «مبنا» می‌رود.
