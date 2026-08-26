@@ -386,8 +386,32 @@ function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
     $srv = json_decode((string)$serverJson, true);
     if (!is_array($srv)) return $incomingJson;
     if ($key === 'ptf_crm_avatars') {
-        $out = array_merge($srv, $inc);
-        foreach ($out as $mk => $mv) if (!is_string($mv)) unset($out[$mk]);
+        /* v34.8.8: قرارداد v31.7.11 BUG-AVATAR-001 — مقدار هر کاربر یا رشتهٔ legacy است
+           یا {v, ts} نسخه‌دار (v:null = tombstone حذف). برندهٔ هر کلید، ورودی با ts
+           جدیدتر است (نسخه‌دار بر رشتهٔ legacy می‌چربد)؛ tombstone بیش از ۳۰ روز
+           حذف می‌شود — دقیقاً همان ptfSmartMerge کلاینت. نسخهٔ v34.8.7 ورودی‌های
+           غیررشته‌ای را پاک می‌کرد و حلقهٔ dirty بی‌نهایت می‌ساخت. */
+        $tsOf = function ($e) { return (is_array($e) && isset($e['ts']) && is_string($e['ts'])) ? $e['ts'] : ''; };
+        $valid = function ($e) { return is_string($e) || (is_array($e) && array_key_exists('v', $e) && (is_string($e['v']) || $e['v'] === null) && isset($e['ts']) && is_string($e['ts'])); };
+        $out = [];
+        $users = array_unique(array_merge(array_keys($srv), array_keys($inc)));
+        foreach ($users as $u) {
+            $sv = array_key_exists($u, $srv) ? $srv[$u] : null;
+            $iv = array_key_exists($u, $inc) ? $inc[$u] : null;
+            if ($sv !== null && !$valid($sv)) $sv = null;
+            if ($iv !== null && !$valid($iv)) $iv = null;
+            if ($sv === null && $iv === null) continue;
+            if ($iv === null) $winner = $sv;
+            elseif ($sv === null) $winner = $iv;
+            else $winner = (strcmp((string)$tsOf($iv), (string)$tsOf($sv)) >= 0) ? $iv : $sv;
+            if (is_array($winner) && array_key_exists('v', $winner) && $winner['v'] === null) {
+                $t = (string)($winner['ts'] ?? '');
+                $stale = false;
+                try { $stale = ($t !== '' && (time() - (new DateTimeImmutable($t))->getTimestamp()) > 30 * 86400); } catch (Throwable $eTs) { $stale = false; }
+                if ($stale) continue; /* همان سقف ۳۰ روزهٔ کلاینت */
+            }
+            $out[$u] = $winner;
+        }
         return json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
     $seen = [];
