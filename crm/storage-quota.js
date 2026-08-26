@@ -525,7 +525,23 @@
       callSet(k, v);
       try {
         var h = healthSync();
-        if (h.percent >= 85 && !(opts && opts.noWarn)) warnOnce('هشدار ظرفیت حافظه محلی CRM', 'localStorage حدود ' + h.percent + '٪ پر است. از تنظیمات، پاک‌سازی امن و بک‌آپ را بررسی کنید.', h.level);
+        if (h.percent >= 85 && !(opts && opts.noWarn)) {
+          /* v34.8.9 (STORAGE-INDEPENDENCE): به‌جای هشدار منفعل، خودکار نجات:
+             اگر فاز B فعال و هم‌گرا است، کلیدهای کسب‌وکارِ کش‌شده به IDB تخلیه
+             می‌شوند و localStorage فوراً آزاد می‌شود. در غیر این صورت مسیر درست
+             (همگرایی → فعال‌سازی خودکار) به کاربر گفته می‌شود. */
+          try {
+            if (typeof window.ptfBOffloadBusinessKeysToIdb === 'function') {
+              var _off = window.ptfBOffloadBusinessKeysToIdb({ force: true });
+              if (_off && _off.moved) { h = healthSync(); }
+            }
+          } catch (eOffload) {}
+          warnOnce('هشدار ظرفیت حافظه محلی CRM', 'localStorage حدود ' + h.percent + '٪ پر است. ' + (
+            (typeof window.ptfBOffloadBusinessKeysToIdb === 'function')
+              ? 'تخلیهٔ خودکار به IndexedDB اجرا شد؛ اگر پیغام تکرار شد، از «تنظیمات → 🔄 هم‌گرایی دادهٔ محلی» یک‌بار هم‌گرایی کنید تا حالت سرور-محور فعال شود.'
+              : 'از «تنظیمات → 🔄 هم‌گرایی دادهٔ محلی» هم‌گرایی کنید تا حالت سرور-محور فعال و حافظه آزاد شود.'
+          ), h.level);
+        }
       } catch (eH) {}
       return true;
     } catch (e) {
