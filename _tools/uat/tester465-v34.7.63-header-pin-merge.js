@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.11 — ادغام آیکون‌های سرستون جدول‌ها.
+/* v34.8.12 — ادغام آیکون‌های سرستون جدول‌ها.
    دو آیکون روی سرستون‌ها بود: سنجاق فریز (📌 tables.js) روی هر ستون + مثلث مرتب‌سازی
    (▲/▼ sortable.js) که شبیه سنجاق بود. ادغام: سنجاق فقط هنگام hover یا روی ستونِ
    فریزشده دیده می‌شود (یک سنجاق) و مرتب‌سازی با فلش واضح ↑/↓. */
@@ -16,9 +16,9 @@ var sortable = read('crm/sortable.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.11', ver.crm_version === 'v34.8.11', ver.crm_version);
-T('sortable.js cache-bust 34.8.11', /sortable\.js\?v=34\.8\.11/.test(idx));
-T('tables.js cache-bust 34.8.11', /tables\.js\?v=34\.8\.11/.test(idx));
+T('VERSION.json = v34.8.12', ver.crm_version === 'v34.8.12', ver.crm_version);
+T('sortable.js cache-bust 34.8.12', /sortable\.js\?v=34\.8\.12/.test(idx));
+T('tables.js cache-bust 34.8.12', /tables\.js\?v=34\.8\.12/.test(idx));
 
 /* مرتب‌سازی: فلش واضح، نه مثلث سنجاق‌مانند */
 T('مرتب‌سازی از فلش ↑/↓ استفاده می‌کند', sortable.indexOf("? ' ↑' : ' ↓'") > -1);
@@ -32,6 +32,6 @@ T('سنجاق همچنان فقط با کلیک فریز می‌کند (منطق
 
 T('tester465 در گیت CI', gate.indexOf('tester465-v34.7.63-header-pin-merge.js') > -1);
 
-console.log('\n— tester465 (v34.8.11: ادغام سنجاق سرستون) —');
+console.log('\n— tester465 (v34.8.12: ادغام سنجاق سرستون) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
