@@ -642,10 +642,13 @@
           if (conflKeys.length && (result.serverData || result.krevs)) {
             var rescuedKeys = [];
             conflKeys.forEach(function (k) {
-              if (protectedKeys.indexOf(k) >= 0) return;
               var srvStr = (result.serverData || {})[k];
               if (typeof srvStr !== 'string') return;
-              if (typeof window.ptfSyncResolveConflictFromServer === 'function' && window.ptfSyncResolveConflictFromServer(k, srvStr)) rescuedKeys.push(k);
+              /* v34.8.10: کلید محافظت‌شده → merge محافظت‌شده مخصوص خودش؛
+                 کلید عادی → merge هوشمند عمومی. */
+              if (protectedKeys.indexOf(k) >= 0) {
+                if (typeof window.ptfSyncResolveProtectedConflictFromServer === 'function' && window.ptfSyncResolveProtectedConflictFromServer(k, srvStr, payload[k])) rescuedKeys.push(k);
+              } else if (typeof window.ptfSyncResolveConflictFromServer === 'function' && window.ptfSyncResolveConflictFromServer(k, srvStr)) rescuedKeys.push(k);
             });
             if (rescuedKeys.length) {
               var metaLike = {}; var krMap = result.krevs || {};
@@ -947,7 +950,7 @@
           var v = localStorage.getItem(k);
           if (v === null) return;
           var bytes = (k.length + v.length) * 2;
-          if (bytes <= 24 * 1024) return; /* کلیدهای سبک محلی می‌مانند — بدون churn */
+          if (bytes <= 8 * 1024) return; /* v34.8.10: آستانه ۸KB — کلیدهای سبک محلی می‌مانند */
           if (window.ptfBMirror(k, v)) { freed += bytes; moved++; } /* mirror خودش localStorage را حذف می‌کند */
         } catch (eKey) {}
       });

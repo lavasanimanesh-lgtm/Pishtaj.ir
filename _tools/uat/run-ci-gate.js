@@ -174,6 +174,7 @@ var SUITE = [
   { g: 'احراز هویت/حلقهٔ توکن', f: '_tools/uat/tester512-v34.8.6-auth-token-race.js' },
   { g: 'سینک/همگرایی کلیدهای مشترک', f: '_tools/uat/tester513-v34.8.7-shared-key-convergence.js' },
   { g: 'حافظه/استقلال از localStorage', f: '_tools/uat/tester514-v34.8.9-storage-independence.js' },
+  { g: 'مالی/نجات تعارض محافظت‌شده فاز B', f: '_tools/uat/tester515-v34.8.10-protected-conflict-rescue.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

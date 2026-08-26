@@ -135,6 +135,24 @@
       return true;
     } catch (eResolve) { return false; }
   };
+  /* v34.8.10 (PROTECTED-CONFLICT-RESCUE): ptf_crm_opex/sharetx/shareholders کلیدهای
+     مالی محافظت‌شده‌اند — سرور پاسخ merge محافظت‌شده برمی‌گرداند و امضای آن تقریباً
+     هیچ‌وقت با snapshot خام مرورگر یکی نیست؛ بدون اعمال این merge، push بعدی باز
+     conflict می‌دهد (بن‌بست گزارش‌شده برای مدیر بازرگانی). همین منطق US-384/مسیر
+     legacy، حالا برای فاز B هم مهیاست. */
+  window.ptfSyncResolveProtectedConflictFromServer = function (k, serverStr, submittedStr) {
+    try {
+      if (typeof serverStr !== 'string' || SYNC_KEYS.indexOf(k) < 0) return false;
+      var merged = (typeof window.ptfMergeProtectedFinanceConflict === 'function')
+        ? window.ptfMergeProtectedFinanceConflict(k, rd(k), typeof submittedStr === 'string' ? submittedStr : rd(k), serverStr)
+        : serverStr;
+      if (typeof window.ptfApplyDeletionTombstones === 'function') merged = window.ptfApplyDeletionTombstones(k, merged);
+      state.pulling = true; wr(k, merged); state.pulling = false;
+      state.dirty[k] = true; saveDirty();
+      try { setSyncBadge('warn'); } catch (eBadge2) {}
+      return true;
+    } catch (eResolveP) { return false; }
+  };
 
   /* ===== v15.0 (US-384 — رفع ریشه‌ای Lost Update) =====
      نسخه per-key که این دستگاه از سرور می‌شناسد؛ با هر push به‌عنوان «مبنا» می‌رود.
