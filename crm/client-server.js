@@ -316,6 +316,17 @@
               if (currentProjection === null || currentProjection === undefined) currentProjection = localGet(k);
               v = window.ptfSyncMergeServerProjection(k, currentProjection, v);
             }
+            /* v34.8.8: نقشه‌های نسخه‌دار (آواتار/پروفایل امضا) در پول فاز B هم
+               merge می‌شوند؛ overwrite خام، مقدار محلی {v,ts} را می‌پراند و چرخهٔ
+               dirty/overwrite می‌سازد. همان قرارداد ptfSmartMerge کلاینت. */
+            if (k === 'ptf_crm_avatars' || k === 'ptf_crm_sigprofiles') {
+              try {
+                var curMap = null;
+                try { if (typeof window.ptfBRead === 'function') curMap = window.ptfBRead(k); } catch (eMapMirror) {}
+                if (curMap === null || curMap === undefined) curMap = localGet(k);
+                if (curMap && typeof window.ptfSmartMerge === 'function') v = window.ptfSmartMerge(k, curMap, v);
+              } catch (eMapMerge) {}
+            }
             cache[k] = { t: t, v: v, rev: incomingRev };
             if (!(window.ptfBMirror && window.ptfBMirror(k, v))) localSet(k, v);
           });
@@ -606,12 +617,7 @@
       cb && cb({ ok: !blocked.length, pushed: 0, blocked: blocked });
       return;
     }
-    readQueuePayload(keys, function (payload, missing) {
-      if (missing.length) {
-        try { if (typeof window.ptfSyncMarkPendingKeys === 'function') window.ptfSyncMarkPendingKeys(missing.concat(blocked)); } catch (eMissing) {}
-        cb && cb({ ok: false, pushed: 0, failed: missing, blocked: blocked, error: 'local_payload_missing' });
-        return;
-      }
+    function pushPayloadAndFinish(payload) {
       window.ptfBPushBatch(payload, function (d) {
         var saved = (d && d.savedKeys) || [];
         var clear = saved.length ? queueClearMatching(saved, payload) : { ok: true, kept: [] };
@@ -656,6 +662,28 @@
         } catch (eRescue) {}
         cb && cb(result);
       });
+    }
+    readQueuePayload(keys, function (payload, missing) {
+      if (missing.length) {
+        /* v34.8.8 (PHANTOM-QUEUE-ENTRY): ردیف صفی که مقدار محلی‌اش در هیچ لایه‌ای
+           (آینهٔ IDB/localStorage) موجود نیست، phantom است — push آن همیشه
+           local_payload_missing می‌شود و dirty را ابدی نگه می‌دارد (گزارش:
+           ptf_crm_avatars). یک بازخوانی مجدد؛ اگر باز هم نبود، ردیف صف و dirtyِ
+           همان کلیدها پاک می‌شود و pull بعدی مقدار معتبر سرور را برمی‌گرداند. */
+        readQueuePayload(missing, function (payload2, missing2) {
+          (missing2 || []).slice().forEach(function (k) {
+            queueClear([k]);
+            try { if (typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys([k], null); } catch (ePhantom) {}
+            try { if (typeof audit === 'function') audit('سیستم', '🧹 ردیف صفِ بدون مقدار محلی پاک شد: ' + k + ' — مقدار معتبر از سرور در pull بعدی می‌آید', 'SYNC'); } catch (eAuditPhantom) {}
+            missing.splice(missing.indexOf(k), 1);
+          });
+          var remaining = Object.keys(payload || {});
+          if (!remaining.length) { cb && cb({ ok: !blocked.length, pushed: 0, pruned: (missing2 || []).slice(), blocked: blocked }); return; }
+          pushPayloadAndFinish(payload);
+        });
+        return;
+      }
+      pushPayloadAndFinish(payload);
     });
   };
 

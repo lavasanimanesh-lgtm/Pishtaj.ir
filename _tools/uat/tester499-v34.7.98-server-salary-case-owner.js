@@ -151,5 +151,5 @@ section('Salary server command: قرارداد اتمیک، ماه تهران و
   ok(!/ptfShareEnsureSalary\(s, m\)/.test(opex), 'startup دیگر حقوق را از snapshot محلی سهامداران تولید نمی‌کند');
 }
 
-console.log(`\n=== tester499-v34.8.7-server-salary-case-owner: ${pass} PASS / ${fail} FAIL ===`);
+console.log(`\n=== tester499-v34.8.8-server-salary-case-owner: ${pass} PASS / ${fail} FAIL ===`);
 if (bugs.length) { console.log('BUGS:'); bugs.forEach(b => console.log(' • ' + b)); process.exitCode = 1; }
