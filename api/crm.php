@@ -1776,6 +1776,31 @@ switch($action) {
         echo json_encode(['ok' => true, 'backups' => $out], JSON_UNESCAPED_UNICODE);
         break;
 
+    case 'sync_stats':
+        /* v34.8.12 (PHASE-C1): گزارش تله‌متری push به تفکیک کلید — فقط-خواندنی.
+           ترتیب: بیشترین تعداد push اول؛ مبنای اولویت‌بندی «نازک‌سازی» (فاز C3). */
+        verify_request();
+        role_guard('users_write'); // فقط ادمین/رییس
+        $statsFile = $data_dir . '/sync/push_stats.json';
+        $stats = is_file($statsFile) ? (json_decode((string)file_get_contents($statsFile), true) ?: []) : [];
+        $rows = [];
+        foreach ($stats as $key => $row) {
+            if (!is_array($row)) continue;
+            $rows[] = [
+                'key' => (string)$key,
+                'pushes' => (int)($row['n'] ?? 0),
+                'bytesTotal' => (int)($row['bytes'] ?? 0),
+                'avgBytes' => ((int)($row['n'] ?? 0) > 0) ? (int)round(((int)($row['bytes'] ?? 0)) / max(1,(int)($row['n'] ?? 1))) : 0,
+                'conflicts' => (int)($row['conflicts'] ?? 0),
+                'rejects' => (int)($row['rejects'] ?? 0),
+                'lastAt' => (string)($row['lastAt'] ?? ''),
+                'lastBy' => (string)($row['lastBy'] ?? '')
+            ];
+        }
+        usort($rows, function($a,$b){ return ($b['pushes'] <=> $a['pushes']) ?: ($b['conflicts'] <=> $a['conflicts']); });
+        echo json_encode(['ok' => true, 'since' => 'v34.8.12', 'keys' => count($rows), 'stats' => $rows], JSON_UNESCAPED_UNICODE);
+        break;
+
     case 'get_backup':
         verify_request();
         role_guard('users_write'); // فقط ادمین/رییس
@@ -1957,6 +1982,28 @@ switch($action) {
         /* Do not advance the global watermark for an entirely rejected/skipped push. */
         if ($saved > 0) $meta['_global'] = ['rev' => $pushNextRev, 't' => date('Y-m-d H:i:s')];
         file_put_contents($meta_file, json_encode($meta, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        /* v34.8.12 (PHASE-C1 — اندازه‌گیری): تله‌متری push به تفکیک کلید زیر همان flock.
+           مبنای اولویت‌بندی مهاجرت فاز C3 («نازک‌سازی») بر دادهٔ واقعی، نه حدس. */
+        try {
+            $statsFile = $sdir . '/push_stats.json';
+            $stats = is_file($statsFile) ? (json_decode((string)file_get_contents($statsFile), true) ?: []) : [];
+            $byUser = clean($j['by'] ?? '', 60);
+            foreach (array_unique(array_merge($saved_keys, $rejected, $conflicts)) as $sk) {
+                if (!is_string($sk) || $sk === '') continue;
+                $row = $stats[$sk] ?? ['n'=>0,'bytes'=>0,'conflicts'=>0,'rejects'=>0];
+                $row['n'] = (int)($row['n'] ?? 0) + 1;
+                if (isset($j['data'][$sk]) && is_string($j['data'][$sk])) $row['bytes'] = (int)($row['bytes'] ?? 0) + strlen($j['data'][$sk]);
+                if (in_array($sk, $conflicts, true)) $row['conflicts'] = (int)($row['conflicts'] ?? 0) + 1;
+                if (in_array($sk, $rejected, true)) $row['rejects'] = (int)($row['rejects'] ?? 0) + 1;
+                $row['lastAt'] = date('Y-m-d H:i:s');
+                $row['lastBy'] = $byUser;
+                $stats[$sk] = $row;
+            }
+            if ($stats) {
+                $tmpS = $statsFile . '.tmp.' . bin2hex(random_bytes(4));
+                if (@file_put_contents($tmpS, json_encode($stats, JSON_UNESCAPED_UNICODE), LOCK_EX) !== false) @rename($tmpS, $statsFile);
+            }
+        } catch (Throwable $ePushStats) {}
         if ($metaLock) { @flock($metaLock, LOCK_UN); @fclose($metaLock); }
         $reportedRev = (int)($meta['_global']['rev'] ?? 0);
         echo json_encode(['ok' => true, 'saved' => $saved, 'savedKeys' => array_values(array_unique($saved_keys)), 'rev' => $reportedRev, 'rejected' => array_values(array_unique($rejected)),
