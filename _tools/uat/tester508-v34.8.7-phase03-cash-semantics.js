@@ -1,4 +1,4 @@
-/* tester508 — v34.8.9/F3: salary accrual/claim is not cash until draw. */
+/* tester508 — v34.8.10/F3: salary accrual/claim is not cash until draw. */
 'use strict';
 var fs = require('fs');
 var assert = require('assert');
@@ -39,4 +39,4 @@ assert.strictEqual(draw.type, 'draw');
 assert.strictEqual(beforePayment.cash, 100000000, 'unpaid salary entered cash before draw');
 console.log('  ✔ پیش از draw، حقوق در accrual/claim هست ولی در cash نیست');
 
-console.log('PASS tester508 v34.8.9 phase03 cash semantics');
+console.log('PASS tester508 v34.8.10 phase03 cash semantics');
