@@ -428,6 +428,7 @@
   }
 
   /* ---------- صف آفلاین ---------- */
+  var flushRescueRound = 0; /* v34.8.7: سقف نوبت‌های نجات تعارض فاز B در هر چرخه */
   function queueKey() { return 'ptf_b_queue'; }
   function queueRead() { try { return JSON.parse(localStorage.getItem(queueKey()) || '{}'); } catch (e) { return {}; } }
   function queueWrite(q) {
@@ -478,6 +479,7 @@
        chunks could make later chunks compare against a revision committed by chunk 1. */
     var batchBase = options.base || bPullRevs();
     var savedKeys = [], failed = blocked.slice(), rejected = [], skipped = [], forbidden = [], conflicts = [], lastError = '';
+    var serverDataAgg = {}, krevsAgg = {}; /* v34.8.7: برای نجات تعارض در flush */
     function addUnique(target, values) {
       (Array.isArray(values) ? values : []).forEach(function (k) { if (target.indexOf(k) < 0) target.push(k); });
     }
@@ -492,6 +494,8 @@
         skipped: skipped,
         forbidden: forbidden,
         conflicts: conflicts,
+        serverData: serverDataAgg,
+        krevs: krevsAgg,
         blocked: blocked,
         error: lastError
       });
@@ -530,6 +534,9 @@
         addUnique(skipped, dSkipped);
         addUnique(forbidden, dForbidden);
         addUnique(conflicts, dConflicts);
+        /* v34.8.7: پاسخ هر دسته serverData/krevs تعارض‌ها را هم با خودش بیاورد. */
+        if (d.serverData && typeof d.serverData === 'object') Object.keys(d.serverData).forEach(function (k) { serverDataAgg[k] = d.serverData[k]; });
+        if (d.krevs && typeof d.krevs === 'object') Object.keys(d.krevs).forEach(function (k) { krevsAgg[k] = d.krevs[k]; });
         /* A malformed response that lists a key both saved and rejected must fail
            closed; only the intersection-free savedKeys are eligible for queue clear. */
         addUnique(savedKeys, d.savedKeys.filter(function (k) {
@@ -619,6 +626,34 @@
         if (!clear.ok && !result.error) result.error = 'queue_persist_failed';
         var pending = failed.concat(result.rejected || [], result.skipped || [], result.forbidden || [], result.conflicts || [], blocked, kept);
         try { if (pending.length && typeof window.ptfSyncMarkPendingKeys === 'function') window.ptfSyncMarkPendingKeys(pending); } catch (ePending) {}
+        /* v34.8.7 (SHARED-KEY-CONVERGENCE): تعارض در مسیر فاز B دیگر بن‌بست نیست.
+           مقدار سرورِ کلیدهای conflicted (غیر مالیِ محافظت‌شده) merge محلی می‌شود،
+           watermark کلید از krevs پاسخ تازه می‌شود و یک flush مجدد (حداکثر ۳ نوبت)
+           همان کلید را با base درست می‌فرستد. */
+        try {
+          var conflKeys = (result.conflicts || []).slice();
+          var protectedKeys = (result.protectedConflicts || []);
+          if (conflKeys.length && (result.serverData || result.krevs)) {
+            var rescuedKeys = [];
+            conflKeys.forEach(function (k) {
+              if (protectedKeys.indexOf(k) >= 0) return;
+              var srvStr = (result.serverData || {})[k];
+              if (typeof srvStr !== 'string') return;
+              if (typeof window.ptfSyncResolveConflictFromServer === 'function' && window.ptfSyncResolveConflictFromServer(k, srvStr)) rescuedKeys.push(k);
+            });
+            if (rescuedKeys.length) {
+              var metaLike = {}; var krMap = result.krevs || {};
+              rescuedKeys.forEach(function (k) { if (+krMap[k]) metaLike[k] = { rev: +krMap[k] }; });
+              bSaveRevsFromMeta(metaLike, result.rev);
+              if ((flushRescueRound || 0) < 3) {
+                flushRescueRound = (flushRescueRound || 0) + 1;
+                setTimeout(function () { try { window.ptfBFlushQueue(function () {}); } catch (eRetry) {} }, 900);
+              }
+            }
+          } else if (!conflKeys.length) {
+            flushRescueRound = 0;
+          }
+        } catch (eRescue) {}
         cb && cb(result);
       });
     });

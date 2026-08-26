@@ -369,6 +369,34 @@ function sync_allowed_keys_for_role($role) {
     if ($role === 'buyer') return array_values(array_unique(array_merge($crm, ['ptf_crm_buycmp','ptf_crm_supplier_finance','ptf_crm_payables'])));
     return $crm; // sales and unknown roles get CRM-only sync, never finance keys
 }
+/* v34.8.7 SHARED-KEY-CONVERGENCE: ptf_crm_audit و ptf_crm_avatars کلیدهای مشترکِ
+   پرنویس‌اند — همهٔ کاربران آنلاین به آنها می‌نویسند. push به سبک replace با base
+   قدیمی هرگز همگرا نمی‌شد (حلقهٔ تعارض؛ در مسیر فاز B بن‌بست کامل). این دو کلید
+   سمت سرور union-merge می‌شوند: audit = لاگ append-only (اجماع ردیف‌ها، سقف ۴۰۰۰)،
+   avatars = map (مقدار incoming برای هر کلید برنده است). push این کلیدها همیشه
+   ACK می‌شود و سپر داده‌صفر آن را رد نمی‌کند (incoming خالی، ردیف‌های سرور را نگه
+   می‌دارد و پاک‌سازی حساب نمی‌شود). */
+function sync_shared_union_key($key) {
+    return in_array($key, ['ptf_crm_audit','ptf_crm_avatars'], true);
+}
+function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
+    $inc = json_decode((string)$incomingJson, true);
+    if (!is_array($inc)) return null; /* payload نامعتبر → همان مسیر عادی اعتبارسنجی */
+    if ($serverJson === null) return $incomingJson;
+    $srv = json_decode((string)$serverJson, true);
+    if (!is_array($srv)) return $incomingJson;
+    if ($key === 'ptf_crm_avatars') {
+        $out = array_merge($srv, $inc);
+        foreach ($out as $mk => $mv) if (!is_string($mv)) unset($out[$mk]);
+        return json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    $seen = [];
+    $out = [];
+    foreach ($srv as $row) { $sig = md5(json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); if (isset($seen[$sig])) continue; $seen[$sig] = true; $out[] = $row; }
+    foreach ($inc as $row) { $sig = md5(json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)); if (isset($seen[$sig])) continue; $seen[$sig] = true; $out[] = $row; }
+    if (count($out) > 4000) $out = array_slice($out, -4000);
+    return json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
 /* v31.7.97 BUG-SYNC-TOMBSTONE-001: server-side deletion tombstones.
    A stale browser must not resurrect a record that another user deleted. */
 function sync_tombstone_kinds_for_key($key) {
@@ -1808,6 +1836,15 @@ switch($action) {
             /* Restore تاییدشده باید snapshot انتخابی را authoritative کند؛ tombstone جدیدتر
                سرور نباید رکوردهای همان بک‌آپ را دوباره حذف کند. */
             $v = sync_apply_tombstones($k, $v, $restore ? '' : $serverArchiveJson, $incomingArchiveJson);
+            /* v34.8.7: کلیدهای مشترکِ union پیش از بررسی base merge سروری می‌گیرند؛
+               تعارضِ base برای آنها بی‌معناست چون نتیجهٔ merge نویسندهٔ هیچ دستگاهی را
+               نمی‌پاکاند و ACK صادقانه است. */
+            $isSharedUnion = (!$restore && !$allow_wipe && sync_shared_union_key($k));
+            if ($isSharedUnion) {
+                $serverUnionJson = sync_key_read($sdir, $k);
+                $mergedUnionJson = sync_union_merge_shared_key($k, $v, $serverUnionJson);
+                if ($mergedUnionJson !== null) $v = $mergedUnionJson;
+            }
             /* v31.8 BUG-OFFER-SYNC-INTEGRITY-001: do not accept a stale client
                payload that increases duplicate offer lines. Existing corrupted
                records are deliberately not auto-mutated here; repair is explicit. */
@@ -1830,7 +1867,7 @@ switch($action) {
                (کلاینت‌های قدیمی بدون base مثل قبل پذیرفته می‌شوند — سازگاری عقب‌رو دوره گذار) ===== */
             $curRev = (int)($meta[$k]['rev'] ?? 0);
             $isProtectedFinanceKey = in_array($k, ['ptf_crm_opex','ptf_crm_sharetx','ptf_crm_shareholders'], true);
-            if (!$restore && !$allow_wipe && $base !== null && array_key_exists($k, $base) && (int)$base[$k] < $curRev) {
+            if (!$isSharedUnion && !$restore && !$allow_wipe && $base !== null && array_key_exists($k, $base) && (int)$base[$k] < $curRev) {
                 $conflicts[] = $k;
                 /* v33.22.0: مسیر یکپارچه (mysql → DB) */
                 $cfVal = sync_key_read($sdir, $k);
