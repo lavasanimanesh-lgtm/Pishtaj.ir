@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.12 — رفع باگ مودال ثبت فاکتور + نمایش بدهی غیرنقدی تامین‌کننده (SUP-FIX-001/002)
+/* v34.8.15 — رفع باگ مودال ثبت فاکتور + نمایش بدهی غیرنقدی تامین‌کننده (SUP-FIX-001/002)
    - _vatDate قبل از HTML تعریف می‌شود تا ReferenceError ندهد (پنجره بسته نشود).
    - box() lazy load چند بار تلاش می‌کند و بعد از رندر DOM پر می‌شود.
    - renderSuppliers بعد از رندر، ptfSlBoxLazy را صدا می‌زند.
@@ -17,8 +17,8 @@ var sf = read('crm/supplier-finance.js');
 var chq = read('crm/cheques.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.12', ver.crm_version === 'v34.8.12', ver.crm_version);
-T('supplier-finance.js cache-bust 34.8.12', /supplier-finance\.js\?v=34\.8\.12/.test(idx));
+T('VERSION.json = v34.8.15', ver.crm_version === 'v34.8.15', ver.crm_version);
+T('supplier-finance.js cache-bust 34.8.15', /supplier-finance\.js\?v=34\.8\.15/.test(idx));
 
 /* ---------- لاودمشکل ---------- */
 T('_vatDate قبل از html تعریف شده', /var _vatDate = prefill\.date/.test(sf) && sf.indexOf('window.ptfVatRateOf(_vatDate)') > -1);
@@ -60,6 +60,6 @@ T('اعتبار صفر است', tot.credit === 0, tot);
 
 T('tester494 در گیت CI', gate.indexOf('tester494-v34.7.91-supplier-modal-debt.js') > -1);
 
-console.log('\n— tester494 (v34.8.12: مودال + بدهی غیرنقدی — SUP-FIX-001/002) —');
+console.log('\n— tester494 (v34.8.15: مودال + بدهی غیرنقدی — SUP-FIX-001/002) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

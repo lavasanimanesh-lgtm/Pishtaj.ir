@@ -360,6 +360,70 @@
   };
   window.ptfSalesDomainApi = api;
   window.ptfSalesDomainCommand = command;
+
+  /* ============ v34.8.13 (PHASE-C2): فرمان عمومی موجودیت — مسیر نازک نوشتن ============
+     هر ماژولی که کلیدش در PTF_ENTITY_CMD_ENABLED باشد، نوشتن/حذف را به‌جای
+     «کل مجموعه push» با یک فرمان اتمیک سروری انجام می‌دهد. اعمال پاسخ از طریق
+     ptfBApplyServerProjection است (بدون dirty/صف/push) — دقیقاً تجربهٔ بانکی. */
+  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true };
+  function entityApplyProjection(collection, value, rev) {
+    /* v34.8.15: پاسخ فرمان ممکن است رشتهٔ JSON یا آرایهٔ آماده باشد (sd_result_data
+       آرایه برمی‌گرداند). قبلاً فقط رشته پذیرفته می‌شد و projection اصلاً اعمال
+       نمی‌شد — نتیجه: رکورد جدید تا pull بعدی دیده نمی‌شد و watermark کلاینت
+       عقب می‌ماند. */
+    try {
+      if (typeof window.ptfBApplyServerProjection === 'function' && value != null) {
+        return window.ptfBApplyServerProjection(collection, value, rev);
+      }
+    } catch (eProj) {}
+    /* فاز B غیرفعال → مسیر legacy امن: اعمال محلی + setData (push مجموعه‌ای) */
+    try {
+      var arr = (typeof value === 'string') ? JSON.parse(value) : value;
+      if (Array.isArray(arr)) { setData(collection, arr); return true; }
+    } catch (eLegacy) {}
+    return false;
+  }
+  window.ptfEntityUpsert = function (collection, record, opts) {
+    opts = opts || {};
+    if (!window.PTF_ENTITY_CMD_ENABLED[collection]) { if (opts.cb) opts.cb({ state: 'legacy' }); return null; }
+    var idv = String((record || {}).cd || '');
+    return window.ptfSalesDomainCommand('entity_upsert', {
+      collection: collection,
+      record: record,
+      idempotencyKey: 'ENT|' + collection + '|' + idv + '|' + String(opts.operationId || Date.now())
+    }, { apiOptions: { autoReplay: true } }).then(function (state) {
+      if (state && state.state === 'acked') {
+        var resp = state.response || {};
+        var data = resp.data || {};
+        entityApplyProjection(collection, data[collection], resp.rev);
+        if (opts.cb) opts.cb({ state: 'acked', result: resp.result || {} });
+      } else if (opts.cb) {
+        opts.cb({ state: state ? state.state : 'rejected', error: state && state.error });
+      }
+      return state;
+    });
+  };
+  window.ptfEntityDelete = function (collection, id, opts) {
+    opts = opts || {};
+    if (!window.PTF_ENTITY_CMD_ENABLED[collection]) { if (opts.cb) opts.cb({ state: 'legacy' }); return null; }
+    return window.ptfSalesDomainCommand('entity_delete', {
+      collection: collection,
+      id: id,
+      reason: opts.reason || 'entity_delete',
+      idempotencyKey: 'ENT-D|' + collection + '|' + id + '|' + String(opts.operationId || Date.now())
+    }, { apiOptions: { autoReplay: true } }).then(function (state) {
+      if (state && state.state === 'acked') {
+        var resp = state.response || {};
+        var data = resp.data || {};
+        if (data[collection]) entityApplyProjection(collection, data[collection], resp.rev);
+        if (data['ptf_crm_deleted_archive']) entityApplyProjection('ptf_crm_deleted_archive', data['ptf_crm_deleted_archive'], resp.rev);
+        if (opts.cb) opts.cb({ state: 'acked', result: resp.result || {} });
+      } else if (opts.cb) {
+        opts.cb({ state: state ? state.state : 'rejected', error: state && state.error });
+      }
+      return state;
+    });
+  };
   window.ptfSalesCommandErrorIsAmbiguous = commandErrorIsAmbiguous;
   window.ptfSalesDomainCommandStatus = function(action,operationId){
     return compactCommandStatus(action,{idempotencyKey:operationId}).then(function(status){return status&&status.committed===true?syncAfterCompactReceipt(status):status;});
