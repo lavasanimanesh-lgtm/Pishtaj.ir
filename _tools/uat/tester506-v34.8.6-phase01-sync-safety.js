@@ -1,4 +1,4 @@
-/* tester506 — v34.8.29/F0-1: Phase-B single transport, financial projection safety
+/* tester506 — v34.8.30/F0-1: Phase-B single transport, financial projection safety
  * and server per-key identity/revision guards. This test is intentionally non-mutating
  * and uses only isolated in-memory fixtures. */
 'use strict';
@@ -98,7 +98,7 @@ c.ptfSyncAcknowledgeKeys(['ptf_crm_settings'], { ptf_crm_settings: JSON.stringif
 assert.strictEqual(c.ptfSyncPendingKeys().indexOf('ptf_crm_settings'), -1);
 console.log('  ✔ ACK قدیمی نسل جدید را پاک نمی‌کند و ACK هم‌نسل آن را پاک می‌کند');
 
-console.log('PASS tester506 v34.8.29 phase01 sync safety');
+console.log('PASS tester506 v34.8.30 phase01 sync safety');
 
 
 console.log('── Phase B queue ACK and payload recovery ──');
@@ -117,7 +117,7 @@ function clientContext() {
     ptfSyncAcknowledgeKeys: function () {},
     ptfSyncRefreshAuth: function (cb) { cb(false); },
     ptfStorageSafeSetItem: function (k, v) { ls.setItem(k, v); return true; },
-    /* v34.8.29 (T3-3): صف آفلاین حالا روی IDB است — استور کوچک برای تست */
+    /* v34.8.30 (T3-3): صف آفلاین حالا روی IDB است — استور کوچک برای تست */
     _idb: {},
     ptfStorageIdbSet: function (id, v, cb) { this._idb[id] = v; if (cb) cb(true); },
     ptfStorageIdbGet: function (id, cb) { cb(id === 'bdata:ptf_crm_heavy' ? { value: 'idb-payload' } : (this._idb[id] !== undefined ? { value: this._idb[id] } : null)); },
@@ -152,7 +152,7 @@ function clientContext() {
   assert.strictEqual(batchResult.ok, true);
   assert.ok(cc._calls[0].body.base && cc._calls[0].body.base.ptf_crm_settings === 4, 'Phase B did not send base');
   assert.strictEqual(batchResult.savedKeys.join(','), 'ptf_crm_settings');
-  /* v34.8.29: صف روی IDB — seed از LS هنوز انجام نشده است (اولین flush همین است) */
+  /* v34.8.30: صف روی IDB — seed از LS هنوز انجام نشده است (اولین flush همین است) */
   cc.localStorage.setItem('ptf_b_queue', JSON.stringify({ ptf_crm_settings: 1 }));
   cc.localStorage.setItem('ptf_crm_settings', '{"v":1}');
   cc._setResponseMode('reject');

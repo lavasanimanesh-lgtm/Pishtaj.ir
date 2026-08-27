@@ -137,6 +137,33 @@ function tools_admin_require() {
     }
     $role = $info['role'] ?? '';
     if (!in_array($role, ['admin', 'chairman'], true)) {
+        /* v34.8.30 (STALE-TOKEN-HEAL): اگر نقش «فعلیِ» همین کاربر در مخزن کاربران
+           admin/chairman باشد ولی توکن نقش دیگری داشته باشد ⇒ توکن کهنه است (نقش
+           بعد از صدور تغییر کرده). 401/needLogin برمی‌گردانیم تا کلاینت دوباره
+           وارد شود و توکن تازه با نقش درست ضرب شود — به‌جای حلقهٔ بی‌پایان 403. */
+        $currentRole = '';
+        try {
+            $dataDir = __DIR__ . '/../crm/data';
+            $candidates = [$dataDir . '/users.json', $dataDir . '/crm_users.json', $dataDir . '/sync/ptf_crm_users.json'];
+            $u = strtolower(trim((string)($info['user'] ?? '')));
+            foreach ($candidates as $cf) {
+                if (!is_file($cf)) continue;
+                $list = json_decode((string)file_get_contents($cf), true);
+                if (!is_array($list)) continue;
+                foreach ($list as $row) {
+                    if (!is_array($row)) continue;
+                    if (strtolower(trim((string)($row['username'] ?? ''))) !== $u) continue;
+                    $rid = strtolower(trim((string)($row['roleId'] ?? '')));
+                    if ($rid === '' ) $rid = strtolower(trim((string)($row['role'] ?? '')));
+                    if ($rid !== '') { $currentRole = $rid; break 2; }
+                }
+            }
+        } catch (Throwable $e) { /* تشخیص ممکن نشد → 403 عادی */ }
+        if (in_array($currentRole, ['admin', 'chairman'], true)) {
+            http_response_code(401);
+            echo json_encode(['ok' => false, 'error' => 'stale_token_role_changed', 'needLogin' => true, 'detail' => 'نقش شما تغییر کرده — دوباره وارد شوید'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
         http_response_code(403);
         echo json_encode(['ok' => false, 'error' => 'admin_required'], JSON_UNESCAPED_UNICODE);
         exit;
