@@ -232,6 +232,53 @@ var versionReport = (function ruleA6() {
 })();
 
 /* ---------- مقایسه با مبنا ---------- */
+/* ---------- A10: بایپس لایهٔ داده — localStorage مستقیم (ROADMAP-THIN-CLIENT T0-1) ----------
+   اصل E2 رودمپ: UI هرگز مستقیم به storage دست نمی‌زند؛ فقط لایهٔ داده (client-server /
+   storage-quota / sync / storage / backup / rbac). بدهی موجود با baseline ثبت می‌شود و
+   «افزایش» مسدودکننده است. */
+(function ruleA10() {
+  /* v34.8.28: cheque-print مجاز — فقط فلگ‌های رسانه/کالیبراسیون چاپ چک
+     (ptf_chqprint_bg/cloud: آدرس نسخهٔ ابری در آروان؛ خودِ داده S3 است). */
+  var WHITELIST = ['client-server.js', 'storage-quota.js', 'sync.js', 'storage.js', 'backup.js', 'rbac.js', 'cheque-print.js', 'cheques.js']; /* v34.8.29: cheques فقط برای مهاجرت legacy ptf_personal_cheques_* */
+  var re = /localStorage\s*\.\s*(setItem|getItem|removeItem)\s*\(/g;
+  function scan(rel) {
+    var lines = codeOnly(read(rel)).split('\n');
+    lines.forEach(function (ln) {
+      var m, r = new RegExp(re.source, 'g');
+      while ((m = r.exec(ln))) add('A10', sourceSignature(rel, 'ls-' + m[1].replace('Item', '').toLowerCase(), ln));
+    });
+  }
+  crmFiles().forEach(function (f) {
+    if (WHITELIST.indexOf(f) > -1) return;
+    scan('crm/' + f);
+  });
+  scan('crm/index.html');
+})();
+
+/* ---------- A11: تطابق رجیستری فرمان موجودیت کلاینت/سرور (ROADMAP-THIN-CLIENT T0-2) ----------
+   PTF_ENTITY_CMD_ENABLED (sales-domain-v2.js) و sd_entity_registry() (sales-domain.php)
+   باید دقیقاً همان مجموعه باشند؛ واگرایی = فرمان «ناموفق» کلاینت روی سرورِ ناآماده. */
+(function ruleA11() {
+  var clientSrc = read('crm/sales-domain-v2.js');
+  var serverSrc = read('api/sales-domain.php');
+  var client = [], server = [], m, r;
+  var block = clientSrc.match(/window\.PTF_ENTITY_CMD_ENABLED\s*=\s*\{[\s\S]*?\}/);
+  if (block) {
+    r = /'(ptf_[a-z_]+)'\s*:\s*true/g;
+    while ((m = r.exec(block[0]))) client.push(m[1]);
+  }
+  /* فقط بدنهٔ sd_entity_registry() — نه هر 'ptf_crm_x' => [ در کل فایل */
+  var fn = serverSrc.match(/function sd_entity_registry\s*\(\s*\)\s*:\s*array\s*\{[\s\S]*?\n\}/);
+  if (fn) {
+    r = /'(ptf_crm_[a-z_]+)'\s*=>\s*\[/g;
+    while ((m = r.exec(fn[0]))) if (server.indexOf(m[1]) < 0) server.push(m[1]);
+  }
+  client.sort(); server.sort();
+  if (client.join(',') !== server.join(',')) {
+    add('A11', 'registry-parity client=[' + client.join('|') + '] server=[' + server.join('|') + ']');
+  }
+})();
+
 var RULES = {
   A1: { blocking: true, title: 'بازنویسی خاموش تابع سراسری (نسخهٔ قبلی بدون زنجیره دور ریخته می‌شود)' },
   A2: { blocking: true, title: 'ترتیب شناسه برخلاف قرارداد PTF.id (باید `_id || cd` باشد)' },
@@ -241,7 +288,9 @@ var RULES = {
   A6: { blocking: true, title: 'ناهماهنگی نسخه در نقاط رسمی' },
   A7: { blocking: false, title: 'شکست خاموش در اکشن کاربر (بدون هیچ پیام/توست)' },
   A8: { blocking: true, title: 'وصلهٔ زنجیره‌ای بدون انتقال آرگومان (apply(this, arguments))' },
-  A9: { blocking: true, title: 'تعریف تکراری یک نام سراسری در همان فایل' }
+  A9: { blocking: true, title: 'تعریف تکراری یک نام سراسری در همان فایل' },
+  A10: { blocking: true, title: 'بایپس لایهٔ داده — localStorage مستقیم بیرون از لایهٔ داده (T0-1)' },
+  A11: { blocking: true, title: 'ناهماهنگی رجیستری فرمان موجودیت کلاینت/سرور (T0-2)' }
 };
 var current = {};
 Object.keys(RULES).forEach(function (r) { current[r] = (findings[r] || []).slice().sort(); });

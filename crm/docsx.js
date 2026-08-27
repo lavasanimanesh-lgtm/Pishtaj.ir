@@ -187,7 +187,7 @@
     else d.docsx.unshift(rec);
     d.timeline = d.timeline || [];
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: (old ? '✏️ اصلاح' : '📄 صدور') + ' ' + tp.lb + ' ' + rec.no + ' (US-443)' });
-    setData('ptf_crm_deals', deals);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
     try { /* audit('پرونده‌های فروش', 'صدور ') صادر شد (US-443) */
     audit('پرونده‌های فروش', (old ? 'اصلاح' : 'صدور') + ' ' + tp.lb + ' ' + rec.no + ' برای پرونده ' + (d.inqNo || dealCd), dealCd); } catch (e) {}
     /* توالی رویدادها (US-433/440): پکینگ لیست رسمی = همان رویداد packing پرونده */
@@ -195,7 +195,7 @@
       try {
         if (old && d.shipEvents && d.shipEvents.length) {
           var se = (d.shipEvents || []).filter(function (x) { return x.type === 'packing' && x.no === rec.no; })[0];
-          if (se) { se.dateISO = (vals || {}).dateISO || se.dateISO || ''; se.note = 'سند رسمی ' + rec.no + ' (US-443)'; setData('ptf_crm_deals', deals); }
+          if (se) { se.dateISO = (vals || {}).dateISO || se.dateISO || ''; se.note = 'سند رسمی ' + rec.no + ' (US-443)'; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals); }
           else sfShipCommit(dealCd, 'packing', { no: rec.no, dateISO: (vals || {}).dateISO || '', note: 'سند رسمی ' + rec.no + ' (US-443)' });
         } else {
           sfShipCommit(dealCd, 'packing', { no: rec.no, dateISO: (vals || {}).dateISO || '', note: 'سند رسمی ' + rec.no + ' (US-443)' });
@@ -220,7 +220,7 @@
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 ابطال سند رسمی ' + rec.no + ' — ' + reason });
     d.documentAudit = d.documentAudit || [];
     d.documentAudit.push({ t: faDateTime(), by: curSession().name, action: 'void', kind: 'docsx', ref: rec.cd, reason: reason, before: { no: rec.no, type: rec.type } });
-    setData('ptf_crm_deals', deals);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
     var packing = null;
     if (rec.type === 'PL' && typeof sfShipDeleteCommit === 'function') {
       var se = (d.shipEvents || []).filter(function (x) { return x && x.type === 'packing' && x.no === rec.no && x.status !== 'void'; })[0];

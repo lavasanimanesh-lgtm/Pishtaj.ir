@@ -353,14 +353,14 @@ $SENSITIVE = ['get_finance'=>'finance_read','save_finance'=>'finance_write','sav
    allowed to see. All four senior CRM roles (admin/chairman/ceo/commercial) keep
    the full company dataset. Destructive operations remain separately guarded. */
 function sync_all_keys() {
-    return ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_treasury_calls','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings'];
+    return ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_invoices','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_audit','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_smsbook','ptf_crm_rfqsmart','ptf_crm_settings','ptf_crm_finance','ptf_crm_order_prices','ptf_crm_notifprefs','ptf_crm_trash','ptf_crm_petty','ptf_crm_perms','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_shareholders','ptf_crm_sharetx','ptf_crm_fiscal_snapshots','ptf_crm_techcases','ptf_crm_calc_runs','ptf_crm_techproposals','ptf_crm_leadfinder_jobs','ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_treasury_calls','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_personal_cheques'];
 }
 function sync_allowed_keys_for_role($role) {
     $role = preg_replace('/[^a-z0-9]/', '', strtolower(trim((string)$role)));
     $all = sync_all_keys();
     if (in_array($role, ['admin','chairman','ceo','commercial'], true) || strpos($role, 'commercial') !== false || strpos($role, 'manager') !== false) return $all;
     $crm = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'];
-    $accountant = ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_commission_records','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings'];
+    $accountant = ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_commission_records','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_personal_cheques'];
     $collector = ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued','ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars'];
     if ($role === 'accountant') return $accountant;
     if ($role === 'collector') return $collector;
@@ -377,7 +377,11 @@ function sync_allowed_keys_for_role($role) {
    ACK می‌شود و سپر داده‌صفر آن را رد نمی‌کند (incoming خالی، ردیف‌های سرور را نگه
    می‌دارد و پاک‌سازی حساب نمی‌شود). */
 function sync_shared_union_key($key) {
-    return in_array($key, ['ptf_crm_audit','ptf_crm_avatars'], true);
+    /* v34.8.21 (NOTIFS-UNION): notifs هم اضافه شد — گزارش ۱۴۰۵/۰۶/۰۵: نوار زرد پایدار
+       [notifs]. ریشه: notifs از مسیر base-merge معمولی می‌رفت؛ فرم ذخیره‌شدهٔ سرور با
+       فرم کانونیکال ptfSmartMerge کلاینت (dedupe cd + مرتب‌سازی iso نزولی) هرگز برابر
+       نمی‌شد ⇒ چرخهٔ بی‌پایان conflict/dirty. union صادقانه مثل audit/avatars. */
+    return in_array($key, ['ptf_crm_audit','ptf_crm_avatars','ptf_crm_notifs'], true);
 }
 function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
     $inc = json_decode((string)$incomingJson, true);
@@ -413,6 +417,53 @@ function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
             $out[$u] = $winner;
         }
         return json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    if ($key === 'ptf_crm_notifs') {
+        /* v34.8.21 (NOTIFS-UNION): merge کانونیکال — دقیقاً همان قرارداد ptfSmartMerge
+           کلاینت: dedupe با cd، اتحاد readBy/done، repeat بزرگ‌تر برنده، dedupe ارجاع با
+           dkey، مرتب‌سازی نزولی iso. خروجی سرور == خروجی کلاینت ⇒ ACK صادقانه، dirty پاک،
+           pull بدون تغییر کاذب. */
+        $byCd = [];
+        foreach ($srv as $row) { if (is_array($row) && isset($row['cd'])) $byCd[$row['cd']] = $row; }
+        foreach ($inc as $row) {
+            if (!is_array($row) || !isset($row['cd'])) continue;
+            $cd = $row['cd'];
+            if (!isset($byCd[$cd])) { $byCd[$cd] = $row; continue; }
+            $ex = $byCd[$cd];
+            $rb = [];
+            foreach ((isset($ex['readBy']) && is_array($ex['readBy']) ? $ex['readBy'] : []) as $u) { if ($u) $rb[$u] = 1; }
+            foreach ((isset($row['readBy']) && is_array($row['readBy']) ? $row['readBy'] : []) as $u) { if ($u) $rb[$u] = 1; }
+            $ex['readBy'] = array_values(array_keys($rb));
+            $ex['done'] = !empty($ex['done']) || !empty($row['done']);
+            $ir = isset($row['repeat']) ? $row['repeat'] : 1; $xr = isset($ex['repeat']) ? $ex['repeat'] : 1;
+            if ($ir > $xr) {
+                $ex['repeat'] = $ir;
+                $ex['lastT'] = isset($row['lastT']) ? $row['lastT'] : (isset($ex['lastT']) ? $ex['lastT'] : '');
+                $ex['lastISO'] = isset($row['lastISO']) ? $row['lastISO'] : (isset($ex['lastISO']) ? $ex['lastISO'] : '');
+            }
+            $byCd[$cd] = $ex;
+        }
+        $nOut = array_values($byCd);
+        $byTask = []; $nDedup = [];
+        foreach ($nOut as $item) {
+            $dk = (string)(isset($item['dkey']) ? $item['dkey'] : '');
+            $isRef = (isset($item['kind']) && $item['kind'] === 'referral') && preg_match('/^referral\|/', $dk);
+            if (!$isRef || !isset($byTask[$dk])) { if ($isRef) $byTask[$dk] = $item; $nDedup[] = $item; continue; }
+            $keep = $byTask[$dk];
+            $rb2 = [];
+            foreach ((isset($keep['readBy']) && is_array($keep['readBy']) ? $keep['readBy'] : []) as $u) { if ($u) $rb2[$u] = 1; }
+            foreach ((isset($item['readBy']) && is_array($item['readBy']) ? $item['readBy'] : []) as $u) { if ($u) $rb2[$u] = 1; }
+            $keep['readBy'] = array_values(array_keys($rb2));
+            $keep['done'] = !empty($keep['done']) || !empty($item['done']);
+            $iIso = (string)(isset($item['iso']) ? $item['iso'] : ''); $kIso = (string)(isset($keep['iso']) ? $keep['iso'] : '');
+            if ($iIso !== '' && ($kIso === '' || $iIso < $kIso)) { $keep['t'] = isset($item['t']) ? $item['t'] : ''; $keep['iso'] = $item['iso']; }
+            $byTask[$dk] = $keep;
+        }
+        /* v34.8.21: ترتیب دقیق کلاینت — dedupe ارجاع «قبل از» sort (بازمانده = رکورد
+           سرور، به ترتیب درج)؛ sort نزولی iso در انتها. */
+        usort($nDedup, function ($a, $b) { return strcmp((string)(isset($b['iso']) ? $b['iso'] : ''), (string)(isset($a['iso']) ? $a['iso'] : '')); });
+        if (count($nDedup) > 4000) $nDedup = array_slice($nDedup, 0, 4000);
+        return json_encode($nDedup, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
     $seen = [];
     $out = [];
@@ -2055,6 +2106,76 @@ switch($action) {
         echo json_encode(['ok' => true, 'rev' => $globalRev, 'data' => $out, 'meta' => $meta, 'delta' => ($krevs !== null)], JSON_UNESCAPED_UNICODE);
         break;
 
+    /* ===== v34.8.31 (T3-1 — ROADMAP-THIN-CLIENT): خواندن سرور-محور =====
+       collection_query: فیلتر/مرتب‌سازی/صفحه‌بندی سمت سرور روی فروشگاه sync.
+       مصرف اصلی: بوت دستگاه جدید (بدون دانلود کل دیتاست) + پنل‌های فهرست‌محور.
+       پارامترها: collection, q (جستجوی آزاد روی فیلدهای رشته‌ای), field/eq,
+       sortBy/sortDir, page/pageSize (سقف ۱۰۰)، fields (پروجکشن CSV اختیاری). */
+    case 'collection_query':
+        verify_request();
+        $cq_collection = trim((string)($_REQUEST['collection'] ?? ''));
+        $cq_allowed = sync_allowed_keys_for_role($client_role);
+        if (!in_array($cq_collection, $cq_allowed, true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'collection_forbidden','collection'=>$cq_collection]); break; }
+        $cq_meta_file = $data_dir . '/sync/meta.json';
+        $cq_meta = file_exists($cq_meta_file) ? (json_decode(file_get_contents($cq_meta_file), true) ?: []) : [];
+        $cq_metaEntry = $cq_meta[$cq_collection] ?? [];
+        $cq_rows = [];
+        $cq_kv = sync_key_read($data_dir . '/sync', $cq_collection);
+        if (is_string($cq_kv)) { $cq_dec = json_decode($cq_kv, true); if (is_array($cq_dec)) $cq_rows = array_values($cq_dec); }
+        /* فیلتر تساوی ساده: هر کلید query به‌جز رزروشده‌ها = eq */
+        $cq_reserved = ['collection','q','sortBy','sortDir','page','pageSize','fields'];
+        foreach ($_REQUEST as $cq_f => $cq_v) {
+            if (in_array($cq_f, $cq_reserved, true)) continue;
+            if (strpos($cq_f, '_') === 0) continue;
+            $cq_v = trim((string)$cq_v);
+            if ($cq_v === '') continue;
+            $cq_rows = array_values(array_filter($cq_rows, function ($r) use ($cq_f, $cq_v) {
+                if (!is_array($r)) return false;
+                if (array_key_exists($cq_f, $r)) return (string)$r[$cq_f] === $cq_v;
+                return false;
+            }));
+        }
+        /* جستجوی آزاد روی فیلدهای رشته‌ای (case-insensitive، حداکثر ۳۰۰۰ رکورد اسکن) */
+        $cq_q = trim((string)($_REQUEST['q'] ?? ''));
+        if ($cq_q !== '') {
+            $cq_qL = mb_strtolower($cq_q, 'UTF-8');
+            $cq_rows = array_values(array_filter(array_slice($cq_rows, 0, 3000), function ($r) use ($cq_qL) {
+                if (!is_array($r)) return false;
+                foreach ($r as $v) { if (is_string($v) && mb_strpos(mb_strtolower($v, 'UTF-8'), $cq_qL) !== false) return true; }
+                return false;
+            }));
+        }
+        /* مرتب‌سازی: sortBy روی فیلد (پیش‌فرض cd)؛ sortDir=asc|desc */
+        $cq_sortBy = trim((string)($_REQUEST['sortBy'] ?? 'cd'));
+        $cq_sortDir = strtolower(trim((string)($_REQUEST['sortDir'] ?? 'asc'))) === 'desc' ? -1 : 1;
+        usort($cq_rows, function ($a, $b) use ($cq_sortBy, $cq_sortDir) {
+            $av = is_array($a) ? (string)($a[$cq_sortBy] ?? '') : '';
+            $bv = is_array($b) ? (string)($b[$cq_sortBy] ?? '') : '';
+            $cmp = strcmp($av, $bv);
+            return $cmp * $cq_sortDir;
+        });
+        /* صفحه‌بندی */
+        $cq_page = max(1, (int)($_REQUEST['page'] ?? 1));
+        $cq_pageSize = min(100, max(1, (int)($_REQUEST['pageSize'] ?? 50)));
+        $cq_total = count($cq_rows);
+        $cq_pageRows = array_slice($cq_rows, ($cq_page - 1) * $cq_pageSize, $cq_pageSize);
+        /* پروجکشن CSV اختیاری */
+        $cq_fields = trim((string)($_REQUEST['fields'] ?? ''));
+        if ($cq_fields !== '') {
+            $cq_want = array_filter(array_map('trim', explode(',', $cq_fields)));
+            $cq_pageRows = array_map(function ($r) use ($cq_want) {
+                $o = [];
+                foreach ($cq_want as $wf) { if (array_key_exists($wf, $r)) $o[$wf] = $r[$wf]; }
+                return $o;
+            }, $cq_pageRows);
+        }
+        echo json_encode([
+            'ok' => true, 'collection' => $cq_collection, 'rev' => $cq_metaEntry['rev'] ?? 0,
+            'total' => $cq_total, 'page' => $cq_page, 'pageSize' => $cq_pageSize,
+            'pages' => (int)ceil($cq_total / $cq_pageSize), 'rows' => $cq_pageRows
+        ], JSON_UNESCAPED_UNICODE);
+        break;
+
     case 'data_rev':
         verify_request();
         $meta_file = $data_dir . '/sync/meta.json';
@@ -2130,6 +2251,11 @@ switch($action) {
         if ($logoutToken !== '') {
             $info = auth_verify_token($logoutToken);
             if ($info) auth_revoke_token($logoutToken);
+        }
+        /* v34.8.28 (T4-1a): کوکی نشست هم هنگام خروج پاک می‌شود */
+        if (isset($_COOKIE['ptf_token'])) {
+            setcookie('ptf_token', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'), 'httponly' => true, 'samesite' => 'Strict']);
+            unset($_COOKIE['ptf_token']);
         }
         echo json_encode(['ok' => true, 'revoked' => $logoutToken !== '']);
         break;
@@ -2216,6 +2342,9 @@ switch($action) {
             echo json_encode(['ok' => false, 'error' => 'token_issue_failed']);
             break;
         }
+        /* v34.8.28 (T4-1a COOKIE-AUTH): نشست روی کوکی HttpOnly هم می‌نشیند — کلاینت
+           بدون خواندن JS توکن هم احراز می‌شود (fallback هدر باقی است برای سازگاری). */
+        auth_emit_session_cookie($token, ($role === 'accountant') ? 8 * 3600 : 24 * 3600); /* S5 */
         echo json_encode(['ok' => true, 'token' => $token, 'role' => $role, 'user' => $found['username'], 'name' => $found['name'] ?? $found['username']], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -2227,7 +2356,10 @@ switch($action) {
         //   با توکن معتبر، مجموعهٔ کامل (بدون passhash) برای مدیریت کاربران برمی‌گردد.
         verify_request();
         global $client_role;
-        $authenticated = !empty($client_role);
+        /* v34.8.16 (T1-1 / PII-GUARD): ریشهٔ نشت موبایل/ایمیل بدون لاگین — مقداردهی اولیهٔ
+           '$client_role = 'anonymous'' (خط ~۲۹۵) باعث می‌شد !empty($client_role) همیشه true
+           باشد و گارد D-02 کد مرج شود. تأیید زنده روی هر دو محیط (۲۰۲۶-۰۸-۲۷). */
+        $authenticated = !empty($client_role) && $client_role !== 'anonymous';
         $all_users = load_all_crm_users_sources();
         $safe_users = array_map(function($u) use ($authenticated) {
             $row = [

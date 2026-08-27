@@ -54,7 +54,7 @@
               var effective = st.adminHash || (typeof ADMIN_HASH !== 'undefined' ? ADMIN_HASH : '');
               if (curH !== effective) { alert('❌ رمز فعلی اشتباه است'); return; }
               st.adminHash = newH;
-              setData('ptf_crm_settings', st);
+              if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
             } else {
               var users = getData('ptf_crm_users');
               var u = users.filter(function (x) { return x.username === me; })[0];
@@ -62,7 +62,7 @@
               if (u.passhash !== curH) { alert('❌ رمز فعلی اشتباه است'); return; }
               u.passhash = newH;
               delete u.mustChangePass; /* v14.5 (US-376): رمز موقت تغییر کرد — الزام برداشته شد */
-              setData('ptf_crm_users', users);
+              if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', users, { reason: 'w4' }); else setData('ptf_crm_users', users);
               if (typeof usersSyncToServer === 'function') usersSyncToServer(); // ورود از همه دستگاه‌ها
             }
             audit('کاربران', 'تغییر رمز عبور توسط خود کاربر', me);
@@ -452,7 +452,7 @@
   function irClearReadSnapshots(aliases) {
     var all = getData('ptf_crm_inqreads');
     var kept = all.filter(function (x) { return !irAliasMatch(x, aliases); });
-    if (kept.length !== all.length) setData('ptf_crm_inqreads', kept);
+    if (kept.length !== all.length) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqreads', kept, { reason: 'w4' }); else setData('ptf_crm_inqreads', kept);
     return all.length - kept.length;
   }
 
@@ -983,8 +983,8 @@
 
     /* snapshot خوانش AI قدیمی می‌تواند بعداً قلم حذف‌شده را دوباره نمایش دهد؛ هم‌زمان پاک می‌شود. */
     var removedReads = irClearReadSnapshots(aliases);
-    setData('ptf_crm_rfqs', rfqs);
-    setData('ptf_crm_inqitems', iq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
     try { audit('استعلامات', 'ویرایش اقلام درخواست ' + cd + ': ' + r.items.length + ' قلم فعلی، حذف ' + removedItems + ' رکورد قدیمی و ' + removedReads + ' snapshot خوانش', cd); } catch (eAudit) {}
 
     var addedProds = 0;
@@ -1134,7 +1134,7 @@
     var list = getData('ptf_crm_inqreads').filter(function (x) { return !irAliasMatch(x, aliases); });
     /* child data با RFQ داخلی ذخیره می‌شود؛ شماره کارفرما صرفاً برای نمایش نگهداری می‌شود. */
     list.unshift({ cd: _ir.cd, inqNo: _ir.dataKey || _ir.cd, customerInqNo: _ir.inqNo || '', rows: _ir.rows, t: faDate(), by: curSession().name });
-    setData('ptf_crm_inqreads', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqreads', list, { reason: 'w4' }); else setData('ptf_crm_inqreads', list);
     if (typeof window.ptfAutoRegisterSummaryProducts === 'function' && _ir.rows) {
       window.ptfAutoRegisterSummaryProducts(_ir.dataKey || _ir.cd, _ir.rows);
     }
@@ -1232,7 +1232,7 @@
     rows.forEach(function (r) {
       iq.push({ inqNo: _ir.dataKey || _ir.cd, cd: genCode('IQI'), nm: r.nm, en: r.nm, tp: r.tp, qty: r.qty || 1, un: r.un || 'عدد', st: r.spec || '', brand: r.brand || '', model: r.model || '', t: faDate() });
     });
-    setData('ptf_crm_inqitems', iq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
     // ۲) products با مارک مخفی (hidden) و تایپ
     var prods = getData('ptf_crm_products');
     var added = 0;
@@ -1244,7 +1244,9 @@
         hidden: true, srcInq: (_ir.dataKey || _ir.cd), tp: r.tp, ts: new Date().toISOString(), ts0: new Date().toISOString() }); /* v15.9 US-389 */
       added++;
     });
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate): ورود کالاهای استعلامی (مارک مخفی) با فرمان اتمیک */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'inq-auto-prod' });
+    else setData('ptf_crm_products', prods);
     audit('کالاها', 'ورود ' + added + ' قلم از استعلام ' + _ir.inqNo + ' با مارک مخفی و تفکیک تایپ', _ir.inqNo);
     document.getElementById('irModal').remove();
     alert('✅ ثبت شد:\n• ' + rows.length + ' قلم در اقلام درخواست ' + _ir.inqNo + '\n• ' + added + ' کالای جدید با مارک مخفی (تکراری‌ها اضافه نشدند)\n\nاین کالاها در فهرست عادی کالا دیده نمی‌شوند (چک‌باکس «نمایش کالاهای استعلامی» در ماژول کالا).');
@@ -1262,8 +1264,12 @@
       var all = getData('ptf_crm_products');
       var hiddenOnes = all.filter(function (p) { return p.hidden; });
       if (!showHidden && hiddenOnes.length) {
-        localStorage.setItem('ptf_crm_products', JSON.stringify(all.filter(function (p) { return !p.hidden; })));
-        try { _renderProductsOld(); } finally { localStorage.setItem('ptf_crm_products', JSON.stringify(all)); }
+        /* v34.8.22 (T5-1): پایان بایپس خاموش‌نویسی — قبلاً localStorage مستقیم نوشته
+           می‌شد (قانون A10) و با آینهٔ IDB فاز B تداخل داشت. حالا نوشتن بی‌صدا از
+           لایهٔ مجاز (بدون dirty/push — این فقط ترفند رندر است، تغییر داده نیست). */
+        var _filtered = all.filter(function (p) { return !p.hidden; });
+        window.ptfSilentWrite('ptf_crm_products', JSON.stringify(_filtered));
+        try { _renderProductsOld(); } finally { window.ptfSilentWrite('ptf_crm_products', JSON.stringify(all)); }
       } else {
         _renderProductsOld();
       }

@@ -69,11 +69,11 @@ function canPanel(id) {
 window.ptfPruneSystemLogs = function () {
   try {
     var logs = getData('ptf_crm_audit');
-    if (logs.length > 1000) setData('ptf_crm_audit', logs.slice(0, 1000));
+    if (logs.length > 1000) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_audit', logs.slice(0, 1000), { reason: 'w4' }); else setData('ptf_crm_audit', logs.slice(0, 1000));
     var q = getData('ptf_crm_sendqueue');
-    if (q.length > 300) setData('ptf_crm_sendqueue', q.slice(0, 300));
+    if (q.length > 300) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q.slice(0, 300), { reason: 'w4' }); else setData('ptf_crm_sendqueue', q.slice(0, 300));
     var nf = getData('ptf_crm_notifs');
-    if (nf.length > 500) setData('ptf_crm_notifs', nf.slice(0, 500));
+    if (nf.length > 500) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', nf.slice(0, 500), { reason: 'w2' }); else setData('ptf_crm_notifs', nf.slice(0, 500));
   } catch (ePrune) {}
 };
 
@@ -94,7 +94,7 @@ window.ptfPruneStaleNotifs = function () {
       if (n.kind === 'co_expiry' || n.kind === 'referral_info') return false;
       return typeof ntfNeedsAction === 'function' ? ntfNeedsAction(n) : !!n.actionable;
     });
-    if (kept.length !== notifs.length) setData('ptf_crm_notifs', kept);
+    if (kept.length !== notifs.length) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept);
     return notifs.length - kept.length;
   } catch (ePruneN) { return 0; }
 };
@@ -104,7 +104,7 @@ function audit(module, action, ref) {
   var logs = getData('ptf_crm_audit');
   logs.unshift({ t: faDateTime(), user: curSession().name || '?', role: roleDef().lb, m: module, a: action, ref: ref || '' });
   if (logs.length > 1000) logs = logs.slice(0, 1000);
-  setData('ptf_crm_audit', logs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_audit', logs, { reason: 'w4' }); else setData('ptf_crm_audit', logs);
 }
 
 /* ============ US-123: اعلانات ============ */
@@ -146,7 +146,7 @@ function notify(opt) {
         dn.title = opt.title; dn.body = opt.body || ''; dn.link = opt.link || dn.link;
         if (opt.refCd) dn.refCd = opt.refCd;
       }
-      setData('ptf_crm_notifs', notifs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs);
       updateCartBadge();
       window._ptfNotifySuppressed = true; /* v31.7.15: تکرار — کانال‌های خارجی نفرستند */
       return dn.cd;
@@ -166,7 +166,7 @@ function notify(opt) {
   };
   notifs.unshift(rec);
   if (notifs.length > 1000) notifs = notifs.slice(0, 1000);
-  setData('ptf_crm_notifs', notifs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs);
   // کانال‌های خارجی → صف ارسال (پیامک/ایمیل — نیازمند کلید API سمت سرور)
   var q = getData('ptf_crm_sendqueue');
   ['sms', 'email'].forEach(function (ch) {
@@ -175,7 +175,7 @@ function notify(opt) {
     }
   });
   if (q.length > 300) q = q.slice(0, 300);
-  setData('ptf_crm_sendqueue', q);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q, { reason: 'w4' }); else setData('ptf_crm_sendqueue', q);
   audit('اعلانات', 'ارسال اعلان: ' + rec.title + ' → ' + (rec.toRoles.map(function(r){ return ROLES[r] ? ROLES[r].lb : r; }).join('، ') || rec.toUsers.join('، ')) + ' [' + rec.channels.join('+') + ']', rec.cd);
   updateCartBadge();
   return rec.cd;
@@ -286,7 +286,7 @@ function ntfReadAll() {
   notifs.forEach(function (n) {
     if (mine[n.cd] && (n.readBy || []).indexOf(me) < 0) { n.readBy = n.readBy || []; n.readBy.push(me); cnt++; }
   });
-  if (cnt) { setData('ptf_crm_notifs', notifs); if (typeof ptfToast === 'function') ptfToast('✓ ' + cnt + ' اعلان خوانده‌شده علامت خورد', 'ok'); }
+  if (cnt) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs); if (typeof ptfToast === 'function') ptfToast('✓ ' + cnt + ' اعلان خوانده‌شده علامت خورد', 'ok'); }
   renderCartable();
 }
 
@@ -294,7 +294,7 @@ function ntfRead(cd) {
   var me = curSession().user;
   var notifs = getData('ptf_crm_notifs');
   notifs.forEach(function (n) { if (n.cd === cd && (n.readBy || []).indexOf(me) < 0) { n.readBy = n.readBy || []; n.readBy.push(me); } });
-  setData('ptf_crm_notifs', notifs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs);
   renderCartable();
 }
 
@@ -308,7 +308,7 @@ window.ntfResolveByRef = function (refCd) {
   var notifs = getData('ptf_crm_notifs');
   var kept = notifs.filter(function (n) { return !(n && (n.refCd === refCd || n.remCd === refCd)); });
   var removed = notifs.length - kept.length;
-  if (removed) { setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (eB) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eB2) {} }
+  if (removed) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (eB) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (eB2) {} }
   return removed;
 };
 
@@ -323,7 +323,7 @@ window.ptfResolveRfqReferral = function (inqNo, taskType) {
     return !(n.taskType === taskType || (!n.taskType && legacyText.test(String(n.title || ''))));
   });
   var removed = notifs.length - kept.length;
-  if (removed) { setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (e1) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (e2) {} }
+  if (removed) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept); try { updateCartBadge(); } catch (e1) {} try { if (typeof updateInboxBadge === 'function') updateInboxBadge(); } catch (e2) {} }
   return removed;
 };
 /* سازگاری با فراخوان قدیمی CO */
@@ -428,7 +428,7 @@ function saveUser2() {
   }
   sha256Hex(p).then(function (ph) {
     users.push({ username: u, passhash: ph, name: nm, nameEn: nmEn, role: ROLES[rl].lb, roleId: rl, mobile: mob, email: ml, createdFa: faDate(), createdBy: curSession().name });
-    setData('ptf_crm_users', users);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', users, { reason: 'w4' }); else setData('ptf_crm_users', users);
     var fd = new FormData();
     fd.append('username', u);
     fd.append('password', p);
@@ -471,7 +471,7 @@ function saveUser2() {
 function delUser2(u) {
   if (!roleDef().users) { alert('دسترسی ندارید'); return; }
   if (!confirm('کاربر ' + u + ' حذف شود؟')) return;
-  setData('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }));
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }), { reason: 'w4' }); else setData('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }));
   usersSyncToServer(); // US-151: حذف در همه دستگاه‌ها اثر کند
   renderUsers();
   audit('کاربران', 'حذف کاربر', u);
@@ -565,7 +565,7 @@ function usersPullFromServer(cb) {
         merged.forEach(function (u) {
           if (u && u.username && !u.passhash && lByName[u.username] && lByName[u.username].passhash) u.passhash = lByName[u.username].passhash;
         });
-        setData('ptf_crm_users', merged);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', merged, { reason: 'w4' }); else setData('ptf_crm_users', merged);
       }
       cb && cb(d);
     })
@@ -659,7 +659,7 @@ function saveBuyQ() {
   var list = getData('ptf_crm_buyquotes');
   list.unshift({ cd: genCode('BQ'), ref: document.getElementById('nBqRef').value.trim(), sup: document.getElementById('nBqSup').value,
     desc: desc, price: pr, note: document.getElementById('nBqNote').value.trim(), t: faDate(), by: curSession().name, byRole: roleDef().lb });
-  setData('ptf_crm_buyquotes', list);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buyquotes', list, { reason: 'w4' }); else setData('ptf_crm_buyquotes', list);
   hideModal(); renderBuyQuotes();
   audit('قیمت خرید', 'ثبت قیمت خرید: ' + desc, '');
   // اعلان به نقش‌های ارشد
@@ -682,7 +682,7 @@ function refToInvoice(offerNo) {
   alert('🔒 فقط پیش‌فاکتور برنده قابل ارجاع بود؛ در معماری جدید پس از برد، ارجاع فاکتور فقط از داخل پرونده فروش انجام می‌شود.');
   return;
   o.invRef = { by: curSession().name, role: roleDef().lb, t: faDate() };
-  setData('ptf_crm_offers', offers);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   audit('فاکتور', 'ارجاع ' + offerNo + ' برای صدور فاکتور', offerNo);
   // استثنا (AC4 اعلانات): فقط حسابدار
   notify({ toRoles: ['accountant'], title: 'پیش‌فاکتور ' + offerNo + ' برای صدور فاکتور ارجاع شد',
@@ -893,7 +893,7 @@ function saveInv(offerNo) {
     existing.no = no; existing.amount = grand; existing.base = amt; existing.vat = vat; existing.invDate = invDate;
     if (files.length) { existing.files = (existing.files || []).concat(files); existing.file = existing.files[0] ? existing.files[0].name : existing.file; }
     existing.editedAt = faDateTime(); existing.editedBy = curSession().name;
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     hideModal(); renderInvoices();
     audit('فاکتور', 'ویرایش فاکتور ' + oldNo + ' → ' + no + ' (' + oldAmt.toLocaleString('fa-IR') + ' → ' + grand.toLocaleString('fa-IR') + ' ریال) برای ' + offerNo, no);
     if (typeof ptfToast === 'function') ptfToast('✅ فاکتور ویرایش شد', 'ok');
@@ -914,7 +914,7 @@ function saveInv(offerNo) {
     files: files, file: files.length ? files[0].name : '', t: faDate(), by: curSession().name };
   /* شرط پیش‌پرداخت پیشنهاد هیچ Receipt یا payment فاکتور نمی‌سازد. */
   invs.unshift(newInv);
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   /* v19.3 (US-436 AC3): PDF و مشخصات فاکتور مستقیم در پرونده فروش می‌نشیند — مرحله خودکار ۹/۱۰/۱۱ (sfStageOf) */
   try {
     var _deals = getData('ptf_crm_deals');
@@ -926,7 +926,7 @@ function saveInv(offerNo) {
         _d.docs.push({ name: 'فاکتور رسمی ' + no + ' — ' + files[0].name, key: files[0].key, size: files[0].size || 0, t: faDate(), by: curSession().name, note: 'صادره حسابدار (US-436)' });
       _d.timeline = _d.timeline || [];
       _d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 فاکتور رسمی ' + no + ' صادر شد — مبلغ کل ' + grand.toLocaleString('fa-IR') + ' ریال (ارزش افزوده: ' + vat.toLocaleString('fa-IR') + ' ریال)' });
-      setData('ptf_crm_deals', _deals);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
     }
   } catch (eD) {}
   // US-141 AC4: نسخه فاکتور به پوشه اسناد مالی پرونده مرتبط (اگر موجود باشد) منتقل می‌شود
@@ -937,7 +937,7 @@ function saveInv(offerNo) {
     prj.docs.push({ folder: 'fin', name: 'فاکتور ' + no + (files.length ? ' — ' + files[0].name : ' (سیستمی)'), key: files.length ? files[0].key : null, t: faDate(), by: curSession().name, note: 'ثبت خودکار از ماژول فاکتورها' });
     prj.timeline = prj.timeline || [];
     prj.timeline.push({ t: faDateTime(), by: curSession().name, tx: 'فاکتور ' + no + ' به‌صورت خودکار به پوشه اسناد مالی افزوده شد' });
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
   }
   hideModal(); renderInvoices();
   audit('فاکتور', 'ثبت فاکتور ' + no + ' برای ' + offerNo, no);
@@ -1091,7 +1091,7 @@ function savePay(invCd) {
     payRec.chequeCd = ch.cd;
   }
   inv.payments.push(payRec);
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   hideModal(); renderReceivables();
   audit('وصولی', 'ثبت وصولی ' + amt.toLocaleString('fa-IR') + ' برای فاکتور ' + inv.no, inv.no);
   var newPaid = paid + amt;
@@ -1129,7 +1129,7 @@ window.ptfInvoicePayVoid = function (invCd, payRef, reason) {
   var reversal = { cd: genCode('RPVOID'), amt: -(+p.amt || 0), how: 'ابطال وصولی', t: faDate(), by: curSession().name, status: 'reversal', voidRef: p.cd || String(payRef), voidReason: reason };
   p.voided = true; p.voidedAt = faDateTime(); p.voidedBy = curSession().name; p.voidReason = reason; p.reversalCd = reversal.cd;
   realPayments.push(reversal);
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   try { audit('وصولی', 'ابطال وصولی ' + (p.cd || payRef) + ' برای فاکتور ' + inv.no + ' — دلیل: ' + reason, reversal.cd); } catch (e) {}
   return { ok: true, reversalCd: reversal.cd };
 };
@@ -1166,7 +1166,7 @@ window.ptfInvoiceVoidLegacy = function (invCd) {
   if (reason === null) return;
   if (!reason.trim()) { alert('⛔ دلیل ابطال الزامی است'); return; }
   inv.status = 'void'; inv.voidAt = faDateTime(); inv.voidBy = curSession().name; inv.voidReason = reason.trim();
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   try { audit('فاکتور', 'ابطال فاکتور ' + inv.no + ' — ' + (inv.amount || 0).toLocaleString('fa-IR') + ' ریال — دلیل: ' + reason.trim(), inv.cd); } catch (e) {}
   renderInvoices();
   if (typeof ptfToast === 'function') ptfToast('فاکتور ابطال شد', 'ok');
@@ -1176,7 +1176,7 @@ window.ptfInvoiceVoidLegacy = function (invCd) {
 function reqContact(invCd) {
   var invs = getData('ptf_crm_invoices');
   invs.forEach(function (i) { if (i.cd === invCd) i.contactReq = { by: curSession().name, t: faDate() }; });
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   renderReceivables();
   notify({ toRoles: SENIOR_ROLES, title: 'درخواست دسترسی به اطلاعات تماس برای پیگیری مطالبات', body: 'درخواست‌کننده: ' + curSession().name, kind: 'contact_req', channels: ['cart'], link: { panel: 'recv' }, actionable: true });
   audit('مطالبات', 'درخواست دسترسی اطلاعات تماس', invCd);
@@ -1196,7 +1196,7 @@ function approveContact(invCd) {
   if (!tel) return;
   inv.contactApproved = { nm: nm, tel: tel, by: curSession().name, t: faDate() };
   delete inv.contactReq;
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   renderReceivables();
   audit('مطالبات', 'تایید دسترسی تماس (' + nm + ') برای فاکتور ' + inv.no, invCd);
   notify({ toRoles: ['accountant', 'collector'], title: 'دسترسی تماس برای پیگیری فاکتور ' + inv.no + ' تایید شد', kind: 'contact_ok', channels: ['cart'], link: { panel: 'recv' } });
@@ -1292,7 +1292,7 @@ function saveDeal() {
   if (deals.filter(function (d) { return d.offerNo === no; }).length) { alert('برای این CO قبلاً پرونده ساخته شده'); return; }
   deals.unshift({ cd: genCode('DEAL'), offerNo: no, buyerCo: o ? o.buyerCo : '', formal: formal,
     t: faDate(), by: curSession().name, events: [{ step: 'won', t: faDate(), by: curSession().name }] });
-  setData('ptf_crm_deals', deals);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
   hideModal(); renderDeals();
   audit('پرونده فروش', 'تشکیل پرونده برای ' + no + (formal ? ' (رسمی)' : ' (غیررسمی)'), no);
 }
@@ -1304,7 +1304,7 @@ function dealAddEvent(cd, step) {
   function commit(ev) {
     d.events = d.events || [];
     d.events.push(ev);
-    setData('ptf_crm_deals', deals);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
     renderDeals();
     audit('پرونده فروش', 'ثبت مرحله ' + step + ' برای ' + cd, cd);
     if (typeof ptfToast === 'function') ptfToast('مرحله ثبت شد', 'ok');
@@ -1437,7 +1437,7 @@ window.ptfSetInvoiceDue = function (invCd) {
       if (!dueFa) { alert('تاریخ سررسید الزامی است'); return; }
       inv.dueFa = dueFa;
       inv.dueISO = (v.dueISO || '').trim() || (typeof ptfJToISO === 'function' ? ptfJToISO(dueFa) : '');
-      setData('ptf_crm_invoices', invs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
       audit('مطالبات', 'ثبت سررسید وصول فاکتور ' + inv.no + ' برای تاریخ ' + dueFa, inv.cd);
       if (typeof ptfToast === 'function') ptfToast('📅 تاریخ سررسید وصول مطالبات ثبت شد', 'ok');
       renderReceivables();

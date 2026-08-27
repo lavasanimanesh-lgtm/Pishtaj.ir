@@ -184,7 +184,7 @@
         var fin = W.ptfSupplierReturnCredit(pr);
         if (fin && fin.ok) { pr.financePaymentCd = fin.paymentCd || ''; pr.allocatedToInvoices = fin.allocated || []; pr.unallocated = +fin.unallocated || 0; }
       }
-      setData('ptf_crm_purchase_returns', prs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_purchase_returns', prs, { reason: 'w4' }); else setData('ptf_crm_purchase_returns', prs);
     }
     return out;
   };

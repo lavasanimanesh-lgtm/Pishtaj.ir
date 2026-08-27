@@ -30,7 +30,7 @@
     try {
       if (localStorage.getItem('ptf_crm_smsbook') === str) return;
     } catch (e) {}
-    setData('ptf_crm_smsbook', b);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_smsbook', b, { reason: 'w4' }); else setData('ptf_crm_smsbook', b);
   }
   /* v21.3 BUG-038: ریشه خالی بودن تب مشتریان —
      phonefmt (US-338) شماره‌ها را با ارقام فارسی ذخیره می‌کند؛
@@ -477,7 +477,7 @@
   function smsQueueLocal(recipients, txt) {
     var q = getData('ptf_crm_sendqueue');
     q.unshift({ cd: genCode('SND'), ch: 'sms', bulk: true, n: recipients.length, recipients: recipients, text: txt, st: 'queued', t: faDateTime(), by: curSession().name });
-    setData('ptf_crm_sendqueue', q);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q, { reason: 'w4' }); else setData('ptf_crm_sendqueue', q);
   }
 
   var _smsStatusCache = null;
@@ -535,7 +535,7 @@
       if (!recipients.length) {
         it.lastError = 'شماره گیرنده نامعتبر است';
         it.lastTry = faDateTime();
-        setData('ptf_crm_sendqueue', q);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q, { reason: 'w4' }); else setData('ptf_crm_sendqueue', q);
         smsRenderStatus(true);
         return;
       }
@@ -553,11 +553,11 @@
           } else {
             it.st = 'queued'; it.lastError = (d && (d.reason || d.error)) || 'ارسال کامل انجام نشد'; it.lastTry = faDateTime();
           }
-          setData('ptf_crm_sendqueue', q);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q, { reason: 'w4' }); else setData('ptf_crm_sendqueue', q);
           smsRenderStatus(true);
         }).catch(function () {
           it.st = 'queued'; it.lastError = 'عدم دسترسی به سرور پیامک'; it.lastTry = faDateTime();
-          setData('ptf_crm_sendqueue', q); smsRenderStatus(true);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q, { reason: 'w4' }); else setData('ptf_crm_sendqueue', q); smsRenderStatus(true);
         });
     });
   };
@@ -614,7 +614,7 @@
       u.mustChangePass = true;
       u.mobile = mob;
       u.smsResends.push(now);
-      setData('ptf_crm_users', users);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', users, { reason: 'w4' }); else setData('ptf_crm_users', users);
       if (typeof usersSyncToServer === 'function') usersSyncToServer();
       var text = 'جناب/سرکار ' + u.name + '\n' + (u.role || '') + ' محترم شرکت پیشرو تجهیز فرتاک،\n' +
         'اطلاعات ورود جدید شما (ارسال مجدد):\n' +

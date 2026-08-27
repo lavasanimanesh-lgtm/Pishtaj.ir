@@ -166,7 +166,7 @@
     };
     notifs.unshift(rec);
     if (notifs.length > 1000) notifs = notifs.slice(0, 1000);
-    setData('ptf_crm_notifs', notifs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs);
     return rec;
   }
 
@@ -260,7 +260,9 @@
         if (reason) r.note = (r.note ? r.note + ' | ' : '') + 'موکول: ' + reason;
       }
     });
-    setData('ptf_crm_reminders', rems);
+    /* v34.8.27 (W4): موکول از مسیر فرمان */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+    else setData('ptf_crm_reminders', rems);
     ntfRead(ntfCd); renderInbox(); updateInboxBadge();
     if (typeof audit === 'function') audit('یادآورها', 'موکول کردن یادآور' + (reason ? ' — دلیل: ' + reason : ''), remCd);
   };
@@ -287,7 +289,7 @@
       o.expiryNotifyStage = 'warn'; changed = true;
       /* صرفاً ثبت stage برای منطق داخلی؛ هیچ اعلان مزاحمی تولید نمی‌شود. */
     });
-    if (changed) setData('ptf_crm_offers', offers);
+    if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     return added;
   }
 
@@ -321,7 +323,7 @@
         link: { panel: 'rfq' }
       });
     });
-    if (changed) setData('ptf_crm_rfqs', rfqs);
+    if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     return added;
   }
 
@@ -355,17 +357,35 @@
         link: { panel: 'deals' }
       });
     });
-    if (changed) setData('ptf_crm_deals', deals);
+    if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
     return added;
   }
 
 
   // یادآورهای سررسیدشده → پیام صندوق (US-138 AC6)
+  /* v34.8.18 (DING-LOOP): «حضور کارت زنده = خودِ state است».
+     گزارش کارفرما پس از v34.8.17: تکرار کارت قطع شد ولی هر چند ثانیه دینگ +
+     «🔄 N بخش از دستگاه دیگر به‌روز شد» (sync.js pull toast) ادامه داشت.
+     ریشه: وقتی notifiedUsers هر تیک گم‌شده دیده می‌شد، سپر dkey کارت دوم نمی‌ساخت
+     ولی کد همچنان added=true برمی‌گرداند (دینگ هر تیک) و دوباره entity_upsert
+     می‌فرستاد (rev++ → toast هر pull). فیکس: قبل از هر کاری کارت‌های زندهٔ
+     یادآور اسکن می‌شوند؛ اگر برای (یادآور، گیرنده) کارت زنده هست، فقط state ساکت
+     بازسازی می‌شود (بدون دینگ، بدون فرمان اضافه) + گارد in-flight برای فرمان. */
+  var _remUpsertInFlight = false;
   function checkDueReminders() {
     var s = curSession();
     if (!s.user) return false;
     var rems = getData('ptf_crm_reminders');
+    var notifs = getData('ptf_crm_notifs');
+    var haveCard = {}; /* 'cd:user' → کارت زنده (نه done) */
+    notifs.forEach(function (n) {
+      if (!n || n.done || n.kind !== 'reminder' || !n.remCd) return;
+      var dk = String(n.dkey || '');
+      if (dk.indexOf('rem-due-') === 0) haveCard[dk.slice(8)] = 1;
+      else (n.toUsers || []).forEach(function (u) { if (u) haveCard[String(n.remCd) + ':' + u] = 1; });
+    });
     var changed = false, added = false;
+    var changedRows = [];
     rems.forEach(function (r) {
       if (!(r.st === 'open' && r.dueISO <= todayISO())) return;
       var targets = [];
@@ -377,20 +397,63 @@
       r.notifiedUsers = r.notifiedUsers || {};
       targets.forEach(function (u) {
         if (r.notifiedUsers[u]) return;
+        if (haveCard[String(r.cd) + ':' + u]) {
+          /* کارت زنده موجود است → این یادآور قبلاً اعلان شده؛ فقط state ساکت
+             بازسازی می‌شود — بدون دینگ و بدون فرمان (پایان DING-LOOP). */
+          r.notifiedUsers[u] = todayISO();
+          changed = true;
+          return;
+        }
         addMsg({
           title: '⏰ یک یادآوری داری: ' + r.title,
           body: 'سررسید: ' + (r.dueFa || r.dueISO) + (r.note ? ' — ' + r.note : ''),
           toUsers: [u], kind: 'reminder', actionable: true, remCd: r.cd,
+          /* v34.8.17 (CARTABLE-LOOP): سپر دوم ضدتکرار — dkey پایدار مثل rfq-due/deal-due. */
+          dkey: 'rem-due-' + r.cd + ':' + u,
           link: { panel: 'rem' }
         });
         r.notifiedUsers[u] = todayISO();
-        added = true; changed = true;
+        added = true; changed = true; /* فقط کارت واقعاً تازه → دینگ */
       });
+      if (changedRows.indexOf(r) < 0) changedRows.push(r);
       r.msgSent = Object.keys(r.notifiedUsers || {}).length >= targets.length;
     });
-    if (changed) setData('ptf_crm_reminders', rems);
+    if (changed) {
+      /* v34.8.17: یادآور مجموعهٔ فرمان‌محور است؛ state از مسیر فرمان ذخیره می‌شود.
+         v34.8.18: گارد in-flight — تا ACK فرمان قبلی، فرمان جدیدی نمی‌رود؛ تیک
+         بعدی هرچه لازم باشد ساکت از روی کارت‌ها بازسازی می‌کند. */
+      var cmdOn = window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function';
+      if (cmdOn) {
+        if (!_remUpsertInFlight) {
+          _remUpsertInFlight = true;
+          try {
+            window.ptfEntityUpsert('ptf_crm_reminders', changedRows[changedRows.length - 1], { cb: function () { _remUpsertInFlight = false; } });
+          } catch (eCmd) { _remUpsertInFlight = false; }
+        }
+        /* ردیف‌های باقی‌مانده (بندرت >۱) با تیک بعد و بازسازی ساکت پوشیده می‌شوند؛
+           پوش انبوه هم به‌عنوان مسیر پشتیبان حذف شد تا با projection نجنگد. */
+      } else setData('ptf_crm_reminders', rems);
+    }
     return added;
   }
+
+  /* v34.8.17 (CARTABLE-LOOP): خودترمیم — کارت‌های تکراریِ ساخته‌شده قبل از فیکس
+     (همان kind/remCd، بدون dkey) یک‌بار جمع می‌شوند؛ اولی (که ممکن است خوانده شده)
+     می‌ماند و بقیه حذف می‌شوند. */
+  function sweepDuplicateReminderNotifs() {
+    var notifs = getData('ptf_crm_notifs');
+    var seen = {}, removed = 0;
+    var kept = notifs.filter(function (n) {
+      if (!n || n.done || n.kind !== 'reminder' || !n.remCd) return true;
+      var k = String(n.remCd) + '|' + String(n.title || '');
+      if (seen[k]) { removed++; return false; }
+      seen[k] = 1;
+      return true;
+    });
+    if (removed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept);
+    return removed;
+  }
+  window.ptfSweepDuplicateReminderNotifs = sweepDuplicateReminderNotifs;
 
   /* ============ US-138 AC5: رویدادهای لحظه‌ای سرور ============ */
   function lastEvt() { return parseInt(localStorage.getItem('ptf_evt_last') || '0', 10); }
@@ -740,7 +803,9 @@
       }
       if (typeof dedupStamp === 'function') dedupStamp(recSup);
       items.unshift(recSup);
-      setData('ptf_crm_suppliers', items);
+      /* v34.8.23 (W1-iterate): تامین‌کنندهٔ تاییدشده از سایت با فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'site-approve' });
+      else setData('ptf_crm_suppliers', items);
     }
     api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — به فهرست تامین‌کنندگان تاییدشده اضافه شدید', note: note || '', by: curSession().name }, function () { syncServerInbox(); });
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'تایید تامین‌کننده سایت: ' + s.company + (note ? ' — ' + note : ''), code);
@@ -913,7 +978,7 @@
         break;
       }
     }
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     if (typeof audit === 'function') audit('استعلامات', 'ویرایش دستی درخواست ' + cd, cd);
     var md = document.querySelector('#panels .md-b:last-child');
     if (md) md.remove();
@@ -953,14 +1018,18 @@
     function inAls(v) { return v && als.indexOf(v) > -1; }
     var offNos = {};
     getData('ptf_crm_offers').forEach(function (o) { if (inAls(o.inqNo)) offNos[o.no] = 1; });
-    setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }));
-    setData('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }));
-    setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }));
-    setData('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }));
-    setData('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }));
-    setData('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }));
-    setData('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }));
-    setData('ptf_crm_rfqs', getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }), { reason: 'w4' }); else setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }));
+    /* v34.8.26 (W3): حذف آبشاری فاکتور = فرمان tombstone بازیافت‌پذیر */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }), { reason: 'cascade-purge' });
+    else setData('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }), { reason: 'w4' }); else setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }), { reason: 'w4' }); else setData('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }), { reason: 'w4' }); else setData('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }), { reason: 'w2' }); else setData('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }), { reason: 'w2' }); else setData('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }));
+    /* v34.8.24 (W2): حذف درخواست = فرمان tombstone بازیافت‌پذیر */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; }), { reason: 'rfq-delete' });
+    else setData('ptf_crm_rfqs', getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; }));
     if (typeof audit === 'function') audit('استعلامات', 'حذف آبشاری درخواست ' + cd + ' (BUG-031): ' + sc.offers.length + ' پیشنهاد، ' + sc.invoices.length + ' فاکتور، ' + sc.rfqsmart.length + ' استعلام تامین، ' + sc.buycmp.length + ' جدول خرید، ' + sc.payables.length + ' بستانکاری، ' + sc.deals.length + ' پرونده فروش، ' + sc.inqitems + ' قلم', cd);
     return { ok: true, scan: sc };
   };
@@ -1458,7 +1527,9 @@
         if (confirm('🏢 این درخواست به مشتری موجود «' + found.co + '» (' + found.cd + ') متصل شد.\n\n👤 رابط جدید «' + r.contact + '» در فرم سایت آمده که در رکورد مشتری نیست — به اشخاص رابط اضافه شود؟')) {
           found.people = found.people || [];
           found.people.push({ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: [], mobs: r.phone ? [{ n: r.phone, lb: 'فرم سایت' }] : [], mails: r.email ? [{ n: r.email, lb: '' }] : [], src: 'site' });
-          setData('ptf_crm_customers', custs);
+          /* v34.8.22 (W1): مشتریِ ساخته‌شده از درخواست سایت با فرمان اتمیک سروری. */
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'site-rfq' });
+          else setData('ptf_crm_customers', custs);
           try { audit('مشتریان', 'افزودن رابط از فرم سایت به ' + found.co + ': ' + r.contact, found.cd); } catch (eA) {}
         }
       }
@@ -1476,7 +1547,9 @@
     };
     if (typeof dedupStamp === 'function') dedupStamp(newC);
     custs.unshift(newC);
-    setData('ptf_crm_customers', custs);
+    /* v34.8.22 (W1): مشتریِ ساخته‌شده از درخواست سایت با فرمان اتمیک سروری. */
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'site-rfq' });
+          else setData('ptf_crm_customers', custs);
     try { audit('مشتریان', 'ساخت خودکار مشتری از درخواست سایت: ' + r.company, newC.cd); } catch (eA2) {}
     return newC;
   }
@@ -1501,7 +1574,7 @@
         msg: r.message || '', std: r.standard || '', vnd: r.vendors || '',
         siteAttachment: r.attachment || '', files: importedFiles
       });
-      setData('ptf_crm_rfqs', rfqs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     }
     api('set_status', { type: 'rfq', code: code, status: 'approved', statusText: 'تایید شد — در حال بررسی فنی و تامین', by: curSession().name }, function () { syncServerInbox(); });
     if (typeof audit === 'function') audit('استعلامات', 'تایید استعلام سایت: ' + r.company + (cust ? ' → مشتری ' + cust.cd : ''), code);
@@ -1773,7 +1846,7 @@
       }
     });
     if (!target) return false;
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     addLog('وضعیت ' + cd + ' تغییر کرد');
     if (typeof audit === 'function') audit('استعلامات', 'تغییر وضعیت به ' + stText, cd);
     if (target && target.waiting) {
@@ -1887,7 +1960,7 @@
     var rfqs = getData('ptf_crm_rfqs');
     var target = null;
     rfqs.forEach(function (r) { if (r.cd === cd) { target = r; r.assignee = { user: toU, name: toUser.name, act: act, by: me.name, t: faDateTime() }; } });
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     var title = 'درخواست ' + cd + (target ? ' (' + target.co + ')' : '') + ' جهت «' + act + '» به ' + toUser.name + ' ارجاع شد' + (note ? ' — ' + note : '');
     // v34.5.5: اعلان عمومی به همه فروش حذف شد — فقط گیرنده کارتابل می‌گیرد.
     var taskType = act === 'صدور پیشنهاد مالی (CO)' ? 'create_offer' : act === 'صدور پیشنهاد فنی (TO)' ? 'create_technical_offer' : act === 'استعلام قیمت از تامین‌کننده' ? 'create_supplier_rfq' : 'rfq_review';
@@ -1964,7 +2037,7 @@
       _rec.refHistory = [{ price: _ref, cur: _refCur, src: 'manual', at: _rec.refAt, by: _rec.refBy }];
     }
     iq.push(_rec);
-    setData('ptf_crm_inqitems', iq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
     hideModal();
     if (typeof renderInquiries === 'function') renderInquiries();
     addLog('قلم «' + nm + '» به درخواست ' + no + ' افزوده شد');
@@ -2011,6 +2084,7 @@
     injectInboxUI();
     updateInboxBadge();
     syncServerInbox();
+    try { sweepDuplicateReminderNotifs(); } catch (eSweep) {} /* v34.8.17: پاکسازی کارت‌های تکراری قبل از فیکس */
     checkDueReminders();
     updateInboxBadge();
     if (!window._ptfPollT) {

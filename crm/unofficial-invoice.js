@@ -482,7 +482,7 @@
       });
       
       if (changed) {
-        setData('ptf_crm_invoices', invs);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
       }
     } catch (e) {}
   }
@@ -600,7 +600,7 @@
 
     // شناسه پرونده منبع اتصال مالی است؛ شماره پیشنهاد فقط مرجع نمایشی است.
     var _salesCase = (getData('ptf_crm_deals') || []).filter(function (d) { return d && (d.wonOffer === o.no || (o._id && d.rootOfferId === o._id)); })[0] || null;
-    if (newInv && _salesCase) { newInv.caseId = _salesCase._id || _salesCase.cd || ''; newInv.customerId = _salesCase.buyerCd || o.buyerCd || ''; setData('ptf_crm_invoices', invs); }
+    if (newInv && _salesCase) { newInv.caseId = _salesCase._id || _salesCase.cd || ''; newInv.customerId = _salesCase.buyerCd || o.buyerCd || ''; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs); }
     // ذخیره فاکتور در مطالبات کلاینت در صورتی که ثبت نشده باشد
     if (!newInv) {
       newInv = {
@@ -630,7 +630,7 @@
       // وصول فقط از Receipt ریالی پرونده می‌آید؛ فاکتور payment مصنوعی نمی‌سازد.
 
       invs.unshift(newInv);
-      setData('ptf_crm_invoices', invs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
       if (window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainCommand === 'function') {
         window.ptfSalesDomainCommand('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd },{
           onAck:function () { if (typeof ptfToast === 'function') ptfToast('صورتحساب غیررسمی توسط سرور تأیید شد', 'ok'); },
@@ -653,7 +653,7 @@
             by: curSession().name,
             tx: '🧾 صورتحساب پرداخت ' + invoiceNo + ' به مبلغ ' + amountIrr.toLocaleString('fa-IR') + ' ریال صادر شد.' + (discountIrr > 0 ? ' (تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال)' : '')
           });
-          setData('ptf_crm_deals', _deals);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
         }
       } catch (eD) {}
 
@@ -1686,7 +1686,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
       return !(p && (p.fromAdvance || /^RP-ADV-/.test(String(p.cd || ''))));
     });
     delete existing.advApplied;
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArI) {}
     try { if (typeof audit === 'function') audit('صورتحساب غیررسمی', 'بازنویسی صورتحساب ' + (existing.no || existing.cd) + ' — مبلغ جدید ' + amountIrr.toLocaleString('fa-IR') + ' ریال', String(existing.cd || '')); } catch (eAu) {}
     /* هم‌راستایی با سرور: همان فرمان ثبت، با کلید یکتای همین سند (سرور با cd به‌روزرسانی می‌کند) */
@@ -1697,7 +1697,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
           var _cur = getData('ptf_crm_invoices') || [];
           var _idx = -1;
           _cur.forEach(function (x, i) { if (x && x.cd === _before.cd) _idx = i; });
-          if (_idx > -1) { _cur[_idx] = _before; setData('ptf_crm_invoices', _cur); }
+          if (_idx > -1) { _cur[_idx] = _before; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', _cur, { reason: 'w3' }); else setData('ptf_crm_invoices', _cur); }
           try { if (window.PTF && window.PTF.ar) window.PTF.ar.invalidate(); } catch (eR) {}
           if (typeof alert === 'function') alert('⛔ بازنویسی سروری صورتحساب رد شد و نسخهٔ قبلی بازگردانده شد: ' + e.message);
         },onUncertain:function(e){if(typeof alert==='function')alert('⚠️ نتیجه بازنویسی صورتحساب نامشخص است؛ نسخه محلی فعلی حفظ شد. شناسه پیگیری: '+e.operationId);}
@@ -1741,7 +1741,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
       invs = invs.filter(function (x) { return x && x.cd !== existing.cd && !(x.offerNo === _co.no && x.isUnofficial && x.status !== 'void'); });
     }
     invs.unshift(newInv);
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
 
     if (typeof window.PTF_SALES_DOMAIN_V2 !== 'undefined' && window.PTF_SALES_DOMAIN_V2 && typeof window.ptfSalesDomainCommand === 'function') {
       window.ptfSalesDomainCommand('register_unofficial_invoice', { invoice: newInv, idempotencyKey: 'UNOFFICIAL|' + newInv.cd },{
@@ -1777,7 +1777,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
            (ctx.isConsolidated ? ' (تجمیعی از ' + ctx.offerNos.length + ' پیشنهاد)' : '') +
            (discountIrr > 0 ? ' | تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال' : '')
       });
-      setData('ptf_crm_deals', _deals);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
     }
   } catch (eD) {}
 
@@ -1859,7 +1859,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
         if (String(r.invoiceCd || '') !== String(inv.cd || '')) return;
         r.status = 'void'; r.voidAt = _now; r.voidBy = _me; r.voidReason = reason; voidedReturns++; _chg = true;
       });
-      if (_chg) setData('ptf_crm_sales_returns', _rets);
+      if (_chg) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sales_returns', _rets, { reason: 'w3' }); else setData('ptf_crm_sales_returns', _rets);
     } catch (eR) {}
     try {
       if ((inv.files || []).length && inv.caseId) {
@@ -1872,7 +1872,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
             _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
             if ((_d0.docs || []).length !== before) removedFiles++;
           });
-          setData('ptf_crm_deals', _deals0);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals0, { reason: 'w2' }); else setData('ptf_crm_deals', _deals0);
         }
       }
     } catch (eF) {}
@@ -1886,7 +1886,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
             tx: '🗑 ابطال سروری صورتحساب غیررسمی ' + (inv.no || inv.cd) +
                 ' — دلیل: ' + reason + ' | مرجوعی ابطال‌شده: ' + voidedReturns + ' | ضمیمهٔ جداشده: ' + removedFiles +
                 ' | وصولی‌ها و چک‌های واقعی دست‌نخورده ماندند (بستانکاری پرونده)' });
-          setData('ptf_crm_deals', _deals);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
         }
       }
     } catch (eT) {}
@@ -2092,7 +2092,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
           _log.freedCreditAmount += _freed;
         }
       });
-      setData('ptf_crm_receipt_allocations', _allocs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_receipt_allocations', _allocs, { reason: 'w3' }); else setData('ptf_crm_receipt_allocations', _allocs);
 
       // ۳.۲) بازسازی creditRemainIRR فقط روی رسیدهای «همین پرونده»
       // پس از ابطال تخصیص، هر receipt ممکن است «سهم آزاد» داشته باشد که به
@@ -2116,7 +2116,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
           _recChanged = true;
         }
       });
-      if (_recChanged) setData('ptf_crm_case_receipts', _recs);
+      if (_recChanged) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_case_receipts', _recs, { reason: 'w3' }); else setData('ptf_crm_case_receipts', _recs);
       try { if (window.PTF && window.PTF.ar && typeof window.PTF.ar.invalidate === 'function') window.PTF.ar.invalidate(); } catch (eArInv) {}
     }
 
@@ -2132,7 +2132,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
       r.voidReason = _reason;
       _log.voidedReturns.push({ cd: r.cd, amount: r.totalAmount });
     });
-    setData('ptf_crm_sales_returns', _rets);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sales_returns', _rets, { reason: 'w3' }); else setData('ptf_crm_sales_returns', _rets);
 
     // ═══ مرحله ۵: جدا کردن فایل‌های ضمیمه از پرونده (نه حذف فیزیکی) ═
     if ((_inv.files || []).length && _inv.caseId) {
@@ -2144,7 +2144,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
           _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
           _log.removedFiles.push(f.key);
         });
-        setData('ptf_crm_deals', _deals0);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals0, { reason: 'w2' }); else setData('ptf_crm_deals', _deals0);
       }
     }
 
@@ -2174,12 +2174,12 @@ window.unofficialInvoicePrintCases = function (ctx) {
              _preservedAmt.toLocaleString('fa-IR') + ' ریال — به‌عنوان بستانکاری یا FIFO); ' +
              'چک (فقط audit): ' + _log.chequeAudited.length + ' مورد'
         });
-        setData('ptf_crm_deals', _deals);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
       }
     }
 
     // ── setData نهایی + audit ────────────────────────────────────────────
-    setData('ptf_crm_invoices', _invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', _invs, { reason: 'w3' }); else setData('ptf_crm_invoices', _invs);
     try {
       audit('فاکتور غیررسمی',
         'ابطال ریشه‌کن فاکتور ' + _inv.no + ' — مبلغ فاکتور: ' +

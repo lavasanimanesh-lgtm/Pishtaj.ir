@@ -199,14 +199,14 @@
       var cutoff = new Date(Date.now() - 30 * 86400000).toISOString();
       var q = getData('ptf_crm_sendqueue');
       var q2 = q.filter(function (x) { return !(x.st === 'sent' && (x.iso || x.t || '') < cutoff); });
-      if (q2.length !== q.length) { setData('ptf_crm_sendqueue', q2); changed = true; }
+      if (q2.length !== q.length) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q2, { reason: 'w4' }); else setData('ptf_crm_sendqueue', q2); changed = true; }
       /* wfLog: حداکثر ۵۰ رویداد per درخواست */
       var rfqs = getData('ptf_crm_rfqs');
       var wfCut = false;
       rfqs.forEach(function (r) {
         if (r.wfLog && r.wfLog.length > 50) { r.wfLog = r.wfLog.slice(-50); wfCut = true; }
       });
-      if (wfCut) { setData('ptf_crm_rfqs', rfqs); changed = true; }
+      if (wfCut) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); changed = true; }
       if (changed && typeof addLog === 'function') addLog('هرس دوره‌ای صف‌ها انجام شد (US-263)');
     } catch (e) {}
   }
@@ -408,7 +408,7 @@
       var mk = bakMonthKey();
       if (st.bakMonthlySaved === mk) return;
       st.bakMonthlySaved = mk;
-      setData('ptf_crm_settings', st);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
       if (typeof audit === 'function') audit('سیستم', 'ذخیره ماهانه فایل بک‌آپ انجام شد (' + how + ')', mk);
     } catch (e) {}
   }
@@ -421,7 +421,7 @@
       if (st.bakMonthlySaved === mk) return;      // این ماه ذخیره شده — یادآور لازم نیست
       if (st.bakMonthlyNotified === mk) return;   // این ماه قبلاً اعلان رفته (سراسری — کلید settings سینک می‌شود)
       st.bakMonthlyNotified = mk;
-      setData('ptf_crm_settings', st);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
       if (typeof notify === 'function') {
         notify({
           toRoles: ['admin', 'chairman'],
@@ -711,10 +711,10 @@
         var cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
         var notifs = getData('ptf_crm_notifs');
         notifs = notifs.filter(function (n, i) { if (i < 100) return true; var read = (n.readBy || []).length > 0; return !(read && (n.iso || '') < cutoff); });
-        setData('ptf_crm_notifs', notifs);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs);
         var logs = getData('ptf_crm_audit');
-        if (logs.length > 1000) setData('ptf_crm_audit', logs.slice(0, 1000));
-        setData('ptf_crm_sendqueue', getData('ptf_crm_sendqueue').filter(function (x) { return x.st !== 'sent'; }));
+        if (logs.length > 1000) { /* v34.8.27 (W4) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_audit', logs.slice(0, 1000), { reason: 'w4' }); else setData('ptf_crm_audit', logs.slice(0, 1000)); }
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', getData('ptf_crm_sendqueue').filter(function (x) { return x.st !== 'sent'; }), { reason: 'w4' }); else setData('ptf_crm_sendqueue', getData('ptf_crm_sendqueue').filter(function (x) { return x.st !== 'sent'; }));
         done({ freed: Math.max(0, beforeAll - storageUsage()) }, 'پاک‌سازی امن');
       }
     });

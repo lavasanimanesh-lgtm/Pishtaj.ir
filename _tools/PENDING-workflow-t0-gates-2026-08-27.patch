@@ -1,0 +1,196 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index b8752f82..51de71f2 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -99,6 +99,11 @@ jobs:
+           done < <(find api -name '*.php' -print0)
+           if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
+           echo "php -l: همهٔ فایل‌های api/*.php سالم"
++      # ── T0-3 (ROADMAP-THIN-CLIENT): گیت JS + معماری قبل از FTP پروداکشن ──
++      - name: JS CI gate + architecture guard (pre-deploy gate)
++        run: |
++          node _tools/uat/run-ci-gate.js
++          node _tools/arch/arch-guard.js --quiet
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+@@ -123,6 +128,31 @@ jobs:
+             docs-deploy/**
+             tester*.js
+             FILES-CHANGED-*.txt
++            api/migrate.php
++            api/data-health-check.php
++
++      # ── T0-4 (ROADMAP-THIN-CLIENT): تایید صحت استقرار پروداکشن — فایل زنده == کامیت ──
++      - name: Post-deploy integrity check (live == commit)
++        run: |
++          BASE="https://pishtaj.ir"
++          FILES="crm/index.html crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js api/sales-domain.php"
++          fail=0
++          for f in $FILES; do
++            expected=$(sha1sum "$f" | cut -d' ' -f1)
++            actual=""
++            for i in 1 2 3 4 5; do
++              actual=$(curl -fsSL --compressed --max-time 20 "$BASE/$f" 2>/dev/null | sha1sum | cut -d' ' -f1 || true)
++              [ "$actual" = "$expected" ] && break
++              sleep 12
++            done
++            if [ "$actual" = "$expected" ]; then
++              echo "✅ $f با کامیت یکی است"
++            else
++              echo "::error file=$f::فایل زنده با کامیت یکی نیست (expected=$expected actual=${actual:-none}) — دیپلوی ناقص یا کش سرور"
++              fail=1
++            fi
++          done
++          exit $fail
+ 
+       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index abee4444..e05f2786 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -34,6 +34,11 @@ jobs:
+       - name: Checkout
+         uses: actions/checkout@v4
+ 
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
+       # جلوگیری از ایندکس شدن استیجینگ توسط گوگل
+       - name: Block search engines on staging
+         run: |
+@@ -61,6 +66,18 @@ jobs:
+           done
+           rm -f _staging-banner.html
+           echo "staging banner injected"
++          # ── T0-6 (ROADMAP-THIN-CLIENT): خاموش‌کردن کش JS/HTML فقط روی استیجینگ ──
++          # پایان ریشهٔ «نسخهٔ مخلوط»: LiteSpeed/مرورگر نباید js را ۳۰ روز کش کند.
++          cat >> crm/.htaccess <<'HTCACHE'
++
++          # staging-only (تزریق خودکار deploy workflow) — no-cache برای shell ها
++          <IfModule mod_headers.c>
++            <FilesMatch "\.(?:js|html)$">
++              Header set Cache-Control "no-cache, must-revalidate"
++            </FilesMatch>
++          </IfModule>
++          HTCACHE
++          echo "staging no-cache override appended to crm/.htaccess"
+       # گیت PHP قبل از FTP — اگر api/*.php سینتکس خراب داشته باشد، استقرار متوقف می‌شود
+       - name: PHP syntax lint (pre-deploy gate)
+         run: |
+@@ -80,6 +97,12 @@ jobs:
+           done < <(find api -name '*.php' -print0)
+           if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
+           echo "php -l: همهٔ فایل‌های api/*.php سالم"
++      # ── T0-3 (ROADMAP-THIN-CLIENT): گیت JS + معماری قبل از FTP ──
++      # ۱۳۰+ تستر قرارداد + arch-guard (شامل A10 بایپس localStorage و A11 تطابق رجیستری)
++      - name: JS CI gate + architecture guard (pre-deploy gate)
++        run: |
++          node _tools/uat/run-ci-gate.js
++          node _tools/arch/arch-guard.js --quiet
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+@@ -105,6 +128,31 @@ jobs:
+             tester*.js
+             FILES-CHANGED-*.txt
+ 
++      # ── T0-4 (ROADMAP-THIN-CLIENT): تایید صحت استقرار — فایل زنده == کامیت ──
++      # ریشهٔ حادثهٔ «نسخهٔ مخلوط» (۲۰۲۶-۰۸-۲۷): index.html جدید، JSها قدیمی.
++      # index.html چک نمی‌شود چون بنر استیجینگ عمداً به آن تزریق می‌شود.
++      - name: Post-deploy integrity check (live == commit)
++        run: |
++          BASE="https://staging.pishtaj.ir"
++          FILES="crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js api/sales-domain.php"
++          fail=0
++          for f in $FILES; do
++            expected=$(sha1sum "$f" | cut -d' ' -f1)
++            actual=""
++            for i in 1 2 3 4 5; do
++              actual=$(curl -fsSL --compressed --max-time 20 "$BASE/$f" 2>/dev/null | sha1sum | cut -d' ' -f1 || true)
++              [ "$actual" = "$expected" ] && break
++              sleep 12
++            done
++            if [ "$actual" = "$expected" ]; then
++              echo "✅ $f با کامیت یکی است"
++            else
++              echo "::error file=$f::فایل زنده با کامیت یکی نیست (expected=$expected actual=${actual:-none}) — دیپلوی ناقص یا کش سرور"
++              fail=1
++            fi
++          done
++          exit $fail
++
+       - name: Summary
+         run: |
+           echo "### ✅ استقرار استیجینگ انجام شد" >> $GITHUB_STEP_SUMMARY
+diff --git a/.github/workflows/php.yml b/.github/workflows/php.yml
+index 7d257b51..491018a6 100644
+--- a/.github/workflows/php.yml
++++ b/.github/workflows/php.yml
+@@ -1,39 +1,41 @@
+-name: PHP Composer
++# ─────────────────────────────────────────────────────────────────────────────
++# PHP & JS Lint — دروازهٔ کیفیت روی هر push/PR به main
++#
++# جایگزین php.yml قدیمی (composer validate) که در این مخزن (بدون composer.json)
++# عملاً بی‌اثر بود. این جاب واقعاً کد را lint می‌کند:
++#   • php -l روی همهٔ فایل‌های api/ و crm/
++#   • node --check روی همهٔ فایل‌های crm/ (به‌جز کتابخانهٔ xlsx.min.js)
++#   • گیت UAT کانونی (run-ci-gate.js — همان گیت قبل از FTP)
++# ─────────────────────────────────────────────────────────────────────────────
++name: PHP & JS Lint + UAT gate
+ 
+ on:
+   push:
+     branches: [ "main" ]
+   pull_request:
+     branches: [ "main" ]
++  workflow_dispatch:
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+-  build:
+-
++  lint:
+     runs-on: ubuntu-latest
+-
+     steps:
+-    - uses: actions/checkout@v4
+-
+-    - name: Validate composer.json and composer.lock
+-      run: composer validate --strict
++      - uses: actions/checkout@v4
+ 
+-    - name: Cache Composer packages
+-      id: composer-cache
+-      uses: actions/cache@v3
+-      with:
+-        path: vendor
+-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+-        restore-keys: |
+-          ${{ runner.os }}-php-
++      - name: Lint PHP (api/ + crm/)
++        run: |
++          find api crm -name '*.php' -print0 | xargs -0 -n1 php -l
+ 
+-    - name: Install dependencies
+-      run: composer install --prefer-dist --no-progress
++      - uses: actions/setup-node@v4
++        with:
++          node-version: '20'
+ 
+-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+-    # Docs: https://getcomposer.org/doc/articles/scripts.md
++      - name: Lint JS (crm/ — بدون کتابخانه‌های min)
++        run: |
++          find crm -name '*.js' -not -name 'xlsx.min.js' -print0 | xargs -0 -n1 node --check
+ 
+-    # - name: Run test suite
+-    #   run: composer run-script test
++      - name: UAT gate (sync / finance / notifications / security)
++        run: node _tools/uat/run-ci-gate.js

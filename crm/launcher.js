@@ -23,7 +23,7 @@
       try { st = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}'); } catch (e) {}
       st.dashOrder = st.dashOrder || {};
       st.dashOrder[myUser()] = ids;
-      setData('ptf_crm_settings', st);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
     } catch (e) {}
   }
 

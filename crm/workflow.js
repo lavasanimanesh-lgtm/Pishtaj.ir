@@ -106,7 +106,7 @@
       r.stxt = WF[wf].lb; // سازگاری با نمایش‌های قدیمی
       r.wfLog = r.wfLog || [];
       r.wfLog.push({ t: faDateTime(), by: curSession().name, wf: wf, ev: evtText || '' });
-      setData('ptf_crm_rfqs', rfqs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
       audit('گردش کار', 'وضعیت ' + r.cd + ' → ' + WF[wf].lb + (evtText ? ' (' + evtText + ')' : ''), r.cd);
       if (typeof renderRfq === 'function') renderRfq();
     }
@@ -164,7 +164,7 @@
         if (v.resp === 'approved') o2.st = 'approved';
         else if (v.resp === 'rejected') o2.st = 'rejected';
         else if (v.resp === 'revise') o2.st = 'revise';
-        setData('ptf_crm_offers', offers2);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers2, { reason: 'w4' }); else setData('ptf_crm_offers', offers2);
         audit('پیشنهادها', 'پاسخ کارفرما برای ' + no + ': ' + v.resp + (v.note ? ' — ' + v.note : ''), no);
         wfRefresh(o2.inqNo, 'پاسخ کارفرما (فنی): ' + v.resp);
         if (typeof renderOffers === 'function') renderOffers();
@@ -180,7 +180,7 @@
     if (!o || o.kind !== 'CO' || o.st !== 'sent') { alert('فقط CO ارسال‌شده'); return; }
     if (!confirm('کارفرما درخواست اصلاح پیشنهاد مالی ' + no + ' را داده؟\nCO برای ویرایش باز می‌شود.')) return;
     o.st = 'revise';
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'درخواست اصلاح مالی ' + no, no);
     wfRefresh(o.inqNo, 'درخواست اصلاح مالی');
     if (typeof renderOffers === 'function') renderOffers();
@@ -239,7 +239,7 @@
             break;
           }
         }
-        setData('ptf_crm_rfqs', rfqs);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
         if (typeof audit === 'function') audit('استعلامات', 'ویرایش دستی درخواست ' + cd, cd);
         var md = document.querySelector('#panels .md-b:last-child');
         if (md) md.remove();
@@ -253,7 +253,7 @@
         if (typeof window.ptfReasonedDelete === 'function') {
           window.ptfReasonedDelete('RFQ', cd, lb, function() {
             var rfqs = getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; });
-            setData('ptf_crm_rfqs', rfqs);
+            if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
             var md = document.querySelector('#panels .md-b:last-child');
             if (md) md.remove();
             if (typeof renderRfq === 'function') renderRfq();
@@ -261,7 +261,7 @@
         } else {
           if (!confirm('🗑 آیا از حذف درخواست «' + cd + '» اطمینان دارید؟')) return;
           var rfqs = getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; });
-          setData('ptf_crm_rfqs', rfqs);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
           if (typeof renderRfq === 'function') renderRfq();
         }
       };
@@ -452,7 +452,7 @@
               if (d.ok && d.data && d.data.t) {
                 var custs = getData('ptf_crm_customers');
                 var c = custs.filter(function (x) { return x.cd === o.buyerCd; })[0];
-                if (c && !c.coEn) { c.coEn = d.data.t; setData('ptf_crm_customers', custs); }
+                if (c && !c.coEn) { c.coEn = d.data.t; /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'coen-fill' }); else setData('ptf_crm_customers', custs); }
               }
             });
           });

@@ -163,7 +163,7 @@ function ctGenerateBuy(rq, supName) {
     body: body, warns: [], t: faDate(), by: curSession().name, rev: 1 };
   var cts = getData('ptf_crm_contracts');
   cts.unshift(c);
-  setData('ptf_crm_contracts', cts);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_contracts', cts, { reason: 'w4' }); else setData('ptf_crm_contracts', cts);
   hideModal(); renderContracts();
   audit('قرارداد', 'تولید پیش‌نویس قرارداد خرید ' + c.no + ' از درخواست تامین ' + rq.no, c.no);
   if (typeof ptfToast === 'function') ptfToast('قرارداد خرید از ' + rq.no + ' ساخته شد', 'ok');
@@ -233,7 +233,7 @@ function ctGenerate() {
     body: body, warns: warns, t: faDate(), by: curSession().name, rev: 1 };
   var cts = getData('ptf_crm_contracts');
   cts.unshift(c);
-  setData('ptf_crm_contracts', cts);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_contracts', cts, { reason: 'w4' }); else setData('ptf_crm_contracts', cts);
   hideModal(); renderContracts();
   audit('قرارداد', 'تولید پیش‌نویس ' + c.no + ' از ' + coNo, c.no);
   if (warns.length) alert('پیش‌نویس تولید شد.\n\n' + warns.join('\n'));
@@ -275,14 +275,14 @@ function ctSave(no) {
   c.useSig = !!(document.getElementById('ctUseSig') || {}).checked;
   c.sigUser = curSession().user;
   c.rev = (c.rev || 1) + 1;
-  setData('ptf_crm_contracts', cts);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_contracts', cts, { reason: 'w4' }); else setData('ptf_crm_contracts', cts);
   hideModal(); renderContracts();
   audit('قرارداد', 'ویرایش ' + no + ' → نسخه ' + c.rev, no);
 }
 
 function ctDel(no) {
   if (!confirm('قرارداد ' + no + ' حذف شود؟')) return;
-  setData('ptf_crm_contracts', getData('ptf_crm_contracts').filter(function (x) { return x.no !== no; }));
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_contracts', getData('ptf_crm_contracts').filter(function (x) { return x.no !== no; }), { reason: 'w4' }); else setData('ptf_crm_contracts', getData('ptf_crm_contracts').filter(function (x) { return x.no !== no; }));
   renderContracts();
   audit('قرارداد', 'حذف', no);
 }

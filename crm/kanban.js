@@ -31,7 +31,7 @@
       st.kanbanView = st.kanbanView || {};
       st.kanbanView[myUser()] = st.kanbanView[myUser()] || {};
       st.kanbanView[myUser()][mod] = v;
-      setData('ptf_crm_settings', st);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
     } catch (e) {}
   }
 

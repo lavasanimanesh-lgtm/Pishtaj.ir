@@ -220,7 +220,7 @@
       iso: new Date().toISOString()
     });
     if (arc.length > 500) arc = arc.slice(0, 500); /* v14.0 US-264: هرس ۵۰۰تایی */
-    setData('ptf_crm_deleted_archive', arc);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arc, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arc);
     // Sprint 106: Auto-delete S3 attached files when record is deleted
     try {
       var rec = null;

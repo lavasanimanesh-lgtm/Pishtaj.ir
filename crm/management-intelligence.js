@@ -356,7 +356,7 @@
   var REPORT_KEY = 'ptf_crm_management_reports';
   function reports() { return list(REPORT_KEY); }
   function settingsObj() { var x=list('ptf_crm_settings'); return x && !Array.isArray(x) ? x : {}; }
-  function saveSettingsObj(x) { setData('ptf_crm_settings',x); }
+  function saveSettingsObj(x) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', x, { reason: 'w4' }); else setData('ptf_crm_settings', x); }
   /* AN-08 (v34.7.24): دوره با تقویم شمسی ساخته می‌شود (هفته از شنبه، ماه از اول ماه شمسی)
      — پیش از این برچسب دوره میلادی بود و با تقویم عملیاتی سیستم نمی‌خواند. */
   function reportPeriod(kind) { return jalaliRange(kind === 'monthly' ? 'monthly' : 'weekly').label; }

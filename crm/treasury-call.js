@@ -98,7 +98,7 @@
       x.voidBy = nm();
       n++;
     });
-    if (n) setData('ptf_crm_sharetx', txs);
+    if (n) { /* v34.8.27 (W4) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sharetx', txs, { reason: 'w4' }); else setData('ptf_crm_sharetx', txs); }
     return n;
   }
 
@@ -324,7 +324,9 @@
       txs.forEach(function (x) {
         if (x && x.callCd === callCd && x.type === 'call_due') { x.status = 'void'; x.voided = true; }
       });
-      if (typeof setData === 'function') setData('ptf_crm_sharetx', txs);
+      /* v34.8.27 (W4) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sharetx', txs, { reason: 'w4' });
+      else if (typeof setData === 'function') setData('ptf_crm_sharetx', txs); /* fallback */
     } catch (e) {}
     if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     if (typeof window.ptfShareRender === 'function') window.ptfShareRender();

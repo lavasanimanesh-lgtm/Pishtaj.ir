@@ -62,14 +62,270 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.12';
+const SD_SERVICE_VERSION = '34.8.34';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
     'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments',
     'ptf_crm_corrections', 'ptf_crm_fin_findings', 'ptf_crm_deleted_archive',
-    'ptf_crm_fiscal_snapshots', 'ptf_crm_sales_commands'
+    'ptf_crm_fiscal_snapshots', 'ptf_crm_sales_commands',
+    'ptf_crm_reminders', 'ptf_crm_leads'
 ];
+
+/* v34.8.13 (PHASE-C2 — زیرساخت فرمان عمومی): تعمیم الگوی موفق مالی به کل CRM.
+   هر موجودیت در رجیستری: نقش‌های مجاز + فیلد هویت. فرمان‌ها از journal/idempotency/
+   WAL موجود عبور می‌کنند؛ پاسخ، projection همان مجموعه را برمی‌گرداند. کلاینت با
+   ptfBApplyServerProjection اعمال می‌کند (بدون dirty/push) = مسیر نازک واقعی.
+   فعال‌سازی تدریجی per-collection؛ غیرفعال = مسیر legacy بدون تغییر. */
+function sd_entity_registry(): array {
+    return [
+        'ptf_crm_reminders' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd',
+        ],
+        /* v34.8.14 (C3-گام۱): سرنخ‌ها — دومین ماژول روی مسیر فرمانی */
+        'ptf_crm_leads' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales'],
+            'id' => 'cd',
+        ],
+        /* v34.8.34 (W1 — ROADMAP-THIN-CLIENT T2 موج اول، تأیید کارفرما):
+           مشتریان/تامین‌کنندگان/کالاها. نقش‌ها عین ماتریس legacy
+           (sync_allowed_keys_for_role در crm.php) — نه کمتر نه بیشتر.
+           maxFields: رکوردهای این سه موجودیت پهن‌تر از سقف عمومی ۴۰ است. */
+        'ptf_crm_customers' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_suppliers' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_products' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        /* v34.8.34 (W2 — T2 موج دوم): درخواست‌ها/پرونده‌ها/پروژه‌ها + اقلام/پکینگ/کارتابل.
+           نقش‌ها عین ماتریس legacy (هر ۸ نقش در $crm). notifs: sortIso — آرایهٔ سرور
+           همیشه iso نزولی بماند تا projection با فرم کانونیکال کلاینت یکی باشد. */
+        'ptf_crm_rfqs' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_deals' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 150,
+        ],
+        'ptf_crm_projects' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_inqitems' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 60,
+        ],
+        'ptf_crm_packinglists' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 80,
+        ],
+        'ptf_crm_notifs' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 80, 'sortIso' => true,
+        ],
+        /* v34.8.34 (W3 — T2 موج سوم، حساس‌ترین مالی): فاکتورها/رسیدها/تخصیص‌ها/اصلاحات/
+           یافته‌ها/مرجوعی فروش. ثبت رسمی/غیررسمی/ابطال از قبل فرمان اختصاصی دارند
+           (register_invoice/register_unofficial_invoice/correct_invoice) — این فقط
+           مسیر ویرایش‌ها/تکمیل‌ها/حذف‌های UI را فرمانی می‌کند. نقش‌ها: فقط ارشد +
+           accountant (مالی؛ sales/buyer/collector در ماتریس legacy این کلیدها را ندارند). */
+        'ptf_crm_invoices' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 200, 'sortIso' => true,
+        ],
+        'ptf_crm_case_receipts' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 120, 'sortIso' => true,
+        ],
+        'ptf_crm_receipt_allocations' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 80, 'sortIso' => true,
+        ],
+        'ptf_crm_corrections' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => '_id', 'maxFields' => 80, 'sortIso' => true,
+        ],
+        'ptf_crm_fin_findings' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 80, 'sortIso' => true,
+        ],
+        'ptf_crm_sales_returns' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 120, 'sortIso' => true,
+        ],
+        /* v34.8.34 (W4 — T2 موج چهارم، تکمیل کامل): همهٔ کلیدهای کسب‌وکار باقی‌مانده.
+           نقش‌ها عین ماتریس legacy (sync_allowed_keys_for_role در crm.php). */
+        'ptf_crm_offers' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 150,
+        ],
+        'ptf_crm_rfqsmart' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_payables' => [
+            'roles' => ['admin','chairman','ceo','commercial','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 150, 'sortIso' => true,
+        ],
+        'ptf_crm_letters' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 120, 'sortIso' => true,
+        ],
+        'ptf_crm_sendqueue' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 60, 'sortIso' => true,
+        ],
+        'ptf_crm_deleted_archive' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => '_id', 'maxFields' => 60, 'sortIso' => true,
+        ],
+        'ptf_crm_buycmp' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_settings' => [
+            'roles' => ['admin','chairman','ceo','commercial'],
+            'id' => '_id', 'maxFields' => 200,
+        ],
+        'ptf_crm_audit' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 60, 'sortIso' => true,
+        ],
+        'ptf_crm_users' => [
+            'roles' => ['admin','chairman','ceo','commercial'],
+            'id' => 'username', 'maxFields' => 60,
+        ],
+        'ptf_crm_supplier_finance' => [
+            'roles' => ['admin','chairman','ceo','commercial','buyer','accountant'],
+            'id' => 'supplierCd', 'maxFields' => 150,
+        ],
+        'ptf_crm_cheques' => [
+            'roles' => ['admin','chairman','ceo','commercial','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_contracts' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_buyquotes' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_smsbook' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','accountant'],
+            'id' => 'cd', 'maxFields' => 80,
+        ],
+        'ptf_crm_sigprofiles' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'username', 'maxFields' => 60,
+        ],
+        'ptf_crm_petty' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_inqreads' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120, 'sortIso' => true,
+        ],
+        'ptf_crm_avatars' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'user', 'maxFields' => 40,
+        ],
+        'ptf_crm_catalog_merges' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 60,
+        ],
+        'ptf_crm_vat_settlements' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_purchase_returns' => [
+            'roles' => ['admin','chairman','ceo','commercial','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_perms' => [
+            'roles' => ['admin','chairman','ceo','commercial'],
+            'id' => 'roleId', 'maxFields' => 80,
+        ],
+        'ptf_crm_catalog_reviews' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 80,
+        ],
+        'ptf_crm_shareholders' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        /* v34.8.34 (T5-2): چک‌های شخصی از کلیدهای فقط-دستگاه (ptf_personal_cheques_<user>)
+           به کلید سینک‌شونده مشترک — پایان ریسک گم‌شدن چک شخصی با گم‌شدن گوشی. */
+        'ptf_crm_personal_cheques' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+    ];
+}
+function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields = 40): array {
+    /* v34.8.34 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
+       ۲۰۰۰→۸۰۰۰ و hist ۵۰۰→۲۰۰۰؛ تعداد برش/حذف به‌صورت ساخت‌یافته در پاسخ فرمان
+       برمی‌گردد تا حذفِ بی‌صدا از بین برود. */
+    $stats = ['trimmed' => 0, 'dropped' => 0, 'kept' => 0];
+    $trackString = function (string $original, string $stored) use (&$stats): void {
+        if (mb_strlen($original, 'UTF-8') > mb_strlen($stored, 'UTF-8')) $stats['trimmed']++;
+    };
+    $out = []; $n = 0;
+    foreach ($row as $k => $v) {
+        if (!is_string($k) || $k === '' || strlen($k) > 40) { $stats['dropped']++; continue; }
+        if ($n >= $maxFields) { $stats['dropped']++; break; }
+        if ($v === null) { $out[$k] = null; $n++; $stats['kept']++; continue; }
+        if (is_bool($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
+        if (is_int($v) || is_float($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
+        if (is_string($v)) { $stored = sd_text($v, 8000); $trackString($v, $stored); $out[$k] = $stored; $n++; $stats['kept']++; continue; }
+        if (is_array($v)) {
+            /* v34.8.14: لیست اسکالر (مثل shareUsers) عیناً با سقف نگه داشته می‌شود؛
+               map تودرتو با مقادیر اسکالر مجاز است (مثل link/notifiedUsers). */
+            $isList = array_keys($v) === range(0, count($v) - 1);
+            if ($isList) {
+                $list = [];
+                foreach ($v as $item) {
+                    if (is_string($item)) { $list[] = sd_text($item, 300); if (count($list) >= 60) break; continue; }
+                    if (is_bool($item)) { $list[] = $item; continue; }
+                    if (is_int($item) || is_float($item)) { $list[] = $item; continue; }
+                    /* v34.8.14: لیست نقشه‌های اسکالر (مثل hist سرنخ) یک سطح مجاز است. */
+                    if (is_array($item)) {
+                        $subItem = [];
+                        foreach ($item as $k3 => $v3) {
+                            if (is_string($k3) && strlen($k3) <= 60 && (is_scalar($v3) || $v3 === null)) {
+                                $storedSub = is_string($v3) ? sd_text($v3, 2000) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
+                                if (is_string($v3)) $trackString($v3, $storedSub);
+                                $subItem[$k3] = $storedSub;
+                            }
+                            if (count($subItem) >= 20) break;
+                        }
+                        $list[] = $subItem;
+                        if (count($list) >= 60) break;
+                        continue;
+                    }
+                }
+                $out[$k] = $list; $n++; continue;
+            }
+            $sub = [];
+            foreach ($v as $k2 => $v2) {
+                if (is_string($k2) && strlen($k2) <= 60 && (is_scalar($v2) || $v2 === null)) {
+                    $sub[$k2] = is_string($v2) ? sd_text($v2, 300) : (is_bool($v2) ? $v2 : ($v2 === null ? null : (int)$v2));
+                }
+                if (count($sub) >= 60) break;
+            }
+            $out[$k] = $sub; $n++; continue;
+        }
+    }
+    return $out;
+}
 
 function sd_require_role(array $roles): void {
     global $role;
@@ -2192,6 +2448,78 @@ try {
         else{$id=sd_text($body['attachmentId']??'',100);$ai=-1;foreach($attachments as $i=>$a)if(is_array($a)&&(string)($a['_id']??'')===$id){$ai=$i;break;}if($ai<0)sd_out(['ok'=>false,'error'=>'attachment_not_found'],404);if($reason==='')sd_out(['ok'=>false,'error'=>'reason_required'],422);if($action==='attachment_delete'){$attachments[$ai]['status']='deleted';$attachments[$ai]['deletedAt']=sd_now();$attachments[$ai]['deletedBy']=$user;$attachments[$ai]['deleteReason']=$reason;$result=['deleted'=>$id];}else{$file=is_array($body['file']??null)?$body['file']:[];if(!sd_file_ok($file))sd_out(['ok'=>false,'error'=>'invalid_file'],422);$oldA=$attachments[$ai];$attachments[$ai]['status']='replaced';$newA=['_id'=>sd_uuid('ATT'),'ownerType'=>$oldA['ownerType'],'ownerId'=>$oldA['ownerId'],'category'=>$oldA['category'],'version'=>(int)($oldA['version']??1)+1,'objectKey'=>$file['key'],'name'=>$file['name']??'','mimeType'=>$file['contentType']??'','size'=>$file['size']??0,'status'=>'active','replacesAttachmentId'=>$id,'uploadedBy'=>$user,'uploadedAt'=>sd_now()];$attachments[]=$newA;$result=['attachmentId'=>$newA['_id'],'replaced'=>$id];}}
         $corrections[]=['_id'=>sd_uuid('COR'),'entityType'=>'financial_attachment','entityId'=>$result['attachmentId']??$result['deleted']??'','kind'=>$action,'reason'=>$reason,'correctedBy'=>$user,'correctedAt'=>sd_now(),'ownerType'=>$ownerType,'ownerId'=>$ownerId];
         $changes=['ptf_crm_fin_attachments'=>$attachments,'ptf_crm_corrections'=>$corrections];
+    }
+    elseif ($action === 'entity_upsert' || $action === 'entity_delete') {
+        /* v34.8.13 (PHASE-C2): فرمان عمومی موجودیت — سرور مالک رکورد است. */
+        $collection = sd_text($body['collection'] ?? '', 60);
+        $registry = sd_entity_registry();
+        if (!isset($registry[$collection])) sd_out(['ok'=>false,'error'=>'entity_collection_not_enabled'],404);
+        $cfg = $registry[$collection];
+        sd_require_role($cfg['roles']);
+        $idField = (string)$cfg['id'];
+        $rows = sd_read($collection);
+        if ($action === 'entity_upsert') {
+            $rec = is_array($body['record'] ?? null) ? $body['record'] : [];
+            $id = sd_text($rec[$idField] ?? '', 60);
+            if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
+            $sanitizeStats = null;
+            $row = sd_entity_sanitize_row($rec, $sanitizeStats, (int)($cfg['maxFields'] ?? 40));
+            $row[$idField] = $id;
+            $found = -1;
+            foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }
+            $now = sd_now();
+            if ($found < 0) {
+                $row['createdAt'] = $now; $row['createdBy'] = $user;
+                $rows[] = $row; $created = true; $stored = $row;
+            } else {
+                $prev = $rows[$found];
+                $row['createdAt'] = (string)($prev['createdAt'] ?? $now);
+                $row['createdBy'] = (string)($prev['createdBy'] ?? $user);
+                /* v34.8.34 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
+                   یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
+                   می‌شد»: upsert دیرهنگام/دوباره‌ارسالی، notifiedUsers (state ضدتکرار
+                   اعلان یادآور در bridge) را با رکورد کهنه جایگزین می‌کرد؛ poll بعدی
+                   چون state را گم‌شده می‌دید، کارت تکراری می‌ساخت و چرخه ادامه یافت. */
+                foreach ($prev as $pk => $pv) {
+                    if ($pk === 'createdAt' || $pk === 'createdBy' || $pk === 'updatedAt' || $pk === 'updatedBy') continue;
+                    if (array_key_exists($pk, $row)) continue;
+                    $row[$pk] = $pv;
+                }
+                $row['updatedAt'] = $now; $row['updatedBy'] = $user;
+                $rows[$found] = $row; $created = false; $stored = $row;
+            }
+            $changes = [$collection => $rows];
+            $result = ['collection' => $collection, 'id' => $id, 'created' => $created, 'row' => $stored, 'mode' => 'entity-command', 'sanitize' => $sanitizeStats];
+        } else {
+            $id = sd_text($body['id'] ?? ($body['record'] ?? [])[$idField] ?? '', 60);
+            if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
+            $reason = sd_text($body['reason'] ?? 'entity_delete', 300);
+            $found = -1;
+            foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }
+            if ($found < 0) {
+                $result = ['collection' => $collection, 'id' => $id, 'deleted' => false, 'alreadyDeleted' => true, 'mode' => 'entity-command'];
+                $changes = [];
+            } else {
+                array_splice($rows, $found, 1);
+                /* tombstone عمومی با kind=archive_purge و identities — همان مکانیزم
+                   موجود client/server؛ دستگاه‌های stale رکورد را زنده نمی‌کنند. */
+                $archive = sd_read('ptf_crm_deleted_archive');
+                $archive[] = ['_id' => sd_uuid('DEL'), 'kind' => 'archive_purge', 'collection' => $collection, 'id' => $id, 'cd' => $id, 'aliases' => [$id], 'identities' => [$collection => [$id]], 'reason' => $reason, 'deletedBy' => $user, 'deletedAt' => sd_now()];
+                $changes = [$collection => $rows, 'ptf_crm_deleted_archive' => $archive];
+                $result = ['collection' => $collection, 'id' => $id, 'deleted' => true, 'mode' => 'entity-command'];
+            }
+        }
+        /* v34.8.34 (W2): کلیدهای sortIso (notifs) — آرایهٔ سرور iso نزولی بماند؛
+           روی هر دو مسیر upsert و delete اعمال می‌شود تا projection سرور با فرم
+           کانونیکال کلاینت یکی بماند. */
+        if (!empty($cfg['sortIso']) && isset($changes[$collection]) && is_array($changes[$collection])) {
+            $isoOf = function ($r) {
+                if (!is_array($r)) return '';
+                foreach (['iso','updatedAtISO','issueDate','invDate','t'] as $f) if (isset($r[$f]) && is_string($r[$f]) && $r[$f] !== '') return $r[$f];
+                return '';
+            };
+            usort($changes[$collection], function ($a, $b) use ($isoOf) { return strcmp($isoOf($b), $isoOf($a)); });
+        }
     }
     else sd_out(['ok'=>false,'error'=>'unknown_action'],404);
 

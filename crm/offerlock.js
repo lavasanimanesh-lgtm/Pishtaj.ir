@@ -94,7 +94,9 @@
           refPriceAt: _pr > 0 ? (typeof faDate === 'function' ? faDate() : '') : '', refPriceSrc: _pr > 0 ? 'ثبت سریع فرم پیشنهاد' : '',
           srcRef: (window._offState && (_offState.no || _offState.inqNo)) ? { kind: 'offer', no: _offState.no || '', inqNo: _offState.inqNo || '', at: new Date().toISOString(), by: (typeof curSession === 'function' ? (curSession().user || '') : '') } : null,
           ds: 'ثبت سریع از فرم پیشنهاد', ts: new Date().toISOString(), ts0: new Date().toISOString() });
-        setData('ptf_crm_products', prods);
+        /* v34.8.23 (W1-iterate) */
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'offer-quick-prod' });
+        else setData('ptf_crm_products', prods);
         audit('کالاها', 'ثبت سریع کالا از فرم پیشنهاد: ' + v.nm + (_pr > 0 ? ' (نرخ مرجع ' + _pr.toLocaleString('en-US') + ')' : ''), cd);
         offPickProd(i, cd);
         if (_pr > 0) { var _it = _offState.items[i]; if (_it && !+_it.refPrice) { _it.refPrice = _pr; offRenderItems(); } }
@@ -423,7 +425,7 @@
         var rfqs2 = getData('ptf_crm_rfqs');
         var r2 = rfqs2.filter(function (x) { return x.cd === cd; })[0];
         r2.inqText = (v.tx || '').trim();
-        setData('ptf_crm_rfqs', rfqs2);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs2, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs2);
         audit('استعلامات', 'ثبت/ویرایش متن استعلام ' + cd, '');
         if (typeof renderRfq === 'function') renderRfq();
         ptfToast('متن استعلام ذخیره شد ✅', 'ok');

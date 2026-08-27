@@ -360,6 +360,147 @@
   };
   window.ptfSalesDomainApi = api;
   window.ptfSalesDomainCommand = command;
+
+  /* ============ v34.8.13 (PHASE-C2): فرمان عمومی موجودیت — مسیر نازک نوشتن ============
+     هر ماژولی که کلیدش در PTF_ENTITY_CMD_ENABLED باشد، نوشتن/حذف را به‌جای
+     «کل مجموعه push» با یک فرمان اتمیک سروری انجام می‌دهد. اعمال پاسخ از طریق
+     ptfBApplyServerProjection است (بدون dirty/صف/push) — دقیقاً تجربهٔ بانکی. */
+  /* v34.8.22 (W1): مشتریان/تامین‌کنندگان/کالاها — باید عین sd_entity_registry سرور باشد (قانون A11). */
+  /* v34.8.24 (W2): rfqs/deals/projects/inqitems/packinglists/notifs — باید عین sd_entity_registry سرور باشد (قانون A11). */
+  /* v34.8.26 (W3): فاکتورها/رسیدها/تخصیص‌ها/اصلاحات/یافته‌ها/مرجوعی — عین رجیستری سرور (A11). */
+  /* v34.8.27 (W4): تکمیل کامل — همهٔ ۴۱ موجودیت فرمان‌محور. عین رجیستری سرور (A11). */
+  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true, 'ptf_crm_customers': true, 'ptf_crm_suppliers': true, 'ptf_crm_products': true, 'ptf_crm_rfqs': true, 'ptf_crm_deals': true, 'ptf_crm_projects': true, 'ptf_crm_inqitems': true, 'ptf_crm_packinglists': true, 'ptf_crm_notifs': true, 'ptf_crm_invoices': true, 'ptf_crm_case_receipts': true, 'ptf_crm_receipt_allocations': true, 'ptf_crm_corrections': true, 'ptf_crm_fin_findings': true, 'ptf_crm_sales_returns': true, 'ptf_crm_offers': true, 'ptf_crm_rfqsmart': true, 'ptf_crm_payables': true, 'ptf_crm_letters': true, 'ptf_crm_sendqueue': true, 'ptf_crm_deleted_archive': true, 'ptf_crm_buycmp': true, 'ptf_crm_settings': true, 'ptf_crm_audit': true, 'ptf_crm_users': true, 'ptf_crm_supplier_finance': true, 'ptf_crm_cheques': true, 'ptf_crm_contracts': true, 'ptf_crm_buyquotes': true, 'ptf_crm_smsbook': true, 'ptf_crm_sigprofiles': true, 'ptf_crm_petty': true, 'ptf_crm_inqreads': true, 'ptf_crm_avatars': true, 'ptf_crm_catalog_merges': true, 'ptf_crm_vat_settlements': true, 'ptf_crm_purchase_returns': true, 'ptf_crm_perms': true, 'ptf_crm_catalog_reviews': true, 'ptf_crm_shareholders': true, 'ptf_crm_personal_cheques': true };
+  function entityApplyProjection(collection, value, rev) {
+    /* v34.8.15: پاسخ فرمان ممکن است رشتهٔ JSON یا آرایهٔ آماده باشد (sd_result_data
+       آرایه برمی‌گرداند). قبلاً فقط رشته پذیرفته می‌شد و projection اصلاً اعمال
+       نمی‌شد — نتیجه: رکورد جدید تا pull بعدی دیده نمی‌شد و watermark کلاینت
+       عقب می‌ماند. */
+    try {
+      if (typeof window.ptfBApplyServerProjection === 'function' && value != null) {
+        return window.ptfBApplyServerProjection(collection, value, rev);
+      }
+    } catch (eProj) {}
+    /* فاز B غیرفعال → مسیر legacy امن: اعمال محلی + setData (push مجموعه‌ای) */
+    try {
+      var arr = (typeof value === 'string') ? JSON.parse(value) : value;
+      if (Array.isArray(arr)) { setData(collection, arr); return true; }
+    } catch (eLegacy) {}
+    return false;
+  }
+  /* v34.8.16 (T1-2): پیام خطای فرمان دقیق — «دوباره تلاش کنید» فقط برای خطای قابل‌تلاش؛
+     ۴۰۳ = عدم مجوز، ۴۰۱ = نشست منقضی، نامشخص = بررسی رسید، آفلاین = صف. */
+  window.ptfEntityCommandMessage = function (st, label) {
+    label = label || 'این عملیات';
+    var st8 = st || {};
+    var err = st8.error || {};
+    var msg = String((err && err.message) || err || '');
+    var code = +(err && err.status) || 0;
+    if (st8.state === 'acked') return '';
+    if (code === 403 || /permission_denied|entity_collection_not_enabled|role/i.test(msg))
+      return label + ': دسترسی لازم را ندارید — با مدیر سامانه تماس بگیرید (تلاش مجدد فایده ندارد)';
+    if (code === 401 || /needLogin|Authentication required|token/i.test(msg))
+      return label + ': نشست منقضی شده — دوباره وارد شوید؛ تغییر شما از دست نمی‌رود';
+    if (st8.state === 'uncertain' || err.commitOutcome === 'uncertain')
+      return label + ': وضعیت روی سرور نامشخص است — از «بررسی رسید فرمان» (تنظیمات) وضعیت را بگیرید؛ دوباره نفرستید';
+    if (!code && /fetch|network|offline/i.test(msg))
+      return label + ': ارتباط با سرور برقرار نشد — تغییر محفوظ است و با برگشت اتصال ارسال می‌شود';
+    if (err.definitiveNoCommit || /command_not_committed/i.test(msg))
+      return label + ': روی سرور ثبت نشد — دوباره تلاش کنید';
+    return label + ': روی سرور انجام نشد — ' + (msg ? msg : 'خطای نامشخص') + ' (کد ' + (code || '—') + ')';
+  };
+  window.ptfEntityUpsert = function (collection, record, opts) {
+    opts = opts || {};
+    if (!window.PTF_ENTITY_CMD_ENABLED[collection]) { if (opts.cb) opts.cb({ state: 'legacy' }); return null; }
+    var idv = String((record || {}).cd || '');
+    return window.ptfSalesDomainCommand('entity_upsert', {
+      collection: collection,
+      record: record,
+      idempotencyKey: 'ENT|' + collection + '|' + idv + '|' + String(opts.operationId || Date.now())
+    }, { apiOptions: { autoReplay: true } }).then(function (state) {
+      if (state && state.state === 'acked') {
+        var resp = state.response || {};
+        var data = resp.data || {};
+        entityApplyProjection(collection, data[collection], resp.rev);
+        if (opts.cb) opts.cb({ state: 'acked', result: resp.result || {} });
+      } else if (opts.cb) {
+        opts.cb({ state: state ? state.state : 'rejected', error: state && state.error });
+      }
+      return state;
+    });
+  };
+  window.ptfEntityDelete = function (collection, id, opts) {
+    opts = opts || {};
+    if (!window.PTF_ENTITY_CMD_ENABLED[collection]) { if (opts.cb) opts.cb({ state: 'legacy' }); return null; }
+    return window.ptfSalesDomainCommand('entity_delete', {
+      collection: collection,
+      id: id,
+      reason: opts.reason || 'entity_delete',
+      idempotencyKey: 'ENT-D|' + collection + '|' + id + '|' + String(opts.operationId || Date.now())
+    }, { apiOptions: { autoReplay: true } }).then(function (state) {
+      if (state && state.state === 'acked') {
+        var resp = state.response || {};
+        var data = resp.data || {};
+        if (data[collection]) entityApplyProjection(collection, data[collection], resp.rev);
+        if (data['ptf_crm_deleted_archive']) entityApplyProjection('ptf_crm_deleted_archive', data['ptf_crm_deleted_archive'], resp.rev);
+        if (opts.cb) opts.cb({ state: 'acked', result: resp.result || {} });
+      } else if (opts.cb) {
+        opts.cb({ state: state ? state.state : 'rejected', error: state && state.error });
+      }
+      return state;
+    });
+  };
+  /* ============ v34.8.22 (W1): روتر diff-محور مجموعه‌ای ============
+     به‌جای ویرایش ۴۹ نقطهٔ نوشتن پراکنده، یک نقطهٔ عبور: کلاینت آرایهٔ بعدی را
+     می‌دهد؛ روتر نسبت به آخرین snapshot نوشته‌شدهٔ همین کلاینت diff می‌گیرد و
+     هر رکورد افزوده/ویرایش‌شده = entity_upsert، هر cd غایب = entity_delete
+     (با tombstone آرشیو — بازیافت‌پذیر). گاردهای امنیتی:
+       • فرمان خاموش/کلید غیرفعال → setData (رفتار legacy)
+       • رکورد بدون cd در ورودی → setData (فرمانی بی‌هویت ممنوع)
+       • تعداد عملیات > maxOps (پیش‌فرض ۴۰، مثل ایمپورت اکسل بزرگ) → setData
+       • snapshot فقط «نوشته‌های همین کلاینت» است → رکوردی که دستگاه دیگر اضافه
+         کرده هرگز اشتباهاً حذف نمی‌شود (حذف فقط وقتی prev هم آن را داشته). */
+  window.ptfEntitySaveCollection = function (collection, nextArr, opts) {
+    opts = opts || {};
+    function legacyFallback(reason) {
+      try { if (typeof setData === 'function') setData(collection, nextArr); } catch (eL) {}
+      return { mode: 'legacy', reason: reason };
+    }
+    if (!window.PTF_ENTITY_CMD_ENABLED || !window.PTF_ENTITY_CMD_ENABLED[collection] || typeof window.ptfEntityUpsert !== 'function' || typeof window.ptfEntityDelete !== 'function') return legacyFallback('cmd-off');
+    if (!Array.isArray(nextArr)) return legacyFallback('not-array');
+    var base = Array.isArray(opts.prevArr) ? opts.prevArr : null;
+    if (!base && window._ptfEntityLastKnown && Array.isArray(window._ptfEntityLastKnown[collection])) base = window._ptfEntityLastKnown[collection];
+    if (!base) { try { var cur = getData(collection); if (Array.isArray(cur)) base = cur; } catch (eB) {} }
+    if (!base) base = [];
+    var MAX_OPS = opts.maxOps || 40;
+    var prevByCd = {}, nextByCd = {}, okPrev = true, okNext = true;
+    base.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okPrev = false; return; } prevByCd[r.cd] = r; });
+    nextArr.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okNext = false; return; } nextByCd[r.cd] = r; });
+    if (!okPrev || !okNext) return legacyFallback('records-without-cd');
+    var ups = [], dels = [];
+    Object.keys(nextByCd).forEach(function (cd) {
+      var pv = prevByCd[cd], nx = nextByCd[cd];
+      if (!pv) { ups.push(nx); return; }
+      try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
+    });
+    Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
+    if (ups.length + dels.length > MAX_OPS) return legacyFallback('too-many-ops:' + (ups.length + dels.length));
+    /* v34.8.24 (READBACK-FIX): نوشتن محلیِ بی‌صدا «قبل از» فرمان‌ها — ریشهٔ شکست
+       tester442/445: جریان‌هایی که بلافاصله getData می‌خوانند (حذف پیشنهاد → مرحلهٔ
+       RFQ) دادهٔ کهنه می‌دیدند چون تا ACK هیچ‌چیز محلی نوشته نمی‌شد. نوشتن بی‌صدا
+       (بدون dirty) سازگاری فوری می‌دهد؛ ACK بعدی همان محتوا را projection می‌کند. */
+    try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite(collection, JSON.stringify(nextArr)); } catch (eW) {}
+    var errors = [];
+    /* v34.8.24 (SAFETY-NET): هر فرمان شکست‌خورده → کلید dirty تا پوش انبوهِlegacy
+       همان بازیابیِ امروز را تضمین کند (آفلاین/خطای سخت هیچ داده‌ای معلق نمی‌ماند). */
+    function failDirty() { try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(collection); } catch (eD) {} }
+    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } } }); } catch (eU) { errors.push(eU); failDirty(); } });
+    dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); } }); } catch (eD) { errors.push(eD); failDirty(); } });
+    try {
+      window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
+      window._ptfEntityLastKnown[collection] = JSON.parse(JSON.stringify(nextArr));
+    } catch (eS) {}
+    return { mode: 'commands', upserts: ups.length, deletes: dels.length, errors: errors.length };
+  };
   window.ptfSalesCommandErrorIsAmbiguous = commandErrorIsAmbiguous;
   window.ptfSalesDomainCommandStatus = function(action,operationId){
     return compactCommandStatus(action,{idempotencyKey:operationId}).then(function(status){return status&&status.committed===true?syncAfterCompactReceipt(status):status;});

@@ -218,10 +218,10 @@
           target.legacyPayableCds = arr(target.legacyPayableCds);
           if (target.legacyPayableCds.indexOf(payable.cd) < 0) target.legacyPayableCds.push(payable.cd);
           payable.sfInvoiceCd = invoiceCd;
-          setData('ptf_crm_payables', payableList);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', payableList, { reason: 'w4' }); else setData('ptf_crm_payables', payableList);
         }
-        setData('ptf_crm_supplier_finance', d);
-        if (cmp && purchase && purchase.ok) setData('ptf_crm_buycmp', cmpList);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_supplier_finance', d, { reason: 'w4' }); else setData('ptf_crm_supplier_finance', d);
+        if (cmp && purchase && purchase.ok) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', cmpList, { reason: 'w4' }); else setData('ptf_crm_buycmp', cmpList);
         try { audit('تطبیق خرید', 'لینک قلم «' + link.itemLabel + '» از پیشنهاد ' + offerNo + ' به فاکتور خرید ' + (target.no || target.cd), offerNo); } catch (eA) {}
         var dlg = document.querySelector('.ptfdlg-b,.md-b'); if (dlg) dlg.remove();
         window.ptfOpenProcurementLinkAudit(offerNo);

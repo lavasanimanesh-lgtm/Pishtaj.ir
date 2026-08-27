@@ -1356,7 +1356,9 @@ window.ptfAutoRegisterSummaryProducts = function(inqNo, rows) {
     added++;
   });
   if (added > 0) {
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'cloud-products' });
+    else setData('ptf_crm_products', prods);
     if (typeof addLog === 'function') addLog('ثبت اتوماتیک ' + added + ' کالای خلاصه در بانک کالا');
   }
   return added;
@@ -1504,7 +1506,7 @@ window.ptfFinalCommitItems = function(inqNo) {
   finalized.forEach(function(r) {
     iq.push({ inqNo: inqNo, cd: genCode('IQI'), nm: r.shortDesc, en: r.shortDesc, st: r.longDesc, model: r.model, brand: r.brand, qty: r.qty, un: r.un, tp: r.tp, t: faDate() });
   });
-  setData('ptf_crm_inqitems', iq);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
 
   // 2. صدور هم‌زمان پیش‌نویس پیشنهاد فنی TO (US-213 AC1)
   var offers = getData('ptf_crm_offers');
@@ -1519,7 +1521,7 @@ window.ptfFinalCommitItems = function(inqNo) {
       no: toNo, kind: 'TO', rev: 0, inqNo: inqNo, buyerCd: rfq.custCd || '', buyerCo: rfq.co || '',
       dateFa: faDate(), dateEn: new Date().toISOString().slice(0,10), st: 'draft', items: toItems, terms: []
     });
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   }
 
   // 3. درج در سامانه هوشمند تامین RFQ Smart (US-213 AC2)
@@ -1532,7 +1534,7 @@ window.ptfFinalCommitItems = function(inqNo) {
   } else {
     existingRfqs.items = smartItems;
   }
-  setData('ptf_crm_rfqsmart', rfqsList);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', rfqsList, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', rfqsList);
 
   var md = document.getElementById('ptfCommitModal');
   if (md) md.remove();
@@ -1553,7 +1555,9 @@ window.ptfFinalCommitItems = function(inqNo) {
       });
       added++;
     });
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'inq-approve' });
+    else setData('ptf_crm_products', prods);
     alert('🎉 ' + added + ' قلم جدید به بانک کالا اضافه شد' + (dup ? ' (' + dup + ' قلم تکراری بود)' : ''));
   }
   if (typeof window._pendingCommitCb === 'function') window._pendingCommitCb(finalized.length, 0);

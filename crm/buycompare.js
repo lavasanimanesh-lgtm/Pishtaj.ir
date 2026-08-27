@@ -71,11 +71,11 @@
     primary.mergedBy = curSession().name;
     var idx = all.indexOf(primary);
     if (idx > -1) all[idx] = primary;
-    setData('ptf_crm_buycmp', all);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', all, { reason: 'w4' }); else setData('ptf_crm_buycmp', all);
     try { audit('قیمت خرید', 'تجمیع جدول‌های خرید واقعی برای ' + inqNo + ' — ' + base + ' قلم', primary.id); } catch (e) {}
     return primary;
   }
-  function cmpSave(l) { setData('ptf_crm_buycmp', l); }
+  function cmpSave(l) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', l, { reason: 'w4' }); else setData('ptf_crm_buycmp', l); }
   function canBuy() { return !!roleDef().buyPrice; }
   function fmtP(v) { return (+v || 0).toLocaleString('fa-IR'); }
   window.ptfPurchaseLotsForItem = function (cmp, idx) {
@@ -349,7 +349,7 @@
         d.docs = d.docs || [];
         if (f.key && !d.docs.some(function (x) { return x.key === f.key; })) d.docs.push({ folder: 'fin', name: 'رسید پرداخت خرید واقعی — ' + ((c.items[idx]||{}).nm || ''), key: f.key, t: faDate(), by: curSession().name, note: 'خرید واقعی از ' + (pu.sup || '') });
         var deals = getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; });
-        setData('ptf_crm_deals', deals);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
       }
       if (typeof ptfToast === 'function') ptfToast('رسید پرداخت به خرید واقعی و پرونده فروش پیوست شد', 'ok');
     });
@@ -387,7 +387,7 @@
       }
       d.timeline = d.timeline || [];
       d.timeline.push({ t: faDateTime(), by: curSession().name, tx: (old ? '✏️ اصلاح' : '➕ ثبت') + ' هزینه مستقیم پروژه: ' + amt.toLocaleString('fa-IR') + ' ریال — ' + (labels[v.cat] || v.cat) + ' — ' + v.desc + (old ? ' (قبلی: ' + prevAmt.toLocaleString('fa-IR') + ')' : '') });
-      setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
       audit('هزینه پروژه', (old ? 'اصلاح' : 'ثبت') + ' هزینه مستقیم ' + amt.toLocaleString('fa-IR') + ' ریال برای ' + (d.inqNo || ''), ev.cd);
       if (typeof ptfToast === 'function') ptfToast(old ? 'هزینه مستقیم پروژه اصلاح شد' : 'هزینه مستقیم پروژه ثبت شد', 'ok');
       if (!old && confirm('برای این هزینه مدرک/رسید پیوست می‌کنید؟') && typeof attachUploadWidget === 'function') ptfProjectCostUpload(d.cd, ev.cd);
@@ -402,7 +402,7 @@
       var ev = (d.costEvents || []).filter(function (x) { return x.cd === costCd; })[0]; if (!ev) return;
       ev.files = ev.files || []; ev.files.push(f);
       d.docs = d.docs || []; if (f.key) d.docs.push({ folder: 'fin', name: 'رسید هزینه پروژه — ' + (ev.desc || ''), key: f.key, t: faDate(), by: curSession().name, note: 'هزینه مستقیم پروژه', costCd: ev.cd });
-      setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
     });
   };
   window.ptfProjectCostDel = function (inqNo, costCd) {
@@ -416,7 +416,7 @@
     d.timeline = d.timeline || [];
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینه مستقیم پروژه: ' + (ev.desc || '') + ' — ' + (+ev.amt || 0).toLocaleString('fa-IR') + ' ریال' });
     d.docs = (d.docs || []).filter(function (x) { return x.costCd !== costCd; });
-    setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
     rbDeleteCloudKeys(deadKeys);
     audit('هزینه پروژه', 'حذف هزینه مستقیم پرونده ' + (d.inqNo || ''), costCd);
     if (typeof ptfToast === 'function') ptfToast('هزینه مستقیم پروژه حذف شد', 'warn');
@@ -434,7 +434,7 @@
       if (done.indexOf(r.st) > -1) return;
       var txt = '🏭 در حال تامین توسط تامین‌کننده';
       if (typeof ptfRfqSetStatus === 'function') ptfRfqSetStatus(r.cd, 'st8', txt);
-      else { r.st = 'st8'; r.stxt = txt; setData('ptf_crm_rfqs', rfqs); }
+      else { r.st = 'st8'; r.stxt = txt; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); }
     } catch (e) {}
   };
 
@@ -586,7 +586,7 @@
       if (!storedP) return;
       storedP.stockedQty = (+storedP.stockedQty || 0) + qty; storedP.stockedAt = faDateTime(); storedP.stockedBy = curSession().name;
       var totalDisposition = (+storedP.returnedQty || 0) + (+storedP.stockedQty || 0); storedP.status = totalDisposition >= purchased ? ((+storedP.returnedQty || 0) >= purchased ? 'returned_to_supplier' : 'transferred_to_stock') : 'partially_disposed';
-      setData('ptf_crm_buycmp', stored); try { audit('موجودی انبار', 'انتقال ' + qty + ' از قلم ' + (item.nm || '') + ' به موجودی — بدون اثر مالی', purchaseCd); } catch (e) {}
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', stored, { reason: 'w4' }); else setData('ptf_crm_buycmp', stored); try { audit('موجودی انبار', 'انتقال ' + qty + ' از قلم ' + (item.nm || '') + ' به موجودی — بدون اثر مالی', purchaseCd); } catch (e) {}
       var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); cmpPurchaseDispositionOpen(id, idx);
     } });
   };
@@ -606,7 +606,7 @@
       storedP.returnedBy = curSession().name;
       var storedPurchased = storedP.qty != null ? (+storedP.qty || 0) : (+item.qty || 1);
       storedP.status = storedP.returnedQty >= storedPurchased ? 'returned_to_supplier' : 'partially_returned';
-      setData('ptf_crm_buycmp', stored);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', stored, { reason: 'w4' }); else setData('ptf_crm_buycmp', stored);
       try { audit('خرید واقعی', 'ثبت برگشت ' + qty + ' از قلم ' + (item.nm || '') + ' به تأمین‌کننده — بدون اثر مالی خودکار', purchaseCd); } catch (e) {}
       var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); if (typeof ptfToast === 'function') ptfToast('برگشت عملیاتی ثبت شد؛ اثر مالی هنوز ایجاد نشده است.', 'ok'); cmpPurchaseDispositionOpen(id, idx);
     } });
@@ -837,7 +837,7 @@
         // ثبت در buyquotes قدیمی هم برای گزارش‌های موجود
         var bq = getData('ptf_crm_buyquotes');
         bq.unshift({ cd: genCode('BQ'), ref: c2.inqNo, sup: supName, desc: (c2.items[idx] || {}).nm || '', price: buyPrice, note: 'خرید واقعی' + (priceFx ? ' (تسعیر ' + priceFx.toLocaleString('en-US') + ' ' + (c2.purchases[c2.purchases.length-1].srcCur || '') + ' × ' + buyRate.toLocaleString('fa-IR') + ')' : ''), t: faDate(), by: curSession().name });
-        setData('ptf_crm_buyquotes', bq);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buyquotes', bq, { reason: 'w4' }); else setData('ptf_crm_buyquotes', bq);
         audit('قیمت خرید', 'خرید واقعی آیتم «' + ((c2.items[idx] || {}).nm || '') + '» از ' + supName + ' — ' + fmtP(buyPrice) + ' ریال' + (priceFx ? ' (تسعیرشده)' : ''), c2.inqNo);
         notify({ toRoles: SENIOR_ROLES, title: '🛍 خرید واقعی: ' + ((c2.items[idx] || {}).nm || '') + ' از ' + supName + ' (' + fmtP(buyPrice) + ' ریال' + (priceFx ? ' — تسعیرشده' : '') + ')' + (v.dueISO ? ' — تعهد تحویل: ' + v.dueISO : ''), kind: 'buyq', channels: ['cart'], link: { panel: 'deals' } });
         var wasRealbuy = window._cmpRealbuyMode;
@@ -1037,7 +1037,9 @@
       e.siteCode = code;
       e.mergedAt = faDateTime();
       e.mergedBy = curSession().name;
-      setData('ptf_crm_suppliers', items);
+      /* v34.8.23 (W1-iterate) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'site-merge' });
+      else setData('ptf_crm_suppliers', items);
       // تایید سمت سرور برای رهگیری ثبت‌کننده سایت
       if (typeof api === 'function') {
         api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — اطلاعات شما با پروفایل موجودتان ادغام گردید', by: curSession().name }, function () { if (typeof syncServerInbox === 'function') syncServerInbox(); });

@@ -264,7 +264,10 @@ function saveLead(cd) {
     if (dupCust.length) { alert(dedupMsg(dupCust) + '\n\n💡 این اطلاعات قبلاً به‌عنوان «مشتری» ثبت شده — نیازی به لید جدید نیست.'); if (!cd) leads.shift(); return; }
   }
   if (!cd) { if (typeof dedupStamp === 'function') dedupStamp(rec); rec.hist.push({ t: faDateTime(), k: 'ثبت', tx: 'لید ثبت شد — منبع: ' + rec.src }); }
-  setData('ptf_crm_leads', leads);
+  /* v34.8.14 (C3-گام۱): ذخیرهٔ سرنخ با فرمان اتمیک سروری؛ legacy فقط وقتی فرمان خاموش است. */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_leads'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_leads', rec, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ذخیرهٔ سرنخ') : 'ذخیرهٔ سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); try { renderLeads(); } catch (eRr) {} } });
+  } else setData('ptf_crm_leads', leads);
   hideModal(); renderLeads();
   addLog('لید ' + co + (cd ? ' ویرایش' : ' ثبت') + ' شد');
 }
@@ -372,7 +375,9 @@ function leadFollowUp(cd) {
   l.hist = l.hist || [];
   l.hist.push(ev);
   if (nextISO) { l.nextISO = nextISO; l.nextFa = gDateToFa(nextISO); }
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   // اگر اقدام بعدی دارد → یادآور خودکار
   if (nextISO) {
     addReminder({ title: 'پیگیری لید: ' + l.co + (ev.next ? ' — ' + ev.next : ''), topic: 'پیگیری لید',
@@ -409,7 +414,9 @@ function leadSetStage(cd, stage, opt) {
   l.stage = stage;
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'وضعیت', tx: old + ' ← ' + stageOf(stage).lb });
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   if (opt.fromPipeline) {
     LEAD_MOBILE_STAGE = stage;
     renderLeads();
@@ -432,7 +439,9 @@ function leadLoseCommit(cd, why, opt) {
   l.stage = 'lost';
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'وضعیت', tx: old + ' ← ' + stageOf('lost').lb + ' (' + l.lostWhy + ')' });
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   if (opt.fromPipeline) {
     LEAD_MOBILE_STAGE = 'lost';
     renderLeads();
@@ -467,7 +476,9 @@ function leadConvert(cd, opt) {
       con: l.person || '', ph: l.mob || l.tel || '',
       fromLead: l.cd
     });
-    setData('ptf_crm_customers', custs);
+    /* v34.8.22 (W1): تبدیل سرنخ به مشتری با فرمان اتمیک سروری. */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'lead-convert' });
+    else setData('ptf_crm_customers', custs);
   }
   l.stage = 'won';
   l.convFa = faDate();
@@ -475,7 +486,9 @@ function leadConvert(cd, opt) {
   l.custCd = newCd;
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'تبدیل', tx: 'تبدیل به مشتری بالفعل — کد کارفرما: ' + newCd + (dup ? ' (موجود)' : ' (جدید)') });
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   if (opt.fromPipeline) {
     LEAD_MOBILE_STAGE = 'won';
     renderLeads();
@@ -504,7 +517,10 @@ function ptfLeadDelDo(cd) {
   try {
     if (typeof ptfDeleteGuard === 'function' && ptfDeleteGuard('lead', cd, 'لید ' + cd)) return;
   } catch (eG) {}
-  setData('ptf_crm_leads', getData('ptf_crm_leads').filter(function(x){ return x.cd !== cd; }));
+  /* v34.8.14 (C3-گام۱): حذف سرنخ با فرمان سروری + tombstone. */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_leads'] && typeof window.ptfEntityDelete === 'function') {
+    window.ptfEntityDelete('ptf_crm_leads', cd, { reason: 'حذف سرنخ از UI', cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'حذف سرنخ') : 'حذف سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); try { renderLeads(); } catch (eR2) {} } });
+  } else setData('ptf_crm_leads', getData('ptf_crm_leads').filter(function(x){ return x.cd !== cd; }));
   try { if (typeof hideModal === 'function') hideModal(); } catch (eH) {}
   try { renderLeads(); } catch (eR) {}
   try { if (typeof addLog === 'function') addLog('لید ' + cd + ' حذف شد'); } catch (eL) {}
@@ -579,10 +595,9 @@ var REM_TOPICS = ['پیگیری لید','پیگیری استعلام','وصول 
 var REM_PRIS = [{id:'فوری',cl:'#ef4444'},{id:'متوسط',cl:'#f59e0b'},{id:'عادی',cl:'#64748b'}];
 
 function addReminder(r) {
-  var rems = getData('ptf_crm_reminders');
   var me = currentUserSession();
   var shareUsers = (r.shareUsers || []).filter(Boolean).filter(function(u, i, a){ return a.indexOf(u) === i && u !== (me.user || ''); });
-  rems.unshift({
+  var row = {
     cd: genCode('REM'), title: r.title, topic: r.topic || 'سایر',
     dueISO: r.dueISO, dueFa: gDateToFa(r.dueISO), dueTime: r.dueTime || '',
     pri: r.pri || 'عادی', link: r.link || null, note: r.note || '',
@@ -590,8 +605,17 @@ function addReminder(r) {
     by: currentUserName(),
     ownerUser: me.user || '', ownerName: me.name || currentUserName(),
     shareUsers: shareUsers, notifiedUsers: {}
-  });
-  setData('ptf_crm_reminders', rems);
+  };
+  /* v34.8.14 (C3-گام۱): ثبت یادآور با فرمان اتمیک سروری (کلید این ماژول کامل شد). */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ثبت یادآور') : 'ثبت یادآور روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); updateRemBadge(); } });
+  } else {
+    var rems = getData('ptf_crm_reminders');
+    rems.unshift(row);
+    /* v34.8.27 (W4) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+    else setData('ptf_crm_reminders', rems);
+  }
   updateRemBadge();
 }
 
@@ -715,8 +739,13 @@ function saveRem() {
 
 function remDone(cd) {
   var rems = getData('ptf_crm_reminders');
-  rems.forEach(function(r){ if (r.cd === cd) { r.st = 'done'; r.doneFa = faDate(); r.doneBy = currentUserName(); } });
-  setData('ptf_crm_reminders', rems);
+  var row = null;
+  rems.forEach(function(r){ if (r.cd === cd) { r.st = 'done'; r.doneFa = faDate(); r.doneBy = currentUserName(); row = r; } });
+  /* v34.8.13 (PHASE-C2 پایلوت): یادآور با فرمان اتمیک سروری ثبت می‌شود؛
+     مسیر legacy فقط وقتی فرمان در دسترس/فعال نیست. */
+  if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ثبت «انجام شد» یادآور') : 'ثبت «انجام شد» روی سرور قطعی نشد؛ وضعیت را بازبینی کنید'), 'warn'); renderReminders(); } });
+  } else setData('ptf_crm_reminders', rems);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور انجام شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }
@@ -726,7 +755,8 @@ function remSnooze(cd) {
   var n = parseInt(d, 10);
   if (!n || n < 1) return;
   var rems = getData('ptf_crm_reminders');
-  rems.forEach(function(r) {
+  var row = null;
+  rems.forEach(function(r){
     if (r.cd === cd) {
       var nd = new Date(r.dueISO < todayISO() ? todayISO() : r.dueISO);
       nd.setDate(nd.getDate() + n);
@@ -734,15 +764,25 @@ function remSnooze(cd) {
       r.dueFa = gDateToFa(r.dueISO);
       r.msgSent = false;
       r.notifiedUsers = {};
+      row = r;
     }
   });
-  setData('ptf_crm_reminders', rems);
+  /* v34.8.13 (PHASE-C2 پایلوت): تعویق با فرمان سروری. */
+  if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'تعویق یادآور') : 'تعویق روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); renderReminders(); } });
+  } else setData('ptf_crm_reminders', rems);
   renderReminders();
 }
 
 function remDel(cd) {
   if (!confirm('یادآور حذف شود؟')) return;
-  setData('ptf_crm_reminders', getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; }));
+  /* v34.8.13 (PHASE-C2 پایلوت): حذف با فرمان سروری + tombstone (عدم زنده‌شدن روی دستگاه‌های stale). */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityDelete === 'function') {
+    window.ptfEntityDelete('ptf_crm_reminders', cd, { reason: 'حذف یادآور از UI', cb: function (st) {
+      if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'حذف یادآور') : 'حذف روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn');
+      renderReminders();
+    } });
+  } else setData('ptf_crm_reminders', getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; }));
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور حذف شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
 }

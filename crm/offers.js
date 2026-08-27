@@ -725,7 +725,7 @@ function offerSetSt(no, st, selEl) {
     o.st = st;
     o.tst = st === 'approved' ? 'approved' : st === 'rejected' ? 'rejected' : st === 'revise' ? 'revise' : (st === 'sent' ? 'sent' : o.tst); /* سازگاری گردش کار workflow.js */
     o.stAt = faDateTime(); o.stBy = curSession().name;
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'وضعیت پیشنهاد فنی ' + no + ' → ' + ((window.PTF_ST_TO || {})[st] || st), no);
     addLog('وضعیت ' + no + ' → ' + st);
     if (typeof wfRefresh === 'function' && o.inqNo) { try { wfRefresh(o.inqNo, 'وضعیت TO: ' + st); } catch (eW) {} }
@@ -757,7 +757,7 @@ function offerSetSt(no, st, selEl) {
         }
       }
     } catch (eSib) {}
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'تایید وضعیت برنده (قفل شد)', no);
     addLog('پیشنهاد ' + no + ' برنده شد 🏆 (قفل)');
     if (o.kind === 'CO') autoCreateProjectFromCO(o);
@@ -767,7 +767,7 @@ function offerSetSt(no, st, selEl) {
   o.st = st;
   /* v31.7.13: باخت هم لحظه بسته‌شدن snapshot می‌گیرد */
   if (st === 'lost') { try { o.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null; o.lostAt = faDateTime(); } catch (eML) {} }
-  setData('ptf_crm_offers', offers);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   addLog('وضعیت ' + no + ' → ' + st);
 }
 
@@ -822,7 +822,7 @@ function autoCreateProjectFromCO(o) {
       }
       if (_toRel) rec.awardDocs.push({ kind: 'TO', no: _toRel.no, rev: _toRel.rev || 0, role: 'technical', t: faDateTime(), by: curSession().name, snap: JSON.parse(JSON.stringify(_toRel)) });
     } catch (eAw) {}
-    setData('ptf_crm_deals', deals);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
     audit('پرونده‌های فروش', 'CO برنده ' + o.no + ' — پرونده ' + (r.inqNo || r.cd) + ' تشکیل و اسناد منضم شد (' + added + ' ضمیمه، ' + nOff + ' پیشنهاد، ' + nSup + ' استعلام تامین)', r.cd);
     if (typeof notify === 'function') notify({ toRoles: SENIOR_ROLES, title: '🏆 ' + o.no + ' برنده شد — پرونده فروش ' + (r.inqNo || '') + ' با اسناد کامل تشکیل شد', kind: 'info', channels: ['cart'], link: { panel: 'deals' } });
     /* v16.3 (US-392 AC1): هدایت به ثبت خرید واقعی — جدا از قیمت استعلامی */
@@ -969,13 +969,13 @@ function ptfOfferDelDo(no) {
   var offers = getData('ptf_crm_offers');
   var target = offers.filter(function(o){ return o.no === no; })[0];
   var rem = offers.filter(function(o){ return o.no !== no; });
-  setData('ptf_crm_offers', rem);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', rem, { reason: 'w4' }); else setData('ptf_crm_offers', rem);
   try {
     if (target) {
       var arc = getData('ptf_crm_deleted_archive');
       arc.unshift({ id: no, kind: 'OFFER', label: target.kind + ' — ' + (target.buyerCo || '?'), reason: 'حذف دستی پیشنهاد', by: (typeof curSession === 'function' && curSession().name) ? curSession().name : 'کاربر', t: (typeof faDateTime === 'function') ? faDateTime() : '', iso: new Date().toISOString() });
       if (arc.length > 500) arc = arc.slice(0, 500);
-      setData('ptf_crm_deleted_archive', arc);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arc, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arc);
     }
   } catch (eArc) {}
   if (target && target.inqNo) {
@@ -984,7 +984,7 @@ function ptfOfferDelDo(no) {
     if (!otherOffs.length) {
       var rfqs = getData('ptf_crm_rfqs');
       var r = rfqs.filter(function(x){ return x.cd === inqNo || x.inqNo === inqNo; })[0];
-      if (r) { r.st = 'st1'; r.stxt = '🔴 دریافت اولیه'; setData('ptf_crm_rfqs', rfqs); }
+      if (r) { r.st = 'st1'; r.stxt = '🔴 دریافت اولیه'; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); }
     }
   }
   renderOffers();
@@ -1455,7 +1455,9 @@ window.ptfAutoRegisterSummaryProducts = function(inqNo, rows) {
     added++;
   });
   if (added > 0) {
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'offer-auto-products' });
+    else setData('ptf_crm_products', prods);
     if (typeof addLog === 'function') addLog('ثبت اتوماتیک ' + added + ' کالای خلاصه در ماژول کالا');
   }
   return added;
@@ -1597,7 +1599,7 @@ window.ptfOfferIntegrityApply = function (no) {
   if (!target) return { ok:false, error:'offer-not-found' };
   target.items = p.items; offEnsureOfferLineIds(target.items, target.no); target.updatedAtISO = new Date().toISOString();
   target._integrityRepair = { at: target.updatedAtISO, exactDuplicatesRemoved: p.duplicates.length, beforeCount:p.beforeCount, afterCount:p.afterCount, beforeTotal:p.beforeTotal, afterTotal:p.afterTotal, policy:'exact-only-v31.8' };
-  setData('ptf_crm_offers', offers);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   try { audit('پیشنهادها', 'تعمیر کنترل‌شده پیشنهاد '+no+': '+p.beforeCount+' → '+p.afterCount+' ردیف؛ حذف '+p.duplicates.length+' duplicate دقیق', no); } catch(e) {}
   if (typeof renderOffers === 'function') renderOffers();
   return Object.assign({ ok:true }, p);
@@ -2810,7 +2812,7 @@ window.ptfSyncRefPriceBack = function (offer, opt) {
         if (!target) { out.skipped++; return; }
         if (stamp(target, +it.refPrice, it.refCur || offer.currency || 'IRR')) touched++;
       });
-      if (touched) { setData('ptf_crm_inqitems', all); out.request = touched; }
+      if (touched) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', all, { reason: 'w2' }); else setData('ptf_crm_inqitems', all); out.request = touched; }
     } else if (resolved.source === 'rfq.items' && resolved.rfq) {
       var rfqs = getData('ptf_crm_rfqs') || [], rec = null, t2 = 0;
       for (var j = 0; j < rfqs.length; j++) if (rfqs[j] && String(rfqs[j].cd || '') === String(resolved.rfq.cd || '')) { rec = rfqs[j]; break; }
@@ -2820,7 +2822,7 @@ window.ptfSyncRefPriceBack = function (offer, opt) {
           if (!m2.ok) { out.skipped++; return; }
           if (stamp(m2.item, +it.refPrice, it.refCur || offer.currency || 'IRR')) t2++;
         });
-        if (t2) { setData('ptf_crm_rfqs', rfqs); out.request = t2; }
+        if (t2) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); out.request = t2; }
       }
     }
 
@@ -2838,7 +2840,9 @@ window.ptfSyncRefPriceBack = function (offer, opt) {
         p.refPriceSrc = 'نرخ مرجع پیشنهاد ' + (offer.no || '') + ' — ' + who;
         t3++;
       });
-      if (t3) { setData('ptf_crm_products', prods); out.catalog = t3; }
+      if (t3) { /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'offer-refprice' });
+        else setData('ptf_crm_products', prods); out.catalog = t3; }
     }
 
     if ((out.request || out.catalog) && typeof audit === 'function') {
@@ -2943,7 +2947,7 @@ function offerSave() {
       var rfqs = getData('ptf_crm_rfqs');
       if (!rfqs.some(function(x){ return x.cd === o.inqNo || x.inqNo === o.inqNo; })) {
         rfqs.unshift({ cd: o.inqNo, inqNo: o.inqNo, co: o.buyerCo || 'مشتری استعلام', st: 'st1', stxt: '🔴 دریافت اولیه', dt: (typeof faDate === 'function' ? faDate() : '') });
-        setData('ptf_crm_rfqs', rfqs);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
       }
     } catch(eInqAuto) {}
   }
@@ -3070,7 +3074,9 @@ function offerSave() {
       }
     });
     if (prodsChanged) {
-      setData('ptf_crm_products', prods);
+      /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'inv-prodsync' });
+      else setData('ptf_crm_products', prods);
       productSyncNotes.push('مشخصات دایرکتوری کالا بر اساس پیش‌فاکتور همگام‌سازی شد');
     }
   }
@@ -3121,7 +3127,9 @@ function offerSave() {
       }
     });
     if (_pChanged) {
-      setData('ptf_crm_products', _prods2);
+      /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', _prods2, { reason: 'inv-products' });
+      else setData('ptf_crm_products', _prods2);
       var _msg = [];
       if (_refSynced) _msg.push(_refSynced + ' نرخ مرجع در ماژول کالا به‌روز شد');
       if (_pAdded) _msg.push(_pAdded + ' کالای جدید با مارک منبع ' + o.no + ' ثبت شد');
@@ -3568,7 +3576,9 @@ function saveCust2(cd) {
       items[i] = rec;
     }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
-  setData('ptf_crm_customers', items);
+  /* v34.8.22 (W1): ثبت/ویرایش مشتری از پیشنهاد با فرمان اتمیک سروری. */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'offer-cust' });
+  else setData('ptf_crm_customers', items);
   hideModal(); renderCustomers();
   addLog('کارفرما ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
 }
@@ -3660,7 +3670,9 @@ function saveSup2(cd) {
   if (cd) {
     for (var i = 0; i < items.length; i++) if (items[i].cd === cd) { rec.crAt = items[i].crAt; rec.crBy = items[i].crBy; items[i] = rec; }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
-  setData('ptf_crm_suppliers', items);
+  /* v34.8.22 (W1): ثبت/ویرایش تامین‌کننده از پیشنهاد با فرمان اتمیک سروری. */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'offer-sup' });
+  else setData('ptf_crm_suppliers', items);
   window._supLastSaved = rec.cd; /* v19.0 (پورت BUG-022 از v17.8): فلگ موفقیت — wrapper ها فقط روی همین رکورد */
   hideModal(); renderSuppliers();
   addLog('تامین‌کننده ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
@@ -3888,10 +3900,14 @@ window.ptfCustVendorFollowup = function (cd) {
           var rems = getData('ptf_crm_reminders');
           var rem = { cd: genCode('REM'), title: '🏆 پیگیری وندور لیست کارفرما: ' + c.co, note: c.venNote, dueFa: due, dueISO: c.venDueISO, st: 'open', owner: c.owner || curSession().user || 'admin', t: faDateTime(), by: curSession().name };
           rems.unshift(rem);
-          setData('ptf_crm_reminders', rems);
+          /* v34.8.27 (W4) */
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+          else setData('ptf_crm_reminders', rems);
         } catch (eRem) {}
       }
-      setData('ptf_crm_customers', custs);
+      /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'vendorlist' });
+      else setData('ptf_crm_customers', custs);
       audit('مشتریان', 'ثبت پیگیری وندور لیست کارفرما ' + c.co + ' — مرحله: ' + c.venSt + ' (' + c.venNote + ')', cd);
       if (typeof ptfToast === 'function') ptfToast('🏆 وضعیت وندور لیست و یادآور کارتابل ثبت شد', 'ok');
       var md = document.querySelector('#panels .md-b:last-child');

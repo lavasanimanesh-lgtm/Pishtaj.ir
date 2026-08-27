@@ -450,7 +450,7 @@
     try {
       var st = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}');
       st.botPairs = p2;
-      setData('ptf_crm_settings', st);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
     } catch (e) {}
   }
   /* بازیابی از settings سینک‌شده (دستگاه دوم) */

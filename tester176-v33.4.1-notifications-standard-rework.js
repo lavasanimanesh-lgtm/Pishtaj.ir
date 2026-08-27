@@ -320,8 +320,10 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
 /* ===================== Pillar 6: leads.js — remDone/remDel resolve manual reminder notifications ===================== */
 (function () {
   var src = fs.readFileSync('crm/leads.js', 'utf8');
-  assert.ok(/function remDone\(cd\) \{[\s\S]{0,300}ntfResolveByRef\(cd\)/.test(src), 'remDone باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
-  assert.ok(/function remDel\(cd\) \{[\s\S]{0,300}ntfResolveByRef\(cd\)/.test(src), 'remDel باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
+  /* v34.8.13 (PHASE-C2): remDone/remDel حالا مسیر فرمان سروری دارند؛ پنجرهٔ جستجو برای
+     رسیدن به ntfResolveByRef بزرگ‌تر شد (رفتار همان است — اعلان مرتبط حذف می‌شود). */
+  assert.ok(/function remDone\(cd\) \{[\s\S]{0,1400}ntfResolveByRef\(cd\)/.test(src), 'remDone باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
+  assert.ok(/function remDel\(cd\) \{[\s\S]{0,1400}ntfResolveByRef\(cd\)/.test(src), 'remDel باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
 })();
 
 /* ===================== Pillar 7: letters.js — sign resolve ===================== */
@@ -329,7 +331,7 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
   var src = fs.readFileSync('crm/letters.js', 'utf8');
   assert.ok(src.indexOf("refCd: l.cd") > -1, 'درخواست امضا باید refCd=نامه.cd داشته باشد');
   assert.ok(/function letSign\(cd\) \{[\s\S]{0,1800}ntfResolveByRef\(l\.cd\)/.test(src), 'letSign باید پس از اعتبارسنجی نام، سمت و امضا، درخواست مرتبط را برای همه حذف کند');
-  assert.ok(/function letReject\(cd\) \{[\s\S]{0,400}ntfResolveByRef\(l\.cd\)/.test(src), 'letReject باید درخواست امضای مرتبط را برای همه حذف کند');
+  assert.ok(/function letReject\(cd\) \{[\s\S]{0,900}ntfResolveByRef\(l\.cd\)/.test(src), 'letReject باید درخواست امضای مرتبط را برای همه حذف کند'); /* v34.8.27: پنجره برای مسیر فرمان W4 بزرگ‌تر شد */
 })();
 
 console.log('tester176-v33.4.1-notifications-standard-rework.js: ALL PASSED');

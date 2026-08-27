@@ -17,21 +17,21 @@
     'ptf_crm_inqitems', 'ptf_crm_deals', 'ptf_crm_projects', 'ptf_crm_packinglists',
     'ptf_crm_letters', 'ptf_crm_contracts', 'ptf_crm_sigprofiles', 'ptf_crm_smsbook',
     'ptf_crm_rfqsmart', 'ptf_crm_settings', 'ptf_crm_finance', 'ptf_crm_order_prices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_opex', 'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_fiscal_snapshots', 'ptf_crm_techcases', 'ptf_crm_calc_runs', 'ptf_crm_techproposals', 'ptf_crm_leadfinder_jobs', 'ptf_crm_leadfinder_sources','ptf_crm_management_actions','ptf_crm_management_reports','ptf_crm_commission_records',
-    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_fin_events', 'ptf_crm_bank_recon', 'ptf_crm_treasury_calls', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments', 'ptf_crm_corrections', 'ptf_crm_fin_findings'
+    'ptf_crm_notifprefs', 'ptf_crm_trash', 'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_perms', 'ptf_crm_avatars', 'ptf_crm_buycmp', 'ptf_crm_inqreads', 'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_msgtpls', 'ptf_crm_deleted_archive', 'ptf_crm_tax_returns', 'ptf_crm_sales_returns', 'ptf_crm_fin_events', 'ptf_crm_bank_recon', 'ptf_crm_treasury_calls', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments', 'ptf_crm_corrections', 'ptf_crm_fin_findings', 'ptf_crm_personal_cheques'
   ];
   // v31.7.3 BUG-AUDIT-005-SYNC-TIMING: کلیدهای بحرانی که باید فوری sync شوند
   var URGENT_SYNC_KEYS = [
     'ptf_crm_cheques_issued', 'ptf_crm_cheques_received', 'ptf_crm_cheque_books', 'ptf_crm_invoices', 'ptf_crm_payables', 'ptf_crm_supplier_finance', 'ptf_crm_fin_events',
     'ptf_crm_petty', 'ptf_crm_petty_tx', 'ptf_crm_petty_periods', 'ptf_crm_fiscal_snapshots',
     'ptf_crm_shareholders', 'ptf_crm_sharetx', 'ptf_crm_offers', 'ptf_crm_deals',
-    'ptf_crm_projects', 'ptf_crm_opex', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments', 'ptf_crm_corrections'
+    'ptf_crm_projects', 'ptf_crm_opex', 'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments', 'ptf_crm_corrections', 'ptf_crm_personal_cheques'
   ];
   var SYNC_FULL_ROLES = ['admin','chairman','ceo','commercial'];
   var SYNC_ROLE_KEYS = {
-    sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive'],
-    buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_supplier_finance','ptf_crm_payables'],
-    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_commission_records','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings'],
-    collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars']
+    sales: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_personal_cheques'],
+    buyer: ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_buyquotes','ptf_crm_surplus','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_sigprofiles','ptf_crm_rfqsmart','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_buycmp','ptf_crm_inqreads','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_supplier_finance','ptf_crm_payables','ptf_crm_personal_cheques'],
+    accountant: ['ptf_crm_rfqs','ptf_crm_customers','ptf_crm_products','ptf_crm_catalog_reviews','ptf_crm_catalog_merges','ptf_crm_offers','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_inqitems','ptf_crm_deals','ptf_crm_projects','ptf_crm_letters','ptf_crm_contracts','ptf_crm_rfqsmart','ptf_crm_finance','ptf_crm_payables','ptf_crm_supplier_finance','ptf_crm_opex','ptf_crm_petty','ptf_crm_petty_tx','ptf_crm_petty_periods','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_cheque_books','ptf_crm_fiscal_snapshots','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_msgtpls','ptf_crm_deleted_archive','ptf_crm_tax_returns','ptf_crm_sales_returns','ptf_crm_fin_events','ptf_crm_bank_recon','ptf_crm_commission_records','ptf_crm_case_receipts','ptf_crm_receipt_allocations','ptf_crm_fin_attachments','ptf_crm_corrections','ptf_crm_fin_findings','ptf_crm_personal_cheques'],
+    collector: ['ptf_crm_customers','ptf_crm_offers','ptf_crm_invoices','ptf_crm_reminders','ptf_crm_notifs','ptf_crm_sendqueue','ptf_crm_deals','ptf_crm_projects','ptf_crm_cheques_issued', 'ptf_crm_cheques_received','ptf_crm_notifprefs','ptf_crm_avatars','ptf_crm_personal_cheques']
   };
   function syncAllowedKey(k) {
     var role = typeof curRole === 'function' ? String(curRole()).toLowerCase().trim() : 'sales';
@@ -1418,6 +1418,44 @@
     instantPullWaiters.push(typeof cb === 'function' ? cb : function () {});
     drainInstantPulls();
   };
+  /* v34.8.22 (T5-1): نوشتن بی‌صدا — فقط برای ترفندهای نمایش (مثل فیلتر کالاهای
+     مخفی حین رندر)؛ نه dirty می‌سازد نه push. تغییر «داده» هرگز از این مسیر نیست. */
+  window.ptfSilentWrite = function (k, str) {
+    try {
+      state.pulling = true;
+      wr(k, String(str == null ? '' : str));
+    } catch (eSW) {}
+    finally { state.pulling = false; }
+  };
+  /* ============ v34.8.31 (T3-1): خواندن سرور-محور ============
+     collectionQuery: فیلتر/مرتب/صفحهٔ سروری — مصرف اصلی بوت دستگاه جدید و
+     پنل‌های فهرست‌محور، بدون دانلود کل دیتاست. فقط-خواندنی؛ نوشتن همچنان فقط
+     از مسیر فرمان/setData (لایهٔ داده). */
+  window.ptfCollectionQuery = function (collection, opts, cb) {
+    opts = opts || {};
+    try {
+      var t = localStorage.getItem('ptf_crm_token');
+      /* v34.8.33: نبود توکن = خطای قطعی محلی — بدون fetch (caller فوراً fallback می‌کند) */
+      if (!t) { cb && cb({ ok: false, error: 'no_token', needLogin: true }); return; }
+      var params = new URLSearchParams({ action: 'collection_query', collection: collection });
+      if (opts.q) params.append('q', String(opts.q));
+      if (opts.sortBy) params.append('sortBy', String(opts.sortBy));
+      if (opts.sortDir) params.append('sortDir', String(opts.sortDir));
+      if (opts.page) params.append('page', String(opts.page));
+      if (opts.pageSize) params.append('pageSize', String(opts.pageSize));
+      if (opts.fields) params.append('fields', String(opts.fields));
+      Object.keys(opts).forEach(function (k) {
+        if (['q','sortBy','sortDir','page','pageSize','fields','eq'].indexOf(k) > -1) return;
+        if (typeof opts[k] === 'string' || typeof opts[k] === 'number') params.append(k, String(opts[k]));
+      });
+      var h = { 'Cache-Control': 'no-store' };
+      if (t) h['X-CRM-Token'] = t;
+      fetch('../api/crm.php?' + params.toString(), { method: 'GET', headers: h, cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { cb && cb(d); })
+        .catch(function (e) { cb && cb({ ok: false, error: (e && e.message) || 'network' }); });
+    } catch (eQ) { cb && cb({ ok: false, error: String(eQ) }); }
+  };
   window.ptfScheduleDataRefresh = function (key) {
     /* باگ ۲: ماژول درخواست تامین (rfqsmart) خودش DOM را حین کار به‌روز می‌کند؛ رندر مجدد کل صفحه ممنوع */
     if ((key === 'ptf_crm_rfqsmart' || key === 'ptf_crm_rfqs') && window.ptfActivePanel === 'rfqs') return;
@@ -1441,21 +1479,37 @@
   /* MOB-004: banner پایدار sync و toast کوتاه‌مدت باید بالای bottom-nav و به
      صورت stack دیده شوند. ارتفاع banner به CSS variable داده می‌شود تا toast
      حتی وقتی پیام banner چندخطی است با آن هم‌پوشانی نداشته باشد. */
+  /* v34.8.20 (STAGING-BANNER-LIFT): بنر نارنجی «محیط تست» هم bottom:0 و z-index بالاتر
+     دارد و نوار زرد/بنر قرمز را می‌پوشاند — گزارش کارفرما: «متن نوار زرد دیده نمی‌شود».
+     ارتفاع آن (وقتی موجود است) به آفست نوار و toast ها اضافه می‌شود. در پروداکشن این
+     عنصر وجود ندارد ⇒ همه‌چیز مثل قبل، صفر. */
+  function stagingBannerH() {
+    try {
+      var sb = document.getElementById('ptf-staging-banner');
+      if (!sb) return 0;
+      var h = sb.getBoundingClientRect().height || sb.offsetHeight || 0;
+      return h ? Math.ceil(h) : 0;
+    } catch (e) { return 0; }
+  }
   function ensureNoticeMobileStyle() {
     if (document.getElementById('ptfSyncNoticeMobileCss')) return;
+    var sbAdd = stagingBannerH() ? (' + ' + stagingBannerH() + 'px') : '';
     var css = document.createElement('style');
     css.id = 'ptfSyncNoticeMobileCss';
-    css.textContent = '@media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 8px)!important;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border-radius:14px!important;padding:10px 12px!important;min-height:48px!important;line-height:1.55!important;overflow-wrap:anywhere!important;pointer-events:auto!important}#ptfUnsavedBanner>span{min-width:0!important;overflow-wrap:anywhere!important}}' +
-      '@media(max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(52px + env(safe-area-inset-bottom,0px) + 8px)!important}}';
+    css.textContent = '@media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 8px' + sbAdd + ')!important;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border-radius:14px!important;padding:10px 12px!important;min-height:48px!important;line-height:1.55!important;overflow-wrap:anywhere!important;pointer-events:auto!important}#ptfUnsavedBanner>span{min-width:0!important;overflow-wrap:anywhere!important}}' +
+      '@media(max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(52px + env(safe-area-inset-bottom,0px) + 8px' + sbAdd + ')!important}}';
     document.head.appendChild(css);
   }
   function syncNoticeStackOffset() {
     var root = document.documentElement;
     var banner = document.getElementById('ptfUnsavedBanner');
     if (!root) return;
+    var sbH = stagingBannerH();
+    /* v34.8.20: دسکتاپ — بنر بالای بنر استیجینگ بنشیند (استایل inline، بدون مدیا کوئری). */
+    try { if (banner) banner.style.bottom = sbH ? (sbH + 2) + 'px' : ''; } catch (eB) {}
     var compactLandscape = window.innerWidth <= 900 && window.innerHeight <= 600 && window.matchMedia && window.matchMedia('(orientation:landscape)').matches;
     var visible = banner && (window.innerWidth <= 768 || compactLandscape) && window.getComputedStyle(banner).display !== 'none';
-    var offset = visible ? Math.ceil(banner.getBoundingClientRect().height || banner.offsetHeight || 0) + 12 : 0;
+    var offset = (visible ? Math.ceil(banner.getBoundingClientRect().height || banner.offsetHeight || 0) + 12 : 0) + sbH;
     root.style.setProperty('--ptf-unsaved-banner-offset', offset + 'px');
   }
   function queueNoticeStackOffset() {
@@ -1496,11 +1550,20 @@
       } else if (dirtyCount > 0) {
         banner.style.display = 'flex';
         banner.style.background = '#f59e0b'; banner.style.color = '#1e293b';
+        /* v34.8.19 (YELLOW-BAR-DIAG): تشخیص درجا — کدام کلیدها گیر کرده‌اند + آخرین خطای sync.
+           تا امروز بنر فقط «تعداد» می‌داد؛ گزارش کارفرما قابل‌پیگیری نبود. */
+        var dkeys = Object.keys(state.dirty).map(function (k) { return k.replace('ptf_crm_', ''); }).slice(0, 6).join('، ') + (dirtyCount > 6 ? '…' : '');
+        var le = null;
+        try { le = JSON.parse(localStorage.getItem('ptf_sync_last_error') || 'null'); } catch (eLe) {}
+        /* v34.8.25: خطا فقط اگر «تازه» باشد (≤۱۵ دقیقه) — خطای ساعت‌های قبل نباید روی نوار فعلی باشد. */
+        var leFresh = false;
+        try { leFresh = !!(le && le.t && (Date.now() - new Date(le.t).getTime()) < 15 * 60 * 1000); } catch (eLd) {}
+        var leTxt = (le && leFresh) ? (' — آخرین خطا: ' + (le.reason || le.detail || le.scope || 'نامشخص') + ' (' + le.fa + ')') : '';
         var msg = st === 'forbidden'
-          ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد')
+          ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد [' + dkeys + ']')
           : st === 'offline'
-            ? ('🔴 ' + dirtyCount + ' تغییر آفلاین — تب را نبندید تا وصل شود')
-            : ('🟡 ' + dirtyCount + ' تغییر هنوز به سرور نرسیده — تب را نبندید تا نشانگر همگام سبز شود');
+            ? ('🔴 ' + dirtyCount + ' تغییر آفلاین — تب را نبندید تا وصل شود [' + dkeys + ']')
+            : ('🟡 ' + dirtyCount + ' تغییر هنوز به سرور نرسیده — تب را نبندید تا نشانگر همگام سبز شود [' + dkeys + ']' + leTxt);
         banner.innerHTML = '<span style="flex:1">' + msg + '</span>';
       } else {
         banner.style.display = 'none';

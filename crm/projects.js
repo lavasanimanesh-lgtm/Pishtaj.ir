@@ -294,7 +294,7 @@ function prjSetState(no, st) {
   var prjs = getData('ptf_crm_projects');
   // 🐞 رفع باگ انجماد: پرونده‌های قدیمی بدون timeline باعث کرش می‌شدند
   prjs.forEach(function (p) { if (p.no === no) { p.state = st; p.timeline = p.timeline || []; p.timeline.push({ t: faDateTime(), by: curSession().name, tx: 'وضعیت → ' + st }); } });
-  setData('ptf_crm_projects', prjs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
   audit('پرونده پروژه', 'تغییر وضعیت ' + no + ' → ' + st, no);
 }
 
@@ -355,7 +355,7 @@ window.prjPostCostOpen = function (no, costCd) {
     pp.timeline.push({ t: faDateTime(), by: curSession().name, tx: (old ? '✏️ اصلاح' : '➕ ثبت') + ' هزینه پسابایگانی: ' + (+ev.amt || 0).toLocaleString('fa-IR') + ' ریال — ' + (labels[v.cat] || v.cat) + ' — ' + v.desc + (old ? ' (قبلی: ' + prevAmt.toLocaleString('fa-IR') + ')' : '') });
     pp.changeLog = pp.changeLog || [];
     pp.changeLog.push({ t: faDateTime(), by: curSession().name, user: curSession().user, act: old ? 'cost-edit' : 'cost-add', doc: v.desc, folder: 'fin' });
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
     audit('بایگانی', (old ? 'اصلاح' : 'ثبت') + ' هزینه پسابایگانی ' + no, ev.cd);
     prjRenderCosts(no);
     if (typeof ptfToast === 'function') ptfToast(old ? 'هزینه پسابایگانی اصلاح شد' : 'هزینه پسابایگانی ثبت شد', 'ok');
@@ -374,7 +374,7 @@ window.prjPostCostUpload = function (no, costCd) {
     pp.docs = pp.docs || []; pp.docs.push({ folder: 'fin', name: 'رسید هزینه پسابایگانی — ' + (ev.desc || ''), key: fileRec.key, size: fileRec.size, t: faDate(), by: curSession().name, note: 'هزینه پسابایگانی', costCd: ev.cd });
     pp.changeLog = pp.changeLog || [];
     pp.changeLog.push({ t: faDateTime(), by: curSession().name, user: curSession().user, act: 'cost-file', doc: fileRec.name, folder: 'fin' });
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
     prjRenderCosts(no);
   });
 };
@@ -393,7 +393,7 @@ window.prjPostCostDel = function (no, costCd) {
   pp.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینه از پرونده بایگانی: ' + (old.desc || '') + ' — ' + (+old.amt || 0).toLocaleString('fa-IR') + ' ریال' });
   pp.changeLog = pp.changeLog || [];
   pp.changeLog.push({ t: faDateTime(), by: curSession().name, user: curSession().user, act: 'cost-del', doc: old.desc || costCd, folder: 'fin' });
-  setData('ptf_crm_projects', prjs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
   prjDeleteCloudKeys(deadKeys);
   audit('بایگانی', 'حذف هزینه پسابایگانی ' + no, costCd);
   prjRenderCosts(no);
@@ -472,7 +472,7 @@ function prjShowFolder(fid) {
         pp.changeLog.push({ t: faDateTime(), by: curSession().name, user: curSession().user, act: 'add', doc: fileRec.name, folder: fid });
         try { audit('بایگانی', 'افزودن سند به پرونده بایگانی‌شده ' + _curPrj + ': ' + fileRec.name, _curPrj); } catch (e) {}
       }
-      setData('ptf_crm_projects', prjs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
       prjShowFolder(fid);
       audit('پرونده پروژه', 'افزودن مدرک به ' + _curPrj + '/' + fid, fileRec.name);
     });
@@ -559,7 +559,7 @@ function plSave() {
   _plState.by = curSession().name;
   var pls = getData('ptf_crm_packinglists');
   pls.unshift(_plState);
-  setData('ptf_crm_packinglists', pls);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_packinglists', pls, { reason: 'w2' }); else setData('ptf_crm_packinglists', pls);
   // ثبت در پرونده + تایم‌لاین (AC5)
   var prjs = getData('ptf_crm_projects');
   var p = prjs.filter(function (x) { return x.offerNo === _plState.offerNo; })[0];
@@ -569,7 +569,7 @@ function plSave() {
     p.timeline.push({ t: faDateTime(), by: curSession().name, tx: 'پکینگ لیست ' + _plState.no + ' صادر شد (' + lines.length + ' قلم)' });
     var pct = prjDeliveryPct(p);
     p.state = pct >= 100 ? 'done' : 'partial';
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
   }
   audit('پکینگ لیست', 'صدور ' + _plState.no + ' برای ' + _plState.offerNo, _plState.no);
   var savedNo = _plState.no;
@@ -597,7 +597,7 @@ function plVoid(no) {
   if (!why || !why.trim()) return;
   var pls = getData('ptf_crm_packinglists');
   pls.forEach(function (p) { if (p.no === no) { p.voided = true; p.voidWhy = why.trim(); p.voidBy = curSession().name; p.voidT = faDate(); } });
-  setData('ptf_crm_packinglists', pls);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_packinglists', pls, { reason: 'w2' }); else setData('ptf_crm_packinglists', pls);
   var pl = pls.filter(function (p) { return p.no === no; })[0];
   var prjs = getData('ptf_crm_projects');
   var p = prjs.filter(function (x) { return x.offerNo === pl.offerNo; })[0];
@@ -605,7 +605,7 @@ function plVoid(no) {
     p.timeline.push({ t: faDateTime(), by: curSession().name, tx: '⚠️ پکینگ لیست ' + no + ' باطل شد — ' + why + ' (تعدادها به باقیمانده برگشت)' });
     var pct = prjDeliveryPct(p);
     p.state = pct >= 100 ? 'done' : pct > 0 ? 'partial' : 'supply';
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
   }
   audit('پکینگ لیست', 'ابطال ' + no + ': ' + why, no);
   if (typeof prjRenderPls === 'function' && pl) prjRenderPls(pl.offerNo);

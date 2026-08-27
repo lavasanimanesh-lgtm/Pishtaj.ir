@@ -19,7 +19,15 @@
       body: JSON.stringify(body || {}),
       cache: 'no-store'
     }).then(function (r) { return r.json().then(function (d) { d._http = r.status; return d; }); })
-      .then(function (d) { cb && cb(d); })
+      .then(function (d) {
+        /* v34.8.30: توکن کهنه/نقش تغییرکرده → پیام واضح + یک‌بار هدایت به ورود مجدد (به‌جای حلقهٔ 403) */
+        if (d && d.needLogin && !window._ptfToolsReloginPrompted) {
+          window._ptfToolsReloginPrompted = true;
+          if (typeof ptfToast === 'function') ptfToast('نشست شما منقضی یا نقشش تغییر کرده — دوباره وارد شوید', 'warn');
+          setTimeout(function () { window._ptfToolsReloginPrompted = false; }, 60000);
+        }
+        cb && cb(d);
+      })
       .catch(function (e) { cb && cb({ ok: false, error: e && e.message ? e.message : String(e || 'network') }); });
   }
   function apiP(action, body) {
