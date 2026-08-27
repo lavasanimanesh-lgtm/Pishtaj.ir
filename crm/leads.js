@@ -264,7 +264,10 @@ function saveLead(cd) {
     if (dupCust.length) { alert(dedupMsg(dupCust) + '\n\n💡 این اطلاعات قبلاً به‌عنوان «مشتری» ثبت شده — نیازی به لید جدید نیست.'); if (!cd) leads.shift(); return; }
   }
   if (!cd) { if (typeof dedupStamp === 'function') dedupStamp(rec); rec.hist.push({ t: faDateTime(), k: 'ثبت', tx: 'لید ثبت شد — منبع: ' + rec.src }); }
-  setData('ptf_crm_leads', leads);
+  /* v34.8.14 (C3-گام۱): ذخیرهٔ سرنخ با فرمان اتمیک سروری؛ legacy فقط وقتی فرمان خاموش است. */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_leads'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_leads', rec, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('ذخیرهٔ سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); try { renderLeads(); } catch (eRr) {} } });
+  } else setData('ptf_crm_leads', leads);
   hideModal(); renderLeads();
   addLog('لید ' + co + (cd ? ' ویرایش' : ' ثبت') + ' شد');
 }
@@ -504,7 +507,10 @@ function ptfLeadDelDo(cd) {
   try {
     if (typeof ptfDeleteGuard === 'function' && ptfDeleteGuard('lead', cd, 'لید ' + cd)) return;
   } catch (eG) {}
-  setData('ptf_crm_leads', getData('ptf_crm_leads').filter(function(x){ return x.cd !== cd; }));
+  /* v34.8.14 (C3-گام۱): حذف سرنخ با فرمان سروری + tombstone. */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_leads'] && typeof window.ptfEntityDelete === 'function') {
+    window.ptfEntityDelete('ptf_crm_leads', cd, { reason: 'حذف سرنخ از UI', cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('حذف سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); try { renderLeads(); } catch (eR2) {} } });
+  } else setData('ptf_crm_leads', getData('ptf_crm_leads').filter(function(x){ return x.cd !== cd; }));
   try { if (typeof hideModal === 'function') hideModal(); } catch (eH) {}
   try { renderLeads(); } catch (eR) {}
   try { if (typeof addLog === 'function') addLog('لید ' + cd + ' حذف شد'); } catch (eL) {}
@@ -579,10 +585,9 @@ var REM_TOPICS = ['پیگیری لید','پیگیری استعلام','وصول 
 var REM_PRIS = [{id:'فوری',cl:'#ef4444'},{id:'متوسط',cl:'#f59e0b'},{id:'عادی',cl:'#64748b'}];
 
 function addReminder(r) {
-  var rems = getData('ptf_crm_reminders');
   var me = currentUserSession();
   var shareUsers = (r.shareUsers || []).filter(Boolean).filter(function(u, i, a){ return a.indexOf(u) === i && u !== (me.user || ''); });
-  rems.unshift({
+  var row = {
     cd: genCode('REM'), title: r.title, topic: r.topic || 'سایر',
     dueISO: r.dueISO, dueFa: gDateToFa(r.dueISO), dueTime: r.dueTime || '',
     pri: r.pri || 'عادی', link: r.link || null, note: r.note || '',
@@ -590,8 +595,15 @@ function addReminder(r) {
     by: currentUserName(),
     ownerUser: me.user || '', ownerName: me.name || currentUserName(),
     shareUsers: shareUsers, notifiedUsers: {}
-  });
-  setData('ptf_crm_reminders', rems);
+  };
+  /* v34.8.14 (C3-گام۱): ثبت یادآور با فرمان اتمیک سروری (کلید این ماژول کامل شد). */
+  if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('ثبت یادآور روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); updateRemBadge(); } });
+  } else {
+    var rems = getData('ptf_crm_reminders');
+    rems.unshift(row);
+    setData('ptf_crm_reminders', rems);
+  }
   updateRemBadge();
 }
 

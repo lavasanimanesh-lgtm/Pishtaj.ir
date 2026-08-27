@@ -365,7 +365,7 @@
      هر ماژولی که کلیدش در PTF_ENTITY_CMD_ENABLED باشد، نوشتن/حذف را به‌جای
      «کل مجموعه push» با یک فرمان اتمیک سروری انجام می‌دهد. اعمال پاسخ از طریق
      ptfBApplyServerProjection است (بدون dirty/صف/push) — دقیقاً تجربهٔ بانکی. */
-  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true };
+  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true };
   function entityApplyProjection(collection, value, rev) {
     try {
       if (typeof window.ptfBApplyServerProjection === 'function' && typeof value === 'string') {

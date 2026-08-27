@@ -62,14 +62,14 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.13';
+const SD_SERVICE_VERSION = '34.8.14';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
     'ptf_crm_case_receipts', 'ptf_crm_receipt_allocations', 'ptf_crm_fin_attachments',
     'ptf_crm_corrections', 'ptf_crm_fin_findings', 'ptf_crm_deleted_archive',
     'ptf_crm_fiscal_snapshots', 'ptf_crm_sales_commands',
-    'ptf_crm_reminders'
+    'ptf_crm_reminders', 'ptf_crm_leads'
 ];
 
 /* v34.8.13 (PHASE-C2 — زیرساخت فرمان عمومی): تعمیم الگوی موفق مالی به کل CRM.
@@ -83,6 +83,11 @@ function sd_entity_registry(): array {
             'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
             'id' => 'cd',
         ],
+        /* v34.8.14 (C3-گام۱): سرنخ‌ها — دومین ماژول روی مسیر فرمانی */
+        'ptf_crm_leads' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales'],
+            'id' => 'cd',
+        ],
     ];
 }
 function sd_entity_sanitize_row(array $row): array {
@@ -94,6 +99,31 @@ function sd_entity_sanitize_row(array $row): array {
         if (is_int($v) || is_float($v)) { $out[$k] = $v; $n++; continue; }
         if (is_string($v)) { $out[$k] = sd_text($v, 2000); $n++; continue; }
         if (is_array($v)) {
+            /* v34.8.14: لیست اسکالر (مثل shareUsers) عیناً با سقف نگه داشته می‌شود؛
+               map تودرتو با مقادیر اسکالر مجاز است (مثل link/notifiedUsers). */
+            $isList = array_keys($v) === range(0, count($v) - 1);
+            if ($isList) {
+                $list = [];
+                foreach ($v as $item) {
+                    if (is_string($item)) { $list[] = sd_text($item, 300); if (count($list) >= 60) break; continue; }
+                    if (is_bool($item)) { $list[] = $item; continue; }
+                    if (is_int($item) || is_float($item)) { $list[] = $item; continue; }
+                    /* v34.8.14: لیست نقشه‌های اسکالر (مثل hist سرنخ) یک سطح مجاز است. */
+                    if (is_array($item)) {
+                        $subItem = [];
+                        foreach ($item as $k3 => $v3) {
+                            if (is_string($k3) && strlen($k3) <= 60 && (is_scalar($v3) || $v3 === null)) {
+                                $subItem[$k3] = is_string($v3) ? sd_text($v3, 500) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
+                            }
+                            if (count($subItem) >= 20) break;
+                        }
+                        $list[] = $subItem;
+                        if (count($list) >= 60) break;
+                        continue;
+                    }
+                }
+                $out[$k] = $list; $n++; continue;
+            }
             $sub = [];
             foreach ($v as $k2 => $v2) {
                 if (is_string($k2) && strlen($k2) <= 60 && (is_scalar($v2) || $v2 === null)) {
