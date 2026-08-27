@@ -367,17 +367,19 @@
      ptfBApplyServerProjection است (بدون dirty/صف/push) — دقیقاً تجربهٔ بانکی. */
   window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true };
   function entityApplyProjection(collection, value, rev) {
+    /* v34.8.15: پاسخ فرمان ممکن است رشتهٔ JSON یا آرایهٔ آماده باشد (sd_result_data
+       آرایه برمی‌گرداند). قبلاً فقط رشته پذیرفته می‌شد و projection اصلاً اعمال
+       نمی‌شد — نتیجه: رکورد جدید تا pull بعدی دیده نمی‌شد و watermark کلاینت
+       عقب می‌ماند. */
     try {
-      if (typeof window.ptfBApplyServerProjection === 'function' && typeof value === 'string') {
+      if (typeof window.ptfBApplyServerProjection === 'function' && value != null) {
         return window.ptfBApplyServerProjection(collection, value, rev);
       }
     } catch (eProj) {}
-    /* فاز B غیرفعال → مسیر legacy امن: merge محلی + setData (push مجموعه‌ای) */
+    /* فاز B غیرفعال → مسیر legacy امن: اعمال محلی + setData (push مجموعه‌ای) */
     try {
-      if (typeof value === 'string') {
-        var arr = JSON.parse(value);
-        if (Array.isArray(arr)) { setData(collection, arr); return true; }
-      }
+      var arr = (typeof value === 'string') ? JSON.parse(value) : value;
+      if (Array.isArray(arr)) { setData(collection, arr); return true; }
     } catch (eLegacy) {}
     return false;
   }

@@ -1,4 +1,4 @@
-/* tester509 — v34.8.14/F4: finance-hub visibility, payable refresh and poll safety. */
+/* tester509 — v34.8.15/F4: finance-hub visibility, payable refresh and poll safety. */
 'use strict';
 var fs = require('fs');
 var assert = require('assert');
@@ -19,4 +19,4 @@ assert.ok(/eventRetryAt = Date\.now\(\) \+ bridgeBackoff/.test(bridge) && /inbox
 assert.ok(/eventRequest = pollEvents\(\)/.test(bridge) && /inboxRequest = syncServerInbox\(\)/.test(bridge), 'interval flags remain until async request settles');
 assert.ok(/data-fin-hub-active/.test(hub) && /show\('fiscalBox', t === 'fiscal'\)/.test(hub), 'hub keeps active tab state');
 console.log('  ✔ fiscal root, payable refresh and polling are fail-safe');
-console.log('PASS tester509 v34.8.14 phase04 UI/poll safety');
+console.log('PASS tester509 v34.8.15 phase04 UI/poll safety');

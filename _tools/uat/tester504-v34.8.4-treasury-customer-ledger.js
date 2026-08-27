@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.14 — regression: خزانهٔ all-period و دفتر canonical مشتری */
+/* v34.8.15 — regression: خزانهٔ all-period و دفتر canonical مشتری */
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
 var pass = 0, fail = 0;
