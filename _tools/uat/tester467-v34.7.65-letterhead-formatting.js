@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.33 — همان قالب‌بندی نامهٔ صادره برای «متن آماده روی سربرگ».
+/* v34.8.34 — همان قالب‌بندی نامهٔ صادره برای «متن آماده روی سربرگ».
    قرارداد: نوار ابزار غنی (فونت/اندازه/رنگ/هایلایت/بولد/ایتالیک/زیرخط/خط‌خورده/
    چینش/فاصلهٔ خطوط/فهرست/تورفتگی/جدول/تصویر) + تنظیمات دستی قالب (اندازهٔ کوچک،
    فاصلهٔ خطوط، فونت، چینش، بولد/ایتالیک، حاشیه) که در خروجی چاپ اعمال می‌شود. */
@@ -16,10 +16,10 @@ var idx = read('crm/index.html');
 var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.33', ver.crm_version === 'v34.8.33', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.33', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.33'") > -1);
-T('sw RELEASE = v34.8.33', sw.indexOf("RELEASE = 'v34.8.33'") > -1);
-T('letters.js cache-bust 34.8.33', /letters\.js\?v=34\.8\.33/.test(idx));
+T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.34', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.34'") > -1);
+T('sw RELEASE = v34.8.34', sw.indexOf("RELEASE = 'v34.8.34'") > -1);
+T('letters.js cache-bust 34.8.34', /letters\.js\?v=34\.8\.34/.test(idx));
 
 /* هندلرهای سربرگ (ptfLhp*) */
 T('هندلر فونت سربرگ', lt.indexOf('window.ptfLhpFont = function') > -1);
@@ -56,6 +56,6 @@ T('paste/drop سربرگ به lhpEditor وصل شد', lt.indexOf("letEditorWireP
 
 T('tester467 در گیت CI', gate.indexOf('tester467-v34.7.65-letterhead-formatting.js') > -1);
 
-console.log('\n— tester467 (v34.8.33: قالب‌بندی متن آماده روی سربرگ) —');
+console.log('\n— tester467 (v34.8.34: قالب‌بندی متن آماده روی سربرگ) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
