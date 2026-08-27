@@ -366,6 +366,7 @@
     if (!s.user) return false;
     var rems = getData('ptf_crm_reminders');
     var changed = false, added = false;
+    var changedRows = [];
     rems.forEach(function (r) {
       if (!(r.st === 'open' && r.dueISO <= todayISO())) return;
       var targets = [];
@@ -381,16 +382,45 @@
           title: '⏰ یک یادآوری داری: ' + r.title,
           body: 'سررسید: ' + (r.dueFa || r.dueISO) + (r.note ? ' — ' + r.note : ''),
           toUsers: [u], kind: 'reminder', actionable: true, remCd: r.cd,
+          /* v34.8.17 (CARTABLE-LOOP): سپر دوم ضدتکرار — dkey پایدار مثل rfq-due/deal-due.
+             حتی اگر notifiedUsers با یک upsert دیرهنگام revert شود، addMsg با dkey
+             کارت دوم نمی‌سازد. */
+          dkey: 'rem-due-' + r.cd + ':' + u,
           link: { panel: 'rem' }
         });
         r.notifiedUsers[u] = todayISO();
         added = true; changed = true;
       });
+      if (changedRows.indexOf(r) < 0) changedRows.push(r);
       r.msgSent = Object.keys(r.notifiedUsers || {}).length >= targets.length;
     });
-    if (changed) setData('ptf_crm_reminders', rems);
+    if (changed) {
+      /* v34.8.17 (CARTABLE-LOOP): یادآور مجموعهٔ فرمان‌محور است؛ state ضدتکرار از
+         مسیر فرمان ذخیره می‌شود نه پوش انبوه — تا با projection سرور نجنگد. */
+      var cmdOn = window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function';
+      if (cmdOn) changedRows.forEach(function (r) { try { window.ptfEntityUpsert('ptf_crm_reminders', r, {}); } catch (eCmd) {} });
+      else setData('ptf_crm_reminders', rems);
+    }
     return added;
   }
+
+  /* v34.8.17 (CARTABLE-LOOP): خودترمیم — کارت‌های تکراریِ ساخته‌شده قبل از فیکس
+     (همان kind/remCd، بدون dkey) یک‌بار جمع می‌شوند؛ اولی (که ممکن است خوانده شده)
+     می‌ماند و بقیه حذف می‌شوند. */
+  function sweepDuplicateReminderNotifs() {
+    var notifs = getData('ptf_crm_notifs');
+    var seen = {}, removed = 0;
+    var kept = notifs.filter(function (n) {
+      if (!n || n.done || n.kind !== 'reminder' || !n.remCd) return true;
+      var k = String(n.remCd) + '|' + String(n.title || '');
+      if (seen[k]) { removed++; return false; }
+      seen[k] = 1;
+      return true;
+    });
+    if (removed) setData('ptf_crm_notifs', kept);
+    return removed;
+  }
+  window.ptfSweepDuplicateReminderNotifs = sweepDuplicateReminderNotifs;
 
   /* ============ US-138 AC5: رویدادهای لحظه‌ای سرور ============ */
   function lastEvt() { return parseInt(localStorage.getItem('ptf_evt_last') || '0', 10); }
@@ -2011,6 +2041,7 @@
     injectInboxUI();
     updateInboxBadge();
     syncServerInbox();
+    try { sweepDuplicateReminderNotifs(); } catch (eSweep) {} /* v34.8.17: پاکسازی کارت‌های تکراری قبل از فیکس */
     checkDueReminders();
     updateInboxBadge();
     if (!window._ptfPollT) {

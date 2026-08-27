@@ -1,4 +1,4 @@
-/* tester510 — v34.8.16/F5: authoritative read-only finance repair manifest. */
+/* tester510 — v34.8.17/F5: authoritative read-only finance repair manifest. */
 'use strict';
 var fs = require('fs');
 var assert = require('assert');
@@ -20,4 +20,4 @@ assert.ok(/window\.ptfFinanceRepairPlan = function/.test(client), 'client read-o
 assert.ok(/action=finance_repair_plan/.test(client), 'client calls read-only endpoint');
 assert.ok(!/ptfFinanceRepairPlan[\s\S]{0,800}setData\(/.test(client), 'plan helper does not write local data');
 console.log('  ✔ repair manifest is scoped, evidence-based and non-mutating');
-console.log('PASS tester510 v34.8.16 phase05 repair plan');
+console.log('PASS tester510 v34.8.17 phase05 repair plan');
