@@ -1441,21 +1441,37 @@
   /* MOB-004: banner پایدار sync و toast کوتاه‌مدت باید بالای bottom-nav و به
      صورت stack دیده شوند. ارتفاع banner به CSS variable داده می‌شود تا toast
      حتی وقتی پیام banner چندخطی است با آن هم‌پوشانی نداشته باشد. */
+  /* v34.8.20 (STAGING-BANNER-LIFT): بنر نارنجی «محیط تست» هم bottom:0 و z-index بالاتر
+     دارد و نوار زرد/بنر قرمز را می‌پوشاند — گزارش کارفرما: «متن نوار زرد دیده نمی‌شود».
+     ارتفاع آن (وقتی موجود است) به آفست نوار و toast ها اضافه می‌شود. در پروداکشن این
+     عنصر وجود ندارد ⇒ همه‌چیز مثل قبل، صفر. */
+  function stagingBannerH() {
+    try {
+      var sb = document.getElementById('ptf-staging-banner');
+      if (!sb) return 0;
+      var h = sb.getBoundingClientRect().height || sb.offsetHeight || 0;
+      return h ? Math.ceil(h) : 0;
+    } catch (e) { return 0; }
+  }
   function ensureNoticeMobileStyle() {
     if (document.getElementById('ptfSyncNoticeMobileCss')) return;
+    var sbAdd = stagingBannerH() ? (' + ' + stagingBannerH() + 'px') : '';
     var css = document.createElement('style');
     css.id = 'ptfSyncNoticeMobileCss';
-    css.textContent = '@media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 8px)!important;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border-radius:14px!important;padding:10px 12px!important;min-height:48px!important;line-height:1.55!important;overflow-wrap:anywhere!important;pointer-events:auto!important}#ptfUnsavedBanner>span{min-width:0!important;overflow-wrap:anywhere!important}}' +
-      '@media(max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(52px + env(safe-area-inset-bottom,0px) + 8px)!important}}';
+    css.textContent = '@media(max-width:768px), (max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(74px + env(safe-area-inset-bottom,0px) + 8px' + sbAdd + ')!important;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border-radius:14px!important;padding:10px 12px!important;min-height:48px!important;line-height:1.55!important;overflow-wrap:anywhere!important;pointer-events:auto!important}#ptfUnsavedBanner>span{min-width:0!important;overflow-wrap:anywhere!important}}' +
+      '@media(max-width:900px) and (max-height:600px) and (orientation:landscape){#ptfUnsavedBanner{bottom:calc(52px + env(safe-area-inset-bottom,0px) + 8px' + sbAdd + ')!important}}';
     document.head.appendChild(css);
   }
   function syncNoticeStackOffset() {
     var root = document.documentElement;
     var banner = document.getElementById('ptfUnsavedBanner');
     if (!root) return;
+    var sbH = stagingBannerH();
+    /* v34.8.20: دسکتاپ — بنر بالای بنر استیجینگ بنشیند (استایل inline، بدون مدیا کوئری). */
+    try { if (banner) banner.style.bottom = sbH ? (sbH + 2) + 'px' : ''; } catch (eB) {}
     var compactLandscape = window.innerWidth <= 900 && window.innerHeight <= 600 && window.matchMedia && window.matchMedia('(orientation:landscape)').matches;
     var visible = banner && (window.innerWidth <= 768 || compactLandscape) && window.getComputedStyle(banner).display !== 'none';
-    var offset = visible ? Math.ceil(banner.getBoundingClientRect().height || banner.offsetHeight || 0) + 12 : 0;
+    var offset = (visible ? Math.ceil(banner.getBoundingClientRect().height || banner.offsetHeight || 0) + 12 : 0) + sbH;
     root.style.setProperty('--ptf-unsaved-banner-offset', offset + 'px');
   }
   function queueNoticeStackOffset() {

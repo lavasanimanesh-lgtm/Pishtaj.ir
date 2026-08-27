@@ -41,7 +41,7 @@ window.ptfOnClickArg = function (v) {
     '.ptfdlg .ok{background:linear-gradient(135deg,#ef4b1a,#f79400);color:#fff}' +
     '.ptfdlg .ok.danger{background:#dc2626}' +
     '.ptfdlg .cancel{background:#f1f5f9;color:#334155}' +
-    '.ptftoast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:10000;background:#1e293b;color:#fff;border-radius:14px;padding:11px 20px;font-size:13.5px;font-weight:800;box-shadow:0 12px 34px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:ptfup .25s;max-width:90vw;box-sizing:border-box}' +
+    '.ptftoast{position:fixed;bottom:calc(20px + var(--ptf-unsaved-banner-offset,0px));left:50%;transform:translateX(-50%);z-index:10000;background:#1e293b;color:#fff;border-radius:14px;padding:11px 20px;font-size:13.5px;font-weight:800;box-shadow:0 12px 34px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;animation:ptfup .25s;max-width:90vw;box-sizing:border-box}' +
     /* MOB-004: toast پایین در 320px مستقیماً روی bottom-nav می‌افتاد. offset
        بنر پایدار sync از CSS variable می‌آید تا در صورت نمایش هم‌زمان، دو notice
        روی هم هم قرار نگیرند. toast عملیاتی نیست؛ لمس باید به کنترل زیر آن برسد. */
