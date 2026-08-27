@@ -361,10 +361,27 @@
 
 
   // یادآورهای سررسیدشده → پیام صندوق (US-138 AC6)
+  /* v34.8.18 (DING-LOOP): «حضور کارت زنده = خودِ state است».
+     گزارش کارفرما پس از v34.8.17: تکرار کارت قطع شد ولی هر چند ثانیه دینگ +
+     «🔄 N بخش از دستگاه دیگر به‌روز شد» (sync.js pull toast) ادامه داشت.
+     ریشه: وقتی notifiedUsers هر تیک گم‌شده دیده می‌شد، سپر dkey کارت دوم نمی‌ساخت
+     ولی کد همچنان added=true برمی‌گرداند (دینگ هر تیک) و دوباره entity_upsert
+     می‌فرستاد (rev++ → toast هر pull). فیکس: قبل از هر کاری کارت‌های زندهٔ
+     یادآور اسکن می‌شوند؛ اگر برای (یادآور، گیرنده) کارت زنده هست، فقط state ساکت
+     بازسازی می‌شود (بدون دینگ، بدون فرمان اضافه) + گارد in-flight برای فرمان. */
+  var _remUpsertInFlight = false;
   function checkDueReminders() {
     var s = curSession();
     if (!s.user) return false;
     var rems = getData('ptf_crm_reminders');
+    var notifs = getData('ptf_crm_notifs');
+    var haveCard = {}; /* 'cd:user' → کارت زنده (نه done) */
+    notifs.forEach(function (n) {
+      if (!n || n.done || n.kind !== 'reminder' || !n.remCd) return;
+      var dk = String(n.dkey || '');
+      if (dk.indexOf('rem-due-') === 0) haveCard[dk.slice(8)] = 1;
+      else (n.toUsers || []).forEach(function (u) { if (u) haveCard[String(n.remCd) + ':' + u] = 1; });
+    });
     var changed = false, added = false;
     var changedRows = [];
     rems.forEach(function (r) {
@@ -378,28 +395,42 @@
       r.notifiedUsers = r.notifiedUsers || {};
       targets.forEach(function (u) {
         if (r.notifiedUsers[u]) return;
+        if (haveCard[String(r.cd) + ':' + u]) {
+          /* کارت زنده موجود است → این یادآور قبلاً اعلان شده؛ فقط state ساکت
+             بازسازی می‌شود — بدون دینگ و بدون فرمان (پایان DING-LOOP). */
+          r.notifiedUsers[u] = todayISO();
+          changed = true;
+          return;
+        }
         addMsg({
           title: '⏰ یک یادآوری داری: ' + r.title,
           body: 'سررسید: ' + (r.dueFa || r.dueISO) + (r.note ? ' — ' + r.note : ''),
           toUsers: [u], kind: 'reminder', actionable: true, remCd: r.cd,
-          /* v34.8.17 (CARTABLE-LOOP): سپر دوم ضدتکرار — dkey پایدار مثل rfq-due/deal-due.
-             حتی اگر notifiedUsers با یک upsert دیرهنگام revert شود، addMsg با dkey
-             کارت دوم نمی‌سازد. */
+          /* v34.8.17 (CARTABLE-LOOP): سپر دوم ضدتکرار — dkey پایدار مثل rfq-due/deal-due. */
           dkey: 'rem-due-' + r.cd + ':' + u,
           link: { panel: 'rem' }
         });
         r.notifiedUsers[u] = todayISO();
-        added = true; changed = true;
+        added = true; changed = true; /* فقط کارت واقعاً تازه → دینگ */
       });
       if (changedRows.indexOf(r) < 0) changedRows.push(r);
       r.msgSent = Object.keys(r.notifiedUsers || {}).length >= targets.length;
     });
     if (changed) {
-      /* v34.8.17 (CARTABLE-LOOP): یادآور مجموعهٔ فرمان‌محور است؛ state ضدتکرار از
-         مسیر فرمان ذخیره می‌شود نه پوش انبوه — تا با projection سرور نجنگد. */
+      /* v34.8.17: یادآور مجموعهٔ فرمان‌محور است؛ state از مسیر فرمان ذخیره می‌شود.
+         v34.8.18: گارد in-flight — تا ACK فرمان قبلی، فرمان جدیدی نمی‌رود؛ تیک
+         بعدی هرچه لازم باشد ساکت از روی کارت‌ها بازسازی می‌کند. */
       var cmdOn = window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function';
-      if (cmdOn) changedRows.forEach(function (r) { try { window.ptfEntityUpsert('ptf_crm_reminders', r, {}); } catch (eCmd) {} });
-      else setData('ptf_crm_reminders', rems);
+      if (cmdOn) {
+        if (!_remUpsertInFlight) {
+          _remUpsertInFlight = true;
+          try {
+            window.ptfEntityUpsert('ptf_crm_reminders', changedRows[changedRows.length - 1], { cb: function () { _remUpsertInFlight = false; } });
+          } catch (eCmd) { _remUpsertInFlight = false; }
+        }
+        /* ردیف‌های باقی‌مانده (بندرت >۱) با تیک بعد و بازسازی ساکت پوشیده می‌شوند؛
+           پوش انبوه هم به‌عنوان مسیر پشتیبان حذف شد تا با projection نجنگد. */
+      } else setData('ptf_crm_reminders', rems);
     }
     return added;
   }
