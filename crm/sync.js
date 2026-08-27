@@ -1435,6 +1435,8 @@
     opts = opts || {};
     try {
       var t = localStorage.getItem('ptf_crm_token');
+      /* v34.8.33: نبود توکن = خطای قطعی محلی — بدون fetch (caller فوراً fallback می‌کند) */
+      if (!t) { cb && cb({ ok: false, error: 'no_token', needLogin: true }); return; }
       var params = new URLSearchParams({ action: 'collection_query', collection: collection });
       if (opts.q) params.append('q', String(opts.q));
       if (opts.sortBy) params.append('sortBy', String(opts.sortBy));
