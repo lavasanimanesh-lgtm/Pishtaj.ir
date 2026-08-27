@@ -2106,6 +2106,76 @@ switch($action) {
         echo json_encode(['ok' => true, 'rev' => $globalRev, 'data' => $out, 'meta' => $meta, 'delta' => ($krevs !== null)], JSON_UNESCAPED_UNICODE);
         break;
 
+    /* ===== v34.8.31 (T3-1 — ROADMAP-THIN-CLIENT): خواندن سرور-محور =====
+       collection_query: فیلتر/مرتب‌سازی/صفحه‌بندی سمت سرور روی فروشگاه sync.
+       مصرف اصلی: بوت دستگاه جدید (بدون دانلود کل دیتاست) + پنل‌های فهرست‌محور.
+       پارامترها: collection, q (جستجوی آزاد روی فیلدهای رشته‌ای), field/eq,
+       sortBy/sortDir, page/pageSize (سقف ۱۰۰)، fields (پروجکشن CSV اختیاری). */
+    case 'collection_query':
+        verify_request();
+        $cq_collection = trim((string)($_REQUEST['collection'] ?? ''));
+        $cq_allowed = sync_allowed_keys_for_role($client_role);
+        if (!in_array($cq_collection, $cq_allowed, true)) { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'collection_forbidden','collection'=>$cq_collection]); break; }
+        $cq_meta_file = $data_dir . '/sync/meta.json';
+        $cq_meta = file_exists($cq_meta_file) ? (json_decode(file_get_contents($cq_meta_file), true) ?: []) : [];
+        $cq_metaEntry = $cq_meta[$cq_collection] ?? [];
+        $cq_rows = [];
+        $cq_kv = sync_key_read($data_dir . '/sync', $cq_collection);
+        if (is_string($cq_kv)) { $cq_dec = json_decode($cq_kv, true); if (is_array($cq_dec)) $cq_rows = array_values($cq_dec); }
+        /* فیلتر تساوی ساده: هر کلید query به‌جز رزروشده‌ها = eq */
+        $cq_reserved = ['collection','q','sortBy','sortDir','page','pageSize','fields'];
+        foreach ($_REQUEST as $cq_f => $cq_v) {
+            if (in_array($cq_f, $cq_reserved, true)) continue;
+            if (strpos($cq_f, '_') === 0) continue;
+            $cq_v = trim((string)$cq_v);
+            if ($cq_v === '') continue;
+            $cq_rows = array_values(array_filter($cq_rows, function ($r) use ($cq_f, $cq_v) {
+                if (!is_array($r)) return false;
+                if (array_key_exists($cq_f, $r)) return (string)$r[$cq_f] === $cq_v;
+                return false;
+            }));
+        }
+        /* جستجوی آزاد روی فیلدهای رشته‌ای (case-insensitive، حداکثر ۳۰۰۰ رکورد اسکن) */
+        $cq_q = trim((string)($_REQUEST['q'] ?? ''));
+        if ($cq_q !== '') {
+            $cq_qL = mb_strtolower($cq_q, 'UTF-8');
+            $cq_rows = array_values(array_filter(array_slice($cq_rows, 0, 3000), function ($r) use ($cq_qL) {
+                if (!is_array($r)) return false;
+                foreach ($r as $v) { if (is_string($v) && mb_strpos(mb_strtolower($v, 'UTF-8'), $cq_qL) !== false) return true; }
+                return false;
+            }));
+        }
+        /* مرتب‌سازی: sortBy روی فیلد (پیش‌فرض cd)؛ sortDir=asc|desc */
+        $cq_sortBy = trim((string)($_REQUEST['sortBy'] ?? 'cd'));
+        $cq_sortDir = strtolower(trim((string)($_REQUEST['sortDir'] ?? 'asc'))) === 'desc' ? -1 : 1;
+        usort($cq_rows, function ($a, $b) use ($cq_sortBy, $cq_sortDir) {
+            $av = is_array($a) ? (string)($a[$cq_sortBy] ?? '') : '';
+            $bv = is_array($b) ? (string)($b[$cq_sortBy] ?? '') : '';
+            $cmp = strcmp($av, $bv);
+            return $cmp * $cq_sortDir;
+        });
+        /* صفحه‌بندی */
+        $cq_page = max(1, (int)($_REQUEST['page'] ?? 1));
+        $cq_pageSize = min(100, max(1, (int)($_REQUEST['pageSize'] ?? 50)));
+        $cq_total = count($cq_rows);
+        $cq_pageRows = array_slice($cq_rows, ($cq_page - 1) * $cq_pageSize, $cq_pageSize);
+        /* پروجکشن CSV اختیاری */
+        $cq_fields = trim((string)($_REQUEST['fields'] ?? ''));
+        if ($cq_fields !== '') {
+            $cq_want = array_filter(array_map('trim', explode(',', $cq_fields)));
+            $cq_pageRows = array_map(function ($r) use ($cq_want) {
+                $o = [];
+                foreach ($cq_want as $wf) { if (array_key_exists($wf, $r)) $o[$wf] = $r[$wf]; }
+                return $o;
+            }, $cq_pageRows);
+        }
+        echo json_encode([
+            'ok' => true, 'collection' => $cq_collection, 'rev' => $cq_metaEntry['rev'] ?? 0,
+            'total' => $cq_total, 'page' => $cq_page, 'pageSize' => $cq_pageSize,
+            'pages' => (int)ceil($cq_total / $cq_pageSize), 'rows' => $cq_pageRows
+        ], JSON_UNESCAPED_UNICODE);
+        break;
+
     case 'data_rev':
         verify_request();
         $meta_file = $data_dir . '/sync/meta.json';

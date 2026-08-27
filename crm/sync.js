@@ -1427,6 +1427,33 @@
     } catch (eSW) {}
     finally { state.pulling = false; }
   };
+  /* ============ v34.8.31 (T3-1): خواندن سرور-محور ============
+     collectionQuery: فیلتر/مرتب/صفحهٔ سروری — مصرف اصلی بوت دستگاه جدید و
+     پنل‌های فهرست‌محور، بدون دانلود کل دیتاست. فقط-خواندنی؛ نوشتن همچنان فقط
+     از مسیر فرمان/setData (لایهٔ داده). */
+  window.ptfCollectionQuery = function (collection, opts, cb) {
+    opts = opts || {};
+    try {
+      var t = localStorage.getItem('ptf_crm_token');
+      var params = new URLSearchParams({ action: 'collection_query', collection: collection });
+      if (opts.q) params.append('q', String(opts.q));
+      if (opts.sortBy) params.append('sortBy', String(opts.sortBy));
+      if (opts.sortDir) params.append('sortDir', String(opts.sortDir));
+      if (opts.page) params.append('page', String(opts.page));
+      if (opts.pageSize) params.append('pageSize', String(opts.pageSize));
+      if (opts.fields) params.append('fields', String(opts.fields));
+      Object.keys(opts).forEach(function (k) {
+        if (['q','sortBy','sortDir','page','pageSize','fields','eq'].indexOf(k) > -1) return;
+        if (typeof opts[k] === 'string' || typeof opts[k] === 'number') params.append(k, String(opts[k]));
+      });
+      var h = { 'Cache-Control': 'no-store' };
+      if (t) h['X-CRM-Token'] = t;
+      fetch('../api/crm.php?' + params.toString(), { method: 'GET', headers: h, cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { cb && cb(d); })
+        .catch(function (e) { cb && cb({ ok: false, error: (e && e.message) || 'network' }); });
+    } catch (eQ) { cb && cb({ ok: false, error: String(eQ) }); }
+  };
   window.ptfScheduleDataRefresh = function (key) {
     /* باگ ۲: ماژول درخواست تامین (rfqsmart) خودش DOM را حین کار به‌روز می‌کند؛ رندر مجدد کل صفحه ممنوع */
     if ((key === 'ptf_crm_rfqsmart' || key === 'ptf_crm_rfqs') && window.ptfActivePanel === 'rfqs') return;

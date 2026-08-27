@@ -1,4 +1,4 @@
-/* tester507 — v34.8.30/F2: server-owned salary registration and shareholder movements. */
+/* tester507 — v34.8.31/F2: server-owned salary registration and shareholder movements. */
 'use strict';
 var fs = require('fs');
 var vm = require('vm');
@@ -104,7 +104,7 @@ returnPromise.then(function () {
   assert.strictEqual(commands[2].payload.amountIRR, 400000000);
   assert.strictEqual(released.length, held.length);
   console.log('  ✔ UI ماه مستقل، مبلغ profile-only، salary claim و draw پرداخت را جدا نگه می‌دارد');
-  console.log('PASS tester507 v34.8.30 phase02 shareholder commands');
+  console.log('PASS tester507 v34.8.31 phase02 shareholder commands');
 }).catch(function (error) {
   console.error(error && error.stack || error);
   process.exitCode = 1;

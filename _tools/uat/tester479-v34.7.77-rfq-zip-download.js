@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.30 — دانلود گروهی ضمایم درخواست (ZIP).
+/* v34.8.31 — دانلود گروهی ضمایم درخواست (ZIP).
    درخواست: برخی درخواست‌ها ضمایم زیادی دارند و دانلود تکتک زمان‌بر است؛ باید
    امکان دانلود فایل ZIP همهٔ ضمایم فراهم باشد.
    پیاده‌سازی: endpoint سروری zip-attachments.php (احراز + allowlist کلید rfqatt|site-rfq)
@@ -18,8 +18,8 @@ var zip = read('api/zip-attachments.php');
 var ht = read('api/.htaccess');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.30', ver.crm_version === 'v34.8.30', ver.crm_version);
-T('inqreader.js cache-bust 34.8.30', /inqreader\.js\?v=34\.8\.30/.test(idx));
+T('VERSION.json = v34.8.31', ver.crm_version === 'v34.8.31', ver.crm_version);
+T('inqreader.js cache-bust 34.8.31', /inqreader\.js\?v=34\.8\.31/.test(idx));
 
 /* ① کلاینت */
 T('ptfRfqZipEntries تعریف شد', /window\.ptfRfqZipEntries = function \(r\)\s*\{/.test(inq));
@@ -50,6 +50,6 @@ T('zip-attachments در allowlist api/.htaccess', ht.indexOf('zip-attachments') 
 
 T('tester479 در گیت CI', gate.indexOf('tester479-v34.7.77-rfq-zip-download.js') > -1);
 
-console.log('\n— tester479 (v34.8.30: دانلود گروهی ضمایم درخواست به ZIP) —');
+console.log('\n— tester479 (v34.8.31: دانلود گروهی ضمایم درخواست به ZIP) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
