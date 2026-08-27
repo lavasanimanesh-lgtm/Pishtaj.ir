@@ -499,7 +499,7 @@
     if (r.srcRfq) {
       var rfqs = getData('ptf_crm_rfqs');
       var parent = rfqs.filter(function(x){ return x.cd === r.srcRfq || x.inqNo === r.srcRfq; })[0];
-      if (parent) { parent.st = 'st2'; parent.stxt = '⏳ منتظر دریافت قیمت'; setData('ptf_crm_rfqs', rfqs); }
+      if (parent) { parent.st = 'st2'; parent.stxt = '⏳ منتظر دریافت قیمت'; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); }
     }
     rfqsRenderAccordion(no);
     alert('🟢 وضعیت استعلام به «منتظر دریافت قیمت» تغییر کرد و جدول مقایسه قیمت‌های خرید فعال شد.');

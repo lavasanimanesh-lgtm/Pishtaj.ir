@@ -366,7 +366,8 @@
      «کل مجموعه push» با یک فرمان اتمیک سروری انجام می‌دهد. اعمال پاسخ از طریق
      ptfBApplyServerProjection است (بدون dirty/صف/push) — دقیقاً تجربهٔ بانکی. */
   /* v34.8.22 (W1): مشتریان/تامین‌کنندگان/کالاها — باید عین sd_entity_registry سرور باشد (قانون A11). */
-  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true, 'ptf_crm_customers': true, 'ptf_crm_suppliers': true, 'ptf_crm_products': true };
+  /* v34.8.24 (W2): rfqs/deals/projects/inqitems/packinglists/notifs — باید عین sd_entity_registry سرور باشد (قانون A11). */
+  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true, 'ptf_crm_customers': true, 'ptf_crm_suppliers': true, 'ptf_crm_products': true, 'ptf_crm_rfqs': true, 'ptf_crm_deals': true, 'ptf_crm_projects': true, 'ptf_crm_inqitems': true, 'ptf_crm_packinglists': true, 'ptf_crm_notifs': true };
   function entityApplyProjection(collection, value, rev) {
     /* v34.8.15: پاسخ فرمان ممکن است رشتهٔ JSON یا آرایهٔ آماده باشد (sd_result_data
        آرایه برمی‌گرداند). قبلاً فقط رشته پذیرفته می‌شد و projection اصلاً اعمال
@@ -481,9 +482,17 @@
     });
     Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
     if (ups.length + dels.length > MAX_OPS) return legacyFallback('too-many-ops:' + (ups.length + dels.length));
+    /* v34.8.24 (READBACK-FIX): نوشتن محلیِ بی‌صدا «قبل از» فرمان‌ها — ریشهٔ شکست
+       tester442/445: جریان‌هایی که بلافاصله getData می‌خوانند (حذف پیشنهاد → مرحلهٔ
+       RFQ) دادهٔ کهنه می‌دیدند چون تا ACK هیچ‌چیز محلی نوشته نمی‌شد. نوشتن بی‌صدا
+       (بدون dirty) سازگاری فوری می‌دهد؛ ACK بعدی همان محتوا را projection می‌کند. */
+    try { if (typeof window.ptfSilentWrite === 'function') window.ptfSilentWrite(collection, JSON.stringify(nextArr)); } catch (eW) {}
     var errors = [];
-    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked' && typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } }); } catch (eU) { errors.push(eU); } });
-    dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff' }); } catch (eD) { errors.push(eD); } });
+    /* v34.8.24 (SAFETY-NET): هر فرمان شکست‌خورده → کلید dirty تا پوش انبوهِlegacy
+       همان بازیابیِ امروز را تضمین کند (آفلاین/خطای سخت هیچ داده‌ای معلق نمی‌ماند). */
+    function failDirty() { try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(collection); } catch (eD) {} }
+    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } } }); } catch (eU) { errors.push(eU); failDirty(); } });
+    dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); } }); } catch (eD) { errors.push(eD); failDirty(); } });
     try {
       window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
       window._ptfEntityLastKnown[collection] = JSON.parse(JSON.stringify(nextArr));

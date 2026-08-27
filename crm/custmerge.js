@@ -166,7 +166,7 @@
     var moved = 0;
     var rfqs = getData('ptf_crm_rfqs');
     rfqs.forEach(function (r) { if (r.custCd === drop.cd) { r.custCd = keep.cd; r.co = keep.co; moved++; } else if (r.co === drop.co) { r.co = keep.co; r.custCd = r.custCd || keep.cd; moved++; } });
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     var offers = getData('ptf_crm_offers');
     offers.forEach(function (o) { if (o.buyerCd === drop.cd) { o.buyerCd = keep.cd; o.buyerCo = keep.coEn || keep.co; moved++; } });
     setData('ptf_crm_offers', offers);
@@ -176,14 +176,14 @@
       if (d.buyerCd === drop.cd) { d.buyerCd = keep.cd; moved++; }
       if (d.buyerCo === drop.co) d.buyerCo = keep.co;
     });
-    setData('ptf_crm_deals', deals);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
     var prjs = getData('ptf_crm_projects');
     prjs.forEach(function (p) {
       if (p.custCd === drop.cd) { p.custCd = keep.cd; moved++; }
       if (p.buyerCd === drop.cd) { p.buyerCd = keep.cd; moved++; }
       if (p.buyerCo === drop.co) p.buyerCo = keep.co;
     });
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
     var rems = getData('ptf_crm_reminders');
     rems.forEach(function (r) { if (r.custCd === drop.cd) { r.custCd = keep.cd; moved++; } if (r.ref === drop.cd) { r.ref = keep.cd; moved++; } });
     setData('ptf_crm_reminders', rems);

@@ -10,7 +10,7 @@
 (function () {
 
   function getPrj(no) { return getData('ptf_crm_projects').filter(function (p) { return p.no === no; })[0]; }
-  function savePrjs(prjs) { setData('ptf_crm_projects', prjs); }
+  function savePrjs(prjs) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs); }
   function tl(p, tx) { p.timeline = p.timeline || []; p.timeline.push({ t: faDateTime(), by: curSession().name, tx: tx }); }
   function cloudDocs(p) {
     var out = [];
@@ -295,7 +295,7 @@
             });
           });
           r2.filesPurgedAt = faDateTime();
-          setData('ptf_crm_rfqs', rfqs2);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs2, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs2);
         }
         audit('استعلامات', 'پاکسازی فایل‌های درخواست بازنده ' + r.cd, done + ' فایل');
         localStorage.removeItem('ptf_cloud_usage');

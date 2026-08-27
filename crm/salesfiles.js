@@ -461,7 +461,7 @@
     rfq.st = target; rfq.stxt = sfRfqStatusText(target); rfq.waiting = null;
     rfq.evidenceRecomputedAt = new Date().toISOString();
     rfq.evidenceRecomputedReason = reason || 'اصلاح شواهد پرونده';
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     try { audit('استعلامات', 'بازمحاسبه وضعیت از شواهد پرونده: ' + before + ' ← ' + target + ' — ' + (reason || ''), rfq.cd); } catch (e) {}
     return { changed: true, before: before, after: target, stage: sfStageOf(r) };
   };
@@ -1710,7 +1710,7 @@
          فایل)؛ اینجا به‌اشتباه به یک کلید دیگر ('ptf_crm_salesfiles') که هیچ‌جای
          دیگر این پروژه خوانده نمی‌شود نوشته می‌شد. اصلاح شد تا با sfSave/sfAll
          هم‌راستا باشد. */
-      setData('ptf_crm_deals', list);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', list, { reason: 'w2' }); else setData('ptf_crm_deals', list);
       try { audit('مطالبات', 'تسویه خودکار ' + au.openInvs.length + ' فاکتور هنگام مختومه شدن پرونده ' + (r.inqNo || cd) + ' — قابل برگشت', r.cd); } catch (e) {}
     }
     try { audit('پرونده‌های فروش', 'کنترل پیش از مختومه US-437 عبور کرد (' + au.warns.map(function (w) { return w.id; }).join('،') + (au.warns.length ? ' — با هشدار' : ' — بدون هشدار') + ') — ' + (r.inqNo || cd), cd); } catch (e2) {}
@@ -1800,7 +1800,7 @@
        اگر پرونده هنوز باز است در ptf_crm_deals، اگر بایگانی شده در
        ptf_crm_projects. نوشتن روی کلید اشتباه (که پیش‌تر 'ptf_crm_salesfiles'
        بود) باعث می‌شد این علامت‌گذاری هرگز پایدار نماند. */
-    if (inArchive) setData('ptf_crm_projects', archiveList);
+    if (inArchive) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', archiveList, { reason: 'w2' }); else setData('ptf_crm_projects', archiveList);
     else setData('ptf_crm_deals', list);
     
     try { 
@@ -2010,7 +2010,7 @@
         if (!hit) return;
         if (q.st !== 'stX' && q.st !== 'st7') { q.st = 'stX'; ch2 = true; }
       });
-      if (ch2) setData('ptf_crm_rfqs', rfqs);
+      if (ch2) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     } catch (e2) {}
   }
 
@@ -2118,7 +2118,7 @@
       timeline: [{ t: faDateTime(), by: curSession().name, tx: closeKind === 'settled' ? '🏁 مختومه — پایان پروژه و تسویه کامل (انتقال از پرونده‌های فروش)' : '🚫 مختومه بدون فاکتور — ' + (why || '') }]
     };
     prjs.unshift(rec);
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
     /* v21.1 BUG-035: پیشنهادها/درخواست مرتبط را lost/stX کن تا فرصت دوباره نیاید */
     if (closeKind === 'lost') sfMarkLostRelated(r);
     /* حذف از پرونده‌های فروش */
@@ -2217,7 +2217,7 @@
     d.costEvents = (d.costEvents || []).filter(function (x) { if (x.cd === costCd) return false; return true; });
     d.timeline = d.timeline || [];
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینهٔ پرونده ' + costCd + (pettyCd ? ' (لینک تنخواه ' + pettyCd + ')' : '') });
-    setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
     if (pettyCd) {
       try {
         var pt = (getData('ptf_crm_petty') || []).filter(function (x) { return x.cd === pettyCd; })[0];

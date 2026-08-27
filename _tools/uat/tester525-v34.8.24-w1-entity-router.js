@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester525 — v34.8.23 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
+/* tester525 — v34.8.24 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
    هسته: روتر diff-محور ptfEntitySaveCollection — استخراج واقعی از سورس و آزمون
    رفتاری: افزوده/ویرایش/حذف → تعداد و نوع فرمان درست؛ گاردهای fallback؛ استقلال
    snapshot از دستگاه‌های دیگر (هرگز حذف اشتباه). */
@@ -15,7 +15,7 @@ var php = read('api/sales-domain.php');
 T('رجیستری: مشتریان با ۸ نقش (عین ماتریس legacy)', /'ptf_crm_customers' => \[\s*'roles' => \['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'\]/.test(php));
 T('رجیستری: تامین‌کنندگان بدون accountant/collector', /'ptf_crm_suppliers' => \[\s*'roles' => \['admin','chairman','ceo','commercial','sales','buyer'\]/.test(php));
 T('رجیستری: کالاها بدون collector', /'ptf_crm_products' => \[\s*'roles' => \['admin','chairman','ceo','commercial','sales','buyer','accountant'\]/.test(php));
-T('maxFields=120 برای هر سه', (php.match(/'maxFields' => 120/g) || []).length === 3);
+T('maxFields=120 برای حداقل سه کلید W1', (php.match(/'maxFields' => 120/g) || []).length >= 3);
 T('sanitizer از maxFields رجیستری استفاده می‌کند', /sd_entity_sanitize_row\(\$rec, \$sanitizeStats, \(int\)\(\$cfg\['maxFields'\] \?\? 40\)\)/.test(php));
 
 /* ---------- روتر: استخراج و اجرا ---------- */
@@ -130,9 +130,9 @@ T('A11: تطابق کامل رجیستری کلاینت/سرور', JSON.stringif
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.8.23', ver.crm_version === 'v34.8.23', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.8.23', /window\.PTF_CRM_RELEASE = 'v34\.8\.23'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8\.23'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.8.24', ver.crm_version === 'v34.8.24', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.8.24', /window\.PTF_CRM_RELEASE = 'v34\.8\.24'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8\.24'/.test(read('crm/sw.js')));
 
-console.log('\n— tester525 (v34.8.23: W1 entity commands for customers/suppliers/products) —');
+console.log('\n— tester525 (v34.8.24: W1 entity commands for customers/suppliers/products) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

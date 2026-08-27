@@ -293,7 +293,7 @@
         d.costEvents = (d.costEvents || []).filter(function (x) { return x.cd !== r.cd; });
         d.timeline = d.timeline || [];
         d.timeline.push({ t: faDateTime(), by: userName(), tx: '🗑 حذف/ابطال هزینه تنخواه لینک‌شده از پرونده: ' + money(r.amt) + ' — ' + (r.desc || r.cat) });
-        setData('ptf_crm_deals', ds);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds, { reason: 'w2' }); else setData('ptf_crm_deals', ds);
       }
     } catch (e) {}
   }
@@ -336,7 +336,7 @@
           dirty = true;
         }
       }
-      if (dirty) setData('ptf_crm_deals', ds);
+      if (dirty) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds, { reason: 'w2' }); else setData('ptf_crm_deals', ds);
     } catch (eUd) { console.error('ptfPettyUpdateDealLink:', eUd); }
   };
 

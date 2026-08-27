@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester526 — v34.8.23 (W1-iterate + T3-3):
+/* tester526 — v34.8.24 (W1-iterate + T3-3):
    ۱) تکمیل W1: صفر نقطهٔ setData مستقیم باقی‌مانده برای مشتریان/تامین‌کنندگان/کالاها
       (همه از روتر فرمانی یا fallback else-محافظت‌شده)؛ حذف‌های خطرناک حالا فرمان
       tombstone بازیافت‌پذیرند.
@@ -54,7 +54,7 @@ T('preload صف در بوت صدا زده می‌شود', /window\.ptfBQueueIdbP
   var lsStore = {};
   var idbStore = {};
   var csSrc = read('crm/client-server.js');
-  var fnQ = csSrc.match(/  \/\* ---------- v34\.8\.23 \(T3-3[\s\S]*?  window\.ptfBQueueIdbPreload = function \(cb\) \{[\s\S]*?\n  \};/);
+  var fnQ = csSrc.match(/  \/\* ---------- v34\.8\.\d+ \(T3-3[\s\S]*?  window\.ptfBQueueIdbPreload = function \(cb\) \{[\s\S]*?\n  \};/);
   T('بلوک صف IDB استخراج شد', !!fnQ);
   if (!fnQ) return;
   var w = {
@@ -104,9 +104,9 @@ T('preload صف در بوت صدا زده می‌شود', /window\.ptfBQueueIdbP
     function finish() {
       /* ---------- نسخه ---------- */
       var ver = JSON.parse(read('VERSION.json'));
-      T('VERSION.json = v34.8.23', ver.crm_version === 'v34.8.23', ver.crm_version);
-      T('قرارداد نسخهٔ UI/sw = 34.8.23', /window\.PTF_CRM_RELEASE = 'v34\.8\.23'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8\.23'/.test(read('crm/sw.js')));
-      console.log('\n— tester526 (v34.8.23: W1-iterate + OFFLINE-OUTBOX-IDB) —');
+      T('VERSION.json = v34.8.24', ver.crm_version === 'v34.8.24', ver.crm_version);
+      T('قرارداد نسخهٔ UI/sw = 34.8.24', /window\.PTF_CRM_RELEASE = 'v34\.8\.24'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8\.24'/.test(read('crm/sw.js')));
+      console.log('\n— tester526 (v34.8.24: W1-iterate + OFFLINE-OUTBOX-IDB) —');
       console.log('PASS: ' + p + ' | FAIL: ' + f);
       process.exit(f ? 1 : 0);
     }

@@ -349,7 +349,7 @@
         d.docs = d.docs || [];
         if (f.key && !d.docs.some(function (x) { return x.key === f.key; })) d.docs.push({ folder: 'fin', name: 'رسید پرداخت خرید واقعی — ' + ((c.items[idx]||{}).nm || ''), key: f.key, t: faDate(), by: curSession().name, note: 'خرید واقعی از ' + (pu.sup || '') });
         var deals = getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; });
-        setData('ptf_crm_deals', deals);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
       }
       if (typeof ptfToast === 'function') ptfToast('رسید پرداخت به خرید واقعی و پرونده فروش پیوست شد', 'ok');
     });
@@ -387,7 +387,7 @@
       }
       d.timeline = d.timeline || [];
       d.timeline.push({ t: faDateTime(), by: curSession().name, tx: (old ? '✏️ اصلاح' : '➕ ثبت') + ' هزینه مستقیم پروژه: ' + amt.toLocaleString('fa-IR') + ' ریال — ' + (labels[v.cat] || v.cat) + ' — ' + v.desc + (old ? ' (قبلی: ' + prevAmt.toLocaleString('fa-IR') + ')' : '') });
-      setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
       audit('هزینه پروژه', (old ? 'اصلاح' : 'ثبت') + ' هزینه مستقیم ' + amt.toLocaleString('fa-IR') + ' ریال برای ' + (d.inqNo || ''), ev.cd);
       if (typeof ptfToast === 'function') ptfToast(old ? 'هزینه مستقیم پروژه اصلاح شد' : 'هزینه مستقیم پروژه ثبت شد', 'ok');
       if (!old && confirm('برای این هزینه مدرک/رسید پیوست می‌کنید؟') && typeof attachUploadWidget === 'function') ptfProjectCostUpload(d.cd, ev.cd);
@@ -402,7 +402,7 @@
       var ev = (d.costEvents || []).filter(function (x) { return x.cd === costCd; })[0]; if (!ev) return;
       ev.files = ev.files || []; ev.files.push(f);
       d.docs = d.docs || []; if (f.key) d.docs.push({ folder: 'fin', name: 'رسید هزینه پروژه — ' + (ev.desc || ''), key: f.key, t: faDate(), by: curSession().name, note: 'هزینه مستقیم پروژه', costCd: ev.cd });
-      setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', ds.map(function (x) { return x.cd === dealCd ? d : x; }));
     });
   };
   window.ptfProjectCostDel = function (inqNo, costCd) {
@@ -416,7 +416,7 @@
     d.timeline = d.timeline || [];
     d.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🗑 حذف هزینه مستقیم پروژه: ' + (ev.desc || '') + ' — ' + (+ev.amt || 0).toLocaleString('fa-IR') + ' ریال' });
     d.docs = (d.docs || []).filter(function (x) { return x.costCd !== costCd; });
-    setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }), { reason: 'w2' }); else setData('ptf_crm_deals', getData('ptf_crm_deals').map(function (x) { return x.cd === d.cd ? d : x; }));
     rbDeleteCloudKeys(deadKeys);
     audit('هزینه پروژه', 'حذف هزینه مستقیم پرونده ' + (d.inqNo || ''), costCd);
     if (typeof ptfToast === 'function') ptfToast('هزینه مستقیم پروژه حذف شد', 'warn');
@@ -434,7 +434,7 @@
       if (done.indexOf(r.st) > -1) return;
       var txt = '🏭 در حال تامین توسط تامین‌کننده';
       if (typeof ptfRfqSetStatus === 'function') ptfRfqSetStatus(r.cd, 'st8', txt);
-      else { r.st = 'st8'; r.stxt = txt; setData('ptf_crm_rfqs', rfqs); }
+      else { r.st = 'st8'; r.stxt = txt; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); }
     } catch (e) {}
   };
 

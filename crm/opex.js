@@ -410,7 +410,7 @@
       if (!d) return;
       var ev = opexDealEvent(d, rec, true);
       if (ev) ev.files = (rec.files || []).slice();
-      setData('ptf_crm_deals', ds);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds, { reason: 'w2' }); else setData('ptf_crm_deals', ds);
     } catch (e) {}
   }
   function opexAttachmentRows(rec) {

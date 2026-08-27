@@ -188,7 +188,7 @@
         dirty = true;
       }
     }
-    if (dirty) setData('ptf_crm_deals', ds);
+    if (dirty) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', ds, { reason: 'w2' }); else setData('ptf_crm_deals', ds);
     return { ok: true, dirty: dirty };
   };
 

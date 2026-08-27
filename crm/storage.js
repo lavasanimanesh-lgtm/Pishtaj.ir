@@ -1506,7 +1506,7 @@ window.ptfFinalCommitItems = function(inqNo) {
   finalized.forEach(function(r) {
     iq.push({ inqNo: inqNo, cd: genCode('IQI'), nm: r.shortDesc, en: r.shortDesc, st: r.longDesc, model: r.model, brand: r.brand, qty: r.qty, un: r.un, tp: r.tp, t: faDate() });
   });
-  setData('ptf_crm_inqitems', iq);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
 
   // 2. صدور هم‌زمان پیش‌نویس پیشنهاد فنی TO (US-213 AC1)
   var offers = getData('ptf_crm_offers');

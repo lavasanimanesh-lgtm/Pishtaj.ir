@@ -166,7 +166,7 @@
     };
     notifs.unshift(rec);
     if (notifs.length > 1000) notifs = notifs.slice(0, 1000);
-    setData('ptf_crm_notifs', notifs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs);
     return rec;
   }
 
@@ -321,7 +321,7 @@
         link: { panel: 'rfq' }
       });
     });
-    if (changed) setData('ptf_crm_rfqs', rfqs);
+    if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     return added;
   }
 
@@ -355,7 +355,7 @@
         link: { panel: 'deals' }
       });
     });
-    if (changed) setData('ptf_crm_deals', deals);
+    if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', deals, { reason: 'w2' }); else setData('ptf_crm_deals', deals);
     return added;
   }
 
@@ -448,7 +448,7 @@
       seen[k] = 1;
       return true;
     });
-    if (removed) setData('ptf_crm_notifs', kept);
+    if (removed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', kept, { reason: 'w2' }); else setData('ptf_crm_notifs', kept);
     return removed;
   }
   window.ptfSweepDuplicateReminderNotifs = sweepDuplicateReminderNotifs;
@@ -976,7 +976,7 @@
         break;
       }
     }
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     if (typeof audit === 'function') audit('استعلامات', 'ویرایش دستی درخواست ' + cd, cd);
     var md = document.querySelector('#panels .md-b:last-child');
     if (md) md.remove();
@@ -1021,9 +1021,11 @@
     setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }));
     setData('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }));
     setData('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }));
-    setData('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }));
-    setData('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }));
-    setData('ptf_crm_rfqs', getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }), { reason: 'w2' }); else setData('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }), { reason: 'w2' }); else setData('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }));
+    /* v34.8.24 (W2): حذف درخواست = فرمان tombstone بازیافت‌پذیر */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; }), { reason: 'rfq-delete' });
+    else setData('ptf_crm_rfqs', getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; }));
     if (typeof audit === 'function') audit('استعلامات', 'حذف آبشاری درخواست ' + cd + ' (BUG-031): ' + sc.offers.length + ' پیشنهاد، ' + sc.invoices.length + ' فاکتور، ' + sc.rfqsmart.length + ' استعلام تامین، ' + sc.buycmp.length + ' جدول خرید، ' + sc.payables.length + ' بستانکاری، ' + sc.deals.length + ' پرونده فروش، ' + sc.inqitems + ' قلم', cd);
     return { ok: true, scan: sc };
   };
@@ -1568,7 +1570,7 @@
         msg: r.message || '', std: r.standard || '', vnd: r.vendors || '',
         siteAttachment: r.attachment || '', files: importedFiles
       });
-      setData('ptf_crm_rfqs', rfqs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     }
     api('set_status', { type: 'rfq', code: code, status: 'approved', statusText: 'تایید شد — در حال بررسی فنی و تامین', by: curSession().name }, function () { syncServerInbox(); });
     if (typeof audit === 'function') audit('استعلامات', 'تایید استعلام سایت: ' + r.company + (cust ? ' → مشتری ' + cust.cd : ''), code);
@@ -1840,7 +1842,7 @@
       }
     });
     if (!target) return false;
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     addLog('وضعیت ' + cd + ' تغییر کرد');
     if (typeof audit === 'function') audit('استعلامات', 'تغییر وضعیت به ' + stText, cd);
     if (target && target.waiting) {
@@ -1954,7 +1956,7 @@
     var rfqs = getData('ptf_crm_rfqs');
     var target = null;
     rfqs.forEach(function (r) { if (r.cd === cd) { target = r; r.assignee = { user: toU, name: toUser.name, act: act, by: me.name, t: faDateTime() }; } });
-    setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     var title = 'درخواست ' + cd + (target ? ' (' + target.co + ')' : '') + ' جهت «' + act + '» به ' + toUser.name + ' ارجاع شد' + (note ? ' — ' + note : '');
     // v34.5.5: اعلان عمومی به همه فروش حذف شد — فقط گیرنده کارتابل می‌گیرد.
     var taskType = act === 'صدور پیشنهاد مالی (CO)' ? 'create_offer' : act === 'صدور پیشنهاد فنی (TO)' ? 'create_technical_offer' : act === 'استعلام قیمت از تامین‌کننده' ? 'create_supplier_rfq' : 'rfq_review';
@@ -2031,7 +2033,7 @@
       _rec.refHistory = [{ price: _ref, cur: _refCur, src: 'manual', at: _rec.refAt, by: _rec.refBy }];
     }
     iq.push(_rec);
-    setData('ptf_crm_inqitems', iq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
     hideModal();
     if (typeof renderInquiries === 'function') renderInquiries();
     addLog('قلم «' + nm + '» به درخواست ' + no + ' افزوده شد');

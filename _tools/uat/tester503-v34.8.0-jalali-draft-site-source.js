@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.23 — DATE-DRAFT-SITE-001
+/* v34.8.24 — DATE-DRAFT-SITE-001
    UAT/contract test for the unified Jalali day/month/year controls, outgoing
    letter draft lifecycle, and website RFQ source identity. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -242,6 +242,6 @@ T('هنگام approve متادیتای مبدأ سایت حفظ می‌شود', 
 T('API زمان ثبت سایت را با قالب پایدار Y-m-d H:i می‌نویسد', read('api/crm.php').indexOf("date('Y-m-d H:i')") > -1);
 
 T('tester503 در گیت CI ثبت شده است', gate.indexOf('tester503-v34.8.0-jalali-draft-site-source.js') > -1);
-console.log('\n— tester503 (v34.8.23: تاریخ شمسی، پیش‌نویس، مبدأ سایت) —');
+console.log('\n— tester503 (v34.8.24: تاریخ شمسی، پیش‌نویس، مبدأ سایت) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

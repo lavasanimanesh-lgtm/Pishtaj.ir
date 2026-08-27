@@ -106,7 +106,7 @@
       r.stxt = WF[wf].lb; // سازگاری با نمایش‌های قدیمی
       r.wfLog = r.wfLog || [];
       r.wfLog.push({ t: faDateTime(), by: curSession().name, wf: wf, ev: evtText || '' });
-      setData('ptf_crm_rfqs', rfqs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
       audit('گردش کار', 'وضعیت ' + r.cd + ' → ' + WF[wf].lb + (evtText ? ' (' + evtText + ')' : ''), r.cd);
       if (typeof renderRfq === 'function') renderRfq();
     }
@@ -239,7 +239,7 @@
             break;
           }
         }
-        setData('ptf_crm_rfqs', rfqs);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
         if (typeof audit === 'function') audit('استعلامات', 'ویرایش دستی درخواست ' + cd, cd);
         var md = document.querySelector('#panels .md-b:last-child');
         if (md) md.remove();
@@ -253,7 +253,7 @@
         if (typeof window.ptfReasonedDelete === 'function') {
           window.ptfReasonedDelete('RFQ', cd, lb, function() {
             var rfqs = getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; });
-            setData('ptf_crm_rfqs', rfqs);
+            if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
             var md = document.querySelector('#panels .md-b:last-child');
             if (md) md.remove();
             if (typeof renderRfq === 'function') renderRfq();
@@ -261,7 +261,7 @@
         } else {
           if (!confirm('🗑 آیا از حذف درخواست «' + cd + '» اطمینان دارید؟')) return;
           var rfqs = getData('ptf_crm_rfqs').filter(function (x) { return x.cd !== cd; });
-          setData('ptf_crm_rfqs', rfqs);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
           if (typeof renderRfq === 'function') renderRfq();
         }
       };

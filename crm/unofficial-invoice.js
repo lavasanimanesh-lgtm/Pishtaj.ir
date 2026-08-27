@@ -653,7 +653,7 @@
             by: curSession().name,
             tx: '🧾 صورتحساب پرداخت ' + invoiceNo + ' به مبلغ ' + amountIrr.toLocaleString('fa-IR') + ' ریال صادر شد.' + (discountIrr > 0 ? ' (تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال)' : '')
           });
-          setData('ptf_crm_deals', _deals);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
         }
       } catch (eD) {}
 
@@ -1777,7 +1777,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
            (ctx.isConsolidated ? ' (تجمیعی از ' + ctx.offerNos.length + ' پیشنهاد)' : '') +
            (discountIrr > 0 ? ' | تخفیف: ' + discountIrr.toLocaleString('fa-IR') + ' ریال' : '')
       });
-      setData('ptf_crm_deals', _deals);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
     }
   } catch (eD) {}
 
@@ -1872,7 +1872,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
             _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
             if ((_d0.docs || []).length !== before) removedFiles++;
           });
-          setData('ptf_crm_deals', _deals0);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals0, { reason: 'w2' }); else setData('ptf_crm_deals', _deals0);
         }
       }
     } catch (eF) {}
@@ -1886,7 +1886,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
             tx: '🗑 ابطال سروری صورتحساب غیررسمی ' + (inv.no || inv.cd) +
                 ' — دلیل: ' + reason + ' | مرجوعی ابطال‌شده: ' + voidedReturns + ' | ضمیمهٔ جداشده: ' + removedFiles +
                 ' | وصولی‌ها و چک‌های واقعی دست‌نخورده ماندند (بستانکاری پرونده)' });
-          setData('ptf_crm_deals', _deals);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
         }
       }
     } catch (eT) {}
@@ -2144,7 +2144,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
           _d0.docs = (_d0.docs || []).filter(function (x) { return x.key !== f.key; });
           _log.removedFiles.push(f.key);
         });
-        setData('ptf_crm_deals', _deals0);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals0, { reason: 'w2' }); else setData('ptf_crm_deals', _deals0);
       }
     }
 
@@ -2174,7 +2174,7 @@ window.unofficialInvoicePrintCases = function (ctx) {
              _preservedAmt.toLocaleString('fa-IR') + ' ریال — به‌عنوان بستانکاری یا FIFO); ' +
              'چک (فقط audit): ' + _log.chequeAudited.length + ' مورد'
         });
-        setData('ptf_crm_deals', _deals);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', _deals, { reason: 'w2' }); else setData('ptf_crm_deals', _deals);
       }
     }
 

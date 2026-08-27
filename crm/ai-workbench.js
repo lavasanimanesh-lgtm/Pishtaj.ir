@@ -522,8 +522,8 @@ function aiWBAppendItemsToRfq(rfqCd, rows, runId) {
   });
 
   if (added || snapshotAdded) {
-    setData('ptf_crm_rfqs', rfqs);
-    setData('ptf_crm_inqitems', allItems);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', allItems, { reason: 'w2' }); else setData('ptf_crm_inqitems', allItems);
     if (typeof audit === 'function') audit('استعلامات', 'افزودن ' + added + ' قلم استخراج‌شده توسط دستیار به درخواست ' + rfq.cd + (skipped ? ' — ' + skipped + ' قلم تکراری رد شد' : ''), rfq.cd);
   }
   return { ok: true, rfq: rfq.cd, added: added, snapshotAdded: snapshotAdded, skipped: skipped, itemCodes: itemCodes, runId: runId };
@@ -625,11 +625,11 @@ window.aiWB_tripleGo=function(){
       if (/^TMP-RFQ-/.test(String(rCd || ''))) { resEl.innerHTML='<span style="color:#b91c1c">❌ شماره رسمی درخواست از سرور دریافت نشد؛ ابتدا اتصال و ورود را کامل کنید.</span>'; return; }
       var coName=det.co||(custCd?(getData('ptf_crm_customers').filter(function(c){return c.cd===custCd;})[0]||{}).co:'')||'—';
       rfqs0.unshift({ cd:rCd, co:coName, con:'', ca:'ابزار دقیق', st:'st1', stxt:'🔴 دریافت اولیه', inqNo:det.inqno||'', subj:'ثبت خودکار توسط دستیار'+(det.inqno?' — '+det.inqno:''), items:rows.map(function(r){return {nm:r.nm,st:r.spec||'',qty:r.qty||1,un:r.un||'عدد',brand:r.brand||'',model:r.model||'',tp:r.tp||'Other'};}), dt:new Date().toLocaleDateString('fa-IR') });
-      setData('ptf_crm_rfqs', rfqs0);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs0, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs0);
       /* اقلام در بانک اقلام درخواست هم بنشیند تا «از درخواست» در پیشنهادها کار کند (US-303) */
       var iq0=getData('ptf_crm_inqitems');
       rows.forEach(function(r){ if(r.nm) iq0.push({ inqNo:rCd, cd:genCode('IQI'), nm:r.nm, en:r.nm, st:r.spec||'', qty:r.qty||1, un:r.un||'عدد', tp:r.tp||'Other', t:new Date().toLocaleDateString('fa-IR') }); });
-      setData('ptf_crm_inqitems', iq0);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq0, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq0);
       inqNo=rCd; out.rfq=rCd; out.items={rfq:rCd, added:rows.length, snapshotAdded:rows.length, skipped:0, itemCodes:[], runId:out.runId, created:true};
       if(typeof audit==='function') audit('استعلامات','ثبت خودکار درخواست توسط دستیار: '+rCd+' ('+rows.length+' قلم)', rCd);
       if(typeof wfRefresh==='function') try{ wfRefresh(rCd); }catch(e){}
@@ -731,7 +731,7 @@ window.aiWB_rollback=function(qNo, sNo){
       var rfs=getData('ptf_crm_rfqs'); var rr=rfs.filter(function(r){return r.cd===sync.rfq;})[0];
       var iqs=getData('ptf_crm_inqitems').filter(function(it){return !codes[it.cd];});
       if(rr && Array.isArray(rr.items)) rr.items=rr.items.filter(function(it){return it.aiRun!==sync.runId;});
-      setData('ptf_crm_rfqs',rfs); setData('ptf_crm_inqitems',iqs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfs); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iqs, { reason: 'w2' }); else setData('ptf_crm_inqitems', iqs);
     }
     // products rollback best-effort by timestamp (last 2 min)
     var rb=window._aiWB_lastRollback;

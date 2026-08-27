@@ -206,7 +206,7 @@
       rfqs.forEach(function (r) {
         if (r.wfLog && r.wfLog.length > 50) { r.wfLog = r.wfLog.slice(-50); wfCut = true; }
       });
-      if (wfCut) { setData('ptf_crm_rfqs', rfqs); changed = true; }
+      if (wfCut) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs); changed = true; }
       if (changed && typeof addLog === 'function') addLog('هرس دوره‌ای صف‌ها انجام شد (US-263)');
     } catch (e) {}
   }
@@ -711,7 +711,7 @@
         var cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
         var notifs = getData('ptf_crm_notifs');
         notifs = notifs.filter(function (n, i) { if (i < 100) return true; var read = (n.readBy || []).length > 0; return !(read && (n.iso || '') < cutoff); });
-        setData('ptf_crm_notifs', notifs);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', notifs, { reason: 'w2' }); else setData('ptf_crm_notifs', notifs);
         var logs = getData('ptf_crm_audit');
         if (logs.length > 1000) setData('ptf_crm_audit', logs.slice(0, 1000));
         setData('ptf_crm_sendqueue', getData('ptf_crm_sendqueue').filter(function (x) { return x.st !== 'sent'; }));

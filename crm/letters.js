@@ -868,7 +868,7 @@ function _letAttachToPrj(l) {
   if (!p.docs.filter(function (d) { return d.letCd === l.cd; }).length) {
     p.docs.push({ folder: 'corr', name: (l.no || 'پیش‌نویس') + ' — ' + l.subject, letCd: l.cd, t: faDate(), by: curSession().name });
     p.timeline.push({ t: faDateTime(), by: curSession().name, tx: 'نامه «' + l.subject + '» به پرونده لینک شد' });
-    setData('ptf_crm_projects', prjs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
   }
 }
 

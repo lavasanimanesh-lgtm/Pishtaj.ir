@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* v34.7.60 — LETTERHEAD-PASTE-001: متن آمادهٔ Word روی سربرگ رسمی.
-   v34.8.23 — LETTERHEAD-PASTE-002: شمارهٔ نامه و پیوست (اختیاری) روی سربرگ +
+   v34.8.24 — LETTERHEAD-PASTE-002: شمارهٔ نامه و پیوست (اختیاری) روی سربرگ +
    محل مهر و امضا «تمام صفحات / فقط صفحهٔ آخر / بدون».
    قرارداد: متن Paste شده «بازنویسی نمی‌شود» (فقط letSafeBodyHtml)؛ سربرگ/فوتر/نوارها
    با position:fixed روی همهٔ صفحات تکرار می‌شوند؛ فضای هر صفحه با thead/tfoot رزرو
@@ -19,10 +19,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.8.23', ver.crm_version === 'v34.8.23', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.23', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.23'") > -1);
-T('sw RELEASE = v34.8.23', sw.indexOf("RELEASE = 'v34.8.23'") > -1);
-T('letters.js cache-bust 34.8.23', /letters\.js\?v=34\.8\.23/.test(idx));
+T('VERSION.json = v34.8.24', ver.crm_version === 'v34.8.24', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.24', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.24'") > -1);
+T('sw RELEASE = v34.8.24', sw.indexOf("RELEASE = 'v34.8.24'") > -1);
+T('letters.js cache-bust 34.8.24', /letters\.js\?v=34\.8\.24/.test(idx));
 
 /* ---------- فیچر ---------- */
 T('دکمه در نوار مکاتبات', lt.indexOf('ptfLetterheadPasteOpen()') > -1 && lt.indexOf('📄 متن آماده روی سربرگ') > -1);
@@ -33,7 +33,7 @@ T('سه حالت مهر و امضا', lt.indexOf('id="lhpSigMode"') > -1 && lt.i
 T('زبان فا/EN', lt.indexOf('id="lhpLang"') > -1 && lt.indexOf('LETTER_FONT_EN') > -1);
 T('تاریخ اختیاری (پیش‌فرض بدون تغییر)', lt.indexOf('id="lhpDate"') > -1);
 
-/* ---------- v34.8.23: شماره و پیوست ---------- */
+/* ---------- v34.8.24: شماره و پیوست ---------- */
 T('فیلد شماره نامه', lt.indexOf('id="lhpNo"') > -1);
 T('فیلد پیوست', lt.indexOf('id="lhpAtt"') > -1);
 T('دکمهٔ شمارهٔ بعدی + تابع', lt.indexOf('ptfLetterheadNoNext()') > -1 && lt.indexOf('window.ptfLetterheadNoNext = function') > -1);
@@ -55,7 +55,7 @@ T('حالت صفحهٔ آخر بلوک امضا دارد', block.indexOf("sigMod
 T('بلوک امضای صفحهٔ آخر شکسته نمی‌شود', block.indexOf('.endsig{margin:12mm 16mm 0') > -1 && block.indexOf('page-break-inside:avoid') > -1);
 T('پیام خطای متن خالی', block.indexOf('متنی Paste نشده است') > -1);
 
-/* ---------- v34.8.23: رندر سربرگ شماره/پیوست ---------- */
+/* ---------- v34.8.24: رندر سربرگ شماره/پیوست ---------- */
 T('سربرگ شماره و پیوست و تاریخ می‌سازد', block.indexOf('شمـاره :</span>') > -1 && block.indexOf('پیوست :</span>') > -1 && block.indexOf('تاریـخ :</span>') > -1);
 T('سربرگ EN: Ref No / Encl', block.indexOf('Ref No.:</span>') > -1 && block.indexOf('Encl.:</span>') > -1);
 T('شماره با ارقام فارسی (letFaDigits)', block.indexOf('letFaDigits(escP(no))') > -1);
@@ -63,6 +63,6 @@ T('فضای سربرگ با شماره/پیوست هم رزرو می‌شود', 
 
 T('tester463 در گیت CI', gate.indexOf('tester463-v34.7.60-letterhead-paste.js') > -1);
 
-console.log('\n— tester463 (v34.8.23: شماره و پیوست + مهر صفحهٔ آخر/همهٔ صفحات) —');
+console.log('\n— tester463 (v34.8.24: شماره و پیوست + مهر صفحهٔ آخر/همهٔ صفحات) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

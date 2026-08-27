@@ -425,7 +425,7 @@
         var rfqs2 = getData('ptf_crm_rfqs');
         var r2 = rfqs2.filter(function (x) { return x.cd === cd; })[0];
         r2.inqText = (v.tx || '').trim();
-        setData('ptf_crm_rfqs', rfqs2);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs2, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs2);
         audit('استعلامات', 'ثبت/ویرایش متن استعلام ' + cd, '');
         if (typeof renderRfq === 'function') renderRfq();
         ptfToast('متن استعلام ذخیره شد ✅', 'ok');

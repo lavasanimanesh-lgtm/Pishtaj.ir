@@ -983,8 +983,8 @@
 
     /* snapshot خوانش AI قدیمی می‌تواند بعداً قلم حذف‌شده را دوباره نمایش دهد؛ هم‌زمان پاک می‌شود. */
     var removedReads = irClearReadSnapshots(aliases);
-    setData('ptf_crm_rfqs', rfqs);
-    setData('ptf_crm_inqitems', iq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
     try { audit('استعلامات', 'ویرایش اقلام درخواست ' + cd + ': ' + r.items.length + ' قلم فعلی، حذف ' + removedItems + ' رکورد قدیمی و ' + removedReads + ' snapshot خوانش', cd); } catch (eAudit) {}
 
     var addedProds = 0;
@@ -1232,7 +1232,7 @@
     rows.forEach(function (r) {
       iq.push({ inqNo: _ir.dataKey || _ir.cd, cd: genCode('IQI'), nm: r.nm, en: r.nm, tp: r.tp, qty: r.qty || 1, un: r.un || 'عدد', st: r.spec || '', brand: r.brand || '', model: r.model || '', t: faDate() });
     });
-    setData('ptf_crm_inqitems', iq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', iq, { reason: 'w2' }); else setData('ptf_crm_inqitems', iq);
     // ۲) products با مارک مخفی (hidden) و تایپ
     var prods = getData('ptf_crm_products');
     var added = 0;
