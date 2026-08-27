@@ -129,7 +129,7 @@
       st.cleanNotDup = st.cleanNotDup || [];
       var key = [cdA, cdB].sort().join('|');
       if (st.cleanNotDup.indexOf(key) < 0) st.cleanNotDup.push(key);
-      setData('ptf_crm_settings', st);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
       audit('ویراستار فهرست', 'علامت «تکراری نیست»: ' + cdA + ' ↔ ' + cdB, '');
       if (btn) { var card = btn.closest('div[style*="border-right"]'); if (card) card.remove(); }
       if (typeof ptfToast === 'function') ptfToast('✋ ثبت شد — این زوج دیگر پیشنهاد نمی‌شود', 'ok');
@@ -158,7 +158,7 @@
       var arch = getData('ptf_crm_deleted_archive');
       arch.unshift({ t: faDateTime(), by: curSession().name, user: curSession().user, kind: kind + '-merge-snapshot', reason: 'تلفیق ویراستار (US-417): ' + drop.cd + ' ← ' + keep.cd, snapshot: { keep: JSON.parse(JSON.stringify(keep)), drop: JSON.parse(JSON.stringify(drop)) } });
       if (arch.length > 500) arch = arch.slice(0, 500);
-      setData('ptf_crm_deleted_archive', arch);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arch);
     } catch (eS) {}
     /* جمع فیلدها: خالی‌های مقصد از ادغام‌شونده پر می‌شوند؛ آرایه‌ها غیرتکراری جمع */
     ['co', 'coEn', 'nm', 'ph', 'ca', 'natId', 'melli', 'coWeb', 'coAddr', 'email', 'origin', 'ind', 'src'].forEach(function (f) {
@@ -186,18 +186,18 @@
         (c.quotes || []).forEach(function (q) { if (norm(q.sup) === norm(drop.co)) { q.sup = keep.co; moved++; } });
         (c.purchases || []).forEach(function (p) { if (norm(p.sup) === norm(drop.co)) { p.sup = keep.co; moved++; } });
       });
-      setData('ptf_crm_buycmp', bc);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', bc, { reason: 'w4' }); else setData('ptf_crm_buycmp', bc);
       var pay = getData('ptf_crm_payables');
       pay.forEach(function (p) { if (norm(p.sup) === norm(drop.co)) { p.sup = keep.co; moved++; } });
-      setData('ptf_crm_payables', pay);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', pay, { reason: 'w4' }); else setData('ptf_crm_payables', pay);
       var rq = getData('ptf_crm_rfqsmart');
       rq.forEach(function (r) {
         (r.targets || []).forEach(function (t) { if (t.cd === drop.cd || norm(t.co) === norm(drop.co)) { t.cd = keep.cd; t.co = keep.co; moved++; } });
       });
-      setData('ptf_crm_rfqsmart', rq);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', rq, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', rq);
       var bq = getData('ptf_crm_buyquotes');
       bq.forEach(function (b) { if (norm(b.sup) === norm(drop.co)) { b.sup = keep.co; moved++; } });
-      setData('ptf_crm_buyquotes', bq);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buyquotes', bq, { reason: 'w4' }); else setData('ptf_crm_buyquotes', bq);
     } else if (kind === 'lead') {
       keep.hist = (keep.hist || []).concat(drop.hist || []);
     }
@@ -208,7 +208,7 @@
       var arch2 = getData('ptf_crm_deleted_archive');
       arch2.unshift({ t: faDateTime(), by: curSession().name, user: curSession().user, kind: kind, cd: drop.cd, name: drop.co || drop.nm, reason: '🔀 تلفیق ویراستار در ' + (keep.co || keep.nm) + ' (' + keep.cd + ') — US-417', rec: drop });
       if (arch2.length > 500) arch2 = arch2.slice(0, 500);
-      setData('ptf_crm_deleted_archive', arch2);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch2, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arch2);
     } catch (eA2) {}
     setData(K.key, list.filter(function (x) { return x.cd !== drop.cd; }));
     try { audit(K.lb, '🔀 تلفیق «' + (drop.co || drop.nm) + '» در «' + (keep.co || keep.nm) + '» — ' + moved + ' ارجاع منتقل شد (US-417)', keep.cd); } catch (eAu) {}

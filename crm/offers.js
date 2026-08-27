@@ -725,7 +725,7 @@ function offerSetSt(no, st, selEl) {
     o.st = st;
     o.tst = st === 'approved' ? 'approved' : st === 'rejected' ? 'rejected' : st === 'revise' ? 'revise' : (st === 'sent' ? 'sent' : o.tst); /* سازگاری گردش کار workflow.js */
     o.stAt = faDateTime(); o.stBy = curSession().name;
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'وضعیت پیشنهاد فنی ' + no + ' → ' + ((window.PTF_ST_TO || {})[st] || st), no);
     addLog('وضعیت ' + no + ' → ' + st);
     if (typeof wfRefresh === 'function' && o.inqNo) { try { wfRefresh(o.inqNo, 'وضعیت TO: ' + st); } catch (eW) {} }
@@ -757,7 +757,7 @@ function offerSetSt(no, st, selEl) {
         }
       }
     } catch (eSib) {}
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'تایید وضعیت برنده (قفل شد)', no);
     addLog('پیشنهاد ' + no + ' برنده شد 🏆 (قفل)');
     if (o.kind === 'CO') autoCreateProjectFromCO(o);
@@ -767,7 +767,7 @@ function offerSetSt(no, st, selEl) {
   o.st = st;
   /* v31.7.13: باخت هم لحظه بسته‌شدن snapshot می‌گیرد */
   if (st === 'lost') { try { o.marginAtClose = (typeof window.ptfOfferOverallMargin === 'function') ? window.ptfOfferOverallMargin(o) : null; o.lostAt = faDateTime(); } catch (eML) {} }
-  setData('ptf_crm_offers', offers);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   addLog('وضعیت ' + no + ' → ' + st);
 }
 
@@ -969,13 +969,13 @@ function ptfOfferDelDo(no) {
   var offers = getData('ptf_crm_offers');
   var target = offers.filter(function(o){ return o.no === no; })[0];
   var rem = offers.filter(function(o){ return o.no !== no; });
-  setData('ptf_crm_offers', rem);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', rem, { reason: 'w4' }); else setData('ptf_crm_offers', rem);
   try {
     if (target) {
       var arc = getData('ptf_crm_deleted_archive');
       arc.unshift({ id: no, kind: 'OFFER', label: target.kind + ' — ' + (target.buyerCo || '?'), reason: 'حذف دستی پیشنهاد', by: (typeof curSession === 'function' && curSession().name) ? curSession().name : 'کاربر', t: (typeof faDateTime === 'function') ? faDateTime() : '', iso: new Date().toISOString() });
       if (arc.length > 500) arc = arc.slice(0, 500);
-      setData('ptf_crm_deleted_archive', arc);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arc, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arc);
     }
   } catch (eArc) {}
   if (target && target.inqNo) {
@@ -1599,7 +1599,7 @@ window.ptfOfferIntegrityApply = function (no) {
   if (!target) return { ok:false, error:'offer-not-found' };
   target.items = p.items; offEnsureOfferLineIds(target.items, target.no); target.updatedAtISO = new Date().toISOString();
   target._integrityRepair = { at: target.updatedAtISO, exactDuplicatesRemoved: p.duplicates.length, beforeCount:p.beforeCount, afterCount:p.afterCount, beforeTotal:p.beforeTotal, afterTotal:p.afterTotal, policy:'exact-only-v31.8' };
-  setData('ptf_crm_offers', offers);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   try { audit('پیشنهادها', 'تعمیر کنترل‌شده پیشنهاد '+no+': '+p.beforeCount+' → '+p.afterCount+' ردیف؛ حذف '+p.duplicates.length+' duplicate دقیق', no); } catch(e) {}
   if (typeof renderOffers === 'function') renderOffers();
   return Object.assign({ ok:true }, p);
@@ -3900,7 +3900,9 @@ window.ptfCustVendorFollowup = function (cd) {
           var rems = getData('ptf_crm_reminders');
           var rem = { cd: genCode('REM'), title: '🏆 پیگیری وندور لیست کارفرما: ' + c.co, note: c.venNote, dueFa: due, dueISO: c.venDueISO, st: 'open', owner: c.owner || curSession().user || 'admin', t: faDateTime(), by: curSession().name };
           rems.unshift(rem);
-          setData('ptf_crm_reminders', rems);
+          /* v34.8.27 (W4) */
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+          else setData('ptf_crm_reminders', rems);
         } catch (eRem) {}
       }
       /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */

@@ -164,7 +164,7 @@
         if (v.resp === 'approved') o2.st = 'approved';
         else if (v.resp === 'rejected') o2.st = 'rejected';
         else if (v.resp === 'revise') o2.st = 'revise';
-        setData('ptf_crm_offers', offers2);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers2, { reason: 'w4' }); else setData('ptf_crm_offers', offers2);
         audit('پیشنهادها', 'پاسخ کارفرما برای ' + no + ': ' + v.resp + (v.note ? ' — ' + v.note : ''), no);
         wfRefresh(o2.inqNo, 'پاسخ کارفرما (فنی): ' + v.resp);
         if (typeof renderOffers === 'function') renderOffers();
@@ -180,7 +180,7 @@
     if (!o || o.kind !== 'CO' || o.st !== 'sent') { alert('فقط CO ارسال‌شده'); return; }
     if (!confirm('کارفرما درخواست اصلاح پیشنهاد مالی ' + no + ' را داده؟\nCO برای ویرایش باز می‌شود.')) return;
     o.st = 'revise';
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     audit('پیشنهادها', 'درخواست اصلاح مالی ' + no, no);
     wfRefresh(o.inqNo, 'درخواست اصلاح مالی');
     if (typeof renderOffers === 'function') renderOffers();

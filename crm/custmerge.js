@@ -133,7 +133,7 @@
         snapshot: { keep: JSON.parse(JSON.stringify(keep)), drop: JSON.parse(JSON.stringify(drop)) }
       });
       if (arch.length > 500) arch = arch.slice(0, 500);
-      setData('ptf_crm_deleted_archive', arch);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arch);
     } catch (eS) {}
 
     /* فیلدهای ساده طبق انتخاب کاربر */
@@ -169,7 +169,7 @@
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs);
     var offers = getData('ptf_crm_offers');
     offers.forEach(function (o) { if (o.buyerCd === drop.cd) { o.buyerCd = keep.cd; o.buyerCo = keep.coEn || keep.co; moved++; } });
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     var deals = getData('ptf_crm_deals');
     deals.forEach(function (d) {
       if (d.custCd === drop.cd) { d.custCd = keep.cd; moved++; }
@@ -186,13 +186,15 @@
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_projects', prjs, { reason: 'w2' }); else setData('ptf_crm_projects', prjs);
     var rems = getData('ptf_crm_reminders');
     rems.forEach(function (r) { if (r.custCd === drop.cd) { r.custCd = keep.cd; moved++; } if (r.ref === drop.cd) { r.ref = keep.cd; moved++; } });
-    setData('ptf_crm_reminders', rems);
+    /* v34.8.27 (W4) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+    else setData('ptf_crm_reminders', rems);
     var chq = getData('ptf_crm_cheques');
     chq.forEach(function (c) { if (c.custCd === drop.cd) { c.custCd = keep.cd; moved++; } });
-    setData('ptf_crm_cheques', chq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_cheques', chq, { reason: 'w4' }); else setData('ptf_crm_cheques', chq);
     var lets = getData('ptf_crm_letters');
     lets.forEach(function (l) { if (l.to_co === drop.co) { l.to_co = keep.co; moved++; } });
-    setData('ptf_crm_letters', lets);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', lets, { reason: 'w4' }); else setData('ptf_crm_letters', lets);
     /* یادداشت ادغام روی مقصد (AC5: تجمیع مسیر اسناد از طریق انتقال deals/projects انجام شد) */
     keep.mergedFrom = keep.mergedFrom || [];
     keep.mergedFrom.push({ cd: drop.cd, co: drop.co, t: faDateTime(), by: curSession().name });
@@ -206,7 +208,7 @@
         reason: '🔀 ادغام در ' + keep.co + ' (' + keep.cd + ') — US-363', rec: drop
       });
       if (arch2.length > 500) arch2 = arch2.slice(0, 500);
-      setData('ptf_crm_deleted_archive', arch2);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arch2, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arch2);
     } catch (eA) {}
     custs = custs.filter(function (c) { return c.cd !== drop.cd; });
     /* v34.8.23 (W1-iterate): حذفِ ادغام با فرمان tombstone (بازیافت‌پذیر) */

@@ -109,7 +109,7 @@
 
   /* خواندن/ذخیره مانده تسویه‌ها (بدهی بسته‌شده) — کلید جدا برای جلوگیری از قاطی‌شدن */
   function settlements() { try { var v = getData('ptf_crm_vat_settlements') || []; return Array.isArray(v) ? v : []; } catch (e) { return []; } }
-  function saveSettlements(list) { setData('ptf_crm_vat_settlements', list); }
+  function saveSettlements(list) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_vat_settlements', list, { reason: 'w4' }); else setData('ptf_crm_vat_settlements', list); }
   function settlementFor(y, s) { return settlements().filter(function (x) { return String(x.year) === String(y) && +x.season === +s; }).sort(function (a, b) { return String(b.t || '').localeCompare(String(a.t || '')); })[0] || null; }
 
   /* حالت یک فصل: carry از قبلی + تسویه */

@@ -20,7 +20,13 @@
      بنابراین حذف ردیف باید به معنی snooze/dismiss همان fingerprint باشد، نه حذف
      سند اصلی. Dismiss در settings ذخیره و sync می‌شود تا بین دستگاه‌ها هم بماند. */
   function mdSettings() { try { return JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}'); } catch (e) { return {}; } }
-  function mdSaveSettings(st) { try { if (typeof setData === 'function') setData('ptf_crm_settings', st); else localStorage.setItem('ptf_crm_settings', JSON.stringify(st)); } catch (e) {} }
+  function mdSaveSettings(st) {
+    try {
+      /* v34.8.27 (W4): مسیر فرمان؛ در نبود فرمان، setData؛ در نبود setData هم، LS خام */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' });
+      else setData('ptf_crm_settings', st);
+    } catch (e) {}
+  }
   function mdDismissMap() {
     var st = mdSettings(); var m = st.mydayDismissed || {};
     var now = Date.now(), changed = false;

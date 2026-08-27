@@ -182,7 +182,7 @@
       if (data.length > 120000) { alert('تصویر خیلی پیچیده است — عکس ساده‌تری انتخاب کنید'); return; }
       var all = avatarsAll();
       all[curSession().user] = { v: data, ts: new Date().toISOString() }; /* v31.7.11: نسخه‌دار برای merge درست */
-      setData('ptf_crm_avatars', all); // setData → سینک بین دستگاه‌ها
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_avatars', all, { reason: 'w4' }); else setData('ptf_crm_avatars', all); // setData → سینک بین دستگاه‌ها
       ptfApplyAvatar();
       var pv = document.getElementById('avPrev');
       if (pv) pv.innerHTML = '<img src="' + data + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--brd)">';
@@ -198,7 +198,7 @@
     /* v31.7.11 BUG-AVATAR-001: به‌جای delete، tombstone نسخه‌دار — وگرنه merge با
        سرور (که هنوز عکس را دارد) عکس حذف‌شده را با هر رفرش برمی‌گرداند. */
     all[curSession().user] = { v: null, ts: new Date().toISOString() };
-    setData('ptf_crm_avatars', all);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_avatars', all, { reason: 'w4' }); else setData('ptf_crm_avatars', all);
     ptfApplyAvatar();
     var pv = document.getElementById('avPrev');
     if (pv) pv.innerHTML = avatarPlaceholder();

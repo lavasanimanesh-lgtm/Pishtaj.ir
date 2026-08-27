@@ -375,7 +375,9 @@ function leadFollowUp(cd) {
   l.hist = l.hist || [];
   l.hist.push(ev);
   if (nextISO) { l.nextISO = nextISO; l.nextFa = gDateToFa(nextISO); }
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   // اگر اقدام بعدی دارد → یادآور خودکار
   if (nextISO) {
     addReminder({ title: 'پیگیری لید: ' + l.co + (ev.next ? ' — ' + ev.next : ''), topic: 'پیگیری لید',
@@ -412,7 +414,9 @@ function leadSetStage(cd, stage, opt) {
   l.stage = stage;
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'وضعیت', tx: old + ' ← ' + stageOf(stage).lb });
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   if (opt.fromPipeline) {
     LEAD_MOBILE_STAGE = stage;
     renderLeads();
@@ -435,7 +439,9 @@ function leadLoseCommit(cd, why, opt) {
   l.stage = 'lost';
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'وضعیت', tx: old + ' ← ' + stageOf('lost').lb + ' (' + l.lostWhy + ')' });
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   if (opt.fromPipeline) {
     LEAD_MOBILE_STAGE = 'lost';
     renderLeads();
@@ -480,7 +486,9 @@ function leadConvert(cd, opt) {
   l.custCd = newCd;
   l.hist = l.hist || [];
   l.hist.push({ t: faDateTime(), by: currentUserName(), k: 'تبدیل', tx: 'تبدیل به مشتری بالفعل — کد کارفرما: ' + newCd + (dup ? ' (موجود)' : ' (جدید)') });
-  setData('ptf_crm_leads', leads);
+  /* v34.8.27 (W4) */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
+  else setData('ptf_crm_leads', leads);
   if (opt.fromPipeline) {
     LEAD_MOBILE_STAGE = 'won';
     renderLeads();
@@ -604,7 +612,9 @@ function addReminder(r) {
   } else {
     var rems = getData('ptf_crm_reminders');
     rems.unshift(row);
-    setData('ptf_crm_reminders', rems);
+    /* v34.8.27 (W4) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+    else setData('ptf_crm_reminders', rems);
   }
   updateRemBadge();
 }

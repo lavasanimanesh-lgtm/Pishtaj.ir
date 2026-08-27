@@ -742,7 +742,7 @@
     var ym = typeof ptfFiscalYearOf === 'function' ? ptfFiscalYearOf(rawDate) : ((rawDate.match(/(13|14)\d{2}/) || [])[0] || '');
     if (ym && (getData('ptf_crm_fiscal_snapshots') || []).some(function (s) { return s && s.locked && String(s.year) === ym; })) { alert('🔒 سال مالی ' + ym + ' قفل است؛ حذف مستقیم مجاز نیست.'); return; }
     if (!confirm('وصولی ' + (+pay.amt || 0).toLocaleString('fa-IR') + ' ریال حذف شود؟ (حذف فیزیکی — بدون ردپای ابطال)')) return;
-    if (pay.chequeCd) { var chks = getData('ptf_crm_cheques'); var ch = chks.filter(function (c) { return c.cd === pay.chequeCd; })[0]; if (ch) { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; setData('ptf_crm_cheques', chks); } }
+    if (pay.chequeCd) { var chks = getData('ptf_crm_cheques'); var ch = chks.filter(function (c) { return c.cd === pay.chequeCd; })[0]; if (ch) { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_cheques', chks, { reason: 'w4' }); else setData('ptf_crm_cheques', chks); } }
     inv.payments = (inv.payments || []).filter(function (p) { return String(p.cd) !== String(payCd); });
     inv.pays = (inv.pays || []).filter(function (p) { return String(p.cd) !== String(payCd); });
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);

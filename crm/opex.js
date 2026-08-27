@@ -364,7 +364,7 @@
     try { st = typeof getData === 'function' ? getData('ptf_crm_settings') : {}; } catch (e) {}
     if (!st || Array.isArray(st) || typeof st !== 'object') st = {};
     st.opexTpl = list;
-    setData('ptf_crm_settings', st);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
   }
   function recurringKeyForTpl(t, month) { return 'opex-template:' + String((t && t.id) || '') + ':' + String(month || ''); }
   function recurringRowActive(x) { return opexRowActive(x); }

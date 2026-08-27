@@ -69,9 +69,9 @@ function canPanel(id) {
 window.ptfPruneSystemLogs = function () {
   try {
     var logs = getData('ptf_crm_audit');
-    if (logs.length > 1000) setData('ptf_crm_audit', logs.slice(0, 1000));
+    if (logs.length > 1000) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_audit', logs.slice(0, 1000), { reason: 'w4' }); else setData('ptf_crm_audit', logs.slice(0, 1000));
     var q = getData('ptf_crm_sendqueue');
-    if (q.length > 300) setData('ptf_crm_sendqueue', q.slice(0, 300));
+    if (q.length > 300) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q.slice(0, 300), { reason: 'w4' }); else setData('ptf_crm_sendqueue', q.slice(0, 300));
     var nf = getData('ptf_crm_notifs');
     if (nf.length > 500) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_notifs', nf.slice(0, 500), { reason: 'w2' }); else setData('ptf_crm_notifs', nf.slice(0, 500));
   } catch (ePrune) {}
@@ -104,7 +104,7 @@ function audit(module, action, ref) {
   var logs = getData('ptf_crm_audit');
   logs.unshift({ t: faDateTime(), user: curSession().name || '?', role: roleDef().lb, m: module, a: action, ref: ref || '' });
   if (logs.length > 1000) logs = logs.slice(0, 1000);
-  setData('ptf_crm_audit', logs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_audit', logs, { reason: 'w4' }); else setData('ptf_crm_audit', logs);
 }
 
 /* ============ US-123: اعلانات ============ */
@@ -175,7 +175,7 @@ function notify(opt) {
     }
   });
   if (q.length > 300) q = q.slice(0, 300);
-  setData('ptf_crm_sendqueue', q);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sendqueue', q, { reason: 'w4' }); else setData('ptf_crm_sendqueue', q);
   audit('اعلانات', 'ارسال اعلان: ' + rec.title + ' → ' + (rec.toRoles.map(function(r){ return ROLES[r] ? ROLES[r].lb : r; }).join('، ') || rec.toUsers.join('، ')) + ' [' + rec.channels.join('+') + ']', rec.cd);
   updateCartBadge();
   return rec.cd;
@@ -428,7 +428,7 @@ function saveUser2() {
   }
   sha256Hex(p).then(function (ph) {
     users.push({ username: u, passhash: ph, name: nm, nameEn: nmEn, role: ROLES[rl].lb, roleId: rl, mobile: mob, email: ml, createdFa: faDate(), createdBy: curSession().name });
-    setData('ptf_crm_users', users);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', users, { reason: 'w4' }); else setData('ptf_crm_users', users);
     var fd = new FormData();
     fd.append('username', u);
     fd.append('password', p);
@@ -471,7 +471,7 @@ function saveUser2() {
 function delUser2(u) {
   if (!roleDef().users) { alert('دسترسی ندارید'); return; }
   if (!confirm('کاربر ' + u + ' حذف شود؟')) return;
-  setData('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }));
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }), { reason: 'w4' }); else setData('ptf_crm_users', getData('ptf_crm_users').filter(function (x) { return x.username !== u; }));
   usersSyncToServer(); // US-151: حذف در همه دستگاه‌ها اثر کند
   renderUsers();
   audit('کاربران', 'حذف کاربر', u);
@@ -565,7 +565,7 @@ function usersPullFromServer(cb) {
         merged.forEach(function (u) {
           if (u && u.username && !u.passhash && lByName[u.username] && lByName[u.username].passhash) u.passhash = lByName[u.username].passhash;
         });
-        setData('ptf_crm_users', merged);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', merged, { reason: 'w4' }); else setData('ptf_crm_users', merged);
       }
       cb && cb(d);
     })
@@ -659,7 +659,7 @@ function saveBuyQ() {
   var list = getData('ptf_crm_buyquotes');
   list.unshift({ cd: genCode('BQ'), ref: document.getElementById('nBqRef').value.trim(), sup: document.getElementById('nBqSup').value,
     desc: desc, price: pr, note: document.getElementById('nBqNote').value.trim(), t: faDate(), by: curSession().name, byRole: roleDef().lb });
-  setData('ptf_crm_buyquotes', list);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buyquotes', list, { reason: 'w4' }); else setData('ptf_crm_buyquotes', list);
   hideModal(); renderBuyQuotes();
   audit('قیمت خرید', 'ثبت قیمت خرید: ' + desc, '');
   // اعلان به نقش‌های ارشد
@@ -682,7 +682,7 @@ function refToInvoice(offerNo) {
   alert('🔒 فقط پیش‌فاکتور برنده قابل ارجاع بود؛ در معماری جدید پس از برد، ارجاع فاکتور فقط از داخل پرونده فروش انجام می‌شود.');
   return;
   o.invRef = { by: curSession().name, role: roleDef().lb, t: faDate() };
-  setData('ptf_crm_offers', offers);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   audit('فاکتور', 'ارجاع ' + offerNo + ' برای صدور فاکتور', offerNo);
   // استثنا (AC4 اعلانات): فقط حسابدار
   notify({ toRoles: ['accountant'], title: 'پیش‌فاکتور ' + offerNo + ' برای صدور فاکتور ارجاع شد',

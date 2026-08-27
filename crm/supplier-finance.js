@@ -382,7 +382,7 @@
       try { window.ptfOpexRemoveFromCoverInvoice(inv.cd); } catch (eOxV) {}
       try { if (typeof ptfOpexRender === 'function') ptfOpexRender(); } catch (eOrV) {}
     }
-    var pays = getData('ptf_crm_payables'); pays.forEach(function (p) { if (p.sfInvoiceCd === cd) delete p.sfInvoiceCd; }); setData('ptf_crm_payables', pays);
+    var pays = getData('ptf_crm_payables'); pays.forEach(function (p) { if (p.sfInvoiceCd === cd) delete p.sfInvoiceCd; }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', pays, { reason: 'w4' }); else setData('ptf_crm_payables', pays);
     try { audit('فاکتور خرید تامین', 'ابطال فاکتور ' + inv.no + ' — ' + inv.supName, cd); } catch (e) {}
     var m = document.getElementById('slLedgerDlg'); if (m) m.remove(); window.slOpenLedger(inv.supplierCd);
   };
@@ -456,7 +456,7 @@
         window.ptfChequeCreate('received', rec);
       }
     } else {
-      checks.unshift(rec); setData('ptf_crm_cheques', checks);
+      checks.unshift(rec); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_cheques', checks, { reason: 'w4' }); else setData('ptf_crm_cheques', checks);
     }
     if (method === 'company_cheque' && typeof chUpsertReminder === 'function') chUpsertReminder(rec);
     try { audit('چک‌ها', method === 'company_cheque' ? 'ثبت چک شرکت برای پرداخت تامین‌کننده ' + sup.co : 'ثبت و انتقال چک ثالث به تامین‌کننده ' + sup.co, rec.cd); } catch (e) {}
@@ -503,8 +503,8 @@
     var d = data(), p = (d.payments || []).filter(function (x) { return x.cd === cd; })[0]; if (!p || p.status === 'void') return;
     if (!confirm('پرداخت و همه تخصیص‌های آن ابطال شود؟')) return;
     p.status = 'void'; p.voidAt = faDateTime(); p.voidBy = curSession().name;
-    var legacyList = getData('ptf_crm_payables'); legacyList.forEach(function(lp){ lp.paid=(lp.paid||[]).filter(function(x){return x.supplierPaymentCd!==cd;}); lp.settled=(typeof ptfPayableRemain==='function'?ptfPayableRemain(lp):lp.settled)<=0; }); setData('ptf_crm_payables',legacyList);
-    if (p.chequeCd) { var checks = getData('ptf_crm_cheques'); var ch = checks.filter(function (c) { return c.cd === p.chequeCd; })[0]; if (ch) { if (ch.ownership === 'third_party') { ch.st = 'voided_transfer'; var invs = getData('ptf_crm_invoices'); invs.forEach(function (i) { i.payments = (i.payments || []).filter(function (x) { return x.supplierPaymentCd !== cd; }); }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs); } else { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; if (typeof chUpsertReminder === 'function') chUpsertReminder(ch); } setData('ptf_crm_cheques', checks); } }
+    var legacyList = getData('ptf_crm_payables'); legacyList.forEach(function(lp){ lp.paid=(lp.paid||[]).filter(function(x){return x.supplierPaymentCd!==cd;}); lp.settled=(typeof ptfPayableRemain==='function'?ptfPayableRemain(lp):lp.settled)<=0; }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', legacyList, { reason: 'w4' }); else setData('ptf_crm_payables', legacyList);
+    if (p.chequeCd) { var checks = getData('ptf_crm_cheques'); var ch = checks.filter(function (c) { return c.cd === p.chequeCd; })[0]; if (ch) { if (ch.ownership === 'third_party') { ch.st = 'voided_transfer'; var invs = getData('ptf_crm_invoices'); invs.forEach(function (i) { i.payments = (i.payments || []).filter(function (x) { return x.supplierPaymentCd !== cd; }); }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs); } else { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; if (typeof chUpsertReminder === 'function') chUpsertReminder(ch); } if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_cheques', checks, { reason: 'w4' }); else setData('ptf_crm_cheques', checks); } }
     save(d);
     try { audit('پرداخت تامین', 'ابطال پرداخت ' + cd + ' برای ' + p.supName, cd); } catch (e) {}
     var m = document.getElementById('slLedgerDlg'); if (m) m.remove(); slOpenLedger(p.supplierCd);
@@ -857,7 +857,7 @@
       }
     });
     inv.legacyPayableCds = linked;
-    setData('ptf_crm_payables', pays);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', pays, { reason: 'w4' }); else setData('ptf_crm_payables', pays);
     save(d);
     try { audit('حساب تامین', 'اصلاح لینک فاکتور ' + (inv.no || inv.cd) + ' — ' + linked.length + ' تعهد', invoiceCd); } catch (e) {}
     var dlg = document.getElementById('sfLinkDlg'); if (dlg) dlg.remove();
@@ -1037,7 +1037,7 @@
 
   /* Sprint 270: explicit deletion/reversal with allocation release */
   window.slPaymentDelete=function(cd){ return window.slPaymentVoid(cd); };
-  window.slInvoiceDelete=function(cd){var d=data(),i=(d.invoices||[]).filter(function(x){return x.cd===cd})[0];if(!i)return;if(!confirm('فاکتور حذف/ابطال شود؟ تخصیص‌های پرداخت آن به اعتبار تامین‌کننده تبدیل می‌شوند.'))return;(d.payments||[]).forEach(function(p){p.allocations=(p.allocations||[]).filter(function(a){return a.invoiceCd!==cd;});p.unallocated=(+p.amount||0)-(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);});i.status='void';i.voidAt=faDateTime();i.voidBy=curSession().name;var pays=getData('ptf_crm_payables');pays.forEach(function(p){if(p.sfInvoiceCd===cd)delete p.sfInvoiceCd;});setData('ptf_crm_payables',pays);save(d);if(i.isCover===true&&typeof window.ptfOpexRemoveFromCoverInvoice==='function'){try{window.ptfOpexRemoveFromCoverInvoice(i.cd);}catch(eOxD){}try{if(typeof ptfOpexRender==='function')ptfOpexRender();}catch(eOrD){}}if(typeof slRefreshSupplierPanel==='function')slRefreshSupplierPanel();slOpenLedger(i.supplierCd);};
+  window.slInvoiceDelete=function(cd){var d=data(),i=(d.invoices||[]).filter(function(x){return x.cd===cd})[0];if(!i)return;if(!confirm('فاکتور حذف/ابطال شود؟ تخصیص‌های پرداخت آن به اعتبار تامین‌کننده تبدیل می‌شوند.'))return;(d.payments||[]).forEach(function(p){p.allocations=(p.allocations||[]).filter(function(a){return a.invoiceCd!==cd;});p.unallocated=(+p.amount||0)-(p.allocations||[]).reduce(function(s,a){return s+(+a.amount||0)},0);});i.status='void';i.voidAt=faDateTime();i.voidBy=curSession().name;var pays=getData('ptf_crm_payables');pays.forEach(function(p){if(p.sfInvoiceCd===cd)delete p.sfInvoiceCd;});if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', pays, { reason: 'w4' }); else setData('ptf_crm_payables', pays);save(d);if(i.isCover===true&&typeof window.ptfOpexRemoveFromCoverInvoice==='function'){try{window.ptfOpexRemoveFromCoverInvoice(i.cd);}catch(eOxD){}try{if(typeof ptfOpexRender==='function')ptfOpexRender();}catch(eOrD){}}if(typeof slRefreshSupplierPanel==='function')slRefreshSupplierPanel();slOpenLedger(i.supplierCd);};
   /* ============ Sprint 270: visible management, Jalali filters, opening balance ============ */
   function slJalaliFilter(id, label, iso) { return typeof ptfDatePicker === 'function' ? '<label>'+label+'</label>'+ptfDatePicker(id, iso || '') : '<label>'+label+'</label><input id="'+id+'" value="'+escP(iso||'')+'" placeholder="1405/04/22">'; }
   window.slOpeningOpen=function(supCd){if(!slCanAdjust()){alert('مانده افتتاحیه فقط برای مدیران ارشد مجاز است');return;}ptfDialog({title:'🏁 ثبت مانده افتتاحیه تامین‌کننده',body:'مبلغ مثبت = بدهی اولیه ما به تامین‌کننده؛ مبلغ منفی = اعتبار اولیه شرکت نزد تامین‌کننده.',fields:[{id:'cur',label:'ارز',type:'select',options:['IRR','USD','EUR','CNY','AED','GBP']},{id:'amount',label:'مانده افتتاحیه (+ بدهی / − اعتبار)',type:'number',money:false,dir:'ltr',required:true},{id:'rate',label:'نرخ تسعیر برای ارز خارجی',type:'number',money:false,dir:'ltr'},{id:'note',label:'شرح/مبنای مانده افتتاحیه',type:'textarea',required:true}],okText:'ثبت مانده افتتاحیه',onOk:function(v){var a=+v.amount||0,c=v.cur||'IRR',r=c==='IRR'?1:(+v.rate||0);if(!a||!v.note||(c!=='IRR'&&!r)){alert('مبلغ، شرح و برای ارز خارجی نرخ الزامی است');return;}var d=data(),sup=supplier(supCd);d.adjustments=d.adjustments||[];d.adjustments.unshift({cd:genCode('SFOPEN'),supplierCd:supCd,supName:sup?sup.co:'',refYear:'opening',kind:'opening',cur:c,rate:r,amount:a,amountIrr:c==='IRR'?a:Math.round(a*r),note:v.note,dateISO:new Date().toISOString().slice(0,10),dateFa:faDate(),status:'posted',t:faDateTime(),by:curSession().name});save(d);audit('حساب تامین','ثبت مانده افتتاحیه '+(sup?sup.co:''),supCd);slOpenLedger(supCd);}});};
@@ -1169,7 +1169,7 @@
     if (o.payableCd) {
       var ps = getData('ptf_crm_payables');
       ps.forEach(function (p) { if (p.cd === o.payableCd) p.sfInvoiceCd = inv.cd; });
-      setData('ptf_crm_payables', ps);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', ps, { reason: 'w4' }); else setData('ptf_crm_payables', ps);
     }
     try { audit('حساب تامین', 'خرید ' + (o.pay === 'cash' ? 'نقدی و تسویه‌شده' : 'واقعی') + ' در گردش ' + inv.supName + ' — ' + inv.amount.toLocaleString('fa-IR') + ' ریال', inv.cd); } catch (e) {}
     return { ok: true, invoice: inv, payment: pay || null };
@@ -1202,14 +1202,14 @@
     if(!confirm(report.safe.length+' خرید نقدی بدون گردش شناسایی شد. فقط موارد دارای تأمین‌کننده یکتای قطعی ترمیم شوند؟\nموارد مبهم: '+report.ambiguous.length))return;
     var cmps=getData('ptf_crm_buycmp'),fixed=0,failed=0;
     report.safe.forEach(function(row){var c=cmps.filter(function(x){return x.id===row.cmpId;})[0],p=c&&(c.purchases||[]).filter(function(x){return x.cd===row.purchaseCd;})[0],it=c&&((c.items||[])[p.idx]||{});if(!p||!it){failed++;return;}p.supplierCd=row.supplierCd;var r=window.slImportRealPurchase({purchaseCd:p.cd,supplierCd:p.supplierCd,supName:p.sup,amount:row.amount,unitPrice:+p.price||0,qty:+p.qty||+it.qty||1,item:row.item,pay:'cash',files:p.files||[],dateFa:p.t||faDate(),sourceCurrency:p.srcCur||'',sourceUnitPrice:+p.priceFx||0,sourceFxRate:+p.rate||0});if(r&&r.ok){p.supplierInvoiceCd=r.invoice.cd;p.supplierPaymentCd=r.payment&&r.payment.cd||'';p.financeLinked=true;fixed++;}else failed++;});
-    setData('ptf_crm_buycmp',cmps);try{audit('حساب تامین','ترمیم گردش خرید نقدی: '+fixed+' موفق، '+failed+' ناموفق، '+report.ambiguous.length+' مبهم','CASH-PURCHASE-REPAIR');}catch(e){}
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', cmps, { reason: 'w4' }); else setData('ptf_crm_buycmp', cmps);try{audit('حساب تامین','ترمیم گردش خرید نقدی: '+fixed+' موفق، '+failed+' ناموفق، '+report.ambiguous.length+' مبهم','CASH-PURCHASE-REPAIR');}catch(e){}
     alert('ترمیم انجام شد: '+fixed+' خرید\nناموفق: '+failed+'\nنیازمند تعیین هویت تأمین‌کننده: '+report.ambiguous.length);if(typeof window.slFinanceRowsRender==='function')window.slFinanceRowsRender();
   };
   var _slDiag278=window.slChequeDiag;window.slChequeDiag=function(){_slDiag278();var no=((document.getElementById('slChkDiag')||{}).value||'').trim(),c=getData('ptf_crm_cheques').filter(function(x){return String(x.sayad||x.no||'')===no;})[0],o=document.getElementById('slChkDiagOut');if(c&&o){var active=c.ownership==='company'&&c.st==='open'&&c.kind!=='guarantee';o.innerHTML+= '<div style="font-size:12px">ورود به نقدینگی شرکت: <b>'+ (active?'بله':'خیر')+'</b></div>';}};
 
 
   /* Sprint 279: repair legacy one-way cheque/payment links. */
-  window.slReconcileVoidCheques=function(){var d=data(),checks=getData('ptf_crm_cheques'),n=0;checks.forEach(function(c){if(c.ownership!=='company'||c.st!=='open'||!c.supplierPaymentCd)return;var p=(d.payments||[]).filter(function(x){return x.cd===c.supplierPaymentCd;})[0];if(p&&p.status==='void'){c.st='void';c.reminderDisabled=true;c.voidAt=faDateTime();c.voidBy='سیستم تطبیق';if(typeof chUpsertReminder==='function')chUpsertReminder(c);n++;}});if(n)setData('ptf_crm_cheques',checks);return n;};
+  window.slReconcileVoidCheques=function(){var d=data(),checks=getData('ptf_crm_cheques'),n=0;checks.forEach(function(c){if(c.ownership!=='company'||c.st!=='open'||!c.supplierPaymentCd)return;var p=(d.payments||[]).filter(function(x){return x.cd===c.supplierPaymentCd;})[0];if(p&&p.status==='void'){c.st='void';c.reminderDisabled=true;c.voidAt=faDateTime();c.voidBy='سیستم تطبیق';if(typeof chUpsertReminder==='function')chUpsertReminder(c);n++;}});if(n)if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_cheques', checks, { reason: 'w4' }); else setData('ptf_crm_cheques', checks);return n;};
   try{window.slReconcileVoidCheques();}catch(e){}
   var _slDiag279=window.slChequeDiag;window.slChequeDiag=function(){var n=window.slReconcileVoidCheques();_slDiag279();var o=document.getElementById('slChkDiagOut');if(o&&n)o.innerHTML+='<div style="color:#059669">تطبیق خودکار: '+n+' چک ابطال‌شده اصلاح شد.</div>';};
 })();

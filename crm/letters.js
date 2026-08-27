@@ -187,7 +187,7 @@ function sigProfileFor(user) {
     if (!window._ptfSigRecoveryRepaired) {
       window._ptfSigRecoveryRepaired = true;
       map[canonical] = recovery;
-      try { setData('ptf_crm_sigprofiles', map); } catch (eSet) {}
+      try { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sigprofiles', map, { reason: 'w4' }); else setData('ptf_crm_sigprofiles', map); } catch (eSet) {}
     }
   } else if (found && found.sig) {
     try { localStorage.setItem(sigRecoveryKey(canonical), JSON.stringify(found)); } catch (eMir) {}
@@ -257,8 +257,10 @@ function saveSigProfile() {
     p.ownerUser = me;
     p.schemaVersion = 2;
     profiles[me] = p;
-    var saved = setData('ptf_crm_sigprofiles', profiles);
-    if (saved === false) { alert('⛔ ذخیره پروفایل امضا روی این دستگاه انجام نشد؛ ظرفیت/دسترسی ذخیره‌سازی را بررسی کنید.'); return; }
+    /* v34.8.27 (W4): ذخیره با فرمان؛ if-بازگشتی قبلی متغیر saved را از عبارت if می‌گرفت —
+       روتر خودش در شکست، dirty + toast دارد؛ خطای سخت مرورگر اینجا مسیر رسیده نیست. */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sigprofiles', profiles, { reason: 'w4' });
+    else { var saved = setData('ptf_crm_sigprofiles', profiles); if (saved === false) { alert('⛔ ذخیره پروفایل امضا روی این دستگاه انجام نشد؛ ظرفیت/دسترسی ذخیره‌سازی را بررسی کنید.'); return; } }
     /* mirror مستقل از IDB: اگر migration یا pull موقتاً map را خالی دید، تصویر دوباره خواسته نمی‌شود. */
     try { localStorage.setItem(sigRecoveryKey(me), JSON.stringify(p)); } catch (eMir) {}
     hideModal();
@@ -798,7 +800,7 @@ function letSaveDraft(cd) {
   var ex = letExtract(l.subject || '', l.body || '');
   l.keywords = ex.keywords; l.summary = ex.summary;
   if (idx > -1) ls[idx] = l; else ls.unshift(l);
-  setData('ptf_crm_letters', ls);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' }); else setData('ptf_crm_letters', ls);
   try { audit('مکاتبات', (idx > -1 ? 'به‌روزرسانی' : 'ثبت') + ' پیش‌نویس نامه — ' + (l.subject || 'بدون موضوع'), l.cd); } catch (eA) {}
   hideModal();
   renderLetters();
@@ -850,7 +852,7 @@ function letSubmit(cd) {
     notify({ toUsers: [l.signer], title: '✍️ درخواست امضای نامه: ' + l.subject, body: 'نویسنده: ' + l.authorNm, kind: 'sign_req', channels: ['cart'], link: { panel: 'let' }, actionable: true, refCd: l.cd });
   }
   if (idx > -1) ls[idx] = l; else ls.unshift(l);
-  setData('ptf_crm_letters', ls);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' }); else setData('ptf_crm_letters', ls);
   // ثبت در پرونده
   if (l.prjNo) _letAttachToPrj(l);
   hideModal(); renderLetters();
@@ -888,7 +890,7 @@ function letSign(cd) {
   l.signerNm = signerNm; l.signerRole = signerRole;
   l.signatureSnapshot = { sig: p.sig || '', stamp: p.stamp || '', nm: signerNm, role: signerRole, at: faDateTime() };
   l.signedT = faDateTime(); l.tEn = l.tEn || new Date().toISOString().slice(0, 10);
-  setData('ptf_crm_letters', ls);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' }); else setData('ptf_crm_letters', ls);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(l.cd); } catch (eNR) {} /* v33.4.1: امضا شد — درخواست امضای مرتبط برای همه حذف شود */
   if (l.prjNo) _letAttachToPrj(l);
   notify({ toUsers: [l.author], title: '✅ نامه «' + l.subject + '» امضا شد — ' + l.no, kind: 'sign_ok', channels: ['cart'], link: { panel: 'let' } });
@@ -905,7 +907,7 @@ function letReject(cd) {
   if (!l) return;
   l.st = 'rejected';
   l.rejectWhy = why.trim();
-  setData('ptf_crm_letters', ls);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' }); else setData('ptf_crm_letters', ls);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(l.cd); } catch (eNR) {} /* v33.4.1: رد شد — درخواست امضای مرتبط برای همه حذف شود */
   notify({ toUsers: [l.author], title: '❌ نامه «' + l.subject + '» رد شد', body: 'دلیل: ' + why, kind: 'sign_no', channels: ['cart'], link: { panel: 'let' }, actionable: true, refCd: l.cd });
   audit('مکاتبات', 'رد امضای نامه: ' + why, l.cd);
@@ -921,8 +923,8 @@ function letDel(cd) {
   if (!confirm('نامه «' + ((l && (l.no || l.subject)) || cd) + '» حذف شود؟')) return;
   var archive = getData('ptf_crm_deleted_archive');
   archive.push({ id: cd, kind: 'LETTER', label: (l && (l.no || l.subject)) || cd, reason: reason.trim(), by: curSession().name, iso: new Date().toISOString(), snapshot: l || null });
-  setData('ptf_crm_deleted_archive', archive);
-  setData('ptf_crm_letters', getData('ptf_crm_letters').filter(function (x) { return x.cd !== cd; }));
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', archive, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', archive);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', getData('ptf_crm_letters').filter(function (x) { return x.cd !== cd; }), { reason: 'w4' }); else setData('ptf_crm_letters', getData('ptf_crm_letters').filter(function (x) { return x.cd !== cd; }));
   audit('مکاتبات', 'حذف کنترل‌شده نامه — دلیل: ' + reason.trim(), cd);
   renderLetters();
   if (typeof renderDeals === 'function') renderDeals();
@@ -960,7 +962,7 @@ function saveInbound() {
     st: 'registered', by: curSession().name };
   var ls = getData('ptf_crm_letters');
   ls.unshift(l);
-  setData('ptf_crm_letters', ls);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_letters', ls, { reason: 'w4' }); else setData('ptf_crm_letters', ls);
   if (l.prjNo) _letAttachToPrj(l);
   // مهلت پاسخ → یادآور (اتصال به US-113)
   if (due && typeof addReminder === 'function') {

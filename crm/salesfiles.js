@@ -678,7 +678,7 @@
     /* AC3: سند مالی ضمیمه ارجاع = snapshot قطعی برد، نه پیشنهاد زندهٔ قابل‌تغییر */
     if (typeof sfAwardEnsure === 'function') sfAwardEnsure(r);
     o.invRef = { by: curSession().name, role: (typeof roleDef === 'function' ? roleDef().lb : ''), t: faDate(), fromFile: r.cd, awardDoc: r.wonOffer, rialBasis: rialBasis, rialRate: rialRate, rialTotal: rialTotal, fxNo: isFx ? o.no : '', fxCurrency: isFx ? o.currency : '' };
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     var list = sfAll();
     var rr = list.filter(function (x) { return x.cd === cd; })[0];
     if (rr) { rr.timeline = rr.timeline || []; rr.timeline.push({ t: faDateTime(), by: curSession().name, tx: '🧾 ارجاع فاکتور رسمی به حسابدار (پس از برنده‌شدن — هر مرحله)' + (comp ? ' — مبنای ریالی ' + comp.no : '') }); sfSave(list); }
@@ -1998,7 +1998,7 @@
         if (o.st !== 'lost') { o.st = 'lost'; changed = true; }
         if (!o.lostAt) { o.lostAt = (typeof faDateTime === 'function' ? faDateTime() : ''); changed = true; }
       });
-      if (changed) setData('ptf_crm_offers', offers);
+      if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     } catch (e) {}
     try {
       var aliases2 = sfArchiveAliases(r);
@@ -2194,7 +2194,7 @@
         try {
           var allP = getData('ptf_crm_petty') || [];
           var idx = allP.findIndex(function (x) { return x.cd === r.cd; });
-          if (idx > -1) { allP[idx].dealRef = dealCd; setData('ptf_crm_petty', allP); }
+          if (idx > -1) { allP[idx].dealRef = dealCd; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_petty', allP, { reason: 'w4' }); else setData('ptf_crm_petty', allP); }
         } catch (eP) { console.warn('set petty.dealRef:', eP); }
         /* فراخوانی helper مرکزی در petty.js — همان منطق لینک دوطرفه (ایجاد costEvent + timeline + audit) */
         try { if (typeof ptfPettyUpdateDealLink === 'function') ptfPettyUpdateDealLink(r, dealCd, ''); } catch (eU) { console.warn('ptfPettyUpdateDealLink:', eU); }
@@ -2223,7 +2223,7 @@
         var pt = (getData('ptf_crm_petty') || []).filter(function (x) { return x.cd === pettyCd; })[0];
         if (pt) {
           pt.dealRef = '';
-          setData('ptf_crm_petty', (getData('ptf_crm_petty') || []).map(function (x) { return x.cd === pettyCd ? pt : x; }));
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_petty', (getData('ptf_crm_petty') || []).map(function (x) { return x.cd === pettyCd ? pt : x; }), { reason: 'w4' }); else setData('ptf_crm_petty', (getData('ptf_crm_petty') || []).map(function (x) { return x.cd === pettyCd ? pt : x; }));
           if (typeof audit === 'function') audit('پرونده فروش', '🔗 حذف لینک هزینهٔ تنخواه ' + pettyCd + ' از پرونده ' + (d.inqNo || dealCd), pettyCd);
         }
       } catch (ePt) { console.warn('remove petty link:', ePt); }

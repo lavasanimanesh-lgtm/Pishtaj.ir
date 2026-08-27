@@ -212,7 +212,7 @@
     if (arc[idx] && arc[idx].kind === 'archive_purge') { alert('این tombstone حداقلی قابل حذف نیست؛ برای جلوگیری از بازگشت پرونده پاک‌شده از کش دستگاه‌های قدیمی لازم است و در گزارش مالی اثری ندارد.'); return; }
     if (!confirm('آیا این رکورد از بایگانی آماری مدیریت نیز حذف شود؟')) return;
     arc.splice(idx, 1);
-    setData('ptf_crm_deleted_archive', arc);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deleted_archive', arc, { reason: 'w4' }); else setData('ptf_crm_deleted_archive', arc);
     renderDeletedArchive();
   };
 

@@ -19,7 +19,7 @@
   ];
 
   function permsAll() { try { return JSON.parse(localStorage.getItem('ptf_crm_perms') || '{}'); } catch (e) { return {}; } }
-  function permsSave(p) { setData('ptf_crm_perms', p); }
+  function permsSave(p) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_perms', p, { reason: 'w4' }); else setData('ptf_crm_perms', p); }
   window.permOverride = function (username, panelId) {
     var p = permsAll()[username];
     return p ? (p[panelId] || null) : null; // 'allow' | 'deny' | null

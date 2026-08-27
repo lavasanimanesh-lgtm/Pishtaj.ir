@@ -260,7 +260,9 @@
         if (reason) r.note = (r.note ? r.note + ' | ' : '') + 'موکول: ' + reason;
       }
     });
-    setData('ptf_crm_reminders', rems);
+    /* v34.8.27 (W4): موکول از مسیر فرمان */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+    else setData('ptf_crm_reminders', rems);
     ntfRead(ntfCd); renderInbox(); updateInboxBadge();
     if (typeof audit === 'function') audit('یادآورها', 'موکول کردن یادآور' + (reason ? ' — دلیل: ' + reason : ''), remCd);
   };
@@ -287,7 +289,7 @@
       o.expiryNotifyStage = 'warn'; changed = true;
       /* صرفاً ثبت stage برای منطق داخلی؛ هیچ اعلان مزاحمی تولید نمی‌شود. */
     });
-    if (changed) setData('ptf_crm_offers', offers);
+    if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     return added;
   }
 
@@ -1016,13 +1018,13 @@
     function inAls(v) { return v && als.indexOf(v) > -1; }
     var offNos = {};
     getData('ptf_crm_offers').forEach(function (o) { if (inAls(o.inqNo)) offNos[o.no] = 1; });
-    setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }), { reason: 'w4' }); else setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }));
     /* v34.8.26 (W3): حذف آبشاری فاکتور = فرمان tombstone بازیافت‌پذیر */
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }), { reason: 'cascade-purge' });
     else setData('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }));
-    setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }));
-    setData('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }));
-    setData('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }), { reason: 'w4' }); else setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }), { reason: 'w4' }); else setData('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }), { reason: 'w4' }); else setData('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }));
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }), { reason: 'w2' }); else setData('ptf_crm_deals', getData('ptf_crm_deals').filter(function (d) { return !inAls(d.inqNo); }));
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }), { reason: 'w2' }); else setData('ptf_crm_inqitems', getData('ptf_crm_inqitems').filter(function (r) { return !inAls(r.inqNo); }));
     /* v34.8.24 (W2): حذف درخواست = فرمان tombstone بازیافت‌پذیر */

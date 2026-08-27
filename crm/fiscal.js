@@ -535,7 +535,9 @@
       if (s.gross <= 0) return;
       var txs = getData('ptf_crm_sharetx') || [];
       txs.unshift({ cd: genCode('SHT'), shCd: s.cd, shName: s.name, type: 'profit', amt: s.gross, desc: 'تقسیم سود سال ' + year + ' (مازاد بر کف نقدینگی)', t: faDateTime(), month: String(year) + '/01', by: (curSession() || {}).name, dividendYear: year });
-      setData('ptf_crm_sharetx', txs);
+      /* v34.8.27 (W4): sharetx کلید محافظت‌شده مالی است؛ روتر + تور نجات dirty */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sharetx', txs, { reason: 'w4' });
+      else setData('ptf_crm_sharetx', txs);
       made++;
     });
     var a = snaps(); a.unshift({ cd: genCode('DIV'), type: 'dividend', year: year, amount: d.distributable, backToFloor: d.backToFloor, floor: d.floor, distPct: d.distPct, advYearTotal: advTot, t: faDateTime(), by: (curSession() || {}).name });

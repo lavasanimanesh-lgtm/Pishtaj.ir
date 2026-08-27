@@ -549,7 +549,7 @@
         st.scoreAdj[kind] = st.scoreAdj[kind] || {};
         if (adj === 0) delete st.scoreAdj[kind][cd];
         else st.scoreAdj[kind][cd] = { adj: adj, why: v.why, by: curSession().name, t: faDateTime() };
-        setData('ptf_crm_settings', st);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
         audit('امتیازدهی', 'تعدیل دستی ' + (kind === 'sup' ? 'تامین‌کننده' : 'مشتری') + ' ' + label + ': ' + (adj > 0 ? '+' : '') + adj + ' — ' + v.why, cd);
         if (typeof ptfToast === 'function') ptfToast('⚖️ تعدیل ثبت شد', 'ok');
         if (typeof renderSuppliers === 'function' && kind === 'sup') renderSuppliers();
@@ -729,7 +729,7 @@
       var el = document.getElementById('scW_cust_' + k);
       if (el) st.scoreWeights.cust[k] = Math.max(0, Math.min(50, +el.value || DEF_W.cust[k]));
     });
-    setData('ptf_crm_settings', st);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
     audit('امتیازدهی', 'تغییر وزن‌های نظام امتیازدهی توسط ' + curSession().name + ': sup=' + JSON.stringify(st.scoreWeights.sup) + ' cust=' + JSON.stringify(st.scoreWeights.cust), '');
     if (typeof ptfToast === 'function') ptfToast('💾 وزن‌ها ذخیره شد (در audit ثبت شد)', 'ok');
   };

@@ -156,7 +156,9 @@
         rems.unshift(r);
         rec.remCd = r.cd;
       }
-      setData('ptf_crm_reminders', rems);
+      /* v34.8.27 (W4) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+      else setData('ptf_crm_reminders', rems);
     } catch (e) {}
   }
   function chFinishReminder(rec, removeOnly) {
@@ -165,7 +167,9 @@
       var rems = getData('ptf_crm_reminders');
       if (removeOnly) rems = rems.filter(function (x) { return x.cd !== rec.remCd; });
       else rems.forEach(function (x) { if (x.cd === rec.remCd) { x.st = 'done'; x.doneFa = faDate(); x.doneBy = (curSession() || {}).name || ''; } });
-      setData('ptf_crm_reminders', rems);
+      /* v34.8.27 (W4) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_reminders', rems, { reason: 'w4' });
+      else setData('ptf_crm_reminders', rems);
     } catch (e) {}
   }
   function chRowActions(c) {

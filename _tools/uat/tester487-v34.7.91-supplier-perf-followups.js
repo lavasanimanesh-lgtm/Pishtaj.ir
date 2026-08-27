@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.26 — ادامه بهینه‌سازی تامین‌کنندگان:
+/* v34.8.27 — ادامه بهینه‌سازی تامین‌کنندگان:
    - SUP-PERF-003: lazy-load باکس مالی (صفحه‌بندی/محتوا تا بعد از رندر پنل).
    - SUP-PERF-004: get_inbox صفحه‌بندی اختیاری (پیش‌فرض بدون تغییر). */
 var fs = require('fs'), path = require('path');
@@ -15,8 +15,8 @@ var slf = read('crm/supplier-finance.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.26', ver.crm_version === 'v34.8.26', ver.crm_version);
-T('supplier-finance.js cache-bust 34.8.26', /supplier-finance\.js\?v=34\.8\.26/.test(idx));
+T('VERSION.json = v34.8.27', ver.crm_version === 'v34.8.27', ver.crm_version);
+T('supplier-finance.js cache-bust 34.8.27', /supplier-finance\.js\?v=34\.8\.27/.test(idx));
 
 /* ---------- SUP-PERF-003: lazy box ---------- */
 T('slBoxRows هست', /function slBoxRows\(\)/.test(slf));
@@ -35,6 +35,6 @@ T('fresh/gzip قبلی حفظ شده', api.indexOf("'fresh' => true") > -1 && ap
 
 T('tester487 در گیت CI', gate.indexOf('tester487-v34.7.91-supplier-perf-followups.js') > -1);
 
-console.log('\n— tester487 (v34.8.26: ادامه بهینه‌سازی تامین‌کنندگان — SUP-PERF-003/004) —');
+console.log('\n— tester487 (v34.8.27: ادامه بهینه‌سازی تامین‌کنندگان — SUP-PERF-003/004) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

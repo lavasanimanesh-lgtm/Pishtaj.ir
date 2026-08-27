@@ -10,7 +10,7 @@
   function isMgr() { return MANAGERS.indexOf(curRole()) > -1; }
   function isAccountant() { return curRole() === 'accountant'; }
   function stObj() { var s = getData('ptf_crm_settings'); return (s && !Array.isArray(s) && typeof s === 'object') ? s : {}; }
-  function saveSt(s) { setData('ptf_crm_settings', s || {}); }
+  function saveSt(s) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', s || {}, { reason: 'w4' }); else setData('ptf_crm_settings', s || {}); }
   function treasurerRole() { return stObj().pettyTreasurerRole || 'chairman'; }
   function isTreasurer() { return curRole() === 'admin' || curRole() === treasurerRole(); }
   function canAll() { return isMgr() || isTreasurer(); }
@@ -1759,7 +1759,7 @@
           o.advance = { mode: 'amt', pct: pct, docAmt: docAmt, cur: cur, rate: fx ? rate : 1, amt: fx ? Math.round(docAmt * rate) : Math.round(docAmt), exceptional: exceptional, struct: true, t: faDate(), by: userName(), note: v.note || '' };
           if (docAmt >= total && !exceptional) o.advance.mode = 'full';
         }
-        setData('ptf_crm_offers', offers);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
         audit('پیشنهادها', 'ثبت/اصلاح شرط تجاری پیش‌پرداخت ' + no + ': ' + ptfAdvanceLabel(o), no);
         if (typeof renderOffers === 'function') renderOffers();
         if (typeof ptfToast === 'function') ptfToast('پیش‌پرداخت ساختاریافته ثبت شد', 'ok');
@@ -1784,7 +1784,7 @@
           o.advanceAsked = true;
           var list = getData('ptf_crm_offers');
           list = list.map(function (x) { return x.no === o.no ? o : x; });
-          setData('ptf_crm_offers', list);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', list, { reason: 'w4' }); else setData('ptf_crm_offers', list);
           setTimeout(function () { if (confirm('برای این پیشنهاد پیش‌پرداخت/شرایط پرداخت ساختاریافته ثبت شود؟')) ptfAdvanceOpen(o.no); }, 120);
         }
       } catch (e) {}

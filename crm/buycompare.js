@@ -71,11 +71,11 @@
     primary.mergedBy = curSession().name;
     var idx = all.indexOf(primary);
     if (idx > -1) all[idx] = primary;
-    setData('ptf_crm_buycmp', all);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', all, { reason: 'w4' }); else setData('ptf_crm_buycmp', all);
     try { audit('قیمت خرید', 'تجمیع جدول‌های خرید واقعی برای ' + inqNo + ' — ' + base + ' قلم', primary.id); } catch (e) {}
     return primary;
   }
-  function cmpSave(l) { setData('ptf_crm_buycmp', l); }
+  function cmpSave(l) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', l, { reason: 'w4' }); else setData('ptf_crm_buycmp', l); }
   function canBuy() { return !!roleDef().buyPrice; }
   function fmtP(v) { return (+v || 0).toLocaleString('fa-IR'); }
   window.ptfPurchaseLotsForItem = function (cmp, idx) {
@@ -586,7 +586,7 @@
       if (!storedP) return;
       storedP.stockedQty = (+storedP.stockedQty || 0) + qty; storedP.stockedAt = faDateTime(); storedP.stockedBy = curSession().name;
       var totalDisposition = (+storedP.returnedQty || 0) + (+storedP.stockedQty || 0); storedP.status = totalDisposition >= purchased ? ((+storedP.returnedQty || 0) >= purchased ? 'returned_to_supplier' : 'transferred_to_stock') : 'partially_disposed';
-      setData('ptf_crm_buycmp', stored); try { audit('موجودی انبار', 'انتقال ' + qty + ' از قلم ' + (item.nm || '') + ' به موجودی — بدون اثر مالی', purchaseCd); } catch (e) {}
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', stored, { reason: 'w4' }); else setData('ptf_crm_buycmp', stored); try { audit('موجودی انبار', 'انتقال ' + qty + ' از قلم ' + (item.nm || '') + ' به موجودی — بدون اثر مالی', purchaseCd); } catch (e) {}
       var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); cmpPurchaseDispositionOpen(id, idx);
     } });
   };
@@ -606,7 +606,7 @@
       storedP.returnedBy = curSession().name;
       var storedPurchased = storedP.qty != null ? (+storedP.qty || 0) : (+item.qty || 1);
       storedP.status = storedP.returnedQty >= storedPurchased ? 'returned_to_supplier' : 'partially_returned';
-      setData('ptf_crm_buycmp', stored);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buycmp', stored, { reason: 'w4' }); else setData('ptf_crm_buycmp', stored);
       try { audit('خرید واقعی', 'ثبت برگشت ' + qty + ' از قلم ' + (item.nm || '') + ' به تأمین‌کننده — بدون اثر مالی خودکار', purchaseCd); } catch (e) {}
       var dlg = document.getElementById('cmpDispositionDlg'); if (dlg) dlg.remove(); if (typeof ptfToast === 'function') ptfToast('برگشت عملیاتی ثبت شد؛ اثر مالی هنوز ایجاد نشده است.', 'ok'); cmpPurchaseDispositionOpen(id, idx);
     } });
@@ -837,7 +837,7 @@
         // ثبت در buyquotes قدیمی هم برای گزارش‌های موجود
         var bq = getData('ptf_crm_buyquotes');
         bq.unshift({ cd: genCode('BQ'), ref: c2.inqNo, sup: supName, desc: (c2.items[idx] || {}).nm || '', price: buyPrice, note: 'خرید واقعی' + (priceFx ? ' (تسعیر ' + priceFx.toLocaleString('en-US') + ' ' + (c2.purchases[c2.purchases.length-1].srcCur || '') + ' × ' + buyRate.toLocaleString('fa-IR') + ')' : ''), t: faDate(), by: curSession().name });
-        setData('ptf_crm_buyquotes', bq);
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buyquotes', bq, { reason: 'w4' }); else setData('ptf_crm_buyquotes', bq);
         audit('قیمت خرید', 'خرید واقعی آیتم «' + ((c2.items[idx] || {}).nm || '') + '» از ' + supName + ' — ' + fmtP(buyPrice) + ' ریال' + (priceFx ? ' (تسعیرشده)' : ''), c2.inqNo);
         notify({ toRoles: SENIOR_ROLES, title: '🛍 خرید واقعی: ' + ((c2.items[idx] || {}).nm || '') + ' از ' + supName + ' (' + fmtP(buyPrice) + ' ریال' + (priceFx ? ' — تسعیرشده' : '') + ')' + (v.dueISO ? ' — تعهد تحویل: ' + v.dueISO : ''), kind: 'buyq', channels: ['cart'], link: { panel: 'deals' } });
         var wasRealbuy = window._cmpRealbuyMode;

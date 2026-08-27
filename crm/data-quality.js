@@ -220,7 +220,7 @@
     var queue = getData('ptf_crm_catalog_reviews') || [], exists = queue.filter(function (x) { return x.offerNo === offerNo && +x.lineNo === +lineNo && x.status === 'pending_review'; })[0];
     if (exists) { if (typeof ptfToast === 'function') ptfToast('این قلم قبلاً در صف بررسی است.', 'info'); return; }
     queue.unshift({ cd: 'CATREV-' + Date.now(), offerNo: offerNo, lineNo: +lineNo, item: JSON.parse(JSON.stringify(item)), status: 'pending_review', t: typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString(), by: typeof curSession === 'function' ? curSession().name : '' });
-    setData('ptf_crm_catalog_reviews', queue);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_catalog_reviews', queue, { reason: 'w4' }); else setData('ptf_crm_catalog_reviews', queue);
     try { audit('کاتالوگ', 'ثبت قلم بدون تطبیق در صف بررسی', offerNo); } catch (e) {}
     if (typeof ptfToast === 'function') ptfToast('قلم در صف بررسی هویت کالا ثبت شد؛ کاتالوگ تغییر نکرد.', 'ok');
   };
@@ -252,7 +252,10 @@
     /* v34.8.23 (W1-iterate): ادغام کاتالوگ شامل «حذف» کالای فرعی است → روتر فرمان tombstone می‌زند (بازیافت‌پذیر) */
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', products, { reason: 'catalog-merge' });
     else setData('ptf_crm_products', products);
-    var merges = getData('ptf_crm_catalog_merges') || []; merges.unshift(merge); setData('ptf_crm_catalog_merges', merges);
+    var merges = getData('ptf_crm_catalog_merges') || []; merges.unshift(merge);
+    /* v34.8.27 (W4) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_catalog_merges', merges, { reason: 'w4' });
+    else setData('ptf_crm_catalog_merges', merges);
     try { audit('کاتالوگ', 'ادغام کنترل‌شده کالاها در ' + canonicalCd + ' — ' + from.join(', '), merge.cd); } catch (e) {}
     var dlg = document.getElementById('catalogMergeDlg'); if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast('ادغام کنترل‌شده ثبت شد؛ کالاهای فرعی حذف نشدند.', 'ok');
@@ -302,7 +305,9 @@
     /* v34.8.23 (W1-iterate) */
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', products, { reason: 'catalog-merge-revert' });
     else setData('ptf_crm_products', products);
-    setData('ptf_crm_catalog_merges', merges);
+    /* v34.8.27 (W4) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_catalog_merges', merges, { reason: 'w4' });
+    else setData('ptf_crm_catalog_merges', merges);
     try { audit('کاتالوگ', 'بازگشت ادغام ' + merge.cd + ' — کالاهای فرعی دوباره فعال شدند', mergeCd); } catch (e) {}
     if (typeof ptfToast === 'function') ptfToast('ادغام بازگردانده شد؛ ارجاع‌های بازنویسی‌شدهٔ قبلی دست‌نخورده ماندند.', 'ok');
     window.ptfCatalogMergeHistory();
@@ -326,7 +331,7 @@
     var offers = getData('ptf_crm_offers') || [], offer = offers.filter(function (x) { return x.no === offerNo; })[0], item = offer && offer.items && offer.items[+lineNo - 1];
     if (!offer || !item) { alert('قلم پیشنهاد پیدا نشد.'); return; }
     if (!confirm('اتصال این قلم به کالای انتخاب‌شده ثبت شود؟')) return;
-    item.pcode = productCd; setData('ptf_crm_offers', offers);
+    item.pcode = productCd; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     var dlg = document.getElementById('catalogReviewDlg'); if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast('اتصال دستی کالا ثبت شد.', 'ok');
     window.ptfCatalogIdentityAudit();
@@ -365,7 +370,7 @@
     if (candidates.length !== 1 || candidates[0].cd !== productCd) { alert('این اتصال دیگر تطبیق دقیق یکتا نیست؛ گزارش را دوباره بازخوانی کنید.'); return; }
     if (!confirm('اتصال دقیق این قلم به «' + (product.nm || product.name || product.cd) + '» ثبت شود؟')) return;
     item.pcode = productCd;
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
     try { audit('کاتالوگ', 'اتصال دقیق قلم پیشنهاد به کالا ' + productCd, offerNo); } catch (e) {}
     var dlg = document.getElementById('catalogAuditDlg'); if (dlg) dlg.remove();
     if (typeof ptfToast === 'function') ptfToast('اتصال دقیق کالا ثبت شد؛ پیشنهاد و گزارش به‌روزرسانی شد.', 'ok');

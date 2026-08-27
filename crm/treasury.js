@@ -468,7 +468,9 @@
       else if (s.custodian) s.custodian = false;
     });
     if (!found) return false;
-    if (typeof window.setData === 'function') window.setData('ptf_crm_shareholders', list);
+    /* v34.8.27 (W4): پرچم امین از مسیر فرمان — shareholders کلید محافظت‌شده مالی است */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_shareholders', list, { reason: 'w4' });
+    else if (typeof window.setData === 'function') window.setData('ptf_crm_shareholders', list); /* fallback */
     else localStorage.setItem('ptf_crm_shareholders', JSON.stringify(list));
     if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     return true;

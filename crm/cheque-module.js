@@ -355,7 +355,7 @@
     try { if (typeof ptfJToISO === 'function' && c.dueFa) todayIso = ptfJToISO(c.dueFa) || ''; } catch (eI) {}
     var payRec = { cd: genCode('SFPAY'), supplierCd: c.supplierCd, supName: supName, dateISO: todayIso, dateFa: c.dueFa || '', cur: 'IRR', rate: 1, amount: +c.amt || 0, amountIrr: +c.amt || 0, method: 'cheque', note: 'چک صادره ' + (c.sayad || c.no || c.cd || '') + (c.bank ? ' — ' + c.bank : ''), allocations: [], unallocated: +c.amt || 0, status: 'posted', chequeCd: c.cd, t: faDateTimeL(), by: me().name };
     d.payments = d.payments || []; d.payments.unshift(payRec);
-    setData('ptf_crm_supplier_finance', d);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_supplier_finance', d, { reason: 'w4' }); else setData('ptf_crm_supplier_finance', d);
     return { ok: true, applied: 'supplier', paymentCd: payRec.cd };
   }
   window.ptfChequeApplyFinancial = function (c) {
@@ -503,7 +503,7 @@
     (d.payments || []).forEach(function (p) {
       if (p.chequeCd === cd && p.status !== 'void') { p.status = 'void'; p.voidAt = faDateTimeL(); p.voidBy = me().name; p.voidNote = reason || 'ابطال چک'; changed = true; }
     });
-    if (changed) setData('ptf_crm_supplier_finance', d);
+    if (changed) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_supplier_finance', d, { reason: 'w4' }); else setData('ptf_crm_supplier_finance', d);
     return changed;
   };
 
@@ -534,7 +534,7 @@
     var hits = (d.payments || []).filter(function (p) { return p.chequeCd === cd && p.status !== 'void'; });
     return hits[0] || null;
   }
-  function sfSave(d) { setData('ptf_crm_supplier_finance', d); }
+  function sfSave(d) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_supplier_finance', d, { reason: 'w4' }); else setData('ptf_crm_supplier_finance', d); }
 
   /* به‌روزرسانی چک (ویرایش). فیلدهای داده‌شده را روی رکورد اعمال و در کلید درست ذخیره می‌کند.
      خروجی: {ok, rec, store} */
@@ -567,7 +567,7 @@
     p.updatedAt = faDateTimeL(); p.updatedBy = me().name; p.updatedNote = 'اصلاح مبلغ چک ' + cd;
     var allocSum = (p.allocations || []).reduce(function (s, a) { return s + (+a.amount || 0); }, 0);
     p.unallocated = Math.max(0, newAmt - allocSum);
-    setData('ptf_crm_supplier_finance', d);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_supplier_finance', d, { reason: 'w4' }); else setData('ptf_crm_supplier_finance', d);
     return { ok: true, diff: diff, updated: true, paymentCd: p.cd };
   };
 
@@ -614,7 +614,7 @@
           (d.payments || []).forEach(function () {});
           var lp = getData('ptf_crm_payables');
           lp.forEach(function (p) { if (p.supplierPaymentCd && payCdSet[p.supplierPaymentCd]) { p.paid = (p.paid || []).filter(function (x) { return x.supplierPaymentCd !== p.supplierPaymentCd; }); } });
-          setData('ptf_crm_payables', lp);
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_payables', lp, { reason: 'w4' }); else setData('ptf_crm_payables', lp);
         }
         sfSave(d);
       }

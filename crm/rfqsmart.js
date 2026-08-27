@@ -444,7 +444,7 @@
     if (!r) return;
     r.items[idx].assignedSups = r.items[idx].assignedSups || [];
     if (r.items[idx].assignedSups.indexOf(supCd) < 0) r.items[idx].assignedSups.push(supCd);
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     rfqsRefreshRowTags(no, idx);
   };
 
@@ -455,7 +455,7 @@
     var arr = r.items[idx].assignedSups || [];
     var pos = arr.indexOf(supCd);
     if (pos > -1) arr.splice(pos, 1);
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     rfqsRefreshRowTags(no, idx);
   };
 
@@ -495,7 +495,7 @@
     r.st = 'sent'; r.needsResend = false;
     (r.targets || []).forEach(function (t) { delete t.itemsChangedAfterSend; });
     r.priceCompareActive = true;
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     if (r.srcRfq) {
       var rfqs = getData('ptf_crm_rfqs');
       var parent = rfqs.filter(function(x){ return x.cd === r.srcRfq || x.inqNo === r.srcRfq; })[0];
@@ -523,7 +523,7 @@
       var list=getData('ptf_crm_rfqsmart'); var r=list.filter(function(x){return x.no===no;})[0]; if(!r) return;
       r.items[idx].quoteDelivery=r.items[idx].quoteDelivery||{};
       r.items[idx].quoteDelivery[supCd]=String(val||'').trim();
-      setData('ptf_crm_rfqsmart', list);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     } catch(e){}
   };
   window.rfqsUpdatePriceCompare = function(no, idx, supCd, val) {
@@ -544,7 +544,7 @@
       r.items[idx].bestBuyPrice = minP;
       r.items[idx].bestBuySup = bestSup;
     }
-    setData('ptf_crm_rfqsmart', list); /* داده لحظه‌ای ذخیره — رفرش وسط کار = بدون از دست رفتن */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list); /* داده لحظه‌ای ذخیره — رفرش وسط کار = بدون از دست رفتن */
     window._rfqsCmpDirty = no; /* برای دکمه ثبت */
   };
   /* v15.6 (US-387 ②): ذخیره ارز قیمت‌های جدول مقایسه */
@@ -553,7 +553,7 @@
     var r = list.filter(function (x) { return x.no === no; })[0];
     if (!r) return;
     r.quoteCur = cur;
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     if (typeof ptfToast === 'function') ptfToast('💱 ارز قیمت‌های خرید این استعلام: ' + cur, 'ok');
     rfqsRenderAccordion(no);
   };
@@ -621,7 +621,7 @@
     r.pricesCommittedAt = faDateTime();
     r.pricesCommittedBy = curSession().name;
     r.referenceAmbiguousCount = ambiguous.length;
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     window._rfqsCmpDirty = null;
     audit('استعلام هوشمند', 'ثبت قیمت‌های جدول مقایسه ' + no + ' (' + cnt + ' قیمت' + (updated ? '، مرجع ' + updated + ' کالا به‌روز' : '') + (added ? '، ' + added + ' کالای جدید ثبت' : '') + (ambiguous.length ? '، ' + ambiguous.length + ' تطبیق مبهم بدون تغییر' : '') + ')', no);
     if (typeof ptfToast === 'function') ptfToast('💾 ' + cnt + ' قیمت ثبت شد' + (updated ? ' — قیمت مرجع ' + updated + ' کالا به‌روزرسانی شد 💰' : '') + (added ? ' — ' + added + ' کالای جدید با قیمت مرجع به ماژول کالا اضافه شد 📦' : '') + (ambiguous.length ? ' — ⚠️ ' + ambiguous.length + ' قلم مبهم بود و مرجع آن‌ها تغییر نکرد' : ''), ambiguous.length ? 'warn' : 'ok');
@@ -808,7 +808,7 @@
         _st.attach = _st.attach || ref; /* سازگاری رکوردهای قدیمی */
       }
       var saved = getData('ptf_crm_rfqsmart') || [], hit = saved.filter(function (x) { return x.no === stateNo; })[0];
-      if (hit) { hit.attachments = hit.attachments || []; if (!hit.attachments.some(function (x) { return x.key === ref.key; })) hit.attachments.push(ref); hit.attach = hit.attach || ref; setData('ptf_crm_rfqsmart', saved); }
+      if (hit) { hit.attachments = hit.attachments || []; if (!hit.attachments.some(function (x) { return x.key === ref.key; })) hit.attachments.push(ref); hit.attach = hit.attach || ref; if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', saved, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', saved); }
     });
     if (typeof ptfToast === 'function') ptfToast('🤖 در حال خواندن «' + f.name + '» و استخراج اقلام...', 'info');
     window.ptfExtractRfqFileWithAi(f, function (err, result) {
@@ -1383,7 +1383,7 @@
     if (typeof ptfSupSpecLearn === 'function') { try { ptfSupSpecLearn(_st.items, targets, _st._ranked); } catch (eL) {} }
     delete _st._ranked; delete _st._sel; delete _st._duplicateApprovedSource; delete _st._originalTargets; delete _st._originalStatus; delete _st._editing; delete _st._recent; delete _st._tgQ; delete _st._tgOtherOpen;
     if (idx > -1) list[idx] = _st; else list.unshift(_st);
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     /* ساخت استعلام تامین برای RFQ ارجاع‌شده، کار «استعلام قیمت از تامین‌کننده» را می‌بندد. */
     try { if (_st.srcRfq && typeof window.ptfResolveRfqReferral === 'function') window.ptfResolveRfqReferral(_st.srcRfq, 'create_supplier_rfq'); } catch (eResolveTask) {}
     audit('استعلام هوشمند', (wasEditing ? 'اصلاح اقلام ' : 'ثبت ') + _st.no + ' با ' + _st.items.length + ' قلم و ' + targets.length + ' تامین‌کننده', _st.no);
@@ -1441,7 +1441,7 @@
     r.targets[ti].sends = r.targets[ti].sends || [];
     r.targets[ti].sends.push({ ch: ch, t: faDateTime(), by: curSession().name });
     r.st = 'sent'; r.needsResend = false; delete r.targets[ti].itemsChangedAfterSend;
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     audit('استعلام هوشمند', 'ارسال ' + ch + ' به ' + r.targets[ti].co, no);
     setTimeout(function () {
       var mds = document.querySelectorAll('.md-b');
@@ -1479,11 +1479,11 @@
     var t = r.targets[ti];
     t.st = 'replied';
     t.reply = { price: +price || 0, note: note, t: faDateTime() };
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     // اتصال به buyquotes (AC6)
     var bq = getData('ptf_crm_buyquotes');
     bq.unshift({ cd: genCode('BQ'), ref: no, sup: t.co, desc: (r.items[0] ? r.items[0].name : '') + (r.items.length > 1 ? ' و ' + (r.items.length - 1) + ' قلم دیگر' : ''), price: t.reply.price, t: faDate(), by: curSession().name, note: note });
-    setData('ptf_crm_buyquotes', bq);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_buyquotes', bq, { reason: 'w4' }); else setData('ptf_crm_buyquotes', bq);
     /* v13.7 (US-335): قیمت/میانگین قیمت‌های دریافتی → قیمت مرجع کالا در ماژول کالا (با قید تاریخ و منبع) */
     try { ptfUpdateRefPrices(r); } catch (e) {}
     audit('استعلام هوشمند', 'ثبت پاسخ ' + t.co + ' — ' + (+t.reply.price).toLocaleString('fa-IR') + ' ریال', no);
@@ -1497,14 +1497,14 @@
     var r = list.filter(function (x) { return x.no === no; })[0];
     if (!r) return;
     r.targets[ti].st = 'declined';
-    setData('ptf_crm_rfqsmart', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', list, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', list);
     var mds = document.querySelectorAll('.md-b');
     for (var _mj = mds.length - 1; _mj >= 0; _mj--) { if ((mds[_mj].style || {}).display !== 'none') { mds[_mj].remove(); break; } } rfqsOpen(no); /* v16.2 BUG-017 */
   };
 
   window.rfqsDel = function (no) {
     if (!confirm('استعلام ' + no + ' حذف شود؟')) return;
-    setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (x) { return x.no !== no; }));
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (x) { return x.no !== no; }), { reason: 'w4' }); else setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (x) { return x.no !== no; }));
     renderRfqSmart();
   };
 

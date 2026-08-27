@@ -148,7 +148,7 @@
       b.forEach(function (r) {
         if (r.mob) { var n = smsCanonicalMobile(r.mob); if (n && n !== r.mob) { r.mob = n; ch = true; } }
       });
-      if (ch) setData('ptf_crm_smsbook', b);
+      if (ch) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_smsbook', b, { reason: 'w4' }); else setData('ptf_crm_smsbook', b);
     } catch (e) {}
     return true;
   }

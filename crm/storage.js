@@ -1521,7 +1521,7 @@ window.ptfFinalCommitItems = function(inqNo) {
       no: toNo, kind: 'TO', rev: 0, inqNo: inqNo, buyerCd: rfq.custCd || '', buyerCo: rfq.co || '',
       dateFa: faDate(), dateEn: new Date().toISOString().slice(0,10), st: 'draft', items: toItems, terms: []
     });
-    setData('ptf_crm_offers', offers);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_offers', offers, { reason: 'w4' }); else setData('ptf_crm_offers', offers);
   }
 
   // 3. درج در سامانه هوشمند تامین RFQ Smart (US-213 AC2)
@@ -1534,7 +1534,7 @@ window.ptfFinalCommitItems = function(inqNo) {
   } else {
     existingRfqs.items = smartItems;
   }
-  setData('ptf_crm_rfqsmart', rfqsList);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqsmart', rfqsList, { reason: 'w4' }); else setData('ptf_crm_rfqsmart', rfqsList);
 
   var md = document.getElementById('ptfCommitModal');
   if (md) md.remove();

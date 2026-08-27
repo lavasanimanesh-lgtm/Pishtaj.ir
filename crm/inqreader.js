@@ -54,7 +54,7 @@
               var effective = st.adminHash || (typeof ADMIN_HASH !== 'undefined' ? ADMIN_HASH : '');
               if (curH !== effective) { alert('❌ رمز فعلی اشتباه است'); return; }
               st.adminHash = newH;
-              setData('ptf_crm_settings', st);
+              if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st);
             } else {
               var users = getData('ptf_crm_users');
               var u = users.filter(function (x) { return x.username === me; })[0];
@@ -62,7 +62,7 @@
               if (u.passhash !== curH) { alert('❌ رمز فعلی اشتباه است'); return; }
               u.passhash = newH;
               delete u.mustChangePass; /* v14.5 (US-376): رمز موقت تغییر کرد — الزام برداشته شد */
-              setData('ptf_crm_users', users);
+              if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_users', users, { reason: 'w4' }); else setData('ptf_crm_users', users);
               if (typeof usersSyncToServer === 'function') usersSyncToServer(); // ورود از همه دستگاه‌ها
             }
             audit('کاربران', 'تغییر رمز عبور توسط خود کاربر', me);
@@ -452,7 +452,7 @@
   function irClearReadSnapshots(aliases) {
     var all = getData('ptf_crm_inqreads');
     var kept = all.filter(function (x) { return !irAliasMatch(x, aliases); });
-    if (kept.length !== all.length) setData('ptf_crm_inqreads', kept);
+    if (kept.length !== all.length) if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqreads', kept, { reason: 'w4' }); else setData('ptf_crm_inqreads', kept);
     return all.length - kept.length;
   }
 
@@ -1134,7 +1134,7 @@
     var list = getData('ptf_crm_inqreads').filter(function (x) { return !irAliasMatch(x, aliases); });
     /* child data با RFQ داخلی ذخیره می‌شود؛ شماره کارفرما صرفاً برای نمایش نگهداری می‌شود. */
     list.unshift({ cd: _ir.cd, inqNo: _ir.dataKey || _ir.cd, customerInqNo: _ir.inqNo || '', rows: _ir.rows, t: faDate(), by: curSession().name });
-    setData('ptf_crm_inqreads', list);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_inqreads', list, { reason: 'w4' }); else setData('ptf_crm_inqreads', list);
     if (typeof window.ptfAutoRegisterSummaryProducts === 'function' && _ir.rows) {
       window.ptfAutoRegisterSummaryProducts(_ir.dataKey || _ir.cd, _ir.rows);
     }
