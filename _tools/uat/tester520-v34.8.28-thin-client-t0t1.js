@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester520 — v34.8.27 (T0/T1 قراردادهای رودمپ نازک‌سازی):
+/* tester520 — v34.8.28 (T0/T1 قراردادهای رودمپ نازک‌سازی):
    T0-1 قاعدهٔ A10 (بایپس localStorage) + T0-2 قاعدهٔ A11 (تطابق رجیستری) +
    T0-5 رجیستری واحد کلیدها + T1-2 دسته‌بند پیام فرمان + T1-3 sanitizer نرم. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -12,7 +12,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 /* ---------- T0-1/T0-2: قوانین جدید arch-guard ---------- */
 var guard = read('_tools/arch/arch-guard.js');
 T('قاعدهٔ A10 (بایپس localStorage) تعریف شده', /ruleA10/.test(guard) && /A10:\s*\{\s*blocking:\s*true/.test(guard));
-T('A10 فهرست‌سفید لایهٔ داده دارد', /WHITELIST\s*=\s*\['client-server\.js',\s*'storage-quota\.js',\s*'sync\.js',\s*'storage\.js',\s*'backup\.js',\s*'rbac\.js'\]/.test(guard));
+T('A10 فهرست‌سفید لایهٔ داده دارد', /WHITELIST\s*=\s*\['client-server\.js',\s*'storage-quota\.js',\s*'sync\.js',\s*'storage\.js',\s*'backup\.js',\s*'rbac\.js'/.test(guard)); /* v34.8.28: +cheque-print (فلگ‌های رسانه) مجاز */
 T('قاعدهٔ A11 (تطابق رجیستری) تعریف شده', /ruleA11/.test(guard) && /A11:\s*\{\s*blocking:\s*true/.test(guard));
 T('A11 فقط بدنهٔ sd_entity_registry را می‌خواند', /function sd_entity_registry\\s\*\\\(\\\s\*\\\)[\s\S]*?sd_entity_registry\\s\*\\\(/.test(guard) || /sd_entity_registry\\s*\\\(\\\s*\\\)/.test(guard) || /var fn = serverSrc\.match\(\/function sd_entity_registry/.test(guard));
 
@@ -77,12 +77,12 @@ T('فیلد null حفظ می‌شود', /\$out\[\$k\] = null; \$n\+\+; \$stats\[
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.8.27', ver.crm_version === 'v34.8.27', ver.crm_version);
+T('VERSION.json = v34.8.28', ver.crm_version === 'v34.8.28', ver.crm_version);
 var idx = read('crm/index.html');
-T('نسخهٔ UI = v34.8.27', /window\.PTF_CRM_RELEASE = 'v34\.8\.27'/.test(idx));
+T('نسخهٔ UI = v34.8.28', /window\.PTF_CRM_RELEASE = 'v34\.8\.28'/.test(idx));
 var swv = read('crm/sw.js');
-T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.8\.27'/.test(swv) && idx.indexOf('?v=34.8.27') > -1);
+T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.8\.28'/.test(swv) && idx.indexOf('?v=34.8.28') > -1);
 
-console.log('\n— tester520 (v34.8.27: T0/T1 thin-client contracts) —');
+console.log('\n— tester520 (v34.8.28: T0/T1 thin-client contracts) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

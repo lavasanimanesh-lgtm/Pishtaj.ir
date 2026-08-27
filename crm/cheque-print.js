@@ -614,9 +614,31 @@
             ctx.drawImage(img, 0, 0, w, h);
             var dataUrl = cv.toDataURL('image/jpeg', 0.82);
             if (dataUrl.length > 3.5 * 1048576) { alert('حجم تصویر پس از فشرده‌سازی زیاد است — تصویر با وضوح کمتر انتخاب کنید'); return; }
-            try { localStorage.setItem('ptf_chqprint_bg', dataUrl); } catch (eS) { alert('ذخیره تصویر در مرورگر ممکن نشد — تصویر کوچک‌تری انتخاب کنید'); return; }
+            try { localStorage.setItem('ptf_chqprint_bg', dataUrl); } catch (eS) { /* LS پر — فقط ابری */ }
             window.chqGvRender();
             if (typeof window.ptfToast === 'function') window.ptfToast('✅ اسکن برگه چک در پس‌زمینه قرار گرفت — فیلدها را روی آن بکشید', 'ok');
+            /* v34.8.28 (T4-3): نسخهٔ ابری — dataURL به Blob → uploadFile (آروان)؛
+               پس از ACK، base64 از localStorage آزاد می‌شود (پایان نشستن ~MBها در LS). */
+            try {
+              var bin = atob(dataUrl.split(',')[1]);
+              var buf = new Uint8Array(bin.length);
+              for (var bi = 0; bi < bin.length; bi++) buf[bi] = bin.charCodeAt(bi);
+              var blob = new Blob([buf], { type: 'image/jpeg' });
+              blob.name = 'chqprint-bg-' + (curSession ? (curSession().user || 'user') : 'user') + '-' + Date.now() + '.jpg';
+              if (typeof uploadFile === 'function') {
+                uploadFile(blob, 'chqprint', function (up) {
+                  if (up && up.ok && up.key) {
+                    try {
+                      var cfg = JSON.parse(localStorage.getItem('ptf_chqprint_cloud') || '{}');
+                      cfg.key = up.key; cfg.at = new Date().toISOString();
+                      localStorage.setItem('ptf_chqprint_cloud', JSON.stringify(cfg));
+                      localStorage.removeItem('ptf_chqprint_bg'); /* نسخهٔ ابری مرجع؛ رندر از URL ابری */
+                      if (typeof window.ptfToast === 'function') window.ptfToast('☁️ اسکن چک در فضای ابری ذخیره شد', 'ok');
+                    } catch (eC) {}
+                  }
+                });
+              }
+            } catch (eUp) {}
           } catch (eC) { alert('پردازش تصویر ممکن نشد'); }
         };
         img.onerror = function () { alert('خواندن تصویر ممکن نشد'); };
@@ -653,6 +675,26 @@
     var wPx = Math.round(L.pageW * scale), hPx = Math.round(L.pageH * scale);
     var bg = '';
     try { bg = localStorage.getItem('ptf_chqprint_bg') || ''; } catch (eB) {}
+    /* v34.8.28 (T4-3): نسخهٔ ابری مرجع است — اگر LS نداریم ولی کلید ابری داریم،
+       URL امضاشده async گرفته و رندر دوباره می‌شود (یک بار در هر باز شدن). */
+    if (!bg) {
+      try {
+        var cfgC = JSON.parse(localStorage.getItem('ptf_chqprint_cloud') || 'null');
+        if (cfgC && cfgC.key && !window._chqCloudBgLoading) {
+          window._chqCloudBgLoading = true;
+          if (typeof ptfStorageAuthHeaders === 'function') {
+            fetch('../api/storage.php?action=presign_get', {
+              method: 'POST', headers: ptfStorageAuthHeaders(true),
+              body: JSON.stringify({ key: cfgC.key, disposition: 'inline' })
+            }).then(function (r) { return r.json(); }).then(function (d) {
+              window._chqCloudBgLoading = false;
+              if (d && d.ok && d.url) { window._chqCloudBgUrl = d.url; window.chqGvRender(); }
+            }).catch(function () { window._chqCloudBgLoading = false; });
+          }
+        }
+      } catch (eC2) {}
+    }
+    if (!bg && window._chqCloudBgUrl) bg = window._chqCloudBgUrl;
     box.innerHTML =
       '<div style="position:relative;width:' + wPx + 'px;height:' + hPx + 'px;border:2px solid #94a3b8;border-radius:8px;background:#fff;margin:0 auto;overflow:hidden;' + (bg ? 'background-image:url(\'' + bg + '\');background-size:100% 100%;background-repeat:no-repeat;' : '') + '">' +
       (bg ? '' : '<div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent ' + (10 * scale - 1) + 'px,rgba(14,165,233,.12) ' + (10 * scale) + 'px),repeating-linear-gradient(90deg,transparent,transparent ' + (10 * scale - 1) + 'px,rgba(14,165,233,.12) ' + (10 * scale) + 'px);pointer-events:none"></div>') +

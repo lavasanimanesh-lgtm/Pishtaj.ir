@@ -2182,6 +2182,11 @@ switch($action) {
             $info = auth_verify_token($logoutToken);
             if ($info) auth_revoke_token($logoutToken);
         }
+        /* v34.8.28 (T4-1a): کوکی نشست هم هنگام خروج پاک می‌شود */
+        if (isset($_COOKIE['ptf_token'])) {
+            setcookie('ptf_token', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'), 'httponly' => true, 'samesite' => 'Strict']);
+            unset($_COOKIE['ptf_token']);
+        }
         echo json_encode(['ok' => true, 'revoked' => $logoutToken !== '']);
         break;
 
@@ -2267,6 +2272,9 @@ switch($action) {
             echo json_encode(['ok' => false, 'error' => 'token_issue_failed']);
             break;
         }
+        /* v34.8.28 (T4-1a COOKIE-AUTH): نشست روی کوکی HttpOnly هم می‌نشیند — کلاینت
+           بدون خواندن JS توکن هم احراز می‌شود (fallback هدر باقی است برای سازگاری). */
+        auth_emit_session_cookie($token, ($role === 'accountant') ? 8 * 3600 : 24 * 3600); /* S5 */
         echo json_encode(['ok' => true, 'token' => $token, 'role' => $role, 'user' => $found['username'], 'name' => $found['name'] ?? $found['username']], JSON_UNESCAPED_UNICODE);
         break;
 

@@ -81,7 +81,11 @@ function auth_generate_token($username, $role) {
     $secret = auth_secret();
     if (strlen($secret) < 32) return false;
     $now = time();
-    $exp = $now + 86400 * 7;
+    /* v34.8.28 (T4-2 / S5 تأیید کارفرما): TTL نشست ۷ روز → ۲۴ ساعت؛ نقش مالی
+       (accountant) ۸ ساعت. کوتاه‌سازی سطح حملهٔ توکن مسروقه. */
+    $roleL = strtolower(trim((string)$role));
+    $ttl = ($roleL === 'accountant') ? 8 * 3600 : 24 * 3600; /* accountant=8h, others=24h (S5) */
+    $exp = $now + $ttl;
     $payload = trim((string)$username) . '|' . trim((string)$role) . '|' . $now . '|' . bin2hex(random_bytes(16));
     $signature = hash_hmac('sha256', $payload, $secret);
     $token = rtrim(strtr(base64_encode($payload . '|' . $signature), '+/', '-_'), '=');
@@ -143,5 +147,26 @@ function auth_get_header_token() {
     $headers = function_exists('getallheaders') ? getallheaders() : [];
     $token = $headers['X-CRM-Token'] ?? $headers['x-crm-token'] ?? $_SERVER['HTTP_X_CRM_TOKEN'] ?? '';
     if (is_array($token)) $token = $token[0] ?? '';
-    return trim((string)$token);
+    $token = trim((string)$token);
+    /* v34.8.28 (T4-1a COOKIE-AUTH): fallback کوکی HttpOnly — پایهٔ مهاجرت «کلاینت
+       بدون توکن». اولویت با هدر (سازگاری عقب)؛ نبودِ هدر (مثلاً دانلود مستقیم
+       پیوست در tab جدید یا LS پاک‌شده) → کوکی. */
+    if ($token === '' && isset($_COOKIE['ptf_token'])) $token = trim((string)$_COOKIE['ptf_token']);
+    return $token;
+}
+/* v34.8.28 (T4-1a): صدور کوکی HttpOnly برای توکن نشست — JS هرگز آن را نمی‌خواند.
+   Secure روی HTTPS خودکار می‌شود؛ SameSite=Strict مسیر CSRF را می‌بندد. */
+function auth_emit_session_cookie($token, $ttl = 24 * 3600) {
+    if (!is_string($token) || $token === '') return false;
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+        || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+    setcookie('ptf_token', $token, [
+        'expires' => time() + $ttl,
+        'path' => '/',
+        'secure' => (bool)$secure,
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
+    return true;
 }

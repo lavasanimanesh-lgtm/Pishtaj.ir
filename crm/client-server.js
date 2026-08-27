@@ -165,13 +165,20 @@
     var n = 0;
     function done() { if (++n >= list.length) {
       try { if (typeof addLog === 'function') addLog('🧊 آینهٔ خالدار فعال شد — ' + list.length + ' کلید سنگین به IndexedDB منتقل شد تا localStorage سبک بماند'); } catch (eL) {}
+      /* v34.8.28 (T3-2 COLD-BOOT-RACE): اگر در همین بوت کلیدی جابه‌جا شده، نماهای
+         رندرشده پیش از آب‌رسانی ممکن است [] دیده باشند — یک رندر قطعی پس از اتمام. */
+      if (movedAny && typeof window.ptfScheduleDataRefresh === 'function') {
+        try { window.ptfScheduleDataRefresh('__cold_boot__'); } catch (eR) {}
+      }
       cb && cb();
     } }
+    var movedAny = false;
     list.forEach(function (k) {
       idbKnown[k] = 1;
       var local = null;
       try { local = localStorage.getItem(k); } catch (e) {}
       if (local !== null) {
+        movedAny = true;
         idbMem[k] = local;
         try { localStorage.removeItem(k); } catch (e2) {}
         try { window.ptfStorageIdbSet(idbPrefix() + k, local, done); } catch (e3) { done(); }

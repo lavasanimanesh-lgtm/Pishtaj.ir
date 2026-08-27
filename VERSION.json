@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.27",
+  "crm_version": "v34.8.28",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-27",
-  "updated_by": "Arena Agent (v34.8.27 — W4: تکمیل کامل، ۴۱ کلید فرمان‌محور)"
+  "updated_by": "Arena Agent (v34.8.28 — T4: کوکی HttpOnly + TTL 24/8 + اسکن چک→S3؛ T3-2: رندر سردبوت)"
 }

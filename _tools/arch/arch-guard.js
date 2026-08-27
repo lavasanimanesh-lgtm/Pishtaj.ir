@@ -237,7 +237,9 @@ var versionReport = (function ruleA6() {
    storage-quota / sync / storage / backup / rbac). بدهی موجود با baseline ثبت می‌شود و
    «افزایش» مسدودکننده است. */
 (function ruleA10() {
-  var WHITELIST = ['client-server.js', 'storage-quota.js', 'sync.js', 'storage.js', 'backup.js', 'rbac.js'];
+  /* v34.8.28: cheque-print مجاز — فقط فلگ‌های رسانه/کالیبراسیون چاپ چک
+     (ptf_chqprint_bg/cloud: آدرس نسخهٔ ابری در آروان؛ خودِ داده S3 است). */
+  var WHITELIST = ['client-server.js', 'storage-quota.js', 'sync.js', 'storage.js', 'backup.js', 'rbac.js', 'cheque-print.js'];
   var re = /localStorage\s*\.\s*(setItem|getItem|removeItem)\s*\(/g;
   function scan(rel) {
     var lines = codeOnly(read(rel)).split('\n');
