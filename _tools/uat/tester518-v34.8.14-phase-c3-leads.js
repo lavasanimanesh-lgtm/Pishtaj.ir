@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.20 — PHASE-C3 گام۱: تکمیل یادآورها (ثبت) + مهاجرت سرنخ‌ها به فرمان سروری.
+/* v34.8.21 — PHASE-C3 گام۱: تکمیل یادآورها (ثبت) + مهاجرت سرنخ‌ها به فرمان سروری.
    - addReminder → entity_upsert (ماژول یادآور کامل شد: ثبت/انجام/تعویق/حذف)
    - ptf_crm_leads در رجیستری + SD_KEYS + پرچم کلاینت
    - saveLead/ptfLeadDelDo → entity_upsert/entity_delete با fallback legacy
@@ -16,14 +16,14 @@ var api = read('api/sales-domain.php');
 var v2 = read('crm/sales-domain-v2.js');
 var leads = read('crm/leads.js');
 
-T('VERSION.json = v34.8.20', ver.crm_version === 'v34.8.20', ver.crm_version);
+T('VERSION.json = v34.8.21', ver.crm_version === 'v34.8.21', ver.crm_version);
 
 /* ---------- سرور ---------- */
 T('ptf_crm_leads در رجیستری موجودیت', /'ptf_crm_leads' => \[/.test(api));
 T('ptf_crm_leads در SD_KEYS', new RegExp("'ptf_crm_reminders'\\s*,\\s*'ptf_crm_le").test(api));
 T('sanitizer لیست اسکالر را نگه می‌دارد', /is_string\(\$item\)\) \{ \$list\[\] = sd_text\(\$item, 300\)/.test(api));
 T('sanitizer لیست نقشهٔ اسکالر (hist) را نگه می‌دارد', /subItem\[\$k3\] = \$storedSub;/.test(api));
-T('SD_SERVICE_VERSION = 34.8.20', /SD_SERVICE_VERSION = '34\.8\.20'/.test(api));
+T('SD_SERVICE_VERSION = 34.8.21', /SD_SERVICE_VERSION = '34\.8\.21'/.test(api));
 
 /* ---------- کلاینت ---------- */
 T('پرچم سرنخ‌ها فعال شد', /'ptf_crm_leads': true \}/.test(v2));
@@ -63,6 +63,6 @@ T('مسیرهای fallback legacy حفظ شده‌اند', (leads.match(/else se
   T('شبیه‌سازی: فیلدهای عددی/رشته‌ای دست‌نخورده', out.val === 5000000 && out.co === 'شرکت نمونه');
 })();
 
-console.log('\n— tester518 (v34.8.20: PHASE-C3 گام۱ — یادآور کامل + سرنخ‌ها) —');
+console.log('\n— tester518 (v34.8.21: PHASE-C3 گام۱ — یادآور کامل + سرنخ‌ها) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

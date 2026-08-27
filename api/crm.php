@@ -377,7 +377,11 @@ function sync_allowed_keys_for_role($role) {
    ACK می‌شود و سپر داده‌صفر آن را رد نمی‌کند (incoming خالی، ردیف‌های سرور را نگه
    می‌دارد و پاک‌سازی حساب نمی‌شود). */
 function sync_shared_union_key($key) {
-    return in_array($key, ['ptf_crm_audit','ptf_crm_avatars'], true);
+    /* v34.8.21 (NOTIFS-UNION): notifs هم اضافه شد — گزارش ۱۴۰۵/۰۶/۰۵: نوار زرد پایدار
+       [notifs]. ریشه: notifs از مسیر base-merge معمولی می‌رفت؛ فرم ذخیره‌شدهٔ سرور با
+       فرم کانونیکال ptfSmartMerge کلاینت (dedupe cd + مرتب‌سازی iso نزولی) هرگز برابر
+       نمی‌شد ⇒ چرخهٔ بی‌پایان conflict/dirty. union صادقانه مثل audit/avatars. */
+    return in_array($key, ['ptf_crm_audit','ptf_crm_avatars','ptf_crm_notifs'], true);
 }
 function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
     $inc = json_decode((string)$incomingJson, true);
@@ -413,6 +417,53 @@ function sync_union_merge_shared_key($key, $incomingJson, $serverJson) {
             $out[$u] = $winner;
         }
         return json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+    if ($key === 'ptf_crm_notifs') {
+        /* v34.8.21 (NOTIFS-UNION): merge کانونیکال — دقیقاً همان قرارداد ptfSmartMerge
+           کلاینت: dedupe با cd، اتحاد readBy/done، repeat بزرگ‌تر برنده، dedupe ارجاع با
+           dkey، مرتب‌سازی نزولی iso. خروجی سرور == خروجی کلاینت ⇒ ACK صادقانه، dirty پاک،
+           pull بدون تغییر کاذب. */
+        $byCd = [];
+        foreach ($srv as $row) { if (is_array($row) && isset($row['cd'])) $byCd[$row['cd']] = $row; }
+        foreach ($inc as $row) {
+            if (!is_array($row) || !isset($row['cd'])) continue;
+            $cd = $row['cd'];
+            if (!isset($byCd[$cd])) { $byCd[$cd] = $row; continue; }
+            $ex = $byCd[$cd];
+            $rb = [];
+            foreach ((isset($ex['readBy']) && is_array($ex['readBy']) ? $ex['readBy'] : []) as $u) { if ($u) $rb[$u] = 1; }
+            foreach ((isset($row['readBy']) && is_array($row['readBy']) ? $row['readBy'] : []) as $u) { if ($u) $rb[$u] = 1; }
+            $ex['readBy'] = array_values(array_keys($rb));
+            $ex['done'] = !empty($ex['done']) || !empty($row['done']);
+            $ir = isset($row['repeat']) ? $row['repeat'] : 1; $xr = isset($ex['repeat']) ? $ex['repeat'] : 1;
+            if ($ir > $xr) {
+                $ex['repeat'] = $ir;
+                $ex['lastT'] = isset($row['lastT']) ? $row['lastT'] : (isset($ex['lastT']) ? $ex['lastT'] : '');
+                $ex['lastISO'] = isset($row['lastISO']) ? $row['lastISO'] : (isset($ex['lastISO']) ? $ex['lastISO'] : '');
+            }
+            $byCd[$cd] = $ex;
+        }
+        $nOut = array_values($byCd);
+        $byTask = []; $nDedup = [];
+        foreach ($nOut as $item) {
+            $dk = (string)(isset($item['dkey']) ? $item['dkey'] : '');
+            $isRef = (isset($item['kind']) && $item['kind'] === 'referral') && preg_match('/^referral\|/', $dk);
+            if (!$isRef || !isset($byTask[$dk])) { if ($isRef) $byTask[$dk] = $item; $nDedup[] = $item; continue; }
+            $keep = $byTask[$dk];
+            $rb2 = [];
+            foreach ((isset($keep['readBy']) && is_array($keep['readBy']) ? $keep['readBy'] : []) as $u) { if ($u) $rb2[$u] = 1; }
+            foreach ((isset($item['readBy']) && is_array($item['readBy']) ? $item['readBy'] : []) as $u) { if ($u) $rb2[$u] = 1; }
+            $keep['readBy'] = array_values(array_keys($rb2));
+            $keep['done'] = !empty($keep['done']) || !empty($item['done']);
+            $iIso = (string)(isset($item['iso']) ? $item['iso'] : ''); $kIso = (string)(isset($keep['iso']) ? $keep['iso'] : '');
+            if ($iIso !== '' && ($kIso === '' || $iIso < $kIso)) { $keep['t'] = isset($item['t']) ? $item['t'] : ''; $keep['iso'] = $item['iso']; }
+            $byTask[$dk] = $keep;
+        }
+        /* v34.8.21: ترتیب دقیق کلاینت — dedupe ارجاع «قبل از» sort (بازمانده = رکورد
+           سرور، به ترتیب درج)؛ sort نزولی iso در انتها. */
+        usort($nDedup, function ($a, $b) { return strcmp((string)(isset($b['iso']) ? $b['iso'] : ''), (string)(isset($a['iso']) ? $a['iso'] : '')); });
+        if (count($nDedup) > 4000) $nDedup = array_slice($nDedup, 0, 4000);
+        return json_encode($nDedup, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
     $seen = [];
     $out = [];

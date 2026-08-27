@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester520 — v34.8.20 (T0/T1 قراردادهای رودمپ نازک‌سازی):
+/* tester520 — v34.8.21 (T0/T1 قراردادهای رودمپ نازک‌سازی):
    T0-1 قاعدهٔ A10 (بایپس localStorage) + T0-2 قاعدهٔ A11 (تطابق رجیستری) +
    T0-5 رجیستری واحد کلیدها + T1-2 دسته‌بند پیام فرمان + T1-3 sanitizer نرم. */
 var fs = require('fs'), path = require('path'), vm = require('vm');
@@ -77,12 +77,12 @@ T('فیلد null حفظ می‌شود', /\$out\[\$k\] = null; \$n\+\+; \$stats\[
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.8.20', ver.crm_version === 'v34.8.20', ver.crm_version);
+T('VERSION.json = v34.8.21', ver.crm_version === 'v34.8.21', ver.crm_version);
 var idx = read('crm/index.html');
-T('نسخهٔ UI = v34.8.20', /window\.PTF_CRM_RELEASE = 'v34\.8\.20'/.test(idx));
+T('نسخهٔ UI = v34.8.21', /window\.PTF_CRM_RELEASE = 'v34\.8\.21'/.test(idx));
 var swv = read('crm/sw.js');
-T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.8\.20'/.test(swv) && idx.indexOf('?v=34.8.20') > -1);
+T('قرارداد sw/index هم‌نسخه', /CACHE = 'ptf-crm-v34\.8\.21'/.test(swv) && idx.indexOf('?v=34.8.21') > -1);
 
-console.log('\n— tester520 (v34.8.20: T0/T1 thin-client contracts) —');
+console.log('\n— tester520 (v34.8.21: T0/T1 thin-client contracts) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
