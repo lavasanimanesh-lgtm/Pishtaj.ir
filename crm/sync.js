@@ -1496,11 +1496,17 @@
       } else if (dirtyCount > 0) {
         banner.style.display = 'flex';
         banner.style.background = '#f59e0b'; banner.style.color = '#1e293b';
+        /* v34.8.19 (YELLOW-BAR-DIAG): تشخیص درجا — کدام کلیدها گیر کرده‌اند + آخرین خطای sync.
+           تا امروز بنر فقط «تعداد» می‌داد؛ گزارش کارفرما قابل‌پیگیری نبود. */
+        var dkeys = Object.keys(state.dirty).map(function (k) { return k.replace('ptf_crm_', ''); }).slice(0, 6).join('، ') + (dirtyCount > 6 ? '…' : '');
+        var le = null;
+        try { le = JSON.parse(localStorage.getItem('ptf_sync_last_error') || 'null'); } catch (eLe) {}
+        var leTxt = (le && le.fa) ? (' — آخرین خطا: ' + (le.reason || le.detail || le.scope || 'نامشخص') + ' (' + le.fa + ')') : '';
         var msg = st === 'forbidden'
-          ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد')
+          ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد [' + dkeys + ']')
           : st === 'offline'
-            ? ('🔴 ' + dirtyCount + ' تغییر آفلاین — تب را نبندید تا وصل شود')
-            : ('🟡 ' + dirtyCount + ' تغییر هنوز به سرور نرسیده — تب را نبندید تا نشانگر همگام سبز شود');
+            ? ('🔴 ' + dirtyCount + ' تغییر آفلاین — تب را نبندید تا وصل شود [' + dkeys + ']')
+            : ('🟡 ' + dirtyCount + ' تغییر هنوز به سرور نرسیده — تب را نبندید تا نشانگر همگام سبز شود [' + dkeys + ']' + leTxt);
         banner.innerHTML = '<span style="flex:1">' + msg + '</span>';
       } else {
         banner.style.display = 'none';

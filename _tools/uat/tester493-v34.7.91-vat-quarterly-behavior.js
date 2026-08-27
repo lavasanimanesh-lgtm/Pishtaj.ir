@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.18 — تست رفتاری «ارزش افزوده فصلی» (VAT-LEDGER-002).
+/* v34.8.19 — تست رفتاری «ارزش افزوده فصلی» (VAT-LEDGER-002).
    با دادهٔ مصنوعی، هستهٔ محاسبه (ptfVatCalcSeason / ptfVatState) را اجرا می‌کند:
    - بدهی VAT فروش رسمی + اعتبار VAT خرید واقعی/پوششی
    - کارمزد فاکتورساز در VAT وارد نمی‌شود
@@ -19,8 +19,8 @@ var idx = read('crm/index.html');
 var shared = read('crm/vat-shared.js');
 var q = read('crm/vat-quarterly.js');
 
-T('VERSION.json = v34.8.18', ver.crm_version === 'v34.8.18', ver.crm_version);
-T('vat-quarterly.js cache-bust 34.8.18', /vat-quarterly\.js\?v=34\.8\.18/.test(idx));
+T('VERSION.json = v34.8.19', ver.crm_version === 'v34.8.19', ver.crm_version);
+T('vat-quarterly.js cache-bust 34.8.19', /vat-quarterly\.js\?v=34\.8\.19/.test(idx));
 T('توابع خالص export شده‌اند', /window\.ptfVatCalcSeason = calc/.test(q) && /window\.ptfVatState = stateFor/.test(q));
 
 /* ---------- sandbox ---------- */
@@ -118,6 +118,6 @@ T('D: بدون داده فصل → صفر', s4.cur.salesVat === 0 && s4.cur.purc
 
 T('tester493 در گیت CI', read('_tools/uat/run-ci-gate.js').indexOf('tester493-v34.7.91-vat-quarterly-behavior.js') > -1);
 
-console.log('\n— tester493 (v34.8.18: رفتار ارزش افزوده فصلی — VAT-LEDGER-002) —');
+console.log('\n— tester493 (v34.8.19: رفتار ارزش افزوده فصلی — VAT-LEDGER-002) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
