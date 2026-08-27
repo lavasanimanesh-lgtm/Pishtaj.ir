@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.28 — چت هوشمند ارتقایافته.
+/* v34.8.29 — چت هوشمند ارتقایافته.
    قرارداد: (۱) وضعیت درخواست/سفارش داخل چت از track خوانده می‌شود (بدون توکن)؛
    (۲) سهمیهٔ توکن مجزای چت عمومی (ptf_chat_public_quota.json) — نه ai_quota.json؛
    (۳) RAG از search-index.json + چندزبانه fa/en/ar؛ (۴) «ارسال به کارشناس» → chat_lead
@@ -17,7 +17,7 @@ var llm = read('api/chat-llm.php');
 var crm = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.28', ver.crm_version === 'v34.8.28', ver.crm_version);
+T('VERSION.json = v34.8.29', ver.crm_version === 'v34.8.29', ver.crm_version);
 
 /* سهمیهٔ توکن مجزای چت عمومی */
 T('سهمیهٔ جدا (ptf_chat_public_quota.json)', llm.indexOf('ptf_chat_public_quota.json') > -1);
@@ -49,6 +49,6 @@ T('مراحل عمومی سفارش بدون مبلغ', crm.indexOf("'won' => '�
 
 T('tester469 در گیت CI', gate.indexOf('tester469-v34.7.67-smart-chat.js') > -1);
 
-console.log('\n— tester469 (v34.8.28: چت هوشمند ارتقایافته) —');
+console.log('\n— tester469 (v34.8.29: چت هوشمند ارتقایافته) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

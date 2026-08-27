@@ -11,7 +11,21 @@
 
   /* ============ US-327: چک‌های صادره ============ */
   function chPersonalKey(){ return 'ptf_personal_cheques_' + ((curSession()||{}).user||'_'); }
-  function chPersonalAll(){ try{return JSON.parse(localStorage.getItem(chPersonalKey())||'[]')}catch(e){return[]} }
+  /* v34.8.29 (T5-2): چک‌های شخصی دیگر فقط-دستگاه نیستند — کلید سینک‌شوندهٔ مشترک
+     `ptf_crm_personal_cheques` (SYNC_KEYS + رجیستری فرمانی). مهاجرت یک‌باره در بوت
+     همهٔ ptf_personal_cheques_<user>های همین مرورگر را ادغام و legacy را پاک می‌کند. */
+  var CH_SHARED_KEY = 'ptf_crm_personal_cheques';
+  function chSharedRead(){ try { var v = getData(CH_SHARED_KEY); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+  function chSharedWrite(arr){ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(CH_SHARED_KEY, arr, { reason: 'w4' }); else setData(CH_SHARED_KEY, arr); }
+  function chPersonalAll(){
+    var shared = chSharedRead().filter(function (c) { return c && c.by === ((curSession()||{}).user||'_'); });
+    var legacy = [];
+    try { legacy = JSON.parse(localStorage.getItem(chPersonalKey())||'[]'); } catch (e) {}
+    /* رکوردهای legacy که هنوز در مشترک نیستند (در انتظار مهاجرت بوت) هم دیده شوند */
+    var cds = {}; shared.forEach(function (c) { if (c && c.cd) cds[c.cd] = 1; });
+    legacy.forEach(function (c) { if (c && c.cd && !cds[c.cd]) shared.push(c); });
+    return shared;
+  }
   // v31.7.4 BUG-AUDIT-007 FIXED: Add ownership filter to prevent personal cheques from leaking into company reports
   function chAll() { 
     /* CHQ-MOD-001: اگر ماژول مستقل چک موجود است، نمای یکپارچه (issued+received+legacy) خوانده می‌شود.
@@ -80,8 +94,47 @@
     }
     if (typeof window.ptfChequeReplaceCompany === 'function') window.ptfChequeReplaceCompany(company);
     else setData(K, company);
-    try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }
+    /* v34.8.29 (T5-2): merge در کلید مشترک — رکوردهای این کاربر جایگزین، بقیه دست‌نخورده */
+    var sharedNow = chSharedRead();
+    var mineCd = {}; mine.forEach(function (c) { if (c && c.cd) mineCd[c.cd] = 1; });
+    var mergedShared = sharedNow.filter(function (c) { return !c || c.by !== ((curSession()||{}).user||'_') || mineCd[c.cd]; });
+    mine.forEach(function (c) { if (c && c.cd && !mineCd[c.cd]) { mergedShared.push(c); mineCd[c.cd] = 1; } });
+    chSharedWrite(mergedShared);
+    try{localStorage.removeItem(chPersonalKey());}catch(e){} }
 
+  /* v34.8.29 (T5-2): مهاجرت یک‌باره — همهٔ ptf_personal_cheques_<user>های LS
+     → کلید مشترک سینک‌شونده (dedupe بر cd) → پس از ACK، legacy پاک.
+     ackCb پاسخ فرمان را می‌گیرد؛ فقط بعد از ACK کلیدهای legacy حذف می‌شوند. */
+  window.chMigratePersonalToShared = function (ackCb) {
+    var all = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (String(k || '').indexOf('ptf_personal_cheques_') !== 0) continue;
+        var arr = [];
+        try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch (eP) {}
+        (Array.isArray(arr) ? arr : []).forEach(function (c) { if (c && c.cd) all.push(c); });
+      }
+    } catch (eScan) {}
+    if (!all.length) { if (typeof ackCb === 'function') ackCb({ moved: 0 }); return; }
+    var shared = chSharedRead();
+    var cdSet = {}; shared.forEach(function (c) { if (c && c.cd) cdSet[c.cd] = 1; });
+    var added = 0;
+    all.forEach(function (c) { if (!cdSet[c.cd]) { shared.push(c); cdSet[c.cd] = 1; added++; } });
+    if (window.ptfEntitySaveCollection) {
+      window.ptfEntitySaveCollection(CH_SHARED_KEY, shared, { reason: 'personal-cheques-migrate', cb: function (st) {
+        if (st && st.state === 'acked') {
+          try {
+            for (var i2 = localStorage.length - 1; i2 >= 0; i2--) {
+              var k2 = localStorage.key(i2);
+              if (String(k2 || '').indexOf('ptf_personal_cheques_') === 0) localStorage.removeItem(k2);
+            }
+          } catch (eClr) {}
+        }
+        if (typeof ackCb === 'function') ackCb({ moved: added, acked: st && st.state === 'acked' });
+      } });
+    } else { chSharedWrite(shared); if (typeof ackCb === 'function') ackCb({ moved: added, acked: false }); }
+  };
   // v29.7 FIN-WF-002: migration legacy personal cheques from global to personal keys
   window.chMigratePersonal = function(){
     try {
@@ -99,6 +152,10 @@
   };
   // auto-migrate on boot
   try { window.chMigratePersonal(); } catch(e){}
+  /* v34.8.29 (T5-2): مهاجرت یک‌باره به کلید مشترک سینک‌شونده — یک‌بار در هر بوت چک‌ها */
+  try { if (window.chMigratePersonalToShared) window.chMigratePersonalToShared(function (r) {
+    if (r && r.moved > 0 && typeof audit === 'function') audit('چک‌ها', 'مهاجرت چک‌های شخصی به کلید سینک‌شونده مشترک — ' + r.moved + ' رکورد' + (r.acked ? ' (تأیید سرور)' : ''), 'PCHEQ-MIG');
+  }); } catch(eM){}
   /* CHQ-MOD-001: مهاجرت نرم چک‌ها به دو کلید صادره/وارده (یک‌باره، بدون حذف) */
   try { if (typeof window.ptfChequeSplitMigrate === 'function') window.ptfChequeSplitMigrate(); } catch (eChq) {}
 

@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.8.28",
+ "version": "v34.8.29",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
@@ -216,15 +216,6 @@
    "crm/case-revision.js (ls-get) [41cfeb28beac] try { d = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { d = {}; }",
    "crm/case-revision.js (ls-remove) [10aaede44c8c] function clearRevisionDraft(ctx){var key=revisionDraftKey(ctx);if(key)try{localStorage.remove…",
    "crm/case-revision.js (ls-set) [70efd5a98f3d] if (typeof setData === 'function') setData(KEY, d); else localStorage.setItem(KEY, JSON.strin…",
-   "crm/cheques.js (ls-get) [18475607df46] function chPersonalAll(){ try{return JSON.parse(localStorage.getItem(chPersonalKey())||'[]')}…",
-   "crm/cheques.js (ls-get) [3202fdc716c3] toMove.forEach(function(c){ var u=c.by||'unknown'; moves[u]=(moves[u]||0)+1; var key='ptf_per…",
-   "crm/cheques.js (ls-get) [63f131a160c2] try { beforeMigJson = localStorage.getItem(personalKeyPreMig) || '[]'; } catch (eB) {}",
-   "crm/cheques.js (ls-get) [70984138148e] var afterArr = JSON.parse(localStorage.getItem(personalKeyPreMig) || '[]');",
-   "crm/cheques.js (ls-get) [7de16d308d2c] var saved = JSON.parse(localStorage.getItem(TPL_KEY) || 'null');",
-   "crm/cheques.js (ls-get) [fe5cc7ebfdb0] var o = JSON.parse(localStorage.getItem(CH_LAYOUT_KEY) || 'null');",
-   "crm/cheques.js (ls-set) [0df52a0795d2] try { localStorage.setItem(CH_LAYOUT_KEY, JSON.stringify(L || chLoadLayout())); } catch (e) {}",
-   "crm/cheques.js (ls-set) [3202fdc716c3] toMove.forEach(function(c){ var u=c.by||'unknown'; moves[u]=(moves[u]||0)+1; var key='ptf_per…",
-   "crm/cheques.js (ls-set) [62594e887bcd] try{localStorage.setItem(chPersonalKey(),JSON.stringify(mine));}catch(e){} }",
    "crm/cms.js (ls-get) [281df5f02be1] function cmsAuthHeaders() { var h = { 'X-CRM-Role': curRole() }; try { var t = localStorage.g…",
    "crm/codegen.js (ls-get) [009085e989c5] var st=JSON.parse(localStorage.getItem('ptf_crm_settings')||'{}');",
    "crm/codegen.js (ls-get) [171bef1f53ef] headers:(function(){ var h={'Content-Type':'application/json','X-CRM-Role': (typeof curRole==…",
