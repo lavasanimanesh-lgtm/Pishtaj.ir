@@ -1526,7 +1526,10 @@
         var dkeys = Object.keys(state.dirty).map(function (k) { return k.replace('ptf_crm_', ''); }).slice(0, 6).join('، ') + (dirtyCount > 6 ? '…' : '');
         var le = null;
         try { le = JSON.parse(localStorage.getItem('ptf_sync_last_error') || 'null'); } catch (eLe) {}
-        var leTxt = (le && le.fa) ? (' — آخرین خطا: ' + (le.reason || le.detail || le.scope || 'نامشخص') + ' (' + le.fa + ')') : '';
+        /* v34.8.25: خطا فقط اگر «تازه» باشد (≤۱۵ دقیقه) — خطای ساعت‌های قبل نباید روی نوار فعلی باشد. */
+        var leFresh = false;
+        try { leFresh = !!(le && le.t && (Date.now() - new Date(le.t).getTime()) < 15 * 60 * 1000); } catch (eLd) {}
+        var leTxt = (le && leFresh) ? (' — آخرین خطا: ' + (le.reason || le.detail || le.scope || 'نامشخص') + ' (' + le.fa + ')') : '';
         var msg = st === 'forbidden'
           ? ('⚠️ ' + dirtyCount + ' تغییر روی این دستگاه است — نقش فعلی اجازه ارسال به سرور ندارد [' + dkeys + ']')
           : st === 'offline'
