@@ -209,7 +209,9 @@
       setData('ptf_crm_deleted_archive', arch2);
     } catch (eA) {}
     custs = custs.filter(function (c) { return c.cd !== drop.cd; });
-    setData('ptf_crm_customers', custs);
+    /* v34.8.23 (W1-iterate): حذفِ ادغام با فرمان tombstone (بازیافت‌پذیر) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'custmerge' });
+    else setData('ptf_crm_customers', custs);
 
     /* AC6: audit کامل */
     try {

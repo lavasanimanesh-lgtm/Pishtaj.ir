@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester525 — v34.8.22 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
+/* tester525 — v34.8.23 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
    هسته: روتر diff-محور ptfEntitySaveCollection — استخراج واقعی از سورس و آزمون
    رفتاری: افزوده/ویرایش/حذف → تعداد و نوع فرمان درست؛ گاردهای fallback؛ استقلال
    snapshot از دستگاه‌های دیگر (هرگز حذف اشتباه). */
@@ -115,8 +115,8 @@ function cust(cd, co) { return { cd: cd, co: co, ph: '' }; }
 var idx = read('crm/index.html');
 T('saveCust/saveSup/saveProduct به روتر وصل شد', (idx.match(/window\.ptfEntitySaveCollection\(/g) || []).length >= 5, (idx.match(/window\.ptfEntitySaveCollection\(/g) || []).length);
 T('leads تبدیل سرنخ→مشتری روی روتر', read('crm/leads.js').indexOf("ptfEntitySaveCollection('ptf_crm_customers'") > -1);
-T('offers ثبت/ویرایش مشتری و تامین‌کننده روی روتر', (read('crm/offers.js').match(/ptfEntitySaveCollection\(/g) || []).length === 2);
-T('bridge درخواست سایت→مشتری روی روتر', (read('crm/bridge.js').match(/ptfEntitySaveCollection\(/g) || []).length === 2);
+T('offers ثبت/ویرایش مشتری و تامین‌کننده روی روتر', (read('crm/offers.js').match(/ptfEntitySaveCollection\(/g) || []).length >= 5);
+T('bridge درخواست سایت→مشتری روی روتر', (read('crm/bridge.js').match(/ptfEntitySaveCollection\(/g) || []).length >= 2);
 T('inqreader بایپس خاموش‌نویسی حذف شد (مسیر مجاز)', read('crm/inqreader.js').indexOf('ptfSilentWrite') > -1);
 T('ptfSilentWrite در sync.js تعریف شد (بدون dirty)', /window\.ptfSilentWrite = function \(k, str\) \{[\s\S]{0,200}state\.pulling = true;[\s\S]{0,80}wr\(k,/.test(read('crm/sync.js')));
 
@@ -130,9 +130,9 @@ T('A11: تطابق کامل رجیستری کلاینت/سرور', JSON.stringif
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.8.22', ver.crm_version === 'v34.8.22', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.8.22', /window\.PTF_CRM_RELEASE = 'v34\.8\.22'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8\.22'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.8.23', ver.crm_version === 'v34.8.23', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.8.23', /window\.PTF_CRM_RELEASE = 'v34\.8\.23'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8\.23'/.test(read('crm/sw.js')));
 
-console.log('\n— tester525 (v34.8.22: W1 entity commands for customers/suppliers/products) —');
+console.log('\n— tester525 (v34.8.23: W1 entity commands for customers/suppliers/products) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

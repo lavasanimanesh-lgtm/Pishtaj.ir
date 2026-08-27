@@ -441,13 +441,39 @@
   /* ---------- صف آفلاین ---------- */
   var flushRescueRound = 0; /* v34.8.7: سقف نوبت‌های نجات تعارض فاز B در هر چرخه */
   function queueKey() { return 'ptf_b_queue'; }
-  function queueRead() { try { return JSON.parse(localStorage.getItem(queueKey()) || '{}'); } catch (e) { return {}; } }
-  function queueWrite(q) {
+  /* ---------- v34.8.23 (T3-3 / OFFLINE-OUTBOX-IDB): صف آفلاین روی IndexedDB ----------
+     ROADMAP-THIN-CLIENT T3-3 (تأیید کارفرما): صف، write-ahead record حیاتی است و
+     نباید در همان localStorage‌ای باشد که ممکن است ۱۰۰٪ پر باشد (ریشهٔ حادثهٔ
+     «ثبت کاربر در دقیقهٔ پر بودن شکست خورد»). نگهداری: حافظهٔ نشست (همگام) +
+     IDB (پایدار) + LS فقط به‌عنوان seed اولیه. سقف: ۵۰۰ رکورد/۷۲ ساعت (S7). */
+  var idbQueueMem = null;          /* کش نشست صف — منبع زنده */
+  var idbQueueLoaded = false;      /* seed از LS/IDB انجام شد */
+  function qCapCheck(q) {
+    /* سقف S7: بیش از ۵۰۰ کلید معلق = وضعیت اضطراری آفلاین طولانی؛ قدیمی‌ترین‌ها حذف */
+    var keys = Object.keys(q);
+    if (keys.length > 500) {
+      keys.slice(0, keys.length - 500).forEach(function (k) { delete q[k]; });
+    }
+    return q;
+  }
+  function queueRead() {
+    if (idbQueueLoaded && idbQueueMem !== null) return idbQueueMem;
+    /* seed یک‌باره از LS (نسخهٔ قدیمی) — بعد از این، LS دیگر مرجع نیست */
     try {
-      var raw = JSON.stringify(q);
-      if (typeof ptfStorageSafeSetItem === 'function') return ptfStorageSafeSetItem(queueKey(), raw, { noWarn: true }) !== false;
-      return localStorage.setItem(queueKey(), raw) !== false;
-    } catch (e) { return false; }
+      idbQueueMem = JSON.parse(localStorage.getItem(queueKey()) || '{}');
+      if (idbQueueMem === null || typeof idbQueueMem !== 'object') idbQueueMem = {};
+      idbQueueMem = qCapCheck(idbQueueMem);
+      idbQueueLoaded = true;
+      try { window.ptfStorageIdbSet('q:' + queueKey(), JSON.stringify(idbQueueMem), function () {}); } catch (eI) {}
+      try { localStorage.removeItem(queueKey()); } catch (eR) {}
+      return idbQueueMem;
+    } catch (e) { idbQueueMem = {}; idbQueueLoaded = true; return idbQueueMem; }
+  }
+  function queueWrite(q) {
+    qCapCheck(q);
+    idbQueueMem = q;
+    try { window.ptfStorageIdbSet('q:' + queueKey(), JSON.stringify(q), function () {}); } catch (eI) { return false; }
+    return true;
   }
   function queueAdd(k) {
     var q = queueRead(); q[k] = (q[k] || 0) + 1;
@@ -456,6 +482,22 @@
     if (!queueWrite(q)) return false;
     return true;
   }
+  /* آب‌رسانی نشست از IDB در بوت — قبل از اولین flush */
+  window.ptfBQueueIdbPreload = function (cb) {
+    try {
+      window.ptfStorageIdbGet('q:' + queueKey(), function (row) {
+        try {
+          if (row && row.value && !idbQueueLoaded) {
+            try { idbQueueMem = qCapCheck(JSON.parse(row.value) || {}); } catch (eP) { idbQueueMem = {}; }
+            idbQueueLoaded = true;
+          } else if (!idbQueueLoaded) {
+            queueRead(); /* seed از LS + انتقال به IDB */
+          }
+        } catch (e1) {}
+        if (typeof cb === 'function') cb();
+      });
+    } catch (e2) { if (typeof cb === 'function') cb(); }
+  };
   /* Bridge for the single pending registry in sync.js. This also reconstructs a
      missing Phase-B queue entry from persisted dirty state after a refresh, without
      copying or rewriting the business payload. */
@@ -991,6 +1033,8 @@
       try { if (typeof window.ptfStorageRequestPersistentAuto === 'function') window.ptfStorageRequestPersistentAuto(); } catch (ePst) {}
       /* v33.20.0: مهاجرت/پرکردن حافظهٔ کلیدهای سنگین (فقط فاز فعال + هم‌گرایی موفق + IDB) */
       try { window.ptfBIdbPreload(function () {}); } catch (eP) {}
+      /* v34.8.23 (T3-3): آب‌رسانی صف آفلاین از IndexedDB — قبل از هر flush */
+      try { window.ptfBQueueIdbPreload(function () {}); } catch (eQ) {}
       /* v34.8.9 (STORAGE-INDEPENDENCE): تخلیهٔ هرچه در localStorage مانده به IDB —
          حتی کلیدهایی که مسیرهای قدیمی مستقیم نوشته‌اند. یک‌بار در هر بوت کافی است. */
       try { window.ptfBOffloadBusinessKeysToIdb({ force: true }); } catch (eOff) {}

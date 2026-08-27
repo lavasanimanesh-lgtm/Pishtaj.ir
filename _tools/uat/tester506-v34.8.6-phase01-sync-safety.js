@@ -1,4 +1,4 @@
-/* tester506 — v34.8.22/F0-1: Phase-B single transport, financial projection safety
+/* tester506 — v34.8.23/F0-1: Phase-B single transport, financial projection safety
  * and server per-key identity/revision guards. This test is intentionally non-mutating
  * and uses only isolated in-memory fixtures. */
 'use strict';
@@ -98,7 +98,7 @@ c.ptfSyncAcknowledgeKeys(['ptf_crm_settings'], { ptf_crm_settings: JSON.stringif
 assert.strictEqual(c.ptfSyncPendingKeys().indexOf('ptf_crm_settings'), -1);
 console.log('  ✔ ACK قدیمی نسل جدید را پاک نمی‌کند و ACK هم‌نسل آن را پاک می‌کند');
 
-console.log('PASS tester506 v34.8.22 phase01 sync safety');
+console.log('PASS tester506 v34.8.23 phase01 sync safety');
 
 
 console.log('── Phase B queue ACK and payload recovery ──');
@@ -117,7 +117,10 @@ function clientContext() {
     ptfSyncAcknowledgeKeys: function () {},
     ptfSyncRefreshAuth: function (cb) { cb(false); },
     ptfStorageSafeSetItem: function (k, v) { ls.setItem(k, v); return true; },
-    ptfStorageIdbGet: function (id, cb) { cb(id === 'bdata:ptf_crm_heavy' ? { value: 'idb-payload' } : null); },
+    /* v34.8.23 (T3-3): صف آفلاین حالا روی IDB است — استور کوچک برای تست */
+    _idb: {},
+    ptfStorageIdbSet: function (id, v, cb) { this._idb[id] = v; if (cb) cb(true); },
+    ptfStorageIdbGet: function (id, cb) { cb(id === 'bdata:ptf_crm_heavy' ? { value: 'idb-payload' } : (this._idb[id] !== undefined ? { value: this._idb[id] } : null)); },
     document: { hidden: true, getElementById: function () { return null; }, querySelector: function () { return null; }, querySelectorAll: function () { return []; }, createElement: function () { return { style: {} }; }, head: { appendChild: function () {} }, body: { appendChild: function () {} }, addEventListener: function () {} },
     navigator: {}, location: { reload: function () {} },
     setInterval: function () { return 1; }, clearInterval: function () {}, setTimeout: function (fn) { return 1; }, clearTimeout: function () {},
@@ -149,16 +152,18 @@ function clientContext() {
   assert.strictEqual(batchResult.ok, true);
   assert.ok(cc._calls[0].body.base && cc._calls[0].body.base.ptf_crm_settings === 4, 'Phase B did not send base');
   assert.strictEqual(batchResult.savedKeys.join(','), 'ptf_crm_settings');
+  /* v34.8.23: صف روی IDB — seed از LS هنوز انجام نشده است (اولین flush همین است) */
   cc.localStorage.setItem('ptf_b_queue', JSON.stringify({ ptf_crm_settings: 1 }));
   cc.localStorage.setItem('ptf_crm_settings', '{"v":1}');
   cc._setResponseMode('reject');
   var rejected = await new Promise(function (resolve) { cc.ptfBFlushQueue(resolve); });
   assert.strictEqual(rejected.ok, false);
-  assert.ok(JSON.parse(cc.localStorage.getItem('ptf_b_queue')).ptf_crm_settings, 'rejected queue entry was cleared');
+  assert.ok(JSON.parse(cc._idb['q:ptf_b_queue'] || '{}').ptf_crm_settings, 'rejected queue entry was cleared (persisted on IDB)');
   cc._setResponseMode('ok');
   var recovered = await new Promise(function (resolve) { cc.ptfBFlushQueue(resolve); });
   assert.strictEqual(recovered.ok, true);
-  assert.strictEqual(Object.keys(JSON.parse(cc.localStorage.getItem('ptf_b_queue') || '{}')).length, 0);
+  assert.strictEqual(Object.keys(JSON.parse(cc._idb['q:ptf_b_queue'] || '{}')).length, 0);
+  assert.strictEqual(cc.localStorage.getItem('ptf_b_queue'), null, 'queue no longer lives in localStorage');
   console.log('  ✔ Phase B base، ACK صریح و نگه‌داشتن rejected queue');
 })().catch(function (error) { console.error(error && error.stack || error); process.exitCode = 1; });
 

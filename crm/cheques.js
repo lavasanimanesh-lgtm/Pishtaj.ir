@@ -1015,7 +1015,9 @@
       var rec = items.filter(function (x) { return x.cd === cd; })[0];
       if (!rec || rec.origin === org) return;
       rec.origin = org;
-      setData('ptf_crm_suppliers', items);
+      /* v34.8.23 (W1-iterate) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'cheque-origin' });
+      else setData('ptf_crm_suppliers', items);
       try { audit('تامین‌کنندگان', 'اصلاح داخلی/خارجی: ' + rec.co + ' → ' + org + ' (BUG-022)', cd); } catch (eA) {}
     };
     window.ptfSupTab = function (t) {
@@ -1112,7 +1114,7 @@
         if (!org) return;
         var items = getData('ptf_crm_suppliers');
         var rec = items.filter(function (x) { return x.cd === savedCd; })[0];
-        if (rec && rec.origin !== org) { rec.origin = org; setData('ptf_crm_suppliers', items); if (typeof renderSuppliers === 'function') renderSuppliers(); }
+        if (rec && rec.origin !== org) { rec.origin = org; /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'cheque-origin' }); else setData('ptf_crm_suppliers', items); if (typeof renderSuppliers === 'function') renderSuppliers(); }
       } catch (e) {}
     };
     return true;

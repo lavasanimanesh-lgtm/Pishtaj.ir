@@ -249,7 +249,9 @@
     function rewriteRefs(value) { if (Array.isArray(value)) { value.forEach(rewriteRefs); return; } if (!value || typeof value !== 'object') return; Object.keys(value).forEach(function (k) { if (identityFields[k] && from.indexOf(String(value[k])) > -1) value[k] = canonicalCd; else rewriteRefs(value[k]); }); }
     refKeys.forEach(function (key) { var data = getData(key); if (!Array.isArray(data) || !data.length) return; rewriteRefs(data); setData(key, data); });
     merge.referenceKeys = refKeys;
-    setData('ptf_crm_products', products);
+    /* v34.8.23 (W1-iterate): ادغام کاتالوگ شامل «حذف» کالای فرعی است → روتر فرمان tombstone می‌زند (بازیافت‌پذیر) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', products, { reason: 'catalog-merge' });
+    else setData('ptf_crm_products', products);
     var merges = getData('ptf_crm_catalog_merges') || []; merges.unshift(merge); setData('ptf_crm_catalog_merges', merges);
     try { audit('کاتالوگ', 'ادغام کنترل‌شده کالاها در ' + canonicalCd + ' — ' + from.join(', '), merge.cd); } catch (e) {}
     var dlg = document.getElementById('catalogMergeDlg'); if (dlg) dlg.remove();
@@ -297,7 +299,9 @@
     merge.status = 'reverted';
     merge.revertedAt = typeof faDateTime === 'function' ? faDateTime() : new Date().toISOString();
     merge.revertedBy = typeof curSession === 'function' ? curSession().name : '';
-    setData('ptf_crm_products', products);
+    /* v34.8.23 (W1-iterate) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', products, { reason: 'catalog-merge-revert' });
+    else setData('ptf_crm_products', products);
     setData('ptf_crm_catalog_merges', merges);
     try { audit('کاتالوگ', 'بازگشت ادغام ' + merge.cd + ' — کالاهای فرعی دوباره فعال شدند', mergeCd); } catch (e) {}
     if (typeof ptfToast === 'function') ptfToast('ادغام بازگردانده شد؛ ارجاع‌های بازنویسی‌شدهٔ قبلی دست‌نخورده ماندند.', 'ok');

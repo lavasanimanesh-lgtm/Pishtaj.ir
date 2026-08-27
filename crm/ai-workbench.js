@@ -300,9 +300,9 @@ window.aiWB_bizSave=function(){
   var people=bizPeople(), tel=bizVal('phone'), mob=bizVal('mobile'), email=bizVal('email'); var res=document.getElementById('biz_save_res');
   if(dest==='supplier'){
     var rec={cd:genCode('SUP'),co:co,coEn:bizVal('companyEn'),kind:'حقوقی',ca:bizVal('activity')||'سایر',people:people,coTels:tel?[{n:tel,lb:'کارت ویزیت'}]:[],coWeb:bizVal('website')||email,coAddr:bizVal('address'),spBrands:bizVal('brands')?bizVal('brands').split(/[,،]/).map(function(x){return x.trim();}).filter(Boolean):[],spEquip:bizVal('equip')?bizVal('equip').split(/[,،]/).map(function(x){return x.trim();}).filter(Boolean):[],origin:bizVal('companyEn')&&!bizVal('company')?'خارجی':'داخلی',src:'ai-bizcard'};
-    var pp=people[0]; rec.nm=pp?pp.nm:''; rec.ph=(pp&&pp.mobs&&pp.mobs[0]?pp.mobs[0].n:(tel||mob)); if(bizDup('supplier',rec))return; var a=getData('ptf_crm_suppliers'); if(typeof dedupStamp==='function')dedupStamp(rec); a.unshift(rec); setData('ptf_crm_suppliers',a); if(typeof renderSuppliers==='function')renderSuppliers(); res.innerHTML='✅ تامین‌کننده ثبت شد: '+esc(rec.cd);
+    var pp=people[0]; rec.nm=pp?pp.nm:''; rec.ph=(pp&&pp.mobs&&pp.mobs[0]?pp.mobs[0].n:(tel||mob)); if(bizDup('supplier',rec))return; var a=getData('ptf_crm_suppliers'); if(typeof dedupStamp==='function')dedupStamp(rec); a.unshift(rec); /* v34.8.23 (W1-iterate) */ if(window.ptfEntitySaveCollection)window.ptfEntitySaveCollection('ptf_crm_suppliers',a,{reason:'ai-bizcard'}); else setData('ptf_crm_suppliers',a); if(typeof renderSuppliers==='function')renderSuppliers(); res.innerHTML='✅ تامین‌کننده ثبت شد: '+esc(rec.cd);
   } else if(dest==='customer'){
-    var recC={cd:genCode('CUST'),co:co,coEn:bizVal('companyEn'),kind:'حقوقی',ind:bizVal('activity')||'سایر',people:people,coTels:tel?[{n:tel,lb:'کارت ویزیت'}]:[],coWeb:bizVal('website')||email,coAddr:bizVal('address'),src:'ai-bizcard'}; var pp2=people[0]; recC.con=pp2?pp2.nm:''; recC.ph=(pp2&&pp2.mobs&&pp2.mobs[0]?pp2.mobs[0].n:(tel||mob)); if(bizDup('customer',recC))return; var ac=getData('ptf_crm_customers'); if(typeof dedupStamp==='function')dedupStamp(recC); ac.unshift(recC); setData('ptf_crm_customers',ac); if(typeof renderCustomers==='function')renderCustomers(); res.innerHTML='✅ مشتری ثبت شد: '+esc(recC.cd);
+    var recC={cd:genCode('CUST'),co:co,coEn:bizVal('companyEn'),kind:'حقوقی',ind:bizVal('activity')||'سایر',people:people,coTels:tel?[{n:tel,lb:'کارت ویزیت'}]:[],coWeb:bizVal('website')||email,coAddr:bizVal('address'),src:'ai-bizcard'}; var pp2=people[0]; recC.con=pp2?pp2.nm:''; recC.ph=(pp2&&pp2.mobs&&pp2.mobs[0]?pp2.mobs[0].n:(tel||mob)); if(bizDup('customer',recC))return; var ac=getData('ptf_crm_customers'); if(typeof dedupStamp==='function')dedupStamp(recC); ac.unshift(recC); /* v34.8.23 (W1-iterate) */ if(window.ptfEntitySaveCollection)window.ptfEntitySaveCollection('ptf_crm_customers',ac,{reason:'ai-bizcard'}); else setData('ptf_crm_customers',ac); if(typeof renderCustomers==='function')renderCustomers(); res.innerHTML='✅ مشتری ثبت شد: '+esc(recC.cd);
   } else {
     var recL={cd:genCode('LEAD'),co:co,person:bizVal('person'),role:bizVal('role'),ind:bizVal('activity')||'سایر',tel:tel,mob:mob,email:email,src:'کارت ویزیت',firstISO:new Date().toISOString().slice(0,10),firstFa:(typeof faDate==='function'?faDate():''),stage:'new',hist:[{t:(typeof faDateTime==='function'?faDateTime():''),k:'ثبت',tx:'ثبت از کارت ویزیت توسط AI'}],createdFa:(typeof faDate==='function'?faDate():''),createdISO:new Date().toISOString().slice(0,10),need:bizVal('equip')||bizVal('activity')}; if(bizDup('lead',recL))return; var al=getData('ptf_crm_leads'); if(typeof dedupStamp==='function')dedupStamp(recL); al.unshift(recL); setData('ptf_crm_leads',al); if(typeof renderLeads==='function')renderLeads(); res.innerHTML='✅ سرنخ ثبت شد: '+esc(recL.cd);
   }
@@ -593,7 +593,9 @@ window.aiWB_tripleGo=function(){
         var newC={ cd:genCode('CUST'), co:det.co, coEn:(det.coEn||''), kind:'حقوقی', ind:'نفت و گاز', venSt:'unreg', people:[], phones:[], coTels:[], ds:'ثبت خودکار توسط دستیار از سربرگ استعلام', ts:new Date().toISOString() };
         if(typeof dedupStamp==='function') dedupStamp(newC);
         custs0.unshift(newC);
-        setData('ptf_crm_customers', custs0);
+        /* v34.8.23 (W1-iterate) */
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs0, { reason: 'ai-letterhead' });
+        else setData('ptf_crm_customers', custs0);
         custCd=newC.cd; out.cust=newC.cd;
         if(typeof audit==='function') audit('مشتریان','ثبت خودکار مشتری از سربرگ استعلام توسط دستیار: '+det.co+(det.coEn?' / '+det.coEn:''), newC.cd);
       }
@@ -608,7 +610,9 @@ window.aiWB_tripleGo=function(){
         var dup = cB.people.some(function(pp){ return (pp.nm||'').trim() === det.buyer; });
         if(!dup){
           cB.people.push({ nm: det.buyer, nmEn: det.buyerEn||'', role: det.buyerRole||'کارشناس خرید', tels: [], mobs: [], src: 'ai' });
-          setData('ptf_crm_customers', custsB);
+          /* v34.8.23 (W1-iterate) */
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custsB, { reason: 'ai-buyer' });
+          else setData('ptf_crm_customers', custsB);
           out.buyer = det.buyer;
           if(typeof audit==='function') audit('مشتریان','افزودن رابط خرید شناسایی‌شده توسط دستیار (با تایید کاربر): '+det.buyer+(det.buyerEn?' / '+det.buyerEn:''), custCd);
         }
@@ -648,7 +652,7 @@ window.aiWB_tripleGo=function(){
         prods.push({cd:cd,nm:r.nm,en:r.en||'',ca:(typeof ptfNormCat==='function'?ptfNormCat(r.tp):(r.tp||'سایر')),st:r.spec||'',br:r.brand||'',md:r.model||'',un:r.un||'عدد',pr:0,ds:'AI Workbench '+(inqNo||''),tp:r.tp||'Other',srcInq:inqNo||'',ts:new Date().toISOString()}); /* v15.9 US-389 */
         added++;
       });
-      setData('ptf_crm_products', prods); out.prod=added;
+      /* v34.8.23 (W1-iterate) */ if(window.ptfEntitySaveCollection)window.ptfEntitySaveCollection('ptf_crm_products',prods,{reason:'ai-items'}); else setData('ptf_crm_products',prods); out.prod=added;
     }
     // 2) sourcing
     if(doSrc){
@@ -739,7 +743,8 @@ window.aiWB_rollback=function(qNo, sNo){
         var age = now - new Date(p.ts).getTime();
         return !(age < 120000 && rb.prods.indexOf(p.nm)>=0);
       });
-      setData('ptf_crm_products', prods);
+      /* v34.8.23 (W1-iterate): بازگردانی — عملیات استثنایی با عملیات زیاد؛ روتر خودش اگر >سقف بود legacy می‌رود */
+      if(window.ptfEntitySaveCollection)window.ptfEntitySaveCollection('ptf_crm_products',prods,{reason:'ai-undo'}); else setData('ptf_crm_products',prods);
     }
     document.getElementById('aiTP_res').innerHTML='<span style="color:#b45309">↶ بازگردانی انجام شد</span>';
     aiWB_log('ROLLBACK ok');
@@ -1232,7 +1237,7 @@ window.ptfConfirmAiReviewItems = function() {
         addedCat++;
       }
     });
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate) */ if(window.ptfEntitySaveCollection)window.ptfEntitySaveCollection('ptf_crm_products',prods,{reason:'ai-catalog'}); else setData('ptf_crm_products',prods);
     if (typeof renderProducts === 'function') renderProducts();
     if (mod !== 'PROD' && typeof ptfToast === 'function') ptfToast('📦 تعداد ' + addedCat + ' کالا همزمان در ماژول کاتالوگ ذخیره شد', 'ok');
   }

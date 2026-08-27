@@ -1037,7 +1037,9 @@
       e.siteCode = code;
       e.mergedAt = faDateTime();
       e.mergedBy = curSession().name;
-      setData('ptf_crm_suppliers', items);
+      /* v34.8.23 (W1-iterate) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'site-merge' });
+      else setData('ptf_crm_suppliers', items);
       // تایید سمت سرور برای رهگیری ثبت‌کننده سایت
       if (typeof api === 'function') {
         api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — اطلاعات شما با پروفایل موجودتان ادغام گردید', by: curSession().name }, function () { if (typeof syncServerInbox === 'function') syncServerInbox(); });

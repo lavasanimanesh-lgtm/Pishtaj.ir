@@ -272,7 +272,9 @@
         if (same) return;
         rec.spBrands = _chips.br.slice();
         rec.spEquip = _chips.eq.slice();
-        setData('ptf_crm_suppliers', items);
+        /* v34.8.23 (W1-iterate) */
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'supspec' });
+        else setData('ptf_crm_suppliers', items);
         if (typeof renderSuppliers === 'function') renderSuppliers();
       } catch (e) {}
     };
@@ -296,7 +298,7 @@
           if (out.length) { s.spBrands = out; changed = true; }
         }
       });
-      if (changed) setData('ptf_crm_suppliers', items);
+      if (changed) { /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'supspec-migrate' }); else setData('ptf_crm_suppliers', items); }
     } catch (e) {}
   }
 
@@ -432,7 +434,7 @@
           if (typeof audit === 'function') audit('تامین‌کنندگان', 'یادگیری تخصص: ' + newBrands.join('، ') + ' → ' + t.co, s.cd);
         }
       });
-      if (changed) setData('ptf_crm_suppliers', sups);
+      if (changed) { /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', sups, { reason: 'supspec-learn' }); else setData('ptf_crm_suppliers', sups); }
     } catch (e) {}
   };
 

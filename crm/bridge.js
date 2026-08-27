@@ -801,7 +801,9 @@
       }
       if (typeof dedupStamp === 'function') dedupStamp(recSup);
       items.unshift(recSup);
-      setData('ptf_crm_suppliers', items);
+      /* v34.8.23 (W1-iterate): تامین‌کنندهٔ تاییدشده از سایت با فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'site-approve' });
+      else setData('ptf_crm_suppliers', items);
     }
     api('set_status', { type: 'supplier', code: code, status: 'approved', statusText: 'تایید شد — به فهرست تامین‌کنندگان تاییدشده اضافه شدید', note: note || '', by: curSession().name }, function () { syncServerInbox(); });
     if (typeof audit === 'function') audit('تامین‌کنندگان', 'تایید تامین‌کننده سایت: ' + s.company + (note ? ' — ' + note : ''), code);

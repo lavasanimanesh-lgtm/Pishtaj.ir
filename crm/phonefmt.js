@@ -95,7 +95,7 @@
       try {
         var items = getData('ptf_crm_customers');
         var rec = cd ? items.filter(function (x) { return x.cd === cd; })[0] : items[0];
-        if (rec) { ptfNormalizeEntityPhones(rec, 'fa'); setData('ptf_crm_customers', items); }
+        if (rec) { ptfNormalizeEntityPhones(rec, 'fa'); /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'phonefmt' }); else setData('ptf_crm_customers', items); }
       } catch (e) {}
     };
     return true;
@@ -119,7 +119,7 @@
           ['co', 'nm', 'ca', 'coWeb', 'coAddr'].forEach(function (k) { if (rec[k]) rec[k] = ptfLatinize(rec[k]); });
           (rec.people || []).forEach(function (p) { if (p.nm) p.nm = ptfLatinize(p.nm); if (p.dept) p.dept = ptfLatinize(p.dept); });
         }
-        setData('ptf_crm_suppliers', items);
+        /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'phonefmt' }); else setData('ptf_crm_suppliers', items);
         if (typeof renderSuppliers === 'function') try { renderSuppliers(); } catch (e2) {}
       } catch (e) {}
     };
@@ -159,10 +159,10 @@
       if (localStorage.getItem('ptf_phonefmt_mig') === '1') return;
       var custs = getData('ptf_crm_customers');
       custs.forEach(function (c) { ptfNormalizeEntityPhones(c, 'fa'); });
-      setData('ptf_crm_customers', custs);
+      /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'phonefmt-mig' }); else setData('ptf_crm_customers', custs);
       var sups = getData('ptf_crm_suppliers');
       sups.forEach(function (c) { ptfNormalizeEntityPhones(c, (c.origin === 'خارجی') ? 'en' : 'fa'); });
-      setData('ptf_crm_suppliers', sups);
+      /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', sups, { reason: 'phonefmt-mig' }); else setData('ptf_crm_suppliers', sups);
       localStorage.setItem('ptf_phonefmt_mig', '1');
       try { audit('سیستم', 'یکسان‌سازی یک‌باره قالب شماره تماس‌ها (US-338)', ''); } catch (e) {}
     } catch (e) {}

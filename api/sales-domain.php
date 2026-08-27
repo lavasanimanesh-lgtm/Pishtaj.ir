@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.22';
+const SD_SERVICE_VERSION = '34.8.23';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -88,7 +88,7 @@ function sd_entity_registry(): array {
             'roles' => ['admin','chairman','ceo','commercial','sales'],
             'id' => 'cd',
         ],
-        /* v34.8.22 (W1 — ROADMAP-THIN-CLIENT T2 موج اول، تأیید کارفرما):
+        /* v34.8.23 (W1 — ROADMAP-THIN-CLIENT T2 موج اول، تأیید کارفرما):
            مشتریان/تامین‌کنندگان/کالاها. نقش‌ها عین ماتریس legacy
            (sync_allowed_keys_for_role در crm.php) — نه کمتر نه بیشتر.
            maxFields: رکوردهای این سه موجودیت پهن‌تر از سقف عمومی ۴۰ است. */
@@ -107,7 +107,7 @@ function sd_entity_registry(): array {
     ];
 }
 function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields = 40): array {
-    /* v34.8.22 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
+    /* v34.8.23 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
        ۲۰۰۰→۸۰۰۰ و hist ۵۰۰→۲۰۰۰؛ تعداد برش/حذف به‌صورت ساخت‌یافته در پاسخ فرمان
        برمی‌گردد تا حذفِ بی‌صدا از بین برود. */
     $stats = ['trimmed' => 0, 'dropped' => 0, 'kept' => 0];
@@ -2311,7 +2311,7 @@ try {
                 $prev = $rows[$found];
                 $row['createdAt'] = (string)($prev['createdAt'] ?? $now);
                 $row['createdBy'] = (string)($prev['createdBy'] ?? $user);
-                /* v34.8.22 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
+                /* v34.8.23 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
                    یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
                    می‌شد»: upsert دیرهنگام/دوباره‌ارسالی، notifiedUsers (state ضدتکرار
                    اعلان یادآور در bridge) را با رکورد کهنه جایگزین می‌کرد؛ poll بعدی

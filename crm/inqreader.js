@@ -1244,7 +1244,9 @@
         hidden: true, srcInq: (_ir.dataKey || _ir.cd), tp: r.tp, ts: new Date().toISOString(), ts0: new Date().toISOString() }); /* v15.9 US-389 */
       added++;
     });
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate): ورود کالاهای استعلامی (مارک مخفی) با فرمان اتمیک */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'inq-auto-prod' });
+    else setData('ptf_crm_products', prods);
     audit('کالاها', 'ورود ' + added + ' قلم از استعلام ' + _ir.inqNo + ' با مارک مخفی و تفکیک تایپ', _ir.inqNo);
     document.getElementById('irModal').remove();
     alert('✅ ثبت شد:\n• ' + rows.length + ' قلم در اقلام درخواست ' + _ir.inqNo + '\n• ' + added + ' کالای جدید با مارک مخفی (تکراری‌ها اضافه نشدند)\n\nاین کالاها در فهرست عادی کالا دیده نمی‌شوند (چک‌باکس «نمایش کالاهای استعلامی» در ماژول کالا).');

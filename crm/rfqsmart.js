@@ -615,7 +615,9 @@
         added++;
       });
     }
-    if (updated || added) setData('ptf_crm_products', prods);
+    if (updated || added) { /* v34.8.23 (W1-iterate) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'rfq-prices' });
+      else setData('ptf_crm_products', prods); }
     r.pricesCommittedAt = faDateTime();
     r.pricesCommittedBy = curSession().name;
     r.referenceAmbiguousCount = ambiguous.length;
@@ -1716,7 +1718,9 @@
       updated++;
     });
     if (updated) {
-      setData('ptf_crm_products', prods);
+      /* v34.8.23 (W1-iterate) */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'rfq-refprice' });
+      else setData('ptf_crm_products', prods);
       try { audit('کالاها', 'به‌روزرسانی قیمت مرجع ' + updated + ' کالا از پاسخ‌های ' + (r.no || ''), r.no || ''); } catch (e) {}
       if (typeof ptfToast === 'function') ptfToast('💰 قیمت مرجع ' + updated + ' کالا در ماژول کالا به‌روزرسانی شد (با قید تاریخ)', 'ok');
     }

@@ -1356,7 +1356,9 @@ window.ptfAutoRegisterSummaryProducts = function(inqNo, rows) {
     added++;
   });
   if (added > 0) {
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'cloud-products' });
+    else setData('ptf_crm_products', prods);
     if (typeof addLog === 'function') addLog('ثبت اتوماتیک ' + added + ' کالای خلاصه در بانک کالا');
   }
   return added;
@@ -1553,7 +1555,9 @@ window.ptfFinalCommitItems = function(inqNo) {
       });
       added++;
     });
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate) */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'inq-approve' });
+    else setData('ptf_crm_products', prods);
     alert('🎉 ' + added + ' قلم جدید به بانک کالا اضافه شد' + (dup ? ' (' + dup + ' قلم تکراری بود)' : ''));
   }
   if (typeof window._pendingCommitCb === 'function') window._pendingCommitCb(finalized.length, 0);

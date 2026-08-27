@@ -452,7 +452,7 @@
               if (d.ok && d.data && d.data.t) {
                 var custs = getData('ptf_crm_customers');
                 var c = custs.filter(function (x) { return x.cd === o.buyerCd; })[0];
-                if (c && !c.coEn) { c.coEn = d.data.t; setData('ptf_crm_customers', custs); }
+                if (c && !c.coEn) { c.coEn = d.data.t; /* v34.8.23 (W1-iterate) */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'coen-fill' }); else setData('ptf_crm_customers', custs); }
               }
             });
           });

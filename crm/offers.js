@@ -1455,7 +1455,9 @@ window.ptfAutoRegisterSummaryProducts = function(inqNo, rows) {
     added++;
   });
   if (added > 0) {
-    setData('ptf_crm_products', prods);
+    /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'offer-auto-products' });
+    else setData('ptf_crm_products', prods);
     if (typeof addLog === 'function') addLog('ثبت اتوماتیک ' + added + ' کالای خلاصه در ماژول کالا');
   }
   return added;
@@ -2838,7 +2840,9 @@ window.ptfSyncRefPriceBack = function (offer, opt) {
         p.refPriceSrc = 'نرخ مرجع پیشنهاد ' + (offer.no || '') + ' — ' + who;
         t3++;
       });
-      if (t3) { setData('ptf_crm_products', prods); out.catalog = t3; }
+      if (t3) { /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+        if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'offer-refprice' });
+        else setData('ptf_crm_products', prods); out.catalog = t3; }
     }
 
     if ((out.request || out.catalog) && typeof audit === 'function') {
@@ -3070,7 +3074,9 @@ function offerSave() {
       }
     });
     if (prodsChanged) {
-      setData('ptf_crm_products', prods);
+      /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'inv-prodsync' });
+      else setData('ptf_crm_products', prods);
       productSyncNotes.push('مشخصات دایرکتوری کالا بر اساس پیش‌فاکتور همگام‌سازی شد');
     }
   }
@@ -3121,7 +3127,9 @@ function offerSave() {
       }
     });
     if (_pChanged) {
-      setData('ptf_crm_products', _prods2);
+      /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', _prods2, { reason: 'inv-products' });
+      else setData('ptf_crm_products', _prods2);
       var _msg = [];
       if (_refSynced) _msg.push(_refSynced + ' نرخ مرجع در ماژول کالا به‌روز شد');
       if (_pAdded) _msg.push(_pAdded + ' کالای جدید با مارک منبع ' + o.no + ' ثبت شد');
@@ -3895,7 +3903,9 @@ window.ptfCustVendorFollowup = function (cd) {
           setData('ptf_crm_reminders', rems);
         } catch (eRem) {}
       }
-      setData('ptf_crm_customers', custs);
+      /* v34.8.23 (W1-iterate): از مسیر فرمان اتمیک */
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'vendorlist' });
+      else setData('ptf_crm_customers', custs);
       audit('مشتریان', 'ثبت پیگیری وندور لیست کارفرما ' + c.co + ' — مرحله: ' + c.venSt + ' (' + c.venNote + ')', cd);
       if (typeof ptfToast === 'function') ptfToast('🏆 وضعیت وندور لیست و یادآور کارتابل ثبت شد', 'ok');
       var md = document.querySelector('#panels .md-b:last-child');
