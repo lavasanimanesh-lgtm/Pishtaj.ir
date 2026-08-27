@@ -11,7 +11,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
 var idx = read('crm/index.html');
 T('renderProductsServer تعریف شد', /function renderProductsServer\(\)/.test(idx));
-T('renderProducts: مسیر سروری با fallback محلی', /if \(prodServerReadOn\(\)\) \{ try \{ renderProductsServer\(\); return; \} catch \(eSrv\) \{\} \}/.test(idx));
+T('renderProducts: مسیر سروری با fallback محلی', /if \(prodServerReadOn\(\)\) \{ try \{ renderProductsServer\(\); return; \} catch \(eSrv\) \{ prodServerReadOn\._offOnce = true; \} \}/.test(idx));
 T('کوئری سروری: صفحه ۱۰۰ + مرتب + جستجو', /pageSize: 100/.test(idx) && /sortBy: sort\.key === 'pr' \? 'pr'/.test(idx));
 T('شکست شبکه → toast + fallback محلی', /خواندن سروری ناموفق بود — نمایش محلی/.test(idx));
 T('ناوبری صفحه‌بندی سروری', /ptfProdServerGoto\(/.test(idx));

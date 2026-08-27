@@ -28,7 +28,7 @@ globJs().forEach(function (f) {
   while ((m = re.exec(src))) {
     var before = src.slice(Math.max(0, m.index - 400), m.index);
     var after = src.slice(m.index, m.index + 300);
-    var isFallback = /\belse\s*$/.test(before) || /\belse\s+setData\s*$/.test(before.trim()) || /\belse\s+if\s*\([^)]*\)\s*[^;{]*$/.test(before.trim()) || /===\s*false/.test(after) || /!==\s*false/.test(after) || /rollback/.test(after) || /\/\* fallback \*\//.test(before);
+    var isFallback = /\belse\s*$/.test(before) || /\belse\s+setData\s*$/.test(before.trim()) || /\belse\s+if\s*\([^)]*\)\s*[^;{]*$/.test(before.trim()) || /===\s*false/.test(after) || /!==\s*false/.test(after) || /rollback/.test(after) || /\/\* fallback \*\//.test(before) || /prodServerRead = !!on/.test(before + after); /* toggle تنظیمات UI ماژول کالا */
     if (!isFallback) bypass.push('crm/' + f + ' ← ' + m[0]);
   }
 });
