@@ -14,7 +14,7 @@
 | # | اصل | سنجهٔ قطعی (DoD) |
 |---|---|---|
 | E1 | سرور تنها منبع حقیقتِ دادهٔ کسب‌وکار است | صفر مسیر نوشتن کسب‌وکار به‌جز فرمان/push سروری (تأیید arch-guard) |
-| E2 | هیچ نوشتنی از لایهٔ داده عبور نمی‌کند | صفر `localStorage.setItem` بیرون از لایهٔ داده (قاعدهٔ A8 = ۰ تخلف) |
+| E2 | هیچ نوشتنی از لایهٔ داده عبور نمی‌کند | صفر `localStorage.setItem` بیرون از لایهٔ داده (قاعدهٔ A10 = ۰ تخلف جدید) |
 | E3 | localStorage فقط «سبکِ قابل‌از-دست‌رفتن» نگه می‌دارد | مجموع کلیدهای غیر-نشست در LS < **۲۰KB** در یک هفته کاری واقعی |
 | E4 | پاک‌کردن حافظهٔ مرورگر = صفر خطا و صفر از-دست‌رفتن داده | تست «purge و بوت» سبز؛ همهٔ داده‌ها بعد از re-pull برمی‌گردند |
 | E5 | حادثهٔ «۱۰۰٪ localStorage» ساختاراً ناممکن | کلیدهای سنگین (۱۰۰٪ دادهٔ >۸KB) فقط IDB؛ نگهبان سهمیه بدون استثنا |
@@ -74,13 +74,13 @@
 ### T0 — تثبیت بستر و گیت‌ها (۱-۲ روز) — پیش‌نیاز همه
 | کار | شرح | فایل |
 |---|---|---|
-| T0-1 | قاعدهٔ **A8** در arch-guard: منع `localStorage.*` بیرون از فهرست‌سفید (client-server/storage-quota/sync/storage/backup/rbac + ابزارهای html)؛ baseline فعلی = بدهی، افزایش = شکست | `_tools/arch/arch-guard.js` |
-| T0-2 | قاعدهٔ **A10**: تطابق `PTF_ENTITY_CMD_ENABLED` (کلاینت) با `sd_entity_registry()` (سرور) از سورس استخراج و مقایسه شود | همان |
+| T0-1 | قاعدهٔ **A10** در arch-guard: منع `localStorage.*` بیرون از فهرست‌سفید (client-server/storage-quota/sync/storage/backup/rbac + ابزارهای html)؛ baseline فعلی = بدهی، افزایش = شکست | `_tools/arch/arch-guard.js` |
+| T0-2 | قاعدهٔ **A11**: تطابق `PTF_ENTITY_CMD_ENABLED` (کلاینت) با `sd_entity_registry()` (سرور) از سورس استخراج و مقایسه شود | همان |
 | T0-3 | **گیت CI قبل از FTP**: `run-ci-gate.js` + arch-guard در `deploy-staging.yml` و `deploy-production.yml` (جایگزین پچ‌های PENDING معلق) | `.github/workflows/*` |
 | T0-4 | **گیت بعد از FTP (post-deploy hash check)**: هش ۵ فایل کلیدی زنده (index.html، sw.js، sales-domain-v2.js، leads.js، sales-domain.php) با کامیت مقایسه شود؛ نابرابر = شکست با پیام واضح (باگ «نسخهٔ مخلوط» همین امروز با این گرفته می‌شد) | همان |
 | T0-5 | **فهرست واحد کلیدها**: `PTF_KEY_REGISTRY` (دسته‌بندی بخش ۳) که sync.js، client-server.js و arch-guard از آن بخوانند — پایان سه نسخهٔ موازی (SYNC_KEYS / bKeysFallback / IDB_KEYS) | جدید `crm/key-registry.js` |
 | T0-6 | هدر کش استیجینگ: js/html = `no-cache` فقط روی staging (`.htaccess` شرطی) | `.htaccess` |
-| **معیار خروج** | گیت‌ها در CI سبز روی یک PR نمونه؛ تخلف جدید A8 مسدود | |
+| **معیار خروج** | گیت‌ها در CI سبز روی یک PR نمونه؛ تخلف جدید A10 مسدود | |
 
 ### T1 — امنیت و صحت فوری (۱ روز) — مستقل از بقیه
 | کار | شرح |
@@ -125,7 +125,7 @@
 | T5-1 | ۵۹ نقطهٔ `setItem` مستقیم → DataLayer؛ اولویت: `finance-write-guard`(fin_events)، `inqreader`(products)، `index.html:3670`/`codegen`(settings)، حذف fallbackهای مردهٔ ۵ فایل |
 | T5-2 | کلیدهای «فقط-دستگاه» — تک‌تک با جدول پیوست الف: `ptf_personal_cheques_*` → کلید سینک‌شونده + مهاجرت یک‌باره؛ صف کدینگ (`ptf_code_tmp_queue/plan/ack`) → سینک‌شونده؛ پیش‌نویس‌ها (`ptf_autodraft_offer_`، draftx) → IDB؛ `ptf_sales_command_*` تشخیصی → IDB |
 | T5-3 | مهاجرت‌ها فقط با الگوی امن: بکاپ → push → ACK سرور → حذف محلی |
-| **معیار خروج** | A8 = ۰ تخلف؛ پروب «purge و بوت» سبز |
+| **معیار خروج** | A10 = ۰ تخلف جدید؛ پروب «purge و بوت» سبز |
 
 ### T6 — بازنشستگی موتور قدیمی و رکوردی‌شدن سرور (۱-۲ هفته)
 - حذف pushDirty/pullCheck از sync.js پس از سبز بودن همهٔ موج‌ها (فاز C5) — ~۲۰۰۰ خط منطق تعارض بازنشسته می‌شود.
@@ -159,7 +159,7 @@
 | دو تب همزمان | T3 | Web Locks leader + تست دو-تبی |
 | کندی پول با رشد داده | T3/T6 | collection_query + پول دلتا + پایش sync_stats |
 | دیپلوی ناقص/مخلوط | همه | post-deploy hash check (T0-4) + staging no-cache (T0-6) |
-| بازگشت عادت setItem مستقیم | همه | A8 در CI — مسدودکنندهٔ merge |
+| بازگشت عادت setItem مستقیم | همه | A10 در CI — مسدودکنندهٔ merge |
 
 ---
 
@@ -181,7 +181,7 @@
 
 - `sync_stats`: روند نزولی push توده‌ای هر کلید → صفر برای کلیدهای REC (هدف هر موج).
 - storage-quota: درصد اشغال LS → پایدار زیر ۲۰٪ روی دستگاه‌های قدیمی.
-- تعداد تخلف A8/A10 = ۰ در هر run CI.
+- تعداد تخلف A10/A11 = ۰ در هر run CI.
 - زمان بوت سرد دستگاه جدید (لوگ sync) → < ۵ ثانیه تا اولین پنل.
 - حوادث «۱۰۰٪ localStorage» = ۰ (پس از T3).
 
@@ -192,7 +192,7 @@
 | # | تنظیم | گزینه‌ها | پیشنهاد |
 |---|---|---|---|
 | S1 | فیکس نشت PII users_get | فوری روی مین / با بستهٔ T1 | **فوری (T1-1)** — نشتی زندهٔ پروداکشن |
-| S2 | گیت‌های CI (A8+A10+run-ci-gate+post-deploy hash) | الزامی / گزارشی | **الزامی** روی staging و production |
+| S2 | گیت‌های CI (A10+A11+run-ci-gate+post-deploy hash) | الزامی / گزارشی | **الزامی** روی staging و production |
 | S3 | کش استیجینگ js/html | no-cache / وضع موجود | **no-cache فقط staging** |
 | S4 | توکن نشست | کوکی HttpOnly / sessionStorage (وضع) | **کوکی HttpOnly** |
 | S5 | TTL نشست | ۷ روز (وضع) / ۲۴س+۸س مالی | **۲۴ ساعت (مالی ۸ ساعت)** |
