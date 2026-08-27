@@ -266,7 +266,7 @@ function saveLead(cd) {
   if (!cd) { if (typeof dedupStamp === 'function') dedupStamp(rec); rec.hist.push({ t: faDateTime(), k: 'ثبت', tx: 'لید ثبت شد — منبع: ' + rec.src }); }
   /* v34.8.14 (C3-گام۱): ذخیرهٔ سرنخ با فرمان اتمیک سروری؛ legacy فقط وقتی فرمان خاموش است. */
   if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_leads'] && typeof window.ptfEntityUpsert === 'function') {
-    window.ptfEntityUpsert('ptf_crm_leads', rec, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('ذخیرهٔ سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); try { renderLeads(); } catch (eRr) {} } });
+    window.ptfEntityUpsert('ptf_crm_leads', rec, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ذخیرهٔ سرنخ') : 'ذخیرهٔ سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); try { renderLeads(); } catch (eRr) {} } });
   } else setData('ptf_crm_leads', leads);
   hideModal(); renderLeads();
   addLog('لید ' + co + (cd ? ' ویرایش' : ' ثبت') + ' شد');
@@ -509,7 +509,7 @@ function ptfLeadDelDo(cd) {
   } catch (eG) {}
   /* v34.8.14 (C3-گام۱): حذف سرنخ با فرمان سروری + tombstone. */
   if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_leads'] && typeof window.ptfEntityDelete === 'function') {
-    window.ptfEntityDelete('ptf_crm_leads', cd, { reason: 'حذف سرنخ از UI', cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('حذف سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); try { renderLeads(); } catch (eR2) {} } });
+    window.ptfEntityDelete('ptf_crm_leads', cd, { reason: 'حذف سرنخ از UI', cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'حذف سرنخ') : 'حذف سرنخ روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); try { renderLeads(); } catch (eR2) {} } });
   } else setData('ptf_crm_leads', getData('ptf_crm_leads').filter(function(x){ return x.cd !== cd; }));
   try { if (typeof hideModal === 'function') hideModal(); } catch (eH) {}
   try { renderLeads(); } catch (eR) {}
@@ -598,7 +598,7 @@ function addReminder(r) {
   };
   /* v34.8.14 (C3-گام۱): ثبت یادآور با فرمان اتمیک سروری (کلید این ماژول کامل شد). */
   if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
-    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('ثبت یادآور روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); updateRemBadge(); } });
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ثبت یادآور') : 'ثبت یادآور روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); updateRemBadge(); } });
   } else {
     var rems = getData('ptf_crm_reminders');
     rems.unshift(row);
@@ -732,7 +732,7 @@ function remDone(cd) {
   /* v34.8.13 (PHASE-C2 پایلوت): یادآور با فرمان اتمیک سروری ثبت می‌شود؛
      مسیر legacy فقط وقتی فرمان در دسترس/فعال نیست. */
   if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
-    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('ثبت «انجام شد» روی سرور قطعی نشد؛ وضعیت را بازبینی کنید', 'warn'); renderReminders(); } });
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'ثبت «انجام شد» یادآور') : 'ثبت «انجام شد» روی سرور قطعی نشد؛ وضعیت را بازبینی کنید'), 'warn'); renderReminders(); } });
   } else setData('ptf_crm_reminders', rems);
   try { if (typeof window.ntfResolveByRef === 'function') window.ntfResolveByRef(cd); } catch (eNR) {} /* v33.4.1: یادآور انجام شد — اعلان مرتبط برای همه حذف شود */
   renderReminders();
@@ -757,7 +757,7 @@ function remSnooze(cd) {
   });
   /* v34.8.13 (PHASE-C2 پایلوت): تعویق با فرمان سروری. */
   if (row && window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityUpsert === 'function') {
-    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('تعویق روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn'); renderReminders(); } });
+    window.ptfEntityUpsert('ptf_crm_reminders', row, { cb: function (st) { if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'تعویق یادآور') : 'تعویق روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn'); renderReminders(); } });
   } else setData('ptf_crm_reminders', rems);
   renderReminders();
 }
@@ -767,7 +767,7 @@ function remDel(cd) {
   /* v34.8.13 (PHASE-C2 پایلوت): حذف با فرمان سروری + tombstone (عدم زنده‌شدن روی دستگاه‌های stale). */
   if (window.PTF_ENTITY_CMD_ENABLED && window.PTF_ENTITY_CMD_ENABLED['ptf_crm_reminders'] && typeof window.ptfEntityDelete === 'function') {
     window.ptfEntityDelete('ptf_crm_reminders', cd, { reason: 'حذف یادآور از UI', cb: function (st) {
-      if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast('حذف روی سرور قطعی نشد؛ دوباره تلاش کنید', 'warn');
+      if (st.state !== 'acked' && typeof ptfToast === 'function') ptfToast((typeof window.ptfEntityCommandMessage === 'function' ? window.ptfEntityCommandMessage(st, 'حذف یادآور') : 'حذف روی سرور قطعی نشد؛ دوباره تلاش کنید'), 'warn');
       renderReminders();
     } });
   } else setData('ptf_crm_reminders', getData('ptf_crm_reminders').filter(function(r){ return r.cd !== cd; }));

@@ -2227,7 +2227,10 @@ switch($action) {
         //   با توکن معتبر، مجموعهٔ کامل (بدون passhash) برای مدیریت کاربران برمی‌گردد.
         verify_request();
         global $client_role;
-        $authenticated = !empty($client_role);
+        /* v34.8.16 (T1-1 / PII-GUARD): ریشهٔ نشت موبایل/ایمیل بدون لاگین — مقداردهی اولیهٔ
+           '$client_role = 'anonymous'' (خط ~۲۹۵) باعث می‌شد !empty($client_role) همیشه true
+           باشد و گارد D-02 کد مرج شود. تأیید زنده روی هر دو محیط (۲۰۲۶-۰۸-۲۷). */
+        $authenticated = !empty($client_role) && $client_role !== 'anonymous';
         $all_users = load_all_crm_users_sources();
         $safe_users = array_map(function($u) use ($authenticated) {
             $row = [

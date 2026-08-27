@@ -322,8 +322,8 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
   var src = fs.readFileSync('crm/leads.js', 'utf8');
   /* v34.8.13 (PHASE-C2): remDone/remDel حالا مسیر فرمان سروری دارند؛ پنجرهٔ جستجو برای
      رسیدن به ntfResolveByRef بزرگ‌تر شد (رفتار همان است — اعلان مرتبط حذف می‌شود). */
-  assert.ok(/function remDone\(cd\) \{[\s\S]{0,900}ntfResolveByRef\(cd\)/.test(src), 'remDone باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
-  assert.ok(/function remDel\(cd\) \{[\s\S]{0,900}ntfResolveByRef\(cd\)/.test(src), 'remDel باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
+  assert.ok(/function remDone\(cd\) \{[\s\S]{0,1400}ntfResolveByRef\(cd\)/.test(src), 'remDone باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
+  assert.ok(/function remDel\(cd\) \{[\s\S]{0,1400}ntfResolveByRef\(cd\)/.test(src), 'remDel باید اعلان یادآور مرتبط را برای همه گیرندگان حذف کند');
 })();
 
 /* ===================== Pillar 7: letters.js — sign resolve ===================== */

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.15 — PHASE-C2: زیرساخت فرمان عمومی موجودیت (مسیر نازک نوشتن).
+/* v34.8.16 — PHASE-C2: زیرساخت فرمان عمومی موجودیت (مسیر نازک نوشتن).
    سرور: رجیستری موجودیت + entity_upsert/entity_delete با journal/idempotency موجود
    + tombstone عمومی (archive_purge با identities). کلاینت: ptfEntityUpsert/Delete +
    پرچم per-collection + اعمال projection بدون dirty. پایلوت: یادآورها (leads.js). */
@@ -16,7 +16,7 @@ var v2 = read('crm/sales-domain-v2.js');
 var leads = read('crm/leads.js');
 var crmphp = read('api/crm.php');
 
-T('VERSION.json = v34.8.15', ver.crm_version === 'v34.8.15', ver.crm_version);
+T('VERSION.json = v34.8.16', ver.crm_version === 'v34.8.16', ver.crm_version);
 
 /* ---------- سرور ---------- */
 T('رجیستری موجودیت تعریف شد', /function sd_entity_registry\(\): array/.test(api));
@@ -25,11 +25,11 @@ T('ptf_crm_reminders در SD_KEYS اضافه شد', /'ptf_crm_reminders'\s*\n?\s
 T('entity_upsert/entity_delete در دیسپچر هستند', /entity_upsert' \|\| \$action === 'entity_delete/.test(api));
 T('موجودیت غیرفعال → 404 not_enabled (دفاع عمیق)', /entity_collection_not_enabled/.test(api));
 T('گارد نقش per-collection', /sd_require_role\(\$cfg\['roles'\]\)/.test(api));
-T('sanitizer ردیف (سقف کلید/طول/تودرتو)', /function sd_entity_sanitize_row/.test(api) && /\$n >= 40\) break;/.test(api));
+T('sanitizer ردیف (سقف کلید/طول/تودرتو)', /function sd_entity_sanitize_row/.test(api) && /\$n >= 40\)\s*\{[^}]*break;/.test(api) && /count\(\$sub\) >= 60\) break;/.test(api));
 T('حذف = tombstone عمومی archive_purge با identities', /'kind' => 'archive_purge'.*'identities' => \[\$collection => \[\$id\]\]/s.test(api));
 T('حذف idempotent است (alreadyDeleted)', /'alreadyDeleted' => true/.test(api));
 T('فرمان‌های entity از journal پاس می‌کنند (در readOnly نیستند)', !/\('snapshot', 'health'[\s\S]{0,200}entity_upsert/.test(api));
-T('SD_SERVICE_VERSION = 34.8.15', /SD_SERVICE_VERSION = '34\.8\.15'/.test(api));
+T('SD_SERVICE_VERSION = 34.8.16', /SD_SERVICE_VERSION = '34\.8\.16'/.test(api));
 
 /* ---------- کلاینت ---------- */
 T('پرچم per-collection فعال (پایلوت یادآور)', /PTF_ENTITY_CMD_ENABLED = \{ 'ptf_crm_reminders': true/.test(v2));
@@ -66,6 +66,6 @@ T('هر سه مسیر fallback legacy دارند', (leads.match(/else setData\('
 
 T('sync_stats (C1) همچنان سر جایش است', /case 'sync_stats':/.test(crmphp));
 
-console.log('\n— tester517 (v34.8.15: PHASE-C2 فرمان عمومی موجودیت) —');
+console.log('\n— tester517 (v34.8.16: PHASE-C2 فرمان عمومی موجودیت) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

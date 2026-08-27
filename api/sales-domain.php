@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.15';
+const SD_SERVICE_VERSION = '34.8.16';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -90,14 +90,22 @@ function sd_entity_registry(): array {
         ],
     ];
 }
-function sd_entity_sanitize_row(array $row): array {
+function sd_entity_sanitize_row(array $row, array &$stats = null): array {
+    /* v34.8.16 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
+       ۲۰۰۰→۸۰۰۰ و hist ۵۰۰→۲۰۰۰؛ تعداد برش/حذف به‌صورت ساخت‌یافته در پاسخ فرمان
+       برمی‌گردد تا حذفِ بی‌صدا از بین برود. */
+    $stats = ['trimmed' => 0, 'dropped' => 0, 'kept' => 0];
+    $trackString = function (string $original, string $stored) use (&$stats): void {
+        if (mb_strlen($original, 'UTF-8') > mb_strlen($stored, 'UTF-8')) $stats['trimmed']++;
+    };
     $out = []; $n = 0;
     foreach ($row as $k => $v) {
-        if (!is_string($k) || $k === '' || strlen($k) > 40) continue;
-        if ($n >= 40) break;
-        if (is_bool($v)) { $out[$k] = $v; $n++; continue; }
-        if (is_int($v) || is_float($v)) { $out[$k] = $v; $n++; continue; }
-        if (is_string($v)) { $out[$k] = sd_text($v, 2000); $n++; continue; }
+        if (!is_string($k) || $k === '' || strlen($k) > 40) { $stats['dropped']++; continue; }
+        if ($n >= 40) { $stats['dropped']++; break; }
+        if ($v === null) { $out[$k] = null; $n++; $stats['kept']++; continue; }
+        if (is_bool($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
+        if (is_int($v) || is_float($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
+        if (is_string($v)) { $stored = sd_text($v, 8000); $trackString($v, $stored); $out[$k] = $stored; $n++; $stats['kept']++; continue; }
         if (is_array($v)) {
             /* v34.8.14: لیست اسکالر (مثل shareUsers) عیناً با سقف نگه داشته می‌شود؛
                map تودرتو با مقادیر اسکالر مجاز است (مثل link/notifiedUsers). */
@@ -113,7 +121,9 @@ function sd_entity_sanitize_row(array $row): array {
                         $subItem = [];
                         foreach ($item as $k3 => $v3) {
                             if (is_string($k3) && strlen($k3) <= 60 && (is_scalar($v3) || $v3 === null)) {
-                                $subItem[$k3] = is_string($v3) ? sd_text($v3, 500) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
+                                $storedSub = is_string($v3) ? sd_text($v3, 2000) : (is_bool($v3) ? $v3 : ($v3 === null ? null : (int)$v3));
+                                if (is_string($v3)) $trackString($v3, $storedSub);
+                                $subItem[$k3] = $storedSub;
                             }
                             if (count($subItem) >= 20) break;
                         }
@@ -2272,7 +2282,8 @@ try {
             $rec = is_array($body['record'] ?? null) ? $body['record'] : [];
             $id = sd_text($rec[$idField] ?? '', 60);
             if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
-            $row = sd_entity_sanitize_row($rec);
+            $sanitizeStats = null;
+            $row = sd_entity_sanitize_row($rec, $sanitizeStats);
             $row[$idField] = $id;
             $found = -1;
             foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }
@@ -2286,7 +2297,7 @@ try {
                 $rows[$found] = $row; $created = false; $stored = $row;
             }
             $changes = [$collection => $rows];
-            $result = ['collection' => $collection, 'id' => $id, 'created' => $created, 'row' => $stored, 'mode' => 'entity-command'];
+            $result = ['collection' => $collection, 'id' => $id, 'created' => $created, 'row' => $stored, 'mode' => 'entity-command', 'sanitize' => $sanitizeStats];
         } else {
             $id = sd_text($body['id'] ?? ($body['record'] ?? [])[$idField] ?? '', 60);
             if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);

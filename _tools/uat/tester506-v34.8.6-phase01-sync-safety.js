@@ -1,4 +1,4 @@
-/* tester506 — v34.8.15/F0-1: Phase-B single transport, financial projection safety
+/* tester506 — v34.8.16/F0-1: Phase-B single transport, financial projection safety
  * and server per-key identity/revision guards. This test is intentionally non-mutating
  * and uses only isolated in-memory fixtures. */
 'use strict';
@@ -98,7 +98,7 @@ c.ptfSyncAcknowledgeKeys(['ptf_crm_settings'], { ptf_crm_settings: JSON.stringif
 assert.strictEqual(c.ptfSyncPendingKeys().indexOf('ptf_crm_settings'), -1);
 console.log('  ✔ ACK قدیمی نسل جدید را پاک نمی‌کند و ACK هم‌نسل آن را پاک می‌کند');
 
-console.log('PASS tester506 v34.8.15 phase01 sync safety');
+console.log('PASS tester506 v34.8.16 phase01 sync safety');
 
 
 console.log('── Phase B queue ACK and payload recovery ──');

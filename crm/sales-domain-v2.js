@@ -383,6 +383,27 @@
     } catch (eLegacy) {}
     return false;
   }
+  /* v34.8.16 (T1-2): پیام خطای فرمان دقیق — «دوباره تلاش کنید» فقط برای خطای قابل‌تلاش؛
+     ۴۰۳ = عدم مجوز، ۴۰۱ = نشست منقضی، نامشخص = بررسی رسید، آفلاین = صف. */
+  window.ptfEntityCommandMessage = function (st, label) {
+    label = label || 'این عملیات';
+    var st8 = st || {};
+    var err = st8.error || {};
+    var msg = String((err && err.message) || err || '');
+    var code = +(err && err.status) || 0;
+    if (st8.state === 'acked') return '';
+    if (code === 403 || /permission_denied|entity_collection_not_enabled|role/i.test(msg))
+      return label + ': دسترسی لازم را ندارید — با مدیر سامانه تماس بگیرید (تلاش مجدد فایده ندارد)';
+    if (code === 401 || /needLogin|Authentication required|token/i.test(msg))
+      return label + ': نشست منقضی شده — دوباره وارد شوید؛ تغییر شما از دست نمی‌رود';
+    if (st8.state === 'uncertain' || err.commitOutcome === 'uncertain')
+      return label + ': وضعیت روی سرور نامشخص است — از «بررسی رسید فرمان» (تنظیمات) وضعیت را بگیرید؛ دوباره نفرستید';
+    if (!code && /fetch|network|offline/i.test(msg))
+      return label + ': ارتباط با سرور برقرار نشد — تغییر محفوظ است و با برگشت اتصال ارسال می‌شود';
+    if (err.definitiveNoCommit || /command_not_committed/i.test(msg))
+      return label + ': روی سرور ثبت نشد — دوباره تلاش کنید';
+    return label + ': روی سرور انجام نشد — ' + (msg ? msg : 'خطای نامشخص') + ' (کد ' + (code || '—') + ')';
+  };
   window.ptfEntityUpsert = function (collection, record, opts) {
     opts = opts || {};
     if (!window.PTF_ENTITY_CMD_ENABLED[collection]) { if (opts.cb) opts.cb({ state: 'legacy' }); return null; }

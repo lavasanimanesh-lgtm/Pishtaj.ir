@@ -1,8 +1,8 @@
 /* PTF CRM — Service Worker (MOB-009 release cache contract) */
 /* `RELEASE` باید با window.PTF_CRM_RELEASE، VERSION.json و query تمام scriptها یکی باشد. */
-var RELEASE = 'v34.8.15';
-var ASSET_VERSION = '34.8.15';
-var CACHE = 'ptf-crm-v34.8.15';
+var RELEASE = 'v34.8.16';
+var ASSET_VERSION = '34.8.16';
+var CACHE = 'ptf-crm-v34.8.16';
 var ASSET_QUERY = '?v=' + ASSET_VERSION;
 /* v34.8.6: تغییرات رفتاری sync/client-server با بامپ واقعی نسخه منتشر شدند؛
    phase-queryهای موقتی (f01…f08) حذف شدند و همهٔ entryها زیر همان ?v یکسان precache می‌شوند. */
@@ -104,6 +104,7 @@ var SHELL = [
   './financehub.js' + ASSET_QUERY,
   './theme-contrast.js' + ASSET_QUERY,
   './sync.js' + ASSET_QUERY,
+  './key-registry.js' + ASSET_QUERY,
   './client-server.js' + ASSET_QUERY,
   './unofficial-invoice.js' + ASSET_QUERY,
   './user-guide.js' + ASSET_QUERY,
