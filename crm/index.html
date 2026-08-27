@@ -1320,7 +1320,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="manifest" href="manifest.json?v=34.8.31">
+<link rel="manifest" href="manifest.json?v=34.8.32">
 <meta name="theme-color" content="#ef4b1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2135,7 +2135,7 @@ function showCrm() {
         if (fa2 !== p.ca) { if (!p.tp && p.ca) p.tp = p.ca; p.ca = fa2; caMig = true; }
       });
     }
-    if (clean.length !== prds.length || caMig) { /* v34.8.31 (W1-iterate): مهاجرت داده با فرمان */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', clean, { reason: 'boot-migrate' }); else setData('ptf_crm_products', clean); }
+    if (clean.length !== prds.length || caMig) { /* v34.8.32 (W1-iterate): مهاجرت داده با فرمان */ if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', clean, { reason: 'boot-migrate' }); else setData('ptf_crm_products', clean); }
   } catch(e){}
   loadAll();
 }
@@ -2172,7 +2172,7 @@ try {
 } catch(e) {}
 
 // ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
-window.PTF_CRM_RELEASE = 'v34.8.31'; window.VER = 'v34.8.31'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
+window.PTF_CRM_RELEASE = 'v34.8.32'; window.VER = 'v34.8.32'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
 try { document.getElementById('sbVer').textContent = 'CRM ' + VER; } catch(e){} // US-297: ورژن واقعی در سایدبار
 try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' + VER; } catch(e){}
 (function () {
@@ -2877,7 +2877,7 @@ window.ptfStandardImportProdXls = function(inp) {
         added++;
       }
       
-      /* v34.8.31 (W1-iterate) */
+      /* v34.8.32 (W1-iterate) */
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', prods, { reason: 'excel-std' });
       else setData('ptf_crm_products', prods);
       renderProducts();
@@ -3023,7 +3023,7 @@ window.ptfStandardImportLeadsXls = function(inp) {
         });
         added++;
       }
-      /* v34.8.31 (W4) */
+      /* v34.8.32 (W4) */
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_leads', leads, { reason: 'w4' });
       else setData('ptf_crm_leads', leads);
       if (typeof renderLeads === 'function') renderLeads();
@@ -3260,7 +3260,71 @@ function buildProducts() {
 var prodSort = {key:'cd', dir:1};
 function sortProd(k){ if(prodSort.key===k){prodSort.dir*=-1}else{prodSort={key:k,dir:1}} renderProducts(); }
 
+/* v34.8.32 (T3-1 مصرف عملیاتی): ماژول کالا از خواندن سرور-محور استفاده می‌کند —
+   صفحهٔ سروری ۱۰۰تایی + جستجوی/مرتب‌سازی سروری؛ fallback کامل به رندر محلی روی
+   هر خطا (آفلاین/شبکه). فلگ per-user در settings برای بازگشت فوری. */
+var prodServerPage = { rows: null, page: 1, totalPages: 1, total: 0, loading: false };
+window.ptfProdServerToggle = function (on) {
+  try {
+    var st = getData('ptf_crm_settings') || {};
+    if (Array.isArray(st)) st = {};
+    st.prodServerRead = !!on;
+    setData('ptf_crm_settings', st);
+  } catch (e) {}
+  prodServerPage.rows = null;
+  renderProducts();
+};
+function prodServerReadOn() {
+  try {
+    var st = getData('ptf_crm_settings') || {};
+    return !Array.isArray(st) && st.prodServerRead !== false && typeof window.ptfCollectionQuery === 'function';
+  } catch (e) { return false; }
+}
+window.ptfProdServerGoto = function (pg) { prodServerPage.page = Math.max(1, Math.min(prodServerPage.totalPages || 1, pg | 0)); renderProducts(); };
+function renderProductsServer() {
+  var tb = document.getElementById('pTb');
+  if (!tb) return;
+  var q = ((document.getElementById('pSrch')||{}).value || '').trim();
+  var fc = (document.getElementById('pFcat')||{}).value || '';
+  var sort = (typeof prodSort !== 'undefined' && prodSort) ? prodSort : { key: 'cd', dir: 1 };
+  if (prodServerPage.loading) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">⏳ در حال دریافت از سرور…</td></tr>'; return; }
+  if (!prodServerPage.rows) { prodServerPage.loading = true; tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">⏳ در حال دریافت از سرور…</td></tr>';
+    var opts = { page: prodServerPage.page, pageSize: 100, sortBy: sort.key === 'pr' ? 'pr' : (sort.key || 'cd'), sortDir: sort.dir === -1 ? 'desc' : 'asc' };
+    if (q) opts.q = q;
+    window.ptfCollectionQuery('ptf_crm_products', opts, function (d) {
+      prodServerPage.loading = false;
+      if (d && d.ok) { prodServerPage.rows = d.rows || []; prodServerPage.total = d.total || 0; prodServerPage.totalPages = d.pages || 1; renderProducts(); }
+      else { if (typeof ptfToast === 'function') ptfToast('خواندن سروری ناموفق بود — نمایش محلی', 'warn'); prodServerPage.rows = null; renderProducts(); }
+    });
+    return;
+  }
+  var list = prodServerPage.rows;
+  var el = document.getElementById('pCount');
+  if (el) el.textContent = 'نمایش ' + list.length + ' از ' + prodServerPage.total + ' کالا (صفحهٔ ' + prodServerPage.page + ' از ' + prodServerPage.totalPages + ' — سروری)';
+  var h = '';
+  for (var i=0;i<list.length;i++){
+    var p = list[i];
+    var cd = p.cd || '';
+    var safeCd = cd.replace(/'/g, '');
+    h += '<tr><td><input type="checkbox" class="p-chk" value="' + escP(cd) + '"></td>' +
+      '<td><strong>'+escP(cd)+'</strong></td><td>'+escP(p.nm)+(p.en?'<br><small style="color:#94a3b8">'+escP(p.en)+'</small>':'')+'</td>'+
+      '<td>'+escP((typeof ptfNormCat==='function'?ptfNormCat(p.ca):p.ca)||'-')+'</td><td>'+escP(p.st||'-')+'</td><td>'+escP(p.br||'-')+(p.md?'<br><small style="color:#7c3aed;direction:ltr;display:inline-block">'+escP(p.md)+'</small>':'')+'</td><td>'+escP(p.un||'-')+'</td>'+
+      '<td>'+(p.pr? (+p.pr).toLocaleString(p.prCur&&p.prCur!=='IRR'?'en-US':'fa-IR')+' '+(p.prCur&&p.prCur!=='IRR'?p.prCur:'ریال') : '-')+(p.refPriceAt ? '<br><small style="color:#0e7490" title="'+escP(p.refPriceSrc||'')+'">مرجع: '+escP(p.refPriceAt)+'</small>' : '')+'</td>'+
+      '<td><button class="bt bt-o entity-row-action" data-entity-action="edit" style="padding:4px 10px;font-size:12px" title="ویرایش کالا" aria-label="ویرایش کالا" onclick="showProdModal(\''+safeCd+'\')">✎</button> '+
+      '<button class="bt bt-o entity-row-action" data-entity-action="delete" style="padding:4px 10px;font-size:12px;color:#dc2626" title="حذف کالا" aria-label="حذف کالا" onclick="delProd(\''+safeCd+'\')">🗑️</button></td></tr>';
+  }
+  var nav = '';
+  if (prodServerPage.totalPages > 1) {
+    nav = '<tr><td colspan="9" style="text-align:center;padding:10px">' +
+      '<button class="bt bt-o" style="padding:3px 10px" onclick="ptfProdServerGoto(' + (prodServerPage.page - 1) + ')"' + (prodServerPage.page <= 1 ? ' disabled' : '') + '>‹ قبلی</button> ' +
+      ' صفحهٔ ' + prodServerPage.page + ' از ' + prodServerPage.totalPages + ' ' +
+      '<button class="bt bt-o" style="padding:3px 10px" onclick="ptfProdServerGoto(' + (prodServerPage.page + 1) + ')"' + (prodServerPage.page >= prodServerPage.totalPages ? ' disabled' : '') + '>بعدی ›</button></td></tr>';
+  }
+  tb.innerHTML = (h || '<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:26px">کالایی یافت نشد</td></tr>') + nav;
+}
 function renderProducts() {
+  /* v34.8.32: مسیر سروری — با fallback کامل محلی */
+  if (prodServerReadOn()) { try { renderProductsServer(); return; } catch (eSrv) {} }
   var items = getData('ptf_crm_products');
   var tb = document.getElementById('pTb');
   if (!tb) return;
@@ -3311,7 +3375,7 @@ window.ptfBatchDeleteProducts = function() {
   if (typeof window.ptfReasonedDelete === 'function') {
     window.ptfReasonedDelete('PRODUCT_BATCH', checked.length + ' کالا', 'حذف دسته‌جمعی ' + checked.length + ' کالا', function() {
       var items = getData('ptf_crm_products').filter(function(p) { return checked.indexOf(p.cd) < 0; });
-      /* v34.8.31 (W1-iterate): حذف دسته‌جمعی = فرمان‌های tombstone بازیافت‌پذیر */
+      /* v34.8.32 (W1-iterate): حذف دسته‌جمعی = فرمان‌های tombstone بازیافت‌پذیر */
       if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', items, { reason: 'prod-batch-del' });
       else setData('ptf_crm_products', items);
       if (typeof audit === 'function') audit('کالاها', 'حذف دسته‌جمعی ' + checked.length + ' کالا', '');
@@ -3403,7 +3467,7 @@ function saveProd(isEdit) {
   if (isEdit) {
     for (var i=0;i<items.length;i++) if (items[i].cd===cd) { rec.ts0=items[i].ts0||items[i].ts; rec.crAt=items[i].crAt; rec.crBy=items[i].crBy; rec.tp=items[i].tp; rec.srcInq=items[i].srcInq; rec.hidden=items[i].hidden; rec.prCur=rec.prCur||items[i].prCur; rec.refPriceAt=items[i].refPriceAt; rec.refPriceSrc=items[i].refPriceSrc; items[i]=rec; }
   } else { rec.ts0=rec.ts; if (typeof dedupStamp === 'function') dedupStamp(rec); items.push(rec); }
-  /* v34.8.31 (W1): ثبت/ویرایش کالا با فرمان اتمیک سروری. */
+  /* v34.8.32 (W1): ثبت/ویرایش کالا با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', items, { reason: 'saveProduct' });
   else setData('ptf_crm_products', items);
   hideModal(); renderProducts();
@@ -3413,7 +3477,7 @@ function saveProd(isEdit) {
 function delProd(cd) {
   if (!confirm('کالای '+cd+' حذف شود؟ این عمل قابل بازگشت نیست.')) return;
   var items = getData('ptf_crm_products').filter(function(p){return p.cd!==cd});
-  /* v34.8.31 (W1-iterate): حذف کالا = فرمان tombstone بازیافت‌پذیر */
+  /* v34.8.32 (W1-iterate): حذف کالا = فرمان tombstone بازیافت‌پذیر */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', items, { reason: 'delProd' });
   else setData('ptf_crm_products', items);
   renderProducts(); addLog('کالا '+cd+' حذف شد');
@@ -3474,7 +3538,7 @@ function importProdCsv(inp) {
       }
       added++;
     }
-    /* v34.8.31 (W1-iterate) */
+    /* v34.8.32 (W1-iterate) */
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_products', items, { reason: 'quick-import' });
     else setData('ptf_crm_products', items);
     renderProducts();
@@ -3902,7 +3966,7 @@ function saveSup() {
   if (typeof ptfDupBlock === 'function' && ptfDupBlock('supplier', recS, null)) return; // US-174
   if (typeof dedupStamp === 'function') dedupStamp(recS);
   items.unshift(recS);
-  /* v34.8.31 (W1): ثبت تامین‌کننده با فرمان اتمیک سروری. */
+  /* v34.8.32 (W1): ثبت تامین‌کننده با فرمان اتمیک سروری. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'saveSup' });
   else setData('ptf_crm_suppliers', items);
   hideModal();
@@ -3919,7 +3983,7 @@ function saveCust() {
   if (typeof ptfDupBlock === 'function' && ptfDupBlock('customer', recC, null)) return; // US-174
   if (typeof dedupStamp === 'function') dedupStamp(recC);
   items.unshift(recC);
-  /* v34.8.31 (W1): ثبت مشتری با فرمان اتمیک سروری؛ legacy فقط وقتی فرمان خاموش است. */
+  /* v34.8.32 (W1): ثبت مشتری با فرمان اتمیک سروری؛ legacy فقط وقتی فرمان خاموش است. */
   if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'saveCust' });
   else setData('ptf_crm_customers', items);
   hideModal();
@@ -4053,115 +4117,115 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script defer src="ui-kit.js?v=34.8.31"></script>
+<script defer src="ui-kit.js?v=34.8.32"></script>
 <!-- MOB-008: nav shell باید پیش از ده‌ها bundle عملیاتی اجرا شود. -->
-<script defer src="mobilenav.js?v=34.8.31"></script>
-<script defer src="storage-quota.js?v=34.8.31"></script>
-<script defer src="moneyx.js?v=34.8.31"></script>
-<script defer src="finance-helpers.js?v=34.8.31"></script>
-<script defer src="metrics-shared.js?v=34.8.31"></script>
-<script defer src="ar-reconcile.js?v=34.8.31"></script>
-<script defer src="finance-core.js?v=34.8.31"></script>
-<script defer src="finance-write-guard.js?v=34.8.31"></script>
-<script defer src="date-kit.js?v=34.8.31"></script>
-<script defer src="dialogx.js?v=34.8.31"></script>
-<script defer src="dedup.js?v=34.8.31"></script>
-<script defer src="codegen.js?v=34.8.31"></script>
-<script async src="xlsx.min.js?v=34.8.31"></script>
-<script defer src="sortable.js?v=34.8.31"></script>
-<script defer src="offers.js?v=34.8.31"></script>
-<script defer src="surplus.js?v=34.8.31"></script>
-<script defer src="launcher.js?v=34.8.31"></script>
-<script defer src="leads.js?v=34.8.31"></script>
-<script defer src="storage.js?v=34.8.31"></script>
-<script defer src="rbac.js?v=34.8.31"></script>
-<script defer src="official-ledger.js?v=34.8.31"></script>
-<script defer src="projects.js?v=34.8.31"></script>
-<script defer src="letters.js?v=34.8.31"></script>
-<script defer src="draftx.js?v=34.8.31"></script>
-<script defer src="analyzer.js?v=34.8.31"></script>
-<script defer src="management-intelligence.js?v=34.8.31"></script>
-<script defer src="contracts.js?v=34.8.31"></script>
-<script defer src="shell.js?v=34.8.31"></script>
-<script defer src="bridge.js?v=34.8.31"></script>
-<script defer src="kanban.js?v=34.8.31"></script>
-<script defer src="reports.js?v=34.8.31"></script>
-<script defer src="backup.js?v=34.8.31"></script>
-<script defer src="tool-licenses.js?v=34.8.31"></script>
-<script defer src="tool-report-drafts.js?v=34.8.31"></script>
-<script defer src="tool-feedback.js?v=34.8.31"></script>
-<script defer src="sms.js?v=34.8.31"></script>
-<script defer src="rfqsmart.js?v=34.8.31"></script>
-<script defer src="cms.js?v=34.8.31"></script>
-<script defer src="careers.js?v=34.8.31"></script>
-<script defer src="perms.js?v=34.8.31"></script>
-<script defer src="petty.js?v=34.8.31"></script>
-<script defer src="opex.js?v=34.8.31"></script>
-<script defer src="shareholders.js?v=34.8.31"></script>
-<script defer src="theme.js?v=34.8.31"></script>
-<script defer src="archive.js?v=34.8.31"></script>
-<script defer src="offers-pro.js?v=34.8.31"></script>
-<script defer src="buycompare.js?v=34.8.31"></script>
-<script defer src="procurement-link.js?v=34.8.31"></script>
-<script defer src="listtools.js?v=34.8.31"></script>
-<script defer src="icons.js?v=34.8.31"></script>
-<script defer src="guards.js?v=34.8.31"></script>
-<script defer src="tables.js?v=34.8.31"></script>
-<script defer src="inqreader.js?v=34.8.31"></script>
-<script defer src="offerlock.js?v=34.8.31"></script>
-<script defer src="workflow.js?v=34.8.31"></script>
-<script defer src="fx.js?v=34.8.31"></script>
-<script defer src="modalx.js?v=34.8.31"></script>
-<script defer src="iconx.js?v=34.8.31"></script>
-<script defer src="salesfiles.js?v=34.8.31"></script>
-<script defer src="offer-rial-convert.js?v=34.8.31"></script>
-<script defer src="docsx.js?v=34.8.31"></script>
-<script defer src="oppo.js?v=34.8.31"></script>
-<script defer src="cheque-module.js?v=34.8.31"></script>
-<script defer src="cheque-panel.js?v=34.8.31"></script>
-<script defer src="cheque-print.js?v=34.8.31"></script>
-<script defer src="cheques.js?v=34.8.31"></script>
-<script defer src="messengers.js?v=34.8.31"></script>
-<script defer src="phonefmt.js?v=34.8.31"></script>
-<script defer src="tour.js?v=34.8.31"></script>
-<script defer src="ai-workbench.js?v=34.8.31"></script>
-<script defer src="golive.js?v=34.8.31"></script>
-<script defer src="custmerge.js?v=34.8.31"></script>
-<script defer src="listclean.js?v=34.8.31"></script>
-<script defer src="supspec.js?v=34.8.31"></script>
-<script defer src="scoring.js?v=34.8.31"></script>
-<script defer src="vat-shared.js?v=34.8.31"></script>
-<script defer src="vat-quarterly.js?v=34.8.31"></script>
-<script defer src="supplier-finance.js?v=34.8.31"></script>
-<script defer src="customer-finance.js?v=34.8.31"></script>
-<script defer src="working-capital.js?v=34.8.31"></script>
-<script defer src="treasury.js?v=34.8.31"></script>
-<script defer src="treasury-call.js?v=34.8.31"></script>
-<script defer src="ledger-report.js?v=34.8.31"></script>
-<script defer src="data-quality.js?v=34.8.31"></script>
-<script defer src="commission.js?v=34.8.31"></script>
+<script defer src="mobilenav.js?v=34.8.32"></script>
+<script defer src="storage-quota.js?v=34.8.32"></script>
+<script defer src="moneyx.js?v=34.8.32"></script>
+<script defer src="finance-helpers.js?v=34.8.32"></script>
+<script defer src="metrics-shared.js?v=34.8.32"></script>
+<script defer src="ar-reconcile.js?v=34.8.32"></script>
+<script defer src="finance-core.js?v=34.8.32"></script>
+<script defer src="finance-write-guard.js?v=34.8.32"></script>
+<script defer src="date-kit.js?v=34.8.32"></script>
+<script defer src="dialogx.js?v=34.8.32"></script>
+<script defer src="dedup.js?v=34.8.32"></script>
+<script defer src="codegen.js?v=34.8.32"></script>
+<script async src="xlsx.min.js?v=34.8.32"></script>
+<script defer src="sortable.js?v=34.8.32"></script>
+<script defer src="offers.js?v=34.8.32"></script>
+<script defer src="surplus.js?v=34.8.32"></script>
+<script defer src="launcher.js?v=34.8.32"></script>
+<script defer src="leads.js?v=34.8.32"></script>
+<script defer src="storage.js?v=34.8.32"></script>
+<script defer src="rbac.js?v=34.8.32"></script>
+<script defer src="official-ledger.js?v=34.8.32"></script>
+<script defer src="projects.js?v=34.8.32"></script>
+<script defer src="letters.js?v=34.8.32"></script>
+<script defer src="draftx.js?v=34.8.32"></script>
+<script defer src="analyzer.js?v=34.8.32"></script>
+<script defer src="management-intelligence.js?v=34.8.32"></script>
+<script defer src="contracts.js?v=34.8.32"></script>
+<script defer src="shell.js?v=34.8.32"></script>
+<script defer src="bridge.js?v=34.8.32"></script>
+<script defer src="kanban.js?v=34.8.32"></script>
+<script defer src="reports.js?v=34.8.32"></script>
+<script defer src="backup.js?v=34.8.32"></script>
+<script defer src="tool-licenses.js?v=34.8.32"></script>
+<script defer src="tool-report-drafts.js?v=34.8.32"></script>
+<script defer src="tool-feedback.js?v=34.8.32"></script>
+<script defer src="sms.js?v=34.8.32"></script>
+<script defer src="rfqsmart.js?v=34.8.32"></script>
+<script defer src="cms.js?v=34.8.32"></script>
+<script defer src="careers.js?v=34.8.32"></script>
+<script defer src="perms.js?v=34.8.32"></script>
+<script defer src="petty.js?v=34.8.32"></script>
+<script defer src="opex.js?v=34.8.32"></script>
+<script defer src="shareholders.js?v=34.8.32"></script>
+<script defer src="theme.js?v=34.8.32"></script>
+<script defer src="archive.js?v=34.8.32"></script>
+<script defer src="offers-pro.js?v=34.8.32"></script>
+<script defer src="buycompare.js?v=34.8.32"></script>
+<script defer src="procurement-link.js?v=34.8.32"></script>
+<script defer src="listtools.js?v=34.8.32"></script>
+<script defer src="icons.js?v=34.8.32"></script>
+<script defer src="guards.js?v=34.8.32"></script>
+<script defer src="tables.js?v=34.8.32"></script>
+<script defer src="inqreader.js?v=34.8.32"></script>
+<script defer src="offerlock.js?v=34.8.32"></script>
+<script defer src="workflow.js?v=34.8.32"></script>
+<script defer src="fx.js?v=34.8.32"></script>
+<script defer src="modalx.js?v=34.8.32"></script>
+<script defer src="iconx.js?v=34.8.32"></script>
+<script defer src="salesfiles.js?v=34.8.32"></script>
+<script defer src="offer-rial-convert.js?v=34.8.32"></script>
+<script defer src="docsx.js?v=34.8.32"></script>
+<script defer src="oppo.js?v=34.8.32"></script>
+<script defer src="cheque-module.js?v=34.8.32"></script>
+<script defer src="cheque-panel.js?v=34.8.32"></script>
+<script defer src="cheque-print.js?v=34.8.32"></script>
+<script defer src="cheques.js?v=34.8.32"></script>
+<script defer src="messengers.js?v=34.8.32"></script>
+<script defer src="phonefmt.js?v=34.8.32"></script>
+<script defer src="tour.js?v=34.8.32"></script>
+<script defer src="ai-workbench.js?v=34.8.32"></script>
+<script defer src="golive.js?v=34.8.32"></script>
+<script defer src="custmerge.js?v=34.8.32"></script>
+<script defer src="listclean.js?v=34.8.32"></script>
+<script defer src="supspec.js?v=34.8.32"></script>
+<script defer src="scoring.js?v=34.8.32"></script>
+<script defer src="vat-shared.js?v=34.8.32"></script>
+<script defer src="vat-quarterly.js?v=34.8.32"></script>
+<script defer src="supplier-finance.js?v=34.8.32"></script>
+<script defer src="customer-finance.js?v=34.8.32"></script>
+<script defer src="working-capital.js?v=34.8.32"></script>
+<script defer src="treasury.js?v=34.8.32"></script>
+<script defer src="treasury-call.js?v=34.8.32"></script>
+<script defer src="ledger-report.js?v=34.8.32"></script>
+<script defer src="data-quality.js?v=34.8.32"></script>
+<script defer src="commission.js?v=34.8.32"></script>
 
-<script defer src="my-customers-filter.js?v=34.8.31"></script>
-<script defer src="insights.js?v=34.8.31"></script>
-<script defer src="myday.js?v=34.8.31"></script>
-<script defer src="lossguard.js?v=34.8.31"></script>
-<script defer src="fiscal.js?v=34.8.31"></script>
-<script defer src="financehub.js?v=34.8.31"></script>
-<script defer src="theme-contrast.js?v=34.8.31"></script>
-<script defer src="key-registry.js?v=34.8.31"></script>
-<script defer src="sync.js?v=34.8.31"></script>
-<script defer src="client-server.js?v=34.8.31"></script>
-<script defer src="unofficial-invoice.js?v=34.8.31"></script>
-<script defer src="user-guide.js?v=34.8.31"></script>
-<script defer src="settings-accordion.js?v=34.8.31"></script>
-<script defer src="mobile-actions.js?v=34.8.31"></script>
-<script defer src="mobile-table-labels.js?v=34.8.31"></script>
-<script defer src="mobile-nav-state.js?v=34.8.31"></script>
-<script defer src="nav-focus.js?v=34.8.31"></script>
+<script defer src="my-customers-filter.js?v=34.8.32"></script>
+<script defer src="insights.js?v=34.8.32"></script>
+<script defer src="myday.js?v=34.8.32"></script>
+<script defer src="lossguard.js?v=34.8.32"></script>
+<script defer src="fiscal.js?v=34.8.32"></script>
+<script defer src="financehub.js?v=34.8.32"></script>
+<script defer src="theme-contrast.js?v=34.8.32"></script>
+<script defer src="key-registry.js?v=34.8.32"></script>
+<script defer src="sync.js?v=34.8.32"></script>
+<script defer src="client-server.js?v=34.8.32"></script>
+<script defer src="unofficial-invoice.js?v=34.8.32"></script>
+<script defer src="user-guide.js?v=34.8.32"></script>
+<script defer src="settings-accordion.js?v=34.8.32"></script>
+<script defer src="mobile-actions.js?v=34.8.32"></script>
+<script defer src="mobile-table-labels.js?v=34.8.32"></script>
+<script defer src="mobile-nav-state.js?v=34.8.32"></script>
+<script defer src="nav-focus.js?v=34.8.32"></script>
 <!-- v35: command-driven Sales-to-Cash loads last and replaces the legacy financial/write surfaces atomically. -->
-<script defer src="sales-domain-v2.js?v=34.8.31"></script>
-<script defer src="official-invoice-v2.js?v=34.8.31"></script>
-<script defer src="tax-returns.js?v=34.8.31"></script>
-<script defer src="case-revision.js?v=34.8.31"></script>
+<script defer src="sales-domain-v2.js?v=34.8.32"></script>
+<script defer src="official-invoice-v2.js?v=34.8.32"></script>
+<script defer src="tax-returns.js?v=34.8.32"></script>
+<script defer src="case-revision.js?v=34.8.32"></script>
 </body>
 </html>
