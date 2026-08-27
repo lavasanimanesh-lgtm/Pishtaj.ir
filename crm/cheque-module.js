@@ -341,7 +341,7 @@
     inv.payments = inv.payments || [];
     var payRec = { cd: genCode('RPAY'), amt: +c.amt || 0, how: 'چک وارده ' + (c.sayad || c.no || c.cd || ''), t: faDateL(), by: me().name, chequeCd: c.cd, status: 'posted', sourcePath: 'cheque_module' };
     inv.payments.push(payRec);
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     return { ok: true, applied: 'invoice', invoiceCd: c.sourceInvoiceCd, paymentCd: payRec.cd };
   }
   /* چک صادره → payment در supplier-finance (اگر supplierCd) */
@@ -489,7 +489,7 @@
       });
     });
     if (changed) {
-      setData('ptf_crm_invoices', invs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
       try { if (window.PTF && window.PTF.ar) window.PTF.ar.invalidate(); } catch (eAr) {}
       try { if (typeof audit === 'function') audit('چک', 'ابطال اثر مالی چک وارده ' + cd + ' روی فاکتور (بدون حذف رکورد)', String(cd)); } catch (eA) {}
     }

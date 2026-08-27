@@ -893,7 +893,7 @@ function saveInv(offerNo) {
     existing.no = no; existing.amount = grand; existing.base = amt; existing.vat = vat; existing.invDate = invDate;
     if (files.length) { existing.files = (existing.files || []).concat(files); existing.file = existing.files[0] ? existing.files[0].name : existing.file; }
     existing.editedAt = faDateTime(); existing.editedBy = curSession().name;
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     hideModal(); renderInvoices();
     audit('فاکتور', 'ویرایش فاکتور ' + oldNo + ' → ' + no + ' (' + oldAmt.toLocaleString('fa-IR') + ' → ' + grand.toLocaleString('fa-IR') + ' ریال) برای ' + offerNo, no);
     if (typeof ptfToast === 'function') ptfToast('✅ فاکتور ویرایش شد', 'ok');
@@ -914,7 +914,7 @@ function saveInv(offerNo) {
     files: files, file: files.length ? files[0].name : '', t: faDate(), by: curSession().name };
   /* شرط پیش‌پرداخت پیشنهاد هیچ Receipt یا payment فاکتور نمی‌سازد. */
   invs.unshift(newInv);
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   /* v19.3 (US-436 AC3): PDF و مشخصات فاکتور مستقیم در پرونده فروش می‌نشیند — مرحله خودکار ۹/۱۰/۱۱ (sfStageOf) */
   try {
     var _deals = getData('ptf_crm_deals');
@@ -1091,7 +1091,7 @@ function savePay(invCd) {
     payRec.chequeCd = ch.cd;
   }
   inv.payments.push(payRec);
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   hideModal(); renderReceivables();
   audit('وصولی', 'ثبت وصولی ' + amt.toLocaleString('fa-IR') + ' برای فاکتور ' + inv.no, inv.no);
   var newPaid = paid + amt;
@@ -1129,7 +1129,7 @@ window.ptfInvoicePayVoid = function (invCd, payRef, reason) {
   var reversal = { cd: genCode('RPVOID'), amt: -(+p.amt || 0), how: 'ابطال وصولی', t: faDate(), by: curSession().name, status: 'reversal', voidRef: p.cd || String(payRef), voidReason: reason };
   p.voided = true; p.voidedAt = faDateTime(); p.voidedBy = curSession().name; p.voidReason = reason; p.reversalCd = reversal.cd;
   realPayments.push(reversal);
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   try { audit('وصولی', 'ابطال وصولی ' + (p.cd || payRef) + ' برای فاکتور ' + inv.no + ' — دلیل: ' + reason, reversal.cd); } catch (e) {}
   return { ok: true, reversalCd: reversal.cd };
 };
@@ -1166,7 +1166,7 @@ window.ptfInvoiceVoidLegacy = function (invCd) {
   if (reason === null) return;
   if (!reason.trim()) { alert('⛔ دلیل ابطال الزامی است'); return; }
   inv.status = 'void'; inv.voidAt = faDateTime(); inv.voidBy = curSession().name; inv.voidReason = reason.trim();
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   try { audit('فاکتور', 'ابطال فاکتور ' + inv.no + ' — ' + (inv.amount || 0).toLocaleString('fa-IR') + ' ریال — دلیل: ' + reason.trim(), inv.cd); } catch (e) {}
   renderInvoices();
   if (typeof ptfToast === 'function') ptfToast('فاکتور ابطال شد', 'ok');
@@ -1176,7 +1176,7 @@ window.ptfInvoiceVoidLegacy = function (invCd) {
 function reqContact(invCd) {
   var invs = getData('ptf_crm_invoices');
   invs.forEach(function (i) { if (i.cd === invCd) i.contactReq = { by: curSession().name, t: faDate() }; });
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   renderReceivables();
   notify({ toRoles: SENIOR_ROLES, title: 'درخواست دسترسی به اطلاعات تماس برای پیگیری مطالبات', body: 'درخواست‌کننده: ' + curSession().name, kind: 'contact_req', channels: ['cart'], link: { panel: 'recv' }, actionable: true });
   audit('مطالبات', 'درخواست دسترسی اطلاعات تماس', invCd);
@@ -1196,7 +1196,7 @@ function approveContact(invCd) {
   if (!tel) return;
   inv.contactApproved = { nm: nm, tel: tel, by: curSession().name, t: faDate() };
   delete inv.contactReq;
-  setData('ptf_crm_invoices', invs);
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
   renderReceivables();
   audit('مطالبات', 'تایید دسترسی تماس (' + nm + ') برای فاکتور ' + inv.no, invCd);
   notify({ toRoles: ['accountant', 'collector'], title: 'دسترسی تماس برای پیگیری فاکتور ' + inv.no + ' تایید شد', kind: 'contact_ok', channels: ['cart'], link: { panel: 'recv' } });
@@ -1437,7 +1437,7 @@ window.ptfSetInvoiceDue = function (invCd) {
       if (!dueFa) { alert('تاریخ سررسید الزامی است'); return; }
       inv.dueFa = dueFa;
       inv.dueISO = (v.dueISO || '').trim() || (typeof ptfJToISO === 'function' ? ptfJToISO(dueFa) : '');
-      setData('ptf_crm_invoices', invs);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
       audit('مطالبات', 'ثبت سررسید وصول فاکتور ' + inv.no + ' برای تاریخ ' + dueFa, inv.cd);
       if (typeof ptfToast === 'function') ptfToast('📅 تاریخ سررسید وصول مطالبات ثبت شد', 'ok');
       renderReceivables();

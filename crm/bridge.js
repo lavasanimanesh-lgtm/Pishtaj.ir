@@ -1017,7 +1017,9 @@
     var offNos = {};
     getData('ptf_crm_offers').forEach(function (o) { if (inAls(o.inqNo)) offNos[o.no] = 1; });
     setData('ptf_crm_offers', getData('ptf_crm_offers').filter(function (o) { return !inAls(o.inqNo); }));
-    setData('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }));
+    /* v34.8.26 (W3): حذف آبشاری فاکتور = فرمان tombstone بازیافت‌پذیر */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }), { reason: 'cascade-purge' });
+    else setData('ptf_crm_invoices', getData('ptf_crm_invoices').filter(function (v) { return !offNos[v.offerNo]; }));
     setData('ptf_crm_rfqsmart', getData('ptf_crm_rfqsmart').filter(function (q) { return !inAls(q.srcRfq); }));
     setData('ptf_crm_buycmp', getData('ptf_crm_buycmp').filter(function (c) { return !inAls(c.inqNo); }));
     setData('ptf_crm_payables', getData('ptf_crm_payables').filter(function (p) { return !inAls(p.inqNo); }));

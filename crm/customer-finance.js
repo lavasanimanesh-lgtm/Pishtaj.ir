@@ -229,7 +229,7 @@
       if (!inv && r.offerNo) inv = invoiceOfOffer(r.offerNo);
       if (inv) { r.invoiceCd = inv.cd; r.repairedAt = faDateTime(); fixed++; }
     });
-    if (fixed) { setData('ptf_crm_sales_returns', returns); try { audit('مرجوعی فروش', 'ترمیم خودکار لینک ' + fixed + ' مرجوعی بدون invoiceCd به فاکتور (ریشه‌یابی اعتبار مشتری)', 'SRET-REPAIR'); } catch (e) {} }
+    if (fixed) { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sales_returns', returns, { reason: 'w3' }); else setData('ptf_crm_sales_returns', returns); try { audit('مرجوعی فروش', 'ترمیم خودکار لینک ' + fixed + ' مرجوعی بدون invoiceCd به فاکتور (ریشه‌یابی اعتبار مشتری)', 'SRET-REPAIR'); } catch (e) {} }
     return fixed;
   };
   /* اجرای خودکار ترمیم در بوت (idempotent) */
@@ -294,7 +294,7 @@
     var deal = getData('ptf_crm_deals').filter(function (d) { return d.wonOffer === (offer.no || inv.offerNo); })[0] || {};
     var returnRecord = { cd: genCode('SRET'), invoiceCd: invoiceCd, customerCd: offer.buyerCd || '', dealCd: deal.cd || '', offerNo: offer.no || inv.offerNo || '', items: selected.map(function (x) { var it = (offer.items || [])[x.idx] || {}; return { idx: x.idx, lineKey: it.sourceItemKey || it.pcode || it.prodCd || '', productCd: it.pcode || it.prodCd || '', item: it.name || it.nm || it.desc || '', spec: it.spec || it.st || it.detail || '', model: it.model || it.md || '', brand: it.brand || it.br || '', unit: it.unit || it.un || '', qty: x.qty }; }), totalAmount: Math.round(totalAmount), creditAmount: Math.max(0, paid(inv) + returnedAmount(inv) + Math.round(totalAmount) - (+inv.amount || 0)), reason: reason, disposition: disposition, note: note, status: 'approved', t: faDateTime(), by: curSession().name };
     returns.unshift(returnRecord);
-    setData('ptf_crm_sales_returns', returns);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sales_returns', returns, { reason: 'w3' }); else setData('ptf_crm_sales_returns', returns);
     if (disposition === 'stock') {
       var stockRefs = [], stockPending = [];
       returnRecord.items.forEach(function (item) {
@@ -312,7 +312,7 @@
       returnRecord.stockRefs = stockRefs;
       returnRecord.stockStatus = stockPending.length ? 'pending_product_definition' : 'stocked';
       returnRecord.stockPendingItems = stockPending;
-      setData('ptf_crm_sales_returns', returns);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sales_returns', returns, { reason: 'w3' }); else setData('ptf_crm_sales_returns', returns);
     }
     try { audit('مرجوعی فروش', 'ثبت مرجوعی فاکتور ' + (inv.no || invoiceCd) + ' — ' + Math.round(totalAmount).toLocaleString('fa-IR') + ' ریال', invoiceCd); } catch (e) {}
     var dlg = document.getElementById('cfReturnDlg'); if (dlg) dlg.remove();
@@ -367,7 +367,7 @@
       item.productCd = value;
     });
     if (missing) { alert('برای همه اقلام، کالای متناظر را انتخاب کنید.'); return; }
-    setData('ptf_crm_sales_returns', returns);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sales_returns', returns, { reason: 'w3' }); else setData('ptf_crm_sales_returns', returns);
     var dlg = document.getElementById('cfReturnProductDlg'); if (dlg) dlg.remove();
     cfSalesReturnStockRetry(returnCd);
   };
@@ -405,7 +405,7 @@
       if (stock) stockRefs.push(stock.cd); else pending.push(item.item);
     });
     rtn.stockRefs = stockRefs; rtn.stockPendingItems = pending; rtn.stockStatus = pending.length ? 'pending_product_definition' : 'stocked';
-    setData('ptf_crm_sales_returns', returns);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sales_returns', returns, { reason: 'w3' }); else setData('ptf_crm_sales_returns', returns);
     if (typeof ptfToast === 'function') ptfToast(pending.length ? 'برخی اقلام هنوز کالا ندارند؛ پنجره انتخاب کالا باز شد.' : 'ورود مرجوعی به موجودی تکمیل شد.', pending.length ? 'warn' : 'ok');
     if (inv.offerNo) { var offer = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {}; if (offer.buyerCd) cfOpen(offer.buyerCd); }
     if (pending.length) window.cfSalesReturnProductPicker(returnCd, pending);
@@ -584,7 +584,7 @@
     }
     rec.files = rec.files || [];
     if (!rec.files.some(function (x) { return x && x.key === f.key; })) rec.files.push(f);
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     return { ok: true, record: rec };
   };
   window.cfForgetFile = function (kind, invCd, payCd, key) {
@@ -595,7 +595,7 @@
     if (kind === 'payment') rec = ((inv.payments || []).concat(inv.pays || [])).filter(function (p) { return p.cd === payCd; })[0];
     if (!rec) return { ok: false };
     rec.files = (rec.files || []).filter(function (f) { return f.key !== key; });
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     return { ok: true };
   };
   function cfAttach(kind, invCd, payCd) {
@@ -710,7 +710,7 @@
     }
     inv.payments = inv.payments || [];
     inv.payments.push(payRec);
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     var dlg = document.getElementById('cfReceiptDlg'); if (dlg) dlg.remove();
     try { audit('وصولی', 'ثبت وصولی ' + amt.toLocaleString('fa-IR') + ' ریال برای فاکتور ' + (inv.no || invCd), inv.no || invCd); } catch (e) {}
     var ofr2 = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {};
@@ -745,7 +745,7 @@
     if (pay.chequeCd) { var chks = getData('ptf_crm_cheques'); var ch = chks.filter(function (c) { return c.cd === pay.chequeCd; })[0]; if (ch) { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; setData('ptf_crm_cheques', chks); } }
     inv.payments = (inv.payments || []).filter(function (p) { return String(p.cd) !== String(payCd); });
     inv.pays = (inv.pays || []).filter(function (p) { return String(p.cd) !== String(payCd); });
-    setData('ptf_crm_invoices', invs);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
     try { audit('وصولی', 'حذف وصولی ' + (+pay.amt || 0) + ' برای فاکتور ' + (inv.no || invCd), String(payCd)); } catch (e) {}
     var ofr = getData('ptf_crm_offers').filter(function (x) { return x.no === inv.offerNo; })[0] || {};
     var custCd = ofr.buyerCd || inv.buyerCd || '';

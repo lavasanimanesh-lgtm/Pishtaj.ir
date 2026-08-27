@@ -443,7 +443,7 @@
         if (srcOffer.buyerCd !== sourceCd) return { ok: false, error: 'فاکتور انتخاب‌شده متعلق به مشتری انتخاب‌شده نیست' };
         var paid = (window.PTF && PTF.invPaidSum) ? PTF.invPaidSum(inv) : ((inv.payments || []).concat(inv.pays || [])).reduce(function (s, p) { return s + (window.PTF && PTF.paymentAmtIrr ? PTF.paymentAmtIrr(p) : (+p.amt || 0)); }, 0);
         if (amount > (+inv.amount || 0) - paid) return { ok: false, error: 'مبلغ چک از مانده فاکتور مشتری بیشتر است' };
-        inv.payments = inv.payments || []; inv.payments.push({ amt: amount, how: 'چک ثالث منتقل‌شده به تامین‌کننده', t: faDate(), by: curSession().name, chequeCd: rec.cd, supplierPaymentCd: payCd, transferred: true }); setData('ptf_crm_invoices', invs);
+        inv.payments = inv.payments || []; inv.payments.push({ amt: amount, how: 'چک ثالث منتقل‌شده به تامین‌کننده', t: faDate(), by: curSession().name, chequeCd: rec.cd, supplierPaymentCd: payCd, transferred: true }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs);
       }
       rec.st = 'transferred'; rec.reminderDisabled = true; rec.sourceCustomerCd = sourceCd; rec.sourceInvoiceCd = invCd; rec.transferredAt = faDateTime(); rec.transferNote = 'انتقال به تامین‌کننده ' + (sup.co || '');
     }
@@ -504,7 +504,7 @@
     if (!confirm('پرداخت و همه تخصیص‌های آن ابطال شود؟')) return;
     p.status = 'void'; p.voidAt = faDateTime(); p.voidBy = curSession().name;
     var legacyList = getData('ptf_crm_payables'); legacyList.forEach(function(lp){ lp.paid=(lp.paid||[]).filter(function(x){return x.supplierPaymentCd!==cd;}); lp.settled=(typeof ptfPayableRemain==='function'?ptfPayableRemain(lp):lp.settled)<=0; }); setData('ptf_crm_payables',legacyList);
-    if (p.chequeCd) { var checks = getData('ptf_crm_cheques'); var ch = checks.filter(function (c) { return c.cd === p.chequeCd; })[0]; if (ch) { if (ch.ownership === 'third_party') { ch.st = 'voided_transfer'; var invs = getData('ptf_crm_invoices'); invs.forEach(function (i) { i.payments = (i.payments || []).filter(function (x) { return x.supplierPaymentCd !== cd; }); }); setData('ptf_crm_invoices', invs); } else { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; if (typeof chUpsertReminder === 'function') chUpsertReminder(ch); } setData('ptf_crm_cheques', checks); } }
+    if (p.chequeCd) { var checks = getData('ptf_crm_cheques'); var ch = checks.filter(function (c) { return c.cd === p.chequeCd; })[0]; if (ch) { if (ch.ownership === 'third_party') { ch.st = 'voided_transfer'; var invs = getData('ptf_crm_invoices'); invs.forEach(function (i) { i.payments = (i.payments || []).filter(function (x) { return x.supplierPaymentCd !== cd; }); }); if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invs, { reason: 'w3' }); else setData('ptf_crm_invoices', invs); } else { ch.st = 'void'; ch.voidAt = faDateTime(); ch.voidBy = curSession().name; ch.reminderDisabled = true; if (typeof chUpsertReminder === 'function') chUpsertReminder(ch); } setData('ptf_crm_cheques', checks); } }
     save(d);
     try { audit('پرداخت تامین', 'ابطال پرداخت ' + cd + ' برای ' + p.supName, cd); } catch (e) {}
     var m = document.getElementById('slLedgerDlg'); if (m) m.remove(); slOpenLedger(p.supplierCd);

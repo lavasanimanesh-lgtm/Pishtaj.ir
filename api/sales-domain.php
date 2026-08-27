@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.25';
+const SD_SERVICE_VERSION = '34.8.26';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -88,7 +88,7 @@ function sd_entity_registry(): array {
             'roles' => ['admin','chairman','ceo','commercial','sales'],
             'id' => 'cd',
         ],
-        /* v34.8.25 (W1 — ROADMAP-THIN-CLIENT T2 موج اول، تأیید کارفرما):
+        /* v34.8.26 (W1 — ROADMAP-THIN-CLIENT T2 موج اول، تأیید کارفرما):
            مشتریان/تامین‌کنندگان/کالاها. نقش‌ها عین ماتریس legacy
            (sync_allowed_keys_for_role در crm.php) — نه کمتر نه بیشتر.
            maxFields: رکوردهای این سه موجودیت پهن‌تر از سقف عمومی ۴۰ است. */
@@ -104,7 +104,7 @@ function sd_entity_registry(): array {
             'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
             'id' => 'cd', 'maxFields' => 120,
         ],
-        /* v34.8.25 (W2 — T2 موج دوم): درخواست‌ها/پرونده‌ها/پروژه‌ها + اقلام/پکینگ/کارتابل.
+        /* v34.8.26 (W2 — T2 موج دوم): درخواست‌ها/پرونده‌ها/پروژه‌ها + اقلام/پکینگ/کارتابل.
            نقش‌ها عین ماتریس legacy (هر ۸ نقش در $crm). notifs: sortIso — آرایهٔ سرور
            همیشه iso نزولی بماند تا projection با فرم کانونیکال کلاینت یکی باشد. */
         'ptf_crm_rfqs' => [
@@ -131,10 +131,39 @@ function sd_entity_registry(): array {
             'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
             'id' => 'cd', 'maxFields' => 80, 'sortIso' => true,
         ],
+        /* v34.8.26 (W3 — T2 موج سوم، حساس‌ترین مالی): فاکتورها/رسیدها/تخصیص‌ها/اصلاحات/
+           یافته‌ها/مرجوعی فروش. ثبت رسمی/غیررسمی/ابطال از قبل فرمان اختصاصی دارند
+           (register_invoice/register_unofficial_invoice/correct_invoice) — این فقط
+           مسیر ویرایش‌ها/تکمیل‌ها/حذف‌های UI را فرمانی می‌کند. نقش‌ها: فقط ارشد +
+           accountant (مالی؛ sales/buyer/collector در ماتریس legacy این کلیدها را ندارند). */
+        'ptf_crm_invoices' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 200, 'sortIso' => true,
+        ],
+        'ptf_crm_case_receipts' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 120, 'sortIso' => true,
+        ],
+        'ptf_crm_receipt_allocations' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 80, 'sortIso' => true,
+        ],
+        'ptf_crm_corrections' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => '_id', 'maxFields' => 80, 'sortIso' => true,
+        ],
+        'ptf_crm_fin_findings' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 80, 'sortIso' => true,
+        ],
+        'ptf_crm_sales_returns' => [
+            'roles' => ['admin','chairman','ceo','commercial','accountant'],
+            'id' => 'cd', 'maxFields' => 120, 'sortIso' => true,
+        ],
     ];
 }
 function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields = 40): array {
-    /* v34.8.25 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
+    /* v34.8.26 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
        ۲۰۰۰→۸۰۰۰ و hist ۵۰۰→۲۰۰۰؛ تعداد برش/حذف به‌صورت ساخت‌یافته در پاسخ فرمان
        برمی‌گردد تا حذفِ بی‌صدا از بین برود. */
     $stats = ['trimmed' => 0, 'dropped' => 0, 'kept' => 0];
@@ -2338,7 +2367,7 @@ try {
                 $prev = $rows[$found];
                 $row['createdAt'] = (string)($prev['createdAt'] ?? $now);
                 $row['createdBy'] = (string)($prev['createdBy'] ?? $user);
-                /* v34.8.25 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
+                /* v34.8.26 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
                    یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
                    می‌شد»: upsert دیرهنگام/دوباره‌ارسالی، notifiedUsers (state ضدتکرار
                    اعلان یادآور در bridge) را با رکورد کهنه جایگزین می‌کرد؛ poll بعدی
@@ -2372,13 +2401,16 @@ try {
                 $result = ['collection' => $collection, 'id' => $id, 'deleted' => true, 'mode' => 'entity-command'];
             }
         }
-        /* v34.8.25 (W2): کلیدهای sortIso (notifs) — آرایهٔ سرور iso نزولی بماند؛
+        /* v34.8.26 (W2): کلیدهای sortIso (notifs) — آرایهٔ سرور iso نزولی بماند؛
            روی هر دو مسیر upsert و delete اعمال می‌شود تا projection سرور با فرم
            کانونیکال کلاینت یکی بماند. */
         if (!empty($cfg['sortIso']) && isset($changes[$collection]) && is_array($changes[$collection])) {
-            usort($changes[$collection], function ($a, $b) {
-                return strcmp((string)(isset($b['iso']) ? $b['iso'] : ''), (string)(isset($a['iso']) ? $a['iso'] : ''));
-            });
+            $isoOf = function ($r) {
+                if (!is_array($r)) return '';
+                foreach (['iso','updatedAtISO','issueDate','invDate','t'] as $f) if (isset($r[$f]) && is_string($r[$f]) && $r[$f] !== '') return $r[$f];
+                return '';
+            };
+            usort($changes[$collection], function ($a, $b) use ($isoOf) { return strcmp($isoOf($b), $isoOf($a)); });
         }
     }
     else sd_out(['ok'=>false,'error'=>'unknown_action'],404);

@@ -367,7 +367,8 @@
      ptfBApplyServerProjection است (بدون dirty/صف/push) — دقیقاً تجربهٔ بانکی. */
   /* v34.8.22 (W1): مشتریان/تامین‌کنندگان/کالاها — باید عین sd_entity_registry سرور باشد (قانون A11). */
   /* v34.8.24 (W2): rfqs/deals/projects/inqitems/packinglists/notifs — باید عین sd_entity_registry سرور باشد (قانون A11). */
-  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true, 'ptf_crm_customers': true, 'ptf_crm_suppliers': true, 'ptf_crm_products': true, 'ptf_crm_rfqs': true, 'ptf_crm_deals': true, 'ptf_crm_projects': true, 'ptf_crm_inqitems': true, 'ptf_crm_packinglists': true, 'ptf_crm_notifs': true };
+  /* v34.8.26 (W3): فاکتورها/رسیدها/تخصیص‌ها/اصلاحات/یافته‌ها/مرجوعی — عین رجیستری سرور (A11). */
+  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true, 'ptf_crm_customers': true, 'ptf_crm_suppliers': true, 'ptf_crm_products': true, 'ptf_crm_rfqs': true, 'ptf_crm_deals': true, 'ptf_crm_projects': true, 'ptf_crm_inqitems': true, 'ptf_crm_packinglists': true, 'ptf_crm_notifs': true, 'ptf_crm_invoices': true, 'ptf_crm_case_receipts': true, 'ptf_crm_receipt_allocations': true, 'ptf_crm_corrections': true, 'ptf_crm_fin_findings': true, 'ptf_crm_sales_returns': true };
   function entityApplyProjection(collection, value, rev) {
     /* v34.8.15: پاسخ فرمان ممکن است رشتهٔ JSON یا آرایهٔ آماده باشد (sd_result_data
        آرایه برمی‌گرداند). قبلاً فقط رشته پذیرفته می‌شد و projection اصلاً اعمال

@@ -1700,7 +1700,7 @@
         });
         autoSettleReceipts.push({ invoiceCd: i.cd, receiptCd: receiptCd, amount: iv.amount - paid });
       });
-      setData('ptf_crm_invoices', invsAll);
+      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invsAll, { reason: 'w3' }); else setData('ptf_crm_invoices', invsAll);
       // v31.7.4 BUG-AUDIT-008: Store auto-settle info in project for reversal
       r.autoSettleReceipts = autoSettleReceipts;
       r.autoSettleDate = faDateTime();
@@ -1789,7 +1789,7 @@
       totalAmount += receipt.amount;
     });
     
-    setData('ptf_crm_invoices', invsAll);
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_invoices', invsAll, { reason: 'w3' }); else setData('ptf_crm_invoices', invsAll);
     
     // Clear auto-settle info from project
     r.autoSettleReceipts = [];
