@@ -1262,8 +1262,12 @@
       var all = getData('ptf_crm_products');
       var hiddenOnes = all.filter(function (p) { return p.hidden; });
       if (!showHidden && hiddenOnes.length) {
-        localStorage.setItem('ptf_crm_products', JSON.stringify(all.filter(function (p) { return !p.hidden; })));
-        try { _renderProductsOld(); } finally { localStorage.setItem('ptf_crm_products', JSON.stringify(all)); }
+        /* v34.8.22 (T5-1): پایان بایپس خاموش‌نویسی — قبلاً localStorage مستقیم نوشته
+           می‌شد (قانون A10) و با آینهٔ IDB فاز B تداخل داشت. حالا نوشتن بی‌صدا از
+           لایهٔ مجاز (بدون dirty/push — این فقط ترفند رندر است، تغییر داده نیست). */
+        var _filtered = all.filter(function (p) { return !p.hidden; });
+        window.ptfSilentWrite('ptf_crm_products', JSON.stringify(_filtered));
+        try { _renderProductsOld(); } finally { window.ptfSilentWrite('ptf_crm_products', JSON.stringify(all)); }
       } else {
         _renderProductsOld();
       }

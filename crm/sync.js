@@ -1418,6 +1418,15 @@
     instantPullWaiters.push(typeof cb === 'function' ? cb : function () {});
     drainInstantPulls();
   };
+  /* v34.8.22 (T5-1): نوشتن بی‌صدا — فقط برای ترفندهای نمایش (مثل فیلتر کالاهای
+     مخفی حین رندر)؛ نه dirty می‌سازد نه push. تغییر «داده» هرگز از این مسیر نیست. */
+  window.ptfSilentWrite = function (k, str) {
+    try {
+      state.pulling = true;
+      wr(k, String(str == null ? '' : str));
+    } catch (eSW) {}
+    finally { state.pulling = false; }
+  };
   window.ptfScheduleDataRefresh = function (key) {
     /* باگ ۲: ماژول درخواست تامین (rfqsmart) خودش DOM را حین کار به‌روز می‌کند؛ رندر مجدد کل صفحه ممنوع */
     if ((key === 'ptf_crm_rfqsmart' || key === 'ptf_crm_rfqs') && window.ptfActivePanel === 'rfqs') return;

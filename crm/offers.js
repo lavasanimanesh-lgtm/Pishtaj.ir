@@ -3568,7 +3568,9 @@ function saveCust2(cd) {
       items[i] = rec;
     }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
-  setData('ptf_crm_customers', items);
+  /* v34.8.22 (W1): ثبت/ویرایش مشتری از پیشنهاد با فرمان اتمیک سروری. */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', items, { reason: 'offer-cust' });
+  else setData('ptf_crm_customers', items);
   hideModal(); renderCustomers();
   addLog('کارفرما ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');
 }
@@ -3660,7 +3662,9 @@ function saveSup2(cd) {
   if (cd) {
     for (var i = 0; i < items.length; i++) if (items[i].cd === cd) { rec.crAt = items[i].crAt; rec.crBy = items[i].crBy; items[i] = rec; }
   } else { if (typeof dedupStamp === 'function') dedupStamp(rec); items.unshift(rec); }
-  setData('ptf_crm_suppliers', items);
+  /* v34.8.22 (W1): ثبت/ویرایش تامین‌کننده از پیشنهاد با فرمان اتمیک سروری. */
+  if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_suppliers', items, { reason: 'offer-sup' });
+  else setData('ptf_crm_suppliers', items);
   window._supLastSaved = rec.cd; /* v19.0 (پورت BUG-022 از v17.8): فلگ موفقیت — wrapper ها فقط روی همین رکورد */
   hideModal(); renderSuppliers();
   addLog('تامین‌کننده ' + comp + (cd ? ' ویرایش' : ' ثبت') + ' شد');

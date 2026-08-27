@@ -1519,7 +1519,9 @@
         if (confirm('🏢 این درخواست به مشتری موجود «' + found.co + '» (' + found.cd + ') متصل شد.\n\n👤 رابط جدید «' + r.contact + '» در فرم سایت آمده که در رکورد مشتری نیست — به اشخاص رابط اضافه شود؟')) {
           found.people = found.people || [];
           found.people.push({ nm: r.contact, nmEn: '', role: 'رابط (فرم سایت)', dept: '', tels: [], mobs: r.phone ? [{ n: r.phone, lb: 'فرم سایت' }] : [], mails: r.email ? [{ n: r.email, lb: '' }] : [], src: 'site' });
-          setData('ptf_crm_customers', custs);
+          /* v34.8.22 (W1): مشتریِ ساخته‌شده از درخواست سایت با فرمان اتمیک سروری. */
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'site-rfq' });
+          else setData('ptf_crm_customers', custs);
           try { audit('مشتریان', 'افزودن رابط از فرم سایت به ' + found.co + ': ' + r.contact, found.cd); } catch (eA) {}
         }
       }
@@ -1537,7 +1539,9 @@
     };
     if (typeof dedupStamp === 'function') dedupStamp(newC);
     custs.unshift(newC);
-    setData('ptf_crm_customers', custs);
+    /* v34.8.22 (W1): مشتریِ ساخته‌شده از درخواست سایت با فرمان اتمیک سروری. */
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'site-rfq' });
+          else setData('ptf_crm_customers', custs);
     try { audit('مشتریان', 'ساخت خودکار مشتری از درخواست سایت: ' + r.company, newC.cd); } catch (eA2) {}
     return newC;
   }

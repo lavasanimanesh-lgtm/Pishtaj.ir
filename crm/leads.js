@@ -470,7 +470,9 @@ function leadConvert(cd, opt) {
       con: l.person || '', ph: l.mob || l.tel || '',
       fromLead: l.cd
     });
-    setData('ptf_crm_customers', custs);
+    /* v34.8.22 (W1): تبدیل سرنخ به مشتری با فرمان اتمیک سروری. */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_customers', custs, { reason: 'lead-convert' });
+    else setData('ptf_crm_customers', custs);
   }
   l.stage = 'won';
   l.convFa = faDate();

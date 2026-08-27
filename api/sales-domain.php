@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.21';
+const SD_SERVICE_VERSION = '34.8.22';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -88,10 +88,26 @@ function sd_entity_registry(): array {
             'roles' => ['admin','chairman','ceo','commercial','sales'],
             'id' => 'cd',
         ],
+        /* v34.8.22 (W1 — ROADMAP-THIN-CLIENT T2 موج اول، تأیید کارفرما):
+           مشتریان/تامین‌کنندگان/کالاها. نقش‌ها عین ماتریس legacy
+           (sync_allowed_keys_for_role در crm.php) — نه کمتر نه بیشتر.
+           maxFields: رکوردهای این سه موجودیت پهن‌تر از سقف عمومی ۴۰ است. */
+        'ptf_crm_customers' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant','collector'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_suppliers' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
+        'ptf_crm_products' => [
+            'roles' => ['admin','chairman','ceo','commercial','sales','buyer','accountant'],
+            'id' => 'cd', 'maxFields' => 120,
+        ],
     ];
 }
-function sd_entity_sanitize_row(array $row, array &$stats = null): array {
-    /* v34.8.21 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
+function sd_entity_sanitize_row(array $row, array &$stats = null, int $maxFields = 40): array {
+    /* v34.8.22 (T1-3): فیلد null حفظ می‌شود (یادآورها link:null می‌سازند)، سقف متن
        ۲۰۰۰→۸۰۰۰ و hist ۵۰۰→۲۰۰۰؛ تعداد برش/حذف به‌صورت ساخت‌یافته در پاسخ فرمان
        برمی‌گردد تا حذفِ بی‌صدا از بین برود. */
     $stats = ['trimmed' => 0, 'dropped' => 0, 'kept' => 0];
@@ -101,7 +117,7 @@ function sd_entity_sanitize_row(array $row, array &$stats = null): array {
     $out = []; $n = 0;
     foreach ($row as $k => $v) {
         if (!is_string($k) || $k === '' || strlen($k) > 40) { $stats['dropped']++; continue; }
-        if ($n >= 40) { $stats['dropped']++; break; }
+        if ($n >= $maxFields) { $stats['dropped']++; break; }
         if ($v === null) { $out[$k] = null; $n++; $stats['kept']++; continue; }
         if (is_bool($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
         if (is_int($v) || is_float($v)) { $out[$k] = $v; $n++; $stats['kept']++; continue; }
@@ -2283,7 +2299,7 @@ try {
             $id = sd_text($rec[$idField] ?? '', 60);
             if (!preg_match('/^[A-Za-z0-9._:-]{3,60}$/', $id)) sd_out(['ok'=>false,'error'=>'entity_id_required'],422);
             $sanitizeStats = null;
-            $row = sd_entity_sanitize_row($rec, $sanitizeStats);
+            $row = sd_entity_sanitize_row($rec, $sanitizeStats, (int)($cfg['maxFields'] ?? 40));
             $row[$idField] = $id;
             $found = -1;
             foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }
@@ -2295,7 +2311,7 @@ try {
                 $prev = $rows[$found];
                 $row['createdAt'] = (string)($prev['createdAt'] ?? $now);
                 $row['createdBy'] = (string)($prev['createdBy'] ?? $user);
-                /* v34.8.21 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
+                /* v34.8.22 (CARTABLE-LOOP): merge semantics — فیلدی که در payload نیست
                    یعنی «تغییری نکرده»، نه «پاک». ریشهٔ حلقهٔ «کارتابل هر چند ثانیه تکرار
                    می‌شد»: upsert دیرهنگام/دوباره‌ارسالی، notifiedUsers (state ضدتکرار
                    اعلان یادآور در bridge) را با رکورد کهنه جایگزین می‌کرد؛ poll بعدی

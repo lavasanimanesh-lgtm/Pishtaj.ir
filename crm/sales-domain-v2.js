@@ -365,7 +365,8 @@
      هر ماژولی که کلیدش در PTF_ENTITY_CMD_ENABLED باشد، نوشتن/حذف را به‌جای
      «کل مجموعه push» با یک فرمان اتمیک سروری انجام می‌دهد. اعمال پاسخ از طریق
      ptfBApplyServerProjection است (بدون dirty/صف/push) — دقیقاً تجربهٔ بانکی. */
-  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true };
+  /* v34.8.22 (W1): مشتریان/تامین‌کنندگان/کالاها — باید عین sd_entity_registry سرور باشد (قانون A11). */
+  window.PTF_ENTITY_CMD_ENABLED = { 'ptf_crm_reminders': true, 'ptf_crm_leads': true, 'ptf_crm_customers': true, 'ptf_crm_suppliers': true, 'ptf_crm_products': true };
   function entityApplyProjection(collection, value, rev) {
     /* v34.8.15: پاسخ فرمان ممکن است رشتهٔ JSON یا آرایهٔ آماده باشد (sd_result_data
        آرایه برمی‌گرداند). قبلاً فقط رشته پذیرفته می‌شد و projection اصلاً اعمال
@@ -444,6 +445,50 @@
       }
       return state;
     });
+  };
+  /* ============ v34.8.22 (W1): روتر diff-محور مجموعه‌ای ============
+     به‌جای ویرایش ۴۹ نقطهٔ نوشتن پراکنده، یک نقطهٔ عبور: کلاینت آرایهٔ بعدی را
+     می‌دهد؛ روتر نسبت به آخرین snapshot نوشته‌شدهٔ همین کلاینت diff می‌گیرد و
+     هر رکورد افزوده/ویرایش‌شده = entity_upsert، هر cd غایب = entity_delete
+     (با tombstone آرشیو — بازیافت‌پذیر). گاردهای امنیتی:
+       • فرمان خاموش/کلید غیرفعال → setData (رفتار legacy)
+       • رکورد بدون cd در ورودی → setData (فرمانی بی‌هویت ممنوع)
+       • تعداد عملیات > maxOps (پیش‌فرض ۴۰، مثل ایمپورت اکسل بزرگ) → setData
+       • snapshot فقط «نوشته‌های همین کلاینت» است → رکوردی که دستگاه دیگر اضافه
+         کرده هرگز اشتباهاً حذف نمی‌شود (حذف فقط وقتی prev هم آن را داشته). */
+  window.ptfEntitySaveCollection = function (collection, nextArr, opts) {
+    opts = opts || {};
+    function legacyFallback(reason) {
+      try { if (typeof setData === 'function') setData(collection, nextArr); } catch (eL) {}
+      return { mode: 'legacy', reason: reason };
+    }
+    if (!window.PTF_ENTITY_CMD_ENABLED || !window.PTF_ENTITY_CMD_ENABLED[collection] || typeof window.ptfEntityUpsert !== 'function' || typeof window.ptfEntityDelete !== 'function') return legacyFallback('cmd-off');
+    if (!Array.isArray(nextArr)) return legacyFallback('not-array');
+    var base = Array.isArray(opts.prevArr) ? opts.prevArr : null;
+    if (!base && window._ptfEntityLastKnown && Array.isArray(window._ptfEntityLastKnown[collection])) base = window._ptfEntityLastKnown[collection];
+    if (!base) { try { var cur = getData(collection); if (Array.isArray(cur)) base = cur; } catch (eB) {} }
+    if (!base) base = [];
+    var MAX_OPS = opts.maxOps || 40;
+    var prevByCd = {}, nextByCd = {}, okPrev = true, okNext = true;
+    base.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okPrev = false; return; } prevByCd[r.cd] = r; });
+    nextArr.forEach(function (r) { if (!r || r.cd === undefined || r.cd === null || r.cd === '') { okNext = false; return; } nextByCd[r.cd] = r; });
+    if (!okPrev || !okNext) return legacyFallback('records-without-cd');
+    var ups = [], dels = [];
+    Object.keys(nextByCd).forEach(function (cd) {
+      var pv = prevByCd[cd], nx = nextByCd[cd];
+      if (!pv) { ups.push(nx); return; }
+      try { if (JSON.stringify(pv) !== JSON.stringify(nx)) ups.push(nx); } catch (eJ) { ups.push(nx); }
+    });
+    Object.keys(prevByCd).forEach(function (cd) { if (!nextByCd[cd]) dels.push(cd); });
+    if (ups.length + dels.length > MAX_OPS) return legacyFallback('too-many-ops:' + (ups.length + dels.length));
+    var errors = [];
+    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked' && typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } }); } catch (eU) { errors.push(eU); } });
+    dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff' }); } catch (eD) { errors.push(eD); } });
+    try {
+      window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
+      window._ptfEntityLastKnown[collection] = JSON.parse(JSON.stringify(nextArr));
+    } catch (eS) {}
+    return { mode: 'commands', upserts: ups.length, deletes: dels.length, errors: errors.length };
   };
   window.ptfSalesCommandErrorIsAmbiguous = commandErrorIsAmbiguous;
   window.ptfSalesDomainCommandStatus = function(action,operationId){
