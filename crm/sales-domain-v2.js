@@ -493,8 +493,24 @@
     /* v34.8.24 (SAFETY-NET): هر فرمان شکست‌خورده → کلید dirty تا پوش انبوهِlegacy
        همان بازیابیِ امروز را تضمین کند (آفلاین/خطای سخت هیچ داده‌ای معلق نمی‌ماند). */
     function failDirty() { try { if (window.ptfSyncNotifyDirty) window.ptfSyncNotifyDirty(collection); } catch (eD) {} }
-    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } } }); } catch (eU) { errors.push(eU); failDirty(); } });
-    dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); } }); } catch (eD) { errors.push(eD); failDirty(); } });
+    /* v34.8.36 (ROUTER-CB — RCA نوار زرد personal_cheques): قرارداد opts.cb ترمیم شد —
+       وضعیت همهٔ فرمان‌ها جمع‌بندی و opts.cb دقیقاً یک‌بار در پایان صدا زده می‌شود.
+       ریشهٔ باگ: مهاجرت cheques.js پاک‌سازی کلیدهای legacy را فقط در cb با state==='acked'
+       انجام می‌دهد ولی این روتر هرگز opts.cb را فراخوانی نمی‌کرد → مهاجرت هر بوت
+       تکرار و کلیدهای legacy تا ابد روی دستگاه می‌ماندند. */
+    var cbTotal = ups.length + dels.length, cbSettled = 0, cbAcked = 0, cbLastFail = null, cbDone = false;
+    function settleCb(st) {
+      cbSettled++;
+      if (st && st.state === 'acked') cbAcked++;
+      else cbLastFail = st || { state: 'unknown' };
+      if (!cbDone && typeof opts.cb === 'function' && cbSettled >= cbTotal) {
+        cbDone = true;
+        try { opts.cb(cbAcked === cbTotal ? { state: 'acked', upserts: ups.length, deletes: dels.length } : { state: (cbLastFail && cbLastFail.state) || 'rejected', error: cbLastFail && cbLastFail.error }); } catch (eCbRouter) {}
+      }
+    }
+    if (!cbTotal && typeof opts.cb === 'function' && !cbDone) { cbDone = true; try { opts.cb({ state: 'acked', upserts: 0, deletes: 0 }); } catch (eCbEmpty) {} }
+    ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
+    dels.forEach(function (cd) { try { window.ptfEntityDelete(collection, cd, { reason: opts.reason || 'collection-diff', cb: function (st) { if (st && st.state !== 'acked') failDirty(); settleCb(st); } }); } catch (eD) { errors.push(eD); failDirty(); settleCb({ state: 'rejected', error: String(eD) }); } });
     try {
       window._ptfEntityLastKnown = window._ptfEntityLastKnown || {};
       window._ptfEntityLastKnown[collection] = JSON.parse(JSON.stringify(nextArr));

@@ -228,6 +228,24 @@
     saveDirty();
     if (Object.keys(state.dirty).length) { try { setSyncBadge('warn'); } catch (eBadge) {} }
   };
+  /* v34.8.36 (FORBIDDEN-DROP — RCA نوار زرد پایدار personal_cheques، 2026-08-28):
+     قرارداد مسیر legacy (pushDirty): کلیدی که سرور صراحتاً «خارج از allowlist نقش»
+     اعلام کرد، «تغییر در انتظار ارسال» نیست — اگر dirty بماند، هر flush دوباره
+     forbidden می‌دهد و نوار زرد برای همیشه می‌ماند (بن‌بست ابدی). این API همان
+     قرارداد را برای مسیر فاز B فراهم می‌کند: dirty پاک، خطا ثبت، نشانگر 🟠. */
+  window.ptfSyncDropForbiddenKeys = function (keys) {
+    var dropped = [];
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      if (state.dirty[k]) { delete state.dirty[k]; dropped.push(k); }
+      clearWriteFailure(k);
+    });
+    if (dropped.length) {
+      saveDirty();
+      noteSyncError('sync', 'forbidden', 'forbidden-keys-dropped', 'کلیدهای خارج از allowlist نقش فعلی از صف sync حذف شد: ' + dropped.join('، '));
+      try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقشِ فعلی از صف sync حذف شد: ' + dropped.join('، '), 'SYNC-RBAC'); } catch (eDropAudit) {}
+    }
+    try { setSyncBadge(Object.keys(state.dirty).length ? 'warn' : 'forbidden'); } catch (eDropBadge) {}
+  };
   window.ptfSyncWriteFailures = function () { return Object.keys(state.writeFailures); };
   /* Read-only diagnostic baseline. It intentionally exposes counts/revisions and
      result classes, never tokens or business payloads. */
@@ -1276,7 +1294,20 @@
           if (SYNC_KEYS.indexOf(k) < 0) return;
           var curStr = rd(k);
           var newStr = (typeof window.ptfApplyDeletionTombstones === 'function') ? window.ptfApplyDeletionTombstones(k, d.data[k], (d.data || {})['ptf_crm_deleted_archive']) : d.data[k];
-          if (curStr === newStr) return;
+          if (curStr === newStr) {
+            /* v34.8.37 (PULL-EQUAL-ACK — RCA نوار زرد personal_cheques، بررسی تکمیلی):
+               اگر مقدار سروری عیناً برابر مقدار محلیِ یک کلید dirty باشد، یعنی تغییر
+               «رسیده» — پرچم انتظار ارسال کهنه است و باید پاک شود (قرارداد ACK بدون
+               نیاز به پاس data_push). کلیدِ درگیرِ فرمانِ درحال اجرا (held) دست‌نخورده
+               می‌ماند؛ رکوردهای واقعاً ارسال‌نشده چون برابر نیستند dirty می‌مانند. */
+            if (state.dirty[k] && !syncKeyHeld(k)) {
+              delete state.dirty[k];
+              saveDirty();
+              try { audit('سیستم', '✅ «' + k.replace('ptf_crm_', '') + '» عیناً روی سرور موجود است؛ پرچم «هنوز نرسیده» پاک شد (PULL-EQUAL-ACK)', 'SYNC'); } catch (eEqAck) {}
+              try { setSyncBadge(Object.keys(state.dirty).length ? 'warn' : 'ok'); } catch (eEqBadge) {}
+            }
+            return;
+          }
           /* command-held side projection (مثلاً catalog پیشنهاد) هنوز عمداً dirty
              نشده است. catch-up pull باید آن را با تغییر دستگاه دیگر merge کند، نه
              اینکه چون state.dirty=false است کورکورانه overwrite کند. */
