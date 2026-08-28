@@ -1,0 +1,160 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Deploy to Staging — بازسازی‌شده از صفر (۲۰۲۶-۰۸-۲۸)
+#
+# تفاوت با نسخهٔ قبلی (که «سبز ولی بی‌اثر» بود):
+#   ۱) main به تریگرها اضافه شد → هر merge به main استیجینگ را همگام می‌کند
+#      (قبلاً فقط برنچ‌های جلسه‌ای استیجینگ را بازنویسی می‌کردند).
+#   ۲) گیت CI (node _tools/uat/run-ci-gate.js + php -l) قبل از FTP.
+#   ۳) مارکر __deploy__.json با هر ران ساخته و آپلود می‌شود.
+#   ۴) گیت راستی‌آزمایی پس از FTP (_tools/ci/verify-deploy.sh):
+#      هم سمت FTP (خودِ مسیر مقصد) و هم سمت HTTP (سایت زنده) با کامیت
+#      دیپلوی‌شده مقایسه می‌شوند؛ مغایرت = ورک‌فلو قرمز می‌شود.
+#   ۵) state-name جدید (v2) → اولین اجرا آپلود کاملِ تازه می‌زند و به
+#      state قدیمی ران‌های قبلی که «همه‌چیز آپلود شده» ادعا می‌کردند اعتماد نمی‌کند.
+#
+# ⛔ هیچ‌وقت dangerously-clean-slate فعال نشود:
+#      فایل‌های llm-config.php / sms-config.php / storage-config.php فقط روی
+#      سرور وجود دارند (در گیت فقط sample هستند) و clean-slate آن‌ها را پاک می‌کند.
+#
+# سکرت‌ها: FTP_SERVER / FTP_USERNAME / FTP_PASSWORD / FTP_SERVER_DIR
+# ─────────────────────────────────────────────────────────────────────────────
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main          # ← همگام‌سازی خودکار استیجینگ با main
+      - development
+      - 'site/**'
+      - 'crm/**'
+      - 'staging/**'
+      - 'arena/**'    # نشست‌های Arena — پیش‌نمایش روی استیجینگ (آخرین push برنده است)
+    paths-ignore:     # تغییر صرفاً مستنداتی → محتوای سایت عوض نمی‌شود (md اصلاً آپلود نمی‌شود)
+      - '**.md'
+      - 'FILES-CHANGED-*.txt'
+      - '_audit/**'
+      - '_personas/**'
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  LIVE_URL: https://staging.pishtaj.ir
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # ── گیت ۱: تسترهای CI پروژه (sync/مالی/اعلان + php -l اگر php موجود باشد)
+      - name: CI gate (run-ci-gate)
+        run: node _tools/uat/run-ci-gate.js
+
+      # ── گیت ۲: php -l قطعی روی api/*.php (نصب php-cli روی رانر)
+      - name: PHP syntax lint
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
+          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
+          command -v php >/dev/null 2>&1 || { echo "::error::php-cli نصب نشد"; exit 1; }
+          fail=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; fail=1; }
+          done < <(find api -name '*.php' -print0)
+          [ "$fail" -eq 0 ] || exit 1
+          echo "php -l: سالم"
+
+      # ── آماده‌سازی محتوای استیجینگ
+      - name: robots.txt → noindex
+        run: |
+          printf 'User-agent: *\nDisallow: /\n' > robots.txt
+
+      - name: Inject staging banner
+        env:
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          S="${SHORT_SHA:0:7}"
+          cat > _staging-banner.html <<BANNER
+          <div id="ptf-staging-banner" style="position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#b45309;color:#fff;font:700 12px Tahoma,sans-serif;text-align:center;padding:5px 8px;direction:rtl">
+            محیط تست (Staging) — برنچ: ${{ github.ref_name }} — کامیت: ${S} — $(date -u '+%Y-%m-%d %H:%M UTC') — این نسخه نهایی نیست
+          </div>
+          BANNER
+          find . -name '*.html' \
+            -not -path './.git/*' \
+            -not -path './node_modules/*' \
+            -not -path './_audit/*' \
+            -not -path './ptf-snapshots/*' \
+            -print0 |
+          while IFS= read -r -d '' f; do
+            if grep -qi '</body>' "$f"; then
+              perl -0pi -e 'BEGIN{local $/; open my $b,"<","_staging-banner.html"; $ban=<$b>} s{</body>}{$ban</body>}i' "$f"
+            fi
+          done
+          rm -f _staging-banner.html
+
+      - name: Write deploy marker
+        run: |
+          cat > __deploy__.json <<EOF
+          {"env":"staging","ref":"${{ github.ref_name }}","sha":"${{ github.sha }}","run":${GITHUB_RUN_ID:-0},"utc":"$(date -u +%FT%TZ)"}
+          EOF
+          cat __deploy__.json
+
+      # ── انتقال FTP (آپلود کامل در اولین اجرا به خاطر state-name جدید)
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          state-name: .ftp-state-staging-v2.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.ftp-state*
+            **/node_modules/**
+            *.md
+            *.zip
+            _audit/**
+            _human_test/**
+            _personas/**
+            _tools/**
+            ptf-all-photos/**
+            service-photos/**
+            ptf-snapshots/**
+            docs-deploy/**
+            tester*.js
+            FILES-CHANGED-*.txt
+
+      # ── گیت ۳: راستی‌آزمایی پس از استقرار (سمت FTP + سمت HTTP)
+      - name: Verify deployment (FTP-side + live HTTP)
+        run: |
+          bash _tools/ci/verify-deploy.sh \
+            --url "$LIVE_URL" \
+            --sha "${{ github.sha }}" \
+            --ftp-server "${{ secrets.FTP_SERVER }}" \
+            --ftp-user   "${{ secrets.FTP_USERNAME }}" \
+            --ftp-pass   "${{ secrets.FTP_PASSWORD }}" \
+            --ftp-dir    "${{ secrets.FTP_SERVER_DIR }}"
+
+      - name: Summary
+        run: |
+          echo "### ✅ استقرار استیجینگ — اثبات‌شده" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| مورد | مقدار |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| برنچ | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| آدرس | $LIVE_URL (Ctrl+Shift+R) |" >> $GITHUB_STEP_SUMMARY
+          echo "| راستی‌آزمایی | مارکر + sw.js هم سمت FTP و هم سمت HTTP ✅ |" >> $GITHUB_STEP_SUMMARY
