@@ -89,10 +89,12 @@ if [[ -n "$FTP_SERVER" ]]; then
       "plain ftp")      CURL_ARGS=(--ftp-pasv);           SCHEME="ftp" ;;
       "implicit ftps")  CURL_ARGS=(--ftp-pasv);           SCHEME="ftps" ;;
     esac
-    LIST="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
+      LIST="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
               -u "$FTP_USER:$FTP_PASS" "$SCHEME://$HOST/$DIR/" 2>/dev/null || true)"
     if [[ -n "$LIST" ]]; then
       FTP_LISTABLE=1
+      echo "   ── نمونهٔ محتوای مسیر مقصد ($DIR) — ۱۵ مدخل اول:"
+      echo "$LIST" | grep -oE 'name="[^"]+"' | sed 's/name=/ • /' | head -15 || echo "$LIST" | head -15
       MARKER_REMOTE="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
               -u "$FTP_USER:$FTP_PASS" "$SCHEME://$HOST/$DIR/$MARKER" 2>/dev/null || true)"
       if [[ "$MARKER_REMOTE" == *"$EXPECT_SHA"* ]]; then

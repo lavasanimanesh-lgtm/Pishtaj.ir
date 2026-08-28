@@ -137,7 +137,20 @@ jobs:
             tester*.js
             FILES-CHANGED-*.txt
 
-      # ── گیت ۴: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
+      # ── گیت ۴ (تشخیصی): مارکر این ران + خودِ مسیر مقصد FTP — همیشه اجرا می‌شود تا شکست را توضیح دهد
+      - name: Verify deployment (FTP-side + live HTTP)
+        id: verify
+        continue-on-error: true   # برای تشخیص اجرا می‌شود؛ گارد پایانی job را می‌اندازد
+        run: |
+          bash _tools/ci/verify-deploy.sh \
+            --url "https://staging.pishtaj.ir" \
+            --sha "${{ github.sha }}" \
+            --ftp-server "${{ secrets.FTP_SERVER }}" \
+            --ftp-user   "${{ secrets.FTP_USERNAME }}" \
+            --ftp-pass   "${{ secrets.FTP_PASSWORD }}" \
+            --ftp-dir    "${{ secrets.FTP_SERVER_DIR }}"
+
+      # ── گیت ۵: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
       - name: Post-deploy integrity check
         run: |
           BASE="https://staging.pishtaj.ir"
@@ -165,16 +178,12 @@ jobs:
           fi
           exit $fail
 
-      # ── گیت ۵ (تشدیدی): مارکر این ران + خودِ مسیر مقصد FTP را هم می‌سنجم
-      - name: Verify deployment (FTP-side + live HTTP)
+
+      - name: Fail if verification failed
+        if: ${{ steps.verify.outcome == 'failure' }}
         run: |
-          bash _tools/ci/verify-deploy.sh \
-            --url "https://staging.pishtaj.ir" \
-            --sha "${{ github.sha }}" \
-            --ftp-server "${{ secrets.FTP_SERVER }}" \
-            --ftp-user   "${{ secrets.FTP_USERNAME }}" \
-            --ftp-pass   "${{ secrets.FTP_PASSWORD }}" \
-            --ftp-dir    "${{ secrets.FTP_SERVER_DIR }}"
+          echo "::error::راستی‌آزمایی استقرار (FTP-side/HTTP) شکست خورد — جزئیات در گام Verify deployment"
+          exit 1
 
       - name: Summary
         run: |
