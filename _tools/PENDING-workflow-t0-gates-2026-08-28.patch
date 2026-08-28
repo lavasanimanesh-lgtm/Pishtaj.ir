@@ -1,12 +1,17 @@
 diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
-index b8752f82..51de71f2 100644
+index b8752f8..125cfad 100644
 --- a/.github/workflows/deploy-production.yml
 +++ b/.github/workflows/deploy-production.yml
-@@ -99,6 +99,11 @@ jobs:
+@@ -99,6 +99,16 @@ jobs:
            done < <(find api -name '*.php' -print0)
            if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
            echo "php -l: همهٔ فایل‌های api/*.php سالم"
 +      # ── T0-3 (ROADMAP-THIN-CLIENT): گیت JS + معماری قبل از FTP پروداکشن ──
++      # node صریحاً نصب می‌شود تا گیت روی نسخهٔ نودِ runner متکی نباشد.
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
 +      - name: JS CI gate + architecture guard (pre-deploy gate)
 +        run: |
 +          node _tools/uat/run-ci-gate.js
@@ -14,7 +19,7 @@ index b8752f82..51de71f2 100644
        - name: Deploy via FTP
          uses: SamKirkland/FTP-Deploy-Action@v4.3.5
          with:
-@@ -123,6 +128,31 @@ jobs:
+@@ -123,6 +133,49 @@ jobs:
              docs-deploy/**
              tester*.js
              FILES-CHANGED-*.txt
@@ -27,6 +32,24 @@ index b8752f82..51de71f2 100644
 +          BASE="https://pishtaj.ir"
 +          FILES="crm/index.html crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js api/sales-domain.php"
 +          fail=0
++          # ۰) نسخهٔ زنده باید همان VERSION.jsonِ همین کامیت باشد —
++          #    مستقیم‌ترین سنجشِ «نسخهٔ مخلوط» (index.html جدید + JS قدیمی).
++          EXPECT=$(sed -n 's/.*"crm_version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' VERSION.json | head -1)
++          LIVE_REL=""
++          for i in 1 2 3 4 5; do
++            LIVE_REL=$(curl -fsSL --compressed --max-time 20 "$BASE/crm/index.html" 2>/dev/null \
++              | grep -o "PTF_CRM_RELEASE = 'v[0-9][0-9.]*'" | head -1 \
++              | sed "s/.*= '\(v[0-9][0-9.]*\)'.*/\1/" || true)
++            [ -n "$LIVE_REL" ] && break
++            sleep 12
++          done
++          if [ "$LIVE_REL" = "$EXPECT" ]; then
++            echo "✅ نسخهٔ زنده ($LIVE_REL) == VERSION.json"
++          else
++            echo "::error::نسخهٔ زنده (${LIVE_REL:-none}) با VERSION.json ($EXPECT) یکی نیست — استقرار ناقص یا کش سرور"
++            fail=1
++          fi
++          # ۱) هش فایل‌های کلیدی زنده باید با کامیت یکی باشد
 +          for f in $FILES; do
 +            expected=$(sha1sum "$f" | cut -d' ' -f1)
 +            actual=""
@@ -47,7 +70,7 @@ index b8752f82..51de71f2 100644
        # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
        # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
 diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
-index abee4444..e05f2786 100644
+index abee444..40e4e21 100644
 --- a/.github/workflows/deploy-staging.yml
 +++ b/.github/workflows/deploy-staging.yml
 @@ -34,6 +34,11 @@ jobs:
@@ -94,18 +117,36 @@ index abee4444..e05f2786 100644
        - name: Deploy via FTP
          uses: SamKirkland/FTP-Deploy-Action@v4.3.5
          with:
-@@ -105,6 +128,31 @@ jobs:
+@@ -105,6 +128,49 @@ jobs:
              tester*.js
              FILES-CHANGED-*.txt
  
 +      # ── T0-4 (ROADMAP-THIN-CLIENT): تایید صحت استقرار — فایل زنده == کامیت ──
 +      # ریشهٔ حادثهٔ «نسخهٔ مخلوط» (۲۰۲۶-۰۸-۲۷): index.html جدید، JSها قدیمی.
-+      # index.html چک نمی‌شود چون بنر استیجینگ عمداً به آن تزریق می‌شود.
++      # index.html در چک هش نیست چون بنر استیجینگ عمداً به آن تزریق می‌شود،
++      # ولی «رشتهٔ نسخه»ی درونش تحت‌تأثیر بنر نیست → همان را می‌سنجیم.
 +      - name: Post-deploy integrity check (live == commit)
 +        run: |
 +          BASE="https://staging.pishtaj.ir"
 +          FILES="crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js api/sales-domain.php"
 +          fail=0
++          # ۰) نسخهٔ زنده باید همان VERSION.jsonِ همین کامیت باشد
++          EXPECT=$(sed -n 's/.*"crm_version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' VERSION.json | head -1)
++          LIVE_REL=""
++          for i in 1 2 3 4 5; do
++            LIVE_REL=$(curl -fsSL --compressed --max-time 20 "$BASE/crm/index.html" 2>/dev/null \
++              | grep -o "PTF_CRM_RELEASE = 'v[0-9][0-9.]*'" | head -1 \
++              | sed "s/.*= '\(v[0-9][0-9.]*\)'.*/\1/" || true)
++            [ -n "$LIVE_REL" ] && break
++            sleep 12
++          done
++          if [ "$LIVE_REL" = "$EXPECT" ]; then
++            echo "✅ نسخهٔ زنده ($LIVE_REL) == VERSION.json"
++          else
++            echo "::error::نسخهٔ زنده (${LIVE_REL:-none}) با VERSION.json ($EXPECT) یکی نیست — استقرار ناقص یا کش سرور"
++            fail=1
++          fi
++          # ۱) هش فایل‌های کلیدی زنده باید با کامیت یکی باشد
 +          for f in $FILES; do
 +            expected=$(sha1sum "$f" | cut -d' ' -f1)
 +            actual=""
@@ -127,7 +168,7 @@ index abee4444..e05f2786 100644
          run: |
            echo "### ✅ استقرار استیجینگ انجام شد" >> $GITHUB_STEP_SUMMARY
 diff --git a/.github/workflows/php.yml b/.github/workflows/php.yml
-index 7d257b51..491018a6 100644
+index 7d257b5..491018a 100644
 --- a/.github/workflows/php.yml
 +++ b/.github/workflows/php.yml
 @@ -1,39 +1,41 @@

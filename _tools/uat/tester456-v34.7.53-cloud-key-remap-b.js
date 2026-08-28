@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.34 — remap گروه B با تأیید دستی، بدون حذف فایل ابری */
+/* v34.8.35 — remap گروه B با تأیید دستی، بدون حذف فایل ابری */
 var fs = require('fs'), path = require('path'), vm = require('vm');
 var ROOT = path.resolve(__dirname, '../..');
 var p = 0, f = 0;
@@ -15,10 +15,10 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 var php = read('api/storage.php');
 
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.34', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.34'") > -1);
-T('sw RELEASE = v34.8.34', sw.indexOf("RELEASE = 'v34.8.34'") > -1);
-T('storage.js cache-bust 34.8.34', idx.indexOf('storage.js?v=34.8.34') > -1);
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.35', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.35'") > -1);
+T('sw RELEASE = v34.8.35', sw.indexOf("RELEASE = 'v34.8.35'") > -1);
+T('storage.js cache-bust 34.8.35', idx.indexOf('storage.js?v=34.8.35') > -1);
 
 T('function ptfPlanCloudKeyRemap', st.indexOf('function ptfPlanCloudKeyRemap') > -1);
 T('function ptfApplyCloudKeyRemap', st.indexOf('function ptfApplyCloudKeyRemap') > -1);
@@ -70,6 +70,6 @@ try {
   T('sandbox plan/remap بارگذاری شد', false, String(e && e.message || e));
 }
 
-console.log('\n— tester456 (v34.8.34: remap گروه B بدون حذف فایل) —');
+console.log('\n— tester456 (v34.8.35: remap گروه B بدون حذف فایل) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

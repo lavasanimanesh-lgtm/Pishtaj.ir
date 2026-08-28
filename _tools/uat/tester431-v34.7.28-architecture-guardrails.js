@@ -62,6 +62,27 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
 
   var gate = read('_tools/uat/run-ci-gate.js');
   T('G2 نگهبان به گیت CI وصل است', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
+  /* v34.8.35 — یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸: پاسِ بالا گمراه‌کننده بود. فقط بررسی
+     می‌کرد run-ci-gate.js به arch-guard.js «ارجاع» دارد؛ در حالی که هیچ workflow
+     گیت‌هابی این گیت را اجرا نمی‌کرد. از این به بعد «اجرا در CI» هم سنجیده می‌شود:
+     یا workflowها واقعاً گیت را صدا می‌زنند، یا وصلهٔ معلقی در صف است که این کار را
+     می‌کند (تغییر .github/workflows از سوی اپلیکیشن گیت‌هاب نیازمند دسترسی workflow
+     است؛ رَویهٔ PENDING-*.patch در این مخزن). قرارداد کامل‌تر: tester536. */
+  var wfStaging = read('.github/workflows/deploy-staging.yml');
+  var wfProd = read('.github/workflows/deploy-production.yml');
+  var wired =
+    wfStaging.indexOf('node _tools/arch/arch-guard.js') > -1 &&
+    wfProd.indexOf('node _tools/arch/arch-guard.js') > -1 &&
+    wfStaging.indexOf('node _tools/uat/run-ci-gate.js') > -1 &&
+    wfProd.indexOf('node _tools/uat/run-ci-gate.js') > -1;
+  var pendingPatch = fs.readdirSync(path.join(ROOT, '_tools')).filter(function (n) {
+    return /^PENDING-workflow-t0-gates-.*\.patch$/.test(n);
+  }).sort().pop();
+  var queued = !!pendingPatch &&
+    read('_tools/' + pendingPatch).indexOf('arch-guard.js') > -1 &&
+    read('_tools/' + pendingPatch).indexOf('run-ci-gate.js') > -1;
+  T('G2 نگهبان در CI اجرا می‌شود (وصل در workflow، یا در وصلهٔ معلقِ در صف)',
+    wired || queued, wired ? 'wired' : 'queued=' + (pendingPatch || 'none'));
 })();
 
 /* ---------- G3: اعمال قرارداد در کد ---------- */

@@ -200,7 +200,11 @@ var SUITE = [
   { g: 'استقرار/نگهبان معماری', f: '_tools/uat/tester443-v34.7.40-deploy-architecture-gate.js' },
   { g: 'معماری/پیشگیری', f: '_tools/uat/tester431-v34.7.28-architecture-guardrails.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
-  { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
+  { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' },
+  /* v34.8.35 (فاز صفر نازک‌سازی T0-3/T0-4/T0-6): اتصالِ واقعیِ همین گیت به
+     GitHub Actions. اگر این تستر سبز نباشد، یعنی workflowها دوباره گیت را
+     دور زده‌اند و «۱۵۰ PASS محلی» هیچ تضمینی برای استقرار نیست. */
+  { g: 'CI/اتصال گیت به Actions', f: '_tools/uat/tester536-v34.8.35-ci-gate-wired.js' }
 ];
 
 var SYNTAX = [
