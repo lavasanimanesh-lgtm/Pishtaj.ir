@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester536 — v34.8.36 (فاز صفرِ نازک‌سازی: T0-3 / T0-4 / T0-6)
+/* tester536 — v34.8.37 (فاز صفرِ نازک‌سازی: T0-3 / T0-4 / T0-6)
    «گیت‌های CI باید در GitHub Actions اجرا شوند» — نه فقط روی دستگاه ایجنت.
 
    پیشینه (یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸):
@@ -66,7 +66,7 @@ function contract(st, pr, lint, existsFn) {
     C('T0-4 ' + name + ': هش فایل زنده با کامیت مقایسه می‌شود (sha1sum + curl)',
       post.indexOf('sha1sum') > -1 && post.indexOf('curl -fsSL') > -1);
     C('T0-4 ' + name + ': تلاشِ مجدد دارد (دیپلوی/کش ممکن است دیر برسد)',
-      /for i in 1 2 3 4 5; do/.test(post) && /sleep 12/.test(post));
+      /for i in 1 2 3 4 5( 6 7 8 9 10 11 12)?; do/.test(post) && /sleep (12|30)/.test(post));
     C('T0-4 ' + name + ': شکست بی‌صدا رد نمی‌شود (exit یا هشدار صریح)',
       /exit \$fail/.test(post) || /exit 1/.test(post) || /::warning/.test(post));
     C('T0-4 ' + name + ': نسخهٔ زنده با VERSION.json سنجیده می‌شود (ضد «نسخهٔ مخلوط»)',
@@ -158,7 +158,7 @@ function contract(st, pr, lint, existsFn) {
 })();
 
 /* ---------- A6: ASSET_VERSION و CACHE هم باید در نگهبان سنجیده شوند ----------
-   باگ واقعی v34.8.36: sw.js سه نقطهٔ نسخه دارد ولی A6 فقط RELEASE را می‌سنجید؛
+   باگ واقعی v34.8.37: sw.js سه نقطهٔ نسخه دارد ولی A6 فقط RELEASE را می‌سنجید؛
    ASSET_VERSION روی 34.8.34 مانده بود و کش‌باستر همهٔ اسکریپت‌ها را به نسخهٔ
    قدیمی می‌برد — همان خانوادهٔ «نسخهٔ مخلوط» که این فاز قرار بود ریشه‌کن کند. */
 (function a6Coverage() {
