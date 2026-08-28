@@ -3,7 +3,13 @@
 # verify-deploy.sh — راستی‌آزمایی استقرار پس از FTP (خودکفا + خروجی تشخیصی)
 #
 #   ۱) [HTTP] سایت زنده را با query-buster می‌گیرد: مارکر این ران + نسخهٔ sw.js
+#            + بنر استیجینگ + نسخهٔ manifest زنده (شواهدِ «docroot چه چیزی می‌سازد»)
 #   ۲) [FTP]  خودِ مسیر مقصد FTP را می‌خواند (دور از وب/CDN) + نمونهٔ محتوای مسیر
+#
+#   نتایج کلیدی علاوه بر لاگ و __diag__.txt به‌صورت «آnotation» گیت‌هاب
+#   (::notice title=[diag]::…) هم چاپ می‌شوند تا بدون دسترسی به لاگ ران، از
+#   طریق API check-run قابل‌خواندن باشند:
+#       gh api repos/{owner}/{repo}/check-runs/{id}/annotations
 #
 # مارکر __deploy__.txt است (نه .json — .htaccess ریشه همهٔ jsonها را می‌بندد).
 # اگر DIAG_FILE ست باشد، گزارش کامل تشخیص در آن فایل نوشته می‌شود تا workflow
@@ -31,7 +37,7 @@ done
 [[ -z "$FTP_SERVER" || -z "$FTP_USER" || -z "$FTP_PASS" || -z "$FTP_DIR" ]] && { echo "⚠️  اطلاعات FTP کامل نیست؛ فقط بررسی HTTP"; FTP_SERVER=""; }
 
 MARKER="__deploy__.txt"
-EXPECT_RELEASE="$(grep -oE "RELEASE = 'v[0-9.]+'" crm/sw.js 2>/dev/null | head -1 | grep -oE 'v[0-9.]+')"
+EXPECT_RELEASE="$(grep -oE "RELEASE = 'v[0-9.]+'" crm/sw.js 2>/dev/null | head -1 | grep -oE 'v[0-9.]+' || true)"
 if [[ -z "$EXPECT_RELEASE" ]]; then
   echo "⛔ crm/sw.js محلی در این چک‌اوت پیدا/خوانده نشد"; exit 1
 fi
@@ -41,7 +47,19 @@ diag() {  # هم در لاگ، هم در فایل تشخیص
   echo "$1"
   [[ -n "$DIAG_FILE" ]] && printf '%s\n' "$1" >> "$DIAG_FILE"
 }
+note() {  # آnotation گیت‌هاب — با API check-run خوانده می‌شود، بدون نیاز به لاگ
+  # (خارج از GitHub Actions بی‌اثر است تا اجرای محلی آلوده نشود)
+  [[ "${GITHUB_ACTIONS:-false}" == "true" ]] || return 0
+  local line
+  line="$(printf '%s' "$1" | tr -d '\r' | tr '\n' '|' | tr -s '| ' '| ')"
+  printf '::notice title=[diag]::%s\n' "$line"
+}
+join1() {  # چسباندن چند خط در یک خط (برای annotation تک‌خطی)
+  printf '%s' "$1" | tr -d '\r' | tr '\n' '|' | tr -s ' '
+}
+
 [[ -n "$DIAG_FILE" ]] && { : > "$DIAG_FILE"; diag "ptf-deploy-diag v1 — $(date -u +%FT%TZ)"; diag "expect: sha=$EXPECT_SHA sw=$EXPECT_RELEASE"; }
+note "expect: sha=$EXPECT_SHA sw=$EXPECT_RELEASE"
 
 dump_headers() {
   curl -sS --max-time 30 -o /dev/null -D - "$1?cb=$BUST" 2>&1 \
@@ -59,15 +77,27 @@ for i in $(seq 1 6); do
   echo "   … تلاش $i/۶: marker=${MARKER_BODY:0:40} / sw=$LIVE_SW / انتظار=$EXPECT_RELEASE"
   [[ $i -lt 6 ]] && sleep 12
 done
+
+# شواهدِ «docroot زنده چه چیزی سرو می‌کند» — مستقل از موفقیت/شکست HTTP
+LIVE_BANNER="$(curl -fsS --max-time 30 "$URL/?cb=$BUST" 2>/dev/null | tr '\n\r' '  ' | grep -o 'محیط تست (Staging) — [^<]*' | head -1 | tr -s ' ' || true)"
+LIVE_MANIFEST="$(curl -fsS --max-time 30 "$URL/crm/manifest.json?cb=$BUST" 2>/dev/null | grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 || true)"
+H1="$(dump_headers "$URL/crm/sw.js")"
+H2="$(dump_headers "$URL/crm/manifest.json")"
+
 if [[ "$HTTP_OK" -ne 1 ]]; then
   diag "⛔ [HTTP] زنده با کامیت یکی نیست: marker='${MARKER_BODY:0:80}' sw=$LIVE_SW (انتظار $EXPECT_RELEASE)"
+  note "[HTTP] زنده با کامیت یکی نیست: marker='${MARKER_BODY:0:80}' sw=$LIVE_SW (انتظار $EXPECT_RELEASE)"
   diag "── هدرهای زنده (کش/CDN را لو می‌دهند):"
-  H1="$(dump_headers "$URL/crm/sw.js")";  echo "$H1" | sed 's/^/     /'
-  H2="$(dump_headers "$URL/crm/manifest.json")"; echo "$H2" | sed 's/^/     /'
+  echo "$H1" | sed 's/^/     /'
+  echo "$H2" | sed 's/^/     /'
   [[ -n "$DIAG_FILE" ]] && { printf '%s\n' "$H1" "$H2" >> "$DIAG_FILE"; }
+  note "[HTTP] headers crm/sw.js: $(join1 "$H1")"
+  note "[HTTP] headers crm/manifest.json: $(join1 "$H2")"
 else
   diag "✅ [HTTP] مارکر این ران + sw.js=$EXPECT_RELEASE روی سایت زنده تأیید شد"
+  note "[HTTP] مارکر این ران + sw.js=$EXPECT_RELEASE روی سایت زنده تأیید شد"
 fi
+note "[HTTP] زنده: banner='${LIVE_BANNER:-<بنر نیست>}' manifest=${LIVE_MANIFEST:-<خوانده نشد>}"
 
 # ── ۲) بررسی سمت FTP (حقیقتِ خودِ مقصد؛ دور از وب/CDN) ──────────────────────
 FTP_OK=""; FTP_LISTABLE=0; FTP_MODE=""
@@ -88,24 +118,31 @@ if [[ -n "$FTP_SERVER" ]]; then
       [[ -z "$SAMPLE" ]] && SAMPLE="$(echo "$LIST" | awk '{print $NF}' | head -20 | sed 's/^/ • /')"
       echo "$SAMPLE" | sed 's/^/   /'
       [[ -n "$DIAG_FILE" ]] && printf '%s\n' "$SAMPLE" >> "$DIAG_FILE"
+      note "[FTP:$SPEC] مسیر مقصد ($DIR) — ۲۰ مدخل اول: $(join1 "$SAMPLE")"
       MARKER_REMOTE="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
               -u "$FTP_USER:$FTP_PASS" "$SPEC://$HOST/$DIR/$MARKER" 2>/dev/null || true)"
       if [[ "$MARKER_REMOTE" == *"$EXPECT_SHA"* ]]; then
-        FTP_OK="yes"; diag "✅ [FTP:$SPEC] مارکر این ران روی «خودِ مسیر مقصد» هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
+        FTP_OK="yes"
+        diag "✅ [FTP:$SPEC] مارکر این ران روی «خودِ مسیر مقصد» هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
+        note "[FTP:$SPEC] مارکر این ران روی خودِ مسیر مقصد هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
       else
-        FTP_OK="no";  diag "⛔ [FTP:$SPEC] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
+        FTP_OK="no"
+        diag "⛔ [FTP:$SPEC] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
+        note "[FTP:$SPEC] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
       fi
       break
     fi
   done
   if [[ "$FTP_OK" == "" && "$FTP_LISTABLE" -eq 0 ]]; then
     diag "⚠️  [FTP] از این رانر مسیر مقصد خوانده نشد (فایروال/پروتکل) — بررسی HTTP ملاک است"
+    note "[FTP] از این رانر مسیر مقصد خوانده نشد (فایروال/پروتکل) — بررسی HTTP ملاک است"
   fi
 fi
 
-# ── نتیجه ───────────────────────────────────────────────────────────────────
+# ── نتیجه ───────────────────────────────────────────────────
 echo "──────────────────────────────────────────"
 echo "نتیجه: HTTP=$([[ $HTTP_OK -eq 1 ]] && echo OK || echo FAIL)  FTP=${FTP_OK:-N/A} (mode=${FTP_MODE:-none})"
+note "نتیجه: HTTP=$([[ $HTTP_OK -eq 1 ]] && echo OK || echo FAIL) FTP=${FTP_OK:-N/A} (mode=${FTP_MODE:-none})"
 [[ $HTTP_OK -ne 1 ]] && exit 1
 [[ "$FTP_OK" == "no" ]] && exit 1
 exit 0
