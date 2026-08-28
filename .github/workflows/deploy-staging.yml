@@ -77,7 +77,8 @@ jobs:
 
       # ── آماده‌سازی محتوای استیجینگ
       - name: robots.txt → noindex
-        run: printf 'User-agent: *\nDisallow: /\n' > robots.txt
+        run: |
+          printf 'User-agent: *\nDisallow: /\n' > robots.txt
 
       - name: Inject staging banner
         env:
