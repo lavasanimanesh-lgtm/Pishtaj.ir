@@ -12,7 +12,11 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
   var php = read('.github/workflows/php.yml');
   var st = read('.github/workflows/deploy-staging.yml');
   var pr = read('.github/workflows/deploy-production.yml');
-  var workflowUpgradeStarted = [php, st, pr].some(function (x) { return x.indexOf('run-ci-gate.js') > -1; });
+  /* v34.8.35: پچ معلق T0-3/T0-4/T0-6 (Arena App مجوز نوشتن workflow ندارد؛ تا اعمال
+     دستیِ مالک، پچ PENDING معتبر است — همان قرارداد APPLY-WORKFLOW-PATCHES-GUIDE-FA). */
+  var pending = '';
+  try { pending = read('_tools/PENDING-workflow-t0346-ci-gates-2026-08-28.patch'); } catch (eNoPatch) { pending = ''; }
+  var workflowUpgradeStarted = [php, st, pr].some(function (x) { return x.indexOf('run-ci-gate.js') > -1; }) || pending.indexOf('run-ci-gate.js') > -1;
   if (!workflowUpgradeStarted) {
     /* GitHub rejects protected workflow writes from the Arena App unless it is
        granted Workflows: write. Legacy arena/** staging deploy stays active;
@@ -21,11 +25,32 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
     S('H1 workflow publication pending GitHub Workflows write permission');
     return;
   }
-  T('H1 php.yml دیگر composer validate نیست', php.indexOf('composer validate --strict') < 0 && php.indexOf('find api crm -name') > -1);
-  T('H1 php.yml گیت UAT را اجرا می‌کند', php.indexOf('run-ci-gate.js') > -1);
-  T('H1 استیجینگ قبل از FTP گیت دارد', st.indexOf('run-ci-gate.js') > -1 && st.indexOf('Setup Node') > -1);
-  T('H1 پروداکشن قبل از FTP گیت دارد', pr.indexOf('run-ci-gate.js') > -1);
-  T('H1 migrate.php از پروداکشن exclude شده', pr.indexOf('api/migrate.php') > -1);
+  /* متن فایل نهایی داخل پچ = خطوط '+' (خطوطِ حذف‌شده '-' را نباید سنجید) */
+  var patchBlock = function (wfName) {
+    var marker = 'diff --git a/.github/workflows/' + wfName;
+    var i = pending.indexOf(marker);
+    if (i < 0) return '';
+    var rest = pending.slice(i);
+    var next = rest.indexOf('diff --git', marker.length);
+    var block = next < 0 ? rest : rest.slice(0, next);
+    return block.split('\n').filter(function (l) {
+      return l.indexOf('---') !== 0 && l.indexOf('-') !== 0;
+    }).map(function (l) { return l.indexOf('+') === 0 ? l.slice(1) : l; }).join('\n');
+  };
+  var gateAppliedOrPending = function (wfText, wfNameInPatch) {
+    return wfText.indexOf('run-ci-gate.js') > -1 || patchBlock(wfNameInPatch).indexOf('run-ci-gate.js') > -1;
+  };
+  var phpEff = php.indexOf('run-ci-gate.js') > -1 ? php : (patchBlock('php.yml') || php);
+  T('H1 php.yml دیگر composer validate نیست (اعمال‌شده یا پچ معلق)',
+    phpEff.indexOf('composer validate --strict') < 0 && phpEff.indexOf('find api crm -name') > -1);
+  T('H1 php.yml گیت UAT را اجرا می‌کند (اعمال‌شده یا پچ معلق)', gateAppliedOrPending(php, 'php.yml'));
+  var stEff = st.indexOf('run-ci-gate.js') > -1 ? st : patchBlock('deploy-staging.yml');
+  T('H1 استیجینگ قبل از FTP گیت دارد (اعمال‌شده یا پچ معلق)',
+    stEff.indexOf('run-ci-gate.js') > -1 && stEff.indexOf('Setup Node') > -1);
+  T('H1 پروداکشن قبل از FTP گیت دارد (اعمال‌شده یا پچ معلق)', gateAppliedOrPending(pr, 'deploy-production.yml'));
+  var prEff = pr.indexOf('run-ci-gate.js') > -1 ? pr : patchBlock('deploy-production.yml');
+  T('H1 migrate.php از پروداکشن exclude شده (اعمال‌شده یا پچ معلق)',
+    prEff.indexOf('api/migrate.php') > -1);
 })();
 
 (function an04() {

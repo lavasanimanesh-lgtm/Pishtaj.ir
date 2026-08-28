@@ -1,0 +1,181 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index b8752f8..2c88111 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -99,6 +99,20 @@ jobs:
+           done < <(find api -name '*.php' -print0)
+           if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
+           echo "php -l: همهٔ فایل‌های api/*.php سالم"
++
++      # Node پایدار برای رانر گیت (H1: قرارداد «Setup Node» در هر دو workflow استقرار)
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      # T0-3 (v34.8.35): گیت نازک‌سازی + نگهبان معماری — قبل از FTP روی پروداکشن هم.
++      # همان رانری که استیجینگ را سبز کرده بود؛ اگر کدی بایپس localStorage یا تخلف
++      # معماری جدید داشته باشد، استقرار پروداکشن متوقف می‌شود.
++      - name: Thin-client CI gate + arch guard (pre-deploy)
++        run: |
++          node _tools/uat/run-ci-gate.js
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+@@ -121,9 +135,21 @@ jobs:
+             service-photos/**
+             ptf-snapshots/**
+             docs-deploy/**
++            api/migrate.php
+             tester*.js
+             FILES-CHANGED-*.txt
+ 
++      # T0-4 (v34.8.35): گیت بعد از استقرار — هش ۵ فایل کلیدیِ زنده روی پروداکشن
++      # باید با همین کامیت یکی باشد؛ نابرابر = دیپلوی مخلوط/ناقص؛ تگ و ریلیس ساخته
++      # نمی‌شود و استقرار شکست می‌خورد. تا ۲ دقیقه برای انتشار کامل retry می‌کند.
++      - name: Post-deploy hash check (mixed-version guard)
++        env:
++          BASE: https://pishtaj.ir
++          TRIES: '12'
++          WAIT_MS: '10000'
++        run: |
++          node _tools/uat/post-deploy-hash-check.js
++
+       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
+       - name: Create version tag
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index abee444..13f4eff 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -80,6 +80,37 @@ jobs:
+           done < <(find api -name '*.php' -print0)
+           if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
+           echo "php -l: همهٔ فایل‌های api/*.php سالم"
++
++      # Node پایدار برای رانر گیت (H1: قرارداد «Setup Node» در هر دو workflow استقرار)
++      - name: Setup Node
++        uses: actions/setup-node@v4
++        with:
++          node-version: '20'
++
++      # T0-3 (v34.8.35): گیت نازک‌سازی + نگهبان معماری — قبل از FTP.
++      # همهٔ تسترهای sync/مالی/نازک‌سازی (run-ci-gate) + arch-guard اینجا اجرا می‌شوند؛
++      # تا این مرحله سبز نشود هیچ فایلی روی استیجینگ نمی‌رود (جلوگیری از بازگشت بایپس‌ها).
++      - name: Thin-client CI gate + arch guard (pre-deploy)
++        run: |
++          node _tools/uat/run-ci-gate.js
++
++      # T0-6 (v34.8.35): هدر no-cache برای js/html فقط روی استیجینگ — جلوگیری از
++      # دیدن «نسخهٔ مخلوط» به‌خاطر کش مرورگر/CDN حین تست. این بلوک فقط در این workflow
++      # (که فقط روی استیجینگ می‌رود) به انتهای .htaccess تزریق می‌شود؛ پروداکشن دست‌نخورده.
++      - name: Staging-only no-cache headers for js/html
++        run: |
++          cat >> .htaccess <<'HTACCESS'
++
++          # ── T0-6 (v34.8.35): فقط استیجینگ — کش مرورگر/CDN برای js/html خاموش ──
++          <IfModule mod_headers.c>
++            <FilesMatch "\.(js|html)$">
++              Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
++              Header set Pragma "no-cache"
++            </FilesMatch>
++          </IfModule>
++          HTACCESS
++          echo "staging no-cache headers appended to .htaccess"
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+@@ -105,6 +136,17 @@ jobs:
+             tester*.js
+             FILES-CHANGED-*.txt
+ 
++      # T0-4 (v34.8.35): گیت بعد از استقرار — هش ۵ فایل کلیدیِ زنده باید با همین
++      # کامیت یکی باشد؛ نابرابر (دیپلوی مخلوط/ناقص) = شکست استقرار با هشدار واضح.
++      # تا ۲ دقیقه برای انتشار کامل FTP/CDN retry می‌کند.
++      - name: Post-deploy hash check (mixed-version guard)
++        env:
++          BASE: https://staging.pishtaj.ir
++          TRIES: '12'
++          WAIT_MS: '10000'
++        run: |
++          node _tools/uat/post-deploy-hash-check.js
++
+       - name: Summary
+         run: |
+           echo "### ✅ استقرار استیجینگ انجام شد" >> $GITHUB_STEP_SUMMARY
+diff --git a/.github/workflows/php.yml b/.github/workflows/php.yml
+index 7d257b5..7c8fade 100644
+--- a/.github/workflows/php.yml
++++ b/.github/workflows/php.yml
+@@ -1,3 +1,13 @@
++# ─────────────────────────────────────────────────────────────────────────────
++# CI Gate — گیت PHP + نازک‌سازی + نگهبان معماری
++#
++# (v34.8.35 / H1): فایل قبلیِ php.yml فقط اعتبارسنجی composer را اجرا می‌کرد در حالی که
++# پروژه composer.json ندارد → عملاً بی‌اثر بود (بدهی فنی #۲ ارزیابی ۲۰۲۶-۰۸-۱۳).
++# حالا همین تریگرها (push/PR به main) گیت واقعی را اجرا می‌کنند:
++#   • php -l روی همهٔ فایل‌های api/*.php و crm/*.php
++#   • run-ci-gate.js: syntax کرنش JS + arch-guard (قواعد A1–A11) + سوئیت کامل UAT
++# قرارداد کامل در tester436 (H1) سنجیده می‌شود.
++# ─────────────────────────────────────────────────────────────────────────────
+ name: PHP Composer
+ 
+ on:
+@@ -17,23 +27,36 @@ jobs:
+     steps:
+     - uses: actions/checkout@v4
+ 
+-    - name: Validate composer.json and composer.lock
+-      run: composer validate --strict
+-
+-    - name: Cache Composer packages
+-      id: composer-cache
+-      uses: actions/cache@v3
++    - name: Setup Node
++      uses: actions/setup-node@v4
+       with:
+-        path: vendor
+-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+-        restore-keys: |
+-          ${{ runner.os }}-php-
+-
+-    - name: Install dependencies
+-      run: composer install --prefer-dist --no-progress
+-
+-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+-    # Docs: https://getcomposer.org/doc/articles/scripts.md
+-
+-    # - name: Run test suite
+-    #   run: composer run-script test
++        node-version: '20'
++
++    - name: Install PHP (php -l)
++      run: |
++        sudo apt-get update -qq >/dev/null 2>&1 || true
++        sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
++        if ! command -v php >/dev/null 2>&1; then
++          echo "::error::php-cli نصب نشد؛ گیت سینتکس PHP قابل اجرا نیست"
++          exit 1
++        fi
++        php -v | head -1
++
++    # گیت PHP (قبل از هر چیز): فایل‌های api/ و crm/
++    - name: PHP syntax lint (api + crm)
++      run: |
++        fail=0
++        while IFS= read -r -d '' f; do
++          if ! php -l "$f" >/dev/null 2>&1; then
++            echo "::error file=$f::php -l شکست خورد"
++            php -l "$f" || true
++            fail=1
++          fi
++        done < <(find api crm -name '*.php' -print0)
++        if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
++        echo "php -l: همهٔ فایل‌های api/ و crm/ سالم"
++
++    # گیت کامل UAT + نگهبان معماری (شامل php -l داخل رانر هم هست)
++    - name: Thin-client CI gate + arch guard (UAT suite)
++      run: |
++        node _tools/uat/run-ci-gate.js

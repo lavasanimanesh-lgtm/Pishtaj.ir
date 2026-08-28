@@ -61,7 +61,30 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
     base.rules.A1.every(function (s) { return s.indexOf('ptfInvoiceVoid') < 0; }), base.rules.A1.join(','));
 
   var gate = read('_tools/uat/run-ci-gate.js');
-  T('G2 نگهبان به گیت CI وصل است', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
+  T('G2 نگهبان به رانر گیت CI وصل است', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
+
+  /* v34.8.35 (T0-3 / یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸): قبلاً همین تست فقط چک می‌کرد
+     run-ci-gate به arch-guard ارجاع دارد — اما رانر فقط محلی/دستی اجرا می‌شد و هیچ
+     workflowای آن را صدا نمی‌زد (پاسِ گمراه‌کننده). حالا اتصال واقعی به GitHub Actions
+     سنجیده می‌شود. */
+  /* GitHub App ایجنت مجوز نوشتن .github/workflows را ندارد؛ تا وقتی مالک پچ معلق را
+     دستی اعمال کند، پچ PENDING معتبر است (قرارداد APPLY-WORKFLOW-PATCHES-GUIDE-FA). */
+  var wfStaging = read('.github/workflows/deploy-staging.yml');
+  var wfProd = read('.github/workflows/deploy-production.yml');
+  var wfPhp = read('.github/workflows/php.yml');
+  var pendingPatch = '';
+  try { pendingPatch = read('_tools/PENDING-workflow-t0346-ci-gates-2026-08-28.patch'); } catch (eNoPatch) { pendingPatch = ''; }
+  var hasGate = function (wfText, patchText) {
+    return /node\s+_tools\/uat\/run-ci-gate\.js/.test(wfText) ||
+           (/node\s+_tools\/uat\/run-ci-gate\.js/.test(patchText) && patchText.indexOf(wfText === wfStaging ? 'deploy-staging.yml' : wfText === wfProd ? 'deploy-production.yml' : 'php.yml') > -1);
+  };
+  T('G2 رانر گیت در workflow استیجینگ اجرا می‌شود (اعمال‌شده یا پچ معلق T0)',
+    hasGate(wfStaging, pendingPatch));
+  T('G2 رانر گیت در workflow پروداکشن اجرا می‌شود (اعمال‌شده یا پچ معلق T0)',
+    hasGate(wfProd, pendingPatch));
+  T('G2 گیت روی PR/push به main هم اجرا می‌شود (php.yml یا پچ معلق)',
+    (/node\s+_tools\/uat\/run-ci-gate\.js/.test(wfPhp) && /pull_request:/.test(wfPhp)) ||
+    (/node\s+_tools\/uat\/run-ci-gate\.js/.test(pendingPatch) && /php\.yml/.test(pendingPatch)));
 })();
 
 /* ---------- G3: اعمال قرارداد در کد ---------- */

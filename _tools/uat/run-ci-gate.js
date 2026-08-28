@@ -194,6 +194,7 @@ var SUITE = [
   { g: 'T4/توکن کهنه ابزارها', f: '_tools/uat/tester532-v34.8.34-tools-stale-token-heal.js' },
   { g: 'T3-1/خواندن سرور-محور', f: '_tools/uat/tester533-v34.8.34-collection-query.js' },
   { g: 'T3-1/ماژول کالا سروری', f: '_tools/uat/tester534-v34.8.34-prod-server-read.js' },
+  { g: 'CI/اتصال گیت‌ها به GitHub Actions (T0)', f: '_tools/uat/tester536-v34.8.35-ci-gate-wiring.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

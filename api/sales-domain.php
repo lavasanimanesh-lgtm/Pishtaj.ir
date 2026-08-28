@@ -41,6 +41,26 @@ function sd_out(array $payload, int $status = 200): void {
     exit;
 }
 
+/* OPS-01: نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
+   window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
+   ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
+const SD_SERVICE_VERSION = '34.8.35';
+
+/* v34.8.35 (T0-4 — post-deploy hash check): پروب بدون احراز هویت برای گیت «بعد از
+   استقرار». هش فایل زندهٔ خودِ endpoint + نسخه را برمی‌گرداند تا workflow بتواند آن
+   را با هش/نسخهٔ کامیتِ مستقرشده مقایسه کند و «دیپلوی مخلوط/ناقص» را بگیرد.
+   هیچ دادهٔ کسب‌وکاری یا اطلاعات نشست در این پاسخ نیست. */
+$sd_probe_action = trim((string)($_GET['action'] ?? ''));
+if ($sd_probe_action === 'deploy_probe') {
+    sd_out([
+        'ok' => true,
+        'probe' => 'sales-domain',
+        'version' => SD_SERVICE_VERSION,
+        'file' => basename(__FILE__),
+        'selfSha256' => hash_file('sha256', __FILE__),
+    ]);
+}
+
 $identity = auth_verify_token(auth_get_header_token());
 if (!$identity) sd_out(['ok' => false, 'error' => 'authentication_required', 'needLogin' => true], 401);
 $role = strtolower(trim((string)($identity['role'] ?? '')));
@@ -59,10 +79,6 @@ const SD_WIN_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales'];
 const SD_OFFER_REPAIR_ROLES = ['admin', 'chairman'];
 const SD_RFQ_ROLES = ['admin', 'chairman', 'ceo', 'commercial', 'sales', 'buyer', 'accountant'];
 const SD_ADMIN_ROLES = ['admin'];
-/* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
-   window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
-   ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.34';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
