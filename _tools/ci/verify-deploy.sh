@@ -1,27 +1,13 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════════════
-# verify-deploy.sh — راستی‌آزمایی استقرار پس از FTP (بازنویسی T0-4، خودکفا)
+# verify-deploy.sh — راستی‌آزمایی استقرار پس از FTP (خودکفا + خروجی تشخیصی)
 #
-# چه می‌کند:
-#   ۱) [FTP]  خودِ مسیر مقصد FTP را می‌خواند (دور از وب/CDN) و بررسی می‌کند
-#             مارکر این ران + sw.js همان کامیتِ دیپلوی‌شده آنجاست.
-#   ۲) [HTTP] سایت زنده را با query-buster می‌گیرد و همان دو را مقایسه می‌کند.
+#   ۱) [HTTP] سایت زنده را با query-buster می‌گیرد: مارکر این ران + نسخهٔ sw.js
+#   ۲) [FTP]  خودِ مسیر مقصد FTP را می‌خواند (دور از وب/CDN) + نمونهٔ محتوای مسیر
 #
-# چرا: دیپلوی‌های ۲۰۲۶-۰۸-۲۸ «success» بودند ولی سایت زنده v34.8.12/v34.8.33
-#       بود؛ بدون این گیت، شکستِ بی‌صدای FTP/docroot/CDN دیده نمی‌شود.
-#
-# خروجی (تشخیص نوع خطا):
-#   FTP ✅ + HTTP ⛔  → فایل روی مقصد هست ولی وب‌سرور جای دیگری را سرو می‌کند
-#                      (server-dir با docroot یکی نیست، یا کش CDN کهنه است)
-#   FTP ⛔ + HTTP ⛔  → آپلود واقعاً به مقصد نرسیده (state-file اکشن FTP و...)
-#   HTTP ✅          → استقرار اثبات‌شده است
-#
-# استفاده (از ریشهٔ ریپو، بعد از checkout و FTP):
-#   _tools/ci/verify-deploy.sh \
-#     --url https://staging.pishtaj.ir \
-#     --sha  "$SHA" \
-#     --ftp-server "$FTP_SERVER" --ftp-user "$FTP_USER" \
-#     --ftp-pass  "$FTP_PASS"  --ftp-dir   "$FTP_DIR"
+# مارکر __deploy__.txt است (نه .json — .htaccess ریشه همهٔ jsonها را می‌بندد).
+# اگر DIAG_FILE ست باشد، گزارش کامل تشخیص در آن فایل نوشته می‌شود تا workflow
+# آن را با FTP روی سایت منتشر کند (__diag__.txt) — بدون نیاز به لاگ گیت‌هاب.
 #
 # کد خروج: 0 = اثبات شد | 1 = شکست | 2 = آرگومان نامعتبر
 # ═══════════════════════════════════════════════════════════════════════════
@@ -29,6 +15,7 @@ set -uo pipefail
 
 URL=""; EXPECT_SHA=""
 FTP_SERVER=""; FTP_USER=""; FTP_PASS=""; FTP_DIR=""
+DIAG_FILE="${DIAG_FILE:-}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --url)        URL="$2";        shift 2 ;;
@@ -43,82 +30,82 @@ done
 [[ -z "$URL" || -z "$EXPECT_SHA" ]] && { echo "⛔ --url و --sha اجباری‌اند"; exit 2; }
 [[ -z "$FTP_SERVER" || -z "$FTP_USER" || -z "$FTP_PASS" || -z "$FTP_DIR" ]] && { echo "⚠️  اطلاعات FTP کامل نیست؛ فقط بررسی HTTP"; FTP_SERVER=""; }
 
-MARKER="__deploy__.json"
+MARKER="__deploy__.txt"
 EXPECT_RELEASE="$(grep -oE "RELEASE = 'v[0-9.]+'" crm/sw.js 2>/dev/null | head -1 | grep -oE 'v[0-9.]+')"
 if [[ -z "$EXPECT_RELEASE" ]]; then
   echo "⛔ crm/sw.js محلی در این چک‌اوت پیدا/خوانده نشد"; exit 1
 fi
 BUST="gha-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$(date +%s)"
 
+diag() {  # هم در لاگ، هم در فایل تشخیص
+  echo "$1"
+  [[ -n "$DIAG_FILE" ]] && printf '%s\n' "$1" >> "$DIAG_FILE"
+}
+[[ -n "$DIAG_FILE" ]] && { : > "$DIAG_FILE"; diag "ptf-deploy-diag v1 — $(date -u +%FT%TZ)"; diag "expect: sha=$EXPECT_SHA sw=$EXPECT_RELEASE"; }
+
 dump_headers() {
   curl -sS --max-time 30 -o /dev/null -D - "$1?cb=$BUST" 2>&1 \
-    | grep -iE '^HTTP/|cache|^age:|^etag|^last-modified|^server:|^x-|^cf-' || true
+    | grep -iE '^HTTP/|^age:|^cache|^etag|^last-modified|^server:|^x-|^cf-' || true
 }
 
-# ── ۱) بررسی HTTP سایت زنده (الزامی) ────────────────────────────────────────
-HTTP_OK=0
-for i in $(seq 1 8); do
+# ── ۱) بررسی HTTP سایت زنده ────────────────────────────────────────────────
+HTTP_OK=0; MARKER_BODY=""; LIVE_SW=""
+for i in $(seq 1 6); do
   MARKER_BODY="$(curl -fsS --max-time 30 "$URL/$MARKER?cb=$BUST" 2>/dev/null || true)"
-  LIVE_SW="$(curl -fsS --max-time 30 "$URL/crm/sw.js?cb=$BUST" 2>/dev/null | grep -oE "RELEASE = 'v[0-9.]+'" | head -1 | grep -oE 'v[0-9.]+' || true)"
+  LIVE_SW="$(curl -fsSL --max-time 30 "$URL/crm/sw.js?cb=$BUST" 2>/dev/null | grep -oE "RELEASE = 'v[0-9.]+'" | head -1 | grep -oE 'v[0-9.]+' || true)"
   if [[ "$MARKER_BODY" == *"$EXPECT_SHA"* && "$LIVE_SW" == "$EXPECT_RELEASE" ]]; then
     HTTP_OK=1; break
   fi
-  echo "   … تلاش $i/۸: مارکر یا نسخهٔ زنده هنوز مطابق نیست (marker=${MARKER_BODY:0:60} / sw=$LIVE_SW / انتظار=$EXPECT_RELEASE)"
-  [[ $i -lt 8 ]] && sleep 15
+  echo "   … تلاش $i/۶: marker=${MARKER_BODY:0:40} / sw=$LIVE_SW / انتظار=$EXPECT_RELEASE"
+  [[ $i -lt 6 ]] && sleep 12
 done
-
 if [[ "$HTTP_OK" -ne 1 ]]; then
-  echo "⛔ [HTTP] سایت زنده با کامیت دیپلوی‌شده یکی نیست:"
-  echo "   انتظار: sha=$EXPECT_SHA  sw.js=$EXPECT_RELEASE"
-  echo "   مشاهده: marker=${MARKER_BODY:0:120}  sw.js=$LIVE_SW"
-  echo "   ── هدرهای زنده (برای تشخیص کش):"
-  dump_headers "$URL/$MARKER" | sed 's/^/     /'
-  dump_headers "$URL/crm/sw.js" | sed 's/^/     /'
+  diag "⛔ [HTTP] زنده با کامیت یکی نیست: marker='${MARKER_BODY:0:80}' sw=$LIVE_SW (انتظار $EXPECT_RELEASE)"
+  diag "── هدرهای زنده (کش/CDN را لو می‌دهند):"
+  H1="$(dump_headers "$URL/crm/sw.js")";  echo "$H1" | sed 's/^/     /'
+  H2="$(dump_headers "$URL/crm/manifest.json")"; echo "$H2" | sed 's/^/     /'
+  [[ -n "$DIAG_FILE" ]] && { printf '%s\n' "$H1" "$H2" >> "$DIAG_FILE"; }
 else
-  echo "✅ [HTTP] مارکر این ران و sw.js=$EXPECT_RELEASE روی سایت زنده تأیید شد"
+  diag "✅ [HTTP] مارکر این ران + sw.js=$EXPECT_RELEASE روی سایت زنده تأیید شد"
 fi
 
 # ── ۲) بررسی سمت FTP (حقیقتِ خودِ مقصد؛ دور از وب/CDN) ──────────────────────
-FTP_OK=""; FTP_LISTABLE=0
+FTP_OK=""; FTP_LISTABLE=0; FTP_MODE=""
 if [[ -n "$FTP_SERVER" ]]; then
   HOST="${FTP_SERVER#ftp://}"; HOST="${HOST#ftps://}"
   DIR="${FTP_DIR%/}"
-  for SPEC in "--ssl-reqd ftp" "plain ftp" "implicit ftps"; do
+  for SPEC in "ftps" "ftp"; do
     case "$SPEC" in
-      "--ssl-reqd ftp") CURL_ARGS=(--ssl-reqd --ftp-pasv); SCHEME="ftp" ;;
-      "plain ftp")      CURL_ARGS=(--ftp-pasv);           SCHEME="ftp" ;;
-      "implicit ftps")  CURL_ARGS=(--ftp-pasv);           SCHEME="ftps" ;;
+      ftps) CURL_ARGS=(--ssl-reqd --ftp-pasv) ;;
+      ftp)  CURL_ARGS=(--ftp-pasv) ;;
     esac
-      LIST="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
-              -u "$FTP_USER:$FTP_PASS" "$SCHEME://$HOST/$DIR/" 2>/dev/null || true)"
+    LIST="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
+              -u "$FTP_USER:$FTP_PASS" "$SPEC://$HOST/$DIR/" 2>/dev/null || true)"
     if [[ -n "$LIST" ]]; then
-      FTP_LISTABLE=1
-      echo "   ── نمونهٔ محتوای مسیر مقصد ($DIR) — ۱۵ مدخل اول:"
-      echo "$LIST" | grep -oE 'name="[^"]+"' | sed 's/name=/ • /' | head -15 || echo "$LIST" | head -15
+      FTP_LISTABLE=1; FTP_MODE="$SPEC"
+      diag "── [FTP:$SPEC] محتوای مسیر مقصد ($DIR) — ۲۰ مدخل اول:"
+      SAMPLE="$(echo "$LIST" | grep -oE 'name="[^"]+"' | sed 's/name=/ • /' | head -20)"
+      [[ -z "$SAMPLE" ]] && SAMPLE="$(echo "$LIST" | awk '{print $NF}' | head -20 | sed 's/^/ • /')"
+      echo "$SAMPLE" | sed 's/^/   /'
+      [[ -n "$DIAG_FILE" ]] && printf '%s\n' "$SAMPLE" >> "$DIAG_FILE"
       MARKER_REMOTE="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
-              -u "$FTP_USER:$FTP_PASS" "$SCHEME://$HOST/$DIR/$MARKER" 2>/dev/null || true)"
+              -u "$FTP_USER:$FTP_PASS" "$SPEC://$HOST/$DIR/$MARKER" 2>/dev/null || true)"
       if [[ "$MARKER_REMOTE" == *"$EXPECT_SHA"* ]]; then
-        FTP_OK="yes"
-        echo "✅ [FTP:$SCHEME] مارکر این ران روی «خودِ مسیر مقصد» ($DIR) تأیید شد"
+        FTP_OK="yes"; diag "✅ [FTP:$SPEC] مارکر این ران روی «خودِ مسیر مقصد» هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
       else
-        FTP_OK="no"
-        echo "⛔ [FTP:$SCHEME] مسیر $DIR قابل‌خواندن است ولی مارکر این ران آنجا نیست:"
-        echo "   … یعنی آپلود FTP واقعاً به این مسیر نرسیده (مشکلی در خود آپلود/state-file اکشن)."
+        FTP_OK="no";  diag "⛔ [FTP:$SPEC] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
       fi
       break
     fi
   done
   if [[ "$FTP_OK" == "" && "$FTP_LISTABLE" -eq 0 ]]; then
-    echo "⚠️  [FTP] از این رانر نتوانست مسیر مقصد را بخواند (فایروال/پروتکل) — بررسی HTTP ملاک است."
+    diag "⚠️  [FTP] از این رانر مسیر مقصد خوانده نشد (فایروال/پروتکل) — بررسی HTTP ملاک است"
   fi
 fi
 
-# ── نتیجهٔ نهایی ────────────────────────────────────────────────────────────
+# ── نتیجه ───────────────────────────────────────────────────────────────────
 echo "──────────────────────────────────────────"
-echo "نتیجهٔ راستی‌آزمایی: HTTP=$([[ $HTTP_OK -eq 1 ]] && echo OK || echo FAIL)  FTP=${FTP_OK:-N/A}"
-if [[ $HTTP_OK -ne 1 ]]; then exit 1; fi
-if [[ "$FTP_OK" == "no" ]]; then exit 1; fi
-if [[ "$FTP_OK" == "yes" && $HTTP_OK -eq 1 ]]; then
-  echo "🚀 استقرار اثبات‌شدهٔ کامل: فایل‌ها هم روی مقصد FTP هستند و هم از وب سرو می‌شوند."
-fi
+echo "نتیجه: HTTP=$([[ $HTTP_OK -eq 1 ]] && echo OK || echo FAIL)  FTP=${FTP_OK:-N/A} (mode=${FTP_MODE:-none})"
+[[ $HTTP_OK -ne 1 ]] && exit 1
+[[ "$FTP_OK" == "no" ]] && exit 1
 exit 0
