@@ -679,7 +679,17 @@
         try { if (acked.length && typeof window.ptfSyncAcknowledgeKeys === 'function') window.ptfSyncAcknowledgeKeys(acked, payload); } catch (eAck) {}
         var result = Object.assign({}, d || {}, { ok: !!(d && d.ok && clear.ok && !failed.length && !blocked.length && !kept.length), pushed: acked.length, failed: failed, blocked: blocked, pending: kept });
         if (!clear.ok && !result.error) result.error = 'queue_persist_failed';
-        var pending = failed.concat(result.rejected || [], result.skipped || [], result.forbidden || [], result.conflicts || [], blocked, kept);
+        /* v34.8.36 (FORBIDDEN-DROP — RCA نوار زرد پایدار personal_cheques، 2026-08-28):
+           قرارداد مسیر legacy — کلیدی که سرور صراحتاً «خارج از allowlist نقش» اعلام
+           کرد نباید در صف IDB و dirty ابدی بماند (هر flush دوباره forbidden می‌داد و
+           نوار زرد هرگز سبز نمی‌شد). از صف حذف، dirty پاک، نشانگر 🟠 forbidden.
+           rejected/conflicts/skipped قابل‌تلاش‌اند و مثل قبل pending می‌مانند. */
+        var forbiddenKeys = (result.forbidden || []).slice();
+        if (forbiddenKeys.length) {
+          try { queueClear(forbiddenKeys); } catch (eQForbidden) {}
+          try { if (typeof window.ptfSyncDropForbiddenKeys === 'function') window.ptfSyncDropForbiddenKeys(forbiddenKeys); } catch (eDropForbidden) {}
+        }
+        var pending = failed.concat(result.rejected || [], result.skipped || [], result.conflicts || [], blocked, kept);
         try { if (pending.length && typeof window.ptfSyncMarkPendingKeys === 'function') window.ptfSyncMarkPendingKeys(pending); } catch (ePending) {}
         /* v34.8.7 (SHARED-KEY-CONVERGENCE): تعارض در مسیر فاز B دیگر بن‌بست نیست.
            مقدار سرورِ کلیدهای conflicted (غیر مالیِ محافظت‌شده) merge محلی می‌شود،

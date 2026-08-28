@@ -228,6 +228,24 @@
     saveDirty();
     if (Object.keys(state.dirty).length) { try { setSyncBadge('warn'); } catch (eBadge) {} }
   };
+  /* v34.8.36 (FORBIDDEN-DROP — RCA نوار زرد پایدار personal_cheques، 2026-08-28):
+     قرارداد مسیر legacy (pushDirty): کلیدی که سرور صراحتاً «خارج از allowlist نقش»
+     اعلام کرد، «تغییر در انتظار ارسال» نیست — اگر dirty بماند، هر flush دوباره
+     forbidden می‌دهد و نوار زرد برای همیشه می‌ماند (بن‌بست ابدی). این API همان
+     قرارداد را برای مسیر فاز B فراهم می‌کند: dirty پاک، خطا ثبت، نشانگر 🟠. */
+  window.ptfSyncDropForbiddenKeys = function (keys) {
+    var dropped = [];
+    (Array.isArray(keys) ? keys : [keys]).forEach(function (k) {
+      if (state.dirty[k]) { delete state.dirty[k]; dropped.push(k); }
+      clearWriteFailure(k);
+    });
+    if (dropped.length) {
+      saveDirty();
+      noteSyncError('sync', 'forbidden', 'forbidden-keys-dropped', 'کلیدهای خارج از allowlist نقش فعلی از صف sync حذف شد: ' + dropped.join('، '));
+      try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقشِ فعلی از صف sync حذف شد: ' + dropped.join('، '), 'SYNC-RBAC'); } catch (eDropAudit) {}
+    }
+    try { setSyncBadge(Object.keys(state.dirty).length ? 'warn' : 'forbidden'); } catch (eDropBadge) {}
+  };
   window.ptfSyncWriteFailures = function () { return Object.keys(state.writeFailures); };
   /* Read-only diagnostic baseline. It intentionally exposes counts/revisions and
      result classes, never tokens or business payloads. */

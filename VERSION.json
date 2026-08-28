@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.35",
+  "crm_version": "v34.8.36",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-28",
-  "updated_by": "Arena Agent (v34.8.35 — T0-3/T0-4/T0-6: اتصال واقعی گیت CI و نگهبان معماری به GitHub Actions + هش‌چک بعد از استقرار + no-cache استیجینگ؛ T5-1: حذف دو fallback مردهٔ localStorage)"
+  "updated_by": "Arena Agent (v34.8.36 — SYNC-RBAC-PARITY: هم‌ترازی ماتریس سینک سرور با کلاینت برای ptf_crm_personal_cheques + FORBIDDEN-DROP: پایان بن‌بست ابدی نوار زرد در مسیر فاز B + ROUTER-CB: قرارداد opts.cb روتر مجموعه‌ای + tester537 برابری ماتریس RBAC)"
 }
