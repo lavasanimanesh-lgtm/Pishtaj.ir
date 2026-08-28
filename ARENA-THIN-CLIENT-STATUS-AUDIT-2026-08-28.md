@@ -119,3 +119,25 @@
 ---
 
 **ضمیمه — منابع بررسی‌شده:** `VERSION.json`، `ROADMAP-THIN-CLIENT-MAXIMAL-2026-08-27.md`، `PHASE-C-THIN-CLIENT-ROADMAP.md`، `PHASE-C1-HOT-COLLECTIONS.md`، `ARENA-STORAGE-INDEPENDENCE-RCA-2026-08-26.md`، `ASSESSMENT-STORAGE-INDEPENDENCE-THIN-CLIENT-2026-08-27.md`، RELEASE-NOTES v34.8.12–34، `_tools/arch/arch-guard.js`، `_tools/uat/run-ci-gate.js` + tester520/525–535، `crm/key-registry.js`، `.github/workflows/deploy-*.yml`، و اسکن زندهٔ `crm/*.js` از نظر `localStorage.*`.
+
+---
+
+## پیوست (همان روز) — وضعیت پس از v34.8.35
+
+این گزارش «ممیزی بدون تغییر کد» بود. ادامهٔ کار در نشست `arena/01a047d8-pishtaj-ir` انجام شد و نتیجه در
+`ARENA-THIN-CLIENT-T0-GATES-2026-08-28.md` + `RELEASE-NOTES-v34.8.35.md` مستند شده است. خلاصهٔ تغییر وضعیت یافته‌ها:
+
+| یافته | وضعیت پس از v34.8.35 |
+|---|---|
+| 🟥 F-1 (گیت CI در CI نیست) | رفع شد: `_tools/ci/ci-gate-step.sh` + خودآزمون؛ ادعای گمراه‌کنندهٔ `tester431` اصلاح شد؛ اتصال workflow به‌صورت پچ `_tools/PENDING-workflow-t0-gates-v34.8.35.patch` + `WORKFLOW-T0-GATES-APPLY-GUIDE-2026-08-28.md` آمادهٔ اعمال دستی است (GitHub App مجوز `workflows` ندارد) |
+| 🟥 F-2 (دو موتور سینک) | بی‌تغییر — برنامهٔ فازبندی‌شده در بخش ۵ سند ادامهٔ کار |
+| 🟠 F-3 (۲ fallback مرده) | **۶** fallback مرده حذف شد (`codegen`, `treasury`, `case-revision`, `surplus`, `treasury-call`, `finance-write-guard`) و بدهی A10 از 263 به 257 کاهش یافت |
+| 🟠 F-4 (کلیدهای DEV در LS) | بی‌تغییر — اولویت بعدی (T5-2) |
+| 🟠 F-5 (کش‌ها در LS) | بی‌تغییر — اولویت بعدی (T3-4) |
+| 🟡 F-6 (ابزارهای ریکاوری IDB-blind) | بی‌تغییر (T7) |
+| 🟡 F-7 (بدهی ۲۰۱) | شمارش دقیق و بازسازی‌شده: **257** (68 setItem / 153 getItem / 36 removeItem)؛ اختلاف با ۲۰۱ از `crm/index.html` و چند-عملیات-در-یک‌خط است |
+
+افزوده‌های این نسخه که در گزارش نبود: `api/deploy-probe.php` برای بررسی صحت استقرار فایل‌های PHP،
+T0-6 (لغو کش استیجینگ) در `.htaccess`/`crm/.htaccess`، و ابزار `_tools/uat/bump-version.js`.
+نکتهٔ مهم: پچ معلق ۲۰۲۶-۰۸-۲۷ (`_tools/PENDING-workflow-t0-gates-2026-08-27.patch`) **اعمال نشد** — heredoc
+داخل YAML و هش‌گرفتنِ فایل PHP روی HTTP، باعث خرابی گام استیجینگ و شکست همیشگی گیت صحت استقرار می‌شد.

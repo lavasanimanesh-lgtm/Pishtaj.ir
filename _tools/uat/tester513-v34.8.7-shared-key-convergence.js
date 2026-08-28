@@ -18,7 +18,7 @@ var api = read('api/crm.php');
 var cs = read('crm/client-server.js');
 var sync = read('crm/sync.js');
 
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
 
 /* ---------- سرور: union-merge کلیدهای مشترک ---------- */
 T('sync_shared_union_key تعریف شده', /function sync_shared_union_key/.test(api));
@@ -26,7 +26,7 @@ T('audit و avatars کلید union هستند', /'ptf_crm_audit','ptf_crm_avatar
 T('merge سروری در data_push قبل از base-conflict', api.indexOf('sync_union_merge_shared_key($k, $v, $serverUnionJson)') > -1);
 T('کلیدهای union از بررسی base-conflict عبور می‌کنند', /\$isSharedUnion && !\$restore && !\$allow_wipe && \$base !== null/.test(api));
 T('سقف ۴۰۰۰ ردیف audit', /count\(\$out\) > 4000/.test(api));
-T('avatars merge نسخه‌دار است (ts جدیدتر برنده؛ v34.8.34)', /strcmp\(\(string\)\$tsOf\(\$iv\), \(string\)\$tsOf\(\$sv\)\) >= 0/.test(api));
+T('avatars merge نسخه‌دار است (ts جدیدتر برنده؛ v34.8.35)', /strcmp\(\(string\)\$tsOf\(\$iv\), \(string\)\$tsOf\(\$sv\)\) >= 0/.test(api));
 T('مقادیر غیررشته‌ای معتبر ({v,ts} و tombstone) پاک نمی‌شوند (رگرسیون v34.8.7)', !/foreach \(\$out as \$mk => \$mv\) if \(!is_string\(\$mv\)\) unset/.test(api));
 T('tombstone آواتار با سقف ۳۰ روز سرور هم رعایت می‌شود', /30 \* 86400/.test(api));
 
@@ -35,7 +35,7 @@ T('ptfBPushBatch پاسخ serverData/krevs را aggregate می‌کند', /serve
 T('flush تعارض غیرمحافظت‌شده را merge محلی می‌کند', /ptfSyncResolveConflictFromServer/.test(cs));
 T('flush watermark کلید را از krevs پاسخ تازه می‌کند', /bSaveRevsFromMeta\(metaLike, result\.rev\)/.test(cs));
 T('flush مجدد سقف‌دار است (حداکثر ۳ نوبت)', /flushRescueRound \|\| 0\) < 3/.test(cs));
-T('کلیدهای محافظت‌شده از حل‌کنندهٔ عمومی عبور نمی‌کنند (مسیر اختصاصی v34.8.34)', !/protectedKeys\.indexOf\(k\) >= 0\) return;/.test(cs) && /ptfSyncResolveProtectedConflictFromServer\(k, srvStr, payload\[k\]\)/.test(cs) && /else if \(typeof window\.ptfSyncResolveConflictFromServer === 'function'/.test(cs));
+T('کلیدهای محافظت‌شده از حل‌کنندهٔ عمومی عبور نمی‌کنند (مسیر اختصاصی v34.8.35)', !/protectedKeys\.indexOf\(k\) >= 0\) return;/.test(cs) && /ptfSyncResolveProtectedConflictFromServer\(k, srvStr, payload\[k\]\)/.test(cs) && /else if \(typeof window\.ptfSyncResolveConflictFromServer === 'function'/.test(cs));
 T('sync.js حل‌کنندهٔ تعارض را expose می‌کند', /window\.ptfSyncResolveConflictFromServer = function/.test(sync));
 T('حل‌کننده از ptfSmartMerge و tombstones استفاده می‌کند', /ptfSmartMerge[\s\S]{0,200}ptfApplyDeletionTombstones[\s\S]{0,200}state\.dirty\[k\] = true/.test(sync));
 

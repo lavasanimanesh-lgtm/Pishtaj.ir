@@ -233,8 +233,11 @@
     if (list.some(function (x) { return x && x.id === ev.id; })) return { ok: true, dup: true };
     list.unshift(ev);
     if (list.length > 4000) list = list.slice(0, 4000);
-    if (typeof setData === 'function') setData(FIN_EV_KEY, list);
-    else try { localStorage.setItem(FIN_EV_KEY, JSON.stringify(list)); } catch (eW) {}
+    /* v34.8.35 (T5-1 / اصل E2): رویداد مالی هم مثل رکورد باید از لایهٔ داده رد شود؛
+       نوشتن مستقیم localStorage در شاخهٔ fallback حذف شد (قاعدهٔ A10). */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection(FIN_EV_KEY, list, { reason: 't5-1' });
+    else if (typeof setData === 'function') setData(FIN_EV_KEY, list);
+    else { try { if (window.console && console.error) console.error('[ptf] data layer unavailable — ' + FIN_EV_KEY + ' event skipped'); } catch (eDL) {} return { ok: false, why: 'no_datalayer', id: ev.id }; }
     return { ok: true, id: ev.id };
   };
   window.ptfFinanceUnionEvents = function (a, b) {

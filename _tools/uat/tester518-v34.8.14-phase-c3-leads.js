@@ -16,17 +16,17 @@ var api = read('api/sales-domain.php');
 var v2 = read('crm/sales-domain-v2.js');
 var leads = read('crm/leads.js');
 
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
 
 /* ---------- سرور ---------- */
 T('ptf_crm_leads در رجیستری موجودیت', /'ptf_crm_leads' => \[/.test(api));
 T('ptf_crm_leads در SD_KEYS', new RegExp("'ptf_crm_reminders'\\s*,\\s*'ptf_crm_le").test(api));
 T('sanitizer لیست اسکالر را نگه می‌دارد', /is_string\(\$item\)\) \{ \$list\[\] = sd_text\(\$item, 300\)/.test(api));
 T('sanitizer لیست نقشهٔ اسکالر (hist) را نگه می‌دارد', /subItem\[\$k3\] = \$storedSub;/.test(api));
-T('SD_SERVICE_VERSION = 34.8.34', /SD_SERVICE_VERSION = '34\.8\.34'/.test(api));
+T('SD_SERVICE_VERSION = 34.8.35', /SD_SERVICE_VERSION = '34\.8\.35'/.test(api));
 
 /* ---------- کلاینت ---------- */
-T('پرچم سرنخ‌ها فعال شد', /'ptf_crm_leads': true/.test(v2)); /* v34.8.34: نقشه از این پس با W1 ادامه دارد — پرچم leads کافی است */
+T('پرچم سرنخ‌ها فعال شد', /'ptf_crm_leads': true/.test(v2)); /* v34.8.35: نقشه از این پس با W1 ادامه دارد — پرچم leads کافی است */
 T('W1: مشتریان/تامین‌کنندگان/کالاها هم پرچم دارند', /'ptf_crm_customers': true/.test(v2) && /'ptf_crm_suppliers': true/.test(v2) && /'ptf_crm_products': true/.test(v2));
 T('addReminder از فرمان سروری می‌گذرد (ماژول یادآور کامل)', /function addReminder\(r\) \{[\s\S]{0,1200}ptfEntityUpsert\('ptf_crm_reminders'/.test(leads));
 T('saveLead از فرمان سروری می‌گذرد', /function saveLead\(cd\) \{[\s\S]{0,3500}ptfEntityUpsert\('ptf_crm_leads'/.test(leads));

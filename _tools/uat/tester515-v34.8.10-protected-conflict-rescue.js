@@ -17,13 +17,13 @@ var cs = read('crm/client-server.js');
 var sync = read('crm/sync.js');
 var api = read('api/crm.php');
 
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
 
 /* ---------- نجات تعارض محافظت‌شده ---------- */
 T('sync.js حل‌کنندهٔ protected را expose می‌کند', /window\.ptfSyncResolveProtectedConflictFromServer = function/.test(sync));
 T('حل‌کنندهٔ protected از ptfMergeProtectedFinanceConflict استفاده می‌کند', /ptfMergeProtectedFinanceConflict\(k, current, typeof submittedStr[\s\S]{0,120}serverStr\)/.test(sync));
-T('v34.8.34: پذیرش verbatim کانونیکال وقتی لوکال از لحظهٔ ارسال تغییر نکرده', /sameSyncJson\(current, submittedStr\)\) \{\s*\n\s*merged = serverStr;/.test(sync));
-T('v34.8.34: مسیر protected دیگر پاس tombstone ندارد (پایداری امضا)', (function () {
+T('v34.8.35: پذیرش verbatim کانونیکال وقتی لوکال از لحظهٔ ارسال تغییر نکرده', /sameSyncJson\(current, submittedStr\)\) \{\s*\n\s*merged = serverStr;/.test(sync));
+T('v34.8.35: مسیر protected دیگر پاس tombstone ندارد (پایداری امضا)', (function () {
   var body = sync.split('window.ptfSyncResolveProtectedConflictFromServer = function')[1] || '';
   body = body.split('\n  };')[0];
   return body.indexOf('ptfApplyDeletionTombstones') < 0;

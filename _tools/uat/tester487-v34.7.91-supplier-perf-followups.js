@@ -15,8 +15,8 @@ var slf = read('crm/supplier-finance.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
-T('supplier-finance.js cache-bust 34.8.34', /supplier-finance\.js\?v=34\.8\.34/.test(idx));
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
+T('supplier-finance.js cache-bust 34.8.35', /supplier-finance\.js\?v=34\.8\.35/.test(idx));
 
 /* ---------- SUP-PERF-003: lazy box ---------- */
 T('slBoxRows هست', /function slBoxRows\(\)/.test(slf));

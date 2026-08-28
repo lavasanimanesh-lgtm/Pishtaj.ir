@@ -25,9 +25,9 @@ var sync = read('crm/sync.js');
 var cs = read('crm/client-server.js');
 
 /* ---------- قرارداد نسخه (بامپ واقعی، بدون phase-query) ---------- */
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.34 (با کوتیشن)', /window\.PTF_CRM_RELEASE = 'v34\.8\.34'/.test(idx));
-T('sw.js RELEASE/CACHE = v34.8.34', /RELEASE = 'v34\.8\.34'/.test(sw) && /CACHE = 'ptf-crm-v34\.8\.34'/.test(sw));
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.35 (با کوتیشن)', /window\.PTF_CRM_RELEASE = 'v34\.8\.35'/.test(idx));
+T('sw.js RELEASE/CACHE = v34.8.35', /RELEASE = 'v34\.8\.35'/.test(sw) && /CACHE = 'ptf-crm-v34\.8\.35'/.test(sw));
 T('phase-query موقتی حذف شد', !/f0[0-9]=20260825/.test(idx) && !/PHASE0[0-9]_QUERY/.test(sw));
 T('همهٔ scriptها ?v یکسان با نسخهٔ رسمی', idx.indexOf('?v=34.8.5') < 0 && idx.indexOf('?v=' + ver.crm_version.slice(1)) > -1);
 

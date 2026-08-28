@@ -15,10 +15,10 @@ var gate = read('_tools/uat/run-ci-gate.js');
 var surplus = read('crm/surplus.js');
 var php = read('api/storage.php');
 
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.34', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.34'") > -1);
-T('sw RELEASE = v34.8.34', sw.indexOf("RELEASE = 'v34.8.34'") > -1);
-T('storage.js cache-bust 34.8.34', idx.indexOf('storage.js?v=34.8.34') > -1);
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.35', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.35'") > -1);
+T('sw RELEASE = v34.8.35', sw.indexOf("RELEASE = 'v34.8.35'") > -1);
+T('storage.js cache-bust 34.8.35', idx.indexOf('storage.js?v=34.8.35') > -1);
 
 T('function ptfPlanCloudKeyRemap', st.indexOf('function ptfPlanCloudKeyRemap') > -1);
 T('function ptfApplyCloudKeyRemap', st.indexOf('function ptfApplyCloudKeyRemap') > -1);

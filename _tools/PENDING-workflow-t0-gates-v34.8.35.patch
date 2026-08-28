@@ -1,0 +1,180 @@
+diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
+index b8752f8..2a8c7a2 100644
+--- a/.github/workflows/deploy-production.yml
++++ b/.github/workflows/deploy-production.yml
+@@ -99,6 +99,16 @@ jobs:
+           done < <(find api -name '*.php' -print0)
+           if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
+           echo "php -l: همهٔ فایل‌های api/*.php سالم"
++
++      # ── T0-3 (ROADMAP-THIN-CLIENT-MAXIMAL): گیت CI قبل از FTP پروداکشن ────────
++      # همان گیت استیجینگ: ۱۵۰ تستر + arch-guard + node --check. انتشار از تگ
++      # (رول‌بک) هم از همین مسیر می‌گذرد؛ اگر تگ قدیمی بدهی ثبت‌شده داشته باشد
++      # مبنا (arch-baseline.json) همان تگ را می‌شناسد، پس رول‌بک نمی‌شکند.
++      - name: CI gate (testers + arch-guard) — pre-FTP
++        env:
++          PTF_GATE_POLICY: ${{ vars.CI_GATE_POLICY || 'block' }}
++        run: bash _tools/ci/ci-gate-step.sh
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+@@ -124,6 +134,21 @@ jobs:
+             tester*.js
+             FILES-CHANGED-*.txt
+ 
++      # ── T0-4: گیت بعد از FTP — «فایل زنده == همین کامیت» روی pishtaj.ir ──────
++      # تا اینجا «انتشار موفق» یعنی «FTP خطا نداد»؛ این گام ثابت می‌کند فایل‌های
++      # حیاتی واقعاً عوض شده‌اند (ریشهٔ باگ نسخهٔ مخلوط + کش ۳۰ روزهٔ js در .htaccess).
++      - name: Post-deploy integrity check (live == commit)
++        env:
++          PTF_GATE_POLICY: ${{ vars.CI_GATE_POLICY || 'block' }}
++        run: |
++          VER="$(node -p "require('./VERSION.json').crm_version")"
++          bash _tools/ci/post-deploy-hash-check.sh \
++            --base https://pishtaj.ir \
++            --expect-version "$VER" \
++            --probe \
++            --files "index.html|/ crm/index.html|/crm/ crm/sw.js crm/manifest.json crm/sales-domain-v2.js crm/leads.js crm/client-server.js crm/key-registry.js" \
++            --retries 6 --sleep 10
++
+       # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
+       # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
+       - name: Create version tag
+diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
+index abee444..205f960 100644
+--- a/.github/workflows/deploy-staging.yml
++++ b/.github/workflows/deploy-staging.yml
+@@ -80,6 +80,17 @@ jobs:
+           done < <(find api -name '*.php' -print0)
+           if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
+           echo "php -l: همهٔ فایل‌های api/*.php سالم"
++
++      # ── T0-3 (ROADMAP-THIN-CLIENT-MAXIMAL): گیت CI قبل از FTP ─────────────────
++      # ۱۵۰ تستر قرارداد + arch-guard (A1..A11 شامل A10 بایپس localStorage و A11
++      # تطابق رجیستری) + node --check. تا v34.8.34 این‌ها فقط دستی اجرا می‌شدند
++      # (یافتهٔ F-1 در ARENA-THIN-CLIENT-STATUS-AUDIT-2026-08-28.md) — یعنی هر کامیت
++      # می‌توانست بدهی را برگرداند. درِ اضطراری: Actions variable «CI_GATE_POLICY=warn».
++      - name: CI gate (testers + arch-guard) — pre-FTP
++        env:
++          PTF_GATE_POLICY: ${{ vars.CI_GATE_POLICY || 'block' }}
++        run: bash _tools/ci/ci-gate-step.sh
++
+       - name: Deploy via FTP
+         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+         with:
+@@ -105,6 +116,23 @@ jobs:
+             tester*.js
+             FILES-CHANGED-*.txt
+ 
++      # ── T0-4: گیت بعد از FTP — «فایل زنده == همین کامیت» ──────────────────────
++      # ریشهٔ باگ «نسخهٔ مخلوط» (۲۰۲۶-۰۸-۲۷): index.html تازه با js های کهنه.
++      # crm/index.html با نگاشت |‌/crm/ چک می‌شود (canonicalize آن را به /crm/ می‌برد)؛
++      # بنر استیجینگ قبل از آپلود تزریق می‌شود، پس هش محلی هم بنردار است و مقایسه درست است.
++      # فایل‌های PHP روی HTTP قابل هش گرفتن نیستند → از پروب api/deploy-probe.php استفاده می‌شود.
++      - name: Post-deploy integrity check (live == commit)
++        env:
++          PTF_GATE_POLICY: ${{ vars.CI_GATE_POLICY || 'block' }}
++        run: |
++          VER="$(node -p "require('./VERSION.json').crm_version")"
++          bash _tools/ci/post-deploy-hash-check.sh \
++            --base https://staging.pishtaj.ir \
++            --expect-version "$VER" \
++            --probe \
++            --files "crm/index.html|/crm/ crm/sw.js crm/manifest.json crm/sales-domain-v2.js crm/leads.js crm/client-server.js crm/key-registry.js" \
++            --retries 6 --sleep 10
++
+       - name: Summary
+         run: |
+           echo "### ✅ استقرار استیجینگ انجام شد" >> $GITHUB_STEP_SUMMARY
+diff --git a/.github/workflows/php.yml b/.github/workflows/php.yml
+index 7d257b5..e6fa79d 100644
+--- a/.github/workflows/php.yml
++++ b/.github/workflows/php.yml
+@@ -1,39 +1,60 @@
+-name: PHP Composer
++# ─────────────────────────────────────────────────────────────────────────────
++# Lint + UAT gate — دروازهٔ کیفیت روی هر push/PR به main
++#
++# جایگزین `php.yml` قدیمی (composer validate) که در این مخزن بی‌composer.json
++# عملاً همیشه قرمز/بی‌اثر بود. این جاب واقعاً سه چیز را اجرا می‌کند:
++#   • php -l روی همهٔ فایل‌های api/ و crm/   (RCA 2026-08-25: پرانتز جاافتاده کل API را ۵۰۰ کرد)
++#   • node --check روی همهٔ crm/*.js          (به‌جز کتابخانه‌های min)
++#   • گیت CI کانونی (همان گامِ قبل از FTP) + هم‌سنجی نسخهٔ نقاط رسمی
++#
++# این جاب استقرار نمی‌کند؛ فقط main/PR را نگهبان می‌کند. گیت‌های استقرار در
++# deploy-staging.yml و deploy-production.yml تکرار می‌شوند (T0-3).
++# ─────────────────────────────────────────────────────────────────────────────
++name: Lint + UAT gate (main)
+ 
+ on:
+   push:
+     branches: [ "main" ]
+   pull_request:
+     branches: [ "main" ]
++  workflow_dispatch:
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+-  build:
+-
++  gate:
+     runs-on: ubuntu-latest
+-
+     steps:
+-    - uses: actions/checkout@v4
+-
+-    - name: Validate composer.json and composer.lock
+-      run: composer validate --strict
+-
+-    - name: Cache Composer packages
+-      id: composer-cache
+-      uses: actions/cache@v3
+-      with:
+-        path: vendor
+-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+-        restore-keys: |
+-          ${{ runner.os }}-php-
+-
+-    - name: Install dependencies
+-      run: composer install --prefer-dist --no-progress
+-
+-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+-    # Docs: https://getcomposer.org/doc/articles/scripts.md
+-
+-    # - name: Run test suite
+-    #   run: composer run-script test
++      - uses: actions/checkout@v4
++
++      - name: Lint PHP (api/ + crm/)
++        run: |
++          if ! command -v php >/dev/null 2>&1; then
++            echo "::error::php روی رانر نیست — گیت سینتکس PHP قابل اجرا نیست"
++            exit 1
++          fi
++          fail=0
++          while IFS= read -r -d '' f; do
++            php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; php -l "$f" || true; fail=1; }
++          done < <(find api crm -name '*.php' -print0)
++          [ "$fail" = 0 ] && echo "php -l: همهٔ فایل‌های PHP سالم"
++          exit $fail
++
++      - name: Lint JS (crm/*.js — بدون کتابخانه‌های min)
++        run: |
++          fail=0; n=0
++          while IFS= read -r -d '' f; do
++            n=$((n+1))
++            node --check "$f" >/dev/null 2>&1 || { echo "::error file=$f::node --check شکست خورد"; node --check "$f" || true; fail=1; }
++          done < <(find crm -name '*.js' -not -name '*.min.js' -print0)
++          echo "node --check: $n فایل JS سالم"
++          exit $fail
++
++      - name: Version consistency (VERSION.json = UI = sw = manifest = API)
++        run: node _tools/uat/bump-version.js --check
++
++      - name: CI gate (150 testers + arch-guard)
++        env:
++          PTF_GATE_POLICY: ${{ vars.CI_GATE_POLICY || 'block' }}
++        run: bash _tools/ci/ci-gate-step.sh

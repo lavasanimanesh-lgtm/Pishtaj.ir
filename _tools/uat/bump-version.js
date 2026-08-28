@@ -84,7 +84,7 @@ var from = norm(FROM || current);
 TO = norm(TO);
 if (!/^\d+\.\d+\.\d+$/.test(TO)) { console.error('⛔ --to باید x.y.z یا vx.y.z باشد (گرفته شد: ' + TO + ')'); process.exit(2); }
 if (TO === from && !FROM) { console.error('⛔ نسخهٔ مقصد با نسخهٔ فعلی یکسان است (v' + from + ')'); process.exit(2); }
-if (read('crm/index.html').indexOf(from) < 0) {
+if (!FROM && read('crm/index.html').indexOf(from) < 0) {
   console.error('⛔ نسخهٔ مبدأ v' + from + ' در crm/index.html پیدا نشد — index.html از VERSION.json جداست؛ ' +
     'با --check drift را ببینید و در صورت لزوم --from بدهید.');
   process.exit(2);
@@ -117,11 +117,14 @@ if (NOTE !== null) {
     fs.readdirSync(abs).filter(function (f) { return /^tester.*\.js$/.test(f); }).forEach(function (f) {
       var rel = d + '/' + f;
       var src = read(rel), n = 0;
+      /* هر دو شکل ممکن در فایل: لفظی (34.8.34) و داخل regex فرار‌شده (34\.8\.34) */
+      var pairs = [[from, TO], [from.split('.').join('\\.'), TO.split('.').join('\\.')]];
       var out = src.split('\n').map(function (ln) {
-        if (ln.indexOf(from) > -1) {
-          var t = ln.trim();
-          if (!/^(\/\*|\*|\/\/)/.test(t) && ln.indexOf('console.log(') < 0) { ln = ln.split(from).join(TO); n++; }
-        }
+        var t = ln.trim();
+        if (/^(\/\*|\*|\/\/)/.test(t) || ln.indexOf('console.log(') > -1) return ln;
+        pairs.forEach(function (pr) {
+          if (ln.indexOf(pr[0]) > -1) { ln = ln.split(pr[0]).join(pr[1]); n++; }
+        });
         return ln;
       }).join('\n');
       if (n) { write(rel, out); changes.push([rel, n]); touched++; lines += n; }

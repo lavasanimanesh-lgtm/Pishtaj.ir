@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 /* v34.7.60 — LETTERHEAD-PASTE-001: متن آمادهٔ Word روی سربرگ رسمی.
-   v34.8.34 — LETTERHEAD-PASTE-002: شمارهٔ نامه و پیوست (اختیاری) روی سربرگ +
+   v34.8.35 — LETTERHEAD-PASTE-002: شمارهٔ نامه و پیوست (اختیاری) روی سربرگ +
    محل مهر و امضا «تمام صفحات / فقط صفحهٔ آخر / بدون».
    قرارداد: متن Paste شده «بازنویسی نمی‌شود» (فقط letSafeBodyHtml)؛ سربرگ/فوتر/نوارها
    با position:fixed روی همهٔ صفحات تکرار می‌شوند؛ فضای هر صفحه با thead/tfoot رزرو
@@ -19,10 +19,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.8.34', ver.crm_version === 'v34.8.34', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.34', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.34'") > -1);
-T('sw RELEASE = v34.8.34', sw.indexOf("RELEASE = 'v34.8.34'") > -1);
-T('letters.js cache-bust 34.8.34', /letters\.js\?v=34\.8\.34/.test(idx));
+T('VERSION.json = v34.8.35', ver.crm_version === 'v34.8.35', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.35', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.35'") > -1);
+T('sw RELEASE = v34.8.35', sw.indexOf("RELEASE = 'v34.8.35'") > -1);
+T('letters.js cache-bust 34.8.35', /letters\.js\?v=34\.8\.35/.test(idx));
 
 /* ---------- فیچر ---------- */
 T('دکمه در نوار مکاتبات', lt.indexOf('ptfLetterheadPasteOpen()') > -1 && lt.indexOf('📄 متن آماده روی سربرگ') > -1);

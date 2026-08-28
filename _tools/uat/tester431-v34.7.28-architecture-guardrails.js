@@ -61,7 +61,14 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
     base.rules.A1.every(function (s) { return s.indexOf('ptfInvoiceVoid') < 0; }), base.rules.A1.join(','));
 
   var gate = read('_tools/uat/run-ci-gate.js');
-  T('G2 نگهبان به گیت CI وصل است', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
+  T('G2 نگهبان داخل گیت CI اجرا می‌شود', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
+  /* v34.8.35 — اصلاح ادعای گمراه‌کننده (یافتهٔ F-1 گزارش ممیزی ۲۰۲۶-۰۸-۲۸):
+     چک بالا فقط می‌گفت «گیت، نگهبان را صدا می‌زند» و آن را «اتصال به CI» اعلام می‌کرد.
+     اتصال واقعی یعنی خودِ workflow گیت را اجرا کند — از سورس درست پرسیده می‌شود. */
+  var wiring = require('./lib-deploy-gates.js').inspect();
+  T('G2 اتصال واقعی گیت به workflow (یا پچ معلقِ اعمال‌شدنی + راهنمای دستی) برقرار است',
+    wiring.mode === 'wired' || wiring.mode === 'pending' || wiring.mode === 'pending-unverifiable',
+    'mode=' + wiring.mode + ' ' + (wiring.patchError || ''));
 })();
 
 /* ---------- G3: اعمال قرارداد در کد ---------- */

@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.8.34",
+ "version": "v34.8.35",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
@@ -250,7 +250,6 @@
    "crm/draftx.js (ls-set) [2b40fe13bab9] localStorage.setItem(KEY, JSON.stringify(localSummary(fullNow)));",
    "crm/draftx.js (ls-set) [5ad60c996c6a] try { var all = loadAll(); if (all[sig]) { delete all[sig]; localStorage.setItem(KEY, JSON.st…",
    "crm/finance-write-guard.js (ls-get) [716e63108423] var v = typeof getData === 'function' ? getData(FIN_EV_KEY) : JSON.parse(localStorage.getItem…",
-   "crm/finance-write-guard.js (ls-set) [88104ad0b1db] else try { localStorage.setItem(FIN_EV_KEY, JSON.stringify(list)); } catch (eW) {}",
    "crm/fiscal.js (ls-get) [80d34af9167b] try { sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sf || A…",
    "crm/fiscal.js (ls-get) [ba8e6d546fa1] var sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}');",
    "crm/fx.js (ls-get) [0ee28c1ac0c2] var str = sessionStorage.getItem('ptf_fx_live_cache') || localStorage.getItem('ptf_fx_live_ca…",
