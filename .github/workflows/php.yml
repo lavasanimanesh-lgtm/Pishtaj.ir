@@ -1,0 +1,60 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Quality Gate — گیت روی push/PR به main (بازسازی php.yml، ۲۰۲۶-۰۸-۲۸)
+#
+# نسخهٔ قدیمی این فایل قالب Composer گیت‌هاب بود بدون اینکه composer.json در
+# مخزن وجود داشته باشد → هر PR قرمز می‌شد بی‌آنکه چیزی واقعاً تست شود.
+# این نسخه همان گیت کانونی پروژه را اجرا می‌کند:
+#   ۱) نگهبان معماری (fail-fast)
+#   ۲) سوئیت تسترهای CI (sync/مالی/اعلان/امنیت + php -l درون‌ساخت)
+#   ۳) php -l روی api و crm
+#   ۴) node --check روی همهٔ ماژول‌های JS سمت کلاینت
+# ─────────────────────────────────────────────────────────────────────────────
+name: Quality Gate
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Architecture guard
+        run: node _tools/arch/arch-guard.js
+
+      - name: CI gate
+        run: node _tools/uat/run-ci-gate.js
+
+      - name: PHP syntax lint (api + crm)
+        run: |
+          sudo apt-get update -qq >/dev/null 2>&1 || true
+          sudo apt-get install -y -qq php-cli >/dev/null 2>&1 || true
+          command -v php >/dev/null 2>&1 || { echo "::error::php-cli نصب نشد"; exit 1; }
+          fail=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" >/dev/null 2>&1 || { echo "::error file=$f::php -l شکست خورد"; fail=1; }
+          done < <(find api crm -name '*.php' -print0)
+          [ "$fail" -eq 0 ] || exit 1
+          echo "php -l: سالم"
+
+      - name: JS syntax check (crm)
+        run: |
+          fail=0
+          while IFS= read -r -d '' f; do
+            node --check "$f" >/dev/null 2>&1 || { echo "::error file=$f::node --check شکست خورد"; fail=1; }
+          done < <(find crm -name '*.js' -print0)
+          [ "$fail" -eq 0 ] || exit 1
+          echo "node --check: سالم"
