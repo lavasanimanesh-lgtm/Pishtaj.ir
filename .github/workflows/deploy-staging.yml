@@ -1,20 +1,13 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Deploy to Staging — بازسازی‌شده از صفر (۲۰۲۶-۰۸-۲۸)
+# Deploy to Staging — بازسازی‌شده (۲۰۲۶-۰۸-۲۸، منطبق بر قرارداد tester536/436)
 #
-# تفاوت با نسخهٔ قبلی (که «سبز ولی بی‌اثر» بود):
-#   ۱) main به تریگرها اضافه شد → هر merge به main استیجینگ را همگام می‌کند
-#      (قبلاً فقط برنچ‌های جلسه‌ای استیجینگ را بازنویسی می‌کردند).
-#   ۲) گیت CI (node _tools/uat/run-ci-gate.js + php -l) قبل از FTP.
-#   ۳) مارکر __deploy__.json با هر ران ساخته و آپلود می‌شود.
-#   ۴) گیت راستی‌آزمایی پس از FTP (_tools/ci/verify-deploy.sh):
-#      هم سمت FTP (خودِ مسیر مقصد) و هم سمت HTTP (سایت زنده) با کامیت
-#      دیپلوی‌شده مقایسه می‌شوند؛ مغایرت = ورک‌فلو قرمز می‌شود.
-#   ۵) state-name جدید (v2) → اولین اجرا آپلود کاملِ تازه می‌زند و به
-#      state قدیمی ران‌های قبلی که «همه‌چیز آپلود شده» ادعا می‌کردند اعتماد نمی‌کند.
-#
-# ⛔ هیچ‌وقت dangerously-clean-slate فعال نشود:
-#      فایل‌های llm-config.php / sms-config.php / storage-config.php فقط روی
-#      سرور وجود دارند (در گیت فقط sample هستند) و clean-slate آن‌ها را پاک می‌کند.
+#   • تریگر main → استیجینگ همیشه با main همگام است (آخرین‌نویسنده = main، نه برنچ جلسه‌ای)
+#   • گیت معماری + گیت CI قبل از انتقال فایل‌ها (شکست = توقف استقرار)
+#   • مارکر __deploy__.json + گیت صحت پس از استقرار: هش فایل‌های زنده با کامیت
+#     مقایسه می‌شود (ضد «نسخهٔ مخلوط») + راستی‌آزمایی سمت FTP و سمت HTTP
+#   • هدر no-cache فقط برای استیجینگ به crm/.htaccess تزریق می‌شود (در کامیت نیست)
+#   • state-name تازه (v2): اولین اجرا آپلود کامل می‌زند؛ بی‌اعتمادی به state قبلی
+#   ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها (llm/sms/storage-config.php) پاک می‌شوند
 #
 # سکرت‌ها: FTP_SERVER / FTP_USERNAME / FTP_PASSWORD / FTP_SERVER_DIR
 # ─────────────────────────────────────────────────────────────────────────────
@@ -30,7 +23,7 @@ on:
       - 'crm/**'
       - 'staging/**'
       - 'arena/**'    # نشست‌های Arena — پیش‌نمایش روی استیجینگ (آخرین push برنده است)
-    paths-ignore:     # تغییر صرفاً مستنداتی → محتوای سایت عوض نمی‌شود (md اصلاً آپلود نمی‌شود)
+    paths-ignore:     # تغییر صرفاً مستنداتی → محتوای سایت عوض نمی‌شود
       - '**.md'
       - 'FILES-CHANGED-*.txt'
       - '_audit/**'
@@ -43,9 +36,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  LIVE_URL: https://staging.pishtaj.ir
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -56,13 +46,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '20'
 
-      # ── گیت ۱: تسترهای CI پروژه (sync/مالی/اعلان + php -l اگر php موجود باشد)
-      - name: CI gate (run-ci-gate)
+      # ── گیت ۱: نگهبان معماری (سریع — fail-fast)
+      - name: Architecture guard
+        run: node _tools/arch/arch-guard.js
+
+      # ── گیت ۲: سوئیت تسترهای CI (sync/مالی/اعلان/امنیت)
+      - name: CI gate
         run: node _tools/uat/run-ci-gate.js
 
-      # ── گیت ۲: php -l قطعی روی api/*.php (نصب php-cli روی رانر)
+      # ── گیت ۳: سینتکس PHP
       - name: PHP syntax lint
         run: |
           sudo apt-get update -qq >/dev/null 2>&1 || true
@@ -103,6 +97,12 @@ jobs:
           done
           rm -f _staging-banner.html
 
+      # T0-6: کش استیجینگ — فقط همین‌جا تزریق می‌شود؛ فایل کامیت‌شده پاک است
+      - name: Staging no-cache headers (crm)
+        run: |
+          printf '\n# T0-6 (staging-only, injected by CI — do not commit)\n<IfModule mod_headers.c>\n  <FilesMatch "\\.(js|html)$">\n    Header set Cache-Control "no-cache, must-revalidate"\n  </FilesMatch>\n</IfModule>\n' >> crm/.htaccess
+          tail -7 crm/.htaccess
+
       - name: Write deploy marker
         run: |
           cat > __deploy__.json <<EOF
@@ -110,7 +110,7 @@ jobs:
           EOF
           cat __deploy__.json
 
-      # ── انتقال FTP (آپلود کامل در اولین اجرا به خاطر state-name جدید)
+      # ── انتقال فایل‌ها (state تازه → اولین اجرا آپلود کامل)
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -137,11 +137,39 @@ jobs:
             tester*.js
             FILES-CHANGED-*.txt
 
-      # ── گیت ۳: راستی‌آزمایی پس از استقرار (سمت FTP + سمت HTTP)
+      # ── گیت ۴: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
+      - name: Post-deploy integrity check
+        run: |
+          BASE="https://staging.pishtaj.ir"
+          FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
+          PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
+          echo "کامیت: ${{ github.sha }} | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
+          fail=1
+          for i in 1 2 3 4 5; do
+            ok=1
+            while IFS= read -r f; do
+              want="$(sha1sum "$f" | cut -d' ' -f1)"
+              got="$(curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" | sha1sum | cut -d' ' -f1)"
+              if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
+            done <<< "$FILES"
+            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
+            if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
+            live_idx="$(curl -fsSL --max-time 30 "$BASE/crm/index.html?v=$(date +%s)" | grep -c "v=${PTF_CRM_RELEASE#v}" || true)"
+            if [ "$live_idx" -lt 1 ]; then ok=0; echo "   ≠ crm/index.html زنده هنوز نسخهٔ $PTF_CRM_RELEASE را ارجاع نمی‌دهد"; fi
+            if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
+            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
+            sleep 12
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
+          fi
+          exit $fail
+
+      # ── گیت ۵ (تشدیدی): مارکر این ران + خودِ مسیر مقصد FTP را هم می‌سنجم
       - name: Verify deployment (FTP-side + live HTTP)
         run: |
           bash _tools/ci/verify-deploy.sh \
-            --url "$LIVE_URL" \
+            --url "https://staging.pishtaj.ir" \
             --sha "${{ github.sha }}" \
             --ftp-server "${{ secrets.FTP_SERVER }}" \
             --ftp-user   "${{ secrets.FTP_USERNAME }}" \
@@ -152,9 +180,7 @@ jobs:
         run: |
           echo "### ✅ استقرار استیجینگ — اثبات‌شده" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| مورد | مقدار |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| برنچ | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| آدرس | $LIVE_URL (Ctrl+Shift+R) |" >> $GITHUB_STEP_SUMMARY
-          echo "| راستی‌آزمایی | مارکر + sw.js هم سمت FTP و هم سمت HTTP ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| آدرس | https://staging.pishtaj.ir (Ctrl+Shift+R) |" >> $GITHUB_STEP_SUMMARY
+          echo "| راستی‌آزمایی | هش فایل‌ها + مارکر + سمت FTP ✅ |" >> $GITHUB_STEP_SUMMARY
