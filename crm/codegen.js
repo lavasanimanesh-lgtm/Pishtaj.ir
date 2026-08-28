@@ -390,8 +390,12 @@ function ptfDupAckSet(fp){
   try {
     var st=JSON.parse(localStorage.getItem('ptf_crm_settings')||'{}');
     if(fp){ st.dupCodeAck=fp; } else { delete st.dupCodeAck; }
-    if(typeof setData==='function') if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st); /* setData → sync بین دستگاه‌ها */
-    else localStorage.setItem('ptf_crm_settings', JSON.stringify(st));
+    /* v34.8.35 (T5-1): fallback مردهٔ localStorage حذف شد — ptf_crm_settings کلید
+       کسب‌وکاری است و فقط از مسیر فرمان/لایهٔ داده نوشته می‌شود. اگر هیچ‌کدام موجود
+       نبود، نوشتن انجام نمی‌شود (بی‌صدا نمی‌مانَد: throw و catch بیرونی). */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' });
+    else if (typeof setData === 'function') setData('ptf_crm_settings', st);
+    else throw new Error('data_layer_unavailable_ptf_crm_settings');
   } catch(e){}
   try { if(fp) localStorage.setItem('ptf_code_duplicate_ack', fp); else localStorage.removeItem('ptf_code_duplicate_ack'); } catch(e2){}
 }

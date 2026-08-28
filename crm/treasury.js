@@ -469,9 +469,11 @@
     });
     if (!found) return false;
     /* v34.8.27 (W4): پرچم امین از مسیر فرمان — shareholders کلید محافظت‌شده مالی است */
+    /* v34.8.35 (T5-1): fallback مردهٔ localStorage حذف شد — shareholders کلید
+       محافظت‌شدهٔ مالی است و نوشتن مستقیم آن در LS خلاف اصل E2 است. */
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_shareholders', list, { reason: 'w4' });
-    else if (typeof window.setData === 'function') window.setData('ptf_crm_shareholders', list); /* fallback */
-    else localStorage.setItem('ptf_crm_shareholders', JSON.stringify(list));
+    else if (typeof window.setData === 'function') window.setData('ptf_crm_shareholders', list);
+    else { alert('⛔ لایهٔ دادهٔ CRM بارگذاری نشده — تغییر امین خزانه ثبت نشد. صفحه را تازه کنید.'); return false; }
     if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     return true;
   };
