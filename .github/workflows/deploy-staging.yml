@@ -3,7 +3,7 @@
 #
 #   • تریگر main → استیجینگ همیشه با main همگام است (آخرین‌نویسنده = main، نه برنچ جلسه‌ای)
 #   • گیت معماری + گیت CI قبل از انتقال فایل‌ها (شکست = توقف استقرار)
-#   • مارکر __deploy__.json + گیت صحت پس از استقرار: هش فایل‌های زنده با کامیت
+#   • مارکر __deploy__.txt + گیت صحت پس از استقرار: هش فایل‌های زنده با کامیت
 #     مقایسه می‌شود (ضد «نسخهٔ مخلوط») + راستی‌آزمایی سمت FTP و سمت HTTP
 #   • هدر no-cache فقط برای استیجینگ به crm/.htaccess تزریق می‌شود (در کامیت نیست)
 #   • state-name تازه (v2): اولین اجرا آپلود کامل می‌زند؛ بی‌اعتمادی به state قبلی
@@ -105,10 +105,10 @@ jobs:
 
       - name: Write deploy marker
         run: |
-          cat > __deploy__.json <<EOF
+          cat > __deploy__.txt <<EOF
           {"env":"staging","ref":"${{ github.ref_name }}","sha":"${{ github.sha }}","run":${GITHUB_RUN_ID:-0},"utc":"$(date -u +%FT%TZ)"}
           EOF
-          cat __deploy__.json
+          cat __deploy__.txt
 
       # ── انتقال فایل‌ها (state تازه → اولین اجرا آپلود کامل)
       - name: Deploy via FTP
@@ -137,7 +137,40 @@ jobs:
             tester*.js
             FILES-CHANGED-*.txt
 
-      # ── گیت ۴: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
+      # ── گیت ۴ (تشخیصی): مارکر این ران + خودِ مسیر مقصد FTP — همیشه اجرا می‌شود تا شکست را توضیح دهد
+      - name: Verify deployment (FTP-side + live HTTP)
+        id: verify
+        continue-on-error: true   # برای تشخیص اجرا می‌شود؛ گارد پایانی job را می‌اندازد
+        env:
+          DIAG_FILE: __diag__.txt
+        run: |
+          bash _tools/ci/verify-deploy.sh \
+            --url "https://staging.pishtaj.ir" \
+            --sha "${{ github.sha }}" \
+            --ftp-server "${{ secrets.FTP_SERVER }}" \
+            --ftp-user   "${{ secrets.FTP_USERNAME }}" \
+            --ftp-pass   "${{ secrets.FTP_PASSWORD }}" \
+            --ftp-dir    "${{ secrets.FTP_SERVER_DIR }}"
+
+      # ── انتشار گزارش تشخیص روی سایت (خواندنی بدون لاگ گیت‌هاب)
+      - name: Publish diagnostics (__diag__.txt)
+        if: always()
+        continue-on-error: true
+        run: |
+          [ -f __diag__.txt ] || { echo "فایل تشخیص ساخته نشد"; exit 0; }
+          HOST="${{ secrets.FTP_SERVER }}"; HOST="${HOST#ftp://}"; HOST="${HOST#ftps://}"
+          DIR="${{ secrets.FTP_SERVER_DIR }}"
+          for MODE in ftps ftp; do
+            ARGS=(--ftp-pasv); [[ "$MODE" == "ftps" ]] && ARGS=(--ssl-reqd --ftp-pasv)
+            if curl -sS "${ARGS[@]}" --connect-timeout 20 --max-time 120 \
+                 -T __diag__.txt -u "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}" \
+                 "$MODE://$HOST/${DIR%/}/__diag__.txt"; then
+              echo "✅ گزارش تشخیص: https://staging.pishtaj.ir/__diag__.txt"; exit 0
+            fi
+          done
+          echo "⚠️ انتشار گزارش تشخیص انجام نشد"
+
+      # ── گیت ۵: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
       - name: Post-deploy integrity check
         run: |
           BASE="https://staging.pishtaj.ir"
@@ -165,16 +198,12 @@ jobs:
           fi
           exit $fail
 
-      # ── گیت ۵ (تشدیدی): مارکر این ران + خودِ مسیر مقصد FTP را هم می‌سنجم
-      - name: Verify deployment (FTP-side + live HTTP)
+
+      - name: Fail if verification failed
+        if: ${{ steps.verify.outcome == 'failure' }}
         run: |
-          bash _tools/ci/verify-deploy.sh \
-            --url "https://staging.pishtaj.ir" \
-            --sha "${{ github.sha }}" \
-            --ftp-server "${{ secrets.FTP_SERVER }}" \
-            --ftp-user   "${{ secrets.FTP_USERNAME }}" \
-            --ftp-pass   "${{ secrets.FTP_PASSWORD }}" \
-            --ftp-dir    "${{ secrets.FTP_SERVER_DIR }}"
+          echo "::error::راستی‌آزمایی استقرار (FTP-side/HTTP) شکست خورد — جزئیات در گام Verify deployment"
+          exit 1
 
       - name: Summary
         run: |
