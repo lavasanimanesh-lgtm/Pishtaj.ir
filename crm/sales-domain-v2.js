@@ -503,10 +503,38 @@
       cbSettled++;
       if (st && st.state === 'acked') cbAcked++;
       else cbLastFail = st || { state: 'unknown' };
-      if (!cbDone && typeof opts.cb === 'function' && cbSettled >= cbTotal) {
+      if (!cbDone && cbSettled >= cbTotal) {
         cbDone = true;
-        try { opts.cb(cbAcked === cbTotal ? { state: 'acked', upserts: ups.length, deletes: dels.length } : { state: (cbLastFail && cbLastFail.state) || 'rejected', error: cbLastFail && cbLastFail.error }); } catch (eCbRouter) {}
+        var allAcked = cbAcked === cbTotal;
+        /* v34.8.38 (COMMAND-ACK-DIRTY-CLEAR): فرمان‌های entity داده را مستقیم روی
+           سرور ثبت می‌کنند و از data_push عبور نمی‌کنند. پس از ACK همهٔ فرمان‌ها،
+           dirty نسل ارسال‌شده را با همان قرارداد امن فاز B پاک کن؛ اگر در فاصلهٔ
+           ارسال، ویرایش تازه‌ای رخ داده باشد ptfSyncAcknowledgeKeys به‌علت اختلاف
+           submitted/current آن را dirty نگه می‌دارد. نبود این ACK علت ماندن نوار
+           زرد personal_cheques با وجود ثبت موفق روی سرور بود. */
+        if (allAcked) {
+          try {
+            if (typeof window.ptfSyncAcknowledgeKeys === 'function') {
+              var submitted = {};
+              submitted[collection] = JSON.stringify(nextArr);
+              window.ptfSyncAcknowledgeKeys([collection], submitted);
+            }
+          } catch (eAckDirty) {}
+        }
+        if (typeof opts.cb === 'function') {
+          var cbResult = cbAcked === cbTotal ? { state: 'acked', upserts: ups.length, deletes: dels.length } : { state: (cbLastFail && cbLastFail.state) || 'rejected', error: cbLastFail && cbLastFail.error };
+          try { opts.cb(cbResult); } catch (eCbRouter) {}
+        }
       }
+    }
+    if (!cbTotal && !cbDone) {
+      try {
+        if (typeof window.ptfSyncAcknowledgeKeys === 'function') {
+          var submittedEmpty = {};
+          submittedEmpty[collection] = JSON.stringify(nextArr);
+          window.ptfSyncAcknowledgeKeys([collection], submittedEmpty);
+        }
+      } catch (eAckEmpty) {}
     }
     if (!cbTotal && typeof opts.cb === 'function' && !cbDone) { cbDone = true; try { opts.cb({ state: 'acked', upserts: 0, deletes: 0 }); } catch (eCbEmpty) {} }
     ups.forEach(function (r) { try { window.ptfEntityUpsert(collection, r, { cb: function (st) { if (st && st.state !== 'acked') { failDirty(); if (typeof ptfToast === 'function') ptfToast(window.ptfEntityCommandMessage(st, 'ثبت در ' + collection.replace('ptf_crm_', '')), 'warn'); } settleCb(st); } }); } catch (eU) { errors.push(eU); failDirty(); settleCb({ state: 'rejected', error: String(eU) }); } });
