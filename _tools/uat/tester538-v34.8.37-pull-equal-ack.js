@@ -27,13 +27,14 @@ T('رفتار قبلی dirtyِ واقعاً-متفاوت حفظ شده (merge/ke
 ['deploy-staging.yml', 'deploy-production.yml'].forEach(function (wf) {
   var w = read('.github/workflows/' + wf);
   /* پوشِ تغییرات workflow توکنِ workflows می‌خواهد — طبق عرف مخزن، پچ در
-     PENDING-workflow-deploy-gate-window-v34.8.37.patch است تا مالک اعمال/پوش کند؛
-     تا آن موقع وجود همان پچ هم «گسترش پنجره» حساب می‌شود. */
-  var pendPath = '_tools/PENDING-workflow-deploy-gate-window-v34.8.37.patch';
+     PENDING-workflow-integrity-hardening-v34.8.37.patch است تا مالک اعمال/پوش کند
+     (۱۲×۳۰s + انتظار اولیهٔ ۱۸۰s + هدرهای no-cache)؛ تا آن موقع وجود همان پچ هم
+     «گسترش پنجره» حساب می‌شود. */
+  var pendPath = '_tools/PENDING-workflow-integrity-hardening-v34.8.37.patch';
   var pend = fs.existsSync(path.join(ROOT, pendPath)) ? read(pendPath) : '';
-  var wideApplied = /for i in 1 2 3 4 5 6 7 8 9 10 11 12; do/.test(w) && /sleep 30/.test(w);
-  var widePending = /for i in 1 2 3 4 5 6 7 8 9 10 11 12; do/.test(pend) && /sleep 30/.test(pend);
-  T(wf + ': پنجرهٔ integrity گسترش یافت (۱۲×۳۰) — اعمال‌شده یا در پچ منتظر', wideApplied || widePending);
+  var wideApplied = /for i in 1 2 3 4 5 6 7 8 9 10 11 12; do/.test(w) && /sleep 30/.test(w) && /sleep 180/.test(w);
+  var widePending = /for i in 1 2 3 4 5 6 7 8 9 10 11 12; do/.test(pend) && /sleep 30/.test(pend) && /sleep 180/.test(pend) && /Pragma: no-cache/.test(pend);
+  T(wf + ': پنجرهٔ integrity گسترش یافت (۱۸۰s + ۱۲×۳۰s + no-cache) — اعمال‌شده یا در پچ منتظر', wideApplied || widePending);
   T(wf + ': فاصلهٔ تلاش‌ها ≥۱۲ ثانیه', /sleep (12|30)/.test(w));
   T(wf + ': گیت post-deploy همچنان fail-closed است', /exit \$fail/.test(w));
 });
