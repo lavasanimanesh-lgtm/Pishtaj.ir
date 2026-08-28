@@ -81,6 +81,7 @@ done
 # شواهدِ «docroot زنده چه چیزی سرو می‌کند» — مستقل از موفقیت/شکست HTTP
 LIVE_BANNER="$(curl -fsS --max-time 30 "$URL/?cb=$BUST" 2>/dev/null | tr '\n\r' '  ' | grep -o 'محیط تست (Staging) — [^<]*' | head -1 | tr -s ' ' || true)"
 LIVE_MANIFEST="$(curl -fsS --max-time 30 "$URL/crm/manifest.json?cb=$BUST" 2>/dev/null | grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 || true)"
+H0="$(dump_headers "$URL/")"
 H1="$(dump_headers "$URL/crm/sw.js")"
 H2="$(dump_headers "$URL/crm/manifest.json")"
 
@@ -91,6 +92,7 @@ if [[ "$HTTP_OK" -ne 1 ]]; then
   echo "$H1" | sed 's/^/     /'
   echo "$H2" | sed 's/^/     /'
   [[ -n "$DIAG_FILE" ]] && { printf '%s\n' "$H1" "$H2" >> "$DIAG_FILE"; }
+  note "[HTTP] headers /: $(join1 "$H0")"
   note "[HTTP] headers crm/sw.js: $(join1 "$H1")"
   note "[HTTP] headers crm/manifest.json: $(join1 "$H2")"
 else
@@ -104,38 +106,63 @@ FTP_OK=""; FTP_LISTABLE=0; FTP_MODE=""
 if [[ -n "$FTP_SERVER" ]]; then
   HOST="${FTP_SERVER#ftp://}"; HOST="${HOST#ftps://}"
   DIR="${FTP_DIR%/}"
-  for SPEC in "ftps" "ftp"; do
-    case "$SPEC" in
-      ftps) CURL_ARGS=(--ssl-reqd --ftp-pasv) ;;
-      ftp)  CURL_ARGS=(--ftp-pasv) ;;
-    esac
-    LIST="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
-              -u "$FTP_USER:$FTP_PASS" "$SPEC://$HOST/$DIR/" 2>/dev/null || true)"
-    if [[ -n "$LIST" ]]; then
-      FTP_LISTABLE=1; FTP_MODE="$SPEC"
-      diag "── [FTP:$SPEC] محتوای مسیر مقصد ($DIR) — ۲۰ مدخل اول:"
-      SAMPLE="$(echo "$LIST" | grep -oE 'name="[^"]+"' | sed 's/name=/ • /' | head -20)"
-      [[ -z "$SAMPLE" ]] && SAMPLE="$(echo "$LIST" | awk '{print $NF}' | head -20 | sed 's/^/ • /')"
-      echo "$SAMPLE" | sed 's/^/   /'
-      [[ -n "$DIAG_FILE" ]] && printf '%s\n' "$SAMPLE" >> "$DIAG_FILE"
-      note "[FTP:$SPEC] مسیر مقصد ($DIR) — ۲۰ مدخل اول: $(join1 "$SAMPLE")"
-      MARKER_REMOTE="$(curl -sS "${CURL_ARGS[@]}" --connect-timeout 20 --max-time 60 \
-              -u "$FTP_USER:$FTP_PASS" "$SPEC://$HOST/$DIR/$MARKER" 2>/dev/null || true)"
-      if [[ "$MARKER_REMOTE" == *"$EXPECT_SHA"* ]]; then
-        FTP_OK="yes"
-        diag "✅ [FTP:$SPEC] مارکر این ران روی «خودِ مسیر مقصد» هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
-        note "[FTP:$SPEC] مارکر این ران روی خودِ مسیر مقصد هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
-      else
-        FTP_OK="no"
-        diag "⛔ [FTP:$SPEC] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
-        note "[FTP:$SPEC] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
-      fi
-      break
+
+  list_path() {  # $1 = زیرمسیر (خالی = ریشهٔ حساب FTP) → ۲۰ مدخل اول، یک‌خطی
+    local spec args p out s
+    for spec in ftps ftp; do
+      case "$spec" in
+        ftps) args=(--ssl-reqd --ftp-pasv) ;;
+        ftp)  args=(--ftp-pasv) ;;
+      esac
+      p="$spec://$HOST"; [[ -n "$1" ]] && p="$p/$1"
+      out="$(curl -sS "${args[@]}" --connect-timeout 20 --max-time 60 \
+              -u "$FTP_USER:$FTP_PASS" "$p" 2>/dev/null || true)"
+      [[ -z "$out" ]] && continue
+      s="$(echo "$out" | grep -oE 'name="[^"]+"' | sed 's/name=/ • /' | head -20)"
+      [[ -z "$s" ]] && s="$(echo "$out" | awk '{print $NF}' | head -20 | sed 's/^/ • /')"
+      echo "$s"
+      return 0
+    done
+    return 1
+  }
+
+  DIR_SAMPLE="$(list_path "$DIR" || true)"
+  ROOT_SAMPLE="$(list_path "" || true)"
+  [[ -n "$DIR_SAMPLE" ]] && FTP_LISTABLE=1
+
+  if [[ -n "$DIR_SAMPLE" ]]; then
+    FTP_MODE="listed"
+    diag "── [FTP] محتوای مسیر مقصد ($DIR) — ۲۰ مدخل اول:"
+    echo "$DIR_SAMPLE" | sed 's/^/   /'
+    [[ -n "$DIAG_FILE" ]] && printf '%s\n' "$DIR_SAMPLE" >> "$DIAG_FILE"
+    note "[FTP] مسیر مقصد ($DIR) — ۲۰ مدخل اول: $(join1 "$DIR_SAMPLE")"
+    MARKER_REMOTE="$(curl -sS --connect-timeout 20 --max-time 60 \
+            -u "$FTP_USER:$FTP_PASS" "ftps://$HOST/$DIR/$MARKER" 2>/dev/null \
+            || curl -sS --ftp-pasv --connect-timeout 20 --max-time 60 \
+            -u "$FTP_USER:$FTP_PASS" "ftp://$HOST/$DIR/$MARKER" 2>/dev/null || true)"
+    if [[ "$MARKER_REMOTE" == *"$EXPECT_SHA"* ]]; then
+      FTP_OK="yes"
+      diag "✅ [FTP] مارکر این ران روی «خودِ مسیر مقصد» هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
+      note "[FTP] مارکر این ران روی خودِ مسیر مقصد هست → آپلود رسیده؛ اگر HTTP کهنه است، مقصر کش/CDN یا docroot وب‌سرور است"
+    else
+      FTP_OK="no"
+      diag "⛔ [FTP] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
+      note "[FTP] مسیر قابل‌خواندن ولی مارکر این ران آنجا نیست → آپلود به این مسیر نرسیده (marker='${MARKER_REMOTE:0:60}')"
     fi
-  done
-  if [[ "$FTP_OK" == "" && "$FTP_LISTABLE" -eq 0 ]]; then
-    diag "⚠️  [FTP] از این رانر مسیر مقصد خوانده نشد (فایروال/پروتکل) — بررسی HTTP ملاک است"
-    note "[FTP] از این رانر مسیر مقصد خوانده نشد (فایروال/پروتکل) — بررسی HTTP ملاک است"
+  else
+    diag "⚠️  [FTP] مسیر مقصد ($DIR) با LIST/NLST خوانده نشد (مجوز یا پروتکل) — بررسی HTTP ملاک است"
+    note "[FTP] مسیر مقصد ($DIR) با LIST/NLST خوانده نشد (مجوز یا پروتکل) — بررسی HTTP ملاک است"
+  fi
+
+  # ریشهٔ حساب FTP: لو می‌دهد حساب اصلی cPanel است (public_html در ریشه) یا
+  # ساب‌اکانتِ چرت شده؛ ملاکِ تطبیق docroot دامنه با سکرت FTP_SERVER_DIR
+  if [[ -n "$ROOT_SAMPLE" ]]; then
+    diag "── [FTP] ریشهٔ حساب FTP — ۲۰ مدخل اول:"
+    echo "$ROOT_SAMPLE" | sed 's/^/   /'
+    [[ -n "$DIAG_FILE" ]] && printf '%s\n' "$ROOT_SAMPLE" >> "$DIAG_FILE"
+    note "[FTP] ریشهٔ حساب FTP — ۲۰ مدخل اول: $(join1 "$ROOT_SAMPLE")"
+  else
+    note "[FTP] ریشهٔ حساب FTP هم با LIST/NLST خوانده نشد"
   fi
 fi
 
