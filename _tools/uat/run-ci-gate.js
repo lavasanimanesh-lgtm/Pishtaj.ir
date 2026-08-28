@@ -194,17 +194,15 @@ var SUITE = [
   { g: 'T4/توکن کهنه ابزارها', f: '_tools/uat/tester532-v34.8.34-tools-stale-token-heal.js' },
   { g: 'T3-1/خواندن سرور-محور', f: '_tools/uat/tester533-v34.8.34-collection-query.js' },
   { g: 'T3-1/ماژول کالا سروری', f: '_tools/uat/tester534-v34.8.34-prod-server-read.js' },
+  { g: 'T3-1/سخت‌سازی خواندن کالا', f: '_tools/uat/tester535-v34.8.34-prod-read-hardening.js' },
+  { g: 'T0-3/4/6 اتصال گیت به CI', f: '_tools/uat/tester536-v34.8.35-ci-gate-wired.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },
   { g: 'استقرار/نگهبان معماری', f: '_tools/uat/tester443-v34.7.40-deploy-architecture-gate.js' },
   { g: 'معماری/پیشگیری', f: '_tools/uat/tester431-v34.7.28-architecture-guardrails.js' },
   { g: 'امنیت', f: '_tools/uat/tester397-v34.5.7-password-rehash.js' },
-  { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' },
-  /* v34.8.35 (فاز صفر نازک‌سازی T0-3/T0-4/T0-6): اتصالِ واقعیِ همین گیت به
-     GitHub Actions. اگر این تستر سبز نباشد، یعنی workflowها دوباره گیت را
-     دور زده‌اند و «۱۵۰ PASS محلی» هیچ تضمینی برای استقرار نیست. */
-  { g: 'CI/اتصال گیت به Actions', f: '_tools/uat/tester536-v34.8.35-ci-gate-wired.js' }
+  { g: 'امنیت', f: '_tools/uat/tester398-v34.5.7-migrate-prod-lock.js' }
 ];
 
 var SYNTAX = [

@@ -282,4 +282,4 @@ SECTION('Server salary contract و Sync readiness wiring');
   T('reactivation شناسه خالی و markerهای void/deleted را heal می‌کند', php.indexOf('function sd_recurring_activate') > -1 && php.indexOf("'deletedAt'") > -1 && php.indexOf("'explicitDeletion'") > -1);
 })();
 
-DONE('tester498-v34.8.34-ar-opex-reconcile');
+DONE('tester498-v34.8.35-ar-opex-reconcile');

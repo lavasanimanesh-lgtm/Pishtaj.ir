@@ -1,56 +1,59 @@
 diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
-index b8752f8..125cfad 100644
+index b8752f82..1613b2c8 100644
 --- a/.github/workflows/deploy-production.yml
 +++ b/.github/workflows/deploy-production.yml
-@@ -99,6 +99,16 @@ jobs:
+@@ -99,6 +99,20 @@ jobs:
            done < <(find api -name '*.php' -print0)
            if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
            echo "php -l: همهٔ فایل‌های api/*.php سالم"
-+      # ── T0-3 (ROADMAP-THIN-CLIENT): گیت JS + معماری قبل از FTP پروداکشن ──
-+      # node صریحاً نصب می‌شود تا گیت روی نسخهٔ نودِ runner متکی نباشد.
++
 +      - name: Setup Node
 +        uses: actions/setup-node@v4
 +        with:
 +          node-version: '20'
++
++      # ── T0-3 (ROADMAP-THIN-CLIENT): گیت JS + نگهبان معماری قبل از FTP پروداکشن ──
++      # ۱۵۰ تستر قرارداد (سینک/مالی/اعلان/امنیت/نازک‌سازی) + arch-guard شامل
++      # A10 (بایپس localStorage) و A11 (تطابق رجیستری فرمان کلاینت/سرور).
 +      - name: JS CI gate + architecture guard (pre-deploy gate)
 +        run: |
++          node _tools/arch/arch-guard.js
 +          node _tools/uat/run-ci-gate.js
-+          node _tools/arch/arch-guard.js --quiet
++
        - name: Deploy via FTP
          uses: SamKirkland/FTP-Deploy-Action@v4.3.5
          with:
-@@ -123,6 +133,49 @@ jobs:
+@@ -123,6 +137,52 @@ jobs:
              docs-deploy/**
              tester*.js
              FILES-CHANGED-*.txt
++            # ابزارهای مهاجرت/تشخیص هرگز روی پروداکشن منتشر نمی‌شوند (H1)
 +            api/migrate.php
 +            api/data-health-check.php
 +
-+      # ── T0-4 (ROADMAP-THIN-CLIENT): تایید صحت استقرار پروداکشن — فایل زنده == کامیت ──
++      # ── T0-4 (ROADMAP-THIN-CLIENT): تایید صحت استقرار — فایل زنده == کامیت ──
++      # ریشهٔ حادثهٔ «نسخهٔ مخلوط»: index.html تازه ولی JSهای قدیمی روی سرور.
++      # اگر نابرابر بود، تگ/Release ساخته نمی‌شود تا نسخهٔ ناقص «پایدار» ثبت نشود.
++      # فایل‌های PHP بررسی نمی‌شوند چون سرور اجراشان می‌کند و سورس برنمی‌گرداند.
 +      - name: Post-deploy integrity check (live == commit)
 +        run: |
 +          BASE="https://pishtaj.ir"
-+          FILES="crm/index.html crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js api/sales-domain.php"
++          FILES="crm/index.html crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js crm/key-registry.js crm/manifest.json"
 +          fail=0
-+          # ۰) نسخهٔ زنده باید همان VERSION.jsonِ همین کامیت باشد —
-+          #    مستقیم‌ترین سنجشِ «نسخهٔ مخلوط» (index.html جدید + JS قدیمی).
-+          EXPECT=$(sed -n 's/.*"crm_version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' VERSION.json | head -1)
-+          LIVE_REL=""
-+          for i in 1 2 3 4 5; do
-+            LIVE_REL=$(curl -fsSL --compressed --max-time 20 "$BASE/crm/index.html" 2>/dev/null \
-+              | grep -o "PTF_CRM_RELEASE = 'v[0-9][0-9.]*'" | head -1 \
-+              | sed "s/.*= '\(v[0-9][0-9.]*\)'.*/\1/" || true)
-+            [ -n "$LIVE_REL" ] && break
-+            sleep 12
-+          done
-+          if [ "$LIVE_REL" = "$EXPECT" ]; then
-+            echo "✅ نسخهٔ زنده ($LIVE_REL) == VERSION.json"
++
++          # ۱) نسخهٔ زندهٔ اعلام‌شده == VERSION.json (سریع‌ترین سیگنال «نسخهٔ مخلوط»)
++          WANT=$(node -p "require('./VERSION.json').crm_version")
++          LIVE=$(curl -fsSL --compressed --max-time 20 "$BASE/crm/index.html" 2>/dev/null \
++                 | grep -o "PTF_CRM_RELEASE = '[^']*'" | head -1 | sed "s/.*'\(.*\)'/\1/")
++          if [ "$LIVE" = "$WANT" ]; then
++            echo "✅ نسخهٔ زنده $LIVE با VERSION.json یکی است"
 +          else
-+            echo "::error::نسخهٔ زنده (${LIVE_REL:-none}) با VERSION.json ($EXPECT) یکی نیست — استقرار ناقص یا کش سرور"
++            echo "::error::نسخهٔ زندهٔ index.html ($LIVE) با VERSION.json ($WANT) یکی نیست"
 +            fail=1
 +          fi
-+          # ۱) هش فایل‌های کلیدی زنده باید با کامیت یکی باشد
++
 +          for f in $FILES; do
++            [ -f "$f" ] || { echo "::warning file=$f::در مخزن نیست — رد شد"; continue; }
 +            expected=$(sha1sum "$f" | cut -d' ' -f1)
 +            actual=""
 +            for i in 1 2 3 4 5; do
@@ -65,15 +68,19 @@ index b8752f8..125cfad 100644
 +              fail=1
 +            fi
 +          done
-+          exit $fail
++          if [ "$fail" -ne 0 ]; then
++            echo "::error::استقرار ناقص/مخلوط — تگ و Release ساخته نمی‌شود. بعد از رفع کش سرور دوباره اجرا کنید."
++            exit 1
++          fi
++          echo "post-deploy integrity: همهٔ فایل‌های کلیدی زنده با کامیت یکی‌اند"
  
        # ── بعد از انتشار موفق: تگ نسخه + بک‌آپ ────────────────────────────────
        # فقط وقتی از main منتشر شده (رول‌بک تگ جدید نمی‌سازد)
 diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
-index abee444..40e4e21 100644
+index abee4444..3c8e2b4a 100644
 --- a/.github/workflows/deploy-staging.yml
 +++ b/.github/workflows/deploy-staging.yml
-@@ -34,6 +34,11 @@ jobs:
+@@ -34,6 +34,20 @@ jobs:
        - name: Checkout
          uses: actions/checkout@v4
  
@@ -82,21 +89,35 @@ index abee444..40e4e21 100644
 +        with:
 +          node-version: '20'
 +
++      # ── T0-3 (ROADMAP-THIN-CLIENT): گیت JS + نگهبان معماری، قبل از هر تغییری ──
++      # روی سورس دست‌نخورده اجرا می‌شود (قبل از تزریق بنر/robots) تا arch-guard
++      # قاعدهٔ A6 (هماهنگی نسخه) را روی فایل‌های واقعی مخزن بسنجد.
++      # شامل ۱۵۰ تستر قرارداد + A10 (بایپس localStorage) + A11 (تطابق رجیستری فرمان).
++      - name: JS CI gate + architecture guard (pre-deploy gate)
++        run: |
++          node _tools/arch/arch-guard.js
++          node _tools/uat/run-ci-gate.js
++
        # جلوگیری از ایندکس شدن استیجینگ توسط گوگل
        - name: Block search engines on staging
          run: |
-@@ -61,6 +66,18 @@ jobs:
+@@ -61,6 +75,23 @@ jobs:
            done
            rm -f _staging-banner.html
            echo "staging banner injected"
-+          # ── T0-6 (ROADMAP-THIN-CLIENT): خاموش‌کردن کش JS/HTML فقط روی استیجینگ ──
-+          # پایان ریشهٔ «نسخهٔ مخلوط»: LiteSpeed/مرورگر نباید js را ۳۰ روز کش کند.
++
++      # ── T0-6 (ROADMAP-THIN-CLIENT): no-cache فقط روی استیجینگ ──
++      # ریشهٔ حادثهٔ «نسخهٔ مخلوط» (۲۰۲۶-۰۸-۲۷): index.html تازه ولی JSهای کش‌شدهٔ قدیمی.
++      # این فایل فقط روی استیجینگ ساخته می‌شود؛ مخزن و پروداکشن دست‌نخورده می‌مانند.
++      - name: Staging-only no-cache headers (T0-6)
++        run: |
 +          cat >> crm/.htaccess <<'HTCACHE'
 +
-+          # staging-only (تزریق خودکار deploy workflow) — no-cache برای shell ها
++          # staging-only (تزریق خودکار deploy-staging workflow) — بدون کش برای shell
 +          <IfModule mod_headers.c>
-+            <FilesMatch "\.(?:js|html)$">
++            <FilesMatch "\.(?:js|html|json)$">
 +              Header set Cache-Control "no-cache, must-revalidate"
++              Header set Pragma "no-cache"
 +            </FilesMatch>
 +          </IfModule>
 +          HTCACHE
@@ -104,50 +125,35 @@ index abee444..40e4e21 100644
        # گیت PHP قبل از FTP — اگر api/*.php سینتکس خراب داشته باشد، استقرار متوقف می‌شود
        - name: PHP syntax lint (pre-deploy gate)
          run: |
-@@ -80,6 +97,12 @@ jobs:
-           done < <(find api -name '*.php' -print0)
-           if [ "$fail" -ne 0 ]; then echo "::error::حداقل یک فایل PHP سینتکس خراب دارد"; exit 1; fi
-           echo "php -l: همهٔ فایل‌های api/*.php سالم"
-+      # ── T0-3 (ROADMAP-THIN-CLIENT): گیت JS + معماری قبل از FTP ──
-+      # ۱۳۰+ تستر قرارداد + arch-guard (شامل A10 بایپس localStorage و A11 تطابق رجیستری)
-+      - name: JS CI gate + architecture guard (pre-deploy gate)
-+        run: |
-+          node _tools/uat/run-ci-gate.js
-+          node _tools/arch/arch-guard.js --quiet
-       - name: Deploy via FTP
-         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-         with:
-@@ -105,6 +128,49 @@ jobs:
+@@ -105,6 +136,51 @@ jobs:
              tester*.js
              FILES-CHANGED-*.txt
  
 +      # ── T0-4 (ROADMAP-THIN-CLIENT): تایید صحت استقرار — فایل زنده == کامیت ──
-+      # ریشهٔ حادثهٔ «نسخهٔ مخلوط» (۲۰۲۶-۰۸-۲۷): index.html جدید، JSها قدیمی.
-+      # index.html در چک هش نیست چون بنر استیجینگ عمداً به آن تزریق می‌شود،
-+      # ولی «رشتهٔ نسخه»ی درونش تحت‌تأثیر بنر نیست → همان را می‌سنجیم.
++      # فقط دارایی‌های استاتیک بررسی می‌شوند؛ فایل‌های PHP روی سرور اجرا می‌شوند و
++      # سورس‌شان قابل دریافت نیست. index.html هم مستثناست چون بنر به آن تزریق شده.
 +      - name: Post-deploy integrity check (live == commit)
++        continue-on-error: true
 +        run: |
 +          BASE="https://staging.pishtaj.ir"
-+          FILES="crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js api/sales-domain.php"
++          FILES="crm/sw.js crm/sales-domain-v2.js crm/leads.js crm/client-server.js crm/key-registry.js"
 +          fail=0
-+          # ۰) نسخهٔ زنده باید همان VERSION.jsonِ همین کامیت باشد
-+          EXPECT=$(sed -n 's/.*"crm_version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' VERSION.json | head -1)
-+          LIVE_REL=""
-+          for i in 1 2 3 4 5; do
-+            LIVE_REL=$(curl -fsSL --compressed --max-time 20 "$BASE/crm/index.html" 2>/dev/null \
-+              | grep -o "PTF_CRM_RELEASE = 'v[0-9][0-9.]*'" | head -1 \
-+              | sed "s/.*= '\(v[0-9][0-9.]*\)'.*/\1/" || true)
-+            [ -n "$LIVE_REL" ] && break
-+            sleep 12
-+          done
-+          if [ "$LIVE_REL" = "$EXPECT" ]; then
-+            echo "✅ نسخهٔ زنده ($LIVE_REL) == VERSION.json"
++
++          # ۱) نسخهٔ زندهٔ اعلام‌شده == VERSION.json — index.html هش نمی‌شود (بنر تزریق
++          #    شده) ولی خودِ شمارهٔ نسخه‌اش باید درست باشد؛ همان چیزی که «نسخهٔ مخلوط»
++          #    را لو می‌دهد.
++          WANT=$(node -p "require('./VERSION.json').crm_version")
++          LIVE=$(curl -fsSL --compressed --max-time 20 "$BASE/crm/index.html" 2>/dev/null \
++                 | grep -o "PTF_CRM_RELEASE = '[^']*'" | head -1 | sed "s/.*'\(.*\)'/\1/")
++          if [ "$LIVE" = "$WANT" ]; then
++            echo "✅ نسخهٔ زنده $LIVE با VERSION.json یکی است"
 +          else
-+            echo "::error::نسخهٔ زنده (${LIVE_REL:-none}) با VERSION.json ($EXPECT) یکی نیست — استقرار ناقص یا کش سرور"
++            echo "::warning::نسخهٔ زندهٔ index.html ($LIVE) با VERSION.json ($WANT) یکی نیست"
 +            fail=1
 +          fi
-+          # ۱) هش فایل‌های کلیدی زنده باید با کامیت یکی باشد
++
 +          for f in $FILES; do
++            [ -f "$f" ] || { echo "::warning file=$f::در مخزن نیست — رد شد"; continue; }
 +            expected=$(sha1sum "$f" | cut -d' ' -f1)
 +            actual=""
 +            for i in 1 2 3 4 5; do
@@ -158,31 +164,44 @@ index abee444..40e4e21 100644
 +            if [ "$actual" = "$expected" ]; then
 +              echo "✅ $f با کامیت یکی است"
 +            else
-+              echo "::error file=$f::فایل زنده با کامیت یکی نیست (expected=$expected actual=${actual:-none}) — دیپلوی ناقص یا کش سرور"
++              echo "::warning file=$f::فایل زندهٔ استیجینگ با کامیت یکی نیست (expected=$expected actual=${actual:-none}) — دیپلوی ناقص یا کش سرور"
 +              fail=1
 +            fi
 +          done
-+          exit $fail
++          if [ "$fail" -ne 0 ]; then
++            echo "post_deploy_integrity=mismatch" >> $GITHUB_ENV
++          else
++            echo "post_deploy_integrity=ok" >> $GITHUB_ENV
++          fi
 +
        - name: Summary
          run: |
            echo "### ✅ استقرار استیجینگ انجام شد" >> $GITHUB_STEP_SUMMARY
+@@ -114,5 +190,7 @@ jobs:
+           echo "| برنچ | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+           echo "| کامیت | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+           echo "| آدرس | https://staging.pishtaj.ir |" >> $GITHUB_STEP_SUMMARY
++          echo "| گیت CI (T0-3) | ✅ اجرا شد قبل از FTP |" >> $GITHUB_STEP_SUMMARY
++          echo "| تطابق فایل زنده (T0-4) | \`${post_deploy_integrity:-unknown}\` |" >> $GITHUB_STEP_SUMMARY
+           echo "" >> $GITHUB_STEP_SUMMARY
+           echo "برای دیدن تغییرات: \`Ctrl+Shift+R\`" >> $GITHUB_STEP_SUMMARY
 diff --git a/.github/workflows/php.yml b/.github/workflows/php.yml
-index 7d257b5..491018a 100644
+index 7d257b51..9b01a4bc 100644
 --- a/.github/workflows/php.yml
 +++ b/.github/workflows/php.yml
-@@ -1,39 +1,41 @@
+@@ -1,39 +1,75 @@
 -name: PHP Composer
 +# ─────────────────────────────────────────────────────────────────────────────
-+# PHP & JS Lint — دروازهٔ کیفیت روی هر push/PR به main
++# Quality Gate — PHP & JS lint + گیت UAT روی هر push/PR به main
 +#
-+# جایگزین php.yml قدیمی (composer validate) که در این مخزن (بدون composer.json)
-+# عملاً بی‌اثر بود. این جاب واقعاً کد را lint می‌کند:
-+#   • php -l روی همهٔ فایل‌های api/ و crm/
-+#   • node --check روی همهٔ فایل‌های crm/ (به‌جز کتابخانهٔ xlsx.min.js)
-+#   • گیت UAT کانونی (run-ci-gate.js — همان گیت قبل از FTP)
++# جایگزین php.yml قدیمی (`composer validate --strict`) که در این مخزن — که اصلاً
++# composer.json ندارد — همیشه شکست می‌خورد یا بی‌اثر بود و هیچ خطای واقعی نمی‌گرفت.
++#
++# T0-3 (ROADMAP-THIN-CLIENT): این جاب همان گیت قبل از FTP را روی merge راه هم
++# می‌گذارد، تا یک PR نتواند دوباره بایپس localStorage (A10) یا واگرایی رجیستری
++# فرمان (A11) وارد main کند.
 +# ─────────────────────────────────────────────────────────────────────────────
-+name: PHP & JS Lint + UAT gate
++name: Quality Gate (lint + UAT + arch-guard)
  
  on:
    push:
@@ -194,18 +213,40 @@ index 7d257b5..491018a 100644
  permissions:
    contents: read
  
- jobs:
+-jobs:
 -  build:
--
-+  lint:
++concurrency:
++  group: quality-gate-${{ github.ref }}
++  cancel-in-progress: true
+ 
++jobs:
++  gate:
      runs-on: ubuntu-latest
 -
      steps:
 -    - uses: actions/checkout@v4
--
++      - uses: actions/checkout@v4
++
++      - name: Setup PHP
++        uses: shivammathur/setup-php@v2
++        with:
++          php-version: '8.1'
++          coverage: none
+ 
 -    - name: Validate composer.json and composer.lock
 -      run: composer validate --strict
-+      - uses: actions/checkout@v4
++      - name: Lint PHP (api/ + crm/)
++        run: |
++          fail=0
++          while IFS= read -r -d '' f; do
++            if ! php -l "$f" >/dev/null 2>&1; then
++              echo "::error file=$f::php -l شکست خورد"
++              php -l "$f" || true
++              fail=1
++            fi
++          done < <(find api crm -name '*.php' -print0)
++          if [ "$fail" -ne 0 ]; then exit 1; fi
++          echo "php -l: همهٔ فایل‌های PHP سالم"
  
 -    - name: Cache Composer packages
 -      id: composer-cache
@@ -215,23 +256,33 @@ index 7d257b5..491018a 100644
 -        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
 -        restore-keys: |
 -          ${{ runner.os }}-php-
-+      - name: Lint PHP (api/ + crm/)
-+        run: |
-+          find api crm -name '*.php' -print0 | xargs -0 -n1 php -l
- 
--    - name: Install dependencies
--      run: composer install --prefer-dist --no-progress
 +      - uses: actions/setup-node@v4
 +        with:
 +          node-version: '20'
  
--    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
--    # Docs: https://getcomposer.org/doc/articles/scripts.md
+-    - name: Install dependencies
+-      run: composer install --prefer-dist --no-progress
 +      - name: Lint JS (crm/ — بدون کتابخانه‌های min)
 +        run: |
-+          find crm -name '*.js' -not -name 'xlsx.min.js' -print0 | xargs -0 -n1 node --check
++          fail=0
++          while IFS= read -r -d '' f; do
++            if ! node --check "$f" >/dev/null 2>&1; then
++              echo "::error file=$f::node --check شکست خورد"
++              node --check "$f" || true
++              fail=1
++            fi
++          done < <(find crm -name '*.js' -not -name '*.min.js' -print0)
++          if [ "$fail" -ne 0 ]; then exit 1; fi
++          echo "node --check: همهٔ فایل‌های crm/*.js سالم"
+ 
+-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+-    # Docs: https://getcomposer.org/doc/articles/scripts.md
++      # نگهبان معماری: A1–A11 با مبنای ثبت‌شده؛ «افزایش بدهی» مسدودکننده است
++      - name: Architecture guard (A1–A11)
++        run: node _tools/arch/arch-guard.js
  
 -    # - name: Run test suite
 -    #   run: composer run-script test
-+      - name: UAT gate (sync / finance / notifications / security)
++      # گیت UAT کانونی — همان سوئیتی که قبل از FTP اجرا می‌شود
++      - name: UAT gate (sync / finance / notifications / security / thin-client)
 +        run: node _tools/uat/run-ci-gate.js

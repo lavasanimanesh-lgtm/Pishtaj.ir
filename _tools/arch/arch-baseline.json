@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.8.29",
+ "version": "v34.8.34",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
@@ -236,7 +236,6 @@
    "crm/codegen.js (ls-remove) [ce23938e1470] try { if(fp) localStorage.setItem('ptf_code_duplicate_ack', fp); else localStorage.removeItem…",
    "crm/codegen.js (ls-remove) [f05cf1e41232] try { localStorage.removeItem('ptf_code_duplicate_plan'); } catch(eClr) {}",
    "crm/codegen.js (ls-set) [4035fb87fdfd] function setMeta(m){ try { localStorage.setItem(POOL_META, JSON.stringify(m)); } catch(e){} }",
-   "crm/codegen.js (ls-set) [50bda4eaa1cb] else localStorage.setItem('ptf_crm_settings', JSON.stringify(st));",
    "crm/codegen.js (ls-set) [546542fb398a] localStorage.setItem('ptf_code_tmp_queue', JSON.stringify(q2));",
    "crm/codegen.js (ls-set) [6db6a39ab17b] localStorage.setItem('ptf_code_tmp_queue', JSON.stringify(q));",
    "crm/codegen.js (ls-set) [7643cd3966c0] try { localStorage.setItem('ptf_code_duplicate_plan', JSON.stringify(plan)); } catch(ePlan) {}",
@@ -436,7 +435,6 @@
    "crm/treasury-call.js (ls-get) [15cdb11d7908] var v = (typeof getData === 'function') ? getData(KEY) : JSON.parse(localStorage.getItem(KEY)…",
    "crm/treasury-call.js (ls-set) [6906879ce159] else localStorage.setItem(KEY, JSON.stringify(list));",
    "crm/treasury.js (ls-get) [61e233200649] return JSON.parse(localStorage.getItem(k) || '[]');",
-   "crm/treasury.js (ls-set) [a8cdb7250e6b] else localStorage.setItem('ptf_crm_shareholders', JSON.stringify(list));",
    "crm/ui-kit.js (ls-get) [e73e8a8279b8] var tok = localStorage.getItem('ptf_crm_token');",
    "crm/unofficial-invoice.js (ls-get) [7016bf6f286a] var supplierData = (function () { try { return JSON.parse(localStorage.getItem('ptf_crm_suppl…",
    "crm/working-capital.js (ls-get) [0831a963f4cd] var supplier = (function () { try { var x = JSON.parse(localStorage.getItem('ptf_crm_supplier…"

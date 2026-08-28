@@ -157,6 +157,11 @@ var versionReport = (function ruleA6() {
   var points = [
     ['crm/index.html', new RegExp("window\\.PTF_CRM_RELEASE\\s*=\\s*'v" + bare.replace(/\./g, '\\.') + "'")],
     ['crm/sw.js', new RegExp("RELEASE\\s*=\\s*'v" + bare.replace(/\./g, '\\.') + "'")],
+    /* v34.8.35: ASSET_VERSION و CACHE نقطهٔ نسخهٔ هفتم/هشتم‌اند و تا امروز در A6 نبودند؛
+       ASSET_VERSION عقب مانده بود (34.8.34 در برابر RELEASE=34.8.35) و کش‌باستر همهٔ
+       اسکریپت‌ها را به نسخهٔ قدیمی می‌برد — دقیقاً خانوادهٔ باگ «نسخهٔ مخلوط». */
+    ['crm/sw.js', new RegExp("ASSET_VERSION\\s*=\\s*'" + bare.replace(/\./g, '\\.') + "'")],
+    ['crm/sw.js', new RegExp("CACHE\\s*=\\s*'ptf-crm-v" + bare.replace(/\./g, '\\.') + "'")],
     ['crm/manifest.json', new RegExp('"version"\\s*:\\s*"' + bare.replace(/\./g, '\\.') + '"')],
     ['crm/clear-cache.html', new RegExp("VER\\s*=\\s*'v" + bare.replace(/\./g, '\\.') + "'")],
     ['crm/shell.js', new RegExp("'v" + bare.replace(/\./g, '\\.') + "'")],

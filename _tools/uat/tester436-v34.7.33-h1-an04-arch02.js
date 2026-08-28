@@ -21,7 +21,7 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
     S('H1 workflow publication pending GitHub Workflows write permission');
     return;
   }
-  T('H1 php.yml دیگر composer validate نیست', php.indexOf('composer validate --strict') < 0 && php.indexOf('find api crm -name') > -1);
+  T('H1 php.yml دیگر composer validate نیست', !/run: composer validate --strict/.test(php) && php.indexOf('find api crm -name') > -1);
   T('H1 php.yml گیت UAT را اجرا می‌کند', php.indexOf('run-ci-gate.js') > -1);
   T('H1 استیجینگ قبل از FTP گیت دارد', st.indexOf('run-ci-gate.js') > -1 && st.indexOf('Setup Node') > -1);
   T('H1 پروداکشن قبل از FTP گیت دارد', pr.indexOf('run-ci-gate.js') > -1);

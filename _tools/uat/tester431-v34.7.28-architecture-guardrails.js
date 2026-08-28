@@ -61,13 +61,13 @@ function read(rel) { return fs.readFileSync(path.join(ROOT, rel), 'utf8'); }
     base.rules.A1.every(function (s) { return s.indexOf('ptfInvoiceVoid') < 0; }), base.rules.A1.join(','));
 
   var gate = read('_tools/uat/run-ci-gate.js');
-  T('G2 نگهبان به گیت CI وصل است', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
-  /* v34.8.35 — یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸: پاسِ بالا گمراه‌کننده بود. فقط بررسی
-     می‌کرد run-ci-gate.js به arch-guard.js «ارجاع» دارد؛ در حالی که هیچ workflow
-     گیت‌هابی این گیت را اجرا نمی‌کرد. از این به بعد «اجرا در CI» هم سنجیده می‌شود:
-     یا workflowها واقعاً گیت را صدا می‌زنند، یا وصلهٔ معلقی در صف است که این کار را
-     می‌کند (تغییر .github/workflows از سوی اپلیکیشن گیت‌هاب نیازمند دسترسی workflow
-     است؛ رَویهٔ PENDING-*.patch در این مخزن). قرارداد کامل‌تر: tester536. */
+  T('G2 نگهبان داخل رانر گیت صدا زده می‌شود', gate.indexOf('arch-guard.js') > -1 && gate.indexOf("failed.push('arch-guard')") > -1);
+  /* v34.8.35 (یافتهٔ F-1 ممیزی ۲۰۲۶-۰۸-۲۸): پاسِ بالا به‌تنهایی گمراه‌کننده بود — فقط
+     بررسی می‌کرد run-ci-gate.js به arch-guard.js «ارجاع» دارد، در حالی که هیچ workflow
+     گیت‌هابی این گیت را اجرا نمی‌کرد. از این پس «اجرا در CI» هم سنجیده می‌شود: یا
+     workflowها واقعاً گیت را صدا می‌زنند، یا وصلهٔ معلقی در صف است که این کار را می‌کند
+     (نوشتن روی .github/workflows نیازمند دسترسی workflow است که اپلیکیشن گیت‌هابِ نشست
+     ندارد — رَویهٔ PENDING-*.patch در این مخزن). قرارداد کامل: tester536. */
   var wfStaging = read('.github/workflows/deploy-staging.yml');
   var wfProd = read('.github/workflows/deploy-production.yml');
   var wired =
