@@ -468,10 +468,16 @@
       else if (s.custodian) s.custodian = false;
     });
     if (!found) return false;
-    /* v34.8.27 (W4): پرچم امین از مسیر فرمان — shareholders کلید محافظت‌شده مالی است */
+    /* v34.8.27 (W4): پرچم امین از مسیر فرمان — shareholders کلید محافظت‌شده مالی است
+       v34.8.35 (T5-1 / اصل E2): شاخهٔ «نوشتن مستقیم به localStorage» حذف شد — اگر لایهٔ
+       داده بارگذاری نشده باشد، نتیجهٔ «ناموفق» گزارش می‌شود، نه نوشتن در پناه لایهٔ داده. */
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_shareholders', list, { reason: 'w4' });
-    else if (typeof window.setData === 'function') window.setData('ptf_crm_shareholders', list); /* fallback */
-    else localStorage.setItem('ptf_crm_shareholders', JSON.stringify(list));
+    else if (typeof window.setData === 'function') window.setData('ptf_crm_shareholders', list);
+    else {
+      try { if (typeof ptfToast === 'function') ptfToast('⛔ لایهٔ داده در دسترس نیست — خزانه‌دار ذخیره نشد', 'warn'); } catch (eDL) {}
+      try { if (window.console && console.error) console.error('[ptf] treasury: data layer unavailable, custodian write skipped'); } catch (eDL2) {}
+      return false;
+    }
     if (typeof window.ptfTreasuryRender === 'function') window.ptfTreasuryRender();
     return true;
   };

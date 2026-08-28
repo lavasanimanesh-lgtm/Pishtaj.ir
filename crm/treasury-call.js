@@ -20,9 +20,16 @@
       return arr(v);
     } catch (e) { return []; }
   }
+  /* v34.8.35 (T5-1 / اصل E2): فراخوانی لایهٔ داده تنها مسیر نوشتن است؛ در دسترس نبودنِ
+     آن = عدم ذخیره + پیام، نه نوشتن مستقیم localStorage (قاعدهٔ A10). */
   function save(list) {
-    if (typeof setData === 'function') setData(KEY, list);
-    else localStorage.setItem(KEY, JSON.stringify(list));
+    if (typeof setData !== 'function') {
+      try { if (window.console && console.error) console.error('[ptf] data layer unavailable — ' + KEY + ' skipped'); } catch (eDL) {}
+      try { if (typeof ptfToast === 'function') ptfToast('⛔ لایهٔ داده در دسترس نیست — تغییر ذخیره نشد', 'warn'); } catch (eDL2) {}
+      return false;
+    }
+    setData(KEY, list);
+    return true;
   }
   function shActive() {
     return arr(typeof getData === 'function' ? getData('ptf_crm_shareholders') : []).filter(function (s) { return s && s.active !== false; });

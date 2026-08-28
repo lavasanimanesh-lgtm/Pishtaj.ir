@@ -360,3 +360,25 @@ RewriteRule "^knowledge-center/z-fe99473f\.html$" "/knowledge-center/kc-flare-bu
 # ------------------------------------------------------------------
 RewriteCond %{THE_REQUEST} \s/+(.*/)?index\.html[\s?] [NC]
 RewriteRule ^(.*/)?index\.html$ /%1 [R=301,L]
+
+# ------------------------------------------------------------------
+# T0-6 (ROADMAP-THIN-CLIENT-MAXIMAL، v34.8.35) — لغو کش JS/HTML/CSS فقط روی استیجینگ
+# ------------------------------------------------------------------
+# ریشهٔ باگ «نسخهٔ مخلوط» (۲۰۲۶-۰۸-۲۷): بلوک ExpiresByType/Cache-Control بالا
+# فایل‌های js را ۳۰ روز کش می‌کند؛ روی staging.pishtaj.ir نتیجه این شد که
+# index.html تازه با js های کهنه اجرا شود. این بلوک فقط وقتی فعال می‌شود که
+# میزبان با staging./test. شروع شود (متغیر PTF_STAGING) ⇒ روی pishtaj.ir
+# هیچ هدری تغییر نمی‌کند. چرا mod_rewrite و نه <If>: همین فایل از قبل
+# mod_rewrite را فعال دارد و رفتارش روی LiteSpeed/cPanel تضمینی است.
+# ETag/Last-Modified عمداً حفظ شده‌اند تا revalidate با ۳۰۴ ارزان بماند.
+# ------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteCond %{HTTP_HOST} ^(?:staging|test)\. [NC]
+  RewriteRule ^ - [E=PTF_STAGING:1]
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(?:js|html|css)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0" env=PTF_STAGING
+    Header unset Expires env=PTF_STAGING
+  </FilesMatch>
+</IfModule>

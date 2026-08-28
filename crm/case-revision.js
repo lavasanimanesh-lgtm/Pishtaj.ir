@@ -248,8 +248,14 @@
         allocations: fifo.allocations, unallocated: fifo.unallocated, status: 'posted',
         sourceReturnCd: pr.cd, caseId: pr.caseId || '', t: nowFa(), by: pr.by || who()
       };
+      /* v34.8.35 (T5-1 / اصل E2): نوشتن کسب‌وکار فقط از لایهٔ داده؛ بدون آن سند
+       ساخته نمی‌شود و {ok:false} برمی‌گردد (قبلاً fallback مستقیم به localStorage داشت). */
+      if (typeof setData !== 'function') {
+        try { if (window.console && console.error) console.error('[ptf] data layer unavailable — ptfSupplierReturnCredit skipped'); } catch (eDL) {}
+        return { ok: false, why: 'no_datalayer' };
+      }
       d.payments.unshift(pay);
-      if (typeof setData === 'function') setData(KEY, d); else localStorage.setItem(KEY, JSON.stringify(d));
+      setData(KEY, d);
       try { if (typeof audit === 'function') audit('حساب تامین', 'تهاتر مرجوعی خرید ' + money(pr.amount) + ' ریال — تخصیص به ' + fifo.allocations.length + ' فاکتور، اعتبار باقی ' + money(fifo.unallocated) + ' — ' + pr.cd, pr.supplierCd); } catch (eA) {}
       return { ok: true, paymentCd: payCd, allocated: fifo.allocations, unallocated: fifo.unallocated };
     } catch (e) { try { console.error('ptfSupplierReturnCredit', e); } catch (e4) {} return { ok: false }; }

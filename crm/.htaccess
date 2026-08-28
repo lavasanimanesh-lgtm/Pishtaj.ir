@@ -3,3 +3,17 @@ Options -Indexes
 <Files "storage.php">
   Require all denied
 </Files>
+# ------------------------------------------------------------------
+# T0-6 (v34.8.35) — روی استیجینگ کش JS/HTML/CSS خاموش (توضیح کامل در .htaccess ریشه)
+# ------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP_HOST} ^(?:staging|test)\. [NC]
+  RewriteRule ^ - [E=PTF_STAGING:1]
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(?:js|html|css)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0" env=PTF_STAGING
+    Header unset Expires env=PTF_STAGING
+  </FilesMatch>
+</IfModule>

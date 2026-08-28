@@ -7,7 +7,8 @@
 'use strict';
 var K='ptf_crm_surplus';
 function all(){ try { var a=getData(K); return Array.isArray(a)?a:[]; } catch(e){ try{return JSON.parse(localStorage.getItem(K)||'[]');}catch(e2){return [];} } }
-function save(a){ if(typeof setData==='function') setData(K,a||[]); else localStorage.setItem(K,JSON.stringify(a||[])); }
+/* v34.8.35 (T5-1): بدون لایهٔ داده نوشتن مستقیم به localStorage حذف شد؛ false برمی‌گرداند */
+function save(a){ if(typeof setData!=='function'){ try{ if(window.console&&console.error) console.error('[ptf] data layer unavailable — '+K+' skipped'); }catch(eDL){} return false; } setData(K,a||[]); return true; }
 function gen(){ return (typeof ptfUnifiedCode==='function'?ptfUnifiedCode('SURP'):'SURP-'+Date.now()); }
 function activeQty(s){ return Math.max(0,(+s.qty||0)-(+s.soldQty||0)-(+s.reservedQty||0)); }
 function statusOf(s){ if((+s.soldQty||0)>=(+s.qty||0)) return 'sold'; if((+s.reservedQty||0)>0) return 'reserved'; return 'available'; }

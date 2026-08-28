@@ -390,8 +390,11 @@ function ptfDupAckSet(fp){
   try {
     var st=JSON.parse(localStorage.getItem('ptf_crm_settings')||'{}');
     if(fp){ st.dupCodeAck=fp; } else { delete st.dupCodeAck; }
-    if(typeof setData==='function') if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' }); else setData('ptf_crm_settings', st); /* setData → sync بین دستگاه‌ها */
-    else localStorage.setItem('ptf_crm_settings', JSON.stringify(st));
+    /* v34.8.35 (T5-1 / اصل E2): بدون لایهٔ داده هیچ نوشتن مستقیمی به localStorage
+       انجام نمی‌شود (قاعدهٔ A10)؛ ack فقط محلی می‌ماند و در کنسول ثبت می‌شود. */
+    if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_settings', st, { reason: 'w4' });
+    else if (typeof setData === 'function') setData('ptf_crm_settings', st);
+    else { try { if (window.console && console.error) console.error('[ptf] data layer unavailable — ptf_crm_settings (dupAck) skipped'); } catch (eDL) {} }
   } catch(e){}
   try { if(fp) localStorage.setItem('ptf_code_duplicate_ack', fp); else localStorage.removeItem('ptf_code_duplicate_ack'); } catch(e2){}
 }
