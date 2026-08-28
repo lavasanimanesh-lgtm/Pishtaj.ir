@@ -1,21 +1,18 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Deploy to Production — بازسازی‌شده از صفر (۲۰۲۶-۰۸-۲۸)
+# Deploy to Production — بازسازی‌شده (۲۰۲۶-۰۸-۲۸، منطبق بر قرارداد tester536/436)
 #
-# تفاوت با نسخهٔ قبلی (که «سبز ولی بی‌اثر» بود):
-#   ۱) گیت CI (run-ci-gate + php -l) قبل از FTP.
-#   ۲) مارکر __deploy__.json با هر ران ساخته و آپلود می‌شود.
-#   ۳) گیت راستی‌آزمایی پس از FTP (_tools/ci/verify-deploy.sh):
-#      سمت FTP و سمت HTTP با کامیت دیپلوی‌شده مقایسه می‌شوند؛ مغایرت = قرمز.
-#      بدون این، تگ/Release «نسخه پایدار» برای دیپلویی ساخته می‌شد که هرگز زنده نشده بود.
-#   ۴) state-name جدید (v2) → اولین اجرا آپلود کاملِ تازه می‌زند.
-#   ۵) تگ و Release فقط بعد از سبزشدنِ راستی‌آزمایی ساخته می‌شوند.
+#   • گیت معماری + گیت CI + php -l قبل از انتقال فایل‌ها (شکست = توقف)
+#   • گیت‌های محتوای پروداکشن: robots ایندکس‌پذیر، بدون بنر استیجینگ
+#   • مارکر __deploy__.json + گیت صحت پس از استقرار: هش فایل‌های زنده == کامیت
+#     (ضد «نسخهٔ مخلوط») + راستی‌آزمایی سمت FTP و سمت HTTP
+#   • تگ نسخه و Release بک‌آپ فقط بعد از سبزشدن گیت صحت ساخته می‌شوند
+#   • ابزارهای تشخیص/مهاجرت (H1) از انتقال مستثنی هستند
+#   • state-name تازه (v2): اولین اجرا آپلود کامل می‌زند
+#   ⛔ dangerously-clean-slate ممنوع: کانفیگ‌های سرور-تنها (llm/sms/storage-config.php) پاک می‌شوند
 #
-# رول‌بک: ref را روی یک تگ قبلی بگذارید (مثلاً v2026.08.28-0905).
-#   توجه: تگ‌های ساخته‌شده با ورک‌فلوی قدیمی (پیش از این بازنویسی) به دیپلویی
-#   اشاره می‌کنند که هرگز زنده نشد؛ رول‌بک معتبر از اولین تگِ این نسخه به بعد است.
-#
-# ⛔ هیچ‌وقت dangerously-clean-slate فعال نشود:
-#      llm-config.php / sms-config.php / storage-config.php فقط روی سرور‌اند.
+# رول‌بک: ref را روی یک تگ قبلی بگذارید. تگ‌های ساخته‌شده با ورک‌فلوی قدیمی
+#   (قبل از گیت صحت) به دیپلویی اشاره می‌کنند که هرگز زنده نشد؛ از اولین تگِ
+#   این نسخه به بعد معتبر است.
 #
 # سکرت‌ها: FTP_PROD_SERVER / FTP_PROD_USERNAME / FTP_PROD_PASSWORD / FTP_PROD_SERVER_DIR
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,10 +35,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write   # لازم برای ساخت تگ و Release (فقط بعد از راستی‌آزمایی سبز)
-
-env:
-  LIVE_URL: https://pishtaj.ir
+  contents: write   # ساخت تگ و Release — فقط بعد از گیت صحت سبز
 
 jobs:
   deploy:
@@ -73,13 +67,17 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '20'
 
-      # ── گیت ۱: تسترهای CI پروژه
-      - name: CI gate (run-ci-gate)
+      # ── گیت ۱: نگهبان معماری (سریع — fail-fast)
+      - name: Architecture guard
+        run: node _tools/arch/arch-guard.js
+
+      # ── گیت ۲: سوئیت تسترهای CI
+      - name: CI gate
         run: node _tools/uat/run-ci-gate.js
 
-      # ── گیت ۲: php -l قطعی روی api/*.php
+      # ── گیت ۳: سینتکس PHP
       - name: PHP syntax lint
         run: |
           sudo apt-get update -qq >/dev/null 2>&1 || true
@@ -112,7 +110,7 @@ jobs:
           cat __deploy__.json
           echo "DEPLOY_SHA=$SHA" >> "$GITHUB_ENV"
 
-      # ── انتقال FTP
+      # ── انتقال فایل‌ها (state تازه → اولین اجرا آپلود کامل)
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -138,19 +136,47 @@ jobs:
             docs-deploy/**
             tester*.js
             FILES-CHANGED-*.txt
+            api/migrate.php
+            api/data-health-check.php
 
-      # ── گیت ۳: راستی‌آزمایی پس از استقرار (سمت FTP + سمت HTTP)
+      # ── گیت ۴: صحت پس از استقرار — هش فایل‌های زنده == کامیت (ضد نسخهٔ مخلوط)
+      - name: Post-deploy integrity check
+        run: |
+          BASE="https://pishtaj.ir"
+          FILES="crm/index.html crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js crm/manifest.json"
+          PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
+          echo "کامیت: $DEPLOY_SHA | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
+          fail=1
+          for i in 1 2 3 4 5; do
+            ok=1
+            while IFS= read -r f; do
+              want="$(sha1sum "$f" | cut -d' ' -f1)"
+              got="$(curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" | sha1sum | cut -d' ' -f1)"
+              if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
+            done <<< "$FILES"
+            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
+            if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
+            if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
+            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
+            sleep 12
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
+          fi
+          exit $fail
+
+      # ── گیت ۵ (تشدیدی): مارکر این ران + خودِ مسیر مقصد FTP را هم می‌سنجم
       - name: Verify deployment (FTP-side + live HTTP)
         run: |
           bash _tools/ci/verify-deploy.sh \
-            --url "$LIVE_URL" \
+            --url "https://pishtaj.ir" \
             --sha "$DEPLOY_SHA" \
             --ftp-server "${{ secrets.FTP_PROD_SERVER }}" \
             --ftp-user   "${{ secrets.FTP_PROD_USERNAME }}" \
             --ftp-pass   "${{ secrets.FTP_PROD_PASSWORD }}" \
             --ftp-dir    "${{ secrets.FTP_PROD_SERVER_DIR }}"
 
-      # ── بعد از راستی‌آزمایی سبز: تگ نسخه + بک‌آپ (فقط انتشار از main)
+      # ── بعد از گیت صحت سبز: تگ نسخه + بک‌آپ (فقط انتشار از main)
       - name: Create version tag
         if: ${{ github.event.inputs.ref == 'main' }}
         id: tag
@@ -179,7 +205,7 @@ jobs:
           name: نسخه پایدار ${{ steps.tag.outputs.tag }}
           body: |
             انتشار **راستی‌آزمایی‌شده** روی https://pishtaj.ir
-            (مارکر و sw.js زنده با کامیت مقایسه و تأیید شده)
+            (هش فایل‌های زنده + مارکر با کامیت مقایسه و تأیید شد)
 
             **کامیت:** `${{ github.sha }}`
 
@@ -194,8 +220,6 @@ jobs:
         run: |
           echo "### 🚀 استقرار پروداکشن — اثبات‌شده" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| مورد | مقدار |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|">> $GITHUB_STEP_SUMMARY
           echo "| منبع | \`${{ github.event.inputs.ref }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| کامیت | \`$DEPLOY_SHA\` |" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.event.inputs.ref }}" = "main" ]; then
@@ -203,5 +227,5 @@ jobs:
           else
             echo "| نوع | رول‌بک |" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "| آدرس | $LIVE_URL |" >> $GITHUB_STEP_SUMMARY
-          echo "| راستی‌آزمایی | مارکر + sw.js هم سمت FTP و هم سمت HTTP ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| آدرس | https://pishtaj.ir |" >> $GITHUB_STEP_SUMMARY
+          echo "| راستی‌آزمایی | هش فایل‌ها + مارکر + سمت FTP ✅ |" >> $GITHUB_STEP_SUMMARY
