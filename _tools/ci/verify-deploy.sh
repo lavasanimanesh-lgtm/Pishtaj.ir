@@ -95,6 +95,54 @@ if [[ "$HTTP_OK" -ne 1 ]]; then
   note "[HTTP] headers /: $(join1 "$H0")"
   note "[HTTP] headers crm/sw.js: $(join1 "$H1")"
   note "[HTTP] headers crm/manifest.json: $(join1 "$H2")"
+
+  # ── جبران فقط برای استیجینگ: مقصد FTP با docroot یکی نیست → کشف + آپلود دوباره
+  #    پروداکشن عمداً دست نمی‌خورد (گام اول = همگام‌سازی استیجینگ با main)
+  if [[ -n "$FTP_SERVER" && "$URL" == *staging.pishtaj.ir* && -f _tools/ci/discover-ftp-docroot.py && -f _tools/ci/ftp-upload-tree.py ]]; then
+    diag "── [heal] تلاش برای کشف docroot زنده و آپلود جبرانی"
+    note "[heal] کشف docroot زنده + آپلود جبرانی"
+    export FTP_USERNAME="${FTP_USER}"
+    export FTP_PASSWORD="${FTP_PASS}"
+    export FTP_SERVER
+    export FTP_SERVER_DIR="${FTP_DIR}"
+    export LIVE_URL="${URL}"
+    export PROD_URL="${PROD_URL:-https://pishtaj.ir}"
+    HEAL_OK=0
+    if python3 -u _tools/ci/discover-ftp-docroot.py; then
+      FOUND="$(tr -d '[:space:]' < discovered-ftp-dir.txt 2>/dev/null || true)"
+      if [[ -n "$FOUND" ]]; then
+        diag "[heal] docroot زنده: $FOUND"
+        note "[heal] docroot زنده: $FOUND — شروع آپلود جبرانی"
+        if python3 -u _tools/ci/ftp-upload-tree.py --dir "$FOUND"; then
+          HEAL_OK=1
+        else
+          diag "⛔ [heal] آپلود جبرانی شکست خورد"
+          note "[heal] آپلود جبرانی شکست خورد"
+        fi
+      fi
+    else
+      diag "⛔ [heal] docroot زنده پیدا نشد"
+      note "[heal] docroot زنده پیدا نشد"
+    fi
+    if [[ "$HEAL_OK" -eq 1 ]]; then
+      diag "── [heal] آپلود جبرانی تمام شد؛ بررسی دوبارهٔ HTTP"
+      for i in $(seq 1 6); do
+        MARKER_BODY="$(curl -fsS --max-time 30 "$URL/$MARKER?cb=$BUST-heal-$i" 2>/dev/null || true)"
+        LIVE_SW="$(curl -fsSL --max-time 30 "$URL/crm/sw.js?cb=$BUST-heal-$i" 2>/dev/null | grep -oE "RELEASE = 'v[0-9.]+'" | head -1 | grep -oE 'v[0-9.]+' || true)"
+        if [[ "$MARKER_BODY" == *"$EXPECT_SHA"* && "$LIVE_SW" == "$EXPECT_RELEASE" ]]; then
+          HTTP_OK=1
+          diag "✅ [heal] بعد از آپلود جبرانی سایت زنده با کامیت یکی است (sw=$LIVE_SW)"
+          note "[heal] HTTP بعد از جبران OK sw=$LIVE_SW"
+          break
+        fi
+        echo "   … [heal] تلاش $i/۶: marker=${MARKER_BODY:0:40} / sw=$LIVE_SW"
+        [[ $i -lt 6 ]] && sleep 12
+      done
+      LIVE_BANNER="$(curl -fsS --max-time 30 "$URL/?cb=$BUST-heal" 2>/dev/null | tr '\n\r' '  ' | grep -o 'محیط تست (Staging) — [^<]*' | head -1 | tr -s ' ' || true)"
+      H0="$(dump_headers "$URL/")"
+      H1="$(dump_headers "$URL/crm/sw.js")"
+    fi
+  fi
 else
   diag "✅ [HTTP] مارکر این ران + sw.js=$EXPECT_RELEASE روی سایت زنده تأیید شد"
   note "[HTTP] مارکر این ران + sw.js=$EXPECT_RELEASE روی سایت زنده تأیید شد"
