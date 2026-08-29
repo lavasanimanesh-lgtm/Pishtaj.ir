@@ -37,7 +37,7 @@
     CACHE: { store: 'ptfCache-idb-read-through-ttl', keys: CACHE }, /* v34.8.41 (R3/T3-4): پوشهٔ cache: در IDB + TTL؛ legacy LS فقط تا مهاجرت بوت */
     UI: { store: 'ls-light', keys: UI },
     DEV: { store: 'idb-or-sync', keys: DEV },
-    MEDIA: { store: 's3', keys: MEDIA }
+    MEDIA: { store: 's3-with-local-pointer', keys: MEDIA }, /* v34.8.44 (R5/T4-3b): تصویر کامل در آروان (پوشهٔ avatars/chqprint)؛ در LS فقط کلید + پیش‌نمایش ریز */
   };
 
   /* دستهٔ یک کلید — پیشوندها هم پوشش داده می‌شوند؛ ناشناخته = null */

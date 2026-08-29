@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.43",
+  "crm_version": "v34.8.44",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-29",
-  "updated_by": "Arena Agent (v34.8.43 — R5/T4-1b: توکن/نشست خارج از localStorage؛ مخزن JS = sessionStorage + کوکی HttpOnly مشترک (v34.8.28) + نشانگر غیرمحرم ptf_token_flag؛ مهاجرت یک‌بارهٔ LS→SS؛ بازسازی نشست تب تازه با role_verify؛ جاروی ۲۹ خواننده در ۱۹ فایل به ptfAuthToken؛ tester544)"
+  "updated_by": "Arena Agent (v34.8.44 — R5/T4-3b: عکس پروفایل به آروان S3؛ نقشهٔ سینک فقط کلید + پیش‌نمایش ریز ۶۴px (~۲۰KB→~۳KB per کاربر)؛ مهاجرت نرم مقادیر سنگین با گارد ۶ساعته؛ ارتقای نرم رندر با presign؛ fallback آفلاین = رفتار قبل؛ tester545)"
 }

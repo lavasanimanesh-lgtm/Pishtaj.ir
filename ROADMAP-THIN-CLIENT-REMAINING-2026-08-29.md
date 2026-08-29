@@ -42,7 +42,7 @@
 | 4 | **T3-5** | موکول به پنجرهٔ R4 — پروتکل pull مرکزی است؛ بدون تست دستگاه واقعی ریسکی. پایهٔ hydration کلید-به-کلید از v34.8.41 موجود است | client-server.js:150-190 | متوسط |
 | 5 | **T6/C5** | گام ۱ انجام شد در v34.8.42 (تله‌متری win7 + پرچم PTF_LEGACY_PUSH_OFF + داشبورد)؛ مانده: پنجرهٔ ≥۷ روز سبز → گام ۲ (حذف ~۲۰۰۰ خط) | sync.js `pushDirty`/`pullCheck` + api/crm.php `sync_engine_flags*` | **بالا** — پایش win7 و R4-GATE-BYPASS |
 | 6 | **T4-1b** | ✅ انجام شد در v34.8.43 (توکن/نشست → sessionStorage + کوکی HttpOnly؛ جاروی ۲۹ خواننده در ۱۹ فایل به ptfAuthToken؛ صفر SESS در LS) | crm/rbac.js (لایهٔ ptfAuth) + api/crm.php (ptf_token_flag + role_verify) | — |
-| 7 | **T4-3b** | `ptf_crm_avatars` هنوز بلاب سینک است؛ باید به S3 برود | key-registry.js: «تا T4-3 → S3» | متوسط |
+| 7 | **T4-3b** | ✅ انجام شد در v34.8.44 (تصویر کامل → آروان S3؛ نقشهٔ سبک {k,t,ts}؛ مهاجرت نرم + fallback آفلاین) | crm/theme.js + api/storage.php | — |
 | 8 | **T7** | 2FA نقش‌های مالی، bulk-revoke نشست، rate-limit فرمان‌ها، ابزارهای ریکاوری IDB-aware | crm/{clear-cache,force-restore,recover,sync-diagnostics}.html → صفر ارجاع indexedDB | کم‌ریسک فنی، نیاز به تأیید کارفرما (S جدول ۹ رودمپ) |
 | 9 | **بدهی A10** | ۲۶۱ عملیات مستقیم LS به‌عنوان baseline پذیرفته شده — باید پله‌ای صفر شود | arch-baseline.json | — |
 | 10 | **معلق مالک** | پچ هاردنینگ گیت دیپلوی (رفع false-red) هنوز push نشده | `_tools/PENDING-workflow-integrity-hardening-v34.8.37.patch` | — |
@@ -80,8 +80,8 @@
 
 ### R5 — نشست و رسانهٔ نهایی (T4-1b/T4-3b)
 - **گام ۱ (v34.8.43) ✅ انجام شد:** لایهٔ `ptfAuth` در rbac.js — توکن/نشست در sessionStorage + کوکی HttpOnly مشترک (پایهٔ v34.8.28)؛ مهاجرت یک‌بارهٔ LS→SS؛ نشانگر غیرمحرم `ptf_token_flag`؛ بازسازی نشست تبِ تازه با `role_verify`؛ جاروی ۲۹ خواننده در ۱۹ فایل؛ بک‌آپ‌ها دیگر توکن ندارند. **DoD گام ۱:** SESS در LS = صفر ✓؛ tester544 (۴۵ سنجه) ✓.
-- **گام ۲ (v34.8.44):** `ptf_crm_avatars` → آروان S3 (الگوی چک‌پرینت v34.8.28) + تستر purge-boot.
-- **DoD:** SESS در LS = صفر؛ تستر purge-boot سبز.
+- **گام ۲ (v34.8.44) ✅ انجام شد:** تصویر کامل آواتار → آروان S3 (پوشهٔ avatars؛ آپلود مستقیم مرورگر)؛ نقشهٔ سینک فقط {k: کلید, t: پیش‌نمایش ریز ۶۴px, ts} (~۲۰KB→~۳KB per کاربر)؛ سه شکل مقدار پشتیبانی می‌شود؛ tombstone حفظ؛ fallback آفلاین = dataURL کامل؛ مهاجرت نرم >۴KB با گارد ۶ساعته؛ ارتقای نرم رندر با presign (کش ۴۵دقیقه). tester545 (۳۴ سنجه).
+- **DoD:** SESS در LS = صفر ✓ (گام ۱)؛ رسانهٔ سنگین در نقشهٔ سینک = صفر ✓.
 
 ### R4-گام ۲ — حذف موتور legacy سینک — v34.8.45 (باز‌شماره‌گذاری: پس از پنجرهٔ شواهد ≥۷روزه از v34.8.42)
 - شرط اجرا: win7 ≈ 0 برای همهٔ کلیدها + صفر R4-GATE-BYPASS در audit + T3-5 (بوت صفحه‌ای) در همین پنجره.

@@ -271,7 +271,7 @@ async function runAckGenerationRuntime() {
     setData: function (key, value) { ls.setItem(key, JSON.stringify(value)); return true; },
     getData: function (key) { try { return JSON.parse(ls.getItem(key) || '[]'); } catch (e) { return []; } },
     curRole: function () { return 'admin'; }, curSession: function () { return { user: 'admin', name: 'Runtime Admin' }; },
-    ptfAuthToken: function () { return 'runtime-token'; }, ptfAuthOk: function () { return true; }, /* v34.8.43 (R5/T4-1b): لایهٔ نشست جدید sync.js */
+    ptfAuthToken: function () { return 'runtime-token'; }, ptfAuthOk: function () { return true; }, /* v34.8.44 (R5/T4-1b): لایهٔ نشست جدید sync.js */
     document: {
       getElementById: function (id) { return id === 'crmL' ? { style: { display: 'block' } } : null; },
       querySelector: function () { return null; }, querySelectorAll: function () { return []; }, addEventListener: function () {},

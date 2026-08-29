@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester544 — v34.8.43 (R5/T4-1b — SESSION-OUT-OF-LS): توکن/نشست خارج از localStorage
+/* tester544 — v34.8.44 (R5/T4-1b — SESSION-OUT-OF-LS): توکن/نشست خارج از localStorage
    قرارداد: توکن نشست از این نسخه در sessionStorage (فقط همین تب) نگه داشته می‌شود و
    کوکی HttpOnlyِ ptf_token (از v34.8.28) کانال مشترک تب‌هاست؛ سرور در نبود هدر
    X-CRM-Token از کوکی می‌پذیرد. مهاجرت یک‌بارهٔ بوت: LS→SS سپس حذف LS؛ بازسازی نشست
@@ -160,7 +160,7 @@ var assert = require('assert');
 })().catch(function (e) { T('زنجیرهٔ بیرونی', false, String(e && e.stack || e)); finish(); });
 
 function finish() {
-  console.log('\n— tester544 (v34.8.43: R5/T4-1b — توکن/نشست خارج از localStorage؛ کوکی HttpOnly + آینهٔ sessionStorage) —');
+  console.log('\n— tester544 (v34.8.44: R5/T4-1b — توکن/نشست خارج از localStorage؛ کوکی HttpOnly + آینهٔ sessionStorage) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }
