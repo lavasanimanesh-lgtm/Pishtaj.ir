@@ -1027,6 +1027,20 @@
     try { if (typeof ptfToast === 'function') ptfToast('حالت سرور-محور فعال شد و دادهٔ حجیم به IndexedDB منتقل شد — وابستگی به localStorage پایان یافت' + (off && off.moved ? ' (' + off.moved + ' کلید)' : ''), 'ok'); } catch (eT) {}
     return off;
   };
+  /* ---------- v34.8.51 (PRE-PROD): وضعیت شفاف دستگاه برای UI تنظیمات ----------
+     جعبهٔ تنظیماتِ «وضعیت دستگاه» به‌جای دکمه‌های خاموش/روشن قدیمی، از این
+     خوانندهٔ واحد استفاده می‌کند. دستگاه دارای دادهٔ محلیِ همگرایی‌نشده =
+     «در انتظار انتقال یک‌باره» (مسیر مهاجرت پروداکشن پس از دیپلوی v34.9.0). */
+  window.ptfBStatus = function () {
+    try {
+      return {
+        enabled: !!getFlag(),
+        synced: !!isSynced(),
+        queue: Object.keys(queueRead()).length,
+        localPayload: hasLocalBusinessPayload()
+      };
+    } catch (e) { return { enabled: false, synced: false, queue: 0, localPayload: false, error: '' + e }; }
+  };
   window.ptfBDisable = function () {
     /* v33.20.0: کلیدهای سنگینِ منتقل‌شده به حافظه/IDB را به localStorage برگردان تا حالت قدیمی سالم بماند */
     try {

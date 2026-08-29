@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester523 — v34.8.50 (STAGING-BANNER-LIFT): نوار زرد/بنر sync و toast ها نباید
+/* tester523 — v34.8.51 (STAGING-BANNER-LIFT): نوار زرد/بنر sync و toast ها نباید
    زیر بنر نارنجی «محیط تست» پنهان شوند (گزارش کارفرما ۱۴۰۵/۰۶/۰۵). */
 var fs = require('fs'), path = require('path');
 var ROOT = path.resolve(__dirname, '../..');
@@ -16,9 +16,9 @@ T('آفست toast ها شامل ارتفاع بنر استیجینگ است', /\
 var uk = read('crm/ui-kit.js');
 T('toast دسکتاپ هم از آفست پیروی می‌کند (var)', /bottom:calc\(20px \+ var\(--ptf-unsaved-banner-offset,0px\)\)/.test(uk));
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.8.50', ver.crm_version === 'v34.8.50', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.8.50', /window\.PTF_CRM_RELEASE = 'v34\.8.50'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8.50'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.8.51', ver.crm_version === 'v34.8.51', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.8.51', /window\.PTF_CRM_RELEASE = 'v34\.8.51'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8.51'/.test(read('crm/sw.js')));
 
-console.log('\n— tester523 (v34.8.50: STAGING-BANNER-LIFT) —');
+console.log('\n— tester523 (v34.8.51: STAGING-BANNER-LIFT) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

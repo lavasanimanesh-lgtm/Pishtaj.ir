@@ -676,14 +676,31 @@
       /* v33.22.2 (ساده‌سازی UI به درخواست کارفرما): توضیح فنی و دکمه‌های مضاعف حذف شد؛
          توابع (ptfStorageMigrateToIdb/ShowLargeKeys/ShowArchiveIndex/RequestPersistent) دست‌نخورده — «پاک‌سازی امن فوری» خودش ابتدا مهاجرت به IndexedDB را هم انجام می‌دهد. */
       '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="bt bt-o" onclick="ptfStorageCleanup()">پاک‌سازی امن فوری</button></div>' +
-      /* v33.18.0 (فاز B): فعال‌سازی حالت سرور-محور (کلاینت نازک) + v33.19.0: دکمهٔ پاک‌سازی کش — v33.22.2: متن کوتاه‌تر شد (دیتابیس MySQL هم‌اکنون فعال است) */
-      '<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;color:#065f46;line-height:1.9"><b>🌐 حالت سرور-محور</b> — راه‌حل دائمی پر شدن حافظه<br>اگر حافظهٔ این دستگاه پر است یا می‌خواهید داده فقط روی سرور باشد: این گزینه را فعال کنید تا داده از سرور خوانده/نوشته شود و حافظهٔ مرورگر فقط کش شود. سپس با «پاک‌سازی کش محلی» حافظه کاملاً آزاد می‌شود (داده روی سرور می‌ماند).' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
-      '<button class="bt" style="background:#059669" onclick="ptfBEnable()">✅ فعال‌سازی</button>' +
-      '<button class="bt bt-o" onclick="ptfBConfirmFlush()">🔄 هم‌گرایی دادهٔ محلی</button>' +
-      '<button class="bt bt-o" style="color:#b45309" onclick="if(window.ptfBClearLocalCache)ptfBClearLocalCache()">🗑 پاک‌سازی کش محلی</button>' +
-      '<button class="bt bt-o" style="color:#dc2626" onclick="ptfBDisable()">⛔ غیرفعال‌سازی</button>' +
-      '</div></div>';
+      /* v34.8.51 (PRE-PROD): جعبهٔ وضعیت دستگاه جایگزین دکمه‌های خاموش/روشن قدیمی —
+         معماری فعلی سرور-محور است؛ تنها کار معنادارِ کاربر در این جعبه:
+         (الف) دستگاه منتقل‌نشده → «انتقال یک‌باره» (همگرایی = همان مسیر مهاجرت
+         پروداکشن)، (ب) دستگاه منتقل‌شده → پاک‌سازی کش. دکمه‌های «فعال‌سازی»/
+         «غیرفعال‌سازی» از UI حذف شدند: فعال‌سازیِ بدون همگرایی برای دستگاه دارای
+         دادهٔ قدیمی ناامن بود و بازگشت به موتور legacy با حذف آن در v34.9.1
+         ناسازگار می‌شد (توابع ptfBEnable/ptfBDisable برای سازگاری ابزارها باقی‌اند). */
+      (function () {
+        var st = (typeof window.ptfBStatus === 'function') ? (window.ptfBStatus() || {}) : {};
+        var on = !!st.enabled;
+        var qN = st.queue || 0;
+        var h2 = '<div style="border-radius:12px;padding:10px 12px;margin-top:10px;font-size:12.5px;line-height:1.9;border:1px solid ' + (on ? '#a7f3d0' : '#fde68a') + ';background:' + (on ? '#ecfdf5' : '#fffbeb') + ';color:' + (on ? '#065f46' : '#92400e') + '">' +
+          '<b>' + (on ? '🖥 وضعیت دستگاه: سرور-محور فعال' : '🖥 وضعیت دستگاه: در انتظار انتقال یک‌باره') + '</b><br>';
+        if (on) {
+          h2 += 'دادهٔ اصلی این سامانه روی <b>سرور</b> است و حافظهٔ مرورگر فقط کش است. نیازی به هیچ تنظیمی نیست.' +
+            (qN > 0 ? '<br>⏳ ' + qN + ' تغییر در صف آفلاین است و با اتصال پایدار خودکار ارسال می‌شود.' : '');
+        } else {
+          h2 += 'داده‌های این دستگاه هنوز یک‌بار به سرور منتقل نشده است (حالت قدیمی). این انتقال <b>یک‌بار برای هر دستگاه</b> لازم است و چند دقیقه با اینترنت پایدار طول می‌کشد؛ دادهٔ محلی شما در تمام مراحل محفوظ می‌ماند.';
+        }
+        h2 += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+          (on ? '' : '<button class="bt" style="background:#059669" onclick="ptfBConfirmFlush()">⬆️ انتقال یک‌بارهٔ داده‌های این دستگاه</button>') +
+          '<button class="bt bt-o" style="color:#b45309" onclick="if(window.ptfBClearLocalCache)ptfBClearLocalCache()">🗑 پاک‌سازی کش محلی</button>' +
+          '</div></div>';
+        return h2;
+      })();
   };
 
   window.ptfStorageCleanup = function () {

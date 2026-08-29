@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.50 — انتقال فهرست «ثبت‌نام‌شده از سایت» به زیر تب‌ها + حذف رکورد ثبت‌نام.
+/* v34.8.51 — انتقال فهرست «ثبت‌نام‌شده از سایت» به زیر تب‌ها + حذف رکورد ثبت‌نام.
    باگ/درخواست: فهرست تامین‌کنندگان ثبت‌نام‌کرده از سایت بالای تب‌ها نمایش داده می‌شد
    و راهی برای حذف رکوردها (مثلاً ثبت‌نام اسپم/نامعتبر) وجود نداشت.
    رفع: ① جابه‌جایی DOM عنصر supPendWrap به بعد از تب‌ها (cheques.js)
@@ -18,9 +18,9 @@ var brg = read('crm/bridge.js');
 var api = read('api/crm.php');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.50', ver.crm_version === 'v34.8.50', ver.crm_version);
-T('cheques.js cache-bust 34.8.50', /cheques\.js\?v=34\.8.50/.test(idx));
-T('bridge.js cache-bust 34.8.50', /bridge\.js\?v=34\.8.50/.test(idx));
+T('VERSION.json = v34.8.51', ver.crm_version === 'v34.8.51', ver.crm_version);
+T('cheques.js cache-bust 34.8.51', /cheques\.js\?v=34\.8.51/.test(idx));
+T('bridge.js cache-bust 34.8.51', /bridge\.js\?v=34\.8.51/.test(idx));
 
 /* ① انتقال supPendWrap به زیر تب‌ها */
 T('تابع supPendBelowTabs تعریف شد', /function supPendBelowTabs\(\)\s*\{/.test(cheq));
@@ -34,7 +34,7 @@ T('گارد نقش ارشد در supSiteDelete', brg.indexOf('if (!isSenior()) {
 T('دکمهٔ حذف در رندر ثبت‌نام سایت', brg.indexOf('onclick="supSiteDelete(') > -1);
 T('دکمهٔ حذف فقط برای مدیران ارشد (isSenior)', /\(isSenior\(\)\s*\?\s*'<button[^>]*onclick="supSiteDelete/.test(brg));
 T('تایید قبل از حذف (confirm)', brg.indexOf("confirm('🗑 حذف ثبت‌نام سایت") > -1);
-T('حذف محلی از ptf_site_suppliers (از v34.8.50/R3 از طریق لایهٔ کش ptfCache — siteCacheSet)', brg.indexOf("siteCacheSet('ptf_site_suppliers'") > -1);
+T('حذف محلی از ptf_site_suppliers (از v34.8.51/R3 از طریق لایهٔ کش ptfCache — siteCacheSet)', brg.indexOf("siteCacheSet('ptf_site_suppliers'") > -1);
 
 /* ③ اکشن سروری */
 T('اکشن del_supplier_site در api/crm.php', api.indexOf("case 'del_supplier_site':") > -1);
@@ -44,6 +44,6 @@ T('فیلتر و ذخیرهٔ حذف', api.indexOf("array_values(array_filter($i
 
 T('tester476 در گیت CI', gate.indexOf('tester476-v34.7.74-sup-site-delete-and-tabs.js') > -1);
 
-console.log('\n— tester476 (v34.8.50: انتقال ثبت‌نام‌های سایت زیر تب‌ها + حذف رکورد) —');
+console.log('\n— tester476 (v34.8.51: انتقال ثبت‌نام‌های سایت زیر تب‌ها + حذف رکورد) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
