@@ -55,9 +55,56 @@
 <script>
 var API = '../api/crm.php';
 
-function getToken() {
-  return localStorage.getItem('ptf_crm_token');
+
+/* v34.8.45 (R6 — IDB-AWARE-RECOVERY): آمار IndexedDB (ptf-crm-storage-v1/kv) —
+   استندالون؛ همین ابزار بدون لود crm/*.js وضعیت آینه/کش/Dev-KV را نشان می‌دهد. */
+function ptfIdbStats(cb) {
+  var out = { ok: false, db: 'ptf-crm-storage-v1', rows: 0, bdata: 0, cache: 0, devkv: 0, bytes: 0 };
+  try {
+    var req = indexedDB.open('ptf-crm-storage-v1');
+    req.onerror = function () { cb && cb(out); };
+    req.onsuccess = function () {
+      var db = req.result;
+      try {
+        var cr = db.transaction('kv', 'readonly').objectStore('kv').openCursor();
+        cr.onerror = function () { db.close(); cb && cb(out); };
+        cr.onsuccess = function () {
+          var c = cr.result;
+          if (!c) { out.ok = true; db.close(); cb && cb(out); return; }
+          out.rows++;
+          var k = String(c.key || '');
+          if (k.indexOf('bdata:') === 0) out.bdata++;
+          else if (k.indexOf('cache:') === 0) out.cache++;
+          else if (k.indexOf('devkv:') === 0) out.devkv++;
+          try { var v = c.value; if (v && v.value) out.bytes += (String(v.value).length || 0) * 2; } catch (eV) {}
+          c.continue();
+        };
+      } catch (eTx) { db.close(); cb && cb(out); }
+    };
+  } catch (e) { cb && cb(out); }
 }
+function ptfIdbStatsHtml(st) {
+  if (!st || !st.ok) return '<small style="color:#94a3b8">IndexedDB در این مرورگر قابل خواندن نیست یا خالی است.</small>';
+  return '<b>' + st.rows + '</b> ردیف — آینهٔ دادهٔ سنگین (bdata:): <b>' + st.bdata + '</b> · کش (cache:): <b>' + st.cache + '</b> · Dev-KV (devkv:): <b>' + st.devkv + '</b> · حجم تقریبی: <b>' + (st.bytes > 1048576 ? (st.bytes / 1048576).toFixed(1) + ' MB' : Math.round(st.bytes / 1024) + ' KB') + '</b>';
+}
+
+function getToken() {
+  /* v34.8.45 (R6 — سازگار با R5/T4-1b): توکن از sessionStorage (قرارداد v34.8.43)؛
+     legacy LS فقط برای دستگاه‌های هنوز مهاجرت‌نشده. نبود توکن JS ≠ نبود نشست:
+     کوکی HttpOnly خودش را سرور می‌پذیرد (auth_get_header_token). */
+  try { var t = sessionStorage.getItem('ptf_crm_token'); if (t) return t; } catch (e) {}
+  try { return localStorage.getItem('ptf_crm_token'); } catch (e2) { return null; }
+}
+function cookieFlagOk() {
+  try { return /(?:^|;\s*)ptf_token_flag=1(?:;|$)/.test(document.cookie); } catch (e) { return false; }
+}
+function authH(extra) {
+  var h = extra || {};
+  var t = getToken();
+  if (t) h['X-CRM-Token'] = t; /* بدون توکن JS → کوکی HttpOnly احراز می‌کند؛ هدر خالی نروید */
+  return h;
+}
+function hasSession() { return !!getToken() || cookieFlagOk(); }
 
 function getRole() {
   try {
@@ -76,12 +123,13 @@ function checkStatus() {
   var html = '<h3>📊 وضعیت فعلی:</h3>';
   html += '<table border="1" cellpadding="8" style="width:100%;border-collapse:collapse">';
   html += '<tr><th>معیار</th><th>مقدار</th></tr>';
-  html += '<tr><td>Token</td><td>' + (token ? '<span style="color:green">✅ موجود</span>' : '<span style="color:red">❌ موجود نیست</span>') + '</td></tr>';
-  html += '<tr><td>Role</td><td>' + (role ? '<b>' + role + '</b>' : '<span style="color:red">❌ قابل استخراج نیست</span>') + '</td></tr>';
+  html += '<tr><td>Token</td><td>' + (token ? '<span style="color:green">✅ موجود (sessionStorage)</span>' : (cookieFlagOk() ? '<span style="color:green">✅ نشست سروری (کوکی HttpOnly)</span>' : '<span style="color:red">❌ نشست نیست — وارد CRM شوید</span>')) + '</td></tr>';
+  html += '<tr><td>Role</td><td>' + (role ? '<b>' + role + '</b>' : (cookieFlagOk() ? '<span style="color:#d97706">از کوکی — با اولین pull سرور تأیید می‌شود</span>' : '<span style="color:red">❌ قابل استخراج نیست</span>')) + '</td></tr>';
   html += '<tr><td>Global Rev</td><td><b>' + rev + '</b></td></tr>';
-  html += '<tr><td>User</td><td>' + (JSON.parse(localStorage.getItem('ptf_crm_session') || '{}').user || '❌') + '</td></tr>';
+  var _sess = '{}';
+  try { _sess = sessionStorage.getItem('ptf_crm_session') || localStorage.getItem('ptf_crm_session') || '{}'; } catch (eS) {}
+  html += '<tr><td>User</td><td>' + ((JSON.parse(_sess).user) || (cookieFlagOk() ? '(از کوکی)' : '❌')) + '</td></tr>';
   html += '</table>';
-  
   // بررسی تعداد رکوردها
   var counts = {};
   ['ptf_crm_rfqs', 'ptf_crm_customers', 'ptf_crm_offers'].forEach(function(k) {
@@ -99,11 +147,15 @@ function checkStatus() {
   });
   html += '</table>';
   
-  if (!token) {
-    html += '<div class="err"><b>❌ مشکل:</b> Token موجود نیست. ابتدا Login کنید.</div>';
+  if (!hasSession()) {
+    html += '<div class="err"><b>❌ مشکل:</b> نشست (توکن/کوکی) موجود نیست. ابتدا در CRM وارد شوید.</div>';
   }
   
+  html += '<h3 style="margin-top:14px">🗄 IndexedDB (آینهٔ سنگین/کش/Dev-KV):</h3>';
+  html += '<p id="idbStats" style="font-size:13px;color:#475569">در حال شمارش…</p>';
+
   document.getElementById('statusResult').innerHTML = html;
+  try { ptfIdbStats(function (st) { var el = document.getElementById('idbStats'); if (el) el.innerHTML = ptfIdbStatsHtml(st); }); } catch (eIdb) {}
 }
 
 function forcePullAll() {
@@ -120,7 +172,7 @@ function forcePullCustomers() {
 
 function forcePull(key, resultDiv) {
   var token = getToken();
-  if (!token) {
+  if (!hasSession()) {
     document.getElementById(resultDiv).innerHTML = '<div class="err">❌ Token موجود نیست. ابتدا Login کنید.</div>';
     return;
   }
@@ -128,7 +180,7 @@ function forcePull(key, resultDiv) {
   document.getElementById(resultDiv).innerHTML = '<p>⏳ در حال Force Pull...</p>';
   
   fetch(API + '?action=data_pull&since=0', {
-    headers: { 'X-CRM-Token': token }
+    headers: authH()
   })
   .then(function(r) {
     if (!r.ok) {
@@ -170,7 +222,7 @@ function forcePull(key, resultDiv) {
 
 function listBackups() {
   var token = getToken();
-  if (!token) {
+  if (!hasSession()) {
     document.getElementById('backupList').innerHTML = '<div class="err">❌ Token موجود نیست</div>';
     return;
   }
@@ -178,7 +230,7 @@ function listBackups() {
   document.getElementById('backupList').innerHTML = '<p>⏳ در حال لیست Backupها...</p>';
   
   fetch(API + '?action=list_backups', {
-    headers: { 'X-CRM-Token': token }
+    headers: authH()
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
@@ -217,7 +269,7 @@ function restoreFromBackup() {
   document.getElementById('restoreResult').innerHTML = '<div class="warn">⏳ در حال Restore...</div>';
   
   fetch(API + '?action=list_backups', {
-    headers: { 'X-CRM-Token': getToken() }
+    headers: authH()
   })
   .then(function(r) { return r.json(); })
   .then(function(d) {
@@ -230,7 +282,7 @@ function restoreFromBackup() {
     document.getElementById('restoreResult').innerHTML = '<div class="warn">⏳ در حال دانلود ' + latest.name + '...</div>';
     
     return fetch(API + '?action=get_backup&name=' + latest.name, {
-      headers: { 'X-CRM-Token': getToken() }
+      headers: authH()
     }).then(function(r) { return r.text(); });
   })
   .then(function(text) {

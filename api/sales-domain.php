@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.8.44';
+const SD_SERVICE_VERSION = '34.8.45';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -1392,6 +1392,33 @@ if ($readOnly) {
         sd_out(['ok'=>true,'counts'=>array_map('count', $d),'migration'=>sd_migration_report(),'version'=>SD_SERVICE_VERSION]);
     }
     sd_out(['ok'=>true,'data'=>sd_snapshot(),'version'=>SD_SERVICE_VERSION]);
+}
+
+/* ═══ v34.8.45 (R6/T7 — CMD-RATE-LIMIT): سقف نرخ فرمان‌های نوشتاری per-user ═══
+   پنجرهٔ لغزان ۶۰ثانیه‌ای، حداکثر ۶۰ فرمان در دقیقه برای هر کاربر. هدف: کشف زودهنگام
+   حلقه‌های خراب کلاینت/اسکریپت (نه کاربر واقعی — کاربر انسانی به این سقف نمی‌رسد).
+   فقط مسیر نوشتن (غیرreadOnly)؛ چک قبل از قفل اصلی تا رد ارزان باشد؛ شمارنده
+   best-effort است — شکست نوشتن فایل، درخواست را نمی‌شکند. */
+{
+    $rlFile = sd_sync_dir() . '/cmd_rate.json';
+    $rlMax = 60; $rlWindow = 60; $rlNow = time();
+    $rl = is_file($rlFile) ? (json_decode((string)@file_get_contents($rlFile), true) ?: []) : [];
+    $rlUser = ($user !== '') ? $user : ('role:' . $role);
+    $rlList = array_values(array_filter(array_map('intval', is_array($rl[$rlUser] ?? null) ? $rl[$rlUser] : []),
+        function ($t) use ($rlNow, $rlWindow) { return $t > $rlNow - $rlWindow; }));
+    if (count($rlList) >= $rlMax) {
+        sd_out(['ok'=>false,'error'=>'rate_limited','retryAfter'=>max(1, $rlWindow - ($rlNow - (int)$rlList[0])),'limit'=>$rlMax,'window'=>$rlWindow], 429);
+    }
+    $rlList[] = $rlNow;
+    $rl[$rlUser] = $rlList;
+    if (count($rl) > 200) { /* هرس دوره‌ای کاربران بی‌فعالیت تا فایل رشد نکند */
+        foreach ($rl as $rlK => $rlV) {
+            $rlKeep = array_values(array_filter(array_map('intval', is_array($rlV) ? $rlV : []),
+                function ($t) use ($rlNow, $rlWindow) { return $t > $rlNow - $rlWindow; }));
+            if (!$rlKeep) unset($rl[$rlK]); else $rl[$rlK] = $rlKeep;
+        }
+    }
+    @file_put_contents($rlFile, json_encode($rl), LOCK_EX);
 }
 
 /* Shared with crm.php data_push so a legacy client cannot interleave a whole-array

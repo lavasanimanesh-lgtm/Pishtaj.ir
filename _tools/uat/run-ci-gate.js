@@ -205,6 +205,7 @@ var SUITE = [
   { g: 'نازک‌سازی/R4-گام۱ پرچم قطع موتور legacy سینک', f: '_tools/uat/tester543-v34.8.42-r4g1-legacy-push-off.js' },
   { g: 'نازک‌سازی/R5-گام۱ توکن/نشست خارج از localStorage', f: '_tools/uat/tester544-v34.8.43-r5g1-session-out-of-ls.js' },
   { g: 'نازک‌سازی/R5-گام۲ عکس پروفایل به فضای ابری', f: '_tools/uat/tester545-v34.8.44-r5g2-avatars-s3.js' },
+  { g: 'نازک‌سازی/R6-الف ابزارهای ریکاوری IDB-aware + سقف نرخ فرمان‌ها', f: '_tools/uat/tester546-v34.8.45-r6a-idb-tools-rate-limit.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

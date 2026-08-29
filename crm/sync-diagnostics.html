@@ -104,6 +104,48 @@ function renderKeys() {
   document.getElementById('keysStatus').innerHTML = html;
 }
 
+/* v34.8.45 (R6 — IDB-AWARE-RECOVERY): آمار IndexedDB (ptf-crm-storage-v1/kv) —
+   استندالون؛ همین ابزار بدون لود crm/*.js وضعیت آینه/کش/Dev-KV را نشان می‌دهد. */
+function ptfIdbStats(cb) {
+  var out = { ok: false, db: 'ptf-crm-storage-v1', rows: 0, bdata: 0, cache: 0, devkv: 0, bytes: 0 };
+  try {
+    var req = indexedDB.open('ptf-crm-storage-v1');
+    req.onerror = function () { cb && cb(out); };
+    req.onsuccess = function () {
+      var db = req.result;
+      try {
+        var cr = db.transaction('kv', 'readonly').objectStore('kv').openCursor();
+        cr.onerror = function () { db.close(); cb && cb(out); };
+        cr.onsuccess = function () {
+          var c = cr.result;
+          if (!c) { out.ok = true; db.close(); cb && cb(out); return; }
+          out.rows++;
+          var k = String(c.key || '');
+          if (k.indexOf('bdata:') === 0) out.bdata++;
+          else if (k.indexOf('cache:') === 0) out.cache++;
+          else if (k.indexOf('devkv:') === 0) out.devkv++;
+          try { var v = c.value; if (v && v.value) out.bytes += (String(v.value).length || 0) * 2; } catch (eV) {}
+          c.continue();
+        };
+      } catch (eTx) { db.close(); cb && cb(out); }
+    };
+  } catch (e) { cb && cb(out); }
+}
+function ptfIdbStatsHtml(st) {
+  if (!st || !st.ok) return '<small style="color:#94a3b8">IndexedDB در این مرورگر قابل خواندن نیست یا خالی است.</small>';
+  return '<b>' + st.rows + '</b> ردیف — آینهٔ دادهٔ سنگین (bdata:): <b>' + st.bdata + '</b> · کش (cache:): <b>' + st.cache + '</b> · Dev-KV (devkv:): <b>' + st.devkv + '</b> · حجم تقریبی: <b>' + (st.bytes > 1048576 ? (st.bytes / 1048576).toFixed(1) + ' MB' : Math.round(st.bytes / 1024) + ' KB') + '</b>';
+}
+
+/* v34.8.45 (R6): وضعیت IDB در کارت وضعیت کلی */
+function renderIdbCard() {
+  try {
+    ptfIdbStats(function (st) {
+      var el = document.getElementById('overallStatus');
+      if (el) el.innerHTML += '<div style="margin-top:10px;padding:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:13px;direction:rtl"><b>🗄 IndexedDB (ptf-crm-storage-v1):</b> ' + ptfIdbStatsHtml(st) + '</div>';
+    });
+  } catch (e) {}
+}
+
 function runTest() {
   var ctx = tryLoadContext();
   if (!ctx.token) {
@@ -193,6 +235,7 @@ function forcePull() {
 }
 
 // Init
+renderIdbCard();
 var ctx = tryLoadContext();
 renderOverall(ctx);
 renderKeys();

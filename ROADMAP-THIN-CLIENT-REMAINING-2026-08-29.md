@@ -43,7 +43,7 @@
 | 5 | **T6/C5** | گام ۱ انجام شد در v34.8.42 (تله‌متری win7 + پرچم PTF_LEGACY_PUSH_OFF + داشبورد)؛ مانده: پنجرهٔ ≥۷ روز سبز → گام ۲ (حذف ~۲۰۰۰ خط) | sync.js `pushDirty`/`pullCheck` + api/crm.php `sync_engine_flags*` | **بالا** — پایش win7 و R4-GATE-BYPASS |
 | 6 | **T4-1b** | ✅ انجام شد در v34.8.43 (توکن/نشست → sessionStorage + کوکی HttpOnly؛ جاروی ۲۹ خواننده در ۱۹ فایل به ptfAuthToken؛ صفر SESS در LS) | crm/rbac.js (لایهٔ ptfAuth) + api/crm.php (ptf_token_flag + role_verify) | — |
 | 7 | **T4-3b** | ✅ انجام شد در v34.8.44 (تصویر کامل → آروان S3؛ نقشهٔ سبک {k,t,ts}؛ مهاجرت نرم + fallback آفلاین) | crm/theme.js + api/storage.php | — |
-| 8 | **T7** | 2FA نقش‌های مالی، bulk-revoke نشست، rate-limit فرمان‌ها، ابزارهای ریکاوری IDB-aware | crm/{clear-cache,force-restore,recover,sync-diagnostics}.html → صفر ارجاع indexedDB | کم‌ریسک فنی، نیاز به تأیید کارفرما (S جدول ۹ رودمپ) |
+| 8 | **T7** | ◐ نیمه‌تمام در v34.8.45 (ابزارهای ریکاوری IDB-aware ✅ + rate-limit فرمان‌ها ✅)؛ مانده: 2FA نقش‌های مالی + bulk-revoke نشست‌ها (v34.8.46) | api/sales-domain.php + crm/{clear-cache,force-restore,recover,sync-diagnostics}.html | کم‌ریسک فنی |
 | 9 | **بدهی A10** | ۲۶۱ عملیات مستقیم LS به‌عنوان baseline پذیرفته شده — باید پله‌ای صفر شود | arch-baseline.json | — |
 | 10 | **معلق مالک** | پچ هاردنینگ گیت دیپلوی (رفع false-red) هنوز push نشده | `_tools/PENDING-workflow-integrity-hardening-v34.8.37.patch` | — |
 
@@ -86,10 +86,10 @@
 ### R4-گام ۲ — حذف موتور legacy سینک — v34.8.45 (باز‌شماره‌گذاری: پس از پنجرهٔ شواهد ≥۷روزه از v34.8.42)
 - شرط اجرا: win7 ≈ 0 برای همهٔ کلیدها + صفر R4-GATE-BYPASS در audit + T3-5 (بوت صفحه‌ای) در همین پنجره.
 
-### R6 — سخت‌گیری بانکی و DoD نهایی (T7) — v34.9.0
-- 2FA پیامکی نقش‌های مالی، bulk-revoke نشست‌ها (ادمین)، rate-limit فرمان‌ها per-user.
-- چهار ابزار ریکاوری HTML → IDB-aware.
-- soak test یک هفته روی دستگاه قدیمی واقعی + اثبات E1..E7 + کاهش baseline A10 به صفرِ باقیمانده.
+### R6 — سخت‌گیری بانکی و DoD نهایی (T7)
+- **الف (v34.8.45) ✅ انجام شد:** چهار ابزار ریکاوری HTML همه IDB-aware (آمار bdata:/cache:/devkv: + پاکسازی امن کش منقضی در clear-cache + سازگاری نشست v34.8.43 در force-restore)؛ سقف نرخ فرمان‌های نوشتاری per-user در sales-domain (۶۰/دقیقه، 429+retryAfter، قبل از قفل اصلی، readOnly/idempotent معاف). tester546 (۴۰ سنجه).
+- **ب (v34.8.46):** 2FA پیامکی نقش‌های مالی + bulk-revoke نشست‌ها (ادمین).
+- **v34.9.0:** چک‌لیست دیپلوی پروداکشن + بستن باقی‌ماندهٔ A10 + اثبات E1..E7؛ soak test یک هفته روی دستگاه قدیمی واقعی (پس از دیپلوی پروداکشن، همراه جمع‌آوری win7).
 
 ### موازی و معلق (بدون نسخهٔ جدید تا تأیید)
 - **اقدام مالک (یک خط):** `git apply _tools/PENDING-workflow-integrity-hardening-v34.8.37.patch && git add -A && git commit -m "ci: هاردنینگ گیت post-deploy" && git push` — پایان false-red گیت استقرار.

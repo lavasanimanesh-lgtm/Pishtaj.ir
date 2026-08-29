@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.44",
+  "crm_version": "v34.8.45",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-29",
-  "updated_by": "Arena Agent (v34.8.44 — R5/T4-3b: عکس پروفایل به آروان S3؛ نقشهٔ سینک فقط کلید + پیش‌نمایش ریز ۶۴px (~۲۰KB→~۳KB per کاربر)؛ مهاجرت نرم مقادیر سنگین با گارد ۶ساعته؛ ارتقای نرم رندر با presign؛ fallback آفلاین = رفتار قبل؛ tester545)"
+  "updated_by": "Arena Agent (v34.8.45 — R6-الف: چهار ابزار ریکاوری HTML شامل clear-cache/force-restore/recover/sync-diagnostics همه IDB-aware شدند (آمار bdata:/cache:/devkv: + پاکسازی امن کش منقضی + سازگاری نشست v34.8.43)؛ سقف نرخ فرمان‌های نوشتاری per-user در sales-domain (۶۰/دقیقه، 429+retryAfter)؛ tester546)"
 }

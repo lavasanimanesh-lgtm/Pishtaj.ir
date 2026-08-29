@@ -36,7 +36,8 @@
   <h2>گام ۲ — رفع مشکل نمایش (کش قدیمی PWA)</h2>
   <p style="font-size:13px">شایع‌ترین علت بعد از آپدیت: نسخه قدیمی فایل‌ها در کش مرورگر مانده. این دکمه <b>فقط کش و Service Worker را پاک می‌کند — داده‌ها دست نمی‌خورند.</b></p>
   <button class="b1" onclick="fixCache()">🔄 پاکسازی کش PWA و بارگذاری نسخه جدید</button>
-  <div id="log"></div>
+  <p id="idbPanel" style="font-size:12.5px;color:#475569;direction:rtl">در حال شمارش IndexedDB…</p>
+<div id="log"></div>
 </div>
 
 <div class="card">
@@ -55,6 +56,48 @@
 var KEYS = ['ptf_crm_rfqs','ptf_crm_suppliers','ptf_crm_customers','ptf_crm_users','ptf_crm_products','ptf_crm_offers','ptf_crm_leads','ptf_crm_reminders','ptf_crm_invoices','ptf_crm_notifs','ptf_crm_deals','ptf_crm_projects','ptf_crm_packinglists','ptf_crm_letters','ptf_crm_contracts','ptf_crm_inqitems','ptf_crm_smsbook','ptf_crm_audit'];
 var LB = {ptf_crm_rfqs:'استعلامات',ptf_crm_suppliers:'تامین‌کنندگان',ptf_crm_customers:'مشتریان',ptf_crm_users:'کاربران',ptf_crm_products:'کالاها',ptf_crm_offers:'پیشنهادها (TO/CO)',ptf_crm_leads:'لیدها',ptf_crm_reminders:'یادآورها',ptf_crm_invoices:'فاکتورها',ptf_crm_notifs:'اعلانات',ptf_crm_deals:'پرونده‌های فروش',ptf_crm_projects:'پرونده‌های پروژه',ptf_crm_packinglists:'پکینگ لیست',ptf_crm_letters:'مکاتبات',ptf_crm_contracts:'قراردادها',ptf_crm_inqitems:'اقلام درخواست',ptf_crm_smsbook:'دفترچه پیامک',ptf_crm_audit:'رد پا'};
 
+/* v34.8.45 (R6 — IDB-AWARE-RECOVERY): آمار IndexedDB (ptf-crm-storage-v1/kv) —
+   استندالون؛ همین ابزار بدون لود crm/*.js وضعیت آینه/کش/Dev-KV را نشان می‌دهد. */
+function ptfIdbStats(cb) {
+  var out = { ok: false, db: 'ptf-crm-storage-v1', rows: 0, bdata: 0, cache: 0, devkv: 0, bytes: 0 };
+  try {
+    var req = indexedDB.open('ptf-crm-storage-v1');
+    req.onerror = function () { cb && cb(out); };
+    req.onsuccess = function () {
+      var db = req.result;
+      try {
+        var cr = db.transaction('kv', 'readonly').objectStore('kv').openCursor();
+        cr.onerror = function () { db.close(); cb && cb(out); };
+        cr.onsuccess = function () {
+          var c = cr.result;
+          if (!c) { out.ok = true; db.close(); cb && cb(out); return; }
+          out.rows++;
+          var k = String(c.key || '');
+          if (k.indexOf('bdata:') === 0) out.bdata++;
+          else if (k.indexOf('cache:') === 0) out.cache++;
+          else if (k.indexOf('devkv:') === 0) out.devkv++;
+          try { var v = c.value; if (v && v.value) out.bytes += (String(v.value).length || 0) * 2; } catch (eV) {}
+          c.continue();
+        };
+      } catch (eTx) { db.close(); cb && cb(out); }
+    };
+  } catch (e) { cb && cb(out); }
+}
+function ptfIdbStatsHtml(st) {
+  if (!st || !st.ok) return '<small style="color:#94a3b8">IndexedDB در این مرورگر قابل خواندن نیست یا خالی است.</small>';
+  return '<b>' + st.rows + '</b> ردیف — آینهٔ دادهٔ سنگین (bdata:): <b>' + st.bdata + '</b> · کش (cache:): <b>' + st.cache + '</b> · Dev-KV (devkv:): <b>' + st.devkv + '</b> · حجم تقریبی: <b>' + (st.bytes > 1048576 ? (st.bytes / 1048576).toFixed(1) + ' MB' : Math.round(st.bytes / 1024) + ' KB') + '</b>';
+}
+
+/* v34.8.45 (R6): پنل وضعیت IDB کنار اسکن LS — دادهٔ سنگین از v33.20 در IDB است */
+function renderIdbPanel() {
+  try {
+    ptfIdbStats(function (st) {
+      var el = document.getElementById('idbPanel');
+      if (el) el.innerHTML = '<b>🗄 IndexedDB:</b> ' + ptfIdbStatsHtml(st);
+    });
+  } catch (e) {}
+}
+
 function scan() {
   var h = '<table><tr><th>بخش</th><th>تعداد رکورد</th></tr>';
   var total = 0;
@@ -71,6 +114,7 @@ function scan() {
   document.getElementById('dataBox').innerHTML = h;
 }
 
+renderIdbPanel();
 function log(m){ document.getElementById('log').textContent += m + '\n'; }
 
 function fixCache() {
