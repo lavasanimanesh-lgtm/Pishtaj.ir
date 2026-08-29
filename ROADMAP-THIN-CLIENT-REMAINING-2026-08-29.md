@@ -40,7 +40,7 @@
 | 2 | **T5-2c** | پیش‌نویس‌ها و صف کدینگ (`ptf_autodraft_offer_/award_revision_`، `sigRecovery_*`، `ptf_code_tmp_queue/plan/ack`) در LS | offers.js:837 (خواندن سنکرون هنگام باز کردن فرم)، codegen.js:235..445 | متوسط (جریان UX فرم/کدینگ باید async شود) |
 | 3 | **T3-4** | ✅ انجام شد در v34.8.41 (لایهٔ `ptfCache` روی IDB + TTL؛ صفر نوشتن جدید LS) | storage-quota.js / bridge.js / fx.js / storage.js / buycompare.js / archive.js | — |
 | 4 | **T3-5** | موکول به پنجرهٔ R4 — پروتکل pull مرکزی است؛ بدون تست دستگاه واقعی ریسکی. پایهٔ hydration کلید-به-کلید از v34.8.41 موجود است | client-server.js:150-190 | متوسط |
-| 5 | **T6/C5** | دو موتور سینک زنده‌اند؛ `pushDirty`/`pullCheck` بازنشسته نشده‌اند (~۲۰۰۰ خط) | sync.js:937 (`pushDirty`)، sync.js:1191 (`pullCheck`) | **بالا** — نیازمند پایش sync_stats و پرچم خاموشی |
+| 5 | **T6/C5** | گام ۱ انجام شد در v34.8.42 (تله‌متری win7 + پرچم PTF_LEGACY_PUSH_OFF + داشبورد)؛ مانده: پنجرهٔ ≥۷ روز سبز → گام ۲ (حذف ~۲۰۰۰ خط) | sync.js `pushDirty`/`pullCheck` + api/crm.php `sync_engine_flags*` | **بالا** — پایش win7 و R4-GATE-BYPASS |
 | 6 | **T4-1b** | توکن `ptf_crm_token` هنوز در LS خوانده می‌شود (ده‌ها نقطه) | grep: backup/bridge/careers/client-server/cms/codegen/golive/inqreader/… | متوسط (پس از چرخش دستگاه‌ها) |
 | 7 | **T4-3b** | `ptf_crm_avatars` هنوز بلاب سینک است؛ باید به S3 برود | key-registry.js: «تا T4-3 → S3» | متوسط |
 | 8 | **T7** | 2FA نقش‌های مالی، bulk-revoke نشست، rate-limit فرمان‌ها، ابزارهای ریکاوری IDB-aware | crm/{clear-cache,force-restore,recover,sync-diagnostics}.html → صفر ارجاع indexedDB | کم‌ریسک فنی، نیاز به تأیید کارفرما (S جدول ۹ رودمپ) |
@@ -74,8 +74,8 @@
 - **DoD:** صفر نوشتنِ جدید LS برای دستهٔ CACHE؛ tester542 (۳۵ سنجه) سبز؛ baseline A10 رتچت شد.
 
 ### R4 — بازنشستگی موتور legacy سینک (T6/C5) — v34.8.42/43 (دو گام)
-- **گام ۱ (v34.8.42):** پرچم per-key `PTF_LEGACY_PUSH_OFF` (پیش‌فرض روشنِ فعلی) + داشبورد تصمیم از `sync_stats` (شرط: پنجرهٔ ≥۷ روز با push توده‌ای ≈ صفر برای کلیدهای REC) + تله‌متری گیت.
-- **گام ۲ (v34.8.43):** حذف `pushDirty`/`pullCheck` و ~۲۰۰۰ خط منطق تعارض؛ `ptfSyncNotifyDirty` فقط صف فاز B را تغذیه می‌کند.
+- **گام ۱ (v34.8.42) ✅ انجام شد:** تله‌متری push سطل روزانه (هرس ۱۴روز) + `win7` در sync_stats؛ اکشن‌های `sync_engine_flags(_set)` با گیت شواهد سمت سرور (win7 ≤ 3 یا force+دلیل، بازگشت‌پذیر، اتمیک)؛ کلاینت: پرچم‌ها read-through از ptfCache (TTL 1h)؛ گیت fail-open در pushDirty — bypass دستگاه همگرانشده با R4-GATE-BYPASS در audit ثبت می‌شود (فهرست مانع‌های گام ۲)؛ شبکۀ امنیتی legacy در غیاب صف فاز B (قبلاً گیر بی‌صدا)؛ داشبورد تصمیم در تنظیمات. **پیش‌فرض = رفتار امروز (صفر پرچم).**
+- **گام ۲ (v34.8.43):** پس از پنجرهٔ ≥۷ روز سبز (win7 ≈ 0 همهٔ کلیدها + صفر R4-GATE-BYPASS): حذف `pushDirty`/`pullCheck` و ~۲۰۰۰ خط منطق تعارض؛ `ptfSyncNotifyDirty` فقط صف فاز B را تغذیه می‌کند؛ T3-5 (بوت صفحه‌ای) در همین پنجره.
 - **DoD:** اصل E7 «یک موتور» اثبات‌پذیر؛ archive تعارض‌ها همچنان بازیافت‌پذیر.
 
 ### R5 — نشست و رسانهٔ نهایی (T4-1b/T4-3b) — v34.8.44

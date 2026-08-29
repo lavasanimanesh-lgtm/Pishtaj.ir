@@ -1839,10 +1839,20 @@ switch($action) {
         $statsFile = $data_dir . '/sync/push_stats.json';
         $stats = is_file($statsFile) ? (json_decode((string)file_get_contents($statsFile), true) ?: []) : [];
         $rows = [];
+        $win7From = date('Y-m-d', strtotime('-6 days'));
         foreach ($stats as $key => $row) {
             if (!is_array($row)) continue;
+            /* v34.8.42 (R4-گام۱): win7 = مجموع push توده‌ای در ۷ روز آخر (۷ سطل)؛
+               null یعنی تله‌متری روزانه هنوز جمع نشده (ردیف قدیمی) → شواهد ناکافی. */
+            $win7 = null; $win7Days = 0;
+            if (is_array($row['d'] ?? null)) {
+                $win7 = 0;
+                foreach ($row['d'] as $dk => $dn) { if ($dk >= $win7From) { $win7 += (int)$dn; $win7Days++; } }
+            }
             $rows[] = [
                 'key' => (string)$key,
+                'win7' => $win7,
+                'win7Days' => $win7Days,
                 'pushes' => (int)($row['n'] ?? 0),
                 'bytesTotal' => (int)($row['bytes'] ?? 0),
                 'avgBytes' => ((int)($row['n'] ?? 0) > 0) ? (int)round(((int)($row['bytes'] ?? 0)) / max(1,(int)($row['n'] ?? 1))) : 0,
@@ -1853,7 +1863,58 @@ switch($action) {
             ];
         }
         usort($rows, function($a,$b){ return ($b['pushes'] <=> $a['pushes']) ?: ($b['conflicts'] <=> $a['conflicts']); });
-        echo json_encode(['ok' => true, 'since' => 'v34.8.12', 'keys' => count($rows), 'stats' => $rows], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true, 'since' => 'v34.8.12', 'win7From' => $win7From, 'keys' => count($rows), 'stats' => $rows], JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'sync_engine_flags':
+        /* v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): وضعیت پرچم‌های بازنشستگی موتور
+           سینک legacy — فقط‌خواندنی؛ ادمین/رئیس. کلاینت این JSON را با TTL کش می‌کند. */
+        verify_request();
+        role_guard('users_write');
+        $flagsFile = $data_dir . '/sync/engine_flags.json';
+        $flagsPayload = is_file($flagsFile) ? (json_decode((string)file_get_contents($flagsFile), true) ?: []) : [];
+        $offNow = is_array($flagsPayload['legacyPushOff'] ?? null) ? $flagsPayload['legacyPushOff'] : [];
+        echo json_encode(['ok' => true, 'legacyPushOff' => $offNow, 'since' => 'v34.8.42'], JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'sync_engine_flag_set':
+        /* v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): کلید قطع PTF_LEGACY_PUSH_OFF برای
+           یک کلید سینک. گیت شواهد: خاموش‌کردن push توده‌ای فقط با پنجرهٔ ۷روزهٔ ≈ صفر
+           (win7 ≤ 3) یا force صریح + دلیل؛ هر تغییر با کاربر/زمان/دلیل ثبت و کاملاً
+           بازگشت‌پذیر است (off=0). اثر گام ۱ = صفر به‌صورت پیش‌فرض (fail-open کلاینت). */
+        verify_request();
+        role_guard('users_write');
+        $fkey = clean($_POST['key'] ?? '', 80);
+        $off = (($_POST['off'] ?? '') === '1');
+        $reason = clean($_POST['reason'] ?? '', 200);
+        $force = (($_POST['force'] ?? '') === '1');
+        $by = clean($_POST['by'] ?? '', 80);
+        if ($fkey === '' || !in_array($fkey, sync_all_keys(), true)) { echo json_encode(['ok' => false, 'error' => 'کلید خارج از دامنهٔ سینک است'], JSON_UNESCAPED_UNICODE); break; }
+        $sdirEng = $data_dir . '/sync';
+        if (!is_dir($sdirEng)) { mkdir($sdirEng, 0755, true); file_put_contents($sdirEng . '/.htaccess', "Deny from all\n"); }
+        $statsEng = is_file($sdirEng . '/push_stats.json') ? (json_decode((string)file_get_contents($sdirEng . '/push_stats.json'), true) ?: []) : [];
+        $win7now = null;
+        if (isset($statsEng[$fkey]) && is_array($statsEng[$fkey]['d'] ?? null)) {
+            $win7now = 0; $fromEng = date('Y-m-d', strtotime('-6 days'));
+            foreach ($statsEng[$fkey]['d'] as $dkE => $dnE) { if ($dkE >= $fromEng) $win7now += (int)$dnE; }
+        }
+        if ($off && !$force && ($win7now === null || $win7now > 3)) {
+            echo json_encode(['ok' => false, 'win7' => $win7now, 'error' => ($win7now === null
+                ? 'شواهد پنجرهٔ ۷روزه برای این کلید موجود نیست (تله‌متری روزانه از v34.8.42 جمع می‌شود) — برای عبور، force همراه دلیل لازم است'
+                : 'پنجرهٔ ۷روزهٔ push توده‌ای این کلید صفر نیست (' . $win7now . ' بار) — برای عبور، force همراه دلیل لازم است')], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        if ($off && $force && mb_strlen($reason) < 5) { echo json_encode(['ok' => false, 'error' => 'عبور اجباری نیازمند دلیل ثبت‌شدنی است (حداقل ۵ نویسه)'], JSON_UNESCAPED_UNICODE); break; }
+        $flagsFileEng = $sdirEng . '/engine_flags.json';
+        $payloadEng = is_file($flagsFileEng) ? (json_decode((string)file_get_contents($flagsFileEng), true) ?: []) : [];
+        if (!is_array($payloadEng['legacyPushOff'] ?? null)) $payloadEng['legacyPushOff'] = [];
+        if ($off) $payloadEng['legacyPushOff'][$fkey] = ['at' => date('Y-m-d H:i:s'), 'by' => $by, 'reason' => $reason, 'win7AtSet' => $win7now];
+        else unset($payloadEng['legacyPushOff'][$fkey]);
+        $payloadEng['updatedAt'] = date('Y-m-d H:i:s');
+        $tmpEng = $flagsFileEng . '.tmp.' . bin2hex(random_bytes(4));
+        if (@file_put_contents($tmpEng, json_encode($payloadEng, JSON_UNESCAPED_UNICODE), LOCK_EX) === false) { @unlink($tmpEng); echo json_encode(['ok' => false, 'error' => 'نوشتن فایل پرچم ناموفق بود'], JSON_UNESCAPED_UNICODE); break; }
+        @rename($tmpEng, $flagsFileEng);
+        echo json_encode(['ok' => true, 'key' => $fkey, 'off' => $off, 'win7' => $win7now, 'legacyPushOff' => $payloadEng['legacyPushOff']], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'get_backup':
@@ -2047,6 +2108,14 @@ switch($action) {
                 if (!is_string($sk) || $sk === '') continue;
                 $row = $stats[$sk] ?? ['n'=>0,'bytes'=>0,'conflicts'=>0,'rejects'=>0];
                 $row['n'] = (int)($row['n'] ?? 0) + 1;
+                /* v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): سطل روزانه برای پنجرهٔ
+                   ۷روزهٔ تصمیمِ بازنشستگی موتور legacy؛ هرس به ۱۴ روز آخر. */
+                $_today = date('Y-m-d');
+                $_d = is_array($row['d'] ?? null) ? $row['d'] : [];
+                $_d[$_today] = (int)($_d[$_today] ?? 0) + 1;
+                $_cut = date('Y-m-d', strtotime('-13 days'));
+                foreach ($_d as $_dk => $_dn) { if ($_dk < $_cut) unset($_d[$_dk]); }
+                $row['d'] = $_d;
                 if (isset($j['data'][$sk]) && is_string($j['data'][$sk])) $row['bytes'] = (int)($row['bytes'] ?? 0) + strlen($j['data'][$sk]);
                 if (in_array($sk, $conflicts, true)) $row['conflicts'] = (int)($row['conflicts'] ?? 0) + 1;
                 if (in_array($sk, $rejected, true)) $row['rejects'] = (int)($row['rejects'] ?? 0) + 1;
