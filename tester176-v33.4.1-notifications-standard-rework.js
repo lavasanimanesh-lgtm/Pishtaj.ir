@@ -183,6 +183,7 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
 
   function makeBridgeCtx() {
     var store = {};
+    var ssStore = {}; /* v34.8.43 (R5/T4-1b): لایهٔ ptfAuth نشست را از sessionStorage می‌خواند */
     var ctx = {
       console: console, JSON: JSON, Math: Math, Array: Array, Object: Object, String: String, Date: Date,
       Number: Number, parseInt: parseInt,
@@ -190,6 +191,11 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
         getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
         setItem: function (k, v) { store[k] = String(v); },
         removeItem: function (k) { delete store[k]; }
+      },
+      sessionStorage: {
+        getItem: function (k) { return Object.prototype.hasOwnProperty.call(ssStore, k) ? ssStore[k] : null; },
+        setItem: function (k, v) { ssStore[k] = String(v); },
+        removeItem: function (k) { delete ssStore[k]; }
       },
       getData: function (k) { try { return JSON.parse(store['d_' + k] || '[]'); } catch (e) { return []; } },
       setData: function (k, v) { store['d_' + k] = JSON.stringify(v); },
@@ -237,11 +243,12 @@ function loadRbac(ctx) { vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'),
        دارد که از localStorage['ptf_crm_session'] می‌خواند — پس session باید همانجا ذخیره شود،
        نه به‌عنوان mock جدا (که با بارگذاری rbac.js override می‌شود). */
     vm.runInContext(fs.readFileSync('crm/rbac.js', 'utf8'), ctx, { filename: 'rbac.js' });
-    ctx.localStorage.setItem('ptf_crm_session', JSON.stringify({ user: 'sales1', name: 'فروشنده یک', roleId: 'sales' }));
+    /* v34.8.43 (R5/T4-1b): نشست/توکن در sessionStorage (قرارداد جدید ptfAuth) */
+    ctx.sessionStorage.setItem('ptf_crm_session', JSON.stringify({ user: 'sales1', name: 'فروشنده یک', roleId: 'sales' }));
     /* window.ptfSfDueState واقعی از salesfiles.js — تا checkDealDue با منطق واقعی اجرا شود.
        فقط یک‌بار لازم است (بدون وضعیت داخلی وابسته به زمان). */
     vm.runInContext(fs.readFileSync('crm/salesfiles.js', 'utf8'), ctx, { filename: 'salesfiles.js' });
-    ctx.localStorage.setItem('ptf_crm_token', 'tok-test');
+    ctx.sessionStorage.setItem('ptf_crm_token', 'tok-test'); /* v34.8.43: مخزن جدید توکن */
     return ctx;
   }
 

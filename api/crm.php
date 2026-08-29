@@ -2326,6 +2326,8 @@ switch($action) {
             if ($info) auth_revoke_token($logoutToken);
         }
         /* v34.8.28 (T4-1a): کوکی نشست هم هنگام خروج پاک می‌شود */
+        /* v34.8.43 (R5/T4-1b): نشانگر غیرمحرم هم پاک شود — وگرنه کلاینت به‌کذب «نشست دارد» */
+        setcookie('ptf_token_flag', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'), 'httponly' => false, 'samesite' => 'Strict']);
         if (isset($_COOKIE['ptf_token'])) {
             setcookie('ptf_token', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'), 'httponly' => true, 'samesite' => 'Strict']);
             unset($_COOKIE['ptf_token']);
@@ -2418,6 +2420,12 @@ switch($action) {
         /* v34.8.28 (T4-1a COOKIE-AUTH): نشست روی کوکی HttpOnly هم می‌نشیند — کلاینت
            بدون خواندن JS توکن هم احراز می‌شود (fallback هدر باقی است برای سازگاری). */
         auth_emit_session_cookie($token, ($role === 'accountant') ? 8 * 3600 : 24 * 3600); /* S5 */
+        /* v34.8.43 (R5/T4-1b — SESSION-OUT-OF-LS): نشانگر غیرمحرمِ حضور کوکی — JS فقط
+           «نشست سروری موجود است» را می‌فهمد، نه خود توکن را؛ مبنای ptfAuthCookieOk و
+           بازسازی نشست تبِ تازه (role_verify) در نبود توکنِ JS. */
+        $ttlFlag = ($role === 'accountant') ? 8 * 3600 : 24 * 3600;
+        $secureFlag = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+        setcookie('ptf_token_flag', '1', ['expires' => time() + $ttlFlag, 'path' => '/', 'secure' => (bool)$secureFlag, 'httponly' => false, 'samesite' => 'Strict']);
         echo json_encode(['ok' => true, 'token' => $token, 'role' => $role, 'user' => $found['username'], 'name' => $found['name'] ?? $found['username']], JSON_UNESCAPED_UNICODE);
         break;
 
@@ -2454,7 +2462,20 @@ switch($action) {
     // v33.2.1: کلاینت نقش معتبر سرور را بپرسد — جلوگیری از ورود با نقش منقضی/اشتباه
     case 'role_verify':
         verify_request();
-        echo json_encode(['ok' => true, 'role' => $client_role], JSON_UNESCAPED_UNICODE);
+        /* v34.8.43 (R5/T4-1b): user/name هم برمی‌گردد — تبِ تازه نشست JS خود را از
+           کوکی HttpOnly بازسازی می‌کند («کلاینت بدون توکن»). فقط-خواندنی و بدون حساسه. */
+        $rvInfo = auth_verify_token(auth_get_header_token());
+        $rvUser = is_array($rvInfo) ? (string)($rvInfo['user'] ?? '') : '';
+        $rvName = $rvUser;
+        try {
+            $rvUsers = load_data('crm_users');
+            if (is_array($rvUsers)) {
+                foreach ($rvUsers as $rvU) {
+                    if (is_array($rvU) && strcasecmp((string)($rvU['username'] ?? ''), $rvUser) === 0) { $rvName = (string)($rvU['name'] ?? $rvUser) ?: $rvUser; break; }
+                }
+            }
+        } catch (Throwable $eRvName) {}
+        echo json_encode(['ok' => true, 'role' => $client_role, 'user' => $rvUser, 'name' => $rvName], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'add_customer':

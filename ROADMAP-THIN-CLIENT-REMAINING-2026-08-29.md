@@ -41,7 +41,7 @@
 | 3 | **T3-4** | ✅ انجام شد در v34.8.41 (لایهٔ `ptfCache` روی IDB + TTL؛ صفر نوشتن جدید LS) | storage-quota.js / bridge.js / fx.js / storage.js / buycompare.js / archive.js | — |
 | 4 | **T3-5** | موکول به پنجرهٔ R4 — پروتکل pull مرکزی است؛ بدون تست دستگاه واقعی ریسکی. پایهٔ hydration کلید-به-کلید از v34.8.41 موجود است | client-server.js:150-190 | متوسط |
 | 5 | **T6/C5** | گام ۱ انجام شد در v34.8.42 (تله‌متری win7 + پرچم PTF_LEGACY_PUSH_OFF + داشبورد)؛ مانده: پنجرهٔ ≥۷ روز سبز → گام ۲ (حذف ~۲۰۰۰ خط) | sync.js `pushDirty`/`pullCheck` + api/crm.php `sync_engine_flags*` | **بالا** — پایش win7 و R4-GATE-BYPASS |
-| 6 | **T4-1b** | توکن `ptf_crm_token` هنوز در LS خوانده می‌شود (ده‌ها نقطه) | grep: backup/bridge/careers/client-server/cms/codegen/golive/inqreader/… | متوسط (پس از چرخش دستگاه‌ها) |
+| 6 | **T4-1b** | ✅ انجام شد در v34.8.43 (توکن/نشست → sessionStorage + کوکی HttpOnly؛ جاروی ۲۹ خواننده در ۱۹ فایل به ptfAuthToken؛ صفر SESS در LS) | crm/rbac.js (لایهٔ ptfAuth) + api/crm.php (ptf_token_flag + role_verify) | — |
 | 7 | **T4-3b** | `ptf_crm_avatars` هنوز بلاب سینک است؛ باید به S3 برود | key-registry.js: «تا T4-3 → S3» | متوسط |
 | 8 | **T7** | 2FA نقش‌های مالی، bulk-revoke نشست، rate-limit فرمان‌ها، ابزارهای ریکاوری IDB-aware | crm/{clear-cache,force-restore,recover,sync-diagnostics}.html → صفر ارجاع indexedDB | کم‌ریسک فنی، نیاز به تأیید کارفرما (S جدول ۹ رودمپ) |
 | 9 | **بدهی A10** | ۲۶۱ عملیات مستقیم LS به‌عنوان baseline پذیرفته شده — باید پله‌ای صفر شود | arch-baseline.json | — |
@@ -78,10 +78,13 @@
 - **گام ۲ (v34.8.43):** پس از پنجرهٔ ≥۷ روز سبز (win7 ≈ 0 همهٔ کلیدها + صفر R4-GATE-BYPASS): حذف `pushDirty`/`pullCheck` و ~۲۰۰۰ خط منطق تعارض؛ `ptfSyncNotifyDirty` فقط صف فاز B را تغذیه می‌کند؛ T3-5 (بوت صفحه‌ای) در همین پنجره.
 - **DoD:** اصل E7 «یک موتور» اثبات‌پذیر؛ archive تعارض‌ها همچنان بازیافت‌پذیر.
 
-### R5 — نشست و رسانهٔ نهایی (T4-1b/T4-3b) — v34.8.44
-- حذف `ptf_crm_token` از LS پس از چرخش دستگاه‌ها (تمرکز خواندن در `ptfAuth` → سپس حذف LS).
-- `ptf_crm_avatars` → آروان S3 (الگوی چک‌پرینت v34.8.28).
+### R5 — نشست و رسانهٔ نهایی (T4-1b/T4-3b)
+- **گام ۱ (v34.8.43) ✅ انجام شد:** لایهٔ `ptfAuth` در rbac.js — توکن/نشست در sessionStorage + کوکی HttpOnly مشترک (پایهٔ v34.8.28)؛ مهاجرت یک‌بارهٔ LS→SS؛ نشانگر غیرمحرم `ptf_token_flag`؛ بازسازی نشست تبِ تازه با `role_verify`؛ جاروی ۲۹ خواننده در ۱۹ فایل؛ بک‌آپ‌ها دیگر توکن ندارند. **DoD گام ۱:** SESS در LS = صفر ✓؛ tester544 (۴۵ سنجه) ✓.
+- **گام ۲ (v34.8.44):** `ptf_crm_avatars` → آروان S3 (الگوی چک‌پرینت v34.8.28) + تستر purge-boot.
 - **DoD:** SESS در LS = صفر؛ تستر purge-boot سبز.
+
+### R4-گام ۲ — حذف موتور legacy سینک — v34.8.45 (باز‌شماره‌گذاری: پس از پنجرهٔ شواهد ≥۷روزه از v34.8.42)
+- شرط اجرا: win7 ≈ 0 برای همهٔ کلیدها + صفر R4-GATE-BYPASS در audit + T3-5 (بوت صفحه‌ای) در همین پنجره.
 
 ### R6 — سخت‌گیری بانکی و DoD نهایی (T7) — v34.9.0
 - 2FA پیامکی نقش‌های مالی، bulk-revoke نشست‌ها (ادمین)، rate-limit فرمان‌ها per-user.

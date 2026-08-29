@@ -86,7 +86,7 @@
     // Previously this function only sent X-CRM-Role header without token,
     // causing 401 on all authenticated endpoints (push_event, set_status, etc).
     try {
-      var _tok = localStorage.getItem('ptf_crm_token');
+      var _tok = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : '');
       if (_tok) opt.headers['X-CRM-Token'] = _tok;
     } catch(e) {}
     if (data) {
@@ -499,7 +499,7 @@
     eventInFlight = true;
     // v31.7.7 HOTFIX-AUTH: Include JWT token in event polling.
     var _evtH = {};
-    try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _evtH['X-CRM-Token'] = _t; } catch(e) {}
+    try { var _t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (_t) _evtH['X-CRM-Token'] = _t; } catch(e) {}
     return bridgeFetchJson(API + '?action=get_events&since=' + lastEvt(), { headers: _evtH }, 'get_events')
       .then(function (d) {
         eventFailCount = 0; eventRetryAt = 0;
@@ -592,7 +592,7 @@
     if (typeof cb === 'function') inboxWaiters.push(cb);
     // v31.7.7 HOTFIX-AUTH: Include JWT token in inbox sync.
     var _syncH = {};
-    try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
+    try { var _t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
     /* v34.7.81 (SUP-PERF-001): کلاینت آخرین امضای صندوق را می‌فرستد؛ وقتی داده‌ها
        تغییر نکرده‌اند سرور فقط fresh برمی‌گردد و دانلود/اجرای مجدد جدول سایت نمی‌شود.
        v34.7.91 (SUP-PERF-005): بوت/پول فقط صفحهٔ اول (۵۰) suppliers را می‌گیرد. */
@@ -629,7 +629,7 @@
     if (inboxMoreInFlight) return Promise.resolve({ ok: false, skipped: 'inflight' });
     inboxMoreInFlight = true;
     var _syncH = {};
-    try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
+    try { var _t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
     var _offset = siteSuppliers().length;
     var _since = '';
     try { _since = siteCacheGet('ptf_site_inbox_sig') || ''; } catch(eSl) {}
@@ -2092,7 +2092,7 @@
     var s = curSession();
     if (!s.user) return;
     var token = '';
-    try { token = localStorage.getItem('ptf_crm_token') || ''; } catch (e) {}
+    try { token = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : '') || ''; } catch (e) {}
     if (!token) {
       try { if (typeof ptfToast === 'function') ptfToast('توکن سرور وجود ندارد؛ صندوق پیام سرور تا ورود مجدد غیرفعال است.', 'warn'); } catch (eT) {}
       return;
@@ -2107,7 +2107,7 @@
       // v33.0.1: no unauthenticated 401 polling loops.
       window._ptfPolling = false;
       window._ptfPollT = setInterval(function() {
-        try { if (!localStorage.getItem('ptf_crm_token')) return; } catch (eTk) { return; }
+        try { if (!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : '')) return; } catch (eTk) { return; }
         if (window._ptfPolling) return;
         window._ptfPolling = true;
         try {
@@ -2118,7 +2118,7 @@
       }, 8000);
       window._ptfSyncing = false;
       window._ptfSyncT = setInterval(function () {
-        try { if (!localStorage.getItem('ptf_crm_token')) return; } catch (eTk2) { return; }
+        try { if (!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : '')) return; } catch (eTk2) { return; }
         if (window._ptfSyncing) return;
         window._ptfSyncing = true;
         try {

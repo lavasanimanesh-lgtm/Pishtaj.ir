@@ -28,7 +28,7 @@
   function caseId(c) { return String((c && (c._id || c.cd)) || ''); }
   function receiptId(r) { return String((r && (r._id || r.cd)) || ''); }
   function invoiceId(i) { return String((i && (i._id || i.cd)) || ''); }
-  function authHeaders() { var h = {'Content-Type':'application/json'}; try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
+  function authHeaders() { var h = {'Content-Type':'application/json'}; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   function toast(msg, kind) { if (typeof ptfToast === 'function') ptfToast(msg, kind || 'info'); else if (kind === 'warn') alert(msg); }
   function applyProjection(d, serverRev) {
     var touched = 0, expected = 0;

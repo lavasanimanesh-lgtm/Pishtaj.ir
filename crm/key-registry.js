@@ -32,7 +32,7 @@
 
   window.PTF_KEY_REGISTRY = {
     REC: { store: 'server-command', keys: REC },
-    SESS: { store: 'httponly-cookie', keys: SESS },
+    SESS: { store: 'httponly-cookie+sessionStorage-mirror', keys: SESS }, /* v34.8.43 (R5/T4-1b): توکن در sessionStorage (این تب) + کوکی HttpOnly (مشترک)؛ LS فقط منبع مهاجرت یک‌باره */
     Q: { store: 'idb-queue-or-ls-light', keys: Q },
     CACHE: { store: 'ptfCache-idb-read-through-ttl', keys: CACHE }, /* v34.8.41 (R3/T3-4): پوشهٔ cache: در IDB + TTL؛ legacy LS فقط تا مهاجرت بوت */
     UI: { store: 'ls-light', keys: UI },

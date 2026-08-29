@@ -28,12 +28,90 @@ var ROLES = {
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
 var SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
 
+/* ═══ v34.8.43 (R5/T4-1b — SESSION-OUT-OF-LS): نشست بدون توکن در localStorage ═══
+   توکن از v34.8.28 علاوه بر هدر، به‌صورت کوکی HttpOnly (ptf_token) هم صادر می‌شود و
+   سرور در نبود هدر X-CRM-Token از همان کوکی می‌پذیرد (auth_get_header_token). از این
+   نسخه مخزن JS توکن = sessionStorage (فقط همین تب)؛ کوکیِ HttpOnly کانال مشترک تب‌هاست.
+   - ptfAuthToken(): توکن + مهاجرت یک‌بارهٔ LS→SS (سپس حذف از LS)
+   - ptfAuthCookieOk(): نشانگر غیرمحرمِ حضور کوکی (ptf_token_flag=1 — بدون توکن)
+   - ptfAuthOk(): توکن SS یا نشانگر کوکی — مبنای گیت‌های «نشست داریم؟»
+   - ptfAuthSessionRestore(): تبِ تازه نشست را با کوکی از role_verify بازسازی می‌کند. */
+var PTF_AUTH_KEYS = ['ptf_crm_token', 'ptf_crm_token_role', 'ptf_crm_session'];
+function ptfAuthMigrate() {
+  try {
+    for (var _ak = 0; _ak < PTF_AUTH_KEYS.length; _ak++) {
+      var _k = PTF_AUTH_KEYS[_ak], _v = null;
+      try { _v = localStorage.getItem(_k); } catch (eL) {}
+      if (_v !== null && sessionStorage.getItem(_k) === null) { try { sessionStorage.setItem(_k, _v); } catch (eS) {} }
+      if (_v !== null) { try { localStorage.removeItem(_k); } catch (eR) {} }
+    }
+  } catch (e) {}
+}
+function ptfAuthToken() {
+  try {
+    var t = sessionStorage.getItem('ptf_crm_token');
+    if (t) return t;
+    var l = null;
+    try { l = localStorage.getItem('ptf_crm_token'); } catch (eL2) {} /* خوانش مستقیم LS — عمداً (خودِ ptfAuthToken؛ گارد بازگشتی ممنوع) */
+    if (l) { ptfAuthMigrate(); return l; }
+  } catch (e) {}
+  return '';
+}
+function ptfAuthCookieOk() {
+  try { return /(?:^|;\s*)ptf_token_flag=1(?:;|$)/.test(document.cookie); } catch (e) { return false; }
+}
+function ptfAuthOk() { return !!ptfAuthToken() || ptfAuthCookieOk(); }
+function ptfAuthHeaders(json) {
+  var h = json ? { 'Content-Type': 'application/json' } : {};
+  try { var t = ptfAuthToken(); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+  return h;
+}
+function ptfAuthSession() {
+  try { var sS = JSON.parse(sessionStorage.getItem('ptf_crm_session')) || null; if (sS && sS.user) return sS; } catch (eS2) {}
+  try { var sL = JSON.parse(localStorage.getItem('ptf_crm_session')) || null; if (sL && sL.user) return sL; } catch (eL3) {}
+  return {};
+}
+function ptfAuthSessionStore(sess) {
+  try { sessionStorage.setItem('ptf_crm_session', JSON.stringify(sess || {})); } catch (eS3) {}
+  try { localStorage.removeItem('ptf_crm_session'); } catch (eL4) {}
+}
+function ptfAuthLoginWrite(token, role, sess) {
+  try { sessionStorage.setItem('ptf_crm_token', String(token || '')); } catch (e1) {}
+  try { if (role) sessionStorage.setItem('ptf_crm_token_role', String(role)); } catch (e2) {}
+  ptfAuthSessionStore(sess || {});
+  try { for (var _lk = 0; _lk < PTF_AUTH_KEYS.length; _lk++) localStorage.removeItem(PTF_AUTH_KEYS[_lk]); } catch (e3) {}
+}
+function ptfAuthClear() {
+  try {
+    for (var _ck = 0; _ck < PTF_AUTH_KEYS.length; _ck++) {
+      try { sessionStorage.removeItem(PTF_AUTH_KEYS[_ck]); } catch (eS4) {}
+      try { localStorage.removeItem(PTF_AUTH_KEYS[_ck]); } catch (eL5) {}
+    }
+  } catch (e) {}
+}
+function ptfAuthSessionRestore(cb) {
+  try {
+    fetch('../api/crm.php?action=role_verify', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok && d.user) {
+          ptfAuthSessionStore({ user: d.user, name: d.name || d.user, role: d.role || 'sales', roleId: d.role || 'sales' });
+          if (cb) cb(true);
+        } else if (cb) cb(false);
+      })
+      .catch(function () { if (cb) cb(false); });
+  } catch (e) { if (cb) cb(false); }
+}
+
 /* v34.7.26 (S3/F2-D — نشت بین‌مشتری): یافتن پیشنهاد با شماره باید شمارهٔ ناتهی بخواهد.
    الگوی قبلی `x.no === offerNo` وقتی هر دو undefined/'' بودند صادق می‌شد و اولین
    پیشنهاد بی‌شماره (متعلق به هر مشتری دیگری) انتخاب می‌شد؛ از روی همان، buyerCd و
    حتی advance خوانده و روی فاکتور اعمال می‌شد.
    مرجع: ASSESSMENT-SALESFILE-3ISSUES-2026-08-17.md §۳ مسیر D */
 function curSession() {
+  /* v34.8.43 (R5/T4-1b): نشست ابتدا از sessionStorage (خارج از سهمیه/پایش LS)؛
+     fallback صرفاً برای تب‌های بازِ قبل از ارتقا (تا رفرش بعدی). */
+  try { var sS = JSON.parse(sessionStorage.getItem('ptf_crm_session')) || null; if (sS && sS.user) return sS; } catch (eS) {}
   try { return JSON.parse(localStorage.getItem('ptf_crm_session')) || {}; } catch (e) { return {}; }
 }
 function curRole() {
@@ -479,7 +557,7 @@ function delUser2(u) {
 
 function ptfRbacAuthHeaders(json) {
   var h = json ? { 'Content-Type': 'application/json' } : {};
-  try { h['X-CRM-Role'] = curRole(); var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+  try { h['X-CRM-Role'] = curRole(); var t = ptfAuthToken(); if (t) h['X-CRM-Token'] = t; } catch (e) {}
   return h;
 }
 
@@ -575,7 +653,7 @@ function usersPullFromServer(cb) {
 /* v33.2.1: تطبیق نقش محلی با سرور — جلوگیری از ویرایش با نقش منقضی/اشتباه
    اگر نقش سرور با محلی متفاوت باشد، session آپدیت و UI رفرش می‌شود. */
 function verifyRoleFromServer(cb) {
-  var t = localStorage.getItem('ptf_crm_token');
+  var t = ptfAuthToken();
   if (!t) { cb && cb(); return; }
   fetch('../api/crm.php?action=role_verify', { headers: { 'X-CRM-Token': t }, cache: 'no-store' })
     .then(function (r) { return r.json(); })
@@ -583,11 +661,12 @@ function verifyRoleFromServer(cb) {
       if (d && d.ok && d.role) {
         var cur = curRole();
         if (d.role !== cur) {
-          var s = JSON.parse(localStorage.getItem('ptf_crm_session') || '{}');
+          var s = curSession();
           s.roleId = d.role;
           s.role = d.role;
-          localStorage.setItem('ptf_crm_session', JSON.stringify(s));
-          localStorage.setItem('ptf_crm_token_role', d.role);
+          try { sessionStorage.setItem('ptf_crm_session', JSON.stringify(s)); } catch (eSS) {}
+          try { sessionStorage.setItem('ptf_crm_token_role', d.role); } catch (eSR) {}
+          try { localStorage.removeItem('ptf_crm_session'); } catch (eSL) {}
           if (typeof ptfToast === 'function') ptfToast('🔄 نقش شما از سرور به‌روز شد: ' + (ROLES[d.role] ? ROLES[d.role].lb : d.role), 'info');
           if (typeof renderUsers2 === 'function') renderUsers2();
         }

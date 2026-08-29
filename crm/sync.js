@@ -428,11 +428,16 @@
 
   function authHeaders(json) {
     var h = json ? { 'Content-Type': 'application/json' } : {};
-    try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+    try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {}
     if (json) h['X-CRM-Role'] = curRole();
     return h;
   }
-  function hasSyncToken() { try { return !!localStorage.getItem('ptf_crm_token'); } catch (e) { return false; } }
+  function hasSyncToken() {
+    /* v34.8.43 (R5/T4-1b): نشست JS (SS) یا کوکی HttpOnly — کوکی برای تب‌های تازه کافی است
+       چون سرور در نبود هدر از آن می‌پذیرد. */
+    try { if (typeof window.ptfAuthOk === 'function' && window.ptfAuthOk()) return true; } catch (eA) {}
+    try { return !!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); } catch (e) { return false; }
+  }
 
   /* ============ v34.7.91 (SYNC-DIAG-001) — خود-تشخیص همگام‌سازی ============
      تغییر منطق نوشتن/سینک نمی‌دهد؛ فقط:
@@ -883,6 +888,7 @@
        synchronous block, in this single place — retryPullAfterAuth no longer deletes
        the token by itself, so the inconsistent «session بدون token» zombie state
        (source of the misleading «توکن معتبر وجود ندارد» screen) cannot appear. */
+    try { if (typeof window.ptfAuthClear === 'function') window.ptfAuthClear(); } catch (eAc) {}
     try {
       localStorage.removeItem('ptf_crm_token');
       localStorage.removeItem('ptf_crm_token_role');
@@ -1480,9 +1486,11 @@
   window.ptfCollectionQuery = function (collection, opts, cb) {
     opts = opts || {};
     try {
-      var t = localStorage.getItem('ptf_crm_token');
-      /* v34.8.33: نبود توکن = خطای قطعی محلی — بدون fetch (caller فوراً fallback می‌کند) */
-      if (!t) { cb && cb({ ok: false, error: 'no_token', needLogin: true }); return; }
+      var t = (typeof window.ptfAuthToken === 'function') ? window.ptfAuthToken() : (typeof ptfAuthToken === 'function' ? ptfAuthToken() : '');
+      /* v34.8.33: نبود توکن = خطای قطعی محلی — بدون fetch (caller فوراً fallback می‌کند)
+         v34.8.43 (R5/T4-1b): کوکی HttpOnly هم نشست است؛ فقط وقتی هیچ‌کدام نیست needLogin. */
+      var _sessOk = (typeof window.ptfAuthOk === 'function') ? window.ptfAuthOk() : !!t;
+      if (!_sessOk) { cb && cb({ ok: false, error: 'no_token', needLogin: true }); return; }
       var params = new URLSearchParams({ action: 'collection_query', collection: collection });
       if (opts.q) params.append('q', String(opts.q));
       if (opts.sortBy) params.append('sortBy', String(opts.sortBy));

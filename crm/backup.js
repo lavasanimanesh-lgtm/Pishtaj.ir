@@ -8,7 +8,7 @@
   var API = '../api/crm.php';
   function ptfBackupAuthHeaders(json) {
     var h = json ? { 'Content-Type': 'application/json' } : {};
-    try { h['X-CRM-Role'] = curRole(); var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+    try { h['X-CRM-Role'] = curRole(); var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {}
     return h;
   }
   function canRestoreBackup() { try { return ['admin','chairman'].indexOf(curRole()) > -1; } catch (e) { return false; } }

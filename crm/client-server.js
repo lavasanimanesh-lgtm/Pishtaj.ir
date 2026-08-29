@@ -214,7 +214,7 @@
   /* ---------- اتصال به سرور (data_pull / data_push موجود) ---------- */
   function authHeaders(json) {
     var h = json ? { 'Content-Type': 'application/json' } : {};
-    try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+    try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {}
     try { h['X-CRM-Role'] = curRole(); } catch (eR) {}
     return h;
   }

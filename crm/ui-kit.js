@@ -240,7 +240,7 @@ window.ptfPrintWithTitle = function (docTitle) {
     try {
       var url = (typeof input === 'string') ? input : (input && input.url) || '';
       if (url.indexOf('api/crm.php') > -1) {
-        var tok = localStorage.getItem('ptf_crm_token');
+        var tok = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : '');
         if (tok) {
           init = init || {};
           var h = init.headers;

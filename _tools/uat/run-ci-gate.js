@@ -203,6 +203,7 @@ var SUITE = [
   { g: 'نازک‌سازی/R2 پیش‌نویس‌ها و صف کدینگ در IDB', f: '_tools/uat/tester541-v34.8.40-r2-devkv-drafts-codegen.js' },
   { g: 'نازک‌سازی/R3 کش read-through با TTL در IDB', f: '_tools/uat/tester542-v34.8.41-r3-cache-ttl-idb.js' },
   { g: 'نازک‌سازی/R4-گام۱ پرچم قطع موتور legacy سینک', f: '_tools/uat/tester543-v34.8.42-r4g1-legacy-push-off.js' },
+  { g: 'نازک‌سازی/R5-گام۱ توکن/نشست خارج از localStorage', f: '_tools/uat/tester544-v34.8.43-r5g1-session-out-of-ls.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

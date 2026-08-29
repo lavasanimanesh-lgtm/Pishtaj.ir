@@ -6,7 +6,7 @@
 var STORAGE_API = '../api/storage.php';
 function ptfStorageAuthHeaders(json) {
   var h = json ? { 'Content-Type': 'application/json' } : {};
-  try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+  try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {}
   return h;
 }
 

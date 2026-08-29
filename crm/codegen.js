@@ -115,7 +115,7 @@ window.ptfReserveCodes = function(blocks, cb){
     var payload = {blocks: blocks, year: faYear(), clientId: deviceId};
     fetch(API+'?action=reserve', {
       method:'POST',
-      headers:(function(){ var h={'Content-Type':'application/json','X-CRM-Role': (typeof curRole==='function'?curRole():'sales')}; try{ var t=localStorage.getItem('ptf_crm_token'); if(t) h['X-CRM-Token']=t; }catch(e){} return h; })(),
+      headers:(function(){ var h={'Content-Type':'application/json','X-CRM-Role': (typeof curRole==='function'?curRole():'sales')}; try{ var t=(typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if(t) h['X-CRM-Token']=t; }catch(e){} return h; })(),
       body: JSON.stringify(payload)
     }).then(function(r){ return r.json(); }).then(function(d){
       if(d && d.ok && d.codes){
@@ -526,7 +526,7 @@ window.ptfReconcileTmpCodes = function(cb){
   });
   fetch(API+'?action=reconcile', {
     method:'POST',
-    headers:(function(){ var h={'Content-Type':'application/json','X-CRM-Role': (typeof curRole==='function'?curRole():'admin')}; try{ var t=localStorage.getItem('ptf_crm_token'); if(t) h['X-CRM-Token']=t; }catch(e){} return h; })(),
+    headers:(function(){ var h={'Content-Type':'application/json','X-CRM-Role': (typeof curRole==='function'?curRole():'admin')}; try{ var t=(typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if(t) h['X-CRM-Token']=t; }catch(e){} return h; })(),
     body: JSON.stringify({maps: maps})
   }).then(function(r){ return r.json(); }).then(function(d){
     if(d && d.ok && d.maps){
