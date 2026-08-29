@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester546 — v34.8.45 (R6-الف): ابزارهای ریکاوری IDB-aware + سقف نرخ فرمان‌ها
+/* tester546 — v34.8.46 (R6-الف): ابزارهای ریکاوری IDB-aware + سقف نرخ فرمان‌ها
    قرارداد: (۱) چهار ابزار ریکاوری مستقل (clear-cache/force-restore/recover/
    sync-diagnostics) که تاکنون صفر ارجاع IndexedDB داشتند، وضعیت مخزن واقعی
    ptf-crm-storage-v1 (آینهٔ bdata:، کش cache:، Dev-KV devkv:) را می‌بینند؛
@@ -114,7 +114,7 @@ function slice(src, from, to) { var a = src.indexOf(from), b = src.indexOf(to, a
     };
     sb.window = sb;
     vm.createContext(sb);
-    var block = slice(cc, '/* v34.8.45 (R6 — IDB-AWARE-RECOVERY)', 'function loadIdbStats');
+    var block = slice(cc, '/* v34.8.46 (R6 — IDB-AWARE-RECOVERY)', 'function loadIdbStats');
     vm.runInContext(block, sb, { filename: 'idb-block.js' });
     var st = await new Promise(function (res) { sb.ptfIdbStats(res); });
     T('vm: آمار IDB درست شمرده شد (۵ ردیف، ۱ bdata، ۳ cache، ۱ devkv)', st.ok === true && st.rows === 5 && st.bdata === 1 && st.cache === 3 && st.devkv === 1);
@@ -158,7 +158,7 @@ function slice(src, from, to) { var a = src.indexOf(from), b = src.indexOf(to, a
 })().catch(function (e) { T('زنجیرهٔ بیرونی', false, String(e && e.stack || e)); finish(); });
 
 function finish() {
-  console.log('\n— tester546 (v34.8.45: R6-الف — ابزارهای ریکاوری IDB-aware + سقف نرخ فرمان‌ها per-user) —');
+  console.log('\n— tester546 (v34.8.46: R6-الف — ابزارهای ریکاوری IDB-aware + سقف نرخ فرمان‌ها per-user) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }

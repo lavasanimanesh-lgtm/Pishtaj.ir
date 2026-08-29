@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester538 — v34.8.45 (PULL-EQUAL-ACK + DEPLOY-GATE-WINDOW)
+/* tester538 — v34.8.46 (PULL-EQUAL-ACK + DEPLOY-GATE-WINDOW)
    بررسی تکمیلی RCA نوار زرد personal_cheques (نشست سوم ۲۰۲۶-۰۸-۲۸):
    ۱) PULL-EQUAL-ACK — اگر pull مقدار سروری را عیناً برابر مقدار محلیِ یک کلید
       dirty برگرداند، پرچم «هنوز نرسیده» باید پاک شود (تغییر رسیده است).

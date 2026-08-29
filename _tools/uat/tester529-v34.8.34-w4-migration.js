@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester529 — v34.8.45 (W4): تکمیل مهاجرت فرمانی — ۴۱ کلید، ~۱۳۰ نقطهٔ این نوبت.
+/* tester529 — v34.8.46 (W4): تکمیل مهاجرت فرمانی — ۴۱ کلید، ~۱۳۰ نقطهٔ این نوبت.
    بعد از این موج، «هیچ کلید کسب‌وکاری» مسیر مستقیم setData ندارد؛ همه از روتر
    (یا fallback else/rollback عمدی) عبور می‌کنند. اصل E1 رودمپ عملاً برقرار. */
 var fs = require('fs'), path = require('path');
@@ -50,9 +50,9 @@ serverKeys.sort();
 T('A11: تطابق کامل کلاینت/سرور (' + clientKeys.length + ' کلید)', JSON.stringify(clientKeys) === JSON.stringify(serverKeys), JSON.stringify(clientKeys) + ' vs ' + JSON.stringify(serverKeys));
 
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.8.45', ver.crm_version === 'v34.8.45', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.8.45', /window\.PTF_CRM_RELEASE = 'v34\.8.45'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8.45'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.8.46', ver.crm_version === 'v34.8.46', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.8.46', /window\.PTF_CRM_RELEASE = 'v34\.8.46'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8.46'/.test(read('crm/sw.js')));
 
-console.log('\n— tester529 (v34.8.45: W4 completion) —');
+console.log('\n— tester529 (v34.8.46: W4 completion) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

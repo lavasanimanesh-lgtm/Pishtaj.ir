@@ -652,6 +652,58 @@ function usersPullFromServer(cb) {
 
 /* v33.2.1: تطبیق نقش محلی با سرور — جلوگیری از ویرایش با نقش منقضی/اشتباه
    اگر نقش سرور با محلی متفاوت باشد، session آپدیت و UI رفرش می‌شود. */
+/* ═══ v34.8.46 (R6/T7-ب): نشست‌های فعال + ابطال گروهی (تنظیمات → 🔐) ═══ */
+window.ptfRenderSessionsBox = function (hostId) {
+  var el = document.getElementById(hostId || 'sessionsBox');
+  if (!el) return;
+  var senior = false;
+  try { senior = typeof isSenior === 'function' && !!isSenior(); } catch (eS) {}
+  if (!senior) { el.innerHTML = '<small style="color:#94a3b8">نمایش و مدیریت نشست‌ها فقط برای نقش‌های ارشد.</small>'; return; }
+  el.innerHTML = '<small style="color:#94a3b8">در حال دریافت…</small>';
+  function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function fmtT(ts) { try { return new Date(+ts * 1000).toLocaleString('fa-IR'); } catch (e) { return String(ts || ''); } }
+  function roleLb(r) { return (ROLES && ROLES[r] && ROLES[r].lb) || r || '—'; }
+  function load() {
+    fetch('../api/crm.php?action=sessions_list', { headers: (typeof ptfApiAuthHeaders === 'function' ? ptfApiAuthHeaders(false) : {}) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) { el.innerHTML = '<small style="color:#b45309">دریافت نشست‌ها ناموفق بود.</small>'; return; }
+        var rows = d.sessions || [];
+        var h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px" dir="rtl"><tr style="background:#f1f5f9"><th style="padding:6px;border:1px solid #e2e8f0">کاربر</th><th style="padding:6px;border:1px solid #e2e8f0">نقش</th><th style="padding:6px;border:1px solid #e2e8f0">ورود</th><th style="padding:6px;border:1px solid #e2e8f0">انقضا</th><th style="padding:6px;border:1px solid #e2e8f0">IP</th><th style="padding:6px;border:1px solid #e2e8f0"></th></tr>';
+        rows.forEach(function (r) {
+          h += '<tr><td style="padding:6px;border:1px solid #e2e8f0">' + esc(r.user) + (r.current ? ' 📍' : '') + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0">' + esc(roleLb(r.role)) + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0">' + esc(fmtT(r.iat)) + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0">' + esc(fmtT(r.exp)) + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0;direction:ltr;text-align:right">' + esc(r.ip || '—') + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">' + (!r.current ? '<button type="button" class="bt bt-s" style="padding:3px 10px;font-size:11.5px;margin:0" onclick="ptfSessionsRevoke(\'' + esc(r.user) + '\')">خروج</button>' : '') + '</td></tr>';
+        });
+        h += '</table>';
+        h += '<div style="margin-top:10px"><button type="button" class="bt" style="background:#991b1b" onclick="ptfSessionsRevoke(\'all\')">⛔ خروج اجباری همهٔ دستگاه‌ها (به‌جز همین تب)</button> <small style="color:#94a3b8">' + rows.length + ' نشست فعال — ابطال در سرور و بازگشت‌ناپذیر است.</small></div>';
+        el.innerHTML = h;
+      })
+      .catch(function () { el.innerHTML = '<small style="color:#b45309">عدم دسترسی به سرور.</small>'; });
+  }
+  window.ptfSessionsRevoke = function (target) {
+    var msg = target === 'all' ? 'همهٔ نشست‌های سایر دستگاه‌ها ابطال شوند؟ (نشست همین تب زنده می‌ماند)' : 'نشست‌های کاربر «' + target + '» ابطال شوند؟';
+    try { if (!window.confirm(msg)) return; } catch (eC) { return; }
+    var hdrRv = (typeof ptfApiAuthHeaders === 'function' ? ptfApiAuthHeaders(false) : {});
+    hdrRv['Content-Type'] = 'application/x-www-form-urlencoded'; /* $_POST سمت سرور */
+    fetch('../api/crm.php?action=sessions_revoke', {
+      method: 'POST',
+      headers: hdrRv,
+      body: 'user=' + encodeURIComponent(target)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok) { if (typeof ptfToast === 'function') ptfToast('✅ ' + (d.revoked || 0) + ' نشست ابطال شد', 'ok'); load(); }
+        else if (typeof ptfToast === 'function') ptfToast((d && d.error) || 'خطای سرور', 'warn');
+      })
+      .catch(function () { if (typeof ptfToast === 'function') ptfToast('عدم دسترسی به سرور', 'warn'); });
+  };
+  load();
+};
+
 function verifyRoleFromServer(cb) {
   var t = ptfAuthToken();
   if (!t) { cb && cb(); return; }
