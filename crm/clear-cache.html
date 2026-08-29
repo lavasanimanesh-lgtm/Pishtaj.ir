@@ -16,7 +16,7 @@
 </style>
 </head>
 <body>
-<h1>🛡️ به‌روزرسانی امن مرورگر — PTF CRM (v34.8.51)</h1>
+<h1>🛡️ به‌روزرسانی امن مرورگر — PTF CRM (v34.8.52)</h1>
 <p style="font-size:14px;color:#334155">سیستم CRM پیشرو تجهیز فرتاک مجهز به <b>ارتقای خودکار (Zero-Touch Auto-Update)</b> است و در حالت عادی نیازی به ورود به این صفحه نیست.</p>
 
 <div class="db-status" id="dbStatusWrap">
@@ -44,7 +44,7 @@
 </div>
 
 <script>
-window.VER = 'v34.8.51';
+window.VER = 'v34.8.52';
 window.onload = function () {
   try {
     var getC = function (k) { try { return JSON.parse(localStorage.getItem(k) || '[]').length || 0; } catch (e) { return 0; } };
@@ -59,7 +59,7 @@ window.onload = function () {
 };
 
 
-/* v34.8.51 (R6 — IDB-AWARE-RECOVERY): آمار IndexedDB (ptf-crm-storage-v1/kv) —
+/* v34.8.52 (R6 — IDB-AWARE-RECOVERY): آمار IndexedDB (ptf-crm-storage-v1/kv) —
    استندالون؛ همین ابزار بدون لود crm/*.js وضعیت آینه/کش/Dev-KV را نشان می‌دهد. */
 function ptfIdbStats(cb) {
   var out = { ok: false, db: 'ptf-crm-storage-v1', rows: 0, bdata: 0, cache: 0, devkv: 0, bytes: 0 };

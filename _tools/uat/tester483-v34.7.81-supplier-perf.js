@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.51 — سرعت بخشیدن به ماژول تامین‌کنندگان + ثبت‌نام‌های سایت (SUP-PERF-001).
+/* v34.8.52 — سرعت بخشیدن به ماژول تامین‌کنندگان + ثبت‌نام‌های سایت (SUP-PERF-001).
    بررسی می‌کند که:
    - پاسخ get_inbox گزیپ/فارش (fresh/since) شود تا پول ۴۵ ثانیه‌ای دانلود کامل نداشته باشد.
    - سینک کلاینت since را بفرستد و فقط در تغییر واقعی جدول صفحه ثبت‌نام سایت را بسازد.
@@ -23,10 +23,10 @@ var slf = read('crm/supplier-finance.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.8.51', ver.crm_version === 'v34.8.51', ver.crm_version);
-T('index.html PTF_CRM_RELEASE = v34.8.51', /window\.PTF_CRM_RELEASE = 'v34\.8.51'/.test(idx));
-T('sw.js RELEASE = v34.8.51', /RELEASE = 'v34\.8.51'/.test(sw));
-T('cache-bust در index.html = 34.8.51', /bridge\.js\?v=34\.8.51/.test(idx) && /supplier-finance\.js\?v=34\.8.51/.test(idx));
+T('VERSION.json = v34.8.52', ver.crm_version === 'v34.8.52', ver.crm_version);
+T('index.html PTF_CRM_RELEASE = v34.8.52', /window\.PTF_CRM_RELEASE = 'v34\.8.52'/.test(idx));
+T('sw.js RELEASE = v34.8.52', /RELEASE = 'v34\.8.52'/.test(sw));
+T('cache-bust در index.html = 34.8.52', /bridge\.js\?v=34\.8.52/.test(idx) && /supplier-finance\.js\?v=34\.8.52/.test(idx));
 
 /* ---------- سرور: get_inbox ---------- */
 T('get_inbox با ptf_echo_json (gzip) ارسال می‌شود', /case 'get_inbox':[\s\S]*?ptf_echo_json\(/.test(api));
@@ -58,6 +58,6 @@ T('box() از balanceHtmlFrom استفاده می‌کند', slf.indexOf("balanc
 /* ---------- گیت CI ---------- */
 T('tester483 در گیت CI', gate.indexOf('tester483-v34.7.81-supplier-perf.js') > -1);
 
-console.log('\n— tester483 (v34.8.51: سرعت ماژول تامین‌کنندگان + ثبت‌نام سایت — SUP-PERF-001) —');
+console.log('\n— tester483 (v34.8.52: سرعت ماژول تامین‌کنندگان + ثبت‌نام سایت — SUP-PERF-001) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

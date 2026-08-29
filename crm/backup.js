@@ -696,9 +696,10 @@
           h2 += 'داده‌های این دستگاه هنوز یک‌بار به سرور منتقل نشده است (حالت قدیمی). این انتقال <b>یک‌بار برای هر دستگاه</b> لازم است و چند دقیقه با اینترنت پایدار طول می‌کشد؛ دادهٔ محلی شما در تمام مراحل محفوظ می‌ماند.';
         }
         h2 += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
-          (on ? '' : '<button class="bt" style="background:#059669" onclick="ptfBConfirmFlush()">⬆️ انتقال یک‌بارهٔ داده‌های این دستگاه</button>') +
-          '<button class="bt bt-o" style="color:#b45309" onclick="if(window.ptfBClearLocalCache)ptfBClearLocalCache()">🗑 پاک‌سازی کش محلی</button>' +
-          '</div></div>';
+          (on
+            ? '<button class="bt bt-o" style="color:#b45309" onclick="if(window.ptfBClearLocalCache)ptfBClearLocalCache()">🗑 پاک‌سازی کش محلی</button>'
+            : '<button class="bt" style="background:#059669" onclick="ptfBConfirmFlush()">⬆️ انتقال یک‌بارهٔ داده‌های این دستگاه</button><span style="align-self:center;font-size:11.5px">پس از انتقال، «پاک‌سازی کش محلی» برای آزادسازی حافظه در دسترس می‌شود.</span>') +
+          '</div></div>'; /* v34.8.52: پاک‌سازی کش فقط برای دستگاه منتقل‌شده (گاردهای سرور) */
         return h2;
       })();
   };
@@ -714,7 +715,7 @@
         if (freed < 256 * 1024 && typeof window.ptfStorageTopKeys === 'function') {
           try {
             var tk = window.ptfStorageTopKeys(5) || [];
-            tip = '\n\nبزرگ‌ترین کلیدها (اگر از نوع دادهٔ اصلی‌اند، پاک‌سازی امن آن‌ها را حذف نمی‌کند):\n' + tk.map(function (r) { return '• ' + r.key + ' — ' + fmtBytes(r.bytes); }).join('\n') + '\n\nراه‌حل دائمی: در همین صفحه «حالت سرور-محور» را فعال کنید تا داده از سرور خوانده شود و حافظهٔ مرورگر فقط کش بماند.'; /* v33.22.2: MySQL فعال است؛ ارجاع به دکمهٔ حذف‌شده اصلاح شد */
+            tip = '\n\nبزرگ‌ترین کلیدها (اگر از نوع دادهٔ اصلی‌اند، پاک‌سازی امن آن‌ها را حذف نمی‌کند):\n' + tk.map(function (r) { return '• ' + r.key + ' — ' + fmtBytes(r.bytes); }).join('\n') + '\n\nراه‌حل دائمی: از «تنظیمات → وضعیت دستگاه» «انتقال یک‌بارهٔ داده‌ها» را اجرا کنید تا داده از سرور خوانده شود و حافظهٔ مرورگر فقط کش بماند.'; /* v34.8.52: ارجاع به جعبهٔ وضعیت دستگاه */
           } catch (eT) {}
         }
         alert(label + ' انجام شد. حدود ' + fmtBytes(freed) + ' از localStorage آزاد شد. رکوردهای اصلی کسب‌وکاری حذف نشدند.' + tip);
