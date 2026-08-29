@@ -111,6 +111,19 @@
           if (/^ptf_ai_hist_|^ptf_autodraft_offer_|^ptf_backup_local$|^ptf_backup_prerestore$/.test(k)) localStorage.removeItem(k);
         });
       } catch (e) {}
+      /* v34.8.40 (R2/T5-2c): همین پاک‌سازی در Dev-KV (IndexedDB) + پیشوندهای تازه —
+         پیش‌نویس‌ها دیگر در localStorage نیستند. */
+      try {
+        if (window.ptfDevKv) {
+          ['ptf_autodraft_offer_', 'ptf_autodraft_award_revision_'].forEach(function (pre) {
+            try {
+              window.ptfDevKv.keys(pre, function (ks) {
+                (ks || []).forEach(function (k) { try { window.ptfDevKv.remove(k); } catch (eR) {} });
+              });
+            } catch (eK) {}
+          });
+        }
+      } catch (eKv) {}
       /* رویداد آغاز بهره‌برداری در audit جدید */
       try { audit('سیستم', '🚀 شروع بهره‌برداری واقعی — پاک‌سازی داده‌های آزمایشی توسط ' + curSession().name + (wipeProds ? ' (شامل کالاها)' : '') + (wipeSups ? ' (شامل تامین‌کنندگان)' : ''), 'GO-LIVE'); } catch (e) {}
       alert('✅ پاک‌سازی انجام شد — سامانه آماده بهره‌برداری واقعی است.\n\n🗂 بک‌آپ pre-golive دانلود شد؛ آن را خارج از سامانه نگه دارید.\nسیستم مجددا بارگذاری می‌شود.');

@@ -54,13 +54,13 @@
 اصل تقسیم: **هر فاز = یک نسخهٔ v34.8.x + تستر قفل‌کننده + PR فوری به main** (تنظیم S10 تأییدشده)؛
 هیچ فازی بدون سبز بودن فاز قبل شروع نمی‌شود.
 
-### R1 — تشخیصی‌های فرمان → IDB «Dev-KV» (T5-2b) — v34.8.39 (همین نشست)
+### R1 — تشخیصی‌های فرمان → IDB «Dev-KV» (T5-2b) — v34.8.39 ✅ انجام شد (PR#14)
 - نمای واحد `ptfDevKv` روی IDB موجود لایهٔ ذخیره‌سازی (کلیدهای `devkv:`)؛ fallback به LS فقط وقتی IDB نباشد (قرارداد رودمپ).
 - مهاجرت ۸ نقطهٔ sales-domain-v2.js + تبدیل اسکن‌ها به async + پر کردن async دیالوگ «بررسی رسید فرمان».
 - مهاجرت یک‌بارهٔ LS→IDB برای پیشوندهای `ptf_sales_command_` و `ptf_offer_post_ack_warning_`.
 - **DoD:** صفر `localStorage.*` برای این پیشوندها در sales-domain-v2.js (رatchet baseline A10 کاهش یابد) + tester539 سبز.
 
-### R2 — پیش‌نویس‌ها و صف کدینگ → IDB (T5-2c) — v34.8.40
+### R2 — پیش‌نویس‌ها و صف کدینگ → IDB (T5-2c) — v34.8.40 ✅ انجام شد (پیش‌نویس پیشنهاد/بازنگری + آینهٔ امضا + صف/پلن/ack کدینگ + رجیستری دقیق؛ baseline A10: 253→234)
 - `ptf_autodraft_offer_*` / `ptf_autodraft_award_revision_*`: ذخیره از طریق Dev-KV؛ بازیابی در `offerNew` async (confirm بازیابی پس از بارگذاری)، حذف پس از ثبت.
 - `sigRecovery_*` (letters) و `ptf_backup_local/prerestore` → Dev-KV.
 - `ptf_code_tmp_queue/plan/ack`: صف کدینگ با الگوی امن (بکاپ → نوشتن IDB → ACK → حذف LS).

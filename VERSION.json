@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.39",
+  "crm_version": "v34.8.40",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-29",
-  "updated_by": "Arena Agent (v34.8.39 — T5-2b نازک‌سازی: تشخیصی‌های فرمان ptf_sales_command_*/ptf_offer_post_ack_warning_ به Dev-KV روی IndexedDB منتقل شدند + مهاجرت امن LS→IDB + tester539؛ فازبندی باقی‌مانده در ROADMAP-THIN-CLIENT-REMAINING-2026-08-29.md)"
+  "updated_by": "Arena Agent (v34.8.40 — R2/T5-2c نازک‌سازی: پیش‌نویس‌های پیشنهاد/بازنگری، آینهٔ پروفایل امضا و صف/پلن کدینگ به Dev-KV (IndexedDB) منتقل شدند + بازیابی async پیش‌نویس + رجیستری کلید دقیق شد + tester541؛ CI: DEPLOY-SPEEDUP/TRUTHFUL-GREEN استیجینگ در پچ معلق)"
 }

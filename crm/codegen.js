@@ -20,6 +20,37 @@ var API = '../api/codegen.php';
 var POOL_KEY = 'ptf_code_pool';
 var POOL_META = 'ptf_code_pool_meta';
 
+/* v34.8.40 (R2/T5-2c — DEV→IDB): صف/پلن/ack کدینگ از دستهٔ DEV رودمپ نازک‌سازی‌اند و
+   در Dev-KV (IndexedDB) ذخیره می‌شوند، نه localStorage (اصل E3). الگو: کشِ سنکرونِ
+   درون‌حافظه‌ای + hydrate یک‌بار از Dev-KV در بوت + پایدارسازی async؛ تا لحظهٔ
+   hydrate/مهاجرت، خواندن از legacy LS ادامه دارد → هیچ صفی گم نمی‌شود و همهٔ
+   جریان‌های سنکرونِ تخصیص کد بدون تغییر می‌مانند. */
+var DEVKV_CODE_KEYS = ['ptf_code_tmp_queue', 'ptf_code_duplicate_plan', 'ptf_code_duplicate_ack'];
+var _devCache = {};
+(function devCacheInit() {
+  try {
+    if (!window.ptfDevKv) return;
+    DEVKV_CODE_KEYS.forEach(function (k) {
+      try {
+        window.ptfDevKv.get(k, function (v) { if (v != null) _devCache[k] = String(v); });
+      } catch (eG) {}
+    });
+  } catch (eI) {}
+})();
+function devCacheGet(k, def) {
+  if (Object.prototype.hasOwnProperty.call(_devCache, k)) return _devCache[k];
+  var lv = null; try { lv = localStorage.getItem(k); } catch (eL) {}
+  return lv != null ? lv : def;
+}
+function devCacheSet(k, v) {
+  _devCache[k] = String(v);
+  try { if (window.ptfDevKv) window.ptfDevKv.set(k, String(v)); } catch (eKv) {}
+}
+function devCacheRemove(k) {
+  delete _devCache[k];
+  try { if (window.ptfDevKv) window.ptfDevKv.remove(k); } catch (eKv) {}
+}
+
 function getPool(){
   try {
     var raw = localStorage.getItem(POOL_KEY);
@@ -229,10 +260,10 @@ window.ptfUnifiedCode = function(prefix){
   if (isServerOnlyPrefix(p)) {
     var tmp = 'TMP-'+p+'-'+Date.now()+'-'+Math.floor(100+Math.random()*900);
     try {
-      var q=JSON.parse(localStorage.getItem('ptf_code_tmp_queue')||'[]');
+      var q=JSON.parse(devCacheGet('ptf_code_tmp_queue','[]')||'[]');
       q.push({tmp:tmp, prefix:p, year:year, t: new Date().toISOString()});
       if(q.length>200) q=q.slice(-200);
-      localStorage.setItem('ptf_code_tmp_queue', JSON.stringify(q));
+      devCacheSet('ptf_code_tmp_queue', JSON.stringify(q));
     } catch(e){}
     try { window._ptfRefillPoolBackground(p); } catch(e){}
     return tmp;
@@ -248,10 +279,10 @@ window.ptfUnifiedCode = function(prefix){
   // 4. Last resort TMP for non-financial entities
   var tmp2 = 'TMP-'+p+'-'+Date.now()+'-'+Math.floor(100+Math.random()*900);
   try {
-    var q2=JSON.parse(localStorage.getItem('ptf_code_tmp_queue')||'[]');
+    var q2=JSON.parse(devCacheGet('ptf_code_tmp_queue','[]')||'[]');
     q2.push({tmp:tmp2, prefix:p, year:year, t: new Date().toISOString()});
     if(q2.length>200) q2=q2.slice(-200);
-    localStorage.setItem('ptf_code_tmp_queue', JSON.stringify(q2));
+    devCacheSet('ptf_code_tmp_queue', JSON.stringify(q2));
   } catch(e){}
   try { window._ptfRefillPoolBackground(p); } catch(e){}
   return tmp2;
@@ -383,7 +414,7 @@ function ptfDupPlanFingerprint(plan){
 function ptfDupAckGet(){
   var a='';
   try { var st=JSON.parse(localStorage.getItem('ptf_crm_settings')||'{}'); a=st.dupCodeAck||''; } catch(e){}
-  if(!a){ try { a=localStorage.getItem('ptf_code_duplicate_ack')||''; } catch(e2){} }
+  if(!a){ try { a=devCacheGet('ptf_code_duplicate_ack','')||''; } catch(e2){} }
   return a;
 }
 function ptfDupAckSet(fp){
@@ -397,7 +428,7 @@ function ptfDupAckSet(fp){
     else if (typeof setData === 'function') setData('ptf_crm_settings', st);
     else throw new Error('data_layer_unavailable_ptf_crm_settings');
   } catch(e){}
-  try { if(fp) localStorage.setItem('ptf_code_duplicate_ack', fp); else localStorage.removeItem('ptf_code_duplicate_ack'); } catch(e2){}
+  try { if(fp) devCacheSet('ptf_code_duplicate_ack', fp); else devCacheRemove('ptf_code_duplicate_ack'); } catch(e2){}
 }
 window.ptfAutoRepairSafeDuplicates = function(){
   try{
@@ -410,11 +441,11 @@ window.ptfAutoRepairSafeDuplicates = function(){
     }
     var plan=window.ptfBuildDuplicateRepairPlan();
     if(!plan.length){
-      try { localStorage.removeItem('ptf_code_duplicate_plan'); } catch(eClr) {}
+      try { devCacheRemove('ptf_code_duplicate_plan'); } catch(eClr) {}
       ptfDupAckSet(''); /* حل شد → ack همه دستگاه‌ها پاک */
       return {ok:true,plan:[],result:{applied:[],skipped:[]}};
     }
-    try { localStorage.setItem('ptf_code_duplicate_plan', JSON.stringify(plan)); } catch(ePlan) {}
+    try { devCacheSet('ptf_code_duplicate_plan', JSON.stringify(plan)); } catch(ePlan) {}
     /* v31.7.10 BUG-DUP-NAG-001: پیام «کد تکراری» با هر هارد رفرش تکرار می‌شد چون
        موارد ambiguous (که عمداً auto-repair نمی‌شوند) هر بار دوباره toast/notify می‌ساختند.
        حالا: فقط وقتی plan نسبت به آخرین اعلام «تغییر» کرده باشد هشدار می‌دهیم.
@@ -430,23 +461,23 @@ window.ptfAutoRepairSafeDuplicates = function(){
 };
 /* v31.7.10: acknowledge — ادمین تایید می‌کند موارد فعلی را دیده؛ تا وقتی plan تغییر نکند هشدار جدید نمی‌آید */
 window.ptfDuplicateRepairAck = function(){
-  var plan=[]; try { plan=JSON.parse(localStorage.getItem('ptf_code_duplicate_plan')||'[]'); } catch(e) {}
+  var plan=[]; try { plan=JSON.parse(devCacheGet('ptf_code_duplicate_plan','[]')||'[]'); } catch(e) {}
   ptfDupAckSet(ptfDupPlanFingerprint(plan)); /* v31.7.15: ack سراسری sync‌شونده — یک‌بار «دیدم» = همه دستگاه‌ها */
   if(typeof audit==='function') audit('سیستم','تایید مشاهده duplicateهای مبهم ('+plan.length+' مورد) — هشدار تا تغییر وضعیت خاموش شد','');
   if(typeof ptfToast==='function') ptfToast('✓ ثبت شد — تا زمانی که وضعیت کدهای تکراری تغییر نکند، هشدار تکرار نمی‌شود.','ok');
   var dlg=document.getElementById('ptfDupDlg'); if(dlg) dlg.remove();
 };
 window.ptfDuplicateRepairApplyOne = function(index){
-  var plan=[]; try { plan=JSON.parse(localStorage.getItem('ptf_code_duplicate_plan')||'[]'); } catch(e) {}
+  var plan=[]; try { plan=JSON.parse(devCacheGet('ptf_code_duplicate_plan','[]')||'[]'); } catch(e) {}
   var item=plan[index]; if(!item) return;
   if(!item.safe){ alert('⛔ این duplicate دارای reference مبهم است؛ بدون repair plan تغییر نمی‌کند.'); return; }
   if(!confirm('کد جدید فقط از server گرفته می‌شود و کد قبلی در history می‌ماند. ادامه می‌دهید؟')) return;
   var res=window.ptfApplyDuplicateRepairPlan([item],{confirm:'PTF-DUP-REPAIR'});
-  if(res.applied&&res.applied.length){ plan.splice(index,1); localStorage.setItem('ptf_code_duplicate_plan',JSON.stringify(plan)); if(typeof ptfToast==='function') ptfToast('✅ کد جدید server اختصاص داده شد','ok'); if(typeof refreshCurrentPanel==='function') refreshCurrentPanel(); }
+  if(res.applied&&res.applied.length){ plan.splice(index,1); devCacheSet('ptf_code_duplicate_plan',JSON.stringify(plan)); if(typeof ptfToast==='function') ptfToast('✅ کد جدید server اختصاص داده شد','ok'); if(typeof refreshCurrentPanel==='function') refreshCurrentPanel(); }
   else alert('⛔ کد server در دسترس نیست یا رکورد قابل تطبیق نیست؛ داده تغییر نکرد.');
 };
 window.ptfDuplicateRepairOpen = function(){
-  var plan=[]; try { plan=JSON.parse(localStorage.getItem('ptf_code_duplicate_plan')||'[]'); } catch(e) {}
+  var plan=[]; try { plan=JSON.parse(devCacheGet('ptf_code_duplicate_plan','[]')||'[]'); } catch(e) {}
   if(!plan.length){ alert('✅ duplicate فعالی برای RFQ/Offer ثبت نشده است.'); return; }
   var rows=plan.map(function(x,i){
     var recs=(x.records||[]).map(function(r){var v=r.record||{};return '<div><b>'+escP(x.code)+'</b> — '+escP(v.t||v.dt||v.dateEn||'-')+' — '+escP(v.st||'')+'</div>';}).join('');
@@ -478,7 +509,7 @@ window.ptfScanTmpCodes = function(){
     });
     // also queue
     try {
-      var q=JSON.parse(localStorage.getItem('ptf_code_tmp_queue')||'[]');
+      var q=JSON.parse(devCacheGet('ptf_code_tmp_queue','[]')||'[]');
       q.forEach(function(x){ if(x.tmp && tmps.indexOf(x.tmp)===-1) tmps.push(x.tmp); });
     } catch(e){}
   } catch(e){}
@@ -516,7 +547,7 @@ window.ptfReconcileTmpCodes = function(cb){
         } catch(e){}
       });
       // clear queue
-      try { localStorage.removeItem('ptf_code_tmp_queue'); } catch(e){}
+      try { devCacheRemove('ptf_code_tmp_queue'); } catch(e){}
       if(cb) cb({ok:true, replaced:replaced, maps:d.maps});
       if(typeof ptfToast==='function') ptfToast('✅ '+replaced+' کد TMP به کد واقعی تبدیل شد', 'ok');
     } else {

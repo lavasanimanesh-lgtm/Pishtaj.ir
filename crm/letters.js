@@ -148,6 +148,35 @@ function letExtract(subject, body) {
    می‌خواند و بعد از migration پروفایل را خالی می‌دید. خواندن از getData منبع واحد است؛
    mirror بازیابی فقط در شکست sync/IDB از درخواست دوباره تصویر جلوگیری می‌کند. */
 function sigRecoveryKey(user) { return 'ptf_sig_profile_recovery_v1_' + String(user || '').trim().toLowerCase(); }
+/* v34.8.40 (R2/T5-2c — DEV→IDB): آینهٔ بازیابی پروفایل امضا در Dev-KV (IndexedDB)
+   است نه localStorage (اصل E3). قرارداد: خواندن سنکرون از حافظهٔ نشست (hydrate یک‌بار
+   در بوت از Dev-KV)؛ منبع اصلی همان موجودیت سینک‌شونده ptf_crm_sigprofiles است،
+   پس این آینه فقط fallback است و تا پایان hydrate (میلی‌ثانیه‌های اول) null دادن
+   آن بی‌ضرر است — ردیف بعدی که پرسید، از کش جواب می‌گیرد. */
+var _sigRecoveryCache = {};
+var _sigRecoveryChecked = {};
+function sigRecoveryRead(user) {
+  var k = sigRecoveryKey(user);
+  if (Object.prototype.hasOwnProperty.call(_sigRecoveryCache, k)) return _sigRecoveryCache[k];
+  var lv = null; try { lv = localStorage.getItem(k); } catch (eL) {} /* تا قبل از مهاجرتِ بوت */
+  return lv;
+}
+function sigRecoveryWrite(user, obj) {
+  var k = sigRecoveryKey(user), s = JSON.stringify(obj);
+  _sigRecoveryCache[k] = s;
+  _sigRecoveryChecked[k] = 1;
+  try { if (window.ptfDevKv) window.ptfDevKv.set(k, s); } catch (eKv) {}
+}
+function sigRecoveryHydrate(user, cb) {
+  var k = sigRecoveryKey(user);
+  try {
+    if (!window.ptfDevKv) { if (cb) cb(null); return; }
+    window.ptfDevKv.get(k, function (v) {
+      if (v != null) _sigRecoveryCache[k] = v;
+      if (cb) cb(v != null ? v : null);
+    });
+  } catch (eKv2) { if (cb) cb(null); }
+}
 function sigProfileMap() {
   var map = null;
   try { map = typeof getData === 'function' ? getData('ptf_crm_sigprofiles') : null; } catch (e) {}
@@ -179,7 +208,14 @@ function sigProfileFor(user) {
   });
   var canonical = aliases[0] || String(user || '');
   var recovery = null;
-  try { recovery = JSON.parse(localStorage.getItem(sigRecoveryKey(canonical)) || 'null'); } catch (eR) {}
+  try { recovery = JSON.parse(sigRecoveryRead(canonical) || 'null'); } catch (eR) {}
+  if (!recovery && !_sigRecoveryChecked[canonical]) {
+    /* v34.8.40 (R2/T5-2c): اگر هنوز hydrate نشده، async بارگذاری کن و یک‌بار دیگر
+       جست‌وجو را تکرار کن تا منطق «بازیابی/تعمیر» نسخهٔ جدیدتر اجرا شود (حلقه‌ناپذیر:
+       پاسخ دوم از کش می‌آید؛ هر کلید فقط یک بار IDB خوانده می‌شود). */
+    _sigRecoveryChecked[canonical] = 1;
+    sigRecoveryHydrate(canonical, function (v) { if (v != null) { try { sigProfileFor(user); } catch (eAgain) {} } });
+  }
   var foundAt = String((found && found.updatedAtISO) || ''), recoveryAt = String((recovery && recovery.updatedAtISO) || '');
   if (recovery && recovery.sig && (!found || !found.sig || recoveryAt > foundAt)) {
     found = recovery;
@@ -190,7 +226,7 @@ function sigProfileFor(user) {
       try { if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sigprofiles', map, { reason: 'w4' }); else setData('ptf_crm_sigprofiles', map); } catch (eSet) {}
     }
   } else if (found && found.sig) {
-    try { localStorage.setItem(sigRecoveryKey(canonical), JSON.stringify(found)); } catch (eMir) {}
+    sigRecoveryWrite(canonical, found);
   }
   return found || null;
 }
@@ -262,7 +298,7 @@ function saveSigProfile() {
     if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_sigprofiles', profiles, { reason: 'w4' });
     else { var saved = setData('ptf_crm_sigprofiles', profiles); if (saved === false) { alert('⛔ ذخیره پروفایل امضا روی این دستگاه انجام نشد؛ ظرفیت/دسترسی ذخیره‌سازی را بررسی کنید.'); return; } }
     /* mirror مستقل از IDB: اگر migration یا pull موقتاً map را خالی دید، تصویر دوباره خواسته نمی‌شود. */
-    try { localStorage.setItem(sigRecoveryKey(me), JSON.stringify(p)); } catch (eMir) {}
+    try { sigRecoveryWrite(me, p); } catch (eMir) {}
     hideModal();
     audit('مکاتبات', 'به‌روزرسانی پروفایل امضا نسخه ۲', me);
     if (typeof window.ptfSyncTrackRecordSave === 'function') window.ptfSyncTrackRecordSave({ key: 'ptf_crm_sigprofiles', id: me, label: 'پروفایل امضا' });

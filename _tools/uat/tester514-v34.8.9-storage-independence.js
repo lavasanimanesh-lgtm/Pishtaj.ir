@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.39 — STORAGE-INDEPENDENCE: پایان بن‌بست «۱۰۰٪ پر بودن localStorage».
+/* v34.8.40 — STORAGE-INDEPENDENCE: پایان بن‌بست «۱۰۰٪ پر بودن localStorage».
    زنجیرهٔ RCA: فاز B هرگز روی دستگاه‌های قدیمی فعال نمی‌شد؛ همگرایی موفق پرچم را
    روشن نمی‌کرد؛ پاک‌سازی کش با گارد «فاز فعال نیست» رد می‌شد؛ emergencyCompact
    کلیدهای کسب‌وکار را هدف نمی‌گرفت؛ نشانگر per-user با تعویض اکانت می‌پرید. */
@@ -14,7 +14,7 @@ var ver = JSON.parse(read('VERSION.json'));
 var cs = read('crm/client-server.js');
 var sq = read('crm/storage-quota.js');
 
-T('VERSION.json = v34.8.39', ver.crm_version === 'v34.8.39', ver.crm_version);
+T('VERSION.json = v34.8.40', ver.crm_version === 'v34.8.40', ver.crm_version);
 
 /* ---------- زنجیرهٔ نجات خودکار ---------- */
 T('همگرایی موفق → فعال‌سازی خودکار فاز B', /ptfBEnableAfterConvergence\(\);/.test(cs) && /markSynced\(\);[\s\S]{0,900}ptfBEnableAfterConvergence/.test(cs));
@@ -51,6 +51,6 @@ T('در ≥۸۵٪ تخلیهٔ خودکار اجرا می‌شود، نه فقط
   T('شبیه‌سازی: صف غیرخالی تخلیه را متوقف می‌کند', (function () { var q = 2; return !(q === 0) && true; })());
 })();
 
-console.log('\n— tester514 (v34.8.39: پایان وابستگی به localStorage) —');
+console.log('\n— tester514 (v34.8.40: پایان وابستگی به localStorage) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

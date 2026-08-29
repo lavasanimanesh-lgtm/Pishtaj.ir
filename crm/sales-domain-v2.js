@@ -810,7 +810,8 @@
           offerSafeStep(warnings,'rollback-local',function(){restoreOfferSnapshots(before,after);});
           offerSafeStep(warnings,'release-hold',function(){releaseOfferCommand();});
           window._ptfOfferCommandInFlight=false; st._serverState=uncertain?'uncertain':'rejected'; st._serverError=e.message||'register_offer_failed';
-          try{localStorage.setItem('ptf_autodraft_offer_'+(st.kind||'CO'),JSON.stringify(st));}catch(eD){}
+          /* v34.8.40 (R2/T5-2c — DEV→IDB): پیش‌نویسِ فرم رد‌شده در Dev-KV ذخیره می‌شود */
+          try{devKvSet('ptf_autodraft_offer_'+(st.kind||'CO'),JSON.stringify(st));}catch(eD){}
           offerSafeStep(warnings,'button-ready',function(){offerButtonBusy(false);});
           if(uncertain)offerSafeStep(warnings,'uncertain-alert',function(){alert('⚠️ پاسخ قطعی ثبت از سرور دریافت نشد. سیستم همان operationId را دوباره بررسی کرد اما نتیجه هنوز نامشخص است.\n\nوضعیت درخواست محلی جلو نرفت و پیش‌نویس محفوظ است. پس از برقراری ارتباط دوباره «ذخیره» را بزنید؛ اگر سرور قبلاً ثبت کرده باشد، همان نتیجه بازیابی می‌شود و رکورد تکراری ساخته نمی‌شود.');});
           else offerSafeStep(warnings,'reject-alert',function(){alert('⛔ سرور ثبت پیشنهاد را نپذیرفت؛ وضعیت درخواست تغییر نکرد و متن فرم به‌عنوان پیش‌نویس حفظ شد.\n\nعلت: '+(e.message||'خطای ثبت'))});
@@ -1185,6 +1186,18 @@
   hookQuality();hookOfferRender();var hookTry=0,hookTimer=setInterval(function(){hookTry++;var a=hookQuality(),b=hookOfferRender();if((window._salesV2QualityHook&&window._salesV2OfferRenderHook)||hookTry>30)clearInterval(hookTimer);},300);
   /* v34.8.39 (T5-2b — DEV→IDB): مهاجرت یک‌بارهٔ تشخیصی‌های legacy فرمان از localStorage
      به Dev-KV (IndexedDB) — الگوی امن رودمپ: نوشتن در IDB موفق، فقط آن‌وقت حذف از LS.
-     بعد از اولین اجرا no-op ارزان است. */
-  try { if (window.ptfDevKvMigratePrefixes) window.ptfDevKvMigratePrefixes(['ptf_sales_command_', 'ptf_offer_post_ack_warning_']); } catch (eMig) {}
+     بعد از اولین اجرا no-op ارزان است.
+     v34.8.40 (R2/T5-2c): پیشوندهای پیش‌نویس پیشنهاد/بازنگری، آینهٔ پروفایل امضا و
+     صف/پلن کدینگ هم به همان مهاجرت امن اضافه شدند (devCache کدژن تا مهاجرت از LS
+     می‌خواند → بدون از-دست‌رفتن). */
+  try { if (window.ptfDevKvMigratePrefixes) window.ptfDevKvMigratePrefixes([
+    'ptf_sales_command_',
+    'ptf_offer_post_ack_warning_',
+    'ptf_autodraft_offer_',
+    'ptf_autodraft_award_revision_',
+    'ptf_sig_profile_recovery_v1_',
+    'ptf_code_tmp_queue',
+    'ptf_code_duplicate_plan',
+    'ptf_code_duplicate_ack'
+  ]); } catch (eMig) {}
 })();
