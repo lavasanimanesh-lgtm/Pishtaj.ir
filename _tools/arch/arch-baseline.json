@@ -1,7 +1,7 @@
 {
  "note": "بدهی معماری پذیرفته‌شده با امضای پایدار محتوا؛ افزایش multiset هر قاعده ⇒ شکست گیت.",
  "signatureFormat": "source-sha256-12-v2",
- "version": "v34.8.34",
+ "version": "v34.8.39",
  "rules": {
   "A1": [
    "delRfq @ bridge.js+workflow.js",
@@ -392,17 +392,9 @@
    "crm/procurement-link.js (ls-get) [cd08373f77ca] try { d = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); } catch (e) {…",
    "crm/projects.js (ls-get) [1f7dd3d16bb4] try { sf = JSON.parse(localStorage.getItem('ptf_crm_supplier_finance') || '{}'); if (!sf || A…",
    "crm/projects.js (ls-get) [3c40d3325c06] var h={'Content-Type':'application/json'};try{var t=localStorage.getItem('ptf_crm_token');if(…",
-   "crm/sales-domain-v2.js (ls-get) [173ee6351c62] try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(String(key||'').ind…",
-   "crm/sales-domain-v2.js (ls-get) [6569e2a59827] var value = JSON.parse(localStorage.getItem(key) || '{}');",
    "crm/sales-domain-v2.js (ls-get) [8c50de8b94a7] function authHeaders() { var h = {'Content-Type':'application/json'}; try { var t = localStor…",
-   "crm/sales-domain-v2.js (ls-remove) [66719c33318f] try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_not_committed_'+…",
-   "crm/sales-domain-v2.js (ls-remove) [dc81dad1cbd5] try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_recovered_'+Stri…",
    "crm/sales-domain-v2.js (ls-set) [4d5d1c21fd34] try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}",
-   "crm/sales-domain-v2.js (ls-set) [66719c33318f] try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_not_committed_'+…",
    "crm/sales-domain-v2.js (ls-set) [6a6cce310b69] else { localStorage.setItem(k, JSON.stringify(d[k])); ok = true; }",
-   "crm/sales-domain-v2.js (ls-set) [8a30e8fca7df] try { localStorage.setItem('ptf_offer_post_ack_warning_'+String(no||''),JSON.stringify({opera…",
-   "crm/sales-domain-v2.js (ls-set) [c2592cb62336] try { localStorage.setItem(key,JSON.stringify({kind:kind,action:action,operationId:op,message…",
-   "crm/sales-domain-v2.js (ls-set) [dc81dad1cbd5] try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_recovered_'+Stri…",
    "crm/sales-domain-v2.js (ls-set) [e46384e8374f] try{localStorage.setItem('ptf_autodraft_offer_'+(st.kind||'CO'),JSON.stringify(st));}catch(eD){}",
    "crm/salesfiles.js (ls-get) [63ed5b0a246d] var headers = typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : (fu…",
    "crm/scoring.js (ls-get) [38c394496ad9] try { st = JSON.parse(localStorage.getItem('ptf_crm_settings') || '{}'); } catch (e) {}",

@@ -259,6 +259,102 @@
       } catch (e3) { cb && cb(null); try { db.close(); } catch (e4) {} }
     });
   }
+  /* v34.8.39 (T5-2b — DEV→IDB): حذف و شمارش پیشوندی برای نمای Dev-KV */
+  function idbDelete(id, cb) {
+    dbOpen(function (db) {
+      if (!db) { cb && cb(false); return; }
+      try {
+        var tx = db.transaction(DB_STORE, 'readwrite');
+        tx.objectStore(DB_STORE).delete(String(id));
+        tx.oncomplete = function () { try { db.close(); } catch (e) {} cb && cb(true); };
+        tx.onerror = function () { try { db.close(); } catch (e2) {} cb && cb(false); };
+      } catch (e3) { try { db.close(); } catch (e4) {} cb && cb(false); }
+    });
+  }
+  function idbKeysByPrefix(prefix, cb) {
+    dbOpen(function (db) {
+      if (!db) { cb && cb([]); return; }
+      try {
+        var tx = db.transaction(DB_STORE, 'readonly');
+        var out = [];
+        var req = tx.objectStore(DB_STORE).openCursor();
+        req.onsuccess = function () {
+          var cur = req.result;
+          if (!cur) { try { db.close(); } catch (e) {} cb && cb(out); return; }
+          var rowId = String((cur.value && cur.value.id) || cur.key || '');
+          if (rowId.indexOf(String(prefix)) === 0) out.push(rowId);
+          cur.continue();
+        };
+        req.onerror = function () { try { db.close(); } catch (e2) {} cb && cb([]); };
+      } catch (e3) { try { db.close(); } catch (e4) {} cb && cb([]); }
+    });
+  }
+  /* ===== v34.8.39 (T5-2b — DEV→IDB): نمای Dev-KV — کلیدهای تشخیصی/پیش‌نویس روی IndexedDB =====
+     قرارداد رودمپ نازک‌سازی (پیوست الف، دستهٔ DEV): کلیدهای ptf_sales_command_*،
+     ptf_offer_post_ack_warning_* و هم‌گروه‌هایشان دادهٔ کسب‌وکار نیستند ولی تا امروز
+     مستقیم در localStorage می‌ماندند و اصل E3 (LS سبک) را نقض می‌کردند. این نمای واحد
+     همان IDB این لایه را با شناسهٔ «devkv:» به کار می‌گیرد؛ اگر IDB در دسترس نباشد
+     (حالت خصوصی/مرورگر قدیمی) مطابق رودمپ به LS برمی‌گردد — fallback = وضعیت امروز،
+     بدون از-دست-رفتن عملکرد. مهاجرت یک‌بارهٔ LS→IDB: بعد از اولین اجرا no-op ارزان است. */
+  function devKvUsable() {
+    try { return !!(window.indexedDB && typeof idbSet === 'function' && typeof idbGet === 'function'); } catch (e) { return false; }
+  }
+  function devKvId(key) { return 'devkv:' + String(key); }
+  function devKvSet(key, value, cb) {
+    key = String(key);
+    if (!devKvUsable()) { try { localStorage.setItem(key, String(value)); cb && cb(true); } catch (eL) { cb && cb(false); } return; }
+    idbSet(devKvId(key), String(value), function (ok) {
+      if (!ok) { try { localStorage.setItem(key, String(value)); } catch (eL2) {} } /* نوشتن پایدار نشد → نگه‌داشتن در LS (بهترین تلاش) */
+      cb && cb(!!ok);
+    });
+  }
+  function devKvGet(key, cb) {
+    key = String(key);
+    if (!devKvUsable()) { var lv = null; try { lv = localStorage.getItem(key); } catch (eL) {} cb && cb(lv); return; }
+    idbGet(devKvId(key), function (row) {
+      if (row && typeof row.value === 'string') { cb && cb(row.value); return; }
+      var lv2 = null; try { lv2 = localStorage.getItem(key); } catch (eL2) {} /* شاید هنوز مهاجرت نشده */
+      cb && cb(lv2);
+    });
+  }
+  function devKvRemove(key, cb) {
+    key = String(key);
+    if (!devKvUsable()) { try { localStorage.removeItem(key); } catch (eL) {} cb && cb(true); return; }
+    idbDelete(devKvId(key), function () { try { localStorage.removeItem(key); } catch (eL2) {} cb && cb(true); });
+  }
+  function devKvKeys(prefix, cb) {
+    prefix = String(prefix);
+    if (!devKvUsable()) {
+      var outL = [];
+      try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (String(k || '').indexOf(prefix) === 0) outL.push(String(k)); } } catch (eL) {}
+      cb && cb(outL); return;
+    }
+    idbKeysByPrefix(devKvId(prefix), function (ids) {
+      var out = ids.map(function (id) { return String(id).slice(devKvId('').length); });
+      try { for (var j = 0; j < localStorage.length; j++) { var k2 = localStorage.key(j); if (String(k2 || '').indexOf(prefix) === 0 && out.indexOf(String(k2)) < 0) out.push(String(k2)); } } catch (eL2) {}
+      cb && cb(out);
+    });
+  }
+  /* مهاجرت امن پیشوندها از LS به IDB: نوشتن در IDB موفق → فقط آن‌وقت حذف از LS (الگوی T5-3) */
+  function devKvMigratePrefixes(prefixes, cb) {
+    var total = prefixes.length, done = 0, moved = 0;
+    if (!total) { cb && cb(0); return; }
+    prefixes.forEach(function (prefix) {
+      var legacy = [];
+      try { for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i); if (String(k || '').indexOf(prefix) === 0) legacy.push(String(k)); } } catch (eL) {}
+      if (!legacy.length || !devKvUsable()) { if (++done === total) cb && cb(moved); return; }
+      var settled = 0;
+      legacy.forEach(function (lk) {
+        var v = null;
+        try { v = localStorage.getItem(lk); } catch (eR) {}
+        if (v == null) { if (++settled === legacy.length && ++done === total) cb && cb(moved); return; }
+        idbSet(devKvId(lk), v, function (ok) {
+          if (ok) { try { localStorage.removeItem(lk); } catch (eD) {} moved++; }
+          if (++settled === legacy.length && ++done === total) cb && cb(moved);
+        });
+      });
+    });
+  }
 
 
   function archiveIndex() {
@@ -649,6 +745,16 @@
   window.ptfStorageRefreshEstimate = refreshEstimate;
   window.ptfStorageIdbSet = idbSet;
   window.ptfStorageIdbGet = idbGet;
+  window.ptfStorageIdbDelete = idbDelete;      /* v34.8.39 (T5-2b): حذف ردیف IDB */
+  window.ptfStorageIdbKeysByPrefix = idbKeysByPrefix; /* v34.8.39 (T5-2b): شمارش پیشوندی */
+  window.ptfDevKv = { /* v34.8.39 (T5-2b — DEV→IDB): نمای واحد کلیدهای دستهٔ DEV رودمپ نازک‌سازی */
+    set: devKvSet,
+    get: devKvGet,
+    remove: devKvRemove,
+    keys: devKvKeys
+  };
+  window.ptfDevKvMigratePrefixes = devKvMigratePrefixes;
+  window.ptfDevKvUsable = devKvUsable;
   window.ptfStorageFailedWrites = function () { return failedWrites.slice(); };
   window.PTF_LOCALSTORAGE_SOFT_LIMIT = LOCALSTORAGE_SOFT_LIMIT;
 

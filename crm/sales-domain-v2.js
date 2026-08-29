@@ -119,9 +119,16 @@
       throw lastError;
     });
   }
+  /* v34.8.39 (T5-2b — DEV→IDB): پوشش‌های بی‌خطر Dev-KV — تشخیصی‌های فرمان دیگر
+     مستقیم در localStorage نمی‌مانند (اصل E3 رودمپ نازک‌سازی). اگر لایهٔ ذخیره‌سازی
+     بارگذاری نشده باشد، تشخیصی best-effort حذف می‌شود (دادهٔ کسب‌وکار نیست). */
+  function devKvSet(key, str) { try { if (window.ptfDevKv) window.ptfDevKv.set(key, str); } catch (eKv) {} }
+  function devKvGet(key, cb) { try { if (window.ptfDevKv) return window.ptfDevKv.get(key, cb); } catch (eKv) {} cb && cb(null); }
+  function devKvRemove(key) { try { if (window.ptfDevKv) window.ptfDevKv.remove(key); } catch (eKv) {} }
+  function devKvKeys(prefix, cb) { try { if (window.ptfDevKv) return window.ptfDevKv.keys(prefix, cb); } catch (eKv) {} cb && cb([]); }
   function persistCommandDiagnostic(kind,action,payload,e) {
     var op=String((payload&&payload.idempotencyKey)||'unknown'),key='ptf_sales_command_'+kind+'_'+op.replace(/[^A-Za-z0-9_.|:-]/g,'_').slice(0,160);
-    try { localStorage.setItem(key,JSON.stringify({kind:kind,action:action,operationId:op,message:String((e&&e.message)||e||''),at:new Date().toISOString()})); } catch(ignore){}
+    try { devKvSet(key,JSON.stringify({kind:kind,action:action,operationId:op,message:String((e&&e.message)||e||''),at:new Date().toISOString()})); } catch(ignore){}
     return key;
   }
   function api(action, payload, options) {
@@ -303,17 +310,21 @@
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
 
-  function financeUncertainRows() {
-    var rows = [];
-    try {
-      for (var i = 0; i < localStorage.length; i++) {
-        var key = localStorage.key(i);
-        if (String(key || '').indexOf('ptf_sales_command_uncertain_') !== 0) continue;
-        var value = JSON.parse(localStorage.getItem(key) || '{}');
-        if (value && value.operationId) rows.push({ key: key, value: value });
-      }
-    } catch (e) {}
-    return rows.sort(function (a, b) { return String((b.value || {}).at || '').localeCompare(String((a.value || {}).at || '')); });
+  /* v34.8.39 (T5-2b — DEV→IDB): ردیف‌های uncertain از Dev-KV (IndexedDB) خوانده
+     می‌شوند — دیگر اسکن سنکرون localStorage نداریم؛ امضا async (cb) شد. */
+  function financeUncertainRows(cb) {
+    devKvKeys('ptf_sales_command_uncertain_', function (keys) {
+      var rows = [], pending = keys.length;
+      if (!pending) { cb && cb(rows); return; }
+      keys.forEach(function (key) {
+        devKvGet(key, function (raw) {
+          var value = null;
+          try { value = JSON.parse(raw || '{}'); } catch (eP) {}
+          if (value && value.operationId) rows.push({ key: key, value: value });
+          if (--pending === 0) cb && cb(rows.sort(function (a, b) { return String((b.value || {}).at || '').localeCompare(String((a.value || {}).at || '')); }));
+        });
+      });
+    });
   }
   function financeStatusMessage(status) {
     if (!status) return 'پاسخی از سرویس وضعیت دریافت نشد.';
@@ -324,19 +335,28 @@
   window.ptfFinanceCommandStatusOpen = function () {
     if (!canRepairOfferWin()) { alert('بررسی فرمان‌های مالی فقط برای admin یا chairman در دسترس است.'); return; }
     repairPlanClose();
-    var rows = financeUncertainRows(), latest = rows.length ? rows[0].value : {};
-    var operationId = String(latest.operationId || '');
-    var action = String(latest.action || 'reconcile_recurring_opex');
+    /* v34.8.39 (T5-2b): ردیف‌ها از Dev-KV async می‌آیند — دیالوگ فوراً باز می‌شود،
+       فهرست و پیش‌پر شدن شناسه/نام فرمان پس از بارگذاری کامل می‌شود. */
     var html = '<div class="md-b" id="ptfFinanceCommandStatusDlg" style="display:grid;z-index:4350" onclick="if(event.target===this)ptfFinanceCommandStatusClose()"><div class="md" style="max-width:720px;max-height:90vh;overflow:auto">' +
       '<h3>🔎 بررسی رسید فرمان مالی — بدون ثبت فرمان جدید</h3>' +
       '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px;font-size:12px;line-height:1.8">این بخش فقط وضعیت یک شناسهٔ قبلی را از journal سرور می‌خواند. دوباره‌ثبت، reconcile جدید، حذف، restore یا repair انجام نمی‌شود.</div>' +
-      '<div class="fld" style="margin-top:12px"><label>شناسهٔ پیگیری</label><input id="ptfFinanceStatusOperation" value="' + esc(operationId) + '" autocomplete="off" dir="ltr"></div>' +
-      '<div class="fld"><label>نام فرمان</label><input id="ptfFinanceStatusAction" value="' + esc(action) + '" autocomplete="off" dir="ltr"></div>' +
+      '<div class="fld" style="margin-top:12px"><label>شناسهٔ پیگیری</label><input id="ptfFinanceStatusOperation" value="" autocomplete="off" dir="ltr"></div>' +
+      '<div class="fld"><label>نام فرمان</label><input id="ptfFinanceStatusAction" value="reconcile_recurring_opex" autocomplete="off" dir="ltr"></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="ptfFinanceCommandStatusClose()">بستن</button><button class="bt" id="ptfFinanceStatusRunBtn" onclick="ptfFinanceCommandStatusRun()">بررسی وضعیت</button></div>' +
       '<div id="ptfFinanceStatusResult" style="margin-top:10px"></div>' +
-      (rows.length ? '<h4 style="margin:12px 0 6px">فرمان‌های نامشخص ذخیره‌شده در همین مرورگر</h4><div style="font-size:11px;color:#475569;line-height:1.8">' + rows.slice(0, 12).map(function (row) { return '<button class="bt bt-o" style="font-size:10px;margin:3px" onclick="ptfFinanceCommandStatusSelect(\'' + arg(row.value.operationId) + '\',\'' + arg(row.value.action || 'reconcile_recurring_opex') + '\')">' + esc(row.value.operationId) + '</button>'; }).join('') + '</div>' : '') +
+      '<div id="ptfFinanceStatusRows" style="margin-top:6px"><div style="font-size:11px;color:#64748b">… در حال خواندن فرمان‌های نامشخص ذخیره‌شده …</div></div>' +
       '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    financeUncertainRows(function (rows) {
+      var latest = rows.length ? rows[0].value : {};
+      var op = document.getElementById('ptfFinanceStatusOperation'), act = document.getElementById('ptfFinanceStatusAction');
+      if (op && !String(op.value || '').trim()) op.value = String(latest.operationId || '');
+      if (act && String(act.value || '') === 'reconcile_recurring_opex' && latest.action) act.value = String(latest.action);
+      var list = document.getElementById('ptfFinanceStatusRows');
+      if (!list) return;
+      if (!rows.length) { list.innerHTML = ''; return; }
+      list.innerHTML = '<h4 style="margin:12px 0 6px">فرمان‌های نامشخص ذخیره‌شده در همین مرورگر</h4><div style="font-size:11px;color:#475569;line-height:1.8">' + rows.slice(0, 12).map(function (row) { return '<button class="bt bt-o" style="font-size:10px;margin:3px" onclick="ptfFinanceCommandStatusSelect(\'' + arg(row.value.operationId) + '\',\'' + arg(row.value.action || 'reconcile_recurring_opex') + '\')">' + esc(row.value.operationId) + '</button>'; }).join('') + '</div>';
+    });
   };
   window.ptfFinanceCommandStatusClose = function () { document.querySelectorAll('#ptfFinanceCommandStatusDlg').forEach(function (el) { el.remove(); }); };
   window.ptfFinanceCommandStatusSelect = function (operationId, action) {
@@ -523,22 +543,34 @@
   };
   /* Persisted uncertain diagnostics survive refresh. After authenticated CRM boot this
      helper checks only the durable journal (never resubmits a mutation), pulls the
-     committed projection, and clears the warning if its ACK is authoritative. */
+     committed projection, and clears the warning if its ACK is authoritative.
+     v34.8.39 (T5-2b — DEV→IDB): مخزن، Dev-KV (IndexedDB) است نه localStorage. */
   window.ptfRecoverUncertainSalesCommands = function(){
-    var rows=[];
-    try{for(var i=0;i<localStorage.length;i++){var key=localStorage.key(i);if(String(key||'').indexOf('ptf_sales_command_uncertain_')!==0)continue;var d=JSON.parse(localStorage.getItem(key)||'{}');if(d&&d.action&&d.operationId)rows.push({key:key,d:d});}}catch(e){return Promise.resolve([]);}
-    return Promise.all(rows.slice(-12).map(function(row){
+    return new Promise(function(resolveTop){
+      devKvKeys('ptf_sales_command_uncertain_', function(keys){
+        var rows=[], pending=keys.length;
+        if(!pending){resolveTop([]);return;}
+        keys.forEach(function(key){
+          devKvGet(key,function(raw){
+            var d=null;try{d=JSON.parse(raw||'{}');}catch(eP){}
+            if(d&&d.action&&d.operationId)rows.push({key:key,d:d});
+            if(--pending!==0)return;
+            resolveTop(Promise.all(rows.slice(-12).map(function(row){
       return window.ptfSalesDomainCommandStatus(row.d.action,row.d.operationId).then(function(status){
         if(!status||status.committed!==true){
-          try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_not_committed_'+String(row.d.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'),JSON.stringify({action:row.d.action,operationId:row.d.operationId,at:new Date().toISOString()}));}catch(ignoreMissing){}
+              try{devKvRemove(row.key);devKvSet('ptf_sales_command_not_committed_'+String(row.d.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'),JSON.stringify({action:row.d.action,operationId:row.d.operationId,at:new Date().toISOString()}));}catch(ignoreMissing){}
           try{toast('⚠️ رسید سرور تأیید کرد فرمان '+row.d.operationId+' ثبت نشده است؛ فرم را دوباره باز و ثبت کنید.','warn');}catch(ignoreMissingToast){}
           return{committed:false,definitive:true,operationId:row.d.operationId};
         }
-        try{localStorage.removeItem(row.key);localStorage.setItem('ptf_sales_command_recovered_'+String(row.d.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'),JSON.stringify({action:row.d.action,operationId:row.d.operationId,at:new Date().toISOString(),result:status.result||{}}));}catch(ignore){}
+              try{devKvRemove(row.key);devKvSet('ptf_sales_command_recovered_'+String(row.d.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'),JSON.stringify({action:row.d.action,operationId:row.d.operationId,at:new Date().toISOString(),result:status.result||{}}));}catch(ignore){}
         try{toast('✅ نتیجه قطعی فرمان '+row.d.operationId+' از رسید سرور بازیابی شد.','ok');}catch(ignoreToast){}
         return{committed:true,operationId:row.d.operationId,result:status.result||{}};
-      },function(){return{committed:false,operationId:row.d.operationId};});
-    }));
+            },function(){return{committed:false,operationId:row.d.operationId};});
+          })));
+          });
+        });
+      });
+    });
   };
 
   /* v34.7.39 — ثبت پیشنهاد یک command واقعی است، نه local save + دو push موازی.
@@ -668,7 +700,8 @@
   }
   function saveOfferAckWarning(no,operationId,warnings) {
     if(!warnings.length)return;
-    try { localStorage.setItem('ptf_offer_post_ack_warning_'+String(no||''),JSON.stringify({operationId:operationId,at:new Date().toISOString(),warnings:warnings})); } catch(e) {}
+    /* v34.8.39 (T5-2b — DEV→IDB): هشدار پس از ACK در Dev-KV (IndexedDB) ذخیره می‌شود */
+    try { devKvSet('ptf_offer_post_ack_warning_'+String(no||''),JSON.stringify({operationId:operationId,at:new Date().toISOString(),warnings:warnings})); } catch(e) {}
   }
   var legacyOfferSave = window.offerSave;
   if (typeof legacyOfferSave === 'function') {
@@ -1122,4 +1155,8 @@
   function hookQuality(){if(window._salesV2QualityHook||typeof window.ptfDataQualityHtml!=='function')return false;window._salesV2QualityHook=true;var old=window.ptfDataQualityHtml;window.ptfDataQualityHtml=function(){return old()+'<div id="salesIntegrityQuality">'+window.ptfSalesIntegrityHtml()+'</div>';};var oldRender=window.ptfDataQualityRender;if(typeof oldRender==='function')window.ptfDataQualityRender=function(){oldRender.apply(this,arguments);var el=document.getElementById('salesIntegrityQuality');if(el)el.innerHTML=window.ptfSalesIntegrityHtml();};return true;}
   function hookOfferRender(){if(window._salesV2OfferRenderHook||typeof window.renderOffers!=='function')return false;window._salesV2OfferRenderHook=true;var old=window.renderOffers;window.renderOffers=function(){old.apply(this,arguments);var host=document.getElementById('oTb');if(!host)return;var findings=window.ptfSalesIntegrityScan().filter(function(x){return x.type==='orphan_won'||x.type==='duplicate_offer'||x.type==='duplicate_case';});var oldBox=document.getElementById('ptfOfferIntegrity');if(oldBox)oldBox.remove();if(findings.length)host.insertAdjacentHTML('beforebegin','<div id="ptfOfferIntegrity">'+window.ptfSalesIntegrityHtml()+'</div>');};return true;}
   hookQuality();hookOfferRender();var hookTry=0,hookTimer=setInterval(function(){hookTry++;var a=hookQuality(),b=hookOfferRender();if((window._salesV2QualityHook&&window._salesV2OfferRenderHook)||hookTry>30)clearInterval(hookTimer);},300);
+  /* v34.8.39 (T5-2b — DEV→IDB): مهاجرت یک‌بارهٔ تشخیصی‌های legacy فرمان از localStorage
+     به Dev-KV (IndexedDB) — الگوی امن رودمپ: نوشتن در IDB موفق، فقط آن‌وقت حذف از LS.
+     بعد از اولین اجرا no-op ارزان است. */
+  try { if (window.ptfDevKvMigratePrefixes) window.ptfDevKvMigratePrefixes(['ptf_sales_command_', 'ptf_offer_post_ack_warning_']); } catch (eMig) {}
 })();
