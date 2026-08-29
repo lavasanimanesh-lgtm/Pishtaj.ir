@@ -15,6 +15,7 @@
       if (!localStorage.getItem('ptf_crm_session')) return;
       var last = +localStorage.getItem('ptf_last_activity') || Date.now();
       if (Date.now() - last > IDLE_MAX) {
+        try { if (typeof window.ptfAuthClear === 'function') window.ptfAuthClear(); } catch (eAc) {}
         localStorage.removeItem('ptf_crm_session');
         /* v34.7.91 (AUTH-TOKEN-REQUIRED): همراه نشست، توکن و نقش هم حذف شوند تا
            حالت ناهماهنگ «session نیست ولی token هست» باقی نماند و ورود مجدد به
@@ -116,7 +117,7 @@
   function irAuthHeaders(json) {
     if (typeof ptfStorageAuthHeaders === 'function') return ptfStorageAuthHeaders(!!json);
     var h = json ? { 'Content-Type': 'application/json' } : {};
-    try { var token = localStorage.getItem('ptf_crm_token'); if (token) h['X-CRM-Token'] = token; } catch (e) {}
+    try { var token = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (token) h['X-CRM-Token'] = token; } catch (e) {}
     return h;
   }
   window.ptfLlmStatus = function (cb) {
@@ -779,7 +780,7 @@
   function ptfInqDeleteCloud(key) {
     if (!key) return Promise.resolve({ ok: true });
     return fetch(STORAGE_API + '?action=delete_rfq_attachment', {
-      method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : (function(){ var h={'Content-Type':'application/json'}; try { var t=localStorage.getItem('ptf_crm_token'); if(t)h['X-CRM-Token']=t; } catch(e){} return h; })()),
+      method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : (function(){ var h={'Content-Type':'application/json'}; try { var t=(typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if(t)h['X-CRM-Token']=t; } catch(e){} return h; })()),
       body: JSON.stringify({ key: key })
     }).then(function(r){ return r.text().then(function(txt){ var d = {}; try { d = JSON.parse(txt); } catch(e) {} if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status)); return d; }); });
   }

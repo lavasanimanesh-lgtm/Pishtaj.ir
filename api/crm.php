@@ -33,7 +33,7 @@ function verify_request() {
     // Public actions that don't need verification
     // v31.7.7 HOTFIX: Added 'users_get' — needed during login before token exists.
     // users_get only returns safe fields (no passhash) since BUG-AUDIT-004.
-    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'sms_status', 'users_get', 'chat_lead'];
+    $public_actions = ['captcha_new', 'add_rfq_site', 'add_supplier', 'track', 'auth_login', 'auth_login_otp', 'sms_status', 'users_get', 'chat_lead']; /* v34.8.46: auth_login_otp = مرحلهٔ دوم ورود دومرحله‌ای */
     if (in_array($action, $public_actions)) {
         return true;
     }
@@ -883,6 +883,41 @@ function save_data($key, $data) {
    توجه: دفتر rev (meta.json) در هر سه حالت دست‌نخورده باقی می‌ماند (کوچک و سبک).
    مهم: این دو تابع باید top-level باشند (داخل switch تعریف شرطی می‌شود و در caseها
    undefined است) — کنار load_data/save_data نگهداری می‌شوند. */
+/* ═══ v34.8.46 (R6/T7-ب — LOGIN-2FA + SESSIONS): ورود دومرحله‌ای پیامکی نقش‌های مالی و مدیریت نشست‌ها ═══ */
+function twofa_store_file() { global $data_dir; return $data_dir . '/auth_2fa.json'; }
+function twofa_store_load() { $f = twofa_store_file(); return is_file($f) ? (json_decode((string)@file_get_contents($f), true) ?: []) : []; }
+function twofa_store_save($st) {
+    $f = twofa_store_file();
+    $tmp = $f . '.tmp.' . bin2hex(random_bytes(4));
+    if (@file_put_contents($tmp, json_encode($st), LOCK_EX) !== false) @rename($tmp, $f);
+}
+function twofa_log($event, $user, $detail = '') {
+    /* ۸۰ رویداد آخر — مبنای پایش «چند بار fail-open شد» توسط ادمین */
+    global $data_dir;
+    $f = $data_dir . '/auth_2fa_log.json';
+    $log = is_file($f) ? (json_decode((string)@file_get_contents($f), true) ?: []) : [];
+    $log[] = ['at' => date('Y-m-d H:i:s'), 'event' => (string)$event, 'user' => (string)$user, 'detail' => (string)$detail, 'ip' => (string)($_SERVER['REMOTE_ADDR'] ?? '')];
+    if (count($log) > 80) $log = array_slice($log, -80);
+    $tmp = $f . '.tmp.' . bin2hex(random_bytes(4));
+    if (@file_put_contents($tmp, json_encode($log, JSON_UNESCAPED_UNICODE), LOCK_EX) !== false) @rename($tmp, $f);
+}
+function twofa_cfg() {
+    $s = load_data('settings');
+    $roles = ['accountant']; /* پیش‌فرض T7: نقش مالی متمرکز */
+    if (is_array($s['twofa_roles'] ?? null)) {
+        $r = [];
+        foreach ($s['twofa_roles'] as $x) { $x = normalize_role((string)$x, (string)$x); if ($x !== '') $r[] = $x; }
+        if ($r) $roles = array_values(array_unique($r));
+    }
+    /* v34.8.49 (درخواست مالک ۱۴۰۵/۶/۷): پیامک ورود دومرحله‌ای به‌صورت پیش‌فرض خاموش است —
+       فقط با settings.twofa_enabled=true (از پنل تنظیمات) روشن می‌شود. */
+    return ['enabled' => ($s['twofa_enabled'] ?? false) === true, 'roles' => $roles, 'strict' => !empty($s['twofa_required'])];
+}
+function twofa_user_mobile($found) {
+    $m = preg_replace('/\D/', '', (string)($found['mobile'] ?? ''));
+    return preg_match('/^09\d{9}$/', $m) ? $m : '';
+}
+
 /* پاسخ JSON بزرگ (data_pull) را در صورت پشتیبانی مرورگر gzip می‌کنیم — بدون تعویض هاست حجم روی سیم کم می‌شود. */
 function ptf_echo_json($payload, $flags = 0) {
     $raw = is_string($payload) ? $payload : json_encode($payload, $flags | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -1839,10 +1874,20 @@ switch($action) {
         $statsFile = $data_dir . '/sync/push_stats.json';
         $stats = is_file($statsFile) ? (json_decode((string)file_get_contents($statsFile), true) ?: []) : [];
         $rows = [];
+        $win7From = date('Y-m-d', strtotime('-6 days'));
         foreach ($stats as $key => $row) {
             if (!is_array($row)) continue;
+            /* v34.8.42 (R4-گام۱): win7 = مجموع push توده‌ای در ۷ روز آخر (۷ سطل)؛
+               null یعنی تله‌متری روزانه هنوز جمع نشده (ردیف قدیمی) → شواهد ناکافی. */
+            $win7 = null; $win7Days = 0;
+            if (is_array($row['d'] ?? null)) {
+                $win7 = 0;
+                foreach ($row['d'] as $dk => $dn) { if ($dk >= $win7From) { $win7 += (int)$dn; $win7Days++; } }
+            }
             $rows[] = [
                 'key' => (string)$key,
+                'win7' => $win7,
+                'win7Days' => $win7Days,
                 'pushes' => (int)($row['n'] ?? 0),
                 'bytesTotal' => (int)($row['bytes'] ?? 0),
                 'avgBytes' => ((int)($row['n'] ?? 0) > 0) ? (int)round(((int)($row['bytes'] ?? 0)) / max(1,(int)($row['n'] ?? 1))) : 0,
@@ -1853,7 +1898,108 @@ switch($action) {
             ];
         }
         usort($rows, function($a,$b){ return ($b['pushes'] <=> $a['pushes']) ?: ($b['conflicts'] <=> $a['conflicts']); });
-        echo json_encode(['ok' => true, 'since' => 'v34.8.12', 'keys' => count($rows), 'stats' => $rows], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true, 'since' => 'v34.8.12', 'win7From' => $win7From, 'keys' => count($rows), 'stats' => $rows], JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'sync_engine_flags':
+        /* v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): وضعیت پرچم‌های بازنشستگی موتور
+           سینک legacy — فقط‌خواندنی؛ ادمین/رئیس. کلاینت این JSON را با TTL کش می‌کند. */
+        verify_request();
+        role_guard('users_write');
+        $flagsFile = $data_dir . '/sync/engine_flags.json';
+        $flagsPayload = is_file($flagsFile) ? (json_decode((string)file_get_contents($flagsFile), true) ?: []) : [];
+        $offNow = is_array($flagsPayload['legacyPushOff'] ?? null) ? $flagsPayload['legacyPushOff'] : [];
+        echo json_encode(['ok' => true, 'legacyPushOff' => $offNow, 'since' => 'v34.8.42'], JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'sync_engine_flag_set':
+        /* v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): کلید قطع PTF_LEGACY_PUSH_OFF برای
+           یک کلید سینک. گیت شواهد: خاموش‌کردن push توده‌ای فقط با پنجرهٔ ۷روزهٔ ≈ صفر
+           (win7 ≤ 3) یا force صریح + دلیل؛ هر تغییر با کاربر/زمان/دلیل ثبت و کاملاً
+           بازگشت‌پذیر است (off=0). اثر گام ۱ = صفر به‌صورت پیش‌فرض (fail-open کلاینت). */
+        verify_request();
+        role_guard('users_write');
+        $fkey = clean($_POST['key'] ?? '', 80);
+        $off = (($_POST['off'] ?? '') === '1');
+        $reason = clean($_POST['reason'] ?? '', 200);
+        $force = (($_POST['force'] ?? '') === '1');
+        $by = clean($_POST['by'] ?? '', 80);
+        if ($fkey === '' || !in_array($fkey, sync_all_keys(), true)) { echo json_encode(['ok' => false, 'error' => 'کلید خارج از دامنهٔ سینک است'], JSON_UNESCAPED_UNICODE); break; }
+        $sdirEng = $data_dir . '/sync';
+        if (!is_dir($sdirEng)) { mkdir($sdirEng, 0755, true); file_put_contents($sdirEng . '/.htaccess', "Deny from all\n"); }
+        $statsEng = is_file($sdirEng . '/push_stats.json') ? (json_decode((string)file_get_contents($sdirEng . '/push_stats.json'), true) ?: []) : [];
+        $win7now = null;
+        if (isset($statsEng[$fkey]) && is_array($statsEng[$fkey]['d'] ?? null)) {
+            $win7now = 0; $fromEng = date('Y-m-d', strtotime('-6 days'));
+            foreach ($statsEng[$fkey]['d'] as $dkE => $dnE) { if ($dkE >= $fromEng) $win7now += (int)$dnE; }
+        }
+        if ($off && !$force && ($win7now === null || $win7now > 3)) {
+            echo json_encode(['ok' => false, 'win7' => $win7now, 'error' => ($win7now === null
+                ? 'شواهد پنجرهٔ ۷روزه برای این کلید موجود نیست (تله‌متری روزانه از v34.8.42 جمع می‌شود) — برای عبور، force همراه دلیل لازم است'
+                : 'پنجرهٔ ۷روزهٔ push توده‌ای این کلید صفر نیست (' . $win7now . ' بار) — برای عبور، force همراه دلیل لازم است')], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        if ($off && $force && mb_strlen($reason) < 5) { echo json_encode(['ok' => false, 'error' => 'عبور اجباری نیازمند دلیل ثبت‌شدنی است (حداقل ۵ نویسه)'], JSON_UNESCAPED_UNICODE); break; }
+        $flagsFileEng = $sdirEng . '/engine_flags.json';
+        $payloadEng = is_file($flagsFileEng) ? (json_decode((string)file_get_contents($flagsFileEng), true) ?: []) : [];
+        if (!is_array($payloadEng['legacyPushOff'] ?? null)) $payloadEng['legacyPushOff'] = [];
+        if ($off) $payloadEng['legacyPushOff'][$fkey] = ['at' => date('Y-m-d H:i:s'), 'by' => $by, 'reason' => $reason, 'win7AtSet' => $win7now];
+        else unset($payloadEng['legacyPushOff'][$fkey]);
+        $payloadEng['updatedAt'] = date('Y-m-d H:i:s');
+        $tmpEng = $flagsFileEng . '.tmp.' . bin2hex(random_bytes(4));
+        if (@file_put_contents($tmpEng, json_encode($payloadEng, JSON_UNESCAPED_UNICODE), LOCK_EX) === false) { @unlink($tmpEng); echo json_encode(['ok' => false, 'error' => 'نوشتن فایل پرچم ناموفق بود'], JSON_UNESCAPED_UNICODE); break; }
+        @rename($tmpEng, $flagsFileEng);
+        echo json_encode(['ok' => true, 'key' => $fkey, 'off' => $off, 'win7' => $win7now, 'legacyPushOff' => $payloadEng['legacyPushOff']], JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'sessions_list':
+        /* v34.8.46 (R6/T7-ب): نشست‌های فعال — فقط متادیتا (بدون مقدار توکن)؛ ادمین/رئیس */
+        verify_request();
+        role_guard('users_write');
+        $sessNow = time();
+        $sessRows = [];
+        foreach (auth_load_tokens() as $tS => $iS) {
+            if (!is_array($iS) || (int)($iS['exp'] ?? 0) < $sessNow) continue;
+            $sessRows[] = [
+                'user' => (string)($iS['user'] ?? ''),
+                'role' => (string)($iS['role'] ?? ''),
+                'iat' => (int)($iS['iat'] ?? 0),
+                'exp' => (int)($iS['exp'] ?? 0),
+                'ip' => (string)($iS['ip'] ?? ''),
+                'current' => hash_equals((string)$tS, auth_get_header_token()),
+            ];
+        }
+        usort($sessRows, function ($a, $b) { return strcmp((string)$b['iat'], (string)$a['iat']); });
+        echo json_encode(['ok' => true, 'sessions' => $sessRows, 'count' => count($sessRows)], JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'sessions_revoke':
+        /* v34.8.46 (R6/T7-ب): ابطال گروهی توکن‌ها — «همه» یا یک کاربر؛
+           نشست همین ادمین (توکن درخواست‌کننده) همیشه زنده می‌ماند تا خودش لاک‌اوت نشود. */
+        verify_request();
+        role_guard('users_write');
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['ok' => false, 'error' => 'method_not_allowed']);
+            break;
+        }
+        $revTarget = clean($_POST['user'] ?? 'all', 80);
+        $revKeep = auth_get_header_token();
+        $revMe = auth_verify_token($revKeep);
+        $revUser = is_array($revMe) ? (string)($revMe['user'] ?? '') : '(unknown)';
+        $revTokens = auth_load_tokens();
+        $revNow = time();
+        $revokedN = 0;
+        foreach ($revTokens as $tR => $iR) {
+            if ($tR === $revKeep) continue;
+            if (!is_array($iR) || (int)($iR['exp'] ?? 0) < $revNow) continue;
+            if ($revTarget !== 'all' && strcasecmp((string)($iR['user'] ?? ''), $revTarget) !== 0) continue;
+            unset($revTokens[$tR]);
+            $revokedN++;
+        }
+        auth_save_tokens($revTokens);
+        twofa_log('sessions_revoked', $revUser, ($revTarget === 'all' ? 'all' : $revTarget) . ' — ' . $revokedN . ' token(s)');
+        echo json_encode(['ok' => true, 'revoked' => $revokedN, 'target' => $revTarget], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'get_backup':
@@ -2047,6 +2193,14 @@ switch($action) {
                 if (!is_string($sk) || $sk === '') continue;
                 $row = $stats[$sk] ?? ['n'=>0,'bytes'=>0,'conflicts'=>0,'rejects'=>0];
                 $row['n'] = (int)($row['n'] ?? 0) + 1;
+                /* v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): سطل روزانه برای پنجرهٔ
+                   ۷روزهٔ تصمیمِ بازنشستگی موتور legacy؛ هرس به ۱۴ روز آخر. */
+                $_today = date('Y-m-d');
+                $_d = is_array($row['d'] ?? null) ? $row['d'] : [];
+                $_d[$_today] = (int)($_d[$_today] ?? 0) + 1;
+                $_cut = date('Y-m-d', strtotime('-13 days'));
+                foreach ($_d as $_dk => $_dn) { if ($_dk < $_cut) unset($_d[$_dk]); }
+                $row['d'] = $_d;
                 if (isset($j['data'][$sk]) && is_string($j['data'][$sk])) $row['bytes'] = (int)($row['bytes'] ?? 0) + strlen($j['data'][$sk]);
                 if (in_array($sk, $conflicts, true)) $row['conflicts'] = (int)($row['conflicts'] ?? 0) + 1;
                 if (in_array($sk, $rejected, true)) $row['rejects'] = (int)($row['rejects'] ?? 0) + 1;
@@ -2257,6 +2411,8 @@ switch($action) {
             if ($info) auth_revoke_token($logoutToken);
         }
         /* v34.8.28 (T4-1a): کوکی نشست هم هنگام خروج پاک می‌شود */
+        /* v34.8.43 (R5/T4-1b): نشانگر غیرمحرم هم پاک شود — وگرنه کلاینت به‌کذب «نشست دارد» */
+        setcookie('ptf_token_flag', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'), 'httponly' => false, 'samesite' => 'Strict']);
         if (isset($_COOKIE['ptf_token'])) {
             setcookie('ptf_token', '', ['expires' => time() - 3600, 'path' => '/', 'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'), 'httponly' => true, 'samesite' => 'Strict']);
             unset($_COOKIE['ptf_token']);
@@ -2264,6 +2420,13 @@ switch($action) {
         echo json_encode(['ok' => true, 'revoked' => $logoutToken !== '']);
         break;
 
+    /* ═══ v34.8.46 (R6/T7-ب — LOGIN-2FA): ورود دومرحله‌ای پیامکی نقش‌های مالی ═══
+       طراحی: مرحلهٔ ۱ (auth_login) بعد از تأیید رمز، برای نقش‌های مالیِ پیکربندی‌شده
+       (پیش‌فرض: accountant) کد ۶رقمی با SMS می‌فرستد و به‌جای توکن، otp_challenge
+       برمی‌گرداند؛ مرحلهٔ ۲ (auth_login_otp) با کد، توکن نشست صادر می‌کند.
+       سیاست fail-open: اگر SMS پیکربندی نباشد/موبایل نباشد/ارسال شکست بخورد، ورود
+       ادامه می‌یابد و رویداد در auth_2fa_log ثبت می‌شود — مگر اینکه ادمین
+       settings.twofa_required = true کرده باشد (آنگاه fail-closed). */
     case 'auth_login':
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
             http_response_code(405);
@@ -2340,6 +2503,59 @@ switch($action) {
         }
         if ($legacy) migrate_legacy_password_hash($found, $password);
         $role = normalize_role($found['roleId'] ?? '', $found['role'] ?? '');
+        /* v34.8.46 (R6/T7-ب — LOGIN-2FA): نقش مالی + SMS فعال → کد پیامکی قبل از صدور توکن */
+        $twofaSkipped = null;
+        $cfg2fa = twofa_cfg();
+        if ($cfg2fa['enabled'] && in_array($role, $cfg2fa['roles'], true)) {
+            $mob2fa = twofa_user_mobile($found);
+            if (!sms_enabled() || $mob2fa === '') {
+                $why2fa = !sms_enabled() ? 'sms_off' : 'no_mobile';
+                twofa_log('skipped', $found['username'], $why2fa);
+                if ($cfg2fa['strict']) {
+                    http_response_code(503);
+                    echo json_encode(['ok' => false, 'error' => 'twofa_unavailable', 'message' => 'ورود دومرحله‌ای برای نقش شما الزامی است اما سامانه پیامک ' . ($why2fa === 'sms_off' ? 'پیکربندی نشده است' : 'شماره موبایل شما را ندارد') . ' — با مدیر سیستم تماس بگیرید'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $twofaSkipped = $why2fa; /* fail-open + ثبت رویداد */
+            } else {
+                $st2fa = twofa_store_load();
+                $uk2fa = strtolower($found['username']);
+                $rec2fa = $st2fa[$uk2fa] ?? null;
+                $window2fa = ($rec2fa && (time() - (int)($rec2fa['first'] ?? 0)) < 600);
+                if ($rec2fa && $window2fa && (int)($rec2fa['sent'] ?? 0) >= 3) {
+                    http_response_code(429);
+                    echo json_encode(['ok' => false, 'error' => 'twofa_rate_limited', 'message' => 'تعداد درخواست کد زیاد است — چند دقیقه بعد تلاش کنید'], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+                $code2fa = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                $chal2fa = bin2hex(random_bytes(16));
+                $st2fa[$uk2fa] = [
+                    'hash' => password_hash($code2fa, PASSWORD_DEFAULT),
+                    'chal' => $chal2fa, 'exp' => time() + 180, 'tries' => 0,
+                    'sent' => ($window2fa ? (int)($rec2fa['sent'] ?? 0) : 0) + 1,
+                    'first' => $window2fa ? (int)($rec2fa['first'] ?? time()) : time(),
+                    'user' => $found['username'], 'role' => $role,
+                    'name' => (string)($found['name'] ?? $found['username']),
+                    'mobile_last4' => substr($mob2fa, -4),
+                ];
+                twofa_store_save($st2fa);
+                $err2fa = null;
+                $sent2fa = sms_send($mob2fa, 'پیشرو تجهیز فرتاک' . "\n" . 'رمز ورود دومرحله‌ای: ' . $code2fa . "\n" . 'اعتبار: ۳ دقیقه', $err2fa);
+                if (!$sent2fa) {
+                    twofa_log('sms_failed', $found['username'], (string)($err2fa ?: 'send_failed'));
+                    if ($cfg2fa['strict']) {
+                        http_response_code(503);
+                        echo json_encode(['ok' => false, 'error' => 'twofa_sms_failed', 'message' => 'ارسال پیامک دومرحله‌ای ناموفق بود — دوباره تلاش کنید'], JSON_UNESCAPED_UNICODE);
+                        break;
+                    }
+                    $twofaSkipped = 'sms_failed'; /* fail-open + ثبت رویداد */
+                } else {
+                    twofa_log('sent', $found['username'], 'mobile:***' . substr($mob2fa, -4));
+                    echo json_encode(['ok' => true, 'otp_required' => true, 'otp_challenge' => $chal2fa, 'mobile_last4' => substr($mob2fa, -4), 'ttl' => 180], JSON_UNESCAPED_UNICODE);
+                    break;
+                }
+            }
+        }
         $token = auth_generate_token($found['username'], $role);
         if (!$token) {
             http_response_code(503);
@@ -2349,7 +2565,67 @@ switch($action) {
         /* v34.8.28 (T4-1a COOKIE-AUTH): نشست روی کوکی HttpOnly هم می‌نشیند — کلاینت
            بدون خواندن JS توکن هم احراز می‌شود (fallback هدر باقی است برای سازگاری). */
         auth_emit_session_cookie($token, ($role === 'accountant') ? 8 * 3600 : 24 * 3600); /* S5 */
-        echo json_encode(['ok' => true, 'token' => $token, 'role' => $role, 'user' => $found['username'], 'name' => $found['name'] ?? $found['username']], JSON_UNESCAPED_UNICODE);
+        /* v34.8.43 (R5/T4-1b — SESSION-OUT-OF-LS): نشانگر غیرمحرمِ حضور کوکی — JS فقط
+           «نشست سروری موجود است» را می‌فهمد، نه خود توکن را؛ مبنای ptfAuthCookieOk و
+           بازسازی نشست تبِ تازه (role_verify) در نبود توکنِ JS. */
+        $ttlFlag = ($role === 'accountant') ? 8 * 3600 : 24 * 3600;
+        $secureFlag = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+        setcookie('ptf_token_flag', '1', ['expires' => time() + $ttlFlag, 'path' => '/', 'secure' => (bool)$secureFlag, 'httponly' => false, 'samesite' => 'Strict']);
+        echo json_encode(['ok' => true, 'token' => $token, 'role' => $role, 'user' => $found['username'], 'name' => $found['name'] ?? $found['username'], 'twofa_skipped' => $twofaSkipped], JSON_UNESCAPED_UNICODE);
+        break;
+
+    case 'auth_login_otp':
+        /* v34.8.46 (R6/T7-ب): مرحلهٔ دوم ورود دومرحله‌ای — کد پیامکی ↔ توکن نشست.
+           challenge فقط بعد از رمز درست صادر شده و به username مقید است (عمر ۳دقیقه). */
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['ok' => false, 'error' => 'method_not_allowed']);
+            break;
+        }
+        $uOtp = strtolower(clean($_POST['username'] ?? '', 80));
+        $chalOtp = clean($_POST['otp_challenge'] ?? '', 64);
+        $codeOtp = preg_replace('/\D/', '', (string)($_POST['code'] ?? ''));
+        if ($uOtp === '' || $chalOtp === '' || strlen($codeOtp) !== 6) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'error' => 'twofa_input_invalid'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        $stOtp = twofa_store_load();
+        $recOtp = $stOtp[$uOtp] ?? null;
+        if (!$recOtp || !hash_equals((string)($recOtp['chal'] ?? ''), $chalOtp)) {
+            http_response_code(401);
+            echo json_encode(['ok' => false, 'error' => 'twofa_challenge_invalid'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        if ((int)($recOtp['exp'] ?? 0) < time()) {
+            unset($stOtp[$uOtp]); twofa_store_save($stOtp);
+            http_response_code(401);
+            echo json_encode(['ok' => false, 'error' => 'twofa_code_expired', 'message' => 'کد منقضی شده است — دوباره وارد شوید'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        if ((int)($recOtp['tries'] ?? 0) >= 5) {
+            unset($stOtp[$uOtp]); twofa_store_save($stOtp);
+            http_response_code(429);
+            echo json_encode(['ok' => false, 'error' => 'twofa_locked'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        if (!password_verify($codeOtp, (string)($recOtp['hash'] ?? ''))) {
+            $recOtp['tries'] = (int)($recOtp['tries'] ?? 0) + 1;
+            $stOtp[$uOtp] = $recOtp; twofa_store_save($stOtp);
+            twofa_log('wrong_code', (string)($recOtp['user'] ?? $uOtp), 'try ' . $recOtp['tries']);
+            http_response_code(401);
+            echo json_encode(['ok' => false, 'error' => 'twofa_code_invalid', 'message' => 'کد نادرست است'], JSON_UNESCAPED_UNICODE);
+            break;
+        }
+        unset($stOtp[$uOtp]); twofa_store_save($stOtp);
+        $tokenOtp = auth_generate_token((string)$recOtp['user'], (string)$recOtp['role']);
+        if (!$tokenOtp) { http_response_code(503); echo json_encode(['ok' => false, 'error' => 'token_issue_failed']); break; }
+        auth_emit_session_cookie($tokenOtp, ((string)$recOtp['role'] === 'accountant') ? 8 * 3600 : 24 * 3600);
+        $ttlFlagOtp = ((string)$recOtp['role'] === 'accountant') ? 8 * 3600 : 24 * 3600;
+        $secureFlagOtp = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+        setcookie('ptf_token_flag', '1', ['expires' => time() + $ttlFlagOtp, 'path' => '/', 'secure' => (bool)$secureFlagOtp, 'httponly' => false, 'samesite' => 'Strict']);
+        twofa_log('verified', (string)$recOtp['user'], '');
+        echo json_encode(['ok' => true, 'token' => $tokenOtp, 'role' => (string)$recOtp['role'], 'user' => (string)$recOtp['user'], 'name' => (string)($recOtp['name'] ?? $recOtp['user'])], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'users_get':
@@ -2385,7 +2661,20 @@ switch($action) {
     // v33.2.1: کلاینت نقش معتبر سرور را بپرسد — جلوگیری از ورود با نقش منقضی/اشتباه
     case 'role_verify':
         verify_request();
-        echo json_encode(['ok' => true, 'role' => $client_role], JSON_UNESCAPED_UNICODE);
+        /* v34.8.43 (R5/T4-1b): user/name هم برمی‌گردد — تبِ تازه نشست JS خود را از
+           کوکی HttpOnly بازسازی می‌کند («کلاینت بدون توکن»). فقط-خواندنی و بدون حساسه. */
+        $rvInfo = auth_verify_token(auth_get_header_token());
+        $rvUser = is_array($rvInfo) ? (string)($rvInfo['user'] ?? '') : '';
+        $rvName = $rvUser;
+        try {
+            $rvUsers = load_data('crm_users');
+            if (is_array($rvUsers)) {
+                foreach ($rvUsers as $rvU) {
+                    if (is_array($rvU) && strcasecmp((string)($rvU['username'] ?? ''), $rvUser) === 0) { $rvName = (string)($rvU['name'] ?? $rvUser) ?: $rvUser; break; }
+                }
+            }
+        } catch (Throwable $eRvName) {}
+        echo json_encode(['ok' => true, 'role' => $client_role, 'user' => $rvUser, 'name' => $rvName], JSON_UNESCAPED_UNICODE);
         break;
 
     case 'add_customer':

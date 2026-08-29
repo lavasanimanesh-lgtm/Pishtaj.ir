@@ -142,7 +142,7 @@ window.ptfArchivePurgeCommit=function(no,planHash,keysDigest){
   ptfArchivePurgeApi('archived_case_purge_plan',{projectNo:no}).then(function(d){
     var latest=d.plan||{};if(latest.planHash!==planHash)throw new Error('داده‌ها پس از بازشدن پنجره تغییر کرده‌اند؛ پنجره را ببندید و دوباره پیش‌بررسی کنید.');
     var keys=latest.cloudKeys||[];if(!keys.length)return{ok:true,skip:true};
-    var h={'Content-Type':'application/json'};try{var t=localStorage.getItem('ptf_crm_token');if(t)h['X-CRM-Token']=t;}catch(e){}
+    var h={'Content-Type':'application/json'};try{var t=(typeof ptfAuthToken === 'function' ? ptfAuthToken() : '');if(t)h['X-CRM-Token']=t;}catch(e){}
     return fetch('../api/storage.php?action=delete_batch',{method:'POST',headers:h,body:JSON.stringify({keys:keys,purpose:'archived_case_purge',planHash:planHash,keysDigest:keysDigest})}).then(function(r){return r.json();}).then(function(x){if(!x.ok||x.failed||!x.purgeReceipt)throw new Error('حذف فایل‌های ابری کامل نشد؛ هیچ metadataای حذف نشد. دوباره تلاش کنید.');return x;});
   }).then(function(){
     if(btn)btn.textContent='در حال حذف اتمیک رکوردها…';

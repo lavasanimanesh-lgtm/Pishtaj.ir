@@ -28,12 +28,150 @@ var ROLES = {
 // نقش‌های ارشد (تایید/ارجاع/ثبت قیمت فروش)
 var SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
 
+/* ═══ v34.8.43 (R5/T4-1b — SESSION-OUT-OF-LS): نشست بدون توکن در localStorage ═══
+   توکن از v34.8.28 علاوه بر هدر، به‌صورت کوکی HttpOnly (ptf_token) هم صادر می‌شود و
+   سرور در نبود هدر X-CRM-Token از همان کوکی می‌پذیرد (auth_get_header_token). از این
+   نسخه مخزن JS توکن = sessionStorage (فقط همین تب)؛ کوکیِ HttpOnly کانال مشترک تب‌هاست.
+   - ptfAuthToken(): توکن + مهاجرت یک‌بارهٔ LS→SS (سپس حذف از LS)
+   - ptfAuthCookieOk(): نشانگر غیرمحرمِ حضور کوکی (ptf_token_flag=1 — بدون توکن)
+   - ptfAuthOk(): توکن SS یا نشانگر کوکی — مبنای گیت‌های «نشست داریم؟»
+   - ptfAuthSessionRestore(): تبِ تازه نشست را با کوکی از role_verify بازسازی می‌کند. */
+var PTF_AUTH_KEYS = ['ptf_crm_token', 'ptf_crm_token_role', 'ptf_crm_session'];
+/* v34.8.48 (COOKIE-ONLY-MODE): اگر هر دو مخزن SS/LS مسدود باشند (webview داخل
+   پیام‌رسان‌ها/پنجرهٔ خصوصی/sait-data مسدود/سهمیهٔ پر)، نشست و توکن در حافظهٔ
+   همین تب نگه داشته می‌شوند تا ورود با کوکی HttpOnly همچنان کار کند — قرارداد
+   v34.8.43: «نبود توکن JS ≠ نبود نشست». عمر داده = عمر همین صفحه/تب. */
+var PTF_SESS_MEM = { token: '', role: '', session: null };
+function ptfSessMemWarnOnce(msg) {
+  try {
+    if (typeof window === 'undefined' || window._ptfSessMemWarned) return;
+    window._ptfSessMemWarned = true;
+    if (typeof ptfToast === 'function') ptfToast(msg, 'warn');
+  } catch (e) {}
+}
+function ptfAuthMigrate() {
+  try {
+    for (var _ak = 0; _ak < PTF_AUTH_KEYS.length; _ak++) {
+      var _k = PTF_AUTH_KEYS[_ak], _v = null;
+      try { _v = localStorage.getItem(_k); } catch (eL) {}
+      if (_v === null) continue;
+      /* v34.8.50 (PHANTOM-STORAGE): قبلاً حتی اگر نوشتن SS می‌انداخت/نگه نمی‌داشت،
+         کلید LS پاک می‌شد و توکن برای همیشه گم می‌شد. اکنون LS فقط وقتی حذف می‌شود
+         که SS مقدار را واقعاً نگه داشته باشد (خواندن-باز). */
+      try {
+        if (sessionStorage.getItem(_k) !== null) { try { localStorage.removeItem(_k); } catch (eR2) {} continue; }
+        sessionStorage.setItem(_k, _v);
+        if (sessionStorage.getItem(_k) !== _v) continue; /* SS فانتوم — LS را نگه دار */
+        try { localStorage.removeItem(_k); } catch (eR) {}
+      } catch (eS) { continue; }
+    }
+  } catch (e) {}
+}
+function ptfAuthToken() {
+  try {
+    var t = sessionStorage.getItem('ptf_crm_token');
+    if (t) return t;
+    var l = null;
+    try { l = localStorage.getItem('ptf_crm_token'); } catch (eL2) {} /* خوانش مستقیم LS — عمداً (خودِ ptfAuthToken؛ گارد بازگشتی ممنوع) */
+    if (l) { ptfAuthMigrate(); return l; }
+  } catch (e) {}
+  if (PTF_SESS_MEM.token) return PTF_SESS_MEM.token; /* v34.8.48 (COOKIE-ONLY-MODE) */
+  return '';
+}
+function ptfAuthCookieOk() {
+  try { return /(?:^|;\s*)ptf_token_flag=1(?:;|$)/.test(document.cookie); } catch (e) { return false; }
+}
+function ptfAuthOk() { return !!ptfAuthToken() || ptfAuthCookieOk(); }
+function ptfAuthHeaders(json) {
+  var h = json ? { 'Content-Type': 'application/json' } : {};
+  try { var t = ptfAuthToken(); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+  return h;
+}
+function ptfAuthSession() {
+  try { var sS = JSON.parse(sessionStorage.getItem('ptf_crm_session')) || null; if (sS && sS.user) return sS; } catch (eS2) {}
+  try { var sL = JSON.parse(localStorage.getItem('ptf_crm_session')) || null; if (sL && sL.user) return sL; } catch (eL3) {}
+  if (PTF_SESS_MEM.session && PTF_SESS_MEM.session.user) return PTF_SESS_MEM.session; /* v34.8.48 (COOKIE-ONLY-MODE) */
+  return {};
+}
+function ptfAuthSessionStore(sess) {
+  var raw = JSON.stringify(sess || {});
+  /* v34.8.47 (HOTFIX-SESS-STORM): اگر نوشتن SS بیندازد (مرورگر خصوصی/مسدود)،
+     نشست در LS می‌ماند تا ورود کاربر بی‌نتیجه نماند و حلقهٔ بازسازی نشست
+     (توفان role_verify) شکل نگیرد. ptfAuthSession/ptfAuthToken هر دو LS را
+     به‌عنوان fallback می‌خوانند. v34.8.48: اگر LS هم مسدود بود → حافظهٔ تب. */
+  try {
+    sessionStorage.setItem('ptf_crm_session', raw);
+    if (sessionStorage.getItem('ptf_crm_session') !== raw) throw new Error('phantom'); /* v34.8.50 */
+    try { localStorage.removeItem('ptf_crm_session'); } catch (eL4) {}
+    return;
+  } catch (eS3) {}
+  try {
+    localStorage.setItem('ptf_crm_session', raw);
+    if (localStorage.getItem('ptf_crm_session') !== raw) throw new Error('phantom'); /* v34.8.50 */
+    ptfSessMemWarnOnce('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage) نمی‌دهد — نشست در localStorage نگه داشته شد. اگر در پنجرهٔ خصوصی هستید، از پنجرهٔ عادی استفاده کنید.');
+    return;
+  } catch (eL5) {}
+  PTF_SESS_MEM.session = sess || null; /* v34.8.48 (COOKIE-ONLY-MODE): آخرین fallback — حافظهٔ همین تب */
+  ptfSessMemWarnOnce('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage/localStorage) نمی‌دهد — نشست فقط تا بسته‌شدن همین صفحه در حافظه می‌ماند. برای تجربهٔ کامل، از مرورگر عادی (نه خصوصی/داخل پیام‌رسان) استفاده کنید.');
+}
+function ptfAuthLoginWrite(token, role, sess) {
+  /* v34.8.50 (PHANTOM-STORAGE): بعضی مرورگرها/افزونه‌ها setItem را بی‌خطا می‌پذیرند اما
+     مقدار را نگه نمی‌دارند (خواندن بلافاصله null). تصمیم SS/LS/حافظه فقط با
+     خواندن-بازِ مقدار واقعی، نه صرفِ نبودِ exception. */
+  var _ssOk = true;
+  try {
+    sessionStorage.setItem('ptf_crm_token', String(token || ''));
+    if (sessionStorage.getItem('ptf_crm_token') !== String(token || '')) throw new Error('phantom');
+    if (role) sessionStorage.setItem('ptf_crm_token_role', String(role));
+  } catch (e1) { _ssOk = false; }
+  if (_ssOk) {
+    try { for (var _lk = 0; _lk < PTF_AUTH_KEYS.length; _lk++) localStorage.removeItem(PTF_AUTH_KEYS[_lk]); } catch (e3) {}
+  } else {
+    /* v34.8.47: SS در دسترس نیست — توکن در LS می‌ماند (خوانش LS در ptfAuthToken
+       مجاز است)؛ هرگز کلیدهای fallback را پاک نکن (وگرنه کاربر بی‌نشست می‌شود).
+       v34.8.48: اگر LS هم مسدود بود → حافظهٔ تب (توکن + نقش). */
+    var _lsOk = true;
+    try {
+      localStorage.setItem('ptf_crm_token', String(token || ''));
+      if (localStorage.getItem('ptf_crm_token') !== String(token || '')) throw new Error('phantom');
+      if (role) localStorage.setItem('ptf_crm_token_role', String(role));
+    } catch (eL1) { _lsOk = false; }
+    if (!_lsOk) { PTF_SESS_MEM.token = String(token || ''); PTF_SESS_MEM.role = String(role || ''); }
+    ptfSessMemWarnOnce('⚠️ ذخیرهٔ نشست در sessionStorage ممکن نیست — از ' + (_lsOk ? 'localStorage' : 'حافظهٔ همین صفحه') + ' استفاده شد.');
+  }
+  ptfAuthSessionStore(sess || {});
+}
+function ptfAuthClear() {
+  try {
+    for (var _ck = 0; _ck < PTF_AUTH_KEYS.length; _ck++) {
+      try { sessionStorage.removeItem(PTF_AUTH_KEYS[_ck]); } catch (eS4) {}
+      try { localStorage.removeItem(PTF_AUTH_KEYS[_ck]); } catch (eL5) {}
+    }
+  } catch (e) {}
+}
+function ptfAuthSessionRestore(cb) {
+  try {
+    fetch('../api/crm.php?action=role_verify', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok && d.user) {
+          ptfAuthSessionStore({ user: d.user, name: d.name || d.user, role: d.role || 'sales', roleId: d.role || 'sales' });
+          if (cb) cb(true);
+        } else if (cb) cb(false);
+      })
+      .catch(function () { if (cb) cb(false); });
+  } catch (e) { if (cb) cb(false); }
+}
+
 /* v34.7.26 (S3/F2-D — نشت بین‌مشتری): یافتن پیشنهاد با شماره باید شمارهٔ ناتهی بخواهد.
    الگوی قبلی `x.no === offerNo` وقتی هر دو undefined/'' بودند صادق می‌شد و اولین
    پیشنهاد بی‌شماره (متعلق به هر مشتری دیگری) انتخاب می‌شد؛ از روی همان، buyerCd و
    حتی advance خوانده و روی فاکتور اعمال می‌شد.
    مرجع: ASSESSMENT-SALESFILE-3ISSUES-2026-08-17.md §۳ مسیر D */
 function curSession() {
+  /* v34.8.43 (R5/T4-1b): نشست ابتدا از sessionStorage (خارج از سهمیه/پایش LS)؛
+     fallback صرفاً برای تب‌های بازِ قبل از ارتقا (تا رفرش بعدی). */
+  try { var sS = JSON.parse(sessionStorage.getItem('ptf_crm_session')) || null; if (sS && sS.user) return sS; } catch (eS) {}
   try { return JSON.parse(localStorage.getItem('ptf_crm_session')) || {}; } catch (e) { return {}; }
 }
 function curRole() {
@@ -479,7 +617,7 @@ function delUser2(u) {
 
 function ptfRbacAuthHeaders(json) {
   var h = json ? { 'Content-Type': 'application/json' } : {};
-  try { h['X-CRM-Role'] = curRole(); var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+  try { h['X-CRM-Role'] = curRole(); var t = ptfAuthToken(); if (t) h['X-CRM-Token'] = t; } catch (e) {}
   return h;
 }
 
@@ -574,8 +712,60 @@ function usersPullFromServer(cb) {
 
 /* v33.2.1: تطبیق نقش محلی با سرور — جلوگیری از ویرایش با نقش منقضی/اشتباه
    اگر نقش سرور با محلی متفاوت باشد، session آپدیت و UI رفرش می‌شود. */
+/* ═══ v34.8.46 (R6/T7-ب): نشست‌های فعال + ابطال گروهی (تنظیمات → 🔐) ═══ */
+window.ptfRenderSessionsBox = function (hostId) {
+  var el = document.getElementById(hostId || 'sessionsBox');
+  if (!el) return;
+  var senior = false;
+  try { senior = typeof isSenior === 'function' && !!isSenior(); } catch (eS) {}
+  if (!senior) { el.innerHTML = '<small style="color:#94a3b8">نمایش و مدیریت نشست‌ها فقط برای نقش‌های ارشد.</small>'; return; }
+  el.innerHTML = '<small style="color:#94a3b8">در حال دریافت…</small>';
+  function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function fmtT(ts) { try { return new Date(+ts * 1000).toLocaleString('fa-IR'); } catch (e) { return String(ts || ''); } }
+  function roleLb(r) { return (ROLES && ROLES[r] && ROLES[r].lb) || r || '—'; }
+  function load() {
+    fetch('../api/crm.php?action=sessions_list', { headers: (typeof ptfApiAuthHeaders === 'function' ? ptfApiAuthHeaders(false) : {}) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d || !d.ok) { el.innerHTML = '<small style="color:#b45309">دریافت نشست‌ها ناموفق بود.</small>'; return; }
+        var rows = d.sessions || [];
+        var h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px" dir="rtl"><tr style="background:#f1f5f9"><th style="padding:6px;border:1px solid #e2e8f0">کاربر</th><th style="padding:6px;border:1px solid #e2e8f0">نقش</th><th style="padding:6px;border:1px solid #e2e8f0">ورود</th><th style="padding:6px;border:1px solid #e2e8f0">انقضا</th><th style="padding:6px;border:1px solid #e2e8f0">IP</th><th style="padding:6px;border:1px solid #e2e8f0"></th></tr>';
+        rows.forEach(function (r) {
+          h += '<tr><td style="padding:6px;border:1px solid #e2e8f0">' + esc(r.user) + (r.current ? ' 📍' : '') + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0">' + esc(roleLb(r.role)) + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0">' + esc(fmtT(r.iat)) + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0">' + esc(fmtT(r.exp)) + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0;direction:ltr;text-align:right">' + esc(r.ip || '—') + '</td>' +
+            '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">' + (!r.current ? '<button type="button" class="bt bt-s" style="padding:3px 10px;font-size:11.5px;margin:0" onclick="ptfSessionsRevoke(\'' + esc(r.user) + '\')">خروج</button>' : '') + '</td></tr>';
+        });
+        h += '</table>';
+        h += '<div style="margin-top:10px"><button type="button" class="bt" style="background:#991b1b" onclick="ptfSessionsRevoke(\'all\')">⛔ خروج اجباری همهٔ دستگاه‌ها (به‌جز همین تب)</button> <small style="color:#94a3b8">' + rows.length + ' نشست فعال — ابطال در سرور و بازگشت‌ناپذیر است.</small></div>';
+        el.innerHTML = h;
+      })
+      .catch(function () { el.innerHTML = '<small style="color:#b45309">عدم دسترسی به سرور.</small>'; });
+  }
+  window.ptfSessionsRevoke = function (target) {
+    var msg = target === 'all' ? 'همهٔ نشست‌های سایر دستگاه‌ها ابطال شوند؟ (نشست همین تب زنده می‌ماند)' : 'نشست‌های کاربر «' + target + '» ابطال شوند؟';
+    try { if (!window.confirm(msg)) return; } catch (eC) { return; }
+    var hdrRv = (typeof ptfApiAuthHeaders === 'function' ? ptfApiAuthHeaders(false) : {});
+    hdrRv['Content-Type'] = 'application/x-www-form-urlencoded'; /* $_POST سمت سرور */
+    fetch('../api/crm.php?action=sessions_revoke', {
+      method: 'POST',
+      headers: hdrRv,
+      body: 'user=' + encodeURIComponent(target)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok) { if (typeof ptfToast === 'function') ptfToast('✅ ' + (d.revoked || 0) + ' نشست ابطال شد', 'ok'); load(); }
+        else if (typeof ptfToast === 'function') ptfToast((d && d.error) || 'خطای سرور', 'warn');
+      })
+      .catch(function () { if (typeof ptfToast === 'function') ptfToast('عدم دسترسی به سرور', 'warn'); });
+  };
+  load();
+};
+
 function verifyRoleFromServer(cb) {
-  var t = localStorage.getItem('ptf_crm_token');
+  var t = ptfAuthToken();
   if (!t) { cb && cb(); return; }
   fetch('../api/crm.php?action=role_verify', { headers: { 'X-CRM-Token': t }, cache: 'no-store' })
     .then(function (r) { return r.json(); })
@@ -583,11 +773,12 @@ function verifyRoleFromServer(cb) {
       if (d && d.ok && d.role) {
         var cur = curRole();
         if (d.role !== cur) {
-          var s = JSON.parse(localStorage.getItem('ptf_crm_session') || '{}');
+          var s = curSession();
           s.roleId = d.role;
           s.role = d.role;
-          localStorage.setItem('ptf_crm_session', JSON.stringify(s));
-          localStorage.setItem('ptf_crm_token_role', d.role);
+          try { sessionStorage.setItem('ptf_crm_session', JSON.stringify(s)); } catch (eSS) {}
+          try { sessionStorage.setItem('ptf_crm_token_role', d.role); } catch (eSR) {}
+          try { localStorage.removeItem('ptf_crm_session'); } catch (eSL) {}
           if (typeof ptfToast === 'function') ptfToast('🔄 نقش شما از سرور به‌روز شد: ' + (ROLES[d.role] ? ROLES[d.role].lb : d.role), 'info');
           if (typeof renderUsers2 === 'function') renderUsers2();
         }

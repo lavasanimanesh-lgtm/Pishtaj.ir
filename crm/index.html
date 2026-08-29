@@ -1320,7 +1320,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>CRM | سامانه مدیریت | پیشرو تجهیز فرتاک</title>
 <meta name="robots" content="noindex, nofollow">
-<link rel="manifest" href="manifest.json?v=34.8.37">
+<link rel="manifest" href="manifest.json?v=34.9.0">
 <meta name="theme-color" content="#ef4b1a">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1745,6 +1745,7 @@ try {
 <script>
 // نسخه امن: فقط session و کش پاک می‌شود — داده‌های CRM هرگز حذف نمی‌شوند
 function ptfSafeReset() {
+  try { if (typeof ptfAuthClear === 'function') ptfAuthClear(); } catch (eAc3) {}
   localStorage.removeItem('ptf_crm_session');
   /* v34.7.93 (AUTH-TOKEN-REQUIRED): «رفع مشکل ورود» باید نشست و توکن را همزمان پاک کند.
      پیش‌تر فقط session حذف می‌شد و توکن کهنه/نامعتبر در localStorage می‌ماند و ورود مجدد
@@ -1904,6 +1905,8 @@ function loginFail() {
   return s;
 }
 function ptfApiAuthHeaders(json) {
+  /* v34.8.45 (R5/T4-1b): نمای واحد لایهٔ نشست (rbac.js) — توکن از sessionStorage */
+  if (typeof ptfAuthHeaders === 'function') return ptfAuthHeaders(json);
   var h = json ? { 'Content-Type': 'application/json' } : {};
   try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
   return h;
@@ -1915,7 +1918,40 @@ function ptfServerLogin(u, p) {
     body: 'username=' + encodeURIComponent(u) + '&pass' + 'word=' + encodeURIComponent(p)
   }).then(function (r) { return r.json(); }).catch(function () { return null; });
 }
+
+/* v34.8.46 (R6/T7-ب — LOGIN-2FA): اگر auth_login برای نقش مالی otp_required برگرداند،
+   کد پیامکی گرفته و با auth_login_otp توکن بگیرد. لغو کاربر = خروج با error روشن. */
+async function ptf2faContinue(u, resp) {
+  try {
+    if (!resp || !resp.otp_required) {
+      if (resp && resp.ok && resp.twofa_skipped && typeof ptfToast === 'function') {
+        try { ptfToast('ℹ️ ورود دومرحله‌ای برای نقش شما فعال است اما موقتاً اجرا نشد (' + resp.twofa_skipped + ') — برای ادمین ثبت شد', 'warn'); } catch (eT) {}
+      }
+      return resp;
+    }
+    var tries = 0;
+    while (tries < 3) {
+      var code = '';
+      try { code = (window.prompt('رمز ۶ رقمی ارسال‌شده به موبایل ...' + (resp.mobile_last4 || '') + ' (اعتبار ۳ دقیقه):') || '').trim(); } catch (ePr) {}
+      if (!/^\d{6}$/.test(code)) {
+        if (code === '' || code === null) return { ok: false, error: 'twofa_cancelled', message: 'ورود دومرحله‌ای لغو شد' };
+        tries++; continue;
+      }
+      var r2 = await fetch('../api/crm.php?action=auth_login_otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'username=' + encodeURIComponent(u) + '&otp_challenge=' + encodeURIComponent(resp.otp_challenge) + '&code=' + encodeURIComponent(code)
+      }).then(function (r) { return r.json(); }).catch(function () { return null; });
+      if (r2 && r2.ok && r2.token) return r2;
+      tries++;
+      if (tries < 3) { try { alert((r2 && (r2.message || r2.error)) ? ((r2.message || r2.error) + ' — دوباره تلاش کنید') : 'کد تأیید نشد — دوباره تلاش کنید'); } catch (eAl) {} }
+    }
+    return { ok: false, error: 'twofa_failed', message: 'کد دومرحله‌ای تأیید نشد — دوباره وارد شوید' };
+  } catch (e) { return { ok: false, error: 'twofa_error', message: 'خطای ورود دومرحله‌ای' }; }
+}
 function ptfInvalidateSession(msg) {
+  try { if (typeof ptfAuthClear === 'function') ptfAuthClear(); } catch (eAc) {}
+  try { if (typeof ptfAuthClear === 'function') ptfAuthClear(); } catch (eAc4) {}
   try { localStorage.removeItem('ptf_crm_session'); localStorage.removeItem('ptf_crm_token'); localStorage.removeItem('ptf_crm_token_role'); } catch (e) {}
   var le = document.getElementById('lerr');
   if (le) { le.textContent = msg || 'نشست سرور معتبر نیست؛ لطفاً دوباره وارد شوید.'; le.style.display = 'block'; }
@@ -1937,17 +1973,16 @@ async function doLogin() {
 
   // v33.0.3: server-authoritative login first for every role, including admin.
   var _login = await ptfServerLogin(u, p);
+  _login = await ptf2faContinue(u, _login); /* v34.8.46: نقش مالی → کد پیامکی */
   if (_login && _login.ok && _login.token) {
     localStorage.removeItem('ptf_login_lock');
     localStorage.removeItem('ptf_crm_offline_login');
-    localStorage.setItem('ptf_crm_session', JSON.stringify({
+    ptfAuthLoginWrite(_login.token, _login.role || 'sales', { /* v34.8.45 (R5/T4-1b): توکن/نشست در sessionStorage؛ LS فقط پاک می‌شود */
       user: _login.user || u,
       name: _login.name || u,
       role: _login.role || 'sales',
       roleId: _login.role || 'sales'
-    }));
-    localStorage.setItem('ptf_crm_token', _login.token);
-    localStorage.setItem('ptf_crm_token_role', _login.role || 'sales');
+    });
     try {
       var _cu = JSON.parse(localStorage.getItem('ptf_crm_users') || '[]');
       var _ex = false;
@@ -2034,17 +2069,16 @@ async function doLogin() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'username=' + encodeURIComponent(u) + '&pass' + 'word=' + encodeURIComponent(p)
       }).then(function (r) { return r.json(); }).catch(function () { return null; });
+      _srvLogin = await ptf2faContinue(u, _srvLogin); /* v34.8.46: نقش مالی → کد پیامکی */
 
       if (_srvLogin && _srvLogin.ok && _srvLogin.token) {
         localStorage.removeItem('ptf_login_lock');
-        localStorage.setItem('ptf_crm_session', JSON.stringify({
+        ptfAuthLoginWrite(_srvLogin.token, _srvLogin.role || srvUser.roleId || 'sales', { /* v34.8.45 (R5/T4-1b) */
           user: _srvLogin.user || u,
           name: _srvLogin.name || srvUser.name || u,
           role: _srvLogin.role || srvUser.roleId || 'sales',
           roleId: _srvLogin.role || srvUser.roleId || 'sales'
-        }));
-        localStorage.setItem('ptf_crm_token', _srvLogin.token);
-        localStorage.setItem('ptf_crm_token_role', _srvLogin.role || srvUser.roleId || 'sales');
+        });
         // Also store passhash locally for future offline login (from existing server data)
         for (var j2 = 0; j2 < merged.length; j2++) {
           if (merged[j2].username === u) { merged[j2].passhash = ph; break; }
@@ -2067,13 +2101,12 @@ async function doLogin() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'username=' + encodeURIComponent(u) + '&pass' + 'word=' + encodeURIComponent(p)
       }).then(function (r) { return r.json(); }).catch(function () { return null; });
+      _directLogin = await ptf2faContinue(u, _directLogin); /* v34.8.46: نقش مالی → کد پیامکی */
       if (_directLogin && _directLogin.ok && _directLogin.token) {
         localStorage.removeItem('ptf_login_lock');
         var roleDirect = _directLogin.role || 'sales';
         var nameDirect = _directLogin.name || u;
-        localStorage.setItem('ptf_crm_session', JSON.stringify({ user: _directLogin.user || u, name: nameDirect, role: roleDirect, roleId: roleDirect }));
-        localStorage.setItem('ptf_crm_token', _directLogin.token);
-        localStorage.setItem('ptf_crm_token_role', roleDirect);
+        ptfAuthLoginWrite(_directLogin.token, roleDirect, { user: _directLogin.user || u, name: nameDirect, role: roleDirect, roleId: roleDirect }); /* v34.8.45 (R5/T4-1b) */
         try {
           var curUsers = JSON.parse(localStorage.getItem('ptf_crm_users') || '[]');
           var exists = false;
@@ -2098,8 +2131,27 @@ async function doLogin() {
 }
 
 function showCrm() {
-  var s = JSON.parse(localStorage.getItem('ptf_crm_session') || '{}');
-  if (!s.user || !localStorage.getItem('ptf_crm_token')) {
+  var s = (typeof ptfAuthSession === 'function') ? ptfAuthSession() : (function () { try { return JSON.parse(localStorage.getItem('ptf_crm_session') || '{}'); } catch (e) { return {}; } })();
+  /* v34.8.45 (R5/T4-1b): تبِ تازه بدون نشست JS ولی با کوکی HttpOnly → نشست از سرور بازسازی می‌شود */
+  if (!s.user && (typeof ptfAuthCookieOk === 'function') && ptfAuthCookieOk() && !window._ptfSessRestore) {
+    /* v34.8.47 (HOTFIX-SESS-STORM): سقف تلاش بازسازی نشست — قبلاً اگر ذخیرهٔ
+       نشست شکست می‌خورد (sessionStorage مسدود)، showCrm ↔ ptfAuthSessionRestore
+       به‌طور بی‌نهایت همدیگر را صدا می‌زدند = توفان role_verify بدون رفرش. */
+    window._ptfSessRestoreTries = (window._ptfSessRestoreTries || 0) + 1;
+    if (window._ptfSessRestoreTries > 3) {
+      ptfInvalidateSession('بازسازی نشست بی‌نتیجه بود — مرورگر شما ذخیرهٔ نشست (sessionStorage/localStorage) را مسدود کرده است. پنجرهٔ خصوصی را ببندید یا در تنظیمات سایت، ذخیرهٔ داده را مجاز کنید و دوباره وارد شوید.');
+      return;
+    }
+    window._ptfSessRestore = true;
+    ptfAuthSessionRestore(function (okR) {
+      window._ptfSessRestore = false;
+      if (okR) showCrm();
+      else ptfInvalidateSession('نشست سرور معتبر نیست؛ لطفاً با رمز واقعی دوباره وارد شوید.');
+    });
+    return;
+  }
+  var _tokOk = (typeof ptfAuthOk === 'function') ? ptfAuthOk() : !!localStorage.getItem('ptf_crm_token');
+  if (!s.user || !_tokOk) {
     ptfInvalidateSession('نشست سرور یا توکن معتبر وجود ندارد؛ لطفاً با رمز واقعی دوباره وارد شوید.');
     return;
   }
@@ -2144,9 +2196,11 @@ function doLogout() {
   /* v34.8.6 (AUTH-LOGOUT-REVOKE): توکن روی سرور هم باطل شود تا تعویض اکانت روی
      دستگاه مشترک، توکن اکانت قبلی را زنده روی سرور نگذارد. best-effort است. */
   try {
-    var _tok = localStorage.getItem('ptf_crm_token');
-    if (_tok) fetch('../api/crm.php?action=auth_logout', { method: 'POST', headers: { 'X-CRM-Token': _tok }, keepalive: true }).catch(function () {});
+    /* v34.8.45 (R5/T4-1b): توکن از SS؛ در نبودش، همون POST با کوکی HttpOnly هم توکن سرور را ابطال می‌کند */
+    var _tok = (typeof ptfAuthToken === 'function') ? ptfAuthToken() : localStorage.getItem('ptf_crm_token');
+    fetch('../api/crm.php?action=auth_logout', { method: 'POST', headers: _tok ? { 'X-CRM-Token': _tok } : {}, keepalive: true }).catch(function () {});
   } catch (eLogoutFetch) {}
+  try { if (typeof ptfAuthClear === 'function') ptfAuthClear(); } catch (eAc2) {}
   localStorage.removeItem('ptf_crm_session');
   localStorage.removeItem('ptf_crm_token');
   localStorage.removeItem('ptf_crm_token_role');
@@ -2166,13 +2220,41 @@ window.ptfInitialHashPanel = (function () {
 })();
 
 // Auto-login check
+/* ═══ v34.9.0 (MIGRATION-BANNER): یادآور خودکار «انتقال یک‌باره» ═══
+   دستگاه دارای دادهٔ محلیِ هنوز-منتقل‌نشده (وضعیت کهربایی در تنظیمات) یک نوار
+   ملایم پایین صفحه می‌بیند تا از تنظیمات ← وضعیت دستگاه، «انتقال یک‌بارهٔ
+   داده‌ها» را اجرا کند. با فعال‌شدن فاز B (enabled) خودش غیب می‌شود؛
+   «بعداً» فقط تا رفرش بعدی یادآوری را ساکت می‌کند. دستگاه تازه/منتقل‌شده هرگز
+   این نوار را نمی‌بیند. */
+function ptfMigBannerTick() {
+  try {
+    var bar = document.getElementById('ptfMigBar');
+    var crmVisible = false;
+    try { crmVisible = document.getElementById('crmL') && document.getElementById('crmL').style.display !== 'none'; } catch (eV) {}
+    if (!crmVisible || window._ptfMigDismissed) { if (bar) bar.remove(); return; }
+    var st = (typeof window.ptfBStatus === 'function') ? (window.ptfBStatus() || {}) : {};
+    if (st.enabled || !st.localPayload) { if (bar) bar.remove(); return; }
+    if (bar) return; /* قبلاً ساخته شده */
+    bar = document.createElement('div');
+    bar.id = 'ptfMigBar';
+    bar.dir = 'rtl';
+    bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:4000;background:#fffbeb;border-top:2px solid #f59e0b;color:#92400e;padding:10px 14px;font-size:13px;line-height:1.9;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;box-shadow:0 -4px 14px rgba(0,0,0,.08)';
+    bar.innerHTML = '<span>🖥 این دستگاه هنوز به معماری جدید منتقل نشده — برای فعال‌سازی کامل و آزادسازی حافظه: <b>تنظیمات ← وضعیت دستگاه ← «انتقال یک‌بارهٔ داده‌های این دستگاه»</b>' +
+      ((st.queue || 0) > 0 ? ' (⏳ ' + st.queue + ' تغییر در صف آفلاین هم هست)' : '') + '</span>' +
+      '<button type="button" class="bt" style="background:#059669;padding:6px 14px" onclick="if(typeof goPanelByName===\'function\')goPanelByName(\'set\')">رفتن به تنظیمات</button>' +
+      '<button type="button" class="bt bt-s" style="padding:6px 12px" onclick="window._ptfMigDismissed=true;document.getElementById(\'ptfMigBar\').remove()">بعداً</button>';
+    document.body.appendChild(bar);
+  } catch (e) {}
+}
+setInterval(ptfMigBannerTick, 15000);
+setTimeout(ptfMigBannerTick, 2500);
 try {
-  var s = JSON.parse(localStorage.getItem('ptf_crm_session'));
-  if (s) { showCrm(); }
+  var s = (typeof ptfAuthSession === 'function') ? ptfAuthSession() : JSON.parse(localStorage.getItem('ptf_crm_session'));
+  if (s && (s.user || ((typeof ptfAuthCookieOk === 'function') && ptfAuthCookieOk()))) { showCrm(); }
 } catch(e) {}
 
 // ===== ارتقای خودکار نسخه: با هر نسخه جدید، کش قدیمی PWA یک بار پاک می‌شود (داده‌ها دست نمی‌خورند) =====
-window.PTF_CRM_RELEASE = 'v34.8.37'; window.VER = 'v34.8.37'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
+window.PTF_CRM_RELEASE = 'v34.9.0'; window.VER = 'v34.9.0'; var VER = window.PTF_CRM_RELEASE; // v34.7.60: COMMAND-COMMIT-CERTAINTY
 try { document.getElementById('sbVer').textContent = 'CRM ' + VER; } catch(e){} // US-297: ورژن واقعی در سایدبار
 try { document.getElementById('topVerPill').textContent = 'نسخه فعال: ' + VER; } catch(e){}
 (function () {
@@ -3767,6 +3849,10 @@ function renderUsers() {
 // ===== SETTINGS =====
 function buildSettings() {
   setTimeout(function(){ if (typeof renderStorageStatusBox==='function') renderStorageStatusBox('arvanBox'); }, 100);
+  // v34.8.45 (R4-گام۱): داشبورد تصمیم بازنشستگی موتور legacy سینک
+  setTimeout(function(){ if (typeof window.ptfRenderEngineGateDashboard==='function') window.ptfRenderEngineGateDashboard('engineGateBox'); }, 150);
+  // v34.8.46 (R6/T7-ب): پنل نشست‌های فعال + ابطال گروهی
+  setTimeout(function(){ if (typeof window.ptfRenderSessionsBox==='function') window.ptfRenderSessionsBox('sessionsBox'); }, 120);
   // v90.1: وضعیت LLM + نمایش یوزر استوری فعال و نسخه سرور
   setTimeout(function(){
     var el = document.getElementById('llmBox');
@@ -3790,6 +3876,8 @@ function buildSettings() {
         (typeof ptfAvatarSection === 'function' ? ptfAvatarSection() : '') + '</section>' +
       '<section class="ptf-settings-section ptf-settings-cloud" data-settings-title="فضای ابری و فایل‌ها"><h4>☁️ فضای ابری و فایل‌ها</h4><p class="ptf-settings-section-note">وضعیت اتصال و مصرف فضای ذخیره‌سازی اسناد سازمان.</p><div id="arvanBox"></div></section>' +
       '<section class="ptf-settings-section ptf-settings-ai" data-settings-title="هوش مصنوعی سازمان"><h4>🤖 هوش مصنوعی سازمان</h4><p class="ptf-settings-section-note">پیکربندی، مدل فعال و بررسی امن اتصال سرویس AI.</p><div id="llmBox"><small style="color:#94a3b8">در حال بررسی...</small></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-sessions" data-settings-title="نشست‌های فعال (R6)"><h4>🔐 نشست‌های فعال</h4><p class="ptf-settings-section-note">دستگاه‌های واردشده (نقش ارشد): ابطال گروهی برای «خروج اجباری همه» یا کاربر مشخص. نشست همین تب زنده می‌ماند.</p><div id="sessionsBox"><small style="color:#94a3b8">در حال بررسی...</small></div></section>' +
+      '<section class="ptf-settings-section ptf-settings-enginegate" data-settings-title="موتور همگام‌سازی (R4)"><h4>🚦 موتور همگام‌سازی — بازنشستگی legacy</h4><p class="ptf-settings-section-note">شواهد push توده‌ای ۷روزه و مدیریت پرچم PTF_LEGACY_PUSH_OFF (گام ۱؛ فقط نقش ارشد). گام ۲ = حذف کامل موتور legacy پس از پنجرهٔ سبز همهٔ کلیدها.</p><div id="engineGateBox"><small style="color:#94a3b8">در حال بررسی...</small></div></section>' +
       '<section class="ptf-settings-section ptf-settings-contact" data-settings-title="ارتباطات و نگهداری"><h4>📨 ارتباطات و نگهداری</h4><div class="fld"><label>ایمیل</label><input type="email" id="sEmail" value="' + escP(_savedSettings.email || '') + '" aria-label="ایمیل تنظیمات"></div><div class="fld"><label>پیامک</label><input type="text" id="sSms" value="' + escP(_savedSettings.sms || '') + '" aria-label="شماره پیامک تنظیمات"></div><div class="ptf-settings-contact-actions"><button type="button" class="bt ptf-settings-save-action" onclick="saveSet()">✔ ذخیره تنظیمات</button><button type="button" class="bt bt-s ptf-settings-backup-action" onclick="backup()">📤 تهیه پشتیبان</button></div></section>' +
     '</div>';
 }
@@ -4198,115 +4286,115 @@ setInterval(function(){
   document.getElementById('clockD').textContent = n.toLocaleDateString('fa-IR') + ' — ' + n.toLocaleTimeString('fa-IR');
 }, 1000);
 </script>
-<script defer src="ui-kit.js?v=34.8.37"></script>
+<script defer src="ui-kit.js?v=34.9.0"></script>
 <!-- MOB-008: nav shell باید پیش از ده‌ها bundle عملیاتی اجرا شود. -->
-<script defer src="mobilenav.js?v=34.8.37"></script>
-<script defer src="storage-quota.js?v=34.8.37"></script>
-<script defer src="moneyx.js?v=34.8.37"></script>
-<script defer src="finance-helpers.js?v=34.8.37"></script>
-<script defer src="metrics-shared.js?v=34.8.37"></script>
-<script defer src="ar-reconcile.js?v=34.8.37"></script>
-<script defer src="finance-core.js?v=34.8.37"></script>
-<script defer src="finance-write-guard.js?v=34.8.37"></script>
-<script defer src="date-kit.js?v=34.8.37"></script>
-<script defer src="dialogx.js?v=34.8.37"></script>
-<script defer src="dedup.js?v=34.8.37"></script>
-<script defer src="codegen.js?v=34.8.37"></script>
-<script async src="xlsx.min.js?v=34.8.37"></script>
-<script defer src="sortable.js?v=34.8.37"></script>
-<script defer src="offers.js?v=34.8.37"></script>
-<script defer src="surplus.js?v=34.8.37"></script>
-<script defer src="launcher.js?v=34.8.37"></script>
-<script defer src="leads.js?v=34.8.37"></script>
-<script defer src="storage.js?v=34.8.37"></script>
-<script defer src="rbac.js?v=34.8.37"></script>
-<script defer src="official-ledger.js?v=34.8.37"></script>
-<script defer src="projects.js?v=34.8.37"></script>
-<script defer src="letters.js?v=34.8.37"></script>
-<script defer src="draftx.js?v=34.8.37"></script>
-<script defer src="analyzer.js?v=34.8.37"></script>
-<script defer src="management-intelligence.js?v=34.8.37"></script>
-<script defer src="contracts.js?v=34.8.37"></script>
-<script defer src="shell.js?v=34.8.37"></script>
-<script defer src="bridge.js?v=34.8.37"></script>
-<script defer src="kanban.js?v=34.8.37"></script>
-<script defer src="reports.js?v=34.8.37"></script>
-<script defer src="backup.js?v=34.8.37"></script>
-<script defer src="tool-licenses.js?v=34.8.37"></script>
-<script defer src="tool-report-drafts.js?v=34.8.37"></script>
-<script defer src="tool-feedback.js?v=34.8.37"></script>
-<script defer src="sms.js?v=34.8.37"></script>
-<script defer src="rfqsmart.js?v=34.8.37"></script>
-<script defer src="cms.js?v=34.8.37"></script>
-<script defer src="careers.js?v=34.8.37"></script>
-<script defer src="perms.js?v=34.8.37"></script>
-<script defer src="petty.js?v=34.8.37"></script>
-<script defer src="opex.js?v=34.8.37"></script>
-<script defer src="shareholders.js?v=34.8.37"></script>
-<script defer src="theme.js?v=34.8.37"></script>
-<script defer src="archive.js?v=34.8.37"></script>
-<script defer src="offers-pro.js?v=34.8.37"></script>
-<script defer src="buycompare.js?v=34.8.37"></script>
-<script defer src="procurement-link.js?v=34.8.37"></script>
-<script defer src="listtools.js?v=34.8.37"></script>
-<script defer src="icons.js?v=34.8.37"></script>
-<script defer src="guards.js?v=34.8.37"></script>
-<script defer src="tables.js?v=34.8.37"></script>
-<script defer src="inqreader.js?v=34.8.37"></script>
-<script defer src="offerlock.js?v=34.8.37"></script>
-<script defer src="workflow.js?v=34.8.37"></script>
-<script defer src="fx.js?v=34.8.37"></script>
-<script defer src="modalx.js?v=34.8.37"></script>
-<script defer src="iconx.js?v=34.8.37"></script>
-<script defer src="salesfiles.js?v=34.8.37"></script>
-<script defer src="offer-rial-convert.js?v=34.8.37"></script>
-<script defer src="docsx.js?v=34.8.37"></script>
-<script defer src="oppo.js?v=34.8.37"></script>
-<script defer src="cheque-module.js?v=34.8.37"></script>
-<script defer src="cheque-panel.js?v=34.8.37"></script>
-<script defer src="cheque-print.js?v=34.8.37"></script>
-<script defer src="cheques.js?v=34.8.37"></script>
-<script defer src="messengers.js?v=34.8.37"></script>
-<script defer src="phonefmt.js?v=34.8.37"></script>
-<script defer src="tour.js?v=34.8.37"></script>
-<script defer src="ai-workbench.js?v=34.8.37"></script>
-<script defer src="golive.js?v=34.8.37"></script>
-<script defer src="custmerge.js?v=34.8.37"></script>
-<script defer src="listclean.js?v=34.8.37"></script>
-<script defer src="supspec.js?v=34.8.37"></script>
-<script defer src="scoring.js?v=34.8.37"></script>
-<script defer src="vat-shared.js?v=34.8.37"></script>
-<script defer src="vat-quarterly.js?v=34.8.37"></script>
-<script defer src="supplier-finance.js?v=34.8.37"></script>
-<script defer src="customer-finance.js?v=34.8.37"></script>
-<script defer src="working-capital.js?v=34.8.37"></script>
-<script defer src="treasury.js?v=34.8.37"></script>
-<script defer src="treasury-call.js?v=34.8.37"></script>
-<script defer src="ledger-report.js?v=34.8.37"></script>
-<script defer src="data-quality.js?v=34.8.37"></script>
-<script defer src="commission.js?v=34.8.37"></script>
+<script defer src="mobilenav.js?v=34.9.0"></script>
+<script defer src="storage-quota.js?v=34.9.0"></script>
+<script defer src="moneyx.js?v=34.9.0"></script>
+<script defer src="finance-helpers.js?v=34.9.0"></script>
+<script defer src="metrics-shared.js?v=34.9.0"></script>
+<script defer src="ar-reconcile.js?v=34.9.0"></script>
+<script defer src="finance-core.js?v=34.9.0"></script>
+<script defer src="finance-write-guard.js?v=34.9.0"></script>
+<script defer src="date-kit.js?v=34.9.0"></script>
+<script defer src="dialogx.js?v=34.9.0"></script>
+<script defer src="dedup.js?v=34.9.0"></script>
+<script defer src="codegen.js?v=34.9.0"></script>
+<script async src="xlsx.min.js?v=34.9.0"></script>
+<script defer src="sortable.js?v=34.9.0"></script>
+<script defer src="offers.js?v=34.9.0"></script>
+<script defer src="surplus.js?v=34.9.0"></script>
+<script defer src="launcher.js?v=34.9.0"></script>
+<script defer src="leads.js?v=34.9.0"></script>
+<script defer src="storage.js?v=34.9.0"></script>
+<script defer src="rbac.js?v=34.9.0"></script>
+<script defer src="official-ledger.js?v=34.9.0"></script>
+<script defer src="projects.js?v=34.9.0"></script>
+<script defer src="letters.js?v=34.9.0"></script>
+<script defer src="draftx.js?v=34.9.0"></script>
+<script defer src="analyzer.js?v=34.9.0"></script>
+<script defer src="management-intelligence.js?v=34.9.0"></script>
+<script defer src="contracts.js?v=34.9.0"></script>
+<script defer src="shell.js?v=34.9.0"></script>
+<script defer src="bridge.js?v=34.9.0"></script>
+<script defer src="kanban.js?v=34.9.0"></script>
+<script defer src="reports.js?v=34.9.0"></script>
+<script defer src="backup.js?v=34.9.0"></script>
+<script defer src="tool-licenses.js?v=34.9.0"></script>
+<script defer src="tool-report-drafts.js?v=34.9.0"></script>
+<script defer src="tool-feedback.js?v=34.9.0"></script>
+<script defer src="sms.js?v=34.9.0"></script>
+<script defer src="rfqsmart.js?v=34.9.0"></script>
+<script defer src="cms.js?v=34.9.0"></script>
+<script defer src="careers.js?v=34.9.0"></script>
+<script defer src="perms.js?v=34.9.0"></script>
+<script defer src="petty.js?v=34.9.0"></script>
+<script defer src="opex.js?v=34.9.0"></script>
+<script defer src="shareholders.js?v=34.9.0"></script>
+<script defer src="theme.js?v=34.9.0"></script>
+<script defer src="archive.js?v=34.9.0"></script>
+<script defer src="offers-pro.js?v=34.9.0"></script>
+<script defer src="buycompare.js?v=34.9.0"></script>
+<script defer src="procurement-link.js?v=34.9.0"></script>
+<script defer src="listtools.js?v=34.9.0"></script>
+<script defer src="icons.js?v=34.9.0"></script>
+<script defer src="guards.js?v=34.9.0"></script>
+<script defer src="tables.js?v=34.9.0"></script>
+<script defer src="inqreader.js?v=34.9.0"></script>
+<script defer src="offerlock.js?v=34.9.0"></script>
+<script defer src="workflow.js?v=34.9.0"></script>
+<script defer src="fx.js?v=34.9.0"></script>
+<script defer src="modalx.js?v=34.9.0"></script>
+<script defer src="iconx.js?v=34.9.0"></script>
+<script defer src="salesfiles.js?v=34.9.0"></script>
+<script defer src="offer-rial-convert.js?v=34.9.0"></script>
+<script defer src="docsx.js?v=34.9.0"></script>
+<script defer src="oppo.js?v=34.9.0"></script>
+<script defer src="cheque-module.js?v=34.9.0"></script>
+<script defer src="cheque-panel.js?v=34.9.0"></script>
+<script defer src="cheque-print.js?v=34.9.0"></script>
+<script defer src="cheques.js?v=34.9.0"></script>
+<script defer src="messengers.js?v=34.9.0"></script>
+<script defer src="phonefmt.js?v=34.9.0"></script>
+<script defer src="tour.js?v=34.9.0"></script>
+<script defer src="ai-workbench.js?v=34.9.0"></script>
+<script defer src="golive.js?v=34.9.0"></script>
+<script defer src="custmerge.js?v=34.9.0"></script>
+<script defer src="listclean.js?v=34.9.0"></script>
+<script defer src="supspec.js?v=34.9.0"></script>
+<script defer src="scoring.js?v=34.9.0"></script>
+<script defer src="vat-shared.js?v=34.9.0"></script>
+<script defer src="vat-quarterly.js?v=34.9.0"></script>
+<script defer src="supplier-finance.js?v=34.9.0"></script>
+<script defer src="customer-finance.js?v=34.9.0"></script>
+<script defer src="working-capital.js?v=34.9.0"></script>
+<script defer src="treasury.js?v=34.9.0"></script>
+<script defer src="treasury-call.js?v=34.9.0"></script>
+<script defer src="ledger-report.js?v=34.9.0"></script>
+<script defer src="data-quality.js?v=34.9.0"></script>
+<script defer src="commission.js?v=34.9.0"></script>
 
-<script defer src="my-customers-filter.js?v=34.8.37"></script>
-<script defer src="insights.js?v=34.8.37"></script>
-<script defer src="myday.js?v=34.8.37"></script>
-<script defer src="lossguard.js?v=34.8.37"></script>
-<script defer src="fiscal.js?v=34.8.37"></script>
-<script defer src="financehub.js?v=34.8.37"></script>
-<script defer src="theme-contrast.js?v=34.8.37"></script>
-<script defer src="key-registry.js?v=34.8.37"></script>
-<script defer src="sync.js?v=34.8.37"></script>
-<script defer src="client-server.js?v=34.8.37"></script>
-<script defer src="unofficial-invoice.js?v=34.8.37"></script>
-<script defer src="user-guide.js?v=34.8.37"></script>
-<script defer src="settings-accordion.js?v=34.8.37"></script>
-<script defer src="mobile-actions.js?v=34.8.37"></script>
-<script defer src="mobile-table-labels.js?v=34.8.37"></script>
-<script defer src="mobile-nav-state.js?v=34.8.37"></script>
-<script defer src="nav-focus.js?v=34.8.37"></script>
+<script defer src="my-customers-filter.js?v=34.9.0"></script>
+<script defer src="insights.js?v=34.9.0"></script>
+<script defer src="myday.js?v=34.9.0"></script>
+<script defer src="lossguard.js?v=34.9.0"></script>
+<script defer src="fiscal.js?v=34.9.0"></script>
+<script defer src="financehub.js?v=34.9.0"></script>
+<script defer src="theme-contrast.js?v=34.9.0"></script>
+<script defer src="key-registry.js?v=34.9.0"></script>
+<script defer src="sync.js?v=34.9.0"></script>
+<script defer src="client-server.js?v=34.9.0"></script>
+<script defer src="unofficial-invoice.js?v=34.9.0"></script>
+<script defer src="user-guide.js?v=34.9.0"></script>
+<script defer src="settings-accordion.js?v=34.9.0"></script>
+<script defer src="mobile-actions.js?v=34.9.0"></script>
+<script defer src="mobile-table-labels.js?v=34.9.0"></script>
+<script defer src="mobile-nav-state.js?v=34.9.0"></script>
+<script defer src="nav-focus.js?v=34.9.0"></script>
 <!-- v35: command-driven Sales-to-Cash loads last and replaces the legacy financial/write surfaces atomically. -->
-<script defer src="sales-domain-v2.js?v=34.8.37"></script>
-<script defer src="official-invoice-v2.js?v=34.8.37"></script>
-<script defer src="tax-returns.js?v=34.8.37"></script>
-<script defer src="case-revision.js?v=34.8.37"></script>
+<script defer src="sales-domain-v2.js?v=34.9.0"></script>
+<script defer src="official-invoice-v2.js?v=34.9.0"></script>
+<script defer src="tax-returns.js?v=34.9.0"></script>
+<script defer src="case-revision.js?v=34.9.0"></script>
 </body>
 </html>

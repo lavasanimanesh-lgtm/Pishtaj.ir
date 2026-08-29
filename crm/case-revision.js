@@ -259,7 +259,9 @@
   function revisionCopy(v) { try { return JSON.parse(JSON.stringify(v)); } catch (e) { return Object.assign({}, v || {}); } }
   function revisionContext() { return W._ptfAwardRevisionContext || null; }
   function revisionDraftKey(ctx){return ctx&&ctx.operationId?'ptf_autodraft_award_revision_'+String(ctx.operationId).replace(/[^A-Za-z0-9_.|:-]/g,'_'):'';}
-  function clearRevisionDraft(ctx){var key=revisionDraftKey(ctx);if(key)try{localStorage.removeItem(key);}catch(e){}}
+  /* v34.8.40 (R2/T5-2c — DEV→IDB): پیش‌نویس بازنگری جایزه در Dev-KV است؛
+     ptfDevKv.remove خودش ردیف IDB و legacy LS را با هم پاک می‌کند. */
+  function clearRevisionDraft(ctx){var key=revisionDraftKey(ctx);if(key)try{if(window.ptfDevKv)window.ptfDevKv.remove(key);else localStorage.removeItem(key);}catch(e){}}
   function lockRevisionIdentityFields() {
     var ctx=revisionContext(),dlg=document.getElementById('ptfReviseDlg');if(!ctx||!dlg)return;
     ['ofBuyer','ofInq','ofCurrency'].forEach(function(id){var el=document.getElementById(id);if(!el)return;el.disabled=true;el.setAttribute('aria-disabled','true');el.title='هویت قراردادی پس از تشکیل پرونده در رویژن قابل تغییر نیست';el.style.background='#f1f5f9';});

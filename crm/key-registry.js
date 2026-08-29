@@ -25,17 +25,19 @@
   var Q = ['ptf_b_queue', 'ptf_sync_dirty', 'ptf_sync_krevs', 'ptf_sync_rev', 'ptf_sync_ping', 'ptf_sync_last_error', 'ptf_b_offload_last', 'ptf_guard_counts', 'ptf_evt_last', 'ptf_bridge_last_error', 'ptf_storage_mode', 'ptf_storage_warned', 'ptf_crm_mode', 'ptf_crm_sync_enabled'];
   var CACHE = ['ptf_site_suppliers', 'ptf_site_suppliers_total', 'ptf_site_rfqs', 'ptf_site_inbox_sig', 'ptf_fx_live_cache', 'ptf_cloud_usage', 'ptf_cloud_usage_backup', 'ptf_crm_users'];
   var UI = ['ptf_theme', 'ptf_crm_theme_vars', 'ptf_nav_open', 'ptf_offer_tpl', 'ptf_off_cust_filter', 'ptf_bot_enabled', 'ptf_bot_pairs', 'ptf_phonefmt_mig', 'ptf_app_ver', 'ptf_profit_incomplete_notified', 'ptf_backup_last', 'ptf_backup_sig', 'ptf_backup_delta_sig', 'ptf_last_backup_time'];
-  var DEV = ['ptf_autodraft_offer_', 'ptf_code_tmp_queue', 'ptf_code_duplicate_plan', 'ptf_code_duplicate_ack', 'ptf_sales_command_not_committed_', 'ptf_sales_command_recovered_', 'ptf_sales_command_uncertain_', 'ptf_offer_post_ack_warning_', 'sigRecovery_', 'ptf_backup_local', 'ptf_backup_prerestore', 'ptf_tour_done_', 'ptf_tour_mnv_done_', 'ptf_crm_prefs_'];
+  /* v34.8.40 (R2/T5-2c): +ptf_autodraft_award_revision_ و پیشوند واقعی آینهٔ امضا
+   (ptf_sig_profile_recovery_v1_ — قبلاً sigRecovery_ نادرست ثبت شده بود) */
+  var DEV = ['ptf_autodraft_offer_', 'ptf_autodraft_award_revision_', 'ptf_code_tmp_queue', 'ptf_code_duplicate_plan', 'ptf_code_duplicate_ack', 'ptf_sales_command_not_committed_', 'ptf_sales_command_recovered_', 'ptf_sales_command_uncertain_', 'ptf_offer_post_ack_warning_', 'ptf_sig_profile_recovery_v1_', 'ptf_backup_local', 'ptf_backup_prerestore', 'ptf_tour_done_', 'ptf_tour_mnv_done_', 'ptf_crm_prefs_'];
   var MEDIA = ['ptf_chqprint_bg', 'ptf_crm_avatars'];
 
   window.PTF_KEY_REGISTRY = {
     REC: { store: 'server-command', keys: REC },
-    SESS: { store: 'httponly-cookie', keys: SESS },
+    SESS: { store: 'httponly-cookie+sessionStorage-mirror', keys: SESS }, /* v34.8.43 (R5/T4-1b): توکن در sessionStorage (این تب) + کوکی HttpOnly (مشترک)؛ LS فقط منبع مهاجرت یک‌باره */
     Q: { store: 'idb-queue-or-ls-light', keys: Q },
-    CACHE: { store: 'read-through-ttl', keys: CACHE },
+    CACHE: { store: 'ptfCache-idb-read-through-ttl', keys: CACHE }, /* v34.8.41 (R3/T3-4): پوشهٔ cache: در IDB + TTL؛ legacy LS فقط تا مهاجرت بوت */
     UI: { store: 'ls-light', keys: UI },
     DEV: { store: 'idb-or-sync', keys: DEV },
-    MEDIA: { store: 's3', keys: MEDIA }
+    MEDIA: { store: 's3-with-local-pointer', keys: MEDIA }, /* v34.8.44 (R5/T4-3b): تصویر کامل در آروان (پوشهٔ avatars/chqprint)؛ در LS فقط کلید + پیش‌نمایش ریز */
   };
 
   /* دستهٔ یک کلید — پیشوندها هم پوشش داده می‌شوند؛ ناشناخته = null */

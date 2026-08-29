@@ -1567,7 +1567,7 @@
     keys = (keys || []).filter(Boolean);
     if (!keys.length) return Promise.resolve([]);
     var api = (typeof STORAGE_API !== 'undefined' ? STORAGE_API : '../api/storage.php');
-    var headers = typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : (function () { var h = { 'Content-Type': 'application/json' }; try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; })();
+    var headers = typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : (function () { var h = { 'Content-Type': 'application/json' }; try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; })();
     return Promise.all(keys.map(function (key) {
       return fetch(api + '?action=delete_case_document', { method: 'POST', headers: headers, body: JSON.stringify({ key: key }) })
         .then(function (r) { return r.text().then(function (txt) { var d = {}; try { d = JSON.parse(txt); } catch (e) {} if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status)); return d; }); })

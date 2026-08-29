@@ -428,11 +428,16 @@
 
   function authHeaders(json) {
     var h = json ? { 'Content-Type': 'application/json' } : {};
-    try { var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {}
+    try { var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {}
     if (json) h['X-CRM-Role'] = curRole();
     return h;
   }
-  function hasSyncToken() { try { return !!localStorage.getItem('ptf_crm_token'); } catch (e) { return false; } }
+  function hasSyncToken() {
+    /* v34.8.43 (R5/T4-1b): نشست JS (SS) یا کوکی HttpOnly — کوکی برای تب‌های تازه کافی است
+       چون سرور در نبود هدر از آن می‌پذیرد. */
+    try { if (typeof window.ptfAuthOk === 'function' && window.ptfAuthOk()) return true; } catch (eA) {}
+    try { return !!(typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); } catch (e) { return false; }
+  }
 
   /* ============ v34.7.91 (SYNC-DIAG-001) — خود-تشخیص همگام‌سازی ============
      تغییر منطق نوشتن/سینک نمی‌دهد؛ فقط:
@@ -883,6 +888,7 @@
        synchronous block, in this single place — retryPullAfterAuth no longer deletes
        the token by itself, so the inconsistent «session بدون token» zombie state
        (source of the misleading «توکن معتبر وجود ندارد» screen) cannot appear. */
+    try { if (typeof window.ptfAuthClear === 'function') window.ptfAuthClear(); } catch (eAc) {}
     try {
       localStorage.removeItem('ptf_crm_token');
       localStorage.removeItem('ptf_crm_token_role');
@@ -937,8 +943,11 @@
   function pushDirty() {
     try {
       if (typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()) {
-        pushViaPhaseB();
-        return;
+        /* v34.8.42 (R4-گام۱): اگر صف فاز B در دسترس نیست (استقرار ناقص)، قبلاً
+           نوشته‌ها بی‌صدا گیر می‌کردند؛ حالا شبکۀ امنیتی legacy اجرا می‌شود و گیت
+           PTF_LEGACY_PUSH_OFF در ادامه، کلیدهای پرچم‌شده را از این fallback حذف
+           می‌کند (مالک آن‌ها فرمان‌های entity هستند). الگوی همان ptfSyncFlushNow. */
+        if (pushViaPhaseB()) return;
       }
     } catch (ePhase) {}
     var keys = Object.keys(state.dirty).filter(function (k) { return !syncKeyHeld(k); });
@@ -946,6 +955,18 @@
     forbiddenLocal.forEach(function (k) { delete state.dirty[k]; });
     if (forbiddenLocal.length) { saveDirty(); setSyncBadge('forbidden'); try { audit('سیستم', '⛔ کلیدهای خارج از allowlist نقش در sync ارسال نشد: ' + forbiddenLocal.join('، '), 'SYNC-RBAC'); } catch (eF) {} }
     keys = keys.filter(function (k) { return forbiddenLocal.indexOf(k) < 0; });
+    /* v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): گیت PTF_LEGACY_PUSH_OFF (fail-open).
+        کلید پرچم‌شده روی دستگاهِ فاز B → از push توده‌ای حذف (فرمان‌های entity مالک آن‌اند)؛
+        روی دستگاه همگرا‌نشده → عبور + ثبت R4-GATE-BYPASS تا گام ۲ شواهد کامل داشته باشد. */
+    try {
+      var gate = window.ptfLegacyPushGateDecision(keys);
+      if (gate.gated.length) {
+        keys = keys.filter(function (k) { return gate.gated.indexOf(k) < 0; });
+        try { audit('سیستم', '🚦 R4-گیت: push توده‌ای legacy برای «' + gate.gated.join('، ') + '» بنا بر پرچم سرور رد شد (فاز B فعال است)', 'R4-GATE'); } catch (eGa) {}
+      }
+      gate.bypass.forEach(function (k) { gateBypassAuditOnce(k); });
+      if (!keys.length) { notifyPushWaiters(true, { empty: true, gated: gate.gated }); return; }
+    } catch (eGate) {}
     if (!keys.length) { notifyPushWaiters(true, { empty: true }); return; }
     if (state.pushing) return;
     if (!curSession().user) { notifyPushWaiters(false, { reason: 'session' }); return; }
@@ -1465,9 +1486,11 @@
   window.ptfCollectionQuery = function (collection, opts, cb) {
     opts = opts || {};
     try {
-      var t = localStorage.getItem('ptf_crm_token');
-      /* v34.8.33: نبود توکن = خطای قطعی محلی — بدون fetch (caller فوراً fallback می‌کند) */
-      if (!t) { cb && cb({ ok: false, error: 'no_token', needLogin: true }); return; }
+      var t = (typeof window.ptfAuthToken === 'function') ? window.ptfAuthToken() : (typeof ptfAuthToken === 'function' ? ptfAuthToken() : '');
+      /* v34.8.33: نبود توکن = خطای قطعی محلی — بدون fetch (caller فوراً fallback می‌کند)
+         v34.8.43 (R5/T4-1b): کوکی HttpOnly هم نشست است؛ فقط وقتی هیچ‌کدام نیست needLogin. */
+      var _sessOk = (typeof window.ptfAuthOk === 'function') ? window.ptfAuthOk() : !!t;
+      if (!_sessOk) { cb && cb({ ok: false, error: 'no_token', needLogin: true }); return; }
       var params = new URLSearchParams({ action: 'collection_query', collection: collection });
       if (opts.q) params.append('q', String(opts.q));
       if (opts.sortBy) params.append('sortBy', String(opts.sortBy));
@@ -1665,6 +1688,8 @@
   function boot() {
     if (!curSession().user) return;
     injectBadge();
+    /* v34.8.42 (R4-گام۱): پرچم‌های موتور — read-through از ptfCache/سرور؛ غیرمسدودکننده */
+    try { window.ptfEngineFlagsLoad(false); } catch (eEf) {}
     /* v34.4.42: dirty persisted ابتدا فقط «کاندید بازیابی» است، نه اثبات خطا.
        بنر قدیمی پیش از اولین تلاش sync روشن می‌شد و حتی برای no-op/stale dirty یک
        هشدار زرد کاذب می‌پراند. تا ۶ ثانیه فرصت reconcile/push می‌دهیم؛ فقط اگر کلید
@@ -1740,6 +1765,119 @@
       } catch (e) {}
     });
   }
+
+  /* ═══ v34.8.42 (R4-گام۱ — RETIRE-LEGACY-SYNC): پرچم‌های قطع موتور legacy ═══
+     منبع حقیقت: sync/engine_flags.json روی سرور (اکشن sync_engine_flags). کلاینت آن را
+     read-through با TTL یک‌ساعته در لایهٔ ptfCache (R3/T3-4) کش می‌کند؛ نوشتن فقط از
+     داشبورد تصمیم (تنظیمات → موتور همگام‌سازی) با گیت شواهد سمت سرور. قرارداد گام ۱:
+     «پیش‌فرض = رفتار امروز» — گیت fail-open است؛ دستگاهِ همگرا‌نشده با وجود پرچم، push
+     توده‌ای را انجام می‌دهد و با R4-GATE-BYPASS در audit ثبت می‌شود تا داشبورد نشان
+     دهد کدام دستگاه‌ها مانع گام ۲ (حذف کامل) هستند. */
+  var engineFlags = { off: {}, loaded: false };
+  var gateBypassAudited = {};
+  window.ptfEngineFlags = function () { return engineFlags; };
+  window.ptfLegacyPushOff = function (k) { try { return !!engineFlags.off[k]; } catch (e) { return false; } };
+  window.ptfEngineFlagsLoad = function (force, cb) {
+    function fromServer() {
+      fetch(API + '?action=sync_engine_flags', { headers: authHeaders(false) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok) {
+            engineFlags.off = d.legacyPushOff || {};
+            engineFlags.loaded = true;
+            try { if (window.ptfCacheWrite) window.ptfCacheWrite('ptf_engine_flags', JSON.stringify({ legacyPushOff: engineFlags.off }), 3600); } catch (eC) {}
+          }
+          if (cb) try { cb(!!(d && d.ok)); } catch (eCb) {}
+        })
+        .catch(function () { if (cb) try { cb(false); } catch (eCb2) {} });
+    }
+    if (!force && window.ptfCacheRead) {
+      window.ptfCacheRead('ptf_engine_flags', function (v) {
+        if (v) { try { var pv = JSON.parse(v); engineFlags.off = (pv && pv.legacyPushOff) || {}; engineFlags.loaded = true; } catch (eP) {} }
+        else fromServer();
+      });
+    } else fromServer();
+  };
+  /* تصمیم گیت برای فهرست کلیدها — خالص و تست‌پذیر:
+     phaseB فعال + پرچم خاموش → gated (از push توده‌ای حذف؛ فرمان‌های entity مالکند)
+     phaseB غیرفعال + پرچم خاموش → bypass (تنها کانال همین است → fail-open + تله‌متری) */
+  window.ptfLegacyPushGateDecision = function (keys) {
+    var out = { phaseB: false, gated: [], bypass: [], flagged: 0 };
+    try { out.phaseB = !!(typeof window.ptfBPhaseActive === 'function' && window.ptfBPhaseActive()); } catch (eP) {}
+    (keys || []).forEach(function (k) {
+      if (!engineFlags.off[k]) return;
+      out.flagged++;
+      if (out.phaseB) out.gated.push(k);
+      else out.bypass.push(k);
+    });
+    return out;
+  };
+  function gateBypassAuditOnce(k) {
+    if (gateBypassAudited[k]) return;
+    gateBypassAudited[k] = 1;
+    try { audit('سیستم', '🚦 R4-گیت: این دستگاه هنوز به فاز B همگرا نشده؛ push توده‌ای legacy برای «' + k + '» با وجود پرچم سرور انجام شد (fail-open) — این دستگاه برای گام ۲ باید همگرا شود', 'R4-GATE-BYPASS'); } catch (eA) {}
+  }
+  /* داشبورد تصمیم (تنظیمات → 🚦 موتور همگام‌سازی): شواهد sync_stats + مدیریت پرچم */
+  window.ptfRenderEngineGateDashboard = function (hostId) {
+    var el = document.getElementById(hostId || 'engineGateBox');
+    if (!el) return;
+    var senior = false;
+    try { senior = typeof isSenior === 'function' && !!isSenior(); } catch (eS) {}
+    el.innerHTML = '<small style="color:#94a3b8">در حال دریافت شواهد تله‌متری…</small>';
+    function esc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function shortKey(k) { return String(k).replace(/^ptf_crm_/, ''); }
+    var statsRows = null, flagsOff = {};
+    function render() {
+      if (statsRows === null) return;
+      var map = {};
+      statsRows.forEach(function (r) { map[r.key] = r; });
+      Object.keys(flagsOff).forEach(function (k) { if (!map[k]) map[k] = { key: k, pushes: 0, conflicts: 0, win7: null }; });
+      var rows = Object.keys(map).map(function (k) { return map[k]; });
+      rows.sort(function (a, b) { return ((a.win7 == null ? 1e9 : a.win7) - (b.win7 == null ? 1e9 : b.win7)) || ((b.pushes || 0) - (a.pushes || 0)); });
+      var h = '<p class="ptf-settings-section-note">مبنای تصمیم گام ۲ (حذف موتور legacy در v34.8.43): پنجرهٔ ≥۷ روز با push توده‌ای ≈ صفر برای هر کلید. پرچم فقط push توده‌ای را می‌بندد؛ دستگاه همگرا‌نشده fail-open عبور می‌کند و در audit ثبت می‌شود (R4-GATE-BYPASS).</p>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:12.5px" dir="rtl"><tr style="background:#f1f5f9"><th style="padding:6px;border:1px solid #e2e8f0">کلید</th><th style="padding:6px;border:1px solid #e2e8f0">push کل</th><th style="padding:6px;border:1px solid #e2e8f0">پنجرهٔ ۷روزه</th><th style="padding:6px;border:1px solid #e2e8f0">تداخل</th><th style="padding:6px;border:1px solid #e2e8f0">وضعیت</th><th style="padding:6px;border:1px solid #e2e8f0">پرچم legacy-off</th></tr>';
+      rows.forEach(function (r) {
+        var ready = r.win7 !== null && r.win7 !== undefined && r.win7 <= 3;
+        var st = (r.win7 === null || r.win7 === undefined) ? '🟡 شواهد ناکافی' : (ready ? '🟢 آمادهٔ قطع' : '🔴 هنوز فعال');
+        var flagged = !!flagsOff[r.key];
+        h += '<tr><td style="padding:6px;border:1px solid #e2e8f0;direction:ltr;text-align:right">' + esc(shortKey(r.key)) + '</td>' +
+          '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">' + (r.pushes || 0) + '</td>' +
+          '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">' + (r.win7 === null || r.win7 === undefined ? '—' : r.win7) + '</td>' +
+          '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">' + (r.conflicts || 0) + '</td>' +
+          '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">' + st + '</td>' +
+          '<td style="padding:6px;border:1px solid #e2e8f0;text-align:center">' + (flagged ? '⛔ خاموش' : '✅ روشن') +
+          (senior ? ' <button type="button" class="bt bt-s" style="padding:3px 10px;font-size:11.5px;margin:0" onclick="ptfEngineFlagToggle(\'' + esc(r.key) + '\',' + (flagged ? '0' : '1') + ',' + ((r.win7 !== null && r.win7 !== undefined && r.win7 > 3) || r.win7 === null || r.win7 === undefined ? '1' : '0') + ')">' + (flagged ? 'بازگردانی' : 'قطع legacy') + '</button>' : '') + '</td></tr>';
+      });
+      h += '</table>';
+      if (!rows.length) h += '<p><small style="color:#94a3b8">هنوز تله‌متری push ثبت نشده است.</small></p>';
+      el.innerHTML = h;
+    }
+    window.ptfEngineFlagToggle = function (key, off, force) {
+      var reason = '';
+      try { reason = (window.prompt('دلیل ' + (off ? 'قطع push توده‌ای legacy برای «' + shortKey(key) + '»' : 'بازگردانی push legacy برای «' + shortKey(key) + '»') + ' (در audit ثبت می‌شود):') || '').trim(); } catch (ePr) {}
+      if (off && !reason) return;
+      var body = 'key=' + encodeURIComponent(key) + '&off=' + off + '&force=' + (force ? 1 : 0) + '&reason=' + encodeURIComponent(reason) + '&by=' + encodeURIComponent((curSession() || {}).name || '');
+      fetch(API + '?action=sync_engine_flag_set', { method: 'POST', headers: authHeaders(true), body: body })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok) {
+            try { audit('سیستم', '🚦 R4-گام۱: پرچم PTF_LEGACY_PUSH_OFF برای «' + shortKey(key) + '» ' + (off ? 'روشن شد (قطع push legacy' + (force ? ' — عبور اجباری' : '') + '؛ دلیل: ' + reason + ')' : 'خاموش شد (بازگردانی)'), 'R4-GATE'); } catch (eA) {}
+            window.ptfEngineFlagsLoad(true, function () { window.ptfRenderEngineGateDashboard(hostId || 'engineGateBox'); });
+          } else {
+            try { ptfToast((d && d.error) || 'خطای سرور', 'warn'); } catch (eT) { alert((d && d.error) || 'خطای سرور'); }
+          }
+        })
+        .catch(function () { try { alert('عدم دسترسی به سرور'); } catch (eAl) {} });
+    };
+    fetch(API + '?action=sync_stats', { headers: authHeaders(false) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        statsRows = (d && d.ok && Array.isArray(d.stats)) ? d.stats : [];
+        render();
+      })
+      .catch(function () { statsRows = []; render(); });
+    window.ptfEngineFlagsLoad(true, function () { flagsOff = engineFlags.off || {}; render(); });
+  };
 
   var tries = 0;
   var t = setInterval(function () {

@@ -145,8 +145,114 @@
   /* v31.7.11 BUG-AVATAR-001: مقدار هر کاربر یا رشته legacy است یا {v,ts} نسخه‌دار.
      حذف = tombstone {v:null,ts} — نه delete — تا هنگام merge با سرور، «حذف جدیدتر»
      بر «عکس قدیمی‌تر سرور» برنده شود و عکس حذف‌شده با رفرش برنگردد. */
-  function avatarVal(e) { if (e == null) return null; if (typeof e === 'string') return e || null; return e.v || null; }
+  function avatarVal(e) {
+    /* v34.8.44 (R5/T4-3b — AVATARS-TO-S3): سه شکل پشتیبانی می‌شود —
+       legacy رشتهٔ dataURL | {v: dataURL, ts} | جدید {k: کلید ابری, t: پیش‌نمایش ریز, ts} */
+    if (e == null) return null;
+    if (typeof e === 'string') return e || null;
+    if (e.t && e.k) return e.t;
+    return e.v || null;
+  }
   window.ptfAvatarOf = function (username) { return avatarVal(avatarsAll()[username]); };
+  /* URL موقت کیفیت کامل از ابر (presign) — کش حافظه‌ای ۴۵دقیقه‌ای per-tab */
+  var _avUrlCache = {};
+  window.ptfAvatarUrl = function (username, cb) {
+    try {
+      var e = avatarsAll()[username];
+      if (!e || !e.k) { cb && cb(null); return; }
+      var c = _avUrlCache[e.k];
+      if (c && (Date.now() - c.at) < 45 * 60000) { cb && cb(c.url); return; }
+      fetch('../api/storage.php?action=presign_get', {
+        method: 'POST', headers: (typeof ptfStorageAuthHeaders === 'function' ? ptfStorageAuthHeaders(true) : { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ key: e.k })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.ok && d.url) { _avUrlCache[e.k] = { url: d.url, at: Date.now() }; cb && cb(d.url); }
+          else cb && cb(null);
+        })
+        .catch(function () { cb && cb(null); });
+    } catch (eU) { cb && cb(null); }
+  };
+  function dataUrlToBlob(d) {
+    try {
+      var parts = String(d).split(',');
+      var mime = (/^data:([^;]+)/.exec(parts[0]) || [])[1] || 'image/jpeg';
+      var bin = atob(parts[1] || '');
+      var arr = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    } catch (e) { return null; }
+  }
+  function makeTiny(dataUrl, cb) {
+    try {
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var S = 64;
+          var cv = document.createElement('canvas');
+          cv.width = S; cv.height = S;
+          var k = Math.max(S / img.width, S / img.height);
+          var w = img.width * k, h = img.height * k;
+          cv.getContext('2d').drawImage(img, (S - w) / 2, (S - h) / 2, w, h);
+          cb(cv.toDataURL('image/jpeg', 0.72));
+        } catch (eC) { cb(null); }
+      };
+      img.onerror = function () { cb(null); };
+      img.src = dataUrl;
+    } catch (eI) { cb(null); }
+  }
+  /* مهاجرت نرم مقادیر قدیمیِ سنگین (dataURL کامل) → ابر؛ یک‌بار در ۶ ساعت */
+  window.ptfAvatarsMigrateCloud = function (cb) {
+    var all = avatarsAll();
+    var users = Object.keys(all).filter(function (u) {
+      var e = all[u];
+      if (e == null) return false;
+      if (typeof e === 'string') return e.length > 4096;
+      return typeof e.v === 'string' && e.v.length > 4096;
+    });
+    if (!users.length || typeof uploadFile !== 'function') { cb && cb({ moved: 0 }); return; }
+    var moved = 0;
+    function step(i) {
+      if (i >= users.length) {
+        if (moved > 0) { try { if (typeof audit === 'function') audit('تنظیمات', 'مهاجرت ' + moved + ' عکس پروفایل به فضای ابری (T4-3b)', 'ptf_crm_avatars'); } catch (eA) {} }
+        cb && cb({ moved: moved });
+        return;
+      }
+      var u = users[i];
+      var e = all[u];
+      var full = (typeof e === 'string') ? e : e.v;
+      var ts = (e && e.ts) || new Date().toISOString();
+      makeTiny(full, function (tiny) {
+        if (!tiny) { step(i + 1); return; }
+        var blob = dataUrlToBlob(full);
+        if (!blob) { step(i + 1); return; }
+        uploadFile(blob, 'avatars', function (up) {
+          if (up && up.ok && up.key) {
+            all[u] = { k: up.key, t: tiny, ts: ts };
+            if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_avatars', all, { reason: 'w4' }); else if (typeof setData === 'function') setData('ptf_crm_avatars', all);
+            moved++;
+          }
+          step(i + 1);
+        });
+      });
+    }
+    step(0);
+  };
+  try {
+    var _avMigDone = false;
+    function avMigGate() {
+      if (_avMigDone) return;
+      _avMigDone = true;
+      window.ptfAvatarsMigrateCloud(function () {});
+    }
+    if (window.ptfCacheRead) {
+      window.ptfCacheRead('ptf_avatars_cloud_mig', function (v) {
+        if (v) return; /* همین‌ недавно انجام شده */
+        window.ptfCacheWrite && window.ptfCacheWrite('ptf_avatars_cloud_mig', '1', 6 * 3600);
+        setTimeout(avMigGate, 15000);
+      });
+    } else setTimeout(avMigGate, 15000);
+  } catch (eMigBoot) {}
 
   // اعمال روی دایره کاربر در سایدبار (و هر جای دیگر با کلاس av-USERNAME)
   window.ptfApplyAvatar = function () {
@@ -154,8 +260,20 @@
       var s = curSession();
       var el = document.getElementById('navAv');
       if (!el || !s.user) return;
-      var d = avatarVal(avatarsAll()[s.user]);
+      var eAv = avatarsAll()[s.user];
+      var d = avatarVal(eAv);
       if (d) el.innerHTML = '<img src="' + d + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+      if (eAv && eAv.k) {
+        /* v34.8.44 (T4-3b): ریز فوری نشست؛ کیفیت کامل وقتی URL ابری آمد عوض می‌شود */
+        window.ptfAvatarUrl(s.user, function (u) {
+          try {
+            if (!u) return;
+            var el2 = document.getElementById('navAv');
+            var im = el2 && el2.querySelector('img');
+            if (im) im.src = u;
+          } catch (eUp) {}
+        });
+      }
       else el.textContent = (s.name || 'K')[0];
       el.style.cursor = 'pointer';
       el.title = 'تغییر عکس پروفایل';
@@ -180,14 +298,28 @@
       URL.revokeObjectURL(url);
       var data = cv.toDataURL('image/jpeg', 0.82);
       if (data.length > 120000) { alert('تصویر خیلی پیچیده است — عکس ساده‌تری انتخاب کنید'); return; }
-      var all = avatarsAll();
-      all[curSession().user] = { v: data, ts: new Date().toISOString() }; /* v31.7.11: نسخه‌دار برای merge درست */
-      if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_avatars', all, { reason: 'w4' }); else setData('ptf_crm_avatars', all); // setData → سینک بین دستگاه‌ها
-      ptfApplyAvatar();
-      var pv = document.getElementById('avPrev');
-      if (pv) pv.innerHTML = '<img src="' + data + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--brd)">';
-      if (typeof ptfToast === 'function') ptfToast('✅ عکس پروفایل ذخیره شد', 'ok');
-      if (typeof audit === 'function') audit('تنظیمات', 'تغییر عکس پروفایل', curSession().user);
+      /* v34.8.44 (R5/T4-3b — AVATARS-TO-S3): تصویر کامل به آروان S3 می‌رود (پوشهٔ avatars)؛
+         در نقشهٔ سینک‌شونده فقط کلید ابری + پیش‌نمایش ریز ۶۴px می‌ماند (~۳KB به‌جای ~۲۰KB per کاربر).
+         fallback بدون ابر = همان dataURL کامل (رفتار قبل — آفلاین همیشه کار می‌کند). */
+      makeTiny(data, function (tiny) {
+        function persist(entry, noteCloud) {
+          var all = avatarsAll();
+          all[curSession().user] = entry;
+          if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_avatars', all, { reason: 'w4' }); else setData('ptf_crm_avatars', all); // setData → سینک بین دستگاه‌ها
+          ptfApplyAvatar();
+          var pv = document.getElementById('avPrev');
+          if (pv) pv.innerHTML = '<img src="' + (entry.t || entry.v) + '" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--brd)">';
+          if (typeof ptfToast === 'function') ptfToast(noteCloud ? '✅ عکس پروفایل در فضای ابری ذخیره شد' : '✅ عکس پروفایل ذخیره شد (محلی — ابر در دسترس نبود)', 'ok');
+          if (typeof audit === 'function') audit('تنظیمات', 'تغییر عکس پروفایل' + (noteCloud ? ' (ذخیره در فضای ابری)' : ''), curSession().user);
+        }
+        var blob = dataUrlToBlob(data);
+        if (blob && tiny && typeof uploadFile === 'function') {
+          uploadFile(blob, 'avatars', function (up) {
+            if (up && up.ok && up.key) persist({ k: up.key, t: tiny, ts: new Date().toISOString() }, true);
+            else persist({ v: data, ts: new Date().toISOString() }, false); /* v31.7.11: نسخه‌دار برای merge درست */
+          });
+        } else persist({ v: data, ts: new Date().toISOString() }, false);
+      });
     };
     img.onerror = function () { URL.revokeObjectURL(url); alert('خطا در خواندن تصویر'); };
     img.src = url;
@@ -222,7 +354,7 @@
       '<button class="bt" onclick="document.getElementById(\'avFile\').click()">📤 انتخاب عکس</button>' +
       (d ? '<button class="bt bt-o" style="color:#dc2626" onclick="ptfAvatarRemove()">🗑 حذف</button>' : '') +
       '<button class="bt bt-o" onclick="this.closest(\'.md-b\').remove()">بستن</button></div>' +
-      '<small style="color:#94a3b8;font-size:11px;display:block;margin-top:10px">عکس خودکار به ۱۲۸×۱۲۸ فشرده و بین دستگاه‌های شما سینک می‌شود</small></div></div>';
+      '<small style="color:#94a3b8;font-size:11px;display:block;margin-top:10px">عکس کامل در فضای ابری ذخیره و بین دستگاه‌ها سینک می‌شود (فقط پیش‌نمایش ریز منتقل می‌شود)</small></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
   };
   // بخش عکس پروفایل داخل پنل تنظیمات (اگر باز شد)
@@ -234,7 +366,7 @@
       '<div><input type="file" id="avFileSet" accept="image/*" style="display:none" onchange="ptfAvatarUpload(this)">' +
       '<button class="bt" onclick="document.getElementById(\'avFileSet\').click()">📤 انتخاب عکس</button> ' +
       '<button class="bt bt-o" style="color:#dc2626" onclick="ptfAvatarRemove()">🗑 حذف</button>' +
-      '<div style="font-size:11px;color:#94a3b8;margin-top:6px">فشرده‌سازی خودکار ۱۲۸×۱۲۸ — سینک بین دستگاه‌ها — سایر کاربران هم می‌توانند با کلیک روی دایره نام‌شان در منو عکس بگذارند</div></div></div>' +
+      '<div style="font-size:11px;color:#94a3b8;margin-top:6px">ذخیره در فضای ابری (آروان) — سینک سبک بین دستگاه‌ها — سایر کاربران هم می‌توانند با کلیک روی دایره نام‌شان در منو عکس بگذارند</div></div></div>' +
       '<hr style="border:none;border-top:1px solid var(--brd);margin:16px 0">';
   };
 })();

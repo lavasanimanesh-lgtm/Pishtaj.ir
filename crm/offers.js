@@ -833,19 +833,9 @@ function autoCreateProjectFromCO(o) {
 }
 
 function offerNew(kind) {
-  try {
-    var draft = JSON.parse(localStorage.getItem('ptf_autodraft_offer_' + kind));
-    if (draft && draft.items && draft.items.length > 0) {
-      if (confirm('⚡ یک فرم پیش‌نویس ذخیره‌شده از قبل (حاوی ' + draft.items.length + ' قلم کالا) موجود است.\nآیا مایل به بازیابی آن هستید؟')) {
-        ptfSetOffState(draft);
-        offerForm();
-        if (typeof ptfToast === 'function') ptfToast('⚡ فرم پیش‌نویس با موفقیت بازیابی شد', 'ok');
-        return;
-      } else {
-        localStorage.removeItem('ptf_autodraft_offer_' + kind);
-      }
-    }
-  } catch(e) {}
+  /* v34.8.40 (R2/T5-2c — DEV→IDB): پیش‌نویس‌ها در Dev-KV (IndexedDB) هستند؛ فرم
+     فوراً با وضعیت تازه باز می‌شود و بررسیِ async پیش‌نویس ذخیره‌شده بلافاصله بعد
+     انجام می‌شود (تا قبل از مهاجرت، devKv.get از legacy LS هم می‌خواند). */
   ptfSetOffState({
     no: offerSerial(kind), kind: kind, rev: 0, editMode: 'new',
     dateFa: new Date().toLocaleDateString('fa-IR'),
@@ -854,6 +844,22 @@ function offerNew(kind) {
     items: [{ name: '', desc: '', model: '', qty: 1, unit: 'NO', brand: '', dlv: '', price: 0 }], /* v122 US-278: ردیف پیش‌فرض */ terms: [], st: 'draft', vatNote: true
   });
   offerForm();
+  try {
+    if (window.ptfDevKv) window.ptfDevKv.get('ptf_autodraft_offer_' + kind, function (raw) {
+      var draft = null;
+      try { draft = JSON.parse(raw || 'null'); } catch (eP) {}
+      if (!draft || !draft.items || !draft.items.length) return;
+      if (confirm('⚡ یک فرم پیش‌نویس ذخیره‌شده از قبل (حاوی ' + draft.items.length + ' قلم کالا) موجود است.\nآیا مایل به بازیابی آن هستید؟')) {
+        try {
+          ptfSetOffState(draft);
+          offerForm();
+          if (typeof ptfToast === 'function') ptfToast('⚡ فرم پیش‌نویس با موفقیت بازیابی شد', 'ok');
+        } catch (eRes) {}
+      } else {
+        try { window.ptfDevKv.remove('ptf_autodraft_offer_' + kind); } catch (eR) {}
+      }
+    });
+  } catch (eKv) {}
 }
 
 function ptfTriggerAutoDraftSave() {
@@ -865,7 +871,10 @@ function ptfTriggerAutoDraftSave() {
       var key = revCtx && revCtx.operationId
         ? ('ptf_autodraft_award_revision_' + String(revCtx.operationId).replace(/[^A-Za-z0-9_.|:-]/g, '_'))
         : ('ptf_autodraft_offer_' + _offState.kind);
-      localStorage.setItem(key, JSON.stringify(_offState));
+      /* v34.8.40 (R2/T5-2c — DEV→IDB): پیش‌نویس در Dev-KV (IndexedDB) ذخیره می‌شود
+         (اصل E3 — LS سبک)؛ بدون IDB fallback به LS (قرارداد رودمپ). */
+      if (window.ptfDevKv) window.ptfDevKv.set(key, JSON.stringify(_offState));
+      else { try { localStorage.setItem(key, JSON.stringify(_offState)); } catch (eL) {} }
     } catch(e){}
   }
 }
@@ -2867,7 +2876,8 @@ window.ptfOfferAfterServerCommit = function (o, meta) {
     }
   } catch (eResolveRef) {}
   try { if (typeof window.ptfSalesFileOfferAfterServerCommit === 'function') window.ptfSalesFileOfferAfterServerCommit(o); } catch (eSalesFile) {}
-  try { localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch (eDraft) {}
+  /* v34.8.40 (R2/T5-2c): حذف پیش‌نویس از Dev-KV (حذف legacy LS هم داخل همان نمای انجام می‌شود) */
+  try { if (window.ptfDevKv) window.ptfDevKv.remove('ptf_autodraft_offer_' + o.kind); else localStorage.removeItem('ptf_autodraft_offer_' + o.kind); } catch (eDraft) {}
   try {
     var toCatalog = !!meta.toCatalog;
     var rb = window.ptfSyncRefPriceBack(o, { toCatalog: toCatalog });

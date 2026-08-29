@@ -41,11 +41,11 @@ T('۵ دکمهٔ اصلی بک‌آپ + بررسی کدهای تکراری با�
 T('تک‌دکمهٔ حافظه: «پاک‌سازی امن فوری» (خودش ابتدا مهاجرت IDB را هم صدا می‌زند)',
   bak.indexOf('onclick="ptfStorageCleanup()">پاک‌سازی امن فوری') > -1 &&
   bak.indexOf('ptfStorageMigrateVolatileToIdb({ source: \'manual-cleanup\'') > -1);
-T('هر ۴ دکمهٔ حالت سرور-محور (فاز B) باقی است — راه‌حل دائمی کاربران پرحافظه',
-  bak.indexOf('onclick="ptfBEnable()"') > -1 &&
+T('جعبهٔ وضعیت دستگاه (v34.9.0): انتقال یک‌باره + پاک‌سازی کش — بدون دکمهٔ خاموش/روشن قدیمی',
   bak.indexOf('onclick="ptfBConfirmFlush()"') > -1 &&
   bak.indexOf('ptfBClearLocalCache()') > -1 &&
-  bak.indexOf('onclick="ptfBDisable()"') > -1);
+  bak.indexOf('onclick="ptfBEnable()"') === -1 &&
+  bak.indexOf('onclick="ptfBDisable()"') === -1);
 
 SECTION('توابع موتورهای حذف‌شده از UI دست‌نخورده‌اند');
 T('ptfBackupServerCheck/Status و ptfPurgeCloudOrphans و ptfStorageMigrateToIdb موجوداند',
@@ -59,9 +59,9 @@ T('متن حافظه کاربرمحور شد (کش مرورگر + دادهٔ ا�
   bak.indexOf('فقط کش دستگاه شما پر شده') > -1 &&
   bak.indexOf('Browser storage estimate') === -1 &&
   bak.indexOf('برنامهٔ DB-MIG-001') === -1);
-T('عنوان فاز B کوتاه‌تر شد ولی نشان 🌐 حالت سرور-محور پابرجاست', bak.indexOf('<b>🌐 حالت سرور-محور</b>') > -1);
-T('راهنمای اعلان پاک‌سازی به «حالت سرور-محور» ارجاع می‌دهد (نه دکمهٔ حذف‌شده / نه «برنامهٔ آینده»)',
-  bak.indexOf('راه‌حل دائمی: در همین صفحه «حالت سرور-محور» را فعال کنید') > -1 &&
+T('عنوان وضعیت دستگاه با نشان 🖥 و دو حالت روشن/در انتظار (v34.9.0)', bak.indexOf('🖥 وضعیت دستگاه: سرور-محور فعال') > -1 && bak.indexOf('🖥 وضعیت دستگاه: در انتظار انتقال یک‌باره') > -1);
+T('راهنمای اعلان پاک‌سازی به جعبهٔ وضعیت دستگاه ارجاع می‌دهد (v34.9.0)',
+  bak.indexOf('وضعیت دستگاه') > -1 &&
   bak.indexOf('بزرگ‌ترین کلیدها (اگر از نوع دادهٔ اصلی‌اند') > -1 /* چک tester294 پابرجا */);
 
 SECTION('نسخه‌گذاری');

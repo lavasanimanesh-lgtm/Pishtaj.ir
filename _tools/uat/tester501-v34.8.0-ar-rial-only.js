@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.37 — AR-RIAL-ONLY-001
+/* v34.9.0 — AR-RIAL-ONLY-001
    تست رفتاری و قراردادی حذف کامل تسعیر از مطالبات/وصولی‌های فروش:
    - UI فقط مبلغ فاکتور، دریافت و ماندهٔ ریالی را نمایش می‌دهد؛ درصد حذف است.
    - فرمان ثبت/اصلاح Receipt هیچ metadata یا ورودی ارزی ندارد.
@@ -38,10 +38,10 @@ var unofficial = read('crm/unofficial-invoice.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('نسخه رسمی v34.8.37 است', JSON.parse(read('VERSION.json')).crm_version === 'v34.8.37');
-T('index و service worker روی v34.8.37 هستند',
-  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.37'") > -1 &&
-  read('crm/sw.js').indexOf("RELEASE = 'v34.8.37'") > -1);
+T('نسخه رسمی v34.9.0 است', JSON.parse(read('VERSION.json')).crm_version === 'v34.9.0');
+T('index و service worker روی v34.9.0 هستند',
+  idx.indexOf("window.PTF_CRM_RELEASE = 'v34.9.0'") > -1 &&
+  read('crm/sw.js').indexOf("RELEASE = 'v34.9.0'") > -1);
 
 /* اجرای خود تابع renderReceivables با دو فاکتور متعلق به پیشنهاد ارزی.
    یکی باز و دیگری تسویه‌شده است؛ metadata ارزی legacy نیز عمداً روی پرداخت seed شده
@@ -241,6 +241,6 @@ T('قابلیت ارزی پیشنهاد و خرید دست‌نخورده باق
   read('crm/offers-pro.js').indexOf('fxRateRef') > -1);
 T('tester501 در گیت CI ثبت شده است', gate.indexOf('tester501-v34.8.0-ar-rial-only.js') > -1);
 
-console.log('\n— tester501 (v34.8.37: مطالبات و وصولی‌های صرفاً ریالی) —');
+console.log('\n— tester501 (v34.9.0: مطالبات و وصولی‌های صرفاً ریالی) —');
 console.log('PASS: ' + pass + ' | FAIL: ' + fail);
 process.exit(fail ? 1 : 0);

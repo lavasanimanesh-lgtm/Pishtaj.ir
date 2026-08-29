@@ -15,7 +15,7 @@
 
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   function roleOk() { try { return ['admin', 'chairman'].indexOf(curRole()) > -1; } catch (e) { return false; } }
-  function token() { try { return localStorage.getItem('ptf_crm_token') || ''; } catch (e) { return ''; } }
+  function token() { try { return (typeof ptfAuthToken === 'function' ? ptfAuthToken() : '') || ''; } catch (e) { return ''; } }
   function todayPlus(days) { var d = new Date(Date.now() + (days || 90) * 86400000); return d.toISOString().slice(0, 10); }
   function api(action, body, cb) {
     fetch(API + '?action=' + encodeURIComponent(action), {

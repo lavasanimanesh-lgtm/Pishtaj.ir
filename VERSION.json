@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.37",
+  "crm_version": "v34.9.0",
   "last_stable_tag": "v2026.08.16-0100",
-  "last_updated": "2026-08-28",
-  "updated_by": "Arena Agent (v34.8.37 — بررسی تکمیلی نوار زرد: PULL-EQUAL-ACK خودترمیم پرچم کهنه + گسترش پنجرهٔ گیت post-deploy به ~۶ دقیقه (رفع false-red) + tester538)"
+  "last_updated": "2026-08-29",
+  "updated_by": "Arena Agent (v34.9.0 — نهاییِ نازک‌سازی: بنر مهاجرت خودکار (MIGRATION-BANNER) + بستهٔ اثبات E1..E7 (tester552) + چک‌لیست دیپلوی پروداکشن؛ آمادهٔ دیپلوی توسط مالک)"
 }

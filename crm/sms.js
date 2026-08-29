@@ -9,7 +9,7 @@
    ===================================================================== */
 (function () {
   'use strict';
-  function smsAuthHeaders(json) { var h = json ? { 'Content-Type': 'application/json' } : {}; try { h['X-CRM-Role'] = (typeof curRole === 'function' ? curRole() : 'admin'); var t = localStorage.getItem('ptf_crm_token'); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
+  function smsAuthHeaders(json) { var h = json ? { 'Content-Type': 'application/json' } : {}; try { h['X-CRM-Role'] = (typeof curRole === 'function' ? curRole() : 'admin'); var t = (typeof ptfAuthToken === 'function' ? ptfAuthToken() : ''); if (t) h['X-CRM-Token'] = t; } catch (e) {} return h; }
   var API = '../api/crm.php';
   var SMS_ROLES = ['admin', 'chairman', 'ceo', 'commercial']; // AC4
   var CRM_URL = 'https://pishtaj.ir/crm/';

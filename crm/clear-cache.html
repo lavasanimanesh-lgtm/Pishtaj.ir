@@ -16,7 +16,7 @@
 </style>
 </head>
 <body>
-<h1>🛡️ به‌روزرسانی امن مرورگر — PTF CRM (v34.8.37)</h1>
+<h1>🛡️ به‌روزرسانی امن مرورگر — PTF CRM (v34.9.0)</h1>
 <p style="font-size:14px;color:#334155">سیستم CRM پیشرو تجهیز فرتاک مجهز به <b>ارتقای خودکار (Zero-Touch Auto-Update)</b> است و در حالت عادی نیازی به ورود به این صفحه نیست.</p>
 
 <div class="db-status" id="dbStatusWrap">
@@ -30,6 +30,13 @@
   <p id="msg" style="margin-top:16px;text-align:center"></p>
 </div>
 
+<div class="box">
+  <h3>🗄 کش‌های IndexedDB</h3>
+  <p id="idbStats" style="font-size:13px;color:#475569">در حال شمارش…</p>
+  <button onclick="sweepIdbCache()">🧹 پاکسازی کش‌های منقضی IDB (امن — دادهٔ کسب‌وکار حذف نمی‌شود)</button>
+  <p style="font-size:11.5px;color:#94a3b8;margin-top:8px">از v34.8.41 کش‌های read-through (ردیف‌های cache:) در IndexedDB نگهداری می‌شوند؛ این دکمه فقط ردیف‌های منقضیِ بیش از ۷ روز را حذف می‌کند — همان قرارداد ptfCacheSweep خود برنامه. آینهٔ دادهٔ سنگین (bdata:) و پیش‌نویس‌ها (devkv:) دست نمی‌خورند.</p>
+</div>
+
 <div class="box" style="font-size:12.5px;color:#64748b;line-height:2.1">
   <b>اصول ایمنی این ابزار:</b><br>
   ✅ <b>حفظ کامل دیتابیس CRM:</b> تمامی رکوردهای مشتریان (`ptf_crm_customers`)، استعلامات (`rfqs`)، پیشنهادها (`offers`)، فاکتورها، چک‌ها و تنظیمات ۱۰۰٪ محفوظ می‌مانند و حتی یک کاراکتر از دیتابیس محلی یا ابری شما پاک نمی‌شود.<br>
@@ -37,7 +44,7 @@
 </div>
 
 <script>
-window.VER = 'v34.8.37';
+window.VER = 'v34.9.0';
 window.onload = function () {
   try {
     var getC = function (k) { try { return JSON.parse(localStorage.getItem(k) || '[]').length || 0; } catch (e) { return 0; } };
@@ -50,6 +57,80 @@ window.onload = function () {
     document.getElementById('dbCounts').innerHTML = 'دیتابیس محلی شما ۱۰۰٪ امن و حفاظت‌شده است.';
   }
 };
+
+
+/* v34.9.0 (R6 — IDB-AWARE-RECOVERY): آمار IndexedDB (ptf-crm-storage-v1/kv) —
+   استندالون؛ همین ابزار بدون لود crm/*.js وضعیت آینه/کش/Dev-KV را نشان می‌دهد. */
+function ptfIdbStats(cb) {
+  var out = { ok: false, db: 'ptf-crm-storage-v1', rows: 0, bdata: 0, cache: 0, devkv: 0, bytes: 0 };
+  try {
+    var req = indexedDB.open('ptf-crm-storage-v1');
+    req.onerror = function () { cb && cb(out); };
+    req.onsuccess = function () {
+      var db = req.result;
+      try {
+        var cr = db.transaction('kv', 'readonly').objectStore('kv').openCursor();
+        cr.onerror = function () { db.close(); cb && cb(out); };
+        cr.onsuccess = function () {
+          var c = cr.result;
+          if (!c) { out.ok = true; db.close(); cb && cb(out); return; }
+          out.rows++;
+          var k = String(c.key || '');
+          if (k.indexOf('bdata:') === 0) out.bdata++;
+          else if (k.indexOf('cache:') === 0) out.cache++;
+          else if (k.indexOf('devkv:') === 0) out.devkv++;
+          try { var v = c.value; if (v && v.value) out.bytes += (String(v.value).length || 0) * 2; } catch (eV) {}
+          c.continue();
+        };
+      } catch (eTx) { db.close(); cb && cb(out); }
+    };
+  } catch (e) { cb && cb(out); }
+}
+function ptfIdbStatsHtml(st) {
+  if (!st || !st.ok) return '<small style="color:#94a3b8">IndexedDB در این مرورگر قابل خواندن نیست یا خالی است.</small>';
+  return '<b>' + st.rows + '</b> ردیف — آینهٔ دادهٔ سنگین (bdata:): <b>' + st.bdata + '</b> · کش (cache:): <b>' + st.cache + '</b> · Dev-KV (devkv:): <b>' + st.devkv + '</b> · حجم تقریبی: <b>' + (st.bytes > 1048576 ? (st.bytes / 1048576).toFixed(1) + ' MB' : Math.round(st.bytes / 1024) + ' KB') + '</b>';
+}
+
+function loadIdbStats() {
+  try { ptfIdbStats(function (st) { document.getElementById('idbStats').innerHTML = ptfIdbStatsHtml(st); }); } catch (e) {}
+}
+function sweepIdbCache() {
+  /* حذف cache: rows منقضی > ۷ روز (همان قرارداد ptfCacheSweep در storage-quota.js) */
+  var removed = 0, scanned = 0;
+  try {
+    var req = indexedDB.open('ptf-crm-storage-v1');
+    req.onsuccess = function () {
+      var db = req.result;
+      try {
+        var tx = db.transaction('kv', 'readwrite');
+        var cr = tx.objectStore('kv').openCursor();
+        cr.onsuccess = function () {
+          var c = cr.result;
+          if (!c) {
+            tx.oncomplete = function () {
+              alert('پاکسازی امن انجام شد: ' + removed + ' ردیف کش منقضی حذف شد (از ' + scanned + ' ردیف کش).');
+              loadIdbStats();
+            };
+            return;
+          }
+          var k = String(c.key || '');
+          if (k.indexOf('cache:') === 0) {
+            scanned++;
+            try {
+              /* ردیف IDB = {id, value} — پوشنهٔ {v,at,ttl} داخل value است (هم‌شکل ptfCacheSweep) */
+              var _rv = (c.value && typeof c.value.value === 'string') ? c.value.value : '{}';
+              var rec = JSON.parse(_rv);
+              if (rec && +rec.ttl > 0 && (Date.now() - (+rec.at || 0)) > (+rec.ttl + 7 * 86400000)) { c.delete(); removed++; }
+            } catch (eP) {}
+          }
+          c.continue();
+        };
+      } catch (eTx) { db.close(); alert('خواندن IndexedDB ممکن نشد'); }
+    };
+    req.onerror = function () { alert('باز کردن IndexedDB ممکن نشد'); };
+  } catch (e) { alert('این مرورگر IndexedDB را پشتیبانی نمی‌کند'); }
+}
+window.addEventListener('load', function () { setTimeout(loadIdbStats, 300); });
 
 function safeBrowserRefresh() {
   var msg = document.getElementById('msg');
