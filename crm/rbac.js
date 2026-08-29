@@ -37,6 +37,18 @@ var SENIOR_ROLES = ['admin', 'chairman', 'ceo', 'commercial'];
    - ptfAuthOk(): توکن SS یا نشانگر کوکی — مبنای گیت‌های «نشست داریم؟»
    - ptfAuthSessionRestore(): تبِ تازه نشست را با کوکی از role_verify بازسازی می‌کند. */
 var PTF_AUTH_KEYS = ['ptf_crm_token', 'ptf_crm_token_role', 'ptf_crm_session'];
+/* v34.8.48 (COOKIE-ONLY-MODE): اگر هر دو مخزن SS/LS مسدود باشند (webview داخل
+   پیام‌رسان‌ها/پنجرهٔ خصوصی/sait-data مسدود/سهمیهٔ پر)، نشست و توکن در حافظهٔ
+   همین تب نگه داشته می‌شوند تا ورود با کوکی HttpOnly همچنان کار کند — قرارداد
+   v34.8.43: «نبود توکن JS ≠ نبود نشست». عمر داده = عمر همین صفحه/تب. */
+var PTF_SESS_MEM = { token: '', role: '', session: null };
+function ptfSessMemWarnOnce(msg) {
+  try {
+    if (typeof window === 'undefined' || window._ptfSessMemWarned) return;
+    window._ptfSessMemWarned = true;
+    if (typeof ptfToast === 'function') ptfToast(msg, 'warn');
+  } catch (e) {}
+}
 function ptfAuthMigrate() {
   try {
     for (var _ak = 0; _ak < PTF_AUTH_KEYS.length; _ak++) {
@@ -55,6 +67,7 @@ function ptfAuthToken() {
     try { l = localStorage.getItem('ptf_crm_token'); } catch (eL2) {} /* خوانش مستقیم LS — عمداً (خودِ ptfAuthToken؛ گارد بازگشتی ممنوع) */
     if (l) { ptfAuthMigrate(); return l; }
   } catch (e) {}
+  if (PTF_SESS_MEM.token) return PTF_SESS_MEM.token; /* v34.8.48 (COOKIE-ONLY-MODE) */
   return '';
 }
 function ptfAuthCookieOk() {
@@ -69,6 +82,7 @@ function ptfAuthHeaders(json) {
 function ptfAuthSession() {
   try { var sS = JSON.parse(sessionStorage.getItem('ptf_crm_session')) || null; if (sS && sS.user) return sS; } catch (eS2) {}
   try { var sL = JSON.parse(localStorage.getItem('ptf_crm_session')) || null; if (sL && sL.user) return sL; } catch (eL3) {}
+  if (PTF_SESS_MEM.session && PTF_SESS_MEM.session.user) return PTF_SESS_MEM.session; /* v34.8.48 (COOKIE-ONLY-MODE) */
   return {};
 }
 function ptfAuthSessionStore(sess) {
@@ -76,10 +90,11 @@ function ptfAuthSessionStore(sess) {
   /* v34.8.47 (HOTFIX-SESS-STORM): اگر نوشتن SS بیندازد (مرورگر خصوصی/مسدود)،
      نشست در LS می‌ماند تا ورود کاربر بی‌نتیجه نماند و حلقهٔ بازسازی نشست
      (توفان role_verify) شکل نگیرد. ptfAuthSession/ptfAuthToken هر دو LS را
-     به‌عنوان fallback می‌خوانند. */
+     به‌عنوان fallback می‌خوانند. v34.8.48: اگر LS هم مسدود بود → حافظهٔ تب. */
   try { sessionStorage.setItem('ptf_crm_session', raw); try { localStorage.removeItem('ptf_crm_session'); } catch (eL4) {} return; } catch (eS3) {}
-  try { localStorage.setItem('ptf_crm_session', raw); } catch (eL5) {}
-  try { if (typeof ptfToast === 'function') ptfToast('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage) نمی‌دهد — نشست در localStorage نگه داشته شد. اگر در پنجرهٔ خصوصی هستید، از پنجرهٔ عادی استفاده کنید.', 'warn'); } catch (eT) {}
+  try { localStorage.setItem('ptf_crm_session', raw); ptfSessMemWarnOnce('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage) نمی‌دهد — نشست در localStorage نگه داشته شد. اگر در پنجرهٔ خصوصی هستید، از پنجرهٔ عادی استفاده کنید.'); return; } catch (eL5) {}
+  PTF_SESS_MEM.session = sess || null; /* v34.8.48 (COOKIE-ONLY-MODE): آخرین fallback — حافظهٔ همین تب */
+  ptfSessMemWarnOnce('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage/localStorage) نمی‌دهد — نشست فقط تا بسته‌شدن همین صفحه در حافظه می‌ماند. برای تجربهٔ کامل، از مرورگر عادی (نه خصوصی/داخل پیام‌رسان) استفاده کنید.');
 }
 function ptfAuthLoginWrite(token, role, sess) {
   var _ssOk = true;
@@ -89,10 +104,13 @@ function ptfAuthLoginWrite(token, role, sess) {
     try { for (var _lk = 0; _lk < PTF_AUTH_KEYS.length; _lk++) localStorage.removeItem(PTF_AUTH_KEYS[_lk]); } catch (e3) {}
   } else {
     /* v34.8.47: SS در دسترس نیست — توکن در LS می‌ماند (خوانش LS در ptfAuthToken
-       مجاز است)؛ هرگز کلیدهای fallback را پاک نکن (وگرنه کاربر بی‌نشست می‌شود). */
-    try { localStorage.setItem('ptf_crm_token', String(token || '')); } catch (eL1) {}
-    try { if (role) localStorage.setItem('ptf_crm_token_role', String(role)); } catch (eL2) {}
-    try { if (typeof ptfToast === 'function') ptfToast('⚠️ ذخیرهٔ نشست در sessionStorage ممکن نیست — از localStorage استفاده شد.', 'warn'); } catch (eT2) {}
+       مجاز است)؛ هرگز کلیدهای fallback را پاک نکن (وگرنه کاربر بی‌نشست می‌شود).
+       v34.8.48: اگر LS هم مسدود بود → حافظهٔ تب (توکن + نقش). */
+    var _lsOk = true;
+    try { localStorage.setItem('ptf_crm_token', String(token || '')); } catch (eL1) { _lsOk = false; }
+    try { if (role) localStorage.setItem('ptf_crm_token_role', String(role)); } catch (eL2) { _lsOk = false; }
+    if (!_lsOk) { PTF_SESS_MEM.token = String(token || ''); PTF_SESS_MEM.role = String(role || ''); }
+    ptfSessMemWarnOnce('⚠️ ذخیرهٔ نشست در sessionStorage ممکن نیست — از ' + (_lsOk ? 'localStorage' : 'حافظهٔ همین صفحه') + ' استفاده شد.');
   }
   ptfAuthSessionStore(sess || {});
 }

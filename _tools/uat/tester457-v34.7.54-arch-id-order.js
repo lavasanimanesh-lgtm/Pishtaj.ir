@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.47 — رفع تخلف A2 نگهبان معماری در ptfHarvestFileKeys (v34.7.52):
+/* v34.8.48 — رفع تخلف A2 نگهبان معماری در ptfHarvestFileKeys (v34.7.52):
    قرارداد PTF.id ترتیب `_id || cd` است؛ این تستر ترتیب درست را در storage.js
    قفل می‌کند و برنمی‌گردد. arch-guard باید بدون تخلف جدید PASS بدهد. */
 var fs = require('fs'), path = require('path'), cp = require('child_process');
@@ -16,10 +16,10 @@ var sw = read('crm/sw.js');
 var gate = read('_tools/uat/run-ci-gate.js');
 
 /* ---------- نسخه ---------- */
-T('VERSION.json = v34.8.47', ver.crm_version === 'v34.8.47', ver.crm_version);
-T('index PTF_CRM_RELEASE = v34.8.47', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.47'") > -1);
-T('sw RELEASE = v34.8.47', sw.indexOf("RELEASE = 'v34.8.47'") > -1);
-T('storage.js cache-bust 34.8.47', idx.indexOf('storage.js?v=34.8.47') > -1);
+T('VERSION.json = v34.8.48', ver.crm_version === 'v34.8.48', ver.crm_version);
+T('index PTF_CRM_RELEASE = v34.8.48', idx.indexOf("window.PTF_CRM_RELEASE = 'v34.8.48'") > -1);
+T('sw RELEASE = v34.8.48', sw.indexOf("RELEASE = 'v34.8.48'") > -1);
+T('storage.js cache-bust 34.8.48', idx.indexOf('storage.js?v=34.8.48') > -1);
 
 /* ---------- قرارداد شناسه در harvest ---------- */
 T('ptfHarvestFileKeys با ترتیب _id || cd',
@@ -50,6 +50,6 @@ T('ptfPlanCloudKeyRemap مانده', st.indexOf('function ptfPlanCloudKeyRemap')
 T('remap بدون DELETE ابری مانده', st.indexOf('اعمال remap گروه B (بدون حذف فایل)') > -1);
 T('tester457 در گیت CI', gate.indexOf('tester457-v34.7.54-arch-id-order.js') > -1);
 
-console.log('\n— tester457 (v34.8.47: رفع A2 و سبز شدن نگهبان معماری) —');
+console.log('\n— tester457 (v34.8.48: رفع A2 و سبز شدن نگهبان معماری) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

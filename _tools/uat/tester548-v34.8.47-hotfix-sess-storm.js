@@ -43,7 +43,10 @@ function sliceFn(src, header) {
   throw new Error('unbalanced');
 }
 var m = rb.match(/var PTF_AUTH_KEYS\s*=\s*\[[^\]]*\];/);
+/* v34.8.48: ptfAuthLoginWrite/Store به ptfSessMemWarnOnce و PTF_SESS_MEM وابسته‌اند */
 var src = [m[0],
+  rb.match(/var PTF_SESS_MEM\s*=\s*\{[^}]*\};/)[0],
+  sliceFn(rb, 'function ptfSessMemWarnOnce('),
   sliceFn(rb, 'function ptfAuthToken()'), sliceFn(rb, 'function ptfAuthCookieOk()'), sliceFn(rb, 'function ptfAuthOk()'),
   sliceFn(rb, 'function ptfAuthSession()'), sliceFn(rb, 'function ptfAuthSessionStore('), sliceFn(rb, 'function ptfAuthLoginWrite('),
   sliceFn(rb, 'function ptfAuthClear()'), sliceFn(rb, 'function ptfAuthSessionRestore('),
@@ -83,7 +86,8 @@ setTimeout(function () {
       Promise.resolve(sb.__show()).then(function () {
         setTimeout(function () {
           T('رفتاری: بدترین حالت — سقف تلاش‌ها (≤۳ role_verify، بدون توفان)', sb._rv <= 3, 'count=' + sb._rv);
-          T('رفتاری: پیام شفاف مسدودی مرورگر', sb._els['lerr'] && sb._els['lerr'].textContent.indexOf('مسدود') > -1, sb._els['lerr'] ? sb._els['lerr'].textContent : '');
+          /* v34.8.48: با COOKIE-ONLY-MODE بدترین حالت (هر دو مخزن مسدود) دیگر با پیام خطا تمام نمی‌شود — نشست در حافظهٔ تب می‌ماند و ورود کامل می‌شود (پوشش کامل: tester549). */
+          T('رفتاری: بدترین حالت — ورود با حافظهٔ تب کامل شد (قرارداد 48)', sb._els['crmL'] && sb._els['crmL'].style.display !== 'none', 'crmL مخالف بار ماند');
           console.log('\n== tester548: ' + p + ' PASS / ' + f + ' FAIL ==');
           process.exit(f ? 1 : 0);
         }, 80);
