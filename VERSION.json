@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.49",
+  "crm_version": "v34.8.50",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-29",
-  "updated_by": "Arena Agent (v34.8.49 (درخواست مالک): پیامک ورود دومرحله‌ای به‌صورت پیش‌فرض خاموش شد — فقط با settings.twofa_enabled=true روشن می‌شود؛ tester547/549)"
+  "updated_by": "Arena Agent (v34.8.50 — PHANTOM-STORAGE: انتخاب مخزن نشست با خواندن-باز (مرورگری که setItem را بی‌خطا می‌پذیرد ولی نگه نمی‌دارد) + ترمیم ptfAuthMigrate که توکن LS را می‌کشت؛ tester550)"
 }

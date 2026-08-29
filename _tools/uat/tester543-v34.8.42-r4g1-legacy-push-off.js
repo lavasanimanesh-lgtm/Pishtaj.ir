@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester543 — v34.8.49 (R4-گام۱ — RETIRE-LEGACY-SYNC): پرچم PTF_LEGACY_PUSH_OFF
+/* tester543 — v34.8.50 (R4-گام۱ — RETIRE-LEGACY-SYNC): پرچم PTF_LEGACY_PUSH_OFF
    قرارداد: تصمیم بازنشستگی موتور legacy سینک از تله‌متری پنجره‌ای گرفته می‌شود.
    (۱) سرور: تله‌متری push سطل روزانه می‌گیرد (هرس ۱۴ روز) و sync_stats پنجرهٔ ۷روزه
    (win7) را برمی‌گرداند؛ (۲) اکشن‌های sync_engine_flags (خواندن) و sync_engine_flag_set
@@ -84,7 +84,7 @@ function makeCtx() {
     },
     curSession: function () { return { user: 'adm', name: 'مدیر' }; },
     curRole: function () { return 'admin'; },
-    ptfAuthToken: function () { return 'tok'; }, ptfAuthOk: function () { return true; }, /* v34.8.49 (R5/T4-1b): لایهٔ نشست جدید */
+    ptfAuthToken: function () { return 'tok'; }, ptfAuthOk: function () { return true; }, /* v34.8.50 (R5/T4-1b): لایهٔ نشست جدید */
     getData: function (k) { try { return JSON.parse(store[k] || '[]'); } catch (e) { return []; } },
     setData: function (k, v) { store[k] = JSON.stringify(v); },
     navigator: {}, location: { href: '' },
@@ -182,7 +182,7 @@ function makeCtx() {
 })().catch(function (e) { T('زنجیرهٔ رفتاری (بیرونی)', false, String(e && e.stack || e)); finish(); });
 
 function finish() {
-  console.log('\n— tester543 (v34.8.49: R4-گام۱ — پرچم PTF_LEGACY_PUSH_OFF + داشبورد تصمیم) —');
+  console.log('\n— tester543 (v34.8.50: R4-گام۱ — پرچم PTF_LEGACY_PUSH_OFF + داشبورد تصمیم) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }

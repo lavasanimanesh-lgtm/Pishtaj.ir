@@ -54,8 +54,16 @@ function ptfAuthMigrate() {
     for (var _ak = 0; _ak < PTF_AUTH_KEYS.length; _ak++) {
       var _k = PTF_AUTH_KEYS[_ak], _v = null;
       try { _v = localStorage.getItem(_k); } catch (eL) {}
-      if (_v !== null && sessionStorage.getItem(_k) === null) { try { sessionStorage.setItem(_k, _v); } catch (eS) {} }
-      if (_v !== null) { try { localStorage.removeItem(_k); } catch (eR) {} }
+      if (_v === null) continue;
+      /* v34.8.50 (PHANTOM-STORAGE): قبلاً حتی اگر نوشتن SS می‌انداخت/نگه نمی‌داشت،
+         کلید LS پاک می‌شد و توکن برای همیشه گم می‌شد. اکنون LS فقط وقتی حذف می‌شود
+         که SS مقدار را واقعاً نگه داشته باشد (خواندن-باز). */
+      try {
+        if (sessionStorage.getItem(_k) !== null) { try { localStorage.removeItem(_k); } catch (eR2) {} continue; }
+        sessionStorage.setItem(_k, _v);
+        if (sessionStorage.getItem(_k) !== _v) continue; /* SS فانتوم — LS را نگه دار */
+        try { localStorage.removeItem(_k); } catch (eR) {}
+      } catch (eS) { continue; }
     }
   } catch (e) {}
 }
@@ -91,15 +99,31 @@ function ptfAuthSessionStore(sess) {
      نشست در LS می‌ماند تا ورود کاربر بی‌نتیجه نماند و حلقهٔ بازسازی نشست
      (توفان role_verify) شکل نگیرد. ptfAuthSession/ptfAuthToken هر دو LS را
      به‌عنوان fallback می‌خوانند. v34.8.48: اگر LS هم مسدود بود → حافظهٔ تب. */
-  try { sessionStorage.setItem('ptf_crm_session', raw); try { localStorage.removeItem('ptf_crm_session'); } catch (eL4) {} return; } catch (eS3) {}
-  try { localStorage.setItem('ptf_crm_session', raw); ptfSessMemWarnOnce('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage) نمی‌دهد — نشست در localStorage نگه داشته شد. اگر در پنجرهٔ خصوصی هستید، از پنجرهٔ عادی استفاده کنید.'); return; } catch (eL5) {}
+  try {
+    sessionStorage.setItem('ptf_crm_session', raw);
+    if (sessionStorage.getItem('ptf_crm_session') !== raw) throw new Error('phantom'); /* v34.8.50 */
+    try { localStorage.removeItem('ptf_crm_session'); } catch (eL4) {}
+    return;
+  } catch (eS3) {}
+  try {
+    localStorage.setItem('ptf_crm_session', raw);
+    if (localStorage.getItem('ptf_crm_session') !== raw) throw new Error('phantom'); /* v34.8.50 */
+    ptfSessMemWarnOnce('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage) نمی‌دهد — نشست در localStorage نگه داشته شد. اگر در پنجرهٔ خصوصی هستید، از پنجرهٔ عادی استفاده کنید.');
+    return;
+  } catch (eL5) {}
   PTF_SESS_MEM.session = sess || null; /* v34.8.48 (COOKIE-ONLY-MODE): آخرین fallback — حافظهٔ همین تب */
   ptfSessMemWarnOnce('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage/localStorage) نمی‌دهد — نشست فقط تا بسته‌شدن همین صفحه در حافظه می‌ماند. برای تجربهٔ کامل، از مرورگر عادی (نه خصوصی/داخل پیام‌رسان) استفاده کنید.');
 }
 function ptfAuthLoginWrite(token, role, sess) {
+  /* v34.8.50 (PHANTOM-STORAGE): بعضی مرورگرها/افزونه‌ها setItem را بی‌خطا می‌پذیرند اما
+     مقدار را نگه نمی‌دارند (خواندن بلافاصله null). تصمیم SS/LS/حافظه فقط با
+     خواندن-بازِ مقدار واقعی، نه صرفِ نبودِ exception. */
   var _ssOk = true;
-  try { sessionStorage.setItem('ptf_crm_token', String(token || '')); } catch (e1) { _ssOk = false; }
-  try { if (role) sessionStorage.setItem('ptf_crm_token_role', String(role)); } catch (e2) { _ssOk = false; }
+  try {
+    sessionStorage.setItem('ptf_crm_token', String(token || ''));
+    if (sessionStorage.getItem('ptf_crm_token') !== String(token || '')) throw new Error('phantom');
+    if (role) sessionStorage.setItem('ptf_crm_token_role', String(role));
+  } catch (e1) { _ssOk = false; }
   if (_ssOk) {
     try { for (var _lk = 0; _lk < PTF_AUTH_KEYS.length; _lk++) localStorage.removeItem(PTF_AUTH_KEYS[_lk]); } catch (e3) {}
   } else {
@@ -107,8 +131,11 @@ function ptfAuthLoginWrite(token, role, sess) {
        مجاز است)؛ هرگز کلیدهای fallback را پاک نکن (وگرنه کاربر بی‌نشست می‌شود).
        v34.8.48: اگر LS هم مسدود بود → حافظهٔ تب (توکن + نقش). */
     var _lsOk = true;
-    try { localStorage.setItem('ptf_crm_token', String(token || '')); } catch (eL1) { _lsOk = false; }
-    try { if (role) localStorage.setItem('ptf_crm_token_role', String(role)); } catch (eL2) { _lsOk = false; }
+    try {
+      localStorage.setItem('ptf_crm_token', String(token || ''));
+      if (localStorage.getItem('ptf_crm_token') !== String(token || '')) throw new Error('phantom');
+      if (role) localStorage.setItem('ptf_crm_token_role', String(role));
+    } catch (eL1) { _lsOk = false; }
     if (!_lsOk) { PTF_SESS_MEM.token = String(token || ''); PTF_SESS_MEM.role = String(role || ''); }
     ptfSessMemWarnOnce('⚠️ ذخیرهٔ نشست در sessionStorage ممکن نیست — از ' + (_lsOk ? 'localStorage' : 'حافظهٔ همین صفحه') + ' استفاده شد.');
   }
