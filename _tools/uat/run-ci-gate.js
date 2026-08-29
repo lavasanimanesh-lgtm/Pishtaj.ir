@@ -211,6 +211,7 @@ var SUITE = [
   { g: 'هات‌فیکس/حالت فقط-کوکی (هر دو مخزن مسدود)', f: '_tools/uat/tester549-v34.8.48-cookie-only-mode.js' },
   { g: 'هات‌فیکس/حافظهٔ فانتوم (نوشتن بی‌خطا، خواندن null)', f: '_tools/uat/tester550-v34.8.50-phantom-storage.js' },
   { g: 'پیش‌دیپلوی/تنظیمات متناسب با معماری + بازبینی پروداکشن', f: '_tools/uat/tester551-v34.8.51-preprod-settings-audit.js' },
+  { g: 'نهایی/بنر مهاجرت + اثبات‌های E1..E7', f: '_tools/uat/tester552-v34.9.0-final-e-proofs.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

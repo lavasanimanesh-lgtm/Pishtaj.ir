@@ -114,7 +114,7 @@ function slice(src, from, to) { var a = src.indexOf(from), b = src.indexOf(to, a
     };
     sb.window = sb;
     vm.createContext(sb);
-    var block = slice(cc, '/* v34.8.52 (R6 — IDB-AWARE-RECOVERY)', 'function loadIdbStats');
+    var block = slice(cc, '/* v34.9.0 (R6 — IDB-AWARE-RECOVERY)', 'function loadIdbStats');
     vm.runInContext(block, sb, { filename: 'idb-block.js' });
     var st = await new Promise(function (res) { sb.ptfIdbStats(res); });
     T('vm: آمار IDB درست شمرده شد (۵ ردیف، ۱ bdata، ۳ cache، ۱ devkv)', st.ok === true && st.rows === 5 && st.bdata === 1 && st.cache === 3 && st.devkv === 1);

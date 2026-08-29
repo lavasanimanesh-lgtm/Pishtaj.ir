@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.52 — ادغام دو آیکون ضمیمه در ردیف درخواست‌ها.
+/* v34.9.0 — ادغام دو آیکون ضمیمه در ردیف درخواست‌ها.
    هر ردیف درخواست دو آیکون پیوست داشت: بج «📎 N ضمیمه» (bridge.js) + دکمهٔ تکراری
    «📎 مدیریت پیوست‌ها/پیوست‌ها» (inqreader.js). ادغام: بج همیشه کلیک‌پذیر (با شمارش)
    و دکمهٔ تکراری حذف شد. */
@@ -16,9 +16,9 @@ var inq = read('crm/inqreader.js');
 var idx = read('crm/index.html');
 var gate = read('_tools/uat/run-ci-gate.js');
 
-T('VERSION.json = v34.8.52', ver.crm_version === 'v34.8.52', ver.crm_version);
-T('bridge.js cache-bust 34.8.52', /bridge\.js\?v=34\.8.52/.test(idx));
-T('inqreader.js cache-bust 34.8.52', /inqreader\.js\?v=34\.8.52/.test(idx));
+T('VERSION.json = v34.9.0', ver.crm_version === 'v34.9.0', ver.crm_version);
+T('bridge.js cache-bust 34.9.0', /bridge\.js\?v=34\.9.0/.test(idx));
+T('inqreader.js cache-bust 34.9.0', /inqreader\.js\?v=34\.9.0/.test(idx));
 
 /* بج ضمیمه: همیشه کلیک‌پذیر */
 T('بج با ضمیمه کلیک‌پذیر است', bridge.indexOf("' <span class=\"bd rfq-attachment-badge has-files\" role=\"button\"") > -1);
@@ -32,6 +32,6 @@ T('تابع مدیریت ضمایم حفظ شد', inq.indexOf('window.ptfManageI
 
 T('tester466 در گیت CI', gate.indexOf('tester466-v34.7.64-attachment-pin-merge.js') > -1);
 
-console.log('\n— tester466 (v34.8.52: ادغام آیکون ضمیمه ردیف درخواست) —');
+console.log('\n— tester466 (v34.9.0: ادغام آیکون ضمیمه ردیف درخواست) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);
