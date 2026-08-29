@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester542 — v34.8.46 (R3/T3-4 — CACHE→IDB: لایهٔ کش read-through با TTL)
+/* tester542 — v34.8.47 (R3/T3-4 — CACHE→IDB: لایهٔ کش read-through با TTL)
    قرارداد: کلیدهای دستهٔ CACHE (صندوق سایت، نرخ ارز، مصرف ابر) دیگر در localStorage
    نوشته نمی‌شوند؛ از نمای ptfCache (ردیف «cache:<key>» در IDB با پوشنهٔ {v,at,ttl})
    عبور می‌کنند. TTL منقضی → read=null؛ readStale تا ۷ روز fallback خطا؛ sweep
@@ -169,7 +169,7 @@ function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 })().catch(function (e) { T('زنجیرهٔ رفتاری بدون خطا', false, String(e && e.stack || e)); finish(); });
 
 function finish() {
-  console.log('\n— tester542 (v34.8.46: R3/T3-4 — لایهٔ کش read-through با TTL روی IDB) —');
+  console.log('\n— tester542 (v34.8.47: R3/T3-4 — لایهٔ کش read-through با TTL روی IDB) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }

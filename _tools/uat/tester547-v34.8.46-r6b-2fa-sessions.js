@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester547 — v34.8.46 (R6-ب): ورود دومرحله‌ای پیامکی نقش‌های مالی + نشست‌های فعال
+/* tester547 — v34.8.47 (R6-ب): ورود دومرحله‌ای پیامکی نقش‌های مالی + نشست‌های فعال
    قرارداد: (۱) سرور — auth_login برای نقش پیکربندی‌شدهٔ مالی (پیش‌فرض accountant)
    بعد از تأیید رمز کد ۶رقمی SMS + otp_challenge برمی‌گرداند (نه توکن)؛ مرحلهٔ دوم
    auth_login_otp با کد → توکن + کوکی‌ها. سیاست fail-open با ثبت رویداد
@@ -94,7 +94,7 @@ T('بازخورد تعداد ابطال‌شده + reload لیست', rb.indexOf(
 T('جدول: کاربر/نقش/ورود/انقضا/IP', ['<th', 'کاربر', 'نقش', 'ورود', 'انقضا', 'IP'].every(function (x) { return rb.indexOf(x) > -1; }));
 
 /* ═══ ۷) رفتاری — vm: ptf2faContinue ═══ */
-var seg = ih.slice(ih.indexOf('async function ptf2faContinue'), ih.indexOf('function ptfServerLogin') < ih.indexOf('async function ptf2faContinue') ? ih.length : (function () { var s = ih.indexOf('/* v34.8.46 (R6/T7-ب — LOGIN-2FA):', ih.indexOf('async function ptf2faContinue') + 30); return s > -1 ? ih.indexOf('/* v34.8.46 (R6/T7-ب — LOGIN-2FA):', s + 10) : ih.length; })());
+var seg = ih.slice(ih.indexOf('async function ptf2faContinue'), ih.indexOf('function ptfServerLogin') < ih.indexOf('async function ptf2faContinue') ? ih.length : (function () { var s = ih.indexOf('/* v34.8.47 (R6/T7-ب — LOGIN-2FA):', ih.indexOf('async function ptf2faContinue') + 30); return s > -1 ? ih.indexOf('/* v34.8.47 (R6/T7-ب — LOGIN-2FA):', s + 10) : ih.length; })());
 /* تابع را تا انتهای بلاکش برش بزن (تعداد آکولاد متوازن) */
 var start = ih.indexOf('async function ptf2faContinue');
 var depth = 0, end = -1, seenOpen = false;
@@ -140,7 +140,7 @@ vm.runInContext(fnSrc + '\n; globalThis.__t2fa = ptf2faContinue;', sandbox);
   T('رفتاری 2FA: twofa_skipped → همان پاسخ + اطلاع‌رسانی (toast)', r4 && r4.token === 'T' && sb3.__toasted === true);
 
   /* ═══ ۸) رفتاری — vm: ptfRenderSessionsBox (رندر و revoke) ═══ */
-  var rbStart = rb.indexOf('/* ═══ v34.8.46 (R6/T7-ب): نشست‌های فعال');
+  var rbStart = rb.indexOf('window.ptfRenderSessionsBox = function'); /* نسخه-مستقل (هات‌فیکس ۴۷: لنگر نسخه‌دار شکننده بود) */
   var rbEnd = rb.indexOf('function verifyRoleFromServer');
   var rbSrc = 'var ROLES = { accountant: { lb: "حسابدار" }, admin: { lb: "ادمین" } };\nfunction curRole() { return "admin"; }\nvar SENIOR_ROLES = ["admin", "chairman", "ceo", "commercial"];\nfunction isSenior() { return SENIOR_ROLES.indexOf(curRole()) > -1; }\n' + rb.slice(rbStart, rbEnd);
   var sbox = {

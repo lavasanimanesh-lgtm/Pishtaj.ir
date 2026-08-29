@@ -72,14 +72,29 @@ function ptfAuthSession() {
   return {};
 }
 function ptfAuthSessionStore(sess) {
-  try { sessionStorage.setItem('ptf_crm_session', JSON.stringify(sess || {})); } catch (eS3) {}
-  try { localStorage.removeItem('ptf_crm_session'); } catch (eL4) {}
+  var raw = JSON.stringify(sess || {});
+  /* v34.8.47 (HOTFIX-SESS-STORM): اگر نوشتن SS بیندازد (مرورگر خصوصی/مسدود)،
+     نشست در LS می‌ماند تا ورود کاربر بی‌نتیجه نماند و حلقهٔ بازسازی نشست
+     (توفان role_verify) شکل نگیرد. ptfAuthSession/ptfAuthToken هر دو LS را
+     به‌عنوان fallback می‌خوانند. */
+  try { sessionStorage.setItem('ptf_crm_session', raw); try { localStorage.removeItem('ptf_crm_session'); } catch (eL4) {} return; } catch (eS3) {}
+  try { localStorage.setItem('ptf_crm_session', raw); } catch (eL5) {}
+  try { if (typeof ptfToast === 'function') ptfToast('⚠️ مرورگر شما اجازهٔ ذخیرهٔ نشست (sessionStorage) نمی‌دهد — نشست در localStorage نگه داشته شد. اگر در پنجرهٔ خصوصی هستید، از پنجرهٔ عادی استفاده کنید.', 'warn'); } catch (eT) {}
 }
 function ptfAuthLoginWrite(token, role, sess) {
-  try { sessionStorage.setItem('ptf_crm_token', String(token || '')); } catch (e1) {}
-  try { if (role) sessionStorage.setItem('ptf_crm_token_role', String(role)); } catch (e2) {}
+  var _ssOk = true;
+  try { sessionStorage.setItem('ptf_crm_token', String(token || '')); } catch (e1) { _ssOk = false; }
+  try { if (role) sessionStorage.setItem('ptf_crm_token_role', String(role)); } catch (e2) { _ssOk = false; }
+  if (_ssOk) {
+    try { for (var _lk = 0; _lk < PTF_AUTH_KEYS.length; _lk++) localStorage.removeItem(PTF_AUTH_KEYS[_lk]); } catch (e3) {}
+  } else {
+    /* v34.8.47: SS در دسترس نیست — توکن در LS می‌ماند (خوانش LS در ptfAuthToken
+       مجاز است)؛ هرگز کلیدهای fallback را پاک نکن (وگرنه کاربر بی‌نشست می‌شود). */
+    try { localStorage.setItem('ptf_crm_token', String(token || '')); } catch (eL1) {}
+    try { if (role) localStorage.setItem('ptf_crm_token_role', String(role)); } catch (eL2) {}
+    try { if (typeof ptfToast === 'function') ptfToast('⚠️ ذخیرهٔ نشست در sessionStorage ممکن نیست — از localStorage استفاده شد.', 'warn'); } catch (eT2) {}
+  }
   ptfAuthSessionStore(sess || {});
-  try { for (var _lk = 0; _lk < PTF_AUTH_KEYS.length; _lk++) localStorage.removeItem(PTF_AUTH_KEYS[_lk]); } catch (e3) {}
 }
 function ptfAuthClear() {
   try {

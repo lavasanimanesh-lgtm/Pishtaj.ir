@@ -207,6 +207,7 @@ var SUITE = [
   { g: 'نازک‌سازی/R5-گام۲ عکس پروفایل به فضای ابری', f: '_tools/uat/tester545-v34.8.44-r5g2-avatars-s3.js' },
   { g: 'نازک‌سازی/R6-الف ابزارهای ریکاوری IDB-aware + سقف نرخ فرمان‌ها', f: '_tools/uat/tester546-v34.8.45-r6a-idb-tools-rate-limit.js' },
   { g: 'نازک‌سازی/R6-ب ورود دومرحله‌ای پیامکی نقش مالی + نشست‌های فعال', f: '_tools/uat/tester547-v34.8.46-r6b-2fa-sessions.js' },
+  { g: 'هات‌فیکس/حلقهٔ بازسازی نشست (SS مسدود)', f: '_tools/uat/tester548-v34.8.47-hotfix-sess-storm.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

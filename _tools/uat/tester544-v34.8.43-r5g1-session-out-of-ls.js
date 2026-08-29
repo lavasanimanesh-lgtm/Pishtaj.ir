@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester544 — v34.8.46 (R5/T4-1b — SESSION-OUT-OF-LS): توکن/نشست خارج از localStorage
+/* tester544 — v34.8.47 (R5/T4-1b — SESSION-OUT-OF-LS): توکن/نشست خارج از localStorage
    قرارداد: توکن نشست از این نسخه در sessionStorage (فقط همین تب) نگه داشته می‌شود و
    کوکی HttpOnlyِ ptf_token (از v34.8.28) کانال مشترک تب‌هاست؛ سرور در نبود هدر
    X-CRM-Token از کوکی می‌پذیرد. مهاجرت یک‌بارهٔ بوت: LS→SS سپس حذف LS؛ بازسازی نشست
@@ -41,7 +41,17 @@ jsFiles.forEach(function (x) {
   if (m) directReads.push(x + ':' + m.length);
 });
 T('تنها خوانش مستقیم LS توکن = خود ptfAuthToken (مهاجرت)', directReads.length === 1 && directReads[0].startsWith('rbac.js:1'), JSON.stringify(directReads));
-T('هیچ نوشتن LS توکن/نقش باقی نماند', jsFiles.every(function (x) { return !/localStorage\.setItem\('ptf_crm_(token|token_role)'/.test(fs.readFileSync(path.join(ROOT, 'crm', x), 'utf8')); }));
+T('نوشتن LS توکن فقط fallback خرابی SS (هات‌فیکس v34.8.47)', jsFiles.every(function (x) {
+  if (x === 'rbac.js') return true; /* فقط rbac.js و فقط داخل شاخهٔ _ssOk=false */
+  return !/localStorage\.setItem\('ptf_crm_(token|token_role)'/.test(fs.readFileSync(path.join(ROOT, 'crm', x), 'utf8'));
+}) && (function () {
+  var rb = fs.readFileSync(path.join(ROOT, 'crm', 'rbac.js'), 'utf8');
+  var hits = rb.match(/localStorage\.setItem\('ptf_crm_(token|token_role)'/g) || [];
+  if (hits.length !== 2) return false;
+  var iElse = rb.indexOf('} else {', rb.indexOf('var _ssOk = true;'));
+  var iFirst = rb.indexOf("localStorage.setItem('ptf_crm_token'", iElse);
+  return iElse > -1 && iFirst > iElse; /* فقط بعد از شاخهٔ خرابی SS */
+})());
 var guarded = 0;
 jsFiles.forEach(function (x) { var t = fs.readFileSync(path.join(ROOT, 'crm', x), 'utf8'); guarded += (t.match(/\(typeof (window\.)?ptfAuthToken === 'function' \? \1?ptfAuthToken\(\) : ''\)/g) || []).length; });
 T('خواننده‌ها همه گاردشده به ptfAuthToken مهاجرت کردند (≥ 20)', guarded >= 20, String(guarded));
@@ -160,7 +170,7 @@ var assert = require('assert');
 })().catch(function (e) { T('زنجیرهٔ بیرونی', false, String(e && e.stack || e)); finish(); });
 
 function finish() {
-  console.log('\n— tester544 (v34.8.46: R5/T4-1b — توکن/نشست خارج از localStorage؛ کوکی HttpOnly + آینهٔ sessionStorage) —');
+  console.log('\n— tester544 (v34.8.47: R5/T4-1b — توکن/نشست خارج از localStorage؛ کوکی HttpOnly + آینهٔ sessionStorage) —');
   console.log('PASS: ' + p + ' | FAIL: ' + f);
   if (f > 0) process.exit(1);
 }
