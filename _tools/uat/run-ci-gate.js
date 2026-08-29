@@ -199,6 +199,7 @@ var SUITE = [
   { g: 'سینک/برابری ماتریس RBAC کلاینت↔سرور', f: '_tools/uat/tester537-v34.8.37-sync-rbac-matrix-parity.js' },
   { g: 'سینک/PULL-EQUAL-ACK + پنجرهٔ گیت استقرار', f: '_tools/uat/tester538-v34.8.37-pull-equal-ack.js' },
   { g: 'نازک‌سازی/T5-2b تشخیصی‌های فرمان در IDB', f: '_tools/uat/tester539-v34.8.39-devkv-idb-diagnostics.js' },
+  { g: 'استقرار/DEPLOY-SPEEDUP + TRUTHFUL-GREEN استیجینگ', f: '_tools/uat/tester540-v34.8.40-deploy-speedup-staging.js' },
   { g: 'پرونده/ابطال اسناد رسمی', f: '_tools/uat/tester438-v34.7.35-docx-void.js' },
   { g: 'پرونده/کشوی سه‌زبانه', f: '_tools/uat/tester439-v34.7.36-drawer-panes.js' },
   { g: 'مالی/نمایش ضمیمه گردش حساب', f: '_tools/uat/tester441-v34.7.38-ledger-attachment-visibility.js' },

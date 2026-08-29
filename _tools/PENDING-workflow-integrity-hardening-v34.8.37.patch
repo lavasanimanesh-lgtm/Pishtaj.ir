@@ -1,12 +1,15 @@
 diff --git a/.github/workflows/deploy-production.yml b/.github/workflows/deploy-production.yml
-index 7f1780ae..3482aeab 100644
+index 7f1780a..684f413 100644
 --- a/.github/workflows/deploy-production.yml
 +++ b/.github/workflows/deploy-production.yml
-@@ -179,19 +179,21 @@ jobs:
+@@ -179,19 +179,24 @@ jobs:
            FILES="crm/index.html crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js crm/manifest.json"
            PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
            echo "کامیت: $DEPLOY_SHA | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
-+          echo "… انتظار ۱۸۰ ثانیه‌ای پیش از گیت (RCA false-red 2026-08-28: verify می‌گذشت ولی integrity در ۶۰ ثانیهٔ اول بایت کهنهٔ کشِ مسیرمحورِ نادیده‌گیرندهٔ query هاست را می‌گرفت)"
++          # v34.8.40 (DEPLOY-GATE-WINDOW v2 — بازتولید؛ استیجینگ مستقیماً harden شد):
++          # انتظار اولیهٔ ۱۸۰s برای خروج از پنجرهٔ کهنگیِ کش مسیرمحور هاست +
++          # پنجرهٔ ۱۲×۳۰s + هدرهای no-cache و دوبلِ cache-buster در همهٔ fetchها.
++          echo "   انتظار اولیهٔ ۱۸۰ ثانیه برای پیر شدن کش مسیرمحور هاست…"
 +          sleep 180
            fail=1
 -          for i in 1 2 3 4 5; do
@@ -15,50 +18,16 @@ index 7f1780ae..3482aeab 100644
              while IFS= read -r f; do
                want="$(sha1sum "$f" | cut -d' ' -f1)"
 -              got="$(curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" | sha1sum | cut -d' ' -f1)"
-+              got="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/$f?v=$(date +%s)&r=$RANDOM" | sha1sum | cut -d' ' -f1)"
++              got="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/$f?v=$(date +%s)&r=$((RANDOM))$RANDOM" | sha1sum | cut -d' ' -f1)"
                if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
              done <<< "$FILES"
 -            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
-+            live_sw="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/sw.js?v=$(date +%s)&r=$RANDOM" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
++            live_sw="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/sw.js?v=$(date +%s)&r=$((RANDOM))$RANDOM" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
              if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
              if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
 -            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
 -            sleep 12
-+            echo "   … تلاش $i ناموفق؛ ۳۰ ثانیه صبر و تکرار (پنجرهٔ کل ~۹ دقیقه با انتظار اولیه)"
-+            sleep 30
-           done
-           if [ "$fail" -ne 0 ]; then
-             echo "::error::سایت زنده با کامیت دیپلوی‌شده یکی نیست — استقرار ناموفق اعلام می‌شود"
-diff --git a/.github/workflows/deploy-staging.yml b/.github/workflows/deploy-staging.yml
-index 62a0cac5..69998a91 100644
---- a/.github/workflows/deploy-staging.yml
-+++ b/.github/workflows/deploy-staging.yml
-@@ -177,21 +177,23 @@ jobs:
-           FILES="crm/sw.js crm/shell.js crm/client-server.js crm/key-registry.js crm/sales-domain-v2.js"
-           PTF_CRM_RELEASE="$(node -p "require('./VERSION.json').crm_version")"
-           echo "کامیت: ${{ github.sha }} | نسخهٔ مورد انتظار (VERSION.json → crm_version): $PTF_CRM_RELEASE"
-+          echo "… انتظار ۱۸۰ ثانیه‌ای پیش از گیت (RCA false-red 2026-08-28: verify می‌گذشت ولی integrity در ۶۰ ثانیهٔ اول بایت کهنهٔ کشِ مسیرمحورِ نادیده‌گیرندهٔ query هاست را می‌گرفت)"
-+          sleep 180
-           fail=1
--          for i in 1 2 3 4 5; do
-+          for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
-             ok=1
-             while IFS= read -r f; do
-               want="$(sha1sum "$f" | cut -d' ' -f1)"
--              got="$(curl -fsSL --max-time 30 "$BASE/$f?v=$(date +%s)" | sha1sum | cut -d' ' -f1)"
-+              got="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/$f?v=$(date +%s)&r=$RANDOM" | sha1sum | cut -d' ' -f1)"
-               if [ "$want" != "$got" ]; then ok=0; echo "   ≠ $f (want=${want:0:10} got=${got:0:10})"; fi
-             done <<< "$FILES"
--            live_sw="$(curl -fsSL --max-time 30 "$BASE/crm/sw.js?v=$(date +%s)" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
-+            live_sw="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/sw.js?v=$(date +%s)&r=$RANDOM" | grep -o "RELEASE = 'v[0-9.]*'" | head -1)"
-             if [ "$live_sw" != "RELEASE = '$PTF_CRM_RELEASE'" ]; then ok=0; echo "   ≠ crm/sw.js زنده: $live_sw"; fi
--            live_idx="$(curl -fsSL --max-time 30 "$BASE/crm/index.html?v=$(date +%s)" | grep -c "v=${PTF_CRM_RELEASE#v}" || true)"
-+            live_idx="$(curl -fsSL --max-time 30 -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' "$BASE/crm/index.html?v=$(date +%s)&r=$RANDOM" | grep -c "v=${PTF_CRM_RELEASE#v}" || true)"
-             if [ "$live_idx" -lt 1 ]; then ok=0; echo "   ≠ crm/index.html زنده هنوز نسخهٔ $PTF_CRM_RELEASE را ارجاع نمی‌دهد"; fi
-             if [ "$ok" -eq 1 ]; then fail=0; echo "✅ تلاش $i: همهٔ فایل‌های حساس زنده == کامیت"; break; fi
--            echo "   … تلاش $i ناموفق؛ ۱۲ ثانیه صبر و تکرار"
--            sleep 12
-+            echo "   … تلاش $i ناموفق؛ ۳۰ ثانیه صبر و تکرار (پنجرهٔ کل ~۹ دقیقه با انتظار اولیه)"
++            echo "   … تلاش $i از ۱۲ ناموفق؛ ۳۰ ثانیه صبر و تکرار"
 +            sleep 30
            done
            if [ "$fail" -ne 0 ]; then
