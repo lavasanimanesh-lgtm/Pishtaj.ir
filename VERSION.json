@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.48",
+  "crm_version": "v34.8.49",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-29",
-  "updated_by": "Arena Agent (v34.8.48 — COOKIE-ONLY-MODE: اگر هر دو مخزن SS/LS مسدود باشند، نشست/توکن در حافظهٔ همین تب می‌ماند و ورود با کوکی HttpOnly کامل می‌شود (ادامهٔ هات‌فیکس ۴۷)؛ tester549)"
+  "updated_by": "Arena Agent (v34.8.49 (درخواست مالک): پیامک ورود دومرحله‌ای به‌صورت پیش‌فرض خاموش شد — فقط با settings.twofa_enabled=true روشن می‌شود؛ tester547/549)"
 }

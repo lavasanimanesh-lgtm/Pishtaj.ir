@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* v34.8.48 — PHASE-C2: زیرساخت فرمان عمومی موجودیت (مسیر نازک نوشتن).
+/* v34.8.49 — PHASE-C2: زیرساخت فرمان عمومی موجودیت (مسیر نازک نوشتن).
    سرور: رجیستری موجودیت + entity_upsert/entity_delete با journal/idempotency موجود
    + tombstone عمومی (archive_purge با identities). کلاینت: ptfEntityUpsert/Delete +
    پرچم per-collection + اعمال projection بدون dirty. پایلوت: یادآورها (leads.js). */
@@ -16,7 +16,7 @@ var v2 = read('crm/sales-domain-v2.js');
 var leads = read('crm/leads.js');
 var crmphp = read('api/crm.php');
 
-T('VERSION.json = v34.8.48', ver.crm_version === 'v34.8.48', ver.crm_version);
+T('VERSION.json = v34.8.49', ver.crm_version === 'v34.8.49', ver.crm_version);
 
 /* ---------- سرور ---------- */
 T('رجیستری موجودیت تعریف شد', /function sd_entity_registry\(\): array/.test(api));
@@ -29,7 +29,7 @@ T('sanitizer ردیف (سقف کلید/طول/تودرتو)', /function sd_entit
 T('حذف = tombstone عمومی archive_purge با identities', /'kind' => 'archive_purge'.*'identities' => \[\$collection => \[\$id\]\]/s.test(api));
 T('حذف idempotent است (alreadyDeleted)', /'alreadyDeleted' => true/.test(api));
 T('فرمان‌های entity از journal پاس می‌کنند (در readOnly نیستند)', !/\('snapshot', 'health'[\s\S]{0,200}entity_upsert/.test(api));
-T('SD_SERVICE_VERSION = 34.8.48', /SD_SERVICE_VERSION = '34\.8.48'/.test(api));
+T('SD_SERVICE_VERSION = 34.8.49', /SD_SERVICE_VERSION = '34\.8.49'/.test(api));
 
 /* ---------- کلاینت ---------- */
 T('پرچم per-collection فعال (پایلوت یادآور)', /PTF_ENTITY_CMD_ENABLED = \{ 'ptf_crm_reminders': true/.test(v2));
@@ -66,6 +66,6 @@ T('هر سه مسیر fallback legacy دارند', (leads.match(/else setData\('
 
 T('sync_stats (C1) همچنان سر جایش است', /case 'sync_stats':/.test(crmphp));
 
-console.log('\n— tester517 (v34.8.48: PHASE-C2 فرمان عمومی موجودیت) —');
+console.log('\n— tester517 (v34.8.49: PHASE-C2 فرمان عمومی موجودیت) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

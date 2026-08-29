@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester525 — v34.8.48 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
+/* tester525 — v34.8.49 (W1): مهاجرت فرمانی مشتریان/تامین‌کنندگان/کالاها.
    هسته: روتر diff-محور ptfEntitySaveCollection — استخراج واقعی از سورس و آزمون
    رفتاری: افزوده/ویرایش/حذف → تعداد و نوع فرمان درست؛ گاردهای fallback؛ استقلال
    snapshot از دستگاه‌های دیگر (هرگز حذف اشتباه). */
@@ -130,9 +130,9 @@ T('A11: تطابق کامل رجیستری کلاینت/سرور', JSON.stringif
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.8.48', ver.crm_version === 'v34.8.48', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.8.48', /window\.PTF_CRM_RELEASE = 'v34\.8.48'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8.48'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.8.49', ver.crm_version === 'v34.8.49', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.8.49', /window\.PTF_CRM_RELEASE = 'v34\.8.49'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.8.49'/.test(read('crm/sw.js')));
 
-console.log('\n— tester525 (v34.8.48: W1 entity commands for customers/suppliers/products) —');
+console.log('\n— tester525 (v34.8.49: W1 entity commands for customers/suppliers/products) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

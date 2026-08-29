@@ -909,7 +909,9 @@ function twofa_cfg() {
         foreach ($s['twofa_roles'] as $x) { $x = normalize_role((string)$x, (string)$x); if ($x !== '') $r[] = $x; }
         if ($r) $roles = array_values(array_unique($r));
     }
-    return ['enabled' => ($s['twofa_enabled'] ?? true) !== false, 'roles' => $roles, 'strict' => !empty($s['twofa_required'])];
+    /* v34.8.49 (درخواست مالک ۱۴۰۵/۶/۷): پیامک ورود دومرحله‌ای به‌صورت پیش‌فرض خاموش است —
+       فقط با settings.twofa_enabled=true (از پنل تنظیمات) روشن می‌شود. */
+    return ['enabled' => ($s['twofa_enabled'] ?? false) === true, 'roles' => $roles, 'strict' => !empty($s['twofa_required'])];
 }
 function twofa_user_mobile($found) {
     $m = preg_replace('/\D/', '', (string)($found['mobile'] ?? ''));

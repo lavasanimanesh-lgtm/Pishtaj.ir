@@ -88,6 +88,7 @@
 
 ### R6 — سخت‌گیری بانکی و DoD نهایی (T7)
 - **الف (v34.8.45) ✅ انجام شد:** چهار ابزار ریکاوری HTML همه IDB-aware (آمار bdata:/cache:/devkv: + پاکسازی امن کش منقضی در clear-cache + سازگاری نشست v34.8.43 در force-restore)؛ سقف نرخ فرمان‌های نوشتاری per-user در sales-domain (۶۰/دقیقه، 429+retryAfter، قبل از قفل اصلی، readOnly/idempotent معاف). tester546 (۴۰ سنجه).
+- **v34.8.49 (درخواست مالک):** 2FA پیامکی پیش‌فرض خاموش (settings.twofa_enabled=false؛ روشن‌کردن با پرچم از تنظیمات).
 - **هات‌فیکس v34.8.48 ✅:** COOKIE-ONLY-MODE — زنجیرهٔ fallback نشست/توکن تا حافظهٔ تب وقتی هر دو مخزن SS/LS مسدودند؛ ورود با کوکی کامل می‌شود؛ tester549.
 - **هات‌فیکس v34.8.47 ✅:** حلقهٔ بی‌نهایت بازسازی نشست وقتی sessionStorage مسدود است (توفان role_verify + پیام «توکن معتبر وجود ندارد») — fallback LS + سقف ۳ تلاش؛ tester548.
 - **ب (v34.8.46) ✅ انجام شد:** 2FA پیامکی نقش‌های مالی (`auth_login` → `otp_required`+challenge؛ `auth_login_otp` → توکن؛ هش کد، عمر ۱۸۰ث، سقف ۳ ارسال/۱۰دقیقه، ۵ تلاش غلط → قفل؛ fail-open با ثبت رویداد و پرچم `twofa_skipped` مگر `twofa_required`) + نشست‌های فعال (`sessions_list` فقط متادیتا؛ `sessions_revoke` گروهی بدون لاک‌اوت خودی؛ پنل تنظیمات «🔐 نشست‌های فعال»). tester547 (۷۱ سنجه).
