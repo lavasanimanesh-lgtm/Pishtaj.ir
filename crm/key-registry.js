@@ -34,7 +34,7 @@
     REC: { store: 'server-command', keys: REC },
     SESS: { store: 'httponly-cookie', keys: SESS },
     Q: { store: 'idb-queue-or-ls-light', keys: Q },
-    CACHE: { store: 'read-through-ttl', keys: CACHE },
+    CACHE: { store: 'ptfCache-idb-read-through-ttl', keys: CACHE }, /* v34.8.41 (R3/T3-4): پوشهٔ cache: در IDB + TTL؛ legacy LS فقط تا مهاجرت بوت */
     UI: { store: 'ls-light', keys: UI },
     DEV: { store: 'idb-or-sync', keys: DEV },
     MEDIA: { store: 's3', keys: MEDIA }

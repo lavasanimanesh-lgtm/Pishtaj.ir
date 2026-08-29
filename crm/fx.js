@@ -229,6 +229,7 @@
         if (str) cached = JSON.parse(str);
       } catch (e) {}
     }
+    /* v34.8.41 (R3/T3-4): اگر مسیر سنکرون خالی بود، پیکر بعدی از ptfCache (IDB) پر می‌شود */
     if (cached && cached.ok && cached.rates) {
       window._ptfFxLive = cached;
       return '<div id="fxTicker" data-noix style="background:var(--crd,#fff);border:1px solid var(--brd);border-radius:16px;padding:10px 16px;margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;font-size:12.5px">' +
@@ -266,7 +267,9 @@
         try {
           var str = JSON.stringify(d);
           sessionStorage.setItem('ptf_fx_live_cache', str);
-          localStorage.setItem('ptf_fx_live_cache', str);
+          /* v34.8.41 (R3/T3-4 — CACHE→IDB): نسخهٔ پایدار در ptfCache (IndexedDB) با TTL ۶س */
+          if (window.ptfCacheWrite) window.ptfCacheWrite('ptf_fx_live_cache', str, 21600);
+          else { try { localStorage.setItem('ptf_fx_live_cache', str); } catch (eLs) {} }
         } catch (eC) {}
         el2.innerHTML = fxTickerContentHtml(d);
       })
@@ -314,6 +317,23 @@
   var fxdT = 0;
   var fxdI = setInterval(function () { fxdT++; if (hookFxDash() || fxdT > 50) clearInterval(fxdI); }, 350);
   hookFxDash();
+
+  /* v34.8.41 (R3/T3-4 — CACHE→IDB): آب‌رسانی بوت نرخ ارز از ptfCache (IndexedDB).
+     sessionStorage (سطح ۱) و legacy LS (تا مهاجرت) سر جای خود می‌مانند؛ این مسیر
+     فقط پیکر در حال رندر را از نسخهٔ پایدار IDB پر می‌کند. */
+  try {
+    if (window.ptfCacheReadStale) window.ptfCacheReadStale('ptf_fx_live_cache', function (v) {
+      if (!v || window._ptfFxLive) return;
+      try {
+        var d = JSON.parse(v);
+        if (d && d.ok && d.rates) {
+          window._ptfFxLive = d;
+          var el = document.getElementById('fxTicker');
+          if (el) el.innerHTML = fxTickerContentHtml(d);
+        }
+      } catch (eP) {}
+    });
+  } catch (eHyd) {}
 
   /* نرخ‌های ارز برای پیشنهادها، خرید و هزینه‌های ارزی باقی می‌مانند؛
      هیچ hook یا جدول ارزی به «مطالبات و وصولی‌ها» تزریق نمی‌شود. */

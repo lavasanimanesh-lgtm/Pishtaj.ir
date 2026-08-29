@@ -1,8 +1,8 @@
 {
   "note": "این فایل تنها منبع رسمی شماره نسخه پروژه است. هر فایل دیگری (RELEASE-NOTES, HANDOVER, و غیره) باید با همین فایل هم‌خوانی داشته باشد؛ اگر جایی متفاوت بود، این فایل ملاک است.",
   "site_public_version": "1.0.0",
-  "crm_version": "v34.8.40",
+  "crm_version": "v34.8.41",
   "last_stable_tag": "v2026.08.16-0100",
   "last_updated": "2026-08-29",
-  "updated_by": "Arena Agent (v34.8.40 — R2/T5-2c نازک‌سازی: پیش‌نویس‌های پیشنهاد/بازنگری، آینهٔ پروفایل امضا و صف/پلن کدینگ به Dev-KV (IndexedDB) منتقل شدند + بازیابی async پیش‌نویس + رجیستری کلید دقیق شد + tester541؛ CI: DEPLOY-SPEEDUP/TRUTHFUL-GREEN استیجینگ در پچ معلق)"
+  "updated_by": "Arena Agent (v34.8.41 — R3/T3-4 نازک‌سازی: لایهٔ ptfCache با TTL روی IndexedDB؛ کلیدهای CACHE (صندوق سایت ptf_site_*، نرخ ارز، مصرف ابر) از localStorage خارج شدند + sweep خودکار + fallback خطا از نسخهٔ منقضی؛ tester542. T3-5 بوت صفحه‌ای → پنجرهٔ R4 با تله‌متری sync_stats)"
 }

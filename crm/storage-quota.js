@@ -335,6 +335,106 @@
       cb && cb(out);
     });
   }
+  /* ===== v34.8.41 (R3/T3-4 — CACHE→IDB): لایهٔ کش read-through با TTL =====
+     قرارداد رودمپ (دستهٔ CACHE): کش‌های فقط-خواندنی سرور (صندوق سایت، نرخ ارز،
+     مصرف ابر) قابل‌تخلیه‌اند و نباید سهمیهٔ localStorage را بخورند. پوشهٔ داده:
+     ردیف «cache:<key>» در همان IDB لایه، با پوشنهٔ {v, at, ttl}؛ حافظهٔ نشست
+     آینهٔ سنکرون دارد (رندرها بدون انتظار). TTL منقضی → read=null ولی
+     readStale تا ۷ روز برای fallback خطا سرو می‌شود (سپس sweep حذف می‌کند).
+     legacy: مقدار خام LS (بدون پوشنه) به‌عنوان rec با at=0 پذیرفته می‌شود —
+     کلیدهای بدون TTL (مثل since-signature) همان لحظه معتبرند؛ TTL-دارها
+     تازه‌سازی می‌شوند. بدون IDB → همان پوشه در LS (fallback = رفتار امروز). */
+  var cacheMem = {};
+  function cacheId(key) { return 'cache:' + String(key); }
+  function cacheParse(str) {
+    if (str == null) return null;
+    try { var r = JSON.parse(str); if (r && typeof r.v === 'string' && r.at) return r; } catch (e) {}
+    return null;
+  }
+  function cacheAdoptLegacy(key) {
+    var lv = null; try { lv = localStorage.getItem(key); } catch (eL) {}
+    if (lv == null) return null;
+    var rec = cacheParse(lv);
+    if (!rec) rec = { v: String(lv), at: 0, ttl: 0, legacy: true };
+    cacheMem[key] = rec;
+    return rec;
+  }
+  window.ptfCacheWrite = function (key, value, ttlSec) {
+    key = String(key);
+    var rec = { v: String(value), at: Date.now(), ttl: Math.max(0, (+ttlSec || 0)) * 1000 };
+    cacheMem[key] = rec;
+    if (devKvUsable()) {
+      idbSet(cacheId(key), JSON.stringify(rec), function (ok) {
+        if (ok) { try { localStorage.removeItem(key); } catch (eRm) {} } /* کش قابل‌تخلیه؛ پس از ثبت IDB */
+      });
+    } else { try { localStorage.setItem(key, JSON.stringify(rec)); } catch (eL) {} }
+  };
+  window.ptfCacheReadSync = function (key) {
+    key = String(key);
+    var rec = cacheMem[key] || cacheAdoptLegacy(key);
+    return rec ? rec.v : null;
+  };
+  window.ptfCacheReadRec = function (key, cb) {
+    key = String(key);
+    var rec = cacheMem[key] || cacheAdoptLegacy(key);
+    if (rec) { cb(rec); return; }
+    if (!devKvUsable()) { cb(null); return; }
+    idbGet(cacheId(key), function (row) {
+      var r = (row && typeof row.value === 'string') ? cacheParse(row.value) : null;
+      if (r) cacheMem[key] = r;
+      cb(r || null);
+    });
+  };
+  window.ptfCacheRead = function (key, cb) {
+    window.ptfCacheReadRec(key, function (rec) {
+      cb(rec && (!rec.ttl || (Date.now() - rec.at) <= rec.ttl) ? rec.v : null);
+    });
+  };
+  window.ptfCacheReadStale = function (key, cb) {
+    window.ptfCacheReadRec(key, function (rec) { cb(rec ? rec.v : null); });
+  };
+  window.ptfCacheDrop = function (key) {
+    key = String(key);
+    delete cacheMem[key];
+    try { localStorage.removeItem(key); } catch (eL) {}
+    if (devKvUsable()) idbDelete(cacheId(key), function () {});
+  };
+  /* آب‌رسانی بوت: legacy LS → IDB (الگوی امن) یا IDB → حافظه */
+  window.ptfCacheHydrate = function (keys) {
+    (keys || []).forEach(function (k) {
+      k = String(k);
+      try {
+        var lv = localStorage.getItem(k);
+        if (lv != null) {
+          var rec = cacheParse(lv);
+          window.ptfCacheWrite(k, rec ? rec.v : String(lv), rec ? rec.ttl / 1000 : 0);
+          return;
+        }
+      } catch (eL) {}
+      window.ptfCacheReadRec(k, function () {});
+    });
+  };
+  /* پاکسازی: ردیف‌های cache: منقضیِ بیش از ۷ روز؛ در همان عبور، معتبرها به حافظه می‌آیند */
+  window.ptfCacheSweep = function (cb) {
+    if (!devKvUsable()) { cb && cb(0); return; }
+    idbKeysByPrefix('cache:', function (ids) {
+      var pending = ids.length, removed = 0;
+      if (!pending) { cb && cb(0); return; }
+      ids.forEach(function (id) {
+        idbGet(id, function (row) {
+          var rec = (row && typeof row.value === 'string') ? cacheParse(row.value) : null;
+          if (rec && rec.ttl > 0 && (Date.now() - rec.at) > rec.ttl + 7 * 86400000) {
+            removed++;
+            idbDelete(id, function () {});
+          } else if (rec) {
+            cacheMem[id.slice('cache:'.length)] = rec;
+          }
+          if (--pending === 0 && cb) cb(removed);
+        });
+      });
+    });
+  };
+
   /* مهاجرت امن پیشوندها از LS به IDB: نوشتن در IDB موفق → فقط آن‌وقت حذف از LS (الگوی T5-3) */
   function devKvMigratePrefixes(prefixes, cb) {
     var total = prefixes.length, done = 0, moved = 0;
@@ -755,9 +855,12 @@
   };
   window.ptfDevKvMigratePrefixes = devKvMigratePrefixes;
   window.ptfDevKvUsable = devKvUsable;
+  /* v34.8.41 (R3/T3-4): ptfCache* بالا مستقیماً روی window تعریف شد */
   window.ptfStorageFailedWrites = function () { return failedWrites.slice(); };
   window.PTF_LOCALSTORAGE_SOFT_LIMIT = LOCALSTORAGE_SOFT_LIMIT;
 
   installSetItemGuard();
   refreshEstimate();
+  /* v34.8.41 (R3/T3-4): پاکسازی کش‌های منقضیِ >۷ روز در IDB */
+  try { window.ptfCacheSweep(); } catch (eSw) {}
 })();

@@ -115,7 +115,7 @@
         savePrjs(prjs2);
       }
       audit('پرونده پروژه', 'حذف فایل ابری از ' + no, d.name);
-      localStorage.removeItem('ptf_cloud_usage');
+      try { if (window.ptfCacheDrop) window.ptfCacheDrop('ptf_cloud_usage'); } catch (eCd) {} try { localStorage.removeItem('ptf_cloud_usage'); } catch (eL) {}
       if (typeof prjShowFolder === 'function') prjShowFolder(d.folder);
       if (typeof ptfToast === 'function') ptfToast('فایل حذف شد — متادیتا در پرونده ماند', 'ok');
     });
@@ -222,7 +222,7 @@
             tl(p2, '🗄 پرونده بایگانی شد: ' + d.zipped + ' فایل فشرده (' + fmtSizeH(d.bytesIn) + ' → ' + fmtSizeH(d.bytesZip) + ')' + (dels.length ? ' + ' + dels.length + ' فایل غیرضروری حذف شد' : ''));
             savePrjs(prjs);
             audit('پرونده پروژه', 'بایگانی و فشرده‌سازی ' + no, d.zipKey);
-            localStorage.removeItem('ptf_cloud_usage');
+            try { if (window.ptfCacheDrop) window.ptfCacheDrop('ptf_cloud_usage'); } catch (eCd) {} try { localStorage.removeItem('ptf_cloud_usage'); } catch (eL) {}
             alert('✅ بایگانی کامل شد\n\n' + d.zipped + ' فایل فشرده شد: ' + fmtSizeH(d.bytesIn) + ' → ' + fmtSizeH(d.bytesZip) + '\nاصل فایل‌ها (' + d.deleted + ' عدد) از فضای ابری پاک شدند.');
             document.querySelectorAll('.md-b').forEach(function (m) { if ((m.style || {}).display !== 'none') m.remove(); }); /* v16.2 BUG-017: مینیمایزها محفوظ */
             if (typeof renderProjects2 === 'function') renderProjects2();
@@ -264,7 +264,7 @@
         savePrjs(prjs);
       }
       audit('پرونده پروژه', 'آزادسازی فضای ابری ' + no, '');
-      localStorage.removeItem('ptf_cloud_usage');
+      try { if (window.ptfCacheDrop) window.ptfCacheDrop('ptf_cloud_usage'); } catch (eCd) {} try { localStorage.removeItem('ptf_cloud_usage'); } catch (eL) {}
       if (typeof ptfToast === 'function') ptfToast('فضای ابری آزاد شد ✅', 'ok');
       hideModal(); openProject(no);
     });
@@ -298,7 +298,7 @@
           if (window.ptfEntitySaveCollection) window.ptfEntitySaveCollection('ptf_crm_rfqs', rfqs2, { reason: 'w2' }); else setData('ptf_crm_rfqs', rfqs2);
         }
         audit('استعلامات', 'پاکسازی فایل‌های درخواست بازنده ' + r.cd, done + ' فایل');
-        localStorage.removeItem('ptf_cloud_usage');
+        try { if (window.ptfCacheDrop) window.ptfCacheDrop('ptf_cloud_usage'); } catch (eCd) {} try { localStorage.removeItem('ptf_cloud_usage'); } catch (eL) {}
         if (typeof ptfToast === 'function') ptfToast('🧹 ' + done + ' فایل درخواست بازنده پاک شد — مشخصات آماری ماند', 'ok');
         return;
       }

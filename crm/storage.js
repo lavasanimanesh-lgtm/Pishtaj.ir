@@ -95,31 +95,58 @@ function fmtSizeH(b) {
 }
 
 function ptfCloudUsage(cb, force) {
-  // کش ۱۰ دقیقه‌ای تا هر بار به آروان کوئری نزنیم
+  /* v34.8.41 (R3/T3-4 — CACHE→IDB): کش ۱۰ دقیقه‌ای در لایهٔ ptfCache (IndexedDB)؛
+     نسخهٔ منقضی تا ۷ روز به‌عنوان fallback خطا سرو می‌شود (جای ptf_cloud_usage_backup)؛
+     legacy LS فقط تا مهاجرتِ بوت خوانده می‌شود. */
+  function fallbackStale(err) {
+    if (window.ptfCacheReadStale) {
+      window.ptfCacheReadStale('ptf_cloud_usage', function (v) {
+        var bak = null;
+        try { bak = v ? JSON.parse(v) : null; } catch (eP) {}
+        if (!bak) { try { bak = JSON.parse(localStorage.getItem('ptf_cloud_usage_backup') || 'null'); } catch (eL) {} }
+        if (bak) { bak.cached = true; cb(bak); }
+        else cb({ ok: false, error: err });
+      });
+      return;
+    }
+    var bak = null;
+    try { bak = JSON.parse(localStorage.getItem('ptf_cloud_usage_backup') || 'null'); } catch (eL) {}
+    if (bak) { bak.cached = true; cb(bak); }
+    else cb({ ok: false, error: err });
+  }
+  function flow() {
+    fetch(STORAGE_API + '?action=usage', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: '{}' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.ok) {
+          var rec = { ok: true, bytes: d.bytes, count: d.count, bucket: d.bucket, at: Date.now() };
+          if (window.ptfCacheWrite) window.ptfCacheWrite('ptf_cloud_usage', JSON.stringify(rec), 600);
+          else { try { localStorage.setItem('ptf_cloud_usage', JSON.stringify(rec)); } catch (eL) {} }
+          cb(rec);
+        } else {
+          fallbackStale(d.error || ('HTTP ' + d.http || ''));
+        }
+      })
+      .catch(function () {
+        fallbackStale('عدم دسترسی به سرور');
+      });
+  }
+  if (force) { flow(); return; }
+  /* مسیر سریع legacy (تا مهاجرت) */
   try {
     var c = JSON.parse(localStorage.getItem('ptf_cloud_usage') || 'null');
-    if (!force && c && (Date.now() - c.at) < 600000) { cb(c); return; }
+    if (c && (Date.now() - c.at) < 600000) { cb(c); return; }
   } catch (e) {}
-  fetch(STORAGE_API + '?action=usage', { method: 'POST', headers: ptfStorageAuthHeaders(true), body: '{}' })
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      if (d.ok) {
-        var rec = { ok: true, bytes: d.bytes, count: d.count, bucket: d.bucket, at: Date.now() };
-        localStorage.setItem('ptf_cloud_usage', JSON.stringify(rec));
-        localStorage.setItem('ptf_cloud_usage_backup', JSON.stringify(rec));
-        cb(rec);
-      } else {
-        var bak = JSON.parse(localStorage.getItem('ptf_cloud_usage_backup') || 'null');
-        if (bak) { bak.cached = true; cb(bak); }
-        else cb({ ok: false, error: d.error || ('HTTP ' + (d.http || '')) });
-      }
-    })
-    .catch(function () {
-      var bak = JSON.parse(localStorage.getItem('ptf_cloud_usage_backup') || 'null');
-      if (bak) { bak.cached = true; cb(bak); }
-      else cb({ ok: false, error: 'عدم دسترسی به سرور' });
+  if (window.ptfCacheRead) {
+    window.ptfCacheRead('ptf_cloud_usage', function (v) {
+      if (v) { try { cb(JSON.parse(v)); return; } catch (eP) {} }
+      flow();
     });
+  } else flow();
 }
+
+/* v34.8.41 (R3/T3-4): مهاجرت بوتِ کش مصرف ابر از LS به ptfCache (الگوی امن) */
+try { if (window.ptfCacheHydrate) window.ptfCacheHydrate(['ptf_cloud_usage']); } catch (eHyd) {}
 
 function ptfRenderCloudUsage(force) {
   var el = document.getElementById('cloudUsage');

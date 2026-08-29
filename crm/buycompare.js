@@ -984,7 +984,7 @@
     var _approve = window.supApprove;
     if (typeof _approve !== 'function') return false;
     window.supApprove = function (code) {
-      var s = (JSON.parse(localStorage.getItem('ptf_site_suppliers') || '[]')).filter(function (x) { return x.code === code; })[0];
+      var s = (JSON.parse((function(){var v=null;try{v=window.ptfCacheReadSync?window.ptfCacheReadSync('ptf_site_suppliers'):null;}catch(eC){}if(v==null){try{v=localStorage.getItem('ptf_site_suppliers');}catch(eL){}}return v||'[]';})())).filter(function (x) { return x.code === code; })[0];
       if (!s) { _approve(code); return; }
       var recTest = { co: s.company, ph: s.phone, people: [], coTels: [] };
       var dups = (typeof ptfCheckDup === 'function') ? ptfCheckDup('supplier', recTest, null) : [];
@@ -1012,7 +1012,7 @@
       _approve(code); // مسیر قبلی (با confirm هشدار v81)
     };
     window.supMergeDo = function (code, existCd) {
-      var s = (JSON.parse(localStorage.getItem('ptf_site_suppliers') || '[]')).filter(function (x) { return x.code === code; })[0];
+      var s = (JSON.parse((function(){var v=null;try{v=window.ptfCacheReadSync?window.ptfCacheReadSync('ptf_site_suppliers'):null;}catch(eC){}if(v==null){try{v=localStorage.getItem('ptf_site_suppliers');}catch(eL){}}return v||'[]';})())).filter(function (x) { return x.code === code; })[0];
       if (!s) return;
       var items = getData('ptf_crm_suppliers');
       var e = items.filter(function (x) { return x.cd === existCd; })[0];

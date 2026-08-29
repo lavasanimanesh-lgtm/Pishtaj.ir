@@ -38,8 +38,8 @@
 |---|---|---|---|---|
 | 1 | **T5-2b** | تشخیصی‌های فرمان (`ptf_sales_command_uncertain_/not_committed_/recovered_`، `ptf_offer_post_ack_warning_`) هنوز مستقیم در LS نوشته می‌شوند | sales-domain-v2.js: `persistCommandDiagnostic`، `ptfRecoverUncertainSalesCommands`، `saveOfferAckWarning` — ۸ نقطهٔ `localStorage.*` | کم (فقط تشخیصی، بدون خوانندهٔ سنکرون حیاتی) |
 | 2 | **T5-2c** | پیش‌نویس‌ها و صف کدینگ (`ptf_autodraft_offer_/award_revision_`، `sigRecovery_*`، `ptf_code_tmp_queue/plan/ack`) در LS | offers.js:837 (خواندن سنکرون هنگام باز کردن فرم)، codegen.js:235..445 | متوسط (جریان UX فرم/کدینگ باید async شود) |
-| 3 | **T3-4** | کش‌های read-through با TTL (`ptf_site_*`، `ptf_fx_live_cache`، `ptf_cloud_usage*`) مستقیم LS، خارج از سهمیه نیستند | bridge.js / fx.js / storage.js | متوسط |
-| 4 | **T3-5** | بوت دستگاه جدید = کل دیتاست، نه صفحات موردنیاز | bootstrap فعلی full-projection | متوسط |
+| 3 | **T3-4** | ✅ انجام شد در v34.8.41 (لایهٔ `ptfCache` روی IDB + TTL؛ صفر نوشتن جدید LS) | storage-quota.js / bridge.js / fx.js / storage.js / buycompare.js / archive.js | — |
+| 4 | **T3-5** | موکول به پنجرهٔ R4 — پروتکل pull مرکزی است؛ بدون تست دستگاه واقعی ریسکی. پایهٔ hydration کلید-به-کلید از v34.8.41 موجود است | client-server.js:150-190 | متوسط |
 | 5 | **T6/C5** | دو موتور سینک زنده‌اند؛ `pushDirty`/`pullCheck` بازنشسته نشده‌اند (~۲۰۰۰ خط) | sync.js:937 (`pushDirty`)، sync.js:1191 (`pullCheck`) | **بالا** — نیازمند پایش sync_stats و پرچم خاموشی |
 | 6 | **T4-1b** | توکن `ptf_crm_token` هنوز در LS خوانده می‌شود (ده‌ها نقطه) | grep: backup/bridge/careers/client-server/cms/codegen/golive/inqreader/… | متوسط (پس از چرخش دستگاه‌ها) |
 | 7 | **T4-3b** | `ptf_crm_avatars` هنوز بلاب سینک است؛ باید به S3 برود | key-registry.js: «تا T4-3 → S3» | متوسط |
@@ -66,11 +66,12 @@
 - `ptf_code_tmp_queue/plan/ack`: صف کدینگ با الگوی امن (بکاپ → نوشتن IDB → ACK → حذف LS).
 - **DoD:** دستهٔ DEV در key-registry فقط از طریق Dev-KV نوشته شود؛ تستر رفتاری بازیابی پیش‌نویس سبز.
 
-### R3 — کش read-through با TTL + بوت صفحه‌ای (T3-4/T3-5) — v34.8.41
-- لایهٔ `ptfCacheGet(key, fetcher, ttlMs)`: کش در IDB + حافظه، TTL خودکار، تخلیهٔ خودکار از حساب LS.
-- مهاجرت `ptf_site_*`، `ptf_fx_live_cache`، `ptf_cloud_usage*` به این لایه.
-- bootstrap دستگاه تازه: فقط مجموعه‌های پنل فعال (collection_query) نه کل دیتاست.
-- **DoD:** سهم LS کلیدهای CACHE = صفر؛ بوت سرد دستگاه جدید < ۵ ثانیه تا اولین پنل (KPI رودمپ).
+### R3 — کش read-through با TTL (T3-4) — v34.8.41 ✅ انجام شد (PR#14)
+- لایهٔ `ptfCache` در storage-quota.js: Write/Read/ReadSync/ReadStale/ReadRec/Drop/Hydrate/Sweep؛ پوشنهٔ `{v,at,ttl}` در ردیف `cache:<key>` IDB؛ پس از ثبت موفق، کپی LS حذف می‌شود؛ بدون IDB → همان پوشنه در LS (رفتار امروز).
+- قرارداد خواندن: رندر سنکرون از `ptfCacheReadSync` (حافظه + legacy LS تا مهاجرت)؛ async با TTL؛ `ReadStale` تا ۷ روز به‌عنوان fallback خطا؛ sweep بوت ردیف‌های >۷روز منقضی را حذف و معتبرها را به حافظه می‌آورد؛ legacy خام LS → rec با at=0 (بدون شکستن کش دستگاه‌های موجود).
+- مهاجرت کامل مصرف‌کنندگان: bridge.js (صندوق سایت `ptf_site_*` TTL ۲۴س + `inbox_sig` بی-TTL + hydrate ۴ کلید)، fx.js (TTL ۶س + آب‌رسانی تیکر)، storage.js (`ptf_cloud_usage` TTL ۶۰۰ث؛ `ReadStale` جای `_backup`)، buycompare.js (دو خوانندهٔ سنکرون)، archive.js (۴ ابطال → `ptfCacheDrop`).
+- **T3-5 (بوت صفحه‌ای) به پنجرهٔ R4 موکول شد** — پروتکل pull مرکزی است و بدون تست دستگاه واقعی ریسکی؛ hydration کلید-به-کلید از این نسخه موجود است.
+- **DoD:** صفر نوشتنِ جدید LS برای دستهٔ CACHE؛ tester542 (۳۵ سنجه) سبز؛ baseline A10 رتچت شد.
 
 ### R4 — بازنشستگی موتور legacy سینک (T6/C5) — v34.8.42/43 (دو گام)
 - **گام ۱ (v34.8.42):** پرچم per-key `PTF_LEGACY_PUSH_OFF` (پیش‌فرض روشنِ فعلی) + داشبورد تصمیم از `sync_stats` (شرط: پنجرهٔ ≥۷ روز با push توده‌ای ≈ صفر برای کلیدهای REC) + تله‌متری گیت.

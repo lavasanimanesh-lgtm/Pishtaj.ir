@@ -540,9 +540,25 @@
 
   /* ============ US-133: سینک صندوق سروری (تامین‌کننده + RFQ سایت) ============ */
   var SITE_SUP_PAGE = 50; /* v34.7.91/86 (SUP-PERF-004): اندازهٔ صفحهٔ سروری صندوق سایت */
-  function siteSuppliers() { try { return JSON.parse(localStorage.getItem('ptf_site_suppliers') || '[]'); } catch (e) { return []; } }
-  function siteRfqs() { try { return JSON.parse(localStorage.getItem('ptf_site_rfqs') || '[]'); } catch (e) { return []; } }
-  function siteSupTotal() { try { var n = parseInt(localStorage.getItem('ptf_site_suppliers_total') || '0', 10); return isNaN(n) ? 0 : n; } catch (e) { return 0; } }
+  /* v34.8.41 (R3/T3-4 — CACHE→IDB): کش صندوق سایت از لایهٔ ptfCache (IndexedDB، با
+     پوشنهٔ TTL)؛ تا آب‌رسانی/مهاجرت، خواندن از legacy LS — کش موجود دستگاه‌ها
+     حفظ می‌شود. تازگی واقعی را since-signature سرور می‌چیند؛ TTL فقط شبکهٔ
+     امنیتی است (۲۴س). since-signature مکنون (cursor) بدون TTL است. */
+  var SITE_CACHE_TTL_SEC = 86400;
+  function siteCacheGet(k) {
+    var v = null;
+    try { if (window.ptfCacheReadSync) v = window.ptfCacheReadSync(k); } catch (eC) {}
+    if (v != null) return v;
+    try { return localStorage.getItem(k); } catch (eL) { return null; }
+  }
+  function siteCacheSet(k, v, ttlSec) {
+    if (window.ptfCacheWrite) window.ptfCacheWrite(k, v, ttlSec === undefined ? SITE_CACHE_TTL_SEC : ttlSec);
+    else { try { localStorage.setItem(k, v); } catch (eL) {} }
+  }
+  try { if (window.ptfCacheHydrate) window.ptfCacheHydrate(['ptf_site_suppliers', 'ptf_site_suppliers_total', 'ptf_site_rfqs', 'ptf_site_inbox_sig']); } catch (eHyd) {}
+  function siteSuppliers() { try { return JSON.parse(siteCacheGet('ptf_site_suppliers') || '[]'); } catch (e) { return []; } }
+  function siteRfqs() { try { return JSON.parse(siteCacheGet('ptf_site_rfqs') || '[]'); } catch (e) { return []; } }
+  function siteSupTotal() { try { var n = parseInt(siteCacheGet('ptf_site_suppliers_total') || '0', 10); return isNaN(n) ? 0 : n; } catch (e) { return 0; } }
   function siteSupKey(s) { return String((s && (s.code || s.id || '')) || ''); }
   function siteSupMerge(incoming, total) {
     var base = siteSuppliers(), seen = {}, out = [];
@@ -558,8 +574,8 @@
     });
     if (total > 0 && out.length > total) out = out.slice(0, total);
     try {
-      localStorage.setItem('ptf_site_suppliers', JSON.stringify(out));
-      localStorage.setItem('ptf_site_suppliers_total', String(total > 0 ? total : out.length));
+      siteCacheSet('ptf_site_suppliers', JSON.stringify(out));
+      siteCacheSet('ptf_site_suppliers_total', String(total > 0 ? total : out.length));
     } catch (e) {}
     return out;
   }
@@ -581,15 +597,15 @@
        تغییر نکرده‌اند سرور فقط fresh برمی‌گردد و دانلود/اجرای مجدد جدول سایت نمی‌شود.
        v34.7.91 (SUP-PERF-005): بوت/پول فقط صفحهٔ اول (۵۰) suppliers را می‌گیرد. */
     var _since = '';
-    try { _since = localStorage.getItem('ptf_site_inbox_sig') || ''; } catch(eSl) {}
+    try { _since = siteCacheGet('ptf_site_inbox_sig') || ''; } catch(eSl) {}
     var _url = API + '?action=get_inbox&since=' + encodeURIComponent(_since) + '&limit=' + SITE_SUP_PAGE + '&offset=0';
     inboxPromise = bridgeFetchJson(_url, { headers: _syncH }, 'get_inbox')
       .then(function (d) {
         inboxFailCount = 0; inboxRetryAt = 0;
         if (d.fresh) return { ok: true, fresh: true };
         siteSupMerge(d.suppliers || [], (d.supTotal || 0));
-        localStorage.setItem('ptf_site_rfqs', JSON.stringify(d.rfqs || []));
-        try { localStorage.setItem('ptf_site_inbox_sig', String(d.since || '')); } catch(eSig) {}
+        siteCacheSet('ptf_site_rfqs', JSON.stringify(d.rfqs || []));
+        try { siteCacheSet('ptf_site_inbox_sig', String(d.since || ''), 0); } catch(eSig) {}
         if (document.getElementById('supPendWrap')) renderSupPending();
         if (document.getElementById('rfqPendWrap')) renderRfqPending();
         return { ok: true, fresh: false };
@@ -616,7 +632,7 @@
     try { var _t = localStorage.getItem('ptf_crm_token'); if (_t) _syncH['X-CRM-Token'] = _t; } catch(e) {}
     var _offset = siteSuppliers().length;
     var _since = '';
-    try { _since = localStorage.getItem('ptf_site_inbox_sig') || ''; } catch(eSl) {}
+    try { _since = siteCacheGet('ptf_site_inbox_sig') || ''; } catch(eSl) {}
     var _url = API + '?action=get_inbox&since=' + encodeURIComponent(_since) + '&limit=' + SITE_SUP_PAGE + '&offset=' + _offset;
     var promise = bridgeFetchJson(_url, { headers: _syncH }, 'get_inbox_more')
       .then(function (d) {
@@ -867,7 +883,7 @@
       if (d && d.ok) {
         try {
           var list = siteSuppliers().filter(function (x) { return x.code !== code; });
-          localStorage.setItem('ptf_site_suppliers', JSON.stringify(list));
+          siteCacheSet('ptf_site_suppliers', JSON.stringify(list));
         } catch (e) {}
         if (typeof audit === 'function') audit('تامین‌کنندگان', 'حذف ثبت‌نام سایت: ' + s.company + ' (' + code + ')', code);
         if (typeof ptfToast === 'function') ptfToast('🗑 ثبت‌نام سایت «' + s.company + '» حذف شد', 'ok');
