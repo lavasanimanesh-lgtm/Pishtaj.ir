@@ -1,0 +1,230 @@
+﻿فایل,عنوان,نسبت_تیتر_قالبی,تعداد_تیتر_قالبی,تعداد_کل_تیتر,اولویت
+api-602-small-gate-valve.html,استاندارد API 602,1.0,9,9,اولویت ۱ (ارزش تجاری)
+control-valve-complete-guide.html,راهنمای کامل شیر کنترل (Control Valve) صنعتی؛ مشخصات و قیمت,1.0,9,9,اولویت ۱ (ارزش تجاری)
+flange-bolting-guide.html,راهنمای پیچ و مهره در اتصالات فلنجی صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+flange-types-complete-guide.html,انواع فلنج صنعتی: WN، SO، Blind و SW,1.0,8,8,اولویت ۱ (ارزش تجاری)
+gas-analyzer-industry-guide.html,راهنمای آنالایزر گاز صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+hydrostatic-level-transmitter.html,راهنمای ترانسمیتر سطح هیدرواستاتیک صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+hydrostatic-test-pipe-guide.html,راهنمای تست هیدرواستاتیک لوله,1.0,9,9,اولویت ۱ (ارزش تجاری)
+industrial-cable-selection-guide.html,راهنمای انتخاب کابل صنعتی (Power Cable),1.0,9,9,اولویت ۱ (ارزش تجاری)
+pressure-gauge-complete-guide.html,راهنمای کامل گیج فشار صنعتی؛ مشخصات و قیمت,1.0,9,9,اولویت ۱ (ارزش تجاری)
+pressure-transmitter-calibration-guide.html,راهنمای کالیبراسیون ترانسمیتر فشار صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+radar-level-transmitter-guide.html,راهنمای ترانسمیتر سطح راداری صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+rosemount-vs-yokogawa-comparison.html,مقایسه ترانسمیتر Rosemount و Yokogawa صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+safety-relief-valve-guide.html,راهنمای شیر اطمینان و ایمنی (PSV/PRV) صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+stainless-steel-pipe-guide.html,راهنمای لوله استینلس استیل (Stainless Steel Pipe),1.0,9,9,اولویت ۱ (ارزش تجاری)
+valve-actuator-types-guide.html,راهنمای انواع محرک (Actuator) در شیرآلات صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+valve-seat-material-guide.html,راهنمای مواد نشیمنگاه (Seat) در شیرآلات صنعتی,1.0,9,9,اولویت ۱ (ارزش تجاری)
+cement-industry-supply-guide.html,راهنمای تامین تجهیزات صنایع سیمان,0.9,9,10,اولویت ۱ (ارزش تجاری)
+epc-supply-chain-management-guide.html,راهنمای مدیریت زنجیره تامین در پروژه‌های EPC,0.9,9,10,اولویت ۱ (ارزش تجاری)
+international-supply-contract-guide.html,راهنمای قراردادهای تامین بین‌المللی صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+nde-inspection-pipe-flange.html,راهنمای بازرسی NDE لوله و فلنج صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+petrochemical-industry-supply-guide.html,راهنمای تامین تجهیزات صنایع پتروشیمی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+pinch-valve-guide.html,راهنمای شیر پینچ (Pinch Valve) صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+plug-valve-guide.html,راهنمای شیر پلاگ (Plug Valve) صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+power-plant-industry-supply-guide.html,راهنمای تامین تجهیزات نیروگاهی صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+quality-assurance-supply-guide.html,راهنمای تضمین کیفیت در تامین تجهیزات صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+steel-industry-supply-guide.html,راهنمای تامین تجهیزات صنایع فولاد,0.9,9,10,اولویت ۱ (ارزش تجاری)
+valve-body-material-selection.html,راهنمای انتخاب متریال بدنه شیرآلات صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+valve-brands-comparison-guide.html,راهنمای مقایسه برندهای شیرآلات صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+valve-sealing-guide.html,راهنمای آب‌بندی (Sealing) در شیرآلات صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+valve-testing-guide.html,راهنمای تست شیرآلات صنعتی,0.9,9,10,اولویت ۱ (ارزش تجاری)
+a53-pipe-specifications.html,مشخصات فنی لوله ASTM A53 Gr.B,0.89,8,9,اولویت ۱ (ارزش تجاری)
+a106-api-5l.html,مقایسه لوله A106 و API 5L,0.88,7,8,اولویت ۱ (ارزش تجاری)
+a106-gr-b-a333-gr-6.html,مقایسه لوله A106 Gr.B و A333 Gr.6,0.88,7,8,اولویت ۱ (ارزش تجاری)
+a106-gr-b.html,راهنمای کامل لوله A106 Gr.B؛ مشخصات و قیمت,0.88,7,8,اولویت ۱ (ارزش تجاری)
+a333-gr-6.html,راهنمای کامل لوله A333 Gr.6 برای دمای پایین؛ مشخصات و قیمت,0.88,7,8,اولویت ۱ (ارزش تجاری)
+a53-gr-b.html,راهنمای خرید لوله A53 Gr.B,0.88,7,8,اولویت ۱ (ارزش تجاری)
+api-5l-psl2-psl1.html,لوله API 5L PSL2,0.88,7,8,اولویت ۱ (ارزش تجاری)
+api-5l-x42.html,لوله API 5L X42؛ مشخصات فنی، قیمت و کاربرد,0.88,7,8,اولویت ۱ (ارزش تجاری)
+api-5l-x52-x60-x65.html,مقایسه لوله API 5L X52 و X60 و X65,0.88,7,8,اولویت ۱ (ارزش تجاری)
+api-610.html,استاندارد API 610 پمپ‌های سانتریفیوژ,0.88,7,8,اولویت ۱ (ارزش تجاری)
+asme-b36-19.html,راهنمای ابعاد لوله طبق ASME B36.19,0.88,7,8,اولویت ۱ (ارزش تجاری)
+astm-a179.html,راهنمای لوله ASTM A179,0.88,7,8,اولویت ۱ (ارزش تجاری)
+astm-a335-p11-p22-p91.html,"لوله آلیاژی ASTM A335 P11, P22, P91",0.88,7,8,اولویت ۱ (ارزش تجاری)
+astm-a335-p91.html,لوله ASTM A335 P91,0.88,7,8,اولویت ۱ (ارزش تجاری)
+astm-a53-gr-b.html,مشخصات لوله ASTM A53 Gr.B,0.88,7,8,اولویت ۱ (ارزش تجاری)
+ball-valve-api-6d.html,Ball Valve API 6D,0.88,7,8,اولویت ۱ (ارزش تجاری)
+butterfly-valve-api-609-concentric-offset.html,Butterfly Valve API 609,0.88,7,8,اولویت ۱ (ارزش تجاری)
+check-valve-swing-lift-dual-plate.html,مقایسه شیر Check Valve,0.88,7,8,اولویت ۱ (ارزش تجاری)
+control-valve-iec-60534.html,شیر کنترل (Control Valve),0.88,7,8,اولویت ۱ (ارزش تجاری)
+dpt.html,ترانسمیتر اختلاف فشار DPT,0.88,7,8,اولویت ۱ (ارزش تجاری)
+erw.html,مقایسه لوله جوشی ERW و لوله اسپیرال,0.88,7,8,اولویت ۱ (ارزش تجاری)
+fire-test-api-607.html,راهنمای تست آتش (Fire Test) شیرآلات,0.88,7,8,اولویت ۱ (ارزش تجاری)
+globe-gate-valve.html,مقایسه Globe و Gate Valve,0.88,7,8,اولویت ۱ (ارزش تجاری)
+nozzle-check-valve.html,شیر Nozzle Check Valve,0.88,7,8,اولویت ۱ (ارزش تجاری)
+plc-siemens-s7-1500.html,کنترلر PLC Siemens S7-1500,0.88,7,8,اولویت ۱ (ارزش تجاری)
+psv-prv-api-520-api-526.html,شیر اطمینان PSV/PRV,0.88,7,8,اولویت ۱ (ارزش تجاری)
+rosemount-3051.html,ترانسمیتر فشار Rosemount 3051؛ مشخصات فنی و نصب | پیشرو تجهیز,0.88,7,8,اولویت ۱ (ارزش تجاری)
+schedule-sch-40-80-160.html,راهنمای ضخامت دیواره لوله (Schedule),0.88,7,8,اولویت ۱ (ارزش تجاری)
+seat-ptfe-peek-nylon.html,مواد نشیمنگاه (Seat) در شیرآلات,0.88,7,8,اولویت ۱ (ارزش تجاری)
+socket-weld-threaded.html,مقایسه فلنج Socket Weld و Threaded,0.88,7,8,اولویت ۱ (ارزش تجاری)
+ss304-ss316.html,لوله استینلس استیل SS304 و SS316,0.88,7,8,اولویت ۱ (ارزش تجاری)
+3-way-valve-l-port-t-port.html,شیر سه راهه (3-Way Valve),0.78,7,9,اولویت ۱ (ارزش تجاری)
+angle-valve.html,راهنمای شیر زاویه‌ای (Angle Valve),0.78,7,9,اولویت ۱ (ارزش تجاری)
+api-5l-x65.html,لوله API 5L X65,0.78,7,9,اولویت ۱ (ارزش تجاری)
+api-5l-x70.html,لوله API 5L X70,0.78,7,9,اولویت ۱ (ارزش تجاری)
+api-600.html,راهنمای شیر دروازه‌ای API 600,0.78,7,9,اولویت ۱ (ارزش تجاری)
+api-617.html,استاندارد API 617 کمپرسورهای محوری,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-001.html,تست هیدرواستاتیک لوله,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-002.html,مقایسه لوله کربن استیل و استینلس استیل,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-003.html,راهنمای انتخاب شیر بر اساس کلاس فشار,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-004.html,راهنمای آب‌بندی شیرآلات صنعتی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-006.html,ترانسمیتر سطح هیدرواستاتیک,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-007.html,کالیبراسیون ترانسمیتر دما,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-009.html,قرارداد تامین صنعتی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-011.html,تامین تجهیزات پتروشیمی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-012.html,تامین تجهیزات صنعت فولاد,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-013.html,تامین تجهیزات نیروگاه سیکل ترکیبی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-014.html,تامین تجهیزات خطوط لوله انتقال,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-017.html,تامین تجهیزات صنعت سیمان,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-021.html,انتخاب شیر برای سرویس بخار,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-023.html,انتخاب شیر برای خطوط گاز,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-027.html,مقایسه شیر فولادی و چدنی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-031.html,مقایسه برندهای شیرآلات اروپایی و آسیایی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-041.html,ترانسمیتر سطح التراسونیک,0.78,7,9,اولویت ۱ (ارزش تجاری)
+article-052.html,مقایسه برندهای ترانسمیتر صنعتی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+astm-a105.html,ASTM A105 متریال فلنج و اتصالات فورج,0.78,7,9,اولویت ۱ (ارزش تجاری)
+astm-a209.html,راهنمای لوله ASTM A209,0.78,7,9,اولویت ۱ (ارزش تجاری)
+astm-a213.html,لوله ASTM A213,0.78,7,9,اولویت ۱ (ارزش تجاری)
+astm-a312.html,راهنمای لوله ASTM A312,0.78,7,9,اولویت ۱ (ارزش تجاری)
+ball-vs-gate-valve-comparison.html,مقایسه Ball Valve و Gate Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+cerabar.html,ترانسمیتر فشار اندرس هاسر Cerabar,0.78,7,9,اولویت ۱ (ارزش تجاری)
+check-valve-complete-guide.html,راهنمای جامع Check Valve (شیر یک‌طرفه),0.78,7,9,اولویت ۱ (ارزش تجاری)
+class-i-class-vi.html,مقایسه نرخ نشتی شیرآلات,0.78,7,9,اولویت ۱ (ارزش تجاری)
+cryogenic-valve-lng.html,شیر برودتی (Cryogenic Valve),0.78,7,9,اولویت ۱ (ارزش تجاری)
+diaphragm-valve.html,Diaphragm Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+dual-plate-check-valve.html,راهنمای شیرهای Dual Plate Check Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+electric-actuator.html,محرک الکتریکی (Electric Actuator) شیرآلات,0.78,7,9,اولویت ۱ (ارزش تجاری)
+en-10204-certificate-guide.html,راهنمای کامل EN 10204؛ مشخصات و قیمت,0.78,7,9,اولویت ۱ (ارزش تجاری)
+gasket-types-guide.html,راهنمای انواع گسکت صنعتی,0.78,7,9,اولویت ۱ (ارزش تجاری)
+gearbox-handwheel-worm-gear.html,راهنمای Gearbox شیرآلات,0.78,7,9,اولویت ۱ (ارزش تجاری)
+ghz-80.html,ترانسمیتر سطح راداری GHz 80,0.78,7,9,اولویت ۱ (ارزش تجاری)
+globe-angle-valve.html,مقایسه شیر Globe و Angle Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+high-temperature.html,انتخاب شیر برای دمای بالا (High Temperature),0.78,7,9,اولویت ۱ (ارزش تجاری)
+knife-gate-valve.html,Knife Gate Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+nace-mr0175.html,استاندارد NACE MR0175 در لوله و فلنج,0.78,7,9,اولویت ۱ (ارزش تجاری)
+pilot-operated-valve.html,شیر پایلوت (Pilot Operated Valve),0.78,7,9,اولویت ۱ (ارزش تجاری)
+pinch-valve.html,Pinch Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+plug-valve-lubricated-non-lubricated.html,راهنمای Plug Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+rosemount-644.html,ترانسمیتر دما Rosemount 644,0.78,7,9,اولویت ۱ (ارزش تجاری)
+shell-seat-closure.html,تست شیرآلات,0.78,7,9,اولویت ۱ (ارزش تجاری)
+stainless-steel.html,شیر Stainless Steel,0.78,7,9,اولویت ۱ (ارزش تجاری)
+tilting-disc-check-valve.html,راهنمای شیر Tilting Disc Check Valve,0.78,7,9,اولویت ۱ (ارزش تجاری)
+ut.html,راهنمای تست UT لوله (فراصوت),0.78,7,9,اولویت ۱ (ارزش تجاری)
+vendor-qualification.html,راهنمای تأیید صلاحیت تامین‌کننده (Vendor Qualification),0.78,7,9,اولویت ۱ (ارزش تجاری)
+yokogawa-eja.html,ترانسمیتر فشار Yokogawa EJA,0.78,7,9,اولویت ۱ (ارزش تجاری)
+iso-9001.html,ISO 9001 برای تامین‌کنندگان صنعتی,0.75,6,8,اولویت ۱ (ارزش تجاری)
+api-5l-pipe-guide.html,مشخصات فنی لوله API 5L,0.7,7,10,اولویت ۱ (ارزش تجاری)
+api-600-gate-valve-standard.html,استاندارد API 600,0.7,7,10,اولویت ۱ (ارزش تجاری)
+api-6d-ball-valve-standard.html,استاندارد API 6D,0.7,7,10,اولویت ۱ (ارزش تجاری)
+asme-b36-10-pipe-dimensions.html,استاندارد ASME B36.10,0.7,7,10,اولویت ۱ (ارزش تجاری)
+butterfly-valve-complete-guide.html,راهنمای جامع Butterfly Valve (شیر پروانه‌ای),0.7,7,10,اولویت ۱ (ارزش تجاری)
+differential-pressure-transmitter-guide.html,راهنمای ترانسمیتر اختلاف فشار (DPT),0.7,7,10,اولویت ۱ (ارزش تجاری)
+flange-material-selection-guide.html,راهنمای جنس و متریال فلنج صنعتی بر اساس کلاس فشار و سیال,0.7,7,10,اولویت ۱ (ارزش تجاری)
+gate-valve-complete-guide.html,راهنمای جامع Gate Valve (شیر دروازه‌ای),0.7,7,10,اولویت ۱ (ارزش تجاری)
+globe-valve-complete-guide.html,راهنمای جامع Globe Valve (شیر کروی),0.7,7,10,اولویت ۱ (ارزش تجاری)
+pipe-fittings-guide.html,راهنمای اتصالات فیتینگ پایپینگ,0.7,7,10,اولویت ۱ (ارزش تجاری)
+seamless-vs-erw-pipe-difference.html,تفاوت لوله مانیسمان و لوله درزدار (ERW),0.7,7,10,اولویت ۱ (ارزش تجاری)
+wn-vs-so-flange-comparison.html,مقایسه فلنج گلودار (WN) و اسلیپ‌آن (SO),0.7,7,10,اولویت ۱ (ارزش تجاری)
+hart-protocol-complete-guide.html,راهنمای کامل پروتکل HART در ابزار دقیق صنعتی؛ مشخصات و قیمت,0.64,7,11,اولویت ۱ (ارزش تجاری)
+seamless-pipe-complete-guide.html,راهنمای جامع لوله مانیسمان (بدون درز),0.64,7,11,اولویت ۱ (ارزش تجاری)
+temperature-transmitter-guide.html,راهنمای ترانسمیتر دما,0.64,7,11,اولویت ۱ (ارزش تجاری)
+asme-b31-3-process-piping-guide.html,راهنمای استاندارد ASME B31.3,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+astm-piping-standards-guide.html,راهنمای استانداردهای ASTM در پایپینگ,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+atex-iecex-hazardous-area-guide.html,راهنمای استاندارد ATEX و IECEx برای مناطق خطرناک,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+instrument-calibration-standards.html,راهنمای استانداردهای کالیبراسیون ابزار دقیق,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+ip-rating-industrial-equipment-guide.html,راهنمای استاندارد IP در تجهیزات صنعتی,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+pmi-testing-guide.html,راهنمای تست PMI در بازرسی تجهیزات صنعتی,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+rtd-vs-thermocouple-comparison.html,مقایسه سنسور دما RTD و Thermocouple صنعتی,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+sil-certification-instrument-guide.html,راهنمای گواهی SIL در ابزار دقیق صنعتی,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+third-party-inspection-guide.html,راهنمای بازرسی شخص ثالث (TPI) در صنعت,1.0,9,9,اولویت ۲ (استانداردی/حیاتی)
+astm-a105-vs-a234.html,مقایسه ASTM A105 و ASTM A234 در پایپینگ,0.9,9,10,اولویت ۲ (استانداردی/حیاتی)
+electrical-brands-comparison.html,مقایسه برندهای تجهیزات برق صنعتی,0.9,9,10,اولویت ۲ (استانداردی/حیاتی)
+sour-service-equipment-guide.html,راهنمای تجهیزات سرویس اسیدی (Sour Service),0.9,9,10,اولویت ۲ (استانداردی/حیاتی)
+asme-b16-11-socket-weld-threaded.html,ASME B16.11,0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+asme-b16-5.html,ASME B16.5,0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+asme-b16-9.html,ASME B16.9,0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+lv-iec-61439.html,تابلو فشار ضعیف LV و استاندارد IEC 61439,0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+mv-iec-62271.html,تابلو فشار متوسط MV و استاندارد IEC 62271,0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+o2-co2-h2s.html,آنالایزر گاز صنعتی,0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+pressure-gauge-asme-b40-100.html,گیج فشار (Pressure Gauge),0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+sil-iec-61508-iec-61511.html,SIL در ابزار دقیق,0.88,7,8,اولویت ۲ (استانداردی/حیاتی)
+asme-b16-34.html,استاندارد ASME B16.34,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+asme-b31-1.html,ASME B31.1,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+asme-b31-3.html,ASME B31.3,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+astm-a105-astm-a350-lf2.html,مقایسه ASTM A105 و ASTM A350 LF2,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+astm-a106-a53.html,مقایسه ASTM A106 و A53,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+astm-a182-f304-f316.html,ASTM A182 F304/F316,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+astm-a234-wpb.html,ASTM A234 WPB,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+astm-a403-wp304-wp316.html,ASTM A403 WP304/WP316,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+astm-jis.html,مقایسه استاندارد ASTM و JIS در پایپینگ,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+din-ansi.html,مقایسه استاندارد DIN و ANSI در پایپینگ,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+en-10204.html,گواهی EN 10204 و تفاوت نوع 3.1 و 3.2,0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+ndt-rt.html,بازرسی NDT با تست رادیوگرافی (RT),0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+ndt-ut.html,بازرسی NDT با تست فراصوت (UT),0.78,7,9,اولویت ۲ (استانداردی/حیاتی)
+api-5l-x52.html,API 5L X52 مشخصات کامل خطوط انتقال,0.75,6,8,اولویت ۲ (استانداردی/حیاتی)
+ndt-inspection-industrial-guide.html,راهنمای تست‌های NDT در بازرسی صنعتی,0.7,7,10,اولویت ۲ (استانداردی/حیاتی)
+diaphragm-seal-guide.html,راهنمای سیل جداکننده (Diaphragm Seal) در ابزار دقیق,1.0,9,9,اولویت ۳
+hart-calibration-training.html,آموزش کالیبراسیون HART در ابزار دقیق صنعتی,1.0,9,9,اولویت ۳
+industrial-grounding-guide.html,راهنمای سیستم اتصال زمین (Grounding) صنعتی,1.0,9,9,اولویت ۳
+plc-types-industrial-guide.html,راهنمای انواع PLC صنعتی,1.0,9,9,اولویت ۳
+power-distribution-transformer-guide.html,راهنمای ترانسفورماتور قدرت و توزیع صنعتی,1.0,9,9,اولویت ۳
+protective-relay-guide.html,راهنمای رله‌های حفاظتی در تابلو برق صنعتی,1.0,9,9,اولویت ۳
+scada-rtu-system-guide.html,راهنمای سیستم SCADA و RTU در اتوماسیون صنعتی,1.0,9,9,اولویت ۳
+shutdown-turnaround-industrial-guide.html,راهنمای تجهیزات Shutdown و اورهال صنعتی,1.0,9,9,اولویت ۳
+soft-starter-guide.html,راهنمای سافت استارتر در کنترل موتورهای صنعتی,1.0,9,9,اولویت ۳
+steam-system-equipment-guide.html,راهنمای تجهیزات سیستم بخار صنعتی,1.0,9,9,اولویت ۳
+thermowell-guide.html,راهنمای ترموول (Thermowell) در ابزار دقیق,1.0,9,9,اولویت ۳
+ups-industrial-guide.html,راهنمای UPS صنعتی,1.0,9,9,اولویت ۳
+vfd-variable-frequency-drive-guide.html,راهنمای درایو فرکانس متغیر VFD صنعتی,1.0,9,9,اولویت ۳
+contactor-bimetal-guide.html,راهنمای کنتاکتور و بی متال در برق صنعتی,0.9,9,10,اولویت ۳
+corrosion-resistant-equipment-guide.html,راهنمای تجهیزات مقاوم به خوردگی صنعتی,0.9,9,10,اولویت ۳
+high-pressure-equipment-guide.html,راهنمای تجهیزات فشار قوی و فوق‌العاده صنعتی,0.9,9,10,اولویت ۳
+incoterms-industrial-trade-guide.html,راهنمای Incoterms 2024 در تجارت بین‌المللی صنعتی,0.9,9,10,اولویت ۳
+industrial-customs-clearance-guide.html,راهنمای ترخیص گمرکی کالاهای صنعتی,0.9,9,10,اولویت ۳
+nioc-npc-vendor-list-guide.html,راهنمای وندورلیست NIOC و NPC در پروژه‌های نفتی,0.89,8,9,اولویت ۳
+conductivity-meter.html,راهنمای هدایت سنج (Conductivity Meter),0.88,7,8,اولویت ۳
+distribution-transformer.html,ترانسفورماتور توزیع (Distribution Transformer),0.88,7,8,اولویت ۳
+esd-emergency-shutdown.html,راهنمای سیستم ESD (Emergency Shutdown),0.88,7,8,اولویت ۳
+fire-gas-system-fgs.html,راهنمای Fire & Gas System (FGS),0.88,7,8,اولویت ۳
+guided-wave-non-contact.html,سطح‌سنج راداری,0.88,7,8,اولویت ۳
+magmeter.html,فلومتر مغناطیسی (Magmeter),0.88,7,8,اولویت ۳
+modbus-tcp-rtu.html,راهنمای شبکه Modbus TCP/RTU,0.88,7,8,اولویت ۳
+ph.html,راهنمای pH متر صنعتی,0.88,7,8,اولویت ۳
+pneumatic-actuator-rack-pinion.html,محرک پنوماتیک (Pneumatic Actuator),0.88,7,8,اولویت ۳
+thermal-mass-flowmeter.html,فلومتر حرارتی (Thermal Mass Flowmeter),0.88,7,8,اولویت ۳
+thermowell.html,Thermowell (ترموول),0.88,7,8,اولویت ۳
+turbidity-meter.html,راهنمای Turbidity Meter (کدورت سنج),0.88,7,8,اولویت ۳
+ups-nicd-li-ion.html,UPS باتری NiCd و Li-ion,0.88,7,8,اولویت ۳
+ups-online-line-interactive.html,UPS صنعتی؛ انواع و راهنمای انتخاب,0.88,7,8,اولویت ۳
+vcb.html,کلید وکیوم (VCB),0.88,7,8,اولویت ۳
+vfd.html,درایو فرکانس متغیر VFD,0.88,7,8,اولویت ۳
+vortex-flowmeter.html,فلومتر ورتکس (Vortex Flowmeter),0.88,7,8,اولویت ۳
+ansi-ieee-c37.html,رله حفاظتی,0.78,7,9,اولویت ۳
+article-005.html,فلومتر کوریولیس,0.78,7,9,اولویت ۳
+article-008.html,ترانسفورماتور قدرت,0.78,7,9,اولویت ۳
+article-010.html,راهنمای گمرک و ترخیص کالاهای صنعتی,0.78,7,9,اولویت ۳
+article-015.html,تجهیزات پالایشگاه نفت,0.78,7,9,اولویت ۳
+article-016.html,تجهیزات سیستم بخار,0.78,7,9,اولویت ۳
+article-059.html,کنتاکتور و بی متال,0.78,7,9,اولویت ۳
+dcs-distributed-control-system.html,راهنمای سیستم DCS (Distributed Control System),0.78,7,9,اولویت ۳
+float-vibrating-capacitance.html,سوئیچ سطح صنعتی؛ انواع و انتخاب,0.78,7,9,اولویت ۳
+flowmeter-types-guide.html,راهنمای فلومتر صنعتی,0.78,7,9,اولویت ۳
+hplc-gc.html,راهنمای تجهیزات HPLC و GC در آزمایشگاه,0.78,7,9,اولویت ۳
+incoterms-2024.html,Incoterms 2024,0.78,7,9,اولویت ۳
+level-measurement-guide.html,راهنمای سطح سنج (Level Measurement),0.78,7,9,اولویت ۳
+mfc-mass-flow-controller.html,راهنمای MFC (Mass Flow Controller),0.78,7,9,اولویت ۳
+phase-control-relay.html,رله کنترل فاز (Phase Control Relay),0.78,7,9,اولویت ۳
+plc-allen-bradley-controllogix.html,کنترلر PLC Allen Bradley ControlLogix,0.78,7,9,اولویت ۳
+pmi-positive-material-identification.html,راهنمای PMI (Positive Material Identification),0.78,7,9,اولویت ۳
+profibus-profinet.html,راهنمای شبکه Profibus و Profinet,0.78,7,9,اولویت ۳
+scada.html,سیستم SCADA در صنعت نفت و گاز,0.78,7,9,اولویت ۳
+sf6.html,کلید قدرت SF6 و تجهیزات فشار قوی,0.78,7,9,اولویت ۳
+shutdown.html,تجهیزات Shutdown و اورهال صنعتی,0.78,7,9,اولویت ۳
+soft-starter.html,سافت استارتر (Soft Starter),0.78,7,9,اولویت ۳
+surge-arrester.html,رله برقگیر (Surge Arrester),0.78,7,9,اولویت ۳
+transit-time-doppler.html,فلومتر اولتراسونیک,0.78,7,9,اولویت ۳
+mccb-circuit-breaker-guide.html,راهنمای کلید کامپکت MCCB,0.7,7,10,اولویت ۳
+acb-circuit-breaker-guide.html,راهنمای کلید هوایی ACB (Air Circuit Breaker),0.64,7,11,اولویت ۳
+mcc-panel-guide.html,راهنمای تابلو برق MCC,0.64,7,11,اولویت ۳

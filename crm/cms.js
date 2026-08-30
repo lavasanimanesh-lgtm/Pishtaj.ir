@@ -246,41 +246,253 @@
     });
   };
 
-  /* ============ AC3: سئوی صفحات ============ */
-  function renderCmsSeo(el) {
-    el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال بارگذاری صفحات...</div>';
-    api('page_list', null, function (d) {
-      if (!d.ok) { el.innerHTML = '<div style="color:#dc2626;padding:10px">' + escP(d.error || '') + '</div>'; return; }
+  /* ============ AC3 (v34.9.1): سئوی صفحات — اسکن سراسری + ویرایش ============ */
+  /* برچسب فارسی + شدتِ هر مشکل (bad = باید اصلاح شود / warn = بهتر است اصلاح شود) */
+  var SEO_ISSUES = {
+    'no-title': ['بدون عنوان', 'bad'],
+    'no-desc': ['بدون توضیح', 'bad'],
+    'noindex': ['noindex دارد', 'bad'],
+    'no-canonical': ['بدون canonical', 'bad'],
+    'no-h1': ['بدون H1', 'bad'],
+    'title-short': ['عنوان کوتاه', 'warn'],
+    'title-long': ['عنوان بلند', 'warn'],
+    'desc-short': ['توضیح کوتاه', 'warn'],
+    'desc-long': ['توضیح بلند', 'warn'],
+    'canonical-mismatch': ['canonical ناهماهنگ', 'warn'],
+    'thin-content': ['محتوای کم', 'warn'],
+    'img-no-alt': ['تصویر بدون alt', 'warn'],
+    'not-in-sitemap': ['خارج از نقشه', 'warn'],
+    'no-schema': ['بدون schema', 'warn']
+  };
+  var _seo = { q: '', folder: '', issue: '', offset: 0, limit: 60, done: false };
+  var _seoMeta = { stats: null, folders: null, matched: 0, scanned: '', writable: false, sitemap: 0 };
+
+  function seoBadge(code) {
+    var d = SEO_ISSUES[code] || [code, 'warn'];
+    var col = d[1] === 'bad' ? '#b91c1c' : '#92400e';
+    var bg = d[1] === 'bad' ? '#fef2f2' : '#fffbeb';
+    return '<span title="' + escP(code) + '" style="display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:8px;margin:2px 3px 0 0;background:' + bg + ';color:' + col + ';border:1px solid ' + (d[1] === 'bad' ? '#fecaca' : '#fde68a') + '">' + d[0] + '</span>';
+  }
+
+  function seoLoad(cb) {
+    _seo.offset = 0;
+    api('page_list', {
+      q: _seo.q, folder: _seo.folder, issue: _seo.issue,
+      limit: _seo.limit, offset: 0
+    }, function (d) {
+      if (!d.ok) {
+        var el = document.getElementById('cmsWrap');
+        if (el) el.innerHTML = '<div style="color:#dc2626;padding:10px">⚠️ ' + escP(d.error || 'خطا در دریافت فهرست صفحات') +
+          '<br><small style="color:#64748b">اگر «permission_denied» می‌بینید: نقش شما اجازهٔ CMS ندارد.</small></div>';
+        return;
+      }
       window._cmsPages = d.pages || [];
-      el.innerHTML = '<div style="font-size:12px;color:#64748b;margin-bottom:8px">ویرایش عنوان (title) و توضیح (description) صفحات اصلی — مستقیم روی سایت اعمال می‌شود.</div>' +
-        _cmsPages.map(function (p, i) {
-          return '<div style="background:#fff;border:1px solid var(--brd);border-radius:11px;padding:9px 12px;margin-bottom:5px;display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap">' +
-            '<span style="font-size:12.5px;flex:1"><b>' + escP(p.path) + '</b><br><small style="color:#64748b">' + escP((p.title || '').slice(0, 80)) + '</small></span>' +
-            '<button class="bt bt-o" style="padding:4px 10px;font-size:12px" onclick="cmsSeoEdit(' + i + ')">✏️ ویرایش</button></div>';
-        }).join('');
+      _seoMeta.stats = d.stats || {};
+      _seoMeta.folders = d.folders || {};
+      _seoMeta.matched = d.matched || 0;
+      _seoMeta.scanned = d.scanned_at || '';
+      _seoMeta.writable = !!d.writable;
+      _seoMeta.sitemap = d.sitemap_urls || 0;
+      if (cb) cb();
     });
   }
 
+  function seoStatsBar() {
+    var st = _seoMeta.stats || {};
+    function chip(label, val, code, color) {
+      if (!val) return '';
+      var on = _seo.issue === code;
+      return '<button type="button" onclick="cmsSeoIssue(\'' + code + '\')" style="border:1px solid ' +
+        (on ? color : '#e2e8f0') + ';background:' + (on ? color : '#fff') + ';color:' + (on ? '#fff' : '#475569') +
+        ';border-radius:10px;padding:4px 9px;font-size:11.5px;font-family:inherit;cursor:pointer;margin:0 4px 4px 0">' +
+        label + ' <b>' + val + '</b></button>';
+    }
+    var h = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:10px 12px;margin-bottom:10px">';
+    h += '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">کل صفحات عمومی: <b>' + (st.total || 0) +
+      '</b> · در نقشهٔ سایت: <b>' + (_seoMeta.sitemap || 0) + '</b> · بدون ایراد: <b>' + (st.ok || 0) + '</b>' +
+      (_seoMeta.scanned ? ' · <span style="color:#94a3b8">اسکن: ' + escP(_seoMeta.scanned) + '</span>' : '') + '</div>';
+    h += chip('بدون توضیح', st['no-desc'], 'no-desc', '#dc2626');
+    h += chip('توضیح بلند', st['desc-long'], 'desc-long', '#d97706');
+    h += chip('توضیح کوتاه', st['desc-short'], 'desc-short', '#d97706');
+    h += chip('بدون عنوان', st['no-title'], 'no-title', '#dc2626');
+    h += chip('عنوان بلند', st['title-long'], 'title-long', '#d97706');
+    h += chip('عنوان کوتاه', st['title-short'], 'title-short', '#d97706');
+    h += chip('بدون H1', st['no-h1'], 'no-h1', '#dc2626');
+    h += chip('بدون canonical', st['no-canonical'], 'no-canonical', '#dc2626');
+    h += chip('canonical ناهماهنگ', st['canonical-mismatch'], 'canonical-mismatch', '#d97706');
+    h += chip('noindex', st['noindex'], 'noindex', '#dc2626');
+    h += chip('محتوای کم', st['thin-content'], 'thin-content', '#d97706');
+    h += chip('خارج از نقشه', st['not-in-sitemap'], 'not-in-sitemap', '#d97706');
+    h += chip('بدون schema', st['no-schema'], 'no-schema', '#0ea5e9');
+    h += '</div>';
+    return h;
+  }
+
+  function seoToolbar() {
+    var f = _seoMeta.folders || {};
+    var opts = '<option value="">همهٔ پوشه‌ها</option>';
+    Object.keys(f).forEach(function (k) {
+      opts += '<option value="' + escP(k) + '"' + (_seo.folder === k ? ' selected' : '') + '>' + escP(k) + ' (' + f[k] + ')</option>';
+    });
+    return '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">' +
+      '<input type="text" id="seoQ" value="' + escP(_seo.q) + '" placeholder="جستجو در مسیر/عنوان…" ' +
+      'onkeydown="if(event.key===\'Enter\')cmsSeoSearch()" style="flex:1;min-width:170px;padding:6px 10px;border:1px solid var(--brd);border-radius:9px;font-family:inherit;font-size:12.5px">' +
+      '<select id="seoFolder" onchange="cmsSeoFolder(this.value)" style="padding:6px 8px;border:1px solid var(--brd);border-radius:9px;font-family:inherit;font-size:12.5px">' + opts + '</select>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoSearch()">🔍 فیلتر</button>' +
+      (_seo.issue ? '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoIssue(\'\')">✖ حذف فیلتر مشکل</button>' : '') +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoRefresh()">⟳ اسکن دوباره</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoExport()">⬇️ CSV</button>' +
+      '</div>' +
+      (_seoMeta.writable ? '' : '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:7px 11px;font-size:12px;color:#b91c1c;margin-bottom:8px">⚠️ فایل‌های سایت روی هاست قابل‌نوشتن نیست — ویرایش‌ها ذخیره نمی‌شوند. از هاستینگ بخواهید مجوز write بدهد.</div>');
+  }
+
+  function seoRows() {
+    var list = window._cmsPages || [];
+    if (!list.length) return '<div style="color:#94a3b8;text-align:center;padding:16px">صفحه‌ای با این فیلتر پیدا نشد</div>';
+    return list.map(function (p, i) {
+      var badges = (p.issues || []).map(seoBadge).join('');
+      var tl = p.title_len || 0, dl = p.desc_len || 0;
+      function lenColor(v, lo, hi) { return (!v || v < lo || v > hi) ? '#dc2626' : '#059669'; }
+      return '<div style="background:#fff;border:1px solid var(--brd);border-radius:11px;padding:9px 12px;margin-bottom:5px">' +
+        '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:220px">' +
+        '<div style="font-size:12.5px;font-weight:700;direction:ltr;text-align:left;color:#0f172a">' + escP(p.path) + '</div>' +
+        '<div style="font-size:12px;color:#334155;margin-top:2px">' + escP((p.title || '').slice(0, 90)) + '</div>' +
+        '<div style="font-size:11px;color:#94a3b8;margin-top:3px">' +
+        'عنوان <b style="color:' + lenColor(tl, 30, 65) + '">' + tl + '</b> · ' +
+        'توضیح <b style="color:' + lenColor(dl, 70, 165) + '">' + dl + '</b> · ' +
+        (p.words || 0) + ' واژه · ' + (p.sitemap ? 'در نقشه' : '<span style="color:#dc2626">خارج از نقشه</span>') +
+        '</div></div>' +
+        '<div style="display:flex;gap:4px;align-items:center">' +
+        '<a class="bt bt-o" style="padding:4px 8px;font-size:11.5px;text-decoration:none" target="_blank" href="/' + escP(p.path) + '">👁️</a>' +
+        '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="cmsSeoEdit(' + i + ')">✏️ ویرایش</button>' +
+        '</div></div>' +
+        (badges ? '<div style="margin-top:5px">' + badges + '</div>' : '<div style="margin-top:5px"><span style="font-size:10.5px;color:#059669">✅ بدون ایراد</span></div>') +
+        '</div>';
+    }).join('');
+  }
+
+  function renderCmsSeo(el) {
+    el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال اسکن صفحات سایت…</div>';
+    seoLoad(function () {
+      var list = window._cmsPages || [];
+      el.innerHTML = seoStatsBar() + seoToolbar() +
+        '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">نمایش ' + list.length + ' از ' + _seoMeta.matched + ' صفحهٔ منطبق (مرتب‌شده: پر‌ایرادترین اول)</div>' +
+        '<div id="seoList" style="max-height:520px;overflow:auto">' + seoRows() + '</div>' +
+        (list.length < _seoMeta.matched ? '<div style="text-align:center;margin-top:8px"><button class="bt bt-o" onclick="cmsSeoMore()">نمایش بیشتر (۶۰ تای بعدی)</button></div>' : '') +
+        '<div style="font-size:11px;color:#94a3b8;margin-top:10px;line-height:1.9">' +
+        'طول مناسب: عنوان ۳۰–۶۵ کاراکتر · توضیح ۷۰–۱۶۵ کاراکتر. تغییرات مستقیماً روی فایل سایت اعمال می‌شود؛ ' +
+        'برای ثبت سریع‌تر در گوگل، صفحه را در سرچ کنسول «Request Indexing» بزنید.' +
+        '</div>';
+    });
+  }
+
+  window.cmsSeoIssue = function (code) { _seo.issue = code; renderCms(document.getElementById('cmsWrap')); };
+  window.cmsSeoFolder = function (v) { _seo.folder = v; _seo.offset = 0; renderCms(document.getElementById('cmsWrap')); };
+  window.cmsSeoSearch = function () {
+    var q = document.getElementById('seoQ');
+    _seo.q = q ? q.value.trim() : '';
+    _seo.offset = 0;
+    renderCms(document.getElementById('cmsWrap'));
+  };
+  window.cmsSeoRefresh = function () {
+    api('page_list', { refresh: 1, limit: 1 }, function () {
+      _seo.offset = 0;
+      renderCms(document.getElementById('cmsWrap'));
+    });
+  };
+  window.cmsSeoMore = function () {
+    _seo.offset += _seo.limit;
+    api('page_list', { q: _seo.q, folder: _seo.folder, issue: _seo.issue, limit: _seo.limit, offset: _seo.offset }, function (d) {
+      if (!d.ok) return;
+      window._cmsPages = (window._cmsPages || []).concat(d.pages || []);
+      var el = document.getElementById('seoList');
+      if (el) el.innerHTML = seoRows();
+    });
+  };
+  window.cmsSeoExport = function () {
+    api('page_list', { q: _seo.q, folder: _seo.folder, issue: _seo.issue, limit: 500, offset: 0 }, function (d) {
+      if (!d.ok) { alert('⚠️ ' + (d.error || '')); return; }
+      var rows = [['مسیر', 'عنوان', 'طول عنوان', 'توضیح', 'طول توضیح', 'canonical', 'robots', 'واژگان', 'در نقشه', 'مشکلات']];
+      (d.pages || []).forEach(function (p) {
+        rows.push([p.path, p.title, p.title_len, p.desc, p.desc_len, p.canonical, p.robots, p.words, p.sitemap ? 'بله' : 'خیر', (p.issues || []).join(' | ')]);
+      });
+      var csv = '\ufeff' + rows.map(function (r) {
+        return r.map(function (c) { return '"' + String(c === null || c === undefined ? '' : c).replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\n');
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      a.download = 'seo-pages-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+    });
+  };
+
+  window.cmsSeoCount = function () {
+    var t = document.getElementById('csTitle'), d = document.getElementById('csDesc');
+    var te = document.getElementById('csTitleLen'), de = document.getElementById('csDescLen');
+    if (t && te) {
+      var tl = t.value.trim().length;
+      te.textContent = tl + ' کاراکتر';
+      te.style.color = (tl >= 30 && tl <= 65) ? '#059669' : '#dc2626';
+    }
+    if (d && de) {
+      var dl = d.value.trim().length;
+      de.textContent = dl + ' کاراکتر';
+      de.style.color = (dl >= 70 && dl <= 165) ? '#059669' : '#dc2626';
+    }
+  };
+
   window.cmsSeoEdit = function (i) {
-    var p = window._cmsPages[i];
-    var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:600px">' +
-      '<h3>🔍 سئوی صفحه: ' + escP(p.path) + '</h3>' +
-      '<div class="fld"><label>عنوان (title) — در تب مرورگر و نتایج گوگل</label><input type="text" id="csTitle" value="' + escP(p.title) + '"></div>' +
-      '<div class="fld"><label>توضیح (description) — زیر عنوان در گوگل</label><textarea id="csDesc" rows="3">' + escP(p.desc) + '</textarea></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
-      '<button class="bt" onclick="cmsSeoSave(' + i + ')">🚀 اعمال روی سایت</button></div></div></div>';
+    var p = (window._cmsPages || [])[i];
+    if (!p) return;
+    var rob = p.robots || '';
+    var robOpts = [['', 'پیش‌فرض (بدون تگ)'], ['index, follow', 'index, follow — ایندکس شود'],
+      ['noindex, follow', 'noindex, follow — از ایندکس خارج شود'],
+      ['noindex, nofollow', 'noindex, nofollow — کامل خارج شود']];
+    var sel = robOpts.map(function (o) {
+      return '<option value="' + escP(o[0]) + '"' + (rob === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+    }).join('');
+    var info = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:10px;padding:8px 10px;font-size:11.5px;color:#475569;margin-bottom:10px;line-height:1.9">' +
+      'مسیر: <b style="direction:ltr">' + escP(p.path) + '</b><br>' +
+      'واژگان: ' + (p.words || 0) + ' · حجم: ' + (p.size_kb || 0) + 'KB · ' + (p.sitemap ? 'در نقشهٔ سایت' : '<span style="color:#dc2626">خارج از نقشهٔ سایت</span>') + '<br>' +
+      'schema: ' + escP(p.schema || 'ندارد') + '<br>' +
+      (p.h1 ? 'H1 فعلی: ' + escP(p.h1.slice(0, 80)) : '<span style="color:#dc2626">H1 ندارد</span>') +
+      '</div>';
+    var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:640px;max-height:94vh;overflow:auto">' +
+      '<h3>🔍 سئوی صفحه</h3>' + info +
+      '<div class="fld"><label>عنوان (title) — در تب مرورگر و نتایج گوگل <span id="csTitleLen" style="font-size:11px"></span></label>' +
+      '<input type="text" id="csTitle" value="' + escP(p.title) + '" oninput="cmsSeoCount()"></div>' +
+      '<div class="fld"><label>توضیح (description) — زیر عنوان در گوگل <span id="csDescLen" style="font-size:11px"></span></label>' +
+      '<textarea id="csDesc" rows="3" oninput="cmsSeoCount()">' + escP(p.desc) + '</textarea></div>' +
+      '<div class="fld"><label>canonical — آدرس رسمی صفحه (خالی = تغییر نمی‌کند)</label>' +
+      '<input type="text" id="csCan" value="' + escP(p.canonical) + '" style="direction:ltr" placeholder="https://pishtaj.ir/..."></div>' +
+      '<div class="fld"><label>robots — وضعیت ایندکس</label><select id="csRob">' + sel + '</select></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
+      '<a class="bt bt-o" style="text-decoration:none" target="_blank" href="/' + escP(p.path) + '">مشاهده صفحه</a>' +
+      '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
+      '<button class="bt" onclick="cmsSeoSave(' + i + ')">🚀 اعمال روی سایت</button></div>' +
+      '<small style="color:#94a3b8;display:block;margin-top:6px">پیش از ذخیره از فایل یک نسخهٔ پشتیبان در crm/data/cms-backups نگهداری می‌شود (۳ نسخهٔ آخر).</small>' +
+      '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    setTimeout(cmsSeoCount, 30);
   };
 
   window.cmsSeoSave = function (i) {
-    var p = window._cmsPages[i];
-    api('page_meta_save', {
-      file: p.file,
-      title: document.getElementById('csTitle').value.trim(),
-      desc: document.getElementById('csDesc').value.trim()
-    }, function (d) {
-      if (d.ok) { alert('✅ اعمال شد'); audit('CMS', 'ویرایش سئوی ' + p.file, ''); hideModal(); renderCms(); }
-      else alert('⚠️ ' + (d.error || ''));
+    var p = (window._cmsPages || [])[i];
+    if (!p) { alert('صفحهٔ انتخاب‌شده در فهرست پیدا نشد — لطفاً فهرست را دوباره بارگذاری کنید'); return; }
+    var title = document.getElementById('csTitle').value.trim();
+    var desc = document.getElementById('csDesc').value.trim();
+    var can = document.getElementById('csCan').value.trim();
+    var rob = document.getElementById('csRob').value;
+    if (!title) { alert('عنوان نمی‌تواند خالی باشد'); return; }
+    if (!confirm('تغییرات سئو روی «' + p.path + '» اعمال شود؟')) return;
+    api('page_meta_save', { file: p.path, title: title, desc: desc, canonical: can, robots: rob }, function (d) {
+      if (d.ok) {
+        alert(d.changed ? '✅ اعمال شد — در سرچ کنسول می‌توانید Request Indexing بزنید.' : 'تغییری اعمال نشد (مقادیر یکسان بود)');
+        audit('CMS', 'ویرایش سئوی ' + p.path, (p.issues || []).join(','));
+        hideModal();
+        cmsSeoRefresh();
+      } else alert('⚠️ ' + (d.error || 'خطا'));
     });
   };
 

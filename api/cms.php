@@ -17,7 +17,10 @@ if (!$identity) {
     exit;
 }
 $ROLE = strtolower((string)($identity['role'] ?? ''));
-if (!in_array($ROLE, ['admin', 'chairman'], true)) {
+/* v34.9.1 (BUG-SEO-CMS-ROLE): سمت کلاینت در cms.js و perms.js چهار نقش را مجاز
+   می‌دانست ولی اینجا فقط دو نقش قبول بود؛ در نتیجه مدیرعامل و مدیر بازرگانی
+   روی هر اکشن CMS خطای ۴۰۳ می‌گرفتند (از جمله ذخیرهٔ سئو). */
+if (!in_array($ROLE, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
     exit;
@@ -78,9 +81,198 @@ function sitemap_remove($url) {
     file_put_contents($f, $s, LOCK_EX);
 }
 
-switch ($action) {
 
-    /* ============ AC1: اخبار ============ */
+    /* =====================================================================
+   v34.9.1 (US-SEO-TAB): اسکنِ سراسریِ سئوی صفحات عمومی
+   - فقط پوشه‌های عمومی؛ پوشه‌های فنی/ادمین/داده حذف هستند
+   - نتیجه در crm/data کش می‌شود (اسکن کامل روی هاست اشتراکی سنگین است)
+   ===================================================================== */
+
+function cms_skip_dir($d) {
+  static $skip = array('.git', 'node_modules', 'crm', 'api', '_tools', '_audit',
+    '_human_test', '_personas', 'docs-deploy', 'docs', 'assets', 'ptf-snapshots',
+    'ptf-all-photos', 'service-photos', '.github', '.well-known', 'snapshots');
+  return in_array($d, $skip, true) || (isset($d[0]) && $d[0] === '.');
+}
+
+function cms_public_pages($ROOT) {
+  $out = array();
+  $stack = array('');
+  while ($stack) {
+    $dir = array_pop($stack);
+    $abs = $dir === '' ? $ROOT : $ROOT . '/' . $dir;
+    $dh = @opendir($abs);
+    if (!$dh) continue;
+    while (($e = readdir($dh)) !== false) {
+      if ($e === '.' || $e === '..') continue;
+      $rel = $dir === '' ? $e : $dir . '/' . $e;
+      if (is_dir($abs . '/' . $e)) { if (!cms_skip_dir($e)) $stack[] = $rel; continue; }
+      if (substr($e, -5) !== '.html') continue;
+      if ($e === '404.html' || $e === 'sitemap.html') continue;
+      $out[] = $rel;
+    }
+    closedir($dh);
+  }
+  sort($out);
+  return $out;
+}
+
+function cms_sitemap_urls($ROOT) {
+  $urls = array();
+  $idx = $ROOT . '/sitemap-index.xml';
+  $files = array();
+  if (is_file($idx)) {
+    $c = (string)@file_get_contents($idx);
+    if (preg_match_all('#<loc>\s*(.*?)\s*</loc>#i', $c, $m)) {
+      foreach ($m[1] as $u) if (preg_match('#\.xml$#i', $u)) $files[] = $u;
+    }
+  }
+  foreach ($files as $u) {
+    $local = preg_replace('#^https?://(www\.)?pishtaj\.ir/#i', '', $u);
+    $p = $ROOT . '/' . $local;
+    if (!is_file($p)) continue;
+    $c = (string)@file_get_contents($p);
+    if (preg_match_all('#<loc>\s*(.*?)\s*</loc>#i', $c, $m2)) {
+      foreach ($m2[1] as $loc) $urls[$loc] = $local;
+    }
+  }
+  return $urls;
+}
+
+function cms_visible_words($html) {
+  $b = $html;
+  if (preg_match('#<body[^>]*>(.*)</body>#isu', $html, $m)) $b = $m[1];
+  $b = preg_replace('#<(script|style|noscript|template)\b[^>]*>.*?</\1>#isu', ' ', $b);
+  $t = strip_tags($b);
+  $t = html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+  preg_match_all('#[\x{0600}-\x{06FF}\x{FB8A}]+|[A-Za-z][A-Za-z\-]{1,}#u', $t, $mm);
+  return isset($mm[0]) ? count($mm[0]) : 0;
+}
+
+function cms_head($html) {
+  $p = stripos($html, '</head>');
+  return $p === false ? substr($html, 0, 40000) : substr($html, 0, $p);
+}
+
+function cms_meta_of($ROOT, $rel, &$smap) {
+  $path = $ROOT . '/' . $rel;
+  $html = (string)@file_get_contents($path);
+  $head = cms_head($html);
+  $url = 'https://pishtaj.ir/' . $rel;
+  $get = function ($pat) use ($head) {
+    return preg_match($pat, $head, $m) ? trim($m[1]) : '';
+  };
+  $title = $get('#<title[^>]*>(.*?)</title>#isu');
+  $title = trim(preg_replace('#\s+#u', ' ', strip_tags($title)));
+  $desc  = $get('#<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']#isu');
+  if ($desc === '') $desc = $get('#<meta\s+content=["\'](.*?)["\']\s+name=["\']description["\']#isu');
+  $desc = trim(preg_replace('#\s+#u', ' ', $desc));
+  $can  = $get('#<link[^>]*rel=["\']canonical["\'][^>]*href=["\'](.*?)["\']#isu');
+  if ($can === '') $can = $get('#<link[^>]*href=["\'](.*?)["\'][^>]*rel=["\']canonical["\']#isu');
+  $rob  = $get('#<meta\s+name=["\']robots["\']\s+content=["\'](.*?)["\']#isu');
+  $h1   = $get('#<h1[^>]*>(.*?)</h1>#isu');
+  $h1   = trim(preg_replace('#\s+#u', ' ', strip_tags($h1)));
+
+  $words  = cms_visible_words($html);
+  $imgs   = preg_match_all('#<img\b[^>]*>#isu', $html, $im) ? $im[0] : array();
+  $noalt  = 0;
+  foreach ($imgs as $im2) {
+    if (!preg_match('#\balt=["\']\s*([^"\']+)["\']#isu', $im2)) $noalt++;
+  }
+  $schema = array();
+  if (preg_match_all('#<script[^>]*application/ld\+json[^>]*>(.*?)</script>#isu', $html, $lm)) {
+    foreach ($lm[1] as $raw) {
+      $j = json_decode(trim($raw), true);
+      if (!is_array($j)) continue;
+      $items = isset($j['@graph']) ? $j['@graph'] : array($j);
+      foreach ($items as $it) if (is_array($it) && !empty($it['@type'])) {
+        $t = $it['@type'];
+        foreach ((is_array($t) ? $t : array($t)) as $one) $schema[$one] = 1;
+      }
+    }
+  }
+
+  $cands = array('https://pishtaj.ir/' . $rel);
+  if (substr($rel, -10) === 'index.html') $cands[] = 'https://pishtaj.ir/' . substr($rel, 0, -10);
+  if ($rel === 'index.html') $cands[] = 'https://pishtaj.ir/';
+  $sitemap = '';
+  foreach ($cands as $c) if (isset($smap[$c])) { $sitemap = $smap[$c]; break; }
+
+  $issues = array();
+  if ($title === '') $issues[] = 'no-title';
+  else {
+    if (mb_strlen($title, 'UTF-8') < 30) $issues[] = 'title-short';
+    if (mb_strlen($title, 'UTF-8') > 65) $issues[] = 'title-long';
+  }
+  if ($desc === '') $issues[] = 'no-desc';
+  else {
+    if (mb_strlen($desc, 'UTF-8') < 70) $issues[] = 'desc-short';
+    if (mb_strlen($desc, 'UTF-8') > 165) $issues[] = 'desc-long';
+  }
+  if ($can === '') $issues[] = 'no-canonical';
+  elseif (rtrim($can, '/') !== rtrim($url, '/')
+      && rtrim($can, '/') !== rtrim(preg_replace('#/index\.html$#', '', $url), '/')) {
+    $issues[] = 'canonical-mismatch';
+  }
+  if ($h1 === '') $issues[] = 'no-h1';
+  if (stripos($rob, 'noindex') !== false) $issues[] = 'noindex';
+  if ($words < 350) $issues[] = 'thin-content';
+  if ($noalt > 0) $issues[] = 'img-no-alt';
+  if ($sitemap === '') $issues[] = 'not-in-sitemap';
+  if (!$schema) $issues[] = 'no-schema';
+
+  return array(
+    'path' => $rel,
+    'url' => $url,
+    'folder' => strpos($rel, '/') === false ? '(ریشه)' : substr($rel, 0, strpos($rel, '/')),
+    'title' => $title, 'title_len' => mb_strlen($title, 'UTF-8'),
+    'desc' => $desc, 'desc_len' => mb_strlen($desc, 'UTF-8'),
+    'canonical' => $can, 'robots' => $rob, 'h1' => $h1,
+    'words' => $words, 'img_no_alt' => $noalt,
+    'schema' => implode('|', array_keys($schema)),
+    'sitemap' => $sitemap,
+    'size_kb' => round(filesize($path) / 1024, 1),
+    'issues' => $issues,
+  );
+}
+
+function cms_seo_scan($ROOT, $DATA, $force = false) {
+  $cacheFile = $DATA . '/cms-seo-scan.json';
+  $ttl = 600; /* ۱۰ دقیقه */
+  if (!$force && is_file($cacheFile)) {
+    $raw = (string)@file_get_contents($cacheFile);
+    $j = json_decode($raw, true);
+    if (is_array($j) && !empty($j['ts']) && (time() - (int)$j['ts']) < $ttl && !empty($j['pages'])) {
+      return $j;
+    }
+  }
+  $smap = cms_sitemap_urls($ROOT);
+  $pages = array();
+  foreach (cms_public_pages($ROOT) as $rel) {
+    $pages[] = cms_meta_of($ROOT, $rel, $smap);
+  }
+  $res = array('ts' => time(), 'pages' => $pages, 'sitemap_count' => count($smap));
+  @file_put_contents($cacheFile, json_encode($res, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+  return $res;
+}
+
+function cms_backup($DATA, $ROOT, $rel) {
+  $dir = $DATA . '/cms-backups';
+  if (!is_dir($dir)) { @mkdir($dir, 0755, true); @file_put_contents($dir . '/.htaccess', "Deny from all\n"); }
+  $safe = str_replace(array('/', '\\'), '__', $rel);
+  $stamp = date('Ymd-His');
+  @copy($ROOT . '/' . $rel, $dir . '/' . $safe . '--' . $stamp . '.html');
+  /* نگهداری ۳ نسخهٔ آخر هر فایل */
+  $old = glob($dir . '/' . $safe . '--*.html');
+  if (is_array($old) && count($old) > 3) {
+    rsort($old);
+    foreach (array_slice($old, 3) as $o) @unlink($o);
+  }
+}
+
+
+switch ($action) {
+/* ============ AC1: اخبار ============ */
     case 'news_save':
         $items = json_decode($_POST['items'] ?? '[]', true);
         if (!is_array($items)) jerr('ساختار نامعتبر');
@@ -235,35 +427,145 @@ switch ($action) {
         jok();
         break;
 
-    /* ============ AC3 (فاز سبک): سئوی صفحات — title و description ============ */
+    /* ============ AC3 (v34.9.1): سئوی صفحات — اسکن سراسری + ویرایش امن ============ */
     case 'page_list':
-        $pages = [];
-        $scan = ['', 'services/', 'industries/', 'projects/', 'quality/', 'about/', 'news/', 'blog/', 'tools/', 'rfq/', 'supplier/', 'tracking/', 'assistant/', 'catalog/', 'logistics/'];
-        foreach ($scan as $d) {
-            $f = $ROOT . '/' . $d . 'index.html';
-            if (!file_exists($f)) continue;
-            $c = file_get_contents($f, false, null, 0, 4000);
-            preg_match('/<title>(.*?)<\/title>/su', $c, $m1);
-            preg_match('/<meta name="description" content="(.*?)"/su', $c, $m2);
-            $pages[] = ['path' => $d ?: '(صفحه اصلی)', 'file' => $d . 'index.html', 'title' => $m1[1] ?? '', 'desc' => $m2[1] ?? ''];
+        $force  = !empty($_REQUEST['refresh']);
+        $scan   = cms_seo_scan($ROOT, $DATA, $force);
+        $pages  = $scan['pages'];
+
+        /* --- فیلترها --- */
+        $q      = isset($_REQUEST['q']) ? mb_strtolower(trim((string)$_REQUEST['q']), 'UTF-8') : '';
+        $folder = isset($_REQUEST['folder']) ? trim((string)$_REQUEST['folder']) : '';
+        $issue  = isset($_REQUEST['issue']) ? trim((string)$_REQUEST['issue']) : '';
+        if ($q !== '' || $folder !== '' || $issue !== '') {
+            $filtered = array();
+            foreach ($pages as $pg) {
+                if ($folder !== '' && $pg['folder'] !== $folder) continue;
+                if ($issue !== '' && !in_array($issue, $pg['issues'], true)) continue;
+                if ($q !== '' && mb_strpos(mb_strtolower($pg['path'] . ' ' . $pg['title'], 'UTF-8'), $q, 0, 'UTF-8') === false) continue;
+                $filtered[] = $pg;
+            }
+            $pages = $filtered;
         }
-        jok(['pages' => $pages]);
+
+        /* --- مرتب‌سازی: پر‌ایرادترین‌ها اول --- */
+        usort($pages, function ($a, $b) {
+            $ca = count($a['issues']); $cb = count($b['issues']);
+            if ($ca !== $cb) return $cb - $ca;
+            return strcmp($a['path'], $b['path']);
+        });
+
+        /* --- آمار کلی (روی کل سایت، نه فقط نمای فیلترشده) --- */
+        $stats = array(
+            'total' => 0, 'no-desc' => 0, 'desc-long' => 0, 'desc-short' => 0,
+            'title-long' => 0, 'title-short' => 0, 'no-title' => 0, 'no-h1' => 0,
+            'no-canonical' => 0, 'canonical-mismatch' => 0, 'noindex' => 0,
+            'thin-content' => 0, 'img-no-alt' => 0, 'not-in-sitemap' => 0,
+            'no-schema' => 0, 'ok' => 0,
+        );
+        $folders = array();
+        foreach ($scan['pages'] as $pg) {
+            $stats['total']++;
+            if (!$pg['issues']) { $stats['ok']++; }
+            foreach ($pg['issues'] as $is) if (isset($stats[$is])) $stats[$is]++;
+            $f = $pg['folder'];
+            if (!isset($folders[$f])) $folders[$f] = 0;
+            $folders[$f]++;
+        }
+        arsort($folders);
+
+        $limit  = isset($_REQUEST['limit']) ? max(1, min(500, (int)$_REQUEST['limit'])) : 120;
+        $offset = isset($_REQUEST['offset']) ? max(0, (int)$_REQUEST['offset']) : 0;
+        $slice  = array_slice($pages, $offset, $limit);
+
+        jok(array(
+            'pages' => $slice,
+            'shown' => count($slice),
+            'matched' => count($pages),
+            'offset' => $offset,
+            'stats' => $stats,
+            'folders' => $folders,
+            'sitemap_urls' => $scan['sitemap_count'],
+            'scanned_at' => date('Y-m-d H:i:s', $scan['ts']),
+            'writable' => is_writable($ROOT . '/index.html'),
+        ));
         break;
 
     case 'page_meta_save':
-        $file = $_POST['file'] ?? '';
-        if (!preg_match('#^[a-z0-9\-/]*index\.html$#', $file)) jerr('مسیر نامعتبر');
+        $file = isset($_POST['file']) ? (string)$_POST['file'] : '';
+        $file = str_replace('\\', '/', $file);
+        $file = preg_replace('#\.\./#', '', $file);           /* ضد عبور از پوشه */
+        $file = ltrim($file, '/');
+        if (!preg_match('#^[A-Za-z0-9\x{0600}-\x{06FF}_./\-]+\.html$#u', $file)) jerr('مسیر نامعتبر');
+        $segs = explode('/', $file);
+        array_pop($segs);                                  /* نام فایل کنار گذاشته می‌شود */
+        foreach ($segs as $seg) { if (cms_skip_dir($seg)) jerr('پوشهٔ غیرمجاز'); }
         $f = $ROOT . '/' . $file;
-        if (!file_exists($f)) jerr('یافت نشد');
-        $title = mb_substr(strip_tags($_POST['title'] ?? ''), 0, 200);
-        $desc = mb_substr(strip_tags($_POST['desc'] ?? ''), 0, 300);
-        if (!$title) jerr('عنوان خالی است');
-        $s = file_get_contents($f);
-        $s = preg_replace('/<title>.*?<\/title>/su', '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>', $s, 1);
-        $s = preg_replace('/(<meta name="description" content=").*?(")/su', '${1}' . htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') . '${2}', $s, 1);
-        file_put_contents($f, $s, LOCK_EX);
-        cms_log('page_meta_save', $file);
-        jok();
+        if (!is_file($f)) jerr('فایل یافت نشد');
+        if (substr(realpath($f), 0, strlen(realpath($ROOT))) !== realpath($ROOT)) jerr('مسیر خارج از ریشهٔ سایت');
+
+        $title = trim((string)($_POST['title'] ?? ''));
+        $desc  = trim((string)($_POST['desc'] ?? ''));
+        $can   = trim((string)($_POST['canonical'] ?? ''));
+        $rob   = trim((string)($_POST['robots'] ?? ''));
+
+        if ($title === '') jerr('عنوان نمی‌تواند خالی باشد');
+        if (mb_strlen($title, 'UTF-8') > 200) jerr('عنوان بیش از ۲۰۰ کاراکتر است');
+        if (mb_strlen($desc, 'UTF-8') > 400) jerr('توضیح بیش از ۴۰۰ کاراکتر است');
+        if ($can !== '' && !preg_match('#^(https://pishtaj\.ir/|/)#i', $can)) {
+            jerr('canonical باید یا خالی باشد یا با https://pishtaj.ir/ شروع شود');
+        }
+        if ($rob !== '' && !preg_match('#^[a-z,\s\-]+$#i', $rob)) jerr('مقدار robots نامعتبر است');
+
+        $s = (string)file_get_contents($f);
+        $orig = $s;
+
+        /* --- title --- */
+        $newTitle = '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>';
+        if (preg_match('#<title>.*?</title>#su', $s)) {
+            $s = preg_replace('#<title>.*?</title>#su', $newTitle, $s, 1);
+        } else {
+            $s = preg_replace('#(<head[^>]*>)#isu', '$1' . "\n" . $newTitle, $s, 1);
+        }
+
+        /* --- description --- */
+        $newDesc = '<meta name="description" content="' . htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') . '" />';
+        if (preg_match('#<meta\s+name=["\']description["\']\s+content=["\'].*?["\']\s*/?>#isu', $s)) {
+            $s = preg_replace('#<meta\s+name=["\']description["\']\s+content=["\'].*?["\']\s*/?>#isu', $newDesc, $s, 1);
+        } else {
+            $s = preg_replace('#(</title>)#isu', '$1' . "\n" . $newDesc, $s, 1);
+        }
+
+        /* --- canonical --- */
+        if ($can !== '') {
+            $newCan = '<link rel="canonical" href="' . htmlspecialchars($can, ENT_QUOTES, 'UTF-8') . '" />';
+            if (preg_match('#<link[^>]*rel=["\']canonical["\'][^>]*>#isu', $s)) {
+                $s = preg_replace('#<link[^>]*rel=["\']canonical["\'][^>]*>#isu', $newCan, $s, 1);
+            } else {
+                $s = preg_replace('#(</title>)#isu', '$1' . "\n" . $newCan, $s, 1);
+            }
+        }
+
+        /* --- robots: فقط اگر مقدار داده شده باشد (حذف = پاک‌کردن تگ) --- */
+        if (isset($_POST['robots'])) {
+            $s = preg_replace('#\s*<meta\s+name=["\']robots["\'][^>]*>#isu', '', $s, 1);
+            if ($rob !== '') {
+                $newRob = '<meta name="robots" content="' . htmlspecialchars($rob, ENT_QUOTES, 'UTF-8') . '" />';
+                $s = preg_replace('#(</title>)#isu', '$1' . "\n" . $newRob, $s, 1);
+            }
+        }
+
+        if ($s === $orig) { jok(array('changed' => false)); }
+
+        /* محافظت: حجم فایل نباید جهش غیرعادی کند */
+        if (strlen($s) > strlen($orig) * 1.2 + 5000) jerr('تغییر غیرعادی در حجم فایل — عملیات لغو شد');
+        if (!is_writable($f)) jerr('فایل قابل‌نوشتن نیست (مجوز هاست را بررسی کنید)');
+
+        cms_backup($DATA, $ROOT, $file);                       /* نسخهٔ پشتیبان قبل از نوشتن */
+        if (file_put_contents($f, $s, LOCK_EX) === false) jerr('خطای نوشتن فایل');
+        if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json'); /* باطل‌کردن کش */
+        cms_log('page_meta_save', $file . ' | title=' . mb_substr($title, 0, 60, 'UTF-8'));
+        jok(array('changed' => true, 'backup' => 'crm/data/cms-backups'));
         break;
 
     case 'status':
