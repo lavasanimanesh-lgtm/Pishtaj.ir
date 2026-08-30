@@ -479,7 +479,7 @@
 
   window.cmsSeoSave = function (i) {
     var p = (window._cmsPages || [])[i];
-    if (!p) return;
+    if (!p) { alert('صفحهٔ انتخاب‌شده در فهرست پیدا نشد — لطفاً فهرست را دوباره بارگذاری کنید'); return; }
     var title = document.getElementById('csTitle').value.trim();
     var desc = document.getElementById('csDesc').value.trim();
     var can = document.getElementById('csCan').value.trim();
