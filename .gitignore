@@ -22,3 +22,8 @@ Thumbs.db
 _tools/rewrite/__pycache__/
 __pycache__/
 *.pyc
+
+# کلیدهای اتصال به Google Search Console (هرگز کامیت نشود)
+api/gsc-config.php
+crm/data/gsc-token.json
+crm/data/gsc-cache.json

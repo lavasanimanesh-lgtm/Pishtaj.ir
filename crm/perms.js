@@ -36,7 +36,8 @@
     if (panelId === 'orders' || panelId === 'fin') return !!r.finance;
     if (panelId === 'users') return !!r.users;
     /* v14.9 (US-383): مدیرعامل و مدیر بازرگانی هم‌سطح رییس هیات مدیره */
-    if (panelId === 'rep' || panelId === 'cms') return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1;
+    /* v34.9.1: پنل سرچ کنسول هم‌سطح مدیریت سایت */
+    if (panelId === 'rep' || panelId === 'cms' || panelId === 'gsc') return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1;
     if (panelId === 'sms') return ['admin', 'chairman', 'ceo', 'commercial'].indexOf(curRole()) > -1;
     if (panelId === 'petty') return true; // تنخواه: همه ثبت می‌کنند (دید داخلش کنترل می‌شود)
     if (r.panels === '*') return true;
