@@ -81,7 +81,6 @@ function sitemap_remove($url) {
     file_put_contents($f, $s, LOCK_EX);
 }
 
-switch ($action) {
 
     /* =====================================================================
    v34.9.1 (US-SEO-TAB): اسکنِ سراسریِ سئوی صفحات عمومی
@@ -272,6 +271,7 @@ function cms_backup($DATA, $ROOT, $rel) {
 }
 
 
+switch ($action) {
 /* ============ AC1: اخبار ============ */
     case 'news_save':
         $items = json_decode($_POST['items'] ?? '[]', true);
