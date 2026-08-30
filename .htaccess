@@ -34,6 +34,25 @@ RewriteCond %{HTTP:X-Forwarded-SSL} !on
 RewriteCond %{HTTP_HOST} ^(?:www\.)?pishtaj\.ir$ [NC]
 RewriteRule ^ https://pishtaj.ir%{REQUEST_URI} [R=301,L]
 
+# ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-WWW-001): یکسان‌سازی میزبان روی HTTPS
+# قانون بالا فقط وقتی HTTPS خاموش بود اجرا می‌شد؛ در نتیجه
+# https://www.pishtaj.ir با کد ۲۰۰ و محتوای کاملِ تکراری سرو می‌شد
+# (گوگل هر دو میزبان را ایندکس کرده بود → تقسیم اعتبار دامنه).
+# این قانون برای درخواست‌های HTTPS هم www را به نود دامنه ۳۰۱ می‌دهد.
+# ------------------------------------------------------------------
+RewriteCond %{HTTP_HOST} ^www\.pishtaj\.ir$ [NC]
+RewriteRule ^ https://pishtaj.ir%{REQUEST_URI} [R=301,L]
+
+# ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-SPAM-410): URLهای اسپم تزریقیِ دوران وردپرس
+# (کازینو/شرط‌بندی عربی). این مسیرها الان ۴۰۴ هستند و در فهرست گوگل
+# مانده‌اند؛ ۴۱۰ (Gone) سیگنالِ حذفِ قوی‌تر و سریع‌تری از ۴۰۴ است.
+# فقط کلیدواژه‌های بی‌خطرِ اختصاصیِ اسپم — نه واژه‌های عمومی فارسی.
+# ------------------------------------------------------------------
+RewriteCond %{REQUEST_URI} (casino|paysafecard|bingo|مراهنات|مراهنة|مراهنه) [NC]
+RewriteRule ^ - [G,L]
+
 # v34.7.51: صفحه آگهی از jobs.json اگر فایل استاتیک ساخته نشده باشد
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
@@ -64,6 +83,22 @@ RewriteRule ^industries/petrochemical\.html$ /industries/petrochemical/ [R=301,L
 RewriteRule ^industries/power-plant\.html$ /industries/power-plant/ [R=301,L]
 RewriteRule ^industries/steel\.html$ /industries/steel/ [R=301,L]
 RewriteRule ^industries/water\.html$ /industries/water/ [R=301,L]
+
+# ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-LEGACY-404): آدرس‌های نسخهٔ قدیمیِ وردپرسی که
+# هنوز در فهرست گوگل هستند و الان ۴۰۴ می‌دهند. هر نتیجهٔ قدیمی/بک‌لینک
+# به نزدیک‌ترین صفحهٔ معادل ۳۰۱ می‌شود تا اعتبار از دست نرود.
+# ⚠️ فهرست کامل باید از GSC → Indexing → Not found (404) استخراج و تکمیل شود؛
+# این فقط نمونه‌های رؤیت‌شده در نتایج جستجوست.
+# ------------------------------------------------------------------
+RewriteRule ^logo/?$ /about/logo-philosophy/ [R=301,L]
+RewriteRule ^contact-us/?$ /#contact [R=301,NE,L]
+RewriteRule "^درباره-ما/?$" /about/ [R=301,L]
+RewriteRule "^تماس-با-ما/?$" /#contact [R=301,NE,L]
+RewriteRule "^ساختار-سازمانی/?$" /about/organizational-chart/ [R=301,L]
+RewriteRule "^خدمات-ما/?$" /services/ [R=301,L]
+RewriteRule "^وبلاگ/?$" /blog/ [R=301,L]
+RewriteRule "^en/درباره-ما/?$" /en/about.html [R=301,L]
 
 RewriteRule ^blog/boiler-steam-equipment\.html$ /blog/boiler-steam-equipment/ [R=301,L]
 RewriteRule ^blog/compressors-air-systems\.html$ /blog/compressors-air-systems/ [R=301,L]
