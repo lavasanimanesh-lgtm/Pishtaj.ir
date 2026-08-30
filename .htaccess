@@ -60,6 +60,19 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^careers/([a-z0-9]+(?:-[a-z0-9]+)*)/?$ /careers/view.php?slug=$1 [L,QSA]
 
 # ------------------------------------------------------------------
+# SEO-2026-08-30 (BUG-SEO-DUP-301): صفحات تکراری/کم‌حجم که تا امروز فقط با
+# canonical سرپوش گذاشته شده بودند. canonical به‌تنهایی اعتبار را منتقل نمی‌کند
+# و خزش را هدر می‌دهد؛ ریدایرکت ۳۰۱ سیگنال قطعی است و مقصدها واقعاً قوی‌ترند:
+#   یکتای مبدأ در برابر مقصد: ۳۳۶→۱۶۹۸ | ۲۸۹→۶۸۹ | ۲۱۵→۱۱۰۴ | ۲۰۵→۱۵۰۷ | ۹۹→۷۶۶ | ۱۴۶→۶۱۲
+# ------------------------------------------------------------------
+RewriteRule ^services/piping-supply\.html$ /services/piping-equipment/ [R=301,L]
+RewriteRule ^services/valves-supply\.html$ /suppliers/valve-supplier.html [R=301,L]
+RewriteRule ^services/electrical-supply\.html$ /services/electrical-equipment/ [R=301,L]
+RewriteRule ^services/instrumentation-supply\.html$ /services/instrumentation-equipment/ [R=301,L]
+RewriteRule ^knowledge-center/article-012\.html$ /industries/steel/ [R=301,L]
+RewriteRule ^knowledge-center/nace-mr0175\.html$ /knowledge-center/nace-mr0175-sour-service-guide.html [R=301,L]
+
+# ------------------------------------------------------------------
 # SEO-CLEANUP-2026-07: قدیمی‌ترین نسخهٔ «تخت» این صفحات با نسخهٔ
 # «پوشه‌ای» جدیدتر جایگزین شده بود ولی فایل قدیمی حذف نشده بود.
 # این ریدایرکت ۳۰۱ تضمین می‌کند هر بک‌لینک/بوکمارک/نتیجهٔ قدیمی گوگل
