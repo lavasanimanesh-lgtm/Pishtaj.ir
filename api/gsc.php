@@ -42,6 +42,7 @@ $ROOT = dirname(__DIR__);
 $DATA = $ROOT . '/crm/data';
 if (!is_dir($DATA)) { mkdir($DATA, 0755, true); file_put_contents($DATA . '/.htaccess', "Deny from all\n"); }
 $CACHE_FILE = $DATA . '/gsc-cache.json';
+$COV_FILE   = $DATA . '/gsc-coverage.json';   /* کشِ جدا تا کشِ overview بازنویسی نشود */
 
 $action = $_REQUEST['action'] ?? '';
 
@@ -183,6 +184,38 @@ function gsc_cache_read() {
 function gsc_cache_write($d) {
     global $CACHE_FILE;
     @file_put_contents($CACHE_FILE, json_encode($d, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+
+/* ---------- نقشهٔ سایت (تکه‌تکه: sitemap-index.xml → sitemap-*.xml) ---------- */
+function gsc_sitemap_urls($ROOT) {
+    $urls = [];
+    $idx = $ROOT . '/sitemap-index.xml';
+    $files = [];
+    if (is_file($idx)) {
+        $c = (string)@file_get_contents($idx);
+        if (preg_match_all('#<loc>\s*(.*?)\s*</loc>#i', $c, $m)) {
+            foreach ($m[1] as $u) if (preg_match('#\.xml$#i', $u)) $files[] = $u;
+        }
+    }
+    foreach ($files as $u) {
+        $local = preg_replace('#^https?://(www\.)?pishtaj\.ir/#i', '', $u);
+        $p = $ROOT . '/' . $local;
+        if (!is_file($p)) continue;
+        $c = (string)@file_get_contents($p);
+        if (preg_match_all('#<loc>\s*(.*?)\s*</loc>#i', $c, $m2)) {
+            foreach ($m2[1] as $loc) $urls[trim($loc)] = $local;
+        }
+    }
+    return $urls;
+}
+
+/* پیوندِ مستقیم به «URL Inspection» در سرچ کنسول — همان‌جا که دکمهٔ
+   «درخواست ایندکس» وجود دارد. درخواستِ خودکار ممکن نیست (Indexing API فقط
+   JobPosting / BroadcastEvent را می‌پذیرد و اسکوپِ ما readonly است). */
+function gsc_inspect_link($propSite, $url) {
+    if (strpos($propSite, 'sc-domain:') !== 0) $propSite = rtrim($propSite, '/') . '/';
+    return 'https://search.google.com/search-console/inspect?resource_id='
+         . rawurlencode($propSite) . '&id=' . rawurlencode($url);
 }
 
 /* ---------- تحلیل ---------- */
@@ -369,6 +402,86 @@ switch ($action) {
         if (strpos($site, 'sc-domain:') !== 0) $site = rtrim($site, '/') . '/';
         $r = gsc_api($cfg, 'webmasters/v3/sites/' . rawurlencode($site) . '/sitemaps');
         jok(['sitemaps' => $r['sitemap'] ?? []]);
+        break;
+
+    /* صفحاتِ بدونِ داده در سرچ کنسول = کاندیدای «ایندکس‌نشده» + پیوندِ درخواستِ ایندکس */
+    case 'coverage':
+        $cfg = gsc_cfg();
+        if (!$cfg) jerr('gsc_not_configured');
+        $days = (int)($_REQUEST['days'] ?? 90);
+        if ($days < 28) $days = 28;
+        if ($days > 180) $days = 180;
+        $force = !empty($_REQUEST['refresh']);
+
+        if (!$force && is_file($COV_FILE)) {
+            $c = json_decode((string)@file_get_contents($COV_FILE), true);
+            if (is_array($c) && (int)($c['days'] ?? 0) === $days
+                && (int)($c['ts'] ?? 0) > time() - 3600) {
+                $c['cached'] = true;
+                jok($c);
+            }
+        }
+
+        /* ۱) همهٔ URLهای نقشهٔ سایت (کاندیدای ایندکس) */
+        $all = gsc_sitemap_urls($ROOT);
+        if (!$all) jerr('sitemap_not_found');
+
+        /* ۲) URLهایی که در بازهٔ زمانی داده دارند */
+        $p = gsc_query($cfg, ['page'], $days, 25000);
+        $seen = [];
+        foreach (($p['rows'] ?? []) as $r) {
+            if (empty($r['keys'][0])) continue;
+            $seen[rtrim($r['keys'][0], '/')] = [
+                'clicks'      => (float)($r['clicks'] ?? 0),
+                'impressions' => (float)($r['impressions'] ?? 0),
+                'position'    => (float)($r['position'] ?? 0),
+            ];
+        }
+
+        $propSite = (string)$cfg['site_url'];
+        $noData = [];
+        foreach (array_keys($all) as $u) {
+            if (isset($seen[rtrim($u, '/')])) continue;
+            $noData[] = ['url' => $u, 'inspectLink' => gsc_inspect_link($propSite, $u)];
+        }
+
+        /* ۳) تأییدِ قطعی با URL Inspection — فقط به درخواست و حداکثر ۱۰ مورد،
+              چون سهمیهٔ روزانهٔ این API محدود است */
+        $verify = min(10, max(0, (int)($_REQUEST['verify'] ?? 0)));
+        $verified = [];
+        for ($i = 0; $i < $verify && $i < count($noData); $i++) {
+            $u = $noData[$i]['url'];
+            $r = gsc_api($cfg, 'v1/urlInspection/index:inspect', [
+                'inspectionUrl' => $u,
+                'siteUrl'       => $cfg['site_url'],
+            ]);
+            $idx = ($r['inspectionResult'] ?? [])['indexStatusResult'] ?? [];
+            $verified[] = [
+                'url'      => $u,
+                'verdict'  => $idx['verdict'] ?? 'UNKNOWN',
+                'coverage' => $idx['coverageState'] ?? '',
+                'crawled'  => $idx['lastCrawlTime'] ?? '',
+                'robots'   => $idx['robotsTxtState'] ?? '',
+                'fetch'    => $idx['pageFetchState'] ?? '',
+            ];
+        }
+
+        $out = [
+            'kind'          => 'coverage',
+            'days'          => $days,
+            'end'           => date('Y-m-d', strtotime('-2 days')),
+            'ts'            => time(),
+            'sitemap_total' => count($all),
+            'with_data'     => count($seen),
+            'no_data'       => $noData,
+            'verified'      => $verified,
+            /* بدونِ داده ≠ قطعاً ایندکس‌نشده: صفحهٔ ایندکس‌شده با صفر نمایش
+               هم در این فهرست می‌آید. تأییدِ قطعی فقط با «بررسی ایندکس». */
+            'note'          => 'فهرستِ «بدونِ داده» شاملِ هر صفحهٔ نقشه است که در این بازه نمایش/کلیک نداشته؛ '
+                             . 'ایندکس‌نشدنِ قطعی را باید با «بررسی ایندکس» تأیید کرد.',
+        ];
+        @file_put_contents($COV_FILE, json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        jok($out);
         break;
 
     default:

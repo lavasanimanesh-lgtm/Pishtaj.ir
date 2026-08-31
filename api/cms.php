@@ -62,23 +62,74 @@ function replace_js_array($file, $marker, $jsonItems) {
     return true;
 }
 
+/* سایت از نقشهٔ تکه‌تکه استفاده می‌کند (sitemap-index.xml)؛ sitemap.xml وجود ندارد.
+   پس هر URL باید در زیرنقشهٔ خودش نوشته شود، وگرنه بی‌صدا گم می‌شود. */
+function sitemap_file_for($url) {
+    $path = (string)parse_url($url, PHP_URL_PATH);
+    $segs = array_values(array_filter(explode('/', $path), function ($x) { return $x !== ''; }));
+    $top = $segs[0] ?? '';
+    $map = [
+        'blog'             => 'sitemap-blog.xml',
+        'knowledge-center' => 'sitemap-knowledge-center.xml',
+        'industries'       => 'sitemap-industries.xml',
+        'services'         => 'sitemap-services.xml',
+        'en'               => 'sitemap-en.xml',
+        'about'            => 'sitemap-core.xml',
+    ];
+    if (isset($map[$top])) return $map[$top];
+    return $top === '' ? 'sitemap-core.xml' : 'sitemap-misc.xml';
+}
+
+function sitemap_touch_index($sub) {
+    global $ROOT;
+    $idx = $ROOT . '/sitemap-index.xml';
+    if (!is_file($idx)) return;
+    $s = (string)file_get_contents($idx);
+    $loc = 'https://pishtaj.ir/' . $sub;
+    /* فقط lastmod همان زیرنقشه به‌روز می‌شود */
+    $s = preg_replace(
+        '#(<loc>' . preg_quote($loc, '#') . '</loc><lastmod>)[^<]*(</lastmod>)#',
+        '${1}' . date('Y-m-d') . '${2}',
+        $s, 1
+    );
+    file_put_contents($idx, $s, LOCK_EX);
+}
+
 function sitemap_add($url) {
     global $ROOT;
-    $f = $ROOT . '/sitemap.xml';
-    if (!file_exists($f)) return;
-    $s = file_get_contents($f);
-    if (strpos($s, '<loc>' . $url . '</loc>') !== false) return;
+    $sub = sitemap_file_for($url);
+    $f = $ROOT . '/' . $sub;
+    $s = is_file($f) ? (string)file_get_contents($f) : '';
+    if ($s === '' || strpos($s, '</urlset>') === false) {
+        /* زیرنقشه وجود ندارد یا خراب است: از نو می‌سازیم */
+        $s = '<?xml version="1.0" encoding="UTF-8"?>' . "\n"
+           . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
+           . "  <url><loc>" . htmlspecialchars($url, ENT_XML1) . "</loc><lastmod>" . date('Y-m-d') . "</lastmod></url>\n"
+           . "</urlset>\n";
+        if (file_put_contents($f, $s, LOCK_EX) !== false) sitemap_touch_index($sub);
+        return;
+    }
+    if (strpos($s, '<loc>' . $url . '</loc>') !== false) return;   /* از قبل هست */
     $entry = "  <url><loc>" . htmlspecialchars($url, ENT_XML1) . "</loc><lastmod>" . date('Y-m-d') . "</lastmod></url>\n</urlset>";
     $s = str_replace('</urlset>', $entry, $s);
-    file_put_contents($f, $s, LOCK_EX);
+    if (file_put_contents($f, $s, LOCK_EX) !== false) sitemap_touch_index($sub);
 }
 function sitemap_remove($url) {
     global $ROOT;
-    $f = $ROOT . '/sitemap.xml';
-    if (!file_exists($f)) return;
-    $s = file_get_contents($f);
-    $s = preg_replace('#\s*<url><loc>' . preg_quote($url, '#') . '</loc>.*?</url>#s', '', $s, 1);
-    file_put_contents($f, $s, LOCK_EX);
+    /* ورودی‌های قدیمی ممکن است در هر زیرنقشه‌ای باشند، پس همه را می‌گردیم */
+    $hit = false;
+    foreach (glob($ROOT . '/sitemap-*.xml') ?: [] as $f) {
+        if (basename($f) === 'sitemap-index.xml') continue;
+        $s = (string)file_get_contents($f);
+        if (strpos($s, '<loc>' . $url . '</loc>') === false) continue;
+        $n = preg_replace('#\s*<url><loc>' . preg_quote($url, '#') . '</loc>.*?</url>#s', '', $s, 1);
+        if ($n !== null && $n !== $s) {
+            file_put_contents($f, $n, LOCK_EX);
+            sitemap_touch_index(basename($f));
+            $hit = true;
+        }
+    }
+    return $hit;
 }
 
 
@@ -557,6 +608,19 @@ switch ($action) {
                 $newRob = '<meta name="robots" content="' . htmlspecialchars($rob, ENT_QUOTES, 'UTF-8') . '" />';
                 $s = preg_replace('#(</title>)#isu', '$1' . "\n" . $newRob, $s, 1);
             }
+        }
+
+        /* --- h1: فقط اگر فرستاده شده باشد؛ متنِ اولین h1 جایگزین می‌شود --- */
+        if (isset($_POST['h1'])) {
+            $h1new = trim((string)$_POST['h1']);
+            if ($h1new === '') jerr('h1 نمی‌تواند خالی باشد');
+            if (mb_strlen($h1new, 'UTF-8') > 200) jerr('h1 بیش از ۲۰۰ کاراکتر است');
+            $h1Esc = htmlspecialchars($h1new, ENT_QUOTES, 'UTF-8');
+            if (!preg_match('#<h1[^>]*>.*?</h1>#isu', $s)) jerr('این صفحه تگ h1 ندارد');
+            /* callback تا $ و \ داخلِ متن تفسیر نشوند */
+            $s = preg_replace_callback('#(<h1[^>]*>).*?(</h1>)#isu', function ($m) use ($h1Esc) {
+                return $m[1] . $h1Esc . $m[2];
+            }, $s, 1);
         }
 
         if ($s === $orig) { jok(array('changed' => false)); }

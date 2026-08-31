@@ -177,6 +177,10 @@
       '<div class="fld"><label>خلاصه (متا — برای گوگل، حداکثر ۳۰۰ حرف) *</label><textarea id="cbDesc" rows="2"></textarea></div>' +
       '<div class="fld"><label>متن کامل مقاله * <small style="color:#94a3b8">(می‌توانید تیتر را با ## در ابتدای خط بنویسید — خودکار H2 می‌شود)</small></label>' +
       '<textarea id="cbBody" rows="14" style="line-height:1.9"></textarea></div>' +
+      '<div id="cbAiSt" style="font-size:12px;margin-bottom:6px;line-height:1.8"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">' +
+      '<button class="bt bt-o" onclick="cmsAiArticle()">🤖 نوشتن مقاله با هوش مصنوعی</button>' +
+      '<button class="bt bt-o" onclick="cmsAiExpand()">📈 بسط و بهبود متن فعلی</button></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end">' +
       '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))hideModal()">انصراف</button>' +
       '<button class="bt" onclick="cmsBlogPublish()">🚀 انتشار مقاله روی سایت</button></div>' +
@@ -208,6 +212,49 @@
     return out.join('\n');
   };
 
+  /* نوشتنِ مقالهٔ کامل از روی موضوع — خروجی HTML امن (بدونِ مارک‌داون) */
+  window.cmsAiArticle = function () {
+    var topic = (document.getElementById('cbTitle') || {}).value.trim();
+    if (!topic) { alert('ابتدا عنوان/موضوع مقاله را بنویسید تا هوش مصنوعی بر همان مبنا بنویسد.'); return; }
+    var st = document.getElementById('cbAiSt');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ هوش مصنوعی در حال نگارش مقالهٔ کامل… (۳۰ تا ۶۰ ثانیه)</span>';
+    cmsLLM('seo_article', { topic: topic, kw: topic, audience: 'کارشناس خرید و مهندس پایپینگ' }, function (d) {
+      if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+      var g = d.data;
+      var cur = (document.getElementById('cbBody') || {}).value.trim();
+      if (cur && !confirm('متن فعلی با مقالهٔ پیشنهادی جایگزین شود؟')) { if (st) st.textContent = 'متن فعلی حفظ شد.'; return; }
+      cmsSetLen('cbTitle', g.title); cmsSetLen('cbDesc', g.desc);
+      cmsSetLen('cbSlug', (g.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''));
+      /* خروجی HTML است؛ در textarea به‌صورت متن گذاشته می‌شود و در انتشار مستقیم مصرف می‌شود */
+      cmsSetLen('cbBody', g.body || '');
+      window._cmsBodyIsHtml = true;
+      if (st) st.innerHTML = '<span style="color:#059669">✅ مقاله تولید شد. پیش از انتشار حتماً متن و اعداد فنی را بازبینی کنید.</span>';
+    });
+  };
+
+  /* بسط و تکمیلِ مقالهٔ کوتاهِ موجود — داده‌های متنِ قبلی حذف نمی‌شود */
+  window.cmsAiExpand = function () {
+    var cur = ((document.getElementById('cbBody') || {}).value || '').trim();
+    if (cur.length < 40) { alert('ابتدا متن فعلی مقاله را در کادر متن قرار دهید.'); return; }
+    var topic = ((document.getElementById('cbTitle') || {}).value || '').trim();
+    var st = document.getElementById('cbAiSt');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ هوش مصنوعی در حال بسط و تکمیل مقاله…</span>';
+    /* اگر متن HTML است همان را می‌فرستیم، وگرنه از مارک‌داونِ سبک HTML می‌سازیم */
+    var send = (cur.indexOf('<') === 0 || cur.indexOf('<h2') > -1 || cur.indexOf('<p>') > -1) ? cur : cmsMdToHtml(cur);
+    cmsLLM('seo_expand', { topic: topic, text: send }, function (d) {
+      if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+      var g = d.data;
+      if (!confirm('متن با نسخهٔ بسط‌یافته جایگزین شود؟')) { if (st) st.textContent = 'متن فعلی حفظ شد.'; return; }
+      if (g.title) cmsSetLen('cbTitle', g.title);
+      if (g.desc) cmsSetLen('cbDesc', g.desc);
+      cmsSetLen('cbBody', g.body || '');
+      window._cmsBodyIsHtml = true;
+      var ad = (g.added || []);
+      if (st) st.innerHTML = '<span style="color:#059669">✅ بسط انجام شد.</span>' +
+        (ad.length ? '<br><b>چه چیزی اضافه شد:</b> ' + escP([].concat(ad).join(' · ')) : '');
+    });
+  };
+
   window.cmsBlogPublish = function () {
     var title = document.getElementById('cbTitle').value.trim();
     var slug = document.getElementById('cbSlug').value.trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
@@ -216,7 +263,7 @@
     var catLb = BLOG_CATS.filter(function (c) { return c.v === catV; })[0].lb;
     var bodyRaw = document.getElementById('cbBody').value;
     if (!title || !slug || !desc || bodyRaw.trim().length < 100) { alert('همه فیلدها الزامی است (متن حداقل ۱۰۰ حرف)'); return; }
-    var body = cmsMdToHtml(bodyRaw);
+    var body = window._cmsBodyIsHtml ? bodyRaw : cmsMdToHtml(bodyRaw);
     if (!confirm('🚀 مقاله «' + title + '» با آدرس blog/' + slug + '.html روی سایت منتشر شود؟')) return;
     api('blog_create', {
       title: title, slug: slug, desc: desc, cat: catV, catLb: catLb, body: body,
@@ -440,6 +487,89 @@
       de.textContent = dl + ' کاراکتر';
       de.style.color = (dl >= 70 && dl <= 165) ? '#059669' : '#dc2626';
     }
+    var h = document.getElementById('csH1'), he = document.getElementById('csH1Len');
+    if (h && he) {
+      var hl = h.value.trim().length;
+      he.textContent = hl + ' کاراکتر';
+      he.style.color = (hl >= 20 && hl <= 70) ? '#059669' : '#dc2626';
+    }
+  };
+
+  /* ---------- لایهٔ هوش مصنوعیِ سئو (api/llm.php) ---------- */
+  function cmsLLM(action, body, cb) {
+    var h = cmsAuthHeaders();
+    h['Content-Type'] = 'application/json';
+    fetch('../api/llm.php?action=' + action, { method: 'POST', headers: h, body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); }).then(cb)
+      .catch(function () { cb({ ok: false, error: 'عدم دسترسی به هوش مصنوعی' }); });
+  }
+
+  /* متنِ قابلِ‌خواندنِ یک صفحهٔ سایت (همان‌اصل = منشأ یکسان) */
+  function cmsPageText(path, cb) {
+    fetch('/' + path, { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+      if (!t) { cb(''); return; }
+      t = t.replace(/<(script|style|noscript|template)[\s\S]*?<\/\1>/gi, ' ');
+      var i = t.toLowerCase().indexOf('</head>');
+      if (i > -1) t = t.slice(i + 7);
+      t = t.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      cb(t.slice(0, 8000));
+    }).catch(function () { cb(''); });
+  }
+
+  function cmsSetLen(id, v) { var e = document.getElementById(id); if (e) e.value = v || ''; }
+
+  window.cmsAiMeta = function (i) {
+    var p = (window._cmsPages || [])[i];
+    if (!p) return;
+    var st = document.getElementById('csAiSt');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ هوش مصنوعی در حال بررسی صفحه…</span>';
+    cmsPageText(p.path, function (txt) {
+      cmsLLM('seo_meta', { topic: (p.title || '') + ' — ' + (p.h1 || ''), content: txt }, function (d) {
+        if (st) st.innerHTML = '';
+        if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+        var g = d.data;
+        if (document.getElementById('csTitle').value.trim() && !confirm('عنوان و توضیح پیشنهادی جایگزین مقادیر فعلی شود؟')) return;
+        cmsSetLen('csTitle', g.title); cmsSetLen('csDesc', g.desc); cmsSetLen('csH1', g.h1);
+        cmsSeoCount();
+        if (st) st.innerHTML = '<span style="color:#059669">✅ پیشنهادها جای‌گذاری شد — پیش از ذخیره بازبینی کنید.' +
+          (g.keywords ? ' واژگان: ' + escP([].concat(g.keywords).join('، ')) : '') + '</span>';
+      });
+    });
+  };
+
+  window.cmsAiFix = function (i) {
+    var p = (window._cmsPages || [])[i];
+    if (!p) return;
+    var iss = (p.issues || []).join('، ');
+    if (!iss) { alert('این صفحه ایراد گزارش‌شده‌ای ندارد ✅'); return; }
+    var st = document.getElementById('csAiSt');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ هوش مصنوعی در حال تحلیل ' + escP(iss) + '…</span>';
+    cmsPageText(p.path, function (txt) {
+      cmsLLM('seo_fix', { issues: iss, content: txt }, function (d) {
+        if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+        var g = d.data, h = '';
+        (g.fixes || []).forEach(function (f) {
+          h += '<div style="margin:6px 0;padding:7px 9px;background:#f8fafc;border-right:3px solid #f97316;border-radius:6px">' +
+            '<b>' + escP(f.issue || '') + '</b><br>' + escP(f.action || '') + '</div>';
+        });
+        if (g.sections && g.sections.length) h += '<div style="margin-top:8px"><b>تیترهای پیشنهادی:</b><br>' + escP([].concat(g.sections).join(' · ')) + '</div>';
+        if (g.links && g.links.length) {
+          h += '<div style="margin-top:8px"><b>لینک داخلی پیشنهادی:</b><ul style="margin:4px 0 0 18px">';
+          [].concat(g.links).forEach(function (l) { h += '<li>' + escP(l.anchor || '') + ' → <span style="direction:ltr">' + escP(l.target || '') + '</span></li>'; });
+          h += '</ul></div>';
+        }
+        if (st) st.innerHTML = '<div style="margin-top:8px;max-height:220px;overflow:auto;font-size:12px;line-height:1.8">' + h + '</div>' +
+          '<button class="bt bt-o" style="margin-top:6px" onclick="cmsAiApplyFix(' + i + ')">⬇️ جای‌گذاری عنوان/توضیح/H1 پیشنهادی</button>';
+        window._cmsAiFix = g;
+      });
+    });
+  };
+
+  window.cmsAiApplyFix = function (i) {
+    var g = window._cmsAiFix;
+    if (!g) return;
+    cmsSetLen('csTitle', g.title); cmsSetLen('csDesc', g.desc); cmsSetLen('csH1', g.h1);
+    cmsSeoCount();
   };
 
   window.cmsSeoEdit = function (i) {
@@ -464,9 +594,15 @@
       '<input type="text" id="csTitle" value="' + escP(p.title) + '" oninput="cmsSeoCount()"></div>' +
       '<div class="fld"><label>توضیح (description) — زیر عنوان در گوگل <span id="csDescLen" style="font-size:11px"></span></label>' +
       '<textarea id="csDesc" rows="3" oninput="cmsSeoCount()">' + escP(p.desc) + '</textarea></div>' +
+      '<div class="fld"><label>عنوان H1 — تیتر اصلی داخل صفحه <span id="csH1Len" style="font-size:11px"></span></label>' +
+      '<input type="text" id="csH1" value="' + escP(p.h1 || '') + '" oninput="cmsSeoCount()"></div>' +
       '<div class="fld"><label>canonical — آدرس رسمی صفحه (خالی = تغییر نمی‌کند)</label>' +
       '<input type="text" id="csCan" value="' + escP(p.canonical) + '" style="direction:ltr" placeholder="https://pishtaj.ir/..."></div>' +
       '<div class="fld"><label>robots — وضعیت ایندکس</label><select id="csRob">' + sel + '</select></div>' +
+      '<div id="csAiSt" style="font-size:12px;margin-top:6px;line-height:1.8"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+      '<button class="bt bt-o" onclick="cmsAiMeta(' + i + ')">✨ پیشنهاد عنوان/توضیح/H1 با AI</button>' +
+      '<button class="bt bt-o" onclick="cmsAiFix(' + i + ')">🛠 رفع ایرادها با AI</button></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">' +
       '<a class="bt bt-o" style="text-decoration:none" target="_blank" href="/' + escP(p.path) + '">مشاهده صفحه</a>' +
       '<button class="bt bt-o" onclick="hideModal()">انصراف</button>' +
@@ -486,7 +622,10 @@
     var rob = document.getElementById('csRob').value;
     if (!title) { alert('عنوان نمی‌تواند خالی باشد'); return; }
     if (!confirm('تغییرات سئو روی «' + p.path + '» اعمال شود؟')) return;
-    api('page_meta_save', { file: p.path, title: title, desc: desc, canonical: can, robots: rob }, function (d) {
+    var h1v = (document.getElementById('csH1') || {}).value;
+    h1v = h1v ? h1v.trim() : '';
+    if (!h1v) { alert('عنوان H1 نمی‌تواند خالی باشد'); return; }
+    api('page_meta_save', { file: p.path, title: title, desc: desc, canonical: can, robots: rob, h1: h1v }, function (d) {
       if (d.ok) {
         alert(d.changed ? '✅ اعمال شد — در سرچ کنسول می‌توانید Request Indexing بزنید.' : 'تغییری اعمال نشد (مقادیر یکسان بود)');
         audit('CMS', 'ویرایش سئوی ' + p.path, (p.issues || []).join(','));

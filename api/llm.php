@@ -650,6 +650,97 @@ switch ($action) {
         out_json(llm_call($cfg, $sys, $user, null, null, 2500));
         break;
 
+    /* ================= هوش مصنوعیِ سئو (پنل سایت / CMS) ================= */
+    /* هر چهار اکشن فقط با نقش‌های مجازِ خودِ CMS کار می‌کنند */
+    case 'seo_meta':
+    case 'seo_article':
+    case 'seo_expand':
+    case 'seo_fix':
+        if (!in_array($llmRole, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
+            http_response_code(403);
+            echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $SEO_RULES = 'You are the in-house technical SEO editor of شرکت پیشرو تجهیز فرتاک '
+            . '(Pishro Tajhiz Fartak), an Iranian supplier of piping, valves, instrumentation, boilers, '
+            . 'compressors and electrical equipment for oil, gas, petrochemical, steel and power projects. '
+            . 'HARD RULES: write natural Persian (فارسی روان), never keyword-stuff, never invent prices, '
+            . 'stock, certifications, dates or numeric claims that are not in the input. '
+            . 'Keep standard designations in Latin exactly as written (ASTM A106 Gr.B, ASME B16.5, API 5L X42). '
+            . 'LENGTH RULES measured in Persian characters: title 30-65, description 70-165, h1 20-70. '
+            . 'Title and h1 must NOT be identical. Description must be a single sentence-pair that a searcher '
+            . 'would click, ending without a trailing period. slug = lowercase english kebab-case. ';
+
+        if ($action === 'seo_meta') {
+            $topic = trim((string)($in['topic'] ?? ''));
+            $content = trim((string)($in['content'] ?? ''));
+            if ($content !== '' && mb_strlen($content) > 12000) $content = mb_substr($content, 0, 12000);
+            if ($topic === '' && $content === '') { echo json_encode(['ok' => false, 'error' => 'موضوع یا متن صفحه لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = $SEO_RULES
+                . 'Task: from the given page topic and/or visible text, produce the on-page SEO head fields. '
+                . 'keywords = 3-6 short Persian/Latin search phrases a buyer or engineer would actually type. '
+                . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","keywords":["..."]}';
+            $user = "موضوع: $topic\n\nمتن صفحه:\n" . $content;
+            out_json(llm_call($cfg, $sys, $user, null, null, 900));
+            break;
+        }
+
+        if ($action === 'seo_article') {
+            $topic = trim((string)($in['topic'] ?? ''));
+            $kw = trim((string)($in['kw'] ?? ''));
+            $aud = trim((string)($in['audience'] ?? 'کارشناس خرید و مهندس پایپینگ'));
+            if ($topic === '' || mb_strlen($topic) > 400) { echo json_encode(['ok' => false, 'error' => 'موضوع نامعتبر است'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = $SEO_RULES
+                . 'Task: write a COMPLETE Persian technical article ready to publish. '
+                . 'body MUST be HTML using ONLY these tags: <h2> <h3> <p> <ul> <ol> <li> <table> <thead> <tbody> <tr> <th> <td> <b> <strong> <em> <blockquote>. '
+                . 'Absolutely NO markdown (no **, no ##, no ```), no <script>, no inline style, no image tags, '
+                . 'no placeholders like [X] or «توضیح بیشتر», no English commentary. '
+                . 'Structure: 5-8 <h2> sections, at least one <table> comparing real technical values that are '
+                . 'standard and verifiable (sizes, pressure classes, material grades, test rules), and a final '
+                . 'practical checklist. Minimum 1200 words of real substance. '
+                . 'If a number is not a widely published standard value, describe the rule instead of inventing a figure. '
+                . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","body":"<h2>...</h2>...","keywords":["..."]}';
+            $user = "موضوع مقاله: $topic\nواژگان هدف: $kw\nمخاطب: $aud";
+            out_json(llm_call($cfg, $sys, $user, null, null, 4000));
+            break;
+        }
+
+        if ($action === 'seo_expand') {
+            $text = trim((string)($in['text'] ?? ''));
+            $topic = trim((string)($in['topic'] ?? ''));
+            if ($text === '' || mb_strlen($text) > 14000) { echo json_encode(['ok' => false, 'error' => 'متن نامعتبر است (حداکثر ۱۴۰۰۰ کاراکتر)'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = $SEO_RULES
+                . 'Task: the input is an existing thin article on the site. Rewrite it into a genuinely useful, '
+                . 'in-depth Persian article. PRESERVE every factual claim already present; never delete information. '
+                . 'Add the missing engineering depth: applicable standards, selection criteria, sizing/test rules, '
+                . 'common procurement mistakes, and a buyer checklist. '
+                . 'body MUST be HTML with ONLY these tags: <h2> <h3> <p> <ul> <ol> <li> <table> <thead> <tbody> <tr> <th> <td> <b> <strong> <em> <blockquote>. '
+                . 'No markdown, no inline style, no placeholders. Target 1200+ words. '
+                . 'added = 3-5 short Persian bullets naming what you added. '
+                . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","body":"...","added":["..."]}';
+            $user = "موضوع: $topic\n\nمتن فعلی مقاله:\n" . $text;
+            out_json(llm_call($cfg, $sys, $user, null, null, 4000));
+            break;
+        }
+
+        /* seo_fix */
+        $issues = trim((string)($in['issues'] ?? ''));
+        $content = trim((string)($in['content'] ?? ''));
+        if ($issues === '' || mb_strlen($issues) > 600) { echo json_encode(['ok' => false, 'error' => 'فهرست ایرادات نامعتبر است'], JSON_UNESCAPED_UNICODE); exit; }
+        if ($content !== '' && mb_strlen($content) > 12000) $content = mb_substr($content, 0, 12000);
+        $sys = $SEO_RULES
+            . 'Task: an automated audit reported these issues for one page. For EACH issue give the exact fix. '
+            . 'Do not suggest deleting or noindexing the page. Do not suggest inventing content. '
+            . 'alt = suggested Persian alt text for images that lack it. '
+            . 'sections = 3-6 <h2> headings the page should have to cover the topic properly. '
+            . 'links = 3-5 internal-link suggestions as {anchor, target} where target is a real site path. '
+            . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","fixes":[{"issue":"...","action":"..."}],'
+            . '"alt":["..."],"sections":["..."],"links":[{"anchor":"...","target":"..."}]}';
+        $user = "ایرادات گزارش‌شده: $issues\n\nمتن صفحه:\n" . $content;
+        out_json(llm_call($cfg, $sys, $user, null, null, 2000));
+        break;
+
     default:
         echo json_encode(['ok' => false, 'error' => 'action نامعتبر']);
 }
