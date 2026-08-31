@@ -185,6 +185,16 @@ def priority_for(url_path: str) -> str:
     return PRIORITY_BY_SEGMENT.get(seg, DEFAULT_PRIORITY)
 
 
+def git_is_shallow():
+    """کلونِ shallow تاریخچهٔ واقعی ندارد؛ lastmod یکسان و بی‌معنی می‌شود."""
+    try:
+        r = subprocess.run(["git", "rev-parse", "--is-shallow-repository"],
+                           capture_output=True, text=True, timeout=30, cwd=ROOT)
+        return r.returncode == 0 and r.stdout.strip() == "true"
+    except Exception:
+        return False
+
+
 def git_lastmod_map():
     """{مسیر_نسبی: تاریخِ آخرین کامیت} از یک فراخوانیِ git.
 
@@ -192,6 +202,13 @@ def git_lastmod_map():
     دیده می‌شود همان آخرین تغییرش است. اگر git نبود (کلونِ shallowِ خراب یا
     اجرای سمتِ سرور) دیکشنریِ خالی برمی‌گردد و فراخوان به mtime می‌افتد.
     """
+    if git_is_shallow():
+        # بدونِ این هشدار، manifest بی‌صدا یکسان نوشته می‌شود و lastmod
+        # سیگنالِ تازگی را از بین می‌برد (دقیقاً همان باگی که رفع کردیم).
+        raise RuntimeError(
+            "کلون shallow است — تاریخچهٔ واقعی در دسترس نیست. "
+            "پیش از اجرا: git fetch --unshallow origin"
+        )
     try:
         out = subprocess.run(
             ["git", "log", "--name-only", "--pretty=format:@%as"],
