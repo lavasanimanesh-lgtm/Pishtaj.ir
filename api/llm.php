@@ -655,6 +655,7 @@ switch ($action) {
     case 'seo_meta':
     case 'seo_article':
     case 'seo_expand':
+    case 'seo_review':
     case 'seo_fix':
         if (!in_array($llmRole, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
             http_response_code(403);
@@ -721,6 +722,34 @@ switch ($action) {
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","body":"...","added":["..."]}';
             $user = "موضوع: $topic\n\nمتن فعلی مقاله:\n" . $text;
             out_json(llm_call($cfg, $sys, $user, null, null, 4000));
+            break;
+        }
+
+        if ($action === 'seo_review') {
+            $title = trim((string)($in['title'] ?? ''));
+            $h1    = trim((string)($in['h1'] ?? ''));
+            $desc  = trim((string)($in['desc'] ?? ''));
+            $body  = trim((string)($in['body'] ?? ''));
+            if ($body === '' || mb_strlen($body) > 16000) { echo json_encode(['ok' => false, 'error' => 'متن نامعتبر است (حداکثر ۱۶۰۰۰ کاراکتر)'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = $SEO_RULES
+                . 'Task: you are doing the FINAL pre-publication SEO review of this finished article. '
+                . 'Be strict and concrete. Check every one of these and report only what is actually wrong: '
+                . 'title 30-65 chars and not identical to h1; description 70-165 chars; h1 20-70 chars; '
+                . 'exactly one h1 and a logical h2/h3 hierarchy with no skipped level; '
+                . 'enough depth (target 900+ words) with real technical substance, not filler; '
+                . 'the main keyword present in title, h1, description and the first 100 words without stuffing; '
+                . 'at least 3 useful internal links to other pishtaj.ir pages with descriptive Persian anchors '
+                . '(never «اینجا کلیک کنید»); at least one table or list where a comparison exists; '
+                . 'short paragraphs (max 4 lines); images with meaningful alt text; '
+                . 'and any number, price, standard clause or certificate that looks invented rather than published. '
+                . 'severity must be one of: high, medium, low. '
+                . 'Do NOT rewrite the article here; only report. Do not suggest deleting or noindexing the page. '
+                . 'Reply ONLY valid JSON: {"score":0-100,"verdict":"publish|fix-first",'
+                . '"issues":[{"severity":"high|medium|low","issue":"...","fix":"..."}],'
+                . '"missing_keywords":["..."],"internal_links":[{"anchor":"...","target":"/knowledge-center/..."}],'
+                . '"summary":"..."}';
+            $user = "عنوان (title): $title\nH1: $h1\nتوضیح (description): $desc\n\nبدنهٔ مقاله:\n" . $body;
+            out_json(llm_call($cfg, $sys, $user, null, null, 2500));
             break;
         }
 

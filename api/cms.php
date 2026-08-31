@@ -446,6 +446,145 @@ switch ($action) {
         jok(['url' => 'blog/' . $slug . '.html']);
         break;
 
+    case 'kc_create':
+        $title = mb_substr(strip_tags($_POST['title'] ?? ''), 0, 200);
+        $h1    = mb_substr(strip_tags($_POST['h1'] ?? ''), 0, 200);
+        $desc  = mb_substr(strip_tags($_POST['desc'] ?? ''), 0, 300);
+        $slug  = strtolower(preg_replace('/[^a-z0-9\-]/', '', $_POST['slug'] ?? ''));
+        $cat   = preg_replace('/[^a-z_]/', '', $_POST['cat'] ?? 'pipe');
+        $body  = $_POST['body'] ?? '';
+        $img   = preg_replace('#[^a-zA-Z0-9/\-_.:]#', '', $_POST['img'] ?? '../assets/images/ptf-logo.png');
+        if ($title === '' || $slug === '') jerr('عنوان و نامک (slug) الزامی است');
+        if ($h1 === '') $h1 = $title;
+        if (mb_strlen(strip_tags($body), 'UTF-8') < 200) jerr('متن مقاله حداقل ۲۰۰ کاراکتر لازم دارد');
+
+        $file = $ROOT . '/knowledge-center/' . $slug . '.html';
+        if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
+
+        /* پاکسازی بدنه: فقط تگ‌های امن */
+        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+        $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
+        $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
+        $body = preg_replace('/javascript\s*:/i', '', $body);
+
+        /* قالب از یک صفحهٔ موجودِ مرکز دانش گرفته می‌شود تا هدر/فوتر/استایل
+           دقیقاً هم‌شکلِ بقیهٔ صفحات باشد (همان روشِ blog_create) */
+        $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
+        if ($skel === '') jerr('قالب مرجعِ مرکز دانش یافت نشد');
+        $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
+        $pBody = strpos($skel, '<body>');
+        $pHero = strpos($skel, $heroMark);
+        $pCta  = strpos($skel, '<div class="kc-supply-cta"');
+        $pFoot = strpos($skel, '<footer');
+        if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) {
+            jerr('ساختارِ قالب مرجع شناخته نشد');
+        }
+        $header = substr($skel, $pBody, $pHero - $pBody);
+        $cta    = substr($skel, $pCta, $pFoot - $pCta);
+        $footer = substr($skel, $pFoot);
+
+        $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+        $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
+        $dEsc = htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
+        $url  = 'https://pishtaj.ir/knowledge-center/' . $slug . '.html';
+        $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
+
+        $graph = [
+            ['@type' => 'Article', 'headline' => $h1, 'description' => $desc,
+             'author' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک'],
+             'publisher' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک',
+                 'logo' => ['@type' => 'ImageObject', 'url' => 'https://pishtaj.ir/assets/images/ptf-logo.png']],
+             'mainEntityOfPage' => ['@type' => 'WebPage', '@id' => $url],
+             'image' => $imgAbs],
+            ['@type' => 'BreadcrumbList', 'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'خانه', 'item' => 'https://pishtaj.ir/'],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'مرکز دانش', 'item' => 'https://pishtaj.ir/knowledge-center/'],
+                ['@type' => 'ListItem', 'position' => 3, 'name' => $title],
+            ]],
+        ];
+        $jsonLd = json_encode(['@context' => 'https://schema.org', '@graph' => $graph],
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        /* لینک‌های مرتبط: آرایهٔ JSON از {t,f} — لینک داخلیِ واقعی به همان پوشه */
+        $rel = json_decode((string)($_POST['related'] ?? ''), true);
+        $relHtml = '';
+        if (is_array($rel) && $rel) {
+            $items = '';
+            foreach ($rel as $r) {
+                if (!is_array($r)) continue;
+                $rt = mb_substr(strip_tags((string)($r['t'] ?? '')), 0, 140);
+                $rf = preg_replace('/[^a-z0-9\-_.]/', '', strtolower((string)($r['f'] ?? '')));
+                if ($rt === '' || $rf === '' || strpos($rf, '.html') === false) continue;
+                $items .= '        <li style="margin:0"><a href="' . htmlspecialchars($rf, ENT_QUOTES, 'UTF-8')
+                    . '" style="color:#334155;text-decoration:none;border-bottom:1px solid #e2e8f0;padding:5px 0;display:block;line-height:1.7">'
+                    . htmlspecialchars($rt, ENT_QUOTES, 'UTF-8') . "</a></li>\n";
+            }
+            if ($items !== '') {
+                $relHtml = '<section data-ptf-related="1" class="ptf-related" style="max-width:1100px;margin:0 auto;padding:34px 20px 6px">' . "\n"
+                    . '  <h2 style="font-size:17px;color:#0f172a;margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid #ef4b1a;display:inline-block">مطالب مرتبط در مرکز دانش</h2>' . "\n"
+                    . '  <ul style="list-style:none;padding:0;margin:0;display:grid;gap:0;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));column-gap:26px;font-size:13.5px">' . "\n"
+                    . $items . "  </ul>\n</section>\n";
+            }
+        }
+
+        $html = '<!doctype html>' . "\n" . '<html lang="fa" dir="rtl">' . "\n" . '<head>' . "\n"
+            . '<meta charset="utf-8" />' . "\n"
+            . '<meta name="viewport" content="width=device-width, initial-scale=1" />' . "\n"
+            . '<title>' . $tEsc . '</title>' . "\n"
+            . '<meta name="description" content="' . $dEsc . '" />' . "\n"
+            . '<meta name="robots" content="index, follow" />' . "\n"
+            . '<link rel="canonical" href="' . $url . '" />' . "\n"
+            . '<meta property="og:locale" content="fa_IR" />' . "\n"
+            . '<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />' . "\n"
+            . '<meta property="og:type" content="article" />' . "\n"
+            . '<meta property="og:title" content="' . $tEsc . '" />' . "\n"
+            . '<meta property="og:description" content="' . $dEsc . '" />' . "\n"
+            . '<meta property="og:url" content="' . $url . '" />' . "\n"
+            . '<meta property="og:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
+            . '<meta name="twitter:card" content="summary_large_image" />' . "\n"
+            . '<meta name="twitter:title" content="' . $tEsc . '" />' . "\n"
+            . '<meta name="twitter:description" content="' . $dEsc . '" />' . "\n"
+            . '<meta name="twitter:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
+            . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
+            . '<link rel="stylesheet" href="../assets/css/discover.css" />' . "\n"
+            . '</head>' . "\n"
+            . $header
+            . $heroMark . ';min-height:210px;display:flex;align-items:center">' . "\n"
+            . '<div class="container" style="position:relative;z-index:1">' . "\n"
+            . '<div style="font-size:13px;color:rgba(255,255,255,.6)">مرکز دانش · تامین و کیفیت</div>' . "\n"
+            . '<h1 style="font-size:clamp(22px,3vw,34px);margin:8px 0 10px">' . $hEsc . '</h1>' . "\n"
+            . '</div></section>' . "\n"
+            . '<div style="max-width:900px;margin:40px auto;padding:0 20px">' . "\n"
+            . '<article style="background:#fff;border:1px solid var(--line);border-radius:28px;padding:40px;line-height:2.1;color:#334155">' . "\n"
+            . '<div class="kc-body" style="text-align:right">' . "\n" . $body . "\n</div>" . "\n"
+            . '</article></div>' . "\n"
+            . $relHtml
+            . $cta
+            . $footer;
+
+        if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل (مجوز write؟)');
+
+        /* افزودن به فهرستِ مرکز دانش: آرایهٔ cats → a:[["عنوان","فایل"],…] */
+        $idxFile = $ROOT . '/knowledge-center/index.html';
+        $added = false;
+        $s = (string)@file_get_contents($idxFile);
+        $mk = '{icon:"' . $cat . '",t:"';
+        $p = strpos($s, $mk);
+        if ($p !== false) {
+            $aPos = strpos($s, 'a:[', $p);
+            if ($aPos !== false) {
+                $ins = $aPos + 3;
+                $entry = '["' . str_replace(['"', '\\'], '', $title) . '","' . $slug . '.html"],';
+                $s = substr($s, 0, $ins) . $entry . substr($s, $ins);
+                if (file_put_contents($idxFile, $s, LOCK_EX) !== false) $added = true;
+            }
+        }
+
+        sitemap_add($url);
+        cms_log('kc_create', $slug);
+        jok(['url' => 'knowledge-center/' . $slug . '.html', 'listed' => $added]);
+        break;
+
     case 'blog_list':
         $files = glob($ROOT . '/blog/*.html');
         $out = [];

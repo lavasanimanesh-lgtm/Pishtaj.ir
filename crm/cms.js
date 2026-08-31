@@ -151,7 +151,8 @@
 
   /* ============ AC2: وبلاگ ============ */
   function renderCmsBlog(el) {
-    el.innerHTML = '<div class="sb2" style="margin-bottom:10px"><button class="bt" onclick="cmsBlogNew()">+ مقاله جدید</button></div><div id="cmsBlogList" style="max-height:420px;overflow:auto"><div style="color:#94a3b8;text-align:center;padding:14px">در حال بارگذاری...</div></div>';
+    el.innerHTML = '<div class="sb2" style="margin-bottom:10px"><button class="bt" onclick="cmsBlogNew()">+ مقالهٔ وبلاگ</button>' +
+      '<button class="bt bt-o" onclick="cmsKcNew()">+ مقالهٔ مرکز دانش</button></div><div id="cmsBlogList" style="max-height:420px;overflow:auto"><div style="color:#94a3b8;text-align:center;padding:14px">در حال بارگذاری...</div></div>';
     api('blog_list', null, function (d) {
       var lel = document.getElementById('cmsBlogList');
       if (!lel) return;
@@ -166,6 +167,193 @@
       }).join('') || '<div style="color:#94a3b8;text-align:center;padding:14px">مقاله‌ای نیست</div>';
     });
   }
+
+  /* دسته‌های مرکز دانش — همان کلیدهای icon در const cats داخلِ
+     knowledge-center/index.html. اگر دسته‌ای اضافه شد، اینجا هم اضافه شود. */
+  var KC_CATS = [
+    ['pipe', 'لوله و اتصالات پایپینگ'], ['valve', 'شیرآلات صنعتی'],
+    ['instrument', 'ابزار دقیق و اندازه‌گیری'], ['electrical', 'برق صنعتی و اتوماسیون'],
+    ['quality', 'تامین، بازرسی و کیفیت'], ['industry', 'کاربردهای صنعتی'],
+    ['electrical_power', 'برق صنعتی — تکمیلی'], ['rotating', 'پمپ و کمپرسور'],
+    ['procurement', 'مدیریت تامین و بازرگانی'], ['pipe_special', 'راهنماهای تخصصی لوله'],
+    ['flange', 'فلنج و اتصالات — تکمیلی'], ['instrument_precision', 'ابزار دقیق — تکمیلی'],
+    ['valve_special', 'راهنماهای تخصصی شیرآلات'], ['seal', 'گسکت و آب‌بندی'],
+    ['process', 'سیستم‌های فرآیندی و جانبی'], ['mechanical', 'تجهیزات مکانیکال و تاسیسات']
+  ];
+
+  window.cmsKcNew = function () {
+    window._kcBodyIsHtml = false;
+    var opts = KC_CATS.map(function (c) {
+      return '<option value="' + escP(c[0]) + '">' + escP(c[1]) + '</option>';
+    }).join('');
+    var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:760px;max-height:94vh;overflow:auto">' +
+      '<h3>📚 مقالهٔ جدیدِ مرکز دانش</h3>' +
+      '<div class="fld"><label>عنوان * <span id="kcTitleLen" style="font-size:11px"></span></label>' +
+      '<input type="text" id="kcTitle" oninput="cmsKcCount()"></div>' +
+      '<div class="fld"><label>نامک انگلیسی (slug) * <small style="color:#94a3b8">فقط a-z 0-9 و خط تیره — بخشی از آدرس می‌شود</small></label>' +
+      '<input type="text" id="kcSlug" style="direction:ltr" placeholder="astm-a105-vs-a182"></div>' +
+      '<div class="fld"><label>H1 — تیتر داخل صفحه <span id="kcH1Len" style="font-size:11px"></span></label>' +
+      '<input type="text" id="kcH1" oninput="cmsKcCount()"></div>' +
+      '<div class="fld"><label>توضیح (description) <span id="kcDescLen" style="font-size:11px"></span></label>' +
+      '<textarea id="kcDesc" rows="2" oninput="cmsKcCount()"></textarea></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+      '<div class="fld"><label>دسته</label><select id="kcCat">' + opts + '</select></div>' +
+      '<div class="fld"><label>تصویر <small style="color:#94a3b8">مسیر یا آدرس</small></label>' +
+      '<input type="text" id="kcImg" style="direction:ltr" value="../assets/images/ptf-logo.png"></div></div>' +
+      '<div class="fld"><label>متن کامل * <small style="color:#94a3b8">## = تیتر ۲ · ### = تیتر ۳ · خط با «-» = فهرست</small></label>' +
+      '<textarea id="kcBody" rows="16" style="line-height:1.9"></textarea></div>' +
+      '<div class="fld"><label>لینک‌های مرتبط <small style="color:#94a3b8">هر خط: عنوان | نام‌فایل.html</small></label>' +
+      '<textarea id="kcRelated" rows="3" style="direction:ltr" placeholder="راهنمای فلنج ASME B16.5 | flange-types-complete-guide.html"></textarea></div>' +
+      '<div id="kcAiSt" style="font-size:12px;margin-bottom:6px;line-height:1.8"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">' +
+      '<button class="bt bt-o" onclick="cmsKcAiWrite()">🤖 نوشتن با هوش مصنوعی</button>' +
+      '<button class="bt bt-o" onclick="cmsKcAiExpand()">📈 بسط متن فعلی</button>' +
+      '<button class="bt bt-o" onclick="cmsKcReview()">🔍 بازبینیِ نهاییِ سئو با AI</button></div>' +
+      '<div id="kcReview"></div>' +
+      '<div style="margin-top:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px">' +
+      '<label style="display:flex;gap:7px;align-items:center;font-size:12px;cursor:pointer;margin:0">' +
+      '<input type="checkbox" id="kcReviewed" style="width:16px;height:16px;flex:0 0 auto">' +
+      '<span>متن و اعداد فنی را خواندم و تأیید می‌کنم — تا این تیک زده نشود انتشار ممکن نیست</span></label></div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+      '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))hideModal()">انصراف</button>' +
+      '<button class="bt" onclick="cmsKcPublish()">🚀 انتشار در مرکز دانش</button></div>' +
+      '<small style="color:#94a3b8;display:block;margin-top:6px">با قالبِ استانداردِ مرکز دانش (هدر/فوتر/H1/Schema/Breadcrumb) ساخته می‌شود، به فهرستِ مرکز دانش و نقشهٔ سایت اضافه می‌شود.</small>' +
+      '</div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+  };
+
+  window.cmsKcCount = function () {
+    [['kcTitle', 'kcTitleLen', 30, 65], ['kcH1', 'kcH1Len', 20, 70], ['kcDesc', 'kcDescLen', 70, 165]].forEach(function (x) {
+      var e = document.getElementById(x[0]), o = document.getElementById(x[1]);
+      if (!e || !o) return;
+      var l = e.value.trim().length;
+      o.textContent = l + ' کاراکتر';
+      o.style.color = (l >= x[2] && l <= x[3]) ? '#059669' : '#dc2626';
+    });
+  };
+
+  /* «عنوان | فایل.html» → آرایهٔ {t,f} */
+  function kcParseRelated() {
+    var t = ((document.getElementById('kcRelated') || {}).value || '');
+    var out = [];
+    t.split('\n').forEach(function (ln) {
+      var p = ln.split('|');
+      if (p.length < 2) return;
+      var f = p[1].trim().toLowerCase().replace(/[^a-z0-9\-_.]/g, '');
+      if (p[0].trim() && f) out.push({ t: p[0].trim(), f: f });
+    });
+    return out;
+  }
+
+  window.cmsKcAiWrite = function () {
+    var topic = ((document.getElementById('kcTitle') || {}).value || '').trim();
+    if (!topic) { alert('ابتدا عنوان را بنویسید تا هوش مصنوعی بر همان مبنا بنویسد.'); return; }
+    var st = document.getElementById('kcAiSt');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ در حال نگارش مقاله… (۳۰ تا ۶۰ ثانیه)</span>';
+    cmsLLM('seo_article', { topic: topic, kw: topic, audience: 'کارشناس خرید و مهندس پایپینگ' }, function (d) {
+      if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+      var g = d.data, cur = ((document.getElementById('kcBody') || {}).value || '').trim();
+      if (cur && !confirm('متن فعلی با مقالهٔ پیشنهادی جایگزین شود؟')) { if (st) st.textContent = 'متن فعلی حفظ شد.'; return; }
+      cmsSetLen('kcTitle', g.title); cmsSetLen('kcH1', g.h1); cmsSetLen('kcDesc', g.desc);
+      cmsSetLen('kcSlug', (g.slug || '').toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, ''));
+      cmsSetLen('kcBody', g.body || '');
+      window._kcBodyIsHtml = true;
+      var rv = document.getElementById('kcReviewed'); if (rv) rv.checked = false;
+      cmsKcCount();
+      if (st) st.innerHTML = '<span style="color:#059669">✅ تولید شد. حتماً «بازبینیِ نهاییِ سئو» را بزنید و اعداد فنی را چک کنید.</span>';
+    });
+  };
+
+  window.cmsKcAiExpand = function () {
+    var cur = ((document.getElementById('kcBody') || {}).value || '').trim();
+    if (cur.length < 40) { alert('ابتدا متن فعلی را در کادر متن بگذارید.'); return; }
+    var st = document.getElementById('kcAiSt');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ در حال بسط مقاله…</span>';
+    var send = (cur.indexOf('<') > -1) ? cur : cmsMdToHtml(cur);
+    cmsLLM('seo_expand', { topic: ((document.getElementById('kcTitle') || {}).value || '').trim(), text: send }, function (d) {
+      if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+      if (!confirm('متن با نسخهٔ بسط‌یافته جایگزین شود؟')) { if (st) st.textContent = 'متن فعلی حفظ شد.'; return; }
+      var g = d.data;
+      if (g.title) cmsSetLen('kcTitle', g.title);
+      if (g.desc) cmsSetLen('kcDesc', g.desc);
+      if (g.h1) cmsSetLen('kcH1', g.h1);
+      cmsSetLen('kcBody', g.body || '');
+      window._kcBodyIsHtml = true;
+      var rv = document.getElementById('kcReviewed'); if (rv) rv.checked = false;
+      cmsKcCount();
+      if (st) st.innerHTML = '<span style="color:#059669">✅ بسط انجام شد.</span>';
+    });
+  };
+
+  window.cmsKcReview = function () {
+    var raw = ((document.getElementById('kcBody') || {}).value || '').trim();
+    if (raw.length < 100) { alert('ابتدا متن مقاله را بنویسید.'); return; }
+    var st = document.getElementById('kcAiSt'), box = document.getElementById('kcReview');
+    if (st) st.innerHTML = '<span style="color:#7c3aed">⏳ بازبینیِ نهاییِ سئو…</span>';
+    var body = window._kcBodyIsHtml ? raw : cmsMdToHtml(raw);
+    cmsLLM('seo_review', {
+      title: ((document.getElementById('kcTitle') || {}).value || '').trim(),
+      h1: ((document.getElementById('kcH1') || {}).value || '').trim(),
+      desc: ((document.getElementById('kcDesc') || {}).value || '').trim(),
+      body: body
+    }, function (d) {
+      if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+      if (st) st.innerHTML = '';
+      var g = d.data, col = g.verdict === 'publish' ? '#059669' : '#d97706';
+      var h = '<div style="border:1px solid var(--brd);border-radius:10px;padding:10px 12px;font-size:12px;line-height:1.9;max-height:260px;overflow:auto">' +
+        '<div style="margin-bottom:6px"><b style="color:' + col + '">امتیاز: ' + escP(String(g.score == null ? '—' : g.score)) + '/۱۰۰</b>' +
+        ' · وضعیت: <b>' + escP(g.verdict || '—') + '</b></div>';
+      (g.issues || []).forEach(function (i) {
+        var c = i.severity === 'high' ? '#dc2626' : (i.severity === 'medium' ? '#d97706' : '#64748b');
+        h += '<div style="margin:5px 0;padding:6px 8px;background:#f8fafc;border-right:3px solid ' + c + ';border-radius:6px">' +
+          '<b>' + escP(i.severity || '') + '</b> — ' + escP(i.issue || '') + '<br><span style="color:#475569">راهکار: ' + escP(i.fix || '') + '</span></div>';
+      });
+      if (g.missing_keywords && g.missing_keywords.length) h += '<div style="margin-top:6px"><b>واژگانِ جاافتاده:</b> ' + escP([].concat(g.missing_keywords).join('، ')) + '</div>';
+      if (g.internal_links && g.internal_links.length) {
+        h += '<div style="margin-top:6px"><b>لینکِ داخلیِ پیشنهادی:</b><ul style="margin:4px 0 0 18px">';
+        [].concat(g.internal_links).forEach(function (l) { h += '<li>' + escP(l.anchor || '') + ' → <span style="direction:ltr">' + escP(l.target || '') + '</span></li>'; });
+        h += '</ul></div>';
+      }
+      if (g.summary) h += '<div style="margin-top:6px;color:#475569">' + escP(g.summary) + '</div>';
+      h += '</div>';
+      if (box) box.innerHTML = h;
+    });
+  };
+
+  window.cmsKcPublish = function () {
+    var title = document.getElementById('kcTitle').value.trim();
+    var slug = document.getElementById('kcSlug').value.trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var h1 = document.getElementById('kcH1').value.trim() || title;
+    var desc = document.getElementById('kcDesc').value.trim();
+    var cat = document.getElementById('kcCat').value;
+    var img = document.getElementById('kcImg').value.trim();
+    var raw = document.getElementById('kcBody').value;
+    if (!title || !slug || !desc || raw.trim().length < 200) { alert('عنوان، نامک، توضیح و متن (حداقل ۲۰۰ حرف) الزامی است'); return; }
+    var rv = document.getElementById('kcReviewed');
+    if (!rv || !rv.checked) { alert('⛔ پیش از انتشار باید تیکِ تأییدِ انسانی زده شود.\nمتن و اعداد فنی را بازبینی کنید.'); return; }
+    var body = window._kcBodyIsHtml ? raw : cmsMdToHtml(raw);
+    if (!confirm('🚀 مقالهٔ «' + title + '» با آدرس knowledge-center/' + slug + '.html منتشر شود؟')) return;
+    var payload = { title: title, slug: slug, h1: h1, desc: desc, cat: cat, img: img, body: body, related: JSON.stringify(kcParseRelated()) };
+    api('kc_create', payload, function (d) {
+      if (d.ok) {
+        audit('CMS', 'انتشار مقالهٔ مرکز دانش: ' + title, slug);
+        hideModal();
+        renderCms();
+        var go = confirm('✅ مقاله منتشر شد:\npishtaj.ir/' + d.url + (d.listed ? '\n(به فهرستِ مرکز دانش هم اضافه شد)' : '\n⚠️ به فهرستِ مرکز دانش اضافه نشد — دستی اضافه کنید') +
+          '\n\nنقشهٔ سایت در سرچ کنسول ثبت/به‌روزرسانی شود؟');
+        if (go && typeof gscSubmitSitemap === 'function') gscSubmitSitemap();
+        else if (go) alert('پنلِ سرچ کنسول در دسترس نیست — از نوارِ کناری «مدیریت سایت → سرچ کنسول» دکمهٔ «ثبت نقشه» را بزنید.');
+      } else if (d.error === 'exists') {
+        if (confirm('صفحه‌ای با این نامک وجود دارد — بازنویسی شود؟')) {
+          payload.overwrite = 1;
+          api('kc_create', payload, function (d2) {
+            if (d2.ok) { audit('CMS', 'بازنویسی مقالهٔ مرکز دانش: ' + title, slug); hideModal(); renderCms(); }
+            else alert('⚠️ ' + (d2.error || 'خطا'));
+          });
+        }
+      } else alert('⚠️ ' + (d.error || 'خطا'));
+    });
+  };
 
   window.cmsBlogNew = function () {
     window._cmsBodyIsHtml = false;   /* خروجیِ AI هنوز تأییدِ انسانی نشده */
