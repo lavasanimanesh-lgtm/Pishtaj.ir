@@ -239,7 +239,7 @@
   };
 
   window.gscInspect = function (url) {
-    api('inspect', { url: url }, function (d) {
+    api('inspect', { url: url, log: 1 }, function (d) { /* v34.10.0 (S1/INDEX-LOOP): ثبت در تاریخچه */
       var msg;
       if (!d.ok) msg = '⚠️ ' + escP(d.error || 'خطا');
       else {
@@ -247,6 +247,13 @@
           PASS: '✅ ایندکس شده', FAIL: '❌ ایندکس نشده',
           NEUTRAL: '—', UNKNOWN: 'نامشخص'
         };
+        var prevLine = '';
+        if (d.prev && d.prev.ts) {
+          var chg = (d.prev.verdict !== d.verdict);
+          prevLine = '<div style="margin-top:6px;padding:6px 9px;background:#f8fafc;border-radius:8px;font-size:11.5px">سابقه: ' +
+            (verdictFa[d.prev.verdict] || escP(d.prev.verdict || '—')) + ' در ' + escP(String(d.prev.ts).slice(0, 16).replace('T', ' ')) +
+            (chg ? ' → <b style="color:#059669">وضعیت تغییر کرده</b>' : ' (بدون تغییر)') + '</div>';
+        }
         msg = '<b>' + escP(String(url).replace(/^https?:\/\/(www\.)?pishtaj\.ir/, '')) + '</b><br><br>' +
           'وضعیت: <b>' + (verdictFa[d.verdict] || escP(d.verdict)) + '</b><br>' +
           'حالت پوشش: ' + escP(d.coverage || '—') + '<br>' +
@@ -254,7 +261,7 @@
           'robots.txt: ' + escP(d.robots || '—') + '<br>' +
           'دریافت صفحه: ' + escP(d.pageFetch || '—') + '<br>' +
           'خزش به‌عنوان: ' + escP(d.crawler || '—') + '<br>' +
-          (d.referring ? 'صفحات ارجاع‌دهنده: ' + escP(String(d.referring).slice(0, 200)) : '');
+          (d.referring ? 'صفحات ارجاع‌دهنده: ' + escP(String(d.referring).slice(0, 200)) : '') + prevLine;
       }
       // پیوندِ مستقیم به صفحهٔ URL Inspection همان نشانی در سرچ کنسول؛
       // «درخواست ایندکس» فقط در UI خودِ گوگل وجود دارد (Indexing API برای
@@ -275,6 +282,19 @@
   };
 
   /* ثبتِ نقشه در سرچ کنسول (اکشنِ sitemap_submit — نیازمندِ سطحِ Full) */
+  /* v34.10.0 (S1/AUTO-SITEMAP): ثبت بی‌سروصدا — بدون confirm و بدون alert؛ فقط یک خط وضعیت.
+     پس از هر انتشار CMS وقتی سوییچ «ثبت خودکار نقشه» روشن است صدا زده می‌شود. */
+  window.gscSubmitSitemapQuiet = function () {
+    var host = document.getElementById('gscWrap');
+    var markId = 'gscSmQ' + Date.now();
+    if (host) host.insertAdjacentHTML('afterbegin', '<div id="' + markId + '" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:7px 11px;font-size:11.5px;margin-bottom:8px">⏳ ثبت خودکار نقشهٔ سایت در سرچ کنسول…</div>');
+    api('sitemap_submit', { feed: 'https://pishtaj.ir/sitemap-index.xml' }, function (d) {
+      var m = document.getElementById(markId);
+      if (!d || !d.ok) { if (m) m.innerHTML = '⚠️ ثبت خودکار نقشه ناموفق بود: ' + escP((d && d.error) || 'خطا'); return; }
+      if (m) m.innerHTML = '✅ نقشهٔ سایت در سرچ کنسول ثبت/به‌روزرسانی شد (' + escP(d.state || '') + ' · خطا: ' + (d.errors || 0) + ')';
+    });
+  };
+
   window.gscSubmitSitemap = function () {
     if (!confirm('نقشهٔ سایت (sitemap-index.xml) در سرچ کنسول ثبت/به‌روزرسانی شود؟\n\nاین کار فقط به گوگل می‌گوید نقشه کجاست؛ ایندکس‌شدنِ صفحات را تضمین نمی‌کند.')) return;
     var el = document.getElementById('gscWrap');

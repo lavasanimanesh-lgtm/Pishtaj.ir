@@ -205,7 +205,7 @@ function cms_head($html) {
   return $p === false ? substr($html, 0, 40000) : substr($html, 0, $p);
 }
 
-function cms_meta_of($ROOT, $rel, &$smap) {
+function cms_meta_of($ROOT, $rel, &$smap, &$inlinks = null) { /* v34.10.0 (S1): &$inlinks = شمارش لینک ورودی برای گزارش یتیم‌ها */
   $path = $ROOT . '/' . $rel;
   $html = (string)@file_get_contents($path);
   $head = cms_head($html);
@@ -226,6 +226,28 @@ function cms_meta_of($ROOT, $rel, &$smap) {
   $h1src = preg_replace('#<(script|style|noscript|template)\b[^>]*>.*?</\1>#isu', ' ', $html);
   $h1   = preg_match('#<h1[^>]*>(.*?)</h1>#isu', $h1src, $hm) ? trim($hm[1]) : '';
   $h1   = trim(preg_replace('#\s+#u', ' ', strip_tags($h1)));
+
+  /* v34.10.0 (S1/ORPHAN): لینک‌های داخلیِ بدنه → شمارندهٔ «لینک ورودی» مقصدها.
+     فقط hrefهای سالمِ داخلی؛ tel:/mailto:/javascript و لنگر# نادیده. */
+  if (is_array($inlinks)) {
+    $body = preg_replace('#<(script|style|noscript|template)\b[^>]*>.*?</\1>#isu', ' ', $html);
+    if (preg_match_all('#<a\b[^>]*href=["\']([^"\']+)#isu', $body, $am)) {
+      foreach ($am[1] as $href) {
+        $href = trim($href);
+        if ($href === '' || $href[0] === '#') continue;
+        if (preg_match('#^(tel:|mailto:|javascript:|data:)#i', $href)) continue;
+        if (stripos($href, 'https://pishtaj.ir/') === 0) $href = substr($href, strlen('https://pishtaj.ir/'));
+        elseif (stripos($href, 'http://') === 0 || stripos($href, 'https://') === 0) continue; /* دامنهٔ دیگر */
+        $href = ltrim(preg_replace('#[?#].*$#', '', $href), '/');
+        if ($href === '') $href = 'index.html';
+        elseif (substr($href, -1) === '/') $href .= 'index.html';
+        elseif (!preg_match('#\.[a-z0-9]{2,5}$#i', $href)) $href .= '/index.html';
+        if ($href === $rel) continue; /* خودلینک (breadcrumb خود صفحه) ورودی نیست */
+        if (!isset($inlinks[$href])) $inlinks[$href] = 0;
+        $inlinks[$href]++;
+      }
+    }
+  }
 
   $words  = cms_visible_words($html);
   $imgs   = preg_match_all('#<img\b[^>]*>#isu', $html, $im) ? $im[0] : array();
@@ -303,8 +325,16 @@ function cms_seo_scan($ROOT, $DATA, $force = false) {
   }
   $smap = cms_sitemap_urls($ROOT);
   $pages = array();
+  $inlinks = array();
   foreach (cms_public_pages($ROOT) as $rel) {
-    $pages[] = cms_meta_of($ROOT, $rel, $smap);
+    $pages[] = cms_meta_of($ROOT, $rel, $smap, $inlinks);
+  }
+  /* v34.10.0 (S1/ORPHAN): ytym = صفحهٔ عمومی بدون هیچ لینک ورودی از صفحات سایت.
+     404 مستثناست (صفحهٔ خطاست، لینک داده نمی‌شود). */
+  foreach ($pages as $i => $pg) {
+    $n = isset($inlinks[$pg['path']]) ? (int)$inlinks[$pg['path']] : 0;
+    $pages[$i]['inlinks'] = $n;
+    if ($n === 0 && $pg['path'] !== '404.html') $pages[$i]['issues'][] = 'orphan';
   }
   $res = array('ts' => time(), 'pages' => $pages, 'sitemap_count' => count($smap));
   @file_put_contents($cacheFile, json_encode($res, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
@@ -325,6 +355,51 @@ function cms_backup($DATA, $ROOT, $rel) {
   }
 }
 
+
+/* ═══ v34.10.0 (S1/AI-QUEUE): صف متای AI — تولید گروهی + تأیید انسانی + اعمال با بک‌آپ ═══ */
+function seo_queue_file($DATA) { return $DATA . '/seo-queue.json'; }
+function seo_queue_load($DATA) {
+  $f = seo_queue_file($DATA);
+  $j = is_file($f) ? json_decode((string)@file_get_contents($f), true) : null;
+  return (is_array($j) && isset($j['items']) && is_array($j['items'])) ? $j : array('items' => array());
+}
+function seo_queue_save($DATA, $q) {
+  @file_put_contents(seo_queue_file($DATA), json_encode($q, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+}
+function seo_queue_valid_path($ROOT, $file) {
+  $file = str_replace('\\', '/', (string)$file);
+  $file = ltrim(preg_replace('#\.\./#', '', $file), '/');
+  if (!preg_match('#^[A-Za-z0-9\x{0600}-\x{06FF}_./\-]+\.html$#u', $file)) return '';
+  foreach (array_slice(explode('/', $file), 0, -1) as $seg) { if (cms_skip_dir($seg)) return ''; }
+  $f = $ROOT . '/' . $file;
+  if (!is_file($f)) return '';
+  if (substr(realpath($f), 0, strlen(realpath($ROOT))) !== realpath($ROOT)) return '';
+  return $file;
+}
+/* اعمال title+desc روی فایل — همان موتور page_meta_save با همان محافظ‌ها (بک‌آپ/جهش حجم/کش اسکن) */
+function seo_queue_apply_one($ROOT, $DATA, $file, $title, $desc) {
+  $title = trim((string)$title); $desc = trim((string)$desc);
+  if ($title === '' || mb_strlen($title, 'UTF-8') > 200) return 'عنوان نامعتبر';
+  if (mb_strlen($desc, 'UTF-8') > 400) return 'توضیح نامعتبر';
+  $f = $ROOT . '/' . $file;
+  $s = (string)file_get_contents($f); $orig = $s;
+  $newTitle = '<title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title>';
+  $s = preg_match('#<title>.*?</title>#su', $s)
+    ? preg_replace('#<title>.*?</title>#su', $newTitle, $s, 1)
+    : preg_replace('#(<head[^>]*>)#isu', '$1' . "\n" . $newTitle, $s, 1);
+  $newDesc = '<meta name="description" content="' . htmlspecialchars($desc, ENT_QUOTES, 'UTF-8') . '" />';
+  $s = preg_match('#<meta\s+name=["\']description["\']\s+content=["\'].*?["\']\s*/?>#isu', $s)
+    ? preg_replace('#<meta\s+name=["\']description["\']\s+content=["\'].*?["\']\s*/?>#isu', $newDesc, $s, 1)
+    : preg_replace('#(</title>)#isu', '$1' . "\n" . $newDesc, $s, 1);
+  if ($s === $orig) return 'بدون تغییر';
+  if (strlen($s) > strlen($orig) * 1.2 + 5000) return 'جهش غیرعادی حجم — لغو';
+  if (!is_writable($f)) return 'فایل قابل‌نوشتن نیست';
+  cms_backup($DATA, $ROOT, $file);
+  if (file_put_contents($f, $s, LOCK_EX) === false) return 'خطای نوشتن';
+  if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
+  cms_log('seo_queue_apply', $file . ' | title=' . mb_substr($title, 0, 60, 'UTF-8'));
+  return ''; /* خالی = موفق */
+}
 
 switch ($action) {
 /* ============ AC1: اخبار ============ */
@@ -655,7 +730,7 @@ switch ($action) {
             'title-long' => 0, 'title-short' => 0, 'no-title' => 0, 'no-h1' => 0,
             'no-canonical' => 0, 'canonical-mismatch' => 0, 'noindex' => 0,
             'thin-content' => 0, 'img-no-alt' => 0, 'not-in-sitemap' => 0,
-            'no-schema' => 0, 'ok' => 0,
+            'no-schema' => 0, 'orphan' => 0, 'ok' => 0,
         );
         $folders = array();
         foreach ($scan['pages'] as $pg) {
@@ -773,6 +848,136 @@ switch ($action) {
         if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json'); /* باطل‌کردن کش */
         cms_log('page_meta_save', $file . ' | title=' . mb_substr($title, 0, 60, 'UTF-8'));
         jok(array('changed' => true, 'backup' => 'crm/data/cms-backups'));
+        break;
+
+    /* ═══ v34.10.0 (S1): صف متای AI ═══ */
+    case 'seo_queue_add':
+        $paths = $_POST['paths'] ?? array();
+        if (is_string($paths)) { $pd = json_decode($paths, true); $paths = is_array($pd) ? $pd : array(); } /* FormData آرایه را JSON-string می‌فرستد */
+        if (!is_array($paths) || !$paths) jerr('فهرست مسیرها خالی است');
+        if (count($paths) > 60) $paths = array_slice($paths, 0, 60); /* سقف هر batch */
+        $q = seo_queue_load($DATA);
+        $scan = null; /* اسکن تنبل: فقط اگر رکورد جدید واقعاً اضافه شد (کش ۱۰ دقیقه‌ای) */
+        $scanLoaded = false;
+        $added = 0; $skipped = 0;
+        foreach ($paths as $pth) {
+          $okp = seo_queue_valid_path($ROOT, $pth);
+          if ($okp === '') { $skipped++; continue; }
+          $id = sha1($okp);
+          if (isset($q['items'][$id]) && in_array($q['items'][$id]['st'], array('pending', 'proposed'), true)) { $skipped++; continue; }
+          /* مقدار فعلی عنوان/توضیح از اسکن (کش‌شده) برای diff در مرحلهٔ تأیید */
+          if (!$scanLoaded) { $scan = cms_seo_scan($ROOT, $DATA); $scanLoaded = true; }
+          $cur = null;
+          foreach ($scan['pages'] as $pg) if ($pg['path'] === $okp) { $cur = $pg; break; }
+          $q['items'][$id] = array(
+            'id' => $id, 'path' => $okp, 'st' => 'pending',
+            'title_cur' => $cur ? $cur['title'] : '', 'desc_cur' => $cur ? $cur['desc'] : '',
+            'title_new' => '', 'desc_new' => '',
+            'addedAt' => date('c'), 'by' => $identity['user'] ?? '?', 'doneAt' => '', 'err' => '',
+          );
+          $added++;
+        }
+        if (count($q['items']) > 500) { /* سقف کل صف: قدیمی‌ترین doneها حذف */
+          $byAge = $q['items'];
+          uasort($byAge, function ($a, $b) { return strcmp((string)($a['addedAt'] ?? ''), (string)($b['addedAt'] ?? '')); });
+          $over = count($q['items']) - 500;
+          foreach (array_slice(array_keys($byAge), 0, $over) as $dropId) unset($q['items'][$dropId]);
+        }
+        seo_queue_save($DATA, $q);
+        jok(array('added' => $added, 'skipped' => $skipped, 'total' => count($q['items'])));
+        break;
+
+    case 'seo_queue_list':
+        $q = seo_queue_load($DATA);
+        $items = array_values($q['items']);
+        usort($items, function ($a, $b) { /* pending/proposed اول، بعد جدیدترین افزودن */
+          $rank = function ($it) { return $it['st'] === 'pending' ? 0 : ($it['st'] === 'proposed' ? 1 : 2); };
+          $ra = $rank($a); $rb = $rank($b);
+          if ($ra !== $rb) return $ra - $rb;
+          return strcmp((string)($b['addedAt'] ?? ''), (string)($a['addedAt'] ?? ''));
+        });
+        $counts = array('pending' => 0, 'proposed' => 0, 'done' => 0, 'error' => 0);
+        foreach ($q['items'] as $it) if (isset($counts[$it['st']])) $counts[$it['st']]++;
+        jok(array('items' => array_slice($items, 0, 120), 'counts' => $counts, 'total' => count($q['items'])));
+        break;
+
+    case 'seo_queue_propose':
+        $pth = seo_queue_valid_path($ROOT, $_POST['path'] ?? '');
+        if ($pth === '') jerr('مسیر نامعتبر');
+        $title = trim((string)($_POST['title'] ?? ''));
+        $desc  = trim((string)($_POST['desc'] ?? ''));
+        if ($title === '' || mb_strlen($title, 'UTF-8') > 200) jerr('عنوان پیشنهادی نامعتبر');
+        if ($desc === '' || mb_strlen($desc, 'UTF-8') > 400) jerr('توضیح پیشنهادی نامعتبر');
+        $q = seo_queue_load($DATA);
+        $id = sha1($pth);
+        if (!isset($q['items'][$id])) jerr('این مسیر در صف نیست');
+        if (!empty($_POST['fail'])) { /* v34.10.0: AI پاسخ نداد — بدون پیشنهاد، خطا ثبت شود */
+            $q['items'][$id]['st'] = 'error';
+            $q['items'][$id]['err'] = 'هوش مصنوعی پاسخ نداد';
+            $q['items'][$id]['doneAt'] = date('c');
+            seo_queue_save($DATA, $q);
+            jok(array('id' => $id, 'failed' => true));
+        }
+        $q['items'][$id]['title_new'] = $title;
+        $q['items'][$id]['desc_new'] = $desc;
+        $q['items'][$id]['st'] = 'proposed';
+        $q['items'][$id]['proposedBy'] = 'ai+' . ($identity['user'] ?? '?');
+        seo_queue_save($DATA, $q);
+        jok(array('id' => $id));
+        break;
+
+    case 'seo_queue_apply':
+        $ids = $_POST['ids'] ?? array();
+        if (is_string($ids) && $ids !== '') { $jd = json_decode($ids, true); $ids = is_array($jd) ? $jd : array(); }
+        if (!is_array($ids)) $ids = array();
+        $all = !empty($_POST['all_proposed']);
+        if (!$ids && !$all) jerr('چیزی برای اعمال انتخاب نشده');
+        if (count($ids) > 50) $ids = array_slice($ids, 0, 50);
+        $q = seo_queue_load($DATA);
+        $results = array();
+        foreach ($q['items'] as $iid => $it) {
+          if ($it['st'] !== 'proposed') continue;
+          if (!$all && !in_array($iid, $ids, true)) continue;
+          $pth = seo_queue_valid_path($ROOT, $it['path']);
+          $err = $pth === '' ? 'فایل دیگر موجود نیست' : seo_queue_apply_one($ROOT, $DATA, $pth, $it['title_new'], $it['desc_new']);
+          $q['items'][$iid]['st'] = $err === '' ? 'done' : 'error';
+          $q['items'][$iid]['err'] = $err;
+          $q['items'][$iid]['doneAt'] = date('c');
+          $results[] = array('path' => $it['path'], 'ok' => $err === '', 'err' => $err);
+        }
+        seo_queue_save($DATA, $q);
+        jok(array('results' => $results));
+        break;
+
+    case 'seo_queue_clear':
+        $mode = (string)($_POST['mode'] ?? 'done'); /* done | all */
+        $q = seo_queue_load($DATA);
+        $before = count($q['items']);
+        foreach ($q['items'] as $iid => $it) {
+          if ($mode === 'all' || $it['st'] === 'done' || $it['st'] === 'error') unset($q['items'][$iid]);
+        }
+        seo_queue_save($DATA, $q);
+        jok(array('removed' => $before - count($q['items']), 'total' => count($q['items'])));
+        break;
+
+    /* ═══ v34.10.0 (S1/SITEMAP-DRIFT): انحراف نقشه — URLهای روح (فایل ندارند) و فایل‌های بدون نقشه ═══ */
+    case 'sitemap_drift':
+        $smapUrls = array_keys(cms_sitemap_urls($ROOT));
+        $files = array();
+        foreach (cms_public_pages($ROOT) as $rel) $files[$rel] = true;
+        $ghost = array(); $missing = array();
+        foreach ($smapUrls as $u) {
+          $rel = ltrim(preg_replace('#^https://pishtaj\.ir/#i', '', $u), '/');
+          if ($rel === '') $rel = 'index.html';
+          if (!isset($files[$rel])) $ghost[] = $u;
+        }
+        foreach (array_keys($files) as $rel) {
+          if (!isset($smapUrls['https://pishtaj.ir/' . $rel]) && !in_array('https://pishtaj.ir/' . $rel, $smapUrls, true)) $missing[] = $rel;
+        }
+        sort($ghost); sort($missing);
+        jok(array('ghost' => array_slice($ghost, 0, 100), 'ghost_total' => count($ghost),
+                  'missing' => array_slice($missing, 0, 100), 'missing_total' => count($missing),
+                  'sitemap_total' => count($smapUrls), 'files_total' => count($files)));
         break;
 
     case 'status':

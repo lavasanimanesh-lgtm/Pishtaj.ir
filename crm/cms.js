@@ -220,6 +220,7 @@
       '<small style="color:#94a3b8;display:block;margin-top:6px">با قالبِ استانداردِ مرکز دانش (هدر/فوتر/H1/Schema/Breadcrumb) ساخته می‌شود، به فهرستِ مرکز دانش و نقشهٔ سایت اضافه می‌شود.</small>' +
       '</div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    cmsDraftRestore(KC_FIELDS, 'kcAiSt'); cmsDraftBind(KC_FIELDS); /* v34.10.0 (S1/DRAFTS) */
   };
 
   window.cmsKcCount = function () {
@@ -339,15 +340,14 @@
         audit('CMS', 'انتشار مقالهٔ مرکز دانش: ' + title, slug);
         hideModal();
         renderCms();
-        var go = confirm('✅ مقاله منتشر شد:\npishtaj.ir/' + d.url + (d.listed ? '\n(به فهرستِ مرکز دانش هم اضافه شد)' : '\n⚠️ به فهرستِ مرکز دانش اضافه نشد — دستی اضافه کنید') +
-          '\n\nنقشهٔ سایت در سرچ کنسول ثبت/به‌روزرسانی شود؟');
-        if (go && typeof gscSubmitSitemap === 'function') gscSubmitSitemap();
-        else if (go) alert('پنلِ سرچ کنسول در دسترس نیست — از نوارِ کناری «مدیریت سایت → سرچ کنسول» دکمهٔ «ثبت نقشه» را بزنید.');
+        cmsDraftClear(KC_FIELDS); /* v34.10.0: انتشار شد — پیش‌نویس دیگر لازم نیست */
+        alert('✅ مقاله منتشر شد:\npishtaj.ir/' + d.url + (d.listed ? '\n(به فهرستِ مرکز دانش هم اضافه شد)' : '\n⚠️ به فهرستِ مرکز دانش اضافه نشد — دستی اضافه کنید'));
+        if (!cmsSitemapAfterPublish() && typeof gscSubmitSitemap === 'function') gscSubmitSitemap(); /* v34.10.0: خودکار در صورت روشن‌بودن سوییچ */
       } else if (d.error === 'exists') {
         if (confirm('صفحه‌ای با این نامک وجود دارد — بازنویسی شود؟')) {
           payload.overwrite = 1;
           api('kc_create', payload, function (d2) {
-            if (d2.ok) { audit('CMS', 'بازنویسی مقالهٔ مرکز دانش: ' + title, slug); hideModal(); renderCms(); }
+            if (d2.ok) { audit('CMS', 'بازنویسی مقالهٔ مرکز دانش: ' + title, slug); hideModal(); renderCms(); cmsDraftClear(KC_FIELDS); cmsSitemapAfterPublish(); }
             else alert('⚠️ ' + (d2.error || 'خطا'));
           });
         }
@@ -379,6 +379,7 @@
       '<button class="bt" onclick="cmsBlogPublish()">🚀 انتشار مقاله روی سایت</button></div>' +
       '<small style="color:#94a3b8;display:block;margin-top:6px">صفحه با قالب استاندارد سایت (هدر/فوتر/سئو/Schema) ساخته و به فهرست وبلاگ و sitemap اضافه می‌شود.</small></div></div>';
     document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    cmsDraftRestore(CB_FIELDS, 'cbAiSt'); cmsDraftBind(CB_FIELDS); /* v34.10.0 (S1/DRAFTS) */
   };
 
   // مارک‌داون سبک: ## → h2 | ### → h3 | خط با - → لیست
@@ -477,10 +478,11 @@
         audit('CMS', 'انتشار مقاله: ' + title, slug);
         hideModal();
         renderCms();
+        cmsDraftClear(CB_FIELDS); cmsSitemapAfterPublish(); /* v34.10.0 (S1): پیش‌نویس پاک + نقشه خودکار */
       } else if (d.error === 'exists') {
         if (confirm('صفحه‌ای با این نامک وجود دارد — بازنویسی شود؟')) {
           api('blog_create', { title: title, slug: slug, desc: desc, cat: catV, catLb: catLb, body: body, dateFa: new Date().toLocaleDateString('fa-IR'), overwrite: 1 }, function (d2) {
-            if (d2.ok) { alert('✅ بازنویسی شد'); hideModal(); renderCms(); }
+            if (d2.ok) { alert('✅ بازنویسی شد'); hideModal(); renderCms(); cmsDraftClear(CB_FIELDS); cmsSitemapAfterPublish(); }
             else alert('⚠️ ' + (d2.error || ''));
           });
         }
@@ -512,7 +514,8 @@
     'thin-content': ['محتوای کم', 'warn'],
     'img-no-alt': ['تصویر بدون alt', 'warn'],
     'not-in-sitemap': ['خارج از نقشه', 'warn'],
-    'no-schema': ['بدون schema', 'warn']
+    'no-schema': ['بدون schema', 'warn'],
+    'orphan': ['یتیم (بدون لینک ورودی)', 'warn'] /* v34.10.0 (S1) */
   };
   var _seo = { q: '', folder: '', issue: '', offset: 0, limit: 60, done: false };
   var _seoMeta = { stats: null, folders: null, matched: 0, scanned: '', writable: false, sitemap: 0 };
@@ -574,6 +577,7 @@
     h += chip('محتوای کم', st['thin-content'], 'thin-content', '#d97706');
     h += chip('خارج از نقشه', st['not-in-sitemap'], 'not-in-sitemap', '#d97706');
     h += chip('بدون schema', st['no-schema'], 'no-schema', '#0ea5e9');
+    h += chip('یتیم (بدون لینک)', st['orphan'], 'orphan', '#7c3aed'); /* v34.10.0 (S1) */
     h += '</div>';
     return h;
   }
@@ -592,6 +596,8 @@
       (_seo.issue ? '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoIssue(\'\')">✖ حذف فیلتر مشکل</button>' : '') +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoRefresh()">⟳ اسکن دوباره</button>' +
       '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSeoExport()">⬇️ CSV</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px" onclick="cmsSitemapDrift()">🧭 انحراف نقشه</button>' +
+      '<button class="bt bt-o" style="padding:6px 10px;font-size:12px' + (cmsSitemapAutoOn() ? ';color:#059669' : '') + '" onclick="cmsSitemapAutoToggle(this)">' + (cmsSitemapAutoOn() ? '🔄 ثبت خودکار نقشه: روشن' : '🔄 ثبت خودکار نقشه: خاموش') + '</button>' +
       '</div>' +
       (_seoMeta.writable ? '' : '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:7px 11px;font-size:12px;color:#b91c1c;margin-bottom:8px">⚠️ فایل‌های سایت روی هاست قابل‌نوشتن نیست — ویرایش‌ها ذخیره نمی‌شوند. از هاستینگ بخواهید مجوز write بدهد.</div>');
   }
@@ -616,6 +622,7 @@
         '<div style="display:flex;gap:4px;align-items:center">' +
         '<a class="bt bt-o" style="padding:4px 8px;font-size:11.5px;text-decoration:none" target="_blank" href="/' + escP(p.path) + '">👁️</a>' +
         '<button class="bt" style="padding:4px 10px;font-size:12px" onclick="cmsSeoEdit(' + i + ')">✏️ ویرایش</button>' +
+        ((p.issues || []).indexOf('orphan') > -1 ? '<button class="bt bt-o" style="padding:4px 8px;font-size:11.5px;color:#7c3aed" onclick="cmsSeoLinkSuggest(' + i + ')" title="پیشنهاد هوش مصنوعی: از کدام صفحات به این صفحه لینک شود">💡 لینک‌سازی</button>' : '') +
         '</div></div>' +
         (badges ? '<div style="margin-top:5px">' + badges + '</div>' : '<div style="margin-top:5px"><span style="font-size:10.5px;color:#059669">✅ بدون ایراد</span></div>') +
         '</div>';
@@ -626,7 +633,8 @@
     el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال اسکن صفحات سایت…</div>';
     seoLoad(function () {
       var list = window._cmsPages || [];
-      el.innerHTML = seoStatsBar() + seoToolbar() +
+      el.innerHTML = seoStatsBar() + seoToolbar() + seoQueueBox() +
+        '<div id="seoDrift"></div>' +
         '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">نمایش ' + list.length + ' از ' + _seoMeta.matched + ' صفحهٔ منطبق (مرتب‌شده: پر‌ایرادترین اول)</div>' +
         '<div id="seoList" style="max-height:520px;overflow:auto">' + seoRows() + '</div>' +
         (list.length < _seoMeta.matched ? '<div style="text-align:center;margin-top:8px"><button class="bt bt-o" onclick="cmsSeoMore()">نمایش بیشتر (۶۰ تای بعدی)</button></div>' : '') +
@@ -634,6 +642,218 @@
         'طول مناسب: عنوان ۳۰–۶۵ کاراکتر · توضیح ۷۰–۱۶۵ کاراکتر. تغییرات مستقیماً روی فایل سایت اعمال می‌شود؛ ' +
         'برای ثبت سریع‌تر در گوگل، صفحه را در سرچ کنسول «Request Indexing» بزنید.' +
         '</div>';
+    });
+  }
+
+  /* ═══ v34.10.0 (S1/AI-QUEUE): صف متای AI — تولید گروهی + diff + تأیید انسانی + اعمال ═══ */
+  var _q = { items: [], counts: {}, running: false, stop: false };
+
+  function seoQueueBodyHtml() {
+    var c = _q.counts || {};
+    return '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">' +
+      '<b style="font-size:12.5px;color:#6b21a8">🤖 صف متای هوش مصنوعی</b>' +
+      '<span style="font-size:11.5px;color:#64748b">در انتظار: <b>' + (c.pending || 0) + '</b> · پیشنهاد آماده: <b style="color:#059669">' + (c.proposed || 0) + '</b> · انجام‌شده: <b>' + (c.done || 0) + '</b>' + (c.error ? ' · خطا: <b style="color:#dc2626">' + c.error + '</b>' : '') + '</span></div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+      '<button class="bt" style="padding:5px 11px;font-size:12px" onclick="cmsSeoQueueAdd()">➕ افزودن نتایج فیلتر فعلی (تا ۶۰)</button>' +
+      '<button class="bt bt-o" style="padding:5px 11px;font-size:12px;color:#6b21a8" onclick="cmsSeoQueueRun()">▶️ تولید متا با AI</button>' +
+      '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="cmsSeoQueueRefresh()">⟳</button>' +
+      ((c.done || c.error) ? '<button class="bt bt-o" style="padding:5px 11px;font-size:12px" onclick="cmsSeoQueueClear(\'done\')">🧹 پاک‌کردن انجام‌شده‌ها</button>' : '') +
+      '</div>';
+  }
+  function seoQueueBox() {
+    return '<div id="seoQueue" style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:12px;padding:10px 12px;margin-bottom:10px">' +
+      '<div id="seoQBody">' + seoQueueBodyHtml() + '</div>' +
+      '<div id="seoQRun" style="font-size:11.5px;color:#6b21a8;margin-top:6px"></div>' +
+      '<div id="seoQList" style="margin-top:6px"></div></div>';
+  }
+
+  function seoQueueRenderList() {
+    var el = document.getElementById('seoQList'); if (!el) return;
+    var items = (_q.items || []).filter(function (it) { return it.st === 'proposed' || it.st === 'error'; }).slice(0, 60);
+    if (!items.length) { el.innerHTML = ''; return; }
+    var h = '<div style="font-size:11.5px;color:#475569;margin:4px 0">پیشنهادهای آمادهٔ اعمال — بازبینی کن، تیک تأیید بزن:</div>' +
+      '<div style="max-height:300px;overflow:auto;border:1px solid #e9d5ff;border-radius:10px;background:#fff">' +
+      '<table class="tb" style="font-size:11.5px"><thead><tr><th></th><th>صفحه</th><th>عنوان (قدیم → جدید)</th><th>توضیح جدید</th></tr></thead><tbody>';
+    items.forEach(function (it) {
+      var tOld = (it.title_cur || '').slice(0, 40), tNew = it.title_new || '';
+      var changed = it.title_new !== it.title_cur || it.desc_new !== it.desc_cur;
+      h += '<tr' + (it.st === 'error' ? ' style="color:#dc2626"' : '') + '>' +
+        '<td><input type="checkbox" class="seoQChk" data-id="' + escP(it.id) + '"' + (it.st === 'proposed' ? ' checked' : ' disabled') + '></td>' +
+        '<td style="direction:ltr;font-size:10.5px;max-width:170px;word-break:break-all">' + escP(it.path) + (it.err ? '<br><small>' + escP(it.err) + '</small>' : '') + '</td>' +
+        '<td style="max-width:260px">' + (changed ? '<span style="color:#94a3b8;text-decoration:line-through">' + escP(tOld) + '</span><br>→ <b style="color:#065f46">' + escP(tNew.slice(0, 70)) + '</b> <small>(' + tNew.length + ')</small>' : '<span style="color:#94a3b8">بدون تغییر پیشنهادی</span>') + '</td>' +
+        '<td style="max-width:260px;color:#475569">' + escP((it.desc_new || '').slice(0, 110)) + '… <small>(' + (it.desc_new || '').length + ')</small></td></tr>';
+    });
+    h += '</tbody></table></div>' +
+      '<div style="display:flex;gap:6px;margin-top:6px">' +
+      '<button class="bt" style="padding:5px 11px;font-size:12px;background:#059669" onclick="cmsSeoQueueApply()">✅ اعمال تیک‌خورده‌ها روی سایت</button>' +
+      '<label style="font-size:11px;color:#64748b;align-self:center"><input type="checkbox" id="seoQResubmit" checked> بعد از اعمال، نقشه در سرچ کنسول ثبت شود</label></div>';
+    el.innerHTML = h;
+  }
+
+  window.cmsSeoQueueRefresh = function (cb) {
+    api('seo_queue_list', {}, function (d) {
+      if (d && d.ok) { _q.items = d.items || []; _q.counts = d.counts || {}; }
+      var body = document.getElementById('seoQBody');
+      if (body) body.innerHTML = seoQueueBodyHtml();
+      seoQueueRenderList();
+      if (cb) cb();
+    });
+  };
+
+  window.cmsSeoQueueAdd = function () {
+    var pages = (window._cmsPages || []).slice(0, 60).map(function (p) { return p.path; });
+    if (!pages.length) { alert('فهرست فعلی خالی است — اول فیلتر بزنید'); return; }
+    api('seo_queue_add', { paths: JSON.stringify(pages) }, function (d) {
+      if (!d.ok) { alert('⚠️ ' + (d.error || '')); return; }
+      if (typeof ptfToast === 'function') ptfToast('افزوده شد: ' + d.added + ' · رد‌شده (تکراری/نامعتبر): ' + d.skipped, 'ok');
+      cmsSeoQueueRefresh();
+    });
+  };
+
+  window.cmsSeoQueueRun = function () {
+    if (_q.running) { _q.stop = true; return; }
+    var pend = (_q.items || []).filter(function (it) { return it.st === 'pending'; });
+    if (!pend.length) { cmsSeoQueueRefresh(function () { }); pend = (_q.items || []).filter(function (it) { return it.st === 'pending'; }); }
+    if (!pend.length) { alert('صف در انتظار خالی است — اول «افزودن نتایج فیلتر» را بزنید.'); return; }
+    _q.running = true; _q.stop = false;
+    var i = 0;
+    var st = document.getElementById('seoQRun');
+    function done() {
+      _q.running = false;
+      if (st) st.innerHTML = _q.stop ? '⏹ متوقف شد.' : '✅ پایان.';
+      cmsSeoQueueRefresh();
+    }
+    function step() {
+      if (_q.stop || i >= pend.length) { done(); return; }
+      var it = pend[i];
+      if (st) st.innerHTML = '⏳ ' + (i + 1) + ' از ' + pend.length + ': <span dir="ltr">' + escP(it.path) + '</span> … <button class="bt bt-o" style="padding:2px 8px;font-size:11px" onclick="cmsSeoQueueRun()">توقف</button>';
+      cmsPageText(it.path, function (txt) {
+        cmsLLM('seo_meta', { topic: it.title_cur || it.path, content: txt }, function (d) {
+          function next() { i++; setTimeout(step, 1200); }
+          if (d && d.ok && d.data && d.data.title && d.data.desc) {
+            api('seo_queue_propose', { path: it.path, title: d.data.title, desc: d.data.desc }, function (r) {
+              if (!r.ok && st) st.innerHTML += ' <span style="color:#dc2626">(' + escP(r.error || 'خطا') + ')</span>';
+              next();
+            });
+          } else {
+            api('seo_queue_propose', { path: it.path, fail: 1 }, function () { next(); });
+            if (st) st.innerHTML += ' <span style="color:#d97706">(AI پاسخ نداد — رد شد)</span>';
+          }
+        });
+      });
+    }
+    step();
+  };
+
+  window.cmsSeoQueueApply = function () {
+    var ids = Array.prototype.slice.call(document.querySelectorAll('.seoQChk')).filter(function (c) { return c.checked; }).map(function (c) { return c.getAttribute('data-id'); });
+    if (!ids.length) { alert('چیزی تیک نخورده است'); return; }
+    if (!confirm('متای تیک‌خورده‌ها (' + ids.length + ' صفحه) روی فایل‌های سایت اعمال شود؟\nاز هر فایل قبل از نوشتن بک‌آپ گرفته می‌شود (crm/data/cms-backups).')) return;
+    api('seo_queue_apply', { ids: JSON.stringify(ids) }, function (d) {
+      if (!d.ok) { alert('⚠️ ' + (d.error || '')); return; }
+      var ok = (d.results || []).filter(function (r) { return r.ok; }).length;
+      var bad = (d.results || []).length - ok;
+      var resub = document.getElementById('seoQResubmit');
+      if (resub && resub.checked && ok > 0 && cmsSitemapAutoOn()) { if (typeof gscSubmitSitemapQuiet === 'function') gscSubmitSitemapQuiet(); }
+      alert('✅ اعمال شد: ' + ok + ' صفحه' + (bad ? '\n⚠️ ناموفق: ' + bad : ''));
+      cmsSeoQueueRefresh();
+    });
+  };
+
+  window.cmsSeoQueueClear = function (mode) { api('seo_queue_clear', { mode: mode || 'done' }, function () { cmsSeoQueueRefresh(); }); };
+
+  /* ── پیشنهاد لینک داخلی برای صفحهٔ یتیم ── */
+  window.cmsSeoLinkSuggest = function (i) {
+    var p = (window._cmsPages || [])[i]; if (!p) return;
+    var folder = p.folder || '';
+    var cands = (window._cmsPages || []).filter(function (x) { return x.path !== p.path && (x.folder === folder || (x.inlinks || 0) > 3); }).slice(0, 25)
+      .map(function (x) { return { path: x.path, title: x.title }; });
+    if (!cands.length) { alert('کاندیدایی در نمای فعلی نیست — «نمایش بیشتر» یا حذف فیلتر را امتحان کنید.'); return; }
+    var btn = event && event.target;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳…'; }
+    cmsLLM('seo_intlinks', { target: p.path, title: p.title || '', candidates: cands }, function (d) {
+      if (btn) { btn.disabled = false; btn.textContent = '💡 لینک‌سازی'; }
+      if (!d.ok || !d.data || !d.data.links) { alert('⚠️ ' + (d.error || 'هوش مصنوعی در دسترس نیست')); return; }
+      var h = '<div style="background:#fff;border:1px solid #e9d5ff;border-radius:10px;padding:10px;margin-top:6px;font-size:12px"><b>💡 پیشنهاد لینک داخلی برای ' + escP(p.path) + ':</b><ol style="margin:6px 0 0 16px;line-height:2">';
+      d.data.links.forEach(function (L) {
+        h += '<li>از <span dir="ltr" style="color:#6b21a8">' + escP(L.from || '') + '</span> با انکر «<b>' + escP(L.anchor || '') + '</b>»' + (L.how ? '<br><small style="color:#64748b">' + escP(L.how) + '</small>' : '') + '</li>';
+      });
+      h += '</ol><small style="color:#94a3b8">درج نهایی لینک با ویرایش دستی صفحهٔ مبدأ انجام می‌شود (ویرایشگر در S2 به فرم مقاله اضافه می‌شود).</small></div>';
+      var host = document.getElementById('seoDrift');
+      if (host) { host.innerHTML = h; host.scrollIntoView({ behavior: 'smooth' }); }
+    });
+  };
+
+  /* ── گزارش انحراف نقشه ── */
+  window.cmsSitemapDrift = function () {
+    var host = document.getElementById('seoDrift');
+    if (host) host.innerHTML = '<div style="font-size:12px;color:#64748b">⏳ در حال مقایسهٔ نقشه با فایل‌های سایت…</div>';
+    api('sitemap_drift', {}, function (d) {
+      if (!d.ok) { if (host) host.innerHTML = '⚠️ ' + escP(d.error || ''); return; }
+      var h = '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px;margin-top:8px;font-size:12px">';
+      h += '<b>🧭 انحراف نقشهٔ سایت:</b> کل نقشه: ' + d.sitemap_total + ' · کل فایل‌ها: ' + d.files_total +
+        ' · <span style="color:#dc2626">روح (در نقشه، فایل ندارد): ' + d.ghost_total + '</span> · <span style="color:#d97706">بدون نقشه: ' + d.missing_total + '</span>';
+      if (d.ghost_total) { h += '<details style="margin-top:6px"><summary style="cursor:pointer">URLهای روح</summary><div dir="ltr" style="color:#b91c1c;font-size:11px;line-height:1.8">' + d.ghost.map(escP).join('<br>') + '</div></details>'; }
+      if (d.missing_total) { h += '<details style="margin-top:4px"><summary style="cursor:pointer">فایل‌های خارج از نقشه</summary><div dir="ltr" style="color:#92400e;font-size:11px;line-height:1.8">' + d.missing.map(escP).join('<br>') + '</div></details>'; }
+      h += '</div>';
+      if (host) host.innerHTML = h;
+    });
+  };
+
+  /* ── ثبت خودکار نقشه پس از انتشار — تنظیم دستگاه-local از طریق لایهٔ داده (ptfDevKv، اصل A10) ── */
+  var _smAuto = true; /* پیش‌فرض روشن؛ هیدرِ async از devkv */
+  try { if (window.ptfDevKv) window.ptfDevKv.get('cms.sitemap.auto', function (v) { if (v != null) _smAuto = String(v) !== '0'; }); } catch (eH) {}
+  function cmsSitemapAutoOn() { return _smAuto; }
+  window.cmsSitemapAutoToggle = function (el) {
+    _smAuto = !_smAuto;
+    try { if (window.ptfDevKv) window.ptfDevKv.set('cms.sitemap.auto', _smAuto ? '1' : '0'); } catch (eS) {}
+    if (el) el.textContent = _smAuto ? '🔄 ثبت خودکار نقشه: روشن' : '🔄 ثبت خودکار نقشه: خاموش';
+    if (typeof ptfToast === 'function') ptfToast(_smAuto ? 'ثبت خودکار نقشه روشن شد' : 'ثبت خودکار نقشه خاموش شد', 'ok');
+  };
+  function cmsSitemapAfterPublish() {
+    if (cmsSitemapAutoOn()) { if (typeof gscSubmitSitemapQuiet === 'function') { gscSubmitSitemapQuiet(); return true; } }
+    return false;
+  }
+
+  /* ═══ v34.10.0 (S1/DRAFTS): پیش‌نویس ماندگار — بستن مودال متن AI را نمی‌پراند ═══ */
+  var KC_FIELDS = ['kcTitle', 'kcSlug', 'kcH1', 'kcDesc', 'kcCat', 'kcImg', 'kcBody'];
+  var CB_FIELDS = ['cbTitle', 'cbSlug', 'cbDesc', 'cbCat', 'cbBody'];
+  var _draftTimers = {};
+  function cmsDraftKey(f) { return 'cms.draft.' + String(f || '').slice(0, 2); } /* cms.draft.kc / cms.draft.cb */
+  function cmsDraftSave(fields) {
+    var d = {};
+    fields.forEach(function (id) { var e = document.getElementById(id); if (e) d[id] = e.value; });
+    try { if (window.ptfDevKv) window.ptfDevKv.set(cmsDraftKey(fields[0]), JSON.stringify({ ts: Date.now(), f: d })); } catch (e) {} /* A10: devkv نه LS */
+  }
+  function cmsDraftClear(fields) { try { if (window.ptfDevKv) window.ptfDevKv.remove(cmsDraftKey(fields[0])); } catch (e) {} }
+  function cmsDraftWipe(w) {
+    var f = (w.getAttribute('data-fields') || '').split(',').filter(Boolean);
+    cmsDraftClear(f);
+    f.forEach(function (id) { var e = document.getElementById(id); if (e) e.value = ''; });
+    alert('پیش‌نویس پاک شد.');
+  }
+  window.cmsDraftWipe = cmsDraftWipe;
+  function cmsDraftRestore(fields, statusId) {
+    if (!window.ptfDevKv) return; /* لایهٔ داده در دسترس نیست — بدون پیش‌نویس ماندگار */
+    window.ptfDevKv.get(cmsDraftKey(fields[0]), function (raw) {
+      if (!raw) return;
+      var j = null; try { j = JSON.parse(String(raw)); } catch (e2) {}
+      if (!j || !j.f) return;
+      fields.forEach(function (id) { var e = document.getElementById(id); if (e && j.f[id] && !e.value) e.value = j.f[id]; });
+      var st2 = document.getElementById(statusId);
+      if (st2) st2.innerHTML = '🔁 پیش‌نویسِ ذخیره‌شده (' + new Date(j.ts).toLocaleDateString('fa-IR') + ') بازیابی شد — <button class="bt bt-o" style="padding:1px 8px;font-size:11px;color:#dc2626" data-fields="' + fields.join(',') + '" onclick="cmsDraftWipe(this)">پاک‌کردن پیش‌نویس</button>';
+      if (typeof cmsKcCount === 'function') { try { cmsKcCount(); } catch (e3) {} }
+    });
+  }
+  function cmsDraftBind(fields) {
+    fields.forEach(function (id) {
+      var e = document.getElementById(id);
+      if (!e || e._ptfDraft) return;
+      e._ptfDraft = 1;
+      e.addEventListener('input', function () {
+        clearTimeout(_draftTimers[fields[0]]);
+        _draftTimers[fields[0]] = setTimeout(function () { cmsDraftSave(fields); }, 700);
+      });
     });
   }
 

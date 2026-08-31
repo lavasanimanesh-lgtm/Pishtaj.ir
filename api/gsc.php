@@ -224,6 +224,24 @@ function gsc_sitemap_urls($ROOT) {
 /* پیوندِ مستقیم به «URL Inspection» در سرچ کنسول — همان‌جا که دکمهٔ
    «درخواست ایندکس» وجود دارد. درخواستِ خودکار ممکن نیست (Indexing API فقط
    JobPosting / BroadcastEvent را می‌پذیرد و اسکوپِ ما readonly است). */
+/* v34.10.0 (S1/INDEX-LOOP): تاریخچهٔ بررسی ایندکس — برای دیدن «تغییر وضعیت از دفعهٔ قبل» */
+$GSC_HIST = $DATA . '/gsc-inspect-history.json';
+function gsc_hist_load($file) {
+    $j = is_file($file) ? json_decode((string)@file_get_contents($file), true) : null;
+    return (is_array($j) && isset($j['byUrl']) && is_array($j['byUrl'])) ? $j : ['byUrl' => []];
+}
+function gsc_hist_add($file, $url, $entry) {
+    $j = gsc_hist_load($file);
+    if (!isset($j['byUrl'][$url]) || !is_array($j['byUrl'][$url])) $j['byUrl'][$url] = [];
+    $j['byUrl'][$url][] = $entry;
+    if (count($j['byUrl'][$url]) > 5) $j['byUrl'][$url] = array_slice($j['byUrl'][$url], -5);
+    if (count($j['byUrl']) > 400) { /* سقف کل: قدیمی‌ترین URLها حذف */
+        foreach (array_keys($j['byUrl']) as $u) { unset($j['byUrl'][$u]); if (count($j['byUrl']) <= 350) break; }
+    }
+    @file_put_contents($file, json_encode($j, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    return $j['byUrl'][$url];
+}
+
 function gsc_inspect_link($propSite, $url) {
     if (strpos($propSite, 'sc-domain:') !== 0) $propSite = rtrim($propSite, '/') . '/';
     return 'https://search.google.com/search-console/inspect?resource_id='
@@ -391,8 +409,25 @@ switch ($action) {
             $link = 'https://search.google.com/search-console/inspect?resource_id='
                   . rawurlencode($propSite) . '&id=' . rawurlencode($url);
         }
+        /* v34.10.0 (S1/INDEX-LOOP): ثبت در تاریخچه (اگر log=1) و برگرداندن وضعیتِ قبلی برای مقایسه */
+        $prevEntry = null;
+        $hist = gsc_hist_load($GSC_HIST);
+        if (!empty($hist['byUrl'][$url])) {
+            $arr = $hist['byUrl'][$url];
+            $prevEntry = end($arr);
+        }
+        if (!empty($_REQUEST['log'])) {
+            gsc_hist_add($GSC_HIST, $url, [
+                'ts'      => date('c'),
+                'verdict' => (string)($idx['verdict'] ?? 'UNKNOWN'),
+                'coverage'=> (string)($idx['coverageState'] ?? ''),
+                'crawled' => (string)($idx['lastCrawlTime'] ?? ''),
+                'by'      => (string)($identity['user'] ?? '?'),
+            ]);
+        }
         jok([
             'url'         => $url,
+            'prev'        => $prevEntry,
             'verdict'     => $idx['verdict'] ?? 'UNKNOWN',
             'coverage'    => $idx['coverageState'] ?? '',
             'crawled'     => $idx['lastCrawlTime'] ?? '',
@@ -405,6 +440,17 @@ switch ($action) {
             'inspectLink' => $link,
             'raw'         => $res,
         ]);
+        break;
+
+    /* v34.10.0 (S1/INDEX-LOOP): تاریخچهٔ بررسی‌های ایندکس */
+    case 'inspect_log':
+        $hist = gsc_hist_load($GSC_HIST);
+        $u = trim((string)($_REQUEST['url'] ?? ''));
+        if ($u !== '') jok(['entries' => $hist['byUrl'][$u] ?? []]);
+        /* بدون url: فقط URLs دارای تاریخچه + آخرین وضعیت هرکدام */
+        $last = [];
+        foreach ($hist['byUrl'] as $hu => $arr) { $last[$hu] = end($arr); }
+        jok(['last' => $last, 'total' => count($last)]);
         break;
 
     /* ثبتِ نقشه در سرچ کنسول — نیازمندِ اسکوپِ webmasters و سطحِ Full برای سرویس‌اکانت */

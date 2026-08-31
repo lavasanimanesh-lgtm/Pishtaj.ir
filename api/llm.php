@@ -657,6 +657,7 @@ switch ($action) {
     case 'seo_expand':
     case 'seo_review':
     case 'seo_fix':
+    case 'seo_intlinks':
         if (!in_array($llmRole, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
             http_response_code(403);
             echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
@@ -684,6 +685,31 @@ switch ($action) {
                 . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","keywords":["..."]}';
             $user = "موضوع: $topic\n\nمتن صفحه:\n" . $content;
             out_json(llm_call($cfg, $sys, $user, null, null, 900));
+            break;
+        }
+
+        if ($action === 'seo_intlinks') {
+            /* v34.10.0 (S1/ORPHAN): پیشنهاد منابع لینک داخلی برای صفحهٔ یتیم */
+            $tgtPath = trim((string)($in['target'] ?? ''));
+            $tgtTitle = trim((string)($in['title'] ?? ''));
+            $cands = $in['candidates'] ?? [];
+            if (!is_array($cands)) $cands = [];
+            if (count($cands) > 40) $cands = array_slice($cands, 0, 40);
+            if ($tgtPath === '') { echo json_encode(['ok' => false, 'error' => 'مسیر صفحهٔ هدف لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            $candTxt = '';
+            foreach ($cands as $i => $c) {
+                $cp = trim((string)($c['path'] ?? '')); $ct = trim((string)($c['title'] ?? ''));
+                if ($cp === '' || $cp === $tgtPath) continue;
+                $candTxt .= ($i + 1) . '. ' . $cp . ' | ' . $ct . "\n";
+            }
+            if ($candTxt === '') { echo json_encode(['ok' => false, 'error' => 'کاندیدای مناسبی برای لینک‌سازی نیست'], JSON_UNESCAPED_UNICODE); exit; }
+            $sys = $SEO_RULES
+                . 'Task: internal link building. Given a target page (orphan: no internal inbound links) '
+                . 'and a list of candidate existing pages, pick the 3 most topically relevant source pages and write a natural '
+                . 'Persian anchor phrase (5-12 chars, no “اینجا/کلیک کنید”) plus a short suggestion of where/how to place it. '
+                . 'Reply ONLY valid JSON: {"links":[{"from":"<candidate path>","anchor":"...","how":"..."}]}';
+            $user = "صفحهٔ هدف: $tgtPath\nعنوان هدف: $tgtTitle\n\nصفحات کاندید (مسیر | عنوان):\n" . $candTxt;
+            out_json(llm_call($cfg, $sys, $user, null, null, 700));
             break;
         }
 
