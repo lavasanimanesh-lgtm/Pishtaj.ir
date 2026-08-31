@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-/* tester521 — v34.10.0 (CARTABLE-LOOP): پایان حلقهٔ «یادآور در کارتابل هر چند ثانیه
+/* tester521 — v34.11.0 (CARTABLE-LOOP): پایان حلقهٔ «یادآور در کارتابل هر چند ثانیه
    تکرار می‌شود».
 
    زنجیرهٔ ریشه‌ای:
@@ -122,9 +122,9 @@ T('جارو در بوت صندوق اجرا می‌شود', /sweepDuplicateRemin
 
 /* ---------- نسخه ---------- */
 var ver = JSON.parse(read('VERSION.json'));
-T('VERSION.json = v34.10.0', ver.crm_version === 'v34.10.0', ver.crm_version);
-T('قرارداد نسخهٔ UI/sw = 34.10.0', /window\.PTF_CRM_RELEASE = 'v34\.10.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.10.0'/.test(read('crm/sw.js')));
+T('VERSION.json = v34.11.0', ver.crm_version === 'v34.11.0', ver.crm_version);
+T('قرارداد نسخهٔ UI/sw = 34.11.0', /window\.PTF_CRM_RELEASE = 'v34\.11.0'/.test(read('crm/index.html')) && /CACHE = 'ptf-crm-v34\.11.0'/.test(read('crm/sw.js')));
 
-console.log('\n— tester521 (v34.10.0: CARTABLE-LOOP) —');
+console.log('\n— tester521 (v34.11.0: CARTABLE-LOOP) —');
 console.log('PASS: ' + p + ' | FAIL: ' + f);
 process.exit(f ? 1 : 0);

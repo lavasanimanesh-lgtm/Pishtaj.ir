@@ -658,6 +658,7 @@ switch ($action) {
     case 'seo_review':
     case 'seo_fix':
     case 'seo_intlinks':
+    case 'seo_product':
         if (!in_array($llmRole, ['admin', 'chairman', 'ceo', 'commercial'], true)) {
             http_response_code(403);
             echo json_encode(['ok' => false, 'error' => 'permission_denied'], JSON_UNESCAPED_UNICODE);
@@ -710,6 +711,30 @@ switch ($action) {
                 . 'Reply ONLY valid JSON: {"links":[{"from":"<candidate path>","anchor":"...","how":"..."}]}';
             $user = "صفحهٔ هدف: $tgtPath\nعنوان هدف: $tgtTitle\n\nصفحات کاندید (مسیر | عنوان):\n" . $candTxt;
             out_json(llm_call($cfg, $sys, $user, null, null, 700));
+            break;
+        }
+
+        if ($action === 'seo_product') {
+            /* v34.11.0 (S2/PRODUCT): مولد محتوای صفحهٔ محصول از دیتای CRM — متن یگانه، بدون قالب تکراری */
+            $prod = $in['product'] ?? [];
+            if (!is_array($prod)) $prod = [];
+            $nm = trim((string)($prod['nm'] ?? ''));
+            if ($nm === '') { echo json_encode(['ok' => false, 'error' => 'نام کالا لازم است'], JSON_UNESCAPED_UNICODE); exit; }
+            $det = '';
+            foreach (['en'=>'نام انگلیسی','br'=>'برند','md'=>'مدل','ca'=>'دسته','st'=>'استاندارد','un'=>'واحد','ds'=>'توضیحات'] as $k => $lb) {
+                $v = trim((string)($prod[$k] ?? ''));
+                if ($v !== '') $det .= $lb . ': ' . $v . "\n";
+            }
+            $sys = $SEO_RULES
+                . 'Task: write the on-page content for a product page of an industrial supplier. '
+                . 'Use ONLY the given product data — never invent prices, stock, dimensions, pressure ratings or certifications not present in the input. '
+                . 'Structure: intro (2-3 sentences, what it is and who uses it), features (4-6 short bullets, factual: material/brand/model/standard/unit if given), '
+                . 'applications (3-5 short bullets, typical industries where this product type is used — generic industry knowledge allowed, product-specific claims NOT). '
+                . 'faq: 3 practical buyer questions with short factual answers (supply, standard compliance, how to order — no price promises). '
+                . 'Everything in natural Persian except standard designations/brand/model in Latin. Each feature/application max 90 chars. '
+                . 'Reply ONLY valid JSON: {"title":"...","desc":"...","h1":"...","slug":"...","intro":"...","features":["..."],"applications":["..."],"faq":[{"q":"...","a":"..."}]}';
+            $user = "کالا: $nm\n$det";
+            out_json(llm_call($cfg, $sys, $user, null, null, 1600));
             break;
         }
 

@@ -40,7 +40,7 @@
     }
     return '<div class="ph"><h3>🎛 مدیریت سایت (CMS)</h3></div>' +
       '<div id="cmsStatus" style="margin-bottom:10px"></div>' +
-      '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('seo', '🔍 سئوی صفحات') + '</div>' +
+      '<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">' + tb('news', '📰 اخبار') + tb('blog', '📝 وبلاگ') + tb('prod', '🛒 محصولات') + tb('seo', '🔍 سئوی صفحات') + '</div>' +
       '<div id="cmsWrap"></div>';
   };
   window.cmsTab = function (t) { _tab = t; goPanelByName('cms'); };
@@ -60,6 +60,7 @@
     });
     if (_tab === 'news') renderCmsNews(el);
     else if (_tab === 'blog') renderCmsBlog(el);
+    else if (_tab === 'prod') renderCmsProducts(el); /* v34.11.0 (S2) */
     else renderCmsSeo(el);
   };
 
@@ -633,7 +634,7 @@
     el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال اسکن صفحات سایت…</div>';
     seoLoad(function () {
       var list = window._cmsPages || [];
-      el.innerHTML = seoStatsBar() + seoToolbar() + seoQueueBox() +
+      el.innerHTML = seoStatsBar() + seoToolbar() + seoQueueBox() + cmsRedirectBox() +
         '<div id="seoDrift"></div>' +
         '<div style="font-size:11.5px;color:#64748b;margin-bottom:6px">نمایش ' + list.length + ' از ' + _seoMeta.matched + ' صفحهٔ منطبق (مرتب‌شده: پر‌ایرادترین اول)</div>' +
         '<div id="seoList" style="max-height:520px;overflow:auto">' + seoRows() + '</div>' +
@@ -642,8 +643,183 @@
         'طول مناسب: عنوان ۳۰–۶۵ کاراکتر · توضیح ۷۰–۱۶۵ کاراکتر. تغییرات مستقیماً روی فایل سایت اعمال می‌شود؛ ' +
         'برای ثبت سریع‌تر در گوگل، صفحه را در سرچ کنسول «Request Indexing» بزنید.' +
         '</div>';
+      if (typeof cmsRedirectLoad === 'function') cmsRedirectLoad(); /* v34.11.0 (S2) */
     });
   }
+
+  /* ═══ v34.11.0 (S2/PRODUCT): تب محصولات — مولد صفحهٔ محصول از دیتای CRM ═══ */
+  var _prodSite = null; /* نقشهٔ cd → {slug,title,mtime} از سرور */
+  var PROD_FIELDS = ['prTitle', 'prSlug', 'prH1', 'prDesc', 'prBrand', 'prImg', 'prBody', 'prSpecs', 'prFaq'];
+
+  function renderCmsProducts(el) {
+    el.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:14px">در حال دریافت وضعیت صفحات محصول…</div>';
+    api('product_list', {}, function (d) {
+      _prodSite = {};
+      (d && d.ok && d.products || []).forEach(function (w) { if (w.cd) _prodSite[w.cd] = w; });
+      var prds = [];
+      try { prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || []; } catch (eP) {}
+      if (!prds.length) { el.innerHTML = '<div style="background:#f8fafc;border:1px solid var(--brd);border-radius:12px;padding:14px;font-size:12.5px;color:#475569">هنوز کالایی در CRM ثبت نشده است — از پنل «کالاها» کالا ثبت کنید تا صفحهٔ سایتش را بسازید.</div>'; return; }
+      var h = '<div style="font-size:11.5px;color:#64748b;margin-bottom:8px">کل کالاها: <b>' + prds.length + '</b> · دارای صفحهٔ سایت: <b style="color:#059669">' + Object.keys(_prodSite).length + '</b> — برای هر کالا یک صفحهٔ سئوشده با اسکیمای Product/FAQ ساخته می‌شود (متن یگانه با AI + بازبینی انسانی).</div>';
+      h += '<div style="max-height:520px;overflow:auto"><table class="tb"><thead><tr><th>کالا</th><th>برند/مدل</th><th>کد</th><th>صفحهٔ سایت</th><th></th></tr></thead><tbody>';
+      prds.slice(0, 200).forEach(function (r) {
+        var site = _prodSite[r.cd] || null;
+        h += '<tr><td><b>' + escP((r.nm || '').slice(0, 60)) + '</b>' + (r.en ? '<br><small dir="ltr" style="color:#64748b">' + escP(r.en.slice(0, 50)) + '</small>' : '') + '</td>' +
+          '<td>' + escP(r.br || '—') + (r.md ? '<br><small dir="ltr">' + escP(r.md) + '</small>' : '') + '</td>' +
+          '<td dir="ltr" style="font-size:11px">' + escP(r.cd || '') + '</td>' +
+          '<td>' + (site ? '<a href="/products/' + escP(site.slug) + '.html" target="_blank" rel="noopener" style="color:#059669;text-decoration:none">products/' + escP(site.slug) + '.html ↗</a><br><small style="color:#94a3b8">' + escP(site.mtime || '') + '</small>' : '<span style="color:#94a3b8">—</span>') + '</td>' +
+          '<td><button class="bt" style="padding:4px 10px;font-size:11.5px;' + (site ? '' : 'background:#059669') + '" onclick="cmsProdForm(\'' + ptfOnClickArg(r.cd) + '\')">' + (site ? '🔁 بازنویسی' : '🌍 ساخت صفحه') + '</button></td></tr>';
+      });
+      h += '</tbody></table></div>';
+      el.innerHTML = h;
+    });
+  }
+
+  window.cmsProdForm = function (cd) {
+    var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
+    var r = prds.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var specsPre = [['نام', r.nm || ''], ['نام انگلیسی', r.en || ''], ['برند', r.br || ''], ['مدل', r.md || ''], ['استاندارد', r.st || ''], ['واحد', r.un || '']].filter(function (x) { return x[1]; })
+      .map(function (x) { return x[0] + ' = ' + x[1]; }).join('\n');
+    var html = '<div class="md-b" style="display:grid" onclick="if(event.target===this)hideModal()"><div class="md" style="max-width:780px;max-height:94vh;overflow:auto">' +
+      '<h3>🛒 صفحهٔ محصول — ' + escP((r.nm || '').slice(0, 50)) + ' <small dir="ltr" style="color:#94a3b8">' + escP(r.cd) + '</small></h3>' +
+      '<div id="prAiSt" style="font-size:11.5px;color:#6b21a8;margin-bottom:8px"></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+      '<div class="fld"><label>عنوان سئو (title) <span id="prTitleLen" style="font-size:11px"></span></label><input type="text" id="prTitle"></div>' +
+      '<div class="fld"><label>نامک (slug) <small style="color:#94a3b8">a-z و خط تیره</small></label><input type="text" id="prSlug" dir="ltr" placeholder="ball-valve-astm-a105"></div>' +
+      '<div class="fld"><label>H1</label><input type="text" id="prH1"></div>' +
+      '<div class="fld"><label>برند (برای اسکیما)</label><input type="text" id="prBrand" value="' + escP(r.br || '') + '"></div>' +
+      '</div>' +
+      '<div class="fld"><label>توضیح (description) <span id="prDescLen" style="font-size:11px"></span></label><textarea id="prDesc" rows="2"></textarea></div>' +
+      '<div class="fld"><label>متن صفحه (HTML سبک: h2/h3/p/ul/li — حداقل ۲۰۰ حرف)</label><textarea id="prBody" rows="9" placeholder="<h2>معرفی ...</h2><p>...</p>"></textarea></div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
+      '<div class="fld"><label>مشخصات (هر خط: کلید = مقدار)</label><textarea id="prSpecs" rows="6">' + escP(specsPre) + '</textarea></div>' +
+      '<div class="fld"><label>سوالات متداول (هر خط: سؤال | پاسخ)</label><textarea id="prFaq" rows="6"></textarea></div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">' +
+      '<div class="fld"><label>قیمت (اختیاری — برای اسکیمای Offer)</label><input type="text" id="prPrice" dir="ltr" value="' + (r.pr || '') + '"></div>' +
+      '<div class="fld"><label>ارز</label><select id="prCur"><option>IRR</option><option>USD</option><option>EUR</option><option>AED</option></select></div>' +
+      '<div class="fld"><label>موجود</label><select id="prStock"><option value="1">بله</option><option value="">خیر/استعلامی</option></select></div>' +
+      '</div>' +
+      '<div class="fld"><label>تصویر (مسیر از ریشهٔ سایت)</label><input type="text" id="prImg" dir="ltr" value="assets/images/ptf-logo.png"></div>' +
+      '<label style="display:flex;gap:7px;align-items:center;font-size:12px;color:#374151;margin:8px 0"><input type="checkbox" id="prReviewed"> ⛔ بازبینی انسانی انجام شد — متن و اعداد فنی را خوانده‌ام (الزامی)</label>' +
+      '<div style="display:flex;gap:7px;justify-content:flex-end;margin-top:10px">' +
+      '<button class="bt bt-o" style="color:#6b21a8" onclick="cmsProdAi(\'' + ptfOnClickArg(cd) + '\')">🤖 تولید با هوش مصنوعی</button>' +
+      '<button class="bt bt-o" onclick="if(confirm(\'انصراف؟\'))hideModal()">انصراف</button>' +
+      '<button class="bt" onclick="cmsProdPublish(\'' + ptfOnClickArg(cd) + '\')">🚀 انتشار صفحهٔ محصول</button></div>' +
+      '<small style="color:#94a3b8;display:block;margin-top:6px">صفحه در products/&lt;slug&gt;.html با اسکیمای Product/Offer/Breadcrumb/FAQ ساخته می‌شود؛ به نقشهٔ سایت (sitemap-products.xml) اضافه و در سرچ کنسول ثبت می‌گردد.</small>' +
+      '</div></div>';
+    document.getElementById('panels').insertAdjacentHTML('beforeend', html);
+    cmsDraftRestore(PROD_FIELDS, 'prAiSt'); cmsDraftBind(PROD_FIELDS); /* v34.11.0: پیش‌نویس ماندگار */
+  };
+
+  window.cmsProdAi = function (cd) {
+    var prds = (typeof getData === 'function' ? getData('ptf_crm_products') : []) || [];
+    var r = prds.filter(function (x) { return x.cd === cd; })[0];
+    if (!r) return;
+    var st = document.getElementById('prAiSt');
+    if (st) st.innerHTML = '⏳ هوش مصنوعی در حال تولید محتوای محصول…';
+    cmsLLM('seo_product', { product: r }, function (d) {
+      if (!d.ok || !d.data) { if (st) st.innerHTML = '<span style="color:#dc2626">❌ ' + escP(d.error || 'هوش مصنوعی در دسترس نیست') + '</span>'; return; }
+      var v = d.data;
+      function set(id, val) { var e = document.getElementById(id); if (e && !e.value) e.value = val || ''; }
+      set('prTitle', v.title); set('prSlug', v.slug); set('prH1', v.h1); set('prDesc', v.desc);
+      var body = '';
+      if (v.intro) body += '<h2>معرفی ' + escP((r.nm || '').slice(0, 40)) + '</h2>\n<p>' + v.intro + '</p>\n';
+      if (v.features && v.features.length) body += '<h2>ویژگی‌ها</h2>\n<ul>\n' + v.features.map(function (x) { return '<li>' + x + '</li>'; }).join('\n') + '\n</ul>\n';
+      if (v.applications && v.applications.length) body += '<h2>کاربردها</h2>\n<ul>\n' + v.applications.map(function (x) { return '<li>' + x + '</li>'; }).join('\n') + '\n</ul>';
+      var be = document.getElementById('prBody'); if (be && !be.value.trim()) be.value = body;
+      var fe = document.getElementById('prFaq');
+      if (fe && !fe.value.trim() && v.faq) fe.value = v.faq.map(function (q) { return q.q + ' | ' + q.a; }).join('\n');
+      if (st) st.innerHTML = '✅ پیش‌نویس تولید شد — <b>بازبینی انسانی الزامی است پیش از انتشار.</b>';
+    });
+  };
+
+  window.cmsProdPublish = function (cd) {
+    var g = function (id) { return (document.getElementById(id) || {}).value || ''; };
+    var title = g('prTitle').trim(), slug = g('prSlug').trim().toLowerCase().replace(/[^a-z0-9\-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    var body = g('prBody');
+    if (!title || !slug || body.trim().length < 200) { alert('عنوان، نامک و متن (حداقل ۲۰۰ حرف) الزامی است'); return; }
+    var rv = document.getElementById('prReviewed');
+    if (!rv || !rv.checked) { alert('⛔ پیش از انتشار باید تیکِ بازبینیِ انسانی زده شود.\nمتن و اعداد فنی را بخوانید.'); return; }
+    var specs = g('prSpecs').split('\n').map(function (ln) { var i = ln.indexOf('='); return i > -1 ? [ln.slice(0, i).trim(), ln.slice(i + 1).trim()] : null; }).filter(Boolean);
+    var faq = g('prFaq').split('\n').map(function (ln) { var i = ln.indexOf('|'); return i > -1 ? { q: ln.slice(0, i).trim(), a: ln.slice(i + 1).trim() } : null; }).filter(function (x) { return x && x.q && x.a; });
+    var payload = {
+      title: title, slug: slug, h1: g('prH1').trim() || title, desc: g('prDesc').trim(), brand: g('prBrand').trim(),
+      catLb: 'محصولات', body: body, specs: JSON.stringify(specs), faq: JSON.stringify(faq),
+      img: g('prImg').trim(), price: g('prPrice').replace(/[^0-9.]/g, ''), priceCur: g('prCur'), inStock: g('prStock') ? '1' : '',
+      productCd: cd
+    };
+    if (!confirm('🚀 صفحهٔ محصول در products/' + slug + '.html منتشر شود؟')) return;
+    api('product_create', payload, function (d) {
+      if (d.ok) {
+        cmsDraftClear(PROD_FIELDS);
+        audit('CMS', 'انتشار صفحهٔ محصول: ' + title, slug);
+        hideModal(); renderCms();
+        /* نشانهٔ انتشار روی رکورد CRM (رفت/برگشت) */
+        try {
+          var items = getData('ptf_crm_products');
+          var it = items.filter(function (x) { return x.cd === cd; })[0];
+          if (it) { it.siteSlug = slug; it.siteAt = new Date().toISOString(); if (window.ptfEntitySaveCollection) ptfEntitySaveCollection('ptf_crm_products', items, { reason: 'cms-product-publish' }); else setData('ptf_crm_products', items); }
+        } catch (eM) {}
+        alert('✅ صفحه منتشر شد:\npishtaj.ir/' + d.url);
+        cmsSitemapAfterPublish(); /* v34.11.0: ثبت خودکار نقشه */
+      } else if (d.error === 'exists') {
+        if (confirm('صفحه‌ای با این نامک هست — بازنویسی شود؟')) {
+          payload.overwrite = 1;
+          api('product_create', payload, function (d2) {
+            if (d2.ok) { cmsDraftClear(PROD_FIELDS); hideModal(); renderCms(); alert('✅ بازنویسی شد'); cmsSitemapAfterPublish(); }
+            else alert('⚠️ ' + (d2.error || ''));
+          });
+        }
+      } else alert('⚠️ ' + (d.error || 'خطا'));
+    });
+  };
+
+  /* ═══ v34.11.0 (S2/REDIRECT): ادیتور ریدایرکت در تب سئو ═══ */
+  window.cmsRedirectBox = function () {
+    return '<div id="seoRedirects" style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 12px;margin-bottom:10px"></div>';
+  };
+  window.cmsRedirectLoad = function () {
+    var box = document.getElementById('seoRedirects'); if (!box) return;
+    box.innerHTML = '<div style="font-size:12px;color:#64748b">⏳ …</div>';
+    api('redirect_list', {}, function (d) {
+      if (!d.ok) { box.innerHTML = '<div style="font-size:12px;color:#b91c1c">⚠️ ' + escP(d.error || '') + '</div>'; return; }
+      var rs = d.redirects || [];
+      var h = '<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:12.5px;color:#166534">🔗 ریدایرکت‌های فعال (' + rs.length + ')</b></div>';
+      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+        '<input type="text" id="rdFrom" dir="ltr" placeholder="مسیر مبدأ مثلاً knowledge-center/old.html" style="flex:1;min-width:200px;padding:5px 9px;border:1px solid var(--brd);border-radius:8px;font-size:11.5px">' +
+        '<input type="text" id="rdTo" dir="ltr" placeholder="مقصد مثلاً /knowledge-center/new.html" style="flex:1;min-width:200px;padding:5px 9px;border:1px solid var(--brd);border-radius:8px;font-size:11.5px">' +
+        '<button class="bt" style="padding:5px 11px;font-size:11.5px" onclick="cmsRedirectAdd()">➕ ریدایرکت 301-سبک</button></div>';
+      if (rs.length) {
+        h += '<div style="max-height:160px;overflow:auto;margin-top:8px"><table class="tb" style="font-size:11.5px"><thead><tr><th>مبدأ</th><th>مقصد</th><th>تاریخ</th><th></th></tr></thead><tbody>';
+        rs.forEach(function (r) {
+          h += '<tr><td dir="ltr" style="font-size:10.5px">' + escP(r.from) + '</td><td dir="ltr" style="font-size:10.5px;color:#059669">' + escP(r.to) + '</td><td style="font-size:10.5px">' + escP(String(r.ts || '').slice(0, 10)) + '</td>' +
+            '<td><button class="bt bt-o" style="padding:2px 8px;font-size:11px;color:#dc2626" onclick="cmsRedirectRemove(\'' + ptfOnClickArg(r.from) + '\')">↩️ بازگردانی</button></td></tr>';
+        });
+        h += '</tbody></table></div>';
+      }
+      h += '<small style="color:#94a3b8;font-size:10.5px;display:block;margin-top:6px">الگو: صفحهٔ مبدأ به stub امن (refresh+canonical به مقصد+noindex) تبدیل و از نقشه حذف می‌شود؛ نسخهٔ اصلی در بک‌آپ — «بازگردانی» آن را برمی‌گرداند.</small>';
+      box.innerHTML = h;
+    });
+  };
+  window.cmsRedirectAdd = function () {
+    var from = (document.getElementById('rdFrom').value || '').trim(), to = (document.getElementById('rdTo').value || '').trim();
+    if (!from || !to) { alert('مبدأ و مقصد را وارد کنید'); return; }
+    if (!confirm('صفحهٔ ' + from + ' به ' + to + ' ریدایرکت شود؟ (از نقشهٔ سایت حذف و نسخه‌اش بک‌آپ می‌شود)')) return;
+    api('page_redirect', { from: from, to: to }, function (d) {
+      if (!d.ok) { alert('⚠️ ' + (d.error || '')); return; }
+      if (typeof ptfToast === 'function') ptfToast('ریدایرکت فعال شد', 'ok');
+      cmsRedirectLoad();
+    });
+  };
+  window.cmsRedirectRemove = function (from) {
+    if (!confirm('ریدایرکتِ ' + from + ' برداشته شود و صفحهٔ اصلی از بک‌آپ بازگردد؟')) return;
+    api('redirect_remove', { from: from }, function (d) {
+      if (!d.ok) { alert('⚠️ ' + (d.error || '')); return; }
+      ptfToast ? ptfToast('صفحه بازگردانی شد', 'ok') : 0;
+      cmsRedirectLoad();
+    });
+  };
 
   /* ═══ v34.10.0 (S1/AI-QUEUE): صف متای AI — تولید گروهی + diff + تأیید انسانی + اعمال ═══ */
   var _q = { items: [], counts: {}, running: false, stop: false };

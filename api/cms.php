@@ -75,11 +75,25 @@ function sitemap_file_for($url) {
         'services'         => 'sitemap-services.xml',
         'en'               => 'sitemap-en.xml',
         'about'            => 'sitemap-core.xml',
+        'products'         => 'sitemap-products.xml', /* v34.11.0 (S2): صفحات محصول */
     ];
     if (isset($map[$top])) return $map[$top];
     return $top === '' ? 'sitemap-core.xml' : 'sitemap-misc.xml';
 }
 
+/* v34.11.0 (S2): اگر زیرنقشه در ایندکس نیست اضافه شود — بدون این، نقشهٔ جدید
+   هرگز به گوگل معرفی نمی‌شد (touch فقط lastmodِ موجود را به‌روز می‌کند). */
+function sitemap_index_ensure($sub) {
+    global $ROOT;
+    $idx = $ROOT . '/sitemap-index.xml';
+    if (!is_file($idx)) return;
+    $s = (string)file_get_contents($idx);
+    $loc = 'https://pishtaj.ir/' . $sub;
+    if (strpos($s, '<loc>' . $loc . '</loc>') !== false) { sitemap_touch_index($sub); return; }
+    $entry = "  <sitemap>\n    <loc>" . htmlspecialchars($loc, ENT_XML1) . "</loc>\n    <lastmod>" . date('Y-m-d') . "</lastmod>\n  </sitemap>\n</sitemapindex>";
+    $n = str_replace('</sitemapindex>', $entry, $s);
+    if ($n !== $s) file_put_contents($idx, $n, LOCK_EX);
+}
 function sitemap_touch_index($sub) {
     global $ROOT;
     $idx = $ROOT . '/sitemap-index.xml';
@@ -106,7 +120,7 @@ function sitemap_add($url) {
            . '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n"
            . "  <url><loc>" . htmlspecialchars($url, ENT_XML1) . "</loc><lastmod>" . date('Y-m-d') . "</lastmod></url>\n"
            . "</urlset>\n";
-        if (file_put_contents($f, $s, LOCK_EX) !== false) sitemap_touch_index($sub);
+        if (file_put_contents($f, $s, LOCK_EX) !== false) sitemap_index_ensure($sub); /* v34.11.0: ثبت در ایندکس اگر جدید است */
         return;
     }
     if (strpos($s, '<loc>' . $url . '</loc>') !== false) return;   /* از قبل هست */
@@ -848,6 +862,225 @@ switch ($action) {
         if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json'); /* باطل‌کردن کش */
         cms_log('page_meta_save', $file . ' | title=' . mb_substr($title, 0, 60, 'UTF-8'));
         jok(array('changed' => true, 'backup' => 'crm/data/cms-backups'));
+        break;
+
+    /* ═══ v34.11.0 (S2/PRODUCT): مولد صفحهٔ محصول از دیتای CRM با اسکیمای Product ═══ */
+    case 'product_create':
+        $title = mb_substr(strip_tags($_POST['title'] ?? ''), 0, 200);
+        $h1    = mb_substr(strip_tags($_POST['h1'] ?? ''), 0, 200);
+        $desc  = mb_substr(strip_tags($_POST['desc'] ?? ''), 0, 300);
+        $slug  = strtolower(preg_replace('/[^a-z0-9\-]/', '', $_POST['slug'] ?? ''));
+        $brand = mb_substr(strip_tags($_POST['brand'] ?? ''), 0, 120);
+        $catLb = mb_substr(strip_tags($_POST['catLb'] ?? 'محصولات'), 0, 120);
+        $body  = $_POST['body'] ?? '';
+        $img   = preg_replace('#[^a-zA-Z0-9/\-_.:]#', '', $_POST['img'] ?? '../assets/images/ptf-logo.png');
+        $cd    = preg_replace('/[^A-Za-z0-9\-_]/', '', $_POST['productCd'] ?? ''); /* کد کالای CRM — فقط برای نشانه‌گذاری */
+        $price = (float)($_POST['price'] ?? 0);
+        $cur   = in_array(strtoupper((string)($_POST['priceCur'] ?? 'IRR')), ['IRR','USD','EUR','AED'], true) ? strtoupper((string)($_POST['priceCur'] ?? 'IRR')) : 'IRR';
+        $stock = !empty($_POST['inStock']);
+        if ($title === '' || $slug === '') jerr('عنوان و نامک (slug) الزامی است');
+        if ($h1 === '') $h1 = $title;
+        if (mb_strlen(strip_tags($body), 'UTF-8') < 200) jerr('متن صفحه حداقل ۲۰۰ کاراکتر لازم دارد');
+        if ($price < 0 || $price > 999999999999) jerr('قیمت نامعتبر');
+
+        $dir = $ROOT . '/products';
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
+        $file = $dir . '/' . $slug . '.html';
+        if (file_exists($file) && empty($_POST['overwrite'])) jerr('exists');
+
+        /* پاکسازی بدنه — همان لیست سفید kc_create */
+        $body = strip_tags($body, '<h2><h3><h4><p><ul><ol><li><b><strong><i><em><table><thead><tbody><tr><th><td><br><blockquote><a>');
+        $body = preg_replace('/on\w+\s*=\s*"[^"]*"/i', '', $body);
+        $body = preg_replace("/on\w+\s*=\s*'[^']*'/i", '', $body);
+        $body = preg_replace('/javascript\s*:/i', '', $body);
+
+        /* قالب: همان اسکلت مرکز دانش (هدر/فوتر/استایل هم‌شکل سایت) */
+        $skel = (string)@file_get_contents($ROOT . '/knowledge-center/astm-a105.html');
+        if ($skel === '') jerr('قالب مرجع یافت نشد');
+        $heroMark = '<section style="background:linear-gradient(135deg,#151517,#2d2d31)';
+        $pBody = strpos($skel, '<body>');
+        $pHero = strpos($skel, $heroMark);
+        $pCta  = strpos($skel, '<div class="kc-supply-cta"');
+        $pFoot = strpos($skel, '<footer');
+        if ($pBody === false || $pHero === false || $pCta === false || $pFoot === false) jerr('ساختار قالب مرجع شناخته نشد');
+        $header = substr($skel, $pBody, $pHero - $pBody);
+        $cta    = substr($skel, $pCta, $pFoot - $pCta);
+        $footer = substr($skel, $pFoot);
+
+        $tEsc = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+        $hEsc = htmlspecialchars($h1, ENT_QUOTES, 'UTF-8');
+        $dEsc = htmlspecialchars($desc, ENT_QUOTES, 'UTF-8');
+        $url  = 'https://pishtaj.ir/products/' . $slug . '.html';
+        $imgAbs = (strpos($img, 'http') === 0) ? $img : 'https://pishtaj.ir/' . ltrim(str_replace('../', '', $img), '/');
+
+        /* جدول مشخصات: آرایهٔ [[کلید,مقدار],…] */
+        $specs = json_decode((string)($_POST['specs'] ?? ''), true);
+        $specsHtml = '';
+        if (is_array($specs) && $specs) {
+            $rows = '';
+            foreach ($specs as $sp) {
+                if (!is_array($sp) || count($sp) < 2) continue;
+                $k = mb_substr(strip_tags((string)$sp[0]), 0, 80);
+                $v = mb_substr(strip_tags((string)$sp[1]), 0, 300);
+                if ($k === '' && $v === '') continue;
+                $rows .= '<tr><th style="text-align:right;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:700">' . htmlspecialchars($k, ENT_QUOTES, 'UTF-8') . '</th><td style="padding:8px 12px;border:1px solid #e2e8f0">' . htmlspecialchars($v, ENT_QUOTES, 'UTF-8') . '</td></tr>';
+            }
+            if ($rows !== '') $specsHtml = '<h2>مشخصات فنی</h2><table style="width:100%;border-collapse:collapse;font-size:13.5px;margin:14px 0 22px">' . $rows . '</table>';
+        }
+
+        /* سوالات متداول: [{q,a}] */
+        $faq = json_decode((string)($_POST['faq'] ?? ''), true);
+        $faqHtml = ''; $faqGraph = [];
+        if (is_array($faq) && $faq) {
+            foreach ($faq as $fq) {
+                if (!is_array($fq)) continue;
+                $q = mb_substr(strip_tags((string)($fq['q'] ?? '')), 0, 300);
+                $a = mb_substr(strip_tags((string)($fq['a'] ?? '')), 0, 1000);
+                if ($q === '' || $a === '') continue;
+                $faqHtml .= '<details style="border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;margin:8px 0"><summary style="font-weight:700;cursor:pointer">' . htmlspecialchars($q, ENT_QUOTES, 'UTF-8') . '</summary><p style="color:#334155;margin:8px 0 0">' . htmlspecialchars($a, ENT_QUOTES, 'UTF-8') . '</p></details>';
+                $faqGraph[] = ['@type' => 'Question', 'name' => $q, 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $a]];
+            }
+            if ($faqHtml !== '') $faqHtml = '<h2>سوالات متداول</h2>' . $faqHtml;
+        }
+
+        $graph = [
+            ['@type' => 'Product', 'name' => $h1, 'description' => $desc,
+             'image' => $imgAbs, 'url' => $url,
+             'sku' => $cd !== '' ? $cd : $slug],
+        ];
+        if ($brand !== '') $graph[0]['brand'] = ['@type' => 'Brand', 'name' => $brand];
+        if ($price > 0) {
+            $graph[0]['offers'] = ['@type' => 'Offer', 'priceCurrency' => $cur, 'price' => $price,
+                'availability' => $stock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+                'url' => $url, 'seller' => ['@type' => 'Organization', 'name' => 'پیشرو تجهیز فرتاک']];
+        }
+        $graph[] = ['@type' => 'BreadcrumbList', 'itemListElement' => [
+            ['@type' => 'ListItem', 'position' => 1, 'name' => 'خانه', 'item' => 'https://pishtaj.ir/'],
+            ['@type' => 'ListItem', 'position' => 2, 'name' => 'محصولات', 'item' => 'https://pishtaj.ir/products/'],
+            ['@type' => 'ListItem', 'position' => 3, 'name' => $title],
+        ]];
+        if ($faqGraph) $graph[] = ['@type' => 'FAQPage', 'mainEntity' => $faqGraph];
+        $jsonLd = json_encode(['@context' => 'https://schema.org', '@graph' => $graph], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $html = '<!doctype html>' . "\n" . '<html lang="fa" dir="rtl">' . "\n" . '<head>' . "\n"
+            . '<meta charset="utf-8" />' . "\n"
+            . '<meta name="viewport" content="width=device-width, initial-scale=1" />' . "\n"
+            . '<meta name="ptf-product-cd" content="' . htmlspecialchars($cd, ENT_QUOTES, 'UTF-8') . '" />' . " <!-- ptf-product v1 -->\n"
+            . '<title>' . $tEsc . '</title>' . "\n"
+            . '<meta name="description" content="' . $dEsc . '" />' . "\n"
+            . '<meta name="robots" content="index, follow" />' . "\n"
+            . '<link rel="canonical" href="' . $url . '" />' . "\n"
+            . '<meta property="og:locale" content="fa_IR" />' . "\n"
+            . '<meta property="og:site_name" content="پیشرو تجهیز فرتاک" />' . "\n"
+            . '<meta property="og:type" content="product" />' . "\n"
+            . '<meta property="og:title" content="' . $tEsc . '" />' . "\n"
+            . '<meta property="og:description" content="' . $dEsc . '" />' . "\n"
+            . '<meta property="og:url" content="' . $url . '" />' . "\n"
+            . '<meta property="og:image" content="' . htmlspecialchars($imgAbs, ENT_QUOTES, 'UTF-8') . '" />' . "\n"
+            . '<meta name="twitter:card" content="summary_large_image" />' . "\n"
+            . '<link rel="stylesheet" href="../assets/css/style.css" />' . "\n"
+            . '<script type="application/ld+json">' . $jsonLd . '</script>' . "\n"
+            . '</head>' . "\n"
+            . $header . '<section class="article-hero">' . "\n" . '<div class="container">' . "\n"
+            . '<span style="background:rgba(239,75,26,.2);color:#ffb033;padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:800">' . htmlspecialchars($catLb, ENT_QUOTES, 'UTF-8') . '</span>' . "\n"
+            . '<h1>' . $hEsc . '</h1>' . "\n"
+            . '<p style="color:rgba(255,255,255,.75);font-size:14px">' . ($brand !== '' ? htmlspecialchars($brand, ENT_QUOTES, 'UTF-8') . ' · ' : '') . 'واحد تامین پیشرو تجهیز فرتاک</p>' . "\n"
+            . '</div>' . "\n" . '</section>' . "\n"
+            . '<div class="article-wrap">' . "\n" . '<div class="article-content">' . "\n"
+            . $body . "\n" . $specsHtml . "\n" . $faqHtml . "\n"
+            . '<div style="background:#fff8f0;border:1px solid #f6c17c;border-radius:16px;padding:18px 22px;margin-top:30px">' . "\n"
+            . '<b>استعلام قیمت این محصول؟</b> قیمت و زمان تامین را همان روز دریافت کنید: <a href="../rfq/" style="color:var(--red);font-weight:800">ثبت استعلام هوشمند ←</a>' . "\n"
+            . '</div>' . "\n" . '</div>' . "\n" . '</div>' . "\n"
+            . $cta . "\n" . $footer;
+
+        if (file_exists($file)) cms_backup($DATA, $ROOT, 'products/' . $slug . '.html');
+        if (file_put_contents($file, $html, LOCK_EX) === false) jerr('خطای نوشتن فایل محصول (مجوز write?)');
+        sitemap_add($url);
+        cms_log('product_create', $slug . ($cd !== '' ? ' | cd=' . $cd : ''));
+        jok(['url' => 'products/' . $slug . '.html']);
+        break;
+
+    case 'product_list':
+        $out = [];
+        foreach (glob($ROOT . '/products/*.html') ?: [] as $pf) {
+            $c = (string)@file_get_contents($pf);
+            $slug = basename($pf, '.html');
+            $cd = '';
+            if (preg_match('#<meta name="ptf-product-cd" content="([^"]*)"#', $c, $cm)) $cd = $cm[1];
+            $t = '';
+            if (preg_match('#<title>(.*?)</title>#isu', $c, $tm)) $t = trim(strip_tags($tm[1]));
+            $out[] = ['slug' => $slug, 'cd' => $cd, 'title' => $t, 'mtime' => date('Y-m-d H:i', (int)@filemtime($pf))];
+        }
+        usort($out, function ($a, $b) { return strcmp($b['mtime'], $a['mtime']); });
+        jok(['products' => $out]);
+        break;
+
+    /* ═══ v34.11.0 (S2/REDIRECT): ادیتور ریدایرکت — همان الگوی امن blog_archive ═══ */
+    case 'page_redirect':
+        $from = seo_queue_valid_path($ROOT, $_POST['from'] ?? '');
+        if ($from === '' || $from === '404.html' || strpos($from, 'crm/') === 0) jerr('مسیر مبدأ نامعتبر');
+        $to = trim((string)($_POST['to'] ?? ''));
+        if ($to === '') jerr('مقصد خالی است');
+        if (strpos($to, 'https://pishtaj.ir/') === 0) { /* مطلق داخلی — مجاز */ }
+        elseif (strpos($to, 'http') === 0) jerr('فقط مقصد داخلی pishtaj.ir مجاز است');
+        elseif ($to[0] !== '/') jerr('مقصد باید با / شروع شود یا آدرس کامل داخلی باشد');
+        $toUrl = (strpos($to, 'http') === 0) ? $to : 'https://pishtaj.ir' . $to;
+        $f = $ROOT . '/' . $from;
+        cms_backup($DATA, $ROOT, $from);
+        $stub = '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"> <!-- ptf-redirect -->'
+            . '<meta http-equiv="refresh" content="0;url=' . htmlspecialchars($toUrl, ENT_QUOTES, 'UTF-8') . '">'
+            . '<link rel="canonical" href="' . htmlspecialchars($toUrl, ENT_QUOTES, 'UTF-8') . '">'
+            . '<meta name="robots" content="noindex"><title>منتقل شد</title></head>'
+            . '<body><p>این صفحه به نشانی جدید منتقل شده — <a href="' . htmlspecialchars($toUrl, ENT_QUOTES, 'UTF-8') . '">ادامه ←</a></p></body></html>';
+        if (file_put_contents($f, $stub, LOCK_EX) === false) jerr('خطای نوشتن');
+        sitemap_remove('https://pishtaj.ir/' . $from);
+        $regFile = $DATA . '/cms-redirects.json';
+        $reg = is_file($regFile) ? (json_decode((string)@file_get_contents($regFile), true) ?: []) : [];
+        $reg = array_values(array_filter($reg, function ($r) use ($from) { return is_array($r) && ($r['from'] ?? '') !== $from; }));
+        $reg[] = ['from' => $from, 'to' => $toUrl, 'ts' => date('c'), 'by' => $identity['user'] ?? '?'];
+        @file_put_contents($regFile, json_encode($reg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
+        cms_log('page_redirect', $from . ' -> ' . $toUrl);
+        jok(['from' => $from, 'to' => $toUrl]);
+        break;
+
+    case 'redirect_list':
+        $regFile = $DATA . '/cms-redirects.json';
+        $reg = is_file($regFile) ? (json_decode((string)@file_get_contents($regFile), true) ?: []) : [];
+        $live = [];
+        foreach ($reg as $r) {
+            if (!is_array($r)) continue;
+            $fr = (string)($r['from'] ?? '');
+            if ($fr === '' || !is_file($ROOT . '/' . $fr)) continue;
+            $c = (string)@file_get_contents($ROOT . '/' . $fr);
+            if (strpos($c, 'ptf-redirect') === false) continue; /* فایل بازگردانی شده — رکورد کهنه */
+            $live[] = $r;
+        }
+        @file_put_contents($regFile, json_encode($live, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        jok(['redirects' => $live]);
+        break;
+
+    case 'redirect_remove':
+        $from = str_replace('\\', '/', trim((string)($_POST['from'] ?? '')));
+        $from = ltrim(preg_replace('#\.\./#', '', $from), '/');
+        if ($from === '' || !is_file($ROOT . '/' . $from)) jerr('مسیر یافت نشد');
+        /* بازیابی آخرین بک‌آپِ پیش از ریدایرکت */
+        $safe = str_replace(array('/', '\\'), '__', $from);
+        $cands = glob($DATA . '/cms-backups/' . $safe . '--*.html') ?: [];
+        if (!$cands) jerr('بک‌آپی برای بازیابی نیست');
+        rsort($cands);
+        $restored = (string)file_get_contents($cands[0]);
+        if (strpos($restored, 'ptf-redirect') !== false && count($cands) > 1) $restored = (string)file_get_contents($cands[1]);
+        if (strpos($restored, 'ptf-redirect') !== false) jerr('بک‌آپ سالمی یافت نشد');
+        if (file_put_contents($ROOT . '/' . $from, $restored, LOCK_EX) === false) jerr('خطای بازیابی');
+        sitemap_add('https://pishtaj.ir/' . $from);
+        $regFile = $DATA . '/cms-redirects.json';
+        $reg = is_file($regFile) ? (json_decode((string)@file_get_contents($regFile), true) ?: []) : [];
+        $reg = array_values(array_filter($reg, function ($r) use ($from) { return is_array($r) && ($r['from'] ?? '') !== $from; }));
+        @file_put_contents($regFile, json_encode($reg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), LOCK_EX);
+        if (is_file($DATA . '/cms-seo-scan.json')) @unlink($DATA . '/cms-seo-scan.json');
+        cms_log('redirect_remove', $from);
+        jok(['restored' => $from]);
         break;
 
     /* ═══ v34.10.0 (S1): صف متای AI ═══ */
