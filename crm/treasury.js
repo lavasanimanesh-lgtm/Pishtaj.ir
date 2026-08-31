@@ -31,6 +31,33 @@
   function faOf(x) {
     return x.dateFa || x.dt || x.tFa || isoOf(x);
   }
+  /* v34.9.2 (DATE-NORM): یکسان‌سازی تاریخ‌های خزانه — ورودی‌ها ترکیبی از ISO لاتین،
+     فارسی با ساعت و «فقط ماه» هستند. خروجی: کلید مرتب‌سازی ISO + برچسب یکدست فارسی؛
+     ردیفِ فقط-ماه با «(ماه)» شفاف مشخص می‌شود. */
+  function p2(n) { return ('0' + String(+n || 1)).slice(-2); }
+  function treasuryDateKey(m) {
+    var iso = String((m && m.dateISO) || '').slice(0, 10);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+    var fa = String((m && m.dateFa) || '');
+    var mm = fa.match(/(1[34]\d{2})[\/\-](\d{1,2})(?:[\/\-](\d{1,2}))?/);
+    if (mm) return mm[1] + '-' + p2(mm[2]) + '-' + p2(mm[3] || '1');
+    var em = fa.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (em) return em[1] + '-' + p2(em[2]) + '-' + p2(em[3]);
+    return '0000-00-00';
+  }
+  function treasuryDateLabel(m) {
+    var iso = String((m && m.dateISO) || '').slice(0, 10);
+    var fa = String((m && m.dateFa) || '');
+    var time = (fa.match(/\d{1,2}:\d{2}(:\d{2})?/) || [''])[0];
+    var fm = fa.match(/(1[34]\d{2})[\/\-](\d{1,2})(?:[\/\-](\d{1,2}))?/);
+    if (fm && fm[3]) return fm[1] + '/' + p2(fm[2]) + '/' + p2(fm[3]) + (time ? ' ' + time : '');
+    if (fm) return fm[1] + '/' + p2(fm[2]) + ' (ماه)';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      try { return new Date(iso + 'T12:00:00').toLocaleDateString('fa-IR-u-nu-latn') + (time ? ' ' + time : ''); }
+      catch (eL) { return iso; }
+    }
+    return fa || iso || '—';
+  }
 
   function txt(x) { return String(x == null ? '' : x).toLowerCase(); }
   function todayISO() {
@@ -792,8 +819,8 @@
     if (mv) {
       var moves = periodData.moves;
       mv.innerHTML = '<h5>گردش نقدی فیلترشده (وصولی ≠ فاکتور)</h5><div class="tb2"><table><thead><tr><th>تاریخ</th><th>منبع</th><th>شرح</th><th>جهت</th><th>مبلغ</th></tr></thead><tbody>' +
-        (moves.map(function (m) {
-          return '<tr><td>' + esc(m.dateFa || m.dateISO) + '</td><td>' + esc(m.src || '') + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td></tr>';
+        (moves.slice().sort(function (a, b) { return treasuryDateKey(b).localeCompare(treasuryDateKey(a)); }).map(function (m) {
+          return '<tr><td>' + esc(treasuryDateLabel(m)) + '</td><td>' + esc(m.src || '') + '</td><td>' + esc(m.label) + '</td><td>' + (m.dir === 'in' ? 'ورود' : 'خروج') + '</td><td>' + money(m.amount) + '</td></tr>';
         }).join('') || '<tr><td colspan="5">در این بازه و فیلتر، گردش نقدی ثبت نشده است.</td></tr>') +
         '</tbody></table></div>';
     }

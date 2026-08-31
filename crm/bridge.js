@@ -348,7 +348,7 @@
         title: (over ? '🚨 تاخیر در تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + '! (تعهد: ' + r.dueISO + ')'
           : st === 'red' ? '🚚⏰ امروز سررسید تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + ' است'
           : '🚚⏳ تحویل تعهدی پرونده ' + (r.inqNo || r.cd) + ' نزدیک است (' + r.dueISO + ')') +
-          (r.buyerCo ? ' — ' + r.buyerCo : '') + (r.dueNote ? ' | ' + r.dueNote : ''),
+          (r.buyerCo ? ' — ' + r.buyerCo : '') + (function(){ var en=(r.buyerCd && typeof ptfCustEnByCd==='function')?ptfCustEnByCd(r.buyerCd):''; return (en && en!==r.buyerCo)?' ('+en+')':''; })() + (r.dueNote ? ' | ' + r.dueNote : ''),
         toRoles: ['admin', 'chairman', 'ceo', 'commercial'],
         kind: 'reminder',
         actionable: true,

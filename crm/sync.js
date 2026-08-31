@@ -2149,6 +2149,40 @@
      union می‌شوند و tombstone سطح فایل (`_deletedFileKeys`) همیشه بر union مقدم است. */
   function ptfMergeAttachmentFields(out, a, b) {
     a = a || {}; b = b || {}; out = out || {};
+    /* v34.9.2 (RCA ضمایم گم‌شده): فایل‌های RFQ به شکل «شیء دسته‌ای» ذخیره می‌شوند
+       ({inq:[], ds:[], img:[], dwg:[], oth:[]}) نه آرایهٔ صرف. گارد قبلی فقط
+       Array.isArray می‌دید و شیء files را از اتحاد محروم می‌کرد ⇒ رکورد برندهٔ merge
+       کل ضمایم بازنده را بی‌صدا حذف می‌کرد. شیء دسته‌ای هم اکنون per-category با
+       کلید فایل‌محور union می‌شود (حذف‌های عمدی با _deletedFileKeys محترم می‌مانند). */
+    var aObj = a.files && typeof a.files === 'object' && !Array.isArray(a.files);
+    var bObj = b.files && typeof b.files === 'object' && !Array.isArray(b.files);
+    if (aObj || bObj) {
+      var delC = {};
+      (a._deletedFileKeys || []).concat(b._deletedFileKeys || []).forEach(function (k) { if (k) delC[String(k)] = 1; });
+      var catNames = {};
+      Object.keys(a.files || {}).forEach(function (k) { catNames[k] = 1; });
+      Object.keys(b.files || {}).forEach(function (k) { catNames[k] = 1; });
+      var mergedCats = {};
+      Object.keys(catNames).forEach(function (cat) {
+        var la = Array.isArray((a.files || {})[cat]) ? a.files[cat] : [];
+        var lb = Array.isArray((b.files || {})[cat]) ? b.files[cat] : [];
+        var seen = {}, catOut = [];
+        function addCat(f) {
+          if (!f || typeof f !== 'object') return;
+          var k = String(f.key || f.url || f.name || '');
+          if (!k || delC[k]) return;
+          if (seen[k]) return;
+          seen[k] = true;
+          catOut.push(f);
+        }
+        lb.forEach(addCat);
+        la.forEach(addCat);
+        if (catOut.length) mergedCats[cat] = catOut;
+      });
+      out.files = mergedCats;
+      if (Object.keys(delC).length) out._deletedFileKeys = Object.keys(delC);
+      return out;
+    }
     if (!Array.isArray(a.files) && !Array.isArray(b.files) && !Array.isArray(a._deletedFileKeys) && !Array.isArray(b._deletedFileKeys)) return out;
     var deleted = {};
     (a._deletedFileKeys || []).concat(b._deletedFileKeys || []).forEach(function (k) { if (k) deleted[String(k)] = 1; });

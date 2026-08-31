@@ -2153,9 +2153,26 @@ switch($action) {
                 }
                 $v = $protectedFinanceJson;
             }
+            /* v34.9.2 (RCA حذف بی‌صدای opexTpl — ۲۰۲۶-۰۸-۳۰): تنظیمات یکجا replace می‌شود؛
+               کلاینتی که opexTpl را ندارد (قدیمی/ناقص) نباید قالب‌های تکرارشوندهٔ سرور را
+               بی‌صدا صفر کند. incomingِ فاقد/خالیِ opexTpl ⇒ حفظ نسخهٔ سرور. */
+            if ($k === 'ptf_crm_settings') {
+                $incSettings = json_decode($v, true);
+                if (is_array($incSettings) && empty($incSettings['opexTpl'])) {
+                    $srvSettingsJson = sync_key_read($sdir, 'ptf_crm_settings');
+                    if ($srvSettingsJson !== null) {
+                        $srvSettings = json_decode($srvSettingsJson, true);
+                        if (is_array($srvSettings) && !empty($srvSettings['opexTpl'])) {
+                            $incSettings['opexTpl'] = $srvSettings['opexTpl'];
+                            $patched = json_encode($incSettings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                            if (is_string($patched)) $v = $patched;
+                        }
+                    }
+                }
+            }
             /* ===== v14.7 (US-382 — سپر ضد داده‌صفر): فهرست خالی روی داده ناخالی هرگز پذیرفته نمی‌شود
                مگر با فلگ صریح allow_wipe (Go-Live) یا restore (بازگردانی ادمین). ===== */
-            if (!$allow_wipe && !$restore) {
+            if (!$allow_wipe && !$restore && !$isSharedUnion) { /* v34.9.2 (RCA avatars): union-merge خروجی خالی را «پاک‌سازی» حساب نمی‌کند؛ سپر نباید ACK همگرایی را برای همیشه ببندد */
                 $newArr = json_decode($v, true);
                 if (is_array($newArr) && count($newArr) === 0) {
                     /* v33.22.0: مسیر یکپارچه (mysql → DB) */

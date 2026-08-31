@@ -231,6 +231,25 @@ function sigProfileFor(user) {
   return found || null;
 }
 function sigProfiles() { return sigProfileMap(); }
+/* v34.9.2 (RCA امضای نمایش‌داده‌نشدن): نامهٔ امضاشده بدون signatureSnapshot به
+   sigProfileFor(l.signer) تکیه می‌کند؛ اگر کاربر تغییرنام کرده/حذف شده باشد یا
+   نامه با «نام نمایشی» امضا شده باشد، جست‌وجوی نام کاربری شکست می‌خورد و امضا
+   بی‌صدا حذف می‌شد. فالبک: تطبیق نام نمایشی نامه با nm/nmEn پروفایل‌ها. */
+function letResolveSignerProfile(l) {
+  try {
+    var direct = (typeof sigProfileFor === 'function') ? sigProfileFor(l && l.signer) : null;
+    if (direct && direct.sig) return direct;
+    var nm = String((l && (l.signerNm || l.signerName)) || '').trim();
+    if (!nm) return direct || null;
+    var map = sigProfiles();
+    var keys = Object.keys(map);
+    var hit = keys.filter(function (k) {
+      var p = map[k] || {};
+      return String(p.nm || '').trim() === nm || String(p.nmEn || '').trim() === nm;
+    })[0];
+    return hit ? map[hit] : (direct || null);
+  } catch (e) { return null; }
+}
 function mySigProfile() { return sigProfileFor((curSession() || {}).user); }
 window.ptfSigProfiles = sigProfileMap;
 window.ptfSigProfileFor = sigProfileFor;
@@ -359,7 +378,7 @@ function renderLetters() {
       /* v12.5 (US-308): پیش‌نویس‌های دستیار (src=ai-workbench) هم قابل ویرایش‌اند — نامه‌های قدیمی دستیار kind/author نداشتند */
       (((l.kind === 'OUT' && l.author === curSession().user) || l.src === 'ai-workbench') && (l.st === 'draft' || l.st === 'rejected') ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="showLetterModal(\'' + l.cd + '\')">✏️</button> ' : '') +
       (canSign ? '<button class="bt" style="padding:3px 8px;font-size:11.5px;background:#10b981" onclick="letSign(\'' + l.cd + '\')">✅ امضا</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letReject(\'' + l.cd + '\')">رد</button> ' : '') +
-      (l.st === 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#059669" onclick="letPrint(\'' + l.cd + '\',false,true)" title="خروجی با مهر و امضای ثبت‌شده">🖨 با امضای دیجیتال</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#7c3aed" onclick="letPrint(\'' + l.cd + '\',false,false)" title="خروجی بدون تصویر امضا برای امضای دستی">🖨 بدون امضا / چاپ فیزیکی</button> ' : (l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',false,false)">🖨 PDF</button> ' : '')) +
+      (l.st === 'signed' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#059669" onclick="letPrint(\'' + l.cd + '\',false,true)" title="خروجی با مهر و امضای ثبت‌شده">🖨 با امضای دیجیتال</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#7c3aed" onclick="letPrint(\'' + l.cd + '\',false,false)" title="خروجی بدون تصویر امضا برای امضای دستی">🖨 بدون امضا / چاپ فیزیکی</button> <button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#0e7490" onclick="letCopyAsDraft(\'' + l.cd + '\')" title="کپی این نامه به‌عنوان پیش‌نویس جدید قابل امضا">📋 کپی به پیش‌نویس</button> ' : (l.st === 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',false,false)">🖨 PDF</button> ' : '')) +
       (l.kind === 'OUT' && l.st !== 'signed' && l.st !== 'registered' ? '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px" onclick="letPrint(\'' + l.cd + '\',true,false)">👁️ پیش‌نمایش بدون امضا</button> ' : '') +
       '<button class="bt bt-o" style="padding:3px 8px;font-size:11.5px;color:#dc2626" onclick="letDel(\'' + l.cd + '\')">🗑️</button>' +
       '</td></tr>';
@@ -1010,6 +1029,32 @@ function saveInbound() {
 }
 
 /* ---------- چاپ روی سربرگ (قالب تاییدشده کارفرما) ---------- */
+/* v34.9.2 (COPY-AS-DRAFT): کپی نامهٔ صادرشده به‌عنوان پیش‌نویس جدید — امضا/شماره
+   پاک می‌شود، متن و تنظیمات می‌ماند؛ قابل امضای مجدد است. */
+window.letCopyAsDraft = function (cd) {
+  var all = getData('ptf_crm_letters');
+  var l = all.filter(function (x) { return x.cd === cd; })[0];
+  if (!l) return;
+  var copy;
+  try { copy = JSON.parse(JSON.stringify(l)); } catch (eC) { return; }
+  copy.cd = genCode('LET');
+  copy.st = 'draft';
+  copy.no = '';
+  copy.number = '';
+  copy.rejectWhy = '';
+  copy.signedAt = '';
+  copy.signOrder = '';
+  delete copy.signatureSnapshot;
+  copy.author = (curSession() || {}).user || l.author;
+  copy.subject = (l.subject || '') + ' (کپی)';
+  copy.t = new Date().toLocaleDateString('fa-IR');
+  if (typeof dedupStamp === 'function') dedupStamp(copy);
+  all.unshift(copy);
+  if (setData('ptf_crm_letters', all) === false) { alert('⛔ پیش‌نویس کپی روی حافظهٔ پایدار ذخیره نشد؛ دوباره تلاش کنید.'); return; }
+  try { audit('مکاتبات', 'کپی نامه ' + (l.no || l.cd) + ' به پیش‌نویس جدید ' + copy.cd, copy.cd); } catch (eA) {}
+  if (typeof renderLetters === 'function') renderLetters();
+  if (typeof showLetterModal === 'function') showLetterModal(copy.cd);
+};
 function letPrint(cd, isPreview, includeDigitalSignature) {
   var l = getData('ptf_crm_letters').filter(function (x) { return x.cd === cd; })[0];
   if (!l) return;
@@ -1041,7 +1086,7 @@ function letPrintObj(l, isPreview) {
   /* نامهٔ امضاشده snapshot دارد تا تغییر پروفایل، سند تاریخی را عوض نکند؛ حالت
      بدون امضا همان نامه قطعی را فقط بدون تصاویر مهر/امضا برای چاپ فیزیکی می‌سازد. */
   var signerProfile = (typeof sigProfileFor === 'function' ? sigProfileFor(l.signer || (curSession() || {}).user) : ((typeof sigProfiles === 'function' ? sigProfiles() : {})[l.signer || (curSession() || {}).user] || {})) || {};
-  var sigP = (l.st === 'signed' && includeDigitalSignature) ? (l.signatureSnapshot || signerProfile) : {};
+  var sigP = (l.st === 'signed' && includeDigitalSignature) ? (l.signatureSnapshot || letResolveSignerProfile(l) || signerProfile) : {}; /* v34.9.2: فالبک نام نمایشی */
   var physicalMode = (l.st === 'signed' && !includeDigitalSignature) || (l.st === 'registered' && (l.signerMode === 'other' || l.manualSignature));
   var identitySnapshot = l.signatureSnapshot || {};
   var signerNameFa = identitySnapshot.nm || l.signerNm || signerProfile.nm || (curSession() || {}).name || '';

@@ -62,7 +62,7 @@ const SD_ADMIN_ROLES = ['admin'];
 /* OPS-01 (v34.7.22): نسخهٔ پاسخ‌های سرویس از یک ثابت واحد خوانده می‌شود و با
    window.PTF_CRM_RELEASE در crm/index.html هم‌راستا نگه داشته می‌شود. پیش از این عدد
    ثابت '34.6.0' در سه نقطه hardcode بود و با نسخهٔ واقعی UI نمی‌خواند. */
-const SD_SERVICE_VERSION = '34.9.1';
+const SD_SERVICE_VERSION = '34.9.2';
 
 const SD_KEYS = [
     'ptf_crm_offers', 'ptf_crm_deals', 'ptf_crm_rfqs', 'ptf_crm_invoices',
@@ -2494,6 +2494,10 @@ try {
             $row[$idField] = $id;
             $found = -1;
             foreach ($rows as $i => $r) if (is_array($r) && (string)($r[$idField] ?? '') === $id) { $found = $i; break; }
+            /* v34.9.2 (RCA برخورد کد CUST — ثبت‌کنندهٔ اشتباه/جایگاه قدیمی): درجِ
+               موردانتظار (expectCreate) که به شناسهٔ موجود بخورد صریحاً رد می‌شود تا
+               رکورد کاربر دیگر بی‌صدا بازنویسی نشود؛ کلاینت کد یکتا می‌سازد و ادامه می‌دهد. */
+            if (!empty($body['expectCreate']) && $found >= 0) sd_out(['ok'=>false,'error'=>'entity_id_exists','id'=>$id,'hint'=>'regenerate_client_code'],409);
             $now = sd_now();
             if ($found < 0) {
                 $row['createdAt'] = $now; $row['createdBy'] = $user;
